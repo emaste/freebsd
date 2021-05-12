@@ -37,11 +37,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/stack.h>
 
 #include <machine/mips_opcode.h>
-
 #include <machine/pcb.h>
 #include <machine/regnum.h>
 
-#define	VALID_PC(addr)		((addr) >= (uintptr_t)btext && (addr) % 4 == 0)
+#define VALID_PC(addr) ((addr) >= (uintptr_t)btext && (addr) % 4 == 0)
 
 static void
 stack_capture(struct stack *st, struct thread *td, uintptr_t pc, uintptr_t sp)
@@ -123,8 +122,8 @@ stack_capture(struct stack *st, struct thread *td, uintptr_t pc, uintptr_t sp)
 				if (insn.RType.func == OP_JR) {
 					if (insn.RType.rs != RA)
 						break;
-					if (!kstack_contains(td, ra_addr,
-					    sizeof(ra)))
+					if (!kstack_contains(
+						td, ra_addr, sizeof(ra)))
 						goto done;
 					ra = *(u_register_t *)ra_addr;
 					if (ra == 0)
@@ -160,8 +159,8 @@ stack_save_td(struct stack *st, struct thread *td)
 	uintptr_t pc, sp;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	KASSERT(!TD_IS_SWAPPED(td),
-	    ("stack_save_td: thread %p is swapped", td));
+	KASSERT(
+	    !TD_IS_SWAPPED(td), ("stack_save_td: thread %p is swapped", td));
 
 	if (TD_IS_RUNNING(td))
 		return (EOPNOTSUPP);
@@ -177,7 +176,7 @@ stack_save(struct stack *st)
 {
 	uintptr_t pc, sp;
 
-	pc = (uintptr_t)&&here;
+	pc = (uintptr_t) && here;
 	sp = (uintptr_t)__builtin_frame_address(0);
 here:
 	stack_capture(st, curthread, pc, sp);

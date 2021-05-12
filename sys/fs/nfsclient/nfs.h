@@ -35,43 +35,42 @@
  */
 
 #ifndef _NFSCLIENT_NFS_H_
-#define	_NFSCLIENT_NFS_H_
+#define _NFSCLIENT_NFS_H_
 
 #if defined(_KERNEL)
 
 #ifndef NFS_TPRINTF_INITIAL_DELAY
-#define	NFS_TPRINTF_INITIAL_DELAY       12
+#define NFS_TPRINTF_INITIAL_DELAY 12
 #endif
 
 #ifndef NFS_TPRINTF_DELAY
-#define	NFS_TPRINTF_DELAY               30
+#define NFS_TPRINTF_DELAY 30
 #endif
 
 /*
  * Nfs version macros.
  */
-#define	NFS_ISV3(v) \
-	(VFSTONFS((v)->v_mount)->nm_flag & NFSMNT_NFSV3)
-#define	NFS_ISV4(v) \
-	(VFSTONFS((v)->v_mount)->nm_flag & NFSMNT_NFSV4)
-#define	NFS_ISV34(v) \
+#define NFS_ISV3(v) (VFSTONFS((v)->v_mount)->nm_flag & NFSMNT_NFSV3)
+#define NFS_ISV4(v) (VFSTONFS((v)->v_mount)->nm_flag & NFSMNT_NFSV4)
+#define NFS_ISV34(v) \
 	(VFSTONFS((v)->v_mount)->nm_flag & (NFSMNT_NFSV3 | NFSMNT_NFSV4))
 
 #ifdef NFS_DEBUG
 
 extern int nfs_debug;
-#define	NFS_DEBUG_ASYNCIO	1 /* asynchronous i/o */
-#define	NFS_DEBUG_WG		2 /* server write gathering */
-#define	NFS_DEBUG_RC		4 /* server request caching */
+#define NFS_DEBUG_ASYNCIO 1 /* asynchronous i/o */
+#define NFS_DEBUG_WG 2 /* server write gathering */
+#define NFS_DEBUG_RC 4 /* server request caching */
 
-#define	NFS_DPF(cat, args)					\
-	do {							\
-		if (nfs_debug & NFS_DEBUG_##cat) printf args;	\
+#define NFS_DPF(cat, args)                       \
+	do {                                     \
+		if (nfs_debug & NFS_DEBUG_##cat) \
+			printf args;             \
 	} while (0)
 
 #else
 
-#define	NFS_DPF(cat, args)
+#define NFS_DPF(cat, args)
 
 #endif
 
@@ -96,33 +95,33 @@ void ncl_doio_directwrite(struct buf *);
 int ncl_bioread(struct vnode *, struct uio *, int, struct ucred *);
 int ncl_biowrite(struct vnode *, struct uio *, int, struct ucred *);
 int ncl_vinvalbuf(struct vnode *, int, struct thread *, int);
-int ncl_asyncio(struct nfsmount *, struct buf *, struct ucred *,
-    struct thread *);
-int ncl_doio(struct vnode *, struct buf *, struct ucred *, struct thread *,
-    int);
+int ncl_asyncio(
+    struct nfsmount *, struct buf *, struct ucred *, struct thread *);
+int ncl_doio(
+    struct vnode *, struct buf *, struct ucred *, struct thread *, int);
 void ncl_nhinit(void);
 void ncl_nhuninit(void);
 void ncl_nodelock(struct nfsnode *);
 void ncl_nodeunlock(struct nfsnode *);
 int ncl_getattrcache(struct vnode *, struct vattr *);
 int ncl_readrpc(struct vnode *, struct uio *, struct ucred *);
-int ncl_writerpc(struct vnode *, struct uio *, struct ucred *, int *, int *,
-    int);
+int ncl_writerpc(
+    struct vnode *, struct uio *, struct ucred *, int *, int *, int);
 int ncl_readlinkrpc(struct vnode *, struct uio *, struct ucred *);
-int ncl_readdirrpc(struct vnode *, struct uio *, struct ucred *,
-    struct thread *);
-int ncl_readdirplusrpc(struct vnode *, struct uio *, struct ucred *,
-    struct thread *);
+int ncl_readdirrpc(
+    struct vnode *, struct uio *, struct ucred *, struct thread *);
+int ncl_readdirplusrpc(
+    struct vnode *, struct uio *, struct ucred *, struct thread *);
 int ncl_writebp(struct buf *, int, struct thread *);
 int ncl_commit(struct vnode *, u_quad_t, int, struct ucred *, struct thread *);
 void ncl_clearcommit(struct mount *);
-int ncl_fsinfo(struct nfsmount *, struct vnode *, struct ucred *,
-    struct thread *);
+int ncl_fsinfo(
+    struct nfsmount *, struct vnode *, struct ucred *, struct thread *);
 int ncl_init(struct vfsconf *);
 int ncl_uninit(struct vfsconf *);
-void	ncl_nfsiodnew(void);
-void	ncl_nfsiodnew_tq(__unused void *, int);
+void ncl_nfsiodnew(void);
+void ncl_nfsiodnew_tq(__unused void *, int);
 
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
-#endif	/* _NFSCLIENT_NFS_H_ */
+#endif /* _NFSCLIENT_NFS_H_ */

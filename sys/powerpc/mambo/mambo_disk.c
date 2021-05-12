@@ -39,8 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <geom/geom_disk.h>
 
+#include <geom/geom_disk.h>
 #include <powerpc/mambo/mambocall.h>
 
 struct mambodisk_softc {
@@ -53,13 +53,13 @@ struct mambodisk_softc {
 	int maxblocks;
 };
 
-#define MAMBO_DISK_READ		116
-#define	MAMBO_DISK_WRITE	117
-#define MAMBO_DISK_INFO		118
+#define MAMBO_DISK_READ 116
+#define MAMBO_DISK_WRITE 117
+#define MAMBO_DISK_INFO 118
 
-#define MAMBO_INFO_STATUS	1
-#define MAMBO_INFO_BLKSZ	2
-#define MAMBO_INFO_DEVSZ	3
+#define MAMBO_INFO_STATUS 1
+#define MAMBO_INFO_BLKSZ 2
+#define MAMBO_INFO_DEVSZ 3
 
 /* bus entry points */
 static void mambodisk_identify(driver_t *driver, device_t parent);
@@ -72,12 +72,12 @@ static int mambodisk_close(struct disk *dp);
 static void mambodisk_strategy(struct bio *bp);
 static void mambodisk_task(void *arg);
 
-#define MBODISK_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	MBODISK_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
+#define MBODISK_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define MBODISK_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
 #define MBODISK_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
-	    "mambodisk", MTX_DEF)
-#define MBODISK_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
+	mtx_init(              \
+	    &_sc->sc_mtx, device_get_nameunit(_sc->dev), "mambodisk", MTX_DEF)
+#define MBODISK_LOCK_DESTROY(_sc) mtx_destroy(&_sc->sc_mtx);
 #define MBODISK_ASSERT_LOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_OWNED);
 #define MBODISK_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
@@ -86,8 +86,8 @@ mambodisk_identify(driver_t *driver, device_t parent)
 {
 	int i = 0;
 
-	for (i = 0; mambocall(MAMBO_DISK_INFO,MAMBO_INFO_DEVSZ,i) > 0; i++)
-		BUS_ADD_CHILD(parent,0,"mambodisk",i);
+	for (i = 0; mambocall(MAMBO_DISK_INFO, MAMBO_INFO_DEVSZ, i) > 0; i++)
+		BUS_ADD_CHILD(parent, 0, "mambodisk", i);
 }
 
 static int
@@ -115,24 +115,26 @@ mambodisk_attach(device_t dev)
 	d->d_strategy = mambodisk_strategy;
 	d->d_name = "mambodisk";
 	d->d_drv1 = sc;
-	d->d_maxsize = maxphys;		/* Maybe ask bridge? */
+	d->d_maxsize = maxphys; /* Maybe ask bridge? */
 
 	d->d_sectorsize = 512;
-	sc->maxblocks = mambocall(MAMBO_DISK_INFO,MAMBO_INFO_BLKSZ,d->d_unit)
-	    / 512;
+	sc->maxblocks = mambocall(
+			    MAMBO_DISK_INFO, MAMBO_INFO_BLKSZ, d->d_unit) /
+	    512;
 
 	d->d_unit = device_get_unit(dev);
-	d->d_mediasize = mambocall(MAMBO_DISK_INFO,MAMBO_INFO_DEVSZ,d->d_unit)
-	    * 1024ULL; /* Mambo gives size in KB */
+	d->d_mediasize = mambocall(
+			     MAMBO_DISK_INFO, MAMBO_INFO_DEVSZ, d->d_unit) *
+	    1024ULL; /* Mambo gives size in KB */
 
-	mb = d->d_mediasize >> 20;	/* 1MiB == 1 << 20 */
+	mb = d->d_mediasize >> 20; /* 1MiB == 1 << 20 */
 	unit = 'M';
-	if (mb >= 10240) {		/* 1GiB = 1024 MiB */
+	if (mb >= 10240) { /* 1GiB = 1024 MiB */
 		unit = 'G';
 		mb /= 1024;
 	}
-	device_printf(dev, "%ju%cB, %d byte sectors\n", mb, unit, 
-	    d->d_sectorsize);
+	device_printf(
+	    dev, "%ju%cB, %d byte sectors\n", mb, unit, d->d_sectorsize);
 	disk_create(d, DISK_VERSION);
 	bioq_init(&sc->bio_queue);
 
@@ -195,7 +197,7 @@ mambodisk_strategy(struct bio *bp)
 static void
 mambodisk_task(void *arg)
 {
-	struct mambodisk_softc *sc = (struct mambodisk_softc*)arg;
+	struct mambodisk_softc *sc = (struct mambodisk_softc *)arg;
 	struct bio *bp;
 	size_t sz;
 	int result;
@@ -222,7 +224,7 @@ mambodisk_task(void *arg)
 		end = bp->bio_pblkno + (bp->bio_bcount / sz);
 		for (block = bp->bio_pblkno; block < end;) {
 			u_long numblocks;
-			char *vaddr = bp->bio_data + 
+			char *vaddr = bp->bio_data +
 			    (block - bp->bio_pblkno) * sz;
 
 			numblocks = end - block;
@@ -230,15 +232,15 @@ mambodisk_task(void *arg)
 				numblocks = sc->maxblocks;
 
 			if (bp->bio_cmd == BIO_READ) {
-				result = mambocall(MAMBO_DISK_READ, vaddr, 
-				  (u_long)block, (numblocks << 16) | unit);
+				result = mambocall(MAMBO_DISK_READ, vaddr,
+				    (u_long)block, (numblocks << 16) | unit);
 			} else if (bp->bio_cmd == BIO_WRITE) {
-				result = mambocall(MAMBO_DISK_WRITE, vaddr, 
-				  (u_long)block, (numblocks << 16) | unit);
+				result = mambocall(MAMBO_DISK_WRITE, vaddr,
+				    (u_long)block, (numblocks << 16) | unit);
 			} else {
 				result = 1;
 			}
-		
+
 			if (result)
 				break;
 
@@ -262,11 +264,11 @@ mambodisk_task(void *arg)
 }
 
 static device_method_t mambodisk_methods[] = {
-	DEVMETHOD(device_identify,	mambodisk_identify),
-	DEVMETHOD(device_probe,		mambodisk_probe),
-	DEVMETHOD(device_attach,	mambodisk_attach),
-	DEVMETHOD(device_detach,	mambodisk_detach),
-	{0, 0},
+	DEVMETHOD(device_identify, mambodisk_identify),
+	DEVMETHOD(device_probe, mambodisk_probe),
+	DEVMETHOD(device_attach, mambodisk_attach),
+	DEVMETHOD(device_detach, mambodisk_detach),
+	{ 0, 0 },
 };
 
 static driver_t mambodisk_driver = {

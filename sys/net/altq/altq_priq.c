@@ -34,28 +34,27 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
-#ifdef ALTQ_PRIQ  /* priq is enabled by ALTQ_PRIQ option in opt_altq.h */
+#ifdef ALTQ_PRIQ /* priq is enabled by ALTQ_PRIQ option in opt_altq.h */
 
 #include <sys/param.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/sockio.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
 
+#include <net/altq/altq.h>
+#include <net/altq/altq_priq.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <netinet/in.h>
-
 #include <netpfil/pf/pf.h>
 #include <netpfil/pf/pf_altq.h>
 #include <netpfil/pf/pf_mtag.h>
-#include <net/altq/altq.h>
-#include <net/altq/altq_priq.h>
 
 /*
  * function prototypes
@@ -63,8 +62,8 @@
 static int priq_clear_interface(struct priq_if *);
 static int priq_request(struct ifaltq *, int, void *);
 static void priq_purge(struct priq_if *);
-static struct priq_class *priq_class_create(struct priq_if *, int, int, int,
-    int);
+static struct priq_class *priq_class_create(
+    struct priq_if *, int, int, int, int);
 static int priq_class_destroy(struct priq_class *);
 static int priq_enqueue(struct ifaltq *, struct mbuf *, struct altq_pktattr *);
 static struct mbuf *priq_dequeue(struct ifaltq *, int);
@@ -93,9 +92,9 @@ priq_pfattach(struct pf_altq *a)
 }
 
 int
-priq_add_altq(struct ifnet * ifp, struct pf_altq *a)
+priq_add_altq(struct ifnet *ifp, struct pf_altq *a)
 {
-	struct priq_if	*pif;
+	struct priq_if *pif;
 
 	if (ifp == NULL)
 		return (EINVAL);
@@ -149,8 +148,8 @@ priq_add_queue(struct pf_altq *a)
 	if (clh_to_clp(pif, a->qid) != NULL)
 		return (EBUSY);
 
-	cl = priq_class_create(pif, a->priority, a->qlimit,
-	    a->pq_u.priq_opts.flags, a->qid);
+	cl = priq_class_create(
+	    pif, a->priority, a->qlimit, a->pq_u.priq_opts.flags, a->qid);
 	if (cl == NULL)
 		return (ENOMEM);
 
@@ -204,7 +203,7 @@ priq_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
 static int
 priq_clear_interface(struct priq_if *pif)
 {
-	struct priq_class	*cl;
+	struct priq_class *cl;
 	int pri;
 
 #ifdef ALTQ3_CLFIER_COMPAT
@@ -223,7 +222,7 @@ priq_clear_interface(struct priq_if *pif)
 static int
 priq_request(struct ifaltq *ifq, int req, void *arg)
 {
-	struct priq_if	*pif = (struct priq_if *)ifq->altq_disc;
+	struct priq_if *pif = (struct priq_if *)ifq->altq_disc;
 
 	IFQ_LOCK_ASSERT(ifq);
 
@@ -294,13 +293,13 @@ priq_class_create(struct priq_if *pif, int pri, int qlimit, int flags, int qid)
 			codel_destroy(cl->cl_codel);
 #endif
 	} else {
-		cl = malloc(sizeof(struct priq_class), M_DEVBUF,
-		    M_NOWAIT | M_ZERO);
+		cl = malloc(
+		    sizeof(struct priq_class), M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (cl == NULL)
 			return (NULL);
 
-		cl->cl_q = malloc(sizeof(class_queue_t), M_DEVBUF,
-		    M_NOWAIT | M_ZERO);
+		cl->cl_q = malloc(
+		    sizeof(class_queue_t), M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (cl->cl_q == NULL)
 			goto err_ret;
 	}
@@ -309,7 +308,7 @@ priq_class_create(struct priq_if *pif, int pri, int qlimit, int flags, int qid)
 	if (flags & PRCF_DEFAULTCLASS)
 		pif->pif_default = cl;
 	if (qlimit == 0)
-		qlimit = 50;  /* use default */
+		qlimit = 50; /* use default */
 	qlimit(cl->cl_q) = qlimit;
 	qtype(cl->cl_q) = Q_DROPTAIL;
 	qlen(cl->cl_q) = 0;
@@ -322,7 +321,7 @@ priq_class_create(struct priq_if *pif, int pri, int qlimit, int flags, int qid)
 	cl->cl_handle = qid;
 
 #ifdef ALTQ_RED
-	if (flags & (PRCF_RED|PRCF_RIO)) {
+	if (flags & (PRCF_RED | PRCF_RIO)) {
 		int red_flags, red_pkttime;
 
 		red_flags = 0;
@@ -335,22 +334,22 @@ priq_class_create(struct priq_if *pif, int pri, int qlimit, int flags, int qid)
 		if (pif->pif_bandwidth < 8)
 			red_pkttime = 1000 * 1000 * 1000; /* 1 sec */
 		else
-			red_pkttime = (int64_t)pif->pif_ifq->altq_ifp->if_mtu
-			  * 1000 * 1000 * 1000 / (pif->pif_bandwidth / 8);
+			red_pkttime = (int64_t)pif->pif_ifq->altq_ifp->if_mtu *
+			    1000 * 1000 * 1000 / (pif->pif_bandwidth / 8);
 #ifdef ALTQ_RIO
 		if (flags & PRCF_RIO) {
-			cl->cl_red = (red_t *)rio_alloc(0, NULL,
-						red_flags, red_pkttime);
+			cl->cl_red = (red_t *)rio_alloc(
+			    0, NULL, red_flags, red_pkttime);
 			if (cl->cl_red == NULL)
 				goto err_ret;
 			qtype(cl->cl_q) = Q_RIO;
 		} else
 #endif
-		if (flags & PRCF_RED) {
+		    if (flags & PRCF_RED) {
 			cl->cl_red = red_alloc(0, 0,
-			    qlimit(cl->cl_q) * 10/100,
-			    qlimit(cl->cl_q) * 30/100,
-			    red_flags, red_pkttime);
+			    qlimit(cl->cl_q) * 10 / 100,
+			    qlimit(cl->cl_q) * 30 / 100, red_flags,
+			    red_pkttime);
 			if (cl->cl_red == NULL)
 				goto err_ret;
 			qtype(cl->cl_q) = Q_RED;
@@ -367,7 +366,7 @@ priq_class_create(struct priq_if *pif, int pri, int qlimit, int flags, int qid)
 
 	return (cl);
 
- err_ret:
+err_ret:
 	if (cl->cl_red != NULL) {
 #ifdef ALTQ_RIO
 		if (q_is_rio(cl->cl_q))
@@ -445,7 +444,7 @@ priq_class_destroy(struct priq_class *cl)
 static int
 priq_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 {
-	struct priq_if	*pif = (struct priq_if *)ifq->altq_disc;
+	struct priq_if *pif = (struct priq_if *)ifq->altq_disc;
 	struct priq_class *cl;
 	struct pf_mtag *t;
 	int len;
@@ -495,7 +494,7 @@ priq_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 static struct mbuf *
 priq_dequeue(struct ifaltq *ifq, int op)
 {
-	struct priq_if	*pif = (struct priq_if *)ifq->altq_disc;
+	struct priq_if *pif = (struct priq_if *)ifq->altq_disc;
 	struct priq_class *cl;
 	struct mbuf *m;
 	int pri;
@@ -506,9 +505,8 @@ priq_dequeue(struct ifaltq *ifq, int op)
 		/* no packet in the queue */
 		return (NULL);
 
-	for (pri = pif->pif_maxpri;  pri >= 0; pri--) {
-		if ((cl = pif->pif_classes[pri]) != NULL &&
-		    !qempty(cl->cl_q)) {
+	for (pri = pif->pif_maxpri; pri >= 0; pri--) {
+		if ((cl = pif->pif_classes[pri]) != NULL && !qempty(cl->cl_q)) {
 			if (op == ALTDQ_POLL)
 				return (priq_pollq(cl));
 
@@ -531,8 +529,8 @@ priq_addq(struct priq_class *cl, struct mbuf *m)
 
 #ifdef ALTQ_RIO
 	if (q_is_rio(cl->cl_q))
-		return rio_addq((rio_t *)cl->cl_red, cl->cl_q, m,
-				cl->cl_pktattr);
+		return rio_addq(
+		    (rio_t *)cl->cl_red, cl->cl_q, m, cl->cl_pktattr);
 #endif
 #ifdef ALTQ_RED
 	if (q_is_red(cl->cl_q))
@@ -573,9 +571,7 @@ priq_getq(struct priq_class *cl)
 	return _getq(cl->cl_q);
 }
 
-static struct mbuf *
-priq_pollq(cl)
-	struct priq_class *cl;
+static struct mbuf *priq_pollq(cl) struct priq_class *cl;
 {
 	return qhead(cl->cl_q);
 }

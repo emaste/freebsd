@@ -41,28 +41,28 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 
+#include <machine/bus.h>
+
+#include <net/bpf.h>
 #include <net/if.h>
-#include <net/if_enc.h>
-#include <net/if_var.h>
 #include <net/if_clone.h>
+#include <net/if_enc.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
+#include <net/netisr.h>
 #include <net/pfil.h>
 #include <net/route.h>
-#include <net/netisr.h>
-#include <net/bpf.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
+#include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
-#include <netinet/in_var.h>
 
 #ifdef INET6
 #include <netinet/ip6.h>
@@ -72,12 +72,12 @@
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
 
-#define ENCMTU		(1024+512)
+#define ENCMTU (1024 + 512)
 
 /* XXX this define must have the same value as in OpenBSD */
-#define M_CONF		0x0400	/* payload was encrypted (ESP-transport) */
-#define M_AUTH		0x0800	/* payload was authenticated (AH or ESP auth) */
-#define M_AUTH_AH	0x2000	/* header was authenticated (AH) */
+#define M_CONF 0x0400	 /* payload was encrypted (ESP-transport) */
+#define M_AUTH 0x0800	 /* payload was authenticated (AH or ESP auth) */
+#define M_AUTH_AH 0x2000 /* header was authenticated (AH) */
 
 struct enchdr {
 	u_int32_t af;
@@ -85,24 +85,24 @@ struct enchdr {
 	u_int32_t flags;
 };
 struct enc_softc {
-	struct	ifnet *sc_ifp;
+	struct ifnet *sc_ifp;
 };
 VNET_DEFINE_STATIC(struct enc_softc *, enc_sc);
-#define	V_enc_sc	VNET(enc_sc)
+#define V_enc_sc VNET(enc_sc)
 VNET_DEFINE_STATIC(struct if_clone *, enc_cloner);
-#define	V_enc_cloner	VNET(enc_cloner)
+#define V_enc_cloner VNET(enc_cloner)
 
-static int	enc_ioctl(struct ifnet *, u_long, caddr_t);
-static int	enc_output(struct ifnet *, struct mbuf *,
-    const struct sockaddr *, struct route *);
-static int	enc_clone_create(struct if_clone *, int, caddr_t);
-static void	enc_clone_destroy(struct ifnet *);
-static int	enc_add_hhooks(struct enc_softc *);
-static void	enc_remove_hhooks(struct enc_softc *);
+static int enc_ioctl(struct ifnet *, u_long, caddr_t);
+static int enc_output(
+    struct ifnet *, struct mbuf *, const struct sockaddr *, struct route *);
+static int enc_clone_create(struct if_clone *, int, caddr_t);
+static void enc_clone_destroy(struct ifnet *);
+static int enc_add_hhooks(struct enc_softc *);
+static void enc_remove_hhooks(struct enc_softc *);
 
 static const char encname[] = "enc";
 
-#define	IPSEC_ENC_AFTER_PFIL	0x04
+#define IPSEC_ENC_AFTER_PFIL 0x04
 /*
  * Before and after are relative to when we are stripping the
  * outer IP header.
@@ -116,29 +116,25 @@ VNET_DEFINE_STATIC(int, filter_mask_in) = IPSEC_ENC_BEFORE;
 VNET_DEFINE_STATIC(int, bpf_mask_in) = IPSEC_ENC_BEFORE;
 VNET_DEFINE_STATIC(int, filter_mask_out) = IPSEC_ENC_BEFORE;
 VNET_DEFINE_STATIC(int, bpf_mask_out) = IPSEC_ENC_BEFORE | IPSEC_ENC_AFTER;
-#define	V_filter_mask_in	VNET(filter_mask_in)
-#define	V_bpf_mask_in		VNET(bpf_mask_in)
-#define	V_filter_mask_out	VNET(filter_mask_out)
-#define	V_bpf_mask_out		VNET(bpf_mask_out)
+#define V_filter_mask_in VNET(filter_mask_in)
+#define V_bpf_mask_in VNET(bpf_mask_in)
+#define V_filter_mask_out VNET(filter_mask_out)
+#define V_bpf_mask_out VNET(bpf_mask_out)
 
-static SYSCTL_NODE(_net, OID_AUTO, enc, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "enc sysctl");
-static SYSCTL_NODE(_net_enc, OID_AUTO, in, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "enc input sysctl");
+static SYSCTL_NODE(
+    _net, OID_AUTO, enc, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "enc sysctl");
+static SYSCTL_NODE(
+    _net_enc, OID_AUTO, in, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "enc input sysctl");
 static SYSCTL_NODE(_net_enc, OID_AUTO, out, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "enc output sysctl");
-SYSCTL_INT(_net_enc_in, OID_AUTO, ipsec_filter_mask,
-    CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(filter_mask_in), 0,
-    "IPsec input firewall filter mask");
-SYSCTL_INT(_net_enc_in, OID_AUTO, ipsec_bpf_mask,
-    CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(bpf_mask_in), 0,
-    "IPsec input bpf mask");
-SYSCTL_INT(_net_enc_out, OID_AUTO, ipsec_filter_mask,
-    CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(filter_mask_out), 0,
-    "IPsec output firewall filter mask");
-SYSCTL_INT(_net_enc_out, OID_AUTO, ipsec_bpf_mask,
-    CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(bpf_mask_out), 0,
-    "IPsec output bpf mask");
+SYSCTL_INT(_net_enc_in, OID_AUTO, ipsec_filter_mask, CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(filter_mask_in), 0, "IPsec input firewall filter mask");
+SYSCTL_INT(_net_enc_in, OID_AUTO, ipsec_bpf_mask, CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(bpf_mask_in), 0, "IPsec input bpf mask");
+SYSCTL_INT(_net_enc_out, OID_AUTO, ipsec_filter_mask, CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(filter_mask_out), 0, "IPsec output firewall filter mask");
+SYSCTL_INT(_net_enc_out, OID_AUTO, ipsec_bpf_mask, CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(bpf_mask_out), 0, "IPsec output bpf mask");
 
 static void
 enc_clone_destroy(struct ifnet *ifp)
@@ -161,8 +157,7 @@ enc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	struct ifnet *ifp;
 	struct enc_softc *sc;
 
-	sc = malloc(sizeof(struct enc_softc), M_DEVBUF,
-	    M_WAITOK | M_ZERO);
+	sc = malloc(sizeof(struct enc_softc), M_DEVBUF, M_WAITOK | M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(IFT_ENC);
 	if (ifp == NULL) {
 		free(sc, M_DEVBUF);
@@ -212,8 +207,7 @@ enc_bpftap(struct ifnet *ifp, struct mbuf *m, const struct secasvar *sav,
 {
 	struct enchdr hdr;
 
-	if (hhook_type == HHOOK_TYPE_IPSEC_IN &&
-	    (enc & V_bpf_mask_in) == 0)
+	if (hhook_type == HHOOK_TYPE_IPSEC_IN && (enc & V_bpf_mask_in) == 0)
 		return;
 	else if (hhook_type == HHOOK_TYPE_IPSEC_OUT &&
 	    (enc & V_bpf_mask_out) == 0)
@@ -264,8 +258,8 @@ enc_hhook(int32_t hhook_type, int32_t hhook_id, void *udata, void *ctx_data,
 		if (ctx->enc == IPSEC_ENC_BEFORE) {
 			/* Do accounting only once */
 			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-			if_inc_counter(ifp, IFCOUNTER_IBYTES,
-			    (*ctx->mp)->m_pkthdr.len);
+			if_inc_counter(
+			    ifp, IFCOUNTER_IBYTES, (*ctx->mp)->m_pkthdr.len);
 		}
 		if ((ctx->enc & V_filter_mask_in) == 0)
 			return (0); /* skip pfil processing */
@@ -275,8 +269,8 @@ enc_hhook(int32_t hhook_type, int32_t hhook_id, void *udata, void *ctx_data,
 		if (ctx->enc == IPSEC_ENC_BEFORE) {
 			/* Do accounting only once */
 			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-			if_inc_counter(ifp, IFCOUNTER_OBYTES,
-			    (*ctx->mp)->m_pkthdr.len);
+			if_inc_counter(
+			    ifp, IFCOUNTER_OBYTES, (*ctx->mp)->m_pkthdr.len);
 		}
 		if ((ctx->enc & V_filter_mask_out) == 0)
 			return (0); /* skip pfil processing */
@@ -311,8 +305,8 @@ enc_hhook(int32_t hhook_type, int32_t hhook_id, void *udata, void *ctx_data,
 		return (EACCES);
 	}
 	(*ctx->mp)->m_pkthdr.rcvif = rcvif;
-	enc_bpftap(ifp, *ctx->mp, ctx->sav, hhook_type,
-	    IPSEC_ENC_AFTER_PFIL, ctx->af);
+	enc_bpftap(
+	    ifp, *ctx->mp, ctx->sav, hhook_type, IPSEC_ENC_AFTER_PFIL, ctx->af);
 	return (0);
 }
 
@@ -329,26 +323,26 @@ enc_add_hhooks(struct enc_softc *sc)
 #ifdef INET
 	hki.hook_id = AF_INET;
 	hki.hook_type = HHOOK_TYPE_IPSEC_IN;
-	error = hhook_add_hook(V_ipsec_hhh_in[HHOOK_IPSEC_INET],
-	    &hki, HHOOK_WAITOK);
+	error = hhook_add_hook(
+	    V_ipsec_hhh_in[HHOOK_IPSEC_INET], &hki, HHOOK_WAITOK);
 	if (error != 0)
 		return (error);
 	hki.hook_type = HHOOK_TYPE_IPSEC_OUT;
-	error = hhook_add_hook(V_ipsec_hhh_out[HHOOK_IPSEC_INET],
-	    &hki, HHOOK_WAITOK);
+	error = hhook_add_hook(
+	    V_ipsec_hhh_out[HHOOK_IPSEC_INET], &hki, HHOOK_WAITOK);
 	if (error != 0)
 		return (error);
 #endif
 #ifdef INET6
 	hki.hook_id = AF_INET6;
 	hki.hook_type = HHOOK_TYPE_IPSEC_IN;
-	error = hhook_add_hook(V_ipsec_hhh_in[HHOOK_IPSEC_INET6],
-	    &hki, HHOOK_WAITOK);
+	error = hhook_add_hook(
+	    V_ipsec_hhh_in[HHOOK_IPSEC_INET6], &hki, HHOOK_WAITOK);
 	if (error != 0)
 		return (error);
 	hki.hook_type = HHOOK_TYPE_IPSEC_OUT;
-	error = hhook_add_hook(V_ipsec_hhh_out[HHOOK_IPSEC_INET6],
-	    &hki, HHOOK_WAITOK);
+	error = hhook_add_hook(
+	    V_ipsec_hhh_out[HHOOK_IPSEC_INET6], &hki, HHOOK_WAITOK);
 	if (error != 0)
 		return (error);
 #endif
@@ -384,11 +378,10 @@ vnet_enc_init(const void *unused __unused)
 {
 
 	V_enc_sc = NULL;
-	V_enc_cloner = if_clone_simple(encname, enc_clone_create,
-	    enc_clone_destroy, 1);
+	V_enc_cloner = if_clone_simple(
+	    encname, enc_clone_create, enc_clone_destroy, 1);
 }
-VNET_SYSINIT(vnet_enc_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
-    vnet_enc_init, NULL);
+VNET_SYSINIT(vnet_enc_init, SI_SUB_PSEUDO, SI_ORDER_ANY, vnet_enc_init, NULL);
 
 static void
 vnet_enc_init_proto(void *unused __unused)
@@ -408,8 +401,8 @@ vnet_enc_uninit(const void *unused __unused)
 
 	if_clone_detach(V_enc_cloner);
 }
-VNET_SYSUNINIT(vnet_enc_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
-    vnet_enc_uninit, NULL);
+VNET_SYSUNINIT(
+    vnet_enc_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY, vnet_enc_uninit, NULL);
 
 /*
  * The hhook consumer needs to go before ip[6]_destroy are called on
@@ -439,11 +432,7 @@ enc_modevent(module_t mod, int type, void *data)
 	return (0);
 }
 
-static moduledata_t enc_mod = {
-	"if_enc",
-	enc_modevent,
-	0
-};
+static moduledata_t enc_mod = { "if_enc", enc_modevent, 0 };
 
 DECLARE_MODULE(if_enc, enc_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_enc, 1);

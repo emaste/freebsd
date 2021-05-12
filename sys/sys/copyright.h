@@ -28,15 +28,13 @@
 /* Copyrights macros  */
 
 /* Add a FreeBSD vendor copyright here */
-#define	COPYRIGHT_Vendor \
-	""
+#define COPYRIGHT_Vendor ""
 
 /* FreeBSD */
-#define COPYRIGHT_FreeBSD \
-	"Copyright (c) 1992-2021 The FreeBSD Project.\n"
+#define COPYRIGHT_FreeBSD "Copyright (c) 1992-2021 The FreeBSD Project.\n"
 
 /* Foundation */
-#define	TRADEMARK_Foundation \
+#define TRADEMARK_Foundation \
 	"FreeBSD is a registered trademark of The FreeBSD Foundation.\n"
 
 /* Berkeley */

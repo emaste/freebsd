@@ -33,38 +33,40 @@
  * Netgraph module for ITU-T Q.2120 UNI SSCF.
  */
 #ifndef _NETGRAPH_ATM_NG_SSCFU_H_
-#define	_NETGRAPH_ATM_NG_SSCFU_H_
+#define _NETGRAPH_ATM_NG_SSCFU_H_
 
 #define NG_SSCFU_NODE_TYPE "sscfu"
-#define NGM_SSCFU_COOKIE	980517963
+#define NGM_SSCFU_COOKIE 980517963
 
 /* Netgraph control messages */
 enum {
-	NGM_SSCFU_GETDEFPARAM = 1,	/* get default SSCOP parameters */
-	NGM_SSCFU_ENABLE,		/* enable processing */
-	NGM_SSCFU_DISABLE,		/* disable processing */
-	NGM_SSCFU_GETDEBUG,		/* get debug flags */
-	NGM_SSCFU_SETDEBUG,		/* set debug flags */
-	NGM_SSCFU_GETSTATE,		/* get current state */
+	NGM_SSCFU_GETDEFPARAM = 1, /* get default SSCOP parameters */
+	NGM_SSCFU_ENABLE,	   /* enable processing */
+	NGM_SSCFU_DISABLE,	   /* disable processing */
+	NGM_SSCFU_GETDEBUG,	   /* get debug flags */
+	NGM_SSCFU_SETDEBUG,	   /* set debug flags */
+	NGM_SSCFU_GETSTATE,	   /* get current state */
 };
 
 /* getdefparam return */
 struct ng_sscfu_getdefparam {
-	struct sscop_param	param;
-	uint32_t		mask;
+	struct sscop_param param;
+	uint32_t mask;
 };
-#define NG_SSCFU_GETDEFPARAM_INFO 				\
-	{							\
-	  { "param",		&ng_sscop_param_type },		\
-	  { "mask",		&ng_parse_uint32_type },	\
-	  { NULL }						\
+#define NG_SSCFU_GETDEFPARAM_INFO                      \
+	{                                              \
+		{ "param", &ng_sscop_param_type },     \
+		    { "mask", &ng_parse_uint32_type }, \
+		{                                      \
+			NULL                           \
+		}                                      \
 	}
 
 /*
  * Upper interface
  */
 struct sscfu_arg {
-	uint32_t	sig;
-	u_char		data[];
+	uint32_t sig;
+	u_char data[];
 };
 #endif

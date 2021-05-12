@@ -51,22 +51,23 @@
  */
 
 #ifndef _MACHINE_PMAP_PAE_H
-#define	_MACHINE_PMAP_PAE_H
+#define _MACHINE_PMAP_PAE_H
 
-#define	NTRPPTD		2		/* Number of PTDs for trampoline
-					   mapping */
-#define	LOWPTDI		2		/* low memory map pde */
-#define	KERNPTDI	4		/* start of kernel text pde */
+#define NTRPPTD                                     \
+	2	   /* Number of PTDs for trampoline \
+		      mapping */
+#define LOWPTDI 2  /* low memory map pde */
+#define KERNPTDI 4 /* start of kernel text pde */
 
-#define NPGPTD		4		/* Num of pages for page directory */
-#define NPGPTD_SHIFT	9
-#undef	PDRSHIFT
-#define	PDRSHIFT	PDRSHIFT_PAE
-#undef	NBPDR
-#define NBPDR		(1 << PDRSHIFT_PAE)	/* bytes/page dir */
+#define NPGPTD 4 /* Num of pages for page directory */
+#define NPGPTD_SHIFT 9
+#undef PDRSHIFT
+#define PDRSHIFT PDRSHIFT_PAE
+#undef NBPDR
+#define NBPDR (1 << PDRSHIFT_PAE) /* bytes/page dir */
 
-#define	PG_FRAME	PG_FRAME_PAE
-#define	PG_PS_FRAME	PG_PS_FRAME_PAE
+#define PG_FRAME PG_FRAME_PAE
+#define PG_PS_FRAME PG_PS_FRAME_PAE
 
 /*
  * Size of Kernel address space.  This is the number of page table pages
@@ -75,7 +76,7 @@
  * For PAE, the page table page unit size is 2MB.  This means that 512 pages
  * is 1 Gigabyte.  Double everything.  It must be a multiple of 8 for PAE.
  */
-#define KVA_PAGES	(512*4)
+#define KVA_PAGES (512 * 4)
 
 /*
  * The initial number of kernel page table pages that are constructed
@@ -87,35 +88,35 @@
  * Non-PAE:  max_phys 4G,  sizeof(vm_page) 68, NBPDR 4M, 18 page table pages.
  */
 #ifndef NKPT
-#define	NKPT		240
+#define NKPT 240
 #endif
 
 typedef uint64_t pdpt_entry_t;
 typedef uint64_t pd_entry_t;
 typedef uint64_t pt_entry_t;
 
-#define	PTESHIFT	(3)
-#define	PDESHIFT	(3)
+#define PTESHIFT (3)
+#define PDESHIFT (3)
 
-#define	pde_cmpset(pdep, old, new)	atomic_cmpset_64_i586(pdep, old, new)
-#define	pte_load_store(ptep, pte)	atomic_swap_64_i586(ptep, pte)
-#define	pte_load_clear(ptep)		atomic_swap_64_i586(ptep, 0)
-#define	pte_store(ptep, pte)		atomic_store_rel_64_i586(ptep, pte)
-#define	pte_store_zero(ptep, pte)		\
-do {						\
-	uint32_t *p;				\
-						\
-	MPASS((*ptep & PG_V) == 0);		\
-	p = (void *)ptep;			\
-	*(p + 1) = (uint32_t)(pte >> 32);	\
-	__compiler_membar();			\
-	*p = (uint32_t)pte;			\
-} while (0)
-#define	pte_load(ptep)			atomic_load_acq_64_i586(ptep)
+#define pde_cmpset(pdep, old, new) atomic_cmpset_64_i586(pdep, old, new)
+#define pte_load_store(ptep, pte) atomic_swap_64_i586(ptep, pte)
+#define pte_load_clear(ptep) atomic_swap_64_i586(ptep, 0)
+#define pte_store(ptep, pte) atomic_store_rel_64_i586(ptep, pte)
+#define pte_store_zero(ptep, pte)                 \
+	do {                                      \
+		uint32_t *p;                      \
+                                                  \
+		MPASS((*ptep & PG_V) == 0);       \
+		p = (void *)ptep;                 \
+		*(p + 1) = (uint32_t)(pte >> 32); \
+		__compiler_membar();              \
+		*p = (uint32_t)pte;               \
+	} while (0)
+#define pte_load(ptep) atomic_load_acq_64_i586(ptep)
 
 extern pdpt_entry_t *IdlePDPT;
 extern pt_entry_t pg_nx;
-extern pd_entry_t *IdlePTD_pae;	/* physical address of "Idle" state directory */
+extern pd_entry_t *IdlePTD_pae; /* physical address of "Idle" state directory */
 
 /*
  * KPTmap is a linear mapping of the kernel page table.  It differs from the

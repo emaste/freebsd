@@ -35,45 +35,43 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/iconv.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/lock.h>
-#include <sys/sysctl.h>
 #include <sys/socketvar.h>
-
-#include <sys/iconv.h>
+#include <sys/sysctl.h>
 
 #include <netsmb/smb.h>
-#include <netsmb/smb_subr.h>
 #include <netsmb/smb_conn.h>
+#include <netsmb/smb_subr.h>
 #include <netsmb/smb_tran.h>
 #include <netsmb/smb_trantcp.h>
 
 static struct smb_connobj smb_vclist;
-static int smb_vcnext = 1;	/* next unique id for VC */
+static int smb_vcnext = 1; /* next unique id for VC */
 
-SYSCTL_NODE(_net, OID_AUTO, smb, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
-    "SMB protocol");
+SYSCTL_NODE(
+    _net, OID_AUTO, smb, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, "SMB protocol");
 
 static MALLOC_DEFINE(M_SMBCONN, "smb_conn", "SMB connection");
 
-static void smb_co_init(struct smb_connobj *cp, int level, char *ilockname,
-    char *lockname);
+static void smb_co_init(
+    struct smb_connobj *cp, int level, char *ilockname, char *lockname);
 static void smb_co_done(struct smb_connobj *cp);
-static int  smb_vc_disconnect(struct smb_vc *vcp);
+static int smb_vc_disconnect(struct smb_vc *vcp);
 static void smb_vc_free(struct smb_connobj *cp);
 static void smb_vc_gone(struct smb_connobj *cp, struct smb_cred *scred);
 static smb_co_free_t smb_share_free;
 static smb_co_gone_t smb_share_gone;
 
-static int  smb_sysctl_treedump(SYSCTL_HANDLER_ARGS);
+static int smb_sysctl_treedump(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_PROC(_net_smb, OID_AUTO, treedump,
-    CTLFLAG_RD | CTLTYPE_OPAQUE | CTLFLAG_MPSAFE,
-    NULL, 0, smb_sysctl_treedump, "S,treedump",
-    "Requester tree");
+    CTLFLAG_RD | CTLTYPE_OPAQUE | CTLFLAG_MPSAFE, NULL, 0, smb_sysctl_treedump,
+    "S,treedump", "Requester tree");
 
 int
 smb_sm_init(void)
@@ -92,7 +90,8 @@ smb_sm_done(void)
 
 	/* XXX: hold the mutex */
 	if (smb_vclist.co_usecount > 1) {
-		SMBERROR("%d connections still active\n", smb_vclist.co_usecount - 1);
+		SMBERROR("%d connections still active\n",
+		    smb_vclist.co_usecount - 1);
 		return EBUSY;
 	}
 	smb_co_done(&smb_vclist);
@@ -122,7 +121,7 @@ smb_sm_unlockvclist(void)
 
 static int
 smb_sm_lookupint(struct smb_vcspec *vcspec, struct smb_sharespec *shspec,
-	struct smb_cred *scred,	struct smb_vc **vcpp)
+    struct smb_cred *scred, struct smb_vc **vcpp)
 {
 	struct smb_connobj *scp;
 	struct smb_vc *vcp;
@@ -132,7 +131,8 @@ smb_sm_lookupint(struct smb_vcspec *vcspec, struct smb_sharespec *shspec,
 	vcspec->shspec = shspec;
 	error = ENOENT;
 	vcp = NULL;
-	SMBCO_FOREACH(scp, &smb_vclist) {
+	SMBCO_FOREACH(scp, &smb_vclist)
+	{
 		vcp = (struct smb_vc *)scp;
 		error = smb_vc_lock(vcp);
 		if (error)
@@ -153,16 +153,16 @@ smb_sm_lookupint(struct smb_vcspec *vcspec, struct smb_sharespec *shspec,
 		} else
 			exact = 0;
 		if (vcspec->mode & SMBM_EXACT) {
-			if (!exact || (vcspec->mode & SMBM_MASK) !=
-			    vcp->vc_mode)
+			if (!exact ||
+			    (vcspec->mode & SMBM_MASK) != vcp->vc_mode)
 				goto err1;
 		}
 		if (smb_vc_access(vcp, scred, vcspec->mode) != 0)
 			goto err1;
 		vcspec->ssp = NULL;
 		if (shspec) {
-			error = (int)smb_vc_lookupshare(vcp, shspec, scred,
-			    &vcspec->ssp);
+			error = (int)smb_vc_lookupshare(
+			    vcp, shspec, scred, &vcspec->ssp);
 			if (error)
 				goto fail;
 		}
@@ -182,7 +182,7 @@ smb_sm_lookupint(struct smb_vcspec *vcspec, struct smb_sharespec *shspec,
 
 int
 smb_sm_lookup(struct smb_vcspec *vcspec, struct smb_sharespec *shspec,
-	struct smb_cred *scred,	struct smb_vc **vcpp)
+    struct smb_cred *scred, struct smb_vc **vcpp)
 {
 	struct smb_vc *vcp;
 	struct smb_share *ssp = NULL;
@@ -315,7 +315,7 @@ smb_co_get(struct smb_connobj *cp, struct smb_cred *scred)
 	MPASS(sx_xholder(&cp->co_interlock) == curthread);
 	cp->co_usecount++;
 	error = smb_co_lock(cp);
-	if (error) 
+	if (error)
 		cp->co_usecount--;
 	return error;
 }
@@ -344,7 +344,7 @@ int
 smb_co_lock(struct smb_connobj *cp)
 {
 
-	MPASS(sx_xholder(&cp->co_interlock) == curthread); 
+	MPASS(sx_xholder(&cp->co_interlock) == curthread);
 	for (;;) {
 		if (cp->co_flags & SMBO_GONE)
 			return EINVAL;
@@ -364,7 +364,7 @@ void
 smb_co_unlock(struct smb_connobj *cp)
 {
 
-	MPASS(sx_xholder(&cp->co_interlock) == curthread); 
+	MPASS(sx_xholder(&cp->co_interlock) == curthread);
 	MPASS(cp->co_locker == curthread);
 	if (cp->co_lockcnt != 0) {
 		cp->co_lockcnt--;
@@ -388,8 +388,8 @@ smb_co_addchild(struct smb_connobj *parent, struct smb_connobj *child)
  */
 
 int
-smb_vc_create(struct smb_vcspec *vcspec,
-	struct smb_cred *scred, struct smb_vc **vcpp)
+smb_vc_create(
+    struct smb_vcspec *vcspec, struct smb_cred *scred, struct smb_vc **vcpp)
 {
 	struct smb_vc *vcp;
 	struct ucred *cred = scred->scr_cred;
@@ -441,8 +441,8 @@ smb_vc_create(struct smb_vcspec *vcspec,
 	vcp->vc_pass = smb_strdup(vcspec->pass);
 	if (vcp->vc_pass == NULL)
 		goto fail;
-	vcp->vc_domain = smb_strdup((domain && domain[0]) ? domain :
-	    "NODOMAIN");
+	vcp->vc_domain = smb_strdup(
+	    (domain && domain[0]) ? domain : "NODOMAIN");
 	if (vcp->vc_domain == NULL)
 		goto fail;
 	vcp->vc_srvname = smb_strdup(vcspec->srvname);
@@ -458,23 +458,23 @@ smb_vc_create(struct smb_vcspec *vcspec,
 	if (error)
 		goto fail;
 	if (vcspec->servercs[0]) {
-		error = (int)iconv_open(vcspec->servercs, vcspec->localcs,
-		    &vcp->vc_cp_toserver);
+		error = (int)iconv_open(
+		    vcspec->servercs, vcspec->localcs, &vcp->vc_cp_toserver);
 		if (error)
 			goto fail;
-		error = (int)iconv_open(vcspec->localcs, vcspec->servercs,
-		    &vcp->vc_cp_tolocal);
+		error = (int)iconv_open(
+		    vcspec->localcs, vcspec->servercs, &vcp->vc_cp_tolocal);
 		if (error)
 			goto fail;
 		vcp->vc_toserver = vcp->vc_cp_toserver;
 		vcp->vc_tolocal = vcp->vc_cp_tolocal;
 		iconv_add(ENCODING_UNICODE, ENCODING_UNICODE, SMB_UNICODE_NAME);
 		iconv_add(ENCODING_UNICODE, SMB_UNICODE_NAME, ENCODING_UNICODE);
-		error = (int)iconv_open(SMB_UNICODE_NAME, vcspec->localcs,
-		    &vcp->vc_ucs_toserver);
+		error = (int)iconv_open(
+		    SMB_UNICODE_NAME, vcspec->localcs, &vcp->vc_ucs_toserver);
 		if (!error) {
-			error = (int)iconv_open(vcspec->localcs, SMB_UNICODE_NAME,
-			    &vcp->vc_ucs_tolocal);
+			error = (int)iconv_open(vcspec->localcs,
+			    SMB_UNICODE_NAME, &vcp->vc_ucs_tolocal);
 		}
 		if (error) {
 			if (vcp->vc_ucs_toserver)
@@ -490,7 +490,7 @@ smb_vc_create(struct smb_vcspec *vcspec,
 	smb_co_addchild(&smb_vclist, VCTOCP(vcp));
 	return (0);
 
- fail:
+fail:
 	smb_vc_put(vcp, scred);
 	return (error);
 }
@@ -647,7 +647,7 @@ smb_vc_cmpshare(struct smb_share *ssp, struct smb_sharespec *dp)
  */
 int
 smb_vc_lookupshare(struct smb_vc *vcp, struct smb_sharespec *dp,
-	struct smb_cred *scred,	struct smb_share **sspp)
+    struct smb_cred *scred, struct smb_share **sspp)
 {
 	struct smb_connobj *scp = NULL;
 	struct smb_share *ssp = NULL;
@@ -655,7 +655,8 @@ smb_vc_lookupshare(struct smb_vc *vcp, struct smb_sharespec *dp,
 
 	*sspp = NULL;
 	dp->scred = scred;
-	SMBCO_FOREACH(scp, VCTOCP(vcp)) {
+	SMBCO_FOREACH(scp, VCTOCP(vcp))
+	{
 		ssp = (struct smb_share *)scp;
 		error = smb_share_lock(ssp);
 		if (error)
@@ -677,7 +678,8 @@ int
 smb_vc_connect(struct smb_vc *vcp, struct smb_cred *scred)
 {
 
-	return smb_iod_request(vcp->vc_iod, SMBIOD_EV_CONNECT | SMBIOD_EV_SYNC, NULL);
+	return smb_iod_request(
+	    vcp->vc_iod, SMBIOD_EV_CONNECT | SMBIOD_EV_SYNC, NULL);
 }
 
 /*
@@ -689,8 +691,8 @@ smb_vc_disconnect(struct smb_vc *vcp)
 {
 
 	if (vcp->vc_iod != NULL)
-		smb_iod_request(vcp->vc_iod, SMBIOD_EV_DISCONNECT |
-		    SMBIOD_EV_SYNC, NULL);
+		smb_iod_request(
+		    vcp->vc_iod, SMBIOD_EV_DISCONNECT | SMBIOD_EV_SYNC, NULL);
 	return 0;
 }
 
@@ -743,7 +745,7 @@ smb_vc_nextmid(struct smb_vc *vcp)
  */
 int
 smb_share_create(struct smb_vc *vcp, struct smb_sharespec *shspec,
-	struct smb_cred *scred, struct smb_share **sspp)
+    struct smb_cred *scred, struct smb_share **sspp)
 {
 	struct smb_share *ssp;
 	struct ucred *cred = scred->scr_cred;
@@ -888,7 +890,7 @@ smb_share_valid(struct smb_share *ssp)
 	    ssp->ss_vcgenid == SSTOVC(ssp)->vc_genid;
 }
 
-const char*
+const char *
 smb_share_getpass(struct smb_share *ssp)
 {
 	struct smb_vc *vcp;
@@ -907,11 +909,11 @@ smb_share_getinfo(struct smb_share *ssp, struct smb_share_info *sip)
 	bzero(sip, sizeof(struct smb_share_info));
 	sip->itype = SMB_INFO_SHARE;
 	sip->usecount = ssp->obj.co_usecount;
-	sip->tid  = ssp->ss_tid;
-	sip->type= ssp->ss_type;
+	sip->tid = ssp->ss_tid;
+	sip->type = ssp->ss_type;
 	sip->uid = ssp->ss_uid;
 	sip->gid = ssp->ss_grp;
-	sip->mode= ssp->ss_mode;
+	sip->mode = ssp->ss_mode;
 	sip->flags = ssp->obj.co_flags;
 	snprintf(sip->sname, sizeof(sip->sname), "%s", ssp->ss_name);
 	return 0;
@@ -920,8 +922,7 @@ smb_share_getinfo(struct smb_share *ssp, struct smb_share_info *sip)
 /*
  * Dump an entire tree into sysctl call
  */
-static int
-smb_sysctl_treedump(SYSCTL_HANDLER_ARGS)
+static int smb_sysctl_treedump(SYSCTL_HANDLER_ARGS)
 {
 	struct smb_connobj *scp1, *scp2;
 	struct smb_vc *vcp;
@@ -936,7 +937,8 @@ smb_sysctl_treedump(SYSCTL_HANDLER_ARGS)
 	error = smb_sm_lockvclist();
 	if (error)
 		return error;
-	SMBCO_FOREACH(scp1, &smb_vclist) {
+	SMBCO_FOREACH(scp1, &smb_vclist)
+	{
 		vcp = (struct smb_vc *)scp1;
 		error = smb_vc_lock(vcp);
 		if (error)
@@ -947,7 +949,8 @@ smb_sysctl_treedump(SYSCTL_HANDLER_ARGS)
 			smb_vc_unlock(vcp);
 			break;
 		}
-		SMBCO_FOREACH(scp2, VCTOCP(vcp)) {
+		SMBCO_FOREACH(scp2, VCTOCP(vcp))
+		{
 			ssp = (struct smb_share *)scp2;
 			error = smb_share_lock(ssp);
 			if (error) {
@@ -956,7 +959,8 @@ smb_sysctl_treedump(SYSCTL_HANDLER_ARGS)
 			}
 			smb_share_getinfo(ssp, &ssi);
 			smb_share_unlock(ssp);
-			error = SYSCTL_OUT(req, &ssi, sizeof(struct smb_share_info));
+			error = SYSCTL_OUT(
+			    req, &ssi, sizeof(struct smb_share_info));
 			if (error)
 				break;
 		}

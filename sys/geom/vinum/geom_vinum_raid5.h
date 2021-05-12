@@ -29,7 +29,7 @@
  */
 
 #ifndef _GEOM_VINUM_RAID5_H_
-#define	_GEOM_VINUM_RAID5_H_
+#define _GEOM_VINUM_RAID5_H_
 
 /*
  * A single RAID5 request usually needs more than one I/O transaction,
@@ -38,20 +38,20 @@
  */
 
 struct gv_raid5_packet {
-	caddr_t	data;		/* Data buffer of this sub-request- */
-	off_t	length;		/* Size of data buffer. */
-	off_t	lockbase;	/* Deny access to our plex offset. */
+	caddr_t data;	/* Data buffer of this sub-request- */
+	off_t length;	/* Size of data buffer. */
+	off_t lockbase; /* Deny access to our plex offset. */
 
-	struct bio	*bio;	/* Pointer to the original bio. */
-	struct bio	*parity;  /* The bio containing the parity data. */
-	struct bio	*waiting; /* A bio that need to wait for other bios. */
+	struct bio *bio;     /* Pointer to the original bio. */
+	struct bio *parity;  /* The bio containing the parity data. */
+	struct bio *waiting; /* A bio that need to wait for other bios. */
 
-	TAILQ_HEAD(,gv_bioq)		bits; /* List of subrequests. */
-	TAILQ_ENTRY(gv_raid5_packet)	list; /* Entry in plex's packet list. */
+	TAILQ_HEAD(, gv_bioq) bits;	   /* List of subrequests. */
+	TAILQ_ENTRY(gv_raid5_packet) list; /* Entry in plex's packet list. */
 };
 
-struct gv_raid5_packet * gv_raid5_start(struct gv_plex *, struct bio *,
-		caddr_t, off_t, off_t);
-int	gv_stripe_active(struct gv_plex *, struct bio *);
+struct gv_raid5_packet *gv_raid5_start(
+    struct gv_plex *, struct bio *, caddr_t, off_t, off_t);
+int gv_stripe_active(struct gv_plex *, struct bio *);
 
 #endif /* !_GEOM_VINUM_RAID5_H_ */

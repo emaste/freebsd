@@ -18,7 +18,7 @@
  * N66001-04-C-6019 ("SEFOS").
  *
  * This software was developed at the University of Cambridge Computer
- * Laboratory with support from a grant from Google, Inc. 
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,24 +48,23 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
-#include <sys/sbuf.h>
-#include <sys/sdt.h>
-#include <sys/systm.h>
 #include <sys/mount.h>
-#include <sys/file.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/protosw.h>
+#include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
-
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
@@ -183,8 +182,8 @@ void
 mac_inpcb_create(struct socket *so, struct inpcb *inp)
 {
 
-	MAC_POLICY_PERFORM_NOSLEEP(inpcb_create, so, so->so_label, inp,
-	    inp->inp_label);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    inpcb_create, so, so->so_label, inp, inp->inp_label);
 }
 
 void
@@ -197,8 +196,7 @@ mac_ipq_reassemble(struct ipq *q, struct mbuf *m)
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_POLICY_PERFORM_NOSLEEP(ipq_reassemble, q, q->ipq_label, m,
-	    label);
+	MAC_POLICY_PERFORM_NOSLEEP(ipq_reassemble, q, q->ipq_label, m, label);
 }
 
 void
@@ -212,8 +210,8 @@ mac_netinet_fragment(struct mbuf *m, struct mbuf *frag)
 	mlabel = mac_mbuf_to_label(m);
 	fraglabel = mac_mbuf_to_label(frag);
 
-	MAC_POLICY_PERFORM_NOSLEEP(netinet_fragment, m, mlabel, frag,
-	    fraglabel);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    netinet_fragment, m, mlabel, frag, fraglabel);
 }
 
 void
@@ -241,8 +239,8 @@ mac_inpcb_create_mbuf(struct inpcb *inp, struct mbuf *m)
 
 	mlabel = mac_mbuf_to_label(m);
 
-	MAC_POLICY_PERFORM_NOSLEEP(inpcb_create_mbuf, inp, inp->inp_label, m,
-	    mlabel);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    inpcb_create_mbuf, inp, inp->inp_label, m, mlabel);
 }
 
 int
@@ -274,8 +272,8 @@ mac_netinet_arp_send(struct ifnet *ifp, struct mbuf *m)
 	mlabel = mac_mbuf_to_label(m);
 
 	MAC_IFNET_LOCK(ifp, locked);
-	MAC_POLICY_PERFORM_NOSLEEP(netinet_arp_send, ifp, ifp->if_label, m,
-	    mlabel);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    netinet_arp_send, ifp, ifp->if_label, m, mlabel);
 	MAC_IFNET_UNLOCK(ifp, locked);
 }
 
@@ -290,8 +288,8 @@ mac_netinet_icmp_reply(struct mbuf *mrecv, struct mbuf *msend)
 	mrecvlabel = mac_mbuf_to_label(mrecv);
 	msendlabel = mac_mbuf_to_label(msend);
 
-	MAC_POLICY_PERFORM_NOSLEEP(netinet_icmp_reply, mrecv, mrecvlabel,
-	    msend, msendlabel);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    netinet_icmp_reply, mrecv, mrecvlabel, msend, msendlabel);
 }
 
 void
@@ -319,8 +317,8 @@ mac_netinet_igmp_send(struct ifnet *ifp, struct mbuf *m)
 	mlabel = mac_mbuf_to_label(m);
 
 	MAC_IFNET_LOCK(ifp, locked);
-	MAC_POLICY_PERFORM_NOSLEEP(netinet_igmp_send, ifp, ifp->if_label, m,
-	    mlabel);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    netinet_igmp_send, ifp, ifp->if_label, m, mlabel);
 	MAC_IFNET_UNLOCK(ifp, locked);
 }
 
@@ -350,8 +348,7 @@ mac_ipq_update(struct mbuf *m, struct ipq *q)
 	MAC_POLICY_PERFORM_NOSLEEP(ipq_update, m, label, q, q->ipq_label);
 }
 
-MAC_CHECK_PROBE_DEFINE2(inpcb_check_deliver, "struct inpcb *",
-    "struct mbuf *");
+MAC_CHECK_PROBE_DEFINE2(inpcb_check_deliver, "struct inpcb *", "struct mbuf *");
 
 int
 mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m)
@@ -366,15 +363,15 @@ mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m)
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_POLICY_CHECK_NOSLEEP(inpcb_check_deliver, inp, inp->inp_label, m,
-	    label);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    inpcb_check_deliver, inp, inp->inp_label, m, label);
 	MAC_CHECK_PROBE2(inpcb_check_deliver, error, inp, m);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(inpcb_check_visible, "struct ucred *",
-    "struct inpcb *");
+MAC_CHECK_PROBE_DEFINE2(
+    inpcb_check_visible, "struct ucred *", "struct inpcb *");
 
 int
 mac_inpcb_check_visible(struct ucred *cred, struct inpcb *inp)
@@ -383,8 +380,8 @@ mac_inpcb_check_visible(struct ucred *cred, struct inpcb *inp)
 
 	INP_LOCK_ASSERT(inp);
 
-	MAC_POLICY_CHECK_NOSLEEP(inpcb_check_visible, cred, inp,
-	    inp->inp_label);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    inpcb_check_visible, cred, inp, inp->inp_label);
 	MAC_CHECK_PROBE2(inpcb_check_visible, error, cred, inp);
 
 	return (error);
@@ -397,8 +394,8 @@ mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp)
 	INP_WLOCK_ASSERT(inp);
 	SOCK_LOCK_ASSERT(so);
 
-	MAC_POLICY_PERFORM_NOSLEEP(inpcb_sosetlabel, so, so->so_label, inp,
-	    inp->inp_label);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    inpcb_sosetlabel, so, so->so_label, inp, inp->inp_label);
 }
 
 void
@@ -415,8 +412,8 @@ mac_netinet_firewall_reply(struct mbuf *mrecv, struct mbuf *msend)
 	mrecvlabel = mac_mbuf_to_label(mrecv);
 	msendlabel = mac_mbuf_to_label(msend);
 
-	MAC_POLICY_PERFORM_NOSLEEP(netinet_firewall_reply, mrecv, mrecvlabel,
-	    msend, msendlabel);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    netinet_firewall_reply, mrecv, mrecvlabel, msend, msendlabel);
 }
 
 void
@@ -470,11 +467,10 @@ mac_syncache_init(struct label **label)
 		 * MAC_PERFORM so we can propagate allocation failures back
 		 * to the syncache code.
 		 */
-		MAC_POLICY_CHECK_NOSLEEP(syncache_init_label, *label,
-		    M_NOWAIT);
+		MAC_POLICY_CHECK_NOSLEEP(syncache_init_label, *label, M_NOWAIT);
 		if (error) {
-			MAC_POLICY_PERFORM_NOSLEEP(syncache_destroy_label,
-			    *label);
+			MAC_POLICY_PERFORM_NOSLEEP(
+			    syncache_destroy_label, *label);
 			mac_labelzone_free(*label);
 		}
 		return (error);
@@ -504,6 +500,5 @@ mac_syncache_create_mbuf(struct label *sc_label, struct mbuf *m)
 
 	mlabel = mac_mbuf_to_label(m);
 
-	MAC_POLICY_PERFORM_NOSLEEP(syncache_create_mbuf, sc_label, m,
-	    mlabel);
+	MAC_POLICY_PERFORM_NOSLEEP(syncache_create_mbuf, sc_label, m, mlabel);
 }

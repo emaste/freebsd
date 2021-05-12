@@ -34,72 +34,80 @@
  */
 
 #if 0
-#define	DBG do { printf("ng_device: %s\n", __func__ ); } while (0)
+#define DBG                                          \
+	do {                                         \
+		printf("ng_device: %s\n", __func__); \
+	} while (0)
 #else
-#define	DBG do {} while (0)
+#define DBG  \
+	do { \
+	} while (0)
 #endif
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/epoch.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
-#include <sys/epoch.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/vnode.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_device.h>
+#include <netgraph/ng_message.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/ng_device.h>
-
-#define	ERROUT(x) do { error = (x); goto done; } while (0)
+#define ERROUT(x)            \
+	do {                 \
+		error = (x); \
+		goto done;   \
+	} while (0)
 
 /* Netgraph methods */
-static int		ng_device_mod_event(module_t, int, void *);
-static ng_constructor_t	ng_device_constructor;
-static ng_rcvmsg_t	ng_device_rcvmsg;
-static ng_shutdown_t	ng_device_shutdown;
-static ng_newhook_t	ng_device_newhook;
-static ng_rcvdata_t	ng_device_rcvdata;
-static ng_disconnect_t	ng_device_disconnect;
+static int ng_device_mod_event(module_t, int, void *);
+static ng_constructor_t ng_device_constructor;
+static ng_rcvmsg_t ng_device_rcvmsg;
+static ng_shutdown_t ng_device_shutdown;
+static ng_newhook_t ng_device_newhook;
+static ng_rcvdata_t ng_device_rcvdata;
+static ng_disconnect_t ng_device_disconnect;
 
 /* Netgraph type */
 static struct ng_type ngd_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_DEVICE_NODE_TYPE,
-	.mod_event =	ng_device_mod_event,
-	.constructor =	ng_device_constructor,
-	.rcvmsg	=	ng_device_rcvmsg,
-	.shutdown = 	ng_device_shutdown,
-	.newhook =	ng_device_newhook,
-	.rcvdata =	ng_device_rcvdata,
-	.disconnect =	ng_device_disconnect,
+	.version = NG_ABI_VERSION,
+	.name = NG_DEVICE_NODE_TYPE,
+	.mod_event = ng_device_mod_event,
+	.constructor = ng_device_constructor,
+	.rcvmsg = ng_device_rcvmsg,
+	.shutdown = ng_device_shutdown,
+	.newhook = ng_device_newhook,
+	.rcvdata = ng_device_rcvdata,
+	.disconnect = ng_device_disconnect,
 };
 NETGRAPH_INIT(device, &ngd_typestruct);
 
 /* per node data */
 struct ngd_private {
-	struct	ifqueue	readq;
-	struct	ng_node	*node;
-	struct	ng_hook	*hook;
-	struct	cdev	*ngddev;
-	struct	mtx	ngd_mtx;
-	int 		unit;
-	uint16_t	flags;
-#define	NGDF_OPEN	0x0001
-#define	NGDF_RWAIT	0x0002
+	struct ifqueue readq;
+	struct ng_node *node;
+	struct ng_hook *hook;
+	struct cdev *ngddev;
+	struct mtx ngd_mtx;
+	int unit;
+	uint16_t flags;
+#define NGDF_OPEN 0x0001
+#define NGDF_RWAIT 0x0002
 };
 typedef struct ngd_private *priv_p;
 
@@ -107,7 +115,7 @@ typedef struct ngd_private *priv_p;
 static struct unrhdr *ngd_unit;
 
 /* Maximum number of NGD devices */
-#define MAX_NGD	999
+#define MAX_NGD 999
 
 static d_close_t ngdclose;
 static d_open_t ngdopen;
@@ -119,16 +127,16 @@ static d_ioctl_t ngdioctl;
 static d_poll_t ngdpoll;
 
 static struct cdevsw ngd_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	ngdopen,
-	.d_close =	ngdclose,
-	.d_read =	ngdread,
-	.d_write =	ngdwrite,
+	.d_version = D_VERSION,
+	.d_open = ngdopen,
+	.d_close = ngdclose,
+	.d_read = ngdread,
+	.d_write = ngdwrite,
 #if 0
 	.d_ioctl =	ngdioctl,
 #endif
-	.d_poll =	ngdpoll,
-	.d_name =	NG_DEVICE_DEVNAME,
+	.d_poll = ngdpoll,
+	.d_name = NG_DEVICE_DEVNAME,
 };
 
 /******************************************************************************
@@ -163,7 +171,7 @@ ng_device_mod_event(module_t mod, int event, void *data)
 static int
 ng_device_constructor(node_p node)
 {
-	priv_p	priv;
+	priv_p priv;
 
 	DBG;
 
@@ -181,20 +189,20 @@ ng_device_constructor(node_p node)
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->node = node;
 
-	priv->ngddev = make_dev(&ngd_cdevsw, priv->unit, UID_ROOT,
-	    GID_WHEEL, 0600, NG_DEVICE_DEVNAME "%d", priv->unit);
-	if(priv->ngddev == NULL) {
-		printf("%s(): make_dev() failed\n",__func__);
+	priv->ngddev = make_dev(&ngd_cdevsw, priv->unit, UID_ROOT, GID_WHEEL,
+	    0600, NG_DEVICE_DEVNAME "%d", priv->unit);
+	if (priv->ngddev == NULL) {
+		printf("%s(): make_dev() failed\n", __func__);
 		mtx_destroy(&priv->ngd_mtx);
 		mtx_destroy(&priv->readq.ifq_mtx);
 		free_unr(ngd_unit, priv->unit);
 		free(priv, M_NETGRAPH);
-		return(EINVAL);
+		return (EINVAL);
 	}
 	/* XXX: race here? */
 	priv->ngddev->si_drv1 = priv;
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -216,8 +224,8 @@ ng_device_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		switch (msg->header.cmd) {
 		case NGM_DEVICE_GET_DEVNAME:
 			/* XXX: Fix when MAX_NGD us bigger */
-			NG_MKRESPONSE(resp, msg,
-			    strlen(NG_DEVICE_DEVNAME) + 4, M_NOWAIT);
+			NG_MKRESPONSE(
+			    resp, msg, strlen(NG_DEVICE_DEVNAME) + 4, M_NOWAIT);
 
 			if (resp == NULL)
 				ERROUT(ENOMEM);
@@ -255,7 +263,7 @@ ng_device_newhook(node_p node, hook_p hook, const char *name)
 
 	priv->hook = hook;
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -288,7 +296,7 @@ ng_device_rcvdata(hook_p hook, item_p item)
 	}
 	mtx_unlock(&priv->ngd_mtx);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -313,7 +321,7 @@ ng_device_disconnect(hook_p hook)
 
 	ng_rmnode_self(NG_HOOK_NODE(hook));
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -336,7 +344,7 @@ ng_device_shutdown(node_p node)
 static int
 ngdopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
-	priv_p	priv = (priv_p )dev->si_drv1;
+	priv_p priv = (priv_p)dev->si_drv1;
 
 	DBG;
 
@@ -344,7 +352,7 @@ ngdopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	priv->flags |= NGDF_OPEN;
 	mtx_unlock(&priv->ngd_mtx);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -353,20 +361,20 @@ ngdopen(struct cdev *dev, int flag, int mode, struct thread *td)
 static int
 ngdclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
-	priv_p	priv = (priv_p )dev->si_drv1;
+	priv_p priv = (priv_p)dev->si_drv1;
 
 	DBG;
 	mtx_lock(&priv->ngd_mtx);
 	priv->flags &= ~NGDF_OPEN;
 	mtx_unlock(&priv->ngd_mtx);
 
-	return(0);
+	return (0);
 }
 
-#if 0	/*
-	 * The ioctl is transformed into netgraph control message.
-	 * We do not process them, yet.
-	 */
+#if 0 /*                                                         \
+       * The ioctl is transformed into netgraph control message. \
+       * We do not process them, yet.                            \
+       */
 /*
  * process ioctl
  *
@@ -413,7 +421,7 @@ nomsg:
 static int
 ngdread(struct cdev *dev, struct uio *uio, int flag)
 {
-	priv_p	priv = (priv_p )dev->si_drv1;
+	priv_p priv = (priv_p)dev->si_drv1;
 	struct mbuf *m;
 	int len, error = 0;
 
@@ -428,8 +436,8 @@ ngdread(struct cdev *dev, struct uio *uio, int flag)
 			mtx_lock(&priv->ngd_mtx);
 			priv->flags |= NGDF_RWAIT;
 			if ((error = msleep(priv, &priv->ngd_mtx,
-			    PDROP | PCATCH | (PZERO + 1),
-			    "ngdread", 0)) != 0)
+				 PDROP | PCATCH | (PZERO + 1), "ngdread", 0)) !=
+			    0)
 				return (error);
 		}
 	} while (m == NULL);
@@ -449,14 +457,15 @@ ngdread(struct cdev *dev, struct uio *uio, int flag)
 
 /*
  * This function is called when our device is written to.
- * We read the data from userland into mbuf chain and pass it to the remote hook.
+ * We read the data from userland into mbuf chain and pass it to the remote
+ * hook.
  *
  */
 static int
 ngdwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct epoch_tracker et;
-	priv_p	priv = (priv_p )dev->si_drv1;
+	priv_p priv = (priv_p)dev->si_drv1;
 	struct mbuf *m;
 	int error = 0;
 
@@ -485,11 +494,10 @@ ngdwrite(struct cdev *dev, struct uio *uio, int flag)
 static int
 ngdpoll(struct cdev *dev, int events, struct thread *td)
 {
-	priv_p	priv = (priv_p )dev->si_drv1;
+	priv_p priv = (priv_p)dev->si_drv1;
 	int revents = 0;
 
-	if (events & (POLLIN | POLLRDNORM) &&
-	    !IFQ_IS_EMPTY(&priv->readq))
+	if (events & (POLLIN | POLLRDNORM) && !IFQ_IS_EMPTY(&priv->readq))
 		revents |= events & (POLLIN | POLLRDNORM);
 
 	return (revents);

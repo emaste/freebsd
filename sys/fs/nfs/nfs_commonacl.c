@@ -168,8 +168,8 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 	 * And turn the mask into perm bits.
 	 */
 	if (aceerr == 0)
-		aceerr = nfsrv_acemasktoperm(acetype, mask, owner, VREG,
-		    &acep->ae_perm);
+		aceerr = nfsrv_acemasktoperm(
+		    acetype, mask, owner, VREG, &acep->ae_perm);
 	*aceerrp = aceerr;
 	if (acesizep)
 		*acesizep = NFSM_RNDUP(len) + (4 * NFSX_UNSIGNED);
@@ -273,8 +273,8 @@ out:
 }
 
 /* local functions */
-static int nfsrv_buildace(struct nfsrv_descript *, u_char *, int,
-    enum vtype, int, int, struct acl_entry *);
+static int nfsrv_buildace(struct nfsrv_descript *, u_char *, int, enum vtype,
+    int, int, struct acl_entry *);
 
 /*
  * This function builds an NFS ace.
@@ -389,8 +389,8 @@ nfsrv_buildace(struct nfsrv_descript *nd, u_char *name, int namelen,
  * Build an NFSv4 ACL.
  */
 int
-nfsrv_buildacl(struct nfsrv_descript *nd, NFSACL_T *aclp, enum vtype type,
-    NFSPROC_T *p)
+nfsrv_buildacl(
+    struct nfsrv_descript *nd, NFSACL_T *aclp, enum vtype type, NFSPROC_T *p)
 {
 	int i, entrycnt = 0, retlen;
 	u_int32_t *entrycntp;
@@ -421,16 +421,16 @@ nfsrv_buildacl(struct nfsrv_descript *nd, NFSACL_T *aclp, enum vtype type,
 			break;
 		case ACL_USER:
 			name = namestr;
-			nfsv4_uidtostr(aclp->acl_entry[i].ae_id, &name,
-			    &namelen);
+			nfsv4_uidtostr(
+			    aclp->acl_entry[i].ae_id, &name, &namelen);
 			if (name != namestr)
 				malloced = 1;
 			break;
 		case ACL_GROUP:
 			isgroup = 1;
 			name = namestr;
-			nfsv4_gidtostr((gid_t)aclp->acl_entry[i].ae_id, &name,
-			    &namelen);
+			nfsv4_gidtostr(
+			    (gid_t)aclp->acl_entry[i].ae_id, &name, &namelen);
 			if (name != namestr)
 				malloced = 1;
 			break;

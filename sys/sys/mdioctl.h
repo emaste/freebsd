@@ -45,31 +45,31 @@
 #ifndef _SYS_MDIOCTL_H_
 #define _SYS_MDIOCTL_H_
 
-enum md_types {MD_MALLOC, MD_PRELOAD, MD_VNODE, MD_SWAP, MD_NULL};
+enum md_types { MD_MALLOC, MD_PRELOAD, MD_VNODE, MD_SWAP, MD_NULL };
 
 /*
  * Ioctl definitions for memory disk pseudo-device.
  */
 
-#define MDNPAD		96
+#define MDNPAD 96
 struct md_ioctl {
-	unsigned	md_version;	/* Structure layout version */
-	unsigned	md_unit;	/* unit number */
-	enum md_types	md_type ;	/* type of disk */
-	char		*md_file;	/* pathname of file to mount */
-	off_t		md_mediasize;	/* size of disk in bytes */
-	unsigned	md_sectorsize;	/* sectorsize */
-	unsigned	md_options;	/* options */
-	u_int64_t	md_base;	/* base address */
-	int		md_fwheads;	/* firmware heads */
-	int		md_fwsectors;	/* firmware sectors */
-	char		*md_label;	/* label of the device */
-	int		md_pad[MDNPAD];	/* padding */
+	unsigned md_version;	/* Structure layout version */
+	unsigned md_unit;	/* unit number */
+	enum md_types md_type;	/* type of disk */
+	char *md_file;		/* pathname of file to mount */
+	off_t md_mediasize;	/* size of disk in bytes */
+	unsigned md_sectorsize; /* sectorsize */
+	unsigned md_options;	/* options */
+	u_int64_t md_base;	/* base address */
+	int md_fwheads;		/* firmware heads */
+	int md_fwsectors;	/* firmware sectors */
+	char *md_label;		/* label of the device */
+	int md_pad[MDNPAD];	/* padding */
 };
 
-#define MD_NAME		"md"
-#define MDCTL_NAME	"mdctl"
-#define MDIOVERSION	0
+#define MD_NAME "md"
+#define MDCTL_NAME "mdctl"
+#define MDIOVERSION 0
 
 /*
  * Before you can use a unit, it must be configured with MDIOCSET.
@@ -78,19 +78,19 @@ struct md_ioctl {
  * MDIOCSET an already active unit will return EBUSY.
  */
 
-#define MDIOCATTACH	_IOWR('m', 0, struct md_ioctl)	/* attach disk */
-#define MDIOCDETACH	_IOWR('m', 1, struct md_ioctl)	/* detach disk */
-#define MDIOCQUERY	_IOWR('m', 2, struct md_ioctl)	/* query status */
-#define MDIOCRESIZE	_IOWR('m', 4, struct md_ioctl)	/* resize disk */
+#define MDIOCATTACH _IOWR('m', 0, struct md_ioctl) /* attach disk */
+#define MDIOCDETACH _IOWR('m', 1, struct md_ioctl) /* detach disk */
+#define MDIOCQUERY _IOWR('m', 2, struct md_ioctl) /* query status */
+#define MDIOCRESIZE _IOWR('m', 4, struct md_ioctl) /* resize disk */
 
-#define MD_CLUSTER	0x01	/* Don't cluster */
-#define MD_RESERVE	0x02	/* Pre-reserve swap */
-#define MD_AUTOUNIT	0x04	/* Assign next free unit */
-#define MD_READONLY	0x08	/* Readonly mode */
-#define MD_COMPRESS	0x10	/* Compression mode */
-#define MD_FORCE	0x20	/* Don't try to prevent foot-shooting */
-#define MD_ASYNC	0x40	/* Asynchronous mode */
-#define MD_VERIFY	0x80	/* Open file with O_VERIFY (vnode only) */
-#define	MD_CACHE	0x100	/* Cache vnode data */
+#define MD_CLUSTER 0x01 /* Don't cluster */
+#define MD_RESERVE 0x02 /* Pre-reserve swap */
+#define MD_AUTOUNIT 0x04 /* Assign next free unit */
+#define MD_READONLY 0x08 /* Readonly mode */
+#define MD_COMPRESS 0x10 /* Compression mode */
+#define MD_FORCE 0x20 /* Don't try to prevent foot-shooting */
+#define MD_ASYNC 0x40 /* Asynchronous mode */
+#define MD_VERIFY 0x80 /* Open file with O_VERIFY (vnode only) */
+#define MD_CACHE 0x100 /* Cache vnode data */
 
-#endif	/* _SYS_MDIOCTL_H_*/
+#endif /* _SYS_MDIOCTL_H_*/

@@ -28,14 +28,14 @@
  * $FreeBSD$
  */
 
-#ifndef	_CTL_TPC_H
-#define	_CTL_TPC_H 1
+#ifndef _CTL_TPC_H
+#define _CTL_TPC_H 1
 
 void tpc_done(union ctl_io *io);
 
 uint64_t tpcl_resolve(struct ctl_softc *softc, int init_port,
     struct scsi_ec_cscd *cscd, uint32_t *ss, uint32_t *ps, uint32_t *pso);
-union ctl_io * tpcl_alloc_io(void);
+union ctl_io *tpcl_alloc_io(void);
 int tpcl_queue(union ctl_io *io, uint64_t lun);
 
-#endif	/* _CTL_TPC_H */
+#endif /* _CTL_TPC_H */

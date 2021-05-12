@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/capsicum.h>
 #include <sys/clock.h>
 #include <sys/fcntl.h>
@@ -53,9 +54,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <machine/frame.h>
 #include <machine/md_var.h>
@@ -63,32 +67,28 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 #include <machine/segments.h>
 #include <machine/specialreg.h>
-#include <x86/ifunc.h>
 
-#include <vm/pmap.h>
-#include <vm/vm.h>
-#include <vm/vm_map.h>
-
-#include <security/audit/audit.h>
-
-#include <compat/freebsd32/freebsd32_util.h>
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
+#include <x86/ifunc.h>
+
+#include <compat/freebsd32/freebsd32_util.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_ipc.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_mmap.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
+#include <security/audit/audit.h>
 
-static void	bsd_to_linux_rusage(struct rusage *ru, struct l_rusage *lru);
+static void bsd_to_linux_rusage(struct rusage *ru, struct l_rusage *lru);
 
 struct l_old_select_argv {
-	l_int		nfds;
-	l_uintptr_t	readfds;
-	l_uintptr_t	writefds;
-	l_uintptr_t	exceptfds;
-	l_uintptr_t	timeout;
+	l_int nfds;
+	l_uintptr_t readfds;
+	l_uintptr_t writefds;
+	l_uintptr_t exceptfds;
+	l_uintptr_t timeout;
 } __packed;
 
 static void
@@ -134,8 +134,8 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 
 	LCONVPATHEXIST(td, args->path, &path);
 
-	error = freebsd32_exec_copyin_args(&eargs, path, UIO_SYSSPACE,
-	    args->argp, args->envp);
+	error = freebsd32_exec_copyin_args(
+	    &eargs, path, UIO_SYSSPACE, args->argp, args->envp);
 	free(path, M_TEMP);
 	if (error == 0)
 		error = linux_common_execve(td, &eargs);
@@ -187,8 +187,8 @@ linux32_copyinuio(struct l_iovec32 *iovp, l_ulong iovcnt, struct uio **uiop)
 }
 
 int
-linux32_copyiniov(struct l_iovec32 *iovp32, l_ulong iovcnt, struct iovec **iovp,
-    int error)
+linux32_copyiniov(
+    struct l_iovec32 *iovp32, l_ulong iovcnt, struct iovec **iovp, int error)
 {
 	struct l_iovec32 iov32;
 	struct iovec *iov;
@@ -210,8 +210,7 @@ linux32_copyiniov(struct l_iovec32 *iovp32, l_ulong iovcnt, struct iovec **iovp,
 		iov[i].iov_len = iov32.iov_len;
 	}
 	*iovp = iov;
-	return(0);
-
+	return (0);
 }
 
 int
@@ -437,8 +436,8 @@ linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 {
 
 	return (linux_mmap_common(td, PTROUT(args->addr), args->len, args->prot,
-		args->flags, args->fd, (uint64_t)(uint32_t)args->pgoff *
-		PAGE_SIZE));
+	    args->flags, args->fd,
+	    (uint64_t)(uint32_t)args->pgoff * PAGE_SIZE));
 }
 
 int
@@ -460,14 +459,16 @@ int
 linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
 {
 
-	return (linux_mprotect_common(td, PTROUT(uap->addr), uap->len, uap->prot));
+	return (
+	    linux_mprotect_common(td, PTROUT(uap->addr), uap->len, uap->prot));
 }
 
 int
 linux_madvise(struct thread *td, struct linux_madvise_args *uap)
 {
 
-	return (linux_madvise_common(td, PTROUT(uap->addr), uap->len, uap->behav));
+	return (
+	    linux_madvise_common(td, PTROUT(uap->addr), uap->len, uap->behav));
 }
 
 int
@@ -505,8 +506,8 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 		act.lsa_mask.__mask = osa.lsa_mask;
 	}
 
-	error = linux_do_sigaction(td, args->sig, args->nsa ? &act : NULL,
-	    args->osa ? &oact : NULL);
+	error = linux_do_sigaction(
+	    td, args->sig, args->nsa ? &act : NULL, args->osa ? &oact : NULL);
 
 	if (args->osa != NULL && !error) {
 		osa.lsa_handler = oact.lsa_handler;
@@ -658,8 +659,8 @@ linux_getrusage(struct thread *td, struct linux_getrusage_args *uap)
 }
 
 int
-linux_set_thread_area(struct thread *td,
-    struct linux_set_thread_area_args *args)
+linux_set_thread_area(
+    struct thread *td, struct linux_set_thread_area_args *args)
 {
 	struct l_user_desc info;
 	struct pcb *pcb;
@@ -727,7 +728,8 @@ DEFINE_IFUNC(, int, futex_xchgl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    futex_xchgl_smap : futex_xchgl_nosmap);
+		      futex_xchgl_smap :
+		      futex_xchgl_nosmap);
 }
 
 int futex_addl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
@@ -736,7 +738,8 @@ DEFINE_IFUNC(, int, futex_addl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    futex_addl_smap : futex_addl_nosmap);
+		      futex_addl_smap :
+		      futex_addl_nosmap);
 }
 
 int futex_orl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
@@ -745,7 +748,8 @@ DEFINE_IFUNC(, int, futex_orl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    futex_orl_smap : futex_orl_nosmap);
+		      futex_orl_smap :
+		      futex_orl_nosmap);
 }
 
 int futex_andl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
@@ -754,7 +758,8 @@ DEFINE_IFUNC(, int, futex_andl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    futex_andl_smap : futex_andl_nosmap);
+		      futex_andl_smap :
+		      futex_andl_nosmap);
 }
 
 int futex_xorl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
@@ -763,5 +768,6 @@ DEFINE_IFUNC(, int, futex_xorl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    futex_xorl_smap : futex_xorl_nosmap);
+		      futex_xorl_smap :
+		      futex_xorl_nosmap);
 }

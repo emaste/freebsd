@@ -26,8 +26,9 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#include <machine/asm.h>
 #include <sys/param.h>
+
+#include <machine/asm.h>
 
 #if ELFSIZE == 64
 #include <sys/elf64.h>
@@ -41,8 +42,8 @@ __FBSDID("$FreeBSD$");
  */
 #include "opt_global.h"
 
-#include <machine/elf.h>
 #include <machine/cpufunc.h>
+#include <machine/elf.h>
 #include <machine/stdarg.h>
 
 #ifndef KERNNAME
@@ -56,7 +57,7 @@ static __inline void *
 memcpy(void *dst, const void *src, size_t len)
 {
 	const char *s = src;
-    	char *d = dst;
+	char *d = dst;
 
 	while (len) {
 		if (0 && len >= 4 && !((vm_offset_t)d & 3) &&
@@ -95,14 +96,14 @@ bzero(void *addr, size_t count)
  * Convert number to pointer, truncate on 64->32 case, sign extend
  * in 32->64 case
  */
-#define	mkptr(x)	((void *)(intptr_t)(int)(x))
+#define mkptr(x) ((void *)(intptr_t)(int)(x))
 
 /*
  * Relocate PT_LOAD segements of kernel ELF image to their respective
  * virtual addresses and return entry point
  */
 void *
-load_kernel(void * kstart)
+load_kernel(void *kstart)
 {
 #if ELFSIZE == 64
 	Elf64_Ehdr *eh;
@@ -130,8 +131,8 @@ load_kernel(void * kstart)
 	memcpy(phdr, (void *)(kstart + eh->e_phoff),
 	    eh->e_phnum * sizeof(phdr[0]));
 
-	memcpy(shdr, (void *)(kstart + eh->e_shoff),
-	    sizeof(*shdr) * eh->e_shnum);
+	memcpy(
+	    shdr, (void *)(kstart + eh->e_shoff), sizeof(*shdr) * eh->e_shnum);
 
 	if (eh->e_shnum * eh->e_shentsize != 0 && eh->e_shoff != 0) {
 		for (i = 0; i < eh->e_shnum; i++) {
@@ -139,7 +140,7 @@ load_kernel(void * kstart)
 				/*
 				 * XXX: check if .symtab is in PT_LOAD?
 				 */
-				if (shdr[i].sh_offset != 0 && 
+				if (shdr[i].sh_offset != 0 &&
 				    shdr[i].sh_size != 0) {
 					symtabindex = i;
 					symstrindex = shdr[i].sh_link;
@@ -156,9 +157,9 @@ load_kernel(void * kstart)
 
 		if (phdr[i].p_type != PT_LOAD)
 			continue;
-		
+
 		memcpy(mkptr(phdr[i].p_vaddr),
-		    (void*)(kstart + phdr[i].p_offset), phdr[i].p_filesz);
+		    (void *)(kstart + phdr[i].p_offset), phdr[i].p_filesz);
 
 		/* Clean space from oversized segments, eg: bss. */
 		if (phdr[i].p_filesz < phdr[i].p_memsz)
@@ -175,8 +176,8 @@ load_kernel(void * kstart)
 		tmp = SYMTAB_MAGIC;
 		memcpy((void *)lastaddr, &tmp, sizeof(tmp));
 		lastaddr += sizeof(Elf_Size);
-		tmp = shdr[symtabindex].sh_size +
-		    shdr[symstrindex].sh_size + 2*sizeof(Elf_Size);
+		tmp = shdr[symtabindex].sh_size + shdr[symstrindex].sh_size +
+		    2 * sizeof(Elf_Size);
 		memcpy((void *)lastaddr, &tmp, sizeof(tmp));
 		lastaddr += sizeof(Elf_Size);
 		/* .symtab size */
@@ -184,8 +185,7 @@ load_kernel(void * kstart)
 		memcpy((void *)lastaddr, &tmp, sizeof(tmp));
 		lastaddr += sizeof(shdr[symtabindex].sh_size);
 		/* .symtab data */
-		memcpy((void*)lastaddr,
-		    shdr[symtabindex].sh_offset + kstart,
+		memcpy((void *)lastaddr, shdr[symtabindex].sh_offset + kstart,
 		    shdr[symtabindex].sh_size);
 		lastaddr += shdr[symtabindex].sh_size;
 
@@ -195,8 +195,7 @@ load_kernel(void * kstart)
 		lastaddr += sizeof(shdr[symstrindex].sh_size);
 
 		/* .strtab data */
-		memcpy((void*)lastaddr,
-		    shdr[symstrindex].sh_offset + kstart,
+		memcpy((void *)lastaddr, shdr[symstrindex].sh_offset + kstart,
 		    shdr[symstrindex].sh_size);
 	} else {
 		/* Do not take any chances */
@@ -210,11 +209,11 @@ load_kernel(void * kstart)
 void
 _startC(register_t a0, register_t a1, register_t a2, register_t a3)
 {
-	unsigned int * code;
+	unsigned int *code;
 	int i;
 	void (*entry_point)(register_t, register_t, register_t, register_t);
 
-	/* 
+	/*
 	 * Relocate segment to the predefined memory location
 	 * Most likely it will be KSEG0/KSEG1 address
 	 */

@@ -38,13 +38,13 @@
  */
 
 /*  A number of pages in L1 page table. */
-#define NPG_IN_PT1	(NB_IN_PT1 / PAGE_SIZE)
+#define NPG_IN_PT1 (NB_IN_PT1 / PAGE_SIZE)
 
 /*  A number of L2 page tables in a page. */
-#define NPT2_IN_PG	(PAGE_SIZE / NB_IN_PT2)
+#define NPT2_IN_PG (PAGE_SIZE / NB_IN_PT2)
 
 /*  A number of L2 page table entries in a page. */
-#define NPTE2_IN_PG	(NPT2_IN_PG * NPTE2_IN_PT2)
+#define NPTE2_IN_PG (NPT2_IN_PG * NPTE2_IN_PT2)
 
 #ifdef _KERNEL
 
@@ -54,24 +54,24 @@
  *  in a page. The PT2PG_SHIFT definition depends on NPT2_IN_PG strictly.
  *  I.e., (1 << PT2PG_SHIFT) == NPT2_IN_PG must be fulfilled.
  */
-#define PT2PG_SHIFT	2
-#define PT2PG_MASK	((1 << PT2PG_SHIFT) - 1)
+#define PT2PG_SHIFT 2
+#define PT2PG_MASK ((1 << PT2PG_SHIFT) - 1)
 
 /*
  *  A PT2TAB holds all allocated L2 page table pages in a pmap.
  *  Right shifting of virtual address by PT2TAB_SHIFT gives us an index
  *  to L2 page table page in PT2TAB which holds the address mapping.
  */
-#define PT2TAB_ENTRIES  (NPTE1_IN_PT1 / NPT2_IN_PG)
-#define PT2TAB_SHIFT	(PTE1_SHIFT + PT2PG_SHIFT)
+#define PT2TAB_ENTRIES (NPTE1_IN_PT1 / NPT2_IN_PG)
+#define PT2TAB_SHIFT (PTE1_SHIFT + PT2PG_SHIFT)
 
 /*
  *  All allocated L2 page table pages in a pmap are mapped into PT2MAP space.
  *  An virtual address right shifting by PT2MAP_SHIFT gives us an index to PTE2
  *  which maps the address.
  */
-#define PT2MAP_SIZE	(NPTE1_IN_PT1 * NB_IN_PT2)
-#define PT2MAP_SHIFT	PTE2_SHIFT
+#define PT2MAP_SIZE (NPTE1_IN_PT1 * NB_IN_PT2)
+#define PT2MAP_SHIFT PTE2_SHIFT
 
 extern pt1_entry_t *kern_pt1;
 extern pt2_entry_t *kern_pt2tab;
@@ -409,7 +409,7 @@ static __inline void
 pt2tab_store(pt2_entry_t *pte2p, pt2_entry_t pte2)
 {
 
-	pte2_store(pte2p,pte2);
+	pte2_store(pte2p, pte2);
 }
 
 static __inline pt2_entry_t
@@ -490,5 +490,5 @@ kern_pt2_page(vm_offset_t va)
 	return (PHYS_TO_VM_PAGE(pte2 & PTE2_FRAME));
 }
 
-#endif	/* _KERNEL */
-#endif	/* !_MACHINE_PMAP_VAR_H_ */
+#endif /* _KERNEL */
+#endif /* !_MACHINE_PMAP_VAR_H_ */

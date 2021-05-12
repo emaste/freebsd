@@ -45,34 +45,34 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
-#include <sys/mount.h>
-#include <sys/vnode.h>
-#include <sys/namei.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mount.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/malloc.h>
-#include <sys/sysent.h>
 #include <sys/syscall.h>
+#include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/taskqueue.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
-#include <vm/vm_object.h>
-#include <vm/vm_extern.h>
 #include <vm/uma.h>
-
-#include <fs/nfs/nfsport.h>
-#include <fs/nfsclient/nfsnode.h>
-#include <fs/nfsclient/nfsmount.h>
-#include <fs/nfsclient/nfs.h>
-#include <fs/nfsclient/nfs_kdtrace.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_object.h>
 
 #include <netinet/in.h>
+
+#include <fs/nfs/nfsport.h>
+#include <fs/nfsclient/nfs.h>
+#include <fs/nfsclient/nfs_kdtrace.h>
+#include <fs/nfsclient/nfsmount.h>
+#include <fs/nfsclient/nfsnode.h>
 
 /*
  * Note that stdarg.h and the ANSI style va_start macro is used for both
@@ -87,7 +87,7 @@ extern int ncl_numasync;
 extern unsigned int ncl_iodmax;
 extern struct nfsstatsv1 nfsstatsv1;
 
-struct task	ncl_nfsiodnew_task;
+struct task ncl_nfsiodnew_task;
 
 int
 ncl_uninit(struct vfsconf *vfsp)
@@ -119,16 +119,16 @@ ncl_uninit(struct vfsconf *vfsp)
 }
 
 /* Returns with NFSLOCKNODE() held. */
-void 
+void
 ncl_dircookie_lock(struct nfsnode *np)
 {
 	NFSLOCKNODE(np);
 	while (np->n_flag & NDIRCOOKIELK)
-		(void) msleep(&np->n_flag, &np->n_mtx, PZERO, "nfsdirlk", 0);
+		(void)msleep(&np->n_flag, &np->n_mtx, PZERO, "nfsdirlk", 0);
 	np->n_flag |= NDIRCOOKIELK;
 }
 
-void 
+void
 ncl_dircookie_unlock(struct nfsnode *np)
 {
 	NFSLOCKNODE(np);
@@ -147,8 +147,8 @@ ncl_excl_start(struct vnode *vp)
 	vn_lk = NFSVOPISLOCKED(vp);
 	if (vn_lk == LK_EXCLUSIVE)
 		return (false);
-	KASSERT(vn_lk == LK_SHARED,
-	    ("ncl_excl_start: wrong vnode lock %d", vn_lk));
+	KASSERT(
+	    vn_lk == LK_SHARED, ("ncl_excl_start: wrong vnode lock %d", vn_lk));
 	/* Ensure exclusive access, this might block */
 	np = VTONFS(vp);
 	lockmgr(&np->n_excl, LK_EXCLUSIVE, NULL);
@@ -191,13 +191,13 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 	np = VTONFS(vp);
 	vap = &np->n_vattr.na_vattr;
 	nmp = VFSTONFS(vp->v_mount);
-	mustflush = nfscl_mustflush(vp);	/* must be before mtx_lock() */
+	mustflush = nfscl_mustflush(vp); /* must be before mtx_lock() */
 	NFSLOCKNODE(np);
 	/* XXX n_mtime doesn't seem to be updated on a miss-and-reload */
 	timeo = (time_second - np->n_mtime.tv_sec) / 10;
 
 #ifdef NFS_ACDEBUG
-	if (nfs_acdebug>1)
+	if (nfs_acdebug > 1)
 		printf("ncl_getattrcache: initial timeo = %d\n", timeo);
 #endif
 
@@ -216,8 +216,8 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 #ifdef NFS_ACDEBUG
 	if (nfs_acdebug > 2)
 		printf("acregmin %d; acregmax %d; acdirmin %d; acdirmax %d\n",
-		    nmp->nm_acregmin, nmp->nm_acregmax,
-		    nmp->nm_acdirmin, nmp->nm_acdirmax);
+		    nmp->nm_acregmin, nmp->nm_acregmax, nmp->nm_acdirmin,
+		    nmp->nm_acdirmax);
 
 	if (nfs_acdebug)
 		printf("ncl_getattrcache: age = %d; final timeo = %d\n",
@@ -229,7 +229,7 @@ ncl_getattrcache(struct vnode *vp, struct vattr *vaper)
 		nfsstatsv1.attrcache_misses++;
 		NFSUNLOCKNODE(np);
 		KDTRACE_NFS_ATTRCACHE_GET_MISS(vp);
-		return( ENOENT);
+		return (ENOENT);
 	}
 	nfsstatsv1.attrcache_hits++;
 	setnsize = false;
@@ -283,8 +283,8 @@ ncl_getcookie(struct nfsnode *np, off_t off, int add)
 	dp = LIST_FIRST(&np->n_cookies);
 	if (!dp) {
 		if (add) {
-			dp = malloc(sizeof (struct nfsdmap),
-				M_NFSDIROFF, M_WAITOK);
+			dp = malloc(
+			    sizeof(struct nfsdmap), M_NFSDIROFF, M_WAITOK);
 			dp->ndm_eocookie = 0;
 			LIST_INSERT_HEAD(&np->n_cookies, dp, ndm_list);
 		} else
@@ -298,8 +298,8 @@ ncl_getcookie(struct nfsnode *np, off_t off, int add)
 				goto out;
 			dp = LIST_NEXT(dp, ndm_list);
 		} else if (add) {
-			dp2 = malloc(sizeof (struct nfsdmap),
-				M_NFSDIROFF, M_WAITOK);
+			dp2 = malloc(
+			    sizeof(struct nfsdmap), M_NFSDIROFF, M_WAITOK);
 			dp2->ndm_eocookie = 0;
 			LIST_INSERT_AFTER(dp, dp2, ndm_list);
 			dp = dp2;
@@ -355,15 +355,15 @@ ncl_clearcommit(struct mount *mp)
 	struct buf *bp, *nbp;
 	struct bufobj *bo;
 
-	MNT_VNODE_FOREACH_ALL(vp, mp, nvp) {
+	MNT_VNODE_FOREACH_ALL (vp, mp, nvp) {
 		bo = &vp->v_bufobj;
 		vholdl(vp);
 		VI_UNLOCK(vp);
 		BO_LOCK(bo);
-		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
+		TAILQ_FOREACH_SAFE (bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
 			if (!BUF_ISLOCKED(bp) &&
-			    (bp->b_flags & (B_DELWRI | B_NEEDCOMMIT))
-				== (B_DELWRI | B_NEEDCOMMIT))
+			    (bp->b_flags & (B_DELWRI | B_NEEDCOMMIT)) ==
+				(B_DELWRI | B_NEEDCOMMIT))
 				bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 		}
 		BO_UNLOCK(bo);
@@ -385,7 +385,7 @@ ncl_init(struct vfsconf *vfsp)
 		ncl_iodmount[i] = NULL;
 	}
 	TASK_INIT(&ncl_nfsiodnew_task, 0, ncl_nfsiodnew_tq, NULL);
-	ncl_nhinit();			/* Init the nfsnode table */
+	ncl_nhinit(); /* Init the nfsnode table */
 
 	return (0);
 }

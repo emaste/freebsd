@@ -37,30 +37,33 @@
 struct m_snd_tag;
 
 /* Flags on an individual rate */
-#define HDWRPACE_INITED 	0x0001
-#define HDWRPACE_TAGPRESENT	0x0002
-#define HDWRPACE_IFPDEPARTED	0x0004
+#define HDWRPACE_INITED 0x0001
+#define HDWRPACE_TAGPRESENT 0x0002
+#define HDWRPACE_IFPDEPARTED 0x0004
 struct tcp_hwrate_limit_table {
-	const struct tcp_rate_set *ptbl;	/* Pointer to parent table */
-	struct m_snd_tag *tag;	/* Send tag if needed (chelsio) */
-	long	 rate;		/* Rate we get in Bytes per second (Bps) */
-	long	 using;		/* How many flows are using this hdwr rate. */
-	long	 rs_num_enobufs;
-	uint32_t time_between;	/* Time-Gap between packets at this rate */
+	const struct tcp_rate_set *ptbl; /* Pointer to parent table */
+	struct m_snd_tag *tag;		 /* Send tag if needed (chelsio) */
+	long rate;  /* Rate we get in Bytes per second (Bps) */
+	long using; /* How many flows are using this hdwr rate. */
+	long rs_num_enobufs;
+	uint32_t time_between; /* Time-Gap between packets at this rate */
 	uint32_t flags;
 };
 
 /* Rateset flags */
-#define RS_IS_DEFF      0x0001	/* Its a lagg, do a double lookup */
-#define RS_IS_INTF      0x0002	/* Its a plain interface */
-#define RS_NO_PRE       0x0004	/* The interfacd has set rates */
-#define RS_INT_TBL      0x0010	/*
-				 * The table is the internal version
-				 * which has special setup requirements.
-				 */
-#define RS_IS_DEAD      0x0020	/* The RS is dead list */
-#define RS_FUNERAL_SCHD 0x0040  /* Is a epoch call scheduled to bury this guy?*/
-#define RS_INTF_NO_SUP  0x0100 	/* The interface does not support the ratelimiting */
+#define RS_IS_DEFF 0x0001 /* Its a lagg, do a double lookup */
+#define RS_IS_INTF 0x0002 /* Its a plain interface */
+#define RS_NO_PRE 0x0004 /* The interfacd has set rates */
+#define RS_INT_TBL                                      \
+	0x0010 /*                                       \
+		* The table is the internal version     \
+		* which has special setup requirements. \
+		*/
+#define RS_IS_DEAD 0x0020 /* The RS is dead list */
+#define RS_FUNERAL_SCHD 0x0040 /* Is a epoch call scheduled to bury this \
+				  guy?*/
+#define RS_INTF_NO_SUP \
+	0x0100 /* The interface does not support the ratelimiting */
 
 struct tcp_rate_set {
 	struct sysctl_ctx_list sysctl_ctx;
@@ -82,49 +85,48 @@ struct tcp_rate_set {
 CK_LIST_HEAD(head_tcp_rate_set, tcp_rate_set);
 
 /* Request flags */
-#define RS_PACING_EXACT_MATCH	0x0001	/* Need an exact match for rate */
-#define RS_PACING_GT		0x0002	/* Greater than requested */
-#define RS_PACING_GEQ		0x0004	/* Greater than or equal too */
-#define RS_PACING_LT		0x0008	/* Less than requested rate */
-#define RS_PACING_SUB_OK	0x0010	/* If a rate can't be found get the
-					 * next best rate (highest or lowest). */
+#define RS_PACING_EXACT_MATCH 0x0001 /* Need an exact match for rate */
+#define RS_PACING_GT 0x0002 /* Greater than requested */
+#define RS_PACING_GEQ 0x0004 /* Greater than or equal too */
+#define RS_PACING_LT 0x0008 /* Less than requested rate */
+#define RS_PACING_SUB_OK                           \
+	0x0010 /* If a rate can't be found get the \
+		* next best rate (highest or lowest). */
 #ifdef _KERNEL
 #ifndef ETHERNET_SEGMENT_SIZE
 #define ETHERNET_SEGMENT_SIZE 1514
 #endif
 #ifdef RATELIMIT
-#define DETAILED_RATELIMIT_SYSCTL 1	/*
-					 * Undefine this if you don't want
-					 * detailed rates to appear in
-					 * net.inet.tcp.rl.
-					 * With the defintion each rate
-					 * shows up in your sysctl tree
-					 * this can be big.
-					 */
-uint64_t inline
-tcp_hw_highest_rate(const struct tcp_hwrate_limit_table *rle)
+#define DETAILED_RATELIMIT_SYSCTL            \
+	1 /*                                 \
+	   * Undefine this if you don't want \
+	   * detailed rates to appear in     \
+	   * net.inet.tcp.rl.                \
+	   * With the defintion each rate    \
+	   * shows up in your sysctl tree    \
+	   * this can be big.                \
+	   */
+uint64_t inline tcp_hw_highest_rate(const struct tcp_hwrate_limit_table *rle)
 {
 	return (rle->ptbl->rs_rlt[rle->ptbl->rs_highest_valid].rate);
 }
 
-uint64_t
-tcp_hw_highest_rate_ifp(struct ifnet *ifp, struct inpcb *inp);
+uint64_t tcp_hw_highest_rate_ifp(struct ifnet *ifp, struct inpcb *inp);
 
-const struct tcp_hwrate_limit_table *
-tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
-    uint64_t bytes_per_sec, int flags, int *error, uint64_t *lower_rate);
+const struct tcp_hwrate_limit_table *tcp_set_pacing_rate(struct tcpcb *tp,
+    struct ifnet *ifp, uint64_t bytes_per_sec, int flags, int *error,
+    uint64_t *lower_rate);
 
-const struct tcp_hwrate_limit_table *
-tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
-    struct tcpcb *tp, struct ifnet *ifp,
-    uint64_t bytes_per_sec, int flags, int *error, uint64_t *lower_rate);
-void
-tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte,
-    struct tcpcb *tp);
+const struct tcp_hwrate_limit_table *tcp_chg_pacing_rate(
+    const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp,
+    struct ifnet *ifp, uint64_t bytes_per_sec, int flags, int *error,
+    uint64_t *lower_rate);
+void tcp_rel_pacing_rate(
+    const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp);
 #else
 static inline const struct tcp_hwrate_limit_table *
-tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
-    uint64_t bytes_per_sec, int flags, int *error, uint64_t *lower_rate)
+tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp, uint64_t bytes_per_sec,
+    int flags, int *error, uint64_t *lower_rate)
 {
 	if (error)
 		*error = EOPNOTSUPP;
@@ -132,9 +134,9 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 }
 
 static inline const struct tcp_hwrate_limit_table *
-tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
-    struct tcpcb *tp, struct ifnet *ifp,
-    uint64_t bytes_per_sec, int flags, int *error, uint64_t *lower_rate)
+tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp,
+    struct ifnet *ifp, uint64_t bytes_per_sec, int flags, int *error,
+    uint64_t *lower_rate)
 {
 	if (error)
 		*error = EOPNOTSUPP;
@@ -142,24 +144,22 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 }
 
 static inline void
-tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte,
-    struct tcpcb *tp)
+tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp)
 {
 	return;
 }
 
-static uint64_t inline
-tcp_hw_highest_rate(const struct tcp_hwrate_limit_table *rle)
+static uint64_t inline tcp_hw_highest_rate(
+    const struct tcp_hwrate_limit_table *rle)
 {
 	return (0);
 }
 
-static uint64_t inline
-tcp_hw_highest_rate_ifp(struct ifnet *ifp, struct inpcb *inp)
+static uint64_t inline tcp_hw_highest_rate_ifp(
+    struct ifnet *ifp, struct inpcb *inp)
 {
 	return (0);
 }
-
 
 #endif
 /*
@@ -170,13 +170,11 @@ tcp_hw_highest_rate_ifp(struct ifnet *ifp, struct inpcb *inp)
  * limit, if not it will bottom out at 2mss (think
  * delayed ack).
  */
-uint32_t
-tcp_get_pacing_burst_size(struct tcpcb *tp, uint64_t bw, uint32_t segsiz, int can_use_1mss,
-   const struct tcp_hwrate_limit_table *te, int *err);
+uint32_t tcp_get_pacing_burst_size(struct tcpcb *tp, uint64_t bw,
+    uint32_t segsiz, int can_use_1mss, const struct tcp_hwrate_limit_table *te,
+    int *err);
 
-
-void
-tcp_rl_log_enobuf(const struct tcp_hwrate_limit_table *rte);
+void tcp_rl_log_enobuf(const struct tcp_hwrate_limit_table *rte);
 
 #endif
 #endif

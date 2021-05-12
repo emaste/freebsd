@@ -46,15 +46,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/uio.h>
 #include <sys/sf_buf.h>
+#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 
 #include <machine/cpu.h>
-#include <machine/vmparam.h>
 #include <machine/md_var.h>
+#include <machine/vmparam.h>
 
 /*
  * Implement uiomove(9) from physical memory using sf_bufs to
@@ -95,28 +95,28 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 
 		m = ma[offset >> PAGE_SHIFT];
 		sf = sf_buf_alloc(m, 0);
-		cp = (char*)sf_buf_kva(sf) + page_offset;
+		cp = (char *)sf_buf_kva(sf) + page_offset;
 
 		switch (uio->uio_segflg) {
-			case UIO_USERSPACE:
-				maybe_yield();
-				if (uio->uio_rw == UIO_READ)
-					error = copyout(cp, iov->iov_base, cnt);
-				else
-					error = copyin(iov->iov_base, cp, cnt);
-				if (error) {
-					sf_buf_free(sf);
-					goto out;
-				}
-				break;
-			case UIO_SYSSPACE:
-				if (uio->uio_rw == UIO_READ)
-					bcopy(cp, iov->iov_base, cnt);
-				else
-					bcopy(iov->iov_base, cp, cnt);
-				break;
-			case UIO_NOCOPY:
-				break;
+		case UIO_USERSPACE:
+			maybe_yield();
+			if (uio->uio_rw == UIO_READ)
+				error = copyout(cp, iov->iov_base, cnt);
+			else
+				error = copyin(iov->iov_base, cp, cnt);
+			if (error) {
+				sf_buf_free(sf);
+				goto out;
+			}
+			break;
+		case UIO_SYSSPACE:
+			if (uio->uio_rw == UIO_READ)
+				bcopy(cp, iov->iov_base, cnt);
+			else
+				bcopy(iov->iov_base, cp, cnt);
+			break;
+		case UIO_NOCOPY:
+			break;
 		}
 		sf_buf_free(sf);
 		iov->iov_base = (char *)iov->iov_base + cnt;

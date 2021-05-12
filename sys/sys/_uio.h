@@ -33,19 +33,16 @@
  */
 
 #ifndef _SYS__UIO_H_
-#define	_SYS__UIO_H_
+#define _SYS__UIO_H_
 
 #if __BSD_VISIBLE
-enum uio_rw {
-	UIO_READ,
-	UIO_WRITE
-};
+enum uio_rw { UIO_READ, UIO_WRITE };
 
 /* Segment flag values. */
 enum uio_seg {
-	UIO_USERSPACE,		/* from user data space */
-	UIO_SYSSPACE,		/* from system space */
-	UIO_NOCOPY		/* don't copy, already in object */
+	UIO_USERSPACE, /* from user data space */
+	UIO_SYSSPACE,  /* from system space */
+	UIO_NOCOPY     /* don't copy, already in object */
 };
 #endif /* __BSD_VISIBLE */
 

@@ -29,7 +29,7 @@
  */
 
 #ifndef __LINUX_MOD_DEVICETABLE_H__
-#define	__LINUX_MOD_DEVICETABLE_H__
+#define __LINUX_MOD_DEVICETABLE_H__
 
 enum dmi_field {
 	DMI_NONE,
@@ -66,7 +66,13 @@ struct dmi_system_id {
 	void *driver_data;
 };
 
-#define DMI_MATCH(a, b) { .slot = a, .substr = b }
-#define DMI_EXACT_MATCH(a, b)   { .slot = a, .substr = b, }
+#define DMI_MATCH(a, b)                \
+	{                              \
+		.slot = a, .substr = b \
+	}
+#define DMI_EXACT_MATCH(a, b)           \
+	{                               \
+		.slot = a, .substr = b, \
+	}
 
-#endif	/* __LINUX_MOD_DEVICETABLE_H__ */
+#endif /* __LINUX_MOD_DEVICETABLE_H__ */

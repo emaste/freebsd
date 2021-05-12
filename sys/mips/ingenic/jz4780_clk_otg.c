@@ -34,8 +34,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
@@ -48,26 +48,25 @@ __FBSDID("$FreeBSD$");
 /* JZ4780 OTG PHY clock */
 static int jz4780_clk_otg_init(struct clknode *clk, device_t dev);
 static int jz4780_clk_otg_recalc_freq(struct clknode *clk, uint64_t *freq);
-static int jz4780_clk_otg_set_freq(struct clknode *clk, uint64_t fin,
-    uint64_t *fout, int flags, int *stop);
+static int jz4780_clk_otg_set_freq(
+    struct clknode *clk, uint64_t fin, uint64_t *fout, int flags, int *stop);
 
 struct jz4780_clk_otg_sc {
-	struct mtx	*clk_mtx;
+	struct mtx *clk_mtx;
 	struct resource *clk_res;
 };
 
 /*
  * JZ4780 OTG PHY clock methods
  */
-static clknode_method_t jz4780_clk_otg_methods[] = {
-	CLKNODEMETHOD(clknode_init,		jz4780_clk_otg_init),
-	CLKNODEMETHOD(clknode_recalc_freq,	jz4780_clk_otg_recalc_freq),
-	CLKNODEMETHOD(clknode_set_freq,		jz4780_clk_otg_set_freq),
+static clknode_method_t jz4780_clk_otg_methods[] = { CLKNODEMETHOD(clknode_init,
+							 jz4780_clk_otg_init),
+	CLKNODEMETHOD(clknode_recalc_freq, jz4780_clk_otg_recalc_freq),
+	CLKNODEMETHOD(clknode_set_freq, jz4780_clk_otg_set_freq),
 
-	CLKNODEMETHOD_END
-};
+	CLKNODEMETHOD_END };
 DEFINE_CLASS_1(jz4780_clk_pll, jz4780_clk_otg_class, jz4780_clk_otg_methods,
-       sizeof(struct jz4780_clk_otg_sc), clknode_class);
+    sizeof(struct jz4780_clk_otg_sc), clknode_class);
 
 static int
 jz4780_clk_otg_init(struct clknode *clk, device_t dev)
@@ -91,12 +90,8 @@ jz4780_clk_otg_init(struct clknode *clk, device_t dev)
 static const struct {
 	uint32_t div_val;
 	uint32_t freq;
-} otg_div_table[] = {
-    { PCR_CLK_12,	12000000 },
-    { PCR_CLK_192,	19200000 },
-    { PCR_CLK_24,	24000000 },
-    { PCR_CLK_48,	48000000 }
-};
+} otg_div_table[] = { { PCR_CLK_12, 12000000 }, { PCR_CLK_192, 19200000 },
+	{ PCR_CLK_24, 24000000 }, { PCR_CLK_48, 48000000 } };
 
 static int
 jz4780_clk_otg_recalc_freq(struct clknode *clk, uint64_t *freq)
@@ -116,8 +111,8 @@ jz4780_clk_otg_recalc_freq(struct clknode *clk, uint64_t *freq)
 }
 
 static int
-jz4780_clk_otg_set_freq(struct clknode *clk, uint64_t fin,
-    uint64_t *fout, int flags, int *stop)
+jz4780_clk_otg_set_freq(
+    struct clknode *clk, uint64_t fin, uint64_t *fout, int flags, int *stop)
 {
 	struct jz4780_clk_otg_sc *sc;
 	uint32_t reg;
@@ -126,7 +121,8 @@ jz4780_clk_otg_set_freq(struct clknode *clk, uint64_t fin,
 	sc = clknode_get_softc(clk);
 
 	for (i = 0; i < nitems(otg_div_table) - 1; i++) {
-		if (*fout < (otg_div_table[i].freq + otg_div_table[i + 1].freq) / 2)
+		if (*fout <
+		    (otg_div_table[i].freq + otg_div_table[i + 1].freq) / 2)
 			break;
 	}
 
@@ -148,9 +144,9 @@ jz4780_clk_otg_set_freq(struct clknode *clk, uint64_t fin,
 	return (0);
 }
 
-int jz4780_clk_otg_register(struct clkdom *clkdom,
-    struct clknode_init_def *clkdef, struct mtx *dev_mtx,
-    struct resource *mem_res)
+int
+jz4780_clk_otg_register(struct clkdom *clkdom, struct clknode_init_def *clkdef,
+    struct mtx *dev_mtx, struct resource *mem_res)
 {
 	struct clknode *clk;
 	struct jz4780_clk_otg_sc *sc;

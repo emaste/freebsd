@@ -33,10 +33,14 @@
 
 #include <sys/pcpu.h>
 
-#define	EARLY_COUNTER	(void *)__offsetof(struct pcpu, pc_early_dummy_counter)
+#define EARLY_COUNTER (void *)__offsetof(struct pcpu, pc_early_dummy_counter)
 
-#define	counter_enter()	do {} while (0)
-#define	counter_exit()	do {} while (0)
+#define counter_enter() \
+	do {            \
+	} while (0)
+#define counter_exit() \
+	do {           \
+	} while (0)
 
 #ifdef IN_SUBR_COUNTER_C
 static inline uint64_t
@@ -54,7 +58,7 @@ counter_u64_fetch_inline(uint64_t *c)
 	int cpu;
 
 	r = 0;
-	CPU_FOREACH(cpu)
+	CPU_FOREACH (cpu)
 		r += counter_u64_read_one(c, cpu);
 
 	return (r);
@@ -79,7 +83,7 @@ counter_u64_zero_inline(counter_u64_t c)
 }
 #endif
 
-#define	counter_u64_add_protected(c, i)	counter_u64_add(c, i)
+#define counter_u64_add_protected(c, i) counter_u64_add(c, i)
 
 static inline void
 counter_u64_add(counter_u64_t c, int64_t inc)
@@ -89,4 +93,4 @@ counter_u64_add(counter_u64_t c, int64_t inc)
 	zpcpu_add(c, inc);
 }
 
-#endif	/* ! __MACHINE_COUNTER_H__ */
+#endif /* ! __MACHINE_COUNTER_H__ */

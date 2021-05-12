@@ -32,13 +32,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 
 #include <machine/vmm.h>
-#include "vmm_util.h"
+
 #include "vmm_stat.h"
+#include "vmm_util.h"
 
 /*
  * 'vst_num_elems' is the total number of addressable statistic elements
@@ -53,7 +54,7 @@ static struct vmm_stat_type *vsttab[MAX_VMM_STAT_ELEMS];
 
 static MALLOC_DEFINE(M_VMM_STAT, "vmm stat", "vmm stat");
 
-#define	vst_size	((size_t)vst_num_elems * sizeof(uint64_t))
+#define vst_size ((size_t)vst_num_elems * sizeof(uint64_t))
 
 void
 vmm_stat_register(void *arg)
@@ -136,12 +137,12 @@ vmm_stat_desc_copy(int index, char *buf, int bufsize)
 		vst = vsttab[i];
 		if (index >= vst->index && index < vst->index + vst->nelems) {
 			if (vst->nelems > 1) {
-				snprintf(buf, bufsize, "%s[%d]",
-					 vst->desc, index - vst->index);
+				snprintf(buf, bufsize, "%s[%d]", vst->desc,
+				    index - vst->index);
 			} else {
 				strlcpy(buf, vst->desc, bufsize);
 			}
-			return (0);	/* found it */
+			return (0); /* found it */
 		}
 	}
 

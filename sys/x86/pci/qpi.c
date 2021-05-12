@@ -38,26 +38,28 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
-#include <sys/systm.h>
 
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
+
 #include <x86/legacyvar.h>
 #include <x86/pci_cfgreg.h>
 #include <x86/specialreg.h>
 
+#include <dev/pci/pcib_private.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#include <dev/pci/pcib_private.h>
+
 #include "pcib_if.h"
 
 struct qpi_device {
-	int	qd_pcibus;
+	int qd_pcibus;
 };
 
 static MALLOC_DEFINE(M_QPI, "qpidrv", "qpi system device");
@@ -68,8 +70,7 @@ qpi_identify(driver_t *driver, device_t parent)
 	int do_qpi;
 
 	/* Check CPUID to ensure this is an i7 CPU of some sort. */
-	if (cpu_vendor_id != CPU_VENDOR_INTEL ||
-	    CPUID_TO_FAMILY(cpu_id) != 0x6)
+	if (cpu_vendor_id != CPU_VENDOR_INTEL || CPUID_TO_FAMILY(cpu_id) != 0x6)
 		return;
 
 	/* Only discover buses with configuration devices if allowed by user */
@@ -194,24 +195,23 @@ qpi_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 static device_method_t qpi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	qpi_identify),
-	DEVMETHOD(device_probe,		qpi_probe),
-	DEVMETHOD(device_attach,	qpi_attach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_identify, qpi_identify),
+	DEVMETHOD(device_probe, qpi_probe),
+	DEVMETHOD(device_attach, qpi_attach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	qpi_print_child),
-	DEVMETHOD(bus_add_child,	bus_generic_add_child),
-	DEVMETHOD(bus_read_ivar,	qpi_read_ivar),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_print_child, qpi_print_child),
+	DEVMETHOD(bus_add_child, bus_generic_add_child),
+	DEVMETHOD(bus_read_ivar, qpi_read_ivar),
+	DEVMETHOD(bus_alloc_resource, bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-	{ 0, 0 }
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr), { 0, 0 }
 };
 
 static devclass_t qpi_devclass;
@@ -258,16 +258,16 @@ qpi_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 {
 
 	if (type == PCI_RES_BUS)
-		return (pci_domain_alloc_bus(0, child, rid, start, end, count,
-		    flags));
-	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
-	    count, flags));
+		return (pci_domain_alloc_bus(
+		    0, child, rid, start, end, count, flags));
+	return (bus_generic_alloc_resource(
+	    dev, child, type, rid, start, end, count, flags));
 }
 #endif
 
 static int
-qpi_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
-    uint32_t *data)
+qpi_pcib_map_msi(
+    device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data)
 {
 	device_t bus;
 
@@ -277,36 +277,36 @@ qpi_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
 
 static device_method_t qpi_pcib_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		qpi_pcib_probe),
-	DEVMETHOD(device_attach,	qpi_pcib_attach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_probe, qpi_pcib_probe),
+	DEVMETHOD(device_attach, qpi_pcib_attach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,	qpi_pcib_read_ivar),
+	DEVMETHOD(bus_read_ivar, qpi_pcib_read_ivar),
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	DEVMETHOD(bus_alloc_resource,	qpi_pcib_alloc_resource),
-	DEVMETHOD(bus_adjust_resource,	legacy_pcib_adjust_resource),
-	DEVMETHOD(bus_release_resource,	legacy_pcib_release_resource),
+	DEVMETHOD(bus_alloc_resource, qpi_pcib_alloc_resource),
+	DEVMETHOD(bus_adjust_resource, legacy_pcib_adjust_resource),
+	DEVMETHOD(bus_release_resource, legacy_pcib_release_resource),
 #else
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_alloc_resource, bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
 #endif
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_maxslots,	pcib_maxslots),
-	DEVMETHOD(pcib_read_config,	legacy_pcib_read_config),
-	DEVMETHOD(pcib_write_config,	legacy_pcib_write_config),
-	DEVMETHOD(pcib_alloc_msi,	legacy_pcib_alloc_msi),
-	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
-	DEVMETHOD(pcib_alloc_msix,	legacy_pcib_alloc_msix),
-	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
-	DEVMETHOD(pcib_map_msi,		qpi_pcib_map_msi),
+	DEVMETHOD(pcib_maxslots, pcib_maxslots),
+	DEVMETHOD(pcib_read_config, legacy_pcib_read_config),
+	DEVMETHOD(pcib_write_config, legacy_pcib_write_config),
+	DEVMETHOD(pcib_alloc_msi, legacy_pcib_alloc_msi),
+	DEVMETHOD(pcib_release_msi, pcib_release_msi),
+	DEVMETHOD(pcib_alloc_msix, legacy_pcib_alloc_msix),
+	DEVMETHOD(pcib_release_msix, pcib_release_msix),
+	DEVMETHOD(pcib_map_msi, qpi_pcib_map_msi),
 
 	DEVMETHOD_END
 };

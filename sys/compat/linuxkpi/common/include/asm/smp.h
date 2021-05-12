@@ -27,22 +27,22 @@
  */
 
 #ifndef _ASM_SMP_H_
-#define	_ASM_SMP_H_
+#define _ASM_SMP_H_
 
 #if defined(__i386__) || defined(__amd64__)
 
-#define	wbinvd_on_all_cpus()	linux_wbinvd_on_all_cpus()
+#define wbinvd_on_all_cpus() linux_wbinvd_on_all_cpus()
 
-int	linux_wbinvd_on_all_cpus(void);
+int linux_wbinvd_on_all_cpus(void);
 
 #endif
 
-#define	get_cpu() ({			\
-	critical_enter();		\
-	PCPU_GET(cpuid);		\
-})
+#define get_cpu()                 \
+	({                        \
+		critical_enter(); \
+		PCPU_GET(cpuid);  \
+	})
 
-#define	put_cpu()			\
-	critical_exit()
+#define put_cpu() critical_exit()
 
 #endif /* _ASM_SMP_H_ */

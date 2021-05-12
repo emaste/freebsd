@@ -29,10 +29,10 @@
  * $FreeBSD$
  */
 
-#ifndef	__ATHEROS_AR71XX_FIXUP_H__
-#define	__ATHEROS_AR71XX_FIXUP_H__
+#ifndef __ATHEROS_AR71XX_FIXUP_H__
+#define __ATHEROS_AR71XX_FIXUP_H__
 
-extern	void ar71xx_pci_slot_create_eeprom_firmware(device_t dev,
-    u_int bus, u_int slot, u_int func, long int flash_addr, int size);
+extern void ar71xx_pci_slot_create_eeprom_firmware(device_t dev, u_int bus,
+    u_int slot, u_int func, long int flash_addr, int size);
 
 #endif /* __ATHEROS_AR71XX_FIXUP_H__ */

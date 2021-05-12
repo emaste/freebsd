@@ -36,6 +36,6 @@
 #ifndef _NETGRAPH_L2CAP_EVNT_H_
 #define _NETGRAPH_L2CAP_EVNT_H_
 
-int ng_l2cap_receive (ng_l2cap_con_p);
+int ng_l2cap_receive(ng_l2cap_con_p);
 
 #endif /* ndef _NETGRAPH_L2CAP_EVNT_H_ */

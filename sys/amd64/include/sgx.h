@@ -36,29 +36,27 @@
 #ifndef _MACHINE_SGX_H_
 #define _MACHINE_SGX_H_
 
-#define	SGX_MAGIC	0xA4
-#define	SGX_IOC_ENCLAVE_CREATE \
-	_IOW(SGX_MAGIC, 0x00, struct sgx_enclave_create)
-#define	SGX_IOC_ENCLAVE_ADD_PAGE \
+#define SGX_MAGIC 0xA4
+#define SGX_IOC_ENCLAVE_CREATE _IOW(SGX_MAGIC, 0x00, struct sgx_enclave_create)
+#define SGX_IOC_ENCLAVE_ADD_PAGE \
 	_IOW(SGX_MAGIC, 0x01, struct sgx_enclave_add_page)
-#define	SGX_IOC_ENCLAVE_INIT \
-	_IOW(SGX_MAGIC, 0x02, struct sgx_enclave_init)
+#define SGX_IOC_ENCLAVE_INIT _IOW(SGX_MAGIC, 0x02, struct sgx_enclave_init)
 
 struct sgx_enclave_create {
-	uint64_t	src;
+	uint64_t src;
 } __packed;
 
 struct sgx_enclave_add_page {
-	uint64_t	addr;
-	uint64_t	src;
-	uint64_t	secinfo;
-	uint16_t	mrmask;
+	uint64_t addr;
+	uint64_t src;
+	uint64_t secinfo;
+	uint16_t mrmask;
 } __packed;
 
 struct sgx_enclave_init {
-	uint64_t	addr;
-	uint64_t	sigstruct;
-	uint64_t	einittoken;
+	uint64_t addr;
+	uint64_t sigstruct;
+	uint64_t einittoken;
 } __packed;
 
 #endif /* !_MACHINE_SGX_H_ */

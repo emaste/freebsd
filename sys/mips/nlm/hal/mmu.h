@@ -32,7 +32,7 @@
  */
 
 #ifndef __XLP_MMU_H__
-#define	__XLP_MMU_H__
+#define __XLP_MMU_H__
 
 #include <mips/nlm/hal/mips-extns.h>
 
@@ -41,25 +41,24 @@ nlm_read_c0_config6(void)
 {
 	uint32_t rv;
 
-	__asm__ __volatile__ (
-		".set	push\n"
-		".set	mips64\n"
-		"mfc0	%0, $16, 6\n"
-		".set	pop\n"
-		: "=r" (rv));
+	__asm__ __volatile__(".set	push\n"
+			     ".set	mips64\n"
+			     "mfc0	%0, $16, 6\n"
+			     ".set	pop\n"
+			     : "=r"(rv));
 
-        return rv;
+	return rv;
 }
 
 static __inline__ void
 nlm_write_c0_config6(uint32_t value)
 {
-	__asm__ __volatile__ (
-		".set	push\n"
-		".set	mips64\n"
-		"mtc0	%0, $16, 6\n"
-		".set	pop\n"
-		: : "r" (value));
+	__asm__ __volatile__(".set	push\n"
+			     ".set	mips64\n"
+			     "mtc0	%0, $16, 6\n"
+			     ".set	pop\n"
+			     :
+			     : "r"(value));
 }
 
 static __inline__ uint32_t
@@ -67,25 +66,24 @@ nlm_read_c0_config7(void)
 {
 	uint32_t rv;
 
-	__asm__ __volatile__ (
-		".set	push\n"
-		".set	mips64\n"
-		"mfc0	%0, $16, 7\n"
-		".set	pop\n"
-		: "=r" (rv));
+	__asm__ __volatile__(".set	push\n"
+			     ".set	mips64\n"
+			     "mfc0	%0, $16, 7\n"
+			     ".set	pop\n"
+			     : "=r"(rv));
 
-        return rv;
+	return rv;
 }
 
 static __inline__ void
 nlm_write_c0_config7(uint32_t value)
 {
-	__asm__ __volatile__ (
-		".set	push\n"
-		".set	mips64\n"
-		"mtc0	%0, $16, 7\n"
-		".set	pop\n"
-		: : "r" (value));
+	__asm__ __volatile__(".set	push\n"
+			     ".set	mips64\n"
+			     "mtc0	%0, $16, 7\n"
+			     ".set	pop\n"
+			     :
+			     : "r"(value));
 }
 /**
  * On power on reset, XLP comes up with 64 TLBs.
@@ -111,7 +109,8 @@ nlm_write_c0_config7(uint32_t value)
 /* en = 1 to enable
  * en = 0 to disable
  */
-static __inline__ void nlm_large_variable_tlb_en (int en)
+static __inline__ void
+nlm_large_variable_tlb_en(int en)
 {
 	unsigned int val;
 
@@ -124,7 +123,8 @@ static __inline__ void nlm_large_variable_tlb_en (int en)
 /* en = 1 to enable
  * en = 0 to disable
  */
-static __inline__ void nlm_pagewalker_en(int en)
+static __inline__ void
+nlm_pagewalker_en(int en)
 {
 	unsigned int val;
 
@@ -137,7 +137,8 @@ static __inline__ void nlm_pagewalker_en(int en)
 /* en = 1 to enable
  * en = 0 to disable
  */
-static __inline__ void nlm_extended_tlb_en(int en)
+static __inline__ void
+nlm_extended_tlb_en(int en)
 {
 	unsigned int val;
 
@@ -147,18 +148,21 @@ static __inline__ void nlm_extended_tlb_en(int en)
 	return;
 }
 
-static __inline__ int nlm_get_num_combined_tlbs(void)
+static __inline__ int
+nlm_get_num_combined_tlbs(void)
 {
 	return (((nlm_read_c0_config6() >> 16) & 0xffff) + 1);
 }
 
 /* get number of variable TLB entries */
-static __inline__ int nlm_get_num_vtlbs(void)
+static __inline__ int
+nlm_get_num_vtlbs(void)
 {
 	return (((nlm_read_c0_config6() >> 6) & 0x3ff) + 1);
 }
 
-static __inline__ void nlm_setup_extended_pagemask(int mask)
+static __inline__ void
+nlm_setup_extended_pagemask(int mask)
 {
 	nlm_write_c0_config7(mask);
 }

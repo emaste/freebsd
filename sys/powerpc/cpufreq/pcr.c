@@ -46,33 +46,28 @@ struct pcr_softc {
 	int nmodes;
 };
 
-static void	pcr_identify(driver_t *driver, device_t parent);
-static int	pcr_probe(device_t dev);
-static int	pcr_attach(device_t dev);
-static int	pcr_settings(device_t dev, struct cf_setting *sets, int *count);
-static int	pcr_set(device_t dev, const struct cf_setting *set);
-static int	pcr_get(device_t dev, struct cf_setting *set);
-static int	pcr_type(device_t dev, int *type);
+static void pcr_identify(driver_t *driver, device_t parent);
+static int pcr_probe(device_t dev);
+static int pcr_attach(device_t dev);
+static int pcr_settings(device_t dev, struct cf_setting *sets, int *count);
+static int pcr_set(device_t dev, const struct cf_setting *set);
+static int pcr_get(device_t dev, struct cf_setting *set);
+static int pcr_type(device_t dev, int *type);
 
 static device_method_t pcr_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	pcr_identify),
-	DEVMETHOD(device_probe,		pcr_probe),
-	DEVMETHOD(device_attach,	pcr_attach),
+	DEVMETHOD(device_identify, pcr_identify),
+	DEVMETHOD(device_probe, pcr_probe),
+	DEVMETHOD(device_attach, pcr_attach),
 
 	/* cpufreq interface */
-	DEVMETHOD(cpufreq_drv_set,	pcr_set),
-	DEVMETHOD(cpufreq_drv_get,	pcr_get),
-	DEVMETHOD(cpufreq_drv_type,	pcr_type),
-	DEVMETHOD(cpufreq_drv_settings,	pcr_settings),
-	{0, 0}
+	DEVMETHOD(cpufreq_drv_set, pcr_set),
+	DEVMETHOD(cpufreq_drv_get, pcr_get),
+	DEVMETHOD(cpufreq_drv_type, pcr_type),
+	DEVMETHOD(cpufreq_drv_settings, pcr_settings), { 0, 0 }
 };
 
-static driver_t pcr_driver = {
-	"pcr",
-	pcr_methods,
-	sizeof(struct pcr_softc)
-};
+static driver_t pcr_driver = { "pcr", pcr_methods, sizeof(struct pcr_softc) };
 
 static devclass_t pcr_devclass;
 DRIVER_MODULE(pcr, cpu, pcr_driver, pcr_devclass, 0, 0);
@@ -81,53 +76,55 @@ DRIVER_MODULE(pcr, cpu, pcr_driver, pcr_devclass, 0, 0);
  * States
  */
 
-#define PCR_TO_FREQ(a)	((a >> 17) & 3)
+#define PCR_TO_FREQ(a) ((a >> 17) & 3)
 
-#define	PCR_FULL	0
-#define PCR_HALF	1
-#define PCR_QUARTER	2		/* Only on 970MP */
+#define PCR_FULL 0
+#define PCR_HALF 1
+#define PCR_QUARTER 2 /* Only on 970MP */
 
-#define PSR_RECEIVED	(1ULL << 61)
-#define PSR_COMPLETED	(1ULL << 61)
+#define PSR_RECEIVED (1ULL << 61)
+#define PSR_COMPLETED (1ULL << 61)
 
 /*
  * SCOM addresses
  */
 
-#define	SCOM_PCR	0x0aa00100	/* Power Control Register */
-#define SCOM_PCR_BIT	0x80000000	/* Data bit for PCR */
-#define SCOM_PSR	0x40800100	/* Power Status Register */
+#define SCOM_PCR 0x0aa00100 /* Power Control Register */
+#define SCOM_PCR_BIT 0x80000000 /* Data bit for PCR */
+#define SCOM_PSR 0x40800100 /* Power Status Register */
 
 /*
  * SCOM Glue
  */
 
-#define SCOMC_READ	0x00008000
-#define SCOMC_WRITE	0x00000000 
+#define SCOMC_READ 0x00008000
+#define SCOMC_WRITE 0x00000000
 
 static void
 write_scom(register_t address, uint64_t value)
 {
 	register_t msr;
-	#ifndef __powerpc64__
+#ifndef __powerpc64__
 	register_t hi, lo, scratch;
-	#endif
+#endif
 
 	msr = mfmsr();
-	mtmsr(msr & ~PSL_EE); isync();
+	mtmsr(msr & ~PSL_EE);
+	isync();
 
-	#ifdef __powerpc64__
+#ifdef __powerpc64__
 	mtspr(SPR_SCOMD, value);
-	#else
+#else
 	hi = (value >> 32) & 0xffffffff;
 	lo = value & 0xffffffff;
-	mtspr64(SPR_SCOMD, hi, lo, scratch); 
-	#endif
+	mtspr64(SPR_SCOMD, hi, lo, scratch);
+#endif
 	isync();
 	mtspr(SPR_SCOMC, address | SCOMC_WRITE);
 	isync();
 
-	mtmsr(msr); isync();
+	mtmsr(msr);
+	isync();
 }
 
 static uint64_t
@@ -137,17 +134,21 @@ read_scom(register_t address)
 	uint64_t ret;
 
 	msr = mfmsr();
-	mtmsr(msr & ~PSL_EE); isync();
+	mtmsr(msr & ~PSL_EE);
+	isync();
 
 	mtspr(SPR_SCOMC, address | SCOMC_READ);
 	isync();
 
-	__asm __volatile ("mfspr %0,%1;"
-            " mr %0+1, %0; srdi %0,%0,32" : "=r" (ret) : "K" (SPR_SCOMD));
+	__asm __volatile("mfspr %0,%1;"
+			 " mr %0+1, %0; srdi %0,%0,32"
+			 : "=r"(ret)
+			 : "K"(SPR_SCOMD));
 
 	(void)mfspr(SPR_SCOMC); /* Complete transcation */
 
-	mtmsr(msr); isync();
+	mtmsr(msr);
+	isync();
 
 	return (ret);
 }
@@ -160,12 +161,12 @@ pcr_identify(driver_t *driver, device_t parent)
 
 	/* Check for an IBM 970-class CPU */
 	switch (vers) {
-		case IBM970FX:
-		case IBM970GX:
-		case IBM970MP:
-			break;
-		default:
-			return;
+	case IBM970FX:
+	case IBM970GX:
+	case IBM970MP:
+		break;
+	default:
+		return;
 	}
 
 	/* Make sure we're not being doubly invoked. */
@@ -204,7 +205,7 @@ pcr_attach(device_t dev)
 	cpu = ofw_bus_get_node(device_get_parent(dev));
 
 	if (cpu <= 0) {
-		device_printf(dev,"No CPU device tree node!\n");
+		device_printf(dev, "No CPU device tree node!\n");
 		return (ENXIO);
 	}
 
@@ -220,7 +221,7 @@ pcr_attach(device_t dev)
 	 */
 	sc->nmodes = OF_getproplen(cpu, "power-mode-data");
 	if (sc->nmodes <= 0 || sc->nmodes > sizeof(sc->pcr_vals)) {
-		device_printf(dev,"No power mode data in device tree!\n");
+		device_printf(dev, "No power mode data in device tree!\n");
 		return (ENXIO);
 	}
 	OF_getprop(cpu, "power-mode-data", modes, sc->nmodes);
@@ -248,8 +249,10 @@ pcr_settings(device_t dev, struct cf_setting *sets, int *count)
 	/* Return a list of valid settings for this driver. */
 	memset(sets, CPUFREQ_VAL_UNKNOWN, sizeof(*sets) * sc->nmodes);
 
-	sets[0].freq = 10000; sets[0].dev = dev;
-	sets[1].freq = 5000; sets[1].dev = dev;
+	sets[0].freq = 10000;
+	sets[0].dev = dev;
+	sets[1].freq = 5000;
+	sets[1].dev = dev;
 	if (sc->nmodes > 2) {
 		sets[2].freq = 2500;
 		sets[2].dev = dev;
@@ -281,13 +284,14 @@ pcr_set(device_t dev, const struct cf_setting *set)
 	else if (set->freq == 2500)
 		pcr |= sc->pcr_vals[2];
 
-	msr = mfmsr(); 
-	mtmsr(msr & ~PSL_EE); isync();
+	msr = mfmsr();
+	mtmsr(msr & ~PSL_EE);
+	isync();
 
 	/* 970MP requires PCR and PCRH to be cleared first */
 
-	write_scom(SCOM_PCR,0);			/* Clear PCRH */
-	write_scom(SCOM_PCR,SCOM_PCR_BIT);	/* Clear PCR */
+	write_scom(SCOM_PCR, 0);	    /* Clear PCRH */
+	write_scom(SCOM_PCR, SCOM_PCR_BIT); /* Clear PCR */
 
 	/* Set PCR */
 
@@ -300,7 +304,8 @@ pcr_set(device_t dev, const struct cf_setting *set)
 		psr = read_scom(SCOM_PSR);
 	} while ((psr & PSR_RECEIVED) && !(psr & PSR_COMPLETED));
 
-	mtmsr(msr); isync();
+	mtmsr(msr);
+	isync();
 
 	return (0);
 }

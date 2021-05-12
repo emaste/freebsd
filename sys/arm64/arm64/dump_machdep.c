@@ -58,7 +58,8 @@ dumpsys_map_chunk(vm_paddr_t pa, size_t chunk __unused, void **va)
 {
 
 	printf("dumpsys_map_chunk\n");
-	while(1);
+	while (1)
+		;
 }
 
 /*

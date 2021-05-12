@@ -40,12 +40,13 @@ __KERNEL_RCSID(0, "$NetBSD: linux_time.c,v 1.14 2006/05/14 03:40:54 christos Exp
 #include "opt_compat.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/ucred.h>
 #include <sys/limits.h>
+#include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sdt.h>
 #include <sys/signal.h>
@@ -53,8 +54,7 @@ __KERNEL_RCSID(0, "$NetBSD: linux_time.c,v 1.14 2006/05/14 03:40:54 christos Exp
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/time.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
+#include <sys/ucred.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -75,10 +75,10 @@ LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 /**
  * DTrace probes in this module.
  */
-LIN_SDT_PROBE_DEFINE1(time, linux_to_native_clockid, unsupported_clockid,
-    "clockid_t");
-LIN_SDT_PROBE_DEFINE1(time, linux_to_native_clockid, unknown_clockid,
-    "clockid_t");
+LIN_SDT_PROBE_DEFINE1(
+    time, linux_to_native_clockid, unsupported_clockid, "clockid_t");
+LIN_SDT_PROBE_DEFINE1(
+    time, linux_to_native_clockid, unknown_clockid, "clockid_t");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_gettime, conversion_error, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_gettime, gettime_error, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_gettime, copyout_error, "int");
@@ -131,7 +131,8 @@ native_to_linux_itimerspec(struct l_itimerspec *ltp, struct itimerspec *ntp)
 
 	error = native_to_linux_timespec(&ltp->it_interval, &ntp->it_interval);
 	if (error == 0)
-		error = native_to_linux_timespec(&ltp->it_value, &ntp->it_interval);
+		error = native_to_linux_timespec(
+		    &ltp->it_value, &ntp->it_interval);
 	return (error);
 }
 
@@ -142,7 +143,8 @@ linux_to_native_itimerspec(struct itimerspec *ntp, struct l_itimerspec *ltp)
 
 	error = linux_to_native_timespec(&ntp->it_interval, &ltp->it_interval);
 	if (error == 0)
-		error = linux_to_native_timespec(&ntp->it_value, &ltp->it_value);
+		error = linux_to_native_timespec(
+		    &ntp->it_value, &ltp->it_value);
 	return (error);
 }
 
@@ -191,12 +193,12 @@ linux_to_native_clockid(clockid_t *n, clockid_t l)
 	case LINUX_CLOCK_BOOTTIME_ALARM:
 	case LINUX_CLOCK_SGI_CYCLE:
 	case LINUX_CLOCK_TAI:
-		LIN_SDT_PROBE1(time, linux_to_native_clockid,
-		    unsupported_clockid, l);
+		LIN_SDT_PROBE1(
+		    time, linux_to_native_clockid, unsupported_clockid, l);
 		return (EINVAL);
 	default:
-		LIN_SDT_PROBE1(time, linux_to_native_clockid,
-		    unknown_clockid, l);
+		LIN_SDT_PROBE1(
+		    time, linux_to_native_clockid, unknown_clockid, l);
 		return (EINVAL);
 	}
 
@@ -230,10 +232,10 @@ linux_clock_gettime(struct thread *td, struct linux_clock_gettime_args *args)
 
 	error = linux_to_native_clockid(&nwhich, args->which);
 	if (error != 0) {
-		linux_msg(curthread,
-		    "unsupported clock_gettime clockid %d", args->which);
-		LIN_SDT_PROBE1(time, linux_clock_gettime, conversion_error,
-		    error);
+		linux_msg(curthread, "unsupported clock_gettime clockid %d",
+		    args->which);
+		LIN_SDT_PROBE1(
+		    time, linux_clock_gettime, conversion_error, error);
 		return (error);
 	}
 
@@ -358,10 +360,10 @@ linux_clock_settime(struct thread *td, struct linux_clock_settime_args *args)
 
 	error = linux_to_native_clockid(&nwhich, args->which);
 	if (error != 0) {
-		linux_msg(curthread,
-		    "unsupported clock_settime clockid %d", args->which);
-		LIN_SDT_PROBE1(time, linux_clock_settime, conversion_error,
-		    error);
+		linux_msg(curthread, "unsupported clock_settime clockid %d",
+		    args->which);
+		LIN_SDT_PROBE1(
+		    time, linux_clock_settime, conversion_error, error);
 		return (error);
 	}
 	error = copyin(args->tp, &lts, sizeof lts);
@@ -371,8 +373,8 @@ linux_clock_settime(struct thread *td, struct linux_clock_settime_args *args)
 	}
 	error = linux_to_native_timespec(&ts, &lts);
 	if (error != 0) {
-		LIN_SDT_PROBE1(time, linux_clock_settime, conversion_error,
-		    error);
+		LIN_SDT_PROBE1(
+		    time, linux_clock_settime, conversion_error, error);
 		return (error);
 	}
 
@@ -396,10 +398,10 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 
 	error = linux_to_native_clockid(&nwhich, args->which);
 	if (error != 0) {
-		linux_msg(curthread,
-		    "unsupported clock_getres clockid %d", args->which);
-		LIN_SDT_PROBE1(time, linux_clock_getres, conversion_error,
-		    error);
+		linux_msg(curthread, "unsupported clock_getres clockid %d",
+		    args->which);
+		LIN_SDT_PROBE1(
+		    time, linux_clock_getres, conversion_error, error);
 		return (error);
 	}
 
@@ -516,8 +518,8 @@ linux_nanosleep(struct thread *td, struct linux_nanosleep_args *args)
 			return (error2);
 		error2 = copyout(&lrmts, args->rmtp, sizeof(lrmts));
 		if (error2 != 0) {
-			LIN_SDT_PROBE1(time, linux_nanosleep, copyout_error,
-			    error2);
+			LIN_SDT_PROBE1(
+			    time, linux_nanosleep, copyout_error, error2);
 			return (error2);
 		}
 	}
@@ -526,7 +528,8 @@ linux_nanosleep(struct thread *td, struct linux_nanosleep_args *args)
 }
 
 int
-linux_clock_nanosleep(struct thread *td, struct linux_clock_nanosleep_args *args)
+linux_clock_nanosleep(
+    struct thread *td, struct linux_clock_nanosleep_args *args)
 {
 	struct timespec *rmtp;
 	struct l_timespec lrqts, lrmts;
@@ -543,8 +546,8 @@ linux_clock_nanosleep(struct thread *td, struct linux_clock_nanosleep_args *args
 
 	error = linux_to_native_clockid(&clockid, args->which);
 	if (error != 0) {
-		linux_msg(curthread,
-		    "unsupported clock_nanosleep clockid %d", args->which);
+		linux_msg(curthread, "unsupported clock_nanosleep clockid %d",
+		    args->which);
 		LIN_SDT_PROBE1(time, linux_clock_nanosleep, unsupported_clockid,
 		    args->which);
 		return (error);
@@ -552,8 +555,8 @@ linux_clock_nanosleep(struct thread *td, struct linux_clock_nanosleep_args *args
 
 	error = copyin(args->rqtp, &lrqts, sizeof(lrqts));
 	if (error != 0) {
-		LIN_SDT_PROBE1(time, linux_clock_nanosleep, copyin_error,
-		    error);
+		LIN_SDT_PROBE1(
+		    time, linux_clock_nanosleep, copyin_error, error);
 		return (error);
 	}
 
@@ -564,8 +567,8 @@ linux_clock_nanosleep(struct thread *td, struct linux_clock_nanosleep_args *args
 
 	error = linux_to_native_timespec(&rqts, &lrqts);
 	if (error != 0) {
-		LIN_SDT_PROBE1(time, linux_clock_nanosleep, conversion_error,
-		    error);
+		LIN_SDT_PROBE1(
+		    time, linux_clock_nanosleep, conversion_error, error);
 		return (error);
 	}
 	error = kern_clock_nanosleep(td, clockid, flags, &rqts, rmtp);
@@ -576,8 +579,8 @@ linux_clock_nanosleep(struct thread *td, struct linux_clock_nanosleep_args *args
 			return (error2);
 		error2 = copyout(&lrmts, args->rmtp, sizeof(lrmts));
 		if (error2 != 0) {
-			LIN_SDT_PROBE1(time, linux_clock_nanosleep,
-			    copyout_error, error2);
+			LIN_SDT_PROBE1(
+			    time, linux_clock_nanosleep, copyout_error, error2);
 			return (error2);
 		}
 	}

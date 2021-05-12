@@ -31,49 +31,48 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/module.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/ata.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/pio.h>
 #include <machine/bus.h>
+#include <machine/pio.h>
 #include <machine/platform.h>
 #include <machine/resource.h>
-#include <sys/bus.h>
-#include <sys/rman.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
+#include <cam/cam_debug.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
-#include <cam/cam_debug.h>
 #include <cam/scsi/scsi_all.h>
 
-#include "ps3bus.h"
 #include "ps3-hvcall.h"
+#include "ps3bus.h"
 
-#define PS3CDROM_LOCK_INIT(_sc)		\
+#define PS3CDROM_LOCK_INIT(_sc)                                              \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), "ps3cdrom", \
 	    MTX_DEF)
-#define PS3CDROM_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-#define PS3CDROM_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	PS3CDROM_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define PS3CDROM_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define PS3CDROM_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+#define PS3CDROM_LOCK_DESTROY(_sc) mtx_destroy(&_sc->sc_mtx);
+#define PS3CDROM_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define PS3CDROM_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
+#define PS3CDROM_ASSERT_LOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define PS3CDROM_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
-#define PS3CDROM_MAX_XFERS		3
+#define PS3CDROM_MAX_XFERS 3
 
-#define	LV1_STORAGE_SEND_ATAPI_COMMAND	0x01
+#define LV1_STORAGE_SEND_ATAPI_COMMAND 0x01
 
 struct ps3cdrom_softc;
 
@@ -96,7 +95,7 @@ struct ps3cdrom_softc {
 	uint64_t sc_nblocks;
 
 	int sc_irqid;
-	struct resource	*sc_irq;
+	struct resource *sc_irq;
 	void *sc_irqctx;
 
 	bus_dma_tag_t sc_dmatag;
@@ -110,40 +109,37 @@ struct ps3cdrom_softc {
 };
 
 enum lv1_ata_proto {
-	NON_DATA_PROTO		= 0x00,
-	PIO_DATA_IN_PROTO	= 0x01,
-	PIO_DATA_OUT_PROTO	= 0x02,
-	DMA_PROTO		= 0x03
+	NON_DATA_PROTO = 0x00,
+	PIO_DATA_IN_PROTO = 0x01,
+	PIO_DATA_OUT_PROTO = 0x02,
+	DMA_PROTO = 0x03
 };
 
-enum lv1_ata_in_out {
-	DIR_WRITE		= 0x00,
-	DIR_READ		= 0x01
-};
+enum lv1_ata_in_out { DIR_WRITE = 0x00, DIR_READ = 0x01 };
 
 struct lv1_atapi_cmd {
 	uint8_t pkt[32];
 	uint32_t pktlen;
 	uint32_t nblocks;
 	uint32_t blksize;
-	uint32_t proto;		/* enum lv1_ata_proto */
-	uint32_t in_out;	/* enum lv1_ata_in_out */
+	uint32_t proto;	 /* enum lv1_ata_proto */
+	uint32_t in_out; /* enum lv1_ata_in_out */
 	uint64_t buf;
 	uint32_t arglen;
 };
 
 static void ps3cdrom_action(struct cam_sim *sim, union ccb *ccb);
 static void ps3cdrom_poll(struct cam_sim *sim);
-static void ps3cdrom_async(void *callback_arg, u_int32_t code,
-    struct cam_path* path, void *arg);
+static void ps3cdrom_async(
+    void *callback_arg, u_int32_t code, struct cam_path *path, void *arg);
 
 static void ps3cdrom_intr(void *arg);
 
-static void ps3cdrom_transfer(void *arg, bus_dma_segment_t *segs, int nsegs,
-    int error);
+static void ps3cdrom_transfer(
+    void *arg, bus_dma_segment_t *segs, int nsegs, int error);
 
-static int ps3cdrom_decode_lv1_status(uint64_t status,
-	u_int8_t *sense_key, u_int8_t *asc, u_int8_t *ascq);
+static int ps3cdrom_decode_lv1_status(
+    uint64_t status, u_int8_t *sense_key, u_int8_t *asc, u_int8_t *ascq);
 
 static int
 ps3cdrom_probe(device_t dev)
@@ -173,8 +169,8 @@ ps3cdrom_attach(device_t dev)
 	/* Setup interrupt handler */
 
 	sc->sc_irqid = 0;
-	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_irqid,
-	    RF_ACTIVE);
+	sc->sc_irq = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &sc->sc_irqid, RF_ACTIVE);
 	if (!sc->sc_irq) {
 		device_printf(dev, "Could not allocate IRQ\n");
 		err = ENXIO;
@@ -182,8 +178,8 @@ ps3cdrom_attach(device_t dev)
 	}
 
 	err = bus_setup_intr(dev, sc->sc_irq,
-	    INTR_TYPE_CAM | INTR_MPSAFE | INTR_ENTROPY,
-	    NULL, ps3cdrom_intr, sc, &sc->sc_irqctx);
+	    INTR_TYPE_CAM | INTR_MPSAFE | INTR_ENTROPY, NULL, ps3cdrom_intr, sc,
+	    &sc->sc_irqctx);
 	if (err) {
 		device_printf(dev, "Could not setup IRQ\n");
 		err = ENXIO;
@@ -194,8 +190,8 @@ ps3cdrom_attach(device_t dev)
 
 	err = bus_dma_tag_create(bus_get_dma_tag(dev), 4096, 0,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
-	    BUS_SPACE_UNRESTRICTED, 1, PAGE_SIZE, 0,
-	    busdma_lock_mutex, &sc->sc_mtx, &sc->sc_dmatag);
+	    BUS_SPACE_UNRESTRICTED, 1, PAGE_SIZE, 0, busdma_lock_mutex,
+	    &sc->sc_mtx, &sc->sc_dmatag);
 	if (err) {
 		device_printf(dev, "Could not create DMA tag\n");
 		err = ENXIO;
@@ -211,11 +207,11 @@ ps3cdrom_attach(device_t dev)
 		xp = &sc->sc_xfer[i];
 		xp->x_sc = sc;
 
-		err = bus_dmamap_create(sc->sc_dmatag, BUS_DMA_COHERENT,
-		    &xp->x_dmamap);
+		err = bus_dmamap_create(
+		    sc->sc_dmatag, BUS_DMA_COHERENT, &xp->x_dmamap);
 		if (err) {
-			device_printf(dev, "Could not create DMA map (%d)\n",
-			    err);
+			device_printf(
+			    dev, "Could not create DMA map (%d)\n", err);
 			goto fail_destroy_dmamap;
 		}
 
@@ -267,7 +263,7 @@ ps3cdrom_attach(device_t dev)
 	csa.event_enable = AC_LOST_DEVICE;
 	csa.callback = ps3cdrom_async;
 	csa.callback_arg = sc->sc_sim;
-	xpt_action((union ccb *) &csa);
+	xpt_action((union ccb *)&csa);
 
 	CAM_DEBUG(sc->sc_path, CAM_DEBUG_TRACE,
 	    ("registered SIM for ps3cdrom%d\n", device_get_unit(dev)));
@@ -345,36 +341,36 @@ ps3cdrom_action(struct cam_sim *sim, union ccb *ccb)
 	PS3CDROM_ASSERT_LOCKED(sc);
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
-	   ("function code 0x%02x\n", ccb->ccb_h.func_code));
+	    ("function code 0x%02x\n", ccb->ccb_h.func_code));
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG)
 			break;
 
-		if(ccb->ccb_h.target_id > 0) {
+		if (ccb->ccb_h.target_id > 0) {
 			ccb->ccb_h.status = CAM_TID_INVALID;
 			break;
 		}
 
-		if(ccb->ccb_h.target_lun > 0) {
+		if (ccb->ccb_h.target_lun > 0) {
 			ccb->ccb_h.status = CAM_LUN_INVALID;
 			break;
 		}
 
 		xp = TAILQ_FIRST(&sc->sc_free_xferq);
-		
+
 		KASSERT(xp != NULL, ("no free transfers"));
 
 		xp->x_ccb = ccb;
 
 		TAILQ_REMOVE(&sc->sc_free_xferq, xp, x_queue);
 
-		err = bus_dmamap_load_ccb(sc->sc_dmatag, xp->x_dmamap,
-		    ccb, ps3cdrom_transfer, xp, 0);
+		err = bus_dmamap_load_ccb(
+		    sc->sc_dmatag, xp->x_dmamap, ccb, ps3cdrom_transfer, xp, 0);
 		if (err && err != EINPROGRESS) {
-			device_printf(dev, "Could not load DMA map (%d)\n",
-			    err);
+			device_printf(
+			    dev, "Could not load DMA map (%d)\n", err);
 
 			xp->x_ccb = NULL;
 			TAILQ_INSERT_TAIL(&sc->sc_free_xferq, xp, x_queue);
@@ -385,8 +381,7 @@ ps3cdrom_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SET_TRAN_SETTINGS:
 		ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 		break;
-	case XPT_GET_TRAN_SETTINGS:
-	{
+	case XPT_GET_TRAN_SETTINGS: {
 		struct ccb_trans_settings *cts = &ccb->cts;
 
 		cts->protocol = PROTO_SCSI;
@@ -405,8 +400,7 @@ ps3cdrom_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_CALC_GEOMETRY:
 		cam_calc_geometry(&ccb->ccg, 1);
 		break;
-	case XPT_PATH_INQ:
-	{
+	case XPT_PATH_INQ: {
 		struct ccb_pathinq *cpi = &ccb->cpi;
 
 		cpi->version_num = 1;
@@ -436,7 +430,7 @@ ps3cdrom_action(struct cam_sim *sim, union ccb *ccb)
 	default:
 		CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
 		    ("unsupported function code 0x%02x\n",
-		    ccb->ccb_h.func_code));
+			ccb->ccb_h.func_code));
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		break;
 	}
@@ -451,8 +445,8 @@ ps3cdrom_poll(struct cam_sim *sim)
 }
 
 static void
-ps3cdrom_async(void *callback_arg, u_int32_t code,
-	struct cam_path* path, void *arg)
+ps3cdrom_async(
+    void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 {
 	switch (code) {
 	case AC_LOST_DEVICE:
@@ -466,7 +460,7 @@ ps3cdrom_async(void *callback_arg, u_int32_t code,
 static void
 ps3cdrom_intr(void *arg)
 {
-	struct ps3cdrom_softc *sc = (struct ps3cdrom_softc *) arg;
+	struct ps3cdrom_softc *sc = (struct ps3cdrom_softc *)arg;
 	device_t dev = sc->sc_dev;
 	uint64_t devid = ps3bus_get_device(dev);
 	struct ps3cdrom_xfer *xp;
@@ -481,7 +475,7 @@ ps3cdrom_intr(void *arg)
 
 	/* Find transfer with the returned tag */
 
-	TAILQ_FOREACH(xp, &sc->sc_active_xferq, x_queue) {
+	TAILQ_FOREACH (xp, &sc->sc_active_xferq, x_queue) {
 		if (xp->x_tag == tag)
 			break;
 	}
@@ -489,12 +483,12 @@ ps3cdrom_intr(void *arg)
 	if (xp) {
 		ccb = xp->x_ccb;
 		cdb = (ccb->ccb_h.flags & CAM_CDB_POINTER) ?
-			    ccb->csio.cdb_io.cdb_ptr :
-			    ccb->csio.cdb_io.cdb_bytes;
+			  ccb->csio.cdb_io.cdb_ptr :
+			  ccb->csio.cdb_io.cdb_bytes;
 
 		CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
-		   ("ATAPI command 0x%02x tag 0x%016lx completed (0x%016lx)\n",
-		    cdb[0], tag, status));
+		    ("ATAPI command 0x%02x tag 0x%016lx completed (0x%016lx)\n",
+			cdb[0], tag, status));
 
 		if (!status) {
 			ccb->csio.scsi_status = SCSI_STATUS_OK;
@@ -504,18 +498,15 @@ ps3cdrom_intr(void *arg)
 			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 
-			if (!ps3cdrom_decode_lv1_status(status, &sense_key,
-			    &asc, &ascq)) {
+			if (!ps3cdrom_decode_lv1_status(
+				status, &sense_key, &asc, &ascq)) {
 				CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
-				   ("sense key 0x%02x asc 0x%02x ascq 0x%02x\n",
-				    sense_key, asc, ascq));
+				    ("sense key 0x%02x asc 0x%02x ascq 0x%02x\n",
+					sense_key, asc, ascq));
 
 				scsi_set_sense_data(&ccb->csio.sense_data,
 				    /*sense_format*/ SSD_TYPE_NONE,
-				    /*current_error*/ 1,
-				    sense_key,
-				    asc,
-				    ascq,
+				    /*current_error*/ 1, sense_key, asc, ascq,
 				    SSD_ELEM_NONE);
 				ccb->csio.sense_len = SSD_FULL_SIZE;
 				ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR |
@@ -527,8 +518,8 @@ ps3cdrom_intr(void *arg)
 		}
 
 		if (ccb->ccb_h.flags & CAM_DIR_IN)
-			bus_dmamap_sync(sc->sc_dmatag, xp->x_dmamap,
-			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_sync(
+			    sc->sc_dmatag, xp->x_dmamap, BUS_DMASYNC_POSTREAD);
 
 		bus_dmamap_unload(sc->sc_dmatag, xp->x_dmamap);
 
@@ -538,8 +529,8 @@ ps3cdrom_intr(void *arg)
 
 		xpt_done(ccb);
 	} else {
-		device_printf(dev,
-		    "Could not find transfer with tag 0x%016lx\n",  tag);
+		device_printf(
+		    dev, "Could not find transfer with tag 0x%016lx\n", tag);
 	}
 
 	PS3CDROM_UNLOCK(sc);
@@ -548,7 +539,7 @@ ps3cdrom_intr(void *arg)
 static void
 ps3cdrom_transfer(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
-	struct ps3cdrom_xfer *xp = (struct ps3cdrom_xfer *) arg;
+	struct ps3cdrom_xfer *xp = (struct ps3cdrom_xfer *)arg;
 	struct ps3cdrom_softc *sc = xp->x_sc;
 	device_t dev = sc->sc_dev;
 	uint64_t devid = ps3bus_get_device(dev);
@@ -564,7 +555,7 @@ ps3cdrom_transfer(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	PS3CDROM_ASSERT_LOCKED(sc);
 
 	if (error) {
-		device_printf(dev, "Could not load DMA map (%d)\n",  error);
+		device_printf(dev, "Could not load DMA map (%d)\n", error);
 
 		xp->x_ccb = NULL;
 		TAILQ_INSERT_TAIL(&sc->sc_free_xferq, xp, x_queue);
@@ -573,41 +564,37 @@ ps3cdrom_transfer(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		return;
 	}
 
-	cdb = (ccb->ccb_h.flags & CAM_CDB_POINTER) ?
-		    ccb->csio.cdb_io.cdb_ptr :
-		    ccb->csio.cdb_io.cdb_bytes;
+	cdb = (ccb->ccb_h.flags & CAM_CDB_POINTER) ? ccb->csio.cdb_io.cdb_ptr :
+							   ccb->csio.cdb_io.cdb_bytes;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
-	   ("ATAPI command 0x%02x cdb_len %d dxfer_len %d\n ", cdb[0],
-	    ccb->csio.cdb_len, ccb->csio.dxfer_len));
+	    ("ATAPI command 0x%02x cdb_len %d dxfer_len %d\n ", cdb[0],
+		ccb->csio.cdb_len, ccb->csio.dxfer_len));
 
 	switch (cdb[0]) {
 	case READ_10:
 		KASSERT(nsegs == 1, ("ps3cdrom_transfer: no data to read"));
-		start_sector = (cdb[2] << 24) | (cdb[3] << 16) |
-		    (cdb[4] << 8) | cdb[5];
+		start_sector = (cdb[2] << 24) | (cdb[3] << 16) | (cdb[4] << 8) |
+		    cdb[5];
 		block_count = (cdb[7] << 8) | cdb[8];
 
-		err = lv1_storage_read(devid, 0 /* region id */,
-		    start_sector, block_count, 0 /* flags */, segs[0].ds_addr,
-		    &xp->x_tag);
-		bus_dmamap_sync(sc->sc_dmatag, xp->x_dmamap,
-		    BUS_DMASYNC_POSTREAD);
+		err = lv1_storage_read(devid, 0 /* region id */, start_sector,
+		    block_count, 0 /* flags */, segs[0].ds_addr, &xp->x_tag);
+		bus_dmamap_sync(
+		    sc->sc_dmatag, xp->x_dmamap, BUS_DMASYNC_POSTREAD);
 		break;
 	case WRITE_10:
 		KASSERT(nsegs == 1, ("ps3cdrom_transfer: no data to write"));
-		start_sector = (cdb[2] << 24) | (cdb[3] << 16) |
-		    (cdb[4] << 8) | cdb[5];
+		start_sector = (cdb[2] << 24) | (cdb[3] << 16) | (cdb[4] << 8) |
+		    cdb[5];
 		block_count = (cdb[7] << 8) | cdb[8];
 
-		bus_dmamap_sync(sc->sc_dmatag, xp->x_dmamap,
-		    BUS_DMASYNC_PREWRITE);
-		err = lv1_storage_write(devid, 0 /* region id */,
-		    start_sector, block_count, 0 /* flags */,
-		    segs[0].ds_addr, &xp->x_tag);
+		bus_dmamap_sync(
+		    sc->sc_dmatag, xp->x_dmamap, BUS_DMASYNC_PREWRITE);
+		err = lv1_storage_write(devid, 0 /* region id */, start_sector,
+		    block_count, 0 /* flags */, segs[0].ds_addr, &xp->x_tag);
 		break;
-	default:
-		{
+	default: {
 		struct lv1_atapi_cmd atapi_cmd;
 
 		bzero(&atapi_cmd, sizeof(atapi_cmd));
@@ -617,23 +604,26 @@ ps3cdrom_transfer(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		if (ccb->ccb_h.flags & CAM_DIR_IN) {
 			atapi_cmd.in_out = DIR_READ;
 			atapi_cmd.proto = (ccb->csio.dxfer_len >= 2048) ?
-			    DMA_PROTO : PIO_DATA_IN_PROTO;
+				  DMA_PROTO :
+				  PIO_DATA_IN_PROTO;
 		} else if (ccb->ccb_h.flags & CAM_DIR_OUT) {
 			atapi_cmd.in_out = DIR_WRITE;
 			atapi_cmd.proto = (ccb->csio.dxfer_len >= 2048) ?
-			    DMA_PROTO : PIO_DATA_OUT_PROTO;
+				  DMA_PROTO :
+				  PIO_DATA_OUT_PROTO;
 		} else {
 			atapi_cmd.proto = NON_DATA_PROTO;
 		}
 
-		atapi_cmd.nblocks = atapi_cmd.arglen =
-		    (nsegs == 0) ? 0 : segs[0].ds_len;
+		atapi_cmd.nblocks = atapi_cmd.arglen = (nsegs == 0) ?
+			  0 :
+			  segs[0].ds_len;
 		atapi_cmd.blksize = 1;
 		atapi_cmd.buf = (nsegs == 0) ? 0 : segs[0].ds_addr;
 
 		if (ccb->ccb_h.flags & CAM_DIR_OUT)
-			bus_dmamap_sync(sc->sc_dmatag, xp->x_dmamap,
-			    BUS_DMASYNC_PREWRITE);
+			bus_dmamap_sync(
+			    sc->sc_dmatag, xp->x_dmamap, BUS_DMASYNC_PREWRITE);
 
 		err = lv1_storage_send_device_command(devid,
 		    LV1_STORAGE_SEND_ATAPI_COMMAND, vtophys(&atapi_cmd),
@@ -641,12 +631,12 @@ ps3cdrom_transfer(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		    &xp->x_tag);
 
 		break;
-		}
+	}
 	}
 
 	if (err) {
-		device_printf(dev, "ATAPI command 0x%02x failed (%d)\n",
-		    cdb[0], err);
+		device_printf(
+		    dev, "ATAPI command 0x%02x failed (%d)\n", cdb[0], err);
 
 		bus_dmamap_unload(sc->sc_dmatag, xp->x_dmamap);
 
@@ -656,12 +646,11 @@ ps3cdrom_transfer(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		bzero(&ccb->csio.sense_data, sizeof(ccb->csio.sense_data));
 		/* Invalid field in parameter list */
 		scsi_set_sense_data(&ccb->csio.sense_data,
-				    /*sense_format*/ SSD_TYPE_NONE,
-				    /*current_error*/ 1,
-				    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
-				    /*asc*/ 0x26,
-				    /*ascq*/ 0x00,
-				    SSD_ELEM_NONE);
+		    /*sense_format*/ SSD_TYPE_NONE,
+		    /*current_error*/ 1,
+		    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+		    /*asc*/ 0x26,
+		    /*ascq*/ 0x00, SSD_ELEM_NONE);
 
 		ccb->csio.sense_len = SSD_FULL_SIZE;
 		ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
@@ -669,8 +658,8 @@ ps3cdrom_transfer(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		xpt_done(ccb);
 	} else {
 		CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
-		   ("ATAPI command 0x%02x tag 0x%016lx submitted\n ", cdb[0],
-		   xp->x_tag));
+		    ("ATAPI command 0x%02x tag 0x%016lx submitted\n ", cdb[0],
+			xp->x_tag));
 
 		TAILQ_INSERT_TAIL(&sc->sc_active_xferq, xp, x_queue);
 		ccb->ccb_h.status |= CAM_SIM_QUEUED;
@@ -678,8 +667,8 @@ ps3cdrom_transfer(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 }
 
 static int
-ps3cdrom_decode_lv1_status(uint64_t status, u_int8_t *sense_key, u_int8_t *asc,
-    u_int8_t *ascq)
+ps3cdrom_decode_lv1_status(
+    uint64_t status, u_int8_t *sense_key, u_int8_t *asc, u_int8_t *ascq)
 {
 	if (((status >> 24) & 0xff) != SCSI_STATUS_CHECK_COND)
 		return -1;
@@ -692,10 +681,10 @@ ps3cdrom_decode_lv1_status(uint64_t status, u_int8_t *sense_key, u_int8_t *asc,
 }
 
 static device_method_t ps3cdrom_methods[] = {
-	DEVMETHOD(device_probe,		ps3cdrom_probe),
-	DEVMETHOD(device_attach,	ps3cdrom_attach),
-	DEVMETHOD(device_detach,	ps3cdrom_detach),
-	{0, 0},
+	DEVMETHOD(device_probe, ps3cdrom_probe),
+	DEVMETHOD(device_attach, ps3cdrom_attach),
+	DEVMETHOD(device_detach, ps3cdrom_detach),
+	{ 0, 0 },
 };
 
 static driver_t ps3cdrom_driver = {

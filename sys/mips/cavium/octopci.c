@@ -33,12 +33,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/interrupt.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
 
@@ -49,22 +48,20 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 
-#include <contrib/octeon-sdk/cvmx.h>
-#include <mips/cavium/octeon_irq.h>
-#include <contrib/octeon-sdk/cvmx-pcie.h>
-
+#include <dev/pci/pcib_private.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <dev/pci/pcib_private.h>
-
+#include <contrib/octeon-sdk/cvmx-pcie.h>
+#include <contrib/octeon-sdk/cvmx.h>
+#include <mips/cavium/octeon_irq.h>
 #include <mips/cavium/octopcireg.h>
 #include <mips/cavium/octopcivar.h>
 
 #include "pcib_if.h"
 
-#define	NPI_WRITE(addr, value)	cvmx_write64_uint32((addr) ^ 4, (value))
-#define	NPI_READ(addr)		cvmx_read64_uint32((addr) ^ 4)
+#define NPI_WRITE(addr, value) cvmx_write64_uint32((addr) ^ 4, (value))
+#define NPI_READ(addr) cvmx_read64_uint32((addr) ^ 4)
 
 struct octopci_softc {
 	device_t sc_dev;
@@ -81,27 +78,27 @@ struct octopci_softc {
 	struct rman sc_mem1;
 };
 
-static void		octopci_identify(driver_t *, device_t);
-static int		octopci_probe(device_t);
-static int		octopci_attach(device_t);
-static int		octopci_read_ivar(device_t, device_t, int,
-					  uintptr_t *);
-static struct resource	*octopci_alloc_resource(device_t, device_t, int, int *,
-						rman_res_t, rman_res_t,
-						rman_res_t, u_int);
-static int		octopci_activate_resource(device_t, device_t, int, int,
-						  struct resource *);
-static int	octopci_maxslots(device_t);
-static uint32_t	octopci_read_config(device_t, u_int, u_int, u_int, u_int, int);
-static void	octopci_write_config(device_t, u_int, u_int, u_int, u_int,
-				     uint32_t, int);
-static int	octopci_route_interrupt(device_t, device_t, int);
+static void octopci_identify(driver_t *, device_t);
+static int octopci_probe(device_t);
+static int octopci_attach(device_t);
+static int octopci_read_ivar(device_t, device_t, int, uintptr_t *);
+static struct resource *octopci_alloc_resource(
+    device_t, device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+static int octopci_activate_resource(
+    device_t, device_t, int, int, struct resource *);
+static int octopci_maxslots(device_t);
+static uint32_t octopci_read_config(device_t, u_int, u_int, u_int, u_int, int);
+static void octopci_write_config(
+    device_t, u_int, u_int, u_int, u_int, uint32_t, int);
+static int octopci_route_interrupt(device_t, device_t, int);
 
-static unsigned	octopci_init_bar(device_t, unsigned, unsigned, unsigned, unsigned, uint8_t *);
-static unsigned	octopci_init_device(device_t, unsigned, unsigned, unsigned, unsigned);
-static unsigned	octopci_init_bus(device_t, unsigned);
-static void	octopci_init_pci(device_t);
-static uint64_t	octopci_cs_addr(unsigned, unsigned, unsigned, unsigned);
+static unsigned octopci_init_bar(
+    device_t, unsigned, unsigned, unsigned, unsigned, uint8_t *);
+static unsigned octopci_init_device(
+    device_t, unsigned, unsigned, unsigned, unsigned);
+static unsigned octopci_init_bus(device_t, unsigned);
+static void octopci_init_pci(device_t);
+static uint64_t octopci_cs_addr(unsigned, unsigned, unsigned, unsigned);
 
 static void
 octopci_identify(driver_t *drv, device_t parent)
@@ -120,7 +117,8 @@ octopci_probe(device_t dev)
 	}
 
 	/* Check whether we are a PCI host.  */
-	if ((cvmx_sysinfo_get()->bootloader_config_flags & CVMX_BOOTINFO_CFG_FLAG_PCI_HOST) == 0)
+	if ((cvmx_sysinfo_get()->bootloader_config_flags &
+		CVMX_BOOTINFO_CFG_FLAG_PCI_HOST) == 0)
 		return (ENXIO);
 
 	if (device_get_unit(dev) != 0)
@@ -145,7 +143,8 @@ octopci_attach(device_t dev)
 
 		error = cvmx_pcie_rc_initialize(sc->sc_domain);
 		if (error != 0) {
-			device_printf(dev, "Failed to put PCIe bus in host mode.\n");
+			device_printf(
+			    dev, "Failed to put PCIe bus in host mode.\n");
 			return (ENXIO);
 		}
 
@@ -156,10 +155,12 @@ octopci_attach(device_t dev)
 		 */
 		sc->sc_bus = 1;
 
-		sc->sc_io_base = CVMX_ADD_IO_SEG(cvmx_pcie_get_io_base_address(sc->sc_domain));
+		sc->sc_io_base = CVMX_ADD_IO_SEG(
+		    cvmx_pcie_get_io_base_address(sc->sc_domain));
 		sc->sc_io.rm_descr = "Cavium Octeon PCIe I/O Ports";
 
-		sc->sc_mem1_base = CVMX_ADD_IO_SEG(cvmx_pcie_get_mem_base_address(sc->sc_domain));
+		sc->sc_mem1_base = CVMX_ADD_IO_SEG(
+		    cvmx_pcie_get_mem_base_address(sc->sc_domain));
 		sc->sc_mem1.rm_descr = "Cavium Octeon PCIe Memory";
 	} else {
 		octopci_init_pci(dev);
@@ -167,10 +168,12 @@ octopci_attach(device_t dev)
 		sc->sc_domain = 0;
 		sc->sc_bus = 0;
 
-		sc->sc_io_base = CVMX_ADDR_DID(CVMX_FULL_DID(CVMX_OCT_DID_PCI, CVMX_OCT_SUBDID_PCI_IO));
+		sc->sc_io_base = CVMX_ADDR_DID(
+		    CVMX_FULL_DID(CVMX_OCT_DID_PCI, CVMX_OCT_SUBDID_PCI_IO));
 		sc->sc_io.rm_descr = "Cavium Octeon PCI I/O Ports";
 
-		sc->sc_mem1_base = CVMX_ADDR_DID(CVMX_FULL_DID(CVMX_OCT_DID_PCI, CVMX_OCT_SUBDID_PCI_MEM1));
+		sc->sc_mem1_base = CVMX_ADDR_DID(
+		    CVMX_FULL_DID(CVMX_OCT_DID_PCI, CVMX_OCT_SUBDID_PCI_MEM1));
 		sc->sc_mem1.rm_descr = "Cavium Octeon PCI Memory";
 	}
 
@@ -226,7 +229,6 @@ octopci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case PCIB_IVAR_BUS:
 		*result = sc->sc_bus;
 		return (0);
-		
 	}
 	return (ENOENT);
 }
@@ -244,8 +246,8 @@ octopci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	switch (type) {
 	case SYS_RES_IRQ:
-		res = bus_generic_alloc_resource(bus, child, type, rid, start,
-		    end, count, flags);
+		res = bus_generic_alloc_resource(
+		    bus, child, type, rid, start, end, count, flags);
 		if (res != NULL)
 			return (res);
 		return (NULL);
@@ -296,16 +298,16 @@ octopci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-octopci_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *res)
+octopci_activate_resource(
+    device_t bus, device_t child, int type, int rid, struct resource *res)
 {
 	bus_space_handle_t bh;
 	int error;
 
 	switch (type) {
 	case SYS_RES_IRQ:
-		error = bus_generic_activate_resource(bus, child, type, rid,
-						      res);
+		error = bus_generic_activate_resource(
+		    bus, child, type, rid, res);
 		if (error != 0)
 			return (error);
 		return (0);
@@ -334,8 +336,8 @@ octopci_maxslots(device_t dev)
 }
 
 static uint32_t
-octopci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
-    int bytes)
+octopci_read_config(
+    device_t dev, u_int bus, u_int slot, u_int func, u_int reg, int bytes)
 {
 	struct octopci_softc *sc;
 	uint64_t addr;
@@ -349,11 +351,14 @@ octopci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 
 		switch (bytes) {
 		case 4:
-			return (cvmx_pcie_config_read32(sc->sc_domain, bus, slot, func, reg));
+			return (cvmx_pcie_config_read32(
+			    sc->sc_domain, bus, slot, func, reg));
 		case 2:
-			return (cvmx_pcie_config_read16(sc->sc_domain, bus, slot, func, reg));
+			return (cvmx_pcie_config_read16(
+			    sc->sc_domain, bus, slot, func, reg));
 		case 1:
-			return (cvmx_pcie_config_read8(sc->sc_domain, bus, slot, func, reg));
+			return (cvmx_pcie_config_read8(
+			    sc->sc_domain, bus, slot, func, reg));
 		default:
 			return ((uint32_t)-1);
 		}
@@ -377,8 +382,8 @@ octopci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 }
 
 static void
-octopci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
-    u_int reg, uint32_t data, int bytes)
+octopci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
+    uint32_t data, int bytes)
 {
 	struct octopci_softc *sc;
 	uint64_t addr;
@@ -388,13 +393,16 @@ octopci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 	if (octeon_has_feature(OCTEON_FEATURE_PCIE)) {
 		switch (bytes) {
 		case 4:
-			cvmx_pcie_config_write32(sc->sc_domain, bus, slot, func, reg, data);
+			cvmx_pcie_config_write32(
+			    sc->sc_domain, bus, slot, func, reg, data);
 			return;
 		case 2:
-			cvmx_pcie_config_write16(sc->sc_domain, bus, slot, func, reg, data);
+			cvmx_pcie_config_write16(
+			    sc->sc_domain, bus, slot, func, reg, data);
 			return;
 		case 1:
-			cvmx_pcie_config_write8(sc->sc_domain, bus, slot, func, reg, data);
+			cvmx_pcie_config_write8(
+			    sc->sc_domain, bus, slot, func, reg, data);
 			return;
 		default:
 			return;
@@ -430,9 +438,9 @@ octopci_route_interrupt(device_t dev, device_t child, int pin)
 	if (octeon_has_feature(OCTEON_FEATURE_PCIE))
 		return (OCTEON_IRQ_PCI_INT0 + pin - 1);
 
-        bus = pci_get_bus(child);
-        slot = pci_get_slot(child);
-        func = pci_get_function(child);
+	bus = pci_get_bus(child);
+	slot = pci_get_slot(child);
+	func = pci_get_function(child);
 
 	/*
 	 * Board types we have to know at compile-time.
@@ -469,7 +477,8 @@ octopci_route_interrupt(device_t dev, device_t child, int pin)
 }
 
 static unsigned
-octopci_init_bar(device_t dev, unsigned b, unsigned s, unsigned f, unsigned barnum, uint8_t *commandp)
+octopci_init_bar(device_t dev, unsigned b, unsigned s, unsigned f,
+    unsigned barnum, uint8_t *commandp)
 {
 	struct octopci_softc *sc;
 	uint64_t bar;
@@ -491,8 +500,9 @@ octopci_init_bar(device_t dev, unsigned b, unsigned s, unsigned f, unsigned barn
 
 		sc->sc_io_next = roundup2(sc->sc_io_next, size);
 		if (sc->sc_io_next + size > CVMX_OCT_PCI_IO_SIZE) {
-			device_printf(dev, "%02x.%02x:%02x: no ports for BAR%u.\n",
-			    b, s, f, barnum);
+			device_printf(dev,
+			    "%02x.%02x:%02x: no ports for BAR%u.\n", b, s, f,
+			    barnum);
 			return (barnum + 1);
 		}
 		octopci_write_config(dev, b, s, f, PCIR_BAR(barnum),
@@ -518,7 +528,8 @@ octopci_init_bar(device_t dev, unsigned b, unsigned s, unsigned f, unsigned barn
 				 * XXX
 				 * High 32 bits are all zeroes for now.
 				 */
-				octopci_write_config(dev, b, s, f, PCIR_BAR(barnum + 1), 0, 4);
+				octopci_write_config(
+				    dev, b, s, f, PCIR_BAR(barnum + 1), 0, 4);
 				barsize = 2;
 				break;
 			default:
@@ -531,8 +542,9 @@ octopci_init_bar(device_t dev, unsigned b, unsigned s, unsigned f, unsigned barn
 
 		sc->sc_mem1_next = roundup2(sc->sc_mem1_next, size);
 		if (sc->sc_mem1_next + size > CVMX_OCT_PCI_MEM1_SIZE) {
-			device_printf(dev, "%02x.%02x:%02x: no memory for BAR%u.\n",
-			    b, s, f, barnum);
+			device_printf(dev,
+			    "%02x.%02x:%02x: no memory for BAR%u.\n", b, s, f,
+			    barnum);
 			return (barnum + barsize);
 		}
 		octopci_write_config(dev, b, s, f, PCIR_BAR(barnum),
@@ -549,7 +561,8 @@ octopci_init_bar(device_t dev, unsigned b, unsigned s, unsigned f, unsigned barn
 }
 
 static unsigned
-octopci_init_device(device_t dev, unsigned b, unsigned s, unsigned f, unsigned secbus)
+octopci_init_device(
+    device_t dev, unsigned b, unsigned s, unsigned f, unsigned secbus)
 {
 	unsigned barnum, bars;
 	uint8_t brctl;
@@ -598,7 +611,7 @@ octopci_init_device(device_t dev, unsigned b, unsigned s, unsigned f, unsigned s
 
 	DELAY(10000);
 
-	/* 
+	/*
 	 * Set cache line size.  On Octeon it should be 128 bytes,
 	 * but according to Linux some Intel bridges have trouble
 	 * with values over 64 bytes, so use 64 bytes.
@@ -621,10 +634,9 @@ octopci_init_device(device_t dev, unsigned b, unsigned s, unsigned f, unsigned s
 			/*
 			 * Set Tx DMA power.
 			 */
-			bar = octopci_read_config(dev, b, s, f,
-			    PCIR_BAR(3), 4);
-			busaddr = CVMX_ADDR_DID(CVMX_FULL_DID(CVMX_OCT_DID_PCI,
-			    CVMX_OCT_SUBDID_PCI_MEM1));
+			bar = octopci_read_config(dev, b, s, f, PCIR_BAR(3), 4);
+			busaddr = CVMX_ADDR_DID(CVMX_FULL_DID(
+			    CVMX_OCT_DID_PCI, CVMX_OCT_SUBDID_PCI_MEM1));
 			busaddr += (bar & (uint32_t)PCIM_BAR_MEM_BASE);
 			for (unit = 0; unit < 4; unit++) {
 				unitbusaddr = busaddr + 0x430 + (unit << 8);
@@ -667,15 +679,15 @@ octopci_init_device(device_t dev, unsigned b, unsigned s, unsigned f, unsigned s
 	secbus++;
 
 	/* Program memory and I/O ranges.  */
-	octopci_write_config(dev, b, s, f, PCIR_MEMBASE_1,
-	    CVMX_OCT_PCI_MEM1_BASE >> 16, 2);
+	octopci_write_config(
+	    dev, b, s, f, PCIR_MEMBASE_1, CVMX_OCT_PCI_MEM1_BASE >> 16, 2);
 	octopci_write_config(dev, b, s, f, PCIR_MEMLIMIT_1,
 	    (CVMX_OCT_PCI_MEM1_BASE + CVMX_OCT_PCI_MEM1_SIZE - 1) >> 16, 2);
 
-	octopci_write_config(dev, b, s, f, PCIR_IOBASEL_1,
-	    CVMX_OCT_PCI_IO_BASE >> 8, 1);
-	octopci_write_config(dev, b, s, f, PCIR_IOBASEH_1,
-	    CVMX_OCT_PCI_IO_BASE >> 16, 2);
+	octopci_write_config(
+	    dev, b, s, f, PCIR_IOBASEL_1, CVMX_OCT_PCI_IO_BASE >> 8, 1);
+	octopci_write_config(
+	    dev, b, s, f, PCIR_IOBASEH_1, CVMX_OCT_PCI_IO_BASE >> 16, 2);
 
 	octopci_write_config(dev, b, s, f, PCIR_IOLIMITL_1,
 	    (CVMX_OCT_PCI_IO_BASE + CVMX_OCT_PCI_IO_SIZE - 1) >> 8, 1);
@@ -718,12 +730,13 @@ octopci_init_bus(device_t dev, unsigned b)
 
 	for (s = 0; s <= PCI_SLOTMAX; s++) {
 		for (f = 0; f <= PCI_FUNCMAX; f++) {
-			hdrtype = octopci_read_config(dev, b, s, f, PCIR_HDRTYPE, 1);
+			hdrtype = octopci_read_config(
+			    dev, b, s, f, PCIR_HDRTYPE, 1);
 
 			if (hdrtype == 0xff) {
 				if (f == 0)
 					break; /* Next slot.  */
-				continue; /* Next function.  */
+				continue;      /* Next function.  */
 			}
 
 			secbus = octopci_init_device(dev, b, s, f, secbus);
@@ -807,11 +820,11 @@ octopci_init_pci(device_t dev)
 	 */
 	pci_ctl_status_2.u32 = 0;
 	pci_ctl_status_2.s.bb1_hole = 5; /* 256MB hole in BAR1 */
-	pci_ctl_status_2.s.bb1_siz = 1; /* BAR1 is 2GB */
-	pci_ctl_status_2.s.bb_ca = 1; /* Bypass cache for big BAR */
-	pci_ctl_status_2.s.bb_es = 1; /* Do big BAR byte-swapping */
-	pci_ctl_status_2.s.bb1 = 1; /* BAR1 is big */
-	pci_ctl_status_2.s.bb0 = 1; /* BAR0 is big */
+	pci_ctl_status_2.s.bb1_siz = 1;	 /* BAR1 is 2GB */
+	pci_ctl_status_2.s.bb_ca = 1;	 /* Bypass cache for big BAR */
+	pci_ctl_status_2.s.bb_es = 1;	 /* Do big BAR byte-swapping */
+	pci_ctl_status_2.s.bb1 = 1;	 /* BAR1 is big */
+	pci_ctl_status_2.s.bb0 = 1;	 /* BAR0 is big */
 	pci_ctl_status_2.s.bar2pres = 1; /* BAR2 present */
 	pci_ctl_status_2.s.pmo_amod = 1; /* Round-robin priority */
 	pci_ctl_status_2.s.tsr_hwm = 1;
@@ -960,27 +973,27 @@ octopci_init_pci(device_t dev)
 
 static device_method_t octopci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	octopci_identify),
-	DEVMETHOD(device_probe,		octopci_probe),
-	DEVMETHOD(device_attach,	octopci_attach),
+	DEVMETHOD(device_identify, octopci_identify),
+	DEVMETHOD(device_probe, octopci_probe),
+	DEVMETHOD(device_attach, octopci_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,	octopci_read_ivar),
-	DEVMETHOD(bus_alloc_resource,	octopci_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource,octopci_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_read_ivar, octopci_read_ivar),
+	DEVMETHOD(bus_alloc_resource, octopci_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, octopci_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
 
-	DEVMETHOD(bus_add_child,	bus_generic_add_child),
+	DEVMETHOD(bus_add_child, bus_generic_add_child),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_maxslots,	octopci_maxslots),
-	DEVMETHOD(pcib_read_config,	octopci_read_config),
-	DEVMETHOD(pcib_write_config,	octopci_write_config),
-	DEVMETHOD(pcib_route_interrupt,	octopci_route_interrupt),
-	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
+	DEVMETHOD(pcib_maxslots, octopci_maxslots),
+	DEVMETHOD(pcib_read_config, octopci_read_config),
+	DEVMETHOD(pcib_write_config, octopci_write_config),
+	DEVMETHOD(pcib_route_interrupt, octopci_route_interrupt),
+	DEVMETHOD(pcib_request_feature, pcib_request_feature_allow),
 
 	DEVMETHOD_END
 };

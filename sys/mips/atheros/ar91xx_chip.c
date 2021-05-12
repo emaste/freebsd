@@ -32,18 +32,16 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/reboot.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
-
-#include <net/ethernet.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -53,11 +51,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
-#include <mips/atheros/ar71xxreg.h>
-#include <mips/atheros/ar71xx_cpudef.h>
+#include <net/ethernet.h>
+
 #include <mips/atheros/ar71xx_chip.h>
-#include <mips/atheros/ar91xxreg.h>
+#include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar91xx_chip.h>
+#include <mips/atheros/ar91xxreg.h>
 
 static void
 ar91xx_chip_detect_mem_size(void)
@@ -122,17 +122,15 @@ ar91xx_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 	switch (unit) {
 	case 0:
 		ar71xx_write_pll(AR91XX_PLL_REG_ETH_CONFIG,
-		    AR91XX_PLL_REG_ETH0_INT_CLOCK, pll,
-		    AR91XX_ETH0_PLL_SHIFT);
+		    AR91XX_PLL_REG_ETH0_INT_CLOCK, pll, AR91XX_ETH0_PLL_SHIFT);
 		break;
 	case 1:
 		ar71xx_write_pll(AR91XX_PLL_REG_ETH_CONFIG,
-		    AR91XX_PLL_REG_ETH1_INT_CLOCK, pll,
-		    AR91XX_ETH1_PLL_SHIFT);
+		    AR91XX_PLL_REG_ETH1_INT_CLOCK, pll, AR91XX_ETH1_PLL_SHIFT);
 		break;
 	default:
-		printf("%s: invalid PLL set for arge unit: %d\n",
-		    __func__, unit);
+		printf(
+		    "%s: invalid PLL set for arge unit: %d\n", __func__, unit);
 		return;
 	}
 }
@@ -165,7 +163,7 @@ ar91xx_chip_get_eth_pll(unsigned int mac, int speed)
 {
 	uint32_t pll;
 
-	switch(speed) {
+	switch (speed) {
 	case 10:
 		pll = AR91XX_PLL_VAL_10;
 		break;

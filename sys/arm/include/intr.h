@@ -46,7 +46,7 @@
 #endif
 
 #ifndef NIRQ
-#define	NIRQ		1024	/* XXX - It should be an option. */
+#define NIRQ 1024 /* XXX - It should be an option. */
 #endif
 
 #include <sys/intr.h>
@@ -66,4 +66,4 @@ int intr_pic_ipi_setup(u_int, const char *, intr_ipi_handler_t *, void *);
 
 void arm_irq_memory_barrier(uintptr_t);
 
-#endif	/* _MACHINE_INTR_H */
+#endif /* _MACHINE_INTR_H */

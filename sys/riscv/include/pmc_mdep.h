@@ -27,39 +27,38 @@
  */
 
 #ifndef _MACHINE_PMC_MDEP_H_
-#define	_MACHINE_PMC_MDEP_H_
+#define _MACHINE_PMC_MDEP_H_
 
-#define	PMC_MDEP_CLASS_INDEX_RISCV	1
+#define PMC_MDEP_CLASS_INDEX_RISCV 1
 /*
  * On the RISC-V platform we don't support any PMCs yet.
  */
 #include <dev/hwpmc/hwpmc_riscv.h>
 
 union pmc_md_op_pmcallocate {
-	uint64_t		__pad[4];
+	uint64_t __pad[4];
 };
 
 /* Logging */
-#define	PMCLOG_READADDR		PMCLOG_READ64
-#define	PMCLOG_EMITADDR		PMCLOG_EMIT64
+#define PMCLOG_READADDR PMCLOG_READ64
+#define PMCLOG_EMITADDR PMCLOG_EMIT64
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 union pmc_md_pmc {
-	struct pmc_md_riscv_pmc		pm_riscv;
+	struct pmc_md_riscv_pmc pm_riscv;
 };
 
-#define	PMC_IN_KERNEL_STACK(S,START,END)		\
-	((S) >= (START) && (S) < (END))
-#define	PMC_IN_KERNEL(va)		INKERNEL((va))
-#define	PMC_IN_USERSPACE(va)		((va) <= VM_MAXUSER_ADDRESS)
-#define	PMC_TRAPFRAME_TO_PC(TF)		((TF)->tf_ra)
-#define	PMC_TRAPFRAME_TO_FP(TF)		(0)	/* stub */
+#define PMC_IN_KERNEL_STACK(S, START, END) ((S) >= (START) && (S) < (END))
+#define PMC_IN_KERNEL(va) INKERNEL((va))
+#define PMC_IN_USERSPACE(va) ((va) <= VM_MAXUSER_ADDRESS)
+#define PMC_TRAPFRAME_TO_PC(TF) ((TF)->tf_ra)
+#define PMC_TRAPFRAME_TO_FP(TF) (0) /* stub */
 
 /*
  * Prototypes
  */
 struct pmc_mdep *pmc_riscv_initialize(void);
-void	pmc_riscv_finalize(struct pmc_mdep *_md);
+void pmc_riscv_finalize(struct pmc_mdep *_md);
 #endif /* _KERNEL */
 
 #endif /* !_MACHINE_PMC_MDEP_H_ */

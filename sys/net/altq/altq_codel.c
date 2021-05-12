@@ -43,33 +43,32 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
-#ifdef ALTQ_CODEL  /* CoDel is enabled by ALTQ_CODEL option in opt_altq.h */
+#ifdef ALTQ_CODEL /* CoDel is enabled by ALTQ_CODEL option in opt_altq.h */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/systm.h>
 
+#include <net/altq/altq.h>
+#include <net/altq/altq_codel.h>
+#include <net/altq/if_altq.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <netinet/in.h>
-
 #include <netpfil/pf/pf.h>
 #include <netpfil/pf/pf_altq.h>
-#include <net/altq/if_altq.h>
-#include <net/altq/altq.h>
-#include <net/altq/altq_codel.h>
 
-static int		 codel_should_drop(struct codel *, class_queue_t *,
-			    struct mbuf *, u_int64_t);
-static void		 codel_Newton_step(struct codel_vars *);
-static u_int64_t	 codel_control_law(u_int64_t t, u_int64_t, u_int32_t);
+static int codel_should_drop(
+    struct codel *, class_queue_t *, struct mbuf *, u_int64_t);
+static void codel_Newton_step(struct codel_vars *);
+static u_int64_t codel_control_law(u_int64_t t, u_int64_t, u_int32_t);
 
-#define	codel_time_after(a, b)		((int64_t)(a) - (int64_t)(b) > 0)
-#define	codel_time_after_eq(a, b)	((int64_t)(a) - (int64_t)(b) >= 0)
-#define	codel_time_before(a, b)		((int64_t)(a) - (int64_t)(b) < 0)
-#define	codel_time_before_eq(a, b)	((int64_t)(a) - (int64_t)(b) <= 0)
+#define codel_time_after(a, b) ((int64_t)(a) - (int64_t)(b) > 0)
+#define codel_time_after_eq(a, b) ((int64_t)(a) - (int64_t)(b) >= 0)
+#define codel_time_before(a, b) ((int64_t)(a) - (int64_t)(b) < 0)
+#define codel_time_before_eq(a, b) ((int64_t)(a) - (int64_t)(b) <= 0)
 
 static int codel_request(struct ifaltq *, int, void *);
 
@@ -91,8 +90,8 @@ codel_pfattach(struct pf_altq *a)
 int
 codel_add_altq(struct ifnet *ifp, struct pf_altq *a)
 {
-	struct codel_if	*cif;
-	struct codel_opts	*opts;
+	struct codel_if *cif;
+	struct codel_opts *opts;
 
 	if (ifp == NULL)
 		return (EINVAL);
@@ -114,7 +113,7 @@ codel_add_altq(struct ifnet *ifp, struct pf_altq *a)
 	}
 
 	if (a->qlimit == 0)
-		a->qlimit = 50;	/* use default. */
+		a->qlimit = 50; /* use default. */
 	qlimit(cif->cl_q) = a->qlimit;
 	qtype(cif->cl_q) = Q_CODEL;
 	qlen(cif->cl_q) = 0;
@@ -180,7 +179,7 @@ codel_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
 static int
 codel_request(struct ifaltq *ifq, int req, void *arg)
 {
-	struct codel_if	*cif = (struct codel_if *)ifq->altq_disc;
+	struct codel_if *cif = (struct codel_if *)ifq->altq_disc;
 	struct mbuf *m;
 
 	IFQ_LOCK_ASSERT(ifq);
@@ -209,7 +208,7 @@ static int
 codel_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 {
 
-	struct codel_if *cif = (struct codel_if *) ifq->altq_disc;
+	struct codel_if *cif = (struct codel_if *)ifq->altq_disc;
 
 	IFQ_LOCK_ASSERT(ifq);
 
@@ -217,7 +216,7 @@ codel_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 	if ((m->m_flags & M_PKTHDR) == 0) {
 		/* should not happen */
 		printf("altq: packet for %s does not have pkthdr\n",
-		   ifq->altq_ifp->if_xname);
+		    ifq->altq_ifp->if_xname);
 		m_freem(m);
 		PKTCNTR_ADD(&cif->cl_stats.cl_dropcnt, m_pktlen(m));
 		return (ENOBUFS);
@@ -279,7 +278,7 @@ codel_destroy(struct codel *c)
 	free(c, M_DEVBUF);
 }
 
-#define	MTAG_CODEL	1438031249
+#define MTAG_CODEL 1438031249
 int
 codel_addq(struct codel *c, class_queue_t *q, struct mbuf *m)
 {
@@ -289,8 +288,8 @@ codel_addq(struct codel *c, class_queue_t *q, struct mbuf *m)
 	if (qlen(q) < qlimit(q)) {
 		mtag = m_tag_locate(m, MTAG_CODEL, 0, NULL);
 		if (mtag == NULL)
-			mtag = m_tag_alloc(MTAG_CODEL, 0, sizeof(uint64_t),
-			    M_NOWAIT);
+			mtag = m_tag_alloc(
+			    MTAG_CODEL, 0, sizeof(uint64_t), M_NOWAIT);
 		if (mtag == NULL) {
 			m_freem(m);
 			return (-1);
@@ -308,8 +307,8 @@ codel_addq(struct codel *c, class_queue_t *q, struct mbuf *m)
 }
 
 static int
-codel_should_drop(struct codel *c, class_queue_t *q, struct mbuf *m,
-    u_int64_t now)
+codel_should_drop(
+    struct codel *c, class_queue_t *q, struct mbuf *m, u_int64_t now)
 {
 	struct m_tag *mtag;
 	uint64_t *enqueue_time;
@@ -323,8 +322,8 @@ codel_should_drop(struct codel *c, class_queue_t *q, struct mbuf *m,
 	if (mtag == NULL) {
 		/* Only one warning per second. */
 		if (ppsratecheck(&c->last_log, &c->last_pps, 1))
-			printf("%s: could not found the packet mtag!\n",
-			    __func__);
+			printf(
+			    "%s: could not found the packet mtag!\n", __func__);
 		c->vars.first_above_time = 0;
 		return (0);
 	}
@@ -364,9 +363,9 @@ codel_Newton_step(struct codel_vars *vars)
 	uint64_t val;
 
 /* sizeof_in_bits(rec_inv_sqrt) */
-#define	REC_INV_SQRT_BITS (8 * sizeof(u_int16_t))
+#define REC_INV_SQRT_BITS (8 * sizeof(u_int16_t))
 /* needed shift to get a Q0.32 number from rec_inv_sqrt */
-#define	REC_INV_SQRT_SHIFT (32 - REC_INV_SQRT_BITS)
+#define REC_INV_SQRT_SHIFT (32 - REC_INV_SQRT_BITS)
 
 	invsqrt = ((u_int32_t)vars->rec_inv_sqrt) << REC_INV_SQRT_SHIFT;
 	invsqrt2 = ((u_int64_t)invsqrt * invsqrt) >> 32;
@@ -381,16 +380,18 @@ static u_int64_t
 codel_control_law(u_int64_t t, u_int64_t interval, u_int32_t rec_inv_sqrt)
 {
 
-	return (t + (u_int32_t)(((u_int64_t)interval *
-	    (rec_inv_sqrt << REC_INV_SQRT_SHIFT)) >> 32));
+	return (t +
+	    (u_int32_t)(
+		((u_int64_t)interval * (rec_inv_sqrt << REC_INV_SQRT_SHIFT)) >>
+		32));
 }
 
 struct mbuf *
 codel_getq(struct codel *c, class_queue_t *q)
 {
-	struct mbuf	*m;
-	u_int64_t	 now;
-	int		 drop;
+	struct mbuf *m;
+	u_int64_t now;
+	int drop;
 
 	if ((m = _getq(q)) == NULL) {
 		c->vars.dropping = 0;
@@ -427,10 +428,10 @@ codel_getq(struct codel *c, class_queue_t *q)
 					c->vars.dropping = 0;
 				else
 					/* and schedule the next drop */
-					c->vars.drop_next =
-					    codel_control_law(c->vars.drop_next,
-						c->params.interval,
-						c->vars.rec_inv_sqrt);
+					c->vars.drop_next = codel_control_law(
+					    c->vars.drop_next,
+					    c->params.interval,
+					    c->vars.rec_inv_sqrt);
 			}
 		}
 	} else if (drop) {
@@ -446,8 +447,8 @@ codel_getq(struct codel *c, class_queue_t *q)
 		 * assume that the drop rate that controlled the queue on the
 		 * last cycle is a good starting point to control it now.
 		 */
-		if (codel_time_before(now - c->vars.drop_next,
-		    16 * c->params.interval)) {
+		if (codel_time_before(
+			now - c->vars.drop_next, 16 * c->params.interval)) {
 			c->vars.count = (c->vars.count - c->vars.lastcount) | 1;
 			/* we dont care if rec_inv_sqrt approximation
 			 * is not very precise :
@@ -459,8 +460,8 @@ codel_getq(struct codel *c, class_queue_t *q)
 			c->vars.rec_inv_sqrt = ~0U >> REC_INV_SQRT_SHIFT;
 		}
 		c->vars.lastcount = c->vars.count;
-		c->vars.drop_next = codel_control_law(now, c->params.interval,
-		    c->vars.rec_inv_sqrt);
+		c->vars.drop_next = codel_control_law(
+		    now, c->params.interval, c->vars.rec_inv_sqrt);
 	}
 
 	return (m);

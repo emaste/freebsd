@@ -32,15 +32,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/kerneldump.h>
+#include <sys/proc.h>
 #include <sys/watchdog.h>
+
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_phys.h>
-#include <vm/vm_dumpset.h>
 #include <vm/pmap.h>
+#include <vm/vm_dumpset.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
+
 #include <machine/dump.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
@@ -48,7 +50,7 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
-#define	MD_ALIGN(x)	roundup2((off_t)(x), PAGE_SIZE)
+#define MD_ALIGN(x) roundup2((off_t)(x), PAGE_SIZE)
 
 /* Handle buffered writes. */
 static size_t fragsz;
@@ -88,14 +90,12 @@ dumpsys_gen_pa_next(struct dump_pa *mdp)
 void
 dumpsys_gen_wbinv_all(void)
 {
-
 }
 
 void
-dumpsys_gen_unmap_chunk(vm_paddr_t pa __unused, size_t chunk __unused,
-    void *va __unused)
+dumpsys_gen_unmap_chunk(
+    vm_paddr_t pa __unused, size_t chunk __unused, void *va __unused)
 {
-
 }
 
 int
@@ -169,7 +169,7 @@ CTASSERT(PAGE_SHIFT < 20);
 int
 dumpsys_cb_dumpdata(struct dump_pa *mdp, int seqnr, void *arg)
 {
-	struct dumperinfo *di = (struct dumperinfo*)arg;
+	struct dumperinfo *di = (struct dumperinfo *)arg;
 	vm_paddr_t pa;
 	void *va;
 	uint64_t pgs;
@@ -177,13 +177,13 @@ dumpsys_cb_dumpdata(struct dump_pa *mdp, int seqnr, void *arg)
 	int c, error;
 	u_int maxdumppgs;
 
-	error = 0;	/* catch case in which chunk size is 0 */
-	counter = 0;	/* Update twiddle every 16MB */
+	error = 0;   /* catch case in which chunk size is 0 */
+	counter = 0; /* Update twiddle every 16MB */
 	va = NULL;
 	pgs = mdp->pa_size / PAGE_SIZE;
 	pa = mdp->pa_start;
 	maxdumppgs = min(di->maxiosize / PAGE_SIZE, MAXDUMPPGS);
-	if (maxdumppgs == 0)	/* seatbelt */
+	if (maxdumppgs == 0) /* seatbelt */
 		maxdumppgs = 1;
 
 	printf("  chunk %d: %juMB (%ju pages)", seqnr, (uintmax_t)PG2MB(pgs),
@@ -244,7 +244,7 @@ static off_t fileofs;
 static int
 cb_dumphdr(struct dump_pa *mdp, int seqnr, void *arg)
 {
-	struct dumperinfo *di = (struct dumperinfo*)arg;
+	struct dumperinfo *di = (struct dumperinfo *)arg;
 	Elf_Phdr phdr;
 	uint64_t size;
 	int error;
@@ -252,11 +252,11 @@ cb_dumphdr(struct dump_pa *mdp, int seqnr, void *arg)
 	size = mdp->pa_size;
 	bzero(&phdr, sizeof(phdr));
 	phdr.p_type = PT_LOAD;
-	phdr.p_flags = PF_R;			/* XXX */
+	phdr.p_flags = PF_R; /* XXX */
 	phdr.p_offset = fileofs;
 #ifdef __powerpc__
-	phdr.p_vaddr = (do_minidump? mdp->pa_start : ~0L);
-	phdr.p_paddr = (do_minidump? ~0L : mdp->pa_start);
+	phdr.p_vaddr = (do_minidump ? mdp->pa_start : ~0L);
+	phdr.p_paddr = (do_minidump ? ~0L : mdp->pa_start);
 #else
 	phdr.p_vaddr = mdp->pa_start;
 	phdr.p_paddr = mdp->pa_start;
@@ -265,7 +265,7 @@ cb_dumphdr(struct dump_pa *mdp, int seqnr, void *arg)
 	phdr.p_memsz = size;
 	phdr.p_align = PAGE_SIZE;
 
-	error = dumpsys_buf_write(di, (char*)&phdr, sizeof(phdr));
+	error = dumpsys_buf_write(di, (char *)&phdr, sizeof(phdr));
 	fileofs += phdr.p_filesz;
 	return (error);
 }
@@ -307,7 +307,7 @@ dumpsys_generic(struct dumperinfo *di)
 	ehdr.e_ident[EI_DATA] = ELFDATA2MSB;
 #endif
 	ehdr.e_ident[EI_VERSION] = EV_CURRENT;
-	ehdr.e_ident[EI_OSABI] = ELFOSABI_STANDALONE;	/* XXX big picture? */
+	ehdr.e_ident[EI_OSABI] = ELFOSABI_STANDALONE; /* XXX big picture? */
 	ehdr.e_type = ET_CORE;
 	ehdr.e_machine = EM_VALUE;
 	ehdr.e_phoff = sizeof(ehdr);
@@ -327,8 +327,8 @@ dumpsys_generic(struct dumperinfo *di)
 	dumpsize += fileofs;
 	hdrgap = fileofs - roundup2((off_t)hdrsz, di->blocksize);
 
-	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_ARCH_VERSION,
-	    dumpsize);
+	dump_init_header(
+	    di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_ARCH_VERSION, dumpsize);
 
 	error = dump_start(di, &kdh);
 	if (error != 0)
@@ -338,7 +338,7 @@ dumpsys_generic(struct dumperinfo *di)
 	    ehdr.e_phnum - DUMPSYS_NUM_AUX_HDRS);
 
 	/* Dump ELF header */
-	error = dumpsys_buf_write(di, (char*)&ehdr, sizeof(ehdr));
+	error = dumpsys_buf_write(di, (char *)&ehdr, sizeof(ehdr));
 	if (error)
 		goto fail;
 
@@ -373,7 +373,7 @@ dumpsys_generic(struct dumperinfo *di)
 	printf("\nDump complete\n");
 	return (0);
 
- fail:
+fail:
 	if (error < 0)
 		error = -error;
 

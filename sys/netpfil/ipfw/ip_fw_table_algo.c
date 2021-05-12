@@ -32,8 +32,8 @@ __FBSDID("$FreeBSD$");
  *
  */
 
-#include "opt_ipfw.h"
 #include "opt_inet.h"
+#include "opt_ipfw.h"
 #ifndef INET
 #error IPFIREWALL requires INET.
 #endif /* INET */
@@ -41,25 +41,24 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/rwlock.h>
-#include <sys/rmlock.h>
-#include <sys/socket.h>
+#include <sys/malloc.h>
 #include <sys/queue.h>
-#include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
+#include <sys/rmlock.h>
+#include <sys/rwlock.h>
+#include <sys/socket.h>
+
+#include <net/if.h> /* ip_fw.h requires IFNAMSIZ */
 #include <net/radix.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
 #include <net/route/route_ctl.h>
-
 #include <netinet/in.h>
 #include <netinet/in_fib.h>
-#include <netinet/ip_var.h>	/* struct ipfw_rule_ref */
 #include <netinet/ip_fw.h>
+#include <netinet/ip_var.h> /* struct ipfw_rule_ref */
 #include <netinet6/in6_fib.h>
-
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/ip_fw_table.h>
 
@@ -203,7 +202,7 @@ __FBSDID("$FreeBSD$");
  * Allocate all needed state for table modification. Caller
  * should use `struct mod_item` to store new state in @ta_buf.
  * Up to TA_BUF_SZ (128 bytes) can be stored in @ta_buf.
- * 
+ *
  *
  *
  * -fill_mod: copy some data to new state/
@@ -219,7 +218,7 @@ __FBSDID("$FreeBSD$");
  * -modify: perform final modification.
  *  typedef void (ta_modify)(void *ta_state, struct table_info *ti,
  *      void *ta_buf, uint64_t pflags);
- * OPTIONAL(need_modify), locked (UH+WLOCK). (M_NOWAIT). 
+ * OPTIONAL(need_modify), locked (UH+WLOCK). (M_NOWAIT).
  *
  * Performs all changes necessary to switch to new structures.
  * * Caller should save old pointers to @ta_buf storage.
@@ -288,16 +287,16 @@ MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
  */
 
 struct mod_item {
-	void	*main_ptr;
-	size_t	size;
-	void	*main_ptr6;
-	size_t	size6;
+	void *main_ptr;
+	size_t size;
+	void *main_ptr6;
+	size_t size6;
 };
 
 static int badd(const void *key, void *item, void *base, size_t nmemb,
-    size_t size, int (*compar) (const void *, const void *));
+    size_t size, int (*compar)(const void *, const void *));
 static int bdel(const void *key, void *base, size_t nmemb, size_t size,
-    int (*compar) (const void *, const void *));
+    int (*compar)(const void *, const void *));
 
 /*
  * ADDR implementation using radix
@@ -313,49 +312,50 @@ static int bdel(const void *key, void *base, size_t nmemb, size_t size,
  * offset 4 and normally aligned.
  * But for portability, let's avoid assumption and make the code explicit
  */
-#define KEY_LEN(v)	*((uint8_t *)&(v))
+#define KEY_LEN(v) *((uint8_t *)&(v))
 /*
  * Do not require radix to compare more than actual IPv4/IPv6 address
  */
-#define KEY_LEN_INET	(offsetof(struct sockaddr_in, sin_addr) + sizeof(in_addr_t))
-#define KEY_LEN_INET6	(offsetof(struct sa_in6, sin6_addr) + sizeof(struct in6_addr))
+#define KEY_LEN_INET \
+	(offsetof(struct sockaddr_in, sin_addr) + sizeof(in_addr_t))
+#define KEY_LEN_INET6 \
+	(offsetof(struct sa_in6, sin6_addr) + sizeof(struct in6_addr))
 
-#define OFF_LEN_INET	(8 * offsetof(struct sockaddr_in, sin_addr))
-#define OFF_LEN_INET6	(8 * offsetof(struct sa_in6, sin6_addr))
+#define OFF_LEN_INET (8 * offsetof(struct sockaddr_in, sin_addr))
+#define OFF_LEN_INET6 (8 * offsetof(struct sa_in6, sin6_addr))
 
 struct radix_addr_entry {
-	struct radix_node	rn[2];
-	struct sockaddr_in	addr;
-	uint32_t		value;
-	uint8_t			masklen;
+	struct radix_node rn[2];
+	struct sockaddr_in addr;
+	uint32_t value;
+	uint8_t masklen;
 };
 
 struct sa_in6 {
-	uint8_t			sin6_len;
-	uint8_t			sin6_family;
-	uint8_t			pad[2];
-	struct in6_addr		sin6_addr;
+	uint8_t sin6_len;
+	uint8_t sin6_family;
+	uint8_t pad[2];
+	struct in6_addr sin6_addr;
 };
 
 struct radix_addr_xentry {
-	struct radix_node	rn[2];
-	struct sa_in6		addr6;
-	uint32_t		value;
-	uint8_t			masklen;
+	struct radix_node rn[2];
+	struct sa_in6 addr6;
+	uint32_t value;
+	uint8_t masklen;
 };
 
 struct radix_cfg {
-	struct radix_node_head	*head4;
-	struct radix_node_head	*head6;
-	size_t			count4;
-	size_t			count6;
+	struct radix_node_head *head4;
+	struct radix_node_head *head6;
+	size_t count4;
+	size_t count6;
 };
 
-struct ta_buf_radix
-{
+struct ta_buf_radix {
 	void *ent_ptr;
-	struct sockaddr	*addr_ptr;
-	struct sockaddr	*mask_ptr;
+	struct sockaddr *addr_ptr;
+	struct sockaddr *mask_ptr;
 	union {
 		struct {
 			struct sockaddr_in sa;
@@ -368,38 +368,38 @@ struct ta_buf_radix
 	} addr;
 };
 
-static int ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val);
+static int ta_lookup_radix(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val);
 static int ta_init_radix(struct ip_fw_chain *ch, void **ta_state,
     struct table_info *ti, char *data, uint8_t tflags);
 static int flush_radix_entry(struct radix_node *rn, void *arg);
 static void ta_destroy_radix(void *ta_state, struct table_info *ti);
-static void ta_dump_radix_tinfo(void *ta_state, struct table_info *ti,
-    ipfw_ta_tinfo *tinfo);
-static int ta_dump_radix_tentry(void *ta_state, struct table_info *ti,
-    void *e, ipfw_obj_tentry *tent);
-static int ta_find_radix_tentry(void *ta_state, struct table_info *ti,
-    ipfw_obj_tentry *tent);
-static void ta_foreach_radix(void *ta_state, struct table_info *ti,
-    ta_foreach_f *f, void *arg);
+static void ta_dump_radix_tinfo(
+    void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo);
+static int ta_dump_radix_tentry(
+    void *ta_state, struct table_info *ti, void *e, ipfw_obj_tentry *tent);
+static int ta_find_radix_tentry(
+    void *ta_state, struct table_info *ti, ipfw_obj_tentry *tent);
+static void ta_foreach_radix(
+    void *ta_state, struct table_info *ti, ta_foreach_f *f, void *arg);
 static void tei_to_sockaddr_ent(struct tentry_info *tei, struct sockaddr *sa,
     struct sockaddr *ma, int *set_mask);
-static int ta_prepare_add_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf);
+static int ta_prepare_add_radix(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
 static int ta_add_radix(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
-static int ta_prepare_del_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf);
+static int ta_prepare_del_radix(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
 static int ta_del_radix(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
-static void ta_flush_radix_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf);
-static int ta_need_modify_radix(void *ta_state, struct table_info *ti,
-    uint32_t count, uint64_t *pflags);
+static void ta_flush_radix_entry(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
+static int ta_need_modify_radix(
+    void *ta_state, struct table_info *ti, uint32_t count, uint64_t *pflags);
 
 static int
-ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val)
+ta_lookup_radix(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val)
 {
 	struct radix_node_head *rnh;
 
@@ -409,7 +409,8 @@ ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
 		KEY_LEN(sa) = KEY_LEN_INET;
 		sa.sin_addr.s_addr = *((in_addr_t *)key);
 		rnh = (struct radix_node_head *)ti->state;
-		ent = (struct radix_addr_entry *)(rnh->rnh_matchaddr(&sa, &rnh->rh));
+		ent = (struct radix_addr_entry *)(rnh->rnh_matchaddr(
+		    &sa, &rnh->rh));
 		if (ent != NULL) {
 			*val = ent->value;
 			return (1);
@@ -420,7 +421,8 @@ ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
 		KEY_LEN(sa6) = KEY_LEN_INET6;
 		memcpy(&sa6.sin6_addr, key, sizeof(struct in6_addr));
 		rnh = (struct radix_node_head *)ti->xstate;
-		xent = (struct radix_addr_xentry *)(rnh->rnh_matchaddr(&sa6, &rnh->rh));
+		xent = (struct radix_addr_xentry *)(rnh->rnh_matchaddr(
+		    &sa6, &rnh->rh));
 		if (xent != NULL) {
 			*val = xent->value;
 			return (1);
@@ -457,11 +459,11 @@ ta_init_radix(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 static int
 flush_radix_entry(struct radix_node *rn, void *arg)
 {
-	struct radix_node_head * const rnh = arg;
+	struct radix_node_head *const rnh = arg;
 	struct radix_addr_entry *ent;
 
-	ent = (struct radix_addr_entry *)
-	    rnh->rnh_deladdr(rn->rn_key, rn->rn_mask, &rnh->rh);
+	ent = (struct radix_addr_entry *)rnh->rnh_deladdr(
+	    rn->rn_key, rn->rn_mask, &rnh->rh);
 	if (ent != NULL)
 		free(ent, M_IPFW_TBL);
 	return (0);
@@ -506,8 +508,8 @@ ta_dump_radix_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
 }
 
 static int
-ta_dump_radix_tentry(void *ta_state, struct table_info *ti, void *e,
-    ipfw_obj_tentry *tent)
+ta_dump_radix_tentry(
+    void *ta_state, struct table_info *ti, void *e, ipfw_obj_tentry *tent)
 {
 	struct radix_addr_entry *n;
 #ifdef INET6
@@ -537,8 +539,8 @@ ta_dump_radix_tentry(void *ta_state, struct table_info *ti, void *e,
 }
 
 static int
-ta_find_radix_tentry(void *ta_state, struct table_info *ti,
-    ipfw_obj_tentry *tent)
+ta_find_radix_tentry(
+    void *ta_state, struct table_info *ti, ipfw_obj_tentry *tent)
 {
 	struct radix_node_head *rnh;
 	void *e;
@@ -567,8 +569,8 @@ ta_find_radix_tentry(void *ta_state, struct table_info *ti,
 }
 
 static void
-ta_foreach_radix(void *ta_state, struct table_info *ti, ta_foreach_f *f,
-    void *arg)
+ta_foreach_radix(
+    void *ta_state, struct table_info *ti, ta_foreach_f *f, void *arg)
 {
 	struct radix_node_head *rnh;
 
@@ -617,8 +619,8 @@ tei_to_sockaddr_ent(struct tentry_info *tei, struct sockaddr *sa,
 		KEY_LEN(*addr) = KEY_LEN_INET;
 		KEY_LEN(*mask) = KEY_LEN_INET;
 		addr->sin_family = AF_INET;
-		mask->sin_addr.s_addr =
-		    htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
+		mask->sin_addr.s_addr = htonl(
+		    mlen ? ~((1 << (32 - mlen)) - 1) : 0);
 		a4 = *((in_addr_t *)tei->paddr);
 		addr->sin_addr.s_addr = a4 & mask->sin_addr.s_addr;
 		if (mlen != 32)
@@ -647,8 +649,8 @@ tei_to_sockaddr_ent(struct tentry_info *tei, struct sockaddr *sa,
 }
 
 static int
-ta_prepare_add_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_prepare_add_radix(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_radix *tb;
 	struct radix_addr_entry *ent;
@@ -747,7 +749,8 @@ ta_add_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	if ((tei->flags & TEI_FLAGS_DONTADD) != 0)
 		return (EFBIG);
 
-	rn = rnh->rnh_addaddr(tb->addr_ptr, tb->mask_ptr, &rnh->rh,tb->ent_ptr);
+	rn = rnh->rnh_addaddr(
+	    tb->addr_ptr, tb->mask_ptr, &rnh->rh, tb->ent_ptr);
 	if (rn == NULL) {
 		/* Unknown error */
 		return (EINVAL);
@@ -764,8 +767,8 @@ ta_add_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 }
 
 static int
-ta_prepare_del_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_prepare_del_radix(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_radix *tb;
 	struct sockaddr *addr, *mask;
@@ -841,8 +844,8 @@ ta_del_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 }
 
 static void
-ta_flush_radix_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_flush_radix_entry(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_radix *tb;
 
@@ -853,8 +856,8 @@ ta_flush_radix_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
 }
 
 static int
-ta_need_modify_radix(void *ta_state, struct table_info *ti, uint32_t count,
-    uint64_t *pflags)
+ta_need_modify_radix(
+    void *ta_state, struct table_info *ti, uint32_t count, uint64_t *pflags)
 {
 
 	/*
@@ -867,22 +870,22 @@ ta_need_modify_radix(void *ta_state, struct table_info *ti, uint32_t count,
 }
 
 struct table_algo addr_radix = {
-	.name		= "addr:radix",
-	.type		= IPFW_TABLE_ADDR,
-	.flags		= TA_FLAG_DEFAULT,
-	.ta_buf_size	= sizeof(struct ta_buf_radix),
-	.init		= ta_init_radix,
-	.destroy	= ta_destroy_radix,
-	.prepare_add	= ta_prepare_add_radix,
-	.prepare_del	= ta_prepare_del_radix,
-	.add		= ta_add_radix,
-	.del		= ta_del_radix,
-	.flush_entry	= ta_flush_radix_entry,
-	.foreach	= ta_foreach_radix,
-	.dump_tentry	= ta_dump_radix_tentry,
-	.find_tentry	= ta_find_radix_tentry,
-	.dump_tinfo	= ta_dump_radix_tinfo,
-	.need_modify	= ta_need_modify_radix,
+	.name = "addr:radix",
+	.type = IPFW_TABLE_ADDR,
+	.flags = TA_FLAG_DEFAULT,
+	.ta_buf_size = sizeof(struct ta_buf_radix),
+	.init = ta_init_radix,
+	.destroy = ta_destroy_radix,
+	.prepare_add = ta_prepare_add_radix,
+	.prepare_del = ta_prepare_del_radix,
+	.add = ta_add_radix,
+	.del = ta_del_radix,
+	.flush_entry = ta_flush_radix_entry,
+	.foreach = ta_foreach_radix,
+	.dump_tentry = ta_dump_radix_tentry,
+	.find_tentry = ta_find_radix_tentry,
+	.dump_tinfo = ta_dump_radix_tinfo,
+	.need_modify = ta_need_modify_radix,
 };
 
 /*
@@ -912,26 +915,25 @@ SLIST_HEAD(chashbhead, chashentry);
 struct chash_cfg {
 	struct chashbhead *head4;
 	struct chashbhead *head6;
-	size_t	size4;
-	size_t	size6;
-	size_t	items4;
-	size_t	items6;
-	uint8_t	mask4;
-	uint8_t	mask6;
+	size_t size4;
+	size_t size6;
+	size_t items4;
+	size_t items6;
+	uint8_t mask4;
+	uint8_t mask6;
 };
 
 struct chashentry {
-	SLIST_ENTRY(chashentry)	next;
-	uint32_t	value;
-	uint32_t	type;
+	SLIST_ENTRY(chashentry) next;
+	uint32_t value;
+	uint32_t type;
 	union {
-		uint32_t	a4;	/* Host format */
-		struct in6_addr	a6;	/* Network format */
+		uint32_t a4;	    /* Host format */
+		struct in6_addr a6; /* Network format */
 	} a;
 };
 
-struct ta_buf_chash
-{
+struct ta_buf_chash {
 	void *ent_ptr;
 	struct chashentry ent;
 };
@@ -942,52 +944,52 @@ static __inline uint32_t hash_ip(uint32_t addr, int hsize);
 #ifdef INET6
 static __inline uint32_t hash_ip6(struct in6_addr *addr6, int hsize);
 static __inline uint16_t hash_ip64(struct in6_addr *addr6, int hsize);
-static __inline uint32_t hash_ip6_slow(struct in6_addr *addr6, void *key,
-    int mask, int hsize);
-static __inline uint32_t hash_ip6_al(struct in6_addr *addr6, void *key, int mask,
-    int hsize);
+static __inline uint32_t hash_ip6_slow(
+    struct in6_addr *addr6, void *key, int mask, int hsize);
+static __inline uint32_t hash_ip6_al(
+    struct in6_addr *addr6, void *key, int mask, int hsize);
 #endif
-static int ta_lookup_chash_slow(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val);
-static int ta_lookup_chash_aligned(struct table_info *ti, void *key,
-    uint32_t keylen, uint32_t *val);
-static int ta_lookup_chash_64(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val);
+static int ta_lookup_chash_slow(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val);
+static int ta_lookup_chash_aligned(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val);
+static int ta_lookup_chash_64(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val);
 static int chash_parse_opts(struct chash_cfg *cfg, char *data);
-static void ta_print_chash_config(void *ta_state, struct table_info *ti,
-    char *buf, size_t bufsize);
+static void ta_print_chash_config(
+    void *ta_state, struct table_info *ti, char *buf, size_t bufsize);
 static int ta_log2(uint32_t v);
 static int ta_init_chash(struct ip_fw_chain *ch, void **ta_state,
     struct table_info *ti, char *data, uint8_t tflags);
 static void ta_destroy_chash(void *ta_state, struct table_info *ti);
-static void ta_dump_chash_tinfo(void *ta_state, struct table_info *ti,
-    ipfw_ta_tinfo *tinfo);
-static int ta_dump_chash_tentry(void *ta_state, struct table_info *ti,
-    void *e, ipfw_obj_tentry *tent);
-static uint32_t hash_ent(struct chashentry *ent, int af, int mlen,
-    uint32_t size);
+static void ta_dump_chash_tinfo(
+    void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo);
+static int ta_dump_chash_tentry(
+    void *ta_state, struct table_info *ti, void *e, ipfw_obj_tentry *tent);
+static uint32_t hash_ent(
+    struct chashentry *ent, int af, int mlen, uint32_t size);
 static int tei_to_chash_ent(struct tentry_info *tei, struct chashentry *ent);
-static int ta_find_chash_tentry(void *ta_state, struct table_info *ti,
-    ipfw_obj_tentry *tent);
-static void ta_foreach_chash(void *ta_state, struct table_info *ti,
-    ta_foreach_f *f, void *arg);
-static int ta_prepare_add_chash(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf);
+static int ta_find_chash_tentry(
+    void *ta_state, struct table_info *ti, ipfw_obj_tentry *tent);
+static void ta_foreach_chash(
+    void *ta_state, struct table_info *ti, ta_foreach_f *f, void *arg);
+static int ta_prepare_add_chash(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
 static int ta_add_chash(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
-static int ta_prepare_del_chash(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf);
+static int ta_prepare_del_chash(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
 static int ta_del_chash(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
-static void ta_flush_chash_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf);
-static int ta_need_modify_chash(void *ta_state, struct table_info *ti,
-    uint32_t count, uint64_t *pflags);
+static void ta_flush_chash_entry(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
+static int ta_need_modify_chash(
+    void *ta_state, struct table_info *ti, uint32_t count, uint64_t *pflags);
 static int ta_prepare_mod_chash(void *ta_buf, uint64_t *pflags);
-static int ta_fill_mod_chash(void *ta_state, struct table_info *ti, void *ta_buf,
-    uint64_t *pflags);
-static void ta_modify_chash(void *ta_state, struct table_info *ti, void *ta_buf,
-    uint64_t pflags);
+static int ta_fill_mod_chash(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t *pflags);
+static void ta_modify_chash(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t pflags);
 static void ta_flush_mod_chash(void *ta_buf);
 
 #ifdef INET
@@ -1005,8 +1007,8 @@ hash_ip6(struct in6_addr *addr6, int hsize)
 {
 	uint32_t i;
 
-	i = addr6->s6_addr32[0] ^ addr6->s6_addr32[1] ^
-	    addr6->s6_addr32[2] ^ addr6->s6_addr32[3];
+	i = addr6->s6_addr32[0] ^ addr6->s6_addr32[1] ^ addr6->s6_addr32[2] ^
+	    addr6->s6_addr32[3];
 
 	return (i % (hsize - 1));
 }
@@ -1046,8 +1048,8 @@ hash_ip6_al(struct in6_addr *addr6, void *key, int mask, int hsize)
 #endif
 
 static int
-ta_lookup_chash_slow(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val)
+ta_lookup_chash_slow(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val)
 {
 	struct chashbhead *head;
 	struct chashentry *ent;
@@ -1063,7 +1065,7 @@ ta_lookup_chash_slow(struct table_info *ti, void *key, uint32_t keylen,
 		a = ntohl(*((in_addr_t *)key));
 		a = a >> imask;
 		hash = hash_ip(a, hsize);
-		SLIST_FOREACH(ent, &head[hash], next) {
+		SLIST_FOREACH (ent, &head[hash], next) {
 			if (ent->a.a4 == a) {
 				*val = ent->value;
 				return (1);
@@ -1078,7 +1080,7 @@ ta_lookup_chash_slow(struct table_info *ti, void *key, uint32_t keylen,
 		imask = (ti->data & 0xFF0000) >> 16;
 		hsize = 1 << (ti->data & 0xFF);
 		hash = hash_ip6_slow(&addr6, key, imask, hsize);
-		SLIST_FOREACH(ent, &head[hash], next) {
+		SLIST_FOREACH (ent, &head[hash], next) {
 			if (memcmp(&ent->a.a6, &addr6, 16) == 0) {
 				*val = ent->value;
 				return (1);
@@ -1091,8 +1093,8 @@ ta_lookup_chash_slow(struct table_info *ti, void *key, uint32_t keylen,
 }
 
 static int
-ta_lookup_chash_aligned(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val)
+ta_lookup_chash_aligned(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val)
 {
 	struct chashbhead *head;
 	struct chashentry *ent;
@@ -1108,7 +1110,7 @@ ta_lookup_chash_aligned(struct table_info *ti, void *key, uint32_t keylen,
 		a = ntohl(*((in_addr_t *)key));
 		a = a >> imask;
 		hash = hash_ip(a, hsize);
-		SLIST_FOREACH(ent, &head[hash], next) {
+		SLIST_FOREACH (ent, &head[hash], next) {
 			if (ent->a.a4 == a) {
 				*val = ent->value;
 				return (1);
@@ -1126,7 +1128,7 @@ ta_lookup_chash_aligned(struct table_info *ti, void *key, uint32_t keylen,
 
 		hash = hash_ip6_al(&addr6, key, imask, hsize);
 		paddr = (uint64_t *)&addr6;
-		SLIST_FOREACH(ent, &head[hash], next) {
+		SLIST_FOREACH (ent, &head[hash], next) {
 			ptmp = (uint64_t *)&ent->a.a6;
 			if (paddr[0] == ptmp[0] && paddr[1] == ptmp[1]) {
 				*val = ent->value;
@@ -1140,8 +1142,8 @@ ta_lookup_chash_aligned(struct table_info *ti, void *key, uint32_t keylen,
 }
 
 static int
-ta_lookup_chash_64(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val)
+ta_lookup_chash_64(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val)
 {
 	struct chashbhead *head;
 	struct chashentry *ent;
@@ -1157,7 +1159,7 @@ ta_lookup_chash_64(struct table_info *ti, void *key, uint32_t keylen,
 		a = ntohl(*((in_addr_t *)key));
 		a = a >> imask;
 		hash = hash_ip(a, hsize);
-		SLIST_FOREACH(ent, &head[hash], next) {
+		SLIST_FOREACH (ent, &head[hash], next) {
 			if (ent->a.a4 == a) {
 				*val = ent->value;
 				return (1);
@@ -1173,7 +1175,7 @@ ta_lookup_chash_64(struct table_info *ti, void *key, uint32_t keylen,
 		hsize = 1 << (ti->data & 0xFF);
 		a6 = *paddr;
 		hash = hash_ip64((struct in6_addr *)key, hsize);
-		SLIST_FOREACH(ent, &head[hash], next) {
+		SLIST_FOREACH (ent, &head[hash], next) {
 			paddr = (uint64_t *)&ent->a.a6;
 			if (a6 == *paddr) {
 				*val = ent->value;
@@ -1232,8 +1234,8 @@ chash_parse_opts(struct chash_cfg *cfg, char *data)
 }
 
 static void
-ta_print_chash_config(void *ta_state, struct table_info *ti, char *buf,
-    size_t bufsize)
+ta_print_chash_config(
+    void *ta_state, struct table_info *ti, char *buf, size_t bufsize)
 {
 	struct chash_cfg *cfg;
 
@@ -1284,10 +1286,10 @@ ta_init_chash(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 	cfg->size4 = 128;
 	cfg->size6 = 128;
 
-	cfg->head4 = malloc(sizeof(struct chashbhead) * cfg->size4, M_IPFW,
-	    M_WAITOK | M_ZERO);
-	cfg->head6 = malloc(sizeof(struct chashbhead) * cfg->size6, M_IPFW,
-	    M_WAITOK | M_ZERO);
+	cfg->head4 = malloc(
+	    sizeof(struct chashbhead) * cfg->size4, M_IPFW, M_WAITOK | M_ZERO);
+	cfg->head6 = malloc(
+	    sizeof(struct chashbhead) * cfg->size6, M_IPFW, M_WAITOK | M_ZERO);
 	for (i = 0; i < cfg->size4; i++)
 		SLIST_INIT(&cfg->head4[i]);
 	for (i = 0; i < cfg->size6; i++)
@@ -1300,17 +1302,15 @@ ta_init_chash(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 	/* Store data depending on v6 mask length */
 	hsize = ta_log2(cfg->size4) << 8 | ta_log2(cfg->size6);
 	if (cfg->mask6 == 64) {
-		ti->data = (32 - cfg->mask4) << 24 | (128 - cfg->mask6) << 16|
+		ti->data = (32 - cfg->mask4) << 24 | (128 - cfg->mask6) << 16 |
 		    hsize;
 		ti->lookup = ta_lookup_chash_64;
-	} else if ((cfg->mask6  % 8) == 0) {
-		ti->data = (32 - cfg->mask4) << 24 |
-		    cfg->mask6 << 13 | hsize;
+	} else if ((cfg->mask6 % 8) == 0) {
+		ti->data = (32 - cfg->mask4) << 24 | cfg->mask6 << 13 | hsize;
 		ti->lookup = ta_lookup_chash_aligned;
 	} else {
 		/* don't do that! */
-		ti->data = (32 - cfg->mask4) << 24 |
-		    cfg->mask6 << 16 | hsize;
+		ti->data = (32 - cfg->mask4) << 24 | cfg->mask6 << 16 | hsize;
 		ti->lookup = ta_lookup_chash_slow;
 	}
 
@@ -1327,11 +1327,11 @@ ta_destroy_chash(void *ta_state, struct table_info *ti)
 	cfg = (struct chash_cfg *)ta_state;
 
 	for (i = 0; i < cfg->size4; i++)
-		SLIST_FOREACH_SAFE(ent, &cfg->head4[i], next, ent_next)
+		SLIST_FOREACH_SAFE (ent, &cfg->head4[i], next, ent_next)
 			free(ent, M_IPFW_TBL);
 
 	for (i = 0; i < cfg->size6; i++)
-		SLIST_FOREACH_SAFE(ent, &cfg->head6[i], next, ent_next)
+		SLIST_FOREACH_SAFE (ent, &cfg->head6[i], next, ent_next)
 			free(ent, M_IPFW_TBL);
 
 	free(cfg->head4, M_IPFW);
@@ -1359,8 +1359,8 @@ ta_dump_chash_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
 }
 
 static int
-ta_dump_chash_tentry(void *ta_state, struct table_info *ti, void *e,
-    ipfw_obj_tentry *tent)
+ta_dump_chash_tentry(
+    void *ta_state, struct table_info *ti, void *e, ipfw_obj_tentry *tent)
 {
 	struct chash_cfg *cfg;
 	struct chashentry *ent;
@@ -1447,8 +1447,8 @@ tei_to_chash_ent(struct tentry_info *tei, struct chashentry *ent)
 }
 
 static int
-ta_find_chash_tentry(void *ta_state, struct table_info *ti,
-    ipfw_obj_tentry *tent)
+ta_find_chash_tentry(
+    void *ta_state, struct table_info *ti, ipfw_obj_tentry *tent)
 {
 	struct chash_cfg *cfg;
 	struct chashbhead *head;
@@ -1473,7 +1473,7 @@ ta_find_chash_tentry(void *ta_state, struct table_info *ti,
 		head = cfg->head4;
 		hash = hash_ent(&ent, AF_INET, cfg->mask4, cfg->size4);
 		/* Check for existence */
-		SLIST_FOREACH(tmp, &head[hash], next) {
+		SLIST_FOREACH (tmp, &head[hash], next) {
 			if (tmp->a.a4 != ent.a.a4)
 				continue;
 
@@ -1491,7 +1491,7 @@ ta_find_chash_tentry(void *ta_state, struct table_info *ti,
 		head = cfg->head6;
 		hash = hash_ent(&ent, AF_INET6, cfg->mask6, cfg->size6);
 		/* Check for existence */
-		SLIST_FOREACH(tmp, &head[hash], next) {
+		SLIST_FOREACH (tmp, &head[hash], next) {
 			if (memcmp(&tmp->a.a6, &ent.a.a6, 16) != 0)
 				continue;
 			ta_dump_chash_tentry(ta_state, ti, tmp, tent);
@@ -1503,8 +1503,8 @@ ta_find_chash_tentry(void *ta_state, struct table_info *ti,
 }
 
 static void
-ta_foreach_chash(void *ta_state, struct table_info *ti, ta_foreach_f *f,
-    void *arg)
+ta_foreach_chash(
+    void *ta_state, struct table_info *ti, ta_foreach_f *f, void *arg)
 {
 	struct chash_cfg *cfg;
 	struct chashentry *ent, *ent_next;
@@ -1513,17 +1513,17 @@ ta_foreach_chash(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 	cfg = (struct chash_cfg *)ta_state;
 
 	for (i = 0; i < cfg->size4; i++)
-		SLIST_FOREACH_SAFE(ent, &cfg->head4[i], next, ent_next)
+		SLIST_FOREACH_SAFE (ent, &cfg->head4[i], next, ent_next)
 			f(ent, arg);
 
 	for (i = 0; i < cfg->size6; i++)
-		SLIST_FOREACH_SAFE(ent, &cfg->head6[i], next, ent_next)
+		SLIST_FOREACH_SAFE (ent, &cfg->head6[i], next, ent_next)
 			f(ent, arg);
 }
 
 static int
-ta_prepare_add_chash(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_prepare_add_chash(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_chash *tb;
 	struct chashentry *ent;
@@ -1571,7 +1571,7 @@ ta_add_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		hash = hash_ent(ent, AF_INET, cfg->mask4, cfg->size4);
 
 		/* Check for existence */
-		SLIST_FOREACH(tmp, &head[hash], next) {
+		SLIST_FOREACH (tmp, &head[hash], next) {
 			if (tmp->a.a4 == ent->a.a4) {
 				exists = 1;
 				break;
@@ -1583,7 +1583,7 @@ ta_add_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		head = cfg->head6;
 		hash = hash_ent(ent, AF_INET6, cfg->mask6, cfg->size6);
 		/* Check for existence */
-		SLIST_FOREACH(tmp, &head[hash], next) {
+		SLIST_FOREACH (tmp, &head[hash], next) {
 			if (memcmp(&tmp->a.a6, &ent->a.a6, 16) == 0) {
 				exists = 1;
 				break;
@@ -1619,8 +1619,8 @@ ta_add_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 }
 
 static int
-ta_prepare_del_chash(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_prepare_del_chash(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_chash *tb;
 
@@ -1649,7 +1649,7 @@ ta_del_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		head = cfg->head4;
 		hash = hash_ent(ent, AF_INET, cfg->mask4, cfg->size4);
 
-		SLIST_FOREACH_SAFE(tmp, &head[hash], next, tmp_next) {
+		SLIST_FOREACH_SAFE (tmp, &head[hash], next, tmp_next) {
 			if (tmp->a.a4 != ent->a.a4)
 				continue;
 
@@ -1665,7 +1665,7 @@ ta_del_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 			return (EINVAL);
 		head = cfg->head6;
 		hash = hash_ent(ent, AF_INET6, cfg->mask6, cfg->size6);
-		SLIST_FOREACH_SAFE(tmp, &head[hash], next, tmp_next) {
+		SLIST_FOREACH_SAFE (tmp, &head[hash], next, tmp_next) {
 			if (memcmp(&tmp->a.a6, &ent->a.a6, 16) != 0)
 				continue;
 
@@ -1682,8 +1682,8 @@ ta_del_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 }
 
 static void
-ta_flush_chash_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_flush_chash_entry(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_chash *tb;
 
@@ -1698,8 +1698,8 @@ ta_flush_chash_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
  */
 
 static int
-ta_need_modify_chash(void *ta_state, struct table_info *ti, uint32_t count,
-    uint64_t *pflags)
+ta_need_modify_chash(
+    void *ta_state, struct table_info *ti, uint32_t count, uint64_t *pflags)
 {
 	struct chash_cfg *cfg;
 	uint64_t data;
@@ -1742,16 +1742,16 @@ ta_prepare_mod_chash(void *ta_buf, uint64_t *pflags)
 	mi->size = (*pflags >> 16) & 0xFFFF;
 	mi->size6 = *pflags & 0xFFFF;
 	if (mi->size > 0) {
-		head = malloc(sizeof(struct chashbhead) * mi->size,
-		    M_IPFW, M_WAITOK | M_ZERO);
+		head = malloc(sizeof(struct chashbhead) * mi->size, M_IPFW,
+		    M_WAITOK | M_ZERO);
 		for (i = 0; i < mi->size; i++)
 			SLIST_INIT(&head[i]);
 		mi->main_ptr = head;
 	}
 
 	if (mi->size6 > 0) {
-		head = malloc(sizeof(struct chashbhead) * mi->size6,
-		    M_IPFW, M_WAITOK | M_ZERO);
+		head = malloc(sizeof(struct chashbhead) * mi->size6, M_IPFW,
+		    M_WAITOK | M_ZERO);
 		for (i = 0; i < mi->size6; i++)
 			SLIST_INIT(&head[i]);
 		mi->main_ptr6 = head;
@@ -1764,8 +1764,8 @@ ta_prepare_mod_chash(void *ta_buf, uint64_t *pflags)
  * Copy data from old runtime array to new one.
  */
 static int
-ta_fill_mod_chash(void *ta_state, struct table_info *ti, void *ta_buf,
-    uint64_t *pflags)
+ta_fill_mod_chash(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t *pflags)
 {
 
 	/* In is not possible to do rehash if we're not holidng WLOCK. */
@@ -1776,8 +1776,8 @@ ta_fill_mod_chash(void *ta_state, struct table_info *ti, void *ta_buf,
  * Switch old & new arrays.
  */
 static void
-ta_modify_chash(void *ta_state, struct table_info *ti, void *ta_buf,
-    uint64_t pflags)
+ta_modify_chash(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t pflags)
 {
 	struct mod_item *mi;
 	struct chash_cfg *cfg;
@@ -1800,7 +1800,7 @@ ta_modify_chash(void *ta_state, struct table_info *ti, void *ta_buf,
 		af = AF_INET;
 
 		for (i = 0; i < old_size; i++) {
-			SLIST_FOREACH_SAFE(ent, &old_head[i], next, ent_next) {
+			SLIST_FOREACH_SAFE (ent, &old_head[i], next, ent_next) {
 				nhash = hash_ent(ent, af, mlen, new_size);
 				SLIST_INSERT_HEAD(&new_head[nhash], ent, next);
 			}
@@ -1821,7 +1821,7 @@ ta_modify_chash(void *ta_state, struct table_info *ti, void *ta_buf,
 		af = AF_INET6;
 
 		for (i = 0; i < old_size; i++) {
-			SLIST_FOREACH_SAFE(ent, &old_head[i], next, ent_next) {
+			SLIST_FOREACH_SAFE (ent, &old_head[i], next, ent_next) {
 				nhash = hash_ent(ent, af, mlen, new_size);
 				SLIST_INSERT_HEAD(&new_head[nhash], ent, next);
 			}
@@ -1854,26 +1854,26 @@ ta_flush_mod_chash(void *ta_buf)
 }
 
 struct table_algo addr_hash = {
-	.name		= "addr:hash",
-	.type		= IPFW_TABLE_ADDR,
-	.ta_buf_size	= sizeof(struct ta_buf_chash),
-	.init		= ta_init_chash,
-	.destroy	= ta_destroy_chash,
-	.prepare_add	= ta_prepare_add_chash,
-	.prepare_del	= ta_prepare_del_chash,
-	.add		= ta_add_chash,
-	.del		= ta_del_chash,
-	.flush_entry	= ta_flush_chash_entry,
-	.foreach	= ta_foreach_chash,
-	.dump_tentry	= ta_dump_chash_tentry,
-	.find_tentry	= ta_find_chash_tentry,
-	.print_config	= ta_print_chash_config,
-	.dump_tinfo	= ta_dump_chash_tinfo,
-	.need_modify	= ta_need_modify_chash,
-	.prepare_mod	= ta_prepare_mod_chash,
-	.fill_mod	= ta_fill_mod_chash,
-	.modify		= ta_modify_chash,
-	.flush_mod	= ta_flush_mod_chash,
+	.name = "addr:hash",
+	.type = IPFW_TABLE_ADDR,
+	.ta_buf_size = sizeof(struct ta_buf_chash),
+	.init = ta_init_chash,
+	.destroy = ta_destroy_chash,
+	.prepare_add = ta_prepare_add_chash,
+	.prepare_del = ta_prepare_del_chash,
+	.add = ta_add_chash,
+	.del = ta_del_chash,
+	.flush_entry = ta_flush_chash_entry,
+	.foreach = ta_foreach_chash,
+	.dump_tentry = ta_dump_chash_tentry,
+	.find_tentry = ta_find_chash_tentry,
+	.print_config = ta_print_chash_config,
+	.dump_tinfo = ta_dump_chash_tinfo,
+	.need_modify = ta_need_modify_chash,
+	.prepare_mod = ta_prepare_mod_chash,
+	.fill_mod = ta_fill_mod_chash,
+	.modify = ta_modify_chash,
+	.flush_mod = ta_flush_mod_chash,
 };
 
 /*
@@ -1895,77 +1895,76 @@ struct table_algo addr_hash = {
  */
 
 struct ifidx {
-	uint16_t	kidx;
-	uint16_t	spare;
-	uint32_t	value;
+	uint16_t kidx;
+	uint16_t spare;
+	uint32_t value;
 };
-#define	DEFAULT_IFIDX_SIZE	64
+#define DEFAULT_IFIDX_SIZE 64
 
 struct iftable_cfg;
 
 struct ifentry {
-	struct named_object	no;
-	struct ipfw_ifc		ic;
-	struct iftable_cfg	*icfg;
-	uint32_t		value;
-	int			linked;
+	struct named_object no;
+	struct ipfw_ifc ic;
+	struct iftable_cfg *icfg;
+	uint32_t value;
+	int linked;
 };
 
 struct iftable_cfg {
-	struct namedobj_instance	*ii;
-	struct ip_fw_chain	*ch;
-	struct table_info	*ti;
-	void	*main_ptr;
-	size_t	size;	/* Number of items allocated in array */
-	size_t	count;	/* Number of all items */
-	size_t	used;	/* Number of items _active_ now */
+	struct namedobj_instance *ii;
+	struct ip_fw_chain *ch;
+	struct table_info *ti;
+	void *main_ptr;
+	size_t size;  /* Number of items allocated in array */
+	size_t count; /* Number of all items */
+	size_t used;  /* Number of items _active_ now */
 };
 
-struct ta_buf_ifidx
-{
+struct ta_buf_ifidx {
 	struct ifentry *ife;
 	uint32_t value;
 };
 
 int compare_ifidx(const void *k, const void *v);
-static struct ifidx * ifidx_find(struct table_info *ti, void *key);
-static int ta_lookup_ifidx(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val);
+static struct ifidx *ifidx_find(struct table_info *ti, void *key);
+static int ta_lookup_ifidx(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val);
 static int ta_init_ifidx(struct ip_fw_chain *ch, void **ta_state,
     struct table_info *ti, char *data, uint8_t tflags);
 static void ta_change_ti_ifidx(void *ta_state, struct table_info *ti);
-static int destroy_ifidx_locked(struct namedobj_instance *ii,
-    struct named_object *no, void *arg);
+static int destroy_ifidx_locked(
+    struct namedobj_instance *ii, struct named_object *no, void *arg);
 static void ta_destroy_ifidx(void *ta_state, struct table_info *ti);
-static void ta_dump_ifidx_tinfo(void *ta_state, struct table_info *ti,
-    ipfw_ta_tinfo *tinfo);
-static int ta_prepare_add_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf);
+static void ta_dump_ifidx_tinfo(
+    void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo);
+static int ta_prepare_add_ifidx(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
 static int ta_add_ifidx(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
-static int ta_prepare_del_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf);
+static int ta_prepare_del_ifidx(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
 static int ta_del_ifidx(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
-static void ta_flush_ifidx_entry(struct ip_fw_chain *ch,
-    struct tentry_info *tei, void *ta_buf);
+static void ta_flush_ifidx_entry(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
 static void if_notifier(struct ip_fw_chain *ch, void *cbdata, uint16_t ifindex);
-static int ta_need_modify_ifidx(void *ta_state, struct table_info *ti,
-    uint32_t count, uint64_t *pflags);
+static int ta_need_modify_ifidx(
+    void *ta_state, struct table_info *ti, uint32_t count, uint64_t *pflags);
 static int ta_prepare_mod_ifidx(void *ta_buf, uint64_t *pflags);
-static int ta_fill_mod_ifidx(void *ta_state, struct table_info *ti,
-    void *ta_buf, uint64_t *pflags);
-static void ta_modify_ifidx(void *ta_state, struct table_info *ti, void *ta_buf,
-    uint64_t pflags);
+static int ta_fill_mod_ifidx(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t *pflags);
+static void ta_modify_ifidx(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t pflags);
 static void ta_flush_mod_ifidx(void *ta_buf);
-static int ta_dump_ifidx_tentry(void *ta_state, struct table_info *ti, void *e,
-    ipfw_obj_tentry *tent);
-static int ta_find_ifidx_tentry(void *ta_state, struct table_info *ti,
-    ipfw_obj_tentry *tent);
-static int foreach_ifidx(struct namedobj_instance *ii, struct named_object *no,
-    void *arg);
-static void ta_foreach_ifidx(void *ta_state, struct table_info *ti,
-    ta_foreach_f *f, void *arg);
+static int ta_dump_ifidx_tentry(
+    void *ta_state, struct table_info *ti, void *e, ipfw_obj_tentry *tent);
+static int ta_find_ifidx_tentry(
+    void *ta_state, struct table_info *ti, ipfw_obj_tentry *tent);
+static int foreach_ifidx(
+    struct namedobj_instance *ii, struct named_object *no, void *arg);
+static void ta_foreach_ifidx(
+    void *ta_state, struct table_info *ti, ta_foreach_f *f, void *arg);
 
 int
 compare_ifidx(const void *k, const void *v)
@@ -1991,8 +1990,8 @@ compare_ifidx(const void *k, const void *v)
  * Returns 1 on success, 0 on duplicate key.
  */
 static int
-badd(const void *key, void *item, void *base, size_t nmemb,
-    size_t size, int (*compar) (const void *, const void *))
+badd(const void *key, void *item, void *base, size_t nmemb, size_t size,
+    int (*compar)(const void *, const void *))
 {
 	int min, max, mid, shift, res;
 	caddr_t paddr;
@@ -2041,7 +2040,7 @@ badd(const void *key, void *item, void *base, size_t nmemb,
  */
 static int
 bdel(const void *key, void *base, size_t nmemb, size_t size,
-    int (*compar) (const void *, const void *))
+    int (*compar)(const void *, const void *))
 {
 	caddr_t item;
 	size_t sz;
@@ -2064,15 +2063,15 @@ ifidx_find(struct table_info *ti, void *key)
 {
 	struct ifidx *ifi;
 
-	ifi = bsearch(key, ti->state, ti->data, sizeof(struct ifidx),
-	    compare_ifidx);
+	ifi = bsearch(
+	    key, ti->state, ti->data, sizeof(struct ifidx), compare_ifidx);
 
 	return (ifi);
 }
 
 static int
-ta_lookup_ifidx(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val)
+ta_lookup_ifidx(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val)
 {
 	struct ifidx *ifi;
 
@@ -2096,8 +2095,8 @@ ta_init_ifidx(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 
 	icfg->ii = ipfw_objhash_create(DEFAULT_IFIDX_SIZE);
 	icfg->size = DEFAULT_IFIDX_SIZE;
-	icfg->main_ptr = malloc(sizeof(struct ifidx) * icfg->size, M_IPFW,
-	    M_WAITOK | M_ZERO);
+	icfg->main_ptr = malloc(
+	    sizeof(struct ifidx) * icfg->size, M_IPFW, M_WAITOK | M_ZERO);
 	icfg->ch = ch;
 
 	*ta_state = icfg;
@@ -2120,8 +2119,8 @@ ta_change_ti_ifidx(void *ta_state, struct table_info *ti)
 }
 
 static int
-destroy_ifidx_locked(struct namedobj_instance *ii, struct named_object *no,
-    void *arg)
+destroy_ifidx_locked(
+    struct namedobj_instance *ii, struct named_object *no, void *arg)
 {
 	struct ifentry *ife;
 	struct ip_fw_chain *ch;
@@ -2180,8 +2179,8 @@ ta_dump_ifidx_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
  * allocate ifentry and reference needed interface.
  */
 static int
-ta_prepare_add_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_prepare_add_ifidx(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_ifidx *tb;
 	char *ifname;
@@ -2276,8 +2275,8 @@ ta_add_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
  * Do basic interface name checks.
  */
 static int
-ta_prepare_del_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_prepare_del_ifidx(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_ifidx *tb;
 	char *ifname;
@@ -2349,8 +2348,8 @@ ta_del_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
  * Drops interface reference and frees entry.
  */
 static void
-ta_flush_ifidx_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_flush_ifidx_entry(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_ifidx *tb;
 
@@ -2409,8 +2408,8 @@ if_notifier(struct ip_fw_chain *ch, void *cbdata, uint16_t ifindex)
  */
 
 static int
-ta_need_modify_ifidx(void *ta_state, struct table_info *ti, uint32_t count,
-    uint64_t *pflags)
+ta_need_modify_ifidx(
+    void *ta_state, struct table_info *ti, uint32_t count, uint64_t *pflags)
 {
 	struct iftable_cfg *cfg;
 	uint32_t size;
@@ -2441,8 +2440,8 @@ ta_prepare_mod_ifidx(void *ta_buf, uint64_t *pflags)
 
 	memset(mi, 0, sizeof(struct mod_item));
 	mi->size = *pflags;
-	mi->main_ptr = malloc(sizeof(struct ifidx) * mi->size, M_IPFW,
-	    M_WAITOK | M_ZERO);
+	mi->main_ptr = malloc(
+	    sizeof(struct ifidx) * mi->size, M_IPFW, M_WAITOK | M_ZERO);
 
 	return (0);
 }
@@ -2451,8 +2450,8 @@ ta_prepare_mod_ifidx(void *ta_buf, uint64_t *pflags)
  * Copy data from old runtime array to new one.
  */
 static int
-ta_fill_mod_ifidx(void *ta_state, struct table_info *ti, void *ta_buf,
-    uint64_t *pflags)
+ta_fill_mod_ifidx(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t *pflags)
 {
 	struct mod_item *mi;
 	struct iftable_cfg *icfg;
@@ -2475,8 +2474,8 @@ ta_fill_mod_ifidx(void *ta_state, struct table_info *ti, void *ta_buf,
  * Switch old & new arrays.
  */
 static void
-ta_modify_ifidx(void *ta_state, struct table_info *ti, void *ta_buf,
-    uint64_t pflags)
+ta_modify_ifidx(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t pflags)
 {
 	struct mod_item *mi;
 	struct iftable_cfg *icfg;
@@ -2507,8 +2506,8 @@ ta_flush_mod_ifidx(void *ta_buf)
 }
 
 static int
-ta_dump_ifidx_tentry(void *ta_state, struct table_info *ti, void *e,
-    ipfw_obj_tentry *tent)
+ta_dump_ifidx_tentry(
+    void *ta_state, struct table_info *ti, void *e, ipfw_obj_tentry *tent)
 {
 	struct ifentry *ife;
 
@@ -2522,8 +2521,8 @@ ta_dump_ifidx_tentry(void *ta_state, struct table_info *ti, void *e,
 }
 
 static int
-ta_find_ifidx_tentry(void *ta_state, struct table_info *ti,
-    ipfw_obj_tentry *tent)
+ta_find_ifidx_tentry(
+    void *ta_state, struct table_info *ti, ipfw_obj_tentry *tent)
 {
 	struct iftable_cfg *icfg;
 	struct ifentry *ife;
@@ -2546,13 +2545,12 @@ ta_find_ifidx_tentry(void *ta_state, struct table_info *ti,
 }
 
 struct wa_ifidx {
-	ta_foreach_f	*f;
-	void		*arg;
+	ta_foreach_f *f;
+	void *arg;
 };
 
 static int
-foreach_ifidx(struct namedobj_instance *ii, struct named_object *no,
-    void *arg)
+foreach_ifidx(struct namedobj_instance *ii, struct named_object *no, void *arg)
 {
 	struct ifentry *ife;
 	struct wa_ifidx *wa;
@@ -2565,8 +2563,8 @@ foreach_ifidx(struct namedobj_instance *ii, struct named_object *no,
 }
 
 static void
-ta_foreach_ifidx(void *ta_state, struct table_info *ti, ta_foreach_f *f,
-    void *arg)
+ta_foreach_ifidx(
+    void *ta_state, struct table_info *ti, ta_foreach_f *f, void *arg)
 {
 	struct iftable_cfg *icfg;
 	struct wa_ifidx wa;
@@ -2580,27 +2578,27 @@ ta_foreach_ifidx(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 }
 
 struct table_algo iface_idx = {
-	.name		= "iface:array",
-	.type		= IPFW_TABLE_INTERFACE,
-	.flags		= TA_FLAG_DEFAULT,
-	.ta_buf_size	= sizeof(struct ta_buf_ifidx),
-	.init		= ta_init_ifidx,
-	.destroy	= ta_destroy_ifidx,
-	.prepare_add	= ta_prepare_add_ifidx,
-	.prepare_del	= ta_prepare_del_ifidx,
-	.add		= ta_add_ifidx,
-	.del		= ta_del_ifidx,
-	.flush_entry	= ta_flush_ifidx_entry,
-	.foreach	= ta_foreach_ifidx,
-	.dump_tentry	= ta_dump_ifidx_tentry,
-	.find_tentry	= ta_find_ifidx_tentry,
-	.dump_tinfo	= ta_dump_ifidx_tinfo,
-	.need_modify	= ta_need_modify_ifidx,
-	.prepare_mod	= ta_prepare_mod_ifidx,
-	.fill_mod	= ta_fill_mod_ifidx,
-	.modify		= ta_modify_ifidx,
-	.flush_mod	= ta_flush_mod_ifidx,
-	.change_ti	= ta_change_ti_ifidx,
+	.name = "iface:array",
+	.type = IPFW_TABLE_INTERFACE,
+	.flags = TA_FLAG_DEFAULT,
+	.ta_buf_size = sizeof(struct ta_buf_ifidx),
+	.init = ta_init_ifidx,
+	.destroy = ta_destroy_ifidx,
+	.prepare_add = ta_prepare_add_ifidx,
+	.prepare_del = ta_prepare_del_ifidx,
+	.add = ta_add_ifidx,
+	.del = ta_del_ifidx,
+	.flush_entry = ta_flush_ifidx_entry,
+	.foreach = ta_foreach_ifidx,
+	.dump_tentry = ta_dump_ifidx_tentry,
+	.find_tentry = ta_find_ifidx_tentry,
+	.dump_tinfo = ta_dump_ifidx_tinfo,
+	.need_modify = ta_need_modify_ifidx,
+	.prepare_mod = ta_prepare_mod_ifidx,
+	.fill_mod = ta_fill_mod_ifidx,
+	.modify = ta_modify_ifidx,
+	.flush_mod = ta_flush_mod_ifidx,
+	.change_ti = ta_change_ti_ifidx,
 };
 
 /*
@@ -2616,52 +2614,51 @@ struct table_algo iface_idx = {
  */
 
 struct numarray {
-	uint32_t	number;
-	uint32_t	value;
+	uint32_t number;
+	uint32_t value;
 };
 
 struct numarray_cfg {
-	void	*main_ptr;
-	size_t	size;	/* Number of items allocated in array */
-	size_t	used;	/* Number of items _active_ now */
+	void *main_ptr;
+	size_t size; /* Number of items allocated in array */
+	size_t used; /* Number of items _active_ now */
 };
 
-struct ta_buf_numarray
-{
+struct ta_buf_numarray {
 	struct numarray na;
 };
 
 int compare_numarray(const void *k, const void *v);
 static struct numarray *numarray_find(struct table_info *ti, void *key);
-static int ta_lookup_numarray(struct table_info *ti, void *key,
-    uint32_t keylen, uint32_t *val);
+static int ta_lookup_numarray(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val);
 static int ta_init_numarray(struct ip_fw_chain *ch, void **ta_state,
     struct table_info *ti, char *data, uint8_t tflags);
 static void ta_destroy_numarray(void *ta_state, struct table_info *ti);
-static void ta_dump_numarray_tinfo(void *ta_state, struct table_info *ti,
-    ipfw_ta_tinfo *tinfo);
-static int ta_prepare_add_numarray(struct ip_fw_chain *ch,
-    struct tentry_info *tei, void *ta_buf);
+static void ta_dump_numarray_tinfo(
+    void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo);
+static int ta_prepare_add_numarray(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
 static int ta_add_numarray(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
 static int ta_del_numarray(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
-static void ta_flush_numarray_entry(struct ip_fw_chain *ch,
-    struct tentry_info *tei, void *ta_buf);
-static int ta_need_modify_numarray(void *ta_state, struct table_info *ti,
-    uint32_t count, uint64_t *pflags);
+static void ta_flush_numarray_entry(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
+static int ta_need_modify_numarray(
+    void *ta_state, struct table_info *ti, uint32_t count, uint64_t *pflags);
 static int ta_prepare_mod_numarray(void *ta_buf, uint64_t *pflags);
-static int ta_fill_mod_numarray(void *ta_state, struct table_info *ti,
-    void *ta_buf, uint64_t *pflags);
-static void ta_modify_numarray(void *ta_state, struct table_info *ti,
-    void *ta_buf, uint64_t pflags);
+static int ta_fill_mod_numarray(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t *pflags);
+static void ta_modify_numarray(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t pflags);
 static void ta_flush_mod_numarray(void *ta_buf);
-static int ta_dump_numarray_tentry(void *ta_state, struct table_info *ti,
-    void *e, ipfw_obj_tentry *tent);
-static int ta_find_numarray_tentry(void *ta_state, struct table_info *ti,
-    ipfw_obj_tentry *tent);
-static void ta_foreach_numarray(void *ta_state, struct table_info *ti,
-    ta_foreach_f *f, void *arg);
+static int ta_dump_numarray_tentry(
+    void *ta_state, struct table_info *ti, void *e, ipfw_obj_tentry *tent);
+static int ta_find_numarray_tentry(
+    void *ta_state, struct table_info *ti, ipfw_obj_tentry *tent);
+static void ta_foreach_numarray(
+    void *ta_state, struct table_info *ti, ta_foreach_f *f, void *arg);
 
 int
 compare_numarray(const void *k, const void *v)
@@ -2685,15 +2682,15 @@ numarray_find(struct table_info *ti, void *key)
 {
 	struct numarray *ri;
 
-	ri = bsearch(key, ti->state, ti->data, sizeof(struct numarray),
-	    compare_ifidx);
+	ri = bsearch(
+	    key, ti->state, ti->data, sizeof(struct numarray), compare_ifidx);
 
 	return (ri);
 }
 
 static int
-ta_lookup_numarray(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val)
+ta_lookup_numarray(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val)
 {
 	struct numarray *ri;
 
@@ -2716,8 +2713,8 @@ ta_init_numarray(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 	cfg = malloc(sizeof(*cfg), M_IPFW, M_WAITOK | M_ZERO);
 
 	cfg->size = 16;
-	cfg->main_ptr = malloc(sizeof(struct numarray) * cfg->size, M_IPFW,
-	    M_WAITOK | M_ZERO);
+	cfg->main_ptr = malloc(
+	    sizeof(struct numarray) * cfg->size, M_IPFW, M_WAITOK | M_ZERO);
 
 	*ta_state = cfg;
 	ti->state = cfg->main_ptr;
@@ -2746,7 +2743,8 @@ ta_destroy_numarray(void *ta_state, struct table_info *ti)
  * Provide algo-specific table info
  */
 static void
-ta_dump_numarray_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
+ta_dump_numarray_tinfo(
+    void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
 {
 	struct numarray_cfg *cfg;
 
@@ -2762,8 +2760,8 @@ ta_dump_numarray_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tin
  * Prepare for addition/deletion to an array.
  */
 static int
-ta_prepare_add_numarray(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_prepare_add_numarray(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_numarray *tb;
 
@@ -2854,8 +2852,8 @@ ta_del_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 }
 
 static void
-ta_flush_numarray_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_flush_numarray_entry(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 
 	/* We don't have any state, do nothing */
@@ -2866,8 +2864,8 @@ ta_flush_numarray_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
  */
 
 static int
-ta_need_modify_numarray(void *ta_state, struct table_info *ti, uint32_t count,
-    uint64_t *pflags)
+ta_need_modify_numarray(
+    void *ta_state, struct table_info *ti, uint32_t count, uint64_t *pflags)
 {
 	struct numarray_cfg *cfg;
 	size_t size;
@@ -2898,8 +2896,8 @@ ta_prepare_mod_numarray(void *ta_buf, uint64_t *pflags)
 
 	memset(mi, 0, sizeof(struct mod_item));
 	mi->size = *pflags;
-	mi->main_ptr = malloc(sizeof(struct numarray) * mi->size, M_IPFW,
-	    M_WAITOK | M_ZERO);
+	mi->main_ptr = malloc(
+	    sizeof(struct numarray) * mi->size, M_IPFW, M_WAITOK | M_ZERO);
 
 	return (0);
 }
@@ -2908,8 +2906,8 @@ ta_prepare_mod_numarray(void *ta_buf, uint64_t *pflags)
  * Copy data from old runtime array to new one.
  */
 static int
-ta_fill_mod_numarray(void *ta_state, struct table_info *ti, void *ta_buf,
-    uint64_t *pflags)
+ta_fill_mod_numarray(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t *pflags)
 {
 	struct mod_item *mi;
 	struct numarray_cfg *cfg;
@@ -2923,7 +2921,8 @@ ta_fill_mod_numarray(void *ta_state, struct table_info *ti, void *ta_buf,
 		return (0);
 	}
 
-	memcpy(mi->main_ptr, cfg->main_ptr, cfg->used * sizeof(struct numarray));
+	memcpy(
+	    mi->main_ptr, cfg->main_ptr, cfg->used * sizeof(struct numarray));
 
 	return (0);
 }
@@ -2932,8 +2931,8 @@ ta_fill_mod_numarray(void *ta_state, struct table_info *ti, void *ta_buf,
  * Switch old & new arrays.
  */
 static void
-ta_modify_numarray(void *ta_state, struct table_info *ti, void *ta_buf,
-    uint64_t pflags)
+ta_modify_numarray(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t pflags)
 {
 	struct mod_item *mi;
 	struct numarray_cfg *cfg;
@@ -2964,8 +2963,8 @@ ta_flush_mod_numarray(void *ta_buf)
 }
 
 static int
-ta_dump_numarray_tentry(void *ta_state, struct table_info *ti, void *e,
-    ipfw_obj_tentry *tent)
+ta_dump_numarray_tentry(
+    void *ta_state, struct table_info *ti, void *e, ipfw_obj_tentry *tent)
 {
 	struct numarray *na;
 
@@ -2978,8 +2977,8 @@ ta_dump_numarray_tentry(void *ta_state, struct table_info *ti, void *e,
 }
 
 static int
-ta_find_numarray_tentry(void *ta_state, struct table_info *ti,
-    ipfw_obj_tentry *tent)
+ta_find_numarray_tentry(
+    void *ta_state, struct table_info *ti, ipfw_obj_tentry *tent)
 {
 	struct numarray_cfg *cfg;
 	struct numarray *ri;
@@ -2997,8 +2996,8 @@ ta_find_numarray_tentry(void *ta_state, struct table_info *ti,
 }
 
 static void
-ta_foreach_numarray(void *ta_state, struct table_info *ti, ta_foreach_f *f,
-    void *arg)
+ta_foreach_numarray(
+    void *ta_state, struct table_info *ti, ta_foreach_f *f, void *arg)
 {
 	struct numarray_cfg *cfg;
 	struct numarray *array;
@@ -3012,25 +3011,25 @@ ta_foreach_numarray(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 }
 
 struct table_algo number_array = {
-	.name		= "number:array",
-	.type		= IPFW_TABLE_NUMBER,
-	.ta_buf_size	= sizeof(struct ta_buf_numarray),
-	.init		= ta_init_numarray,
-	.destroy	= ta_destroy_numarray,
-	.prepare_add	= ta_prepare_add_numarray,
-	.prepare_del	= ta_prepare_add_numarray,
-	.add		= ta_add_numarray,
-	.del		= ta_del_numarray,
-	.flush_entry	= ta_flush_numarray_entry,
-	.foreach	= ta_foreach_numarray,
-	.dump_tentry	= ta_dump_numarray_tentry,
-	.find_tentry	= ta_find_numarray_tentry,
-	.dump_tinfo	= ta_dump_numarray_tinfo,
-	.need_modify	= ta_need_modify_numarray,
-	.prepare_mod	= ta_prepare_mod_numarray,
-	.fill_mod	= ta_fill_mod_numarray,
-	.modify		= ta_modify_numarray,
-	.flush_mod	= ta_flush_mod_numarray,
+	.name = "number:array",
+	.type = IPFW_TABLE_NUMBER,
+	.ta_buf_size = sizeof(struct ta_buf_numarray),
+	.init = ta_init_numarray,
+	.destroy = ta_destroy_numarray,
+	.prepare_add = ta_prepare_add_numarray,
+	.prepare_del = ta_prepare_add_numarray,
+	.add = ta_add_numarray,
+	.del = ta_del_numarray,
+	.flush_entry = ta_flush_numarray_entry,
+	.foreach = ta_foreach_numarray,
+	.dump_tentry = ta_dump_numarray_tentry,
+	.find_tentry = ta_find_numarray_tentry,
+	.dump_tinfo = ta_dump_numarray_tinfo,
+	.need_modify = ta_need_modify_numarray,
+	.prepare_mod = ta_prepare_mod_numarray,
+	.fill_mod = ta_fill_mod_numarray,
+	.modify = ta_modify_numarray,
+	.flush_mod = ta_flush_mod_numarray,
 };
 
 /*
@@ -3058,77 +3057,77 @@ struct fhashentry;
 SLIST_HEAD(fhashbhead, fhashentry);
 
 struct fhashentry {
-	SLIST_ENTRY(fhashentry)	next;
-	uint8_t		af;
-	uint8_t		proto;
-	uint16_t	spare0;
-	uint16_t	dport;
-	uint16_t	sport;
-	uint32_t	value;
-	uint32_t	spare1;
+	SLIST_ENTRY(fhashentry) next;
+	uint8_t af;
+	uint8_t proto;
+	uint16_t spare0;
+	uint16_t dport;
+	uint16_t sport;
+	uint32_t value;
+	uint32_t spare1;
 };
 
 struct fhashentry4 {
-	struct fhashentry	e;
-	struct in_addr		dip;
-	struct in_addr		sip;
+	struct fhashentry e;
+	struct in_addr dip;
+	struct in_addr sip;
 };
 
 struct fhashentry6 {
-	struct fhashentry	e;
-	struct in6_addr		dip6;
-	struct in6_addr		sip6;
+	struct fhashentry e;
+	struct in6_addr dip6;
+	struct in6_addr sip6;
 };
 
 struct fhash_cfg {
-	struct fhashbhead	*head;
-	size_t			size;
-	size_t			items;
-	struct fhashentry4	fe4;
-	struct fhashentry6	fe6;
-};
-
-struct ta_buf_fhash {
-	void	*ent_ptr;
+	struct fhashbhead *head;
+	size_t size;
+	size_t items;
+	struct fhashentry4 fe4;
 	struct fhashentry6 fe6;
 };
 
-static __inline int cmp_flow_ent(struct fhashentry *a,
-    struct fhashentry *b, size_t sz);
+struct ta_buf_fhash {
+	void *ent_ptr;
+	struct fhashentry6 fe6;
+};
+
+static __inline int cmp_flow_ent(
+    struct fhashentry *a, struct fhashentry *b, size_t sz);
 static __inline uint32_t hash_flow4(struct fhashentry4 *f, int hsize);
 static __inline uint32_t hash_flow6(struct fhashentry6 *f, int hsize);
 static uint32_t hash_flow_ent(struct fhashentry *ent, uint32_t size);
-static int ta_lookup_fhash(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val);
+static int ta_lookup_fhash(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val);
 static int ta_init_fhash(struct ip_fw_chain *ch, void **ta_state,
-struct table_info *ti, char *data, uint8_t tflags);
+    struct table_info *ti, char *data, uint8_t tflags);
 static void ta_destroy_fhash(void *ta_state, struct table_info *ti);
-static void ta_dump_fhash_tinfo(void *ta_state, struct table_info *ti,
-    ipfw_ta_tinfo *tinfo);
-static int ta_dump_fhash_tentry(void *ta_state, struct table_info *ti,
-    void *e, ipfw_obj_tentry *tent);
+static void ta_dump_fhash_tinfo(
+    void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo);
+static int ta_dump_fhash_tentry(
+    void *ta_state, struct table_info *ti, void *e, ipfw_obj_tentry *tent);
 static int tei_to_fhash_ent(struct tentry_info *tei, struct fhashentry *ent);
-static int ta_find_fhash_tentry(void *ta_state, struct table_info *ti,
-    ipfw_obj_tentry *tent);
-static void ta_foreach_fhash(void *ta_state, struct table_info *ti,
-    ta_foreach_f *f, void *arg);
-static int ta_prepare_add_fhash(struct ip_fw_chain *ch,
-    struct tentry_info *tei, void *ta_buf);
+static int ta_find_fhash_tentry(
+    void *ta_state, struct table_info *ti, ipfw_obj_tentry *tent);
+static void ta_foreach_fhash(
+    void *ta_state, struct table_info *ti, ta_foreach_f *f, void *arg);
+static int ta_prepare_add_fhash(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
 static int ta_add_fhash(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
-static int ta_prepare_del_fhash(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf);
+static int ta_prepare_del_fhash(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
 static int ta_del_fhash(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
-static void ta_flush_fhash_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf);
-static int ta_need_modify_fhash(void *ta_state, struct table_info *ti,
-    uint32_t count, uint64_t *pflags);
+static void ta_flush_fhash_entry(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf);
+static int ta_need_modify_fhash(
+    void *ta_state, struct table_info *ti, uint32_t count, uint64_t *pflags);
 static int ta_prepare_mod_fhash(void *ta_buf, uint64_t *pflags);
-static int ta_fill_mod_fhash(void *ta_state, struct table_info *ti,
-    void *ta_buf, uint64_t *pflags);
-static void ta_modify_fhash(void *ta_state, struct table_info *ti, void *ta_buf,
-    uint64_t pflags);
+static int ta_fill_mod_fhash(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t *pflags);
+static void ta_modify_fhash(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t pflags);
 static void ta_flush_mod_fhash(void *ta_buf);
 
 static __inline int
@@ -3163,8 +3162,7 @@ hash_flow6(struct fhashentry6 *f, int hsize)
 	i = (f->dip6.__u6_addr.__u6_addr32[2]) ^
 	    (f->dip6.__u6_addr.__u6_addr32[3]) ^
 	    (f->sip6.__u6_addr.__u6_addr32[2]) ^
-	    (f->sip6.__u6_addr.__u6_addr32[3]) ^
-	    (f->e.dport) ^ (f->e.sport);
+	    (f->sip6.__u6_addr.__u6_addr32[3]) ^ (f->e.dport) ^ (f->e.sport);
 
 	return (i % (hsize - 1));
 }
@@ -3184,8 +3182,8 @@ hash_flow_ent(struct fhashentry *ent, uint32_t size)
 }
 
 static int
-ta_lookup_fhash(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val)
+ta_lookup_fhash(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val)
 {
 	struct fhashbhead *head;
 	struct fhashentry *ent;
@@ -3211,7 +3209,7 @@ ta_lookup_fhash(struct table_info *ti, void *key, uint32_t keylen,
 		f.e.sport &= id->src_port;
 		f.e.proto &= id->proto;
 		hash = hash_flow4(&f, hsize);
-		SLIST_FOREACH(ent, &head[hash], next) {
+		SLIST_FOREACH (ent, &head[hash], next) {
 			if (cmp_flow_ent(ent, &f.e, 2 * 4) != 0) {
 				*val = ent->value;
 				return (1);
@@ -3236,7 +3234,7 @@ ta_lookup_fhash(struct table_info *ti, void *key, uint32_t keylen,
 		f.e.sport &= id->src_port;
 		f.e.proto &= id->proto;
 		hash = hash_flow6(&f, hsize);
-		SLIST_FOREACH(ent, &head[hash], next) {
+		SLIST_FOREACH (ent, &head[hash], next) {
 			if (cmp_flow_ent(ent, &f.e, 2 * 16) != 0) {
 				*val = ent->value;
 				return (1);
@@ -3263,8 +3261,8 @@ ta_init_fhash(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 
 	cfg->size = 512;
 
-	cfg->head = malloc(sizeof(struct fhashbhead) * cfg->size, M_IPFW,
-	    M_WAITOK | M_ZERO);
+	cfg->head = malloc(
+	    sizeof(struct fhashbhead) * cfg->size, M_IPFW, M_WAITOK | M_ZERO);
 	for (i = 0; i < cfg->size; i++)
 		SLIST_INIT(&cfg->head[i]);
 
@@ -3314,7 +3312,7 @@ ta_destroy_fhash(void *ta_state, struct table_info *ti)
 	cfg = (struct fhash_cfg *)ta_state;
 
 	for (i = 0; i < cfg->size; i++)
-		SLIST_FOREACH_SAFE(ent, &cfg->head[i], next, ent_next)
+		SLIST_FOREACH_SAFE (ent, &cfg->head[i], next, ent_next)
 			free(ent, M_IPFW_TBL);
 
 	free(cfg->head, M_IPFW);
@@ -3340,8 +3338,8 @@ ta_dump_fhash_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
 }
 
 static int
-ta_dump_fhash_tentry(void *ta_state, struct table_info *ti, void *e,
-    ipfw_obj_tentry *tent)
+ta_dump_fhash_tentry(
+    void *ta_state, struct table_info *ti, void *e, ipfw_obj_tentry *tent)
 {
 	struct fhash_cfg *cfg;
 	struct fhashentry *ent;
@@ -3418,8 +3416,8 @@ tei_to_fhash_ent(struct tentry_info *tei, struct fhashentry *ent)
 }
 
 static int
-ta_find_fhash_tentry(void *ta_state, struct table_info *ti,
-    ipfw_obj_tentry *tent)
+ta_find_fhash_tentry(
+    void *ta_state, struct table_info *ti, ipfw_obj_tentry *tent)
 {
 	struct fhash_cfg *cfg;
 	struct fhashbhead *head;
@@ -3452,7 +3450,7 @@ ta_find_fhash_tentry(void *ta_state, struct table_info *ti,
 		sz = 2 * sizeof(struct in6_addr);
 
 	/* Check for existence */
-	SLIST_FOREACH(tmp, &head[hash], next) {
+	SLIST_FOREACH (tmp, &head[hash], next) {
 		if (cmp_flow_ent(tmp, ent, sz) != 0) {
 			ta_dump_fhash_tentry(ta_state, ti, tmp, tent);
 			return (0);
@@ -3463,8 +3461,8 @@ ta_find_fhash_tentry(void *ta_state, struct table_info *ti,
 }
 
 static void
-ta_foreach_fhash(void *ta_state, struct table_info *ti, ta_foreach_f *f,
-    void *arg)
+ta_foreach_fhash(
+    void *ta_state, struct table_info *ti, ta_foreach_f *f, void *arg)
 {
 	struct fhash_cfg *cfg;
 	struct fhashentry *ent, *ent_next;
@@ -3473,13 +3471,13 @@ ta_foreach_fhash(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 	cfg = (struct fhash_cfg *)ta_state;
 
 	for (i = 0; i < cfg->size; i++)
-		SLIST_FOREACH_SAFE(ent, &cfg->head[i], next, ent_next)
+		SLIST_FOREACH_SAFE (ent, &cfg->head[i], next, ent_next)
 			f(ent, arg);
 }
 
 static int
-ta_prepare_add_fhash(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_prepare_add_fhash(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_fhash *tb;
 	struct fhashentry *ent;
@@ -3536,7 +3534,7 @@ ta_add_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		sz = 2 * sizeof(struct in6_addr);
 
 	/* Check for existence */
-	SLIST_FOREACH(tmp, &head[hash], next) {
+	SLIST_FOREACH (tmp, &head[hash], next) {
 		if (cmp_flow_ent(tmp, ent, sz) != 0) {
 			exists = 1;
 			break;
@@ -3570,8 +3568,8 @@ ta_add_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 }
 
 static int
-ta_prepare_del_fhash(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_prepare_del_fhash(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_fhash *tb;
 
@@ -3604,7 +3602,7 @@ ta_del_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		sz = 2 * sizeof(struct in6_addr);
 
 	/* Check for existence */
-	SLIST_FOREACH(tmp, &head[hash], next) {
+	SLIST_FOREACH (tmp, &head[hash], next) {
 		if (cmp_flow_ent(tmp, ent, sz) == 0)
 			continue;
 
@@ -3620,8 +3618,8 @@ ta_del_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 }
 
 static void
-ta_flush_fhash_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
-    void *ta_buf)
+ta_flush_fhash_entry(
+    struct ip_fw_chain *ch, struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_fhash *tb;
 
@@ -3636,8 +3634,8 @@ ta_flush_fhash_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
  */
 
 static int
-ta_need_modify_fhash(void *ta_state, struct table_info *ti, uint32_t count,
-    uint64_t *pflags)
+ta_need_modify_fhash(
+    void *ta_state, struct table_info *ti, uint32_t count, uint64_t *pflags)
 {
 	struct fhash_cfg *cfg;
 
@@ -3665,8 +3663,8 @@ ta_prepare_mod_fhash(void *ta_buf, uint64_t *pflags)
 
 	memset(mi, 0, sizeof(struct mod_item));
 	mi->size = *pflags;
-	head = malloc(sizeof(struct fhashbhead) * mi->size, M_IPFW,
-	    M_WAITOK | M_ZERO);
+	head = malloc(
+	    sizeof(struct fhashbhead) * mi->size, M_IPFW, M_WAITOK | M_ZERO);
 	for (i = 0; i < mi->size; i++)
 		SLIST_INIT(&head[i]);
 
@@ -3679,8 +3677,8 @@ ta_prepare_mod_fhash(void *ta_buf, uint64_t *pflags)
  * Copy data from old runtime array to new one.
  */
 static int
-ta_fill_mod_fhash(void *ta_state, struct table_info *ti, void *ta_buf,
-    uint64_t *pflags)
+ta_fill_mod_fhash(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t *pflags)
 {
 
 	/* In is not possible to do rehash if we're not holidng WLOCK. */
@@ -3691,8 +3689,8 @@ ta_fill_mod_fhash(void *ta_state, struct table_info *ti, void *ta_buf,
  * Switch old & new arrays.
  */
 static void
-ta_modify_fhash(void *ta_state, struct table_info *ti, void *ta_buf,
-    uint64_t pflags)
+ta_modify_fhash(
+    void *ta_state, struct table_info *ti, void *ta_buf, uint64_t pflags)
 {
 	struct mod_item *mi;
 	struct fhash_cfg *cfg;
@@ -3710,7 +3708,7 @@ ta_modify_fhash(void *ta_state, struct table_info *ti, void *ta_buf,
 
 	new_head = (struct fhashbhead *)mi->main_ptr;
 	for (i = 0; i < old_size; i++) {
-		SLIST_FOREACH_SAFE(ent, &old_head[i], next, ent_next) {
+		SLIST_FOREACH_SAFE (ent, &old_head[i], next, ent_next) {
 			nhash = hash_flow_ent(ent, mi->size);
 			SLIST_INSERT_HEAD(&new_head[nhash], ent, next);
 		}
@@ -3738,26 +3736,26 @@ ta_flush_mod_fhash(void *ta_buf)
 }
 
 struct table_algo flow_hash = {
-	.name		= "flow:hash",
-	.type		= IPFW_TABLE_FLOW,
-	.flags		= TA_FLAG_DEFAULT,
-	.ta_buf_size	= sizeof(struct ta_buf_fhash),
-	.init		= ta_init_fhash,
-	.destroy	= ta_destroy_fhash,
-	.prepare_add	= ta_prepare_add_fhash,
-	.prepare_del	= ta_prepare_del_fhash,
-	.add		= ta_add_fhash,
-	.del		= ta_del_fhash,
-	.flush_entry	= ta_flush_fhash_entry,
-	.foreach	= ta_foreach_fhash,
-	.dump_tentry	= ta_dump_fhash_tentry,
-	.find_tentry	= ta_find_fhash_tentry,
-	.dump_tinfo	= ta_dump_fhash_tinfo,
-	.need_modify	= ta_need_modify_fhash,
-	.prepare_mod	= ta_prepare_mod_fhash,
-	.fill_mod	= ta_fill_mod_fhash,
-	.modify		= ta_modify_fhash,
-	.flush_mod	= ta_flush_mod_fhash,
+	.name = "flow:hash",
+	.type = IPFW_TABLE_FLOW,
+	.flags = TA_FLAG_DEFAULT,
+	.ta_buf_size = sizeof(struct ta_buf_fhash),
+	.init = ta_init_fhash,
+	.destroy = ta_destroy_fhash,
+	.prepare_add = ta_prepare_add_fhash,
+	.prepare_del = ta_prepare_del_fhash,
+	.add = ta_add_fhash,
+	.del = ta_del_fhash,
+	.flush_entry = ta_flush_fhash_entry,
+	.foreach = ta_foreach_fhash,
+	.dump_tentry = ta_dump_fhash_tentry,
+	.find_tentry = ta_find_fhash_tentry,
+	.dump_tinfo = ta_dump_fhash_tinfo,
+	.need_modify = ta_need_modify_fhash,
+	.prepare_mod = ta_prepare_mod_fhash,
+	.fill_mod = ta_fill_mod_fhash,
+	.modify = ta_modify_fhash,
+	.flush_mod = ta_flush_mod_fhash,
 };
 
 /*
@@ -3771,28 +3769,27 @@ struct table_algo flow_hash = {
  *
  */
 
-static int ta_lookup_kfib(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val);
+static int ta_lookup_kfib(
+    struct table_info *ti, void *key, uint32_t keylen, uint32_t *val);
 static int kfib_parse_opts(int *pfib, char *data);
-static void ta_print_kfib_config(void *ta_state, struct table_info *ti,
-    char *buf, size_t bufsize);
+static void ta_print_kfib_config(
+    void *ta_state, struct table_info *ti, char *buf, size_t bufsize);
 static int ta_init_kfib(struct ip_fw_chain *ch, void **ta_state,
     struct table_info *ti, char *data, uint8_t tflags);
 static void ta_destroy_kfib(void *ta_state, struct table_info *ti);
-static void ta_dump_kfib_tinfo(void *ta_state, struct table_info *ti,
-    ipfw_ta_tinfo *tinfo);
-static int ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
-    ipfw_obj_tentry *tent);
-static int ta_dump_kfib_tentry_int(int familt, const struct rtentry *rt,
-    ipfw_obj_tentry *tent);
-static int ta_find_kfib_tentry(void *ta_state, struct table_info *ti,
-    ipfw_obj_tentry *tent);
-static void ta_foreach_kfib(void *ta_state, struct table_info *ti,
-    ta_foreach_f *f, void *arg);
+static void ta_dump_kfib_tinfo(
+    void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo);
+static int ta_dump_kfib_tentry(
+    void *ta_state, struct table_info *ti, void *e, ipfw_obj_tentry *tent);
+static int ta_dump_kfib_tentry_int(
+    int familt, const struct rtentry *rt, ipfw_obj_tentry *tent);
+static int ta_find_kfib_tentry(
+    void *ta_state, struct table_info *ti, ipfw_obj_tentry *tent);
+static void ta_foreach_kfib(
+    void *ta_state, struct table_info *ti, ta_foreach_f *f, void *arg);
 
 static int
-ta_lookup_kfib(struct table_info *ti, void *key, uint32_t keylen,
-    uint32_t *val)
+ta_lookup_kfib(struct table_info *ti, void *key, uint32_t keylen, uint32_t *val)
 {
 #ifdef INET
 	struct in_addr in;
@@ -3809,8 +3806,8 @@ ta_lookup_kfib(struct table_info *ti, void *key, uint32_t keylen,
 #endif
 #ifdef INET6
 	if (keylen == 6)
-		error = fib6_lookup(ti->data, (struct in6_addr *)key,
-		    0, NHR_NONE, 0) != NULL;
+		error = fib6_lookup(ti->data, (struct in6_addr *)key, 0,
+			    NHR_NONE, 0) != NULL;
 #endif
 
 	if (error != 0)
@@ -3851,8 +3848,8 @@ kfib_parse_opts(int *pfib, char *data)
 }
 
 static void
-ta_print_kfib_config(void *ta_state, struct table_info *ti, char *buf,
-    size_t bufsize)
+ta_print_kfib_config(
+    void *ta_state, struct table_info *ti, char *buf, size_t bufsize)
 {
 
 	if (ti->data != 0)
@@ -3886,7 +3883,6 @@ ta_init_kfib(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 static void
 ta_destroy_kfib(void *ta_state, struct table_info *ti)
 {
-
 }
 
 /*
@@ -3906,8 +3902,8 @@ ta_dump_kfib_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
 }
 
 static int
-ta_dump_kfib_tentry_int(int family, const struct rtentry *rt,
-    ipfw_obj_tentry *tent)
+ta_dump_kfib_tentry_int(
+    int family, const struct rtentry *rt, ipfw_obj_tentry *tent)
 {
 	uint32_t scopeid;
 	int plen;
@@ -3932,8 +3928,8 @@ ta_dump_kfib_tentry_int(int family, const struct rtentry *rt,
 }
 
 static int
-ta_find_kfib_tentry(void *ta_state, struct table_info *ti,
-    ipfw_obj_tentry *tent)
+ta_find_kfib_tentry(
+    void *ta_state, struct table_info *ti, ipfw_obj_tentry *tent)
 {
 	struct rtentry *rt = NULL;
 	struct route_nhop_data rnd;
@@ -3965,14 +3961,14 @@ ta_find_kfib_tentry(void *ta_state, struct table_info *ti,
 
 struct kfib_dump_arg {
 	struct rtentry *rt;
-	int		family;
-	ta_foreach_f	*f;
-	void		*arg;
+	int family;
+	ta_foreach_f *f;
+	void *arg;
 };
 
 static int
-ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
-    ipfw_obj_tentry *tent)
+ta_dump_kfib_tentry(
+    void *ta_state, struct table_info *ti, void *e, ipfw_obj_tentry *tent)
 {
 	struct kfib_dump_arg *karg = (struct kfib_dump_arg *)e;
 
@@ -3989,8 +3985,8 @@ walk_wrapper_f(struct rtentry *rt, void *arg)
 }
 
 static void
-ta_foreach_kfib(void *ta_state, struct table_info *ti, ta_foreach_f *f,
-    void *arg)
+ta_foreach_kfib(
+    void *ta_state, struct table_info *ti, ta_foreach_f *f, void *arg)
 {
 	struct kfib_dump_arg karg = { .f = f, .arg = arg };
 
@@ -4001,17 +3997,17 @@ ta_foreach_kfib(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 }
 
 struct table_algo addr_kfib = {
-	.name		= "addr:kfib",
-	.type		= IPFW_TABLE_ADDR,
-	.flags		= TA_FLAG_READONLY,
-	.ta_buf_size	= 0,
-	.init		= ta_init_kfib,
-	.destroy	= ta_destroy_kfib,
-	.foreach	= ta_foreach_kfib,
-	.dump_tentry	= ta_dump_kfib_tentry,
-	.find_tentry	= ta_find_kfib_tentry,
-	.dump_tinfo	= ta_dump_kfib_tinfo,
-	.print_config	= ta_print_kfib_config,
+	.name = "addr:kfib",
+	.type = IPFW_TABLE_ADDR,
+	.flags = TA_FLAG_READONLY,
+	.ta_buf_size = 0,
+	.init = ta_init_kfib,
+	.destroy = ta_destroy_kfib,
+	.foreach = ta_foreach_kfib,
+	.dump_tentry = ta_dump_kfib_tentry,
+	.find_tentry = ta_find_kfib_tentry,
+	.dump_tinfo = ta_dump_kfib_tinfo,
+	.print_config = ta_print_kfib_config,
 };
 
 void

@@ -29,28 +29,27 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
 
 #include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
+#include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
-#include <dev/fdt/fdt_pinctrl.h>
-#include <mips/mediatek/mtk_sysctl.h>
-#include <mips/mediatek/mtk_soc.h>
 #include <mips/mediatek/mtk_pinctrl.h>
+#include <mips/mediatek/mtk_soc.h>
+#include <mips/mediatek/mtk_sysctl.h>
 
 #include "fdt_pinctrl_if.h"
 
-static const struct ofw_compat_data compat_data[] = {
-	{ "ralink,rt2880-pinmux",	1 },
+static const struct ofw_compat_data compat_data[] = { { "ralink,rt2880-pinmux",
+							  1 },
 
 	/* Sentinel */
-	{ NULL,				0 }
-};
+	{ NULL, 0 } };
 
 static int
 mtk_pinctrl_probe(device_t dev)
@@ -91,29 +90,29 @@ mtk_pinctrl_attach(device_t dev)
 }
 
 static int
-mtk_pinctrl_process_entry(device_t dev, struct mtk_pin_group *table,
-    const char *group, char *func)
+mtk_pinctrl_process_entry(
+    device_t dev, struct mtk_pin_group *table, const char *group, char *func)
 {
 	uint32_t val;
 	int found = 0, i, j;
 
 	for (i = 0; table[i].name != NULL; i++) {
-                if (strcmp(table[i].name, group) == 0) {
+		if (strcmp(table[i].name, group) == 0) {
 			found = 1;
-                        break;
+			break;
 		}
-        }
+	}
 
 	if (!found)
 		return (ENOENT);
 
-        for (j = 0; j < table[i].funcnum; j++) {
-                if (strcmp(table[i].functions[j].name, func) == 0) {
-                        val = mtk_sysctl_get(table[i].sysc_reg);
-                        val &= ~(table[i].mask << table[i].offset);
-                        val |= (table[i].functions[j].value << table[i].offset);
-                        mtk_sysctl_set(table[i].sysc_reg, val);
-                        return (0);
+	for (j = 0; j < table[i].funcnum; j++) {
+		if (strcmp(table[i].functions[j].name, func) == 0) {
+			val = mtk_sysctl_get(table[i].sysc_reg);
+			val &= ~(table[i].mask << table[i].offset);
+			val |= (table[i].functions[j].value << table[i].offset);
+			mtk_sysctl_set(table[i].sysc_reg, val);
+			return (0);
 		}
 	}
 
@@ -121,8 +120,8 @@ mtk_pinctrl_process_entry(device_t dev, struct mtk_pin_group *table,
 }
 
 static int
-mtk_pinctrl_process_node(device_t dev, struct mtk_pin_group *table,
-    phandle_t node)
+mtk_pinctrl_process_node(
+    device_t dev, struct mtk_pin_group *table, phandle_t node)
 {
 	const char **group_list = NULL;
 	char *pin_function = NULL;
@@ -130,21 +129,21 @@ mtk_pinctrl_process_node(device_t dev, struct mtk_pin_group *table,
 
 	ret = 0;
 
-	num_groups = ofw_bus_string_list_to_array(node, "ralink,group",
-	    &group_list);
+	num_groups = ofw_bus_string_list_to_array(
+	    node, "ralink,group", &group_list);
 
 	if (num_groups <= 0)
 		return (ENOENT);
 
-	if (OF_getprop_alloc_multi(node, "ralink,function", sizeof(*pin_function),
-			     (void **)&pin_function) == -1) {
+	if (OF_getprop_alloc_multi(node, "ralink,function",
+		sizeof(*pin_function), (void **)&pin_function) == -1) {
 		ret = ENOENT;
 		goto out;
 	}
 
 	for (i = 0; i < num_groups; i++) {
-		if ((ret = mtk_pinctrl_process_entry(dev, table, group_list[i],
-		    pin_function)) != 0)
+		if ((ret = mtk_pinctrl_process_entry(
+			 dev, table, group_list[i], pin_function)) != 0)
 			goto out;
 	}
 
@@ -206,9 +205,9 @@ mtk_pinctrl_configure(device_t dev, phandle_t cfgxref)
 	/*
 	 * OpenWRT dts files have single child within the pinctrl nodes, which
 	 * contains the 'ralink,group' and 'ralink,function' properties.
-	 */ 
+	 */
 	for (child = OF_child(node); child != 0 && child != -1;
-	    child = OF_peer(child)) {
+	     child = OF_peer(child)) {
 		if ((ret = mtk_pinctrl_process_node(dev, pintable, child)) != 0)
 			return (ret);
 	}
@@ -217,15 +216,14 @@ out:
 	return (ret);
 }
 
-static device_method_t mtk_pinctrl_methods[] = {
-	DEVMETHOD(device_probe,			mtk_pinctrl_probe),
-	DEVMETHOD(device_attach,		mtk_pinctrl_attach),
+static device_method_t mtk_pinctrl_methods[] = { DEVMETHOD(device_probe,
+						     mtk_pinctrl_probe),
+	DEVMETHOD(device_attach, mtk_pinctrl_attach),
 
 	/* fdt_pinctrl interface */
-	DEVMETHOD(fdt_pinctrl_configure,	mtk_pinctrl_configure),
+	DEVMETHOD(fdt_pinctrl_configure, mtk_pinctrl_configure),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t mtk_pinctrl_driver = {
 	"pinctrl",

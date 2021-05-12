@@ -28,52 +28,54 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_SLAB_H_
-#define	_LINUX_SLAB_H_
+#ifndef _LINUX_SLAB_H_
+#define _LINUX_SLAB_H_
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/limits.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
+
 #include <vm/uma.h>
 
 #include <linux/compat.h>
-#include <linux/types.h>
 #include <linux/gfp.h>
 #include <linux/llist.h>
+#include <linux/types.h>
 
 MALLOC_DECLARE(M_KMALLOC);
 
-#define	kvmalloc(size, flags)		kmalloc(size, flags)
-#define	kvzalloc(size, flags)		kmalloc(size, (flags) | __GFP_ZERO)
-#define	kvcalloc(n, size, flags)	kvmalloc_array(n, size, (flags) | __GFP_ZERO)
-#define	kzalloc(size, flags)		kmalloc(size, (flags) | __GFP_ZERO)
-#define	kzalloc_node(size, flags, node)	kmalloc_node(size, (flags) | __GFP_ZERO, node)
-#define	kfree_const(ptr)		kfree(ptr)
-#define	vzalloc(size)			__vmalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO, 0)
-#define	vfree(arg)			kfree(arg)
-#define	kvfree(arg)			kfree(arg)
-#define	vmalloc_node(size, node)	__vmalloc_node(size, GFP_KERNEL, node)
-#define	vmalloc_user(size)		__vmalloc(size, GFP_KERNEL | __GFP_ZERO, 0)
-#define	vmalloc(size)			__vmalloc(size, GFP_KERNEL, 0)
-#define	__kmalloc(...)			kmalloc(__VA_ARGS__)
+#define kvmalloc(size, flags) kmalloc(size, flags)
+#define kvzalloc(size, flags) kmalloc(size, (flags) | __GFP_ZERO)
+#define kvcalloc(n, size, flags) kvmalloc_array(n, size, (flags) | __GFP_ZERO)
+#define kzalloc(size, flags) kmalloc(size, (flags) | __GFP_ZERO)
+#define kzalloc_node(size, flags, node) \
+	kmalloc_node(size, (flags) | __GFP_ZERO, node)
+#define kfree_const(ptr) kfree(ptr)
+#define vzalloc(size) __vmalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO, 0)
+#define vfree(arg) kfree(arg)
+#define kvfree(arg) kfree(arg)
+#define vmalloc_node(size, node) __vmalloc_node(size, GFP_KERNEL, node)
+#define vmalloc_user(size) __vmalloc(size, GFP_KERNEL | __GFP_ZERO, 0)
+#define vmalloc(size) __vmalloc(size, GFP_KERNEL, 0)
+#define __kmalloc(...) kmalloc(__VA_ARGS__)
 
 /*
  * Prefix some functions with linux_ to avoid namespace conflict
  * with the OpenSolaris code in the kernel.
  */
-#define	kmem_cache		linux_kmem_cache
-#define	kmem_cache_create(...)	linux_kmem_cache_create(__VA_ARGS__)
-#define	kmem_cache_alloc(...)	linux_kmem_cache_alloc(__VA_ARGS__)
-#define	kmem_cache_free(...)	linux_kmem_cache_free(__VA_ARGS__)
-#define	kmem_cache_destroy(...) linux_kmem_cache_destroy(__VA_ARGS__)
+#define kmem_cache linux_kmem_cache
+#define kmem_cache_create(...) linux_kmem_cache_create(__VA_ARGS__)
+#define kmem_cache_alloc(...) linux_kmem_cache_alloc(__VA_ARGS__)
+#define kmem_cache_free(...) linux_kmem_cache_free(__VA_ARGS__)
+#define kmem_cache_destroy(...) linux_kmem_cache_destroy(__VA_ARGS__)
 
-#define	KMEM_CACHE(__struct, flags)					\
-	linux_kmem_cache_create(#__struct, sizeof(struct __struct),	\
-	__alignof(struct __struct), (flags), NULL)
+#define KMEM_CACHE(__struct, flags)                                 \
+	linux_kmem_cache_create(#__struct, sizeof(struct __struct), \
+	    __alignof(struct __struct), (flags), NULL)
 
-typedef void linux_kmem_ctor_t (void *);
+typedef void linux_kmem_ctor_t(void *);
 
 struct linux_kmem_cache {
 	uma_zone_t cache_zone;
@@ -82,28 +84,27 @@ struct linux_kmem_cache {
 	unsigned cache_size;
 };
 
-#define	SLAB_HWCACHE_ALIGN	(1 << 0)
-#define	SLAB_TYPESAFE_BY_RCU	(1 << 1)
-#define	SLAB_RECLAIM_ACCOUNT	(1 << 2)
+#define SLAB_HWCACHE_ALIGN (1 << 0)
+#define SLAB_TYPESAFE_BY_RCU (1 << 1)
+#define SLAB_RECLAIM_ACCOUNT (1 << 2)
 
-#define	SLAB_DESTROY_BY_RCU \
-	SLAB_TYPESAFE_BY_RCU
+#define SLAB_DESTROY_BY_RCU SLAB_TYPESAFE_BY_RCU
 
-#define	ARCH_KMALLOC_MINALIGN \
-	__alignof(unsigned long long)
+#define ARCH_KMALLOC_MINALIGN __alignof(unsigned long long)
 
 /*
  * Critical section-friendly version of kfree().
  * Requires knowledge of the allocation size at build time.
  */
-#define kfree_async(ptr)	do {					\
-	_Static_assert(sizeof(*(ptr)) >= sizeof(struct llist_node),	\
-	    "Size of object to free is unknown or too small");		\
-	if (curthread->td_critnest != 0)				\
-		linux_kfree_async(ptr);					\
-	else								\
-		kfree(ptr);						\
-} while (0)
+#define kfree_async(ptr)                                                    \
+	do {                                                                \
+		_Static_assert(sizeof(*(ptr)) >= sizeof(struct llist_node), \
+		    "Size of object to free is unknown or too small");      \
+		if (curthread->td_critnest != 0)                            \
+			linux_kfree_async(ptr);                             \
+		else                                                        \
+			kfree(ptr);                                         \
+	} while (0)
 
 static inline gfp_t
 linux_check_m_flags(gfp_t flags)
@@ -129,8 +130,8 @@ kmalloc(size_t size, gfp_t flags)
 static inline void *
 kmalloc_node(size_t size, gfp_t flags, int node)
 {
-	return (malloc_domainset(size, M_KMALLOC,
-	    linux_get_vm_domain_set(node), linux_check_m_flags(flags)));
+	return (malloc_domainset(size, M_KMALLOC, linux_get_vm_domain_set(node),
+	    linux_check_m_flags(flags)));
 }
 
 static inline void *
@@ -157,8 +158,8 @@ __vmalloc(size_t size, gfp_t flags, int other)
 static inline void *
 __vmalloc_node(size_t size, gfp_t flags, int node)
 {
-	return (malloc_domainset(size, M_KMALLOC,
-	    linux_get_vm_domain_set(node), linux_check_m_flags(flags)));
+	return (malloc_domainset(size, M_KMALLOC, linux_get_vm_domain_set(node),
+	    linux_check_m_flags(flags)));
 }
 
 static inline void *
@@ -210,15 +211,14 @@ extern struct linux_kmem_cache *linux_kmem_cache_create(const char *name,
 static inline void *
 linux_kmem_cache_alloc(struct linux_kmem_cache *c, gfp_t flags)
 {
-	return (uma_zalloc_arg(c->cache_zone, c,
-	    linux_check_m_flags(flags)));
+	return (uma_zalloc_arg(c->cache_zone, c, linux_check_m_flags(flags)));
 }
 
 static inline void *
 kmem_cache_zalloc(struct linux_kmem_cache *c, gfp_t flags)
 {
-	return (uma_zalloc_arg(c->cache_zone, c,
-	    linux_check_m_flags(flags | M_ZERO)));
+	return (uma_zalloc_arg(
+	    c->cache_zone, c, linux_check_m_flags(flags | M_ZERO)));
 }
 
 extern void linux_kmem_cache_free_rcu(struct linux_kmem_cache *, void *);
@@ -235,4 +235,4 @@ linux_kmem_cache_free(struct linux_kmem_cache *c, void *m)
 extern void linux_kmem_cache_destroy(struct linux_kmem_cache *);
 void linux_kfree_async(void *);
 
-#endif					/* _LINUX_SLAB_H_ */
+#endif /* _LINUX_SLAB_H_ */

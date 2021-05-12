@@ -29,48 +29,48 @@
 #ifndef _AM335X_RTCREG_H_
 #define _AM335X_RTCREG_H_
 
-#define	RTC_SECONDS		0x00
-#define	RTC_MINUTES		0x04
-#define	RTC_HOURS		0x08
-#define	RTC_DAYS		0x0c
-#define	RTC_MONTHS		0x10
-#define	RTC_YEARS		0x14
-#define	RTC_WEEK		0x18
-#define	RTC_CTRL		0x40
-#define	RTC_CTRL_DISABLE		(1U << 6)
-#define	RTC_CTRL_RUN			(1U << 0)
-#define	RTC_STATUS		0x44
-#define	RTC_STATUS_ALARM2		(1U << 7)
-#define	RTC_STATUS_ALARM		(1U << 6)
-#define	RTC_STATUS_1D_EVENT		(1U << 5)
-#define	RTC_STATUS_1H_EVENT		(1U << 4)
-#define	RTC_STATUS_1M_EVENT		(1U << 3)
-#define	RTC_STATUS_1S_EVENT		(1U << 2)
-#define	RTC_STATUS_RUN			(1U << 1)
-#define	RTC_STATUS_BUSY			(1U << 0)
-#define	RTC_INTR		0x48
-#define	RTC_INTR_ALARM2			(1U << 4)
-#define	RTC_INTR_ALARM			(1U << 3)
-#define	RTC_INTR_TIMER			(1U << 2)
-#define	RTC_OSC			0x54
-#define	RTC_OSC_32KCLK_EN		(1U << 6)
-#define	RTC_OSC_OSC32K_GZ		(1U << 4)
-#define	RTC_OSC_32KCLK_SEL		(1U << 3)
-#define	RTC_OSC_RES_SELECT		(1U << 2)
-#define	RTC_OSC_SW2			(1U << 1)
-#define	RTC_OSC_SW1			(1U << 0)
-#define	RTC_KICK0R		0x6c
-#define	RTC_KICK0R_PASS			0x83e70b13
-#define	RTC_KICK1R		0x70
-#define	RTC_KICK1R_PASS			0x95a4f1e0
-#define	RTC_REVISION		0x74
-#define	RTC_ALARM2_SECONDS	0x80
-#define	RTC_ALARM2_MINUTES	0x84
-#define	RTC_ALARM2_HOURS	0x88
-#define	RTC_ALARM2_DAYS		0x8c
-#define	RTC_ALARM2_MONTHS	0x90
-#define	RTC_ALARM2_YEARS	0x94
-#define	RTC_PMIC		0x98
-#define	PMIC_PWR_ENABLE			(1U << 16)
+#define RTC_SECONDS 0x00
+#define RTC_MINUTES 0x04
+#define RTC_HOURS 0x08
+#define RTC_DAYS 0x0c
+#define RTC_MONTHS 0x10
+#define RTC_YEARS 0x14
+#define RTC_WEEK 0x18
+#define RTC_CTRL 0x40
+#define RTC_CTRL_DISABLE (1U << 6)
+#define RTC_CTRL_RUN (1U << 0)
+#define RTC_STATUS 0x44
+#define RTC_STATUS_ALARM2 (1U << 7)
+#define RTC_STATUS_ALARM (1U << 6)
+#define RTC_STATUS_1D_EVENT (1U << 5)
+#define RTC_STATUS_1H_EVENT (1U << 4)
+#define RTC_STATUS_1M_EVENT (1U << 3)
+#define RTC_STATUS_1S_EVENT (1U << 2)
+#define RTC_STATUS_RUN (1U << 1)
+#define RTC_STATUS_BUSY (1U << 0)
+#define RTC_INTR 0x48
+#define RTC_INTR_ALARM2 (1U << 4)
+#define RTC_INTR_ALARM (1U << 3)
+#define RTC_INTR_TIMER (1U << 2)
+#define RTC_OSC 0x54
+#define RTC_OSC_32KCLK_EN (1U << 6)
+#define RTC_OSC_OSC32K_GZ (1U << 4)
+#define RTC_OSC_32KCLK_SEL (1U << 3)
+#define RTC_OSC_RES_SELECT (1U << 2)
+#define RTC_OSC_SW2 (1U << 1)
+#define RTC_OSC_SW1 (1U << 0)
+#define RTC_KICK0R 0x6c
+#define RTC_KICK0R_PASS 0x83e70b13
+#define RTC_KICK1R 0x70
+#define RTC_KICK1R_PASS 0x95a4f1e0
+#define RTC_REVISION 0x74
+#define RTC_ALARM2_SECONDS 0x80
+#define RTC_ALARM2_MINUTES 0x84
+#define RTC_ALARM2_HOURS 0x88
+#define RTC_ALARM2_DAYS 0x8c
+#define RTC_ALARM2_MONTHS 0x90
+#define RTC_ALARM2_YEARS 0x94
+#define RTC_PMIC 0x98
+#define PMIC_PWR_ENABLE (1U << 16)
 
 #endif /* _AM335X_RTCREG_H_ */

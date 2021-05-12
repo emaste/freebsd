@@ -34,9 +34,10 @@
 
 struct imx_clk_sscg_pll_def {
 	struct clknode_init_def clkdef;
-	uint32_t		offset;
+	uint32_t offset;
 };
 
-int imx_clk_sscg_pll_register(struct clkdom *clkdom, struct imx_clk_sscg_pll_def *clkdef);
+int imx_clk_sscg_pll_register(
+    struct clkdom *clkdom, struct imx_clk_sscg_pll_def *clkdef);
 
 #endif /* _IMX_CLK_SSCG_PLL_H_ */

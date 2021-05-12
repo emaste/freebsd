@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/apm.h>
 #include <sys/bio.h>
 #include <sys/endian.h>
@@ -41,8 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
-#include <sys/systm.h>
 #include <sys/sysctl.h>
+
 #include <geom/geom.h>
 #include <geom/geom_int.h>
 #include <geom/part/g_part.h>
@@ -52,51 +53,49 @@ __FBSDID("$FreeBSD$");
 FEATURE(geom_part_apm, "GEOM partitioning class for Apple-style partitions");
 
 struct g_part_apm_table {
-	struct g_part_table	base;
-	struct apm_ddr		ddr;
-	struct apm_ent		self;
-	int			tivo_series1;
+	struct g_part_table base;
+	struct apm_ddr ddr;
+	struct apm_ent self;
+	int tivo_series1;
 };
 
 struct g_part_apm_entry {
-	struct g_part_entry	base;
-	struct apm_ent		ent;
+	struct g_part_entry base;
+	struct apm_ent ent;
 };
 
-static int g_part_apm_add(struct g_part_table *, struct g_part_entry *,
-    struct g_part_parms *);
+static int g_part_apm_add(
+    struct g_part_table *, struct g_part_entry *, struct g_part_parms *);
 static int g_part_apm_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_apm_destroy(struct g_part_table *, struct g_part_parms *);
-static void g_part_apm_dumpconf(struct g_part_table *, struct g_part_entry *,
-    struct sbuf *, const char *);
+static void g_part_apm_dumpconf(
+    struct g_part_table *, struct g_part_entry *, struct sbuf *, const char *);
 static int g_part_apm_dumpto(struct g_part_table *, struct g_part_entry *);
-static int g_part_apm_modify(struct g_part_table *, struct g_part_entry *,
-    struct g_part_parms *);
-static const char *g_part_apm_name(struct g_part_table *, struct g_part_entry *,
-    char *, size_t);
+static int g_part_apm_modify(
+    struct g_part_table *, struct g_part_entry *, struct g_part_parms *);
+static const char *g_part_apm_name(
+    struct g_part_table *, struct g_part_entry *, char *, size_t);
 static int g_part_apm_probe(struct g_part_table *, struct g_consumer *);
 static int g_part_apm_read(struct g_part_table *, struct g_consumer *);
-static const char *g_part_apm_type(struct g_part_table *, struct g_part_entry *,
-    char *, size_t);
+static const char *g_part_apm_type(
+    struct g_part_table *, struct g_part_entry *, char *, size_t);
 static int g_part_apm_write(struct g_part_table *, struct g_consumer *);
-static int g_part_apm_resize(struct g_part_table *, struct g_part_entry *,
-    struct g_part_parms *);
+static int g_part_apm_resize(
+    struct g_part_table *, struct g_part_entry *, struct g_part_parms *);
 
-static kobj_method_t g_part_apm_methods[] = {
-	KOBJMETHOD(g_part_add,		g_part_apm_add),
-	KOBJMETHOD(g_part_create,	g_part_apm_create),
-	KOBJMETHOD(g_part_destroy,	g_part_apm_destroy),
-	KOBJMETHOD(g_part_dumpconf,	g_part_apm_dumpconf),
-	KOBJMETHOD(g_part_dumpto,	g_part_apm_dumpto),
-	KOBJMETHOD(g_part_modify,	g_part_apm_modify),
-	KOBJMETHOD(g_part_resize,	g_part_apm_resize),
-	KOBJMETHOD(g_part_name,		g_part_apm_name),
-	KOBJMETHOD(g_part_probe,	g_part_apm_probe),
-	KOBJMETHOD(g_part_read,		g_part_apm_read),
-	KOBJMETHOD(g_part_type,		g_part_apm_type),
-	KOBJMETHOD(g_part_write,	g_part_apm_write),
-	{ 0, 0 }
-};
+static kobj_method_t g_part_apm_methods[] = { KOBJMETHOD(
+						  g_part_add, g_part_apm_add),
+	KOBJMETHOD(g_part_create, g_part_apm_create),
+	KOBJMETHOD(g_part_destroy, g_part_apm_destroy),
+	KOBJMETHOD(g_part_dumpconf, g_part_apm_dumpconf),
+	KOBJMETHOD(g_part_dumpto, g_part_apm_dumpto),
+	KOBJMETHOD(g_part_modify, g_part_apm_modify),
+	KOBJMETHOD(g_part_resize, g_part_apm_resize),
+	KOBJMETHOD(g_part_name, g_part_apm_name),
+	KOBJMETHOD(g_part_probe, g_part_apm_probe),
+	KOBJMETHOD(g_part_read, g_part_apm_read),
+	KOBJMETHOD(g_part_type, g_part_apm_type),
+	KOBJMETHOD(g_part_write, g_part_apm_write), { 0, 0 } };
 
 static struct g_part_scheme g_part_apm_scheme = {
 	"APM",
@@ -186,8 +185,8 @@ apm_parse_type(const char *type, char *buf, size_t bufsz)
 }
 
 static int
-apm_read_ent(struct g_consumer *cp, uint32_t blk, struct apm_ent *ent,
-    int tivo_series1)
+apm_read_ent(
+    struct g_consumer *cp, uint32_t blk, struct apm_ent *ent, int tivo_series1)
 {
 	struct g_provider *pp;
 	char *buf;
@@ -227,8 +226,8 @@ g_part_apm_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 		bzero(entry->ent.ent_type, sizeof(entry->ent.ent_type));
 		bzero(entry->ent.ent_name, sizeof(entry->ent.ent_name));
 	}
-	error = apm_parse_type(gpp->gpp_type, entry->ent.ent_type,
-	    sizeof(entry->ent.ent_type));
+	error = apm_parse_type(
+	    gpp->gpp_type, entry->ent.ent_type, sizeof(entry->ent.ent_type));
 	if (error)
 		return (error);
 	if (gpp->gpp_parms & G_PART_PARM_LABEL) {
@@ -239,10 +238,9 @@ g_part_apm_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	}
 	if (baseentry->gpe_index >= table->self.ent_pmblkcnt)
 		table->self.ent_pmblkcnt = baseentry->gpe_index + 1;
-	KASSERT(table->self.ent_size >= table->self.ent_pmblkcnt,
-	    ("%s", __func__));
-	KASSERT(table->self.ent_size > baseentry->gpe_index,
-	    ("%s", __func__));
+	KASSERT(
+	    table->self.ent_size >= table->self.ent_pmblkcnt, ("%s", __func__));
+	KASSERT(table->self.ent_size > baseentry->gpe_index, ("%s", __func__));
 	return (0);
 }
 
@@ -328,8 +326,8 @@ g_part_apm_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 	struct g_part_apm_entry *entry;
 
 	entry = (struct g_part_apm_entry *)baseentry;
-	return ((!strcmp(entry->ent.ent_type, APM_ENT_TYPE_FREEBSD_SWAP))
-	    ? 1 : 0);
+	return (
+	    (!strcmp(entry->ent.ent_type, APM_ENT_TYPE_FREEBSD_SWAP)) ? 1 : 0);
 }
 
 static int
@@ -367,7 +365,8 @@ g_part_apm_resize(struct g_part_table *basetable,
 	if (baseentry == NULL) {
 		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
 		basetable->gpt_last = MIN(pp->mediasize / pp->sectorsize,
-		    UINT32_MAX) - 1;
+					  UINT32_MAX) -
+		    1;
 		return (0);
 	}
 
@@ -433,10 +432,10 @@ g_part_apm_probe(struct g_part_table *basetable, struct g_consumer *cp)
 			g_free(buf);
 			return (ENXIO);
 		}
-		table->ddr.ddr_sig = APM_DDR_SIG;		/* XXX */
-		table->ddr.ddr_blksize = pp->sectorsize;	/* XXX */
-		table->ddr.ddr_blkcount =
-		    MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
+		table->ddr.ddr_sig = APM_DDR_SIG;	 /* XXX */
+		table->ddr.ddr_blksize = pp->sectorsize; /* XXX */
+		table->ddr.ddr_blkcount = MIN(
+		    pp->mediasize / pp->sectorsize, UINT32_MAX);
 		table->tivo_series1 = 1;
 		g_free(buf);
 	}
@@ -563,8 +562,9 @@ g_part_apm_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 	baseentry = LIST_FIRST(&basetable->gpt_entry);
 	for (index = 1; index < tblsz; index++) {
-		entry = (baseentry != NULL && index == baseentry->gpe_index)
-		    ? (struct g_part_apm_entry *)baseentry : NULL;
+		entry = (baseentry != NULL && index == baseentry->gpe_index) ?
+			  (struct g_part_apm_entry *)baseentry :
+			  NULL;
 		ptr = buf + index * pp->sectorsize;
 		be16enc(ptr, APM_ENT_SIG);
 		be32enc(ptr + 4, table->self.ent_pmblkcnt);
@@ -585,8 +585,9 @@ g_part_apm_write(struct g_part_table *basetable, struct g_consumer *cp)
 	for (index = 0; index < tblsz; index += maxphys / pp->sectorsize) {
 		error = g_write_data(cp, (1 + index) * pp->sectorsize,
 		    buf + index * pp->sectorsize,
-		    (tblsz - index > maxphys / pp->sectorsize) ? maxphys:
-		    (tblsz - index) * pp->sectorsize);
+		    (tblsz - index > maxphys / pp->sectorsize) ?
+			      maxphys :
+			      (tblsz - index) * pp->sectorsize);
 		if (error) {
 			g_free(buf);
 			return (error);

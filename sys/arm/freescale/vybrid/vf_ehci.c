@@ -35,112 +35,107 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
+#include "opt_platform.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/condvar.h>
-#include <sys/rman.h>
 #include <sys/gpio.h>
-
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
-#include <dev/usb/controller/ehci.h>
-#include <dev/usb/controller/ehcireg.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/usb/controller/ehci.h>
+#include <dev/usb/controller/ehcireg.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usbdi.h>
+
 #include "gpio_if.h"
-#include "opt_platform.h"
 
-#define	ENUTMILEVEL3	(1 << 15)
-#define	ENUTMILEVEL2	(1 << 14)
+#define ENUTMILEVEL3 (1 << 15)
+#define ENUTMILEVEL2 (1 << 14)
 
-#define	GPIO_USB_PWR	134
+#define GPIO_USB_PWR 134
 
-#define	USB_ID		0x000	/* Identification register */
-#define	USB_HWGENERAL	0x004	/* Hardware General */
-#define	USB_HWHOST	0x008	/* Host Hardware Parameters */
-#define	USB_HWDEVICE	0x00C	/* Device Hardware Parameters */
-#define	USB_HWTXBUF	0x010	/* TX Buffer Hardware Parameters */
-#define	USB_HWRXBUF	0x014	/* RX Buffer Hardware Parameters */
-#define	USB_HCSPARAMS	0x104	/* Host Controller Structural Parameters */
+#define USB_ID 0x000 /* Identification register */
+#define USB_HWGENERAL 0x004 /* Hardware General */
+#define USB_HWHOST 0x008 /* Host Hardware Parameters */
+#define USB_HWDEVICE 0x00C /* Device Hardware Parameters */
+#define USB_HWTXBUF 0x010 /* TX Buffer Hardware Parameters */
+#define USB_HWRXBUF 0x014 /* RX Buffer Hardware Parameters */
+#define USB_HCSPARAMS 0x104 /* Host Controller Structural Parameters */
 
-#define	USBPHY_PWD		0x00	/* PHY Power-Down Register */
-#define	USBPHY_PWD_SET		0x04	/* PHY Power-Down Register */
-#define	USBPHY_PWD_CLR		0x08	/* PHY Power-Down Register */
-#define	USBPHY_PWD_TOG		0x0C	/* PHY Power-Down Register */
-#define	USBPHY_TX		0x10	/* PHY Transmitter Control Register */
-#define	USBPHY_RX		0x20	/* PHY Receiver Control Register */
-#define	USBPHY_RX_SET		0x24	/* PHY Receiver Control Register */
-#define	USBPHY_RX_CLR		0x28	/* PHY Receiver Control Register */
-#define	USBPHY_RX_TOG		0x2C	/* PHY Receiver Control Register */
-#define	USBPHY_CTRL		0x30	/* PHY General Control Register */
-#define	USBPHY_CTRL_SET		0x34	/* PHY General Control Register */
-#define	USBPHY_CTRL_CLR		0x38	/* PHY General Control Register */
-#define	USBPHY_CTRL_TOG		0x3C	/* PHY General Control Register */
-#define	USBPHY_STATUS		0x40	/* PHY Status Register */
-#define	USBPHY_DEBUG		0x50	/* PHY Debug Register */
-#define	USBPHY_DEBUG_SET	0x54	/* PHY Debug Register */
-#define	USBPHY_DEBUG_CLR	0x58	/* PHY Debug Register */
-#define	USBPHY_DEBUG_TOG	0x5C	/* PHY Debug Register */
-#define	USBPHY_DEBUG0_STATUS	0x60	/* UTMI Debug Status Register 0 */
-#define	USBPHY_DEBUG1		0x70	/* UTMI Debug Status Register 1 */
-#define	USBPHY_DEBUG1_SET	0x74	/* UTMI Debug Status Register 1 */
-#define	USBPHY_DEBUG1_CLR	0x78	/* UTMI Debug Status Register 1 */
-#define	USBPHY_DEBUG1_TOG	0x7C	/* UTMI Debug Status Register 1 */
-#define	USBPHY_VERSION		0x80	/* UTMI RTL Version */
-#define	USBPHY_IP		0x90	/* PHY IP Block Register */
-#define	USBPHY_IP_SET		0x94	/* PHY IP Block Register */
-#define	USBPHY_IP_CLR		0x98	/* PHY IP Block Register */
-#define	USBPHY_IP_TOG		0x9C	/* PHY IP Block Register */
+#define USBPHY_PWD 0x00 /* PHY Power-Down Register */
+#define USBPHY_PWD_SET 0x04 /* PHY Power-Down Register */
+#define USBPHY_PWD_CLR 0x08 /* PHY Power-Down Register */
+#define USBPHY_PWD_TOG 0x0C /* PHY Power-Down Register */
+#define USBPHY_TX 0x10 /* PHY Transmitter Control Register */
+#define USBPHY_RX 0x20 /* PHY Receiver Control Register */
+#define USBPHY_RX_SET 0x24 /* PHY Receiver Control Register */
+#define USBPHY_RX_CLR 0x28 /* PHY Receiver Control Register */
+#define USBPHY_RX_TOG 0x2C /* PHY Receiver Control Register */
+#define USBPHY_CTRL 0x30 /* PHY General Control Register */
+#define USBPHY_CTRL_SET 0x34 /* PHY General Control Register */
+#define USBPHY_CTRL_CLR 0x38 /* PHY General Control Register */
+#define USBPHY_CTRL_TOG 0x3C /* PHY General Control Register */
+#define USBPHY_STATUS 0x40 /* PHY Status Register */
+#define USBPHY_DEBUG 0x50 /* PHY Debug Register */
+#define USBPHY_DEBUG_SET 0x54 /* PHY Debug Register */
+#define USBPHY_DEBUG_CLR 0x58 /* PHY Debug Register */
+#define USBPHY_DEBUG_TOG 0x5C /* PHY Debug Register */
+#define USBPHY_DEBUG0_STATUS 0x60 /* UTMI Debug Status Register 0 */
+#define USBPHY_DEBUG1 0x70 /* UTMI Debug Status Register 1 */
+#define USBPHY_DEBUG1_SET 0x74 /* UTMI Debug Status Register 1 */
+#define USBPHY_DEBUG1_CLR 0x78 /* UTMI Debug Status Register 1 */
+#define USBPHY_DEBUG1_TOG 0x7C /* UTMI Debug Status Register 1 */
+#define USBPHY_VERSION 0x80 /* UTMI RTL Version */
+#define USBPHY_IP 0x90 /* PHY IP Block Register */
+#define USBPHY_IP_SET 0x94 /* PHY IP Block Register */
+#define USBPHY_IP_CLR 0x98 /* PHY IP Block Register */
+#define USBPHY_IP_TOG 0x9C /* PHY IP Block Register */
 
-#define	USBPHY_CTRL_SFTRST	(1U << 31)
-#define	USBPHY_CTRL_CLKGATE	(1 << 30)
-#define	USBPHY_DEBUG_CLKGATE	(1 << 30)
+#define USBPHY_CTRL_SFTRST (1U << 31)
+#define USBPHY_CTRL_CLKGATE (1 << 30)
+#define USBPHY_DEBUG_CLKGATE (1 << 30)
 
-#define	PHY_READ4(_sc, _reg)		\
-	bus_space_read_4(_sc->bst_phy, _sc->bsh_phy, _reg)
-#define	PHY_WRITE4(_sc, _reg, _val)	\
+#define PHY_READ4(_sc, _reg) bus_space_read_4(_sc->bst_phy, _sc->bsh_phy, _reg)
+#define PHY_WRITE4(_sc, _reg, _val) \
 	bus_space_write_4(_sc->bst_phy, _sc->bsh_phy, _reg, _val)
 
-#define	USBC_READ4(_sc, _reg)		\
+#define USBC_READ4(_sc, _reg) \
 	bus_space_read_4(_sc->bst_usbc, _sc->bsh_usbc, _reg)
-#define	USBC_WRITE4(_sc, _reg, _val)	\
+#define USBC_WRITE4(_sc, _reg, _val) \
 	bus_space_write_4(_sc->bst_usbc, _sc->bsh_usbc, _reg, _val)
 
 /* Forward declarations */
-static int	vybrid_ehci_attach(device_t dev);
-static int	vybrid_ehci_detach(device_t dev);
-static int	vybrid_ehci_probe(device_t dev);
+static int vybrid_ehci_attach(device_t dev);
+static int vybrid_ehci_detach(device_t dev);
+static int vybrid_ehci_probe(device_t dev);
 
 struct vybrid_ehci_softc {
-	ehci_softc_t		base;
-	device_t		dev;
-	struct resource		*res[6];
-	bus_space_tag_t		bst_phy;
-	bus_space_handle_t      bsh_phy;
-	bus_space_tag_t		bst_usbc;
-	bus_space_handle_t      bsh_usbc;
+	ehci_softc_t base;
+	device_t dev;
+	struct resource *res[6];
+	bus_space_tag_t bst_phy;
+	bus_space_handle_t bsh_phy;
+	bus_space_tag_t bst_usbc;
+	bus_space_handle_t bsh_usbc;
 };
 
-static struct resource_spec vybrid_ehci_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	2,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec vybrid_ehci_spec[] = { { SYS_RES_MEMORY, 0,
+						       RF_ACTIVE },
+	{ SYS_RES_MEMORY, 1, RF_ACTIVE }, { SYS_RES_MEMORY, 2, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
 static device_method_t ehci_methods[] = {
 	/* Device interface */
@@ -152,16 +147,11 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	{ 0, 0 }
+	DEVMETHOD(bus_print_child, bus_generic_print_child), { 0, 0 }
 };
 
 /* kobj_class definition */
-static driver_t ehci_driver = {
-	"ehci",
-	ehci_methods,
-	sizeof(ehci_softc_t)
-};
+static driver_t ehci_driver = { "ehci", ehci_methods, sizeof(ehci_softc_t) };
 
 static devclass_t ehci_devclass;
 
@@ -289,8 +279,8 @@ vybrid_ehci_attach(device_t dev)
 	esc->bsh_phy = rman_get_bushandle(esc->res[2]);
 
 	/* get all DMA memory */
-	if (usb_bus_mem_alloc_all(&sc->sc_bus, USB_GET_DMA_TAG(dev),
-		&ehci_iterate_hw_softc))
+	if (usb_bus_mem_alloc_all(
+		&sc->sc_bus, USB_GET_DMA_TAG(dev), &ehci_iterate_hw_softc))
 		return (ENXIO);
 
 #if 0
@@ -319,18 +309,19 @@ vybrid_ehci_attach(device_t dev)
 	 * Set handle to USB related registers subregion used by
 	 * generic EHCI driver.
 	 */
-	err = bus_space_subregion(sc->sc_io_tag, bsh, 0x100,
-	    sc->sc_io_size, &sc->sc_io_hdl);
+	err = bus_space_subregion(
+	    sc->sc_io_tag, bsh, 0x100, sc->sc_io_size, &sc->sc_io_hdl);
 	if (err != 0)
 		return (ENXIO);
 
 	/* Setup interrupt handler */
 	err = bus_setup_intr(dev, esc->res[3], INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)ehci_interrupt, sc,
-	    &sc->sc_intr_hdl);
+	    NULL, (driver_intr_t *)ehci_interrupt, sc, &sc->sc_intr_hdl);
 	if (err) {
-		device_printf(dev, "Could not setup irq, "
-		    "%d\n", err);
+		device_printf(dev,
+		    "Could not setup irq, "
+		    "%d\n",
+		    err);
 		return (1);
 	}
 
@@ -338,11 +329,12 @@ vybrid_ehci_attach(device_t dev)
 	sc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
 	if (!sc->sc_bus.bdev) {
 		device_printf(dev, "Could not add USB device\n");
-		err = bus_teardown_intr(dev, esc->res[5],
-		    sc->sc_intr_hdl);
+		err = bus_teardown_intr(dev, esc->res[5], sc->sc_intr_hdl);
 		if (err)
-			device_printf(dev, "Could not tear down irq,"
-			    " %d\n", err);
+			device_printf(dev,
+			    "Could not tear down irq,"
+			    " %d\n",
+			    err);
 		return (1);
 	}
 	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
@@ -369,11 +361,12 @@ vybrid_ehci_attach(device_t dev)
 		device_delete_child(dev, sc->sc_bus.bdev);
 		sc->sc_bus.bdev = NULL;
 
-		err = bus_teardown_intr(dev, esc->res[5],
-		    sc->sc_intr_hdl);
+		err = bus_teardown_intr(dev, esc->res[5], sc->sc_intr_hdl);
 		if (err)
-			device_printf(dev, "Could not tear down irq,"
-			    " %d\n", err);
+			device_printf(dev,
+			    "Could not tear down irq,"
+			    " %d\n",
+			    err);
 		return (1);
 	}
 	return (0);
@@ -406,15 +399,16 @@ vybrid_ehci_detach(device_t dev)
 	 * ehci_init.
 	 */
 	if (sc->sc_io_tag && sc->sc_io_hdl)
-		bus_space_write_4(sc->sc_io_tag, sc->sc_io_hdl,
-		    EHCI_USBINTR, 0);
+		bus_space_write_4(
+		    sc->sc_io_tag, sc->sc_io_hdl, EHCI_USBINTR, 0);
 
 	if (esc->res[5] && sc->sc_intr_hdl) {
-		err = bus_teardown_intr(dev, esc->res[5],
-		    sc->sc_intr_hdl);
+		err = bus_teardown_intr(dev, esc->res[5], sc->sc_intr_hdl);
 		if (err) {
-			device_printf(dev, "Could not tear down irq,"
-			    " %d\n", err);
+			device_printf(dev,
+			    "Could not tear down irq,"
+			    " %d\n",
+			    err);
 			return (err);
 		}
 		sc->sc_intr_hdl = NULL;

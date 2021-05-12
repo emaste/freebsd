@@ -36,15 +36,15 @@
  */
 
 #ifndef _MACHINE_ASM_H_
-#define	_MACHINE_ASM_H_
+#define _MACHINE_ASM_H_
 
 #include <sys/cdefs.h>
 
 #ifdef PIC
-#define	PIC_PLT(x)	x@PLT
-#define	PIC_GOT(x)	x@GOTPCREL(%rip)
+#define PIC_PLT(x) x @PLT
+#define PIC_GOT(x) x @GOTPCREL(% rip)
 #else
-#define	PIC_PLT(x)	x
+#define PIC_PLT(x) x
 #endif
 
 /*
@@ -54,59 +54,71 @@
  * language name.  HIDENAME is given an assembly-language name, and expands
  * to a possibly-modified form that will be invisible to C programs.
  */
-#define CNAME(csym)		csym
-#define HIDENAME(asmsym)	.asmsym
+#define CNAME(csym) csym
+#define HIDENAME(asmsym) .asmsym
 
-#define _START_ENTRY	.text; .p2align 4,0x90
+#define _START_ENTRY \
+	.text;       \
+	.p2align 4, 0x90
 
-#define _ENTRY(x)	_START_ENTRY; \
-			.globl CNAME(x); .type CNAME(x),@function; CNAME(x):; \
-			.cfi_startproc
+#define _ENTRY(x)                  \
+	_START_ENTRY;              \
+	.globl CNAME(x);           \
+	.type CNAME(x), @function; \
+	CNAME(x)                   \
+	    :;                     \
+	.cfi_startproc
 
 #ifdef PROF
-#define	ALTENTRY(x)	_ENTRY(x); \
-			pushq %rbp; \
-			.cfi_def_cfa_offset 16; \
-			.cfi_offset %rbp, -16; \
-			movq %rsp,%rbp; \
-			call PIC_PLT(HIDENAME(mcount)); \
-			popq %rbp; \
-			.cfi_restore %rbp; \
-			.cfi_def_cfa_offset 8; \
-			jmp 9f
-#define	ENTRY(x)	_ENTRY(x); \
-			pushq %rbp; \
-			.cfi_def_cfa_offset 16; \
-			.cfi_offset %rbp, -16; \
-			movq %rsp,%rbp; \
-			call PIC_PLT(HIDENAME(mcount)); \
-			popq %rbp; \
-			.cfi_restore %rbp; \
-			.cfi_def_cfa_offset 8; \
-			9:
+#define ALTENTRY(x)                     \
+	_ENTRY(x);                      \
+	pushq % rbp;                    \
+	.cfi_def_cfa_offset 16;         \
+	.cfi_offset % rbp, -16;         \
+	movq % rsp, % rbp;              \
+	call PIC_PLT(HIDENAME(mcount)); \
+	popq % rbp;                     \
+	.cfi_restore % rbp;             \
+	.cfi_def_cfa_offset 8;          \
+	jmp 9f
+#define ENTRY(x)                        \
+	_ENTRY(x);                      \
+	pushq % rbp;                    \
+	.cfi_def_cfa_offset 16;         \
+	.cfi_offset % rbp, -16;         \
+	movq % rsp, % rbp;              \
+	call PIC_PLT(HIDENAME(mcount)); \
+	popq % rbp;                     \
+	.cfi_restore % rbp;             \
+	.cfi_def_cfa_offset 8;          \
+	9:
 #else
-#define	ALTENTRY(x)	_ENTRY(x)
-#define	ENTRY(x)	_ENTRY(x)
+#define ALTENTRY(x) _ENTRY(x)
+#define ENTRY(x) _ENTRY(x)
 #endif
 
-#define	END(x)		.size x, . - x; .cfi_endproc
+#define END(x)         \
+	.size x, .- x; \
+	.cfi_endproc
 /*
- * WEAK_REFERENCE(): create a weak reference alias from sym. 
+ * WEAK_REFERENCE(): create a weak reference alias from sym.
  * The macro is not a general asm macro that takes arbitrary names,
  * but one that takes only C names. It does the non-null name
  * translation inside the macro.
  */
-#define	WEAK_REFERENCE(sym, alias)					\
-	.weak CNAME(alias);						\
-	.equ CNAME(alias),CNAME(sym)
+#define WEAK_REFERENCE(sym, alias) \
+	.weak CNAME(alias);        \
+	.equ CNAME(alias), CNAME(sym)
 
-#define RCSID(x)	.text; .asciz x
+#define RCSID(x) \
+	.text;   \
+	.asciz x
 
 #undef __FBSDID
 #if !defined(STRIP_FBSDID)
-#define __FBSDID(s)	.ident s
+#define __FBSDID(s) .ident s
 #else
-#define __FBSDID(s)	/* nothing */
-#endif /* !STRIP_FBSDID */
+#define __FBSDID(s) /* nothing */
+#endif		    /* !STRIP_FBSDID */
 
 #endif /* !_MACHINE_ASM_H_ */

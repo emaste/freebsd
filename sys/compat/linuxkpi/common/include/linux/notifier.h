@@ -28,13 +28,13 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_NOTIFIER_H_
-#define	_LINUX_NOTIFIER_H_
+#ifndef _LINUX_NOTIFIER_H_
+#define _LINUX_NOTIFIER_H_
 
 #include <sys/types.h>
 #include <sys/eventhandler.h>
 
-#define	NOTIFY_DONE	0
+#define NOTIFY_DONE 0
 
 enum {
 	NETDEV_CHANGE,
@@ -44,14 +44,14 @@ enum {
 	NETDEV_UNREGISTER,
 	NETDEV_CHANGEADDR,
 	NETDEV_CHANGEIFADDR,
-	LINUX_NOTIFY_TAGS		/* must be last */
+	LINUX_NOTIFY_TAGS /* must be last */
 };
 
 struct notifier_block {
-	int     (*notifier_call) (struct notifier_block *, unsigned long, void *);
+	int (*notifier_call)(struct notifier_block *, unsigned long, void *);
 	struct notifier_block *next;
-	int	priority;
+	int priority;
 	eventhandler_tag tags[LINUX_NOTIFY_TAGS];
 };
 
-#endif					/* _LINUX_NOTIFIER_H_ */
+#endif /* _LINUX_NOTIFIER_H_ */

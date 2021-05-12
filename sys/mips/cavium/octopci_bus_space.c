@@ -72,26 +72,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/ktr.h>
 #include <sys/endian.h>
+#include <sys/kernel.h>
+#include <sys/ktr.h>
+#include <sys/malloc.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 
 #include <machine/bus.h>
 #include <machine/cache.h>
 
-#include <mips/cavium/octopcivar.h>
-
 #include <contrib/octeon-sdk/cvmx.h>
+#include <mips/cavium/octopcivar.h>
 
 static struct bus_space octopci_space = {
 	/* cookie */
-	(void *) 0,
+	(void *)0,
 
 	/* mapping/unmapping */
 	octopci_bs_map,
@@ -196,20 +195,19 @@ static struct bus_space octopci_space = {
 	NULL,
 };
 
-#define rd8(a)		cvmx_read64_uint8(a)
-#define rd16(a)		le16toh(cvmx_read64_uint16(a))
-#define rd32(a)		le32toh(cvmx_read64_uint32(a))
-#define wr8(a, v)	cvmx_write64_uint8(a, v)
-#define wr16(a, v)	cvmx_write64_uint16(a, htole16(v))
-#define wr32(a, v)	cvmx_write64_uint32(a, htole32(v))
+#define rd8(a) cvmx_read64_uint8(a)
+#define rd16(a) le16toh(cvmx_read64_uint16(a))
+#define rd32(a) le32toh(cvmx_read64_uint32(a))
+#define wr8(a, v) cvmx_write64_uint8(a, v)
+#define wr16(a, v) cvmx_write64_uint16(a, htole16(v))
+#define wr32(a, v) cvmx_write64_uint32(a, htole32(v))
 
 /* octopci bus_space tag */
 bus_space_tag_t octopci_bus_space = &octopci_space;
 
 int
-octopci_bs_map(void *t __unused, bus_addr_t addr,
-	      bus_size_t size __unused, int flags __unused,
-	      bus_space_handle_t *bshp)
+octopci_bs_map(void *t __unused, bus_addr_t addr, bus_size_t size __unused,
+    int flags __unused, bus_space_handle_t *bshp)
 {
 
 	*bshp = addr;
@@ -217,8 +215,8 @@ octopci_bs_map(void *t __unused, bus_addr_t addr,
 }
 
 void
-octopci_bs_unmap(void *t __unused, bus_space_handle_t bh __unused,
-	      bus_size_t size __unused)
+octopci_bs_unmap(
+    void *t __unused, bus_space_handle_t bh __unused, bus_size_t size __unused)
 {
 
 	/* Do nothing */
@@ -226,8 +224,7 @@ octopci_bs_unmap(void *t __unused, bus_space_handle_t bh __unused,
 
 int
 octopci_bs_subregion(void *t __unused, bus_space_handle_t handle,
-	      bus_size_t offset, bus_size_t size __unused,
-	      bus_space_handle_t *bshp)
+    bus_size_t offset, bus_size_t size __unused, bus_space_handle_t *bshp)
 {
 
 	*bshp = handle + offset;
@@ -235,32 +232,29 @@ octopci_bs_subregion(void *t __unused, bus_space_handle_t handle,
 }
 
 uint8_t
-octopci_bs_r_1(void *t, bus_space_handle_t handle,
-    bus_size_t offset)
+octopci_bs_r_1(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
 	return (rd8(handle + offset));
 }
 
 uint16_t
-octopci_bs_r_2(void *t, bus_space_handle_t handle,
-    bus_size_t offset)
+octopci_bs_r_2(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
 	return (rd16(handle + offset));
 }
 
 uint32_t
-octopci_bs_r_4(void *t, bus_space_handle_t handle,
-    bus_size_t offset)
+octopci_bs_r_4(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
 	return (rd32(handle + offset));
 }
 
 void
-octopci_bs_rm_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint8_t *addr, size_t count)
+octopci_bs_rm_1(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint8_t *addr, size_t count)
 {
 
 	while (count--)
@@ -268,8 +262,8 @@ octopci_bs_rm_1(void *t, bus_space_handle_t bsh,
 }
 
 void
-octopci_bs_rm_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint16_t *addr, size_t count)
+octopci_bs_rm_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint16_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -278,8 +272,8 @@ octopci_bs_rm_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-octopci_bs_rm_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t *addr, size_t count)
+octopci_bs_rm_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint32_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -293,8 +287,8 @@ octopci_bs_rm_4(void *t, bus_space_handle_t bsh,
  * buffer provided.
  */
 void
-octopci_bs_rr_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint8_t *addr, size_t count)
+octopci_bs_rr_1(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint8_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -305,8 +299,8 @@ octopci_bs_rr_1(void *t, bus_space_handle_t bsh,
 }
 
 void
-octopci_bs_rr_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint16_t *addr, size_t count)
+octopci_bs_rr_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint16_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -317,8 +311,8 @@ octopci_bs_rr_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-octopci_bs_rr_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t *addr, size_t count)
+octopci_bs_rr_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint32_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -333,24 +327,24 @@ octopci_bs_rr_4(void *t, bus_space_handle_t bsh,
  * described by tag/handle/offset.
  */
 void
-octopci_bs_w_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint8_t value)
+octopci_bs_w_1(
+    void *t, bus_space_handle_t bsh, bus_size_t offset, uint8_t value)
 {
 
 	wr8(bsh + offset, value);
 }
 
 void
-octopci_bs_w_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint16_t value)
+octopci_bs_w_2(
+    void *t, bus_space_handle_t bsh, bus_size_t offset, uint16_t value)
 {
 
 	wr16(bsh + offset, value);
 }
 
 void
-octopci_bs_w_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t value)
+octopci_bs_w_4(
+    void *t, bus_space_handle_t bsh, bus_size_t offset, uint32_t value)
 {
 
 	wr32(bsh + offset, value);
@@ -361,8 +355,8 @@ octopci_bs_w_4(void *t, bus_space_handle_t bsh,
  * provided to bus space described by tag/handle/offset.
  */
 void
-octopci_bs_wm_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint8_t *addr, size_t count)
+octopci_bs_wm_1(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint8_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -371,8 +365,8 @@ octopci_bs_wm_1(void *t, bus_space_handle_t bsh,
 }
 
 void
-octopci_bs_wm_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint16_t *addr, size_t count)
+octopci_bs_wm_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint16_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -381,8 +375,8 @@ octopci_bs_wm_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-octopci_bs_wm_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint32_t *addr, size_t count)
+octopci_bs_wm_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint32_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -395,8 +389,8 @@ octopci_bs_wm_4(void *t, bus_space_handle_t bsh,
  * to bus space described by tag/handle starting at `offset'.
  */
 void
-octopci_bs_wr_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint8_t *addr, size_t count)
+octopci_bs_wr_1(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint8_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -407,8 +401,8 @@ octopci_bs_wr_1(void *t, bus_space_handle_t bsh,
 }
 
 void
-octopci_bs_wr_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint16_t *addr, size_t count)
+octopci_bs_wr_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint16_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -419,8 +413,8 @@ octopci_bs_wr_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-octopci_bs_wr_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint32_t *addr, size_t count)
+octopci_bs_wr_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint32_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -435,8 +429,8 @@ octopci_bs_wr_4(void *t, bus_space_handle_t bsh,
  * by tag/handle/offset `count' times.
  */
 void
-octopci_bs_sm_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint8_t value, size_t count)
+octopci_bs_sm_1(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint8_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -445,8 +439,8 @@ octopci_bs_sm_1(void *t, bus_space_handle_t bsh,
 }
 
 void
-octopci_bs_sm_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint16_t value, size_t count)
+octopci_bs_sm_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint16_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -455,8 +449,8 @@ octopci_bs_sm_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-octopci_bs_sm_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t value, size_t count)
+octopci_bs_sm_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint32_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -469,8 +463,8 @@ octopci_bs_sm_4(void *t, bus_space_handle_t bsh,
  * by tag/handle starting at `offset'.
  */
 void
-octopci_bs_sr_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint8_t value, size_t count)
+octopci_bs_sr_1(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint8_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -479,8 +473,8 @@ octopci_bs_sr_1(void *t, bus_space_handle_t bsh,
 }
 
 void
-octopci_bs_sr_2(void *t, bus_space_handle_t bsh,
-		       bus_size_t offset, uint16_t value, size_t count)
+octopci_bs_sr_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint16_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -489,8 +483,8 @@ octopci_bs_sr_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-octopci_bs_sr_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t value, size_t count)
+octopci_bs_sr_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint32_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -503,9 +497,8 @@ octopci_bs_sr_4(void *t, bus_space_handle_t bsh,
  * at tag/bsh1/off1 to bus space starting at tag/bsh2/off2.
  */
 void
-octopci_bs_c_1(void *t, bus_space_handle_t bsh1,
-    bus_size_t off1, bus_space_handle_t bsh2,
-    bus_size_t off2, size_t count)
+octopci_bs_c_1(void *t, bus_space_handle_t bsh1, bus_size_t off1,
+    bus_space_handle_t bsh2, bus_size_t off2, size_t count)
 {
 	bus_addr_t addr1 = bsh1 + off1;
 	bus_addr_t addr2 = bsh2 + off2;
@@ -516,16 +509,15 @@ octopci_bs_c_1(void *t, bus_space_handle_t bsh1,
 			wr8(addr2, rd8(addr1));
 	} else {
 		/* dest after src: copy backwards */
-		for (addr1 += (count - 1), addr2 += (count - 1);
-		    count != 0; count--, addr1--, addr2--)
+		for (addr1 += (count - 1), addr2 += (count - 1); count != 0;
+		     count--, addr1--, addr2--)
 			wr8(addr2, rd8(addr1));
 	}
 }
 
 void
-octopci_bs_c_2(void *t, bus_space_handle_t bsh1,
-    bus_size_t off1, bus_space_handle_t bsh2,
-    bus_size_t off2, size_t count)
+octopci_bs_c_2(void *t, bus_space_handle_t bsh1, bus_size_t off1,
+    bus_space_handle_t bsh2, bus_size_t off2, size_t count)
 {
 	bus_addr_t addr1 = bsh1 + off1;
 	bus_addr_t addr2 = bsh2 + off2;
@@ -537,15 +529,14 @@ octopci_bs_c_2(void *t, bus_space_handle_t bsh1,
 	} else {
 		/* dest after src: copy backwards */
 		for (addr1 += 2 * (count - 1), addr2 += 2 * (count - 1);
-		    count != 0; count--, addr1 -= 2, addr2 -= 2)
+		     count != 0; count--, addr1 -= 2, addr2 -= 2)
 			wr16(addr2, rd16(addr1));
 	}
 }
 
 void
-octopci_bs_c_4(void *t, bus_space_handle_t bsh1,
-    bus_size_t off1, bus_space_handle_t bsh2,
-    bus_size_t off2, size_t count)
+octopci_bs_c_4(void *t, bus_space_handle_t bsh1, bus_size_t off1,
+    bus_space_handle_t bsh2, bus_size_t off2, size_t count)
 {
 	bus_addr_t addr1 = bsh1 + off1;
 	bus_addr_t addr2 = bsh2 + off2;
@@ -557,16 +548,14 @@ octopci_bs_c_4(void *t, bus_space_handle_t bsh1,
 	} else {
 		/* dest after src: copy backwards */
 		for (addr1 += 4 * (count - 1), addr2 += 4 * (count - 1);
-		    count != 0; count--, addr1 -= 4, addr2 -= 4)
+		     count != 0; count--, addr1 -= 4, addr2 -= 4)
 			wr32(addr2, rd32(addr1));
 	}
 }
 
 void
-octopci_bs_barrier(void *t __unused, 
-		bus_space_handle_t bsh __unused,
-		bus_size_t offset __unused, bus_size_t len __unused, 
-		int flags)
+octopci_bs_barrier(void *t __unused, bus_space_handle_t bsh __unused,
+    bus_size_t offset __unused, bus_size_t len __unused, int flags)
 {
 #if 0
 	if (flags & BUS_SPACE_BARRIER_WRITE)

@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -47,44 +47,43 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/errno.h>
 
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_UI.h>
+#include <netgraph/ng_message.h>
 
 /*
  * DEFINITIONS
  */
 
 /* Everything, starting with sdlc on has defined UI as 0x03 */
-#define HDLC_UI	0x03
+#define HDLC_UI 0x03
 
 /* Node private data */
 struct ng_UI_private {
-	hook_p  downlink;
-	hook_p  uplink;
+	hook_p downlink;
+	hook_p uplink;
 };
 typedef struct ng_UI_private *priv_p;
 
 /* Netgraph node methods */
-static ng_constructor_t	ng_UI_constructor;
-static ng_rcvmsg_t	ng_UI_rcvmsg;
-static ng_shutdown_t	ng_UI_shutdown;
-static ng_newhook_t	ng_UI_newhook;
-static ng_rcvdata_t	ng_UI_rcvdata;
-static ng_disconnect_t	ng_UI_disconnect;
+static ng_constructor_t ng_UI_constructor;
+static ng_rcvmsg_t ng_UI_rcvmsg;
+static ng_shutdown_t ng_UI_shutdown;
+static ng_newhook_t ng_UI_newhook;
+static ng_rcvdata_t ng_UI_rcvdata;
+static ng_disconnect_t ng_UI_disconnect;
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_UI_NODE_TYPE,
-	.constructor =	ng_UI_constructor,
-	.rcvmsg =	ng_UI_rcvmsg,
-	.shutdown =	ng_UI_shutdown,
-	.newhook =	ng_UI_newhook,
-	.rcvdata =	ng_UI_rcvdata,
-	.disconnect =	ng_UI_disconnect,
+	.version = NG_ABI_VERSION,
+	.name = NG_UI_NODE_TYPE,
+	.constructor = ng_UI_constructor,
+	.rcvmsg = ng_UI_rcvmsg,
+	.shutdown = ng_UI_shutdown,
+	.newhook = ng_UI_newhook,
+	.rcvdata = ng_UI_rcvdata,
+	.disconnect = ng_UI_disconnect,
 };
 NETGRAPH_INIT(UI, &typestruct);
 
@@ -99,7 +98,7 @@ NETGRAPH_INIT(UI, &typestruct);
 static int
 ng_UI_constructor(node_p node)
 {
-	priv_p  priv;
+	priv_p priv;
 
 	/* Allocate private structure */
 	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
@@ -134,12 +133,12 @@ ng_UI_newhook(node_p node, hook_p hook, const char *name)
 static int
 ng_UI_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	int	error;
+	int error;
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *msg;
 
 	msg = NGI_MSG(item); /* only peeking */
-	if ((msg->header.typecookie == NGM_FLOW_COOKIE) && lasthook)  {
+	if ((msg->header.typecookie == NGM_FLOW_COOKIE) && lasthook) {
 		if (lasthook == priv->downlink) {
 			if (priv->uplink) {
 				NG_FWD_ITEM_HOOK(error, item, priv->uplink);
@@ -152,13 +151,17 @@ ng_UI_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 		}
 	}
-		
+
 	NG_FREE_ITEM(item);
 	return (EINVAL);
 }
 
-#define MAX_ENCAPS_HDR	1
-#define ERROUT(x)	do { error = (x); goto done; } while (0)
+#define MAX_ENCAPS_HDR 1
+#define ERROUT(x)            \
+	do {                 \
+		error = (x); \
+		goto done;   \
+	} while (0)
 
 /*
  * Receive a data frame
@@ -175,8 +178,8 @@ ng_UI_rcvdata(hook_p hook, item_p item)
 	if (hook == priv->downlink) {
 		u_char *start, *ptr;
 
-		if (m->m_len < MAX_ENCAPS_HDR
-		    && !(m = m_pullup(m, MAX_ENCAPS_HDR)))
+		if (m->m_len < MAX_ENCAPS_HDR &&
+		    !(m = m_pullup(m, MAX_ENCAPS_HDR)))
 			ERROUT(ENOBUFS);
 		ptr = start = mtod(m, u_char *);
 
@@ -185,18 +188,18 @@ ng_UI_rcvdata(hook_p hook, item_p item)
 			ERROUT(0);
 
 		m_adj(m, ptr - start);
-		NG_FWD_NEW_DATA(error, item, priv->uplink, m);	/* m -> NULL */
+		NG_FWD_NEW_DATA(error, item, priv->uplink, m); /* m -> NULL */
 	} else if (hook == priv->uplink) {
-		M_PREPEND(m, 1, M_NOWAIT);	/* Prepend IP NLPID */
+		M_PREPEND(m, 1, M_NOWAIT); /* Prepend IP NLPID */
 		if (!m)
 			ERROUT(ENOBUFS);
 		mtod(m, u_char *)[0] = HDLC_UI;
-		NG_FWD_NEW_DATA(error, item, priv->downlink, m);	/* m -> NULL */
+		NG_FWD_NEW_DATA(error, item, priv->downlink, m); /* m -> NULL */
 	} else
 		panic("%s", __func__);
 
 done:
-	NG_FREE_M(m);	/* does nothing if m == NULL */
+	NG_FREE_M(m); /* does nothing if m == NULL */
 	if (item)
 		NG_FREE_ITEM(item);
 	return (error);
@@ -235,9 +238,9 @@ ng_UI_disconnect(hook_p hook)
 	 * If we are not already shutting down,
 	 * and we have no more hooks, then DO shut down.
 	 */
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
-			ng_rmnode_self(NG_HOOK_NODE(hook));
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
+	    (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	}
 	return (0);
 }

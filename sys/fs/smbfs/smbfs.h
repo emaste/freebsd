@@ -30,32 +30,32 @@
 #ifndef _SMBFS_SMBFS_H_
 #define _SMBFS_SMBFS_H_
 
-#define SMBFS_VERMAJ	1
-#define SMBFS_VERMIN	1012
-#define SMBFS_VERSION	(SMBFS_VERMAJ*100000 + SMBFS_VERMIN)
-#define	SMBFS_VFSNAME	"smbfs"
+#define SMBFS_VERMAJ 1
+#define SMBFS_VERMIN 1012
+#define SMBFS_VERSION (SMBFS_VERMAJ * 100000 + SMBFS_VERMIN)
+#define SMBFS_VFSNAME "smbfs"
 
 /* Values for flags */
-#define SMBFS_MOUNT_SOFT	0x0001
-#define SMBFS_MOUNT_INTR	0x0002
-#define SMBFS_MOUNT_STRONG	0x0004
-#define	SMBFS_MOUNT_HAVE_NLS	0x0008
-#define	SMBFS_MOUNT_NO_LONG	0x0010
+#define SMBFS_MOUNT_SOFT 0x0001
+#define SMBFS_MOUNT_INTR 0x0002
+#define SMBFS_MOUNT_STRONG 0x0004
+#define SMBFS_MOUNT_HAVE_NLS 0x0008
+#define SMBFS_MOUNT_NO_LONG 0x0010
 
-#define	SMBFS_MAXPATHCOMP	256	/* maximum number of path components */
+#define SMBFS_MAXPATHCOMP 256 /* maximum number of path components */
 
 /* Layout of the mount control block for an smb file system. */
 struct smbfs_args {
-	int		version;
-	int		dev;
-	u_int		flags;
-	char		mount_point[MAXPATHLEN];
-	u_char		root_path[512+1];
-	uid_t		uid;
-	gid_t 		gid;
-	mode_t 		file_mode;
-	mode_t 		dir_mode;
-	int		caseopt;
+	int version;
+	int dev;
+	u_int flags;
+	char mount_point[MAXPATHLEN];
+	u_char root_path[512 + 1];
+	uid_t uid;
+	gid_t gid;
+	mode_t file_mode;
+	mode_t dir_mode;
+	int caseopt;
 };
 
 #ifdef _KERNEL
@@ -70,30 +70,31 @@ struct buf;
 
 struct smbmount {
 	/* struct smbfs_args	sm_args; */
-	uid_t			sm_uid;
-	gid_t 			sm_gid;
-	mode_t 			sm_file_mode;
-	mode_t 			sm_dir_mode;
-	struct mount * 		sm_mp;
-	struct smbnode *	sm_root;
-	struct smb_dev *	sm_dev;
-	struct ucred *		sm_owner;
-	uint64_t		sm_flags;
-	long			sm_nextino;
-	struct smb_share * 	sm_share;
-	struct smbnode *	sm_npstack[SMBFS_MAXPATHCOMP];
-	int			sm_caseopt;
-	int			sm_didrele;
+	uid_t sm_uid;
+	gid_t sm_gid;
+	mode_t sm_file_mode;
+	mode_t sm_dir_mode;
+	struct mount *sm_mp;
+	struct smbnode *sm_root;
+	struct smb_dev *sm_dev;
+	struct ucred *sm_owner;
+	uint64_t sm_flags;
+	long sm_nextino;
+	struct smb_share *sm_share;
+	struct smbnode *sm_npstack[SMBFS_MAXPATHCOMP];
+	int sm_caseopt;
+	int sm_didrele;
 };
 
-#define VFSTOSMBFS(mp)		((struct smbmount *)((mp)->mnt_data))
-#define SMBFSTOVFS(smp)		((struct mount *)((smp)->sm_mp))
-#define VTOVFS(vp)		((vp)->v_mount)
-#define	VTOSMBFS(vp)		(VFSTOSMBFS(VTOVFS(vp)))
+#define VFSTOSMBFS(mp) ((struct smbmount *)((mp)->mnt_data))
+#define SMBFSTOVFS(smp) ((struct mount *)((smp)->sm_mp))
+#define VTOVFS(vp) ((vp)->v_mount)
+#define VTOSMBFS(vp) (VFSTOSMBFS(VTOVFS(vp)))
 
 int smbfs_ioctl(struct vop_ioctl_args *ap);
-int smbfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td);
+int smbfs_doio(
+    struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td);
 int smbfs_vinvalbuf(struct vnode *vp, struct thread *td);
-#endif	/* KERNEL */
+#endif /* KERNEL */
 
 #endif /* _SMBFS_SMBFS_H_ */

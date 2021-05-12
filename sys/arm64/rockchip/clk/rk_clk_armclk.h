@@ -33,31 +33,31 @@
 #include <dev/extres/clk/clk.h>
 
 struct rk_clk_armclk_rates {
-	uint64_t	freq;
-	uint32_t	div;
+	uint64_t freq;
+	uint32_t div;
 };
 
 struct rk_clk_armclk_def {
-	struct clknode_init_def	clkdef;
+	struct clknode_init_def clkdef;
 
-	uint32_t	muxdiv_offset;
+	uint32_t muxdiv_offset;
 
-	uint32_t	mux_shift;
-	uint32_t	mux_width;
+	uint32_t mux_shift;
+	uint32_t mux_width;
 
-	uint32_t	div_shift;
-	uint32_t	div_width;
+	uint32_t div_shift;
+	uint32_t div_width;
 
-	uint32_t	flags;
+	uint32_t flags;
 
-	uint32_t	main_parent;
-	uint32_t	alt_parent;
+	uint32_t main_parent;
+	uint32_t alt_parent;
 
-	struct rk_clk_armclk_rates	*rates;
-	int				nrates;
+	struct rk_clk_armclk_rates *rates;
+	int nrates;
 };
 
-int rk_clk_armclk_register(struct clkdom *clkdom,
-    struct rk_clk_armclk_def *clkdef);
+int rk_clk_armclk_register(
+    struct clkdom *clkdom, struct rk_clk_armclk_def *clkdef);
 
 #endif /* _RK_CLK_ARMCLK_H_ */

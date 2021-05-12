@@ -45,86 +45,88 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/types.h>
-#include <sys/kthread.h>
 #include <sys/bio.h>
-#include <sys/fcntl.h>
-#include <sys/limits.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/malloc.h>
-#include <sys/conf.h>
-#include <sys/ioccom.h>
-#include <sys/queue.h>
-#include <sys/sbuf.h>
-#include <sys/endian.h>
-#include <sys/uio.h>
 #include <sys/buf.h>
-#include <sys/taskqueue.h>
-#include <sys/vnode.h>
-#include <sys/namei.h>
-#include <sys/mount.h>
+#include <sys/condvar.h>
+#include <sys/conf.h>
+#include <sys/devicestat.h>
 #include <sys/disk.h>
+#include <sys/dnv.h>
+#include <sys/endian.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
-#include <sys/proc.h>
-#include <sys/pcpu.h>
+#include <sys/ioccom.h>
+#include <sys/kernel.h>
+#include <sys/kthread.h>
+#include <sys/limits.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/sdt.h>
-#include <sys/devicestat.h>
-#include <sys/sysctl.h>
+#include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
 #include <sys/nv.h>
-#include <sys/dnv.h>
+#include <sys/pcpu.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/sx.h>
-
-#include <geom/geom.h>
+#include <sys/sysctl.h>
+#include <sys/taskqueue.h>
+#include <sys/uio.h>
+#include <sys/vnode.h>
 
 #include <cam/cam.h>
-#include <cam/scsi/scsi_all.h>
-#include <cam/scsi/scsi_da.h>
-#include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_backend.h>
-#include <cam/ctl/ctl_ioctl.h>
-#include <cam/ctl/ctl_ha.h>
-#include <cam/ctl/ctl_scsi_all.h>
-#include <cam/ctl/ctl_private.h>
 #include <cam/ctl/ctl_error.h>
+#include <cam/ctl/ctl_ha.h>
+#include <cam/ctl/ctl_io.h>
+#include <cam/ctl/ctl_ioctl.h>
+#include <cam/ctl/ctl_private.h>
+#include <cam/ctl/ctl_scsi_all.h>
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_da.h>
+#include <geom/geom.h>
 
 /*
  * The idea here is that we'll allocate enough S/G space to hold a 1MB
  * I/O.  If we get an I/O larger than that, we'll split it.
  */
-#define	CTLBLK_HALF_IO_SIZE	(512 * 1024)
-#define	CTLBLK_MAX_IO_SIZE	(CTLBLK_HALF_IO_SIZE * 2)
-#define	CTLBLK_MIN_SEG		(128 * 1024)
-#define	CTLBLK_MAX_SEG		MIN(CTLBLK_HALF_IO_SIZE, maxphys)
-#define	CTLBLK_HALF_SEGS	MAX(CTLBLK_HALF_IO_SIZE / CTLBLK_MIN_SEG, 1)
-#define	CTLBLK_MAX_SEGS		(CTLBLK_HALF_SEGS * 2)
-#define	CTLBLK_NUM_SEGS		(CTLBLK_MAX_IO_SIZE / CTLBLK_MAX_SEG)
+#define CTLBLK_HALF_IO_SIZE (512 * 1024)
+#define CTLBLK_MAX_IO_SIZE (CTLBLK_HALF_IO_SIZE * 2)
+#define CTLBLK_MIN_SEG (128 * 1024)
+#define CTLBLK_MAX_SEG MIN(CTLBLK_HALF_IO_SIZE, maxphys)
+#define CTLBLK_HALF_SEGS MAX(CTLBLK_HALF_IO_SIZE / CTLBLK_MIN_SEG, 1)
+#define CTLBLK_MAX_SEGS (CTLBLK_HALF_SEGS * 2)
+#define CTLBLK_NUM_SEGS (CTLBLK_MAX_IO_SIZE / CTLBLK_MAX_SEG)
 
 #ifdef CTLBLK_DEBUG
 #define DPRINTF(fmt, args...) \
-    printf("cbb(%s:%d): " fmt, __FUNCTION__, __LINE__, ##args)
+	printf("cbb(%s:%d): " fmt, __FUNCTION__, __LINE__, ##args)
 #else
-#define DPRINTF(fmt, args...) do {} while(0)
+#define DPRINTF(fmt, args...) \
+	do {                  \
+	} while (0)
 #endif
 
-#define PRIV(io)	\
-    ((struct ctl_ptr_len_flags *)&(io)->io_hdr.ctl_private[CTL_PRIV_BACKEND])
-#define ARGS(io)	\
-    ((struct ctl_lba_len_flags *)&(io)->io_hdr.ctl_private[CTL_PRIV_LBA_LEN])
+#define PRIV(io)                           \
+	((struct ctl_ptr_len_flags *)&(io) \
+		->io_hdr.ctl_private[CTL_PRIV_BACKEND])
+#define ARGS(io)                           \
+	((struct ctl_lba_len_flags *)&(io) \
+		->io_hdr.ctl_private[CTL_PRIV_LBA_LEN])
 
 SDT_PROVIDER_DEFINE(cbb);
 
 typedef enum {
-	CTL_BE_BLOCK_LUN_UNCONFIGURED	= 0x01,
-	CTL_BE_BLOCK_LUN_WAITING	= 0x04,
+	CTL_BE_BLOCK_LUN_UNCONFIGURED = 0x01,
+	CTL_BE_BLOCK_LUN_WAITING = 0x04,
 } ctl_be_block_lun_flags;
 
 typedef enum {
@@ -144,17 +146,17 @@ union ctl_be_block_bedata {
 struct ctl_be_block_io;
 struct ctl_be_block_lun;
 
-typedef void (*cbb_dispatch_t)(struct ctl_be_block_lun *be_lun,
-			       struct ctl_be_block_io *beio);
-typedef uint64_t (*cbb_getattr_t)(struct ctl_be_block_lun *be_lun,
-				  const char *attrname);
+typedef void (*cbb_dispatch_t)(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio);
+typedef uint64_t (*cbb_getattr_t)(
+    struct ctl_be_block_lun *be_lun, const char *attrname);
 
 /*
  * Backend LUN structure.  There is a 1:1 mapping between a block device
  * and a backend block LUN, and between a backend block LUN and a CTL LUN.
  */
 struct ctl_be_block_lun {
-	struct ctl_be_lun cbe_lun;		/* Must be first element. */
+	struct ctl_be_lun cbe_lun; /* Must be first element. */
 	struct ctl_lun_create_params params;
 	char *dev_path;
 	ctl_be_block_type dev_type;
@@ -186,13 +188,13 @@ struct ctl_be_block_lun {
  * Overall softc structure for the block backend module.
  */
 struct ctl_be_block_softc {
-	struct sx			 modify_lock;
-	struct mtx			 lock;
-	int				 num_luns;
-	SLIST_HEAD(, ctl_be_block_lun)	 lun_list;
-	uma_zone_t			 beio_zone;
-	uma_zone_t			 bufmin_zone;
-	uma_zone_t			 bufmax_zone;
+	struct sx modify_lock;
+	struct mtx lock;
+	int num_luns;
+	SLIST_HEAD(, ctl_be_block_lun) lun_list;
+	uma_zone_t beio_zone;
+	uma_zone_t bufmin_zone;
+	uma_zone_t bufmax_zone;
 };
 
 static struct ctl_be_block_softc backend_block_softc;
@@ -201,92 +203,92 @@ static struct ctl_be_block_softc backend_block_softc;
  * Per-I/O information.
  */
 struct ctl_be_block_io {
-	union ctl_io			*io;
-	struct ctl_sg_entry		sg_segs[CTLBLK_MAX_SEGS];
-	struct iovec			xiovecs[CTLBLK_MAX_SEGS];
-	int				refcnt;
-	int				bio_cmd;
-	int				two_sglists;
-	int				num_segs;
-	int				num_bios_sent;
-	int				num_bios_done;
-	int				send_complete;
-	int				first_error;
-	uint64_t			first_error_offset;
-	struct bintime			ds_t0;
-	devstat_tag_type		ds_tag_type;
-	devstat_trans_flags		ds_trans_type;
-	uint64_t			io_len;
-	uint64_t			io_offset;
-	int				io_arg;
-	struct ctl_be_block_softc	*softc;
-	struct ctl_be_block_lun		*lun;
-	void (*beio_cont)(struct ctl_be_block_io *beio); /* to continue processing */
+	union ctl_io *io;
+	struct ctl_sg_entry sg_segs[CTLBLK_MAX_SEGS];
+	struct iovec xiovecs[CTLBLK_MAX_SEGS];
+	int refcnt;
+	int bio_cmd;
+	int two_sglists;
+	int num_segs;
+	int num_bios_sent;
+	int num_bios_done;
+	int send_complete;
+	int first_error;
+	uint64_t first_error_offset;
+	struct bintime ds_t0;
+	devstat_tag_type ds_tag_type;
+	devstat_trans_flags ds_trans_type;
+	uint64_t io_len;
+	uint64_t io_offset;
+	int io_arg;
+	struct ctl_be_block_softc *softc;
+	struct ctl_be_block_lun *lun;
+	void (*beio_cont)(
+	    struct ctl_be_block_io *beio); /* to continue processing */
 };
 
 extern struct ctl_softc *control_softc;
 
 static int cbb_num_threads = 32;
 SYSCTL_NODE(_kern_cam_ctl, OID_AUTO, block, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-	    "CAM Target Layer Block Backend");
+    "CAM Target Layer Block Backend");
 SYSCTL_INT(_kern_cam_ctl_block, OID_AUTO, num_threads, CTLFLAG_RWTUN,
-           &cbb_num_threads, 0, "Number of threads per backing file");
+    &cbb_num_threads, 0, "Number of threads per backing file");
 
 static struct ctl_be_block_io *ctl_alloc_beio(struct ctl_be_block_softc *softc);
 static void ctl_free_beio(struct ctl_be_block_io *beio);
 static void ctl_complete_beio(struct ctl_be_block_io *beio);
 static int ctl_be_block_move_done(union ctl_io *io, bool samethr);
 static void ctl_be_block_biodone(struct bio *bio);
-static void ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
-				    struct ctl_be_block_io *beio);
-static void ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
-				       struct ctl_be_block_io *beio);
-static void ctl_be_block_gls_file(struct ctl_be_block_lun *be_lun,
-				  struct ctl_be_block_io *beio);
-static uint64_t ctl_be_block_getattr_file(struct ctl_be_block_lun *be_lun,
-					 const char *attrname);
-static void ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
-				   struct ctl_be_block_io *beio);
-static void ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
-				   struct ctl_be_block_io *beio);
-static void ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
-				      struct ctl_be_block_io *beio);
-static uint64_t ctl_be_block_getattr_dev(struct ctl_be_block_lun *be_lun,
-					 const char *attrname);
-static void ctl_be_block_cr_dispatch(struct ctl_be_block_lun *be_lun,
-				    union ctl_io *io);
-static void ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
-				    union ctl_io *io);
-static void ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
-				  union ctl_io *io);
+static void ctl_be_block_flush_file(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio);
+static void ctl_be_block_dispatch_file(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio);
+static void ctl_be_block_gls_file(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio);
+static uint64_t ctl_be_block_getattr_file(
+    struct ctl_be_block_lun *be_lun, const char *attrname);
+static void ctl_be_block_flush_dev(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio);
+static void ctl_be_block_unmap_dev(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio);
+static void ctl_be_block_dispatch_dev(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio);
+static uint64_t ctl_be_block_getattr_dev(
+    struct ctl_be_block_lun *be_lun, const char *attrname);
+static void ctl_be_block_cr_dispatch(
+    struct ctl_be_block_lun *be_lun, union ctl_io *io);
+static void ctl_be_block_cw_dispatch(
+    struct ctl_be_block_lun *be_lun, union ctl_io *io);
+static void ctl_be_block_dispatch(
+    struct ctl_be_block_lun *be_lun, union ctl_io *io);
 static void ctl_be_block_worker(void *context, int pending);
 static int ctl_be_block_submit(union ctl_io *io);
-static int ctl_be_block_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
-				   int flag, struct thread *td);
-static int ctl_be_block_open_file(struct ctl_be_block_lun *be_lun,
-				  struct ctl_lun_req *req);
-static int ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun,
-				 struct ctl_lun_req *req);
+static int ctl_be_block_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td);
+static int ctl_be_block_open_file(
+    struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req);
+static int ctl_be_block_open_dev(
+    struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req);
 static int ctl_be_block_close(struct ctl_be_block_lun *be_lun);
-static int ctl_be_block_open(struct ctl_be_block_lun *be_lun,
-			     struct ctl_lun_req *req);
-static int ctl_be_block_create(struct ctl_be_block_softc *softc,
-			       struct ctl_lun_req *req);
-static int ctl_be_block_rm(struct ctl_be_block_softc *softc,
-			   struct ctl_lun_req *req);
-static int ctl_be_block_modify(struct ctl_be_block_softc *softc,
-			   struct ctl_lun_req *req);
+static int ctl_be_block_open(
+    struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req);
+static int ctl_be_block_create(
+    struct ctl_be_block_softc *softc, struct ctl_lun_req *req);
+static int ctl_be_block_rm(
+    struct ctl_be_block_softc *softc, struct ctl_lun_req *req);
+static int ctl_be_block_modify(
+    struct ctl_be_block_softc *softc, struct ctl_lun_req *req);
 static void ctl_be_block_lun_shutdown(struct ctl_be_lun *cbe_lun);
 static int ctl_be_block_config_write(union ctl_io *io);
 static int ctl_be_block_config_read(union ctl_io *io);
 static int ctl_be_block_lun_info(struct ctl_be_lun *cbe_lun, struct sbuf *sb);
-static uint64_t ctl_be_block_lun_attr(struct ctl_be_lun *cbe_lun, const char *attrname);
+static uint64_t ctl_be_block_lun_attr(
+    struct ctl_be_lun *cbe_lun, const char *attrname);
 static int ctl_be_block_init(void);
 static int ctl_be_block_shutdown(void);
 
-static struct ctl_backend_driver ctl_be_block_driver = 
-{
-	.name = "block",
+static struct ctl_backend_driver ctl_be_block_driver = { .name = "block",
 	.flags = CTL_BE_FLAG_HAS_CONFIG,
 	.init = ctl_be_block_init,
 	.shutdown = ctl_be_block_shutdown,
@@ -295,15 +297,14 @@ static struct ctl_backend_driver ctl_be_block_driver =
 	.config_write = ctl_be_block_config_write,
 	.ioctl = ctl_be_block_ioctl,
 	.lun_info = ctl_be_block_lun_info,
-	.lun_attr = ctl_be_block_lun_attr
-};
+	.lun_attr = ctl_be_block_lun_attr };
 
 MALLOC_DEFINE(M_CTLBLK, "ctlblock", "Memory used for CTL block backend");
 CTL_BACKEND_DECLARE(cbb, ctl_be_block_driver);
 
 static void
-ctl_alloc_seg(struct ctl_be_block_softc *softc, struct ctl_sg_entry *sg,
-    size_t len)
+ctl_alloc_seg(
+    struct ctl_be_block_softc *softc, struct ctl_sg_entry *sg, size_t len)
 {
 
 	if (len <= CTLBLK_MIN_SEG) {
@@ -351,8 +352,8 @@ ctl_real_free_beio(struct ctl_be_block_io *beio)
 
 		/* For compare we had two equal S/G lists. */
 		if (beio->two_sglists) {
-			ctl_free_seg(softc,
-			    &beio->sg_segs[i + CTLBLK_HALF_SEGS]);
+			ctl_free_seg(
+			    softc, &beio->sg_segs[i + CTLBLK_HALF_SEGS]);
 		}
 	}
 
@@ -459,9 +460,9 @@ ctl_be_block_move_done(union ctl_io *io, bool samethr)
 	/*
 	 * If this is a read, or a write with errors, it is done.
 	 */
-	if ((beio->bio_cmd == BIO_READ)
-	 || ((io->io_hdr.flags & CTL_FLAG_ABORT) != 0)
-	 || ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE)) {
+	if ((beio->bio_cmd == BIO_READ) ||
+	    ((io->io_hdr.flags & CTL_FLAG_ABORT) != 0) ||
+	    ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE)) {
 		ctl_complete_beio(beio);
 		return (0);
 	}
@@ -504,7 +505,7 @@ ctl_be_block_biodone(struct bio *bio)
 	mtx_lock(&be_lun->io_lock);
 	if (error != 0 &&
 	    (beio->first_error == 0 ||
-	     bio->bio_offset < beio->first_error_offset)) {
+		bio->bio_offset < beio->first_error_offset)) {
 		beio->first_error = error;
 		beio->first_error_offset = bio->bio_offset;
 	}
@@ -521,8 +522,8 @@ ctl_be_block_biodone(struct bio *bio)
 	 * If the send complete bit isn't set, or we aren't the last I/O to
 	 * complete, then we're done.
 	 */
-	if ((beio->send_complete == 0)
-	 || (beio->num_bios_done < beio->num_bios_sent)) {
+	if ((beio->send_complete == 0) ||
+	    (beio->num_bios_done < beio->num_bios_sent)) {
 		mtx_unlock(&be_lun->io_lock);
 		return;
 	}
@@ -533,7 +534,7 @@ ctl_be_block_biodone(struct bio *bio)
 	 */
 	devstat_end_transaction(beio->lun->disk_stats, beio->io_len,
 	    beio->ds_tag_type, beio->ds_trans_type,
-	    /*now*/ NULL, /*then*/&beio->ds_t0);
+	    /*now*/ NULL, /*then*/ &beio->ds_t0);
 	mtx_unlock(&be_lun->io_lock);
 
 	/*
@@ -551,11 +552,11 @@ ctl_be_block_biodone(struct bio *bio)
 		} else if (beio->bio_cmd == BIO_FLUSH) {
 			/* XXX KDM is there is a better error here? */
 			ctl_set_internal_failure(&io->scsiio,
-						 /*sks_valid*/ 1,
-						 /*retry_count*/ 0xbad2);
+			    /*sks_valid*/ 1,
+			    /*retry_count*/ 0xbad2);
 		} else {
-			ctl_set_medium_error(&io->scsiio,
-			    beio->bio_cmd == BIO_READ);
+			ctl_set_medium_error(
+			    &io->scsiio, beio->bio_cmd == BIO_READ);
 		}
 		ctl_complete_beio(beio);
 		return;
@@ -565,10 +566,9 @@ ctl_be_block_biodone(struct bio *bio)
 	 * If this is a write, a flush, a delete or verify, we're all done.
 	 * If this is a read, we can now send the data to the user.
 	 */
-	if ((beio->bio_cmd == BIO_WRITE)
-	 || (beio->bio_cmd == BIO_FLUSH)
-	 || (beio->bio_cmd == BIO_DELETE)
-	 || (ARGS(io)->flags & CTL_LLF_VERIFY)) {
+	if ((beio->bio_cmd == BIO_WRITE) || (beio->bio_cmd == BIO_FLUSH) ||
+	    (beio->bio_cmd == BIO_DELETE) ||
+	    (ARGS(io)->flags & CTL_LLF_VERIFY)) {
 		ctl_set_success(&io->scsiio);
 		ctl_complete_beio(beio);
 	} else {
@@ -583,8 +583,8 @@ ctl_be_block_biodone(struct bio *bio)
 }
 
 static void
-ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
-			struct ctl_be_block_io *beio)
+ctl_be_block_flush_file(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio)
 {
 	union ctl_io *io = beio->io;
 	struct mount *mountpoint;
@@ -595,7 +595,7 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 	binuptime(&beio->ds_t0);
 	devstat_start_transaction(beio->lun->disk_stats, &beio->ds_t0);
 
-	(void) vn_start_write(be_lun->vn, &mountpoint, V_WAIT);
+	(void)vn_start_write(be_lun->vn, &mountpoint, V_WAIT);
 
 	if (MNT_SHARED_WRITES(mountpoint) ||
 	    ((mountpoint == NULL) && MNT_SHARED_WRITES(be_lun->vn->v_mount)))
@@ -603,8 +603,8 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 	else
 		lock_flags = LK_EXCLUSIVE;
 	vn_lock(be_lun->vn, lock_flags | LK_RETRY);
-	error = VOP_FSYNC(be_lun->vn, beio->io_arg ? MNT_NOWAIT : MNT_WAIT,
-	    curthread);
+	error = VOP_FSYNC(
+	    be_lun->vn, beio->io_arg ? MNT_NOWAIT : MNT_WAIT, curthread);
 	VOP_UNLOCK(be_lun->vn);
 
 	vn_finished_write(mountpoint);
@@ -612,7 +612,7 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 	mtx_lock(&be_lun->io_lock);
 	devstat_end_transaction(beio->lun->disk_stats, beio->io_len,
 	    beio->ds_tag_type, beio->ds_trans_type,
-	    /*now*/ NULL, /*then*/&beio->ds_t0);
+	    /*now*/ NULL, /*then*/ &beio->ds_t0);
 	mtx_unlock(&be_lun->io_lock);
 
 	if (error == 0)
@@ -620,8 +620,8 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 	else {
 		/* XXX KDM is there is a better error here? */
 		ctl_set_internal_failure(&io->scsiio,
-					 /*sks_valid*/ 1,
-					 /*retry_count*/ 0xbad1);
+		    /*sks_valid*/ 1,
+		    /*retry_count*/ 0xbad1);
 	}
 
 	ctl_complete_beio(beio);
@@ -629,12 +629,12 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 
 SDT_PROBE_DEFINE1(cbb, , read, file_start, "uint64_t");
 SDT_PROBE_DEFINE1(cbb, , write, file_start, "uint64_t");
-SDT_PROBE_DEFINE1(cbb, , read, file_done,"uint64_t");
+SDT_PROBE_DEFINE1(cbb, , read, file_done, "uint64_t");
 SDT_PROBE_DEFINE1(cbb, , write, file_done, "uint64_t");
 
 static void
-ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
-			   struct ctl_be_block_io *beio)
+ctl_be_block_dispatch_file(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio)
 {
 	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct ctl_be_block_filedata *file_data;
@@ -726,8 +726,9 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 
 		(void)vn_start_write(be_lun->vn, &mountpoint, V_WAIT);
 
-		if (MNT_SHARED_WRITES(mountpoint) || ((mountpoint == NULL)
-		  && MNT_SHARED_WRITES(be_lun->vn->v_mount)))
+		if (MNT_SHARED_WRITES(mountpoint) ||
+		    ((mountpoint == NULL) &&
+			MNT_SHARED_WRITES(be_lun->vn->v_mount)))
 			lock_flags = LK_SHARED;
 		else
 			lock_flags = LK_EXCLUSIVE;
@@ -753,12 +754,12 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 
 		vn_finished_write(mountpoint);
 		SDT_PROBE0(cbb, , write, file_done);
-        }
+	}
 
 	mtx_lock(&be_lun->io_lock);
 	devstat_end_transaction(beio->lun->disk_stats, beio->io_len,
 	    beio->ds_tag_type, beio->ds_trans_type,
-	    /*now*/ NULL, /*then*/&beio->ds_t0);
+	    /*now*/ NULL, /*then*/ &beio->ds_t0);
 	mtx_unlock(&be_lun->io_lock);
 
 	/*
@@ -771,8 +772,8 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		} else if (error == EROFS || error == EACCES) {
 			ctl_set_hw_write_protected(&io->scsiio);
 		} else {
-			ctl_set_medium_error(&io->scsiio,
-			    beio->bio_cmd == BIO_READ);
+			ctl_set_medium_error(
+			    &io->scsiio, beio->bio_cmd == BIO_READ);
 		}
 		ctl_complete_beio(beio);
 		return;
@@ -798,8 +799,8 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 }
 
 static void
-ctl_be_block_gls_file(struct ctl_be_block_lun *be_lun,
-			struct ctl_be_block_io *beio)
+ctl_be_block_gls_file(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio)
 {
 	union ctl_io *io = beio->io;
 	struct ctl_lba_len_flags *lbalen = ARGS(io);
@@ -811,17 +812,17 @@ ctl_be_block_gls_file(struct ctl_be_block_lun *be_lun,
 
 	off = roff = ((off_t)lbalen->lba) * be_lun->cbe_lun.blocksize;
 	vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
-	error = VOP_IOCTL(be_lun->vn, FIOSEEKHOLE, &off,
-	    0, curthread->td_ucred, curthread);
+	error = VOP_IOCTL(
+	    be_lun->vn, FIOSEEKHOLE, &off, 0, curthread->td_ucred, curthread);
 	if (error == 0 && off > roff)
-		status = 0;	/* mapped up to off */
+		status = 0; /* mapped up to off */
 	else {
-		error = VOP_IOCTL(be_lun->vn, FIOSEEKDATA, &off,
-		    0, curthread->td_ucred, curthread);
+		error = VOP_IOCTL(be_lun->vn, FIOSEEKDATA, &off, 0,
+		    curthread->td_ucred, curthread);
 		if (error == 0 && off > roff)
-			status = 1;	/* deallocated up to off */
+			status = 1; /* deallocated up to off */
 		else {
-			status = 0;	/* unknown up to the end */
+			status = 0; /* unknown up to the end */
 			off = be_lun->size_bytes;
 		}
 	}
@@ -829,8 +830,9 @@ ctl_be_block_gls_file(struct ctl_be_block_lun *be_lun,
 
 	data = (struct scsi_get_lba_status_data *)io->scsiio.kern_data_ptr;
 	scsi_u64to8b(lbalen->lba, data->descr[0].addr);
-	scsi_ulto4b(MIN(UINT32_MAX, off / be_lun->cbe_lun.blocksize -
-	    lbalen->lba), data->descr[0].length);
+	scsi_ulto4b(
+	    MIN(UINT32_MAX, off / be_lun->cbe_lun.blocksize - lbalen->lba),
+	    data->descr[0].length);
 	data->descr[0].status = status;
 
 	ctl_complete_beio(beio);
@@ -839,10 +841,10 @@ ctl_be_block_gls_file(struct ctl_be_block_lun *be_lun,
 static uint64_t
 ctl_be_block_getattr_file(struct ctl_be_block_lun *be_lun, const char *attrname)
 {
-	struct vattr		vattr;
-	struct statfs		statfs;
-	uint64_t		val;
-	int			error;
+	struct vattr vattr;
+	struct statfs statfs;
+	uint64_t val;
+	int error;
 
 	val = UINT64_MAX;
 	if (be_lun->vn == NULL)
@@ -853,8 +855,7 @@ ctl_be_block_getattr_file(struct ctl_be_block_lun *be_lun, const char *attrname)
 		if (error == 0)
 			val = vattr.va_bytes / be_lun->cbe_lun.blocksize;
 	}
-	if (strcmp(attrname, "blocksavail") == 0 &&
-	    !VN_IS_DOOMED(be_lun->vn)) {
+	if (strcmp(attrname, "blocksavail") == 0 && !VN_IS_DOOMED(be_lun->vn)) {
 		error = VFS_STATFS(be_lun->vn->v_mount, &statfs);
 		if (error == 0)
 			val = statfs.f_bavail * statfs.f_bsize /
@@ -865,8 +866,8 @@ ctl_be_block_getattr_file(struct ctl_be_block_lun *be_lun, const char *attrname)
 }
 
 static void
-ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
-			   struct ctl_be_block_io *beio)
+ctl_be_block_dispatch_zvol(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio)
 {
 	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	union ctl_io *io;
@@ -929,7 +930,7 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 	mtx_lock(&be_lun->io_lock);
 	devstat_end_transaction(beio->lun->disk_stats, beio->io_len,
 	    beio->ds_tag_type, beio->ds_trans_type,
-	    /*now*/ NULL, /*then*/&beio->ds_t0);
+	    /*now*/ NULL, /*then*/ &beio->ds_t0);
 	mtx_unlock(&be_lun->io_lock);
 
 	/*
@@ -942,8 +943,8 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 		} else if (error == EROFS || error == EACCES) {
 			ctl_set_hw_write_protected(&io->scsiio);
 		} else {
-			ctl_set_medium_error(&io->scsiio,
-			    beio->bio_cmd == BIO_READ);
+			ctl_set_medium_error(
+			    &io->scsiio, beio->bio_cmd == BIO_READ);
 		}
 		ctl_complete_beio(beio);
 		return;
@@ -969,8 +970,8 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 }
 
 static void
-ctl_be_block_gls_zvol(struct ctl_be_block_lun *be_lun,
-			struct ctl_be_block_io *beio)
+ctl_be_block_gls_zvol(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio)
 {
 	union ctl_io *io = beio->io;
 	struct cdevsw *csw;
@@ -984,22 +985,21 @@ ctl_be_block_gls_zvol(struct ctl_be_block_lun *be_lun,
 
 	csw = devvn_refthread(be_lun->vn, &dev, &ref);
 	if (csw == NULL) {
-		status = 0;	/* unknown up to the end */
+		status = 0; /* unknown up to the end */
 		off = be_lun->size_bytes;
 		goto done;
 	}
 	off = roff = ((off_t)lbalen->lba) * be_lun->cbe_lun.blocksize;
-	error = csw->d_ioctl(dev, FIOSEEKHOLE, (caddr_t)&off, FREAD,
-	    curthread);
+	error = csw->d_ioctl(dev, FIOSEEKHOLE, (caddr_t)&off, FREAD, curthread);
 	if (error == 0 && off > roff)
-		status = 0;	/* mapped up to off */
+		status = 0; /* mapped up to off */
 	else {
-		error = csw->d_ioctl(dev, FIOSEEKDATA, (caddr_t)&off, FREAD,
-		    curthread);
+		error = csw->d_ioctl(
+		    dev, FIOSEEKDATA, (caddr_t)&off, FREAD, curthread);
 		if (error == 0 && off > roff)
-			status = 1;	/* deallocated up to off */
+			status = 1; /* deallocated up to off */
 		else {
-			status = 0;	/* unknown up to the end */
+			status = 0; /* unknown up to the end */
 			off = be_lun->size_bytes;
 		}
 	}
@@ -1008,16 +1008,17 @@ ctl_be_block_gls_zvol(struct ctl_be_block_lun *be_lun,
 done:
 	data = (struct scsi_get_lba_status_data *)io->scsiio.kern_data_ptr;
 	scsi_u64to8b(lbalen->lba, data->descr[0].addr);
-	scsi_ulto4b(MIN(UINT32_MAX, off / be_lun->cbe_lun.blocksize -
-	    lbalen->lba), data->descr[0].length);
+	scsi_ulto4b(
+	    MIN(UINT32_MAX, off / be_lun->cbe_lun.blocksize - lbalen->lba),
+	    data->descr[0].length);
 	data->descr[0].status = status;
 
 	ctl_complete_beio(beio);
 }
 
 static void
-ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
-		       struct ctl_be_block_io *beio)
+ctl_be_block_flush_dev(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio)
 {
 	struct bio *bio;
 	struct cdevsw *csw;
@@ -1029,12 +1030,12 @@ ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 	/* This can't fail, it's a blocking allocation. */
 	bio = g_alloc_bio();
 
-	bio->bio_cmd	    = BIO_FLUSH;
-	bio->bio_offset	    = 0;
-	bio->bio_data	    = 0;
-	bio->bio_done	    = ctl_be_block_biodone;
-	bio->bio_caller1    = beio;
-	bio->bio_pblkno	    = 0;
+	bio->bio_cmd = BIO_FLUSH;
+	bio->bio_offset = 0;
+	bio->bio_data = 0;
+	bio->bio_done = ctl_be_block_biodone;
+	bio->bio_caller1 = beio;
+	bio->bio_pblkno = 0;
 
 	/*
 	 * We don't need to acquire the LUN lock here, because we are only
@@ -1060,8 +1061,7 @@ ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 
 static void
 ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
-		       struct ctl_be_block_io *beio,
-		       uint64_t off, uint64_t len, int last)
+    struct ctl_be_block_io *beio, uint64_t off, uint64_t len, int last)
 {
 	struct bio *bio;
 	uint64_t maxlen;
@@ -1073,14 +1073,14 @@ ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
 	maxlen = LONG_MAX - (LONG_MAX % be_lun->cbe_lun.blocksize);
 	while (len > 0) {
 		bio = g_alloc_bio();
-		bio->bio_cmd	    = BIO_DELETE;
-		bio->bio_dev	    = dev;
-		bio->bio_offset	    = off;
-		bio->bio_length	    = MIN(len, maxlen);
-		bio->bio_data	    = 0;
-		bio->bio_done	    = ctl_be_block_biodone;
-		bio->bio_caller1    = beio;
-		bio->bio_pblkno     = off / be_lun->cbe_lun.blocksize;
+		bio->bio_cmd = BIO_DELETE;
+		bio->bio_dev = dev;
+		bio->bio_offset = off;
+		bio->bio_length = MIN(len, maxlen);
+		bio->bio_data = 0;
+		bio->bio_done = ctl_be_block_biodone;
+		bio->bio_caller1 = beio;
+		bio->bio_pblkno = off / be_lun->cbe_lun.blocksize;
 
 		off += bio->bio_length;
 		len -= bio->bio_length;
@@ -1103,8 +1103,8 @@ ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
 }
 
 static void
-ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
-		       struct ctl_be_block_io *beio)
+ctl_be_block_unmap_dev(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio)
 {
 	union ctl_io *io;
 	struct ctl_ptr_len_flags *ptrlen;
@@ -1120,7 +1120,8 @@ ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
 
 	if (beio->io_offset == -1) {
 		beio->io_len = 0;
-		ptrlen = (struct ctl_ptr_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+		ptrlen = (struct ctl_ptr_len_flags *)&io->io_hdr
+			     .ctl_private[CTL_PRIV_LBA_LEN];
 		buf = (struct scsi_unmap_desc *)ptrlen->ptr;
 		end = buf + ptrlen->len / sizeof(*buf);
 		for (; buf < end; buf++) {
@@ -1132,13 +1133,13 @@ ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
 			    len, (end - buf < 2) ? TRUE : FALSE);
 		}
 	} else
-		ctl_be_block_unmap_dev_range(be_lun, beio,
-		    beio->io_offset, beio->io_len, TRUE);
+		ctl_be_block_unmap_dev_range(
+		    be_lun, beio, beio->io_offset, beio->io_len, TRUE);
 }
 
 static void
-ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
-			  struct ctl_be_block_io *beio)
+ctl_be_block_dispatch_dev(
+    struct ctl_be_block_lun *be_lun, struct ctl_be_block_io *beio)
 {
 	TAILQ_HEAD(, bio) queue = TAILQ_HEAD_INITIALIZER(queue);
 	struct bio *bio;
@@ -1182,7 +1183,8 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 			bio->bio_offset = cur_offset;
 			bio->bio_data = cur_ptr;
 			bio->bio_done = ctl_be_block_biodone;
-			bio->bio_pblkno = cur_offset / be_lun->cbe_lun.blocksize;
+			bio->bio_pblkno = cur_offset /
+			    be_lun->cbe_lun.blocksize;
 
 			cur_offset += bio->bio_length;
 			cur_ptr += bio->bio_length;
@@ -1215,7 +1217,7 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 static uint64_t
 ctl_be_block_getattr_dev(struct ctl_be_block_lun *be_lun, const char *attrname)
 {
-	struct diocgattr_arg	arg;
+	struct diocgattr_arg arg;
 	struct cdevsw *csw;
 	struct cdev *dev;
 	int error, ref;
@@ -1226,8 +1228,8 @@ ctl_be_block_getattr_dev(struct ctl_be_block_lun *be_lun, const char *attrname)
 	strlcpy(arg.name, attrname, sizeof(arg.name));
 	arg.len = sizeof(arg.value.off);
 	if (csw->d_ioctl) {
-		error = csw->d_ioctl(dev, DIOCGATTR, (caddr_t)&arg, FREAD,
-		    curthread);
+		error = csw->d_ioctl(
+		    dev, DIOCGATTR, (caddr_t)&arg, FREAD, curthread);
 	} else
 		error = ENODEV;
 	dev_relthread(dev, ref);
@@ -1237,8 +1239,7 @@ ctl_be_block_getattr_dev(struct ctl_be_block_lun *be_lun, const char *attrname)
 }
 
 static void
-ctl_be_block_cw_dispatch_sync(struct ctl_be_block_lun *be_lun,
-			    union ctl_io *io)
+ctl_be_block_cw_dispatch_sync(struct ctl_be_block_lun *be_lun, union ctl_io *io)
 {
 	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct ctl_be_block_io *beio;
@@ -1246,7 +1247,8 @@ ctl_be_block_cw_dispatch_sync(struct ctl_be_block_lun *be_lun,
 
 	DPRINTF("entered\n");
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
-	lbalen = (struct ctl_lba_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen = (struct ctl_lba_len_flags *)&io->io_hdr
+		     .ctl_private[CTL_PRIV_LBA_LEN];
 
 	beio->io_len = lbalen->len * cbe_lun->blocksize;
 	beio->io_offset = lbalen->lba * cbe_lun->blocksize;
@@ -1266,7 +1268,7 @@ ctl_be_block_cw_done_ws(struct ctl_be_block_io *beio)
 	ctl_free_beio(beio);
 	if ((io->io_hdr.flags & CTL_FLAG_ABORT) ||
 	    ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE &&
-	     (io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)) {
+		(io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)) {
 		ctl_config_write_done(io);
 		return;
 	}
@@ -1275,8 +1277,7 @@ ctl_be_block_cw_done_ws(struct ctl_be_block_io *beio)
 }
 
 static void
-ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
-			    union ctl_io *io)
+ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun, union ctl_io *io)
 {
 	struct ctl_be_block_softc *softc = be_lun->softc;
 	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
@@ -1293,14 +1294,15 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	lbalen = ARGS(io);
 
 	if (lbalen->flags & ~(SWS_LBDATA | SWS_UNMAP | SWS_ANCHOR | SWS_NDOB) ||
-	    (lbalen->flags & (SWS_UNMAP | SWS_ANCHOR) && be_lun->unmap == NULL)) {
+	    (lbalen->flags & (SWS_UNMAP | SWS_ANCHOR) &&
+		be_lun->unmap == NULL)) {
 		ctl_free_beio(beio);
 		ctl_set_invalid_field(&io->scsiio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 1,
-				      /*bit_valid*/ 0,
-				      /*bit*/ 0);
+		    /*sks_valid*/ 1,
+		    /*command*/ 1,
+		    /*field*/ 1,
+		    /*bit_valid*/ 0,
+		    /*bit*/ 0);
 		ctl_config_write_done(io);
 		return;
 	}
@@ -1318,8 +1320,8 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	beio->bio_cmd = BIO_WRITE;
 	beio->ds_trans_type = DEVSTAT_WRITE;
 
-	DPRINTF("WRITE SAME at LBA %jx len %u\n",
-	       (uintmax_t)lbalen->lba, lbalen->len);
+	DPRINTF("WRITE SAME at LBA %jx len %u\n", (uintmax_t)lbalen->lba,
+	    lbalen->len);
 
 	pb = cbe_lun->blocksize << be_lun->cbe_lun.pblockexp;
 	if (be_lun->cbe_lun.pblockoff > 0)
@@ -1334,7 +1336,8 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		seglen = MIN(CTLBLK_MAX_SEG, len_left);
 		if (pb > cbe_lun->blocksize) {
 			adj = ((lbalen->lba + lba) * cbe_lun->blocksize +
-			    seglen - pbo) % pb;
+				  seglen - pbo) %
+			    pb;
 			if (seglen > adj)
 				seglen -= adj;
 			else
@@ -1344,7 +1347,7 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		ctl_alloc_seg(softc, &beio->sg_segs[i], seglen);
 
 		DPRINTF("segment %d addr %p len %zd\n", i,
-			beio->sg_segs[i].addr, beio->sg_segs[i].len);
+		    beio->sg_segs[i].addr, beio->sg_segs[i].len);
 
 		beio->num_segs++;
 		len_left -= seglen;
@@ -1378,8 +1381,8 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 }
 
 static void
-ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
-			    union ctl_io *io)
+ctl_be_block_cw_dispatch_unmap(
+    struct ctl_be_block_lun *be_lun, union ctl_io *io)
 {
 	struct ctl_be_block_io *beio;
 	struct ctl_ptr_len_flags *ptrlen;
@@ -1387,16 +1390,17 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 	DPRINTF("entered\n");
 
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
-	ptrlen = (struct ctl_ptr_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	ptrlen = (struct ctl_ptr_len_flags *)&io->io_hdr
+		     .ctl_private[CTL_PRIV_LBA_LEN];
 
 	if ((ptrlen->flags & ~SU_ANCHOR) != 0 || be_lun->unmap == NULL) {
 		ctl_free_beio(beio);
 		ctl_set_invalid_field(&io->scsiio,
-				      /*sks_valid*/ 0,
-				      /*command*/ 1,
-				      /*field*/ 0,
-				      /*bit_valid*/ 0,
-				      /*bit*/ 0);
+		    /*sks_valid*/ 0,
+		    /*command*/ 1,
+		    /*field*/ 0,
+		    /*bit_valid*/ 0,
+		    /*bit*/ 0);
 		ctl_config_write_done(io);
 		return;
 	}
@@ -1420,8 +1424,7 @@ ctl_be_block_cr_done(struct ctl_be_block_io *beio)
 }
 
 static void
-ctl_be_block_cr_dispatch(struct ctl_be_block_lun *be_lun,
-			 union ctl_io *io)
+ctl_be_block_cr_dispatch(struct ctl_be_block_lun *be_lun, union ctl_io *io)
 {
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_softc *softc;
@@ -1436,7 +1439,7 @@ ctl_be_block_cr_dispatch(struct ctl_be_block_lun *be_lun,
 	PRIV(io)->ptr = (void *)beio;
 
 	switch (io->scsiio.cdb[0]) {
-	case SERVICE_ACTION_IN:		/* GET LBA STATUS */
+	case SERVICE_ACTION_IN: /* GET LBA STATUS */
 		beio->bio_cmd = -1;
 		beio->ds_trans_type = DEVSTAT_NO_DATA;
 		beio->ds_tag_type = DEVSTAT_TAG_ORDERED;
@@ -1463,8 +1466,7 @@ ctl_be_block_cw_done(struct ctl_be_block_io *beio)
 }
 
 static void
-ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
-			 union ctl_io *io)
+ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun, union ctl_io *io)
 {
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_softc *softc;
@@ -1526,7 +1528,7 @@ ctl_be_block_next(struct ctl_be_block_io *beio)
 	ctl_free_beio(beio);
 	if ((io->io_hdr.flags & CTL_FLAG_ABORT) ||
 	    ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE &&
-	     (io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)) {
+		(io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)) {
 		ctl_data_submit_done(io);
 		return;
 	}
@@ -1541,8 +1543,7 @@ ctl_be_block_next(struct ctl_be_block_io *beio)
 }
 
 static void
-ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
-			   union ctl_io *io)
+ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun, union ctl_io *io)
 {
 	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct ctl_be_block_io *beio;
@@ -1593,8 +1594,8 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	}
 
 	DPRINTF("%s at LBA %jx len %u @%ju\n",
-	       (beio->bio_cmd == BIO_READ) ? "READ" : "WRITE",
-	       (uintmax_t)lbalen->lba, lbalen->len, bptrlen->len);
+	    (beio->bio_cmd == BIO_READ) ? "READ" : "WRITE",
+	    (uintmax_t)lbalen->lba, lbalen->len, bptrlen->len);
 	if (lbalen->flags & CTL_LLF_COMPARE) {
 		beio->two_sglists = 1;
 		lbas = CTLBLK_HALF_IO_SIZE;
@@ -1607,17 +1608,17 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	bptrlen->len += lbas;
 
 	for (i = 0, len_left = beio->io_len; len_left > 0; i++) {
-		KASSERT(i < CTLBLK_MAX_SEGS, ("Too many segs (%d >= %d)",
-		    i, CTLBLK_MAX_SEGS));
+		KASSERT(i < CTLBLK_MAX_SEGS,
+		    ("Too many segs (%d >= %d)", i, CTLBLK_MAX_SEGS));
 
 		/*
 		 * Setup the S/G entry for this chunk.
 		 */
-		ctl_alloc_seg(softc, &beio->sg_segs[i],
-		    MIN(CTLBLK_MAX_SEG, len_left));
+		ctl_alloc_seg(
+		    softc, &beio->sg_segs[i], MIN(CTLBLK_MAX_SEG, len_left));
 
 		DPRINTF("segment %d addr %p len %zd\n", i,
-			beio->sg_segs[i].addr, beio->sg_segs[i].len);
+		    beio->sg_segs[i].addr, beio->sg_segs[i].len);
 
 		/* Set up second segment for compare operation. */
 		if (beio->two_sglists) {
@@ -1634,7 +1635,8 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	io->scsiio.be_move_done = ctl_be_block_move_done;
 	/* For compare we have separate S/G lists for read and datamove. */
 	if (beio->two_sglists)
-		io->scsiio.kern_data_ptr = (uint8_t *)&beio->sg_segs[CTLBLK_HALF_SEGS];
+		io->scsiio.kern_data_ptr =
+		    (uint8_t *)&beio->sg_segs[CTLBLK_HALF_SEGS];
 	else
 		io->scsiio.kern_data_ptr = (uint8_t *)beio->sg_segs;
 	io->scsiio.kern_data_len = beio->io_len;
@@ -1764,8 +1766,8 @@ ctl_be_block_submit(union ctl_io *io)
 }
 
 static int
-ctl_be_block_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
-			int flag, struct thread *td)
+ctl_be_block_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct ctl_be_block_softc *softc = &backend_block_softc;
 	int error;
@@ -1790,8 +1792,7 @@ ctl_be_block_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 		default:
 			lun_req->status = CTL_LUN_ERROR;
 			snprintf(lun_req->error_str, sizeof(lun_req->error_str),
-				 "invalid LUN request type %d",
-				 lun_req->reqtype);
+			    "invalid LUN request type %d", lun_req->reqtype);
 			break;
 		}
 		break;
@@ -1810,10 +1811,10 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	struct ctl_be_lun *cbe_lun;
 	struct ctl_be_block_filedata *file_data;
 	struct ctl_lun_create_params *params;
-	const char		     *value;
-	struct vattr		      vattr;
-	off_t			      ps, pss, po, pos, us, uss, uo, uos;
-	int			      error;
+	const char *value;
+	struct vattr vattr;
+	off_t ps, pss, po, pos, us, uss, uo, uos;
+	int error;
 
 	cbe_lun = &be_lun->cbe_lun;
 	file_data = &be_lun->backend.file;
@@ -1830,8 +1831,8 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
 	if (error != 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "error calling VOP_GETATTR() for file %s",
-			 be_lun->dev_path);
+		    "error calling VOP_GETATTR() for file %s",
+		    be_lun->dev_path);
 		return (error);
 	}
 
@@ -1855,7 +1856,8 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		cbe_lun->blocksize = 512;
 	be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
 	cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
-	    0 : (be_lun->size_blocks - 1);
+		  0 :
+		  (be_lun->size_blocks - 1);
 
 	us = ps = vattr.va_blocksize;
 	uo = po = 0;
@@ -1895,8 +1897,8 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	if (be_lun->size_bytes < cbe_lun->blocksize) {
 		error = EINVAL;
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "file %s size %ju < block size %u", be_lun->dev_path,
-			 (uintmax_t)be_lun->size_bytes, cbe_lun->blocksize);
+		    "file %s size %ju < block size %u", be_lun->dev_path,
+		    (uintmax_t)be_lun->size_bytes, cbe_lun->blocksize);
 	}
 
 	cbe_lun->opttxferlen = CTLBLK_MAX_IO_SIZE / cbe_lun->blocksize;
@@ -1908,11 +1910,11 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 {
 	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct ctl_lun_create_params *params;
-	struct cdevsw		     *csw;
-	struct cdev		     *dev;
-	const char		     *value;
-	int			      error, atomic, maxio, ref, unmap, tmp;
-	off_t			      ps, pss, po, pos, us, uss, uo, uos, otmp;
+	struct cdevsw *csw;
+	struct cdev *dev;
+	const char *value;
+	int error, atomic, maxio, ref, unmap, tmp;
+	off_t ps, pss, po, pos, us, uss, uo, uos, otmp;
 
 	params = &be_lun->params;
 
@@ -1941,24 +1943,25 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	if (!csw->d_ioctl) {
 		dev_relthread(dev, ref);
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "no d_ioctl for device %s!", be_lun->dev_path);
+		    "no d_ioctl for device %s!", be_lun->dev_path);
 		return (ENODEV);
 	}
 
-	error = csw->d_ioctl(dev, DIOCGSECTORSIZE, (caddr_t)&tmp, FREAD,
-			       curthread);
+	error = csw->d_ioctl(
+	    dev, DIOCGSECTORSIZE, (caddr_t)&tmp, FREAD, curthread);
 	if (error) {
 		dev_relthread(dev, ref);
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "error %d returned for DIOCGSECTORSIZE ioctl "
-			 "on %s!", error, be_lun->dev_path);
+		    "error %d returned for DIOCGSECTORSIZE ioctl "
+		    "on %s!",
+		    error, be_lun->dev_path);
 		return (error);
 	}
 
 	/*
 	 * If the user has asked for a blocksize that is greater than the
 	 * backing device's blocksize, we can do it only if the blocksize
-	 * the user is asking for is an even multiple of the underlying 
+	 * the user is asking for is an even multiple of the underlying
 	 * device's blocksize.
 	 */
 	if ((params->blocksize_bytes != 0) &&
@@ -1968,30 +1971,31 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		} else {
 			dev_relthread(dev, ref);
 			snprintf(req->error_str, sizeof(req->error_str),
-				 "requested blocksize %u is not an even "
-				 "multiple of backing device blocksize %u",
-				 params->blocksize_bytes, tmp);
+			    "requested blocksize %u is not an even "
+			    "multiple of backing device blocksize %u",
+			    params->blocksize_bytes, tmp);
 			return (EINVAL);
 		}
 	} else if (params->blocksize_bytes != 0) {
 		dev_relthread(dev, ref);
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "requested blocksize %u < backing device "
-			 "blocksize %u", params->blocksize_bytes, tmp);
+		    "requested blocksize %u < backing device "
+		    "blocksize %u",
+		    params->blocksize_bytes, tmp);
 		return (EINVAL);
 	} else if (cbe_lun->lun_type == T_CDROM)
 		cbe_lun->blocksize = MAX(tmp, 2048);
 	else
 		cbe_lun->blocksize = tmp;
 
-	error = csw->d_ioctl(dev, DIOCGMEDIASIZE, (caddr_t)&otmp, FREAD,
-			     curthread);
+	error = csw->d_ioctl(
+	    dev, DIOCGMEDIASIZE, (caddr_t)&otmp, FREAD, curthread);
 	if (error) {
 		dev_relthread(dev, ref);
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "error %d returned for DIOCGMEDIASIZE "
-			 " ioctl on %s!", error,
-			 be_lun->dev_path);
+		    "error %d returned for DIOCGMEDIASIZE "
+		    " ioctl on %s!",
+		    error, be_lun->dev_path);
 		return (error);
 	}
 
@@ -1999,10 +2003,9 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		if (params->lun_size_bytes > otmp) {
 			dev_relthread(dev, ref);
 			snprintf(req->error_str, sizeof(req->error_str),
-				 "requested LUN size %ju > backing device "
-				 "size %ju",
-				 (uintmax_t)params->lun_size_bytes,
-				 (uintmax_t)otmp);
+			    "requested LUN size %ju > backing device "
+			    "size %ju",
+			    (uintmax_t)params->lun_size_bytes, (uintmax_t)otmp);
 			return (EINVAL);
 		}
 
@@ -2011,15 +2014,16 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		be_lun->size_bytes = otmp;
 	be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
 	cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
-	    0 : (be_lun->size_blocks - 1);
+		  0 :
+		  (be_lun->size_blocks - 1);
 
-	error = csw->d_ioctl(dev, DIOCGSTRIPESIZE, (caddr_t)&ps, FREAD,
-	    curthread);
+	error = csw->d_ioctl(
+	    dev, DIOCGSTRIPESIZE, (caddr_t)&ps, FREAD, curthread);
 	if (error)
 		ps = po = 0;
 	else {
-		error = csw->d_ioctl(dev, DIOCGSTRIPEOFFSET, (caddr_t)&po,
-		    FREAD, curthread);
+		error = csw->d_ioctl(
+		    dev, DIOCGSTRIPEOFFSET, (caddr_t)&po, FREAD, curthread);
 		if (error)
 			po = 0;
 	}
@@ -2060,12 +2064,12 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	if (be_lun->dispatch == ctl_be_block_dispatch_zvol) {
 		unmap = 1;
 	} else {
-		struct diocgattr_arg	arg;
+		struct diocgattr_arg arg;
 
 		strlcpy(arg.name, "GEOM::candelete", sizeof(arg.name));
 		arg.len = sizeof(arg.value.i);
-		error = csw->d_ioctl(dev, DIOCGATTR, (caddr_t)&arg, FREAD,
-		    curthread);
+		error = csw->d_ioctl(
+		    dev, DIOCGATTR, (caddr_t)&arg, FREAD, curthread);
 		unmap = (error == 0) ? arg.value.i : 0;
 	}
 	value = dnvlist_get_string(cbe_lun->options, "unmap", NULL);
@@ -2118,13 +2122,13 @@ ctl_be_block_open(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 {
 	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct nameidata nd;
-	const char	*value;
-	int		 error, flags;
+	const char *value;
+	int error, flags;
 
 	error = 0;
 	if (rootvnode == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "Root filesystem is not mounted");
+		    "Root filesystem is not mounted");
 		return (1);
 	}
 	pwd_ensure_dirs();
@@ -2132,7 +2136,7 @@ ctl_be_block_open(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	value = dnvlist_get_string(cbe_lun->options, "file", NULL);
 	if (value == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "no file argument specified");
+		    "no file argument specified");
 		return (1);
 	}
 	free(be_lun->dev_path, M_CTLBLK);
@@ -2163,8 +2167,8 @@ again:
 		if (be_lun->dev_path[0] != '/') {
 			char *dev_name;
 
-			asprintf(&dev_name, M_CTLBLK, "/dev/%s",
-				be_lun->dev_path);
+			asprintf(
+			    &dev_name, M_CTLBLK, "/dev/%s", be_lun->dev_path);
 			free(be_lun->dev_path, M_CTLBLK);
 			be_lun->dev_path = dev_name;
 			goto again;
@@ -2189,7 +2193,7 @@ again:
 	} else {
 		error = EINVAL;
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s is not a disk or plain file", be_lun->dev_path);
+		    "%s is not a disk or plain file", be_lun->dev_path);
 	}
 	VOP_UNLOCK(be_lun->vn);
 
@@ -2251,8 +2255,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	} else if (control_softc->flags & CTL_FLAG_ACTIVE_SHELF)
 		cbe_lun->flags |= CTL_LUN_FLAG_PRIMARY;
 
-	if (cbe_lun->lun_type == T_DIRECT ||
-	    cbe_lun->lun_type == T_CDROM) {
+	if (cbe_lun->lun_type == T_DIRECT || cbe_lun->lun_type == T_CDROM) {
 		be_lun->size_bytes = params->lun_size_bytes;
 		if (params->blocksize_bytes != 0)
 			cbe_lun->blocksize = params->blocksize_bytes;
@@ -2262,7 +2265,8 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 			cbe_lun->blocksize = 512;
 		be_lun->size_blocks = be_lun->size_bytes / cbe_lun->blocksize;
 		cbe_lun->maxlba = (be_lun->size_blocks == 0) ?
-		    0 : (be_lun->size_blocks - 1);
+			  0 :
+			  (be_lun->size_blocks - 1);
 
 		if ((cbe_lun->flags & CTL_LUN_FLAG_PRIMARY) ||
 		    control_softc->ha_mode == CTL_HA_MODE_SER_ONLY) {
@@ -2288,8 +2292,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		 */
 		if (tmp_num_threads < 1) {
 			snprintf(req->error_str, sizeof(req->error_str),
-				 "invalid number of threads %s",
-				 num_thread_str);
+			    "invalid number of threads %s", num_thread_str);
 			goto bailout_error;
 		}
 		num_threads = tmp_num_threads;
@@ -2310,41 +2313,42 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	cbe_lun->be = &ctl_be_block_driver;
 
 	if ((params->flags & CTL_LUN_FLAG_SERIAL_NUM) == 0) {
-		snprintf(tmpstr, sizeof(tmpstr), "MYSERIAL%04d",
-			 softc->num_luns);
+		snprintf(
+		    tmpstr, sizeof(tmpstr), "MYSERIAL%04d", softc->num_luns);
 		strncpy((char *)cbe_lun->serial_num, tmpstr,
-			MIN(sizeof(cbe_lun->serial_num), sizeof(tmpstr)));
+		    MIN(sizeof(cbe_lun->serial_num), sizeof(tmpstr)));
 
 		/* Tell the user what we used for a serial number */
 		strncpy((char *)params->serial_num, tmpstr,
-			MIN(sizeof(params->serial_num), sizeof(tmpstr)));
-	} else { 
+		    MIN(sizeof(params->serial_num), sizeof(tmpstr)));
+	} else {
 		strncpy((char *)cbe_lun->serial_num, params->serial_num,
-			MIN(sizeof(cbe_lun->serial_num),
+		    MIN(sizeof(cbe_lun->serial_num),
 			sizeof(params->serial_num)));
 	}
 	if ((params->flags & CTL_LUN_FLAG_DEVID) == 0) {
-		snprintf(tmpstr, sizeof(tmpstr), "MYDEVID%04d", softc->num_luns);
+		snprintf(
+		    tmpstr, sizeof(tmpstr), "MYDEVID%04d", softc->num_luns);
 		strncpy((char *)cbe_lun->device_id, tmpstr,
-			MIN(sizeof(cbe_lun->device_id), sizeof(tmpstr)));
+		    MIN(sizeof(cbe_lun->device_id), sizeof(tmpstr)));
 
 		/* Tell the user what we used for a device ID */
 		strncpy((char *)params->device_id, tmpstr,
-			MIN(sizeof(params->device_id), sizeof(tmpstr)));
+		    MIN(sizeof(params->device_id), sizeof(tmpstr)));
 	} else {
 		strncpy((char *)cbe_lun->device_id, params->device_id,
-			MIN(sizeof(cbe_lun->device_id),
-			    sizeof(params->device_id)));
+		    MIN(sizeof(cbe_lun->device_id), sizeof(params->device_id)));
 	}
 
-	TASK_INIT(&be_lun->io_task, /*priority*/0, ctl_be_block_worker, be_lun);
+	TASK_INIT(
+	    &be_lun->io_task, /*priority*/ 0, ctl_be_block_worker, be_lun);
 
 	be_lun->io_taskqueue = taskqueue_create("ctlblocktq", M_WAITOK,
-	    taskqueue_thread_enqueue, /*context*/&be_lun->io_taskqueue);
+	    taskqueue_thread_enqueue, /*context*/ &be_lun->io_taskqueue);
 
 	if (be_lun->io_taskqueue == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "unable to create taskqueue");
+		    "unable to create taskqueue");
 		goto bailout_error;
 	}
 
@@ -2363,10 +2367,10 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	 * the tunable/sysctl to alter the default number of threads.
 	 */
 	retval = taskqueue_start_threads_in_proc(&be_lun->io_taskqueue,
-					 /*num threads*/num_threads,
-					 /*priority*/PUSER,
-					 /*proc*/control_softc->ctl_proc,
-					 /*thread name*/"block");
+	    /*num threads*/ num_threads,
+	    /*priority*/ PUSER,
+	    /*proc*/ control_softc->ctl_proc,
+	    /*thread name*/ "block");
 
 	if (retval != 0)
 		goto bailout_error;
@@ -2376,18 +2380,16 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	retval = ctl_add_lun(&be_lun->cbe_lun);
 	if (retval != 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "ctl_add_lun() returned error %d, see dmesg for "
-			 "details", retval);
+		    "ctl_add_lun() returned error %d, see dmesg for "
+		    "details",
+		    retval);
 		retval = 0;
 		goto bailout_error;
 	}
 
 	be_lun->disk_stats = devstat_new_entry("cbb", cbe_lun->lun_id,
-					       cbe_lun->blocksize,
-					       DEVSTAT_ALL_SUPPORTED,
-					       cbe_lun->lun_type
-					       | DEVSTAT_TYPE_IF_OTHER,
-					       DEVSTAT_PRIORITY_OTHER);
+	    cbe_lun->blocksize, DEVSTAT_ALL_SUPPORTED,
+	    cbe_lun->lun_type | DEVSTAT_TYPE_IF_OTHER, DEVSTAT_PRIORITY_OTHER);
 
 	mtx_lock(&softc->lock);
 	softc->num_luns++;
@@ -2426,10 +2428,10 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	sx_xlock(&softc->modify_lock);
 	mtx_lock(&softc->lock);
-	SLIST_FOREACH(be_lun, &softc->lun_list, links) {
+	SLIST_FOREACH (be_lun, &softc->lun_list, links) {
 		if (be_lun->cbe_lun.lun_id == params->lun_id) {
-			SLIST_REMOVE(&softc->lun_list, be_lun,
-			    ctl_be_block_lun, links);
+			SLIST_REMOVE(
+			    &softc->lun_list, be_lun, ctl_be_block_lun, links);
 			softc->num_luns--;
 			break;
 		}
@@ -2438,8 +2440,8 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	sx_xunlock(&softc->modify_lock);
 	if (be_lun == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "LUN %u is not managed by the block backend",
-			 params->lun_id);
+		    "LUN %u is not managed by the block backend",
+		    params->lun_id);
 		goto bailout_error;
 	}
 	cbe_lun = &be_lun->cbe_lun;
@@ -2458,8 +2460,9 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	retval = ctl_remove_lun(cbe_lun);
 	if (retval != 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "error %d returned from ctl_remove_lun() for "
-			 "LUN %d", retval, params->lun_id);
+		    "error %d returned from ctl_remove_lun() for "
+		    "LUN %d",
+		    retval, params->lun_id);
 		mtx_lock(&softc->lock);
 		be_lun->flags &= ~CTL_BE_BLOCK_LUN_WAITING;
 		mtx_unlock(&softc->lock);
@@ -2503,15 +2506,15 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	sx_xlock(&softc->modify_lock);
 	mtx_lock(&softc->lock);
-	SLIST_FOREACH(be_lun, &softc->lun_list, links) {
+	SLIST_FOREACH (be_lun, &softc->lun_list, links) {
 		if (be_lun->cbe_lun.lun_id == params->lun_id)
 			break;
 	}
 	mtx_unlock(&softc->lock);
 	if (be_lun == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "LUN %u is not managed by the block backend",
-			 params->lun_id);
+		    "LUN %u is not managed by the block backend",
+		    params->lun_id);
 		goto bailout_error;
 	}
 	cbe_lun = &be_lun->cbe_lun;
@@ -2642,8 +2645,8 @@ ctl_be_block_config_write(union ctl_io *io)
 		 * cache command, we'll sync out the whole thing.
 		 */
 		mtx_lock(&be_lun->queue_lock);
-		STAILQ_INSERT_TAIL(&be_lun->config_write_queue, &io->io_hdr,
-				   links);
+		STAILQ_INSERT_TAIL(
+		    &be_lun->config_write_queue, &io->io_hdr, links);
 		mtx_unlock(&be_lun->queue_lock);
 		taskqueue_enqueue(be_lun->io_taskqueue, &be_lun->io_task);
 		break;
@@ -2662,7 +2665,8 @@ ctl_be_block_config_write(union ctl_io *io)
 				retval = ctl_be_block_open(be_lun, &req);
 				cbe_lun->flags &= ~CTL_LUN_FLAG_EJECTED;
 				if (retval == 0) {
-					cbe_lun->flags &= ~CTL_LUN_FLAG_NO_MEDIA;
+					cbe_lun->flags &=
+					    ~CTL_LUN_FLAG_NO_MEDIA;
 					ctl_lun_has_media(cbe_lun);
 				} else {
 					cbe_lun->flags |= CTL_LUN_FLAG_NO_MEDIA;
@@ -2713,20 +2717,20 @@ ctl_be_block_config_read(union ctl_io *io)
 	case SERVICE_ACTION_IN:
 		if (io->scsiio.cdb[1] == SGLS_SERVICE_ACTION) {
 			mtx_lock(&be_lun->queue_lock);
-			STAILQ_INSERT_TAIL(&be_lun->config_read_queue,
-			    &io->io_hdr, links);
+			STAILQ_INSERT_TAIL(
+			    &be_lun->config_read_queue, &io->io_hdr, links);
 			mtx_unlock(&be_lun->queue_lock);
-			taskqueue_enqueue(be_lun->io_taskqueue,
-			    &be_lun->io_task);
+			taskqueue_enqueue(
+			    be_lun->io_taskqueue, &be_lun->io_task);
 			retval = CTL_RETVAL_QUEUED;
 			break;
 		}
 		ctl_set_invalid_field(&io->scsiio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 1,
-				      /*bit_valid*/ 1,
-				      /*bit*/ 4);
+		    /*sks_valid*/ 1,
+		    /*command*/ 1,
+		    /*field*/ 1,
+		    /*bit_valid*/ 1,
+		    /*bit*/ 4);
 		ctl_config_read_done(io);
 		retval = CTL_RETVAL_COMPLETE;
 		break;
@@ -2777,11 +2781,11 @@ ctl_be_block_init(void)
 	mtx_init(&softc->lock, "ctlblock", NULL, MTX_DEF);
 	softc->beio_zone = uma_zcreate("beio", sizeof(struct ctl_be_block_io),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	softc->bufmin_zone = uma_zcreate("ctlblockmin", CTLBLK_MIN_SEG,
-	    NULL, NULL, NULL, NULL, /*align*/ 0, /*flags*/0);
+	softc->bufmin_zone = uma_zcreate("ctlblockmin", CTLBLK_MIN_SEG, NULL,
+	    NULL, NULL, NULL, /*align*/ 0, /*flags*/ 0);
 	if (CTLBLK_MIN_SEG < CTLBLK_MAX_SEG)
 		softc->bufmax_zone = uma_zcreate("ctlblockmax", CTLBLK_MAX_SEG,
-		    NULL, NULL, NULL, NULL, /*align*/ 0, /*flags*/0);
+		    NULL, NULL, NULL, NULL, /*align*/ 0, /*flags*/ 0);
 	SLIST_INIT(&softc->lun_list);
 	return (0);
 }

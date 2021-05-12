@@ -39,19 +39,19 @@ __FBSDID("$FreeBSD$");
  * the highest priority call will be installed as the default
  * MMU handler when pmap_bootstrap() is called.
  *
- * It is required that mutex_init() be called before pmap_bootstrap(), 
+ * It is required that mutex_init() be called before pmap_bootstrap(),
  * as the PMAP layer makes extensive use of mutexes.
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/lock.h>
+#include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -63,14 +63,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/mmuvar.h>
 #include <machine/smp.h>
 
-mmu_t		mmu_obj;
+mmu_t mmu_obj;
 
 /*
  * pmap globals
  */
 struct pmap kernel_pmap_store;
 
-vm_offset_t    msgbuf_phys;
+vm_offset_t msgbuf_phys;
 
 vm_offset_t kernel_vm_end;
 vm_offset_t virtual_avail;
@@ -106,37 +106,44 @@ pmap_nomethod(void)
 	return (0);
 }
 
-#define DEFINE_PMAP_IFUNC(ret, func, args) 				\
-	DEFINE_IFUNC(, ret, pmap_##func, args) {			\
-		pmap_##func##_t f;					\
-		f = PMAP_RESOLVE_FUNC(func);				\
-		return (f != NULL ? f : (pmap_##func##_t)pmap_nomethod);\
+#define DEFINE_PMAP_IFUNC(ret, func, args)                               \
+	DEFINE_IFUNC(, ret, pmap_##func, args)                           \
+	{                                                                \
+		pmap_##func##_t f;                                       \
+		f = PMAP_RESOLVE_FUNC(func);                             \
+		return (f != NULL ? f : (pmap_##func##_t)pmap_nomethod); \
 	}
-#define DEFINE_DUMPSYS_IFUNC(ret, func, args) 				\
-	DEFINE_IFUNC(, ret, dumpsys_##func, args) {			\
-		pmap_dumpsys_##func##_t f;				\
-		f = PMAP_RESOLVE_FUNC(dumpsys_##func);			\
-		return (f != NULL ? f : (pmap_dumpsys_##func##_t)pmap_nomethod);\
+#define DEFINE_DUMPSYS_IFUNC(ret, func, args)                                \
+	DEFINE_IFUNC(, ret, dumpsys_##func, args)                            \
+	{                                                                    \
+		pmap_dumpsys_##func##_t f;                                   \
+		f = PMAP_RESOLVE_FUNC(dumpsys_##func);                       \
+		return (                                                     \
+		    f != NULL ? f : (pmap_dumpsys_##func##_t)pmap_nomethod); \
 	}
 
 DEFINE_PMAP_IFUNC(void, activate, (struct thread *));
 DEFINE_PMAP_IFUNC(void, advise, (pmap_t, vm_offset_t, vm_offset_t, int));
-DEFINE_PMAP_IFUNC(void, align_superpage, (vm_object_t, vm_ooffset_t,
-	vm_offset_t *, vm_size_t));
+DEFINE_PMAP_IFUNC(void, align_superpage,
+    (vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t));
 DEFINE_PMAP_IFUNC(void, clear_modify, (vm_page_t));
-DEFINE_PMAP_IFUNC(void, copy, (pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t));
-DEFINE_PMAP_IFUNC(int, enter, (pmap_t, vm_offset_t, vm_page_t, vm_prot_t, u_int, int8_t));
-DEFINE_PMAP_IFUNC(void, enter_quick, (pmap_t, vm_offset_t, vm_page_t, vm_prot_t));
-DEFINE_PMAP_IFUNC(void, enter_object, (pmap_t, vm_offset_t, vm_offset_t, vm_page_t,
-	vm_prot_t));
+DEFINE_PMAP_IFUNC(
+    void, copy, (pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t));
+DEFINE_PMAP_IFUNC(
+    int, enter, (pmap_t, vm_offset_t, vm_page_t, vm_prot_t, u_int, int8_t));
+DEFINE_PMAP_IFUNC(
+    void, enter_quick, (pmap_t, vm_offset_t, vm_page_t, vm_prot_t));
+DEFINE_PMAP_IFUNC(void, enter_object,
+    (pmap_t, vm_offset_t, vm_offset_t, vm_page_t, vm_prot_t));
 DEFINE_PMAP_IFUNC(vm_paddr_t, extract, (pmap_t, vm_offset_t));
-DEFINE_PMAP_IFUNC(vm_page_t, extract_and_hold, (pmap_t, vm_offset_t, vm_prot_t));
+DEFINE_PMAP_IFUNC(
+    vm_page_t, extract_and_hold, (pmap_t, vm_offset_t, vm_prot_t));
 DEFINE_PMAP_IFUNC(void, kenter, (vm_offset_t, vm_paddr_t));
 DEFINE_PMAP_IFUNC(void, kenter_attr, (vm_offset_t, vm_paddr_t, vm_memattr_t));
 DEFINE_PMAP_IFUNC(vm_paddr_t, kextract, (vm_offset_t));
 DEFINE_PMAP_IFUNC(void, kremove, (vm_offset_t));
-DEFINE_PMAP_IFUNC(void, object_init_pt, (pmap_t, vm_offset_t, vm_object_t, vm_pindex_t,
-	vm_size_t));
+DEFINE_PMAP_IFUNC(void, object_init_pt,
+    (pmap_t, vm_offset_t, vm_object_t, vm_pindex_t, vm_size_t));
 DEFINE_PMAP_IFUNC(boolean_t, is_modified, (vm_page_t));
 DEFINE_PMAP_IFUNC(boolean_t, is_prefaultable, (pmap_t, vm_offset_t));
 DEFINE_PMAP_IFUNC(boolean_t, is_referenced, (vm_page_t));
@@ -161,11 +168,12 @@ DEFINE_PMAP_IFUNC(void, zero_page, (vm_page_t));
 DEFINE_PMAP_IFUNC(void, zero_page_area, (vm_page_t, int, int));
 DEFINE_PMAP_IFUNC(void, copy_page, (vm_page_t, vm_page_t));
 DEFINE_PMAP_IFUNC(void, copy_pages,
-    (vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
-    vm_offset_t b_offset, int xfersize));
+    (vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[], vm_offset_t b_offset,
+	int xfersize));
 DEFINE_PMAP_IFUNC(void, growkernel, (vm_offset_t));
 DEFINE_PMAP_IFUNC(void, init, (void));
-DEFINE_PMAP_IFUNC(vm_offset_t, map, (vm_offset_t *, vm_paddr_t, vm_paddr_t, int));
+DEFINE_PMAP_IFUNC(
+    vm_offset_t, map, (vm_offset_t *, vm_paddr_t, vm_paddr_t, int));
 DEFINE_PMAP_IFUNC(int, pinit, (pmap_t));
 DEFINE_PMAP_IFUNC(void, pinit0, (pmap_t));
 DEFINE_PMAP_IFUNC(int, mincore, (pmap_t, vm_offset_t, vm_paddr_t *));
@@ -201,17 +209,17 @@ SET_DECLARE(mmu_set, struct mmu_kobj);
 boolean_t
 pmap_mmu_install(char *name, int prio)
 {
-	mmu_t	*mmupp, mmup;
-	static int	curr_prio = 0;
+	mmu_t *mmupp, mmup;
+	static int curr_prio = 0;
 
 	/*
 	 * Try and locate the MMU kobj corresponding to the name
 	 */
-	SET_FOREACH(mmupp, mmu_set) {
+	SET_FOREACH(mmupp, mmu_set)
+	{
 		mmup = *mmupp;
 
-		if (mmup->name &&
-		    !strcmp(mmup->name, name) &&
+		if (mmup->name && !strcmp(mmup->name, name) &&
 		    (prio >= curr_prio || mmu_obj == NULL)) {
 			curr_prio = prio;
 			mmu_obj = mmup;

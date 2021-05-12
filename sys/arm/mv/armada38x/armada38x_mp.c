@@ -32,10 +32,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/smp.h>
 
-#include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
 #include <machine/platformvar.h>
+#include <machine/smp.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -93,8 +93,8 @@ platform_cnt_cpus(void)
 	for (child = OF_child(cpus_node); child != 0; child = OF_peer(child)) {
 		/* Check if child is a CPU */
 		memset(device_type, 0, sizeof(device_type));
-		rv = OF_getprop(child, "device_type", device_type,
-		    sizeof(device_type) - 1);
+		rv = OF_getprop(
+		    child, "device_type", device_type, sizeof(device_type) - 1);
 		if (rv < 0)
 			continue;
 		if (strcmp(device_type, "cpu") != 0)
@@ -114,7 +114,7 @@ platform_cnt_cpus(void)
 
 	val = bus_space_read_4(fdtbus_bs_tag, vaddr_scu, MV_SCU_REG_CONFIG);
 	bus_space_unmap(fdtbus_bs_tag, vaddr_scu, MV_SCU_REGS_LEN);
-        reg_cpu_count = (val & SCU_CFG_REG_NCPU_MASK) + 1;
+	reg_cpu_count = (val & SCU_CFG_REG_NCPU_MASK) + 1;
 
 	/* Set mp_ncpus to number of cpus in FDT unless SOC contains only one */
 	mp_ncpus = min(reg_cpu_count, fdt_cpu_count);

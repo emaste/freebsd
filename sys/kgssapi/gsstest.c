@@ -30,8 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/ctype.h>
 #include <sys/param.h>
+#include <sys/ctype.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
 #include <sys/malloc.h>
@@ -58,11 +58,11 @@ report_error(gss_OID mech, OM_uint32 maj, OM_uint32 min)
 	uprintf("major_stat=%d, minor_stat=%d\n", maj, min);
 	message_context = 0;
 	do {
-		maj_stat = gss_display_status(&min_stat, maj,
-		    GSS_C_GSS_CODE, GSS_C_NO_OID, &message_context, &buf);
+		maj_stat = gss_display_status(&min_stat, maj, GSS_C_GSS_CODE,
+		    GSS_C_NO_OID, &message_context, &buf);
 		if (GSS_ERROR(maj_stat))
 			break;
-		uprintf("%.*s\n", (int)buf.length, (char *) buf.value);
+		uprintf("%.*s\n", (int)buf.length, (char *)buf.value);
 		gss_release_buffer(&min_stat, &buf);
 	} while (message_context);
 	if (mech && min) {
@@ -72,7 +72,7 @@ report_error(gss_OID mech, OM_uint32 maj, OM_uint32 min)
 			    GSS_C_MECH_CODE, mech, &message_context, &buf);
 			if (GSS_ERROR(maj_stat))
 				break;
-			uprintf("%.*s\n", (int)buf.length, (char *) buf.value);
+			uprintf("%.*s\n", (int)buf.length, (char *)buf.value);
 			gss_release_buffer(&min_stat, &buf);
 		} while (message_context);
 	}
@@ -190,11 +190,12 @@ server(int argc, char** argv)
 #endif
 
 /* 1.2.752.43.13.14 */
-static gss_OID_desc gss_krb5_set_allowable_enctypes_x_desc =
-{6, (void *) "\x2a\x85\x70\x2b\x0d\x0e"};
+static gss_OID_desc gss_krb5_set_allowable_enctypes_x_desc = { 6,
+	(void *)"\x2a\x85\x70\x2b\x0d\x0e" };
 
-gss_OID GSS_KRB5_SET_ALLOWABLE_ENCTYPES_X = &gss_krb5_set_allowable_enctypes_x_desc;
-#define ETYPE_DES_CBC_CRC	1
+gss_OID GSS_KRB5_SET_ALLOWABLE_ENCTYPES_X =
+    &gss_krb5_set_allowable_enctypes_x_desc;
+#define ETYPE_DES_CBC_CRC 1
 
 /*
  * Create an initiator context and acceptor context in the kernel and
@@ -215,8 +216,8 @@ gsstest_1(struct thread *td)
 	gss_buffer_desc name_desc;
 	gss_buffer_desc client_token, server_token, message_buf;
 	gss_OID mech, actual_mech, mech_type;
-	static gss_OID_desc krb5_desc =
-		{9, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02"};
+	static gss_OID_desc krb5_desc = { 9,
+		(void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02" };
 #if 0
 	static gss_OID_desc spnego_desc =
 		{6, (void *)"\x2b\x06\x01\x05\x05\x02"};
@@ -234,18 +235,17 @@ gsstest_1(struct thread *td)
 		name_desc.value = sbuf;
 	}
 
-	name_desc.length = strlen((const char *) name_desc.value);
-	maj_stat = gss_import_name(&min_stat, &name_desc,
-	    GSS_C_NT_HOSTBASED_SERVICE, &name);
+	name_desc.length = strlen((const char *)name_desc.value);
+	maj_stat = gss_import_name(
+	    &min_stat, &name_desc, GSS_C_NT_HOSTBASED_SERVICE, &name);
 	if (GSS_ERROR(maj_stat)) {
 		printf("gss_import_name failed\n");
 		report_error(mech, maj_stat, min_stat);
 		goto out;
 	}
 
-	maj_stat = gss_acquire_cred(&min_stat, GSS_C_NO_NAME,
-	    0, GSS_C_NO_OID_SET, GSS_C_INITIATE, &client_cred,
-	    NULL, NULL);
+	maj_stat = gss_acquire_cred(&min_stat, GSS_C_NO_NAME, 0,
+	    GSS_C_NO_OID_SET, GSS_C_INITIATE, &client_cred, NULL, NULL);
 	if (GSS_ERROR(maj_stat)) {
 		printf("gss_acquire_cred (client) failed\n");
 		report_error(mech, maj_stat, min_stat);
@@ -271,19 +271,11 @@ gsstest_1(struct thread *td)
 	while (!context_established) {
 		client_token.length = 0;
 		client_token.value = NULL;
-		maj_stat = gss_init_sec_context(&min_stat,
-		    client_cred,
-		    &client_context,
-		    name,
-		    mech,
-		    GSS_C_MUTUAL_FLAG|GSS_C_CONF_FLAG|GSS_C_INTEG_FLAG,
-		    0,
-		    GSS_C_NO_CHANNEL_BINDINGS,
-		    &server_token,
-		    &actual_mech,
-		    &client_token,
-		    NULL,
-		    NULL);
+		maj_stat = gss_init_sec_context(&min_stat, client_cred,
+		    &client_context, name, mech,
+		    GSS_C_MUTUAL_FLAG | GSS_C_CONF_FLAG | GSS_C_INTEG_FLAG, 0,
+		    GSS_C_NO_CHANNEL_BINDINGS, &server_token, &actual_mech,
+		    &client_token, NULL, NULL);
 		if (server_token.length)
 			gss_release_buffer(&smin_stat, &server_token);
 		if (GSS_ERROR(maj_stat)) {
@@ -297,26 +289,21 @@ gsstest_1(struct thread *td)
 				gss_OID_set_desc oid_set;
 				oid_set.count = 1;
 				oid_set.elements = &krb5_desc;
-				smaj_stat = gss_acquire_cred(&smin_stat,
-				    name, 0, &oid_set, GSS_C_ACCEPT, &server_cred,
+				smaj_stat = gss_acquire_cred(&smin_stat, name,
+				    0, &oid_set, GSS_C_ACCEPT, &server_cred,
 				    NULL, NULL);
 				if (GSS_ERROR(smaj_stat)) {
-					printf("gss_acquire_cred (server) failed\n");
-					report_error(mech_type, smaj_stat, smin_stat);
+					printf(
+					    "gss_acquire_cred (server) failed\n");
+					report_error(
+					    mech_type, smaj_stat, smin_stat);
 					goto out;
 				}
 			}
 			smaj_stat = gss_accept_sec_context(&smin_stat,
-			    &server_context,
-			    server_cred,
-			    &client_token,
-			    GSS_C_NO_CHANNEL_BINDINGS,
-			    &received_name,
-			    &mech_type,
-			    &server_token,
-			    NULL,
-			    NULL,
-			    NULL);
+			    &server_context, server_cred, &client_token,
+			    GSS_C_NO_CHANNEL_BINDINGS, &received_name,
+			    &mech_type, &server_token, NULL, NULL, NULL);
 			if (GSS_ERROR(smaj_stat)) {
 				printf("gss_accept_sec_context failed\n");
 				report_error(mech_type, smaj_stat, smin_stat);
@@ -327,8 +314,7 @@ gsstest_1(struct thread *td)
 		if (GSS_ERROR(maj_stat)) {
 			if (client_context != GSS_C_NO_CONTEXT)
 				gss_delete_sec_context(&min_stat,
-				    &client_context,
-				    GSS_C_NO_BUFFER);
+				    &client_context, GSS_C_NO_BUFFER);
 			break;
 		}
 
@@ -338,17 +324,17 @@ gsstest_1(struct thread *td)
 	}
 
 	message_buf.length = strlen("Hello world");
-	message_buf.value = (void *) "Hello world";
+	message_buf.value = (void *)"Hello world";
 
-	maj_stat = gss_get_mic(&min_stat, client_context,
-	    GSS_C_QOP_DEFAULT, &message_buf, &client_token);
+	maj_stat = gss_get_mic(&min_stat, client_context, GSS_C_QOP_DEFAULT,
+	    &message_buf, &client_token);
 	if (GSS_ERROR(maj_stat)) {
 		printf("gss_get_mic failed\n");
 		report_error(mech_type, maj_stat, min_stat);
 		goto out;
 	}
-	maj_stat = gss_verify_mic(&min_stat, server_context,
-	    &message_buf, &client_token, NULL);
+	maj_stat = gss_verify_mic(
+	    &min_stat, server_context, &message_buf, &client_token, NULL);
 	if (GSS_ERROR(maj_stat)) {
 		printf("gss_verify_mic failed\n");
 		report_error(mech_type, maj_stat, min_stat);
@@ -356,24 +342,23 @@ gsstest_1(struct thread *td)
 	}
 	gss_release_buffer(&min_stat, &client_token);
 
-	maj_stat = gss_wrap(&min_stat, client_context,
-	    TRUE, GSS_C_QOP_DEFAULT, &message_buf, NULL, &client_token);
+	maj_stat = gss_wrap(&min_stat, client_context, TRUE, GSS_C_QOP_DEFAULT,
+	    &message_buf, NULL, &client_token);
 	if (GSS_ERROR(maj_stat)) {
 		printf("gss_wrap failed\n");
 		report_error(mech_type, maj_stat, min_stat);
 		goto out;
 	}
-	maj_stat = gss_unwrap(&min_stat, server_context,
-	    &client_token, &server_token, NULL, NULL);
+	maj_stat = gss_unwrap(&min_stat, server_context, &client_token,
+	    &server_token, NULL, NULL);
 	if (GSS_ERROR(maj_stat)) {
 		printf("gss_unwrap failed\n");
 		report_error(mech_type, maj_stat, min_stat);
 		goto out;
 	}
 
- 	if (message_buf.length != server_token.length
-	    || memcmp(message_buf.value, server_token.value,
-		message_buf.length))
+	if (message_buf.length != server_token.length ||
+	    memcmp(message_buf.value, server_token.value, message_buf.length))
 		printf("unwrap result corrupt\n");
 
 	gss_release_buffer(&min_stat, &client_token);
@@ -381,11 +366,11 @@ gsstest_1(struct thread *td)
 
 out:
 	if (client_context)
-		gss_delete_sec_context(&min_stat, &client_context,
-		    GSS_C_NO_BUFFER);
+		gss_delete_sec_context(
+		    &min_stat, &client_context, GSS_C_NO_BUFFER);
 	if (server_context)
-		gss_delete_sec_context(&min_stat, &server_context,
-		    GSS_C_NO_BUFFER);
+		gss_delete_sec_context(
+		    &min_stat, &server_context, GSS_C_NO_BUFFER);
 	if (client_cred)
 		gss_release_cred(&min_stat, &client_cred);
 	if (server_cred)
@@ -433,11 +418,11 @@ gsstest_2(struct thread *td, int step, const gss_buffer_t input_token,
 		if (server_context == GSS_C_NO_CONTEXT) {
 			static char sbuf[512];
 			memcpy(sbuf, "nfs@", 4);
-			getcredhostname(td->td_ucred, sbuf + 4,
-			    sizeof(sbuf) - 4);
+			getcredhostname(
+			    td->td_ucred, sbuf + 4, sizeof(sbuf) - 4);
 			name_desc.value = sbuf;
-			name_desc.length = strlen((const char *)
-			    name_desc.value);
+			name_desc.length = strlen(
+			    (const char *)name_desc.value);
 			maj_stat = gss_import_name(&min_stat, &name_desc,
 			    GSS_C_NT_HOSTBASED_SERVICE, &name);
 			if (GSS_ERROR(maj_stat)) {
@@ -446,9 +431,9 @@ gsstest_2(struct thread *td, int step, const gss_buffer_t input_token,
 				goto out;
 			}
 
-			maj_stat = gss_acquire_cred(&min_stat,
-			    name, 0, GSS_C_NO_OID_SET, GSS_C_ACCEPT,
-			    &server_cred, NULL, NULL);
+			maj_stat = gss_acquire_cred(&min_stat, name, 0,
+			    GSS_C_NO_OID_SET, GSS_C_ACCEPT, &server_cred, NULL,
+			    NULL);
 			if (GSS_ERROR(maj_stat)) {
 				printf("gss_acquire_cred (server) failed\n");
 				report_error(mech_type, maj_stat, min_stat);
@@ -470,17 +455,9 @@ gsstest_2(struct thread *td, int step, const gss_buffer_t input_token,
 			}
 		}
 
-		maj_stat = gss_accept_sec_context(&min_stat,
-		    &server_context,
-		    server_cred,
-		    input_token,
-		    GSS_C_NO_CHANNEL_BINDINGS,
-		    NULL,
-		    &mech_type,
-		    output_token,
-		    NULL,
-		    NULL,
-		    NULL);
+		maj_stat = gss_accept_sec_context(&min_stat, &server_context,
+		    server_cred, input_token, GSS_C_NO_CHANNEL_BINDINGS, NULL,
+		    &mech_type, output_token, NULL, NULL, NULL);
 		if (GSS_ERROR(maj_stat)) {
 			printf("gss_accept_sec_context failed\n");
 			report_error(mech_type, maj_stat, min_stat);
@@ -496,10 +473,10 @@ gsstest_2(struct thread *td, int step, const gss_buffer_t input_token,
 
 	case 2:
 		message_buf.length = strlen("Hello world");
-		message_buf.value = (void *) "Hello world";
+		message_buf.value = (void *)"Hello world";
 
-		maj_stat = gss_verify_mic(&min_stat, server_context,
-		    &message_buf, input_token, NULL);
+		maj_stat = gss_verify_mic(
+		    &min_stat, server_context, &message_buf, input_token, NULL);
 		if (GSS_ERROR(maj_stat)) {
 			printf("gss_verify_mic failed\n");
 			report_error(mech_type, maj_stat, min_stat);
@@ -516,8 +493,8 @@ gsstest_2(struct thread *td, int step, const gss_buffer_t input_token,
 		break;
 
 	case 3:
-		maj_stat = gss_unwrap(&min_stat, server_context,
-		    input_token, &message_buf, NULL, NULL);
+		maj_stat = gss_unwrap(&min_stat, server_context, input_token,
+		    &message_buf, NULL, NULL);
 		if (GSS_ERROR(maj_stat)) {
 			printf("gss_unwrap failed\n");
 			report_error(mech_type, maj_stat, min_stat);
@@ -526,9 +503,9 @@ gsstest_2(struct thread *td, int step, const gss_buffer_t input_token,
 		gss_release_buffer(&min_stat, &message_buf);
 
 		message_buf.length = strlen("Hello world");
-		message_buf.value = (void *) "Hello world";
-		maj_stat = gss_wrap(&min_stat, server_context,
-		    TRUE, GSS_C_QOP_DEFAULT, &message_buf, NULL, output_token);
+		message_buf.value = (void *)"Hello world";
+		maj_stat = gss_wrap(&min_stat, server_context, TRUE,
+		    GSS_C_QOP_DEFAULT, &message_buf, NULL, output_token);
 		if (GSS_ERROR(maj_stat)) {
 			printf("gss_wrap failed\n");
 			report_error(mech_type, maj_stat, min_stat);
@@ -537,8 +514,8 @@ gsstest_2(struct thread *td, int step, const gss_buffer_t input_token,
 		break;
 
 	case 4:
-		maj_stat = gss_unwrap(&min_stat, server_context,
-		    input_token, &message_buf, NULL, NULL);
+		maj_stat = gss_unwrap(&min_stat, server_context, input_token,
+		    &message_buf, NULL, NULL);
 		if (GSS_ERROR(maj_stat)) {
 			printf("gss_unwrap failed\n");
 			report_error(mech_type, maj_stat, min_stat);
@@ -547,9 +524,9 @@ gsstest_2(struct thread *td, int step, const gss_buffer_t input_token,
 		gss_release_buffer(&min_stat, &message_buf);
 
 		message_buf.length = strlen("Hello world");
-		message_buf.value = (void *) "Hello world";
-		maj_stat = gss_wrap(&min_stat, server_context,
-		    FALSE, GSS_C_QOP_DEFAULT, &message_buf, NULL, output_token);
+		message_buf.value = (void *)"Hello world";
+		maj_stat = gss_wrap(&min_stat, server_context, FALSE,
+		    GSS_C_QOP_DEFAULT, &message_buf, NULL, output_token);
 		if (GSS_ERROR(maj_stat)) {
 			printf("gss_wrap failed\n");
 			report_error(mech_type, maj_stat, min_stat);
@@ -569,8 +546,8 @@ out:
 	*maj_stat_res = maj_stat;
 	*min_stat_res = min_stat;
 	if (server_context)
-		gss_delete_sec_context(&min_stat, &server_context,
-		    GSS_C_NO_BUFFER);
+		gss_delete_sec_context(
+		    &min_stat, &server_context, GSS_C_NO_BUFFER);
 	if (server_cred)
 		gss_release_cred(&min_stat, &server_cred);
 	if (name)
@@ -587,7 +564,7 @@ static CLIENT *
 gsstest_get_rpc(struct sockaddr *sa, rpcprog_t prog, rpcvers_t vers)
 {
 	struct thread *td = curthread;
-	const char* protofmly;
+	const char *protofmly;
 	struct sockaddr_storage ss;
 	struct socket *so;
 	CLIENT *rpcb;
@@ -611,7 +588,7 @@ gsstest_get_rpc(struct sockaddr *sa, rpcprog_t prog, rpcvers_t vers)
 		protofmly = "inet";
 		socreate(AF_INET, &so, SOCK_DGRAM, 0, td->td_ucred, td);
 		break;
-		
+
 #ifdef INET6
 	case AF_INET6:
 		((struct sockaddr_in6 *)&ss)->sin6_port = htons(111);
@@ -627,8 +604,8 @@ gsstest_get_rpc(struct sockaddr *sa, rpcprog_t prog, rpcvers_t vers)
 		return (NULL);
 	}
 
-	rpcb = clnt_dg_create(so, (struct sockaddr *)&ss,
-	    RPCBPROG, rpcvers, 0, 0);
+	rpcb = clnt_dg_create(
+	    so, (struct sockaddr *)&ss, RPCBPROG, rpcvers, 0, 0);
 	if (!rpcb)
 		return (NULL);
 
@@ -655,9 +632,9 @@ again:
 		 * Try RPCBIND 4 then 3.
 		 */
 		uaddr = NULL;
-		stat = CLNT_CALL(rpcb, (rpcprog_t) RPCBPROC_GETADDR,
-		    (xdrproc_t) xdr_rpcb, &parms,
-		    (xdrproc_t) xdr_wrapstring, &uaddr, timo);
+		stat = CLNT_CALL(rpcb, (rpcprog_t)RPCBPROC_GETADDR,
+		    (xdrproc_t)xdr_rpcb, &parms, (xdrproc_t)xdr_wrapstring,
+		    &uaddr, timo);
 		if (stat == RPC_PROGVERSMISMATCH) {
 			if (rpcvers == RPCBVERS4)
 				rpcvers = RPCBVERS;
@@ -675,7 +652,7 @@ again:
 			 */
 			struct netbuf *a;
 			a = __rpc_uaddr2taddr_af(ss.ss_family, uaddr);
-			xdr_free((xdrproc_t) xdr_wrapstring, &uaddr);
+			xdr_free((xdrproc_t)xdr_wrapstring, &uaddr);
 			if (!a) {
 				CLNT_DESTROY(rpcb);
 				return (NULL);
@@ -694,21 +671,21 @@ again:
 		mapping.pm_prot = do_tcp ? IPPROTO_TCP : IPPROTO_UDP;
 		mapping.pm_port = 0;
 
-		stat = CLNT_CALL(rpcb, (rpcprog_t) PMAPPROC_GETPORT,
-		    (xdrproc_t) xdr_portmap, &mapping,
-		    (xdrproc_t) xdr_u_short, &port, timo);
+		stat = CLNT_CALL(rpcb, (rpcprog_t)PMAPPROC_GETPORT,
+		    (xdrproc_t)xdr_portmap, &mapping, (xdrproc_t)xdr_u_short,
+		    &port, timo);
 
 		if (stat == RPC_SUCCESS) {
 			switch (ss.ss_family) {
 			case AF_INET:
-				((struct sockaddr_in *)&ss)->sin_port =
-					htons(port);
+				((struct sockaddr_in *)&ss)->sin_port = htons(
+				    port);
 				break;
-		
+
 #ifdef INET6
 			case AF_INET6:
-				((struct sockaddr_in6 *)&ss)->sin6_port =
-					htons(port);
+				((struct sockaddr_in6 *)&ss)->sin6_port = htons(
+				    port);
 				break;
 #endif
 			}
@@ -748,8 +725,8 @@ again:
 
 		/* Otherwise, bad news. */
 		printf("gsstest_get_rpc: failed to contact remote rpcbind, "
-		    "stat = %d, port = %d\n",
-		    (int) stat, port);
+		       "stat = %d, port = %d\n",
+		    (int)stat, port);
 		CLNT_DESTROY(rpcb);
 		return (NULL);
 	}
@@ -774,8 +751,8 @@ again:
 #endif
 		}
 
-		rpcb = clnt_reconnect_create(nconf, (struct sockaddr *)&ss,
-		    prog, vers, 0, 0);
+		rpcb = clnt_reconnect_create(
+		    nconf, (struct sockaddr *)&ss, prog, vers, 0, 0);
 	} else {
 		/*
 		 * Re-use the client we used to speak to rpcbind.
@@ -809,37 +786,33 @@ gsstest_3(struct thread *td)
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	sin.sin_port = 0;
 
-	client = gsstest_get_rpc((struct sockaddr *) &sin, 123456, 1);
+	client = gsstest_get_rpc((struct sockaddr *)&sin, 123456, 1);
 	if (!client) {
 		uprintf("Can't connect to service\n");
-		return(1);
+		return (1);
 	}
 
 	memcpy(service, "host@", 5);
 	getcredhostname(td->td_ucred, service + 5, sizeof(service) - 5);
 
-	auth = rpc_gss_seccreate(client, curthread->td_ucred,
-	    service, "kerberosv5", rpc_gss_svc_privacy,
-	    NULL, NULL, &options_ret);
+	auth = rpc_gss_seccreate(client, curthread->td_ucred, service,
+	    "kerberosv5", rpc_gss_svc_privacy, NULL, NULL, &options_ret);
 	if (!auth) {
 		gss_OID oid;
 		uprintf("Can't authorize to service (mech=%s)\n",
-			options_ret.actual_mechanism);
+		    options_ret.actual_mechanism);
 		oid = GSS_C_NO_OID;
 		rpc_gss_mech_to_oid(options_ret.actual_mechanism, &oid);
-		report_error(oid, options_ret.major_status,
-		    options_ret.minor_status);
+		report_error(
+		    oid, options_ret.major_status, options_ret.minor_status);
 		CLNT_DESTROY(client);
 		return (1);
 	}
 
 	for (svc = rpc_gss_svc_none; svc <= rpc_gss_svc_privacy; svc++) {
-		const char *svc_names[] = {
-			"rpc_gss_svc_default",
-			"rpc_gss_svc_none",
-			"rpc_gss_svc_integrity",
-			"rpc_gss_svc_privacy"
-		};
+		const char *svc_names[] = { "rpc_gss_svc_default",
+			"rpc_gss_svc_none", "rpc_gss_svc_integrity",
+			"rpc_gss_svc_privacy" };
 		int num;
 
 		rpc_gss_set_defaults(auth, svc, NULL);
@@ -849,14 +822,13 @@ gsstest_3(struct thread *td)
 		tv.tv_usec = 0;
 		for (i = 42; i < 142; i++) {
 			num = i;
-			stat = CLNT_CALL(client, 1,
-			    (xdrproc_t) xdr_int, (char *) &num,
-			    (xdrproc_t) xdr_int, (char *) &num, tv);
+			stat = CLNT_CALL(client, 1, (xdrproc_t)xdr_int,
+			    (char *)&num, (xdrproc_t)xdr_int, (char *)&num, tv);
 			if (stat == RPC_SUCCESS) {
 				if (num != i + 100)
 					uprintf("unexpected reply %d\n", num);
 			} else {
-				uprintf("call failed, stat=%d\n", (int) stat);
+				uprintf("call failed, stat=%d\n", (int)stat);
 				break;
 			}
 		}
@@ -891,14 +863,13 @@ gsstest_4(struct thread *td)
 
 	mechs = rpc_gss_get_mechanisms();
 	while (*mechs) {
-		if (!rpc_gss_set_svc_name(principal, *mechs, GSS_C_INDEFINITE,
-			123456, 1)) {
+		if (!rpc_gss_set_svc_name(
+			principal, *mechs, GSS_C_INDEFINITE, 123456, 1)) {
 			rpc_gss_error_t e;
 
 			rpc_gss_get_error(&e);
 			printf("setting name for %s for %s failed: %d, %d\n",
-			    principal, *mechs,
-			    e.rpc_gss_error, e.system_error);
+			    principal, *mechs, e.rpc_gss_error, e.system_error);
 		}
 		mechs++;
 	}
@@ -926,46 +897,45 @@ server_program_1(struct svc_req *rqstp, register SVCXPRT *transp)
 {
 	rpc_gss_rawcred_t *rcred;
 	rpc_gss_ucred_t *ucred;
-	int		i, num;
+	int i, num;
 
 	if (rqstp->rq_cred.oa_flavor != RPCSEC_GSS) {
 		svcerr_weakauth(rqstp);
 		return;
-	}		
-		
+	}
+
 	if (!rpc_gss_getcred(rqstp, &rcred, &ucred, NULL)) {
 		svcerr_systemerr(rqstp);
 		return;
 	}
 
-	printf("svc=%d, mech=%s, uid=%d, gid=%d, gids={",
-	    rcred->service, rcred->mechanism, ucred->uid, ucred->gid);
+	printf("svc=%d, mech=%s, uid=%d, gid=%d, gids={", rcred->service,
+	    rcred->mechanism, ucred->uid, ucred->gid);
 	for (i = 0; i < ucred->gidlen; i++) {
-		if (i > 0) printf(",");
+		if (i > 0)
+			printf(",");
 		printf("%d", ucred->gidlist[i]);
 	}
 	printf("}\n");
 
 	switch (rqstp->rq_proc) {
 	case 0:
-		if (!svc_getargs(rqstp, (xdrproc_t) xdr_void, 0)) {
+		if (!svc_getargs(rqstp, (xdrproc_t)xdr_void, 0)) {
 			svcerr_decode(rqstp);
 			goto out;
 		}
-		if (!svc_sendreply(rqstp, (xdrproc_t) xdr_void, 0)) {
+		if (!svc_sendreply(rqstp, (xdrproc_t)xdr_void, 0)) {
 			svcerr_systemerr(rqstp);
 		}
 		goto out;
 
 	case 1:
-		if (!svc_getargs(rqstp, (xdrproc_t) xdr_int,
-			(char *) &num)) {
+		if (!svc_getargs(rqstp, (xdrproc_t)xdr_int, (char *)&num)) {
 			svcerr_decode(rqstp);
 			goto out;
 		}
 		num += 100;
-		if (!svc_sendreply(rqstp, (xdrproc_t) xdr_int,
-			(char *) &num)) {
+		if (!svc_sendreply(rqstp, (xdrproc_t)xdr_int, (char *)&num)) {
 			svcerr_systemerr(rqstp);
 		}
 		goto out;
@@ -987,7 +957,7 @@ print_principal(rpc_gss_principal_t principal)
 	uint8_t *p;
 
 	len = principal->len;
-	p = (uint8_t *) principal->name;
+	p = (uint8_t *)principal->name;
 	while (len > 0) {
 		n = len;
 		if (n > 16)
@@ -1006,10 +976,8 @@ print_principal(rpc_gss_principal_t principal)
 }
 
 static bool_t
-server_new_context(__unused struct svc_req *req,
-    gss_cred_id_t deleg,
-    __unused gss_ctx_id_t gss_context,
-    rpc_gss_lock_t *lock,
+server_new_context(__unused struct svc_req *req, gss_cred_id_t deleg,
+    __unused gss_ctx_id_t gss_context, rpc_gss_lock_t *lock,
     __unused void **cookie)
 {
 	rpc_gss_rawcred_t *rcred = lock->raw_cred;
@@ -1020,8 +988,8 @@ server_new_context(__unused struct svc_req *req,
 	print_principal(rcred->client_principal);
 
 	if (server_acl) {
-		if (rcred->client_principal->len != server_acl->len
-		    || memcmp(rcred->client_principal->name, server_acl->name,
+		if (rcred->client_principal->len != server_acl->len ||
+		    memcmp(rcred->client_principal->name, server_acl->name,
 			server_acl->len)) {
 			return (FALSE);
 		}
@@ -1036,20 +1004,21 @@ server_new_context(__unused struct svc_req *req,
  */
 
 struct gsstest_args {
-        int a_op;
+	int a_op;
 	void *a_args;
 	void *a_res;
 };
 
 struct gsstest_2_args {
-	int step;		/* test step number */
-	gss_buffer_desc input_token; /* token from userland */
+	int step;		      /* test step number */
+	gss_buffer_desc input_token;  /* token from userland */
 	gss_buffer_desc output_token; /* buffer to receive reply token */
 };
 struct gsstest_2_res {
-	OM_uint32 maj_stat;	/* maj_stat from kernel */
-	OM_uint32 min_stat;	/* min_stat from kernel */
-	gss_buffer_desc output_token; /* reply token (using space from gsstest_2_args.output) */
+	OM_uint32 maj_stat;	      /* maj_stat from kernel */
+	OM_uint32 min_stat;	      /* min_stat from kernel */
+	gss_buffer_desc output_token; /* reply token (using space from
+					 gsstest_2_args.output) */
 };
 
 static int
@@ -1059,7 +1028,7 @@ gsstest(struct thread *td, struct gsstest_args *uap)
 
 	switch (uap->a_op) {
 	case 1:
-                return (gsstest_1(td));
+		return (gsstest_1(td));
 
 	case 2: {
 		struct gsstest_2_args args;
@@ -1071,8 +1040,8 @@ gsstest(struct thread *td, struct gsstest_args *uap)
 		if (error)
 			return (error);
 		input_token.length = args.input_token.length;
-		input_token.value = malloc(input_token.length, M_GSSAPI,
-		    M_WAITOK);
+		input_token.value = malloc(
+		    input_token.length, M_GSSAPI, M_WAITOK);
 		error = copyin(args.input_token.value, input_token.value,
 		    input_token.length);
 		if (error) {
@@ -1081,8 +1050,8 @@ gsstest(struct thread *td, struct gsstest_args *uap)
 		}
 		output_token.length = 0;
 		output_token.value = NULL;
-		gsstest_2(td, args.step, &input_token,
-		    &res.maj_stat, &res.min_stat, &output_token);
+		gsstest_2(td, args.step, &input_token, &res.maj_stat,
+		    &res.min_stat, &output_token);
 		gss_release_buffer(&junk, &input_token);
 		if (output_token.length > args.output_token.length) {
 			gss_release_buffer(&junk, &output_token);
@@ -1097,7 +1066,7 @@ gsstest(struct thread *td, struct gsstest_args *uap)
 			return (error);
 
 		return (copyout(&res, uap->a_res, sizeof(res)));
-		
+
 		break;
 	}
 	case 3:
@@ -1106,15 +1075,15 @@ gsstest(struct thread *td, struct gsstest_args *uap)
 		return (gsstest_4(td));
 	}
 
-        return (EINVAL);
+	return (EINVAL);
 }
 
 /*
  * The `sysent' for the new syscall
  */
 static struct sysent gsstest_sysent = {
-        3,                      /* sy_narg */
-        (sy_call_t *) gsstest	/* sy_call */
+	3,		     /* sy_narg */
+	(sy_call_t *)gsstest /* sy_call */
 };
 
 /*
@@ -1129,19 +1098,19 @@ static int gsstest_offset = NO_SYSCALL;
 static int
 gsstest_load(struct module *module, int cmd, void *arg)
 {
-        int error = 0;
+	int error = 0;
 
-        switch (cmd) {
-        case MOD_LOAD :
-                break;
-        case MOD_UNLOAD :
-                break;
-        default :
-                error = EOPNOTSUPP;
-                break;
-        }
-        return error;
+	switch (cmd) {
+	case MOD_LOAD:
+		break;
+	case MOD_UNLOAD:
+		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+	return error;
 }
 
-SYSCALL_MODULE(gsstest_syscall, &gsstest_offset, &gsstest_sysent,
-    gsstest_load, NULL);
+SYSCALL_MODULE(
+    gsstest_syscall, &gsstest_offset, &gsstest_sysent, gsstest_load, NULL);

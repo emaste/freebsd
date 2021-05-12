@@ -39,11 +39,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
-#include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
-
+#include <netinet/ip_var.h>
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/pmod/pmod.h>
 
@@ -78,17 +76,13 @@ ipfw_pmod_modevent(module_t mod, int type, void *unused)
 	return (0);
 }
 
-static moduledata_t ipfw_pmod_mod = {
-	"ipfw_pmod",
-	ipfw_pmod_modevent,
-	0
-};
+static moduledata_t ipfw_pmod_mod = { "ipfw_pmod", ipfw_pmod_modevent, 0 };
 
 /* Define startup order. */
-#define	IPFW_PMOD_SI_SUB_FIREWALL	SI_SUB_PROTO_IFATTACHDOMAIN
-#define	IPFW_PMOD_MODEVENT_ORDER	(SI_ORDER_ANY - 128) /* after ipfw */
-#define	IPFW_PMOD_MODULE_ORDER		(IPFW_PMOD_MODEVENT_ORDER + 1)
-#define	IPFW_PMOD_VNET_ORDER		(IPFW_PMOD_MODEVENT_ORDER + 2)
+#define IPFW_PMOD_SI_SUB_FIREWALL SI_SUB_PROTO_IFATTACHDOMAIN
+#define IPFW_PMOD_MODEVENT_ORDER (SI_ORDER_ANY - 128) /* after ipfw */
+#define IPFW_PMOD_MODULE_ORDER (IPFW_PMOD_MODEVENT_ORDER + 1)
+#define IPFW_PMOD_VNET_ORDER (IPFW_PMOD_MODEVENT_ORDER + 2)
 
 DECLARE_MODULE(ipfw_pmod, ipfw_pmod_mod, IPFW_PMOD_SI_SUB_FIREWALL,
     IPFW_PMOD_MODULE_ORDER);

@@ -51,22 +51,22 @@
  */
 
 #ifndef _FS_MSDOSFS_FAT_H_
-#define	_FS_MSDOSFS_FAT_H_
+#define _FS_MSDOSFS_FAT_H_
 /*
  * Some useful cluster numbers.
  */
-#define	MSDOSFSROOT	0		/* cluster 0 means the root dir */
-#define	CLUST_FREE	0		/* cluster 0 also means a free cluster */
-#define	MSDOSFSFREE	CLUST_FREE
-#define	CLUST_FIRST	2		/* first legal cluster number */
-#define	CLUST_RSRVD	0xfffffff6	/* reserved cluster range */
-#define	CLUST_BAD	0xfffffff7	/* a cluster with a defect */
-#define	CLUST_EOFS	0xfffffff8	/* start of eof cluster range */
-#define	CLUST_EOFE	0xffffffff	/* end of eof cluster range */
+#define MSDOSFSROOT 0 /* cluster 0 means the root dir */
+#define CLUST_FREE 0  /* cluster 0 also means a free cluster */
+#define MSDOSFSFREE CLUST_FREE
+#define CLUST_FIRST 2	       /* first legal cluster number */
+#define CLUST_RSRVD 0xfffffff6 /* reserved cluster range */
+#define CLUST_BAD 0xfffffff7   /* a cluster with a defect */
+#define CLUST_EOFS 0xfffffff8  /* start of eof cluster range */
+#define CLUST_EOFE 0xffffffff  /* end of eof cluster range */
 
-#define	FAT12_MASK	0x00000fff	/* mask for 12 bit cluster numbers */
-#define	FAT16_MASK	0x0000ffff	/* mask for 16 bit cluster numbers */
-#define	FAT32_MASK	0x0fffffff	/* mask for FAT32 cluster numbers */
+#define FAT12_MASK 0x00000fff /* mask for 12 bit cluster numbers */
+#define FAT16_MASK 0x0000ffff /* mask for 16 bit cluster numbers */
+#define FAT32_MASK 0x0fffffff /* mask for FAT32 cluster numbers */
 
 /*
  * MSDOSFS:
@@ -76,32 +76,37 @@
  * 16 bit FAT filesystem. While mounting, the result of this test is stored
  * in pm_fatentrysize.
  */
-#define	FAT12(pmp)	(pmp->pm_fatmask == FAT12_MASK)
-#define	FAT16(pmp)	(pmp->pm_fatmask == FAT16_MASK)
-#define	FAT32(pmp)	(pmp->pm_fatmask == FAT32_MASK)
+#define FAT12(pmp) (pmp->pm_fatmask == FAT12_MASK)
+#define FAT16(pmp) (pmp->pm_fatmask == FAT16_MASK)
+#define FAT32(pmp) (pmp->pm_fatmask == FAT32_MASK)
 
-#define	MSDOSFSEOF(pmp, cn)	((((cn) | ~(pmp)->pm_fatmask) & CLUST_EOFS) == CLUST_EOFS)
+#define MSDOSFSEOF(pmp, cn) \
+	((((cn) | ~(pmp)->pm_fatmask) & CLUST_EOFS) == CLUST_EOFS)
 
-#if defined (_KERNEL) || defined(MAKEFS)
+#if defined(_KERNEL) || defined(MAKEFS)
 /*
  * These are the values for the function argument to the function
  * fatentry().
  */
-#define	FAT_GET		0x0001	/* get a FAT entry */
-#define	FAT_SET		0x0002	/* set a FAT entry */
-#define	FAT_GET_AND_SET	(FAT_GET | FAT_SET)
+#define FAT_GET 0x0001 /* get a FAT entry */
+#define FAT_SET 0x0002 /* set a FAT entry */
+#define FAT_GET_AND_SET (FAT_GET | FAT_SET)
 
 /*
  * Flags to extendfile:
  */
-#define	DE_CLEAR	1	/* Zero out the blocks allocated */
+#define DE_CLEAR 1 /* Zero out the blocks allocated */
 
-int pcbmap(struct denode *dep, u_long findcn, daddr_t *bnp, u_long *cnp, int* sp);
+int pcbmap(
+    struct denode *dep, u_long findcn, daddr_t *bnp, u_long *cnp, int *sp);
 int clusterfree(struct msdosfsmount *pmp, u_long cn, u_long *oldcnp);
-int clusteralloc(struct msdosfsmount *pmp, u_long start, u_long count, u_long fillwith, u_long *retcluster, u_long *got);
-int fatentry(int function, struct msdosfsmount *pmp, u_long cluster, u_long *oldcontents, u_long newcontents);
+int clusteralloc(struct msdosfsmount *pmp, u_long start, u_long count,
+    u_long fillwith, u_long *retcluster, u_long *got);
+int fatentry(int function, struct msdosfsmount *pmp, u_long cluster,
+    u_long *oldcontents, u_long newcontents);
 int freeclusterchain(struct msdosfsmount *pmp, u_long startchain);
-int extendfile(struct denode *dep, u_long count, struct buf **bpp, u_long *ncp, int flags);
+int extendfile(
+    struct denode *dep, u_long count, struct buf **bpp, u_long *ncp, int flags);
 void fc_purge(struct denode *dep, u_int frcn);
 int markvoldirty_upgrade(struct msdosfsmount *pmp, bool dirty, bool rw_upgrade);
 
@@ -111,5 +116,5 @@ markvoldirty(struct msdosfsmount *pmp, bool dirty)
 	return (markvoldirty_upgrade(pmp, dirty, false));
 }
 
-#endif	/* _KERNEL || MAKEFS */
-#endif	/* !_FS_MSDOSFS_FAT_H_ */
+#endif /* _KERNEL || MAKEFS */
+#endif /* !_FS_MSDOSFS_FAT_H_ */

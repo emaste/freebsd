@@ -38,7 +38,7 @@
  */
 
 #ifndef _SYS__CALLOUT_H
-#define	_SYS__CALLOUT_H
+#define _SYS__CALLOUT_H
 
 #include <sys/queue.h>
 
@@ -56,14 +56,14 @@ struct callout {
 		SLIST_ENTRY(callout) sle;
 		TAILQ_ENTRY(callout) tqe;
 	} c_links;
-	sbintime_t c_time;			/* ticks to the event */
-	sbintime_t c_precision;			/* delta allowed wrt opt */
-	void	*c_arg;				/* function argument */
-	callout_func_t *c_func;			/* function to call */
-	struct lock_object *c_lock;		/* lock to handle */
-	short	c_flags;			/* User State */
-	short	c_iflags;			/* Internal State */
-	volatile int c_cpu;			/* CPU we're scheduled on */
+	sbintime_t c_time;	    /* ticks to the event */
+	sbintime_t c_precision;	    /* delta allowed wrt opt */
+	void *c_arg;		    /* function argument */
+	callout_func_t *c_func;	    /* function to call */
+	struct lock_object *c_lock; /* lock to handle */
+	short c_flags;		    /* User State */
+	short c_iflags;		    /* Internal State */
+	volatile int c_cpu;	    /* CPU we're scheduled on */
 };
 
 #endif

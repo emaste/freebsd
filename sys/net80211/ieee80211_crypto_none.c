@@ -34,61 +34,59 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h> 
-#include <sys/malloc.h> 
-#include <sys/systm.h> 
-#include <sys/mbuf.h>   
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
-
 #include <sys/socket.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
-#include <net/ethernet.h>
-
 #include <net80211/ieee80211_var.h>
 
-static	void *none_attach(struct ieee80211vap *, struct ieee80211_key *);
-static	void none_detach(struct ieee80211_key *);
-static	int none_setkey(struct ieee80211_key *);
-static	void none_setiv(struct ieee80211_key *, uint8_t *);
-static	int none_encap(struct ieee80211_key *, struct mbuf *);
-static	int none_decap(struct ieee80211_key *, struct mbuf *, int);
-static	int none_enmic(struct ieee80211_key *, struct mbuf *, int);
-static	int none_demic(struct ieee80211_key *, struct mbuf *, int);
+static void *none_attach(struct ieee80211vap *, struct ieee80211_key *);
+static void none_detach(struct ieee80211_key *);
+static int none_setkey(struct ieee80211_key *);
+static void none_setiv(struct ieee80211_key *, uint8_t *);
+static int none_encap(struct ieee80211_key *, struct mbuf *);
+static int none_decap(struct ieee80211_key *, struct mbuf *, int);
+static int none_enmic(struct ieee80211_key *, struct mbuf *, int);
+static int none_demic(struct ieee80211_key *, struct mbuf *, int);
 
 const struct ieee80211_cipher ieee80211_cipher_none = {
-	.ic_name	= "NONE",
-	.ic_cipher	= IEEE80211_CIPHER_NONE,
-	.ic_header	= 0,
-	.ic_trailer	= 0,
-	.ic_miclen	= 0,
-	.ic_attach	= none_attach,
-	.ic_detach	= none_detach,
-	.ic_setkey	= none_setkey,
-	.ic_setiv	= none_setiv,
-	.ic_encap	= none_encap,
-	.ic_decap	= none_decap,
-	.ic_enmic	= none_enmic,
-	.ic_demic	= none_demic,
+	.ic_name = "NONE",
+	.ic_cipher = IEEE80211_CIPHER_NONE,
+	.ic_header = 0,
+	.ic_trailer = 0,
+	.ic_miclen = 0,
+	.ic_attach = none_attach,
+	.ic_detach = none_detach,
+	.ic_setkey = none_setkey,
+	.ic_setiv = none_setiv,
+	.ic_encap = none_encap,
+	.ic_decap = none_decap,
+	.ic_enmic = none_enmic,
+	.ic_demic = none_demic,
 };
 
 static void *
 none_attach(struct ieee80211vap *vap, struct ieee80211_key *k)
 {
-	return vap;		/* for diagnostics+stats */
+	return vap; /* for diagnostics+stats */
 }
 
 static void
 none_detach(struct ieee80211_key *k)
 {
-	(void) k;
+	(void)k;
 }
 
 static int
 none_setkey(struct ieee80211_key *k)
 {
-	(void) k;
+	(void)k;
 	return 1;
 }
 

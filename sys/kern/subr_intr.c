@@ -42,31 +42,31 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/syslog.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/queue.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
-#include <sys/taskqueue.h>
-#include <sys/tree.h>
 #include <sys/conf.h>
 #include <sys/cpuset.h>
+#include <sys/interrupt.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/rman.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
+#include <sys/taskqueue.h>
+#include <sys/tree.h>
 #include <sys/vmmeter.h>
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
 
 #include <machine/atomic.h>
-#include <machine/intr.h>
 #include <machine/cpu.h>
+#include <machine/intr.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>
 
@@ -78,14 +78,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/iommu/iommu_msi.h>
 #endif
 
-#include "pic_if.h"
 #include "msi_if.h"
+#include "pic_if.h"
 
-#define	INTRNAME_LEN	(2*MAXCOMLEN + 1)
+#define INTRNAME_LEN (2 * MAXCOMLEN + 1)
 
 #ifdef DEBUG
-#define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
-    printf(fmt,##args); } while (0)
+#define debugf(fmt, args...)                \
+	do {                                \
+		printf("%s(): ", __func__); \
+		printf(fmt, ##args);        \
+	} while (0)
 #else
 #define debugf(fmt, args...)
 #endif
@@ -103,25 +106,25 @@ static void *irq_root_arg;
 static u_int irq_root_ipicount;
 
 struct intr_pic_child {
-	SLIST_ENTRY(intr_pic_child)	 pc_next;
-	struct intr_pic			*pc_pic;
-	intr_child_irq_filter_t		*pc_filter;
-	void				*pc_filter_arg;
-	uintptr_t			 pc_start;
-	uintptr_t			 pc_length;
+	SLIST_ENTRY(intr_pic_child) pc_next;
+	struct intr_pic *pc_pic;
+	intr_child_irq_filter_t *pc_filter;
+	void *pc_filter_arg;
+	uintptr_t pc_start;
+	uintptr_t pc_length;
 };
 
 /* Interrupt controller definition. */
 struct intr_pic {
-	SLIST_ENTRY(intr_pic)	pic_next;
-	intptr_t		pic_xref;	/* hardware identification */
-	device_t		pic_dev;
+	SLIST_ENTRY(intr_pic) pic_next;
+	intptr_t pic_xref; /* hardware identification */
+	device_t pic_dev;
 /* Only one of FLAG_PIC or FLAG_MSI may be set */
-#define	FLAG_PIC	(1 << 0)
-#define	FLAG_MSI	(1 << 1)
-#define	FLAG_TYPE_MASK	(FLAG_PIC | FLAG_MSI)
-	u_int			pic_flags;
-	struct mtx		pic_child_lock;
+#define FLAG_PIC (1 << 0)
+#define FLAG_MSI (1 << 1)
+#define FLAG_TYPE_MASK (FLAG_PIC | FLAG_MSI)
+	u_int pic_flags;
+	struct mtx pic_child_lock;
 	SLIST_HEAD(, intr_pic_child) pic_children;
 };
 
@@ -144,8 +147,8 @@ static bool irq_assign_cpu = false;
 #endif
 
 u_int intr_nirq = NIRQ;
-SYSCTL_UINT(_machdep, OID_AUTO, nirq, CTLFLAG_RDTUN, &intr_nirq, 0,
-    "Number of IRQs");
+SYSCTL_UINT(
+    _machdep, OID_AUTO, nirq, CTLFLAG_RDTUN, &intr_nirq, 0, "Number of IRQs");
 
 /* Data for MI statistics reporting. */
 u_long *intrcnt;
@@ -156,9 +159,9 @@ static u_int intrcnt_index;
 
 static struct intr_irqsrc *intr_map_get_isrc(u_int res_id);
 static void intr_map_set_isrc(u_int res_id, struct intr_irqsrc *isrc);
-static struct intr_map_data * intr_map_get_map_data(u_int res_id);
-static void intr_map_copy_map_data(u_int res_id, device_t *dev, intptr_t *xref,
-    struct intr_map_data **data);
+static struct intr_map_data *intr_map_get_map_data(u_int res_id);
+static void intr_map_copy_map_data(
+    u_int res_id, device_t *dev, intptr_t *xref, struct intr_map_data **data);
 
 /*
  *  Interrupt framework initialization routine.
@@ -182,13 +185,13 @@ intr_irq_init(void *dummy __unused)
 	intrcnt_count += INTR_IPI_COUNT * MAXCPU;
 #endif
 
-	intrcnt = mallocarray(intrcnt_count, sizeof(u_long), M_INTRNG,
-	    M_WAITOK | M_ZERO);
-	intrnames = mallocarray(intrcnt_count, INTRNAME_LEN, M_INTRNG,
-	    M_WAITOK | M_ZERO);
+	intrcnt = mallocarray(
+	    intrcnt_count, sizeof(u_long), M_INTRNG, M_WAITOK | M_ZERO);
+	intrnames = mallocarray(
+	    intrcnt_count, INTRNAME_LEN, M_INTRNG, M_WAITOK | M_ZERO);
 	sintrcnt = intrcnt_count * sizeof(u_long);
 	sintrnames = intrcnt_count * INTRNAME_LEN;
-	irq_sources = mallocarray(intr_nirq, sizeof(struct intr_irqsrc*),
+	irq_sources = mallocarray(intr_nirq, sizeof(struct intr_irqsrc *),
 	    M_INTRNG, M_WAITOK | M_ZERO);
 }
 SYSINIT(intr_irq_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_irq_init, NULL);
@@ -249,8 +252,8 @@ isrc_update_name(struct intr_irqsrc *isrc, const char *name)
 	if (name != NULL) {
 		snprintf(str, INTRNAME_LEN, "%s: %s", isrc->isrc_name, name);
 		intrcnt_setname(str, isrc->isrc_index);
-		snprintf(str, INTRNAME_LEN, "stray %s: %s", isrc->isrc_name,
-		    name);
+		snprintf(
+		    str, INTRNAME_LEN, "stray %s: %s", isrc->isrc_name, name);
 		intrcnt_setname(str, isrc->isrc_index + 1);
 	} else {
 		snprintf(str, INTRNAME_LEN, "%s:", isrc->isrc_name);
@@ -314,8 +317,8 @@ intr_ipi_setup_counters(const char *name)
 void
 intr_irq_handler(struct trapframe *tf)
 {
-	struct trapframe * oldframe;
-	struct thread * td;
+	struct trapframe *oldframe;
+	struct thread *td;
 
 	KASSERT(irq_root_filter != NULL, ("%s: no filter", __func__));
 
@@ -342,7 +345,7 @@ intr_child_irq_handler(struct intr_pic *parent, uintptr_t irq)
 
 	found = false;
 	mtx_lock_spin(&parent->pic_child_lock);
-	SLIST_FOREACH(child, &parent->pic_children, pc_next) {
+	SLIST_FOREACH (child, &parent->pic_children, pc_next) {
 		if (child->pc_start <= irq &&
 		    irq < (child->pc_start + child->pc_length)) {
 			found = true;
@@ -379,7 +382,7 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 			return (0);
 	} else
 #endif
-	if (isrc->isrc_event != NULL) {
+	    if (isrc->isrc_event != NULL) {
 		if (intr_event_handle(isrc->isrc_event, tf) == 0)
 			return (0);
 	}
@@ -446,7 +449,7 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 		return (EINVAL);
 
 	irq_sources[isrc->isrc_irq] = NULL;
-	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
+	isrc->isrc_irq = INTR_IRQ_INVALID; /* just to be safe */
 	return (0);
 }
 
@@ -454,15 +457,15 @@ isrc_free_irq(struct intr_irqsrc *isrc)
  *  Initialize interrupt source and register it into global interrupt table.
  */
 int
-intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
-    const char *fmt, ...)
+intr_isrc_register(
+    struct intr_irqsrc *isrc, device_t dev, u_int flags, const char *fmt, ...)
 {
 	int error;
 	va_list ap;
 
 	bzero(isrc, sizeof(struct intr_irqsrc));
 	isrc->isrc_dev = dev;
-	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
+	isrc->isrc_irq = INTR_IRQ_INVALID; /* just to be safe */
 	isrc->isrc_flags = flags;
 
 	va_start(ap, fmt);
@@ -642,8 +645,9 @@ isrc_event_create(struct intr_irqsrc *isrc)
 	int error;
 
 	error = intr_event_create(&ie, isrc, 0, isrc->isrc_irq,
-	    intr_isrc_pre_ithread, intr_isrc_post_ithread, intr_isrc_post_filter,
-	    intr_isrc_assign_cpu, "%s:", isrc->isrc_name);
+	    intr_isrc_pre_ithread, intr_isrc_post_ithread,
+	    intr_isrc_post_filter, intr_isrc_assign_cpu,
+	    "%s:", isrc->isrc_name);
 	if (error)
 		return (error);
 
@@ -725,7 +729,7 @@ pic_lookup_locked(device_t dev, intptr_t xref, int flags)
 		return (NULL);
 
 	/* Note that pic->pic_dev is never NULL on registered PIC. */
-	SLIST_FOREACH(pic, &pic_list, pic_next) {
+	SLIST_FOREACH (pic, &pic_list, pic_next) {
 		if ((pic->pic_flags & FLAG_TYPE_MASK) !=
 		    (flags & FLAG_TYPE_MASK))
 			continue;
@@ -737,7 +741,7 @@ pic_lookup_locked(device_t dev, intptr_t xref, int flags)
 			if (dev == pic->pic_dev)
 				return (pic);
 		} else if (xref == pic->pic_xref && dev == pic->pic_dev)
-				return (pic);
+			return (pic);
 	}
 	return (NULL);
 }
@@ -860,7 +864,7 @@ intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
 
 	KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_PIC,
 	    ("%s: Found a non-PIC controller: %s", __func__,
-	     device_get_name(pic->pic_dev)));
+		device_get_name(pic->pic_dev)));
 
 	if (filter == NULL) {
 		device_printf(dev, "filter missing\n");
@@ -914,9 +918,9 @@ intr_pic_add_handler(device_t parent, struct intr_pic *pic,
 
 	mtx_lock_spin(&parent_pic->pic_child_lock);
 #ifdef INVARIANTS
-	SLIST_FOREACH(child, &parent_pic->pic_children, pc_next) {
-		KASSERT(child->pc_pic != pic, ("%s: Adding a child PIC twice",
-		    __func__));
+	SLIST_FOREACH (child, &parent_pic->pic_children, pc_next) {
+		KASSERT(child->pc_pic != pic,
+		    ("%s: Adding a child PIC twice", __func__));
 	}
 #endif
 	SLIST_INSERT_HEAD(&parent_pic->pic_children, newchild, pc_next);
@@ -935,8 +939,8 @@ intr_resolve_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
 	if (data == NULL)
 		return (EINVAL);
 
-	pic = pic_lookup(dev, xref,
-	    (data->type == INTR_MAP_DATA_MSI) ? FLAG_MSI : FLAG_PIC);
+	pic = pic_lookup(
+	    dev, xref, (data->type == INTR_MAP_DATA_MSI) ? FLAG_MSI : FLAG_PIC);
 	if (pic == NULL)
 		return (ESRCH);
 
@@ -944,7 +948,7 @@ intr_resolve_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
 	case INTR_MAP_DATA_MSI:
 		KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_MSI,
 		    ("%s: Found a non-MSI controller: %s", __func__,
-		     device_get_name(pic->pic_dev)));
+			device_get_name(pic->pic_dev)));
 		msi = (struct intr_map_data_msi *)data;
 		*isrc = msi->isrc;
 		return (0);
@@ -952,7 +956,7 @@ intr_resolve_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
 	default:
 		KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_PIC,
 		    ("%s: Found a non-PIC controller: %s", __func__,
-		     device_get_name(pic->pic_dev)));
+			device_get_name(pic->pic_dev)));
 		return (PIC_MAP_INTR(pic->pic_dev, data, isrc));
 	}
 }
@@ -1067,16 +1071,17 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	}
 
 	if (flags & INTR_SOLO) {
-		error = iscr_setup_filter(isrc, name, (intr_irq_filter_t *)filt,
-		    arg, cookiep);
-		debugf("irq %u setup filter error %d on %s\n", isrc->isrc_irq, error,
-		    name);
+		error = iscr_setup_filter(
+		    isrc, name, (intr_irq_filter_t *)filt, arg, cookiep);
+		debugf("irq %u setup filter error %d on %s\n", isrc->isrc_irq,
+		    error, name);
 	} else
 #endif
-		{
-		error = isrc_add_handler(isrc, name, filt, hand, arg, flags,
-		    cookiep);
-		debugf("irq %u add handler error %d on %s\n", isrc->isrc_irq, error, name);
+	{
+		error = isrc_add_handler(
+		    isrc, name, filt, hand, arg, flags, cookiep);
+		debugf("irq %u add handler error %d on %s\n", isrc->isrc_irq,
+		    error, name);
 	}
 	if (error != 0)
 		return (error);
@@ -1145,8 +1150,8 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 }
 
 int
-intr_describe_irq(device_t dev, struct resource *res, void *cookie,
-    const char *descr)
+intr_describe_irq(
+    device_t dev, struct resource *res, void *cookie, const char *descr)
 {
 	int error;
 	struct intr_irqsrc *isrc;
@@ -1294,7 +1299,8 @@ intr_alloc_map_data(enum intr_map_data_type type, size_t len, int flags)
 	return (data);
 }
 
-void intr_free_intr_map_data(struct intr_map_data *data)
+void
+intr_free_intr_map_data(struct intr_map_data *data)
 {
 
 	free(data, M_INTRNG);
@@ -1336,7 +1342,7 @@ intr_alloc_msi(device_t pci, device_t child, intptr_t xref, int count,
 
 	KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_MSI,
 	    ("%s: Found a non-MSI controller: %s", __func__,
-	     device_get_name(pic->pic_dev)));
+		device_get_name(pic->pic_dev)));
 
 	/*
 	 * If this is the first time we have used this context ask the
@@ -1357,10 +1363,10 @@ intr_alloc_msi(device_t pci, device_t child, intptr_t xref, int count,
 		isrc[i]->isrc_iommu = domain;
 		msi = (struct intr_map_data_msi *)intr_alloc_map_data(
 		    INTR_MAP_DATA_MSI, sizeof(*msi), M_WAITOK | M_ZERO);
-		msi-> isrc = isrc[i];
+		msi->isrc = isrc[i];
 
-		irqs[i] = intr_map_irq(pic->pic_dev, xref,
-		    (struct intr_map_data *)msi);
+		irqs[i] = intr_map_irq(
+		    pic->pic_dev, xref, (struct intr_map_data *)msi);
 	}
 	free(isrc, M_INTRNG);
 
@@ -1368,8 +1374,8 @@ intr_alloc_msi(device_t pci, device_t child, intptr_t xref, int count,
 }
 
 int
-intr_release_msi(device_t pci, device_t child, intptr_t xref, int count,
-    int *irqs)
+intr_release_msi(
+    device_t pci, device_t child, intptr_t xref, int count, int *irqs)
 {
 	struct intr_irqsrc **isrc;
 	struct intr_pic *pic;
@@ -1382,16 +1388,15 @@ intr_release_msi(device_t pci, device_t child, intptr_t xref, int count,
 
 	KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_MSI,
 	    ("%s: Found a non-MSI controller: %s", __func__,
-	     device_get_name(pic->pic_dev)));
+		device_get_name(pic->pic_dev)));
 
 	isrc = malloc(sizeof(*isrc) * count, M_INTRNG, M_WAITOK);
 
 	for (i = 0; i < count; i++) {
-		msi = (struct intr_map_data_msi *)
-		    intr_map_get_map_data(irqs[i]);
+		msi = (struct intr_map_data_msi *)intr_map_get_map_data(
+		    irqs[i]);
 		KASSERT(msi->hdr.type == INTR_MAP_DATA_MSI,
-		    ("%s: irq %d map data is not MSI", __func__,
-		    irqs[i]));
+		    ("%s: irq %d map data is not MSI", __func__, irqs[i]));
 		isrc[i] = msi->isrc;
 	}
 
@@ -1424,7 +1429,7 @@ intr_alloc_msix(device_t pci, device_t child, intptr_t xref, int *irq)
 
 	KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_MSI,
 	    ("%s: Found a non-MSI controller: %s", __func__,
-	     device_get_name(pic->pic_dev)));
+		device_get_name(pic->pic_dev)));
 
 	/*
 	 * If this is the first time we have used this context ask the
@@ -1440,7 +1445,7 @@ intr_alloc_msix(device_t pci, device_t child, intptr_t xref, int *irq)
 
 	isrc->isrc_iommu = domain;
 	msi = (struct intr_map_data_msi *)intr_alloc_map_data(
-		    INTR_MAP_DATA_MSI, sizeof(*msi), M_WAITOK | M_ZERO);
+	    INTR_MAP_DATA_MSI, sizeof(*msi), M_WAITOK | M_ZERO);
 	msi->isrc = isrc;
 	*irq = intr_map_irq(pic->pic_dev, xref, (struct intr_map_data *)msi);
 	return (0);
@@ -1460,13 +1465,11 @@ intr_release_msix(device_t pci, device_t child, intptr_t xref, int irq)
 
 	KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_MSI,
 	    ("%s: Found a non-MSI controller: %s", __func__,
-	     device_get_name(pic->pic_dev)));
+		device_get_name(pic->pic_dev)));
 
-	msi = (struct intr_map_data_msi *)
-	    intr_map_get_map_data(irq);
+	msi = (struct intr_map_data_msi *)intr_map_get_map_data(irq);
 	KASSERT(msi->hdr.type == INTR_MAP_DATA_MSI,
-	    ("%s: irq %d map data is not MSI", __func__,
-	    irq));
+	    ("%s: irq %d map data is not MSI", __func__, irq));
 	isrc = msi->isrc;
 	if (isrc == NULL) {
 		intr_unmap_irq(irq);
@@ -1495,7 +1498,7 @@ intr_map_msi(device_t pci, device_t child, intptr_t xref, int irq,
 
 	KASSERT((pic->pic_flags & FLAG_TYPE_MASK) == FLAG_MSI,
 	    ("%s: Found a non-MSI controller: %s", __func__,
-	     device_get_name(pic->pic_dev)));
+		device_get_name(pic->pic_dev)));
 
 	isrc = intr_map_get_isrc(irq);
 	if (isrc == NULL)
@@ -1530,9 +1533,9 @@ intr_pic_init_secondary(void)
 	 */
 	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
 
-	//mtx_lock(&isrc_table_lock);
+	// mtx_lock(&isrc_table_lock);
 	PIC_INIT_SECONDARY(intr_irq_root_dev);
-	//mtx_unlock(&isrc_table_lock);
+	// mtx_unlock(&isrc_table_lock);
 }
 #endif
 
@@ -1564,12 +1567,11 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
  * Please, keep this part separately, it can be transformed to
  * extension of standard resources.
  */
-struct intr_map_entry
-{
-	device_t 		dev;
-	intptr_t 		xref;
-	struct intr_map_data 	*map_data;
-	struct intr_irqsrc 	*isrc;
+struct intr_map_entry {
+	device_t dev;
+	intptr_t xref;
+	struct intr_map_data *map_data;
+	struct intr_irqsrc *isrc;
 	/* XXX TODO DISCONECTED PICs */
 	/*int			flags */
 };
@@ -1728,7 +1730,7 @@ intr_map_init(void *dummy __unused)
 	mtx_init(&irq_map_lock, "intr map table", NULL, MTX_DEF);
 
 	irq_map_count = 2 * intr_nirq;
-	irq_map = mallocarray(irq_map_count, sizeof(struct intr_map_entry*),
+	irq_map = mallocarray(irq_map_count, sizeof(struct intr_map_entry *),
 	    M_INTRNG, M_WAITOK | M_ZERO);
 }
 SYSINIT(intr_map_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_map_init, NULL);

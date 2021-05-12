@@ -30,10 +30,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/iconv.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 
 #include "iconv_converter_if.h"
 
@@ -45,32 +45,33 @@ __FBSDID("$FreeBSD$");
 MODULE_DEPEND(iconv_xlat16, libiconv, 2, 2, 2);
 #endif
 
-#define C2I1(c)	((c) & 0x8000 ? ((c) & 0xff) | 0x100 : (c) & 0xff)
-#define C2I2(c)	((c) & 0x8000 ? ((c) >> 8) & 0x7f : ((c) >> 8) & 0xff)
+#define C2I1(c) ((c)&0x8000 ? ((c)&0xff) | 0x100 : (c)&0xff)
+#define C2I2(c) ((c)&0x8000 ? ((c) >> 8) & 0x7f : ((c) >> 8) & 0xff)
 
 /*
  * XLAT16 converter instance
  */
 struct iconv_xlat16 {
 	KOBJ_FIELDS;
-	uint32_t *		d_table[0x200];
-	void *			f_ctp;
-	void *			t_ctp;
-	struct iconv_cspair *	d_csp;
+	uint32_t *d_table[0x200];
+	void *f_ctp;
+	void *t_ctp;
+	struct iconv_cspair *d_csp;
 };
 
 static int
-iconv_xlat16_open(struct iconv_converter_class *dcp,
-	struct iconv_cspair *csp, struct iconv_cspair *cspf, void **dpp)
+iconv_xlat16_open(struct iconv_converter_class *dcp, struct iconv_cspair *csp,
+    struct iconv_cspair *cspf, void **dpp)
 {
 	struct iconv_xlat16 *dp;
 	uint32_t *headp, **idxp;
 	int i;
 
-	dp = (struct iconv_xlat16 *)kobj_create((struct kobj_class*)dcp, M_ICONV, M_WAITOK);
+	dp = (struct iconv_xlat16 *)kobj_create(
+	    (struct kobj_class *)dcp, M_ICONV, M_WAITOK);
 	headp = (uint32_t *)((caddr_t)csp->cp_data + sizeof(dp->d_table));
 	idxp = (uint32_t **)csp->cp_data;
-	for (i = 0 ; i < 0x200 ; i++) {
+	for (i = 0; i < 0x200; i++) {
 		if (*idxp) {
 			dp->d_table[i] = headp;
 			headp += 0x80;
@@ -81,7 +82,8 @@ iconv_xlat16_open(struct iconv_converter_class *dcp,
 	}
 
 	if (strcmp(csp->cp_to, KICONV_WCTYPE_NAME) != 0) {
-		if (iconv_open(KICONV_WCTYPE_NAME, csp->cp_from, &dp->f_ctp) != 0)
+		if (iconv_open(KICONV_WCTYPE_NAME, csp->cp_from, &dp->f_ctp) !=
+		    0)
 			dp->f_ctp = NULL;
 		if (iconv_open(KICONV_WCTYPE_NAME, csp->cp_to, &dp->t_ctp) != 0)
 			dp->t_ctp = NULL;
@@ -91,7 +93,7 @@ iconv_xlat16_open(struct iconv_converter_class *dcp,
 
 	dp->d_csp = csp;
 	csp->cp_refcount++;
-	*dpp = (void*)dp;
+	*dpp = (void *)dp;
 	return (0);
 }
 
@@ -105,16 +107,15 @@ iconv_xlat16_close(void *data)
 	if (dp->t_ctp && dp->t_ctp != data)
 		iconv_close(dp->t_ctp);
 	dp->d_csp->cp_refcount--;
-	kobj_delete((struct kobj*)data, M_ICONV);
+	kobj_delete((struct kobj *)data, M_ICONV);
 	return (0);
 }
 
 static int
-iconv_xlat16_conv(void *d2p, const char **inbuf,
-	size_t *inbytesleft, char **outbuf, size_t *outbytesleft,
-	int convchar, int casetype)
+iconv_xlat16_conv(void *d2p, const char **inbuf, size_t *inbytesleft,
+    char **outbuf, size_t *outbytesleft, int convchar, int casetype)
 {
-	struct iconv_xlat16 *dp = (struct iconv_xlat16*)d2p;
+	struct iconv_xlat16 *dp = (struct iconv_xlat16 *)d2p;
 	const char *src;
 	char *dst;
 	int nullin, ret = 0;
@@ -123,18 +124,19 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 	u_char u, l;
 	uint16_t c1, c2, ctmp;
 
-	if (inbuf == NULL || *inbuf == NULL || outbuf == NULL || *outbuf == NULL)
+	if (inbuf == NULL || *inbuf == NULL || outbuf == NULL ||
+	    *outbuf == NULL)
 		return (0);
 	ir = in = *inbytesleft;
 	or = on = *outbytesleft;
 	src = *inbuf;
 	dst = *outbuf;
 
-	while(ir > 0 && or > 0) {
+	while (ir > 0 && or > 0) {
 		inlen = 0;
 		code = 0;
 
-		c1 = ir > 1 ? *(src+1) & 0xff : 0;
+		c1 = ir > 1 ? *(src + 1) & 0xff : 0;
 		c2 = *src & 0xff;
 		ctmp = 0;
 
@@ -149,10 +151,12 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 
 			/* toupper,tolower */
 			if (casetype == KICONV_FROM_LOWER && dp->f_ctp)
-				ctmp = towlower(((u_char)*src << 8) | (u_char)*(src + 1),
+				ctmp = towlower(
+				    ((u_char)*src << 8) | (u_char) * (src + 1),
 				    dp->f_ctp);
 			else if (casetype == KICONV_FROM_UPPER && dp->f_ctp)
-				ctmp = towupper(((u_char)*src << 8) | (u_char)*(src + 1),
+				ctmp = towupper(
+				    ((u_char)*src << 8) | (u_char) * (src + 1),
 				    dp->f_ctp);
 			if (ctmp) {
 				c1 = C2I1(ctmp);
@@ -171,17 +175,19 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 			 */
 			inlen = 1;
 
-			if (casetype & (KICONV_FROM_LOWER|KICONV_FROM_UPPER))
+			if (casetype & (KICONV_FROM_LOWER | KICONV_FROM_UPPER))
 				code = dp->d_table[c1][c2];
 
 			if (casetype == KICONV_FROM_LOWER) {
 				if (dp->f_ctp)
-					ctmp = towlower((u_char)*src, dp->f_ctp);
+					ctmp = towlower(
+					    (u_char)*src, dp->f_ctp);
 				else if (code & XLAT16_HAS_FROM_LOWER_CASE)
 					ctmp = (u_char)(code >> 16);
 			} else if (casetype == KICONV_FROM_UPPER) {
 				if (dp->f_ctp)
-					ctmp = towupper((u_char)*src, dp->f_ctp);
+					ctmp = towupper(
+					    (u_char)*src, dp->f_ctp);
 				else if (code & XLAT16_HAS_FROM_UPPER_CASE)
 					ctmp = (u_char)(code >> 16);
 			}
@@ -224,7 +230,7 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 			or -= 3;
 		} else
 #endif
-		if (u || code & XLAT16_ACCEPT_NULL_OUT) {
+		    if (u || code & XLAT16_ACCEPT_NULL_OUT) {
 			if (or < 2) {
 				ret = -1;
 				break;
@@ -261,7 +267,7 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 			}
 
 			*dst++ = l;
-			or--;
+			or --;
 		}
 
 		if (inlen == 2) {
@@ -269,7 +275,7 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 			 * there is a case that inbuf char is a single
 			 * byte char while inlen == 2
 			 */
-			if ((u_char)*(src+1) == '\0' && !nullin ) {
+			if ((u_char) * (src + 1) == '\0' && !nullin) {
 				src++;
 				ir--;
 			} else {
@@ -286,9 +292,9 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 	}
 
 	*inbuf += in - ir;
-	*outbuf += on - or;
+	*outbuf += on - or ;
 	*inbytesleft -= in - ir;
-	*outbytesleft -= on - or;
+	*outbytesleft -= on - or ;
 	return (ret);
 }
 
@@ -301,15 +307,15 @@ iconv_xlat16_name(struct iconv_converter_class *dcp)
 static int
 iconv_xlat16_tolower(void *d2p, int c)
 {
-        struct iconv_xlat16 *dp = (struct iconv_xlat16*)d2p;
+	struct iconv_xlat16 *dp = (struct iconv_xlat16 *)d2p;
 	int c1, c2, out;
 
 	if (c < 0x100) {
 		c1 = C2I1(c << 8);
 		c2 = C2I2(c << 8);
 	} else if (c < 0x10000) {
-                c1 = C2I1(c);
-                c2 = C2I2(c);
+		c1 = C2I1(c);
+		c2 = C2I2(c);
 	} else
 		return (c);
 
@@ -326,15 +332,15 @@ iconv_xlat16_tolower(void *d2p, int c)
 static int
 iconv_xlat16_toupper(void *d2p, int c)
 {
-        struct iconv_xlat16 *dp = (struct iconv_xlat16*)d2p;
+	struct iconv_xlat16 *dp = (struct iconv_xlat16 *)d2p;
 	int c1, c2, out;
 
 	if (c < 0x100) {
 		c1 = C2I1(c << 8);
 		c2 = C2I2(c << 8);
 	} else if (c < 0x10000) {
-                c1 = C2I1(c);
-                c2 = C2I2(c);
+		c1 = C2I1(c);
+		c2 = C2I2(c);
 	} else
 		return (c);
 
@@ -347,18 +353,16 @@ iconv_xlat16_toupper(void *d2p, int c)
 		return (c);
 }
 
-static kobj_method_t iconv_xlat16_methods[] = {
-	KOBJMETHOD(iconv_converter_open,	iconv_xlat16_open),
-	KOBJMETHOD(iconv_converter_close,	iconv_xlat16_close),
-	KOBJMETHOD(iconv_converter_conv,	iconv_xlat16_conv),
+static kobj_method_t iconv_xlat16_methods[] = { KOBJMETHOD(iconv_converter_open,
+						    iconv_xlat16_open),
+	KOBJMETHOD(iconv_converter_close, iconv_xlat16_close),
+	KOBJMETHOD(iconv_converter_conv, iconv_xlat16_conv),
 #if 0
 	KOBJMETHOD(iconv_converter_init,	iconv_xlat16_init),
 	KOBJMETHOD(iconv_converter_done,	iconv_xlat16_done),
 #endif
-	KOBJMETHOD(iconv_converter_name,	iconv_xlat16_name),
-	KOBJMETHOD(iconv_converter_tolower,	iconv_xlat16_tolower),
-	KOBJMETHOD(iconv_converter_toupper,	iconv_xlat16_toupper),
-	{0, 0}
-};
+	KOBJMETHOD(iconv_converter_name, iconv_xlat16_name),
+	KOBJMETHOD(iconv_converter_tolower, iconv_xlat16_tolower),
+	KOBJMETHOD(iconv_converter_toupper, iconv_xlat16_toupper), { 0, 0 } };
 
 KICONV_CONVERTER(xlat16, sizeof(struct iconv_xlat16));

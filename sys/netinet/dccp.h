@@ -32,47 +32,41 @@
 
 /* DCCP protocol header as per RFC4340 */
 struct dccphdr {
-	uint16_t	d_sport;
-	uint16_t	d_dport;
-	uint8_t		d_doff;
+	uint16_t d_sport;
+	uint16_t d_dport;
+	uint8_t d_doff;
 #if BYTE_ORDER == LITTLE_ENDIAN
-	uint8_t		d_cscov:4,
-			d_ccval:4;
+	uint8_t d_cscov : 4, d_ccval : 4;
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	uint8_t		d_ccval:4,
-			d_cscov:4;
+	uint8_t d_ccval : 4, d_cscov : 4;
 #endif
-	uint8_t		d_cksum[2];
+	uint8_t d_cksum[2];
 #if BYTE_ORDER == LITTLE_ENDIAN
-	uint8_t		d_res:3,
-			d_type:4,
-			d_x:1;
+	uint8_t d_res : 3, d_type : 4, d_x : 1;
 #endif
 #if BYTE_ORDER == BIG_ENDIAN
-	uint8_t		d_x:1,
-			d_type:4,
-			d_res:3;
+	uint8_t d_x : 1, d_type : 4, d_res : 3;
 #endif
-       /*
-        * Provide enough space for both the short (24 bit) sequence number and
-        * the long (48 bit) sequene number and a leading reserved byte in
-        * front of the long sequence number.
-        */
-       union dccp_seqno {
-               uint8_t shortseq[3];
-               struct dccp_long_seqno {
-                       uint8_t res;
-                       uint8_t seq[6];
-               } longseq;
-       } d_seqno;
+	/*
+	 * Provide enough space for both the short (24 bit) sequence number and
+	 * the long (48 bit) sequene number and a leading reserved byte in
+	 * front of the long sequence number.
+	 */
+	union dccp_seqno {
+		uint8_t shortseq[3];
+		struct dccp_long_seqno {
+			uint8_t res;
+			uint8_t seq[6];
+		} longseq;
+	} d_seqno;
 };
 
 #define d_seqno_short d_seqno.shortseq;
 #define d_seqno_long d_seqno.longseq.seq;
 
-#define DCCP_SHORTHDR	12
-#define DCCP_LONGHDR	16
-#define DCCP_EXTHDR	0x80
+#define DCCP_SHORTHDR 12
+#define DCCP_LONGHDR 16
+#define DCCP_EXTHDR 0x80
 
 #endif /* _NETINET_DCCP_H */

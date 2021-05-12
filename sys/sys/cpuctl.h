@@ -29,36 +29,36 @@
  */
 
 #ifndef _CPUCTL_H_
-#define	_CPUCTL_H_
+#define _CPUCTL_H_
 
 typedef struct {
-	int		msr;	/* MSR to read */
-	uint64_t	data;
+	int msr; /* MSR to read */
+	uint64_t data;
 } cpuctl_msr_args_t;
 
 typedef struct {
-	int		level;		/* CPUID level */
-	uint32_t	data[4];
+	int level; /* CPUID level */
+	uint32_t data[4];
 } cpuctl_cpuid_args_t;
 
 typedef struct {
-	int		level;		/* CPUID level */
-	int		level_type;	/* CPUID level type */
-	uint32_t	data[4];
+	int level;	/* CPUID level */
+	int level_type; /* CPUID level type */
+	uint32_t data[4];
 } cpuctl_cpuid_count_args_t;
 
 typedef struct {
-	void	*data;
-	size_t	size;
+	void *data;
+	size_t size;
 } cpuctl_update_args_t;
 
-#define	CPUCTL_RDMSR	_IOWR('c', 1, cpuctl_msr_args_t)
-#define	CPUCTL_WRMSR	_IOWR('c', 2, cpuctl_msr_args_t)
-#define	CPUCTL_CPUID	_IOWR('c', 3, cpuctl_cpuid_args_t)
-#define	CPUCTL_UPDATE	_IOWR('c', 4, cpuctl_update_args_t)
-#define	CPUCTL_MSRSBIT	_IOWR('c', 5, cpuctl_msr_args_t)
-#define	CPUCTL_MSRCBIT	_IOWR('c', 6, cpuctl_msr_args_t)
-#define	CPUCTL_CPUID_COUNT _IOWR('c', 7, cpuctl_cpuid_count_args_t)
-#define	CPUCTL_EVAL_CPU_FEATURES	_IO('c', 8)
+#define CPUCTL_RDMSR _IOWR('c', 1, cpuctl_msr_args_t)
+#define CPUCTL_WRMSR _IOWR('c', 2, cpuctl_msr_args_t)
+#define CPUCTL_CPUID _IOWR('c', 3, cpuctl_cpuid_args_t)
+#define CPUCTL_UPDATE _IOWR('c', 4, cpuctl_update_args_t)
+#define CPUCTL_MSRSBIT _IOWR('c', 5, cpuctl_msr_args_t)
+#define CPUCTL_MSRCBIT _IOWR('c', 6, cpuctl_msr_args_t)
+#define CPUCTL_CPUID_COUNT _IOWR('c', 7, cpuctl_cpuid_count_args_t)
+#define CPUCTL_EVAL_CPU_FEATURES _IO('c', 8)
 
 #endif /* _CPUCTL_H_ */

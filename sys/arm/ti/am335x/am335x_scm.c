@@ -36,23 +36,23 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <dev/extres/syscon/syscon.h>
+
 #include <arm/ti/am335x/am335x_scm.h>
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_scm.h>
 
-#include <dev/extres/syscon/syscon.h>
 #include "syscon_if.h"
 
-#define	TZ_ZEROC	2731
+#define TZ_ZEROC 2731
 
 struct am335x_scm_softc {
-	int			sc_last_temp;
-	struct sysctl_oid	*sc_temp_oid;
-	struct syscon		*syscon;
+	int sc_last_temp;
+	struct sysctl_oid *sc_temp_oid;
+	struct syscon *syscon;
 };
 
-static int
-am335x_scm_temp_sysctl(SYSCTL_HANDLER_ARGS)
+static int am335x_scm_temp_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev;
 	int i, temp;
@@ -63,15 +63,15 @@ am335x_scm_temp_sysctl(SYSCTL_HANDLER_ARGS)
 	sc = device_get_softc(dev);
 
 	/* Read the temperature and convert to Kelvin. */
-	for(i = 50; i > 0; i--) {
+	for (i = 50; i > 0; i--) {
 		reg = SYSCON_READ_4(sc->syscon, SCM_BGAP_CTRL);
 		if ((reg & SCM_BGAP_EOCZ) == 0)
 			break;
 		DELAY(50);
 	}
 	if ((reg & SCM_BGAP_EOCZ) == 0) {
-		sc->sc_last_temp =
-		    (reg >> SCM_BGAP_TEMP_SHIFT) & SCM_BGAP_TEMP_MASK;
+		sc->sc_last_temp = (reg >> SCM_BGAP_TEMP_SHIFT) &
+		    SCM_BGAP_TEMP_MASK;
 		sc->sc_last_temp *= 10;
 	}
 	temp = sc->sc_last_temp + TZ_ZEROC;
@@ -150,11 +150,11 @@ am335x_scm_attach(device_t dev)
 	SYSCON_WRITE_4(sc->syscon, SCM_BGAP_CTRL, reg);
 
 	/* Temperature sysctl. */
-        ctx = device_get_sysctl_ctx(dev);
+	ctx = device_get_sysctl_ctx(dev);
 	tree = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
-	sc->sc_temp_oid = SYSCTL_ADD_PROC(ctx, tree, OID_AUTO,
-	    "temperature", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    dev, 0, am335x_scm_temp_sysctl, "IK", "Current temperature");
+	sc->sc_temp_oid = SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "temperature",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, 0,
+	    am335x_scm_temp_sysctl, "IK", "Current temperature");
 
 	return (0);
 }
@@ -176,14 +176,13 @@ am335x_scm_detach(device_t dev)
 	return (0);
 }
 
-static device_method_t am335x_scm_methods[] = {
-	DEVMETHOD(device_identify,	am335x_scm_identify),
-	DEVMETHOD(device_probe,		am335x_scm_probe),
-	DEVMETHOD(device_attach,	am335x_scm_attach),
-	DEVMETHOD(device_detach,	am335x_scm_detach),
+static device_method_t am335x_scm_methods[] = { DEVMETHOD(device_identify,
+						    am335x_scm_identify),
+	DEVMETHOD(device_probe, am335x_scm_probe),
+	DEVMETHOD(device_attach, am335x_scm_attach),
+	DEVMETHOD(device_detach, am335x_scm_detach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t am335x_scm_driver = {
 	"am335x_scm",

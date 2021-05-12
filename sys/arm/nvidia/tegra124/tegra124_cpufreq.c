@@ -47,116 +47,112 @@ __FBSDID("$FreeBSD$");
 
 #include "cpufreq_if.h"
 
-#define	XXX
+#define XXX
 
 /* CPU voltage table entry */
 struct speedo_entry {
-	uint64_t		freq; 	/* Frequency point */
-	int			c0; 	/* Coeeficient values for */
-	int			c1;	/* quadratic equation: */
-	int 			c2;	/* c2 * speedo^2 + c1 * speedo + c0 */
+	uint64_t freq; /* Frequency point */
+	int c0;	       /* Coeeficient values for */
+	int c1;	       /* quadratic equation: */
+	int c2;	       /* c2 * speedo^2 + c1 * speedo + c0 */
 };
 
 struct cpu_volt_def {
-	int			min_uvolt;	/* Min allowed CPU voltage */
-	int			max_uvolt;	/* Max allowed CPU voltage */
-	int 			step_uvolt; 	/* Step of CPU voltage */
-	int			speedo_scale;	/* Scaling factor for cvt */
-	int			speedo_nitems;	/* Size of speedo table */
-	struct speedo_entry	*speedo_tbl;	/* CPU voltage table */
+	int min_uvolt;			 /* Min allowed CPU voltage */
+	int max_uvolt;			 /* Max allowed CPU voltage */
+	int step_uvolt;			 /* Step of CPU voltage */
+	int speedo_scale;		 /* Scaling factor for cvt */
+	int speedo_nitems;		 /* Size of speedo table */
+	struct speedo_entry *speedo_tbl; /* CPU voltage table */
 };
 
 struct cpu_speed_point {
-	uint64_t		freq;		/* Frequecy */
-	int			uvolt;		/* Requested voltage */
+	uint64_t freq; /* Frequecy */
+	int uvolt;     /* Requested voltage */
 };
 
-static struct speedo_entry tegra124_speedo_dpll_tbl[] =
-{
-	{ 204000000ULL,	1112619, -29295, 402},
-	{ 306000000ULL,	1150460, -30585, 402},
-	{ 408000000ULL,	1190122, -31865, 402},
-	{ 510000000ULL,	1231606, -33155, 402},
-	{ 612000000ULL,	1274912, -34435, 402},
-	{ 714000000ULL,	1320040, -35725, 402},
-	{ 816000000ULL,	1366990, -37005, 402},
-	{ 918000000ULL,	1415762, -38295, 402},
-	{1020000000ULL,	1466355, -39575, 402},
-	{1122000000ULL,	1518771, -40865, 402},
-	{1224000000ULL,	1573009, -42145, 402},
-	{1326000000ULL,	1629068, -43435, 402},
-	{1428000000ULL,	1686950, -44715, 402},
-	{1530000000ULL,	1746653, -46005, 402},
-	{1632000000ULL,	1808179, -47285, 402},
-	{1734000000ULL,	1871526, -48575, 402},
-	{1836000000ULL,	1936696, -49855, 402},
-	{1938000000ULL,	2003687, -51145, 402},
-	{2014500000ULL,	2054787, -52095, 402},
-	{2116500000ULL,	2124957, -53385, 402},
-	{2218500000ULL,	2196950, -54665, 402},
-	{2320500000ULL,	2270765, -55955, 402},
-	{2320500000ULL,	2270765, -55955, 402},
-	{2422500000ULL,	2346401, -57235, 402},
-	{2524500000ULL,	2437299, -58535, 402},
+static struct speedo_entry tegra124_speedo_dpll_tbl[] = {
+	{ 204000000ULL, 1112619, -29295, 402 },
+	{ 306000000ULL, 1150460, -30585, 402 },
+	{ 408000000ULL, 1190122, -31865, 402 },
+	{ 510000000ULL, 1231606, -33155, 402 },
+	{ 612000000ULL, 1274912, -34435, 402 },
+	{ 714000000ULL, 1320040, -35725, 402 },
+	{ 816000000ULL, 1366990, -37005, 402 },
+	{ 918000000ULL, 1415762, -38295, 402 },
+	{ 1020000000ULL, 1466355, -39575, 402 },
+	{ 1122000000ULL, 1518771, -40865, 402 },
+	{ 1224000000ULL, 1573009, -42145, 402 },
+	{ 1326000000ULL, 1629068, -43435, 402 },
+	{ 1428000000ULL, 1686950, -44715, 402 },
+	{ 1530000000ULL, 1746653, -46005, 402 },
+	{ 1632000000ULL, 1808179, -47285, 402 },
+	{ 1734000000ULL, 1871526, -48575, 402 },
+	{ 1836000000ULL, 1936696, -49855, 402 },
+	{ 1938000000ULL, 2003687, -51145, 402 },
+	{ 2014500000ULL, 2054787, -52095, 402 },
+	{ 2116500000ULL, 2124957, -53385, 402 },
+	{ 2218500000ULL, 2196950, -54665, 402 },
+	{ 2320500000ULL, 2270765, -55955, 402 },
+	{ 2320500000ULL, 2270765, -55955, 402 },
+	{ 2422500000ULL, 2346401, -57235, 402 },
+	{ 2524500000ULL, 2437299, -58535, 402 },
 };
 
-static struct cpu_volt_def tegra124_cpu_volt_dpll_def =
-{
-	.min_uvolt =  900000,		/* 0.9 V */
-	.max_uvolt = 1260000,		/* 1.26 */
-	.step_uvolt =  10000,		/* 10 mV */
+static struct cpu_volt_def tegra124_cpu_volt_dpll_def = {
+	.min_uvolt = 900000,  /* 0.9 V */
+	.max_uvolt = 1260000, /* 1.26 */
+	.step_uvolt = 10000,  /* 10 mV */
 	.speedo_scale = 100,
 	.speedo_nitems = nitems(tegra124_speedo_dpll_tbl),
 	.speedo_tbl = tegra124_speedo_dpll_tbl,
 };
 
-static struct speedo_entry tegra124_speedo_pllx_tbl[] =
-{
-	{ 204000000ULL,	 800000, 0, 0},
-	{ 306000000ULL,	 800000, 0, 0},
-	{ 408000000ULL,	 800000, 0, 0},
-	{ 510000000ULL,	 800000, 0, 0},
-	{ 612000000ULL,	 800000, 0, 0},
-	{ 714000000ULL,	 800000, 0, 0},
-	{ 816000000ULL,	 820000, 0, 0},
-	{ 918000000ULL,	 840000, 0, 0},
-	{1020000000ULL,	 880000, 0, 0},
-	{1122000000ULL,	 900000, 0, 0},
-	{1224000000ULL,	 930000, 0, 0},
-	{1326000000ULL,	 960000, 0, 0},
-	{1428000000ULL,	 990000, 0, 0},
-	{1530000000ULL,	1020000, 0, 0},
-	{1632000000ULL,	1070000, 0, 0},
-	{1734000000ULL,	1100000, 0, 0},
-	{1836000000ULL,	1140000, 0, 0},
-	{1938000000ULL,	1180000, 0, 0},
-	{2014500000ULL,	1220000, 0, 0},
-	{2116500000ULL,	1260000, 0, 0},
-	{2218500000ULL,	1310000, 0, 0},
-	{2320500000ULL,	1360000, 0, 0},
-	{2397000000ULL,	1400000, 0, 0},
-	{2499000000ULL,	1400000, 0, 0},
+static struct speedo_entry tegra124_speedo_pllx_tbl[] = {
+	{ 204000000ULL, 800000, 0, 0 },
+	{ 306000000ULL, 800000, 0, 0 },
+	{ 408000000ULL, 800000, 0, 0 },
+	{ 510000000ULL, 800000, 0, 0 },
+	{ 612000000ULL, 800000, 0, 0 },
+	{ 714000000ULL, 800000, 0, 0 },
+	{ 816000000ULL, 820000, 0, 0 },
+	{ 918000000ULL, 840000, 0, 0 },
+	{ 1020000000ULL, 880000, 0, 0 },
+	{ 1122000000ULL, 900000, 0, 0 },
+	{ 1224000000ULL, 930000, 0, 0 },
+	{ 1326000000ULL, 960000, 0, 0 },
+	{ 1428000000ULL, 990000, 0, 0 },
+	{ 1530000000ULL, 1020000, 0, 0 },
+	{ 1632000000ULL, 1070000, 0, 0 },
+	{ 1734000000ULL, 1100000, 0, 0 },
+	{ 1836000000ULL, 1140000, 0, 0 },
+	{ 1938000000ULL, 1180000, 0, 0 },
+	{ 2014500000ULL, 1220000, 0, 0 },
+	{ 2116500000ULL, 1260000, 0, 0 },
+	{ 2218500000ULL, 1310000, 0, 0 },
+	{ 2320500000ULL, 1360000, 0, 0 },
+	{ 2397000000ULL, 1400000, 0, 0 },
+	{ 2499000000ULL, 1400000, 0, 0 },
 };
 
-static struct cpu_volt_def tegra124_cpu_volt_pllx_def =
-{
-	.min_uvolt = 1000000,		/* XXX 0.9 V doesn't work on all boards */
-	.max_uvolt = 1260000,		/* 1.26 */
-	.step_uvolt =  10000,		/* 10 mV */
+static struct cpu_volt_def tegra124_cpu_volt_pllx_def = {
+	.min_uvolt = 1000000, /* XXX 0.9 V doesn't work on all boards */
+	.max_uvolt = 1260000, /* 1.26 */
+	.step_uvolt = 10000,  /* 10 mV */
 	.speedo_scale = 100,
 	.speedo_nitems = nitems(tegra124_speedo_pllx_tbl),
 	.speedo_tbl = tegra124_speedo_pllx_tbl,
 };
 
 static uint64_t cpu_freq_tbl[] = {
-	 204000000ULL,
-	 306000000ULL,
-	 408000000ULL,
-	 510000000ULL,
-	 612000000ULL,
-	 714000000ULL,
-	 816000000ULL,
-	 918000000ULL,
+	204000000ULL,
+	306000000ULL,
+	408000000ULL,
+	510000000ULL,
+	612000000ULL,
+	714000000ULL,
+	816000000ULL,
+	918000000ULL,
 	1020000000ULL,
 	1122000000ULL,
 	1224000000ULL,
@@ -183,37 +179,37 @@ static uint64_t cpu_max_freq[] = {
 };
 
 struct tegra124_cpufreq_softc {
-	device_t		dev;
-	phandle_t		node;
+	device_t dev;
+	phandle_t node;
 
-	regulator_t		supply_vdd_cpu;
-	clk_t			clk_cpu_g;
-	clk_t			clk_cpu_lp;
-	clk_t			clk_pll_x;
-	clk_t			clk_pll_p;
-	clk_t			clk_dfll;
+	regulator_t supply_vdd_cpu;
+	clk_t clk_cpu_g;
+	clk_t clk_cpu_lp;
+	clk_t clk_pll_x;
+	clk_t clk_pll_p;
+	clk_t clk_dfll;
 
-	int 			process_id;
-	int 			speedo_id;
-	int 			speedo_value;
+	int process_id;
+	int speedo_id;
+	int speedo_value;
 
-	uint64_t		cpu_max_freq;
-	struct cpu_volt_def	*cpu_def;
-	struct cpu_speed_point	*speed_points;
-	int			nspeed_points;
+	uint64_t cpu_max_freq;
+	struct cpu_volt_def *cpu_def;
+	struct cpu_speed_point *speed_points;
+	int nspeed_points;
 
-	struct cpu_speed_point	*act_speed_point;
+	struct cpu_speed_point *act_speed_point;
 
-	int			latency;
+	int latency;
 };
 
 static int cpufreq_lowest_freq = 1;
 TUNABLE_INT("hw.tegra124.cpufreq.lowest_freq", &cpufreq_lowest_freq);
 
-#define	DIV_ROUND_CLOSEST(val, div)	(((val) + ((div) / 2)) / (div))
+#define DIV_ROUND_CLOSEST(val, div) (((val) + ((div) / 2)) / (div))
 
-#define	ROUND_UP(val, div)	roundup(val, div)
-#define	ROUND_DOWN(val, div)	rounddown(val, div)
+#define ROUND_UP(val, div) roundup(val, div)
+#define ROUND_DOWN(val, div) rounddown(val, div)
 
 /*
  * Compute requesetd voltage for given frequency and SoC process variations,
@@ -252,24 +248,25 @@ freq_to_voltage(struct tegra124_cpufreq_softc *sc, uint64_t freq)
 	min_uvolt = ROUND_UP(sc->cpu_def->min_uvolt, step_uvolt);
 	max_uvolt = ROUND_DOWN(sc->cpu_def->max_uvolt, step_uvolt);
 	if (uv < min_uvolt)
-		uv =  min_uvolt;
+		uv = min_uvolt;
 	if (uv > max_uvolt)
-		uv =  max_uvolt;
+		uv = max_uvolt;
 	return (uv);
-
 }
 
 static void
-build_speed_points(struct tegra124_cpufreq_softc *sc) {
+build_speed_points(struct tegra124_cpufreq_softc *sc)
+{
 	int i;
 
 	sc->nspeed_points = nitems(cpu_freq_tbl);
-	sc->speed_points = malloc(sizeof(struct cpu_speed_point) *
-	    sc->nspeed_points, M_DEVBUF, M_NOWAIT);
+	sc->speed_points = malloc(
+	    sizeof(struct cpu_speed_point) * sc->nspeed_points, M_DEVBUF,
+	    M_NOWAIT);
 	for (i = 0; i < sc->nspeed_points; i++) {
 		sc->speed_points[i].freq = cpu_freq_tbl[i];
-		sc->speed_points[i].uvolt = freq_to_voltage(sc,
-		    cpu_freq_tbl[i]);
+		sc->speed_points[i].uvolt = freq_to_voltage(
+		    sc, cpu_freq_tbl[i]);
 	}
 }
 
@@ -326,8 +323,8 @@ set_cpu_freq(struct tegra124_cpufreq_softc *sc, uint64_t freq)
 
 	if (sc->act_speed_point->uvolt < point->uvolt) {
 		/* set cpu voltage */
-		rv = regulator_set_voltage(sc->supply_vdd_cpu,
-		    point->uvolt, point->uvolt);
+		rv = regulator_set_voltage(
+		    sc->supply_vdd_cpu, point->uvolt, point->uvolt);
 		DELAY(10000);
 		if (rv != 0)
 			return (rv);
@@ -355,8 +352,8 @@ set_cpu_freq(struct tegra124_cpufreq_softc *sc, uint64_t freq)
 
 	if (sc->act_speed_point->uvolt > point->uvolt) {
 		/* set cpu voltage */
-		rv = regulator_set_voltage(sc->supply_vdd_cpu,
-		    point->uvolt, point->uvolt);
+		rv = regulator_set_voltage(
+		    sc->supply_vdd_cpu, point->uvolt, point->uvolt);
 		if (rv != 0)
 			return (rv);
 	}
@@ -427,9 +424,9 @@ get_fdt_resources(struct tegra124_cpufreq_softc *sc, phandle_t node)
 	int rv;
 	device_t parent_dev;
 
-	parent_dev =  device_get_parent(sc->dev);
-	rv = regulator_get_by_ofw_property(parent_dev, 0, "vdd-cpu-supply",
-	    &sc->supply_vdd_cpu);
+	parent_dev = device_get_parent(sc->dev);
+	rv = regulator_get_by_ofw_property(
+	    parent_dev, 0, "vdd-cpu-supply", &sc->supply_vdd_cpu);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'vdd-cpu' regulator\n");
 		return (rv);
@@ -460,10 +457,10 @@ get_fdt_resources(struct tegra124_cpufreq_softc *sc, phandle_t node)
 	rv = clk_get_by_ofw_name(parent_dev, 0, "dfll", &sc->clk_dfll);
 	if (rv != 0) {
 		/* XXX DPLL is not implemented yet */
-/*
-		device_printf(sc->dev, "Cannot get 'dfll' clock\n");
-		return (ENXIO);
-*/
+		/*
+				device_printf(sc->dev, "Cannot get 'dfll'
+		   clock\n"); return (ENXIO);
+		*/
 	}
 	return (0);
 }
@@ -517,7 +514,7 @@ tegra124_cpufreq_attach(device_t dev)
 		sc->cpu_def = &tegra124_cpu_volt_dpll_def;
 
 	rv = get_fdt_resources(sc, sc->node);
-	if (rv !=  0) {
+	if (rv != 0) {
 		return (rv);
 	}
 
@@ -573,16 +570,16 @@ tegra124_cpufreq_detach(device_t dev)
 
 static device_method_t tegra124_cpufreq_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	tegra124_cpufreq_identify),
-	DEVMETHOD(device_probe,		tegra124_cpufreq_probe),
-	DEVMETHOD(device_attach,	tegra124_cpufreq_attach),
-	DEVMETHOD(device_detach,	tegra124_cpufreq_detach),
+	DEVMETHOD(device_identify, tegra124_cpufreq_identify),
+	DEVMETHOD(device_probe, tegra124_cpufreq_probe),
+	DEVMETHOD(device_attach, tegra124_cpufreq_attach),
+	DEVMETHOD(device_detach, tegra124_cpufreq_detach),
 
 	/* cpufreq interface */
-	DEVMETHOD(cpufreq_drv_set,	tegra124_cpufreq_set),
-	DEVMETHOD(cpufreq_drv_get,	tegra124_cpufreq_get),
-	DEVMETHOD(cpufreq_drv_settings,	tegra124_cpufreq_settings),
-	DEVMETHOD(cpufreq_drv_type,	tegra124_cpufreq_type),
+	DEVMETHOD(cpufreq_drv_set, tegra124_cpufreq_set),
+	DEVMETHOD(cpufreq_drv_get, tegra124_cpufreq_get),
+	DEVMETHOD(cpufreq_drv_settings, tegra124_cpufreq_settings),
+	DEVMETHOD(cpufreq_drv_type, tegra124_cpufreq_type),
 
 	DEVMETHOD_END
 };

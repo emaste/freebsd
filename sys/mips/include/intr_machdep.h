@@ -28,17 +28,18 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_INTR_MACHDEP_H_
-#define	_MACHINE_INTR_MACHDEP_H_
+#ifndef _MACHINE_INTR_MACHDEP_H_
+#define _MACHINE_INTR_MACHDEP_H_
 
 #include <sys/vmmeter.h>
+
 #include <machine/atomic.h>
 
 #if defined(CPU_RMI) || defined(CPU_NLM)
 #define XLR_MAX_INTR 64
 #else
-#define NHARD_IRQS	6
-#define NSOFT_IRQS	2
+#define NHARD_IRQS 6
+#define NSOFT_IRQS 2
 #endif
 
 struct trapframe;
@@ -46,7 +47,7 @@ struct trapframe;
 void cpu_init_interrupts(void);
 void cpu_establish_hardintr(const char *, driver_filter_t *, driver_intr_t *,
     void *, int, int, void **);
-void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void*),
+void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void *),
     void *, int, int, void **);
 void cpu_intr(struct trapframe *);
 
@@ -63,7 +64,7 @@ void cpu_set_hardintr_unmask_func(cpu_intr_unmask_t func);
 /*
  * Opaque datatype that represents intr counter
  */
-typedef unsigned long* mips_intrcnt_t;
+typedef unsigned long *mips_intrcnt_t;
 
 mips_intrcnt_t mips_intrcnt_create(const char *);
 void mips_intrcnt_setname(mips_intrcnt_t, const char *);

@@ -60,20 +60,20 @@
 
 struct pidctrl {
 	/* Saved control variables. */
-	int	pc_error;		/* Current error. */
-	int	pc_olderror;		/* Saved error for derivative. */
-	int	pc_integral;		/* Integral accumulator. */
-	int	pc_derivative;		/* Change from last error. */
-	int	pc_input;		/* Last input. */
-	int	pc_output;		/* Last output. */
-	int	pc_ticks;		/* Last sampling time. */
+	int pc_error;	   /* Current error. */
+	int pc_olderror;   /* Saved error for derivative. */
+	int pc_integral;   /* Integral accumulator. */
+	int pc_derivative; /* Change from last error. */
+	int pc_input;	   /* Last input. */
+	int pc_output;	   /* Last output. */
+	int pc_ticks;	   /* Last sampling time. */
 	/* configuration options, runtime tunable via sysctl */
-	int	pc_setpoint;		/* Desired level */
-	int	pc_interval;		/* Update interval in ticks. */
-	int	pc_bound;		/* Integral wind-up limit. */
-	int	pc_Kpd;			/* Proportional gain divisor. */
-	int	pc_Kid;			/* Integral gain divisor. */
-	int	pc_Kdd;			/* Derivative gain divisor. */
+	int pc_setpoint; /* Desired level */
+	int pc_interval; /* Update interval in ticks. */
+	int pc_bound;	 /* Integral wind-up limit. */
+	int pc_Kpd;	 /* Proportional gain divisor. */
+	int pc_Kid;	 /* Integral gain divisor. */
+	int pc_Kdd;	 /* Derivative gain divisor. */
 };
 
 /*
@@ -83,16 +83,16 @@ struct pidctrl {
  * setpoint and interval.  Measurement under multiple loads should be
  * taken to ensure adequate stability and rise time.
  */
-#define	PIDCTRL_KPD	3		/* Default proportional divisor. */
-#define	PIDCTRL_KID	4		/* Default integral divisor. */
-#define	PIDCTRL_KDD	8		/* Default derivative divisor. */
-#define	PIDCTRL_BOUND	4		/* Bound factor, setpoint multiple. */
+#define PIDCTRL_KPD 3 /* Default proportional divisor. */
+#define PIDCTRL_KID 4 /* Default integral divisor. */
+#define PIDCTRL_KDD 8 /* Default derivative divisor. */
+#define PIDCTRL_BOUND 4 /* Bound factor, setpoint multiple. */
 
 struct sysctl_oid_list;
 
-void	pidctrl_init(struct pidctrl *pc, int interval, int setpoint,
-	    int bound, int Kpd, int Kid, int Kdd);
-void	pidctrl_init_sysctl(struct pidctrl *pc, struct sysctl_oid_list *parent);
+void pidctrl_init(struct pidctrl *pc, int interval, int setpoint, int bound,
+    int Kpd, int Kid, int Kdd);
+void pidctrl_init_sysctl(struct pidctrl *pc, struct sysctl_oid_list *parent);
 
 /*
  * This is the classic PID controller where the interval is clamped to
@@ -102,7 +102,7 @@ void	pidctrl_init_sysctl(struct pidctrl *pc, struct sysctl_oid_list *parent);
  * only be called once per-interval or the derivative term will be
  * inaccurate.
  */
-int	pidctrl_classic(struct pidctrl *pc, int input);
+int pidctrl_classic(struct pidctrl *pc, int input);
 
 /*
  * This controler is intended for consumer type daemons that can only
@@ -118,6 +118,6 @@ int	pidctrl_classic(struct pidctrl *pc, int input);
  * output.  Calling it less frequently when there is no work to be done will
  * increase the rise time but should otherwise be harmless.
  */
-int	pidctrl_daemon(struct pidctrl *pc, int input);
+int pidctrl_daemon(struct pidctrl *pc, int input);
 
-#endif	/* !_SYS_PIDCTRL_H_ */
+#endif /* !_SYS_PIDCTRL_H_ */

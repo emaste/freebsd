@@ -41,33 +41,33 @@
  */
 
 #ifndef _MACHINE_FIQ_H_
-#define	_MACHINE_FIQ_H_
+#define _MACHINE_FIQ_H_
 
 #include <sys/queue.h>
 
 struct fiqregs {
-	u_int	fr_r8;			/* FIQ mode r8 */
-	u_int	fr_r9;			/* FIQ mode r9 */
-	u_int	fr_r10;			/* FIQ mode r10 */
-	u_int	fr_r11;			/* FIQ mode r11 */
-	u_int	fr_r12;			/* FIQ mode r12 */
-	u_int	fr_r13;			/* FIQ mode r13 */
+	u_int fr_r8;  /* FIQ mode r8 */
+	u_int fr_r9;  /* FIQ mode r9 */
+	u_int fr_r10; /* FIQ mode r10 */
+	u_int fr_r11; /* FIQ mode r11 */
+	u_int fr_r12; /* FIQ mode r12 */
+	u_int fr_r13; /* FIQ mode r13 */
 };
 
 struct fiqhandler {
-	TAILQ_ENTRY(fiqhandler) fh_list;/* link in the FIQ handler stack */
-	void	*fh_func;		/* FIQ handler routine */
-	size_t	fh_size;		/* size of FIQ handler */
-	int	fh_flags;		/* flags; see below */
-	struct fiqregs *fh_regs;	/* pointer to regs structure */
+	TAILQ_ENTRY(fiqhandler) fh_list; /* link in the FIQ handler stack */
+	void *fh_func;			 /* FIQ handler routine */
+	size_t fh_size;			 /* size of FIQ handler */
+	int fh_flags;			 /* flags; see below */
+	struct fiqregs *fh_regs;	 /* pointer to regs structure */
 };
 
-#define	FH_CANPUSH	0x01	/* can push this handler out of the way */
+#define FH_CANPUSH 0x01 /* can push this handler out of the way */
 
-int	fiq_claim(struct fiqhandler *);
-void	fiq_release(struct fiqhandler *);
+int fiq_claim(struct fiqhandler *);
+void fiq_release(struct fiqhandler *);
 
-void	fiq_getregs(struct fiqregs *);
-void	fiq_setregs(struct fiqregs *);
+void fiq_getregs(struct fiqregs *);
+void fiq_setregs(struct fiqregs *);
 
 #endif /* _MACHINE_FIQ_H_ */

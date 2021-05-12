@@ -35,9 +35,9 @@
  * (annoyingly) covered by the CDDL. We will just use a few bytes from
  * it as an integer array where we 'know' what they mean.
  */
-#define CTF_HDR_SIZE		36
-#define CTF_HDR_STRTAB_U32	7
-#define CTF_HDR_STRLEN_U32	8
+#define CTF_HDR_SIZE 36
+#define CTF_HDR_STRTAB_U32 7
+#define CTF_HDR_STRLEN_U32 8
 
 #ifdef DDB_CTF
 #include <contrib/zlib/zlib.h>
@@ -52,7 +52,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	caddr_t ctftab = NULL;
 	caddr_t raw = NULL;
 	caddr_t shstrtab = NULL;
-	elf_file_t ef = (elf_file_t) lf;
+	elf_file_t ef = (elf_file_t)lf;
 	int flags;
 	int i;
 	int nbytes;
@@ -86,9 +86,9 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 		lc->symtab = ef->ddbsymtab;
 		lc->strtab = ef->ddbstrtab;
 		lc->strcnt = ef->ddbstrcnt;
-		lc->nsym   = ef->ddbsymcnt;
-		lc->ctfoffp = (uint32_t **) &ef->ctfoff;
-		lc->typoffp = (uint32_t **) &ef->typoff;
+		lc->nsym = ef->ddbsymcnt;
+		lc->ctfoffp = (uint32_t **)&ef->ctfoff;
+		lc->typoffp = (uint32_t **)&ef->typoff;
 		lc->typlenp = &ef->typlen;
 		return (0);
 	}
@@ -111,9 +111,9 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	hdr = malloc(sizeof(*hdr), M_LINKER, M_WAITOK);
 
 	/* Read the ELF header. */
-	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, hdr, sizeof(*hdr),
-	    0, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, NULL,
-	    td)) != 0)
+	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, hdr, sizeof(*hdr), 0,
+		 UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, NULL,
+		 td)) != 0)
 		goto out;
 
 	/* Sanity check. */
@@ -134,8 +134,8 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 
 	/* Read all the section headers */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)shdr, nbytes,
-	    hdr->e_shoff, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
-	    NULL, td)) != 0)
+		 hdr->e_shoff, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,
+		 NOCRED, NULL, td)) != 0)
 		goto out;
 
 	/*
@@ -143,7 +143,8 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	 * section names aren't present, then we can't locate the
 	 * .SUNW_ctf section containing the CTF data.
 	 */
-	if (hdr->e_shstrndx == 0 || shdr[hdr->e_shstrndx].sh_type != SHT_STRTAB) {
+	if (hdr->e_shstrndx == 0 ||
+	    shdr[hdr->e_shstrndx].sh_type != SHT_STRTAB) {
 		printf("%s(%d): module %s e_shstrndx is %d, sh_type is %d\n",
 		    __func__, __LINE__, lf->pathname, hdr->e_shstrndx,
 		    shdr[hdr->e_shstrndx].sh_type);
@@ -156,8 +157,9 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 
 	/* Read the section header strings. */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, shstrtab,
-	    shdr[hdr->e_shstrndx].sh_size, shdr[hdr->e_shstrndx].sh_offset,
-	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, NULL, td)) != 0)
+		 shdr[hdr->e_shstrndx].sh_size, shdr[hdr->e_shstrndx].sh_offset,
+		 UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, NULL,
+		 td)) != 0)
 		goto out;
 
 	/* Search for the section containing the CTF data. */
@@ -167,26 +169,26 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 
 	/* Check if the CTF section wasn't found. */
 	if (i >= hdr->e_shnum) {
-		printf("%s(%d): module %s has no .SUNW_ctf section\n",
-		    __func__, __LINE__, lf->pathname);
+		printf("%s(%d): module %s has no .SUNW_ctf section\n", __func__,
+		    __LINE__, lf->pathname);
 		error = EFTYPE;
 		goto out;
 	}
 
 	/* Read the CTF header. */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, ctf_hdr, sizeof(ctf_hdr),
-	    shdr[i].sh_offset, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,
-	    NOCRED, NULL, td)) != 0)
+		 shdr[i].sh_offset, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,
+		 NOCRED, NULL, td)) != 0)
 		goto out;
 
-	/* Check the CTF magic number. */
+		/* Check the CTF magic number. */
 #ifdef __LITTLE_ENDIAN__
 	if (ctf_hdr[0] != 0xf1 || ctf_hdr[1] != 0xcf) {
 #else
 	if (ctf_hdr[0] != 0xcf || ctf_hdr[1] != 0xf1) {
 #endif
-		printf("%s(%d): module %s has invalid format\n",
-		    __func__, __LINE__, lf->pathname);
+		printf("%s(%d): module %s has invalid format\n", __func__,
+		    __LINE__, lf->pathname);
 		error = EFTYPE;
 		goto out;
 	}
@@ -194,7 +196,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	/* Check if version 2. */
 	if (ctf_hdr[2] != 2) {
 		printf("%s(%d): module %s CTF format version is %d "
-		    "(2 expected)\n",
+		       "(2 expected)\n",
 		    __func__, __LINE__, lf->pathname, ctf_hdr[2]);
 		error = EFTYPE;
 		goto out;
@@ -202,7 +204,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 
 	/* Check if the data is compressed. */
 	if ((ctf_hdr[3] & 0x1) != 0) {
-		uint32_t *u32 = (uint32_t *) ctf_hdr;
+		uint32_t *u32 = (uint32_t *)ctf_hdr;
 
 		/*
 		 * The last two fields in the CTF header are the offset
@@ -238,8 +240,8 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	 * directly into the CTF buffer otherwise.
 	 */
 	if ((error = vn_rdwr(UIO_READ, nd.ni_vp, raw == NULL ? ctftab : raw,
-	    shdr[i].sh_size, shdr[i].sh_offset, UIO_SYSSPACE, IO_NODELOCKED,
-	    td->td_ucred, NOCRED, NULL, td)) != 0)
+		 shdr[i].sh_size, shdr[i].sh_offset, UIO_SYSSPACE,
+		 IO_NODELOCKED, td->td_ucred, NOCRED, NULL, td)) != 0)
 		goto out;
 
 	/* Check if decompression is required. */
@@ -262,13 +264,14 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 		}
 
 		zs.avail_in = shdr[i].sh_size - sizeof(ctf_hdr);
-		zs.next_in = ((uint8_t *) raw) + sizeof(ctf_hdr);
+		zs.next_in = ((uint8_t *)raw) + sizeof(ctf_hdr);
 		zs.avail_out = sz - sizeof(ctf_hdr);
-		zs.next_out = ((uint8_t *) ctftab) + sizeof(ctf_hdr);
+		zs.next_out = ((uint8_t *)ctftab) + sizeof(ctf_hdr);
 		ret = inflate(&zs, Z_FINISH);
 		inflateEnd(&zs);
 		if (ret != Z_STREAM_END) {
-			printf("%s(%d): zlib inflate returned %d\n", __func__, __LINE__, ret);
+			printf("%s(%d): zlib inflate returned %d\n", __func__,
+			    __LINE__, ret);
 			error = EIO;
 			goto out;
 		}
@@ -287,9 +290,9 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	lc->symtab = ef->ddbsymtab;
 	lc->strtab = ef->ddbstrtab;
 	lc->strcnt = ef->ddbstrcnt;
-	lc->nsym   = ef->ddbsymcnt;
-	lc->ctfoffp = (uint32_t **) &ef->ctfoff;
-	lc->typoffp = (uint32_t **) &ef->typoff;
+	lc->nsym = ef->ddbsymcnt;
+	lc->ctfoffp = (uint32_t **)&ef->ctfoff;
+	lc->typoffp = (uint32_t **)&ef->typoff;
 	lc->typlenp = &ef->typlen;
 
 out:

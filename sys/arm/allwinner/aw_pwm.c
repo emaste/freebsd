@@ -35,61 +35,57 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/resource.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/clk/clk.h>
-
 #include "pwmbus_if.h"
 
-#define	AW_PWM_CTRL			0x00
-#define	 AW_PWM_CTRL_PRESCALE_MASK	0xF
-#define	 AW_PWM_CTRL_EN			(1 << 4)
-#define	 AW_PWM_CTRL_ACTIVE_LEVEL_HIGH	(1 << 5)
-#define	 AW_PWM_CTRL_GATE		(1 << 6)
-#define	 AW_PWM_CTRL_MODE_MASK		0x80
-#define	 AW_PWM_CTRL_PULSE_MODE		(1 << 7)
-#define	 AW_PWM_CTRL_CYCLE_MODE		(0 << 7)
-#define	 AW_PWM_CTRL_PULSE_START	(1 << 8)
-#define	 AW_PWM_CTRL_CLK_BYPASS		(1 << 9)
-#define	 AW_PWM_CTRL_PERIOD_BUSY	(1 << 28)
+#define AW_PWM_CTRL 0x00
+#define AW_PWM_CTRL_PRESCALE_MASK 0xF
+#define AW_PWM_CTRL_EN (1 << 4)
+#define AW_PWM_CTRL_ACTIVE_LEVEL_HIGH (1 << 5)
+#define AW_PWM_CTRL_GATE (1 << 6)
+#define AW_PWM_CTRL_MODE_MASK 0x80
+#define AW_PWM_CTRL_PULSE_MODE (1 << 7)
+#define AW_PWM_CTRL_CYCLE_MODE (0 << 7)
+#define AW_PWM_CTRL_PULSE_START (1 << 8)
+#define AW_PWM_CTRL_CLK_BYPASS (1 << 9)
+#define AW_PWM_CTRL_PERIOD_BUSY (1 << 28)
 
-#define	AW_PWM_PERIOD			0x04
-#define	AW_PWM_PERIOD_TOTAL_MASK	0xFFFF
-#define	AW_PWM_PERIOD_TOTAL_SHIFT	16
-#define	AW_PWM_PERIOD_ACTIVE_MASK	0xFFFF
-#define	AW_PWM_PERIOD_ACTIVE_SHIFT	0
+#define AW_PWM_PERIOD 0x04
+#define AW_PWM_PERIOD_TOTAL_MASK 0xFFFF
+#define AW_PWM_PERIOD_TOTAL_SHIFT 16
+#define AW_PWM_PERIOD_ACTIVE_MASK 0xFFFF
+#define AW_PWM_PERIOD_ACTIVE_SHIFT 0
 
-#define	AW_PWM_MAX_FREQ			24000000
+#define AW_PWM_MAX_FREQ 24000000
 
-#define	NS_PER_SEC	1000000000
+#define NS_PER_SEC 1000000000
 
-static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun5i-a13-pwm",		1 },
-	{ "allwinner,sun8i-h3-pwm",		1 },
-	{ NULL,					0 }
-};
+static struct ofw_compat_data compat_data[] = { { "allwinner,sun5i-a13-pwm",
+						    1 },
+	{ "allwinner,sun8i-h3-pwm", 1 }, { NULL, 0 } };
 
-static struct resource_spec aw_pwm_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec aw_pwm_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 struct aw_pwm_softc {
-	device_t	dev;
-	device_t	busdev;
-	clk_t		clk;
-	struct resource	*res;
+	device_t dev;
+	device_t busdev;
+	clk_t clk;
+	struct resource *res;
 
-	uint64_t	clk_freq;
-	unsigned int	period;
-	unsigned int	duty;
-	uint32_t	flags;
-	bool		enabled;
+	uint64_t clk_freq;
+	unsigned int period;
+	unsigned int duty;
+	uint32_t flags;
+	bool enabled;
 };
 
 static uint32_t aw_pwm_clk_prescaler[] = {
@@ -111,8 +107,8 @@ static uint32_t aw_pwm_clk_prescaler[] = {
 	1,
 };
 
-#define	AW_PWM_READ(sc, reg)		bus_read_4((sc)->res, (reg))
-#define	AW_PWM_WRITE(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
+#define AW_PWM_READ(sc, reg) bus_read_4((sc)->res, (reg))
+#define AW_PWM_WRITE(sc, reg, val) bus_write_4((sc)->res, (reg), (val))
 
 static int aw_pwm_probe(device_t dev);
 static int aw_pwm_attach(device_t dev);
@@ -174,16 +170,21 @@ aw_pwm_attach(device_t dev)
 	reg = AW_PWM_READ(sc, AW_PWM_CTRL);
 	reg &= AW_PWM_CTRL_PRESCALE_MASK;
 	if (reg > nitems(aw_pwm_clk_prescaler)) {
-		device_printf(dev, "Bad prescaler %x, cannot guess current settings\n", reg);
+		device_printf(dev,
+		    "Bad prescaler %x, cannot guess current settings\n", reg);
 		goto skipcfg;
 	}
 	clk_freq = sc->clk_freq / aw_pwm_clk_prescaler[reg];
 
 	reg = AW_PWM_READ(sc, AW_PWM_PERIOD);
 	sc->period = NS_PER_SEC /
-		(clk_freq / ((reg >> AW_PWM_PERIOD_TOTAL_SHIFT) & AW_PWM_PERIOD_TOTAL_MASK));
+	    (clk_freq /
+		((reg >> AW_PWM_PERIOD_TOTAL_SHIFT) &
+		    AW_PWM_PERIOD_TOTAL_MASK));
 	sc->duty = NS_PER_SEC /
-		(clk_freq / ((reg >> AW_PWM_PERIOD_ACTIVE_SHIFT) & AW_PWM_PERIOD_ACTIVE_MASK));
+	    (clk_freq /
+		((reg >> AW_PWM_PERIOD_ACTIVE_SHIFT) &
+		    AW_PWM_PERIOD_ACTIVE_MASK));
 
 skipcfg:
 	/*
@@ -288,10 +289,12 @@ aw_pwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
 		for (i = 0; i < nitems(aw_pwm_clk_prescaler); i++) {
 			if (aw_pwm_clk_prescaler[i] == 0)
 				continue;
-			div = AW_PWM_MAX_FREQ / aw_pwm_clk_prescaler[i] / period_freq;
-			if ((div - 1) < AW_PWM_PERIOD_TOTAL_MASK ) {
+			div = AW_PWM_MAX_FREQ / aw_pwm_clk_prescaler[i] /
+			    period_freq;
+			if ((div - 1) < AW_PWM_PERIOD_TOTAL_MASK) {
 				prescaler = i;
-				clk_rate = AW_PWM_MAX_FREQ / aw_pwm_clk_prescaler[i];
+				clk_rate = AW_PWM_MAX_FREQ /
+				    aw_pwm_clk_prescaler[i];
 				break;
 			}
 		}
@@ -315,7 +318,7 @@ aw_pwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
 
 	/* Write the total/active cycles */
 	reg = ((clk_rate / period_freq - 1) << AW_PWM_PERIOD_TOTAL_SHIFT) |
-	  ((clk_rate / duty_freq) << AW_PWM_PERIOD_ACTIVE_SHIFT);
+	    ((clk_rate / duty_freq) << AW_PWM_PERIOD_ACTIVE_SHIFT);
 	AW_PWM_WRITE(sc, AW_PWM_PERIOD, reg);
 
 	sc->period = period;
@@ -325,7 +328,8 @@ aw_pwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
 }
 
 static int
-aw_pwm_channel_get_config(device_t dev, u_int channel, u_int *period, u_int *duty)
+aw_pwm_channel_get_config(
+    device_t dev, u_int channel, u_int *period, u_int *duty)
 {
 	struct aw_pwm_softc *sc;
 
@@ -375,19 +379,19 @@ aw_pwm_channel_is_enabled(device_t dev, u_int channel, bool *enabled)
 
 static device_method_t aw_pwm_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		aw_pwm_probe),
-	DEVMETHOD(device_attach,	aw_pwm_attach),
-	DEVMETHOD(device_detach,	aw_pwm_detach),
+	DEVMETHOD(device_probe, aw_pwm_probe),
+	DEVMETHOD(device_attach, aw_pwm_attach),
+	DEVMETHOD(device_detach, aw_pwm_detach),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	aw_pwm_get_node),
+	DEVMETHOD(ofw_bus_get_node, aw_pwm_get_node),
 
 	/* pwmbus interface */
-	DEVMETHOD(pwmbus_channel_count,		aw_pwm_channel_count),
-	DEVMETHOD(pwmbus_channel_config,	aw_pwm_channel_config),
-	DEVMETHOD(pwmbus_channel_get_config,	aw_pwm_channel_get_config),
-	DEVMETHOD(pwmbus_channel_enable,	aw_pwm_channel_enable),
-	DEVMETHOD(pwmbus_channel_is_enabled,	aw_pwm_channel_is_enabled),
+	DEVMETHOD(pwmbus_channel_count, aw_pwm_channel_count),
+	DEVMETHOD(pwmbus_channel_config, aw_pwm_channel_config),
+	DEVMETHOD(pwmbus_channel_get_config, aw_pwm_channel_get_config),
+	DEVMETHOD(pwmbus_channel_enable, aw_pwm_channel_enable),
+	DEVMETHOD(pwmbus_channel_is_enabled, aw_pwm_channel_is_enabled),
 
 	DEVMETHOD_END
 };

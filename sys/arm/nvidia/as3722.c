@@ -36,8 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sx.h>
 
@@ -46,31 +46,30 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/regulator/regulator.h>
 #include <dev/fdt/fdt_pinctrl.h>
 #include <dev/gpio/gpiobusvar.h>
-#include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
+#include <dev/iicbus/iiconf.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dt-bindings/mfd/as3722.h>
 
+#include "as3722.h"
 #include "clock_if.h"
 #include "regdev_if.h"
 
-#include "as3722.h"
-
 static struct ofw_compat_data compat_data[] = {
-	{"ams,as3722",		1},
-	{NULL,			0},
+	{ "ams,as3722", 1 },
+	{ NULL, 0 },
 };
 
-#define	LOCK(_sc)		sx_xlock(&(_sc)->lock)
-#define	UNLOCK(_sc)		sx_xunlock(&(_sc)->lock)
-#define	LOCK_INIT(_sc)		sx_init(&(_sc)->lock, "as3722")
-#define	LOCK_DESTROY(_sc)	sx_destroy(&(_sc)->lock);
-#define	ASSERT_LOCKED(_sc)	sx_assert(&(_sc)->lock, SA_XLOCKED);
-#define	ASSERT_UNLOCKED(_sc)	sx_assert(&(_sc)->lock, SA_UNLOCKED);
+#define LOCK(_sc) sx_xlock(&(_sc)->lock)
+#define UNLOCK(_sc) sx_xunlock(&(_sc)->lock)
+#define LOCK_INIT(_sc) sx_init(&(_sc)->lock, "as3722")
+#define LOCK_DESTROY(_sc) sx_destroy(&(_sc)->lock);
+#define ASSERT_LOCKED(_sc) sx_assert(&(_sc)->lock, SA_XLOCKED);
+#define ASSERT_UNLOCKED(_sc) sx_assert(&(_sc)->lock, SA_UNLOCKED);
 
-#define	AS3722_DEVICE_ID	0x0C
+#define AS3722_DEVICE_ID 0x0C
 
 /*
  * Raw register access function.
@@ -81,8 +80,8 @@ as3722_read(struct as3722_softc *sc, uint8_t reg, uint8_t *val)
 	uint8_t addr;
 	int rv;
 	struct iic_msg msgs[2] = {
-		{0, IIC_M_WR, 1, &addr},
-		{0, IIC_M_RD, 1, val},
+		{ 0, IIC_M_WR, 1, &addr },
+		{ 0, IIC_M_RD, 1, val },
 	};
 
 	msgs[0].slave = sc->bus_addr;
@@ -92,21 +91,21 @@ as3722_read(struct as3722_softc *sc, uint8_t reg, uint8_t *val)
 	rv = iicbus_transfer(sc->dev, msgs, 2);
 	if (rv != 0) {
 		device_printf(sc->dev,
-		    "Error when reading reg 0x%02X, rv: %d\n", reg,  rv);
+		    "Error when reading reg 0x%02X, rv: %d\n", reg, rv);
 		return (EIO);
 	}
 
 	return (0);
 }
 
-int as3722_read_buf(struct as3722_softc *sc, uint8_t reg, uint8_t *buf,
-    size_t size)
+int
+as3722_read_buf(struct as3722_softc *sc, uint8_t reg, uint8_t *buf, size_t size)
 {
 	uint8_t addr;
 	int rv;
 	struct iic_msg msgs[2] = {
-		{0, IIC_M_WR, 1, &addr},
-		{0, IIC_M_RD, size, buf},
+		{ 0, IIC_M_WR, 1, &addr },
+		{ 0, IIC_M_RD, size, buf },
 	};
 
 	msgs[0].slave = sc->bus_addr;
@@ -116,7 +115,7 @@ int as3722_read_buf(struct as3722_softc *sc, uint8_t reg, uint8_t *buf,
 	rv = iicbus_transfer(sc->dev, msgs, 2);
 	if (rv != 0) {
 		device_printf(sc->dev,
-		    "Error when reading reg 0x%02X, rv: %d\n", reg,  rv);
+		    "Error when reading reg 0x%02X, rv: %d\n", reg, rv);
 		return (EIO);
 	}
 
@@ -130,7 +129,7 @@ as3722_write(struct as3722_softc *sc, uint8_t reg, uint8_t val)
 	int rv;
 
 	struct iic_msg msgs[1] = {
-		{0, IIC_M_WR, 2, data},
+		{ 0, IIC_M_WR, 2, data },
 	};
 
 	msgs[0].slave = sc->bus_addr;
@@ -146,14 +145,15 @@ as3722_write(struct as3722_softc *sc, uint8_t reg, uint8_t val)
 	return (0);
 }
 
-int as3722_write_buf(struct as3722_softc *sc, uint8_t reg, uint8_t *buf,
-    size_t size)
+int
+as3722_write_buf(
+    struct as3722_softc *sc, uint8_t reg, uint8_t *buf, size_t size)
 {
 	uint8_t data[1];
 	int rv;
 	struct iic_msg msgs[2] = {
-		{0, IIC_M_WR, 1, data},
-		{0, IIC_M_WR | IIC_M_NOSTART, size, buf},
+		{ 0, IIC_M_WR, 1, data },
+		{ 0, IIC_M_WR | IIC_M_NOSTART, size, buf },
 	};
 
 	msgs[0].slave = sc->bus_addr;
@@ -226,8 +226,8 @@ as3722_init(struct as3722_softc *sc)
 	if (sc->i2c_pullup)
 		reg |= AS3722_I2C_PULL_UP;
 
-	rv = RM1(sc, AS3722_IO_VOLTAGE,
-	    AS3722_INT_PULL_UP | AS3722_I2C_PULL_UP, reg);
+	rv = RM1(sc, AS3722_IO_VOLTAGE, AS3722_INT_PULL_UP | AS3722_I2C_PULL_UP,
+	    reg);
 	if (rv != 0)
 		return (ENXIO);
 
@@ -251,10 +251,12 @@ static int
 as3722_parse_fdt(struct as3722_softc *sc, phandle_t node)
 {
 
-	sc->int_pullup =
-	    OF_hasprop(node, "ams,enable-internal-int-pullup") ? 1 : 0;
-	sc->i2c_pullup =
-	    OF_hasprop(node, "ams,enable-internal-i2c-pullup") ? 1 : 0;
+	sc->int_pullup = OF_hasprop(node, "ams,enable-internal-int-pullup") ?
+		  1 :
+		  0;
+	sc->i2c_pullup = OF_hasprop(node, "ams,enable-internal-i2c-pullup") ?
+		  1 :
+		  0;
 	return 0;
 }
 
@@ -299,8 +301,7 @@ as3722_attach(device_t dev)
 	LOCK_INIT(sc);
 
 	rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "Cannot allocate interrupt.\n");
 		rv = ENXIO;
@@ -372,40 +373,40 @@ as3722_gpio_get_node(device_t bus, device_t dev)
 
 static device_method_t as3722_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		as3722_probe),
-	DEVMETHOD(device_attach,	as3722_attach),
-	DEVMETHOD(device_detach,	as3722_detach),
+	DEVMETHOD(device_probe, as3722_probe),
+	DEVMETHOD(device_attach, as3722_attach),
+	DEVMETHOD(device_detach, as3722_detach),
 
 	/* Regdev interface */
-	DEVMETHOD(regdev_map,		as3722_regulator_map),
+	DEVMETHOD(regdev_map, as3722_regulator_map),
 
 	/* RTC interface */
-	DEVMETHOD(clock_gettime,	as3722_rtc_gettime),
-	DEVMETHOD(clock_settime,	as3722_rtc_settime),
+	DEVMETHOD(clock_gettime, as3722_rtc_gettime),
+	DEVMETHOD(clock_settime, as3722_rtc_settime),
 
 	/* GPIO protocol interface */
-	DEVMETHOD(gpio_get_bus,		as3722_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max,		as3722_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname,	as3722_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getflags,	as3722_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_getcaps,	as3722_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_setflags,	as3722_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_get,		as3722_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set,		as3722_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle,	as3722_gpio_pin_toggle),
-	DEVMETHOD(gpio_map_gpios,	as3722_gpio_map_gpios),
+	DEVMETHOD(gpio_get_bus, as3722_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max, as3722_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname, as3722_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getflags, as3722_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_getcaps, as3722_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_setflags, as3722_gpio_pin_setflags),
+	DEVMETHOD(gpio_pin_get, as3722_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set, as3722_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle, as3722_gpio_pin_toggle),
+	DEVMETHOD(gpio_map_gpios, as3722_gpio_map_gpios),
 
 	/* fdt_pinctrl interface */
 	DEVMETHOD(fdt_pinctrl_configure, as3722_pinmux_configure),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	as3722_gpio_get_node),
+	DEVMETHOD(ofw_bus_get_node, as3722_gpio_get_node),
 
 	DEVMETHOD_END
 };
 
 static devclass_t as3722_devclass;
-static DEFINE_CLASS_0(gpio, as3722_driver, as3722_methods,
-    sizeof(struct as3722_softc));
-EARLY_DRIVER_MODULE(as3722, iicbus, as3722_driver, as3722_devclass,
-    NULL, NULL, 74);
+static DEFINE_CLASS_0(
+    gpio, as3722_driver, as3722_methods, sizeof(struct as3722_softc));
+EARLY_DRIVER_MODULE(
+    as3722, iicbus, as3722_driver, as3722_devclass, NULL, NULL, 74);

@@ -40,56 +40,58 @@
 #include "opt_altq.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#ifdef ALTQ_CBQ	/* cbq is enabled by ALTQ_CBQ option in opt_altq.h */
+#ifdef ALTQ_CBQ /* cbq is enabled by ALTQ_CBQ option in opt_altq.h */
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/systm.h>
-#include <sys/errno.h>
 #include <sys/time.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
-
-#include <net/altq/if_altq.h>
 #include <net/altq/altq.h>
 #include <net/altq/altq_codel.h>
-#include <net/altq/altq_rmclass.h>
-#include <net/altq/altq_rmclass_debug.h>
 #include <net/altq/altq_red.h>
 #include <net/altq/altq_rio.h>
+#include <net/altq/altq_rmclass.h>
+#include <net/altq/altq_rmclass_debug.h>
+#include <net/altq/if_altq.h>
+#include <net/if.h>
+#include <net/if_var.h>
 
 /*
  * Local Macros
  */
-#define	reset_cutoff(ifd)	{ ifd->cutoff_ = RM_MAXDEPTH; }
+#define reset_cutoff(ifd)                   \
+	{                                   \
+		ifd->cutoff_ = RM_MAXDEPTH; \
+	}
 
 /*
  * Local routines.
  */
 
-static int	rmc_satisfied(struct rm_class *, struct timeval *);
-static void	rmc_wrr_set_weights(struct rm_ifdat *);
-static void	rmc_depth_compute(struct rm_class *);
-static void	rmc_depth_recompute(rm_class_t *);
+static int rmc_satisfied(struct rm_class *, struct timeval *);
+static void rmc_wrr_set_weights(struct rm_ifdat *);
+static void rmc_depth_compute(struct rm_class *);
+static void rmc_depth_recompute(rm_class_t *);
 
-static mbuf_t	*_rmc_wrr_dequeue_next(struct rm_ifdat *, int);
-static mbuf_t	*_rmc_prr_dequeue_next(struct rm_ifdat *, int);
+static mbuf_t *_rmc_wrr_dequeue_next(struct rm_ifdat *, int);
+static mbuf_t *_rmc_prr_dequeue_next(struct rm_ifdat *, int);
 
-static int	_rmc_addq(rm_class_t *, mbuf_t *);
-static void	_rmc_dropq(rm_class_t *);
-static mbuf_t	*_rmc_getq(rm_class_t *);
-static mbuf_t	*_rmc_pollq(rm_class_t *);
+static int _rmc_addq(rm_class_t *, mbuf_t *);
+static void _rmc_dropq(rm_class_t *);
+static mbuf_t *_rmc_getq(rm_class_t *);
+static mbuf_t *_rmc_pollq(rm_class_t *);
 
-static int	rmc_under_limit(struct rm_class *, struct timeval *);
-static void	rmc_tl_satisfied(struct rm_ifdat *, struct timeval *);
-static void	rmc_drop_action(struct rm_class *);
-static void	rmc_restart(void *);
-static void	rmc_root_overlimit(struct rm_class *, struct rm_class *);
+static int rmc_under_limit(struct rm_class *, struct timeval *);
+static void rmc_tl_satisfied(struct rm_ifdat *, struct timeval *);
+static void rmc_drop_action(struct rm_class *);
+static void rmc_restart(void *);
+static void rmc_root_overlimit(struct rm_class *, struct rm_class *);
 
-#define	BORROW_OFFTIME
+#define BORROW_OFFTIME
 /*
  * BORROW_OFFTIME (experimental):
  * borrow the offtime of the class borrowing from.
@@ -98,7 +100,7 @@ static void	rmc_root_overlimit(struct rm_class *, struct rm_class *);
  * but when the borrowed class is overloaded (advidle is close to minidle),
  * use the borrowing class's offtime to avoid overload.
  */
-#define	ADJUST_CUTOFF
+#define ADJUST_CUTOFF
 /*
  * ADJUST_CUTOFF (experimental):
  * if no underlimit class is found due to cutoff, increase cutoff and
@@ -183,9 +185,9 @@ rmc_newclass(int pri, struct rm_ifdat *ifd, u_int nsecPerByte,
     struct rm_class *parent, struct rm_class *borrow, u_int maxidle,
     int minidle, u_int offtime, int pktsize, int flags)
 {
-	struct rm_class	*cl;
-	struct rm_class	*peer;
-	int		 s;
+	struct rm_class *cl;
+	struct rm_class *peer;
+	int s;
 
 	if (pri >= RM_MAXPRIO)
 		return (NULL);
@@ -265,7 +267,7 @@ rmc_newclass(int pri, struct rm_ifdat *ifd, u_int nsecPerByte,
 	cl->overlimit = action;
 
 #ifdef ALTQ_RED
-	if (flags & (RMCF_RED|RMCF_RIO)) {
+	if (flags & (RMCF_RED | RMCF_RIO)) {
 		int red_flags, red_pkttime;
 
 		red_flags = 0;
@@ -277,20 +279,18 @@ rmc_newclass(int pri, struct rm_ifdat *ifd, u_int nsecPerByte,
 		if (flags & RMCF_CLEARDSCP)
 			red_flags |= RIOF_CLEARDSCP;
 #endif
-		red_pkttime = nsecPerByte * pktsize  / 1000;
+		red_pkttime = nsecPerByte * pktsize / 1000;
 
 		if (flags & RMCF_RED) {
-			cl->red_ = red_alloc(0, 0,
-			    qlimit(cl->q_) * 10/100,
-			    qlimit(cl->q_) * 30/100,
-			    red_flags, red_pkttime);
+			cl->red_ = red_alloc(0, 0, qlimit(cl->q_) * 10 / 100,
+			    qlimit(cl->q_) * 30 / 100, red_flags, red_pkttime);
 			if (cl->red_ != NULL)
 				qtype(cl->q_) = Q_RED;
 		}
 #ifdef ALTQ_RIO
 		else {
-			cl->red_ = (red_t *)rio_alloc(0, NULL,
-						      red_flags, red_pkttime);
+			cl->red_ = (red_t *)rio_alloc(
+			    0, NULL, red_flags, red_pkttime);
 			if (cl->red_ != NULL)
 				qtype(cl->q_) = Q_RIO;
 		}
@@ -350,9 +350,9 @@ int
 rmc_modclass(struct rm_class *cl, u_int nsecPerByte, int maxq, u_int maxidle,
     int minidle, u_int offtime, int pktsize)
 {
-	struct rm_ifdat	*ifd;
-	u_int		 old_allotment;
-	int		 s;
+	struct rm_ifdat *ifd;
+	u_int old_allotment;
+	int s;
 
 	ifd = cl->ifdat_;
 	old_allotment = cl->allotment_;
@@ -409,8 +409,8 @@ rmc_modclass(struct rm_class *cl, u_int nsecPerByte, int maxq, u_int maxidle,
 static void
 rmc_wrr_set_weights(struct rm_ifdat *ifd)
 {
-	int		i;
-	struct rm_class	*cl, *clh;
+	int i;
+	struct rm_class *cl, *clh;
 
 	for (i = 0; i < RM_MAXPRIO; i++) {
 		/*
@@ -421,7 +421,7 @@ rmc_wrr_set_weights(struct rm_ifdat *ifd)
 			ifd->M_[i] = 0;
 		else
 			ifd->M_[i] = ifd->alloc_[i] /
-				(ifd->num_[i] * ifd->maxpkt_);
+			    (ifd->num_[i] * ifd->maxpkt_);
 		/*
 		 * Compute the weighted allotment for each class.
 		 * This takes the expensive div instruction out
@@ -437,7 +437,7 @@ rmc_wrr_set_weights(struct rm_ifdat *ifd)
 					cl->w_allotment_ = 0;
 				else
 					cl->w_allotment_ = cl->allotment_ /
-						ifd->M_[i];
+					    ifd->M_[i];
 				cl = cl->peer_;
 			} while ((cl != NULL) && (cl != clh));
 		}
@@ -464,7 +464,7 @@ rmc_get_weight(struct rm_ifdat *ifd, int pri)
 static void
 rmc_depth_compute(struct rm_class *cl)
 {
-	rm_class_t	*t = cl, *p;
+	rm_class_t *t = cl, *p;
 
 	/*
 	 * Recompute the depth for the branch of the tree.
@@ -491,7 +491,7 @@ static void
 rmc_depth_recompute(rm_class_t *cl)
 {
 #if 1 /* ALTQ */
-	rm_class_t	*p, *t;
+	rm_class_t *p, *t;
 
 	p = cl;
 	while (p != NULL) {
@@ -516,7 +516,7 @@ rmc_depth_recompute(rm_class_t *cl)
 		p = p->parent_;
 	}
 #else
-	rm_class_t	*t;
+	rm_class_t *t;
 
 	if (cl->depth_ >= 1) {
 		if (cl->children_ == NULL) {
@@ -545,8 +545,8 @@ rmc_depth_recompute(rm_class_t *cl)
 void
 rmc_delete_class(struct rm_ifdat *ifd, struct rm_class *cl)
 {
-	struct rm_class	*p, *head, *previous;
-	int		 s;
+	struct rm_class *p, *head, *previous;
+	int s;
 
 	ASSERT(cl->children_ == NULL);
 
@@ -573,19 +573,21 @@ rmc_delete_class(struct rm_ifdat *ifd, struct rm_class *cl)
 			ASSERT(head == cl);
 			cl->parent_->children_ = NULL;
 			cl->parent_->leaf_ = 1;
-		} else while (p != NULL) {
-			if (p == cl) {
-				if (cl == head)
-					cl->parent_->children_ = cl->next_;
-				else
-					previous->next_ = cl->next_;
-				cl->next_ = NULL;
-				p = NULL;
-			} else {
-				previous = p;
-				p = p->next_;
+		} else
+			while (p != NULL) {
+				if (p == cl) {
+					if (cl == head)
+						cl->parent_->children_ =
+						    cl->next_;
+					else
+						previous->next_ = cl->next_;
+					cl->next_ = NULL;
+					p = NULL;
+				} else {
+					previous = p;
+					p = p->next_;
+				}
 			}
-		}
 	}
 
 	/*
@@ -672,14 +674,14 @@ rmc_init(struct ifaltq *ifq, struct rm_ifdat *ifd, u_int nsecPerByte,
     void (*restart)(struct ifaltq *), int maxq, int maxqueued, u_int maxidle,
     int minidle, u_int offtime, int flags)
 {
-	int		i, mtu;
+	int i, mtu;
 
 	/*
 	 * Initialize the CBQ tracing/debug facility.
 	 */
 	CBQTRACEINIT();
 
-	bzero((char *)ifd, sizeof (*ifd));
+	bzero((char *)ifd, sizeof(*ifd));
 	mtu = ifq->altq_ifp->if_mtu;
 	ifd->ifq_ = ifq;
 	ifd->restart = restart;
@@ -722,13 +724,10 @@ rmc_init(struct ifaltq *ifq, struct rm_ifdat *ifd, u_int nsecPerByte,
 	/*
 	 * Create the root class of the link-sharing structure.
 	 */
-	if ((ifd->root_ = rmc_newclass(0, ifd,
-				       nsecPerByte,
-				       rmc_root_overlimit, maxq, 0, 0,
-				       maxidle, minidle, offtime,
-				       0, 0)) == NULL) {
+	if ((ifd->root_ = rmc_newclass(0, ifd, nsecPerByte, rmc_root_overlimit,
+		 maxq, 0, 0, maxidle, minidle, offtime, 0, 0)) == NULL) {
 		printf("rmc_init: root class not allocated\n");
-		return ;
+		return;
 	}
 	ifd->root_->depth_ = 0;
 }
@@ -747,10 +746,10 @@ rmc_init(struct ifaltq *ifq, struct rm_ifdat *ifd, u_int nsecPerByte,
 int
 rmc_queue_packet(struct rm_class *cl, mbuf_t *m)
 {
-	struct timeval	 now;
+	struct timeval now;
 	struct rm_ifdat *ifd = cl->ifdat_;
-	int		 cpri = cl->pri_;
-	int		 is_empty = qempty(cl->q_);
+	int cpri = cl->pri_;
+	int is_empty = qempty(cl->q_);
 
 	RM_GETTIME(now);
 	if (ifd->cutoff_ > 0) {
@@ -768,11 +767,12 @@ rmc_queue_packet(struct rm_class *cl, mbuf_t *m)
 			 */
 			struct rm_class *borrow = cl->borrow_;
 
-			while (borrow != NULL &&
-			       borrow->depth_ < ifd->cutoff_) {
+			while (
+			    borrow != NULL && borrow->depth_ < ifd->cutoff_) {
 				if (TV_LT(&borrow->undertime_, &now)) {
 					ifd->cutoff_ = borrow->depth_;
-					CBQTRACE(rmc_queue_packet, 'ffob', ifd->cutoff_);
+					CBQTRACE(rmc_queue_packet, 'ffob',
+					    ifd->cutoff_);
 					break;
 				}
 				borrow = borrow->borrow_;
@@ -783,7 +783,7 @@ rmc_queue_packet(struct rm_class *cl, mbuf_t *m)
 			if (TV_LT(&cl->borrow_->undertime_, &now)) {
 				ifd->cutoff_ = cl->borrow_->depth_;
 				CBQTRACE(rmc_queue_packet, 'ffob',
-					 cl->borrow_->depth_);
+				    cl->borrow_->depth_);
 			}
 		}
 #endif /* !ALTQ */
@@ -815,8 +815,8 @@ rmc_queue_packet(struct rm_class *cl, mbuf_t *m)
 static void
 rmc_tl_satisfied(struct rm_ifdat *ifd, struct timeval *now)
 {
-	int		 i;
-	rm_class_t	*p, *bp;
+	int i;
+	rm_class_t *p, *bp;
 
 	for (i = RM_MAXPRIO - 1; i >= 0; i--) {
 		if ((bp = ifd->active_[i]) != NULL) {
@@ -841,7 +841,7 @@ rmc_tl_satisfied(struct rm_ifdat *ifd, struct timeval *now)
 static int
 rmc_satisfied(struct rm_class *cl, struct timeval *now)
 {
-	rm_class_t	*p;
+	rm_class_t *p;
 
 	if (cl == NULL)
 		return (1);
@@ -874,9 +874,9 @@ rmc_satisfied(struct rm_class *cl, struct timeval *now)
 static int
 rmc_under_limit(struct rm_class *cl, struct timeval *now)
 {
-	rm_class_t	*p = cl;
-	rm_class_t	*top;
-	struct rm_ifdat	*ifd = cl->ifdat_;
+	rm_class_t *p = cl;
+	rm_class_t *top;
+	struct rm_ifdat *ifd = cl->ifdat_;
 
 	ifd->borrowed_[ifd->qi_] = NULL;
 	/*
@@ -914,7 +914,8 @@ rmc_under_limit(struct rm_class *cl, struct timeval *now)
 			 * chain if the top class is not overloaded.
 			 */
 			if (cl != NULL) {
-				/* cutoff is taking effect, use this class as top. */
+				/* cutoff is taking effect, use this class as
+				 * top. */
 				top = cl;
 				CBQTRACE(rmc_under_limit, 'ffou', ifd->cutoff_);
 			}
@@ -956,11 +957,11 @@ rmc_under_limit(struct rm_class *cl, struct timeval *now)
 static mbuf_t *
 _rmc_wrr_dequeue_next(struct rm_ifdat *ifd, int op)
 {
-	struct rm_class	*cl = NULL, *first = NULL;
-	u_int		 deficit;
-	int		 cpri;
-	mbuf_t		*m;
-	struct timeval	 now;
+	struct rm_class *cl = NULL, *first = NULL;
+	u_int deficit;
+	int cpri;
+	mbuf_t *m;
+	struct timeval now;
 
 	RM_GETTIME(now);
 
@@ -979,14 +980,13 @@ _rmc_wrr_dequeue_next(struct rm_ifdat *ifd, int op)
 		}
 		ifd->pollcache_ = NULL;
 		goto _wrr_out;
-	}
-	else {
+	} else {
 		/* mode == ALTDQ_POLL || pollcache == NULL */
 		ifd->pollcache_ = NULL;
 		ifd->borrowed_[ifd->qi_] = NULL;
 	}
 #ifdef ADJUST_CUTOFF
- _again:
+_again:
 #endif
 	for (cpri = RM_MAXPRIO - 1; cpri >= 0; cpri--) {
 		if (ifd->na_[cpri] == 0)
@@ -1001,7 +1001,7 @@ _rmc_wrr_dequeue_next(struct rm_ifdat *ifd, int op)
 		 * "M[cl->pri_])" times "cl->allotment" is greater than
 		 * the byte size for the largest packet in the class.)
 		 */
- _wrr_loop:
+	_wrr_loop:
 		cl = ifd->active_[cpri];
 		ASSERT(cl != NULL);
 		do {
@@ -1018,8 +1018,7 @@ _rmc_wrr_dequeue_next(struct rm_ifdat *ifd, int op)
 #if 1
 					ifd->borrowed_[ifd->qi_] = NULL;
 #endif
-				}
-				else if (first == NULL && cl->borrow_ != NULL)
+				} else if (first == NULL && cl->borrow_ != NULL)
 					first = cl; /* borrowing candidate */
 			}
 
@@ -1059,7 +1058,7 @@ _rmc_wrr_dequeue_next(struct rm_ifdat *ifd, int op)
 
 	cl = first;
 	cpri = cl->pri_;
-#if 0	/* too time-consuming for nothing */
+#if 0 /* too time-consuming for nothing */
 	if (cl->sleeping_)
 		CALLOUT_STOP(&cl->callout_);
 	cl->sleeping_ = 0;
@@ -1071,7 +1070,7 @@ _rmc_wrr_dequeue_next(struct rm_ifdat *ifd, int op)
 	/*
 	 * Deque the packet and do the book keeping...
 	 */
- _wrr_out:
+_wrr_out:
 	if (op == ALTDQ_REMOVE) {
 		m = _rmc_getq(cl);
 		if (m == NULL)
@@ -1112,10 +1111,10 @@ _rmc_wrr_dequeue_next(struct rm_ifdat *ifd, int op)
 static mbuf_t *
 _rmc_prr_dequeue_next(struct rm_ifdat *ifd, int op)
 {
-	mbuf_t		*m;
-	int		 cpri;
-	struct rm_class	*cl, *first = NULL;
-	struct timeval	 now;
+	mbuf_t *m;
+	int cpri;
+	struct rm_class *cl, *first = NULL;
+	struct timeval now;
 
 	RM_GETTIME(now);
 
@@ -1134,7 +1133,7 @@ _rmc_prr_dequeue_next(struct rm_ifdat *ifd, int op)
 		ifd->borrowed_[ifd->qi_] = NULL;
 	}
 #ifdef ADJUST_CUTOFF
- _again:
+_again:
 #endif
 	for (cpri = RM_MAXPRIO - 1; cpri >= 0; cpri--) {
 		if (ifd->na_[cpri] == 0)
@@ -1174,7 +1173,7 @@ _rmc_prr_dequeue_next(struct rm_ifdat *ifd, int op)
 
 	cl = first;
 	cpri = cl->pri_;
-#if 0	/* too time-consuming for nothing */
+#if 0 /* too time-consuming for nothing */
 	if (cl->sleeping_)
 		CALLOUT_STOP(&cl->callout_);
 	cl->sleeping_ = 0;
@@ -1186,7 +1185,7 @@ _rmc_prr_dequeue_next(struct rm_ifdat *ifd, int op)
 	/*
 	 * Deque the packet and do the book keeping...
 	 */
- _prr_out:
+_prr_out:
 	if (op == ALTDQ_REMOVE) {
 		m = _rmc_getq(cl);
 		if (m == NULL)
@@ -1246,15 +1245,15 @@ rmc_dequeue_next(struct rm_ifdat *ifd, int mode)
  * if a value has enough effective digits.
  * (on pentium, mul takes 9 cycles but div takes 46!)
  */
-#define	NSEC_TO_USEC(t)	(((t) >> 10) + ((t) >> 16) + ((t) >> 17))
+#define NSEC_TO_USEC(t) (((t) >> 10) + ((t) >> 16) + ((t) >> 17))
 void
 rmc_update_class_util(struct rm_ifdat *ifd)
 {
-	int		 idle, avgidle, pktlen;
-	int		 pkt_time, tidle;
-	rm_class_t	*cl, *borrowed;
-	rm_class_t	*borrows;
-	struct timeval	*nowp;
+	int idle, avgidle, pktlen;
+	int pkt_time, tidle;
+	rm_class_t *cl, *borrowed;
+	rm_class_t *borrows;
+	struct timeval *nowp;
 
 	/*
 	 * Get the most recent completed class.
@@ -1280,7 +1279,7 @@ rmc_update_class_util(struct rm_ifdat *ifd)
 	 */
 	nowp = &ifd->now_[ifd->qo_];
 	/* get pkt_time (for link) in usec */
-#if 1  /* use approximation */
+#if 1 /* use approximation */
 	pkt_time = ifd->curlen_[ifd->qo_] * ifd->ns_per_byte_;
 	pkt_time = NSEC_TO_USEC(pkt_time);
 #else
@@ -1297,7 +1296,7 @@ rmc_update_class_util(struct rm_ifdat *ifd)
 		 * a much lower value.
 		 */
 		TV_DELTA(&ifd->ifnow_, nowp, iftime);
-		if (iftime+pkt_time < ifd->maxiftime_) {
+		if (iftime + pkt_time < ifd->maxiftime_) {
 			TV_ADD_DELTA(&ifd->ifnow_, pkt_time, &ifd->ifnow_);
 		} else {
 			TV_ADD_DELTA(nowp, ifd->maxiftime_, &ifd->ifnow_);
@@ -1322,8 +1321,8 @@ rmc_update_class_util(struct rm_ifdat *ifd)
 			 */
 			cl->avgidle_ = cl->maxidle_;
 
-		/* get pkt_time (for class) in usec */
-#if 1  /* use approximation */
+			/* get pkt_time (for class) in usec */
+#if 1 /* use approximation */
 		pkt_time = pktlen * cl->ns_per_byte_;
 		pkt_time = NSEC_TO_USEC(pkt_time);
 #else
@@ -1337,7 +1336,8 @@ rmc_update_class_util(struct rm_ifdat *ifd)
 
 		/* Are we overlimit ? */
 		if (avgidle <= 0) {
-			CBQTRACE(rmc_update_class_util, 'milo', cl->stats_.handle);
+			CBQTRACE(
+			    rmc_update_class_util, 'milo', cl->stats_.handle);
 #if 1 /* ALTQ */
 			/*
 			 * need some lower bound for avgidle, otherwise
@@ -1348,12 +1348,12 @@ rmc_update_class_util(struct rm_ifdat *ifd)
 #endif
 			/* set next idle to make avgidle 0 */
 			tidle = pkt_time +
-				(((1 - RM_POWER) * avgidle) >> RM_FILTER_GAIN);
+			    (((1 - RM_POWER) * avgidle) >> RM_FILTER_GAIN);
 			TV_ADD_DELTA(nowp, tidle, &cl->undertime_);
 			++cl->stats_.over;
 		} else {
-			cl->avgidle_ =
-			    (avgidle > cl->maxidle_) ? cl->maxidle_ : avgidle;
+			cl->avgidle_ = (avgidle > cl->maxidle_) ? cl->maxidle_ :
+									avgidle;
 			cl->undertime_.tv_sec = 0;
 			if (cl->sleeping_) {
 				CALLOUT_STOP(&cl->callout_);
@@ -1391,7 +1391,8 @@ rmc_update_class_util(struct rm_ifdat *ifd)
 			CBQTRACE(rmc_update_class_util, 'broe', ifd->cutoff_);
 		} else {
 			ifd->cutoff_ = borrowed->depth_;
-			CBQTRACE(rmc_update_class_util, 'ffob', borrowed->depth_);
+			CBQTRACE(
+			    rmc_update_class_util, 'ffob', borrowed->depth_);
 		}
 #else /* !ALTQ */
 		if ((qlen(cl->q_) <= 1) || TV_LT(&now, &borrowed->undertime_)) {
@@ -1402,7 +1403,8 @@ rmc_update_class_util(struct rm_ifdat *ifd)
 			CBQTRACE(rmc_update_class_util, 'broe', ifd->cutoff_);
 		} else {
 			ifd->cutoff_ = borrowed->depth_;
-			CBQTRACE(rmc_update_class_util, 'ffob', borrowed->depth_);
+			CBQTRACE(
+			    rmc_update_class_util, 'ffob', borrowed->depth_);
 		}
 #endif /* !ALTQ */
 	}
@@ -1429,7 +1431,7 @@ rmc_update_class_util(struct rm_ifdat *ifd)
 static void
 rmc_drop_action(struct rm_class *cl)
 {
-	struct rm_ifdat	*ifd = cl->ifdat_;
+	struct rm_ifdat *ifd = cl->ifdat_;
 
 	ASSERT(qlen(cl->q_) > 0);
 	_rmc_dropq(cl);
@@ -1437,9 +1439,10 @@ rmc_drop_action(struct rm_class *cl)
 		ifd->na_[cl->pri_]--;
 }
 
-void rmc_dropall(struct rm_class *cl)
+void
+rmc_dropall(struct rm_class *cl)
 {
-	struct rm_ifdat	*ifd = cl->ifdat_;
+	struct rm_ifdat *ifd = cl->ifdat_;
 
 	if (!qempty(cl->q_)) {
 		_flushq(cl->q_);
@@ -1452,9 +1455,7 @@ void rmc_dropall(struct rm_class *cl)
 /* hzto() is removed from FreeBSD-3.0 */
 static int hzto(struct timeval *);
 
-static int
-hzto(tv)
-	struct timeval *tv;
+static int hzto(tv) struct timeval *tv;
 {
 	struct timeval t2;
 
@@ -1480,7 +1481,7 @@ hzto(tv)
 void
 rmc_delay_action(struct rm_class *cl, struct rm_class *borrow)
 {
-	int	delay, t, extradelay;
+	int delay, t, extradelay;
 
 	cl->stats_.overactions++;
 	TV_DELTA(&cl->undertime_, &cl->overtime_, delay);
@@ -1509,7 +1510,8 @@ rmc_delay_action(struct rm_class *cl, struct rm_class *borrow)
 		extradelay -= cl->last_pkttime_;
 #endif
 		if (extradelay > 0) {
-			TV_ADD_DELTA(&cl->undertime_, extradelay, &cl->undertime_);
+			TV_ADD_DELTA(
+			    &cl->undertime_, extradelay, &cl->undertime_);
 			delay += extradelay;
 		}
 
@@ -1553,8 +1555,8 @@ static void
 rmc_restart(void *arg)
 {
 	struct rm_class *cl = arg;
-	struct rm_ifdat	*ifd = cl->ifdat_;
-	int		 s;
+	struct rm_ifdat *ifd = cl->ifdat_;
+	int s;
 
 	s = splnet();
 	IFQ_LOCK(ifd->ifq_);
@@ -1582,7 +1584,7 @@ rmc_restart(void *arg)
 static void
 rmc_root_overlimit(struct rm_class *cl, struct rm_class *borrow)
 {
-    panic("rmc_root_overlimit");
+	panic("rmc_root_overlimit");
 }
 
 /*
@@ -1618,7 +1620,7 @@ _rmc_addq(rm_class_t *cl, mbuf_t *m)
 static void
 _rmc_dropq(rm_class_t *cl)
 {
-	mbuf_t	*m;
+	mbuf_t *m;
 
 	if ((m = _getq(cl->q_)) != NULL)
 		m_freem(m);
@@ -1650,9 +1652,9 @@ _rmc_pollq(rm_class_t *cl)
 
 #ifdef CBQ_TRACE
 
-struct cbqtrace		 cbqtrace_buffer[NCBQTRACE+1];
-struct cbqtrace		*cbqtrace_ptr = NULL;
-int			 cbqtrace_count;
+struct cbqtrace cbqtrace_buffer[NCBQTRACE + 1];
+struct cbqtrace *cbqtrace_ptr = NULL;
+int cbqtrace_count;
 
 /*
  * DDB hook to trace cbq events:
@@ -1663,21 +1665,16 @@ void cbqtrace_dump(int);
 static char *rmc_funcname(void *);
 
 static struct rmc_funcs {
-	void	*func;
-	char	*name;
-} rmc_funcs[] =
-{
-	rmc_init,		"rmc_init",
-	rmc_queue_packet,	"rmc_queue_packet",
-	rmc_under_limit,	"rmc_under_limit",
-	rmc_update_class_util,	"rmc_update_class_util",
-	rmc_delay_action,	"rmc_delay_action",
-	rmc_restart,		"rmc_restart",
-	_rmc_wrr_dequeue_next,	"_rmc_wrr_dequeue_next",
-	NULL,			NULL
-};
+	void *func;
+	char *name;
+} rmc_funcs[] = { rmc_init, "rmc_init", rmc_queue_packet, "rmc_queue_packet",
+	rmc_under_limit, "rmc_under_limit", rmc_update_class_util,
+	"rmc_update_class_util", rmc_delay_action, "rmc_delay_action",
+	rmc_restart, "rmc_restart", _rmc_wrr_dequeue_next,
+	"_rmc_wrr_dequeue_next", NULL, NULL };
 
-static char *rmc_funcname(void *func)
+static char *
+rmc_funcname(void *func)
 {
 	struct rmc_funcs *fp;
 
@@ -1687,20 +1684,21 @@ static char *rmc_funcname(void *func)
 	return ("unknown");
 }
 
-void cbqtrace_dump(int counter)
+void
+cbqtrace_dump(int counter)
 {
-	int	 i, *p;
-	char	*cp;
+	int i, *p;
+	char *cp;
 
 	counter = counter % NCBQTRACE;
 	p = (int *)&cbqtrace_buffer[counter];
 
-	for (i=0; i<20; i++) {
+	for (i = 0; i < 20; i++) {
 		printf("[0x%x] ", *p++);
 		printf("%s: ", rmc_funcname((void *)*p++));
 		cp = (char *)p++;
 		printf("%c%c%c%c: ", cp[0], cp[1], cp[2], cp[3]);
-		printf("%d\n",*p++);
+		printf("%d\n", *p++);
 
 		if (p >= (int *)&cbqtrace_buffer[NCBQTRACE])
 			p = (int *)cbqtrace_buffer;
@@ -1716,7 +1714,7 @@ void cbqtrace_dump(int counter)
 void
 _addq(class_queue_t *q, mbuf_t *m)
 {
-        mbuf_t	*m0;
+	mbuf_t *m0;
 
 	if ((m0 = qtail(q)) != NULL)
 		m->m_nextpkt = m0->m_nextpkt;
@@ -1730,7 +1728,7 @@ _addq(class_queue_t *q, mbuf_t *m)
 mbuf_t *
 _getq(class_queue_t *q)
 {
-	mbuf_t	*m, *m0;
+	mbuf_t *m, *m0;
 
 	if ((m = qtail(q)) == NULL)
 		return (NULL);
@@ -1749,7 +1747,7 @@ _getq(class_queue_t *q)
 mbuf_t *
 _getq_tail(class_queue_t *q)
 {
-	mbuf_t	*m, *m0, *prev;
+	mbuf_t *m, *m0, *prev;
 
 	if ((m = m0 = qtail(q)) == NULL)
 		return NULL;
@@ -1758,7 +1756,7 @@ _getq_tail(class_queue_t *q)
 		m0 = m0->m_nextpkt;
 	} while (m0 != m);
 	prev->m_nextpkt = m->m_nextpkt;
-	if (prev == m)  {
+	if (prev == m) {
 		ASSERT(qlen(q) == 1);
 		qtail(q) = NULL;
 	} else
@@ -1772,8 +1770,8 @@ _getq_tail(class_queue_t *q)
 mbuf_t *
 _getq_random(class_queue_t *q)
 {
-	struct mbuf	*m;
-	int		 i, n;
+	struct mbuf *m;
+	int i, n;
 
 	if ((m = qtail(q)) == NULL)
 		return NULL;
@@ -1800,7 +1798,7 @@ _getq_random(class_queue_t *q)
 void
 _removeq(class_queue_t *q, mbuf_t *m)
 {
-	mbuf_t	*m0, *prev;
+	mbuf_t *m0, *prev;
 
 	m0 = qtail(q);
 	do {

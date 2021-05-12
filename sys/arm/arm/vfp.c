@@ -34,9 +34,9 @@ __FBSDID("$FreeBSD$");
 #ifdef VFP
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 
 #include <machine/armreg.h>
 #include <machine/elf.h>
@@ -73,34 +73,35 @@ static int is_d32;
  * with clang, but luckily on gcc saying v3 implies all the v2 features as well.
  */
 
-#define fmxr(reg, val) \
-    __asm __volatile("	.fpu vfpv2\n .fpu vfpv3\n"			\
-		     "	vmsr	" __STRING(reg) ", %0"   :: "r"(val));
+#define fmxr(reg, val)                                \
+	__asm __volatile("	.fpu vfpv2\n .fpu vfpv3\n" \
+			 "	vmsr	" __STRING(reg) ", %0" ::"r"(val));
 
-#define fmrx(reg) \
-({ u_int val = 0;\
-    __asm __volatile(" .fpu vfpv2\n .fpu vfpv3\n"			\
-		     "	vmrs	%0, " __STRING(reg) : "=r"(val));	\
-    val; \
-})
+#define fmrx(reg)                                               \
+	({                                                      \
+		u_int val = 0;                                  \
+		__asm __volatile(" .fpu vfpv2\n .fpu vfpv3\n"   \
+				 "	vmrs	%0, " __STRING(reg) \
+				 : "=r"(val));                  \
+		val;                                            \
+	})
 
 static u_int
 get_coprocessorACR(void)
 {
 	u_int val;
-	__asm __volatile("mrc p15, 0, %0, c1, c0, 2" : "=r" (val) : : "cc");
+	__asm __volatile("mrc p15, 0, %0, c1, c0, 2" : "=r"(val) : : "cc");
 	return val;
 }
 
 static void
 set_coprocessorACR(u_int val)
 {
-	__asm __volatile("mcr p15, 0, %0, c1, c0, 2\n\t"
-	 : : "r" (val) : "cc");
+	__asm __volatile("mcr p15, 0, %0, c1, c0, 2\n\t" : : "r"(val) : "cc");
 	isb();
 }
 
-	/* called for each cpu */
+/* called for each cpu */
 void
 vfp_init(void)
 {
@@ -111,17 +112,17 @@ vfp_init(void)
 	coproc |= COPROC10 | COPROC11;
 	set_coprocessorACR(coproc);
 
-	fpsid = fmrx(fpsid);		/* read the vfp system id */
-	fpexc = fmrx(fpexc);		/* read the vfp exception reg */
+	fpsid = fmrx(fpsid); /* read the vfp system id */
+	fpexc = fmrx(fpexc); /* read the vfp exception reg */
 
 	if (!(fpsid & VFPSID_HARDSOFT_IMP)) {
 		vfp_exists = 1;
 		is_d32 = 0;
-		PCPU_SET(vfpsid, fpsid);	/* save the fpsid */
+		PCPU_SET(vfpsid, fpsid); /* save the fpsid */
 		elf_hwcap |= HWCAP_VFP;
 
-		vfp_arch =
-		    (fpsid & VFPSID_SUBVERSION2_MASK) >> VFPSID_SUBVERSION_OFF;
+		vfp_arch = (fpsid & VFPSID_SUBVERSION2_MASK) >>
+		    VFPSID_SUBVERSION_OFF;
 
 		if (vfp_arch >= VFP_ARCH3) {
 			tmp = fmrx(mvfr0);
@@ -150,7 +151,7 @@ vfp_init(void)
 			    (tmp & VMVFR1_I_MASK) >> VMVFR1_I_OFF == 1 &&
 			    (tmp & VMVFR1_SP_MASK) >> VMVFR1_SP_OFF == 1)
 				elf_hwcap |= HWCAP_NEON;
-			if ((tmp & VMVFR1_FMAC_MASK) >>  VMVFR1_FMAC_OFF == 1)
+			if ((tmp & VMVFR1_FMAC_MASK) >> VMVFR1_FMAC_OFF == 1)
 				elf_hwcap |= HWCAP_VFPv4;
 		}
 
@@ -180,7 +181,8 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 	ksiginfo_t ksi;
 
 	if ((code & FAULT_USER) == 0)
-		panic("undefined floating point instruction in supervisor mode");
+		panic(
+		    "undefined floating point instruction in supervisor mode");
 
 	critical_enter();
 
@@ -250,15 +252,15 @@ vfp_restore(struct vfp_state *vfpsave)
 	}
 	fmxr(fpscr, vfpsave->fpscr);
 
-	__asm __volatile(
-	    " .fpu	vfpv2\n"
-	    " .fpu	vfpv3\n"
-	    " vldmia	%0!, {d0-d15}\n"	/* d0-d15 */
-	    " cmp	%1, #0\n"		/* -D16 or -D32? */
-	    " vldmiane	%0!, {d16-d31}\n"	/* d16-d31 */
-	    " addeq	%0, %0, #128\n"		/* skip missing regs */
-	    : "+&r" (vfpsave) : "r" (is_d32) : "cc"
-	    );
+	__asm __volatile(" .fpu	vfpv2\n"
+			 " .fpu	vfpv3\n"
+			 " vldmia	%0!, {d0-d15}\n"  /* d0-d15 */
+			 " cmp	%1, #0\n"	       /* -D16 or -D32? */
+			 " vldmiane	%0!, {d16-d31}\n" /* d16-d31 */
+			 " addeq	%0, %0, #128\n"   /* skip missing regs */
+			 : "+&r"(vfpsave)
+			 : "r"(is_d32)
+			 : "cc");
 
 	fmxr(fpexc, fpexc);
 }
@@ -273,7 +275,7 @@ vfp_store(struct vfp_state *vfpsave, boolean_t disable_vfp)
 {
 	uint32_t fpexc;
 
-	fpexc = fmrx(fpexc);		/* Is the vfp enabled? */
+	fpexc = fmrx(fpexc); /* Is the vfp enabled? */
 	if (fpexc & VFPEXC_EN) {
 		vfpsave->fpexec = fpexc;
 		vfpsave->fpscr = fmrx(fpscr);
@@ -289,15 +291,16 @@ vfp_store(struct vfp_state *vfpsave, boolean_t disable_vfp)
 		__asm __volatile(
 		    " .fpu	vfpv2\n"
 		    " .fpu	vfpv3\n"
-		    " vstmia	%0!, {d0-d15}\n"	/* d0-d15 */
-		    " cmp	%1, #0\n"		/* -D16 or -D32? */
-		    " vstmiane	%0!, {d16-d31}\n"	/* d16-d31 */
-		    " addeq	%0, %0, #128\n"		/* skip missing regs */
-		    : "+&r" (vfpsave) : "r" (is_d32) : "cc"
-		    );
+		    " vstmia	%0!, {d0-d15}\n"  /* d0-d15 */
+		    " cmp	%1, #0\n"	  /* -D16 or -D32? */
+		    " vstmiane	%0!, {d16-d31}\n" /* d16-d31 */
+		    " addeq	%0, %0, #128\n"	  /* skip missing regs */
+		    : "+&r"(vfpsave)
+		    : "r"(is_d32)
+		    : "cc");
 
 		if (disable_vfp)
-			fmxr(fpexc , fpexc & ~VFPEXC_EN);
+			fmxr(fpexc, fpexc & ~VFPEXC_EN);
 	}
 }
 

@@ -51,48 +51,54 @@ __FBSDID("$FreeBSD$");
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 #endif
 
 char machine[] = "riscv";
 
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0,
-    "Machine class");
+SYSCTL_STRING(
+    _hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "Machine class");
 
 /* Hardware implementation info. These values may be empty. */
-register_t mvendorid;	/* The CPU's JEDEC vendor ID */
-register_t marchid;	/* The architecture ID */
-register_t mimpid;	/* The implementation ID */
+register_t mvendorid; /* The CPU's JEDEC vendor ID */
+register_t marchid;   /* The architecture ID */
+register_t mimpid;    /* The implementation ID */
 
 struct cpu_desc {
-	u_int		cpu_impl;
-	u_int		cpu_part_num;
-	const char	*cpu_impl_name;
-	const char	*cpu_part_name;
+	u_int cpu_impl;
+	u_int cpu_part_num;
+	const char *cpu_impl_name;
+	const char *cpu_part_name;
 };
 
 struct cpu_desc cpu_desc[MAXCPU];
 
 struct cpu_parts {
-	u_int		part_id;
-	const char	*part_name;
+	u_int part_id;
+	const char *part_name;
 };
-#define	CPU_PART_NONE	{ -1, "Unknown Processor" }
+#define CPU_PART_NONE                   \
+	{                               \
+		-1, "Unknown Processor" \
+	}
 
 struct cpu_implementers {
-	u_int			impl_id;
-	const char		*impl_name;
+	u_int impl_id;
+	const char *impl_name;
 };
-#define	CPU_IMPLEMENTER_NONE	{ 0, "Unknown Implementer" }
+#define CPU_IMPLEMENTER_NONE             \
+	{                                \
+		0, "Unknown Implementer" \
+	}
 
 /*
  * CPU base
  */
 static const struct cpu_parts cpu_parts_std[] = {
-	{ CPU_PART_RV32,	"RV32" },
-	{ CPU_PART_RV64,	"RV64" },
-	{ CPU_PART_RV128,	"RV128" },
+	{ CPU_PART_RV32, "RV32" },
+	{ CPU_PART_RV64, "RV64" },
+	{ CPU_PART_RV128, "RV128" },
 	CPU_PART_NONE,
 };
 
@@ -100,7 +106,7 @@ static const struct cpu_parts cpu_parts_std[] = {
  * Implementers table.
  */
 const struct cpu_implementers cpu_implementers[] = {
-	{ CPU_IMPL_UCB_ROCKET,	"UC Berkeley Rocket" },
+	{ CPU_IMPL_UCB_ROCKET, "UC Berkeley Rocket" },
 	CPU_IMPLEMENTER_NONE,
 };
 
@@ -110,14 +116,14 @@ const struct cpu_implementers cpu_implementers[] = {
  * indicating the presence of the 26 possible standard extensions. Therefore 32
  * characters will be sufficient.
  */
-#define	ISA_NAME_MAXLEN		32
-#define	ISA_PREFIX		("rv" __XSTRING(__riscv_xlen))
-#define	ISA_PREFIX_LEN		(sizeof(ISA_PREFIX) - 1)
+#define ISA_NAME_MAXLEN 32
+#define ISA_PREFIX ("rv" __XSTRING(__riscv_xlen))
+#define ISA_PREFIX_LEN (sizeof(ISA_PREFIX) - 1)
 
 static void
 fill_elf_hwcap(void *dummy __unused)
 {
-	u_long caps[256] = {0};
+	u_long caps[256] = { 0 };
 	char isa[ISA_NAME_MAXLEN];
 	u_long hwcap;
 	phandle_t node;
@@ -156,12 +162,13 @@ fill_elf_hwcap(void *dummy __unused)
 		if (len == -1) {
 			if (bootverbose)
 				printf("fill_elf_hwcap: "
-				    "Can't find riscv,isa property\n");
+				       "Can't find riscv,isa property\n");
 			return;
 		} else if (strncmp(isa, ISA_PREFIX, ISA_PREFIX_LEN) != 0) {
 			if (bootverbose)
 				printf("fill_elf_hwcap: "
-				    "Unsupported ISA string: %s\n", isa);
+				       "Unsupported ISA string: %s\n",
+				    isa);
 			return;
 		}
 
@@ -196,12 +203,13 @@ identify_cpu(void)
 
 	cpu = PCPU_GET(cpuid);
 
-	impl_id	= CPU_IMPL(mimpid);
+	impl_id = CPU_IMPL(mimpid);
 	for (i = 0; i < nitems(cpu_implementers); i++) {
 		if (impl_id == cpu_implementers[i].impl_id ||
 		    cpu_implementers[i].impl_id == 0) {
 			cpu_desc[cpu].cpu_impl = impl_id;
-			cpu_desc[cpu].cpu_impl_name = cpu_implementers[i].impl_name;
+			cpu_desc[cpu].cpu_impl_name =
+			    cpu_implementers[i].impl_name;
 			cpu_partsp = cpu_parts_std;
 			break;
 		}
@@ -219,8 +227,7 @@ identify_cpu(void)
 
 	/* Print details for boot CPU or if we want verbose output */
 	if (cpu == 0 || bootverbose) {
-		printf("CPU(%d): %s %s\n", cpu,
-		    cpu_desc[cpu].cpu_impl_name,
+		printf("CPU(%d): %s %s\n", cpu, cpu_desc[cpu].cpu_impl_name,
 		    cpu_desc[cpu].cpu_part_name);
 	}
 }

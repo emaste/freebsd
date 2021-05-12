@@ -34,8 +34,8 @@
  * routing subsystem.
  */
 
-#ifndef	_NET_ROUTE_NHOP_VAR_H_
-#define	_NET_ROUTE_NHOP_VAR_H_
+#ifndef _NET_ROUTE_NHOP_VAR_H_
+#define _NET_ROUTE_NHOP_VAR_H_
 
 MALLOC_DECLARE(M_NHOP);
 
@@ -43,64 +43,65 @@ MALLOC_DECLARE(M_NHOP);
 struct nhop_priv;
 CHT_SLIST_DEFINE(nhops, struct nhop_priv);
 /* produce hash value for an object */
-#define	nhops_hash_obj(_obj)	hash_priv(_obj)
+#define nhops_hash_obj(_obj) hash_priv(_obj)
 /* compare two objects */
-#define	nhops_cmp(_one, _two)	cmp_priv(_one, _two)
+#define nhops_cmp(_one, _two) cmp_priv(_one, _two)
 /* next object accessor */
-#define	nhops_next(_obj)	(_obj)->nh_next
+#define nhops_next(_obj) (_obj)->nh_next
 
 /* define multipath hash table */
 struct nhgrp_priv;
 CHT_SLIST_DEFINE(nhgroups, struct nhgrp_priv);
 
 struct nh_control {
-	struct nhops_head	nh_head;	/* hash table head */
-	struct bitmask_head	nh_idx_head;	/* nhop index head */
-	struct nhgroups_head	gr_head;	/* nhgrp hash table head */
-	struct bitmask_head	gr_idx_head;	/* nhgrp index head */
-	struct rwlock		ctl_lock;	/* overall ctl lock */
-	struct rib_head		*ctl_rh;	/* pointer back to rnh */
-	struct epoch_context	ctl_epoch_ctx;	/* epoch ctl helper */
+	struct nhops_head nh_head;	    /* hash table head */
+	struct bitmask_head nh_idx_head;    /* nhop index head */
+	struct nhgroups_head gr_head;	    /* nhgrp hash table head */
+	struct bitmask_head gr_idx_head;    /* nhgrp index head */
+	struct rwlock ctl_lock;		    /* overall ctl lock */
+	struct rib_head *ctl_rh;	    /* pointer back to rnh */
+	struct epoch_context ctl_epoch_ctx; /* epoch ctl helper */
 };
 
-#define	NHOPS_WLOCK(ctl)	rw_wlock(&(ctl)->ctl_lock)
-#define	NHOPS_RLOCK(ctl)	rw_rlock(&(ctl)->ctl_lock)
-#define	NHOPS_WUNLOCK(ctl)	rw_wunlock(&(ctl)->ctl_lock)
-#define	NHOPS_RUNLOCK(ctl)	rw_runlock(&(ctl)->ctl_lock)
-#define	NHOPS_LOCK_INIT(ctl)	rw_init(&(ctl)->ctl_lock, "nhop_ctl")
-#define	NHOPS_LOCK_DESTROY(ctl)	rw_destroy(&(ctl)->ctl_lock)
-#define	NHOPS_WLOCK_ASSERT(ctl)	rw_assert(&(ctl)->ctl_lock, RA_WLOCKED)
+#define NHOPS_WLOCK(ctl) rw_wlock(&(ctl)->ctl_lock)
+#define NHOPS_RLOCK(ctl) rw_rlock(&(ctl)->ctl_lock)
+#define NHOPS_WUNLOCK(ctl) rw_wunlock(&(ctl)->ctl_lock)
+#define NHOPS_RUNLOCK(ctl) rw_runlock(&(ctl)->ctl_lock)
+#define NHOPS_LOCK_INIT(ctl) rw_init(&(ctl)->ctl_lock, "nhop_ctl")
+#define NHOPS_LOCK_DESTROY(ctl) rw_destroy(&(ctl)->ctl_lock)
+#define NHOPS_WLOCK_ASSERT(ctl) rw_assert(&(ctl)->ctl_lock, RA_WLOCKED)
 
 /* Control plane-only nhop data */
 struct nhop_object;
 struct nhop_priv {
 	/* nhop lookup comparison start */
-	uint8_t			nh_family;	/* address family of the lookup */
-	uint8_t			spare;
-	uint16_t		nh_type;	/* nexthop type */
-	uint32_t		rt_flags;	/* routing flags for the control plane */
+	uint8_t nh_family; /* address family of the lookup */
+	uint8_t spare;
+	uint16_t nh_type;  /* nexthop type */
+	uint32_t rt_flags; /* routing flags for the control plane */
 	/* nhop lookup comparison end */
-	uint32_t		nh_idx;		/* nexthop index */
-	void			*cb_func;	/* function handling additional rewrite caps */
-	u_int			nh_refcnt;	/* number of references, refcount(9)  */
-	u_int			nh_linked;	/* refcount(9), == 2 if linked to the list */
-	struct nhop_object	*nh;		/* backreference to the dataplane nhop */
-	struct nh_control	*nh_control;	/* backreference to the rnh */
-	struct nhop_priv	*nh_next;	/* hash table membership */
-	struct vnet		*nh_vnet;	/* vnet nhop belongs to */
-	struct epoch_context	nh_epoch_ctx;	/* epoch data for nhop */
+	uint32_t nh_idx;	/* nexthop index */
+	void *cb_func;		/* function handling additional rewrite caps */
+	u_int nh_refcnt;	/* number of references, refcount(9)  */
+	u_int nh_linked;	/* refcount(9), == 2 if linked to the list */
+	struct nhop_object *nh; /* backreference to the dataplane nhop */
+	struct nh_control *nh_control;	   /* backreference to the rnh */
+	struct nhop_priv *nh_next;	   /* hash table membership */
+	struct vnet *nh_vnet;		   /* vnet nhop belongs to */
+	struct epoch_context nh_epoch_ctx; /* epoch data for nhop */
 };
 
-#define	NH_PRIV_END_CMP	(__offsetof(struct nhop_priv, nh_idx))
+#define NH_PRIV_END_CMP (__offsetof(struct nhop_priv, nh_idx))
 
-#define	NH_IS_PINNED(_nh)	((!NH_IS_NHGRP(_nh)) && \
-				((_nh)->nh_priv->rt_flags & RTF_PINNED))
+#define NH_IS_PINNED(_nh) \
+	((!NH_IS_NHGRP(_nh)) && ((_nh)->nh_priv->rt_flags & RTF_PINNED))
 
 /* nhop.c */
-struct nhop_priv *find_nhop(struct nh_control *ctl,
-    const struct nhop_priv *nh_priv);
+struct nhop_priv *find_nhop(
+    struct nh_control *ctl, const struct nhop_priv *nh_priv);
 int link_nhop(struct nh_control *ctl, struct nhop_priv *nh_priv);
-struct nhop_priv *unlink_nhop(struct nh_control *ctl, struct nhop_priv *nh_priv);
+struct nhop_priv *unlink_nhop(
+    struct nh_control *ctl, struct nhop_priv *nh_priv);
 
 /* nhop_ctl.c */
 int cmp_priv(const struct nhop_priv *_one, const struct nhop_priv *_two);

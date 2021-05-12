@@ -1,8 +1,8 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2006 Wojciech A. Koszek <wkoszek@FreeBSD.org> All rights reserved.
- * Copyright (c) 2009 M. Warner Losh <imp@FreeBSD.org>
+ * Copyright (c) 2006 Wojciech A. Koszek <wkoszek@FreeBSD.org> All rights
+ * reserved. Copyright (c) 2009 M. Warner Losh <imp@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,9 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <mips/cavium/octeon_pcmap_regs.h>
-
 #include <contrib/octeon-sdk/cvmx.h>
+#include <mips/cavium/octeon_pcmap_regs.h>
 
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
@@ -144,7 +143,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	 * These fields need to be setup corretly for uart_getenv to
 	 * work in all cases.
 	 */
-	uart_bus_space_io = NULL;		/* No io map for this device */
+	uart_bus_space_io = NULL; /* No io map for this device */
 	uart_bus_space_mem = &octeon_uart_tag;
 	di->bas.bst = uart_bus_space_mem;
 
@@ -162,7 +161,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->bas.chan = 0;
 	/* XXX */
 	if (bus_space_map(di->bas.bst, CVMX_MIO_UARTX_RBR(0),
-	    uart_getrange(class), 0, &di->bas.bsh) != 0)
+		uart_getrange(class), 0, &di->bas.bsh) != 0)
 		return (ENXIO);
 	di->bas.regshft = 3;
 	di->bas.rclk = 0;

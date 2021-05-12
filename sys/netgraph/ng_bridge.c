@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2000 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -12,7 +12,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -54,131 +54,129 @@
  * from one port to the other only rarely.
  */
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/counter.h>
+#include <sys/ctype.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/errno.h>
 #include <sys/rwlock.h>
-#include <sys/syslog.h>
 #include <sys/socket.h>
-#include <sys/ctype.h>
-#include <sys/types.h>
-#include <sys/counter.h>
+#include <sys/syslog.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/ethernet.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
-#if 0	/* not used yet */
+#if 0 /* not used yet */
 #include <netinet/ip_fw.h>
 #endif
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
 #include <netgraph/ng_bridge.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
 
 #ifdef NG_SEPARATE_MALLOC
-static MALLOC_DEFINE(M_NETGRAPH_BRIDGE, "netgraph_bridge",
-    "netgraph bridge node");
+static MALLOC_DEFINE(
+    M_NETGRAPH_BRIDGE, "netgraph_bridge", "netgraph bridge node");
 #else
 #define M_NETGRAPH_BRIDGE M_NETGRAPH
 #endif
 
 /* Counter based stats */
 struct ng_bridge_link_kernel_stats {
-	counter_u64_t	recvOctets;	/* total octets rec'd on link */
-	counter_u64_t	recvPackets;	/* total pkts rec'd on link */
-	counter_u64_t	recvMulticasts;	/* multicast pkts rec'd on link */
-	counter_u64_t	recvBroadcasts;	/* broadcast pkts rec'd on link */
-	counter_u64_t	recvUnknown;	/* pkts rec'd with unknown dest addr */
-	counter_u64_t	recvRunts;	/* pkts rec'd less than 14 bytes */
-	counter_u64_t	recvInvalid;	/* pkts rec'd with bogus source addr */
-	counter_u64_t	xmitOctets;	/* total octets xmit'd on link */
-	counter_u64_t	xmitPackets;	/* total pkts xmit'd on link */
-	counter_u64_t	xmitMulticasts;	/* multicast pkts xmit'd on link */
-	counter_u64_t	xmitBroadcasts;	/* broadcast pkts xmit'd on link */
-	counter_u64_t	loopDrops;	/* pkts dropped due to loopback */
-	counter_u64_t	loopDetects;	/* number of loop detections */
-	counter_u64_t	memoryFailures;	/* times couldn't get mem or mbuf */
+	counter_u64_t recvOctets;     /* total octets rec'd on link */
+	counter_u64_t recvPackets;    /* total pkts rec'd on link */
+	counter_u64_t recvMulticasts; /* multicast pkts rec'd on link */
+	counter_u64_t recvBroadcasts; /* broadcast pkts rec'd on link */
+	counter_u64_t recvUnknown;    /* pkts rec'd with unknown dest addr */
+	counter_u64_t recvRunts;      /* pkts rec'd less than 14 bytes */
+	counter_u64_t recvInvalid;    /* pkts rec'd with bogus source addr */
+	counter_u64_t xmitOctets;     /* total octets xmit'd on link */
+	counter_u64_t xmitPackets;    /* total pkts xmit'd on link */
+	counter_u64_t xmitMulticasts; /* multicast pkts xmit'd on link */
+	counter_u64_t xmitBroadcasts; /* broadcast pkts xmit'd on link */
+	counter_u64_t loopDrops;      /* pkts dropped due to loopback */
+	counter_u64_t loopDetects;    /* number of loop detections */
+	counter_u64_t memoryFailures; /* times couldn't get mem or mbuf */
 };
 
 /* Per-link private data */
 struct ng_bridge_link {
-	hook_p				hook;		/* netgraph hook */
-	u_int16_t			loopCount;	/* loop ignore timer */
-	unsigned int			learnMac : 1,   /* autolearn macs */
-					sendUnknown : 1;/* send unknown macs out */
-	struct ng_bridge_link_kernel_stats stats;	/* link stats */
+	hook_p hook;				  /* netgraph hook */
+	u_int16_t loopCount;			  /* loop ignore timer */
+	unsigned int learnMac : 1,		  /* autolearn macs */
+	    sendUnknown : 1;			  /* send unknown macs out */
+	struct ng_bridge_link_kernel_stats stats; /* link stats */
 };
-typedef struct ng_bridge_link const *link_cp;	/* read only access */
+typedef struct ng_bridge_link const *link_cp; /* read only access */
 
 /* Per-node private data */
 struct ng_bridge_private {
-	struct ng_bridge_bucket	*tab;		/* hash table bucket array */
-	struct ng_bridge_config	conf;		/* node configuration */
-	node_p			node;		/* netgraph node */
-	u_int			numHosts;	/* num entries in table */
-	u_int			numBuckets;	/* num buckets in table */
-	u_int			hashMask;	/* numBuckets - 1 */
-	int			numLinks;	/* num connected links */
-	unsigned int		persistent : 1,	/* can exist w/o hooks */
-				sendUnknown : 1;/* links receive unknowns by default */
-	struct callout		timer;		/* one second periodic timer */
+	struct ng_bridge_bucket *tab; /* hash table bucket array */
+	struct ng_bridge_config conf; /* node configuration */
+	node_p node;		      /* netgraph node */
+	u_int numHosts;		      /* num entries in table */
+	u_int numBuckets;	      /* num buckets in table */
+	u_int hashMask;		      /* numBuckets - 1 */
+	int numLinks;		      /* num connected links */
+	unsigned int persistent : 1,  /* can exist w/o hooks */
+	    sendUnknown : 1;	      /* links receive unknowns by default */
+	struct callout timer;	      /* one second periodic timer */
 };
 typedef struct ng_bridge_private *priv_p;
-typedef struct ng_bridge_private const *priv_cp;	/* read only access */
+typedef struct ng_bridge_private const *priv_cp; /* read only access */
 
 /* Information about a host, stored in a hash table entry */
 struct ng_bridge_host {
-	u_char		addr[6];	/* ethernet address */
-	link_p		link;		/* link where addr can be found */
-	u_int16_t	age;		/* seconds ago entry was created */
-	u_int16_t	staleness;	/* seconds ago host last heard from */
-	SLIST_ENTRY(ng_bridge_host)	next;	/* next entry in bucket */
+	u_char addr[6];			  /* ethernet address */
+	link_p link;			  /* link where addr can be found */
+	u_int16_t age;			  /* seconds ago entry was created */
+	u_int16_t staleness;		  /* seconds ago host last heard from */
+	SLIST_ENTRY(ng_bridge_host) next; /* next entry in bucket */
 };
 
 /* Hash table bucket declaration */
 SLIST_HEAD(ng_bridge_bucket, ng_bridge_host);
 
 /* Netgraph node methods */
-static ng_constructor_t	ng_bridge_constructor;
-static ng_rcvmsg_t	ng_bridge_rcvmsg;
-static ng_shutdown_t	ng_bridge_shutdown;
-static ng_newhook_t	ng_bridge_newhook;
-static ng_rcvdata_t	ng_bridge_rcvdata;
-static ng_disconnect_t	ng_bridge_disconnect;
+static ng_constructor_t ng_bridge_constructor;
+static ng_rcvmsg_t ng_bridge_rcvmsg;
+static ng_shutdown_t ng_bridge_shutdown;
+static ng_newhook_t ng_bridge_newhook;
+static ng_rcvdata_t ng_bridge_rcvdata;
+static ng_disconnect_t ng_bridge_disconnect;
 
 /* Other internal functions */
-static struct	ng_bridge_host *ng_bridge_get(priv_cp priv, const u_char *addr);
-static int	ng_bridge_put(priv_p priv, const u_char *addr, link_p link);
-static void	ng_bridge_rehash(priv_p priv);
-static void	ng_bridge_remove_hosts(priv_p priv, link_p link);
-static void	ng_bridge_timeout(node_p node, hook_p hook, void *arg1, int arg2);
-static const	char *ng_bridge_nodename(node_cp node);
+static struct ng_bridge_host *ng_bridge_get(priv_cp priv, const u_char *addr);
+static int ng_bridge_put(priv_p priv, const u_char *addr, link_p link);
+static void ng_bridge_rehash(priv_p priv);
+static void ng_bridge_remove_hosts(priv_p priv, link_p link);
+static void ng_bridge_timeout(node_p node, hook_p hook, void *arg1, int arg2);
+static const char *ng_bridge_nodename(node_cp node);
 
 /* Ethernet broadcast */
-static const u_char ng_bridge_bcast_addr[ETHER_ADDR_LEN] =
-    { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+static const u_char ng_bridge_bcast_addr[ETHER_ADDR_LEN] = { 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff };
 
 /* Compare Ethernet addresses using 32 and 16 bit words instead of bytewise */
-#define ETHER_EQUAL(a,b)	(((const u_int32_t *)(a))[0] \
-					== ((const u_int32_t *)(b))[0] \
-				    && ((const u_int16_t *)(a))[2] \
-					== ((const u_int16_t *)(b))[2])
+#define ETHER_EQUAL(a, b)                                              \
+	(((const u_int32_t *)(a))[0] == ((const u_int32_t *)(b))[0] && \
+	    ((const u_int16_t *)(a))[2] == ((const u_int16_t *)(b))[2])
 
 /* Minimum and maximum number of hash buckets. Must be a power of two. */
-#define MIN_BUCKETS		(1 << 5)	/* 32 */
-#define MAX_BUCKETS		(1 << 14)	/* 16384 */
+#define MIN_BUCKETS (1 << 5) /* 32 */
+#define MAX_BUCKETS (1 << 14) /* 16384 */
 
 /* Configuration default values */
-#define DEFAULT_LOOP_TIMEOUT	60
-#define DEFAULT_MAX_STALENESS	(15 * 60)	/* same as ARP timeout */
-#define DEFAULT_MIN_STABLE_AGE	1
+#define DEFAULT_LOOP_TIMEOUT 60
+#define DEFAULT_MAX_STALENESS (15 * 60) /* same as ARP timeout */
+#define DEFAULT_MIN_STABLE_AGE 1
 
 /******************************************************************
 		    NETGRAPH PARSE TYPES
@@ -188,139 +186,84 @@ static const u_char ng_bridge_bcast_addr[ETHER_ADDR_LEN] =
  * How to determine the length of the table returned by NGM_BRIDGE_GET_TABLE
  */
 static int
-ng_bridge_getTableLength(const struct ng_parse_type *type,
-	const u_char *start, const u_char *buf)
+ng_bridge_getTableLength(
+    const struct ng_parse_type *type, const u_char *start, const u_char *buf)
 {
-	const struct ng_bridge_host_ary *const hary
-	    = (const struct ng_bridge_host_ary *)(buf - sizeof(u_int32_t));
+	const struct ng_bridge_host_ary *const hary =
+	    (const struct ng_bridge_host_ary *)(buf - sizeof(u_int32_t));
 
 	return hary->numHosts;
 }
 
 /* Parse type for struct ng_bridge_host_ary */
-static const struct ng_parse_struct_field ng_bridge_host_type_fields[]
-	= NG_BRIDGE_HOST_TYPE_INFO(&ng_parse_enaddr_type);
-static const struct ng_parse_type ng_bridge_host_type = {
-	&ng_parse_struct_type,
-	&ng_bridge_host_type_fields
-};
+static const struct ng_parse_struct_field ng_bridge_host_type_fields[] =
+    NG_BRIDGE_HOST_TYPE_INFO(&ng_parse_enaddr_type);
+static const struct ng_parse_type ng_bridge_host_type = { &ng_parse_struct_type,
+	&ng_bridge_host_type_fields };
 static const struct ng_parse_array_info ng_bridge_hary_type_info = {
-	&ng_bridge_host_type,
-	ng_bridge_getTableLength
+	&ng_bridge_host_type, ng_bridge_getTableLength
 };
-static const struct ng_parse_type ng_bridge_hary_type = {
-	&ng_parse_array_type,
-	&ng_bridge_hary_type_info
-};
-static const struct ng_parse_struct_field ng_bridge_host_ary_type_fields[]
-	= NG_BRIDGE_HOST_ARY_TYPE_INFO(&ng_bridge_hary_type);
+static const struct ng_parse_type ng_bridge_hary_type = { &ng_parse_array_type,
+	&ng_bridge_hary_type_info };
+static const struct ng_parse_struct_field ng_bridge_host_ary_type_fields[] =
+    NG_BRIDGE_HOST_ARY_TYPE_INFO(&ng_bridge_hary_type);
 static const struct ng_parse_type ng_bridge_host_ary_type = {
-	&ng_parse_struct_type,
-	&ng_bridge_host_ary_type_fields
+	&ng_parse_struct_type, &ng_bridge_host_ary_type_fields
 };
 
 /* Parse type for struct ng_bridge_config */
-static const struct ng_parse_struct_field ng_bridge_config_type_fields[]
-	= NG_BRIDGE_CONFIG_TYPE_INFO;
+static const struct ng_parse_struct_field ng_bridge_config_type_fields[] =
+    NG_BRIDGE_CONFIG_TYPE_INFO;
 static const struct ng_parse_type ng_bridge_config_type = {
-	&ng_parse_struct_type,
-	&ng_bridge_config_type_fields
+	&ng_parse_struct_type, &ng_bridge_config_type_fields
 };
 
 /* Parse type for struct ng_bridge_link_stat */
-static const struct ng_parse_struct_field ng_bridge_stats_type_fields[]
-	= NG_BRIDGE_STATS_TYPE_INFO;
+static const struct ng_parse_struct_field ng_bridge_stats_type_fields[] =
+    NG_BRIDGE_STATS_TYPE_INFO;
 static const struct ng_parse_type ng_bridge_stats_type = {
-	&ng_parse_struct_type,
-	&ng_bridge_stats_type_fields
+	&ng_parse_struct_type, &ng_bridge_stats_type_fields
 };
 /* Parse type for struct ng_bridge_move_host */
-static const struct ng_parse_struct_field ng_bridge_move_host_type_fields[]
-	= NG_BRIDGE_MOVE_HOST_TYPE_INFO(&ng_parse_enaddr_type);
+static const struct ng_parse_struct_field ng_bridge_move_host_type_fields[] =
+    NG_BRIDGE_MOVE_HOST_TYPE_INFO(&ng_parse_enaddr_type);
 static const struct ng_parse_type ng_bridge_move_host_type = {
-	&ng_parse_struct_type,
-	&ng_bridge_move_host_type_fields
+	&ng_parse_struct_type, &ng_bridge_move_host_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_bridge_cmdlist[] = {
-	{
-	  NGM_BRIDGE_COOKIE,
-	  NGM_BRIDGE_SET_CONFIG,
-	  "setconfig",
-	  &ng_bridge_config_type,
-	  NULL
-	},
-	{
-	  NGM_BRIDGE_COOKIE,
-	  NGM_BRIDGE_GET_CONFIG,
-	  "getconfig",
-	  NULL,
-	  &ng_bridge_config_type
-	},
-	{
-	  NGM_BRIDGE_COOKIE,
-	  NGM_BRIDGE_RESET,
-	  "reset",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_BRIDGE_COOKIE,
-	  NGM_BRIDGE_GET_STATS,
-	  "getstats",
-	  &ng_parse_uint32_type,
-	  &ng_bridge_stats_type
-	},
-	{
-	  NGM_BRIDGE_COOKIE,
-	  NGM_BRIDGE_CLR_STATS,
-	  "clrstats",
-	  &ng_parse_uint32_type,
-	  NULL
-	},
-	{
-	  NGM_BRIDGE_COOKIE,
-	  NGM_BRIDGE_GETCLR_STATS,
-	  "getclrstats",
-	  &ng_parse_uint32_type,
-	  &ng_bridge_stats_type
-	},
-	{
-	  NGM_BRIDGE_COOKIE,
-	  NGM_BRIDGE_GET_TABLE,
-	  "gettable",
-	  NULL,
-	  &ng_bridge_host_ary_type
-	},
-	{
-	  NGM_BRIDGE_COOKIE,
-	  NGM_BRIDGE_SET_PERSISTENT,
-	  "setpersistent",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_BRIDGE_COOKIE,
-	  NGM_BRIDGE_MOVE_HOST,
-	  "movehost",
-	  &ng_bridge_move_host_type,
-	  NULL
-	},
+	{ NGM_BRIDGE_COOKIE, NGM_BRIDGE_SET_CONFIG, "setconfig",
+	    &ng_bridge_config_type, NULL },
+	{ NGM_BRIDGE_COOKIE, NGM_BRIDGE_GET_CONFIG, "getconfig", NULL,
+	    &ng_bridge_config_type },
+	{ NGM_BRIDGE_COOKIE, NGM_BRIDGE_RESET, "reset", NULL, NULL },
+	{ NGM_BRIDGE_COOKIE, NGM_BRIDGE_GET_STATS, "getstats",
+	    &ng_parse_uint32_type, &ng_bridge_stats_type },
+	{ NGM_BRIDGE_COOKIE, NGM_BRIDGE_CLR_STATS, "clrstats",
+	    &ng_parse_uint32_type, NULL },
+	{ NGM_BRIDGE_COOKIE, NGM_BRIDGE_GETCLR_STATS, "getclrstats",
+	    &ng_parse_uint32_type, &ng_bridge_stats_type },
+	{ NGM_BRIDGE_COOKIE, NGM_BRIDGE_GET_TABLE, "gettable", NULL,
+	    &ng_bridge_host_ary_type },
+	{ NGM_BRIDGE_COOKIE, NGM_BRIDGE_SET_PERSISTENT, "setpersistent", NULL,
+	    NULL },
+	{ NGM_BRIDGE_COOKIE, NGM_BRIDGE_MOVE_HOST, "movehost",
+	    &ng_bridge_move_host_type, NULL },
 	{ 0 }
 };
 
 /* Node type descriptor */
 static struct ng_type ng_bridge_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_BRIDGE_NODE_TYPE,
-	.constructor =	ng_bridge_constructor,
-	.rcvmsg =	ng_bridge_rcvmsg,
-	.shutdown =	ng_bridge_shutdown,
-	.newhook =	ng_bridge_newhook,
-	.rcvdata =	ng_bridge_rcvdata,
-	.disconnect =	ng_bridge_disconnect,
-	.cmdlist =	ng_bridge_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_BRIDGE_NODE_TYPE,
+	.constructor = ng_bridge_constructor,
+	.rcvmsg = ng_bridge_rcvmsg,
+	.shutdown = ng_bridge_shutdown,
+	.newhook = ng_bridge_newhook,
+	.rcvdata = ng_bridge_rcvdata,
+	.disconnect = ng_bridge_disconnect,
+	.cmdlist = ng_bridge_cmdlist,
 };
 NETGRAPH_INIT(bridge, &ng_bridge_typestruct);
 
@@ -341,21 +284,21 @@ ng_bridge_constructor(node_p node)
 	ng_callout_init(&priv->timer);
 
 	/* Allocate and initialize hash table, etc. */
-	priv->tab = malloc(MIN_BUCKETS * sizeof(*priv->tab),
-	    M_NETGRAPH_BRIDGE, M_WAITOK | M_ZERO);
+	priv->tab = malloc(MIN_BUCKETS * sizeof(*priv->tab), M_NETGRAPH_BRIDGE,
+	    M_WAITOK | M_ZERO);
 	priv->numBuckets = MIN_BUCKETS;
 	priv->hashMask = MIN_BUCKETS - 1;
 	priv->conf.debugLevel = 1;
 	priv->conf.loopTimeout = DEFAULT_LOOP_TIMEOUT;
 	priv->conf.maxStaleness = DEFAULT_MAX_STALENESS;
 	priv->conf.minStableAge = DEFAULT_MIN_STABLE_AGE;
-	priv->sendUnknown = 1;	       /* classic bridge */
+	priv->sendUnknown = 1; /* classic bridge */
 
 	/*
 	 * This node has all kinds of stuff that could be screwed by SMP.
-	 * Until it gets it's own internal protection, we go through in 
-	 * single file. This could hurt a machine bridging between two 
-	 * GB ethernets so it should be fixed. 
+	 * Until it gets it's own internal protection, we go through in
+	 * single file. This could hurt a machine bridging between two
+	 * GB ethernets so it should be fixed.
 	 * When it's fixed the process SHOULD NOT SLEEP, spinlocks please!
 	 * (and atomic ops )
 	 */
@@ -373,7 +316,7 @@ ng_bridge_constructor(node_p node)
 /*
  * Method for attaching a new hook
  */
-static	int
+static int
 ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
@@ -385,7 +328,7 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 
 	/* Check for a link hook */
 	if (strlen(name) <= strlen(prefix))
-		return (EINVAL);       /* Unknown hook name */
+		return (EINVAL); /* Unknown hook name */
 
 	isUplink = (name[0] == 'u');
 	if (isUplink)
@@ -401,8 +344,8 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 	if (linkNum == 0 && isUplink)
 		return (EINVAL);
 
-	if(NG_PEER_NODE(hook) == node)
-	        return (ELOOP);
+	if (NG_PEER_NODE(hook) == node)
+		return (ELOOP);
 
 	link = malloc(sizeof(*link), M_NETGRAPH_BRIDGE, M_ZERO);
 	if (link == NULL)
@@ -427,8 +370,8 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 	if (isUplink) {
 		link->learnMac = 0;
 		link->sendUnknown = 1;
-		if (priv->numLinks == 0)	/* if the first link is an uplink */
-		    priv->sendUnknown = 0;	/* switch to restrictive mode */
+		if (priv->numLinks == 0) /* if the first link is an uplink */
+			priv->sendUnknown = 0; /* switch to restrictive mode */
 	} else {
 		link->learnMac = 1;
 		link->sendUnknown = priv->sendUnknown;
@@ -442,7 +385,8 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 /*
  * Receive a control message
  */
-static void ng_bridge_clear_link_stats(struct ng_bridge_link_kernel_stats * p)
+static void
+ng_bridge_clear_link_stats(struct ng_bridge_link_kernel_stats *p)
 {
 	counter_u64_zero(p->recvOctets);
 	counter_u64_zero(p->recvPackets);
@@ -482,8 +426,7 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	switch (msg->header.typecookie) {
 	case NGM_BRIDGE_COOKIE:
 		switch (msg->header.cmd) {
-		case NGM_BRIDGE_GET_CONFIG:
-		    {
+		case NGM_BRIDGE_GET_CONFIG: {
 			struct ng_bridge_config *conf;
 
 			NG_MKRESPONSE(resp, msg,
@@ -493,43 +436,40 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 			conf = (struct ng_bridge_config *)resp->data;
-			*conf = priv->conf;	/* no sanity checking needed */
+			*conf = priv->conf; /* no sanity checking needed */
 			break;
-		    }
-		case NGM_BRIDGE_SET_CONFIG:
-		    {
+		}
+		case NGM_BRIDGE_SET_CONFIG: {
 			struct ng_bridge_config *conf;
 
-			if (msg->header.arglen
-			    != sizeof(struct ng_bridge_config)) {
+			if (msg->header.arglen !=
+			    sizeof(struct ng_bridge_config)) {
 				error = EINVAL;
 				break;
 			}
 			conf = (struct ng_bridge_config *)msg->data;
 			priv->conf = *conf;
 			break;
-		    }
-		case NGM_BRIDGE_RESET:
-		    {
+		}
+		case NGM_BRIDGE_RESET: {
 			hook_p rethook;
 
 			/* Flush all entries in the hash table */
 			ng_bridge_remove_hosts(priv, NULL);
 
 			/* Reset all loop detection counters and stats */
-			NG_NODE_FOREACH_HOOK(node, ng_bridge_reset_link, NULL,
-			    rethook);
+			NG_NODE_FOREACH_HOOK(
+			    node, ng_bridge_reset_link, NULL, rethook);
 			break;
-		    }
+		}
 		case NGM_BRIDGE_GET_STATS:
 		case NGM_BRIDGE_CLR_STATS:
-		case NGM_BRIDGE_GETCLR_STATS:
-		    {
+		case NGM_BRIDGE_GETCLR_STATS: {
 			hook_p hook;
 			link_p link;
 			char linkName[NG_HOOKSIZ];
 			int linkNum;
-			    
+
 			/* Get link number */
 			if (msg->header.arglen != sizeof(u_int32_t)) {
 				error = EINVAL;
@@ -537,12 +477,12 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			linkNum = *((int32_t *)msg->data);
 			if (linkNum < 0)
-				snprintf(linkName, sizeof(linkName),
-				    "%s%u", NG_BRIDGE_HOOK_UPLINK_PREFIX, -linkNum);
+				snprintf(linkName, sizeof(linkName), "%s%u",
+				    NG_BRIDGE_HOOK_UPLINK_PREFIX, -linkNum);
 			else
-				snprintf(linkName, sizeof(linkName),
-				    "%s%u", NG_BRIDGE_HOOK_LINK_PREFIX, linkNum);
-			    
+				snprintf(linkName, sizeof(linkName), "%s%u",
+				    NG_BRIDGE_HOOK_LINK_PREFIX, linkNum);
+
 			if ((hook = ng_findhook(node, linkName)) == NULL) {
 				error = ENOTCONN;
 				break;
@@ -553,14 +493,14 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (msg->header.cmd != NGM_BRIDGE_CLR_STATS) {
 				struct ng_bridge_link_stats *rs;
 
-				NG_MKRESPONSE(resp, msg,
-				    sizeof(link->stats), M_NOWAIT);
+				NG_MKRESPONSE(
+				    resp, msg, sizeof(link->stats), M_NOWAIT);
 				if (resp == NULL) {
 					error = ENOMEM;
 					break;
 				}
 				rs = (struct ng_bridge_link_stats *)resp->data;
-#define FETCH(x)	rs->x = counter_u64_fetch(link->stats.x)
+#define FETCH(x) rs->x = counter_u64_fetch(link->stats.x)
 				FETCH(recvOctets);
 				FETCH(recvPackets);
 				FETCH(recvMulticasts);
@@ -580,15 +520,16 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (msg->header.cmd != NGM_BRIDGE_GET_STATS)
 				ng_bridge_clear_link_stats(&link->stats);
 			break;
-		    }
-		case NGM_BRIDGE_GET_TABLE:
-		    {
+		}
+		case NGM_BRIDGE_GET_TABLE: {
 			struct ng_bridge_host_ary *ary;
 			struct ng_bridge_host *host;
 			int i = 0, bucket;
 
-			NG_MKRESPONSE(resp, msg, sizeof(*ary)
-			    + (priv->numHosts * sizeof(*ary->hosts)), M_NOWAIT);
+			NG_MKRESPONSE(resp, msg,
+			    sizeof(*ary) +
+				(priv->numHosts * sizeof(*ary->hosts)),
+			    M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
@@ -596,27 +537,25 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			ary = (struct ng_bridge_host_ary *)resp->data;
 			ary->numHosts = priv->numHosts;
 			for (bucket = 0; bucket < priv->numBuckets; bucket++) {
-				SLIST_FOREACH(host, &priv->tab[bucket], next) {
-					memcpy(ary->hosts[i].addr,
-					       host->addr,
-					       sizeof(ary->hosts[i].addr));
-					ary->hosts[i].age       = host->age;
-					ary->hosts[i].staleness = host->staleness;
+				SLIST_FOREACH (host, &priv->tab[bucket], next) {
+					memcpy(ary->hosts[i].addr, host->addr,
+					    sizeof(ary->hosts[i].addr));
+					ary->hosts[i].age = host->age;
+					ary->hosts[i].staleness =
+					    host->staleness;
 					strncpy(ary->hosts[i].hook,
-						NG_HOOK_NAME(host->link->hook),
-						sizeof(ary->hosts[i].hook));
+					    NG_HOOK_NAME(host->link->hook),
+					    sizeof(ary->hosts[i].hook));
 					i++;
 				}
 			}
 			break;
-		    }
-		case NGM_BRIDGE_SET_PERSISTENT:
-		    {
+		}
+		case NGM_BRIDGE_SET_PERSISTENT: {
 			priv->persistent = 1;
 			break;
-		    }
-		case NGM_BRIDGE_MOVE_HOST:
-		{
+		}
+		case NGM_BRIDGE_MOVE_HOST: {
 			struct ng_bridge_move_host *mh;
 			hook_p hook;
 			struct ng_bridge_host *host;
@@ -626,9 +565,8 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 			mh = (struct ng_bridge_move_host *)msg->data;
-			hook = (mh->hook[0] == 0)
-			    ? lasthook
-			    : ng_findhook(node, mh->hook);
+			hook = (mh->hook[0] == 0) ? lasthook :
+							  ng_findhook(node, mh->hook);
 			if (hook == NULL) {
 				error = ENOENT;
 				break;
@@ -638,7 +576,8 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = EADDRINUSE;
 				break;
 			}
-			error = ng_bridge_put(priv, mh->addr, NG_HOOK_PRIVATE(hook));
+			error = ng_bridge_put(
+			    priv, mh->addr, NG_HOOK_PRIVATE(hook));
 			break;
 		}
 		default:
@@ -662,7 +601,7 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
  */
 struct ng_bridge_send_ctx {
 	link_p foundFirst, incoming;
-	struct mbuf * m;
+	struct mbuf *m;
 	int manycast, error;
 };
 
@@ -670,11 +609,12 @@ struct ng_bridge_send_ctx {
  * Update stats and send out
  */
 static inline int
-ng_bridge_send_data(link_cp dst, int manycast, struct mbuf *m, item_p item) {
+ng_bridge_send_data(link_cp dst, int manycast, struct mbuf *m, item_p item)
+{
 	int error = 0;
 	size_t len = m->m_pkthdr.len;
 
-	if(item != NULL)
+	if (item != NULL)
 		NG_FWD_NEW_DATA(error, item, dst->hook, m);
 	else
 		NG_SEND_DATA_ONLY(error, dst->hook, m);
@@ -683,12 +623,12 @@ ng_bridge_send_data(link_cp dst, int manycast, struct mbuf *m, item_p item) {
 		counter_u64_add(dst->stats.xmitPackets, 1);
 		counter_u64_add(dst->stats.xmitOctets, len);
 		switch (manycast) {
-		default:		       /* unknown unicast */
+		default: /* unknown unicast */
 			break;
-		case 1:			       /* multicast */
+		case 1: /* multicast */
 			counter_u64_add(dst->stats.xmitMulticasts, 1);
 			break;
-		case 2:			       /* broadcast */
+		case 2: /* broadcast */
 			counter_u64_add(dst->stats.xmitBroadcasts, 1);
 			break;
 		}
@@ -732,17 +672,17 @@ ng_bridge_send_ctx(hook_p dst, void *arg)
 	 * It's usable link but not the reserved (first) one.
 	 * Copy mbuf info for sending.
 	 */
-	m2 = m_dup(ctx->m, M_NOWAIT);	/* XXX m_copypacket() */
+	m2 = m_dup(ctx->m, M_NOWAIT); /* XXX m_copypacket() */
 	if (m2 == NULL) {
 		counter_u64_add(ctx->incoming->stats.memoryFailures, 1);
 		ctx->error = ENOBUFS;
-		return (0);	       /* abort loop */
+		return (0); /* abort loop */
 	}
 
 	/* Send packet */
 	error = ng_bridge_send_data(destLink, ctx->manycast, m2, NULL);
-	if(error)
-	  ctx->error = error;
+	if (error)
+		ctx->error = error;
 	return (1);
 }
 
@@ -766,7 +706,8 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 		NG_FREE_M(ctx.m);
 		return (EINVAL);
 	}
-	if (ctx.m->m_len < ETHER_HDR_LEN && !(ctx.m = m_pullup(ctx.m, ETHER_HDR_LEN))) {
+	if (ctx.m->m_len < ETHER_HDR_LEN &&
+	    !(ctx.m = m_pullup(ctx.m, ETHER_HDR_LEN))) {
 		counter_u64_add(ctx.incoming->stats.memoryFailures, 1);
 		NG_FREE_ITEM(item);
 		return (ENOBUFS);
@@ -784,7 +725,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 		counter_u64_add(ctx.incoming->stats.loopDrops, 1);
 		NG_FREE_ITEM(item);
 		NG_FREE_M(ctx.m);
-		return (ELOOP);		/* XXX is this an appropriate error? */
+		return (ELOOP); /* XXX is this an appropriate error? */
 	}
 
 	/* Update stats */
@@ -816,7 +757,8 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 			if (host->age < priv->conf.minStableAge) {
 				/* Log the problem */
 				if (priv->conf.debugLevel >= 2) {
-					struct ifnet *ifp = ctx.m->m_pkthdr.rcvif;
+					struct ifnet *ifp =
+					    ctx.m->m_pkthdr.rcvif;
 					char suffix[32];
 
 					if (ifp != NULL)
@@ -824,24 +766,28 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 						    " (%s)", ifp->if_xname);
 					else
 						*suffix = '\0';
-					log(LOG_WARNING, "ng_bridge: %s:"
+					log(LOG_WARNING,
+					    "ng_bridge: %s:"
 					    " loopback detected on %s%s\n",
 					    ng_bridge_nodename(node),
 					    NG_HOOK_NAME(hook), suffix);
 				}
 
 				/* Mark link as linka non grata */
-				ctx.incoming->loopCount = priv->conf.loopTimeout;
-				counter_u64_add(ctx.incoming->stats.loopDetects, 1);
+				ctx.incoming->loopCount =
+				    priv->conf.loopTimeout;
+				counter_u64_add(
+				    ctx.incoming->stats.loopDetects, 1);
 
 				/* Forget all hosts on this link */
 				ng_bridge_remove_hosts(priv, ctx.incoming);
 
 				/* Drop packet */
-				counter_u64_add(ctx.incoming->stats.loopDrops, 1);
+				counter_u64_add(
+				    ctx.incoming->stats.loopDrops, 1);
 				NG_FREE_ITEM(item);
 				NG_FREE_M(ctx.m);
-				return (ELOOP);		/* XXX appropriate? */
+				return (ELOOP); /* XXX appropriate? */
 			}
 
 			/* Move host over to new link */
@@ -865,8 +811,8 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 		strncpy(mh->hook, NG_HOOK_NAME(ctx.incoming->hook),
 		    sizeof(mh->hook));
 		memcpy(mh->addr, eh->ether_shost, sizeof(mh->addr));
-		NG_SEND_MSG_ID(error, node, msg, NG_NODE_ID(node),
-		    NG_NODE_ID(node));
+		NG_SEND_MSG_ID(
+		    error, node, msg, NG_NODE_ID(node), NG_NODE_ID(node));
 		if (error)
 			counter_u64_add(ctx.incoming->stats.memoryFailures, 1);
 	}
@@ -895,7 +841,8 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 			}
 
 			/* Deliver packet out the destination link */
-			return (ng_bridge_send_data(destLink, ctx.manycast, ctx.m, item));
+			return (ng_bridge_send_data(
+			    destLink, ctx.manycast, ctx.m, item));
 		}
 
 		/* Destination host is not known */
@@ -935,8 +882,8 @@ ng_bridge_shutdown(node_p node)
 	 * the node now.
 	 */
 	KASSERT(priv->numLinks == 0 && priv->numHosts == 0,
-	    ("%s: numLinks=%d numHosts=%d",
-	    __func__, priv->numLinks, priv->numHosts));
+	    ("%s: numLinks=%d numHosts=%d", __func__, priv->numLinks,
+		priv->numHosts));
 	ng_uncallout(&priv->timer, node);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
@@ -976,9 +923,8 @@ ng_bridge_disconnect(hook_p hook)
 	priv->numLinks--;
 
 	/* If no more hooks, go away */
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	    && (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))
-	    && !priv->persistent) {
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
+	    (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))) && !priv->persistent) {
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	}
 	return (0);
@@ -991,9 +937,10 @@ ng_bridge_disconnect(hook_p hook)
 /*
  * Hash algorithm
  */
-#define HASH(addr,mask)		( (((const u_int16_t *)(addr))[0] 	\
-				 ^ ((const u_int16_t *)(addr))[1] 	\
-				 ^ ((const u_int16_t *)(addr))[2]) & (mask) )
+#define HASH(addr, mask)                                                    \
+	((((const u_int16_t *)(addr))[0] ^ ((const u_int16_t *)(addr))[1] ^ \
+	     ((const u_int16_t *)(addr))[2]) &                              \
+	    (mask))
 
 /*
  * Find a host entry in the table.
@@ -1004,7 +951,7 @@ ng_bridge_get(priv_cp priv, const u_char *addr)
 	const int bucket = HASH(addr, priv->hashMask);
 	struct ng_bridge_host *host;
 
-	SLIST_FOREACH(host, &priv->tab[bucket], next) {
+	SLIST_FOREACH (host, &priv->tab[bucket], next) {
 		if (ETHER_EQUAL(host->addr, addr))
 			return (host);
 	}
@@ -1061,19 +1008,19 @@ ng_bridge_rehash(priv_p priv)
 	u_int newMask;
 
 	/* Is table too full or too empty? */
-	if (priv->numHosts > priv->numBuckets
-	    && (priv->numBuckets << 1) <= MAX_BUCKETS)
+	if (priv->numHosts > priv->numBuckets &&
+	    (priv->numBuckets << 1) <= MAX_BUCKETS)
 		newNumBuckets = priv->numBuckets << 1;
-	else if (priv->numHosts < (priv->numBuckets >> 2)
-	    && (priv->numBuckets >> 2) >= MIN_BUCKETS)
+	else if (priv->numHosts < (priv->numBuckets >> 2) &&
+	    (priv->numBuckets >> 2) >= MIN_BUCKETS)
 		newNumBuckets = priv->numBuckets >> 2;
 	else
 		return;
 	newMask = newNumBuckets - 1;
 
 	/* Allocate and initialize new table */
-	newTab = malloc(newNumBuckets * sizeof(*newTab),
-	    M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
+	newTab = malloc(newNumBuckets * sizeof(*newTab), M_NETGRAPH_BRIDGE,
+	    M_NOWAIT | M_ZERO);
 	if (newTab == NULL)
 		return;
 
@@ -1082,8 +1029,8 @@ ng_bridge_rehash(priv_p priv)
 		struct ng_bridge_bucket *const oldList = &priv->tab[oldBucket];
 
 		while (!SLIST_EMPTY(oldList)) {
-			struct ng_bridge_host *const host
-			    = SLIST_FIRST(oldList);
+			struct ng_bridge_host *const host = SLIST_FIRST(
+			    oldList);
 
 			SLIST_REMOVE_HEAD(oldList, next);
 			newBucket = HASH(host->addr, newMask);
@@ -1094,8 +1041,8 @@ ng_bridge_rehash(priv_p priv)
 	/* Replace old table with new one */
 	if (priv->conf.debugLevel >= 3) {
 		log(LOG_INFO, "ng_bridge: %s: table size %d -> %d\n",
-		    ng_bridge_nodename(priv->node),
-		    priv->numBuckets, newNumBuckets);
+		    ng_bridge_nodename(priv->node), priv->numBuckets,
+		    newNumBuckets);
 	}
 	free(priv->tab, M_NETGRAPH_BRIDGE);
 	priv->numBuckets = newNumBuckets;
@@ -1150,7 +1097,8 @@ ng_bridge_unmute(hook_p hook, void *arg)
 	if (link->loopCount != 0) {
 		link->loopCount--;
 		if (link->loopCount == 0 && priv->conf.debugLevel >= 2) {
-			log(LOG_INFO, "ng_bridge: %s:"
+			log(LOG_INFO,
+			    "ng_bridge: %s:"
 			    " restoring looped back %s\n",
 			    ng_bridge_nodename(node), NG_HOOK_NAME(hook));
 		}

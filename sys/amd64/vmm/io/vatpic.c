@@ -31,89 +31,82 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_bhyve_snapshot.h"
 
-#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/queue.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
-
-#include <x86/apicreg.h>
-#include <dev/ic/i8259.h>
+#include <sys/queue.h>
 
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>
 
+#include <x86/apicreg.h>
+
+#include <dev/ic/i8259.h>
+
+#include "vatpic.h"
+#include "vioapic.h"
 #include "vmm_ktr.h"
 #include "vmm_lapic.h"
-#include "vioapic.h"
-#include "vatpic.h"
 
 static MALLOC_DEFINE(M_VATPIC, "atpic", "bhyve virtual atpic (8259)");
 
-#define	VATPIC_LOCK(vatpic)		mtx_lock_spin(&((vatpic)->mtx))
-#define	VATPIC_UNLOCK(vatpic)		mtx_unlock_spin(&((vatpic)->mtx))
-#define	VATPIC_LOCKED(vatpic)		mtx_owned(&((vatpic)->mtx))
+#define VATPIC_LOCK(vatpic) mtx_lock_spin(&((vatpic)->mtx))
+#define VATPIC_UNLOCK(vatpic) mtx_unlock_spin(&((vatpic)->mtx))
+#define VATPIC_LOCKED(vatpic) mtx_owned(&((vatpic)->mtx))
 
-enum irqstate {
-	IRQSTATE_ASSERT,
-	IRQSTATE_DEASSERT,
-	IRQSTATE_PULSE
-};
+enum irqstate { IRQSTATE_ASSERT, IRQSTATE_DEASSERT, IRQSTATE_PULSE };
 
 struct atpic {
-	bool		ready;
-	int		icw_num;
-	int		rd_cmd_reg;
+	bool ready;
+	int icw_num;
+	int rd_cmd_reg;
 
-	bool		aeoi;
-	bool		poll;
-	bool		rotate;
-	bool		sfn;		/* special fully-nested mode */
+	bool aeoi;
+	bool poll;
+	bool rotate;
+	bool sfn; /* special fully-nested mode */
 
-	int		irq_base;
-	uint8_t		request;	/* Interrupt Request Register (IIR) */
-	uint8_t		service;	/* Interrupt Service (ISR) */
-	uint8_t		mask;		/* Interrupt Mask Register (IMR) */
-	uint8_t		smm;		/* special mask mode */
+	int irq_base;
+	uint8_t request; /* Interrupt Request Register (IIR) */
+	uint8_t service; /* Interrupt Service (ISR) */
+	uint8_t mask;	 /* Interrupt Mask Register (IMR) */
+	uint8_t smm;	 /* special mask mode */
 
-	int		acnt[8];	/* sum of pin asserts and deasserts */
-	int		lowprio;	/* lowest priority irq */
+	int acnt[8]; /* sum of pin asserts and deasserts */
+	int lowprio; /* lowest priority irq */
 
-	bool		intr_raised;
+	bool intr_raised;
 };
 
 struct vatpic {
-	struct vm	*vm;
-	struct mtx	mtx;
-	struct atpic	atpic[2];
-	uint8_t		elc[2];
+	struct vm *vm;
+	struct mtx mtx;
+	struct atpic atpic[2];
+	uint8_t elc[2];
 };
 
-#define	VATPIC_CTR0(vatpic, fmt)					\
-	VM_CTR0((vatpic)->vm, fmt)
+#define VATPIC_CTR0(vatpic, fmt) VM_CTR0((vatpic)->vm, fmt)
 
-#define	VATPIC_CTR1(vatpic, fmt, a1)					\
-	VM_CTR1((vatpic)->vm, fmt, a1)
+#define VATPIC_CTR1(vatpic, fmt, a1) VM_CTR1((vatpic)->vm, fmt, a1)
 
-#define	VATPIC_CTR2(vatpic, fmt, a1, a2)				\
-	VM_CTR2((vatpic)->vm, fmt, a1, a2)
+#define VATPIC_CTR2(vatpic, fmt, a1, a2) VM_CTR2((vatpic)->vm, fmt, a1, a2)
 
-#define	VATPIC_CTR3(vatpic, fmt, a1, a2, a3)				\
+#define VATPIC_CTR3(vatpic, fmt, a1, a2, a3) \
 	VM_CTR3((vatpic)->vm, fmt, a1, a2, a3)
 
-#define	VATPIC_CTR4(vatpic, fmt, a1, a2, a3, a4)			\
+#define VATPIC_CTR4(vatpic, fmt, a1, a2, a3, a4) \
 	VM_CTR4((vatpic)->vm, fmt, a1, a2, a3, a4)
 
 /*
  * Loop over all the pins in priority order from highest to lowest.
  */
-#define	ATPIC_PIN_FOREACH(pinvar, atpic, tmpvar)			\
-	for (tmpvar = 0, pinvar = (atpic->lowprio + 1) & 0x7;		\
-	    tmpvar < 8;							\
-	    tmpvar++, pinvar = (pinvar + 1) & 0x7)
+#define ATPIC_PIN_FOREACH(pinvar, atpic, tmpvar)                          \
+	for (tmpvar = 0, pinvar = (atpic->lowprio + 1) & 0x7; tmpvar < 8; \
+	     tmpvar++, pinvar = (pinvar + 1) & 0x7)
 
 static void vatpic_set_pinstate(struct vatpic *vatpic, int pin, bool newstate);
 
@@ -133,8 +126,9 @@ vatpic_get_highest_isrpin(struct atpic *atpic)
 	int bit, pin;
 	int i;
 
-	ATPIC_PIN_FOREACH(pin, atpic, i) {
-                bit = (1 << pin);
+	ATPIC_PIN_FOREACH(pin, atpic, i)
+	{
+		bit = (1 << pin);
 
 		if (atpic->service & bit) {
 			/*
@@ -175,7 +169,8 @@ vatpic_get_highest_irrpin(struct atpic *atpic)
 	if (atpic->smm)
 		serviced = 0;
 
-	ATPIC_PIN_FOREACH(pin, atpic, tmp) {
+	ATPIC_PIN_FOREACH(pin, atpic, tmp)
+	{
 		bit = 1 << pin;
 
 		/*
@@ -210,9 +205,10 @@ vatpic_notify_intr(struct vatpic *vatpic)
 	atpic = &vatpic->atpic[1];
 	if (!atpic->intr_raised &&
 	    (pin = vatpic_get_highest_irrpin(atpic)) != -1) {
-		VATPIC_CTR4(vatpic, "atpic slave notify pin = %d "
-		    "(imr 0x%x irr 0x%x isr 0x%x)", pin,
-		    atpic->mask, atpic->request, atpic->service);
+		VATPIC_CTR4(vatpic,
+		    "atpic slave notify pin = %d "
+		    "(imr 0x%x irr 0x%x isr 0x%x)",
+		    pin, atpic->mask, atpic->request, atpic->service);
 
 		/*
 		 * Cascade the request from the slave to the master.
@@ -221,7 +217,8 @@ vatpic_notify_intr(struct vatpic *vatpic)
 		vatpic_set_pinstate(vatpic, 2, true);
 		vatpic_set_pinstate(vatpic, 2, false);
 	} else {
-		VATPIC_CTR3(vatpic, "atpic slave no eligible interrupts "
+		VATPIC_CTR3(vatpic,
+		    "atpic slave no eligible interrupts "
 		    "(imr 0x%x irr 0x%x isr 0x%x)",
 		    atpic->mask, atpic->request, atpic->service);
 	}
@@ -232,9 +229,10 @@ vatpic_notify_intr(struct vatpic *vatpic)
 	atpic = &vatpic->atpic[0];
 	if (!atpic->intr_raised &&
 	    (pin = vatpic_get_highest_irrpin(atpic)) != -1) {
-		VATPIC_CTR4(vatpic, "atpic master notify pin = %d "
-		    "(imr 0x%x irr 0x%x isr 0x%x)", pin,
-		    atpic->mask, atpic->request, atpic->service);
+		VATPIC_CTR4(vatpic,
+		    "atpic master notify pin = %d "
+		    "(imr 0x%x irr 0x%x isr 0x%x)",
+		    pin, atpic->mask, atpic->request, atpic->service);
 
 		/*
 		 * From Section 3.6.2, "Interrupt Modes", in the
@@ -265,7 +263,8 @@ vatpic_notify_intr(struct vatpic *vatpic)
 		lapic_set_local_intr(vatpic->vm, -1, APIC_LVT_LINT0);
 		vioapic_pulse_irq(vatpic->vm, 0);
 	} else {
-		VATPIC_CTR3(vatpic, "atpic master no eligible interrupts "
+		VATPIC_CTR3(vatpic,
+		    "atpic master no eligible interrupts "
 		    "(imr 0x%x irr 0x%x isr 0x%x)",
 		    atpic->mask, atpic->request, atpic->service);
 	}
@@ -340,8 +339,10 @@ vatpic_icw4(struct vatpic *vatpic, struct atpic *atpic, uint8_t val)
 		if (master_atpic(vatpic, atpic)) {
 			atpic->sfn = true;
 		} else {
-			VATPIC_CTR1(vatpic, "Ignoring special fully nested "
-			    "mode on slave atpic: %#x", val);
+			VATPIC_CTR1(vatpic,
+			    "Ignoring special fully nested "
+			    "mode on slave atpic: %#x",
+			    val);
 		}
 	}
 
@@ -402,7 +403,7 @@ vatpic_ocw3(struct vatpic *vatpic, struct atpic *atpic, uint8_t val)
 		atpic->smm = val & OCW3_SMM ? 1 : 0;
 		VATPIC_CTR2(vatpic, "%s atpic special mask mode %s",
 		    master_atpic(vatpic, atpic) ? "master" : "slave",
-		    atpic->smm ?  "enabled" : "disabled");
+		    atpic->smm ? "enabled" : "disabled");
 	}
 
 	if (val & OCW3_RR) {
@@ -453,8 +454,8 @@ vatpic_set_pinstate(struct vatpic *vatpic, int pin, bool newstate)
 		if (level)
 			atpic->request &= ~(1 << (pin & 0x7));
 	} else {
-		VATPIC_CTR3(vatpic, "atpic pin%d: %s, ignored, acnt %d",
-		    pin, newstate ? "asserted" : "deasserted", newcnt);
+		VATPIC_CTR3(vatpic, "atpic pin%d: %s, ignored, acnt %d", pin,
+		    newstate ? "asserted" : "deasserted", newcnt);
 	}
 
 	vatpic_notify_intr(vatpic);
@@ -541,9 +542,9 @@ vatpic_set_irq_trigger(struct vm *vm, int irq, enum vm_intr_trigger trigger)
 	VATPIC_LOCK(vatpic);
 
 	if (trigger == LEVEL_TRIGGER)
-		vatpic->elc[irq >> 3] |=  1 << (irq & 0x7);
+		vatpic->elc[irq >> 3] |= 1 << (irq & 0x7);
 	else
-		vatpic->elc[irq >> 3] &=  ~(1 << (irq & 0x7));
+		vatpic->elc[irq >> 3] &= ~(1 << (irq & 0x7));
 
 	VATPIC_UNLOCK(vatpic);
 
@@ -628,7 +629,7 @@ vatpic_intr_accepted(struct vm *vm, int vector)
 
 static int
 vatpic_read(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
-	    int bytes, uint32_t *eax)
+    int bytes, uint32_t *eax)
 {
 	int pin;
 
@@ -661,7 +662,6 @@ vatpic_read(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
 	VATPIC_UNLOCK(vatpic);
 
 	return (0);
-
 }
 
 static int
@@ -712,8 +712,8 @@ vatpic_write(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
 }
 
 int
-vatpic_master_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
-    uint32_t *eax)
+vatpic_master_handler(
+    struct vm *vm, int vcpuid, bool in, int port, int bytes, uint32_t *eax)
 {
 	struct vatpic *vatpic;
 	struct atpic *atpic;
@@ -732,8 +732,8 @@ vatpic_master_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 }
 
 int
-vatpic_slave_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
-    uint32_t *eax)
+vatpic_slave_handler(
+    struct vm *vm, int vcpuid, bool in, int port, int bytes, uint32_t *eax)
 {
 	struct vatpic *vatpic;
 	struct atpic *atpic;
@@ -752,8 +752,8 @@ vatpic_slave_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 }
 
 int
-vatpic_elc_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
-    uint32_t *eax)
+vatpic_elc_handler(
+    struct vm *vm, int vcpuid, bool in, int port, int bytes, uint32_t *eax)
 {
 	struct vatpic *vatpic;
 	bool is_master;
@@ -837,14 +837,14 @@ vatpic_snapshot(struct vatpic *vatpic, struct vm_snapshot_meta *meta)
 		SNAPSHOT_VAR_OR_LEAVE(atpic->mask, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(atpic->smm, meta, ret, done);
 
-		SNAPSHOT_BUF_OR_LEAVE(atpic->acnt, sizeof(atpic->acnt),
-				      meta, ret, done);
+		SNAPSHOT_BUF_OR_LEAVE(
+		    atpic->acnt, sizeof(atpic->acnt), meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(atpic->lowprio, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(atpic->intr_raised, meta, ret, done);
 	}
 
-	SNAPSHOT_BUF_OR_LEAVE(vatpic->elc, sizeof(vatpic->elc),
-			      meta, ret, done);
+	SNAPSHOT_BUF_OR_LEAVE(
+	    vatpic->elc, sizeof(vatpic->elc), meta, ret, done);
 
 done:
 	return (ret);

@@ -48,83 +48,84 @@ __FBSDID("$FreeBSD$");
 #include <sys/timex.h>
 #include <sys/watchdog.h>
 
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <machine/bus.h>
 #include <machine/clock.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include "clock_if.h"
 
-#define FEAON_AON_WDT_BASE		0x0
-#define FEAON_AON_RTC_BASE		0x40
-#define FEAON_AON_CLKCFG_BASE		0x70
-#define FEAON_AON_BACKUP_BASE		0x80
-#define FEAON_AON_PMU_BASE		0x100
+#define FEAON_AON_WDT_BASE 0x0
+#define FEAON_AON_RTC_BASE 0x40
+#define FEAON_AON_CLKCFG_BASE 0x70
+#define FEAON_AON_BACKUP_BASE 0x80
+#define FEAON_AON_PMU_BASE 0x100
 
 /* Watchdog specific */
-#define FEAON_WDT_CFG			0x0
-#define FEAON_WDT_COUNT			0x8
-#define FEAON_WDT_DOGS			0x10
-#define FEAON_WDT_FEED			0x18
-#define FEAON_WDT_KEY			0x1C
-#define FEAON_WDT_CMP			0x20
+#define FEAON_WDT_CFG 0x0
+#define FEAON_WDT_COUNT 0x8
+#define FEAON_WDT_DOGS 0x10
+#define FEAON_WDT_FEED 0x18
+#define FEAON_WDT_KEY 0x1C
+#define FEAON_WDT_CMP 0x20
 
-#define FEAON_WDT_CFG_SCALE_MASK	0xF
-#define FEAON_WDT_CFG_RST_EN		(1 << 8)
-#define FEAON_WDT_CFG_ZERO_CMP		(1 << 9)
-#define FEAON_WDT_CFG_EN_ALWAYS		(1 << 12)
-#define FEAON_WDT_CFG_EN_CORE_AWAKE	(1 << 13)
-#define FEAON_WDT_CFG_IP		(1 << 28)
+#define FEAON_WDT_CFG_SCALE_MASK 0xF
+#define FEAON_WDT_CFG_RST_EN (1 << 8)
+#define FEAON_WDT_CFG_ZERO_CMP (1 << 9)
+#define FEAON_WDT_CFG_EN_ALWAYS (1 << 12)
+#define FEAON_WDT_CFG_EN_CORE_AWAKE (1 << 13)
+#define FEAON_WDT_CFG_IP (1 << 28)
 
-#define FEAON_WDT_CMP_MASK		0xFFFF
+#define FEAON_WDT_CMP_MASK 0xFFFF
 
-#define FEAON_WDT_FEED_FOOD		0xD09F00D
+#define FEAON_WDT_FEED_FOOD 0xD09F00D
 
-#define FEAON_WDT_KEY_UNLOCK		0x51F15E
+#define FEAON_WDT_KEY_UNLOCK 0x51F15E
 
-#define FEAON_WDT_TIMEBASE_FREQ		31250
-#define FEAON_WDT_TIMEBASE_RATIO	(NANOSECOND / FEAON_WDT_TIMEBASE_FREQ)
+#define FEAON_WDT_TIMEBASE_FREQ 31250
+#define FEAON_WDT_TIMEBASE_RATIO (NANOSECOND / FEAON_WDT_TIMEBASE_FREQ)
 
 /* Real-time clock specific */
-#define FEAON_RTC_CFG			0x40
-#define FEAON_RTC_LO			0x48
-#define FEAON_RTC_HI			0x4C
-#define FEAON_RTC_CMP			0x60
+#define FEAON_RTC_CFG 0x40
+#define FEAON_RTC_LO 0x48
+#define FEAON_RTC_HI 0x4C
+#define FEAON_RTC_CMP 0x60
 
-#define FEAON_RTC_CFG_SCALE_MASK	0xF
-#define FEAON_RTC_CFG_EN		(1 << 12)
-#define FEAON_RTC_CFG_IP		(1 << 28)
+#define FEAON_RTC_CFG_SCALE_MASK 0xF
+#define FEAON_RTC_CFG_EN (1 << 12)
+#define FEAON_RTC_CFG_IP (1 << 28)
 
-#define FEAON_RTC_HI_MASK		0xFFFF
+#define FEAON_RTC_HI_MASK 0xFFFF
 
-#define FEAON_RTC_TIMEBASE_FREQ		31250LL
+#define FEAON_RTC_TIMEBASE_FREQ 31250LL
 
-#define FEAON_LOCK(sc)			mtx_lock(&(sc)->mtx)
-#define FEAON_UNLOCK(sc)		mtx_unlock(&(sc)->mtx)
-#define FEAON_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->mtx, MA_OWNED)
-#define FEAON_ASSERT_UNLOCKED(sc)	mtx_assert(&(sc)->mtx, MA_NOTOWNED)
+#define FEAON_LOCK(sc) mtx_lock(&(sc)->mtx)
+#define FEAON_UNLOCK(sc) mtx_unlock(&(sc)->mtx)
+#define FEAON_ASSERT_LOCKED(sc) mtx_assert(&(sc)->mtx, MA_OWNED)
+#define FEAON_ASSERT_UNLOCKED(sc) mtx_assert(&(sc)->mtx, MA_NOTOWNED)
 
-#define FEAON_READ_4(sc, reg)		bus_read_4(sc->reg_res, reg)
-#define FEAON_WRITE_4(sc, reg, val)	bus_write_4(sc->reg_res, reg, val)
+#define FEAON_READ_4(sc, reg) bus_read_4(sc->reg_res, reg)
+#define FEAON_WRITE_4(sc, reg, val) bus_write_4(sc->reg_res, reg, val)
 
-#define FEAON_WDT_WRITE_4(sc, reg, val) do {					\
-		FEAON_WRITE_4(sc, (FEAON_WDT_KEY), (FEAON_WDT_KEY_UNLOCK));	\
-		FEAON_WRITE_4(sc, reg, val);					\
+#define FEAON_WDT_WRITE_4(sc, reg, val)                                     \
+	do {                                                                \
+		FEAON_WRITE_4(sc, (FEAON_WDT_KEY), (FEAON_WDT_KEY_UNLOCK)); \
+		FEAON_WRITE_4(sc, reg, val);                                \
 	} while (0)
 
 struct feaon_softc {
-	device_t		dev;
-	struct mtx		mtx;
+	device_t dev;
+	struct mtx mtx;
 
 	/* Resources */
-	int			reg_rid;
-	struct resource		*reg_res;
+	int reg_rid;
+	struct resource *reg_res;
 
 	/* WDT */
-	eventhandler_tag	ev_tag;
+	eventhandler_tag ev_tag;
 };
 
 static void
@@ -258,8 +259,8 @@ feaon_attach(device_t dev)
 
 	/* Resource setup */
 	sc->reg_rid = 0;
-	if ((sc->reg_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->reg_rid, RF_ACTIVE)) == NULL) {
+	if ((sc->reg_res = bus_alloc_resource_any(
+		 dev, SYS_RES_MEMORY, &sc->reg_rid, RF_ACTIVE)) == NULL) {
 		device_printf(dev, "Error allocating memory resource.\n");
 		err = ENXIO;
 		goto error;
@@ -272,7 +273,8 @@ feaon_attach(device_t dev)
 	FEAON_UNLOCK(sc);
 
 	/* Register WDT */
-	sc->ev_tag = EVENTHANDLER_REGISTER(watchdog_list, feaon_wdt_event, sc, 0);
+	sc->ev_tag = EVENTHANDLER_REGISTER(
+	    watchdog_list, feaon_wdt_event, sc, 0);
 
 	return (0);
 
@@ -296,22 +298,17 @@ feaon_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-static device_method_t feaon_methods[] = {
-	DEVMETHOD(device_probe, feaon_probe),
+static device_method_t feaon_methods[] = { DEVMETHOD(device_probe, feaon_probe),
 	DEVMETHOD(device_attach, feaon_attach),
 
 	/* RTC */
 	DEVMETHOD(clock_gettime, feaon_rtc_gettime),
 	DEVMETHOD(clock_settime, feaon_rtc_settime),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
-static driver_t feaon_driver = {
-	"fe310aon",
-	feaon_methods,
-	sizeof(struct feaon_softc)
-};
+static driver_t feaon_driver = { "fe310aon", feaon_methods,
+	sizeof(struct feaon_softc) };
 
 static devclass_t feaon_devclass;
 

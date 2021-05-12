@@ -58,10 +58,10 @@ __FBSDID("$FreeBSD$");
  * sizeof(word) MUST BE A POWER OF TWO
  * SO THAT wmask BELOW IS ALL ONES
  */
-typedef	long	word;		/* "word" used for optimal copy speed */
+typedef long word; /* "word" used for optimal copy speed */
 
-#define	wsize	sizeof(word)
-#define wmask	(wsize - 1)
+#define wsize sizeof(word)
+#define wmask (wsize - 1)
 
 /*
  * Copy a block of memory, handling overlap.
@@ -71,28 +71,33 @@ typedef	long	word;		/* "word" used for optimal copy speed */
 void *
 memcpy(void *dst0, const void *src0, size_t length)
 {
-	char		*dst;
-	const char	*src;
-	size_t		t;
+	char *dst;
+	const char *src;
+	size_t t;
 
 	dst = dst0;
 	src = src0;
 
-	if (length == 0 || dst == src) {	/* nothing to do */
+	if (length == 0 || dst == src) { /* nothing to do */
 		goto done;
 	}
 
 	/*
 	 * Macros: loop-t-times; and loop-t-times, t>0
 	 */
-#define	TLOOP(s) if (t) TLOOP1(s)
-#define	TLOOP1(s) do { s; } while (--t)
+#define TLOOP(s) \
+	if (t)   \
+	TLOOP1(s)
+#define TLOOP1(s)  \
+	do {       \
+		s; \
+	} while (--t)
 
 	if ((unsigned long)dst < (unsigned long)src) {
 		/*
 		 * Copy forward.
 		 */
-		t = (size_t)src;	/* only need low bits */
+		t = (size_t)src; /* only need low bits */
 
 		if ((t | (uintptr_t)dst) & wmask) {
 			/*
@@ -113,7 +118,7 @@ memcpy(void *dst0, const void *src0, size_t length)
 		 */
 		t = length / wsize;
 		TLOOP(*(word *)dst = *(const word *)src; src += wsize;
-		    dst += wsize);
+		      dst += wsize);
 		t = length & wmask;
 		TLOOP(*dst++ = *src++);
 	} else {
@@ -138,7 +143,7 @@ memcpy(void *dst0, const void *src0, size_t length)
 		}
 		t = length / wsize;
 		TLOOP(src -= wsize; dst -= wsize;
-		    *(word *)dst = *(const word *)src);
+		      *(word *)dst = *(const word *)src);
 		t = length & wmask;
 		TLOOP(*--dst = *--src);
 	}
@@ -148,8 +153,7 @@ done:
 
 __strong_reference(memcpy, memmove);
 
-void
-(bcopy)(const void *src0, void *dst0, size_t length)
+void(bcopy)(const void *src0, void *dst0, size_t length)
 {
 
 	memcpy(dst0, src0, length);

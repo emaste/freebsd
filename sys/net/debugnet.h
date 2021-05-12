@@ -41,28 +41,29 @@
 #pragma once
 
 #include <sys/types.h>
+
 #include <netinet/in.h>
 
 /*
  * Debugnet protocol details.
  */
-#define	DEBUGNET_HERALD		1	/* Connection handshake. */
-#define	DEBUGNET_FINISHED	2	/* Close the connection. */
-#define	DEBUGNET_DATA		3	/* Contains data. */
+#define DEBUGNET_HERALD 1   /* Connection handshake. */
+#define DEBUGNET_FINISHED 2 /* Close the connection. */
+#define DEBUGNET_DATA 3	    /* Contains data. */
 
 struct debugnet_msg_hdr {
-	uint32_t	mh_type;	/* Debugnet message type. */
-	uint32_t	mh_seqno;	/* Match acks with msgs. */
-	uint64_t	mh_offset;	/* Offset in fragment. */
-	uint32_t	mh_len;		/* Attached data (bytes). */
-	uint32_t	mh_aux2;	/* Consumer-specific. */
+	uint32_t mh_type;   /* Debugnet message type. */
+	uint32_t mh_seqno;  /* Match acks with msgs. */
+	uint64_t mh_offset; /* Offset in fragment. */
+	uint32_t mh_len;    /* Attached data (bytes). */
+	uint32_t mh_aux2;   /* Consumer-specific. */
 } __packed;
 
 struct debugnet_ack {
-	uint32_t	da_seqno;	/* Match acks with msgs. */
+	uint32_t da_seqno; /* Match acks with msgs. */
 } __packed;
 
-#define	DEBUGNET_MAX_IN_FLIGHT	64
+#define DEBUGNET_MAX_IN_FLIGHT 64
 
 #ifdef _KERNEL
 /*
@@ -81,13 +82,13 @@ typedef int debugnet_transmit_t(struct ifnet *, struct mbuf *);
 typedef int debugnet_poll_t(struct ifnet *, int);
 
 struct debugnet_methods {
-	debugnet_init_t		*dn_init;
-	debugnet_event_t	*dn_event;
-	debugnet_transmit_t	*dn_transmit;
-	debugnet_poll_t		*dn_poll;
+	debugnet_init_t *dn_init;
+	debugnet_event_t *dn_event;
+	debugnet_transmit_t *dn_transmit;
+	debugnet_poll_t *dn_poll;
 };
 
-#define	DEBUGNET_SUPPORTED_NIC(ifp)				\
+#define DEBUGNET_SUPPORTED_NIC(ifp) \
 	((ifp)->if_debugnet_methods != NULL && (ifp)->if_type == IFT_ETHER)
 
 struct debugnet_pcb; /* opaque */
@@ -96,24 +97,24 @@ struct debugnet_pcb; /* opaque */
  * Debugnet consumer API.
  */
 struct debugnet_conn_params {
-	struct ifnet	*dc_ifp;
-	in_addr_t	dc_client;
-	in_addr_t	dc_server;
-	in_addr_t	dc_gateway;
+	struct ifnet *dc_ifp;
+	in_addr_t dc_client;
+	in_addr_t dc_server;
+	in_addr_t dc_gateway;
 
-	uint16_t	dc_herald_port;
-	uint16_t	dc_client_port;
+	uint16_t dc_herald_port;
+	uint16_t dc_client_port;
 
-	const void	*dc_herald_data;
-	uint32_t	dc_herald_datalen;
+	const void *dc_herald_data;
+	uint32_t dc_herald_datalen;
 
 	/*
 	 * Consistent with debugnet_send(), aux paramaters to debugnet
 	 * functions are provided host-endian (but converted to
 	 * network endian on the wire).
 	 */
-	uint32_t	dc_herald_aux2;
-	uint64_t	dc_herald_offset;
+	uint32_t dc_herald_aux2;
+	uint64_t dc_herald_offset;
 
 	/*
 	 * If NULL, debugnet is a unidirectional channel from panic machine to
@@ -134,7 +135,7 @@ struct debugnet_conn_params {
 	 *
 	 * The handler should ACK receieved packets with debugnet_ack_output.
 	 */
-	void		(*dc_rx_handler)(struct debugnet_pcb *, struct mbuf **);
+	void (*dc_rx_handler)(struct debugnet_pcb *, struct mbuf **);
 };
 
 /*
@@ -146,8 +147,8 @@ struct debugnet_conn_params {
  *
  * Returns zero on success, or errno.
  */
-int debugnet_connect(const struct debugnet_conn_params *,
-    struct debugnet_pcb **pcb_out);
+int debugnet_connect(
+    const struct debugnet_conn_params *, struct debugnet_pcb **pcb_out);
 
 /*
  * Free a debugnet stream that was previously successfully opened.
@@ -227,15 +228,14 @@ void debugnet_any_ifnet_update(struct ifnet *);
  * Returns zero on success, or errno.
  */
 struct debugnet_ddb_config {
-	struct ifnet	*dd_ifp;	/* not ref'd */
-	in_addr_t	dd_client;
-	in_addr_t	dd_server;
-	in_addr_t	dd_gateway;
-	bool		dd_has_client : 1;
-	bool		dd_has_gateway : 1;
+	struct ifnet *dd_ifp; /* not ref'd */
+	in_addr_t dd_client;
+	in_addr_t dd_server;
+	in_addr_t dd_gateway;
+	bool dd_has_client : 1;
+	bool dd_has_gateway : 1;
 };
-int debugnet_parse_ddb_cmd(const char *cmd,
-    struct debugnet_ddb_config *result);
+int debugnet_parse_ddb_cmd(const char *cmd, struct debugnet_ddb_config *result);
 
 /* Expose sysctl variables for netdump(4) to alias. */
 extern int debugnet_npolls;
@@ -247,29 +247,29 @@ extern int debugnet_arp_nretries;
  * wrappers in every single implementation.
  */
 #ifdef DEBUGNET
-#define	DEBUGNET_DEFINE(driver)					\
-	static debugnet_init_t driver##_debugnet_init;		\
-	static debugnet_event_t driver##_debugnet_event;	\
-	static debugnet_transmit_t driver##_debugnet_transmit;	\
-	static debugnet_poll_t driver##_debugnet_poll;		\
-								\
+#define DEBUGNET_DEFINE(driver)                                      \
+	static debugnet_init_t driver##_debugnet_init;               \
+	static debugnet_event_t driver##_debugnet_event;             \
+	static debugnet_transmit_t driver##_debugnet_transmit;       \
+	static debugnet_poll_t driver##_debugnet_poll;               \
+                                                                     \
 	static struct debugnet_methods driver##_debugnet_methods = { \
-		.dn_init = driver##_debugnet_init,		\
-		.dn_event = driver##_debugnet_event,		\
-		.dn_transmit = driver##_debugnet_transmit,	\
-		.dn_poll = driver##_debugnet_poll,		\
+		.dn_init = driver##_debugnet_init,                   \
+		.dn_event = driver##_debugnet_event,                 \
+		.dn_transmit = driver##_debugnet_transmit,           \
+		.dn_poll = driver##_debugnet_poll,                   \
 	}
 
-#define	DEBUGNET_NOTIFY_MTU(ifp)	debugnet_any_ifnet_update(ifp)
+#define DEBUGNET_NOTIFY_MTU(ifp) debugnet_any_ifnet_update(ifp)
 
-#define	DEBUGNET_SET(ifp, driver)				\
+#define DEBUGNET_SET(ifp, driver) \
 	(ifp)->if_debugnet_methods = &driver##_debugnet_methods
 
 #else /* !DEBUGNET || !INET */
 
-#define	DEBUGNET_DEFINE(driver)
-#define	DEBUGNET_NOTIFY_MTU(ifp)
-#define	DEBUGNET_SET(ifp, driver)
+#define DEBUGNET_DEFINE(driver)
+#define DEBUGNET_NOTIFY_MTU(ifp)
+#define DEBUGNET_SET(ifp, driver)
 
 #endif /* DEBUGNET && INET */
 #endif /* _KERNEL */

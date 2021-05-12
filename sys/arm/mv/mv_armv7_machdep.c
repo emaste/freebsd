@@ -45,6 +45,8 @@
 __FBSDID("$FreeBSD$");
 
 #define _ARM32_BUS_DMA_PRIVATE
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -54,9 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <arm/arm/mpcore_timervar.h>
-#include <arm/arm/nexusvar.h>
-
 #include <machine/bus.h>
 #include <machine/fdt.h>
 #include <machine/machdep.h>
@@ -64,19 +63,20 @@ __FBSDID("$FreeBSD$");
 #include <machine/platformvar.h>
 #include <machine/pte-v6.h>
 
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
+#include <arm/arm/mpcore_timervar.h>
+#include <arm/arm/nexusvar.h>
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 #include <arm/mv/mvwin.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include "opt_platform.h"
 #include "platform_if.h"
 
 #if defined(SOC_MV_ARMADA38X)
-#include "platform_pl310_if.h"
 #include "armada38x/armada38x_pl310.h"
+#include "platform_pl310_if.h"
 #endif
 
 static int platform_mpp_init(void);
@@ -105,11 +105,10 @@ void mv_axp_platform_mp_setmaxid(platform_t plate);
 void mv_axp_platform_mp_start_ap(platform_t plate);
 #endif
 
-#define MPP_PIN_MAX		68
-#define MPP_PIN_CELLS		2
-#define MPP_PINS_PER_REG	8
-#define MPP_SEL(pin,func)	(((func) & 0xf) <<		\
-    (((pin) % MPP_PINS_PER_REG) * 4))
+#define MPP_PIN_MAX 68
+#define MPP_PIN_CELLS 2
+#define MPP_PINS_PER_REG 8
+#define MPP_SEL(pin, func) (((func)&0xf) << (((pin) % MPP_PINS_PER_REG) * 4))
 
 static void
 mv_busdma_tag_init(void *arg __unused)
@@ -123,7 +122,7 @@ mv_busdma_tag_init(void *arg __unused)
 	 * otherwise return without doing anything. By default create tag
 	 * for all A38x-based platforms only.
 	 */
-	if ((node = OF_finddevice("/")) == -1){
+	if ((node = OF_finddevice("/")) == -1) {
 		printf("no tree\n");
 		return;
 	}
@@ -131,20 +130,19 @@ mv_busdma_tag_init(void *arg __unused)
 	if (ofw_bus_node_is_compatible(node, "marvell,armada380") == 0)
 		return;
 
-	bus_dma_tag_create(NULL,	/* No parent tag */
-	    1, 0,			/* alignment, bounds */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    BUS_SPACE_MAXSIZE,		/* maxsize */
-	    BUS_SPACE_UNRESTRICTED,	/* nsegments */
-	    BUS_SPACE_MAXSIZE,		/* maxsegsize */
-	    BUS_DMA_COHERENT,		/* flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	bus_dma_tag_create(NULL,    /* No parent tag */
+	    1, 0,		    /* alignment, bounds */
+	    BUS_SPACE_MAXADDR,	    /* lowaddr */
+	    BUS_SPACE_MAXADDR,	    /* highaddr */
+	    NULL, NULL,		    /* filter, filterarg */
+	    BUS_SPACE_MAXSIZE,	    /* maxsize */
+	    BUS_SPACE_UNRESTRICTED, /* nsegments */
+	    BUS_SPACE_MAXSIZE,	    /* maxsegsize */
+	    BUS_DMA_COHERENT,	    /* flags */
+	    NULL, NULL,		    /* lockfunc, lockarg */
 	    &dmat);
 
 	nexus_set_dma_tag(dmat);
-
 }
 SYSINIT(mv_busdma_tag, SI_SUB_DRIVERS, SI_ORDER_ANY, mv_busdma_tag_init, NULL);
 
@@ -188,9 +186,9 @@ moveon:
 	/*
 	 * Process 'reg' prop.
 	 */
-	if ((rv = fdt_addrsize_cells(OF_parent(node), &par_addr_cells,
-	    &par_size_cells)) != 0)
-		return(ENXIO);
+	if ((rv = fdt_addrsize_cells(
+		 OF_parent(node), &par_addr_cells, &par_size_cells)) != 0)
+		return (ENXIO);
 
 	tuple_size = sizeof(pcell_t) * (par_addr_cells + par_size_cells);
 	len = OF_getprop(node, "reg", reg, sizeof(reg));
@@ -198,8 +196,8 @@ moveon:
 	if (tuple_size <= 0)
 		return (EINVAL);
 
-	rv = fdt_data_to_res(reg, par_addr_cells, par_size_cells,
-	    &start, &size);
+	rv = fdt_data_to_res(
+	    reg, par_addr_cells, par_size_cells, &start, &size);
 	if (rv != 0)
 		return (rv);
 	start += fdt_immr_va;
@@ -207,12 +205,14 @@ moveon:
 	/*
 	 * Process 'pin-count' and 'pin-map' props.
 	 */
-	if (OF_getencprop(node, "pin-count", &pin_count, sizeof(pin_count)) <= 0)
+	if (OF_getencprop(node, "pin-count", &pin_count, sizeof(pin_count)) <=
+	    0)
 		return (ENXIO);
 	if (pin_count > MPP_PIN_MAX)
 		return (ERANGE);
 
-	if (OF_getencprop(node, "#pin-cells", &pin_cells, sizeof(pin_cells)) <= 0)
+	if (OF_getencprop(node, "#pin-cells", &pin_cells, sizeof(pin_cells)) <=
+	    0)
 		pin_cells = MPP_PIN_CELLS;
 	if (pin_cells > MPP_PIN_CELLS)
 		return (ERANGE);
@@ -253,8 +253,7 @@ moveon:
 			ctrl_val |= MPP_SEL(i + j, mpp[i + j]);
 		}
 		i += MPP_PINS_PER_REG;
-		bus_space_write_4(fdtbus_bs_tag, start, ctrl_offset,
-		    ctrl_val);
+		bus_space_write_4(fdtbus_bs_tag, start, ctrl_offset, ctrl_val);
 
 		ctrl_offset += 4;
 	}
@@ -274,7 +273,8 @@ mv_platform_probe_and_attach(platform_t plate)
 {
 
 	if (fdt_immr_addr(MV_BASE) != 0)
-		while (1);
+		while (1)
+			;
 	return (0);
 }
 
@@ -287,7 +287,8 @@ mv_platform_gpio_init(platform_t plate)
 	 * console as the physical connection can be routed via MPP.
 	 */
 	if (platform_mpp_init() != 0)
-		while (1);
+		while (1)
+			;
 }
 
 static void
@@ -302,7 +303,7 @@ mv_a38x_platform_late_init(platform_t plate)
 
 	if (soc_decode_win() != 0)
 		printf("WARNING: could not re-initialise decode windows! "
-		    "Running with existing settings...\n");
+		       "Running with existing settings...\n");
 
 	/* Configure timers' base frequency */
 	arm_tmr_change_frequency(get_cpu_freq() / 2);
@@ -339,7 +340,7 @@ mv_axp_platform_late_init(platform_t plate)
 	 */
 	if (soc_decode_win() != 0)
 		printf("WARNING: could not re-initialise decode windows! "
-		    "Running with existing settings...\n");
+		       "Running with existing settings...\n");
 	if ((node = OF_finddevice("/")) == -1)
 		return;
 
@@ -350,10 +351,12 @@ mv_axp_platform_late_init(platform_t plate)
 	armadaxp_l2_init();
 }
 
-#define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX_ARMV7 + 2)
-static struct devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
-	{ 0, 0, 0, }
-};
+#define FDT_DEVMAP_MAX (MV_WIN_CPU_MAX_ARMV7 + 2)
+static struct devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = { {
+    0,
+    0,
+    0,
+} };
 
 static int
 platform_sram_devmap(struct devmap_entry *map)
@@ -406,8 +409,8 @@ mv_a38x_platform_devmap_init(platform_t plat)
 			if (i + 1 >= FDT_DEVMAP_MAX)
 				return (ENOMEM);
 
-			if (mv_pci_devmap(child, &fdt_devmap[i], MV_PCI_VA_IO_BASE,
-				    MV_PCI_VA_MEM_BASE) != 0)
+			if (mv_pci_devmap(child, &fdt_devmap[i],
+				MV_PCI_VA_IO_BASE, MV_PCI_VA_MEM_BASE) != 0)
 				return (ENXIO);
 			i += 2;
 		}
@@ -426,7 +429,7 @@ mv_axp_platform_devmap_init(platform_t plate)
 	 * accordingly. DTB is going to be modified basing on this data
 	 * later.
 	 */
-	__asm __volatile("mrc p15, 4, %0, c15, c0, 0" : "=r" (cur_immr_pa));
+	__asm __volatile("mrc p15, 4, %0, c15, c0, 0" : "=r"(cur_immr_pa));
 	cur_immr_pa = (cur_immr_pa << 13) & 0xff000000;
 	if (cur_immr_pa != 0)
 		fdt_immr_pa = cur_immr_pa;
@@ -453,8 +456,10 @@ static platform_method_t mv_a38x_methods[] = {
 	PLATFORMMETHOD(platform_gpio_init, mv_platform_gpio_init),
 	PLATFORMMETHOD(platform_late_init, mv_a38x_platform_late_init),
 	PLATFORMMETHOD(platform_pl310_init, mv_a38x_platform_pl310_init),
-	PLATFORMMETHOD(platform_pl310_write_ctrl, mv_a38x_platform_pl310_write_ctrl),
-	PLATFORMMETHOD(platform_pl310_write_debug, mv_a38x_platform_pl310_write_debug),
+	PLATFORMMETHOD(
+	    platform_pl310_write_ctrl, mv_a38x_platform_pl310_write_ctrl),
+	PLATFORMMETHOD(
+	    platform_pl310_write_debug, mv_a38x_platform_pl310_write_debug),
 #ifdef SMP
 	PLATFORMMETHOD(platform_mp_start_ap, mv_a38x_platform_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid, mv_a38x_platform_mp_setmaxid),

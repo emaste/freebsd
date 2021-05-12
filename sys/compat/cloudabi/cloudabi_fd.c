@@ -27,56 +27,55 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
-#include <sys/proc.h>
 #include <sys/mman.h>
+#include <sys/proc.h>
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
-#include <contrib/cloudabi/cloudabi_types_common.h>
-
 #include <compat/cloudabi/cloudabi_proto.h>
 #include <compat/cloudabi/cloudabi_util.h>
+#include <contrib/cloudabi/cloudabi_types_common.h>
 
 /* Translation between CloudABI and Capsicum rights. */
-#define RIGHTS_MAPPINGS \
-	MAPPING(CLOUDABI_RIGHT_FD_DATASYNC, CAP_FSYNC)			\
-	MAPPING(CLOUDABI_RIGHT_FD_READ, CAP_READ)			\
-	MAPPING(CLOUDABI_RIGHT_FD_SEEK, CAP_SEEK)			\
-	MAPPING(CLOUDABI_RIGHT_FD_STAT_PUT_FLAGS, CAP_FCNTL)		\
-	MAPPING(CLOUDABI_RIGHT_FD_SYNC, CAP_FSYNC)			\
-	MAPPING(CLOUDABI_RIGHT_FD_TELL, CAP_SEEK_TELL)			\
-	MAPPING(CLOUDABI_RIGHT_FD_WRITE, CAP_WRITE)			\
-	MAPPING(CLOUDABI_RIGHT_FILE_ADVISE)				\
-	MAPPING(CLOUDABI_RIGHT_FILE_ALLOCATE, CAP_WRITE)		\
-	MAPPING(CLOUDABI_RIGHT_FILE_CREATE_DIRECTORY, CAP_MKDIRAT)	\
-	MAPPING(CLOUDABI_RIGHT_FILE_CREATE_FILE, CAP_CREATE)		\
-	MAPPING(CLOUDABI_RIGHT_FILE_LINK_SOURCE, CAP_LINKAT_SOURCE)	\
-	MAPPING(CLOUDABI_RIGHT_FILE_LINK_TARGET, CAP_LINKAT_TARGET)	\
-	MAPPING(CLOUDABI_RIGHT_FILE_OPEN, CAP_LOOKUP)			\
-	MAPPING(CLOUDABI_RIGHT_FILE_READDIR, CAP_READ)			\
-	MAPPING(CLOUDABI_RIGHT_FILE_READLINK, CAP_LOOKUP)		\
-	MAPPING(CLOUDABI_RIGHT_FILE_RENAME_SOURCE, CAP_RENAMEAT_SOURCE)	\
-	MAPPING(CLOUDABI_RIGHT_FILE_RENAME_TARGET, CAP_RENAMEAT_TARGET)	\
-	MAPPING(CLOUDABI_RIGHT_FILE_STAT_FGET, CAP_FSTAT)		\
-	MAPPING(CLOUDABI_RIGHT_FILE_STAT_FPUT_SIZE, CAP_FTRUNCATE)	\
-	MAPPING(CLOUDABI_RIGHT_FILE_STAT_FPUT_TIMES, CAP_FUTIMES)	\
-	MAPPING(CLOUDABI_RIGHT_FILE_STAT_GET, CAP_FSTATAT)		\
-	MAPPING(CLOUDABI_RIGHT_FILE_STAT_PUT_TIMES, CAP_FUTIMESAT)	\
-	MAPPING(CLOUDABI_RIGHT_FILE_SYMLINK, CAP_SYMLINKAT)		\
-	MAPPING(CLOUDABI_RIGHT_FILE_UNLINK, CAP_UNLINKAT)		\
-	MAPPING(CLOUDABI_RIGHT_MEM_MAP, CAP_MMAP)			\
-	MAPPING(CLOUDABI_RIGHT_MEM_MAP_EXEC, CAP_MMAP_X)		\
-	MAPPING(CLOUDABI_RIGHT_POLL_FD_READWRITE, CAP_EVENT)		\
-	MAPPING(CLOUDABI_RIGHT_POLL_PROC_TERMINATE, CAP_EVENT)		\
-	MAPPING(CLOUDABI_RIGHT_PROC_EXEC, CAP_FEXECVE)			\
-	MAPPING(CLOUDABI_RIGHT_SOCK_SHUTDOWN, CAP_SHUTDOWN)		\
+#define RIGHTS_MAPPINGS                                                 \
+	MAPPING(CLOUDABI_RIGHT_FD_DATASYNC, CAP_FSYNC)                  \
+	MAPPING(CLOUDABI_RIGHT_FD_READ, CAP_READ)                       \
+	MAPPING(CLOUDABI_RIGHT_FD_SEEK, CAP_SEEK)                       \
+	MAPPING(CLOUDABI_RIGHT_FD_STAT_PUT_FLAGS, CAP_FCNTL)            \
+	MAPPING(CLOUDABI_RIGHT_FD_SYNC, CAP_FSYNC)                      \
+	MAPPING(CLOUDABI_RIGHT_FD_TELL, CAP_SEEK_TELL)                  \
+	MAPPING(CLOUDABI_RIGHT_FD_WRITE, CAP_WRITE)                     \
+	MAPPING(CLOUDABI_RIGHT_FILE_ADVISE)                             \
+	MAPPING(CLOUDABI_RIGHT_FILE_ALLOCATE, CAP_WRITE)                \
+	MAPPING(CLOUDABI_RIGHT_FILE_CREATE_DIRECTORY, CAP_MKDIRAT)      \
+	MAPPING(CLOUDABI_RIGHT_FILE_CREATE_FILE, CAP_CREATE)            \
+	MAPPING(CLOUDABI_RIGHT_FILE_LINK_SOURCE, CAP_LINKAT_SOURCE)     \
+	MAPPING(CLOUDABI_RIGHT_FILE_LINK_TARGET, CAP_LINKAT_TARGET)     \
+	MAPPING(CLOUDABI_RIGHT_FILE_OPEN, CAP_LOOKUP)                   \
+	MAPPING(CLOUDABI_RIGHT_FILE_READDIR, CAP_READ)                  \
+	MAPPING(CLOUDABI_RIGHT_FILE_READLINK, CAP_LOOKUP)               \
+	MAPPING(CLOUDABI_RIGHT_FILE_RENAME_SOURCE, CAP_RENAMEAT_SOURCE) \
+	MAPPING(CLOUDABI_RIGHT_FILE_RENAME_TARGET, CAP_RENAMEAT_TARGET) \
+	MAPPING(CLOUDABI_RIGHT_FILE_STAT_FGET, CAP_FSTAT)               \
+	MAPPING(CLOUDABI_RIGHT_FILE_STAT_FPUT_SIZE, CAP_FTRUNCATE)      \
+	MAPPING(CLOUDABI_RIGHT_FILE_STAT_FPUT_TIMES, CAP_FUTIMES)       \
+	MAPPING(CLOUDABI_RIGHT_FILE_STAT_GET, CAP_FSTATAT)              \
+	MAPPING(CLOUDABI_RIGHT_FILE_STAT_PUT_TIMES, CAP_FUTIMESAT)      \
+	MAPPING(CLOUDABI_RIGHT_FILE_SYMLINK, CAP_SYMLINKAT)             \
+	MAPPING(CLOUDABI_RIGHT_FILE_UNLINK, CAP_UNLINKAT)               \
+	MAPPING(CLOUDABI_RIGHT_MEM_MAP, CAP_MMAP)                       \
+	MAPPING(CLOUDABI_RIGHT_MEM_MAP_EXEC, CAP_MMAP_X)                \
+	MAPPING(CLOUDABI_RIGHT_POLL_FD_READWRITE, CAP_EVENT)            \
+	MAPPING(CLOUDABI_RIGHT_POLL_PROC_TERMINATE, CAP_EVENT)          \
+	MAPPING(CLOUDABI_RIGHT_PROC_EXEC, CAP_FEXECVE)                  \
+	MAPPING(CLOUDABI_RIGHT_SOCK_SHUTDOWN, CAP_SHUTDOWN)
 
 int
 cloudabi_sys_fd_close(struct thread *td, struct cloudabi_sys_fd_close_args *uap)
@@ -86,25 +85,25 @@ cloudabi_sys_fd_close(struct thread *td, struct cloudabi_sys_fd_close_args *uap)
 }
 
 int
-cloudabi_sys_fd_create1(struct thread *td,
-    struct cloudabi_sys_fd_create1_args *uap)
+cloudabi_sys_fd_create1(
+    struct thread *td, struct cloudabi_sys_fd_create1_args *uap)
 {
 	struct filecaps fcaps = {};
 
 	switch (uap->type) {
 	case CLOUDABI_FILETYPE_SHARED_MEMORY:
-		cap_rights_init(&fcaps.fc_rights, CAP_FSTAT, CAP_FTRUNCATE,
-		    CAP_MMAP_RWX);
-		return (kern_shm_open(td, SHM_ANON, O_RDWR | O_CLOEXEC, 0,
-		    &fcaps));
+		cap_rights_init(
+		    &fcaps.fc_rights, CAP_FSTAT, CAP_FTRUNCATE, CAP_MMAP_RWX);
+		return (
+		    kern_shm_open(td, SHM_ANON, O_RDWR | O_CLOEXEC, 0, &fcaps));
 	default:
 		return (EINVAL);
 	}
 }
 
 int
-cloudabi_sys_fd_create2(struct thread *td,
-    struct cloudabi_sys_fd_create2_args *uap)
+cloudabi_sys_fd_create2(
+    struct thread *td, struct cloudabi_sys_fd_create2_args *uap)
 {
 	int fds[2];
 	int error, type;
@@ -129,8 +128,8 @@ cloudabi_sys_fd_create2(struct thread *td,
 }
 
 int
-cloudabi_sys_fd_datasync(struct thread *td,
-    struct cloudabi_sys_fd_datasync_args *uap)
+cloudabi_sys_fd_datasync(
+    struct thread *td, struct cloudabi_sys_fd_datasync_args *uap)
 {
 
 	return (kern_fsync(td, uap->fd, false));
@@ -144,8 +143,8 @@ cloudabi_sys_fd_dup(struct thread *td, struct cloudabi_sys_fd_dup_args *uap)
 }
 
 int
-cloudabi_sys_fd_replace(struct thread *td,
-    struct cloudabi_sys_fd_replace_args *uap)
+cloudabi_sys_fd_replace(
+    struct thread *td, struct cloudabi_sys_fd_replace_args *uap)
 {
 	int error;
 
@@ -268,35 +267,26 @@ cloudabi_remove_conflicting_rights(cloudabi_filetype_t filetype,
 		    CLOUDABI_RIGHT_FILE_CREATE_DIRECTORY |
 		    CLOUDABI_RIGHT_FILE_CREATE_FILE |
 		    CLOUDABI_RIGHT_FILE_LINK_SOURCE |
-		    CLOUDABI_RIGHT_FILE_LINK_TARGET |
-		    CLOUDABI_RIGHT_FILE_OPEN |
-		    CLOUDABI_RIGHT_FILE_READDIR |
-		    CLOUDABI_RIGHT_FILE_READLINK |
+		    CLOUDABI_RIGHT_FILE_LINK_TARGET | CLOUDABI_RIGHT_FILE_OPEN |
+		    CLOUDABI_RIGHT_FILE_READDIR | CLOUDABI_RIGHT_FILE_READLINK |
 		    CLOUDABI_RIGHT_FILE_RENAME_SOURCE |
 		    CLOUDABI_RIGHT_FILE_RENAME_TARGET |
 		    CLOUDABI_RIGHT_FILE_STAT_FGET |
 		    CLOUDABI_RIGHT_FILE_STAT_FPUT_TIMES |
 		    CLOUDABI_RIGHT_FILE_STAT_GET |
 		    CLOUDABI_RIGHT_FILE_STAT_PUT_TIMES |
-		    CLOUDABI_RIGHT_FILE_SYMLINK |
-		    CLOUDABI_RIGHT_FILE_UNLINK |
+		    CLOUDABI_RIGHT_FILE_SYMLINK | CLOUDABI_RIGHT_FILE_UNLINK |
 		    CLOUDABI_RIGHT_POLL_FD_READWRITE;
 		*inheriting &= CLOUDABI_RIGHT_FD_DATASYNC |
-		    CLOUDABI_RIGHT_FD_READ |
-		    CLOUDABI_RIGHT_FD_SEEK |
-		    CLOUDABI_RIGHT_FD_STAT_PUT_FLAGS |
-		    CLOUDABI_RIGHT_FD_SYNC |
-		    CLOUDABI_RIGHT_FD_TELL |
-		    CLOUDABI_RIGHT_FD_WRITE |
-		    CLOUDABI_RIGHT_FILE_ADVISE |
-		    CLOUDABI_RIGHT_FILE_ALLOCATE |
+		    CLOUDABI_RIGHT_FD_READ | CLOUDABI_RIGHT_FD_SEEK |
+		    CLOUDABI_RIGHT_FD_STAT_PUT_FLAGS | CLOUDABI_RIGHT_FD_SYNC |
+		    CLOUDABI_RIGHT_FD_TELL | CLOUDABI_RIGHT_FD_WRITE |
+		    CLOUDABI_RIGHT_FILE_ADVISE | CLOUDABI_RIGHT_FILE_ALLOCATE |
 		    CLOUDABI_RIGHT_FILE_CREATE_DIRECTORY |
 		    CLOUDABI_RIGHT_FILE_CREATE_FILE |
 		    CLOUDABI_RIGHT_FILE_LINK_SOURCE |
-		    CLOUDABI_RIGHT_FILE_LINK_TARGET |
-		    CLOUDABI_RIGHT_FILE_OPEN |
-		    CLOUDABI_RIGHT_FILE_READDIR |
-		    CLOUDABI_RIGHT_FILE_READLINK |
+		    CLOUDABI_RIGHT_FILE_LINK_TARGET | CLOUDABI_RIGHT_FILE_OPEN |
+		    CLOUDABI_RIGHT_FILE_READDIR | CLOUDABI_RIGHT_FILE_READLINK |
 		    CLOUDABI_RIGHT_FILE_RENAME_SOURCE |
 		    CLOUDABI_RIGHT_FILE_RENAME_TARGET |
 		    CLOUDABI_RIGHT_FILE_STAT_FGET |
@@ -304,12 +294,9 @@ cloudabi_remove_conflicting_rights(cloudabi_filetype_t filetype,
 		    CLOUDABI_RIGHT_FILE_STAT_FPUT_TIMES |
 		    CLOUDABI_RIGHT_FILE_STAT_GET |
 		    CLOUDABI_RIGHT_FILE_STAT_PUT_TIMES |
-		    CLOUDABI_RIGHT_FILE_SYMLINK |
-		    CLOUDABI_RIGHT_FILE_UNLINK |
-		    CLOUDABI_RIGHT_MEM_MAP |
-		    CLOUDABI_RIGHT_MEM_MAP_EXEC |
-		    CLOUDABI_RIGHT_POLL_FD_READWRITE |
-		    CLOUDABI_RIGHT_PROC_EXEC;
+		    CLOUDABI_RIGHT_FILE_SYMLINK | CLOUDABI_RIGHT_FILE_UNLINK |
+		    CLOUDABI_RIGHT_MEM_MAP | CLOUDABI_RIGHT_MEM_MAP_EXEC |
+		    CLOUDABI_RIGHT_POLL_FD_READWRITE | CLOUDABI_RIGHT_PROC_EXEC;
 		break;
 	case CLOUDABI_FILETYPE_PROCESS:
 		*base &= ~(CLOUDABI_RIGHT_FILE_ADVISE |
@@ -317,37 +304,28 @@ cloudabi_remove_conflicting_rights(cloudabi_filetype_t filetype,
 		*inheriting = 0;
 		break;
 	case CLOUDABI_FILETYPE_REGULAR_FILE:
-		*base &= CLOUDABI_RIGHT_FD_DATASYNC |
-		    CLOUDABI_RIGHT_FD_READ |
-		    CLOUDABI_RIGHT_FD_SEEK |
-		    CLOUDABI_RIGHT_FD_STAT_PUT_FLAGS |
-		    CLOUDABI_RIGHT_FD_SYNC |
-		    CLOUDABI_RIGHT_FD_TELL |
-		    CLOUDABI_RIGHT_FD_WRITE |
-		    CLOUDABI_RIGHT_FILE_ADVISE |
+		*base &= CLOUDABI_RIGHT_FD_DATASYNC | CLOUDABI_RIGHT_FD_READ |
+		    CLOUDABI_RIGHT_FD_SEEK | CLOUDABI_RIGHT_FD_STAT_PUT_FLAGS |
+		    CLOUDABI_RIGHT_FD_SYNC | CLOUDABI_RIGHT_FD_TELL |
+		    CLOUDABI_RIGHT_FD_WRITE | CLOUDABI_RIGHT_FILE_ADVISE |
 		    CLOUDABI_RIGHT_FILE_ALLOCATE |
 		    CLOUDABI_RIGHT_FILE_STAT_FGET |
 		    CLOUDABI_RIGHT_FILE_STAT_FPUT_SIZE |
 		    CLOUDABI_RIGHT_FILE_STAT_FPUT_TIMES |
-		    CLOUDABI_RIGHT_MEM_MAP |
-		    CLOUDABI_RIGHT_MEM_MAP_EXEC |
-		    CLOUDABI_RIGHT_POLL_FD_READWRITE |
-		    CLOUDABI_RIGHT_PROC_EXEC;
+		    CLOUDABI_RIGHT_MEM_MAP | CLOUDABI_RIGHT_MEM_MAP_EXEC |
+		    CLOUDABI_RIGHT_POLL_FD_READWRITE | CLOUDABI_RIGHT_PROC_EXEC;
 		*inheriting = 0;
 		break;
 	case CLOUDABI_FILETYPE_SHARED_MEMORY:
-		*base &= ~(CLOUDABI_RIGHT_FD_SEEK |
-		    CLOUDABI_RIGHT_FD_TELL |
-		    CLOUDABI_RIGHT_FILE_ADVISE |
-		    CLOUDABI_RIGHT_FILE_ALLOCATE |
+		*base &= ~(CLOUDABI_RIGHT_FD_SEEK | CLOUDABI_RIGHT_FD_TELL |
+		    CLOUDABI_RIGHT_FILE_ADVISE | CLOUDABI_RIGHT_FILE_ALLOCATE |
 		    CLOUDABI_RIGHT_FILE_READDIR);
 		*inheriting = 0;
 		break;
 	case CLOUDABI_FILETYPE_SOCKET_DGRAM:
 	case CLOUDABI_FILETYPE_SOCKET_STREAM:
 		*base &= CLOUDABI_RIGHT_FD_READ |
-		    CLOUDABI_RIGHT_FD_STAT_PUT_FLAGS |
-		    CLOUDABI_RIGHT_FD_WRITE |
+		    CLOUDABI_RIGHT_FD_STAT_PUT_FLAGS | CLOUDABI_RIGHT_FD_WRITE |
 		    CLOUDABI_RIGHT_FILE_STAT_FGET |
 		    CLOUDABI_RIGHT_POLL_FD_READWRITE |
 		    CLOUDABI_RIGHT_SOCK_SHUTDOWN;
@@ -368,10 +346,11 @@ convert_capabilities(const cap_rights_t *capabilities,
 
 	/* Convert FreeBSD bits to CloudABI bits. */
 	rights = 0;
-#define MAPPING(cloudabi, ...) do {				\
-	if (cap_rights_is_set(capabilities, ##__VA_ARGS__))	\
-		rights |= (cloudabi);				\
-} while (0);
+#define MAPPING(cloudabi, ...)                                      \
+	do {                                                        \
+		if (cap_rights_is_set(capabilities, ##__VA_ARGS__)) \
+			rights |= (cloudabi);                       \
+	} while (0);
 	RIGHTS_MAPPINGS
 #undef MAPPING
 
@@ -381,18 +360,17 @@ convert_capabilities(const cap_rights_t *capabilities,
 }
 
 int
-cloudabi_sys_fd_stat_get(struct thread *td,
-    struct cloudabi_sys_fd_stat_get_args *uap)
+cloudabi_sys_fd_stat_get(
+    struct thread *td, struct cloudabi_sys_fd_stat_get_args *uap)
 {
-	cloudabi_fdstat_t fsb = {0};
+	cloudabi_fdstat_t fsb = { 0 };
 	struct file *fp;
 	cap_rights_t rights;
 	struct filecaps fcaps;
 	int error, oflags;
 
 	/* Obtain file descriptor properties. */
-	error = fget_cap(td, uap->fd, cap_rights_init(&rights), &fp,
-	    &fcaps);
+	error = fget_cap(td, uap->fd, cap_rights_init(&rights), &fp, &fcaps);
 	if (error != 0)
 		return (error);
 	oflags = OFLAGS(fp->f_flag);
@@ -420,12 +398,13 @@ cloudabi_convert_rights(cloudabi_rights_t in, cap_rights_t *out)
 {
 
 	cap_rights_init(out);
-#define MAPPING(cloudabi, ...) do {			\
-	if (in & (cloudabi)) {				\
-		cap_rights_set(out, ##__VA_ARGS__);	\
-		in &= ~(cloudabi);			\
-	}						\
-} while (0);
+#define MAPPING(cloudabi, ...)                              \
+	do {                                                \
+		if (in & (cloudabi)) {                      \
+			cap_rights_set(out, ##__VA_ARGS__); \
+			in &= ~(cloudabi);                  \
+		}                                           \
+	} while (0);
 	RIGHTS_MAPPINGS
 #undef MAPPING
 	if (in != 0)
@@ -434,8 +413,8 @@ cloudabi_convert_rights(cloudabi_rights_t in, cap_rights_t *out)
 }
 
 int
-cloudabi_sys_fd_stat_put(struct thread *td,
-    struct cloudabi_sys_fd_stat_put_args *uap)
+cloudabi_sys_fd_stat_put(
+    struct thread *td, struct cloudabi_sys_fd_stat_put_args *uap)
 {
 	cloudabi_fdstat_t fsb;
 	cap_rights_t rights;
@@ -452,8 +431,9 @@ cloudabi_sys_fd_stat_put(struct thread *td,
 			oflags |= O_APPEND;
 		if (fsb.fs_flags & CLOUDABI_FDFLAG_NONBLOCK)
 			oflags |= O_NONBLOCK;
-		if (fsb.fs_flags & (CLOUDABI_FDFLAG_SYNC |
-		    CLOUDABI_FDFLAG_DSYNC | CLOUDABI_FDFLAG_RSYNC))
+		if (fsb.fs_flags &
+		    (CLOUDABI_FDFLAG_SYNC | CLOUDABI_FDFLAG_DSYNC |
+			CLOUDABI_FDFLAG_RSYNC))
 			oflags |= O_SYNC;
 		return (kern_fcntl(td, uap->fd, F_SETFL, oflags));
 	} else if (uap->flags == CLOUDABI_FDSTAT_RIGHTS) {

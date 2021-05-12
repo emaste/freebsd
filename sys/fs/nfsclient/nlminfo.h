@@ -33,11 +33,11 @@
  * Misc NLM informationi, some needed for the master lockd process, and some
  * needed by every process doing nlm based locking.
  */
-struct  nlminfo {
+struct nlminfo {
 	/* these are used by any process doing nlm locking */
-        int             msg_seq;        /* sequence counter for lock requests */
-        int             retcode;        /* return code for lock requests */
-	int		set_getlk_pid;
-	int		getlk_pid;
-        struct  timeval pid_start;      /* process starting time */
+	int msg_seq; /* sequence counter for lock requests */
+	int retcode; /* return code for lock requests */
+	int set_getlk_pid;
+	int getlk_pid;
+	struct timeval pid_start; /* process starting time */
 };

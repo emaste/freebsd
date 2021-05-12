@@ -28,33 +28,31 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
-#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/cpufunc.h>
 #include <machine/cpu.h>
+#include <machine/cpufunc.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 
 #include <x86/apicreg.h>
 #include <x86/apicvar.h>
-
-#include <xen/xen-os.h>
 #include <xen/features.h>
 #include <xen/gnttab.h>
-#include <xen/hypervisor.h>
 #include <xen/hvm.h>
-#include <xen/xen_intr.h>
-
+#include <xen/hypervisor.h>
 #include <xen/interface/vcpu.h>
+#include <xen/xen-os.h>
+#include <xen/xen_intr.h>
 
 /*--------------------------------- Macros -----------------------------------*/
 
@@ -79,31 +77,29 @@ static driver_filter_t xen_ipi_swi_handler;
 #endif
 
 /*---------------------------------- Macros ----------------------------------*/
-#define	IPI_TO_IDX(ipi) ((ipi) - APIC_IPI_INTS)
+#define IPI_TO_IDX(ipi) ((ipi)-APIC_IPI_INTS)
 
 /*--------------------------------- Xen IPIs ---------------------------------*/
 #ifdef SMP
-struct xen_ipi_handler
-{
-	driver_filter_t	*filter;
-	const char	*description;
+struct xen_ipi_handler {
+	driver_filter_t *filter;
+	const char *description;
 };
 
-static struct xen_ipi_handler xen_ipis[] = 
-{
-	[IPI_TO_IDX(IPI_RENDEZVOUS)]	= { xen_smp_rendezvous_action,	"r"   },
+static struct xen_ipi_handler xen_ipis[] = {
+	[IPI_TO_IDX(IPI_RENDEZVOUS)] = { xen_smp_rendezvous_action, "r" },
 #ifdef __amd64__
-	[IPI_TO_IDX(IPI_INVLOP)]	= { xen_invlop,			"itlb"},
+	[IPI_TO_IDX(IPI_INVLOP)] = { xen_invlop, "itlb" },
 #else
-	[IPI_TO_IDX(IPI_INVLTLB)]	= { xen_invltlb,		"itlb"},
-	[IPI_TO_IDX(IPI_INVLPG)]	= { xen_invlpg,			"ipg" },
-	[IPI_TO_IDX(IPI_INVLRNG)]	= { xen_invlrng,		"irg" },
-	[IPI_TO_IDX(IPI_INVLCACHE)]	= { xen_invlcache,		"ic"  },
+	[IPI_TO_IDX(IPI_INVLTLB)] = { xen_invltlb, "itlb" },
+	[IPI_TO_IDX(IPI_INVLPG)] = { xen_invlpg, "ipg" },
+	[IPI_TO_IDX(IPI_INVLRNG)] = { xen_invlrng, "irg" },
+	[IPI_TO_IDX(IPI_INVLCACHE)] = { xen_invlcache, "ic" },
 #endif
-	[IPI_TO_IDX(IPI_BITMAP_VECTOR)] = { xen_ipi_bitmap_handler,	"b"   },
-	[IPI_TO_IDX(IPI_STOP)]		= { xen_cpustop_handler,	"st"  },
-	[IPI_TO_IDX(IPI_SUSPEND)]	= { xen_cpususpend_handler,	"sp"  },
-	[IPI_TO_IDX(IPI_SWI)]		= { xen_ipi_swi_handler,	"sw"  },
+	[IPI_TO_IDX(IPI_BITMAP_VECTOR)] = { xen_ipi_bitmap_handler, "b" },
+	[IPI_TO_IDX(IPI_STOP)] = { xen_cpustop_handler, "st" },
+	[IPI_TO_IDX(IPI_SUSPEND)] = { xen_cpususpend_handler, "sp" },
+	[IPI_TO_IDX(IPI_SWI)] = { xen_ipi_swi_handler, "sw" },
 };
 #endif
 
@@ -125,13 +121,11 @@ xen_pv_lapic_create(u_int apic_id, int boot_cpu)
 static void
 xen_pv_lapic_init(vm_paddr_t addr)
 {
-
 }
 
 static void
 xen_pv_lapic_setup(int boot)
 {
-
 }
 
 static void
@@ -144,7 +138,6 @@ xen_pv_lapic_dump(const char *str)
 static void
 xen_pv_lapic_disable(void)
 {
-
 }
 
 static bool
@@ -255,7 +248,6 @@ xen_pv_lapic_reenable_pmc(void)
 static void
 xen_pv_lapic_enable_cmc(void)
 {
-
 }
 
 #ifdef SMP
@@ -278,17 +270,17 @@ send_nmi(int dest)
 	 * using the local APIC, or an hypercall as a shortcut like it's done
 	 * below.
 	 */
-	switch(dest) {
+	switch (dest) {
 	case APIC_IPI_DEST_SELF:
 		HYPERVISOR_vcpu_op(VCPUOP_send_nmi, PCPU_GET(vcpu_id), NULL);
 		break;
 	case APIC_IPI_DEST_ALL:
-		CPU_FOREACH(cpu)
-			HYPERVISOR_vcpu_op(VCPUOP_send_nmi,
-			    PCPU_ID_GET(cpu, vcpu_id), NULL);
+		CPU_FOREACH (cpu)
+			HYPERVISOR_vcpu_op(
+			    VCPUOP_send_nmi, PCPU_ID_GET(cpu, vcpu_id), NULL);
 		break;
 	case APIC_IPI_DEST_OTHERS:
-		CPU_FOREACH(cpu)
+		CPU_FOREACH (cpu)
 			if (cpu != PCPU_GET(cpuid))
 				HYPERVISOR_vcpu_op(VCPUOP_send_nmi,
 				    PCPU_ID_GET(cpu, vcpu_id), NULL);
@@ -316,20 +308,20 @@ xen_pv_lapic_ipi_vectored(u_int vector, int dest)
 	if (ipi_idx >= nitems(xen_ipis))
 		panic("IPI out of range");
 
-	switch(dest) {
+	switch (dest) {
 	case APIC_IPI_DEST_SELF:
 		ipi_handle = DPCPU_GET(ipi_handle);
 		xen_intr_signal(ipi_handle[ipi_idx]);
 		break;
 	case APIC_IPI_DEST_ALL:
-		CPU_FOREACH(to_cpu) {
+		CPU_FOREACH (to_cpu) {
 			ipi_handle = DPCPU_ID_GET(to_cpu, ipi_handle);
 			xen_intr_signal(ipi_handle[ipi_idx]);
 		}
 		break;
 	case APIC_IPI_DEST_OTHERS:
 		self = PCPU_GET(cpuid);
-		CPU_FOREACH(to_cpu) {
+		CPU_FOREACH (to_cpu) {
 			if (to_cpu != self) {
 				ipi_handle = DPCPU_ID_GET(to_cpu, ipi_handle);
 				xen_intr_signal(ipi_handle[ipi_idx]);
@@ -351,7 +343,7 @@ xen_pv_lapic_ipi_wait(int delay)
 	XEN_APIC_UNSUPPORTED;
 	return (0);
 }
-#endif	/* SMP */
+#endif /* SMP */
 
 static int
 xen_pv_lapic_ipi_alloc(inthand_t *ipifunc)
@@ -393,8 +385,8 @@ xen_pv_lapic_set_lvt_polarity(u_int apic_id, u_int lvt, enum intr_polarity pol)
 }
 
 static int
-xen_pv_lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
-    enum intr_trigger trigger)
+xen_pv_lapic_set_lvt_triggermode(
+    u_int apic_id, u_int lvt, enum intr_trigger trigger)
 {
 
 	XEN_APIC_UNSUPPORTED;
@@ -403,38 +395,38 @@ xen_pv_lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 
 /* Xen apic_ops implementation */
 struct apic_ops xen_apic_ops = {
-	.create			= xen_pv_lapic_create,
-	.init			= xen_pv_lapic_init,
-	.xapic_mode		= xen_pv_lapic_disable,
-	.is_x2apic		= xen_pv_lapic_is_x2apic,
-	.setup			= xen_pv_lapic_setup,
-	.dump			= xen_pv_lapic_dump,
-	.disable		= xen_pv_lapic_disable,
-	.eoi			= xen_pv_lapic_eoi,
-	.id			= xen_pv_lapic_id,
-	.intr_pending		= xen_pv_lapic_intr_pending,
-	.set_logical_id		= xen_pv_lapic_set_logical_id,
-	.cpuid			= xen_pv_apic_cpuid,
-	.alloc_vector		= xen_pv_apic_alloc_vector,
-	.alloc_vectors		= xen_pv_apic_alloc_vectors,
-	.enable_vector		= xen_pv_apic_enable_vector,
-	.disable_vector		= xen_pv_apic_disable_vector,
-	.free_vector		= xen_pv_apic_free_vector,
-	.enable_pmc		= xen_pv_lapic_enable_pmc,
-	.disable_pmc		= xen_pv_lapic_disable_pmc,
-	.reenable_pmc		= xen_pv_lapic_reenable_pmc,
-	.enable_cmc		= xen_pv_lapic_enable_cmc,
+	.create = xen_pv_lapic_create,
+	.init = xen_pv_lapic_init,
+	.xapic_mode = xen_pv_lapic_disable,
+	.is_x2apic = xen_pv_lapic_is_x2apic,
+	.setup = xen_pv_lapic_setup,
+	.dump = xen_pv_lapic_dump,
+	.disable = xen_pv_lapic_disable,
+	.eoi = xen_pv_lapic_eoi,
+	.id = xen_pv_lapic_id,
+	.intr_pending = xen_pv_lapic_intr_pending,
+	.set_logical_id = xen_pv_lapic_set_logical_id,
+	.cpuid = xen_pv_apic_cpuid,
+	.alloc_vector = xen_pv_apic_alloc_vector,
+	.alloc_vectors = xen_pv_apic_alloc_vectors,
+	.enable_vector = xen_pv_apic_enable_vector,
+	.disable_vector = xen_pv_apic_disable_vector,
+	.free_vector = xen_pv_apic_free_vector,
+	.enable_pmc = xen_pv_lapic_enable_pmc,
+	.disable_pmc = xen_pv_lapic_disable_pmc,
+	.reenable_pmc = xen_pv_lapic_reenable_pmc,
+	.enable_cmc = xen_pv_lapic_enable_cmc,
 #ifdef SMP
-	.ipi_raw		= xen_pv_lapic_ipi_raw,
-	.ipi_vectored		= xen_pv_lapic_ipi_vectored,
-	.ipi_wait		= xen_pv_lapic_ipi_wait,
+	.ipi_raw = xen_pv_lapic_ipi_raw,
+	.ipi_vectored = xen_pv_lapic_ipi_vectored,
+	.ipi_wait = xen_pv_lapic_ipi_wait,
 #endif
-	.ipi_alloc		= xen_pv_lapic_ipi_alloc,
-	.ipi_free		= xen_pv_lapic_ipi_free,
-	.set_lvt_mask		= xen_pv_lapic_set_lvt_mask,
-	.set_lvt_mode		= xen_pv_lapic_set_lvt_mode,
-	.set_lvt_polarity	= xen_pv_lapic_set_lvt_polarity,
-	.set_lvt_triggermode	= xen_pv_lapic_set_lvt_triggermode,
+	.ipi_alloc = xen_pv_lapic_ipi_alloc,
+	.ipi_free = xen_pv_lapic_ipi_free,
+	.set_lvt_mask = xen_pv_lapic_set_lvt_mask,
+	.set_lvt_mode = xen_pv_lapic_set_lvt_mode,
+	.set_lvt_polarity = xen_pv_lapic_set_lvt_polarity,
+	.set_lvt_triggermode = xen_pv_lapic_set_lvt_triggermode,
 };
 
 #ifdef SMP
@@ -553,8 +545,8 @@ xen_cpu_ipi_init(int cpu)
 			continue;
 		}
 
-		rc = xen_intr_alloc_and_bind_ipi(cpu, ipi->filter,
-		    INTR_TYPE_TTY, &ipi_handle[idx]);
+		rc = xen_intr_alloc_and_bind_ipi(
+		    cpu, ipi->filter, INTR_TYPE_TTY, &ipi_handle[idx]);
 		if (rc != 0)
 			panic("Unable to allocate a XEN IPI port");
 		xen_intr_describe(ipi_handle[idx], "%s", ipi->description);
@@ -569,7 +561,7 @@ xen_setup_cpus(void)
 	if (!xen_vector_callback_enabled)
 		return;
 
-	CPU_FOREACH(i)
+	CPU_FOREACH (i)
 		xen_cpu_ipi_init(i);
 
 	/* Set the xen pv ipi ops to replace the native ones */

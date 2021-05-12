@@ -47,20 +47,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <vm/vm_map.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
+#include <vm/vm_param.h>
 
 #include <i386/linux/linux.h>
 
-static int	exec_linux_imgact(struct image_params *iparams);
+static int exec_linux_imgact(struct image_params *iparams);
 
 static int
 exec_linux_imgact(struct image_params *imgp)
 {
-	const struct exec *a_out = (const struct exec *) imgp->image_header;
+	const struct exec *a_out = (const struct exec *)imgp->image_header;
 	struct vmspace *vmspace;
 	vm_offset_t vmaddr;
 	unsigned long virtual_offset, file_offset;
@@ -196,13 +196,14 @@ exec_linux_imgact(struct image_params *imgp)
 		 */
 		if (bss_size != 0) {
 			vmaddr = virtual_offset + a_out->a_text + a_out->a_data;
-		error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr,
-		    bss_size, 0, VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0);
-		if (error)
-			goto fail;
+			error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr,
+			    bss_size, 0, VMFS_NO_SPACE, VM_PROT_ALL,
+			    VM_PROT_ALL, 0);
+			if (error)
+				goto fail;
 #ifdef DEBUG
-		printf("imgact: bssaddr=%08lx, length=%08lx\n", (u_long)vmaddr,
-		    bss_size);
+			printf("imgact: bssaddr=%08lx, length=%08lx\n",
+			    (u_long)vmaddr, bss_size);
 #endif
 		}
 	}
@@ -210,8 +211,8 @@ exec_linux_imgact(struct image_params *imgp)
 	vmspace->vm_tsize = round_page(a_out->a_text) >> PAGE_SHIFT;
 	vmspace->vm_dsize = round_page(a_out->a_data + bss_size) >> PAGE_SHIFT;
 	vmspace->vm_taddr = (caddr_t)(void *)(uintptr_t)virtual_offset;
-	vmspace->vm_daddr =
-	    (caddr_t)(void *)(uintptr_t)(virtual_offset + a_out->a_text);
+	vmspace->vm_daddr = (caddr_t)(void *)(uintptr_t)(
+	    virtual_offset + a_out->a_text);
 
 	/* Fill in image_params */
 	imgp->interpreted = 0;

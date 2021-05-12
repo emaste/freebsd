@@ -28,27 +28,27 @@
  */
 /* $FreeBSD$ */
 
-#ifndef	_NFS_FHA_NEW_H
-#define	_NFS_FHA_NEW_H 1
+#ifndef _NFS_FHA_NEW_H
+#define _NFS_FHA_NEW_H 1
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 
-#define	FHANEW_SERVER_NAME	"nfsd"
+#define FHANEW_SERVER_NAME "nfsd"
 
 /* Sysctl defaults. */
-#define FHA_DEF_ENABLE			1
-#define FHA_DEF_READ			1
-#define FHA_DEF_WRITE			1
-#define FHA_DEF_BIN_SHIFT		22 /* 4MB */
-#define FHA_DEF_MAX_NFSDS_PER_FH	8
-#define FHA_DEF_MAX_REQS_PER_NFSD	0  /* Unlimited */
+#define FHA_DEF_ENABLE 1
+#define FHA_DEF_READ 1
+#define FHA_DEF_WRITE 1
+#define FHA_DEF_BIN_SHIFT 22 /* 4MB */
+#define FHA_DEF_MAX_NFSDS_PER_FH 8
+#define FHA_DEF_MAX_REQS_PER_NFSD 0 /* Unlimited */
 
-#define FHA_HASH_SIZE	251
+#define FHA_HASH_SIZE 251
 
 struct fha_ctls {
-	int	 enable;
-	int	 read;
-	int	 write;
+	int enable;
+	int read;
+	int write;
 	uint32_t bin_shift;
 	uint32_t max_nfsds_per_fh;
 	uint32_t max_reqs_per_nfsd;

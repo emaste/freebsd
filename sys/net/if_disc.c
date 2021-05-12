@@ -37,53 +37,53 @@
  * (Based on the loopback.)
  */
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/module.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 
+#include <net/bpf.h>
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 #include <net/route.h>
-#include <net/bpf.h>
 #include <net/vnet.h>
 
-#include "opt_inet.h"
-#include "opt_inet6.h"
-
 #ifdef TINY_DSMTU
-#define	DSMTU	(1024+512)
+#define DSMTU (1024 + 512)
 #else
-#define DSMTU	65532
+#define DSMTU 65532
 #endif
 
 struct disc_softc {
 	struct ifnet *sc_ifp;
 };
 
-static int	discoutput(struct ifnet *, struct mbuf *,
-		    const struct sockaddr *, struct route *);
-static int	discioctl(struct ifnet *, u_long, caddr_t);
-static int	disc_clone_create(struct if_clone *, int, caddr_t);
-static void	disc_clone_destroy(struct ifnet *);
+static int discoutput(
+    struct ifnet *, struct mbuf *, const struct sockaddr *, struct route *);
+static int discioctl(struct ifnet *, u_long, caddr_t);
+static int disc_clone_create(struct if_clone *, int, caddr_t);
+static void disc_clone_destroy(struct ifnet *);
 
 static const char discname[] = "disc";
 static MALLOC_DEFINE(M_DISC, discname, "Discard interface");
 
 VNET_DEFINE_STATIC(struct if_clone *, disc_cloner);
-#define	V_disc_cloner	VNET(disc_cloner)
+#define V_disc_cloner VNET(disc_cloner)
 
 static int
 disc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
-	struct ifnet		*ifp;
-	struct disc_softc	*sc;
+	struct ifnet *ifp;
+	struct disc_softc *sc;
 
 	sc = malloc(sizeof(struct disc_softc), M_DISC, M_WAITOK | M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(IFT_LOOP);
@@ -121,7 +121,7 @@ disc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 static void
 disc_clone_destroy(struct ifnet *ifp)
 {
-	struct disc_softc	*sc;
+	struct disc_softc *sc;
 
 	sc = ifp->if_softc;
 
@@ -136,11 +136,10 @@ static void
 vnet_disc_init(const void *unused __unused)
 {
 
-	V_disc_cloner = if_clone_simple(discname, disc_clone_create,
-	    disc_clone_destroy, 0);
+	V_disc_cloner = if_clone_simple(
+	    discname, disc_clone_create, disc_clone_destroy, 0);
 }
-VNET_SYSINIT(vnet_disc_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
-    vnet_disc_init, NULL);
+VNET_SYSINIT(vnet_disc_init, SI_SUB_PSEUDO, SI_ORDER_ANY, vnet_disc_init, NULL);
 
 static void
 vnet_disc_uninit(const void *unused __unused)
@@ -148,8 +147,8 @@ vnet_disc_uninit(const void *unused __unused)
 
 	if_clone_detach(V_disc_cloner);
 }
-VNET_SYSUNINIT(vnet_disc_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
-    vnet_disc_uninit, NULL);
+VNET_SYSUNINIT(
+    vnet_disc_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY, vnet_disc_uninit, NULL);
 
 static int
 disc_modevent(module_t mod, int type, void *data)
@@ -165,11 +164,7 @@ disc_modevent(module_t mod, int type, void *data)
 	return (0);
 }
 
-static moduledata_t disc_mod = {
-	"if_disc",
-	disc_modevent,
-	NULL
-};
+static moduledata_t disc_mod = { "if_disc", disc_modevent, NULL };
 
 DECLARE_MODULE(if_disc, disc_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
@@ -219,7 +214,7 @@ discioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		if (ifr == NULL) {
-			error = EAFNOSUPPORT;		/* XXX */
+			error = EAFNOSUPPORT; /* XXX */
 			break;
 		}
 		switch (ifr->ifr_addr.sa_family) {

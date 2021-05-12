@@ -9,7 +9,7 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice(s), this list of conditions and the following disclaimer as
- *    the first lines of this file unmodified other than the possible 
+ *    the first lines of this file unmodified other than the possible
  *    addition of one or more copyright notices.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice(s), this list of conditions and the following disclaimer in the
@@ -31,20 +31,20 @@
  */
 
 #ifndef _SYS__LOCKMGR_H_
-#define	_SYS__LOCKMGR_H_
+#define _SYS__LOCKMGR_H_
 
 #ifdef DEBUG_LOCKS
 #include <sys/_stack.h>
 #endif
 
 struct lock {
-	struct lock_object	lock_object;
-	volatile uintptr_t	lk_lock;
-	u_short			lk_exslpfail;
-	u_short			lk_pri;
-	int			lk_timo;
+	struct lock_object lock_object;
+	volatile uintptr_t lk_lock;
+	u_short lk_exslpfail;
+	u_short lk_pri;
+	int lk_timo;
 #ifdef DEBUG_LOCKS
-	struct stack		lk_stack;
+	struct stack lk_stack;
 #endif
 };
 

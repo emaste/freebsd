@@ -36,21 +36,21 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/event.h>
+#include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
-#include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/malloc.h>
-#include <sys/selinfo.h>
+#include <sys/mutex.h>
 #include <sys/pipe.h>
 #include <sys/proc.h>
+#include <sys/selinfo.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
-#include <sys/systm.h>
 #include <sys/un.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -64,43 +64,43 @@
  */
 struct fifoinfo {
 	struct pipe *fi_pipe;
-	long	fi_readers;
-	long	fi_writers;
-	u_int	fi_rgen;
-	u_int	fi_wgen;
+	long fi_readers;
+	long fi_writers;
+	u_int fi_rgen;
+	u_int fi_wgen;
 };
 
-static vop_print_t	fifo_print;
-static vop_open_t	fifo_open;
-static vop_close_t	fifo_close;
-static vop_advlock_t	fifo_advlock;
+static vop_print_t fifo_print;
+static vop_open_t fifo_open;
+static vop_close_t fifo_close;
+static vop_advlock_t fifo_advlock;
 
 struct vop_vector fifo_specops = {
-	.vop_default =		&default_vnodeops,
+	.vop_default = &default_vnodeops,
 
-	.vop_advlock =		fifo_advlock,
-	.vop_close =		fifo_close,
-	.vop_create =		VOP_PANIC,
-	.vop_getattr =		VOP_EBADF,
-	.vop_ioctl =		VOP_PANIC,
-	.vop_kqfilter =		VOP_PANIC,
-	.vop_link =		VOP_PANIC,
-	.vop_mkdir =		VOP_PANIC,
-	.vop_mknod =		VOP_PANIC,
-	.vop_open =		fifo_open,
-	.vop_pathconf =		VOP_PANIC,
-	.vop_print =		fifo_print,
-	.vop_read =		VOP_PANIC,
-	.vop_readdir =		VOP_PANIC,
-	.vop_readlink =		VOP_PANIC,
-	.vop_reallocblks =	VOP_PANIC,
-	.vop_reclaim =		VOP_NULL,
-	.vop_remove =		VOP_PANIC,
-	.vop_rename =		VOP_PANIC,
-	.vop_rmdir =		VOP_PANIC,
-	.vop_setattr =		VOP_EBADF,
-	.vop_symlink =		VOP_PANIC,
-	.vop_write =		VOP_PANIC,
+	.vop_advlock = fifo_advlock,
+	.vop_close = fifo_close,
+	.vop_create = VOP_PANIC,
+	.vop_getattr = VOP_EBADF,
+	.vop_ioctl = VOP_PANIC,
+	.vop_kqfilter = VOP_PANIC,
+	.vop_link = VOP_PANIC,
+	.vop_mkdir = VOP_PANIC,
+	.vop_mknod = VOP_PANIC,
+	.vop_open = fifo_open,
+	.vop_pathconf = VOP_PANIC,
+	.vop_print = fifo_print,
+	.vop_read = VOP_PANIC,
+	.vop_readdir = VOP_PANIC,
+	.vop_readlink = VOP_PANIC,
+	.vop_reallocblks = VOP_PANIC,
+	.vop_reclaim = VOP_NULL,
+	.vop_remove = VOP_PANIC,
+	.vop_rename = VOP_PANIC,
+	.vop_rmdir = VOP_PANIC,
+	.vop_setattr = VOP_EBADF,
+	.vop_symlink = VOP_PANIC,
+	.vop_write = VOP_PANIC,
 };
 VFS_VOP_VECTOR_REGISTER(fifo_specops);
 
@@ -126,15 +126,14 @@ fifo_cleanup(struct vnode *vp)
  * to find an active instance of a fifo.
  */
 /* ARGSUSED */
-static int
-fifo_open(ap)
-	struct vop_open_args /* {
-		struct vnode *a_vp;
-		int  a_mode;
-		struct ucred *a_cred;
-		struct thread *a_td;
-		struct file *a_fp;
-	} */ *ap;
+static int fifo_open(ap) struct vop_open_args
+    /* {
+struct vnode *a_vp;
+int  a_mode;
+struct ucred *a_cred;
+struct thread *a_td;
+struct file *a_fp;
+} */ *ap;
 {
 	struct vnode *vp;
 	struct file *fp;
@@ -157,11 +156,11 @@ fifo_open(ap)
 		fip = malloc(sizeof(*fip), M_VNODE, M_WAITOK);
 		fip->fi_pipe = fpipe;
 		fpipe->pipe_wgen = fip->fi_readers = fip->fi_writers = 0;
- 		KASSERT(vp->v_fifoinfo == NULL, ("fifo_open: v_fifoinfo race"));
+		KASSERT(vp->v_fifoinfo == NULL, ("fifo_open: v_fifoinfo race"));
 		vp->v_fifoinfo = fip;
 	}
 	fpipe = fip->fi_pipe;
- 	KASSERT(fpipe != NULL, ("fifo_open: pipe is NULL"));
+	KASSERT(fpipe != NULL, ("fifo_open: pipe is NULL"));
 
 	/*
 	 * Use the pipe mutex here, in addition to the vnode lock,
@@ -268,14 +267,13 @@ fifo_open(ap)
  * Device close routine
  */
 /* ARGSUSED */
-static int
-fifo_close(ap)
-	struct vop_close_args /* {
-		struct vnode *a_vp;
-		int  a_fflag;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+static int fifo_close(ap) struct vop_close_args
+    /* {
+struct vnode *a_vp;
+int  a_fflag;
+struct ucred *a_cred;
+struct thread *a_td;
+} */ *ap;
 {
 	struct vnode *vp;
 	struct fifoinfo *fip;
@@ -319,29 +317,26 @@ fifo_close(ap)
 /*
  * Print out internal contents of a fifo vnode.
  */
-int
-fifo_printinfo(vp)
-	struct vnode *vp;
+int fifo_printinfo(vp) struct vnode *vp;
 {
 	struct fifoinfo *fip = vp->v_fifoinfo;
 
-	if (fip == NULL){
+	if (fip == NULL) {
 		printf(", NULL v_fifoinfo");
 		return (0);
 	}
-	printf(", fifo with %ld readers and %ld writers",
-		fip->fi_readers, fip->fi_writers);
+	printf(", fifo with %ld readers and %ld writers", fip->fi_readers,
+	    fip->fi_writers);
 	return (0);
 }
 
 /*
  * Print out the contents of a fifo vnode.
  */
-static int
-fifo_print(ap)
-	struct vop_print_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+static int fifo_print(ap) struct vop_print_args
+    /* {
+struct vnode *a_vp;
+} */ *ap;
 {
 	printf("    ");
 	fifo_printinfo(ap->a_vp);
@@ -353,15 +348,14 @@ fifo_print(ap)
  * Fifo advisory byte-level locks.
  */
 /* ARGSUSED */
-static int
-fifo_advlock(ap)
-	struct vop_advlock_args /* {
-		struct vnode *a_vp;
-		caddr_t  a_id;
-		int  a_op;
-		struct flock *a_fl;
-		int  a_flags;
-	} */ *ap;
+static int fifo_advlock(ap) struct vop_advlock_args
+    /* {
+struct vnode *a_vp;
+caddr_t  a_id;
+int  a_op;
+struct flock *a_fl;
+int  a_flags;
+} */ *ap;
 {
 
 	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);

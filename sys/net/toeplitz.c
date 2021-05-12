@@ -28,29 +28,28 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/systm.h>
 
 #include <net/rss_config.h>
 #include <net/toeplitz.h>
 
-#include <sys/systm.h>
-
 uint32_t
-toeplitz_hash(u_int keylen, const uint8_t *key, u_int datalen,
-    const uint8_t *data)
+toeplitz_hash(
+    u_int keylen, const uint8_t *key, u_int datalen, const uint8_t *data)
 {
 	uint32_t hash = 0, v;
 	u_int i, b;
 
 	/* XXXRW: Perhaps an assertion about key length vs. data length? */
 
-	v = (key[0]<<24) + (key[1]<<16) + (key[2] <<8) + key[3];
+	v = (key[0] << 24) + (key[1] << 16) + (key[2] << 8) + key[3];
 	for (i = 0; i < datalen; i++) {
 		for (b = 0; b < 8; b++) {
-			if (data[i] & (1<<(7-b)))
+			if (data[i] & (1 << (7 - b)))
 				hash ^= v;
 			v <<= 1;
 			if ((i + 4) < RSS_KEYSIZE &&
-			    (key[i+4] & (1<<(7-b))))
+			    (key[i + 4] & (1 << (7 - b))))
 				v |= 1;
 		}
 	}

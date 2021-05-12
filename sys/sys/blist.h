@@ -37,7 +37,7 @@
  *		(void)  blist_free(blist, blkno, count)
  *		nblks = blist_fill(blist, blkno, count)
  *		(void)  blist_resize(&blist, count, freeextra, flags)
- *		
+ *
  *
  *	Notes:
  *		on creation, the entire list is marked reserved.  You should
@@ -48,8 +48,8 @@
  *		SWAPBLK_NONE is returned on failure.  This module is typically
  *		capable of managing up to (2^63) blocks per blist, though
  *		the memory utilization would be insane if you actually did
- *		that.  Managing something like 512MB worth of 4K blocks 
- *		eats around 32 KBytes of memory. 
+ *		that.  Managing something like 512MB worth of 4K blocks
+ *		eats around 32 KBytes of memory.
  *
  * $FreeBSD$
 
@@ -58,47 +58,47 @@
 #ifndef _SYS_BLIST_H_
 #define _SYS_BLIST_H_
 
-typedef	uint64_t	u_daddr_t;	/* unsigned disk address */
+typedef uint64_t u_daddr_t; /* unsigned disk address */
 
 /*
- * note: currently use SWAPBLK_NONE as an absolute value rather then 
+ * note: currently use SWAPBLK_NONE as an absolute value rather then
  * a flag bit.
  */
 
-#define SWAPBLK_MASK	((daddr_t)((u_daddr_t)-1 >> 1))		/* mask */
-#define SWAPBLK_NONE	((daddr_t)((u_daddr_t)SWAPBLK_MASK + 1))/* flag */
+#define SWAPBLK_MASK ((daddr_t)((u_daddr_t)-1 >> 1)) /* mask */
+#define SWAPBLK_NONE ((daddr_t)((u_daddr_t)SWAPBLK_MASK + 1)) /* flag */
 
 /*
  * Both blmeta and bm_bitmap MUST be a power of 2 in size.
  */
 
 typedef struct blmeta {
-	u_daddr_t	bm_bitmap;	/* marking unfilled block sets	*/
-	daddr_t		bm_bighint;	/* biggest contiguous block hint*/
+	u_daddr_t bm_bitmap; /* marking unfilled block sets	*/
+	daddr_t bm_bighint;  /* biggest contiguous block hint*/
 } blmeta_t;
 
 typedef struct blist {
-	daddr_t		bl_blocks;	/* area of coverage		*/
-	daddr_t		bl_avail;	/* # available blocks		*/
-	u_daddr_t	bl_radix;	/* coverage radix		*/
-	daddr_t		bl_cursor;	/* next-fit search starts at	*/
-	blmeta_t	bl_root[1];	/* root of radix tree		*/
-} *blist_t;
+	daddr_t bl_blocks;   /* area of coverage		*/
+	daddr_t bl_avail;    /* # available blocks		*/
+	u_daddr_t bl_radix;  /* coverage radix		*/
+	daddr_t bl_cursor;   /* next-fit search starts at	*/
+	blmeta_t bl_root[1]; /* root of radix tree		*/
+} * blist_t;
 
-#define BLIST_RADIX		(sizeof(u_daddr_t) * 8)
+#define BLIST_RADIX (sizeof(u_daddr_t) * 8)
 
-#define BLIST_MAX_ALLOC		BLIST_RADIX
+#define BLIST_MAX_ALLOC BLIST_RADIX
 
 struct sbuf;
 
-daddr_t	blist_alloc(blist_t blist, int *count, int maxcount);
-daddr_t	blist_avail(blist_t blist);
-blist_t	blist_create(daddr_t blocks, int flags);
-void	blist_destroy(blist_t blist);
-daddr_t	blist_fill(blist_t bl, daddr_t blkno, daddr_t count);
-void	blist_free(blist_t blist, daddr_t blkno, daddr_t count);
-void	blist_print(blist_t blist);
-void	blist_resize(blist_t *pblist, daddr_t count, int freenew, int flags);
-void	blist_stats(blist_t blist, struct sbuf *s);
+daddr_t blist_alloc(blist_t blist, int *count, int maxcount);
+daddr_t blist_avail(blist_t blist);
+blist_t blist_create(daddr_t blocks, int flags);
+void blist_destroy(blist_t blist);
+daddr_t blist_fill(blist_t bl, daddr_t blkno, daddr_t count);
+void blist_free(blist_t blist, daddr_t blkno, daddr_t count);
+void blist_print(blist_t blist);
+void blist_resize(blist_t *pblist, daddr_t count, int freenew, int flags);
+void blist_stats(blist_t blist, struct sbuf *s);
 
-#endif	/* _SYS_BLIST_H_ */
+#endif /* _SYS_BLIST_H_ */

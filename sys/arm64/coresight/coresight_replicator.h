@@ -30,17 +30,17 @@
  * $FreeBSD$
  */
 
-#ifndef	_ARM64_CORESIGHT_CORESIGHT_REPLICATOR_H_
-#define	_ARM64_CORESIGHT_CORESIGHT_REPLICATOR_H_
+#ifndef _ARM64_CORESIGHT_CORESIGHT_REPLICATOR_H_
+#define _ARM64_CORESIGHT_CORESIGHT_REPLICATOR_H_
 
-#define	REPLICATOR_IDFILTER0	0x00
-#define	REPLICATOR_IDFILTER1	0x04
+#define REPLICATOR_IDFILTER0 0x00
+#define REPLICATOR_IDFILTER1 0x04
 
 DECLARE_CLASS(replicator_driver);
 
 struct replicator_softc {
-	struct resource			*res;
-	struct coresight_platform_data	*pdata;
+	struct resource *res;
+	struct coresight_platform_data *pdata;
 };
 
 int replicator_attach(device_t dev);

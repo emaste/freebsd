@@ -39,14 +39,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/uart/uart.h>
-#include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_bus.h>
+#include <dev/uart/uart_cpu.h>
 
-#include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar71xx_cpudef.h>
-
+#include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/uart_dev_ar933x.h>
-#ifdef	EARLY_PRINTF
+#ifdef EARLY_PRINTF
 #include <mips/atheros/ar933x_uart.h>
 #endif
 
@@ -57,10 +56,9 @@ extern struct uart_class uart_ar933x_uart_class;
 
 static device_method_t uart_ar933x_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		uart_ar933x_probe),
-	DEVMETHOD(device_attach,	uart_bus_attach),
-	DEVMETHOD(device_detach,	uart_bus_detach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, uart_ar933x_probe),
+	DEVMETHOD(device_attach, uart_bus_attach),
+	DEVMETHOD(device_detach, uart_bus_detach), { 0, 0 }
 };
 
 static driver_t uart_ar933x_driver = {
@@ -96,22 +94,23 @@ uart_ar933x_probe(device_t dev)
 /*
  * Assume the UART is setup by the bootloader and just echo that.
  */
-#if	defined(EARLY_PRINTF)
+#if defined(EARLY_PRINTF)
 static void
 ar933x_early_putc(int c)
 {
 	int i = 1000;
 
 	/* Wait until FIFO is clear */
-	while ((i > 0) && (ATH_READ_REG(AR71XX_UART_ADDR + AR933X_UART_CS_REG) &
-	     AR933X_UART_CS_TX_BUSY))
+	while ((i > 0) &&
+	    (ATH_READ_REG(AR71XX_UART_ADDR + AR933X_UART_CS_REG) &
+		AR933X_UART_CS_TX_BUSY))
 		i--;
 
 	/* Write it out */
 	ATH_WRITE_REG(AR71XX_UART_ADDR + AR933X_UART_DATA_REG,
-	    (c  & 0xff)| AR933X_UART_DATA_TX_CSR);
+	    (c & 0xff) | AR933X_UART_DATA_TX_CSR);
 }
 early_putc_t *early_putc = ar933x_early_putc;
-#endif	/* EARLY_PRINTF */
+#endif /* EARLY_PRINTF */
 
 DRIVER_MODULE(uart, apb, uart_ar933x_driver, uart_devclass, 0, 0);

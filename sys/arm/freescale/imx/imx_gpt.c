@@ -40,30 +40,27 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/machdep.h> /* For arm_set_delay */
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/freescale/imx/imx_ccmvar.h>
 #include <arm/freescale/imx/imx_gptreg.h>
 
-#define	WRITE4(_sc, _r, _v)						\
-	    bus_space_write_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r), (_v))
-#define	READ4(_sc, _r)							\
-	    bus_space_read_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r))
-#define	SET4(_sc, _r, _m)						\
-	    WRITE4((_sc), (_r), READ4((_sc), (_r)) | (_m))
-#define	CLEAR4(_sc, _r, _m)						\
-	    WRITE4((_sc), (_r), READ4((_sc), (_r)) & ~(_m))
+#define WRITE4(_sc, _r, _v) \
+	bus_space_write_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r), (_v))
+#define READ4(_sc, _r) bus_space_read_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r))
+#define SET4(_sc, _r, _m) WRITE4((_sc), (_r), READ4((_sc), (_r)) | (_m))
+#define CLEAR4(_sc, _r, _m) WRITE4((_sc), (_r), READ4((_sc), (_r)) & ~(_m))
 
-static u_int	imx_gpt_get_timecount(struct timecounter *);
-static int	imx_gpt_timer_start(struct eventtimer *, sbintime_t,
-    sbintime_t);
-static int	imx_gpt_timer_stop(struct eventtimer *);
+static u_int imx_gpt_get_timecount(struct timecounter *);
+static int imx_gpt_timer_start(struct eventtimer *, sbintime_t, sbintime_t);
+static int imx_gpt_timer_stop(struct eventtimer *);
 
 static void imx_gpt_do_delay(int, void *);
 
@@ -72,46 +69,36 @@ static int imx_gpt_probe(device_t);
 static int imx_gpt_attach(device_t);
 
 static struct timecounter imx_gpt_timecounter = {
-	.tc_name           = "iMXGPT",
-	.tc_get_timecount  = imx_gpt_get_timecount,
-	.tc_counter_mask   = ~0u,
-	.tc_frequency      = 0,
-	.tc_quality        = 1000,
+	.tc_name = "iMXGPT",
+	.tc_get_timecount = imx_gpt_get_timecount,
+	.tc_counter_mask = ~0u,
+	.tc_frequency = 0,
+	.tc_quality = 1000,
 };
 
 struct imx_gpt_softc {
-	device_t 		sc_dev;
-	struct resource *	res[2];
-	bus_space_tag_t 	sc_iot;
-	bus_space_handle_t	sc_ioh;
-	void *			sc_ih;			/* interrupt handler */
-	uint32_t 		sc_period;
-	uint32_t 		sc_clksrc;
-	uint32_t 		clkfreq;
-	uint32_t		ir_reg;
-	struct eventtimer 	et;
+	device_t sc_dev;
+	struct resource *res[2];
+	bus_space_tag_t sc_iot;
+	bus_space_handle_t sc_ioh;
+	void *sc_ih; /* interrupt handler */
+	uint32_t sc_period;
+	uint32_t sc_clksrc;
+	uint32_t clkfreq;
+	uint32_t ir_reg;
+	struct eventtimer et;
 };
 
 /* Try to divide down an available fast clock to this frequency. */
-#define	TARGET_FREQUENCY	1000000000
+#define TARGET_FREQUENCY 1000000000
 
-static struct resource_spec imx_gpt_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec imx_gpt_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
-static struct ofw_compat_data compat_data[] = {
-	{"fsl,imx6dl-gpt", 1},
-	{"fsl,imx6q-gpt",  1},
-	{"fsl,imx6ul-gpt", 1},
-	{"fsl,imx53-gpt",  1},
-	{"fsl,imx51-gpt",  1},
-	{"fsl,imx31-gpt",  1},
-	{"fsl,imx27-gpt",  1},
-	{"fsl,imx25-gpt",  1},
-	{NULL,             0}
-};
+static struct ofw_compat_data compat_data[] = { { "fsl,imx6dl-gpt", 1 },
+	{ "fsl,imx6q-gpt", 1 }, { "fsl,imx6ul-gpt", 1 }, { "fsl,imx53-gpt", 1 },
+	{ "fsl,imx51-gpt", 1 }, { "fsl,imx31-gpt", 1 }, { "fsl,imx27-gpt", 1 },
+	{ "fsl,imx25-gpt", 1 }, { NULL, 0 } };
 
 static int
 imx_gpt_probe(device_t dev)
@@ -178,11 +165,11 @@ imx_gpt_attach(device_t dev)
 		ctlreg |= GPT_CR_24MEN;
 		basefreq = 24000000;
 		break;
-	case GPT_CR_CLKSRC_NONE:/* Can't run without a clock. */
-	case GPT_CR_CLKSRC_EXT:	/* No way to get the freq of an ext clock. */
+	case GPT_CR_CLKSRC_NONE: /* Can't run without a clock. */
+	case GPT_CR_CLKSRC_EXT:	 /* No way to get the freq of an ext clock. */
 	default:
-		device_printf(dev, "Unsupported clock source '%d'\n", 
-		    sc->sc_clksrc);
+		device_printf(
+		    dev, "Unsupported clock source '%d'\n", sc->sc_clksrc);
 		return (EINVAL);
 	}
 
@@ -196,13 +183,12 @@ imx_gpt_attach(device_t dev)
 	WRITE4(sc, IMX_GPT_IR, 0);
 
 	/* Choose the clock and the power-saving behaviors. */
-	ctlreg |=
-	    sc->sc_clksrc |	/* Use selected clock */
-	    GPT_CR_FRR |	/* Just count (FreeRunner mode) */
-	    GPT_CR_STOPEN |	/* Run in STOP mode */
-	    GPT_CR_DOZEEN |	/* Run in DOZE mode */
-	    GPT_CR_WAITEN |	/* Run in WAIT mode */
-	    GPT_CR_DBGEN;	/* Run in DEBUG mode */
+	ctlreg |= sc->sc_clksrc | /* Use selected clock */
+	    GPT_CR_FRR |	  /* Just count (FreeRunner mode) */
+	    GPT_CR_STOPEN |	  /* Run in STOP mode */
+	    GPT_CR_DOZEEN |	  /* Run in DOZE mode */
+	    GPT_CR_WAITEN |	  /* Run in WAIT mode */
+	    GPT_CR_DBGEN;	  /* Run in DEBUG mode */
 	WRITE4(sc, IMX_GPT_CR, ctlreg);
 
 	/*
@@ -235,16 +221,20 @@ imx_gpt_attach(device_t dev)
 	WRITE4(sc, IMX_GPT_CR, ctlreg | GPT_CR_EN);
 
 	if (bootverbose)
-		device_printf(dev, "Running on %dKHz clock, base freq %uHz CR=0x%08x, PR=0x%08x\n",
-		    sc->clkfreq / 1000, basefreq, READ4(sc, IMX_GPT_CR), READ4(sc, IMX_GPT_PR));
+		device_printf(dev,
+		    "Running on %dKHz clock, base freq %uHz CR=0x%08x, PR=0x%08x\n",
+		    sc->clkfreq / 1000, basefreq, READ4(sc, IMX_GPT_CR),
+		    READ4(sc, IMX_GPT_PR));
 
 	/* Setup the timer interrupt. */
-	err = bus_setup_intr(dev, sc->res[1], INTR_TYPE_CLK, imx_gpt_intr,
-	    NULL, sc, &sc->sc_ih);
+	err = bus_setup_intr(
+	    dev, sc->res[1], INTR_TYPE_CLK, imx_gpt_intr, NULL, sc, &sc->sc_ih);
 	if (err != 0) {
 		bus_release_resources(dev, imx_gpt_spec, sc->res);
-		device_printf(dev, "Unable to setup the clock irq handler, "
-		    "err = %d\n", err);
+		device_printf(dev,
+		    "Unable to setup the clock irq handler, "
+		    "err = %d\n",
+		    err);
 		return (ENXIO);
 	}
 
@@ -266,7 +256,7 @@ imx_gpt_attach(device_t dev)
 	sc->et.et_quality = 800;
 	sc->et.et_frequency = sc->clkfreq;
 	sc->et.et_min_period = ((uint64_t)setup_ticks << 32) / sc->clkfreq;
-	sc->et.et_max_period = ((uint64_t)0xfffffffe  << 32) / sc->clkfreq;
+	sc->et.et_max_period = ((uint64_t)0xfffffffe << 32) / sc->clkfreq;
 	sc->et.et_start = imx_gpt_timer_start;
 	sc->et.et_stop = imx_gpt_timer_stop;
 	sc->et.et_priv = sc;
@@ -296,7 +286,8 @@ imx_gpt_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	if (period != 0) {
 		sc->sc_period = ((uint32_t)et->et_frequency * period) >> 32;
 		/* Set expected value */
-		WRITE4(sc, IMX_GPT_OCR2, READ4(sc, IMX_GPT_CNT) + sc->sc_period);
+		WRITE4(
+		    sc, IMX_GPT_OCR2, READ4(sc, IMX_GPT_CNT) + sc->sc_period);
 		/* Enable compare register 2 Interrupt */
 		sc->ir_reg |= GPT_IR_OF2;
 		WRITE4(sc, IMX_GPT_IR, sc->ir_reg);
@@ -347,11 +338,11 @@ imx_gpt_intr(void *arg)
 	status = READ4(sc, IMX_GPT_SR);
 
 	/*
-	* Clear interrupt status before invoking event callbacks.  The callback
-	* often sets up a new one-shot timer event and if the interval is short
-	* enough it can fire before we get out of this function.  If we cleared
-	* at the bottom we'd miss the interrupt and hang until the clock wraps.
-	*/
+	 * Clear interrupt status before invoking event callbacks.  The callback
+	 * often sets up a new one-shot timer event and if the interval is short
+	 * enough it can fire before we get out of this function.  If we cleared
+	 * at the bottom we'd miss the interrupt and hang until the clock wraps.
+	 */
 	WRITE4(sc, IMX_GPT_SR, status);
 
 	/* Handle one-shot timer events. */
@@ -366,8 +357,8 @@ imx_gpt_intr(void *arg)
 		if (sc->et.et_active)
 			sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 		if (sc->sc_period != 0)
-			WRITE4(sc, IMX_GPT_OCR2, READ4(sc, IMX_GPT_CNT) +
-			    sc->sc_period);
+			WRITE4(sc, IMX_GPT_OCR2,
+			    READ4(sc, IMX_GPT_CNT) + sc->sc_period);
 	}
 
 	return (FILTER_HANDLED);
@@ -382,12 +373,11 @@ imx_gpt_get_timecount(struct timecounter *tc)
 	return (READ4(sc, IMX_GPT_CNT));
 }
 
-static device_method_t imx_gpt_methods[] = {
-	DEVMETHOD(device_probe,		imx_gpt_probe),
-	DEVMETHOD(device_attach,	imx_gpt_attach),
+static device_method_t imx_gpt_methods[] = { DEVMETHOD(
+						 device_probe, imx_gpt_probe),
+	DEVMETHOD(device_attach, imx_gpt_attach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t imx_gpt_driver = {
 	"imx_gpt",
@@ -397,8 +387,8 @@ static driver_t imx_gpt_driver = {
 
 static devclass_t imx_gpt_devclass;
 
-EARLY_DRIVER_MODULE(imx_gpt, simplebus, imx_gpt_driver, imx_gpt_devclass, 0,
-    0, BUS_PASS_TIMER);
+EARLY_DRIVER_MODULE(
+    imx_gpt, simplebus, imx_gpt_driver, imx_gpt_devclass, 0, 0, BUS_PASS_TIMER);
 
 static void
 imx_gpt_do_delay(int usec, void *arg)

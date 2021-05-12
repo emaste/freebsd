@@ -40,27 +40,28 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/errno.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/sbuf.h>
+
 #include <machine/stdarg.h>
 
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
-#include <netnatm/unimsg.h>
-#include <netnatm/msg/unistruct.h>
-#include <netnatm/api/unisap.h>
-#include <netnatm/sig/unidef.h>
-#include <netgraph/atm/ngatmbase.h>
-#include <netgraph/atm/ng_uni.h>
-#include <netnatm/api/atmapi.h>
 #include <netgraph/atm/ng_ccatm.h>
+#include <netgraph/atm/ng_uni.h>
+#include <netgraph/atm/ngatmbase.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
+#include <netnatm/api/atmapi.h>
 #include <netnatm/api/ccatm.h>
+#include <netnatm/api/unisap.h>
+#include <netnatm/msg/unistruct.h>
+#include <netnatm/sig/unidef.h>
+#include <netnatm/unimsg.h>
 
 MODULE_DEPEND(ng_ccatm, ngatmbase, 1, 1, 1);
 
@@ -74,196 +75,138 @@ MALLOC_DEFINE(M_NG_CCATM, "ng_ccatm", "netgraph uni api node");
 static const struct ng_parse_fixedarray_info ng_ccatm_esi_type_info =
     NGM_CCATM_ESI_INFO;
 static const struct ng_parse_type ng_ccatm_esi_type = {
-	&ng_parse_fixedarray_type,
-	&ng_ccatm_esi_type_info
+	&ng_parse_fixedarray_type, &ng_ccatm_esi_type_info
 };
 
 /* PORT PARAMETERS */
 static const struct ng_parse_struct_field ng_ccatm_atm_port_type_info[] =
     NGM_CCATM_ATM_PORT_INFO;
 static const struct ng_parse_type ng_ccatm_atm_port_type = {
-	&ng_parse_struct_type,
-	ng_ccatm_atm_port_type_info
+	&ng_parse_struct_type, ng_ccatm_atm_port_type_info
 };
 
 /* PORT structure */
 static const struct ng_parse_struct_field ng_ccatm_port_type_info[] =
     NGM_CCATM_PORT_INFO;
-static const struct ng_parse_type ng_ccatm_port_type = {
-	&ng_parse_struct_type,
-	ng_ccatm_port_type_info
-};
+static const struct ng_parse_type ng_ccatm_port_type = { &ng_parse_struct_type,
+	ng_ccatm_port_type_info };
 
 /* the ADDRESS array itself */
 static const struct ng_parse_fixedarray_info ng_ccatm_addr_array_type_info =
     NGM_CCATM_ADDR_ARRAY_INFO;
 static const struct ng_parse_type ng_ccatm_addr_array_type = {
-	&ng_parse_fixedarray_type,
-	&ng_ccatm_addr_array_type_info
+	&ng_parse_fixedarray_type, &ng_ccatm_addr_array_type_info
 };
 
 /* one ADDRESS */
 static const struct ng_parse_struct_field ng_ccatm_uni_addr_type_info[] =
     NGM_CCATM_UNI_ADDR_INFO;
 static const struct ng_parse_type ng_ccatm_uni_addr_type = {
-	&ng_parse_struct_type,
-	ng_ccatm_uni_addr_type_info
+	&ng_parse_struct_type, ng_ccatm_uni_addr_type_info
 };
 
 /* ADDRESS request */
 static const struct ng_parse_struct_field ng_ccatm_addr_req_type_info[] =
     NGM_CCATM_ADDR_REQ_INFO;
 static const struct ng_parse_type ng_ccatm_addr_req_type = {
-	&ng_parse_struct_type,
-	ng_ccatm_addr_req_type_info
+	&ng_parse_struct_type, ng_ccatm_addr_req_type_info
 };
 
 /* ADDRESS var-array */
 static int
-ng_ccatm_addr_req_array_getlen(const struct ng_parse_type *type,
-    const u_char *start, const u_char *buf)
+ng_ccatm_addr_req_array_getlen(
+    const struct ng_parse_type *type, const u_char *start, const u_char *buf)
 {
 	const struct ngm_ccatm_get_addresses *p;
 
-	p = (const struct ngm_ccatm_get_addresses *)
-	    (buf - offsetof(struct ngm_ccatm_get_addresses, addr));
+	p = (const struct ngm_ccatm_get_addresses *)(buf -
+	    offsetof(struct ngm_ccatm_get_addresses, addr));
 	return (p->count);
 }
 static const struct ng_parse_array_info ng_ccatm_addr_req_array_type_info =
     NGM_CCATM_ADDR_REQ_ARRAY_INFO;
 static const struct ng_parse_type ng_ccatm_addr_req_array_type = {
-	&ng_parse_array_type,
-	&ng_ccatm_addr_req_array_type_info
+	&ng_parse_array_type, &ng_ccatm_addr_req_array_type_info
 };
 
 /* Outer get_ADDRESSes structure */
 static const struct ng_parse_struct_field ng_ccatm_get_addresses_type_info[] =
     NGM_CCATM_GET_ADDRESSES_INFO;
 static const struct ng_parse_type ng_ccatm_get_addresses_type = {
-	&ng_parse_struct_type,
-	ng_ccatm_get_addresses_type_info
+	&ng_parse_struct_type, ng_ccatm_get_addresses_type_info
 };
 
 /* Port array */
 static int
-ng_ccatm_port_array_getlen(const struct ng_parse_type *type,
-    const u_char *start, const u_char *buf)
+ng_ccatm_port_array_getlen(
+    const struct ng_parse_type *type, const u_char *start, const u_char *buf)
 {
 	const struct ngm_ccatm_portlist *p;
 
-	p = (const struct ngm_ccatm_portlist *)
-	    (buf - offsetof(struct ngm_ccatm_portlist, ports));
+	p = (const struct ngm_ccatm_portlist *)(buf -
+	    offsetof(struct ngm_ccatm_portlist, ports));
 	return (p->nports);
 }
 static const struct ng_parse_array_info ng_ccatm_port_array_type_info =
     NGM_CCATM_PORT_ARRAY_INFO;
 static const struct ng_parse_type ng_ccatm_port_array_type = {
-	&ng_parse_array_type,
-	&ng_ccatm_port_array_type_info
+	&ng_parse_array_type, &ng_ccatm_port_array_type_info
 };
 
 /* Portlist structure */
 static const struct ng_parse_struct_field ng_ccatm_portlist_type_info[] =
     NGM_CCATM_PORTLIST_INFO;
 static const struct ng_parse_type ng_ccatm_portlist_type = {
-	&ng_parse_struct_type,
-	ng_ccatm_portlist_type_info
+	&ng_parse_struct_type, ng_ccatm_portlist_type_info
 };
 
 /*
  * Command list
  */
 static const struct ng_cmdlist ng_ccatm_cmdlist[] = {
+	{ NGM_CCATM_COOKIE, NGM_CCATM_DUMP, "dump", NULL, NULL },
+	{ NGM_CCATM_COOKIE, NGM_CCATM_STOP, "stop", &ng_ccatm_port_type, NULL },
+	{ NGM_CCATM_COOKIE, NGM_CCATM_START, "start", &ng_ccatm_port_type,
+	    NULL },
+	{ NGM_CCATM_COOKIE, NGM_CCATM_GETSTATE, "getstate", &ng_ccatm_port_type,
+	    &ng_parse_uint32_type },
+	{ NGM_CCATM_COOKIE, NGM_CCATM_GET_ADDRESSES, "get_addresses",
+	    &ng_ccatm_port_type, &ng_ccatm_get_addresses_type },
+	{ NGM_CCATM_COOKIE, NGM_CCATM_CLEAR, "clear", &ng_ccatm_port_type,
+	    NULL },
+	{ NGM_CCATM_COOKIE, NGM_CCATM_ADDRESS_REGISTERED, "address_reg",
+	    &ng_ccatm_addr_req_type, NULL },
+	{ NGM_CCATM_COOKIE, NGM_CCATM_ADDRESS_UNREGISTERED, "address_unreg",
+	    &ng_ccatm_addr_req_type, NULL },
+	{ NGM_CCATM_COOKIE, NGM_CCATM_SET_PORT_PARAM, "set_port_param",
+	    &ng_ccatm_atm_port_type, NULL },
 	{
-	  NGM_CCATM_COOKIE,
-	  NGM_CCATM_DUMP,
-	  "dump",
-	  NULL,
-	  NULL
+	    NGM_CCATM_COOKIE,
+	    NGM_CCATM_GET_PORT_PARAM,
+	    "get_port_param",
+	    &ng_ccatm_port_type,
+	    &ng_ccatm_atm_port_type,
 	},
 	{
-	  NGM_CCATM_COOKIE,
-	  NGM_CCATM_STOP,
-	  "stop",
-	  &ng_ccatm_port_type,
-	  NULL
+	    NGM_CCATM_COOKIE,
+	    NGM_CCATM_GET_PORTLIST,
+	    "get_portlist",
+	    NULL,
+	    &ng_ccatm_portlist_type,
 	},
 	{
-	  NGM_CCATM_COOKIE,
-	  NGM_CCATM_START,
-	  "start",
-	  &ng_ccatm_port_type,
-	  NULL
+	    NGM_CCATM_COOKIE,
+	    NGM_CCATM_SETLOG,
+	    "setlog",
+	    &ng_parse_hint32_type,
+	    &ng_parse_hint32_type,
 	},
 	{
-	  NGM_CCATM_COOKIE,
-	  NGM_CCATM_GETSTATE,
-	  "getstate",
-	  &ng_ccatm_port_type,
-	  &ng_parse_uint32_type
-	},
-	{
-	  NGM_CCATM_COOKIE,
-	  NGM_CCATM_GET_ADDRESSES,
-	  "get_addresses",
-	  &ng_ccatm_port_type,
-	  &ng_ccatm_get_addresses_type
-	},
-	{
-	  NGM_CCATM_COOKIE,
-	  NGM_CCATM_CLEAR,
-	  "clear",
-	  &ng_ccatm_port_type,
-	  NULL
-	},
-	{
-	  NGM_CCATM_COOKIE,
-	  NGM_CCATM_ADDRESS_REGISTERED,
-	  "address_reg",
-	  &ng_ccatm_addr_req_type,
-	  NULL
-	},
-	{
-	  NGM_CCATM_COOKIE,
-	  NGM_CCATM_ADDRESS_UNREGISTERED,
-	  "address_unreg",
-	  &ng_ccatm_addr_req_type,
-	  NULL
-	},
-	{
-	  NGM_CCATM_COOKIE,
-	  NGM_CCATM_SET_PORT_PARAM,
-	  "set_port_param",
-	  &ng_ccatm_atm_port_type,
-	  NULL
-	},
-	{
-	  NGM_CCATM_COOKIE,
-	  NGM_CCATM_GET_PORT_PARAM,
-	  "get_port_param",
-	  &ng_ccatm_port_type,
-	  &ng_ccatm_atm_port_type,
-	},
-	{
-	  NGM_CCATM_COOKIE,
-	  NGM_CCATM_GET_PORTLIST,
-	  "get_portlist",
-	  NULL,
-	  &ng_ccatm_portlist_type,
-	},
-	{
-	  NGM_CCATM_COOKIE,
-	  NGM_CCATM_SETLOG,
-	  "setlog",
-	  &ng_parse_hint32_type,
-	  &ng_parse_hint32_type,
-	},
-	{
-	  NGM_CCATM_COOKIE,
-	  NGM_CCATM_RESET,
-	  "reset",
-	  NULL,
-	  NULL,
+	    NGM_CCATM_COOKIE,
+	    NGM_CCATM_RESET,
+	    "reset",
+	    NULL,
+	    NULL,
 	},
 	{ 0 }
 };
@@ -271,72 +214,72 @@ static const struct ng_cmdlist ng_ccatm_cmdlist[] = {
 /*
  * Module data
  */
-static ng_constructor_t		ng_ccatm_constructor;
-static ng_rcvmsg_t		ng_ccatm_rcvmsg;
-static ng_shutdown_t		ng_ccatm_shutdown;
-static ng_newhook_t		ng_ccatm_newhook;
-static ng_rcvdata_t		ng_ccatm_rcvdata;
-static ng_disconnect_t		ng_ccatm_disconnect;
+static ng_constructor_t ng_ccatm_constructor;
+static ng_rcvmsg_t ng_ccatm_rcvmsg;
+static ng_shutdown_t ng_ccatm_shutdown;
+static ng_newhook_t ng_ccatm_newhook;
+static ng_rcvdata_t ng_ccatm_rcvdata;
+static ng_disconnect_t ng_ccatm_disconnect;
 static int ng_ccatm_mod_event(module_t, int, void *);
 
 static struct ng_type ng_ccatm_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_CCATM_NODE_TYPE,
-	.mod_event =	ng_ccatm_mod_event,
-	.constructor =	ng_ccatm_constructor,	/* Node constructor */
-	.rcvmsg =	ng_ccatm_rcvmsg,	/* Control messages */
-	.shutdown =	ng_ccatm_shutdown,	/* Node destructor */
-	.newhook =	ng_ccatm_newhook,	/* Arrival of new hook */
-	.rcvdata =	ng_ccatm_rcvdata,	/* receive data */
-	.disconnect =	ng_ccatm_disconnect,	/* disconnect a hook */
-	.cmdlist =	ng_ccatm_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_CCATM_NODE_TYPE,
+	.mod_event = ng_ccatm_mod_event,
+	.constructor = ng_ccatm_constructor, /* Node constructor */
+	.rcvmsg = ng_ccatm_rcvmsg,	     /* Control messages */
+	.shutdown = ng_ccatm_shutdown,	     /* Node destructor */
+	.newhook = ng_ccatm_newhook,	     /* Arrival of new hook */
+	.rcvdata = ng_ccatm_rcvdata,	     /* receive data */
+	.disconnect = ng_ccatm_disconnect,   /* disconnect a hook */
+	.cmdlist = ng_ccatm_cmdlist,
 };
 NETGRAPH_INIT(ccatm, &ng_ccatm_typestruct);
 
-static ng_rcvdata_t	ng_ccatm_rcvuni;
-static ng_rcvdata_t	ng_ccatm_rcvdump;
-static ng_rcvdata_t	ng_ccatm_rcvmanage;
+static ng_rcvdata_t ng_ccatm_rcvuni;
+static ng_rcvdata_t ng_ccatm_rcvdump;
+static ng_rcvdata_t ng_ccatm_rcvmanage;
 
 /*
  * Private node data.
  */
 struct ccnode {
-	node_p	node;		/* the owning node */
-	hook_p	dump;		/* dump hook */
-	hook_p	manage;		/* hook to ILMI */
+	node_p node;   /* the owning node */
+	hook_p dump;   /* dump hook */
+	hook_p manage; /* hook to ILMI */
 
 	struct ccdata *data;
 	struct mbuf *dump_first;
-	struct mbuf *dump_last;	/* first and last mbuf when dumping */
+	struct mbuf *dump_last; /* first and last mbuf when dumping */
 
-	u_int	hook_cnt;	/* count user and port hooks */
+	u_int hook_cnt; /* count user and port hooks */
 };
 
 /*
  * Private UNI hook data
  */
 struct cchook {
-	int		is_uni;	/* true if uni hook, user otherwise */
-	struct ccnode	*node;	/* the owning node */
-	hook_p		hook;
-	void		*inst;	/* port or user */
+	int is_uni;	     /* true if uni hook, user otherwise */
+	struct ccnode *node; /* the owning node */
+	hook_p hook;
+	void *inst; /* port or user */
 };
 
 static void ng_ccatm_send_user(struct ccuser *, void *, u_int, void *, size_t);
-static void ng_ccatm_respond_user(struct ccuser *, void *, int, u_int,
-    void *, size_t);
-static void ng_ccatm_send_uni(struct ccconn *, void *, u_int, u_int,
-    struct uni_msg *);
-static void ng_ccatm_send_uni_glob(struct ccport *, void *, u_int, u_int,
-    struct uni_msg *);
+static void ng_ccatm_respond_user(
+    struct ccuser *, void *, int, u_int, void *, size_t);
+static void ng_ccatm_send_uni(
+    struct ccconn *, void *, u_int, u_int, struct uni_msg *);
+static void ng_ccatm_send_uni_glob(
+    struct ccport *, void *, u_int, u_int, struct uni_msg *);
 static void ng_ccatm_log(const char *, ...) __printflike(1, 2);
 
 static const struct cc_funcs cc_funcs = {
-	.send_user =		ng_ccatm_send_user,
-	.respond_user =		ng_ccatm_respond_user,
-	.send_uni =		ng_ccatm_send_uni,
-	.send_uni_glob =	ng_ccatm_send_uni_glob,
-	.log =			ng_ccatm_log,
+	.send_user = ng_ccatm_send_user,
+	.respond_user = ng_ccatm_respond_user,
+	.send_uni = ng_ccatm_send_uni,
+	.send_uni_glob = ng_ccatm_send_uni_glob,
+	.log = ng_ccatm_log,
 };
 
 /************************************************************
@@ -388,8 +331,8 @@ ng_ccatm_shutdown(node_p node)
  * Returns an error code or 0 on success.
  */
 static int
-ng_ccatm_get_addresses(node_p node, uint32_t portno, struct ng_mesg *msg,
-    struct ng_mesg **resp)
+ng_ccatm_get_addresses(
+    node_p node, uint32_t portno, struct ng_mesg *msg, struct ng_mesg **resp)
 {
 	struct ccnode *priv = NG_NODE_PRIVATE(node);
 	struct uni_addr *addrs;
@@ -492,17 +435,16 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	NGI_GET_MSG(item, msg);
 
 	switch (msg->header.typecookie) {
-	  case NGM_CCATM_COOKIE:
+	case NGM_CCATM_COOKIE:
 		switch (msg->header.cmd) {
-		  case NGM_CCATM_DUMP:
+		case NGM_CCATM_DUMP:
 			if (priv->dump)
 				error = ng_ccatm_dump(node);
 			else
 				error = ENOTCONN;
 			break;
 
-		  case NGM_CCATM_STOP:
-		    {
+		case NGM_CCATM_STOP: {
 			struct ngm_ccatm_port *arg;
 
 			if (msg->header.arglen != sizeof(*arg)) {
@@ -512,10 +454,9 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			arg = (struct ngm_ccatm_port *)msg->data;
 			error = cc_port_stop(priv->data, arg->port);
 			break;
-		    }
+		}
 
-		  case NGM_CCATM_START:
-		    {
+		case NGM_CCATM_START: {
 			struct ngm_ccatm_port *arg;
 
 			if (msg->header.arglen != sizeof(*arg)) {
@@ -525,10 +466,9 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			arg = (struct ngm_ccatm_port *)msg->data;
 			error = cc_port_start(priv->data, arg->port);
 			break;
-		    }
+		}
 
-		  case NGM_CCATM_GETSTATE:
-		    {
+		case NGM_CCATM_GETSTATE: {
 			struct ngm_ccatm_port *arg;
 			int state;
 
@@ -537,11 +477,11 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 			arg = (struct ngm_ccatm_port *)msg->data;
-			error = cc_port_isrunning(priv->data, arg->port,
-			    &state);
+			error = cc_port_isrunning(
+			    priv->data, arg->port, &state);
 			if (error == 0) {
-				NG_MKRESPONSE(resp, msg, sizeof(uint32_t),
-				    M_NOWAIT);
+				NG_MKRESPONSE(
+				    resp, msg, sizeof(uint32_t), M_NOWAIT);
 				if (resp == NULL) {
 					error = ENOMEM;
 					break;
@@ -549,10 +489,9 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				*(uint32_t *)resp->data = state;
 			}
 			break;
-		    }
+		}
 
-		  case NGM_CCATM_GET_ADDRESSES:
-		   {
+		case NGM_CCATM_GET_ADDRESSES: {
 			struct ngm_ccatm_port *arg;
 
 			if (msg->header.arglen != sizeof(*arg)) {
@@ -560,13 +499,12 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 			arg = (struct ngm_ccatm_port *)msg->data;
-			error = ng_ccatm_get_addresses(node, arg->port, msg,
-			    &resp);
+			error = ng_ccatm_get_addresses(
+			    node, arg->port, msg, &resp);
 			break;
-		    }
+		}
 
-		  case NGM_CCATM_CLEAR:
-		    {
+		case NGM_CCATM_CLEAR: {
 			struct ngm_ccatm_port *arg;
 
 			if (msg->header.arglen != sizeof(*arg)) {
@@ -576,10 +514,9 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			arg = (struct ngm_ccatm_port *)msg->data;
 			error = cc_port_clear(priv->data, arg->port);
 			break;
-		    }
+		}
 
-		  case NGM_CCATM_ADDRESS_REGISTERED:
-		    {
+		case NGM_CCATM_ADDRESS_REGISTERED: {
 			struct ngm_ccatm_addr_req *arg;
 
 			if (msg->header.arglen != sizeof(*arg)) {
@@ -587,13 +524,12 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 			arg = (struct ngm_ccatm_addr_req *)msg->data;
-			error = cc_addr_register(priv->data, arg->port,
-			    &arg->addr);
+			error = cc_addr_register(
+			    priv->data, arg->port, &arg->addr);
 			break;
-		    }
+		}
 
-		  case NGM_CCATM_ADDRESS_UNREGISTERED:
-		    {
+		case NGM_CCATM_ADDRESS_UNREGISTERED: {
 			struct ngm_ccatm_addr_req *arg;
 
 			if (msg->header.arglen != sizeof(*arg)) {
@@ -601,13 +537,12 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 			arg = (struct ngm_ccatm_addr_req *)msg->data;
-			error = cc_addr_unregister(priv->data, arg->port,
-			    &arg->addr);
+			error = cc_addr_unregister(
+			    priv->data, arg->port, &arg->addr);
 			break;
-		    }
+		}
 
-		  case NGM_CCATM_GET_PORT_PARAM:
-		    {
+		case NGM_CCATM_GET_PORT_PARAM: {
 			struct ngm_ccatm_port *arg;
 
 			if (msg->header.arglen != sizeof(*arg)) {
@@ -615,8 +550,8 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 			arg = (struct ngm_ccatm_port *)msg->data;
-			NG_MKRESPONSE(resp, msg, sizeof(struct atm_port_info),
-			    M_NOWAIT);
+			NG_MKRESPONSE(
+			    resp, msg, sizeof(struct atm_port_info), M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
@@ -628,10 +563,9 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				resp = NULL;
 			}
 			break;
-		    }
+		}
 
-		  case NGM_CCATM_SET_PORT_PARAM:
-		    {
+		case NGM_CCATM_SET_PORT_PARAM: {
 			struct atm_port_info *arg;
 
 			if (msg->header.arglen != sizeof(*arg)) {
@@ -641,10 +575,9 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			arg = (struct atm_port_info *)msg->data;
 			error = cc_port_set_param(priv->data, arg);
 			break;
-		    }
+		}
 
-		  case NGM_CCATM_GET_PORTLIST:
-		    {
+		case NGM_CCATM_GET_PORTLIST: {
 			struct ngm_ccatm_portlist *arg;
 			u_int n, *ports;
 
@@ -656,8 +589,8 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (error != 0)
 				break;
 
-			NG_MKRESPONSE(resp, msg, sizeof(*arg) +
-			    n * sizeof(arg->ports[0]), M_NOWAIT);
+			NG_MKRESPONSE(resp, msg,
+			    sizeof(*arg) + n * sizeof(arg->ports[0]), M_NOWAIT);
 			if (resp == NULL) {
 				free(ports, M_NG_CCATM);
 				error = ENOMEM;
@@ -670,10 +603,9 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				arg->ports[arg->nports] = ports[arg->nports];
 			free(ports, M_NG_CCATM);
 			break;
-		    }
+		}
 
-		  case NGM_CCATM_SETLOG:
-		    {
+		case NGM_CCATM_SETLOG: {
 			uint32_t log_level;
 
 			log_level = cc_get_log(priv->data);
@@ -694,9 +626,9 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			*(uint32_t *)resp->data = log_level;
 			break;
-		    }
+		}
 
-		  case NGM_CCATM_RESET:
+		case NGM_CCATM_RESET:
 			if (msg->header.arglen != 0) {
 				error = EINVAL;
 				break;
@@ -709,8 +641,7 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			cc_reset(priv->data);
 			break;
 
-		  case NGM_CCATM_GET_EXSTAT:
-		    {
+		case NGM_CCATM_GET_EXSTAT: {
 			struct atm_exstatus s;
 			struct atm_exstatus_ep *eps;
 			struct atm_exstatus_port *ports;
@@ -722,8 +653,8 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = EINVAL;
 				break;
 			}
-			error = cc_get_extended_status(priv->data,
-			    &s, &eps, &ports, &conns, &parties);
+			error = cc_get_extended_status(
+			    priv->data, &s, &eps, &ports, &conns, &parties);
 			if (error != 0)
 				break;
 
@@ -741,8 +672,7 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			memcpy(resp->data, &s, sizeof(s));
 			offs = sizeof(s);
 
-			memcpy(resp->data + offs, eps,
-			    sizeof(*eps) * s.neps);
+			memcpy(resp->data + offs, eps, sizeof(*eps) * s.neps);
 			offs += sizeof(*eps) * s.neps;
 
 			memcpy(resp->data + offs, ports,
@@ -762,15 +692,15 @@ ng_ccatm_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			free(conns, M_NG_CCATM);
 			free(parties, M_NG_CCATM);
 			break;
-		    }
+		}
 
-		  default:
+		default:
 			error = EINVAL;
 			break;
 		}
 		break;
 
-	  default:
+	default:
 		error = EINVAL;
 		break;
 	}
@@ -973,7 +903,7 @@ pack_buf(void *h, size_t hlen, void *t, size_t tlen)
 		} else
 			MGET(m, M_NOWAIT, MT_DATA);
 
-		if(m == NULL)
+		if (m == NULL)
 			goto drop;
 
 		last->m_next = m;
@@ -988,7 +918,7 @@ pack_buf(void *h, size_t hlen, void *t, size_t tlen)
 
 	return (m0);
 
-  drop:
+drop:
 	m_freem(m0);
 	return NULL;
 }
@@ -997,12 +927,12 @@ pack_buf(void *h, size_t hlen, void *t, size_t tlen)
  * Send an indication to the user.
  */
 static void
-ng_ccatm_send_user(struct ccuser *user, void *uarg, u_int op,
-    void *val, size_t len)
+ng_ccatm_send_user(
+    struct ccuser *user, void *uarg, u_int op, void *val, size_t len)
 {
 	struct cchook *hd = uarg;
 	struct mbuf *m;
-	struct ccatm_op	h;
+	struct ccatm_op h;
 	int error;
 
 	h.op = op;
@@ -1019,13 +949,13 @@ ng_ccatm_send_user(struct ccuser *user, void *uarg, u_int op,
  * Send a response to the user.
  */
 static void
-ng_ccatm_respond_user(struct ccuser *user, void *uarg, int err, u_int data,
-    void *val, size_t len)
+ng_ccatm_respond_user(
+    struct ccuser *user, void *uarg, int err, u_int data, void *val, size_t len)
 {
 	struct cchook *hd = uarg;
 	struct mbuf *m;
 	struct {
-		struct ccatm_op	op;
+		struct ccatm_op op;
 		struct atm_resp resp;
 	} resp;
 	int error;
@@ -1177,13 +1107,13 @@ ng_ccatm_mod_event(module_t mod, int event, void *data)
 	int error = 0;
 
 	switch (event) {
-	  case MOD_LOAD:
+	case MOD_LOAD:
 		break;
 
-	  case MOD_UNLOAD:
+	case MOD_UNLOAD:
 		break;
 
-	  default:
+	default:
 		error = EOPNOTSUPP;
 		break;
 	}

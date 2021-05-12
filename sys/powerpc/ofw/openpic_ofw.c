@@ -33,58 +33,54 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/openfirm.h>
-
-#include <machine/bus.h>
-#include <machine/intr_machdep.h>
-#include <machine/md_var.h>
-#include <machine/pio.h>
-#include <machine/resource.h>
+#include <sys/module.h>
+#include <sys/rman.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <sys/rman.h>
-
+#include <machine/bus.h>
+#include <machine/intr_machdep.h>
+#include <machine/md_var.h>
 #include <machine/openpicreg.h>
 #include <machine/openpicvar.h>
+#include <machine/pio.h>
+#include <machine/resource.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "pic_if.h"
 
 /*
  * OFW interface
  */
-static int	openpic_ofw_probe(device_t);
-static int	openpic_ofw_attach(device_t);
+static int openpic_ofw_probe(device_t);
+static int openpic_ofw_attach(device_t);
 
-static void	openpic_ofw_translate_code(device_t, u_int irq, int code,
-		    enum intr_trigger *trig, enum intr_polarity *pol);
+static void openpic_ofw_translate_code(device_t, u_int irq, int code,
+    enum intr_trigger *trig, enum intr_polarity *pol);
 
-static device_method_t  openpic_ofw_methods[] = {
+static device_method_t openpic_ofw_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		openpic_ofw_probe),
-	DEVMETHOD(device_attach,	openpic_ofw_attach),
-	DEVMETHOD(device_suspend,	openpic_suspend),
-	DEVMETHOD(device_resume,	openpic_resume),
+	DEVMETHOD(device_probe, openpic_ofw_probe),
+	DEVMETHOD(device_attach, openpic_ofw_attach),
+	DEVMETHOD(device_suspend, openpic_suspend),
+	DEVMETHOD(device_resume, openpic_resume),
 
 	/* PIC interface */
-	DEVMETHOD(pic_bind,		openpic_bind),
-	DEVMETHOD(pic_config,		openpic_config),
-	DEVMETHOD(pic_dispatch,		openpic_dispatch),
-	DEVMETHOD(pic_enable,		openpic_enable),
-	DEVMETHOD(pic_eoi,		openpic_eoi),
-	DEVMETHOD(pic_ipi,		openpic_ipi),
-	DEVMETHOD(pic_mask,		openpic_mask),
-	DEVMETHOD(pic_unmask,		openpic_unmask),
+	DEVMETHOD(pic_bind, openpic_bind),
+	DEVMETHOD(pic_config, openpic_config),
+	DEVMETHOD(pic_dispatch, openpic_dispatch),
+	DEVMETHOD(pic_enable, openpic_enable), DEVMETHOD(pic_eoi, openpic_eoi),
+	DEVMETHOD(pic_ipi, openpic_ipi), DEVMETHOD(pic_mask, openpic_mask),
+	DEVMETHOD(pic_unmask, openpic_unmask),
 
-	DEVMETHOD(pic_translate_code,	openpic_ofw_translate_code),
+	DEVMETHOD(pic_translate_code, openpic_ofw_translate_code),
 
 	DEVMETHOD_END
 };
@@ -95,10 +91,10 @@ static driver_t openpic_ofw_driver = {
 	sizeof(struct openpic_softc),
 };
 
-EARLY_DRIVER_MODULE(openpic, ofwbus, openpic_ofw_driver, openpic_devclass,
-    0, 0, BUS_PASS_INTERRUPT);
-EARLY_DRIVER_MODULE(openpic, simplebus, openpic_ofw_driver, openpic_devclass,
-    0, 0, BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(openpic, ofwbus, openpic_ofw_driver, openpic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(openpic, simplebus, openpic_ofw_driver, openpic_devclass, 0,
+    0, BUS_PASS_INTERRUPT);
 EARLY_DRIVER_MODULE(openpic, macio, openpic_ofw_driver, openpic_devclass, 0, 0,
     BUS_PASS_INTERRUPT);
 
@@ -108,11 +104,11 @@ openpic_ofw_probe(device_t dev)
 	const char *type = ofw_bus_get_type(dev);
 
 	if (type == NULL)
-                return (ENXIO);
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "chrp,open-pic") &&
 	    strcmp(type, "open-pic") != 0)
-                return (ENXIO);
+		return (ENXIO);
 
 	/*
 	 * On some U4 systems, there is a phantom MPIC in the mac-io cell.

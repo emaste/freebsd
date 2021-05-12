@@ -33,34 +33,31 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/rmlock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
-#include <sys/kernel.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <net/vnet.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
-
-#include <netinet/in.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
-#include <netinet6/in6_fib.h>
-
 #include <net/route.h>
+#include <net/route/fib_algo.h>
 #include <net/route/nhop.h>
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
-#include <net/route/fib_algo.h>
+#include <net/vnet.h>
+#include <netinet/in.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet/ip_var.h>
+#include <netinet6/in6_fib.h>
+#include <netinet6/ip6_var.h>
 
 /*
  * Lockless radix lookup algo.
@@ -71,32 +68,35 @@ __FBSDID("$FreeBSD$");
  *
  */
 
-#define KEY_LEN_INET6	(offsetof(struct sa_in6, sin6_addr) + sizeof(struct in6_addr))
-#define OFF_LEN_INET6	(8 * offsetof(struct sa_in6, sin6_addr))
+#define KEY_LEN_INET6 \
+	(offsetof(struct sa_in6, sin6_addr) + sizeof(struct in6_addr))
+#define OFF_LEN_INET6 (8 * offsetof(struct sa_in6, sin6_addr))
 struct sa_in6 {
-	uint8_t			sin6_len;
-	uint8_t			sin6_family;
-	uint8_t			pad[6];
-	struct in6_addr		sin6_addr;
+	uint8_t sin6_len;
+	uint8_t sin6_family;
+	uint8_t pad[6];
+	struct in6_addr sin6_addr;
 };
 struct radix6_addr_entry {
-	struct radix_node	rn[2];
-	struct sa_in6		addr;
-	struct nhop_object	*nhop;
+	struct radix_node rn[2];
+	struct sa_in6 addr;
+	struct nhop_object *nhop;
 };
-#define	LRADIX6_ITEM_SZ	roundup2(sizeof(struct radix6_addr_entry), CACHE_LINE_SIZE)
+#define LRADIX6_ITEM_SZ \
+	roundup2(sizeof(struct radix6_addr_entry), CACHE_LINE_SIZE)
 
 struct lradix6_data {
-	struct radix_node_head	*rnh;
-	struct fib_data		*fd;
-	void			*mem; // raw radix_mem pointer to free
-	void			*radix_mem;
-	uint32_t		alloc_items;
-	uint32_t		num_items;
+	struct radix_node_head *rnh;
+	struct fib_data *fd;
+	void *mem; // raw radix_mem pointer to free
+	void *radix_mem;
+	uint32_t alloc_items;
+	uint32_t num_items;
 };
 
 static struct nhop_object *
-lradix6_lookup(void *algo_data, const struct flm_lookup_key key, uint32_t scopeid)
+lradix6_lookup(
+    void *algo_data, const struct flm_lookup_key key, uint32_t scopeid)
 {
 	struct radix_node_head *rnh = (struct radix_node_head *)algo_data;
 	struct radix6_addr_entry *ent;
@@ -125,13 +125,14 @@ lradix6_get_pref(const struct rib_rtable_info *rinfo)
 }
 
 static enum flm_op_result
-lradix6_init(uint32_t fibnum, struct fib_data *fd, void *_old_data, void **_data)
+lradix6_init(
+    uint32_t fibnum, struct fib_data *fd, void *_old_data, void **_data)
 {
 	struct lradix6_data *lr;
 	struct rib_rtable_info rinfo;
 	uint32_t count;
 	void *mem;
- 
+
 	lr = malloc(sizeof(struct lradix6_data), M_RTABLE, M_NOWAIT | M_ZERO);
 	if (lr == NULL || !rn_inithead((void **)&lr->rnh, OFF_LEN_INET6))
 		return (FLM_REBUILD);
@@ -139,7 +140,8 @@ lradix6_init(uint32_t fibnum, struct fib_data *fd, void *_old_data, void **_data
 
 	count = rinfo.num_prefixes * 11 / 10;
 	// count+1 adds at least 1 cache line
-	mem = malloc((count + 1) * LRADIX6_ITEM_SZ, M_RTABLE, M_NOWAIT | M_ZERO);
+	mem = malloc(
+	    (count + 1) * LRADIX6_ITEM_SZ, M_RTABLE, M_NOWAIT | M_ZERO);
 	if (mem == NULL)
 		return (FLM_REBUILD);
 	lr->mem = mem;
@@ -179,7 +181,8 @@ lradix6_add_route_cb(struct rtentry *rt, void *_data)
 	if (lr->num_items >= lr->alloc_items)
 		return (FLM_REBUILD);
 
-	ae = (struct radix6_addr_entry *)((char *)lr->radix_mem + lr->num_items * LRADIX6_ITEM_SZ);
+	ae = (struct radix6_addr_entry *)((char *)lr->radix_mem +
+	    lr->num_items * LRADIX6_ITEM_SZ);
 	lr->num_items++;
 
 	ae->nhop = nh;
@@ -217,8 +220,7 @@ lradix6_end_dump(void *_data, struct fib_dp *dp)
 }
 
 static enum flm_op_result
-lradix6_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
-    void *_data)
+lradix6_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc, void *_data)
 {
 
 	return (FLM_REBUILD);
@@ -246,7 +248,8 @@ struct radix6_data {
 };
 
 static struct nhop_object *
-radix6_lookup(void *algo_data, const struct flm_lookup_key key, uint32_t scopeid)
+radix6_lookup(
+    void *algo_data, const struct flm_lookup_key key, uint32_t scopeid)
 {
 	RIB_RLOCK_TRACKER;
 	struct rib_head *rh = (struct rib_head *)algo_data;
@@ -273,7 +276,8 @@ radix6_lookup(void *algo_data, const struct flm_lookup_key key, uint32_t scopeid
 }
 
 struct nhop_object *
-fib6_radix_lookup_nh(uint32_t fibnum, const struct in6_addr *dst6, uint32_t scopeid)
+fib6_radix_lookup_nh(
+    uint32_t fibnum, const struct in6_addr *dst6, uint32_t scopeid)
 {
 	struct rib_head *rh = rh = rt_tables_get_rnh(fibnum, AF_INET6);
 	const struct flm_lookup_key key = { .addr6 = dst6 };
@@ -333,8 +337,7 @@ radix6_end_dump(void *_data, struct fib_dp *dp)
 }
 
 static enum flm_op_result
-radix6_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
-    void *_data)
+radix6_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc, void *_data)
 {
 
 	return (FLM_SUCCESS);
@@ -358,4 +361,5 @@ fib6_algo_init(void)
 	fib_module_register(&flm_radix6_lockless);
 	fib_module_register(&flm_radix6);
 }
-SYSINIT(fib6_algo_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, fib6_algo_init, NULL);
+SYSINIT(
+    fib6_algo_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, fib6_algo_init, NULL);

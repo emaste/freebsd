@@ -45,30 +45,30 @@
  * they should be decoupled from the protocol at which time we can
  * pack them and reduce the size of the array to a reasonable value.
  */
-#define	ESP_ALG_MAX	256		/* NB: could be < but skipjack is 249 */
+#define ESP_ALG_MAX 256 /* NB: could be < but skipjack is 249 */
 
 struct espstat {
-	uint64_t	esps_hdrops;	/* Packet shorter than header shows */
-	uint64_t	esps_nopf;	/* Protocol family not supported */
-	uint64_t	esps_notdb;
-	uint64_t	esps_badkcr;
-	uint64_t	esps_qfull;
-	uint64_t	esps_noxform;
-	uint64_t	esps_badilen;
-	uint64_t	esps_wrap;	/* Replay counter wrapped around */
-	uint64_t	esps_badenc;	/* Bad encryption detected */
-	uint64_t	esps_badauth;	/* Only valid for transforms with auth */
-	uint64_t	esps_replay;	/* Possible packet replay detected */
-	uint64_t	esps_input;	/* Input ESP packets */
-	uint64_t	esps_output;	/* Output ESP packets */
-	uint64_t	esps_invalid;	/* Trying to use an invalid TDB */
-	uint64_t	esps_ibytes;	/* Input bytes */
-	uint64_t	esps_obytes;	/* Output bytes */
-	uint64_t	esps_toobig;	/* Packet got larger than IP_MAXPACKET */
-	uint64_t	esps_pdrops;	/* Packet blocked due to policy */
-	uint64_t	esps_crypto;	/* Crypto processing failure */
-	uint64_t	esps_tunnel;	/* Tunnel sanity check failure */
-	uint64_t	esps_hist[ESP_ALG_MAX];	/* Per-algorithm op count */
+	uint64_t esps_hdrops; /* Packet shorter than header shows */
+	uint64_t esps_nopf;   /* Protocol family not supported */
+	uint64_t esps_notdb;
+	uint64_t esps_badkcr;
+	uint64_t esps_qfull;
+	uint64_t esps_noxform;
+	uint64_t esps_badilen;
+	uint64_t esps_wrap;    /* Replay counter wrapped around */
+	uint64_t esps_badenc;  /* Bad encryption detected */
+	uint64_t esps_badauth; /* Only valid for transforms with auth */
+	uint64_t esps_replay;  /* Possible packet replay detected */
+	uint64_t esps_input;   /* Input ESP packets */
+	uint64_t esps_output;  /* Output ESP packets */
+	uint64_t esps_invalid; /* Trying to use an invalid TDB */
+	uint64_t esps_ibytes;  /* Input bytes */
+	uint64_t esps_obytes;  /* Output bytes */
+	uint64_t esps_toobig;  /* Packet got larger than IP_MAXPACKET */
+	uint64_t esps_pdrops;  /* Packet blocked due to policy */
+	uint64_t esps_crypto;  /* Crypto processing failure */
+	uint64_t esps_tunnel;  /* Tunnel sanity check failure */
+	uint64_t esps_hist[ESP_ALG_MAX]; /* Per-algorithm op count */
 };
 
 #ifdef _KERNEL
@@ -77,9 +77,9 @@ struct espstat {
 VNET_DECLARE(int, esp_enable);
 VNET_PCPUSTAT_DECLARE(struct espstat, espstat);
 
-#define	ESPSTAT_ADD(name, val)	\
-    VNET_PCPUSTAT_ADD(struct espstat, espstat, name, (val))
-#define	ESPSTAT_INC(name)	ESPSTAT_ADD(name, 1)
-#define	V_esp_enable	VNET(esp_enable)
+#define ESPSTAT_ADD(name, val) \
+	VNET_PCPUSTAT_ADD(struct espstat, espstat, name, (val))
+#define ESPSTAT_INC(name) ESPSTAT_ADD(name, 1)
+#define V_esp_enable VNET(esp_enable)
 #endif /* _KERNEL */
 #endif /*_NETIPSEC_ESP_VAR_H_*/

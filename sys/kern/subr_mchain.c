@@ -34,25 +34,24 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysctl.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/module.h>
-#include <sys/uio.h>
-
 #include <sys/mchain.h>
+#include <sys/module.h>
+#include <sys/sysctl.h>
+#include <sys/uio.h>
 
 FEATURE(libmchain, "mchain library");
 
 MODULE_VERSION(libmchain, 1);
 
-#define MBERROR(format, ...) printf("%s(%d): "format, __func__ , \
-				    __LINE__ , ## __VA_ARGS__)
+#define MBERROR(format, ...) \
+	printf("%s(%d): " format, __func__, __LINE__, ##__VA_ARGS__)
 
-#define MBPANIC(format, ...) printf("%s(%d): "format, __func__ , \
-				    __LINE__ , ## __VA_ARGS__)
+#define MBPANIC(format, ...) \
+	printf("%s(%d): " format, __func__, __LINE__, ##__VA_ARGS__)
 
 /*
  * Various helper functions
@@ -105,7 +104,7 @@ mb_fixhdr(struct mbchain *mbp)
  * Check if object of size 'size' fit to the current position and
  * allocate new mbuf if not. Advance pointers and increase length of mbuf(s).
  * Return pointer to the object placeholder or NULL if any error occurred.
- * Note: size should be <= MLEN 
+ * Note: size should be <= MLEN
  */
 caddr_t
 mb_reserve(struct mbchain *mbp, int size)
@@ -218,26 +217,27 @@ mb_put_mem(struct mbchain *mbp, c_caddr_t source, int size, int type)
 		srclen = dstlen = cplen;
 		dst = mtod(m, caddr_t) + m->m_len;
 		switch (type) {
-		    case MB_MCUSTOM:
+		case MB_MCUSTOM:
 			srclen = size;
 			dstlen = mleft;
-			error = mbp->mb_copy(mbp, source, dst, &srclen, &dstlen);
+			error = mbp->mb_copy(
+			    mbp, source, dst, &srclen, &dstlen);
 			if (error)
 				return (error);
 			break;
-		    case MB_MINLINE:
+		case MB_MINLINE:
 			for (src = source, count = cplen; count; count--)
 				*dst++ = *src++;
 			break;
-		    case MB_MSYSTEM:
+		case MB_MSYSTEM:
 			bcopy(source, dst, cplen);
 			break;
-		    case MB_MUSER:
+		case MB_MUSER:
 			error = copyin(source, dst, cplen);
 			if (error)
 				return (error);
 			break;
-		    case MB_MZERO:
+		case MB_MZERO:
 			bzero(dst, cplen);
 			break;
 		}
@@ -294,8 +294,8 @@ mb_put_uio(struct mbchain *mbp, struct uio *uiop, int size)
 			return (error);
 		uiop->uio_offset += left;
 		uiop->uio_resid -= left;
-		uiop->uio_iov->iov_base =
-		    (char *)uiop->uio_iov->iov_base + left;
+		uiop->uio_iov->iov_base = (char *)uiop->uio_iov->iov_base +
+		    left;
 		uiop->uio_iov->iov_len -= left;
 		size -= left;
 	}
@@ -321,7 +321,7 @@ md_initm(struct mdchain *mdp, struct mbuf *m)
 {
 	bzero(mdp, sizeof(*mdp));
 	mdp->md_top = mdp->md_cur = m;
-	mdp->md_pos = mtod(m, u_char*);
+	mdp->md_pos = mtod(m, u_char *);
 }
 
 void
@@ -480,7 +480,7 @@ md_get_mem(struct mdchain *mdp, caddr_t target, int size, int type)
 			return (EBADRPC);
 		}
 		s = mdp->md_pos;
-		count = mtod(m, u_char*) + m->m_len - s;
+		count = mtod(m, u_char *) + m->m_len - s;
 		if (count == 0) {
 			mdp->md_cur = m = m->m_next;
 			if (m)
@@ -494,15 +494,15 @@ md_get_mem(struct mdchain *mdp, caddr_t target, int size, int type)
 		if (target == NULL)
 			continue;
 		switch (type) {
-		    case MB_MUSER:
+		case MB_MUSER:
 			error = copyout(s, target, count);
 			if (error)
 				return error;
 			break;
-		    case MB_MSYSTEM:
+		case MB_MSYSTEM:
 			bcopy(s, target, count);
 			break;
-		    case MB_MINLINE:
+		case MB_MINLINE:
 			while (count--)
 				*target++ = *s++;
 			continue;
@@ -517,7 +517,7 @@ md_get_mbuf(struct mdchain *mdp, int size, struct mbuf **ret)
 {
 	struct mbuf *m = mdp->md_cur, *rm;
 
-	rm = m_copym(m, mdp->md_pos - mtod(m, u_char*), size, M_WAITOK);
+	rm = m_copym(m, mdp->md_pos - mtod(m, u_char *), size, M_WAITOK);
 	md_get_mem(mdp, NULL, size, MB_MZERO);
 	*ret = rm;
 	return (0);
@@ -548,8 +548,8 @@ md_get_uio(struct mdchain *mdp, struct uio *uiop, int size)
 			return (error);
 		uiop->uio_offset += left;
 		uiop->uio_resid -= left;
-		uiop->uio_iov->iov_base =
-		    (char *)uiop->uio_iov->iov_base + left;
+		uiop->uio_iov->iov_base = (char *)uiop->uio_iov->iov_base +
+		    left;
 		uiop->uio_iov->iov_len -= left;
 		size -= left;
 	}

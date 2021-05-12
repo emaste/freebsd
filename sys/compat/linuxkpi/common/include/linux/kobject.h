@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_KOBJECT_H_
-#define	_LINUX_KOBJECT_H_
+#ifndef _LINUX_KOBJECT_H_
+#define _LINUX_KOBJECT_H_
 
 #include <machine/stdarg.h>
 
@@ -41,7 +41,7 @@
 struct kobject;
 struct sysctl_oid;
 
-#define	KOBJ_CHANGE		0x01
+#define KOBJ_CHANGE 0x01
 
 struct kobj_type {
 	void (*release)(struct kobject *kobj);
@@ -52,26 +52,26 @@ struct kobj_type {
 extern const struct kobj_type linux_kfree_type;
 
 struct kobject {
-	struct kobject		*parent;
-	char			*name;
-	struct kref		kref;
-	const struct kobj_type	*ktype;
-	struct list_head	entry;
-	struct sysctl_oid	*oidp;
+	struct kobject *parent;
+	char *name;
+	struct kref kref;
+	const struct kobj_type *ktype;
+	struct list_head entry;
+	struct sysctl_oid *oidp;
 };
 
 extern struct kobject *mm_kobj;
 
 struct attribute {
-	const char	*name;
-	struct module	*owner;
-	mode_t		mode;
+	const char *name;
+	struct module *owner;
+	mode_t mode;
 };
 
 struct kobj_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
-	    char *buf);
+	ssize_t (*show)(
+	    struct kobject *kobj, struct kobj_attribute *attr, char *buf);
 	ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
 	    const char *buf, size_t count);
 };
@@ -105,9 +105,9 @@ kobject_get(struct kobject *kobj)
 	return kobj;
 }
 
-int	kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list);
-int	kobject_add(struct kobject *kobj, struct kobject *parent,
-	    const char *fmt, ...);
+int kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list);
+int kobject_add(
+    struct kobject *kobj, struct kobject *parent, const char *fmt, ...);
 
 static inline struct kobject *
 kobject_create(void)
@@ -149,9 +149,9 @@ kobject_name(const struct kobject *kobj)
 	return kobj->name;
 }
 
-int	kobject_set_name(struct kobject *kobj, const char *fmt, ...);
-int	kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
-	    struct kobject *parent, const char *fmt, ...);
+int kobject_set_name(struct kobject *kobj, const char *fmt, ...);
+int kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
+    struct kobject *parent, const char *fmt, ...);
 
 static __inline void
 kobject_uevent_env(struct kobject *kobj, int action, char *envp[])

@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+
 #include <vm/uma.h>
 
 #define IN_SUBR_COUNTER_C
@@ -71,8 +72,7 @@ counter_u64_free(counter_u64_t c)
 	uma_zfree_pcpu(pcpu_zone_8, c);
 }
 
-int
-sysctl_handle_counter_u64(SYSCTL_HANDLER_ARGS)
+int sysctl_handle_counter_u64(SYSCTL_HANDLER_ARGS)
 {
 	uint64_t out;
 	int error;
@@ -92,8 +92,7 @@ sysctl_handle_counter_u64(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-int
-sysctl_handle_counter_u64_array(SYSCTL_HANDLER_ARGS)
+int sysctl_handle_counter_u64_array(SYSCTL_HANDLER_ARGS)
 {
 	uint64_t *out;
 	int error;

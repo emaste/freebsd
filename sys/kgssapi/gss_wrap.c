@@ -42,12 +42,8 @@ __FBSDID("$FreeBSD$");
 #include "kgss_if.h"
 
 OM_uint32
-gss_wrap(OM_uint32 *minor_status,
-    const gss_ctx_id_t ctx,
-    int conf_req_flag,
-    gss_qop_t qop_req,
-    const gss_buffer_t input_message_buffer,
-    int *conf_state,
+gss_wrap(OM_uint32 *minor_status, const gss_ctx_id_t ctx, int conf_req_flag,
+    gss_qop_t qop_req, const gss_buffer_t input_message_buffer, int *conf_state,
     gss_buffer_t output_message_buffer)
 {
 	OM_uint32 maj_stat;
@@ -63,8 +59,8 @@ gss_wrap(OM_uint32 *minor_status,
 		MCLGET(m, M_WAITOK);
 	m_append(m, input_message_buffer->length, input_message_buffer->value);
 
-	maj_stat = KGSS_WRAP(ctx, minor_status, conf_req_flag, qop_req,
-	    &m, conf_state);
+	maj_stat = KGSS_WRAP(
+	    ctx, minor_status, conf_req_flag, qop_req, &m, conf_state);
 
 	/*
 	 * On success, m is the wrapped message, on failure, m is
@@ -72,9 +68,8 @@ gss_wrap(OM_uint32 *minor_status,
 	 */
 	if (maj_stat == GSS_S_COMPLETE) {
 		output_message_buffer->length = m_length(m, NULL);
-		output_message_buffer->value =
-			malloc(output_message_buffer->length,
-			    M_GSSAPI, M_WAITOK);
+		output_message_buffer->value = malloc(
+		    output_message_buffer->length, M_GSSAPI, M_WAITOK);
 		m_copydata(m, 0, output_message_buffer->length,
 		    output_message_buffer->value);
 		m_freem(m);
@@ -93,6 +88,6 @@ gss_wrap_mbuf(OM_uint32 *minor_status, const gss_ctx_id_t ctx,
 		return (GSS_S_NO_CONTEXT);
 	}
 
-	return (KGSS_WRAP(ctx, minor_status, conf_req_flag, qop_req,
-		mp, conf_state));
+	return (KGSS_WRAP(
+	    ctx, minor_status, conf_req_flag, qop_req, mp, conf_state));
 }

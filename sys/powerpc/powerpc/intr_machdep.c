@@ -66,20 +66,20 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/queue.h>
 #include <sys/bus.h>
 #include <sys/cpuset.h>
 #include <sys/interrupt.h>
+#include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/smp.h>
 #include <sys/syslog.h>
 #include <sys/vmmeter.h>
-#include <sys/proc.h>
 
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
@@ -89,22 +89,22 @@
 
 #include "pic_if.h"
 
-#define	MAX_STRAY_LOG	5
+#define MAX_STRAY_LOG 5
 
 static MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 
 struct powerpc_intr {
 	struct intr_event *event;
-	long	*cntp;
-	void	*priv;		/* PIC-private data */
+	long *cntp;
+	void *priv; /* PIC-private data */
 	device_t pic;
-	u_int	irq;
-	u_int	intline;
-	u_int	vector;
-	u_int	cntindex;
-	int	fwcode;
-	int	ipi;
-	int	pi_domain;
+	u_int irq;
+	u_int intline;
+	u_int vector;
+	u_int cntindex;
+	int fwcode;
+	int ipi;
+	int pi_domain;
 	enum intr_trigger trig;
 	enum intr_polarity pol;
 	cpuset_t pi_cpuset;
@@ -113,21 +113,21 @@ struct powerpc_intr {
 struct pic {
 	device_t dev;
 	uint32_t node;
-	u_int	irqs;
-	u_int	ipis;
-	int	base;
+	u_int irqs;
+	u_int ipis;
+	int base;
 };
 
 static u_int intrcnt_index = 0;
 static struct mtx intr_table_lock;
 static struct powerpc_intr **powerpc_intrs;
 static struct pic piclist[MAX_PICS];
-static u_int nvectors;		/* Allocated vectors */
-static u_int npics;		/* PICs registered */
+static u_int nvectors; /* Allocated vectors */
+static u_int npics;    /* PICs registered */
 #ifdef DEV_ISA
-static u_int nirqs = 16;	/* Allocated IRQS (ISA pre-allocated). */
+static u_int nirqs = 16; /* Allocated IRQS (ISA pre-allocated). */
 #else
-static u_int nirqs = 0;		/* Allocated IRQs. */
+static u_int nirqs = 0; /* Allocated IRQs. */
 #endif
 static u_int stray_count;
 
@@ -172,17 +172,17 @@ static void
 intr_init_sources(void *arg __unused)
 {
 
-	powerpc_intrs = mallocarray(num_io_irqs, sizeof(*powerpc_intrs),
-	    M_INTR, M_WAITOK | M_ZERO);
+	powerpc_intrs = mallocarray(
+	    num_io_irqs, sizeof(*powerpc_intrs), M_INTR, M_WAITOK | M_ZERO);
 	nintrcnt = 1 + num_io_irqs * 2 + mp_ncpus * 2;
 #ifdef COUNT_IPIS
 	if (mp_ncpus > 1)
 		nintrcnt += 8 * mp_ncpus;
 #endif
-	intrcnt = mallocarray(nintrcnt, sizeof(u_long), M_INTR, M_WAITOK |
-	    M_ZERO);
-	intrnames = mallocarray(nintrcnt, MAXCOMLEN + 1, M_INTR, M_WAITOK |
-	    M_ZERO);
+	intrcnt = mallocarray(
+	    nintrcnt, sizeof(u_long), M_INTR, M_WAITOK | M_ZERO);
+	intrnames = mallocarray(
+	    nintrcnt, MAXCOMLEN + 1, M_INTR, M_WAITOK | M_ZERO);
 	sintrcnt = nintrcnt * sizeof(u_long);
 	sintrnames = nintrcnt * (MAXCOMLEN + 1);
 
@@ -216,8 +216,10 @@ intrcnt_add(const char *name, u_long **countp)
 	int idx;
 
 	idx = atomic_fetchadd_int(&intrcnt_index, 1);
-	KASSERT(idx < nintrcnt, ("intrcnt_add: Interrupt counter index %d/%d"
-		"reached nintrcnt : %d", intrcnt_index, idx, nintrcnt));
+	KASSERT(idx < nintrcnt,
+	    ("intrcnt_add: Interrupt counter index %d/%d"
+	     "reached nintrcnt : %d",
+		intrcnt_index, idx, nintrcnt));
 	*countp = &intrcnt[idx];
 	intrcnt_setname(name, idx);
 }
@@ -262,8 +264,7 @@ intr_lookup(u_int irq)
 	CPU_SETOF(0, &i->pi_cpuset);
 #endif
 
-	for (vector = 0; vector < num_io_irqs && vector <= nvectors;
-	    vector++) {
+	for (vector = 0; vector < num_io_irqs && vector <= nvectors; vector++) {
 		iscan = powerpc_intrs[vector];
 		if (iscan != NULL && iscan->irq == irq)
 			break;
@@ -362,8 +363,8 @@ powerpc_assign_intr_cpu(void *arg, int cpu)
 }
 
 u_int
-powerpc_register_pic(device_t dev, uint32_t node, u_int irqs, u_int ipis,
-    u_int atpic)
+powerpc_register_pic(
+    device_t dev, uint32_t node, u_int irqs, u_int ipis, u_int atpic)
 {
 	struct pic *p;
 	u_int irq;
@@ -468,7 +469,7 @@ powerpc_enable_intr(void)
 
 			KASSERT(piclist[n].ipis != 0,
 			    ("%s: SMP root PIC does not supply any IPIs",
-			    __func__));
+				__func__));
 			error = powerpc_setup_intr("IPI",
 			    MAP_IRQ(piclist[n].node, piclist[n].irqs),
 			    powerpc_ipi_handler, NULL, NULL,
@@ -483,8 +484,8 @@ powerpc_enable_intr(void)
 			 * Some subterfuge: disable late EOI and mark this
 			 * as an IPI to the dispatch layer.
 			 */
-			i = intr_lookup(MAP_IRQ(piclist[n].node,
-			    piclist[n].irqs));
+			i = intr_lookup(
+			    MAP_IRQ(piclist[n].node, piclist[n].irqs));
 			i->event->ie_post_filter = NULL;
 			i->ipi = 1;
 		}
@@ -501,8 +502,8 @@ powerpc_enable_intr(void)
 			continue;
 
 		if (i->trig == INTR_TRIGGER_INVALID)
-			PIC_TRANSLATE_CODE(i->pic, i->intline, i->fwcode,
-			    &i->trig, &i->pol);
+			PIC_TRANSLATE_CODE(
+			    i->pic, i->intline, i->fwcode, &i->trig, &i->pol);
 		if (i->trig != INTR_TRIGGER_CONFORM ||
 		    i->pol != INTR_POLARITY_CONFORM)
 			PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
@@ -541,7 +542,7 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 	if (error)
 		return (error);
 	i->pi_domain = domain;
-	if (strcmp(name, "IPI") != 0)  {
+	if (strcmp(name, "IPI") != 0) {
 		CPU_ZERO(&i->pi_cpuset);
 		CPU_COPY(&cpuset_domain[domain], &i->pi_cpuset);
 	}
@@ -562,11 +563,12 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 				PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
 
 			if (i->pic == root_pic)
-				PIC_BIND(i->pic, i->intline, i->pi_cpuset, &i->priv);
+				PIC_BIND(
+				    i->pic, i->intline, i->pi_cpuset, &i->priv);
 
 			if (enable)
-				PIC_ENABLE(i->pic, i->intline, i->vector,
-				    &i->priv);
+				PIC_ENABLE(
+				    i->pic, i->intline, i->vector, &i->priv);
 		}
 	}
 	return (error);
@@ -607,8 +609,8 @@ powerpc_fw_config_intr(int irq, int sense_code)
 	i->fwcode = sense_code;
 
 	if (!cold && i->pic != NULL) {
-		PIC_TRANSLATE_CODE(i->pic, i->intline, i->fwcode, &i->trig,
-		    &i->pol);
+		PIC_TRANSLATE_CODE(
+		    i->pic, i->intline, i->fwcode, &i->trig, &i->pol);
 		PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
 	}
 

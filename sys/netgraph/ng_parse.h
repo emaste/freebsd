@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -222,9 +222,8 @@ struct ng_parse_type;
  *	ENOMEM		Out of memory
  *	EOPNOTSUPP	Mandatory array/structure element missing
  */
-typedef	int	ng_parse_t(const struct ng_parse_type *type, const char *string,
-			int *off, const u_char *start,
-			u_char *buf, int *buflen);
+typedef int ng_parse_t(const struct ng_parse_type *type, const char *string,
+    int *off, const u_char *start, u_char *buf, int *buflen);
 
 /*
  * Convert binary to ASCII according to the supplied type.
@@ -237,8 +236,8 @@ typedef	int	ng_parse_t(const struct ng_parse_type *type, const char *string,
  *	0		Success
  *	ERANGE		Output was longer than buflen bytes
  */
-typedef	int	ng_unparse_t(const struct ng_parse_type *type,
-			const u_char *data, int *off, char *buf, int buflen);
+typedef int ng_unparse_t(const struct ng_parse_type *type, const u_char *data,
+    int *off, char *buf, int buflen);
 
 /*
  * Compute the default value according to the supplied type.
@@ -251,13 +250,13 @@ typedef	int	ng_unparse_t(const struct ng_parse_type *type,
  *	ERANGE		Output was longer than *buflen bytes
  *	EOPNOTSUPP	Default value is not specified for this type
  */
-typedef	int	ng_getDefault_t(const struct ng_parse_type *type,
-			const u_char *start, u_char *buf, int *buflen);
+typedef int ng_getDefault_t(const struct ng_parse_type *type,
+    const u_char *start, u_char *buf, int *buflen);
 
 /*
  * Return the alignment requirement of this type.  Zero is same as one.
  */
-typedef	int	ng_getAlign_t(const struct ng_parse_type *type);
+typedef int ng_getAlign_t(const struct ng_parse_type *type);
 
 /************************************************************************
 			TYPE DEFINITION
@@ -277,13 +276,13 @@ typedef	int	ng_getAlign_t(const struct ng_parse_type *type);
  * always be explicitly given.
  */
 struct ng_parse_type {
-	const struct ng_parse_type *supertype;	/* super-type, if any */
-	const void		*info;		/* type-specific info */
-	void			*private;	/* client private info */
-	ng_parse_t		*parse;		/* parse method */
-	ng_unparse_t		*unparse;	/* unparse method */
-	ng_getDefault_t		*getDefault;	/* get default value method */
-	ng_getAlign_t		*getAlign;	/* get alignment */
+	const struct ng_parse_type *supertype; /* super-type, if any */
+	const void *info;		       /* type-specific info */
+	void *private;			       /* client private info */
+	ng_parse_t *parse;		       /* parse method */
+	ng_unparse_t *unparse;		       /* unparse method */
+	ng_getDefault_t *getDefault;	       /* get default value method */
+	ng_getAlign_t *getAlign;	       /* get alignment */
 };
 
 /************************************************************************
@@ -307,9 +306,9 @@ extern const struct ng_parse_type ng_parse_struct_type;
    Note: add an extra struct ng_parse_struct_field with name == NULL
    to indicate the end of the list. */
 struct ng_parse_struct_field {
-	const char			*name;		/* field name */
-	const struct ng_parse_type	*type;		/* field type */
-	int				alignment;	/* override alignment */
+	const char *name;		  /* field name */
+	const struct ng_parse_type *type; /* field type */
+	int alignment;			  /* override alignment */
 };
 
 /*
@@ -329,14 +328,13 @@ extern const struct ng_parse_type ng_parse_fixedarray_type;
  * (having size *buflen) and update *buflen to the length of the filled-in
  * value before return.  If there is not enough routine return ERANGE.
  */
-typedef	int	ng_parse_array_getDefault_t(const struct ng_parse_type *type,
-				int index, const u_char *start,
-				u_char *buf, int *buflen);
+typedef int ng_parse_array_getDefault_t(const struct ng_parse_type *type,
+    int index, const u_char *start, u_char *buf, int *buflen);
 
 struct ng_parse_fixedarray_info {
-	const struct ng_parse_type	*elementType;
-	int				length;
-	ng_parse_array_getDefault_t	*getDefault;
+	const struct ng_parse_type *elementType;
+	int length;
+	ng_parse_array_getDefault_t *getDefault;
 };
 
 /*
@@ -356,13 +354,13 @@ extern const struct ng_parse_type ng_parse_array_type;
  * 'start' is equal to the first byte parsed in this run, while 'buf' points
  * to the first element of the array to be filled in.
  */
-typedef int	ng_parse_array_getLength_t(const struct ng_parse_type *type,
-				const u_char *start, const u_char *buf);
+typedef int ng_parse_array_getLength_t(
+    const struct ng_parse_type *type, const u_char *start, const u_char *buf);
 
 struct ng_parse_array_info {
-	const struct ng_parse_type	*elementType;
-	ng_parse_array_getLength_t	*getLength;
-	ng_parse_array_getDefault_t	*getDefault;
+	const struct ng_parse_type *elementType;
+	ng_parse_array_getLength_t *getLength;
+	ng_parse_array_getDefault_t *getDefault;
 };
 
 /*
@@ -387,7 +385,7 @@ extern const struct ng_parse_type ng_parse_string_type;
 extern const struct ng_parse_type ng_parse_fixedstring_type;
 
 struct ng_parse_fixedstring_info {
-	int	bufSize;	/* size of buffer (including NUL) */
+	int bufSize; /* size of buffer (including NUL) */
 };
 
 /*
@@ -404,11 +402,11 @@ extern const struct ng_parse_type ng_parse_sizedstring_type;
 /*
  * COMMONLY USED BOUNDED LENGTH STRING TYPES
  */
-extern const struct ng_parse_type ng_parse_nodebuf_type;  /* NG_NODESIZ */
-extern const struct ng_parse_type ng_parse_hookbuf_type;  /* NG_HOOKSIZ */
-extern const struct ng_parse_type ng_parse_pathbuf_type;  /* NG_PATHSIZ */
-extern const struct ng_parse_type ng_parse_typebuf_type;  /* NG_TYPESIZ */
-extern const struct ng_parse_type ng_parse_cmdbuf_type;   /* NG_CMDSTRSIZ */
+extern const struct ng_parse_type ng_parse_nodebuf_type; /* NG_NODESIZ */
+extern const struct ng_parse_type ng_parse_hookbuf_type; /* NG_HOOKSIZ */
+extern const struct ng_parse_type ng_parse_pathbuf_type; /* NG_PATHSIZ */
+extern const struct ng_parse_type ng_parse_typebuf_type; /* NG_TYPESIZ */
+extern const struct ng_parse_type ng_parse_cmdbuf_type;	 /* NG_CMDSTRSIZ */
 
 /*
  * INTEGER TYPES
@@ -477,34 +475,34 @@ extern const struct ng_parse_type ng_parse_ng_mesg_type;
 
 /* Tokens for parsing structs and arrays */
 enum ng_parse_token {
-	T_LBRACE,		/* '{' */
-	T_RBRACE,		/* '}' */
-	T_LBRACKET,		/* '[' */
-	T_RBRACKET,		/* ']' */
-	T_EQUALS,		/* '=' */
-	T_STRING,		/* string in double quotes */
-	T_ERROR,		/* error parsing string in double quotes */
-	T_WORD,			/* anything else containing no whitespace */
-	T_EOF,			/* end of string reached */
+	T_LBRACE,   /* '{' */
+	T_RBRACE,   /* '}' */
+	T_LBRACKET, /* '[' */
+	T_RBRACKET, /* ']' */
+	T_EQUALS,   /* '=' */
+	T_STRING,   /* string in double quotes */
+	T_ERROR,    /* error parsing string in double quotes */
+	T_WORD,	    /* anything else containing no whitespace */
+	T_EOF,	    /* end of string reached */
 };
 
 /*
  * See typedef ng_parse_t for definition
  */
-extern int	ng_parse(const struct ng_parse_type *type, const char *string,
-			int *off, u_char *buf, int *buflen);
+extern int ng_parse(const struct ng_parse_type *type, const char *string,
+    int *off, u_char *buf, int *buflen);
 
 /*
  * See typedef ng_unparse_t for definition (*off assumed to be zero).
  */
-extern int	ng_unparse(const struct ng_parse_type *type,
-			const u_char *data, char *buf, int buflen);
+extern int ng_unparse(const struct ng_parse_type *type, const u_char *data,
+    char *buf, int buflen);
 
 /*
  * See typedef ng_getDefault_t for definition
  */
-extern int	ng_parse_getDefault(const struct ng_parse_type *type,
-			u_char *buf, int *buflen);
+extern int ng_parse_getDefault(
+    const struct ng_parse_type *type, u_char *buf, int *buflen);
 
 /*
  * Parse a token: '*startp' is the offset to start looking.  Upon
@@ -512,8 +510,8 @@ extern int	ng_parse_getDefault(const struct ng_parse_type *type,
  * and '*lenp' the length.  If error, '*startp' points at the
  * offending character(s).
  */
-extern enum	ng_parse_token ng_parse_get_token(const char *s,
-			int *startp, int *lenp);
+extern enum ng_parse_token ng_parse_get_token(
+    const char *s, int *startp, int *lenp);
 
 /*
  * Like above, but specifically for getting a string token and returning
@@ -524,8 +522,8 @@ extern enum	ng_parse_token ng_parse_get_token(const char *s,
  * the number of characters parsed, and *slenp (if not NULL) contains
  * the actual number of characters in the parsed string.
  */
-extern char	*ng_get_string_token(const char *s, int *startp,
-			int *lenp, int *slenp);
+extern char *ng_get_string_token(
+    const char *s, int *startp, int *lenp, int *slenp);
 
 /*
  * Convert a raw string into a doubly-quoted string including any
@@ -533,6 +531,6 @@ extern char	*ng_get_string_token(const char *s, int *startp,
  * Returns NULL if ENOMEM. Normally "slen" should equal strlen(s)
  * unless you want to encode NUL bytes.
  */
-extern char	*ng_encode_string(const char *s, int slen);
+extern char *ng_encode_string(const char *s, int slen);
 
 #endif /* _NETGRAPH_NG_PARSE_H_ */

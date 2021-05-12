@@ -30,157 +30,153 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/endian.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/malloc.h>
-#include <sys/rman.h>
-#include <sys/fbio.h>
 #include <sys/consio.h>
+#include <sys/endian.h>
+#include <sys/fbio.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/rman.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/videomode/videomode.h>
-#include <dev/videomode/edidvar.h>
-
-#include <dev/vt/vt.h>
-#include <dev/vt/colors/vt_termcolors.h>
-
-#include <powerpc/mpc85xx/mpc85xx.h>
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/videomode/edidvar.h>
+#include <dev/videomode/videomode.h>
+#include <dev/vt/colors/vt_termcolors.h>
+#include <dev/vt/vt.h>
+
+#include <powerpc/mpc85xx/mpc85xx.h>
+
 #include "fb_if.h"
 
-#define	DIU_DESC_1		0x000	/* Plane1 Area Descriptor Pointer Register */
-#define	DIU_DESC_2		0x004	/* Plane2 Area Descriptor Pointer Register */
-#define	DIU_DESC_3		0x008	/* Plane3 Area Descriptor Pointer Register */
-#define	DIU_GAMMA		0x00C	/* Gamma Register */
-#define	DIU_PALETTE		0x010	/* Palette Register */
-#define	DIU_CURSOR		0x014	/* Cursor Register */
-#define	DIU_CURS_POS		0x018	/* Cursor Position Register */
-#define	 CURSOR_Y_SHIFT		 16
-#define	 CURSOR_X_SHIFT		 0
-#define	DIU_DIU_MODE		0x01C	/* DIU4 Mode */
-#define	 DIU_MODE_M		0x7
-#define	 DIU_MODE_S		0
-#define	 DIU_MODE_NORMAL	0x1
-#define	 DIU_MODE_2		0x2
-#define	 DIU_MODE_3		0x3
-#define	 DIU_MODE_COLBAR	0x4
-#define	DIU_BGND		0x020	/* Background */
-#define	DIU_BGND_WB		0x024	/* Background Color in write back Mode Register */
-#define	DIU_DISP_SIZE		0x028	/* Display Size */
-#define	 DELTA_Y_S		16
-#define	 DELTA_X_S		0
-#define	DIU_WB_SIZE		0x02C	/* Write back Plane Size Register */
-#define	 DELTA_Y_WB_S		16
-#define	 DELTA_X_WB_S		0
-#define	DIU_WB_MEM_ADDR		0x030	/* Address to Store the write back Plane Register */
-#define	DIU_HSYN_PARA		0x034	/* Horizontal Sync Parameter */
-#define	 BP_H_SHIFT		22
-#define	 PW_H_SHIFT		11
-#define	 FP_H_SHIFT		0
-#define	DIU_VSYN_PARA		0x038	/* Vertical Sync Parameter */
-#define	 BP_V_SHIFT		22
-#define	 PW_V_SHIFT		11
-#define	 FP_V_SHIFT		0
-#define	DIU_SYNPOL		0x03C	/* Synchronize Polarity */
-#define	 BP_VS			(1 << 4)
-#define	 BP_HS			(1 << 3)
-#define	 INV_CS			(1 << 2)
-#define	 INV_VS			(1 << 1)
-#define	 INV_HS			(1 << 0)
-#define	 INV_PDI_VS		(1 << 8) /* Polarity of PDI input VSYNC. */
-#define	 INV_PDI_HS		(1 << 9) /* Polarity of PDI input HSYNC. */
-#define	 INV_PDI_DE		(1 << 10) /* Polarity of PDI input DE. */
-#define	DIU_THRESHOLD		0x040	/* Threshold */
-#define	 LS_BF_VS_SHIFT		16
-#define	 OUT_BUF_LOW_SHIFT	0
-#define	DIU_INT_STATUS		0x044	/* Interrupt Status */
-#define	DIU_INT_MASK		0x048	/* Interrupt Mask */
-#define	DIU_COLBAR_1		0x04C	/* COLBAR_1 */
-#define	 DIU_COLORBARn_R(x)	 ((x & 0xff) << 16)
-#define	 DIU_COLORBARn_G(x)	 ((x & 0xff) << 8)
-#define	 DIU_COLORBARn_B(x)	 ((x & 0xff) << 0)
-#define	DIU_COLBAR_2		0x050	/* COLBAR_2 */
-#define	DIU_COLBAR_3		0x054	/* COLBAR_3 */
-#define	DIU_COLBAR_4		0x058	/* COLBAR_4 */
-#define	DIU_COLBAR_5		0x05c	/* COLBAR_5 */
-#define	DIU_COLBAR_6		0x060	/* COLBAR_6 */
-#define	DIU_COLBAR_7		0x064	/* COLBAR_7 */
-#define	DIU_COLBAR_8		0x068	/* COLBAR_8 */
-#define	DIU_FILLING		0x06C	/* Filling Register */
-#define	DIU_PLUT		0x070	/* Priority Look Up Table Register */
+#define DIU_DESC_1 0x000 /* Plane1 Area Descriptor Pointer Register */
+#define DIU_DESC_2 0x004 /* Plane2 Area Descriptor Pointer Register */
+#define DIU_DESC_3 0x008 /* Plane3 Area Descriptor Pointer Register */
+#define DIU_GAMMA 0x00C /* Gamma Register */
+#define DIU_PALETTE 0x010 /* Palette Register */
+#define DIU_CURSOR 0x014 /* Cursor Register */
+#define DIU_CURS_POS 0x018 /* Cursor Position Register */
+#define CURSOR_Y_SHIFT 16
+#define CURSOR_X_SHIFT 0
+#define DIU_DIU_MODE 0x01C /* DIU4 Mode */
+#define DIU_MODE_M 0x7
+#define DIU_MODE_S 0
+#define DIU_MODE_NORMAL 0x1
+#define DIU_MODE_2 0x2
+#define DIU_MODE_3 0x3
+#define DIU_MODE_COLBAR 0x4
+#define DIU_BGND 0x020 /* Background */
+#define DIU_BGND_WB 0x024 /* Background Color in write back Mode Register */
+#define DIU_DISP_SIZE 0x028 /* Display Size */
+#define DELTA_Y_S 16
+#define DELTA_X_S 0
+#define DIU_WB_SIZE 0x02C /* Write back Plane Size Register */
+#define DELTA_Y_WB_S 16
+#define DELTA_X_WB_S 0
+#define DIU_WB_MEM_ADDR \
+	0x030 /* Address to Store the write back Plane Register */
+#define DIU_HSYN_PARA 0x034 /* Horizontal Sync Parameter */
+#define BP_H_SHIFT 22
+#define PW_H_SHIFT 11
+#define FP_H_SHIFT 0
+#define DIU_VSYN_PARA 0x038 /* Vertical Sync Parameter */
+#define BP_V_SHIFT 22
+#define PW_V_SHIFT 11
+#define FP_V_SHIFT 0
+#define DIU_SYNPOL 0x03C /* Synchronize Polarity */
+#define BP_VS (1 << 4)
+#define BP_HS (1 << 3)
+#define INV_CS (1 << 2)
+#define INV_VS (1 << 1)
+#define INV_HS (1 << 0)
+#define INV_PDI_VS (1 << 8) /* Polarity of PDI input VSYNC. */
+#define INV_PDI_HS (1 << 9) /* Polarity of PDI input HSYNC. */
+#define INV_PDI_DE (1 << 10) /* Polarity of PDI input DE. */
+#define DIU_THRESHOLD 0x040 /* Threshold */
+#define LS_BF_VS_SHIFT 16
+#define OUT_BUF_LOW_SHIFT 0
+#define DIU_INT_STATUS 0x044 /* Interrupt Status */
+#define DIU_INT_MASK 0x048 /* Interrupt Mask */
+#define DIU_COLBAR_1 0x04C /* COLBAR_1 */
+#define DIU_COLORBARn_R(x) ((x & 0xff) << 16)
+#define DIU_COLORBARn_G(x) ((x & 0xff) << 8)
+#define DIU_COLORBARn_B(x) ((x & 0xff) << 0)
+#define DIU_COLBAR_2 0x050 /* COLBAR_2 */
+#define DIU_COLBAR_3 0x054 /* COLBAR_3 */
+#define DIU_COLBAR_4 0x058 /* COLBAR_4 */
+#define DIU_COLBAR_5 0x05c /* COLBAR_5 */
+#define DIU_COLBAR_6 0x060 /* COLBAR_6 */
+#define DIU_COLBAR_7 0x064 /* COLBAR_7 */
+#define DIU_COLBAR_8 0x068 /* COLBAR_8 */
+#define DIU_FILLING 0x06C /* Filling Register */
+#define DIU_PLUT 0x070 /* Priority Look Up Table Register */
 
 /* Control Descriptor */
-#define DIU_CTRLDESCL(n, m)	0x200 + (0x40 * n) + 0x4 * (m - 1)
-#define DIU_CTRLDESCLn_1(n)	DIU_CTRLDESCL(n, 1)
-#define DIU_CTRLDESCLn_2(n)	DIU_CTRLDESCL(n, 2)
-#define DIU_CTRLDESCLn_3(n)	DIU_CTRLDESCL(n, 3)
-#define	 TRANS_SHIFT		20
-#define DIU_CTRLDESCLn_4(n)	DIU_CTRLDESCL(n, 4)
-#define	 BPP_MASK		0xf		/* Bit per pixel Mask */
-#define	 BPP_SHIFT		16		/* Bit per pixel Shift */
-#define	 BPP24			0x5
-#define	 EN_LAYER		(1 << 31)	/* Enable the layer */
-#define DIU_CTRLDESCLn_5(n)	DIU_CTRLDESCL(n, 5)
-#define DIU_CTRLDESCLn_6(n)	DIU_CTRLDESCL(n, 6)
-#define DIU_CTRLDESCLn_7(n)	DIU_CTRLDESCL(n, 7)
-#define DIU_CTRLDESCLn_8(n)	DIU_CTRLDESCL(n, 8)
-#define DIU_CTRLDESCLn_9(n)	DIU_CTRLDESCL(n, 9)
+#define DIU_CTRLDESCL(n, m) 0x200 + (0x40 * n) + 0x4 * (m - 1)
+#define DIU_CTRLDESCLn_1(n) DIU_CTRLDESCL(n, 1)
+#define DIU_CTRLDESCLn_2(n) DIU_CTRLDESCL(n, 2)
+#define DIU_CTRLDESCLn_3(n) DIU_CTRLDESCL(n, 3)
+#define TRANS_SHIFT 20
+#define DIU_CTRLDESCLn_4(n) DIU_CTRLDESCL(n, 4)
+#define BPP_MASK 0xf /* Bit per pixel Mask */
+#define BPP_SHIFT 16 /* Bit per pixel Shift */
+#define BPP24 0x5
+#define EN_LAYER (1 << 31) /* Enable the layer */
+#define DIU_CTRLDESCLn_5(n) DIU_CTRLDESCL(n, 5)
+#define DIU_CTRLDESCLn_6(n) DIU_CTRLDESCL(n, 6)
+#define DIU_CTRLDESCLn_7(n) DIU_CTRLDESCL(n, 7)
+#define DIU_CTRLDESCLn_8(n) DIU_CTRLDESCL(n, 8)
+#define DIU_CTRLDESCLn_9(n) DIU_CTRLDESCL(n, 9)
 
-#define	NUM_LAYERS	1
+#define NUM_LAYERS 1
 
 struct panel_info {
-	uint32_t	panel_width;
-	uint32_t	panel_height;
-	uint32_t	panel_hbp;
-	uint32_t	panel_hpw;
-	uint32_t	panel_hfp;
-	uint32_t	panel_vbp;
-	uint32_t	panel_vpw;
-	uint32_t	panel_vfp;
-	uint32_t	panel_freq;
-	uint32_t	clk_div;
+	uint32_t panel_width;
+	uint32_t panel_height;
+	uint32_t panel_hbp;
+	uint32_t panel_hpw;
+	uint32_t panel_hfp;
+	uint32_t panel_vbp;
+	uint32_t panel_vpw;
+	uint32_t panel_vfp;
+	uint32_t panel_freq;
+	uint32_t clk_div;
 };
 
 struct diu_area_descriptor {
-	uint32_t	pixel_format;
-	uint32_t	bitmap_address;
-	uint32_t	source_size;
-	uint32_t	aoi_size;
-	uint32_t	aoi_offset;
-	uint32_t	display_offset;
-	uint32_t	chroma_key_max;
-	uint32_t	chroma_key_min;
-	uint32_t	next_ad_addr;
+	uint32_t pixel_format;
+	uint32_t bitmap_address;
+	uint32_t source_size;
+	uint32_t aoi_size;
+	uint32_t aoi_offset;
+	uint32_t display_offset;
+	uint32_t chroma_key_max;
+	uint32_t chroma_key_min;
+	uint32_t next_ad_addr;
 } __aligned(32);
 
 struct diu_softc {
-	struct resource		*res[2];
-	void			*ih;
-	device_t		sc_dev;
-	device_t		sc_fbd;		/* fbd child */
-	struct fb_info		sc_info;
-	struct panel_info	sc_panel;
+	struct resource *res[2];
+	void *ih;
+	device_t sc_dev;
+	device_t sc_fbd; /* fbd child */
+	struct fb_info sc_info;
+	struct panel_info sc_panel;
 	struct diu_area_descriptor *sc_planes[3];
-	uint8_t			*sc_gamma;
-	uint8_t			*sc_cursor;
+	uint8_t *sc_gamma;
+	uint8_t *sc_cursor;
 };
 
-static struct resource_spec diu_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec diu_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
 static int
 diu_probe(device_t dev)
@@ -228,11 +224,11 @@ diu_set_pxclk(device_t dev, unsigned int freq)
 	/* freq is in kHz */
 	freq *= 1000;
 	/* adding freq/2 to round-to-closest */
-	pxclk_set = min(max((bus_freq + freq/2) / freq, 2), 255) << 16;
+	pxclk_set = min(max((bus_freq + freq / 2) / freq, 2), 255) << 16;
 	pxclk_set |= OCP85XX_CLKDVDR_PXCKEN;
 	clkdvd = ccsr_read4(OCP85XX_CLKDVDR);
 	clkdvd &= ~(OCP85XX_CLKDVDR_PXCKEN | OCP85XX_CLKDVDR_PXCKINV |
-		OCP85XX_CLKDVDR_PXCLK_MASK);
+	    OCP85XX_CLKDVDR_PXCLK_MASK);
 	ccsr_write4(OCP85XX_CLKDVDR, clkdvd);
 	ccsr_write4(OCP85XX_CLKDVDR, clkdvd | pxclk_set);
 
@@ -283,7 +279,7 @@ diu_init(struct diu_softc *sc)
 
 	/* Reset all layers */
 	sc->sc_planes[0] = contigmalloc(sizeof(struct diu_area_descriptor),
-		M_DEVBUF, M_ZERO, 0, BUS_SPACE_MAXADDR_32BIT, 32, 0);
+	    M_DEVBUF, M_ZERO, 0, BUS_SPACE_MAXADDR_32BIT, 32, 0);
 	bus_write_4(sc->res[0], DIU_DESC_1, vtophys(sc->sc_planes[0]));
 	bus_write_4(sc->res[0], DIU_DESC_2, 0);
 	bus_write_4(sc->res[0], DIU_DESC_3, 0);
@@ -292,12 +288,10 @@ diu_init(struct diu_softc *sc)
 	/* Area descriptor fields are little endian, so byte swap. */
 	/* Word 0: Pixel format */
 	/* Set to 8:8:8:8 ARGB, 4 bytes per pixel, no flip. */
-#define MAKE_PXLFMT(as,rs,gs,bs,a,r,g,b,f,s)	\
-		htole32((as << (4 * a)) | (rs << 4 * r) | \
-		    (gs << 4 * g) | (bs << 4 * b) | \
-		    (f << 28) | (s << 16) | \
-		    (a << 25) | (r << 19) | \
-		    (g << 21) | (b << 24))
+#define MAKE_PXLFMT(as, rs, gs, bs, a, r, g, b, f, s)                       \
+	htole32((as << (4 * a)) | (rs << 4 * r) | (gs << 4 * g) |           \
+	    (bs << 4 * b) | (f << 28) | (s << 16) | (a << 25) | (r << 19) | \
+	    (g << 21) | (b << 24))
 	reg = MAKE_PXLFMT(8, 8, 8, 8, 3, 2, 1, 0, 1, 3);
 	sc->sc_planes[0]->pixel_format = reg;
 	/* Word 1: Bitmap address */
@@ -354,8 +348,8 @@ diu_attach(device_t dev)
 
 	node = ofw_bus_get_node(dev);
 	/* Setup interrupt handler */
-	err = bus_setup_intr(dev, sc->res[1], INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, diu_intr, sc, &sc->ih);
+	err = bus_setup_intr(dev, sc->res[1], INTR_TYPE_BIO | INTR_MPSAFE, NULL,
+	    diu_intr, sc, &sc->ih);
 	if (err) {
 		device_printf(dev, "Unable to alloc interrupt resource.\n");
 		return (ENXIO);
@@ -365,9 +359,9 @@ diu_attach(device_t dev)
 	if (OF_getprop_alloc(node, "edid", &edid_cells) <= 0) {
 		/* Get a resource hint: hint.fb.N.mode */
 		if (resource_string_value(device_get_name(dev),
-		    device_get_unit(dev), "mode", &vm_name) != 0) {
-			device_printf(dev,
-			    "No EDID data and no video-mode env set\n");
+			device_get_unit(dev), "mode", &vm_name) != 0) {
+			device_printf(
+			    dev, "No EDID data and no video-mode env set\n");
 			return (ENXIO);
 		}
 	}
@@ -381,14 +375,14 @@ diu_attach(device_t dev)
 	} else {
 		/* Parse video-mode kenv variable. */
 		if ((err = sscanf(vm_name, "%dx%d@%d", &w, &h, &r)) != 3) {
-			device_printf(dev,
-			    "Cannot parse video mode: %s\n", vm_name);
+			device_printf(
+			    dev, "Cannot parse video mode: %s\n", vm_name);
 			return (ENXIO);
 		}
 		videomode = pick_mode_by_ref(w, h, r);
 		if (videomode == NULL) {
-			device_printf(dev,
-			    "Cannot find mode for %dx%d@%d", w, h, r);
+			device_printf(
+			    dev, "Cannot find mode for %dx%d@%d", w, h, r);
 			return (ENXIO);
 		}
 	}
@@ -415,8 +409,8 @@ diu_attach(device_t dev)
 	sc->sc_info.fb_memattr = VM_MEMATTR_DEFAULT;
 
 	/* Gamma table is 3 consecutive segments of 256 bytes. */
-	sc->sc_gamma = contigmalloc(3 * 256, M_DEVBUF, 0, 0,
-	    BUS_SPACE_MAXADDR_32BIT, PAGE_SIZE, 0);
+	sc->sc_gamma = contigmalloc(
+	    3 * 256, M_DEVBUF, 0, 0, BUS_SPACE_MAXADDR_32BIT, PAGE_SIZE, 0);
 	/* Initialize gamma to default */
 	for (i = 0; i < 3 * 256; i++)
 		sc->sc_gamma[i] = (i % 256);
@@ -449,14 +443,11 @@ diu_fb_getinfo(device_t dev)
 	return (&sc->sc_info);
 }
 
-static device_method_t diu_methods[] = {
-	DEVMETHOD(device_probe,		diu_probe),
-	DEVMETHOD(device_attach,	diu_attach),
+static device_method_t diu_methods[] = { DEVMETHOD(device_probe, diu_probe),
+	DEVMETHOD(device_attach, diu_attach),
 
 	/* Framebuffer service methods */
-	DEVMETHOD(fb_getinfo,		diu_fb_getinfo),
-	{ 0, 0 }
-};
+	DEVMETHOD(fb_getinfo, diu_fb_getinfo), { 0, 0 } };
 
 static driver_t diu_driver = {
 	"fb",

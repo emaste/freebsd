@@ -33,11 +33,11 @@
  */
 
 #ifndef _SYS_DISKMBR_H_
-#define	_SYS_DISKMBR_H_
+#define _SYS_DISKMBR_H_
 
 #include <sys/disk/mbr.h>
 #include <sys/ioccom.h>
 
-#define DIOCSMBR 	_IOW('M', 129, u_char[512])
+#define DIOCSMBR _IOW('M', 129, u_char[512])
 
 #endif /* !_SYS_DISKMBR_H_ */

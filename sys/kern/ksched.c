@@ -41,14 +41,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/lock.h>
-#include <sys/sysctl.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/proc.h>
 #include <sys/posix4.h>
+#include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/sched.h>
+#include <sys/sysctl.h>
 
 FEATURE(kposix_priority_scheduling, "POSIX P1003.1B realtime extensions");
 
@@ -127,8 +127,8 @@ getscheduler(struct ksched *ksched, struct thread *td, int *policy)
 }
 
 int
-ksched_setparam(struct ksched *ksched,
-    struct thread *td, const struct sched_param *param)
+ksched_setparam(
+    struct ksched *ksched, struct thread *td, const struct sched_param *param)
 {
 	int e, policy;
 
@@ -139,8 +139,8 @@ ksched_setparam(struct ksched *ksched,
 }
 
 int
-ksched_getparam(struct ksched *ksched, struct thread *td,
-    struct sched_param *param)
+ksched_getparam(
+    struct ksched *ksched, struct thread *td, struct sched_param *param)
 {
 	struct rtprio rtp;
 
@@ -148,11 +148,11 @@ ksched_getparam(struct ksched *ksched, struct thread *td,
 	if (RTP_PRIO_IS_REALTIME(rtp.type))
 		param->sched_priority = rtpprio_to_p4prio(rtp.prio);
 	else {
-		if (PRI_MIN_TIMESHARE < rtp.prio) 
+		if (PRI_MIN_TIMESHARE < rtp.prio)
 			/*
-		 	 * The interactive score has it to min realtime
+			 * The interactive score has it to min realtime
 			 * so we must show max (64 most likely).
-			 */ 
+			 */
 			param->sched_priority = PRI_MAX_TIMESHARE -
 			    PRI_MIN_TIMESHARE;
 		else
@@ -176,22 +176,23 @@ ksched_setscheduler(struct ksched *ksched, struct thread *td, int policy,
 	int e;
 
 	e = 0;
-	switch(policy) {
+	switch (policy) {
 	case SCHED_RR:
 	case SCHED_FIFO:
 		if (param->sched_priority >= P1B_PRIO_MIN &&
 		    param->sched_priority <= P1B_PRIO_MAX) {
 			rtp.prio = p4prio_to_rtpprio(param->sched_priority);
 			rtp.type = (policy == SCHED_FIFO) ? RTP_PRIO_FIFO :
-			    RTP_PRIO_REALTIME;
+								  RTP_PRIO_REALTIME;
 			rtp_to_pri(&rtp, td);
 		} else {
 			e = EPERM;
 		}
 		break;
 	case SCHED_OTHER:
-		if (param->sched_priority >= 0 && param->sched_priority <=
-		    (PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE)) {
+		if (param->sched_priority >= 0 &&
+		    param->sched_priority <=
+			(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE)) {
 			rtp.type = RTP_PRIO_NORMAL;
 			rtp.prio = p4prio_to_tsprio(param->sched_priority);
 			rtp_to_pri(&rtp, td);
@@ -228,7 +229,7 @@ ksched_get_priority_max(struct ksched *ksched, int policy, int *prio)
 	int e;
 
 	e = 0;
-	switch (policy)	{
+	switch (policy) {
 	case SCHED_FIFO:
 	case SCHED_RR:
 		*prio = P1B_PRIO_MAX;
@@ -249,7 +250,7 @@ ksched_get_priority_min(struct ksched *ksched, int policy, int *prio)
 	int e;
 
 	e = 0;
-	switch (policy)	{
+	switch (policy) {
 	case SCHED_FIFO:
 	case SCHED_RR:
 		*prio = P1B_PRIO_MIN;
@@ -265,8 +266,8 @@ ksched_get_priority_min(struct ksched *ksched, int policy, int *prio)
 }
 
 int
-ksched_rr_get_interval(struct ksched *ksched, struct thread *td,
-    struct timespec *timespec)
+ksched_rr_get_interval(
+    struct ksched *ksched, struct thread *td, struct timespec *timespec)
 {
 
 	*timespec = ksched->rr_interval;

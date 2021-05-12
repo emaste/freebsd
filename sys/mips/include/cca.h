@@ -58,7 +58,7 @@
  */
 
 #ifndef _MIPS_CCA_H_
-#define	_MIPS_CCA_H_
+#define _MIPS_CCA_H_
 
 /*
  * Cache Coherency Attributes:
@@ -84,32 +84,32 @@
  * 	CACHED:	The optional cached mode for the target CPU type.
  */
 
-#define	MIPS_CCA_UC		0x02	/* Uncached. */
-#define	MIPS_CCA_C		0x03	/* Cacheable, coherency unspecified. */
+#define MIPS_CCA_UC 0x02 /* Uncached. */
+#define MIPS_CCA_C 0x03	 /* Cacheable, coherency unspecified. */
 
 #if defined(CPU_R4000) || defined(CPU_R10000)
-#define	MIPS_CCA_CNC	0x03
-#define	MIPS_CCA_CCE	0x04
-#define	MIPS_CCA_CCEW	0x05
+#define MIPS_CCA_CNC 0x03
+#define MIPS_CCA_CCE 0x04
+#define MIPS_CCA_CCEW 0x05
 
 #ifdef CPU_R4000
-#define	MIPS_CCA_CCUOW	0x06
+#define MIPS_CCA_CCUOW 0x06
 #endif
 
 #ifdef CPU_R10000
-#define	MIPS_CCA_UA	0x07
+#define MIPS_CCA_UA 0x07
 #endif
 
-#define	MIPS_CCA_CACHED	MIPS_CCA_CCEW
+#define MIPS_CCA_CACHED MIPS_CCA_CCEW
 #endif /* defined(CPU_R4000) || defined(CPU_R10000) */
 
 #if defined(CPU_SB1)
-#define	MIPS_CCA_CC	0x05	/* Cacheable Coherent. */
+#define MIPS_CCA_CC 0x05 /* Cacheable Coherent. */
 #endif
 
 #if defined(CPU_MIPS74K)
-#define	MIPS_CCA_UNCACHED	0x02
-#define	MIPS_CCA_CACHED		0x03
+#define MIPS_CCA_UNCACHED 0x02
+#define MIPS_CCA_CACHED 0x03
 #endif
 
 /*
@@ -117,24 +117,24 @@
  * Cacheable Coherent CCAs 0x04 and 0x05, as well as Cacheable non-Coherent
  * CCA 0x03 and Uncached Accelerated CCA 0x07
  */
-#if defined(CPU_MIPS1004K) || defined(CPU_MIPS1074K) ||	\
+#if defined(CPU_MIPS1004K) || defined(CPU_MIPS1074K) || \
     defined(CPU_INTERAPTIV) || defined(CPU_PROAPTIV)
-#define	MIPS_CCA_CNC		0x03
-#define	MIPS_CCA_CCE		0x04
-#define	MIPS_CCA_CCS		0x05
-#define	MIPS_CCA_UA		0x07
+#define MIPS_CCA_CNC 0x03
+#define MIPS_CCA_CCE 0x04
+#define MIPS_CCA_CCS 0x05
+#define MIPS_CCA_UA 0x07
 
 /* We use shared read CCA for CACHED CCA */
-#define	MIPS_CCA_CACHED		MIPS_CCA_CCS
+#define MIPS_CCA_CACHED MIPS_CCA_CCS
 #endif
 
 #if defined(CPU_XBURST)
-#define	MIPS_CCA_UA		0x01
-#define	MIPS_CCA_WC		MIPS_CCA_UA
+#define MIPS_CCA_UA 0x01
+#define MIPS_CCA_WC MIPS_CCA_UA
 #endif
 
-#ifndef	MIPS_CCA_UNCACHED
-#define	MIPS_CCA_UNCACHED	MIPS_CCA_UC
+#ifndef MIPS_CCA_UNCACHED
+#define MIPS_CCA_UNCACHED MIPS_CCA_UC
 #endif
 
 /*
@@ -144,9 +144,9 @@
  */
 #ifndef MIPS_CCA_CACHED
 #ifdef MIPS_CCA_CC
-#define	MIPS_CCA_CACHED	MIPS_CCA_CC
+#define MIPS_CCA_CACHED MIPS_CCA_CC
 #else
-#define	MIPS_CCA_CACHED	MIPS_CCA_C
+#define MIPS_CCA_CACHED MIPS_CCA_C
 #endif
 #endif
 

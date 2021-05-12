@@ -35,84 +35,80 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
 
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/sound/pcm/sound.h>
 #include <dev/sound/chip.h>
-#include <mixer_if.h>
-
-#include <dev/extres/clk/clk.h>
+#include <dev/sound/pcm/sound.h>
 #include <dev/xdma/xdma.h>
 
-#include <mips/ingenic/jz4780_common.h>
 #include <mips/ingenic/jz4780_aic.h>
+#include <mips/ingenic/jz4780_common.h>
+#include <mixer_if.h>
 
-#define	AIC_NCHANNELS		1
+#define AIC_NCHANNELS 1
 
 struct aic_softc {
-	device_t		dev;
-	struct resource		*res[1];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	struct mtx		*lock;
-	int			pos;
-	bus_dma_tag_t		dma_tag;
-	bus_dmamap_t		dma_map;
-	bus_addr_t		buf_base_phys;
-	uint32_t		*buf_base;
-	uintptr_t		aic_fifo_paddr;
-	int			dma_size;
-	clk_t			clk_aic;
-	clk_t			clk_i2s;
-	struct aic_rate		*sr;
-	void			*ih;
-	int			internal_codec;
+	device_t dev;
+	struct resource *res[1];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	struct mtx *lock;
+	int pos;
+	bus_dma_tag_t dma_tag;
+	bus_dmamap_t dma_map;
+	bus_addr_t buf_base_phys;
+	uint32_t *buf_base;
+	uintptr_t aic_fifo_paddr;
+	int dma_size;
+	clk_t clk_aic;
+	clk_t clk_i2s;
+	struct aic_rate *sr;
+	void *ih;
+	int internal_codec;
 
 	/* xDMA */
-	struct xdma_channel	*xchan;
-	xdma_controller_t	*xdma_tx;
-	struct xdma_request	req;
+	struct xdma_channel *xchan;
+	xdma_controller_t *xdma_tx;
+	struct xdma_request req;
 };
 
 /* Channel registers */
 struct sc_chinfo {
-	struct snd_dbuf		*buffer;
-	struct pcm_channel	*channel;
-	struct sc_pcminfo	*parent;
+	struct snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct sc_pcminfo *parent;
 
 	/* Channel information */
-	uint32_t	dir;
-	uint32_t	format;
+	uint32_t dir;
+	uint32_t format;
 
 	/* Flags */
-	uint32_t	run;
+	uint32_t run;
 };
 
 /* PCM device private data */
 struct sc_pcminfo {
-	device_t		dev;
-	uint32_t		chnum;
-	struct sc_chinfo	chan[AIC_NCHANNELS];
-	struct aic_softc	*sc;
+	device_t dev;
+	uint32_t chnum;
+	struct sc_chinfo chan[AIC_NCHANNELS];
+	struct aic_softc *sc;
 };
 
-static struct resource_spec aic_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec aic_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 static int aic_probe(device_t dev);
 static int aic_attach(device_t dev);
@@ -120,7 +116,7 @@ static int aic_detach(device_t dev);
 static int setup_xdma(struct sc_pcminfo *scp);
 
 struct aic_rate {
-        uint32_t speed;
+	uint32_t speed;
 };
 
 static struct aic_rate rate_map[] = {
@@ -156,8 +152,7 @@ aicmixer_init(struct snd_mixer *m)
 }
 
 static int
-aicmixer_set(struct snd_mixer *m, unsigned dev,
-    unsigned left, unsigned right)
+aicmixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct sc_pcminfo *scp;
 
@@ -168,11 +163,9 @@ aicmixer_set(struct snd_mixer *m, unsigned dev,
 	return (0);
 }
 
-static kobj_method_t aicmixer_methods[] = {
-	KOBJMETHOD(mixer_init,      aicmixer_init),
-	KOBJMETHOD(mixer_set,       aicmixer_set),
-	KOBJMETHOD_END
-};
+static kobj_method_t aicmixer_methods[] = { KOBJMETHOD(
+						mixer_init, aicmixer_init),
+	KOBJMETHOD(mixer_set, aicmixer_set), KOBJMETHOD_END };
 MIXER_DECLARE(aicmixer);
 
 /*
@@ -260,8 +253,10 @@ aicchan_setspeed(kobj_t obj, void *data, uint32_t speed)
 	if (sr == NULL) {
 		for (i = 0; rate_map[i].speed != 0; i++) {
 			sr = &rate_map[i];
-			threshold = sr->speed + ((rate_map[i + 1].speed != 0) ?
-			    ((rate_map[i + 1].speed - sr->speed) >> 1) : 0);
+			threshold = sr->speed +
+			    ((rate_map[i + 1].speed != 0) ?
+					  ((rate_map[i + 1].speed - sr->speed) >> 1) :
+					  0);
 			if (speed < threshold)
 				break;
 		}
@@ -451,12 +446,9 @@ aicchan_getptr(kobj_t obj, void *data)
 	return (sc->pos);
 }
 
-static uint32_t aic_pfmt[] = {
-	SND_FORMAT(AFMT_S16_LE, 2, 0),
-	0
-};
+static uint32_t aic_pfmt[] = { SND_FORMAT(AFMT_S16_LE, 2, 0), 0 };
 
-static struct pcmchan_caps aic_pcaps = {48000, 48000, aic_pfmt, 0};
+static struct pcmchan_caps aic_pcaps = { 48000, 48000, aic_pfmt, 0 };
 
 static struct pcmchan_caps *
 aicchan_getcaps(kobj_t obj, void *data)
@@ -465,17 +457,15 @@ aicchan_getcaps(kobj_t obj, void *data)
 	return (&aic_pcaps);
 }
 
-static kobj_method_t aicchan_methods[] = {
-	KOBJMETHOD(channel_init,         aicchan_init),
-	KOBJMETHOD(channel_free,         aicchan_free),
-	KOBJMETHOD(channel_setformat,    aicchan_setformat),
-	KOBJMETHOD(channel_setspeed,     aicchan_setspeed),
+static kobj_method_t aicchan_methods[] = { KOBJMETHOD(
+					       channel_init, aicchan_init),
+	KOBJMETHOD(channel_free, aicchan_free),
+	KOBJMETHOD(channel_setformat, aicchan_setformat),
+	KOBJMETHOD(channel_setspeed, aicchan_setspeed),
 	KOBJMETHOD(channel_setblocksize, aicchan_setblocksize),
-	KOBJMETHOD(channel_trigger,      aicchan_trigger),
-	KOBJMETHOD(channel_getptr,       aicchan_getptr),
-	KOBJMETHOD(channel_getcaps,      aicchan_getcaps),
-	KOBJMETHOD_END
-};
+	KOBJMETHOD(channel_trigger, aicchan_trigger),
+	KOBJMETHOD(channel_getptr, aicchan_getptr),
+	KOBJMETHOD(channel_getcaps, aicchan_getcaps), KOBJMETHOD_END };
 CHANNEL_DECLARE(aicchan);
 
 static void
@@ -486,7 +476,7 @@ aic_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
 	if (err)
 		return;
 
-	addr = (bus_addr_t*)arg;
+	addr = (bus_addr_t *)arg;
 	*addr = segs[0].ds_addr;
 }
 
@@ -505,15 +495,14 @@ aic_dma_setup(struct aic_softc *sc)
 	 * Must use dma_size boundary as modulo feature required.
 	 * Modulo feature allows setup circular buffer.
 	 */
-	err = bus_dma_tag_create(
-	    bus_get_dma_tag(sc->dev),
-	    4, sc->dma_size,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    sc->dma_size, 1,		/* maxsize, nsegments */
-	    sc->dma_size, 0,		/* maxsegsize, flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	err = bus_dma_tag_create(bus_get_dma_tag(sc->dev), 4,
+	    sc->dma_size,	     /* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
+	    BUS_SPACE_MAXADDR,	     /* highaddr */
+	    NULL, NULL,		     /* filter, filterarg */
+	    sc->dma_size, 1,	     /* maxsize, nsegments */
+	    sc->dma_size, 0,	     /* maxsegsize, flags */
+	    NULL, NULL,		     /* lockfunc, lockarg */
 	    &sc->dma_tag);
 	if (err) {
 		device_printf(dev, "cannot create bus dma tag\n");
@@ -582,8 +571,8 @@ aic_configure_clocks(struct aic_softc *sc)
 	clk_get_freq(sc->clk_aic, &aic_freq);
 	clk_get_freq(sc->clk_i2s, &i2s_freq);
 
-	device_printf(dev, "Frequency aic %d i2s %d\n",
-	    (uint32_t)aic_freq, (uint32_t)i2s_freq);
+	device_printf(dev, "Frequency aic %d i2s %d\n", (uint32_t)aic_freq,
+	    (uint32_t)i2s_freq);
 
 	return (0);
 }
@@ -603,19 +592,18 @@ aic_configure(struct aic_softc *sc)
 		reg |= (AICFR_SYNCD | AICFR_BCKD);
 	}
 	reg |= (AICFR_AUSEL);	/* I2S/MSB-justified format. */
-	reg |= (AICFR_TFTH(8));	/* Transmit FIFO threshold */
-	reg |= (AICFR_RFTH(7));	/* Receive FIFO threshold */
+	reg |= (AICFR_TFTH(8)); /* Transmit FIFO threshold */
+	reg |= (AICFR_RFTH(7)); /* Receive FIFO threshold */
 	WRITE4(sc, AICFR, reg);
 
 	reg = READ4(sc, AICFR);
-	reg |= (AICFR_ENB);	/* Enable the controller. */
+	reg |= (AICFR_ENB); /* Enable the controller. */
 	WRITE4(sc, AICFR, reg);
 
 	return (0);
 }
 
-static int
-sysctl_hw_pcm_internal_codec(SYSCTL_HANDLER_ARGS)
+static int sysctl_hw_pcm_internal_codec(SYSCTL_HANDLER_ARGS)
 {
 	struct sc_pcminfo *scp;
 	struct sc_chinfo *ch;
@@ -706,8 +694,7 @@ aic_attach(device_t dev)
 	}
 
 	if (bus_alloc_resources(dev, aic_spec, sc->res)) {
-		device_printf(dev,
-		    "could not allocate resources for device\n");
+		device_printf(dev, "could not allocate resources for device\n");
 		return (ENXIO);
 	}
 
@@ -746,8 +733,7 @@ aic_attach(device_t dev)
 	/* Setup interrupt handler. */
 	err = xdma_setup_intr(sc->xchan, 0, aic_intr, scp, &sc->ih);
 	if (err) {
-		device_printf(sc->dev,
-		    "Can't setup xDMA interrupt handler.\n");
+		device_printf(sc->dev, "Can't setup xDMA interrupt handler.\n");
 		return (ENXIO);
 	}
 
@@ -768,11 +754,9 @@ aic_attach(device_t dev)
 
 	/* Create device sysctl node. */
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "internal_codec",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-	    scp, 0, sysctl_hw_pcm_internal_codec, "I",
-	    "use internal audio codec");
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "internal_codec", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, scp,
+	    0, sysctl_hw_pcm_internal_codec, "I", "use internal audio codec");
 
 	return (0);
 }
@@ -793,10 +777,9 @@ aic_detach(device_t dev)
 
 static device_method_t aic_pcm_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		aic_probe),
-	DEVMETHOD(device_attach,	aic_attach),
-	DEVMETHOD(device_detach,	aic_detach),
-	DEVMETHOD_END
+	DEVMETHOD(device_probe, aic_probe),
+	DEVMETHOD(device_attach, aic_attach),
+	DEVMETHOD(device_detach, aic_detach), DEVMETHOD_END
 };
 
 static driver_t aic_pcm_driver = {

@@ -1,4 +1,5 @@
-/*	$NetBSD: ieee8023ad_lacp.c,v 1.3 2005/12/11 12:24:54 christos Exp $	*/
+/*	$NetBSD: ieee8023ad_lacp.c,v 1.3 2005/12/11 12:24:54 christos Exp $
+ */
 
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-NetBSD
@@ -36,41 +37,41 @@ __FBSDID("$FreeBSD$");
 #include "opt_ratelimit.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/callout.h>
 #include <sys/eventhandler.h>
-#include <sys/mbuf.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h> /* hz */
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h> /* for net/if.h */
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
-#include <machine/stdarg.h>
-#include <sys/lock.h>
-#include <sys/rwlock.h>
 #include <sys/taskqueue.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_dl.h>
+#include <machine/stdarg.h>
+
 #include <net/ethernet.h>
-#include <net/infiniband.h>
+#include <net/ieee8023ad_lacp.h>
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_lagg.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
-
-#include <net/if_lagg.h>
-#include <net/ieee8023ad_lacp.h>
+#include <net/if_var.h>
+#include <net/infiniband.h>
 
 /*
  * actor system priority and port priority.
  * XXX should be configurable.
  */
 
-#define	LACP_SYSTEM_PRIO	0x8000
-#define	LACP_PORT_PRIO		0x8000
+#define LACP_SYSTEM_PRIO 0x8000
+#define LACP_PORT_PRIO 0x8000
 
-const uint8_t ethermulticastaddr_slowprotocols[ETHER_ADDR_LEN] =
-    { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x02 };
+const uint8_t ethermulticastaddr_slowprotocols[ETHER_ADDR_LEN] = { 0x01, 0x80,
+	0xc2, 0x00, 0x00, 0x02 };
 
 static const struct tlv_template lacp_info_tlv_template[] = {
 	{ LACP_TYPE_ACTORINFO,
@@ -96,108 +97,105 @@ static const struct tlv_template marker_response_tlv_template[] = {
 
 typedef void (*lacp_timer_func_t)(struct lacp_port *);
 
-static void	lacp_fill_actorinfo(struct lacp_port *, struct lacp_peerinfo *);
-static void	lacp_fill_markerinfo(struct lacp_port *,
-		    struct lacp_markerinfo *);
+static void lacp_fill_actorinfo(struct lacp_port *, struct lacp_peerinfo *);
+static void lacp_fill_markerinfo(struct lacp_port *, struct lacp_markerinfo *);
 
-static uint64_t	lacp_aggregator_bandwidth(struct lacp_aggregator *);
-static void	lacp_suppress_distributing(struct lacp_softc *,
-		    struct lacp_aggregator *);
-static void	lacp_transit_expire(void *);
-static void	lacp_update_portmap(struct lacp_softc *);
-static void	lacp_select_active_aggregator(struct lacp_softc *);
-static uint16_t	lacp_compose_key(struct lacp_port *);
-static int	tlv_check(const void *, size_t, const struct tlvhdr *,
-		    const struct tlv_template *, boolean_t);
-static void	lacp_tick(void *);
+static uint64_t lacp_aggregator_bandwidth(struct lacp_aggregator *);
+static void lacp_suppress_distributing(
+    struct lacp_softc *, struct lacp_aggregator *);
+static void lacp_transit_expire(void *);
+static void lacp_update_portmap(struct lacp_softc *);
+static void lacp_select_active_aggregator(struct lacp_softc *);
+static uint16_t lacp_compose_key(struct lacp_port *);
+static int tlv_check(const void *, size_t, const struct tlvhdr *,
+    const struct tlv_template *, boolean_t);
+static void lacp_tick(void *);
 
-static void	lacp_fill_aggregator_id(struct lacp_aggregator *,
-		    const struct lacp_port *);
-static void	lacp_fill_aggregator_id_peer(struct lacp_peerinfo *,
-		    const struct lacp_peerinfo *);
-static int	lacp_aggregator_is_compatible(const struct lacp_aggregator *,
-		    const struct lacp_port *);
-static int	lacp_peerinfo_is_compatible(const struct lacp_peerinfo *,
-		    const struct lacp_peerinfo *);
+static void lacp_fill_aggregator_id(
+    struct lacp_aggregator *, const struct lacp_port *);
+static void lacp_fill_aggregator_id_peer(
+    struct lacp_peerinfo *, const struct lacp_peerinfo *);
+static int lacp_aggregator_is_compatible(
+    const struct lacp_aggregator *, const struct lacp_port *);
+static int lacp_peerinfo_is_compatible(
+    const struct lacp_peerinfo *, const struct lacp_peerinfo *);
 
-static struct lacp_aggregator *lacp_aggregator_get(struct lacp_softc *,
-		    struct lacp_port *);
-static void	lacp_aggregator_addref(struct lacp_softc *,
-		    struct lacp_aggregator *);
-static void	lacp_aggregator_delref(struct lacp_softc *,
-		    struct lacp_aggregator *);
+static struct lacp_aggregator *lacp_aggregator_get(
+    struct lacp_softc *, struct lacp_port *);
+static void lacp_aggregator_addref(
+    struct lacp_softc *, struct lacp_aggregator *);
+static void lacp_aggregator_delref(
+    struct lacp_softc *, struct lacp_aggregator *);
 
 /* receive machine */
 
-static int	lacp_pdu_input(struct lacp_port *, struct mbuf *);
-static int	lacp_marker_input(struct lacp_port *, struct mbuf *);
-static void	lacp_sm_rx(struct lacp_port *, const struct lacpdu *);
-static void	lacp_sm_rx_timer(struct lacp_port *);
-static void	lacp_sm_rx_set_expired(struct lacp_port *);
-static void	lacp_sm_rx_update_ntt(struct lacp_port *,
-		    const struct lacpdu *);
-static void	lacp_sm_rx_record_pdu(struct lacp_port *,
-		    const struct lacpdu *);
-static void	lacp_sm_rx_update_selected(struct lacp_port *,
-		    const struct lacpdu *);
-static void	lacp_sm_rx_record_default(struct lacp_port *);
-static void	lacp_sm_rx_update_default_selected(struct lacp_port *);
-static void	lacp_sm_rx_update_selected_from_peerinfo(struct lacp_port *,
-		    const struct lacp_peerinfo *);
+static int lacp_pdu_input(struct lacp_port *, struct mbuf *);
+static int lacp_marker_input(struct lacp_port *, struct mbuf *);
+static void lacp_sm_rx(struct lacp_port *, const struct lacpdu *);
+static void lacp_sm_rx_timer(struct lacp_port *);
+static void lacp_sm_rx_set_expired(struct lacp_port *);
+static void lacp_sm_rx_update_ntt(struct lacp_port *, const struct lacpdu *);
+static void lacp_sm_rx_record_pdu(struct lacp_port *, const struct lacpdu *);
+static void lacp_sm_rx_update_selected(
+    struct lacp_port *, const struct lacpdu *);
+static void lacp_sm_rx_record_default(struct lacp_port *);
+static void lacp_sm_rx_update_default_selected(struct lacp_port *);
+static void lacp_sm_rx_update_selected_from_peerinfo(
+    struct lacp_port *, const struct lacp_peerinfo *);
 
 /* mux machine */
 
-static void	lacp_sm_mux(struct lacp_port *);
-static void	lacp_set_mux(struct lacp_port *, enum lacp_mux_state);
-static void	lacp_sm_mux_timer(struct lacp_port *);
+static void lacp_sm_mux(struct lacp_port *);
+static void lacp_set_mux(struct lacp_port *, enum lacp_mux_state);
+static void lacp_sm_mux_timer(struct lacp_port *);
 
 /* periodic transmit machine */
 
-static void	lacp_sm_ptx_update_timeout(struct lacp_port *, uint8_t);
-static void	lacp_sm_ptx_tx_schedule(struct lacp_port *);
-static void	lacp_sm_ptx_timer(struct lacp_port *);
+static void lacp_sm_ptx_update_timeout(struct lacp_port *, uint8_t);
+static void lacp_sm_ptx_tx_schedule(struct lacp_port *);
+static void lacp_sm_ptx_timer(struct lacp_port *);
 
 /* transmit machine */
 
-static void	lacp_sm_tx(struct lacp_port *);
-static void	lacp_sm_assert_ntt(struct lacp_port *);
+static void lacp_sm_tx(struct lacp_port *);
+static void lacp_sm_assert_ntt(struct lacp_port *);
 
-static void	lacp_run_timers(struct lacp_port *);
-static int	lacp_compare_peerinfo(const struct lacp_peerinfo *,
-		    const struct lacp_peerinfo *);
-static int	lacp_compare_systemid(const struct lacp_systemid *,
-		    const struct lacp_systemid *);
-static void	lacp_port_enable(struct lacp_port *);
-static void	lacp_port_disable(struct lacp_port *);
-static void	lacp_select(struct lacp_port *);
-static void	lacp_unselect(struct lacp_port *);
-static void	lacp_disable_collecting(struct lacp_port *);
-static void	lacp_enable_collecting(struct lacp_port *);
-static void	lacp_disable_distributing(struct lacp_port *);
-static void	lacp_enable_distributing(struct lacp_port *);
-static int	lacp_xmit_lacpdu(struct lacp_port *);
-static int	lacp_xmit_marker(struct lacp_port *);
+static void lacp_run_timers(struct lacp_port *);
+static int lacp_compare_peerinfo(
+    const struct lacp_peerinfo *, const struct lacp_peerinfo *);
+static int lacp_compare_systemid(
+    const struct lacp_systemid *, const struct lacp_systemid *);
+static void lacp_port_enable(struct lacp_port *);
+static void lacp_port_disable(struct lacp_port *);
+static void lacp_select(struct lacp_port *);
+static void lacp_unselect(struct lacp_port *);
+static void lacp_disable_collecting(struct lacp_port *);
+static void lacp_enable_collecting(struct lacp_port *);
+static void lacp_disable_distributing(struct lacp_port *);
+static void lacp_enable_distributing(struct lacp_port *);
+static int lacp_xmit_lacpdu(struct lacp_port *);
+static int lacp_xmit_marker(struct lacp_port *);
 
 /* Debugging */
 
-static void	lacp_dump_lacpdu(const struct lacpdu *);
-static const char *lacp_format_partner(const struct lacp_peerinfo *, char *,
-		    size_t);
-static const char *lacp_format_lagid(const struct lacp_peerinfo *,
-		    const struct lacp_peerinfo *, char *, size_t);
-static const char *lacp_format_lagid_aggregator(const struct lacp_aggregator *,
-		    char *, size_t);
+static void lacp_dump_lacpdu(const struct lacpdu *);
+static const char *lacp_format_partner(
+    const struct lacp_peerinfo *, char *, size_t);
+static const char *lacp_format_lagid(
+    const struct lacp_peerinfo *, const struct lacp_peerinfo *, char *, size_t);
+static const char *lacp_format_lagid_aggregator(
+    const struct lacp_aggregator *, char *, size_t);
 static const char *lacp_format_state(uint8_t, char *, size_t);
 static const char *lacp_format_mac(const uint8_t *, char *, size_t);
-static const char *lacp_format_systemid(const struct lacp_systemid *, char *,
-		    size_t);
-static const char *lacp_format_portid(const struct lacp_portid *, char *,
-		    size_t);
-static void	lacp_dprintf(const struct lacp_port *, const char *, ...)
-		    __attribute__((__format__(__printf__, 2, 3)));
+static const char *lacp_format_systemid(
+    const struct lacp_systemid *, char *, size_t);
+static const char *lacp_format_portid(
+    const struct lacp_portid *, char *, size_t);
+static void lacp_dprintf(const struct lacp_port *, const char *, ...)
+    __attribute__((__format__(__printf__, 2, 3)));
 
 VNET_DEFINE_STATIC(int, lacp_debug);
-#define	V_lacp_debug	VNET(lacp_debug)
+#define V_lacp_debug VNET(lacp_debug)
 SYSCTL_NODE(_net_link_lagg, OID_AUTO, lacp, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "ieee802.3ad");
 SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, debug, CTLFLAG_RWTUN | CTLFLAG_VNET,
@@ -207,9 +205,18 @@ VNET_DEFINE_STATIC(int, lacp_default_strict_mode) = 1;
 SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, default_strict_mode,
     CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(lacp_default_strict_mode), 0,
     "LACP strict protocol compliance default");
-#define LACP_DPRINTF(a) if (V_lacp_debug & 0x01) { lacp_dprintf a ; }
-#define LACP_TRACE(a) if (V_lacp_debug & 0x02) { lacp_dprintf(a,"%s\n",__func__); }
-#define LACP_TPRINTF(a) if (V_lacp_debug & 0x04) { lacp_dprintf a ; }
+#define LACP_DPRINTF(a)            \
+	if (V_lacp_debug & 0x01) { \
+		lacp_dprintf a;    \
+	}
+#define LACP_TRACE(a)                              \
+	if (V_lacp_debug & 0x02) {                 \
+		lacp_dprintf(a, "%s\n", __func__); \
+	}
+#define LACP_TPRINTF(a)            \
+	if (V_lacp_debug & 0x04) { \
+		lacp_dprintf a;    \
+	}
 
 /*
  * partner administration variables.
@@ -248,13 +255,13 @@ lacp_input(struct lagg_port *lgp, struct mbuf *m)
 
 	m_copydata(m, sizeof(struct ether_header), sizeof(subtype), &subtype);
 	switch (subtype) {
-		case SLOWPROTOCOLS_SUBTYPE_LACP:
-			lacp_pdu_input(lp, m);
-			return (NULL);
+	case SLOWPROTOCOLS_SUBTYPE_LACP:
+		lacp_pdu_input(lp, m);
+		return (NULL);
 
-		case SLOWPROTOCOLS_SUBTYPE_MARKER:
-			lacp_marker_input(lp, m);
-			return (NULL);
+	case SLOWPROTOCOLS_SUBTYPE_MARKER:
+		lacp_marker_input(lp, m);
+		return (NULL);
 	}
 
 	/* Not a subtype we are interested in */
@@ -288,8 +295,8 @@ lacp_pdu_input(struct lacp_port *lp, struct mbuf *m)
 
 	du = mtod(m, struct lacpdu *);
 
-	if (memcmp(&du->ldu_eh.ether_dhost,
-	    &ethermulticastaddr_slowprotocols, ETHER_ADDR_LEN)) {
+	if (memcmp(&du->ldu_eh.ether_dhost, &ethermulticastaddr_slowprotocols,
+		ETHER_ADDR_LEN)) {
 		goto bad;
 	}
 
@@ -308,11 +315,11 @@ lacp_pdu_input(struct lacp_port *lp, struct mbuf *m)
 	 * the future protocol revisions.
 	 */
 	if (tlv_check(du, sizeof(*du), &du->ldu_tlv_actor,
-	    lacp_info_tlv_template, FALSE)) {
+		lacp_info_tlv_template, FALSE)) {
 		goto bad;
 	}
 
-        if (V_lacp_debug > 0) {
+	if (V_lacp_debug > 0) {
 		lacp_dprintf(lp, "lacpdu receive\n");
 		lacp_dump_lacpdu(du);
 	}
@@ -341,8 +348,8 @@ lacp_fill_actorinfo(struct lacp_port *lp, struct lacp_peerinfo *info)
 	struct lagg_softc *sc = lgp->lp_softc;
 
 	info->lip_systemid.lsi_prio = htons(LACP_SYSTEM_PRIO);
-	memcpy(&info->lip_systemid.lsi_mac,
-	    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
+	memcpy(
+	    &info->lip_systemid.lsi_mac, IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
 	info->lip_portid.lpi_prio = htons(LACP_PORT_PRIO);
 	info->lip_portid.lpi_portno = htons(lp->lp_ifp->if_index);
 	info->lip_state = lp->lp_state;
@@ -477,8 +484,10 @@ lacp_linkstate(struct lagg_port *lgp)
 
 	LACP_LOCK(lsc);
 	media = ifmr.ifm_active;
-	LACP_DPRINTF((lp, "media changed 0x%x -> 0x%x, ether = %d, fdx = %d, "
-	    "link = %d\n", lp->lp_media, media, IFM_TYPE(media) == IFM_ETHER,
+	LACP_DPRINTF((lp,
+	    "media changed 0x%x -> 0x%x, ether = %d, fdx = %d, "
+	    "link = %d\n",
+	    lp->lp_media, media, IFM_TYPE(media) == IFM_ETHER,
 	    (media & IFM_FDX) != 0, ifp->if_link_state == LINK_STATE_UP));
 	old_state = lp->lp_state;
 	old_key = lp->lp_key;
@@ -509,7 +518,7 @@ lacp_tick(void *arg)
 	struct lacp_softc *lsc = arg;
 	struct lacp_port *lp;
 
-	LIST_FOREACH(lp, &lsc->lsc_ports, lp_next) {
+	LIST_FOREACH (lp, &lsc->lsc_ports, lp_next) {
 		if ((lp->lp_state & LACP_STATE_AGGREGATION) == 0)
 			continue;
 
@@ -539,8 +548,7 @@ lacp_port_create(struct lagg_port *lgp)
 	link_init_sdl(ifp, (struct sockaddr *)&sdl, IFT_ETHER);
 	sdl.sdl_alen = ETHER_ADDR_LEN;
 
-	bcopy(&ethermulticastaddr_slowprotocols,
-	    LLADDR(&sdl), ETHER_ADDR_LEN);
+	bcopy(&ethermulticastaddr_slowprotocols, LLADDR(&sdl), ETHER_ADDR_LEN);
 	error = if_addmulti(ifp, (struct sockaddr *)&sdl, &rifma);
 	if (error) {
 		printf("%s: ADDMULTI failed on %s\n", __func__,
@@ -548,8 +556,7 @@ lacp_port_create(struct lagg_port *lgp)
 		return (error);
 	}
 
-	lp = malloc(sizeof(struct lacp_port),
-	    M_DEVBUF, M_NOWAIT|M_ZERO);
+	lp = malloc(sizeof(struct lacp_port), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (lp == NULL)
 		return (ENOMEM);
 
@@ -631,8 +638,10 @@ lacp_req(struct lagg_softc *sc, void *data)
 		memcpy(&req->partner_mac, &la->la_partner.lip_systemid.lsi_mac,
 		    ETHER_ADDR_LEN);
 		req->partner_key = ntohs(la->la_partner.lip_key);
-		req->partner_portprio = ntohs(la->la_partner.lip_portid.lpi_prio);
-		req->partner_portno = ntohs(la->la_partner.lip_portid.lpi_portno);
+		req->partner_portprio = ntohs(
+		    la->la_partner.lip_portid.lpi_prio);
+		req->partner_portno = ntohs(
+		    la->la_partner.lip_portid.lpi_portno);
 		req->partner_state = la->la_partner.lip_state;
 	}
 	LACP_UNLOCK(lsc);
@@ -684,7 +693,7 @@ lacp_disable_distributing(struct lacp_port *lp)
 	struct lacp_aggregator *la = lp->lp_aggregator;
 	struct lacp_softc *lsc = lp->lp_lsc;
 	struct lagg_softc *sc = lsc->lsc_softc;
-	char buf[LACP_LAGIDSTR_MAX+1];
+	char buf[LACP_LAGIDSTR_MAX + 1];
 
 	LACP_LOCK_ASSERT(lsc);
 
@@ -696,10 +705,11 @@ lacp_disable_distributing(struct lacp_port *lp)
 	KASSERT(la->la_nports > 0, ("nports invalid (%d)", la->la_nports));
 	KASSERT(la->la_refcnt >= la->la_nports, ("aggregator refcnt invalid"));
 
-	LACP_DPRINTF((lp, "disable distributing on aggregator %s, "
+	LACP_DPRINTF((lp,
+	    "disable distributing on aggregator %s, "
 	    "nports %d -> %d\n",
-	    lacp_format_lagid_aggregator(la, buf, sizeof(buf)),
-	    la->la_nports, la->la_nports - 1));
+	    lacp_format_lagid_aggregator(la, buf, sizeof(buf)), la->la_nports,
+	    la->la_nports - 1));
 
 	TAILQ_REMOVE(&la->la_ports, lp, lp_dist_q);
 	la->la_nports--;
@@ -713,8 +723,8 @@ lacp_disable_distributing(struct lacp_port *lp)
 	}
 
 	lp->lp_state &= ~LACP_STATE_DISTRIBUTING;
-	if_link_state_change(sc->sc_ifp,
-	    sc->sc_active ? LINK_STATE_UP : LINK_STATE_DOWN);
+	if_link_state_change(
+	    sc->sc_ifp, sc->sc_active ? LINK_STATE_UP : LINK_STATE_DOWN);
 }
 
 static void
@@ -723,7 +733,7 @@ lacp_enable_distributing(struct lacp_port *lp)
 	struct lacp_aggregator *la = lp->lp_aggregator;
 	struct lacp_softc *lsc = lp->lp_lsc;
 	struct lagg_softc *sc = lsc->lsc_softc;
-	char buf[LACP_LAGIDSTR_MAX+1];
+	char buf[LACP_LAGIDSTR_MAX + 1];
 
 	LACP_LOCK_ASSERT(lsc);
 
@@ -731,10 +741,11 @@ lacp_enable_distributing(struct lacp_port *lp)
 		return;
 	}
 
-	LACP_DPRINTF((lp, "enable distributing on aggregator %s, "
+	LACP_DPRINTF((lp,
+	    "enable distributing on aggregator %s, "
 	    "nports %d -> %d\n",
-	    lacp_format_lagid_aggregator(la, buf, sizeof(buf)),
-	    la->la_nports, la->la_nports + 1));
+	    lacp_format_lagid_aggregator(la, buf, sizeof(buf)), la->la_nports,
+	    la->la_nports + 1));
 
 	KASSERT(la->la_refcnt > la->la_nports, ("aggregator refcnt invalid"));
 	TAILQ_INSERT_HEAD(&la->la_ports, lp, lp_dist_q);
@@ -750,8 +761,8 @@ lacp_enable_distributing(struct lacp_port *lp)
 		/* try to become the active aggregator */
 		lacp_select_active_aggregator(lsc);
 
-	if_link_state_change(sc->sc_ifp,
-	    sc->sc_active ? LINK_STATE_UP : LINK_STATE_DOWN);
+	if_link_state_change(
+	    sc->sc_ifp, sc->sc_active ? LINK_STATE_UP : LINK_STATE_DOWN);
 }
 
 static void
@@ -798,10 +809,10 @@ lacp_detach(void *psc)
 {
 	struct lacp_softc *lsc = (struct lacp_softc *)psc;
 
-	KASSERT(TAILQ_EMPTY(&lsc->lsc_aggregators),
-	    ("aggregators still active"));
-	KASSERT(lsc->lsc_active_aggregator == NULL,
-	    ("aggregator still attached"));
+	KASSERT(
+	    TAILQ_EMPTY(&lsc->lsc_aggregators), ("aggregators still active"));
+	KASSERT(
+	    lsc->lsc_active_aggregator == NULL, ("aggregator still attached"));
 
 	callout_drain(&lsc->lsc_transit_callout);
 	callout_drain(&lsc->lsc_callout);
@@ -832,8 +843,8 @@ lacp_stop(struct lagg_softc *sc)
 }
 
 struct lagg_port *
-lacp_select_tx_port_by_hash(struct lagg_softc *sc, uint32_t hash,
-    uint8_t numa_domain, int *err)
+lacp_select_tx_port_by_hash(
+    struct lagg_softc *sc, uint32_t hash, uint8_t numa_domain, int *err)
 {
 	struct lacp_softc *lsc = LACP_SOFTC(sc);
 	struct lacp_portmap *pm;
@@ -855,8 +866,8 @@ lacp_select_tx_port_by_hash(struct lagg_softc *sc, uint32_t hash,
 	}
 
 #ifdef NUMA
-	if ((sc->sc_opts & LAGG_OPT_USE_NUMA) &&
-	    pm->pm_num_dom > 1 && numa_domain < MAXMEMDOM) {
+	if ((sc->sc_opts & LAGG_OPT_USE_NUMA) && pm->pm_num_dom > 1 &&
+	    numa_domain < MAXMEMDOM) {
 		count = pm->pm_numa[numa_domain].count;
 		if (count > 0) {
 			map = pm->pm_numa[numa_domain].map;
@@ -917,31 +928,31 @@ lacp_suppress_distributing(struct lacp_softc *lsc, struct lacp_aggregator *la)
 	lsc->lsc_suppress_distributing = TRUE;
 
 	/* send a marker frame down each port to verify the queues are empty */
-	LIST_FOREACH(lp, &lsc->lsc_ports, lp_next) {
+	LIST_FOREACH (lp, &lsc->lsc_ports, lp_next) {
 		lp->lp_flags |= LACP_PORT_MARK;
 		lacp_xmit_marker(lp);
 	}
 
 	/* set a timeout for the marker frames */
-	callout_reset(&lsc->lsc_transit_callout,
-	    LACP_TRANSIT_DELAY * hz / 1000, lacp_transit_expire, lsc);
+	callout_reset(&lsc->lsc_transit_callout, LACP_TRANSIT_DELAY * hz / 1000,
+	    lacp_transit_expire, lsc);
 }
 
 static int
-lacp_compare_peerinfo(const struct lacp_peerinfo *a,
-    const struct lacp_peerinfo *b)
+lacp_compare_peerinfo(
+    const struct lacp_peerinfo *a, const struct lacp_peerinfo *b)
 {
 	return (memcmp(a, b, offsetof(struct lacp_peerinfo, lip_state)));
 }
 
 static int
-lacp_compare_systemid(const struct lacp_systemid *a,
-    const struct lacp_systemid *b)
+lacp_compare_systemid(
+    const struct lacp_systemid *a, const struct lacp_systemid *b)
 {
 	return (memcmp(a, b, sizeof(*a)));
 }
 
-#if 0	/* unused */
+#if 0 /* unused */
 static int
 lacp_compare_portid(const struct lacp_portid *a,
     const struct lacp_portid *b)
@@ -982,11 +993,11 @@ lacp_select_active_aggregator(struct lacp_softc *lsc)
 	struct lacp_aggregator *la;
 	struct lacp_aggregator *best_la = NULL;
 	uint64_t best_speed = 0;
-	char buf[LACP_LAGIDSTR_MAX+1];
+	char buf[LACP_LAGIDSTR_MAX + 1];
 
 	LACP_TRACE(NULL);
 
-	TAILQ_FOREACH(la, &lsc->lsc_aggregators, la_q) {
+	TAILQ_FOREACH (la, &lsc->lsc_aggregators, la_q) {
 		uint64_t speed;
 
 		if (la->la_nports == 0) {
@@ -995,19 +1006,19 @@ lacp_select_active_aggregator(struct lacp_softc *lsc)
 
 		speed = lacp_aggregator_bandwidth(la);
 		LACP_DPRINTF((NULL, "%s, speed=%jd, nports=%d\n",
-		    lacp_format_lagid_aggregator(la, buf, sizeof(buf)),
-		    speed, la->la_nports));
+		    lacp_format_lagid_aggregator(la, buf, sizeof(buf)), speed,
+		    la->la_nports));
 
 		/*
 		 * This aggregator is chosen if the partner has a better
 		 * system priority or, the total aggregated speed is higher
 		 * or, it is already the chosen aggregator
 		 */
-		if ((best_la != NULL && LACP_SYS_PRI(la->la_partner) <
-		    LACP_SYS_PRI(best_la->la_partner)) ||
+		if ((best_la != NULL &&
+			LACP_SYS_PRI(la->la_partner) <
+			    LACP_SYS_PRI(best_la->la_partner)) ||
 		    speed > best_speed ||
-		    (speed == best_speed &&
-		    la == lsc->lsc_active_aggregator)) {
+		    (speed == best_speed && la == lsc->lsc_active_aggregator)) {
 			best_la = la;
 			best_speed = speed;
 		}
@@ -1021,8 +1032,8 @@ lacp_select_active_aggregator(struct lacp_softc *lsc)
 	if (lsc->lsc_active_aggregator != best_la) {
 		LACP_DPRINTF((NULL, "active aggregator changed\n"));
 		LACP_DPRINTF((NULL, "old %s\n",
-		    lacp_format_lagid_aggregator(lsc->lsc_active_aggregator,
-		    buf, sizeof(buf))));
+		    lacp_format_lagid_aggregator(
+			lsc->lsc_active_aggregator, buf, sizeof(buf))));
 	} else {
 		LACP_DPRINTF((NULL, "active aggregator not changed\n"));
 	}
@@ -1066,7 +1077,7 @@ lacp_update_portmap(struct lacp_softc *lsc)
 	if (la != NULL && la->la_nports > 0) {
 		p->pm_count = la->la_nports;
 		i = 0;
-		TAILQ_FOREACH(lp, &la->la_ports, lp_dist_q) {
+		TAILQ_FOREACH (lp, &la->la_ports, lp_dist_q) {
 			p->pm_map[i++] = lp;
 #ifdef NUMA
 			domain = lp->lp_ifp->if_numa_domain;
@@ -1091,9 +1102,8 @@ lacp_update_portmap(struct lacp_softc *lsc)
 
 	/* switch the active portmap over */
 	atomic_store_rel_int(&lsc->lsc_activemap, newmap);
-	LACP_DPRINTF((NULL, "Set table %d with %d ports\n",
-		    lsc->lsc_activemap,
-		    lsc->lsc_pmap[lsc->lsc_activemap].pm_count));
+	LACP_DPRINTF((NULL, "Set table %d with %d ports\n", lsc->lsc_activemap,
+	    lsc->lsc_pmap[lsc->lsc_activemap].pm_count));
 }
 
 static uint16_t
@@ -1278,12 +1288,10 @@ lacp_compose_key(struct lacp_port *lp)
 static void
 lacp_aggregator_addref(struct lacp_softc *lsc, struct lacp_aggregator *la)
 {
-	char buf[LACP_LAGIDSTR_MAX+1];
+	char buf[LACP_LAGIDSTR_MAX + 1];
 
-	LACP_DPRINTF((NULL, "%s: lagid=%s, refcnt %d -> %d\n",
-	    __func__,
-	    lacp_format_lagid(&la->la_actor, &la->la_partner,
-	    buf, sizeof(buf)),
+	LACP_DPRINTF((NULL, "%s: lagid=%s, refcnt %d -> %d\n", __func__,
+	    lacp_format_lagid(&la->la_actor, &la->la_partner, buf, sizeof(buf)),
 	    la->la_refcnt, la->la_refcnt + 1));
 
 	KASSERT(la->la_refcnt > 0, ("refcount <= 0"));
@@ -1294,12 +1302,10 @@ lacp_aggregator_addref(struct lacp_softc *lsc, struct lacp_aggregator *la)
 static void
 lacp_aggregator_delref(struct lacp_softc *lsc, struct lacp_aggregator *la)
 {
-	char buf[LACP_LAGIDSTR_MAX+1];
+	char buf[LACP_LAGIDSTR_MAX + 1];
 
-	LACP_DPRINTF((NULL, "%s: lagid=%s, refcnt %d -> %d\n",
-	    __func__,
-	    lacp_format_lagid(&la->la_actor, &la->la_partner,
-	    buf, sizeof(buf)),
+	LACP_DPRINTF((NULL, "%s: lagid=%s, refcnt %d -> %d\n", __func__,
+	    lacp_format_lagid(&la->la_actor, &la->la_partner, buf, sizeof(buf)),
 	    la->la_refcnt, la->la_refcnt - 1));
 
 	KASSERT(la->la_refcnt > la->la_nports, ("invalid refcnt"));
@@ -1351,8 +1357,8 @@ lacp_fill_aggregator_id(struct lacp_aggregator *la, const struct lacp_port *lp)
 }
 
 static void
-lacp_fill_aggregator_id_peer(struct lacp_peerinfo *lpi_aggr,
-    const struct lacp_peerinfo *lpi_port)
+lacp_fill_aggregator_id_peer(
+    struct lacp_peerinfo *lpi_aggr, const struct lacp_peerinfo *lpi_port)
 {
 	memset(lpi_aggr, 0, sizeof(*lpi_aggr));
 	lpi_aggr->lip_systemid = lpi_port->lip_systemid;
@@ -1364,8 +1370,8 @@ lacp_fill_aggregator_id_peer(struct lacp_peerinfo *lpi_aggr,
  */
 
 static int
-lacp_aggregator_is_compatible(const struct lacp_aggregator *la,
-    const struct lacp_port *lp)
+lacp_aggregator_is_compatible(
+    const struct lacp_aggregator *la, const struct lacp_port *lp)
 {
 	if (!(lp->lp_state & LACP_STATE_AGGREGATION) ||
 	    !(lp->lp_partner.lip_state & LACP_STATE_AGGREGATION)) {
@@ -1388,11 +1394,11 @@ lacp_aggregator_is_compatible(const struct lacp_aggregator *la,
 }
 
 static int
-lacp_peerinfo_is_compatible(const struct lacp_peerinfo *a,
-    const struct lacp_peerinfo *b)
+lacp_peerinfo_is_compatible(
+    const struct lacp_peerinfo *a, const struct lacp_peerinfo *b)
 {
-	if (memcmp(&a->lip_systemid, &b->lip_systemid,
-	    sizeof(a->lip_systemid))) {
+	if (memcmp(
+		&a->lip_systemid, &b->lip_systemid, sizeof(a->lip_systemid))) {
 		return (0);
 	}
 
@@ -1429,7 +1435,7 @@ lacp_select(struct lacp_port *lp)
 {
 	struct lacp_softc *lsc = lp->lp_lsc;
 	struct lacp_aggregator *la;
-	char buf[LACP_LAGIDSTR_MAX+1];
+	char buf[LACP_LAGIDSTR_MAX + 1];
 
 	if (lp->lp_aggregator) {
 		return;
@@ -1443,10 +1449,10 @@ lacp_select(struct lacp_port *lp)
 	    ("timer_wait_while still active"));
 
 	LACP_DPRINTF((lp, "port lagid=%s\n",
-	    lacp_format_lagid(&lp->lp_actor, &lp->lp_partner,
-	    buf, sizeof(buf))));
+	    lacp_format_lagid(
+		&lp->lp_actor, &lp->lp_partner, buf, sizeof(buf))));
 
-	TAILQ_FOREACH(la, &lsc->lsc_aggregators, la_q) {
+	TAILQ_FOREACH (la, &lsc->lsc_aggregators, la_q) {
 		if (lacp_aggregator_is_compatible(la, lp)) {
 			break;
 		}
@@ -1473,8 +1479,8 @@ lacp_select(struct lacp_port *lp)
 	}
 
 	LACP_DPRINTF((lp, "aggregator lagid=%s\n",
-	    lacp_format_lagid(&la->la_actor, &la->la_partner,
-	    buf, sizeof(buf))));
+	    lacp_format_lagid(
+		&la->la_actor, &la->la_partner, buf, sizeof(buf))));
 
 	lp->lp_aggregator = la;
 	lp->lp_selected = LACP_SELECTED;
@@ -1509,17 +1515,17 @@ lacp_sm_mux(struct lacp_port *lp)
 	struct lagg_port *lgp = lp->lp_lagg;
 	struct lagg_softc *sc = lgp->lp_softc;
 	enum lacp_mux_state new_state;
-	boolean_t p_sync =
-		    (lp->lp_partner.lip_state & LACP_STATE_SYNC) != 0;
-	boolean_t p_collecting =
-	    (lp->lp_partner.lip_state & LACP_STATE_COLLECTING) != 0;
+	boolean_t p_sync = (lp->lp_partner.lip_state & LACP_STATE_SYNC) != 0;
+	boolean_t p_collecting = (lp->lp_partner.lip_state &
+				     LACP_STATE_COLLECTING) != 0;
 	enum lacp_selected selected = lp->lp_selected;
 	struct lacp_aggregator *la;
 
 	if (V_lacp_debug > 1)
-		lacp_dprintf(lp, "%s: state= 0x%x, selected= 0x%x, "
-		    "p_sync= 0x%x, p_collecting= 0x%x\n", __func__,
-		    lp->lp_mux_state, selected, p_sync, p_collecting);
+		lacp_dprintf(lp,
+		    "%s: state= 0x%x, selected= 0x%x, "
+		    "p_sync= 0x%x, p_collecting= 0x%x\n",
+		    __func__, lp->lp_mux_state, selected, p_sync, p_collecting);
 
 re_eval:
 	la = lp->lp_aggregator;
@@ -1534,7 +1540,7 @@ re_eval:
 		break;
 	case LACP_MUX_WAITING:
 		KASSERT(la->la_pending > 0 ||
-		    !LACP_TIMER_ISARMED(lp, LACP_TIMER_WAIT_WHILE),
+			!LACP_TIMER_ISARMED(lp, LACP_TIMER_WAIT_WHILE),
 		    ("timer_wait_while still active"));
 		if (selected == LACP_SELECTED && la->la_pending == 0) {
 			new_state = LACP_MUX_ATTACHED;
@@ -1559,7 +1565,8 @@ re_eval:
 	case LACP_MUX_DISTRIBUTING:
 		if (selected != LACP_SELECTED || !p_sync || !p_collecting) {
 			new_state = LACP_MUX_COLLECTING;
-			lacp_dprintf(lp, "Interface stopped DISTRIBUTING, possible flapping\n");
+			lacp_dprintf(lp,
+			    "Interface stopped DISTRIBUTING, possible flapping\n");
 			sc->sc_flapping++;
 		}
 		break;
@@ -1600,8 +1607,8 @@ lacp_set_mux(struct lacp_port *lp, enum lacp_mux_state new_state)
 		lacp_unselect(lp);
 		break;
 	case LACP_MUX_WAITING:
-		LACP_TIMER_ARM(lp, LACP_TIMER_WAIT_WHILE,
-		    LACP_AGGREGATE_WAIT_TIME);
+		LACP_TIMER_ARM(
+		    lp, LACP_TIMER_WAIT_WHILE, LACP_AGGREGATE_WAIT_TIME);
 		la->la_pending++;
 		break;
 	case LACP_MUX_ATTACHED:
@@ -1630,13 +1637,12 @@ static void
 lacp_sm_mux_timer(struct lacp_port *lp)
 {
 	struct lacp_aggregator *la = lp->lp_aggregator;
-	char buf[LACP_LAGIDSTR_MAX+1];
+	char buf[LACP_LAGIDSTR_MAX + 1];
 
 	KASSERT(la->la_pending > 0, ("no pending event"));
 
 	LACP_DPRINTF((lp, "%s: aggregator %s, pending %d -> %d\n", __func__,
-	    lacp_format_lagid(&la->la_actor, &la->la_partner,
-	    buf, sizeof(buf)),
+	    lacp_format_lagid(&la->la_actor, &la->la_partner, buf, sizeof(buf)),
 	    la->la_pending, la->la_pending - 1));
 
 	la->la_pending--;
@@ -1647,8 +1653,8 @@ lacp_sm_mux_timer(struct lacp_port *lp)
 static void
 lacp_sm_ptx_update_timeout(struct lacp_port *lp, uint8_t oldpstate)
 {
-	if (LACP_STATE_EQ(oldpstate, lp->lp_partner.lip_state,
-	    LACP_STATE_TIMEOUT)) {
+	if (LACP_STATE_EQ(
+		oldpstate, lp->lp_partner.lip_state, LACP_STATE_TIMEOUT)) {
 		return;
 	}
 
@@ -1693,7 +1699,8 @@ lacp_sm_ptx_tx_schedule(struct lacp_port *lp)
 	}
 
 	timeout = (lp->lp_partner.lip_state & LACP_STATE_TIMEOUT) ?
-	    LACP_FAST_PERIODIC_TIME : LACP_SLOW_PERIODIC_TIME;
+		  LACP_FAST_PERIODIC_TIME :
+		  LACP_SLOW_PERIODIC_TIME;
 
 	LACP_TIMER_ARM(lp, LACP_TIMER_PERIODIC, timeout);
 }
@@ -1721,8 +1728,8 @@ lacp_sm_rx(struct lacp_port *lp, const struct lacpdu *du)
 	 * check loopback condition.
 	 */
 
-	if (!lacp_compare_systemid(&du->ldu_actor.lip_systemid,
-	    &lp->lp_actor.lip_systemid)) {
+	if (!lacp_compare_systemid(
+		&du->ldu_actor.lip_systemid, &lp->lp_actor.lip_systemid)) {
 		return;
 	}
 
@@ -1735,7 +1742,8 @@ lacp_sm_rx(struct lacp_port *lp, const struct lacpdu *du)
 	lacp_sm_rx_record_pdu(lp, du);
 
 	timeout = (lp->lp_state & LACP_STATE_TIMEOUT) ?
-	    LACP_SHORT_TIMEOUT_TIME : LACP_LONG_TIMEOUT_TIME;
+		  LACP_SHORT_TIMEOUT_TIME :
+		  LACP_LONG_TIMEOUT_TIME;
 	LACP_TIMER_ARM(lp, LACP_TIMER_CURRENT_WHILE, timeout);
 
 	lp->lp_state &= ~LACP_STATE_EXPIRED;
@@ -1777,22 +1785,22 @@ lacp_sm_rx_record_pdu(struct lacp_port *lp, const struct lacpdu *du)
 {
 	boolean_t active;
 	uint8_t oldpstate;
-	char buf[LACP_STATESTR_MAX+1];
+	char buf[LACP_STATESTR_MAX + 1];
 
 	LACP_TRACE(lp);
 
 	oldpstate = lp->lp_partner.lip_state;
 
-	active = (du->ldu_actor.lip_state & LACP_STATE_ACTIVITY)
-	    || ((lp->lp_state & LACP_STATE_ACTIVITY) &&
-	    (du->ldu_partner.lip_state & LACP_STATE_ACTIVITY));
+	active = (du->ldu_actor.lip_state & LACP_STATE_ACTIVITY) ||
+	    ((lp->lp_state & LACP_STATE_ACTIVITY) &&
+		(du->ldu_partner.lip_state & LACP_STATE_ACTIVITY));
 
 	lp->lp_partner = du->ldu_actor;
 	if (active &&
 	    ((LACP_STATE_EQ(lp->lp_state, du->ldu_partner.lip_state,
-	    LACP_STATE_AGGREGATION) &&
-	    !lacp_compare_peerinfo(&lp->lp_actor, &du->ldu_partner))
-	    || (du->ldu_partner.lip_state & LACP_STATE_AGGREGATION) == 0)) {
+		  LACP_STATE_AGGREGATION) &&
+		 !lacp_compare_peerinfo(&lp->lp_actor, &du->ldu_partner)) ||
+		(du->ldu_partner.lip_state & LACP_STATE_AGGREGATION) == 0)) {
 		/*
 		 * XXX Maintain legacy behavior of leaving the
 		 * LACP_STATE_SYNC bit unchanged from the partner's
@@ -1812,8 +1820,8 @@ lacp_sm_rx_record_pdu(struct lacp_port *lp, const struct lacpdu *du)
 		LACP_DPRINTF((lp, "old pstate %s\n",
 		    lacp_format_state(oldpstate, buf, sizeof(buf))));
 		LACP_DPRINTF((lp, "new pstate %s\n",
-		    lacp_format_state(lp->lp_partner.lip_state, buf,
-		    sizeof(buf))));
+		    lacp_format_state(
+			lp->lp_partner.lip_state, buf, sizeof(buf))));
 	}
 
 	lacp_sm_ptx_update_timeout(lp, oldpstate);
@@ -1827,7 +1835,8 @@ lacp_sm_rx_update_ntt(struct lacp_port *lp, const struct lacpdu *du)
 
 	if (lacp_compare_peerinfo(&lp->lp_actor, &du->ldu_partner) ||
 	    !LACP_STATE_EQ(lp->lp_state, du->ldu_partner.lip_state,
-	    LACP_STATE_ACTIVITY | LACP_STATE_SYNC | LACP_STATE_AGGREGATION)) {
+		LACP_STATE_ACTIVITY | LACP_STATE_SYNC |
+		    LACP_STATE_AGGREGATION)) {
 		LACP_DPRINTF((lp, "%s: assert ntt\n", __func__));
 		lacp_sm_assert_ntt(lp);
 	}
@@ -1850,15 +1859,15 @@ lacp_sm_rx_record_default(struct lacp_port *lp)
 }
 
 static void
-lacp_sm_rx_update_selected_from_peerinfo(struct lacp_port *lp,
-    const struct lacp_peerinfo *info)
+lacp_sm_rx_update_selected_from_peerinfo(
+    struct lacp_port *lp, const struct lacp_peerinfo *info)
 {
 
 	LACP_TRACE(lp);
 
 	if (lacp_compare_peerinfo(&lp->lp_partner, info) ||
 	    !LACP_STATE_EQ(lp->lp_partner.lip_state, info->lip_state,
-	    LACP_STATE_AGGREGATION)) {
+		LACP_STATE_AGGREGATION)) {
 		lp->lp_selected = LACP_UNSELECTED;
 		/* mux machine will clean up lp->lp_aggregator */
 	}
@@ -1880,11 +1889,11 @@ lacp_sm_rx_update_default_selected(struct lacp_port *lp)
 	LACP_TRACE(lp);
 
 	if (lp->lp_lsc->lsc_strict_mode)
-		lacp_sm_rx_update_selected_from_peerinfo(lp,
-		    &lacp_partner_admin_strict);
+		lacp_sm_rx_update_selected_from_peerinfo(
+		    lp, &lacp_partner_admin_strict);
 	else
-		lacp_sm_rx_update_selected_from_peerinfo(lp,
-		    &lacp_partner_admin_optimistic);
+		lacp_sm_rx_update_selected_from_peerinfo(
+		    lp, &lacp_partner_admin_optimistic);
 }
 
 /* transmit machine */
@@ -1896,10 +1905,10 @@ lacp_sm_tx(struct lacp_port *lp)
 
 	if (!(lp->lp_state & LACP_STATE_AGGREGATION)
 #if 1
-	    || (!(lp->lp_state & LACP_STATE_ACTIVITY)
-	    && !(lp->lp_partner.lip_state & LACP_STATE_ACTIVITY))
+	    || (!(lp->lp_state & LACP_STATE_ACTIVITY) &&
+		   !(lp->lp_partner.lip_state & LACP_STATE_ACTIVITY))
 #endif
-	    ) {
+	) {
 		lp->lp_flags &= ~LACP_PORT_NTT;
 	}
 
@@ -1909,12 +1918,13 @@ lacp_sm_tx(struct lacp_port *lp)
 
 	/* Rate limit to 3 PDUs per LACP_FAST_PERIODIC_TIME */
 	if (ppsratecheck(&lp->lp_last_lacpdu, &lp->lp_lacpdu_sent,
-		    (3 / LACP_FAST_PERIODIC_TIME)) == 0) {
+		(3 / LACP_FAST_PERIODIC_TIME)) == 0) {
 		LACP_DPRINTF((lp, "rate limited pdu\n"));
 		return;
 	}
 
-	if (((1 << lp->lp_ifp->if_dunit) & lp->lp_lsc->lsc_debug.lsc_tx_test) == 0) {
+	if (((1 << lp->lp_ifp->if_dunit) & lp->lp_lsc->lsc_debug.lsc_tx_test) ==
+	    0) {
 		error = lacp_xmit_lacpdu(lp);
 	} else {
 		LACP_TPRINTF((lp, "Dropping TX PDU\n"));
@@ -1923,8 +1933,8 @@ lacp_sm_tx(struct lacp_port *lp)
 	if (error == 0) {
 		lp->lp_flags &= ~LACP_PORT_NTT;
 	} else {
-		LACP_DPRINTF((lp, "lacpdu transmit failure, error %d\n",
-		    error));
+		LACP_DPRINTF(
+		    (lp, "lacpdu transmit failure, error %d\n", error));
 	}
 }
 
@@ -1980,8 +1990,8 @@ lacp_marker_input(struct lacp_port *lp, struct mbuf *m)
 
 	mdu = mtod(m, struct markerdu *);
 
-	if (memcmp(&mdu->mdu_eh.ether_dhost,
-	    &ethermulticastaddr_slowprotocols, ETHER_ADDR_LEN)) {
+	if (memcmp(&mdu->mdu_eh.ether_dhost, &ethermulticastaddr_slowprotocols,
+		ETHER_ADDR_LEN)) {
 		goto bad;
 	}
 
@@ -1992,20 +2002,20 @@ lacp_marker_input(struct lacp_port *lp, struct mbuf *m)
 	switch (mdu->mdu_tlv.tlv_type) {
 	case MARKER_TYPE_INFO:
 		if (tlv_check(mdu, sizeof(*mdu), &mdu->mdu_tlv,
-		    marker_info_tlv_template, TRUE)) {
+			marker_info_tlv_template, TRUE)) {
 			goto bad;
 		}
 		mdu->mdu_tlv.tlv_type = MARKER_TYPE_RESPONSE;
 		memcpy(&mdu->mdu_eh.ether_dhost,
 		    &ethermulticastaddr_slowprotocols, ETHER_ADDR_LEN);
-		memcpy(&mdu->mdu_eh.ether_shost,
-		    lgp->lp_lladdr, ETHER_ADDR_LEN);
+		memcpy(
+		    &mdu->mdu_eh.ether_shost, lgp->lp_lladdr, ETHER_ADDR_LEN);
 		error = lagg_enqueue(lp->lp_ifp, m);
 		break;
 
 	case MARKER_TYPE_RESPONSE:
 		if (tlv_check(mdu, sizeof(*mdu), &mdu->mdu_tlv,
-		    marker_response_tlv_template, TRUE)) {
+			marker_response_tlv_template, TRUE)) {
 			goto bad;
 		}
 		LACP_DPRINTF((lp, "marker response, port=%u, sys=%6D, id=%u\n",
@@ -2014,7 +2024,7 @@ lacp_marker_input(struct lacp_port *lp, struct mbuf *m)
 
 		/* Verify that it is the last marker we sent out */
 		if (memcmp(&mdu->mdu_info, &lp->lp_marker,
-		    sizeof(struct lacp_markerinfo)))
+			sizeof(struct lacp_markerinfo)))
 			goto bad;
 
 		LACP_LOCK(lsc);
@@ -2022,7 +2032,7 @@ lacp_marker_input(struct lacp_port *lp, struct mbuf *m)
 
 		if (lsc->lsc_suppress_distributing) {
 			/* Check if any ports are waiting for a response */
-			LIST_FOREACH(lp2, &lsc->lsc_ports, lp_next) {
+			LIST_FOREACH (lp2, &lsc->lsc_ports, lp_next) {
 				if (lp2->lp_flags & LACP_PORT_MARK) {
 					pending = 1;
 					break;
@@ -2066,8 +2076,8 @@ tlv_check(const void *p, size_t size, const struct tlvhdr *tlv,
 		if (tmpl->tmpl_type == 0) {
 			break;
 		}
-		tlv = (const struct tlvhdr *)
-		    ((const char *)tlv + tlv->tlv_length);
+		tlv = (const struct tlvhdr *)((const char *)tlv +
+		    tlv->tlv_length);
 		tmpl++;
 	}
 
@@ -2078,25 +2088,19 @@ tlv_check(const void *p, size_t size, const struct tlvhdr *tlv,
 const char *
 lacp_format_mac(const uint8_t *mac, char *buf, size_t buflen)
 {
-	snprintf(buf, buflen, "%02X-%02X-%02X-%02X-%02X-%02X",
-	    (int)mac[0],
-	    (int)mac[1],
-	    (int)mac[2],
-	    (int)mac[3],
-	    (int)mac[4],
-	    (int)mac[5]);
+	snprintf(buf, buflen, "%02X-%02X-%02X-%02X-%02X-%02X", (int)mac[0],
+	    (int)mac[1], (int)mac[2], (int)mac[3], (int)mac[4], (int)mac[5]);
 
 	return (buf);
 }
 
 const char *
-lacp_format_systemid(const struct lacp_systemid *sysid,
-    char *buf, size_t buflen)
+lacp_format_systemid(
+    const struct lacp_systemid *sysid, char *buf, size_t buflen)
 {
-	char macbuf[LACP_MACSTR_MAX+1];
+	char macbuf[LACP_MACSTR_MAX + 1];
 
-	snprintf(buf, buflen, "%04X,%s",
-	    ntohs(sysid->lsi_prio),
+	snprintf(buf, buflen, "%04X,%s", ntohs(sysid->lsi_prio),
 	    lacp_format_mac(sysid->lsi_mac, macbuf, sizeof(macbuf)));
 
 	return (buf);
@@ -2105,8 +2109,7 @@ lacp_format_systemid(const struct lacp_systemid *sysid,
 const char *
 lacp_format_portid(const struct lacp_portid *portid, char *buf, size_t buflen)
 {
-	snprintf(buf, buflen, "%04X,%04X",
-	    ntohs(portid->lpi_prio),
+	snprintf(buf, buflen, "%04X,%04X", ntohs(portid->lpi_prio),
 	    ntohs(portid->lpi_portno));
 
 	return (buf);
@@ -2115,8 +2118,8 @@ lacp_format_portid(const struct lacp_portid *portid, char *buf, size_t buflen)
 const char *
 lacp_format_partner(const struct lacp_peerinfo *peer, char *buf, size_t buflen)
 {
-	char sysid[LACP_SYSTEMIDSTR_MAX+1];
-	char portid[LACP_PORTIDSTR_MAX+1];
+	char sysid[LACP_SYSTEMIDSTR_MAX + 1];
+	char portid[LACP_PORTIDSTR_MAX + 1];
 
 	snprintf(buf, buflen, "(%s,%04X,%s)",
 	    lacp_format_systemid(&peer->lip_systemid, sysid, sizeof(sysid)),
@@ -2127,11 +2130,11 @@ lacp_format_partner(const struct lacp_peerinfo *peer, char *buf, size_t buflen)
 }
 
 const char *
-lacp_format_lagid(const struct lacp_peerinfo *a,
-    const struct lacp_peerinfo *b, char *buf, size_t buflen)
+lacp_format_lagid(const struct lacp_peerinfo *a, const struct lacp_peerinfo *b,
+    char *buf, size_t buflen)
 {
-	char astr[LACP_PARTNERSTR_MAX+1];
-	char bstr[LACP_PARTNERSTR_MAX+1];
+	char astr[LACP_PARTNERSTR_MAX + 1];
+	char bstr[LACP_PARTNERSTR_MAX + 1];
 
 #if 0
 	/*
@@ -2156,8 +2159,8 @@ lacp_format_lagid(const struct lacp_peerinfo *a,
 }
 
 const char *
-lacp_format_lagid_aggregator(const struct lacp_aggregator *la,
-    char *buf, size_t buflen)
+lacp_format_lagid_aggregator(
+    const struct lacp_aggregator *la, char *buf, size_t buflen)
 {
 	if (la == NULL) {
 		return ("(none)");
@@ -2176,8 +2179,8 @@ lacp_format_state(uint8_t state, char *buf, size_t buflen)
 static void
 lacp_dump_lacpdu(const struct lacpdu *du)
 {
-	char buf[LACP_PARTNERSTR_MAX+1];
-	char buf2[LACP_STATESTR_MAX+1];
+	char buf[LACP_PARTNERSTR_MAX + 1];
+	char buf2[LACP_STATESTR_MAX + 1];
 
 	printf("actor=%s\n",
 	    lacp_format_partner(&du->ldu_actor, buf, sizeof(buf)));

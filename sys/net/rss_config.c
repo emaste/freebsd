@@ -39,13 +39,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/param.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/priv.h>
 #include <sys/kernel.h>
-#include <sys/smp.h>
-#include <sys/sysctl.h>
+#include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/sbuf.h>
+#include <sys/smp.h>
+#include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -88,7 +88,7 @@ SYSCTL_NODE(_net_inet, OID_AUTO, rss, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
  * Toeplitz is the only required hash function in the RSS spec, so use it by
  * default.
  */
-static u_int	rss_hashalgo = RSS_HASH_TOEPLITZ;
+static u_int rss_hashalgo = RSS_HASH_TOEPLITZ;
 SYSCTL_INT(_net_inet_rss, OID_AUTO, hashalgo, CTLFLAG_RDTUN, &rss_hashalgo, 0,
     "RSS hash algorithm");
 
@@ -100,15 +100,14 @@ SYSCTL_INT(_net_inet_rss, OID_AUTO, hashalgo, CTLFLAG_RDTUN, &rss_hashalgo, 0,
  *
  * XXXRW: buckets might be better to use for the tunable than bits.
  */
-static u_int	rss_bits;
-SYSCTL_INT(_net_inet_rss, OID_AUTO, bits, CTLFLAG_RDTUN, &rss_bits, 0,
-    "RSS bits");
+static u_int rss_bits;
+SYSCTL_INT(
+    _net_inet_rss, OID_AUTO, bits, CTLFLAG_RDTUN, &rss_bits, 0, "RSS bits");
 
-static u_int	rss_mask;
-SYSCTL_INT(_net_inet_rss, OID_AUTO, mask, CTLFLAG_RD, &rss_mask, 0,
-    "RSS mask");
+static u_int rss_mask;
+SYSCTL_INT(_net_inet_rss, OID_AUTO, mask, CTLFLAG_RD, &rss_mask, 0, "RSS mask");
 
-static const u_int	rss_maxbits = RSS_MAXBITS;
+static const u_int rss_maxbits = RSS_MAXBITS;
 SYSCTL_INT(_net_inet_rss, OID_AUTO, maxbits, CTLFLAG_RD,
     __DECONST(int *, &rss_maxbits), 0, "RSS maximum bits");
 
@@ -116,19 +115,19 @@ SYSCTL_INT(_net_inet_rss, OID_AUTO, maxbits, CTLFLAG_RD,
  * RSS's own count of the number of CPUs it could be using for processing.
  * Bounded to 64 by RSS constants.
  */
-static u_int	rss_ncpus;
+static u_int rss_ncpus;
 SYSCTL_INT(_net_inet_rss, OID_AUTO, ncpus, CTLFLAG_RD, &rss_ncpus, 0,
     "Number of CPUs available to RSS");
 
-#define	RSS_MAXCPUS	(1 << (RSS_MAXBITS - 1))
-static const u_int	rss_maxcpus = RSS_MAXCPUS;
+#define RSS_MAXCPUS (1 << (RSS_MAXBITS - 1))
+static const u_int rss_maxcpus = RSS_MAXCPUS;
 SYSCTL_INT(_net_inet_rss, OID_AUTO, maxcpus, CTLFLAG_RD,
     __DECONST(int *, &rss_maxcpus), 0, "RSS maximum CPUs that can be used");
 
 /*
  * Variable exists just for reporting rss_bits in a user-friendly way.
  */
-static u_int	rss_buckets;
+static u_int rss_buckets;
 SYSCTL_INT(_net_inet_rss, OID_AUTO, buckets, CTLFLAG_RD, &rss_buckets, 0,
     "RSS buckets");
 
@@ -136,7 +135,7 @@ SYSCTL_INT(_net_inet_rss, OID_AUTO, buckets, CTLFLAG_RD, &rss_buckets, 0,
  * Base CPU number; devices will add this to all CPU numbers returned by the
  * RSS indirection table.  Currently unmodifable in FreeBSD.
  */
-static const u_int	rss_basecpu;
+static const u_int rss_basecpu;
 SYSCTL_INT(_net_inet_rss, OID_AUTO, basecpu, CTLFLAG_RD,
     __DECONST(int *, &rss_basecpu), 0, "RSS base CPU");
 
@@ -145,7 +144,7 @@ SYSCTL_INT(_net_inet_rss, OID_AUTO, basecpu, CTLFLAG_RD,
  * 0 - disable
  * non-zero - enable
  */
-int	rss_debug = 0;
+int rss_debug = 0;
 SYSCTL_INT(_net_inet_rss, OID_AUTO, debug, CTLFLAG_RWTUN, &rss_debug, 0,
     "RSS debug level");
 
@@ -160,11 +159,46 @@ SYSCTL_INT(_net_inet_rss, OID_AUTO, debug, CTLFLAG_RWTUN, &rss_debug, 0,
  * the Chelsio T5 firmware default key.
  */
 static uint8_t rss_key[RSS_KEYSIZE] = {
-	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
-	0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
-	0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
-	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
-	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa,
+	0x6d,
+	0x5a,
+	0x56,
+	0xda,
+	0x25,
+	0x5b,
+	0x0e,
+	0xc2,
+	0x41,
+	0x67,
+	0x25,
+	0x3d,
+	0x43,
+	0xa3,
+	0x8f,
+	0xb0,
+	0xd0,
+	0xca,
+	0x2b,
+	0xcb,
+	0xae,
+	0x7b,
+	0x30,
+	0xb4,
+	0x77,
+	0xcb,
+	0x2d,
+	0xa3,
+	0x80,
+	0x30,
+	0xf2,
+	0x0c,
+	0x6a,
+	0x42,
+	0xb7,
+	0x3b,
+	0xbe,
+	0xac,
+	0x01,
+	0xfa,
 };
 
 /*
@@ -173,9 +207,9 @@ static uint8_t rss_key[RSS_KEYSIZE] = {
  * programming devices.
  */
 struct rss_table_entry {
-	uint8_t		rte_cpu;	/* CPU affinity of bucket. */
+	uint8_t rte_cpu; /* CPU affinity of bucket. */
 };
-static struct rss_table_entry	rss_table[RSS_TABLE_MAXLEN];
+static struct rss_table_entry rss_table[RSS_TABLE_MAXLEN];
 
 static void
 rss_init(__unused void *arg)
@@ -240,7 +274,8 @@ rss_init(__unused void *arg)
 		rss_buckets = (1 << rss_bits);
 		if (rss_buckets < rss_ncpus)
 			RSS_DEBUG("WARNING: rss_buckets (%u) less than "
-			    "rss_ncpus (%u)\n", rss_buckets, rss_ncpus);
+				  "rss_ncpus (%u)\n",
+			    rss_buckets, rss_ncpus);
 		rss_mask = rss_buckets - 1;
 	} else {
 		rss_bits = 0;
@@ -267,8 +302,8 @@ rss_init(__unused void *arg)
 SYSINIT(rss_init, SI_SUB_SOFTINTR, SI_ORDER_SECOND, rss_init, NULL);
 
 static uint32_t
-rss_naive_hash(u_int keylen, const uint8_t *key, u_int datalen,
-    const uint8_t *data)
+rss_naive_hash(
+    u_int keylen, const uint8_t *key, u_int datalen, const uint8_t *data)
 {
 	uint32_t v;
 	u_int i;
@@ -287,12 +322,11 @@ rss_hash(u_int datalen, const uint8_t *data)
 
 	switch (rss_hashalgo) {
 	case RSS_HASH_TOEPLITZ:
-		return (toeplitz_hash(sizeof(rss_key), rss_key, datalen,
-		    data));
+		return (toeplitz_hash(sizeof(rss_key), rss_key, datalen, data));
 
 	case RSS_HASH_NAIVE:
-		return (rss_naive_hash(sizeof(rss_key), rss_key, datalen,
-		    data));
+		return (
+		    rss_naive_hash(sizeof(rss_key), rss_key, datalen, data));
 
 	default:
 		panic("%s: unsupported/unknown hashalgo %d", __func__,
@@ -410,8 +444,8 @@ rss_m2bucket(struct mbuf *m, uint32_t *bucket_id)
 
 	M_ASSERTPKTHDR(m);
 
-	return(rss_hash2bucket(m->m_pkthdr.flowid, M_HASHTYPE_GET(m),
-	    bucket_id));
+	return (
+	    rss_hash2bucket(m->m_pkthdr.flowid, M_HASHTYPE_GET(m), bucket_id));
 }
 
 /*
@@ -481,13 +515,9 @@ rss_gethashconfig(void)
 	 * So for now disable UDP 4-tuple hashing until all of the other
 	 * pieces are in place.
 	 */
-	return (
-	    RSS_HASHTYPE_RSS_IPV4
-	|    RSS_HASHTYPE_RSS_TCP_IPV4
-	|    RSS_HASHTYPE_RSS_IPV6
-	|    RSS_HASHTYPE_RSS_TCP_IPV6
-	|    RSS_HASHTYPE_RSS_IPV6_EX
-	|    RSS_HASHTYPE_RSS_TCP_IPV6_EX
+	return (RSS_HASHTYPE_RSS_IPV4 | RSS_HASHTYPE_RSS_TCP_IPV4 |
+	    RSS_HASHTYPE_RSS_IPV6 | RSS_HASHTYPE_RSS_TCP_IPV6 |
+	    RSS_HASHTYPE_RSS_IPV6_EX | RSS_HASHTYPE_RSS_TCP_IPV6_EX
 #if 0
 	|    RSS_HASHTYPE_RSS_UDP_IPV4
 	|    RSS_HASHTYPE_RSS_UDP_IPV6
@@ -500,8 +530,7 @@ rss_gethashconfig(void)
  * XXXRW: Confirm that sysctl -a won't dump this keying material, don't want
  * it appearing in debugging output unnecessarily.
  */
-static int
-sysctl_rss_key(SYSCTL_HANDLER_ARGS)
+static int sysctl_rss_key(SYSCTL_HANDLER_ARGS)
 {
 	uint8_t temp_rss_key[RSS_KEYSIZE];
 	int error;
@@ -511,8 +540,8 @@ sysctl_rss_key(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	bcopy(rss_key, temp_rss_key, sizeof(temp_rss_key));
-	error = sysctl_handle_opaque(oidp, temp_rss_key,
-	    sizeof(temp_rss_key), req);
+	error = sysctl_handle_opaque(
+	    oidp, temp_rss_key, sizeof(temp_rss_key), req);
 	if (error)
 		return (error);
 	if (req->newptr != NULL) {
@@ -522,11 +551,10 @@ sysctl_rss_key(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_net_inet_rss, OID_AUTO, key,
-    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0, sysctl_rss_key,
-    "", "RSS keying material");
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0, sysctl_rss_key, "",
+    "RSS keying material");
 
-static int
-sysctl_rss_bucket_mapping(SYSCTL_HANDLER_ARGS)
+static int sysctl_rss_bucket_mapping(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf *sb;
 	int error;
@@ -540,9 +568,7 @@ sysctl_rss_bucket_mapping(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 	for (i = 0; i < rss_buckets; i++) {
-		sbuf_printf(sb, "%s%d:%d", i == 0 ? "" : " ",
-		    i,
-		    rss_getcpu(i));
+		sbuf_printf(sb, "%s%d:%d", i == 0 ? "" : " ", i, rss_getcpu(i));
 	}
 	error = sbuf_finish(sb);
 	sbuf_delete(sb);

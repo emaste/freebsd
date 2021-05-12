@@ -38,21 +38,19 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
 #include <sys/systm.h>
+#include <sys/mbuf.h>
 #include <sys/queue.h>
+#include <sys/socket.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
-
+#include <netinet/icmp6.h>
 #include <netinet/in.h>
-#include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
+#include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
-
-#include <netinet/icmp6.h>
 
 /*
  * proto - is unused
@@ -103,11 +101,11 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 		/* Unknown routing header type. */
 		if (rh->ip6r_segleft == 0) {
 			rhlen = (rh->ip6r_len + 1) << 3;
-			break;	/* Final dst. Just ignore the header. */
+			break; /* Final dst. Just ignore the header. */
 		}
 		IP6STAT_INC(ip6s_badoptions);
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
-			    (caddr_t)&rh->ip6r_type - (caddr_t)ip6);
+		    (caddr_t)&rh->ip6r_type - (caddr_t)ip6);
 		*mp = NULL;
 		return (IPPROTO_DONE);
 	}

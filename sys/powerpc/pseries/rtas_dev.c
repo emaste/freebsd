@@ -31,48 +31,44 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
 #include <sys/clock.h>
+#include <sys/conf.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
+
+#include <machine/rtas.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
-#include <machine/rtas.h>
-
 #include "clock_if.h"
 
-static int	rtasdev_probe(device_t);
-static int	rtasdev_attach(device_t);
+static int rtasdev_probe(device_t);
+static int rtasdev_attach(device_t);
 /* clock interface */
-static int	rtas_gettime(device_t dev, struct timespec *ts);
-static int	rtas_settime(device_t dev, struct timespec *ts);
+static int rtas_gettime(device_t dev, struct timespec *ts);
+static int rtas_settime(device_t dev, struct timespec *ts);
 
-static void	rtas_shutdown(void *arg, int howto);
+static void rtas_shutdown(void *arg, int howto);
 
-static device_method_t  rtasdev_methods[] = {
+static device_method_t rtasdev_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		rtasdev_probe),
-	DEVMETHOD(device_attach,	rtasdev_attach),
+	DEVMETHOD(device_probe, rtasdev_probe),
+	DEVMETHOD(device_attach, rtasdev_attach),
 
 	/* clock interface */
-	DEVMETHOD(clock_gettime,	rtas_gettime),
-	DEVMETHOD(clock_settime,	rtas_settime),
+	DEVMETHOD(clock_gettime, rtas_gettime),
+	DEVMETHOD(clock_settime, rtas_settime),
 
 	{ 0, 0 },
 };
 
-static driver_t rtasdev_driver = {
-	"rtas",
-	rtasdev_methods,
-	0
-};
+static driver_t rtasdev_driver = { "rtas", rtasdev_methods, 0 };
 
 static devclass_t rtasdev_devclass;
 
@@ -98,14 +94,15 @@ rtasdev_attach(device_t dev)
 	if (rtas_token_lookup("get-time-of-day") != -1)
 		clock_register(dev, 2000);
 
-	EVENTHANDLER_REGISTER(shutdown_final, rtas_shutdown, NULL,
-	    SHUTDOWN_PRI_LAST);
+	EVENTHANDLER_REGISTER(
+	    shutdown_final, rtas_shutdown, NULL, SHUTDOWN_PRI_LAST);
 
 	return (0);
 }
 
 static int
-rtas_gettime(device_t dev, struct timespec *ts) {
+rtas_gettime(device_t dev, struct timespec *ts)
+{
 	struct clocktime ct;
 	cell_t tod[8];
 	cell_t token;
@@ -122,11 +119,11 @@ rtas_gettime(device_t dev, struct timespec *ts) {
 		return ((tod[0] == -1) ? ENXIO : EAGAIN);
 
 	ct.year = tod[1];
-	ct.mon  = tod[2];
-	ct.day  = tod[3];
+	ct.mon = tod[2];
+	ct.day = tod[3];
 	ct.hour = tod[4];
-	ct.min  = tod[5];
-	ct.sec  = tod[6];
+	ct.min = tod[5];
+	ct.sec = tod[6];
 	ct.nsec = tod[7];
 
 	return (clock_ct_to_ts(&ct, ts));

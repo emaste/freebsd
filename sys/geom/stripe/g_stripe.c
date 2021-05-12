@@ -31,15 +31,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/bio.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
+
 #include <vm/uma.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
 #include <geom/stripe/g_stripe.h>
@@ -51,8 +53,8 @@ static MALLOC_DEFINE(M_STRIPE, "stripe_data", "GEOM_STRIPE Data");
 static uma_zone_t g_stripe_zone;
 
 static int g_stripe_destroy(struct g_stripe_softc *sc, boolean_t force);
-static int g_stripe_destroy_geom(struct gctl_req *req, struct g_class *mp,
-    struct g_geom *gp);
+static int g_stripe_destroy_geom(
+    struct gctl_req *req, struct g_class *mp, struct g_geom *gp);
 
 static g_taste_t g_stripe_taste;
 static g_ctl_req_t g_stripe_config;
@@ -60,25 +62,22 @@ static g_dumpconf_t g_stripe_dumpconf;
 static g_init_t g_stripe_init;
 static g_fini_t g_stripe_fini;
 
-struct g_class g_stripe_class = {
-	.name = G_STRIPE_CLASS_NAME,
+struct g_class g_stripe_class = { .name = G_STRIPE_CLASS_NAME,
 	.version = G_VERSION,
 	.ctlreq = g_stripe_config,
 	.taste = g_stripe_taste,
 	.destroy_geom = g_stripe_destroy_geom,
 	.init = g_stripe_init,
-	.fini = g_stripe_fini
-};
+	.fini = g_stripe_fini };
 
 SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, stripe, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_STRIPE stuff");
 static u_int g_stripe_debug = 0;
-SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, debug, CTLFLAG_RWTUN, &g_stripe_debug, 0,
-    "Debug level");
+SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, debug, CTLFLAG_RWTUN, &g_stripe_debug,
+    0, "Debug level");
 static int g_stripe_fast = 0;
-static int
-g_sysctl_stripe_fast(SYSCTL_HANDLER_ARGS)
+static int g_sysctl_stripe_fast(SYSCTL_HANDLER_ARGS)
 {
 	int error, fast;
 
@@ -90,8 +89,7 @@ g_sysctl_stripe_fast(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_kern_geom_stripe, OID_AUTO, fast,
     CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, NULL, 0,
-    g_sysctl_stripe_fast, "I",
-    "Fast, but memory-consuming, mode");
+    g_sysctl_stripe_fast, "I", "Fast, but memory-consuming, mode");
 static u_long g_stripe_maxmem;
 SYSCTL_ULONG(_kern_geom_stripe, OID_AUTO, maxmem,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &g_stripe_maxmem, 0,
@@ -132,8 +130,8 @@ g_stripe_init(struct g_class *mp __unused)
 
 	g_stripe_maxmem = maxphys * 100;
 	TUNABLE_ULONG_FETCH("kern.geom.stripe.maxmem,", &g_stripe_maxmem);
-	g_stripe_zone = uma_zcreate("g_stripe_zone", maxphys, NULL, NULL,
-	    NULL, NULL, 0, 0);
+	g_stripe_zone = uma_zcreate(
+	    "g_stripe_zone", maxphys, NULL, NULL, NULL, NULL, 0, 0);
 	g_stripe_maxmem -= g_stripe_maxmem % maxphys;
 	uma_zone_set_max(g_stripe_zone, g_stripe_maxmem / maxphys);
 }
@@ -179,8 +177,8 @@ g_stripe_remove_disk(struct g_consumer *cp)
 	}
 
 	if (sc->sc_provider != NULL) {
-		G_STRIPE_DEBUG(0, "Device %s deactivated.",
-		    sc->sc_provider->name);
+		G_STRIPE_DEBUG(
+		    0, "Device %s deactivated.", sc->sc_provider->name);
 		g_wither_provider(sc->sc_provider, ENXIO);
 		sc->sc_provider = NULL;
 	}
@@ -231,7 +229,7 @@ g_stripe_access(struct g_provider *pp, int dr, int dw, int de)
 	if ((pp->acr + dr) == 0 && (pp->acw + dw) == 0 && (pp->ace + de) == 0)
 		de--;
 
-	LIST_FOREACH_SAFE(cp1, &gp->consumer, consumer, tmp) {
+	LIST_FOREACH_SAFE (cp1, &gp->consumer, consumer, tmp) {
 		error = g_access(cp1, dr, dw, de);
 		if (error != 0)
 			goto fail;
@@ -243,7 +241,7 @@ g_stripe_access(struct g_provider *pp, int dr, int dw, int de)
 	return (0);
 
 fail:
-	LIST_FOREACH(cp2, &gp->consumer, consumer) {
+	LIST_FOREACH (cp2, &gp->consumer, consumer) {
 		if (cp1 == cp2)
 			break;
 		g_access(cp2, -dr, -dw, -de);
@@ -272,7 +270,8 @@ g_stripe_copy(struct g_stripe_softc *sc, char *src, char *dst, off_t offset,
 		length -= len;
 		KASSERT(length >= 0,
 		    ("Length < 0 (stripesize=%ju, offset=%ju, length=%jd).",
-		    (uintmax_t)stripesize, (uintmax_t)offset, (intmax_t)length));
+			(uintmax_t)stripesize, (uintmax_t)offset,
+			(intmax_t)length));
 		if (length > stripesize)
 			len = stripesize;
 		else
@@ -370,8 +369,8 @@ g_stripe_start_fast(struct bio *bp, u_int no, off_t offset, off_t length)
 				cbp->bio_caller1 = cbp->bio_data;
 				cbp->bio_data = NULL;
 				if (data == NULL) {
-					data = uma_zalloc(g_stripe_zone,
-					    M_NOWAIT);
+					data = uma_zalloc(
+					    g_stripe_zone, M_NOWAIT);
 					if (data == NULL) {
 						error = ENOMEM;
 						goto failure;
@@ -464,14 +463,14 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 	 * Fill in the component buf structure.
 	 */
 	if (bp->bio_length == length)
-		cbp->bio_done = g_std_done;	/* Optimized lockless case. */
+		cbp->bio_done = g_std_done; /* Optimized lockless case. */
 	else
 		cbp->bio_done = g_stripe_done;
 	cbp->bio_offset = offset;
 	cbp->bio_length = length;
 	if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
-		bp->bio_ma_n = round_page(bp->bio_ma_offset +
-		    bp->bio_length) / PAGE_SIZE;
+		bp->bio_ma_n = round_page(bp->bio_ma_offset + bp->bio_length) /
+		    PAGE_SIZE;
 		addr = NULL;
 	} else
 		addr = bp->bio_data;
@@ -509,7 +508,8 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 			cbp->bio_ma += cbp->bio_ma_offset / PAGE_SIZE;
 			cbp->bio_ma_offset %= PAGE_SIZE;
 			cbp->bio_ma_n = round_page(cbp->bio_ma_offset +
-			    cbp->bio_length) / PAGE_SIZE;
+					    cbp->bio_length) /
+			    PAGE_SIZE;
 		} else
 			cbp->bio_data = addr;
 
@@ -554,7 +554,7 @@ g_stripe_pushdown(struct g_stripe_softc *sc, struct bio *bp)
 		cbp = g_clone_bio(bp);
 		if (cbp == NULL) {
 			for (cbp = bioq_first(&queue); cbp != NULL;
-			    cbp = bioq_first(&queue)) {
+			     cbp = bioq_first(&queue)) {
 				bioq_remove(&queue, cbp);
 				g_destroy_bio(cbp);
 			}
@@ -592,7 +592,7 @@ g_stripe_start(struct bio *bp)
 	 */
 	KASSERT(sc != NULL,
 	    ("Provider's error should be set (error=%d)(device=%s).",
-	    bp->bio_to->error, bp->bio_to->name));
+		bp->bio_to->error, bp->bio_to->name));
 
 	G_STRIPE_LOGREQ(bp, "Request received.");
 
@@ -649,8 +649,7 @@ g_stripe_start(struct bio *bp)
 	 */
 	if (g_stripe_fast && bp->bio_length <= maxphys &&
 	    bp->bio_length >= stripesize * sc->sc_ndisks &&
-	    (bp->bio_flags & BIO_UNMAPPED) == 0 &&
-	    bp->bio_cmd != BIO_DELETE) {
+	    (bp->bio_flags & BIO_UNMAPPED) == 0 && bp->bio_cmd != BIO_DELETE) {
 		fast = 1;
 	}
 	error = 0;
@@ -685,8 +684,8 @@ g_stripe_check_and_run(struct g_stripe_softc *sc)
 	if (g_stripe_nvalid(sc) != sc->sc_ndisks)
 		return;
 
-	sc->sc_provider = g_new_providerf(sc->sc_geom, "stripe/%s",
-	    sc->sc_name);
+	sc->sc_provider = g_new_providerf(
+	    sc->sc_geom, "stripe/%s", sc->sc_name);
 	sc->sc_provider->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	if (g_stripe_fast == 0)
 		sc->sc_provider->flags |= G_PF_ACCEPT_UNMAPPED;
@@ -710,8 +709,10 @@ g_stripe_check_and_run(struct g_stripe_softc *sc)
 
 		/* A provider underneath us doesn't support unmapped */
 		if ((dp->flags & G_PF_ACCEPT_UNMAPPED) == 0) {
-			G_STRIPE_DEBUG(1, "Cancelling unmapped "
-			    "because of %s.", dp->name);
+			G_STRIPE_DEBUG(1,
+			    "Cancelling unmapped "
+			    "because of %s.",
+			    dp->name);
 			sc->sc_provider->flags &= ~G_PF_ACCEPT_UNMAPPED;
 		}
 	}
@@ -738,8 +739,8 @@ g_stripe_read_metadata(struct g_consumer *cp, struct g_stripe_metadata *md)
 		return (error);
 	pp = cp->provider;
 	g_topology_unlock();
-	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
-	    &error);
+	buf = g_read_data(
+	    cp, pp->mediasize - pp->sectorsize, pp->sectorsize, &error);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 	if (buf == NULL)
@@ -822,16 +823,16 @@ fail:
 }
 
 static struct g_geom *
-g_stripe_create(struct g_class *mp, const struct g_stripe_metadata *md,
-    u_int type)
+g_stripe_create(
+    struct g_class *mp, const struct g_stripe_metadata *md, u_int type)
 {
 	struct g_stripe_softc *sc;
 	struct g_geom *gp;
 	u_int no;
 
 	g_topology_assert();
-	G_STRIPE_DEBUG(1, "Creating device %s (id=%u).", md->md_name,
-	    md->md_id);
+	G_STRIPE_DEBUG(
+	    1, "Creating device %s (id=%u).", md->md_name, md->md_id);
 
 	/* Two disks is minimum. */
 	if (md->md_all < 2) {
@@ -852,11 +853,11 @@ g_stripe_create(struct g_class *mp, const struct g_stripe_metadata *md,
 	}
 
 	/* Check for duplicate unit */
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc != NULL && strcmp(sc->sc_name, md->md_name) == 0) {
-			G_STRIPE_DEBUG(0, "Device %s already configured.",
-			    sc->sc_name);
+			G_STRIPE_DEBUG(
+			    0, "Device %s already configured.", sc->sc_name);
 			return (NULL);
 		}
 	}
@@ -903,8 +904,10 @@ g_stripe_destroy(struct g_stripe_softc *sc, boolean_t force)
 	pp = sc->sc_provider;
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
 		if (force) {
-			G_STRIPE_DEBUG(0, "Device %s is still open, so it "
-			    "can't be definitely removed.", pp->name);
+			G_STRIPE_DEBUG(0,
+			    "Device %s is still open, so it "
+			    "can't be definitely removed.",
+			    pp->name);
 		} else {
 			G_STRIPE_DEBUG(1,
 			    "Device %s is still open (r%dw%de%d).", pp->name,
@@ -914,17 +917,17 @@ g_stripe_destroy(struct g_stripe_softc *sc, boolean_t force)
 	}
 
 	gp = sc->sc_geom;
-	LIST_FOREACH_SAFE(cp, &gp->consumer, consumer, cp1) {
+	LIST_FOREACH_SAFE (cp, &gp->consumer, consumer, cp1) {
 		g_stripe_remove_disk(cp);
 		if (cp1 == NULL)
-			return (0);	/* Recursion happened. */
+			return (0); /* Recursion happened. */
 	}
 	if (!LIST_EMPTY(&gp->consumer))
 		return (EINPROGRESS);
 
 	gp->softc = NULL;
-	KASSERT(sc->sc_provider == NULL, ("Provider still exists? (device=%s)",
-	    gp->name));
+	KASSERT(sc->sc_provider == NULL,
+	    ("Provider still exists? (device=%s)", gp->name));
 	free(sc->sc_disks, M_STRIPE);
 	mtx_destroy(&sc->sc_lock);
 	free(sc, M_STRIPE);
@@ -1004,7 +1007,7 @@ g_stripe_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	 * Let's check if device already exists.
 	 */
 	sc = NULL;
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
@@ -1028,8 +1031,8 @@ g_stripe_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	} else {
 		gp = g_stripe_create(mp, &md, G_STRIPE_TYPE_AUTOMATIC);
 		if (gp == NULL) {
-			G_STRIPE_DEBUG(0, "Cannot create device %s.",
-			    md.md_name);
+			G_STRIPE_DEBUG(
+			    0, "Cannot create device %s.", md.md_name);
 			return (NULL);
 		}
 		sc = gp->softc;
@@ -1112,7 +1115,7 @@ g_stripe_ctl_create(struct gctl_req *req, struct g_class *mp)
 	sbuf_printf(sb, "Can't attach disk(s) to %s:", gp->name);
 	for (attached = 0, no = 1; no < *nargs; no++) {
 		snprintf(param, sizeof(param), "arg%u", no);
-		pp  = gctl_get_provider(req, param);
+		pp = gctl_get_provider(req, param);
 		if (pp == NULL) {
 			name = gctl_get_asciiparam(req, param);
 			MPASS(name != NULL);
@@ -1141,7 +1144,7 @@ g_stripe_find_device(struct g_class *mp, const char *name)
 	struct g_stripe_softc *sc;
 	struct g_geom *gp;
 
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
@@ -1218,8 +1221,7 @@ g_stripe_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 	if (strcmp(verb, "create") == 0) {
 		g_stripe_ctl_create(req, mp);
 		return;
-	} else if (strcmp(verb, "destroy") == 0 ||
-	    strcmp(verb, "stop") == 0) {
+	} else if (strcmp(verb, "destroy") == 0 || strcmp(verb, "stop") == 0) {
 		g_stripe_ctl_destroy(req, mp);
 		return;
 	}
@@ -1239,8 +1241,8 @@ g_stripe_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (pp != NULL) {
 		/* Nothing here. */
 	} else if (cp != NULL) {
-		sbuf_printf(sb, "%s<Number>%u</Number>\n", indent,
-		    (u_int)cp->index);
+		sbuf_printf(
+		    sb, "%s<Number>%u</Number>\n", indent, (u_int)cp->index);
 	} else {
 		sbuf_printf(sb, "%s<ID>%u</ID>\n", indent, (u_int)sc->sc_id);
 		sbuf_printf(sb, "%s<Stripesize>%ju</Stripesize>\n", indent,

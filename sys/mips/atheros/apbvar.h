@@ -32,23 +32,23 @@
 #ifndef _APBVAR_H_
 #define _APBVAR_H_
 
-#define	APB_IRQ_BASE		0
-#define	APB_IRQ_END		31
-#define	APB_NIRQS		32
+#define APB_IRQ_BASE 0
+#define APB_IRQ_END 31
+#define APB_NIRQS 32
 
 struct apb_softc {
-	struct rman		apb_irq_rman;
-	struct rman		apb_mem_rman;
+	struct rman apb_irq_rman;
+	struct rman apb_mem_rman;
 	/* IRQ events structs for child devices */
-	struct intr_event	*sc_eventstab[APB_NIRQS];
-	mips_intrcnt_t		sc_intr_counter[APB_NIRQS];
+	struct intr_event *sc_eventstab[APB_NIRQS];
+	mips_intrcnt_t sc_intr_counter[APB_NIRQS];
 	/* Resources and cookies for MIPS CPU INTs */
-	struct resource		*sc_misc_irq;
-	void			*sc_misc_ih;
+	struct resource *sc_misc_irq;
+	void *sc_misc_ih;
 };
 
 struct apb_ivar {
-	struct resource_list	resources;
+	struct resource_list resources;
 };
 
 #endif /* _APBVAR_H_ */

@@ -39,24 +39,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/sockopt.h>
 #include <sys/syslog.h>
-#include <sys/proc.h>
+
+#include <machine/atomic.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
-
-#include <netipsec/ipsec_support.h>
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
+#include <netipsec/ipsec_support.h>
 #include <netipsec/key.h>
 #include <netipsec/key_debug.h>
 #include <netipsec/xform.h>
-
-#include <machine/atomic.h>
 /*
  * This file is build in the kernel only when 'options IPSEC' or
  * 'options IPSEC_SUPPORT' is enabled.
@@ -64,25 +63,20 @@ __FBSDID("$FreeBSD$");
 
 #ifdef INET
 void
-ipsec4_setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
-    union sockaddr_union *dst)
+ipsec4_setsockaddrs(
+    const struct mbuf *m, union sockaddr_union *src, union sockaddr_union *dst)
 {
-	static const struct sockaddr_in template = {
-		sizeof (struct sockaddr_in),
-		AF_INET,
-		0, { 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 }
-	};
+	static const struct sockaddr_in template = { sizeof(struct sockaddr_in),
+		AF_INET, 0, { 0 }, { 0, 0, 0, 0, 0, 0, 0, 0 } };
 
 	src->sin = template;
 	dst->sin = template;
 
-	if (m->m_len < sizeof (struct ip)) {
+	if (m->m_len < sizeof(struct ip)) {
 		m_copydata(m, offsetof(struct ip, ip_src),
-			   sizeof (struct  in_addr),
-			   (caddr_t) &src->sin.sin_addr);
+		    sizeof(struct in_addr), (caddr_t)&src->sin.sin_addr);
 		m_copydata(m, offsetof(struct ip, ip_dst),
-			   sizeof (struct  in_addr),
-			   (caddr_t) &dst->sin.sin_addr);
+		    sizeof(struct in_addr), (caddr_t)&dst->sin.sin_addr);
 	} else {
 		const struct ip *ip = mtod(m, const struct ip *);
 		src->sin.sin_addr = ip->ip_src;
@@ -92,8 +86,8 @@ ipsec4_setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
 #endif
 #ifdef INET6
 void
-ipsec6_setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
-    union sockaddr_union *dst)
+ipsec6_setsockaddrs(
+    const struct mbuf *m, union sockaddr_union *src, union sockaddr_union *dst)
 {
 	struct ip6_hdr ip6buf;
 	const struct ip6_hdr *ip6;
@@ -125,7 +119,7 @@ ipsec6_setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
 }
 #endif
 
-#define	IPSEC_MODULE_INCR	2
+#define IPSEC_MODULE_INCR 2
 static int
 ipsec_kmod_enter(volatile u_int *cntr)
 {
@@ -136,7 +130,7 @@ ipsec_kmod_enter(volatile u_int *cntr)
 		if ((old & IPSEC_MODULE_ENABLED) == 0)
 			return (ENXIO);
 		new = old + IPSEC_MODULE_INCR;
-	} while(atomic_cmpset_acq_int(cntr, old, new) == 0);
+	} while (atomic_cmpset_acq_int(cntr, old, new) == 0);
 	return (0);
 }
 
@@ -161,14 +155,14 @@ ipsec_kmod_drain(volatile u_int *cntr)
 		new = old & ~IPSEC_MODULE_ENABLED;
 	} while (atomic_cmpset_acq_int(cntr, old, new) == 0);
 	while (atomic_cmpset_int(cntr, 0, 0) == 0)
-		pause("ipsecd", hz/2);
+		pause("ipsecd", hz / 2);
 }
 
 static LIST_HEAD(xforms_list, xformsw) xforms = LIST_HEAD_INITIALIZER();
 static struct mtx xforms_lock;
 MTX_SYSINIT(xfroms_list, &xforms_lock, "IPsec transforms list", MTX_DEF);
-#define	XFORMS_LOCK()		mtx_lock(&xforms_lock)
-#define	XFORMS_UNLOCK()		mtx_unlock(&xforms_lock)
+#define XFORMS_LOCK() mtx_lock(&xforms_lock)
+#define XFORMS_UNLOCK() mtx_unlock(&xforms_lock)
 
 void
 xform_attach(void *data)
@@ -177,11 +171,11 @@ xform_attach(void *data)
 
 	xsp = (struct xformsw *)data;
 	XFORMS_LOCK();
-	LIST_FOREACH(entry, &xforms, chain) {
+	LIST_FOREACH (entry, &xforms, chain) {
 		if (entry->xf_type == xsp->xf_type) {
 			XFORMS_UNLOCK();
-			printf("%s: failed to register %s xform\n",
-			    __func__, xsp->xf_name);
+			printf("%s: failed to register %s xform\n", __func__,
+			    xsp->xf_name);
 			return;
 		}
 	}
@@ -214,11 +208,11 @@ xform_init(struct secasvar *sav, u_short xftype)
 	struct xformsw *entry;
 	int ret;
 
-	IPSEC_ASSERT(sav->tdb_xform == NULL,
-	    ("tdb_xform is already initialized"));
+	IPSEC_ASSERT(
+	    sav->tdb_xform == NULL, ("tdb_xform is already initialized"));
 
 	XFORMS_LOCK();
-	LIST_FOREACH(entry, &xforms, chain) {
+	LIST_FOREACH (entry, &xforms, chain) {
 		if (entry->xf_type == xftype) {
 			ret = ipsec_kmod_enter(&entry->xf_cntr);
 			XFORMS_UNLOCK();
@@ -241,18 +235,18 @@ xform_init(struct secasvar *sav, u_short xftype)
  *   IPSEC_SUPPORT.
  */
 #if !defined(IPSEC) || !defined(TCP_SIGNATURE)
-#define	METHOD_DECL(...)	__VA_ARGS__
-#define	METHOD_ARGS(...)	__VA_ARGS__
-#define	IPSEC_KMOD_METHOD(type, name, sc, method, decl, args)		\
-type name (decl)							\
-{									\
-	type ret = (type)ipsec_kmod_enter(&sc->enabled);		\
-	if (ret == 0) {							\
-		ret = (*sc->methods->method)(args);			\
-		ipsec_kmod_exit(&sc->enabled);				\
-	}								\
-	return (ret);							\
-}
+#define METHOD_DECL(...) __VA_ARGS__
+#define METHOD_ARGS(...) __VA_ARGS__
+#define IPSEC_KMOD_METHOD(type, name, sc, method, decl, args)    \
+	type name(decl)                                          \
+	{                                                        \
+		type ret = (type)ipsec_kmod_enter(&sc->enabled); \
+		if (ret == 0) {                                  \
+			ret = (*sc->methods->method)(args);      \
+			ipsec_kmod_exit(&sc->enabled);           \
+		}                                                \
+		return (ret);                                    \
+	}
 
 static int
 ipsec_support_modevent(module_t mod, int type, void *data)
@@ -268,41 +262,35 @@ ipsec_support_modevent(module_t mod, int type, void *data)
 	}
 }
 
-static moduledata_t ipsec_support_mod = {
-	"ipsec_support",
-	ipsec_support_modevent,
-	0
-};
-DECLARE_MODULE(ipsec_support, ipsec_support_mod, SI_SUB_PROTO_DOMAIN,
-    SI_ORDER_ANY);
+static moduledata_t ipsec_support_mod = { "ipsec_support",
+	ipsec_support_modevent, 0 };
+DECLARE_MODULE(
+    ipsec_support, ipsec_support_mod, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);
 MODULE_VERSION(ipsec_support, 1);
 #endif /* !IPSEC || !TCP_SIGNATURE */
 
 #ifndef TCP_SIGNATURE
 /* Declare TCP-MD5 support as kernel module. */
-static struct tcpmd5_support tcpmd5_ipsec = {
-	.enabled = 0,
-	.methods = NULL
-};
-struct tcpmd5_support * const tcp_ipsec_support = &tcpmd5_ipsec;
+static struct tcpmd5_support tcpmd5_ipsec = { .enabled = 0, .methods = NULL };
+struct tcpmd5_support *const tcp_ipsec_support = &tcpmd5_ipsec;
 
-IPSEC_KMOD_METHOD(int, tcpmd5_kmod_input, sc,
-    input, METHOD_DECL(struct tcpmd5_support * const sc, struct mbuf *m,
-	struct tcphdr *th, u_char *buf), METHOD_ARGS(m, th, buf)
-)
+IPSEC_KMOD_METHOD(int, tcpmd5_kmod_input, sc, input,
+    METHOD_DECL(struct tcpmd5_support *const sc, struct mbuf *m,
+	struct tcphdr *th, u_char *buf),
+    METHOD_ARGS(m, th, buf))
 
-IPSEC_KMOD_METHOD(int, tcpmd5_kmod_output, sc,
-    output, METHOD_DECL(struct tcpmd5_support * const sc, struct mbuf *m,
-	struct tcphdr *th, u_char *buf), METHOD_ARGS(m, th, buf)
-)
+IPSEC_KMOD_METHOD(int, tcpmd5_kmod_output, sc, output,
+    METHOD_DECL(struct tcpmd5_support *const sc, struct mbuf *m,
+	struct tcphdr *th, u_char *buf),
+    METHOD_ARGS(m, th, buf))
 
-IPSEC_KMOD_METHOD(int, tcpmd5_kmod_pcbctl, sc,
-    pcbctl, METHOD_DECL(struct tcpmd5_support * const sc, struct inpcb *inp,
-	struct sockopt *sopt), METHOD_ARGS(inp, sopt)
-)
+IPSEC_KMOD_METHOD(int, tcpmd5_kmod_pcbctl, sc, pcbctl,
+    METHOD_DECL(struct tcpmd5_support *const sc, struct inpcb *inp,
+	struct sockopt *sopt),
+    METHOD_ARGS(inp, sopt))
 
 void
-tcpmd5_support_enable(const struct tcpmd5_methods * const methods)
+tcpmd5_support_enable(const struct tcpmd5_methods *const methods)
 {
 
 	KASSERT(tcp_ipsec_support->enabled == 0, ("TCP-MD5 already enabled"));
@@ -326,69 +314,57 @@ tcpmd5_support_disable(void)
  * IPsec support is build as kernel module.
  */
 #ifdef INET
-static struct ipsec_support ipv4_ipsec = {
-	.enabled = 0,
-	.methods = NULL
-};
-struct ipsec_support * const ipv4_ipsec_support = &ipv4_ipsec;
+static struct ipsec_support ipv4_ipsec = { .enabled = 0, .methods = NULL };
+struct ipsec_support *const ipv4_ipsec_support = &ipv4_ipsec;
 
-IPSEC_KMOD_METHOD(int, ipsec_kmod_udp_input, sc,
-    udp_input, METHOD_DECL(struct ipsec_support * const sc, struct mbuf *m,
-	int off, int af), METHOD_ARGS(m, off, af)
-)
+IPSEC_KMOD_METHOD(int, ipsec_kmod_udp_input, sc, udp_input,
+    METHOD_DECL(
+	struct ipsec_support *const sc, struct mbuf *m, int off, int af),
+    METHOD_ARGS(m, off, af))
 
-IPSEC_KMOD_METHOD(int, ipsec_kmod_udp_pcbctl, sc,
-    udp_pcbctl, METHOD_DECL(struct ipsec_support * const sc, struct inpcb *inp,
-	struct sockopt *sopt), METHOD_ARGS(inp, sopt)
-)
+IPSEC_KMOD_METHOD(int, ipsec_kmod_udp_pcbctl, sc, udp_pcbctl,
+    METHOD_DECL(struct ipsec_support *const sc, struct inpcb *inp,
+	struct sockopt *sopt),
+    METHOD_ARGS(inp, sopt))
 #endif
 
 #ifdef INET6
-static struct ipsec_support ipv6_ipsec = {
-	.enabled = 0,
-	.methods = NULL
-};
-struct ipsec_support * const ipv6_ipsec_support = &ipv6_ipsec;
+static struct ipsec_support ipv6_ipsec = { .enabled = 0, .methods = NULL };
+struct ipsec_support *const ipv6_ipsec_support = &ipv6_ipsec;
 #endif
 
-IPSEC_KMOD_METHOD(int, ipsec_kmod_input, sc,
-    input, METHOD_DECL(struct ipsec_support * const sc, struct mbuf *m,
-	int offset, int proto), METHOD_ARGS(m, offset, proto)
-)
+IPSEC_KMOD_METHOD(int, ipsec_kmod_input, sc, input,
+    METHOD_DECL(
+	struct ipsec_support *const sc, struct mbuf *m, int offset, int proto),
+    METHOD_ARGS(m, offset, proto))
 
-IPSEC_KMOD_METHOD(int, ipsec_kmod_check_policy, sc,
-    check_policy, METHOD_DECL(struct ipsec_support * const sc, struct mbuf *m,
-	struct inpcb *inp), METHOD_ARGS(m, inp)
-)
+IPSEC_KMOD_METHOD(int, ipsec_kmod_check_policy, sc, check_policy,
+    METHOD_DECL(
+	struct ipsec_support *const sc, struct mbuf *m, struct inpcb *inp),
+    METHOD_ARGS(m, inp))
 
-IPSEC_KMOD_METHOD(int, ipsec_kmod_forward, sc,
-    forward, METHOD_DECL(struct ipsec_support * const sc, struct mbuf *m),
-    (m)
-)
+IPSEC_KMOD_METHOD(int, ipsec_kmod_forward, sc, forward,
+    METHOD_DECL(struct ipsec_support *const sc, struct mbuf *m), (m))
 
-IPSEC_KMOD_METHOD(int, ipsec_kmod_output, sc,
-    output, METHOD_DECL(struct ipsec_support * const sc, struct mbuf *m,
-	struct inpcb *inp), METHOD_ARGS(m, inp)
-)
+IPSEC_KMOD_METHOD(int, ipsec_kmod_output, sc, output,
+    METHOD_DECL(
+	struct ipsec_support *const sc, struct mbuf *m, struct inpcb *inp),
+    METHOD_ARGS(m, inp))
 
-IPSEC_KMOD_METHOD(int, ipsec_kmod_pcbctl, sc,
-    pcbctl, METHOD_DECL(struct ipsec_support * const sc, struct inpcb *inp,
-	struct sockopt *sopt), METHOD_ARGS(inp, sopt)
-)
+IPSEC_KMOD_METHOD(int, ipsec_kmod_pcbctl, sc, pcbctl,
+    METHOD_DECL(struct ipsec_support *const sc, struct inpcb *inp,
+	struct sockopt *sopt),
+    METHOD_ARGS(inp, sopt))
 
-IPSEC_KMOD_METHOD(size_t, ipsec_kmod_hdrsize, sc,
-    hdrsize, METHOD_DECL(struct ipsec_support * const sc, struct inpcb *inp),
-    (inp)
-)
+IPSEC_KMOD_METHOD(size_t, ipsec_kmod_hdrsize, sc, hdrsize,
+    METHOD_DECL(struct ipsec_support *const sc, struct inpcb *inp), (inp))
 
-static IPSEC_KMOD_METHOD(int, ipsec_kmod_caps, sc,
-    capability, METHOD_DECL(struct ipsec_support * const sc, struct mbuf *m,
-	u_int cap), METHOD_ARGS(m, cap)
-)
+static IPSEC_KMOD_METHOD(int, ipsec_kmod_caps, sc, capability,
+    METHOD_DECL(struct ipsec_support *const sc, struct mbuf *m, u_int cap),
+    METHOD_ARGS(m, cap))
 
-int
-ipsec_kmod_capability(struct ipsec_support * const sc, struct mbuf *m,
-    u_int cap)
+    int ipsec_kmod_capability(
+	struct ipsec_support *const sc, struct mbuf *m, u_int cap)
 {
 
 	/*
@@ -402,8 +378,8 @@ ipsec_kmod_capability(struct ipsec_support * const sc, struct mbuf *m,
 }
 
 void
-ipsec_support_enable(struct ipsec_support * const sc,
-    const struct ipsec_methods * const methods)
+ipsec_support_enable(
+    struct ipsec_support *const sc, const struct ipsec_methods *const methods)
 {
 
 	KASSERT(sc->enabled == 0, ("IPsec already enabled"));
@@ -412,7 +388,7 @@ ipsec_support_enable(struct ipsec_support * const sc,
 }
 
 void
-ipsec_support_disable(struct ipsec_support * const sc)
+ipsec_support_disable(struct ipsec_support *const sc)
 {
 
 	if (sc->enabled & IPSEC_MODULE_ENABLED) {

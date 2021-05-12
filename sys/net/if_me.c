@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/module.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
@@ -43,88 +43,89 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 
+#include <machine/in_cksum.h>
+
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
-#include <net/vnet.h>
 #include <net/route.h>
-
+#include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
-#include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
+#include <netinet/ip_var.h>
 
-#include <machine/in_cksum.h>
 #include <security/mac/mac_framework.h>
 
-#define	MEMTU			(1500 - sizeof(struct mobhdr))
+#define MEMTU (1500 - sizeof(struct mobhdr))
 static const char mename[] = "me";
 static MALLOC_DEFINE(M_IFME, mename, "Minimal Encapsulation for IP");
 /* Minimal forwarding header RFC 2004 */
 struct mobhdr {
-	uint8_t		mob_proto;	/* protocol */
-	uint8_t		mob_flags;	/* flags */
-#define	MOB_FLAGS_SP	0x80		/* source present */
-	uint16_t	mob_csum;	/* header checksum */
-	struct in_addr	mob_dst;	/* original destination address */
-	struct in_addr	mob_src;	/* original source addr (optional) */
+	uint8_t mob_proto; /* protocol */
+	uint8_t mob_flags; /* flags */
+#define MOB_FLAGS_SP 0x80  /* source present */
+	uint16_t mob_csum;	/* header checksum */
+	struct in_addr mob_dst; /* original destination address */
+	struct in_addr mob_src; /* original source addr (optional) */
 } __packed;
 
 struct me_softc {
-	struct ifnet		*me_ifp;
-	u_int			me_fibnum;
-	struct in_addr		me_src;
-	struct in_addr		me_dst;
+	struct ifnet *me_ifp;
+	u_int me_fibnum;
+	struct in_addr me_src;
+	struct in_addr me_dst;
 
 	CK_LIST_ENTRY(me_softc) chain;
 	CK_LIST_ENTRY(me_softc) srchash;
 };
 CK_LIST_HEAD(me_list, me_softc);
-#define	ME2IFP(sc)		((sc)->me_ifp)
-#define	ME_READY(sc)		((sc)->me_src.s_addr != 0)
-#define	ME_RLOCK_TRACKER	struct epoch_tracker me_et
-#define	ME_RLOCK()		epoch_enter_preempt(net_epoch_preempt, &me_et)
-#define	ME_RUNLOCK()		epoch_exit_preempt(net_epoch_preempt, &me_et)
-#define	ME_WAIT()		epoch_wait_preempt(net_epoch_preempt)
+#define ME2IFP(sc) ((sc)->me_ifp)
+#define ME_READY(sc) ((sc)->me_src.s_addr != 0)
+#define ME_RLOCK_TRACKER struct epoch_tracker me_et
+#define ME_RLOCK() epoch_enter_preempt(net_epoch_preempt, &me_et)
+#define ME_RUNLOCK() epoch_exit_preempt(net_epoch_preempt, &me_et)
+#define ME_WAIT() epoch_wait_preempt(net_epoch_preempt)
 
 #ifndef ME_HASH_SIZE
-#define	ME_HASH_SIZE	(1 << 4)
+#define ME_HASH_SIZE (1 << 4)
 #endif
 VNET_DEFINE_STATIC(struct me_list *, me_hashtbl) = NULL;
 VNET_DEFINE_STATIC(struct me_list *, me_srchashtbl) = NULL;
-#define	V_me_hashtbl		VNET(me_hashtbl)
-#define	V_me_srchashtbl		VNET(me_srchashtbl)
-#define	ME_HASH(src, dst)	(V_me_hashtbl[\
-    me_hashval((src), (dst)) & (ME_HASH_SIZE - 1)])
-#define	ME_SRCHASH(src)		(V_me_srchashtbl[\
-    fnv_32_buf(&(src), sizeof(src), FNV1_32_INIT) & (ME_HASH_SIZE - 1)])
+#define V_me_hashtbl VNET(me_hashtbl)
+#define V_me_srchashtbl VNET(me_srchashtbl)
+#define ME_HASH(src, dst) \
+	(V_me_hashtbl[me_hashval((src), (dst)) & (ME_HASH_SIZE - 1)])
+#define ME_SRCHASH(src)                                                  \
+	(V_me_srchashtbl[fnv_32_buf(&(src), sizeof(src), FNV1_32_INIT) & \
+	    (ME_HASH_SIZE - 1)])
 
 static struct sx me_ioctl_sx;
 SX_SYSINIT(me_ioctl_sx, &me_ioctl_sx, "me_ioctl");
 
-static int	me_clone_create(struct if_clone *, int, caddr_t);
-static void	me_clone_destroy(struct ifnet *);
+static int me_clone_create(struct if_clone *, int, caddr_t);
+static void me_clone_destroy(struct ifnet *);
 VNET_DEFINE_STATIC(struct if_clone *, me_cloner);
-#define	V_me_cloner	VNET(me_cloner)
+#define V_me_cloner VNET(me_cloner)
 
 #ifdef VIMAGE
-static void	me_reassign(struct ifnet *, struct vnet *, char *);
+static void me_reassign(struct ifnet *, struct vnet *, char *);
 #endif
-static void	me_qflush(struct ifnet *);
-static int	me_transmit(struct ifnet *, struct mbuf *);
-static int	me_ioctl(struct ifnet *, u_long, caddr_t);
-static int	me_output(struct ifnet *, struct mbuf *,
-		    const struct sockaddr *, struct route *);
-static int	me_input(struct mbuf *, int, int, void *);
+static void me_qflush(struct ifnet *);
+static int me_transmit(struct ifnet *, struct mbuf *);
+static int me_ioctl(struct ifnet *, u_long, caddr_t);
+static int me_output(
+    struct ifnet *, struct mbuf *, const struct sockaddr *, struct route *);
+static int me_input(struct mbuf *, int, int, void *);
 
-static int	me_set_tunnel(struct me_softc *, in_addr_t, in_addr_t);
-static void	me_delete_tunnel(struct me_softc *);
+static int me_set_tunnel(struct me_softc *, in_addr_t, in_addr_t);
+static void me_delete_tunnel(struct me_softc *);
 
 SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, IFT_TUNNEL, me, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -134,7 +135,7 @@ static SYSCTL_NODE(_net_link, IFT_TUNNEL, me, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 #endif
 
 VNET_DEFINE_STATIC(int, max_me_nesting) = MAX_ME_NEST;
-#define	V_max_me_nesting	VNET(max_me_nesting)
+#define V_max_me_nesting VNET(max_me_nesting)
 SYSCTL_INT(_net_link_me, OID_AUTO, max_nesting, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(max_me_nesting), 0, "Max nested tunnels");
 
@@ -153,8 +154,7 @@ me_hashinit(void)
 	struct me_list *hash;
 	int i;
 
-	hash = malloc(sizeof(struct me_list) * ME_HASH_SIZE,
-	    M_IFME, M_WAITOK);
+	hash = malloc(sizeof(struct me_list) * ME_HASH_SIZE, M_IFME, M_WAITOK);
 	for (i = 0; i < ME_HASH_SIZE; i++)
 		CK_LIST_INIT(&hash[i]);
 
@@ -165,8 +165,8 @@ static void
 vnet_me_init(const void *unused __unused)
 {
 
-	V_me_cloner = if_clone_simple(mename, me_clone_create,
-	    me_clone_destroy, 0);
+	V_me_cloner = if_clone_simple(
+	    mename, me_clone_create, me_clone_destroy, 0);
 }
 VNET_SYSINIT(vnet_me_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
     vnet_me_init, NULL);
@@ -198,7 +198,7 @@ me_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	if_initname(ME2IFP(sc), mename, unit);
 
 	ME2IFP(sc)->if_mtu = MEMTU;
-	ME2IFP(sc)->if_flags = IFF_POINTOPOINT|IFF_MULTICAST;
+	ME2IFP(sc)->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 	ME2IFP(sc)->if_output = me_output;
 	ME2IFP(sc)->if_ioctl = me_ioctl;
 	ME2IFP(sc)->if_transmit = me_transmit;
@@ -215,8 +215,8 @@ me_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 #ifdef VIMAGE
 static void
-me_reassign(struct ifnet *ifp, struct vnet *new_vnet __unused,
-    char *unused __unused)
+me_reassign(
+    struct ifnet *ifp, struct vnet *new_vnet __unused, char *unused __unused)
 {
 	struct me_softc *sc;
 
@@ -290,8 +290,8 @@ me_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = EADDRNOTAVAIL;
 			break;
 		}
-		error = me_set_tunnel(sc, src->sin_addr.s_addr,
-		    dst->sin_addr.s_addr);
+		error = me_set_tunnel(
+		    sc, src->sin_addr.s_addr, dst->sin_addr.s_addr);
 		break;
 	case SIOCDIFPHYADDR:
 		me_delete_tunnel(sc);
@@ -349,8 +349,9 @@ me_lookup(const struct mbuf *m, int off, int proto, void **arg)
 
 	NET_EPOCH_ASSERT();
 	ip = mtod(m, const struct ip *);
-	CK_LIST_FOREACH(sc, &ME_HASH(ip->ip_dst.s_addr,
-	    ip->ip_src.s_addr), chain) {
+	CK_LIST_FOREACH(
+	    sc, &ME_HASH(ip->ip_dst.s_addr, ip->ip_src.s_addr), chain)
+	{
 		if (sc->me_src.s_addr == ip->ip_dst.s_addr &&
 		    sc->me_dst.s_addr == ip->ip_src.s_addr) {
 			if ((ME2IFP(sc)->if_flags & IFF_UP) == 0)
@@ -381,8 +382,7 @@ me_set_running(struct me_softc *sc)
  * source address spoofing.
  */
 static void
-me_srcaddr(void *arg __unused, const struct sockaddr *sa,
-    int event __unused)
+me_srcaddr(void *arg __unused, const struct sockaddr *sa, int event __unused)
 {
 	const struct sockaddr_in *sin;
 	struct me_softc *sc;
@@ -393,7 +393,8 @@ me_srcaddr(void *arg __unused, const struct sockaddr *sa,
 
 	NET_EPOCH_ASSERT();
 	sin = (const struct sockaddr_in *)sa;
-	CK_LIST_FOREACH(sc, &ME_SRCHASH(sin->sin_addr.s_addr), srchash) {
+	CK_LIST_FOREACH(sc, &ME_SRCHASH(sin->sin_addr.s_addr), srchash)
+	{
 		if (sc->me_src.s_addr != sin->sin_addr.s_addr)
 			continue;
 		me_set_running(sc);
@@ -415,11 +416,11 @@ me_set_tunnel(struct me_softc *sc, in_addr_t src, in_addr_t dst)
 	if (sc->me_src.s_addr == src && sc->me_dst.s_addr == dst)
 		return (0);
 
-	CK_LIST_FOREACH(tmp, &ME_HASH(src, dst), chain) {
+	CK_LIST_FOREACH(tmp, &ME_HASH(src, dst), chain)
+	{
 		if (tmp == sc)
 			continue;
-		if (tmp->me_src.s_addr == src &&
-		    tmp->me_dst.s_addr == dst)
+		if (tmp->me_src.s_addr == src && tmp->me_dst.s_addr == dst)
 			return (EADDRNOTAVAIL);
 	}
 
@@ -490,10 +491,10 @@ me_input(struct mbuf *m, int off, int proto, void *arg)
 		goto drop;
 	}
 	if (mh->mob_flags) {
-	       if (hlen != sizeof(struct mobhdr)) {
+		if (hlen != sizeof(struct mobhdr)) {
 			m_freem(m);
 			goto drop;
-	       }
+		}
 	} else
 		hlen = sizeof(struct mobhdr) - sizeof(struct in_addr);
 	/* check mobile header checksum */
@@ -533,7 +534,7 @@ drop:
 
 static int
 me_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-   struct route *ro __unused)
+    struct route *ro __unused)
 {
 	uint32_t af;
 
@@ -545,7 +546,7 @@ me_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	return (ifp->if_transmit(ifp, m));
 }
 
-#define	MTAG_ME	1414491977
+#define MTAG_ME 1414491977
 static int
 me_transmit(struct ifnet *ifp, struct mbuf *m)
 {
@@ -564,12 +565,11 @@ me_transmit(struct ifnet *ifp, struct mbuf *m)
 #endif
 	error = ENETDOWN;
 	sc = ifp->if_softc;
-	if (sc == NULL || !ME_READY(sc) ||
-	    (ifp->if_flags & IFF_MONITOR) != 0 ||
+	if (sc == NULL || !ME_READY(sc) || (ifp->if_flags & IFF_MONITOR) != 0 ||
 	    (ifp->if_flags & IFF_UP) == 0 ||
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
-	    (error = if_tunnel_check_nesting(ifp, m, MTAG_ME,
-		V_max_me_nesting)) != 0) {
+	    (error = if_tunnel_check_nesting(
+		 ifp, m, MTAG_ME, V_max_me_nesting)) != 0) {
 		m_freem(m);
 		goto drop;
 	}
@@ -606,7 +606,7 @@ me_transmit(struct ifnet *ifp, struct mbuf *m)
 	plen = m->m_pkthdr.len;
 	ip->ip_src = sc->me_src;
 	ip->ip_dst = sc->me_dst;
-	m->m_flags &= ~(M_BCAST|M_MCAST);
+	m->m_flags &= ~(M_BCAST | M_MCAST);
 	M_SETFIB(m, sc->me_fibnum);
 	M_PREPEND(m, hlen, M_NOWAIT);
 	if (m == NULL) {
@@ -642,19 +642,16 @@ drop:
 static void
 me_qflush(struct ifnet *ifp __unused)
 {
-
 }
 
 static const struct srcaddrtab *me_srcaddrtab = NULL;
 static const struct encaptab *ecookie = NULL;
-static const struct encap_config me_encap_cfg = {
-	.proto = IPPROTO_MOBILE,
+static const struct encap_config me_encap_cfg = { .proto = IPPROTO_MOBILE,
 	.min_length = sizeof(struct ip) + sizeof(struct mobhdr) -
 	    sizeof(in_addr_t),
 	.exact_match = ENCAP_DRV_LOOKUP,
 	.lookup = me_lookup,
-	.input = me_input
-};
+	.input = me_input };
 
 static int
 memodevent(module_t mod, int type, void *data)
@@ -662,8 +659,8 @@ memodevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		me_srcaddrtab = ip_encap_register_srcaddr(me_srcaddr,
-		    NULL, M_WAITOK);
+		me_srcaddrtab = ip_encap_register_srcaddr(
+		    me_srcaddr, NULL, M_WAITOK);
 		ecookie = ip_encap_attach(&me_encap_cfg, NULL, M_WAITOK);
 		break;
 	case MOD_UNLOAD:
@@ -676,11 +673,7 @@ memodevent(module_t mod, int type, void *data)
 	return (0);
 }
 
-static moduledata_t me_mod = {
-	"if_me",
-	memodevent,
-	0
-};
+static moduledata_t me_mod = { "if_me", memodevent, 0 };
 
 DECLARE_MODULE(if_me, me_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_me, 1);

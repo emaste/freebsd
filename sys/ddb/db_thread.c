@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/pcb.h>
 
-#include <ddb/ddb.h>
 #include <ddb/db_command.h>
 #include <ddb/db_sym.h>
+#include <ddb/ddb.h>
 
 void
 db_print_thread(void)
@@ -148,7 +148,7 @@ db_lookup_proc(db_expr_t addr)
 
 	decaddr = db_hex2dec(addr);
 	if (decaddr != -1) {
-		LIST_FOREACH(p, PIDHASH(decaddr), p_hash) {
+		LIST_FOREACH (p, PIDHASH(decaddr), p_hash) {
 			if (p->p_pid == decaddr)
 				return (p);
 		}

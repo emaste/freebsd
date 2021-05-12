@@ -28,29 +28,29 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
+#include <sys/rman.h>
+#include <sys/sysctl.h>
 
 #include <machine/fdt.h>
 
 #include <dev/ofw/ofw_bus_subr.h>
 
-#define	READOUT_TO_C(temp)	((temp) / 1000)
+#define READOUT_TO_C(temp) ((temp) / 1000)
 
-#define	STAT_RID		0
-#define	CTRL_RID		1
+#define STAT_RID 0
+#define CTRL_RID 1
 
-#define	TSEN_STAT_READOUT_VALID	0x1
+#define TSEN_STAT_READOUT_VALID 0x1
 
-#define	A380_TSEN_CTRL_RESET	(1 << 8)
+#define A380_TSEN_CTRL_RESET (1 << 8)
 
 struct armada_thermal_softc;
 
@@ -95,40 +95,36 @@ static int armada_thermal_probe(device_t);
 static int armada_thermal_attach(device_t);
 static int armada_thermal_detach(device_t);
 
-static device_method_t armada_thermal_methods[] = {
-	DEVMETHOD(device_probe,		armada_thermal_probe),
-	DEVMETHOD(device_attach,	armada_thermal_attach),
-	DEVMETHOD(device_detach,	armada_thermal_detach),
+static device_method_t armada_thermal_methods[] = { DEVMETHOD(device_probe,
+							armada_thermal_probe),
+	DEVMETHOD(device_attach, armada_thermal_attach),
+	DEVMETHOD(device_detach, armada_thermal_detach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 struct armada_thermal_softc {
-	device_t		dev;
+	device_t dev;
 
-	struct resource		*stat_res;
-	struct resource		*ctrl_res;
+	struct resource *stat_res;
+	struct resource *ctrl_res;
 
-	struct callout		temp_upd;
-	struct mtx		temp_upd_mtx;
+	struct callout temp_upd;
+	struct mtx temp_upd_mtx;
 
-	const armada_tdata_t	*tdata;
+	const armada_tdata_t *tdata;
 
-	u_long			chip_temperature;
+	u_long chip_temperature;
 };
 
-static driver_t	armada_thermal_driver = {
-	"armada_thermal",
-	armada_thermal_methods,
-	sizeof(struct armada_thermal_softc)
-};
+static driver_t armada_thermal_driver = { "armada_thermal",
+	armada_thermal_methods, sizeof(struct armada_thermal_softc) };
 
 static devclass_t armada_thermal_devclass;
 
 DRIVER_MODULE(armada_thermal, simplebus, armada_thermal_driver,
-        armada_thermal_devclass, 0, 0);
+    armada_thermal_devclass, 0, 0);
 DRIVER_MODULE(armada_thermal, ofwbus, armada_thermal_driver,
-        armada_thermal_devclass, 0, 0);
+    armada_thermal_devclass, 0, 0);
 
 static int
 armada_thermal_probe(device_t dev)
@@ -164,17 +160,17 @@ armada_thermal_attach(device_t dev)
 
 	/* Allocate CTRL and STAT register spaces */
 	rid = STAT_RID;
-	sc->stat_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE);
+	sc->stat_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->stat_res == NULL) {
-		device_printf(dev,
-		    "Could not allocate memory for the status register\n");
+		device_printf(
+		    dev, "Could not allocate memory for the status register\n");
 		return (ENXIO);
 	}
 
 	rid = CTRL_RID;
-	sc->ctrl_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE);
+	sc->ctrl_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->ctrl_res == NULL) {
 		device_printf(dev,
 		    "Could not allocate memory for the control register\n");
@@ -211,8 +207,8 @@ armada_thermal_attach(device_t dev)
 
 	sctx = device_get_sysctl_ctx(dev);
 	schildren = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
-	SYSCTL_ADD_LONG(sctx, schildren, OID_AUTO, "temperature",
-	    CTLFLAG_RD, &sc->chip_temperature, "SoC temperature");
+	SYSCTL_ADD_LONG(sctx, schildren, OID_AUTO, "temperature", CTLFLAG_RD,
+	    &sc->chip_temperature, "SoC temperature");
 
 	return (0);
 }
@@ -231,12 +227,12 @@ armada_thermal_detach(device_t dev)
 
 	sc->chip_temperature = 0;
 
-	bus_release_resource(dev, SYS_RES_MEMORY,
-	    rman_get_rid(sc->stat_res), sc->stat_res);
+	bus_release_resource(
+	    dev, SYS_RES_MEMORY, rman_get_rid(sc->stat_res), sc->stat_res);
 	sc->stat_res = NULL;
 
-	bus_release_resource(dev, SYS_RES_MEMORY,
-	    rman_get_rid(sc->ctrl_res), sc->ctrl_res);
+	bus_release_resource(
+	    dev, SYS_RES_MEMORY, rman_get_rid(sc->ctrl_res), sc->ctrl_res);
 	sc->ctrl_res = NULL;
 
 	return (0);

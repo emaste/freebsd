@@ -37,13 +37,13 @@
  * hypervisor environment.
  */
 struct init_ops {
-	caddr_t	(*parse_preload_data)(u_int64_t);
-	void	(*early_clock_source_init)(void);
-	void	(*early_delay)(int);
-	void	(*parse_memmap)(caddr_t, vm_paddr_t *, int *);
-	void	(*mp_bootaddress)(vm_paddr_t *, unsigned int *);
-	int	(*start_all_aps)(void);
-	void	(*msi_init)(void);
+	caddr_t (*parse_preload_data)(u_int64_t);
+	void (*early_clock_source_init)(void);
+	void (*early_delay)(int);
+	void (*parse_memmap)(caddr_t, vm_paddr_t *, int *);
+	void (*mp_bootaddress)(vm_paddr_t *, unsigned int *);
+	int (*start_all_aps)(void);
+	void (*msi_init)(void);
 };
 
 extern struct init_ops init_ops;

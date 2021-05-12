@@ -90,32 +90,31 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
+#include <machine/in_cksum.h>
+
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
-#include <net/if_dl.h>
 #include <net/pfil.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
 #include <netinet/in_fib.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
-#include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_options.h>
+#include <netinet/ip_var.h>
 
-#include <machine/in_cksum.h>
-
-#define	V_ipsendredirects	VNET(ipsendredirects)
+#define V_ipsendredirects VNET(ipsendredirects)
 
 static struct mbuf *
-ip_redir_alloc(struct mbuf *m, struct nhop_object *nh,
-    struct ip *ip, in_addr_t *addr)
+ip_redir_alloc(
+    struct mbuf *m, struct nhop_object *nh, struct ip *ip, in_addr_t *addr)
 {
 	struct mbuf *mcopy = m_gethdr(M_NOWAIT, m->m_type);
 
@@ -137,7 +136,7 @@ ip_redir_alloc(struct mbuf *m, struct nhop_object *nh,
 	m_copydata(m, 0, mcopy->m_len, mtod(mcopy, caddr_t));
 
 	if (nh != NULL &&
-	    ((nh->nh_flags & (NHF_REDIRECT|NHF_DEFAULT)) == 0)) {
+	    ((nh->nh_flags & (NHF_REDIRECT | NHF_DEFAULT)) == 0)) {
 		struct in_ifaddr *nh_ia = (struct in_ifaddr *)(nh->nh_ifa);
 		u_long src = ntohl(ip->ip_src.s_addr);
 
@@ -152,14 +151,12 @@ ip_redir_alloc(struct mbuf *m, struct nhop_object *nh,
 	return (mcopy);
 }
 
-
 static int
 ip_findroute(struct nhop_object **pnh, struct in_addr dest, struct mbuf *m)
 {
 	struct nhop_object *nh;
 
-	nh = fib4_lookup(M_GETFIB(m), dest, 0, NHR_NONE,
-	    m->m_pkthdr.flowid);
+	nh = fib4_lookup(M_GETFIB(m), dest, 0, NHR_NONE, m->m_pkthdr.flowid);
 	if (nh == NULL) {
 		IPSTAT_INC(ips_noroute);
 		IPSTAT_INC(ips_cantforward);
@@ -230,9 +227,9 @@ ip_tryforward(struct mbuf *m)
 		if (V_ip_doopts == 1)
 			return m;
 		else if (V_ip_doopts == 2) {
-			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_FILTER_PROHIB,
-				0, 0);
-			return NULL;	/* mbuf already free'd */
+			icmp_error(
+			    m, ICMP_UNREACH, ICMP_UNREACH_FILTER_PROHIB, 0, 0);
+			return NULL; /* mbuf already free'd */
 		}
 		/* else ignore IP options and continue */
 	}
@@ -247,7 +244,7 @@ ip_tryforward(struct mbuf *m)
 	 * let ip_input handle it.  We play safe here and let ip_input
 	 * deal with it until it is proven that we can directly drop it.
 	 */
-	if ((m->m_flags & (M_BCAST|M_MCAST)) ||
+	if ((m->m_flags & (M_BCAST | M_MCAST)) ||
 	    (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) ||
 	    ntohl(ip->ip_src.s_addr) == (u_long)INADDR_BROADCAST ||
 	    ntohl(ip->ip_dst.s_addr) == (u_long)INADDR_BROADCAST ||
@@ -255,8 +252,7 @@ ip_tryforward(struct mbuf *m)
 	    IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 	    IN_LINKLOCAL(ntohl(ip->ip_src.s_addr)) ||
 	    IN_LINKLOCAL(ntohl(ip->ip_dst.s_addr)) ||
-	    ip->ip_src.s_addr == INADDR_ANY ||
-	    ip->ip_dst.s_addr == INADDR_ANY )
+	    ip->ip_src.s_addr == INADDR_ANY || ip->ip_dst.s_addr == INADDR_ANY)
 		return m;
 
 	/*
@@ -280,13 +276,13 @@ ip_tryforward(struct mbuf *m)
 		goto passin;
 
 	if (pfil_run_hooks(V_inet_pfil_head, &m, m->m_pkthdr.rcvif, PFIL_IN,
-	    NULL) != PFIL_PASS)
+		NULL) != PFIL_PASS)
 		goto drop;
 
 	M_ASSERTVALID(m);
 	M_ASSERTPKTHDR(m);
 
-	ip = mtod(m, struct ip *);	/* m may have changed by pfil hook */
+	ip = mtod(m, struct ip *); /* m may have changed by pfil hook */
 	dest.s_addr = ip->ip_dst.s_addr;
 
 	/*
@@ -321,21 +317,22 @@ passin:
 #ifdef IPSTEALTH
 	if (!V_ipstealth) {
 #endif
-	if (ip->ip_ttl <= IPTTLDEC) {
-		icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, 0, 0);
-		return NULL;	/* mbuf already free'd */
-	}
+		if (ip->ip_ttl <= IPTTLDEC) {
+			icmp_error(
+			    m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, 0, 0);
+			return NULL; /* mbuf already free'd */
+		}
 
-	/*
-	 * Decrement the TTL and incrementally change the IP header checksum.
-	 * Don't bother doing this with hw checksum offloading, it's faster
-	 * doing it right here.
-	 */
-	ip->ip_ttl -= IPTTLDEC;
-	if (ip->ip_sum >= (u_int16_t) ~htons(IPTTLDEC << 8))
-		ip->ip_sum -= ~htons(IPTTLDEC << 8);
-	else
-		ip->ip_sum += htons(IPTTLDEC << 8);
+		/*
+		 * Decrement the TTL and incrementally change the IP header
+		 * checksum. Don't bother doing this with hw checksum
+		 * offloading, it's faster doing it right here.
+		 */
+		ip->ip_ttl -= IPTTLDEC;
+		if (ip->ip_sum >= (u_int16_t)~htons(IPTTLDEC << 8))
+			ip->ip_sum -= ~htons(IPTTLDEC << 8);
+		else
+			ip->ip_sum += htons(IPTTLDEC << 8);
 #ifdef IPSTEALTH
 	}
 #endif
@@ -348,8 +345,8 @@ passin:
 		/*
 		 * Now we will find route to forced destination.
 		 */
-		dest.s_addr = ((struct sockaddr_in *)
-			    (fwd_tag + 1))->sin_addr.s_addr;
+		dest.s_addr =
+		    ((struct sockaddr_in *)(fwd_tag + 1))->sin_addr.s_addr;
 		m_tag_delete(m, fwd_tag);
 		m->m_flags &= ~M_IP_NEXTHOP;
 	}
@@ -358,7 +355,7 @@ passin:
 	 * Find route to destination.
 	 */
 	if (ip_findroute(&nh, dest, m) != 0)
-		return (NULL);	/* icmp unreach already sent */
+		return (NULL); /* icmp unreach already sent */
 
 	/*
 	 * Avoid second route lookup by caching destination.
@@ -372,7 +369,7 @@ passin:
 		goto passout;
 
 	if (pfil_run_hooks(V_inet_pfil_head, &m, nh->nh_ifp,
-	    PFIL_OUT | PFIL_FWD, NULL) != PFIL_PASS)
+		PFIL_OUT | PFIL_FWD, NULL) != PFIL_PASS)
 		goto drop;
 
 	M_ASSERTVALID(m);
@@ -393,7 +390,7 @@ passin:
 		 * Is it now for a local address on this host?
 		 */
 		if (m->m_flags & M_FASTFWD_OURS || in_localip(dest)) {
-forwardlocal:
+		forwardlocal:
 			/*
 			 * Return packet for processing by ip_input().
 			 */
@@ -404,14 +401,14 @@ forwardlocal:
 		 * Redo route lookup with new destination address
 		 */
 		if (fwd_tag) {
-			dest.s_addr = ((struct sockaddr_in *)
-				    (fwd_tag + 1))->sin_addr.s_addr;
+			dest.s_addr = ((struct sockaddr_in *)(fwd_tag + 1))
+					  ->sin_addr.s_addr;
 			m_tag_delete(m, fwd_tag);
 			m->m_flags &= ~M_IP_NEXTHOP;
 		}
 		if (dest.s_addr != rtdest.s_addr &&
 		    ip_findroute(&nh, dest, m) != 0)
-			return (NULL);	/* icmp unreach already sent */
+			return (NULL); /* icmp unreach already sent */
 	}
 
 passout:
@@ -448,16 +445,17 @@ passout:
 		 * Send off the packet via outgoing interface
 		 */
 		IP_PROBE(send, NULL, NULL, ip, nh->nh_ifp, ip, NULL);
-		error = (*nh->nh_ifp->if_output)(nh->nh_ifp, m,
-		    (struct sockaddr *)&dst, NULL);
+		error = (*nh->nh_ifp->if_output)(
+		    nh->nh_ifp, m, (struct sockaddr *)&dst, NULL);
 	} else {
 		/*
-		 * Handle EMSGSIZE with icmp reply needfrag for TCP MTU discovery
+		 * Handle EMSGSIZE with icmp reply needfrag for TCP MTU
+		 * discovery
 		 */
 		if (ip_off & IP_DF) {
 			IPSTAT_INC(ips_cantfrag);
-			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG,
-				0, nh->nh_mtu);
+			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG, 0,
+			    nh->nh_mtu);
 			goto consumed;
 		} else {
 			/*
@@ -465,7 +463,7 @@ passout:
 			 */
 			m->m_pkthdr.csum_flags |= CSUM_IP;
 			if (ip_fragment(ip, &m, nh->nh_mtu,
-			    nh->nh_ifp->if_hwassist) != 0)
+				nh->nh_ifp->if_hwassist) != 0)
 				goto drop;
 			KASSERT(m != NULL, ("null mbuf and no error"));
 			/*
@@ -480,9 +478,8 @@ passout:
 				 */
 				m_clrprotoflags(m);
 
-				IP_PROBE(send, NULL, NULL,
-				    mtod(m, struct ip *), nh->nh_ifp,
-				    mtod(m, struct ip *), NULL);
+				IP_PROBE(send, NULL, NULL, mtod(m, struct ip *),
+				    nh->nh_ifp, mtod(m, struct ip *), NULL);
 				error = (*nh->nh_ifp->if_output)(nh->nh_ifp, m,
 				    (struct sockaddr *)&dst, NULL);
 				if (error)
@@ -508,7 +505,8 @@ passout:
 
 	/* Send required redirect */
 	if (mcopy != NULL) {
-		icmp_error(mcopy, ICMP_REDIRECT, ICMP_REDIRECT_HOST, redest.s_addr, 0);
+		icmp_error(
+		    mcopy, ICMP_REDIRECT, ICMP_REDIRECT_HOST, redest.s_addr, 0);
 		mcopy = NULL; /* Freed by caller */
 	}
 

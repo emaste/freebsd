@@ -29,15 +29,15 @@
  * $FreeBSD$
  */
 #ifndef _LINUX_VMALLOC_H_
-#define	_LINUX_VMALLOC_H_
+#define _LINUX_VMALLOC_H_
 
 #include <linux/page.h>
 
-#define	VM_MAP		0x0000
-#define	PAGE_KERNEL	0x0000
+#define VM_MAP 0x0000
+#define PAGE_KERNEL 0x0000
 
-void *vmap(struct page **pages, unsigned int count, unsigned long flags,
-    int prot);
+void *vmap(
+    struct page **pages, unsigned int count, unsigned long flags, int prot);
 void vunmap(void *addr);
 
-#endif	/* _LINUX_VMALLOC_H_ */
+#endif /* _LINUX_VMALLOC_H_ */

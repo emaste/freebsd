@@ -36,12 +36,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/malloc.h>
-#include <sys/smp.h>
+#include <sys/module.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
+#include <sys/rman.h>
+#include <sys/smp.h>
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
@@ -54,10 +54,10 @@ struct octeon_pmc_softc {
 	struct resource *octeon_pmc_irq;
 };
 
-static void		octeon_pmc_identify(driver_t *, device_t);
-static int		octeon_pmc_probe(device_t);
-static int		octeon_pmc_attach(device_t);
-static int		octeon_pmc_intr(void *);
+static void octeon_pmc_identify(driver_t *, device_t);
+static int octeon_pmc_probe(device_t);
+static int octeon_pmc_attach(device_t);
+static int octeon_pmc_intr(void *);
 
 static void
 octeon_pmc_identify(driver_t *drv, device_t parent)
@@ -86,17 +86,17 @@ octeon_pmc_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	rid = 0;
-	sc->octeon_pmc_irq = bus_alloc_resource(dev, 
-	    SYS_RES_IRQ, &rid, OCTEON_PMC_IRQ,
-	    OCTEON_PMC_IRQ, 1, RF_ACTIVE);
+	sc->octeon_pmc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+	    OCTEON_PMC_IRQ, OCTEON_PMC_IRQ, 1, RF_ACTIVE);
 
 	if (sc->octeon_pmc_irq == NULL) {
-		device_printf(dev, "could not allocate irq%d\n", OCTEON_PMC_IRQ);
+		device_printf(
+		    dev, "could not allocate irq%d\n", OCTEON_PMC_IRQ);
 		return (ENXIO);
 	}
 
-	error = bus_setup_intr(dev, sc->octeon_pmc_irq, 
-	    INTR_TYPE_MISC, octeon_pmc_intr, NULL, sc, NULL);
+	error = bus_setup_intr(dev, sc->octeon_pmc_irq, INTR_TYPE_MISC,
+	    octeon_pmc_intr, NULL, sc, NULL);
 	if (error != 0) {
 		device_printf(dev, "bus_setup_intr failed: %d\n", error);
 		return (error);
@@ -116,12 +116,10 @@ octeon_pmc_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
-static device_method_t octeon_pmc_methods[] = {
-	DEVMETHOD(device_identify,	octeon_pmc_identify),
-	DEVMETHOD(device_probe,		octeon_pmc_probe),
-	DEVMETHOD(device_attach,	octeon_pmc_attach),
-	{ 0, 0 }
-};
+static device_method_t octeon_pmc_methods[] = { DEVMETHOD(device_identify,
+						    octeon_pmc_identify),
+	DEVMETHOD(device_probe, octeon_pmc_probe),
+	DEVMETHOD(device_attach, octeon_pmc_attach), { 0, 0 } };
 
 static driver_t octeon_pmc_driver = {
 	"pmc",

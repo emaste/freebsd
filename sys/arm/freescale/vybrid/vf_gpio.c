@@ -37,40 +37,40 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
-#include <sys/mutex.h>
-#include <sys/gpio.h>
-
-#include <dev/gpio/gpiobusvar.h>
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include "gpio_if.h"
+#include <dev/gpio/gpiobusvar.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/freescale/vybrid/vf_common.h>
 #include <arm/freescale/vybrid/vf_port.h>
 
-#define	GPIO_PDOR(n)	(0x00 + 0x40 * (n >> 5))
-#define	GPIO_PSOR(n)	(0x04 + 0x40 * (n >> 5))
-#define	GPIO_PCOR(n)	(0x08 + 0x40 * (n >> 5))
-#define	GPIO_PTOR(n)	(0x0C + 0x40 * (n >> 5))
-#define	GPIO_PDIR(n)	(0x10 + 0x40 * (n >> 5))
+#include "gpio_if.h"
 
-#define	GPIO_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	GPIO_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
+#define GPIO_PDOR(n) (0x00 + 0x40 * (n >> 5))
+#define GPIO_PSOR(n) (0x04 + 0x40 * (n >> 5))
+#define GPIO_PCOR(n) (0x08 + 0x40 * (n >> 5))
+#define GPIO_PTOR(n) (0x0C + 0x40 * (n >> 5))
+#define GPIO_PDIR(n) (0x10 + 0x40 * (n >> 5))
 
-#define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
+#define GPIO_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define GPIO_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
+
+#define DEFAULT_CAPS (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
 
 /*
  * GPIO interface
@@ -86,22 +86,20 @@ static int vf_gpio_pin_get(device_t, uint32_t, unsigned int *);
 static int vf_gpio_pin_toggle(device_t, uint32_t pin);
 
 struct vf_gpio_softc {
-	struct resource		*res[1];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
+	struct resource *res[1];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
 
-	device_t		sc_busdev;
-	struct mtx		sc_mtx;
-	int			gpio_npins;
-	struct gpio_pin		gpio_pins[NGPIO];
+	device_t sc_busdev;
+	struct mtx sc_mtx;
+	int gpio_npins;
+	struct gpio_pin gpio_pins[NGPIO];
 };
 
 struct vf_gpio_softc *gpio_sc;
 
-static struct resource_spec vf_gpio_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec vf_gpio_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 static int
 vf_gpio_probe(device_t dev)
@@ -143,11 +141,12 @@ vf_gpio_attach(device_t dev)
 	for (i = 0; i < sc->gpio_npins; i++) {
 		sc->gpio_pins[i].gp_pin = i;
 		sc->gpio_pins[i].gp_caps = DEFAULT_CAPS;
-		sc->gpio_pins[i].gp_flags =
-		    (READ4(sc, GPIO_PDOR(i)) & (1 << (i % 32))) ?
-		    GPIO_PIN_OUTPUT: GPIO_PIN_INPUT;
-		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
-		    "vf_gpio%d.%d", device_get_unit(dev), i);
+		sc->gpio_pins[i].gp_flags = (READ4(sc, GPIO_PDOR(i)) &
+						(1 << (i % 32))) ?
+			  GPIO_PIN_OUTPUT :
+			  GPIO_PIN_INPUT;
+		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME, "vf_gpio%d.%d",
+		    device_get_unit(dev), i);
 	}
 
 	sc->sc_busdev = gpiobus_attach_bus(dev);
@@ -289,8 +288,8 @@ vf_gpio_pin_toggle(device_t dev, uint32_t pin)
 }
 
 static void
-vf_gpio_pin_configure(struct vf_gpio_softc *sc, struct gpio_pin *pin,
-    unsigned int flags)
+vf_gpio_pin_configure(
+    struct vf_gpio_softc *sc, struct gpio_pin *pin, unsigned int flags)
 {
 
 	GPIO_LOCK(sc);
@@ -298,8 +297,8 @@ vf_gpio_pin_configure(struct vf_gpio_softc *sc, struct gpio_pin *pin,
 	/*
 	 * Manage input/output
 	 */
-	if (flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) {
-		pin->gp_flags &= ~(GPIO_PIN_INPUT|GPIO_PIN_OUTPUT);
+	if (flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
+		pin->gp_flags &= ~(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT);
 		if (flags & GPIO_PIN_OUTPUT) {
 			pin->gp_flags |= GPIO_PIN_OUTPUT;
 
@@ -358,22 +357,20 @@ vf_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	return (0);
 }
 
-static device_method_t vf_gpio_methods[] = {
-	DEVMETHOD(device_probe,		vf_gpio_probe),
-	DEVMETHOD(device_attach,	vf_gpio_attach),
+static device_method_t vf_gpio_methods[] = { DEVMETHOD(
+						 device_probe, vf_gpio_probe),
+	DEVMETHOD(device_attach, vf_gpio_attach),
 
 	/* GPIO protocol */
-	DEVMETHOD(gpio_get_bus,		vf_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max,		vf_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname,	vf_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getcaps,	vf_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_getflags,	vf_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_get,		vf_gpio_pin_get),
-	DEVMETHOD(gpio_pin_toggle,	vf_gpio_pin_toggle),
-	DEVMETHOD(gpio_pin_setflags,	vf_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_set,		vf_gpio_pin_set),
-	{ 0, 0 }
-};
+	DEVMETHOD(gpio_get_bus, vf_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max, vf_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname, vf_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getcaps, vf_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_getflags, vf_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_get, vf_gpio_pin_get),
+	DEVMETHOD(gpio_pin_toggle, vf_gpio_pin_toggle),
+	DEVMETHOD(gpio_pin_setflags, vf_gpio_pin_setflags),
+	DEVMETHOD(gpio_pin_set, vf_gpio_pin_set), { 0, 0 } };
 
 static driver_t vf_gpio_driver = {
 	"gpio",

@@ -63,8 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/vmmeter.h>
 #ifdef KTRACE
-#include <sys/uio.h>
 #include <sys/ktrace.h>
+#include <sys/uio.h>
 #endif
 #ifdef EPOCH_TRACE
 #include <sys/epoch.h>
@@ -73,31 +73,30 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 
 static void synch_setup(void *dummy);
-SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup,
-    NULL);
+SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup, NULL);
 
-int	hogticks;
+int hogticks;
 static const char pause_wchan[MAXCPU];
 
 static struct callout loadav_callout;
 
-struct loadavg averunnable =
-	{ {0, 0, 0}, FSCALE };	/* load average, of runnable procs */
+struct loadavg averunnable = { { 0, 0, 0 },
+	FSCALE }; /* load average, of runnable procs */
 /*
  * Constants for averages over 1, 5, and 15 minutes
  * when sampling at 5 second intervals.
  */
 static fixpt_t cexp[3] = {
-	0.9200444146293232 * FSCALE,	/* exp(-1/12) */
-	0.9834714538216174 * FSCALE,	/* exp(-1/60) */
-	0.9944598480048967 * FSCALE,	/* exp(-1/180) */
+	0.9200444146293232 * FSCALE, /* exp(-1/12) */
+	0.9834714538216174 * FSCALE, /* exp(-1/60) */
+	0.9944598480048967 * FSCALE, /* exp(-1/180) */
 };
 
 /* kernel uses `FSCALE', userland (SHOULD) use kern.fscale */
 SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, FSCALE,
     "Fixed-point scale factor used for calculating load average values");
 
-static void	loadav(void *arg);
+static void loadav(void *arg);
 
 SDT_PROVIDER_DECLARE(sched);
 SDT_PROBE_DEFINE(sched, , , preempt);
@@ -106,7 +105,7 @@ static void
 sleepinit(void *unused)
 {
 
-	hogticks = (hz / 10) * 2;	/* Default only. */
+	hogticks = (hz / 10) * 2; /* Default only. */
 	init_sleepqueues();
 }
 
@@ -146,8 +145,8 @@ _sleep(const void *ident, struct lock_object *lock, int priority,
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0, wmesg);
 #endif
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
-	    "Sleeping on \"%s\"", wmesg);
+	WITNESS_WARN(
+	    WARN_GIANTOK | WARN_SLEEPOK, lock, "Sleeping on \"%s\"", wmesg);
 	KASSERT(sbt != 0 || mtx_owned(&Giant) || lock != NULL,
 	    ("sleeping without a lock"));
 	KASSERT(ident != NULL, ("_sleep: NULL ident"));
@@ -179,8 +178,8 @@ _sleep(const void *ident, struct lock_object *lock, int priority,
 		sleepq_flags |= SLEEPQ_INTERRUPTIBLE;
 
 	sleepq_lock(ident);
-	CTR5(KTR_PROC, "sleep: thread %ld (pid %ld, %s) on %s (%p)",
-	    td->td_tid, td->td_proc->p_pid, td->td_name, wmesg, ident);
+	CTR5(KTR_PROC, "sleep: thread %ld (pid %ld, %s) on %s (%p)", td->td_tid,
+	    td->td_proc->p_pid, td->td_name, wmesg, ident);
 
 	if (lock == &Giant.lock_object)
 		mtx_assert(&Giant, MA_OWNED);
@@ -265,13 +264,13 @@ msleep_spin_sbt(const void *ident, struct mtx *mtx, const char *wmesg,
 	if (sbt != 0)
 		sleepq_set_timeout_sbt(ident, sbt, pr, flags);
 
-	/*
-	 * Can't call ktrace with any spin locks held so it can lock the
-	 * ktrace_mtx lock, and WITNESS_WARN considers it an error to hold
-	 * any spin lock.  Thus, we have to drop the sleepq spin lock while
-	 * we handle those requests.  This is safe since we have placed our
-	 * thread on the sleep queue already.
-	 */
+		/*
+		 * Can't call ktrace with any spin locks held so it can lock the
+		 * ktrace_mtx lock, and WITNESS_WARN considers it an error to
+		 * hold any spin lock.  Thus, we have to drop the sleepq spin
+		 * lock while we handle those requests.  This is safe since we
+		 * have placed our thread on the sleep queue already.
+		 */
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW)) {
 		sleepq_release(ident);
@@ -281,8 +280,8 @@ msleep_spin_sbt(const void *ident, struct mtx *mtx, const char *wmesg,
 #endif
 #ifdef WITNESS
 	sleepq_release(ident);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "Sleeping on \"%s\"",
-	    wmesg);
+	WITNESS_WARN(
+	    WARN_GIANTOK | WARN_SLEEPOK, NULL, "Sleeping on \"%s\"", wmesg);
 	sleepq_lock(ident);
 #endif
 	if (sbt != 0)
@@ -349,8 +348,8 @@ wakeup(const void *ident)
 	wakeup_swapper = sleepq_broadcast(ident, SLEEPQ_SLEEP, 0, 0);
 	sleepq_release(ident);
 	if (wakeup_swapper) {
-		KASSERT(ident != &proc0,
-		    ("wakeup and wakeup_swapper and proc0"));
+		KASSERT(
+		    ident != &proc0, ("wakeup and wakeup_swapper and proc0"));
 		kick_proc0();
 	}
 }
@@ -378,8 +377,8 @@ wakeup_any(const void *ident)
 	int wakeup_swapper;
 
 	sleepq_lock(ident);
-	wakeup_swapper = sleepq_signal(ident, SLEEPQ_SLEEP | SLEEPQ_UNFAIR,
-	    0, 0);
+	wakeup_swapper = sleepq_signal(
+	    ident, SLEEPQ_SLEEP | SLEEPQ_UNFAIR, 0, 0);
 	sleepq_release(ident);
 	if (wakeup_swapper)
 		kick_proc0();
@@ -392,8 +391,8 @@ void
 _blockcount_wakeup(blockcount_t *bc, u_int old)
 {
 
-	KASSERT(_BLOCKCOUNT_WAITERS(old),
-	    ("%s: no waiters on %p", __func__, bc));
+	KASSERT(
+	    _BLOCKCOUNT_WAITERS(old), ("%s: no waiters on %p", __func__, bc));
 
 	if (atomic_cmpset_int(&bc->__count, _BLOCKCOUNT_WAITERS_FLAG, 0))
 		wakeup(bc);
@@ -408,8 +407,8 @@ _blockcount_wakeup(blockcount_t *bc, u_int old)
  * signal, return EINTR or ERESTART, and return EAGAIN otherwise.
  */
 int
-_blockcount_sleep(blockcount_t *bc, struct lock_object *lock, const char *wmesg,
-    int prio)
+_blockcount_sleep(
+    blockcount_t *bc, struct lock_object *lock, const char *wmesg, int prio)
 {
 	void *wchan;
 	uintptr_t lock_state;
@@ -452,8 +451,8 @@ _blockcount_sleep(blockcount_t *bc, struct lock_object *lock, const char *wmesg,
 		}
 		if (_BLOCKCOUNT_WAITERS(old))
 			break;
-	} while (!atomic_fcmpset_int(&bc->__count, &old,
-	    old | _BLOCKCOUNT_WAITERS_FLAG));
+	} while (!atomic_fcmpset_int(
+	    &bc->__count, &old, old | _BLOCKCOUNT_WAITERS_FLAG));
 	sleepq_add(wchan, NULL, wmesg, catch ? SLEEPQ_INTERRUPTIBLE : 0, 0);
 	if (catch)
 		ret = sleepq_wait_sig(wchan, prio);
@@ -490,7 +489,7 @@ mi_switch(int flags)
 	uint64_t runtime, new_switchtime;
 	struct thread *td;
 
-	td = curthread;			/* XXX */
+	td = curthread; /* XXX */
 	THREAD_LOCK_ASSERT(td, MA_OWNED | MA_NOTRECURSED);
 	KASSERT(!TD_ON_RUNQ(td), ("mi_switch: called by old code"));
 #ifdef INVARIANTS
@@ -498,7 +497,7 @@ mi_switch(int flags)
 		mtx_assert(&Giant, MA_NOTOWNED);
 #endif
 	KASSERT(td->td_critnest == 1 || KERNEL_PANICKED(),
-		("mi_switch: switch in a critical section"));
+	    ("mi_switch: switch in a critical section"));
 	KASSERT((flags & (SW_INVOL | SW_VOL)) != 0,
 	    ("mi_switch: switch must be voluntary or involuntary"));
 
@@ -528,22 +527,23 @@ mi_switch(int flags)
 	td->td_runtime += runtime;
 	td->td_incruntime += runtime;
 	PCPU_SET(switchtime, new_switchtime);
-	td->td_generation++;	/* bump preempt-detect counter */
+	td->td_generation++; /* bump preempt-detect counter */
 	VM_CNT_INC(v_swtch);
 	PCPU_SET(switchticks, ticks);
 	CTR4(KTR_PROC, "mi_switch: old thread %ld (td_sched %p, pid %ld, %s)",
 	    td->td_tid, td_get_sched(td), td->td_proc->p_pid, td->td_name);
 #ifdef KDTRACE_HOOKS
 	if (SDT_PROBES_ENABLED() &&
-	    ((flags & SW_PREEMPT) != 0 || ((flags & SW_INVOL) != 0 &&
-	    (flags & SW_TYPE_MASK) == SWT_NEEDRESCHED)))
+	    ((flags & SW_PREEMPT) != 0 ||
+		((flags & SW_INVOL) != 0 &&
+		    (flags & SW_TYPE_MASK) == SWT_NEEDRESCHED)))
 		SDT_PROBE0(sched, , , preempt);
 #endif
 	sched_switch(td, flags);
 	CTR4(KTR_PROC, "mi_switch: new thread %ld (td_sched %p, pid %ld, %s)",
 	    td->td_tid, td_get_sched(td), td->td_proc->p_pid, td->td_name);
 
-	/* 
+	/*
 	 * If the last thread was exiting, finish cleaning it up.
 	 */
 	if ((td = PCPU_GET(deadthread))) {
@@ -577,7 +577,7 @@ setrunnable(struct thread *td, int srqflags)
 	case TDS_CAN_RUN:
 		KASSERT((td->td_flags & TDF_INMEM) != 0,
 		    ("setrunnable: td %p not in mem, flags 0x%X inhibit 0x%X",
-		    td, td->td_flags, td->td_inhibitors));
+			td, td->td_flags, td->td_inhibitors));
 		/* unlocks thread lock according to flags */
 		sched_wakeup(td, srqflags);
 		return (0);
@@ -616,7 +616,8 @@ loadav(void *arg)
 
 	for (i = 0; i < 3; i++)
 		avg->ldavg[i] = (cexp[i] * avg->ldavg[i] +
-		    nrun * FSCALE * (FSCALE - cexp[i])) >> FSHIFT;
+				    nrun * FSCALE * (FSCALE - cexp[i])) >>
+		    FSHIFT;
 
 	/*
 	 * Schedule the next update to occur after 5 seconds, but add a
@@ -624,8 +625,8 @@ loadav(void *arg)
 	 * run at regular intervals.
 	 */
 	callout_reset_sbt(&loadav_callout,
-	    SBT_1US * (4000000 + (int)(random() % 2000001)), SBT_1US,
-	    loadav, NULL, C_DIRECT_EXEC | C_PREL(32));
+	    SBT_1US * (4000000 + (int)(random() % 2000001)), SBT_1US, loadav,
+	    NULL, C_DIRECT_EXEC | C_PREL(32));
 }
 
 /* ARGSUSED */

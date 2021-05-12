@@ -43,12 +43,9 @@ __FBSDID("$FreeBSD$");
 #include "gssd.h"
 
 OM_uint32
-gss_display_status(OM_uint32 *minor_status,
-    OM_uint32 status_value,
-    int status_type,
-    const gss_OID mech_type,
-    OM_uint32 *message_context,
-    gss_buffer_t status_string)            /* status_string */
+gss_display_status(OM_uint32 *minor_status, OM_uint32 status_value,
+    int status_type, const gss_OID mech_type, OM_uint32 *message_context,
+    gss_buffer_t status_string) /* status_string */
 {
 	struct display_status_res res;
 	struct display_status_args args;
@@ -80,7 +77,7 @@ gss_display_status(OM_uint32 *minor_status,
 
 	*message_context = res.message_context;
 	kgss_copy_buffer(&res.status_string, status_string);
-	xdr_free((xdrproc_t) xdr_display_status_res, &res);
+	xdr_free((xdrproc_t)xdr_display_status_res, &res);
 
 	return (GSS_S_COMPLETE);
 }

@@ -61,16 +61,16 @@ uint32_t key_getspgen(void);
 uint32_t key_newreqid(void);
 
 struct secasvar *key_allocsa(union sockaddr_union *, uint8_t, uint32_t);
-struct secasvar *key_allocsa_tunnel(union sockaddr_union *,
-    union sockaddr_union *, uint8_t);
-struct secasvar *key_allocsa_policy(struct secpolicy *,
-    const struct secasindex *, int *);
+struct secasvar *key_allocsa_tunnel(
+    union sockaddr_union *, union sockaddr_union *, uint8_t);
+struct secasvar *key_allocsa_policy(
+    struct secpolicy *, const struct secasindex *, int *);
 struct secasvar *key_allocsa_tcpmd5(struct secasindex *);
 void key_freesav(struct secasvar **);
 
 int key_sockaddrcmp(const struct sockaddr *, const struct sockaddr *, int);
-int key_sockaddrcmp_withmask(const struct sockaddr *, const struct sockaddr *,
-    size_t);
+int key_sockaddrcmp_withmask(
+    const struct sockaddr *, const struct sockaddr *, size_t);
 
 int key_register_ifnet(struct secpolicy **, u_int);
 void key_unregister_ifnet(struct secpolicy **, u_int);

@@ -51,11 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #ifdef _KERNEL
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #else /* ! _KERNEL */
 #include <pthread.h>
 #include <stdbool.h>
@@ -69,21 +69,22 @@ struct voistatdata_voistate {
 	struct voistatdata_numeric prev;
 };
 
-#define	VS_VSDVALID	0x0001	/* Stat's voistatdata updated at least once. */
+#define VS_VSDVALID 0x0001 /* Stat's voistatdata updated at least once. */
 struct voistat {
-	int8_t		stype;		/* Type of stat e.g. VS_STYPE_SUM. */
-	enum vsd_dtype	dtype : 8;	/* Data type of this stat's data. */
-	uint16_t	data_off;	/* Blob offset for this stat's data. */
-	uint16_t	dsz;		/* Size of stat's data. */
-#define	VS_EBITS 8
-	uint16_t	errs : VS_EBITS;/* Non-wrapping error count. */
-	uint16_t	flags : 16 - VS_EBITS;
+	int8_t stype;		  /* Type of stat e.g. VS_STYPE_SUM. */
+	enum vsd_dtype dtype : 8; /* Data type of this stat's data. */
+	uint16_t data_off;	  /* Blob offset for this stat's data. */
+	uint16_t dsz;		  /* Size of stat's data. */
+#define VS_EBITS 8
+	uint16_t errs : VS_EBITS; /* Non-wrapping error count. */
+	uint16_t flags : 16 - VS_EBITS;
 };
 /* The voistat error count is capped to avoid wrapping. */
-#define	VS_INCERRS(vs) do {						\
-	if ((vs)->errs < (1U << VS_EBITS) - 1)				\
-		(vs)->errs++;						\
-} while (0)
+#define VS_INCERRS(vs)                                 \
+	do {                                           \
+		if ((vs)->errs < (1U << VS_EBITS) - 1) \
+			(vs)->errs++;                  \
+	} while (0)
 
 /*
  * Ideas for flags:
@@ -92,13 +93,13 @@ struct voistat {
  *   - Signal an overflow?
  *   - Compressed voistat array
  */
-#define	VOI_REQSTATE	0x0001	/* VOI requires VS_STYPE_VOISTATE. */
+#define VOI_REQSTATE 0x0001 /* VOI requires VS_STYPE_VOISTATE. */
 struct voi {
-	int16_t		id;		/* VOI id. */
-	enum vsd_dtype	dtype : 8;	/* Data type of the VOI itself. */
-	int8_t		voistatmaxid;	/* Largest allocated voistat index. */
-	uint16_t	stats_off;	/* Blob offset for this VOIs stats. */
-	uint16_t	flags;
+	int16_t id;		  /* VOI id. */
+	enum vsd_dtype dtype : 8; /* Data type of the VOI itself. */
+	int8_t voistatmaxid;	  /* Largest allocated voistat index. */
+	uint16_t stats_off;	  /* Blob offset for this VOIs stats. */
+	uint16_t flags;
 };
 
 /*
@@ -110,47 +111,47 @@ struct voi {
  * - Units of offsets (default bytes, flag for e.g. vm_page/KiB/Mib)
  */
 struct statsblobv1 {
-	uint8_t		abi;
-	uint8_t		endian;
-	uint16_t	flags;
-	uint16_t	maxsz;
-	uint16_t	cursz;
+	uint8_t abi;
+	uint8_t endian;
+	uint16_t flags;
+	uint16_t maxsz;
+	uint16_t cursz;
 	/* Fields from here down are opaque to consumers. */
-	uint32_t	tplhash;	/* Base template hash ID. */
-	uint16_t	stats_off;	/* voistat array blob offset. */
-	uint16_t	statsdata_off;	/* voistatdata array blob offset. */
-	sbintime_t	created;	/* Blob creation time. */
-	sbintime_t	lastrst;	/* Time of last reset. */
-	struct voi	vois[];		/* Array indexed by [voi_id]. */
+	uint32_t tplhash;	/* Base template hash ID. */
+	uint16_t stats_off;	/* voistat array blob offset. */
+	uint16_t statsdata_off; /* voistatdata array blob offset. */
+	sbintime_t created;	/* Blob creation time. */
+	sbintime_t lastrst;	/* Time of last reset. */
+	struct voi vois[];	/* Array indexed by [voi_id]. */
 } __aligned(sizeof(void *));
 _Static_assert(offsetof(struct statsblobv1, cursz) +
-    SIZEOF_MEMBER(struct statsblobv1, cursz) ==
-    offsetof(struct statsblob, opaque),
+	    SIZEOF_MEMBER(struct statsblobv1, cursz) ==
+	offsetof(struct statsblob, opaque),
     "statsblobv1 ABI mismatch");
 
 struct statsblobv1_tpl {
-	struct metablob		*mb;
-	struct statsblobv1	*sb;
+	struct metablob *mb;
+	struct statsblobv1 *sb;
 };
 
 /* Context passed to iterator callbacks. */
 struct sb_iter_ctx {
-	void		*usrctx;	/* Caller supplied context. */
-	uint32_t	flags;		/* Flags for current iteration. */
-	int16_t		vslot;		/* struct voi slot index. */
-	int8_t		vsslot;		/* struct voistat slot index. */
+	void *usrctx;	/* Caller supplied context. */
+	uint32_t flags; /* Flags for current iteration. */
+	int16_t vslot;	/* struct voi slot index. */
+	int8_t vsslot;	/* struct voistat slot index. */
 };
 
 struct sb_tostrcb_ctx {
-	struct sbuf		*buf;
-	struct statsblob_tpl	*tpl;
-	enum sb_str_fmt	fmt;
-	uint32_t		flags;
+	struct sbuf *buf;
+	struct statsblob_tpl *tpl;
+	enum sb_str_fmt fmt;
+	uint32_t flags;
 };
 
 struct sb_visitcb_ctx {
-	stats_blob_visitcb_t	cb;
-	void			*usrctx;
+	stats_blob_visitcb_t cb;
+	void *usrctx;
 };
 
 /* Stats blob iterator callback. */
@@ -160,57 +161,71 @@ typedef int (*stats_v1_blob_itercb_t)(struct statsblobv1 *sb, struct voi *v,
 #ifdef _KERNEL
 static struct rwlock tpllistlock;
 RW_SYSINIT(stats_tpl_list, &tpllistlock, "Stat template list lock");
-#define	TPL_LIST_RLOCK() rw_rlock(&tpllistlock)
-#define	TPL_LIST_RUNLOCK() rw_runlock(&tpllistlock)
-#define	TPL_LIST_WLOCK() rw_wlock(&tpllistlock)
-#define	TPL_LIST_WUNLOCK() rw_wunlock(&tpllistlock)
-#define	TPL_LIST_LOCK_ASSERT() rw_assert(&tpllistlock, RA_LOCKED)
-#define	TPL_LIST_RLOCK_ASSERT() rw_assert(&tpllistlock, RA_RLOCKED)
-#define	TPL_LIST_WLOCK_ASSERT() rw_assert(&tpllistlock, RA_WLOCKED)
+#define TPL_LIST_RLOCK() rw_rlock(&tpllistlock)
+#define TPL_LIST_RUNLOCK() rw_runlock(&tpllistlock)
+#define TPL_LIST_WLOCK() rw_wlock(&tpllistlock)
+#define TPL_LIST_WUNLOCK() rw_wunlock(&tpllistlock)
+#define TPL_LIST_LOCK_ASSERT() rw_assert(&tpllistlock, RA_LOCKED)
+#define TPL_LIST_RLOCK_ASSERT() rw_assert(&tpllistlock, RA_RLOCKED)
+#define TPL_LIST_WLOCK_ASSERT() rw_assert(&tpllistlock, RA_WLOCKED)
 MALLOC_DEFINE(M_STATS, "stats(9) related memory", "stats(9) related memory");
-#define	stats_free(ptr) free((ptr), M_STATS)
+#define stats_free(ptr) free((ptr), M_STATS)
 #else /* ! _KERNEL */
 static void stats_constructor(void);
 static void stats_destructor(void);
 static pthread_rwlock_t tpllistlock;
-#define	TPL_LIST_UNLOCK() pthread_rwlock_unlock(&tpllistlock)
-#define	TPL_LIST_RLOCK() pthread_rwlock_rdlock(&tpllistlock)
-#define	TPL_LIST_RUNLOCK() TPL_LIST_UNLOCK()
-#define	TPL_LIST_WLOCK() pthread_rwlock_wrlock(&tpllistlock)
-#define	TPL_LIST_WUNLOCK() TPL_LIST_UNLOCK()
-#define	TPL_LIST_LOCK_ASSERT() do { } while (0)
-#define	TPL_LIST_RLOCK_ASSERT() do { } while (0)
-#define	TPL_LIST_WLOCK_ASSERT() do { } while (0)
+#define TPL_LIST_UNLOCK() pthread_rwlock_unlock(&tpllistlock)
+#define TPL_LIST_RLOCK() pthread_rwlock_rdlock(&tpllistlock)
+#define TPL_LIST_RUNLOCK() TPL_LIST_UNLOCK()
+#define TPL_LIST_WLOCK() pthread_rwlock_wrlock(&tpllistlock)
+#define TPL_LIST_WUNLOCK() TPL_LIST_UNLOCK()
+#define TPL_LIST_LOCK_ASSERT() \
+	do {                   \
+	} while (0)
+#define TPL_LIST_RLOCK_ASSERT() \
+	do {                    \
+	} while (0)
+#define TPL_LIST_WLOCK_ASSERT() \
+	do {                    \
+	} while (0)
 #ifdef NDEBUG
-#define	KASSERT(cond, msg) do {} while (0)
-#define	stats_abort() do {} while (0)
+#define KASSERT(cond, msg) \
+	do {               \
+	} while (0)
+#define stats_abort() \
+	do {          \
+	} while (0)
 #else /* ! NDEBUG */
-#define	KASSERT(cond, msg) do { \
-	if (!(cond)) { \
-		panic msg; \
-	} \
-} while (0)
-#define	stats_abort() abort()
+#define KASSERT(cond, msg)         \
+	do {                       \
+		if (!(cond)) {     \
+			panic msg; \
+		}                  \
+	} while (0)
+#define stats_abort() abort()
 #endif /* NDEBUG */
-#define	stats_free(ptr) free(ptr)
-#define	panic(fmt, ...) do { \
-	fprintf(stderr, (fmt), ##__VA_ARGS__); \
-	stats_abort(); \
-} while (0)
+#define stats_free(ptr) free(ptr)
+#define panic(fmt, ...)                                \
+	do {                                           \
+		fprintf(stderr, (fmt), ##__VA_ARGS__); \
+		stats_abort();                         \
+	} while (0)
 #endif /* _KERNEL */
 
-#define	SB_V1_MAXSZ 65535
+#define SB_V1_MAXSZ 65535
 
 /* Obtain a blob offset pointer. */
-#define	BLOB_OFFSET(sb, off) ((void *)(((uint8_t *)(sb)) + (off)))
+#define BLOB_OFFSET(sb, off) ((void *)(((uint8_t *)(sb)) + (off)))
 
 /*
  * Number of VOIs in the blob's vois[] array. By virtue of struct voi being a
  * power of 2 size, we can shift instead of divide. The shift amount must be
  * updated if sizeof(struct voi) ever changes, which the assert should catch.
  */
-#define	NVOIS(sb) ((int32_t)((((struct statsblobv1 *)(sb))->stats_off - \
-    sizeof(struct statsblobv1)) >> 3))
+#define NVOIS(sb)                                             \
+	((int32_t)((((struct statsblobv1 *)(sb))->stats_off - \
+		       sizeof(struct statsblobv1)) >>         \
+	    3))
 _Static_assert(sizeof(struct voi) == 8, "statsblobv1 voi ABI mismatch");
 
 /* Try restrict names to alphanumeric and underscore to simplify JSON compat. */
@@ -331,11 +346,11 @@ const struct voistatdata_numeric numeric_limits[2][VSD_DTYPE_Q_U64 + 1] = {
 static uint32_t ntpl;
 static struct statsblob_tpl **tpllist;
 
-static inline void * stats_realloc(void *ptr, size_t oldsz, size_t newsz,
-    int flags);
-//static void stats_v1_blob_finalise(struct statsblobv1 *sb);
-static int stats_v1_blob_init_locked(struct statsblobv1 *sb, uint32_t tpl_id,
-    uint32_t flags);
+static inline void *stats_realloc(
+    void *ptr, size_t oldsz, size_t newsz, int flags);
+// static void stats_v1_blob_finalise(struct statsblobv1 *sb);
+static int stats_v1_blob_init_locked(
+    struct statsblobv1 *sb, uint32_t tpl_id, uint32_t flags);
 static int stats_v1_blob_expand(struct statsblobv1 **sbpp, int newvoibytes,
     int newvoistatbytes, int newvoistatdatabytes);
 static void stats_v1_blob_iter(struct statsblobv1 *sb,
@@ -344,26 +359,28 @@ static inline int stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype,
     struct voistatdata_tdgst *tdgst, s64q_t x, uint64_t weight, int attempt);
 
 static inline int
-ctd32cmp(const struct voistatdata_tdgstctd32 *c1, const struct voistatdata_tdgstctd32 *c2)
+ctd32cmp(const struct voistatdata_tdgstctd32 *c1,
+    const struct voistatdata_tdgstctd32 *c2)
 {
 
 	KASSERT(Q_PRECEQ(c1->mu, c2->mu),
 	    ("%s: Q_RELPREC(c1->mu,c2->mu)=%d", __func__,
-	    Q_RELPREC(c1->mu, c2->mu)));
+		Q_RELPREC(c1->mu, c2->mu)));
 
-       return (Q_QLTQ(c1->mu, c2->mu) ? -1 : 1);
+	return (Q_QLTQ(c1->mu, c2->mu) ? -1 : 1);
 }
 ARB_GENERATE_STATIC(ctdth32, voistatdata_tdgstctd32, ctdlnk, ctd32cmp);
 
 static inline int
-ctd64cmp(const struct voistatdata_tdgstctd64 *c1, const struct voistatdata_tdgstctd64 *c2)
+ctd64cmp(const struct voistatdata_tdgstctd64 *c1,
+    const struct voistatdata_tdgstctd64 *c2)
 {
 
 	KASSERT(Q_PRECEQ(c1->mu, c2->mu),
 	    ("%s: Q_RELPREC(c1->mu,c2->mu)=%d", __func__,
-	    Q_RELPREC(c1->mu, c2->mu)));
+		Q_RELPREC(c1->mu, c2->mu)));
 
-       return (Q_QLTQ(c1->mu, c2->mu) ? -1 : 1);
+	return (Q_QLTQ(c1->mu, c2->mu) ? -1 : 1);
 }
 ARB_GENERATE_STATIC(ctdth64, voistatdata_tdgstctd64, ctdlnk, ctd64cmp);
 
@@ -445,8 +462,8 @@ stats_tpl_update_hash(struct statsblob_tpl *tpl)
 			tpl->mb->tplhash = hash32_str(
 			    tpl->mb->voi_meta[voi_id].name, tpl->mb->tplhash);
 	}
-	tpl->mb->tplhash = hash32_buf(tpl->sb, tpl->sb->cursz,
-	    tpl->mb->tplhash);
+	tpl->mb->tplhash = hash32_buf(
+	    tpl->sb, tpl->sb->cursz, tpl->mb->tplhash);
 }
 
 static inline uint64_t
@@ -476,60 +493,60 @@ stats_vss_hist_bkt_hlpr(struct vss_hist_hlpr_info *info, uint32_t curbkt,
 		step = info->lin.stepinc;
 		break;
 	case BKT_EXP:
-		step = stats_pow_u64(info->exp.stepbase,
-		    info->exp.stepexp + curbkt);
+		step = stats_pow_u64(
+		    info->exp.stepbase, info->exp.stepexp + curbkt);
 		break;
-	case BKT_LINEXP:
-		{
+	case BKT_LINEXP: {
 		uint64_t curstepexp = 1;
 
 		switch (info->voi_dtype) {
 		case VSD_DTYPE_INT_S32:
 			while ((int32_t)stats_pow_u64(info->linexp.stepbase,
-			    curstepexp) <= bkt_lb->int32.s32)
+				   curstepexp) <= bkt_lb->int32.s32)
 				curstepexp++;
 			break;
 		case VSD_DTYPE_INT_U32:
 			while ((uint32_t)stats_pow_u64(info->linexp.stepbase,
-			    curstepexp) <= bkt_lb->int32.u32)
+				   curstepexp) <= bkt_lb->int32.u32)
 				curstepexp++;
 			break;
 		case VSD_DTYPE_INT_S64:
 			while ((int64_t)stats_pow_u64(info->linexp.stepbase,
-			    curstepexp) <= bkt_lb->int64.s64)
+				   curstepexp) <= bkt_lb->int64.s64)
 				curstepexp++;
 			break;
 		case VSD_DTYPE_INT_U64:
 			while ((uint64_t)stats_pow_u64(info->linexp.stepbase,
-			    curstepexp) <= bkt_lb->int64.u64)
+				   curstepexp) <= bkt_lb->int64.u64)
 				curstepexp++;
 			break;
 		case VSD_DTYPE_INT_SLONG:
 			while ((long)stats_pow_u64(info->linexp.stepbase,
-			    curstepexp) <= bkt_lb->intlong.slong)
+				   curstepexp) <= bkt_lb->intlong.slong)
 				curstepexp++;
 			break;
 		case VSD_DTYPE_INT_ULONG:
-			while ((unsigned long)stats_pow_u64(info->linexp.stepbase,
-			    curstepexp) <= bkt_lb->intlong.ulong)
+			while (
+			    (unsigned long)stats_pow_u64(info->linexp.stepbase,
+				curstepexp) <= bkt_lb->intlong.ulong)
 				curstepexp++;
 			break;
 		case VSD_DTYPE_Q_S32:
 			while ((s32q_t)stats_pow_u64(info->linexp.stepbase,
-			    curstepexp) <= Q_GIVAL(bkt_lb->q32.sq32))
-			break;
+				   curstepexp) <= Q_GIVAL(bkt_lb->q32.sq32))
+				break;
 		case VSD_DTYPE_Q_U32:
 			while ((u32q_t)stats_pow_u64(info->linexp.stepbase,
-			    curstepexp) <= Q_GIVAL(bkt_lb->q32.uq32))
-			break;
+				   curstepexp) <= Q_GIVAL(bkt_lb->q32.uq32))
+				break;
 		case VSD_DTYPE_Q_S64:
 			while ((s64q_t)stats_pow_u64(info->linexp.stepbase,
-			    curstepexp) <= Q_GIVAL(bkt_lb->q64.sq64))
+				   curstepexp) <= Q_GIVAL(bkt_lb->q64.sq64))
 				curstepexp++;
 			break;
 		case VSD_DTYPE_Q_U64:
 			while ((u64q_t)stats_pow_u64(info->linexp.stepbase,
-			    curstepexp) <= Q_GIVAL(bkt_lb->q64.uq64))
+				   curstepexp) <= Q_GIVAL(bkt_lb->q64.uq64))
 				curstepexp++;
 			break;
 		default:
@@ -541,7 +558,7 @@ stats_vss_hist_bkt_hlpr(struct vss_hist_hlpr_info *info, uint32_t curbkt,
 		if (step == 0)
 			step = 1;
 		break;
-		}
+	}
 	default:
 		break;
 	}
@@ -638,20 +655,20 @@ stats_vss_hist_nbkts_hlpr(struct vss_hist_hlpr_info *info)
 				    info->ub.intlong.ulong);
 				break;
 			case VSD_DTYPE_Q_S32:
-				done = Q_QGTQ(bkt_ub.q32.sq32,
-				    info->ub.q32.sq32);
+				done = Q_QGTQ(
+				    bkt_ub.q32.sq32, info->ub.q32.sq32);
 				break;
 			case VSD_DTYPE_Q_U32:
-				done = Q_QGTQ(bkt_ub.q32.uq32,
-				    info->ub.q32.uq32);
+				done = Q_QGTQ(
+				    bkt_ub.q32.uq32, info->ub.q32.uq32);
 				break;
 			case VSD_DTYPE_Q_S64:
-				done = Q_QGTQ(bkt_ub.q64.sq64,
-				    info->ub.q64.sq64);
+				done = Q_QGTQ(
+				    bkt_ub.q64.sq64, info->ub.q64.sq64);
 				break;
 			case VSD_DTYPE_Q_U64:
-				done = Q_QGTQ(bkt_ub.q64.uq64,
-				    info->ub.q64.uq64);
+				done = Q_QGTQ(
+				    bkt_ub.q64.uq64, info->ub.q64.uq64);
 				break;
 			default:
 				return (0);
@@ -676,9 +693,10 @@ stats_vss_hist_hlpr(enum vsd_dtype voi_dtype, struct voistatspec *vss,
 	    *ubinfbktlb, *ubinfbktub;
 	uint32_t bkt, nbkts, nloop;
 
-	if (vss == NULL || info == NULL || (info->flags &
-	(VSD_HIST_LBOUND_INF|VSD_HIST_UBOUND_INF) && (info->hist_dtype ==
-	VSD_DTYPE_DVHIST32 || info->hist_dtype == VSD_DTYPE_DVHIST64)))
+	if (vss == NULL || info == NULL ||
+	    (info->flags & (VSD_HIST_LBOUND_INF | VSD_HIST_UBOUND_INF) &&
+		(info->hist_dtype == VSD_DTYPE_DVHIST32 ||
+		    info->hist_dtype == VSD_DTYPE_DVHIST64)))
 		return (EINVAL);
 
 	info->voi_dtype = voi_dtype;
@@ -716,9 +734,8 @@ stats_vss_hist_hlpr(enum vsd_dtype voi_dtype, struct voistatspec *vss,
 	hist = (struct voistatdata_hist *)vss->iv;
 	bkt_ub = info->lb;
 
-	for (bkt = (info->flags & VSD_HIST_LBOUND_INF), nloop = 0;
-	    bkt < nbkts;
-	    bkt++, nloop++) {
+	for (bkt = (info->flags & VSD_HIST_LBOUND_INF), nloop = 0; bkt < nbkts;
+	     bkt++, nloop++) {
 		bkt_lb = bkt_ub;
 		if (stats_vss_hist_bkt_hlpr(info, nloop, &bkt_lb, &bkt_ub))
 			return (EINVAL);
@@ -790,14 +807,16 @@ stats_vss_hist_hlpr(enum vsd_dtype voi_dtype, struct voistatspec *vss,
 		 */
 		if (info->voi_dtype == VSD_DTYPE_Q_S32 ||
 		    info->voi_dtype == VSD_DTYPE_Q_U32) {
-			/* Signedness doesn't matter for setting control bits. */
-			Q_SCVAL(lbinfbktlb->q32.sq32,
-			    Q_GCVAL(info->lb.q32.sq32));
+			/* Signedness doesn't matter for setting control bits.
+			 */
+			Q_SCVAL(
+			    lbinfbktlb->q32.sq32, Q_GCVAL(info->lb.q32.sq32));
 		} else if (info->voi_dtype == VSD_DTYPE_Q_S64 ||
 		    info->voi_dtype == VSD_DTYPE_Q_U64) {
-			/* Signedness doesn't matter for setting control bits. */
-			Q_SCVAL(lbinfbktlb->q64.sq64,
-			    Q_GCVAL(info->lb.q64.sq64));
+			/* Signedness doesn't matter for setting control bits.
+			 */
+			Q_SCVAL(
+			    lbinfbktlb->q64.sq64, Q_GCVAL(info->lb.q64.sq64));
 		}
 		if (lbinfbktub)
 			*lbinfbktub = info->lb;
@@ -853,13 +872,15 @@ stats_vss_tdgst_hlpr(enum vsd_dtype voi_dtype, struct voistatspec *vss,
 	switch (info->tdgst_dtype) {
 	case VSD_DTYPE_TDGSTCLUST32:
 		ctd32tree = &VSD(tdgstclust32, tdgst)->ctdtree;
-		ARB_INIT(ctd32, ctdlnk, ctd32tree, info->nctds) {
+		ARB_INIT(ctd32, ctdlnk, ctd32tree, info->nctds)
+		{
 			Q_INI(&ctd32->mu, 0, 0, info->prec);
 		}
 		break;
 	case VSD_DTYPE_TDGSTCLUST64:
 		ctd64tree = &VSD(tdgstclust64, tdgst)->ctdtree;
-		ARB_INIT(ctd64, ctdlnk, ctd64tree, info->nctds) {
+		ARB_INIT(ctd64, ctdlnk, ctd64tree, info->nctds)
+		{
 			Q_INI(&ctd64->mu, 0, 0, info->prec);
 		}
 		break;
@@ -916,20 +937,20 @@ stats_vss_numeric_hlpr(enum vsd_dtype voi_dtype, struct voistatspec *vss,
 		*((unsigned long *)vss->iv) = iv.intlong.ulong;
 		break;
 	case VSD_DTYPE_Q_S32:
-		*((s32q_t *)vss->iv) = Q_SCVAL(iv.q32.sq32,
-		    Q_CTRLINI(info->prec));
+		*((s32q_t *)vss->iv) = Q_SCVAL(
+		    iv.q32.sq32, Q_CTRLINI(info->prec));
 		break;
 	case VSD_DTYPE_Q_U32:
-		*((u32q_t *)vss->iv) = Q_SCVAL(iv.q32.uq32,
-		    Q_CTRLINI(info->prec));
+		*((u32q_t *)vss->iv) = Q_SCVAL(
+		    iv.q32.uq32, Q_CTRLINI(info->prec));
 		break;
 	case VSD_DTYPE_Q_S64:
-		*((s64q_t *)vss->iv) = Q_SCVAL(iv.q64.sq64,
-		    Q_CTRLINI(info->prec));
+		*((s64q_t *)vss->iv) = Q_SCVAL(
+		    iv.q64.sq64, Q_CTRLINI(info->prec));
 		break;
 	case VSD_DTYPE_Q_U64:
-		*((u64q_t *)vss->iv) = Q_SCVAL(iv.q64.uq64,
-		    Q_CTRLINI(info->prec));
+		*((u64q_t *)vss->iv) = Q_SCVAL(
+		    iv.q64.uq64, Q_CTRLINI(info->prec));
 		break;
 	default:
 		break;
@@ -939,14 +960,15 @@ stats_vss_numeric_hlpr(enum vsd_dtype voi_dtype, struct voistatspec *vss,
 }
 
 int
-stats_vss_hlpr_init(enum vsd_dtype voi_dtype, uint32_t nvss,
-    struct voistatspec *vss)
+stats_vss_hlpr_init(
+    enum vsd_dtype voi_dtype, uint32_t nvss, struct voistatspec *vss)
 {
 	int i, ret;
 
 	for (i = nvss - 1; i >= 0; i--) {
-		if (vss[i].hlpr && (ret = vss[i].hlpr(voi_dtype, &vss[i],
-		    vss[i].hlprinfo)) != 0)
+		if (vss[i].hlpr &&
+		    (ret = vss[i].hlpr(voi_dtype, &vss[i], vss[i].hlprinfo)) !=
+			0)
 			return (ret);
 	}
 
@@ -997,8 +1019,8 @@ stats_tpl_fetch_allocid(const char *name, uint32_t hash)
 		if (name != NULL) {
 			if (strlen(name) == strlen(tpllist[i]->mb->tplname) &&
 			    strncmp(name, tpllist[i]->mb->tplname,
-			    TPL_MAX_NAME_LEN) == 0 && (!hash || hash ==
-			    tpllist[i]->mb->tplhash)) {
+				TPL_MAX_NAME_LEN) == 0 &&
+			    (!hash || hash == tpllist[i]->mb->tplhash)) {
 				tpl_id = i;
 				break;
 			}
@@ -1068,8 +1090,8 @@ stats_tpl_sample_rollthedice(struct stats_tpl_sample_rate *rates, int nrates,
 	for (i = 0; i < nrates; i++) {
 		cum_pct += rates[i].tpl_sample_pct;
 
-		KASSERT(cum_pct <= 100, ("%s cum_pct %u > 100", __func__,
-		    cum_pct));
+		KASSERT(
+		    cum_pct <= 100, ("%s cum_pct %u > 100", __func__, cum_pct));
 		if (rnd_pct > cum_pct || rates[i].tpl_sample_pct == 0)
 			continue;
 
@@ -1090,7 +1112,7 @@ stats_v1_blob_clone(struct statsblobv1 **dst, size_t dstmaxsz,
 	if (src == NULL || dst == NULL ||
 	    src->cursz < sizeof(struct statsblob) ||
 	    ((flags & SB_CLONE_ALLOCDST) &&
-	    (flags & (SB_CLONE_USRDSTNOFAULT | SB_CLONE_USRDST)))) {
+		(flags & (SB_CLONE_USRDSTNOFAULT | SB_CLONE_USRDST)))) {
 		error = EINVAL;
 	} else if (flags & SB_CLONE_ALLOCDST) {
 		*dst = stats_realloc(NULL, 0, src->cursz, 0);
@@ -1112,8 +1134,8 @@ stats_v1_blob_clone(struct statsblobv1 **dst, size_t dstmaxsz,
 		 */
 #ifdef _KERNEL
 		if (flags & SB_CLONE_USRDSTNOFAULT)
-			copyout_nofault(src, *dst,
-			    offsetof(struct statsblob, maxsz));
+			copyout_nofault(
+			    src, *dst, offsetof(struct statsblob, maxsz));
 		else if (flags & SB_CLONE_USRDST)
 			copyout(src, *dst, offsetof(struct statsblob, maxsz));
 		else
@@ -1130,8 +1152,8 @@ stats_v1_blob_clone(struct statsblobv1 **dst, size_t dstmaxsz,
 		}
 #ifdef _KERNEL
 		if (flags & SB_CLONE_USRDSTNOFAULT)
-			copyout_nofault(&(src->cursz), &((*dst)->cursz),
-			    postcurszlen);
+			copyout_nofault(
+			    &(src->cursz), &((*dst)->cursz), postcurszlen);
 		else if (flags & SB_CLONE_USRDST)
 			copyout(&(src->cursz), &((*dst)->cursz), postcurszlen);
 		else
@@ -1190,8 +1212,8 @@ stats_v1_tpl_alloc(const char *name, uint32_t flags __unused)
 	tpl_sb->stats_off = tpl_sb->statsdata_off = sizeof(struct statsblobv1);
 
 	TPL_LIST_WLOCK();
-	newtpllist = stats_realloc(tpllist, ntpl * sizeof(void *),
-	    (ntpl + 1) * sizeof(void *), 0);
+	newtpllist = stats_realloc(
+	    tpllist, ntpl * sizeof(void *), (ntpl + 1) * sizeof(void *), 0);
 	if (newtpllist != NULL) {
 		tpl_id = ntpl++;
 		tpllist = (struct statsblob_tpl **)newtpllist;
@@ -1228,8 +1250,8 @@ stats_v1_tpl_add_voistats(uint32_t tpl_id, int32_t voi_id, const char *voi_name,
 	    nvss == 0 || vss == NULL)
 		return (EINVAL);
 
-	error = nbytes = newvoibytes = newvoistatbytes =
-	    newvoistatdatabytes = 0;
+	error = nbytes = newvoibytes = newvoistatbytes = newvoistatdatabytes =
+	    0;
 	newvoistatmaxid = -1;
 
 	/* Calculate the number of bytes required for the new voistats. */
@@ -1244,7 +1266,8 @@ stats_v1_tpl_add_voistats(uint32_t tpl_id, int32_t voi_id, const char *voi_name,
 	}
 
 	if (flags & SB_VOI_RELUPDATE) {
-		/* XXXLAS: VOI state bytes may need to vary based on stat types. */
+		/* XXXLAS: VOI state bytes may need to vary based on stat types.
+		 */
 		newvoistatdatabytes += sizeof(struct voistatdata_voistate);
 	}
 	nbytes += newvoistatdatabytes;
@@ -1262,14 +1285,15 @@ stats_v1_tpl_add_voistats(uint32_t tpl_id, int32_t voi_id, const char *voi_name,
 				    sizeof(struct voi);
 				nbytes += newvoibytes;
 			}
-			newvoistatbytes =
-			    (newvoistatmaxid + 1) * sizeof(struct voistat);
+			newvoistatbytes = (newvoistatmaxid + 1) *
+			    sizeof(struct voistat);
 		} else {
 			/* Adding stats to an existing VOI. */
 			if (newvoistatmaxid >
 			    tpl_sb->vois[voi_id].voistatmaxid) {
-				newvoistatbytes = (newvoistatmaxid -
-				    tpl_sb->vois[voi_id].voistatmaxid) *
+				newvoistatbytes =
+				    (newvoistatmaxid -
+					tpl_sb->vois[voi_id].voistatmaxid) *
 				    sizeof(struct voistat);
 			}
 			/* XXXLAS: KPI does not yet support expanding VOIs. */
@@ -1280,10 +1304,11 @@ stats_v1_tpl_add_voistats(uint32_t tpl_id, int32_t voi_id, const char *voi_name,
 		if (!error && newvoibytes > 0) {
 			struct voi_meta *voi_meta = tpl_mb->voi_meta;
 
-			voi_meta = stats_realloc(voi_meta, voi_meta == NULL ?
-			    0 : NVOIS(tpl_sb) * sizeof(struct voi_meta),
-			    (1 + voi_id) * sizeof(struct voi_meta),
-			    M_ZERO);
+			voi_meta = stats_realloc(voi_meta,
+			    voi_meta == NULL ?
+				      0 :
+				      NVOIS(tpl_sb) * sizeof(struct voi_meta),
+			    (1 + voi_id) * sizeof(struct voi_meta), M_ZERO);
 
 			if (voi_meta == NULL)
 				error = ENOMEM;
@@ -1298,8 +1323,8 @@ stats_v1_tpl_add_voistats(uint32_t tpl_id, int32_t voi_id, const char *voi_name,
 		}
 
 		if (!error) {
-			tpl_mb->voi_meta[voi_id].name = stats_strdup(voi_name,
-			    0);
+			tpl_mb->voi_meta[voi_id].name = stats_strdup(
+			    voi_name, 0);
 			if (tpl_mb->voi_meta[voi_id].name == NULL)
 				error = ENOMEM;
 		}
@@ -1342,16 +1367,20 @@ stats_v1_tpl_add_voistats(uint32_t tpl_id, int32_t voi_id, const char *voi_name,
 				tmpstat->stype = VS_STYPE_VOISTATE;
 				tmpstat->flags = 0;
 				tmpstat->dtype = VSD_DTYPE_VOISTATE;
-				newstatdataidx = tmpstat->dsz =
-				    sizeof(struct voistatdata_numeric);
+				newstatdataidx = tmpstat->dsz = sizeof(
+				    struct voistatdata_numeric);
 				tmpstat->data_off = tpl_sb->statsdata_off;
 			}
 
 			for (i = 0; (uint32_t)i < nvss; i++) {
-				tmpstat = BLOB_OFFSET(tpl_sb, voi->stats_off +
-				    (vss[i].stype * sizeof(struct voistat)));
-				KASSERT(tmpstat->stype < 0, ("voistat %p "
-				    "already initialised", tmpstat));
+				tmpstat = BLOB_OFFSET(tpl_sb,
+				    voi->stats_off +
+					(vss[i].stype *
+					    sizeof(struct voistat)));
+				KASSERT(tmpstat->stype < 0,
+				    ("voistat %p "
+				     "already initialised",
+					tmpstat));
 				tmpstat->stype = vss[i].stype;
 				tmpstat->flags = vss[i].flags;
 				tmpstat->dtype = vss[i].vs_dtype;
@@ -1453,15 +1482,16 @@ stats_v1_blob_init(struct statsblobv1 *sb, uint32_t tpl_id, uint32_t flags)
 }
 
 static inline int
-stats_v1_blob_init_locked(struct statsblobv1 *sb, uint32_t tpl_id,
-    uint32_t flags __unused)
+stats_v1_blob_init_locked(
+    struct statsblobv1 *sb, uint32_t tpl_id, uint32_t flags __unused)
 {
 	int error;
 
 	TPL_LIST_RLOCK_ASSERT();
 	error = (sb->maxsz >= tpllist[tpl_id]->sb->cursz) ? 0 : EOVERFLOW;
 	KASSERT(!error,
-	    ("sb %d instead of %d bytes", sb->maxsz, tpllist[tpl_id]->sb->cursz));
+	    ("sb %d instead of %d bytes", sb->maxsz,
+		tpllist[tpl_id]->sb->cursz));
 
 	if (!error) {
 		memcpy(sb, tpllist[tpl_id]->sb, tpllist[tpl_id]->sb->cursz);
@@ -1487,7 +1517,9 @@ stats_v1_blob_expand(struct statsblobv1 **sbpp, int newvoibytes,
 	    ("Bad newvoistatbytes %d", newvoistatbytes));
 
 	error = ((newvoibytes % sizeof(struct voi) == 0) &&
-	    (newvoistatbytes % sizeof(struct voistat) == 0)) ? 0 : EINVAL;
+		    (newvoistatbytes % sizeof(struct voistat) == 0)) ?
+		  0 :
+		  EINVAL;
 	sb = *sbpp;
 	nbytes = newvoibytes + newvoistatbytes + newvoistatdatabytes;
 
@@ -1505,7 +1537,7 @@ stats_v1_blob_expand(struct statsblobv1 **sbpp, int newvoibytes,
 			sb->maxsz = sb->cursz + nbytes;
 			*sbpp = sb;
 		} else
-		    error = ENOMEM;
+			error = ENOMEM;
 	}
 
 	if (!error) {
@@ -1518,8 +1550,9 @@ stats_v1_blob_expand(struct statsblobv1 **sbpp, int newvoibytes,
 		memmove(BLOB_OFFSET(sb, sb->statsdata_off + nbytes),
 		    BLOB_OFFSET(sb, sb->statsdata_off),
 		    sb->cursz - sb->statsdata_off);
-		memmove(BLOB_OFFSET(sb, sb->stats_off + newvoibytes +
-		    newvoistatbytes), BLOB_OFFSET(sb, sb->stats_off),
+		memmove(BLOB_OFFSET(
+			    sb, sb->stats_off + newvoibytes + newvoistatbytes),
+		    BLOB_OFFSET(sb, sb->stats_off),
 		    sb->statsdata_off - sb->stats_off);
 
 		/* First index of new voi/voistat structs to be initialised. */
@@ -1533,8 +1566,7 @@ stats_v1_blob_expand(struct statsblobv1 **sbpp, int newvoibytes,
 
 		/* XXXLAS: Zeroing not strictly needed but aids debugging. */
 		memset(&sb->vois[idxnewvois], '\0', newvoibytes);
-		memset(BLOB_OFFSET(sb, sb->stats_off), '\0',
-		    newvoistatbytes);
+		memset(BLOB_OFFSET(sb, sb->stats_off), '\0', newvoistatbytes);
 		memset(BLOB_OFFSET(sb, sb->statsdata_off), '\0',
 		    newvoistatdatabytes);
 
@@ -1606,17 +1638,15 @@ stats_v1_blob_iter(struct statsblobv1 *sb, stats_v1_blob_itercb_t icb,
 
 		/* If NULL voi, v->voistatmaxid == -1 */
 		for (j = 0; j <= v->voistatmaxid; j++) {
-			vs = &((struct voistat *)BLOB_OFFSET(sb,
-			    v->stats_off))[j];
-			if (vs->stype < 0 &&
-			    !(flags & SB_IT_NULLVOISTAT))
+			vs = &(
+			    (struct voistat *)BLOB_OFFSET(sb, v->stats_off))[j];
+			if (vs->stype < 0 && !(flags & SB_IT_NULLVOISTAT))
 				continue;
 
 			if (j == v->voistatmaxid) {
 				ctx.flags |= SB_IT_LAST_VOISTAT;
 				if (i == (NVOIS(sb) - 1))
-					ctx.flags |=
-					    SB_IT_LAST_CB;
+					ctx.flags |= SB_IT_LAST_CB;
 			} else
 				ctx.flags &= ~SB_IT_LAST_CB;
 
@@ -1634,7 +1664,8 @@ stats_v1_blob_iter(struct statsblobv1 *sb, stats_v1_blob_itercb_t icb,
 static inline void
 stats_voistatdata_tdgst_tostr(enum vsd_dtype voi_dtype __unused,
     const struct voistatdata_tdgst *tdgst, enum vsd_dtype tdgst_dtype,
-    size_t tdgst_dsz __unused, enum sb_str_fmt fmt, struct sbuf *buf, int objdump)
+    size_t tdgst_dsz __unused, enum sb_str_fmt fmt, struct sbuf *buf,
+    int objdump)
 {
 	const struct ctdth32 *ctd32tree;
 	const struct ctdth64 *ctd64tree;
@@ -1653,7 +1684,7 @@ stats_voistatdata_tdgst_tostr(enum vsd_dtype voi_dtype __unused,
 		curctds = ARB_CURNODES(&CONSTVSD(tdgstclust32, tdgst)->ctdtree);
 		ctd32tree = &CONSTVSD(tdgstclust32, tdgst)->ctdtree;
 		ctd32 = (objdump ? ARB_CNODE(ctd32tree, 0) :
-		    ARB_CMIN(ctdth32, ctd32tree));
+					 ARB_CMIN(ctdth32, ctd32tree));
 		qmaxstrlen = (ctd32 == NULL) ? 1 : Q_MAXSTRLEN(ctd32->mu, 10);
 		is32bit = 1;
 		ctd64tree = NULL;
@@ -1666,7 +1697,7 @@ stats_voistatdata_tdgst_tostr(enum vsd_dtype voi_dtype __unused,
 		curctds = ARB_CURNODES(&CONSTVSD(tdgstclust64, tdgst)->ctdtree);
 		ctd64tree = &CONSTVSD(tdgstclust64, tdgst)->ctdtree;
 		ctd64 = (objdump ? ARB_CNODE(ctd64tree, 0) :
-		    ARB_CMIN(ctdth64, ctd64tree));
+					 ARB_CMIN(ctdth64, ctd64tree));
 		qmaxstrlen = (ctd64 == NULL) ? 1 : Q_MAXSTRLEN(ctd64->mu, 10);
 		is32bit = 0;
 		ctd32tree = NULL;
@@ -1682,9 +1713,8 @@ stats_voistatdata_tdgst_tostr(enum vsd_dtype voi_dtype __unused,
 		break;
 	case SB_STRFMT_JSON:
 	default:
-		fmtstr =
-		    "\"smplcnt\":%ju,\"compcnt\":%ju,\"maxctds\":%hu,"
-		    "\"nctds\":%hu,\"ctds\":[";
+		fmtstr = "\"smplcnt\":%ju,\"compcnt\":%ju,\"maxctds\":%hu,"
+			 "\"nctds\":%hu,\"ctds\":[";
 		break;
 	}
 	sbuf_printf(buf, fmtstr, (uintmax_t)smplcnt, (uintmax_t)compcnt,
@@ -1714,9 +1744,9 @@ stats_voistatdata_tdgst_tostr(enum vsd_dtype voi_dtype __unused,
 				fmtstr = "\"ctd\":%hu,";
 				break;
 			}
-			sbuf_printf(buf, fmtstr, is32bit ?
-			    ARB_SELFIDX(ctd32tree, ctd32) :
-			    ARB_SELFIDX(ctd64tree, ctd64));
+			sbuf_printf(buf, fmtstr,
+			    is32bit ? ARB_SELFIDX(ctd32tree, ctd32) :
+					    ARB_SELFIDX(ctd64tree, ctd64));
 		}
 
 		switch (fmt) {
@@ -1742,17 +1772,19 @@ stats_voistatdata_tdgst_tostr(enum vsd_dtype voi_dtype __unused,
 			fmtstr = is32bit ? ",\"cnt\":%u}" : ",\"cnt\":%ju}";
 			break;
 		}
-		sbuf_printf(buf, fmtstr,
-		    is32bit ? ctd32->cnt : (uintmax_t)ctd64->cnt);
+		sbuf_printf(
+		    buf, fmtstr, is32bit ? ctd32->cnt : (uintmax_t)ctd64->cnt);
 
 		if (is32bit)
-			ctd32 = (objdump ? ARB_CNODE(ctd32tree,
-			    ARB_SELFIDX(ctd32tree, ctd32) + 1) :
-			    ARB_CNEXT(ctdth32, ctd32tree, ctd32));
+			ctd32 = (objdump ?
+				      ARB_CNODE(ctd32tree,
+				    ARB_SELFIDX(ctd32tree, ctd32) + 1) :
+				      ARB_CNEXT(ctdth32, ctd32tree, ctd32));
 		else
-			ctd64 = (objdump ? ARB_CNODE(ctd64tree,
-			    ARB_SELFIDX(ctd64tree, ctd64) + 1) :
-			    ARB_CNEXT(ctdth64, ctd64tree, ctd64));
+			ctd64 = (objdump ?
+				      ARB_CNODE(ctd64tree,
+				    ARB_SELFIDX(ctd64tree, ctd64) + 1) :
+				      ARB_CNEXT(ctdth64, ctd64tree, ctd64));
 
 		if (fmt == SB_STRFMT_JSON &&
 		    (is32bit ? NULL != ctd32 : NULL != ctd64))
@@ -1813,42 +1845,42 @@ stats_voistatdata_hist_tostr(enum vsd_dtype voi_dtype,
 	sbuf_printf(buf, fmtstr, nbkts);
 
 	switch (fmt) {
-		case SB_STRFMT_FREEFORM:
-			fmtstr = (is32bit ? "oob=%u" : "oob=%ju");
-			break;
-		case SB_STRFMT_JSON:
-		default:
-			fmtstr = (is32bit ? "\"oob\":%u,\"bkts\":[" :
-			    "\"oob\":%ju,\"bkts\":[");
-			break;
+	case SB_STRFMT_FREEFORM:
+		fmtstr = (is32bit ? "oob=%u" : "oob=%ju");
+		break;
+	case SB_STRFMT_JSON:
+	default:
+		fmtstr = (is32bit ? "\"oob\":%u,\"bkts\":[" :
+					  "\"oob\":%ju,\"bkts\":[");
+		break;
 	}
-	sbuf_printf(buf, fmtstr, is32bit ? VSD_CONSTHIST_FIELDVAL(hist,
-	    hist_dtype, oob) : (uintmax_t)VSD_CONSTHIST_FIELDVAL(hist,
-	    hist_dtype, oob));
+	sbuf_printf(buf, fmtstr,
+	    is32bit ? VSD_CONSTHIST_FIELDVAL(hist, hist_dtype, oob) :
+			    (uintmax_t)VSD_CONSTHIST_FIELDVAL(hist, hist_dtype, oob));
 
 	for (i = 0; i < nbkts; i++) {
 		switch (hist_dtype) {
 		case VSD_DTYPE_CRHIST32:
 		case VSD_DTYPE_CRHIST64:
-			bkt_lb = VSD_CONSTCRHIST_FIELDPTR(hist, hist_dtype,
-			    bkts[i].lb);
+			bkt_lb = VSD_CONSTCRHIST_FIELDPTR(
+			    hist, hist_dtype, bkts[i].lb);
 			if (i < nbkts - 1)
-				bkt_ub = VSD_CONSTCRHIST_FIELDPTR(hist,
-				    hist_dtype, bkts[i + 1].lb);
+				bkt_ub = VSD_CONSTCRHIST_FIELDPTR(
+				    hist, hist_dtype, bkts[i + 1].lb);
 			else
 				bkt_ub = &numeric_limits[LIM_MAX][voi_dtype];
 			break;
 		case VSD_DTYPE_DRHIST32:
 		case VSD_DTYPE_DRHIST64:
-			bkt_lb = VSD_CONSTDRHIST_FIELDPTR(hist, hist_dtype,
-			    bkts[i].lb);
-			bkt_ub = VSD_CONSTDRHIST_FIELDPTR(hist, hist_dtype,
-			    bkts[i].ub);
+			bkt_lb = VSD_CONSTDRHIST_FIELDPTR(
+			    hist, hist_dtype, bkts[i].lb);
+			bkt_ub = VSD_CONSTDRHIST_FIELDPTR(
+			    hist, hist_dtype, bkts[i].ub);
 			break;
 		case VSD_DTYPE_DVHIST32:
 		case VSD_DTYPE_DVHIST64:
-			bkt_lb = bkt_ub = VSD_CONSTDVHIST_FIELDPTR(hist,
-			    hist_dtype, bkts[i].val);
+			bkt_lb = bkt_ub = VSD_CONSTDVHIST_FIELDPTR(
+			    hist, hist_dtype, bkts[i].val);
 			break;
 		default:
 			break;
@@ -1915,10 +1947,11 @@ stats_voistatdata_hist_tostr(enum vsd_dtype voi_dtype,
 			fmtstr = is32bit ? ",\"cnt\":%u}" : ",\"cnt\":%ju}";
 			break;
 		}
-		sbuf_printf(buf, fmtstr, is32bit ?
-		    VSD_CONSTHIST_FIELDVAL(hist, hist_dtype, bkts[i].cnt) :
-		    (uintmax_t)VSD_CONSTHIST_FIELDVAL(hist, hist_dtype,
-		    bkts[i].cnt));
+		sbuf_printf(buf, fmtstr,
+		    is32bit ?
+			      VSD_CONSTHIST_FIELDVAL(hist, hist_dtype, bkts[i].cnt) :
+			      (uintmax_t)VSD_CONSTHIST_FIELDVAL(
+			    hist, hist_dtype, bkts[i].cnt));
 
 		if (fmt == SB_STRFMT_JSON && i < nbkts - 1)
 			sbuf_putc(buf, ',');
@@ -1975,34 +2008,26 @@ stats_voistatdata_tostr(const struct voistatdata *vsd, enum vsd_dtype voi_dtype,
 	case VSD_DTYPE_INT_ULONG:
 		sbuf_printf(buf, "%lu", vsd->intlong.ulong);
 		break;
-	case VSD_DTYPE_Q_S32:
-		{
+	case VSD_DTYPE_Q_S32: {
 		char qstr[Q_MAXSTRLEN(vsd->q32.sq32, 10)];
 		Q_TOSTR((s32q_t)vsd->q32.sq32, -1, 10, qstr, sizeof(qstr));
 		sbuf_cat(buf, qstr);
-		}
-		break;
-	case VSD_DTYPE_Q_U32:
-		{
+	} break;
+	case VSD_DTYPE_Q_U32: {
 		char qstr[Q_MAXSTRLEN(vsd->q32.uq32, 10)];
 		Q_TOSTR((u32q_t)vsd->q32.uq32, -1, 10, qstr, sizeof(qstr));
 		sbuf_cat(buf, qstr);
-		}
-		break;
-	case VSD_DTYPE_Q_S64:
-		{
+	} break;
+	case VSD_DTYPE_Q_S64: {
 		char qstr[Q_MAXSTRLEN(vsd->q64.sq64, 10)];
 		Q_TOSTR((s64q_t)vsd->q64.sq64, -1, 10, qstr, sizeof(qstr));
 		sbuf_cat(buf, qstr);
-		}
-		break;
-	case VSD_DTYPE_Q_U64:
-		{
+	} break;
+	case VSD_DTYPE_Q_U64: {
 		char qstr[Q_MAXSTRLEN(vsd->q64.uq64, 10)];
 		Q_TOSTR((u64q_t)vsd->q64.uq64, -1, 10, qstr, sizeof(qstr));
 		sbuf_cat(buf, qstr);
-		}
-		break;
+	} break;
 	case VSD_DTYPE_CRHIST32:
 	case VSD_DTYPE_DRHIST32:
 	case VSD_DTYPE_DVHIST32:
@@ -2014,9 +2039,8 @@ stats_voistatdata_tostr(const struct voistatdata *vsd, enum vsd_dtype voi_dtype,
 		break;
 	case VSD_DTYPE_TDGSTCLUST32:
 	case VSD_DTYPE_TDGSTCLUST64:
-		stats_voistatdata_tdgst_tostr(voi_dtype,
-		    CONSTVSD(tdgst, vsd), vsd_dtype, vsd_sz, fmt, buf,
-		    objdump);
+		stats_voistatdata_tdgst_tostr(voi_dtype, CONSTVSD(tdgst, vsd),
+		    vsd_dtype, vsd_sz, fmt, buf, objdump);
 		break;
 	default:
 		break;
@@ -2043,7 +2067,8 @@ stats_v1_itercb_tostr_freeform(struct statsblobv1 *sb, struct voi *v,
 	if (ctx->flags & SB_IT_FIRST_CB) {
 		sbuf_printf(buf, "struct statsblobv1@%p", sb);
 		if (dump) {
-			sbuf_printf(buf, ", abi=%hhu, endian=%hhu, maxsz=%hu, "
+			sbuf_printf(buf,
+			    ", abi=%hhu, endian=%hhu, maxsz=%hu, "
 			    "cursz=%hu, created=%jd, lastrst=%jd, flags=0x%04hx, "
 			    "stats_off=%hu, statsdata_off=%hu",
 			    sb->abi, sb->endian, sb->maxsz, sb->cursz,
@@ -2057,38 +2082,43 @@ stats_v1_itercb_tostr_freeform(struct statsblobv1 *sb, struct voi *v,
 		sbuf_printf(buf, "\n\tvois[%hd]: id=%hd", ctx->vslot, v->id);
 		if (v->id < 0)
 			return;
-		sbuf_printf(buf, ", name=\"%s\"", (tpl_mb == NULL) ? "" :
-		    tpl_mb->voi_meta[v->id].name);
+		sbuf_printf(buf, ", name=\"%s\"",
+		    (tpl_mb == NULL) ? "" : tpl_mb->voi_meta[v->id].name);
 		if (dump)
-		    sbuf_printf(buf, ", flags=0x%04hx, dtype=%s, "
-		    "voistatmaxid=%hhd, stats_off=%hu", v->flags,
-		    vsd_dtype2name[v->dtype], v->voistatmaxid, v->stats_off);
+			sbuf_printf(buf,
+			    ", flags=0x%04hx, dtype=%s, "
+			    "voistatmaxid=%hhd, stats_off=%hu",
+			    v->flags, vsd_dtype2name[v->dtype], v->voistatmaxid,
+			    v->stats_off);
 	}
 
 	if (!dump && vs->stype <= 0)
 		return;
 
-	sbuf_printf(buf, "\n\t\tvois[%hd]stat[%hhd]: stype=", v->id, ctx->vsslot);
+	sbuf_printf(
+	    buf, "\n\t\tvois[%hd]stat[%hhd]: stype=", v->id, ctx->vsslot);
 	if (vs->stype < 0) {
 		sbuf_printf(buf, "%hhd", vs->stype);
 		return;
 	} else
-		sbuf_printf(buf, "%s, errs=%hu", vs_stype2name[vs->stype],
-		    vs->errs);
+		sbuf_printf(
+		    buf, "%s, errs=%hu", vs_stype2name[vs->stype], vs->errs);
 	vsd = BLOB_OFFSET(sb, vs->data_off);
 	if (dump)
-		sbuf_printf(buf, ", flags=0x%04x, dtype=%s, dsz=%hu, "
-		    "data_off=%hu", vs->flags, vsd_dtype2name[vs->dtype],
-		    vs->dsz, vs->data_off);
+		sbuf_printf(buf,
+		    ", flags=0x%04x, dtype=%s, dsz=%hu, "
+		    "data_off=%hu",
+		    vs->flags, vsd_dtype2name[vs->dtype], vs->dsz,
+		    vs->data_off);
 
 	sbuf_printf(buf, "\n\t\t\tvoistatdata: ");
-	stats_voistatdata_tostr(vsd, v->dtype, vs->dtype, vs->dsz,
-	    sctx->fmt, buf, dump);
+	stats_voistatdata_tostr(
+	    vsd, v->dtype, vs->dtype, vs->dsz, sctx->fmt, buf, dump);
 }
 
 static void
-stats_v1_itercb_tostr_json(struct statsblobv1 *sb, struct voi *v, struct voistat *vs,
-    struct sb_iter_ctx *ctx)
+stats_v1_itercb_tostr_json(struct statsblobv1 *sb, struct voi *v,
+    struct voistat *vs, struct sb_iter_ctx *ctx)
 {
 	struct sb_tostrcb_ctx *sctx;
 	struct metablob *tpl_mb;
@@ -2105,12 +2135,13 @@ stats_v1_itercb_tostr_json(struct statsblobv1 *sb, struct voi *v, struct voistat
 	if (ctx->flags & SB_IT_FIRST_CB) {
 		sbuf_putc(buf, '{');
 		if (dump) {
-			sbuf_printf(buf, "\"abi\":%hhu,\"endian\":%hhu,"
+			sbuf_printf(buf,
+			    "\"abi\":%hhu,\"endian\":%hhu,"
 			    "\"maxsz\":%hu,\"cursz\":%hu,\"created\":%jd,"
 			    "\"lastrst\":%jd,\"flags\":%hu,\"stats_off\":%hu,"
-			    "\"statsdata_off\":%hu,", sb->abi,
-			    sb->endian, sb->maxsz, sb->cursz, sb->created,
-			    sb->lastrst, sb->flags, sb->stats_off,
+			    "\"statsdata_off\":%hu,",
+			    sb->abi, sb->endian, sb->maxsz, sb->cursz,
+			    sb->created, sb->lastrst, sb->flags, sb->stats_off,
 			    sb->statsdata_off);
 		}
 
@@ -2125,25 +2156,27 @@ stats_v1_itercb_tostr_json(struct statsblobv1 *sb, struct voi *v, struct voistat
 
 	if (ctx->flags & SB_IT_FIRST_VOISTAT) {
 		if (dump) {
-			sbuf_printf(buf, "\"[%d]\":{\"id\":%d", ctx->vslot,
-			    v->id);
+			sbuf_printf(
+			    buf, "\"[%d]\":{\"id\":%d", ctx->vslot, v->id);
 			if (v->id < 0) {
 				sbuf_printf(buf, "},");
 				return;
 			}
-			
+
 			if (tpl_mb == NULL)
-				fmtstr = ",\"name\":%s,\"flags\":%hu,"
+				fmtstr =
+				    ",\"name\":%s,\"flags\":%hu,"
 				    "\"dtype\":\"%s\",\"voistatmaxid\":%hhd,"
 				    "\"stats_off\":%hu,";
 			else
-				fmtstr = ",\"name\":\"%s\",\"flags\":%hu,"
+				fmtstr =
+				    ",\"name\":\"%s\",\"flags\":%hu,"
 				    "\"dtype\":\"%s\",\"voistatmaxid\":%hhd,"
 				    "\"stats_off\":%hu,";
 
-			sbuf_printf(buf, fmtstr, tpl_mb ?
-			    tpl_mb->voi_meta[v->id].name : "null", v->flags,
-			    vsd_dtype2name[v->dtype], v->voistatmaxid,
+			sbuf_printf(buf, fmtstr,
+			    tpl_mb ? tpl_mb->voi_meta[v->id].name : "null",
+			    v->flags, vsd_dtype2name[v->dtype], v->voistatmaxid,
 			    v->stats_off);
 		} else {
 			if (tpl_mb == NULL) {
@@ -2163,7 +2196,8 @@ stats_v1_itercb_tostr_json(struct statsblobv1 *sb, struct voi *v, struct voistat
 			sbuf_printf(buf, "{\"stype\":-1},");
 			return;
 		}
-		sbuf_printf(buf, "{\"stype\":\"%s\",\"errs\":%hu,\"flags\":%hu,"
+		sbuf_printf(buf,
+		    "{\"stype\":\"%s\",\"errs\":%hu,\"flags\":%hu,"
 		    "\"dtype\":\"%s\",\"data_off\":%hu,\"voistatdata\":{",
 		    vs_stype2name[vs->stype], vs->errs, vs->flags,
 		    vsd_dtype2name[vs->dtype], vs->data_off);
@@ -2181,8 +2215,8 @@ stats_v1_itercb_tostr_json(struct statsblobv1 *sb, struct voi *v, struct voistat
 		/* Simple non-compound VSD types need a key. */
 		if (!vsd_compoundtype[vs->dtype])
 			sbuf_cat(buf, "\"val\":");
-		stats_voistatdata_tostr(vsd, v->dtype, vs->dtype, vs->dsz,
-		    sctx->fmt, buf, dump);
+		stats_voistatdata_tostr(
+		    vsd, v->dtype, vs->dtype, vs->dsz, sctx->fmt, buf, dump);
 		sbuf_cat(buf, dump ? "}}" : "}");
 	} else
 		sbuf_cat(buf, dump ? "null}" : "null");
@@ -2234,8 +2268,8 @@ stats_v1_blob_tostr(struct statsblobv1 *sb, struct sbuf *buf,
 	sctx.flags = flags;
 
 	if (flags & SB_TOSTR_META) {
-		if (stats_tpl_fetch(stats_tpl_fetch_allocid(NULL, sb->tplhash),
-		    &sctx.tpl))
+		if (stats_tpl_fetch(
+			stats_tpl_fetch_allocid(NULL, sb->tplhash), &sctx.tpl))
 			return (EINVAL);
 	} else
 		sctx.tpl = NULL;
@@ -2249,8 +2283,8 @@ stats_v1_blob_tostr(struct statsblobv1 *sb, struct sbuf *buf,
 }
 
 static int
-stats_v1_itercb_visit(struct statsblobv1 *sb, struct voi *v,
-    struct voistat *vs, struct sb_iter_ctx *ctx)
+stats_v1_itercb_visit(struct statsblobv1 *sb, struct voi *v, struct voistat *vs,
+    struct sb_iter_ctx *ctx)
 {
 	struct sb_visitcb_ctx *vctx;
 	struct sb_visit sbv;
@@ -2265,16 +2299,16 @@ stats_v1_itercb_visit(struct statsblobv1 *sb, struct voi *v,
 	sbv.vs_dsz = vs->dsz;
 	sbv.vs_data = BLOB_OFFSET(sb, vs->data_off);
 	sbv.vs_errs = vs->errs;
-	sbv.flags = ctx->flags & (SB_IT_FIRST_CB | SB_IT_LAST_CB |
-	    SB_IT_FIRST_VOI | SB_IT_LAST_VOI | SB_IT_FIRST_VOISTAT |
-	    SB_IT_LAST_VOISTAT);
+	sbv.flags = ctx->flags &
+	    (SB_IT_FIRST_CB | SB_IT_LAST_CB | SB_IT_FIRST_VOI | SB_IT_LAST_VOI |
+		SB_IT_FIRST_VOISTAT | SB_IT_LAST_VOISTAT);
 
 	return (vctx->cb(&sbv, vctx->usrctx));
 }
 
 int
-stats_v1_blob_visit(struct statsblobv1 *sb, stats_blob_visitcb_t func,
-    void *usrctx)
+stats_v1_blob_visit(
+    struct statsblobv1 *sb, stats_blob_visitcb_t func, void *usrctx)
 {
 	struct sb_visitcb_ctx vctx;
 
@@ -2340,8 +2374,8 @@ stats_v1_icb_reset_voistat(struct statsblobv1 *sb, struct voi *v __unused,
 			    Q_IFMINVAL(VSD(q64, vsd)->uq64));
 			break;
 		default:
-			memcpy(vsd, &numeric_limits[LIM_MIN][vs->dtype],
-			    vs->dsz);
+			memcpy(
+			    vsd, &numeric_limits[LIM_MIN][vs->dtype], vs->dsz);
 			break;
 		}
 		break;
@@ -2364,13 +2398,12 @@ stats_v1_icb_reset_voistat(struct statsblobv1 *sb, struct voi *v __unused,
 			    Q_IFMAXVAL(VSD(q64, vsd)->uq64));
 			break;
 		default:
-			memcpy(vsd, &numeric_limits[LIM_MAX][vs->dtype],
-			    vs->dsz);
+			memcpy(
+			    vsd, &numeric_limits[LIM_MAX][vs->dtype], vs->dsz);
 			break;
 		}
 		break;
-	case VS_STYPE_HIST:
-		{
+	case VS_STYPE_HIST: {
 		/* Reset bucket counts. */
 		struct voistatdata_hist *hist;
 		int i, is32bit;
@@ -2409,14 +2442,12 @@ stats_v1_icb_reset_voistat(struct statsblobv1 *sb, struct voi *v __unused,
 		bzero(VSD_HIST_FIELDPTR(hist, vs->dtype, oob),
 		    is32bit ? sizeof(uint32_t) : sizeof(uint64_t));
 		for (i = nbkts - 1; i >= 0; i--) {
-			bzero(VSD_HIST_FIELDPTR(hist, vs->dtype,
-			    bkts[i].cnt), is32bit ? sizeof(uint32_t) :
-			    sizeof(uint64_t));
+			bzero(VSD_HIST_FIELDPTR(hist, vs->dtype, bkts[i].cnt),
+			    is32bit ? sizeof(uint32_t) : sizeof(uint64_t));
 		}
 		break;
-		}
-	case VS_STYPE_TDGST:
-		{
+	}
+	case VS_STYPE_TDGST: {
 		/* Reset sample count centroids array/tree. */
 		struct voistatdata_tdgst *tdgst;
 		struct ctdth32 *ctd32tree;
@@ -2430,33 +2461,35 @@ stats_v1_icb_reset_voistat(struct statsblobv1 *sb, struct voi *v __unused,
 			VSD(tdgstclust32, tdgst)->smplcnt = 0;
 			VSD(tdgstclust32, tdgst)->compcnt = 0;
 			ctd32tree = &VSD(tdgstclust32, tdgst)->ctdtree;
-			ARB_INIT(ctd32, ctdlnk, ctd32tree,
-			    ARB_MAXNODES(ctd32tree)) {
+			ARB_INIT(
+			    ctd32, ctdlnk, ctd32tree, ARB_MAXNODES(ctd32tree))
+			{
 				ctd32->cnt = 0;
 				Q_SIFVAL(ctd32->mu, 0);
 			}
 #ifdef DIAGNOSTIC
 			RB_INIT(&VSD(tdgstclust32, tdgst)->rbctdtree);
 #endif
-		break;
+			break;
 		case VSD_DTYPE_TDGSTCLUST64:
 			VSD(tdgstclust64, tdgst)->smplcnt = 0;
 			VSD(tdgstclust64, tdgst)->compcnt = 0;
 			ctd64tree = &VSD(tdgstclust64, tdgst)->ctdtree;
-			ARB_INIT(ctd64, ctdlnk, ctd64tree,
-			    ARB_MAXNODES(ctd64tree)) {
+			ARB_INIT(
+			    ctd64, ctdlnk, ctd64tree, ARB_MAXNODES(ctd64tree))
+			{
 				ctd64->cnt = 0;
 				Q_SIFVAL(ctd64->mu, 0);
 			}
 #ifdef DIAGNOSTIC
 			RB_INIT(&VSD(tdgstclust64, tdgst)->rbctdtree);
 #endif
-		break;
+			break;
 		default:
 			return (0);
 		}
 		break;
-		}
+	}
 	default:
 		KASSERT(0, ("Unknown VOI stat type %d", vs->stype));
 		break;
@@ -2478,8 +2511,8 @@ stats_v1_blob_snapshot(struct statsblobv1 **dst, size_t dstmaxsz,
 		error = stats_v1_blob_clone(dst, dstmaxsz, src, flags);
 		if (!error) {
 			if (flags & SB_CLONE_RSTSRC) {
-				stats_v1_blob_iter(src,
-				    stats_v1_icb_reset_voistat, NULL, 0);
+				stats_v1_blob_iter(
+				    src, stats_v1_icb_reset_voistat, NULL, 0);
 				src->lastrst = stats_sbinuptime();
 			}
 			stats_v1_blob_finalise(*dst);
@@ -2496,8 +2529,8 @@ stats_v1_voi_update_max(enum vsd_dtype voi_dtype __unused,
 {
 	int error;
 
-	KASSERT(vs->dtype < VSD_NUM_DTYPES,
-	    ("Unknown VSD dtype %d", vs->dtype));
+	KASSERT(
+	    vs->dtype < VSD_NUM_DTYPES, ("Unknown VSD dtype %d", vs->dtype));
 
 	error = 0;
 
@@ -2540,29 +2573,33 @@ stats_v1_voi_update_max(enum vsd_dtype voi_dtype __unused,
 		break;
 	case VSD_DTYPE_Q_S32:
 		if (Q_QLTQ(VSD(q32, vsd)->sq32, voival->q32.sq32) &&
-		    (0 == (error = Q_QCPYVALQ(&VSD(q32, vsd)->sq32,
-		    voival->q32.sq32)))) {
+		    (0 ==
+			(error = Q_QCPYVALQ(
+			     &VSD(q32, vsd)->sq32, voival->q32.sq32)))) {
 			vs->flags |= VS_VSDVALID;
 		}
 		break;
 	case VSD_DTYPE_Q_U32:
 		if (Q_QLTQ(VSD(q32, vsd)->uq32, voival->q32.uq32) &&
-		    (0 == (error = Q_QCPYVALQ(&VSD(q32, vsd)->uq32,
-		    voival->q32.uq32)))) {
+		    (0 ==
+			(error = Q_QCPYVALQ(
+			     &VSD(q32, vsd)->uq32, voival->q32.uq32)))) {
 			vs->flags |= VS_VSDVALID;
 		}
 		break;
 	case VSD_DTYPE_Q_S64:
 		if (Q_QLTQ(VSD(q64, vsd)->sq64, voival->q64.sq64) &&
-		    (0 == (error = Q_QCPYVALQ(&VSD(q64, vsd)->sq64,
-		    voival->q64.sq64)))) {
+		    (0 ==
+			(error = Q_QCPYVALQ(
+			     &VSD(q64, vsd)->sq64, voival->q64.sq64)))) {
 			vs->flags |= VS_VSDVALID;
 		}
 		break;
 	case VSD_DTYPE_Q_U64:
 		if (Q_QLTQ(VSD(q64, vsd)->uq64, voival->q64.uq64) &&
-		    (0 == (error = Q_QCPYVALQ(&VSD(q64, vsd)->uq64,
-		    voival->q64.uq64)))) {
+		    (0 ==
+			(error = Q_QCPYVALQ(
+			     &VSD(q64, vsd)->uq64, voival->q64.uq64)))) {
 			vs->flags |= VS_VSDVALID;
 		}
 		break;
@@ -2580,8 +2617,8 @@ stats_v1_voi_update_min(enum vsd_dtype voi_dtype __unused,
 {
 	int error;
 
-	KASSERT(vs->dtype < VSD_NUM_DTYPES,
-	    ("Unknown VSD dtype %d", vs->dtype));
+	KASSERT(
+	    vs->dtype < VSD_NUM_DTYPES, ("Unknown VSD dtype %d", vs->dtype));
 
 	error = 0;
 
@@ -2624,29 +2661,33 @@ stats_v1_voi_update_min(enum vsd_dtype voi_dtype __unused,
 		break;
 	case VSD_DTYPE_Q_S32:
 		if (Q_QGTQ(VSD(q32, vsd)->sq32, voival->q32.sq32) &&
-		    (0 == (error = Q_QCPYVALQ(&VSD(q32, vsd)->sq32,
-		    voival->q32.sq32)))) {
+		    (0 ==
+			(error = Q_QCPYVALQ(
+			     &VSD(q32, vsd)->sq32, voival->q32.sq32)))) {
 			vs->flags |= VS_VSDVALID;
 		}
 		break;
 	case VSD_DTYPE_Q_U32:
 		if (Q_QGTQ(VSD(q32, vsd)->uq32, voival->q32.uq32) &&
-		    (0 == (error = Q_QCPYVALQ(&VSD(q32, vsd)->uq32,
-		    voival->q32.uq32)))) {
+		    (0 ==
+			(error = Q_QCPYVALQ(
+			     &VSD(q32, vsd)->uq32, voival->q32.uq32)))) {
 			vs->flags |= VS_VSDVALID;
 		}
 		break;
 	case VSD_DTYPE_Q_S64:
 		if (Q_QGTQ(VSD(q64, vsd)->sq64, voival->q64.sq64) &&
-		    (0 == (error = Q_QCPYVALQ(&VSD(q64, vsd)->sq64,
-		    voival->q64.sq64)))) {
+		    (0 ==
+			(error = Q_QCPYVALQ(
+			     &VSD(q64, vsd)->sq64, voival->q64.sq64)))) {
 			vs->flags |= VS_VSDVALID;
 		}
 		break;
 	case VSD_DTYPE_Q_U64:
 		if (Q_QGTQ(VSD(q64, vsd)->uq64, voival->q64.uq64) &&
-		    (0 == (error = Q_QCPYVALQ(&VSD(q64, vsd)->uq64,
-		    voival->q64.uq64)))) {
+		    (0 ==
+			(error = Q_QCPYVALQ(
+			     &VSD(q64, vsd)->uq64, voival->q64.uq64)))) {
 			vs->flags |= VS_VSDVALID;
 		}
 		break;
@@ -2664,8 +2705,8 @@ stats_v1_voi_update_sum(enum vsd_dtype voi_dtype __unused,
 {
 	int error;
 
-	KASSERT(vs->dtype < VSD_NUM_DTYPES,
-	    ("Unknown VSD dtype %d", vs->dtype));
+	KASSERT(
+	    vs->dtype < VSD_NUM_DTYPES, ("Unknown VSD dtype %d", vs->dtype));
 
 	error = 0;
 
@@ -2799,90 +2840,114 @@ stats_v1_voi_update_hist(enum vsd_dtype voi_dtype, struct voistatdata *voival,
 		switch (voi_dtype) {
 		case VSD_DTYPE_INT_S32:
 			if (voival->int32.s32 >= bkt_lb->int32.s32) {
-				if ((eq_only && voival->int32.s32 ==
-				    bkt_lb->int32.s32) ||
-				    (!eq_only && (!has_ub ||
-				    voival->int32.s32 < bkt_ub->int32.s32)))
+				if ((eq_only &&
+					voival->int32.s32 ==
+					    bkt_lb->int32.s32) ||
+				    (!eq_only &&
+					(!has_ub ||
+					    voival->int32.s32 <
+						bkt_ub->int32.s32)))
 					found = 1;
 			}
 			break;
 		case VSD_DTYPE_INT_U32:
 			if (voival->int32.u32 >= bkt_lb->int32.u32) {
-				if ((eq_only && voival->int32.u32 ==
-				    bkt_lb->int32.u32) ||
-				    (!eq_only && (!has_ub ||
-				    voival->int32.u32 < bkt_ub->int32.u32)))
+				if ((eq_only &&
+					voival->int32.u32 ==
+					    bkt_lb->int32.u32) ||
+				    (!eq_only &&
+					(!has_ub ||
+					    voival->int32.u32 <
+						bkt_ub->int32.u32)))
 					found = 1;
 			}
 			break;
 		case VSD_DTYPE_INT_S64:
 			if (voival->int64.s64 >= bkt_lb->int64.s64)
-				if ((eq_only && voival->int64.s64 ==
-				    bkt_lb->int64.s64) ||
-				    (!eq_only && (!has_ub ||
-				    voival->int64.s64 < bkt_ub->int64.s64)))
+				if ((eq_only &&
+					voival->int64.s64 ==
+					    bkt_lb->int64.s64) ||
+				    (!eq_only &&
+					(!has_ub ||
+					    voival->int64.s64 <
+						bkt_ub->int64.s64)))
 					found = 1;
 			break;
 		case VSD_DTYPE_INT_U64:
 			if (voival->int64.u64 >= bkt_lb->int64.u64)
-				if ((eq_only && voival->int64.u64 ==
-				    bkt_lb->int64.u64) ||
-				    (!eq_only && (!has_ub ||
-				    voival->int64.u64 < bkt_ub->int64.u64)))
+				if ((eq_only &&
+					voival->int64.u64 ==
+					    bkt_lb->int64.u64) ||
+				    (!eq_only &&
+					(!has_ub ||
+					    voival->int64.u64 <
+						bkt_ub->int64.u64)))
 					found = 1;
 			break;
 		case VSD_DTYPE_INT_SLONG:
 			if (voival->intlong.slong >= bkt_lb->intlong.slong)
-				if ((eq_only && voival->intlong.slong ==
-				    bkt_lb->intlong.slong) ||
-				    (!eq_only && (!has_ub ||
-				    voival->intlong.slong <
-				    bkt_ub->intlong.slong)))
+				if ((eq_only &&
+					voival->intlong.slong ==
+					    bkt_lb->intlong.slong) ||
+				    (!eq_only &&
+					(!has_ub ||
+					    voival->intlong.slong <
+						bkt_ub->intlong.slong)))
 					found = 1;
 			break;
 		case VSD_DTYPE_INT_ULONG:
 			if (voival->intlong.ulong >= bkt_lb->intlong.ulong)
-				if ((eq_only && voival->intlong.ulong ==
-				    bkt_lb->intlong.ulong) ||
-				    (!eq_only && (!has_ub ||
-				    voival->intlong.ulong <
-				    bkt_ub->intlong.ulong)))
+				if ((eq_only &&
+					voival->intlong.ulong ==
+					    bkt_lb->intlong.ulong) ||
+				    (!eq_only &&
+					(!has_ub ||
+					    voival->intlong.ulong <
+						bkt_ub->intlong.ulong)))
 					found = 1;
 			break;
 		case VSD_DTYPE_Q_S32:
 			if (Q_QGEQ(voival->q32.sq32, bkt_lb->q32.sq32))
-				if ((eq_only && Q_QEQ(voival->q32.sq32,
-				    bkt_lb->q32.sq32)) ||
-				    (!eq_only && (!has_ub ||
-				    Q_QLTQ(voival->q32.sq32,
-				    bkt_ub->q32.sq32))))
+				if ((eq_only &&
+					Q_QEQ(voival->q32.sq32,
+					    bkt_lb->q32.sq32)) ||
+				    (!eq_only &&
+					(!has_ub ||
+					    Q_QLTQ(voival->q32.sq32,
+						bkt_ub->q32.sq32))))
 					found = 1;
 			break;
 		case VSD_DTYPE_Q_U32:
 			if (Q_QGEQ(voival->q32.uq32, bkt_lb->q32.uq32))
-				if ((eq_only && Q_QEQ(voival->q32.uq32,
-				    bkt_lb->q32.uq32)) ||
-				    (!eq_only && (!has_ub ||
-				    Q_QLTQ(voival->q32.uq32,
-				    bkt_ub->q32.uq32))))
+				if ((eq_only &&
+					Q_QEQ(voival->q32.uq32,
+					    bkt_lb->q32.uq32)) ||
+				    (!eq_only &&
+					(!has_ub ||
+					    Q_QLTQ(voival->q32.uq32,
+						bkt_ub->q32.uq32))))
 					found = 1;
 			break;
 		case VSD_DTYPE_Q_S64:
 			if (Q_QGEQ(voival->q64.sq64, bkt_lb->q64.sq64))
-				if ((eq_only && Q_QEQ(voival->q64.sq64,
-				    bkt_lb->q64.sq64)) ||
-				    (!eq_only && (!has_ub ||
-				    Q_QLTQ(voival->q64.sq64,
-				    bkt_ub->q64.sq64))))
+				if ((eq_only &&
+					Q_QEQ(voival->q64.sq64,
+					    bkt_lb->q64.sq64)) ||
+				    (!eq_only &&
+					(!has_ub ||
+					    Q_QLTQ(voival->q64.sq64,
+						bkt_ub->q64.sq64))))
 					found = 1;
 			break;
 		case VSD_DTYPE_Q_U64:
 			if (Q_QGEQ(voival->q64.uq64, bkt_lb->q64.uq64))
-				if ((eq_only && Q_QEQ(voival->q64.uq64,
-				    bkt_lb->q64.uq64)) ||
-				    (!eq_only && (!has_ub ||
-				    Q_QLTQ(voival->q64.uq64,
-				    bkt_ub->q64.uq64))))
+				if ((eq_only &&
+					Q_QEQ(voival->q64.uq64,
+					    bkt_lb->q64.uq64)) ||
+				    (!eq_only &&
+					(!has_ub ||
+					    Q_QLTQ(voival->q64.uq64,
+						bkt_ub->q64.uq64))))
 					found = 1;
 			break;
 		default:
@@ -2907,8 +2972,8 @@ stats_v1_voi_update_hist(enum vsd_dtype voi_dtype, struct voistatdata *voival,
 }
 
 static inline int
-stats_v1_vsd_tdgst_compress(enum vsd_dtype vs_dtype,
-    struct voistatdata_tdgst *tdgst, int attempt)
+stats_v1_vsd_tdgst_compress(
+    enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst, int attempt)
 {
 	struct ctdth32 *ctd32tree;
 	struct ctdth64 *ctd64tree;
@@ -2967,13 +3032,13 @@ stats_v1_vsd_tdgst_compress(enum vsd_dtype vs_dtype,
 	 * the code is compiled in userspace, it gets the random(3) behavior,
 	 * which has expected range [0, 0x7fffffff].
 	 */
-#define	bitsperrand 31
+#define bitsperrand 31
 	ebits = 0;
 	nebits = 0;
 	bitsperidx = fls(maxctds);
 	KASSERT(bitsperidx <= sizeof(ebits) << 3,
-	    ("%s: bitsperidx=%d, ebits=%d",
-	    __func__, bitsperidx, (int)(sizeof(ebits) << 3)));
+	    ("%s: bitsperidx=%d, ebits=%d", __func__, bitsperidx,
+		(int)(sizeof(ebits) << 3)));
 	idxmask = (UINT64_C(1) << bitsperidx) - 1;
 
 	/* Initialise the free list with randomised centroid indices. */
@@ -3003,7 +3068,8 @@ stats_v1_vsd_tdgst_compress(enum vsd_dtype vs_dtype,
 			else
 				ctd64 = ARB_NODE(ctd64tree, idx);
 		} while ((is32bit ? ARB_ISFREE(ctd32, ctdlnk) :
-		    ARB_ISFREE(ctd64, ctdlnk)) && ++idx);
+					  ARB_ISFREE(ctd64, ctdlnk)) &&
+		    ++idx);
 
 		/* Put the centroid on the ARB free list. */
 		if (is32bit)
@@ -3021,11 +3087,11 @@ stats_v1_vsd_tdgst_compress(enum vsd_dtype vs_dtype,
 	 * call. The previous loop above should have left the centroid pointer
 	 * pointing to the element at the head of the free list.
 	 */
-	KASSERT((is32bit ?
-	    ARB_FREEIDX(ctd32tree) == ARB_SELFIDX(ctd32tree, ctd32) :
-	    ARB_FREEIDX(ctd64tree) == ARB_SELFIDX(ctd64tree, ctd64)),
+	KASSERT(
+	    (is32bit ? ARB_FREEIDX(ctd32tree) == ARB_SELFIDX(ctd32tree, ctd32) :
+			     ARB_FREEIDX(ctd64tree) == ARB_SELFIDX(ctd64tree, ctd64)),
 	    ("%s: t-digest ARB@%p free list bug", __func__,
-	    (is32bit ? (void *)ctd32tree : (void *)ctd64tree)));
+		(is32bit ? (void *)ctd32tree : (void *)ctd64tree)));
 	remctds = maxctds;
 	while ((is32bit ? ctd32 != NULL : ctd64 != NULL)) {
 		tmperr = 0;
@@ -3035,20 +3101,21 @@ stats_v1_vsd_tdgst_compress(enum vsd_dtype vs_dtype,
 			idx = ARB_NEXTFREEIDX(ctd32, ctdlnk);
 			/* Cloning a s32q_t into a s64q_t should never fail. */
 			tmperr = Q_QCLONEQ(&x, ctd32->mu);
-			tmperr = tmperr ? tmperr : stats_v1_vsd_tdgst_add(
-			    vs_dtype, tdgst, x, ctd32->cnt, attempt);
+			tmperr = tmperr ? tmperr :
+						stats_v1_vsd_tdgst_add(vs_dtype,
+					      tdgst, x, ctd32->cnt, attempt);
 			ctd32 = ARB_NODE(ctd32tree, idx);
 			KASSERT(ctd32 == NULL || ARB_ISFREE(ctd32, ctdlnk),
 			    ("%s: t-digest ARB@%p free list bug", __func__,
-			    ctd32tree));
+				ctd32tree));
 		} else {
 			idx = ARB_NEXTFREEIDX(ctd64, ctdlnk);
-			tmperr = stats_v1_vsd_tdgst_add(vs_dtype, tdgst,
-			    ctd64->mu, ctd64->cnt, attempt);
+			tmperr = stats_v1_vsd_tdgst_add(
+			    vs_dtype, tdgst, ctd64->mu, ctd64->cnt, attempt);
 			ctd64 = ARB_NODE(ctd64tree, idx);
 			KASSERT(ctd64 == NULL || ARB_ISFREE(ctd64, ctdlnk),
 			    ("%s: t-digest ARB@%p free list bug", __func__,
-			    ctd64tree));
+				ctd64tree));
 		}
 		/*
 		 * This process should not produce errors, bugs notwithstanding.
@@ -3058,8 +3125,9 @@ stats_v1_vsd_tdgst_compress(enum vsd_dtype vs_dtype,
 		remctds--;
 	}
 
-	KASSERT(remctds == 0, ("%s: t-digest ARB@%p free list bug", __func__,
-	    (is32bit ? (void *)ctd32tree : (void *)ctd64tree)));
+	KASSERT(remctds == 0,
+	    ("%s: t-digest ARB@%p free list bug", __func__,
+		(is32bit ? (void *)ctd32tree : (void *)ctd64tree)));
 
 	return (error);
 }
@@ -3115,8 +3183,7 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 	 */
 	do {
 #if defined(DIAGNOSTIC)
-		KASSERT(attempt < 5,
-		    ("%s: Too many attempts", __func__));
+		KASSERT(attempt < 5, ("%s: Too many attempts", __func__));
 #endif
 		if (attempt >= 5)
 			return (EAGAIN);
@@ -3126,13 +3193,15 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 		sum = tmpsum = 0;
 
 		if (is32bit)
-			lb = cur = (void *)(ctd32 = ARB_MIN(ctdth32, ctd32tree));
+			lb = cur = (void *)(ctd32 = ARB_MIN(
+						ctdth32, ctd32tree));
 		else
-			lb = cur = (void *)(ctd64 = ARB_MIN(ctdth64, ctd64tree));
+			lb = cur = (void *)(ctd64 = ARB_MIN(
+						ctdth64, ctd64tree));
 
 		if (lb == NULL) /* Empty tree. */
 			lb = (is32bit ? (void *)ARB_ROOT(ctd32tree) :
-			    (void *)ARB_ROOT(ctd64tree));
+					      (void *)ARB_ROOT(ctd64tree));
 
 		/*
 		 * Find the set of centroids with minimum distance to x and
@@ -3140,29 +3209,30 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 		 * than the first centroid in the set.
 		 */
 		for (; cur != NULL;
-		    cur = (is32bit ?
-		    (void *)(ctd32 = ARB_NEXT(ctdth32, ctd32tree, ctd32)) :
-		    (void *)(ctd64 = ARB_NEXT(ctdth64, ctd64tree, ctd64)))) {
+		     cur = (is32bit ? (void *)(ctd32 = ARB_NEXT(
+						   ctdth32, ctd32tree, ctd32)) :
+					    (void *)(ctd64 = ARB_NEXT(ctdth64,
+						   ctd64tree, ctd64)))) {
 			if (is32bit) {
 				cnt = ctd32->cnt;
 				KASSERT(Q_PRECEQ(ctd32->mu, x),
 				    ("%s: Q_RELPREC(mu,x)=%d", __func__,
-				    Q_RELPREC(ctd32->mu, x)));
+					Q_RELPREC(ctd32->mu, x)));
 				/* Ok to assign as both have same precision. */
 				z = ctd32->mu;
 			} else {
 				cnt = ctd64->cnt;
 				KASSERT(Q_PRECEQ(ctd64->mu, x),
 				    ("%s: Q_RELPREC(mu,x)=%d", __func__,
-				    Q_RELPREC(ctd64->mu, x)));
+					Q_RELPREC(ctd64->mu, x)));
 				/* Ok to assign as both have same precision. */
 				z = ctd64->mu;
 			}
 
 			error = Q_QSUBQ(&z, x);
 #if defined(DIAGNOSTIC)
-			KASSERT(!error, ("%s: unexpected error %d", __func__,
-			    error));
+			KASSERT(!error,
+			    ("%s: unexpected error %d", __func__, error));
 #endif
 			if (error)
 				return (error);
@@ -3180,12 +3250,14 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 		}
 
 		cur = (is32bit ?
-		    (void *)(ctd32 = (struct voistatdata_tdgstctd32 *)lb) :
-		    (void *)(ctd64 = (struct voistatdata_tdgstctd64 *)lb));
+			      (void *)(ctd32 = (struct voistatdata_tdgstctd32 *)lb) :
+			      (void *)(ctd64 = (struct voistatdata_tdgstctd64 *)lb));
 
-		for (n = 0; cur != ub; cur = (is32bit ?
-		    (void *)(ctd32 = ARB_NEXT(ctdth32, ctd32tree, ctd32)) :
-		    (void *)(ctd64 = ARB_NEXT(ctdth64, ctd64tree, ctd64)))) {
+		for (n = 0; cur != ub;
+		     cur = (is32bit ? (void *)(ctd32 = ARB_NEXT(
+						   ctdth32, ctd32tree, ctd32)) :
+					    (void *)(ctd64 = ARB_NEXT(ctdth64,
+						   ctd64tree, ctd64)))) {
 			if (is32bit)
 				cnt = ctd32->cnt;
 			else
@@ -3210,8 +3282,9 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 			double q_dbl, k_dbl, q2d, k2d;
 			q2d = Q_Q2D(q);
 			k2d = Q_Q2D(k);
-			q_dbl = smplcnt == 1 ? 0.5 :
-			    (sum + ((cnt - 1)  / 2.0)) / (double)(smplcnt - 1);
+			q_dbl = smplcnt == 1 ?
+				  0.5 :
+				  (sum + ((cnt - 1) / 2.0)) / (double)(smplcnt - 1);
 			k_dbl = 4 * smplcnt * q_dbl * (1.0 - q_dbl) * attempt;
 			/*
 			 * If the difference between q and q_dbl is greater than
@@ -3220,21 +3293,25 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 			 */
 			q_dbl = 1.0 - q_dbl;
 			KASSERT((q_dbl > q2d ? q_dbl - q2d : q2d - q_dbl) <
-			    (1.05 * ((double)1 / (double)(1ULL << Q_NFBITS(q)))),
+				(1.05 *
+				    ((double)1 /
+					(double)(1ULL << Q_NFBITS(q)))),
 			    ("Q-type q bad precision"));
 			KASSERT((k_dbl > k2d ? k_dbl - k2d : k2d - k_dbl) <
-			    1.0 + (0.01 * smplcnt),
+				1.0 + (0.01 * smplcnt),
 			    ("Q-type k bad precision"));
 #endif /* !_KERNEL */
-			KASSERT(!error, ("%s: unexpected error %d", __func__,
-			    error));
+			KASSERT(!error,
+			    ("%s: unexpected error %d", __func__, error));
 #endif /* DIAGNOSTIC */
 			if (error)
 				return (error);
-			if ((is32bit && ((ctd32->cnt + weight) <=
-			    (uint64_t)Q_GIVAL(k))) ||
-			    (!is32bit && ((ctd64->cnt + weight) <=
-			    (uint64_t)Q_GIVAL(k)))) {
+			if ((is32bit &&
+				((ctd32->cnt + weight) <=
+				    (uint64_t)Q_GIVAL(k))) ||
+			    (!is32bit &&
+				((ctd64->cnt + weight) <=
+				    (uint64_t)Q_GIVAL(k)))) {
 				n++;
 				/* random() produces 31 bits. */
 				if (random() < (INT32_MAX / n))
@@ -3244,8 +3321,8 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 		}
 	} while (closest == NULL &&
 	    (is32bit ? ARB_FULL(ctd32tree) : ARB_FULL(ctd64tree)) &&
-	    (error = stats_v1_vsd_tdgst_compress(vs_dtype, tdgst,
-	    attempt++)) == 0);
+	    (error = stats_v1_vsd_tdgst_compress(vs_dtype, tdgst, attempt++)) ==
+		0);
 
 	if (error)
 		return (error);
@@ -3287,18 +3364,21 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 			 * additional visibility into the digest's fidelity.
 			 */
 			error = error ? error :
-			    Q_QDIVI(&x, ctd32->cnt + weight);
-			if ((error && error != ERANGE)
-			    || (error = Q_QADDQ(&ctd32->mu, x))) {
+					      Q_QDIVI(&x, ctd32->cnt + weight);
+			if ((error && error != ERANGE) ||
+			    (error = Q_QADDQ(&ctd32->mu, x))) {
 #ifdef DIAGNOSTIC
-				KASSERT(!error, ("%s: unexpected error %d",
-				    __func__, error));
+				KASSERT(!error,
+				    ("%s: unexpected error %d", __func__,
+					error));
 #endif
 				return (error);
 			}
 			ctd32->cnt += weight;
 			error = ARB_REINSERT(ctdth32, ctd32tree, ctd32) ==
-			    NULL ? 0 : EALREADY;
+				NULL ?
+				  0 :
+				  EALREADY;
 #ifdef DIAGNOSTIC
 			RB_REINSERT(rbctdth32,
 			    &VSD(tdgstclust32, tdgst)->rbctdtree, ctd32);
@@ -3307,17 +3387,20 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 			ctd64 = (struct voistatdata_tdgstctd64 *)closest;
 			error = Q_QSUBQ(&x, ctd64->mu);
 			error = error ? error :
-			    Q_QDIVI(&x, ctd64->cnt + weight);
+					      Q_QDIVI(&x, ctd64->cnt + weight);
 			/* Refer to is32bit ERANGE discussion above. */
-			if ((error && error != ERANGE)
-			    || (error = Q_QADDQ(&ctd64->mu, x))) {
-				KASSERT(!error, ("%s: unexpected error %d",
-				    __func__, error));
+			if ((error && error != ERANGE) ||
+			    (error = Q_QADDQ(&ctd64->mu, x))) {
+				KASSERT(!error,
+				    ("%s: unexpected error %d", __func__,
+					error));
 				return (error);
 			}
 			ctd64->cnt += weight;
 			error = ARB_REINSERT(ctdth64, ctd64tree, ctd64) ==
-			    NULL ? 0 : EALREADY;
+				NULL ?
+				  0 :
+				  EALREADY;
 #ifdef DIAGNOSTIC
 			RB_REINSERT(rbctdth64,
 			    &VSD(tdgstclust64, tdgst)->rbctdtree, ctd64);
@@ -3332,8 +3415,8 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 			ctd32 = ARB_GETFREE(ctd32tree, ctdlnk);
 #ifdef DIAGNOSTIC
 			KASSERT(ctd32 != NULL,
-			    ("%s: t-digest@%p has no free centroids",
-			    __func__, tdgst));
+			    ("%s: t-digest@%p has no free centroids", __func__,
+				tdgst));
 #endif
 			if (ctd32 == NULL)
 				return (EAGAIN);
@@ -3341,7 +3424,8 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 				return (error);
 			ctd32->cnt = weight;
 			error = ARB_INSERT(ctdth32, ctd32tree, ctd32) == NULL ?
-			    0 : EALREADY;
+				  0 :
+				  EALREADY;
 #ifdef DIAGNOSTIC
 			RB_INSERT(rbctdth32,
 			    &VSD(tdgstclust32, tdgst)->rbctdtree, ctd32);
@@ -3350,8 +3434,8 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 			ctd64 = ARB_GETFREE(ctd64tree, ctdlnk);
 #ifdef DIAGNOSTIC
 			KASSERT(ctd64 != NULL,
-			    ("%s: t-digest@%p has no free centroids",
-			    __func__, tdgst));
+			    ("%s: t-digest@%p has no free centroids", __func__,
+				tdgst));
 #endif
 			if (ctd64 == NULL) /* Should not happen. */
 				return (EAGAIN);
@@ -3359,10 +3443,11 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 			ctd64->mu = x;
 			ctd64->cnt = weight;
 			error = ARB_INSERT(ctdth64, ctd64tree, ctd64) == NULL ?
-			    0 : EALREADY;
+				  0 :
+				  EALREADY;
 #ifdef DIAGNOSTIC
-			RB_INSERT(rbctdth64, &VSD(tdgstclust64,
-			    tdgst)->rbctdtree, ctd64);
+			RB_INSERT(rbctdth64,
+			    &VSD(tdgstclust64, tdgst)->rbctdtree, ctd64);
 #endif
 		}
 	}
@@ -3377,46 +3462,46 @@ stats_v1_vsd_tdgst_add(enum vsd_dtype vs_dtype, struct voistatdata_tdgst *tdgst,
 		    &VSD(tdgstclust64, tdgst)->rbctdtree;
 		struct voistatdata_tdgstctd64 *rbctd64;
 		int i = 0;
-		ARB_FOREACH(ctd64, ctdth64, ctd64tree) {
-			rbctd64 = (i == 0 ? RB_MIN(rbctdth64, rbctdtree) :
-			    RB_NEXT(rbctdth64, rbctdtree, rbctd64));
+		ARB_FOREACH (ctd64, ctdth64, ctd64tree) {
+			rbctd64 = (i == 0 ?
+				      RB_MIN(rbctdth64, rbctdtree) :
+				      RB_NEXT(rbctdth64, rbctdtree, rbctd64));
 
-			if (i >= ARB_CURNODES(ctd64tree)
-			    || ctd64 != rbctd64
-			    || ARB_MIN(ctdth64, ctd64tree) !=
-			       RB_MIN(rbctdth64, rbctdtree)
-			    || ARB_MAX(ctdth64, ctd64tree) !=
-			       RB_MAX(rbctdth64, rbctdtree)
-			    || ARB_LEFTIDX(ctd64, ctdlnk) !=
-			       ARB_SELFIDX(ctd64tree, RB_LEFT(rbctd64, rblnk))
-			    || ARB_RIGHTIDX(ctd64, ctdlnk) !=
-			       ARB_SELFIDX(ctd64tree, RB_RIGHT(rbctd64, rblnk))
-			    || ARB_PARENTIDX(ctd64, ctdlnk) !=
-			       ARB_SELFIDX(ctd64tree,
-			       RB_PARENT(rbctd64, rblnk))) {
+			if (i >= ARB_CURNODES(ctd64tree) || ctd64 != rbctd64 ||
+			    ARB_MIN(ctdth64, ctd64tree) !=
+				RB_MIN(rbctdth64, rbctdtree) ||
+			    ARB_MAX(ctdth64, ctd64tree) !=
+				RB_MAX(rbctdth64, rbctdtree) ||
+			    ARB_LEFTIDX(ctd64, ctdlnk) !=
+				ARB_SELFIDX(
+				    ctd64tree, RB_LEFT(rbctd64, rblnk)) ||
+			    ARB_RIGHTIDX(ctd64, ctdlnk) !=
+				ARB_SELFIDX(
+				    ctd64tree, RB_RIGHT(rbctd64, rblnk)) ||
+			    ARB_PARENTIDX(ctd64, ctdlnk) !=
+				ARB_SELFIDX(
+				    ctd64tree, RB_PARENT(rbctd64, rblnk))) {
 				Q_TOSTR(ctd64->mu, -1, 10, qstr, sizeof(qstr));
 				printf("ARB ctd=%3d p=%3d l=%3d r=%3d c=%2d "
-				    "mu=%s\n",
+				       "mu=%s\n",
 				    (int)ARB_SELFIDX(ctd64tree, ctd64),
 				    ARB_PARENTIDX(ctd64, ctdlnk),
 				    ARB_LEFTIDX(ctd64, ctdlnk),
 				    ARB_RIGHTIDX(ctd64, ctdlnk),
-				    ARB_COLOR(ctd64, ctdlnk),
-				    qstr);
+				    ARB_COLOR(ctd64, ctdlnk), qstr);
 
-				Q_TOSTR(rbctd64->mu, -1, 10, qstr,
-				    sizeof(qstr));
+				Q_TOSTR(
+				    rbctd64->mu, -1, 10, qstr, sizeof(qstr));
 				printf(" RB ctd=%3d p=%3d l=%3d r=%3d c=%2d "
-				    "mu=%s\n",
+				       "mu=%s\n",
 				    (int)ARB_SELFIDX(ctd64tree, rbctd64),
-				    (int)ARB_SELFIDX(ctd64tree,
-				      RB_PARENT(rbctd64, rblnk)),
-				    (int)ARB_SELFIDX(ctd64tree,
-				      RB_LEFT(rbctd64, rblnk)),
-				    (int)ARB_SELFIDX(ctd64tree,
-				      RB_RIGHT(rbctd64, rblnk)),
-				    RB_COLOR(rbctd64, rblnk),
-				    qstr);
+				    (int)ARB_SELFIDX(
+					ctd64tree, RB_PARENT(rbctd64, rblnk)),
+				    (int)ARB_SELFIDX(
+					ctd64tree, RB_LEFT(rbctd64, rblnk)),
+				    (int)ARB_SELFIDX(
+					ctd64tree, RB_RIGHT(rbctd64, rblnk)),
+				    RB_COLOR(rbctd64, rblnk), qstr);
 
 				panic("RB@%p and ARB@%p trees differ\n",
 				    rbctdtree, ctd64tree);
@@ -3441,19 +3526,21 @@ stats_v1_voi_update_tdgst(enum vsd_dtype voi_dtype, struct voistatdata *voival,
 	switch (vs->dtype) {
 	case VSD_DTYPE_TDGSTCLUST32:
 		/* Use same precision as the user's centroids. */
-		Q_INI(&x, 0, 0, Q_NFBITS(
-		    ARB_CNODE(&VSD(tdgstclust32, tdgst)->ctdtree, 0)->mu));
+		Q_INI(&x, 0, 0,
+		    Q_NFBITS(
+			ARB_CNODE(&VSD(tdgstclust32, tdgst)->ctdtree, 0)->mu));
 		break;
 	case VSD_DTYPE_TDGSTCLUST64:
 		/* Use same precision as the user's centroids. */
-		Q_INI(&x, 0, 0, Q_NFBITS(
-		    ARB_CNODE(&VSD(tdgstclust64, tdgst)->ctdtree, 0)->mu));
+		Q_INI(&x, 0, 0,
+		    Q_NFBITS(
+			ARB_CNODE(&VSD(tdgstclust64, tdgst)->ctdtree, 0)->mu));
 		break;
 	default:
 		KASSERT(vs->dtype == VSD_DTYPE_TDGSTCLUST32 ||
-		    vs->dtype == VSD_DTYPE_TDGSTCLUST64,
+			vs->dtype == VSD_DTYPE_TDGSTCLUST64,
 		    ("%s: vs->dtype(%d) != VSD_DTYPE_TDGSTCLUST<32|64>",
-		    __func__, vs->dtype));
+			__func__, vs->dtype));
 		return (EINVAL);
 	}
 
@@ -3590,24 +3677,24 @@ stats_v1_voi_update(struct statsblobv1 *sb, int32_t voi_id,
 
 		switch (vs->stype) {
 		case VS_STYPE_MAX:
-			tmperr = stats_v1_voi_update_max(voi_dtype, voival,
-			    vs, vsd);
+			tmperr = stats_v1_voi_update_max(
+			    voi_dtype, voival, vs, vsd);
 			break;
 		case VS_STYPE_MIN:
-			tmperr = stats_v1_voi_update_min(voi_dtype, voival,
-			    vs, vsd);
+			tmperr = stats_v1_voi_update_min(
+			    voi_dtype, voival, vs, vsd);
 			break;
 		case VS_STYPE_SUM:
-			tmperr = stats_v1_voi_update_sum(voi_dtype, voival,
-			    vs, vsd);
+			tmperr = stats_v1_voi_update_sum(
+			    voi_dtype, voival, vs, vsd);
 			break;
 		case VS_STYPE_HIST:
-			tmperr = stats_v1_voi_update_hist(voi_dtype, voival,
-			    vs, vsd);
+			tmperr = stats_v1_voi_update_hist(
+			    voi_dtype, voival, vs, vsd);
 			break;
 		case VS_STYPE_TDGST:
-			tmperr = stats_v1_voi_update_tdgst(voi_dtype, voival,
-			    vs, vsd);
+			tmperr = stats_v1_voi_update_tdgst(
+			    voi_dtype, voival, vs, vsd);
 			break;
 		default:
 			KASSERT(0, ("Unknown VOI stat type %d", vs->stype));
@@ -3680,15 +3767,13 @@ stats_v1_voi_update(struct statsblobv1 *sb, int32_t voi_id,
 static void
 stats_init(void *arg)
 {
-
 }
 SYSINIT(stats, SI_SUB_KDTRACE, SI_ORDER_FIRST, stats_init, NULL);
 
 /*
  * Sysctl handler to display the list of available stats templates.
  */
-static int
-stats_tpl_list_available(SYSCTL_HANDLER_ARGS)
+static int stats_tpl_list_available(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf *s;
 	int err, i;
@@ -3735,8 +3820,7 @@ stats_tpl_list_available(SYSCTL_HANDLER_ARGS)
  * need to be reworked in future if dynamic template management becomes a
  * requirement e.g. to support kernel module based templates.
  */
-int
-stats_tpl_sample_rates(SYSCTL_HANDLER_ARGS)
+int stats_tpl_sample_rates(SYSCTL_HANDLER_ARGS)
 {
 	char kvpair_fmt[16], tplspec_fmt[16];
 	char tpl_spec[STATS_TPL_MAX_STR_SPEC_LEN];
@@ -3782,8 +3866,8 @@ stats_tpl_sample_rates(SYSCTL_HANDLER_ARGS)
 		s = sbuf_new(&_s, buf, len, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 
 		/* Grab locked count of, and ptr to, subsystem rates. */
-		err = subsys_cb(TPL_SR_RLOCKED_GET, &rates, &nrates,
-		    subsys_ctx);
+		err = subsys_cb(
+		    TPL_SR_RLOCKED_GET, &rates, &nrates, subsys_ctx);
 		if (err)
 			goto done;
 		TPL_LIST_RLOCK();
@@ -3866,8 +3950,8 @@ process_new:
 		 * the cumulative sampling percentage does not exceed 100.
 		 */
 		err = EINVAL;
-		if (2 != sscanf(new_rates_usr_str, kvpair_fmt, tpl_spec, &pct,
-		    &off))
+		if (2 !=
+		    sscanf(new_rates_usr_str, kvpair_fmt, tpl_spec, &pct, &off))
 			break;
 		if ((1 > sscanf(tpl_spec, tplspec_fmt, tpl_name, &tpl_hash)) &&
 		    (1 != sscanf(tpl_spec, ":%u", &tpl_hash)))
@@ -3889,8 +3973,8 @@ process_new:
 
 		rates = stats_realloc(rates, 0, /* oldsz is unused in kernel. */
 		    (nrates + 1) * sizeof(*rates), M_WAITOK);
-		rates[nrates].tpl_slot_id =
-		    stats_tpl_fetch_allocid(len ? tpl_name_p : NULL, tpl_hash);
+		rates[nrates].tpl_slot_id = stats_tpl_fetch_allocid(
+		    len ? tpl_name_p : NULL, tpl_hash);
 		if (rates[nrates].tpl_slot_id < 0) {
 			err = -rates[nrates].tpl_slot_id;
 			break;
@@ -3899,7 +3983,7 @@ process_new:
 		nrates++;
 		new_rates_usr_str += off;
 		if (*new_rates_usr_str != ',')
-			break; /* End-of-input or malformed. */
+			break;	     /* End-of-input or malformed. */
 		new_rates_usr_str++; /* Move past comma to next pair. */
 	}
 
@@ -3912,8 +3996,8 @@ process_new:
 			 * Give subsystem the new rates. They'll return the
 			 * appropriate rates pointer for us to garbage collect.
 			 */
-			err = subsys_cb(TPL_SR_PUT, &rates, &nrates,
-			    subsys_ctx);
+			err = subsys_cb(
+			    TPL_SR_PUT, &rates, &nrates, subsys_ctx);
 		}
 	}
 	stats_free(rates);
@@ -3924,8 +4008,8 @@ done:
 	return (err);
 }
 
-SYSCTL_NODE(_kern, OID_AUTO, stats, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
-    "stats(9) MIB");
+SYSCTL_NODE(
+    _kern, OID_AUTO, stats, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, "stats(9) MIB");
 
 SYSCTL_PROC(_kern_stats, OID_AUTO, templates,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
@@ -3934,15 +4018,13 @@ SYSCTL_PROC(_kern_stats, OID_AUTO, templates,
 
 #else /* ! _KERNEL */
 
-static void __attribute__ ((constructor))
-stats_constructor(void)
+static void __attribute__((constructor)) stats_constructor(void)
 {
 
 	pthread_rwlock_init(&tpllistlock, NULL);
 }
 
-static void __attribute__ ((destructor))
-stats_destructor(void)
+static void __attribute__((destructor)) stats_destructor(void)
 {
 
 	pthread_rwlock_destroy(&tpllistlock);

@@ -38,44 +38,43 @@
 /* This file implements Dynamic Interrupt Moderation, DIM */
 
 #ifndef NET_DIM_H
-#define	NET_DIM_H
+#define NET_DIM_H
 
 #include <asm/types.h>
-
-#include <linux/workqueue.h>
 #include <linux/ktime.h>
+#include <linux/workqueue.h>
 
 struct net_dim_cq_moder {
-	u16	usec;
-	u16	pkts;
-	u8	cq_period_mode;
+	u16 usec;
+	u16 pkts;
+	u8 cq_period_mode;
 };
 
 struct net_dim_sample {
-	ktime_t	time;
-	u32	pkt_ctr;
-	u32	byte_ctr;
-	u16	event_ctr;
+	ktime_t time;
+	u32 pkt_ctr;
+	u32 byte_ctr;
+	u16 event_ctr;
 };
 
 struct net_dim_stats {
-	int	ppms;			/* packets per msec */
-	int	bpms;			/* bytes per msec */
-	int	epms;			/* events per msec */
+	int ppms; /* packets per msec */
+	int bpms; /* bytes per msec */
+	int epms; /* events per msec */
 };
 
-struct net_dim {			/* Adaptive Moderation */
-	u8	state;
+struct net_dim { /* Adaptive Moderation */
+	u8 state;
 	struct net_dim_stats prev_stats;
 	struct net_dim_sample start_sample;
 	struct work_struct work;
-	u16	event_ctr;
-	u8	profile_ix;
-	u8	mode;
-	u8	tune_state;
-	u8	steps_right;
-	u8	steps_left;
-	u8	tired;
+	u16 event_ctr;
+	u8 profile_ix;
+	u8 mode;
+	u8 tune_state;
+	u8 steps_right;
+	u8 steps_left;
+	u8 tired;
 };
 
 enum {
@@ -111,38 +110,36 @@ enum {
 	NET_DIM_ON_EDGE,
 };
 
-#define	NET_DIM_PARAMS_NUM_PROFILES 5
+#define NET_DIM_PARAMS_NUM_PROFILES 5
 /* Adaptive moderation profiles */
-#define	NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE 256
-#define	NET_DIM_DEF_PROFILE_CQE 1
-#define	NET_DIM_DEF_PROFILE_EQE 1
+#define NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE 256
+#define NET_DIM_DEF_PROFILE_CQE 1
+#define NET_DIM_DEF_PROFILE_EQE 1
 
 /* All profiles sizes must be NET_PARAMS_DIM_NUM_PROFILES */
-#define	NET_DIM_EQE_PROFILES { \
-	{1,   NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
-	{8,   NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
-	{64,  NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
-	{128, NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
-	{256, NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE}, \
-}
+#define NET_DIM_EQE_PROFILES                                                 \
+	{                                                                    \
+		{ 1, NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE },       \
+		    { 8, NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE },   \
+		    { 64, NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE },  \
+		    { 128, NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE }, \
+		    { 256, NET_DIM_DEFAULT_RX_CQ_MODERATION_PKTS_FROM_EQE }, \
+	}
 
-#define	NET_DIM_CQE_PROFILES { \
-	{2,  256},             \
-	{8,  128},             \
-	{16, 64},              \
-	{32, 64},              \
-	{64, 64}               \
-}
+#define NET_DIM_CQE_PROFILES                                               \
+	{                                                                  \
+		{ 2, 256 }, { 8, 128 }, { 16, 64 }, { 32, 64 }, { 64, 64 } \
+	}
 
 static const struct net_dim_cq_moder
-	net_dim_profile[NET_DIM_CQ_PERIOD_NUM_MODES][NET_DIM_PARAMS_NUM_PROFILES] = {
-	NET_DIM_EQE_PROFILES,
-	NET_DIM_CQE_PROFILES,
-};
+    net_dim_profile[NET_DIM_CQ_PERIOD_NUM_MODES]
+		   [NET_DIM_PARAMS_NUM_PROFILES] = {
+			   NET_DIM_EQE_PROFILES,
+			   NET_DIM_CQE_PROFILES,
+		   };
 
 static inline struct net_dim_cq_moder
-net_dim_get_profile(u8 cq_period_mode,
-    int ix)
+net_dim_get_profile(u8 cq_period_mode, int ix)
 {
 	struct net_dim_cq_moder cq_moder;
 
@@ -158,7 +155,7 @@ net_dim_get_def_profile(u8 rx_cq_period_mode)
 
 	if (rx_cq_period_mode == NET_DIM_CQ_PERIOD_MODE_START_FROM_CQE)
 		default_profile_ix = NET_DIM_DEF_PROFILE_CQE;
-	else	/* NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE */
+	else /* NET_DIM_CQ_PERIOD_MODE_START_FROM_EQE */
 		default_profile_ix = NET_DIM_DEF_PROFILE_EQE;
 
 	return net_dim_get_profile(rx_cq_period_mode, default_profile_ix);
@@ -173,7 +170,7 @@ net_dim_on_top(struct net_dim *dim)
 		return true;
 	case NET_DIM_GOING_RIGHT:
 		return (dim->steps_left > 1) && (dim->steps_right == 1);
-	default:	/* NET_DIM_GOING_LEFT */
+	default: /* NET_DIM_GOING_LEFT */
 		return (dim->steps_right > 1) && (dim->steps_left == 1);
 	}
 }
@@ -245,47 +242,43 @@ static inline void
 net_dim_exit_parking(struct net_dim *dim)
 {
 	dim->tune_state = dim->profile_ix ? NET_DIM_GOING_LEFT :
-	NET_DIM_GOING_RIGHT;
+						  NET_DIM_GOING_RIGHT;
 	net_dim_step(dim);
 }
 
-#define	IS_SIGNIFICANT_DIFF(val, ref) \
-	(((100UL * abs((val) - (ref))) / (ref)) > 10)	/* more than 10%
-							 * difference */
+#define IS_SIGNIFICANT_DIFF(val, ref)                                  \
+	(((100UL * abs((val) - (ref))) / (ref)) > 10) /* more than 10% \
+						       * difference */
 
 static inline int
-net_dim_stats_compare(struct net_dim_stats *curr,
-    struct net_dim_stats *prev)
+net_dim_stats_compare(struct net_dim_stats *curr, struct net_dim_stats *prev)
 {
 	if (!prev->bpms)
-		return curr->bpms ? NET_DIM_STATS_BETTER :
-		NET_DIM_STATS_SAME;
+		return curr->bpms ? NET_DIM_STATS_BETTER : NET_DIM_STATS_SAME;
 
 	if (IS_SIGNIFICANT_DIFF(curr->bpms, prev->bpms))
 		return (curr->bpms > prev->bpms) ? NET_DIM_STATS_BETTER :
-		    NET_DIM_STATS_WORSE;
+							 NET_DIM_STATS_WORSE;
 
 	if (!prev->ppms)
-		return curr->ppms ? NET_DIM_STATS_BETTER :
-		    NET_DIM_STATS_SAME;
+		return curr->ppms ? NET_DIM_STATS_BETTER : NET_DIM_STATS_SAME;
 
 	if (IS_SIGNIFICANT_DIFF(curr->ppms, prev->ppms))
 		return (curr->ppms > prev->ppms) ? NET_DIM_STATS_BETTER :
-		    NET_DIM_STATS_WORSE;
+							 NET_DIM_STATS_WORSE;
 
 	if (!prev->epms)
 		return NET_DIM_STATS_SAME;
 
 	if (IS_SIGNIFICANT_DIFF(curr->epms, prev->epms))
 		return (curr->epms < prev->epms) ? NET_DIM_STATS_BETTER :
-		    NET_DIM_STATS_WORSE;
+							 NET_DIM_STATS_WORSE;
 
 	return NET_DIM_STATS_SAME;
 }
 
 static inline bool
-net_dim_decision(struct net_dim_stats *curr_stats,
-    struct net_dim *dim)
+net_dim_decision(struct net_dim_stats *curr_stats, struct net_dim *dim)
 {
 	int prev_state = dim->tune_state;
 	int prev_ix = dim->profile_ix;
@@ -336,10 +329,7 @@ net_dim_decision(struct net_dim_stats *curr_stats,
 }
 
 static inline void
-net_dim_sample(u16 event_ctr,
-    u64 packets,
-    u64 bytes,
-    struct net_dim_sample *s)
+net_dim_sample(u16 event_ctr, u64 packets, u64 bytes, struct net_dim_sample *s)
 {
 	s->time = ktime_get();
 	s->pkt_ctr = packets;
@@ -347,32 +337,31 @@ net_dim_sample(u16 event_ctr,
 	s->event_ctr = event_ctr;
 }
 
-#define	NET_DIM_NEVENTS 64
-#define	BIT_GAP(bits, end, start) ((((end) - (start)) + BIT_ULL(bits)) & (BIT_ULL(bits) - 1))
+#define NET_DIM_NEVENTS 64
+#define BIT_GAP(bits, end, start) \
+	((((end) - (start)) + BIT_ULL(bits)) & (BIT_ULL(bits) - 1))
 
 static inline void
-net_dim_calc_stats(struct net_dim_sample *start,
-    struct net_dim_sample *end,
+net_dim_calc_stats(struct net_dim_sample *start, struct net_dim_sample *end,
     struct net_dim_stats *curr_stats)
 {
 	/* u32 holds up to 71 minutes, should be enough */
 	u32 delta_us = ktime_us_delta(end->time, start->time);
 	u32 npkts = BIT_GAP(BITS_PER_TYPE(u32), end->pkt_ctr, start->pkt_ctr);
-	u32 nbytes = BIT_GAP(BITS_PER_TYPE(u32), end->byte_ctr,
-	    start->byte_ctr);
+	u32 nbytes = BIT_GAP(
+	    BITS_PER_TYPE(u32), end->byte_ctr, start->byte_ctr);
 
 	if (!delta_us)
 		return;
 
 	curr_stats->ppms = DIV_ROUND_UP(npkts * USEC_PER_MSEC, delta_us);
 	curr_stats->bpms = DIV_ROUND_UP(nbytes * USEC_PER_MSEC, delta_us);
-	curr_stats->epms = DIV_ROUND_UP(NET_DIM_NEVENTS * USEC_PER_MSEC,
-	    delta_us);
+	curr_stats->epms = DIV_ROUND_UP(
+	    NET_DIM_NEVENTS * USEC_PER_MSEC, delta_us);
 }
 
 static inline void
-net_dim(struct net_dim *dim,
-    u64 packets, u64 bytes)
+net_dim(struct net_dim *dim, u64 packets, u64 bytes)
 {
 	struct net_dim_stats curr_stats;
 	struct net_dim_sample end_sample;
@@ -382,14 +371,13 @@ net_dim(struct net_dim *dim,
 
 	switch (dim->state) {
 	case NET_DIM_MEASURE_IN_PROGRESS:
-		nevents = BIT_GAP(BITS_PER_TYPE(u16),
-		    dim->event_ctr,
+		nevents = BIT_GAP(BITS_PER_TYPE(u16), dim->event_ctr,
 		    dim->start_sample.event_ctr);
 		if (nevents < NET_DIM_NEVENTS)
 			break;
 		net_dim_sample(dim->event_ctr, packets, bytes, &end_sample);
-		net_dim_calc_stats(&dim->start_sample, &end_sample,
-		    &curr_stats);
+		net_dim_calc_stats(
+		    &dim->start_sample, &end_sample, &curr_stats);
 		if (net_dim_decision(&curr_stats, dim)) {
 			dim->state = NET_DIM_APPLY_NEW_PROFILE;
 			schedule_work(&dim->work);
@@ -397,7 +385,8 @@ net_dim(struct net_dim *dim,
 		}
 		/* FALLTHROUGH */
 	case NET_DIM_START_MEASURE:
-		net_dim_sample(dim->event_ctr, packets, bytes, &dim->start_sample);
+		net_dim_sample(
+		    dim->event_ctr, packets, bytes, &dim->start_sample);
 		dim->state = NET_DIM_MEASURE_IN_PROGRESS;
 		break;
 	case NET_DIM_APPLY_NEW_PROFILE:
@@ -407,4 +396,4 @@ net_dim(struct net_dim *dim,
 	}
 }
 
-#endif					/* NET_DIM_H */
+#endif /* NET_DIM_H */

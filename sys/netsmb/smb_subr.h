@@ -38,17 +38,17 @@
 MALLOC_DECLARE(M_SMBTEMP);
 #endif
 
-#define SMBERROR(format, args...) printf("%s: "format, __func__ ,## args)
-#define SMBPANIC(format, args...) printf("%s: "format, __func__ ,## args)
+#define SMBERROR(format, args...) printf("%s: " format, __func__, ##args)
+#define SMBPANIC(format, args...) printf("%s: " format, __func__, ##args)
 
 #ifdef SMB_SOCKET_DEBUG
-#define SMBSDEBUG(format, args...) printf("%s: "format, __func__ ,## args)
+#define SMBSDEBUG(format, args...) printf("%s: " format, __func__, ##args)
 #else
 #define SMBSDEBUG(format, args...)
 #endif
 
 #ifdef SMB_IOD_DEBUG
-#define SMBIODEBUG(format, args...) printf("%s: "format, __func__ ,## args)
+#define SMBIODEBUG(format, args...) printf("%s: " format, __func__, ##args)
 #else
 #define SMBIODEBUG(format, args...)
 #endif
@@ -59,12 +59,12 @@ void m_dumpm(struct mbuf *m);
 #define m_dumpm(m)
 #endif
 
-#define	SMB_SIGMASK(set) 						\
-	(SIGISMEMBER(set, SIGINT) || SIGISMEMBER(set, SIGTERM) ||	\
-	 SIGISMEMBER(set, SIGHUP) || SIGISMEMBER(set, SIGKILL) ||	\
-	 SIGISMEMBER(set, SIGQUIT))
+#define SMB_SIGMASK(set)                                             \
+	(SIGISMEMBER(set, SIGINT) || SIGISMEMBER(set, SIGTERM) ||    \
+	    SIGISMEMBER(set, SIGHUP) || SIGISMEMBER(set, SIGKILL) || \
+	    SIGISMEMBER(set, SIGQUIT))
 
-#define	smb_suser(cred)	priv_check_cred(cred, PRIV_NETSMB)
+#define smb_suser(cred) priv_check_cred(cred, PRIV_NETSMB)
 
 /*
  * Compatibility wrappers for simple locks
@@ -73,23 +73,27 @@ void m_dumpm(struct mbuf *m);
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#define	smb_slock			mtx
-#define	smb_sl_init(mtx, desc)		mtx_init(mtx, desc, NULL, MTX_DEF)
-#define	smb_sl_destroy(mtx)		mtx_destroy(mtx)
-#define	smb_sl_lock(mtx)		mtx_lock(mtx)
-#define	smb_sl_unlock(mtx)		mtx_unlock(mtx)
+#define smb_slock mtx
+#define smb_sl_init(mtx, desc) mtx_init(mtx, desc, NULL, MTX_DEF)
+#define smb_sl_destroy(mtx) mtx_destroy(mtx)
+#define smb_sl_lock(mtx) mtx_lock(mtx)
+#define smb_sl_unlock(mtx) mtx_unlock(mtx)
 
-#define SMB_STRFREE(p)	do { if (p) smb_strfree(p); } while(0)
+#define SMB_STRFREE(p)                  \
+	do {                            \
+		if (p)                  \
+			smb_strfree(p); \
+	} while (0)
 
-typedef u_int16_t	smb_unichar;
-typedef	smb_unichar	*smb_uniptr;
+typedef u_int16_t smb_unichar;
+typedef smb_unichar *smb_uniptr;
 
 /*
  * Crediantials of user/process being processing in the connection procedures
  */
 struct smb_cred {
-	struct thread *	scr_td;
-	struct ucred *	scr_cred;
+	struct thread *scr_td;
+	struct ucred *scr_cred;
 };
 
 extern smb_unichar smb_unieol;
@@ -98,8 +102,9 @@ struct mbchain;
 struct smb_vc;
 struct smb_rq;
 
-void smb_makescred(struct smb_cred *scred, struct thread *td, struct ucred *cred);
-int  smb_td_intr(struct thread *);
+void smb_makescred(
+    struct smb_cred *scred, struct thread *td, struct ucred *cred);
+int smb_td_intr(struct thread *);
 char *smb_strdup(const char *s);
 void *smb_memdup(const void *umem, int len);
 char *smb_strdupin(char *s, size_t maxlen);
@@ -109,17 +114,17 @@ void smb_strfree(char *s);
 void smb_memfree(void *s);
 void *smb_zmalloc(size_t size, struct malloc_type *type, int flags);
 
-int  smb_calcmackey(struct smb_vc *vcp);
-int  smb_encrypt(const u_char *apwd, u_char *C8, u_char *RN);
-int  smb_ntencrypt(const u_char *apwd, u_char *C8, u_char *RN);
-int  smb_maperror(int eclass, int eno);
-int  smb_put_dmem(struct mbchain *mbp, struct smb_vc *vcp,
-	const char *src, size_t len, int caseopt);
-int  smb_put_dstring(struct mbchain *mbp, struct smb_vc *vcp,
-	const char *src, int caseopt);
-int  smb_put_string(struct smb_rq *rqp, const char *src);
-int  smb_put_asunistring(struct smb_rq *rqp, const char *src);
-int  smb_rq_sign(struct smb_rq *rqp);
-int  smb_rq_verify(struct smb_rq *rqp);
+int smb_calcmackey(struct smb_vc *vcp);
+int smb_encrypt(const u_char *apwd, u_char *C8, u_char *RN);
+int smb_ntencrypt(const u_char *apwd, u_char *C8, u_char *RN);
+int smb_maperror(int eclass, int eno);
+int smb_put_dmem(struct mbchain *mbp, struct smb_vc *vcp, const char *src,
+    size_t len, int caseopt);
+int smb_put_dstring(
+    struct mbchain *mbp, struct smb_vc *vcp, const char *src, int caseopt);
+int smb_put_string(struct smb_rq *rqp, const char *src);
+int smb_put_asunistring(struct smb_rq *rqp, const char *src);
+int smb_rq_sign(struct smb_rq *rqp);
+int smb_rq_verify(struct smb_rq *rqp);
 
 #endif /* !_NETSMB_SMB_SUBR_H_ */

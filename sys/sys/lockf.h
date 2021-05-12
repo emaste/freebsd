@@ -36,11 +36,11 @@
  */
 
 #ifndef _SYS_LOCKF_H_
-#define	_SYS_LOCKF_H_
+#define _SYS_LOCKF_H_
 
-#include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_sx.h>
+#include <sys/queue.h>
 
 struct flock;
 struct vop_advlock_args;
@@ -64,32 +64,33 @@ struct vop_advlockasync_args;
  */
 struct lockf_edge {
 	LIST_ENTRY(lockf_edge) le_outlink; /* (s) link from's out-edge list */
-	LIST_ENTRY(lockf_edge) le_inlink; /* (s) link to's in-edge list */
-	struct lockf_entry *le_from;	/* (c) out-going from here */
-	struct lockf_entry *le_to;	/* (s) in-coming to here */
+	LIST_ENTRY(lockf_edge) le_inlink;  /* (s) link to's in-edge list */
+	struct lockf_entry *le_from;	   /* (c) out-going from here */
+	struct lockf_entry *le_to;	   /* (s) in-coming to here */
 };
 LIST_HEAD(lockf_edge_list, lockf_edge);
 
 struct lockf_entry {
-	short	lf_flags;	    /* (c) Semantics: F_POSIX, F_FLOCK, F_WAIT */
-	short	lf_type;	    /* (s) Lock type: F_RDLCK, F_WRLCK */
-	off_t	lf_start;	    /* (s) Byte # of the start of the lock */
-	off_t	lf_end;		    /* (s) Byte # of the end of the lock (OFF_MAX=EOF) */
-	struct	lock_owner *lf_owner; /* (c) Owner of the lock */
-	struct	vnode *lf_vnode;    /* (c) File being locked (only valid for active lock) */
-	struct	inode *lf_inode;    /* (c) Back pointer to the inode */
-	struct	task *lf_async_task;/* (c) Async lock callback */
-	LIST_ENTRY(lockf_entry) lf_link;  /* (s) Linkage for lock lists */
+	short lf_flags; /* (c) Semantics: F_POSIX, F_FLOCK, F_WAIT */
+	short lf_type;	/* (s) Lock type: F_RDLCK, F_WRLCK */
+	off_t lf_start; /* (s) Byte # of the start of the lock */
+	off_t lf_end;	/* (s) Byte # of the end of the lock (OFF_MAX=EOF) */
+	struct lock_owner *lf_owner; /* (c) Owner of the lock */
+	struct vnode
+	    *lf_vnode; /* (c) File being locked (only valid for active lock) */
+	struct inode *lf_inode;		    /* (c) Back pointer to the inode */
+	struct task *lf_async_task;	    /* (c) Async lock callback */
+	LIST_ENTRY(lockf_entry) lf_link;    /* (s) Linkage for lock lists */
 	struct lockf_edge_list lf_outedges; /* (s) list of out-edges */
-	struct lockf_edge_list lf_inedges; /* (s) list of in-edges */
-	int	lf_refs;	    /* (s) ref count */
+	struct lockf_edge_list lf_inedges;  /* (s) list of in-edges */
+	int lf_refs;			    /* (s) ref count */
 };
 LIST_HEAD(lockf_entry_list, lockf_entry);
 
 /*
  * Extra lf_flags bits used by the implementation
  */
-#define	F_INTR		0x8000	/* lock was interrupted by lf_purgelocks */
+#define F_INTR 0x8000 /* lock was interrupted by lf_purgelocks */
 
 /*
  * Filesystem private node structures should include space for a
@@ -114,22 +115,22 @@ LIST_HEAD(lockf_entry_list, lockf_entry);
  * structure while some thread is still using it.
  */
 struct lockf {
-	LIST_ENTRY(lockf) ls_link;	/* (S) all active lockf states */
-	struct	sx	ls_lock;
-	struct	lockf_entry_list ls_active; /* (s) Active locks */
-	struct	lockf_entry_list ls_pending; /* (s) Pending locks */
-	int		ls_threads;	/* (i) Thread count */
+	LIST_ENTRY(lockf) ls_link; /* (S) all active lockf states */
+	struct sx ls_lock;
+	struct lockf_entry_list ls_active;  /* (s) Active locks */
+	struct lockf_entry_list ls_pending; /* (s) Pending locks */
+	int ls_threads;			    /* (i) Thread count */
 };
 LIST_HEAD(lockf_list, lockf);
 
 typedef int lf_iterator(struct vnode *, struct flock *, void *);
 
-int	 lf_advlock(struct vop_advlock_args *, struct lockf **, u_quad_t);
-int	 lf_advlockasync(struct vop_advlockasync_args *, struct lockf **, u_quad_t);
-void	 lf_purgelocks(struct vnode *vp, struct lockf **statep);
-int	 lf_iteratelocks_sysid(int sysid, lf_iterator *, void *);
-int	 lf_iteratelocks_vnode(struct vnode *vp, lf_iterator *, void *);
-int	 lf_countlocks(int sysid);
-void	 lf_clearremotesys(int sysid);
+int lf_advlock(struct vop_advlock_args *, struct lockf **, u_quad_t);
+int lf_advlockasync(struct vop_advlockasync_args *, struct lockf **, u_quad_t);
+void lf_purgelocks(struct vnode *vp, struct lockf **statep);
+int lf_iteratelocks_sysid(int sysid, lf_iterator *, void *);
+int lf_iteratelocks_vnode(struct vnode *vp, lf_iterator *, void *);
+int lf_countlocks(int sysid);
+void lf_clearremotesys(int sysid);
 
 #endif /* !_SYS_LOCKF_H_ */

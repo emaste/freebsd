@@ -28,49 +28,49 @@
  * $FreeBSD$
  */
 
-#ifndef	_G_SHSEC_H_
-#define	_G_SHSEC_H_
+#ifndef _G_SHSEC_H_
+#define _G_SHSEC_H_
 
 #include <sys/endian.h>
 
-#define	G_SHSEC_CLASS_NAME	"SHSEC"
+#define G_SHSEC_CLASS_NAME "SHSEC"
 
-#define	G_SHSEC_MAGIC		"GEOM::SHSEC"
+#define G_SHSEC_MAGIC "GEOM::SHSEC"
 /*
  * Version history:
  * 0 - Initial version number.
  * 1 - Added md_provsize field to metadata.
  */
-#define	G_SHSEC_VERSION	1
+#define G_SHSEC_VERSION 1
 
 #ifdef _KERNEL
-#define	G_SHSEC_BFLAG_FIRST	0x1
+#define G_SHSEC_BFLAG_FIRST 0x1
 
-#define	G_SHSEC_DEBUG(lvl, ...) \
-    _GEOM_DEBUG("GEOM_SHSEC", g_shsec_debug, (lvl), NULL, __VA_ARGS__)
-#define	G_SHSEC_LOGREQ(lvl, bp, ...) \
-    _GEOM_DEBUG("GEOM_SHSEC", g_shsec_debug, (lvl), (bp), __VA_ARGS__)
+#define G_SHSEC_DEBUG(lvl, ...) \
+	_GEOM_DEBUG("GEOM_SHSEC", g_shsec_debug, (lvl), NULL, __VA_ARGS__)
+#define G_SHSEC_LOGREQ(lvl, bp, ...) \
+	_GEOM_DEBUG("GEOM_SHSEC", g_shsec_debug, (lvl), (bp), __VA_ARGS__)
 
 struct g_shsec_softc {
-	u_int		 sc_type;	/* provider type */
-	struct g_geom	*sc_geom;
+	u_int sc_type; /* provider type */
+	struct g_geom *sc_geom;
 	struct g_provider *sc_provider;
-	uint32_t	 sc_id;		/* device unique ID */
+	uint32_t sc_id; /* device unique ID */
 	struct g_consumer **sc_disks;
-	uint16_t	 sc_ndisks;
+	uint16_t sc_ndisks;
 };
-#define	sc_name	sc_geom->name
-#endif	/* _KERNEL */
+#define sc_name sc_geom->name
+#endif /* _KERNEL */
 
 struct g_shsec_metadata {
-	char		md_magic[16];	/* Magic value. */
-	uint32_t	md_version;	/* Version number. */
-	char		md_name[16];	/* Stripe name. */
-	uint32_t	md_id;		/* Unique ID. */
-	uint16_t	md_no;		/* Disk number. */
-	uint16_t	md_all;		/* Number of all disks. */
-	char		md_provider[16]; /* Hardcoded provider. */
-	uint64_t	md_provsize;	/* Provider's size. */
+	char md_magic[16];    /* Magic value. */
+	uint32_t md_version;  /* Version number. */
+	char md_name[16];     /* Stripe name. */
+	uint32_t md_id;	      /* Unique ID. */
+	uint16_t md_no;	      /* Disk number. */
+	uint16_t md_all;      /* Number of all disks. */
+	char md_provider[16]; /* Hardcoded provider. */
+	uint64_t md_provsize; /* Provider's size. */
 };
 static __inline void
 shsec_metadata_encode(const struct g_shsec_metadata *md, u_char *data)
@@ -98,4 +98,4 @@ shsec_metadata_decode(const u_char *data, struct g_shsec_metadata *md)
 	bcopy(data + 44, md->md_provider, sizeof(md->md_provider));
 	md->md_provsize = le64dec(data + 60);
 }
-#endif	/* _G_SHSEC_H_ */
+#endif /* _G_SHSEC_H_ */

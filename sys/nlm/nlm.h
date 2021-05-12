@@ -42,7 +42,7 @@ MALLOC_DECLARE(M_NLM);
  * This value is added to host system IDs when recording NFS client
  * locks in the local lock manager.
  */
-#define NLM_SYSID_CLIENT	0x1000000
+#define NLM_SYSID_CLIENT 0x1000000
 
 struct nlm_host;
 struct vnode;
@@ -52,15 +52,15 @@ extern int nlm_nsm_state;
 
 /*
  * Make a struct netobj.
- */ 
-extern void nlm_make_netobj(struct netobj *dst, caddr_t srt,
-    size_t srcsize, struct malloc_type *type);
+ */
+extern void nlm_make_netobj(
+    struct netobj *dst, caddr_t srt, size_t srcsize, struct malloc_type *type);
 
 /*
  * Copy a struct netobj.
- */ 
-extern void nlm_copy_netobj(struct netobj *dst, struct netobj *src,
-    struct malloc_type *type);
+ */
+extern void nlm_copy_netobj(
+    struct netobj *dst, struct netobj *src, struct malloc_type *type);
 
 /*
  * Search for an existing NLM host that matches the given name
@@ -72,8 +72,8 @@ extern void nlm_copy_netobj(struct netobj *dst, struct netobj *src,
  * reference count is incremented - the caller must call
  * nlm_host_release when it has finished using it.
  */
-extern struct nlm_host *nlm_find_host_by_name(const char *name,
-    const struct sockaddr *addr, rpcvers_t vers);
+extern struct nlm_host *nlm_find_host_by_name(
+    const char *name, const struct sockaddr *addr, rpcvers_t vers);
 
 /*
  * Search for an existing NLM host that matches the given remote
@@ -82,8 +82,8 @@ extern struct nlm_host *nlm_find_host_by_name(const char *name,
  * that host. The host reference count is incremented - the caller
  * must call nlm_host_release when it has finished using it.
  */
-extern struct nlm_host *nlm_find_host_by_addr(const struct sockaddr *addr,
-    int vers);
+extern struct nlm_host *nlm_find_host_by_addr(
+    const struct sockaddr *addr, int vers);
 
 /*
  * Register this NLM host with the local NSM so that we can be
@@ -168,7 +168,7 @@ extern int nlm_do_test(nlm4_testargs *argp, nlm4_testres *result,
  * otherwise.
  */
 extern int nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result,
-    struct svc_req *rqstp, bool_t monitor, CLIENT **rpcp); 
+    struct svc_req *rqstp, bool_t monitor, CLIENT **rpcp);
 
 /*
  * Implementation for cancelling a pending lock request. If the

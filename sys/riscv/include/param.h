@@ -31,7 +31,7 @@
  */
 
 #ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
+#define _MACHINE_PARAM_H_
 
 /*
  * Machine dependent constants for RISC-V.
@@ -39,81 +39,81 @@
 
 #include <machine/_align.h>
 
-#define	STACKALIGNBYTES	(16 - 1)
-#define	STACKALIGN(p)	((uint64_t)(p) & ~STACKALIGNBYTES)
+#define STACKALIGNBYTES (16 - 1)
+#define STACKALIGN(p) ((uint64_t)(p) & ~STACKALIGNBYTES)
 
 #define __PCI_REROUTE_INTERRUPT
 
 #ifndef MACHINE
-#define	MACHINE		"riscv"
+#define MACHINE "riscv"
 #endif
 #ifndef MACHINE_ARCH
 
 /* Always use the hard-float arch for the kernel. */
 #if !defined(_KERNEL) && defined(__riscv_float_abi_soft)
-#define	MACHINE_ARCH	"riscv64sf"
+#define MACHINE_ARCH "riscv64sf"
 #else
-#define	MACHINE_ARCH	"riscv64"
+#define MACHINE_ARCH "riscv64"
 #endif
 #endif
 #ifdef _KERNEL
-#define	MACHINE_ARCHES	"riscv64 riscv64sf"
+#define MACHINE_ARCHES "riscv64 riscv64sf"
 #endif
 
 #ifdef SMP
 #ifndef MAXCPU
-#define	MAXCPU		16
+#define MAXCPU 16
 #endif
 #else
-#define	MAXCPU		1
+#define MAXCPU 1
 #endif
 
 #ifndef MAXMEMDOM
-#define	MAXMEMDOM	1
+#define MAXMEMDOM 1
 #endif
 
-#define	ALIGNBYTES	_ALIGNBYTES
-#define	ALIGN(p)	_ALIGN(p)
+#define ALIGNBYTES _ALIGNBYTES
+#define ALIGN(p) _ALIGN(p)
 /*
  * ALIGNED_POINTER is a boolean macro that checks whether an address
  * is valid to fetch data elements of type t from on this architecture.
  * This does not reflect the optimal alignment, just the possibility
  * (within reasonable limits).
  */
-#define	ALIGNED_POINTER(p, t)	((((u_long)(p)) & (sizeof(t) - 1)) == 0)
+#define ALIGNED_POINTER(p, t) ((((u_long)(p)) & (sizeof(t) - 1)) == 0)
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
  * architecture.  It should be used with appropriate caution.
  */
-#define	CACHE_LINE_SHIFT	6
-#define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
+#define CACHE_LINE_SHIFT 6
+#define CACHE_LINE_SIZE (1 << CACHE_LINE_SHIFT)
 
-#define	PAGE_SHIFT	12
-#define	PAGE_SIZE	(1 << PAGE_SHIFT)	/* Page size */
-#define	PAGE_MASK	(PAGE_SIZE - 1)
+#define PAGE_SHIFT 12
+#define PAGE_SIZE (1 << PAGE_SHIFT) /* Page size */
+#define PAGE_MASK (PAGE_SIZE - 1)
 
-#define	MAXPAGESIZES	3	/* maximum number of supported page sizes */
+#define MAXPAGESIZES 3 /* maximum number of supported page sizes */
 
 #ifndef KSTACK_PAGES
-#define	KSTACK_PAGES	4	/* pages of kernel stack (with pcb) */
+#define KSTACK_PAGES 4 /* pages of kernel stack (with pcb) */
 #endif
 
-#define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
-#define	PCPU_PAGES		1
+#define KSTACK_GUARD_PAGES 1 /* pages of kstack guard; 0 disables */
+#define PCPU_PAGES 1
 
 /*
  * Mach derived conversion macros
  */
-#define	round_page(x)		(((unsigned long)(x) + PAGE_MASK) & ~PAGE_MASK)
-#define	trunc_page(x)		((unsigned long)(x) & ~PAGE_MASK)
+#define round_page(x) (((unsigned long)(x) + PAGE_MASK) & ~PAGE_MASK)
+#define trunc_page(x) ((unsigned long)(x) & ~PAGE_MASK)
 
-#define	atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
-#define	ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
+#define atop(x) ((unsigned long)(x) >> PAGE_SHIFT)
+#define ptoa(x) ((unsigned long)(x) << PAGE_SHIFT)
 
-#define	riscv_btop(x)		((unsigned long)(x) >> PAGE_SHIFT)
-#define	riscv_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
+#define riscv_btop(x) ((unsigned long)(x) >> PAGE_SHIFT)
+#define riscv_ptob(x) ((unsigned long)(x) << PAGE_SHIFT)
 
-#define	pgtok(x)		((unsigned long)(x) * (PAGE_SIZE / 1024))
+#define pgtok(x) ((unsigned long)(x) * (PAGE_SIZE / 1024))
 
 #endif /* !_MACHINE_PARAM_H_ */

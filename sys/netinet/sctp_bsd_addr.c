@@ -21,9 +21,9 @@
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
@@ -35,20 +35,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <netinet/sctp_os.h>
-#include <netinet/sctp_var.h>
-#include <netinet/sctp_pcb.h>
-#include <netinet/sctp_header.h>
-#include <netinet/sctputil.h>
-#include <netinet/sctp_output.h>
-#include <netinet/sctp_bsd_addr.h>
-#include <netinet/sctp_uio.h>
-#include <netinet/sctputil.h>
-#include <netinet/sctp_timer.h>
-#include <netinet/sctp_asconf.h>
-#include <netinet/sctp_sysctl.h>
-#include <netinet/sctp_indata.h>
 #include <sys/unistd.h>
+
+#include <netinet/sctp_asconf.h>
+#include <netinet/sctp_bsd_addr.h>
+#include <netinet/sctp_header.h>
+#include <netinet/sctp_indata.h>
+#include <netinet/sctp_os.h>
+#include <netinet/sctp_output.h>
+#include <netinet/sctp_pcb.h>
+#include <netinet/sctp_sysctl.h>
+#include <netinet/sctp_timer.h>
+#include <netinet/sctp_uio.h>
+#include <netinet/sctp_var.h>
+#include <netinet/sctputil.h>
 
 /* Declare all of our malloc named types */
 MALLOC_DEFINE(SCTP_M_MAP, "sctp_map", "sctp asoc map descriptor");
@@ -88,8 +88,7 @@ sctp_iterator_thread(void *v SCTP_UNUSED)
 	/* In FreeBSD this thread never terminates. */
 	for (;;) {
 		msleep(&sctp_it_ctl.iterator_running,
-		    &sctp_it_ctl.ipi_iterator_wq_mtx,
-		    0, "waiting_for_work", 0);
+		    &sctp_it_ctl.ipi_iterator_wq_mtx, 0, "waiting_for_work", 0);
 		sctp_iterator_worker();
 	}
 }
@@ -105,12 +104,8 @@ sctp_startup_iterator(void)
 	SCTP_ITERATOR_LOCK_INIT();
 	SCTP_IPI_ITERATOR_WQ_INIT();
 	TAILQ_INIT(&sctp_it_ctl.iteratorhead);
-	kproc_create(sctp_iterator_thread,
-	    (void *)NULL,
-	    &sctp_it_ctl.thread_proc,
-	    0,
-	    SCTP_KTHREAD_PAGES,
-	    SCTP_KTRHEAD_NAME);
+	kproc_create(sctp_iterator_thread, (void *)NULL,
+	    &sctp_it_ctl.thread_proc, 0, SCTP_KTHREAD_PAGES, SCTP_KTRHEAD_NAME);
 }
 
 #ifdef INET6
@@ -123,8 +118,7 @@ sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa)
 	ifa6 = (struct in6_ifaddr *)ifa->ifa;
 	ifa->flags = ifa6->ia6_flags;
 	if (!MODULE_GLOBAL(ip6_use_deprecated)) {
-		if (ifa->flags &
-		    IN6_IFF_DEPRECATED) {
+		if (ifa->flags & IN6_IFF_DEPRECATED) {
 			ifa->localifa_flags |= SCTP_ADDR_IFA_UNUSEABLE;
 		} else {
 			ifa->localifa_flags &= ~SCTP_ADDR_IFA_UNUSEABLE;
@@ -133,15 +127,13 @@ sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa)
 		ifa->localifa_flags &= ~SCTP_ADDR_IFA_UNUSEABLE;
 	}
 	if (ifa->flags &
-	    (IN6_IFF_DETACHED |
-	    IN6_IFF_ANYCAST |
-	    IN6_IFF_NOTREADY)) {
+	    (IN6_IFF_DETACHED | IN6_IFF_ANYCAST | IN6_IFF_NOTREADY)) {
 		ifa->localifa_flags |= SCTP_ADDR_IFA_UNUSEABLE;
 	} else {
 		ifa->localifa_flags &= ~SCTP_ADDR_IFA_UNUSEABLE;
 	}
 }
-#endif				/* INET6 */
+#endif /* INET6 */
 
 static uint32_t
 sctp_is_desired_interface_type(struct ifnet *ifn)
@@ -174,7 +166,7 @@ sctp_is_desired_interface_type(struct ifnet *ifn)
 	case IFT_IP:
 	case IFT_IPOVERCDLC:
 	case IFT_IPOVERCLAW:
-	case IFT_PROPVIRTUAL:	/* NetGraph Virtual too */
+	case IFT_PROPVIRTUAL: /* NetGraph Virtual too */
 	case IFT_VIRTUALIPADDRESS:
 		result = 1;
 		break;
@@ -204,26 +196,31 @@ sctp_init_ifns_for_vrf(int vrfid)
 
 	IFNET_RLOCK();
 	NET_EPOCH_ENTER(et);
-	CK_STAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_link) {
+	CK_STAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_link)
+	{
 		if (sctp_is_desired_interface_type(ifn) == 0) {
 			/* non desired type */
 			continue;
 		}
-		CK_STAILQ_FOREACH(ifa, &ifn->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifn->if_addrhead, ifa_link)
+		{
 			if (ifa->ifa_addr == NULL) {
 				continue;
 			}
 			switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 			case AF_INET:
-				if (((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr == 0) {
+				if (((struct sockaddr_in *)ifa->ifa_addr)
+					->sin_addr.s_addr == 0) {
 					continue;
 				}
 				break;
 #endif
 #ifdef INET6
 			case AF_INET6:
-				if (IN6_IS_ADDR_UNSPECIFIED(&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr)) {
+				if (IN6_IS_ADDR_UNSPECIFIED(
+					&((struct sockaddr_in6 *)ifa->ifa_addr)
+					     ->sin6_addr)) {
 					/* skip unspecifed addresses */
 					continue;
 				}
@@ -248,17 +245,12 @@ sctp_init_ifns_for_vrf(int vrfid)
 				ifa_flags = 0;
 				break;
 			}
-			sctp_ifa = sctp_add_addr_to_vrf(vrfid,
-			    (void *)ifn,
-			    ifn->if_index,
-			    ifn->if_type,
-			    ifn->if_xname,
-			    (void *)ifa,
-			    ifa->ifa_addr,
-			    ifa_flags,
-			    0);
+			sctp_ifa = sctp_add_addr_to_vrf(vrfid, (void *)ifn,
+			    ifn->if_index, ifn->if_type, ifn->if_xname,
+			    (void *)ifa, ifa->ifa_addr, ifa_flags, 0);
 			if (sctp_ifa) {
-				sctp_ifa->localifa_flags &= ~SCTP_ADDR_DEFER_USE;
+				sctp_ifa->localifa_flags &=
+				    ~SCTP_ADDR_DEFER_USE;
 			}
 		}
 	}
@@ -317,7 +309,8 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 	switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 	case AF_INET:
-		if (((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr == 0) {
+		if (((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr ==
+		    0) {
 			return;
 		}
 		break;
@@ -325,7 +318,8 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 #ifdef INET6
 	case AF_INET6:
 		ifa_flags = ((struct in6_ifaddr *)ifa)->ia6_flags;
-		if (IN6_IS_ADDR_UNSPECIFIED(&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr)) {
+		if (IN6_IS_ADDR_UNSPECIFIED(
+			&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr)) {
 			/* skip unspecifed addresses */
 			return;
 		}
@@ -336,13 +330,13 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		return;
 	}
 	if (cmd == RTM_ADD) {
-		(void)sctp_add_addr_to_vrf(SCTP_DEFAULT_VRFID, (void *)ifa->ifa_ifp,
-		    ifa->ifa_ifp->if_index, ifa->ifa_ifp->if_type, ifa->ifa_ifp->if_xname,
-		    (void *)ifa, ifa->ifa_addr, ifa_flags, 1);
+		(void)sctp_add_addr_to_vrf(SCTP_DEFAULT_VRFID,
+		    (void *)ifa->ifa_ifp, ifa->ifa_ifp->if_index,
+		    ifa->ifa_ifp->if_type, ifa->ifa_ifp->if_xname, (void *)ifa,
+		    ifa->ifa_addr, ifa_flags, 1);
 	} else {
 		sctp_del_addr_from_vrf(SCTP_DEFAULT_VRFID, ifa->ifa_addr,
-		    ifa->ifa_ifp->if_index,
-		    ifa->ifa_ifp->if_xname);
+		    ifa->ifa_ifp->if_index, ifa->ifa_ifp->if_xname);
 
 		/*
 		 * We don't bump refcount here so when it completes the
@@ -358,8 +352,8 @@ sctp_addr_change_event_handler(void *arg __unused, struct ifaddr *ifa, int cmd)
 }
 
 struct mbuf *
-sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
-    int how, int allonebuf, int type)
+sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header, int how,
+    int allonebuf, int type)
 {
 	struct mbuf *m = NULL;
 
@@ -373,7 +367,8 @@ sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
 			m_freem(m);
 			return (NULL);
 		}
-		KASSERT(SCTP_BUF_NEXT(m) == NULL, ("%s: no chain allowed", __func__));
+		KASSERT(SCTP_BUF_NEXT(m) == NULL,
+		    ("%s: no chain allowed", __func__));
 	}
 #ifdef SCTP_MBUF_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
@@ -407,7 +402,8 @@ sctp_packet_log(struct mbuf *m)
 		/* Can't log this packet I have not a buffer big enough */
 		return;
 	}
-	if (length < (int)(SCTP_MIN_V4_OVERHEAD + sizeof(struct sctp_cookie_ack_chunk))) {
+	if (length < (int)(SCTP_MIN_V4_OVERHEAD +
+			 sizeof(struct sctp_cookie_ack_chunk))) {
 		return;
 	}
 	atomic_add_int(&SCTP_BASE_VAR(packet_log_writers), 1);
@@ -415,7 +411,7 @@ try_again:
 	if (SCTP_BASE_VAR(packet_log_writers) > SCTP_PKTLOG_WRITERS_NEED_LOCK) {
 		SCTP_IP_PKTLOG_LOCK();
 		grabbed_lock = 1;
-again_locked:
+	again_locked:
 		value = SCTP_BASE_VAR(packet_log_end);
 		newval = SCTP_BASE_VAR(packet_log_end) + total_len;
 		if (newval >= SCTP_PACKET_LOG_SIZE) {
@@ -426,7 +422,8 @@ again_locked:
 			thisbegin = SCTP_BASE_VAR(packet_log_end);
 			thisend = newval;
 		}
-		if (!(atomic_cmpset_int(&SCTP_BASE_VAR(packet_log_end), value, thisend))) {
+		if (!(atomic_cmpset_int(
+			&SCTP_BASE_VAR(packet_log_end), value, thisend))) {
 			goto again_locked;
 		}
 	} else {
@@ -440,18 +437,17 @@ again_locked:
 			thisbegin = SCTP_BASE_VAR(packet_log_end);
 			thisend = newval;
 		}
-		if (!(atomic_cmpset_int(&SCTP_BASE_VAR(packet_log_end), value, thisend))) {
+		if (!(atomic_cmpset_int(
+			&SCTP_BASE_VAR(packet_log_end), value, thisend))) {
 			goto try_again;
 		}
 	}
 	/* Sanity check */
 	if (thisend >= SCTP_PACKET_LOG_SIZE) {
-		SCTP_PRINTF("Insanity stops a log thisbegin:%d thisend:%d writers:%d lock:%d end:%d\n",
-		    thisbegin,
-		    thisend,
-		    SCTP_BASE_VAR(packet_log_writers),
-		    grabbed_lock,
-		    SCTP_BASE_VAR(packet_log_end));
+		SCTP_PRINTF(
+		    "Insanity stops a log thisbegin:%d thisend:%d writers:%d lock:%d end:%d\n",
+		    thisbegin, thisend, SCTP_BASE_VAR(packet_log_writers),
+		    grabbed_lock, SCTP_BASE_VAR(packet_log_end));
 		SCTP_BASE_VAR(packet_log_end) = 0;
 		goto no_log;
 	}
@@ -496,9 +492,12 @@ sctp_copy_out_packet_log(uint8_t *target, int length)
 		return (0);
 	}
 	if (SCTP_PKTLOG_WRITERS_NEED_LOCK) {
-		atomic_add_int(&SCTP_BASE_VAR(packet_log_writers), SCTP_PKTLOG_WRITERS_NEED_LOCK);
-again:
-		if ((did_delay == 0) && (SCTP_BASE_VAR(packet_log_writers) != SCTP_PKTLOG_WRITERS_NEED_LOCK)) {
+		atomic_add_int(&SCTP_BASE_VAR(packet_log_writers),
+		    SCTP_PKTLOG_WRITERS_NEED_LOCK);
+	again:
+		if ((did_delay == 0) &&
+		    (SCTP_BASE_VAR(packet_log_writers) !=
+			SCTP_PKTLOG_WRITERS_NEED_LOCK)) {
 			/*
 			 * we delay here for just a moment hoping the
 			 * writer(s) that were present when we entered will
@@ -517,7 +516,8 @@ again:
 	*lenat = SCTP_BASE_VAR(packet_log_end);
 	lenat++;
 	this_copy = min((length - sizeof(int)), SCTP_PACKET_LOG_SIZE);
-	memcpy((void *)lenat, (void *)SCTP_BASE_VAR(packet_log_buffer), this_copy);
+	memcpy(
+	    (void *)lenat, (void *)SCTP_BASE_VAR(packet_log_buffer), this_copy);
 	if (SCTP_PKTLOG_WRITERS_NEED_LOCK) {
 		atomic_subtract_int(&SCTP_BASE_VAR(packet_log_writers),
 		    SCTP_PKTLOG_WRITERS_NEED_LOCK);

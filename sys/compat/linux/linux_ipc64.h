@@ -29,7 +29,7 @@
  */
 
 #ifndef _LINUX_IPC64_H_
-#define	_LINUX_IPC64_H_
+#define _LINUX_IPC64_H_
 
 /*
  * The generic ipc64_perm structure.
@@ -41,20 +41,19 @@
  * - 32-bit seq
  * - 2 miscellaneous 32-bit values
  */
-struct l_ipc64_perm
-{
-	l_key_t		key;
-	l_uid_t		uid;
-	l_gid_t		gid;
-	l_uid_t		cuid;
-	l_gid_t		cgid;
-	l_mode_t	mode;
-			/* pad if mode_t is ushort: */
-	unsigned char	__pad1[sizeof(l_int) - sizeof(l_mode_t)];
-	l_ushort	seq;
-	l_ushort	__pad2;
-	l_ulong		__unused1;
-	l_ulong		__unused2;
+struct l_ipc64_perm {
+	l_key_t key;
+	l_uid_t uid;
+	l_gid_t gid;
+	l_uid_t cuid;
+	l_gid_t cgid;
+	l_mode_t mode;
+	/* pad if mode_t is ushort: */
+	unsigned char __pad1[sizeof(l_int) - sizeof(l_mode_t)];
+	l_ushort seq;
+	l_ushort __pad2;
+	l_ulong __unused1;
+	l_ulong __unused2;
 };
 
 /*
@@ -69,25 +68,25 @@ struct l_ipc64_perm
 
 struct l_msqid64_ds {
 	struct l_ipc64_perm msg_perm;
-	l_time_t	msg_stime;	/* last msgsnd time */
+	l_time_t msg_stime; /* last msgsnd time */
 #if !defined(__LP64__) || defined(COMPAT_LINUX32)
-	l_ulong		__unused1;
+	l_ulong __unused1;
 #endif
-	l_time_t	msg_rtime;	/* last msgrcv time */
+	l_time_t msg_rtime; /* last msgrcv time */
 #if !defined(__LP64__) || defined(COMPAT_LINUX32)
-	l_ulong		__unused2;
+	l_ulong __unused2;
 #endif
-	l_time_t	msg_ctime;	/* last change time */
+	l_time_t msg_ctime; /* last change time */
 #if !defined(__LP64__) || defined(COMPAT_LINUX32)
-	l_ulong		__unused3;
+	l_ulong __unused3;
 #endif
-	l_ulong		msg_cbytes;	/* current number of bytes on queue */
-	l_ulong		msg_qnum;	/* number of messages in queue */
-	l_ulong		msg_qbytes;	/* max number of bytes on queue */
-	l_pid_t		msg_lspid;	/* pid of last msgsnd */
-	l_pid_t		msg_lrpid;	/* last receive pid */
-	l_ulong		__unused4;
-	l_ulong		__unused5;
+	l_ulong msg_cbytes; /* current number of bytes on queue */
+	l_ulong msg_qnum;   /* number of messages in queue */
+	l_ulong msg_qbytes; /* max number of bytes on queue */
+	l_pid_t msg_lspid;  /* pid of last msgsnd */
+	l_pid_t msg_lrpid;  /* last receive pid */
+	l_ulong __unused4;
+	l_ulong __unused5;
 };
 
 /*
@@ -101,14 +100,14 @@ struct l_msqid64_ds {
  */
 
 struct l_semid64_ds {
-	struct l_ipc64_perm sem_perm;	/* permissions */
-	l_time_t	sem_otime;	/* last semop time */
-	l_ulong		__unused1;
-	l_time_t	sem_ctime;	/* last change time */
-	l_ulong		__unused2;
-	l_ulong		sem_nsems;	/* no. of semaphores in array */
-	l_ulong		__unused3;
-	l_ulong		__unused4;
+	struct l_ipc64_perm sem_perm; /* permissions */
+	l_time_t sem_otime;	      /* last semop time */
+	l_ulong __unused1;
+	l_time_t sem_ctime; /* last change time */
+	l_ulong __unused2;
+	l_ulong sem_nsems; /* no. of semaphores in array */
+	l_ulong __unused3;
+	l_ulong __unused4;
 };
 
 /*
@@ -122,37 +121,37 @@ struct l_semid64_ds {
  */
 
 struct l_shmid64_ds {
-	struct l_ipc64_perm shm_perm;	/* operation perms */
-	l_size_t	shm_segsz;	/* size of segment (bytes) */
-	l_time_t	shm_atime;	/* last attach time */
+	struct l_ipc64_perm shm_perm; /* operation perms */
+	l_size_t shm_segsz;	      /* size of segment (bytes) */
+	l_time_t shm_atime;	      /* last attach time */
 #if !defined(__LP64__) || defined(COMPAT_LINUX32)
-	l_ulong		__unused1;
+	l_ulong __unused1;
 #endif
-	l_time_t	shm_dtime;	/* last detach time */
+	l_time_t shm_dtime; /* last detach time */
 #if !defined(__LP64__) || defined(COMPAT_LINUX32)
-	l_ulong		__unused2;
+	l_ulong __unused2;
 #endif
-	l_time_t	shm_ctime;	/* last change time */
+	l_time_t shm_ctime; /* last change time */
 #if !defined(__LP64__) || defined(COMPAT_LINUX32)
-	l_ulong		__unused3;
+	l_ulong __unused3;
 #endif
-	l_pid_t		shm_cpid;	/* pid of creator */
-	l_pid_t		shm_lpid;	/* pid of last operator */
-	l_ulong		shm_nattch;	/* no. of current attaches */
-	l_ulong		__unused4;
-	l_ulong		__unused5;
+	l_pid_t shm_cpid;   /* pid of creator */
+	l_pid_t shm_lpid;   /* pid of last operator */
+	l_ulong shm_nattch; /* no. of current attaches */
+	l_ulong __unused4;
+	l_ulong __unused5;
 };
 
 struct l_shminfo64 {
-	l_ulong		shmmax;
-	l_ulong		shmmin;
-	l_ulong		shmmni;
-	l_ulong		shmseg;
-	l_ulong		shmall;
-	l_ulong		__unused1;
-	l_ulong		__unused2;
-	l_ulong		__unused3;
-	l_ulong		__unused4;
+	l_ulong shmmax;
+	l_ulong shmmin;
+	l_ulong shmmni;
+	l_ulong shmseg;
+	l_ulong shmall;
+	l_ulong __unused1;
+	l_ulong __unused2;
+	l_ulong __unused3;
+	l_ulong __unused4;
 };
 
 #endif /* !LINUX_IPC64_H_ */

@@ -34,13 +34,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/sysctl.h>
 #include <sys/signalvar.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 
 /* accept filter that holds a socket until data arrives */
 
-static int	sohasdata(struct socket *so, void *arg, int waitflag);
+static int sohasdata(struct socket *so, void *arg, int waitflag);
 
 ACCEPT_FILTER_DEFINE(accf_data, "dataready", sohasdata, NULL, NULL, 1);
 

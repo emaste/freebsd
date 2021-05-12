@@ -37,13 +37,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
 
 #include <dev/extres/clk/clk.h>
 #include <dev/ofw/ofw_bus.h>
@@ -51,57 +51,54 @@ __FBSDID("$FreeBSD$");
 
 #include "clock_if.h"
 
-#define	RTC_CONTROL				0x00
-#define	RTC_BUSY				0x04
-#define	 RTC_BUSY_STATUS				(1 << 0)
-#define	RTC_SECONDS				0x08
-#define	RTC_SHADOW_SECONDS			0x0c
-#define	RTC_MILLI_SECONDS			0x10
-#define	RTC_SECONDS_ALARM0			0x14
-#define	RTC_SECONDS_ALARM1			0x18
-#define	RTC_MILLI_SECONDS_ALARM			0x1c
-#define	RTC_SECONDS_COUNTDOWN_ALARM		0x20
-#define	RTC_MILLI_SECONDS_COUNTDOW_ALARM	0x24
-#define	RTC_INTR_MASK				0x28
-#define	 RTC_INTR_MSEC_CDN_ALARM			(1 << 4)
-#define	 RTC_INTR_SEC_CDN_ALARM				(1 << 3)
-#define	 RTC_INTR_MSEC_ALARM				(1 << 2)
-#define	 RTC_INTR_SEC_ALARM1				(1 << 1)
-#define	 RTC_INTR_SEC_ALARM0				(1 << 0)
+#define RTC_CONTROL 0x00
+#define RTC_BUSY 0x04
+#define RTC_BUSY_STATUS (1 << 0)
+#define RTC_SECONDS 0x08
+#define RTC_SHADOW_SECONDS 0x0c
+#define RTC_MILLI_SECONDS 0x10
+#define RTC_SECONDS_ALARM0 0x14
+#define RTC_SECONDS_ALARM1 0x18
+#define RTC_MILLI_SECONDS_ALARM 0x1c
+#define RTC_SECONDS_COUNTDOWN_ALARM 0x20
+#define RTC_MILLI_SECONDS_COUNTDOW_ALARM 0x24
+#define RTC_INTR_MASK 0x28
+#define RTC_INTR_MSEC_CDN_ALARM (1 << 4)
+#define RTC_INTR_SEC_CDN_ALARM (1 << 3)
+#define RTC_INTR_MSEC_ALARM (1 << 2)
+#define RTC_INTR_SEC_ALARM1 (1 << 1)
+#define RTC_INTR_SEC_ALARM0 (1 << 0)
 
-#define	RTC_INTR_STATUS				0x2c
-#define	RTC_INTR_SOURCE				0x30
-#define	RTC_INTR_SET				0x34
-#define	RTC_CORRECTION_FACTOR			0x38
+#define RTC_INTR_STATUS 0x2c
+#define RTC_INTR_SOURCE 0x30
+#define RTC_INTR_SET 0x34
+#define RTC_CORRECTION_FACTOR 0x38
 
-#define	WR4(_sc, _r, _v)	bus_write_4((_sc)->mem_res, (_r), (_v))
-#define	RD4(_sc, _r)		bus_read_4((_sc)->mem_res, (_r))
+#define WR4(_sc, _r, _v) bus_write_4((_sc)->mem_res, (_r), (_v))
+#define RD4(_sc, _r) bus_read_4((_sc)->mem_res, (_r))
 
-#define	LOCK(_sc)		mtx_lock(&(_sc)->mtx)
-#define	UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
-#define	SLEEP(_sc, timeout)						\
-	mtx_sleep(sc, &sc->mtx, 0, "rtcwait", timeout);
-#define	LOCK_INIT(_sc)							\
+#define LOCK(_sc) mtx_lock(&(_sc)->mtx)
+#define UNLOCK(_sc) mtx_unlock(&(_sc)->mtx)
+#define SLEEP(_sc, timeout) mtx_sleep(sc, &sc->mtx, 0, "rtcwait", timeout);
+#define LOCK_INIT(_sc) \
 	mtx_init(&_sc->mtx, device_get_nameunit(_sc->dev), "tegra_rtc", MTX_DEF)
-#define	LOCK_DESTROY(_sc)	mtx_destroy(&_sc->mtx)
-#define	ASSERT_LOCKED(_sc)	mtx_assert(&_sc->mtx, MA_OWNED)
-#define	ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->mtx, MA_NOTOWNED)
+#define LOCK_DESTROY(_sc) mtx_destroy(&_sc->mtx)
+#define ASSERT_LOCKED(_sc) mtx_assert(&_sc->mtx, MA_OWNED)
+#define ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->mtx, MA_NOTOWNED)
 
-static struct ofw_compat_data compat_data[] = {
-	{"nvidia,tegra124-rtc",	1},
-	{NULL,			0}
-};
+static struct ofw_compat_data compat_data[] = { { "nvidia,tegra124-rtc", 1 },
+	{ NULL, 0 } };
 
 struct tegra_rtc_softc {
-	device_t		dev;
-	struct mtx		mtx;
+	device_t dev;
+	struct mtx mtx;
 
-	struct resource		*mem_res;
-	struct resource		*irq_res;
-	void			*irq_h;
+	struct resource *mem_res;
+	struct resource *irq_res;
+	void *irq_h;
 
-	clk_t			clk;
-	uint32_t		core_freq;
+	clk_t clk;
+	uint32_t core_freq;
 };
 
 static void
@@ -109,14 +106,13 @@ tegra_rtc_wait(struct tegra_rtc_softc *sc)
 {
 	int timeout;
 
-	for (timeout = 500; timeout >0; timeout--) {
+	for (timeout = 500; timeout > 0; timeout--) {
 		if ((RD4(sc, RTC_BUSY) & RTC_BUSY_STATUS) == 0)
 			break;
 		DELAY(1);
 	}
 	if (timeout <= 0)
 		device_printf(sc->dev, "Device busy timeouted\n");
-
 }
 
 /*
@@ -197,8 +193,8 @@ tegra_rtc_attach(device_t dev)
 
 	/* Get the memory resource for the register mapping. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Cannot map registers.\n");
 		rv = ENXIO;
@@ -207,8 +203,7 @@ tegra_rtc_attach(device_t dev)
 
 	/* Allocate our IRQ resource. */
 	rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "Cannot allocate interrupt.\n");
 		rv = ENXIO;
@@ -283,19 +278,19 @@ tegra_rtc_detach(device_t dev)
 
 static device_method_t tegra_rtc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		tegra_rtc_probe),
-	DEVMETHOD(device_attach,	tegra_rtc_attach),
-	DEVMETHOD(device_detach,	tegra_rtc_detach),
+	DEVMETHOD(device_probe, tegra_rtc_probe),
+	DEVMETHOD(device_attach, tegra_rtc_attach),
+	DEVMETHOD(device_detach, tegra_rtc_detach),
 
 	/* clock interface */
-	DEVMETHOD(clock_gettime,	tegra_rtc_gettime),
-	DEVMETHOD(clock_settime,	tegra_rtc_settime),
+	DEVMETHOD(clock_gettime, tegra_rtc_gettime),
+	DEVMETHOD(clock_settime, tegra_rtc_settime),
 
 	DEVMETHOD_END
 };
 
 static devclass_t tegra_rtc_devclass;
-static DEFINE_CLASS_0(rtc, tegra_rtc_driver, tegra_rtc_methods,
-    sizeof(struct tegra_rtc_softc));
-DRIVER_MODULE(tegra_rtc, simplebus, tegra_rtc_driver, tegra_rtc_devclass,
-    NULL, NULL);
+static DEFINE_CLASS_0(
+    rtc, tegra_rtc_driver, tegra_rtc_methods, sizeof(struct tegra_rtc_softc));
+DRIVER_MODULE(
+    tegra_rtc, simplebus, tegra_rtc_driver, tegra_rtc_devclass, NULL, NULL);

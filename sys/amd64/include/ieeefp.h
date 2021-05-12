@@ -55,87 +55,87 @@
  * Rounding modes.
  */
 typedef enum {
-	FP_RN=0,	/* round to nearest */
-	FP_RM,		/* round down towards minus infinity */
-	FP_RP,		/* round up towards plus infinity */
-	FP_RZ		/* truncate */
+	FP_RN = 0, /* round to nearest */
+	FP_RM,	   /* round down towards minus infinity */
+	FP_RP,	   /* round up towards plus infinity */
+	FP_RZ	   /* truncate */
 } fp_rnd_t;
 
 /*
  * Precision (i.e., rounding precision) modes.
  */
 typedef enum {
-	FP_PS=0,	/* 24 bit (single-precision) */
-	FP_PRS,		/* reserved */
-	FP_PD,		/* 53 bit (double-precision) */
-	FP_PE		/* 64 bit (extended-precision) */
+	FP_PS = 0, /* 24 bit (single-precision) */
+	FP_PRS,	   /* reserved */
+	FP_PD,	   /* 53 bit (double-precision) */
+	FP_PE	   /* 64 bit (extended-precision) */
 } fp_prec_t;
 
-#define fp_except_t	int
+#define fp_except_t int
 
 /*
  * Exception bit masks.
  */
-#define FP_X_INV	0x01	/* invalid operation */
-#define FP_X_DNML	0x02	/* denormal */
-#define FP_X_DZ		0x04	/* zero divide */
-#define FP_X_OFL	0x08	/* overflow */
-#define FP_X_UFL	0x10	/* underflow */
-#define FP_X_IMP	0x20	/* (im)precision */
-#define FP_X_STK	0x40	/* stack fault */
+#define FP_X_INV 0x01 /* invalid operation */
+#define FP_X_DNML 0x02 /* denormal */
+#define FP_X_DZ 0x04 /* zero divide */
+#define FP_X_OFL 0x08 /* overflow */
+#define FP_X_UFL 0x10 /* underflow */
+#define FP_X_IMP 0x20 /* (im)precision */
+#define FP_X_STK 0x40 /* stack fault */
 
 /*
  * FPU control word bit-field masks.
  */
-#define FP_MSKS_FLD	0x3f	/* exception masks field */
-#define FP_PRC_FLD	0x300	/* precision control field */
-#define	FP_RND_FLD	0xc00	/* rounding control field */
+#define FP_MSKS_FLD 0x3f /* exception masks field */
+#define FP_PRC_FLD 0x300 /* precision control field */
+#define FP_RND_FLD 0xc00 /* rounding control field */
 
 /*
  * FPU status word bit-field masks.
  */
-#define FP_STKY_FLD	0x3f	/* sticky flags field */
+#define FP_STKY_FLD 0x3f /* sticky flags field */
 
 /*
  * SSE mxcsr register bit-field masks.
  */
-#define	SSE_STKY_FLD	0x3f	/* exception flags */
-#define	SSE_DAZ_FLD	0x40	/* Denormals are zero */
-#define	SSE_MSKS_FLD	0x1f80	/* exception masks field */
-#define	SSE_RND_FLD	0x6000	/* rounding control */
-#define	SSE_FZ_FLD	0x8000	/* flush to zero on underflow */
+#define SSE_STKY_FLD 0x3f /* exception flags */
+#define SSE_DAZ_FLD 0x40 /* Denormals are zero */
+#define SSE_MSKS_FLD 0x1f80 /* exception masks field */
+#define SSE_RND_FLD 0x6000 /* rounding control */
+#define SSE_FZ_FLD 0x8000 /* flush to zero on underflow */
 
 /*
  * FPU control word bit-field offsets (shift counts).
  */
-#define FP_MSKS_OFF	0	/* exception masks offset */
-#define FP_PRC_OFF	8	/* precision control offset */
-#define	FP_RND_OFF	10	/* rounding control offset */
+#define FP_MSKS_OFF 0 /* exception masks offset */
+#define FP_PRC_OFF 8 /* precision control offset */
+#define FP_RND_OFF 10 /* rounding control offset */
 
 /*
  * FPU status word bit-field offsets (shift counts).
  */
-#define FP_STKY_OFF	0	/* sticky flags offset */
+#define FP_STKY_OFF 0 /* sticky flags offset */
 
 /*
  * SSE mxcsr register bit-field offsets (shift counts).
  */
-#define	SSE_STKY_OFF	0	/* exception flags offset */
-#define	SSE_DAZ_OFF	6	/* DAZ exception mask offset */
-#define	SSE_MSKS_OFF	7	/* other exception masks offset */
-#define	SSE_RND_OFF	13	/* rounding control offset */
-#define	SSE_FZ_OFF	15	/* flush to zero offset */
+#define SSE_STKY_OFF 0 /* exception flags offset */
+#define SSE_DAZ_OFF 6 /* DAZ exception mask offset */
+#define SSE_MSKS_OFF 7 /* other exception masks offset */
+#define SSE_RND_OFF 13 /* rounding control offset */
+#define SSE_FZ_OFF 15 /* flush to zero offset */
 
 #ifdef __GNUCLIKE_ASM
 
-#define	__fldcw(addr)	__asm __volatile("fldcw %0" : : "m" (*(addr)))
-#define	__fldenv(addr)	__asm __volatile("fldenv %0" : : "m" (*(addr)))
-#define	__fnclex()	__asm __volatile("fnclex")
-#define	__fnstcw(addr)	__asm __volatile("fnstcw %0" : "=m" (*(addr)))
-#define	__fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
-#define	__fnstsw(addr)	__asm __volatile("fnstsw %0" : "=m" (*(addr)))
-#define	__ldmxcsr(addr)	__asm __volatile("ldmxcsr %0" : : "m" (*(addr)))
-#define	__stmxcsr(addr)	__asm __volatile("stmxcsr %0" : "=m" (*(addr)))
+#define __fldcw(addr) __asm __volatile("fldcw %0" : : "m"(*(addr)))
+#define __fldenv(addr) __asm __volatile("fldenv %0" : : "m"(*(addr)))
+#define __fnclex() __asm __volatile("fnclex")
+#define __fnstcw(addr) __asm __volatile("fnstcw %0" : "=m"(*(addr)))
+#define __fnstenv(addr) __asm __volatile("fnstenv %0" : "=m"(*(addr)))
+#define __fnstsw(addr) __asm __volatile("fnstsw %0" : "=m"(*(addr)))
+#define __ldmxcsr(addr) __asm __volatile("ldmxcsr %0" : : "m"(*(addr)))
+#define __stmxcsr(addr) __asm __volatile("stmxcsr %0" : "=m"(*(addr)))
 
 /*
  * Load the control word.  Be careful not to trap if there is a currently
@@ -284,26 +284,26 @@ __fpgetsticky(void)
 
 #if !defined(__IEEEFP_NOINLINES__) && defined(__GNUCLIKE_ASM)
 
-#define	fpgetmask()	__fpgetmask()
-#define	fpgetprec()	__fpgetprec()
-#define	fpgetround()	__fpgetround()
-#define	fpgetsticky()	__fpgetsticky()
-#define	fpsetmask(m)	__fpsetmask(m)
-#define	fpsetprec(m)	__fpsetprec(m)
-#define	fpsetround(m)	__fpsetround(m)
+#define fpgetmask() __fpgetmask()
+#define fpgetprec() __fpgetprec()
+#define fpgetround() __fpgetround()
+#define fpgetsticky() __fpgetsticky()
+#define fpsetmask(m) __fpsetmask(m)
+#define fpsetprec(m) __fpsetprec(m)
+#define fpsetround(m) __fpsetround(m)
 
 #else /* !(!__IEEEFP_NOINLINES__ && __GNUCLIKE_ASM) */
 
 /* Augment the userland declarations. */
 __BEGIN_DECLS
-extern fp_rnd_t    fpgetround(void);
-extern fp_rnd_t    fpsetround(fp_rnd_t);
+extern fp_rnd_t fpgetround(void);
+extern fp_rnd_t fpsetround(fp_rnd_t);
 extern fp_except_t fpgetmask(void);
 extern fp_except_t fpsetmask(fp_except_t);
 extern fp_except_t fpgetsticky(void);
 extern fp_except_t fpsetsticky(fp_except_t);
-fp_prec_t	fpgetprec(void);
-fp_prec_t	fpsetprec(fp_prec_t);
+fp_prec_t fpgetprec(void);
+fp_prec_t fpsetprec(fp_prec_t);
 __END_DECLS
 
 #endif /* !__IEEEFP_NOINLINES__ && __GNUCLIKE_ASM */

@@ -41,8 +41,8 @@
 
 struct lock_object;
 
-int _blockcount_sleep(blockcount_t *bc, struct lock_object *, const char *wmesg,
-    int prio);
+int _blockcount_sleep(
+    blockcount_t *bc, struct lock_object *, const char *wmesg, int prio);
 void _blockcount_wakeup(blockcount_t *bc, u_int old);
 
 static __inline void
@@ -77,18 +77,19 @@ blockcount_release(blockcount_t *bc, u_int n)
 }
 
 static __inline void
-_blockcount_wait(blockcount_t *bc, struct lock_object *lo, const char *wmesg,
-    int prio)
+_blockcount_wait(
+    blockcount_t *bc, struct lock_object *lo, const char *wmesg, int prio)
 {
-	KASSERT((prio & ~PRIMASK) == 0, ("%s: invalid prio %x", __func__, prio));
+	KASSERT(
+	    (prio & ~PRIMASK) == 0, ("%s: invalid prio %x", __func__, prio));
 
 	while (_blockcount_sleep(bc, lo, wmesg, prio) == EAGAIN)
 		;
 }
 
-#define	blockcount_sleep(bc, lo, wmesg, prio)	\
+#define blockcount_sleep(bc, lo, wmesg, prio) \
 	_blockcount_sleep((bc), (struct lock_object *)(lo), (wmesg), (prio))
-#define	blockcount_wait(bc, lo, wmesg, prio)	\
+#define blockcount_wait(bc, lo, wmesg, prio) \
 	_blockcount_wait((bc), (struct lock_object *)(lo), (wmesg), (prio))
 
 #endif /* _KERNEL */

@@ -37,47 +37,48 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 #include <machine/machdep.h>
 
 #include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/freescale/imx/imx_ccmvar.h>
 #include <arm/freescale/imx/imx_machdep.h>
 
-#define	EPIT_CR				0x00		/* Control register */
-#define	  EPIT_CR_CLKSRC_SHIFT		  24
-#define	  EPIT_CR_CLKSRC_OFF		   0
-#define	  EPIT_CR_CLKSRC_IPG		   1
-#define	  EPIT_CR_CLKSRC_HFCLK		   2
-#define	  EPIT_CR_CLKSRC_LFCLK		   3
-#define	  EPIT_CR_STOPEN		  (1u << 21)
-#define	  EPIT_CR_WAITEN		  (1u << 19)
-#define	  EPIT_CR_DBGEN			  (1u << 18)
-#define	  EPIT_CR_IOVW			  (1u << 17)
-#define	  EPIT_CR_SWR			  (1u << 16)
-#define	  EPIT_CR_RLD			  (1u <<  3)
-#define	  EPIT_CR_OCIEN			  (1u <<  2)
-#define	  EPIT_CR_ENMOD			  (1u <<  1)
-#define	  EPIT_CR_EN			  (1u <<  0)
+#define EPIT_CR 0x00 /* Control register */
+#define EPIT_CR_CLKSRC_SHIFT 24
+#define EPIT_CR_CLKSRC_OFF 0
+#define EPIT_CR_CLKSRC_IPG 1
+#define EPIT_CR_CLKSRC_HFCLK 2
+#define EPIT_CR_CLKSRC_LFCLK 3
+#define EPIT_CR_STOPEN (1u << 21)
+#define EPIT_CR_WAITEN (1u << 19)
+#define EPIT_CR_DBGEN (1u << 18)
+#define EPIT_CR_IOVW (1u << 17)
+#define EPIT_CR_SWR (1u << 16)
+#define EPIT_CR_RLD (1u << 3)
+#define EPIT_CR_OCIEN (1u << 2)
+#define EPIT_CR_ENMOD (1u << 1)
+#define EPIT_CR_EN (1u << 0)
 
-#define	EPIT_SR				0x04		/* Status register */
-#define	  EPIT_SR_OCIF			  (1u << 0)
+#define EPIT_SR 0x04 /* Status register */
+#define EPIT_SR_OCIF (1u << 0)
 
-#define	EPIT_LR				0x08		/* Load register */
-#define	EPIT_CMPR			0x0c		/* Compare register */
-#define	EPIT_CNR			0x10		/* Counter register */
+#define EPIT_LR 0x08 /* Load register */
+#define EPIT_CMPR 0x0c /* Compare register */
+#define EPIT_CNR 0x10 /* Counter register */
 
 /*
  * Define event timer limits.
@@ -88,22 +89,22 @@ __FBSDID("$FreeBSD$");
  * manual make it appear that a setting of 1 might cause it to miss the event,
  * so I'm setting the lower limit to 2 ticks.
  */
-#define	ET_MIN_TICKS	2
-#define	ET_MAX_TICKS	0xfffffffe
+#define ET_MIN_TICKS 2
+#define ET_MAX_TICKS 0xfffffffe
 
 static u_int epit_tc_get_timecount(struct timecounter *tc);
 
 struct epit_softc {
-	device_t 		dev;
-	struct resource *	memres;
-	struct resource *	intres;
-	void *			inthandle;
-	uint32_t 		clkfreq;
-	uint32_t 		ctlreg;
-	uint32_t		period;
-	struct timecounter	tc;
-	struct eventtimer	et;
-	bool			oneshot;
+	device_t dev;
+	struct resource *memres;
+	struct resource *intres;
+	void *inthandle;
+	uint32_t clkfreq;
+	uint32_t ctlreg;
+	uint32_t period;
+	struct timecounter tc;
+	struct eventtimer et;
+	bool oneshot;
 };
 
 /*
@@ -113,23 +114,16 @@ struct epit_softc {
  * uses the name of the node (must contain "epit") and the address of the
  * registers as identifying marks.
  */
-static const uint32_t imx51_epit_ioaddr[2] = {0x73fac000, 0x73fb0000};
-static const uint32_t imx53_epit_ioaddr[2] = {0x53fac000, 0x53fb0000};
-static const uint32_t imx6_epit_ioaddr[2]  = {0x020d0000, 0x020d4000};
+static const uint32_t imx51_epit_ioaddr[2] = { 0x73fac000, 0x73fb0000 };
+static const uint32_t imx53_epit_ioaddr[2] = { 0x53fac000, 0x53fb0000 };
+static const uint32_t imx6_epit_ioaddr[2] = { 0x020d0000, 0x020d4000 };
 
 /* ocd_data is number of units to instantiate on the platform */
-static struct ofw_compat_data compat_data[] = {
-	{"fsl,imx6ul-epit", 1},
-	{"fsl,imx6sx-epit", 1},
-	{"fsl,imx6q-epit",  1},
-	{"fsl,imx6dl-epit", 1},
-	{"fsl,imx53-epit",  2},
-	{"fsl,imx51-epit",  2},
-	{"fsl,imx31-epit",  2},
-	{"fsl,imx27-epit",  2},
-	{"fsl,imx25-epit",  2},
-	{NULL,              0}
-};
+static struct ofw_compat_data compat_data[] = { { "fsl,imx6ul-epit", 1 },
+	{ "fsl,imx6sx-epit", 1 }, { "fsl,imx6q-epit", 1 },
+	{ "fsl,imx6dl-epit", 1 }, { "fsl,imx53-epit", 2 },
+	{ "fsl,imx51-epit", 2 }, { "fsl,imx31-epit", 2 },
+	{ "fsl,imx27-epit", 2 }, { "fsl,imx25-epit", 2 }, { NULL, 0 } };
 
 static inline uint32_t
 RD4(struct epit_softc *sc, bus_size_t offset)
@@ -204,12 +198,12 @@ epit_tc_attach(struct epit_softc *sc)
 	WR4(sc, EPIT_CR, sc->ctlreg | EPIT_CR_EN);
 
 	/* Register as a timecounter. */
-	sc->tc.tc_name          = "EPIT";
-	sc->tc.tc_quality       = 1000;
-	sc->tc.tc_frequency     = sc->clkfreq;
-	sc->tc.tc_counter_mask  = 0xffffffff;
+	sc->tc.tc_name = "EPIT";
+	sc->tc.tc_quality = 1000;
+	sc->tc.tc_frequency = sc->clkfreq;
+	sc->tc.tc_counter_mask = 0xffffffff;
 	sc->tc.tc_get_timecount = epit_tc_get_timecount;
-	sc->tc.tc_priv          = sc;
+	sc->tc.tc_priv = sc;
 	tc_init(&sc->tc);
 
 	/* We are the DELAY() implementation. */
@@ -303,8 +297,8 @@ epit_et_attach(struct epit_softc *sc)
 	int err, rid;
 
 	rid = 0;
-	sc->intres = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->intres = bus_alloc_resource_any(
+	    sc->dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->intres == NULL) {
 		device_printf(sc->dev, "could not allocate interrupt\n");
 		return (ENXIO);
@@ -325,8 +319,8 @@ epit_et_attach(struct epit_softc *sc)
 	sc->et.et_flags = ET_FLAGS_ONESHOT | ET_FLAGS_PERIODIC;
 	sc->et.et_quality = 1000;
 	sc->et.et_frequency = sc->clkfreq;
-	sc->et.et_min_period = ((uint64_t)ET_MIN_TICKS  << 32) / sc->clkfreq;
-	sc->et.et_max_period = ((uint64_t)ET_MAX_TICKS  << 32) / sc->clkfreq;
+	sc->et.et_min_period = ((uint64_t)ET_MIN_TICKS << 32) / sc->clkfreq;
+	sc->et.et_max_period = ((uint64_t)ET_MAX_TICKS << 32) / sc->clkfreq;
 	sc->et.et_start = epit_et_start;
 	sc->et.et_stop = epit_et_stop;
 	sc->et.et_priv = sc;
@@ -415,8 +409,8 @@ epit_attach(device_t dev)
 	sc->dev = dev;
 
 	rid = 0;
-	sc->memres = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->memres = bus_alloc_resource_any(
+	    sc->dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->memres == NULL) {
 		device_printf(sc->dev, "could not allocate registers\n");
 		return (ENXIO);
@@ -429,9 +423,9 @@ epit_attach(device_t dev)
 
 	switch (clksrc) {
 	default:
-		device_printf(dev, 
-		    "Unsupported clock source '%d', using IPG\n", clksrc);
-                /* FALLTHROUGH */
+		device_printf(
+		    dev, "Unsupported clock source '%d', using IPG\n", clksrc);
+		/* FALLTHROUGH */
 	case EPIT_CR_CLKSRC_IPG:
 		sc->clkfreq = imx_ccm_ipg_hz();
 		break;
@@ -449,13 +443,12 @@ epit_attach(device_t dev)
 	 */
 	WR4(sc, EPIT_CR, 0);
 
-	sc->ctlreg =
-	    (clksrc << EPIT_CR_CLKSRC_SHIFT) |  /* Use selected clock */
-	    EPIT_CR_ENMOD  |                    /* Reload counter on enable */
-	    EPIT_CR_RLD    |                    /* Reload counter from LR */
-	    EPIT_CR_STOPEN |                    /* Run in STOP mode */
-	    EPIT_CR_WAITEN |                    /* Run in WAIT mode */
-	    EPIT_CR_DBGEN;                      /* Run in DEBUG mode */
+	sc->ctlreg = (clksrc << EPIT_CR_CLKSRC_SHIFT) | /* Use selected clock */
+	    EPIT_CR_ENMOD |  /* Reload counter on enable */
+	    EPIT_CR_RLD |    /* Reload counter from LR */
+	    EPIT_CR_STOPEN | /* Run in STOP mode */
+	    EPIT_CR_WAITEN | /* Run in WAIT mode */
+	    EPIT_CR_DBGEN;   /* Run in DEBUG mode */
 
 	WR4B(sc, EPIT_CR, sc->ctlreg | EPIT_CR_SWR);
 	while (RD4(sc, EPIT_CR) & EPIT_CR_SWR)
@@ -472,12 +465,10 @@ epit_attach(device_t dev)
 	return (err);
 }
 
-static device_method_t epit_methods[] = {
-	DEVMETHOD(device_probe,		epit_probe),
-	DEVMETHOD(device_attach,	epit_attach),
+static device_method_t epit_methods[] = { DEVMETHOD(device_probe, epit_probe),
+	DEVMETHOD(device_attach, epit_attach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t epit_driver = {
 	"imx_epit",
@@ -487,5 +478,5 @@ static driver_t epit_driver = {
 
 static devclass_t epit_devclass;
 
-EARLY_DRIVER_MODULE(imx_epit, simplebus, epit_driver, epit_devclass, 0,
-    0, BUS_PASS_TIMER);
+EARLY_DRIVER_MODULE(
+    imx_epit, simplebus, epit_driver, epit_devclass, 0, 0, BUS_PASS_TIMER);

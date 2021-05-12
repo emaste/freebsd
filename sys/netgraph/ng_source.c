@@ -66,207 +66,137 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+
 #include <net/if.h>
 #include <net/if_var.h>
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
 #include <netgraph/ng_ether.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
 #include <netgraph/ng_source.h>
 
-#define NG_SOURCE_INTR_TICKS		1
-#define NG_SOURCE_DRIVER_IFQ_MAXLEN	(4*1024)
+#define NG_SOURCE_INTR_TICKS 1
+#define NG_SOURCE_DRIVER_IFQ_MAXLEN (4 * 1024)
 
-#define	mtod_off(m,off,t)	((t)(mtod((m),caddr_t)+(off)))
+#define mtod_off(m, off, t) ((t)(mtod((m), caddr_t) + (off)))
 
 /* Per node info */
 struct privdata {
-	node_p				node;
-	hook_p				input;
-	hook_p				output;
-	struct ng_source_stats		stats;
-	struct mbufq			snd_queue;	/* packets to send */
-	struct mbuf			*last_packet;	/* last pkt in queue */
-	struct ifnet			*output_ifp;
-	struct callout			intr_ch;
-	uint64_t			packets;	/* packets to send */
-	uint32_t			queueOctets;
-	struct ng_source_embed_info	embed_timestamp;
-	struct ng_source_embed_cnt_info	embed_counter[NG_SOURCE_COUNTERS];
+	node_p node;
+	hook_p input;
+	hook_p output;
+	struct ng_source_stats stats;
+	struct mbufq snd_queue;	  /* packets to send */
+	struct mbuf *last_packet; /* last pkt in queue */
+	struct ifnet *output_ifp;
+	struct callout intr_ch;
+	uint64_t packets; /* packets to send */
+	uint32_t queueOctets;
+	struct ng_source_embed_info embed_timestamp;
+	struct ng_source_embed_cnt_info embed_counter[NG_SOURCE_COUNTERS];
 };
 typedef struct privdata *sc_p;
 
 /* Node flags */
-#define NG_SOURCE_ACTIVE	(NGF_TYPE1)
+#define NG_SOURCE_ACTIVE (NGF_TYPE1)
 
 /* Netgraph methods */
-static ng_constructor_t	ng_source_constructor;
-static ng_rcvmsg_t	ng_source_rcvmsg;
-static ng_shutdown_t	ng_source_rmnode;
-static ng_newhook_t	ng_source_newhook;
-static ng_connect_t	ng_source_connect;
-static ng_rcvdata_t	ng_source_rcvdata;
-static ng_disconnect_t	ng_source_disconnect;
+static ng_constructor_t ng_source_constructor;
+static ng_rcvmsg_t ng_source_rcvmsg;
+static ng_shutdown_t ng_source_rmnode;
+static ng_newhook_t ng_source_newhook;
+static ng_connect_t ng_source_connect;
+static ng_rcvdata_t ng_source_rcvdata;
+static ng_disconnect_t ng_source_disconnect;
 
 /* Other functions */
-static void		ng_source_intr(node_p, hook_p, void *, int);
-static void		ng_source_clr_data (sc_p);
-static int		ng_source_start (sc_p, uint64_t);
-static void		ng_source_stop (sc_p);
-static int		ng_source_send (sc_p, int, int *);
-static int		ng_source_store_output_ifp(sc_p, char *);
-static void		ng_source_packet_mod(sc_p, struct mbuf *,
-			    int, int, caddr_t, int);
-static void		ng_source_mod_counter(sc_p sc,
-			    struct ng_source_embed_cnt_info *cnt,
-			    struct mbuf *m, int increment);
-static int		ng_source_dup_mod(sc_p, struct mbuf *,
-			    struct mbuf **);
+static void ng_source_intr(node_p, hook_p, void *, int);
+static void ng_source_clr_data(sc_p);
+static int ng_source_start(sc_p, uint64_t);
+static void ng_source_stop(sc_p);
+static int ng_source_send(sc_p, int, int *);
+static int ng_source_store_output_ifp(sc_p, char *);
+static void ng_source_packet_mod(sc_p, struct mbuf *, int, int, caddr_t, int);
+static void ng_source_mod_counter(sc_p sc, struct ng_source_embed_cnt_info *cnt,
+    struct mbuf *m, int increment);
+static int ng_source_dup_mod(sc_p, struct mbuf *, struct mbuf **);
 
 /* Parse type for timeval */
 static const struct ng_parse_struct_field ng_source_timeval_type_fields[] = {
 #ifdef __i386__
-	{ "tv_sec",		&ng_parse_int32_type	},
+	{ "tv_sec", &ng_parse_int32_type },
 #else
-	{ "tv_sec",		&ng_parse_int64_type	},
+	{ "tv_sec", &ng_parse_int64_type },
 #endif
 #ifdef __LP64__
-	{ "tv_usec",		&ng_parse_int64_type	},
+	{ "tv_usec", &ng_parse_int64_type },
 #else
-	{ "tv_usec",		&ng_parse_int32_type	},
+	{ "tv_usec", &ng_parse_int32_type },
 #endif
 	{ NULL }
 };
-const struct ng_parse_type ng_source_timeval_type = {
-	&ng_parse_struct_type,
-	&ng_source_timeval_type_fields
-};
+const struct ng_parse_type ng_source_timeval_type = { &ng_parse_struct_type,
+	&ng_source_timeval_type_fields };
 
 /* Parse type for struct ng_source_stats */
-static const struct ng_parse_struct_field ng_source_stats_type_fields[]
-	= NG_SOURCE_STATS_TYPE_INFO;
+static const struct ng_parse_struct_field ng_source_stats_type_fields[] =
+    NG_SOURCE_STATS_TYPE_INFO;
 static const struct ng_parse_type ng_source_stats_type = {
-	&ng_parse_struct_type,
-	&ng_source_stats_type_fields
+	&ng_parse_struct_type, &ng_source_stats_type_fields
 };
 
 /* Parse type for struct ng_source_embed_info */
 static const struct ng_parse_struct_field ng_source_embed_type_fields[] =
-	NG_SOURCE_EMBED_TYPE_INFO;
+    NG_SOURCE_EMBED_TYPE_INFO;
 static const struct ng_parse_type ng_source_embed_type = {
-	&ng_parse_struct_type,
-	&ng_source_embed_type_fields
+	&ng_parse_struct_type, &ng_source_embed_type_fields
 };
 
 /* Parse type for struct ng_source_embed_cnt_info */
 static const struct ng_parse_struct_field ng_source_embed_cnt_type_fields[] =
-	NG_SOURCE_EMBED_CNT_TYPE_INFO;
+    NG_SOURCE_EMBED_CNT_TYPE_INFO;
 static const struct ng_parse_type ng_source_embed_cnt_type = {
-	&ng_parse_struct_type,
-	&ng_source_embed_cnt_type_fields
+	&ng_parse_struct_type, &ng_source_embed_cnt_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_source_cmds[] = {
-	{
-	  NGM_SOURCE_COOKIE,
-	  NGM_SOURCE_GET_STATS,
-	  "getstats",
-	  NULL,
-	  &ng_source_stats_type
-	},
-	{
-	  NGM_SOURCE_COOKIE,
-	  NGM_SOURCE_CLR_STATS,
-	  "clrstats",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_SOURCE_COOKIE,
-	  NGM_SOURCE_GETCLR_STATS,
-	  "getclrstats",
-	  NULL,
-	  &ng_source_stats_type
-	},
-	{
-	  NGM_SOURCE_COOKIE,
-	  NGM_SOURCE_START,
-	  "start",
-	  &ng_parse_uint64_type,
-	  NULL
-	},
-	{
-	  NGM_SOURCE_COOKIE,
-	  NGM_SOURCE_STOP,
-	  "stop",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_SOURCE_COOKIE,
-	  NGM_SOURCE_CLR_DATA,
-	  "clrdata",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_SOURCE_COOKIE,
-	  NGM_SOURCE_SETIFACE,
-	  "setiface",
-	  &ng_parse_string_type,
-	  NULL
-	},
-	{
-	  NGM_SOURCE_COOKIE,
-	  NGM_SOURCE_SETPPS,
-	  "setpps",
-	  &ng_parse_uint32_type,
-	  NULL
-	},
-	{
-	  NGM_SOURCE_COOKIE,
-	  NGM_SOURCE_SET_TIMESTAMP,
-	  "settimestamp",
-	  &ng_source_embed_type,
-	  NULL
-	},
-	{
-	  NGM_SOURCE_COOKIE,
-	  NGM_SOURCE_GET_TIMESTAMP,
-	  "gettimestamp",
-	  NULL,
-	  &ng_source_embed_type
-	},
-	{
-	  NGM_SOURCE_COOKIE,
-	  NGM_SOURCE_SET_COUNTER,
-	  "setcounter",
-	  &ng_source_embed_cnt_type,
-	  NULL
-	},
-	{
-	  NGM_SOURCE_COOKIE,
-	  NGM_SOURCE_GET_COUNTER,
-	  "getcounter",
-	  &ng_parse_uint8_type,
-	  &ng_source_embed_cnt_type
-	},
+	{ NGM_SOURCE_COOKIE, NGM_SOURCE_GET_STATS, "getstats", NULL,
+	    &ng_source_stats_type },
+	{ NGM_SOURCE_COOKIE, NGM_SOURCE_CLR_STATS, "clrstats", NULL, NULL },
+	{ NGM_SOURCE_COOKIE, NGM_SOURCE_GETCLR_STATS, "getclrstats", NULL,
+	    &ng_source_stats_type },
+	{ NGM_SOURCE_COOKIE, NGM_SOURCE_START, "start", &ng_parse_uint64_type,
+	    NULL },
+	{ NGM_SOURCE_COOKIE, NGM_SOURCE_STOP, "stop", NULL, NULL },
+	{ NGM_SOURCE_COOKIE, NGM_SOURCE_CLR_DATA, "clrdata", NULL, NULL },
+	{ NGM_SOURCE_COOKIE, NGM_SOURCE_SETIFACE, "setiface",
+	    &ng_parse_string_type, NULL },
+	{ NGM_SOURCE_COOKIE, NGM_SOURCE_SETPPS, "setpps", &ng_parse_uint32_type,
+	    NULL },
+	{ NGM_SOURCE_COOKIE, NGM_SOURCE_SET_TIMESTAMP, "settimestamp",
+	    &ng_source_embed_type, NULL },
+	{ NGM_SOURCE_COOKIE, NGM_SOURCE_GET_TIMESTAMP, "gettimestamp", NULL,
+	    &ng_source_embed_type },
+	{ NGM_SOURCE_COOKIE, NGM_SOURCE_SET_COUNTER, "setcounter",
+	    &ng_source_embed_cnt_type, NULL },
+	{ NGM_SOURCE_COOKIE, NGM_SOURCE_GET_COUNTER, "getcounter",
+	    &ng_parse_uint8_type, &ng_source_embed_cnt_type },
 	{ 0 }
 };
 
 /* Netgraph type descriptor */
 static struct ng_type ng_source_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_SOURCE_NODE_TYPE,
-	.constructor =	ng_source_constructor,
-	.rcvmsg =	ng_source_rcvmsg,
-	.shutdown =	ng_source_rmnode,
-	.newhook =	ng_source_newhook,
-	.connect =	ng_source_connect,
-	.rcvdata =	ng_source_rcvdata,
-	.disconnect =	ng_source_disconnect,
-	.cmdlist =	ng_source_cmds,
+	.version = NG_ABI_VERSION,
+	.name = NG_SOURCE_NODE_TYPE,
+	.constructor = ng_source_constructor,
+	.rcvmsg = ng_source_rcvmsg,
+	.shutdown = ng_source_rmnode,
+	.newhook = ng_source_newhook,
+	.connect = ng_source_connect,
+	.rcvdata = ng_source_rcvdata,
+	.disconnect = ng_source_disconnect,
+	.cmdlist = ng_source_cmds,
 };
 NETGRAPH_INIT(source, &ng_source_typestruct);
 
@@ -325,8 +255,8 @@ ng_source_connect(hook_p hook)
 	 * from our downstream.
 	 */
 	if (hook == sc->output) {
-		NG_MKMESSAGE(msg, NGM_ETHER_COOKIE, NGM_ETHER_GET_IFNAME,
-		    0, M_NOWAIT);
+		NG_MKMESSAGE(
+		    msg, NGM_ETHER_COOKIE, NGM_ETHER_GET_IFNAME, 0, M_NOWAIT);
 		if (msg == NULL)
 			return (ENOBUFS);
 
@@ -362,34 +292,32 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		switch (msg->header.cmd) {
 		case NGM_SOURCE_GET_STATS:
 		case NGM_SOURCE_CLR_STATS:
-		case NGM_SOURCE_GETCLR_STATS:
-                    {
+		case NGM_SOURCE_GETCLR_STATS: {
 			struct ng_source_stats *stats;
 
-                        if (msg->header.cmd != NGM_SOURCE_CLR_STATS) {
-                                NG_MKRESPONSE(resp, msg,
-                                    sizeof(*stats), M_NOWAIT);
+			if (msg->header.cmd != NGM_SOURCE_CLR_STATS) {
+				NG_MKRESPONSE(
+				    resp, msg, sizeof(*stats), M_NOWAIT);
 				if (resp == NULL) {
 					error = ENOMEM;
 					goto done;
 				}
 				sc->stats.queueOctets = sc->queueOctets;
-				sc->stats.queueFrames = mbufq_len(&sc->snd_queue);
-				if ((sc->node->nd_flags & NG_SOURCE_ACTIVE)
-				    && !timevalisset(&sc->stats.endTime)) {
+				sc->stats.queueFrames = mbufq_len(
+				    &sc->snd_queue);
+				if ((sc->node->nd_flags & NG_SOURCE_ACTIVE) &&
+				    !timevalisset(&sc->stats.endTime)) {
 					getmicrotime(&sc->stats.elapsedTime);
 					timevalsub(&sc->stats.elapsedTime,
 					    &sc->stats.startTime);
 				}
 				stats = (struct ng_source_stats *)resp->data;
-				bcopy(&sc->stats, stats, sizeof(* stats));
-                        }
-                        if (msg->header.cmd != NGM_SOURCE_GET_STATS)
+				bcopy(&sc->stats, stats, sizeof(*stats));
+			}
+			if (msg->header.cmd != NGM_SOURCE_GET_STATS)
 				bzero(&sc->stats, sizeof(sc->stats));
-		    }
-		    break;
-		case NGM_SOURCE_START:
-		    {
+		} break;
+		case NGM_SOURCE_START: {
 			uint64_t packets;
 
 			if (msg->header.arglen != sizeof(uint64_t)) {
@@ -401,16 +329,15 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			error = ng_source_start(sc, packets);
 
-		    	break;
-		    }
+			break;
+		}
 		case NGM_SOURCE_STOP:
 			ng_source_stop(sc);
 			break;
 		case NGM_SOURCE_CLR_DATA:
 			ng_source_clr_data(sc);
 			break;
-		case NGM_SOURCE_SETIFACE:
-		    {
+		case NGM_SOURCE_SETIFACE: {
 			char *ifname = (char *)msg->data;
 
 			if (msg->header.arglen < 2) {
@@ -420,9 +347,8 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			ng_source_store_output_ifp(sc, ifname);
 			break;
-		    }
-		case NGM_SOURCE_SETPPS:
-		    {
+		}
+		case NGM_SOURCE_SETPPS: {
 			uint32_t pps;
 
 			if (msg->header.arglen != sizeof(uint32_t)) {
@@ -435,9 +361,8 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			sc->stats.maxPps = pps;
 
 			break;
-		    }
-		case NGM_SOURCE_SET_TIMESTAMP:
-		    {
+		}
+		case NGM_SOURCE_SET_TIMESTAMP: {
 			struct ng_source_embed_info *embed;
 
 			if (msg->header.arglen != sizeof(*embed)) {
@@ -448,9 +373,8 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			bcopy(embed, &sc->embed_timestamp, sizeof(*embed));
 
 			break;
-		    }
-		case NGM_SOURCE_GET_TIMESTAMP:
-		    {
+		}
+		case NGM_SOURCE_GET_TIMESTAMP: {
 			struct ng_source_embed_info *embed;
 
 			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_NOWAIT);
@@ -462,9 +386,8 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			bcopy(&sc->embed_timestamp, embed, sizeof(*embed));
 
 			break;
-		    }
-		case NGM_SOURCE_SET_COUNTER:
-		    {
+		}
+		case NGM_SOURCE_SET_COUNTER: {
 			struct ng_source_embed_cnt_info *embed;
 
 			if (msg->header.arglen != sizeof(*embed)) {
@@ -474,7 +397,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			embed = (struct ng_source_embed_cnt_info *)msg->data;
 			if (embed->index >= NG_SOURCE_COUNTERS ||
 			    !(embed->width == 1 || embed->width == 2 ||
-			    embed->width == 4)) {
+				embed->width == 4)) {
 				error = EINVAL;
 				goto done;
 			}
@@ -482,9 +405,8 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			    sizeof(*embed));
 
 			break;
-		    }
-		case NGM_SOURCE_GET_COUNTER:
-		    {
+		}
+		case NGM_SOURCE_GET_COUNTER: {
 			uint8_t index = *(uint8_t *)msg->data;
 			struct ng_source_embed_cnt_info *embed;
 
@@ -501,7 +423,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			bcopy(&sc->embed_counter[index], embed, sizeof(*embed));
 
 			break;
-		    }
+		}
 		default:
 			error = EINVAL;
 			break;
@@ -513,8 +435,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			break;
 		}
 		switch (msg->header.cmd) {
-		case NGM_ETHER_GET_IFNAME:
-		    {
+		case NGM_ETHER_GET_IFNAME: {
 			char *ifname = (char *)msg->data;
 
 			if (msg->header.arglen < 2) {
@@ -525,7 +446,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (ng_source_store_output_ifp(sc, ifname) == 0)
 				ng_source_set_autosrc(sc, 0);
 			break;
-		    }
+		}
 		default:
 			error = EINVAL;
 		}
@@ -653,9 +574,9 @@ ng_source_set_autosrc(sc_p sc, uint32_t flag)
 	int error = 0;
 
 	NG_MKMESSAGE(msg, NGM_ETHER_COOKIE, NGM_ETHER_SET_AUTOSRC,
-	    sizeof (uint32_t), M_NOWAIT);
+	    sizeof(uint32_t), M_NOWAIT);
 	if (msg == NULL)
-		return(ENOBUFS);
+		return (ENOBUFS);
 
 	*(uint32_t *)msg->data = flag;
 	NG_SEND_MSG_HOOK(error, sc->node, msg, sc->output, 0);
@@ -666,12 +587,12 @@ ng_source_set_autosrc(sc_p sc, uint32_t flag)
  * Clear out the data we've queued
  */
 static void
-ng_source_clr_data (sc_p sc)
+ng_source_clr_data(sc_p sc)
 {
 	struct mbuf *m;
 
 	for (;;) {
-		m =  mbufq_dequeue(&sc->snd_queue);
+		m = mbufq_dequeue(&sc->snd_queue);
 		if (m == NULL)
 			break;
 		NG_FREE_M(m);
@@ -701,8 +622,7 @@ ng_source_start(sc_p sc, uint64_t packets)
 	timevalclear(&sc->stats.endTime);
 	getmicrotime(&sc->stats.startTime);
 	getmicrotime(&sc->stats.lastTime);
-	ng_callout(&sc->intr_ch, sc->node, NULL, 0,
-	    ng_source_intr, sc, 0);
+	ng_callout(&sc->intr_ch, sc->node, NULL, 0, ng_source_intr, sc, 0);
 
 	return (0);
 }
@@ -734,8 +654,8 @@ ng_source_intr(node_p node, hook_p hook, void *arg1, int arg2)
 
 	KASSERT(sc != NULL, ("%s: null node private", __func__));
 
-	if (sc->packets == 0 || sc->output == NULL
-	    || (sc->node->nd_flags & NG_SOURCE_ACTIVE) == 0) {
+	if (sc->packets == 0 || sc->output == NULL ||
+	    (sc->node->nd_flags & NG_SOURCE_ACTIVE) == 0) {
 		ng_source_stop(sc);
 		return;
 	}
@@ -747,9 +667,9 @@ ng_source_intr(node_p node, hook_p hook, void *arg1, int arg2)
 		packets = mbufq_len(&sc->snd_queue);
 
 	if (sc->stats.maxPps != 0) {
-		struct timeval	now, elapsed;
-		uint64_t	usec;
-		int		maxpkt;
+		struct timeval now, elapsed;
+		uint64_t usec;
+		int maxpkt;
 
 		getmicrotime(&now);
 		elapsed = now;
@@ -831,8 +751,8 @@ ng_source_send(sc_p sc, int tosend, int *sent_p)
  * The packet data in 'm' must be in a contiguous buffer in a single mbuf.
  */
 static void
-ng_source_packet_mod(sc_p sc, struct mbuf *m, int offset, int len, caddr_t cp,
-    int flags)
+ng_source_packet_mod(
+    sc_p sc, struct mbuf *m, int offset, int len, caddr_t cp, int flags)
 {
 	if (len == 0)
 		return;
@@ -923,10 +843,10 @@ ng_source_dup_mod(sc_p sc, struct mbuf *m0, struct mbuf **m_ptr)
 		getmicrotime(&now);
 		now.tv_sec = htonl(now.tv_sec);
 		now.tv_usec = htonl(now.tv_usec);
-		ng_source_packet_mod(sc, m, ts->offset, sizeof (now),
-		    (caddr_t)&now, ts->flags);
+		ng_source_packet_mod(
+		    sc, m, ts->offset, sizeof(now), (caddr_t)&now, ts->flags);
 	}
 
 done:
-	return(error);
+	return (error);
 }

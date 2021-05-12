@@ -42,13 +42,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/timetc.h>
-#include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/sched.h>
+#include <sys/timetc.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
+
 #include <x86/init.h>
 
 static void

@@ -44,17 +44,12 @@ __FBSDID("$FreeBSD$");
 #include "gssd.h"
 #include "kgss_if.h"
 
-OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
-    gss_ctx_id_t *context_handle,
-    const gss_cred_id_t acceptor_cred_handle,
-    const gss_buffer_t input_token,
-    const gss_channel_bindings_t input_chan_bindings,
-    gss_name_t *src_name,
-    gss_OID *mech_type,
-    gss_buffer_t output_token,
-    OM_uint32 *ret_flags,
-    OM_uint32 *time_rec,
-    gss_cred_id_t *delegated_cred_handle)
+OM_uint32
+gss_accept_sec_context(OM_uint32 *minor_status, gss_ctx_id_t *context_handle,
+    const gss_cred_id_t acceptor_cred_handle, const gss_buffer_t input_token,
+    const gss_channel_bindings_t input_chan_bindings, gss_name_t *src_name,
+    gss_OID *mech_type, gss_buffer_t output_token, OM_uint32 *ret_flags,
+    OM_uint32 *time_rec, gss_cred_id_t *delegated_cred_handle)
 {
 	struct accept_sec_context_res res;
 	struct accept_sec_context_args args;
@@ -89,10 +84,10 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 		return (GSS_S_FAILURE);
 	}
 
-	if (res.major_status != GSS_S_COMPLETE
-	    && res.major_status != GSS_S_CONTINUE_NEEDED) {
+	if (res.major_status != GSS_S_COMPLETE &&
+	    res.major_status != GSS_S_CONTINUE_NEEDED) {
 		*minor_status = res.minor_status;
-		xdr_free((xdrproc_t) xdr_accept_sec_context_res, &res);
+		xdr_free((xdrproc_t)xdr_accept_sec_context_res, &res);
 		return (res.major_status);
 	}
 
@@ -101,7 +96,7 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 	if (!ctx) {
 		ctx = kgss_create_context(res.mech_type);
 		if (!ctx) {
-			xdr_free((xdrproc_t) xdr_accept_sec_context_res, &res);
+			xdr_free((xdrproc_t)xdr_accept_sec_context_res, &res);
 			*minor_status = 0;
 			return (GSS_S_BAD_MECH);
 		}
@@ -133,7 +128,7 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 		gss_release_cred(&junk, &cred);
 	}
 
-	xdr_free((xdrproc_t) xdr_accept_sec_context_res, &res);
+	xdr_free((xdrproc_t)xdr_accept_sec_context_res, &res);
 
 	/*
 	 * If the context establishment is complete, export it from

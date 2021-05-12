@@ -25,7 +25,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * From: FreeBSD: src/sys/powerpc/mpc85xx/pci_ocp.c,v 1.9 2010/03/23 23:46:28 marcel
+ * From: FreeBSD: src/sys/powerpc/mpc85xx/pci_ocp.c,v 1.9 2010/03/23 23:46:28
+ * marcel
  */
 
 #include <sys/cdefs.h>
@@ -33,50 +34,49 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/ktr.h>
-#include <sys/sockio.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/socket.h>
-#include <sys/queue.h>
 #include <sys/bus.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/rman.h>
 #include <sys/endian.h>
+#include <sys/kernel.h>
+#include <sys/ktr.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
+#include <sys/rman.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_pci.h>
+#include <machine/intr_machdep.h>
+
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
+#include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/pci/pcib_private.h>
-
-#include <machine/intr_machdep.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include "pcib_if.h"
 
 DECLARE_CLASS(ofw_pcib_pci_driver);
 
 struct fsl_pcib_softc {
-        /*
-         * This is here so that we can use pci bridge methods, too - the
-         * generic routines only need the dev, secbus and subbus members
-         * filled.
-         *
-         * XXX: This should be extracted from ofw_pcib_pci.c, and shared in a
-         * header.
-         */
-        struct pcib_softc       ops_pcib_sc;
-	phandle_t		ops_node;
-        struct ofw_bus_iinfo    ops_iinfo;
+	/*
+	 * This is here so that we can use pci bridge methods, too - the
+	 * generic routines only need the dev, secbus and subbus members
+	 * filled.
+	 *
+	 * XXX: This should be extracted from ofw_pcib_pci.c, and shared in a
+	 * header.
+	 */
+	struct pcib_softc ops_pcib_sc;
+	phandle_t ops_node;
+	struct ofw_bus_iinfo ops_iinfo;
 };
 
 static int
@@ -98,12 +98,11 @@ fsl_pcib_rc_probe(device_t dev)
 }
 
 static device_method_t fsl_pcib_rc_methods[] = {
-	DEVMETHOD(device_probe,		fsl_pcib_rc_probe),
-	DEVMETHOD_END
+	DEVMETHOD(device_probe, fsl_pcib_rc_probe), DEVMETHOD_END
 };
 
 static devclass_t fsl_pcib_rc_devclass;
 DEFINE_CLASS_1(pcib, fsl_pcib_rc_driver, fsl_pcib_rc_methods,
     sizeof(struct fsl_pcib_softc), ofw_pcib_pci_driver);
-EARLY_DRIVER_MODULE(rcpcib, pci, fsl_pcib_rc_driver, fsl_pcib_rc_devclass, 0, 0,
-    BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(
+    rcpcib, pci, fsl_pcib_rc_driver, fsl_pcib_rc_devclass, 0, 0, BUS_PASS_BUS);

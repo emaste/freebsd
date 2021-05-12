@@ -41,25 +41,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
-#include <sys/kernel.h>
+
 #include <machine/bus.h>
 #include <machine/fdt.h>
 
 #include <dev/uart/uart.h>
+#include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_cpu_fdt.h>
-#include <dev/uart/uart_bus.h>
 
-#include <mips/mediatek/uart_dev_mtk.h>
 #include <mips/mediatek/mtk_soc.h>
 #include <mips/mediatek/mtk_sysctl.h>
+#include <mips/mediatek/uart_dev_mtk.h>
 
 #include "uart_if.h"
 
 /* Set some reference clock value. Real value will be taken from FDT */
-#define DEFAULT_RCLK            (120 * 1000 * 1000)
+#define DEFAULT_RCLK (120 * 1000 * 1000)
 
 /*
  * Low-level UART interface.
@@ -80,10 +81,10 @@ static struct uart_ops uart_mtk_ops = {
 	.getc = mtk_uart_getc,
 };
 
-static int	uart_output = 1;
+static int uart_output = 1;
 TUNABLE_INT("kern.uart_output", &uart_output);
-SYSCTL_INT(_kern, OID_AUTO, uart_output, CTLFLAG_RW,
-    &uart_output, 0, "UART output enabled.");
+SYSCTL_INT(_kern, OID_AUTO, uart_output, CTLFLAG_RW, &uart_output, 0,
+    "UART output enabled.");
 
 static int
 mtk_uart_probe(struct uart_bas *bas)
@@ -92,51 +93,57 @@ mtk_uart_probe(struct uart_bas *bas)
 }
 
 static void
-mtk_uart_init(struct uart_bas *bas, int baudrate, int databits,
-    int stopbits, int parity)
+mtk_uart_init(
+    struct uart_bas *bas, int baudrate, int databits, int stopbits, int parity)
 {
-        /* CLKDIV  = 384000000/ 3/ 16/ br */
-        /* for 384MHz CLKDIV = 8000000 / baudrate; */
-        switch (databits) {
-        case 5:
-    		databits = UART_LCR_5B;
-    		break;
-        case 6:
-    		databits = UART_LCR_6B;
-    		break;
-        case 7:
-    		databits = UART_LCR_7B;
-    		break;
-        case 8:
-    		databits = UART_LCR_8B;
-    		break;
-    	default:
-    		/* Unsupported */
-    		return;
-        }
+	/* CLKDIV  = 384000000/ 3/ 16/ br */
+	/* for 384MHz CLKDIV = 8000000 / baudrate; */
+	switch (databits) {
+	case 5:
+		databits = UART_LCR_5B;
+		break;
+	case 6:
+		databits = UART_LCR_6B;
+		break;
+	case 7:
+		databits = UART_LCR_7B;
+		break;
+	case 8:
+		databits = UART_LCR_8B;
+		break;
+	default:
+		/* Unsupported */
+		return;
+	}
 	switch (parity) {
-	case UART_PARITY_EVEN:	parity = (UART_LCR_PEN|UART_LCR_EVEN); break;
-	case UART_PARITY_ODD:	parity = (UART_LCR_PEN); break;
-	case UART_PARITY_NONE:	parity = 0; break;
+	case UART_PARITY_EVEN:
+		parity = (UART_LCR_PEN | UART_LCR_EVEN);
+		break;
+	case UART_PARITY_ODD:
+		parity = (UART_LCR_PEN);
+		break;
+	case UART_PARITY_NONE:
+		parity = 0;
+		break;
 	/* Unsupported */
-	default:		return;
+	default:
+		return;
 	}
 
 	if (bas->rclk && baudrate) {
-        	uart_setreg(bas, UART_CDDL_REG, bas->rclk/16/baudrate);
+		uart_setreg(bas, UART_CDDL_REG, bas->rclk / 16 / baudrate);
 		uart_barrier(bas);
 	}
 
-        uart_setreg(bas, UART_LCR_REG, databits |
-				(stopbits==1?0:UART_LCR_STB_15) |
-       			 	parity);
+	uart_setreg(bas, UART_LCR_REG,
+	    databits | (stopbits == 1 ? 0 : UART_LCR_STB_15) | parity);
 	uart_barrier(bas);
 }
 
 static void
 mtk_uart_term(struct uart_bas *bas)
 {
-        uart_setreg(bas, UART_MCR_REG, 0);
+	uart_setreg(bas, UART_MCR_REG, 0);
 	uart_barrier(bas);
 }
 
@@ -144,12 +151,15 @@ static void
 mtk_uart_putc(struct uart_bas *bas, int c)
 {
 	char chr;
-	if (!uart_output) return;
+	if (!uart_output)
+		return;
 	chr = c;
-	while (!(uart_getreg(bas, UART_LSR_REG) & UART_LSR_THRE));
+	while (!(uart_getreg(bas, UART_LSR_REG) & UART_LSR_THRE))
+		;
 	uart_setreg(bas, UART_TX_REG, c);
 	uart_barrier(bas);
-	while (!(uart_getreg(bas, UART_LSR_REG) & UART_LSR_THRE));
+	while (!(uart_getreg(bas, UART_LSR_REG) & UART_LSR_THRE))
+		;
 }
 
 static int
@@ -203,48 +213,42 @@ static int mtk_uart_bus_transmit(struct uart_softc *);
 static void mtk_uart_bus_grab(struct uart_softc *);
 static void mtk_uart_bus_ungrab(struct uart_softc *);
 
-static kobj_method_t uart_mtk_methods[] = {
-	KOBJMETHOD(uart_attach,		mtk_uart_bus_attach),
-	KOBJMETHOD(uart_detach,		mtk_uart_bus_detach),
-	KOBJMETHOD(uart_flush,		mtk_uart_bus_flush),
-	KOBJMETHOD(uart_getsig,		mtk_uart_bus_getsig),
-	KOBJMETHOD(uart_ioctl,		mtk_uart_bus_ioctl),
-	KOBJMETHOD(uart_ipend,		mtk_uart_bus_ipend),
-	KOBJMETHOD(uart_param,		mtk_uart_bus_param),
-	KOBJMETHOD(uart_probe,		mtk_uart_bus_probe),
-	KOBJMETHOD(uart_receive,	mtk_uart_bus_receive),
-	KOBJMETHOD(uart_setsig,		mtk_uart_bus_setsig),
-	KOBJMETHOD(uart_transmit,	mtk_uart_bus_transmit),
-	KOBJMETHOD(uart_grab,		mtk_uart_bus_grab),
-	KOBJMETHOD(uart_ungrab,		mtk_uart_bus_ungrab),
-	{ 0, 0 }
-};
+static kobj_method_t uart_mtk_methods[] = { KOBJMETHOD(uart_attach,
+						mtk_uart_bus_attach),
+	KOBJMETHOD(uart_detach, mtk_uart_bus_detach),
+	KOBJMETHOD(uart_flush, mtk_uart_bus_flush),
+	KOBJMETHOD(uart_getsig, mtk_uart_bus_getsig),
+	KOBJMETHOD(uart_ioctl, mtk_uart_bus_ioctl),
+	KOBJMETHOD(uart_ipend, mtk_uart_bus_ipend),
+	KOBJMETHOD(uart_param, mtk_uart_bus_param),
+	KOBJMETHOD(uart_probe, mtk_uart_bus_probe),
+	KOBJMETHOD(uart_receive, mtk_uart_bus_receive),
+	KOBJMETHOD(uart_setsig, mtk_uart_bus_setsig),
+	KOBJMETHOD(uart_transmit, mtk_uart_bus_transmit),
+	KOBJMETHOD(uart_grab, mtk_uart_bus_grab),
+	KOBJMETHOD(uart_ungrab, mtk_uart_bus_ungrab), { 0, 0 } };
 
-struct uart_class uart_mtk_class = {
-	"uart_mtk",
-	uart_mtk_methods,
-	sizeof(struct uart_mtk_softc),
-	.uc_ops = &uart_mtk_ops,
+struct uart_class uart_mtk_class = { "uart_mtk", uart_mtk_methods,
+	sizeof(struct uart_mtk_softc), .uc_ops = &uart_mtk_ops,
 	.uc_range = 1, /* use hinted range */
-	.uc_rclk = 0
-};
+	.uc_rclk = 0 };
 
 static struct ofw_compat_data compat_data[] = {
-	{ "ralink,rt2880-uart",		(uintptr_t)&uart_mtk_class },
-	{ "ralink,rt3050-uart",		(uintptr_t)&uart_mtk_class },
-	{ "ralink,rt3352-uart",		(uintptr_t)&uart_mtk_class },
-	{ "ralink,rt3883-uart",		(uintptr_t)&uart_mtk_class },
-	{ "ralink,rt5350-uart",		(uintptr_t)&uart_mtk_class },
-	{ "ralink,mt7620a-uart",	(uintptr_t)&uart_mtk_class },
-	{ NULL,				(uintptr_t)NULL },
+	{ "ralink,rt2880-uart", (uintptr_t)&uart_mtk_class },
+	{ "ralink,rt3050-uart", (uintptr_t)&uart_mtk_class },
+	{ "ralink,rt3352-uart", (uintptr_t)&uart_mtk_class },
+	{ "ralink,rt3883-uart", (uintptr_t)&uart_mtk_class },
+	{ "ralink,rt5350-uart", (uintptr_t)&uart_mtk_class },
+	{ "ralink,mt7620a-uart", (uintptr_t)&uart_mtk_class },
+	{ NULL, (uintptr_t)NULL },
 };
 UART_FDT_CLASS_AND_DEVICE(compat_data);
 
-#define	SIGCHG(c, i, s, d)				\
-	if (c) {					\
-		i |= (i & s) ? s : s | d;		\
-	} else {					\
-		i = (i & s) ? (i & ~s) | d : i;		\
+#define SIGCHG(c, i, s, d)                      \
+	if (c) {                                \
+		i |= (i & s) ? s : s | d;       \
+	} else {                                \
+		i = (i & s) ? (i & ~s) | d : i; \
 	}
 
 /*
@@ -292,8 +296,8 @@ mtk_uart_bus_attach(struct uart_softc *sc)
 
 	if (sc->sc_sysdev != NULL) {
 		di = sc->sc_sysdev;
-		mtk_uart_init(bas, di->baudrate, di->databits, di->stopbits,
-		    di->parity);
+		mtk_uart_init(
+		    bas, di->baudrate, di->databits, di->stopbits, di->parity);
 	} else {
 		mtk_uart_init(bas, 57600, 8, 1, 0);
 	}
@@ -305,13 +309,13 @@ mtk_uart_bus_attach(struct uart_softc *sc)
 
 	/* Enable FIFO */
 	uart_setreg(bas, UART_FCR_REG,
-	    uart_getreg(bas, UART_FCR_REG) |
-	    UART_FCR_FIFOEN | UART_FCR_TXTGR_1 | UART_FCR_RXTGR_1);
+	    uart_getreg(bas, UART_FCR_REG) | UART_FCR_FIFOEN |
+		UART_FCR_TXTGR_1 | UART_FCR_RXTGR_1);
 	uart_barrier(bas);
 	/* Enable interrupts */
 	usc->ier_mask = 0xf0;
-	uart_setreg(bas, UART_IER_REG,
-	    UART_IER_EDSSI | UART_IER_ELSI | UART_IER_ERBFI);
+	uart_setreg(
+	    bas, UART_IER_REG, UART_IER_EDSSI | UART_IER_ELSI | UART_IER_ERBFI);
 	uart_barrier(bas);
 
 	return (0);
@@ -330,11 +334,11 @@ mtk_uart_bus_flush(struct uart_softc *sc, int what)
 	uint32_t fcr = uart_getreg(bas, UART_FCR_REG);
 
 	if (what & UART_FLUSH_TRANSMITTER) {
-		uart_setreg(bas, UART_FCR_REG, fcr|UART_FCR_TXRST);
+		uart_setreg(bas, UART_FCR_REG, fcr | UART_FCR_TXRST);
 		uart_barrier(bas);
 	}
 	if (what & UART_FLUSH_RECEIVER) {
-		uart_setreg(bas, UART_FCR_REG, fcr|UART_FCR_RXRST);
+		uart_setreg(bas, UART_FCR_REG, fcr | UART_FCR_RXRST);
 		uart_barrier(bas);
 	}
 	uart_setreg(bas, UART_FCR_REG, fcr);
@@ -348,7 +352,7 @@ mtk_uart_bus_getsig(struct uart_softc *sc)
 	uint32_t new, old, sig;
 	uint8_t bes;
 
-	return(0);
+	return (0);
 	do {
 		old = sc->sc_hwsig;
 		sig = old;
@@ -381,7 +385,7 @@ mtk_uart_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 	case UART_IOCTL_BAUD:
 		divisor = uart_getreg(bas, UART_CDDL_REG);
 		baudrate = bas->rclk / (divisor * 16);
-		*(int*)data = baudrate;
+		*(int *)data = baudrate;
 		break;
 	default:
 		error = EINVAL;
@@ -398,7 +402,7 @@ mtk_uart_bus_ipend(struct uart_softc *sc)
 	int ipend;
 	uint8_t iir, lsr, msr;
 
-//	breakpoint();
+	//	breakpoint();
 
 	bas = &sc->sc_bas;
 	ipend = 0;
@@ -442,8 +446,8 @@ mtk_uart_bus_ipend(struct uart_softc *sc)
 }
 
 static int
-mtk_uart_bus_param(struct uart_softc *sc, int baudrate, int databits,
-    int stopbits, int parity)
+mtk_uart_bus_param(
+    struct uart_softc *sc, int baudrate, int databits, int stopbits, int parity)
 {
 	uart_lock(sc->sc_hwmtx);
 	mtk_uart_init(&sc->sc_bas, baudrate, databits, stopbits, parity);
@@ -459,7 +463,7 @@ mtk_uart_bus_probe(struct uart_softc *sc)
 	error = mtk_uart_probe(&sc->sc_bas);
 	if (error)
 		return (error);
-		
+
 	device_set_desc(sc->sc_dev, "MTK UART Controller");
 
 	return (0);
@@ -510,11 +514,13 @@ mtk_uart_bus_transmit(struct uart_softc *sc)
 	struct uart_bas *bas = &sc->sc_bas;
 	int i;
 
-	if (!uart_output) return (0);
+	if (!uart_output)
+		return (0);
 
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
-	while ((uart_getreg(bas, UART_LSR_REG) & UART_LSR_THRE) == 0);
+	while ((uart_getreg(bas, UART_LSR_REG) & UART_LSR_THRE) == 0)
+		;
 	mtk_uart_enable_txintr(sc);
 	for (i = 0; i < sc->sc_txdatasz; i++) {
 		uart_setreg(bas, UART_TX_REG, sc->sc_txbuf[i]);

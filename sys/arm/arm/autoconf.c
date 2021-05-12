@@ -55,16 +55,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
 #include <sys/disklabel.h>
-#include <sys/reboot.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/cons.h>
+#include <sys/reboot.h>
 
-static void	configure_first (void *);
-static void	configure (void *);
-static void	configure_final (void *);
+static void configure_first(void *);
+static void configure(void *);
+static void configure_final(void *);
 
 SYSINIT(configure1, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure_first, NULL);
 /* SI_ORDER_SECOND is hookable */

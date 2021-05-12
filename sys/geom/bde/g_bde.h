@@ -45,51 +45,51 @@
  * even think about modifying these.
  */
 
-#define G_BDE_MKEYLEN	(2048/8)
-#define G_BDE_SKEYBITS	128
-#define G_BDE_SKEYLEN	(G_BDE_SKEYBITS/8)
-#define G_BDE_KKEYBITS	128
-#define G_BDE_KKEYLEN	(G_BDE_KKEYBITS/8)
-#define G_BDE_MAXKEYS	4
-#define G_BDE_LOCKSIZE	384
-#define NLOCK_FIELDS	13
+#define G_BDE_MKEYLEN (2048 / 8)
+#define G_BDE_SKEYBITS 128
+#define G_BDE_SKEYLEN (G_BDE_SKEYBITS / 8)
+#define G_BDE_KKEYBITS 128
+#define G_BDE_KKEYLEN (G_BDE_KKEYBITS / 8)
+#define G_BDE_MAXKEYS 4
+#define G_BDE_LOCKSIZE 384
+#define NLOCK_FIELDS 13
 
 /* This just needs to be "large enough" */
-#define G_BDE_KEYBYTES	304
+#define G_BDE_KEYBYTES 304
 
 struct g_bde_work;
 struct g_bde_softc;
 
 struct g_bde_sector {
-	struct g_bde_work	*owner;
-	struct g_bde_softc	*softc;
-	off_t			offset;
-	u_int			size;
-	u_int			ref;
-	void			*data;
+	struct g_bde_work *owner;
+	struct g_bde_softc *softc;
+	off_t offset;
+	u_int size;
+	u_int ref;
+	void *data;
 	TAILQ_ENTRY(g_bde_sector) list;
-	u_char			valid;
-	u_char			malloc;
-	enum {JUNK, IO, VALID}	state;
-	int			error;
-	time_t			used;
+	u_char valid;
+	u_char malloc;
+	enum { JUNK, IO, VALID } state;
+	int error;
+	time_t used;
 };
 
 struct g_bde_work {
-	struct mtx		mutex;
-	off_t			offset;
-	off_t			length;
-	void			*data;
-        struct bio      	*bp;
-	struct g_bde_softc 	*softc;
-        off_t           	so;
-        off_t           	kso;
-        u_int           	ko;
-        struct g_bde_sector   	*sp;
-        struct g_bde_sector   	*ksp;
+	struct mtx mutex;
+	off_t offset;
+	off_t length;
+	void *data;
+	struct bio *bp;
+	struct g_bde_softc *softc;
+	off_t so;
+	off_t kso;
+	u_int ko;
+	struct g_bde_sector *sp;
+	struct g_bde_sector *ksp;
 	TAILQ_ENTRY(g_bde_work) list;
-	enum {SETUP, WAIT, FINISH} state;
-	int			error;
+	enum { SETUP, WAIT, FINISH } state;
+	int error;
 };
 
 /*
@@ -98,48 +98,48 @@ struct g_bde_work {
  * dependent on the pass-phrase.
  */
 struct g_bde_key {
-	uint64_t		sector0;        
-				/* Physical byte offset of 1st byte used */
-	uint64_t		sectorN;
-				/* Physical byte offset of 1st byte not used */
-	uint64_t		keyoffset;
-				/* Number of bytes the disk image is skewed. */
-	uint64_t		lsector[G_BDE_MAXKEYS];
-				/* Physical byte offsets of lock sectors */
-	uint32_t		sectorsize;
-				/* Our "logical" sector size */
-	uint32_t		flags;
-#define	GBDE_F_SECT0		1
-	uint8_t			salt[16];
-				/* Used to frustate the kkey generation */
-	uint8_t			spare[32];
-				/* For future use, random contents */
-	uint8_t			mkey[G_BDE_MKEYLEN];
-				/* Our masterkey. */
+	uint64_t sector0;
+	/* Physical byte offset of 1st byte used */
+	uint64_t sectorN;
+	/* Physical byte offset of 1st byte not used */
+	uint64_t keyoffset;
+	/* Number of bytes the disk image is skewed. */
+	uint64_t lsector[G_BDE_MAXKEYS];
+	/* Physical byte offsets of lock sectors */
+	uint32_t sectorsize;
+	/* Our "logical" sector size */
+	uint32_t flags;
+#define GBDE_F_SECT0 1
+	uint8_t salt[16];
+	/* Used to frustate the kkey generation */
+	uint8_t spare[32];
+	/* For future use, random contents */
+	uint8_t mkey[G_BDE_MKEYLEN];
+	/* Our masterkey. */
 
 	/* Non-stored help-fields */
-	uint64_t		zone_width;	/* On-disk width of zone */
-	uint64_t		zone_cont;	/* Payload width of zone */
-	uint64_t		media_width;	/* Non-magic width of zone */
-	u_int			keys_per_sector;
+	uint64_t zone_width;  /* On-disk width of zone */
+	uint64_t zone_cont;   /* Payload width of zone */
+	uint64_t media_width; /* Non-magic width of zone */
+	u_int keys_per_sector;
 };
 
 struct g_bde_softc {
-	off_t			mediasize;
-	u_int			sectorsize;
-	uint64_t		zone_cont;
-	struct g_geom		*geom;
-	struct g_consumer	*consumer;
-	TAILQ_HEAD(, g_bde_sector)	freelist;
-	TAILQ_HEAD(, g_bde_work) 	worklist;
-	struct mtx		worklist_mutex;
-	struct proc		*thread;
-	struct g_bde_key	key;
-	int			dead;
-	u_int			nwork;
-	u_int			nsect;
-	u_int			ncache;
-	u_char			sha2[SHA512_DIGEST_LENGTH];
+	off_t mediasize;
+	u_int sectorsize;
+	uint64_t zone_cont;
+	struct g_geom *geom;
+	struct g_consumer *consumer;
+	TAILQ_HEAD(, g_bde_sector) freelist;
+	TAILQ_HEAD(, g_bde_work) worklist;
+	struct mtx worklist_mutex;
+	struct proc *thread;
+	struct g_bde_key key;
+	int dead;
+	u_int nwork;
+	u_int nsect;
+	u_int ncache;
+	u_char sha2[SHA512_DIGEST_LENGTH];
 };
 
 /* g_bde_crypt.c */
@@ -154,10 +154,12 @@ int g_bde_init_keybytes(struct g_bde_softc *sc, char *passp, int len);
 
 /* g_bde_lock .c */
 int g_bde_encode_lock(u_char *sha2, struct g_bde_key *gl, u_char *ptr);
-int g_bde_decode_lock(struct g_bde_softc *sc, struct g_bde_key *gl, u_char *ptr);
+int g_bde_decode_lock(
+    struct g_bde_softc *sc, struct g_bde_key *gl, u_char *ptr);
 int g_bde_keyloc_encrypt(u_char *sha2, uint64_t v0, uint64_t v1, void *output);
 int g_bde_keyloc_decrypt(u_char *sha2, void *input, uint64_t *output);
-int g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *keymat, u_char *meta, off_t mediasize, u_int sectorsize, u_int *nkey);
+int g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *keymat, u_char *meta,
+    off_t mediasize, u_int sectorsize, u_int *nkey);
 void g_bde_hash_pass(struct g_bde_softc *sc, const void *input, u_int len);
 
 /* g_bde_math .c */
@@ -192,7 +194,8 @@ AES_makekey(keyInstance *ki, int dir, u_int len, const void *key)
 }
 
 static __inline void
-AES_encrypt(cipherInstance *ci, keyInstance *ki, const void *in, void *out, u_int len)
+AES_encrypt(
+    cipherInstance *ci, keyInstance *ki, const void *in, void *out, u_int len)
 {
 	int error;
 
@@ -201,7 +204,8 @@ AES_encrypt(cipherInstance *ci, keyInstance *ki, const void *in, void *out, u_in
 }
 
 static __inline void
-AES_decrypt(cipherInstance *ci, keyInstance *ki, const void *in, void *out, u_int len)
+AES_decrypt(
+    cipherInstance *ci, keyInstance *ki, const void *in, void *out, u_int len)
 {
 	int error;
 

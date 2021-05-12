@@ -33,29 +33,29 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/rmlock.h>
-
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_dl.h>
-#include <net/vnet.h>
-#include <net/route.h>
-#include <net/route/route_ctl.h>
-#include <net/route/route_var.h>
-#include <net/route/nhop_utils.h>
-#include <net/route/nhop.h>
-#include <net/route/nhop_var.h>
-#include <netinet/in.h>
-#include <netinet6/scope6_var.h>
 
 #include <vm/uma.h>
+
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_var.h>
+#include <net/route.h>
+#include <net/route/nhop.h>
+#include <net/route/nhop_utils.h>
+#include <net/route/nhop_var.h>
+#include <net/route/route_ctl.h>
+#include <net/route/route_var.h>
+#include <net/vnet.h>
+#include <netinet/in.h>
+#include <netinet6/scope6_var.h>
 
 /*
  * This file contains control plane routing tables functions.
@@ -64,26 +64,26 @@ __FBSDID("$FreeBSD$");
  */
 
 struct rib_subscription {
-	CK_STAILQ_ENTRY(rib_subscription)	next;
-	rib_subscription_cb_t			*func;
-	void					*arg;
-	struct rib_head				*rnh;
-	enum rib_subscription_type		type;
-	struct epoch_context			epoch_ctx;
+	CK_STAILQ_ENTRY(rib_subscription) next;
+	rib_subscription_cb_t *func;
+	void *arg;
+	struct rib_head *rnh;
+	enum rib_subscription_type type;
+	struct epoch_context epoch_ctx;
 };
 
-static int add_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc);
+static int add_route(
+    struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info *rc);
 static int add_route_nhop(struct rib_head *rnh, struct rtentry *rt,
     struct rt_addrinfo *info, struct route_nhop_data *rnd,
     struct rib_cmd_info *rc);
-static int del_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc);
+static int del_route(
+    struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info *rc);
 static int change_route(struct rib_head *rnh, struct rt_addrinfo *info,
     struct route_nhop_data *nhd_orig, struct rib_cmd_info *rc);
 
-static int rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc);
+static int rt_unlinkrte(
+    struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info *rc);
 
 static void rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
     struct rib_cmd_info *rc);
@@ -95,11 +95,11 @@ static bool rib_can_multipath(struct rib_head *rh);
 
 /* Per-vnet multipath routing configuration */
 SYSCTL_DECL(_net_route);
-#define	V_rib_route_multipath	VNET(rib_route_multipath)
+#define V_rib_route_multipath VNET(rib_route_multipath)
 #ifdef ROUTE_MPATH
-#define _MP_FLAGS	CTLFLAG_RW
+#define _MP_FLAGS CTLFLAG_RW
 #else
-#define _MP_FLAGS	CTLFLAG_RD
+#define _MP_FLAGS CTLFLAG_RD
 #endif
 VNET_DEFINE(u_int, rib_route_multipath) = 1;
 SYSCTL_UINT(_net_route, OID_AUTO, multipath, _MP_FLAGS | CTLFLAG_VNET,
@@ -108,14 +108,14 @@ SYSCTL_UINT(_net_route, OID_AUTO, multipath, _MP_FLAGS | CTLFLAG_VNET,
 
 /* Routing table UMA zone */
 VNET_DEFINE_STATIC(uma_zone_t, rtzone);
-#define	V_rtzone	VNET(rtzone)
+#define V_rtzone VNET(rtzone)
 
 void
 vnet_rtzone_init()
 {
 
-	V_rtzone = uma_zcreate("rtentry", sizeof(struct rtentry),
-		NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	V_rtzone = uma_zcreate("rtentry", sizeof(struct rtentry), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
 }
 
 #ifdef VIMAGE
@@ -179,8 +179,7 @@ rtfree(struct rtentry *rt)
 
 	KASSERT(rt != NULL, ("%s: NULL rt", __func__));
 
-	epoch_call(net_epoch_preempt, destroy_rtentry_epoch,
-	    &rt->rt_epoch_ctx);
+	epoch_call(net_epoch_preempt, destroy_rtentry_epoch, &rt->rt_epoch_ctx);
 }
 
 static struct rib_head *
@@ -329,8 +328,9 @@ static int
 inet6_get_plen(const struct in6_addr *addr)
 {
 
-	return (bitcount32(addr->s6_addr32[0]) + bitcount32(addr->s6_addr32[1]) +
-	    bitcount32(addr->s6_addr32[2]) + bitcount32(addr->s6_addr32[3]));
+	return (bitcount32(addr->s6_addr32[0]) +
+	    bitcount32(addr->s6_addr32[1]) + bitcount32(addr->s6_addr32[2]) +
+	    bitcount32(addr->s6_addr32[3]));
 }
 
 /*
@@ -391,7 +391,8 @@ rt_set_expire_info(struct rtentry *rt, const struct rt_addrinfo *info)
 	/* Kernel -> userland timebase conversion. */
 	if (info->rti_mflags & RTV_EXPIRE)
 		rt->rt_expire = info->rti_rmx->rmx_expire ?
-		    info->rti_rmx->rmx_expire - time_second + time_uptime : 0;
+			  info->rti_rmx->rmx_expire - time_second + time_uptime :
+			  0;
 }
 
 /*
@@ -410,27 +411,24 @@ match_nhop_gw(const struct nhop_object *nh, const struct sockaddr *gw)
 	case AF_INET:
 		return (nh->gw4_sa.sin_addr.s_addr ==
 		    ((const struct sockaddr_in *)gw)->sin_addr.s_addr);
-	case AF_INET6:
-		{
-			const struct sockaddr_in6 *gw6;
-			gw6 = (const struct sockaddr_in6 *)gw;
+	case AF_INET6: {
+		const struct sockaddr_in6 *gw6;
+		gw6 = (const struct sockaddr_in6 *)gw;
 
-			/*
-			 * Currently (2020-09) IPv6 gws in kernel have their
-			 * scope embedded. Once this becomes false, this code
-			 * has to be revisited.
-			 */
-			if (IN6_ARE_ADDR_EQUAL(&nh->gw6_sa.sin6_addr,
-			    &gw6->sin6_addr))
-				return (true);
-			return (false);
-		}
-	case AF_LINK:
-		{
-			const struct sockaddr_dl *sdl;
-			sdl = (const struct sockaddr_dl *)gw;
-			return (nh->gwl_sa.sdl_index == sdl->sdl_index);
-		}
+		/*
+		 * Currently (2020-09) IPv6 gws in kernel have their
+		 * scope embedded. Once this becomes false, this code
+		 * has to be revisited.
+		 */
+		if (IN6_ARE_ADDR_EQUAL(&nh->gw6_sa.sin6_addr, &gw6->sin6_addr))
+			return (true);
+		return (false);
+	}
+	case AF_LINK: {
+		const struct sockaddr_dl *sdl;
+		sdl = (const struct sockaddr_dl *)gw;
+		return (nh->gwl_sa.sdl_index == sdl->sdl_index);
+	}
 	default:
 		return (memcmp(&nh->gw_sa, gw, nh->gw_sa.sa_len) == 0);
 	}
@@ -453,10 +451,10 @@ check_info_match_nhop(const struct rt_addrinfo *info, const struct rtentry *rt,
 	const struct sockaddr *gw = info->rti_info[RTAX_GATEWAY];
 
 	if (info->rti_filter != NULL) {
-	    if (info->rti_filter(rt, nh, info->rti_filterdata) == 0)
-		    return (ENOENT);
-	    else
-		    return (0);
+		if (info->rti_filter(rt, nh, info->rti_filterdata) == 0)
+			return (ENOENT);
+		else
+			return (0);
 	}
 	if ((gw != NULL) && !match_nhop_gw(nh, gw))
 		return (ESRCH);
@@ -498,8 +496,8 @@ lookup_prefix_bysa(struct rib_head *rnh, const struct sockaddr *dst,
 
 	RIB_LOCK_ASSERT(rnh);
 
-	rt = (struct rtentry *)rnh->rnh_lookup(__DECONST(void *, dst),
-	    __DECONST(void *, netmask), &rnh->head);
+	rt = (struct rtentry *)rnh->rnh_lookup(
+	    __DECONST(void *, dst), __DECONST(void *, netmask), &rnh->head);
 	if (rt != NULL) {
 		rnd->rnd_nhop = rt->rt_nhop;
 		rnd->rnd_weight = rt->rt_weight;
@@ -523,8 +521,8 @@ lookup_prefix(struct rib_head *rnh, const struct rt_addrinfo *info,
 {
 	struct rtentry *rt;
 
-	rt = lookup_prefix_bysa(rnh, info->rti_info[RTAX_DST],
-	    info->rti_info[RTAX_NETMASK], rnd);
+	rt = lookup_prefix_bysa(
+	    rnh, info->rti_info[RTAX_DST], info->rti_info[RTAX_NETMASK], rnd);
 
 	return (rt);
 }
@@ -536,8 +534,8 @@ lookup_prefix(struct rib_head *rnh, const struct rt_addrinfo *info,
  * Returns 0 on success and fills in operation metadata into @rc.
  */
 int
-rib_add_route(uint32_t fibnum, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc)
+rib_add_route(
+    uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc)
 {
 	struct rib_head *rnh;
 	int error;
@@ -573,8 +571,8 @@ rib_add_route(uint32_t fibnum, struct rt_addrinfo *info,
  * return errno otherwise.
  */
 static int
-create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rtentry **prt)
+create_rtentry(
+    struct rib_head *rnh, struct rt_addrinfo *info, struct rtentry **prt)
 {
 	struct sockaddr *dst, *ndst, *gateway, *netmask;
 	struct rtentry *rt;
@@ -589,8 +587,9 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 
 	if ((flags & RTF_GATEWAY) && !gateway)
 		return (EINVAL);
-	if (dst && gateway && (dst->sa_family != gateway->sa_family) && 
-	    (gateway->sa_family != AF_UNSPEC) && (gateway->sa_family != AF_LINK))
+	if (dst && gateway && (dst->sa_family != gateway->sa_family) &&
+	    (gateway->sa_family != AF_UNSPEC) &&
+	    (gateway->sa_family != AF_LINK))
 		return (EINVAL);
 
 	if (dst->sa_len > sizeof(((struct rtentry *)NULL)->rt_dstb))
@@ -645,8 +644,8 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 }
 
 static int
-add_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc)
+add_route(
+    struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info *rc)
 {
 	struct nhop_object *nh_orig;
 	struct route_nhop_data rnd_orig, rnd_add;
@@ -699,8 +698,9 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		error = add_route_mpath(rnh, info, rt, &rnd_add, &rnd_orig, rc);
 	else
 #endif
-	/* Unable to add - another route with the same preference exists */
-	error = EEXIST;
+		/* Unable to add - another route with the same preference exists
+		 */
+		error = EEXIST;
 
 	/*
 	 * ROUTE_MPATH disabled: failed to add route, free both nhop and rt.
@@ -724,7 +724,8 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
  * Returns 0 on success and fills in operation metadata into @rc.
  */
 int
-rib_del_route(uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc)
+rib_del_route(
+    uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc)
 {
 	struct rib_head *rnh;
 	struct sockaddr *dst_orig, *netmask;
@@ -765,7 +766,8 @@ rib_del_route(uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc
  * ENOENT - if supplied filter function returned 0 (not matched).
  */
 static int
-rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info *rc)
+rt_unlinkrte(
+    struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info *rc)
 {
 	struct rtentry *rt;
 	struct nhop_object *nh;
@@ -780,8 +782,8 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info
 	nh = rt->rt_nhop;
 #ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh)) {
-		error = del_route_mpath(rnh, info, rt,
-		    (struct nhgrp_object *)nh, rc);
+		error = del_route_mpath(
+		    rnh, info, rt, (struct nhgrp_object *)nh, rc);
 		return (error);
 	}
 #endif
@@ -796,13 +798,13 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info
 	 * Remove the item from the tree and return it.
 	 * Complain if it is not there and do no more processing.
 	 */
-	rn = rnh->rnh_deladdr(info->rti_info[RTAX_DST],
-	    info->rti_info[RTAX_NETMASK], &rnh->head);
+	rn = rnh->rnh_deladdr(
+	    info->rti_info[RTAX_DST], info->rti_info[RTAX_NETMASK], &rnh->head);
 	if (rn == NULL)
 		return (ESRCH);
 
 	if (rn->rn_flags & (RNF_ACTIVE | RNF_ROOT))
-		panic ("rtrequest delete");
+		panic("rtrequest delete");
 
 	rt = RNTORT(rn);
 	rt->rte_flags &= ~RTF_UP;
@@ -821,8 +823,8 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info
 }
 
 static int
-del_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc)
+del_route(
+    struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info *rc)
 {
 	int error;
 
@@ -855,8 +857,8 @@ del_route(struct rib_head *rnh, struct rt_addrinfo *info,
 }
 
 int
-rib_change_route(uint32_t fibnum, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc)
+rib_change_route(
+    uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc)
 {
 	RIB_RLOCK_TRACKER;
 	struct route_nhop_data rnd_orig;
@@ -894,8 +896,8 @@ rib_change_route(uint32_t fibnum, struct rt_addrinfo *info,
 	 */
 
 	RIB_RLOCK(rnh);
-	rt = (struct rtentry *)rnh->rnh_lookup(info->rti_info[RTAX_DST],
-	    info->rti_info[RTAX_NETMASK], &rnh->head);
+	rt = (struct rtentry *)rnh->rnh_lookup(
+	    info->rti_info[RTAX_DST], info->rti_info[RTAX_NETMASK], &rnh->head);
 
 	if (rt == NULL) {
 		RIB_RUNLOCK(rnh);
@@ -928,10 +930,11 @@ change_nhop(struct rib_head *rnh, struct rt_addrinfo *info,
 	 * by ll sockaddr when protocol address is ambiguous
 	 */
 	if (((nh_orig->nh_flags & NHF_GATEWAY) &&
-	    info->rti_info[RTAX_GATEWAY] != NULL) ||
+		info->rti_info[RTAX_GATEWAY] != NULL) ||
 	    info->rti_info[RTAX_IFP] != NULL ||
 	    (info->rti_info[RTAX_IFA] != NULL &&
-	     !sa_equal(info->rti_info[RTAX_IFA], nh_orig->nh_ifa->ifa_addr))) {
+		!sa_equal(
+		    info->rti_info[RTAX_IFA], nh_orig->nh_ifa->ifa_addr))) {
 		error = rt_getifa_fib(info, rnh->rib_fibnum);
 
 		if (error != 0) {
@@ -977,8 +980,8 @@ change_mpath_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	if (error != 0)
 		return (error);
 
-	wn_new = mallocarray(num_nhops, sizeof(struct weightened_nhop),
-	    M_TEMP, M_NOWAIT | M_ZERO);
+	wn_new = mallocarray(num_nhops, sizeof(struct weightened_nhop), M_TEMP,
+	    M_NOWAIT | M_ZERO);
 	if (wn_new == NULL) {
 		nhop_free(nh_new);
 		return (EAGAIN);
@@ -988,7 +991,8 @@ change_mpath_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	for (int i = 0; i < num_nhops; i++) {
 		if (wn[i].nh == nh_orig) {
 			wn[i].nh = nh_new;
-			wn[i].weight = get_info_weight(info, rnd_orig->rnd_weight);
+			wn[i].weight = get_info_weight(
+			    info, rnd_orig->rnd_weight);
 			break;
 		}
 	}
@@ -1000,7 +1004,8 @@ change_mpath_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	if (error != 0)
 		return (error);
 
-	error = change_route_conditional(rnh, NULL, info, rnd_orig, &rnd_new, rc);
+	error = change_route_conditional(
+	    rnh, NULL, info, rnd_orig, &rnd_new, rc);
 
 	return (error);
 }
@@ -1028,7 +1033,8 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	error = change_nhop(rnh, info, nh_orig, &rnd_new.rnd_nhop);
 	if (error != 0)
 		return (error);
-	error = change_route_conditional(rnh, NULL, info, rnd_orig, &rnd_new, rc);
+	error = change_route_conditional(
+	    rnh, NULL, info, rnd_orig, &rnd_new, rc);
 
 	return (error);
 }
@@ -1146,8 +1152,8 @@ change_route_conditional(struct rib_head *rnh, struct rtentry *rt,
 
 	RIB_WLOCK(rnh);
 
-	rt_new = (struct rtentry *)rnh->rnh_lookup(info->rti_info[RTAX_DST],
-	    info->rti_info[RTAX_NETMASK], &rnh->head);
+	rt_new = (struct rtentry *)rnh->rnh_lookup(
+	    info->rti_info[RTAX_DST], info->rti_info[RTAX_NETMASK], &rnh->head);
 
 	if (rt_new == NULL) {
 		if (rnd_orig->rnd_nhop == NULL)
@@ -1168,7 +1174,8 @@ change_route_conditional(struct rib_head *rnh, struct rtentry *rt,
 			 * Nhop/mpath group hasn't changed. Flip
 			 * to the new precalculated one and return
 			 */
-			error = change_route_nhop(rnh, rt_new, info, rnd_new, rc);
+			error = change_route_nhop(
+			    rnh, rt_new, info, rnd_new, rc);
 		} else {
 			/* Update and retry */
 			rnd_orig->rnd_nhop = rt_new->rt_nhop;
@@ -1223,8 +1230,7 @@ rib_action(uint32_t fibnum, int action, struct rt_addrinfo *info,
 	return (error);
 }
 
-struct rt_delinfo
-{
+struct rt_delinfo {
 	struct rt_addrinfo info;
 	struct rib_head *rnh;
 	struct rtentry *head;
@@ -1286,7 +1292,8 @@ rt_checkdelroute(struct radix_node *rn, void *arg)
  * @report: true if rtsock notification is needed.
  */
 void
-rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f, void *arg, bool report)
+rib_walk_del(
+    u_int fibnum, int family, rib_filter_f_t *filter_f, void *arg, bool report)
 {
 	struct rib_head *rnh;
 	struct rt_delinfo di;
@@ -1336,10 +1343,11 @@ rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f, void *arg, bool
 				nhg = (struct nhgrp_object *)nh;
 				wn = nhgrp_get_nhops(nhg, &num_nhops);
 				for (int i = 0; i < num_nhops; i++)
-					rt_routemsg(RTM_DELETE, rt, wn[i].nh, fibnum);
+					rt_routemsg(
+					    RTM_DELETE, rt, wn[i].nh, fibnum);
 			} else
 #endif
-			rt_routemsg(RTM_DELETE, rt, nh, fibnum);
+				rt_routemsg(RTM_DELETE, rt, nh, fibnum);
 		}
 		rtfree(rt);
 	}
@@ -1389,7 +1397,8 @@ rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
 {
 	struct rib_subscription *rs;
 
-	CK_STAILQ_FOREACH(rs, &rnh->rnh_subscribers, next) {
+	CK_STAILQ_FOREACH(rs, &rnh->rnh_subscribers, next)
+	{
 		if (rs->type == type)
 			rs->func(rnh, rc, rs->arg);
 	}
@@ -1435,8 +1444,8 @@ rib_subscribe(uint32_t fibnum, int family, rib_subscription_cb_t *f, void *arg,
 }
 
 struct rib_subscription *
-rib_subscribe_internal(struct rib_head *rnh, rib_subscription_cb_t *f, void *arg,
-    enum rib_subscription_type type, bool waitok)
+rib_subscribe_internal(struct rib_head *rnh, rib_subscription_cb_t *f,
+    void *arg, enum rib_subscription_type type, bool waitok)
 {
 	struct rib_subscription *rs;
 	struct epoch_tracker et;
@@ -1487,8 +1496,8 @@ rib_unsibscribe(struct rib_subscription *rs)
 	CK_STAILQ_REMOVE(&rnh->rnh_subscribers, rs, rib_subscription, next);
 	RIB_WUNLOCK(rnh);
 
-	epoch_call(net_epoch_preempt, destroy_subscription_epoch,
-	    &rs->epoch_ctx);
+	epoch_call(
+	    net_epoch_preempt, destroy_subscription_epoch, &rs->epoch_ctx);
 }
 
 void
@@ -1501,8 +1510,8 @@ rib_unsibscribe_locked(struct rib_subscription *rs)
 
 	CK_STAILQ_REMOVE(&rnh->rnh_subscribers, rs, rib_subscription, next);
 
-	epoch_call(net_epoch_preempt, destroy_subscription_epoch,
-	    &rs->epoch_ctx);
+	epoch_call(
+	    net_epoch_preempt, destroy_subscription_epoch, &rs->epoch_ctx);
 }
 
 /*

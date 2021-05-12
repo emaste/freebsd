@@ -29,7 +29,7 @@
  */
 
 #ifndef __LINUX_IRQ_WORK_H__
-#define	__LINUX_IRQ_WORK_H__
+#define __LINUX_IRQ_WORK_H__
 
 #include <sys/param.h>
 #include <sys/taskqueue.h>
@@ -44,12 +44,13 @@ struct irq_work {
 
 extern struct taskqueue *linux_irq_work_tq;
 
-#define	DEFINE_IRQ_WORK(name, _func)	struct irq_work name = {	\
-	.irq_task = TASK_INITIALIZER(0, linux_irq_work_fn, &(name)),	\
-	.func  = (_func),						\
-}
+#define DEFINE_IRQ_WORK(name, _func)                                         \
+	struct irq_work name = {                                             \
+		.irq_task = TASK_INITIALIZER(0, linux_irq_work_fn, &(name)), \
+		.func = (_func),                                             \
+	}
 
-void	linux_irq_work_fn(void *, int);
+void linux_irq_work_fn(void *, int);
 
 static inline void
 init_irq_work(struct irq_work *irqw, irq_work_func_t func)

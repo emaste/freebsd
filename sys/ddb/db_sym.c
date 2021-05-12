@@ -33,37 +33,40 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
-#include <sys/systm.h>
 
 #include <net/vnet.h>
 
-#include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
-
-#include "opt_ddb.h"
+#include <ddb/ddb.h>
 
 /*
  * Multiple symbol tables
  */
 #ifndef MAXNOSYMTABS
-#define	MAXNOSYMTABS	3	/* mach, ux, emulator */
+#define MAXNOSYMTABS 3 /* mach, ux, emulator */
 #endif
 
-static db_symtab_t	db_symtabs[MAXNOSYMTABS] = {{0,},};
+static db_symtab_t db_symtabs[MAXNOSYMTABS] = {
+	{
+	    0,
+	},
+};
 static int db_nsymtab = 0;
 
-static db_symtab_t	*db_last_symtab; /* where last symbol was found */
+static db_symtab_t *db_last_symtab; /* where last symbol was found */
 
-static c_db_sym_t	db_lookup( const char *symstr);
-static char		*db_qualify(c_db_sym_t sym, char *symtabname);
-static bool		db_symbol_is_ambiguous(c_db_sym_t sym);
-static bool		db_line_at_pc(c_db_sym_t, char **, int *, db_expr_t);
+static c_db_sym_t db_lookup(const char *symstr);
+static char *db_qualify(c_db_sym_t sym, char *symtabname);
+static bool db_symbol_is_ambiguous(c_db_sym_t sym);
+static bool db_line_at_pc(c_db_sym_t, char **, int *, db_expr_t);
 
 static int db_cpu = -1;
 
@@ -86,7 +89,7 @@ db_var_db_cpu(struct db_variable *vp, db_expr_t *valuep, int op)
 
 	case DB_VAR_SET:
 		if (*(int *)valuep < -1 || *(int *)valuep > mp_maxid) {
-			db_printf("Invalid value: %d\n", *(int*)valuep);
+			db_printf("Invalid value: %d\n", *(int *)valuep);
 			return (0);
 		}
 		db_cpu = *(int *)valuep;
@@ -177,8 +180,8 @@ void
 db_add_symbol_table(char *start, char *end, char *name, char *ref)
 {
 	if (db_nsymtab >= MAXNOSYMTABS) {
-		printf ("No slots left for %s symbol table", name);
-		panic ("db_sym.c: db_add_symbol_table");
+		printf("No slots left for %s symbol table", name);
+		panic("db_sym.c: db_add_symbol_table");
 	}
 
 	db_symtabs[db_nsymtab].start = start;
@@ -197,8 +200,8 @@ db_add_symbol_table(char *start, char *end, char *name, char *ref)
 static char *
 db_qualify(c_db_sym_t sym, char *symtabname)
 {
-	const char	*symname;
-	static char     tmp[256];
+	const char *symname;
+	static char tmp[256];
 
 	db_symbol_values(sym, &symname, 0);
 	snprintf(tmp, sizeof(tmp), "%s:%s", symtabname, symname);
@@ -209,20 +212,20 @@ bool
 db_eqname(const char *src, const char *dst, int c)
 {
 	if (!strcmp(src, dst))
-	    return (true);
+		return (true);
 	if (src[0] == c)
-	    return (!strcmp(src+1,dst));
+		return (!strcmp(src + 1, dst));
 	return (false);
 }
 
 bool
 db_value_of_name(const char *name, db_expr_t *valuep)
 {
-	c_db_sym_t	sym;
+	c_db_sym_t sym;
 
 	sym = db_lookup(name);
 	if (sym == C_DB_SYM_NULL)
-	    return (false);
+		return (false);
 	db_symbol_values(sym, &name, valuep);
 	return (true);
 }
@@ -230,10 +233,10 @@ db_value_of_name(const char *name, db_expr_t *valuep)
 bool
 db_value_of_name_pcpu(const char *name, db_expr_t *valuep)
 {
-	static char     tmp[256];
-	db_expr_t	value;
-	c_db_sym_t	sym;
-	int		cpu;
+	static char tmp[256];
+	db_expr_t value;
+	c_db_sym_t sym;
+	int cpu;
 
 	if (db_cpu != -1)
 		cpu = db_cpu;
@@ -254,10 +257,10 @@ bool
 db_value_of_name_vnet(const char *name, db_expr_t *valuep)
 {
 #ifdef VIMAGE
-	static char     tmp[256];
-	db_expr_t	value;
-	c_db_sym_t	sym;
-	struct vnet	*vnet;
+	static char tmp[256];
+	db_expr_t value;
+	c_db_sym_t sym;
+	struct vnet *vnet;
 
 	if (db_vnet != NULL)
 		vnet = db_vnet;
@@ -300,10 +303,9 @@ db_lookup(const char *symstr)
 			for (i = 0; i < db_nsymtab; i++) {
 				int n = strlen(db_symtabs[i].name);
 
-				if (
-				    n == (cp - symstr) &&
-				    strncmp(symstr, db_symtabs[i].name, n) == 0
-				) {
+				if (n == (cp - symstr) &&
+				    strncmp(symstr, db_symtabs[i].name, n) ==
+					0) {
 					symtab_start = i;
 					symtab_end = i + 1;
 					break;
@@ -312,7 +314,7 @@ db_lookup(const char *symstr)
 			if (i == db_nsymtab) {
 				db_error("invalid symbol table name");
 			}
-			symstr = cp+1;
+			symstr = cp + 1;
 		}
 	}
 
@@ -343,9 +345,9 @@ static volatile bool db_qualify_ambiguous_names = false;
 static bool
 db_symbol_is_ambiguous(c_db_sym_t sym)
 {
-	const char	*sym_name;
-	int		i;
-	bool		found_once = false;
+	const char *sym_name;
+	int i;
+	bool found_once = false;
 
 	if (!db_qualify_ambiguous_names)
 		return (false);
@@ -368,10 +370,10 @@ db_symbol_is_ambiguous(c_db_sym_t sym)
 c_db_sym_t
 db_search_symbol(db_addr_t val, db_strategy_t strategy, db_expr_t *offp)
 {
-	unsigned int	diff;
-	size_t		newdiff;
-	int		i;
-	c_db_sym_t	ret, sym;
+	unsigned int diff;
+	size_t newdiff;
+	int i;
+	c_db_sym_t ret, sym;
 
 	/*
 	 * The kernel will never map the first page, so any symbols in that
@@ -388,12 +390,13 @@ db_search_symbol(db_addr_t val, db_strategy_t strategy, db_expr_t *offp)
 	ret = C_DB_SYM_NULL;
 	newdiff = diff = val;
 	for (i = 0; i < db_nsymtab; i++) {
-	    sym = X_db_search_symbol(&db_symtabs[i], val, strategy, &newdiff);
-	    if ((uintmax_t)newdiff < (uintmax_t)diff) {
-		db_last_symtab = &db_symtabs[i];
-		diff = newdiff;
-		ret = sym;
-	    }
+		sym = X_db_search_symbol(
+		    &db_symtabs[i], val, strategy, &newdiff);
+		if ((uintmax_t)newdiff < (uintmax_t)diff) {
+			db_last_symtab = &db_symtabs[i];
+			diff = newdiff;
+			ret = sym;
+		}
 	}
 	*offp = diff;
 	return ret;
@@ -405,7 +408,7 @@ db_search_symbol(db_addr_t val, db_strategy_t strategy, db_expr_t *offp)
 void
 db_symbol_values(c_db_sym_t sym, const char **namep, db_expr_t *valuep)
 {
-	db_expr_t	value;
+	db_expr_t value;
 
 	if (sym == DB_SYM_NULL) {
 		*namep = NULL;
@@ -436,16 +439,16 @@ db_symbol_values(c_db_sym_t sym, const char **namep, db_expr_t *valuep)
  * not accept symbols whose value is "small" (and use plain hex).
  */
 
-db_expr_t	db_maxoff = 0x10000;
+db_expr_t db_maxoff = 0x10000;
 
 void
 db_printsym(db_expr_t off, db_strategy_t strategy)
 {
-	db_expr_t	d;
-	char 		*filename;
-	const char	*name;
-	int 		linenum;
-	c_db_sym_t	cursym;
+	db_expr_t d;
+	char *filename;
+	const char *name;
+	int linenum;
+	c_db_sym_t cursym;
 
 	if (off < 0 && off >= -db_maxoff) {
 		db_printf("%+#lr", (long)off);

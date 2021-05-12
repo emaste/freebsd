@@ -41,22 +41,22 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/fdt.h>
-#include <machine/smp.h>
 #include <machine/platformvar.h>
+#include <machine/smp.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_cpu.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_cpu.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/psci/psci.h>
 
 #include <arm/rockchip/rk32xx_mp.h>
 
-#define	IMEM_PHYSBASE			0xFF700000
-#define	IMEM_SIZE			0x00018000
+#define IMEM_PHYSBASE 0xFF700000
+#define IMEM_SIZE 0x00018000
 
-#define	PMU_PHYSBASE			0xFF730000
-#define	PMU_SIZE			0x00010000
-#define	PMU_PWRDN_CON			0x08
+#define PMU_PHYSBASE 0xFF730000
+#define PMU_SIZE 0x00010000
+#define PMU_PWRDN_CON 0x08
 
 static int running_cpus;
 static uint32_t psci_mask, pmu_mask;
@@ -127,7 +127,7 @@ rk32xx_start_ap(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
 	uint32_t mask;
 
 	if (!ofw_bus_node_status_okay(node))
-		return(false);
+		return (false);
 
 	/* Skip boot CPU. */
 	if (id == 0)

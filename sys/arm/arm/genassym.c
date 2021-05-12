@@ -30,29 +30,30 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
-#include <sys/cpuset.h>
 #include <sys/systm.h>
 #include <sys/assym.h>
+#include <sys/bus.h>
+#include <sys/cpuset.h>
+#include <sys/mbuf.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
-#include <sys/mbuf.h>
 #include <sys/vmmeter.h>
-#include <sys/bus.h>
+
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_param.h>
 
 #include <machine/armreg.h>
-#include <machine/frame.h>
-#include <machine/pcb.h>
 #include <machine/cpu.h>
-#include <machine/proc.h>
 #include <machine/cpufunc.h>
 #include <machine/cpuinfo.h>
+#include <machine/frame.h>
 #include <machine/intr.h>
+#include <machine/pcb.h>
+#include <machine/proc.h>
 #include <machine/sysarch.h>
-#include <machine/vmparam.h>	/* For KERNVIRTADDR */
+#include <machine/vmparam.h> /* For KERNVIRTADDR */
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -62,7 +63,7 @@ __FBSDID("$FreeBSD$");
 
 ASSYM(KERNBASE, KERNBASE);
 ASSYM(KERNVIRTADDR, KERNVIRTADDR);
-ASSYM(CPU_ASID_KERNEL,CPU_ASID_KERNEL);
+ASSYM(CPU_ASID_KERNEL, CPU_ASID_KERNEL);
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_PAGEDIR, offsetof(struct pcb, pcb_pagedir));
 ASSYM(PCB_R4, offsetof(struct pcb, pcb_regs.sf_r4));

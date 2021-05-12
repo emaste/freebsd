@@ -35,51 +35,51 @@
  */
 
 #ifndef _UFS_UFS_EXTATTR_H_
-#define	_UFS_UFS_EXTATTR_H_
+#define _UFS_UFS_EXTATTR_H_
 
-#define	UFS_EXTATTR_MAGIC		0x00b5d5ec
-#define	UFS_EXTATTR_VERSION		0x00000003
-#define	UFS_EXTATTR_FSROOTSUBDIR	".attribute"
-#define	UFS_EXTATTR_SUBDIR_SYSTEM	"system"
-#define	UFS_EXTATTR_SUBDIR_USER		"user"
-#define	UFS_EXTATTR_MAXEXTATTRNAME	65	/* including null */
+#define UFS_EXTATTR_MAGIC 0x00b5d5ec
+#define UFS_EXTATTR_VERSION 0x00000003
+#define UFS_EXTATTR_FSROOTSUBDIR ".attribute"
+#define UFS_EXTATTR_SUBDIR_SYSTEM "system"
+#define UFS_EXTATTR_SUBDIR_USER "user"
+#define UFS_EXTATTR_MAXEXTATTRNAME 65 /* including null */
 
-#define	UFS_EXTATTR_ATTR_FLAG_INUSE	0x00000001	/* attr has been set */
-#define	UFS_EXTATTR_PERM_KERNEL		0x00000000
-#define	UFS_EXTATTR_PERM_ROOT		0x00000001
-#define	UFS_EXTATTR_PERM_OWNER		0x00000002
-#define	UFS_EXTATTR_PERM_ANYONE		0x00000003
+#define UFS_EXTATTR_ATTR_FLAG_INUSE 0x00000001 /* attr has been set */
+#define UFS_EXTATTR_PERM_KERNEL 0x00000000
+#define UFS_EXTATTR_PERM_ROOT 0x00000001
+#define UFS_EXTATTR_PERM_OWNER 0x00000002
+#define UFS_EXTATTR_PERM_ANYONE 0x00000003
 
-#define	UFS_EXTATTR_UEPM_INITIALIZED	0x00000001
-#define	UFS_EXTATTR_UEPM_STARTED	0x00000002
+#define UFS_EXTATTR_UEPM_INITIALIZED 0x00000001
+#define UFS_EXTATTR_UEPM_STARTED 0x00000002
 
-#define	UFS_EXTATTR_CMD_START		0x00000001
-#define	UFS_EXTATTR_CMD_STOP		0x00000002
-#define	UFS_EXTATTR_CMD_ENABLE		0x00000003
-#define	UFS_EXTATTR_CMD_DISABLE		0x00000004
+#define UFS_EXTATTR_CMD_START 0x00000001
+#define UFS_EXTATTR_CMD_STOP 0x00000002
+#define UFS_EXTATTR_CMD_ENABLE 0x00000003
+#define UFS_EXTATTR_CMD_DISABLE 0x00000004
 
 struct ufs_extattr_fileheader {
-	u_int	uef_magic;	/* magic number for sanity checking */
-	u_int	uef_version;	/* version of attribute file */
-	u_int	uef_size;	/* size of attributes, w/o header */
+	u_int uef_magic;   /* magic number for sanity checking */
+	u_int uef_version; /* version of attribute file */
+	u_int uef_size;	   /* size of attributes, w/o header */
 };
 
 struct ufs_extattr_header {
-	u_int	ueh_flags;	/* flags for attribute */
-	u_int	ueh_len;	/* local defined length; <= uef_size */
-	u_int32_t	ueh_i_gen;	/* generation number for sanity */
-	/* data follows the header */
+	u_int ueh_flags;     /* flags for attribute */
+	u_int ueh_len;	     /* local defined length; <= uef_size */
+	u_int32_t ueh_i_gen; /* generation number for sanity */
+			     /* data follows the header */
 };
 
 /*
  * This structure defines the required fields of an extended-attribute header.
  */
 struct extattr {
-	uint32_t ea_length;	    /* length of this attribute */
-	uint8_t	ea_namespace;	    /* name space of this attribute */
-	uint8_t	ea_contentpadlen;   /* bytes of padding at end of attribute */
-	uint8_t	ea_namelength;	    /* length of attribute name */
-	char	ea_name[1];	    /* attribute name (NOT nul-terminated) */
+	uint32_t ea_length;	  /* length of this attribute */
+	uint8_t ea_namespace;	  /* name space of this attribute */
+	uint8_t ea_contentpadlen; /* bytes of padding at end of attribute */
+	uint8_t ea_namelength;	  /* length of attribute name */
+	char ea_name[1];	  /* attribute name (NOT nul-terminated) */
 	/* padding, if any, to align attribute content to 8 byte boundary */
 	/* extended attribute content follows */
 };
@@ -94,24 +94,24 @@ struct extattr {
  * EXTATTR_CONTENT_SIZE(eap) returns the size of the extended attribute
  *	content referenced by eap.
  */
-#define	EXTATTR_NEXT(eap) \
+#define EXTATTR_NEXT(eap) \
 	((struct extattr *)(__DECONST(char *, (eap)) + (eap)->ea_length))
-#define	EXTATTR_CONTENT(eap) \
+#define EXTATTR_CONTENT(eap) \
 	(void *)(((u_char *)(eap)) + EXTATTR_BASE_LENGTH(eap))
-#define	EXTATTR_CONTENT_SIZE(eap) \
+#define EXTATTR_CONTENT_SIZE(eap) \
 	((eap)->ea_length - EXTATTR_BASE_LENGTH(eap) - (eap)->ea_contentpadlen)
 /* -1 below compensates for ea_name[1] */
-#define	EXTATTR_BASE_LENGTH(eap) \
+#define EXTATTR_BASE_LENGTH(eap) \
 	roundup2((sizeof(struct extattr) - 1 + (eap)->ea_namelength), 8)
 
 struct vnode;
 LIST_HEAD(ufs_extattr_list_head, ufs_extattr_list_entry);
 struct ufs_extattr_list_entry {
-	LIST_ENTRY(ufs_extattr_list_entry)	uele_entries;
-	struct ufs_extattr_fileheader		uele_fileheader;
-	int	uele_attrnamespace;
-	char	uele_attrname[UFS_EXTATTR_MAXEXTATTRNAME];
-	struct vnode	*uele_backing_vnode;
+	LIST_ENTRY(ufs_extattr_list_entry) uele_entries;
+	struct ufs_extattr_fileheader uele_fileheader;
+	int uele_attrnamespace;
+	char uele_attrname[UFS_EXTATTR_MAXEXTATTRNAME];
+	struct vnode *uele_backing_vnode;
 };
 
 #include <sys/_lock.h>
@@ -119,10 +119,10 @@ struct ufs_extattr_list_entry {
 
 struct ucred;
 struct ufs_extattr_per_mount {
-	struct sx	uepm_lock;
-	struct ufs_extattr_list_head	uepm_list;
-	struct ucred	*uepm_ucred;
-	int	uepm_flags;
+	struct sx uepm_lock;
+	struct ufs_extattr_list_head uepm_list;
+	struct ucred *uepm_ucred;
+	int uepm_flags;
 };
 
 #ifdef _KERNEL
@@ -131,17 +131,17 @@ struct vop_getextattr_args;
 struct vop_deleteextattr_args;
 struct vop_setextattr_args;
 
-void	ufs_extattr_uepm_init(struct ufs_extattr_per_mount *uepm);
-void	ufs_extattr_uepm_destroy(struct ufs_extattr_per_mount *uepm);
-int	ufs_extattr_start(struct mount *mp, struct thread *td);
-int	ufs_extattr_autostart(struct mount *mp, struct thread *td);
-int	ufs_extattr_stop(struct mount *mp, struct thread *td);
-int	ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename,
-	    int attrnamespace, const char *attrname);
-int	ufs_getextattr(struct vop_getextattr_args *ap);
-int	ufs_deleteextattr(struct vop_deleteextattr_args *ap);
-int	ufs_setextattr(struct vop_setextattr_args *ap);
-void	ufs_extattr_vnode_inactive(struct vnode *vp);
+void ufs_extattr_uepm_init(struct ufs_extattr_per_mount *uepm);
+void ufs_extattr_uepm_destroy(struct ufs_extattr_per_mount *uepm);
+int ufs_extattr_start(struct mount *mp, struct thread *td);
+int ufs_extattr_autostart(struct mount *mp, struct thread *td);
+int ufs_extattr_stop(struct mount *mp, struct thread *td);
+int ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename,
+    int attrnamespace, const char *attrname);
+int ufs_getextattr(struct vop_getextattr_args *ap);
+int ufs_deleteextattr(struct vop_deleteextattr_args *ap);
+int ufs_setextattr(struct vop_setextattr_args *ap);
+void ufs_extattr_vnode_inactive(struct vnode *vp);
 
 #endif /* !_KERNEL */
 

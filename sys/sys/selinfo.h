@@ -33,9 +33,9 @@
  */
 
 #ifndef _SYS_SELINFO_H_
-#define	_SYS_SELINFO_H_
+#define _SYS_SELINFO_H_
 
-#include <sys/event.h>		/* for struct klist */
+#include <sys/event.h> /* for struct klist */
 
 struct selfd;
 TAILQ_HEAD(selfdlist, selfd);
@@ -45,19 +45,19 @@ TAILQ_HEAD(selfdlist, selfd);
  * notified when I/O becomes possible.
  */
 struct selinfo {
-	struct selfdlist	si_tdlist;	/* List of sleeping threads. */
-	struct knlist		si_note;	/* kernel note list */
-	struct mtx		*si_mtx;	/* Lock for tdlist. */
+	struct selfdlist si_tdlist; /* List of sleeping threads. */
+	struct knlist si_note;	    /* kernel note list */
+	struct mtx *si_mtx;	    /* Lock for tdlist. */
 };
 
-#define	SEL_WAITING(si)		(!TAILQ_EMPTY(&(si)->si_tdlist))
+#define SEL_WAITING(si) (!TAILQ_EMPTY(&(si)->si_tdlist))
 
 #ifdef _KERNEL
-void	seldrain(struct selinfo *sip);
-void	selrecord(struct thread *selector, struct selinfo *sip);
-void	selwakeup(struct selinfo *sip);
-void	selwakeuppri(struct selinfo *sip, int pri);
-void	seltdfini(struct thread *td);
+void seldrain(struct selinfo *sip);
+void selrecord(struct thread *selector, struct selinfo *sip);
+void selwakeup(struct selinfo *sip);
+void selwakeuppri(struct selinfo *sip, int pri);
+void seltdfini(struct thread *td);
 #endif
 
 #endif /* !_SYS_SELINFO_H_ */

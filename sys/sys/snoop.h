@@ -16,7 +16,7 @@
  */
 
 #ifndef _SYS_SNOOP_H_
-#define	_SYS_SNOOP_H_
+#define _SYS_SNOOP_H_
 
 #ifndef _KERNEL
 #include <sys/types.h>
@@ -28,16 +28,16 @@
  * SNPSTTY accepts a file descriptor as input.
  */
 
-#define SNPSTTY       _IOW('T', 90, int)
-#define SNPGTTY       _IOR('T', 89, dev_t)
+#define SNPSTTY _IOW('T', 90, int)
+#define SNPGTTY _IOR('T', 89, dev_t)
 
 /*
  * These values would be returned by FIONREAD ioctl
  * instead of number of characters in buffer in case
  * of specific errors.
  */
-#define SNP_OFLOW		-1
-#define SNP_TTYCLOSE		-2
-#define SNP_DETACH		-3
+#define SNP_OFLOW -1
+#define SNP_TTYCLOSE -2
+#define SNP_DETACH -3
 
 #endif /* !_SYS_SNOOP_H_ */

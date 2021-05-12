@@ -40,19 +40,20 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/eventhandler.h>
-#include <sys/malloc.h>
 #include <sys/bio.h>
-#include <sys/sysctl.h>
-#include <sys/proc.h>
-#include <sys/unistd.h>
+#include <sys/eventhandler.h>
+#include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/unistd.h>
+
 #include <geom/geom.h>
 #include <geom/geom_int.h>
 
@@ -95,7 +96,7 @@ g_up_procbody(void *arg)
 	thread_lock(g_up_td);
 	sched_prio(g_up_td, PRIBIO);
 	thread_unlock(g_up_td);
-	for(;;) {
+	for (;;) {
 		g_io_schedule_up(g_up_td);
 	}
 }
@@ -107,7 +108,7 @@ g_down_procbody(void *arg)
 	thread_lock(g_down_td);
 	sched_prio(g_down_td, PRIBIO);
 	thread_unlock(g_down_td);
-	for(;;) {
+	for (;;) {
 		g_io_schedule_down(g_down_td);
 	}
 }
@@ -148,12 +149,12 @@ g_init(void)
 	g_ctl_init();
 	kproc_kthread_add(g_event_procbody, NULL, &g_proc, &g_event_td,
 	    RFHIGHPID, 0, "geom", "g_event");
-	kproc_kthread_add(g_up_procbody, NULL, &g_proc, &g_up_td,
-	    RFHIGHPID, 0, "geom", "g_up");
-	kproc_kthread_add(g_down_procbody, NULL, &g_proc, &g_down_td,
-	    RFHIGHPID, 0, "geom", "g_down");
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, geom_shutdown, NULL,
-		SHUTDOWN_PRI_FIRST);
+	kproc_kthread_add(g_up_procbody, NULL, &g_proc, &g_up_td, RFHIGHPID, 0,
+	    "geom", "g_up");
+	kproc_kthread_add(g_down_procbody, NULL, &g_proc, &g_down_td, RFHIGHPID,
+	    0, "geom", "g_down");
+	EVENTHANDLER_REGISTER(
+	    shutdown_pre_sync, geom_shutdown, NULL, SHUTDOWN_PRI_FIRST);
 }
 
 static int
@@ -164,14 +165,14 @@ sysctl_kern_geom_confany(struct sysctl_req *req, g_event_t *func, size_t *hint)
 	struct sbuf *sb;
 
 	if (req->oldptr == NULL) {
-		sb = sbuf_new(NULL, NULL, PAGE_SIZE, SBUF_FIXEDLEN |
-		    SBUF_INCLUDENUL);
+		sb = sbuf_new(
+		    NULL, NULL, PAGE_SIZE, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 		sbuf_set_drain(sb, sbuf_count_drain, &len);
 		g_waitfor_event(func, sb, M_WAITOK, NULL);
 		req->oldidx = *hint = len;
 	} else {
-		sb = sbuf_new(NULL, NULL, *hint, SBUF_AUTOEXTEND |
-		    SBUF_INCLUDENUL);
+		sb = sbuf_new(
+		    NULL, NULL, *hint, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
 		g_waitfor_event(func, sb, M_WAITOK, NULL);
 		*hint = sbuf_len(sb);
 		error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb));
@@ -180,24 +181,21 @@ sysctl_kern_geom_confany(struct sysctl_req *req, g_event_t *func, size_t *hint)
 	return error;
 }
 
-static int
-sysctl_kern_geom_conftxt(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_geom_conftxt(SYSCTL_HANDLER_ARGS)
 {
 	static size_t hint = PAGE_SIZE;
 
 	return (sysctl_kern_geom_confany(req, g_conftxt, &hint));
 }
 
-static int
-sysctl_kern_geom_confdot(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_geom_confdot(SYSCTL_HANDLER_ARGS)
 {
 	static size_t hint = PAGE_SIZE;
 
 	return (sysctl_kern_geom_confany(req, g_confdot, &hint));
 }
 
-static int
-sysctl_kern_geom_confxml(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_geom_confxml(SYSCTL_HANDLER_ARGS)
 {
 	static size_t hint = PAGE_SIZE;
 
@@ -209,36 +207,32 @@ SYSCTL_NODE(_kern, OID_AUTO, geom, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 
 SYSCTL_PROC(_kern_geom, OID_AUTO, confxml,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, 0, 0,
-    sysctl_kern_geom_confxml, "",
-    "Dump the GEOM config in XML");
+    sysctl_kern_geom_confxml, "", "Dump the GEOM config in XML");
 
 SYSCTL_PROC(_kern_geom, OID_AUTO, confdot,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, 0, 0,
-    sysctl_kern_geom_confdot, "",
-    "Dump the GEOM config in dot");
+    sysctl_kern_geom_confdot, "", "Dump the GEOM config in dot");
 
 SYSCTL_PROC(_kern_geom, OID_AUTO, conftxt,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, 0, 0,
-    sysctl_kern_geom_conftxt, "",
-    "Dump the GEOM config in txt");
+    sysctl_kern_geom_conftxt, "", "Dump the GEOM config in txt");
 
-SYSCTL_INT(_kern_geom, OID_AUTO, debugflags, CTLFLAG_RWTUN,
-	&g_debugflags, 0, "Set various trace levels for GEOM debugging");
+SYSCTL_INT(_kern_geom, OID_AUTO, debugflags, CTLFLAG_RWTUN, &g_debugflags, 0,
+    "Set various trace levels for GEOM debugging");
 
-SYSCTL_INT(_kern_geom, OID_AUTO, notaste, CTLFLAG_RW,
-	&g_notaste, 0, "Prevent GEOM tasting");
+SYSCTL_INT(_kern_geom, OID_AUTO, notaste, CTLFLAG_RW, &g_notaste, 0,
+    "Prevent GEOM tasting");
 
-SYSCTL_INT(_kern_geom, OID_AUTO, collectstats, CTLFLAG_RW,
-	&g_collectstats, 0,
-	"Control statistics collection on GEOM providers and consumers");
+SYSCTL_INT(_kern_geom, OID_AUTO, collectstats, CTLFLAG_RW, &g_collectstats, 0,
+    "Control statistics collection on GEOM providers and consumers");
 
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_class, CTLFLAG_RD,
-	SYSCTL_NULL_INT_PTR, sizeof(struct g_class), "sizeof(struct g_class)");
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_geom, CTLFLAG_RD,
-	SYSCTL_NULL_INT_PTR, sizeof(struct g_geom), "sizeof(struct g_geom)");
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_provider, CTLFLAG_RD,
-	SYSCTL_NULL_INT_PTR, sizeof(struct g_provider), "sizeof(struct g_provider)");
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_consumer, CTLFLAG_RD,
-	SYSCTL_NULL_INT_PTR, sizeof(struct g_consumer), "sizeof(struct g_consumer)");
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_bioq, CTLFLAG_RD,
-	SYSCTL_NULL_INT_PTR, sizeof(struct g_bioq), "sizeof(struct g_bioq)");
+SYSCTL_INT(_debug_sizeof, OID_AUTO, g_class, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
+    sizeof(struct g_class), "sizeof(struct g_class)");
+SYSCTL_INT(_debug_sizeof, OID_AUTO, g_geom, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
+    sizeof(struct g_geom), "sizeof(struct g_geom)");
+SYSCTL_INT(_debug_sizeof, OID_AUTO, g_provider, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
+    sizeof(struct g_provider), "sizeof(struct g_provider)");
+SYSCTL_INT(_debug_sizeof, OID_AUTO, g_consumer, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
+    sizeof(struct g_consumer), "sizeof(struct g_consumer)");
+SYSCTL_INT(_debug_sizeof, OID_AUTO, g_bioq, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
+    sizeof(struct g_bioq), "sizeof(struct g_bioq)");

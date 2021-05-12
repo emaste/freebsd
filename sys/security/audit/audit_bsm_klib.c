@@ -47,8 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
-#include <sys/sem.h>
 #include <sys/sbuf.h>
+#include <sys/sem.h>
 #include <sys/sx.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
@@ -61,38 +61,38 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit_private.h>
 
 struct aue_open_event {
-	int		aoe_flags;
-	au_event_t	aoe_event;
+	int aoe_flags;
+	au_event_t aoe_event;
 };
 
 static const struct aue_open_event aue_open[] = {
-	{ O_RDONLY,					AUE_OPEN_R },
-	{ (O_RDONLY | O_CREAT),				AUE_OPEN_RC },
-	{ (O_RDONLY | O_CREAT | O_TRUNC),		AUE_OPEN_RTC },
-	{ (O_RDONLY | O_TRUNC),				AUE_OPEN_RT },
-	{ O_RDWR,					AUE_OPEN_RW },
-	{ (O_RDWR | O_CREAT),				AUE_OPEN_RWC },
-	{ (O_RDWR | O_CREAT | O_TRUNC),			AUE_OPEN_RWTC },
-	{ (O_RDWR | O_TRUNC),				AUE_OPEN_RWT },
-	{ O_WRONLY,					AUE_OPEN_W },
-	{ (O_WRONLY | O_CREAT),				AUE_OPEN_WC },
-	{ (O_WRONLY | O_CREAT | O_TRUNC),		AUE_OPEN_WTC },
-	{ (O_WRONLY | O_TRUNC),				AUE_OPEN_WT },
+	{ O_RDONLY, AUE_OPEN_R },
+	{ (O_RDONLY | O_CREAT), AUE_OPEN_RC },
+	{ (O_RDONLY | O_CREAT | O_TRUNC), AUE_OPEN_RTC },
+	{ (O_RDONLY | O_TRUNC), AUE_OPEN_RT },
+	{ O_RDWR, AUE_OPEN_RW },
+	{ (O_RDWR | O_CREAT), AUE_OPEN_RWC },
+	{ (O_RDWR | O_CREAT | O_TRUNC), AUE_OPEN_RWTC },
+	{ (O_RDWR | O_TRUNC), AUE_OPEN_RWT },
+	{ O_WRONLY, AUE_OPEN_W },
+	{ (O_WRONLY | O_CREAT), AUE_OPEN_WC },
+	{ (O_WRONLY | O_CREAT | O_TRUNC), AUE_OPEN_WTC },
+	{ (O_WRONLY | O_TRUNC), AUE_OPEN_WT },
 };
 
 static const struct aue_open_event aue_openat[] = {
-	{ O_RDONLY,					AUE_OPENAT_R },
-	{ (O_RDONLY | O_CREAT),				AUE_OPENAT_RC },
-	{ (O_RDONLY | O_CREAT | O_TRUNC),		AUE_OPENAT_RTC },
-	{ (O_RDONLY | O_TRUNC),				AUE_OPENAT_RT },
-	{ O_RDWR,					AUE_OPENAT_RW },
-	{ (O_RDWR | O_CREAT),				AUE_OPENAT_RWC },
-	{ (O_RDWR | O_CREAT | O_TRUNC),			AUE_OPENAT_RWTC },
-	{ (O_RDWR | O_TRUNC),				AUE_OPENAT_RWT },
-	{ O_WRONLY,					AUE_OPENAT_W },
-	{ (O_WRONLY | O_CREAT),				AUE_OPENAT_WC },
-	{ (O_WRONLY | O_CREAT | O_TRUNC),		AUE_OPENAT_WTC },
-	{ (O_WRONLY | O_TRUNC),				AUE_OPENAT_WT },
+	{ O_RDONLY, AUE_OPENAT_R },
+	{ (O_RDONLY | O_CREAT), AUE_OPENAT_RC },
+	{ (O_RDONLY | O_CREAT | O_TRUNC), AUE_OPENAT_RTC },
+	{ (O_RDONLY | O_TRUNC), AUE_OPENAT_RT },
+	{ O_RDWR, AUE_OPENAT_RW },
+	{ (O_RDWR | O_CREAT), AUE_OPENAT_RWC },
+	{ (O_RDWR | O_CREAT | O_TRUNC), AUE_OPENAT_RWTC },
+	{ (O_RDWR | O_TRUNC), AUE_OPENAT_RWT },
+	{ O_WRONLY, AUE_OPENAT_W },
+	{ (O_WRONLY | O_CREAT), AUE_OPENAT_WC },
+	{ (O_WRONLY | O_CREAT | O_TRUNC), AUE_OPENAT_WTC },
+	{ (O_WRONLY | O_TRUNC), AUE_OPENAT_WT },
 };
 
 static const int aue_msgsys[] = {
@@ -196,8 +196,8 @@ audit_ctlname_to_sysctlevent(int name[], uint64_t valid_arg)
 	case KERN_USRSTACK:
 	case KERN_LOGSIGEXIT:
 	case KERN_IOV_MAX:
-		return ((valid_arg & ARG_VALUE) ?
-		    AUE_SYSCTL : AUE_SYSCTL_NONADMIN);
+		return (
+		    (valid_arg & ARG_VALUE) ? AUE_SYSCTL : AUE_SYSCTL_NONADMIN);
 
 	default:
 		return (AUE_SYSCTL);
@@ -352,7 +352,7 @@ au_event_t
 auditon_command_event(int cmd)
 {
 
-	switch(cmd) {
+	switch (cmd) {
 	case A_GETPOLICY:
 		return (AUE_AUDITON_GPOLICY);
 
@@ -409,7 +409,7 @@ auditon_command_event(int cmd)
 	case A_GETKAUDIT:
 	case A_SETKAUDIT:
 	default:
-		return (AUE_AUDITON);	/* No special record */
+		return (AUE_AUDITON); /* No special record */
 	}
 }
 
@@ -430,7 +430,7 @@ audit_canon_path_vp(struct thread *td, struct vnode *rdir, struct vnode *cdir,
 	int error;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
-	    __func__,  __FILE__, __LINE__);
+	    __func__, __FILE__, __LINE__);
 
 	copy = path;
 	if (*path == '/') {
@@ -447,7 +447,7 @@ audit_canon_path_vp(struct thread *td, struct vnode *rdir, struct vnode *cdir,
 	 * NB: We require that the supplied array be at least MAXPATHLEN bytes
 	 * long.  If this is not the case, then we can run into serious trouble.
 	 */
-	(void) sbuf_new(&sbf, cpath, MAXPATHLEN, SBUF_FIXEDLEN);
+	(void)sbuf_new(&sbf, cpath, MAXPATHLEN, SBUF_FIXEDLEN);
 	/*
 	 * Strip leading forward slashes.
 	 *
@@ -468,20 +468,20 @@ audit_canon_path_vp(struct thread *td, struct vnode *rdir, struct vnode *cdir,
 		cpath[0] = '\0';
 		return;
 	}
-	(void) sbuf_cat(&sbf, rbuf);
+	(void)sbuf_cat(&sbf, rbuf);
 	/*
 	 * We are going to concatenate the resolved path with the passed path
 	 * with all slashes removed and we want them glued with a single slash.
 	 * However, if the directory is /, the slash is already there.
 	 */
 	if (rbuf[1] != '\0')
-		(void) sbuf_putc(&sbf, '/');
+		(void)sbuf_putc(&sbf, '/');
 	free(fbuf, M_TEMP);
 	/*
 	 * Now that we have processed any alternate root and relative path
 	 * names, add the supplied pathname.
 	 */
-	(void) sbuf_cat(&sbf, copy);
+	(void)sbuf_cat(&sbf, copy);
 	/*
 	 * One or more of the previous sbuf operations could have resulted in
 	 * the supplied buffer being overflowed.  Check to see if this is the
@@ -504,7 +504,7 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 	bool vrele_cdir;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
-	    __func__,  __FILE__, __LINE__);
+	    __func__, __FILE__, __LINE__);
 
 	pwd = pwd_hold(td);
 	rdir = pwd->pwd_rdir;
@@ -514,7 +514,8 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 		if (dirfd == AT_FDCWD) {
 			cdir = pwd->pwd_cdir;
 		} else {
-			error = fgetvp(td, dirfd, cap_rights_init(&rights), &cdir);
+			error = fgetvp(
+			    td, dirfd, cap_rights_init(&rights), &cdir);
 			if (error != 0) {
 				cpath[0] = '\0';
 				pwd_drop(pwd);

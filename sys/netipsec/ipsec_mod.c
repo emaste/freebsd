@@ -39,21 +39,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/sockopt.h>
 #include <sys/syslog.h>
-#include <sys/proc.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
-
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
+#include <netipsec/ipsec_support.h>
 #include <netipsec/key.h>
 #include <netipsec/key_debug.h>
-
-#include <netipsec/ipsec_support.h>
 
 #ifdef INET
 static const struct ipsec_methods ipv4_methods = {
@@ -72,7 +70,7 @@ static const struct ipsec_support ipv4_ipsec = {
 	.enabled = IPSEC_MODULE_ENABLED,
 	.methods = &ipv4_methods
 };
-const struct ipsec_support * const ipv4_ipsec_support = &ipv4_ipsec;
+const struct ipsec_support *const ipv4_ipsec_support = &ipv4_ipsec;
 #endif /* !KLD_MODULE */
 #endif /* INET */
 
@@ -91,7 +89,7 @@ static const struct ipsec_support ipv6_ipsec = {
 	.enabled = IPSEC_MODULE_ENABLED,
 	.methods = &ipv6_methods
 };
-const struct ipsec_support * const ipv6_ipsec_support = &ipv6_ipsec;
+const struct ipsec_support *const ipv6_ipsec_support = &ipv6_ipsec;
 #endif /* !KLD_MODULE */
 #endif /* INET6 */
 
@@ -135,11 +133,7 @@ ipsec_modevent(module_t mod, int type, void *data)
 	return (0);
 }
 
-static moduledata_t ipsec_mod = {
-	"ipsec",
-	ipsec_modevent,
-	0
-};
+static moduledata_t ipsec_mod = { "ipsec", ipsec_modevent, 0 };
 
 DECLARE_MODULE(ipsec, ipsec_mod, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);
 MODULE_VERSION(ipsec, 1);

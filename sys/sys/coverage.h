@@ -42,10 +42,10 @@
 #error Do not include this file directly in userspace, use sys/kcov.h
 #endif
 
-#define	COV_CMP_CONST		(1 << 0)
-#define	COV_CMP_SIZE(x)		((x) << 1)
-#define	COV_CMP_MASK		(3 << 1)
-#define	COV_CMP_GET_SIZE(x)	(((x) >> 1) & 3)
+#define COV_CMP_CONST (1 << 0)
+#define COV_CMP_SIZE(x) ((x) << 1)
+#define COV_CMP_MASK (3 << 1)
+#define COV_CMP_GET_SIZE(x) (((x) >> 1) & 3)
 
 #ifdef _KERNEL
 typedef void (*cov_trace_pc_t)(uintptr_t);

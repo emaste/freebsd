@@ -28,8 +28,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/smp.h>
 
@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/openfirm.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
 
@@ -50,11 +50,9 @@ static void aeon_setup_intr(void *unused);
 static int aeon_probe(platform_t);
 static int aeon_attach(platform_t);
 
-static platform_method_t aeon_methods[] = {
-	PLATFORMMETHOD(platform_probe,		aeon_probe),
-	PLATFORMMETHOD(platform_attach,		aeon_attach),
-	PLATFORMMETHOD_END
-};
+static platform_method_t aeon_methods[] = { PLATFORMMETHOD(
+						platform_probe, aeon_probe),
+	PLATFORMMETHOD(platform_attach, aeon_attach), PLATFORMMETHOD_END };
 
 DEFINE_CLASS_1(aeon, aeon_platform, aeon_methods, 0, mpc85xx_platform);
 
@@ -92,7 +90,8 @@ aeon_attach(platform_t plat)
 	return (0);
 }
 
-/* Notify devd(8) that the power button was pressed (IRQ#4 on A-Eon machines). */
+/* Notify devd(8) that the power button was pressed (IRQ#4 on A-Eon machines).
+ */
 static void
 aeon_pbutton_intr(void *_unused)
 {

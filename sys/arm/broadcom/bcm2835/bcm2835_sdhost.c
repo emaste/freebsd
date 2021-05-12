@@ -72,11 +72,14 @@ __FBSDID("$FreeBSD$");
  *
  */
 
+#include "opt_mmccam.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kobj.h>
 #include <sys/bus.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
+#include <sys/kobj.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -84,97 +87,93 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <sys/gpio.h>
 
 #include <machine/bus.h>
 
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcreg.h>
-
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/sdhci/sdhci.h>
 
-#include "mmcbr_if.h"
-#include "sdhci_if.h"
-
-#include "opt_mmccam.h"
+#include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 
 #include "bcm2835_dma.h"
-#include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 #include "bcm2835_vcbus.h"
+#include "mmcbr_if.h"
+#include "sdhci_if.h"
 
 /* #define SDHOST_DEBUG */
 
 /* Registers */
-#define HC_COMMAND		0x00	/* Command and flags */
-#define HC_ARGUMENT		0x04
-#define HC_TIMEOUTCOUNTER	0x08
-#define HC_CLOCKDIVISOR		0x0c
-#define HC_RESPONSE_0		0x10
-#define HC_RESPONSE_1		0x14
-#define HC_RESPONSE_2		0x18
-#define HC_RESPONSE_3		0x1c
-#define HC_HOSTSTATUS		0x20
-#define HC_POWER		0x30
-#define HC_DEBUG		0x34
-#define HC_HOSTCONFIG		0x38
-#define HC_BLOCKSIZE		0x3c
-#define HC_DATAPORT		0x40
-#define HC_BLOCKCOUNT		0x50
+#define HC_COMMAND 0x00 /* Command and flags */
+#define HC_ARGUMENT 0x04
+#define HC_TIMEOUTCOUNTER 0x08
+#define HC_CLOCKDIVISOR 0x0c
+#define HC_RESPONSE_0 0x10
+#define HC_RESPONSE_1 0x14
+#define HC_RESPONSE_2 0x18
+#define HC_RESPONSE_3 0x1c
+#define HC_HOSTSTATUS 0x20
+#define HC_POWER 0x30
+#define HC_DEBUG 0x34
+#define HC_HOSTCONFIG 0x38
+#define HC_BLOCKSIZE 0x3c
+#define HC_DATAPORT 0x40
+#define HC_BLOCKCOUNT 0x50
 
 /* Flags for HC_COMMAND register */
-#define HC_CMD_ENABLE			0x8000
-#define HC_CMD_FAILED			0x4000
-#define HC_CMD_BUSY			0x0800
-#define HC_CMD_RESPONSE_NONE		0x0400
-#define HC_CMD_RESPONSE_LONG		0x0200
-#define HC_CMD_WRITE			0x0080
-#define HC_CMD_READ			0x0040
-#define HC_CMD_COMMAND_MASK		0x003f
+#define HC_CMD_ENABLE 0x8000
+#define HC_CMD_FAILED 0x4000
+#define HC_CMD_BUSY 0x0800
+#define HC_CMD_RESPONSE_NONE 0x0400
+#define HC_CMD_RESPONSE_LONG 0x0200
+#define HC_CMD_WRITE 0x0080
+#define HC_CMD_READ 0x0040
+#define HC_CMD_COMMAND_MASK 0x003f
 
-#define HC_CLOCKDIVISOR_MAXVAL		0x07ff
+#define HC_CLOCKDIVISOR_MAXVAL 0x07ff
 
 /* Flags for HC_HOSTSTATUS register */
-#define HC_HSTST_HAVEDATA		0x0001
-#define HC_HSTST_ERROR_FIFO		0x0008
-#define HC_HSTST_ERROR_CRC7		0x0010
-#define HC_HSTST_ERROR_CRC16		0x0020
-#define HC_HSTST_TIMEOUT_CMD		0x0040
-#define HC_HSTST_TIMEOUT_DATA		0x0080
-#define HC_HSTST_INT_BLOCK		0x0200
-#define HC_HSTST_INT_BUSY		0x0400
+#define HC_HSTST_HAVEDATA 0x0001
+#define HC_HSTST_ERROR_FIFO 0x0008
+#define HC_HSTST_ERROR_CRC7 0x0010
+#define HC_HSTST_ERROR_CRC16 0x0020
+#define HC_HSTST_TIMEOUT_CMD 0x0040
+#define HC_HSTST_TIMEOUT_DATA 0x0080
+#define HC_HSTST_INT_BLOCK 0x0200
+#define HC_HSTST_INT_BUSY 0x0400
 
-#define HC_HSTST_RESET			0xffff
+#define HC_HSTST_RESET 0xffff
 
-#define HC_HSTST_MASK_ERROR_DATA	(HC_HSTST_ERROR_FIFO | \
-    HC_HSTST_ERROR_CRC7 | HC_HSTST_ERROR_CRC16 | HC_HSTST_TIMEOUT_DATA)
+#define HC_HSTST_MASK_ERROR_DATA                                            \
+	(HC_HSTST_ERROR_FIFO | HC_HSTST_ERROR_CRC7 | HC_HSTST_ERROR_CRC16 | \
+	    HC_HSTST_TIMEOUT_DATA)
 
-#define HC_HSTST_MASK_ERROR_ALL		(HC_HSTST_MASK_ERROR_DATA | \
-    HC_HSTST_TIMEOUT_CMD)
+#define HC_HSTST_MASK_ERROR_ALL \
+	(HC_HSTST_MASK_ERROR_DATA | HC_HSTST_TIMEOUT_CMD)
 
 /* Flags for HC_HOSTCONFIG register */
-#define HC_HSTCF_INTBUS_WIDE		0x0002
-#define HC_HSTCF_EXTBUS_4BIT		0x0004
-#define HC_HSTCF_SLOW_CARD		0x0008
-#define HC_HSTCF_INT_DATA		0x0010
-#define HC_HSTCF_INT_BLOCK		0x0100
-#define HC_HSTCF_INT_BUSY		0x0400
+#define HC_HSTCF_INTBUS_WIDE 0x0002
+#define HC_HSTCF_EXTBUS_4BIT 0x0004
+#define HC_HSTCF_SLOW_CARD 0x0008
+#define HC_HSTCF_INT_DATA 0x0010
+#define HC_HSTCF_INT_BLOCK 0x0100
+#define HC_HSTCF_INT_BUSY 0x0400
 
 /* Flags for HC_DEBUG register */
-#define HC_DBG_FIFO_THRESH_WRITE_SHIFT	9
-#define HC_DBG_FIFO_THRESH_READ_SHIFT	14
-#define HC_DBG_FIFO_THRESH_MASK		0x001f
+#define HC_DBG_FIFO_THRESH_WRITE_SHIFT 9
+#define HC_DBG_FIFO_THRESH_READ_SHIFT 14
+#define HC_DBG_FIFO_THRESH_MASK 0x001f
 
 /* Settings */
-#define HC_FIFO_SIZE		16
-#define HC_FIFO_THRESH_READ	4
-#define HC_FIFO_THRESH_WRITE	4
+#define HC_FIFO_SIZE 16
+#define HC_FIFO_THRESH_READ 4
+#define HC_FIFO_THRESH_WRITE 4
 
-#define HC_TIMEOUT_DEFAULT	0x00f00000
+#define HC_TIMEOUT_DEFAULT 0x00f00000
 
-#define	BCM2835_DEFAULT_SDHCI_FREQ	50
+#define BCM2835_DEFAULT_SDHCI_FREQ 50
 
 static int bcm2835_sdhost_debug = 0;
 
@@ -184,10 +183,10 @@ TUNABLE_INT("hw.bcm2835.sdhost.debug", &bcm2835_sdhost_debug);
 SYSCTL_INT(_hw_sdhci, OID_AUTO, bcm2835_sdhost_debug, CTLFLAG_RWTUN,
     &bcm2835_sdhost_debug, 0, "bcm2835-sdhost Debug level");
 
-#define dprintf(fmt, args...) \
-	do { \
+#define dprintf(fmt, args...)                 \
+	do {                                  \
 		if (bcm2835_sdhost_debug > 0) \
-			printf(fmt,##args); \
+			printf(fmt, ##args);  \
 	} while (0)
 #else
 
@@ -195,33 +194,31 @@ SYSCTL_INT(_hw_sdhci, OID_AUTO, bcm2835_sdhost_debug, CTLFLAG_RWTUN,
 
 #endif /* ! SDHOST_DEBUG */
 
-static struct ofw_compat_data compat_data[] = {
-	{"brcm,bcm2835-sdhost",		1},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "brcm,bcm2835-sdhost", 1 },
+	{ NULL, 0 } };
 
 struct bcm_sdhost_softc {
-	device_t		sc_dev;
-	struct resource *	sc_mem_res;
-	struct resource *	sc_irq_res;
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
-	void *			sc_intrhand;
-	struct mmc_request *	sc_req;
-	struct sdhci_slot	sc_slot;
+	device_t sc_dev;
+	struct resource *sc_mem_res;
+	struct resource *sc_irq_res;
+	bus_space_tag_t sc_bst;
+	bus_space_handle_t sc_bsh;
+	void *sc_intrhand;
+	struct mmc_request *sc_req;
+	struct sdhci_slot sc_slot;
 
-	struct mtx		mtx;
+	struct mtx mtx;
 
-	char			cmdbusy;
-	char			mmc_app_cmd;
+	char cmdbusy;
+	char mmc_app_cmd;
 
-	u_int32_t		sdhci_int_status;
-	u_int32_t		sdhci_signal_enable;
-	u_int32_t		sdhci_present_state;
-	u_int32_t		sdhci_blocksize;
-	u_int32_t		sdhci_blockcount;
+	u_int32_t sdhci_int_status;
+	u_int32_t sdhci_signal_enable;
+	u_int32_t sdhci_present_state;
+	u_int32_t sdhci_blocksize;
+	u_int32_t sdhci_blockcount;
 
-	u_int32_t		sdcard_rca;
+	u_int32_t sdcard_rca;
 };
 
 static int bcm_sdhost_probe(device_t);
@@ -256,7 +253,7 @@ RD2(struct bcm_sdhost_softc *sc, bus_size_t off)
 
 	val = RD4(sc, off & ~3);
 
-	return ((val >> (off & 3)*8) & 0xffff);
+	return ((val >> (off & 3) * 8) & 0xffff);
 }
 #endif
 
@@ -267,7 +264,7 @@ RD1(struct bcm_sdhost_softc *sc, bus_size_t off)
 
 	val = RD4(sc, off & ~3);
 
-	return ((val >> (off & 3)*8) & 0xff);
+	return ((val >> (off & 3) * 8) & 0xff);
 }
 
 static inline void
@@ -276,8 +273,8 @@ WR2(struct bcm_sdhost_softc *sc, bus_size_t off, uint16_t val)
 	uint32_t val32;
 
 	val32 = RD4(sc, off & ~3);
-	val32 &= ~(0xffff << (off & 3)*8);
-	val32 |= (val << (off & 3)*8);
+	val32 &= ~(0xffff << (off & 3) * 8);
+	val32 |= (val << (off & 3) * 8);
 	WR4(sc, off & ~3, val32);
 }
 
@@ -287,47 +284,33 @@ WR1(struct bcm_sdhost_softc *sc, bus_size_t off, uint8_t val)
 	uint32_t val32;
 
 	val32 = RD4(sc, off & ~3);
-	val32 &= ~(0xff << (off & 3)*8);
-	val32 |= (val << (off & 3)*8);
+	val32 &= ~(0xff << (off & 3) * 8);
+	val32 |= (val << (off & 3) * 8);
 	WR4(sc, off & ~3, val32);
 }
 
 static void
-bcm_sdhost_print_regs(struct bcm_sdhost_softc *sc, struct sdhci_slot *slot,
-    int line, int error)
+bcm_sdhost_print_regs(
+    struct bcm_sdhost_softc *sc, struct sdhci_slot *slot, int line, int error)
 {
 
 	if (bcm2835_sdhost_debug > 0 || error > 0) {
-		printf("%s: sc=%p slot=%p\n",
-		    __func__, sc, slot);
-		printf("HC_COMMAND:        0x%08x\n",
-		    RD4(sc, HC_COMMAND));
-		printf("HC_ARGUMENT:       0x%08x\n",
-		    RD4(sc, HC_ARGUMENT));
-		printf("HC_TIMEOUTCOUNTER: 0x%08x\n",
-		    RD4(sc, HC_TIMEOUTCOUNTER));
-		printf("HC_CLOCKDIVISOR:   0x%08x\n",
-		    RD4(sc, HC_CLOCKDIVISOR));
-		printf("HC_RESPONSE_0:     0x%08x\n",
-		    RD4(sc, HC_RESPONSE_0));
-		printf("HC_RESPONSE_1:     0x%08x\n",
-		    RD4(sc, HC_RESPONSE_1));
-		printf("HC_RESPONSE_2:     0x%08x\n",
-		    RD4(sc, HC_RESPONSE_2));
-		printf("HC_RESPONSE_3:     0x%08x\n",
-		    RD4(sc, HC_RESPONSE_3));
-		printf("HC_HOSTSTATUS:     0x%08x\n",
-		    RD4(sc, HC_HOSTSTATUS));
-		printf("HC_POWER:          0x%08x\n",
-		    RD4(sc, HC_POWER));
-		printf("HC_DEBUG:          0x%08x\n",
-		    RD4(sc, HC_DEBUG));
-		printf("HC_HOSTCONFIG:     0x%08x\n",
-		    RD4(sc, HC_HOSTCONFIG));
-		printf("HC_BLOCKSIZE:      0x%08x\n",
-		    RD4(sc, HC_BLOCKSIZE));
-		printf("HC_BLOCKCOUNT:     0x%08x\n",
-		    RD4(sc, HC_BLOCKCOUNT));
+		printf("%s: sc=%p slot=%p\n", __func__, sc, slot);
+		printf("HC_COMMAND:        0x%08x\n", RD4(sc, HC_COMMAND));
+		printf("HC_ARGUMENT:       0x%08x\n", RD4(sc, HC_ARGUMENT));
+		printf(
+		    "HC_TIMEOUTCOUNTER: 0x%08x\n", RD4(sc, HC_TIMEOUTCOUNTER));
+		printf("HC_CLOCKDIVISOR:   0x%08x\n", RD4(sc, HC_CLOCKDIVISOR));
+		printf("HC_RESPONSE_0:     0x%08x\n", RD4(sc, HC_RESPONSE_0));
+		printf("HC_RESPONSE_1:     0x%08x\n", RD4(sc, HC_RESPONSE_1));
+		printf("HC_RESPONSE_2:     0x%08x\n", RD4(sc, HC_RESPONSE_2));
+		printf("HC_RESPONSE_3:     0x%08x\n", RD4(sc, HC_RESPONSE_3));
+		printf("HC_HOSTSTATUS:     0x%08x\n", RD4(sc, HC_HOSTSTATUS));
+		printf("HC_POWER:          0x%08x\n", RD4(sc, HC_POWER));
+		printf("HC_DEBUG:          0x%08x\n", RD4(sc, HC_DEBUG));
+		printf("HC_HOSTCONFIG:     0x%08x\n", RD4(sc, HC_HOSTCONFIG));
+		printf("HC_BLOCKSIZE:      0x%08x\n", RD4(sc, HC_BLOCKSIZE));
+		printf("HC_BLOCKCOUNT:     0x%08x\n", RD4(sc, HC_BLOCKCOUNT));
 
 	} else {
 		/*
@@ -357,10 +340,10 @@ bcm_sdhost_reset(device_t dev, struct sdhci_slot *slot)
 	WR4(sc, HC_BLOCKCOUNT, 0);
 
 	dbg = RD4(sc, HC_DEBUG);
-	dbg &= ~( (HC_DBG_FIFO_THRESH_MASK << HC_DBG_FIFO_THRESH_READ_SHIFT) |
-	          (HC_DBG_FIFO_THRESH_MASK << HC_DBG_FIFO_THRESH_WRITE_SHIFT) );
+	dbg &= ~((HC_DBG_FIFO_THRESH_MASK << HC_DBG_FIFO_THRESH_READ_SHIFT) |
+	    (HC_DBG_FIFO_THRESH_MASK << HC_DBG_FIFO_THRESH_WRITE_SHIFT));
 	dbg |= (HC_FIFO_THRESH_READ << HC_DBG_FIFO_THRESH_READ_SHIFT) |
-	       (HC_FIFO_THRESH_WRITE << HC_DBG_FIFO_THRESH_WRITE_SHIFT);
+	    (HC_FIFO_THRESH_WRITE << HC_DBG_FIFO_THRESH_WRITE_SHIFT);
 	WR4(sc, HC_DEBUG, dbg);
 
 	DELAY(250000);
@@ -370,7 +353,7 @@ bcm_sdhost_reset(device_t dev, struct sdhci_slot *slot)
 	DELAY(250000);
 
 	sc->sdhci_present_state = SDHCI_CARD_PRESENT | SDHCI_CARD_STABLE |
-		SDHCI_WRITE_PROTECT;
+	    SDHCI_WRITE_PROTECT;
 
 	WR4(sc, HC_CLOCKDIVISOR, HC_CLOCKDIVISOR_MAXVAL);
 	WR4(sc, HC_HOSTCONFIG, HC_HSTCF_INT_BUSY);
@@ -400,11 +383,11 @@ bcm_sdhost_attach(device_t dev)
 	int rid, err;
 	u_int default_freq;
 
-	dprintf("%s: dev=%p sc=%p unit=%d\n",
-	    __func__, dev, sc, device_get_unit(dev));
+	dprintf("%s: dev=%p sc=%p unit=%d\n", __func__, dev, sc,
+	    device_get_unit(dev));
 
-	mtx_init(&sc->mtx, "BCM SDHOST mtx", "bcm_sdhost",
-	    MTX_DEF | MTX_RECURSE);
+	mtx_init(
+	    &sc->mtx, "BCM SDHOST mtx", "bcm_sdhost", MTX_DEF | MTX_RECURSE);
 
 	sc->sc_dev = dev;
 	sc->sc_req = NULL;
@@ -426,8 +409,8 @@ bcm_sdhost_attach(device_t dev)
 		device_printf(dev, "SDHCI frequency: %dMHz\n", default_freq);
 
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
 		err = ENXIO;
@@ -442,8 +425,8 @@ bcm_sdhost_attach(device_t dev)
 	bcm_sdhost_print_regs(sc, &sc->sc_slot, __LINE__, 0);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!sc->sc_irq_res) {
 		device_printf(dev, "cannot allocate interrupt\n");
 		err = ENXIO;
@@ -451,7 +434,7 @@ bcm_sdhost_attach(device_t dev)
 	}
 
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, bcm_sdhost_intr, sc, &sc->sc_intrhand)) {
+		NULL, bcm_sdhost_intr, sc, &sc->sc_intrhand)) {
 		device_printf(dev, "cannot setup interrupt handler\n");
 		err = ENXIO;
 		goto fail;
@@ -481,7 +464,7 @@ bcm_sdhost_attach(device_t dev)
 
 	return (0);
 
-    fail:
+fail:
 	if (sc->sc_intrhand)
 		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_intrhand);
 	if (sc->sc_irq_res)
@@ -533,17 +516,15 @@ bcm_sdhost_waitcommand_status(struct bcm_sdhost_softc *sc)
 	do {
 		DELAY(1000);
 		WR4(sc, HC_ARGUMENT, sc->sdcard_rca << 16);
-		WR4(sc, HC_COMMAND,
-		    MMC_SEND_STATUS | HC_CMD_ENABLE);
+		WR4(sc, HC_COMMAND, MMC_SEND_STATUS | HC_CMD_ENABLE);
 		bcm_sdhost_waitcommand(sc);
 		cdst = RD4(sc, HC_RESPONSE_0);
-		dprintf("%s: card status %08x (cs %d)\n",
-		    __func__, cdst, (cdst & 0x0e00) >> 9);
+		dprintf("%s: card status %08x (cs %d)\n", __func__, cdst,
+		    (cdst & 0x0e00) >> 9);
 		if (i++ > 100) {
 			printf("%s: giving up, "
-			    "card status %08x (cs %d)\n",
-			    __func__, cdst,
-			    (cdst & 0x0e00) >> 9);
+			       "card status %08x (cs %d)\n",
+			    __func__, cdst, (cdst & 0x0e00) >> 9);
 			return (1);
 			break;
 		}
@@ -573,14 +554,15 @@ bcm_sdhost_intr(void *arg)
 			sc->sdhci_int_status |= SDHCI_INT_SPACE_AVAIL;
 		} else {
 			panic("%s: hstst & HC_HSTST_HAVEDATA but no "
-			    "HC_CMD_READ or HC_CMD_WRITE: cmd=%0x8 "
-			    "hstst=%08x\n", __func__, cmd, hstst);
+			      "HC_CMD_READ or HC_CMD_WRITE: cmd=%0x8 "
+			      "hstst=%08x\n",
+			    __func__, cmd, hstst);
 		}
 	} else {
-		sc->sdhci_present_state &=
-		    ~(SDHCI_DATA_AVAILABLE|SDHCI_SPACE_AVAILABLE);
-		sc->sdhci_int_status &=
-		    ~(SDHCI_INT_DATA_AVAIL|SDHCI_INT_SPACE_AVAIL);
+		sc->sdhci_present_state &= ~(
+		    SDHCI_DATA_AVAILABLE | SDHCI_SPACE_AVAILABLE);
+		sc->sdhci_int_status &= ~(
+		    SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL);
 	}
 
 	if (hstst & HC_HSTST_MASK_ERROR_ALL) {
@@ -592,22 +574,24 @@ bcm_sdhost_intr(void *arg)
 	}
 
 	dprintf("%s: hstst=%08x offset=%08lx sdhci_present_state=%08x "
-	    "sdhci_int_status=%08x\n", __func__, hstst, slot->offset,
-	    sc->sdhci_present_state, sc->sdhci_int_status);
+		"sdhci_int_status=%08x\n",
+	    __func__, hstst, slot->offset, sc->sdhci_present_state,
+	    sc->sdhci_int_status);
 
 	sdhci_generic_intr(&sc->sc_slot);
 
-	sc->sdhci_int_status &=
-	    ~(SDHCI_INT_ERROR|SDHCI_INT_DATA_AVAIL|SDHCI_INT_DATA_END);
+	sc->sdhci_int_status &= ~(
+	    SDHCI_INT_ERROR | SDHCI_INT_DATA_AVAIL | SDHCI_INT_DATA_END);
 	sc->sdhci_present_state &= ~SDHCI_DATA_AVAILABLE;
 
 	if ((hstst & HC_HSTST_HAVEDATA) &&
 	    (sc->sdhci_blocksize * sc->sdhci_blockcount == slot->offset)) {
 		dprintf("%s: offset=%08lx sdhci_blocksize=%08x "
-		    "sdhci_blockcount=%08x\n", __func__, slot->offset,
-		    sc->sdhci_blocksize, sc->sdhci_blockcount);
-		sc->sdhci_int_status &=
-		    ~(SDHCI_INT_DATA_AVAIL|SDHCI_INT_SPACE_AVAIL);
+			"sdhci_blockcount=%08x\n",
+		    __func__, slot->offset, sc->sdhci_blocksize,
+		    sc->sdhci_blockcount);
+		sc->sdhci_int_status &= ~(
+		    SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL);
 		sc->sdhci_int_status |= SDHCI_INT_DATA_END;
 		sdhci_generic_intr(&sc->sc_slot);
 		sc->sdhci_int_status &= ~SDHCI_INT_DATA_END;
@@ -620,8 +604,8 @@ bcm_sdhost_intr(void *arg)
 
 			if (bcm_sdhost_waitcommand(sc)) {
 				printf("%s: timeout #1\n", __func__);
-				bcm_sdhost_print_regs(sc, &sc->sc_slot,
-				    __LINE__, 1);
+				bcm_sdhost_print_regs(
+				    sc, &sc->sc_slot, __LINE__, 1);
 			}
 		}
 
@@ -634,12 +618,12 @@ bcm_sdhost_intr(void *arg)
 
 		sc->sdhci_int_status |= SDHCI_INT_RESPONSE;
 		sdhci_generic_intr(&sc->sc_slot);
-		sc->sdhci_int_status &= ~(SDHCI_INT_RESPONSE|SDHCI_INT_ERROR);
+		sc->sdhci_int_status &= ~(SDHCI_INT_RESPONSE | SDHCI_INT_ERROR);
 	}
 
 	/* this resets the interrupt */
 	WR4(sc, HC_HOSTSTATUS,
-	    (HC_HSTST_INT_BUSY|HC_HSTST_INT_BLOCK|HC_HSTST_HAVEDATA));
+	    (HC_HSTST_INT_BUSY | HC_HSTST_INT_BLOCK | HC_HSTST_HAVEDATA));
 
 	mtx_unlock(&sc->mtx);
 }
@@ -694,15 +678,15 @@ bcm_sdhost_command(device_t dev, struct sdhci_slot *slot, uint16_t val)
 		val2 |= HC_CMD_RESPONSE_LONG;
 	else if ((flags & SDHCI_CMD_RESP_MASK) == SDHCI_CMD_RESP_SHORT_BUSY)
 		/* XXX XXX when enabled, cmd 7 (select card) blocks forever */
-		;/*val2 |= HC_CMD_BUSY; */
+		; /*val2 |= HC_CMD_BUSY; */
 	else if ((flags & SDHCI_CMD_RESP_MASK) == SDHCI_CMD_RESP_SHORT)
 		;
 	else
 		val2 |= HC_CMD_RESPONSE_NONE;
 
 	if (val2 & HC_CMD_BUSY)
-		sc->sdhci_present_state |=
-		    SDHCI_CMD_INHIBIT | SDHCI_DAT_INHIBIT;
+		sc->sdhci_present_state |= SDHCI_CMD_INHIBIT |
+		    SDHCI_DAT_INHIBIT;
 
 	if (data != NULL && data->flags & MMC_DATA_READ)
 		val2 |= HC_CMD_READ;
@@ -760,8 +744,8 @@ bcm_sdhost_command(device_t dev, struct sdhci_slot *slot, uint16_t val)
 			bcm_sdhost_print_regs(sc, &sc->sc_slot, __LINE__, 1);
 		}
 		slot->data_done = 1;
-		sc->sdhci_present_state &=
-		    ~(SDHCI_CMD_INHIBIT | SDHCI_DAT_INHIBIT);
+		sc->sdhci_present_state &= ~(
+		    SDHCI_CMD_INHIBIT | SDHCI_DAT_INHIBIT);
 
 	} else {
 		if (bcm_sdhost_waitcommand(sc)) {
@@ -769,8 +753,8 @@ bcm_sdhost_command(device_t dev, struct sdhci_slot *slot, uint16_t val)
 			bcm_sdhost_print_regs(sc, &sc->sc_slot, __LINE__, 1);
 		}
 		slot->data_done = 1;
-		sc->sdhci_present_state &=
-		    ~(SDHCI_CMD_INHIBIT | SDHCI_DAT_INHIBIT);
+		sc->sdhci_present_state &= ~(
+		    SDHCI_CMD_INHIBIT | SDHCI_DAT_INHIBIT);
 	}
 
 	bcm_sdhost_print_regs(sc, &sc->sc_slot, __LINE__, 0);
@@ -780,8 +764,8 @@ bcm_sdhost_command(device_t dev, struct sdhci_slot *slot, uint16_t val)
 	else if (RD4(sc, HC_COMMAND) & HC_CMD_FAILED)
 		slot->curcmd->error = MMC_ERR_FAILED;
 
-	dprintf("%s: curcmd->flags=%d data_done=%d\n",
-	    __func__, slot->curcmd->flags, slot->data_done);
+	dprintf("%s: curcmd->flags=%d data_done=%d\n", __func__,
+	    slot->curcmd->flags, slot->data_done);
 
 	if (val2 & HC_CMD_RESPONSE_NONE)
 		slot->curcmd->error = 0;
@@ -887,11 +871,10 @@ bcm_sdhost_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 		break;
 	case SDHCI_CLOCK_CONTROL:
 		val = RD4(sc, HC_CLOCKDIVISOR);
-		val2 = (val << SDHCI_DIVIDER_SHIFT) |
-		    SDHCI_CLOCK_CARD_EN | SDHCI_CLOCK_INT_EN |
-		    SDHCI_CLOCK_INT_STABLE;
-		dprintf("%s: SDHCI_CLOCK_CONTROL     %04x --> %04x\n",
-		    __func__, val, val2);
+		val2 = (val << SDHCI_DIVIDER_SHIFT) | SDHCI_CLOCK_CARD_EN |
+		    SDHCI_CLOCK_INT_EN | SDHCI_CLOCK_INT_STABLE;
+		dprintf("%s: SDHCI_CLOCK_CONTROL     %04x --> %04x\n", __func__,
+		    val, val2);
 		break;
 	case SDHCI_ACMD12_ERR:
 		dprintf("%s: SDHCI_ACMD12_ERR\n", __func__);
@@ -959,13 +942,13 @@ bcm_sdhost_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 		val2 = 0;
 		break;
 	case SDHCI_PRESENT_STATE:
-		dprintf("%s: SDHCI_PRESENT_STATE      %08x\n",
-		    __func__, sc->sdhci_present_state);
+		dprintf("%s: SDHCI_PRESENT_STATE      %08x\n", __func__,
+		    sc->sdhci_present_state);
 		val2 = sc->sdhci_present_state;
 		break;
 	case SDHCI_INT_STATUS:
-		dprintf("%s: SDHCI_INT_STATUS        %08x\n",
-		    __func__, sc->sdhci_int_status);
+		dprintf("%s: SDHCI_INT_STATUS        %08x\n", __func__,
+		    sc->sdhci_int_status);
 		val2 = sc->sdhci_int_status;
 		break;
 	case SDHCI_INT_ENABLE:
@@ -973,8 +956,8 @@ bcm_sdhost_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 		val2 = 0;
 		break;
 	case SDHCI_SIGNAL_ENABLE:
-		dprintf("%s: SDHCI_SIGNAL_ENABLE      %08x\n",
-		    __func__, sc->sdhci_signal_enable);
+		dprintf("%s: SDHCI_SIGNAL_ENABLE      %08x\n", __func__,
+		    sc->sdhci_signal_enable);
 		val2 = sc->sdhci_signal_enable;
 		break;
 	case SDHCI_CAPABILITIES:
@@ -1032,8 +1015,8 @@ bcm_sdhost_read_multi_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static void
-bcm_sdhost_write_1(device_t dev, struct sdhci_slot *slot,
-    bus_size_t off, uint8_t val)
+bcm_sdhost_write_1(
+    device_t dev, struct sdhci_slot *slot, bus_size_t off, uint8_t val)
 {
 	struct bcm_sdhost_softc *sc = device_get_softc(dev);
 	uint32_t val2;
@@ -1058,24 +1041,23 @@ bcm_sdhost_write_1(device_t dev, struct sdhci_slot *slot,
 		WR1(sc, HC_POWER, val2);
 		break;
 	case SDHCI_BLOCK_GAP_CONTROL:
-		dprintf("%s: SDHCI_BLOCK_GAP_CONTROL   val=%02x\n",
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_BLOCK_GAP_CONTROL   val=%02x\n", __func__, val);
 		break;
 	case SDHCI_TIMEOUT_CONTROL:
-		dprintf("%s: SDHCI_TIMEOUT_CONTROL     val=%02x\n",
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_TIMEOUT_CONTROL     val=%02x\n", __func__, val);
 		break;
 	case SDHCI_SOFTWARE_RESET:
-		dprintf("%s: SDHCI_SOFTWARE_RESET      val=%02x\n",
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_SOFTWARE_RESET      val=%02x\n", __func__, val);
 		break;
 	case SDHCI_ADMA_ERR:
-		dprintf("%s: SDHCI_ADMA_ERR            val=%02x\n",
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_ADMA_ERR            val=%02x\n", __func__, val);
 		break;
 	default:
-		dprintf("%s: UNKNOWN off=%08lx val=%08x\n",
-		    __func__, off, val);
+		dprintf("%s: UNKNOWN off=%08lx val=%08x\n", __func__, off, val);
 		break;
 	}
 
@@ -1083,7 +1065,8 @@ bcm_sdhost_write_1(device_t dev, struct sdhci_slot *slot,
 }
 
 static void
-bcm_sdhost_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_t val)
+bcm_sdhost_write_2(
+    device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_t val)
 {
 	struct bcm_sdhost_softc *sc = device_get_softc(dev);
 	uint16_t val2;
@@ -1092,22 +1075,22 @@ bcm_sdhost_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16
 
 	switch (off) {
 	case SDHCI_BLOCK_SIZE:
-		dprintf("%s: SDHCI_BLOCK_SIZE          val=%04x\n" ,
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_BLOCK_SIZE          val=%04x\n", __func__, val);
 		sc->sdhci_blocksize = val;
 		WR2(sc, HC_BLOCKSIZE, val);
 		break;
 
 	case SDHCI_BLOCK_COUNT:
-		dprintf("%s: SDHCI_BLOCK_COUNT         val=%04x\n" ,
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_BLOCK_COUNT         val=%04x\n", __func__, val);
 		sc->sdhci_blockcount = val;
 		WR2(sc, HC_BLOCKCOUNT, val);
 		break;
 
 	case SDHCI_TRANSFER_MODE:
-		dprintf("%s: SDHCI_TRANSFER_MODE       val=%04x\n" ,
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_TRANSFER_MODE       val=%04x\n", __func__, val);
 		break;
 
 	case SDHCI_COMMAND_FLAGS:
@@ -1125,23 +1108,22 @@ bcm_sdhost_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16
 		break;
 
 	case SDHCI_ACMD12_ERR:
-		dprintf("%s: SDHCI_ACMD12_ERR          val=%04x\n" ,
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_ACMD12_ERR          val=%04x\n", __func__, val);
 		break;
 
 	case SDHCI_HOST_CONTROL2:
-		dprintf("%s: SDHCI_HOST_CONTROL2       val=%04x\n" ,
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_HOST_CONTROL2       val=%04x\n", __func__, val);
 		break;
 
 	case SDHCI_SLOT_INT_STATUS:
-		dprintf("%s: SDHCI_SLOT_INT_STATUS     val=%04x\n" ,
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_SLOT_INT_STATUS     val=%04x\n", __func__, val);
 		break;
 
 	default:
-		dprintf("%s: UNKNOWN off=%08lx val=%04x\n",
-		    __func__, off, val);
+		dprintf("%s: UNKNOWN off=%08lx val=%04x\n", __func__, off, val);
 		break;
 	}
 
@@ -1149,7 +1131,8 @@ bcm_sdhost_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16
 }
 
 static void
-bcm_sdhost_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint32_t val)
+bcm_sdhost_write_4(
+    device_t dev, struct sdhci_slot *slot, bus_size_t off, uint32_t val)
 {
 	struct bcm_sdhost_softc *sc = device_get_softc(dev);
 	uint32_t val2;
@@ -1165,13 +1148,13 @@ bcm_sdhost_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint32
 		WR4(sc, HC_ARGUMENT, val2);
 		break;
 	case SDHCI_INT_STATUS:
-		dprintf("%s: SDHCI_INT_STATUS           val=%08x\n",
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_INT_STATUS           val=%08x\n", __func__, val);
 		sc->sdhci_int_status = val;
 		break;
 	case SDHCI_INT_ENABLE:
-		dprintf("%s: SDHCI_INT_ENABLE          val=%08x\n" ,
-		     __func__, val);
+		dprintf(
+		    "%s: SDHCI_INT_ENABLE          val=%08x\n", __func__, val);
 		break;
 	case SDHCI_SIGNAL_ENABLE:
 		sc->sdhci_signal_enable = val;
@@ -1179,32 +1162,31 @@ bcm_sdhost_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint32
 		if (val != 0)
 			hstcfg &= ~(HC_HSTCF_INT_BLOCK | HC_HSTCF_INT_DATA);
 		else
-			hstcfg |= (HC_HSTCF_INT_BUSY|HC_HSTCF_INT_BLOCK|
-			         HC_HSTCF_INT_DATA);
+			hstcfg |= (HC_HSTCF_INT_BUSY | HC_HSTCF_INT_BLOCK |
+			    HC_HSTCF_INT_DATA);
 		hstcfg |= HC_HSTCF_INT_BUSY;
-		dprintf("%s: SDHCI_SIGNAL_ENABLE --> HC_HOSTC %08x --> %08x\n" ,
+		dprintf("%s: SDHCI_SIGNAL_ENABLE --> HC_HOSTC %08x --> %08x\n",
 		    __func__, val, hstcfg);
 		WR4(sc, HC_HOSTCONFIG, hstcfg);
 		break;
 	case SDHCI_CAPABILITIES:
-		dprintf("%s: SDHCI_CAPABILITIES        val=%08x\n",
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_CAPABILITIES        val=%08x\n", __func__, val);
 		break;
 	case SDHCI_CAPABILITIES2:
-		dprintf("%s: SDHCI_CAPABILITIES2       val=%08x\n",
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_CAPABILITIES2       val=%08x\n", __func__, val);
 		break;
 	case SDHCI_MAX_CURRENT:
-		dprintf("%s: SDHCI_MAX_CURRENT         val=%08x\n",
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_MAX_CURRENT         val=%08x\n", __func__, val);
 		break;
 	case SDHCI_ADMA_ADDRESS_LO:
-		dprintf("%s: SDHCI_ADMA_ADDRESS_LO     val=%08x\n",
-		    __func__, val);
+		dprintf(
+		    "%s: SDHCI_ADMA_ADDRESS_LO     val=%08x\n", __func__, val);
 		break;
 	default:
-		dprintf("%s: UNKNOWN off=%08lx val=%08x\n",
-		    __func__, off, val);
+		dprintf("%s: UNKNOWN off=%08lx val=%08x\n", __func__, off, val);
 		break;
 	}
 
@@ -1212,8 +1194,8 @@ bcm_sdhost_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint32
 }
 
 static void
-bcm_sdhost_write_multi_4(device_t dev, struct sdhci_slot *slot,
-    bus_size_t off, uint32_t *data, bus_size_t count)
+bcm_sdhost_write_multi_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
+    uint32_t *data, bus_size_t count)
 {
 	struct bcm_sdhost_softc *sc = device_get_softc(dev);
 	bus_size_t i;
@@ -1234,7 +1216,7 @@ bcm_sdhost_write_multi_4(device_t dev, struct sdhci_slot *slot,
 			    HC_DATAPORT, data + i, space);
 		i += space;
 		DELAY(1);
-        }
+	}
 
 	/* wait until FIFO is really empty */
 	while (((RD4(sc, HC_DEBUG) >> 4) & 0x1f) > 0)
@@ -1245,31 +1227,31 @@ bcm_sdhost_write_multi_4(device_t dev, struct sdhci_slot *slot,
 
 static device_method_t bcm_sdhost_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		bcm_sdhost_probe),
-	DEVMETHOD(device_attach,	bcm_sdhost_attach),
-	DEVMETHOD(device_detach,	bcm_sdhost_detach),
+	DEVMETHOD(device_probe, bcm_sdhost_probe),
+	DEVMETHOD(device_attach, bcm_sdhost_attach),
+	DEVMETHOD(device_detach, bcm_sdhost_detach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,	sdhci_generic_read_ivar),
-	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
+	DEVMETHOD(bus_read_ivar, sdhci_generic_read_ivar),
+	DEVMETHOD(bus_write_ivar, sdhci_generic_write_ivar),
 
 	/* MMC bridge interface */
-	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
-	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
-	DEVMETHOD(mmcbr_get_ro,		bcm_sdhost_get_ro),
-	DEVMETHOD(mmcbr_acquire_host,	sdhci_generic_acquire_host),
-	DEVMETHOD(mmcbr_release_host,	sdhci_generic_release_host),
+	DEVMETHOD(mmcbr_update_ios, sdhci_generic_update_ios),
+	DEVMETHOD(mmcbr_request, sdhci_generic_request),
+	DEVMETHOD(mmcbr_get_ro, bcm_sdhost_get_ro),
+	DEVMETHOD(mmcbr_acquire_host, sdhci_generic_acquire_host),
+	DEVMETHOD(mmcbr_release_host, sdhci_generic_release_host),
 
 	/* SDHCI registers accessors */
-	DEVMETHOD(sdhci_read_1,		bcm_sdhost_read_1),
-	DEVMETHOD(sdhci_read_2,		bcm_sdhost_read_2),
-	DEVMETHOD(sdhci_read_4,		bcm_sdhost_read_4),
-	DEVMETHOD(sdhci_read_multi_4,	bcm_sdhost_read_multi_4),
-	DEVMETHOD(sdhci_write_1,	bcm_sdhost_write_1),
-	DEVMETHOD(sdhci_write_2,	bcm_sdhost_write_2),
-	DEVMETHOD(sdhci_write_4,	bcm_sdhost_write_4),
-	DEVMETHOD(sdhci_write_multi_4,	bcm_sdhost_write_multi_4),
-	DEVMETHOD(sdhci_get_card_present,bcm_sdhost_get_card_present),
+	DEVMETHOD(sdhci_read_1, bcm_sdhost_read_1),
+	DEVMETHOD(sdhci_read_2, bcm_sdhost_read_2),
+	DEVMETHOD(sdhci_read_4, bcm_sdhost_read_4),
+	DEVMETHOD(sdhci_read_multi_4, bcm_sdhost_read_multi_4),
+	DEVMETHOD(sdhci_write_1, bcm_sdhost_write_1),
+	DEVMETHOD(sdhci_write_2, bcm_sdhost_write_2),
+	DEVMETHOD(sdhci_write_4, bcm_sdhost_write_4),
+	DEVMETHOD(sdhci_write_multi_4, bcm_sdhost_write_multi_4),
+	DEVMETHOD(sdhci_get_card_present, bcm_sdhost_get_card_present),
 
 	DEVMETHOD_END
 };
@@ -1282,8 +1264,8 @@ static driver_t bcm_sdhost_driver = {
 	sizeof(struct bcm_sdhost_softc),
 };
 
-DRIVER_MODULE(sdhost_bcm, simplebus, bcm_sdhost_driver, bcm_sdhost_devclass,
-    NULL, NULL);
+DRIVER_MODULE(
+    sdhost_bcm, simplebus, bcm_sdhost_driver, bcm_sdhost_devclass, NULL, NULL);
 SDHCI_DEPEND(sdhost_bcm);
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhost_bcm);

@@ -31,7 +31,7 @@
  */
 
 #ifndef _MACHINE_FRAME_H_
-#define	_MACHINE_FRAME_H_
+#define _MACHINE_FRAME_H_
 
 #ifndef LOCORE
 
@@ -51,16 +51,16 @@ struct trapframe {
 };
 
 struct arm64_frame {
-	struct arm64_frame	*f_frame;
-	u_long			f_retaddr;
+	struct arm64_frame *f_frame;
+	u_long f_retaddr;
 };
 
 /*
  * Signal frame, pushed onto the user stack.
  */
 struct sigframe {
-	siginfo_t       sf_si;          /* actual saved siginfo */
-	ucontext_t      sf_uc;          /* actual saved ucontext */
+	siginfo_t sf_si;  /* actual saved siginfo */
+	ucontext_t sf_uc; /* actual saved ucontext */
 };
 
 /*
@@ -72,9 +72,9 @@ struct frame {
 
 #ifdef COMPAT_FREEBSD32
 struct sigframe32 {
-	struct siginfo32		sf_si;
-	ucontext32_t			sf_uc;
-	mcontext32_vfp_t		sf_vfp;
+	struct siginfo32 sf_si;
+	ucontext32_t sf_uc;
+	mcontext32_vfp_t sf_vfp;
 };
 #endif /* COMPAT_FREEBSD32 */
 

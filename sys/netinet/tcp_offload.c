@@ -39,17 +39,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sockopt.h>
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
 #include <netinet/in.h>
-#include <netinet/in_pcb.h>
 #include <netinet/in_fib.h>
-#include <netinet6/in6_fib.h>
+#include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_offload.h>
-#define	TCPOUTFLAGS
+#include <netinet6/in6_fib.h>
+#define TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_var.h>
 #include <netinet/toecore.h>
@@ -79,14 +80,14 @@ tcp_offload_connect(struct socket *so, struct sockaddr *nam)
 	nh = NULL;
 #ifdef INET
 	if (nam->sa_family == AF_INET)
-		nh = fib4_lookup(0, ((struct sockaddr_in *)nam)->sin_addr,
-		    NHR_NONE, 0, 0);
+		nh = fib4_lookup(
+		    0, ((struct sockaddr_in *)nam)->sin_addr, NHR_NONE, 0, 0);
 #endif
 #if defined(INET) && defined(INET6)
 	else
 #endif
 #ifdef INET6
-	if (nam->sa_family == AF_INET6)
+	    if (nam->sa_family == AF_INET6)
 		nh = fib6_lookup(0, &((struct sockaddr_in6 *)nam)->sin6_addr,
 		    NHR_NONE, 0, 0);
 #endif
@@ -198,8 +199,8 @@ tcp_offload_tcp_info(struct tcpcb *tp, struct tcp_info *ti)
 }
 
 int
-tcp_offload_alloc_tls_session(struct tcpcb *tp, struct ktls_session *tls,
-    int direction)
+tcp_offload_alloc_tls_session(
+    struct tcpcb *tp, struct ktls_session *tls, int direction)
 {
 	struct toedev *tod = tp->tod;
 

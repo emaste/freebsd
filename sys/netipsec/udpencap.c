@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockopt.h>
 #include <sys/sysctl.h>
 
+#include <machine/in_cksum.h>
+
+#include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
@@ -48,18 +51,13 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
-
-#include <net/vnet.h>
-
-#include <netipsec/ipsec.h>
 #include <netipsec/esp.h>
 #include <netipsec/esp_var.h>
-#include <netipsec/xform.h>
-
+#include <netipsec/ipsec.h>
+#include <netipsec/ipsec_support.h>
 #include <netipsec/key.h>
 #include <netipsec/key_debug.h>
-#include <netipsec/ipsec_support.h>
-#include <machine/in_cksum.h>
+#include <netipsec/xform.h>
 
 /*
  * Handle UDP_ENCAP socket option. Always return with released INP_WLOCK.
@@ -132,7 +130,7 @@ udp_ipsec_input(struct mbuf *m, int off, int af)
 		return (0);
 
 	m_copydata(m, off, sizeof(uint32_t), (caddr_t)&spi);
-	if (spi == 0)	/* Non-ESP marker. */
+	if (spi == 0) /* Non-ESP marker. */
 		return (0);
 
 	/*
@@ -170,8 +168,7 @@ udp_ipsec_input(struct mbuf *m, int off, int af)
 		return (ENOENT);
 	}
 	udp = mtodo(m, hlen);
-	if (sav->natt == NULL ||
-	    sav->natt->sport != udp->uh_sport ||
+	if (sav->natt == NULL || sav->natt->sport != udp->uh_sport ||
 	    sav->natt->dport != udp->uh_dport) {
 		/* XXXAE: should we check source address? */
 		ESPSTAT_INC(esps_notdb);
@@ -206,7 +203,7 @@ udp_ipsec_input(struct mbuf *m, int off, int af)
 	 */
 	ESPSTAT_INC(esps_input);
 	(*sav->tdb_xform->xf_input)(m, sav, hlen, off);
-	return (EINPROGRESS);	/* Consumed by IPsec. */
+	return (EINPROGRESS); /* Consumed by IPsec. */
 }
 
 int
@@ -243,8 +240,8 @@ udp_ipsec_output(struct mbuf *m, struct secasvar *sav)
 }
 
 void
-udp_ipsec_adjust_cksum(struct mbuf *m, struct secasvar *sav, int proto,
-    int skip)
+udp_ipsec_adjust_cksum(
+    struct mbuf *m, struct secasvar *sav, int proto, int skip)
 {
 	struct ip *ip;
 	uint16_t cksum, off;
@@ -258,11 +255,11 @@ udp_ipsec_adjust_cksum(struct mbuf *m, struct secasvar *sav, int proto,
 	else
 		off = offsetof(struct tcphdr, th_sum);
 
-	if (V_natt_cksum_policy == 0) {	/* auto */
+	if (V_natt_cksum_policy == 0) { /* auto */
 		if (sav->natt->cksum != 0) {
 			/* Incrementally recompute. */
-			m_copydata(m, skip + off, sizeof(cksum),
-			    (caddr_t)&cksum);
+			m_copydata(
+			    m, skip + off, sizeof(cksum), (caddr_t)&cksum);
 			/* Do not adjust UDP checksum if it is zero. */
 			if (proto == IPPROTO_UDP && cksum == 0)
 				return;
@@ -284,8 +281,8 @@ udp_ipsec_adjust_cksum(struct mbuf *m, struct secasvar *sav, int proto,
 		cksum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		    htons(m->m_pkthdr.len - skip + proto));
 		m_copyback(m, skip + off, sizeof(cksum), (caddr_t)&cksum);
-		m->m_pkthdr.csum_flags =
-		    (proto == IPPROTO_UDP) ? CSUM_UDP: CSUM_TCP;
+		m->m_pkthdr.csum_flags = (proto == IPPROTO_UDP) ? CSUM_UDP :
+									CSUM_TCP;
 		m->m_pkthdr.csum_data = off;
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;

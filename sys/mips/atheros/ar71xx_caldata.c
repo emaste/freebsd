@@ -32,14 +32,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
 #include <sys/bus.h>
+#include <sys/firmware.h>
 #include <sys/interrupt.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/linker.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
-#include <sys/lock.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -49,11 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
 
-#include <sys/linker.h>
-#include <sys/firmware.h>
-
 struct ar71xx_caldata_softc {
-	device_t		sc_dev;
+	device_t sc_dev;
 };
 
 static int
@@ -74,21 +72,22 @@ ar71xx_caldata_probe(device_t dev)
  * with calibration data in flash..)
  */
 static void
-ar71xx_platform_create_cal_data(device_t dev, int id, long int flash_addr,
-    int size)
+ar71xx_platform_create_cal_data(
+    device_t dev, int id, long int flash_addr, int size)
 {
 	char buf[64];
-	uint16_t *cal_data = (uint16_t *) MIPS_PHYS_TO_KSEG1(flash_addr);
+	uint16_t *cal_data = (uint16_t *)MIPS_PHYS_TO_KSEG1(flash_addr);
 	void *eeprom = NULL;
 	const struct firmware *fw = NULL;
 
-	device_printf(dev, "EEPROM firmware: 0x%lx @ %d bytes\n",
-	    flash_addr, size);
+	device_printf(
+	    dev, "EEPROM firmware: 0x%lx @ %d bytes\n", flash_addr, size);
 
 	eeprom = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
-	if (! eeprom) {
-		device_printf(dev, "%s: malloc failed for '%s', aborting EEPROM\n",
-		__func__, buf);
+	if (!eeprom) {
+		device_printf(dev,
+		    "%s: malloc failed for '%s', aborting EEPROM\n", __func__,
+		    buf);
 		return;
 	}
 
@@ -102,14 +101,12 @@ ar71xx_platform_create_cal_data(device_t dev, int id, long int flash_addr,
 	 */
 
 	snprintf(buf, sizeof(buf), "%s.%d.map.%d.eeprom_firmware",
-	    device_get_name(dev),
-	    device_get_unit(dev),
-	    id);
+	    device_get_name(dev), device_get_unit(dev), id);
 
 	fw = firmware_register(buf, eeprom, size, 1, NULL);
 	if (fw == NULL) {
-		device_printf(dev, "%s: firmware_register (%s) failed\n",
-		    __func__, buf);
+		device_printf(
+		    dev, "%s: firmware_register (%s) failed\n", __func__, buf);
 		free(eeprom, M_DEVBUF);
 		return;
 	}
@@ -132,18 +129,18 @@ ar71xx_platform_check_eeprom_hints(device_t dev)
 	for (i = 0; i < 8; i++) {
 		snprintf(buf, sizeof(buf), "map.%d.ath_fixup_addr", i);
 		if (resource_long_value(device_get_name(dev),
-		    device_get_unit(dev), buf, &addr) != 0)
+			device_get_unit(dev), buf, &addr) != 0)
 			break;
 		snprintf(buf, sizeof(buf), "map.%d.ath_fixup_size", i);
 		if (resource_int_value(device_get_name(dev),
-		    device_get_unit(dev), buf, &size) != 0)
+			device_get_unit(dev), buf, &size) != 0)
 			break;
-		device_printf(dev, "map.%d.ath_fixup_addr=0x%08x; size=%d\n",
-		    i, (int) addr, size);
-		(void) ar71xx_platform_create_cal_data(dev, i, addr, size);
-        }
+		device_printf(dev, "map.%d.ath_fixup_addr=0x%08x; size=%d\n", i,
+		    (int)addr, size);
+		(void)ar71xx_platform_create_cal_data(dev, i, addr, size);
+	}
 
-        return (0);
+	return (0);
 }
 
 static int
@@ -157,12 +154,11 @@ ar71xx_caldata_attach(device_t dev)
 
 static device_method_t ar71xx_caldata_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ar71xx_caldata_probe),
-	DEVMETHOD(device_attach,	ar71xx_caldata_attach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-	DEVMETHOD_END
+	DEVMETHOD(device_probe, ar71xx_caldata_probe),
+	DEVMETHOD(device_attach, ar71xx_caldata_attach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume), DEVMETHOD_END
 };
 
 static driver_t ar71xx_caldata_driver = {
@@ -173,4 +169,5 @@ static driver_t ar71xx_caldata_driver = {
 
 static devclass_t ar71xx_caldata_devclass;
 
-DRIVER_MODULE(ar71xx_caldata, nexus, ar71xx_caldata_driver, ar71xx_caldata_devclass, 0, 0);
+DRIVER_MODULE(ar71xx_caldata, nexus, ar71xx_caldata_driver,
+    ar71xx_caldata_devclass, 0, 0);

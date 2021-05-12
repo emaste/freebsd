@@ -34,12 +34,13 @@
 
 struct imx_clk_gate_def {
 	struct clknode_init_def clkdef;
-	uint32_t		offset;
-	uint32_t		shift;
-	uint32_t		mask;
-	int			gate_flags;
+	uint32_t offset;
+	uint32_t shift;
+	uint32_t mask;
+	int gate_flags;
 };
 
-int imx_clk_gate_register(struct clkdom *clkdom, struct imx_clk_gate_def *clkdef);
+int imx_clk_gate_register(
+    struct clkdom *clkdom, struct imx_clk_gate_def *clkdef);
 
 #endif /* _IMX_CLK_GATE_H_ */

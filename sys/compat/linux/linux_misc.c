@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #if defined(__i386__)
 #include <sys/imgact_aout.h>
 #endif
+#include <sys/systm.h>
+#include <sys/cpuset.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -53,9 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/procctl.h>
-#include <sys/reboot.h>
 #include <sys/racct.h>
 #include <sys/random.h>
+#include <sys/reboot.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sdt.h>
@@ -64,22 +66,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
-#include <sys/cpuset.h>
-#include <sys/uio.h>
-
-#include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/swap_pager.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
-#include <vm/vm_extern.h>
-#include <vm/swap_pager.h>
+
+#include <security/mac/mac_framework.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -90,47 +90,45 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <compat/linux/linux_dtrace.h>
+#include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
+#include <compat/linux/linux_sysproto.h>
 #include <compat/linux/linux_timer.h>
 #include <compat/linux/linux_util.h>
-#include <compat/linux/linux_sysproto.h>
-#include <compat/linux/linux_emul.h>
-#include <compat/linux/linux_misc.h>
 
-int stclohz;				/* Statistics clock frequency */
+int stclohz; /* Statistics clock frequency */
 
-static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
-	RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
-	RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NPROC, RLIMIT_NOFILE,
-	RLIMIT_MEMLOCK, RLIMIT_AS
-};
+static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = { RLIMIT_CPU,
+	RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK, RLIMIT_CORE, RLIMIT_RSS,
+	RLIMIT_NPROC, RLIMIT_NOFILE, RLIMIT_MEMLOCK, RLIMIT_AS };
 
 struct l_sysinfo {
-	l_long		uptime;		/* Seconds since boot */
-	l_ulong		loads[3];	/* 1, 5, and 15 minute load averages */
+	l_long uptime;	  /* Seconds since boot */
+	l_ulong loads[3]; /* 1, 5, and 15 minute load averages */
 #define LINUX_SYSINFO_LOADS_SCALE 65536
-	l_ulong		totalram;	/* Total usable main memory size */
-	l_ulong		freeram;	/* Available memory size */
-	l_ulong		sharedram;	/* Amount of shared memory */
-	l_ulong		bufferram;	/* Memory used by buffers */
-	l_ulong		totalswap;	/* Total swap space size */
-	l_ulong		freeswap;	/* swap space still available */
-	l_ushort	procs;		/* Number of current processes */
-	l_ushort	pads;
-	l_ulong		totalhigh;
-	l_ulong		freehigh;
-	l_uint		mem_unit;
-	char		_f[20-2*sizeof(l_long)-sizeof(l_int)];	/* padding */
+	l_ulong totalram;  /* Total usable main memory size */
+	l_ulong freeram;   /* Available memory size */
+	l_ulong sharedram; /* Amount of shared memory */
+	l_ulong bufferram; /* Memory used by buffers */
+	l_ulong totalswap; /* Total swap space size */
+	l_ulong freeswap;  /* swap space still available */
+	l_ushort procs;	   /* Number of current processes */
+	l_ushort pads;
+	l_ulong totalhigh;
+	l_ulong freehigh;
+	l_uint mem_unit;
+	char _f[20 - 2 * sizeof(l_long) - sizeof(l_int)]; /* padding */
 };
 
 struct l_pselect6arg {
-	l_uintptr_t	ss;
-	l_size_t	ss_len;
+	l_uintptr_t ss;
+	l_size_t ss_len;
 };
 
-static int	linux_utimensat_nsec_valid(l_long);
+static int linux_utimensat_nsec_valid(l_long);
 
 int
 linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
@@ -221,8 +219,8 @@ linux_brk(struct thread *td, struct linux_brk_args *args)
 
 	old = (uintptr_t)vm->vm_daddr + ctob(vm->vm_dsize);
 	new = (uintptr_t)args->dsend;
-	if ((caddr_t)new > vm->vm_daddr && !kern_break(td, &new))
-		td->td_retval[0] = (register_t)new;
+	if ((caddr_t) new > vm->vm_daddr && !kern_break(td, &new))
+		td->td_retval[0] = (register_t) new;
 	else
 		td->td_retval[0] = (register_t)old;
 
@@ -301,12 +299,13 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	if (error)
 		goto cleanup;
 
-	/*
-	 * XXX: This should use vn_open() so that it is properly authorized,
-	 * and to reduce code redundancy all over the place here.
-	 * XXX: Not really, it duplicates far more of exec_check_permissions()
-	 * than vn_open().
-	 */
+		/*
+		 * XXX: This should use vn_open() so that it is properly
+		 * authorized, and to reduce code redundancy all over the place
+		 * here.
+		 * XXX: Not really, it duplicates far more of
+		 * exec_check_permissions() than vn_open().
+		 */
 #ifdef MAC
 	error = mac_vnode_check_open(td->td_ucred, vp, VREAD);
 	if (error)
@@ -335,10 +334,10 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 
 	/* Set file/virtual offset based on a.out variant. */
 	switch ((int)(a_out->a_magic & 0xffff)) {
-	case 0413:			/* ZMAGIC */
+	case 0413: /* ZMAGIC */
 		file_offset = 1024;
 		break;
-	case 0314:			/* QMAGIC */
+	case 0314: /* QMAGIC */
 		file_offset = 0;
 		break;
 	default:
@@ -368,8 +367,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	PROC_LOCK(td->td_proc);
 	if (a_out->a_text > maxtsiz ||
 	    a_out->a_data + bss_size > lim_cur_proc(td->td_proc, RLIMIT_DATA) ||
-	    racct_set(td->td_proc, RACCT_DATA, a_out->a_data +
-	    bss_size) != 0) {
+	    racct_set(td->td_proc, RACCT_DATA, a_out->a_data + bss_size) != 0) {
 		PROC_UNLOCK(td->td_proc);
 		error = ENOMEM;
 		goto cleanup;
@@ -429,9 +427,9 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 		 * copy-on-write "data" segment.
 		 */
 		map = &td->td_proc->p_vmspace->vm_map;
-		error = vm_mmap(map, &vmaddr,
-		    a_out->a_text + a_out->a_data, VM_PROT_ALL, VM_PROT_ALL,
-		    MAP_PRIVATE | MAP_FIXED, OBJT_VNODE, vp, file_offset);
+		error = vm_mmap(map, &vmaddr, a_out->a_text + a_out->a_data,
+		    VM_PROT_ALL, VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED,
+		    OBJT_VNODE, vp, file_offset);
 		if (error)
 			goto cleanup;
 		vm_map_lock(map);
@@ -482,7 +480,7 @@ cleanup:
 	return (error);
 }
 
-#endif	/* __i386__ */
+#endif /* __i386__ */
 
 #ifdef LINUX_LEGACY_SYSCALLS
 int
@@ -591,16 +589,16 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 	return (error);
 }
 
-#define LINUX_MS_ASYNC       0x0001
-#define LINUX_MS_INVALIDATE  0x0002
-#define LINUX_MS_SYNC        0x0004
+#define LINUX_MS_ASYNC 0x0001
+#define LINUX_MS_INVALIDATE 0x0002
+#define LINUX_MS_SYNC 0x0004
 
 int
 linux_msync(struct thread *td, struct linux_msync_args *args)
 {
 
-	return (kern_msync(td, args->addr, args->len,
-	    args->fl & ~LINUX_MS_SYNC));
+	return (
+	    kern_msync(td, args->addr, args->len, args->fl & ~LINUX_MS_SYNC));
 }
 
 #ifdef LINUX_LEGACY_SYSCALLS
@@ -621,10 +619,10 @@ linux_time(struct thread *td, struct linux_time_args *args)
 #endif
 
 struct l_times_argv {
-	l_clock_t	tms_utime;
-	l_clock_t	tms_stime;
-	l_clock_t	tms_cutime;
-	l_clock_t	tms_cstime;
+	l_clock_t tms_utime;
+	l_clock_t tms_stime;
+	l_clock_t tms_cutime;
+	l_clock_t tms_cstime;
 };
 
 /*
@@ -632,13 +630,13 @@ struct l_times_argv {
  * Since 2.2.1 Glibc uses value exported from kernel via AT_CLKTCK
  * auxiliary vector entry.
  */
-#define	CLK_TCK		100
+#define CLK_TCK 100
 
-#define	CONVOTCK(r)	(r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
-#define	CONVNTCK(r)	(r.tv_sec * stclohz + r.tv_usec / (1000000 / stclohz))
+#define CONVOTCK(r) (r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
+#define CONVNTCK(r) (r.tv_sec * stclohz + r.tv_usec / (1000000 / stclohz))
 
-#define	CONVTCK(r)	(linux_kernver(td) >= LINUX_KERNVER_2004000 ?		\
-			    CONVNTCK(r) : CONVOTCK(r))
+#define CONVTCK(r) \
+	(linux_kernver(td) >= LINUX_KERNVER_2004000 ? CONVNTCK(r) : CONVOTCK(r))
 
 int
 linux_times(struct thread *td, struct linux_times_args *args)
@@ -746,8 +744,8 @@ linux_utime(struct thread *td, struct linux_utime_args *args)
 		error = kern_utimesat(td, AT_FDCWD, args->fname, UIO_USERSPACE,
 		    tvp, UIO_SYSSPACE);
 	} else {
-		error = kern_utimesat(td, AT_FDCWD, fname, UIO_SYSSPACE, tvp,
-		    UIO_SYSSPACE);
+		error = kern_utimesat(
+		    td, AT_FDCWD, fname, UIO_SYSSPACE, tvp, UIO_SYSSPACE);
 		LFREEPATH(fname);
 	}
 	return (error);
@@ -784,8 +782,8 @@ linux_utimes(struct thread *td, struct linux_utimes_args *args)
 		error = kern_utimesat(td, AT_FDCWD, args->fname, UIO_USERSPACE,
 		    tvp, UIO_SYSSPACE);
 	} else {
-		error = kern_utimesat(td, AT_FDCWD, fname, UIO_SYSSPACE,
-		    tvp, UIO_SYSSPACE);
+		error = kern_utimesat(
+		    td, AT_FDCWD, fname, UIO_SYSSPACE, tvp, UIO_SYSSPACE);
 		LFREEPATH(fname);
 	}
 	return (error);
@@ -826,8 +824,7 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 			return (EINVAL);
 
 		times[0].tv_sec = l_times[0].tv_sec;
-		switch (l_times[0].tv_nsec)
-		{
+		switch (l_times[0].tv_nsec) {
 		case LINUX_UTIME_OMIT:
 			times[0].tv_nsec = UTIME_OMIT;
 			break;
@@ -839,8 +836,7 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 		}
 
 		times[1].tv_sec = l_times[1].tv_sec;
-		switch (l_times[1].tv_nsec)
-		{
+		switch (l_times[1].tv_nsec) {
 		case LINUX_UTIME_OMIT:
 			times[1].tv_nsec = UTIME_OMIT;
 			break;
@@ -879,8 +875,8 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 	if (path == NULL)
 		error = kern_futimens(td, dfd, timesp, UIO_SYSSPACE);
 	else {
-		error = kern_utimensat(td, dfd, path, UIO_SYSSPACE, timesp,
-			UIO_SYSSPACE, flags);
+		error = kern_utimensat(
+		    td, dfd, path, UIO_SYSSPACE, timesp, UIO_SYSSPACE, flags);
 		LFREEPATH(path);
 	}
 
@@ -916,10 +912,11 @@ linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 	}
 
 	if (!convpath) {
-		error = kern_utimesat(td, dfd, args->filename, UIO_USERSPACE,
-		    tvp, UIO_SYSSPACE);
+		error = kern_utimesat(
+		    td, dfd, args->filename, UIO_USERSPACE, tvp, UIO_SYSSPACE);
 	} else {
-		error = kern_utimesat(td, dfd, fname, UIO_SYSSPACE, tvp, UIO_SYSSPACE);
+		error = kern_utimesat(
+		    td, dfd, fname, UIO_SYSSPACE, tvp, UIO_SYSSPACE);
 		LFREEPATH(fname);
 	}
 	return (error);
@@ -927,8 +924,8 @@ linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 #endif
 
 static int
-linux_common_wait(struct thread *td, int pid, int *statusp,
-    int options, struct __wrusage *wrup)
+linux_common_wait(struct thread *td, int pid, int *statusp, int options,
+    struct __wrusage *wrup)
 {
 	siginfo_t siginfo;
 	idtype_t idtype;
@@ -965,8 +962,8 @@ linux_common_wait(struct thread *td, int pid, int *statusp,
 			    (bsd_to_linux_signal(WSTOPSIG(tmpstat)) << 8);
 #if defined(__amd64__) && !defined(COMPAT_LINUX32)
 			if (WSTOPSIG(status) == SIGTRAP) {
-				tmpstat = linux_ptrace_status(td,
-				    siginfo.si_pid, tmpstat);
+				tmpstat = linux_ptrace_status(
+				    td, siginfo.si_pid, tmpstat);
 			}
 #endif
 		} else if (WIFCONTINUED(tmpstat)) {
@@ -999,8 +996,9 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 	int error, options;
 	struct __wrusage wru, *wrup;
 
-	if (args->options & ~(LINUX_WUNTRACED | LINUX_WNOHANG |
-	    LINUX_WCONTINUED | __WCLONE | __WNOTHREAD | __WALL))
+	if (args->options &
+	    ~(LINUX_WUNTRACED | LINUX_WNOHANG | LINUX_WCONTINUED | __WCLONE |
+		__WNOTHREAD | __WALL))
 		return (EINVAL);
 
 	options = WEXITED;
@@ -1055,13 +1053,12 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 		return (EINVAL);
 	}
 
-	error = kern_wait6(td, idtype, args->id, &status, options,
-	    &wru, &siginfo);
+	error = kern_wait6(
+	    td, idtype, args->id, &status, options, &wru, &siginfo);
 	if (error != 0)
 		return (error);
 	if (args->rusage != NULL) {
-		error = linux_copyout_rusage(&wru.wru_children,
-		    args->rusage);
+		error = linux_copyout_rusage(&wru.wru_children, args->rusage);
 		if (error != 0)
 			return (error);
 	}
@@ -1100,14 +1097,13 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 	switch (args->mode & S_IFMT) {
 	case S_IFIFO:
 	case S_IFSOCK:
-		error = kern_mkfifoat(td, AT_FDCWD, path, seg,
-		    args->mode);
+		error = kern_mkfifoat(td, AT_FDCWD, path, seg, args->mode);
 		break;
 
 	case S_IFCHR:
 	case S_IFBLK:
-		error = kern_mknodat(td, AT_FDCWD, path, seg,
-		    args->mode, args->dev);
+		error = kern_mknodat(
+		    td, AT_FDCWD, path, seg, args->mode, args->dev);
 		break;
 
 	case S_IFDIR:
@@ -1161,8 +1157,7 @@ linux_mknodat(struct thread *td, struct linux_mknodat_args *args)
 
 	case S_IFCHR:
 	case S_IFBLK:
-		error = kern_mknodat(td, dfd, path, seg, args->mode,
-		    args->dev);
+		error = kern_mknodat(td, dfd, path, seg, args->mode, args->dev);
 		break;
 
 	case S_IFDIR:
@@ -1214,10 +1209,10 @@ struct l_itimerval {
 	l_timeval it_value;
 };
 
-#define	B2L_ITIMERVAL(bip, lip)						\
-	(bip)->it_interval.tv_sec = (lip)->it_interval.tv_sec;		\
-	(bip)->it_interval.tv_usec = (lip)->it_interval.tv_usec;	\
-	(bip)->it_value.tv_sec = (lip)->it_value.tv_sec;		\
+#define B2L_ITIMERVAL(bip, lip)                                  \
+	(bip)->it_interval.tv_sec = (lip)->it_interval.tv_sec;   \
+	(bip)->it_interval.tv_usec = (lip)->it_interval.tv_usec; \
+	(bip)->it_value.tv_sec = (lip)->it_value.tv_sec;         \
 	(bip)->it_value.tv_usec = (lip)->it_value.tv_usec;
 
 int
@@ -1229,7 +1224,8 @@ linux_setitimer(struct thread *td, struct linux_setitimer_args *uap)
 
 	if (uap->itv == NULL) {
 		uap->itv = uap->oitv;
-		return (linux_getitimer(td, (struct linux_getitimer_args *)uap));
+		return (
+		    linux_getitimer(td, (struct linux_getitimer_args *)uap));
 	}
 
 	error = copyin(uap->itv, &ls, sizeof(ls));
@@ -1351,8 +1347,8 @@ linux_getgroups(struct thread *td, struct linux_getgroups_args *args)
 		return (EINVAL);
 
 	ngrp = 0;
-	linux_gidset = malloc(bsd_gidsetsz * sizeof(*linux_gidset),
-	    M_LINUX, M_WAITOK);
+	linux_gidset = malloc(
+	    bsd_gidsetsz * sizeof(*linux_gidset), M_LINUX, M_WAITOK);
 	while (ngrp < bsd_gidsetsz) {
 		linux_gidset[ngrp] = bsd_gidset[ngrp + 1];
 		ngrp++;
@@ -1486,8 +1482,8 @@ linux_getrlimit(struct thread *td, struct linux_getrlimit_args *args)
 }
 
 int
-linux_sched_setscheduler(struct thread *td,
-    struct linux_sched_setscheduler_args *args)
+linux_sched_setscheduler(
+    struct thread *td, struct linux_sched_setscheduler_args *args)
 {
 	struct sched_param sched_param;
 	struct thread *tdt;
@@ -1517,8 +1513,8 @@ linux_sched_setscheduler(struct thread *td,
 			if (sched_param.sched_priority != 0)
 				return (EINVAL);
 
-			sched_param.sched_priority =
-			    PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE;
+			sched_param.sched_priority = PRI_MAX_TIMESHARE -
+			    PRI_MIN_TIMESHARE;
 			break;
 		case SCHED_FIFO:
 		case SCHED_RR:
@@ -1548,8 +1544,8 @@ linux_sched_setscheduler(struct thread *td,
 }
 
 int
-linux_sched_getscheduler(struct thread *td,
-    struct linux_sched_getscheduler_args *args)
+linux_sched_getscheduler(
+    struct thread *td, struct linux_sched_getscheduler_args *args)
 {
 	struct thread *tdt;
 	int error, policy;
@@ -1576,8 +1572,8 @@ linux_sched_getscheduler(struct thread *td,
 }
 
 int
-linux_sched_get_priority_max(struct thread *td,
-    struct linux_sched_get_priority_max_args *args)
+linux_sched_get_priority_max(
+    struct thread *td, struct linux_sched_get_priority_max_args *args)
 {
 	struct sched_get_priority_max_args bsd;
 
@@ -1612,8 +1608,8 @@ linux_sched_get_priority_max(struct thread *td,
 }
 
 int
-linux_sched_get_priority_min(struct thread *td,
-    struct linux_sched_get_priority_min_args *args)
+linux_sched_get_priority_min(
+    struct thread *td, struct linux_sched_get_priority_min_args *args)
 {
 	struct sched_get_priority_min_args bsd;
 
@@ -1647,16 +1643,16 @@ linux_sched_get_priority_min(struct thread *td,
 	return (sys_sched_get_priority_min(td, &bsd));
 }
 
-#define REBOOT_CAD_ON	0x89abcdef
-#define REBOOT_CAD_OFF	0
-#define REBOOT_HALT	0xcdef0123
-#define REBOOT_RESTART	0x01234567
-#define REBOOT_RESTART2	0xA1B2C3D4
-#define REBOOT_POWEROFF	0x4321FEDC
-#define REBOOT_MAGIC1	0xfee1dead
-#define REBOOT_MAGIC2	0x28121969
-#define REBOOT_MAGIC2A	0x05121996
-#define REBOOT_MAGIC2B	0x16041998
+#define REBOOT_CAD_ON 0x89abcdef
+#define REBOOT_CAD_OFF 0
+#define REBOOT_HALT 0xcdef0123
+#define REBOOT_RESTART 0x01234567
+#define REBOOT_RESTART2 0xA1B2C3D4
+#define REBOOT_POWEROFF 0x4321FEDC
+#define REBOOT_MAGIC1 0xfee1dead
+#define REBOOT_MAGIC2 0x28121969
+#define REBOOT_MAGIC2A 0x05121996
+#define REBOOT_MAGIC2B 0x16041998
 
 int
 linux_reboot(struct thread *td, struct linux_reboot_args *args)
@@ -1772,8 +1768,8 @@ linux_sethostname(struct thread *td, struct linux_sethostname_args *args)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
-	return (userland_sysctl(td, name, 2, 0, 0, 0, args->hostname,
-	    args->len, 0, 0));
+	return (userland_sysctl(
+	    td, name, 2, 0, 0, 0, args->hostname, args->len, 0, 0));
 }
 
 int
@@ -1783,16 +1779,15 @@ linux_setdomainname(struct thread *td, struct linux_setdomainname_args *args)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_NISDOMAINNAME;
-	return (userland_sysctl(td, name, 2, 0, 0, 0, args->name,
-	    args->len, 0, 0));
+	return (
+	    userland_sysctl(td, name, 2, 0, 0, 0, args->name, args->len, 0, 0));
 }
 
 int
 linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 {
 
-	LINUX_CTR2(exit_group, "thread(%d) (%d)", td->td_tid,
-	    args->error_code);
+	LINUX_CTR2(exit_group, "thread(%d) (%d)", td->td_tid, args->error_code);
 
 	/*
 	 * XXX: we should send a signal to the parent if
@@ -1800,22 +1795,22 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 	 * as it doesnt occur often.
 	 */
 	exit1(td, args->error_code, 0);
-		/* NOTREACHED */
+	/* NOTREACHED */
 }
 
-#define _LINUX_CAPABILITY_VERSION_1  0x19980330
-#define _LINUX_CAPABILITY_VERSION_2  0x20071026
-#define _LINUX_CAPABILITY_VERSION_3  0x20080522
+#define _LINUX_CAPABILITY_VERSION_1 0x19980330
+#define _LINUX_CAPABILITY_VERSION_2 0x20071026
+#define _LINUX_CAPABILITY_VERSION_3 0x20080522
 
 struct l_user_cap_header {
-	l_int	version;
-	l_int	pid;
+	l_int version;
+	l_int pid;
 };
 
 struct l_user_cap_data {
-	l_int	effective;
-	l_int	permitted;
-	l_int	inheritable;
+	l_int effective;
+	l_int permitted;
+	l_int inheritable;
 };
 
 int
@@ -1908,8 +1903,8 @@ linux_capset(struct thread *td, struct linux_capset_args *uap)
 		    lucd[i].inheritable) {
 			linux_msg(td,
 			    "capset[%d] effective=0x%x, permitted=0x%x, "
-			    "inheritable=0x%x is not implemented", i,
-			    (int)lucd[i].effective, (int)lucd[i].permitted,
+			    "inheritable=0x%x is not implemented",
+			    i, (int)lucd[i].effective, (int)lucd[i].permitted,
 			    (int)lucd[i].inheritable);
 			return (EPERM);
 		}
@@ -1931,16 +1926,15 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		if (!LINUX_SIG_VALID(args->arg2))
 			return (EINVAL);
 		pdeath_signal = linux_to_bsd_signal(args->arg2);
-		return (kern_procctl(td, P_PID, 0, PROC_PDEATHSIG_CTL,
-		    &pdeath_signal));
+		return (kern_procctl(
+		    td, P_PID, 0, PROC_PDEATHSIG_CTL, &pdeath_signal));
 	case LINUX_PR_GET_PDEATHSIG:
-		error = kern_procctl(td, P_PID, 0, PROC_PDEATHSIG_STATUS,
-		    &pdeath_signal);
+		error = kern_procctl(
+		    td, P_PID, 0, PROC_PDEATHSIG_STATUS, &pdeath_signal);
 		if (error != 0)
 			return (error);
 		pdeath_signal = bsd_to_linux_signal(pdeath_signal);
-		return (copyout(&pdeath_signal,
-		    (void *)(register_t)args->arg2,
+		return (copyout(&pdeath_signal, (void *)(register_t)args->arg2,
 		    sizeof(pdeath_signal)));
 	/*
 	 * In Linux, this flag controls if set[gu]id processes can coredump.
@@ -1959,8 +1953,8 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	 * So, proxy these knobs to the corresponding PROC_TRACE setting.
 	 */
 	case LINUX_PR_GET_DUMPABLE:
-		error = kern_procctl(td, P_PID, p->p_pid, PROC_TRACE_STATUS,
-		    &trace_state);
+		error = kern_procctl(
+		    td, P_PID, p->p_pid, PROC_TRACE_STATUS, &trace_state);
 		if (error != 0)
 			return (error);
 		td->td_retval[0] = (trace_state != -1);
@@ -1980,8 +1974,8 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		default:
 			return (EINVAL);
 		}
-		return (kern_procctl(td, P_PID, p->p_pid, PROC_TRACE_CTL,
-		    &trace_state));
+		return (kern_procctl(
+		    td, P_PID, p->p_pid, PROC_TRACE_CTL, &trace_state));
 	case LINUX_PR_GET_KEEPCAPS:
 		/*
 		 * Indicate that we always clear the effective and
@@ -2005,8 +1999,8 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		 * check on copyout.
 		 */
 		max_size = MIN(sizeof(comm), sizeof(p->p_comm));
-		error = copyinstr((void *)(register_t)args->arg2, comm,
-		    max_size, NULL);
+		error = copyinstr(
+		    (void *)(register_t)args->arg2, comm, max_size, NULL);
 
 		/* Linux silently truncates the name if it is too long. */
 		if (error == ENAMETOOLONG) {
@@ -2016,8 +2010,8 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 			 * safe side. This should be changed in case
 			 * copyinstr() is changed to guarantee this.
 			 */
-			error = copyin((void *)(register_t)args->arg2, comm,
-			    max_size - 1);
+			error = copyin(
+			    (void *)(register_t)args->arg2, comm, max_size - 1);
 			comm[max_size - 1] = '\0';
 		}
 		if (error)
@@ -2031,8 +2025,8 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		PROC_LOCK(p);
 		strlcpy(comm, p->p_comm, sizeof(comm));
 		PROC_UNLOCK(p);
-		error = copyout(comm, (void *)(register_t)args->arg2,
-		    strlen(comm) + 1);
+		error = copyout(
+		    comm, (void *)(register_t)args->arg2, strlen(comm) + 1);
 		break;
 	case LINUX_PR_GET_SECCOMP:
 	case LINUX_PR_SET_SECCOMP:
@@ -2069,8 +2063,7 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 }
 
 int
-linux_sched_setparam(struct thread *td,
-    struct linux_sched_setparam_args *uap)
+linux_sched_setparam(struct thread *td, struct linux_sched_setparam_args *uap)
 {
 	struct sched_param sched_param;
 	struct thread *tdt;
@@ -2095,8 +2088,8 @@ linux_sched_setparam(struct thread *td,
 				error = EINVAL;
 				goto out;
 			}
-			sched_param.sched_priority =
-			    PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE;
+			sched_param.sched_priority = PRI_MAX_TIMESHARE -
+			    PRI_MIN_TIMESHARE;
 			break;
 		case SCHED_FIFO:
 		case SCHED_RR:
@@ -2118,13 +2111,13 @@ linux_sched_setparam(struct thread *td,
 	}
 
 	error = kern_sched_setparam(td, tdt, &sched_param);
-out:	PROC_UNLOCK(tdt->td_proc);
+out:
+	PROC_UNLOCK(tdt->td_proc);
 	return (error);
 }
 
 int
-linux_sched_getparam(struct thread *td,
-    struct linux_sched_getparam_args *uap)
+linux_sched_getparam(struct thread *td, struct linux_sched_getparam_args *uap)
 {
 	struct sched_param sched_param;
 	struct thread *tdt;
@@ -2158,9 +2151,10 @@ linux_sched_getparam(struct thread *td,
 			 */
 			sched_param.sched_priority =
 			    (sched_param.sched_priority *
-			    (LINUX_MAX_RT_PRIO - 1) +
-			    (RTP_PRIO_MAX - RTP_PRIO_MIN - 1)) /
-			    (RTP_PRIO_MAX - RTP_PRIO_MIN) + 1;
+				    (LINUX_MAX_RT_PRIO - 1) +
+				(RTP_PRIO_MAX - RTP_PRIO_MIN - 1)) /
+				(RTP_PRIO_MAX - RTP_PRIO_MIN) +
+			    1;
 			break;
 		}
 	} else
@@ -2174,8 +2168,8 @@ linux_sched_getparam(struct thread *td,
  * Get affinity of a process.
  */
 int
-linux_sched_getaffinity(struct thread *td,
-    struct linux_sched_getaffinity_args *args)
+linux_sched_getaffinity(
+    struct thread *td, struct linux_sched_getaffinity_args *args)
 {
 	int error;
 	struct thread *tdt;
@@ -2201,8 +2195,8 @@ linux_sched_getaffinity(struct thread *td,
  *  Set affinity of a process.
  */
 int
-linux_sched_setaffinity(struct thread *td,
-    struct linux_sched_setaffinity_args *args)
+linux_sched_setaffinity(
+    struct thread *td, struct linux_sched_setaffinity_args *args)
 {
 	struct thread *tdt;
 
@@ -2216,12 +2210,12 @@ linux_sched_setaffinity(struct thread *td,
 	PROC_UNLOCK(tdt->td_proc);
 
 	return (kern_cpuset_setaffinity(td, CPU_LEVEL_WHICH, CPU_WHICH_TID,
-	    tdt->td_tid, sizeof(cpuset_t), (cpuset_t *) args->user_mask_ptr));
+	    tdt->td_tid, sizeof(cpuset_t), (cpuset_t *)args->user_mask_ptr));
 }
 
 struct linux_rlimit64 {
-	uint64_t	rlim_cur;
-	uint64_t	rlim_max;
+	uint64_t rlim_cur;
+	uint64_t rlim_max;
 };
 
 int
@@ -2293,7 +2287,7 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 	if (args->new != NULL)
 		error = kern_proc_setrlimit(td, p, which, &nrlim);
 
- out:
+out:
 	PRELE(p);
 	return (error);
 }
@@ -2318,8 +2312,7 @@ linux_pselect6(struct thread *td, struct linux_pselect6_args *args)
 		if (lpse6.ss_len != sizeof(l_ss))
 			return (EINVAL);
 		if (lpse6.ss != 0) {
-			error = copyin(PTRIN(lpse6.ss), &l_ss,
-			    sizeof(l_ss));
+			error = copyin(PTRIN(lpse6.ss), &l_ss, sizeof(l_ss));
 			if (error != 0)
 				return (error);
 			linux_to_bsd_sigset(&l_ss, &ss);
@@ -2433,8 +2426,8 @@ linux_ppoll(struct thread *td, struct linux_ppoll_args *args)
 }
 
 int
-linux_sched_rr_get_interval(struct thread *td,
-    struct linux_sched_rr_get_interval_args *uap)
+linux_sched_rr_get_interval(
+    struct thread *td, struct linux_sched_rr_get_interval_args *uap)
 {
 	struct timespec ts;
 	struct l_timespec lts;
@@ -2493,7 +2486,7 @@ linux_tdfind(struct thread *td, lwpid_t tid, pid_t pid)
 				PROC_UNLOCK(p);
 				return (NULL);
 			}
-			FOREACH_THREAD_IN_PROC(p, tdt) {
+			FOREACH_THREAD_IN_PROC (p, tdt) {
 				em = em_find(tdt);
 				if (tid == em->em_tid)
 					return (tdt);
@@ -2532,7 +2525,7 @@ linux_getrandom(struct thread *td, struct linux_getrandom_args *args)
 	struct iovec iov;
 	int error;
 
-	if (args->flags & ~(LINUX_GRND_NONBLOCK|LINUX_GRND_RANDOM))
+	if (args->flags & ~(LINUX_GRND_NONBLOCK | LINUX_GRND_RANDOM))
 		return (EINVAL);
 	if (args->count > INT_MAX)
 		args->count = INT_MAX;
@@ -2563,7 +2556,7 @@ linux_mincore(struct thread *td, struct linux_mincore_args *args)
 	return (kern_mincore(td, args->start, args->len, args->vec));
 }
 
-#define	SYSLOG_TAG	"<6>"
+#define SYSLOG_TAG "<6>"
 
 int
 linux_syslog(struct thread *td, struct linux_syslog_args *args)
@@ -2615,8 +2608,8 @@ linux_syslog(struct thread *td, struct linux_syslog_args *args)
 
 			if (*src == '\n' && *(src + 1) != '<' &&
 			    dst + sizeof(SYSLOG_TAG) < args->buf + args->len) {
-				error = copyout(&SYSLOG_TAG,
-				    dst, sizeof(SYSLOG_TAG));
+				error = copyout(
+				    &SYSLOG_TAG, dst, sizeof(SYSLOG_TAG));
 				dst += sizeof(SYSLOG_TAG) - 1;
 			}
 		}

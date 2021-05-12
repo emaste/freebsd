@@ -29,28 +29,27 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/sbuf.h>
 #include <sys/systm.h>
-#include <sys/socket.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/sbuf.h>
+#include <sys/socket.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
-#include <net/ethernet.h>
 #include <net/route.h>
-
-#include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ratectl.h>
+#include <net80211/ieee80211_var.h>
 
 static const struct ieee80211_ratectl *ratectls[IEEE80211_RATECTL_MAX];
 
 static const char *ratectl_modnames[IEEE80211_RATECTL_MAX] = {
-	[IEEE80211_RATECTL_AMRR]	= "wlan_amrr",
-	[IEEE80211_RATECTL_RSSADAPT]	= "wlan_rssadapt",
-	[IEEE80211_RATECTL_ONOE]	= "wlan_onoe",
-	[IEEE80211_RATECTL_SAMPLE]	= "wlan_sample",
-	[IEEE80211_RATECTL_NONE]	= "wlan_none",
+	[IEEE80211_RATECTL_AMRR] = "wlan_amrr",
+	[IEEE80211_RATECTL_RSSADAPT] = "wlan_rssadapt",
+	[IEEE80211_RATECTL_ONOE] = "wlan_onoe",
+	[IEEE80211_RATECTL_SAMPLE] = "wlan_sample",
+	[IEEE80211_RATECTL_NONE] = "wlan_none",
 };
 
 MALLOC_DEFINE(M_80211_RATECTL, "80211ratectl", "802.11 rate control");
@@ -75,14 +74,13 @@ static void
 ieee80211_ratectl_sysctl_stats_node_iter(void *arg, struct ieee80211_node *ni)
 {
 
-	struct sbuf *sb = (struct sbuf *) arg;
+	struct sbuf *sb = (struct sbuf *)arg;
 	sbuf_printf(sb, "MAC: %6D\n", ni->ni_macaddr, ":");
 	ieee80211_ratectl_node_stats(ni, sb);
 	sbuf_printf(sb, "\n");
 }
 
-static int
-ieee80211_ratectl_sysctl_stats(SYSCTL_HANDLER_ARGS)
+static int ieee80211_ratectl_sysctl_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct ieee80211vap *vap = arg1;
 	struct ieee80211com *ic = vap->iv_ic;
@@ -96,9 +94,8 @@ ieee80211_ratectl_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 
 	IEEE80211_LOCK(ic);
-	ieee80211_iterate_nodes(&ic->ic_sta,
-	    ieee80211_ratectl_sysctl_stats_node_iter,
-	    &sb);
+	ieee80211_iterate_nodes(
+	    &ic->ic_sta, ieee80211_ratectl_sysctl_stats_node_iter, &sb);
 	IEEE80211_UNLOCK(ic);
 
 	error = sbuf_finish(&sb);
@@ -115,8 +112,8 @@ ieee80211_ratectl_init(struct ieee80211vap *vap)
 
 	/* Attach generic stats sysctl */
 	SYSCTL_ADD_PROC(vap->iv_sysctl, SYSCTL_CHILDREN(vap->iv_oid), OID_AUTO,
-	    "rate_stats", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, vap,
-	    0, ieee80211_ratectl_sysctl_stats, "A", "ratectl node stats");
+	    "rate_stats", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, vap, 0,
+	    ieee80211_ratectl_sysctl_stats, "A", "ratectl node stats");
 }
 
 void
@@ -128,8 +125,8 @@ ieee80211_ratectl_set(struct ieee80211vap *vap, int type)
 		ieee80211_load_module(ratectl_modnames[type]);
 		if (ratectls[type] == NULL) {
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_RATECTL,
-			    "%s: unable to load algo %u, module %s\n",
-			    __func__, type, ratectl_modnames[type]);
+			    "%s: unable to load algo %u, module %s\n", __func__,
+			    type, ratectl_modnames[type]);
 			vap->iv_rate = ratectls[IEEE80211_RATECTL_NONE];
 			return;
 		}

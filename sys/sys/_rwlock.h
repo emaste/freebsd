@@ -28,7 +28,7 @@
  */
 
 #ifndef _SYS__RWLOCK_H_
-#define	_SYS__RWLOCK_H_
+#define _SYS__RWLOCK_H_
 
 #include <machine/param.h>
 
@@ -42,8 +42,8 @@
  * implementation must be modified appropriately.
  */
 struct rwlock {
-	struct lock_object	lock_object;
-	volatile uintptr_t	rw_lock;
+	struct lock_object lock_object;
+	volatile uintptr_t rw_lock;
 };
 
 /*
@@ -56,8 +56,8 @@ struct rwlock {
  * the rwlock.
  */
 struct rwlock_padalign {
-	struct lock_object	lock_object;
-	volatile uintptr_t	rw_lock;
+	struct lock_object lock_object;
+	volatile uintptr_t rw_lock;
 } __aligned(CACHE_LINE_SIZE);
 
 #endif /* !_SYS__RWLOCK_H_ */

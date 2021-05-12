@@ -34,127 +34,128 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/pcpu.h>
-#include <sys/systm.h>
-
-#include <machine/pc/bios.h>
-#include <machine/md_var.h>
-#include <machine/specialreg.h>
-#include <machine/cputypes.h>
-#include <machine/vmparam.h>
 #include <sys/rman.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/cputypes.h>
+#include <machine/md_var.h>
+#include <machine/pc/bios.h>
+#include <machine/specialreg.h>
+#include <machine/vmparam.h>
+
 #include "cpufreq_if.h"
 
-#define PN7_TYPE	0
-#define PN8_TYPE	1
+#define PN7_TYPE 0
+#define PN8_TYPE 1
 
 /* Flags for some hardware bugs. */
-#define A0_ERRATA	0x1	/* Bugs for the rev. A0 of Athlon (K7):
-				 * Interrupts must be disabled and no half
-				 * multipliers are allowed */
-#define PENDING_STUCK	0x2	/* With some buggy chipset and some newer AMD64
-				 * processor (Rev. G?):
-				 * the pending bit from the msr FIDVID_STATUS
-				 * is set forever.  No workaround :( */
+#define A0_ERRATA                                      \
+	0x1 /* Bugs for the rev. A0 of Athlon (K7):    \
+	     * Interrupts must be disabled and no half \
+	     * multipliers are allowed */
+#define PENDING_STUCK                                       \
+	0x2 /* With some buggy chipset and some newer AMD64 \
+	     * processor (Rev. G?):                         \
+	     * the pending bit from the msr FIDVID_STATUS   \
+	     * is set forever.  No workaround :( */
 
 /* Legacy configuration via BIOS table PSB. */
-#define PSB_START	0
-#define PSB_STEP	0x10
-#define PSB_SIG		"AMDK7PNOW!"
-#define PSB_LEN		10
-#define PSB_OFF		0
+#define PSB_START 0
+#define PSB_STEP 0x10
+#define PSB_SIG "AMDK7PNOW!"
+#define PSB_LEN 10
+#define PSB_OFF 0
 
 struct psb_header {
-	char		 signature[10];
-	uint8_t		 version;
-	uint8_t		 flags;
-	uint16_t	 settlingtime;
-	uint8_t		 res1;
-	uint8_t		 numpst;
+	char signature[10];
+	uint8_t version;
+	uint8_t flags;
+	uint16_t settlingtime;
+	uint8_t res1;
+	uint8_t numpst;
 } __packed;
 
 struct pst_header {
-	uint32_t	 cpuid;
-	uint8_t		 fsb;
-	uint8_t		 maxfid;
-	uint8_t		 startvid;
-	uint8_t		 numpstates;
+	uint32_t cpuid;
+	uint8_t fsb;
+	uint8_t maxfid;
+	uint8_t startvid;
+	uint8_t numpstates;
 } __packed;
 
 /*
  * MSRs and bits used by Powernow technology
  */
-#define MSR_AMDK7_FIDVID_CTL		0xc0010041
-#define MSR_AMDK7_FIDVID_STATUS		0xc0010042
+#define MSR_AMDK7_FIDVID_CTL 0xc0010041
+#define MSR_AMDK7_FIDVID_STATUS 0xc0010042
 
 /* Bitfields used by K7 */
 
-#define PN7_CTR_FID(x)			((x) & 0x1f)
-#define PN7_CTR_VID(x)			(((x) & 0x1f) << 8)
-#define PN7_CTR_FIDC			0x00010000
-#define PN7_CTR_VIDC			0x00020000
-#define PN7_CTR_FIDCHRATIO		0x00100000
-#define PN7_CTR_SGTC(x)			(((uint64_t)(x) & 0x000fffff) << 32)
+#define PN7_CTR_FID(x) ((x)&0x1f)
+#define PN7_CTR_VID(x) (((x)&0x1f) << 8)
+#define PN7_CTR_FIDC 0x00010000
+#define PN7_CTR_VIDC 0x00020000
+#define PN7_CTR_FIDCHRATIO 0x00100000
+#define PN7_CTR_SGTC(x) (((uint64_t)(x)&0x000fffff) << 32)
 
-#define PN7_STA_CFID(x)			((x) & 0x1f)
-#define PN7_STA_SFID(x)			(((x) >> 8) & 0x1f)
-#define PN7_STA_MFID(x)			(((x) >> 16) & 0x1f)
-#define PN7_STA_CVID(x)			(((x) >> 32) & 0x1f)
-#define PN7_STA_SVID(x)			(((x) >> 40) & 0x1f)
-#define PN7_STA_MVID(x)			(((x) >> 48) & 0x1f)
+#define PN7_STA_CFID(x) ((x)&0x1f)
+#define PN7_STA_SFID(x) (((x) >> 8) & 0x1f)
+#define PN7_STA_MFID(x) (((x) >> 16) & 0x1f)
+#define PN7_STA_CVID(x) (((x) >> 32) & 0x1f)
+#define PN7_STA_SVID(x) (((x) >> 40) & 0x1f)
+#define PN7_STA_MVID(x) (((x) >> 48) & 0x1f)
 
 /* ACPI ctr_val status register to powernow k7 configuration */
-#define ACPI_PN7_CTRL_TO_FID(x)		((x) & 0x1f)
-#define ACPI_PN7_CTRL_TO_VID(x)		(((x) >> 5) & 0x1f)
-#define ACPI_PN7_CTRL_TO_SGTC(x)	(((x) >> 10) & 0xffff)
+#define ACPI_PN7_CTRL_TO_FID(x) ((x)&0x1f)
+#define ACPI_PN7_CTRL_TO_VID(x) (((x) >> 5) & 0x1f)
+#define ACPI_PN7_CTRL_TO_SGTC(x) (((x) >> 10) & 0xffff)
 
 /* Bitfields used by K8 */
 
-#define PN8_CTR_FID(x)			((x) & 0x3f)
-#define PN8_CTR_VID(x)			(((x) & 0x1f) << 8)
-#define PN8_CTR_PENDING(x)		(((x) & 1) << 32)
+#define PN8_CTR_FID(x) ((x)&0x3f)
+#define PN8_CTR_VID(x) (((x)&0x1f) << 8)
+#define PN8_CTR_PENDING(x) (((x)&1) << 32)
 
-#define PN8_STA_CFID(x)			((x) & 0x3f)
-#define PN8_STA_SFID(x)			(((x) >> 8) & 0x3f)
-#define PN8_STA_MFID(x)			(((x) >> 16) & 0x3f)
-#define PN8_STA_PENDING(x)		(((x) >> 31) & 0x01)
-#define PN8_STA_CVID(x)			(((x) >> 32) & 0x1f)
-#define PN8_STA_SVID(x)			(((x) >> 40) & 0x1f)
-#define PN8_STA_MVID(x)			(((x) >> 48) & 0x1f)
+#define PN8_STA_CFID(x) ((x)&0x3f)
+#define PN8_STA_SFID(x) (((x) >> 8) & 0x3f)
+#define PN8_STA_MFID(x) (((x) >> 16) & 0x3f)
+#define PN8_STA_PENDING(x) (((x) >> 31) & 0x01)
+#define PN8_STA_CVID(x) (((x) >> 32) & 0x1f)
+#define PN8_STA_SVID(x) (((x) >> 40) & 0x1f)
+#define PN8_STA_MVID(x) (((x) >> 48) & 0x1f)
 
 /* Reserved1 to powernow k8 configuration */
-#define PN8_PSB_TO_RVO(x)		((x) & 0x03)
-#define PN8_PSB_TO_IRT(x)		(((x) >> 2) & 0x03)
-#define PN8_PSB_TO_MVS(x)		(((x) >> 4) & 0x03)
-#define PN8_PSB_TO_BATT(x)		(((x) >> 6) & 0x03)
+#define PN8_PSB_TO_RVO(x) ((x)&0x03)
+#define PN8_PSB_TO_IRT(x) (((x) >> 2) & 0x03)
+#define PN8_PSB_TO_MVS(x) (((x) >> 4) & 0x03)
+#define PN8_PSB_TO_BATT(x) (((x) >> 6) & 0x03)
 
 /* ACPI ctr_val status register to powernow k8 configuration */
-#define ACPI_PN8_CTRL_TO_FID(x)		((x) & 0x3f)
-#define ACPI_PN8_CTRL_TO_VID(x)		(((x) >> 6) & 0x1f)
-#define ACPI_PN8_CTRL_TO_VST(x)		(((x) >> 11) & 0x1f)
-#define ACPI_PN8_CTRL_TO_MVS(x)		(((x) >> 18) & 0x03)
-#define ACPI_PN8_CTRL_TO_PLL(x)		(((x) >> 20) & 0x7f)
-#define ACPI_PN8_CTRL_TO_RVO(x)		(((x) >> 28) & 0x03)
-#define ACPI_PN8_CTRL_TO_IRT(x)		(((x) >> 30) & 0x03)
+#define ACPI_PN8_CTRL_TO_FID(x) ((x)&0x3f)
+#define ACPI_PN8_CTRL_TO_VID(x) (((x) >> 6) & 0x1f)
+#define ACPI_PN8_CTRL_TO_VST(x) (((x) >> 11) & 0x1f)
+#define ACPI_PN8_CTRL_TO_MVS(x) (((x) >> 18) & 0x03)
+#define ACPI_PN8_CTRL_TO_PLL(x) (((x) >> 20) & 0x7f)
+#define ACPI_PN8_CTRL_TO_RVO(x) (((x) >> 28) & 0x03)
+#define ACPI_PN8_CTRL_TO_IRT(x) (((x) >> 30) & 0x03)
 
-#define WRITE_FIDVID(fid, vid, ctrl)	\
-	wrmsr(MSR_AMDK7_FIDVID_CTL,	\
+#define WRITE_FIDVID(fid, vid, ctrl) \
+	wrmsr(MSR_AMDK7_FIDVID_CTL,  \
 	    (((ctrl) << 32) | (1ULL << 16) | ((vid) << 8) | (fid)))
 
-#define COUNT_OFF_IRT(irt)	DELAY(10 * (1 << (irt)))
-#define COUNT_OFF_VST(vst)	DELAY(20 * (vst))
+#define COUNT_OFF_IRT(irt) DELAY(10 * (1 << (irt)))
+#define COUNT_OFF_VST(vst) DELAY(20 * (vst))
 
-#define FID_TO_VCO_FID(fid)	\
-	(((fid) < 8) ? (8 + ((fid) << 1)) : (fid))
+#define FID_TO_VCO_FID(fid) (((fid) < 8) ? (8 + ((fid) << 1)) : (fid))
 
 /*
  * Divide each value by 10 to get the processor multiplier.
@@ -162,21 +163,105 @@ struct pst_header {
  * implementation by Dave Jones.
  */
 static int pn7_fid_to_mult[32] = {
-	110, 115, 120, 125, 50, 55, 60, 65,
-	70, 75, 80, 85, 90, 95, 100, 105,
-	30, 190, 40, 200, 130, 135, 140, 210,
-	150, 225, 160, 165, 170, 180, 0, 0,
+	110,
+	115,
+	120,
+	125,
+	50,
+	55,
+	60,
+	65,
+	70,
+	75,
+	80,
+	85,
+	90,
+	95,
+	100,
+	105,
+	30,
+	190,
+	40,
+	200,
+	130,
+	135,
+	140,
+	210,
+	150,
+	225,
+	160,
+	165,
+	170,
+	180,
+	0,
+	0,
 };
 
 static int pn8_fid_to_mult[64] = {
-	40, 45, 50, 55, 60, 65, 70, 75,
-	80, 85, 90, 95, 100, 105, 110, 115,
-	120, 125, 130, 135, 140, 145, 150, 155,
-	160, 165, 170, 175, 180, 185, 190, 195,
-	200, 205, 210, 215, 220, 225, 230, 235,
-	240, 245, 250, 255, 260, 265, 270, 275,
-	280, 285, 290, 295, 300, 305, 310, 315,
-	320, 325, 330, 335, 340, 345, 350, 355,
+	40,
+	45,
+	50,
+	55,
+	60,
+	65,
+	70,
+	75,
+	80,
+	85,
+	90,
+	95,
+	100,
+	105,
+	110,
+	115,
+	120,
+	125,
+	130,
+	135,
+	140,
+	145,
+	150,
+	155,
+	160,
+	165,
+	170,
+	175,
+	180,
+	185,
+	190,
+	195,
+	200,
+	205,
+	210,
+	215,
+	220,
+	225,
+	230,
+	235,
+	240,
+	245,
+	250,
+	255,
+	260,
+	265,
+	270,
+	275,
+	280,
+	285,
+	290,
+	295,
+	300,
+	305,
+	310,
+	315,
+	320,
+	325,
+	330,
+	335,
+	340,
+	345,
+	350,
+	355,
 };
 
 /*
@@ -184,27 +269,111 @@ static int pn8_fid_to_mult[64] = {
  */
 /* Mobile VRM (K7) */
 static int pn7_mobile_vid_to_volts[] = {
-	2000, 1950, 1900, 1850, 1800, 1750, 1700, 1650,
-	1600, 1550, 1500, 1450, 1400, 1350, 1300, 0,
-	1275, 1250, 1225, 1200, 1175, 1150, 1125, 1100,
-	1075, 1050, 1025, 1000, 975, 950, 925, 0,
+	2000,
+	1950,
+	1900,
+	1850,
+	1800,
+	1750,
+	1700,
+	1650,
+	1600,
+	1550,
+	1500,
+	1450,
+	1400,
+	1350,
+	1300,
+	0,
+	1275,
+	1250,
+	1225,
+	1200,
+	1175,
+	1150,
+	1125,
+	1100,
+	1075,
+	1050,
+	1025,
+	1000,
+	975,
+	950,
+	925,
+	0,
 };
 /* Desktop VRM (K7) */
 static int pn7_desktop_vid_to_volts[] = {
-	2000, 1950, 1900, 1850, 1800, 1750, 1700, 1650,
-	1600, 1550, 1500, 1450, 1400, 1350, 1300, 0,
-	1275, 1250, 1225, 1200, 1175, 1150, 1125, 1100,
-	1075, 1050, 1025, 1000, 975, 950, 925, 0,
+	2000,
+	1950,
+	1900,
+	1850,
+	1800,
+	1750,
+	1700,
+	1650,
+	1600,
+	1550,
+	1500,
+	1450,
+	1400,
+	1350,
+	1300,
+	0,
+	1275,
+	1250,
+	1225,
+	1200,
+	1175,
+	1150,
+	1125,
+	1100,
+	1075,
+	1050,
+	1025,
+	1000,
+	975,
+	950,
+	925,
+	0,
 };
 /* Desktop and Mobile VRM (K8) */
 static int pn8_vid_to_volts[] = {
-	1550, 1525, 1500, 1475, 1450, 1425, 1400, 1375,
-	1350, 1325, 1300, 1275, 1250, 1225, 1200, 1175,
-	1150, 1125, 1100, 1075, 1050, 1025, 1000, 975,
-	950, 925, 900, 875, 850, 825, 800, 0,
+	1550,
+	1525,
+	1500,
+	1475,
+	1450,
+	1425,
+	1400,
+	1375,
+	1350,
+	1325,
+	1300,
+	1275,
+	1250,
+	1225,
+	1200,
+	1175,
+	1150,
+	1125,
+	1100,
+	1075,
+	1050,
+	1025,
+	1000,
+	975,
+	950,
+	925,
+	900,
+	875,
+	850,
+	825,
+	800,
+	0,
 };
 
-#define POWERNOW_MAX_STATES		16
+#define POWERNOW_MAX_STATES 16
 
 struct powernow_state {
 	int freq;
@@ -214,53 +383,49 @@ struct powernow_state {
 };
 
 struct pn_softc {
-	device_t		 dev;
-	int			 pn_type;
-	struct powernow_state	 powernow_states[POWERNOW_MAX_STATES];
-	u_int			 fsb;
-	u_int			 sgtc;
-	u_int			 vst;
-	u_int			 mvs;
-	u_int			 pll;
-	u_int			 rvo;
-	u_int			 irt;
-	int			 low;
-	int			 powernow_max_states;
-	u_int			 powernow_state;
-	u_int			 errata;
-	int			*vid_to_volts;
+	device_t dev;
+	int pn_type;
+	struct powernow_state powernow_states[POWERNOW_MAX_STATES];
+	u_int fsb;
+	u_int sgtc;
+	u_int vst;
+	u_int mvs;
+	u_int pll;
+	u_int rvo;
+	u_int irt;
+	int low;
+	int powernow_max_states;
+	u_int powernow_state;
+	u_int errata;
+	int *vid_to_volts;
 };
 
 /*
  * Offsets in struct cf_setting array for private values given by
  * acpi_perf driver.
  */
-#define PX_SPEC_CONTROL		0
-#define PX_SPEC_STATUS		1
+#define PX_SPEC_CONTROL 0
+#define PX_SPEC_STATUS 1
 
-static void	pn_identify(driver_t *driver, device_t parent);
-static int	pn_probe(device_t dev);
-static int	pn_attach(device_t dev);
-static int	pn_detach(device_t dev);
-static int	pn_set(device_t dev, const struct cf_setting *cf);
-static int	pn_get(device_t dev, struct cf_setting *cf);
-static int	pn_settings(device_t dev, struct cf_setting *sets,
-		    int *count);
-static int	pn_type(device_t dev, int *type);
+static void pn_identify(driver_t *driver, device_t parent);
+static int pn_probe(device_t dev);
+static int pn_attach(device_t dev);
+static int pn_detach(device_t dev);
+static int pn_set(device_t dev, const struct cf_setting *cf);
+static int pn_get(device_t dev, struct cf_setting *cf);
+static int pn_settings(device_t dev, struct cf_setting *sets, int *count);
+static int pn_type(device_t dev, int *type);
 
 static device_method_t pn_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify, pn_identify),
-	DEVMETHOD(device_probe, pn_probe),
-	DEVMETHOD(device_attach, pn_attach),
+	DEVMETHOD(device_probe, pn_probe), DEVMETHOD(device_attach, pn_attach),
 	DEVMETHOD(device_detach, pn_detach),
 
 	/* cpufreq interface */
-	DEVMETHOD(cpufreq_drv_set, pn_set),
-	DEVMETHOD(cpufreq_drv_get, pn_get),
+	DEVMETHOD(cpufreq_drv_set, pn_set), DEVMETHOD(cpufreq_drv_get, pn_get),
 	DEVMETHOD(cpufreq_drv_settings, pn_settings),
-	DEVMETHOD(cpufreq_drv_type, pn_type),
-	{0, 0}
+	DEVMETHOD(cpufreq_drv_type, pn_type), { 0, 0 }
 };
 
 static devclass_t pn_devclass;
@@ -399,9 +564,8 @@ pn8_setfidvid(struct pn_softc *sc, int fid, int vid)
 					val = FID_TO_VCO_FID(cfid) + fid_delta;
 			} else
 				val = cfid - fid_delta;
-			rv = pn8_write_fidvid(val, cvid,
-			    sc->pll * (uint64_t) sc->fsb,
-			    &status);
+			rv = pn8_write_fidvid(
+			    val, cvid, sc->pll * (uint64_t)sc->fsb, &status);
 			if (rv) {
 				sc->errata |= PENDING_STUCK;
 				return (rv);
@@ -412,9 +576,8 @@ pn8_setfidvid(struct pn_softc *sc, int fid, int vid)
 			vco_cfid = FID_TO_VCO_FID(cfid);
 		}
 
-		rv = pn8_write_fidvid(fid, cvid,
-		    sc->pll * (uint64_t) sc->fsb,
-		    &status);
+		rv = pn8_write_fidvid(
+		    fid, cvid, sc->pll * (uint64_t)sc->fsb, &status);
 		if (rv) {
 			sc->errata |= PENDING_STUCK;
 			return (rv);
@@ -524,7 +687,7 @@ pn_settings(device_t dev, struct cf_setting *sets, int *count)
 	struct pn_softc *sc;
 	int i;
 
-	if (sets == NULL|| count == NULL)
+	if (sets == NULL || count == NULL)
 		return (EINVAL);
 	sc = device_get_softc(dev);
 	if (*count < sc->powernow_max_states)
@@ -605,11 +768,8 @@ decode_pst(struct pn_softc *sc, uint8_t *p, int npstates)
 			int fid = sc->powernow_states[i].fid;
 			int vid = sc->powernow_states[i].vid;
 
-			printf("powernow: %2i %8dkHz FID %02x VID %02x\n",
-			    i,
-			    sc->powernow_states[i].freq,
-			    fid,
-			    vid);
+			printf("powernow: %2i %8dkHz FID %02x VID %02x\n", i,
+			    sc->powernow_states[i].freq, fid, vid);
 		}
 
 	return (0);
@@ -676,15 +836,14 @@ pn_decode_pst(device_t dev)
 		device_printf(dev, "STATUS: 0x%jx\n", status);
 		device_printf(dev, "STATUS: maxfid: 0x%02x\n", maxfid);
 		device_printf(dev, "STATUS: %s: 0x%02x\n",
-		    sc->pn_type == PN7_TYPE ? "startvid" : "maxvid",
-		    startvid);
+		    sc->pn_type == PN7_TYPE ? "startvid" : "maxvid", startvid);
 	}
 
 	sig = bios_sigsearch(PSB_START, PSB_SIG, PSB_LEN, PSB_STEP, PSB_OFF);
 	if (sig) {
 		struct pst_header *pst;
 
-		psb = (struct psb_header*)(uintptr_t)BIOS_PADDRTOVADDR(sig);
+		psb = (struct psb_header *)(uintptr_t)BIOS_PADDRTOVADDR(sig);
 
 		switch (psb->version) {
 		default:
@@ -704,14 +863,12 @@ pn_decode_pst(device_t dev)
 			sc->mvs = PN8_PSB_TO_MVS(psb->res1);
 			sc->low = PN8_PSB_TO_BATT(psb->res1);
 			if (bootverbose) {
-				device_printf(dev, "PSB: VST: %d\n",
-				    psb->settlingtime);
-				device_printf(dev, "PSB: RVO %x IRT %d "
+				device_printf(
+				    dev, "PSB: VST: %d\n", psb->settlingtime);
+				device_printf(dev,
+				    "PSB: RVO %x IRT %d "
 				    "MVS %d BATT %d\n",
-				    sc->rvo,
-				    sc->irt,
-				    sc->mvs,
-				    sc->low);
+				    sc->rvo, sc->irt, sc->mvs, sc->low);
 			}
 			break;
 		case 0x12:
@@ -723,16 +880,15 @@ pn_decode_pst(device_t dev)
 			break;
 		}
 
-		p = ((uint8_t *) psb) + sizeof(struct psb_header);
-		pst = (struct pst_header*) p;
+		p = ((uint8_t *)psb) + sizeof(struct psb_header);
+		pst = (struct pst_header *)p;
 
 		maxpst = 200;
 
 		do {
-			struct pst_header *pst = (struct pst_header*) p;
+			struct pst_header *pst = (struct pst_header *)p;
 
-			if (cpuid == pst->cpuid &&
-			    maxfid == pst->maxfid &&
+			if (cpuid == pst->cpuid && maxfid == pst->maxfid &&
 			    startvid == pst->startvid) {
 				sc->powernow_max_states = pst->numpstates;
 				switch (sc->pn_type) {

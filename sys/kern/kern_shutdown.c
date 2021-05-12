@@ -51,8 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/conf.h>
 #include <sys/compressor.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/disk.h>
 #include <sys/eventhandler.h>
@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
+#include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
@@ -80,26 +81,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/watchdog.h>
 
-#include <crypto/chacha20/chacha.h>
-#include <crypto/rijndael/rijndael-api-fst.h>
-#include <crypto/sha2/sha256.h>
-
-#include <ddb/ddb.h>
+#include <vm/vm.h>
+#include <vm/swap_pager.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 
 #include <machine/cpu.h>
 #include <machine/dump.h>
 #include <machine/pcb.h>
 #include <machine/smp.h>
 
+#include <crypto/chacha20/chacha.h>
+#include <crypto/rijndael/rijndael-api-fst.h>
+#include <crypto/sha2/sha256.h>
+#include <ddb/ddb.h>
 #include <security/mac/mac_framework.h>
-
-#include <vm/vm.h>
-#include <vm/vm_object.h>
-#include <vm/vm_page.h>
-#include <vm/vm_pager.h>
-#include <vm/swap_pager.h>
-
-#include <sys/signalvar.h>
 
 static MALLOC_DEFINE(M_DUMPER, "dumper", "dumper block buffer");
 
@@ -123,18 +120,16 @@ int debugger_on_panic = 0;
 #else
 int debugger_on_panic = 1;
 #endif
-SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic,
-    CTLFLAG_RWTUN | CTLFLAG_SECURE,
+SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RWTUN | CTLFLAG_SECURE,
     &debugger_on_panic, 0, "Run debugger on kernel panic");
 
 static bool debugger_on_recursive_panic = false;
 SYSCTL_BOOL(_debug, OID_AUTO, debugger_on_recursive_panic,
-    CTLFLAG_RWTUN | CTLFLAG_SECURE,
-    &debugger_on_recursive_panic, 0, "Run debugger on recursive kernel panic");
+    CTLFLAG_RWTUN | CTLFLAG_SECURE, &debugger_on_recursive_panic, 0,
+    "Run debugger on recursive kernel panic");
 
 int debugger_on_trap = 0;
-SYSCTL_INT(_debug, OID_AUTO, debugger_on_trap,
-    CTLFLAG_RWTUN | CTLFLAG_SECURE,
+SYSCTL_INT(_debug, OID_AUTO, debugger_on_trap, CTLFLAG_RWTUN | CTLFLAG_SECURE,
     &debugger_on_trap, 0, "Run debugger on kernel trap before panic");
 
 #ifdef KDB_TRACE
@@ -144,24 +139,23 @@ static bool trace_all_panics = true;
 static int trace_on_panic = 0;
 static bool trace_all_panics = false;
 #endif
-SYSCTL_INT(_debug, OID_AUTO, trace_on_panic,
-    CTLFLAG_RWTUN | CTLFLAG_SECURE,
+SYSCTL_INT(_debug, OID_AUTO, trace_on_panic, CTLFLAG_RWTUN | CTLFLAG_SECURE,
     &trace_on_panic, 0, "Print stack trace on kernel panic");
 SYSCTL_BOOL(_debug, OID_AUTO, trace_all_panics, CTLFLAG_RWTUN,
     &trace_all_panics, 0, "Print stack traces on secondary kernel panics");
 #endif /* KDB */
 
 static int sync_on_panic = 0;
-SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RWTUN,
-	&sync_on_panic, 0, "Do a sync before rebooting from a panic");
+SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RWTUN, &sync_on_panic, 0,
+    "Do a sync before rebooting from a panic");
 
 static bool poweroff_on_panic = 0;
 SYSCTL_BOOL(_kern, OID_AUTO, poweroff_on_panic, CTLFLAG_RWTUN,
-	&poweroff_on_panic, 0, "Do a power off instead of a reboot on a panic");
+    &poweroff_on_panic, 0, "Do a power off instead of a reboot on a panic");
 
 static bool powercycle_on_panic = 0;
 SYSCTL_BOOL(_kern, OID_AUTO, powercycle_on_panic, CTLFLAG_RWTUN,
-	&powercycle_on_panic, 0, "Do a power cycle instead of a reboot on a panic");
+    &powercycle_on_panic, 0, "Do a power cycle instead of a reboot on a panic");
 
 static SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Shutdown environment");
@@ -171,13 +165,12 @@ static int show_busybufs;
 #else
 static int show_busybufs = 1;
 #endif
-SYSCTL_INT(_kern_shutdown, OID_AUTO, show_busybufs, CTLFLAG_RW,
-    &show_busybufs, 0,
-    "Show busy buffers during shutdown");
+SYSCTL_INT(_kern_shutdown, OID_AUTO, show_busybufs, CTLFLAG_RW, &show_busybufs,
+    0, "Show busy buffers during shutdown");
 
 int suspend_blocked = 0;
-SYSCTL_INT(_kern, OID_AUTO, suspend_blocked, CTLFLAG_RW,
-	&suspend_blocked, 0, "Block suspend due to a pending shutdown");
+SYSCTL_INT(_kern, OID_AUTO, suspend_blocked, CTLFLAG_RW, &suspend_blocked, 0,
+    "Block suspend due to a pending shutdown");
 
 #ifdef EKCD
 FEATURE(ekcd, "Encrypted kernel crash dumps support");
@@ -185,39 +178,39 @@ FEATURE(ekcd, "Encrypted kernel crash dumps support");
 MALLOC_DEFINE(M_EKCD, "ekcd", "Encrypted kernel crash dumps data");
 
 struct kerneldumpcrypto {
-	uint8_t			kdc_encryption;
-	uint8_t			kdc_iv[KERNELDUMP_IV_MAX_SIZE];
+	uint8_t kdc_encryption;
+	uint8_t kdc_iv[KERNELDUMP_IV_MAX_SIZE];
 	union {
 		struct {
-			keyInstance	aes_ki;
-			cipherInstance	aes_ci;
+			keyInstance aes_ki;
+			cipherInstance aes_ci;
 		} u_aes;
-		struct chacha_ctx	u_chacha;
+		struct chacha_ctx u_chacha;
 	} u;
-#define	kdc_ki	u.u_aes.aes_ki
-#define	kdc_ci	u.u_aes.aes_ci
-#define	kdc_chacha	u.u_chacha
-	uint32_t		kdc_dumpkeysize;
-	struct kerneldumpkey	kdc_dumpkey[];
+#define kdc_ki u.u_aes.aes_ki
+#define kdc_ci u.u_aes.aes_ci
+#define kdc_chacha u.u_chacha
+	uint32_t kdc_dumpkeysize;
+	struct kerneldumpkey kdc_dumpkey[];
 };
 #endif
 
 struct kerneldumpcomp {
-	uint8_t			kdc_format;
-	struct compressor	*kdc_stream;
-	uint8_t			*kdc_buf;
-	size_t			kdc_resid;
+	uint8_t kdc_format;
+	struct compressor *kdc_stream;
+	uint8_t *kdc_buf;
+	size_t kdc_resid;
 };
 
-static struct kerneldumpcomp *kerneldumpcomp_create(struct dumperinfo *di,
-		    uint8_t compression);
-static void	kerneldumpcomp_destroy(struct dumperinfo *di);
-static int	kerneldumpcomp_write_cb(void *base, size_t len, off_t off, void *arg);
+static struct kerneldumpcomp *kerneldumpcomp_create(
+    struct dumperinfo *di, uint8_t compression);
+static void kerneldumpcomp_destroy(struct dumperinfo *di);
+static int kerneldumpcomp_write_cb(
+    void *base, size_t len, off_t off, void *arg);
 
 static int kerneldump_gzlevel = 6;
 SYSCTL_INT(_kern, OID_AUTO, kerneldump_gzlevel, CTLFLAG_RWTUN,
-    &kerneldump_gzlevel, 0,
-    "Kernel crash dump compression level");
+    &kerneldump_gzlevel, 0, "Kernel crash dump compression level");
 
 /*
  * Variable panicstr contains argument to first call to panic; used as flag
@@ -226,8 +219,8 @@ SYSCTL_INT(_kern, OID_AUTO, kerneldump_gzlevel, CTLFLAG_RWTUN,
 const char *panicstr;
 bool __read_frequently panicked;
 
-int __read_mostly dumping;		/* system is dumping */
-int rebooting;				/* system is rebooting */
+int __read_mostly dumping; /* system is dumping */
+int rebooting;		   /* system is rebooting */
 /*
  * Used to serialize between sysctl kern.shutdown.dumpdevname and list
  * modifications via ioctl.
@@ -236,16 +229,16 @@ static struct mtx dumpconf_list_lk;
 MTX_SYSINIT(dumper_configs, &dumpconf_list_lk, "dumper config list", MTX_DEF);
 
 /* Our selected dumper(s). */
-static TAILQ_HEAD(dumpconflist, dumperinfo) dumper_configs =
-    TAILQ_HEAD_INITIALIZER(dumper_configs);
+static TAILQ_HEAD(dumpconflist,
+    dumperinfo) dumper_configs = TAILQ_HEAD_INITIALIZER(dumper_configs);
 
 /* Context information for dump-debuggers. */
-static struct pcb dumppcb;		/* Registers. */
-lwpid_t dumptid;			/* Thread ID. */
+static struct pcb dumppcb; /* Registers. */
+lwpid_t dumptid;	   /* Thread ID. */
 
 static struct cdevsw reroot_cdevsw = {
-     .d_version = D_VERSION,
-     .d_name    = "reroot",
+	.d_version = D_VERSION,
+	.d_name = "reroot",
 };
 
 static void poweroff_wait(void *, int);
@@ -259,14 +252,14 @@ static void
 shutdown_conf(void *unused)
 {
 
-	EVENTHANDLER_REGISTER(shutdown_final, poweroff_wait, NULL,
-	    SHUTDOWN_PRI_FIRST);
-	EVENTHANDLER_REGISTER(shutdown_final, shutdown_halt, NULL,
-	    SHUTDOWN_PRI_LAST + 100);
-	EVENTHANDLER_REGISTER(shutdown_final, shutdown_panic, NULL,
-	    SHUTDOWN_PRI_LAST + 100);
-	EVENTHANDLER_REGISTER(shutdown_final, shutdown_reset, NULL,
-	    SHUTDOWN_PRI_LAST + 200);
+	EVENTHANDLER_REGISTER(
+	    shutdown_final, poweroff_wait, NULL, SHUTDOWN_PRI_FIRST);
+	EVENTHANDLER_REGISTER(
+	    shutdown_final, shutdown_halt, NULL, SHUTDOWN_PRI_LAST + 100);
+	EVENTHANDLER_REGISTER(
+	    shutdown_final, shutdown_panic, NULL, SHUTDOWN_PRI_LAST + 100);
+	EVENTHANDLER_REGISTER(
+	    shutdown_final, shutdown_reset, NULL, SHUTDOWN_PRI_LAST + 200);
 }
 
 SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL);
@@ -284,8 +277,8 @@ reroot_conf(void *unused)
 	error = make_dev_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK, &cdev,
 	    &reroot_cdevsw, NULL, UID_ROOT, GID_WHEEL, 0600, "reroot/reroot");
 	if (error != 0) {
-		printf("%s: failed to create device node, error %d",
-		    __func__, error);
+		printf("%s: failed to create device node, error %d", __func__,
+		    error);
 	}
 }
 
@@ -334,8 +327,8 @@ shutdown_nice_task_fn(void *arg, int pending __unused)
 	PROC_UNLOCK(initproc);
 }
 
-static struct task shutdown_nice_task = TASK_INITIALIZER(0,
-    &shutdown_nice_task_fn, NULL);
+static struct task shutdown_nice_task = TASK_INITIALIZER(
+    0, &shutdown_nice_task_fn, NULL);
 
 /*
  * Called by events that want to shut down.. e.g  <CTL><ALT><DEL> on a PC
@@ -409,7 +402,7 @@ doadump(boolean_t textdump)
 	if (coredump) {
 		struct dumperinfo *di;
 
-		TAILQ_FOREACH(di, &dumper_configs, di_next) {
+		TAILQ_FOREACH (di, &dumper_configs, di_next) {
 			error = dumpsys(di);
 			if (error == 0)
 				break;
@@ -464,7 +457,7 @@ kern_reboot(int howto)
 	 */
 	EVENTHANDLER_INVOKE(shutdown_pre_sync, howto);
 
-	/* 
+	/*
 	 * Now sync filesystems
 	 */
 	if (!cold && (howto & RB_NOSYNC) == 0 && once == 0) {
@@ -482,14 +475,15 @@ kern_reboot(int howto)
 	 */
 	EVENTHANDLER_INVOKE(shutdown_post_sync, howto);
 
-	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP && !cold && !dumping) 
+	if ((howto & (RB_HALT | RB_DUMP)) == RB_DUMP && !cold && !dumping)
 		doadump(TRUE);
 
 	/* Now that we're going to really halt the system... */
 	EVENTHANDLER_INVOKE(shutdown_final, howto);
 
-	for(;;) ;	/* safety against shutdown_reset not working */
-	/* NOTREACHED */
+	for (;;)
+		; /* safety against shutdown_reset not working */
+		  /* NOTREACHED */
 }
 
 /*
@@ -603,7 +597,7 @@ shutdown_halt(void *junk, int howto)
 		wdog_kern_pat(WD_TO_NEVER);
 
 		switch (cngetc()) {
-		case -1:		/* No console, just die */
+		case -1: /* No console, just die */
 			cpu_halt();
 			/* NOTREACHED */
 		default:
@@ -626,7 +620,7 @@ shutdown_panic(void *junk, int howto)
 			if (panic_reboot_wait_time != -1) {
 				printf("Automatic reboot in %d seconds - "
 				       "press a key on the console to abort\n",
-					panic_reboot_wait_time);
+				    panic_reboot_wait_time);
 				for (loop = panic_reboot_wait_time * 10;
 				     loop > 0; --loop) {
 					DELAY(1000 * 100); /* 1/10th second */
@@ -654,13 +648,13 @@ shutdown_reset(void *junk, int howto)
 {
 
 	printf("Rebooting...\n");
-	DELAY(1000000);	/* wait 1 sec for printf's to complete and be read */
+	DELAY(1000000); /* wait 1 sec for printf's to complete and be read */
 
 	/*
 	 * Acquiring smp_ipi_mtx here has a double effect:
 	 * - it disables interrupts avoiding CPU0 preemption
 	 *   by fast handlers (thus deadlocking  against other CPUs)
-	 * - it avoids deadlocks against smp_rendezvous() or, more 
+	 * - it avoids deadlocks against smp_rendezvous() or, more
 	 *   generally, threads busy-waiting, with this spinlock held,
 	 *   and waiting for responses by threads on other CPUs
 	 *   (ie. smp_tlb_shootdown()).
@@ -696,9 +690,9 @@ SYSCTL_NODE(_debug, OID_AUTO, kassert, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "kassert options");
 
 #ifdef KASSERT_PANIC_OPTIONAL
-#define KASSERT_RWTUN	CTLFLAG_RWTUN
+#define KASSERT_RWTUN CTLFLAG_RWTUN
 #else
-#define KASSERT_RWTUN	CTLFLAG_RDTUN
+#define KASSERT_RWTUN CTLFLAG_RDTUN
 #endif
 
 SYSCTL_INT(_debug_kassert, OID_AUTO, warn_only, KASSERT_RWTUN,
@@ -706,18 +700,16 @@ SYSCTL_INT(_debug_kassert, OID_AUTO, warn_only, KASSERT_RWTUN,
     "KASSERT triggers a panic (0) or just a warning (1)");
 
 #ifdef KDB
-SYSCTL_INT(_debug_kassert, OID_AUTO, do_kdb, KASSERT_RWTUN,
-    &kassert_do_kdb, 0, "KASSERT will enter the debugger");
+SYSCTL_INT(_debug_kassert, OID_AUTO, do_kdb, KASSERT_RWTUN, &kassert_do_kdb, 0,
+    "KASSERT will enter the debugger");
 #endif
 
 #ifdef KTR
-SYSCTL_UINT(_debug_kassert, OID_AUTO, do_ktr, KASSERT_RWTUN,
-    &kassert_do_ktr, 0,
+SYSCTL_UINT(_debug_kassert, OID_AUTO, do_ktr, KASSERT_RWTUN, &kassert_do_ktr, 0,
     "KASSERT does a KTR, set this to the KTRMASK you want");
 #endif
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, do_log, KASSERT_RWTUN,
-    &kassert_do_log, 0,
+SYSCTL_INT(_debug_kassert, OID_AUTO, do_log, KASSERT_RWTUN, &kassert_do_log, 0,
     "If warn_only is enabled, log (1) or do not log (0) assertion violations");
 
 SYSCTL_INT(_debug_kassert, OID_AUTO, warnings, CTLFLAG_RD | CTLFLAG_STATS,
@@ -741,11 +733,9 @@ static int kassert_sysctl_kassert(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_PROC(_debug_kassert, OID_AUTO, kassert,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_NEEDGIANT, NULL, 0,
-    kassert_sysctl_kassert, "I",
-    "set to trigger a test kassert");
+    kassert_sysctl_kassert, "I", "set to trigger a test kassert");
 
-static int
-kassert_sysctl_kassert(SYSCTL_HANDLER_ARGS)
+static int kassert_sysctl_kassert(SYSCTL_HANDLER_ARGS)
 {
 	int error, i;
 
@@ -796,7 +786,7 @@ kassert_panic(const char *fmt, ...)
 	 */
 	if (!kassert_warn_only ||
 	    (kassert_log_panic_at > 0 &&
-	     kassert_warnings >= kassert_log_panic_at)) {
+		kassert_warnings >= kassert_log_panic_at)) {
 		va_start(ap, fmt);
 		vpanic(fmt, ap);
 		/* NORETURN */
@@ -810,9 +800,9 @@ kassert_panic(const char *fmt, ...)
 	 */
 	if (kassert_do_log &&
 	    (kassert_log_mute_at == 0 ||
-	     kassert_warnings < kassert_log_mute_at)) {
-		static  struct timeval lasterr;
-		static  int curerr;
+		kassert_warnings < kassert_log_mute_at)) {
+		static struct timeval lasterr;
+		static int curerr;
 
 		if (ppsratecheck(&lasterr, &curerr, kassert_log_pps_limit)) {
 			printf("KASSERT failed: %s\n", buf);
@@ -898,7 +888,7 @@ vpanic(const char *fmt, va_list ap)
 #ifdef SMP
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
 #endif
-	printf("time = %jd\n", (intmax_t )time_second);
+	printf("time = %jd\n", (intmax_t)time_second);
 #ifdef KDB
 	if ((newpanic || trace_all_panics) && trace_on_panic)
 		kdb_backtrace();
@@ -927,7 +917,7 @@ vpanic(const char *fmt, va_list ap)
  * soft-updates inconsistencies.
  */
 #ifndef POWEROFF_DELAY
-# define POWEROFF_DELAY 5000
+#define POWEROFF_DELAY 5000
 #endif
 static int poweroff_delay = POWEROFF_DELAY;
 
@@ -994,8 +984,7 @@ kthread_shutdown(void *arg, int howto)
 		printf("done\n");
 }
 
-static int
-dumpdevname_sysctl_handler(SYSCTL_HANDLER_ARGS)
+static int dumpdevname_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 	char buf[256];
 	struct dumperinfo *di;
@@ -1009,7 +998,7 @@ dumpdevname_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	sbuf_new_for_sysctl(&sb, buf, sizeof(buf), req);
 
 	mtx_lock(&dumpconf_list_lk);
-	TAILQ_FOREACH(di, &dumper_configs, di_next) {
+	TAILQ_FOREACH (di, &dumper_configs, di_next) {
 		if (di != TAILQ_FIRST(&dumper_configs))
 			sbuf_putc(&sb, ',');
 		sbuf_cat(&sb, di->di_devname);
@@ -1022,11 +1011,10 @@ dumpdevname_sysctl_handler(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_kern_shutdown, OID_AUTO, dumpdevname,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &dumper_configs, 0,
-    dumpdevname_sysctl_handler, "A",
-    "Device(s) for kernel dumps");
+    dumpdevname_sysctl_handler, "A", "Device(s) for kernel dumps");
 
-static int	_dump_append(struct dumperinfo *di, void *virtual,
-		    vm_offset_t physical, size_t length);
+static int _dump_append(
+    struct dumperinfo *di, void *virtual, vm_offset_t physical, size_t length);
 
 #ifdef EKCD
 static struct kerneldumpcrypto *
@@ -1092,8 +1080,8 @@ kerneldumpcrypto_init(struct kerneldumpcrypto *kdc)
 
 	switch (kdc->kdc_encryption) {
 	case KERNELDUMP_ENC_AES_256_CBC:
-		if (rijndael_cipherInit(&kdc->kdc_ci, MODE_CBC,
-		    kdc->kdc_iv) <= 0) {
+		if (rijndael_cipherInit(&kdc->kdc_ci, MODE_CBC, kdc->kdc_iv) <=
+		    0) {
 			error = EINVAL;
 			goto out;
 		}
@@ -1142,8 +1130,8 @@ kerneldumpcomp_create(struct dumperinfo *di, uint8_t compression)
 
 	kdcomp = malloc(sizeof(*kdcomp), M_DUMPER, M_WAITOK | M_ZERO);
 	kdcomp->kdc_format = compression;
-	kdcomp->kdc_stream = compressor_init(kerneldumpcomp_write_cb,
-	    format, di->maxiosize, kerneldump_gzlevel, di);
+	kdcomp->kdc_stream = compressor_init(kerneldumpcomp_write_cb, format,
+	    di->maxiosize, kerneldump_gzlevel, di);
 	if (kdcomp->kdc_stream == NULL) {
 		free(kdcomp, M_DUMPER);
 		return (NULL);
@@ -1203,8 +1191,8 @@ dumper_insert(const struct dumperinfo *di_template, const char *devname,
 	if (error != 0)
 		return (error);
 
-	newdi = malloc(sizeof(*newdi) + strlen(devname) + 1, M_DUMPER, M_WAITOK
-	    | M_ZERO);
+	newdi = malloc(
+	    sizeof(*newdi) + strlen(devname) + 1, M_DUMPER, M_WAITOK | M_ZERO);
 	memcpy(newdi, di_template, sizeof(*newdi));
 	newdi->blockbuf = NULL;
 	newdi->kdcrypto = NULL;
@@ -1213,8 +1201,8 @@ dumper_insert(const struct dumperinfo *di_template, const char *devname,
 
 	if (kda->kda_encryption != KERNELDUMP_ENC_NONE) {
 #ifdef EKCD
-		newdi->kdcrypto = kerneldumpcrypto_create(di_template->blocksize,
-		    kda->kda_encryption, kda->kda_key,
+		newdi->kdcrypto = kerneldumpcrypto_create(
+		    di_template->blocksize, kda->kda_encryption, kda->kda_key,
 		    kda->kda_encryptedkeysize, kda->kda_encryptedkey);
 		if (newdi->kdcrypto == NULL) {
 			error = EINVAL;
@@ -1238,8 +1226,8 @@ dumper_insert(const struct dumperinfo *di_template, const char *devname,
 			goto cleanup;
 		}
 #endif
-		newdi->kdcomp = kerneldumpcomp_create(newdi,
-		    kda->kda_compression);
+		newdi->kdcomp = kerneldumpcomp_create(
+		    newdi, kda->kda_compression);
 		if (newdi->kdcomp == NULL) {
 			error = EINVAL;
 			goto cleanup;
@@ -1251,7 +1239,7 @@ dumper_insert(const struct dumperinfo *di_template, const char *devname,
 	/* Add the new configuration to the queue */
 	mtx_lock(&dumpconf_list_lk);
 	inserted = false;
-	TAILQ_FOREACH(listdi, &dumper_configs, di_next) {
+	TAILQ_FOREACH (listdi, &dumper_configs, di_next) {
 		if (index == 0) {
 			TAILQ_INSERT_BEFORE(listdi, newdi, di_next);
 			inserted = true;
@@ -1316,8 +1304,8 @@ dumper_config_match(const struct dumperinfo *di, const char *devname,
 		 */
 	} else
 #endif
-		if (kda->kda_encryption != KERNELDUMP_ENC_NONE)
-			return (false);
+	    if (kda->kda_encryption != KERNELDUMP_ENC_NONE)
+		return (false);
 
 	return (true);
 }
@@ -1341,7 +1329,7 @@ dumper_remove(const char *devname, const struct diocskerneldump_arg *kda)
 	 */
 	found = false;
 	mtx_lock(&dumpconf_list_lk);
-	TAILQ_FOREACH_SAFE(di, &dumper_configs, di_next, sdi) {
+	TAILQ_FOREACH_SAFE (di, &dumper_configs, di_next, sdi) {
 		if (dumper_config_match(di, devname, kda)) {
 			found = true;
 			TAILQ_REMOVE(&dumper_configs, di, di_next);
@@ -1360,16 +1348,18 @@ static int
 dump_check_bounds(struct dumperinfo *di, off_t offset, size_t length)
 {
 
-	if (di->mediasize > 0 && length != 0 && (offset < di->mediaoffset ||
-	    offset - di->mediaoffset + length > di->mediasize)) {
+	if (di->mediasize > 0 && length != 0 &&
+	    (offset < di->mediaoffset ||
+		offset - di->mediaoffset + length > di->mediasize)) {
 		if (di->kdcomp != NULL && offset >= di->mediaoffset) {
 			printf(
-		    "Compressed dump failed to fit in device boundaries.\n");
+			    "Compressed dump failed to fit in device boundaries.\n");
 			return (E2BIG);
 		}
 
-		printf("Attempt to write outside dump device boundaries.\n"
-	    "offset(%jd), mediaoffset(%jd), length(%ju), mediasize(%jd).\n",
+		printf(
+		    "Attempt to write outside dump device boundaries.\n"
+		    "offset(%jd), mediaoffset(%jd), length(%ju), mediasize(%jd).\n",
 		    (intmax_t)offset, (intmax_t)di->mediaoffset,
 		    (uintmax_t)length, (intmax_t)di->mediasize);
 		return (ENOSPC);
@@ -1395,12 +1385,12 @@ dump_encrypt(struct kerneldumpcrypto *kdc, uint8_t *buf, size_t size)
 
 	switch (kdc->kdc_encryption) {
 	case KERNELDUMP_ENC_AES_256_CBC:
-		if (rijndael_blockEncrypt(&kdc->kdc_ci, &kdc->kdc_ki, buf,
-		    8 * size, buf) <= 0) {
+		if (rijndael_blockEncrypt(
+			&kdc->kdc_ci, &kdc->kdc_ki, buf, 8 * size, buf) <= 0) {
 			return (EIO);
 		}
 		if (rijndael_cipherInit(&kdc->kdc_ci, MODE_CBC,
-		    buf + size - 16 /* IV size for AES-256-CBC */) <= 0) {
+			buf + size - 16 /* IV size for AES-256-CBC */) <= 0) {
 			return (EIO);
 		}
 		break;
@@ -1416,8 +1406,8 @@ dump_encrypt(struct kerneldumpcrypto *kdc, uint8_t *buf, size_t size)
 
 /* Encrypt data and call dumper. */
 static int
-dump_encrypted_write(struct dumperinfo *di, void *virtual,
-    vm_offset_t physical, off_t offset, size_t length)
+dump_encrypted_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
+    off_t offset, size_t length)
 {
 	static uint8_t buf[KERNELDUMP_BUFFER_SIZE];
 	struct kerneldumpcrypto *kdc;
@@ -1527,7 +1517,8 @@ dump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh)
 	if (kdc != NULL) {
 		error = dump_write(di, kdc->kdc_dumpkey, 0,
 		    di->mediaoffset + di->mediasize - di->blocksize - extent -
-		    keysize, keysize);
+			keysize,
+		    keysize);
 		if (error != 0)
 			return (error);
 	}
@@ -1535,10 +1526,12 @@ dump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh)
 
 	error = dump_write(di, buf, 0,
 	    di->mediaoffset + di->mediasize - 2 * di->blocksize - extent -
-	    keysize, di->blocksize);
+		keysize,
+	    di->blocksize);
 	if (error == 0)
-		error = dump_write(di, buf, 0, di->mediaoffset + di->mediasize -
-		    di->blocksize, di->blocksize);
+		error = dump_write(di, buf, 0,
+		    di->mediaoffset + di->mediasize - di->blocksize,
+		    di->blocksize);
 	return (error);
 }
 
@@ -1546,7 +1539,7 @@ dump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh)
  * Don't touch the first SIZEOF_METADATA bytes on the dump device.  This is to
  * protect us from metadata and metadata from us.
  */
-#define	SIZEOF_METADATA		(64 * 1024)
+#define SIZEOF_METADATA (64 * 1024)
 
 /*
  * Do some preliminary setup for a kernel dump: initialize state for encryption,
@@ -1618,15 +1611,15 @@ dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh)
 }
 
 static int
-_dump_append(struct dumperinfo *di, void *virtual, vm_offset_t physical,
-    size_t length)
+_dump_append(
+    struct dumperinfo *di, void *virtual, vm_offset_t physical, size_t length)
 {
 	int error;
 
 #ifdef EKCD
 	if (di->kdcrypto != NULL)
-		error = dump_encrypted_write(di, virtual, physical, di->dumpoff,
-		    length);
+		error = dump_encrypted_write(
+		    di, virtual, physical, di->dumpoff, length);
 	else
 #endif
 		error = dump_write(di, virtual, physical, di->dumpoff, length);
@@ -1641,8 +1634,8 @@ _dump_append(struct dumperinfo *di, void *virtual, vm_offset_t physical,
  * when the compression stream's output buffer is full.
  */
 int
-dump_append(struct dumperinfo *di, void *virtual, vm_offset_t physical,
-    size_t length)
+dump_append(
+    struct dumperinfo *di, void *virtual, vm_offset_t physical, size_t length)
 {
 	void *buf;
 
@@ -1687,10 +1680,13 @@ dump_finish(struct dumperinfo *di, struct kerneldumpheader *kdh)
 		error = compressor_flush(di->kdcomp->kdc_stream);
 		if (error == EAGAIN) {
 			/* We have residual data in di->blockbuf. */
-			error = _dump_append(di, di->blockbuf, 0, di->blocksize);
+			error = _dump_append(
+			    di, di->blockbuf, 0, di->blocksize);
 			if (error == 0)
-				/* Compensate for _dump_append()'s adjustment. */
-				di->dumpoff -= di->blocksize - di->kdcomp->kdc_resid;
+				/* Compensate for _dump_append()'s adjustment.
+				 */
+				di->dumpoff -= di->blocksize -
+				    di->kdcomp->kdc_resid;
 			di->kdcomp->kdc_resid = 0;
 		}
 		if (error != 0)

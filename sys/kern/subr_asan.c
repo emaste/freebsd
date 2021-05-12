@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  */
 
-#define	SAN_RUNTIME
+#define SAN_RUNTIME
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -46,21 +46,21 @@ __KERNEL_RCSID(0, "$NetBSD: subr_asan.c,v 1.26 2020/09/10 14:10:46 maxv Exp $");
 #include <machine/asan.h>
 
 /* ASAN constants. Part of the compiler ABI. */
-#define KASAN_SHADOW_MASK		(KASAN_SHADOW_SCALE - 1)
-#define KASAN_ALLOCA_SCALE_SIZE		32
+#define KASAN_SHADOW_MASK (KASAN_SHADOW_SCALE - 1)
+#define KASAN_ALLOCA_SCALE_SIZE 32
 
 /* ASAN ABI version. */
 #if defined(__clang__) && (__clang_major__ - 0 >= 6)
-#define ASAN_ABI_VERSION	8
+#define ASAN_ABI_VERSION 8
 #elif __GNUC_PREREQ__(7, 1) && !defined(__clang__)
-#define ASAN_ABI_VERSION	8
+#define ASAN_ABI_VERSION 8
 #elif __GNUC_PREREQ__(6, 1) && !defined(__clang__)
-#define ASAN_ABI_VERSION	6
+#define ASAN_ABI_VERSION 6
 #else
 #error "Unsupported compiler version"
 #endif
 
-#define __RET_ADDR	(unsigned long)__builtin_return_address(0)
+#define __RET_ADDR (unsigned long)__builtin_return_address(0)
 
 /* Global variable descriptor. Part of the compiler ABI.  */
 struct __asan_global_source_location {
@@ -70,27 +70,27 @@ struct __asan_global_source_location {
 };
 
 struct __asan_global {
-	const void *beg;		/* address of the global variable */
-	size_t size;			/* size of the global variable */
-	size_t size_with_redzone;	/* size with the redzone */
-	const void *name;		/* name of the variable */
-	const void *module_name;	/* name of the module where the var is declared */
-	unsigned long has_dynamic_init;	/* the var has dyn initializer (c++) */
+	const void *beg;	  /* address of the global variable */
+	size_t size;		  /* size of the global variable */
+	size_t size_with_redzone; /* size with the redzone */
+	const void *name;	  /* name of the variable */
+	const void
+	    *module_name; /* name of the module where the var is declared */
+	unsigned long has_dynamic_init; /* the var has dyn initializer (c++) */
 	struct __asan_global_source_location *location;
 #if ASAN_ABI_VERSION >= 7
-	uintptr_t odr_indicator;	/* the address of the ODR indicator symbol */
+	uintptr_t odr_indicator; /* the address of the ODR indicator symbol */
 #endif
 };
 
 FEATURE(kasan, "Kernel address sanitizer");
 
-static SYSCTL_NODE(_debug, OID_AUTO, kasan, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "KASAN options");
+static SYSCTL_NODE(
+    _debug, OID_AUTO, kasan, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "KASAN options");
 
 static int panic_on_violation = 1;
 SYSCTL_INT(_debug_kasan, OID_AUTO, panic_on_violation, CTLFLAG_RDTUN,
-    &panic_on_violation, 0,
-    "Panic if an invalid access is detected");
+    &panic_on_violation, 0, "Panic if an invalid access is detected");
 
 static bool kasan_enabled __read_mostly = false;
 
@@ -172,25 +172,25 @@ kasan_code_name(uint8_t code)
 	}
 }
 
-#define	REPORT(f, ...) do {				\
-	if (panic_on_violation) {			\
-		panic(f, __VA_ARGS__);			\
-	} else {					\
-		struct stack st;			\
-							\
-		stack_save(&st);			\
-		printf(f "\n", __VA_ARGS__);		\
-		stack_print_ddb(&st);			\
-	}						\
-} while (0)
+#define REPORT(f, ...)                               \
+	do {                                         \
+		if (panic_on_violation) {            \
+			panic(f, __VA_ARGS__);       \
+		} else {                             \
+			struct stack st;             \
+                                                     \
+			stack_save(&st);             \
+			printf(f "\n", __VA_ARGS__); \
+			stack_print_ddb(&st);        \
+		}                                    \
+	} while (0)
 
 static void
-kasan_report(unsigned long addr, size_t size, bool write, unsigned long pc,
-    uint8_t code)
+kasan_report(
+    unsigned long addr, size_t size, bool write, unsigned long pc, uint8_t code)
 {
-	REPORT("ASan: Invalid access, %zu-byte %s at %#lx, %s(%x)",
-	    size, (write ? "write" : "read"), addr, kasan_code_name(code),
-	    code);
+	REPORT("ASan: Invalid access, %zu-byte %s at %#lx, %s(%x)", size,
+	    (write ? "write" : "read"), addr, kasan_code_name(code), code);
 }
 
 static __always_inline void
@@ -254,7 +254,7 @@ kasan_mark(const void *addr, size_t size, size_t redzsize, uint8_t code)
 		return;
 
 	KASSERT((vm_offset_t)addr >= VM_MIN_KERNEL_ADDRESS &&
-	    (vm_offset_t)addr < VM_MAX_KERNEL_ADDRESS,
+		(vm_offset_t)addr < VM_MAX_KERNEL_ADDRESS,
 	    ("%s: invalid address %p", __func__, addr));
 	KASSERT((vm_offset_t)addr % KASAN_SHADOW_SCALE == 0,
 	    ("%s: invalid address %p", __func__, addr));
@@ -283,8 +283,8 @@ kasan_mark(const void *addr, size_t size, size_t redzsize, uint8_t code)
 
 /* -------------------------------------------------------------------------- */
 
-#define ADDR_CROSSES_SCALE_BOUNDARY(addr, size) 		\
-	(addr >> KASAN_SHADOW_SCALE_SHIFT) !=			\
+#define ADDR_CROSSES_SCALE_BOUNDARY(addr, size) \
+	(addr >> KASAN_SHADOW_SCALE_SHIFT) !=   \
 	    ((addr + size - 1) >> KASAN_SHADOW_SCALE_SHIFT)
 
 static __always_inline bool
@@ -307,7 +307,7 @@ kasan_shadow_2byte_isvalid(unsigned long addr, uint8_t *code)
 
 	if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 2)) {
 		return (kasan_shadow_1byte_isvalid(addr, code) &&
-		    kasan_shadow_1byte_isvalid(addr+1, code));
+		    kasan_shadow_1byte_isvalid(addr + 1, code));
 	}
 
 	byte = (int8_t *)kasan_md_addr_to_shad(addr);
@@ -327,7 +327,7 @@ kasan_shadow_4byte_isvalid(unsigned long addr, uint8_t *code)
 
 	if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 4)) {
 		return (kasan_shadow_2byte_isvalid(addr, code) &&
-		    kasan_shadow_2byte_isvalid(addr+2, code));
+		    kasan_shadow_2byte_isvalid(addr + 2, code));
 	}
 
 	byte = (int8_t *)kasan_md_addr_to_shad(addr);
@@ -347,7 +347,7 @@ kasan_shadow_8byte_isvalid(unsigned long addr, uint8_t *code)
 
 	if (ADDR_CROSSES_SCALE_BOUNDARY(addr, 8)) {
 		return (kasan_shadow_4byte_isvalid(addr, code) &&
-		    kasan_shadow_4byte_isvalid(addr+4, code));
+		    kasan_shadow_4byte_isvalid(addr + 4, code));
 	}
 
 	byte = (int8_t *)kasan_md_addr_to_shad(addr);
@@ -366,7 +366,7 @@ kasan_shadow_Nbyte_isvalid(unsigned long addr, size_t size, uint8_t *code)
 	size_t i;
 
 	for (i = 0; i < size; i++) {
-		if (!kasan_shadow_1byte_isvalid(addr+i, code))
+		if (!kasan_shadow_1byte_isvalid(addr + i, code))
 			return (false);
 	}
 
@@ -374,8 +374,8 @@ kasan_shadow_Nbyte_isvalid(unsigned long addr, size_t size, uint8_t *code)
 }
 
 static __always_inline void
-kasan_shadow_check(unsigned long addr, size_t size, bool write,
-    unsigned long retaddr)
+kasan_shadow_check(
+    unsigned long addr, size_t size, bool write, unsigned long retaddr)
 {
 	uint8_t code;
 	bool valid;
@@ -522,157 +522,157 @@ kasan_copyout(const void *kaddr, void *uaddr, size_t len)
 /* -------------------------------------------------------------------------- */
 
 #include <machine/atomic.h>
-#define	ATOMIC_SAN_PREFIX	kasan
+#define ATOMIC_SAN_PREFIX kasan
 #include <sys/atomic_san.h>
 
-#define _ASAN_ATOMIC_FUNC_ADD(name, type)				\
-	void kasan_atomic_add_##name(volatile type *ptr, type val)	\
-	{								\
-		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
-		    __RET_ADDR);					\
-		atomic_add_##name(ptr, val);				\
+#define _ASAN_ATOMIC_FUNC_ADD(name, type)                            \
+	void kasan_atomic_add_##name(volatile type *ptr, type val)   \
+	{                                                            \
+		kasan_shadow_check(                                  \
+		    (uintptr_t)ptr, sizeof(type), true, __RET_ADDR); \
+		atomic_add_##name(ptr, val);                         \
 	}
 
-#define	ASAN_ATOMIC_FUNC_ADD(name, type)				\
-	_ASAN_ATOMIC_FUNC_ADD(name, type)				\
-	_ASAN_ATOMIC_FUNC_ADD(acq_##name, type)				\
+#define ASAN_ATOMIC_FUNC_ADD(name, type)        \
+	_ASAN_ATOMIC_FUNC_ADD(name, type)       \
+	_ASAN_ATOMIC_FUNC_ADD(acq_##name, type) \
 	_ASAN_ATOMIC_FUNC_ADD(rel_##name, type)
 
-#define _ASAN_ATOMIC_FUNC_SUBTRACT(name, type)				\
-	void kasan_atomic_subtract_##name(volatile type *ptr, type val)	\
-	{								\
-		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
-		    __RET_ADDR);					\
-		atomic_subtract_##name(ptr, val);			\
+#define _ASAN_ATOMIC_FUNC_SUBTRACT(name, type)                          \
+	void kasan_atomic_subtract_##name(volatile type *ptr, type val) \
+	{                                                               \
+		kasan_shadow_check(                                     \
+		    (uintptr_t)ptr, sizeof(type), true, __RET_ADDR);    \
+		atomic_subtract_##name(ptr, val);                       \
 	}
 
-#define	ASAN_ATOMIC_FUNC_SUBTRACT(name, type)				\
-	_ASAN_ATOMIC_FUNC_SUBTRACT(name, type)				\
-	_ASAN_ATOMIC_FUNC_SUBTRACT(acq_##name, type)			\
+#define ASAN_ATOMIC_FUNC_SUBTRACT(name, type)        \
+	_ASAN_ATOMIC_FUNC_SUBTRACT(name, type)       \
+	_ASAN_ATOMIC_FUNC_SUBTRACT(acq_##name, type) \
 	_ASAN_ATOMIC_FUNC_SUBTRACT(rel_##name, type)
 
-#define _ASAN_ATOMIC_FUNC_SET(name, type)				\
-	void kasan_atomic_set_##name(volatile type *ptr, type val)	\
-	{								\
-		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
-		    __RET_ADDR);					\
-		atomic_set_##name(ptr, val);				\
+#define _ASAN_ATOMIC_FUNC_SET(name, type)                            \
+	void kasan_atomic_set_##name(volatile type *ptr, type val)   \
+	{                                                            \
+		kasan_shadow_check(                                  \
+		    (uintptr_t)ptr, sizeof(type), true, __RET_ADDR); \
+		atomic_set_##name(ptr, val);                         \
 	}
 
-#define	ASAN_ATOMIC_FUNC_SET(name, type)				\
-	_ASAN_ATOMIC_FUNC_SET(name, type)				\
-	_ASAN_ATOMIC_FUNC_SET(acq_##name, type)				\
+#define ASAN_ATOMIC_FUNC_SET(name, type)        \
+	_ASAN_ATOMIC_FUNC_SET(name, type)       \
+	_ASAN_ATOMIC_FUNC_SET(acq_##name, type) \
 	_ASAN_ATOMIC_FUNC_SET(rel_##name, type)
 
-#define _ASAN_ATOMIC_FUNC_CLEAR(name, type)				\
-	void kasan_atomic_clear_##name(volatile type *ptr, type val)	\
-	{								\
-		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
-		    __RET_ADDR);					\
-		atomic_clear_##name(ptr, val);				\
+#define _ASAN_ATOMIC_FUNC_CLEAR(name, type)                          \
+	void kasan_atomic_clear_##name(volatile type *ptr, type val) \
+	{                                                            \
+		kasan_shadow_check(                                  \
+		    (uintptr_t)ptr, sizeof(type), true, __RET_ADDR); \
+		atomic_clear_##name(ptr, val);                       \
 	}
 
-#define	ASAN_ATOMIC_FUNC_CLEAR(name, type)				\
-	_ASAN_ATOMIC_FUNC_CLEAR(name, type)				\
-	_ASAN_ATOMIC_FUNC_CLEAR(acq_##name, type)			\
+#define ASAN_ATOMIC_FUNC_CLEAR(name, type)        \
+	_ASAN_ATOMIC_FUNC_CLEAR(name, type)       \
+	_ASAN_ATOMIC_FUNC_CLEAR(acq_##name, type) \
 	_ASAN_ATOMIC_FUNC_CLEAR(rel_##name, type)
 
-#define	ASAN_ATOMIC_FUNC_FETCHADD(name, type)				\
-	type kasan_atomic_fetchadd_##name(volatile type *ptr, type val)	\
-	{								\
-		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
-		    __RET_ADDR);					\
-		return (atomic_fetchadd_##name(ptr, val));		\
+#define ASAN_ATOMIC_FUNC_FETCHADD(name, type)                           \
+	type kasan_atomic_fetchadd_##name(volatile type *ptr, type val) \
+	{                                                               \
+		kasan_shadow_check(                                     \
+		    (uintptr_t)ptr, sizeof(type), true, __RET_ADDR);    \
+		return (atomic_fetchadd_##name(ptr, val));              \
 	}
 
-#define	ASAN_ATOMIC_FUNC_READANDCLEAR(name, type)			\
-	type kasan_atomic_readandclear_##name(volatile type *ptr)	\
-	{								\
-		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
-		    __RET_ADDR);					\
-		return (atomic_readandclear_##name(ptr));		\
+#define ASAN_ATOMIC_FUNC_READANDCLEAR(name, type)                    \
+	type kasan_atomic_readandclear_##name(volatile type *ptr)    \
+	{                                                            \
+		kasan_shadow_check(                                  \
+		    (uintptr_t)ptr, sizeof(type), true, __RET_ADDR); \
+		return (atomic_readandclear_##name(ptr));            \
 	}
 
-#define	ASAN_ATOMIC_FUNC_TESTANDCLEAR(name, type)			\
+#define ASAN_ATOMIC_FUNC_TESTANDCLEAR(name, type)                         \
 	int kasan_atomic_testandclear_##name(volatile type *ptr, u_int v) \
-	{								\
-		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
-		    __RET_ADDR);					\
-		return (atomic_testandclear_##name(ptr, v));		\
+	{                                                                 \
+		kasan_shadow_check(                                       \
+		    (uintptr_t)ptr, sizeof(type), true, __RET_ADDR);      \
+		return (atomic_testandclear_##name(ptr, v));              \
 	}
 
-#define	ASAN_ATOMIC_FUNC_TESTANDSET(name, type)				\
+#define ASAN_ATOMIC_FUNC_TESTANDSET(name, type)                         \
 	int kasan_atomic_testandset_##name(volatile type *ptr, u_int v) \
-	{								\
-		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
-		    __RET_ADDR);					\
-		return (atomic_testandset_##name(ptr, v));		\
+	{                                                               \
+		kasan_shadow_check(                                     \
+		    (uintptr_t)ptr, sizeof(type), true, __RET_ADDR);    \
+		return (atomic_testandset_##name(ptr, v));              \
 	}
 
-#define	ASAN_ATOMIC_FUNC_SWAP(name, type)				\
-	type kasan_atomic_swap_##name(volatile type *ptr, type val)	\
-	{								\
-		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
-		    __RET_ADDR);					\
-		return (atomic_swap_##name(ptr, val));			\
+#define ASAN_ATOMIC_FUNC_SWAP(name, type)                            \
+	type kasan_atomic_swap_##name(volatile type *ptr, type val)  \
+	{                                                            \
+		kasan_shadow_check(                                  \
+		    (uintptr_t)ptr, sizeof(type), true, __RET_ADDR); \
+		return (atomic_swap_##name(ptr, val));               \
 	}
 
-#define _ASAN_ATOMIC_FUNC_CMPSET(name, type)				\
-	int kasan_atomic_cmpset_##name(volatile type *ptr, type oval,	\
-	    type nval)							\
-	{								\
-		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
-		    __RET_ADDR);					\
-		return (atomic_cmpset_##name(ptr, oval, nval));		\
+#define _ASAN_ATOMIC_FUNC_CMPSET(name, type)                         \
+	int kasan_atomic_cmpset_##name(                              \
+	    volatile type *ptr, type oval, type nval)                \
+	{                                                            \
+		kasan_shadow_check(                                  \
+		    (uintptr_t)ptr, sizeof(type), true, __RET_ADDR); \
+		return (atomic_cmpset_##name(ptr, oval, nval));      \
 	}
 
-#define	ASAN_ATOMIC_FUNC_CMPSET(name, type)				\
-	_ASAN_ATOMIC_FUNC_CMPSET(name, type)				\
-	_ASAN_ATOMIC_FUNC_CMPSET(acq_##name, type)			\
+#define ASAN_ATOMIC_FUNC_CMPSET(name, type)        \
+	_ASAN_ATOMIC_FUNC_CMPSET(name, type)       \
+	_ASAN_ATOMIC_FUNC_CMPSET(acq_##name, type) \
 	_ASAN_ATOMIC_FUNC_CMPSET(rel_##name, type)
 
-#define _ASAN_ATOMIC_FUNC_FCMPSET(name, type)				\
-	int kasan_atomic_fcmpset_##name(volatile type *ptr, type *oval,	\
-	    type nval)							\
-	{								\
-		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
-		    __RET_ADDR);					\
-		return (atomic_fcmpset_##name(ptr, oval, nval));	\
+#define _ASAN_ATOMIC_FUNC_FCMPSET(name, type)                        \
+	int kasan_atomic_fcmpset_##name(                             \
+	    volatile type *ptr, type *oval, type nval)               \
+	{                                                            \
+		kasan_shadow_check(                                  \
+		    (uintptr_t)ptr, sizeof(type), true, __RET_ADDR); \
+		return (atomic_fcmpset_##name(ptr, oval, nval));     \
 	}
 
-#define	ASAN_ATOMIC_FUNC_FCMPSET(name, type)				\
-	_ASAN_ATOMIC_FUNC_FCMPSET(name, type)				\
-	_ASAN_ATOMIC_FUNC_FCMPSET(acq_##name, type)			\
+#define ASAN_ATOMIC_FUNC_FCMPSET(name, type)        \
+	_ASAN_ATOMIC_FUNC_FCMPSET(name, type)       \
+	_ASAN_ATOMIC_FUNC_FCMPSET(acq_##name, type) \
 	_ASAN_ATOMIC_FUNC_FCMPSET(rel_##name, type)
 
-#define ASAN_ATOMIC_FUNC_THREAD_FENCE(name)				\
-	void kasan_atomic_thread_fence_##name(void)			\
-	{								\
-		atomic_thread_fence_##name();				\
+#define ASAN_ATOMIC_FUNC_THREAD_FENCE(name)         \
+	void kasan_atomic_thread_fence_##name(void) \
+	{                                           \
+		atomic_thread_fence_##name();       \
 	}
 
-#define	_ASAN_ATOMIC_FUNC_LOAD(name, type)				\
-	type kasan_atomic_load_##name(volatile type *ptr)		\
-	{								\
-		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
-		    __RET_ADDR);					\
-		return (atomic_load_##name(ptr));			\
+#define _ASAN_ATOMIC_FUNC_LOAD(name, type)                           \
+	type kasan_atomic_load_##name(volatile type *ptr)            \
+	{                                                            \
+		kasan_shadow_check(                                  \
+		    (uintptr_t)ptr, sizeof(type), true, __RET_ADDR); \
+		return (atomic_load_##name(ptr));                    \
 	}
 
-#define	ASAN_ATOMIC_FUNC_LOAD(name, type)				\
-	_ASAN_ATOMIC_FUNC_LOAD(name, type)				\
+#define ASAN_ATOMIC_FUNC_LOAD(name, type)  \
+	_ASAN_ATOMIC_FUNC_LOAD(name, type) \
 	_ASAN_ATOMIC_FUNC_LOAD(acq_##name, type)
 
-#define	_ASAN_ATOMIC_FUNC_STORE(name, type)				\
-	void kasan_atomic_store_##name(volatile type *ptr, type val)	\
-	{								\
-		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
-		    __RET_ADDR);					\
-		atomic_store_##name(ptr, val);				\
+#define _ASAN_ATOMIC_FUNC_STORE(name, type)                          \
+	void kasan_atomic_store_##name(volatile type *ptr, type val) \
+	{                                                            \
+		kasan_shadow_check(                                  \
+		    (uintptr_t)ptr, sizeof(type), true, __RET_ADDR); \
+		atomic_store_##name(ptr, val);                       \
 	}
 
-#define	ASAN_ATOMIC_FUNC_STORE(name, type)				\
-	_ASAN_ATOMIC_FUNC_STORE(name, type)				\
+#define ASAN_ATOMIC_FUNC_STORE(name, type)  \
+	_ASAN_ATOMIC_FUNC_STORE(name, type) \
 	_ASAN_ATOMIC_FUNC_STORE(rel_##name, type)
 
 ASAN_ATOMIC_FUNC_ADD(8, uint8_t);
@@ -783,8 +783,9 @@ kasan_atomic_interrupt_fence(void)
 /* -------------------------------------------------------------------------- */
 
 #include <sys/bus.h>
+
 #include <machine/bus.h>
-#define	BUS_SAN_PREFIX	kasan
+#define BUS_SAN_PREFIX kasan
 #include <sys/bus_san.h>
 
 int
@@ -795,8 +796,8 @@ kasan_bus_space_map(bus_space_tag_t tag, bus_addr_t hnd, bus_size_t size,
 }
 
 void
-kasan_bus_space_unmap(bus_space_tag_t tag, bus_space_handle_t hnd,
-    bus_size_t size)
+kasan_bus_space_unmap(
+    bus_space_tag_t tag, bus_space_handle_t hnd, bus_size_t size)
 {
 	bus_space_unmap(tag, hnd, size);
 }
@@ -809,8 +810,8 @@ kasan_bus_space_subregion(bus_space_tag_t tag, bus_space_handle_t hnd,
 }
 
 void
-kasan_bus_space_free(bus_space_tag_t tag, bus_space_handle_t hnd,
-    bus_size_t size)
+kasan_bus_space_free(
+    bus_space_tag_t tag, bus_space_handle_t hnd, bus_size_t size)
 {
 	bus_space_free(tag, hnd, size);
 }
@@ -822,23 +823,21 @@ kasan_bus_space_barrier(bus_space_tag_t tag, bus_space_handle_t hnd,
 	bus_space_barrier(tag, hnd, offset, size, flags);
 }
 
-#define ASAN_BUS_READ_FUNC(func, width, type)				\
-	type kasan_bus_space_read##func##_##width(bus_space_tag_t tag,	\
-	    bus_space_handle_t hnd, bus_size_t offset)			\
-	{								\
-		return (bus_space_read##func##_##width(tag, hnd,	\
-		    offset));						\
-	}								\
+#define ASAN_BUS_READ_FUNC(func, width, type)                               \
+	type kasan_bus_space_read##func##_##width(                          \
+	    bus_space_tag_t tag, bus_space_handle_t hnd, bus_size_t offset) \
+	{                                                                   \
+		return (bus_space_read##func##_##width(tag, hnd, offset));  \
+	}
 
-#define ASAN_BUS_READ_PTR_FUNC(func, width, type)			\
-	void kasan_bus_space_read_##func##_##width(bus_space_tag_t tag,	\
-	    bus_space_handle_t hnd, bus_size_t size, type *buf,		\
-	    bus_size_t count)						\
-	{								\
-		kasan_shadow_check((uintptr_t)buf, sizeof(type) * count,\
-		    false, __RET_ADDR);					\
-		bus_space_read_##func##_##width(tag, hnd, size, buf, 	\
-		    count);						\
+#define ASAN_BUS_READ_PTR_FUNC(func, width, type)                             \
+	void kasan_bus_space_read_##func##_##width(bus_space_tag_t tag,       \
+	    bus_space_handle_t hnd, bus_size_t size, type *buf,               \
+	    bus_size_t count)                                                 \
+	{                                                                     \
+		kasan_shadow_check(                                           \
+		    (uintptr_t)buf, sizeof(type) * count, false, __RET_ADDR); \
+		bus_space_read_##func##_##width(tag, hnd, size, buf, count);  \
 	}
 
 ASAN_BUS_READ_FUNC(, 1, uint8_t)
@@ -864,22 +863,21 @@ ASAN_BUS_READ_PTR_FUNC(region_stream, 4, uint32_t)
 
 ASAN_BUS_READ_FUNC(, 8, uint64_t)
 
-#define	ASAN_BUS_WRITE_FUNC(func, width, type)				\
-	void kasan_bus_space_write##func##_##width(bus_space_tag_t tag,	\
-	    bus_space_handle_t hnd, bus_size_t offset, type value)	\
-	{								\
-		bus_space_write##func##_##width(tag, hnd, offset, value);\
-	}								\
+#define ASAN_BUS_WRITE_FUNC(func, width, type)                            \
+	void kasan_bus_space_write##func##_##width(bus_space_tag_t tag,   \
+	    bus_space_handle_t hnd, bus_size_t offset, type value)        \
+	{                                                                 \
+		bus_space_write##func##_##width(tag, hnd, offset, value); \
+	}
 
-#define	ASAN_BUS_WRITE_PTR_FUNC(func, width, type)			\
-	void kasan_bus_space_write_##func##_##width(bus_space_tag_t tag,\
-	    bus_space_handle_t hnd, bus_size_t size, const type *buf,	\
-	    bus_size_t count)						\
-	{								\
-		kasan_shadow_check((uintptr_t)buf, sizeof(type) * count,\
-		    true, __RET_ADDR);					\
-		bus_space_write_##func##_##width(tag, hnd, size, buf, 	\
-		    count);						\
+#define ASAN_BUS_WRITE_PTR_FUNC(func, width, type)                            \
+	void kasan_bus_space_write_##func##_##width(bus_space_tag_t tag,      \
+	    bus_space_handle_t hnd, bus_size_t size, const type *buf,         \
+	    bus_size_t count)                                                 \
+	{                                                                     \
+		kasan_shadow_check(                                           \
+		    (uintptr_t)buf, sizeof(type) * count, true, __RET_ADDR);  \
+		bus_space_write_##func##_##width(tag, hnd, size, buf, count); \
 	}
 
 ASAN_BUS_WRITE_FUNC(, 1, uint8_t)
@@ -905,13 +903,13 @@ ASAN_BUS_WRITE_PTR_FUNC(region_stream, 4, uint32_t)
 
 ASAN_BUS_WRITE_FUNC(, 8, uint64_t)
 
-#define	ASAN_BUS_SET_FUNC(func, width, type)				\
-	void kasan_bus_space_set_##func##_##width(bus_space_tag_t tag,	\
-	    bus_space_handle_t hnd, bus_size_t offset, type value,	\
-	    bus_size_t count)						\
-	{								\
-		bus_space_set_##func##_##width(tag, hnd, offset, value,	\
-		    count);						\
+#define ASAN_BUS_SET_FUNC(func, width, type)                           \
+	void kasan_bus_space_set_##func##_##width(bus_space_tag_t tag, \
+	    bus_space_handle_t hnd, bus_size_t offset, type value,     \
+	    bus_size_t count)                                          \
+	{                                                              \
+		bus_space_set_##func##_##width(                        \
+		    tag, hnd, offset, value, count);                   \
 	}
 
 ASAN_BUS_SET_FUNC(multi, 1, uint8_t)
@@ -951,26 +949,26 @@ __asan_unregister_globals(struct __asan_global *globals, size_t n)
 	/* never called */
 }
 
-#define ASAN_LOAD_STORE(size)					\
-	void __asan_load##size(unsigned long);			\
-	void __asan_load##size(unsigned long addr)		\
-	{							\
-		kasan_shadow_check(addr, size, false, __RET_ADDR);\
-	} 							\
-	void __asan_load##size##_noabort(unsigned long);	\
-	void __asan_load##size##_noabort(unsigned long addr)	\
-	{							\
-		kasan_shadow_check(addr, size, false, __RET_ADDR);\
-	}							\
-	void __asan_store##size(unsigned long);			\
-	void __asan_store##size(unsigned long addr)		\
-	{							\
-		kasan_shadow_check(addr, size, true, __RET_ADDR);\
-	}							\
-	void __asan_store##size##_noabort(unsigned long);	\
-	void __asan_store##size##_noabort(unsigned long addr)	\
-	{							\
-		kasan_shadow_check(addr, size, true, __RET_ADDR);\
+#define ASAN_LOAD_STORE(size)                                      \
+	void __asan_load##size(unsigned long);                     \
+	void __asan_load##size(unsigned long addr)                 \
+	{                                                          \
+		kasan_shadow_check(addr, size, false, __RET_ADDR); \
+	}                                                          \
+	void __asan_load##size##_noabort(unsigned long);           \
+	void __asan_load##size##_noabort(unsigned long addr)       \
+	{                                                          \
+		kasan_shadow_check(addr, size, false, __RET_ADDR); \
+	}                                                          \
+	void __asan_store##size(unsigned long);                    \
+	void __asan_store##size(unsigned long addr)                \
+	{                                                          \
+		kasan_shadow_check(addr, size, true, __RET_ADDR);  \
+	}                                                          \
+	void __asan_store##size##_noabort(unsigned long);          \
+	void __asan_store##size##_noabort(unsigned long addr)      \
+	{                                                          \
+		kasan_shadow_check(addr, size, true, __RET_ADDR);  \
 	}
 
 ASAN_LOAD_STORE(1);
@@ -1015,11 +1013,11 @@ __asan_handle_no_return(void)
 	/* nothing */
 }
 
-#define ASAN_SET_SHADOW(byte) \
-	void __asan_set_shadow_##byte(void *, size_t);			\
-	void __asan_set_shadow_##byte(void *addr, size_t size)		\
-	{								\
-		__builtin_memset((void *)addr, 0x##byte, size);		\
+#define ASAN_SET_SHADOW(byte)                                   \
+	void __asan_set_shadow_##byte(void *, size_t);          \
+	void __asan_set_shadow_##byte(void *addr, size_t size)  \
+	{                                                       \
+		__builtin_memset((void *)addr, 0x##byte, size); \
 	}
 
 ASAN_SET_SHADOW(00);

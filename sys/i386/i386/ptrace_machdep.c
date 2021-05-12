@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
+
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
@@ -75,7 +76,7 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 
 	case PT_GETXSTATE_INFO:
 		if (data != sizeof(info)) {
-			error  = EINVAL;
+			error = EINVAL;
 			break;
 		}
 		info.xsave_len = cpu_max_ext_state_size;
@@ -99,8 +100,8 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 		error = copyin(addr, savefpu, data);
 		if (error == 0)
 			error = npxsetregs(td, (union savefpu *)savefpu,
-			    savefpu + sizeof(union savefpu), data -
-			    sizeof(union savefpu));
+			    savefpu + sizeof(union savefpu),
+			    data - sizeof(union savefpu));
 		free(savefpu, M_TEMP);
 		break;
 
@@ -170,7 +171,7 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 	case PT_GETFSBASE:
 	case PT_GETGSBASE:
 		sdp = req == PT_GETFSBASE ? &td->td_pcb->pcb_fsd :
-		    &td->td_pcb->pcb_gsd;
+						  &td->td_pcb->pcb_gsd;
 		r = sdp->sd_hibase << 24 | sdp->sd_lobase;
 		error = copyout(&r, addr, sizeof(r));
 		break;

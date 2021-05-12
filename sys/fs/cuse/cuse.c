@@ -24,42 +24,42 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/stdint.h>
-#include <sys/stddef.h>
-#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/condvar.h>
-#include <sys/sysctl.h>
-#include <sys/unistd.h>
-#include <sys/malloc.h>
-#include <sys/priv.h>
-#include <sys/uio.h>
-#include <sys/poll.h>
-#include <sys/sx.h>
-#include <sys/rwlock.h>
-#include <sys/queue.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/kernel.h>
+#include <sys/linker_set.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/poll.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
-#include <sys/selinfo.h>
 #include <sys/ptrace.h>
+#include <sys/queue.h>
+#include <sys/rwlock.h>
+#include <sys/selinfo.h>
+#include <sys/stddef.h>
+#include <sys/stdint.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
-
-#include <machine/bus.h>
+#include <sys/uio.h>
+#include <sys/unistd.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+
+#include <machine/bus.h>
 
 #include <fs/cuse/cuse_defs.h>
 #include <fs/cuse/cuse_ioctl.h>
@@ -106,10 +106,10 @@ struct cuse_client_command {
 	struct thread *entered;
 	struct cuse_client *client;
 	struct proc *proc_curr;
-	int	proc_refs;
-	int	got_signal;
-	int	error;
-	int	command;
+	int proc_refs;
+	int got_signal;
+	int error;
+	int command;
 };
 
 struct cuse_memory {
@@ -135,9 +135,9 @@ struct cuse_server {
 	struct mtx mtx;
 	struct cv cv;
 	struct selinfo selinfo;
-	pid_t	pid;
-	int	is_closing;
-	int	refs;
+	pid_t pid;
+	int is_closing;
+	int refs;
 };
 
 struct cuse_client {
@@ -147,21 +147,20 @@ struct cuse_client {
 	struct cuse_server *server;
 	struct cuse_server_dev *server_dev;
 
-	uint8_t	ioctl_buffer[CUSE_BUFFER_MAX] __aligned(4);
+	uint8_t ioctl_buffer[CUSE_BUFFER_MAX] __aligned(4);
 
-	int	fflags;			/* file flags */
-	int	cflags;			/* client flags */
-#define	CUSE_CLI_IS_CLOSING 0x01
-#define	CUSE_CLI_KNOTE_NEED_READ 0x02
-#define	CUSE_CLI_KNOTE_NEED_WRITE 0x04
-#define	CUSE_CLI_KNOTE_HAS_READ 0x08
-#define	CUSE_CLI_KNOTE_HAS_WRITE 0x10
+	int fflags; /* file flags */
+	int cflags; /* client flags */
+#define CUSE_CLI_IS_CLOSING 0x01
+#define CUSE_CLI_KNOTE_NEED_READ 0x02
+#define CUSE_CLI_KNOTE_NEED_WRITE 0x04
+#define CUSE_CLI_KNOTE_HAS_READ 0x08
+#define CUSE_CLI_KNOTE_HAS_WRITE 0x10
 };
 
-#define	CUSE_CLIENT_CLOSING(pcc) \
-    ((pcc)->cflags & CUSE_CLI_IS_CLOSING)
+#define CUSE_CLIENT_CLOSING(pcc) ((pcc)->cflags & CUSE_CLI_IS_CLOSING)
 
-static	MALLOC_DEFINE(M_CUSE, "cuse", "CUSE memory");
+static MALLOC_DEFINE(M_CUSE, "cuse", "CUSE memory");
 
 static TAILQ_HEAD(, cuse_server) cuse_server_head;
 static struct mtx cuse_global_mtx;
@@ -277,12 +276,11 @@ cuse_kern_init(void *arg)
 
 	mtx_init(&cuse_global_mtx, "cuse-global-mtx", NULL, MTX_DEF);
 
-	cuse_dev = make_dev(&cuse_server_devsw, 0,
-	    UID_ROOT, GID_OPERATOR, 0600, "cuse");
+	cuse_dev = make_dev(
+	    &cuse_server_devsw, 0, UID_ROOT, GID_OPERATOR, 0600, "cuse");
 
-	printf("Cuse v%d.%d.%d @ /dev/cuse\n",
-	    (CUSE_VERSION >> 16) & 0xFF, (CUSE_VERSION >> 8) & 0xFF,
-	    (CUSE_VERSION >> 0) & 0xFF);
+	printf("Cuse v%d.%d.%d @ /dev/cuse\n", (CUSE_VERSION >> 16) & 0xFF,
+	    (CUSE_VERSION >> 8) & 0xFF, (CUSE_VERSION >> 0) & 0xFF);
 }
 SYSINIT(cuse_kern_init, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_init, NULL);
 
@@ -293,7 +291,7 @@ cuse_kern_uninit(void *arg)
 
 	while (1) {
 		printf("Cuse: Please exit all /dev/cuse instances "
-		    "and processes which have used this device.\n");
+		       "and processes which have used this device.\n");
 
 		pause("DRAIN", 2 * hz);
 
@@ -341,7 +339,7 @@ cuse_server_is_closing(struct cuse_server *pcs)
 
 	pcs->is_closing = 1;
 
-	TAILQ_FOREACH(pcc, &pcs->hcli, entry) {
+	TAILQ_FOREACH (pcc, &pcs->hcli, entry) {
 		cuse_client_is_closing(pcc);
 	}
 }
@@ -355,7 +353,7 @@ cuse_server_find_command(struct cuse_server *pcs, struct thread *td)
 	if (pcs->is_closing)
 		goto done;
 
-	TAILQ_FOREACH(pcc, &pcs->hcli, entry) {
+	TAILQ_FOREACH (pcc, &pcs->hcli, entry) {
 		if (CUSE_CLIENT_CLOSING(pcc))
 			continue;
 		for (n = 0; n != CUSE_CMD_MAX; n++) {
@@ -398,7 +396,7 @@ cuse_str_filter(char *ptr)
 static int
 cuse_convert_error(int error)
 {
-	;				/* indent fix */
+	; /* indent fix */
 	switch (error) {
 	case CUSE_ERR_NONE:
 		return (0);
@@ -432,8 +430,8 @@ cuse_vm_memory_free(struct cuse_memory *mem)
 }
 
 static int
-cuse_server_alloc_memory(struct cuse_server *pcs, uint32_t alloc_nr,
-    uint32_t page_count)
+cuse_server_alloc_memory(
+    struct cuse_server *pcs, uint32_t alloc_nr, uint32_t page_count)
 {
 	struct cuse_memory *temp;
 	struct cuse_memory *mem;
@@ -451,7 +449,7 @@ cuse_server_alloc_memory(struct cuse_server *pcs, uint32_t alloc_nr,
 
 	cuse_server_lock(pcs);
 	/* check if allocation number already exists */
-	TAILQ_FOREACH(temp, &pcs->hmem, entry) {
+	TAILQ_FOREACH (temp, &pcs->hmem, entry) {
 		if (temp->alloc_nr == alloc_nr)
 			break;
 	}
@@ -481,7 +479,7 @@ cuse_server_free_memory(struct cuse_server *pcs, uint32_t alloc_nr)
 	struct cuse_memory *mem;
 
 	cuse_server_lock(pcs);
-	TAILQ_FOREACH(mem, &pcs->hmem, entry) {
+	TAILQ_FOREACH (mem, &pcs->hmem, entry) {
 		if (mem->alloc_nr == alloc_nr)
 			break;
 	}
@@ -593,8 +591,8 @@ cuse_client_got_signal(struct cuse_client_command *pccmd)
 }
 
 static int
-cuse_client_receive_command_locked(struct cuse_client_command *pccmd,
-    uint8_t *arg_ptr, uint32_t arg_len)
+cuse_client_receive_command_locked(
+    struct cuse_client_command *pccmd, uint8_t *arg_ptr, uint32_t arg_len)
 {
 	struct cuse_server *pcs;
 	int error;
@@ -657,7 +655,7 @@ cuse_server_free_dev(struct cuse_server_dev *pcsd)
 	if (pcsd->kern_dev != NULL)
 		pcsd->kern_dev->si_drv1 = NULL;
 
-	TAILQ_FOREACH(pcc, &pcs->hcli, entry) {
+	TAILQ_FOREACH (pcc, &pcs->hcli, entry) {
 		if (pcc->server_dev == pcsd)
 			cuse_client_is_closing(pcc);
 	}
@@ -814,8 +812,7 @@ cuse_server_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 static int
 cuse_server_ioctl_copy_locked(struct cuse_server *pcs,
-    struct cuse_client_command *pccmd,
-    struct cuse_data_chunk *pchk, int isread)
+    struct cuse_client_command *pccmd, struct cuse_data_chunk *pchk, int isread)
 {
 	struct proc *p_proc;
 	uint32_t offset;
@@ -844,15 +841,11 @@ cuse_server_ioctl_copy_locked(struct cuse_server *pcs,
 	cuse_server_unlock(pcs);
 
 	if (isread == 0) {
-		error = copyin(
-		    (void *)pchk->local_ptr,
-		    pccmd->client->ioctl_buffer + offset,
-		    pchk->length);
+		error = copyin((void *)pchk->local_ptr,
+		    pccmd->client->ioctl_buffer + offset, pchk->length);
 	} else {
-		error = copyout(
-		    pccmd->client->ioctl_buffer + offset,
-		    (void *)pchk->local_ptr,
-		    pchk->length);
+		error = copyout(pccmd->client->ioctl_buffer + offset,
+		    (void *)pchk->local_ptr, pchk->length);
 	}
 
 	cuse_server_lock(pcs);
@@ -921,8 +914,7 @@ cuse_proc2proc_copy(struct proc *proc_s, vm_offset_t data_s,
 
 static int
 cuse_server_data_copy_locked(struct cuse_server *pcs,
-    struct cuse_client_command *pccmd,
-    struct cuse_data_chunk *pchk, int isread)
+    struct cuse_client_command *pccmd, struct cuse_data_chunk *pchk, int isread)
 {
 	struct proc *p_proc;
 	int error;
@@ -939,15 +931,11 @@ cuse_server_data_copy_locked(struct cuse_server *pcs,
 	cuse_server_unlock(pcs);
 
 	if (isread == 0) {
-		error = cuse_proc2proc_copy(
-		    curthread->td_proc, pchk->local_ptr,
-		    p_proc, pchk->peer_ptr,
-		    pchk->length);
+		error = cuse_proc2proc_copy(curthread->td_proc, pchk->local_ptr,
+		    p_proc, pchk->peer_ptr, pchk->length);
 	} else {
-		error = cuse_proc2proc_copy(
-		    p_proc, pchk->peer_ptr,
-		    curthread->td_proc, pchk->local_ptr,
-		    pchk->length);
+		error = cuse_proc2proc_copy(p_proc, pchk->peer_ptr,
+		    curthread->td_proc, pchk->local_ptr, pchk->length);
 	}
 
 	cuse_server_lock(pcs);
@@ -972,7 +960,8 @@ cuse_alloc_unit_by_id_locked(struct cuse_server *pcs, int id)
 			if (cuse_alloc_unit[n] != NULL) {
 				if ((cuse_alloc_unit_id[n] ^ id) & CUSE_ID_MASK)
 					continue;
-				if ((cuse_alloc_unit_id[n] & ~CUSE_ID_MASK) == x) {
+				if ((cuse_alloc_unit_id[n] & ~CUSE_ID_MASK) ==
+				    x) {
 					x++;
 					match = 1;
 				}
@@ -1004,7 +993,7 @@ cuse_server_wakeup_all_client_locked(struct cuse_server *pcs)
 {
 	struct cuse_client *pcc;
 
-	TAILQ_FOREACH(pcc, &pcs->hcli, entry) {
+	TAILQ_FOREACH (pcc, &pcs->hcli, entry) {
 		pcc->cflags |= (CUSE_CLI_KNOTE_NEED_READ |
 		    CUSE_CLI_KNOTE_NEED_WRITE);
 	}
@@ -1031,8 +1020,8 @@ cuse_free_unit_by_id_locked(struct cuse_server *pcs, int id)
 }
 
 static int
-cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
-    caddr_t data, int fflag, struct thread *td)
+cuse_server_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
+    struct thread *td)
 {
 	struct cuse_server *pcs;
 	int error;
@@ -1082,7 +1071,8 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 	case CUSE_IOCTL_SYNC_COMMAND:
 
 		cuse_server_lock(pcs);
-		while ((pccmd = cuse_server_find_command(pcs, curthread)) != NULL) {
+		while ((pccmd = cuse_server_find_command(pcs, curthread)) !=
+		    NULL) {
 			/* send sync command */
 			pccmd->entered = NULL;
 			pccmd->error = *(int *)data;
@@ -1098,8 +1088,7 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 	case CUSE_IOCTL_ALLOC_UNIT:
 
 		cuse_server_lock(pcs);
-		n = cuse_alloc_unit_by_id_locked(pcs,
-		    CUSE_ID_DEFAULT(0));
+		n = cuse_alloc_unit_by_id_locked(pcs, CUSE_ID_DEFAULT(0));
 		cuse_server_unlock(pcs);
 
 		if (n < 0)
@@ -1156,8 +1145,8 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 			error = ENOMEM;
 			break;
 		}
-		error = cuse_server_alloc_memory(pcs,
-		    pai->alloc_nr, pai->page_count);
+		error = cuse_server_alloc_memory(
+		    pcs, pai->alloc_nr, pai->page_count);
 		break;
 
 	case CUSE_IOCTL_FREE_MEMORY:
@@ -1195,7 +1184,8 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 		if (pccmd != NULL) {
 			pcc = pccmd->client;
 			for (n = 0; n != CUSE_CMD_MAX; n++) {
-				pcc->cmds[n].sub.per_file_handle = *(uintptr_t *)data;
+				pcc->cmds[n].sub.per_file_handle = *(
+				    uintptr_t *)data;
 			}
 		} else {
 			error = ENXIO;
@@ -1284,15 +1274,15 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 		pccmd = cuse_server_find_command(pcs, curthread);
 
 		if (pccmd == NULL) {
-			error = ENXIO;	/* invalid request */
+			error = ENXIO; /* invalid request */
 		} else if (pchk->peer_ptr < CUSE_BUF_MIN_PTR) {
-			error = EFAULT;	/* NULL pointer */
+			error = EFAULT; /* NULL pointer */
 		} else if (pchk->peer_ptr < CUSE_BUF_MAX_PTR) {
-			error = cuse_server_ioctl_copy_locked(pcs, pccmd,
-			    pchk, cmd == CUSE_IOCTL_READ_DATA);
+			error = cuse_server_ioctl_copy_locked(
+			    pcs, pccmd, pchk, cmd == CUSE_IOCTL_READ_DATA);
 		} else {
-			error = cuse_server_data_copy_locked(pcs, pccmd,
-			    pchk, cmd == CUSE_IOCTL_READ_DATA);
+			error = cuse_server_data_copy_locked(
+			    pcs, pccmd, pchk, cmd == CUSE_IOCTL_READ_DATA);
 		}
 		cuse_server_unlock(pcs);
 		break;
@@ -1317,13 +1307,13 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 static int
 cuse_server_poll(struct cdev *dev, int events, struct thread *td)
 {
-	return (events & (POLLHUP | POLLPRI | POLLIN |
-	    POLLRDNORM | POLLOUT | POLLWRNORM));
+	return (events &
+	    (POLLHUP | POLLPRI | POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM));
 }
 
 static int
-cuse_server_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
-    vm_size_t size, struct vm_object **object, int nprot)
+cuse_server_mmap_single(struct cdev *dev, vm_ooffset_t *offset, vm_size_t size,
+    struct vm_object **object, int nprot)
 {
 	uint32_t page_nr = *offset / PAGE_SIZE;
 	uint32_t alloc_nr = page_nr / CUSE_ALLOC_PAGES_MAX;
@@ -1337,7 +1327,7 @@ cuse_server_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 
 	cuse_server_lock(pcs);
 	/* lookup memory structure */
-	TAILQ_FOREACH(mem, &pcs->hmem, entry) {
+	TAILQ_FOREACH (mem, &pcs->hmem, entry) {
 		if (mem->alloc_nr == alloc_nr)
 			break;
 	}
@@ -1473,7 +1463,7 @@ cuse_client_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	cuse_server_unlock(pcs);
 
 	if (error) {
-		devfs_clear_cdevpriv();	/* XXX bugfix */
+		devfs_clear_cdevpriv(); /* XXX bugfix */
 		return (error);
 	}
 	pccmd = &pcc->cmds[CUSE_CMD_OPEN];
@@ -1495,7 +1485,7 @@ cuse_client_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	cuse_cmd_unlock(pccmd);
 
 	if (error)
-		devfs_clear_cdevpriv();	/* XXX bugfix */
+		devfs_clear_cdevpriv(); /* XXX bugfix */
 
 	return (error);
 }
@@ -1536,10 +1526,9 @@ cuse_client_kqfilter_poll(struct cdev *dev, struct cuse_client *pcc)
 	int temp;
 
 	cuse_server_lock(pcs);
-	temp = (pcc->cflags & (CUSE_CLI_KNOTE_HAS_READ |
-	    CUSE_CLI_KNOTE_HAS_WRITE));
-	pcc->cflags &= ~(CUSE_CLI_KNOTE_NEED_READ |
-	    CUSE_CLI_KNOTE_NEED_WRITE);
+	temp = (pcc->cflags &
+	    (CUSE_CLI_KNOTE_HAS_READ | CUSE_CLI_KNOTE_HAS_WRITE));
+	pcc->cflags &= ~(CUSE_CLI_KNOTE_NEED_READ | CUSE_CLI_KNOTE_NEED_WRITE);
 	cuse_server_unlock(pcs);
 
 	if (temp != 0) {
@@ -1612,7 +1601,7 @@ cuse_client_read(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 	cuse_cmd_unlock(pccmd);
 
-	uio->uio_segflg = UIO_USERSPACE;/* restore segment flag */
+	uio->uio_segflg = UIO_USERSPACE; /* restore segment flag */
 
 	if (error == EWOULDBLOCK)
 		cuse_client_kqfilter_poll(dev, pcc);
@@ -1672,7 +1661,7 @@ cuse_client_write(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 	cuse_cmd_unlock(pccmd);
 
-	uio->uio_segflg = UIO_USERSPACE;/* restore segment flag */
+	uio->uio_segflg = UIO_USERSPACE; /* restore segment flag */
 
 	if (error == EWOULDBLOCK)
 		cuse_client_kqfilter_poll(dev, pcc);
@@ -1681,8 +1670,8 @@ cuse_client_write(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 int
-cuse_client_ioctl(struct cdev *dev, unsigned long cmd,
-    caddr_t data, int fflag, struct thread *td)
+cuse_client_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
+    struct thread *td)
 {
 	struct cuse_client_command *pccmd;
 	struct cuse_client *pcc;
@@ -1714,9 +1703,8 @@ cuse_client_ioctl(struct cdev *dev, unsigned long cmd,
 
 	cuse_server_lock(pcs);
 	cuse_client_send_command_locked(pccmd,
-	    (len == 0) ? *(long *)data : CUSE_BUF_MIN_PTR,
-	    (unsigned long)cmd, pcc->fflags,
-	    (fflag & O_NONBLOCK) ? IO_NDELAY : 0);
+	    (len == 0) ? *(long *)data : CUSE_BUF_MIN_PTR, (unsigned long)cmd,
+	    pcc->fflags, (fflag & O_NONBLOCK) ? IO_NDELAY : 0);
 
 	error = cuse_client_receive_command_locked(pccmd, data, len);
 	cuse_server_unlock(pcs);
@@ -1773,8 +1761,7 @@ cuse_client_poll(struct cdev *dev, int events, struct thread *td)
 		selrecord(td, &pcs->selinfo);
 
 	cuse_server_lock(pcs);
-	cuse_client_send_command_locked(pccmd,
-	    0, temp, pcc->fflags, IO_NDELAY);
+	cuse_client_send_command_locked(pccmd, 0, temp, pcc->fflags, IO_NDELAY);
 
 	error = cuse_client_receive_command_locked(pccmd, 0, 0);
 	cuse_server_unlock(pcs);
@@ -1796,13 +1783,13 @@ cuse_client_poll(struct cdev *dev, int events, struct thread *td)
 
 pollnval:
 	/* XXX many clients don't understand POLLNVAL */
-	return (events & (POLLHUP | POLLPRI | POLLIN |
-	    POLLRDNORM | POLLOUT | POLLWRNORM));
+	return (events &
+	    (POLLHUP | POLLPRI | POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM));
 }
 
 static int
-cuse_client_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
-    vm_size_t size, struct vm_object **object, int nprot)
+cuse_client_mmap_single(struct cdev *dev, vm_ooffset_t *offset, vm_size_t size,
+    struct vm_object **object, int nprot)
 {
 	uint32_t page_nr = *offset / PAGE_SIZE;
 	uint32_t alloc_nr = page_nr / CUSE_ALLOC_PAGES_MAX;
@@ -1819,7 +1806,7 @@ cuse_client_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 
 	cuse_server_lock(pcs);
 	/* lookup memory structure */
-	TAILQ_FOREACH(mem, &pcs->hmem, entry) {
+	TAILQ_FOREACH (mem, &pcs->hmem, entry) {
 		if (mem->alloc_nr == alloc_nr)
 			break;
 	}

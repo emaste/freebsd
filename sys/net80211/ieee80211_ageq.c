@@ -34,17 +34,15 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-
 #include <sys/socket.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_media.h>
 #include <net/ethernet.h>
-
+#include <net/if.h>
+#include <net/if_media.h>
+#include <net/if_var.h>
 #include <net80211/ieee80211_var.h>
 
 /*
@@ -55,7 +53,7 @@ ieee80211_ageq_init(struct ieee80211_ageq *aq, int maxlen, const char *name)
 {
 	memset(aq, 0, sizeof(*aq));
 	aq->aq_maxlen = maxlen;
-	IEEE80211_AGEQ_INIT(aq, name);		/* OS-dependent setup */
+	IEEE80211_AGEQ_INIT(aq, name); /* OS-dependent setup */
 }
 
 /*
@@ -66,7 +64,7 @@ void
 ieee80211_ageq_cleanup(struct ieee80211_ageq *aq)
 {
 	KASSERT(aq->aq_len == 0, ("%d frames on ageq", aq->aq_len));
-	IEEE80211_AGEQ_DESTROY(aq);		/* OS-dependent cleanup */
+	IEEE80211_AGEQ_DESTROY(aq); /* OS-dependent cleanup */
 }
 
 /*
@@ -78,7 +76,7 @@ static void
 ageq_mfree(struct mbuf *m)
 {
 	if (m->m_flags & M_ENCAP) {
-		struct ieee80211_node *ni = (void *) m->m_pkthdr.rcvif;
+		struct ieee80211_node *ni = (void *)m->m_pkthdr.rcvif;
 		ieee80211_free_node(ni);
 	}
 	m->m_nextpkt = NULL;
@@ -147,8 +145,7 @@ ieee80211_ageq_drain(struct ieee80211_ageq *aq)
  * Drain/reclaim frames associated with a specific node from an ageq.
  */
 void
-ieee80211_ageq_drain_node(struct ieee80211_ageq *aq,
-	struct ieee80211_node *ni)
+ieee80211_ageq_drain_node(struct ieee80211_ageq *aq, struct ieee80211_node *ni)
 {
 	ieee80211_ageq_mfree(ieee80211_ageq_remove(aq, ni));
 }
@@ -192,8 +189,7 @@ ieee80211_ageq_age(struct ieee80211_ageq *aq, int quanta)
  * by m_nextpkt.
  */
 struct mbuf *
-ieee80211_ageq_remove(struct ieee80211_ageq *aq,
-	struct ieee80211_node *match)
+ieee80211_ageq_remove(struct ieee80211_ageq *aq, struct ieee80211_node *match)
 {
 	struct mbuf *m, **prev, *ohead;
 	struct mbuf *head, **phead;
@@ -203,7 +199,7 @@ ieee80211_ageq_remove(struct ieee80211_ageq *aq,
 	prev = &aq->aq_head;
 	phead = &head;
 	while ((m = *prev) != NULL) {
-		if (match != NULL && m->m_pkthdr.rcvif != (void *) match) {
+		if (match != NULL && m->m_pkthdr.rcvif != (void *)match) {
 			prev = &m->m_nextpkt;
 			continue;
 		}
@@ -217,11 +213,11 @@ ieee80211_ageq_remove(struct ieee80211_ageq *aq,
 		 */
 		if (aq->aq_tail == m) {
 			KASSERT(m->m_nextpkt == NULL, ("not last"));
-			if (aq->aq_head == m) {		/* list empty */
+			if (aq->aq_head == m) { /* list empty */
 				KASSERT(aq->aq_len == 0,
 				    ("not empty, len %d", aq->aq_len));
 				aq->aq_tail = NULL;
-			} else {			/* must be one before */
+			} else { /* must be one before */
 				aq->aq_tail = (struct mbuf *)((uintptr_t)prev -
 				    offsetof(struct mbuf, m_nextpkt));
 			}
@@ -232,7 +228,7 @@ ieee80211_ageq_remove(struct ieee80211_ageq *aq,
 		*phead = m;
 		phead = &m->m_nextpkt;
 	}
-	if (head == ohead && aq->aq_head != NULL)	/* correct age */
+	if (head == ohead && aq->aq_head != NULL) /* correct age */
 		M_AGE_SET(aq->aq_head, M_AGE_GET(head));
 	IEEE80211_AGEQ_UNLOCK(aq);
 

@@ -38,22 +38,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/fbio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/resource.h>
-#include <machine/bus.h>
+#include <sys/rman.h>
+
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/pmap.h>
+
+#include <machine/bus.h>
 
 #include <dev/fdt/simplebus.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/ti/clk/ti_clk_clkctrl.h>
-#include <arm/ti/ti_omap4_cm.h>
 #include <arm/ti/ti_cpuid.h>
+#include <arm/ti/ti_omap4_cm.h>
 
 #if 0
 #define DPRINTF(dev, msg...) device_printf(dev, msg)
@@ -61,42 +62,40 @@ __FBSDID("$FreeBSD$");
 #define DPRINTF(dev, msg...)
 #endif
 
-#define L4LS_CLKCTRL_38 	2
-#define L4_WKUP_CLKCTRL_0	1
-#define NO_SPECIAL_REG		0
+#define L4LS_CLKCTRL_38 2
+#define L4_WKUP_CLKCTRL_0 1
+#define NO_SPECIAL_REG 0
 
 /* Documentation/devicetree/bindings/clock/ti-clkctrl.txt */
 
-#define TI_CLKCTRL_L4_WKUP	5
-#define TI_CLKCTRL_L4_SECURE	4
-#define TI_CLKCTRL_L4_PER	3
-#define TI_CLKCTRL_L4_CFG	2
-#define TI_CLKCTRL		1
-#define TI_CLKCTRL_END		0
+#define TI_CLKCTRL_L4_WKUP 5
+#define TI_CLKCTRL_L4_SECURE 4
+#define TI_CLKCTRL_L4_PER 3
+#define TI_CLKCTRL_L4_CFG 2
+#define TI_CLKCTRL 1
+#define TI_CLKCTRL_END 0
 
-static struct ofw_compat_data compat_data[] = {
-	{ "ti,clkctrl-l4-wkup",		TI_CLKCTRL_L4_WKUP },
-	{ "ti,clkctrl-l4-secure",	TI_CLKCTRL_L4_SECURE },
-	{ "ti,clkctrl-l4-per",		TI_CLKCTRL_L4_PER },
-	{ "ti,clkctrl-l4-cfg",		TI_CLKCTRL_L4_CFG },
-	{ "ti,clkctrl",			TI_CLKCTRL },
-	{ NULL,				TI_CLKCTRL_END }
-};
+static struct ofw_compat_data compat_data[] = { { "ti,clkctrl-l4-wkup",
+						    TI_CLKCTRL_L4_WKUP },
+	{ "ti,clkctrl-l4-secure", TI_CLKCTRL_L4_SECURE },
+	{ "ti,clkctrl-l4-per", TI_CLKCTRL_L4_PER },
+	{ "ti,clkctrl-l4-cfg", TI_CLKCTRL_L4_CFG },
+	{ "ti,clkctrl", TI_CLKCTRL }, { NULL, TI_CLKCTRL_END } };
 
 struct ti_clkctrl_softc {
-	device_t			dev;
+	device_t dev;
 
-	struct clkdom			*clkdom;
+	struct clkdom *clkdom;
 };
 
 static int ti_clkctrl_probe(device_t dev);
 static int ti_clkctrl_attach(device_t dev);
 static int ti_clkctrl_detach(device_t dev);
-int clkctrl_ofw_map(struct clkdom *clkdom, uint32_t ncells,
-    phandle_t *cells, struct clknode **clk);
-static int
-create_clkctrl(struct ti_clkctrl_softc *sc, cell_t *reg, uint32_t index, uint32_t reg_offset,
-    uint64_t parent_offset, const char *org_name, bool special_gdbclk_reg);
+int clkctrl_ofw_map(struct clkdom *clkdom, uint32_t ncells, phandle_t *cells,
+    struct clknode **clk);
+static int create_clkctrl(struct ti_clkctrl_softc *sc, cell_t *reg,
+    uint32_t index, uint32_t reg_offset, uint64_t parent_offset,
+    const char *org_name, bool special_gdbclk_reg);
 
 static int
 ti_clkctrl_probe(device_t dev)
@@ -117,7 +116,7 @@ ti_clkctrl_attach(device_t dev)
 {
 	struct ti_clkctrl_softc *sc;
 	phandle_t node;
-	cell_t	*reg;
+	cell_t *reg;
 	ssize_t numbytes_reg;
 	int num_reg, err, ti_clock_cells;
 	uint32_t index, reg_offset, reg_address;
@@ -130,23 +129,24 @@ ti_clkctrl_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 
 	/* Sanity check */
-	err = OF_searchencprop(node, "#clock-cells",
-		&ti_clock_cells, sizeof(ti_clock_cells));
+	err = OF_searchencprop(
+	    node, "#clock-cells", &ti_clock_cells, sizeof(ti_clock_cells));
 	if (err == -1) {
 		device_printf(sc->dev, "Failed to get #clock-cells\n");
 		return (ENXIO);
 	}
 
 	if (ti_clock_cells != 2) {
-		device_printf(sc->dev, "clock cells(%d) != 2\n",
-			ti_clock_cells);
+		device_printf(
+		    sc->dev, "clock cells(%d) != 2\n", ti_clock_cells);
 		return (ENXIO);
 	}
 
 	/* Grab the content of reg properties */
 	numbytes_reg = OF_getproplen(node, "reg");
 	if (numbytes_reg == 0) {
-		device_printf(sc->dev, "reg property empty - check your devicetree\n");
+		device_printf(
+		    sc->dev, "reg property empty - check your devicetree\n");
 		return (ENXIO);
 	}
 	num_reg = numbytes_reg / sizeof(cell_t);
@@ -168,7 +168,8 @@ ti_clkctrl_attach(device_t dev)
 	clk_parse_ofw_clk_name(sc->dev, node, &org_name);
 
 	/* Get parent range */
-	parent_offset = ti_omap4_cm_get_simplebus_base_host(device_get_parent(dev));
+	parent_offset = ti_omap4_cm_get_simplebus_base_host(
+	    device_get_parent(dev));
 
 	/* Check if this is a clkctrl with special registers like gpio */
 	switch (ti_chip()) {
@@ -195,41 +196,43 @@ ti_clkctrl_attach(device_t dev)
 
 	/* reg property has a pair of (base address, length) */
 	for (index = 0; index < num_reg; index += 2) {
-		for (reg_offset = 0; reg_offset < reg[index+1]; reg_offset += sizeof(cell_t)) {
-			err = create_clkctrl(sc, reg, index, reg_offset, parent_offset,
-			    org_name, false);
+		for (reg_offset = 0; reg_offset < reg[index + 1];
+		     reg_offset += sizeof(cell_t)) {
+			err = create_clkctrl(sc, reg, index, reg_offset,
+			    parent_offset, org_name, false);
 			if (err)
 				goto cleanup;
 
-			/* Create special clkctrl for GDBCLK in GPIO registers */
+			/* Create special clkctrl for GDBCLK in GPIO registers
+			 */
 			switch (special_reg) {
 			case NO_SPECIAL_REG:
 				break;
 			case L4LS_CLKCTRL_38:
-				reg_address = reg[index] + reg_offset-reg[0];
+				reg_address = reg[index] + reg_offset - reg[0];
 				if (reg_address == 0x74 ||
 				    reg_address == 0x78 ||
-				    reg_address == 0x7C)
-				{
-					err = create_clkctrl(sc, reg, index, reg_offset,
-					    parent_offset, org_name, true);
+				    reg_address == 0x7C) {
+					err = create_clkctrl(sc, reg, index,
+					    reg_offset, parent_offset, org_name,
+					    true);
 					if (err)
 						goto cleanup;
 				}
 				break;
 			case L4_WKUP_CLKCTRL_0:
 				reg_address = reg[index] + reg_offset - reg[0];
-				if (reg_address == 0x8)
-				{
-					err = create_clkctrl(sc, reg, index, reg_offset,
-					    parent_offset, org_name, true);
+				if (reg_address == 0x8) {
+					err = create_clkctrl(sc, reg, index,
+					    reg_offset, parent_offset, org_name,
+					    true);
 					if (err)
 						goto cleanup;
 				}
 				break;
 			} /* switch (special_reg) */
-		} /* inner for */
-	} /* for */
+		}	  /* inner for */
+	}		  /* for */
 
 	err = clkdom_finit(sc->clkdom);
 	if (err) {
@@ -257,8 +260,9 @@ ti_clkctrl_detach(device_t dev)
 
 /* modified version of default mapper from clk.c */
 int
-clkctrl_ofw_map(struct clkdom *clkdom, uint32_t ncells,
-    phandle_t *cells, struct clknode **clk) {
+clkctrl_ofw_map(struct clkdom *clkdom, uint32_t ncells, phandle_t *cells,
+    struct clknode **clk)
+{
 	if (ncells == 0)
 		*clk = clknode_find_by_id(clkdom, 1);
 	else if (ncells == 1)
@@ -268,11 +272,10 @@ clkctrl_ofw_map(struct clkdom *clkdom, uint32_t ncells,
 		 * All other registers has an offset of 4 from each other.
 		 */
 		if (cells[1])
-			*clk = clknode_find_by_id(clkdom, cells[0]+1);
+			*clk = clknode_find_by_id(clkdom, cells[0] + 1);
 		else
 			*clk = clknode_find_by_id(clkdom, cells[0]);
-	}
-	else
+	} else
 		return (ERANGE);
 
 	if (*clk == NULL)
@@ -282,8 +285,10 @@ clkctrl_ofw_map(struct clkdom *clkdom, uint32_t ncells,
 }
 
 static int
-create_clkctrl(struct ti_clkctrl_softc *sc, cell_t *reg, uint32_t index, uint32_t reg_offset,
-    uint64_t parent_offset, const char *org_name, bool special_gdbclk_reg) {
+create_clkctrl(struct ti_clkctrl_softc *sc, cell_t *reg, uint32_t index,
+    uint32_t reg_offset, uint64_t parent_offset, const char *org_name,
+    bool special_gdbclk_reg)
+{
 	struct ti_clk_clkctrl_def def;
 	char *name;
 	size_t name_len;
@@ -307,12 +312,11 @@ create_clkctrl(struct ti_clkctrl_softc *sc, cell_t *reg, uint32_t index, uint32_
 	def.gdbclk = special_gdbclk_reg;
 
 	/* Make up an uniq name in the namespace for each clkctrl */
-	snprintf(name, name_len, "%s_%x",
-		org_name, def.clkdef.id);
-	def.clkdef.name = (const char *) name;
+	snprintf(name, name_len, "%s_%x", org_name, def.clkdef.id);
+	def.clkdef.name = (const char *)name;
 
-	DPRINTF(sc->dev, "ti_clkctrl_attach: reg[%d]: %s %x\n",
-		index, def.clkdef.name, def.clkdef.id);
+	DPRINTF(sc->dev, "ti_clkctrl_attach: reg[%d]: %s %x\n", index,
+	    def.clkdef.name, def.clkdef.id);
 
 	/* No parent name */
 	def.clkdef.parent_cnt = 0;
@@ -324,8 +328,8 @@ create_clkctrl(struct ti_clkctrl_softc *sc, cell_t *reg, uint32_t index, uint32_
 	err = ti_clknode_clkctrl_register(sc->clkdom, &def);
 	if (err) {
 		DPRINTF(sc->dev,
-			"ti_clknode_clkctrl_register[%d:%d] failed %x\n",
-			index, reg_offset, err);
+		    "ti_clknode_clkctrl_register[%d:%d] failed %x\n", index,
+		    reg_offset, err);
 		err = ENXIO;
 	}
 	OF_prop_free(name);
@@ -334,9 +338,9 @@ create_clkctrl(struct ti_clkctrl_softc *sc, cell_t *reg, uint32_t index, uint32_
 
 static device_method_t ti_clkctrl_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ti_clkctrl_probe),
-	DEVMETHOD(device_attach,	ti_clkctrl_attach),
-	DEVMETHOD(device_detach,	ti_clkctrl_detach),
+	DEVMETHOD(device_probe, ti_clkctrl_probe),
+	DEVMETHOD(device_attach, ti_clkctrl_attach),
+	DEVMETHOD(device_detach, ti_clkctrl_detach),
 
 	DEVMETHOD_END
 };
@@ -347,6 +351,6 @@ DEFINE_CLASS_0(ti_clkctrl, ti_clkctrl_driver, ti_clkctrl_methods,
 static devclass_t ti_clkctrl_devclass;
 
 EARLY_DRIVER_MODULE(ti_clkctrl, simplebus, ti_clkctrl_driver,
-ti_clkctrl_devclass, 0, 0, BUS_PASS_BUS+BUS_PASS_ORDER_MIDDLE);
+    ti_clkctrl_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 MODULE_VERSION(ti_clkctrl, 1);

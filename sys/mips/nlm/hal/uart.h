@@ -32,70 +32,70 @@
  */
 
 #ifndef __XLP_HAL_UART_H__
-#define	__XLP_HAL_UART_H__
+#define __XLP_HAL_UART_H__
 
 /* UART Specific registers */
-#define	UART_RX_DATA		0x00
-#define	UART_TX_DATA		0x00
+#define UART_RX_DATA 0x00
+#define UART_TX_DATA 0x00
 
-#define	UART_INT_EN		0x01
-#define	UART_INT_ID		0x02
-#define	UART_FIFO_CTL		0x02
-#define	UART_LINE_CTL		0x03
-#define	UART_MODEM_CTL		0x04
-#define	UART_LINE_STS		0x05
-#define	UART_MODEM_STS		0x06
+#define UART_INT_EN 0x01
+#define UART_INT_ID 0x02
+#define UART_FIFO_CTL 0x02
+#define UART_LINE_CTL 0x03
+#define UART_MODEM_CTL 0x04
+#define UART_LINE_STS 0x05
+#define UART_MODEM_STS 0x06
 
-#define	UART_DIVISOR0		0x00
-#define	UART_DIVISOR1		0x01
+#define UART_DIVISOR0 0x00
+#define UART_DIVISOR1 0x01
 
-#define	BASE_BAUD		(XLP_IO_CLK/16)
-#define	BAUD_DIVISOR(baud)	(BASE_BAUD / baud)
+#define BASE_BAUD (XLP_IO_CLK / 16)
+#define BAUD_DIVISOR(baud) (BASE_BAUD / baud)
 
 /* LCR mask values */
-#define	LCR_5BITS		0x00
-#define	LCR_6BITS		0x01
-#define	LCR_7BITS		0x02
-#define	LCR_8BITS		0x03
-#define	LCR_STOPB		0x04
-#define	LCR_PENAB		0x08
-#define	LCR_PODD		0x00
-#define	LCR_PEVEN		0x10
-#define	LCR_PONE		0x20
-#define	LCR_PZERO		0x30
-#define	LCR_SBREAK		0x40
-#define	LCR_EFR_ENABLE		0xbf
-#define	LCR_DLAB		0x80
+#define LCR_5BITS 0x00
+#define LCR_6BITS 0x01
+#define LCR_7BITS 0x02
+#define LCR_8BITS 0x03
+#define LCR_STOPB 0x04
+#define LCR_PENAB 0x08
+#define LCR_PODD 0x00
+#define LCR_PEVEN 0x10
+#define LCR_PONE 0x20
+#define LCR_PZERO 0x30
+#define LCR_SBREAK 0x40
+#define LCR_EFR_ENABLE 0xbf
+#define LCR_DLAB 0x80
 
 /* MCR mask values */
-#define	MCR_DTR			0x01
-#define	MCR_RTS			0x02
-#define	MCR_DRS			0x04
-#define	MCR_IE			0x08
-#define	MCR_LOOPBACK		0x10
+#define MCR_DTR 0x01
+#define MCR_RTS 0x02
+#define MCR_DRS 0x04
+#define MCR_IE 0x08
+#define MCR_LOOPBACK 0x10
 
 /* FCR mask values */
-#define	FCR_RCV_RST		0x02
-#define	FCR_XMT_RST		0x04
-#define	FCR_RX_LOW		0x00
-#define	FCR_RX_MEDL		0x40
-#define	FCR_RX_MEDH		0x80
-#define	FCR_RX_HIGH		0xc0
+#define FCR_RCV_RST 0x02
+#define FCR_XMT_RST 0x04
+#define FCR_RX_LOW 0x00
+#define FCR_RX_MEDL 0x40
+#define FCR_RX_MEDH 0x80
+#define FCR_RX_HIGH 0xc0
 
 /* IER mask values */
-#define	IER_ERXRDY		0x1
-#define	IER_ETXRDY		0x2
-#define	IER_ERLS		0x4
-#define	IER_EMSC		0x8
+#define IER_ERXRDY 0x1
+#define IER_ETXRDY 0x2
+#define IER_ERLS 0x4
+#define IER_EMSC 0x8
 
 #if !defined(LOCORE) && !defined(__ASSEMBLY__)
 
-#define	nlm_read_uart_reg(b, r)		nlm_read_reg(b, r)
-#define	nlm_write_uart_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define	nlm_get_uart_pcibase(node, inst)	\
-		nlm_pcicfg_base(XLP_IO_UART_OFFSET(node, inst))
-#define	nlm_get_uart_regbase(node, inst)	\
-			(nlm_get_uart_pcibase(node, inst) + XLP_IO_PCI_HDRSZ)
+#define nlm_read_uart_reg(b, r) nlm_read_reg(b, r)
+#define nlm_write_uart_reg(b, r, v) nlm_write_reg(b, r, v)
+#define nlm_get_uart_pcibase(node, inst) \
+	nlm_pcicfg_base(XLP_IO_UART_OFFSET(node, inst))
+#define nlm_get_uart_regbase(node, inst) \
+	(nlm_get_uart_pcibase(node, inst) + XLP_IO_PCI_HDRSZ)
 
 static inline void
 nlm_uart_set_baudrate(uint64_t base, int baud)
@@ -106,10 +106,9 @@ nlm_uart_set_baudrate(uint64_t base, int baud)
 
 	/* enable divisor register, and write baud values */
 	nlm_write_uart_reg(base, UART_LINE_CTL, lcr | (1 << 7));
-	nlm_write_uart_reg(base, UART_DIVISOR0,
-			(BAUD_DIVISOR(baud) & 0xff));
-	nlm_write_uart_reg(base, UART_DIVISOR1,
-			((BAUD_DIVISOR(baud) >> 8) & 0xff));
+	nlm_write_uart_reg(base, UART_DIVISOR0, (BAUD_DIVISOR(baud) & 0xff));
+	nlm_write_uart_reg(
+	    base, UART_DIVISOR1, ((BAUD_DIVISOR(baud) >> 8) & 0xff));
 
 	/* restore default lcr */
 	nlm_write_uart_reg(base, UART_LINE_CTL, lcr);
@@ -140,7 +139,7 @@ nlm_uart_inbyte(uint64_t base)
 			data = 0;
 			break;
 		}
-		if (lsr & 0x01) {	/* Rx data */
+		if (lsr & 0x01) { /* Rx data */
 			data = nlm_read_uart_reg(base, UART_RX_DATA);
 			break;
 		}
@@ -150,8 +149,8 @@ nlm_uart_inbyte(uint64_t base)
 }
 
 static inline int
-nlm_uart_init(uint64_t base, int baud, int databits, int stopbits,
-	int parity, int int_en, int loopback)
+nlm_uart_init(uint64_t base, int baud, int databits, int stopbits, int parity,
+    int int_en, int loopback)
 {
 	uint32_t lcr;
 

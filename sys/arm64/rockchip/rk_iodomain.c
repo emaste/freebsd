@@ -35,50 +35,49 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 
+#include <dev/extres/regulator/regulator.h>
+#include <dev/extres/syscon/syscon.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/syscon/syscon.h>
-#include <dev/extres/regulator/regulator.h>
-
 #include "syscon_if.h"
 
-#define	RK3288_GRF_IO_VSEL		0x380
-#define	RK3399_GRF_IO_VSEL		0xe640
-#define	RK3399_PMUGRF_SOC_CON0		0x180
+#define RK3288_GRF_IO_VSEL 0x380
+#define RK3399_GRF_IO_VSEL 0xe640
+#define RK3399_PMUGRF_SOC_CON0 0x180
 
 struct rk_iodomain_supply {
-	char		*name;
-	uint32_t	bit;
+	char *name;
+	uint32_t bit;
 };
 
 struct rk_iodomain_softc;
 
 struct rk_iodomain_conf {
-	struct rk_iodomain_supply	*supply;
-	int				nsupply;
-	uint32_t			grf_reg;
-	void				(*init)(struct rk_iodomain_softc *sc);
+	struct rk_iodomain_supply *supply;
+	int nsupply;
+	uint32_t grf_reg;
+	void (*init)(struct rk_iodomain_softc *sc);
 };
 
 struct rk_iodomain_softc {
-	device_t			dev;
-	struct syscon			*grf;
-	phandle_t			node;
-	struct rk_iodomain_conf		*conf;
+	device_t dev;
+	struct syscon *grf;
+	phandle_t node;
+	struct rk_iodomain_conf *conf;
 };
 
 static struct rk_iodomain_supply rk3288_supply[] = {
-	{"lcdc-supply", 0},
-	{"dvp-supply", 1},
-	{"flash0-supply", 2},
-	{"flash1-supply", 3},
-	{"wifi-supply", 4},
-	{"bb-supply", 5},
-	{"audio-supply", 6},
-	{"sdcard-supply", 7},
-	{"gpio30-supply", 8},
-	{"gpio1830-supply", 9},
+	{ "lcdc-supply", 0 },
+	{ "dvp-supply", 1 },
+	{ "flash0-supply", 2 },
+	{ "flash1-supply", 3 },
+	{ "wifi-supply", 4 },
+	{ "bb-supply", 5 },
+	{ "audio-supply", 6 },
+	{ "sdcard-supply", 7 },
+	{ "gpio30-supply", 8 },
+	{ "gpio1830-supply", 9 },
 };
 
 static struct rk_iodomain_conf rk3288_conf = {
@@ -88,10 +87,10 @@ static struct rk_iodomain_conf rk3288_conf = {
 };
 
 static struct rk_iodomain_supply rk3399_supply[] = {
-	{"bt656-supply", 0},
-	{"audio-supply", 1},
-	{"sdmmc-supply", 2},
-	{"gpio1830-supply", 3},
+	{ "bt656-supply", 0 },
+	{ "audio-supply", 1 },
+	{ "sdmmc-supply", 2 },
+	{ "gpio1830-supply", 3 },
 };
 
 static struct rk_iodomain_conf rk3399_conf = {
@@ -101,7 +100,7 @@ static struct rk_iodomain_conf rk3399_conf = {
 };
 
 static struct rk_iodomain_supply rk3399_pmu_supply[] = {
-	{"pmu1830-supply", 9},
+	{ "pmu1830-supply", 9 },
 };
 
 static void rk3399_pmu_init(struct rk_iodomain_softc *sc);
@@ -113,10 +112,11 @@ static struct rk_iodomain_conf rk3399_pmu_conf = {
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"rockchip,rk3288-io-voltage-domain", (uintptr_t)&rk3288_conf},
-	{"rockchip,rk3399-io-voltage-domain", (uintptr_t)&rk3399_conf},
-	{"rockchip,rk3399-pmu-io-voltage-domain", (uintptr_t)&rk3399_pmu_conf},
-	{NULL,             0}
+	{ "rockchip,rk3288-io-voltage-domain", (uintptr_t)&rk3288_conf },
+	{ "rockchip,rk3399-io-voltage-domain", (uintptr_t)&rk3399_conf },
+	{ "rockchip,rk3399-pmu-io-voltage-domain",
+	    (uintptr_t)&rk3399_pmu_conf },
+	{ NULL, 0 }
 };
 
 static void
@@ -124,7 +124,7 @@ rk3399_pmu_init(struct rk_iodomain_softc *sc)
 {
 
 	SYSCON_WRITE_4(sc->grf, RK3399_PMUGRF_SOC_CON0,
-	    (1 << 8) | (1 << (8 + 16)));	/* set pmu1830_volsel */
+	    (1 << 8) | (1 << (8 + 16))); /* set pmu1830_volsel */
 }
 
 static void
@@ -138,16 +138,17 @@ rk_iodomain_set(struct rk_iodomain_softc *sc)
 	for (i = 0; i < sc->conf->nsupply; i++) {
 		mask |= (1 << sc->conf->supply[i].bit) << 16;
 		if (regulator_get_by_ofw_property(sc->dev, sc->node,
-		    sc->conf->supply[i].name, &supply) == 0) {
+			sc->conf->supply[i].name, &supply) == 0) {
 			if (regulator_get_voltage(supply, &uvolt) == 0) {
 				if (uvolt == 1800000)
 					reg |= (1 << sc->conf->supply[i].bit);
 				else if (uvolt != 3000000)
 					device_printf(sc->dev,
-					  "%s regulator is at %duV, ignoring\n",
-					  sc->conf->supply[i].name, uvolt);
+					    "%s regulator is at %duV, ignoring\n",
+					    sc->conf->supply[i].name, uvolt);
 			} else
-				device_printf(sc->dev, "Cannot get current "
+				device_printf(sc->dev,
+				    "Cannot get current "
 				    "voltage for regulator %s\n",
 				    sc->conf->supply[i].name);
 		}
@@ -155,7 +156,7 @@ rk_iodomain_set(struct rk_iodomain_softc *sc)
 
 	SYSCON_WRITE_4(sc->grf, sc->conf->grf_reg, reg | mask);
 	if (sc->conf->init != NULL)
-		 sc->conf->init(sc);
+		sc->conf->init(sc);
 }
 
 static int
@@ -188,7 +189,9 @@ rk_iodomain_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->conf = (struct rk_iodomain_conf *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	sc->conf = (struct rk_iodomain_conf *)ofw_bus_search_compatible(
+	    dev, compat_data)
+		       ->ocd_data;
 	rk_iodomain_set(sc);
 
 	return (0);
@@ -203,9 +206,9 @@ rk_iodomain_detach(device_t dev)
 
 static device_method_t rk_iodomain_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		rk_iodomain_probe),
-	DEVMETHOD(device_attach,	rk_iodomain_attach),
-	DEVMETHOD(device_detach,	rk_iodomain_detach),
+	DEVMETHOD(device_probe, rk_iodomain_probe),
+	DEVMETHOD(device_attach, rk_iodomain_attach),
+	DEVMETHOD(device_detach, rk_iodomain_detach),
 
 	DEVMETHOD_END
 };
@@ -219,4 +222,4 @@ static driver_t rk_iodomain_driver = {
 static devclass_t rk_iodomain_devclass;
 
 EARLY_DRIVER_MODULE(rk_iodomain, simplebus, rk_iodomain_driver,
-  rk_iodomain_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+    rk_iodomain_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

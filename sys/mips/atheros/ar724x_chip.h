@@ -28,8 +28,8 @@
 
 /* $FreeBSD$ */
 
-#ifndef	__AR724X_CHIP_H__
-#define	__AR724X_CHIP_H__
+#ifndef __AR724X_CHIP_H__
+#define __AR724X_CHIP_H__
 
 extern struct ar71xx_cpu_def ar724x_chip_def;
 

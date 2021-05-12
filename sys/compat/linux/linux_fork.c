@@ -43,8 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/racct.h>
 #include <sys/sched.h>
-#include <sys/syscallsubr.h>
 #include <sys/sx.h>
+#include <sys/syscallsubr.h>
 #include <sys/umtx.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
@@ -191,8 +191,8 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 		em->child_clear_tid = NULL;
 
 	if (args->flags & LINUX_CLONE_PARENT_SETTID) {
-		error = copyout(&p2->p_pid, args->parent_tidptr,
-		    sizeof(p2->p_pid));
+		error = copyout(
+		    &p2->p_pid, args->parent_tidptr, sizeof(p2->p_pid));
 		if (error)
 			linux_msg(td, "copyout p_pid failed!");
 	}
@@ -243,8 +243,8 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	int error;
 
 	LINUX_CTR4(clone_thread, "thread(%d) flags %x ptid %p ctid %p",
-	    td->td_tid, (unsigned)args->flags,
-	    args->parent_tidptr, args->child_tidptr);
+	    td->td_tid, (unsigned)args->flags, args->parent_tidptr,
+	    args->child_tidptr);
 
 	if ((args->flags & LINUX_CLONE_PARENT) != 0)
 		return (EINVAL);
@@ -328,8 +328,8 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	    td->td_tid, newtd->td_tid);
 
 	if (args->flags & LINUX_CLONE_PARENT_SETTID) {
-		error = copyout(&newtd->td_tid, args->parent_tidptr,
-		    sizeof(newtd->td_tid));
+		error = copyout(
+		    &newtd->td_tid, args->parent_tidptr, sizeof(newtd->td_tid));
 		if (error)
 			linux_msg(td, "clone_thread: copyout td_tid failed!");
 	}
@@ -386,11 +386,12 @@ linux_exit(struct thread *td, struct linux_exit_args *args)
 	 */
 	kern_thr_exit(td);
 	exit1(td, args->rval, 0);
-		/* NOTREACHED */
+	/* NOTREACHED */
 }
 
 int
-linux_set_tid_address(struct thread *td, struct linux_set_tid_address_args *args)
+linux_set_tid_address(
+    struct thread *td, struct linux_set_tid_address_args *args)
 {
 	struct linux_emuldata *em;
 
@@ -401,8 +402,8 @@ linux_set_tid_address(struct thread *td, struct linux_set_tid_address_args *args
 
 	td->td_retval[0] = em->em_tid;
 
-	LINUX_CTR3(set_tid_address, "tidptr(%d) %p, returns %d",
-	    em->em_tid, args->tidptr, td->td_retval[0]);
+	LINUX_CTR3(set_tid_address, "tidptr(%d) %p, returns %d", em->em_tid,
+	    args->tidptr, td->td_retval[0]);
 
 	return (0);
 }
@@ -425,8 +426,8 @@ linux_thread_detach(struct thread *td)
 	child_clear_tid = em->child_clear_tid;
 
 	if (child_clear_tid != NULL) {
-		LINUX_CTR2(thread_detach, "thread(%d) %p",
-		    em->em_tid, child_clear_tid);
+		LINUX_CTR2(thread_detach, "thread(%d) %p", em->em_tid,
+		    child_clear_tid);
 
 		error = suword32(child_clear_tid, 0);
 		if (error != 0)
@@ -434,7 +435,7 @@ linux_thread_detach(struct thread *td)
 
 		cup.uaddr = child_clear_tid;
 		cup.op = LINUX_FUTEX_WAKE;
-		cup.val = 1;		/* wake one */
+		cup.val = 1; /* wake one */
 		cup.timeout = NULL;
 		cup.uaddr2 = NULL;
 		cup.val3 = 0;

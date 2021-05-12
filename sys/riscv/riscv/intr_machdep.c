@@ -38,11 +38,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/module.h>
-#include <sys/cpuset.h>
-#include <sys/interrupt.h>
 #include <sys/smp.h>
 
 #include <machine/bus.h>
@@ -53,9 +53,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/sbi.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #ifdef SMP
 #include <machine/smp.h>
@@ -64,8 +64,8 @@ __FBSDID("$FreeBSD$");
 void intr_irq_handler(struct trapframe *tf);
 
 struct intc_irqsrc {
-	struct intr_irqsrc	isrc;
-	u_int			irq;
+	struct intr_irqsrc isrc;
+	u_int irq;
 };
 
 struct intc_irqsrc isrcs[INTC_NIRQS];
@@ -116,7 +116,7 @@ riscv_unmask_irq(void *source)
 
 int
 riscv_setup_intr(const char *name, driver_filter_t *filt,
-    void (*handler)(void*), void *arg, int irq, int flags, void **cookiep)
+    void (*handler)(void *), void *arg, int irq, int flags, void **cookiep)
 {
 	struct intr_irqsrc *isrc;
 	int error;
@@ -130,11 +130,11 @@ riscv_setup_intr(const char *name, driver_filter_t *filt,
 		    riscv_mask_irq, riscv_unmask_irq, NULL, NULL, "int%d", irq);
 		if (error)
 			return (error);
-		riscv_unmask_irq((void*)(uintptr_t)irq);
+		riscv_unmask_irq((void *)(uintptr_t)irq);
 	}
 
-	error = intr_event_add_handler(isrc->isrc_event, name,
-	    filt, handler, arg, intr_priority(flags), flags, cookiep);
+	error = intr_event_add_handler(isrc->isrc_event, name, filt, handler,
+	    arg, intr_priority(flags), flags, cookiep);
 	if (error) {
 		printf("Failed to setup intr: %d\n", irq);
 		return (error);
@@ -159,7 +159,7 @@ riscv_cpu_intr(struct trapframe *frame)
 	int active_irq;
 
 	KASSERT((frame->tf_scause & SCAUSE_INTR) != 0,
-		("riscv_cpu_intr: wrong frame passed"));
+	    ("riscv_cpu_intr: wrong frame passed"));
 
 	active_irq = frame->tf_scause & SCAUSE_CODE;
 
@@ -243,7 +243,7 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 	CTR1(KTR_SMP, "ipi_selected: ipi: %x", ipi);
 
 	mask = 0;
-	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH (pc, &cpuhead, pc_allcpu) {
 		if (CPU_ISSET(pc->pc_cpuid, &cpus)) {
 			CTR3(KTR_SMP, "%s: pc: %p, ipi: %x\n", __func__, pc,
 			    ipi);
@@ -264,8 +264,8 @@ intc_init(void *dummy __unused)
 
 	for (i = 0; i < INTC_NIRQS; i++) {
 		isrcs[i].irq = i;
-		error = intr_isrc_register(&isrcs[i].isrc, NULL,
-		    0, "intc,%u", i);
+		error = intr_isrc_register(
+		    &isrcs[i].isrc, NULL, 0, "intc,%u", i);
 		if (error != 0)
 			printf("Can't register interrupt %d\n", i);
 	}

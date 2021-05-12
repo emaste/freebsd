@@ -36,23 +36,23 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/sx.h>
 #include <sys/bio.h>
-#include <sys/sbuf.h>
-#include <sys/sysctl.h>
-#include <sys/malloc.h>
-#include <sys/time.h>
-#include <sys/proc.h>
+#include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/sbuf.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/time.h>
+
 #include <vm/uma.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-
 #include <geom/virstor/g_virstor.h>
 #include <geom/virstor/g_virstor_md.h>
 
@@ -70,12 +70,12 @@ static g_ctl_destroy_geom_t g_virstor_destroy_geom;
 
 /* Declare & initialize class structure ("geom class") */
 struct g_class g_virstor_class = {
-	.name =		G_VIRSTOR_CLASS_NAME,
-	.version =	G_VERSION,
-	.init =		g_virstor_init,
-	.fini =		g_virstor_fini,
-	.taste =	g_virstor_taste,
-	.ctlreq =	g_virstor_config,
+	.name = G_VIRSTOR_CLASS_NAME,
+	.version = G_VERSION,
+	.init = g_virstor_init,
+	.fini = g_virstor_fini,
+	.taste = g_virstor_taste,
+	.ctlreq = g_virstor_config,
 	.destroy_geom = g_virstor_destroy_geom
 	/* The .dumpconf and the rest are only usable for a geom instance, so
 	 * they will be set when such instance is created. */
@@ -83,13 +83,12 @@ struct g_class g_virstor_class = {
 
 /* Declare sysctl's and loader tunables */
 SYSCTL_DECL(_kern_geom);
-static SYSCTL_NODE(_kern_geom, OID_AUTO, virstor,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "GEOM_GVIRSTOR information");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, virstor, CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, "GEOM_GVIRSTOR information");
 
 static u_int g_virstor_debug = 2; /* XXX: lower to 2 when released to public */
-SYSCTL_UINT(_kern_geom_virstor, OID_AUTO, debug, CTLFLAG_RWTUN, &g_virstor_debug,
-    0, "Debug level (2=production, 5=normal, 15=excessive)");
+SYSCTL_UINT(_kern_geom_virstor, OID_AUTO, debug, CTLFLAG_RWTUN,
+    &g_virstor_debug, 0, "Debug level (2=production, 5=normal, 15=excessive)");
 
 static u_int g_virstor_chunk_watermark = 100;
 SYSCTL_UINT(_kern_geom_virstor, OID_AUTO, chunk_watermark, CTLFLAG_RWTUN,
@@ -104,19 +103,18 @@ SYSCTL_UINT(_kern_geom_virstor, OID_AUTO, component_watermark, CTLFLAG_RWTUN,
 static int read_metadata(struct g_consumer *, struct g_virstor_metadata *);
 static void write_metadata(struct g_consumer *, struct g_virstor_metadata *);
 static int clear_metadata(struct g_virstor_component *);
-static int add_provider_to_geom(struct g_virstor_softc *, struct g_provider *,
-    struct g_virstor_metadata *);
-static struct g_geom *create_virstor_geom(struct g_class *,
-    struct g_virstor_metadata *);
+static int add_provider_to_geom(
+    struct g_virstor_softc *, struct g_provider *, struct g_virstor_metadata *);
+static struct g_geom *create_virstor_geom(
+    struct g_class *, struct g_virstor_metadata *);
 static void virstor_check_and_run(struct g_virstor_softc *);
 static u_int virstor_valid_components(struct g_virstor_softc *);
-static int virstor_geom_destroy(struct g_virstor_softc *, boolean_t,
-    boolean_t);
-static void remove_component(struct g_virstor_softc *,
-    struct g_virstor_component *, boolean_t);
+static int virstor_geom_destroy(struct g_virstor_softc *, boolean_t, boolean_t);
+static void remove_component(
+    struct g_virstor_softc *, struct g_virstor_component *, boolean_t);
 static void bioq_dismantle(struct bio_queue_head *);
-static int allocate_chunk(struct g_virstor_softc *,
-    struct g_virstor_component **, u_int *, u_int *);
+static int allocate_chunk(
+    struct g_virstor_softc *, struct g_virstor_component **, u_int *, u_int *);
 static void delay_destroy_consumer(void *, int);
 static void dump_component(struct g_virstor_component *comp);
 #if 0
@@ -126,11 +124,11 @@ static void dump_me(struct virstor_map_entry *me, unsigned int nr);
 static void virstor_ctl_stop(struct gctl_req *, struct g_class *);
 static void virstor_ctl_add(struct gctl_req *, struct g_class *);
 static void virstor_ctl_remove(struct gctl_req *, struct g_class *);
-static struct g_virstor_softc * virstor_find_geom(const struct g_class *,
-    const char *);
+static struct g_virstor_softc *virstor_find_geom(
+    const struct g_class *, const char *);
 static void update_metadata(struct g_virstor_softc *);
-static void fill_metadata(struct g_virstor_softc *, struct g_virstor_metadata *,
-    u_int, u_int);
+static void fill_metadata(
+    struct g_virstor_softc *, struct g_virstor_metadata *, u_int, u_int);
 
 static void g_virstor_orphan(struct g_consumer *);
 static int g_virstor_access(struct g_provider *, int, int, int);
@@ -266,7 +264,7 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 	 * them all at once. */
 	struct g_virstor_softc *sc;
 	int *hardcode, *nargs;
-	const char *geom_name;	/* geom to add a component to */
+	const char *geom_name; /* geom to add a component to */
 	struct g_consumer *fcp;
 	struct g_virstor_bio_q *bq;
 	u_int added;
@@ -291,7 +289,8 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 	/* Find "our" geom */
 	geom_name = gctl_get_asciiparam(req, "arg0");
 	if (geom_name == NULL) {
-		gctl_error(req, "Error fetching argument '%s'", "geom_name (arg0)");
+		gctl_error(
+		    req, "Error fetching argument '%s'", "geom_name (arg0)");
 		return;
 	}
 	sc = virstor_find_geom(cp, geom_name);
@@ -301,8 +300,10 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 	}
 
 	if (virstor_valid_components(sc) != sc->n_components) {
-		LOG_MSG(LVL_ERROR, "Cannot add components to incomplete "
-		    "virstor %s", sc->geom->name);
+		LOG_MSG(LVL_ERROR,
+		    "Cannot add components to incomplete "
+		    "virstor %s",
+		    sc->geom->name);
 		gctl_error(req, "Virstor %s is incomplete", sc->geom->name);
 		return;
 	}
@@ -321,10 +322,13 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 		snprintf(aname, sizeof aname, "arg%d", i);
 		pp = gctl_get_provider(req, aname);
 		if (pp == NULL) {
-			/* This is the most common error so be verbose about it */
+			/* This is the most common error so be verbose about it
+			 */
 			if (added != 0) {
-				gctl_error(req, "Invalid provider. (added"
-				    " %u components)", added);
+				gctl_error(req,
+				    "Invalid provider. (added"
+				    " %u components)",
+				    added);
 				update_metadata(sc);
 			}
 			g_topology_unlock();
@@ -338,8 +342,8 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 		}
 		error = g_attach(cp, pp);
 		if (error != 0) {
-			gctl_error(req, "Cannot attach a consumer to %s",
-			    pp->name);
+			gctl_error(
+			    req, "Cannot attach a consumer to %s", pp->name);
 			g_destroy_consumer(cp);
 			g_topology_unlock();
 			return;
@@ -355,15 +359,15 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 			}
 		}
 		if (fcp->provider->sectorsize != pp->sectorsize) {
-			gctl_error(req, "Sector size doesn't fit for %s",
-			    pp->name);
+			gctl_error(
+			    req, "Sector size doesn't fit for %s", pp->name);
 			g_destroy_consumer(cp);
 			g_topology_unlock();
 			return;
 		}
 		for (j = 0; j < sc->n_components; j++) {
 			if (strcmp(sc->components[j].gcons->provider->name,
-			    pp->name) == 0) {
+				pp->name) == 0) {
 				gctl_error(req, "Component %s already in %s",
 				    pp->name, sc->geom->name);
 				g_destroy_consumer(cp);
@@ -385,8 +389,8 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 		sc->components[nc].chunk_reserved = 0;
 
 		if (sc->components[nc].chunk_count < 4) {
-			gctl_error(req, "Provider too small: %s",
-			    cp->provider->name);
+			gctl_error(
+			    req, "Provider too small: %s", cp->provider->name);
 			g_destroy_consumer(cp);
 			g_topology_unlock();
 			return;
@@ -404,8 +408,7 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 	 * a non-updated component is detected first */
 	update_metadata(sc);
 	g_topology_unlock();
-	LOG_MSG(LVL_INFO, "Added %d component(s) to %s", added,
-	    sc->geom->name);
+	LOG_MSG(LVL_INFO, "Added %d component(s) to %s", added, sc->geom->name);
 	/* Fire off BIOs previously queued because there wasn't any
 	 * physical space left. If the BIOs still can't be satisfied
 	 * they will again be added to the end of the queue (during
@@ -430,7 +433,6 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 		}
 	}
 	mtx_unlock(&sc->delayed_bio_q_mtx);
-
 }
 
 /*
@@ -441,7 +443,7 @@ virstor_find_geom(const struct g_class *cp, const char *name)
 {
 	struct g_geom *gp;
 
-	LIST_FOREACH(gp, &cp->geom, geom) {
+	LIST_FOREACH (gp, &cp->geom, geom) {
 		if (strcmp(name, gp->name) == 0)
 			return (gp->softc);
 	}
@@ -468,8 +470,8 @@ update_metadata(struct g_virstor_softc *sc)
 	LOG_MSG(LVL_DEBUG, "Updating metadata on components for %s",
 	    sc->geom->name);
 	/* Update metadata on components */
-	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__,
-	    sc->geom->class->name, sc->geom->name);
+	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, sc->geom->class->name,
+	    sc->geom->name);
 	g_topology_assert();
 	for (n = 0; n < sc->n_components; n++) {
 		read_metadata(sc->components[n].gcons, &md);
@@ -540,8 +542,8 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
 	/* Find "our" geom */
 	geom_name = gctl_get_asciiparam(req, "arg0");
 	if (geom_name == NULL) {
-		gctl_error(req, "Error fetching argument '%s'",
-		    "geom_name (arg0)");
+		gctl_error(
+		    req, "Error fetching argument '%s'", "geom_name (arg0)");
 		return;
 	}
 	sc = virstor_find_geom(cp, geom_name);
@@ -551,8 +553,10 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
 	}
 
 	if (virstor_valid_components(sc) != sc->n_components) {
-		LOG_MSG(LVL_ERROR, "Cannot remove components from incomplete "
-		    "virstor %s", sc->geom->name);
+		LOG_MSG(LVL_ERROR,
+		    "Cannot remove components from incomplete "
+		    "virstor %s",
+		    sc->geom->name);
 		gctl_error(req, "Virstor %s is incomplete", sc->geom->name);
 		return;
 	}
@@ -576,14 +580,14 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
 		found = -1;
 		for (j = 0; j < sc->n_components; j++) {
 			if (strcmp(sc->components[j].gcons->provider->name,
-			    prov_name) == 0) {
+				prov_name) == 0) {
 				found = j;
 				break;
 			}
 		}
 		if (found == -1) {
-			LOG_MSG(LVL_ERROR, "No %s component in %s",
-			    prov_name, sc->geom->name);
+			LOG_MSG(LVL_ERROR, "No %s component in %s", prov_name,
+			    sc->geom->name);
 			continue;
 		}
 
@@ -593,8 +597,10 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
 		bcopy(sc->components, newcomp, found * sizeof(*sc->components));
 		bcopy(&sc->components[found + 1], newcomp + found,
 		    found * sizeof(*sc->components));
-		if ((sc->components[j].flags & VIRSTOR_PROVIDER_ALLOCATED) != 0) {
-			LOG_MSG(LVL_ERROR, "Allocated provider %s cannot be "
+		if ((sc->components[j].flags & VIRSTOR_PROVIDER_ALLOCATED) !=
+		    0) {
+			LOG_MSG(LVL_ERROR,
+			    "Allocated provider %s cannot be "
 			    "removed from %s",
 			    prov_name, sc->geom->name);
 			free(newcomp, M_GVIRSTOR);
@@ -602,9 +608,9 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
 			continue;
 		}
 		/* Renumerate unallocated components */
-		for (j = 0; j < sc->n_components-1; j++) {
+		for (j = 0; j < sc->n_components - 1; j++) {
 			if ((sc->components[j].flags &
-			    VIRSTOR_PROVIDER_ALLOCATED) == 0) {
+				VIRSTOR_PROVIDER_ALLOCATED) == 0) {
 				sc->components[j].index = j;
 			}
 		}
@@ -620,8 +626,10 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
 
 		g_topology_lock();
 		if (clear_metadata(&compbak[found]) != 0) {
-			LOG_MSG(LVL_WARNING, "Trouble ahead: cannot clear "
-			    "metadata on %s", prov_name);
+			LOG_MSG(LVL_WARNING,
+			    "Trouble ahead: cannot clear "
+			    "metadata on %s",
+			    prov_name);
 		}
 		g_detach(compbak[found].gcons);
 		g_destroy_consumer(compbak[found].gcons);
@@ -652,19 +660,18 @@ clear_metadata(struct g_virstor_component *comp)
 	char *buf;
 	int error;
 
-	LOG_MSG(LVL_INFO, "Clearing metadata on %s",
-	    comp->gcons->provider->name);
+	LOG_MSG(
+	    LVL_INFO, "Clearing metadata on %s", comp->gcons->provider->name);
 	g_topology_assert();
 	error = g_access(comp->gcons, 0, 1, 0);
 	if (error != 0)
 		return (error);
-	buf = malloc(comp->gcons->provider->sectorsize, M_GVIRSTOR,
-	    M_WAITOK | M_ZERO);
+	buf = malloc(
+	    comp->gcons->provider->sectorsize, M_GVIRSTOR, M_WAITOK | M_ZERO);
 	error = g_write_data(comp->gcons,
 	    comp->gcons->provider->mediasize -
-	    comp->gcons->provider->sectorsize,
-	    buf,
-	    comp->gcons->provider->sectorsize);
+		comp->gcons->provider->sectorsize,
+	    buf, comp->gcons->provider->sectorsize);
 	free(buf, M_GVIRSTOR);
 	g_access(comp->gcons, 0, -1, 0);
 	return (error);
@@ -674,8 +681,8 @@ clear_metadata(struct g_virstor_component *comp)
  * Destroy geom forcibly.
  */
 static int
-g_virstor_destroy_geom(struct gctl_req *req __unused, struct g_class *mp,
-    struct g_geom *gp)
+g_virstor_destroy_geom(
+    struct gctl_req *req __unused, struct g_class *mp, struct g_geom *gp)
 {
 	struct g_virstor_softc *sc;
 	int exitval;
@@ -696,8 +703,10 @@ g_virstor_destroy_geom(struct gctl_req *req __unused, struct g_class *mp,
 		int n;
 
 		LOG_MSG(LVL_INFO, "INVARIANTS detected");
-		LOG_MSG(LVL_INFO, "Verifying allocation "
-		    "table for %s", sc->geom->name);
+		LOG_MSG(LVL_INFO,
+		    "Verifying allocation "
+		    "table for %s",
+		    sc->geom->name);
 		count = 0;
 		for (n = 0; n < sc->chunk_count; n++) {
 			if (sc->map[n].flags || VIRSTOR_MAP_ALLOCATED != 0)
@@ -715,18 +724,22 @@ g_virstor_destroy_geom(struct gctl_req *req __unused, struct g_class *mp,
 			goto bailout;
 		}
 		error = g_access(sc->components[0].gcons, 1, 0, 0);
-		KASSERT(error == 0, ("%s: g_access failed (%d)", __func__,
-		    error));
+		KASSERT(
+		    error == 0, ("%s: g_access failed (%d)", __func__, error));
 		/* Compare the whole on-disk allocation table with what's
 		 * currently in memory */
 		while (n < sc->chunk_count) {
 			buf = g_read_data(sc->components[0].gcons, off,
 			    sc->sectorsize, &error);
-			KASSERT(buf != NULL, ("g_read_data returned NULL (%d) "
-			    "for read at %jd", error, off));
+			KASSERT(buf != NULL,
+			    ("g_read_data returned NULL (%d) "
+			     "for read at %jd",
+				error, off));
 			if (bcmp(buf, &sc->map[n], sc->sectorsize) != 0) {
-				LOG_MSG(LVL_ERROR, "ERROR in allocation table, "
-				    "entry %d, offset %jd", n, off);
+				LOG_MSG(LVL_ERROR,
+				    "ERROR in allocation table, "
+				    "entry %d, offset %jd",
+				    n, off);
 				isclean = 0;
 				count++;
 			}
@@ -735,18 +748,18 @@ g_virstor_destroy_geom(struct gctl_req *req __unused, struct g_class *mp,
 			g_free(buf);
 		}
 		error = g_access(sc->components[0].gcons, -1, 0, 0);
-		KASSERT(error == 0, ("%s: g_access failed (%d) on exit",
-		    __func__, error));
+		KASSERT(error == 0,
+		    ("%s: g_access failed (%d) on exit", __func__, error));
 		if (isclean != 1) {
-			LOG_MSG(LVL_ERROR, "ALLOCATION TABLE CORRUPTED FOR %s "
+			LOG_MSG(LVL_ERROR,
+			    "ALLOCATION TABLE CORRUPTED FOR %s "
 			    "(%d sectors don't match, max %zu allocations)",
-			    sc->geom->name, count,
-			    count * sc->me_per_sector);
+			    sc->geom->name, count, count * sc->me_per_sector);
 		} else {
 			LOG_MSG(LVL_INFO, "Allocation table ok for %s",
 			    sc->geom->name);
 		}
-bailout:
+	bailout:
 #endif
 		update_metadata(sc);
 		virstor_geom_destroy(sc, FALSE, FALSE);
@@ -775,9 +788,9 @@ g_virstor_taste(struct g_class *mp, struct g_provider *pp, int flags)
 
 	/* We need a dummy geom to attach a consumer to the given provider */
 	gp = g_new_geomf(mp, "virstor:taste.helper");
-	gp->start = (void *)invalid_call;	/* XXX: hacked up so the        */
-	gp->access = (void *)invalid_call;	/* compiler doesn't complain.   */
-	gp->orphan = (void *)invalid_call;	/* I really want these to fail. */
+	gp->start = (void *)invalid_call;  /* XXX: hacked up so the        */
+	gp->access = (void *)invalid_call; /* compiler doesn't complain.   */
+	gp->orphan = (void *)invalid_call; /* I really want these to fail. */
 
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
@@ -794,7 +807,8 @@ g_virstor_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	if (strcmp(md.md_magic, G_VIRSTOR_MAGIC) != 0)
 		return (NULL);
 	if (md.md_version != G_VIRSTOR_VERSION) {
-		LOG_MSG(LVL_ERROR, "Kernel module version invalid "
+		LOG_MSG(LVL_ERROR,
+		    "Kernel module version invalid "
 		    "to handle %s (%s) : %d should be %d",
 		    md.md_name, pp->name, md.md_version, G_VIRSTOR_VERSION);
 		return (NULL);
@@ -805,8 +819,7 @@ g_virstor_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	/* If the provider name is hardcoded, use the offered provider only
 	 * if it's been offered with its proper name (the one used in
 	 * the label command). */
-	if (md.provider[0] != '\0' &&
-	    !g_compare_names(md.provider, pp->name))
+	if (md.provider[0] != '\0' && !g_compare_names(md.provider, pp->name))
 		return (NULL);
 
 	/* Iterate all geoms this class already knows about to see if a new
@@ -815,7 +828,7 @@ g_virstor_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	 * to be added to an existing instance. */
 	sc = NULL;
 	gp = NULL;
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
@@ -836,8 +849,10 @@ g_virstor_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	} else { /* New geom instance needs to be created */
 		gp = create_virstor_geom(mp, &md);
 		if (gp == NULL) {
-			LOG_MSG(LVL_ERROR, "Error creating new instance of "
-			    "class %s: %s", mp->name, md.md_name);
+			LOG_MSG(LVL_ERROR,
+			    "Error creating new instance of "
+			    "class %s: %s",
+			    mp->name, md.md_name);
 			LOG_MSG(LVL_DEBUG, "Error creating %s at %s",
 			    md.md_name, pp->name);
 			return (NULL);
@@ -866,8 +881,8 @@ delay_destroy_consumer(void *arg, int flags __unused)
 {
 	struct g_consumer *c = arg;
 	KASSERT(c != NULL, ("%s: invalid consumer", __func__));
-	LOG_MSG(LVL_DEBUG, "Consumer %s destroyed with delay",
-	    c->provider->name);
+	LOG_MSG(
+	    LVL_DEBUG, "Consumer %s destroyed with delay", c->provider->name);
 	g_detach(c);
 	g_destroy_consumer(c);
 }
@@ -883,8 +898,8 @@ remove_component(struct g_virstor_softc *sc, struct g_virstor_component *comp,
 {
 	struct g_consumer *c;
 
-	KASSERT(comp->gcons != NULL, ("Component with no consumer in %s",
-	    sc->geom->name));
+	KASSERT(comp->gcons != NULL,
+	    ("Component with no consumer in %s", sc->geom->name));
 	c = comp->gcons;
 
 	comp->gcons = NULL;
@@ -913,8 +928,8 @@ remove_component(struct g_virstor_softc *sc, struct g_virstor_component *comp,
  * See g_virstor_destroy_geom for the other one
  */
 static int
-virstor_geom_destroy(struct g_virstor_softc *sc, boolean_t force,
-    boolean_t delay)
+virstor_geom_destroy(
+    struct g_virstor_softc *sc, boolean_t force, boolean_t delay)
 {
 	struct g_provider *pp;
 	struct g_geom *gp;
@@ -941,8 +956,8 @@ virstor_geom_destroy(struct g_virstor_softc *sc, boolean_t force,
 	gp = sc->geom;
 	gp->softc = NULL;
 
-	KASSERT(sc->provider == NULL, ("Provider still exists for %s",
-	    gp->name));
+	KASSERT(
+	    sc->provider == NULL, ("Provider still exists for %s", gp->name));
 
 	/* XXX: This might or might not work, since we're called with
 	 * the topology lock held. Also, it might panic the kernel if
@@ -990,8 +1005,8 @@ read_metadata(struct g_consumer *cp, struct g_virstor_metadata *md)
 		return (error);
 	pp = cp->provider;
 	g_topology_unlock();
-	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
-	    &error);
+	buf = g_read_data(
+	    cp, pp->mediasize - pp->sectorsize, pp->sectorsize, &error);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 	if (buf == NULL)
@@ -1035,15 +1050,15 @@ write_metadata(struct g_consumer *cp, struct g_virstor_metadata *md)
 	bzero(buf, pp->sectorsize);
 	virstor_metadata_encode(md, buf);
 	g_topology_unlock();
-	error = g_write_data(cp, pp->mediasize - pp->sectorsize, buf,
-	    pp->sectorsize);
+	error = g_write_data(
+	    cp, pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
 	g_topology_lock();
 	g_access(cp, 0, -1, 0);
 	free(buf, M_GVIRSTOR);
 
 	if (error != 0)
-		LOG_MSG(LVL_ERROR, "Error %d writing metadata to %s",
-		    error, cp->provider->name);
+		LOG_MSG(LVL_ERROR, "Error %d writing metadata to %s", error,
+		    cp->provider->name);
 }
 
 /*
@@ -1055,8 +1070,8 @@ create_virstor_geom(struct g_class *mp, struct g_virstor_metadata *md)
 	struct g_geom *gp;
 	struct g_virstor_softc *sc;
 
-	LOG_MSG(LVL_DEBUG, "Creating geom instance for %s (id=%u)",
-	    md->md_name, md->md_id);
+	LOG_MSG(LVL_DEBUG, "Creating geom instance for %s (id=%u)", md->md_name,
+	    md->md_id);
 
 	if (md->md_count < 1 || md->md_chunk_size < 1 ||
 	    md->md_virsize < md->md_chunk_size) {
@@ -1068,11 +1083,11 @@ create_virstor_geom(struct g_class *mp, struct g_virstor_metadata *md)
 	}
 
 	/* Check if it's already created */
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc != NULL && strcmp(sc->geom->name, md->md_name) == 0) {
-			LOG_MSG(LVL_WARNING, "Geom %s already exists",
-			    md->md_name);
+			LOG_MSG(
+			    LVL_WARNING, "Geom %s already exists", md->md_name);
 			if (sc->id != md->md_id) {
 				LOG_MSG(LVL_ERROR,
 				    "Some stale or invalid components "
@@ -1099,8 +1114,9 @@ create_virstor_geom(struct g_class *mp, struct g_virstor_metadata *md)
 	sc = malloc(sizeof(*sc), M_GVIRSTOR, M_WAITOK | M_ZERO);
 	sc->id = md->md_id;
 	sc->n_components = md->md_count;
-	sc->components = malloc(sizeof(struct g_virstor_component) * md->md_count,
-	    M_GVIRSTOR, M_WAITOK | M_ZERO);
+	sc->components = malloc(
+	    sizeof(struct g_virstor_component) * md->md_count, M_GVIRSTOR,
+	    M_WAITOK | M_ZERO);
 	sc->chunk_size = md->md_chunk_size;
 	sc->virsize = md->md_virsize;
 	STAILQ_INIT(&sc->delayed_bio_q);
@@ -1150,14 +1166,15 @@ add_provider_to_geom(struct g_virstor_softc *sc, struct g_provider *pp,
 	if (fcp != NULL) {
 		if (fcp->provider->sectorsize != pp->sectorsize) {
 			/* TODO: this can be made to work */
-			LOG_MSG(LVL_ERROR, "Provider %s of %s has invalid "
-			    "sector size (%d)", pp->name, sc->geom->name,
-			    pp->sectorsize);
+			LOG_MSG(LVL_ERROR,
+			    "Provider %s of %s has invalid "
+			    "sector size (%d)",
+			    pp->name, sc->geom->name, pp->sectorsize);
 			return (EINVAL);
 		}
 		if (fcp->acr > 0 || fcp->acw || fcp->ace > 0) {
-			/* Replicate access permissions from first "live" consumer
-			 * to the new one */
+			/* Replicate access permissions from first "live"
+			 * consumer to the new one */
 			error = g_access(cp, fcp->acr, fcp->acw, fcp->ace);
 			if (error != 0) {
 				g_detach(cp);
@@ -1218,23 +1235,25 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 	sc->map_size = sc->chunk_count * sizeof *(sc->map);
 	/* The following allocation is in order of 4MB - 8MB */
 	sc->map = malloc(sc->map_size, M_GVIRSTOR, M_WAITOK);
-	KASSERT(sc->map != NULL, ("%s: Memory allocation error (%zu bytes) for %s",
-	    __func__, sc->map_size, sc->provider->name));
+	KASSERT(sc->map != NULL,
+	    ("%s: Memory allocation error (%zu bytes) for %s", __func__,
+		sc->map_size, sc->provider->name));
 	sc->map_sectors = sc->map_size / sc->sectorsize;
 
 	count = 0;
 	for (n = 0; n < sc->n_components; n++)
 		count += sc->components[n].chunk_count;
-	LOG_MSG(LVL_INFO, "Device %s has %zu physical chunks and %zu virtual "
+	LOG_MSG(LVL_INFO,
+	    "Device %s has %zu physical chunks and %zu virtual "
 	    "(%zu KB chunks)",
 	    sc->geom->name, count, sc->chunk_count, sc->chunk_size / 1024);
 
 	error = g_access(sc->components[0].gcons, 1, 0, 0);
 	if (error != 0) {
-		LOG_MSG(LVL_ERROR, "Cannot acquire read access for %s to "
+		LOG_MSG(LVL_ERROR,
+		    "Cannot acquire read access for %s to "
 		    "read allocation map for %s",
-		    sc->components[0].gcons->provider->name,
-		    sc->geom->name);
+		    sc->components[0].gcons->provider->name, sc->geom->name);
 		return;
 	}
 	/* Read in the allocation map */
@@ -1251,18 +1270,21 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 			bs = rounddown(bs, sc->sectorsize);
 			if (bs == 0)
 				break;
-			LOG_MSG(LVL_ERROR, "Trouble: map is not sector-aligned "
-			    "for %s on %s", sc->geom->name,
+			LOG_MSG(LVL_ERROR,
+			    "Trouble: map is not sector-aligned "
+			    "for %s on %s",
+			    sc->geom->name,
 			    sc->components[0].gcons->provider->name);
 		}
 		mapbuf = g_read_data(sc->components[0].gcons, off, bs, &error);
 		if (mapbuf == NULL) {
 			free(sc->map, M_GVIRSTOR);
-			LOG_MSG(LVL_ERROR, "Error reading allocation map "
+			LOG_MSG(LVL_ERROR,
+			    "Error reading allocation map "
 			    "for %s from %s (offset %ju) (error %d)",
 			    sc->geom->name,
-			    sc->components[0].gcons->provider->name,
-			    off, error);
+			    sc->components[0].gcons->provider->name, off,
+			    error);
 			return;
 		}
 
@@ -1290,10 +1312,10 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 		index = sc->n_components - 1;
 
 	if (index >= sc->n_components - g_virstor_component_watermark - 1) {
-		LOG_MSG(LVL_WARNING, "Device %s running out of components "
-		    "(%d/%u: %s)", sc->geom->name,
-		    index+1,
-		    sc->n_components,
+		LOG_MSG(LVL_WARNING,
+		    "Device %s running out of components "
+		    "(%d/%u: %s)",
+		    sc->geom->name, index + 1, sc->n_components,
 		    sc->components[index].gcons->provider->name);
 	}
 	sc->curr_component = index;
@@ -1303,9 +1325,9 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 		LOG_MSG(LVL_WARNING,
 		    "Component %s of %s is running out of free space "
 		    "(%u chunks left)",
-		    sc->components[index].gcons->provider->name,
-		    sc->geom->name, sc->components[index].chunk_count -
-		    sc->components[index].chunk_next);
+		    sc->components[index].gcons->provider->name, sc->geom->name,
+		    sc->components[index].chunk_count -
+			sc->components[index].chunk_next);
 	}
 
 	sc->me_per_sector = sc->sectorsize / sizeof *(sc->map);
@@ -1324,13 +1346,14 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 
 	for (n = 0; n < sc->chunk_count; n++) {
 		if (sc->map[n].provider_no >= sc->n_components ||
-			sc->map[n].provider_chunk >=
+		    sc->map[n].provider_chunk >=
 			sc->components[sc->map[n].provider_no].chunk_count) {
 			LOG_MSG(LVL_ERROR, "%s: Invalid entry %u in map for %s",
 			    __func__, (u_int)n, sc->geom->name);
-			LOG_MSG(LVL_ERROR, "%s: provider_no: %u, n_components: %u"
-			    " provider_chunk: %u, chunk_count: %u", __func__,
-			    sc->map[n].provider_no, sc->n_components,
+			LOG_MSG(LVL_ERROR,
+			    "%s: provider_no: %u, n_components: %u"
+			    " provider_chunk: %u, chunk_count: %u",
+			    __func__, sc->map[n].provider_no, sc->n_components,
 			    sc->map[n].provider_chunk,
 			    sc->components[sc->map[n].provider_no].chunk_count);
 			return;
@@ -1339,16 +1362,17 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 			sc->components[sc->map[n].provider_no].chunk_next++;
 	}
 
-	sc->provider = g_new_providerf(sc->geom, "virstor/%s",
-	    sc->geom->name);
+	sc->provider = g_new_providerf(sc->geom, "virstor/%s", sc->geom->name);
 
 	sc->provider->sectorsize = sc->sectorsize;
 	sc->provider->mediasize = sc->virsize;
 	g_error_provider(sc->provider, 0);
 
 	LOG_MSG(LVL_INFO, "%s activated", sc->provider->name);
-	LOG_MSG(LVL_DEBUG, "%s starting with current component %u, starting "
-	    "chunk %u", sc->provider->name, sc->curr_component,
+	LOG_MSG(LVL_DEBUG,
+	    "%s starting with current component %u, starting "
+	    "chunk %u",
+	    sc->provider->name, sc->curr_component,
 	    sc->components[sc->curr_component].chunk_next);
 }
 
@@ -1362,7 +1386,8 @@ virstor_valid_components(struct g_virstor_softc *sc)
 
 	nc = 0;
 	KASSERT(sc != NULL, ("%s: softc is NULL", __func__));
-	KASSERT(sc->components != NULL, ("%s: sc->components is NULL", __func__));
+	KASSERT(
+	    sc->components != NULL, ("%s: sc->components is NULL", __func__));
 	for (i = 0; i < sc->n_components; i++)
 		if (sc->components[i].gcons != NULL)
 			nc++;
@@ -1386,8 +1411,8 @@ g_virstor_orphan(struct g_consumer *cp)
 		return;
 
 	comp = cp->private;
-	KASSERT(comp != NULL, ("%s: No component in private part of consumer",
-	    __func__));
+	KASSERT(comp != NULL,
+	    ("%s: No component in private part of consumer", __func__));
 	remove_component(sc, comp, FALSE);
 	if (LIST_EMPTY(&gp->consumer))
 		virstor_geom_destroy(sc, TRUE, FALSE);
@@ -1420,7 +1445,7 @@ g_virstor_access(struct g_provider *pp, int dr, int dw, int de)
 	}
 
 	error = ENXIO;
-	LIST_FOREACH_SAFE(c, &gp->consumer, consumer, tmp) {
+	LIST_FOREACH_SAFE (c, &gp->consumer, consumer, tmp) {
 		error = g_access(c, dr, dw, de);
 		if (error != 0)
 			goto fail;
@@ -1438,7 +1463,7 @@ g_virstor_access(struct g_provider *pp, int dr, int dw, int de)
 
 fail:
 	/* Backout earlier changes */
-	LIST_FOREACH(c2, &gp->consumer, consumer) {
+	LIST_FOREACH (c2, &gp->consumer, consumer) {
 		if (c2 == c)
 			break;
 		g_access(c2, -dr, -dw, -de);
@@ -1470,17 +1495,17 @@ g_virstor_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			return;
 		sbuf_printf(sb, "%s<ComponentIndex>%u</ComponentIndex>\n",
 		    indent, comp->index);
-		sbuf_printf(sb, "%s<ChunkCount>%u</ChunkCount>\n",
-		    indent, comp->chunk_count);
-		sbuf_printf(sb, "%s<ChunksUsed>%u</ChunksUsed>\n",
-		    indent, comp->chunk_next);
+		sbuf_printf(sb, "%s<ChunkCount>%u</ChunkCount>\n", indent,
+		    comp->chunk_count);
+		sbuf_printf(sb, "%s<ChunksUsed>%u</ChunksUsed>\n", indent,
+		    comp->chunk_next);
 		sbuf_printf(sb, "%s<ChunksReserved>%u</ChunksReserved>\n",
 		    indent, comp->chunk_reserved);
-		sbuf_printf(sb, "%s<StorageFree>%u%%</StorageFree>\n",
-		    indent,
+		sbuf_printf(sb, "%s<StorageFree>%u%%</StorageFree>\n", indent,
 		    comp->chunk_next > 0 ? 100 -
-		    ((comp->chunk_next + comp->chunk_reserved) * 100) /
-		    comp->chunk_count : 100);
+			    ((comp->chunk_next + comp->chunk_reserved) * 100) /
+				comp->chunk_count :
+						 100);
 	} else {
 		/* For the whole thing */
 		u_int count, used, i;
@@ -1492,28 +1517,31 @@ g_virstor_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 				count += sc->components[i].chunk_count;
 				used += sc->components[i].chunk_next +
 				    sc->components[i].chunk_reserved;
-				size += sc->components[i].gcons->
-				    provider->mediasize;
+				size += sc->components[i]
+					    .gcons->provider->mediasize;
 			}
 		}
 
-		sbuf_printf(sb, "%s<Status>"
-		    "Components=%u, Online=%u</Status>\n", indent,
-		    sc->n_components, virstor_valid_components(sc));
-		sbuf_printf(sb, "%s<State>%u%% physical free</State>\n",
-		    indent, 100-(used * 100) / count);
+		sbuf_printf(sb,
+		    "%s<Status>"
+		    "Components=%u, Online=%u</Status>\n",
+		    indent, sc->n_components, virstor_valid_components(sc));
+		sbuf_printf(sb, "%s<State>%u%% physical free</State>\n", indent,
+		    100 - (used * 100) / count);
 		sbuf_printf(sb, "%s<ChunkSize>%zu</ChunkSize>\n", indent,
 		    sc->chunk_size);
-		sbuf_printf(sb, "%s<PhysicalFree>%u%%</PhysicalFree>\n",
-		    indent, used > 0 ? 100 - (used * 100) / count : 100);
-		sbuf_printf(sb, "%s<ChunkPhysicalCount>%u</ChunkPhysicalCount>\n",
-		    indent, count);
-		sbuf_printf(sb, "%s<ChunkVirtualCount>%zu</ChunkVirtualCount>\n",
-		    indent, sc->chunk_count);
+		sbuf_printf(sb, "%s<PhysicalFree>%u%%</PhysicalFree>\n", indent,
+		    used > 0 ? 100 - (used * 100) / count : 100);
+		sbuf_printf(sb,
+		    "%s<ChunkPhysicalCount>%u</ChunkPhysicalCount>\n", indent,
+		    count);
+		sbuf_printf(sb,
+		    "%s<ChunkVirtualCount>%zu</ChunkVirtualCount>\n", indent,
+		    sc->chunk_count);
 		sbuf_printf(sb, "%s<PhysicalBacking>%zu%%</PhysicalBacking>\n",
-		    indent,
-		    (count * 100) / sc->chunk_count);
-		sbuf_printf(sb, "%s<PhysicalBackingSize>%jd</PhysicalBackingSize>\n",
+		    indent, (count * 100) / sc->chunk_count);
+		sbuf_printf(sb,
+		    "%s<PhysicalBackingSize>%jd</PhysicalBackingSize>\n",
 		    indent, size);
 		sbuf_printf(sb, "%s<VirtualSize>%jd</VirtualSize>\n", indent,
 		    sc->virsize);
@@ -1566,13 +1594,14 @@ g_virstor_start(struct bio *b)
 	char *addr;
 	off_t offset, length;
 	struct bio_queue_head bq;
-	size_t chunk_size;	/* cached for convenience */
+	size_t chunk_size; /* cached for convenience */
 	u_int count;
 
 	pp = b->bio_to;
 	sc = pp->geom->softc;
-	KASSERT(sc != NULL, ("%s: no softc (error=%d, device=%s)", __func__,
-	    b->bio_to->error, b->bio_to->name));
+	KASSERT(sc != NULL,
+	    ("%s: no softc (error=%d, device=%s)", __func__, b->bio_to->error,
+		b->bio_to->name));
 
 	LOG_REQ(LVL_MOREDEBUG, b, "%s", __func__);
 
@@ -1591,7 +1620,7 @@ g_virstor_start(struct bio *b)
 
 	chunk_size = sc->chunk_size;
 	addr = b->bio_data;
-	offset = b->bio_offset;	/* virtual offset and length */
+	offset = b->bio_offset; /* virtual offset and length */
 	length = b->bio_length;
 
 	while (length > 0) {
@@ -1602,8 +1631,7 @@ g_virstor_start(struct bio *b)
 		in_chunk_offset = offset % chunk_size;
 		in_chunk_length = min(length, chunk_size - in_chunk_offset);
 		LOG_MSG(LVL_DEBUG, "Mapped %s(%ju, %ju) to (%zu,%zu,%zu)",
-		    b->bio_cmd == BIO_READ ? "R" : "W",
-		    offset, length,
+		    b->bio_cmd == BIO_READ ? "R" : "W", offset, length,
 		    chunk_index, in_chunk_offset, in_chunk_length);
 		me = &sc->map[chunk_index];
 
@@ -1626,9 +1654,9 @@ g_virstor_start(struct bio *b)
 				}
 				cb->bio_to = comp->gcons->provider;
 				cb->bio_done = g_virstor_done;
-				cb->bio_offset =
-				    (off_t)me->provider_chunk * (off_t)chunk_size
-				    + in_chunk_offset;
+				cb->bio_offset = (off_t)me->provider_chunk *
+					(off_t)chunk_size +
+				    in_chunk_offset;
 				cb->bio_length = in_chunk_length;
 				cb->bio_data = addr;
 				cb->bio_caller1 = comp;
@@ -1636,8 +1664,7 @@ g_virstor_start(struct bio *b)
 			}
 		} else { /* handle BIO_WRITE */
 			KASSERT(b->bio_cmd == BIO_WRITE,
-			    ("%s: Unknown command %d", __func__,
-			    b->bio_cmd));
+			    ("%s: Unknown command %d", __func__, b->bio_cmd));
 
 			if ((me->flags & VIRSTOR_MAP_ALLOCATED) == 0) {
 				/* We have a virtual chunk, represented by
@@ -1648,8 +1675,8 @@ g_virstor_start(struct bio *b)
 				off_t s_offset;
 				int error;
 
-				error = allocate_chunk(sc, &comp, &comp_no,
-				    &phys_chunk);
+				error = allocate_chunk(
+				    sc, &comp, &comp_no, &phys_chunk);
 				if (error != 0) {
 					/* We cannot allocate a physical chunk
 					 * to satisfy this request, so we'll
@@ -1657,8 +1684,8 @@ g_virstor_start(struct bio *b)
 					 * XXX: this will prevent the fs from
 					 * being umounted! */
 					struct g_virstor_bio_q *biq;
-					biq = malloc(sizeof *biq, M_GVIRSTOR,
-					    M_NOWAIT);
+					biq = malloc(
+					    sizeof *biq, M_GVIRSTOR, M_NOWAIT);
 					if (biq == NULL) {
 						bioq_dismantle(&bq);
 						if (b->bio_error == 0)
@@ -1668,20 +1695,20 @@ g_virstor_start(struct bio *b)
 					}
 					biq->bio = b;
 					mtx_lock(&sc->delayed_bio_q_mtx);
-					STAILQ_INSERT_TAIL(&sc->delayed_bio_q,
-					    biq, linkage);
+					STAILQ_INSERT_TAIL(
+					    &sc->delayed_bio_q, biq, linkage);
 					mtx_unlock(&sc->delayed_bio_q_mtx);
-					LOG_MSG(LVL_WARNING, "Delaying BIO "
+					LOG_MSG(LVL_WARNING,
+					    "Delaying BIO "
 					    "(size=%ju) until free physical "
 					    "space can be found on %s",
-					    b->bio_length,
-					    sc->provider->name);
+					    b->bio_length, sc->provider->name);
 					return;
 				}
-				LOG_MSG(LVL_DEBUG, "Allocated chunk %u on %s "
+				LOG_MSG(LVL_DEBUG,
+				    "Allocated chunk %u on %s "
 				    "for %s",
-				    phys_chunk,
-				    comp->gcons->provider->name,
+				    phys_chunk, comp->gcons->provider->name,
 				    sc->provider->name);
 
 				me->provider_no = comp_no;
@@ -1712,8 +1739,8 @@ g_virstor_start(struct bio *b)
 
 				/* data_me points to map entry sector
 				 * in memory (analogous to offset) */
-				data_me = &sc->map[rounddown(chunk_index,
-				    sc->me_per_sector)];
+				data_me = &sc->map[rounddown(
+				    chunk_index, sc->me_per_sector)];
 
 				/* Commit sector with map entry to storage */
 				cb->bio_to = sc->components[0].gcons->provider;
@@ -1737,7 +1764,8 @@ g_virstor_start(struct bio *b)
 			/* Finally, handle the data */
 			cb->bio_to = comp->gcons->provider;
 			cb->bio_done = g_virstor_done;
-			cb->bio_offset = (off_t)me->provider_chunk*(off_t)chunk_size +
+			cb->bio_offset = (off_t)me->provider_chunk *
+				(off_t)chunk_size +
 			    in_chunk_offset;
 			cb->bio_length = in_chunk_length;
 			cb->bio_data = addr;
@@ -1765,7 +1793,6 @@ g_virstor_start(struct bio *b)
 		b->bio_completed = b->bio_length;
 		g_io_deliver(b, 0);
 	}
-
 }
 
 /*
@@ -1779,15 +1806,16 @@ allocate_chunk(struct g_virstor_softc *sc, struct g_virstor_component **comp,
 	u_int comp_no;
 
 	KASSERT(sc->curr_component < sc->n_components,
-	    ("%s: Invalid curr_component: %u",  __func__, sc->curr_component));
+	    ("%s: Invalid curr_component: %u", __func__, sc->curr_component));
 
 	comp_no = sc->curr_component;
 	*comp = &sc->components[comp_no];
 	dump_component(*comp);
 	if ((*comp)->chunk_next >= (*comp)->chunk_count) {
 		/* This component is full. Allocate next component */
-		if (comp_no >= sc->n_components-1) {
-			LOG_MSG(LVL_ERROR, "All physical space allocated for %s",
+		if (comp_no >= sc->n_components - 1) {
+			LOG_MSG(LVL_ERROR,
+			    "All physical space allocated for %s",
 			    sc->geom->name);
 			return (-1);
 		}
@@ -1795,18 +1823,20 @@ allocate_chunk(struct g_virstor_softc *sc, struct g_virstor_component **comp,
 		sc->curr_component = ++comp_no;
 
 		*comp = &sc->components[comp_no];
-		if (comp_no >= sc->n_components - g_virstor_component_watermark-1)
-			LOG_MSG(LVL_WARNING, "Device %s running out of components "
-			    "(switching to %u/%u: %s)", sc->geom->name,
-			    comp_no+1, sc->n_components,
+		if (comp_no >=
+		    sc->n_components - g_virstor_component_watermark - 1)
+			LOG_MSG(LVL_WARNING,
+			    "Device %s running out of components "
+			    "(switching to %u/%u: %s)",
+			    sc->geom->name, comp_no + 1, sc->n_components,
 			    (*comp)->gcons->provider->name);
 		/* Take care not to overwrite reserved chunks */
-		if ( (*comp)->chunk_reserved > 0 &&
+		if ((*comp)->chunk_reserved > 0 &&
 		    (*comp)->chunk_next < (*comp)->chunk_reserved)
 			(*comp)->chunk_next = (*comp)->chunk_reserved;
 
-		(*comp)->flags |=
-		    VIRSTOR_PROVIDER_ALLOCATED | VIRSTOR_PROVIDER_CURRENT;
+		(*comp)->flags |= VIRSTOR_PROVIDER_ALLOCATED |
+		    VIRSTOR_PROVIDER_CURRENT;
 		dump_component(*comp);
 		*comp_no_p = comp_no;
 		*chunk = (*comp)->chunk_next++;

@@ -42,15 +42,14 @@
  */
 
 #include <sys/param.h>
-#include <sys/mbuf.h>
 #include <sys/systm.h>
+#include <sys/mbuf.h>
 
+#include <net/slcompress.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-
-#include <net/slcompress.h>
 
 #ifndef SL_NO_STATS
 #define INCR(counter) ++comp->counter;
@@ -75,7 +74,7 @@ sl_compress_init(struct slcompress *comp, int max_state)
 		bzero((char *)comp->tstate, sizeof(comp->tstate));
 		bzero((char *)comp->rstate, sizeof(comp->rstate));
 	}
-  	for (i = max_state; i > 0; --i) {
+	for (i = max_state; i > 0; --i) {
 		tstate[i].cs_id = i;
 		tstate[i].cs_next = &tstate[i - 1];
 	}
@@ -91,53 +90,58 @@ sl_compress_init(struct slcompress *comp, int max_state)
  * checks for zero (since zero has to be encoded in the long, 3 byte
  * form).
  */
-#define ENCODE(n) { \
-	if ((u_int16_t)(n) >= 256) { \
-		*cp++ = 0; \
-		cp[1] = (n); \
-		cp[0] = (n) >> 8; \
-		cp += 2; \
-	} else { \
-		*cp++ = (n); \
-	} \
-}
-#define ENCODEZ(n) { \
-	if ((u_int16_t)(n) >= 256 || (u_int16_t)(n) == 0) { \
-		*cp++ = 0; \
-		cp[1] = (n); \
-		cp[0] = (n) >> 8; \
-		cp += 2; \
-	} else { \
-		*cp++ = (n); \
-	} \
-}
+#define ENCODE(n)                            \
+	{                                    \
+		if ((u_int16_t)(n) >= 256) { \
+			*cp++ = 0;           \
+			cp[1] = (n);         \
+			cp[0] = (n) >> 8;    \
+			cp += 2;             \
+		} else {                     \
+			*cp++ = (n);         \
+		}                            \
+	}
+#define ENCODEZ(n)                                                  \
+	{                                                           \
+		if ((u_int16_t)(n) >= 256 || (u_int16_t)(n) == 0) { \
+			*cp++ = 0;                                  \
+			cp[1] = (n);                                \
+			cp[0] = (n) >> 8;                           \
+			cp += 2;                                    \
+		} else {                                            \
+			*cp++ = (n);                                \
+		}                                                   \
+	}
 
-#define DECODEL(f) { \
-	if (*cp == 0) {\
-		(f) = htonl(ntohl(f) + ((cp[1] << 8) | cp[2])); \
-		cp += 3; \
-	} else { \
-		(f) = htonl(ntohl(f) + (u_int32_t)*cp++); \
-	} \
-}
+#define DECODEL(f)                                                      \
+	{                                                               \
+		if (*cp == 0) {                                         \
+			(f) = htonl(ntohl(f) + ((cp[1] << 8) | cp[2])); \
+			cp += 3;                                        \
+		} else {                                                \
+			(f) = htonl(ntohl(f) + (u_int32_t)*cp++);       \
+		}                                                       \
+	}
 
-#define DECODES(f) { \
-	if (*cp == 0) {\
-		(f) = htons(ntohs(f) + ((cp[1] << 8) | cp[2])); \
-		cp += 3; \
-	} else { \
-		(f) = htons(ntohs(f) + (u_int32_t)*cp++); \
-	} \
-}
+#define DECODES(f)                                                      \
+	{                                                               \
+		if (*cp == 0) {                                         \
+			(f) = htons(ntohs(f) + ((cp[1] << 8) | cp[2])); \
+			cp += 3;                                        \
+		} else {                                                \
+			(f) = htons(ntohs(f) + (u_int32_t)*cp++);       \
+		}                                                       \
+	}
 
-#define DECODEU(f) { \
-	if (*cp == 0) {\
-		(f) = htons((cp[1] << 8) | cp[2]); \
-		cp += 3; \
-	} else { \
-		(f) = htons((u_int32_t)*cp++); \
-	} \
-}
+#define DECODEU(f)                                         \
+	{                                                  \
+		if (*cp == 0) {                            \
+			(f) = htons((cp[1] << 8) | cp[2]); \
+			cp += 3;                           \
+		} else {                                   \
+			(f) = htons((u_int32_t)*cp++);     \
+		}                                          \
+	}
 
 /*
  * Attempt to compress an outgoing TCP packet and return the type of
@@ -151,8 +155,8 @@ sl_compress_init(struct slcompress *comp, int max_state)
  * if m is an M_PKTHDR mbuf.
  */
 u_int
-sl_compress_tcp(struct mbuf *m, struct ip *ip, struct slcompress *comp,
-    int compress_cid)
+sl_compress_tcp(
+    struct mbuf *m, struct ip *ip, struct slcompress *comp, int compress_cid)
 {
 	struct cstate *cs = comp->last_cs->cs_next;
 	u_int hlen = ip->ip_hl;
@@ -173,7 +177,7 @@ sl_compress_tcp(struct mbuf *m, struct ip *ip, struct slcompress *comp,
 		return (TYPE_IP);
 
 	th = (struct tcphdr *)&((int32_t *)ip)[hlen];
-	if ((th->th_flags & (TH_SYN|TH_FIN|TH_RST|TH_ACK)) != TH_ACK)
+	if ((th->th_flags & (TH_SYN | TH_FIN | TH_RST | TH_ACK)) != TH_ACK)
 		return (TYPE_IP);
 	/*
 	 * Packet is compressible -- we're going to send either a
@@ -202,12 +206,13 @@ sl_compress_tcp(struct mbuf *m, struct ip *ip, struct slcompress *comp,
 		struct cstate *lastcs = comp->last_cs;
 
 		do {
-			lcs = cs; cs = cs->cs_next;
+			lcs = cs;
+			cs = cs->cs_next;
 			INCR(sls_searches)
-			if (ip->ip_src.s_addr == cs->cs_ip.ip_src.s_addr
-			    && ip->ip_dst.s_addr == cs->cs_ip.ip_dst.s_addr
-			    && *(int32_t *)th ==
-			    ((int32_t *)&cs->cs_ip)[cs->cs_ip.ip_hl])
+			if (ip->ip_src.s_addr == cs->cs_ip.ip_src.s_addr &&
+			    ip->ip_dst.s_addr == cs->cs_ip.ip_dst.s_addr &&
+			    *(int32_t *)th ==
+				((int32_t *)&cs->cs_ip)[cs->cs_ip.ip_hl])
 				goto found;
 		} while (cs != lastcs);
 
@@ -224,7 +229,7 @@ sl_compress_tcp(struct mbuf *m, struct ip *ip, struct slcompress *comp,
 		hlen += th->th_off;
 		hlen <<= 2;
 		if (hlen > m->m_len)
-		    return TYPE_IP;
+			return TYPE_IP;
 		goto uncompressed;
 
 	found:
@@ -256,16 +261,14 @@ sl_compress_tcp(struct mbuf *m, struct ip *ip, struct slcompress *comp,
 	hlen += th->th_off;
 	hlen <<= 2;
 	if (hlen > m->m_len)
-	    return TYPE_IP;
+		return TYPE_IP;
 
 	if (((u_int16_t *)ip)[0] != ((u_int16_t *)&cs->cs_ip)[0] ||
 	    ((u_int16_t *)ip)[3] != ((u_int16_t *)&cs->cs_ip)[3] ||
 	    ((u_int16_t *)ip)[4] != ((u_int16_t *)&cs->cs_ip)[4] ||
 	    th->th_off != oth->th_off ||
-	    (deltaS > 5 &&
-	     BCMP(ip + 1, &cs->cs_ip + 1, (deltaS - 5) << 2)) ||
-	    (th->th_off > 5 &&
-	     BCMP(th + 1, oth + 1, (th->th_off - 5) << 2)))
+	    (deltaS > 5 && BCMP(ip + 1, &cs->cs_ip + 1, (deltaS - 5) << 2)) ||
+	    (th->th_off > 5 && BCMP(th + 1, oth + 1, (th->th_off - 5) << 2)))
 		goto uncompressed;
 
 	/*
@@ -283,7 +286,7 @@ sl_compress_tcp(struct mbuf *m, struct ip *ip, struct slcompress *comp,
 		 * implementation should never do this but RFC793
 		 * doesn't prohibit the change so we have to deal
 		 * with it. */
-		 goto uncompressed;
+		goto uncompressed;
 
 	deltaS = (u_int16_t)(ntohs(th->th_win) - ntohs(oth->th_win));
 	if (deltaS) {
@@ -307,7 +310,7 @@ sl_compress_tcp(struct mbuf *m, struct ip *ip, struct slcompress *comp,
 		changes |= NEW_S;
 	}
 
-	switch(changes) {
+	switch (changes) {
 	case 0:
 		/*
 		 * Nothing changed. If this packet contains data and the
@@ -331,7 +334,7 @@ sl_compress_tcp(struct mbuf *m, struct ip *ip, struct slcompress *comp,
 		 */
 		goto uncompressed;
 
-	case NEW_S|NEW_A:
+	case NEW_S | NEW_A:
 		if (deltaS == deltaA &&
 		    deltaS == ntohs(cs->cs_ip.ip_len) - hlen) {
 			/* special case for echoed terminal traffic */
@@ -411,12 +414,12 @@ sl_uncompress_tcp(u_char **bufp, int len, u_int type, struct slcompress *comp)
 	u_char *hdr, *cp;
 	int hlen, vjlen;
 
-	cp = bufp? *bufp: NULL;
+	cp = bufp ? *bufp : NULL;
 	vjlen = sl_uncompress_tcp_core(cp, len, len, type, comp, &hdr, &hlen);
 	if (vjlen < 0)
-		return (0);	/* error */
+		return (0); /* error */
 	if (vjlen == 0)
-		return (len);	/* was uncompressed already */
+		return (len); /* was uncompressed already */
 
 	cp += vjlen;
 	len -= vjlen;
@@ -431,8 +434,8 @@ sl_uncompress_tcp(u_char **bufp, int len, u_int type, struct slcompress *comp)
 	 */
 	if ((intptr_t)cp & 3) {
 		if (len > 0)
-			BCOPY(cp, ((intptr_t)cp &~ 3), len);
-		cp = (u_char *)((intptr_t)cp &~ 3);
+			BCOPY(cp, ((intptr_t)cp & ~3), len);
+		cp = (u_char *)((intptr_t)cp & ~3);
 	}
 	cp -= hlen;
 	len += hlen;
@@ -463,11 +466,11 @@ sl_uncompress_tcp_core(u_char *buf, int buflen, int total_len, u_int type,
 
 	switch (type) {
 	case TYPE_UNCOMPRESSED_TCP:
-		ip = (struct ip *) buf;
+		ip = (struct ip *)buf;
 		if (ip->ip_p >= MAX_STATES)
 			goto bad;
 		cs = &comp->rstate[comp->last_recv = ip->ip_p];
-		comp->flags &=~ SLF_TOSS;
+		comp->flags &= ~SLF_TOSS;
 		ip->ip_p = IPPROTO_TCP;
 		/*
 		 * Calculate the size of the TCP/IP header and make sure that
@@ -482,7 +485,7 @@ sl_uncompress_tcp_core(u_char *buf, int buflen, int total_len, u_int type,
 		BCOPY(ip, &cs->cs_ip, hlen);
 		cs->cs_hlen = hlen;
 		INCR(sls_uncompressedin)
-		*hdrp = (u_char *) &cs->cs_ip;
+		*hdrp = (u_char *)&cs->cs_ip;
 		*hlenp = hlen;
 		return (0);
 
@@ -502,7 +505,7 @@ sl_uncompress_tcp_core(u_char *buf, int buflen, int total_len, u_int type,
 		if (*cp >= MAX_STATES)
 			goto bad;
 
-		comp->flags &=~ SLF_TOSS;
+		comp->flags &= ~SLF_TOSS;
 		comp->last_recv = *cp++;
 	} else {
 		/* this packet has an implicit state index.  If we've
@@ -521,20 +524,18 @@ sl_uncompress_tcp_core(u_char *buf, int buflen, int total_len, u_int type,
 	if (changes & TCP_PUSH_BIT)
 		th->th_flags |= TH_PUSH;
 	else
-		th->th_flags &=~ TH_PUSH;
+		th->th_flags &= ~TH_PUSH;
 
 	switch (changes & SPECIALS_MASK) {
-	case SPECIAL_I:
-		{
+	case SPECIAL_I: {
 		u_int i = ntohs(cs->cs_ip.ip_len) - cs->cs_hlen;
 		th->th_ack = htonl(ntohl(th->th_ack) + i);
 		th->th_seq = htonl(ntohl(th->th_seq) + i);
-		}
-		break;
+	} break;
 
 	case SPECIAL_D:
-		th->th_seq = htonl(ntohl(th->th_seq) + ntohs(cs->cs_ip.ip_len)
-				   - cs->cs_hlen);
+		th->th_seq = htonl(
+		    ntohl(th->th_seq) + ntohs(cs->cs_ip.ip_len) - cs->cs_hlen);
 		break;
 
 	default:
@@ -542,7 +543,7 @@ sl_uncompress_tcp_core(u_char *buf, int buflen, int total_len, u_int type,
 			th->th_flags |= TH_URG;
 			DECODEU(th->th_urp)
 		} else
-			th->th_flags &=~ TH_URG;
+			th->th_flags &= ~TH_URG;
 		if (changes & NEW_W)
 			DECODES(th->th_win)
 		if (changes & NEW_A)
@@ -572,15 +573,15 @@ sl_uncompress_tcp_core(u_char *buf, int buflen, int total_len, u_int type,
 	cs->cs_ip.ip_len = htons(total_len);
 
 	/* recompute the ip header checksum */
-	bp = (u_int16_t *) &cs->cs_ip;
+	bp = (u_int16_t *)&cs->cs_ip;
 	cs->cs_ip.ip_sum = 0;
-		for (changes = 0; hlen > 0; hlen -= 2)
-			changes += *bp++;
-		changes = (changes & 0xffff) + (changes >> 16);
-		changes = (changes & 0xffff) + (changes >> 16);
-	cs->cs_ip.ip_sum = ~ changes;
+	for (changes = 0; hlen > 0; hlen -= 2)
+		changes += *bp++;
+	changes = (changes & 0xffff) + (changes >> 16);
+	changes = (changes & 0xffff) + (changes >> 16);
+	cs->cs_ip.ip_sum = ~changes;
 
-	*hdrp = (u_char *) &cs->cs_ip;
+	*hdrp = (u_char *)&cs->cs_ip;
 	*hlenp = cs->cs_hlen;
 	return vjlen;
 

@@ -27,6 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/capsicum.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -37,20 +38,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
-#include <sys/systm.h>
 
 #include <net/vnet.h>
-
 #include <netinet/in.h>
-
-#include <contrib/cloudabi/cloudabi_types_common.h>
 
 #include <compat/cloudabi/cloudabi_proto.h>
 #include <compat/cloudabi/cloudabi_util.h>
+#include <contrib/cloudabi/cloudabi_types_common.h>
 
 int
-cloudabi_sys_sock_shutdown(struct thread *td,
-    struct cloudabi_sys_sock_shutdown_args *uap)
+cloudabi_sys_sock_shutdown(
+    struct thread *td, struct cloudabi_sys_sock_shutdown_args *uap)
 {
 	int how;
 
@@ -73,9 +71,8 @@ cloudabi_sys_sock_shutdown(struct thread *td,
 
 int
 cloudabi_sock_recv(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
-    size_t datalen, cloudabi_fd_t *fds, size_t fdslen,
-    cloudabi_riflags_t flags, size_t *rdatalen, size_t *rfdslen,
-    cloudabi_roflags_t *rflags)
+    size_t datalen, cloudabi_fd_t *fds, size_t fdslen, cloudabi_riflags_t flags,
+    size_t *rdatalen, size_t *rfdslen, cloudabi_roflags_t *rflags)
 {
 	struct msghdr hdr = {
 		.msg_iov = data,
@@ -91,8 +88,8 @@ cloudabi_sock_recv(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
 		hdr.msg_flags |= MSG_WAITALL;
 
 	control = NULL;
-	error = kern_recvit(td, fd, &hdr, UIO_SYSSPACE,
-	    fdslen > 0 ? &control : NULL);
+	error = kern_recvit(
+	    td, fd, &hdr, UIO_SYSSPACE, fdslen > 0 ? &control : NULL);
 	if (error != 0)
 		return (error);
 
@@ -111,7 +108,7 @@ cloudabi_sock_recv(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
 		hdr.msg_control = mtod(control, void *);
 		hdr.msg_controllen = control->m_len;
 		for (chdr = CMSG_FIRSTHDR(&hdr); chdr != NULL;
-		    chdr = CMSG_NXTHDR(&hdr, chdr)) {
+		     chdr = CMSG_NXTHDR(&hdr, chdr)) {
 			if (chdr->cmsg_level == SOL_SOCKET &&
 			    chdr->cmsg_type == SCM_RIGHTS) {
 				size_t nfds;
@@ -125,8 +122,8 @@ cloudabi_sock_recv(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
 					m_dispose_extcontrolm(control);
 					break;
 				}
-				error = copyout(CMSG_DATA(chdr), fds,
-				    nfds * sizeof(int));
+				error = copyout(
+				    CMSG_DATA(chdr), fds, nfds * sizeof(int));
 				if (error != 0)
 					break;
 				fds += nfds;
@@ -160,8 +157,8 @@ cloudabi_sock_send(struct thread *td, cloudabi_fd_t fd, struct iovec *data,
 	} else if (fdslen > 0) {
 		struct cmsghdr *chdr;
 
-		control = m_get2(CMSG_SPACE(fdslen * sizeof(int)),
-		    M_WAITOK, MT_CONTROL, 0);
+		control = m_get2(
+		    CMSG_SPACE(fdslen * sizeof(int)), M_WAITOK, MT_CONTROL, 0);
 		control->m_len = CMSG_SPACE(fdslen * sizeof(int));
 
 		chdr = mtod(control, struct cmsghdr *);

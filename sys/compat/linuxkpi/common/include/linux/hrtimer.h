@@ -26,7 +26,7 @@
  */
 
 #ifndef _LINUX_HRTIMER_H_
-#define	_LINUX_HRTIMER_H_
+#define _LINUX_HRTIMER_H_
 
 #include <sys/_callout.h>
 #include <sys/_mutex.h>
@@ -48,42 +48,46 @@ struct hrtimer {
 	enum hrtimer_restart (*function)(struct hrtimer *);
 	struct mtx mtx;
 	struct callout callout;
-	s64 expires;	/* relative time in nanoseconds */
-	s64 precision;	/* in nanoseconds */
+	s64 expires;   /* relative time in nanoseconds */
+	s64 precision; /* in nanoseconds */
 };
 
-#define	hrtimer_active(hrtimer)	linux_hrtimer_active(hrtimer)
-#define	hrtimer_cancel(hrtimer)	linux_hrtimer_cancel(hrtimer)
+#define hrtimer_active(hrtimer) linux_hrtimer_active(hrtimer)
+#define hrtimer_cancel(hrtimer) linux_hrtimer_cancel(hrtimer)
 
-#define	hrtimer_init(hrtimer, clock, mode) do {			\
-	CTASSERT((clock) == CLOCK_MONOTONIC);			\
-	CTASSERT((mode) == HRTIMER_MODE_REL);			\
-	linux_hrtimer_init(hrtimer);				\
-} while (0)
+#define hrtimer_init(hrtimer, clock, mode)            \
+	do {                                          \
+		CTASSERT((clock) == CLOCK_MONOTONIC); \
+		CTASSERT((mode) == HRTIMER_MODE_REL); \
+		linux_hrtimer_init(hrtimer);          \
+	} while (0)
 
-#define	hrtimer_set_expires(hrtimer, time)			\
+#define hrtimer_set_expires(hrtimer, time) \
 	linux_hrtimer_set_expires(hrtimer, time)
 
-#define	hrtimer_start(hrtimer, time, mode) do {			\
-	CTASSERT((mode) == HRTIMER_MODE_REL);			\
-	linux_hrtimer_start(hrtimer, time);			\
-} while (0)
+#define hrtimer_start(hrtimer, time, mode)            \
+	do {                                          \
+		CTASSERT((mode) == HRTIMER_MODE_REL); \
+		linux_hrtimer_start(hrtimer, time);   \
+	} while (0)
 
-#define	hrtimer_start_range_ns(hrtimer, time, prec, mode) do {	\
-	CTASSERT((mode) == HRTIMER_MODE_REL);			\
-	linux_hrtimer_start_range_ns(hrtimer, time, prec);	\
-} while (0)
+#define hrtimer_start_range_ns(hrtimer, time, prec, mode)          \
+	do {                                                       \
+		CTASSERT((mode) == HRTIMER_MODE_REL);              \
+		linux_hrtimer_start_range_ns(hrtimer, time, prec); \
+	} while (0)
 
-#define	hrtimer_forward_now(hrtimer, interval) do {		\
-	linux_hrtimer_forward_now(hrtimer, interval);		\
-} while (0)
+#define hrtimer_forward_now(hrtimer, interval)                \
+	do {                                                  \
+		linux_hrtimer_forward_now(hrtimer, interval); \
+	} while (0)
 
-bool	linux_hrtimer_active(struct hrtimer *);
-int	linux_hrtimer_cancel(struct hrtimer *);
-void	linux_hrtimer_init(struct hrtimer *);
-void	linux_hrtimer_set_expires(struct hrtimer *, ktime_t);
-void	linux_hrtimer_start(struct hrtimer *, ktime_t);
-void	linux_hrtimer_start_range_ns(struct hrtimer *, ktime_t, int64_t);
-void	linux_hrtimer_forward_now(struct hrtimer *, ktime_t);
+bool linux_hrtimer_active(struct hrtimer *);
+int linux_hrtimer_cancel(struct hrtimer *);
+void linux_hrtimer_init(struct hrtimer *);
+void linux_hrtimer_set_expires(struct hrtimer *, ktime_t);
+void linux_hrtimer_start(struct hrtimer *, ktime_t);
+void linux_hrtimer_start_range_ns(struct hrtimer *, ktime_t, int64_t);
+void linux_hrtimer_forward_now(struct hrtimer *, ktime_t);
 
 #endif /* _LINUX_HRTIMER_H_ */

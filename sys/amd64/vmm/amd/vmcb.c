@@ -39,11 +39,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>
 
-#include "vmm_ktr.h"
-
-#include "vmcb.h"
 #include "svm.h"
 #include "svm_softc.h"
+#include "vmcb.h"
+#include "vmm_ktr.h"
 
 /*
  * The VMCB aka Virtual Machine Control Block is a 4KB aligned page
@@ -116,18 +115,18 @@ vmcb_segptr(struct vmcb *vmcb, int type)
 }
 
 static int
-vmcb_access(struct svm_softc *softc, int vcpu, int write, int ident,
-	uint64_t *val)
+vmcb_access(
+    struct svm_softc *softc, int vcpu, int write, int ident, uint64_t *val)
 {
 	struct vmcb *vmcb;
 	int off, bytes;
 	char *ptr;
 
-	vmcb	= svm_get_vmcb(softc, vcpu);
-	off	= VMCB_ACCESS_OFFSET(ident);
-	bytes	= VMCB_ACCESS_BYTES(ident);
+	vmcb = svm_get_vmcb(softc, vcpu);
+	off = VMCB_ACCESS_OFFSET(ident);
+	bytes = VMCB_ACCESS_BYTES(ident);
 
-	if ((off + bytes) >= sizeof (struct vmcb))
+	if ((off + bytes) >= sizeof(struct vmcb))
 		return (EINVAL);
 
 	ptr = (char *)vmcb;
@@ -229,8 +228,9 @@ vmcb_read(struct svm_softc *sc, int vcpu, int ident, uint64_t *retval)
 	case VM_REG_GUEST_LDTR:
 	case VM_REG_GUEST_TR:
 		seg = vmcb_segptr(vmcb, ident);
-		KASSERT(seg != NULL, ("%s: unable to get segment %d from VMCB",
-		    __func__, ident));
+		KASSERT(seg != NULL,
+		    ("%s: unable to get segment %d from VMCB", __func__,
+			ident));
 		*retval = seg->selector;
 		break;
 
@@ -240,7 +240,7 @@ vmcb_read(struct svm_softc *sc, int vcpu, int ident, uint64_t *retval)
 		err = EINVAL;
 		break;
 	default:
-		err =  EINVAL;
+		err = EINVAL;
 		break;
 	}
 
@@ -323,14 +323,15 @@ vmcb_write(struct svm_softc *sc, int vcpu, int ident, uint64_t val)
 	case VM_REG_GUEST_DS:
 	case VM_REG_GUEST_ES:
 	case VM_REG_GUEST_SS:
-		dirtyseg = 1;		/* FALLTHROUGH */
+		dirtyseg = 1; /* FALLTHROUGH */
 	case VM_REG_GUEST_FS:
 	case VM_REG_GUEST_GS:
 	case VM_REG_GUEST_LDTR:
 	case VM_REG_GUEST_TR:
 		seg = vmcb_segptr(vmcb, ident);
-		KASSERT(seg != NULL, ("%s: unable to get segment %d from VMCB",
-		    __func__, ident));
+		KASSERT(seg != NULL,
+		    ("%s: unable to get segment %d from VMCB", __func__,
+			ident));
 		seg->selector = val;
 		if (dirtyseg)
 			svm_set_dirty(sc, vcpu, VMCB_CACHE_SEG);
@@ -375,8 +376,8 @@ vmcb_setdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
 	vmcb = svm_get_vmcb(sc, vcpu);
 
 	seg = vmcb_segptr(vmcb, reg);
-	KASSERT(seg != NULL, ("%s: invalid segment descriptor %d",
-	    __func__, reg));
+	KASSERT(
+	    seg != NULL, ("%s: invalid segment descriptor %d", __func__, reg));
 
 	seg->base = desc->base;
 	seg->limit = desc->limit;
@@ -394,8 +395,10 @@ vmcb_setdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
 		seg->attrib = attrib;
 	}
 
-	VCPU_CTR4(sc->vm, vcpu, "Setting desc %d: base (%#lx), limit (%#x), "
-	    "attrib (%#x)", reg, seg->base, seg->limit, seg->attrib);
+	VCPU_CTR4(sc->vm, vcpu,
+	    "Setting desc %d: base (%#lx), limit (%#x), "
+	    "attrib (%#x)",
+	    reg, seg->base, seg->limit, seg->attrib);
 
 	switch (reg) {
 	case VM_REG_GUEST_CS:
@@ -425,8 +428,8 @@ vmcb_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
 	sc = arg;
 	vmcb = svm_get_vmcb(sc, vcpu);
 	seg = vmcb_segptr(vmcb, reg);
-	KASSERT(seg != NULL, ("%s: invalid segment descriptor %d",
-	    __func__, reg));
+	KASSERT(
+	    seg != NULL, ("%s: invalid segment descriptor %d", __func__, reg));
 
 	desc->base = seg->base;
 	desc->limit = seg->limit;
@@ -449,7 +452,7 @@ vmcb_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
 		 */
 		if (reg != VM_REG_GUEST_CS && reg != VM_REG_GUEST_TR) {
 			if ((desc->access & 0x80) == 0)
-				desc->access |= 0x10000;  /* Unusable segment */
+				desc->access |= 0x10000; /* Unusable segment */
 		}
 	}
 
@@ -531,8 +534,8 @@ done:
 }
 
 int
-vmcb_snapshot_any(struct svm_softc *sc, int vcpu, int ident,
-		  struct vm_snapshot_meta *meta)
+vmcb_snapshot_any(
+    struct svm_softc *sc, int vcpu, int ident, struct vm_snapshot_meta *meta)
 {
 	int ret;
 	uint64_t val;

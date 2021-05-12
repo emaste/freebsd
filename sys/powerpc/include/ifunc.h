@@ -33,28 +33,24 @@
  */
 
 #ifndef __POWERPC_IFUNC_H
-#define	__POWERPC_IFUNC_H
+#define __POWERPC_IFUNC_H
 
 #include <sys/types.h>
 
-#define	DEFINE_IFUNC(qual, ret_type, name, args)			\
-    static ret_type (*name##_resolver(void))args __used;		\
-    qual ret_type name args __attribute__((ifunc(#name "_resolver")));	\
-    static ret_type (*name##_resolver(void))args
+#define DEFINE_IFUNC(qual, ret_type, name, args)                           \
+	static ret_type(*name##_resolver(void)) args __used;               \
+	qual ret_type name args __attribute__((ifunc(#name "_resolver"))); \
+	static ret_type(*name##_resolver(void)) args
 
-#define	DEFINE_UIFUNC(qual, ret_type, name, args)			\
-    static ret_type (*name##_resolver(register_t, register_t,		\
-	register_t, register_t, register_t, register_t, register_t,	\
-	register_t))args __used;					\
-    qual ret_type name args __attribute__((ifunc(#name "_resolver")));	\
-    static ret_type (*name##_resolver(					\
-	register_t cpu_features,					\
-	register_t cpu_features2,					\
-	register_t arg3 __unused,					\
-	register_t arg4 __unused,					\
-	register_t arg5 __unused,					\
-	register_t arg6 __unused,					\
-	register_t arg7 __unused,					\
-	register_t arg8 __unused))args
+#define DEFINE_UIFUNC(qual, ret_type, name, args)                            \
+	static ret_type(*name##_resolver(register_t, register_t, register_t, \
+	    register_t, register_t, register_t, register_t, register_t))     \
+	    args __used;                                                     \
+	qual ret_type name args __attribute__((ifunc(#name "_resolver")));   \
+	static ret_type(*name##_resolver(register_t cpu_features,            \
+	    register_t cpu_features2, register_t arg3 __unused,              \
+	    register_t arg4 __unused, register_t arg5 __unused,              \
+	    register_t arg6 __unused, register_t arg7 __unused,              \
+	    register_t arg8 __unused)) args
 
 #endif

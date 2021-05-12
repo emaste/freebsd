@@ -33,15 +33,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/systm.h>
 
-#include <mips/nlm/hal/mips-extns.h>
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
-#include <mips/nlm/hal/sys.h>
-#include <mips/nlm/hal/nae.h>
 #include <mips/nlm/hal/mdio.h>
+#include <mips/nlm/hal/mips-extns.h>
+#include <mips/nlm/hal/nae.h>
 #include <mips/nlm/hal/sgmii.h>
+#include <mips/nlm/hal/sys.h>
 #include <mips/nlm/hal/xaui.h>
-
 #include <mips/nlm/xlp.h>
 void
 nlm_xaui_pcs_init(uint64_t nae_base, int xaui_cplx_mask)
@@ -51,9 +50,7 @@ nlm_xaui_pcs_init(uint64_t nae_base, int xaui_cplx_mask)
 	int lane_enable = 0;
 	uint32_t regval;
 
-	cplx_lane_enable = LM_XAUI |
-	    (LM_XAUI << 4) |
-	    (LM_XAUI << 8) |
+	cplx_lane_enable = LM_XAUI | (LM_XAUI << 4) | (LM_XAUI << 8) |
 	    (LM_XAUI << 12);
 
 	if (xaui_cplx_mask == 0)
@@ -63,35 +60,33 @@ nlm_xaui_pcs_init(uint64_t nae_base, int xaui_cplx_mask)
 	block = 7;
 
 	if (xaui_cplx_mask & 0x3) { /* Complexes 0, 1 */
-		lane_enable = nlm_read_nae_reg(nae_base,
-		    NAE_REG(block, LANE_CFG, LANE_CFG_CPLX_0_1));
+		lane_enable = nlm_read_nae_reg(
+		    nae_base, NAE_REG(block, LANE_CFG, LANE_CFG_CPLX_0_1));
 		if (xaui_cplx_mask & 0x1) { /* Complex 0 */
 			lane_enable &= ~(0xFFFF);
 			lane_enable |= cplx_lane_enable;
 		}
 		if (xaui_cplx_mask & 0x2) { /* Complex 1 */
-			lane_enable &= ~(0xFFFF<<16);
+			lane_enable &= ~(0xFFFF << 16);
 			lane_enable |= (cplx_lane_enable << 16);
 		}
 		nlm_write_nae_reg(nae_base,
-		    NAE_REG(block, LANE_CFG, LANE_CFG_CPLX_0_1),
-		    lane_enable);
+		    NAE_REG(block, LANE_CFG, LANE_CFG_CPLX_0_1), lane_enable);
 	}
 	lane_enable = 0;
 	if (xaui_cplx_mask & 0xc) { /* Complexes 2, 3 */
-		lane_enable = nlm_read_nae_reg(nae_base,
-		    NAE_REG(block, LANE_CFG, LANE_CFG_CPLX_2_3));
+		lane_enable = nlm_read_nae_reg(
+		    nae_base, NAE_REG(block, LANE_CFG, LANE_CFG_CPLX_2_3));
 		if (xaui_cplx_mask & 0x4) { /* Complex 2 */
 			lane_enable &= ~(0xFFFF);
 			lane_enable |= cplx_lane_enable;
 		}
 		if (xaui_cplx_mask & 0x8) { /* Complex 3 */
-			lane_enable &= ~(0xFFFF<<16);
+			lane_enable &= ~(0xFFFF << 16);
 			lane_enable |= (cplx_lane_enable << 16);
 		}
 		nlm_write_nae_reg(nae_base,
-		    NAE_REG(block, LANE_CFG, LANE_CFG_CPLX_2_3),
-		    lane_enable);
+		    NAE_REG(block, LANE_CFG, LANE_CFG_CPLX_2_3), lane_enable);
 	}
 
 	/* Bring txpll out of reset */
@@ -99,14 +94,14 @@ nlm_xaui_pcs_init(uint64_t nae_base, int xaui_cplx_mask)
 		if ((xaui_cplx_mask & (1 << block)) == 0)
 			continue;
 
-		for (lane_ctrl = PHY_LANE_0_CTRL;
-		    lane_ctrl <= PHY_LANE_3_CTRL; lane_ctrl++) {
+		for (lane_ctrl = PHY_LANE_0_CTRL; lane_ctrl <= PHY_LANE_3_CTRL;
+		     lane_ctrl++) {
 			if (!nlm_is_xlp8xx_ax())
-				xlp_nae_lane_reset_txpll(nae_base,
-				    block, lane_ctrl, PHYMODE_XAUI);
+				xlp_nae_lane_reset_txpll(
+				    nae_base, block, lane_ctrl, PHYMODE_XAUI);
 			else
-				xlp_ax_nae_lane_reset_txpll(nae_base, block,
-				    lane_ctrl, PHYMODE_XAUI);
+				xlp_ax_nae_lane_reset_txpll(
+				    nae_base, block, lane_ctrl, PHYMODE_XAUI);
 		}
 	}
 
@@ -115,8 +110,8 @@ nlm_xaui_pcs_init(uint64_t nae_base, int xaui_cplx_mask)
 		if ((xaui_cplx_mask & (1 << block)) == 0)
 			continue;
 
-		for (lane_ctrl = PHY_LANE_0_CTRL;
-		    lane_ctrl <= PHY_LANE_3_CTRL; lane_ctrl++) {
+		for (lane_ctrl = PHY_LANE_0_CTRL; lane_ctrl <= PHY_LANE_3_CTRL;
+		     lane_ctrl++) {
 			reg = NAE_REG(block, PHY, lane_ctrl - 4);
 			/* Wait for TX clock to be set */
 			do {
@@ -142,71 +137,60 @@ nlm_nae_setup_rx_mode_xaui(uint64_t base, int nblock, int iface, int port_type,
 {
 	uint32_t val;
 
-	val = ((broadcast_en & 0x1) << 10)  |
-	    ((pause_en & 0x1) << 9)     |
+	val = ((broadcast_en & 0x1) << 10) | ((pause_en & 0x1) << 9) |
 	    ((multicast_en & 0x1) << 8) |
-	    ((promisc_en & 0x1) << 7)   | /* unicast_enable - enables promisc mode */
-	    1; /* MAC address is always valid */
+	    ((promisc_en & 0x1)
+		<< 7) | /* unicast_enable - enables promisc mode */
+	    1;		/* MAC address is always valid */
 
 	nlm_write_nae_reg(base, XAUI_MAC_FILTER_CFG(nblock), val);
 }
 
 void
-nlm_nae_setup_mac_addr_xaui(uint64_t base, int nblock, int iface,
-    int port_type, unsigned char *mac_addr)
+nlm_nae_setup_mac_addr_xaui(uint64_t base, int nblock, int iface, int port_type,
+    unsigned char *mac_addr)
 {
-	nlm_write_nae_reg(base,
-	    XAUI_MAC_ADDR0_LO(nblock),
-	    (mac_addr[5] << 24) |
-	    (mac_addr[4] << 16) |
-	    (mac_addr[3] << 8)  |
-	    mac_addr[2]);
+	nlm_write_nae_reg(base, XAUI_MAC_ADDR0_LO(nblock),
+	    (mac_addr[5] << 24) | (mac_addr[4] << 16) | (mac_addr[3] << 8) |
+		mac_addr[2]);
 
-	nlm_write_nae_reg(base,
-	    XAUI_MAC_ADDR0_HI(nblock),
-	    (mac_addr[1] << 24) |
-	    (mac_addr[0] << 16));
+	nlm_write_nae_reg(base, XAUI_MAC_ADDR0_HI(nblock),
+	    (mac_addr[1] << 24) | (mac_addr[0] << 16));
 
-	nlm_write_nae_reg(base,
-	    XAUI_MAC_ADDR_MASK0_LO(nblock),
-	    0xffffffff);
-	nlm_write_nae_reg(base,
-	    XAUI_MAC_ADDR_MASK0_HI(nblock),
-	    0xffffffff);
+	nlm_write_nae_reg(base, XAUI_MAC_ADDR_MASK0_LO(nblock), 0xffffffff);
+	nlm_write_nae_reg(base, XAUI_MAC_ADDR_MASK0_HI(nblock), 0xffffffff);
 
-	nlm_nae_setup_rx_mode_xaui(base, nblock, iface,
-	    XAUIC,
-	    1, /* broadcast enabled */
-	    1, /* multicast enabled */
-	    0, /* do not accept pause frames */
-	    0 /* promisc mode disabled */
-	    );
+	nlm_nae_setup_rx_mode_xaui(
+	    base, nblock, iface, XAUIC, 1, /* broadcast enabled */
+	    1,				   /* multicast enabled */
+	    0,				   /* do not accept pause frames */
+	    0				   /* promisc mode disabled */
+	);
 }
 
 void
-nlm_config_xaui_mtu(uint64_t nae_base, int nblock,
-    int max_tx_frame_sz, int max_rx_frame_sz)
+nlm_config_xaui_mtu(
+    uint64_t nae_base, int nblock, int max_tx_frame_sz, int max_rx_frame_sz)
 {
 	uint32_t tx_words = max_tx_frame_sz >> 2; /* max_tx_frame_sz / 4 */
 
 	/* write max frame length */
-	nlm_write_nae_reg(nae_base,
-	    XAUI_MAX_FRAME_LEN(nblock),
+	nlm_write_nae_reg(nae_base, XAUI_MAX_FRAME_LEN(nblock),
 	    ((tx_words & 0x3ff) << 16) | (max_rx_frame_sz & 0xffff));
 }
 
 void
-nlm_config_xaui(uint64_t nae_base, int nblock,
-    int max_tx_frame_sz, int max_rx_frame_sz, int vlan_pri_en)
+nlm_config_xaui(uint64_t nae_base, int nblock, int max_tx_frame_sz,
+    int max_rx_frame_sz, int vlan_pri_en)
 {
 	uint32_t val;
 
 	val = nlm_read_nae_reg(nae_base, XAUI_NETIOR_XGMAC_CTRL1(nblock));
-	val &= ~(0x1 << 11);	/* clear soft reset */
+	val &= ~(0x1 << 11); /* clear soft reset */
 	nlm_write_nae_reg(nae_base, XAUI_NETIOR_XGMAC_CTRL1(nblock), val);
 
 	val = nlm_read_nae_reg(nae_base, XAUI_NETIOR_XGMAC_CTRL1(nblock));
-	val &= ~(0x3 << 11);	/* clear soft reset and hard reset */
+	val &= ~(0x3 << 11); /* clear soft reset and hard reset */
 	nlm_write_nae_reg(nae_base, XAUI_NETIOR_XGMAC_CTRL1(nblock), val);
 	nlm_write_nae_reg(nae_base, XAUI_CONFIG0(nblock), 0xffffffff);
 	nlm_write_nae_reg(nae_base, XAUI_CONFIG0(nblock), 0);
@@ -219,8 +203,7 @@ nlm_config_xaui(uint64_t nae_base, int nblock,
 	nlm_write_nae_reg(nae_base, XAUI_CONFIG1(nblock), val);
 
 	/* write max frame length */
-	nlm_config_xaui_mtu(nae_base, nblock, max_tx_frame_sz,
-	    max_rx_frame_sz);
+	nlm_config_xaui_mtu(nae_base, nblock, max_tx_frame_sz, max_rx_frame_sz);
 
 	/* set stats counter */
 	val = nlm_read_nae_reg(nae_base, XAUI_NETIOR_XGMAC_CTRL1(nblock));

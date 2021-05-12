@@ -33,28 +33,28 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/cons.h>
-#include <sys/kbio.h>
 #include <sys/consio.h>
+#include <sys/kbio.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 
 #if defined(__i386__) || defined(__amd64__)
-
-#include <machine/clock.h>
-#include <machine/md_var.h>
-#include <machine/pc/bios.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
 
-#define BIOS_CLKED	(1 << 6)
-#define BIOS_NLKED	(1 << 5)
-#define BIOS_SLKED	(1 << 4)
-#define BIOS_ALKED	0
+#include <machine/clock.h>
+#include <machine/md_var.h>
+#include <machine/pc/bios.h>
+
+#define BIOS_CLKED (1 << 6)
+#define BIOS_NLKED (1 << 5)
+#define BIOS_SLKED (1 << 4)
+#define BIOS_ALKED 0
 
 #endif
 
@@ -62,9 +62,9 @@ __FBSDID("$FreeBSD$");
 
 #include <isa/isavar.h>
 
-static devclass_t	sc_devclass;
+static devclass_t sc_devclass;
 
-static sc_softc_t	main_softc;
+static sc_softc_t main_softc;
 
 static void
 scidentify(driver_t *driver, device_t parent)
@@ -89,8 +89,8 @@ static int
 scattach(device_t dev)
 {
 
-	return (sc_attach_unit(device_get_unit(dev), device_get_flags(dev) |
-	    SC_AUTODETECT_KBD));
+	return (sc_attach_unit(
+	    device_get_unit(dev), device_get_flags(dev) | SC_AUTODETECT_KBD));
 }
 
 int
@@ -100,8 +100,8 @@ sc_max_unit(void)
 	return (devclass_get_maxunit(sc_devclass));
 }
 
-sc_softc_t
-*sc_get_softc(int unit, int flags)
+sc_softc_t *
+sc_get_softc(int unit, int flags)
 {
 	sc_softc_t *sc;
 
@@ -111,7 +111,7 @@ sc_softc_t
 		/* FIXME: clear if it is wired to another unit! */
 		sc = &main_softc;
 	} else {
-	        sc = device_get_softc(devclass_get_device(sc_devclass, unit));
+		sc = device_get_softc(devclass_get_device(sc_devclass, unit));
 		if (sc == NULL)
 			return (NULL);
 	}
@@ -124,20 +124,19 @@ sc_softc_t
 	return (sc);
 }
 
-sc_softc_t
-*sc_find_softc(struct video_adapter *adp, struct keyboard *kbd)
+sc_softc_t *
+sc_find_softc(struct video_adapter *adp, struct keyboard *kbd)
 {
 	sc_softc_t *sc;
 	int i;
 	int units;
 
 	sc = &main_softc;
-	if ((adp == NULL || adp == sc->adp) &&
-	    (kbd == NULL || kbd == sc->kbd))
+	if ((adp == NULL || adp == sc->adp) && (kbd == NULL || kbd == sc->kbd))
 		return (sc);
 	units = devclass_get_maxunit(sc_devclass);
 	for (i = 0; i < units; ++i) {
-	        sc = device_get_softc(devclass_get_device(sc_devclass, i));
+		sc = device_get_softc(devclass_get_device(sc_devclass, i));
 		if (sc == NULL)
 			continue;
 		if ((adp == NULL || adp == sc->adp) &&
@@ -214,12 +213,9 @@ sc_tone(int herz)
 	return (0);
 }
 
-static device_method_t sc_methods[] = {
-	DEVMETHOD(device_identify,	scidentify),
-	DEVMETHOD(device_probe,         scprobe),
-	DEVMETHOD(device_attach,        scattach),
-	{ 0, 0 }
-};
+static device_method_t sc_methods[] = { DEVMETHOD(device_identify, scidentify),
+	DEVMETHOD(device_probe, scprobe), DEVMETHOD(device_attach, scattach),
+	{ 0, 0 } };
 
 static driver_t sc_driver = {
 	SC_DRIVER_NAME,

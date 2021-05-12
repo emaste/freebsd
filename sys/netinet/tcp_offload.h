@@ -30,7 +30,7 @@
  */
 
 #ifndef _NETINET_TCP_OFFLOAD_H_
-#define	_NETINET_TCP_OFFLOAD_H_
+#define _NETINET_TCP_OFFLOAD_H_
 
 #ifndef _KERNEL
 #error "no user-serviceable parts inside"
@@ -40,15 +40,15 @@
 
 extern int registered_toedevs;
 
-int  tcp_offload_connect(struct socket *, struct sockaddr *);
+int tcp_offload_connect(struct socket *, struct sockaddr *);
 void tcp_offload_listen_start(struct tcpcb *);
 void tcp_offload_listen_stop(struct tcpcb *);
 void tcp_offload_input(struct tcpcb *, struct mbuf *);
-int  tcp_offload_output(struct tcpcb *);
+int tcp_offload_output(struct tcpcb *);
 void tcp_offload_rcvd(struct tcpcb *);
 void tcp_offload_ctloutput(struct tcpcb *, int, int);
 void tcp_offload_tcp_info(struct tcpcb *, struct tcp_info *);
-int  tcp_offload_alloc_tls_session(struct tcpcb *, struct ktls_session *, int);
+int tcp_offload_alloc_tls_session(struct tcpcb *, struct ktls_session *, int);
 void tcp_offload_detach(struct tcpcb *);
 void tcp_offload_pmtu_update(struct tcpcb *, tcp_seq, int);
 

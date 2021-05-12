@@ -3,7 +3,7 @@
  *
  *  Copyright (c) 2004, 2007 Lukas Ertl
  *  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -12,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -36,14 +36,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 
 #include <geom/geom.h>
-#include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
 #include <geom/vinum/geom_vinum_share.h>
+#include <geom/vinum/geom_vinum_var.h>
 
-void	gv_lvi(struct gv_volume *, struct sbuf *, int);
-void	gv_lpi(struct gv_plex *, struct sbuf *, int);
-void	gv_lsi(struct gv_sd *, struct sbuf *, int);
-void	gv_ldi(struct gv_drive *, struct sbuf *, int);
+void gv_lvi(struct gv_volume *, struct sbuf *, int);
+void gv_lpi(struct gv_plex *, struct sbuf *, int);
+void gv_lsi(struct gv_sd *, struct sbuf *, int);
+void gv_ldi(struct gv_drive *, struct sbuf *, int);
 
 void
 gv_list(struct g_geom *gp, struct gctl_req *req)
@@ -108,8 +108,8 @@ gv_list(struct g_geom *gp, struct gctl_req *req)
 					gv_ldi(d, sb, *flags);
 					break;
 				default:
-					gctl_error(req, "unknown object '%s'",
-					    arg);
+					gctl_error(
+					    req, "unknown object '%s'", arg);
 					break;
 				}
 			}
@@ -123,7 +123,7 @@ gv_list(struct g_geom *gp, struct gctl_req *req)
 			gv_ls(gp, req, sb);
 		}
 
-	/* List drives. */
+		/* List drives. */
 	} else if (!strcmp(cmd, "ld")) {
 		if (*argc) {
 			for (i = 0; i < *argc; i++) {
@@ -133,8 +133,8 @@ gv_list(struct g_geom *gp, struct gctl_req *req)
 					continue;
 				type = gv_object_type(sc, arg);
 				if (type != GV_TYPE_DRIVE) {
-					gctl_error(req, "'%s' is not a drive",
-					    arg);
+					gctl_error(
+					    req, "'%s' is not a drive", arg);
 					continue;
 				} else {
 					d = gv_find_drive(sc, arg);
@@ -144,7 +144,7 @@ gv_list(struct g_geom *gp, struct gctl_req *req)
 		} else
 			gv_ld(gp, req, sb);
 
-	/* List volumes. */
+		/* List volumes. */
 	} else if (!strcmp(cmd, "lv")) {
 		if (*argc) {
 			for (i = 0; i < *argc; i++) {
@@ -154,8 +154,8 @@ gv_list(struct g_geom *gp, struct gctl_req *req)
 					continue;
 				type = gv_object_type(sc, arg);
 				if (type != GV_TYPE_VOL) {
-					gctl_error(req, "'%s' is not a volume",
-					    arg);
+					gctl_error(
+					    req, "'%s' is not a volume", arg);
 					continue;
 				} else {
 					v = gv_find_vol(sc, arg);
@@ -165,7 +165,7 @@ gv_list(struct g_geom *gp, struct gctl_req *req)
 		} else
 			gv_lv(gp, req, sb);
 
-	/* List plexes. */
+		/* List plexes. */
 	} else if (!strcmp(cmd, "lp")) {
 		if (*argc) {
 			for (i = 0; i < *argc; i++) {
@@ -175,8 +175,8 @@ gv_list(struct g_geom *gp, struct gctl_req *req)
 					continue;
 				type = gv_object_type(sc, arg);
 				if (type != GV_TYPE_PLEX) {
-					gctl_error(req, "'%s' is not a plex",
-					    arg);
+					gctl_error(
+					    req, "'%s' is not a plex", arg);
 					continue;
 				} else {
 					p = gv_find_plex(sc, arg);
@@ -186,7 +186,7 @@ gv_list(struct g_geom *gp, struct gctl_req *req)
 		} else
 			gv_lp(gp, req, sb);
 
-	/* List subdisks. */
+		/* List subdisks. */
 	} else if (!strcmp(cmd, "ls")) {
 		if (*argc) {
 			for (i = 0; i < *argc; i++) {
@@ -196,8 +196,8 @@ gv_list(struct g_geom *gp, struct gctl_req *req)
 					continue;
 				type = gv_object_type(sc, arg);
 				if (type != GV_TYPE_SD) {
-					gctl_error(req, "'%s' is not a subdisk",
-					    arg);
+					gctl_error(
+					    req, "'%s' is not a subdisk", arg);
 					continue;
 				} else {
 					s = gv_find_sd(sc, arg);
@@ -226,14 +226,14 @@ gv_lv(struct g_geom *gp, struct gctl_req *req, struct sbuf *sb)
 	sc = gp->softc;
 	i = 0;
 
-	LIST_FOREACH(v, &sc->volumes, volume)
+	LIST_FOREACH (v, &sc->volumes, volume)
 		i++;
 
 	sbuf_printf(sb, "%d volume%s:\n", i, i == 1 ? "" : "s");
 
 	if (i) {
 		flags = gctl_get_paraml(req, "flags", sizeof(*flags));
-		LIST_FOREACH(v, &sc->volumes, volume)
+		LIST_FOREACH (v, &sc->volumes, volume)
 			gv_lvi(v, sb, *flags);
 	}
 }
@@ -257,7 +257,7 @@ gv_lvi(struct gv_volume *v, struct sbuf *sb, int flags)
 
 	if (flags & GV_FLAG_VV) {
 		i = 0;
-		LIST_FOREACH(p, &v->plexes, in_volume) {
+		LIST_FOREACH (p, &v->plexes, in_volume) {
 			sbuf_printf(sb, "\t\tPlex %2d:\t%s\t(%s), %s\n", i,
 			    p->name, gv_plexstate(p->state),
 			    gv_roughlength(p->size, 0));
@@ -266,7 +266,7 @@ gv_lvi(struct gv_volume *v, struct sbuf *sb, int flags)
 	}
 
 	if (flags & GV_FLAG_R) {
-		LIST_FOREACH(p, &v->plexes, in_volume)
+		LIST_FOREACH (p, &v->plexes, in_volume)
 			gv_lpi(p, sb, flags);
 	}
 }
@@ -282,14 +282,14 @@ gv_lp(struct g_geom *gp, struct gctl_req *req, struct sbuf *sb)
 	sc = gp->softc;
 	i = 0;
 
-	LIST_FOREACH(p, &sc->plexes, plex)
+	LIST_FOREACH (p, &sc->plexes, plex)
 		i++;
 
 	sbuf_printf(sb, "%d plex%s:\n", i, i == 1 ? "" : "es");
 
 	if (i) {
 		flags = gctl_get_paraml(req, "flags", sizeof(*flags));
-		LIST_FOREACH(p, &sc->plexes, plex)
+		LIST_FOREACH (p, &sc->plexes, plex)
 			gv_lpi(p, sb, *flags);
 	}
 }
@@ -313,7 +313,7 @@ gv_lpi(struct gv_plex *p, struct sbuf *sb, int flags)
 			sbuf_printf(sb, "%16jd bytes (%d%%)\n",
 			    (intmax_t)p->synced,
 			    (p->size > 0) ? (int)((p->synced * 100) / p->size) :
-			    0);
+						  0);
 		}
 		sbuf_printf(sb, "\t\tOrganization: %s", gv_plexorg(p->org));
 		if (gv_is_striped(p)) {
@@ -326,12 +326,12 @@ gv_lpi(struct gv_plex *p, struct sbuf *sb, int flags)
 		}
 	} else {
 		sbuf_printf(sb, "P %-18s %2s State: ", p->name,
-		gv_plexorg_short(p->org));
+		    gv_plexorg_short(p->org));
 		if ((p->flags & GV_PLEX_SYNCING) ||
 		    (p->flags & GV_PLEX_GROWING) ||
 		    (p->flags & GV_PLEX_REBUILDING)) {
-			sbuf_printf(sb, "S %d%%\t", (int)((p->synced * 100) /
-			    p->size));
+			sbuf_printf(
+			    sb, "S %d%%\t", (int)((p->synced * 100) / p->size));
 		} else {
 			sbuf_printf(sb, "%s\t", gv_plexstate(p->state));
 		}
@@ -341,11 +341,13 @@ gv_lpi(struct gv_plex *p, struct sbuf *sb, int flags)
 
 	if (flags & GV_FLAG_VV) {
 		i = 0;
-		LIST_FOREACH(s, &p->subdisks, in_plex) {
+		LIST_FOREACH (s, &p->subdisks, in_plex) {
 			sbuf_printf(sb, "\t\tSubdisk %d:\t%s\n", i, s->name);
-			sbuf_printf(sb, "\t\t  state: %s\tsize %11jd "
-			    "(%jd MB)\n", gv_sdstate(s->state),
-			    (intmax_t)s->size, (intmax_t)s->size / MEGABYTE);
+			sbuf_printf(sb,
+			    "\t\t  state: %s\tsize %11jd "
+			    "(%jd MB)\n",
+			    gv_sdstate(s->state), (intmax_t)s->size,
+			    (intmax_t)s->size / MEGABYTE);
 			if (p->org == GV_PLEX_CONCAT) {
 				sbuf_printf(sb, "\t\t\toffset %9jd (0x%jx)\n",
 				    (intmax_t)s->plex_offset,
@@ -356,7 +358,7 @@ gv_lpi(struct gv_plex *p, struct sbuf *sb, int flags)
 	}
 
 	if (flags & GV_FLAG_R) {
-		LIST_FOREACH(s, &p->subdisks, in_plex)
+		LIST_FOREACH (s, &p->subdisks, in_plex)
 			gv_lsi(s, sb, flags);
 	}
 }
@@ -372,14 +374,14 @@ gv_ls(struct g_geom *gp, struct gctl_req *req, struct sbuf *sb)
 	sc = gp->softc;
 	i = 0;
 
-	LIST_FOREACH(s, &sc->subdisks, sd)
+	LIST_FOREACH (s, &sc->subdisks, sd)
 		i++;
 
 	sbuf_printf(sb, "%d subdisk%s:\n", i, i == 1 ? "" : "s");
 
 	if (i) {
 		flags = gctl_get_paraml(req, "flags", sizeof(*flags));
-		LIST_FOREACH(s, &sc->subdisks, sd)
+		LIST_FOREACH (s, &sc->subdisks, sd)
 			gv_lsi(s, sb, *flags);
 	}
 }
@@ -400,7 +402,7 @@ gv_lsi(struct gv_sd *s, struct sbuf *sb, int flags)
 				sbuf_printf(sb, "\t\tInitialized: ");
 			else
 				sbuf_printf(sb, "\t\tRevived: ");
-				
+
 			sbuf_printf(sb, "%16jd bytes (%d%%)\n",
 			    (intmax_t)s->initialized,
 			    (int)((s->initialized * 100) / s->size));
@@ -447,14 +449,14 @@ gv_ld(struct g_geom *gp, struct gctl_req *req, struct sbuf *sb)
 	sc = gp->softc;
 	i = 0;
 
-	LIST_FOREACH(d, &sc->drives, drive)
+	LIST_FOREACH (d, &sc->drives, drive)
 		i++;
 
 	sbuf_printf(sb, "%d drive%s:\n", i, i == 1 ? "" : "s");
 
 	if (i) {
 		flags = gctl_get_paraml(req, "flags", sizeof(*flags));
-		LIST_FOREACH(d, &sc->drives, drive)
+		LIST_FOREACH (d, &sc->drives, drive)
 			gv_ldi(d, sb, *flags);
 	}
 }
@@ -484,20 +486,22 @@ gv_ldi(struct gv_drive *d, struct sbuf *sb, int flags)
 			sbuf_printf(sb, "\t\tFree list contains %d entries:\n",
 			    d->freelist_entries);
 			sbuf_printf(sb, "\t\t   Offset\t     Size\n");
-			LIST_FOREACH(fl, &d->freelist, freelist)
+			LIST_FOREACH (fl, &d->freelist, freelist)
 				sbuf_printf(sb, "\t\t%9jd\t%9jd\n",
 				    (intmax_t)fl->offset, (intmax_t)fl->size);
 		}
 	} else {
-		sbuf_printf(sb, "D %-21s State: %s\t/dev/%s\tA: %jd/%jd MB "
-		    "(%d%%)\n", d->name, gv_drivestate(d->state), d->device,
+		sbuf_printf(sb,
+		    "D %-21s State: %s\t/dev/%s\tA: %jd/%jd MB "
+		    "(%d%%)\n",
+		    d->name, gv_drivestate(d->state), d->device,
 		    (intmax_t)d->avail / MEGABYTE, (intmax_t)d->size / MEGABYTE,
 		    d->size > 0 ? (int)((d->avail * 100) / d->size) : 0);
 	}
 
 	/* Recursive listing. */
 	if (flags & GV_FLAG_R) {
-		LIST_FOREACH(s, &d->subdisks, from_drive)
+		LIST_FOREACH (s, &d->subdisks, from_drive)
 			gv_lsi(s, sb, flags);
 	}
 }

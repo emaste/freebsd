@@ -6,27 +6,27 @@
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
+ * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * - Redistributions of source code must retain the above copyright notice, 
+ * - Redistributions of source code must retain the above copyright notice,
  *   this list of conditions and the following disclaimer.
- * - Redistributions in binary form must reproduce the above copyright notice, 
- *   this list of conditions and the following disclaimer in the documentation 
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
  *   and/or other materials provided with the distribution.
- * - Neither the name of Sun Microsystems, Inc. nor the names of its 
- *   contributors may be used to endorse or promote products derived 
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
@@ -55,13 +55,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
-#include <rpc/types.h>
-#include <rpc/xdr.h>
 #include <rpc/auth.h>
 #include <rpc/clnt.h>
 #include <rpc/rpc_msg.h>
+#include <rpc/types.h>
+#include <rpc/xdr.h>
 
-#define assert(exp)	KASSERT(exp, ("bad arguments"))
+#define assert(exp) KASSERT(exp, ("bad arguments"))
 
 static enum clnt_stat accepted(enum accept_stat, struct rpc_err *);
 static enum clnt_stat rejected(enum reject_stat, struct rpc_err *);
@@ -82,8 +82,8 @@ xdr_opaque_auth(XDR *xdrs, struct opaque_auth *ap)
 	assert(ap != NULL);
 
 	if (xdr_enum(xdrs, &(ap->oa_flavor)))
-		return (xdr_bytes(xdrs, &ap->oa_base,
-			&ap->oa_length, MAX_AUTH_BYTES));
+		return (xdr_bytes(
+		    xdrs, &ap->oa_base, &ap->oa_length, MAX_AUTH_BYTES));
 	return (FALSE);
 }
 
@@ -103,21 +103,21 @@ xdr_accepted_reply(XDR *xdrs, struct accepted_reply *ar)
 	par_stat = &ar->ar_stat;
 
 	/* personalized union, rather than calling xdr_union */
-	if (! xdr_opaque_auth(xdrs, &(ar->ar_verf)))
+	if (!xdr_opaque_auth(xdrs, &(ar->ar_verf)))
 		return (FALSE);
-	if (! xdr_enum(xdrs, (enum_t *) par_stat))
+	if (!xdr_enum(xdrs, (enum_t *)par_stat))
 		return (FALSE);
 	switch (ar->ar_stat) {
 
 	case SUCCESS:
-		if (ar->ar_results.proc != (xdrproc_t) xdr_void)
-			return ((*(ar->ar_results.proc))(xdrs,
-				ar->ar_results.where));
+		if (ar->ar_results.proc != (xdrproc_t)xdr_void)
+			return ((*(ar->ar_results.proc))(
+			    xdrs, ar->ar_results.where));
 		else
 			return (TRUE);
 
 	case PROG_MISMATCH:
-		if (! xdr_uint32_t(xdrs, &(ar->ar_vers.low)))
+		if (!xdr_uint32_t(xdrs, &(ar->ar_vers.low)))
 			return (FALSE);
 		return (xdr_uint32_t(xdrs, &(ar->ar_vers.high)));
 
@@ -127,13 +127,13 @@ xdr_accepted_reply(XDR *xdrs, struct accepted_reply *ar)
 	case PROG_UNAVAIL:
 		break;
 	}
-	return (TRUE);  /* TRUE => open ended set of problems */
+	return (TRUE); /* TRUE => open ended set of problems */
 }
 
 /*
  * XDR the MSG_DENIED part of a reply message union
  */
-bool_t 
+bool_t
 xdr_rejected_reply(XDR *xdrs, struct rejected_reply *rr)
 {
 	enum reject_stat *prj_stat;
@@ -145,18 +145,18 @@ xdr_rejected_reply(XDR *xdrs, struct rejected_reply *rr)
 	prj_stat = &rr->rj_stat;
 
 	/* personalized union, rather than calling xdr_union */
-	if (! xdr_enum(xdrs, (enum_t *) prj_stat))
+	if (!xdr_enum(xdrs, (enum_t *)prj_stat))
 		return (FALSE);
 	switch (rr->rj_stat) {
 
 	case RPC_MISMATCH:
-		if (! xdr_uint32_t(xdrs, &(rr->rj_vers.low)))
+		if (!xdr_uint32_t(xdrs, &(rr->rj_vers.low)))
 			return (FALSE);
 		return (xdr_uint32_t(xdrs, &(rr->rj_vers.high)));
 
 	case AUTH_ERROR:
 		prj_why = &rr->rj_why;
-		return (xdr_enum(xdrs, (enum_t *) prj_why));
+		return (xdr_enum(xdrs, (enum_t *)prj_why));
 	}
 	/* NOTREACHED */
 	assert(0);
@@ -166,7 +166,8 @@ xdr_rejected_reply(XDR *xdrs, struct rejected_reply *rr)
 static const struct xdr_discrim reply_dscrm[3] = {
 	{ (int)MSG_ACCEPTED, (xdrproc_t)xdr_accepted_reply },
 	{ (int)MSG_DENIED, (xdrproc_t)xdr_rejected_reply },
-	{ __dontcare__, NULL_xdrproc_t } };
+	{ __dontcare__, NULL_xdrproc_t }
+};
 
 /*
  * XDR a reply message
@@ -189,14 +190,14 @@ xdr_replymsg(XDR *xdrs, struct rpc_msg *rmsg)
 			if (rmsg->rm_direction != REPLY) {
 				return (FALSE);
 			}
-			rmsg->rm_reply.rp_stat =
-				IXDR_GET_ENUM(buf, enum reply_stat);
+			rmsg->rm_reply.rp_stat = IXDR_GET_ENUM(
+			    buf, enum reply_stat);
 			if (rmsg->rm_reply.rp_stat == MSG_ACCEPTED)
-				return (xdr_accepted_reply(xdrs,
-					&rmsg->acpted_rply));
+				return (xdr_accepted_reply(
+				    xdrs, &rmsg->acpted_rply));
 			else if (rmsg->rm_reply.rp_stat == MSG_DENIED)
-				return (xdr_rejected_reply(xdrs,
-					&rmsg->rjcted_rply));
+				return (xdr_rejected_reply(
+				    xdrs, &rmsg->rjcted_rply));
 			else
 				return (FALSE);
 		}
@@ -205,16 +206,14 @@ xdr_replymsg(XDR *xdrs, struct rpc_msg *rmsg)
 	prm_direction = &rmsg->rm_direction;
 	prp_stat = &rmsg->rm_reply.rp_stat;
 
-	if (
-	    xdr_uint32_t(xdrs, &(rmsg->rm_xid)) && 
-	    xdr_enum(xdrs, (enum_t *) prm_direction) &&
-	    (rmsg->rm_direction == REPLY) )
-		return (xdr_union(xdrs, (enum_t *) prp_stat,
-		   (caddr_t)(void *)&(rmsg->rm_reply.ru), reply_dscrm,
-		   NULL_xdrproc_t));
+	if (xdr_uint32_t(xdrs, &(rmsg->rm_xid)) &&
+	    xdr_enum(xdrs, (enum_t *)prm_direction) &&
+	    (rmsg->rm_direction == REPLY))
+		return (xdr_union(xdrs, (enum_t *)prp_stat,
+		    (caddr_t)(void *)&(rmsg->rm_reply.ru), reply_dscrm,
+		    NULL_xdrproc_t));
 	return (FALSE);
 }
-
 
 /*
  * Serializes the "static part" of a call message header.
@@ -233,12 +232,10 @@ xdr_callhdr(XDR *xdrs, struct rpc_msg *cmsg)
 
 	cmsg->rm_direction = CALL;
 	cmsg->rm_call.cb_rpcvers = RPC_MSG_VERSION;
-	if (
-	    (xdrs->x_op == XDR_ENCODE) &&
-	    xdr_uint32_t(xdrs, &(cmsg->rm_xid)) &&
-	    xdr_enum(xdrs, (enum_t *) prm_direction) &&
+	if ((xdrs->x_op == XDR_ENCODE) && xdr_uint32_t(xdrs, &(cmsg->rm_xid)) &&
+	    xdr_enum(xdrs, (enum_t *)prm_direction) &&
 	    xdr_uint32_t(xdrs, &(cmsg->rm_call.cb_rpcvers)) &&
-	    xdr_uint32_t(xdrs, &(cmsg->rm_call.cb_prog)) )
+	    xdr_uint32_t(xdrs, &(cmsg->rm_call.cb_prog)))
 		return (xdr_uint32_t(xdrs, &(cmsg->rm_call.cb_vers)));
 	return (FALSE);
 }

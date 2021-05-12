@@ -42,38 +42,35 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/domain.h>
+#include <sys/errno.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/errno.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
 #include <sys/syslog.h>
+#include <sys/time.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/netisr.h>
+#include <net/pfil.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
-#include <net/pfil.h>
-
-#include <netinet/in.h>
-#include <netinet/in_var.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet6/in6_var.h>
-#include <netinet/ip6.h>
-#include <netinet6/in6_fib.h>
-#include <netinet6/ip6_var.h>
-#include <netinet6/scope6_var.h>
 #include <netinet/icmp6.h>
-#include <netinet6/nd6.h>
-
+#include <netinet/in.h>
 #include <netinet/in_pcb.h>
-
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet/ip_var.h>
+#include <netinet6/in6_fib.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/ip6_var.h>
+#include <netinet6/nd6.h>
+#include <netinet6/scope6_var.h>
 #include <netipsec/ipsec_support.h>
 
 /*
@@ -96,7 +93,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 	struct nhop_object *nh = NULL;
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy = NULL;
-	struct ifnet *origifp;	/* maybe unnecessary */
+	struct ifnet *origifp; /* maybe unnecessary */
 	u_int32_t inzone, outzone;
 	struct in6_addr odst;
 	struct m_tag *fwd_tag;
@@ -108,7 +105,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 	 * Do not forward packets with unspecified source.  It was discussed
 	 * in July 2000, on the ipngwg mailing list.
 	 */
-	if ((m->m_flags & (M_BCAST|M_MCAST)) != 0 ||
+	if ((m->m_flags & (M_BCAST | M_MCAST)) != 0 ||
 	    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src)) {
 		IP6STAT_INC(ip6s_cantforward);
@@ -119,8 +116,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 			    "cannot forward "
 			    "from %s to %s nxt %d received on %s\n",
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
-			    ip6_sprintf(ip6bufd, &ip6->ip6_dst),
-			    ip6->ip6_nxt,
+			    ip6_sprintf(ip6bufd, &ip6->ip6_dst), ip6->ip6_nxt,
 			    if_name(m->m_pkthdr.rcvif));
 		}
 		m_freem(m);
@@ -133,8 +129,8 @@ ip6_forward(struct mbuf *m, int srcrt)
 #endif
 	    ip6->ip6_hlim <= IPV6_HLIMDEC) {
 		/* XXX in6_ifstat_inc(rt->rt_ifp, ifs6_in_discard) */
-		icmp6_error(m, ICMP6_TIME_EXCEEDED,
-		    ICMP6_TIME_EXCEED_TRANSIT, 0);
+		icmp6_error(
+		    m, ICMP6_TIME_EXCEEDED, ICMP6_TIME_EXCEED_TRANSIT, 0);
 		return;
 	}
 
@@ -147,8 +143,8 @@ ip6_forward(struct mbuf *m, int srcrt)
 	 * It is important to save it before IPsec processing as IPsec
 	 * processing may modify the mbuf.
 	 */
-	mcopy = m_copym(m, 0, imin(m->m_pkthdr.len, ICMPV6_PLD_MAXLEN),
-	    M_NOWAIT);
+	mcopy = m_copym(
+	    m, 0, imin(m->m_pkthdr.len, ICMPV6_PLD_MAXLEN), M_NOWAIT);
 #ifdef IPSTEALTH
 	if (V_ip6stealth == 0)
 #endif
@@ -182,7 +178,8 @@ ip6_forward(struct mbuf *m, int srcrt)
 	bzero(&dst, sizeof(struct sockaddr_in6));
 	dst.sin6_family = AF_INET6;
 	dst.sin6_addr = ip6->ip6_dst;
-	dst.sin6_scope_id = in6_get_unicast_scopeid(&ip6->ip6_dst, m->m_pkthdr.rcvif);
+	dst.sin6_scope_id = in6_get_unicast_scopeid(
+	    &ip6->ip6_dst, m->m_pkthdr.rcvif);
 again:
 	nh = fib6_lookup(M_GETFIB(m), &dst.sin6_addr, dst.sin6_scope_id,
 	    NHR_REF, m->m_pkthdr.flowid);
@@ -191,7 +188,7 @@ again:
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_noroute);
 		if (mcopy) {
 			icmp6_error(mcopy, ICMP6_DST_UNREACH,
-			ICMP6_DST_UNREACH_NOROUTE, 0);
+			    ICMP6_DST_UNREACH_NOROUTE, 0);
 		}
 		goto bad;
 	}
@@ -217,13 +214,12 @@ again:
 			    "cannot forward "
 			    "src %s, dst %s, nxt %d, rcvif %s, outif %s\n",
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
-			    ip6_sprintf(ip6bufd, &ip6->ip6_dst),
-			    ip6->ip6_nxt,
+			    ip6_sprintf(ip6bufd, &ip6->ip6_dst), ip6->ip6_nxt,
 			    if_name(m->m_pkthdr.rcvif), if_name(nh->nh_ifp));
 		}
 		if (mcopy)
 			icmp6_error(mcopy, ICMP6_DST_UNREACH,
-				    ICMP6_DST_UNREACH_BEYONDSCOPE, 0);
+			    ICMP6_DST_UNREACH_BEYONDSCOPE, 0);
 		goto bad;
 	}
 
@@ -284,21 +280,19 @@ again:
 #if 1
 		if (0)
 #else
-		if ((rt->rt_flags & (RTF_BLACKHOLE|RTF_REJECT)) == 0)
+		if ((rt->rt_flags & (RTF_BLACKHOLE | RTF_REJECT)) == 0)
 #endif
 		{
 			printf("ip6_forward: outgoing interface is loopback. "
 			       "src %s, dst %s, nxt %d, rcvif %s, outif %s\n",
-			       ip6_sprintf(ip6bufs, &ip6->ip6_src),
-			       ip6_sprintf(ip6bufd, &ip6->ip6_dst),
-			       ip6->ip6_nxt, if_name(m->m_pkthdr.rcvif),
-			       if_name(nh->nh_ifp));
+			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
+			    ip6_sprintf(ip6bufd, &ip6->ip6_dst), ip6->ip6_nxt,
+			    if_name(m->m_pkthdr.rcvif), if_name(nh->nh_ifp));
 		}
 
 		/* we can just use rcvif in forwarding. */
 		origifp = m->m_pkthdr.rcvif;
-	}
-	else
+	} else
 		origifp = nh->nh_ifp;
 	/*
 	 * clear embedded scope identifiers if necessary.
@@ -313,8 +307,8 @@ again:
 
 	odst = ip6->ip6_dst;
 	/* Run through list of hooks for forwarded packets. */
-	if (pfil_run_hooks(V_inet6_pfil_head, &m, nh->nh_ifp, PFIL_OUT |
-	    PFIL_FWD, NULL) != PFIL_PASS)
+	if (pfil_run_hooks(V_inet6_pfil_head, &m, nh->nh_ifp,
+		PFIL_OUT | PFIL_FWD, NULL) != PFIL_PASS)
 		goto freecopy;
 	ip6 = mtod(m, struct ip6_hdr *);
 
@@ -327,11 +321,12 @@ again:
 		else {
 			NH_FREE(nh);
 
-			/* Update address and scopeid. Assume scope is embedded */
+			/* Update address and scopeid. Assume scope is embedded
+			 */
 			dst.sin6_scope_id = ntohs(in6_getscope(&ip6->ip6_dst));
 			dst.sin6_addr = ip6->ip6_dst;
 			in6_clearscope(&dst.sin6_addr);
-			goto again;	/* Redo the routing table lookup. */
+			goto again; /* Redo the routing table lookup. */
 		}
 	}
 
@@ -340,8 +335,8 @@ again:
 		if (m->m_pkthdr.rcvif == NULL)
 			m->m_pkthdr.rcvif = V_loif;
 		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
-			m->m_pkthdr.csum_flags |=
-			    CSUM_DATA_VALID_IPV6 | CSUM_PSEUDO_HDR;
+			m->m_pkthdr.csum_flags |= CSUM_DATA_VALID_IPV6 |
+			    CSUM_PSEUDO_HDR;
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 #if defined(SCTP) || defined(SCTP_SUPPORT)
@@ -417,7 +412,7 @@ pass:
 		/* Tell source to slow down like source quench in IP? */
 		goto freecopy;
 
-	case ENETUNREACH:	/* shouldn't happen, checked above */
+	case ENETUNREACH: /* shouldn't happen, checked above */
 	case EHOSTUNREACH:
 	case ENETDOWN:
 	case EHOSTDOWN:
@@ -429,7 +424,7 @@ pass:
 	icmp6_error(mcopy, type, code, 0);
 	goto out;
 
- freecopy:
+freecopy:
 	m_freem(mcopy);
 	goto out;
 bad:

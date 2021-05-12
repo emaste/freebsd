@@ -35,63 +35,56 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/allwinner/a10_dmac.h>
-#include <dev/extres/clk/clk.h>
 
 #include "sunxi_dma_if.h"
 
-#define	NDMA_CHANNELS	8
-#define	DDMA_CHANNELS	8
+#define NDMA_CHANNELS 8
+#define DDMA_CHANNELS 8
 
-enum a10dmac_type {
-	CH_NDMA,
-	CH_DDMA
-};
+enum a10dmac_type { CH_NDMA, CH_DDMA };
 
 struct a10dmac_softc;
 
 struct a10dmac_channel {
-	struct a10dmac_softc *	ch_sc;
-	uint8_t			ch_index;
-	enum a10dmac_type	ch_type;
-	void			(*ch_callback)(void *);
-	void *			ch_callbackarg;
-	uint32_t		ch_regoff;
+	struct a10dmac_softc *ch_sc;
+	uint8_t ch_index;
+	enum a10dmac_type ch_type;
+	void (*ch_callback)(void *);
+	void *ch_callbackarg;
+	uint32_t ch_regoff;
 };
 
 struct a10dmac_softc {
-	struct resource *	sc_res[2];
-	struct mtx		sc_mtx;
-	void *			sc_ih;
+	struct resource *sc_res[2];
+	struct mtx sc_mtx;
+	void *sc_ih;
 
-	struct a10dmac_channel	sc_ndma_channels[NDMA_CHANNELS];
-	struct a10dmac_channel	sc_ddma_channels[DDMA_CHANNELS];
+	struct a10dmac_channel sc_ndma_channels[NDMA_CHANNELS];
+	struct a10dmac_channel sc_ddma_channels[DDMA_CHANNELS];
 };
 
-static struct resource_spec a10dmac_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec a10dmac_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
-#define	DMA_READ(sc, reg)	bus_read_4((sc)->sc_res[0], (reg))
-#define	DMA_WRITE(sc, reg, val)	bus_write_4((sc)->sc_res[0], (reg), (val))
-#define	DMACH_READ(ch, reg)		\
-    DMA_READ((ch)->ch_sc, (reg) + (ch)->ch_regoff)
-#define	DMACH_WRITE(ch, reg, val)	\
-    DMA_WRITE((ch)->ch_sc, (reg) + (ch)->ch_regoff, (val))
+#define DMA_READ(sc, reg) bus_read_4((sc)->sc_res[0], (reg))
+#define DMA_WRITE(sc, reg, val) bus_write_4((sc)->sc_res[0], (reg), (val))
+#define DMACH_READ(ch, reg) DMA_READ((ch)->ch_sc, (reg) + (ch)->ch_regoff)
+#define DMACH_WRITE(ch, reg, val) \
+	DMA_WRITE((ch)->ch_sc, (reg) + (ch)->ch_regoff, (val))
 
 static void a10dmac_intr(void *);
 
@@ -292,11 +285,11 @@ a10dmac_set_config(device_t dev, void *priv, const struct sunxi_dma_config *cfg)
 	}
 
 	val = (dst_dw << AWIN_DMA_CTL_DST_DATA_WIDTH_SHIFT) |
-	      (dst_bl << AWIN_DMA_CTL_DST_BURST_LEN_SHIFT) |
-	      (cfg->dst_drqtype << AWIN_DMA_CTL_DST_DRQ_TYPE_SHIFT) |
-	      (src_dw << AWIN_DMA_CTL_SRC_DATA_WIDTH_SHIFT) |
-	      (src_bl << AWIN_DMA_CTL_SRC_BURST_LEN_SHIFT) |
-	      (cfg->src_drqtype << AWIN_DMA_CTL_SRC_DRQ_TYPE_SHIFT);
+	    (dst_bl << AWIN_DMA_CTL_DST_BURST_LEN_SHIFT) |
+	    (cfg->dst_drqtype << AWIN_DMA_CTL_DST_DRQ_TYPE_SHIFT) |
+	    (src_dw << AWIN_DMA_CTL_SRC_DATA_WIDTH_SHIFT) |
+	    (src_bl << AWIN_DMA_CTL_SRC_BURST_LEN_SHIFT) |
+	    (cfg->src_drqtype << AWIN_DMA_CTL_SRC_DRQ_TYPE_SHIFT);
 
 	if (ch->ch_type == CH_NDMA) {
 		if (cfg->dst_noincr)
@@ -307,9 +300,9 @@ a10dmac_set_config(device_t dev, void *priv, const struct sunxi_dma_config *cfg)
 		DMACH_WRITE(ch, AWIN_NDMA_CTL_REG, val);
 	} else {
 		dst_am = cfg->dst_noincr ? AWIN_DDMA_CTL_DMA_ADDR_IO :
-		    AWIN_DDMA_CTL_DMA_ADDR_LINEAR;
+						 AWIN_DDMA_CTL_DMA_ADDR_LINEAR;
 		src_am = cfg->src_noincr ? AWIN_DDMA_CTL_DMA_ADDR_IO :
-		    AWIN_DDMA_CTL_DMA_ADDR_LINEAR;
+						 AWIN_DDMA_CTL_DMA_ADDR_LINEAR;
 
 		val |= (dst_am << AWIN_DDMA_CTL_DST_ADDR_MODE_SHIFT);
 		val |= (src_am << AWIN_DDMA_CTL_SRC_ADDR_MODE_SHIFT);
@@ -323,9 +316,9 @@ a10dmac_set_config(device_t dev, void *priv, const struct sunxi_dma_config *cfg)
 
 		DMACH_WRITE(ch, AWIN_DDMA_PARA_REG,
 		    (dst_bs << AWIN_DDMA_PARA_DST_DATA_BLK_SIZ_SHIFT) |
-		    (dst_wc << AWIN_DDMA_PARA_DST_WAIT_CYC_SHIFT) |
-		    (src_bs << AWIN_DDMA_PARA_SRC_DATA_BLK_SIZ_SHIFT) |
-		    (src_wc << AWIN_DDMA_PARA_SRC_WAIT_CYC_SHIFT));
+			(dst_wc << AWIN_DDMA_PARA_DST_WAIT_CYC_SHIFT) |
+			(src_bs << AWIN_DDMA_PARA_SRC_DATA_BLK_SIZ_SHIFT) |
+			(src_wc << AWIN_DDMA_PARA_SRC_WAIT_CYC_SHIFT));
 	}
 
 	return (0);
@@ -400,8 +393,8 @@ a10dmac_free(device_t dev, void *priv)
 }
 
 static int
-a10dmac_transfer(device_t dev, void *priv, bus_addr_t src, bus_addr_t dst,
-    size_t nbytes)
+a10dmac_transfer(
+    device_t dev, void *priv, bus_addr_t src, bus_addr_t dst, size_t nbytes)
 {
 	struct a10dmac_channel *ch = priv;
 	uint32_t cfg;
@@ -449,24 +442,21 @@ a10dmac_halt(device_t dev, void *priv)
 
 static device_method_t a10dmac_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		a10dmac_probe),
-	DEVMETHOD(device_attach,	a10dmac_attach),
+	DEVMETHOD(device_probe, a10dmac_probe),
+	DEVMETHOD(device_attach, a10dmac_attach),
 
 	/* sunxi DMA interface */
-	DEVMETHOD(sunxi_dma_alloc,	a10dmac_alloc),
-	DEVMETHOD(sunxi_dma_free,	a10dmac_free),
-	DEVMETHOD(sunxi_dma_set_config,	a10dmac_set_config),
-	DEVMETHOD(sunxi_dma_transfer,	a10dmac_transfer),
-	DEVMETHOD(sunxi_dma_halt,	a10dmac_halt),
+	DEVMETHOD(sunxi_dma_alloc, a10dmac_alloc),
+	DEVMETHOD(sunxi_dma_free, a10dmac_free),
+	DEVMETHOD(sunxi_dma_set_config, a10dmac_set_config),
+	DEVMETHOD(sunxi_dma_transfer, a10dmac_transfer),
+	DEVMETHOD(sunxi_dma_halt, a10dmac_halt),
 
 	DEVMETHOD_END
 };
 
-static driver_t a10dmac_driver = {
-	"a10dmac",
-	a10dmac_methods,
-	sizeof(struct a10dmac_softc)
-};
+static driver_t a10dmac_driver = { "a10dmac", a10dmac_methods,
+	sizeof(struct a10dmac_softc) };
 
 static devclass_t a10dmac_devclass;
 

@@ -28,33 +28,32 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_JIFFIES_H_
-#define	_LINUX_JIFFIES_H_
+#ifndef _LINUX_JIFFIES_H_
+#define _LINUX_JIFFIES_H_
 
-#include <linux/types.h>
-#include <linux/time.h>
-
-#include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
+#include <sys/time.h>
 
-#define	jiffies			ticks
-#define	jiffies_64		ticks
-#define	jiffies_to_msecs(x)     (((int64_t)(int)(x)) * 1000 / hz)
+#include <linux/time.h>
+#include <linux/types.h>
 
-#define	MAX_JIFFY_OFFSET	((INT_MAX >> 1) - 1)
+#define jiffies ticks
+#define jiffies_64 ticks
+#define jiffies_to_msecs(x) (((int64_t)(int)(x)) * 1000 / hz)
 
-#define	time_after(a, b)	((int)((b) - (a)) < 0)
-#define	time_after32(a, b)	((int32_t)((uint32_t)(b) - (uint32_t)(a)) < 0)
-#define	time_before(a, b)	time_after(b,a)
-#define	time_before32(a, b)	time_after32(b, a)
-#define	time_after_eq(a, b)	((int)((a) - (b)) >= 0)
-#define	time_before_eq(a, b)	time_after_eq(b, a)
-#define	time_in_range(a,b,c)	\
-	(time_after_eq(a,b) && time_before_eq(a,c))
-#define	time_is_after_eq_jiffies(a) time_after_eq(a, jiffies)
+#define MAX_JIFFY_OFFSET ((INT_MAX >> 1) - 1)
 
-#define	HZ	hz
+#define time_after(a, b) ((int)((b) - (a)) < 0)
+#define time_after32(a, b) ((int32_t)((uint32_t)(b) - (uint32_t)(a)) < 0)
+#define time_before(a, b) time_after(b, a)
+#define time_before32(a, b) time_after32(b, a)
+#define time_after_eq(a, b) ((int)((a) - (b)) >= 0)
+#define time_before_eq(a, b) time_after_eq(b, a)
+#define time_in_range(a, b, c) (time_after_eq(a, b) && time_before_eq(a, c))
+#define time_is_after_eq_jiffies(a) time_after_eq(a, jiffies)
+
+#define HZ hz
 
 extern uint64_t lkpi_nsec2hz_rem;
 extern uint64_t lkpi_nsec2hz_div;
@@ -163,4 +162,4 @@ linux_timer_jiffies_until(int expires)
 	return (delta);
 }
 
-#endif	/* _LINUX_JIFFIES_H_ */
+#endif /* _LINUX_JIFFIES_H_ */

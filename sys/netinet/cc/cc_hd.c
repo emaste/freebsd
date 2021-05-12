@@ -57,6 +57,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/khelp.h>
 #include <sys/limits.h>
@@ -66,39 +67,34 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
 #include <net/vnet.h>
-
+#include <netinet/cc/cc.h>
+#include <netinet/cc/cc_module.h>
+#include <netinet/khelp/h_ertt.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-#include <netinet/cc/cc.h>
-#include <netinet/cc/cc_module.h>
-
-#include <netinet/khelp/h_ertt.h>
 
 /* Largest possible number returned by random(). */
-#define	RANDOM_MAX	INT_MAX
+#define RANDOM_MAX INT_MAX
 
-static void	hd_ack_received(struct cc_var *ccv, uint16_t ack_type);
-static int	hd_mod_init(void);
+static void hd_ack_received(struct cc_var *ccv, uint16_t ack_type);
+static int hd_mod_init(void);
 
 static int ertt_id;
 
 VNET_DEFINE_STATIC(uint32_t, hd_qthresh) = 20;
 VNET_DEFINE_STATIC(uint32_t, hd_qmin) = 5;
 VNET_DEFINE_STATIC(uint32_t, hd_pmax) = 5;
-#define	V_hd_qthresh	VNET(hd_qthresh)
-#define	V_hd_qmin	VNET(hd_qmin)
-#define	V_hd_pmax	VNET(hd_pmax)
+#define V_hd_qthresh VNET(hd_qthresh)
+#define V_hd_qmin VNET(hd_qmin)
+#define V_hd_pmax VNET(hd_pmax)
 
-struct cc_algo hd_cc_algo = {
-	.name = "hd",
+struct cc_algo hd_cc_algo = { .name = "hd",
 	.ack_received = hd_ack_received,
-	.mod_init = hd_mod_init
-};
+	.mod_init = hd_mod_init };
 
 /*
  * Hamilton backoff function. Returns 1 if we should backoff or 0 otherwise.
@@ -110,11 +106,13 @@ should_backoff(int qdly, int maxqdly)
 
 	if (qdly < V_hd_qthresh) {
 		p = (((RANDOM_MAX / 100) * V_hd_pmax) /
-		    (V_hd_qthresh - V_hd_qmin)) * (qdly - V_hd_qmin);
+			(V_hd_qthresh - V_hd_qmin)) *
+		    (qdly - V_hd_qmin);
 	} else {
 		if (qdly > V_hd_qthresh)
 			p = (((RANDOM_MAX / 100) * V_hd_pmax) /
-			    (maxqdly - V_hd_qthresh)) * (maxqdly - qdly);
+				(maxqdly - V_hd_qthresh)) *
+			    (maxqdly - qdly);
 		else
 			p = (RANDOM_MAX / 100) * V_hd_pmax;
 	}
@@ -143,15 +141,15 @@ hd_ack_received(struct cc_var *ccv, uint16_t ack_type)
 			if (qdly > V_hd_qmin &&
 			    !IN_RECOVERY(CCV(ccv, t_flags))) {
 				/* Probabilistic backoff of cwnd. */
-				if (should_backoff(qdly,
-				    e_t->maxrtt - e_t->minrtt)) {
+				if (should_backoff(
+					qdly, e_t->maxrtt - e_t->minrtt)) {
 					/*
 					 * Update cwnd and ssthresh update to
 					 * half cwnd and behave like an ECN (ie
 					 * not a packet loss).
 					 */
-					newreno_cc_algo.cong_signal(ccv,
-					    CC_ECN);
+					newreno_cc_algo.cong_signal(
+					    ccv, CC_ECN);
 					return;
 				}
 			}
@@ -177,8 +175,7 @@ hd_mod_init(void)
 	return (0);
 }
 
-static int
-hd_pmax_handler(SYSCTL_HANDLER_ARGS)
+static int hd_pmax_handler(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	uint32_t new;
@@ -195,8 +192,7 @@ hd_pmax_handler(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static int
-hd_qmin_handler(SYSCTL_HANDLER_ARGS)
+static int hd_qmin_handler(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	uint32_t new;
@@ -213,8 +209,7 @@ hd_qmin_handler(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static int
-hd_qthresh_handler(SYSCTL_HANDLER_ARGS)
+static int hd_qthresh_handler(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	uint32_t new;

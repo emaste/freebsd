@@ -31,17 +31,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/bio.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
+
+#include <geom/concat/g_concat.h>
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/concat/g_concat.h>
 
 FEATURE(geom_concat, "GEOM concatenation support");
 
@@ -51,24 +52,22 @@ SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, concat, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_CONCAT stuff");
 static u_int g_concat_debug = 0;
-SYSCTL_UINT(_kern_geom_concat, OID_AUTO, debug, CTLFLAG_RWTUN, &g_concat_debug, 0,
-    "Debug level");
+SYSCTL_UINT(_kern_geom_concat, OID_AUTO, debug, CTLFLAG_RWTUN, &g_concat_debug,
+    0, "Debug level");
 
 static int g_concat_destroy(struct g_concat_softc *sc, boolean_t force);
-static int g_concat_destroy_geom(struct gctl_req *req, struct g_class *mp,
-    struct g_geom *gp);
+static int g_concat_destroy_geom(
+    struct gctl_req *req, struct g_class *mp, struct g_geom *gp);
 
 static g_taste_t g_concat_taste;
 static g_ctl_req_t g_concat_config;
 static g_dumpconf_t g_concat_dumpconf;
 
-struct g_class g_concat_class = {
-	.name = G_CONCAT_CLASS_NAME,
+struct g_class g_concat_class = { .name = G_CONCAT_CLASS_NAME,
 	.version = G_VERSION,
 	.ctlreq = g_concat_config,
 	.taste = g_concat_taste,
-	.destroy_geom = g_concat_destroy_geom
-};
+	.destroy_geom = g_concat_destroy_geom };
 
 /*
  * Greatest Common Divisor.
@@ -131,8 +130,8 @@ g_concat_remove_disk(struct g_concat_disk *disk)
 	}
 
 	if (sc->sc_provider != NULL) {
-		G_CONCAT_DEBUG(0, "Device %s deactivated.",
-		    sc->sc_provider->name);
+		G_CONCAT_DEBUG(
+		    0, "Device %s deactivated.", sc->sc_provider->name);
 		g_wither_provider(sc->sc_provider, ENXIO);
 		sc->sc_provider = NULL;
 	}
@@ -161,7 +160,7 @@ g_concat_orphan(struct g_consumer *cp)
 		return;
 
 	disk = cp->private;
-	if (disk == NULL)	/* Possible? */
+	if (disk == NULL) /* Possible? */
 		return;
 	g_concat_remove_disk(disk);
 }
@@ -184,7 +183,7 @@ g_concat_access(struct g_provider *pp, int dr, int dw, int de)
 	if ((pp->acr + dr) == 0 && (pp->acw + dw) == 0 && (pp->ace + de) == 0)
 		de--;
 
-	LIST_FOREACH_SAFE(cp1, &gp->consumer, consumer, tmp) {
+	LIST_FOREACH_SAFE (cp1, &gp->consumer, consumer, tmp) {
 		error = g_access(cp1, dr, dw, de);
 		if (error != 0)
 			goto fail;
@@ -197,7 +196,7 @@ g_concat_access(struct g_provider *pp, int dr, int dw, int de)
 	return (0);
 
 fail:
-	LIST_FOREACH(cp2, &gp->consumer, consumer) {
+	LIST_FOREACH (cp2, &gp->consumer, consumer) {
 		if (cp1 == cp2)
 			break;
 		g_access(cp2, -dr, -dw, -de);
@@ -253,8 +252,8 @@ g_concat_kernel_dump(struct bio *bp)
 	}
 	cbp->bio_done = g_std_done;
 	g_io_request(cbp, disk->d_consumer);
-	G_CONCAT_DEBUG(1, "Kernel dump will go to %s.",
-	    disk->d_consumer->provider->name);
+	G_CONCAT_DEBUG(
+	    1, "Kernel dump will go to %s.", disk->d_consumer->provider->name);
 }
 
 static void
@@ -333,7 +332,7 @@ g_concat_start(struct bio *bp)
 	 */
 	KASSERT(sc != NULL,
 	    ("Provider's error should be set (error=%d)(device=%s).",
-	    bp->bio_to->error, bp->bio_to->name));
+		bp->bio_to->error, bp->bio_to->name));
 
 	G_CONCAT_LOGREQ(bp, "Request received.");
 
@@ -406,7 +405,8 @@ g_concat_start(struct bio *bp)
 			cbp->bio_ma += cbp->bio_ma_offset / PAGE_SIZE;
 			cbp->bio_ma_offset %= PAGE_SIZE;
 			cbp->bio_ma_n = round_page(cbp->bio_ma_offset +
-			    cbp->bio_length) / PAGE_SIZE;
+					    cbp->bio_length) /
+			    PAGE_SIZE;
 		} else
 			cbp->bio_data = addr;
 		addr += len;
@@ -418,7 +418,7 @@ g_concat_start(struct bio *bp)
 	}
 	KASSERT(length == 0,
 	    ("Length is still greater than 0 (class=%s, name=%s).",
-	    bp->bio_to->geom->class->name, bp->bio_to->geom->name));
+		bp->bio_to->geom->class->name, bp->bio_to->geom->name));
 	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		G_CONCAT_LOGREQ(cbp, "Sending request.");
 		disk = cbp->bio_caller1;
@@ -469,8 +469,10 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 
 		/* A provider underneath us doesn't support unmapped */
 		if ((dp->flags & G_PF_ACCEPT_UNMAPPED) == 0) {
-			G_CONCAT_DEBUG(1, "Cancelling unmapped "
-			    "because of %s.", dp->name);
+			G_CONCAT_DEBUG(1,
+			    "Cancelling unmapped "
+			    "because of %s.",
+			    dp->name);
 			pp->flags &= ~G_PF_ACCEPT_UNMAPPED;
 		}
 	}
@@ -499,8 +501,8 @@ g_concat_read_metadata(struct g_consumer *cp, struct g_concat_metadata *md)
 		return (error);
 	pp = cp->provider;
 	g_topology_unlock();
-	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
-	    &error);
+	buf = g_read_data(
+	    cp, pp->mediasize - pp->sectorsize, pp->sectorsize, &error);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 	if (buf == NULL)
@@ -572,8 +574,8 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	cp->private = disk;
 	disk->d_consumer = cp;
 	disk->d_softc = sc;
-	disk->d_start = 0;	/* not yet */
-	disk->d_end = 0;	/* not yet */
+	disk->d_start = 0; /* not yet */
+	disk->d_end = 0;   /* not yet */
 	disk->d_removed = 0;
 
 	G_CONCAT_DEBUG(0, "Disk %s attached to %s.", pp->name, sc->sc_name);
@@ -590,26 +592,26 @@ fail:
 }
 
 static struct g_geom *
-g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
-    u_int type)
+g_concat_create(
+    struct g_class *mp, const struct g_concat_metadata *md, u_int type)
 {
 	struct g_concat_softc *sc;
 	struct g_geom *gp;
 	u_int no;
 
-	G_CONCAT_DEBUG(1, "Creating device %s (id=%u).", md->md_name,
-	    md->md_id);
+	G_CONCAT_DEBUG(
+	    1, "Creating device %s (id=%u).", md->md_name, md->md_id);
 
 	/* One disks is minimum. */
 	if (md->md_all < 1)
 		return (NULL);
 
 	/* Check for duplicate unit */
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc != NULL && strcmp(sc->sc_name, md->md_name) == 0) {
-			G_CONCAT_DEBUG(0, "Device %s already configured.",
-			    gp->name);
+			G_CONCAT_DEBUG(
+			    0, "Device %s already configured.", gp->name);
 			return (NULL);
 		}
 	}
@@ -654,8 +656,10 @@ g_concat_destroy(struct g_concat_softc *sc, boolean_t force)
 	pp = sc->sc_provider;
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
 		if (force) {
-			G_CONCAT_DEBUG(0, "Device %s is still open, so it "
-			    "can't be definitely removed.", pp->name);
+			G_CONCAT_DEBUG(0,
+			    "Device %s is still open, so it "
+			    "can't be definitely removed.",
+			    pp->name);
 		} else {
 			G_CONCAT_DEBUG(1,
 			    "Device %s is still open (r%dw%de%d).", pp->name,
@@ -665,17 +669,17 @@ g_concat_destroy(struct g_concat_softc *sc, boolean_t force)
 	}
 
 	gp = sc->sc_geom;
-	LIST_FOREACH_SAFE(cp, &gp->consumer, consumer, cp1) {
+	LIST_FOREACH_SAFE (cp, &gp->consumer, consumer, cp1) {
 		g_concat_remove_disk(cp->private);
 		if (cp1 == NULL)
-			return (0);	/* Recursion happened. */
+			return (0); /* Recursion happened. */
 	}
 	if (!LIST_EMPTY(&gp->consumer))
 		return (EINPROGRESS);
 
 	gp->softc = NULL;
-	KASSERT(sc->sc_provider == NULL, ("Provider still exists? (device=%s)",
-	    gp->name));
+	KASSERT(sc->sc_provider == NULL,
+	    ("Provider still exists? (device=%s)", gp->name));
 	free(sc->sc_disks, M_CONCAT);
 	mtx_destroy(&sc->sc_lock);
 	free(sc, M_CONCAT);
@@ -756,7 +760,7 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	 * Let's check if device already exists.
 	 */
 	sc = NULL;
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
@@ -780,8 +784,8 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	} else {
 		gp = g_concat_create(mp, &md, G_CONCAT_TYPE_AUTOMATIC);
 		if (gp == NULL) {
-			G_CONCAT_DEBUG(0, "Cannot create device %s.",
-			    md.md_name);
+			G_CONCAT_DEBUG(
+			    0, "Cannot create device %s.", md.md_name);
 			return (NULL);
 		}
 		sc = gp->softc;
@@ -889,7 +893,7 @@ g_concat_find_device(struct g_class *mp, const char *name)
 	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 		name += strlen(_PATH_DEV);
 
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
@@ -966,8 +970,7 @@ g_concat_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 	if (strcmp(verb, "create") == 0) {
 		g_concat_ctl_create(req, mp);
 		return;
-	} else if (strcmp(verb, "destroy") == 0 ||
-	    strcmp(verb, "stop") == 0) {
+	} else if (strcmp(verb, "destroy") == 0 || strcmp(verb, "stop") == 0) {
 		g_concat_ctl_destroy(req, mp);
 		return;
 	}
@@ -992,8 +995,8 @@ g_concat_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		disk = cp->private;
 		if (disk == NULL)
 			return;
-		sbuf_printf(sb, "%s<End>%jd</End>\n", indent,
-		    (intmax_t)disk->d_end);
+		sbuf_printf(
+		    sb, "%s<End>%jd</End>\n", indent, (intmax_t)disk->d_end);
 		sbuf_printf(sb, "%s<Start>%jd</Start>\n", indent,
 		    (intmax_t)disk->d_start);
 	} else {

@@ -34,8 +34,7 @@
 #include "opt_hwpmc_hooks.h"
 #include "opt_platform.h"
 
-#include <sys/cdefs.h>                  /* RCS ID & Copyright macro defns */
-
+#include <sys/cdefs.h> /* RCS ID & Copyright macro defns */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -54,8 +53,8 @@
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
 
-#include <machine/cpu.h>
 #include <machine/clock.h>
+#include <machine/cpu.h>
 #include <machine/db_machdep.h>
 #include <machine/fpu.h>
 #include <machine/frame.h>
@@ -63,9 +62,9 @@
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
-#include <machine/trap.h>
 #include <machine/spr.h>
 #include <machine/sr.h>
+#include <machine/trap.h>
 
 #include "pic_if.h"
 
@@ -116,11 +115,14 @@ powerpc_interrupt(struct trapframe *framep)
 #ifdef HWPMC_HOOKS
 	case EXC_PERF:
 		critical_enter();
-		KASSERT(pmc_intr != NULL, ("Performance exception, but no handler!"));
+		KASSERT(pmc_intr != NULL,
+		    ("Performance exception, but no handler!"));
 		(*pmc_intr)(framep);
 		critical_exit();
-		if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
-			pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, framep);
+		if (pmc_hook &&
+		    (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
+			pmc_hook(
+			    PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, framep);
 		break;
 #endif
 
@@ -128,7 +130,8 @@ powerpc_interrupt(struct trapframe *framep)
 	case EXC_HMI:
 		if (hmi_handler != 0 && hmi_handler(framep) == 0)
 			break;
-		/* If no handler, or failure to handle, just drop to trap. */
+			/* If no handler, or failure to handle, just drop to
+			 * trap. */
 #endif
 
 	default:
@@ -137,5 +140,5 @@ powerpc_interrupt(struct trapframe *framep)
 		if (ee != 0)
 			mtmsr(mfmsr() | ee);
 		trap(framep);
-	}	        
+	}
 }

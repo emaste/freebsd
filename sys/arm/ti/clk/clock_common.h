@@ -31,13 +31,15 @@
 __FBSDID("$FreeBSD$");
 
 struct clock_cell_info {
-	cell_t		*clock_cells;
-	uint8_t		*clock_cells_ncells;
-	uint32_t	num_clock_cells;
-	uint8_t		num_real_clocks;
+	cell_t *clock_cells;
+	uint8_t *clock_cells_ncells;
+	uint32_t num_clock_cells;
+	uint8_t num_real_clocks;
 };
 
 void read_clock_cells(device_t dev, struct clock_cell_info *clk);
-int find_parent_clock_names(device_t dev, struct clock_cell_info *clk, struct clknode_init_def *def);
-void create_clkdef(device_t dev, struct clock_cell_info *clk, struct clknode_init_def *def);
+int find_parent_clock_names(
+    device_t dev, struct clock_cell_info *clk, struct clknode_init_def *def);
+void create_clkdef(
+    device_t dev, struct clock_cell_info *clk, struct clknode_init_def *def);
 void free_clkdef(struct clknode_init_def *def);

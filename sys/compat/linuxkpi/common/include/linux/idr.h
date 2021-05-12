@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_IDR_H_
-#define	_LINUX_IDR_H_
+#ifndef _LINUX_IDR_H_
+#define _LINUX_IDR_H_
 
 #include <sys/param.h>
 #include <sys/lock.h>
@@ -37,87 +37,88 @@
 
 #include <linux/types.h>
 
-#define	IDR_BITS	5
-#define	IDR_SIZE	(1 << IDR_BITS)
-#define	IDR_MASK	(IDR_SIZE - 1)
+#define IDR_BITS 5
+#define IDR_SIZE (1 << IDR_BITS)
+#define IDR_MASK (IDR_SIZE - 1)
 
-#define	MAX_ID_SHIFT	((sizeof(int) * NBBY) - 1)
-#define	MAX_ID_BIT	(1U << MAX_ID_SHIFT)
-#define	MAX_ID_MASK	(MAX_ID_BIT - 1)
-#define	MAX_LEVEL	(MAX_ID_SHIFT + IDR_BITS - 1) / IDR_BITS
+#define MAX_ID_SHIFT ((sizeof(int) * NBBY) - 1)
+#define MAX_ID_BIT (1U << MAX_ID_SHIFT)
+#define MAX_ID_MASK (MAX_ID_BIT - 1)
+#define MAX_LEVEL (MAX_ID_SHIFT + IDR_BITS - 1) / IDR_BITS
 
-#define MAX_IDR_SHIFT (sizeof(int)*8 - 1)
+#define MAX_IDR_SHIFT (sizeof(int) * 8 - 1)
 #define MAX_IDR_BIT (1U << MAX_IDR_SHIFT)
 #define MAX_IDR_MASK (MAX_IDR_BIT - 1)
 
 struct idr_layer {
-	unsigned long		bitmap;
-	struct idr_layer	*ary[IDR_SIZE];
+	unsigned long bitmap;
+	struct idr_layer *ary[IDR_SIZE];
 };
 
 struct idr {
-	struct mtx		lock;
-	struct idr_layer	*top;
-	struct idr_layer	*free;
-	int			layers;
-	int			next_cyclic_id;
+	struct mtx lock;
+	struct idr_layer *top;
+	struct idr_layer *free;
+	int layers;
+	int next_cyclic_id;
 };
 
 /* NOTE: It is the applications responsibility to destroy the IDR */
-#define	DEFINE_IDR(name)						\
-	struct idr name;						\
-	SYSINIT(name##_idr_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
-	    idr_init, &(name))
+#define DEFINE_IDR(name)                                                      \
+	struct idr name;                                                      \
+	SYSINIT(name##_idr_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST, idr_init, \
+	    &(name))
 
 /* NOTE: It is the applications responsibility to destroy the IDA */
-#define	DEFINE_IDA(name)						\
-	struct ida name;						\
-	SYSINIT(name##_ida_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
-	    ida_init, &(name))
+#define DEFINE_IDA(name)                                                      \
+	struct ida name;                                                      \
+	SYSINIT(name##_ida_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST, ida_init, \
+	    &(name))
 
-void	idr_preload(gfp_t gfp_mask);
-void	idr_preload_end(void);
-void	*idr_find(struct idr *idp, int id);
-void	*idr_get_next(struct idr *idp, int *nextid);
-bool	idr_is_empty(struct idr *idp);
-int	idr_pre_get(struct idr *idp, gfp_t gfp_mask);
-int	idr_get_new(struct idr *idp, void *ptr, int *id);
-int	idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id);
-void	*idr_replace(struct idr *idp, void *ptr, int id);
-void	*idr_remove(struct idr *idp, int id);
-void	idr_remove_all(struct idr *idp);
-void	idr_destroy(struct idr *idp);
-void	idr_init(struct idr *idp);
-int	idr_alloc(struct idr *idp, void *ptr, int start, int end, gfp_t);
-int	idr_alloc_cyclic(struct idr *idp, void *ptr, int start, int end, gfp_t);
-int	idr_for_each(struct idr *idp, int (*fn)(int id, void *p, void *data), void *data);
+void idr_preload(gfp_t gfp_mask);
+void idr_preload_end(void);
+void *idr_find(struct idr *idp, int id);
+void *idr_get_next(struct idr *idp, int *nextid);
+bool idr_is_empty(struct idr *idp);
+int idr_pre_get(struct idr *idp, gfp_t gfp_mask);
+int idr_get_new(struct idr *idp, void *ptr, int *id);
+int idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id);
+void *idr_replace(struct idr *idp, void *ptr, int id);
+void *idr_remove(struct idr *idp, int id);
+void idr_remove_all(struct idr *idp);
+void idr_destroy(struct idr *idp);
+void idr_init(struct idr *idp);
+int idr_alloc(struct idr *idp, void *ptr, int start, int end, gfp_t);
+int idr_alloc_cyclic(struct idr *idp, void *ptr, int start, int end, gfp_t);
+int idr_for_each(
+    struct idr *idp, int (*fn)(int id, void *p, void *data), void *data);
 
-#define	idr_for_each_entry(idp, entry, id)	\
+#define idr_for_each_entry(idp, entry, id) \
 	for ((id) = 0; ((entry) = idr_get_next(idp, &(id))) != NULL; ++(id))
 
-#define	IDA_CHUNK_SIZE		128	/* 128 bytes per chunk */
-#define	IDA_BITMAP_LONGS	(IDA_CHUNK_SIZE / sizeof(long) - 1)
-#define	IDA_BITMAP_BITS		(IDA_BITMAP_LONGS * sizeof(long) * 8)
+#define IDA_CHUNK_SIZE 128 /* 128 bytes per chunk */
+#define IDA_BITMAP_LONGS (IDA_CHUNK_SIZE / sizeof(long) - 1)
+#define IDA_BITMAP_BITS (IDA_BITMAP_LONGS * sizeof(long) * 8)
 
 struct ida_bitmap {
-	long			nr_busy;
-	unsigned long		bitmap[IDA_BITMAP_LONGS];
+	long nr_busy;
+	unsigned long bitmap[IDA_BITMAP_LONGS];
 };
 
 struct ida {
-	struct idr		idr;
-	struct ida_bitmap	*free_bitmap;
+	struct idr idr;
+	struct ida_bitmap *free_bitmap;
 };
 
-int	ida_pre_get(struct ida *ida, gfp_t gfp_mask);
-int	ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
-void	ida_remove(struct ida *ida, int id);
-void	ida_destroy(struct ida *ida);
-void	ida_init(struct ida *ida);
+int ida_pre_get(struct ida *ida, gfp_t gfp_mask);
+int ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
+void ida_remove(struct ida *ida, int id);
+void ida_destroy(struct ida *ida);
+void ida_init(struct ida *ida);
 
-int	ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
-    gfp_t gfp_mask);
-void	ida_simple_remove(struct ida *ida, unsigned int id);
+int ida_simple_get(
+    struct ida *ida, unsigned int start, unsigned int end, gfp_t gfp_mask);
+void ida_simple_remove(struct ida *ida, unsigned int id);
 
 static inline void
 ida_free(struct ida *ida, int id)
@@ -147,4 +148,4 @@ ida_is_empty(struct ida *ida)
 	return (idr_is_empty(&ida->idr));
 }
 
-#endif	/* _LINUX_IDR_H_ */
+#endif /* _LINUX_IDR_H_ */

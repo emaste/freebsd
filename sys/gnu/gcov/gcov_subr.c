@@ -30,32 +30,29 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/systm.h>
 #include <sys/param.h>
-#include <sys/sbuf.h>
-
-#include <sys/queue.h>
-#include <sys/linker.h>
-#include <sys/module.h>
+#include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/linker.h>
 #include <sys/malloc.h>
-#include <sys/syslog.h>
+#include <sys/module.h>
 #include <sys/proc.h>
-#include <sys/sched.h>
-#include <sys/syslog.h>
-#include <sys/sysctl.h>
-#include <gnu/gcov/gcov.h>
 #include <sys/queue.h>
-#include "linker_if.h"
+#include <sys/sbuf.h>
+#include <sys/sched.h>
+#include <sys/sysctl.h>
+#include <sys/syslog.h>
 
+#include <gnu/gcov/gcov.h>
+
+#include "linker_if.h"
 
 static void gcov_invoke_ctors(void);
 static int gcov_ctors_done;
 int gcov_events_enabled;
 
-static int
-gcov_stats_reset_sysctl(SYSCTL_HANDLER_ARGS)
+static int gcov_stats_reset_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	int error, v;
 
@@ -72,8 +69,7 @@ gcov_stats_reset_sysctl(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-gcov_stats_enable_sysctl(SYSCTL_HANDLER_ARGS)
+static int gcov_stats_enable_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	int error, v;
 
@@ -85,7 +81,7 @@ gcov_stats_enable_sysctl(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (v == gcov_events_enabled)
 		return (0);
-	//gcov_events_reset();
+	// gcov_events_reset();
 	gcov_events_enabled = !!v;
 	if (!gcov_ctors_done)
 		gcov_invoke_ctors();
@@ -109,8 +105,6 @@ within_module(vm_offset_t addr, module_t mod)
 		return (1);
 	return (0);
 }
-
-
 
 #define GCOV_PREFIX "_GLOBAL__sub_I_65535_0_"
 
@@ -165,9 +159,7 @@ static SYSCTL_NODE(_debug, OID_AUTO, gcov, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "gcov code coverage");
 SYSCTL_PROC(_debug_gcov, OID_AUTO, reset,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
-    gcov_stats_reset_sysctl, "I",
-    "Reset all profiling counts");
+    gcov_stats_reset_sysctl, "I", "Reset all profiling counts");
 SYSCTL_PROC(_debug_gcov, OID_AUTO, enable,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
-    gcov_stats_enable_sysctl, "I",
-    "Enable code coverage");
+    gcov_stats_enable_sysctl, "I", "Enable code coverage");

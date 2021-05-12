@@ -29,8 +29,8 @@
  *
  */
 
-#ifndef	_SYS_BUF_RING_H_
-#define	_SYS_BUF_RING_H_
+#ifndef _SYS_BUF_RING_H_
+#define _SYS_BUF_RING_H_
 
 #include <machine/cpu.h>
 
@@ -40,19 +40,19 @@
 #endif
 
 struct buf_ring {
-	volatile uint32_t	br_prod_head;
-	volatile uint32_t	br_prod_tail;	
-	int              	br_prod_size;
-	int              	br_prod_mask;
-	uint64_t		br_drops;
-	volatile uint32_t	br_cons_head __aligned(CACHE_LINE_SIZE);
-	volatile uint32_t	br_cons_tail;
-	int		 	br_cons_size;
-	int              	br_cons_mask;
+	volatile uint32_t br_prod_head;
+	volatile uint32_t br_prod_tail;
+	int br_prod_size;
+	int br_prod_mask;
+	uint64_t br_drops;
+	volatile uint32_t br_cons_head __aligned(CACHE_LINE_SIZE);
+	volatile uint32_t br_cons_tail;
+	int br_cons_size;
+	int br_cons_mask;
 #ifdef DEBUG_BUFRING
-	struct mtx		*br_lock;
-#endif	
-	void			*br_ring[0] __aligned(CACHE_LINE_SIZE);
+	struct mtx *br_lock;
+#endif
+	void *br_ring[0] __aligned(CACHE_LINE_SIZE);
 };
 
 /*
@@ -76,7 +76,7 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 		if (br->br_ring[i] == buf)
 			panic("buf=%p already enqueue at %d prod=%d cons=%d",
 			    buf, i, br->br_prod_tail, br->br_cons_tail);
-#endif	
+#endif
 	critical_enter();
 	do {
 		prod_head = br->br_prod_head;
@@ -93,18 +93,19 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 			}
 			continue;
 		}
-	} while (!atomic_cmpset_acq_int(&br->br_prod_head, prod_head, prod_next));
+	} while (
+	    !atomic_cmpset_acq_int(&br->br_prod_head, prod_head, prod_next));
 #ifdef DEBUG_BUFRING
 	if (br->br_ring[prod_head] != NULL)
 		panic("dangling value in enqueue");
-#endif	
+#endif
 	br->br_ring[prod_head] = buf;
 
 	/*
 	 * If there are other enqueues in progress
 	 * that preceded us, we need to wait for them
-	 * to complete 
-	 */   
+	 * to complete
+	 */
 	while (br->br_prod_tail != prod_head)
 		cpu_spinwait();
 	atomic_store_rel_int(&br->br_prod_tail, prod_next);
@@ -113,7 +114,7 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 }
 
 /*
- * multi-consumer safe dequeue 
+ * multi-consumer safe dequeue
  *
  */
 static __inline void *
@@ -131,7 +132,8 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 			critical_exit();
 			return (NULL);
 		}
-	} while (!atomic_cmpset_acq_int(&br->br_cons_head, cons_head, cons_next));
+	} while (
+	    !atomic_cmpset_acq_int(&br->br_cons_head, cons_head, cons_next));
 
 	buf = br->br_ring[cons_head];
 #ifdef DEBUG_BUFRING
@@ -140,8 +142,8 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 	/*
 	 * If there are other dequeues in progress
 	 * that preceded us, we need to wait for them
-	 * to complete 
-	 */   
+	 * to complete
+	 */
 	while (br->br_cons_tail != cons_head)
 		cpu_spinwait();
 
@@ -152,7 +154,7 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 }
 
 /*
- * single-consumer dequeue 
+ * single-consumer dequeue
  * use where dequeue is protected by a lock
  * e.g. a network driver's tx queue lock
  */
@@ -176,21 +178,23 @@ buf_ring_dequeue_sc(struct buf_ring *br)
 	 *
 	 * Preventing following situation:
 
-	 * Core(0) - buf_ring_enqueue()                                       Core(1) - buf_ring_dequeue_sc()
-	 * -----------------------------------------                                       ----------------------------------------------
+	 * Core(0) - buf_ring_enqueue() Core(1) - buf_ring_dequeue_sc()
+	 * -----------------------------------------
+	 ----------------------------------------------
 	 *
-	 *                                                                                cons_head = br->br_cons_head;
+	 * cons_head = br->br_cons_head;
 	 * atomic_cmpset_acq_32(&br->br_prod_head, ...));
-	 *                                                                                buf = br->br_ring[cons_head];     <see <1>>
+	 * buf = br->br_ring[cons_head];     <see <1>>
 	 * br->br_ring[prod_head] = buf;
 	 * atomic_store_rel_32(&br->br_prod_tail, ...);
-	 *                                                                                prod_tail = br->br_prod_tail;
-	 *                                                                                if (cons_head == prod_tail) 
-	 *                                                                                        return (NULL);
-	 *                                                                                <condition is false and code uses invalid(old) buf>`	
+	 * prod_tail = br->br_prod_tail;
+	 * if (cons_head == prod_tail)
+	 * return (NULL);
+	 * <condition is false and code uses invalid(old) buf>`
 	 *
-	 * <1> Load (on core 1) from br->br_ring[cons_head] can be reordered (speculative readed) by CPU.
-	 */	
+	 * <1> Load (on core 1) from br->br_ring[cons_head] can be reordered
+	 (speculative readed) by CPU.
+	 */
 #if defined(__arm__) || defined(__aarch64__)
 	cons_head = atomic_load_acq_32(&br->br_cons_head);
 #else
@@ -203,13 +207,13 @@ buf_ring_dequeue_sc(struct buf_ring *br)
 	cons_next_next = (cons_head + 2) & br->br_cons_mask;
 #endif
 
-	if (cons_head == prod_tail) 
+	if (cons_head == prod_tail)
 		return (NULL);
 
-#ifdef PREFETCH_DEFINED	
-	if (cons_next != prod_tail) {		
+#ifdef PREFETCH_DEFINED
+	if (cons_next != prod_tail) {
 		prefetch(br->br_ring[cons_next]);
-		if (cons_next_next != prod_tail) 
+		if (cons_next_next != prod_tail)
 			prefetch(br->br_ring[cons_next_next]);
 	}
 #endif
@@ -243,7 +247,7 @@ buf_ring_advance_sc(struct buf_ring *br)
 	prod_tail = br->br_prod_tail;
 
 	cons_next = (cons_head + 1) & br->br_cons_mask;
-	if (cons_head == prod_tail) 
+	if (cons_head == prod_tail)
 		return;
 	br->br_cons_head = cons_next;
 #ifdef DEBUG_BUFRING
@@ -271,8 +275,8 @@ buf_ring_advance_sc(struct buf_ring *br)
 static __inline void
 buf_ring_putback_sc(struct buf_ring *br, void *new)
 {
-	KASSERT(br->br_cons_head != br->br_prod_tail, 
-		("Buf-Ring has none in putback")) ;
+	KASSERT(br->br_cons_head != br->br_prod_tail,
+	    ("Buf-Ring has none in putback"));
 	br->br_ring[br->br_cons_head] = new;
 }
 
@@ -288,7 +292,7 @@ buf_ring_peek(struct buf_ring *br)
 #ifdef DEBUG_BUFRING
 	if ((br->br_lock != NULL) && !mtx_owned(br->br_lock))
 		panic("lock not held on single consumer dequeue");
-#endif	
+#endif
 	/*
 	 * I believe it is safe to not have a memory barrier
 	 * here because we control cons and tail is worst case
@@ -309,7 +313,7 @@ buf_ring_peek_clear_sc(struct buf_ring *br)
 
 	if (!mtx_owned(br->br_lock))
 		panic("lock not held on single consumer dequeue");
-#endif	
+#endif
 
 	if (br->br_cons_head == br->br_prod_tail)
 		return (NULL);
@@ -345,7 +349,8 @@ static __inline int
 buf_ring_full(struct buf_ring *br)
 {
 
-	return (((br->br_prod_head + 1) & br->br_prod_mask) == br->br_cons_tail);
+	return (
+	    ((br->br_prod_head + 1) & br->br_prod_mask) == br->br_cons_tail);
 }
 
 static __inline int
@@ -359,12 +364,12 @@ static __inline int
 buf_ring_count(struct buf_ring *br)
 {
 
-	return ((br->br_prod_size + br->br_prod_tail - br->br_cons_tail)
-	    & br->br_prod_mask);
+	return ((br->br_prod_size + br->br_prod_tail - br->br_cons_tail) &
+	    br->br_prod_mask);
 }
 
-struct buf_ring *buf_ring_alloc(int count, struct malloc_type *type, int flags,
-    struct mtx *);
+struct buf_ring *buf_ring_alloc(
+    int count, struct malloc_type *type, int flags, struct mtx *);
 void buf_ring_free(struct buf_ring *br, struct malloc_type *type);
 
 #endif

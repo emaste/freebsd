@@ -52,140 +52,135 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
-#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include "pic_if.h"
 
-#define	BCM_LINTC_CONTROL_REG		0x00
-#define	BCM_LINTC_PRESCALER_REG		0x08
-#define	BCM_LINTC_GPU_ROUTING_REG	0x0c
-#define	BCM_LINTC_PMU_ROUTING_SET_REG	0x10
-#define	BCM_LINTC_PMU_ROUTING_CLR_REG	0x14
-#define	BCM_LINTC_TIMER_CFG_REG(n)	(0x40 + (n) * 4)
-#define	BCM_LINTC_MBOX_CFG_REG(n)	(0x50 + (n) * 4)
-#define	BCM_LINTC_PENDING_REG(n)	(0x60 + (n) * 4)
-#define	BCM_LINTC_MBOX0_SET_REG(n)	(0x80 + (n) * 16)
-#define	BCM_LINTC_MBOX1_SET_REG(n)	(0x84 + (n) * 16)
-#define	BCM_LINTC_MBOX2_SET_REG(n)	(0x88 + (n) * 16)
-#define	BCM_LINTC_MBOX3_SET_REG(n)	(0x8C + (n) * 16)
-#define	BCM_LINTC_MBOX0_CLR_REG(n)	(0xC0 + (n) * 16)
-#define	BCM_LINTC_MBOX1_CLR_REG(n)	(0xC4 + (n) * 16)
-#define	BCM_LINTC_MBOX2_CLR_REG(n)	(0xC8 + (n) * 16)
-#define	BCM_LINTC_MBOX3_CLR_REG(n)	(0xCC + (n) * 16)
+#define BCM_LINTC_CONTROL_REG 0x00
+#define BCM_LINTC_PRESCALER_REG 0x08
+#define BCM_LINTC_GPU_ROUTING_REG 0x0c
+#define BCM_LINTC_PMU_ROUTING_SET_REG 0x10
+#define BCM_LINTC_PMU_ROUTING_CLR_REG 0x14
+#define BCM_LINTC_TIMER_CFG_REG(n) (0x40 + (n)*4)
+#define BCM_LINTC_MBOX_CFG_REG(n) (0x50 + (n)*4)
+#define BCM_LINTC_PENDING_REG(n) (0x60 + (n)*4)
+#define BCM_LINTC_MBOX0_SET_REG(n) (0x80 + (n)*16)
+#define BCM_LINTC_MBOX1_SET_REG(n) (0x84 + (n)*16)
+#define BCM_LINTC_MBOX2_SET_REG(n) (0x88 + (n)*16)
+#define BCM_LINTC_MBOX3_SET_REG(n) (0x8C + (n)*16)
+#define BCM_LINTC_MBOX0_CLR_REG(n) (0xC0 + (n)*16)
+#define BCM_LINTC_MBOX1_CLR_REG(n) (0xC4 + (n)*16)
+#define BCM_LINTC_MBOX2_CLR_REG(n) (0xC8 + (n)*16)
+#define BCM_LINTC_MBOX3_CLR_REG(n) (0xCC + (n)*16)
 
 /* Prescaler Register */
-#define	BCM_LINTC_PSR_19_2		0x80000000	/* 19.2 MHz */
+#define BCM_LINTC_PSR_19_2 0x80000000 /* 19.2 MHz */
 
 /* GPU Interrupt Routing Register */
-#define	BCM_LINTC_GIRR_IRQ_CORE(n)	(n)
-#define	BCM_LINTC_GIRR_FIQ_CORE(n)	((n) << 2)
+#define BCM_LINTC_GIRR_IRQ_CORE(n) (n)
+#define BCM_LINTC_GIRR_FIQ_CORE(n) ((n) << 2)
 
 /* PMU Interrupt Routing Register */
-#define	BCM_LINTC_PIRR_IRQ_EN_CORE(n)	(1 << (n))
-#define	BCM_LINTC_PIRR_FIQ_EN_CORE(n)	(1 << ((n) + 4))
+#define BCM_LINTC_PIRR_IRQ_EN_CORE(n) (1 << (n))
+#define BCM_LINTC_PIRR_FIQ_EN_CORE(n) (1 << ((n) + 4))
 
 /* Timer Config Register */
-#define	BCM_LINTC_TCR_IRQ_EN_TIMER(n)	(1 << (n))
-#define	BCM_LINTC_TCR_FIQ_EN_TIMER(n)	(1 << ((n) + 4))
+#define BCM_LINTC_TCR_IRQ_EN_TIMER(n) (1 << (n))
+#define BCM_LINTC_TCR_FIQ_EN_TIMER(n) (1 << ((n) + 4))
 
 /* MBOX Config Register */
-#define	BCM_LINTC_MCR_IRQ_EN_MBOX(n)	(1 << (n))
-#define	BCM_LINTC_MCR_FIQ_EN_MBOX(n)	(1 << ((n) + 4))
+#define BCM_LINTC_MCR_IRQ_EN_MBOX(n) (1 << (n))
+#define BCM_LINTC_MCR_FIQ_EN_MBOX(n) (1 << ((n) + 4))
 
-#define	BCM_LINTC_CNTPSIRQ_IRQ		0
-#define	BCM_LINTC_CNTPNSIRQ_IRQ		1
-#define	BCM_LINTC_CNTHPIRQ_IRQ		2
-#define	BCM_LINTC_CNTVIRQ_IRQ		3
-#define	BCM_LINTC_MBOX0_IRQ		4
-#define	BCM_LINTC_MBOX1_IRQ		5
-#define	BCM_LINTC_MBOX2_IRQ		6
-#define	BCM_LINTC_MBOX3_IRQ		7
-#define	BCM_LINTC_GPU_IRQ		8
-#define	BCM_LINTC_PMU_IRQ		9
-#define	BCM_LINTC_AXI_IRQ		10
-#define	BCM_LINTC_LTIMER_IRQ		11
+#define BCM_LINTC_CNTPSIRQ_IRQ 0
+#define BCM_LINTC_CNTPNSIRQ_IRQ 1
+#define BCM_LINTC_CNTHPIRQ_IRQ 2
+#define BCM_LINTC_CNTVIRQ_IRQ 3
+#define BCM_LINTC_MBOX0_IRQ 4
+#define BCM_LINTC_MBOX1_IRQ 5
+#define BCM_LINTC_MBOX2_IRQ 6
+#define BCM_LINTC_MBOX3_IRQ 7
+#define BCM_LINTC_GPU_IRQ 8
+#define BCM_LINTC_PMU_IRQ 9
+#define BCM_LINTC_AXI_IRQ 10
+#define BCM_LINTC_LTIMER_IRQ 11
 
-#define	BCM_LINTC_NIRQS			12
+#define BCM_LINTC_NIRQS 12
 
-#define	BCM_LINTC_TIMER0_IRQ		BCM_LINTC_CNTPSIRQ_IRQ
-#define	BCM_LINTC_TIMER1_IRQ		BCM_LINTC_CNTPNSIRQ_IRQ
-#define	BCM_LINTC_TIMER2_IRQ		BCM_LINTC_CNTHPIRQ_IRQ
-#define	BCM_LINTC_TIMER3_IRQ		BCM_LINTC_CNTVIRQ_IRQ
+#define BCM_LINTC_TIMER0_IRQ BCM_LINTC_CNTPSIRQ_IRQ
+#define BCM_LINTC_TIMER1_IRQ BCM_LINTC_CNTPNSIRQ_IRQ
+#define BCM_LINTC_TIMER2_IRQ BCM_LINTC_CNTHPIRQ_IRQ
+#define BCM_LINTC_TIMER3_IRQ BCM_LINTC_CNTVIRQ_IRQ
 
-#define	BCM_LINTC_TIMER0_IRQ_MASK	(1 << BCM_LINTC_TIMER0_IRQ)
-#define	BCM_LINTC_TIMER1_IRQ_MASK	(1 << BCM_LINTC_TIMER1_IRQ)
-#define	BCM_LINTC_TIMER2_IRQ_MASK	(1 << BCM_LINTC_TIMER2_IRQ)
-#define	BCM_LINTC_TIMER3_IRQ_MASK	(1 << BCM_LINTC_TIMER3_IRQ)
-#define	BCM_LINTC_MBOX0_IRQ_MASK	(1 << BCM_LINTC_MBOX0_IRQ)
-#define	BCM_LINTC_GPU_IRQ_MASK		(1 << BCM_LINTC_GPU_IRQ)
-#define	BCM_LINTC_PMU_IRQ_MASK		(1 << BCM_LINTC_PMU_IRQ)
+#define BCM_LINTC_TIMER0_IRQ_MASK (1 << BCM_LINTC_TIMER0_IRQ)
+#define BCM_LINTC_TIMER1_IRQ_MASK (1 << BCM_LINTC_TIMER1_IRQ)
+#define BCM_LINTC_TIMER2_IRQ_MASK (1 << BCM_LINTC_TIMER2_IRQ)
+#define BCM_LINTC_TIMER3_IRQ_MASK (1 << BCM_LINTC_TIMER3_IRQ)
+#define BCM_LINTC_MBOX0_IRQ_MASK (1 << BCM_LINTC_MBOX0_IRQ)
+#define BCM_LINTC_GPU_IRQ_MASK (1 << BCM_LINTC_GPU_IRQ)
+#define BCM_LINTC_PMU_IRQ_MASK (1 << BCM_LINTC_PMU_IRQ)
 
-#define	BCM_LINTC_UP_PENDING_MASK	\
-    (BCM_LINTC_TIMER0_IRQ_MASK |	\
-     BCM_LINTC_TIMER1_IRQ_MASK |	\
-     BCM_LINTC_TIMER2_IRQ_MASK |	\
-     BCM_LINTC_TIMER3_IRQ_MASK |	\
-     BCM_LINTC_GPU_IRQ_MASK |		\
-     BCM_LINTC_PMU_IRQ_MASK)
+#define BCM_LINTC_UP_PENDING_MASK                                   \
+	(BCM_LINTC_TIMER0_IRQ_MASK | BCM_LINTC_TIMER1_IRQ_MASK |    \
+	    BCM_LINTC_TIMER2_IRQ_MASK | BCM_LINTC_TIMER3_IRQ_MASK | \
+	    BCM_LINTC_GPU_IRQ_MASK | BCM_LINTC_PMU_IRQ_MASK)
 
-#define	BCM_LINTC_SMP_PENDING_MASK	\
-    (BCM_LINTC_UP_PENDING_MASK |	\
-     BCM_LINTC_MBOX0_IRQ_MASK)
+#define BCM_LINTC_SMP_PENDING_MASK \
+	(BCM_LINTC_UP_PENDING_MASK | BCM_LINTC_MBOX0_IRQ_MASK)
 
 #ifdef SMP
-#define BCM_LINTC_PENDING_MASK		BCM_LINTC_SMP_PENDING_MASK
+#define BCM_LINTC_PENDING_MASK BCM_LINTC_SMP_PENDING_MASK
 #else
-#define BCM_LINTC_PENDING_MASK		BCM_LINTC_UP_PENDING_MASK
+#define BCM_LINTC_PENDING_MASK BCM_LINTC_UP_PENDING_MASK
 #endif
 
 struct bcm_lintc_irqsrc {
-	struct intr_irqsrc	bli_isrc;
-	u_int			bli_irq;
+	struct intr_irqsrc bli_isrc;
+	u_int bli_irq;
 	union {
-		u_int		bli_mask;	/* for timers */
-		u_int		bli_value;	/* for GPU */
+		u_int bli_mask;	 /* for timers */
+		u_int bli_value; /* for GPU */
 	};
 };
 
 struct bcm_lintc_softc {
-	device_t		bls_dev;
-	struct mtx		bls_mtx;
-	struct resource *	bls_mem;
-	bus_space_tag_t		bls_bst;
-	bus_space_handle_t	bls_bsh;
-	struct bcm_lintc_irqsrc	bls_isrcs[BCM_LINTC_NIRQS];
+	device_t bls_dev;
+	struct mtx bls_mtx;
+	struct resource *bls_mem;
+	bus_space_tag_t bls_bst;
+	bus_space_handle_t bls_bsh;
+	struct bcm_lintc_irqsrc bls_isrcs[BCM_LINTC_NIRQS];
 };
 
 static struct bcm_lintc_softc *bcm_lintc_sc;
 
 #ifdef SMP
-#define BCM_LINTC_NIPIS		32	/* only mailbox 0 is used for IPI */
+#define BCM_LINTC_NIPIS 32 /* only mailbox 0 is used for IPI */
 CTASSERT(INTR_IPI_COUNT <= BCM_LINTC_NIPIS);
 #endif
 
-#define	BCM_LINTC_LOCK(sc)		mtx_lock_spin(&(sc)->bls_mtx)
-#define	BCM_LINTC_UNLOCK(sc)		mtx_unlock_spin(&(sc)->bls_mtx)
-#define	BCM_LINTC_LOCK_INIT(sc)		mtx_init(&(sc)->bls_mtx,	\
-    device_get_nameunit((sc)->bls_dev), "bmc_local_intc", MTX_SPIN)
-#define	BCM_LINTC_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->bls_mtx)
+#define BCM_LINTC_LOCK(sc) mtx_lock_spin(&(sc)->bls_mtx)
+#define BCM_LINTC_UNLOCK(sc) mtx_unlock_spin(&(sc)->bls_mtx)
+#define BCM_LINTC_LOCK_INIT(sc)                                      \
+	mtx_init(&(sc)->bls_mtx, device_get_nameunit((sc)->bls_dev), \
+	    "bmc_local_intc", MTX_SPIN)
+#define BCM_LINTC_LOCK_DESTROY(sc) mtx_destroy(&(sc)->bls_mtx)
 
-#define	bcm_lintc_read_4(sc, reg)		\
-    bus_space_read_4((sc)->bls_bst, (sc)->bls_bsh, (reg))
-#define	bcm_lintc_write_4(sc, reg, val)		\
-    bus_space_write_4((sc)->bls_bst, (sc)->bls_bsh, (reg), (val))
+#define bcm_lintc_read_4(sc, reg) \
+	bus_space_read_4((sc)->bls_bst, (sc)->bls_bsh, (reg))
+#define bcm_lintc_write_4(sc, reg, val) \
+	bus_space_write_4((sc)->bls_bst, (sc)->bls_bsh, (reg), (val))
 
 static inline void
-bcm_lintc_rwreg_clr(struct bcm_lintc_softc *sc, uint32_t reg,
-    uint32_t mask)
+bcm_lintc_rwreg_clr(struct bcm_lintc_softc *sc, uint32_t reg, uint32_t mask)
 {
 
 	bcm_lintc_write_4(sc, reg, bcm_lintc_read_4(sc, reg) & ~mask);
 }
 
 static inline void
-bcm_lintc_rwreg_set(struct bcm_lintc_softc *sc, uint32_t reg,
-    uint32_t mask)
+bcm_lintc_rwreg_set(struct bcm_lintc_softc *sc, uint32_t reg, uint32_t mask)
 {
 
 	bcm_lintc_write_4(sc, reg, bcm_lintc_read_4(sc, reg) | mask);
@@ -202,8 +197,8 @@ bcm_lintc_timer_mask(struct bcm_lintc_softc *sc, struct bcm_lintc_irqsrc *bli)
 	BCM_LINTC_LOCK(sc);
 	for (cpu = 0; cpu < 4; cpu++)
 		if (CPU_ISSET(cpu, cpus))
-			bcm_lintc_rwreg_clr(sc, BCM_LINTC_TIMER_CFG_REG(cpu),
-			    bli->bli_mask);
+			bcm_lintc_rwreg_clr(
+			    sc, BCM_LINTC_TIMER_CFG_REG(cpu), bli->bli_mask);
 	BCM_LINTC_UNLOCK(sc);
 }
 
@@ -218,8 +213,8 @@ bcm_lintc_timer_unmask(struct bcm_lintc_softc *sc, struct bcm_lintc_irqsrc *bli)
 	BCM_LINTC_LOCK(sc);
 	for (cpu = 0; cpu < 4; cpu++)
 		if (CPU_ISSET(cpu, cpus))
-			bcm_lintc_rwreg_set(sc, BCM_LINTC_TIMER_CFG_REG(cpu),
-			    bli->bli_mask);
+			bcm_lintc_rwreg_set(
+			    sc, BCM_LINTC_TIMER_CFG_REG(cpu), bli->bli_mask);
 	BCM_LINTC_UNLOCK(sc);
 }
 
@@ -339,13 +334,13 @@ bcm_lintc_ipi_write(struct bcm_lintc_softc *sc, cpuset_t cpus, u_int ipi)
 	mask = 1 << ipi;
 	for (cpu = 0; cpu < mp_ncpus; cpu++)
 		if (CPU_ISSET(cpu, &cpus))
-			bcm_lintc_write_4(sc, BCM_LINTC_MBOX0_SET_REG(cpu),
-			    mask);
+			bcm_lintc_write_4(
+			    sc, BCM_LINTC_MBOX0_SET_REG(cpu), mask);
 }
 
 static inline void
-bcm_lintc_ipi_dispatch(struct bcm_lintc_softc *sc, u_int cpu,
-    struct trapframe *tf)
+bcm_lintc_ipi_dispatch(
+    struct bcm_lintc_softc *sc, u_int cpu, struct trapframe *tf)
 {
 	u_int ipi;
 	uint32_t mask;
@@ -375,8 +370,8 @@ bcm_lintc_ipi_dispatch(struct bcm_lintc_softc *sc, u_int cpu,
 #endif
 
 static inline void
-bcm_lintc_irq_dispatch(struct bcm_lintc_softc *sc, u_int irq,
-    struct trapframe *tf)
+bcm_lintc_irq_dispatch(
+    struct bcm_lintc_softc *sc, u_int irq, struct trapframe *tf)
 {
 	struct bcm_lintc_irqsrc *bli;
 
@@ -397,7 +392,7 @@ bcm_lintc_intr(void *arg)
 	cpu = PCPU_GET(cpuid);
 	tf = curthread->td_intr_frame;
 
-	for (num = 0; ; num++) {
+	for (num = 0;; num++) {
 		reg = bcm_lintc_read_4(sc, BCM_LINTC_PENDING_REG(cpu));
 		if ((reg & BCM_LINTC_PENDING_MASK) == 0)
 			break;
@@ -446,8 +441,8 @@ bcm_lintc_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-bcm_lintc_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+bcm_lintc_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct intr_map_data_fdt *daf;
 	struct bcm_lintc_softc *sc;
@@ -480,7 +475,7 @@ bcm_lintc_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 		 * interrupt can be masked on current core only while ithread
 		 * bounded to this core ensures unmasking on the same core.
 		 */
-		panic ("%s: handlers are not supported", __func__);
+		panic("%s: handlers are not supported", __func__);
 	}
 }
 
@@ -493,7 +488,7 @@ bcm_lintc_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 		bcm_lintc_gpu_unmask(device_get_softc(dev), bli);
 	else {
 		/* See comment in bcm_lintc_pre_ithread(). */
-		panic ("%s: handlers are not supported", __func__);
+		panic("%s: handlers are not supported", __func__);
 	}
 }
 
@@ -562,8 +557,8 @@ bcm_lintc_init_secondary(device_t dev)
 }
 
 static void
-bcm_lintc_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus,
-    u_int ipi)
+bcm_lintc_ipi_send(
+    device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus, u_int ipi)
 {
 	struct bcm_lintc_softc *sc = device_get_softc(dev);
 
@@ -620,7 +615,7 @@ bcm_lintc_pic_attach(struct bcm_lintc_softc *sc)
 		case BCM_LINTC_MBOX1_IRQ:
 		case BCM_LINTC_MBOX2_IRQ:
 		case BCM_LINTC_MBOX3_IRQ:
-			bisrcs[irq].bli_value = 0;	/* not used */
+			bisrcs[irq].bli_value = 0; /* not used */
 			flags = INTR_ISRCF_IPI;
 			break;
 		case BCM_LINTC_GPU_IRQ:
@@ -628,11 +623,11 @@ bcm_lintc_pic_attach(struct bcm_lintc_softc *sc)
 			flags = 0;
 			break;
 		case BCM_LINTC_PMU_IRQ:
-			bisrcs[irq].bli_value = 0;	/* not used */
+			bisrcs[irq].bli_value = 0; /* not used */
 			flags = INTR_ISRCF_PPI;
 			break;
 		default:
-			bisrcs[irq].bli_value = 0;	/* not used */
+			bisrcs[irq].bli_value = 0; /* not used */
 			flags = 0;
 			break;
 		}
@@ -679,8 +674,8 @@ bcm_lintc_attach(device_t dev)
 		return (ENXIO);
 
 	rid = 0;
-	sc->bls_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->bls_mem = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->bls_mem == NULL) {
 		device_printf(dev, "could not allocate memory resource\n");
 		return (ENXIO);
@@ -713,25 +708,24 @@ bcm_lintc_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t bcm_lintc_methods[] = {
-	DEVMETHOD(device_probe,		bcm_lintc_probe),
-	DEVMETHOD(device_attach,	bcm_lintc_attach),
+static device_method_t bcm_lintc_methods[] = { DEVMETHOD(device_probe,
+						   bcm_lintc_probe),
+	DEVMETHOD(device_attach, bcm_lintc_attach),
 
-	DEVMETHOD(pic_disable_intr,	bcm_lintc_disable_intr),
-	DEVMETHOD(pic_enable_intr,	bcm_lintc_enable_intr),
-	DEVMETHOD(pic_map_intr,		bcm_lintc_map_intr),
-	DEVMETHOD(pic_post_filter,	bcm_lintc_post_filter),
-	DEVMETHOD(pic_post_ithread,	bcm_lintc_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	bcm_lintc_pre_ithread),
-	DEVMETHOD(pic_setup_intr,	bcm_lintc_setup_intr),
+	DEVMETHOD(pic_disable_intr, bcm_lintc_disable_intr),
+	DEVMETHOD(pic_enable_intr, bcm_lintc_enable_intr),
+	DEVMETHOD(pic_map_intr, bcm_lintc_map_intr),
+	DEVMETHOD(pic_post_filter, bcm_lintc_post_filter),
+	DEVMETHOD(pic_post_ithread, bcm_lintc_post_ithread),
+	DEVMETHOD(pic_pre_ithread, bcm_lintc_pre_ithread),
+	DEVMETHOD(pic_setup_intr, bcm_lintc_setup_intr),
 #ifdef SMP
-	DEVMETHOD(pic_init_secondary,	bcm_lintc_init_secondary),
-	DEVMETHOD(pic_ipi_send,		bcm_lintc_ipi_send),
-	DEVMETHOD(pic_ipi_setup,	bcm_lintc_ipi_setup),
+	DEVMETHOD(pic_init_secondary, bcm_lintc_init_secondary),
+	DEVMETHOD(pic_ipi_send, bcm_lintc_ipi_send),
+	DEVMETHOD(pic_ipi_setup, bcm_lintc_ipi_setup),
 #endif
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t bcm_lintc_driver = {
 	"lintc",
@@ -741,5 +735,5 @@ static driver_t bcm_lintc_driver = {
 
 static devclass_t bcm_lintc_devclass;
 
-EARLY_DRIVER_MODULE(lintc, simplebus, bcm_lintc_driver, bcm_lintc_devclass,
-    0, 0, BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(lintc, simplebus, bcm_lintc_driver, bcm_lintc_devclass, 0,
+    0, BUS_PASS_INTERRUPT);

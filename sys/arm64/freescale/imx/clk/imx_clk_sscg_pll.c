@@ -41,41 +41,38 @@ __FBSDID("$FreeBSD$");
 #include "clkdev_if.h"
 
 struct imx_clk_sscg_pll_sc {
-	uint32_t	offset;
+	uint32_t offset;
 };
 
-#define	WRITE4(_clk, off, val)						\
+#define WRITE4(_clk, off, val) \
 	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
-#define	READ4(_clk, off, val)						\
-	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
-#define	DEVICE_LOCK(_clk)						\
-	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
-#define	DEVICE_UNLOCK(_clk)						\
-	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
+#define READ4(_clk, off, val) CLKDEV_READ_4(clknode_get_device(_clk), off, val)
+#define DEVICE_LOCK(_clk) CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
+#define DEVICE_UNLOCK(_clk) CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
-#define	CFG0	0x00
-#define	 CFG0_PLL_LOCK	(1 << 31)
-#define	 CFG0_PD	(1 << 7)
-#define	 CFG0_BYPASS2	(1 << 5)
-#define	 CFG0_BYPASS1	(1 << 4)
-#define	CFG1	0x04
-#define	CFG2	0x08
-#define	 CFG2_DIVR1_MASK	(7 << 25)
-#define	 CFG2_DIVR1_SHIFT	25
-#define	 CFG2_DIVR2_MASK	(0x3f << 19)
-#define	 CFG2_DIVR2_SHIFT	19
-#define	 CFG2_DIVF1_MASK	(0x3f << 13)
-#define	 CFG2_DIVF1_SHIFT	13
-#define	 CFG2_DIVF2_MASK	(0x3f << 7)
-#define	 CFG2_DIVF2_SHIFT	7
-#define	 CFG2_DIV_MASK		(0x3f << 1)
-#define	 CFG2_DIV_SHIFT		1
+#define CFG0 0x00
+#define CFG0_PLL_LOCK (1 << 31)
+#define CFG0_PD (1 << 7)
+#define CFG0_BYPASS2 (1 << 5)
+#define CFG0_BYPASS1 (1 << 4)
+#define CFG1 0x04
+#define CFG2 0x08
+#define CFG2_DIVR1_MASK (7 << 25)
+#define CFG2_DIVR1_SHIFT 25
+#define CFG2_DIVR2_MASK (0x3f << 19)
+#define CFG2_DIVR2_SHIFT 19
+#define CFG2_DIVF1_MASK (0x3f << 13)
+#define CFG2_DIVF1_SHIFT 13
+#define CFG2_DIVF2_MASK (0x3f << 7)
+#define CFG2_DIVF2_SHIFT 7
+#define CFG2_DIV_MASK (0x3f << 1)
+#define CFG2_DIV_SHIFT 1
 
 #if 0
-#define	dprintf(format, arg...)						\
+#define dprintf(format, arg...) \
 	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg)
 #else
-#define	dprintf(format, arg...)
+#define dprintf(format, arg...)
 #endif
 
 static int
@@ -86,7 +83,7 @@ imx_clk_sscg_pll_init(struct clknode *clk, device_t dev)
 	sc = clknode_get_softc(clk);
 	if (clknode_get_parents_num(clk) > 1) {
 		device_printf(clknode_get_device(clk),
-		   "error: SSCG PLL does not support more than one parent yet\n");
+		    "error: SSCG PLL does not support more than one parent yet\n");
 		return (EINVAL);
 	}
 	clknode_init_parent_idx(clk, 0);
@@ -163,9 +160,9 @@ imx_clk_sscg_pll_recalc(struct clknode *clk, uint64_t *freq)
 
 static clknode_method_t imx_clk_sscg_pll_clknode_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init,		imx_clk_sscg_pll_init),
-	CLKNODEMETHOD(clknode_set_gate,		imx_clk_sscg_pll_set_gate),
-	CLKNODEMETHOD(clknode_recalc_freq,	imx_clk_sscg_pll_recalc),
+	CLKNODEMETHOD(clknode_init, imx_clk_sscg_pll_init),
+	CLKNODEMETHOD(clknode_set_gate, imx_clk_sscg_pll_set_gate),
+	CLKNODEMETHOD(clknode_recalc_freq, imx_clk_sscg_pll_recalc),
 	CLKNODEMETHOD_END
 };
 
@@ -174,14 +171,14 @@ DEFINE_CLASS_1(imx_clk_sscg_pll_clknode, imx_clk_sscg_pll_clknode_class,
     clknode_class);
 
 int
-imx_clk_sscg_pll_register(struct clkdom *clkdom,
-    struct imx_clk_sscg_pll_def *clkdef)
+imx_clk_sscg_pll_register(
+    struct clkdom *clkdom, struct imx_clk_sscg_pll_def *clkdef)
 {
 	struct clknode *clk;
 	struct imx_clk_sscg_pll_sc *sc;
 
-	clk = clknode_create(clkdom, &imx_clk_sscg_pll_clknode_class,
-	    &clkdef->clkdef);
+	clk = clknode_create(
+	    clkdom, &imx_clk_sscg_pll_clknode_class, &clkdef->clkdef);
 	if (clk == NULL)
 		return (1);
 

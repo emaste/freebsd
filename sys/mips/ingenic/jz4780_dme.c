@@ -34,11 +34,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
@@ -50,15 +50,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 struct jz4780_dme_softc {
-	device_t		dev;
-	struct resource		*res[2];
+	device_t dev;
+	struct resource *res[2];
 };
 
-static struct resource_spec jz4780_dme_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
-	{ SYS_RES_MEMORY, 1, RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec jz4780_dme_spec[] = { { SYS_RES_MEMORY, 0,
+						      RF_ACTIVE },
+	{ SYS_RES_MEMORY, 1, RF_ACTIVE }, { -1, 0 } };
 
 static int jz4780_dme_probe(device_t dev);
 static int jz4780_dme_attach(device_t dev);
@@ -105,9 +103,9 @@ jz4780_dme_detach(device_t dev)
 
 static device_method_t jz4780_dme_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		jz4780_dme_probe),
-	DEVMETHOD(device_attach,	jz4780_dme_attach),
-	DEVMETHOD(device_detach,	jz4780_dme_detach),
+	DEVMETHOD(device_probe, jz4780_dme_probe),
+	DEVMETHOD(device_attach, jz4780_dme_attach),
+	DEVMETHOD(device_detach, jz4780_dme_detach),
 
 	DEVMETHOD_END
 };
@@ -120,5 +118,5 @@ static driver_t jz4780_dme_driver = {
 
 static devclass_t jz4780_dme_devclass;
 
-DRIVER_MODULE(jz4780_dme, simplebus, jz4780_dme_driver,
-    jz4780_dme_devclass, 0, 0);
+DRIVER_MODULE(
+    jz4780_dme, simplebus, jz4780_dme_driver, jz4780_dme_devclass, 0, 0);

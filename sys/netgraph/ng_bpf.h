@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -45,59 +45,65 @@
 #define _NETGRAPH_NG_BPF_H_
 
 /* Node type name and magic cookie */
-#define NG_BPF_NODE_TYPE	"bpf"
-#define NGM_BPF_COOKIE		944100792
+#define NG_BPF_NODE_TYPE "bpf"
+#define NGM_BPF_COOKIE 944100792
 
 /* Program structure for one hook */
 struct ng_bpf_hookprog {
-	char		thisHook[NG_HOOKSIZ];		/* name of hook */
-	char		ifMatch[NG_HOOKSIZ];		/* match dest hook */
-	char		ifNotMatch[NG_HOOKSIZ];		/* !match dest hook */
-	int32_t		bpf_prog_len;			/* #insns in program */
-	struct bpf_insn	bpf_prog[];			/* bpf program */
+	char thisHook[NG_HOOKSIZ];   /* name of hook */
+	char ifMatch[NG_HOOKSIZ];    /* match dest hook */
+	char ifNotMatch[NG_HOOKSIZ]; /* !match dest hook */
+	int32_t bpf_prog_len;	     /* #insns in program */
+	struct bpf_insn bpf_prog[];  /* bpf program */
 };
 
-#define NG_BPF_HOOKPROG_SIZE(numInsn)	\
+#define NG_BPF_HOOKPROG_SIZE(numInsn) \
 	(sizeof(struct ng_bpf_hookprog) + (numInsn) * sizeof(struct bpf_insn))
 
 /* Keep this in sync with the above structure definition */
-#define NG_BPF_HOOKPROG_TYPE_INFO(bptype)	{		\
-	  { "thisHook",		&ng_parse_hookbuf_type	},	\
-	  { "ifMatch",		&ng_parse_hookbuf_type	},	\
-	  { "ifNotMatch",	&ng_parse_hookbuf_type	},	\
-	  { "bpf_prog_len",	&ng_parse_int32_type	},	\
-	  { "bpf_prog",		(bptype)		},	\
-	  { NULL }						\
-}
+#define NG_BPF_HOOKPROG_TYPE_INFO(bptype)                     \
+	{                                                     \
+		{ "thisHook", &ng_parse_hookbuf_type },       \
+		    { "ifMatch", &ng_parse_hookbuf_type },    \
+		    { "ifNotMatch", &ng_parse_hookbuf_type }, \
+		    { "bpf_prog_len", &ng_parse_int32_type }, \
+		    { "bpf_prog", (bptype) },                 \
+		{                                             \
+			NULL                                  \
+		}                                             \
+	}
 
 /* Statistics structure for one hook */
 struct ng_bpf_hookstat {
-	u_int64_t	recvFrames;
-	u_int64_t	recvOctets;
-	u_int64_t	recvMatchFrames;
-	u_int64_t	recvMatchOctets;
-	u_int64_t	xmitFrames;
-	u_int64_t	xmitOctets;
+	u_int64_t recvFrames;
+	u_int64_t recvOctets;
+	u_int64_t recvMatchFrames;
+	u_int64_t recvMatchOctets;
+	u_int64_t xmitFrames;
+	u_int64_t xmitOctets;
 };
 
 /* Keep this in sync with the above structure definition */
-#define NG_BPF_HOOKSTAT_TYPE_INFO	{			\
-	  { "recvFrames",	&ng_parse_uint64_type	},	\
-	  { "recvOctets",	&ng_parse_uint64_type	},	\
-	  { "recvMatchFrames",	&ng_parse_uint64_type	},	\
-	  { "recvMatchOctets",	&ng_parse_uint64_type	},	\
-	  { "xmitFrames",	&ng_parse_uint64_type	},	\
-	  { "xmitOctets",	&ng_parse_uint64_type	},	\
-	  { NULL }						\
-}
+#define NG_BPF_HOOKSTAT_TYPE_INFO                                 \
+	{                                                         \
+		{ "recvFrames", &ng_parse_uint64_type },          \
+		    { "recvOctets", &ng_parse_uint64_type },      \
+		    { "recvMatchFrames", &ng_parse_uint64_type }, \
+		    { "recvMatchOctets", &ng_parse_uint64_type }, \
+		    { "xmitFrames", &ng_parse_uint64_type },      \
+		    { "xmitOctets", &ng_parse_uint64_type },      \
+		{                                                 \
+			NULL                                      \
+		}                                                 \
+	}
 
 /* Netgraph commands */
 enum {
-	NGM_BPF_SET_PROGRAM = 1,	/* supply a struct ng_bpf_hookprog */
-	NGM_BPF_GET_PROGRAM,		/* returns a struct ng_bpf_hookprog */
-	NGM_BPF_GET_STATS,		/* supply name as char[NG_HOOKSIZ] */
-	NGM_BPF_CLR_STATS,		/* supply name as char[NG_HOOKSIZ] */
-	NGM_BPF_GETCLR_STATS,		/* supply name as char[NG_HOOKSIZ] */
+	NGM_BPF_SET_PROGRAM = 1, /* supply a struct ng_bpf_hookprog */
+	NGM_BPF_GET_PROGRAM,	 /* returns a struct ng_bpf_hookprog */
+	NGM_BPF_GET_STATS,	 /* supply name as char[NG_HOOKSIZ] */
+	NGM_BPF_CLR_STATS,	 /* supply name as char[NG_HOOKSIZ] */
+	NGM_BPF_GETCLR_STATS,	 /* supply name as char[NG_HOOKSIZ] */
 };
 
 #endif /* _NETGRAPH_NG_BPF_H_ */

@@ -32,31 +32,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/condvar.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/gpio.h>
+#include <sys/rman.h>
 
 #include <dev/extres/clk/clk.h>
-
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_util.h>
-
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
-#include <dev/usb/controller/ohci.h>
-#include <dev/usb/controller/ohcireg.h>
-
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/gpio/gpiobusvar.h>
+#include <dev/usb/controller/ohci.h>
+#include <dev/usb/controller/ohcireg.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_core.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 
 #include <mips/ingenic/jz4780_clock.h>
 #include <mips/ingenic/jz4780_regs.h>
@@ -65,8 +60,7 @@ static int jz4780_ohci_attach(device_t dev);
 static int jz4780_ohci_detach(device_t dev);
 static int jz4780_ohci_probe(device_t dev);
 
-struct jz4780_ohci_softc
-{
+struct jz4780_ohci_softc {
 	struct ohci_softc sc_ohci;
 	struct gpiobus_pin *gpio_vbus;
 	clk_t clk;
@@ -94,8 +88,8 @@ jz4780_ohci_vbus_gpio_enable(device_t dev, struct jz4780_ohci_softc *sc)
 
 	error = ofw_gpiobus_parse_gpios(dev, "ingenic,vbus-gpio", &gpio_vbus);
 	/*
-	 * The pin can be mapped already by other device. Assume it also has need
-	 * activated and proceed happily.
+	 * The pin can be mapped already by other device. Assume it also has
+	 * need activated and proceed happily.
 	 */
 	if (error <= 0)
 		return (0);
@@ -109,16 +103,20 @@ jz4780_ohci_vbus_gpio_enable(device_t dev, struct jz4780_ohci_softc *sc)
 	if (sc->gpio_vbus != NULL) {
 		error = GPIO_PIN_SET(sc->gpio_vbus->dev, sc->gpio_vbus->pin, 1);
 		if (error != 0) {
-			device_printf(dev, "Cannot configure GPIO pin %d on %s\n",
-			    sc->gpio_vbus->pin, device_get_nameunit(sc->gpio_vbus->dev));
+			device_printf(dev,
+			    "Cannot configure GPIO pin %d on %s\n",
+			    sc->gpio_vbus->pin,
+			    device_get_nameunit(sc->gpio_vbus->dev));
 			return (error);
 		}
 
-		error = GPIO_PIN_SETFLAGS(sc->gpio_vbus->dev, sc->gpio_vbus->pin,
-		    GPIO_PIN_OUTPUT);
+		error = GPIO_PIN_SETFLAGS(
+		    sc->gpio_vbus->dev, sc->gpio_vbus->pin, GPIO_PIN_OUTPUT);
 		if (error != 0) {
-			device_printf(dev, "Cannot configure GPIO pin %d on %s\n",
-			    sc->gpio_vbus->pin, device_get_nameunit(sc->gpio_vbus->dev));
+			device_printf(dev,
+			    "Cannot configure GPIO pin %d on %s\n",
+			    sc->gpio_vbus->pin,
+			    device_get_nameunit(sc->gpio_vbus->dev));
 			return (error);
 		}
 	}
@@ -165,8 +163,8 @@ jz4780_ohci_attach(device_t dev)
 	sc->sc_ohci.sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
-	if (usb_bus_mem_alloc_all(&sc->sc_ohci.sc_bus,
-	    USB_GET_DMA_TAG(dev), &ohci_iterate_hw_softc)) {
+	if (usb_bus_mem_alloc_all(&sc->sc_ohci.sc_bus, USB_GET_DMA_TAG(dev),
+		&ohci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
 
@@ -182,8 +180,8 @@ jz4780_ohci_attach(device_t dev)
 		goto error;
 
 	rid = 0;
-	sc->sc_ohci.sc_io_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_ohci.sc_io_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->sc_ohci.sc_io_res == NULL) {
 		err = ENOMEM;
 		goto error;
@@ -193,8 +191,8 @@ jz4780_ohci_attach(device_t dev)
 	sc->sc_ohci.sc_io_size = rman_get_size(sc->sc_ohci.sc_io_res);
 
 	rid = 0;
-	sc->sc_ohci.sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->sc_ohci.sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->sc_ohci.sc_irq_res == NULL) {
 		err = ENOMEM;
 		goto error;
@@ -214,15 +212,17 @@ jz4780_ohci_attach(device_t dev)
 	device_set_ivars(sc->sc_ohci.sc_bus.bdev, &sc->sc_ohci.sc_bus);
 
 	err = bus_setup_intr(dev, sc->sc_ohci.sc_irq_res,
-	    INTR_TYPE_BIO | INTR_MPSAFE, NULL,
-	    (driver_intr_t *)ohci_interrupt, sc, &sc->sc_ohci.sc_intr_hdl);
+	    INTR_TYPE_BIO | INTR_MPSAFE, NULL, (driver_intr_t *)ohci_interrupt,
+	    sc, &sc->sc_ohci.sc_intr_hdl);
 	if (err) {
 		err = ENXIO;
 		goto error;
 	}
 
-	strlcpy(sc->sc_ohci.sc_vendor, "Ingenic", sizeof(sc->sc_ohci.sc_vendor));
-	bus_space_write_4(sc->sc_ohci.sc_io_tag, sc->sc_ohci.sc_io_hdl, OHCI_CONTROL, 0);
+	strlcpy(
+	    sc->sc_ohci.sc_vendor, "Ingenic", sizeof(sc->sc_ohci.sc_vendor));
+	bus_space_write_4(
+	    sc->sc_ohci.sc_io_tag, sc->sc_ohci.sc_io_hdl, OHCI_CONTROL, 0);
 
 	err = ohci_init(&sc->sc_ohci);
 	if (!err)
@@ -267,7 +267,8 @@ jz4780_ohci_detach(device_t dev)
 	}
 
 	if (sc->sc_ohci.sc_intr_hdl) {
-		bus_teardown_intr(dev, sc->sc_ohci.sc_irq_res, sc->sc_ohci.sc_intr_hdl);
+		bus_teardown_intr(
+		    dev, sc->sc_ohci.sc_irq_res, sc->sc_ohci.sc_intr_hdl);
 		sc->sc_ohci.sc_intr_hdl = NULL;
 	}
 
@@ -277,11 +278,13 @@ jz4780_ohci_detach(device_t dev)
 		 */
 		ohci_detach(&sc->sc_ohci);
 
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_ohci.sc_irq_res);
+		bus_release_resource(
+		    dev, SYS_RES_IRQ, 0, sc->sc_ohci.sc_irq_res);
 		sc->sc_ohci.sc_irq_res = NULL;
 	}
 	if (sc->sc_ohci.sc_io_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_ohci.sc_io_res);
+		bus_release_resource(
+		    dev, SYS_RES_MEMORY, 0, sc->sc_ohci.sc_io_res);
 		sc->sc_ohci.sc_io_res = NULL;
 		sc->sc_ohci.sc_io_tag = 0;
 		sc->sc_ohci.sc_io_hdl = 0;

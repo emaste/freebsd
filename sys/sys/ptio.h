@@ -29,11 +29,11 @@
  */
 
 #ifndef _SYS_PTIO_H_
-#define	_SYS_PTIO_H_
+#define _SYS_PTIO_H_
 
 #include <sys/ioccom.h>
 
-#define	PTIOCGETTIMEOUT	_IOR('T', 1, int)
-#define	PTIOCSETTIMEOUT	_IOW('T', 2, int)
+#define PTIOCGETTIMEOUT _IOR('T', 1, int)
+#define PTIOCSETTIMEOUT _IOW('T', 2, int)
 
 #endif /* !_SYS_PTIO_H_ */

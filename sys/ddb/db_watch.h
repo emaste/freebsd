@@ -34,17 +34,17 @@
  */
 
 #ifndef _DDB_DB_WATCH_H_
-#define	_DDB_DB_WATCH_H_
+#define _DDB_DB_WATCH_H_
 
 /*
  * Watchpoint.
  */
 
 typedef struct db_watchpoint {
-	vm_map_t map;			/* in this map */
-	db_addr_t loaddr;		/* from this address */
-	db_addr_t hiaddr;		/* to this address */
-	struct db_watchpoint *link;	/* link in in-use or free chain */
-} *db_watchpoint_t;
+	vm_map_t map;		    /* in this map */
+	db_addr_t loaddr;	    /* from this address */
+	db_addr_t hiaddr;	    /* to this address */
+	struct db_watchpoint *link; /* link in in-use or free chain */
+} * db_watchpoint_t;
 
 #endif /* !_DDB_DB_WATCH_H_ */

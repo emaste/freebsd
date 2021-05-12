@@ -29,27 +29,27 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/module.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/endian.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
 
-#include <cam/cam.h>
-#include <cam/cam_ccb.h>
-#include <cam/cam_sim.h>
-#include <cam/cam_xpt_sim.h>
-#include <cam/cam_debug.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
 
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <machine/bus.h>
-#include <machine/resource.h>
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+#include <cam/cam_debug.h>
+#include <cam/cam_sim.h>
+#include <cam/cam_xpt_sim.h>
 
 #include "fsl_sata.h"
 
@@ -66,14 +66,19 @@ static int fsl_sata_resume(device_t dev);
 static void fsl_sata_pm(void *arg);
 static void fsl_sata_intr(void *arg);
 static void fsl_sata_intr_main(struct fsl_sata_channel *ch, uint32_t istatus);
-static void fsl_sata_begin_transaction(struct fsl_sata_channel *ch, union ccb *ccb);
-static void fsl_sata_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error);
+static void fsl_sata_begin_transaction(
+    struct fsl_sata_channel *ch, union ccb *ccb);
+static void fsl_sata_dmasetprd(
+    void *arg, bus_dma_segment_t *segs, int nsegs, int error);
 static void fsl_sata_execute_transaction(struct fsl_sata_slot *slot);
 static void fsl_sata_timeout(void *arg);
-static void fsl_sata_end_transaction(struct fsl_sata_slot *slot, enum fsl_sata_err_type et);
-static int fsl_sata_setup_fis(struct fsl_sata_channel *ch, struct fsl_sata_cmd_tab *ctp, union ccb *ccb, int tag);
+static void fsl_sata_end_transaction(
+    struct fsl_sata_slot *slot, enum fsl_sata_err_type et);
+static int fsl_sata_setup_fis(struct fsl_sata_channel *ch,
+    struct fsl_sata_cmd_tab *ctp, union ccb *ccb, int tag);
 static void fsl_sata_dmainit(device_t dev);
-static void fsl_sata_dmasetupc_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
+static void fsl_sata_dmasetupc_cb(
+    void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
 static void fsl_sata_dmafini(device_t dev);
 static void fsl_sata_slotsalloc(device_t dev);
 static void fsl_sata_slotsfree(device_t dev);
@@ -82,145 +87,151 @@ static void fsl_sata_start(struct fsl_sata_channel *ch);
 static void fsl_sata_stop(struct fsl_sata_channel *ch);
 
 static void fsl_sata_issue_recovery(struct fsl_sata_channel *ch);
-static void fsl_sata_process_read_log(struct fsl_sata_channel *ch, union ccb *ccb);
-static void fsl_sata_process_request_sense(struct fsl_sata_channel *ch, union ccb *ccb);
+static void fsl_sata_process_read_log(
+    struct fsl_sata_channel *ch, union ccb *ccb);
+static void fsl_sata_process_request_sense(
+    struct fsl_sata_channel *ch, union ccb *ccb);
 
 static void fsl_sataaction(struct cam_sim *sim, union ccb *ccb);
 static void fsl_satapoll(struct cam_sim *sim);
 
-static MALLOC_DEFINE(M_FSL_SATA, "FSL SATA driver", "FSL SATA driver data buffers");
+static MALLOC_DEFINE(
+    M_FSL_SATA, "FSL SATA driver", "FSL SATA driver data buffers");
 
-#define	recovery_type		spriv_field0
-#define	RECOVERY_NONE		0
-#define	RECOVERY_READ_LOG	1
-#define	RECOVERY_REQUEST_SENSE	2
-#define	recovery_slot		spriv_field1
+#define recovery_type spriv_field0
+#define RECOVERY_NONE 0
+#define RECOVERY_READ_LOG 1
+#define RECOVERY_REQUEST_SENSE 2
+#define recovery_slot spriv_field1
 
-#define	FSL_SATA_P_CQR		0x0
-#define	FSL_SATA_P_CAR		0x4
-#define	FSL_SATA_P_CCR		0x10
-#define	FSL_SATA_P_CER			0x18
-#define	FSL_SATA_P_DER		0x20
-#define	FSL_SATA_P_CHBA		0x24
-#define	FSL_SATA_P_HSTS		0x28
-#define	  FSL_SATA_P_HSTS_HS_ON	  0x80000000
-#define	  FSL_SATA_P_HSTS_ME	  0x00040000
-#define	  FSL_SATA_P_HSTS_DLM	  0x00001000
-#define	  FSL_SATA_P_HSTS_FOT	  0x00000200
-#define	  FSL_SATA_P_HSTS_FOR	  0x00000100
-#define	  FSL_SATA_P_HSTS_FE	  0x00000020
-#define	  FSL_SATA_P_HSTS_PR	  0x00000010
-#define	  FSL_SATA_P_HSTS_SNTFU	  0x00000004
-#define	  FSL_SATA_P_HSTS_DE	  0x00000002
-#define	FSL_SATA_P_HCTRL	0x2c
-#define	  FSL_SATA_P_HCTRL_HC_ON  0x80000000
-#define	  FSL_SATA_P_HCTRL_HC_FORCE_OFF  0x40000000
-#define	  FSL_SATA_P_HCTRL_ENT	  0x10000000
-#define	  FSL_SATA_P_HCTRL_SNOOP  0x00000400
-#define	  FSL_SATA_P_HCTRL_PM	  0x00000200
-#define	  FSL_SATA_P_HCTRL_FATAL  0x00000020
-#define	  FSL_SATA_P_HCTRL_PHYRDY 0x00000010
-#define	  FSL_SATA_P_HCTRL_SIG	  0x00000008
-#define	  FSL_SATA_P_HCTRL_SNTFY  0x00000004
-#define	  FSL_SATA_P_HCTRL_DE	  0x00000002
-#define	  FSL_SATA_P_HCTRL_CC	  0x00000001
-#define	  FSL_SATA_P_HCTRL_INT_MASK	0x0000003f
-#define	FSL_SATA_P_CQPMP	0x30
-#define	FSL_SATA_P_SIG		0x34
-#define	FSL_SATA_P_ICC		0x38
-#define	  FSL_SATA_P_ICC_ITC_M	  0x1f000000
-#define	  FSL_SATA_P_ICC_ITC_S	  24
-#define	  FSL_SATA_P_ICC_ITTCV_M	  0x0007ffff
-#define	FSL_SATA_P_PCC		0x15c
-#define	  FSL_SATA_P_PCC_SLUMBER	  0x0000000c
-#define	  FSL_SATA_P_PCC_PARTIAL	  0x0000000a
-#define	  FSL_SATA_PCC_LPB_EN		  0x0000000e
+#define FSL_SATA_P_CQR 0x0
+#define FSL_SATA_P_CAR 0x4
+#define FSL_SATA_P_CCR 0x10
+#define FSL_SATA_P_CER 0x18
+#define FSL_SATA_P_DER 0x20
+#define FSL_SATA_P_CHBA 0x24
+#define FSL_SATA_P_HSTS 0x28
+#define FSL_SATA_P_HSTS_HS_ON 0x80000000
+#define FSL_SATA_P_HSTS_ME 0x00040000
+#define FSL_SATA_P_HSTS_DLM 0x00001000
+#define FSL_SATA_P_HSTS_FOT 0x00000200
+#define FSL_SATA_P_HSTS_FOR 0x00000100
+#define FSL_SATA_P_HSTS_FE 0x00000020
+#define FSL_SATA_P_HSTS_PR 0x00000010
+#define FSL_SATA_P_HSTS_SNTFU 0x00000004
+#define FSL_SATA_P_HSTS_DE 0x00000002
+#define FSL_SATA_P_HCTRL 0x2c
+#define FSL_SATA_P_HCTRL_HC_ON 0x80000000
+#define FSL_SATA_P_HCTRL_HC_FORCE_OFF 0x40000000
+#define FSL_SATA_P_HCTRL_ENT 0x10000000
+#define FSL_SATA_P_HCTRL_SNOOP 0x00000400
+#define FSL_SATA_P_HCTRL_PM 0x00000200
+#define FSL_SATA_P_HCTRL_FATAL 0x00000020
+#define FSL_SATA_P_HCTRL_PHYRDY 0x00000010
+#define FSL_SATA_P_HCTRL_SIG 0x00000008
+#define FSL_SATA_P_HCTRL_SNTFY 0x00000004
+#define FSL_SATA_P_HCTRL_DE 0x00000002
+#define FSL_SATA_P_HCTRL_CC 0x00000001
+#define FSL_SATA_P_HCTRL_INT_MASK 0x0000003f
+#define FSL_SATA_P_CQPMP 0x30
+#define FSL_SATA_P_SIG 0x34
+#define FSL_SATA_P_ICC 0x38
+#define FSL_SATA_P_ICC_ITC_M 0x1f000000
+#define FSL_SATA_P_ICC_ITC_S 24
+#define FSL_SATA_P_ICC_ITTCV_M 0x0007ffff
+#define FSL_SATA_P_PCC 0x15c
+#define FSL_SATA_P_PCC_SLUMBER 0x0000000c
+#define FSL_SATA_P_PCC_PARTIAL 0x0000000a
+#define FSL_SATA_PCC_LPB_EN 0x0000000e
 
-#define	FSL_SATA_MAX_SLOTS		16
+#define FSL_SATA_MAX_SLOTS 16
 /* FSL_SATA register defines */
 
-#define	FSL_SATA_P_SSTS		0x100
-#define	FSL_SATA_P_SERR		0x104
-#define	FSL_SATA_P_SCTL		0x108
-#define	FSL_SATA_P_SNTF		0x10c
+#define FSL_SATA_P_SSTS 0x100
+#define FSL_SATA_P_SERR 0x104
+#define FSL_SATA_P_SCTL 0x108
+#define FSL_SATA_P_SNTF 0x10c
 
 /* Pessimistic prognosis on number of required S/G entries */
-#define	FSL_SATA_SG_ENTRIES	63
+#define FSL_SATA_SG_ENTRIES 63
 /* Command list. 16 commands. First, 1Kbyte aligned. */
-#define	FSL_SATA_CL_OFFSET	0
-#define	FSL_SATA_CL_SIZE	16
+#define FSL_SATA_CL_OFFSET 0
+#define FSL_SATA_CL_SIZE 16
 /* Command tables. Up to 32 commands, Each, 4-byte aligned. */
-#define	FSL_SATA_CT_OFFSET	(FSL_SATA_CL_OFFSET + FSL_SATA_CL_SIZE * FSL_SATA_MAX_SLOTS)
-#define	FSL_SATA_CT_SIZE	(96 + FSL_SATA_SG_ENTRIES * 16)
+#define FSL_SATA_CT_OFFSET \
+	(FSL_SATA_CL_OFFSET + FSL_SATA_CL_SIZE * FSL_SATA_MAX_SLOTS)
+#define FSL_SATA_CT_SIZE (96 + FSL_SATA_SG_ENTRIES * 16)
 /* Total main work area. */
-#define	FSL_SATA_WORK_SIZE	(FSL_SATA_CT_OFFSET + FSL_SATA_CT_SIZE * FSL_SATA_MAX_SLOTS)
-#define	FSL_SATA_MAX_XFER	(64 * 1024 * 1024)
+#define FSL_SATA_WORK_SIZE \
+	(FSL_SATA_CT_OFFSET + FSL_SATA_CT_SIZE * FSL_SATA_MAX_SLOTS)
+#define FSL_SATA_MAX_XFER (64 * 1024 * 1024)
 
 /* Some convenience macros for getting the CTP and CLP */
-#define	FSL_SATA_CTP_BUS(ch, slot)	\
-    ((ch->dma.work_bus + FSL_SATA_CT_OFFSET + (FSL_SATA_CT_SIZE * slot->slot)))
-#define FSL_SATA_PRD_OFFSET(prd) (96 + (prd) * 16)
-#define	FSL_SATA_CTP(ch, slot)		\
-    ((struct fsl_sata_cmd_tab *)(ch->dma.work + FSL_SATA_CT_OFFSET + \
-     (FSL_SATA_CT_SIZE * slot->slot)))
-#define	FSL_SATA_CLP(ch, slot)		\
-	((struct fsl_sata_cmd_list *) (ch->dma.work + FSL_SATA_CL_OFFSET + \
-	 (FSL_SATA_CL_SIZE * slot->slot)))
+#define FSL_SATA_CTP_BUS(ch, slot)                \
+	((ch->dma.work_bus + FSL_SATA_CT_OFFSET + \
+	    (FSL_SATA_CT_SIZE * slot->slot)))
+#define FSL_SATA_PRD_OFFSET(prd) (96 + (prd)*16)
+#define FSL_SATA_CTP(ch, slot)                                           \
+	((struct fsl_sata_cmd_tab *)(ch->dma.work + FSL_SATA_CT_OFFSET + \
+	    (FSL_SATA_CT_SIZE * slot->slot)))
+#define FSL_SATA_CLP(ch, slot)                                            \
+	((struct fsl_sata_cmd_list *)(ch->dma.work + FSL_SATA_CL_OFFSET + \
+	    (FSL_SATA_CL_SIZE * slot->slot)))
 
 struct fsl_sata_dma_prd {
-	uint32_t		dba;
-	uint32_t		reserved;
-	uint32_t		reserved2;
-	uint32_t		dwc_flg;		/* 0 based */
-#define	FSL_SATA_PRD_MASK		0x01fffffc	/* max 32MB */
-#define	FSL_SATA_PRD_MAX		(FSL_SATA_PRD_MASK + 4)
-#define	FSL_SATA_PRD_SNOOP		0x10000000
-#define	FSL_SATA_PRD_EXT		0x80000000
+	uint32_t dba;
+	uint32_t reserved;
+	uint32_t reserved2;
+	uint32_t dwc_flg;	     /* 0 based */
+#define FSL_SATA_PRD_MASK 0x01fffffc /* max 32MB */
+#define FSL_SATA_PRD_MAX (FSL_SATA_PRD_MASK + 4)
+#define FSL_SATA_PRD_SNOOP 0x10000000
+#define FSL_SATA_PRD_EXT 0x80000000
 } __packed;
 
 struct fsl_sata_cmd_tab {
-	uint8_t			cfis[32];
-	uint8_t			sfis[32];
-	uint8_t			acmd[16];
-	uint8_t			reserved[16];
-	struct fsl_sata_dma_prd	prd_tab[FSL_SATA_SG_ENTRIES];
-#define	FSL_SATA_PRD_EXT_INDEX	15
-#define FSL_SATA_PRD_MAX_DIRECT	16
+	uint8_t cfis[32];
+	uint8_t sfis[32];
+	uint8_t acmd[16];
+	uint8_t reserved[16];
+	struct fsl_sata_dma_prd prd_tab[FSL_SATA_SG_ENTRIES];
+#define FSL_SATA_PRD_EXT_INDEX 15
+#define FSL_SATA_PRD_MAX_DIRECT 16
 } __packed;
 
 struct fsl_sata_cmd_list {
-	uint32_t			cda;		/* word aligned */
-	uint16_t			fis_length;	/* length in bytes (aligned to words) */
-	uint16_t			prd_length;	/* PRD entries */
-	uint32_t			ttl;
-	uint32_t			cmd_flags;
-#define	FSL_SATA_CMD_TAG_MASK		0x001f
-#define	FSL_SATA_CMD_ATAPI		0x0020
-#define	FSL_SATA_CMD_BIST		0x0040
-#define	FSL_SATA_CMD_RESET		0x0080
-#define	FSL_SATA_CMD_QUEUED		0x0100
-#define	FSL_SATA_CMD_SNOOP		0x0200
-#define	FSL_SATA_CMD_VBIST		0x0400
-#define	FSL_SATA_CMD_WRITE		0x0800
+	uint32_t cda;	     /* word aligned */
+	uint16_t fis_length; /* length in bytes (aligned to words) */
+	uint16_t prd_length; /* PRD entries */
+	uint32_t ttl;
+	uint32_t cmd_flags;
+#define FSL_SATA_CMD_TAG_MASK 0x001f
+#define FSL_SATA_CMD_ATAPI 0x0020
+#define FSL_SATA_CMD_BIST 0x0040
+#define FSL_SATA_CMD_RESET 0x0080
+#define FSL_SATA_CMD_QUEUED 0x0100
+#define FSL_SATA_CMD_SNOOP 0x0200
+#define FSL_SATA_CMD_VBIST 0x0400
+#define FSL_SATA_CMD_WRITE 0x0800
 
 } __packed;
 
 /* misc defines */
-#define	ATA_IRQ_RID		0
-#define	ATA_INTR_FLAGS		(INTR_MPSAFE|INTR_TYPE_BIO|INTR_ENTROPY)
+#define ATA_IRQ_RID 0
+#define ATA_INTR_FLAGS (INTR_MPSAFE | INTR_TYPE_BIO | INTR_ENTROPY)
 
 struct ata_dmaslot {
-	bus_dmamap_t		data_map;	/* data DMA map */
-	int			nsegs;		/* Number of segs loaded */
+	bus_dmamap_t data_map; /* data DMA map */
+	int nsegs;	       /* Number of segs loaded */
 };
 
 /* structure holding DMA related information */
 struct ata_dma {
-	bus_dma_tag_t		 work_tag;	/* workspace DMA tag */
-	bus_dmamap_t		 work_map;	/* workspace DMA map */
-	uint8_t			*work;		/* workspace */
-	bus_addr_t		 work_bus;	/* bus address of work */
-	bus_dma_tag_t		data_tag;	/* data DMA tag */
+	bus_dma_tag_t work_tag; /* workspace DMA tag */
+	bus_dmamap_t work_map;	/* workspace DMA map */
+	uint8_t *work;		/* workspace */
+	bus_addr_t work_bus;	/* bus address of work */
+	bus_dma_tag_t data_tag; /* data DMA tag */
 };
 
 enum fsl_sata_slot_states {
@@ -231,85 +242,83 @@ enum fsl_sata_slot_states {
 };
 
 struct fsl_sata_slot {
-	struct fsl_sata_channel		*ch;		/* Channel */
-	uint8_t				 slot;		/* Number of this slot */
-	enum fsl_sata_slot_states	 state;	/* Slot state */
-	union ccb			*ccb;		/* CCB occupying slot */
-	struct ata_dmaslot		 dma;	/* DMA data of this slot */
-	struct callout			 timeout;	/* Execution timeout */
-	uint32_t			 ttl;
+	struct fsl_sata_channel *ch;	 /* Channel */
+	uint8_t slot;			 /* Number of this slot */
+	enum fsl_sata_slot_states state; /* Slot state */
+	union ccb *ccb;			 /* CCB occupying slot */
+	struct ata_dmaslot dma;		 /* DMA data of this slot */
+	struct callout timeout;		 /* Execution timeout */
+	uint32_t ttl;
 };
 
 struct fsl_sata_device {
-	int			revision;
-	int			mode;
-	u_int			bytecount;
-	u_int			atapi;
-	u_int			tags;
-	u_int			caps;
+	int revision;
+	int mode;
+	u_int bytecount;
+	u_int atapi;
+	u_int tags;
+	u_int caps;
 };
 
 /* structure describing an ATA channel */
 struct fsl_sata_channel {
-	device_t		dev;		/* Device handle */
-	int			 r_mid;		/* Physical channel RID */
-	struct resource		*r_mem;		/* Memory of this channel */
-	struct resource		*r_irq;		/* Interrupt of this channel */
-	void			*ih;		/* Interrupt handle */
-	struct ata_dma		dma;		/* DMA data */
-	struct cam_sim		*sim;
-	struct cam_path		*path;
-	uint32_t		caps;		/* Controller capabilities */
-	int			pm_level;	/* power management level */
-	int			devices;	/* What is present */
-	int			pm_present;	/* PM presence reported */
+	device_t dev;		/* Device handle */
+	int r_mid;		/* Physical channel RID */
+	struct resource *r_mem; /* Memory of this channel */
+	struct resource *r_irq; /* Interrupt of this channel */
+	void *ih;		/* Interrupt handle */
+	struct ata_dma dma;	/* DMA data */
+	struct cam_sim *sim;
+	struct cam_path *path;
+	uint32_t caps;	/* Controller capabilities */
+	int pm_level;	/* power management level */
+	int devices;	/* What is present */
+	int pm_present; /* PM presence reported */
 
-	union ccb		*hold[FSL_SATA_MAX_SLOTS];
-	struct fsl_sata_slot	slot[FSL_SATA_MAX_SLOTS];
-	uint32_t		oslots;		/* Occupied slots */
-	uint32_t		rslots;		/* Running slots */
-	uint32_t		aslots;		/* Slots with atomic commands  */
-	uint32_t		eslots;		/* Slots in error */
-	uint32_t		toslots;	/* Slots in timeout */
-	int			lastslot;	/* Last used slot */
-	int			taggedtarget;	/* Last tagged target */
-	int			numrslots;	/* Number of running slots */
-	int			numrslotspd[16];/* Number of running slots per dev */
-	int			numtslots;	/* Number of tagged slots */
-	int			numtslotspd[16];/* Number of tagged slots per dev */
-	int			numhslots;	/* Number of held slots */
-	int			recoverycmd;	/* Our READ LOG active */
-	int			fatalerr;	/* Fatal error happend */
-	int			resetting;	/* Hard-reset in progress. */
-	int			resetpolldiv;	/* Hard-reset poll divider. */
-	union ccb		*frozen;	/* Frozen command */
-	struct callout		pm_timer;	/* Power management events */
-	struct callout		reset_timer;	/* Hard-reset timeout */
+	union ccb *hold[FSL_SATA_MAX_SLOTS];
+	struct fsl_sata_slot slot[FSL_SATA_MAX_SLOTS];
+	uint32_t oslots;	    /* Occupied slots */
+	uint32_t rslots;	    /* Running slots */
+	uint32_t aslots;	    /* Slots with atomic commands  */
+	uint32_t eslots;	    /* Slots in error */
+	uint32_t toslots;	    /* Slots in timeout */
+	int lastslot;		    /* Last used slot */
+	int taggedtarget;	    /* Last tagged target */
+	int numrslots;		    /* Number of running slots */
+	int numrslotspd[16];	    /* Number of running slots per dev */
+	int numtslots;		    /* Number of tagged slots */
+	int numtslotspd[16];	    /* Number of tagged slots per dev */
+	int numhslots;		    /* Number of held slots */
+	int recoverycmd;	    /* Our READ LOG active */
+	int fatalerr;		    /* Fatal error happend */
+	int resetting;		    /* Hard-reset in progress. */
+	int resetpolldiv;	    /* Hard-reset poll divider. */
+	union ccb *frozen;	    /* Frozen command */
+	struct callout pm_timer;    /* Power management events */
+	struct callout reset_timer; /* Hard-reset timeout */
 
-	struct fsl_sata_device	user[16];	/* User-specified settings */
-	struct fsl_sata_device	curr[16];	/* Current settings */
+	struct fsl_sata_device user[16]; /* User-specified settings */
+	struct fsl_sata_device curr[16]; /* Current settings */
 
-	struct mtx_padalign	mtx;		/* state lock */
-	STAILQ_HEAD(, ccb_hdr)	doneq;		/* queue of completed CCBs */
-	int			batch;		/* doneq is in use */
+	struct mtx_padalign mtx;      /* state lock */
+	STAILQ_HEAD(, ccb_hdr) doneq; /* queue of completed CCBs */
+	int batch;		      /* doneq is in use */
 };
 
 enum fsl_sata_err_type {
-	FSL_SATA_ERR_NONE,		/* No error */
-	FSL_SATA_ERR_INVALID,	/* Error detected by us before submitting. */
-	FSL_SATA_ERR_INNOCENT,	/* Innocent victim. */
-	FSL_SATA_ERR_TFE,		/* Task File Error. */
-	FSL_SATA_ERR_SATA,		/* SATA error. */
-	FSL_SATA_ERR_TIMEOUT,	/* Command execution timeout. */
-	FSL_SATA_ERR_NCQ,		/* NCQ command error. CCB should be put on hold
-				 * until READ LOG executed to reveal error. */
+	FSL_SATA_ERR_NONE,     /* No error */
+	FSL_SATA_ERR_INVALID,  /* Error detected by us before submitting. */
+	FSL_SATA_ERR_INNOCENT, /* Innocent victim. */
+	FSL_SATA_ERR_TFE,      /* Task File Error. */
+	FSL_SATA_ERR_SATA,     /* SATA error. */
+	FSL_SATA_ERR_TIMEOUT,  /* Command execution timeout. */
+	FSL_SATA_ERR_NCQ,      /* NCQ command error. CCB should be put on hold
+				* until READ LOG executed to reveal error. */
 };
 
 /* macros to hide busspace uglyness */
-#define	ATA_INL(res, offset) \
-	bus_read_4((res), (offset))
-#define	ATA_OUTL(res, offset, value) \
-	bus_write_4((res), (offset), (value))
+#define ATA_INL(res, offset) bus_read_4((res), (offset))
+#define ATA_OUTL(res, offset, value) bus_write_4((res), (offset), (value))
 
 static int
 fsl_sata_probe(device_t dev)
@@ -333,13 +342,13 @@ fsl_sata_attach(device_t dev)
 	ch->dev = dev;
 	mtx_init(&ch->mtx, "FSL SATA channel lock", NULL, MTX_DEF);
 	ch->pm_level = 0;
-	resource_int_value(device_get_name(dev),
-	    device_get_unit(dev), "pm_level", &ch->pm_level);
+	resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "pm_level", &ch->pm_level);
 	STAILQ_INIT(&ch->doneq);
 	if (ch->pm_level > 3)
 		callout_init_mtx(&ch->pm_timer, &ch->mtx, 0);
-	resource_int_value(device_get_name(dev),
-	    device_get_unit(dev), "sata_rev", &sata_rev);
+	resource_int_value(
+	    device_get_name(dev), device_get_unit(dev), "sata_rev", &sata_rev);
 	for (i = 0; i < 16; i++) {
 		ch->user[i].revision = sata_rev;
 		ch->user[i].mode = 0;
@@ -354,22 +363,22 @@ fsl_sata_attach(device_t dev)
 		ch->user[i].caps |= CTS_SATA_CAPS_H_AN;
 	}
 	ch->r_mid = 0;
-	if (!(ch->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &ch->r_mid, RF_ACTIVE)))
+	if (!(ch->r_mem = bus_alloc_resource_any(
+		  dev, SYS_RES_MEMORY, &ch->r_mid, RF_ACTIVE)))
 		return (ENXIO);
 	rman_set_bustag(ch->r_mem, &bs_le_tag);
 	fsl_sata_dmainit(dev);
 	fsl_sata_slotsalloc(dev);
 	fsl_sata_init(dev);
 	rid = ATA_IRQ_RID;
-	if (!(ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &rid, RF_SHAREABLE | RF_ACTIVE))) {
+	if (!(ch->r_irq = bus_alloc_resource_any(
+		  dev, SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE))) {
 		device_printf(dev, "Unable to map interrupt\n");
 		error = ENXIO;
 		goto err0;
 	}
-	if ((bus_setup_intr(dev, ch->r_irq, ATA_INTR_FLAGS, NULL,
-	    fsl_sata_intr, ch, &ch->ih))) {
+	if ((bus_setup_intr(dev, ch->r_irq, ATA_INTR_FLAGS, NULL, fsl_sata_intr,
+		ch, &ch->ih))) {
 		device_printf(dev, "Unable to setup interrupt\n");
 		error = ENXIO;
 		goto err1;
@@ -397,16 +406,15 @@ fsl_sata_attach(device_t dev)
 		error = ENXIO;
 		goto err2;
 	}
-	if (xpt_create_path(&ch->path, /*periph*/NULL, cam_sim_path(ch->sim),
-	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	if (xpt_create_path(&ch->path, /*periph*/ NULL, cam_sim_path(ch->sim),
+		CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		device_printf(dev, "unable to create path\n");
 		error = ENXIO;
 		goto err3;
 	}
 	if (ch->pm_level > 3) {
 		callout_reset(&ch->pm_timer,
-		    (ch->pm_level == 4) ? hz / 1000 : hz / 8,
-		    fsl_sata_pm, ch);
+		    (ch->pm_level == 4) ? hz / 1000 : hz / 8, fsl_sata_pm, ch);
 	}
 	mtx_unlock(&ch->mtx);
 	return (0);
@@ -414,7 +422,7 @@ fsl_sata_attach(device_t dev)
 err3:
 	xpt_bus_deregister(cam_sim_path(ch->sim));
 err2:
-	cam_sim_free(ch->sim, /*free_devq*/TRUE);
+	cam_sim_free(ch->sim, /*free_devq*/ TRUE);
 err1:
 	mtx_unlock(&ch->mtx);
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
@@ -434,7 +442,7 @@ fsl_sata_detach(device_t dev)
 
 	xpt_free_path(ch->path);
 	xpt_bus_deregister(cam_sim_path(ch->sim));
-	cam_sim_free(ch->sim, /*free_devq*/TRUE);
+	cam_sim_free(ch->sim, /*free_devq*/ TRUE);
 	mtx_unlock(&ch->mtx);
 
 	if (ch->pm_level > 3)
@@ -480,8 +488,8 @@ fsl_sata_init(device_t dev)
 	r &= ~FSL_SATA_P_HCTRL_HC_ON;
 	r |= FSL_SATA_P_HCTRL_HC_FORCE_OFF;
 	ATA_OUTL(ch->r_mem, FSL_SATA_P_HCTRL, r & ~FSL_SATA_P_HCTRL_INT_MASK);
-	fsl_sata_wait_register(ch, FSL_SATA_P_HSTS,
-	    FSL_SATA_P_HSTS_HS_ON, 0, 1000);
+	fsl_sata_wait_register(
+	    ch, FSL_SATA_P_HSTS, FSL_SATA_P_HSTS_HS_ON, 0, 1000);
 	/* Setup work areas */
 	work = ch->dma.work_bus + FSL_SATA_CL_OFFSET;
 	ATA_OUTL(ch->r_mem, FSL_SATA_P_CHBA, work);
@@ -525,7 +533,7 @@ fsl_sata_suspend(device_t dev)
 	mtx_lock(&ch->mtx);
 	xpt_freeze_simq(ch->sim, 1);
 	while (ch->oslots)
-		msleep(ch, &ch->mtx, PRIBIO, "fsl_satasusp", hz/100);
+		msleep(ch, &ch->mtx, PRIBIO, "fsl_satasusp", hz / 100);
 	fsl_sata_deinit(dev);
 	mtx_unlock(&ch->mtx);
 	return (0);
@@ -545,20 +553,16 @@ fsl_sata_resume(device_t dev)
 }
 
 devclass_t fsl_satach_devclass;
-static device_method_t fsl_satach_methods[] = {
-	DEVMETHOD(device_probe,     fsl_sata_probe),
-	DEVMETHOD(device_attach,    fsl_sata_attach),
-	DEVMETHOD(device_detach,    fsl_sata_detach),
-	DEVMETHOD(device_suspend,   fsl_sata_suspend),
-	DEVMETHOD(device_resume,    fsl_sata_resume),
-	DEVMETHOD_END
-};
-static driver_t fsl_satach_driver = {
-	"fslsata",
-	fsl_satach_methods,
-	sizeof(struct fsl_sata_channel)
-};
-DRIVER_MODULE(fsl_satach, simplebus, fsl_satach_driver, fsl_satach_devclass, NULL, NULL);
+static device_method_t fsl_satach_methods[] = { DEVMETHOD(device_probe,
+						    fsl_sata_probe),
+	DEVMETHOD(device_attach, fsl_sata_attach),
+	DEVMETHOD(device_detach, fsl_sata_detach),
+	DEVMETHOD(device_suspend, fsl_sata_suspend),
+	DEVMETHOD(device_resume, fsl_sata_resume), DEVMETHOD_END };
+static driver_t fsl_satach_driver = { "fslsata", fsl_satach_methods,
+	sizeof(struct fsl_sata_channel) };
+DRIVER_MODULE(
+    fsl_satach, simplebus, fsl_satach_driver, fsl_satach_devclass, NULL, NULL);
 
 struct fsl_sata_dc_cb_args {
 	bus_addr_t maddr;
@@ -573,25 +577,26 @@ fsl_sata_dmainit(device_t dev)
 
 	/* Command area. */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 1024, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-	    NULL, NULL, FSL_SATA_WORK_SIZE, 1, FSL_SATA_WORK_SIZE,
-	    0, NULL, NULL, &ch->dma.work_tag))
+		BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+		FSL_SATA_WORK_SIZE, 1, FSL_SATA_WORK_SIZE, 0, NULL, NULL,
+		&ch->dma.work_tag))
 		goto error;
 	if (bus_dmamem_alloc(ch->dma.work_tag, (void **)&ch->dma.work,
-	    BUS_DMA_ZERO, &ch->dma.work_map))
+		BUS_DMA_ZERO, &ch->dma.work_map))
 		goto error;
 	if (bus_dmamap_load(ch->dma.work_tag, ch->dma.work_map, ch->dma.work,
-	    FSL_SATA_WORK_SIZE, fsl_sata_dmasetupc_cb, &dcba, 0) || dcba.error) {
-		bus_dmamem_free(ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
+		FSL_SATA_WORK_SIZE, fsl_sata_dmasetupc_cb, &dcba, 0) ||
+	    dcba.error) {
+		bus_dmamem_free(
+		    ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
 		goto error;
 	}
 	ch->dma.work_bus = dcba.maddr;
 	/* Data area. */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 4, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-	    NULL, NULL, FSL_SATA_MAX_XFER,
-	    FSL_SATA_SG_ENTRIES - 1, FSL_SATA_PRD_MAX,
-	    0, busdma_lock_mutex, &ch->mtx, &ch->dma.data_tag)) {
+		BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+		FSL_SATA_MAX_XFER, FSL_SATA_SG_ENTRIES - 1, FSL_SATA_PRD_MAX, 0,
+		busdma_lock_mutex, &ch->mtx, &ch->dma.data_tag)) {
 		goto error;
 	}
 	if (bootverbose)
@@ -623,7 +628,8 @@ fsl_sata_dmafini(device_t dev)
 	}
 	if (ch->dma.work_bus) {
 		bus_dmamap_unload(ch->dma.work_tag, ch->dma.work_map);
-		bus_dmamem_free(ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
+		bus_dmamem_free(
+		    ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
 		ch->dma.work_bus = 0;
 		ch->dma.work = NULL;
 	}
@@ -667,7 +673,8 @@ fsl_sata_slotsfree(device_t dev)
 
 		callout_drain(&slot->timeout);
 		if (slot->dma.data_map) {
-			bus_dmamap_destroy(ch->dma.data_tag, slot->dma.data_map);
+			bus_dmamap_destroy(
+			    ch->dma.data_tag, slot->dma.data_map);
 			slot->dma.data_map = NULL;
 		}
 	}
@@ -686,15 +693,16 @@ fsl_sata_phy_check_events(struct fsl_sata_channel *ch, u_int32_t serr)
 			if ((status & ATA_SS_DET_MASK) != ATA_SS_DET_NO_DEVICE)
 				device_printf(ch->dev, "CONNECT requested\n");
 			else
-				device_printf(ch->dev, "DISCONNECT requested\n");
+				device_printf(
+				    ch->dev, "DISCONNECT requested\n");
 		}
 		/* Issue soft reset */
 		xpt_async(AC_BUS_RESET, ch->path, NULL);
 		if ((ccb = xpt_alloc_ccb_nowait()) == NULL)
 			return (0);
 		if (xpt_create_path(&ccb->ccb_h.path, NULL,
-		    cam_sim_path(ch->sim),
-		    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+			cam_sim_path(ch->sim), CAM_TARGET_WILDCARD,
+			CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 			xpt_free_ccb(ccb);
 			return (0);
 		}
@@ -716,8 +724,8 @@ fsl_sata_notify_events(struct fsl_sata_channel *ch, u_int32_t status)
 	for (i = 0; i < 16; i++) {
 		if ((status & (1 << i)) == 0)
 			continue;
-		if (xpt_create_path(&dpath, NULL,
-		    xpt_path_path_id(ch->path), i, 0) == CAM_REQ_CMP) {
+		if (xpt_create_path(&dpath, NULL, xpt_path_path_id(ch->path), i,
+			0) == CAM_REQ_CMP) {
 			xpt_async(AC_SCSI_AEN, dpath, NULL);
 			xpt_free_path(dpath);
 		}
@@ -729,8 +737,7 @@ fsl_sata_done(struct fsl_sata_channel *ch, union ccb *ccb)
 {
 
 	mtx_assert(&ch->mtx, MA_OWNED);
-	if ((ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0 ||
-	    ch->batch == 0) {
+	if ((ccb->ccb_h.func_code & XPT_FC_QUEUED) == 0 || ch->batch == 0) {
 		xpt_done(ccb);
 		return;
 	}
@@ -767,7 +774,6 @@ fsl_sata_intr(void *arg)
 	}
 	/* Clear interrupt statuses. */
 	ATA_OUTL(ch->r_mem, FSL_SATA_P_HSTS, istatus & 0x3f);
-
 }
 
 static void
@@ -801,8 +807,8 @@ fsl_sata_intr_main(struct fsl_sata_channel *ch, uint32_t istatus)
 	if (ch->aslots == 0 && ok != 0) {
 		for (i = 0; i < FSL_SATA_MAX_SLOTS; i++) {
 			if (((ok >> i) & 1) && ch->slot[i].ccb != NULL)
-				fsl_sata_end_transaction(&ch->slot[i],
-				    FSL_SATA_ERR_NONE);
+				fsl_sata_end_transaction(
+				    &ch->slot[i], FSL_SATA_ERR_NONE);
 		}
 	}
 	/* Read command statuses. */
@@ -839,7 +845,9 @@ fsl_sata_intr_main(struct fsl_sata_channel *ch, uint32_t istatus)
 				continue;
 			if ((cer & (1 << i)) != 0)
 				et = FSL_SATA_ERR_TFE;
-			else if ((der & (1 << ch->slot[i].ccb->ccb_h.target_id)) != 0)
+			else if ((der &
+				     (1 << ch->slot[i].ccb->ccb_h.target_id)) !=
+			    0)
 				et = FSL_SATA_ERR_SATA;
 			else
 				et = FSL_SATA_ERR_INVALID;
@@ -871,7 +879,8 @@ fsl_sata_check_collision(struct fsl_sata_channel *ch, union ccb *ccb)
 			return (1);
 	}
 	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
-	    (ccb->ataio.cmd.flags & (CAM_ATAIO_CONTROL | CAM_ATAIO_NEEDRESULT))) {
+	    (ccb->ataio.cmd.flags &
+		(CAM_ATAIO_CONTROL | CAM_ATAIO_NEEDRESULT))) {
 		/* Atomic command while anything active. */
 		if (ch->numrslots != 0)
 			return (1);
@@ -890,7 +899,8 @@ fsl_sata_begin_transaction(struct fsl_sata_channel *ch, union ccb *ccb)
 	int tag, tags;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
-	    ("fsl_sata_begin_transaction func_code=0x%x\n", ccb->ccb_h.func_code));
+	    ("fsl_sata_begin_transaction func_code=0x%x\n",
+		ccb->ccb_h.func_code));
 	/* Choose empty slot. */
 	tags = FSL_SATA_MAX_SLOTS;
 	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
@@ -941,7 +951,7 @@ fsl_sata_begin_transaction(struct fsl_sata_channel *ch, union ccb *ccb)
 /* Locked by busdma engine. */
 static void
 fsl_sata_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
-{    
+{
 	struct fsl_sata_slot *slot = arg;
 	struct fsl_sata_channel *ch = slot->ch;
 	struct fsl_sata_cmd_tab *ctp;
@@ -963,7 +973,7 @@ fsl_sata_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		if (j == FSL_SATA_PRD_EXT_INDEX &&
 		    FSL_SATA_PRD_MAX_DIRECT < nsegs) {
 			prd[j].dba = htole32(FSL_SATA_CTP_BUS(ch, slot) +
-				     FSL_SATA_PRD_OFFSET(j+1));
+			    FSL_SATA_PRD_OFFSET(j + 1));
 			j++;
 			extlen = 0;
 		}
@@ -977,11 +987,11 @@ fsl_sata_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	}
 	slot->dma.nsegs = j;
 	if (j > FSL_SATA_PRD_MAX_DIRECT)
-		prd[FSL_SATA_PRD_EXT_INDEX].dwc_flg = 
-		    htole32(FSL_SATA_PRD_SNOOP | FSL_SATA_PRD_EXT | extlen);
+		prd[FSL_SATA_PRD_EXT_INDEX].dwc_flg = htole32(
+		    FSL_SATA_PRD_SNOOP | FSL_SATA_PRD_EXT | extlen);
 	bus_dmamap_sync(ch->dma.data_tag, slot->dma.data_map,
-	    ((slot->ccb->ccb_h.flags & CAM_DIR_IN) ?
-	    BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE));
+	    ((slot->ccb->ccb_h.flags & CAM_DIR_IN) ? BUS_DMASYNC_PREREAD :
+							   BUS_DMASYNC_PREWRITE));
 	fsl_sata_execute_transaction(slot);
 }
 
@@ -1000,7 +1010,8 @@ fsl_sata_execute_transaction(struct fsl_sata_slot *slot)
 
 	softreset = 0;
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
-	    ("fsl_sata_execute_transaction func_code=0x%x\n", ccb->ccb_h.func_code));
+	    ("fsl_sata_execute_transaction func_code=0x%x\n",
+		ccb->ccb_h.func_code));
 	/* Get a piece of the workspace for this request */
 	ctp = FSL_SATA_CTP(ch, slot);
 	/* Setup the FIS for this request */
@@ -1029,7 +1040,7 @@ fsl_sata_execute_transaction(struct fsl_sata_slot *slot)
 	if (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA)
 		cmd_flags |= FSL_SATA_CMD_QUEUED;
 	clp->cmd_flags = htole32(cmd_flags |
-	    (ccb->ccb_h.func_code == XPT_SCSI_IO ?  FSL_SATA_CMD_ATAPI : 0) |
+	    (ccb->ccb_h.func_code == XPT_SCSI_IO ? FSL_SATA_CMD_ATAPI : 0) |
 	    slot->slot);
 	clp->ttl = htole32(slot->ttl);
 	clp->cda = htole32(FSL_SATA_CTP_BUS(ch, slot));
@@ -1055,14 +1066,17 @@ fsl_sata_execute_transaction(struct fsl_sata_slot *slot)
 					break;
 				continue;
 			}
-			if ((ATA_INL(ch->r_mem, FSL_SATA_P_CCR) & (1 << slot->slot)) != 0)
+			if ((ATA_INL(ch->r_mem, FSL_SATA_P_CCR) &
+				(1 << slot->slot)) != 0)
 				break;
 		}
 
 		if (timeout && (count >= timeout)) {
-			device_printf(ch->dev, "Poll timeout on slot %d port %d (round %d)\n",
+			device_printf(ch->dev,
+			    "Poll timeout on slot %d port %d (round %d)\n",
 			    slot->slot, port, softreset);
-			device_printf(ch->dev, "hsts %08x cqr %08x ccr %08x ss %08x "
+			device_printf(ch->dev,
+			    "hsts %08x cqr %08x ccr %08x ss %08x "
 			    "rs %08x cer %08x der %08x serr %08x car %08x sig %08x\n",
 			    ATA_INL(ch->r_mem, FSL_SATA_P_HSTS),
 			    ATA_INL(ch->r_mem, FSL_SATA_P_CQR),
@@ -1080,8 +1094,8 @@ fsl_sata_execute_transaction(struct fsl_sata_slot *slot)
 		return;
 	}
 	/* Start command execution timeout */
-	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout / 2,
-	    0, fsl_sata_timeout, slot, 0);
+	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout / 2, 0,
+	    fsl_sata_timeout, slot, 0);
 	return;
 }
 
@@ -1117,8 +1131,8 @@ fsl_sata_rearm_timeout(struct fsl_sata_channel *ch)
 		if ((ch->toslots & (1 << i)) == 0)
 			continue;
 		callout_reset_sbt(&slot->timeout,
- 	    	    SBT_1MS * slot->ccb->ccb_h.timeout / 2, 0,
-		    fsl_sata_timeout, slot, 0);
+		    SBT_1MS * slot->ccb->ccb_h.timeout / 2, 0, fsl_sata_timeout,
+		    slot, 0);
 	}
 }
 
@@ -1143,13 +1157,13 @@ fsl_sata_timeout(void *arg)
 			slot->state = FSL_SATA_SLOT_EXECUTING;
 
 		callout_reset_sbt(&slot->timeout,
-	    	    SBT_1MS * slot->ccb->ccb_h.timeout / 2, 0,
-		    fsl_sata_timeout, slot, 0);
+		    SBT_1MS * slot->ccb->ccb_h.timeout / 2, 0, fsl_sata_timeout,
+		    slot, 0);
 		return;
 	}
 
-	device_printf(dev, "Timeout on slot %d port %d\n",
-	    slot->slot, slot->ccb->ccb_h.target_id & 0x0f);
+	device_printf(dev, "Timeout on slot %d port %d\n", slot->slot,
+	    slot->ccb->ccb_h.target_id & 0x0f);
 
 	/* Handle frozen command. */
 	if (ch->frozen) {
@@ -1208,7 +1222,7 @@ fsl_sata_end_transaction(struct fsl_sata_slot *slot, enum fsl_sata_err_type et)
 
 			if ((ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) &&
 			    (ccb->ataio.cmd.control & ATA_A_RESET) == 0) {
-				sig = ATA_INL(ch->r_mem,  FSL_SATA_P_SIG);
+				sig = ATA_INL(ch->r_mem, FSL_SATA_P_SIG);
 				res->lba_high = sig >> 24;
 				res->lba_mid = sig >> 16;
 				res->lba_low = sig >> 8;
@@ -1218,19 +1232,19 @@ fsl_sata_end_transaction(struct fsl_sata_slot *slot, enum fsl_sata_err_type et)
 			bzero(res, sizeof(*res));
 		if ((ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA) == 0 &&
 		    (ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-			ccb->ataio.resid =
-			    ccb->ataio.dxfer_len - le32toh(clp->ttl);
+			ccb->ataio.resid = ccb->ataio.dxfer_len -
+			    le32toh(clp->ttl);
 		}
 	} else {
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-			ccb->csio.resid =
-			    ccb->csio.dxfer_len - le32toh(clp->ttl);
+			ccb->csio.resid = ccb->csio.dxfer_len -
+			    le32toh(clp->ttl);
 		}
 	}
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 		bus_dmamap_sync(ch->dma.data_tag, slot->dma.data_map,
-		    (ccb->ccb_h.flags & CAM_DIR_IN) ?
-		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
+		    (ccb->ccb_h.flags & CAM_DIR_IN) ? BUS_DMASYNC_POSTREAD :
+							    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(ch->dma.data_tag, slot->dma.data_map);
 	}
 	if (et != FSL_SATA_ERR_NONE)
@@ -1312,8 +1326,7 @@ fsl_sata_end_transaction(struct fsl_sata_slot *slot, enum fsl_sata_err_type et)
 	 * proceed to second request. */
 	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
 	    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) &&
-	    (ccb->ataio.cmd.control & ATA_A_RESET) &&
-	    et == FSL_SATA_ERR_NONE) {
+	    (ccb->ataio.cmd.control & ATA_A_RESET) && et == FSL_SATA_ERR_NONE) {
 		ccb->ataio.cmd.control &= ~ATA_A_RESET;
 		fsl_sata_begin_transaction(ch, ccb);
 		return;
@@ -1321,13 +1334,13 @@ fsl_sata_end_transaction(struct fsl_sata_slot *slot, enum fsl_sata_err_type et)
 	/* If it was our READ LOG command - process it. */
 	if (ccb->ccb_h.recovery_type == RECOVERY_READ_LOG) {
 		fsl_sata_process_read_log(ch, ccb);
-	/* If it was our REQUEST SENSE command - process it. */
+		/* If it was our REQUEST SENSE command - process it. */
 	} else if (ccb->ccb_h.recovery_type == RECOVERY_REQUEST_SENSE) {
 		fsl_sata_process_request_sense(ch, ccb);
-	/* If it was NCQ or ATAPI command error, put result on hold. */
+		/* If it was NCQ or ATAPI command error, put result on hold. */
 	} else if (et == FSL_SATA_ERR_NCQ ||
 	    ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR &&
-	     (ccb->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0)) {
+		(ccb->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0)) {
 		ch->hold[slot->slot] = ccb;
 		ch->numhslots++;
 	} else
@@ -1347,7 +1360,8 @@ fsl_sata_end_transaction(struct fsl_sata_slot *slot, enum fsl_sata_err_type et)
 			if (!ch->recoverycmd && ch->numhslots)
 				fsl_sata_issue_recovery(ch);
 		}
-	/* If all the rest of commands are in timeout - give them chance. */
+		/* If all the rest of commands are in timeout - give them
+		 * chance. */
 	} else if ((ch->rslots & ~ch->toslots) == 0 &&
 	    et != FSL_SATA_ERR_TIMEOUT)
 		fsl_sata_rearm_timeout(ch);
@@ -1361,8 +1375,8 @@ fsl_sata_end_transaction(struct fsl_sata_slot *slot, enum fsl_sata_err_type et)
 	/* Start PM timer. */
 	if (ch->numrslots == 0 && ch->pm_level > 3 &&
 	    (ch->curr[ch->pm_present ? 15 : 0].caps & CTS_SATA_CAPS_D_PMREQ)) {
-		callout_schedule(&ch->pm_timer,
-		    (ch->pm_level == 4) ? hz / 1000 : hz / 8);
+		callout_schedule(
+		    &ch->pm_timer, (ch->pm_level == 4) ? hz / 1000 : hz / 8);
 	}
 }
 
@@ -1382,7 +1396,7 @@ fsl_sata_issue_recovery(struct fsl_sata_channel *ch)
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
 		device_printf(ch->dev, "Unable to allocate recovery command\n");
-completeall:
+	completeall:
 		/* We can't do anything -- complete held commands. */
 		for (i = 0; i < FSL_SATA_MAX_SLOTS; i++) {
 			if (ch->hold[i] == NULL)
@@ -1396,13 +1410,13 @@ completeall:
 		fsl_sata_reset(ch);
 		return;
 	}
-	ccb->ccb_h = ch->hold[i]->ccb_h;	/* Reuse old header. */
+	ccb->ccb_h = ch->hold[i]->ccb_h; /* Reuse old header. */
 	if (ccb->ccb_h.func_code == XPT_ATA_IO) {
 		/* READ LOG */
 		ccb->ccb_h.recovery_type = RECOVERY_READ_LOG;
 		ccb->ccb_h.func_code = XPT_ATA_IO;
 		ccb->ccb_h.flags = CAM_DIR_IN;
-		ccb->ccb_h.timeout = 1000;	/* 1s should be enough. */
+		ccb->ccb_h.timeout = 1000; /* 1s should be enough. */
 		ataio = &ccb->ataio;
 		ataio->data_ptr = malloc(512, M_FSL_SATA, M_NOWAIT);
 		if (ataio->data_ptr == NULL) {
@@ -1414,7 +1428,7 @@ completeall:
 		ataio->dxfer_len = 512;
 		bzero(&ataio->cmd, sizeof(ataio->cmd));
 		ataio->cmd.flags = CAM_ATAIO_48BIT;
-		ataio->cmd.command = 0x2F;	/* READ LOG EXT */
+		ataio->cmd.command = 0x2F; /* READ LOG EXT */
 		ataio->cmd.sector_count = 1;
 		ataio->cmd.sector_count_exp = 0;
 		ataio->cmd.lba_low = 0x10;
@@ -1427,7 +1441,7 @@ completeall:
 		ccb->ccb_h.func_code = XPT_SCSI_IO;
 		ccb->ccb_h.flags = CAM_DIR_IN;
 		ccb->ccb_h.status = 0;
-		ccb->ccb_h.timeout = 1000;	/* 1s should be enough. */
+		ccb->ccb_h.timeout = 1000; /* 1s should be enough. */
 		csio = &ccb->csio;
 		csio->data_ptr = (void *)&ch->hold[i]->csio.sense_data;
 		csio->dxfer_len = ch->hold[i]->csio.sense_len;
@@ -1484,7 +1498,8 @@ fsl_sata_process_read_log(struct fsl_sata_channel *ch, union ccb *ccb)
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 			device_printf(ch->dev, "Error while READ LOG EXT\n");
 		else if ((data[0] & 0x80) == 0) {
-			device_printf(ch->dev, "Non-queued command error in READ LOG EXT\n");
+			device_printf(ch->dev,
+			    "Non-queued command error in READ LOG EXT\n");
 		}
 		for (i = 0; i < FSL_SATA_MAX_SLOTS; i++) {
 			if (!ch->hold[i])
@@ -1537,10 +1552,10 @@ fsl_sata_start(struct fsl_sata_channel *ch)
 	cmd = ATA_INL(ch->r_mem, FSL_SATA_P_HCTRL);
 	cmd |= FSL_SATA_P_HCTRL_HC_ON | FSL_SATA_P_HCTRL_SNOOP;
 	cmd &= ~FSL_SATA_P_HCTRL_HC_FORCE_OFF;
-	ATA_OUTL(ch->r_mem, FSL_SATA_P_HCTRL, cmd | 
-	    (ch->pm_present ? FSL_SATA_P_HCTRL_PM : 0));
-	fsl_sata_wait_register(ch, FSL_SATA_P_HSTS,
-	    FSL_SATA_P_HSTS_PR, FSL_SATA_P_HSTS_PR, 500);
+	ATA_OUTL(ch->r_mem, FSL_SATA_P_HCTRL,
+	    cmd | (ch->pm_present ? FSL_SATA_P_HCTRL_PM : 0));
+	fsl_sata_wait_register(
+	    ch, FSL_SATA_P_HSTS, FSL_SATA_P_HSTS_PR, FSL_SATA_P_HSTS_PR, 500);
 	ATA_OUTL(ch->r_mem, FSL_SATA_P_HSTS,
 	    ATA_INL(ch->r_mem, FSL_SATA_P_HSTS) & FSL_SATA_P_HSTS_PR);
 }
@@ -1557,8 +1572,8 @@ fsl_sata_stop(struct fsl_sata_channel *ch)
 
 	for (i = 0; i < 2; i++) {
 		ATA_OUTL(ch->r_mem, FSL_SATA_P_HCTRL, cmd);
-		if (fsl_sata_wait_register(ch, FSL_SATA_P_HSTS,
-		    FSL_SATA_P_HSTS_HS_ON, 0, 500)) {
+		if (fsl_sata_wait_register(
+			ch, FSL_SATA_P_HSTS, FSL_SATA_P_HSTS_HS_ON, 0, 500)) {
 			if (i != 0)
 				device_printf(ch->dev,
 				    "stopping FSL SATA engine failed\n");
@@ -1592,7 +1607,7 @@ fsl_sata_reset(struct fsl_sata_channel *ch)
 	}
 	/* Kill the engine and requeue all running commands. */
 	fsl_sata_stop(ch);
-	DELAY(1000);	/* sleep for 1ms */
+	DELAY(1000); /* sleep for 1ms */
 	for (i = 0; i < FSL_SATA_MAX_SLOTS; i++) {
 		/* Do we have a running request on slot? */
 		if (ch->slot[i].state < FSL_SATA_SLOT_RUNNING)
@@ -1621,12 +1636,13 @@ fsl_sata_reset(struct fsl_sata_channel *ch)
 	fsl_sata_start(ch);
 	if (fsl_sata_wait_register(ch, FSL_SATA_P_HSTS, 0x08, 0x08, 500)) {
 		if (bootverbose)
-			device_printf(ch->dev,
-			    "FSL SATA reset: device not found\n");
+			device_printf(
+			    ch->dev, "FSL SATA reset: device not found\n");
 		ch->devices = 0;
 		/* Enable wanted port interrupts */
 		ATA_OUTL(ch->r_mem, FSL_SATA_P_HCTRL,
-		    ATA_INL(ch->r_mem, FSL_SATA_P_HCTRL) | FSL_SATA_P_HCTRL_PHYRDY);
+		    ATA_INL(ch->r_mem, FSL_SATA_P_HCTRL) |
+			FSL_SATA_P_HCTRL_PHYRDY);
 		xpt_release_simq(ch->sim, TRUE);
 		return;
 	}
@@ -1637,18 +1653,19 @@ fsl_sata_reset(struct fsl_sata_channel *ch)
 	ctrl = ATA_INL(ch->r_mem, FSL_SATA_P_HCTRL) & ~0x3f;
 	ATA_OUTL(ch->r_mem, FSL_SATA_P_HCTRL,
 	    ctrl | FSL_SATA_P_HCTRL_FATAL | FSL_SATA_P_HCTRL_PHYRDY |
-	    FSL_SATA_P_HCTRL_SIG | FSL_SATA_P_HCTRL_SNTFY |
-	    FSL_SATA_P_HCTRL_DE | FSL_SATA_P_HCTRL_CC);
+		FSL_SATA_P_HCTRL_SIG | FSL_SATA_P_HCTRL_SNTFY |
+		FSL_SATA_P_HCTRL_DE | FSL_SATA_P_HCTRL_CC);
 	xpt_release_simq(ch->sim, TRUE);
 }
 
 static int
-fsl_sata_setup_fis(struct fsl_sata_channel *ch, struct fsl_sata_cmd_tab *ctp, union ccb *ccb, int tag)
+fsl_sata_setup_fis(struct fsl_sata_channel *ch, struct fsl_sata_cmd_tab *ctp,
+    union ccb *ccb, int tag)
 {
 	uint8_t *fis = &ctp->cfis[0];
 
 	bzero(fis, 32);
-	fis[0] = 0x27;  		/* host to device */
+	fis[0] = 0x27; /* host to device */
 	fis[1] = (ccb->ccb_h.target_id & 0x0f);
 	if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
 		fis[1] |= 0x80;
@@ -1663,7 +1680,8 @@ fsl_sata_setup_fis(struct fsl_sata_channel *ch, struct fsl_sata_cmd_tab *ctp, un
 		fis[7] = ATA_D_LBA;
 		fis[15] = ATA_A_4BIT;
 		bcopy((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
-		    ccb->csio.cdb_io.cdb_ptr : ccb->csio.cdb_io.cdb_bytes,
+			      ccb->csio.cdb_io.cdb_ptr :
+			      ccb->csio.cdb_io.cdb_bytes,
 		    ctp->acmd, ccb->csio.cdb_len);
 		bzero(ctp->acmd + ccb->csio.cdb_len, 32 - ccb->csio.cdb_len);
 	} else if ((ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) == 0) {
@@ -1720,13 +1738,13 @@ fsl_sataaction(struct cam_sim *sim, union ccb *ccb)
 	ch = (struct fsl_sata_channel *)cam_sim_softc(sim);
 	switch (ccb->ccb_h.func_code) {
 	/* Common cases first */
-	case XPT_ATA_IO:	/* Execute the requested I/O operation */
+	case XPT_ATA_IO: /* Execute the requested I/O operation */
 	case XPT_SCSI_IO:
 		if (fsl_sata_check_ids(ch, ccb))
 			return;
 		if (ch->devices == 0 ||
-		    (ch->pm_present == 0 &&
-		     ccb->ccb_h.target_id > 0 && ccb->ccb_h.target_id < 15)) {
+		    (ch->pm_present == 0 && ccb->ccb_h.target_id > 0 &&
+			ccb->ccb_h.target_id < 15)) {
 			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 			break;
 		}
@@ -1741,14 +1759,13 @@ fsl_sataaction(struct cam_sim *sim, union ccb *ccb)
 		}
 		fsl_sata_begin_transaction(ch, ccb);
 		return;
-	case XPT_ABORT:			/* Abort the specified CCB */
+	case XPT_ABORT: /* Abort the specified CCB */
 		/* XXX Implement */
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		break;
-	case XPT_SET_TRAN_SETTINGS:
-	{
-		struct	ccb_trans_settings *cts = &ccb->cts;
-		struct	fsl_sata_device *d; 
+	case XPT_SET_TRAN_SETTINGS: {
+		struct ccb_trans_settings *cts = &ccb->cts;
+		struct fsl_sata_device *d;
 
 		if (fsl_sata_check_ids(ch, ccb))
 			return;
@@ -1761,9 +1778,11 @@ fsl_sataaction(struct cam_sim *sim, union ccb *ccb)
 		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_MODE)
 			d->mode = cts->xport_specific.sata.mode;
 		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_BYTECOUNT)
-			d->bytecount = min(8192, cts->xport_specific.sata.bytecount);
+			d->bytecount = min(
+			    8192, cts->xport_specific.sata.bytecount);
 		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_TAGS)
-			d->tags = min(FSL_SATA_MAX_SLOTS, cts->xport_specific.sata.tags);
+			d->tags = min(
+			    FSL_SATA_MAX_SLOTS, cts->xport_specific.sata.tags);
 		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_PM)
 			ch->pm_present = cts->xport_specific.sata.pm_present;
 		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_ATAPI)
@@ -1772,71 +1791,80 @@ fsl_sataaction(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 	case XPT_GET_TRAN_SETTINGS:
-	/* Get default/user set transfer settings for the target */
-	{
-		struct	ccb_trans_settings *cts = &ccb->cts;
-		struct  fsl_sata_device *d;
-		uint32_t status;
+		/* Get default/user set transfer settings for the target */
+		{
+			struct ccb_trans_settings *cts = &ccb->cts;
+			struct fsl_sata_device *d;
+			uint32_t status;
 
-		if (fsl_sata_check_ids(ch, ccb))
-			return;
-		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
-			d = &ch->curr[ccb->ccb_h.target_id];
-		else
-			d = &ch->user[ccb->ccb_h.target_id];
-		cts->protocol = PROTO_UNSPECIFIED;
-		cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
-		cts->transport = XPORT_SATA;
-		cts->transport_version = XPORT_VERSION_UNSPECIFIED;
-		cts->proto_specific.valid = 0;
-		cts->xport_specific.sata.valid = 0;
-		if (cts->type == CTS_TYPE_CURRENT_SETTINGS &&
-		    (ccb->ccb_h.target_id == 15 ||
-		    (ccb->ccb_h.target_id == 0 && !ch->pm_present))) {
-			status = ATA_INL(ch->r_mem, FSL_SATA_P_SSTS) & ATA_SS_SPD_MASK;
-			if (status & 0x0f0) {
-				cts->xport_specific.sata.revision =
-				    (status & 0x0f0) >> 4;
+			if (fsl_sata_check_ids(ch, ccb))
+				return;
+			if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
+				d = &ch->curr[ccb->ccb_h.target_id];
+			else
+				d = &ch->user[ccb->ccb_h.target_id];
+			cts->protocol = PROTO_UNSPECIFIED;
+			cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
+			cts->transport = XPORT_SATA;
+			cts->transport_version = XPORT_VERSION_UNSPECIFIED;
+			cts->proto_specific.valid = 0;
+			cts->xport_specific.sata.valid = 0;
+			if (cts->type == CTS_TYPE_CURRENT_SETTINGS &&
+			    (ccb->ccb_h.target_id == 15 ||
+				(ccb->ccb_h.target_id == 0 &&
+				    !ch->pm_present))) {
+				status = ATA_INL(ch->r_mem, FSL_SATA_P_SSTS) &
+				    ATA_SS_SPD_MASK;
+				if (status & 0x0f0) {
+					cts->xport_specific.sata.revision =
+					    (status & 0x0f0) >> 4;
+					cts->xport_specific.sata.valid |=
+					    CTS_SATA_VALID_REVISION;
+				}
+				cts->xport_specific.sata.caps = d->caps &
+				    CTS_SATA_CAPS_D;
+				if (ch->pm_level) {
+					cts->xport_specific.sata.caps |=
+					    CTS_SATA_CAPS_H_PMREQ;
+				}
+				cts->xport_specific.sata.caps |=
+				    CTS_SATA_CAPS_H_AN;
+				cts->xport_specific.sata.caps &=
+				    ch->user[ccb->ccb_h.target_id].caps;
+				cts->xport_specific.sata.valid |=
+				    CTS_SATA_VALID_CAPS;
+			} else {
+				cts->xport_specific.sata.revision = d->revision;
 				cts->xport_specific.sata.valid |=
 				    CTS_SATA_VALID_REVISION;
+				cts->xport_specific.sata.caps = d->caps;
+				cts->xport_specific.sata.valid |=
+				    CTS_SATA_VALID_CAPS;
 			}
-			cts->xport_specific.sata.caps = d->caps & CTS_SATA_CAPS_D;
-			if (ch->pm_level) {
-				cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_PMREQ;
-			}
-			cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_AN;
-			cts->xport_specific.sata.caps &=
-			    ch->user[ccb->ccb_h.target_id].caps;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
-		} else {
-			cts->xport_specific.sata.revision = d->revision;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
-			cts->xport_specific.sata.caps = d->caps;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
+			cts->xport_specific.sata.mode = d->mode;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_MODE;
+			cts->xport_specific.sata.bytecount = d->bytecount;
+			cts->xport_specific.sata.valid |=
+			    CTS_SATA_VALID_BYTECOUNT;
+			cts->xport_specific.sata.pm_present = ch->pm_present;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_PM;
+			cts->xport_specific.sata.tags = d->tags;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_TAGS;
+			cts->xport_specific.sata.atapi = d->atapi;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_ATAPI;
+			ccb->ccb_h.status = CAM_REQ_CMP;
+			break;
 		}
-		cts->xport_specific.sata.mode = d->mode;
-		cts->xport_specific.sata.valid |= CTS_SATA_VALID_MODE;
-		cts->xport_specific.sata.bytecount = d->bytecount;
-		cts->xport_specific.sata.valid |= CTS_SATA_VALID_BYTECOUNT;
-		cts->xport_specific.sata.pm_present = ch->pm_present;
-		cts->xport_specific.sata.valid |= CTS_SATA_VALID_PM;
-		cts->xport_specific.sata.tags = d->tags;
-		cts->xport_specific.sata.valid |= CTS_SATA_VALID_TAGS;
-		cts->xport_specific.sata.atapi = d->atapi;
-		cts->xport_specific.sata.valid |= CTS_SATA_VALID_ATAPI;
-		ccb->ccb_h.status = CAM_REQ_CMP;
-		break;
-	}
-	case XPT_RESET_BUS:		/* Reset the specified SCSI bus */
-	case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
+	case XPT_RESET_BUS: /* Reset the specified SCSI bus */
+	case XPT_RESET_DEV: /* Bus Device Reset the specified SCSI device */
 		fsl_sata_reset(ch);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
-	case XPT_TERM_IO:		/* Terminate the I/O process */
+	case XPT_TERM_IO: /* Terminate the I/O process */
 		/* XXX Implement */
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		break;
-	case XPT_PATH_INQ:		/* Path routing inquiry */
+	case XPT_PATH_INQ: /* Path routing inquiry */
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
 
@@ -1884,7 +1912,8 @@ fsl_sataaction(struct cam_sim *sim, union ccb *ccb)
 static void
 fsl_satapoll(struct cam_sim *sim)
 {
-	struct fsl_sata_channel *ch = (struct fsl_sata_channel *)cam_sim_softc(sim);
+	struct fsl_sata_channel *ch = (struct fsl_sata_channel *)cam_sim_softc(
+	    sim);
 	uint32_t istatus;
 
 	/* Read interrupt statuses and process if any. */

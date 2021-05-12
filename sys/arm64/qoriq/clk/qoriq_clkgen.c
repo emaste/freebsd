@@ -33,19 +33,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk_fixed.h>
 #include <dev/fdt/simplebus.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/extres/clk/clk_fixed.h>
 
 #include <arm64/qoriq/clk/qoriq_clkgen.h>
 
@@ -54,17 +53,12 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_QORIQ_CLKGEN, "qoriq_clkgen", "qoriq_clkgen");
 
 static struct resource_spec qoriq_clkgen_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, { -1, 0 }
 };
 
-static const char *qoriq_pll_parents_coreclk[] = {
-	QORIQ_CORECLK_NAME
-};
+static const char *qoriq_pll_parents_coreclk[] = { QORIQ_CORECLK_NAME };
 
-static const char *qoriq_pll_parents_sysclk[] = {
-	QORIQ_SYSCLK_NAME
-};
+static const char *qoriq_pll_parents_sysclk[] = { QORIQ_SYSCLK_NAME };
 
 static int
 qoriq_clkgen_ofw_mapper(struct clkdom *clkdom, uint32_t ncells,
@@ -118,8 +112,7 @@ qoriq_clkgen_read_4(device_t dev, bus_addr_t addr, uint32_t *val)
 }
 
 static int
-qoriq_clkgen_modify_4(device_t dev, bus_addr_t addr, uint32_t clr,
-    uint32_t set)
+qoriq_clkgen_modify_4(device_t dev, bus_addr_t addr, uint32_t clr, uint32_t set)
 {
 	struct qoriq_clkgen_softc *sc;
 	uint32_t reg;
@@ -160,15 +153,14 @@ qoriq_clkgen_device_unlock(device_t dev)
 	mtx_unlock(&sc->mtx);
 }
 
-static device_method_t qoriq_clkgen_methods[] = {
-	DEVMETHOD(clkdev_write_4,	qoriq_clkgen_write_4),
-	DEVMETHOD(clkdev_read_4,	qoriq_clkgen_read_4),
-	DEVMETHOD(clkdev_modify_4,	qoriq_clkgen_modify_4),
-	DEVMETHOD(clkdev_device_lock,	qoriq_clkgen_device_lock),
-	DEVMETHOD(clkdev_device_unlock,	qoriq_clkgen_device_unlock),
+static device_method_t qoriq_clkgen_methods[] = { DEVMETHOD(clkdev_write_4,
+						      qoriq_clkgen_write_4),
+	DEVMETHOD(clkdev_read_4, qoriq_clkgen_read_4),
+	DEVMETHOD(clkdev_modify_4, qoriq_clkgen_modify_4),
+	DEVMETHOD(clkdev_device_lock, qoriq_clkgen_device_lock),
+	DEVMETHOD(clkdev_device_unlock, qoriq_clkgen_device_unlock),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 DEFINE_CLASS_0(qoriq_clkgen, qoriq_clkgen_driver, qoriq_clkgen_methods,
     sizeof(struct qoriq_clkgen_softc));
@@ -275,9 +267,11 @@ qoriq_clkgen_attach(device_t dev)
 
 	for (i = 0; i < sc->cga_pll_num; i++) {
 		if (sc->has_coreclk)
-			sc->cga_pll[i]->clkdef.parent_names = qoriq_pll_parents_coreclk;
+			sc->cga_pll[i]->clkdef.parent_names =
+			    qoriq_pll_parents_coreclk;
 		else
-			sc->cga_pll[i]->clkdef.parent_names = qoriq_pll_parents_sysclk;
+			sc->cga_pll[i]->clkdef.parent_names =
+			    qoriq_pll_parents_sysclk;
 		sc->cga_pll[i]->clkdef.parent_cnt = 1;
 
 		error = qoriq_clk_pll_register(sc->clkdom, sc->cga_pll[i]);

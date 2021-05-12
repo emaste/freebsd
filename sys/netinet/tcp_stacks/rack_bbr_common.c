@@ -36,13 +36,14 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_tcpdebug.h"
-#include "opt_ratelimit.h"
 #include "opt_kern_tls.h"
+#include "opt_ratelimit.h"
+#include "opt_tcpdebug.h"
+
 #include <sys/param.h>
 #include <sys/arb.h>
-#include <sys/module.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #ifdef TCP_HHOOK
 #include <sys/hhook.h>
 #endif
@@ -55,73 +56,74 @@ __FBSDID("$FreeBSD$");
 #ifdef KERN_TLS
 #include <sys/ktls.h>
 #endif
-#include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/tree.h>
 #ifdef NETFLIX_STATS
 #include <sys/stats.h> /* Must come after qmath.h and tree.h */
 #endif
-#include <sys/refcount.h>
-#include <sys/queue.h>
-#include <sys/smp.h>
+#include <sys/kern_prefetch.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/queue.h>
+#include <sys/refcount.h>
+#include <sys/smp.h>
 #include <sys/tim_filter.h>
 #include <sys/time.h>
-#include <vm/uma.h>
-#include <sys/kern_prefetch.h>
 
+#include <vm/uma.h>
+
+#include <net/bpf.h>
+#include <net/ethernet.h>
 #include <net/route.h>
 #include <net/vnet.h>
-#include <net/ethernet.h>
-#include <net/bpf.h>
 
-#define TCPSTATES		/* for logging */
+#define TCPSTATES /* for logging */
 
+#include <netinet/cc/cc.h>
+#include <netinet/icmp_var.h> /* for ICMP_BANDLIM */
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
-#include <netinet/ip_icmp.h>	/* required for icmp_var.h */
-#include <netinet/icmp_var.h>	/* for ICMP_BANDLIM */
-#include <netinet/ip_var.h>
 #include <netinet/ip6.h>
-#include <netinet6/in6_pcb.h>
-#include <netinet6/ip6_var.h>
+#include <netinet/ip_icmp.h> /* required for icmp_var.h */
+#include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
+#include <netinet/tcp_hpts.h>
+#include <netinet/tcp_log_buf.h>
+#include <netinet/tcp_lro.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
-#include <netinet/tcp_hpts.h>
-#include <netinet/tcp_lro.h>
-#include <netinet/cc/cc.h>
-#include <netinet/tcp_log_buf.h>
+#include <netinet6/in6_pcb.h>
+#include <netinet6/ip6_var.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
-#endif				/* TCPDEBUG */
+#endif /* TCPDEBUG */
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
-#include <netinet/tcp_fastopen.h>
-
-#include <netipsec/ipsec_support.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <netinet/tcp_fastopen.h>
+#include <netipsec/ipsec_support.h>
 
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
-#endif				/* IPSEC */
+#endif /* IPSEC */
+
+#include <machine/in_cksum.h>
 
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
-#include <machine/in_cksum.h>
 
 #ifdef MAC
 #include <security/mac/mac_framework.h>
@@ -141,9 +143,9 @@ ctf_get_opt_tls_size(struct socket *so, uint32_t rwnd)
 
 again:
 	tls = so->so_snd.sb_tls_info;
-	len = tls->params.max_frame_len;         /* max tls payload */
-	len += tls->params.tls_hlen;      /* tls header len  */
-	len += tls->params.tls_tlen;      /* tls trailer len */
+	len = tls->params.max_frame_len; /* max tls payload */
+	len += tls->params.tls_hlen;	 /* tls header len  */
+	len += tls->params.tls_tlen;	 /* tls trailer len */
 	if ((len * 4) > rwnd) {
 		/*
 		 * Stroke this will suck counter and what
@@ -168,10 +170,10 @@ ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 	struct ether_header *eh;
 	struct tcphdr *th;
 #ifdef INET6
-	struct ip6_hdr *ip6 = NULL;	/* Keep compiler happy. */
+	struct ip6_hdr *ip6 = NULL; /* Keep compiler happy. */
 #endif
 #ifdef INET
-	struct ip *ip = NULL;		/* Keep compiler happy. */
+	struct ip *ip = NULL; /* Keep compiler happy. */
 #endif
 	int32_t tlen;
 	uint16_t drop_hdrlen;
@@ -197,90 +199,89 @@ ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 	/* Now the csum */
 	eh = mtod(m, struct ether_header *);
 	etype = ntohs(eh->ether_type);
-	m_adj(m,  sizeof(*eh));
+	m_adj(m, sizeof(*eh));
 	switch (etype) {
 #ifdef INET6
-		case ETHERTYPE_IPV6:
-		{
-			if (m->m_len < (sizeof(*ip6) + sizeof(*th))) {
-				m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
-				if (m == NULL) {
-					KMOD_TCPSTAT_INC(tcps_rcvshort);
-					m_freem(m);
-					return (-1);
-				}
-			}
-			ip6 = (struct ip6_hdr *)(eh + 1);
-			th = (struct tcphdr *)(ip6 + 1);
-			drop_hdrlen = sizeof(*ip6);
-			tlen = ntohs(ip6->ip6_plen);
-			if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID_IPV6) {
-				if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
-					th->th_sum = m->m_pkthdr.csum_data;
-				else
-					th->th_sum = in6_cksum_pseudo(ip6, tlen,
-								      IPPROTO_TCP,
-								      m->m_pkthdr.csum_data);
-				th->th_sum ^= 0xffff;
-			} else
-				th->th_sum = in6_cksum(m, IPPROTO_TCP, drop_hdrlen, tlen);
-			if (th->th_sum) {
-				KMOD_TCPSTAT_INC(tcps_rcvbadsum);
+	case ETHERTYPE_IPV6: {
+		if (m->m_len < (sizeof(*ip6) + sizeof(*th))) {
+			m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
+			if (m == NULL) {
+				KMOD_TCPSTAT_INC(tcps_rcvshort);
 				m_freem(m);
 				return (-1);
 			}
-			return (etype);
 		}
+		ip6 = (struct ip6_hdr *)(eh + 1);
+		th = (struct tcphdr *)(ip6 + 1);
+		drop_hdrlen = sizeof(*ip6);
+		tlen = ntohs(ip6->ip6_plen);
+		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID_IPV6) {
+			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
+				th->th_sum = m->m_pkthdr.csum_data;
+			else
+				th->th_sum = in6_cksum_pseudo(ip6, tlen,
+				    IPPROTO_TCP, m->m_pkthdr.csum_data);
+			th->th_sum ^= 0xffff;
+		} else
+			th->th_sum = in6_cksum(
+			    m, IPPROTO_TCP, drop_hdrlen, tlen);
+		if (th->th_sum) {
+			KMOD_TCPSTAT_INC(tcps_rcvbadsum);
+			m_freem(m);
+			return (-1);
+		}
+		return (etype);
+	}
 #endif
 #ifdef INET
-		case ETHERTYPE_IP:
-		{
-			if (m->m_len < sizeof (struct tcpiphdr)) {
-				m = m_pullup(m, sizeof (struct tcpiphdr));
-				if (m == NULL) {
-					KMOD_TCPSTAT_INC(tcps_rcvshort);
-					m_freem(m);
-					return (-1);
-				}
-			}
-			ip = (struct ip *)(eh + 1);
-			th = (struct tcphdr *)(ip + 1);
-			drop_hdrlen = sizeof(*ip);
-			iptos = ip->ip_tos;
-			tlen = ntohs(ip->ip_len) - sizeof(struct ip);
-			if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
-				if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
-					th->th_sum = m->m_pkthdr.csum_data;
-				else
-					th->th_sum = in_pseudo(ip->ip_src.s_addr,
-							       ip->ip_dst.s_addr,
-							       htonl(m->m_pkthdr.csum_data + tlen + IPPROTO_TCP));
-				th->th_sum ^= 0xffff;
-			} else {
-				int len;
-				struct ipovly *ipov = (struct ipovly *)ip;
-				/*
-				 * Checksum extended TCP header and data.
-				 */
-				len = drop_hdrlen + tlen;
-				bzero(ipov->ih_x1, sizeof(ipov->ih_x1));
-				ipov->ih_len = htons(tlen);
-				th->th_sum = in_cksum(m, len);
-				/* Reset length for SDT probes. */
-				ip->ip_len = htons(len);
-				/* Reset TOS bits */
-				ip->ip_tos = iptos;
-				/* Re-initialization for later version check */
-				ip->ip_v = IPVERSION;
-				ip->ip_hl = sizeof(*ip) >> 2;
-			}
-			if (th->th_sum) {
-				KMOD_TCPSTAT_INC(tcps_rcvbadsum);
+	case ETHERTYPE_IP: {
+		if (m->m_len < sizeof(struct tcpiphdr)) {
+			m = m_pullup(m, sizeof(struct tcpiphdr));
+			if (m == NULL) {
+				KMOD_TCPSTAT_INC(tcps_rcvshort);
 				m_freem(m);
 				return (-1);
 			}
-			break;
 		}
+		ip = (struct ip *)(eh + 1);
+		th = (struct tcphdr *)(ip + 1);
+		drop_hdrlen = sizeof(*ip);
+		iptos = ip->ip_tos;
+		tlen = ntohs(ip->ip_len) - sizeof(struct ip);
+		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
+			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
+				th->th_sum = m->m_pkthdr.csum_data;
+			else
+				th->th_sum = in_pseudo(ip->ip_src.s_addr,
+				    ip->ip_dst.s_addr,
+				    htonl(m->m_pkthdr.csum_data + tlen +
+					IPPROTO_TCP));
+			th->th_sum ^= 0xffff;
+		} else {
+			int len;
+			struct ipovly *ipov = (struct ipovly *)ip;
+			/*
+			 * Checksum extended TCP header and data.
+			 */
+			len = drop_hdrlen + tlen;
+			bzero(ipov->ih_x1, sizeof(ipov->ih_x1));
+			ipov->ih_len = htons(tlen);
+			th->th_sum = in_cksum(m, len);
+			/* Reset length for SDT probes. */
+			ip->ip_len = htons(len);
+			/* Reset TOS bits */
+			ip->ip_tos = iptos;
+			/* Re-initialization for later version check */
+			ip->ip_v = IPVERSION;
+			ip->ip_hl = sizeof(*ip) >> 2;
+		}
+		if (th->th_sum) {
+			KMOD_TCPSTAT_INC(tcps_rcvbadsum);
+			m_freem(m);
+			return (-1);
+		}
+		break;
+	}
 #endif
 	};
 	return (etype);
@@ -358,7 +359,8 @@ ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
  */
 
 int
-ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int has_pkt)
+ctf_process_inbound_raw(
+    struct tcpcb *tp, struct socket *so, struct mbuf *m, int has_pkt)
 {
 	/*
 	 * We are passed a raw change of mbuf packets
@@ -387,10 +389,10 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 	struct mbuf *m_save;
 	struct tcphdr *th;
 #ifdef INET6
-	struct ip6_hdr *ip6 = NULL;	/* Keep compiler happy. */
+	struct ip6_hdr *ip6 = NULL; /* Keep compiler happy. */
 #endif
 #ifdef INET
-	struct ip *ip = NULL;		/* Keep compiler happy. */
+	struct ip *ip = NULL; /* Keep compiler happy. */
 #endif
 	struct ifnet *ifp;
 	struct timeval tv;
@@ -398,7 +400,7 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 	int32_t retval, nxt_pkt, tlen, off;
 	int etype = 0;
 	uint16_t drop_hdrlen;
-	uint8_t iptos, no_vn=0;
+	uint8_t iptos, no_vn = 0;
 
 	NET_EPOCH_ASSERT();
 	if (m)
@@ -426,8 +428,10 @@ skip_vnet:
 				/* Skip this packet it was freed by checksum */
 				goto skipped_pkt;
 			}
-			KASSERT(((etype == ETHERTYPE_IPV6) || (etype == ETHERTYPE_IP)),
-				("tp:%p m:%p etype:0x%x -- not IP or IPv6", tp, m, etype));
+			KASSERT(((etype == ETHERTYPE_IPV6) ||
+				    (etype == ETHERTYPE_IP)),
+			    ("tp:%p m:%p etype:0x%x -- not IP or IPv6", tp, m,
+				etype));
 			/* Trim off the ethernet header */
 			switch (etype) {
 #ifdef INET6
@@ -454,11 +458,10 @@ skip_vnet:
 			 */
 			tcp_fields_to_host(th);
 			off = th->th_off << 2;
-			if (off < sizeof (struct tcphdr) || off > tlen) {
-				printf("off:%d < hdrlen:%zu || > tlen:%u -- dump\n",
-				       off,
-				       sizeof(struct tcphdr),
-				       tlen);
+			if (off < sizeof(struct tcphdr) || off > tlen) {
+				printf(
+				    "off:%d < hdrlen:%zu || > tlen:%u -- dump\n",
+				    off, sizeof(struct tcphdr), tlen);
 				KMOD_TCPSTAT_INC(tcps_rcvbadoff);
 				m_freem(m);
 				goto skipped_pkt;
@@ -478,7 +481,8 @@ skip_vnet:
 			 * the flag set to enable this!
 			 */
 			KASSERT((tp->t_inpcb->inp_flags2 & INP_MBUF_ACKCMP),
-				("tp:%p inp:%p no INP_MBUF_ACKCMP flags?", tp, tp->t_inpcb));
+			    ("tp:%p inp:%p no INP_MBUF_ACKCMP flags?", tp,
+				tp->t_inpcb));
 			tlen = 0;
 			drop_hdrlen = 0;
 			th = NULL;
@@ -492,15 +496,16 @@ skip_vnet:
 		if ((m->m_flags & M_ACKCMP) == 0)
 			KMOD_TCPSTAT_INC(tcps_rcvtotal);
 		else
-			KMOD_TCPSTAT_ADD(tcps_rcvtotal, (m->m_len / sizeof(struct tcp_ackent)));
+			KMOD_TCPSTAT_ADD(tcps_rcvtotal,
+			    (m->m_len / sizeof(struct tcp_ackent)));
 		inp = tp->t_inpcb;
 		INP_WLOCK_ASSERT(inp);
-		retval = (*tp->t_fb->tfb_do_segment_nounlock)(m, th, so, tp, drop_hdrlen, tlen,
-							      iptos, nxt_pkt, &tv);
+		retval = (*tp->t_fb->tfb_do_segment_nounlock)(
+		    m, th, so, tp, drop_hdrlen, tlen, iptos, nxt_pkt, &tv);
 		if (retval) {
 			/* We lost the lock and tcb probably */
 			m = m_save;
-			while(m) {
+			while (m) {
 				m_save = m->m_nextpkt;
 				m->m_nextpkt = NULL;
 				m_freem(m);
@@ -509,14 +514,14 @@ skip_vnet:
 			if (no_vn == 0)
 				CURVNET_RESTORE();
 			INP_UNLOCK_ASSERT(inp);
-			return(retval);
+			return (retval);
 		}
-skipped_pkt:
+	skipped_pkt:
 		m = m_save;
 	}
 	if (no_vn == 0)
 		CURVNET_RESTORE();
-	return(retval);
+	return (retval);
 }
 
 int
@@ -531,7 +536,7 @@ ctf_do_queued_segments(struct socket *so, struct tcpcb *tp, int have_pkt)
 		tp->t_tail_pkt = NULL;
 		if (ctf_process_inbound_raw(tp, so, m, have_pkt)) {
 			/* We lost the tcpcb (maybe a RST came in)? */
-			return(1);
+			return (1);
 		}
 		tcp_handle_wakeup(tp, so);
 	}
@@ -555,7 +560,7 @@ uint32_t
 ctf_flight_size(struct tcpcb *tp, uint32_t rc_sacked)
 {
 	if (rc_sacked <= ctf_outstanding(tp))
-		return(ctf_outstanding(tp) - rc_sacked);
+		return (ctf_outstanding(tp) - rc_sacked);
 	else {
 		return (0);
 	}
@@ -575,8 +580,7 @@ ctf_do_dropwithreset(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
 void
 ctf_ack_war_checks(struct tcpcb *tp, uint32_t *ts, uint32_t *cnt)
 {
-	if ((ts != NULL) && (cnt != NULL) &&
-	    (tcp_ack_war_time_window > 0) &&
+	if ((ts != NULL) && (cnt != NULL) && (tcp_ack_war_time_window > 0) &&
 	    (tcp_ack_war_cnt > 0)) {
 		/* We are possibly doing ack war prevention */
 		uint32_t cts;
@@ -610,9 +614,8 @@ ctf_ack_war_checks(struct tcpcb *tp, uint32_t *ts, uint32_t *cnt)
  */
 int
 _ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th,
-		 struct tcpcb *tp, int32_t *tlenp,
-		 int32_t *thf, int32_t *drop_hdrlen, int32_t *ret_val,
-		 uint32_t *ts, uint32_t *cnt)
+    struct tcpcb *tp, int32_t *tlenp, int32_t *thf, int32_t *drop_hdrlen,
+    int32_t *ret_val, uint32_t *ts, uint32_t *cnt)
 {
 	int32_t todrop;
 	int32_t thflags;
@@ -634,8 +637,8 @@ _ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th,
 		/*
 		 * Following if statement from Stevens, vol. 2, p. 960.
 		 */
-		if (todrop > tlen
-		    || (todrop == tlen && (thflags & TH_FIN) == 0)) {
+		if (todrop > tlen ||
+		    (todrop == tlen && (thflags & TH_FIN) == 0)) {
 			/*
 			 * Any valid FIN must be to the left of the window.
 			 * At this point the FIN must be a duplicate or out
@@ -664,10 +667,10 @@ _ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th,
 			 */
 			ctf_ack_war_checks(tp, ts, cnt);
 			if (tp->t_flags & TF_ACKNOW)
-				tcp_update_sack_list(tp, th->th_seq,
-						     th->th_seq + todrop);
+				tcp_update_sack_list(
+				    tp, th->th_seq, th->th_seq + todrop);
 		}
-		*drop_hdrlen += todrop;	/* drop from the top afterwards */
+		*drop_hdrlen += todrop; /* drop from the top afterwards */
 		th->th_seq += todrop;
 		tlen -= todrop;
 		if (th->th_urp > todrop)
@@ -697,7 +700,8 @@ _ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th,
 				ctf_ack_war_checks(tp, ts, cnt);
 				KMOD_TCPSTAT_INC(tcps_rcvwinprobe);
 			} else {
-				__ctf_do_dropafterack(m, tp, th, thflags, tlen, ret_val, ts, cnt);
+				__ctf_do_dropafterack(
+				    m, tp, th, thflags, tlen, ret_val, ts, cnt);
 				return (1);
 			}
 		} else
@@ -718,7 +722,9 @@ _ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th,
  * and valid.
  */
 void
-__ctf_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32_t thflags, int32_t tlen, int32_t *ret_val, uint32_t *ts, uint32_t *cnt)
+__ctf_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
+    int32_t thflags, int32_t tlen, int32_t *ret_val, uint32_t *ts,
+    uint32_t *cnt)
 {
 	/*
 	 * Generate an ACK dropping incoming segment if it occupies sequence
@@ -736,7 +742,7 @@ __ctf_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32
 	 */
 	if (tp->t_state == TCPS_SYN_RECEIVED && (thflags & TH_ACK) &&
 	    (SEQ_GT(tp->snd_una, th->th_ack) ||
-	    SEQ_GT(th->th_ack, tp->snd_max))) {
+		SEQ_GT(th->th_ack, tp->snd_max))) {
 		*ret_val = 1;
 		ctf_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 		return;
@@ -761,7 +767,8 @@ ctf_do_drop(struct mbuf *m, struct tcpcb *tp)
 }
 
 int
-ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcpcb *tp)
+ctf_process_rst(
+    struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcpcb *tp)
 {
 	/*
 	 * RFC5961 Section 3.2
@@ -776,14 +783,13 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcp
 	int dropped = 0;
 
 	if ((SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
-	    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) ||
+		SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) ||
 	    (tp->rcv_wnd == 0 && tp->last_ack_sent == th->th_seq)) {
 		KASSERT(tp->t_state != TCPS_SYN_SENT,
-		    ("%s: TH_RST for TCPS_SYN_SENT th %p tp %p",
-		    __func__, th, tp));
+		    ("%s: TH_RST for TCPS_SYN_SENT th %p tp %p", __func__, th,
+			tp));
 
-		if (V_tcp_insecure_rst ||
-		    (tp->last_ack_sent == th->th_seq) ||
+		if (V_tcp_insecure_rst || (tp->last_ack_sent == th->th_seq) ||
 		    (tp->rcv_nxt == th->th_seq)) {
 			KMOD_TCPSTAT_INC(tcps_drops);
 			/* Drop the connection. */
@@ -798,11 +804,12 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcp
 			case TCPS_CLOSING:
 			case TCPS_LAST_ACK:
 				so->so_error = ECONNRESET;
-		close:
+			close:
 				tcp_state_change(tp, TCPS_CLOSED);
 				/* FALLTHROUGH */
 			default:
-				tcp_log_end_status(tp, TCP_EI_STATUS_CLIENT_RST);
+				tcp_log_end_status(
+				    tp, TCP_EI_STATUS_CLIENT_RST);
 				tp = tcp_close(tp);
 			}
 			dropped = 1;
@@ -810,8 +817,8 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcp
 		} else {
 			KMOD_TCPSTAT_INC(tcps_badrst);
 			/* Send challenge ACK. */
-			tcp_respond(tp, mtod(m, void *), th, m,
-			    tp->rcv_nxt, tp->snd_nxt, TH_ACK);
+			tcp_respond(tp, mtod(m, void *), th, m, tp->rcv_nxt,
+			    tp->snd_nxt, TH_ACK);
 			tp->last_ack_sent = tp->rcv_nxt;
 		}
 	} else {
@@ -827,14 +834,14 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcp
  * and valid.
  */
 void
-ctf_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * ret_val)
+ctf_challenge_ack(
+    struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t *ret_val)
 {
 
 	NET_EPOCH_ASSERT();
 
 	KMOD_TCPSTAT_INC(tcps_badsyn);
-	if (V_tcp_insecure_syn &&
-	    SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
+	if (V_tcp_insecure_syn && SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
 	    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) {
 		tp = tcp_drop(tp, ECONNRESET);
 		*ret_val = 1;
@@ -858,8 +865,8 @@ ctf_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t *
  * TCB is still valid and locked.
  */
 int
-ctf_ts_check(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
-    int32_t tlen, int32_t thflags, int32_t * ret_val)
+ctf_ts_check(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t tlen,
+    int32_t thflags, int32_t *ret_val)
 {
 
 	if (tcp_ts_getticks() - tp->ts_recent_age > TCP_PAWS_IDLE) {
@@ -913,8 +920,6 @@ ctf_ts_check_ac(struct tcpcb *tp, int32_t thflags)
 	return (0);
 }
 
-
-
 void
 ctf_calc_rwin(struct socket *so, struct tcpcb *tp)
 {
@@ -950,7 +955,8 @@ ctf_fixed_maxseg(struct tcpcb *tp)
 }
 
 void
-ctf_log_sack_filter(struct tcpcb *tp, int num_sack_blks, struct sackblk *sack_blocks)
+ctf_log_sack_filter(
+    struct tcpcb *tp, int num_sack_blks, struct sackblk *sack_blocks)
 {
 	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
 		union tcp_log_stackspecific log;
@@ -975,11 +981,9 @@ ctf_log_sack_filter(struct tcpcb *tp, int num_sack_blks, struct sackblk *sack_bl
 			log.u_bbr.applimited = sack_blocks[3].start;
 			log.u_bbr.pkts_out = sack_blocks[3].end;
 		}
-		TCP_LOG_EVENTP(tp, NULL,
-		    &tp->t_inpcb->inp_socket->so_rcv,
-		    &tp->t_inpcb->inp_socket->so_snd,
-		    TCP_SACK_FILTER_RES, 0,
-		    0, &log, false, &tv);
+		TCP_LOG_EVENTP(tp, NULL, &tp->t_inpcb->inp_socket->so_rcv,
+		    &tp->t_inpcb->inp_socket->so_snd, TCP_SACK_FILTER_RES, 0, 0,
+		    &log, false, &tv);
 	}
 }
 
@@ -1006,13 +1010,14 @@ ctf_decay_count(uint32_t count, uint32_t decay)
 	 * count decay value.
 	 */
 	decayed_count = count - (uint32_t)perc_count;
-	return(decayed_count);
+	return (decayed_count);
 }
 
 int32_t
 ctf_progress_timeout_check(struct tcpcb *tp, bool log)
 {
-	if (tp->t_maxunacktime && tp->t_acktime && TSTMP_GT(ticks, tp->t_acktime)) {
+	if (tp->t_maxunacktime && tp->t_acktime &&
+	    TSTMP_GT(ticks, tp->t_acktime)) {
 		if ((ticks - tp->t_acktime) >= tp->t_maxunacktime) {
 			/*
 			 * There is an assumption that the caller

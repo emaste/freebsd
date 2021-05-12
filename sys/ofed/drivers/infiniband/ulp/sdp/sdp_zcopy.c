@@ -31,24 +31,27 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <linux/tcp.h>
-#include <asm/ioctls.h>
-#include <linux/workqueue.h>
-#include <linux/net.h>
-#include <linux/socket.h>
-#include <net/protocol.h>
 #include <net/inet_common.h>
-#include <rdma/rdma_cm.h>
-#include <rdma/ib_verbs.h>
-#include <rdma/ib_fmr_pool.h>
-#include <rdma/ib_umem.h> 
+#include <net/protocol.h>
 #include <net/tcp.h> /* for memcpy_toiovec */
+
 #include <asm/io.h>
+#include <asm/ioctls.h>
 #include <asm/uaccess.h>
 #include <linux/delay.h>
+#include <linux/net.h>
+#include <linux/socket.h>
+#include <linux/tcp.h>
+#include <linux/workqueue.h>
+#include <rdma/ib_fmr_pool.h>
+#include <rdma/ib_umem.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/rdma_cm.h>
+
 #include "sdp.h"
 
-static int sdp_post_srcavail(struct socket *sk, struct tx_srcavail_state *tx_sa)
+static int
+sdp_post_srcavail(struct socket *sk, struct tx_srcavail_state *tx_sa)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	struct mbuf *mb;
@@ -64,7 +67,8 @@ static int sdp_post_srcavail(struct socket *sk, struct tx_srcavail_state *tx_sa)
 	BUG_ON(!tx_sa->umem);
 	BUG_ON(!tx_sa->umem->chunk_list.next);
 
-	chunk = list_entry(tx_sa->umem->chunk_list.next, struct ib_umem_chunk, list);
+	chunk = list_entry(
+	    tx_sa->umem->chunk_list.next, struct ib_umem_chunk, list);
 	BUG_ON(!chunk->nmap);
 
 	off = tx_sa->umem->offset;
@@ -77,31 +81,33 @@ static int sdp_post_srcavail(struct socket *sk, struct tx_srcavail_state *tx_sa)
 		return -ENOMEM;
 	}
 	sdp_dbg_data(sk, "sending SrcAvail\n");
-		
-	TX_SRCAVAIL_STATE(mb) = tx_sa; /* tx_sa is hanged on the mb 
-					 * but continue to live after mb is freed */
+
+	TX_SRCAVAIL_STATE(
+	    mb) = tx_sa; /* tx_sa is hanged on the mb
+			  * but continue to live after mb is freed */
 	ssk->tx_sa = tx_sa;
 
 	/* must have payload inlined in SrcAvail packet in combined mode */
 	payload_len = MIN(tx_sa->umem->page_size - off, len);
-	payload_len = MIN(payload_len, ssk->xmit_size_goal - sizeof(struct sdp_srcah));
-	payload_pg  = sg_page(&chunk->page_list[0]);
+	payload_len = MIN(
+	    payload_len, ssk->xmit_size_goal - sizeof(struct sdp_srcah));
+	payload_pg = sg_page(&chunk->page_list[0]);
 	get_page(payload_pg);
 
-	sdp_dbg_data(sk, "payload: off: 0x%x, pg: %p, len: 0x%x\n",
-		off, payload_pg, payload_len);
+	sdp_dbg_data(sk, "payload: off: 0x%x, pg: %p, len: 0x%x\n", off,
+	    payload_pg, payload_len);
 
-	mb_fill_page_desc(mb, mb_shinfo(mb)->nr_frags,
-			payload_pg, off, payload_len);
+	mb_fill_page_desc(
+	    mb, mb_shinfo(mb)->nr_frags, payload_pg, off, payload_len);
 
-	mb->len             += payload_len;
-	mb->data_len         = payload_len;
-	mb->truesize        += payload_len;
-//	sk->sk_wmem_queued   += payload_len;
-//	sk->sk_forward_alloc -= payload_len;
+	mb->len += payload_len;
+	mb->data_len = payload_len;
+	mb->truesize += payload_len;
+	//	sk->sk_wmem_queued   += payload_len;
+	//	sk->sk_forward_alloc -= payload_len;
 
 	mb_entail(sk, ssk, mb);
-	
+
 	ssk->write_seq += payload_len;
 	SDP_SKB_CB(mb)->end_seq += payload_len;
 
@@ -113,7 +119,8 @@ static int sdp_post_srcavail(struct socket *sk, struct tx_srcavail_state *tx_sa)
 	return 0;
 }
 
-static int sdp_post_srcavail_cancel(struct socket *sk)
+static int
+sdp_post_srcavail_cancel(struct socket *sk)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	struct mbuf *mb;
@@ -125,30 +132,32 @@ static int sdp_post_srcavail_cancel(struct socket *sk)
 
 	sdp_post_sends(ssk, 0);
 
-	schedule_delayed_work(&ssk->srcavail_cancel_work,
-			SDP_SRCAVAIL_CANCEL_TIMEOUT);
+	schedule_delayed_work(
+	    &ssk->srcavail_cancel_work, SDP_SRCAVAIL_CANCEL_TIMEOUT);
 
 	return 0;
 }
 
-void srcavail_cancel_timeout(struct work_struct *work)
+void
+srcavail_cancel_timeout(struct work_struct *work)
 {
-	struct sdp_sock *ssk =
-		container_of(work, struct sdp_sock, srcavail_cancel_work.work);
+	struct sdp_sock *ssk = container_of(
+	    work, struct sdp_sock, srcavail_cancel_work.work);
 	struct socket *sk = ssk->socket;
 
 	lock_sock(sk);
 
-	sdp_dbg_data(sk, "both SrcAvail and SrcAvailCancel timedout."
-			" closing connection\n");
+	sdp_dbg_data(sk,
+	    "both SrcAvail and SrcAvailCancel timedout."
+	    " closing connection\n");
 	sdp_set_error(sk, -ECONNRESET);
 	wake_up(&ssk->wq);
 
 	release_sock(sk);
 }
 
-static int sdp_wait_rdmardcompl(struct sdp_sock *ssk, long *timeo_p,
-		int ignore_signals)
+static int
+sdp_wait_rdmardcompl(struct sdp_sock *ssk, long *timeo_p, int ignore_signals)
 {
 	struct socket *sk = ssk->socket;
 	int err = 0;
@@ -181,7 +190,7 @@ static int sdp_wait_rdmardcompl(struct sdp_sock *ssk, long *timeo_p,
 			sdp_prf1(sk, NULL, "Aborting SrcAvail sending");
 			SDPSTATS_COUNTER_INC(zcopy_tx_aborted);
 			err = -EAGAIN;
-			break ;
+			break;
 		}
 
 		if (!ignore_signals) {
@@ -192,22 +201,22 @@ static int sdp_wait_rdmardcompl(struct sdp_sock *ssk, long *timeo_p,
 				break;
 			}
 
-			if (ssk->rx_sa && (tx_sa->bytes_acked < tx_sa->bytes_sent)) {
-				sdp_dbg_data(sk, "Crossing SrcAvail - aborting this\n");
+			if (ssk->rx_sa &&
+			    (tx_sa->bytes_acked < tx_sa->bytes_sent)) {
+				sdp_dbg_data(
+				    sk, "Crossing SrcAvail - aborting this\n");
 				tx_sa->abort_flags |= TX_SA_CROSS_SEND;
 				SDPSTATS_COUNTER_INC(zcopy_cross_send);
 				err = -ETIME;
-				break ;
+				break;
 			}
 		}
 
 		posts_handler_put(ssk);
 
 		sk_wait_event(sk, &current_timeo,
-				tx_sa->abort_flags &&
-				ssk->rx_sa &&
-				(tx_sa->bytes_acked < tx_sa->bytes_sent) && 
-				vm_wait);
+		    tx_sa->abort_flags && ssk->rx_sa &&
+			(tx_sa->bytes_acked < tx_sa->bytes_sent) && vm_wait);
 		sdp_dbg_data(ssk->socket, "woke up sleepers\n");
 
 		posts_handler_get(ssk);
@@ -228,8 +237,9 @@ static int sdp_wait_rdmardcompl(struct sdp_sock *ssk, long *timeo_p,
 
 	finish_wait(sk->sk_sleep, &wait);
 
-	sdp_dbg_data(sk, "Finished waiting - RdmaRdCompl: %d/%d bytes, flags: 0x%x\n",
-			tx_sa->bytes_acked, tx_sa->bytes_sent, tx_sa->abort_flags);
+	sdp_dbg_data(sk,
+	    "Finished waiting - RdmaRdCompl: %d/%d bytes, flags: 0x%x\n",
+	    tx_sa->bytes_acked, tx_sa->bytes_sent, tx_sa->abort_flags);
 
 	if (!ssk->qp_active) {
 		sdp_dbg(sk, "QP destroyed while waiting\n");
@@ -238,7 +248,8 @@ static int sdp_wait_rdmardcompl(struct sdp_sock *ssk, long *timeo_p,
 	return err;
 }
 
-static void sdp_wait_rdma_wr_finished(struct sdp_sock *ssk)
+static void
+sdp_wait_rdma_wr_finished(struct sdp_sock *ssk)
 {
 	struct socket *sk = ssk->socket;
 	long timeo = HZ * 5; /* Timeout for for RDMA read */
@@ -259,7 +270,8 @@ static void sdp_wait_rdma_wr_finished(struct sdp_sock *ssk)
 		}
 
 		if (!timeo) {
-			sdp_warn(sk, "Panic: Timed out waiting for RDMA read\n");
+			sdp_warn(
+			    sk, "Panic: Timed out waiting for RDMA read\n");
 			WARN_ON(1);
 			break;
 		}
@@ -267,8 +279,7 @@ static void sdp_wait_rdma_wr_finished(struct sdp_sock *ssk)
 		posts_handler_put(ssk);
 
 		sdp_prf1(sk, NULL, "Going to sleep");
-		sk_wait_event(sk, &timeo, 
-			!ssk->tx_ring.rdma_inflight->busy);
+		sk_wait_event(sk, &timeo, !ssk->tx_ring.rdma_inflight->busy);
 		sdp_prf1(sk, NULL, "Woke up");
 		sdp_dbg_data(ssk->socket, "woke up sleepers\n");
 
@@ -280,8 +291,8 @@ static void sdp_wait_rdma_wr_finished(struct sdp_sock *ssk)
 	sdp_dbg_data(sk, "Finished waiting\n");
 }
 
-int sdp_post_rdma_rd_compl(struct sdp_sock *ssk,
-		struct rx_srcavail_state *rx_sa)
+int
+sdp_post_rdma_rd_compl(struct sdp_sock *ssk, struct rx_srcavail_state *rx_sa)
 {
 	struct mbuf *mb;
 	int copied = rx_sa->used - rx_sa->reported;
@@ -299,7 +310,8 @@ int sdp_post_rdma_rd_compl(struct sdp_sock *ssk,
 	return 0;
 }
 
-int sdp_post_sendsm(struct socket *sk)
+int
+sdp_post_sendsm(struct socket *sk)
 {
 	struct mbuf *mb = sdp_alloc_mb_sendsm(sk, 0);
 
@@ -308,7 +320,8 @@ int sdp_post_sendsm(struct socket *sk)
 	return 0;
 }
 
-static int sdp_update_iov_used(struct socket *sk, struct iovec *iov, int len)
+static int
+sdp_update_iov_used(struct socket *sk, struct iovec *iov, int len)
 {
 	sdp_dbg_data(sk, "updating consumed 0x%x bytes from iov\n", len);
 	while (len > 0) {
@@ -324,7 +337,8 @@ static int sdp_update_iov_used(struct socket *sk, struct iovec *iov, int len)
 	return 0;
 }
 
-static inline int sge_bytes(struct ib_sge *sge, int sge_cnt)
+static inline int
+sge_bytes(struct ib_sge *sge, int sge_cnt)
 {
 	int bytes = 0;
 
@@ -336,7 +350,8 @@ static inline int sge_bytes(struct ib_sge *sge, int sge_cnt)
 
 	return bytes;
 }
-void sdp_handle_sendsm(struct sdp_sock *ssk, u32 mseq_ack)
+void
+sdp_handle_sendsm(struct sdp_sock *ssk, u32 mseq_ack)
 {
 	struct socket *sk = ssk->socket;
 	unsigned long flags;
@@ -349,9 +364,10 @@ void sdp_handle_sendsm(struct sdp_sock *ssk, u32 mseq_ack)
 	}
 
 	if (ssk->tx_sa->mseq > mseq_ack) {
-		sdp_dbg_data(sk, "SendSM arrived for old SrcAvail. "
-			"SendSM mseq_ack: 0x%x, SrcAvail mseq: 0x%x\n",
-			mseq_ack, ssk->tx_sa->mseq);
+		sdp_dbg_data(sk,
+		    "SendSM arrived for old SrcAvail. "
+		    "SendSM mseq_ack: 0x%x, SrcAvail mseq: 0x%x\n",
+		    mseq_ack, ssk->tx_sa->mseq);
 		goto out;
 	}
 
@@ -367,8 +383,9 @@ out:
 	spin_unlock_irqrestore(&ssk->tx_sa_lock, flags);
 }
 
-void sdp_handle_rdma_read_compl(struct sdp_sock *ssk, u32 mseq_ack,
-		u32 bytes_completed)
+void
+sdp_handle_rdma_read_compl(
+    struct sdp_sock *ssk, u32 mseq_ack, u32 bytes_completed)
 {
 	struct socket *sk = ssk->socket;
 	unsigned long flags;
@@ -386,9 +403,10 @@ void sdp_handle_rdma_read_compl(struct sdp_sock *ssk, u32 mseq_ack,
 	}
 
 	if (ssk->tx_sa->mseq > mseq_ack) {
-		sdp_dbg_data(sk, "RdmaRdCompl arrived for old SrcAvail. "
-			"SendSM mseq_ack: 0x%x, SrcAvail mseq: 0x%x\n",
-			mseq_ack, ssk->tx_sa->mseq);
+		sdp_dbg_data(sk,
+		    "RdmaRdCompl arrived for old SrcAvail. "
+		    "SendSM mseq_ack: 0x%x, SrcAvail mseq: 0x%x\n",
+		    mseq_ack, ssk->tx_sa->mseq);
 		goto out;
 	}
 
@@ -402,7 +420,8 @@ out:
 	return;
 }
 
-static unsigned long sdp_get_max_memlockable_bytes(unsigned long offset)
+static unsigned long
+sdp_get_max_memlockable_bytes(unsigned long offset)
 {
 	unsigned long avail;
 	unsigned long lock_limit;
@@ -416,8 +435,9 @@ static unsigned long sdp_get_max_memlockable_bytes(unsigned long offset)
 	return avail - offset;
 }
 
-static int sdp_alloc_fmr(struct socket *sk, void *uaddr, size_t len,
-	struct ib_pool_fmr **_fmr, struct ib_umem **_umem)
+static int
+sdp_alloc_fmr(struct socket *sk, void *uaddr, size_t len,
+    struct ib_pool_fmr **_fmr, struct ib_umem **_umem)
 {
 	struct ib_pool_fmr *fmr;
 	struct ib_umem *umem;
@@ -429,54 +449,57 @@ static int sdp_alloc_fmr(struct socket *sk, void *uaddr, size_t len,
 	unsigned long max_lockable_bytes;
 
 	if (unlikely(len > SDP_MAX_RDMA_READ_LEN)) {
-		sdp_dbg_data(sk, "len:0x%lx > FMR_SIZE: 0x%lx\n",
-			len, SDP_MAX_RDMA_READ_LEN);
+		sdp_dbg_data(sk, "len:0x%lx > FMR_SIZE: 0x%lx\n", len,
+		    SDP_MAX_RDMA_READ_LEN);
 		len = SDP_MAX_RDMA_READ_LEN;
 	}
 
-	max_lockable_bytes = sdp_get_max_memlockable_bytes((unsigned long)uaddr & ~PAGE_MASK);
+	max_lockable_bytes = sdp_get_max_memlockable_bytes(
+	    (unsigned long)uaddr & ~PAGE_MASK);
 	if (unlikely(len > max_lockable_bytes)) {
-		sdp_dbg_data(sk, "len:0x%lx > RLIMIT_MEMLOCK available: 0x%lx\n",
-			len, max_lockable_bytes);
+		sdp_dbg_data(sk,
+		    "len:0x%lx > RLIMIT_MEMLOCK available: 0x%lx\n", len,
+		    max_lockable_bytes);
 		len = max_lockable_bytes;
 	}
 
 	sdp_dbg_data(sk, "user buf: %p, len:0x%lx max_lockable_bytes: 0x%lx\n",
-			uaddr, len, max_lockable_bytes);
+	    uaddr, len, max_lockable_bytes);
 
 	umem = ib_umem_get(&sdp_sk(sk)->context, (unsigned long)uaddr, len,
-		IB_ACCESS_REMOTE_WRITE, 0);
+	    IB_ACCESS_REMOTE_WRITE, 0);
 
 	if (IS_ERR(umem)) {
 		rc = PTR_ERR(umem);
 		sdp_warn(sk, "Error doing umem_get 0x%lx bytes: %d\n", len, rc);
-		sdp_warn(sk, "RLIMIT_MEMLOCK: 0x%lx[cur] 0x%lx[max] CAP_IPC_LOCK: %d\n",
-				current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur,
-				current->signal->rlim[RLIMIT_MEMLOCK].rlim_max,
-				capable(CAP_IPC_LOCK));
+		sdp_warn(sk,
+		    "RLIMIT_MEMLOCK: 0x%lx[cur] 0x%lx[max] CAP_IPC_LOCK: %d\n",
+		    current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur,
+		    current->signal->rlim[RLIMIT_MEMLOCK].rlim_max,
+		    capable(CAP_IPC_LOCK));
 		goto err_umem_get;
 	}
 
-	sdp_dbg_data(sk, "umem->offset = 0x%x, length = 0x%lx\n",
-		umem->offset, umem->length);
+	sdp_dbg_data(sk, "umem->offset = 0x%x, length = 0x%lx\n", umem->offset,
+	    umem->length);
 
-	pages = (u64 *) __get_free_page(GFP_KERNEL);
+	pages = (u64 *)__get_free_page(GFP_KERNEL);
 	if (!pages)
 		goto err_pages_alloc;
 
 	n = 0;
 
 	dev = sdp_sk(sk)->ib_device;
-	list_for_each_entry(chunk, &umem->chunk_list, list) {
+	list_for_each_entry(chunk, &umem->chunk_list, list)
+	{
 		for (j = 0; j < chunk->nmap; ++j) {
-			len = ib_sg_dma_len(dev,
-					&chunk->page_list[j]) >> PAGE_SHIFT;
+			len = ib_sg_dma_len(dev, &chunk->page_list[j]) >>
+			    PAGE_SHIFT;
 
 			for (k = 0; k < len; ++k) {
-				pages[n++] = ib_sg_dma_address(dev,
-						&chunk->page_list[j]) +
-					umem->page_size * k;
-
+				pages[n++] = ib_sg_dma_address(
+						 dev, &chunk->page_list[j]) +
+				    umem->page_size * k;
 			}
 		}
 	}
@@ -487,15 +510,15 @@ static int sdp_alloc_fmr(struct socket *sk, void *uaddr, size_t len,
 		goto err_fmr_alloc;
 	}
 
-	free_page((unsigned long) pages);
+	free_page((unsigned long)pages);
 
 	*_umem = umem;
 	*_fmr = fmr;
 
 	return 0;
 
-err_fmr_alloc:	
-	free_page((unsigned long) pages);
+err_fmr_alloc:
+	free_page((unsigned long)pages);
 
 err_pages_alloc:
 	ib_umem_release(umem);
@@ -505,7 +528,9 @@ err_umem_get:
 	return rc;
 }
 
-void sdp_free_fmr(struct socket *sk, struct ib_pool_fmr **_fmr, struct ib_umem **_umem)
+void
+sdp_free_fmr(
+    struct socket *sk, struct ib_pool_fmr **_fmr, struct ib_umem **_umem)
 {
 	if (!sdp_sk(sk)->qp_active)
 		return;
@@ -517,7 +542,8 @@ void sdp_free_fmr(struct socket *sk, struct ib_pool_fmr **_fmr, struct ib_umem *
 	*_umem = NULL;
 }
 
-static int sdp_post_rdma_read(struct socket *sk, struct rx_srcavail_state *rx_sa)
+static int
+sdp_post_rdma_read(struct socket *sk, struct rx_srcavail_state *rx_sa)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	struct ib_send_wr *bad_wr;
@@ -546,8 +572,9 @@ static int sdp_post_rdma_read(struct socket *sk, struct rx_srcavail_state *rx_sa
 	return ib_post_send(ssk->qp, &wr, &bad_wr);
 }
 
-int sdp_rdma_to_iovec(struct socket *sk, struct iovec *iov, struct mbuf *mb,
-		unsigned long *used)
+int
+sdp_rdma_to_iovec(
+    struct socket *sk, struct iovec *iov, struct mbuf *mb, unsigned long *used)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	struct rx_srcavail_state *rx_sa = RX_SRCAVAIL_STATE(mb);
@@ -556,8 +583,10 @@ int sdp_rdma_to_iovec(struct socket *sk, struct iovec *iov, struct mbuf *mb,
 	int len = *used;
 	int copied;
 
-	sdp_dbg_data(ssk->socket, "preparing RDMA read."
-		" len: 0x%x. buffer len: 0x%lx\n", len, iov->iov_len);
+	sdp_dbg_data(ssk->socket,
+	    "preparing RDMA read."
+	    " len: 0x%x. buffer len: 0x%lx\n",
+	    len, iov->iov_len);
 
 	sock_hold(sk, SOCK_REF_RDMA_RD);
 
@@ -619,7 +648,8 @@ err_alloc_fmr:
 	return rc;
 }
 
-static inline int wait_for_sndbuf(struct socket *sk, long *timeo_p)
+static inline int
+wait_for_sndbuf(struct socket *sk, long *timeo_p)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	int ret = 0;
@@ -640,15 +670,16 @@ static inline int wait_for_sndbuf(struct socket *sk, long *timeo_p)
 	return ret;
 }
 
-static int do_sdp_sendmsg_zcopy(struct socket *sk, struct tx_srcavail_state *tx_sa,
-		struct iovec *iov, long *timeo)
+static int
+do_sdp_sendmsg_zcopy(struct socket *sk, struct tx_srcavail_state *tx_sa,
+    struct iovec *iov, long *timeo)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	int rc = 0;
 	unsigned long lock_flags;
 
-	rc = sdp_alloc_fmr(sk, iov->iov_base, iov->iov_len,
-			&tx_sa->fmr, &tx_sa->umem);
+	rc = sdp_alloc_fmr(
+	    sk, iov->iov_base, iov->iov_len, &tx_sa->fmr, &tx_sa->umem);
 	if (rc) {
 		sdp_warn(sk, "Error allocating fmr: %d\n", rc);
 		goto err_alloc_fmr;
@@ -707,10 +738,11 @@ err_no_tx_slots:
 	sdp_free_fmr(sk, &tx_sa->fmr, &tx_sa->umem);
 
 err_alloc_fmr:
-	return rc;	
+	return rc;
 }
 
-int sdp_sendmsg_zcopy(struct kiocb *iocb, struct socket *sk, struct iovec *iov)
+int
+sdp_sendmsg_zcopy(struct kiocb *iocb, struct socket *sk, struct iovec *iov)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	int rc = 0;
@@ -720,8 +752,8 @@ int sdp_sendmsg_zcopy(struct kiocb *iocb, struct socket *sk, struct iovec *iov)
 	size_t bytes_to_copy = 0;
 	int copied = 0;
 
-	sdp_dbg_data(sk, "Sending iov: %p, iov_len: 0x%lx\n",
-			iov->iov_base, iov->iov_len);
+	sdp_dbg_data(sk, "Sending iov: %p, iov_len: 0x%lx\n", iov->iov_base,
+	    iov->iov_len);
 	sdp_prf1(sk, NULL, "sdp_sendmsg_zcopy start");
 	if (ssk->rx_sa) {
 		sdp_dbg_data(sk, "Deadlock prevent: crossing SrcAvail\n");
@@ -732,7 +764,7 @@ int sdp_sendmsg_zcopy(struct kiocb *iocb, struct socket *sk, struct iovec *iov)
 
 	SDPSTATS_COUNTER_INC(sendmsg_zcopy_segment);
 
-	timeo = SDP_SRCAVAIL_ADV_TIMEOUT ;
+	timeo = SDP_SRCAVAIL_ADV_TIMEOUT;
 
 	/* Ok commence sending. */
 	offset = (unsigned long)iov->iov_base & (PAGE_SIZE - 1);
@@ -751,8 +783,9 @@ int sdp_sendmsg_zcopy(struct kiocb *iocb, struct socket *sk, struct iovec *iov)
 		rc = do_sdp_sendmsg_zcopy(sk, tx_sa, iov, &timeo);
 
 		if (iov->iov_len && iov->iov_len < sdp_zcopy_thresh) {
-			sdp_dbg_data(sk, "0x%lx bytes left, switching to bcopy\n",
-				iov->iov_len);
+			sdp_dbg_data(sk,
+			    "0x%lx bytes left, switching to bcopy\n",
+			    iov->iov_len);
 			break;
 		}
 	} while (!rc && iov->iov_len > 0 && !tx_sa->abort_flags);
@@ -761,7 +794,8 @@ int sdp_sendmsg_zcopy(struct kiocb *iocb, struct socket *sk, struct iovec *iov)
 err_alloc_tx_sa:
 	copied = bytes_to_copy - iov->iov_len;
 
-	sdp_prf1(sk, NULL, "sdp_sendmsg_zcopy end rc: %d copied: %d", rc, copied);
+	sdp_prf1(
+	    sk, NULL, "sdp_sendmsg_zcopy end rc: %d copied: %d", rc, copied);
 
 	sock_put(ssk->socket, SOCK_REF_ZCOPY);
 
@@ -771,7 +805,8 @@ err_alloc_tx_sa:
 	return copied;
 }
 
-void sdp_abort_srcavail(struct socket *sk)
+void
+sdp_abort_srcavail(struct socket *sk)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	struct tx_srcavail_state *tx_sa = ssk->tx_sa;
@@ -792,7 +827,8 @@ void sdp_abort_srcavail(struct socket *sk)
 	spin_unlock_irqrestore(&ssk->tx_sa_lock, flags);
 }
 
-void sdp_abort_rdma_read(struct socket *sk)
+void
+sdp_abort_rdma_read(struct socket *sk)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	struct rx_srcavail_state *rx_sa = ssk->rx_sa;

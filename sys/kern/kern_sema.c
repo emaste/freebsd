@@ -8,7 +8,7 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice(s), this list of conditions and the following disclaimer as
- *    the first lines of this file unmodified other than the possible 
+ *    the first lines of this file unmodified other than the possible
  *    addition of one or more copyright notices.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice(s), this list of conditions and the following disclaimer in the
@@ -40,8 +40,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/ktr.h>
 #include <sys/condvar.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sema.h>
@@ -58,7 +58,8 @@ sema_init(struct sema *sema, int value, const char *description)
 	cv_init(&sema->sema_cv, description);
 	sema->sema_value = value;
 
-	CTR4(KTR_LOCK, "%s(%p, %d, \"%s\")", __func__, sema, value, description);
+	CTR4(
+	    KTR_LOCK, "%s(%p, %d, \"%s\")", __func__, sema, value, description);
 }
 
 void

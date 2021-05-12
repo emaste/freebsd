@@ -68,27 +68,26 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/types.h>
-#include <sys/malloc.h>
-#include <sys/fcntl.h>
-#include <sys/conf.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/chio.h>
-#include <sys/errno.h>
+#include <sys/conf.h>
 #include <sys/devicestat.h>
+#include <sys/errno.h>
+#include <sys/fcntl.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/queue.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
+#include <cam/cam_debug.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
-#include <cam/cam_debug.h>
-
 #include <cam/scsi/scsi_all.h>
-#include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_ch.h>
+#include <cam/scsi/scsi_message.h>
 
 /*
  * Timeout definitions for various changer related commands.  They may
@@ -96,40 +95,33 @@ __FBSDID("$FreeBSD$");
  * ELEMENT STATUS).
  */
 
-static const u_int32_t	CH_TIMEOUT_MODE_SENSE                = 6000;
-static const u_int32_t	CH_TIMEOUT_MOVE_MEDIUM               = 15 * 60 * 1000;
-static const u_int32_t	CH_TIMEOUT_EXCHANGE_MEDIUM           = 15 * 60 * 1000;
-static const u_int32_t	CH_TIMEOUT_POSITION_TO_ELEMENT       = 15 * 60 * 1000;
-static const u_int32_t	CH_TIMEOUT_READ_ELEMENT_STATUS       = 5 * 60 * 1000;
-static const u_int32_t	CH_TIMEOUT_SEND_VOLTAG		     = 10000;
-static const u_int32_t	CH_TIMEOUT_INITIALIZE_ELEMENT_STATUS = 500000;
+static const u_int32_t CH_TIMEOUT_MODE_SENSE = 6000;
+static const u_int32_t CH_TIMEOUT_MOVE_MEDIUM = 15 * 60 * 1000;
+static const u_int32_t CH_TIMEOUT_EXCHANGE_MEDIUM = 15 * 60 * 1000;
+static const u_int32_t CH_TIMEOUT_POSITION_TO_ELEMENT = 15 * 60 * 1000;
+static const u_int32_t CH_TIMEOUT_READ_ELEMENT_STATUS = 5 * 60 * 1000;
+static const u_int32_t CH_TIMEOUT_SEND_VOLTAG = 10000;
+static const u_int32_t CH_TIMEOUT_INITIALIZE_ELEMENT_STATUS = 500000;
+
+typedef enum { CH_FLAG_INVALID = 0x001 } ch_flags;
+
+typedef enum { CH_STATE_PROBE, CH_STATE_NORMAL } ch_state;
+
+typedef enum { CH_CCB_PROBE } ch_ccb_types;
 
 typedef enum {
-	CH_FLAG_INVALID		= 0x001
-} ch_flags;
-
-typedef enum {
-	CH_STATE_PROBE,
-	CH_STATE_NORMAL
-} ch_state;
-
-typedef enum {
-	CH_CCB_PROBE
-} ch_ccb_types;
-
-typedef enum {
-	CH_Q_NONE	= 0x00,
-	CH_Q_NO_DBD	= 0x01,
-	CH_Q_NO_DVCID	= 0x02
+	CH_Q_NONE = 0x00,
+	CH_Q_NO_DBD = 0x01,
+	CH_Q_NO_DVCID = 0x02
 } ch_quirks;
 
-#define CH_Q_BIT_STRING	\
-	"\020"		\
-	"\001NO_DBD"	\
+#define CH_Q_BIT_STRING \
+	"\020"          \
+	"\001NO_DBD"    \
 	"\002NO_DVCID"
 
-#define ccb_state	ppriv_field0
-#define ccb_bp		ppriv_ptr1
+#define ccb_state ppriv_field0
+#define ccb_bp ppriv_ptr1
 
 struct scsi_mode_sense_data {
 	struct scsi_mode_header_6 header;
@@ -142,85 +134,75 @@ struct scsi_mode_sense_data {
 };
 
 struct ch_softc {
-	ch_flags	flags;
-	ch_state	state;
-	ch_quirks	quirks;
-	union ccb	saved_ccb;
-	struct devstat	*device_stats;
-	struct cdev     *dev;
-	int		open_count;
+	ch_flags flags;
+	ch_state state;
+	ch_quirks quirks;
+	union ccb saved_ccb;
+	struct devstat *device_stats;
+	struct cdev *dev;
+	int open_count;
 
-	int		sc_picker;	/* current picker */
+	int sc_picker; /* current picker */
 
 	/*
 	 * The following information is obtained from the
 	 * element address assignment page.
 	 */
-	int		sc_firsts[CHET_MAX + 1];	/* firsts */
-	int		sc_counts[CHET_MAX + 1];	/* counts */
+	int sc_firsts[CHET_MAX + 1]; /* firsts */
+	int sc_counts[CHET_MAX + 1]; /* counts */
 
 	/*
 	 * The following mask defines the legal combinations
 	 * of elements for the MOVE MEDIUM command.
 	 */
-	u_int8_t	sc_movemask[CHET_MAX + 1];
+	u_int8_t sc_movemask[CHET_MAX + 1];
 
 	/*
 	 * As above, but for EXCHANGE MEDIUM.
 	 */
-	u_int8_t	sc_exchangemask[CHET_MAX + 1];
+	u_int8_t sc_exchangemask[CHET_MAX + 1];
 
 	/*
 	 * Quirks; see below.  XXX KDM not implemented yet
 	 */
-	int		sc_settledelay;	/* delay for settle */
+	int sc_settledelay; /* delay for settle */
 };
 
-static	d_open_t	chopen;
-static	d_close_t	chclose;
-static	d_ioctl_t	chioctl;
-static	periph_init_t	chinit;
-static  periph_ctor_t	chregister;
-static	periph_oninv_t	choninvalidate;
-static  periph_dtor_t   chcleanup;
-static  periph_start_t  chstart;
-static	void		chasync(void *callback_arg, u_int32_t code,
-				struct cam_path *path, void *arg);
-static	void		chdone(struct cam_periph *periph,
-			       union ccb *done_ccb);
-static	int		cherror(union ccb *ccb, u_int32_t cam_flags,
-				u_int32_t sense_flags);
-static	int		chmove(struct cam_periph *periph,
-			       struct changer_move *cm);
-static	int		chexchange(struct cam_periph *periph,
-				   struct changer_exchange *ce);
-static	int		chposition(struct cam_periph *periph,
-				   struct changer_position *cp);
-static	int		chgetelemstatus(struct cam_periph *periph,
-				int scsi_version, u_long cmd,
-				struct changer_element_status_request *csr);
-static	int		chsetvoltag(struct cam_periph *periph,
-				    struct changer_set_voltag_request *csvr);
-static	int		chielem(struct cam_periph *periph, 
-				unsigned int timeout);
-static	int		chgetparams(struct cam_periph *periph);
-static	int		chscsiversion(struct cam_periph *periph);
+static d_open_t chopen;
+static d_close_t chclose;
+static d_ioctl_t chioctl;
+static periph_init_t chinit;
+static periph_ctor_t chregister;
+static periph_oninv_t choninvalidate;
+static periph_dtor_t chcleanup;
+static periph_start_t chstart;
+static void chasync(
+    void *callback_arg, u_int32_t code, struct cam_path *path, void *arg);
+static void chdone(struct cam_periph *periph, union ccb *done_ccb);
+static int cherror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags);
+static int chmove(struct cam_periph *periph, struct changer_move *cm);
+static int chexchange(struct cam_periph *periph, struct changer_exchange *ce);
+static int chposition(struct cam_periph *periph, struct changer_position *cp);
+static int chgetelemstatus(struct cam_periph *periph, int scsi_version,
+    u_long cmd, struct changer_element_status_request *csr);
+static int chsetvoltag(
+    struct cam_periph *periph, struct changer_set_voltag_request *csvr);
+static int chielem(struct cam_periph *periph, unsigned int timeout);
+static int chgetparams(struct cam_periph *periph);
+static int chscsiversion(struct cam_periph *periph);
 
-static struct periph_driver chdriver =
-{
-	chinit, "ch",
-	TAILQ_HEAD_INITIALIZER(chdriver.units), /* generation */ 0
-};
+static struct periph_driver chdriver = { chinit, "ch",
+	TAILQ_HEAD_INITIALIZER(chdriver.units), /* generation */ 0 };
 
 PERIPHDRIVER_DECLARE(ch, chdriver);
 
 static struct cdevsw ch_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_TRACKCLOSE,
-	.d_open =	chopen,
-	.d_close =	chclose,
-	.d_ioctl =	chioctl,
-	.d_name =	"ch",
+	.d_version = D_VERSION,
+	.d_flags = D_TRACKCLOSE,
+	.d_open = chopen,
+	.d_close = chclose,
+	.d_ioctl = chioctl,
+	.d_name = "ch",
 };
 
 static MALLOC_DEFINE(M_SCSICH, "scsi_ch", "scsi_ch buffers");
@@ -238,14 +220,15 @@ chinit(void)
 
 	if (status != CAM_REQ_CMP) {
 		printf("ch: Failed to attach master async callback "
-		       "due to status 0x%x!\n", status);
+		       "due to status 0x%x!\n",
+		    status);
 	}
 }
 
 static void
 chdevgonecb(void *arg)
 {
-	struct ch_softc   *softc;
+	struct ch_softc *softc;
 	struct cam_periph *periph;
 	struct mtx *mtx;
 	int i;
@@ -255,8 +238,8 @@ chdevgonecb(void *arg)
 	mtx_lock(mtx);
 
 	softc = (struct ch_softc *)periph->softc;
-	KASSERT(softc->open_count >= 0, ("Negative open count %d",
-		softc->open_count));
+	KASSERT(softc->open_count >= 0,
+	    ("Negative open count %d", softc->open_count));
 
 	/*
 	 * When we get this callback, we will get no more close calls from
@@ -323,9 +306,8 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 
 	periph = (struct cam_periph *)callback_arg;
 
-	switch(code) {
-	case AC_FOUND_DEVICE:
-	{
+	switch (code) {
+	case AC_FOUND_DEVICE: {
 		struct ccb_getdev *cgd;
 		cam_status status;
 
@@ -337,7 +319,7 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 			break;
 		if (SID_QUAL(&cgd->inq_data) != SID_QUAL_LU_CONNECTED)
 			break;
-		if (SID_TYPE(&cgd->inq_data)!= T_CHANGER)
+		if (SID_TYPE(&cgd->inq_data) != T_CHANGER)
 			break;
 
 		/*
@@ -345,15 +327,14 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 * this device and start the probe
 		 * process.
 		 */
-		status = cam_periph_alloc(chregister, choninvalidate,
-					  chcleanup, chstart, "ch",
-					  CAM_PERIPH_BIO, path,
-					  chasync, AC_FOUND_DEVICE, cgd);
+		status = cam_periph_alloc(chregister, choninvalidate, chcleanup,
+		    chstart, "ch", CAM_PERIPH_BIO, path, chasync,
+		    AC_FOUND_DEVICE, cgd);
 
-		if (status != CAM_REQ_CMP
-		 && status != CAM_REQ_INPROG)
+		if (status != CAM_REQ_CMP && status != CAM_REQ_INPROG)
 			printf("chasync: Unable to probe new device "
-			       "due to status 0x%x\n", status);
+			       "due to status 0x%x\n",
+			    status);
 
 		break;
 	}
@@ -375,15 +356,15 @@ chregister(struct cam_periph *periph, void *arg)
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
 		printf("chregister: no getdev CCB, can't register device\n");
-		return(CAM_REQ_CMP_ERR);
+		return (CAM_REQ_CMP_ERR);
 	}
 
-	softc = (struct ch_softc *)malloc(sizeof(*softc),M_DEVBUF,M_NOWAIT);
+	softc = (struct ch_softc *)malloc(sizeof(*softc), M_DEVBUF, M_NOWAIT);
 
 	if (softc == NULL) {
 		printf("chregister: Unable to probe new device. "
-		       "Unable to allocate softc\n");				
-		return(CAM_REQ_CMP_ERR);
+		       "Unable to allocate softc\n");
+		return (CAM_REQ_CMP_ERR);
 	}
 
 	bzero(softc, sizeof(*softc));
@@ -406,12 +387,10 @@ chregister(struct cam_periph *periph, void *arg)
 	 * tagged queueing.
 	 */
 	cam_periph_unlock(periph);
-	softc->device_stats = devstat_new_entry("ch",
-			  periph->unit_number, 0,
-			  DEVSTAT_NO_BLOCKSIZE | DEVSTAT_NO_ORDERED_TAGS,
-			  SID_TYPE(&cgd->inq_data) |
-			  XPORT_DEVSTAT_TYPE(cpi.transport),
-			  DEVSTAT_PRIORITY_OTHER);
+	softc->device_stats = devstat_new_entry("ch", periph->unit_number, 0,
+	    DEVSTAT_NO_BLOCKSIZE | DEVSTAT_NO_ORDERED_TAGS,
+	    SID_TYPE(&cgd->inq_data) | XPORT_DEVSTAT_TYPE(cpi.transport),
+	    DEVSTAT_PRIORITY_OTHER);
 
 	/*
 	 * Acquire a reference to the periph before we create the devfs
@@ -419,8 +398,10 @@ chregister(struct cam_periph *periph, void *arg)
 	 * instance has been freed.
 	 */
 	if (cam_periph_acquire(periph) != 0) {
-		xpt_print(periph->path, "%s: lost periph during "
-			  "registration!\n", __func__);
+		xpt_print(periph->path,
+		    "%s: lost periph during "
+		    "registration!\n",
+		    __func__);
 		cam_periph_lock(periph);
 		return (CAM_REQ_CMP_ERR);
 	}
@@ -454,7 +435,7 @@ chregister(struct cam_periph *periph, void *arg)
 	(void)cam_periph_hold(periph, PRIBIO);
 	xpt_schedule(periph, CAM_PRIORITY_DEV);
 
-	return(CAM_REQ_CMP);
+	return (CAM_REQ_CMP);
 }
 
 static int
@@ -475,7 +456,7 @@ chopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	if (softc->flags & CH_FLAG_INVALID) {
 		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	if ((error = cam_periph_hold(periph, PRIBIO | PCATCH)) != 0) {
@@ -491,7 +472,7 @@ chopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		cam_periph_unhold(periph);
 		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		return(error);
+		return (error);
 	}
 
 	cam_periph_unhold(periph);
@@ -500,14 +481,14 @@ chopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	cam_periph_unlock(periph);
 
-	return(error);
+	return (error);
 }
 
 static int
 chclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	struct	cam_periph *periph;
-	struct  ch_softc *softc;
+	struct cam_periph *periph;
+	struct ch_softc *softc;
 	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
@@ -533,7 +514,7 @@ chclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	 */
 	mtx_unlock(mtx);
 
-	return(0);
+	return (0);
 }
 
 static void
@@ -544,13 +525,11 @@ chstart(struct cam_periph *periph, union ccb *start_ccb)
 	softc = (struct ch_softc *)periph->softc;
 
 	switch (softc->state) {
-	case CH_STATE_NORMAL:
-	{
+	case CH_STATE_NORMAL: {
 		xpt_release_ccb(start_ccb);
 		break;
 	}
-	case CH_STATE_PROBE:
-	{
+	case CH_STATE_PROBE: {
 		int mode_buffer_len;
 		void *mode_buffer;
 
@@ -559,8 +538,8 @@ chstart(struct cam_periph *periph, union ccb *start_ccb)
 		 * buffer length,
 		 */
 		mode_buffer_len = sizeof(struct scsi_mode_header_6) +
-				  sizeof(struct scsi_mode_blk_desc) +
-				 sizeof(struct page_element_address_assignment);
+		    sizeof(struct scsi_mode_blk_desc) +
+		    sizeof(struct page_element_address_assignment);
 
 		mode_buffer = malloc(mode_buffer_len, M_SCSICH, M_NOWAIT);
 
@@ -574,17 +553,16 @@ chstart(struct cam_periph *periph, union ccb *start_ccb)
 		 * Get the element address assignment page.
 		 */
 		scsi_mode_sense(&start_ccb->csio,
-				/* retries */ 1,
-				/* cbfcnp */ chdone,
-				/* tag_action */ MSG_SIMPLE_Q_TAG,
-				/* dbd */ (softc->quirks & CH_Q_NO_DBD) ?
-					FALSE : TRUE,
-				/* pc */ SMS_PAGE_CTRL_CURRENT,
-				/* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
-				/* param_buf */ (u_int8_t *)mode_buffer,
-				/* param_len */ mode_buffer_len,
-				/* sense_len */ SSD_FULL_SIZE,
-				/* timeout */ CH_TIMEOUT_MODE_SENSE);
+		    /* retries */ 1,
+		    /* cbfcnp */ chdone,
+		    /* tag_action */ MSG_SIMPLE_Q_TAG,
+		    /* dbd */ (softc->quirks & CH_Q_NO_DBD) ? FALSE : TRUE,
+		    /* pc */ SMS_PAGE_CTRL_CURRENT,
+		    /* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
+		    /* param_buf */ (u_int8_t *)mode_buffer,
+		    /* param_len */ mode_buffer_len,
+		    /* sense_len */ SSD_FULL_SIZE,
+		    /* timeout */ CH_TIMEOUT_MODE_SENSE);
 
 		start_ccb->ccb_h.ccb_bp = NULL;
 		start_ccb->ccb_h.ccb_state = CH_CCB_PROBE;
@@ -603,20 +581,19 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 	softc = (struct ch_softc *)periph->softc;
 	csio = &done_ccb->csio;
 
-	switch(done_ccb->ccb_h.ccb_state) {
-	case CH_CCB_PROBE:
-	{
+	switch (done_ccb->ccb_h.ccb_state) {
+	case CH_CCB_PROBE: {
 		struct scsi_mode_header_6 *mode_header;
 		struct page_element_address_assignment *ea;
 		char announce_buf[80];
 
 		mode_header = (struct scsi_mode_header_6 *)csio->data_ptr;
 
-		ea = (struct page_element_address_assignment *)
-			find_mode_page_6(mode_header);
+		ea = (struct page_element_address_assignment *)find_mode_page_6(
+		    mode_header);
 
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP){
-			
+		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+
 			softc->sc_firsts[CHET_MT] = scsi_2btoul(ea->mtea);
 			softc->sc_counts[CHET_MT] = scsi_2btoul(ea->nmte);
 			softc->sc_firsts[CHET_ST] = scsi_2btoul(ea->fsea);
@@ -627,29 +604,29 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 			softc->sc_counts[CHET_DT] = scsi_2btoul(ea->ndte);
 			softc->sc_picker = softc->sc_firsts[CHET_MT];
 
-#define PLURAL(c)	(c) == 1 ? "" : "s"
+#define PLURAL(c) (c) == 1 ? "" : "s"
 			snprintf(announce_buf, sizeof(announce_buf),
-				"%d slot%s, %d drive%s, "
-				"%d picker%s, %d portal%s",
-		    		softc->sc_counts[CHET_ST],
-				PLURAL(softc->sc_counts[CHET_ST]),
-		    		softc->sc_counts[CHET_DT],
-				PLURAL(softc->sc_counts[CHET_DT]),
-		    		softc->sc_counts[CHET_MT],
-				PLURAL(softc->sc_counts[CHET_MT]),
-		    		softc->sc_counts[CHET_IE],
-				PLURAL(softc->sc_counts[CHET_IE]));
+			    "%d slot%s, %d drive%s, "
+			    "%d picker%s, %d portal%s",
+			    softc->sc_counts[CHET_ST],
+			    PLURAL(softc->sc_counts[CHET_ST]),
+			    softc->sc_counts[CHET_DT],
+			    PLURAL(softc->sc_counts[CHET_DT]),
+			    softc->sc_counts[CHET_MT],
+			    PLURAL(softc->sc_counts[CHET_MT]),
+			    softc->sc_counts[CHET_IE],
+			    PLURAL(softc->sc_counts[CHET_IE]));
 #undef PLURAL
 			if (announce_buf[0] != '\0') {
 				xpt_announce_periph(periph, announce_buf);
-				xpt_announce_quirks(periph, softc->quirks,
-				    CH_Q_BIT_STRING);
+				xpt_announce_quirks(
+				    periph, softc->quirks, CH_Q_BIT_STRING);
 			}
 		} else {
 			int error;
 
 			error = cherror(done_ccb, CAM_RETRY_SELTO,
-					SF_RETRY_UA | SF_NO_PRINT);
+			    SF_RETRY_UA | SF_NO_PRINT);
 			/*
 			 * Retry any UNIT ATTENTION type errors.  They
 			 * are expected at boot.
@@ -665,9 +642,9 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 				int frozen, retry_scheduled;
 
 				sms = (struct scsi_mode_sense_6 *)
-					done_ccb->csio.cdb_io.cdb_bytes;
+					  done_ccb->csio.cdb_io.cdb_bytes;
 				frozen = (done_ccb->ccb_h.status &
-				    CAM_DEV_QFRZN) != 0;
+					     CAM_DEV_QFRZN) != 0;
 
 				/*
 				 * Check to see if block descriptors were
@@ -690,23 +667,25 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 				/* Don't wedge this device's queue */
 				if (frozen)
 					cam_release_devq(done_ccb->ccb_h.path,
-						 /*relsim_flags*/0,
-						 /*reduction*/0,
-						 /*timeout*/0,
-						 /*getcount_only*/0);
+					    /*relsim_flags*/ 0,
+					    /*reduction*/ 0,
+					    /*timeout*/ 0,
+					    /*getcount_only*/ 0);
 
 				if (retry_scheduled)
 					return;
 
-				if ((done_ccb->ccb_h.status & CAM_STATUS_MASK)
-				    == CAM_SCSI_STATUS_ERROR) 
+				if ((done_ccb->ccb_h.status &
+					CAM_STATUS_MASK) ==
+				    CAM_SCSI_STATUS_ERROR)
 					scsi_sense_print(&done_ccb->csio);
 				else {
 					xpt_print(periph->path,
 					    "got CAM status %#x\n",
 					    done_ccb->ccb_h.status);
 				}
-				xpt_print(periph->path, "fatal error, failed "
+				xpt_print(periph->path,
+				    "fatal error, failed "
 				    "to attach to device\n");
 
 				cam_periph_invalidate(periph);
@@ -759,8 +738,8 @@ chioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 
 	error = 0;
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, 
-		  ("trying to do ioctl %#lx\n", cmd));
+	CAM_DEBUG(
+	    periph->path, CAM_DEBUG_TRACE, ("trying to do ioctl %#lx\n", cmd));
 
 	/*
 	 * If this command can change the device's state, we must
@@ -797,8 +776,7 @@ chioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 		*(int *)addr = softc->sc_picker - softc->sc_firsts[CHET_MT];
 		break;
 
-	case CHIOSPICKER:
-	{
+	case CHIOSPICKER: {
 		int new_picker = *(int *)addr;
 
 		if (new_picker > (softc->sc_counts[CHET_MT] - 1)) {
@@ -808,8 +786,7 @@ chioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 		softc->sc_picker = softc->sc_firsts[CHET_MT] + new_picker;
 		break;
 	}
-	case CHIOGPARAMS:
-	{
+	case CHIOGPARAMS: {
 		struct changer_params *cp = (struct changer_params *)addr;
 
 		cp->cp_npickers = softc->sc_counts[CHET_MT];
@@ -822,37 +799,33 @@ chioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 		error = chielem(periph, *(unsigned int *)addr);
 		break;
 
-	case OCHIOGSTATUS:
-	{
+	case OCHIOGSTATUS: {
 		error = chgetelemstatus(periph, SCSI_REV_2, cmd,
 		    (struct changer_element_status_request *)addr);
 		break;
 	}
 
-	case CHIOGSTATUS:
-	{
+	case CHIOGSTATUS: {
 		int scsi_version;
 
 		scsi_version = chscsiversion(periph);
 		if (scsi_version >= SCSI_REV_0) {
 			error = chgetelemstatus(periph, scsi_version, cmd,
 			    (struct changer_element_status_request *)addr);
-	  	}
-		else { /* unable to determine the SCSI version */
+		} else { /* unable to determine the SCSI version */
 			cam_periph_unlock(periph);
 			return (ENXIO);
 		}
 		break;
 	}
 
-	case CHIOSETVOLTAG:
-	{
-		error = chsetvoltag(periph,
-				    (struct changer_set_voltag_request *) addr);
+	case CHIOSETVOLTAG: {
+		error = chsetvoltag(
+		    periph, (struct changer_set_voltag_request *)addr);
 		break;
 	}
 
-	/* Implement prevent/allow? */
+		/* Implement prevent/allow? */
 
 	default:
 		error = cam_periph_ioctl(periph, cmd, addr, cherror);
@@ -898,23 +871,22 @@ chmove(struct cam_periph *periph, struct changer_move *cm)
 	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_move_medium(&ccb->csio,
-			 /* retries */ 1,
-			 /* cbfcnp */ chdone,
-			 /* tag_action */ MSG_SIMPLE_Q_TAG,
-			 /* tea */ softc->sc_picker,
-			 /* src */ fromelem,
-			 /* dst */ toelem,
-			 /* invert */ (cm->cm_flags & CM_INVERT) ? TRUE : FALSE,
-			 /* sense_len */ SSD_FULL_SIZE,
-			 /* timeout */ CH_TIMEOUT_MOVE_MEDIUM);
+	    /* retries */ 1,
+	    /* cbfcnp */ chdone,
+	    /* tag_action */ MSG_SIMPLE_Q_TAG,
+	    /* tea */ softc->sc_picker,
+	    /* src */ fromelem,
+	    /* dst */ toelem,
+	    /* invert */ (cm->cm_flags & CM_INVERT) ? TRUE : FALSE,
+	    /* sense_len */ SSD_FULL_SIZE,
+	    /* timeout */ CH_TIMEOUT_MOVE_MEDIUM);
 
-	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/CAM_RETRY_SELTO,
-				  /*sense_flags*/ SF_RETRY_UA,
-				  softc->device_stats);
+	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ CAM_RETRY_SELTO,
+	    /*sense_flags*/ SF_RETRY_UA, softc->device_stats);
 
 	xpt_release_ccb(ccb);
 
-	return(error);
+	return (error);
 }
 
 static int
@@ -942,9 +914,9 @@ chexchange(struct cam_periph *periph, struct changer_exchange *ce)
 	 * Check the request against the changer's capabilities.
 	 */
 	if (((softc->sc_exchangemask[ce->ce_srctype] &
-	     (1 << ce->ce_fdsttype)) == 0) ||
+		 (1 << ce->ce_fdsttype)) == 0) ||
 	    ((softc->sc_exchangemask[ce->ce_fdsttype] &
-	     (1 << ce->ce_sdsttype)) == 0))
+		 (1 << ce->ce_sdsttype)) == 0))
 		return (ENODEV);
 
 	/*
@@ -957,27 +929,24 @@ chexchange(struct cam_periph *periph, struct changer_exchange *ce)
 	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_exchange_medium(&ccb->csio,
-			     /* retries */ 1,
-			     /* cbfcnp */ chdone,
-			     /* tag_action */ MSG_SIMPLE_Q_TAG,
-			     /* tea */ softc->sc_picker,
-			     /* src */ src,
-			     /* dst1 */ dst1,
-			     /* dst2 */ dst2,
-			     /* invert1 */ (ce->ce_flags & CE_INVERT1) ?
-			                   TRUE : FALSE,
-			     /* invert2 */ (ce->ce_flags & CE_INVERT2) ?
-			                   TRUE : FALSE,
-			     /* sense_len */ SSD_FULL_SIZE,
-			     /* timeout */ CH_TIMEOUT_EXCHANGE_MEDIUM);
+	    /* retries */ 1,
+	    /* cbfcnp */ chdone,
+	    /* tag_action */ MSG_SIMPLE_Q_TAG,
+	    /* tea */ softc->sc_picker,
+	    /* src */ src,
+	    /* dst1 */ dst1,
+	    /* dst2 */ dst2,
+	    /* invert1 */ (ce->ce_flags & CE_INVERT1) ? TRUE : FALSE,
+	    /* invert2 */ (ce->ce_flags & CE_INVERT2) ? TRUE : FALSE,
+	    /* sense_len */ SSD_FULL_SIZE,
+	    /* timeout */ CH_TIMEOUT_EXCHANGE_MEDIUM);
 
-	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/CAM_RETRY_SELTO,
-				  /*sense_flags*/ SF_RETRY_UA,
-				  softc->device_stats);
+	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ CAM_RETRY_SELTO,
+	    /*sense_flags*/ SF_RETRY_UA, softc->device_stats);
 
 	xpt_release_ccb(ccb);
 
-	return(error);
+	return (error);
 }
 
 static int
@@ -1007,23 +976,21 @@ chposition(struct cam_periph *periph, struct changer_position *cp)
 	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_position_to_element(&ccb->csio,
-				 /* retries */ 1,
-				 /* cbfcnp */ chdone,
-				 /* tag_action */ MSG_SIMPLE_Q_TAG,
-				 /* tea */ softc->sc_picker,
-				 /* dst */ dst,
-				 /* invert */ (cp->cp_flags & CP_INVERT) ?
-					      TRUE : FALSE,
-				 /* sense_len */ SSD_FULL_SIZE,
-				 /* timeout */ CH_TIMEOUT_POSITION_TO_ELEMENT);
+	    /* retries */ 1,
+	    /* cbfcnp */ chdone,
+	    /* tag_action */ MSG_SIMPLE_Q_TAG,
+	    /* tea */ softc->sc_picker,
+	    /* dst */ dst,
+	    /* invert */ (cp->cp_flags & CP_INVERT) ? TRUE : FALSE,
+	    /* sense_len */ SSD_FULL_SIZE,
+	    /* timeout */ CH_TIMEOUT_POSITION_TO_ELEMENT);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ CAM_RETRY_SELTO,
-				  /*sense_flags*/ SF_RETRY_UA,
-				  softc->device_stats);
+	    /*sense_flags*/ SF_RETRY_UA, softc->device_stats);
 
 	xpt_release_ccb(ccb);
 
-	return(error);
+	return (error);
 }
 
 /*
@@ -1033,15 +1000,15 @@ chposition(struct cam_periph *periph, struct changer_position *cp)
  * nul-terminated string.  Volume labels are truncated at the first
  * space, as suggested by SCSI-2.
  */
-static	void
+static void
 copy_voltag(struct changer_voltag *uvoltag, struct volume_tag *voltag)
 {
 	int i;
-	for (i=0; i<CH_VOLTAG_MAXLEN; i++) {
+	for (i = 0; i < CH_VOLTAG_MAXLEN; i++) {
 		char c = voltag->vif[i];
 		if (c && c != ' ')
 			uvoltag->cv_volid[i] = c;
-	        else
+		else
 			break;
 	}
 	uvoltag->cv_serial = scsi_2btoul(voltag->vsn);
@@ -1052,11 +1019,9 @@ copy_voltag(struct changer_voltag *uvoltag, struct volume_tag *voltag)
  * changer_element_status structure.
  */
 static void
-copy_element_status(struct ch_softc *softc,
-		    u_int16_t flags,
-		    struct read_element_status_descriptor *desc,
-		    struct changer_element_status *ces,
-		    int scsi_version)
+copy_element_status(struct ch_softc *softc, u_int16_t flags,
+    struct read_element_status_descriptor *desc,
+    struct changer_element_status *ces, int scsi_version)
 {
 	u_int16_t eaddr = scsi_2btoul(desc->eaddr);
 	u_int16_t et;
@@ -1066,9 +1031,8 @@ copy_element_status(struct ch_softc *softc,
 	ces->ces_int_addr = eaddr;
 	/* set up logical address in element status */
 	for (et = CHET_MT; et <= CHET_DT; et++) {
-		if ((softc->sc_firsts[et] <= eaddr)
-		    && ((softc->sc_firsts[et] + softc->sc_counts[et])
-			> eaddr)) {
+		if ((softc->sc_firsts[et] <= eaddr) &&
+		    ((softc->sc_firsts[et] + softc->sc_counts[et]) > eaddr)) {
 			ces->ces_addr = eaddr - softc->sc_firsts[et];
 			ces->ces_type = et;
 			break;
@@ -1088,11 +1052,11 @@ copy_element_status(struct ch_softc *softc,
 
 		/* convert source address to logical format */
 		for (et = CHET_MT; et <= CHET_DT; et++) {
-			if ((softc->sc_firsts[et] <= eaddr)
-			    && ((softc->sc_firsts[et] + softc->sc_counts[et])
-				> eaddr)) {
-				ces->ces_source_addr =
-					eaddr - softc->sc_firsts[et];
+			if ((softc->sc_firsts[et] <= eaddr) &&
+			    ((softc->sc_firsts[et] + softc->sc_counts[et]) >
+				eaddr)) {
+				ces->ces_source_addr = eaddr -
+				    softc->sc_firsts[et];
 				ces->ces_source_type = et;
 				ces->ces_flags |= CES_SOURCE_VALID;
 				break;
@@ -1102,7 +1066,7 @@ copy_element_status(struct ch_softc *softc,
 		if (!(ces->ces_flags & CES_SOURCE_VALID))
 			printf("ch: warning: could not map element source "
 			       "address %ud to a valid element type\n",
-			       eaddr);
+			    eaddr);
 	}
 
 	/*
@@ -1112,7 +1076,8 @@ copy_element_status(struct ch_softc *softc,
 		pvol_tag = &desc->voltag_devid.pvoltag;
 	if (flags & READ_ELEMENT_STATUS_AVOLTAG)
 		avol_tag = (flags & READ_ELEMENT_STATUS_PVOLTAG) ?
-		    &desc->voltag_devid.voltag[1] :&desc->voltag_devid.pvoltag;
+			  &desc->voltag_devid.voltag[1] :
+			  &desc->voltag_devid.pvoltag;
 	/*
 	 * For SCSI-3 and later, element status can carry designator and
 	 * other information.
@@ -1122,7 +1087,7 @@ copy_element_status(struct ch_softc *softc,
 		    (flags & READ_ELEMENT_STATUS_AVOLTAG))
 			devid = &desc->voltag_devid.pvol_and_devid.devid;
 		else if (!(flags & READ_ELEMENT_STATUS_PVOLTAG) &&
-			 !(flags & READ_ELEMENT_STATUS_AVOLTAG))
+		    !(flags & READ_ELEMENT_STATUS_AVOLTAG))
 			devid = &desc->voltag_devid.devid;
 		else /* Have both PVOLTAG and AVOLTAG */
 			devid = &desc->voltag_devid.vol_tags_and_devid.devid;
@@ -1135,8 +1100,8 @@ copy_element_status(struct ch_softc *softc,
 	if (devid != NULL) {
 		if (devid->designator_length > 0) {
 			bcopy((void *)devid->designator,
-			      (void *)ces->ces_designator,
-			      devid->designator_length);
+			    (void *)ces->ces_designator,
+			    devid->designator_length);
 			ces->ces_designator_length = devid->designator_length;
 			/*
 			 * Make sure we are always NUL terminated.  The
@@ -1144,17 +1109,16 @@ copy_element_status(struct ch_softc *softc,
 			 * since the user will only pay attention to the
 			 * length field.
 			 */
-			ces->ces_designator[devid->designator_length]= '\0';
+			ces->ces_designator[devid->designator_length] = '\0';
 		}
 		if (devid->piv_assoc_designator_type &
 		    READ_ELEMENT_STATUS_PIV_SET) {
 			ces->ces_flags |= CES_PIV;
-			ces->ces_protocol_id =
-			    READ_ELEMENT_STATUS_PROTOCOL_ID(
+			ces->ces_protocol_id = READ_ELEMENT_STATUS_PROTOCOL_ID(
 			    devid->prot_code_set);
 		}
-		ces->ces_code_set =
-		    READ_ELEMENT_STATUS_CODE_SET(devid->prot_code_set);
+		ces->ces_code_set = READ_ELEMENT_STATUS_CODE_SET(
+		    devid->prot_code_set);
 		ces->ces_assoc = READ_ELEMENT_STATUS_ASSOCIATION(
 		    devid->piv_assoc_designator_type);
 		ces->ces_designator_type = READ_ELEMENT_STATUS_DESIGNATOR_TYPE(
@@ -1186,7 +1150,7 @@ copy_element_status(struct ch_softc *softc,
 
 static int
 chgetelemstatus(struct cam_periph *periph, int scsi_version, u_long cmd,
-		struct changer_element_status_request *cesr)
+    struct changer_element_status_request *cesr)
 {
 	struct read_element_status_header *st_hdr;
 	struct read_element_status_page_header *pg_hdr;
@@ -1211,9 +1175,9 @@ chgetelemstatus(struct cam_periph *periph, int scsi_version, u_long cmd,
 	 * Perform a range check on the cesr_element_{base,count}
 	 * request argument fields.
 	 */
-	if ((softc->sc_counts[chet] - cesr->cesr_element_base) <= 0
-	    || (cesr->cesr_element_base + cesr->cesr_element_count)
-	        > softc->sc_counts[chet])
+	if ((softc->sc_counts[chet] - cesr->cesr_element_base) <= 0 ||
+	    (cesr->cesr_element_base + cesr->cesr_element_count) >
+		softc->sc_counts[chet])
 		return (EINVAL);
 
 	/*
@@ -1246,22 +1210,21 @@ chgetelemstatus(struct cam_periph *periph, int scsi_version, u_long cmd,
 retry_einval:
 
 	scsi_read_element_status(&ccb->csio,
-				 /* retries */ 1,
-				 /* cbfcnp */ chdone,
-				 /* tag_action */ MSG_SIMPLE_Q_TAG,
-				 /* voltag */ want_voltags,
-				 /* sea */ softc->sc_firsts[chet],
-				 /* curdata */ curdata,
-				 /* dvcid */ dvcid,
-				 /* count */ 1,
-				 /* data_ptr */ data,
-				 /* dxfer_len */ 1024,
-				 /* sense_len */ SSD_FULL_SIZE,
-				 /* timeout */ CH_TIMEOUT_READ_ELEMENT_STATUS);
+	    /* retries */ 1,
+	    /* cbfcnp */ chdone,
+	    /* tag_action */ MSG_SIMPLE_Q_TAG,
+	    /* voltag */ want_voltags,
+	    /* sea */ softc->sc_firsts[chet],
+	    /* curdata */ curdata,
+	    /* dvcid */ dvcid,
+	    /* count */ 1,
+	    /* data_ptr */ data,
+	    /* dxfer_len */ 1024,
+	    /* sense_len */ SSD_FULL_SIZE,
+	    /* timeout */ CH_TIMEOUT_READ_ELEMENT_STATUS);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ CAM_RETRY_SELTO,
-				  /*sense_flags*/ sense_flags,
-				  softc->device_stats);
+	    /*sense_flags*/ sense_flags, softc->device_stats);
 
 	/*
 	 * An Illegal Request sense key (only used if there is no asc/ascq)
@@ -1269,8 +1232,7 @@ retry_einval:
 	 * curdata are set (we set both or neither), try turning them off
 	 * and see if the command is successful.
 	 */
-	if ((error == EINVAL)
-	 && (dvcid || curdata))  {
+	if ((error == EINVAL) && (dvcid || curdata)) {
 		dvcid = 0;
 		curdata = 0;
 		error = 0;
@@ -1288,8 +1250,7 @@ retry_einval:
 	 * This should only happen on changers that claim SCSI-3 or higher,
 	 * but don't support these bits.
 	 */
-	if ((try_no_dvcid != 0)
-	 && (error == 0))
+	if ((try_no_dvcid != 0) && (error == 0))
 		softc->quirks |= CH_Q_NO_DVCID;
 
 	if (error)
@@ -1298,12 +1259,12 @@ retry_einval:
 
 	st_hdr = (struct read_element_status_header *)data;
 	pg_hdr = (struct read_element_status_page_header *)((uintptr_t)st_hdr +
-		  sizeof(struct read_element_status_header));
+	    sizeof(struct read_element_status_header));
 	desclen = scsi_2btoul(pg_hdr->edl);
 
 	size = sizeof(struct read_element_status_header) +
-	       sizeof(struct read_element_status_page_header) +
-	       (desclen * cesr->cesr_element_count);
+	    sizeof(struct read_element_status_page_header) +
+	    (desclen * cesr->cesr_element_count);
 	/*
 	 * Reallocate storage for descriptors and get them from the
 	 * device.
@@ -1313,23 +1274,21 @@ retry_einval:
 
 	cam_periph_lock(periph);
 	scsi_read_element_status(&ccb->csio,
-				 /* retries */ 1,
-				 /* cbfcnp */ chdone,
-				 /* tag_action */ MSG_SIMPLE_Q_TAG,
-				 /* voltag */ want_voltags,
-				 /* sea */ softc->sc_firsts[chet]
-				 + cesr->cesr_element_base,
-				 /* curdata */ curdata,
-				 /* dvcid */ dvcid,
-				 /* count */ cesr->cesr_element_count,
-				 /* data_ptr */ data,
-				 /* dxfer_len */ size,
-				 /* sense_len */ SSD_FULL_SIZE,
-				 /* timeout */ CH_TIMEOUT_READ_ELEMENT_STATUS);
+	    /* retries */ 1,
+	    /* cbfcnp */ chdone,
+	    /* tag_action */ MSG_SIMPLE_Q_TAG,
+	    /* voltag */ want_voltags,
+	    /* sea */ softc->sc_firsts[chet] + cesr->cesr_element_base,
+	    /* curdata */ curdata,
+	    /* dvcid */ dvcid,
+	    /* count */ cesr->cesr_element_count,
+	    /* data_ptr */ data,
+	    /* dxfer_len */ size,
+	    /* sense_len */ SSD_FULL_SIZE,
+	    /* timeout */ CH_TIMEOUT_READ_ELEMENT_STATUS);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ CAM_RETRY_SELTO,
-				  /*sense_flags*/ SF_RETRY_UA,
-				  softc->device_stats);
+	    /*sense_flags*/ SF_RETRY_UA, softc->device_stats);
 
 	if (error)
 		goto done;
@@ -1340,7 +1299,7 @@ retry_einval:
 	 */
 	st_hdr = (struct read_element_status_header *)data;
 	pg_hdr = (struct read_element_status_page_header *)((uintptr_t)st_hdr +
-		  sizeof(struct read_element_status_header));
+	    sizeof(struct read_element_status_header));
 	avail = scsi_2btoul(st_hdr->count);
 
 	if (avail != cesr->cesr_element_count) {
@@ -1348,13 +1307,13 @@ retry_einval:
 		    "warning, READ ELEMENT STATUS avail != count\n");
 	}
 
-	user_data = (struct changer_element_status *)
-		malloc(avail * sizeof(struct changer_element_status),
-		       M_DEVBUF, M_WAITOK | M_ZERO);
+	user_data = (struct changer_element_status *)malloc(
+	    avail * sizeof(struct changer_element_status), M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 
 	desc = (struct read_element_status_descriptor *)((uintptr_t)data +
-		sizeof(struct read_element_status_header) +
-		sizeof(struct read_element_status_page_header));
+	    sizeof(struct read_element_status_header) +
+	    sizeof(struct read_element_status_page_header));
 	/*
 	 * Set up the individual element status structures
 	 */
@@ -1371,32 +1330,34 @@ retry_einval:
 		 * corresponding to the SCSI version.
 		 */
 		ces = cmd == OCHIOGSTATUS ?
-		    (struct changer_element_status *)
-		    ((unsigned char *)user_data + i *
-		     (offsetof(struct changer_element_status,ces_scsi_lun)+1)):
-		    &user_data[i];
+			  (struct changer_element_status *)((unsigned char *)
+							  user_data +
+			i *
+			    (offsetof(
+				 struct changer_element_status, ces_scsi_lun) +
+				1)) :
+			  &user_data[i];
 
-		copy_element_status(softc, pg_hdr->flags, desc,
-				    ces, scsi_version);
+		copy_element_status(
+		    softc, pg_hdr->flags, desc, ces, scsi_version);
 
-		desc = (struct read_element_status_descriptor *)
-		       ((unsigned char *)desc + desclen);
+		desc = (struct read_element_status_descriptor
+			*)((unsigned char *)desc + desclen);
 	}
 
 	/* Copy element status structures out to userspace. */
 	if (cmd == OCHIOGSTATUS)
-		error = copyout(user_data,
-				cesr->cesr_element_status,
-				avail* (offsetof(struct changer_element_status,
-				ces_scsi_lun) + 1));
+		error = copyout(user_data, cesr->cesr_element_status,
+		    avail *
+			(offsetof(struct changer_element_status, ces_scsi_lun) +
+			    1));
 	else
-		error = copyout(user_data,
-				cesr->cesr_element_status,
-				avail * sizeof(struct changer_element_status));
+		error = copyout(user_data, cesr->cesr_element_status,
+		    avail * sizeof(struct changer_element_status));
 
 	cam_periph_lock(periph);
 
- done:
+done:
 	xpt_release_ccb(ccb);
 
 	if (data != NULL)
@@ -1408,8 +1369,7 @@ retry_einval:
 }
 
 static int
-chielem(struct cam_periph *periph,
-	unsigned int timeout)
+chielem(struct cam_periph *periph, unsigned int timeout)
 {
 	union ccb *ccb;
 	struct ch_softc *softc;
@@ -1427,24 +1387,22 @@ chielem(struct cam_periph *periph,
 	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_initialize_element_status(&ccb->csio,
-				      /* retries */ 1,
-				      /* cbfcnp */ chdone,
-				      /* tag_action */ MSG_SIMPLE_Q_TAG,
-				      /* sense_len */ SSD_FULL_SIZE,
-				      /* timeout */ timeout);
+	    /* retries */ 1,
+	    /* cbfcnp */ chdone,
+	    /* tag_action */ MSG_SIMPLE_Q_TAG,
+	    /* sense_len */ SSD_FULL_SIZE,
+	    /* timeout */ timeout);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ CAM_RETRY_SELTO,
-				  /*sense_flags*/ SF_RETRY_UA,
-				  softc->device_stats);
+	    /*sense_flags*/ SF_RETRY_UA, softc->device_stats);
 
 	xpt_release_ccb(ccb);
 
-	return(error);
+	return (error);
 }
 
 static int
-chsetvoltag(struct cam_periph *periph,
-	    struct changer_set_voltag_request *csvr)
+chsetvoltag(struct cam_periph *periph, struct changer_set_voltag_request *csvr)
 {
 	union ccb *ccb;
 	struct ch_softc *softc;
@@ -1458,7 +1416,7 @@ chsetvoltag(struct cam_periph *periph,
 	softc = (struct ch_softc *)periph->softc;
 
 	bzero(&ssvtp, sizeof(ssvtp));
-	for (i=0; i<sizeof(ssvtp.vitf); i++) {
+	for (i = 0; i < sizeof(ssvtp.vitf); i++) {
 		ssvtp.vitf[i] = ' ';
 	}
 
@@ -1505,28 +1463,27 @@ chsetvoltag(struct cam_periph *periph,
 	}
 
 	memcpy(ssvtp.vitf, csvr->csvr_voltag.cv_volid,
-	       min(strlen(csvr->csvr_voltag.cv_volid), sizeof(ssvtp.vitf)));
+	    min(strlen(csvr->csvr_voltag.cv_volid), sizeof(ssvtp.vitf)));
 	scsi_ulto2b(csvr->csvr_voltag.cv_serial, ssvtp.minvsn);
 
 	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_send_volume_tag(&ccb->csio,
-			     /* retries */ 1,
-			     /* cbfcnp */ chdone,
-			     /* tag_action */ MSG_SIMPLE_Q_TAG,
-			     /* element_address */ ea,
-			     /* send_action_code */ sac,
-			     /* parameters */ &ssvtp,
-			     /* sense_len */ SSD_FULL_SIZE,
-			     /* timeout */ CH_TIMEOUT_SEND_VOLTAG);
+	    /* retries */ 1,
+	    /* cbfcnp */ chdone,
+	    /* tag_action */ MSG_SIMPLE_Q_TAG,
+	    /* element_address */ ea,
+	    /* send_action_code */ sac,
+	    /* parameters */ &ssvtp,
+	    /* sense_len */ SSD_FULL_SIZE,
+	    /* timeout */ CH_TIMEOUT_SEND_VOLTAG);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ CAM_RETRY_SELTO,
-				  /*sense_flags*/ SF_RETRY_UA,
-				  softc->device_stats);
+	    /*sense_flags*/ SF_RETRY_UA, softc->device_stats);
 
 	xpt_release_ccb(ccb);
 
- out:
+out:
 	return error;
 }
 
@@ -1560,7 +1517,7 @@ chgetparams(struct cam_periph *periph)
 	if (mode_buffer == NULL) {
 		printf("chgetparams: couldn't malloc mode sense data\n");
 		xpt_release_ccb(ccb);
-		return(ENOSPC);
+		return (ENOSPC);
 	}
 
 	bzero(mode_buffer, mode_buffer_len);
@@ -1574,33 +1531,31 @@ chgetparams(struct cam_periph *periph)
 	 * Get the element address assignment page.
 	 */
 	scsi_mode_sense(&ccb->csio,
-			/* retries */ 1,
-			/* cbfcnp */ chdone,
-			/* tag_action */ MSG_SIMPLE_Q_TAG,
-			/* dbd */ dbd,
-			/* pc */ SMS_PAGE_CTRL_CURRENT,
-			/* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
-			/* param_buf */ (u_int8_t *)mode_buffer,
-			/* param_len */ mode_buffer_len,
-			/* sense_len */ SSD_FULL_SIZE,
-			/* timeout */ CH_TIMEOUT_MODE_SENSE);
+	    /* retries */ 1,
+	    /* cbfcnp */ chdone,
+	    /* tag_action */ MSG_SIMPLE_Q_TAG,
+	    /* dbd */ dbd,
+	    /* pc */ SMS_PAGE_CTRL_CURRENT,
+	    /* page */ CH_ELEMENT_ADDR_ASSIGN_PAGE,
+	    /* param_buf */ (u_int8_t *)mode_buffer,
+	    /* param_len */ mode_buffer_len,
+	    /* sense_len */ SSD_FULL_SIZE,
+	    /* timeout */ CH_TIMEOUT_MODE_SENSE);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ CAM_RETRY_SELTO,
-				  /* sense_flags */ SF_RETRY_UA|SF_NO_PRINT,
-				  softc->device_stats);
+	    /* sense_flags */ SF_RETRY_UA | SF_NO_PRINT, softc->device_stats);
 
 	if (error) {
 		if (dbd) {
 			struct scsi_mode_sense_6 *sms;
 
 			sms = (struct scsi_mode_sense_6 *)
-				ccb->csio.cdb_io.cdb_bytes;
+				  ccb->csio.cdb_io.cdb_bytes;
 
 			sms->byte2 &= ~SMS_DBD;
 			error = cam_periph_runccb(ccb, cherror,
-						  /*cam_flags*/ CAM_RETRY_SELTO,
-				  		  /*sense_flags*/ SF_RETRY_UA,
-						  softc->device_stats);
+			    /*cam_flags*/ CAM_RETRY_SELTO,
+			    /*sense_flags*/ SF_RETRY_UA, softc->device_stats);
 		} else {
 			/*
 			 * Since we disabled sense printing above, print
@@ -1615,12 +1570,12 @@ chgetparams(struct cam_periph *periph)
 			    "address page\n");
 			xpt_release_ccb(ccb);
 			free(mode_buffer, M_SCSICH);
-			return(error);
+			return (error);
 		}
 	}
 
-	ea = (struct page_element_address_assignment *)
-		find_mode_page_6((struct scsi_mode_header_6 *)mode_buffer);
+	ea = (struct page_element_address_assignment *)find_mode_page_6(
+	    (struct scsi_mode_header_6 *)mode_buffer);
 
 	softc->sc_firsts[CHET_MT] = scsi_2btoul(ea->mtea);
 	softc->sc_counts[CHET_MT] = scsi_2btoul(ea->nmte);
@@ -1637,33 +1592,31 @@ chgetparams(struct cam_periph *periph)
 	 * Now get the device capabilities page.
 	 */
 	scsi_mode_sense(&ccb->csio,
-			/* retries */ 1,
-			/* cbfcnp */ chdone,
-			/* tag_action */ MSG_SIMPLE_Q_TAG,
-			/* dbd */ dbd,
-			/* pc */ SMS_PAGE_CTRL_CURRENT,
-			/* page */ CH_DEVICE_CAP_PAGE,
-			/* param_buf */ (u_int8_t *)mode_buffer,
-			/* param_len */ mode_buffer_len,
-			/* sense_len */ SSD_FULL_SIZE,
-			/* timeout */ CH_TIMEOUT_MODE_SENSE);
+	    /* retries */ 1,
+	    /* cbfcnp */ chdone,
+	    /* tag_action */ MSG_SIMPLE_Q_TAG,
+	    /* dbd */ dbd,
+	    /* pc */ SMS_PAGE_CTRL_CURRENT,
+	    /* page */ CH_DEVICE_CAP_PAGE,
+	    /* param_buf */ (u_int8_t *)mode_buffer,
+	    /* param_len */ mode_buffer_len,
+	    /* sense_len */ SSD_FULL_SIZE,
+	    /* timeout */ CH_TIMEOUT_MODE_SENSE);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ CAM_RETRY_SELTO,
-				  /* sense_flags */ SF_RETRY_UA | SF_NO_PRINT,
-				  softc->device_stats);
+	    /* sense_flags */ SF_RETRY_UA | SF_NO_PRINT, softc->device_stats);
 
 	if (error) {
 		if (dbd) {
 			struct scsi_mode_sense_6 *sms;
 
 			sms = (struct scsi_mode_sense_6 *)
-				ccb->csio.cdb_io.cdb_bytes;
+				  ccb->csio.cdb_io.cdb_bytes;
 
 			sms->byte2 &= ~SMS_DBD;
 			error = cam_periph_runccb(ccb, cherror,
-						  /*cam_flags*/ CAM_RETRY_SELTO,
-				  		  /*sense_flags*/ SF_RETRY_UA,
-						  softc->device_stats);
+			    /*cam_flags*/ CAM_RETRY_SELTO,
+			    /*sense_flags*/ SF_RETRY_UA, softc->device_stats);
 		} else {
 			/*
 			 * Since we disabled sense printing above, print
@@ -1678,14 +1631,14 @@ chgetparams(struct cam_periph *periph)
 			    "capabilities page\n");
 			xpt_release_ccb(ccb);
 			free(mode_buffer, M_SCSICH);
-			return(error);
+			return (error);
 		}
 	}
 
 	xpt_release_ccb(ccb);
 
-	cap = (struct page_device_capabilities *)
-		find_mode_page_6((struct scsi_mode_header_6 *)mode_buffer);
+	cap = (struct page_device_capabilities *)find_mode_page_6(
+	    (struct scsi_mode_header_6 *)mode_buffer);
 
 	bzero(softc->sc_movemask, sizeof(softc->sc_movemask));
 	bzero(softc->sc_exchangemask, sizeof(softc->sc_exchangemask));
@@ -1698,7 +1651,7 @@ chgetparams(struct cam_periph *periph)
 
 	free(mode_buffer, M_SCSICH);
 
-	return(error);
+	return (error);
 }
 
 static int
@@ -1714,9 +1667,7 @@ chscsiversion(struct cam_periph *periph)
 	/*
 	 * Get the device information.
 	 */
-	xpt_setup_ccb(&cgd->ccb_h,
-		      periph->path,
-		      CAM_PRIORITY_NORMAL);
+	xpt_setup_ccb(&cgd->ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	cgd->ccb_h.func_code = XPT_GDEV_TYPE;
 	xpt_action((union ccb *)cgd);
 
@@ -1734,10 +1685,9 @@ chscsiversion(struct cam_periph *periph)
 
 void
 scsi_move_medium(struct ccb_scsiio *csio, u_int32_t retries,
-		 void (*cbfcnp)(struct cam_periph *, union ccb *),
-		 u_int8_t tag_action, u_int32_t tea, u_int32_t src,
-		 u_int32_t dst, int invert, u_int8_t sense_len,
-		 u_int32_t timeout)
+    void (*cbfcnp)(struct cam_periph *, union ccb *), u_int8_t tag_action,
+    u_int32_t tea, u_int32_t src, u_int32_t dst, int invert, u_int8_t sense_len,
+    u_int32_t timeout)
 {
 	struct scsi_move_medium *scsi_cmd;
 
@@ -1753,24 +1703,17 @@ scsi_move_medium(struct ccb_scsiio *csio, u_int32_t retries,
 	if (invert)
 		scsi_cmd->invert |= MOVE_MEDIUM_INVERT;
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/ CAM_DIR_NONE,
-		      tag_action,
-		      /*data_ptr*/ NULL,
-		      /*dxfer_len*/ 0,
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp,
+	    /*flags*/ CAM_DIR_NONE, tag_action,
+	    /*data_ptr*/ NULL,
+	    /*dxfer_len*/ 0, sense_len, sizeof(*scsi_cmd), timeout);
 }
 
 void
 scsi_exchange_medium(struct ccb_scsiio *csio, u_int32_t retries,
-		     void (*cbfcnp)(struct cam_periph *, union ccb *),
-		     u_int8_t tag_action, u_int32_t tea, u_int32_t src,
-		     u_int32_t dst1, u_int32_t dst2, int invert1,
-		     int invert2, u_int8_t sense_len, u_int32_t timeout)
+    void (*cbfcnp)(struct cam_periph *, union ccb *), u_int8_t tag_action,
+    u_int32_t tea, u_int32_t src, u_int32_t dst1, u_int32_t dst2, int invert1,
+    int invert2, u_int8_t sense_len, u_int32_t timeout)
 {
 	struct scsi_exchange_medium *scsi_cmd;
 
@@ -1790,23 +1733,17 @@ scsi_exchange_medium(struct ccb_scsiio *csio, u_int32_t retries,
 	if (invert2)
 		scsi_cmd->invert |= EXCHANGE_MEDIUM_INV2;
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/ CAM_DIR_NONE,
-		      tag_action,
-		      /*data_ptr*/ NULL,
-		      /*dxfer_len*/ 0,
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp,
+	    /*flags*/ CAM_DIR_NONE, tag_action,
+	    /*data_ptr*/ NULL,
+	    /*dxfer_len*/ 0, sense_len, sizeof(*scsi_cmd), timeout);
 }
 
 void
 scsi_position_to_element(struct ccb_scsiio *csio, u_int32_t retries,
-			 void (*cbfcnp)(struct cam_periph *, union ccb *),
-			 u_int8_t tag_action, u_int32_t tea, u_int32_t dst,
-			 int invert, u_int8_t sense_len, u_int32_t timeout)
+    void (*cbfcnp)(struct cam_periph *, union ccb *), u_int8_t tag_action,
+    u_int32_t tea, u_int32_t dst, int invert, u_int8_t sense_len,
+    u_int32_t timeout)
 {
 	struct scsi_position_to_element *scsi_cmd;
 
@@ -1821,26 +1758,18 @@ scsi_position_to_element(struct ccb_scsiio *csio, u_int32_t retries,
 	if (invert)
 		scsi_cmd->invert |= POSITION_TO_ELEMENT_INVERT;
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/ CAM_DIR_NONE,
-		      tag_action,
-		      /*data_ptr*/ NULL,
-		      /*dxfer_len*/ 0,
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp,
+	    /*flags*/ CAM_DIR_NONE, tag_action,
+	    /*data_ptr*/ NULL,
+	    /*dxfer_len*/ 0, sense_len, sizeof(*scsi_cmd), timeout);
 }
 
 void
 scsi_read_element_status(struct ccb_scsiio *csio, u_int32_t retries,
-			 void (*cbfcnp)(struct cam_periph *, union ccb *),
-			 u_int8_t tag_action, int voltag, u_int32_t sea,
-			 int curdata, int dvcid,
-			 u_int32_t count, u_int8_t *data_ptr,
-			 u_int32_t dxfer_len, u_int8_t sense_len,
-			 u_int32_t timeout)
+    void (*cbfcnp)(struct cam_periph *, union ccb *), u_int8_t tag_action,
+    int voltag, u_int32_t sea, int curdata, int dvcid, u_int32_t count,
+    u_int8_t *data_ptr, u_int32_t dxfer_len, u_int8_t sense_len,
+    u_int32_t timeout)
 {
 	struct scsi_read_element_status *scsi_cmd;
 
@@ -1860,56 +1789,40 @@ scsi_read_element_status(struct ccb_scsiio *csio, u_int32_t retries,
 	if (voltag)
 		scsi_cmd->byte2 |= READ_ELEMENT_STATUS_VOLTAG;
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/ CAM_DIR_IN,
-		      tag_action,
-		      data_ptr,
-		      dxfer_len,
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp,
+	    /*flags*/ CAM_DIR_IN, tag_action, data_ptr, dxfer_len, sense_len,
+	    sizeof(*scsi_cmd), timeout);
 }
 
 void
 scsi_initialize_element_status(struct ccb_scsiio *csio, u_int32_t retries,
-			       void (*cbfcnp)(struct cam_periph *, union ccb *),
-			       u_int8_t tag_action, u_int8_t sense_len,
-			       u_int32_t timeout)
+    void (*cbfcnp)(struct cam_periph *, union ccb *), u_int8_t tag_action,
+    u_int8_t sense_len, u_int32_t timeout)
 {
 	struct scsi_initialize_element_status *scsi_cmd;
 
-	scsi_cmd = (struct scsi_initialize_element_status *)
-		    &csio->cdb_io.cdb_bytes;
+	scsi_cmd =
+	    (struct scsi_initialize_element_status *)&csio->cdb_io.cdb_bytes;
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
 
 	scsi_cmd->opcode = INITIALIZE_ELEMENT_STATUS;
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/ CAM_DIR_NONE,
-		      tag_action,
-		      /* data_ptr */ NULL,
-		      /* dxfer_len */ 0,
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp,
+	    /*flags*/ CAM_DIR_NONE, tag_action,
+	    /* data_ptr */ NULL,
+	    /* dxfer_len */ 0, sense_len, sizeof(*scsi_cmd), timeout);
 }
 
 void
 scsi_send_volume_tag(struct ccb_scsiio *csio, u_int32_t retries,
-		     void (*cbfcnp)(struct cam_periph *, union ccb *),
-		     u_int8_t tag_action, 
-		     u_int16_t element_address,
-		     u_int8_t send_action_code,
-		     struct scsi_send_volume_tag_parameters *parameters,
-		     u_int8_t sense_len, u_int32_t timeout)
+    void (*cbfcnp)(struct cam_periph *, union ccb *), u_int8_t tag_action,
+    u_int16_t element_address, u_int8_t send_action_code,
+    struct scsi_send_volume_tag_parameters *parameters, u_int8_t sense_len,
+    u_int32_t timeout)
 {
 	struct scsi_send_volume_tag *scsi_cmd;
 
-	scsi_cmd = (struct scsi_send_volume_tag *) &csio->cdb_io.cdb_bytes;
+	scsi_cmd = (struct scsi_send_volume_tag *)&csio->cdb_io.cdb_bytes;
 	bzero(scsi_cmd, sizeof(*scsi_cmd));
 
 	scsi_cmd->opcode = SEND_VOLUME_TAG;
@@ -1917,14 +1830,8 @@ scsi_send_volume_tag(struct ccb_scsiio *csio, u_int32_t retries,
 	scsi_cmd->sac = send_action_code;
 	scsi_ulto2b(sizeof(*parameters), scsi_cmd->pll);
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/ CAM_DIR_OUT,
-		      tag_action,
-		      /* data_ptr */ (u_int8_t *) parameters,
-		      sizeof(*parameters),
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp,
+	    /*flags*/ CAM_DIR_OUT, tag_action,
+	    /* data_ptr */ (u_int8_t *)parameters, sizeof(*parameters),
+	    sense_len, sizeof(*scsi_cmd), timeout);
 }

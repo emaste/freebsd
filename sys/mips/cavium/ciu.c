@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
-#include <sys/malloc.h>
 #include <sys/smp.h>
 
 #include <machine/bus.h>
@@ -53,15 +53,15 @@ __FBSDID("$FreeBSD$");
  * or something, but for now this will be sufficient.
  */
 
-#define	CIU_IRQ_HARD		(0)
+#define CIU_IRQ_HARD (0)
 
-#define	CIU_IRQ_EN0_BEGIN	OCTEON_IRQ_WORKQ0
-#define	CIU_IRQ_EN0_END		OCTEON_IRQ_BOOTDMA
-#define	CIU_IRQ_EN0_COUNT	((CIU_IRQ_EN0_END - CIU_IRQ_EN0_BEGIN) + 1)
+#define CIU_IRQ_EN0_BEGIN OCTEON_IRQ_WORKQ0
+#define CIU_IRQ_EN0_END OCTEON_IRQ_BOOTDMA
+#define CIU_IRQ_EN0_COUNT ((CIU_IRQ_EN0_END - CIU_IRQ_EN0_BEGIN) + 1)
 
-#define	CIU_IRQ_EN1_BEGIN	OCTEON_IRQ_WDOG0
-#define	CIU_IRQ_EN1_END		OCTEON_IRQ_DFM
-#define	CIU_IRQ_EN1_COUNT	((CIU_IRQ_EN1_END - CIU_IRQ_EN1_BEGIN) + 1)
+#define CIU_IRQ_EN1_BEGIN OCTEON_IRQ_WDOG0
+#define CIU_IRQ_EN1_END OCTEON_IRQ_DFM
+#define CIU_IRQ_EN1_COUNT ((CIU_IRQ_EN1_END - CIU_IRQ_EN1_BEGIN) + 1)
 
 struct ciu_softc {
 	struct rman irq_rman;
@@ -74,36 +74,31 @@ static mips_intrcnt_t ciu_en1_intrcnt[CIU_IRQ_EN1_COUNT];
 static struct intr_event *ciu_en0_intr_events[CIU_IRQ_EN0_COUNT];
 static struct intr_event *ciu_en1_intr_events[CIU_IRQ_EN1_COUNT];
 
-static int		ciu_probe(device_t);
-static int		ciu_attach(device_t);
-static struct resource	*ciu_alloc_resource(device_t, device_t, int, int *,
-					    rman_res_t, rman_res_t, rman_res_t,
-					    u_int);
-static int		ciu_setup_intr(device_t, device_t, struct resource *,
-				       int, driver_filter_t *, driver_intr_t *,
-				       void *, void **);
-static int		ciu_teardown_intr(device_t, device_t,
-					  struct resource *, void *);
-static int		ciu_bind_intr(device_t, device_t, struct resource *,
-				      int);
-static int		ciu_describe_intr(device_t, device_t,
-					  struct resource *, void *,
-					  const char *);
-static void		ciu_hinted_child(device_t, const char *, int);
+static int ciu_probe(device_t);
+static int ciu_attach(device_t);
+static struct resource *ciu_alloc_resource(
+    device_t, device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+static int ciu_setup_intr(device_t, device_t, struct resource *, int,
+    driver_filter_t *, driver_intr_t *, void *, void **);
+static int ciu_teardown_intr(device_t, device_t, struct resource *, void *);
+static int ciu_bind_intr(device_t, device_t, struct resource *, int);
+static int ciu_describe_intr(
+    device_t, device_t, struct resource *, void *, const char *);
+static void ciu_hinted_child(device_t, const char *, int);
 
-static void		ciu_en0_intr_mask(void *);
-static void		ciu_en0_intr_unmask(void *);
+static void ciu_en0_intr_mask(void *);
+static void ciu_en0_intr_unmask(void *);
 #ifdef SMP
-static int		ciu_en0_intr_bind(void *, int);
+static int ciu_en0_intr_bind(void *, int);
 #endif
 
-static void		ciu_en1_intr_mask(void *);
-static void		ciu_en1_intr_unmask(void *);
+static void ciu_en1_intr_mask(void *);
+static void ciu_en1_intr_unmask(void *);
 #ifdef SMP
-static int		ciu_en1_intr_bind(void *, int);
+static int ciu_en1_intr_bind(void *, int);
 #endif
 
-static int		ciu_intr(void *);
+static int ciu_intr(void *);
 
 static int
 ciu_probe(device_t dev)
@@ -127,15 +122,15 @@ ciu_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	rid = 0;
-	sc->ciu_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, CIU_IRQ_HARD,
-					 CIU_IRQ_HARD, 1, RF_ACTIVE);
+	sc->ciu_irq = bus_alloc_resource(
+	    dev, SYS_RES_IRQ, &rid, CIU_IRQ_HARD, CIU_IRQ_HARD, 1, RF_ACTIVE);
 	if (sc->ciu_irq == NULL) {
 		device_printf(dev, "could not allocate irq%d\n", CIU_IRQ_HARD);
 		return (ENXIO);
 	}
 
-	error = bus_setup_intr(dev, sc->ciu_irq, INTR_TYPE_MISC, ciu_intr,
-			       NULL, sc, NULL);
+	error = bus_setup_intr(
+	    dev, sc->ciu_irq, INTR_TYPE_MISC, ciu_intr, NULL, sc, NULL);
 	if (error != 0) {
 		device_printf(dev, "bus_setup_intr failed: %d\n", error);
 		return (error);
@@ -151,8 +146,8 @@ ciu_attach(device_t dev)
 	/*
 	 * We have two contiguous IRQ regions, use a single rman.
 	 */
-	error = rman_manage_region(&sc->irq_rman, CIU_IRQ_EN0_BEGIN,
-				   CIU_IRQ_EN1_END);
+	error = rman_manage_region(
+	    &sc->irq_rman, CIU_IRQ_EN0_BEGIN, CIU_IRQ_EN1_END);
 	if (error != 0)
 		return (error);
 
@@ -174,7 +169,7 @@ ciu_attach(device_t dev)
 
 static struct resource *
 ciu_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res;
 	struct ciu_softc *sc;
@@ -186,7 +181,7 @@ ciu_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 	default:
 		return (bus_alloc_resource(device_get_parent(bus), type, rid,
-					   start, end, count, flags));
+		    start, end, count, flags));
 	}
 
 	/*
@@ -195,8 +190,8 @@ ciu_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (start != end)
 		return (NULL);
 
-	res = rman_reserve_resource(&sc->irq_rman, start, end, count, flags,
-				    child);
+	res = rman_reserve_resource(
+	    &sc->irq_rman, start, end, count, flags, child);
 	if (res != NULL)
 		return (res);
 
@@ -205,8 +200,7 @@ ciu_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 static int
 ciu_setup_intr(device_t bus, device_t child, struct resource *res, int flags,
-	       driver_filter_t *filter, driver_intr_t *intr, void *arg,
-	       void **cookiep)
+    driver_filter_t *filter, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct intr_event *event, **eventp;
 	void (*mask_func)(void *);
@@ -249,8 +243,8 @@ ciu_setup_intr(device_t bus, device_t child, struct resource *res, int flags,
 		unmask_func((void *)(uintptr_t)irq);
 	}
 
-	intr_event_add_handler(event, device_get_nameunit(child),
-	    filter, intr, arg, intr_priority(flags), flags, cookiep);
+	intr_event_add_handler(event, device_get_nameunit(child), filter, intr,
+	    arg, intr_priority(flags), flags, cookiep);
 
 	mips_intrcnt_setname(intrcnt, event->ie_fullname);
 
@@ -258,8 +252,8 @@ ciu_setup_intr(device_t bus, device_t child, struct resource *res, int flags,
 }
 
 static int
-ciu_teardown_intr(device_t bus, device_t child, struct resource *res,
-		  void *cookie)
+ciu_teardown_intr(
+    device_t bus, device_t child, struct resource *res, void *cookie)
 {
 	int error;
 
@@ -289,7 +283,7 @@ ciu_bind_intr(device_t bus, device_t child, struct resource *res, int cpu)
 
 static int
 ciu_describe_intr(device_t bus, device_t child, struct resource *res,
-		  void *cookie, const char *descr)
+    void *cookie, const char *descr)
 {
 	struct intr_event *event;
 	mips_intrcnt_t intrcnt;
@@ -327,9 +321,9 @@ ciu_en0_intr_mask(void *arg)
 	int irq;
 
 	irq = (uintptr_t)arg;
-	mask = cvmx_read_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num()*2));
+	mask = cvmx_read_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num() * 2));
 	mask &= ~(1ull << (irq - CIU_IRQ_EN0_BEGIN));
-	cvmx_write_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num()*2), mask);
+	cvmx_write_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num() * 2), mask);
 }
 
 static void
@@ -339,9 +333,9 @@ ciu_en0_intr_unmask(void *arg)
 	int irq;
 
 	irq = (uintptr_t)arg;
-	mask = cvmx_read_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num()*2));
+	mask = cvmx_read_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num() * 2));
 	mask |= 1ull << (irq - CIU_IRQ_EN0_BEGIN);
-	cvmx_write_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num()*2), mask);
+	cvmx_write_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num() * 2), mask);
 }
 
 #ifdef SMP
@@ -353,13 +347,13 @@ ciu_en0_intr_bind(void *arg, int target)
 	int irq;
 
 	irq = (uintptr_t)arg;
-	CPU_FOREACH(core) {
-		mask = cvmx_read_csr(CVMX_CIU_INTX_EN0(core*2));
+	CPU_FOREACH (core) {
+		mask = cvmx_read_csr(CVMX_CIU_INTX_EN0(core * 2));
 		if (core == target)
 			mask |= 1ull << (irq - CIU_IRQ_EN0_BEGIN);
 		else
 			mask &= ~(1ull << (irq - CIU_IRQ_EN0_BEGIN));
-		cvmx_write_csr(CVMX_CIU_INTX_EN0(core*2), mask);
+		cvmx_write_csr(CVMX_CIU_INTX_EN0(core * 2), mask);
 	}
 
 	return (0);
@@ -373,9 +367,9 @@ ciu_en1_intr_mask(void *arg)
 	int irq;
 
 	irq = (uintptr_t)arg;
-	mask = cvmx_read_csr(CVMX_CIU_INTX_EN1(cvmx_get_core_num()*2));
+	mask = cvmx_read_csr(CVMX_CIU_INTX_EN1(cvmx_get_core_num() * 2));
 	mask &= ~(1ull << (irq - CIU_IRQ_EN1_BEGIN));
-	cvmx_write_csr(CVMX_CIU_INTX_EN1(cvmx_get_core_num()*2), mask);
+	cvmx_write_csr(CVMX_CIU_INTX_EN1(cvmx_get_core_num() * 2), mask);
 }
 
 static void
@@ -385,9 +379,9 @@ ciu_en1_intr_unmask(void *arg)
 	int irq;
 
 	irq = (uintptr_t)arg;
-	mask = cvmx_read_csr(CVMX_CIU_INTX_EN1(cvmx_get_core_num()*2));
+	mask = cvmx_read_csr(CVMX_CIU_INTX_EN1(cvmx_get_core_num() * 2));
 	mask |= 1ull << (irq - CIU_IRQ_EN1_BEGIN);
-	cvmx_write_csr(CVMX_CIU_INTX_EN1(cvmx_get_core_num()*2), mask);
+	cvmx_write_csr(CVMX_CIU_INTX_EN1(cvmx_get_core_num() * 2), mask);
 }
 
 #ifdef SMP
@@ -399,13 +393,13 @@ ciu_en1_intr_bind(void *arg, int target)
 	int irq;
 
 	irq = (uintptr_t)arg;
-	CPU_FOREACH(core) {
-		mask = cvmx_read_csr(CVMX_CIU_INTX_EN1(core*2));
+	CPU_FOREACH (core) {
+		mask = cvmx_read_csr(CVMX_CIU_INTX_EN1(core * 2));
 		if (core == target)
 			mask |= 1ull << (irq - CIU_IRQ_EN1_BEGIN);
 		else
 			mask &= ~(1ull << (irq - CIU_IRQ_EN1_BEGIN));
-		cvmx_write_csr(CVMX_CIU_INTX_EN1(core*2), mask);
+		cvmx_write_csr(CVMX_CIU_INTX_EN1(core * 2), mask);
 	}
 
 	return (0);
@@ -424,11 +418,11 @@ ciu_intr(void *arg)
 	sc = arg;
 	(void)sc;
 
-	en0_sum = cvmx_read_csr(CVMX_CIU_INTX_SUM0(cvmx_get_core_num()*2));
+	en0_sum = cvmx_read_csr(CVMX_CIU_INTX_SUM0(cvmx_get_core_num() * 2));
 	en1_sum = cvmx_read_csr(CVMX_CIU_INT_SUM1);
 
-	en0_mask = cvmx_read_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num()*2));
-	en1_mask = cvmx_read_csr(CVMX_CIU_INTX_EN1(cvmx_get_core_num()*2));
+	en0_mask = cvmx_read_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num() * 2));
+	en1_mask = cvmx_read_csr(CVMX_CIU_INTX_EN1(cvmx_get_core_num() * 2));
 
 	en0_sum &= en0_mask;
 	en1_sum &= en1_mask;
@@ -461,23 +455,20 @@ ciu_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
-static device_method_t ciu_methods[] = {
-	DEVMETHOD(device_probe,		ciu_probe),
-	DEVMETHOD(device_attach,	ciu_attach),
+static device_method_t ciu_methods[] = { DEVMETHOD(device_probe, ciu_probe),
+	DEVMETHOD(device_attach, ciu_attach),
 
-	DEVMETHOD(bus_alloc_resource,	ciu_alloc_resource),
-	DEVMETHOD(bus_activate_resource,bus_generic_activate_resource),
-	DEVMETHOD(bus_setup_intr,	ciu_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	ciu_teardown_intr),
+	DEVMETHOD(bus_alloc_resource, ciu_alloc_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_setup_intr, ciu_setup_intr),
+	DEVMETHOD(bus_teardown_intr, ciu_teardown_intr),
 #ifdef SMP
-	DEVMETHOD(bus_bind_intr,	ciu_bind_intr),
+	DEVMETHOD(bus_bind_intr, ciu_bind_intr),
 #endif
-	DEVMETHOD(bus_describe_intr,	ciu_describe_intr),
+	DEVMETHOD(bus_describe_intr, ciu_describe_intr),
 
-	DEVMETHOD(bus_add_child,	bus_generic_add_child),
-	DEVMETHOD(bus_hinted_child,	ciu_hinted_child),
-	{ 0, 0 }
-};
+	DEVMETHOD(bus_add_child, bus_generic_add_child),
+	DEVMETHOD(bus_hinted_child, ciu_hinted_child), { 0, 0 } };
 
 static driver_t ciu_driver = {
 	"ciu",

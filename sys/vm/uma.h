@@ -33,23 +33,23 @@
 /*
  * uma.h - External definitions for the Universal Memory Allocator
  *
-*/
+ */
 
 #ifndef _VM_UMA_H_
 #define _VM_UMA_H_
 
-#include <sys/param.h>		/* For NULL */
-#include <sys/malloc.h>		/* For M_* */
+#include <sys/param.h> /* For NULL */
 #include <sys/_smr.h>
+#include <sys/malloc.h> /* For M_* */
 
 /* User visible parameters */
-#define	UMA_SMALLEST_UNIT	8 /* Smallest item allocated */
+#define UMA_SMALLEST_UNIT 8 /* Smallest item allocated */
 
 /* Types and type defs */
 
 struct uma_zone;
 /* Opaque type used as a handle to the zone */
-typedef struct uma_zone * uma_zone_t;
+typedef struct uma_zone *uma_zone_t;
 
 /*
  * Item constructor
@@ -127,8 +127,8 @@ typedef void (*uma_fini)(void *mem, int size);
 /*
  * Import new memory into a cache zone.
  */
-typedef int (*uma_import)(void *arg, void **store, int count, int domain,
-    int flags);
+typedef int (*uma_import)(
+    void *arg, void **store, int count, int domain, int flags);
 
 /*
  * Free memory from a cache zone.
@@ -177,8 +177,7 @@ typedef void (*uma_release)(void *arg, void **store, int count);
  *	the interface.  The value may be null if the wait flag is not set.
  */
 uma_zone_t uma_zcreate(const char *name, size_t size, uma_ctor ctor,
-		    uma_dtor dtor, uma_init uminit, uma_fini fini,
-		    int align, uint32_t flags);
+    uma_dtor dtor, uma_init uminit, uma_fini fini, int align, uint32_t flags);
 
 /*
  * Create a secondary uma zone
@@ -233,54 +232,61 @@ uma_zone_t uma_zcache_create(const char *name, int size, uma_ctor ctor,
  * These flags share space with UMA_ZFLAGs in uma_int.h.  Be careful not to
  * overlap when adding new features.
  */
-#define UMA_ZONE_ZINIT		0x0002	/* Initialize with zeros */
-#define UMA_ZONE_CONTIG		0x0004	/*
-					 * Physical memory underlying an object
-					 * must be contiguous.
-					 */
-#define UMA_ZONE_NOTOUCH	0x0008	/* UMA may not access the memory */
-#define UMA_ZONE_MALLOC		0x0010	/* For use by malloc(9) only! */
-#define UMA_ZONE_NOFREE		0x0020	/* Do not free slabs of this type! */
-#define UMA_ZONE_MTXCLASS	0x0040	/* Create a new lock class */
-#define	UMA_ZONE_VM		0x0080	/*
-					 * Used for internal vm datastructures
-					 * only.
-					 */
-#define	UMA_ZONE_NOTPAGE	0x0100	/* allocf memory not vm pages */
-#define	UMA_ZONE_SECONDARY	0x0200	/* Zone is a Secondary Zone */
-#define	UMA_ZONE_NOBUCKET	0x0400	/* Do not use buckets. */
-#define	UMA_ZONE_MAXBUCKET	0x0800	/* Use largest buckets. */
-#define	UMA_ZONE_CACHESPREAD	0x2000	/*
-					 * Spread memory start locations across
-					 * all possible cache lines.  May
-					 * require many virtually contiguous
-					 * backend pages and can fail early.
-					 */
-#define	UMA_ZONE_NODUMP		0x4000	/*
-					 * Zone's pages will not be included in
-					 * mini-dumps.
-					 */
-#define	UMA_ZONE_PCPU		0x8000	/*
-					 * Allocates mp_maxid + 1 slabs of
-					 * PAGE_SIZE
-					 */
-#define	UMA_ZONE_FIRSTTOUCH	0x10000	/* First touch NUMA policy */
-#define	UMA_ZONE_ROUNDROBIN	0x20000	/* Round-robin NUMA policy. */
-#define	UMA_ZONE_SMR		0x40000 /*
-					 * Safe memory reclamation defers
-					 * frees until all read sections
-					 * have exited.  This flag creates
-					 * a unique SMR context for this
-					 * zone.  To share contexts see
-					 * uma_zone_set_smr() below.
-					 *
-					 * See sys/smr.h for more details.
-					 */
-#define	UMA_ZONE_NOKASAN	0x80000	/*
-					 * Disable KASAN verification.  This is
-					 * implied by NOFREE.  Cache zones are
-					 * not verified by default.
-					 */
+#define UMA_ZONE_ZINIT 0x0002 /* Initialize with zeros */
+#define UMA_ZONE_CONTIG                                \
+	0x0004 /*                                      \
+		* Physical memory underlying an object \
+		* must be contiguous.                  \
+		*/
+#define UMA_ZONE_NOTOUCH 0x0008 /* UMA may not access the memory */
+#define UMA_ZONE_MALLOC 0x0010 /* For use by malloc(9) only! */
+#define UMA_ZONE_NOFREE 0x0020 /* Do not free slabs of this type! */
+#define UMA_ZONE_MTXCLASS 0x0040 /* Create a new lock class */
+#define UMA_ZONE_VM                                   \
+	0x0080 /*                                     \
+		* Used for internal vm datastructures \
+		* only.                               \
+		*/
+#define UMA_ZONE_NOTPAGE 0x0100 /* allocf memory not vm pages */
+#define UMA_ZONE_SECONDARY 0x0200 /* Zone is a Secondary Zone */
+#define UMA_ZONE_NOBUCKET 0x0400 /* Do not use buckets. */
+#define UMA_ZONE_MAXBUCKET 0x0800 /* Use largest buckets. */
+#define UMA_ZONE_CACHESPREAD                           \
+	0x2000 /*                                      \
+		* Spread memory start locations across \
+		* all possible cache lines.  May       \
+		* require many virtually contiguous    \
+		* backend pages and can fail early.    \
+		*/
+#define UMA_ZONE_NODUMP                                \
+	0x4000 /*                                      \
+		* Zone's pages will not be included in \
+		* mini-dumps.                          \
+		*/
+#define UMA_ZONE_PCPU                             \
+	0x8000 /*                                 \
+		* Allocates mp_maxid + 1 slabs of \
+		* PAGE_SIZE                       \
+		*/
+#define UMA_ZONE_FIRSTTOUCH 0x10000 /* First touch NUMA policy */
+#define UMA_ZONE_ROUNDROBIN 0x20000 /* Round-robin NUMA policy. */
+#define UMA_ZONE_SMR                               \
+	0x40000 /*                                 \
+		 * Safe memory reclamation defers  \
+		 * frees until all read sections   \
+		 * have exited.  This flag creates \
+		 * a unique SMR context for this   \
+		 * zone.  To share contexts see    \
+		 * uma_zone_set_smr() below.       \
+		 *                                 \
+		 * See sys/smr.h for more details. \
+		 */
+#define UMA_ZONE_NOKASAN                                \
+	0x80000 /*                                      \
+		 * Disable KASAN verification.  This is \
+		 * implied by NOFREE.  Cache zones are  \
+		 * not verified by default.             \
+		 */
 /* In use by UMA_ZFLAGs:	0xffe00000 */
 
 /*
@@ -288,21 +294,21 @@ uma_zone_t uma_zcache_create(const char *name, int size, uma_ctor ctor,
  * based on physical parameters of the request and may not be provided by
  * the consumer.
  */
-#define	UMA_ZONE_INHERIT						\
-    (UMA_ZONE_NOTOUCH | UMA_ZONE_MALLOC | UMA_ZONE_NOFREE |		\
-     UMA_ZONE_VM | UMA_ZONE_NOTPAGE | UMA_ZONE_PCPU |			\
-     UMA_ZONE_FIRSTTOUCH | UMA_ZONE_ROUNDROBIN | UMA_ZONE_NOKASAN)
+#define UMA_ZONE_INHERIT                                                      \
+	(UMA_ZONE_NOTOUCH | UMA_ZONE_MALLOC | UMA_ZONE_NOFREE | UMA_ZONE_VM | \
+	    UMA_ZONE_NOTPAGE | UMA_ZONE_PCPU | UMA_ZONE_FIRSTTOUCH |          \
+	    UMA_ZONE_ROUNDROBIN | UMA_ZONE_NOKASAN)
 
 /* Definitions for align */
-#define UMA_ALIGN_PTR	(sizeof(void *) - 1)	/* Alignment fit for ptr */
-#define UMA_ALIGN_LONG	(sizeof(long) - 1)	/* "" long */
-#define UMA_ALIGN_INT	(sizeof(int) - 1)	/* "" int */
-#define UMA_ALIGN_SHORT	(sizeof(short) - 1)	/* "" short */
-#define UMA_ALIGN_CHAR	(sizeof(char) - 1)	/* "" char */
-#define UMA_ALIGN_CACHE	(0 - 1)			/* Cache line size align */
-#define	UMA_ALIGNOF(type) (_Alignof(type) - 1)	/* Alignment fit for 'type' */
+#define UMA_ALIGN_PTR (sizeof(void *) - 1) /* Alignment fit for ptr */
+#define UMA_ALIGN_LONG (sizeof(long) - 1) /* "" long */
+#define UMA_ALIGN_INT (sizeof(int) - 1) /* "" int */
+#define UMA_ALIGN_SHORT (sizeof(short) - 1) /* "" short */
+#define UMA_ALIGN_CHAR (sizeof(char) - 1) /* "" char */
+#define UMA_ALIGN_CACHE (0 - 1) /* Cache line size align */
+#define UMA_ALIGNOF(type) (_Alignof(type) - 1) /* Alignment fit for 'type' */
 
-#define	UMA_ANYDOMAIN	-1	/* Special value for domain search. */
+#define UMA_ANYDOMAIN -1 /* Special value for domain search. */
 
 /*
  * Destroys an empty uma zone.  If the zone is not empty uma complains loudly.
@@ -429,8 +435,8 @@ void uma_zwait(uma_zone_t zone);
  *	A pointer to the allocated memory or NULL on failure.
  */
 
-typedef void *(*uma_alloc)(uma_zone_t zone, vm_size_t size, int domain,
-    uint8_t *pflag, int wait);
+typedef void *(*uma_alloc)(
+    uma_zone_t zone, vm_size_t size, int domain, uint8_t *pflag, int wait);
 
 /*
  * Backend page free routines
@@ -455,9 +461,9 @@ typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
  * Returns:
  *	None
  */
-#define	UMA_RECLAIM_DRAIN	1	/* release bucket cache */
-#define	UMA_RECLAIM_DRAIN_CPU	2	/* release bucket and per-CPU caches */
-#define	UMA_RECLAIM_TRIM	3	/* trim bucket cache to WSS */
+#define UMA_RECLAIM_DRAIN 1 /* release bucket cache */
+#define UMA_RECLAIM_DRAIN_CPU 2 /* release bucket and per-CPU caches */
+#define UMA_RECLAIM_TRIM 3 /* trim bucket cache to WSS */
 void uma_reclaim(int req);
 void uma_reclaim_domain(int req, int domain);
 void uma_zone_reclaim(uma_zone_t, int req);
@@ -636,9 +642,9 @@ smr_t uma_zone_get_smr(uma_zone_t zone);
 /*
  * These flags are setable in the allocf and visible in the freef.
  */
-#define UMA_SLAB_BOOT	0x01		/* Slab alloced from boot pages */
-#define UMA_SLAB_KERNEL	0x04		/* Slab alloced from kmem */
-#define UMA_SLAB_PRIV	0x08		/* Slab alloced from priv allocator */
+#define UMA_SLAB_BOOT 0x01 /* Slab alloced from boot pages */
+#define UMA_SLAB_KERNEL 0x04 /* Slab alloced from kmem */
+#define UMA_SLAB_PRIV 0x08 /* Slab alloced from priv allocator */
 /* 0x02, 0x10, 0x40, and 0x80 are available */
 
 /*
@@ -685,48 +691,48 @@ extern uma_zone_t pcpu_zone_64;
  * Statistics stream consists of a uma_stream_header, followed by a series of
  * alternative uma_type_header and uma_type_stat structures.
  */
-#define	UMA_STREAM_VERSION	0x00000001
+#define UMA_STREAM_VERSION 0x00000001
 struct uma_stream_header {
-	uint32_t	ush_version;	/* Stream format version. */
-	uint32_t	ush_maxcpus;	/* Value of MAXCPU for stream. */
-	uint32_t	ush_count;	/* Number of records. */
-	uint32_t	_ush_pad;	/* Pad/reserved field. */
+	uint32_t ush_version; /* Stream format version. */
+	uint32_t ush_maxcpus; /* Value of MAXCPU for stream. */
+	uint32_t ush_count;   /* Number of records. */
+	uint32_t _ush_pad;    /* Pad/reserved field. */
 };
 
-#define	UTH_MAX_NAME	32
-#define	UTH_ZONE_SECONDARY	0x00000001
+#define UTH_MAX_NAME 32
+#define UTH_ZONE_SECONDARY 0x00000001
 struct uma_type_header {
 	/*
 	 * Static per-zone data, some extracted from the supporting keg.
 	 */
-	char		uth_name[UTH_MAX_NAME];
-	uint32_t	uth_align;	/* Keg: alignment. */
-	uint32_t	uth_size;	/* Keg: requested size of item. */
-	uint32_t	uth_rsize;	/* Keg: real size of item. */
-	uint32_t	uth_maxpages;	/* Keg: maximum number of pages. */
-	uint32_t	uth_limit;	/* Keg: max items to allocate. */
+	char uth_name[UTH_MAX_NAME];
+	uint32_t uth_align;    /* Keg: alignment. */
+	uint32_t uth_size;     /* Keg: requested size of item. */
+	uint32_t uth_rsize;    /* Keg: real size of item. */
+	uint32_t uth_maxpages; /* Keg: maximum number of pages. */
+	uint32_t uth_limit;    /* Keg: max items to allocate. */
 
 	/*
 	 * Current dynamic zone/keg-derived statistics.
 	 */
-	uint32_t	uth_pages;	/* Keg: pages allocated. */
-	uint32_t	uth_keg_free;	/* Keg: items free. */
-	uint32_t	uth_zone_free;	/* Zone: items free. */
-	uint32_t	uth_bucketsize;	/* Zone: desired bucket size. */
-	uint32_t	uth_zone_flags;	/* Zone: flags. */
-	uint64_t	uth_allocs;	/* Zone: number of allocations. */
-	uint64_t	uth_frees;	/* Zone: number of frees. */
-	uint64_t	uth_fails;	/* Zone: number of alloc failures. */
-	uint64_t	uth_sleeps;	/* Zone: number of alloc sleeps. */
-	uint64_t	uth_xdomain;	/* Zone: Number of cross domain frees. */
-	uint64_t	_uth_reserved1[1];	/* Reserved. */
+	uint32_t uth_pages;	    /* Keg: pages allocated. */
+	uint32_t uth_keg_free;	    /* Keg: items free. */
+	uint32_t uth_zone_free;	    /* Zone: items free. */
+	uint32_t uth_bucketsize;    /* Zone: desired bucket size. */
+	uint32_t uth_zone_flags;    /* Zone: flags. */
+	uint64_t uth_allocs;	    /* Zone: number of allocations. */
+	uint64_t uth_frees;	    /* Zone: number of frees. */
+	uint64_t uth_fails;	    /* Zone: number of alloc failures. */
+	uint64_t uth_sleeps;	    /* Zone: number of alloc sleeps. */
+	uint64_t uth_xdomain;	    /* Zone: Number of cross domain frees. */
+	uint64_t _uth_reserved1[1]; /* Reserved. */
 };
 
 struct uma_percpu_stat {
-	uint64_t	ups_allocs;	/* Cache: number of allocations. */
-	uint64_t	ups_frees;	/* Cache: number of frees. */
-	uint64_t	ups_cache_free;	/* Cache: free items in cache. */
-	uint64_t	_ups_reserved[5];	/* Reserved. */
+	uint64_t ups_allocs;	   /* Cache: number of allocations. */
+	uint64_t ups_frees;	   /* Cache: number of frees. */
+	uint64_t ups_cache_free;   /* Cache: free items in cache. */
+	uint64_t _ups_reserved[5]; /* Reserved. */
 };
 
 void uma_reclaim_wakeup(void);
@@ -740,4 +746,4 @@ unsigned long uma_size(void);
 /* Return the amount of memory remaining.  May be negative. */
 long uma_avail(void);
 
-#endif	/* _VM_UMA_H_ */
+#endif /* _VM_UMA_H_ */

@@ -48,39 +48,39 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_types.h>
 #include <net/bpfdesc.h>
+#include <net/if.h>
+#include <net/if_types.h>
+#include <net/if_var.h>
 
 #include <security/mac/mac_policy.h>
 
 SYSCTL_DECL(_security_mac);
 
-static SYSCTL_NODE(_security_mac, OID_AUTO, ifoff,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "TrustedBSD mac_ifoff policy controls");
+static SYSCTL_NODE(_security_mac, OID_AUTO, ifoff, CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, "TrustedBSD mac_ifoff policy controls");
 
-static int	ifoff_enabled = 1;
+static int ifoff_enabled = 1;
 SYSCTL_INT(_security_mac_ifoff, OID_AUTO, enabled, CTLFLAG_RWTUN,
     &ifoff_enabled, 0, "Enforce ifoff policy");
 
-static int	ifoff_lo_enabled = 1;
+static int ifoff_lo_enabled = 1;
 SYSCTL_INT(_security_mac_ifoff, OID_AUTO, lo_enabled, CTLFLAG_RWTUN,
     &ifoff_lo_enabled, 0, "Enable loopback interfaces");
 
-static int	ifoff_other_enabled = 0;
+static int ifoff_other_enabled = 0;
 SYSCTL_INT(_security_mac_ifoff, OID_AUTO, other_enabled, CTLFLAG_RWTUN,
     &ifoff_other_enabled, 0, "Enable other interfaces");
 
-static int	ifoff_bpfrecv_enabled = 0;
+static int ifoff_bpfrecv_enabled = 0;
 SYSCTL_INT(_security_mac_ifoff, OID_AUTO, bpfrecv_enabled, CTLFLAG_RWTUN,
-    &ifoff_bpfrecv_enabled, 0, "Enable BPF reception even when interface "
+    &ifoff_bpfrecv_enabled, 0,
+    "Enable BPF reception even when interface "
     "is disabled");
 
 static int
@@ -161,8 +161,7 @@ ifoff_socket_check_deliver(struct socket *so, struct label *solabel,
 	return (0);
 }
 
-static struct mac_policy_ops ifoff_ops =
-{
+static struct mac_policy_ops ifoff_ops = {
 	.mpo_bpfdesc_check_receive = ifoff_bpfdesc_check_receive,
 	.mpo_ifnet_check_transmit = ifoff_ifnet_check_transmit,
 	.mpo_inpcb_check_deliver = ifoff_inpcb_check_deliver,

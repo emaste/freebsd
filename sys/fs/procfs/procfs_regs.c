@@ -50,11 +50,12 @@
 
 #include <machine/reg.h>
 
-#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
+#include <fs/pseudofs/pseudofs.h>
 
 #ifdef COMPAT_FREEBSD32
 #include <sys/procfs.h>
+
 #include <machine/fpu.h>
 
 /*
@@ -66,19 +67,17 @@
  * uiomove_frombuf(&r, sizeof(r), uio)  or
  * uiomove_frombuf(&r32, sizeof(r32), uio)
  */
-#define	PROC(d, w, t, r)	wrap32 ? \
-	proc_ ## d ## _ ## w ## 32(t, r ## 32) : \
-	proc_ ## d ## _ ## w(t, r)
-#define	UIOMOVE_FROMBUF(k, u)	wrap32 ? \
-	uiomove_frombuf(& k ## 32, sizeof(k ## 32), u) : \
-	uiomove_frombuf(& k, sizeof(k), u)
+#define PROC(d, w, t, r) \
+	wrap32 ? proc_##d##_##w##32(t, r##32) : proc_##d##_##w(t, r)
+#define UIOMOVE_FROMBUF(k, u)                                \
+	wrap32 ? uiomove_frombuf(&k##32, sizeof(k##32), u) : \
+		       uiomove_frombuf(&k, sizeof(k), u)
 #else
-#define	PROC(d, w, t, r)	proc_ ## d ## _ ## w(t, r)
-#define	UIOMOVE_FROMBUF(k, u)	uiomove_frombuf(& k, sizeof(k), u)
+#define PROC(d, w, t, r) proc_##d##_##w(t, r)
+#define UIOMOVE_FROMBUF(k, u) uiomove_frombuf(&k, sizeof(k), u)
 #endif
 
-int
-procfs_doprocregs(PFS_FILL_ARGS)
+int procfs_doprocregs(PFS_FILL_ARGS)
 {
 	int error;
 	struct reg r;

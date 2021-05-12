@@ -33,43 +33,42 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <machine/intr.h>
-#include <dev/extres/syscon/syscon.h>
+#include <machine/resource.h>
 
+#include <dev/extres/syscon/syscon.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include "syscon_if.h"
 
-#define	CONTROL0		0	/* Offset in config->regs[] array */
-#define	 CONTROL0_TSEN_START	(1 << 0)
-#define	 CONTROL0_TSEN_RESET	(1 << 1)
-#define	 CONTROL0_TSEN_EN	(1 << 2)
-#define	 CONTROL0_CHANNEL_SHIFT	13
-#define	 CONTROL0_CHANNEL_MASK	0xF
-#define	 CONTROL0_OSR_SHIFT	24
-#define	 CONTROL0_OSR_MAX	3	/* OSR = 512 * 4uS = ~2mS */
-#define	 CONTROL0_MODE_SHIFT	30
-#define	 CONTROL0_MODE_EXTERNAL	0x2
-#define	 CONTROL0_MODE_MASK	0x3
+#define CONTROL0 0 /* Offset in config->regs[] array */
+#define CONTROL0_TSEN_START (1 << 0)
+#define CONTROL0_TSEN_RESET (1 << 1)
+#define CONTROL0_TSEN_EN (1 << 2)
+#define CONTROL0_CHANNEL_SHIFT 13
+#define CONTROL0_CHANNEL_MASK 0xF
+#define CONTROL0_OSR_SHIFT 24
+#define CONTROL0_OSR_MAX 3 /* OSR = 512 * 4uS = ~2mS */
+#define CONTROL0_MODE_SHIFT 30
+#define CONTROL0_MODE_EXTERNAL 0x2
+#define CONTROL0_MODE_MASK 0x3
 
-#define	CONTROL1		1	/* Offset in config->regs[] array */
+#define CONTROL1 1 /* Offset in config->regs[] array */
 /* This doesn't seems to work */
-#define	CONTROL1_TSEN_SENS_SHIFT	21
-#define	CONTROL1_TSEN_SENS_MASK		0x7
+#define CONTROL1_TSEN_SENS_SHIFT 21
+#define CONTROL1_TSEN_SENS_MASK 0x7
 
-#define	STATUS			2	/* Offset in config->regs[] array */
-#define	STATUS_TEMP_MASK	0x3FF
+#define STATUS 2 /* Offset in config->regs[] array */
+#define STATUS_TEMP_MASK 0x3FF
 
 enum mv_thermal_type {
 	MV_AP806 = 1,
@@ -77,28 +76,28 @@ enum mv_thermal_type {
 };
 
 struct mv_thermal_config {
-	enum mv_thermal_type	type;
-	int			regs[3];
-	int			ncpus;
-	int64_t			calib_mul;
-	int64_t			calib_add;
-	int64_t			calib_div;
-	uint32_t		valid_mask;
-	bool			signed_value;
+	enum mv_thermal_type type;
+	int regs[3];
+	int ncpus;
+	int64_t calib_mul;
+	int64_t calib_add;
+	int64_t calib_div;
+	uint32_t valid_mask;
+	bool signed_value;
 };
 
 struct mv_thermal_softc {
-	device_t		dev;
-	struct syscon		*syscon;
-	struct mtx		mtx;
+	device_t dev;
+	struct syscon *syscon;
+	struct mtx mtx;
 
 	struct mv_thermal_config *config;
-	int			cur_sensor;
+	int cur_sensor;
 };
 
 static struct mv_thermal_config mv_ap806_config = {
 	.type = MV_AP806,
-	.regs = {0x84, 0x88, 0x8C},
+	.regs = { 0x84, 0x88, 0x8C },
 	.ncpus = 4,
 	.calib_mul = 423,
 	.calib_add = -150000,
@@ -109,7 +108,7 @@ static struct mv_thermal_config mv_ap806_config = {
 
 static struct mv_thermal_config mv_cp110_config = {
 	.type = MV_CP110,
-	.regs = {0x70, 0x74, 0x78},
+	.regs = { 0x70, 0x74, 0x78 },
 	.calib_mul = 2000096,
 	.calib_add = 1172499100,
 	.calib_div = 420100,
@@ -118,17 +117,17 @@ static struct mv_thermal_config mv_cp110_config = {
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"marvell,armada-ap806-thermal", (uintptr_t) &mv_ap806_config},
-	{"marvell,armada-cp110-thermal", (uintptr_t) &mv_cp110_config},
-	{NULL,             0}
+	{ "marvell,armada-ap806-thermal", (uintptr_t)&mv_ap806_config },
+	{ "marvell,armada-cp110-thermal", (uintptr_t)&mv_cp110_config },
+	{ NULL, 0 }
 };
 
-#define	RD4(sc, reg)							\
-    SYSCON_READ_4((sc)->syscon, sc->config->regs[reg])
-#define	WR4(sc, reg, val)						\
+#define RD4(sc, reg) SYSCON_READ_4((sc)->syscon, sc->config->regs[reg])
+#define WR4(sc, reg, val) \
 	SYSCON_WRITE_4((sc)->syscon, sc->config->regs[reg], (val))
 
-static inline int32_t sign_extend(uint32_t value, int index)
+static inline int32_t
+sign_extend(uint32_t value, int index)
 {
 	uint8_t shift;
 
@@ -212,7 +211,7 @@ mv_thermal_read_sensor(struct mv_thermal_softc *sc, int sensor, int *temp)
 		sample = reg;
 
 	*temp = ((sample * sc->config->calib_mul) - sc->config->calib_add) /
-		sc->config->calib_div;
+	    sc->config->calib_div;
 
 	return (0);
 }
@@ -256,8 +255,7 @@ cp110_init(struct mv_thermal_softc *sc)
 	return (0);
 }
 
-static int
-mv_thermal_sysctl(SYSCTL_HANDLER_ARGS)
+static int mv_thermal_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct mv_thermal_softc *sc;
 	device_t dev = arg1;
@@ -307,8 +305,9 @@ mv_thermal_attach(device_t dev)
 	sc->dev = dev;
 	node = ofw_bus_get_node(dev);
 
-	sc->config = (struct mv_thermal_config *)
-	    ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	sc->config = (struct mv_thermal_config *)ofw_bus_search_compatible(
+	    dev, compat_data)
+			 ->ocd_data;
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
@@ -332,19 +331,15 @@ mv_thermal_attach(device_t dev)
 	oid = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 	/* There is always at least one sensor */
 	SYSCTL_ADD_PROC(ctx, oid, OID_AUTO, "internal",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
-	    dev, 0, mv_thermal_sysctl,
-	    "IK",
-	    "Internal Temperature");
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, dev, 0,
+	    mv_thermal_sysctl, "IK", "Internal Temperature");
 
 	for (i = 0; i < sc->config->ncpus; i++) {
 		snprintf(name, sizeof(name), "cpu%d", i);
 		snprintf(desc, sizeof(desc), "CPU%d Temperature", i);
 		SYSCTL_ADD_PROC(ctx, oid, OID_AUTO, name,
-		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
-		    dev, i + 1, mv_thermal_sysctl,
-		    "IK",
-		    desc);
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, dev, i + 1,
+		    mv_thermal_sysctl, "IK", desc);
 	}
 
 	return (0);
@@ -362,9 +357,9 @@ mv_thermal_detach(device_t dev)
 
 static device_method_t mv_thermal_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		mv_thermal_probe),
-	DEVMETHOD(device_attach,	mv_thermal_attach),
-	DEVMETHOD(device_detach,	mv_thermal_detach),
+	DEVMETHOD(device_probe, mv_thermal_probe),
+	DEVMETHOD(device_attach, mv_thermal_attach),
+	DEVMETHOD(device_detach, mv_thermal_detach),
 
 	DEVMETHOD_END
 };
@@ -377,5 +372,5 @@ static driver_t mv_thermal_driver = {
 	sizeof(struct mv_thermal_softc),
 };
 
-DRIVER_MODULE(mv_thermal, simplebus, mv_thermal_driver,
-    mv_thermal_devclass, 0, 0);
+DRIVER_MODULE(
+    mv_thermal, simplebus, mv_thermal_driver, mv_thermal_devclass, 0, 0);

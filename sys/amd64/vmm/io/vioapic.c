@@ -35,55 +35,54 @@ __FBSDID("$FreeBSD$");
 #include "opt_bhyve_snapshot.h"
 
 #include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
 
-#include <x86/apicreg.h>
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>
 
+#include <x86/apicreg.h>
+
+#include "vioapic.h"
+#include "vlapic.h"
 #include "vmm_ktr.h"
 #include "vmm_lapic.h"
-#include "vlapic.h"
-#include "vioapic.h"
 
-#define	IOREGSEL	0x00
-#define	IOWIN		0x10
+#define IOREGSEL 0x00
+#define IOWIN 0x10
 
-#define	REDIR_ENTRIES	32
-#define	RTBL_RO_BITS	((uint64_t)(IOART_REM_IRR | IOART_DELIVS))
+#define REDIR_ENTRIES 32
+#define RTBL_RO_BITS ((uint64_t)(IOART_REM_IRR | IOART_DELIVS))
 
 struct vioapic {
-	struct vm	*vm;
-	struct mtx	mtx;
-	uint32_t	id;
-	uint32_t	ioregsel;
+	struct vm *vm;
+	struct mtx mtx;
+	uint32_t id;
+	uint32_t ioregsel;
 	struct {
 		uint64_t reg;
-		int	 acnt;	/* sum of pin asserts (+1) and deasserts (-1) */
+		int acnt; /* sum of pin asserts (+1) and deasserts (-1) */
 	} rtbl[REDIR_ENTRIES];
 };
 
-#define	VIOAPIC_LOCK(vioapic)		mtx_lock_spin(&((vioapic)->mtx))
-#define	VIOAPIC_UNLOCK(vioapic)		mtx_unlock_spin(&((vioapic)->mtx))
-#define	VIOAPIC_LOCKED(vioapic)		mtx_owned(&((vioapic)->mtx))
+#define VIOAPIC_LOCK(vioapic) mtx_lock_spin(&((vioapic)->mtx))
+#define VIOAPIC_UNLOCK(vioapic) mtx_unlock_spin(&((vioapic)->mtx))
+#define VIOAPIC_LOCKED(vioapic) mtx_owned(&((vioapic)->mtx))
 
 static MALLOC_DEFINE(M_VIOAPIC, "vioapic", "bhyve virtual ioapic");
 
-#define	VIOAPIC_CTR1(vioapic, fmt, a1)					\
-	VM_CTR1((vioapic)->vm, fmt, a1)
+#define VIOAPIC_CTR1(vioapic, fmt, a1) VM_CTR1((vioapic)->vm, fmt, a1)
 
-#define	VIOAPIC_CTR2(vioapic, fmt, a1, a2)				\
-	VM_CTR2((vioapic)->vm, fmt, a1, a2)
+#define VIOAPIC_CTR2(vioapic, fmt, a1, a2) VM_CTR2((vioapic)->vm, fmt, a1, a2)
 
-#define	VIOAPIC_CTR3(vioapic, fmt, a1, a2, a3)				\
+#define VIOAPIC_CTR3(vioapic, fmt, a1, a2, a3) \
 	VM_CTR3((vioapic)->vm, fmt, a1, a2, a3)
 
-#define	VIOAPIC_CTR4(vioapic, fmt, a1, a2, a3, a4)			\
+#define VIOAPIC_CTR4(vioapic, fmt, a1, a2, a3, a4) \
 	VM_CTR4((vioapic)->vm, fmt, a1, a2, a3, a4)
 
 #ifdef KTR
@@ -124,8 +123,7 @@ vioapic_send_intr(struct vioapic *vioapic, int pin)
 	level = low & IOART_TRGRLVL ? true : false;
 	if (level) {
 		if ((low & IOART_REM_IRR) != 0) {
-			VIOAPIC_CTR1(vioapic, "ioapic pin%d: irr pending",
-			    pin);
+			VIOAPIC_CTR1(vioapic, "ioapic pin%d: irr pending", pin);
 			return;
 		}
 		vioapic->rtbl[pin].reg |= IOART_REM_IRR;
@@ -156,8 +154,7 @@ vioapic_set_pinstate(struct vioapic *vioapic, int pin, bool newstate)
 	newcnt = vioapic->rtbl[pin].acnt;
 
 	if (newcnt < 0) {
-		VIOAPIC_CTR2(vioapic, "ioapic pin%d: bad acnt %d",
-		    pin, newcnt);
+		VIOAPIC_CTR2(vioapic, "ioapic pin%d: bad acnt %d", pin, newcnt);
 	}
 
 	needintr = false;
@@ -167,19 +164,15 @@ vioapic_set_pinstate(struct vioapic *vioapic, int pin, bool newstate)
 	} else if (oldcnt == 1 && newcnt == 0) {
 		VIOAPIC_CTR1(vioapic, "ioapic pin%d: deasserted", pin);
 	} else {
-		VIOAPIC_CTR3(vioapic, "ioapic pin%d: %s, ignored, acnt %d",
-		    pin, pinstate_str(newstate), newcnt);
+		VIOAPIC_CTR3(vioapic, "ioapic pin%d: %s, ignored, acnt %d", pin,
+		    pinstate_str(newstate), newcnt);
 	}
 
 	if (needintr)
 		vioapic_send_intr(vioapic, pin);
 }
 
-enum irqstate {
-	IRQSTATE_ASSERT,
-	IRQSTATE_DEASSERT,
-	IRQSTATE_PULSE
-};
+enum irqstate { IRQSTATE_ASSERT, IRQSTATE_DEASSERT, IRQSTATE_PULSE };
 
 static int
 vioapic_set_irqstate(struct vm *vm, int irq, enum irqstate irqstate)
@@ -368,8 +361,10 @@ vioapic_write(struct vioapic *vioapic, int vcpuid, uint32_t addr, uint32_t data)
 		 */
 		changed = last ^ vioapic->rtbl[pin].reg;
 		if (changed & ~(IOART_INTMASK | IOART_INTPOL)) {
-			VIOAPIC_CTR1(vioapic, "ioapic pin%d: recalculate "
-			    "vlapic trigger-mode register", pin);
+			VIOAPIC_CTR1(vioapic,
+			    "ioapic pin%d: recalculate "
+			    "vlapic trigger-mode register",
+			    pin);
 			VIOAPIC_UNLOCK(vioapic);
 			allvcpus = vm_active_cpus(vioapic->vm);
 			(void)vm_smp_rendezvous(vioapic->vm, vcpuid, allvcpus,
@@ -384,8 +379,10 @@ vioapic_write(struct vioapic *vioapic, int vcpuid, uint32_t addr, uint32_t data)
 		 */
 		if ((vioapic->rtbl[pin].reg & IOART_TRGRMOD) == IOART_TRGRLVL &&
 		    (vioapic->rtbl[pin].acnt > 0)) {
-			VIOAPIC_CTR2(vioapic, "ioapic pin%d: asserted at rtbl "
-			    "write, acnt %d", pin, vioapic->rtbl[pin].acnt);
+			VIOAPIC_CTR2(vioapic,
+			    "ioapic pin%d: asserted at rtbl "
+			    "write, acnt %d",
+			    pin, vioapic->rtbl[pin].acnt);
 			vioapic_send_intr(vioapic, pin);
 		}
 	}
@@ -417,11 +414,11 @@ vioapic_mmio_rw(struct vioapic *vioapic, int vcpuid, uint64_t gpa,
 			vioapic->ioregsel = *data;
 	} else {
 		if (doread) {
-			*data = vioapic_read(vioapic, vcpuid,
-			    vioapic->ioregsel);
+			*data = vioapic_read(
+			    vioapic, vcpuid, vioapic->ioregsel);
 		} else {
-			vioapic_write(vioapic, vcpuid, vioapic->ioregsel,
-			    *data);
+			vioapic_write(
+			    vioapic, vcpuid, vioapic->ioregsel, *data);
 		}
 	}
 	VIOAPIC_UNLOCK(vioapic);
@@ -430,8 +427,8 @@ vioapic_mmio_rw(struct vioapic *vioapic, int vcpuid, uint64_t gpa,
 }
 
 int
-vioapic_mmio_read(void *vm, int vcpuid, uint64_t gpa, uint64_t *rval,
-    int size, void *arg)
+vioapic_mmio_read(
+    void *vm, int vcpuid, uint64_t gpa, uint64_t *rval, int size, void *arg)
 {
 	int error;
 	struct vioapic *vioapic;
@@ -442,8 +439,8 @@ vioapic_mmio_read(void *vm, int vcpuid, uint64_t gpa, uint64_t *rval,
 }
 
 int
-vioapic_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t wval,
-    int size, void *arg)
+vioapic_mmio_write(
+    void *vm, int vcpuid, uint64_t gpa, uint64_t wval, int size, void *arg)
 {
 	int error;
 	struct vioapic *vioapic;
@@ -477,8 +474,10 @@ vioapic_process_eoi(struct vm *vm, int vcpuid, int vector)
 			continue;
 		vioapic->rtbl[pin].reg &= ~IOART_REM_IRR;
 		if (vioapic->rtbl[pin].acnt > 0) {
-			VIOAPIC_CTR2(vioapic, "ioapic pin%d: asserted at eoi, "
-			    "acnt %d", pin, vioapic->rtbl[pin].acnt);
+			VIOAPIC_CTR2(vioapic,
+			    "ioapic pin%d: asserted at eoi, "
+			    "acnt %d",
+			    pin, vioapic->rtbl[pin].acnt);
 			vioapic_send_intr(vioapic, pin);
 		}
 	}

@@ -53,58 +53,57 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/module.h>
 #include <sys/resource.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
-
-#include <arm/freescale/imx/imx_ccmvar.h>
-
-#include <dev/iicbus/iiconf.h>
-#include <dev/iicbus/iicbus.h>
-#include <dev/iicbus/iic_recover_bus.h>
-#include "iicbus_if.h"
-
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/fdt/fdt_pinctrl.h>
 #include <dev/gpio/gpiobusvar.h>
+#include <dev/iicbus/iic_recover_bus.h>
+#include <dev/iicbus/iicbus.h>
+#include <dev/iicbus/iiconf.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
+#include <arm/freescale/imx/imx_ccmvar.h>
+
+#include "iicbus_if.h"
 
 #if defined(EXT_RESOURCES) && defined(__aarch64__)
-#define	IMX_ENABLE_CLOCKS
+#define IMX_ENABLE_CLOCKS
 #endif
 
 #ifdef IMX_ENABLE_CLOCKS
 #include <dev/extres/clk/clk.h>
 #endif
 
-#define I2C_ADDR_REG		0x00 /* I2C slave address register */
-#define I2C_FDR_REG		0x04 /* I2C frequency divider register */
-#define I2C_CONTROL_REG		0x08 /* I2C control register */
-#define I2C_STATUS_REG		0x0C /* I2C status register */
-#define I2C_DATA_REG		0x10 /* I2C data register */
-#define I2C_DFSRR_REG		0x14 /* I2C Digital Filter Sampling rate */
+#define I2C_ADDR_REG 0x00 /* I2C slave address register */
+#define I2C_FDR_REG 0x04 /* I2C frequency divider register */
+#define I2C_CONTROL_REG 0x08 /* I2C control register */
+#define I2C_STATUS_REG 0x0C /* I2C status register */
+#define I2C_DATA_REG 0x10 /* I2C data register */
+#define I2C_DFSRR_REG 0x14 /* I2C Digital Filter Sampling rate */
 
-#define I2CCR_MEN		(1 << 7) /* Module enable */
-#define I2CCR_MSTA		(1 << 5) /* Master/slave mode */
-#define I2CCR_MTX		(1 << 4) /* Transmit/receive mode */
-#define I2CCR_TXAK		(1 << 3) /* Transfer acknowledge */
-#define I2CCR_RSTA		(1 << 2) /* Repeated START */
+#define I2CCR_MEN (1 << 7) /* Module enable */
+#define I2CCR_MSTA (1 << 5) /* Master/slave mode */
+#define I2CCR_MTX (1 << 4) /* Transmit/receive mode */
+#define I2CCR_TXAK (1 << 3) /* Transfer acknowledge */
+#define I2CCR_RSTA (1 << 2) /* Repeated START */
 
-#define I2CSR_MCF		(1 << 7) /* Data transfer */
-#define I2CSR_MASS		(1 << 6) /* Addressed as a slave */
-#define I2CSR_MBB		(1 << 5) /* Bus busy */
-#define I2CSR_MAL		(1 << 4) /* Arbitration lost */
-#define I2CSR_SRW		(1 << 2) /* Slave read/write */
-#define I2CSR_MIF		(1 << 1) /* Module interrupt */
-#define I2CSR_RXAK		(1 << 0) /* Received acknowledge */
+#define I2CSR_MCF (1 << 7) /* Data transfer */
+#define I2CSR_MASS (1 << 6) /* Addressed as a slave */
+#define I2CSR_MBB (1 << 5) /* Bus busy */
+#define I2CSR_MAL (1 << 4) /* Arbitration lost */
+#define I2CSR_SRW (1 << 2) /* Slave read/write */
+#define I2CSR_MIF (1 << 1) /* Module interrupt */
+#define I2CSR_RXAK (1 << 0) /* Received acknowledge */
 
-#define I2C_BAUD_RATE_FAST	0x31
-#define I2C_BAUD_RATE_DEF	0x3F
-#define I2C_DFSSR_DIV		0x10
+#define I2C_BAUD_RATE_FAST 0x31
+#define I2C_BAUD_RATE_DEF 0x3F
+#define I2C_DFSSR_DIV 0x10
 
 /*
  * A table of available divisors and the associated coded values to put in the
@@ -116,52 +115,46 @@ struct clkdiv {
 	u_int divisor;
 	u_int regcode;
 };
-static struct clkdiv clkdiv_table[] = {
-        {    0, 0x20 }, {   22, 0x20 }, {   24, 0x21 }, {   26, 0x22 }, 
-        {   28, 0x23 }, {   30, 0x00 }, {   32, 0x24 }, {   36, 0x25 }, 
-        {   40, 0x26 }, {   42, 0x03 }, {   44, 0x27 }, {   48, 0x28 }, 
-        {   52, 0x05 }, {   56, 0x29 }, {   60, 0x06 }, {   64, 0x2a }, 
-        {   72, 0x2b }, {   80, 0x2c }, {   88, 0x09 }, {   96, 0x2d }, 
-        {  104, 0x0a }, {  112, 0x2e }, {  128, 0x2f }, {  144, 0x0c }, 
-        {  160, 0x30 }, {  192, 0x31 }, {  224, 0x32 }, {  240, 0x0f }, 
-        {  256, 0x33 }, {  288, 0x10 }, {  320, 0x34 }, {  384, 0x35 }, 
-        {  448, 0x36 }, {  480, 0x13 }, {  512, 0x37 }, {  576, 0x14 }, 
-        {  640, 0x38 }, {  768, 0x39 }, {  896, 0x3a }, {  960, 0x17 }, 
-        { 1024, 0x3b }, { 1152, 0x18 }, { 1280, 0x3c }, { 1536, 0x3d }, 
-        { 1792, 0x3e }, { 1920, 0x1b }, { 2048, 0x3f }, { 2304, 0x1c }, 
-        { 2560, 0x1d }, { 3072, 0x1e }, { 3840, 0x1f }, {UINT_MAX, 0x1f} 
-};
+static struct clkdiv clkdiv_table[] = { { 0, 0x20 }, { 22, 0x20 }, { 24, 0x21 },
+	{ 26, 0x22 }, { 28, 0x23 }, { 30, 0x00 }, { 32, 0x24 }, { 36, 0x25 },
+	{ 40, 0x26 }, { 42, 0x03 }, { 44, 0x27 }, { 48, 0x28 }, { 52, 0x05 },
+	{ 56, 0x29 }, { 60, 0x06 }, { 64, 0x2a }, { 72, 0x2b }, { 80, 0x2c },
+	{ 88, 0x09 }, { 96, 0x2d }, { 104, 0x0a }, { 112, 0x2e }, { 128, 0x2f },
+	{ 144, 0x0c }, { 160, 0x30 }, { 192, 0x31 }, { 224, 0x32 },
+	{ 240, 0x0f }, { 256, 0x33 }, { 288, 0x10 }, { 320, 0x34 },
+	{ 384, 0x35 }, { 448, 0x36 }, { 480, 0x13 }, { 512, 0x37 },
+	{ 576, 0x14 }, { 640, 0x38 }, { 768, 0x39 }, { 896, 0x3a },
+	{ 960, 0x17 }, { 1024, 0x3b }, { 1152, 0x18 }, { 1280, 0x3c },
+	{ 1536, 0x3d }, { 1792, 0x3e }, { 1920, 0x1b }, { 2048, 0x3f },
+	{ 2304, 0x1c }, { 2560, 0x1d }, { 3072, 0x1e }, { 3840, 0x1f },
+	{ UINT_MAX, 0x1f } };
 
-static struct ofw_compat_data compat_data[] = {
-	{"fsl,imx21-i2c",  1},
-	{"fsl,imx6q-i2c",  1},
-	{"fsl,imx-i2c",	   1},
-	{NULL,             0}
-};
+static struct ofw_compat_data compat_data[] = { { "fsl,imx21-i2c", 1 },
+	{ "fsl,imx6q-i2c", 1 }, { "fsl,imx-i2c", 1 }, { NULL, 0 } };
 
 struct i2c_softc {
-	device_t		dev;
-	device_t		iicbus;
-	struct resource		*res;
-	int			rid;
-	sbintime_t		byte_time_sbt;
-	int			rb_pinctl_idx;
-	gpio_pin_t		rb_sclpin;
-	gpio_pin_t 		rb_sdapin;
-	u_int			debug;
-	u_int			slave;
+	device_t dev;
+	device_t iicbus;
+	struct resource *res;
+	int rid;
+	sbintime_t byte_time_sbt;
+	int rb_pinctl_idx;
+	gpio_pin_t rb_sclpin;
+	gpio_pin_t rb_sdapin;
+	u_int debug;
+	u_int slave;
 #ifdef IMX_ENABLE_CLOCKS
-	clk_t			ipgclk;
+	clk_t ipgclk;
 #endif
 };
 
 #define DEVICE_DEBUGF(sc, lvl, fmt, args...) \
-    if ((lvl) <= (sc)->debug) \
-        device_printf((sc)->dev, fmt, ##args)
+	if ((lvl) <= (sc)->debug)            \
+	device_printf((sc)->dev, fmt, ##args)
 
 #define DEBUGF(sc, lvl, fmt, args...) \
-    if ((lvl) <= (sc)->debug) \
-        printf(fmt, ##args)
+	if ((lvl) <= (sc)->debug)     \
+	printf(fmt, ##args)
 
 static phandle_t i2c_get_node(device_t, device_t);
 static int i2c_probe(device_t);
@@ -175,35 +168,32 @@ static int i2c_reset(device_t, u_char, u_char, u_char *);
 static int i2c_read(device_t, char *, int, int *, int, int);
 static int i2c_write(device_t, const char *, int, int *, int);
 
-static device_method_t i2c_methods[] = {
-	DEVMETHOD(device_probe,			i2c_probe),
-	DEVMETHOD(device_attach,		i2c_attach),
-	DEVMETHOD(device_detach,		i2c_detach),
+static device_method_t i2c_methods[] = { DEVMETHOD(device_probe, i2c_probe),
+	DEVMETHOD(device_attach, i2c_attach),
+	DEVMETHOD(device_detach, i2c_detach),
 
 	/* OFW methods */
-	DEVMETHOD(ofw_bus_get_node,		i2c_get_node),
+	DEVMETHOD(ofw_bus_get_node, i2c_get_node),
 
-	DEVMETHOD(iicbus_callback,		iicbus_null_callback),
-	DEVMETHOD(iicbus_repeated_start,	i2c_repeated_start),
-	DEVMETHOD(iicbus_start,			i2c_start),
-	DEVMETHOD(iicbus_stop,			i2c_stop),
-	DEVMETHOD(iicbus_reset,			i2c_reset),
-	DEVMETHOD(iicbus_read,			i2c_read),
-	DEVMETHOD(iicbus_write,			i2c_write),
-	DEVMETHOD(iicbus_transfer,		iicbus_transfer_gen),
+	DEVMETHOD(iicbus_callback, iicbus_null_callback),
+	DEVMETHOD(iicbus_repeated_start, i2c_repeated_start),
+	DEVMETHOD(iicbus_start, i2c_start), DEVMETHOD(iicbus_stop, i2c_stop),
+	DEVMETHOD(iicbus_reset, i2c_reset), DEVMETHOD(iicbus_read, i2c_read),
+	DEVMETHOD(iicbus_write, i2c_write),
+	DEVMETHOD(iicbus_transfer, iicbus_transfer_gen),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t i2c_driver = {
 	"imx_i2c",
 	i2c_methods,
 	sizeof(struct i2c_softc),
 };
-static devclass_t  i2c_devclass;
+static devclass_t i2c_devclass;
 
 DRIVER_MODULE(imx_i2c, simplebus, i2c_driver, i2c_devclass, 0, 0);
-DRIVER_MODULE(ofw_iicbus, imx_i2c, ofw_iicbus_driver, ofw_iicbus_devclass, 0, 0);
+DRIVER_MODULE(
+    ofw_iicbus, imx_i2c, ofw_iicbus_driver, ofw_iicbus_devclass, 0, 0);
 MODULE_DEPEND(imx_i2c, iicbus, 1, 1, 1);
 SIMPLEBUS_PNP_INFO(compat_data);
 
@@ -247,7 +237,7 @@ wait_for_busbusy(struct i2c_softc *sc, int wantbusy)
 	int retry, srb;
 
 	retry = 1000;
-	while (retry --) {
+	while (retry--) {
 		srb = i2c_read_reg(sc, I2C_STATUS_REG) & I2CSR_MBB;
 		if ((srb && wantbusy) || (!srb && !wantbusy))
 			return (IIC_NOERR);
@@ -273,10 +263,10 @@ wait_for_xfer(struct i2c_softc *sc, int checkack)
 	pause_sbt("imxi2c", sc->byte_time_sbt, sc->byte_time_sbt / 20, 0);
 
 	retry = 10000;
-	while (retry --) {
+	while (retry--) {
 		sr = i2c_read_reg(sc, I2C_STATUS_REG);
 		if (sr & I2CSR_MIF) {
-                        if (sr & I2CSR_MAL) 
+			if (sr & I2CSR_MAL)
 				return (IIC_EBUSERR);
 			else if (checkack && (sr & I2CSR_RXAK))
 				return (IIC_ENOACK);
@@ -331,7 +321,6 @@ i2c_recover_getscl(void *ctx)
 
 	gpio_pin_is_active(((struct i2c_softc *)ctx)->rb_sclpin, &active);
 	return (active);
-
 }
 
 static void
@@ -410,8 +399,8 @@ i2c_attach(device_t dev)
 	}
 #endif
 
-	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->rid,
-	    RF_ACTIVE);
+	sc->res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->rid, RF_ACTIVE);
 	if (sc->res == NULL) {
 		device_printf(dev, "could not allocate resources");
 		return (ENXIO);
@@ -424,9 +413,9 @@ i2c_attach(device_t dev)
 	}
 
 	/* Set up debug-enable sysctl. */
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev), 
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
-	    OID_AUTO, "debug", CTLFLAG_RWTUN, &sc->debug, 0,
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO, "debug",
+	    CTLFLAG_RWTUN, &sc->debug, 0,
 	    "Enable debug; 1=reads/writes, 2=add starts/stops");
 
 	/*
@@ -436,12 +425,12 @@ i2c_attach(device_t dev)
 	 */
 	node = ofw_bus_get_node(sc->dev);
 
-	err = gpio_pin_get_by_ofw_property(dev, node, "scl-gpios",
-	    &sc->rb_sclpin);
+	err = gpio_pin_get_by_ofw_property(
+	    dev, node, "scl-gpios", &sc->rb_sclpin);
 	if (err != 0)
 		goto no_recovery;
-	err = gpio_pin_get_by_ofw_property(dev, node, "sda-gpios",
-	    &sc->rb_sdapin);
+	err = gpio_pin_get_by_ofw_property(
+	    dev, node, "sda-gpios", &sc->rb_sdapin);
 	if (err != 0)
 		goto no_recovery;
 
@@ -670,12 +659,12 @@ i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 	DEVICE_DEBUGF(sc, 1, "read   0x%02x len %d: ", sc->slave, len);
 	if (len) {
 		if (len == 1)
-			i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
-			    I2CCR_MSTA | I2CCR_TXAK);
+			i2c_write_reg(sc, I2C_CONTROL_REG,
+			    I2CCR_MEN | I2CCR_MSTA | I2CCR_TXAK);
 		else
-			i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
-			    I2CCR_MSTA);
-                /* Dummy read to prime the receiver. */
+			i2c_write_reg(
+			    sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_MSTA);
+		/* Dummy read to prime the receiver. */
 		i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 		i2c_read_reg(sc, I2C_DATA_REG);
 	}
@@ -689,12 +678,12 @@ i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 		if (last) {
 			if (*read == len - 2) {
 				/* NO ACK on last byte */
-				i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
-				    I2CCR_MSTA | I2CCR_TXAK);
+				i2c_write_reg(sc, I2C_CONTROL_REG,
+				    I2CCR_MEN | I2CCR_MSTA | I2CCR_TXAK);
 			} else if (*read == len - 1) {
 				/* Transfer done, signal stop. */
-				i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
-				    I2CCR_TXAK);
+				i2c_write_reg(sc, I2C_CONTROL_REG,
+				    I2CCR_MEN | I2CCR_TXAK);
 				wait_for_busbusy(sc, false);
 			}
 		}

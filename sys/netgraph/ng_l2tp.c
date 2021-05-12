@@ -1,12 +1,12 @@
 /*-
  * Copyright (c) 2001-2002 Packet Design, LLC.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty,
  * use and redistribution of this software, in source or object code
  * forms, with or without modifications are expressly permitted by
  * Packet Design; provided, however, that:
- * 
+ *
  *    (i)  Any and all reproductions of the source or object code
  *         must include the copyright notice above and the following
  *         disclaimer of warranties; and
@@ -14,7 +14,7 @@
  *         Packet Design trademarks, including the mark "PACKET DESIGN"
  *         on advertising, endorsements, or otherwise except as such
  *         appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY PACKET DESIGN "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, PACKET DESIGN MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING
@@ -33,7 +33,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
  * THE USE OF THIS SOFTWARE, EVEN IF PACKET DESIGN IS ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
  * $FreeBSD$
@@ -48,18 +48,18 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/time.h>
 #include <sys/conf.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
 #include <sys/libkern.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/time.h>
 
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
 #include <netgraph/ng_l2tp.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
 
 #ifdef NG_SEPARATE_MALLOC
 static MALLOC_DEFINE(M_NETGRAPH_L2TP, "netgraph_l2tp", "netgraph l2tp node");
@@ -68,48 +68,48 @@ static MALLOC_DEFINE(M_NETGRAPH_L2TP, "netgraph_l2tp", "netgraph l2tp node");
 #endif
 
 /* L2TP header format (first 2 bytes only) */
-#define L2TP_HDR_CTRL		0x8000			/* control packet */
-#define L2TP_HDR_LEN		0x4000			/* has length field */
-#define L2TP_HDR_SEQ		0x0800			/* has ns, nr fields */
-#define L2TP_HDR_OFF		0x0200			/* has offset field */
-#define L2TP_HDR_PRIO		0x0100			/* give priority */
-#define L2TP_HDR_VERS_MASK	0x000f			/* version field mask */
-#define L2TP_HDR_VERSION	0x0002			/* version field */
+#define L2TP_HDR_CTRL 0x8000 /* control packet */
+#define L2TP_HDR_LEN 0x4000 /* has length field */
+#define L2TP_HDR_SEQ 0x0800 /* has ns, nr fields */
+#define L2TP_HDR_OFF 0x0200 /* has offset field */
+#define L2TP_HDR_PRIO 0x0100 /* give priority */
+#define L2TP_HDR_VERS_MASK 0x000f /* version field mask */
+#define L2TP_HDR_VERSION 0x0002 /* version field */
 
 /* Bits that must be zero or one in first two bytes of header */
-#define L2TP_CTRL_0BITS		0x030d			/* ctrl: must be 0 */
-#define L2TP_CTRL_1BITS		0xc802			/* ctrl: must be 1 */
-#define L2TP_DATA_0BITS		0x800d			/* data: must be 0 */
-#define L2TP_DATA_1BITS		0x0002			/* data: must be 1 */
+#define L2TP_CTRL_0BITS 0x030d /* ctrl: must be 0 */
+#define L2TP_CTRL_1BITS 0xc802 /* ctrl: must be 1 */
+#define L2TP_DATA_0BITS 0x800d /* data: must be 0 */
+#define L2TP_DATA_1BITS 0x0002 /* data: must be 1 */
 
 /* Standard xmit ctrl and data header bits */
-#define L2TP_CTRL_HDR		(L2TP_HDR_CTRL | L2TP_HDR_LEN \
-				    | L2TP_HDR_SEQ | L2TP_HDR_VERSION)
-#define L2TP_DATA_HDR		(L2TP_HDR_VERSION)	/* optional: len, seq */
+#define L2TP_CTRL_HDR \
+	(L2TP_HDR_CTRL | L2TP_HDR_LEN | L2TP_HDR_SEQ | L2TP_HDR_VERSION)
+#define L2TP_DATA_HDR (L2TP_HDR_VERSION) /* optional: len, seq */
 
 /* Some hard coded values */
-#define L2TP_MAX_XWIN		128			/* my max xmit window */
-#define L2TP_MAX_REXMIT		5			/* default max rexmit */
-#define L2TP_MAX_REXMIT_TO	30			/* default rexmit to */
-#define L2TP_DELAYED_ACK	((hz + 19) / 20)	/* delayed ack: 50 ms */
+#define L2TP_MAX_XWIN 128 /* my max xmit window */
+#define L2TP_MAX_REXMIT 5 /* default max rexmit */
+#define L2TP_MAX_REXMIT_TO 30 /* default rexmit to */
+#define L2TP_DELAYED_ACK ((hz + 19) / 20) /* delayed ack: 50 ms */
 
 /* Default data sequence number configuration for new sessions */
-#define L2TP_CONTROL_DSEQ	1			/* we are the lns */
-#define L2TP_ENABLE_DSEQ	1			/* enable data seq # */
+#define L2TP_CONTROL_DSEQ 1 /* we are the lns */
+#define L2TP_ENABLE_DSEQ 1 /* enable data seq # */
 
 /* Compare sequence numbers using circular math */
-#define L2TP_SEQ_DIFF(x, y)	((int16_t)((x) - (y)))
+#define L2TP_SEQ_DIFF(x, y) ((int16_t)((x) - (y)))
 
-#define SESSHASHSIZE		0x0020
-#define SESSHASH(x)		(((x) ^ ((x) >> 8)) & (SESSHASHSIZE - 1))
+#define SESSHASHSIZE 0x0020
+#define SESSHASH(x) (((x) ^ ((x) >> 8)) & (SESSHASHSIZE - 1))
 
 /* Hook private data (data session hooks only) */
 struct ng_l2tp_hook_private {
-	struct ng_l2tp_sess_config	conf;	/* hook/session config */
-	struct ng_l2tp_session_stats	stats;	/* per sessions statistics */
-	hook_p				hook;	/* hook reference */
-	u_int16_t			ns;	/* data ns sequence number */
-	u_int16_t			nr;	/* data nr sequence number */
+	struct ng_l2tp_sess_config conf;    /* hook/session config */
+	struct ng_l2tp_session_stats stats; /* per sessions statistics */
+	hook_p hook;			    /* hook reference */
+	u_int16_t ns;			    /* data ns sequence number */
+	u_int16_t nr;			    /* data nr sequence number */
 	LIST_ENTRY(ng_l2tp_hook_private) sessions;
 };
 typedef struct ng_l2tp_hook_private *hookpriv_p;
@@ -130,222 +130,160 @@ typedef struct ng_l2tp_hook_private *hookpriv_p;
  *    - xack_timer is running iff xack != nr (unack'd rec'd pkts)
  */
 struct l2tp_seq {
-	u_int16_t		ns;		/* next xmit seq we send */
-	u_int16_t		nr;		/* next recv seq we expect */
-	u_int16_t		inproc;		/* packet is in processing */
-	u_int16_t		rack;		/* last 'nr' we rec'd */
-	u_int16_t		xack;		/* last 'nr' we sent */
-	u_int16_t		wmax;		/* peer's max recv window */
-	u_int16_t		cwnd;		/* current congestion window */
-	u_int16_t		ssth;		/* slow start threshold */
-	u_int16_t		acks;		/* # consecutive acks rec'd */
-	u_int16_t		rexmits;	/* # retransmits sent */
-	struct callout		rack_timer;	/* retransmit timer */
-	struct callout		xack_timer;	/* delayed ack timer */
-	struct mbuf		*xwin[L2TP_MAX_XWIN];	/* transmit window */
-	struct mtx		mtx;			/* seq mutex */
+	u_int16_t ns;			  /* next xmit seq we send */
+	u_int16_t nr;			  /* next recv seq we expect */
+	u_int16_t inproc;		  /* packet is in processing */
+	u_int16_t rack;			  /* last 'nr' we rec'd */
+	u_int16_t xack;			  /* last 'nr' we sent */
+	u_int16_t wmax;			  /* peer's max recv window */
+	u_int16_t cwnd;			  /* current congestion window */
+	u_int16_t ssth;			  /* slow start threshold */
+	u_int16_t acks;			  /* # consecutive acks rec'd */
+	u_int16_t rexmits;		  /* # retransmits sent */
+	struct callout rack_timer;	  /* retransmit timer */
+	struct callout xack_timer;	  /* delayed ack timer */
+	struct mbuf *xwin[L2TP_MAX_XWIN]; /* transmit window */
+	struct mtx mtx;			  /* seq mutex */
 };
 
 /* Node private data */
 struct ng_l2tp_private {
-	node_p			node;		/* back pointer to node */
-	hook_p			ctrl;		/* hook to upper layers */
-	hook_p			lower;		/* hook to lower layers */
-	struct ng_l2tp_config	conf;		/* node configuration */
-	struct ng_l2tp_stats	stats;		/* node statistics */
-	struct l2tp_seq		seq;		/* ctrl sequence number state */
-	ng_ID_t			ftarget;	/* failure message target */
+	node_p node;		    /* back pointer to node */
+	hook_p ctrl;		    /* hook to upper layers */
+	hook_p lower;		    /* hook to lower layers */
+	struct ng_l2tp_config conf; /* node configuration */
+	struct ng_l2tp_stats stats; /* node statistics */
+	struct l2tp_seq seq;	    /* ctrl sequence number state */
+	ng_ID_t ftarget;	    /* failure message target */
 	LIST_HEAD(, ng_l2tp_hook_private) sesshash[SESSHASHSIZE];
 };
 typedef struct ng_l2tp_private *priv_p;
 
 /* Netgraph node methods */
-static ng_constructor_t	ng_l2tp_constructor;
-static ng_rcvmsg_t	ng_l2tp_rcvmsg;
-static ng_shutdown_t	ng_l2tp_shutdown;
-static ng_newhook_t	ng_l2tp_newhook;
-static ng_rcvdata_t	ng_l2tp_rcvdata;
-static ng_rcvdata_t	ng_l2tp_rcvdata_lower;
-static ng_rcvdata_t	ng_l2tp_rcvdata_ctrl;
-static ng_disconnect_t	ng_l2tp_disconnect;
+static ng_constructor_t ng_l2tp_constructor;
+static ng_rcvmsg_t ng_l2tp_rcvmsg;
+static ng_shutdown_t ng_l2tp_shutdown;
+static ng_newhook_t ng_l2tp_newhook;
+static ng_rcvdata_t ng_l2tp_rcvdata;
+static ng_rcvdata_t ng_l2tp_rcvdata_lower;
+static ng_rcvdata_t ng_l2tp_rcvdata_ctrl;
+static ng_disconnect_t ng_l2tp_disconnect;
 
 /* Internal functions */
-static int	ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns);
+static int ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns);
 
-static void	ng_l2tp_seq_init(priv_p priv);
-static int	ng_l2tp_seq_set(priv_p priv,
-			const struct ng_l2tp_seq_config *conf);
-static int	ng_l2tp_seq_adjust(priv_p priv,
-			const struct ng_l2tp_config *conf);
-static void	ng_l2tp_seq_reset(priv_p priv);
-static void	ng_l2tp_seq_failure(priv_p priv);
-static void	ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr);
-static void	ng_l2tp_seq_xack_timeout(node_p node, hook_p hook,
-		    void *arg1, int arg2);
-static void	ng_l2tp_seq_rack_timeout(node_p node, hook_p hook,
-		    void *arg1, int arg2);
+static void ng_l2tp_seq_init(priv_p priv);
+static int ng_l2tp_seq_set(priv_p priv, const struct ng_l2tp_seq_config *conf);
+static int ng_l2tp_seq_adjust(priv_p priv, const struct ng_l2tp_config *conf);
+static void ng_l2tp_seq_reset(priv_p priv);
+static void ng_l2tp_seq_failure(priv_p priv);
+static void ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr);
+static void ng_l2tp_seq_xack_timeout(
+    node_p node, hook_p hook, void *arg1, int arg2);
+static void ng_l2tp_seq_rack_timeout(
+    node_p node, hook_p hook, void *arg1, int arg2);
 
-static hookpriv_p	ng_l2tp_find_session(priv_p privp, u_int16_t sid);
-static ng_fn_eachhook	ng_l2tp_reset_session;
+static hookpriv_p ng_l2tp_find_session(priv_p privp, u_int16_t sid);
+static ng_fn_eachhook ng_l2tp_reset_session;
 
 #ifdef INVARIANTS
-static void	ng_l2tp_seq_check(struct l2tp_seq *seq);
+static void ng_l2tp_seq_check(struct l2tp_seq *seq);
 #endif
 
 /* Parse type for struct ng_l2tp_seq_config. */
-static const struct ng_parse_struct_field
-	ng_l2tp_seq_config_fields[] = NG_L2TP_SEQ_CONFIG_TYPE_INFO;
+static const struct ng_parse_struct_field ng_l2tp_seq_config_fields[] =
+    NG_L2TP_SEQ_CONFIG_TYPE_INFO;
 static const struct ng_parse_type ng_l2tp_seq_config_type = {
-	&ng_parse_struct_type,
-	&ng_l2tp_seq_config_fields
+	&ng_parse_struct_type, &ng_l2tp_seq_config_fields
 };
 
 /* Parse type for struct ng_l2tp_config */
-static const struct ng_parse_struct_field
-	ng_l2tp_config_type_fields[] = NG_L2TP_CONFIG_TYPE_INFO;
+static const struct ng_parse_struct_field ng_l2tp_config_type_fields[] =
+    NG_L2TP_CONFIG_TYPE_INFO;
 static const struct ng_parse_type ng_l2tp_config_type = {
 	&ng_parse_struct_type,
 	&ng_l2tp_config_type_fields,
 };
 
 /* Parse type for struct ng_l2tp_sess_config */
-static const struct ng_parse_struct_field
-	ng_l2tp_sess_config_type_fields[] = NG_L2TP_SESS_CONFIG_TYPE_INFO;
+static const struct ng_parse_struct_field ng_l2tp_sess_config_type_fields[] =
+    NG_L2TP_SESS_CONFIG_TYPE_INFO;
 static const struct ng_parse_type ng_l2tp_sess_config_type = {
 	&ng_parse_struct_type,
 	&ng_l2tp_sess_config_type_fields,
 };
 
 /* Parse type for struct ng_l2tp_stats */
-static const struct ng_parse_struct_field
-	ng_l2tp_stats_type_fields[] = NG_L2TP_STATS_TYPE_INFO;
-static const struct ng_parse_type ng_l2tp_stats_type = {
-	&ng_parse_struct_type,
-	&ng_l2tp_stats_type_fields
-};
+static const struct ng_parse_struct_field ng_l2tp_stats_type_fields[] =
+    NG_L2TP_STATS_TYPE_INFO;
+static const struct ng_parse_type ng_l2tp_stats_type = { &ng_parse_struct_type,
+	&ng_l2tp_stats_type_fields };
 
 /* Parse type for struct ng_l2tp_session_stats. */
-static const struct ng_parse_struct_field
-	ng_l2tp_session_stats_type_fields[] = NG_L2TP_SESSION_STATS_TYPE_INFO;
+static const struct ng_parse_struct_field ng_l2tp_session_stats_type_fields[] =
+    NG_L2TP_SESSION_STATS_TYPE_INFO;
 static const struct ng_parse_type ng_l2tp_session_stats_type = {
-	&ng_parse_struct_type,
-	&ng_l2tp_session_stats_type_fields
+	&ng_parse_struct_type, &ng_l2tp_session_stats_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_l2tp_cmdlist[] = {
-	{
-	  NGM_L2TP_COOKIE,
-	  NGM_L2TP_SET_CONFIG,
-	  "setconfig",
-	  &ng_l2tp_config_type,
-	  NULL
-	},
-	{
-	  NGM_L2TP_COOKIE,
-	  NGM_L2TP_GET_CONFIG,
-	  "getconfig",
-	  NULL,
-	  &ng_l2tp_config_type
-	},
-	{
-	  NGM_L2TP_COOKIE,
-	  NGM_L2TP_SET_SESS_CONFIG,
-	  "setsessconfig",
-	  &ng_l2tp_sess_config_type,
-	  NULL
-	},
-	{
-	  NGM_L2TP_COOKIE,
-	  NGM_L2TP_GET_SESS_CONFIG,
-	  "getsessconfig",
-	  &ng_parse_hint16_type,
-	  &ng_l2tp_sess_config_type
-	},
-	{
-	  NGM_L2TP_COOKIE,
-	  NGM_L2TP_GET_STATS,
-	  "getstats",
-	  NULL,
-	  &ng_l2tp_stats_type
-	},
-	{
-	  NGM_L2TP_COOKIE,
-	  NGM_L2TP_CLR_STATS,
-	  "clrstats",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_L2TP_COOKIE,
-	  NGM_L2TP_GETCLR_STATS,
-	  "getclrstats",
-	  NULL,
-	  &ng_l2tp_stats_type
-	},
-	{
-	  NGM_L2TP_COOKIE,
-	  NGM_L2TP_GET_SESSION_STATS,
-	  "getsessstats",
-	  &ng_parse_int16_type,
-	  &ng_l2tp_session_stats_type
-	},
-	{
-	  NGM_L2TP_COOKIE,
-	  NGM_L2TP_CLR_SESSION_STATS,
-	  "clrsessstats",
-	  &ng_parse_int16_type,
-	  NULL
-	},
-	{
-	  NGM_L2TP_COOKIE,
-	  NGM_L2TP_GETCLR_SESSION_STATS,
-	  "getclrsessstats",
-	  &ng_parse_int16_type,
-	  &ng_l2tp_session_stats_type
-	},
-	{
-	  NGM_L2TP_COOKIE,
-	  NGM_L2TP_ACK_FAILURE,
-	  "ackfailure",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_L2TP_COOKIE,
-	  NGM_L2TP_SET_SEQ,
-	  "setsequence",
-	  &ng_l2tp_seq_config_type,
-	  NULL
-	},
+	{ NGM_L2TP_COOKIE, NGM_L2TP_SET_CONFIG, "setconfig",
+	    &ng_l2tp_config_type, NULL },
+	{ NGM_L2TP_COOKIE, NGM_L2TP_GET_CONFIG, "getconfig", NULL,
+	    &ng_l2tp_config_type },
+	{ NGM_L2TP_COOKIE, NGM_L2TP_SET_SESS_CONFIG, "setsessconfig",
+	    &ng_l2tp_sess_config_type, NULL },
+	{ NGM_L2TP_COOKIE, NGM_L2TP_GET_SESS_CONFIG, "getsessconfig",
+	    &ng_parse_hint16_type, &ng_l2tp_sess_config_type },
+	{ NGM_L2TP_COOKIE, NGM_L2TP_GET_STATS, "getstats", NULL,
+	    &ng_l2tp_stats_type },
+	{ NGM_L2TP_COOKIE, NGM_L2TP_CLR_STATS, "clrstats", NULL, NULL },
+	{ NGM_L2TP_COOKIE, NGM_L2TP_GETCLR_STATS, "getclrstats", NULL,
+	    &ng_l2tp_stats_type },
+	{ NGM_L2TP_COOKIE, NGM_L2TP_GET_SESSION_STATS, "getsessstats",
+	    &ng_parse_int16_type, &ng_l2tp_session_stats_type },
+	{ NGM_L2TP_COOKIE, NGM_L2TP_CLR_SESSION_STATS, "clrsessstats",
+	    &ng_parse_int16_type, NULL },
+	{ NGM_L2TP_COOKIE, NGM_L2TP_GETCLR_SESSION_STATS, "getclrsessstats",
+	    &ng_parse_int16_type, &ng_l2tp_session_stats_type },
+	{ NGM_L2TP_COOKIE, NGM_L2TP_ACK_FAILURE, "ackfailure", NULL, NULL },
+	{ NGM_L2TP_COOKIE, NGM_L2TP_SET_SEQ, "setsequence",
+	    &ng_l2tp_seq_config_type, NULL },
 	{ 0 }
 };
 
 /* Node type descriptor */
 static struct ng_type ng_l2tp_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_L2TP_NODE_TYPE,
-	.constructor =	ng_l2tp_constructor,
-	.rcvmsg =	ng_l2tp_rcvmsg,
-	.shutdown =	ng_l2tp_shutdown,
-	.newhook =	ng_l2tp_newhook,
-	.rcvdata =	ng_l2tp_rcvdata,
-	.disconnect =	ng_l2tp_disconnect,
-	.cmdlist =	ng_l2tp_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_L2TP_NODE_TYPE,
+	.constructor = ng_l2tp_constructor,
+	.rcvmsg = ng_l2tp_rcvmsg,
+	.shutdown = ng_l2tp_shutdown,
+	.newhook = ng_l2tp_newhook,
+	.rcvdata = ng_l2tp_rcvdata,
+	.disconnect = ng_l2tp_disconnect,
+	.cmdlist = ng_l2tp_cmdlist,
 };
 NETGRAPH_INIT(l2tp, &ng_l2tp_typestruct);
 
 /* Sequence number state sanity checking */
 #ifdef INVARIANTS
-#define L2TP_SEQ_CHECK(seq)	ng_l2tp_seq_check(seq)
+#define L2TP_SEQ_CHECK(seq) ng_l2tp_seq_check(seq)
 #else
-#define L2TP_SEQ_CHECK(x)	do { } while (0)
+#define L2TP_SEQ_CHECK(x) \
+	do {              \
+	} while (0)
 #endif
 
 /* Whether to use m_copypacket() or m_dup() */
-#define L2TP_COPY_MBUF		m_copypacket
+#define L2TP_COPY_MBUF m_copypacket
 
-#define ERROUT(x)	do { error = (x); goto done; } while (0)
+#define ERROUT(x)            \
+	do {                 \
+		error = (x); \
+		goto done;   \
+	} while (0)
 
 /************************************************************************
 			NETGRAPH NODE STUFF
@@ -358,7 +296,7 @@ static int
 ng_l2tp_constructor(node_p node)
 {
 	priv_p priv;
-	int	i;
+	int i;
 
 	/* Allocate private structure */
 	priv = malloc(sizeof(*priv), M_NETGRAPH_L2TP, M_WAITOK | M_ZERO);
@@ -374,7 +312,7 @@ ng_l2tp_constructor(node_p node)
 	ng_l2tp_seq_init(priv);
 
 	for (i = 0; i < SESSHASHSIZE; i++)
-	    LIST_INIT(&priv->sesshash[i]);
+		LIST_INIT(&priv->sesshash[i]);
 
 	/* Done */
 	return (0);
@@ -410,11 +348,12 @@ ng_l2tp_newhook(node_p node, hook_p hook, const char *name)
 
 		/* Parse hook name to get session ID */
 		if (strncmp(name, NG_L2TP_HOOK_SESSION_P,
-		    sizeof(NG_L2TP_HOOK_SESSION_P) - 1) != 0)
+			sizeof(NG_L2TP_HOOK_SESSION_P) - 1) != 0)
 			return (EINVAL);
 		hex = name + sizeof(NG_L2TP_HOOK_SESSION_P) - 1;
 		for (session_id = i = 0; i < 4; i++) {
-			for (j = 0; j < 16 && hex[i] != hexdig[j]; j++);
+			for (j = 0; j < 16 && hex[i] != hexdig[j]; j++)
+				;
 			if (j == 16)
 				return (EINVAL);
 			session_id = (session_id << 4) | j;
@@ -423,8 +362,8 @@ ng_l2tp_newhook(node_p node, hook_p hook, const char *name)
 			return (EINVAL);
 
 		/* Create hook private structure */
-		hpriv = malloc(sizeof(*hpriv),
-		    M_NETGRAPH_L2TP, M_NOWAIT | M_ZERO);
+		hpriv = malloc(
+		    sizeof(*hpriv), M_NETGRAPH_L2TP, M_NOWAIT | M_ZERO);
 		if (hpriv == NULL)
 			return (ENOMEM);
 		hpriv->conf.session_id = session_id;
@@ -455,10 +394,9 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	switch (msg->header.typecookie) {
 	case NGM_L2TP_COOKIE:
 		switch (msg->header.cmd) {
-		case NGM_L2TP_SET_CONFIG:
-		    {
+		case NGM_L2TP_SET_CONFIG: {
 			struct ng_l2tp_config *const conf =
-				(struct ng_l2tp_config *)msg->data;
+			    (struct ng_l2tp_config *)msg->data;
 
 			/* Check for invalid or illegal config */
 			if (msg->header.arglen != sizeof(*conf)) {
@@ -467,11 +405,11 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			conf->enabled = !!conf->enabled;
 			conf->match_id = !!conf->match_id;
-			if (priv->conf.enabled
-			    && ((priv->conf.tunnel_id != 0
-			       && conf->tunnel_id != priv->conf.tunnel_id)
-			      || ((priv->conf.peer_id != 0
-			       && conf->peer_id != priv->conf.peer_id)))) {
+			if (priv->conf.enabled &&
+			    ((priv->conf.tunnel_id != 0 &&
+				 conf->tunnel_id != priv->conf.tunnel_id) ||
+				((priv->conf.peer_id != 0 &&
+				    conf->peer_id != priv->conf.peer_id)))) {
 				error = EBUSY;
 				break;
 			}
@@ -486,9 +424,8 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			/* Update node's config */
 			priv->conf = *conf;
 			break;
-		    }
-		case NGM_L2TP_GET_CONFIG:
-		    {
+		}
+		case NGM_L2TP_GET_CONFIG: {
 			struct ng_l2tp_config *conf;
 
 			NG_MKRESPONSE(resp, msg, sizeof(*conf), M_NOWAIT);
@@ -499,9 +436,8 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			conf = (struct ng_l2tp_config *)resp->data;
 			*conf = priv->conf;
 			break;
-		    }
-		case NGM_L2TP_SET_SESS_CONFIG:
-		    {
+		}
+		case NGM_L2TP_SET_SESS_CONFIG: {
 			struct ng_l2tp_sess_config *const conf =
 			    (struct ng_l2tp_sess_config *)msg->data;
 			hookpriv_p hpriv;
@@ -522,9 +458,8 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			/* Update hook's config */
 			hpriv->conf = *conf;
 			break;
-		    }
-		case NGM_L2TP_GET_SESS_CONFIG:
-		    {
+		}
+		case NGM_L2TP_GET_SESS_CONFIG: {
 			struct ng_l2tp_sess_config *conf;
 			u_int16_t session_id;
 			hookpriv_p hpriv;
@@ -552,29 +487,27 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			conf = (struct ng_l2tp_sess_config *)resp->data;
 			*conf = hpriv->conf;
 			break;
-		    }
+		}
 		case NGM_L2TP_GET_STATS:
 		case NGM_L2TP_CLR_STATS:
-		case NGM_L2TP_GETCLR_STATS:
-		    {
+		case NGM_L2TP_GETCLR_STATS: {
 			if (msg->header.cmd != NGM_L2TP_CLR_STATS) {
-				NG_MKRESPONSE(resp, msg,
-				    sizeof(priv->stats), M_NOWAIT);
+				NG_MKRESPONSE(
+				    resp, msg, sizeof(priv->stats), M_NOWAIT);
 				if (resp == NULL) {
 					error = ENOMEM;
 					break;
 				}
-				memcpy(resp->data,
-				    &priv->stats, sizeof(priv->stats));
+				memcpy(resp->data, &priv->stats,
+				    sizeof(priv->stats));
 			}
 			if (msg->header.cmd != NGM_L2TP_GET_STATS)
 				memset(&priv->stats, 0, sizeof(priv->stats));
 			break;
-		    }
+		}
 		case NGM_L2TP_GET_SESSION_STATS:
 		case NGM_L2TP_CLR_SESSION_STATS:
-		case NGM_L2TP_GETCLR_SESSION_STATS:
-		    {
+		case NGM_L2TP_GETCLR_SESSION_STATS: {
 			uint16_t session_id;
 			hookpriv_p hpriv;
 
@@ -593,23 +526,22 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 
 			if (msg->header.cmd != NGM_L2TP_CLR_SESSION_STATS) {
-				NG_MKRESPONSE(resp, msg,
-				    sizeof(hpriv->stats), M_NOWAIT);
+				NG_MKRESPONSE(
+				    resp, msg, sizeof(hpriv->stats), M_NOWAIT);
 				if (resp == NULL) {
 					error = ENOMEM;
 					break;
 				}
 				bcopy(&hpriv->stats, resp->data,
-					sizeof(hpriv->stats));
+				    sizeof(hpriv->stats));
 			}
 			if (msg->header.cmd != NGM_L2TP_GET_SESSION_STATS)
 				bzero(&hpriv->stats, sizeof(hpriv->stats));
 			break;
-		    }
-		case NGM_L2TP_SET_SEQ:
-		    {
+		}
+		case NGM_L2TP_SET_SEQ: {
 			struct ng_l2tp_seq_config *const conf =
-				(struct ng_l2tp_seq_config *)msg->data;
+			    (struct ng_l2tp_seq_config *)msg->data;
 
 			/* Check for invalid or illegal seq config. */
 			if (msg->header.arglen != sizeof(*conf)) {
@@ -624,7 +556,7 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			/* Set sequence numbers. */
 			error = ng_l2tp_seq_set(priv, conf);
 			break;
-		    }
+		}
 		default:
 			error = EINVAL;
 			break;
@@ -706,10 +638,10 @@ ng_l2tp_disconnect(hook_p hook)
 static hookpriv_p
 ng_l2tp_find_session(priv_p privp, u_int16_t sid)
 {
-	uint16_t	hash = SESSHASH(sid);
-	hookpriv_p	hpriv = NULL;
+	uint16_t hash = SESSHASH(sid);
+	hookpriv_p hpriv = NULL;
 
-	LIST_FOREACH(hpriv, &privp->sesshash[hash], sessions) {
+	LIST_FOREACH (hpriv, &privp->sesshash[hash], sessions) {
 		if (hpriv->conf.session_id == sid)
 			break;
 	}
@@ -793,17 +725,17 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 
 	/* Check required header bits and minimum length */
 	is_ctrl = (hdr & L2TP_HDR_CTRL) != 0;
-	if ((hdr & req_bits[is_ctrl][0]) != 0
-	    || (~hdr & req_bits[is_ctrl][1]) != 0) {
+	if ((hdr & req_bits[is_ctrl][0]) != 0 ||
+	    (~hdr & req_bits[is_ctrl][1]) != 0) {
 		priv->stats.recvInvalid++;
 		NG_FREE_ITEM(item);
 		NG_FREE_M(m);
 		ERROUT(EINVAL);
 	}
-	if (m->m_pkthdr.len < 4				/* tunnel, session id */
-	    + (2 * ((hdr & L2TP_HDR_LEN) != 0))		/* length field */
-	    + (4 * ((hdr & L2TP_HDR_SEQ) != 0))		/* seq # fields */
-	    + (2 * ((hdr & L2TP_HDR_OFF) != 0))) {	/* offset field */
+	if (m->m_pkthdr.len < 4			       /* tunnel, session id */
+		+ (2 * ((hdr & L2TP_HDR_LEN) != 0))    /* length field */
+		+ (4 * ((hdr & L2TP_HDR_SEQ) != 0))    /* seq # fields */
+		+ (2 * ((hdr & L2TP_HDR_OFF) != 0))) { /* offset field */
 		priv->stats.recvRunts++;
 		NG_FREE_ITEM(item);
 		NG_FREE_M(m);
@@ -825,7 +757,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 			NG_FREE_M(m);
 			ERROUT(EINVAL);
 		}
-		if (len < m->m_pkthdr.len)		/* trim extra bytes */
+		if (len < m->m_pkthdr.len) /* trim extra bytes */
 			m_adj(m, -(m->m_pkthdr.len - len));
 	}
 
@@ -840,8 +772,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 	m_adj(m, 4);
 
 	/* Check tunnel ID */
-	if (tid != priv->conf.tunnel_id &&
-	    (priv->conf.match_id || tid != 0)) {
+	if (tid != priv->conf.tunnel_id && (priv->conf.match_id || tid != 0)) {
 		priv->stats.recvWrongTunnel++;
 		NG_FREE_ITEM(item);
 		NG_FREE_M(m);
@@ -886,13 +817,13 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 		offset = (mtod(m, u_int8_t *)[0] << 8) + mtod(m, u_int8_t *)[1];
 
 		/* Trim offset padding */
-		if ((2+offset) > m->m_pkthdr.len) {
+		if ((2 + offset) > m->m_pkthdr.len) {
 			priv->stats.recvInvalid++;
 			NG_FREE_ITEM(item);
 			NG_FREE_M(m);
 			ERROUT(EINVAL);
 		}
-		m_adj(m, 2+offset);
+		m_adj(m, 2 + offset);
 	}
 
 	/* Handle control packets */
@@ -946,7 +877,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 
 		/* Deliver packet to upper layers */
 		NG_FWD_NEW_DATA(error, item, priv->ctrl, m);
-		
+
 		mtx_lock(&seq->mtx);
 		/* Ready to process next packet. */
 		seq->inproc = 0;
@@ -977,9 +908,9 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 
 	/* Handle data sequence numbers if present and enabled */
 	if ((hdr & L2TP_HDR_SEQ) != 0) {
-		if (hpriv->conf.enable_dseq
-		    && L2TP_SEQ_DIFF(ns, hpriv->nr) < 0) {
-			NG_FREE_ITEM(item);	/* duplicate or out of order */
+		if (hpriv->conf.enable_dseq &&
+		    L2TP_SEQ_DIFF(ns, hpriv->nr) < 0) {
+			NG_FREE_ITEM(item); /* duplicate or out of order */
 			NG_FREE_M(m);
 			priv->stats.recvDataDrops++;
 			ERROUT(0);
@@ -1014,7 +945,7 @@ ng_l2tp_rcvdata_ctrl(hook_p hook, item_p item)
 	struct mbuf *m;
 	int error;
 	int i;
-	u_int16_t	ns;
+	u_int16_t ns;
 
 	/* Sanity check */
 	L2TP_SEQ_CHECK(&priv->seq);
@@ -1046,7 +977,8 @@ ng_l2tp_rcvdata_ctrl(hook_p hook, item_p item)
 	mtx_lock(&seq->mtx);
 
 	/* Find next empty slot in transmit queue */
-	for (i = 0; i < L2TP_MAX_XWIN && seq->xwin[i] != NULL; i++);
+	for (i = 0; i < L2TP_MAX_XWIN && seq->xwin[i] != NULL; i++)
+		;
 	if (i == L2TP_MAX_XWIN) {
 		mtx_unlock(&seq->mtx);
 		priv->stats.xmitDrops++;
@@ -1063,8 +995,8 @@ ng_l2tp_rcvdata_ctrl(hook_p hook, item_p item)
 
 	/* Start retransmit timer if not already running */
 	if (!callout_active(&seq->rack_timer))
-		ng_callout(&seq->rack_timer, node, NULL,
-		    hz, ng_l2tp_seq_rack_timeout, NULL, 0);
+		ng_callout(&seq->rack_timer, node, NULL, hz,
+		    ng_l2tp_seq_rack_timeout, NULL, 0);
 
 	ns = seq->ns++;
 
@@ -1119,9 +1051,9 @@ ng_l2tp_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Prepend L2TP header */
-	M_PREPEND(m, 6
-	    + (2 * (hpriv->conf.include_length != 0))
-	    + (4 * (hpriv->conf.enable_dseq != 0)),
+	M_PREPEND(m,
+	    6 + (2 * (hpriv->conf.include_length != 0)) +
+		(4 * (hpriv->conf.enable_dseq != 0)),
 	    M_NOWAIT);
 	if (m == NULL) {
 		priv->stats.memoryFailures++;
@@ -1193,8 +1125,7 @@ ng_l2tp_seq_init(priv_p priv)
 {
 	struct l2tp_seq *const seq = &priv->seq;
 
-	KASSERT(priv->conf.peer_win >= 1,
-	    ("%s: peer_win is zero", __func__));
+	KASSERT(priv->conf.peer_win >= 1, ("%s: peer_win is zero", __func__));
 	memset(seq, 0, sizeof(*seq));
 	seq->cwnd = 1;
 	seq->wmax = priv->conf.peer_win;
@@ -1311,21 +1242,21 @@ static void
 ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 {
 	struct l2tp_seq *const seq = &priv->seq;
-	struct mbuf	*xwin[L2TP_MAX_XWIN];	/* partial local copy */
-	int		nack;
-	int		i, j;
-	uint16_t	ns;
+	struct mbuf *xwin[L2TP_MAX_XWIN]; /* partial local copy */
+	int nack;
+	int i, j;
+	uint16_t ns;
 
 	mtx_lock(&seq->mtx);
 
 	/* Verify peer's ACK is in range */
 	if ((nack = L2TP_SEQ_DIFF(nr, seq->rack)) <= 0) {
 		mtx_unlock(&seq->mtx);
-		return;				/* duplicate ack */
+		return; /* duplicate ack */
 	}
 	if (L2TP_SEQ_DIFF(nr, seq->ns) > 0) {
 		mtx_unlock(&seq->mtx);
-		priv->stats.recvBadAcks++;	/* ack for packet not sent */
+		priv->stats.recvBadAcks++; /* ack for packet not sent */
 		return;
 	}
 	KASSERT(nack <= L2TP_MAX_XWIN,
@@ -1340,8 +1271,8 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 		m_freem(seq->xwin[i]);
 	memmove(seq->xwin, seq->xwin + nack,
 	    (L2TP_MAX_XWIN - nack) * sizeof(*seq->xwin));
-	memset(seq->xwin + (L2TP_MAX_XWIN - nack), 0,
-	    nack * sizeof(*seq->xwin));
+	memset(
+	    seq->xwin + (L2TP_MAX_XWIN - nack), 0, nack * sizeof(*seq->xwin));
 
 	/*
 	 * Do slow-start/congestion avoidance windowing algorithm described
@@ -1353,7 +1284,7 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 		if (seq->cwnd < seq->ssth) {
 			seq->cwnd += nack;
 			nack = 0;
-			if (seq->cwnd > seq->ssth) {	/* into cg.av. phase */
+			if (seq->cwnd > seq->ssth) { /* into cg.av. phase */
 				nack = seq->cwnd - seq->ssth;
 				seq->cwnd = seq->ssth;
 			}
@@ -1381,8 +1312,8 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 	}
 
 	/* Start restransmit timer again */
-	ng_callout(&seq->rack_timer, priv->node, NULL,
-	    hz, ng_l2tp_seq_rack_timeout, NULL, 0);
+	ng_callout(&seq->rack_timer, priv->node, NULL, hz,
+	    ng_l2tp_seq_rack_timeout, NULL, 0);
 
 	/*
 	 * Send more packets, trying to keep peer's receive window full.
@@ -1390,8 +1321,8 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 	 */
 	ns = seq->ns;
 	j = 0;
-	while ((i = L2TP_SEQ_DIFF(seq->ns, seq->rack)) < seq->cwnd
-	    && seq->xwin[i] != NULL) {
+	while ((i = L2TP_SEQ_DIFF(seq->ns, seq->rack)) < seq->cwnd &&
+	    seq->xwin[i] != NULL) {
 		xwin[j++] = seq->xwin[i];
 		seq->ns++;
 	}
@@ -1404,7 +1335,7 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 	 * will get retransmitted later anyway.
 	 */
 	for (i = 0; i < j; i++) {
-		struct mbuf 	*m;
+		struct mbuf *m;
 		if ((m = L2TP_COPY_MBUF(xwin[i], M_NOWAIT)) == NULL)
 			priv->stats.memoryFailures++;
 		else
@@ -1434,14 +1365,14 @@ ng_l2tp_seq_xack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	/* Send a ZLB */
 	ng_l2tp_xmit_ctrl(priv, NULL, seq->ns);
 
-	/* callout_deactivate() is not needed here 
+	/* callout_deactivate() is not needed here
 	    as ng_uncallout() was called by ng_l2tp_xmit_ctrl() */
 
 	/* Sanity check */
 	L2TP_SEQ_CHECK(seq);
 }
 
-/* 
+/*
  * Handle a transmit timeout. The peer has failed to respond
  * with an ack for our packet, so retransmit it.
  */
@@ -1474,8 +1405,8 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	delay = (seq->rexmits > 12) ? (1 << 12) : (1 << seq->rexmits);
 	if (delay > priv->conf.rexmit_max_to)
 		delay = priv->conf.rexmit_max_to;
-	ng_callout(&seq->rack_timer, node, NULL,
-	    hz * delay, ng_l2tp_seq_rack_timeout, NULL, 0);
+	ng_callout(&seq->rack_timer, node, NULL, hz * delay,
+	    ng_l2tp_seq_rack_timeout, NULL, 0);
 
 	/* Do slow-start/congestion algorithm windowing algorithm */
 	seq->ns = seq->rack;
@@ -1491,7 +1422,7 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	else
 		ng_l2tp_xmit_ctrl(priv, m, seq->ns++);
 
-	/* callout_deactivate() is not needed here 
+	/* callout_deactivate() is not needed here
 	    as ng_callout() is getting called each time */
 
 	/* Sanity check */
@@ -1538,10 +1469,11 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 			priv->stats.memoryFailures++;
 			return (ENOBUFS);
 		}
-		session_id = (mtod(m, u_int8_t *)[0] << 8) + mtod(m, u_int8_t *)[1];
+		session_id = (mtod(m, u_int8_t *)[0] << 8) +
+		    mtod(m, u_int8_t *)[1];
 
 		/* Make room for L2TP header */
-		M_PREPEND(m, 10, M_NOWAIT);	/* - 2 + 12 = 10 */
+		M_PREPEND(m, 10, M_NOWAIT); /* - 2 + 12 = 10 */
 		if (m == NULL) {
 			priv->stats.memoryFailures++;
 			return (ENOBUFS);
@@ -1592,7 +1524,7 @@ ng_l2tp_seq_check(struct l2tp_seq *seq)
 	int self_unack, peer_unack;
 	int i;
 
-#define CHECK(p)	KASSERT((p), ("%s: not: %s", __func__, #p))
+#define CHECK(p) KASSERT((p), ("%s: not: %s", __func__, #p))
 
 	mtx_lock(&seq->mtx);
 
@@ -1614,11 +1546,11 @@ ng_l2tp_seq_check(struct l2tp_seq *seq)
 	CHECK((peer_unack == 0) ^ callout_active(&seq->rack_timer));
 	for (i = 0; i < peer_unack; i++)
 		CHECK(seq->xwin[i] != NULL);
-	for ( ; i < seq->cwnd; i++)	    /* verify peer's recv window full */
+	for (; i < seq->cwnd; i++) /* verify peer's recv window full */
 		CHECK(seq->xwin[i] == NULL);
 
 	mtx_unlock(&seq->mtx);
 
 #undef CHECK
 }
-#endif	/* INVARIANTS */
+#endif /* INVARIANTS */

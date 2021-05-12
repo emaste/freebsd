@@ -36,19 +36,21 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/memdesc.h>
 #include <sys/mutex.h>
 #include <sys/uio.h>
+
 #include <vm/vm.h>
-#include <vm/vm_extern.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 
 #include <machine/bus.h>
+
 #include <arm64/include/bus_dma_impl.h>
 
 /*
@@ -103,10 +105,10 @@ bus_dma_run_filter(struct bus_dma_tag_common *tc, bus_addr_t paddr)
 	while (tc != NULL) {
 		if ((paddr > tc->lowaddr && paddr <= tc->highaddr) &&
 		    (tc->filter == NULL ||
-		    (*tc->filter)(tc->filterarg, paddr) != 0))
+			(*tc->filter)(tc->filterarg, paddr) != 0))
 			return (1);
 
-		tc = tc->parent;		
+		tc = tc->parent;
 	}
 
 	return (0);
@@ -169,8 +171,8 @@ common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
 		if (common->boundary == 0)
 			common->boundary = parent->boundary;
 		else if (parent->boundary != 0) {
-			common->boundary = MIN(parent->boundary,
-			    common->boundary);
+			common->boundary = MIN(
+			    parent->boundary, common->boundary);
 		}
 		if (common->filter == NULL) {
 			/*
@@ -206,9 +208,9 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		    nsegments, maxsegsz, flags, lockfunc, lockfuncarg, dmat);
 	} else {
 		tc = (struct bus_dma_tag_common *)parent;
-		error = tc->impl->tag_create(parent, alignment,
-		    boundary, lowaddr, highaddr, filter, filterarg, maxsize,
-		    nsegments, maxsegsz, flags, lockfunc, lockfuncarg, dmat);
+		error = tc->impl->tag_create(parent, alignment, boundary,
+		    lowaddr, highaddr, filter, filterarg, maxsize, nsegments,
+		    maxsegsz, flags, lockfunc, lockfuncarg, dmat);
 	}
 	return (error);
 }

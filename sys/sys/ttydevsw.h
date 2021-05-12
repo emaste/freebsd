@@ -32,7 +32,7 @@
  */
 
 #ifndef _SYS_TTYDEVSW_H_
-#define	_SYS_TTYDEVSW_H_
+#define _SYS_TTYDEVSW_H_
 
 #ifndef _SYS_TTY_H_
 #error "can only be included through <sys/tty.h>"
@@ -46,40 +46,40 @@ typedef int tsw_open_t(struct tty *tp);
 typedef void tsw_close_t(struct tty *tp);
 typedef void tsw_outwakeup_t(struct tty *tp);
 typedef void tsw_inwakeup_t(struct tty *tp);
-typedef int tsw_ioctl_t(struct tty *tp, u_long cmd, caddr_t data,
-    struct thread *td);
-typedef int tsw_cioctl_t(struct tty *tp, int unit, u_long cmd, caddr_t data,
-    struct thread *td);
+typedef int tsw_ioctl_t(
+    struct tty *tp, u_long cmd, caddr_t data, struct thread *td);
+typedef int tsw_cioctl_t(
+    struct tty *tp, int unit, u_long cmd, caddr_t data, struct thread *td);
 typedef int tsw_param_t(struct tty *tp, struct termios *t);
 typedef int tsw_modem_t(struct tty *tp, int sigon, int sigoff);
-typedef int tsw_mmap_t(struct tty *tp, vm_ooffset_t offset,
-    vm_paddr_t * paddr, int nprot, vm_memattr_t *memattr);
+typedef int tsw_mmap_t(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr);
 typedef void tsw_pktnotify_t(struct tty *tp, char event);
 typedef void tsw_free_t(void *softc);
 typedef bool tsw_busy_t(struct tty *tp);
 
 struct ttydevsw {
-	unsigned int	tsw_flags;	/* Default TTY flags. */
+	unsigned int tsw_flags; /* Default TTY flags. */
 
-	tsw_open_t	*tsw_open;	/* Device opening. */
-	tsw_close_t	*tsw_close;	/* Device closure. */
+	tsw_open_t *tsw_open;	/* Device opening. */
+	tsw_close_t *tsw_close; /* Device closure. */
 
-	tsw_outwakeup_t	*tsw_outwakeup;	/* Output available. */
-	tsw_inwakeup_t	*tsw_inwakeup;	/* Input can be stored again. */
+	tsw_outwakeup_t *tsw_outwakeup; /* Output available. */
+	tsw_inwakeup_t *tsw_inwakeup;	/* Input can be stored again. */
 
-	tsw_ioctl_t	*tsw_ioctl;	/* ioctl() hooks. */
-	tsw_cioctl_t	*tsw_cioctl;	/* ioctl() on control devices. */
-	tsw_param_t	*tsw_param;	/* TIOCSETA device parameter setting. */
-	tsw_modem_t	*tsw_modem;	/* Modem sigon/sigoff. */
+	tsw_ioctl_t *tsw_ioctl;	  /* ioctl() hooks. */
+	tsw_cioctl_t *tsw_cioctl; /* ioctl() on control devices. */
+	tsw_param_t *tsw_param;	  /* TIOCSETA device parameter setting. */
+	tsw_modem_t *tsw_modem;	  /* Modem sigon/sigoff. */
 
-	tsw_mmap_t	*tsw_mmap;	/* mmap() hooks. */
-	tsw_pktnotify_t	*tsw_pktnotify;	/* TIOCPKT events. */
+	tsw_mmap_t *tsw_mmap;		/* mmap() hooks. */
+	tsw_pktnotify_t *tsw_pktnotify; /* TIOCPKT events. */
 
-	tsw_free_t	*tsw_free;	/* Destructor. */
+	tsw_free_t *tsw_free; /* Destructor. */
 
-	tsw_busy_t	*tsw_busy;	/* Draining output. */
+	tsw_busy_t *tsw_busy; /* Draining output. */
 
-	void		*tsw_spare[3];	/* For future use. */
+	void *tsw_spare[3]; /* For future use. */
 };
 
 static __inline int
@@ -141,8 +141,8 @@ ttydevsw_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 }
 
 static __inline int
-ttydevsw_cioctl(struct tty *tp, int unit, u_long cmd, caddr_t data,
-    struct thread *td)
+ttydevsw_cioctl(
+    struct tty *tp, int unit, u_long cmd, caddr_t data, struct thread *td)
 {
 
 	tty_assert_locked(tp);
@@ -170,8 +170,8 @@ ttydevsw_modem(struct tty *tp, int sigon, int sigoff)
 }
 
 static __inline int
-ttydevsw_mmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr,
-    int nprot, vm_memattr_t *memattr)
+ttydevsw_mmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr, int nprot,
+    vm_memattr_t *memattr)
 {
 
 	MPASS(!tty_gone(tp));

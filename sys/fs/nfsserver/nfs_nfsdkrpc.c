@@ -37,17 +37,14 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
-#include "opt_kgssapi.h"
 #include "opt_kern_tls.h"
+#include "opt_kgssapi.h"
 
 #include <fs/nfs/nfsport.h>
-
+#include <fs/nfsserver/nfs_fha_new.h>
 #include <rpc/rpc.h>
 #include <rpc/rpcsec_gss.h>
 #include <rpc/rpcsec_tls.h>
-
-#include <fs/nfsserver/nfs_fha_new.h>
-
 #include <security/mac/mac_framework.h>
 
 NFSDLOCKMUTEX;
@@ -85,23 +82,22 @@ int newnfs_nfsv3_procid[NFS_V3NPROCS] = {
 
 SYSCTL_DECL(_vfs_nfsd);
 
-SVCPOOL		*nfsrvd_pool;
+SVCPOOL *nfsrvd_pool;
 
-static int	nfs_privport = 0;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, nfs_privport, CTLFLAG_RWTUN,
-    &nfs_privport, 0,
+static int nfs_privport = 0;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, nfs_privport, CTLFLAG_RWTUN, &nfs_privport, 0,
     "Only allow clients using a privileged port for NFSv2, 3 and 4");
 
-static int	nfs_minvers = NFS_VER2;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_min_nfsvers, CTLFLAG_RWTUN,
-    &nfs_minvers, 0, "The lowest version of NFS handled by the server");
+static int nfs_minvers = NFS_VER2;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_min_nfsvers, CTLFLAG_RWTUN, &nfs_minvers,
+    0, "The lowest version of NFS handled by the server");
 
-static int	nfs_maxvers = NFS_VER4;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_max_nfsvers, CTLFLAG_RWTUN,
-    &nfs_maxvers, 0, "The highest version of NFS handled by the server");
+static int nfs_maxvers = NFS_VER4;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_max_nfsvers, CTLFLAG_RWTUN, &nfs_maxvers,
+    0, "The highest version of NFS handled by the server");
 
-static int nfs_proc(struct nfsrv_descript *, u_int32_t, SVCXPRT *xprt,
-    struct nfsrvcache **);
+static int nfs_proc(
+    struct nfsrv_descript *, u_int32_t, SVCXPRT *xprt, struct nfsrvcache **);
 
 extern u_long sb_max_adj;
 extern int newnfs_numnfsd;
@@ -181,8 +177,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		 *    sin_port and sin6_port are at same offset
 		 */
 		port = ntohs(sin->sin_port);
-		if (port >= IPPORT_RESERVED &&
-		    nd.nd_procnum != NFSPROC_NULL) {
+		if (port >= IPPORT_RESERVED && nd.nd_procnum != NFSPROC_NULL) {
 #ifdef INET6
 			char buf[INET6_ADDRSTRLEN];
 #else
@@ -190,25 +185,26 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 #endif
 #ifdef INET6
 #if defined(KLD_MODULE)
-			/* Do not use ip6_sprintf: the nfs module should work without INET6. */
-#define	ip6_sprintf(buf, a)						\
-			(sprintf((buf), "%x:%x:%x:%x:%x:%x:%x:%x",	\
-			    (a)->s6_addr16[0], (a)->s6_addr16[1],	\
-			    (a)->s6_addr16[2], (a)->s6_addr16[3],	\
-			    (a)->s6_addr16[4], (a)->s6_addr16[5],	\
-			    (a)->s6_addr16[6], (a)->s6_addr16[7]),	\
-			    (buf))
+			/* Do not use ip6_sprintf: the nfs module should work
+			 * without INET6. */
+#define ip6_sprintf(buf, a)                                           \
+	(sprintf((buf), "%x:%x:%x:%x:%x:%x:%x:%x", (a)->s6_addr16[0], \
+	     (a)->s6_addr16[1], (a)->s6_addr16[2], (a)->s6_addr16[3], \
+	     (a)->s6_addr16[4], (a)->s6_addr16[5], (a)->s6_addr16[6], \
+	     (a)->s6_addr16[7]),                                      \
+	    (buf))
 #endif
 #endif
 			printf("NFS request from unprivileged port (%s:%d)\n",
 #ifdef INET6
 			    sin->sin_family == AF_INET6 ?
-			    ip6_sprintf(buf, &satosin6(sin)->sin6_addr) :
+				      ip6_sprintf(buf, &satosin6(sin)->sin6_addr) :
 #if defined(KLD_MODULE)
 #undef ip6_sprintf
 #endif
 #endif
-			    inet_ntoa_r(sin->sin_addr, buf), port);
+				      inet_ntoa_r(sin->sin_addr, buf),
+			    port);
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			m_freem(nd.nd_mrep);
@@ -261,10 +257,10 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		 * nfsv4root exports by nfsvno_v4rootexport().
 		 */
 		NFSLOCKV4ROOTMUTEX();
-		nfsv4_lock(&nfsd_suspend_lock, 0, NULL, NFSV4ROOTLOCKMUTEXPTR,
-		    NULL);
-		nfsv4_getref(&nfsd_suspend_lock, NULL, NFSV4ROOTLOCKMUTEXPTR,
-		    NULL);
+		nfsv4_lock(
+		    &nfsd_suspend_lock, 0, NULL, NFSV4ROOTLOCKMUTEXPTR, NULL);
+		nfsv4_getref(
+		    &nfsd_suspend_lock, NULL, NFSV4ROOTLOCKMUTEXPTR, NULL);
 		NFSUNLOCKV4ROOTMUTEX();
 
 		if ((nd.nd_flag & ND_NFSV4) != 0) {
@@ -321,8 +317,9 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		svcerr_systemerr(rqst);
 	}
 	if (rp != NULL) {
-		nfsrvd_sentcache(rp, (rqst->rq_reply_seq != 0 ||
-		    SVC_ACK(xprt, NULL)), rqst->rq_reply_seq);
+		nfsrvd_sentcache(rp,
+		    (rqst->rq_reply_seq != 0 || SVC_ACK(xprt, NULL)),
+		    rqst->rq_reply_seq);
 	}
 	svc_freereq(rqst);
 
@@ -370,15 +367,14 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 		 * For NFSv3, play it safe and assume that the client is
 		 * doing retries on the same TCP connection.
 		 */
-		if ((nd->nd_flag & (ND_NFSV4 | ND_STREAMSOCK)) ==
-		    ND_STREAMSOCK)
+		if ((nd->nd_flag & (ND_NFSV4 | ND_STREAMSOCK)) == ND_STREAMSOCK)
 			nd->nd_flag |= ND_SAMETCPCONN;
 		nd->nd_retxid = xid;
 		nd->nd_tcpconntime = NFSD_MONOSEC;
 		nd->nd_sockref = xprt->xp_sockref;
 		if ((nd->nd_flag & ND_NFSV4) != 0)
-			nfsd_getminorvers(nd, tag, &tagstr, &taglen,
-			    &minorvers);
+			nfsd_getminorvers(
+			    nd, tag, &tagstr, &taglen, &minorvers);
 		if ((nd->nd_flag & ND_NFSV41) != 0)
 			/* NFSv4.1 caches replies in the session slots. */
 			cacherep = RC_DOIT;
@@ -404,8 +400,8 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 			if (nd->nd_repstat != NFSERR_REPLYFROMCACHE &&
 			    (nd->nd_flag & ND_SAVEREPLY) != 0) {
 				/* Cache a copy of the reply. */
-				m = m_copym(nd->nd_mreq, 0, M_COPYALL,
-				    M_WAITOK);
+				m = m_copym(
+				    nd->nd_mreq, 0, M_COPYALL, M_WAITOK);
 			} else
 				m = NULL;
 			if ((nd->nd_flag & ND_HASSEQUENCE) != 0)
@@ -475,14 +471,11 @@ nfsrvd_addsock(struct file *fp)
 		fp->f_data = NULL;
 		xprt->xp_sockref = ++sockref;
 		if (nfs_minvers == NFS_VER2)
-			svc_reg(xprt, NFS_PROG, NFS_VER2, nfssvc_program,
-			    NULL);
+			svc_reg(xprt, NFS_PROG, NFS_VER2, nfssvc_program, NULL);
 		if (nfs_minvers <= NFS_VER3 && nfs_maxvers >= NFS_VER3)
-			svc_reg(xprt, NFS_PROG, NFS_VER3, nfssvc_program,
-			    NULL);
+			svc_reg(xprt, NFS_PROG, NFS_VER3, nfssvc_program, NULL);
 		if (nfs_maxvers >= NFS_VER4)
-			svc_reg(xprt, NFS_PROG, NFS_VER4, nfssvc_program,
-			    NULL);
+			svc_reg(xprt, NFS_PROG, NFS_VER4, nfssvc_program, NULL);
 		if (so->so_type == SOCK_STREAM)
 			svc_loss_reg(xprt, nfssvc_loss);
 		SVC_RELEASE(xprt);
@@ -505,8 +498,7 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 	int error = 0;
 	bool_t ret2, ret3, ret4;
 
-	error = copyinstr(args->principal, principal, sizeof (principal),
-	    NULL);
+	error = copyinstr(args->principal, principal, sizeof(principal), NULL);
 	if (error)
 		goto out;
 
@@ -548,7 +540,7 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 
 			nfsrvd_pool->sp_minthreads = args->minthreads;
 			nfsrvd_pool->sp_maxthreads = args->maxthreads;
-				
+
 			/*
 			 * If this is a pNFS service, make Getattr do a
 			 * vn_start_write(), so it can do a vn_set_extattr().
@@ -606,8 +598,8 @@ nfsrvd_init(int terminating)
 		NFSD_LOCK();
 	} else {
 		NFSD_UNLOCK();
-		nfsrvd_pool = svcpool_create("nfsd",
-		    SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
+		nfsrvd_pool = svcpool_create(
+		    "nfsd", SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
 		nfsrvd_pool->sp_rcache = NULL;
 		nfsrvd_pool->sp_assign = fhanew_assign;
 		nfsrvd_pool->sp_done = fhanew_nd_complete;

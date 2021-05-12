@@ -29,24 +29,24 @@
  * $FreeBSD$
  */
 
-#ifndef	_IP_FW_NAT64CLAT_H_
-#define	_IP_FW_NAT64CLAT_H_
+#ifndef _IP_FW_NAT64CLAT_H_
+#define _IP_FW_NAT64CLAT_H_
 
 #include "ip_fw_nat64.h"
 #include "nat64_translate.h"
 
 struct nat64clat_cfg {
-	struct named_object	no;
+	struct named_object no;
 
-	struct nat64_config	base;
-#define	NAT64CLAT_FLAGSMASK	\
+	struct nat64_config base;
+#define NAT64CLAT_FLAGSMASK \
 	(NAT64_LOG | NAT64_ALLOW_PRIVATE) /* flags to pass to userland */
-	char			name[64];
+	char name[64];
 };
 
 VNET_DECLARE(uint16_t, nat64clat_eid);
-#define	V_nat64clat_eid	VNET(nat64clat_eid)
-#define	IPFW_TLV_NAT64CLAT_NAME	IPFW_TLV_EACTION_NAME(V_nat64clat_eid)
+#define V_nat64clat_eid VNET(nat64clat_eid)
+#define IPFW_TLV_NAT64CLAT_NAME IPFW_TLV_EACTION_NAME(V_nat64clat_eid)
 
 int ipfw_nat64clat(struct ip_fw_chain *chain, struct ip_fw_args *args,
     ipfw_insn *cmd, int *done);

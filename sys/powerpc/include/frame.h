@@ -34,8 +34,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_FRAME_H_
-#define	_MACHINE_FRAME_H_
+#ifndef _MACHINE_FRAME_H_
+#define _MACHINE_FRAME_H_
 
 #include <sys/types.h>
 
@@ -58,7 +58,7 @@ struct trapframe {
 	register_t srr0;
 	register_t srr1;
 	register_t exc;
-	register_t dar;	/* DAR/DEAR filled in on DSI traps */
+	register_t dar; /* DAR/DEAR filled in on DSI traps */
 	union {
 		struct {
 			/* dsisr only filled on a DSI trap */
@@ -77,39 +77,41 @@ struct trapframe {
  * header (sizeof(struct callframe) - 3 register widths). It must also
  * be 16-byte aligned.
  */
-#define	FRAMELEN	roundup(sizeof(struct trapframe) + \
-			    sizeof(struct callframe) - 3*sizeof(register_t), 16)
-#define	trapframe(td)	((td)->td_frame)
+#define FRAMELEN                                                      \
+	roundup(sizeof(struct trapframe) + sizeof(struct callframe) - \
+		3 * sizeof(register_t),                               \
+	    16)
+#define trapframe(td) ((td)->td_frame)
 
 /*
  * Call frame for PowerPC used during fork.
  */
 #ifdef __powerpc64__
 struct callframe {
-	register_t	cf_dummy_fp;	/* dummy frame pointer */
-	register_t	cf_cr;
-	register_t	cf_lr;
-	register_t	cf_compiler;
-	register_t	cf_linkeditor;
-	register_t	cf_toc;
-	register_t	cf_func;
-	register_t	cf_arg0;
-	register_t	cf_arg1;
-	register_t	_padding;	/* Maintain 16-byte alignment */
+	register_t cf_dummy_fp; /* dummy frame pointer */
+	register_t cf_cr;
+	register_t cf_lr;
+	register_t cf_compiler;
+	register_t cf_linkeditor;
+	register_t cf_toc;
+	register_t cf_func;
+	register_t cf_arg0;
+	register_t cf_arg1;
+	register_t _padding; /* Maintain 16-byte alignment */
 };
 #else
 struct callframe {
-	register_t	cf_dummy_fp;	/* dummy frame pointer */
-	register_t	cf_lr;		/* space for link register save */
-	register_t	cf_func;
-	register_t	cf_arg0;
-	register_t	cf_arg1;
-	register_t	_padding;	/* Maintain 16-byte alignment */
+	register_t cf_dummy_fp; /* dummy frame pointer */
+	register_t cf_lr;	/* space for link register save */
+	register_t cf_func;
+	register_t cf_arg0;
+	register_t cf_arg1;
+	register_t _padding; /* Maintain 16-byte alignment */
 };
 #endif
 
 /* Definitions for syscalls */
-#define	FIRSTARG	3				/* first arg in reg 3 */
-#define	NARGREG		8				/* 8 args in regs */
+#define FIRSTARG 3 /* first arg in reg 3 */
+#define NARGREG 8 /* 8 args in regs */
 
-#endif	/* _MACHINE_FRAME_H_ */
+#endif /* _MACHINE_FRAME_H_ */

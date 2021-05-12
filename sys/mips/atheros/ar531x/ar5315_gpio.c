@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2016, Hiroki Mori
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
- * Copyright (c) 2009, Luiz Otavio O Souza. 
+ * Copyright (c) 2009, Luiz Otavio O Souza.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
  */
 
 /*
- * GPIO driver for AR5315 
+ * GPIO driver for AR5315
  */
 
 #include <sys/cdefs.h>
@@ -37,35 +37,36 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
+#include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/gpio.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <mips/atheros/ar531x/ar5315reg.h>
+
+#include <dev/gpio/gpiobusvar.h>
+
 #include <mips/atheros/ar531x/ar5315_cpudef.h>
 #include <mips/atheros/ar531x/ar5315_gpiovar.h>
-#include <dev/gpio/gpiobusvar.h>
+#include <mips/atheros/ar531x/ar5315reg.h>
 
 #include "gpio_if.h"
 
-#define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
+#define DEFAULT_CAPS (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
 
 /*
  * Helpers
  */
-static void ar5315_gpio_function_enable(struct ar5315_gpio_softc *sc, 
-    uint32_t mask);
-static void ar5315_gpio_function_disable(struct ar5315_gpio_softc *sc, 
-    uint32_t mask);
-static void ar5315_gpio_pin_configure(struct ar5315_gpio_softc *sc, 
-    struct gpio_pin *pin, uint32_t flags);
+static void ar5315_gpio_function_enable(
+    struct ar5315_gpio_softc *sc, uint32_t mask);
+static void ar5315_gpio_function_disable(
+    struct ar5315_gpio_softc *sc, uint32_t mask);
+static void ar5315_gpio_pin_configure(
+    struct ar5315_gpio_softc *sc, struct gpio_pin *pin, uint32_t flags);
 
 /*
  * Driver stuff
@@ -82,8 +83,8 @@ static void ar5315_gpio_intr(void *arg);
 static device_t ar5315_gpio_get_bus(device_t);
 static int ar5315_gpio_pin_max(device_t dev, int *maxpin);
 static int ar5315_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps);
-static int ar5315_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t
-    *flags);
+static int ar5315_gpio_pin_getflags(
+    device_t dev, uint32_t pin, uint32_t *flags);
 static int ar5315_gpio_pin_getname(device_t dev, uint32_t pin, char *name);
 static int ar5315_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags);
 static int ar5315_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value);
@@ -99,18 +100,18 @@ static int ar5315_gpio_pin_toggle(device_t dev, uint32_t pin);
 static void
 ar5315_gpio_function_enable(struct ar5315_gpio_softc *sc, uint32_t mask)
 {
-//		GPIO_SET_BITS(sc, AR5315_GPIO_FUNCTION, mask);
+	//		GPIO_SET_BITS(sc, AR5315_GPIO_FUNCTION, mask);
 }
 
 static void
 ar5315_gpio_function_disable(struct ar5315_gpio_softc *sc, uint32_t mask)
 {
-//		GPIO_CLEAR_BITS(sc, AR5315_GPIO_FUNCTION, mask);
+	//		GPIO_CLEAR_BITS(sc, AR5315_GPIO_FUNCTION, mask);
 }
 
 static void
-ar5315_gpio_pin_configure(struct ar5315_gpio_softc *sc, struct gpio_pin *pin,
-    unsigned int flags)
+ar5315_gpio_pin_configure(
+    struct ar5315_gpio_softc *sc, struct gpio_pin *pin, unsigned int flags)
 {
 	uint32_t mask;
 
@@ -119,13 +120,12 @@ ar5315_gpio_pin_configure(struct ar5315_gpio_softc *sc, struct gpio_pin *pin,
 	/*
 	 * Manage input/output
 	 */
-	if (flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) {
-		pin->gp_flags &= ~(GPIO_PIN_INPUT|GPIO_PIN_OUTPUT);
+	if (flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
+		pin->gp_flags &= ~(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT);
 		if (flags & GPIO_PIN_OUTPUT) {
 			pin->gp_flags |= GPIO_PIN_OUTPUT;
 			GPIO_SET_BITS(sc, ar531x_gpio_cr(), mask);
-		}
-		else {
+		} else {
 			pin->gp_flags |= GPIO_PIN_INPUT;
 			GPIO_CLEAR_BITS(sc, ar531x_gpio_cr(), mask);
 		}
@@ -190,11 +190,11 @@ ar5315_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 
 	*flags = dir ? GPIO_PIN_OUTPUT : GPIO_PIN_INPUT;
 
-/*
-	GPIO_LOCK(sc);
-	*flags = sc->gpio_pins[i].gp_flags;
-	GPIO_UNLOCK(sc);
-*/
+	/*
+		GPIO_LOCK(sc);
+		*flags = sc->gpio_pins[i].gp_flags;
+		GPIO_UNLOCK(sc);
+	*/
 
 	return (0);
 }
@@ -247,7 +247,7 @@ ar5315_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 
 	state = GPIO_READ(sc, ar531x_gpio_do());
 
-	if(value == 1) {
+	if (value == 1) {
 		state |= (1 << pin);
 	} else {
 		state &= ~(1 << pin);
@@ -340,8 +340,8 @@ ar5315_gpio_attach(device_t dev)
 
 	/* Map control/status registers. */
 	sc->gpio_mem_rid = 0;
-	sc->gpio_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->gpio_mem_rid, RF_ACTIVE);
+	sc->gpio_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->gpio_mem_rid, RF_ACTIVE);
 
 	if (sc->gpio_mem_res == NULL) {
 		device_printf(dev, "couldn't map memory\n");
@@ -349,17 +349,17 @@ ar5315_gpio_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if ((sc->gpio_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
-	    &sc->gpio_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+	if ((sc->gpio_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		 &sc->gpio_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		device_printf(dev, "unable to allocate IRQ resource\n");
 		ar5315_gpio_detach(dev);
 		return (ENXIO);
 	}
 
-	if ((bus_setup_intr(dev, sc->gpio_irq_res, INTR_TYPE_MISC, 
-	    ar5315_gpio_filter, ar5315_gpio_intr, sc, &sc->gpio_ih))) {
-		device_printf(dev,
-		    "WARNING: unable to register interrupt handler\n");
+	if ((bus_setup_intr(dev, sc->gpio_irq_res, INTR_TYPE_MISC,
+		ar5315_gpio_filter, ar5315_gpio_intr, sc, &sc->gpio_ih))) {
+		device_printf(
+		    dev, "WARNING: unable to register interrupt handler\n");
 		ar5315_gpio_detach(dev);
 		return (ENXIO);
 	}
@@ -368,24 +368,24 @@ ar5315_gpio_attach(device_t dev)
 
 	/* Enable function bits that are required */
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "function_set", &mask) == 0) {
+		"function_set", &mask) == 0) {
 		device_printf(dev, "function_set: 0x%x\n", mask);
 		ar5315_gpio_function_enable(sc, mask);
 	}
 	/* Disable function bits that are required */
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "function_clear", &mask) == 0) {
+		"function_clear", &mask) == 0) {
 		device_printf(dev, "function_clear: 0x%x\n", mask);
 		ar5315_gpio_function_disable(sc, mask);
 	}
 
 	/* Initialise all pins specified in the mask, up to the pin count */
-	(void) ar5315_gpio_pin_max(dev, &maxpin);
+	(void)ar5315_gpio_pin_max(dev, &maxpin);
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "pinmask", &mask) != 0)
+		"pinmask", &mask) != 0)
 		mask = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "pinon", &pinon) != 0)
+		"pinon", &pinon) != 0)
 		pinon = 0;
 	device_printf(dev, "gpio pinmask=0x%x\n", mask);
 	for (j = 0; j <= maxpin; j++) {
@@ -401,8 +401,7 @@ ar5315_gpio_attach(device_t dev)
 	for (i = 0, j = 0; j <= maxpin; j++) {
 		if ((mask & (1 << j)) == 0)
 			continue;
-		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
-		    "pin %d", j);
+		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME, "pin %d", j);
 		sc->gpio_pins[i].gp_pin = j;
 		sc->gpio_pins[i].gp_caps = DEFAULT_CAPS;
 		if (oe & (1 << j))
@@ -492,16 +491,16 @@ ar5315_gpio_detach(device_t dev)
 	if (sc->gpio_ih)
 		bus_teardown_intr(dev, sc->gpio_irq_res, sc->gpio_ih);
 	if (sc->gpio_irq_res)
-		bus_release_resource(dev, SYS_RES_IRQ, sc->gpio_irq_rid,
-		    sc->gpio_irq_res);
+		bus_release_resource(
+		    dev, SYS_RES_IRQ, sc->gpio_irq_rid, sc->gpio_irq_res);
 	if (sc->gpio_mem_res)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->gpio_mem_rid,
-		    sc->gpio_mem_res);
+		bus_release_resource(
+		    dev, SYS_RES_MEMORY, sc->gpio_mem_rid, sc->gpio_mem_res);
 	if (sc->gpio_pins)
 		free(sc->gpio_pins, M_DEVBUF);
 	mtx_destroy(&sc->gpio_mtx);
 
-	return(0);
+	return (0);
 }
 
 static device_method_t ar5315_gpio_methods[] = {
@@ -519,7 +518,7 @@ static device_method_t ar5315_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get, ar5315_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set, ar5315_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle, ar5315_gpio_pin_toggle),
-	{0, 0},
+	{ 0, 0 },
 };
 
 static driver_t ar5315_gpio_driver = {

@@ -32,11 +32,11 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_RESOURCEVAR_H_
-#define	_SYS_RESOURCEVAR_H_
+#ifndef _SYS_RESOURCEVAR_H_
+#define _SYS_RESOURCEVAR_H_
 
-#include <sys/resource.h>
 #include <sys/queue.h>
+#include <sys/resource.h>
 #ifdef _KERNEL
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
@@ -54,20 +54,20 @@
  *	w2 - locked by proc prof lock
  */
 struct pstats {
-#define	pstat_startzero	p_cru
-	struct	rusage p_cru;		/* Stats for reaped children. */
-	struct	itimerval p_timer[3];	/* (w) Virtual-time timers. */
-#define	pstat_endzero	pstat_startcopy
+#define pstat_startzero p_cru
+	struct rusage p_cru;	     /* Stats for reaped children. */
+	struct itimerval p_timer[3]; /* (w) Virtual-time timers. */
+#define pstat_endzero pstat_startcopy
 
-#define	pstat_startcopy	p_prof
-	struct uprof {			/* Profile arguments. */
-		caddr_t	pr_base;	/* (c + w2) Buffer base. */
-		u_long	pr_size;	/* (c + w2) Buffer size. */
-		u_long	pr_off;		/* (c + w2) PC offset. */
-		u_long	pr_scale;	/* (c + w2) PC scaling. */
+#define pstat_startcopy p_prof
+	struct uprof {		 /* Profile arguments. */
+		caddr_t pr_base; /* (c + w2) Buffer base. */
+		u_long pr_size;	 /* (c + w2) Buffer size. */
+		u_long pr_off;	 /* (c + w2) PC offset. */
+		u_long pr_scale; /* (c + w2) PC scaling. */
 	} p_prof;
-#define	pstat_endcopy	p_start
-	struct	timeval p_start;	/* (b) Starting time. */
+#define pstat_endcopy p_start
+	struct timeval p_start; /* (b) Starting time. */
 };
 
 #ifdef _KERNEL
@@ -78,8 +78,8 @@ struct pstats {
  * shared copy-on-write after forks.
  */
 struct plimit {
-	struct	rlimit pl_rlimit[RLIM_NLIMITS];
-	int	pl_refcnt;		/* number of references */
+	struct rlimit pl_rlimit[RLIM_NLIMITS];
+	int pl_refcnt; /* number of references */
 };
 
 struct racct;
@@ -95,17 +95,17 @@ struct racct;
  * (c) Locked by global uihashtbl_lock
  */
 struct uidinfo {
-	LIST_ENTRY(uidinfo) ui_hash;	/* (c) hash chain of uidinfos */
-	u_long ui_vmsize;	/* (b) pages of swap reservation by uid */
-	long	ui_sbsize;		/* (b) socket buffer space consumed */
-	long	ui_proccnt;		/* (b) number of processes */
-	long	ui_ptscnt;		/* (b) number of pseudo-terminals */
-	long	ui_kqcnt;		/* (b) number of kqueues */
-	long	ui_umtxcnt;		/* (b) number of shared umtxs */
-	uid_t	ui_uid;			/* (a) uid */
-	u_int	ui_ref;			/* (b) reference count */
-#ifdef	RACCT
-	struct racct *ui_racct;		/* (a) resource accounting */
+	LIST_ENTRY(uidinfo) ui_hash; /* (c) hash chain of uidinfos */
+	u_long ui_vmsize;	     /* (b) pages of swap reservation by uid */
+	long ui_sbsize;		     /* (b) socket buffer space consumed */
+	long ui_proccnt;	     /* (b) number of processes */
+	long ui_ptscnt;		     /* (b) number of pseudo-terminals */
+	long ui_kqcnt;		     /* (b) number of kqueues */
+	long ui_umtxcnt;	     /* (b) number of shared umtxs */
+	uid_t ui_uid;		     /* (a) uid */
+	u_int ui_ref;		     /* (b) reference count */
+#ifdef RACCT
+	struct racct *ui_racct; /* (a) resource accounting */
 #endif
 };
 
@@ -113,63 +113,60 @@ struct proc;
 struct rusage_ext;
 struct thread;
 
-void	 addupc_intr(struct thread *td, uintfptr_t pc, u_int ticks);
-void	 addupc_task(struct thread *td, uintfptr_t pc, u_int ticks);
-void	 calccru(struct proc *p, struct timeval *up, struct timeval *sp);
-void	 calcru(struct proc *p, struct timeval *up, struct timeval *sp);
-int	 chgkqcnt(struct uidinfo *uip, int diff, rlim_t max);
-int	 chgproccnt(struct uidinfo *uip, int diff, rlim_t maxval);
-int	 chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to,
-	    rlim_t maxval);
-int	 chgptscnt(struct uidinfo *uip, int diff, rlim_t maxval);
-int	 chgumtxcnt(struct uidinfo *uip, int diff, rlim_t maxval);
-int	 kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
-	    struct rlimit *limp);
-struct plimit
-	*lim_alloc(void);
-void	 lim_copy(struct plimit *dst, struct plimit *src);
-rlim_t	 lim_cur(struct thread *td, int which);
-#define lim_cur(td, which)	({					\
-	rlim_t _rlim;							\
-	struct thread *_td = (td);					\
-	int _which = (which);						\
-	if (__builtin_constant_p(which) && which != RLIMIT_DATA &&	\
-	    which != RLIMIT_STACK && which != RLIMIT_VMEM) {		\
-		_rlim = td->td_limit->pl_rlimit[which].rlim_cur;	\
-	} else {							\
-		_rlim = lim_cur(_td, _which);				\
-	}								\
-	_rlim;								\
-})
+void addupc_intr(struct thread *td, uintfptr_t pc, u_int ticks);
+void addupc_task(struct thread *td, uintfptr_t pc, u_int ticks);
+void calccru(struct proc *p, struct timeval *up, struct timeval *sp);
+void calcru(struct proc *p, struct timeval *up, struct timeval *sp);
+int chgkqcnt(struct uidinfo *uip, int diff, rlim_t max);
+int chgproccnt(struct uidinfo *uip, int diff, rlim_t maxval);
+int chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to, rlim_t maxval);
+int chgptscnt(struct uidinfo *uip, int diff, rlim_t maxval);
+int chgumtxcnt(struct uidinfo *uip, int diff, rlim_t maxval);
+int kern_proc_setrlimit(
+    struct thread *td, struct proc *p, u_int which, struct rlimit *limp);
+struct plimit *lim_alloc(void);
+void lim_copy(struct plimit *dst, struct plimit *src);
+rlim_t lim_cur(struct thread *td, int which);
+#define lim_cur(td, which)                                                 \
+	({                                                                 \
+		rlim_t _rlim;                                              \
+		struct thread *_td = (td);                                 \
+		int _which = (which);                                      \
+		if (__builtin_constant_p(which) && which != RLIMIT_DATA && \
+		    which != RLIMIT_STACK && which != RLIMIT_VMEM) {       \
+			_rlim = td->td_limit->pl_rlimit[which].rlim_cur;   \
+		} else {                                                   \
+			_rlim = lim_cur(_td, _which);                      \
+		}                                                          \
+		_rlim;                                                     \
+	})
 
-rlim_t	 lim_cur_proc(struct proc *p, int which);
-void	 lim_fork(struct proc *p1, struct proc *p2);
-void	 lim_free(struct plimit *limp);
-void	 lim_freen(struct plimit *limp, int n);
-struct plimit
-	*lim_hold(struct plimit *limp);
-rlim_t	 lim_max(struct thread *td, int which);
-rlim_t	 lim_max_proc(struct proc *p, int which);
-void	 lim_rlimit(struct thread *td, int which, struct rlimit *rlp);
-void	 lim_rlimit_proc(struct proc *p, int which, struct rlimit *rlp);
-void	 ruadd(struct rusage *ru, struct rusage_ext *rux, struct rusage *ru2,
-	    struct rusage_ext *rux2);
-void	 rucollect(struct rusage *ru, struct rusage *ru2);
-void	 rufetch(struct proc *p, struct rusage *ru);
-void	 rufetchcalc(struct proc *p, struct rusage *ru, struct timeval *up,
-	    struct timeval *sp);
-void	 rufetchtd(struct thread *td, struct rusage *ru);
-void	 ruxagg(struct proc *p, struct thread *td);
-void	 ruxagg_locked(struct proc *p, struct thread *td);
-struct uidinfo
-	*uifind(uid_t uid);
-void	 uifree(struct uidinfo *uip);
-void	 uihashinit(void);
-void	 uihold(struct uidinfo *uip);
-#ifdef	RACCT
-void	 ui_racct_foreach(void (*callback)(struct racct *racct,
-	    void *arg2, void *arg3), void (*pre)(void), void (*post)(void),
-	    void *arg2, void *arg3);
+rlim_t lim_cur_proc(struct proc *p, int which);
+void lim_fork(struct proc *p1, struct proc *p2);
+void lim_free(struct plimit *limp);
+void lim_freen(struct plimit *limp, int n);
+struct plimit *lim_hold(struct plimit *limp);
+rlim_t lim_max(struct thread *td, int which);
+rlim_t lim_max_proc(struct proc *p, int which);
+void lim_rlimit(struct thread *td, int which, struct rlimit *rlp);
+void lim_rlimit_proc(struct proc *p, int which, struct rlimit *rlp);
+void ruadd(struct rusage *ru, struct rusage_ext *rux, struct rusage *ru2,
+    struct rusage_ext *rux2);
+void rucollect(struct rusage *ru, struct rusage *ru2);
+void rufetch(struct proc *p, struct rusage *ru);
+void rufetchcalc(
+    struct proc *p, struct rusage *ru, struct timeval *up, struct timeval *sp);
+void rufetchtd(struct thread *td, struct rusage *ru);
+void ruxagg(struct proc *p, struct thread *td);
+void ruxagg_locked(struct proc *p, struct thread *td);
+struct uidinfo *uifind(uid_t uid);
+void uifree(struct uidinfo *uip);
+void uihashinit(void);
+void uihold(struct uidinfo *uip);
+#ifdef RACCT
+void ui_racct_foreach(
+    void (*callback)(struct racct *racct, void *arg2, void *arg3),
+    void (*pre)(void), void (*post)(void), void *arg2, void *arg3);
 #endif
 
 #endif /* _KERNEL */

@@ -28,9 +28,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/types.h>
 #include <sys/libkern.h>
 
 #include <net/ethernet.h>
@@ -55,8 +55,8 @@ uint8_t ar71xx_board_mac_addr[ETHER_ADDR_LEN];
  * Returns 0 if it was successfully initialised, -1 on error.
  */
 int
-ar71xx_mac_addr_init(unsigned char *dst, const unsigned char *src,
-    int offset, int is_local)
+ar71xx_mac_addr_init(
+    unsigned char *dst, const unsigned char *src, int offset, int is_local)
 {
 	int t;
 
@@ -65,9 +65,8 @@ ar71xx_mac_addr_init(unsigned char *dst, const unsigned char *src,
 
 	/* XXX TODO: validate 'src' is a valid MAC address */
 
-	t = (((uint32_t) src[3]) << 16)
-	    + (((uint32_t) src[4]) << 8)
-	    + ((uint32_t) src[5]);
+	t = (((uint32_t)src[3]) << 16) + (((uint32_t)src[4]) << 8) +
+	    ((uint32_t)src[5]);
 
 	/* Note: this is handles both positive and negative offsets */
 	t += offset;

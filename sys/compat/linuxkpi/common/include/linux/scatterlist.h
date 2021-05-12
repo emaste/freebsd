@@ -29,26 +29,26 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_SCATTERLIST_H_
-#define	_LINUX_SCATTERLIST_H_
+#ifndef _LINUX_SCATTERLIST_H_
+#define _LINUX_SCATTERLIST_H_
 
 #include <sys/types.h>
 #include <sys/sf_buf.h>
 
+#include <linux/mm.h>
 #include <linux/page.h>
 #include <linux/slab.h>
-#include <linux/mm.h>
 
 struct bus_dmamap;
 struct scatterlist {
 	unsigned long page_link;
-#define	SG_PAGE_LINK_CHAIN	0x1UL
-#define	SG_PAGE_LINK_LAST	0x2UL
-#define	SG_PAGE_LINK_MASK	0x3UL
+#define SG_PAGE_LINK_CHAIN 0x1UL
+#define SG_PAGE_LINK_LAST 0x2UL
+#define SG_PAGE_LINK_MASK 0x3UL
 	unsigned int offset;
 	unsigned int length;
 	dma_addr_t dma_address;
-	struct bus_dmamap *dma_map;	/* FreeBSD specific */
+	struct bus_dmamap *dma_map; /* FreeBSD specific */
 };
 
 CTASSERT((sizeof(struct scatterlist) & SG_PAGE_LINK_MASK) == 0);
@@ -65,7 +65,7 @@ struct sg_page_iter {
 	unsigned int maxents;
 	struct {
 		unsigned int nents;
-		int	pg_advance;
+		int pg_advance;
 	} internal;
 };
 
@@ -73,33 +73,33 @@ struct sg_dma_page_iter {
 	struct sg_page_iter base;
 };
 
-#define	SCATTERLIST_MAX_SEGMENT	(-1U & ~(PAGE_SIZE - 1))
+#define SCATTERLIST_MAX_SEGMENT (-1U & ~(PAGE_SIZE - 1))
 
-#define	SG_MAX_SINGLE_ALLOC	(PAGE_SIZE / sizeof(struct scatterlist))
+#define SG_MAX_SINGLE_ALLOC (PAGE_SIZE / sizeof(struct scatterlist))
 
-#define	SG_MAGIC		0x87654321UL
-#define	SG_CHAIN		SG_PAGE_LINK_CHAIN
-#define	SG_END			SG_PAGE_LINK_LAST
+#define SG_MAGIC 0x87654321UL
+#define SG_CHAIN SG_PAGE_LINK_CHAIN
+#define SG_END SG_PAGE_LINK_LAST
 
-#define	sg_is_chain(sg)		((sg)->page_link & SG_PAGE_LINK_CHAIN)
-#define	sg_is_last(sg)		((sg)->page_link & SG_PAGE_LINK_LAST)
-#define	sg_chain_ptr(sg)	\
-	((struct scatterlist *) ((sg)->page_link & ~SG_PAGE_LINK_MASK))
+#define sg_is_chain(sg) ((sg)->page_link & SG_PAGE_LINK_CHAIN)
+#define sg_is_last(sg) ((sg)->page_link & SG_PAGE_LINK_LAST)
+#define sg_chain_ptr(sg) \
+	((struct scatterlist *)((sg)->page_link & ~SG_PAGE_LINK_MASK))
 
-#define	sg_dma_address(sg)	(sg)->dma_address
-#define	sg_dma_len(sg)		(sg)->length
+#define sg_dma_address(sg) (sg)->dma_address
+#define sg_dma_len(sg) (sg)->length
 
-#define	for_each_sg_page(sgl, iter, nents, pgoffset)			\
-	for (_sg_iter_init(sgl, iter, nents, pgoffset);			\
-	     (iter)->sg; _sg_iter_next(iter))
-#define	for_each_sg_dma_page(sgl, iter, nents, pgoffset) 		\
+#define for_each_sg_page(sgl, iter, nents, pgoffset)                \
+	for (_sg_iter_init(sgl, iter, nents, pgoffset); (iter)->sg; \
+	     _sg_iter_next(iter))
+#define for_each_sg_dma_page(sgl, iter, nents, pgoffset) \
 	for_each_sg_page(sgl, &(iter)->base, nents, pgoffset)
 
-#define	for_each_sg(sglist, sg, sgmax, iter)				\
+#define for_each_sg(sglist, sg, sgmax, iter) \
 	for (iter = 0, sg = (sglist); iter < (sgmax); iter++, sg = sg_next(sg))
 
-typedef struct scatterlist *(sg_alloc_fn) (unsigned int, gfp_t);
-typedef void (sg_free_fn) (struct scatterlist *, unsigned int);
+typedef struct scatterlist *(sg_alloc_fn)(unsigned int, gfp_t);
+typedef void(sg_free_fn)(struct scatterlist *, unsigned int);
 
 static inline void
 sg_assign_page(struct scatterlist *sg, struct page *page)
@@ -127,8 +127,8 @@ sg_page(struct scatterlist *sg)
 static inline void
 sg_set_buf(struct scatterlist *sg, const void *buf, unsigned int buflen)
 {
-	sg_set_page(sg, virt_to_page(buf), buflen,
-	    ((uintptr_t)buf) & (PAGE_SIZE - 1));
+	sg_set_page(
+	    sg, virt_to_page(buf), buflen, ((uintptr_t)buf) & (PAGE_SIZE - 1));
 }
 
 static inline struct scatterlist *
@@ -152,19 +152,20 @@ static inline void *
 sg_virt(struct scatterlist *sg)
 {
 
-	return ((void *)((unsigned long)page_address(sg_page(sg)) + sg->offset));
+	return (
+	    (void *)((unsigned long)page_address(sg_page(sg)) + sg->offset));
 }
 
 static inline void
-sg_chain(struct scatterlist *prv, unsigned int prv_nents,
-    struct scatterlist *sgl)
+sg_chain(
+    struct scatterlist *prv, unsigned int prv_nents, struct scatterlist *sgl)
 {
 	struct scatterlist *sg = &prv[prv_nents - 1];
 
 	sg->offset = 0;
 	sg->length = 0;
-	sg->page_link = ((unsigned long)sgl |
-	    SG_PAGE_LINK_CHAIN) & ~SG_PAGE_LINK_LAST;
+	sg->page_link = ((unsigned long)sgl | SG_PAGE_LINK_CHAIN) &
+	    ~SG_PAGE_LINK_LAST;
 }
 
 static inline void
@@ -201,7 +202,7 @@ sg_kfree(struct scatterlist *sg, unsigned int nents)
 
 static inline void
 __sg_free_table(struct sg_table *table, unsigned int max_ents,
-    bool skip_first_chunk, sg_free_fn * free_fn)
+    bool skip_first_chunk, sg_free_fn *free_fn)
 {
 	struct scatterlist *sgl, *next;
 
@@ -241,8 +242,8 @@ sg_free_table(struct sg_table *table)
 
 static inline int
 __sg_alloc_table(struct sg_table *table, unsigned int nents,
-    unsigned int max_ents, struct scatterlist *first_chunk,
-    gfp_t gfp_mask, sg_alloc_fn *alloc_fn)
+    unsigned int max_ents, struct scatterlist *first_chunk, gfp_t gfp_mask,
+    sg_alloc_fn *alloc_fn)
 {
 	struct scatterlist *sg, *prv;
 	unsigned int left;
@@ -299,8 +300,8 @@ sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask)
 {
 	int ret;
 
-	ret = __sg_alloc_table(table, nents, SG_MAX_SINGLE_ALLOC,
-	    NULL, gfp_mask, sg_kmalloc);
+	ret = __sg_alloc_table(
+	    table, nents, SG_MAX_SINGLE_ALLOC, NULL, gfp_mask, sg_kmalloc);
 	if (unlikely(ret))
 		__sg_free_table(table, SG_MAX_SINGLE_ALLOC, 0, sg_kfree);
 
@@ -308,9 +309,8 @@ sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask)
 }
 
 static inline int
-__sg_alloc_table_from_pages(struct sg_table *sgt,
-    struct page **pages, unsigned int count,
-    unsigned long off, unsigned long size,
+__sg_alloc_table_from_pages(struct sg_table *sgt, struct page **pages,
+    unsigned int count, unsigned long off, unsigned long size,
     unsigned int max_segment, gfp_t gfp_mask)
 {
 	unsigned int i, segs, cur, len;
@@ -333,15 +333,17 @@ __sg_alloc_table_from_pages(struct sg_table *sgt,
 		return (rc);
 
 	cur = 0;
-	for_each_sg(sgt->sgl, s, sgt->orig_nents, i) {
+	for_each_sg(sgt->sgl, s, sgt->orig_nents, i)
+	{
 		unsigned long seg_size;
 		unsigned int j;
 
 		len = 0;
 		for (j = cur + 1; j < count; ++j) {
 			len += PAGE_SIZE;
-			if (len >= max_segment || page_to_pfn(pages[j]) !=
-			    page_to_pfn(pages[j - 1]) + 1)
+			if (len >= max_segment ||
+			    page_to_pfn(pages[j]) !=
+				page_to_pfn(pages[j - 1]) + 1)
 				break;
 		}
 
@@ -355,14 +357,12 @@ __sg_alloc_table_from_pages(struct sg_table *sgt,
 }
 
 static inline int
-sg_alloc_table_from_pages(struct sg_table *sgt,
-    struct page **pages, unsigned int count,
-    unsigned long off, unsigned long size,
-    gfp_t gfp_mask)
+sg_alloc_table_from_pages(struct sg_table *sgt, struct page **pages,
+    unsigned int count, unsigned long off, unsigned long size, gfp_t gfp_mask)
 {
 
-	return (__sg_alloc_table_from_pages(sgt, pages, count, off, size,
-	    SCATTERLIST_MAX_SEGMENT, gfp_mask));
+	return (__sg_alloc_table_from_pages(
+	    sgt, pages, count, off, size, SCATTERLIST_MAX_SEGMENT, gfp_mask));
 }
 
 static inline int
@@ -376,9 +376,8 @@ sg_nents(struct scatterlist *sg)
 }
 
 static inline void
-__sg_page_iter_start(struct sg_page_iter *piter,
-    struct scatterlist *sglist, unsigned int nents,
-    unsigned long pgoffset)
+__sg_page_iter_start(struct sg_page_iter *piter, struct scatterlist *sglist,
+    unsigned int nents, unsigned long pgoffset)
 {
 	piter->internal.pg_advance = 0;
 	piter->internal.nents = nents;
@@ -403,7 +402,8 @@ _sg_iter_next(struct sg_page_iter *iter)
 		--iter->maxents;
 		if (sg == NULL || iter->maxents == 0)
 			break;
-		pgcount = (sg->offset + sg->length + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		pgcount = (sg->offset + sg->length + PAGE_SIZE - 1) >>
+		    PAGE_SHIFT;
 	}
 	iter->sg = sg;
 }
@@ -413,8 +413,7 @@ sg_page_count(struct scatterlist *sg)
 {
 	return (PAGE_ALIGN(sg->offset + sg->length) >> PAGE_SHIFT);
 }
-#define	sg_dma_page_count(sg) \
-	sg_page_count(sg)
+#define sg_dma_page_count(sg) sg_page_count(sg)
 
 static inline bool
 __sg_page_iter_next(struct sg_page_iter *piter)
@@ -442,8 +441,7 @@ __sg_page_iter_next(struct sg_page_iter *piter)
 	}
 	return (1);
 }
-#define	__sg_page_iter_dma_next(itr) \
-	__sg_page_iter_next(&(itr)->base)
+#define __sg_page_iter_dma_next(itr) __sg_page_iter_next(&(itr)->base)
 
 static inline void
 _sg_iter_init(struct scatterlist *sgl, struct sg_page_iter *iter,
@@ -467,14 +465,15 @@ _sg_iter_init(struct scatterlist *sgl, struct sg_page_iter *iter,
  * allows both old and new code to co-exist. The compile time assert
  * adds some safety, that the structure sizes match.
  */
-#define	sg_page_iter_dma_address(spi) ({		\
-	struct sg_page_iter *__spi = (void *)(spi);	\
-	dma_addr_t __dma_address;			\
-	CTASSERT(sizeof(*(spi)) == sizeof(*__spi));	\
-	__dma_address = __spi->sg->dma_address +	\
-	    (__spi->sg_pgoffset << PAGE_SHIFT);		\
-	__dma_address;					\
-})
+#define sg_page_iter_dma_address(spi)                       \
+	({                                                  \
+		struct sg_page_iter *__spi = (void *)(spi); \
+		dma_addr_t __dma_address;                   \
+		CTASSERT(sizeof(*(spi)) == sizeof(*__spi)); \
+		__dma_address = __spi->sg->dma_address +    \
+		    (__spi->sg_pgoffset << PAGE_SHIFT);     \
+		__dma_address;                              \
+	})
 
 static inline struct page *
 sg_page_iter_page(struct sg_page_iter *piter)
@@ -498,7 +497,8 @@ sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
 	b = __DECONST(char *, buf);
 	copied = 0;
 	sched_pin();
-	for_each_sg_page(sgl, &piter, nents, 0) {
+	for_each_sg_page(sgl, &piter, nents, 0)
+	{
 
 		/* Skip to the start. */
 		if (piter.sg->length <= skip) {
@@ -508,8 +508,8 @@ sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
 
 		/* See how much to copy. */
 		KASSERT(((piter.sg->length - skip) != 0 && (buflen != 0)),
-		    ("%s: sg len %u - skip %ju || buflen %zu is 0\n",
-		    __func__, piter.sg->length, (uintmax_t)skip, buflen));
+		    ("%s: sg len %u - skip %ju || buflen %zu is 0\n", __func__,
+			piter.sg->length, (uintmax_t)skip, buflen));
 		len = min(piter.sg->length - skip, buflen);
 
 		page = sg_page_iter_page(&piter);
@@ -533,4 +533,4 @@ sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
 	return (copied);
 }
 
-#endif					/* _LINUX_SCATTERLIST_H_ */
+#endif /* _LINUX_SCATTERLIST_H_ */

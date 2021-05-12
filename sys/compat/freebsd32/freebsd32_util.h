@@ -39,89 +39,81 @@
 #include <sys/uio.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_param.h>
 
 struct freebsd32_ps_strings {
-	u_int32_t ps_argvstr;	/* first of 0 or more argument strings */
-	int	ps_nargvstr;	/* the number of argument strings */
-	u_int32_t ps_envstr;	/* first of 0 or more environment strings */
-	int	ps_nenvstr;	/* the number of environment strings */
+	u_int32_t ps_argvstr; /* first of 0 or more argument strings */
+	int ps_nargvstr;      /* the number of argument strings */
+	u_int32_t ps_envstr;  /* first of 0 or more environment strings */
+	int ps_nenvstr;	      /* the number of environment strings */
 };
 
 #if defined(__amd64__)
 #include <compat/ia32/ia32_util.h>
 #endif
 
-#define FREEBSD32_PS_STRINGS	\
+#define FREEBSD32_PS_STRINGS \
 	(FREEBSD32_USRSTACK - sizeof(struct freebsd32_ps_strings))
 
 extern struct sysent freebsd32_sysent[];
 
-#define SYSCALL32_MODULE(name, offset, new_sysent, evh, arg)   \
-static struct syscall_module_data name##_syscall32_mod = {     \
-       evh, arg, offset, new_sysent, { 0, NULL }               \
-};                                                             \
-                                                               \
-static moduledata_t name##32_mod = {                           \
-       "sys32/" #name,                                         \
-       syscall32_module_handler,                               \
-       &name##_syscall32_mod                                   \
-};                                                             \
-DECLARE_MODULE(name##32, name##32_mod, SI_SUB_SYSCALLS, SI_ORDER_MIDDLE)
+#define SYSCALL32_MODULE(name, offset, new_sysent, evh, arg)                 \
+	static struct syscall_module_data name##_syscall32_mod = { evh, arg, \
+		offset, new_sysent, { 0, NULL } };                           \
+                                                                             \
+	static moduledata_t name##32_mod = { "sys32/" #name,                 \
+		syscall32_module_handler, &name##_syscall32_mod };           \
+	DECLARE_MODULE(name##32, name##32_mod, SI_SUB_SYSCALLS, SI_ORDER_MIDDLE)
 
-#define SYSCALL32_MODULE_HELPER(syscallname)            \
-static int syscallname##_syscall32 = FREEBSD32_SYS_##syscallname; \
-static struct sysent syscallname##_sysent32 = {         \
-    (sizeof(struct syscallname ## _args )               \
-     / sizeof(register_t)),                             \
-    (sy_call_t *)& syscallname                          \
-};                                                      \
-SYSCALL32_MODULE(syscallname,                           \
-    & syscallname##_syscall32, & syscallname##_sysent32,\
-    NULL, NULL);
+#define SYSCALL32_MODULE_HELPER(syscallname)                              \
+	static int syscallname##_syscall32 = FREEBSD32_SYS_##syscallname; \
+	static struct sysent syscallname##_sysent32 = {                   \
+		(sizeof(struct syscallname##_args) / sizeof(register_t)), \
+		(sy_call_t *)&syscallname                                 \
+	};                                                                \
+	SYSCALL32_MODULE(syscallname, &syscallname##_syscall32,           \
+	    &syscallname##_sysent32, NULL, NULL);
 
-#define SYSCALL32_INIT_HELPER_F(syscallname, flags) {		\
-    .new_sysent = {						\
-	.sy_narg = (sizeof(struct syscallname ## _args )	\
-	    / sizeof(register_t)),				\
-	.sy_call = (sy_call_t *)& syscallname,			\
-	.sy_flags = (flags)					\
-    },								\
-    .syscall_no = FREEBSD32_SYS_##syscallname			\
-}
+#define SYSCALL32_INIT_HELPER_F(syscallname, flags)                          \
+	{                                                                    \
+		.new_sysent = { .sy_narg = (sizeof(                          \
+						struct syscallname##_args) / \
+				    sizeof(register_t)),                     \
+			.sy_call = (sy_call_t *)&syscallname,                \
+			.sy_flags = (flags) },                               \
+		.syscall_no = FREEBSD32_SYS_##syscallname                    \
+	}
 
-#define SYSCALL32_INIT_HELPER_COMPAT_F(syscallname, flags) {	\
-    .new_sysent = {						\
-	.sy_narg = (sizeof(struct syscallname ## _args )	\
-	    / sizeof(register_t)),				\
-	.sy_call = (sy_call_t *)& sys_ ## syscallname,		\
-	.sy_flags = (flags)					\
-    },								\
-    .syscall_no = FREEBSD32_SYS_##syscallname			\
-}
+#define SYSCALL32_INIT_HELPER_COMPAT_F(syscallname, flags)                   \
+	{                                                                    \
+		.new_sysent = { .sy_narg = (sizeof(                          \
+						struct syscallname##_args) / \
+				    sizeof(register_t)),                     \
+			.sy_call = (sy_call_t *)&sys_##syscallname,          \
+			.sy_flags = (flags) },                               \
+		.syscall_no = FREEBSD32_SYS_##syscallname                    \
+	}
 
-#define SYSCALL32_INIT_HELPER(syscallname)			\
-    SYSCALL32_INIT_HELPER_F(syscallname, 0)
-#define SYSCALL32_INIT_HELPER_COMPAT(syscallname)		\
-    SYSCALL32_INIT_HELPER_COMPAT_F(syscallname, 0)
+#define SYSCALL32_INIT_HELPER(syscallname) \
+	SYSCALL32_INIT_HELPER_F(syscallname, 0)
+#define SYSCALL32_INIT_HELPER_COMPAT(syscallname) \
+	SYSCALL32_INIT_HELPER_COMPAT_F(syscallname, 0)
 
-int    syscall32_module_handler(struct module *mod, int what, void *arg);
-int    syscall32_helper_register(struct syscall_helper_data *sd, int flags);
-int    syscall32_helper_unregister(struct syscall_helper_data *sd);
+int syscall32_module_handler(struct module *mod, int what, void *arg);
+int syscall32_helper_register(struct syscall_helper_data *sd, int flags);
+int syscall32_helper_unregister(struct syscall_helper_data *sd);
 
 struct iovec32;
 struct rusage32;
-int	freebsd32_copyout_strings(struct image_params *imgp,
-	    uintptr_t *stack_base);
-int	freebsd32_copyiniov(struct iovec32 *iovp, u_int iovcnt,
-	    struct iovec **iov, int error);
-int	freebsd32_copyinuio(struct iovec32 *iovp, u_int iovcnt,
-	    struct uio **uiop);
-void	freebsd32_rusage_out(const struct rusage *s, struct rusage32 *s32);
+int freebsd32_copyout_strings(struct image_params *imgp, uintptr_t *stack_base);
+int freebsd32_copyiniov(
+    struct iovec32 *iovp, u_int iovcnt, struct iovec **iov, int error);
+int freebsd32_copyinuio(struct iovec32 *iovp, u_int iovcnt, struct uio **uiop);
+void freebsd32_rusage_out(const struct rusage *s, struct rusage32 *s32);
 
 struct image_args;
 int freebsd32_exec_copyin_args(struct image_args *args, const char *fname,
-	    enum uio_seg segflg, u_int32_t *argv, u_int32_t *envv);
+    enum uio_seg segflg, u_int32_t *argv, u_int32_t *envv);
 
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_UTIL_H_ */

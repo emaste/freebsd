@@ -27,45 +27,45 @@
  */
 
 #ifndef _MACHINE_METADATA_H_
-#define	_MACHINE_METADATA_H_
+#define _MACHINE_METADATA_H_
 
-#define	MODINFOMD_SMAP		0x1001
-#define	MODINFOMD_SMAP_XATTR	0x1002
-#define	MODINFOMD_DTBP		0x1003
-#define	MODINFOMD_EFI_MAP	0x1004
-#define	MODINFOMD_EFI_FB	0x1005
-#define	MODINFOMD_MODULEP	0x1006
-#define	MODINFOMD_VBE_FB	0x1007
+#define MODINFOMD_SMAP 0x1001
+#define MODINFOMD_SMAP_XATTR 0x1002
+#define MODINFOMD_DTBP 0x1003
+#define MODINFOMD_EFI_MAP 0x1004
+#define MODINFOMD_EFI_FB 0x1005
+#define MODINFOMD_MODULEP 0x1006
+#define MODINFOMD_VBE_FB 0x1007
 
 struct efi_map_header {
-	uint64_t	memory_size;
-	uint64_t	descriptor_size;
-	uint32_t	descriptor_version;
+	uint64_t memory_size;
+	uint64_t descriptor_size;
+	uint32_t descriptor_version;
 };
 
 struct efi_fb {
-	uint64_t	fb_addr;
-	uint64_t	fb_size;
-	uint32_t	fb_height;
-	uint32_t	fb_width;
-	uint32_t	fb_stride;
-	uint32_t	fb_mask_red;
-	uint32_t	fb_mask_green;
-	uint32_t	fb_mask_blue;
-	uint32_t	fb_mask_reserved;
+	uint64_t fb_addr;
+	uint64_t fb_size;
+	uint32_t fb_height;
+	uint32_t fb_width;
+	uint32_t fb_stride;
+	uint32_t fb_mask_red;
+	uint32_t fb_mask_green;
+	uint32_t fb_mask_blue;
+	uint32_t fb_mask_reserved;
 };
 
 struct vbe_fb {
-	uint64_t	fb_addr;
-	uint64_t	fb_size;
-	uint32_t	fb_height;
-	uint32_t	fb_width;
-	uint32_t	fb_stride;
-	uint32_t	fb_mask_red;
-	uint32_t	fb_mask_green;
-	uint32_t	fb_mask_blue;
-	uint32_t	fb_mask_reserved;
-	uint32_t	fb_bpp;
+	uint64_t fb_addr;
+	uint64_t fb_size;
+	uint32_t fb_height;
+	uint32_t fb_width;
+	uint32_t fb_stride;
+	uint32_t fb_mask_red;
+	uint32_t fb_mask_green;
+	uint32_t fb_mask_blue;
+	uint32_t fb_mask_reserved;
+	uint32_t fb_bpp;
 };
 
 /*
@@ -79,14 +79,14 @@ struct vbe_fb {
  * together with the rest of the kernel payload data.
  */
 struct xen_header {
-	uint64_t	flags;
+	uint64_t flags;
 #define XENHEADER_HAS_MODULEP_OFFSET (1ull << 0)
 
 	/*
 	 * Offset of the modulep location from the start of the multiboot
 	 * module blob.
 	 */
-	uint64_t	modulep_offset;
+	uint64_t modulep_offset;
 };
 
 #endif /* !_MACHINE_METADATA_H_ */

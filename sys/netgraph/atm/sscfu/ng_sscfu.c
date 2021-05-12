@@ -36,25 +36,26 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/sbuf.h>
+#include <sys/syslog.h>
+
 #include <machine/stdarg.h>
 
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
-#include <netnatm/saal/sscopdef.h>
-#include <netnatm/saal/sscfudef.h>
-#include <netgraph/atm/ng_sscop.h>
 #include <netgraph/atm/ng_sscfu.h>
+#include <netgraph/atm/ng_sscop.h>
 #include <netgraph/atm/sscfu/ng_sscfu_cust.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
 #include <netnatm/saal/sscfu.h>
+#include <netnatm/saal/sscfudef.h>
+#include <netnatm/saal/sscopdef.h>
 
 MALLOC_DEFINE(M_NG_SSCFU, "netgraph_sscfu", "netgraph uni sscf node");
 
@@ -64,10 +65,10 @@ MODULE_DEPEND(ng_sscfu, ngatmbase, 1, 1, 1);
  * Private data
  */
 struct priv {
-	hook_p		upper;	/* SAAL interface */
-	hook_p		lower;	/* SSCOP interface */
-	struct sscfu	*sscf;	/* the instance */
-	int		enabled;
+	hook_p upper;	    /* SAAL interface */
+	hook_p lower;	    /* SSCOP interface */
+	struct sscfu *sscf; /* the instance */
+	int enabled;
 };
 
 /*
@@ -79,103 +80,64 @@ struct priv {
 static const struct ng_parse_struct_field ng_sscop_param_type_info[] =
     NG_SSCOP_PARAM_INFO;
 
-static const struct ng_parse_type ng_sscop_param_type = {
-	&ng_parse_struct_type,
-	ng_sscop_param_type_info
-};
+static const struct ng_parse_type ng_sscop_param_type = { &ng_parse_struct_type,
+	ng_sscop_param_type_info };
 
 static const struct ng_parse_struct_field ng_sscfu_getdefparam_type_info[] =
     NG_SSCFU_GETDEFPARAM_INFO;
 
 static const struct ng_parse_type ng_sscfu_getdefparam_type = {
-	&ng_parse_struct_type,
-	ng_sscfu_getdefparam_type_info
+	&ng_parse_struct_type, ng_sscfu_getdefparam_type_info
 };
 
 static const struct ng_cmdlist ng_sscfu_cmdlist[] = {
-	{
-	  NGM_SSCFU_COOKIE,
-	  NGM_SSCFU_GETDEFPARAM,
-	  "getdefparam",
-	  NULL,
-	  &ng_sscfu_getdefparam_type
-	},
-	{
-	  NGM_SSCFU_COOKIE,
-	  NGM_SSCFU_ENABLE,
-	  "enable",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_SSCFU_COOKIE,
-	  NGM_SSCFU_DISABLE,
-	  "disable",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_SSCFU_COOKIE,
-	  NGM_SSCFU_GETDEBUG,
-	  "getdebug",
-	  NULL,
-	  &ng_parse_hint32_type
-	},
-	{
-	  NGM_SSCFU_COOKIE,
-	  NGM_SSCFU_SETDEBUG,
-	  "setdebug",
-	  &ng_parse_hint32_type,
-	  NULL
-	},
-	{
-	  NGM_SSCFU_COOKIE,
-	  NGM_SSCFU_GETSTATE,
-	  "getstate",
-	  NULL,
-	  &ng_parse_uint32_type
-	},
+	{ NGM_SSCFU_COOKIE, NGM_SSCFU_GETDEFPARAM, "getdefparam", NULL,
+	    &ng_sscfu_getdefparam_type },
+	{ NGM_SSCFU_COOKIE, NGM_SSCFU_ENABLE, "enable", NULL, NULL },
+	{ NGM_SSCFU_COOKIE, NGM_SSCFU_DISABLE, "disable", NULL, NULL },
+	{ NGM_SSCFU_COOKIE, NGM_SSCFU_GETDEBUG, "getdebug", NULL,
+	    &ng_parse_hint32_type },
+	{ NGM_SSCFU_COOKIE, NGM_SSCFU_SETDEBUG, "setdebug",
+	    &ng_parse_hint32_type, NULL },
+	{ NGM_SSCFU_COOKIE, NGM_SSCFU_GETSTATE, "getstate", NULL,
+	    &ng_parse_uint32_type },
 	{ 0 }
 };
 
 static ng_constructor_t ng_sscfu_constructor;
-static ng_shutdown_t	ng_sscfu_shutdown;
-static ng_rcvmsg_t	ng_sscfu_rcvmsg;
-static ng_newhook_t	ng_sscfu_newhook;
-static ng_disconnect_t	ng_sscfu_disconnect;
-static ng_rcvdata_t	ng_sscfu_rcvupper;
-static ng_rcvdata_t	ng_sscfu_rcvlower;
+static ng_shutdown_t ng_sscfu_shutdown;
+static ng_rcvmsg_t ng_sscfu_rcvmsg;
+static ng_newhook_t ng_sscfu_newhook;
+static ng_disconnect_t ng_sscfu_disconnect;
+static ng_rcvdata_t ng_sscfu_rcvupper;
+static ng_rcvdata_t ng_sscfu_rcvlower;
 
 static int ng_sscfu_mod_event(module_t, int, void *);
 
 static struct ng_type ng_sscfu_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_SSCFU_NODE_TYPE,
-	.mod_event =	ng_sscfu_mod_event,
-	.constructor =	ng_sscfu_constructor,
-	.rcvmsg =	ng_sscfu_rcvmsg,
-	.shutdown =	ng_sscfu_shutdown,
-	.newhook =	ng_sscfu_newhook,
-	.rcvdata =	ng_sscfu_rcvupper,
-	.disconnect =	ng_sscfu_disconnect,
-	.cmdlist =	ng_sscfu_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_SSCFU_NODE_TYPE,
+	.mod_event = ng_sscfu_mod_event,
+	.constructor = ng_sscfu_constructor,
+	.rcvmsg = ng_sscfu_rcvmsg,
+	.shutdown = ng_sscfu_shutdown,
+	.newhook = ng_sscfu_newhook,
+	.rcvdata = ng_sscfu_rcvupper,
+	.disconnect = ng_sscfu_disconnect,
+	.cmdlist = ng_sscfu_cmdlist,
 };
 NETGRAPH_INIT(sscfu, &ng_sscfu_typestruct);
 
-static void sscfu_send_upper(struct sscfu *, void *, enum saal_sig,
-	struct mbuf *);
-static void sscfu_send_lower(struct sscfu *, void *, enum sscop_aasig,
-	struct mbuf *, u_int);
+static void sscfu_send_upper(
+    struct sscfu *, void *, enum saal_sig, struct mbuf *);
+static void sscfu_send_lower(
+    struct sscfu *, void *, enum sscop_aasig, struct mbuf *, u_int);
 static void sscfu_window(struct sscfu *, void *, u_int);
 static void sscfu_verbose(struct sscfu *, void *, const char *, ...)
-	__printflike(3, 4);
+    __printflike(3, 4);
 
-static const struct sscfu_funcs sscfu_funcs = {
-	sscfu_send_upper,
-	sscfu_send_lower,
-	sscfu_window,
-	sscfu_verbose
-};
+static const struct sscfu_funcs sscfu_funcs = { sscfu_send_upper,
+	sscfu_send_lower, sscfu_window, sscfu_verbose };
 
 /************************************************************/
 /*
@@ -206,7 +168,7 @@ text_status(node_p node, struct priv *priv, char *arg, u_int len)
 
 	sbuf_printf(&sbuf, "sscf state: %s\n",
 	    priv->enabled == 0 ? "<disabled>" :
-	    sscfu_statename(sscfu_getstate(priv->sscf)));
+				       sscfu_statename(sscfu_getstate(priv->sscf)));
 
 	sbuf_finish(&sbuf);
 	return (sbuf_len(&sbuf));
@@ -223,28 +185,29 @@ ng_sscfu_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	NGI_GET_MSG(item, msg);
 
 	switch (msg->header.typecookie) {
-	  case NGM_GENERIC_COOKIE:
+	case NGM_GENERIC_COOKIE:
 		switch (msg->header.cmd) {
-		  case NGM_TEXT_STATUS:
+		case NGM_TEXT_STATUS:
 			NG_MKRESPONSE(resp, msg, NG_TEXTRESPONSE, M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
 			resp->header.arglen = text_status(node, priv,
-			    (char *)resp->data, resp->header.arglen) + 1;
+						  (char *)resp->data,
+						  resp->header.arglen) +
+			    1;
 			break;
 
-		  default:
+		default:
 			error = EINVAL;
 			break;
 		}
 		break;
 
-	  case NGM_SSCFU_COOKIE:
+	case NGM_SSCFU_COOKIE:
 		switch (msg->header.cmd) {
-		  case NGM_SSCFU_GETDEFPARAM:
-		    {
+		case NGM_SSCFU_GETDEFPARAM: {
 			struct ng_sscfu_getdefparam *p;
 
 			if (msg->header.arglen != 0) {
@@ -259,9 +222,9 @@ ng_sscfu_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			p = (struct ng_sscfu_getdefparam *)resp->data;
 			p->mask = sscfu_getdefparam(&p->param);
 			break;
-		    }
+		}
 
-		  case NGM_SSCFU_ENABLE:
+		case NGM_SSCFU_ENABLE:
 			if (msg->header.arglen != 0) {
 				error = EINVAL;
 				break;
@@ -273,7 +236,7 @@ ng_sscfu_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			priv->enabled = 1;
 			break;
 
-		  case NGM_SSCFU_DISABLE:
+		case NGM_SSCFU_DISABLE:
 			if (msg->header.arglen != 0) {
 				error = EINVAL;
 				break;
@@ -286,35 +249,35 @@ ng_sscfu_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			sscfu_reset(priv->sscf);
 			break;
 
-		  case NGM_SSCFU_GETSTATE:
+		case NGM_SSCFU_GETSTATE:
 			if (msg->header.arglen != 0) {
 				error = EINVAL;
 				break;
 			}
 			NG_MKRESPONSE(resp, msg, sizeof(uint32_t), M_NOWAIT);
-			if(resp == NULL) {
+			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
-			*(uint32_t *)resp->data =
-			    priv->enabled ? (sscfu_getstate(priv->sscf) + 1)
-			                  : 0;
+			*(uint32_t *)resp->data = priv->enabled ?
+				  (sscfu_getstate(priv->sscf) + 1) :
+				  0;
 			break;
 
-		  case NGM_SSCFU_GETDEBUG:
+		case NGM_SSCFU_GETDEBUG:
 			if (msg->header.arglen != 0) {
 				error = EINVAL;
 				break;
 			}
 			NG_MKRESPONSE(resp, msg, sizeof(uint32_t), M_NOWAIT);
-			if(resp == NULL) {
+			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
 			*(uint32_t *)resp->data = sscfu_getdebug(priv->sscf);
 			break;
 
-		  case NGM_SSCFU_SETDEBUG:
+		case NGM_SSCFU_SETDEBUG:
 			if (msg->header.arglen != sizeof(uint32_t)) {
 				error = EINVAL;
 				break;
@@ -322,13 +285,13 @@ ng_sscfu_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			sscfu_setdebug(priv->sscf, *(uint32_t *)msg->data);
 			break;
 
-		  default:
+		default:
 			error = EINVAL;
 			break;
 		}
 		break;
 
-	  default:
+	default:
 		error = EINVAL;
 		break;
 	}
@@ -381,8 +344,7 @@ ng_sscfu_disconnect(hook_p hook)
 		 * Because there are no timeouts reset the protocol
 		 * if the lower layer is disconnected.
 		 */
-		if (priv->lower == NULL &&
-		    priv->enabled &&
+		if (priv->lower == NULL && priv->enabled &&
 		    sscfu_getstate(priv->sscf) != SSCFU_RELEASED)
 			sscfu_reset(priv->sscf);
 	}
@@ -588,13 +550,13 @@ ng_sscfu_mod_event(module_t mod, int event, void *data)
 	int error = 0;
 
 	switch (event) {
-	  case MOD_LOAD:
+	case MOD_LOAD:
 		break;
 
-	  case MOD_UNLOAD:
+	case MOD_UNLOAD:
 		break;
 
-	  default:
+	default:
 		error = EOPNOTSUPP;
 		break;
 	}

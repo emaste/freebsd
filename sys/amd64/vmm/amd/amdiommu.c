@@ -44,26 +44,24 @@ __FBSDID("$FreeBSD$");
 #include "ivhd_if.h"
 
 struct amdiommu_softc {
-	struct resource *event_res;	/* Event interrupt resource. */
-	void   		*event_tag;	/* Event interrupt tag. */
-	int		event_rid;
+	struct resource *event_res; /* Event interrupt resource. */
+	void *event_tag;	    /* Event interrupt tag. */
+	int event_rid;
 };
 
-static int	amdiommu_probe(device_t);
-static int	amdiommu_attach(device_t);
-static int	amdiommu_detach(device_t);
-static int	ivhd_setup_intr(device_t, driver_intr_t, void *,
-		    const char *);
-static int	ivhd_teardown_intr(device_t);
+static int amdiommu_probe(device_t);
+static int amdiommu_attach(device_t);
+static int amdiommu_detach(device_t);
+static int ivhd_setup_intr(device_t, driver_intr_t, void *, const char *);
+static int ivhd_teardown_intr(device_t);
 
 static device_method_t amdiommu_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_probe,			amdiommu_probe),
-	DEVMETHOD(device_attach,		amdiommu_attach),
-	DEVMETHOD(device_detach,		amdiommu_detach),
-	DEVMETHOD(ivhd_setup_intr,		ivhd_setup_intr),
-	DEVMETHOD(ivhd_teardown_intr,		ivhd_teardown_intr),
-	DEVMETHOD_END
+	DEVMETHOD(device_probe, amdiommu_probe),
+	DEVMETHOD(device_attach, amdiommu_attach),
+	DEVMETHOD(device_detach, amdiommu_detach),
+	DEVMETHOD(ivhd_setup_intr, ivhd_setup_intr),
+	DEVMETHOD(ivhd_teardown_intr, ivhd_teardown_intr), DEVMETHOD_END
 };
 static driver_t amdiommu_driver = {
 	"amdiommu",
@@ -117,8 +115,8 @@ amdiommu_detach(device_t dev)
 }
 
 static int
-ivhd_setup_intr(device_t dev, driver_intr_t handler, void *arg,
-    const char *desc)
+ivhd_setup_intr(
+    device_t dev, driver_intr_t handler, void *arg, const char *desc)
 {
 	struct amdiommu_softc *sc;
 	int error, msicnt;
@@ -135,8 +133,8 @@ ivhd_setup_intr(device_t dev, driver_intr_t handler, void *arg,
 		return (ENOENT);
 	}
 
-	sc->event_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &sc->event_rid, RF_ACTIVE);
+	sc->event_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &sc->event_rid, RF_ACTIVE);
 	if (sc->event_res == NULL) {
 		device_printf(dev, "Unable to allocate event INTR resource.\n");
 		error = ENOMEM;
@@ -170,8 +168,8 @@ ivhd_teardown_intr(device_t dev)
 		sc->event_tag = NULL;
 	}
 	if (sc->event_res != NULL) {
-		bus_release_resource(dev, SYS_RES_IRQ, sc->event_rid,
-		    sc->event_res);
+		bus_release_resource(
+		    dev, SYS_RES_IRQ, sc->event_rid, sc->event_res);
 		sc->event_res = NULL;
 	}
 	pci_release_msi(dev);

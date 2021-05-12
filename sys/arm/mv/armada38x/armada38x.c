@@ -29,15 +29,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/sysctl.h>
 
 #include <machine/fdt.h>
 
-#include <arm/mv/mvwin.h>
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
+#include <arm/mv/mvwin.h>
 
 int armada38x_open_bootrom_win(void);
 int armada38x_scu_enable(void);
@@ -46,8 +46,8 @@ int armada38x_mbus_optimization(void);
 static uint64_t get_sar_value_armada38x(void);
 
 static int hw_clockrate;
-SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD,
-    &hw_clockrate, 0, "CPU instruction clock rate");
+SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, &hw_clockrate, 0,
+    "CPU instruction clock rate");
 
 static uint64_t
 get_sar_value_armada38x(void)
@@ -55,8 +55,8 @@ get_sar_value_armada38x(void)
 	uint32_t sar_low, sar_high;
 
 	sar_high = 0;
-	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
-	    SAMPLE_AT_RESET_ARMADA38X);
+	sar_low = bus_space_read_4(
+	    fdtbus_bs_tag, MV_MISC_BASE, SAMPLE_AT_RESET_ARMADA38X);
 	return (((uint64_t)sar_high << 32) | sar_low);
 }
 
@@ -82,13 +82,8 @@ get_cpu_freq_armada38x(void)
 {
 	uint32_t sar;
 
-	static const uint32_t cpu_frequencies[] = {
-		0, 0, 0, 0,
-		1066, 0, 0, 0,
-		1332, 0, 0, 0,
-		1600, 0, 0, 0,
-		1866, 0, 0, 2000
-	};
+	static const uint32_t cpu_frequencies[] = { 0, 0, 0, 0, 1066, 0, 0, 0,
+		1332, 0, 0, 0, 1600, 0, 0, 0, 1866, 0, 0, 2000 };
 
 	sar = (uint32_t)get_sar_value_armada38x();
 	sar = (sar & A38X_CPU_DDR_CLK_MASK) >> A38X_CPU_DDR_CLK_SHIFT;
@@ -142,14 +137,14 @@ armada38x_open_bootrom_win(void)
 	val |= (0x1 & IO_WIN_ENA_MASK) << IO_WIN_ENA_SHIFT;
 
 	/* Configure IO Window Control Register */
-	bus_space_write_4(fdtbus_bs_tag, vaddr_iowind, IO_WIN_9_CTRL_OFFSET,
-	    val);
+	bus_space_write_4(
+	    fdtbus_bs_tag, vaddr_iowind, IO_WIN_9_CTRL_OFFSET, val);
 	/* Configure IO Window Base Register */
 	bus_space_write_4(fdtbus_bs_tag, vaddr_iowind, IO_WIN_9_BASE_OFFSET,
 	    MV_BOOTROM_MEM_ADDR);
 
-	bus_space_barrier(fdtbus_bs_tag, vaddr_iowind, 0, MV_CPU_SUBSYS_REGS_LEN,
-	    BUS_SPACE_BARRIER_WRITE);
+	bus_space_barrier(fdtbus_bs_tag, vaddr_iowind, 0,
+	    MV_CPU_SUBSYS_REGS_LEN, BUS_SPACE_BARRIER_WRITE);
 	bus_space_unmap(fdtbus_bs_tag, vaddr_iowind, MV_CPU_SUBSYS_REGS_LEN);
 
 	return (rv);
@@ -217,8 +212,8 @@ armada38x_scu_enable(void)
 		/* Enable SCU Speculative linefills to L2 */
 		val |= MV_SCU_SL_L2_ENABLE;
 
-		bus_space_write_4(fdtbus_bs_tag, vaddr_scu, 0,
-		    val | MV_SCU_ENABLE);
+		bus_space_write_4(
+		    fdtbus_bs_tag, vaddr_scu, 0, val | MV_SCU_ENABLE);
 	}
 
 	bus_space_unmap(fdtbus_bs_tag, vaddr_scu, MV_SCU_REGS_LEN);

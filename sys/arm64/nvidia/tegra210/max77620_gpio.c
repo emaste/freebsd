@@ -45,11 +45,11 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_MAX77620_GPIO, "MAX77620 gpio", "MAX77620 GPIO");
 
-#define	NGPIO		8
+#define NGPIO 8
 
-#define	GPIO_LOCK(_sc)	sx_slock(&(_sc)->gpio_lock)
-#define	GPIO_UNLOCK(_sc)	sx_unlock(&(_sc)->gpio_lock)
-#define	GPIO_ASSERT(_sc)	sx_assert(&(_sc)->gpio_lock, SA_LOCKED)
+#define GPIO_LOCK(_sc) sx_slock(&(_sc)->gpio_lock)
+#define GPIO_UNLOCK(_sc) sx_unlock(&(_sc)->gpio_lock)
+#define GPIO_ASSERT(_sc) sx_assert(&(_sc)->gpio_lock, SA_LOCKED)
 
 enum prop_id {
 	CFG_BIAS_PULL_UP,
@@ -68,25 +68,25 @@ enum prop_id {
 };
 
 static const struct {
-	const char	*name;
-	enum prop_id  	id;
+	const char *name;
+	enum prop_id id;
 } max77620_prop_names[] = {
-	{"bias-pull-up",			CFG_BIAS_PULL_UP},
-	{"bias-pull-down",			CFG_BIAS_PULL_DOWN},
-	{"drive-open-drain",			CFG_OPEN_DRAIN},
-	{"drive-push-pull",			CFG_PUSH_PULL},
-	{"maxim,active-fps-source",		CFG_ACTIVE_FPS_SRC},
-	{"maxim,active-fps-power-up-slot",	CFG_ACTIVE_PWRUP_SLOT},
-	{"maxim,active-fps-power-down-slot",	CFG_ACTIVE_PWRDOWN_SLOT},
-	{"maxim,suspend-fps-source",		CFG_SUSPEND_FPS_SRC},
-	{"maxim,suspend-fps-power-up-slot",	CFG_SUSPEND_PWRUP_SLOT},
-	{"maxim,suspend-fps-power-down-slot",	CFG_SUSPEND_PWRDOWN_SLOT},
+	{ "bias-pull-up", CFG_BIAS_PULL_UP },
+	{ "bias-pull-down", CFG_BIAS_PULL_DOWN },
+	{ "drive-open-drain", CFG_OPEN_DRAIN },
+	{ "drive-push-pull", CFG_PUSH_PULL },
+	{ "maxim,active-fps-source", CFG_ACTIVE_FPS_SRC },
+	{ "maxim,active-fps-power-up-slot", CFG_ACTIVE_PWRUP_SLOT },
+	{ "maxim,active-fps-power-down-slot", CFG_ACTIVE_PWRDOWN_SLOT },
+	{ "maxim,suspend-fps-source", CFG_SUSPEND_FPS_SRC },
+	{ "maxim,suspend-fps-power-up-slot", CFG_SUSPEND_PWRUP_SLOT },
+	{ "maxim,suspend-fps-power-down-slot", CFG_SUSPEND_PWRDOWN_SLOT },
 };
 
 /* Configuration for one pin group. */
 struct max77620_pincfg {
-	bool	alt_func;
-	int	params[PROP_ID_MAX_ID];
+	bool alt_func;
+	int params[PROP_ID_MAX_ID];
 };
 
 static char *altfnc_table[] = {
@@ -99,12 +99,12 @@ static char *altfnc_table[] = {
 };
 
 struct max77620_gpio_pin {
-	int		pin_caps;
-	char		pin_name[GPIOMAXNAME];
-	uint8_t		reg;
+	int pin_caps;
+	char pin_name[GPIOMAXNAME];
+	uint8_t reg;
 
 	/* Runtime data  */
-	bool		alt_func;	/* GPIO or alternate function */
+	bool alt_func; /* GPIO or alternate function */
 };
 
 /* --------------------------------------------------------------------------
@@ -112,8 +112,8 @@ struct max77620_gpio_pin {
  *  Pinmux functions.
  */
 static int
-max77620_pinmux_get_function(struct max77620_softc *sc, char *name,
-    struct max77620_pincfg *cfg)
+max77620_pinmux_get_function(
+    struct max77620_softc *sc, char *name, struct max77620_pincfg *cfg)
 {
 	int i;
 
@@ -131,8 +131,8 @@ max77620_pinmux_get_function(struct max77620_softc *sc, char *name,
 }
 
 static int
-max77620_pinmux_set_fps(struct max77620_softc *sc, int pin_num,
-    struct max77620_gpio_pin *pin)
+max77620_pinmux_set_fps(
+    struct max77620_softc *sc, int pin_num, struct max77620_gpio_pin *pin)
 {
 #if 0
 	struct max77620_fps_config *fps_config = &mpci->fps_config[pin];
@@ -190,8 +190,8 @@ max77620_pinmux_set_fps(struct max77620_softc *sc, int pin_num,
 }
 
 static int
-max77620_pinmux_config_node(struct max77620_softc *sc, char *pin_name,
-    struct max77620_pincfg *cfg)
+max77620_pinmux_config_node(
+    struct max77620_softc *sc, char *pin_name, struct max77620_pincfg *cfg)
 {
 	struct max77620_gpio_pin *pin;
 	uint8_t reg;
@@ -199,7 +199,7 @@ max77620_pinmux_config_node(struct max77620_softc *sc, char *pin_name,
 
 	for (pin_num = 0; pin_num < sc->gpio_npins; pin_num++) {
 		if (strcmp(sc->gpio_pins[pin_num]->pin_name, pin_name) == 0)
-			 break;
+			break;
 	}
 	if (pin_num >= sc->gpio_npins) {
 		device_printf(sc->dev, "Unknown pin: %s\n", pin_name);
@@ -219,10 +219,10 @@ max77620_pinmux_config_node(struct max77620_softc *sc, char *pin_name,
 
 	if (cfg->alt_func) {
 		pin->alt_func = true;
-		sc->gpio_reg_ame |=  1 << pin_num;
+		sc->gpio_reg_ame |= 1 << pin_num;
 	} else {
 		pin->alt_func = false;
-		sc->gpio_reg_ame &=  ~(1 << pin_num);
+		sc->gpio_reg_ame &= ~(1 << pin_num);
 	}
 
 	/* Pull up/down. */
@@ -270,7 +270,7 @@ max77620_pinmux_config_node(struct max77620_softc *sc, char *pin_name,
 
 static int
 max77620_pinmux_read_node(struct max77620_softc *sc, phandle_t node,
-     struct max77620_pincfg *cfg, char **pins, int *lpins)
+    struct max77620_pincfg *cfg, char **pins, int *lpins)
 {
 	char *function;
 	int rv, i;
@@ -281,11 +281,11 @@ max77620_pinmux_read_node(struct max77620_softc *sc, phandle_t node,
 
 	/* Read function (mux) settings. */
 	rv = OF_getprop_alloc(node, "function", (void **)&function);
-	if (rv >  0) {
+	if (rv > 0) {
 		rv = max77620_pinmux_get_function(sc, function, cfg);
 		if (rv == -1) {
-			device_printf(sc->dev,
-			    "Unknown function %s\n", function);
+			device_printf(
+			    sc->dev, "Unknown function %s\n", function);
 			OF_prop_free(function);
 			return (ENXIO);
 		}
@@ -320,8 +320,8 @@ max77620_pinmux_process_node(struct max77620_softc *sc, phandle_t node)
 		i = strlen(pname) + 1;
 		rv = max77620_pinmux_config_node(sc, pname, &cfg);
 		if (rv != 0) {
-			device_printf(sc->dev,
-			    "Cannot configure pin: %s: %d\n", pname, rv);
+			device_printf(sc->dev, "Cannot configure pin: %s: %d\n",
+			    pname, rv);
 		}
 		len += i;
 		pname += i;
@@ -333,17 +333,18 @@ max77620_pinmux_process_node(struct max77620_softc *sc, phandle_t node)
 	return (rv);
 }
 
-int max77620_pinmux_configure(device_t dev, phandle_t cfgxref)
+int
+max77620_pinmux_configure(device_t dev, phandle_t cfgxref)
 {
 	struct max77620_softc *sc;
 	phandle_t node, cfgnode;
-	uint8_t	old_reg_pue, old_reg_pde, old_reg_ame;
+	uint8_t old_reg_pue, old_reg_pde, old_reg_ame;
 	int rv;
 
 	sc = device_get_softc(dev);
 	cfgnode = OF_node_from_xref(cfgxref);
 
-	old_reg_pue =  sc->gpio_reg_pue;
+	old_reg_pue = sc->gpio_reg_pue;
 	old_reg_pde = sc->gpio_reg_pde;
 	old_reg_ame = sc->gpio_reg_ame;
 
@@ -353,14 +354,13 @@ int max77620_pinmux_configure(device_t dev, phandle_t cfgxref)
 		rv = max77620_pinmux_process_node(sc, node);
 		if (rv != 0)
 			device_printf(dev, "Failed to process pinmux");
-
 	}
 
 	if (old_reg_pue != sc->gpio_reg_pue) {
 		rv = WR1(sc, MAX77620_REG_PUE_GPIO, sc->gpio_reg_pue);
 		if (rv != 0) {
-			device_printf(sc->dev,
-			    "Cannot update PUE_GPIO register\n");
+			device_printf(
+			    sc->dev, "Cannot update PUE_GPIO register\n");
 			return (ENXIO);
 		}
 	}
@@ -368,8 +368,8 @@ int max77620_pinmux_configure(device_t dev, phandle_t cfgxref)
 	if (old_reg_pde != sc->gpio_reg_pde) {
 		rv = WR1(sc, MAX77620_REG_PDE_GPIO, sc->gpio_reg_pde);
 		if (rv != 0) {
-			device_printf(sc->dev,
-			    "Cannot update PDE_GPIO register\n");
+			device_printf(
+			    sc->dev, "Cannot update PDE_GPIO register\n");
 			return (ENXIO);
 		}
 	}
@@ -377,8 +377,8 @@ int max77620_pinmux_configure(device_t dev, phandle_t cfgxref)
 	if (old_reg_ame != sc->gpio_reg_ame) {
 		rv = WR1(sc, MAX77620_REG_AME_GPIO, sc->gpio_reg_ame);
 		if (rv != 0) {
-			device_printf(sc->dev,
-			    "Cannot update PDE_GPIO register\n");
+			device_printf(
+			    sc->dev, "Cannot update PDE_GPIO register\n");
 			return (ENXIO);
 		}
 	}
@@ -436,8 +436,8 @@ max77620_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 }
 
 static int
-max77620_gpio_get_mode(struct max77620_softc *sc, uint32_t pin_num,
- uint32_t *out_flags)
+max77620_gpio_get_mode(
+    struct max77620_softc *sc, uint32_t pin_num, uint32_t *out_flags)
 {
 	struct max77620_gpio_pin *pin;
 	uint8_t reg;
@@ -457,9 +457,9 @@ max77620_gpio_get_mode(struct max77620_softc *sc, uint32_t pin_num,
 
 	/* Pull up/down. */
 	if (sc->gpio_reg_pue & (1 << pin_num))
-	    *out_flags |=  GPIO_PIN_PULLUP;
+		*out_flags |= GPIO_PIN_PULLUP;
 	if (sc->gpio_reg_pde & (1 << pin_num))
-	    *out_flags |=  GPIO_PIN_PULLDOWN;
+		*out_flags |= GPIO_PIN_PULLDOWN;
 
 	/* Open drain/push-pull modes. */
 	if (MAX77620_REG_GPIO_DRV_GET(reg) == MAX77620_REG_GPIO_DRV_PUSHPULL)
@@ -505,7 +505,7 @@ max77620_gpio_pin_setflags(device_t dev, uint32_t pin_num, uint32_t flags)
 	struct max77620_softc *sc;
 	struct max77620_gpio_pin *pin;
 	uint8_t reg;
-	uint8_t	old_reg_pue, old_reg_pde;
+	uint8_t old_reg_pue, old_reg_pde;
 	int rv;
 
 	sc = device_get_softc(dev);
@@ -524,7 +524,7 @@ max77620_gpio_pin_setflags(device_t dev, uint32_t pin_num, uint32_t flags)
 	}
 #endif
 
-	old_reg_pue =  sc->gpio_reg_pue;
+	old_reg_pue = sc->gpio_reg_pue;
 	old_reg_pde = sc->gpio_reg_pde;
 
 	rv = RD1(sc, pin->reg, &reg);
@@ -551,7 +551,7 @@ max77620_gpio_pin_setflags(device_t dev, uint32_t pin_num, uint32_t flags)
 		reg |= MAX77620_REG_GPIO_OUTPUT_VAL(1);
 
 	} else if (((flags & GPIO_PIN_OUTPUT) &&
-	    (flags & GPIO_PIN_OPENDRAIN) == 0) ||
+		       (flags & GPIO_PIN_OPENDRAIN) == 0) ||
 	    (flags & GPIO_PIN_PUSHPULL)) {
 		reg &= ~MAX77620_REG_GPIO_DRV(~0);
 		reg |= MAX77620_REG_GPIO_DRV(MAX77620_REG_GPIO_DRV_PUSHPULL);
@@ -568,8 +568,8 @@ max77620_gpio_pin_setflags(device_t dev, uint32_t pin_num, uint32_t flags)
 	if (old_reg_pue != sc->gpio_reg_pue) {
 		rv = WR1(sc, MAX77620_REG_PUE_GPIO, sc->gpio_reg_pue);
 		if (rv != 0) {
-			device_printf(sc->dev,
-			    "Cannot update PUE_GPIO register\n");
+			device_printf(
+			    sc->dev, "Cannot update PUE_GPIO register\n");
 			GPIO_UNLOCK(sc);
 			return (ENXIO);
 		}
@@ -578,8 +578,8 @@ max77620_gpio_pin_setflags(device_t dev, uint32_t pin_num, uint32_t flags)
 	if (old_reg_pde != sc->gpio_reg_pde) {
 		rv = WR1(sc, MAX77620_REG_PDE_GPIO, sc->gpio_reg_pde);
 		if (rv != 0) {
-			device_printf(sc->dev,
-			    "Cannot update PDE_GPIO register\n");
+			device_printf(
+			    sc->dev, "Cannot update PDE_GPIO register\n");
 			GPIO_UNLOCK(sc);
 			return (ENXIO);
 		}
@@ -601,7 +601,7 @@ max77620_gpio_pin_set(device_t dev, uint32_t pin, uint32_t val)
 
 	GPIO_LOCK(sc);
 	rv = RM1(sc, sc->gpio_pins[pin]->reg, MAX77620_REG_GPIO_OUTPUT_VAL(~0),
-	     MAX77620_REG_GPIO_OUTPUT_VAL(val));
+	    MAX77620_REG_GPIO_OUTPUT_VAL(val));
 	GPIO_UNLOCK(sc);
 	return (rv);
 }
@@ -649,8 +649,8 @@ max77620_gpio_pin_toggle(device_t dev, uint32_t pin)
 		return (rv);
 	}
 	tmp ^= MAX77620_REG_GPIO_OUTPUT_VAL(~0);
-	rv = RM1(sc, sc->gpio_pins[pin]->reg, MAX77620_REG_GPIO_OUTPUT_VAL(~0),
-	   tmp);
+	rv = RM1(
+	    sc, sc->gpio_pins[pin]->reg, MAX77620_REG_GPIO_OUTPUT_VAL(~0), tmp);
 	GPIO_UNLOCK(sc);
 	return (0);
 }
@@ -663,7 +663,7 @@ max77620_gpio_map_gpios(device_t dev, phandle_t pdev, phandle_t gparent,
 	if (gcells != 2)
 		return (ERANGE);
 	*pin = gpios[0];
-	*flags= gpios[1];
+	*flags = gpios[1];
 	return (0);
 }
 
@@ -698,16 +698,17 @@ max77620_gpio_attach(struct max77620_softc *sc, phandle_t node)
 	}
 
 	sc->gpio_npins = NGPIO;
-	sc->gpio_pins = malloc(sizeof(struct max77620_gpio_pin *) *
-	    sc->gpio_npins, M_MAX77620_GPIO, M_WAITOK | M_ZERO);
+	sc->gpio_pins = malloc(
+	    sizeof(struct max77620_gpio_pin *) * sc->gpio_npins,
+	    M_MAX77620_GPIO, M_WAITOK | M_ZERO);
 	for (i = 0; i < sc->gpio_npins; i++) {
 		sc->gpio_pins[i] = malloc(sizeof(struct max77620_gpio_pin),
 		    M_MAX77620_GPIO, M_WAITOK | M_ZERO);
 		pin = sc->gpio_pins[i];
 		sprintf(pin->pin_name, "gpio%d", i);
-		pin->pin_caps = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT  |
-		    GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL |
-		    GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN;
+		pin->pin_caps = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |
+		    GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL | GPIO_PIN_PULLUP |
+		    GPIO_PIN_PULLDOWN;
 		pin->reg = MAX77620_REG_GPIO0 + i;
 	}
 

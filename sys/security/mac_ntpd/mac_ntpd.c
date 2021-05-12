@@ -38,17 +38,16 @@
 
 SYSCTL_DECL(_security_mac);
 
-static SYSCTL_NODE(_security_mac, OID_AUTO, ntpd,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "mac_ntpd policy controls");
+static SYSCTL_NODE(_security_mac, OID_AUTO, ntpd, CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, "mac_ntpd policy controls");
 
 static int ntpd_enabled = 1;
-SYSCTL_INT(_security_mac_ntpd, OID_AUTO, enabled, CTLFLAG_RWTUN,
-    &ntpd_enabled, 0, "Enable mac_ntpd policy");
+SYSCTL_INT(_security_mac_ntpd, OID_AUTO, enabled, CTLFLAG_RWTUN, &ntpd_enabled,
+    0, "Enable mac_ntpd policy");
 
 static int ntpd_uid = 123;
-SYSCTL_INT(_security_mac_ntpd, OID_AUTO, uid, CTLFLAG_RWTUN,
-    &ntpd_uid, 0, "User id for ntpd user");
+SYSCTL_INT(_security_mac_ntpd, OID_AUTO, uid, CTLFLAG_RWTUN, &ntpd_uid, 0,
+    "User id for ntpd user");
 
 static int
 ntpd_priv_grant(struct ucred *cred, int priv)
@@ -69,10 +68,9 @@ ntpd_priv_grant(struct ucred *cred, int priv)
 	return (EPERM);
 }
 
-static struct mac_policy_ops ntpd_ops =
-{
+static struct mac_policy_ops ntpd_ops = {
 	.mpo_priv_grant = ntpd_priv_grant,
 };
 
-MAC_POLICY_SET(&ntpd_ops, mac_ntpd, "MAC/ntpd",
-    MPC_LOADTIME_FLAG_UNLOADOK, NULL);
+MAC_POLICY_SET(
+    &ntpd_ops, mac_ntpd, "MAC/ntpd", MPC_LOADTIME_FLAG_UNLOADOK, NULL);

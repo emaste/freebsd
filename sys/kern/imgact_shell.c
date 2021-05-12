@@ -30,19 +30,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/vnode.h>
-#include <sys/proc.h>
-#include <sys/sbuf.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
+#include <sys/sbuf.h>
+#include <sys/sysproto.h>
+#include <sys/vnode.h>
 
 #if BYTE_ORDER == LITTLE_ENDIAN
-#define SHELLMAGIC	0x2123 /* #! */
+#define SHELLMAGIC 0x2123 /* #! */
 #else
-#define SHELLMAGIC	0x2321
+#define SHELLMAGIC 0x2321
 #endif
 
 /*
@@ -146,8 +146,9 @@ exec_shell_imgact(struct image_params *imgp)
 	while (ihp < maxp && ((*ihp == ' ') || (*ihp == '\t')))
 		ihp++;
 	interpb = ihp;
-	while (ihp < maxp && ((*ihp != ' ') && (*ihp != '\t') && (*ihp != '\n')
-	    && (*ihp != '\0')))
+	while (ihp < maxp &&
+	    ((*ihp != ' ') && (*ihp != '\t') && (*ihp != '\n') &&
+		(*ihp != '\0')))
 		ihp++;
 	interpe = ihp;
 	if (interpb == interpe)
@@ -189,12 +190,13 @@ exec_shell_imgact(struct image_params *imgp)
 	 * `offset' as the number of bytes to be added to the `begin_argv'
 	 * area, and 'length' as the number of bytes being removed.
 	 */
-	offset = interpe - interpb + 1;			/* interpreter */
-	if (opte > optb)				/* options (if any) */
+	offset = interpe - interpb + 1; /* interpreter */
+	if (opte > optb)		/* options (if any) */
 		offset += opte - optb + 1;
-	offset += strlen(fname) + 1;			/* fname of script */
-	length = (imgp->args->argc == 0) ? 0 :
-	    strlen(imgp->args->begin_argv) + 1;		/* bytes to delete */
+	offset += strlen(fname) + 1; /* fname of script */
+	length = (imgp->args->argc == 0) ?
+		  0 :
+		  strlen(imgp->args->begin_argv) + 1; /* bytes to delete */
 
 	error = exec_args_adjust_args(imgp->args, length, offset);
 	if (error != 0) {
@@ -248,8 +250,6 @@ exec_shell_imgact(struct image_params *imgp)
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  */
-static struct execsw shell_execsw = {
-	.ex_imgact = exec_shell_imgact,
-	.ex_name = "#!"
-};
+static struct execsw shell_execsw = { .ex_imgact = exec_shell_imgact,
+	.ex_name = "#!" };
 EXEC_SET(shell, shell_execsw);

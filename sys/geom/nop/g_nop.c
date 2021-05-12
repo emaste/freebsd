@@ -31,16 +31,17 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/ctype.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/bio.h>
+#include <sys/ctype.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
 #include <geom/nop/g_nop.h>
@@ -53,10 +54,10 @@ SYSCTL_UINT(_kern_geom_nop, OID_AUTO, debug, CTLFLAG_RW, &g_nop_debug, 0,
     "Debug level");
 
 static int g_nop_destroy(struct g_geom *gp, boolean_t force);
-static int g_nop_destroy_geom(struct gctl_req *req, struct g_class *mp,
-    struct g_geom *gp);
-static void g_nop_config(struct gctl_req *req, struct g_class *mp,
-    const char *verb);
+static int g_nop_destroy_geom(
+    struct gctl_req *req, struct g_class *mp, struct g_geom *gp);
+static void g_nop_config(
+    struct gctl_req *req, struct g_class *mp, const char *verb);
 static g_access_t g_nop_access;
 static g_dumpconf_t g_nop_dumpconf;
 static g_orphan_t g_nop_orphan;
@@ -78,9 +79,9 @@ struct g_class g_nop_class = {
 };
 
 struct g_nop_delay {
-	struct callout			 dl_cal;
-	struct bio			*dl_bio;
-	TAILQ_ENTRY(g_nop_delay)	 dl_next;
+	struct callout dl_cal;
+	struct bio *dl_bio;
+	TAILQ_ENTRY(g_nop_delay) dl_next;
 };
 
 static bool
@@ -125,7 +126,7 @@ g_nop_resize(struct g_consumer *cp)
 		return;
 	}
 	size = cp->provider->mediasize - sc->sc_offset;
-	LIST_FOREACH(pp, &gp->provider, provider)
+	LIST_FOREACH (pp, &gp->provider, provider)
 		g_resize_provider(pp, size);
 }
 
@@ -275,7 +276,8 @@ g_nop_start(struct bio *bp)
 
 		rval = arc4random() % 100;
 		if (rval < failprob) {
-			G_NOP_LOGREQLVL(1, bp, "Returning error=%d.", sc->sc_error);
+			G_NOP_LOGREQLVL(
+			    1, bp, "Returning error=%d.", sc->sc_error);
 			g_io_deliver(bp, sc->sc_error);
 			return;
 		}
@@ -305,8 +307,8 @@ g_nop_start(struct bio *bp)
 				gndelay->dl_bio = cbp;
 
 				mtx_lock(&sc->sc_lock);
-				TAILQ_INSERT_TAIL(&sc->sc_head_delay, gndelay,
-				    dl_next);
+				TAILQ_INSERT_TAIL(
+				    &sc->sc_head_delay, gndelay, dl_next);
 				mtx_unlock(&sc->sc_lock);
 
 				callout_reset(&gndelay->dl_cal,
@@ -336,9 +338,9 @@ g_nop_access(struct g_provider *pp, int dr, int dw, int de)
 
 static int
 g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
-    const char *gnopname, int ioerror, u_int count_until_fail,
-    u_int rfailprob, u_int wfailprob, u_int delaymsec, u_int rdelayprob,
-    u_int wdelayprob, off_t offset, off_t size, u_int secsize, off_t stripesize,
+    const char *gnopname, int ioerror, u_int count_until_fail, u_int rfailprob,
+    u_int wfailprob, u_int delaymsec, u_int rdelayprob, u_int wdelayprob,
+    off_t offset, off_t size, u_int secsize, off_t stripesize,
     off_t stripeoffset, const char *physpath)
 {
 	struct g_nop_softc *sc;
@@ -387,11 +389,13 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	}
 	size -= size % secsize;
 	if ((stripesize % pp->sectorsize) != 0) {
-		gctl_error(req, "Invalid stripesize for provider %s.", pp->name);
+		gctl_error(
+		    req, "Invalid stripesize for provider %s.", pp->name);
 		return (EINVAL);
 	}
 	if ((stripeoffset % pp->sectorsize) != 0) {
-		gctl_error(req, "Invalid stripeoffset for provider %s.", pp->name);
+		gctl_error(
+		    req, "Invalid stripeoffset for provider %s.", pp->name);
 		return (EINVAL);
 	}
 	if (stripesize != 0 && stripeoffset >= stripesize) {
@@ -404,17 +408,17 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	}
 
 	if (gnopname != NULL) {
-		n = snprintf(name, sizeof(name), "%s%s", gnopname,
-		    G_NOP_SUFFIX);
+		n = snprintf(
+		    name, sizeof(name), "%s%s", gnopname, G_NOP_SUFFIX);
 	} else {
-		n = snprintf(name, sizeof(name), "%s%s", pp->name,
-		    G_NOP_SUFFIX);
+		n = snprintf(
+		    name, sizeof(name), "%s%s", pp->name, G_NOP_SUFFIX);
 	}
 	if (n <= 0 || n >= sizeof(name)) {
 		gctl_error(req, "Invalid provider name.");
 		return (EINVAL);
 	}
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		if (strcmp(gp->name, name) == 0) {
 			gctl_error(req, "Provider %s already exists.", name);
 			return (EEXIST);
@@ -458,8 +462,9 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	newpp->sectorsize = secsize;
 	newpp->stripesize = stripesize;
 	newpp->stripeoffset = stripeoffset;
-	LIST_FOREACH(gap, &pp->aliases, ga_next)
-		g_provider_add_alias(newpp, "%s%s", gap->ga_alias, G_NOP_SUFFIX);
+	LIST_FOREACH (gap, &pp->aliases, ga_next)
+		g_provider_add_alias(
+		    newpp, "%s%s", gap->ga_alias, G_NOP_SUFFIX);
 
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
@@ -513,8 +518,10 @@ g_nop_destroy(struct g_geom *gp, boolean_t force)
 	pp = LIST_FIRST(&gp->provider);
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
 		if (force) {
-			G_NOP_DEBUG(0, "Device %s is still open, so it "
-			    "can't be definitely removed.", pp->name);
+			G_NOP_DEBUG(0,
+			    "Device %s is still open, so it "
+			    "can't be definitely removed.",
+			    pp->name);
 		} else {
 			G_NOP_DEBUG(1, "Device %s is still open (r%dw%de%d).",
 			    pp->name, pp->acr, pp->acw, pp->ace);
@@ -541,8 +548,8 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_provider *pp;
 	intmax_t *val, error, rfailprob, wfailprob, count_until_fail, offset,
-	    secsize, size, stripesize, stripeoffset, delaymsec,
-	    rdelayprob, wdelayprob;
+	    secsize, size, stripesize, stripeoffset, delaymsec, rdelayprob,
+	    wdelayprob;
 	const char *physpath, *gnopname;
 	char param[16];
 	int i, *nargs;
@@ -619,8 +626,8 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 	if (val != NULL) {
 		count_until_fail = *val;
 		if (count_until_fail < -1) {
-			gctl_error(req, "Invalid '%s' argument",
-			    "count_until_fail");
+			gctl_error(
+			    req, "Invalid '%s' argument", "count_until_fail");
 			return;
 		}
 	}
@@ -660,8 +667,8 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 	if (val != NULL) {
 		stripeoffset = *val;
 		if (stripeoffset < 0) {
-			gctl_error(req, "Invalid '%s' argument",
-			    "stripeoffset");
+			gctl_error(
+			    req, "Invalid '%s' argument", "stripeoffset");
 			return;
 		}
 	}
@@ -673,18 +680,16 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		pp = gctl_get_provider(req, param);
 		if (pp == NULL)
 			return;
-		if (g_nop_create(req, mp, pp,
-		    gnopname,
-		    error == -1 ? EIO : (int)error,
-		    count_until_fail == -1 ? 0 : (u_int)count_until_fail,
-		    rfailprob == -1 ? 0 : (u_int)rfailprob,
-		    wfailprob == -1 ? 0 : (u_int)wfailprob,
-		    delaymsec == -1 ? 1 : (u_int)delaymsec,
-		    rdelayprob == -1 ? 0 : (u_int)rdelayprob,
-		    wdelayprob == -1 ? 0 : (u_int)wdelayprob,
-		    (off_t)offset, (off_t)size, (u_int)secsize,
-		    (off_t)stripesize, (off_t)stripeoffset,
-		    physpath) != 0) {
+		if (g_nop_create(req, mp, pp, gnopname,
+			error == -1 ? EIO : (int)error,
+			count_until_fail == -1 ? 0 : (u_int)count_until_fail,
+			rfailprob == -1 ? 0 : (u_int)rfailprob,
+			wfailprob == -1 ? 0 : (u_int)wfailprob,
+			delaymsec == -1 ? 1 : (u_int)delaymsec,
+			rdelayprob == -1 ? 0 : (u_int)rdelayprob,
+			wdelayprob == -1 ? 0 : (u_int)wdelayprob, (off_t)offset,
+			(off_t)size, (u_int)secsize, (off_t)stripesize,
+			(off_t)stripeoffset, physpath) != 0) {
 			return;
 		}
 	}
@@ -801,7 +806,7 @@ g_nop_find_geom(struct g_class *mp, const char *name)
 {
 	struct g_geom *gp;
 
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		if (strcmp(gp->name, name) == 0)
 			return (gp);
 	}
@@ -945,8 +950,8 @@ g_nop_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (pp != NULL || cp != NULL)
 		return;
 	sc = gp->softc;
-	sbuf_printf(sb, "%s<Offset>%jd</Offset>\n", indent,
-	    (intmax_t)sc->sc_offset);
+	sbuf_printf(
+	    sb, "%s<Offset>%jd</Offset>\n", indent, (intmax_t)sc->sc_offset);
 	sbuf_printf(sb, "%s<ReadFailProb>%u</ReadFailProb>\n", indent,
 	    sc->sc_rfailprob);
 	sbuf_printf(sb, "%s<WriteFailProb>%u</WriteFailProb>\n", indent,
@@ -962,16 +967,18 @@ g_nop_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	sbuf_printf(sb, "%s<Reads>%ju</Reads>\n", indent, sc->sc_reads);
 	sbuf_printf(sb, "%s<Writes>%ju</Writes>\n", indent, sc->sc_writes);
 	sbuf_printf(sb, "%s<Deletes>%ju</Deletes>\n", indent, sc->sc_deletes);
-	sbuf_printf(sb, "%s<Getattrs>%ju</Getattrs>\n", indent, sc->sc_getattrs);
+	sbuf_printf(
+	    sb, "%s<Getattrs>%ju</Getattrs>\n", indent, sc->sc_getattrs);
 	sbuf_printf(sb, "%s<Flushes>%ju</Flushes>\n", indent, sc->sc_flushes);
-	sbuf_printf(sb, "%s<Speedups>%ju</Speedups>\n", indent, sc->sc_speedups);
+	sbuf_printf(
+	    sb, "%s<Speedups>%ju</Speedups>\n", indent, sc->sc_speedups);
 	sbuf_printf(sb, "%s<Cmd0s>%ju</Cmd0s>\n", indent, sc->sc_cmd0s);
 	sbuf_printf(sb, "%s<Cmd1s>%ju</Cmd1s>\n", indent, sc->sc_cmd1s);
 	sbuf_printf(sb, "%s<Cmd2s>%ju</Cmd2s>\n", indent, sc->sc_cmd2s);
-	sbuf_printf(sb, "%s<ReadBytes>%ju</ReadBytes>\n", indent,
-	    sc->sc_readbytes);
-	sbuf_printf(sb, "%s<WroteBytes>%ju</WroteBytes>\n", indent,
-	    sc->sc_wrotebytes);
+	sbuf_printf(
+	    sb, "%s<ReadBytes>%ju</ReadBytes>\n", indent, sc->sc_readbytes);
+	sbuf_printf(
+	    sb, "%s<WroteBytes>%ju</WroteBytes>\n", indent, sc->sc_wrotebytes);
 }
 
 DECLARE_GEOM_CLASS(g_nop_class, g_nop);

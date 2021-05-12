@@ -33,21 +33,15 @@
 
 #ifdef _KERNEL
 
-#define PNP_HEXTONUM(c)	((c) >= 'a'		\
-			 ? (c) - 'a' + 10	\
-			 : ((c) >= 'A'		\
-			    ? (c) - 'A' + 10	\
-			    : (c) - '0'))
+#define PNP_HEXTONUM(c)                \
+	((c) >= 'a' ? (c) - 'a' + 10 : \
+			    ((c) >= 'A' ? (c) - 'A' + 10 : (c) - '0'))
 
-#define PNP_EISAID(s)				\
-	((((s[0] - '@') & 0x1f) << 2)		\
-	 | (((s[1] - '@') & 0x18) >> 3)		\
-	 | (((s[1] - '@') & 0x07) << 13)	\
-	 | (((s[2] - '@') & 0x1f) << 8)		\
-	 | (PNP_HEXTONUM(s[4]) << 16)		\
-	 | (PNP_HEXTONUM(s[3]) << 20)		\
-	 | (PNP_HEXTONUM(s[6]) << 24)		\
-	 | (PNP_HEXTONUM(s[5]) << 28))
+#define PNP_EISAID(s)                                                      \
+	((((s[0] - '@') & 0x1f) << 2) | (((s[1] - '@') & 0x18) >> 3) |     \
+	    (((s[1] - '@') & 0x07) << 13) | (((s[2] - '@') & 0x1f) << 8) | \
+	    (PNP_HEXTONUM(s[4]) << 16) | (PNP_HEXTONUM(s[3]) << 20) |      \
+	    (PNP_HEXTONUM(s[6]) << 24) | (PNP_HEXTONUM(s[5]) << 28))
 
 typedef int pnp_scan_cb(device_t dev, u_char tag, u_char *res, int len,
     struct isa_config *config, int ldn);

@@ -29,18 +29,18 @@
  */
 
 #ifndef _MACHINE_VM_H_
-#define	_MACHINE_VM_H_
+#define _MACHINE_VM_H_
 
-#include <machine/pte.h>
 #include <machine/cca.h>
+#include <machine/pte.h>
 
 /* Memory attributes. */
-#define	VM_MEMATTR_UNCACHEABLE		((vm_memattr_t)MIPS_CCA_UNCACHED)
-#define	VM_MEMATTR_WRITE_BACK		((vm_memattr_t)MIPS_CCA_CACHED)
-#define	VM_MEMATTR_DEFAULT		VM_MEMATTR_WRITE_BACK
-#define	VM_MEMATTR_DEVICE		VM_MEMATTR_UNCACHEABLE
+#define VM_MEMATTR_UNCACHEABLE ((vm_memattr_t)MIPS_CCA_UNCACHED)
+#define VM_MEMATTR_WRITE_BACK ((vm_memattr_t)MIPS_CCA_CACHED)
+#define VM_MEMATTR_DEFAULT VM_MEMATTR_WRITE_BACK
+#define VM_MEMATTR_DEVICE VM_MEMATTR_UNCACHEABLE
 #ifdef MIPS_CCA_WC
-#define	VM_MEMATTR_WRITE_COMBINING	((vm_memattr_t)MIPS_CCA_WC)
+#define VM_MEMATTR_WRITE_COMBINING ((vm_memattr_t)MIPS_CCA_WC)
 #endif
 
 #endif /* !_MACHINE_VM_H_ */

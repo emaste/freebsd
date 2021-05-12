@@ -6,35 +6,35 @@
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
+ * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * - Redistributions of source code must retain the above copyright notice, 
+ * - Redistributions of source code must retain the above copyright notice,
  *   this list of conditions and the following disclaimer.
- * - Redistributions in binary form must reproduce the above copyright notice, 
- *   this list of conditions and the following disclaimer in the documentation 
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
  *   and/or other materials provided with the distribution.
- * - Neither the name of Sun Microsystems, Inc. nor the names of its 
- *   contributors may be used to endorse or promote products derived 
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
+ * Copyright (c) 1986-1991 by Sun Microsystems Inc.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-#ident	"@(#)clnt_dg.c	1.23	94/04/22 SMI"
+#ident "@(#)clnt_dg.c	1.23	94/04/22 SMI"
 static char sccsid[] = "@(#)clnt_dg.c 1.19 89/03/16 Copyr 1988 Sun Micro";
 #endif
 #include <sys/cdefs.h>
@@ -63,19 +63,18 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
 
-
 #ifdef _FREEFALL_CONFIG
 /*
  * Disable RPC exponential back-off for FreeBSD.org systems.
  */
-#define	RPC_MAX_BACKOFF		1 /* second */
+#define RPC_MAX_BACKOFF 1 /* second */
 #else
-#define	RPC_MAX_BACKOFF		30 /* seconds */
+#define RPC_MAX_BACKOFF 30 /* seconds */
 #endif
 
 static bool_t time_not_ok(struct timeval *);
-static enum clnt_stat clnt_dg_call(CLIENT *, struct rpc_callextra *,
-    rpcproc_t, struct mbuf *, struct mbuf **, struct timeval);
+static enum clnt_stat clnt_dg_call(CLIENT *, struct rpc_callextra *, rpcproc_t,
+    struct mbuf *, struct mbuf **, struct timeval);
 static void clnt_dg_geterr(CLIENT *, struct rpc_err *);
 static bool_t clnt_dg_freeres(CLIENT *, xdrproc_t, void *);
 static void clnt_dg_abort(CLIENT *);
@@ -84,15 +83,13 @@ static void clnt_dg_close(CLIENT *);
 static void clnt_dg_destroy(CLIENT *);
 static int clnt_dg_soupcall(struct socket *so, void *arg, int waitflag);
 
-static struct clnt_ops clnt_dg_ops = {
-	.cl_call =	clnt_dg_call,
-	.cl_abort =	clnt_dg_abort,
-	.cl_geterr =	clnt_dg_geterr,
-	.cl_freeres =	clnt_dg_freeres,
-	.cl_close =	clnt_dg_close,
-	.cl_destroy =	clnt_dg_destroy,
-	.cl_control =	clnt_dg_control
-};
+static struct clnt_ops clnt_dg_ops = { .cl_call = clnt_dg_call,
+	.cl_abort = clnt_dg_abort,
+	.cl_geterr = clnt_dg_geterr,
+	.cl_freeres = clnt_dg_freeres,
+	.cl_close = clnt_dg_close,
+	.cl_destroy = clnt_dg_destroy,
+	.cl_control = clnt_dg_control };
 
 static volatile uint32_t rpc_xid = 0;
 
@@ -103,11 +100,11 @@ static volatile uint32_t rpc_xid = 0;
  */
 struct cu_request {
 	TAILQ_ENTRY(cu_request) cr_link;
-	CLIENT			*cr_client;	/* owner */
-	uint32_t		cr_xid;		/* XID of request */
-	struct mbuf		*cr_mrep;	/* reply received by upcall */
-	int			cr_error;	/* any error from upcall */
-	char			cr_verf[MAX_AUTH_BYTES]; /* reply verf */
+	CLIENT *cr_client;	      /* owner */
+	uint32_t cr_xid;	      /* XID of request */
+	struct mbuf *cr_mrep;	      /* reply received by upcall */
+	int cr_error;		      /* any error from upcall */
+	char cr_verf[MAX_AUTH_BYTES]; /* reply verf */
 };
 
 TAILQ_HEAD(cu_request_list, cu_request);
@@ -123,10 +120,10 @@ TAILQ_HEAD(cu_request_list, cu_request);
  * structures is installed on the socket.
  */
 struct cu_socket {
-	struct mtx		cs_lock;
-	int			cs_refs;	/* Count of clients */
-	struct cu_request_list	cs_pending;	/* Requests awaiting replies */
-	int			cs_upcallrefs;	/* Refcnt of upcalls in prog.*/
+	struct mtx cs_lock;
+	int cs_refs;			   /* Count of clients */
+	struct cu_request_list cs_pending; /* Requests awaiting replies */
+	int cs_upcallrefs;		   /* Refcnt of upcalls in prog.*/
 };
 
 static void clnt_dg_upcallsdone(struct socket *, struct cu_socket *);
@@ -135,33 +132,33 @@ static void clnt_dg_upcallsdone(struct socket *, struct cu_socket *);
  * Private data kept per client handle
  */
 struct cu_data {
-	int			cu_threads;	/* # threads in clnt_vc_call */
-	bool_t			cu_closing;	/* TRUE if we are closing */
-	bool_t			cu_closed;	/* TRUE if we are closed */
-	struct socket		*cu_socket;	/* connection socket */
-	bool_t			cu_closeit;	/* opened by library */
-	struct sockaddr_storage	cu_raddr;	/* remote address */
-	int			cu_rlen;
-	struct timeval		cu_wait;	/* retransmit interval */
-	struct timeval		cu_total;	/* total time for the call */
-	struct rpc_err		cu_error;
-	uint32_t		cu_xid;
-	char			cu_mcallc[MCALL_MSG_SIZE]; /* marshalled callmsg */
-	size_t			cu_mcalllen;
-	size_t			cu_sendsz;	/* send size */
-	size_t			cu_recvsz;	/* recv size */
-	int			cu_async;
-	int			cu_connect;	/* Use connect(). */
-	int			cu_connected;	/* Have done connect(). */
-	const char		*cu_waitchan;
-	int			cu_waitflag;
-	int			cu_cwnd;	/* congestion window */
-	int			cu_sent;	/* number of in-flight RPCs */
-	bool_t			cu_cwnd_wait;
+	int cu_threads;			  /* # threads in clnt_vc_call */
+	bool_t cu_closing;		  /* TRUE if we are closing */
+	bool_t cu_closed;		  /* TRUE if we are closed */
+	struct socket *cu_socket;	  /* connection socket */
+	bool_t cu_closeit;		  /* opened by library */
+	struct sockaddr_storage cu_raddr; /* remote address */
+	int cu_rlen;
+	struct timeval cu_wait;	 /* retransmit interval */
+	struct timeval cu_total; /* total time for the call */
+	struct rpc_err cu_error;
+	uint32_t cu_xid;
+	char cu_mcallc[MCALL_MSG_SIZE]; /* marshalled callmsg */
+	size_t cu_mcalllen;
+	size_t cu_sendsz; /* send size */
+	size_t cu_recvsz; /* recv size */
+	int cu_async;
+	int cu_connect;	  /* Use connect(). */
+	int cu_connected; /* Have done connect(). */
+	const char *cu_waitchan;
+	int cu_waitflag;
+	int cu_cwnd; /* congestion window */
+	int cu_sent; /* number of in-flight RPCs */
+	bool_t cu_cwnd_wait;
 };
 
-#define CWNDSCALE	256
-#define MAXCWND		(32 * CWNDSCALE)
+#define CWNDSCALE 256
+#define MAXCWND (32 * CWNDSCALE)
 
 /*
  * Connection less client creation returns with client handle parameters.
@@ -178,16 +175,15 @@ struct cu_data {
  * If svcaddr is NULL, returns NULL.
  */
 CLIENT *
-clnt_dg_create(
-	struct socket *so,
-	struct sockaddr *svcaddr,	/* servers address */
-	rpcprog_t program,		/* program number */
-	rpcvers_t version,		/* version number */
-	size_t sendsz,			/* buffer recv size */
-	size_t recvsz)			/* buffer send size */
+clnt_dg_create(struct socket *so,
+    struct sockaddr *svcaddr, /* servers address */
+    rpcprog_t program,	      /* program number */
+    rpcvers_t version,	      /* version number */
+    size_t sendsz,	      /* buffer recv size */
+    size_t recvsz)	      /* buffer send size */
 {
-	CLIENT *cl = NULL;		/* client handle */
-	struct cu_data *cu = NULL;	/* private data */
+	CLIENT *cl = NULL;	   /* client handle */
+	struct cu_data *cu = NULL; /* private data */
 	struct cu_socket *cs = NULL;
 	struct sockbuf *sb;
 	struct timeval now;
@@ -219,21 +215,21 @@ clnt_dg_create(
 		return (NULL);
 	}
 
-	cl = mem_alloc(sizeof (CLIENT));
+	cl = mem_alloc(sizeof(CLIENT));
 
 	/*
 	 * Should be multiple of 4 for XDR.
 	 */
 	sendsz = rounddown(sendsz + 3, 4);
 	recvsz = rounddown(recvsz + 3, 4);
-	cu = mem_alloc(sizeof (*cu));
+	cu = mem_alloc(sizeof(*cu));
 	cu->cu_threads = 0;
 	cu->cu_closing = FALSE;
 	cu->cu_closed = FALSE;
-	(void) memcpy(&cu->cu_raddr, svcaddr, (size_t)svcaddr->sa_len);
+	(void)memcpy(&cu->cu_raddr, svcaddr, (size_t)svcaddr->sa_len);
 	cu->cu_rlen = svcaddr->sa_len;
 	/* Other values can also be set through clnt_control() */
-	cu->cu_wait.tv_sec = 3;	/* heuristically chosen */
+	cu->cu_wait.tv_sec = 3; /* heuristically chosen */
 	cu->cu_wait.tv_usec = 0;
 	cu->cu_total.tv_sec = -1;
 	cu->cu_total.tv_usec = -1;
@@ -247,7 +243,7 @@ clnt_dg_create(
 	cu->cu_cwnd = MAXCWND / 2;
 	cu->cu_sent = 0;
 	cu->cu_cwnd_wait = FALSE;
-	(void) getmicrotime(&now);
+	(void)getmicrotime(&now);
 	/* Clip at 28bits so that it will not wrap around. */
 	newxid = __RPC_GETXID(&now) & 0xfffffff;
 	atomic_cmpset_32(&rpc_xid, 0, newxid);
@@ -255,8 +251,8 @@ clnt_dg_create(
 	call_msg.rm_call.cb_prog = program;
 	call_msg.rm_call.cb_vers = version;
 	xdrmem_create(&xdrs, cu->cu_mcallc, MCALL_MSG_SIZE, XDR_ENCODE);
-	if (! xdr_callhdr(&xdrs, &call_msg)) {
-		rpc_createerr.cf_stat = RPC_CANTENCODEARGS;  /* XXX */
+	if (!xdr_callhdr(&xdrs, &call_msg)) {
+		rpc_createerr.cf_stat = RPC_CANTENCODEARGS; /* XXX */
 		rpc_createerr.cf_error.re_errno = 0;
 		goto err2;
 	}
@@ -282,10 +278,11 @@ recheck_socket:
 	if (sb->sb_upcall) {
 		if (sb->sb_upcall != clnt_dg_soupcall) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
-			printf("clnt_dg_create(): socket already has an incompatible upcall\n");
+			printf(
+			    "clnt_dg_create(): socket already has an incompatible upcall\n");
 			goto err2;
 		}
-		cs = (struct cu_socket *) sb->sb_upcallarg;
+		cs = (struct cu_socket *)sb->sb_upcallarg;
 		mtx_lock(&cs->cs_lock);
 		cs->cs_refs++;
 		mtx_unlock(&cs->cs_lock);
@@ -320,20 +317,19 @@ recheck_socket:
 	cl->cl_netid = NULL;
 	return (cl);
 err2:
-	mem_free(cl, sizeof (CLIENT));
-	mem_free(cu, sizeof (*cu));
+	mem_free(cl, sizeof(CLIENT));
+	mem_free(cu, sizeof(*cu));
 
 	return (NULL);
 }
 
 static enum clnt_stat
-clnt_dg_call(
-	CLIENT		*cl,		/* client handle */
-	struct rpc_callextra *ext,	/* call metadata */
-	rpcproc_t	proc,		/* procedure number */
-	struct mbuf	*args,		/* pointer to args */
-	struct mbuf	**resultsp,	/* pointer to results */
-	struct timeval	utimeout)	/* seconds to wait before giving up */
+clnt_dg_call(CLIENT *cl,       /* client handle */
+    struct rpc_callextra *ext, /* call metadata */
+    rpcproc_t proc,	       /* procedure number */
+    struct mbuf *args,	       /* pointer to args */
+    struct mbuf **resultsp,    /* pointer to results */
+    struct timeval utimeout)   /* seconds to wait before giving up */
 {
 	struct cu_data *cu = (struct cu_data *)cl->cl_private;
 	struct cu_socket *cs;
@@ -344,8 +340,8 @@ clnt_dg_call(
 	XDR xdrs;
 	struct rpc_msg reply_msg;
 	bool_t ok;
-	int retrans;			/* number of re-transmits so far */
-	int nrefreshes = 2;		/* number of times to refresh cred */
+	int retrans;	    /* number of re-transmits so far */
+	int nrefreshes = 2; /* number of times to refresh cred */
 	struct timeval *tvp;
 	int timeout;
 	int retransmit_time;
@@ -392,8 +388,8 @@ clnt_dg_call(
 
 	if (cu->cu_connect && !cu->cu_connected) {
 		mtx_unlock(&cs->cs_lock);
-		error = soconnect(cu->cu_socket,
-		    (struct sockaddr *)&cu->cu_raddr, curthread);
+		error = soconnect(
+		    cu->cu_socket, (struct sockaddr *)&cu->cu_raddr, curthread);
 		mtx_lock(&cs->cs_lock);
 		if (error) {
 			errp->re_errno = error;
@@ -443,9 +439,9 @@ send_again:
 	if (cu->cu_async == TRUE && args == NULL)
 		goto get_reply;
 
-	if ((! XDR_PUTINT32(&xdrs, &proc)) ||
-	    (! AUTH_MARSHALL(auth, xid, &xdrs,
-		m_copym(args, 0, M_COPYALL, M_WAITOK)))) {
+	if ((!XDR_PUTINT32(&xdrs, &proc)) ||
+	    (!AUTH_MARSHALL(
+		auth, xid, &xdrs, m_copym(args, 0, M_COPYALL, M_WAITOK)))) {
 		errp->re_status = stat = RPC_CANTENCODEARGS;
 		mtx_lock(&cs->cs_lock);
 		goto out;
@@ -460,8 +456,8 @@ send_again:
 	 */
 	while (cu->cu_sent >= cu->cu_cwnd) {
 		cu->cu_cwnd_wait = TRUE;
-		error = msleep(&cu->cu_cwnd_wait, &cs->cs_lock,
-		    cu->cu_waitflag, "rpccwnd", 0);
+		error = msleep(&cu->cu_cwnd_wait, &cs->cs_lock, cu->cu_waitflag,
+		    "rpccwnd", 0);
 		if (error) {
 			errp->re_errno = error;
 			if (error == EINTR || error == ERESTART)
@@ -585,8 +581,9 @@ get_reply:
 				goto out;
 			}
 
-			cu->cu_cwnd += (CWNDSCALE * CWNDSCALE
-			    + cu->cu_cwnd / 2) / cu->cu_cwnd;
+			cu->cu_cwnd += (CWNDSCALE * CWNDSCALE +
+					   cu->cu_cwnd / 2) /
+			    cu->cu_cwnd;
 			if (cu->cu_cwnd > MAXCWND)
 				cu->cu_cwnd = MAXCWND;
 
@@ -623,7 +620,8 @@ get_reply:
 					error = abs(error) - rt->rt_deviate;
 					rt->rt_deviate += error / 4;
 				}
-				rt->rt_rtxcur = rt->rt_srtt + 4*rt->rt_deviate;
+				rt->rt_rtxcur = rt->rt_srtt +
+				    4 * rt->rt_deviate;
 			}
 
 			break;
@@ -652,7 +650,7 @@ get_reply:
 			goto out;
 		}
 
-		/* Retransmit if necessary. */		
+		/* Retransmit if necessary. */
 		if (time_waited >= next_sendtime) {
 			cu->cu_cwnd /= 2;
 			if (cu->cu_cwnd < CWNDSCALE)
@@ -660,11 +658,11 @@ get_reply:
 			if (ext && ext->rc_feedback) {
 				mtx_unlock(&cs->cs_lock);
 				if (retrans == 0)
-					ext->rc_feedback(FEEDBACK_REXMIT1,
-					    proc, ext->rc_feedback_arg);
+					ext->rc_feedback(FEEDBACK_REXMIT1, proc,
+					    ext->rc_feedback_arg);
 				else
-					ext->rc_feedback(FEEDBACK_REXMIT2,
-					    proc, ext->rc_feedback_arg);
+					ext->rc_feedback(FEEDBACK_REXMIT2, proc,
+					    ext->rc_feedback_arg);
 				mtx_lock(&cs->cs_lock);
 			}
 			if (cu->cu_closing || cu->cu_closed) {
@@ -706,9 +704,8 @@ got_reply:
 
 		if (errp->re_status == RPC_SUCCESS) {
 			results = xdrmbuf_getall(&xdrs);
-			if (! AUTH_VALIDATE(auth, xid,
-				&reply_msg.acpted_rply.ar_verf,
-				&results)) {
+			if (!AUTH_VALIDATE(auth, xid,
+				&reply_msg.acpted_rply.ar_verf, &results)) {
 				errp->re_status = stat = RPC_AUTHERROR;
 				errp->re_why = AUTH_INVALIDRESP;
 				if (retrans &&
@@ -732,33 +729,31 @@ got_reply:
 					XDR_DESTROY(&xdrs);
 					mtx_lock(&cs->cs_lock);
 					cu->cu_sent += CWNDSCALE;
-					TAILQ_INSERT_TAIL(&cs->cs_pending,
-					    cr, cr_link);
+					TAILQ_INSERT_TAIL(
+					    &cs->cs_pending, cr, cr_link);
 					cr->cr_mrep = NULL;
 					goto get_reply;
 				}
 			} else {
 				*resultsp = results;
 			}
-		}		/* end successful completion */
+		} /* end successful completion */
 		/*
 		 * If unsuccessful AND error is an authentication error
 		 * then refresh credentials and try again, else break
 		 */
 		else if (stat == RPC_AUTHERROR)
 			/* maybe our credentials need to be refreshed ... */
-			if (nrefreshes > 0 &&
-			    AUTH_REFRESH(auth, &reply_msg)) {
+			if (nrefreshes > 0 && AUTH_REFRESH(auth, &reply_msg)) {
 				nrefreshes--;
 				XDR_DESTROY(&xdrs);
 				mtx_lock(&cs->cs_lock);
 				goto call_again;
 			}
 		/* end of unsuccessful completion */
-	}	/* end of valid reply message */
+	} /* end of valid reply message */
 	else {
 		errp->re_status = stat = RPC_CANTDECODERES;
-
 	}
 	XDR_DESTROY(&xdrs);
 	mtx_lock(&cs->cs_lock);
@@ -773,7 +768,7 @@ out:
 	cu->cu_threads--;
 	if (cu->cu_closing)
 		wakeup(cu);
-		
+
 	mtx_unlock(&cs->cs_lock);
 
 	if (auth && stat != RPC_SUCCESS)
@@ -864,9 +859,9 @@ clnt_dg_control(CLIENT *cl, u_int request, void *info)
 		 */
 		memcpy(info, &cu->cu_raddr, cu->cu_raddr.ss_len);
 		break;
-	case CLSET_SVC_ADDR:		/* set to new address */
+	case CLSET_SVC_ADDR: /* set to new address */
 		addr = (struct sockaddr *)info;
-		(void) memcpy(&cu->cu_raddr, addr, addr->sa_len);
+		(void)memcpy(&cu->cu_raddr, addr, addr->sa_len);
 		break;
 	case CLGET_XID:
 		*(uint32_t *)info = atomic_load_32(&rpc_xid);
@@ -885,14 +880,13 @@ clnt_dg_control(CLIENT *cl, u_int request, void *info)
 		 * beginning of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
-		*(uint32_t *)info =
-		    ntohl(*(uint32_t *)(void *)(cu->cu_mcallc +
+		*(uint32_t *)info = ntohl(*(uint32_t *)(void *)(cu->cu_mcallc +
 		    4 * BYTES_PER_XDR_UNIT));
 		break;
 
 	case CLSET_VERS:
-		*(uint32_t *)(void *)(cu->cu_mcallc + 4 * BYTES_PER_XDR_UNIT)
-			= htonl(*(uint32_t *)info);
+		*(uint32_t *)(void *)(cu->cu_mcallc +
+		    4 * BYTES_PER_XDR_UNIT) = htonl(*(uint32_t *)info);
 		break;
 
 	case CLGET_PROG:
@@ -902,14 +896,13 @@ clnt_dg_control(CLIENT *cl, u_int request, void *info)
 		 * beginning of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
-		*(uint32_t *)info =
-		    ntohl(*(uint32_t *)(void *)(cu->cu_mcallc +
+		*(uint32_t *)info = ntohl(*(uint32_t *)(void *)(cu->cu_mcallc +
 		    3 * BYTES_PER_XDR_UNIT));
 		break;
 
 	case CLSET_PROG:
-		*(uint32_t *)(void *)(cu->cu_mcallc + 3 * BYTES_PER_XDR_UNIT)
-			= htonl(*(uint32_t *)info);
+		*(uint32_t *)(void *)(cu->cu_mcallc +
+		    3 * BYTES_PER_XDR_UNIT) = htonl(*(uint32_t *)info);
 		break;
 	case CLSET_ASYNC:
 		cu->cu_async = *(int *)info;
@@ -921,19 +914,19 @@ clnt_dg_control(CLIENT *cl, u_int request, void *info)
 		cu->cu_waitchan = (const char *)info;
 		break;
 	case CLGET_WAITCHAN:
-		*(const char **) info = cu->cu_waitchan;
+		*(const char **)info = cu->cu_waitchan;
 		break;
 	case CLSET_INTERRUPTIBLE:
-		if (*(int *) info)
+		if (*(int *)info)
 			cu->cu_waitflag = PCATCH;
 		else
 			cu->cu_waitflag = 0;
 		break;
 	case CLGET_INTERRUPTIBLE:
 		if (cu->cu_waitflag)
-			*(int *) info = TRUE;
+			*(int *)info = TRUE;
 		else
-			*(int *) info = FALSE;
+			*(int *)info = FALSE;
 		break;
 	default:
 		mtx_unlock(&cs->cs_lock);
@@ -971,7 +964,7 @@ clnt_dg_close(CLIENT *cl)
 	 * has finished with clnt_vc_call.
 	 */
 	cu->cu_closing = TRUE;
-	TAILQ_FOREACH(cr, &cs->cs_pending, cr_link) {
+	TAILQ_FOREACH (cr, &cs->cs_pending, cr_link) {
 		if (cr->cr_client == cl) {
 			cr->cr_xid = 0;
 			cr->cr_error = ESHUTDOWN;
@@ -1027,11 +1020,11 @@ clnt_dg_destroy(CLIENT *cl)
 		soclose(so);
 
 	if (cl->cl_netid && cl->cl_netid[0])
-		mem_free(cl->cl_netid, strlen(cl->cl_netid) +1);
+		mem_free(cl->cl_netid, strlen(cl->cl_netid) + 1);
 	if (cl->cl_tp && cl->cl_tp[0])
-		mem_free(cl->cl_tp, strlen(cl->cl_tp) +1);
-	mem_free(cu, sizeof (*cu));
-	mem_free(cl, sizeof (CLIENT));
+		mem_free(cl->cl_tp, strlen(cl->cl_tp) + 1);
+	mem_free(cu, sizeof(*cu));
+	mem_free(cl, sizeof(CLIENT));
 }
 
 /*
@@ -1040,14 +1033,14 @@ clnt_dg_destroy(CLIENT *cl)
 static bool_t
 time_not_ok(struct timeval *t)
 {
-	return (t->tv_sec < -1 || t->tv_sec > 100000000 ||
-		t->tv_usec < -1 || t->tv_usec > 1000000);
+	return (t->tv_sec < -1 || t->tv_sec > 100000000 || t->tv_usec < -1 ||
+	    t->tv_usec > 1000000);
 }
 
 int
 clnt_dg_soupcall(struct socket *so, void *arg, int waitflag)
 {
-	struct cu_socket *cs = (struct cu_socket *) arg;
+	struct cu_socket *cs = (struct cu_socket *)arg;
 	struct uio uio;
 	struct mbuf *m;
 	struct mbuf *control;
@@ -1077,7 +1070,7 @@ clnt_dg_soupcall(struct socket *so, void *arg, int waitflag)
 		 */
 		if (error) {
 			mtx_lock(&cs->cs_lock);
-			TAILQ_FOREACH(cr, &cs->cs_pending, cr_link) {
+			TAILQ_FOREACH (cr, &cs->cs_pending, cr_link) {
 				cr->cr_xid = 0;
 				cr->cr_error = error;
 				wakeup(cr);
@@ -1105,7 +1098,7 @@ clnt_dg_soupcall(struct socket *so, void *arg, int waitflag)
 		 */
 		mtx_lock(&cs->cs_lock);
 		foundreq = 0;
-		TAILQ_FOREACH(cr, &cs->cs_pending, cr_link) {
+		TAILQ_FOREACH (cr, &cs->cs_pending, cr_link) {
 			if (cr->cr_xid == xid) {
 				/*
 				 * This one matches. We leave the
@@ -1150,6 +1143,6 @@ clnt_dg_upcallsdone(struct socket *so, struct cu_socket *cs)
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 
 	while (cs->cs_upcallrefs > 0)
-		(void) msleep(&cs->cs_upcallrefs, SOCKBUF_MTX(&so->so_rcv), 0,
+		(void)msleep(&cs->cs_upcallrefs, SOCKBUF_MTX(&so->so_rcv), 0,
 		    "rpcdgup", 0);
 }

@@ -33,21 +33,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
 
@@ -56,15 +54,12 @@ __FBSDID("$FreeBSD$");
 
 #include "spibus_if.h"
 
-static struct ofw_compat_data compat_data[] = {
-	{"broadcom,bcm2835-spi",	1},
-	{"brcm,bcm2835-spi",		1},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "broadcom,bcm2835-spi", 1 },
+	{ "brcm,bcm2835-spi", 1 }, { NULL, 0 } };
 
 static void bcm_spi_intr(void *);
 
-#ifdef	BCM_SPI_DEBUG
+#ifdef BCM_SPI_DEBUG
 static void
 bcm_spi_printr(device_t dev)
 {
@@ -83,8 +78,8 @@ bcm_spi_printr(device_t dev)
 		reg--;
 	if (reg == 0)
 		reg = 65536;
-	device_printf(dev, "CLK=%uMhz/%d=%luhz\n",
-	    SPI_CORE_CLK / 1000000, reg, SPI_CORE_CLK / reg);
+	device_printf(dev, "CLK=%uMhz/%d=%luhz\n", SPI_CORE_CLK / 1000000, reg,
+	    SPI_CORE_CLK / reg);
 	reg = BCM_SPI_READ(sc, SPI_DLEN) & SPI_DLEN_MASK;
 	device_printf(dev, "DLEN=%d\n", reg);
 	reg = BCM_SPI_READ(sc, SPI_LTOH) & SPI_LTOH_MASK;
@@ -99,8 +94,8 @@ bcm_spi_printr(device_t dev)
 #endif
 
 static void
-bcm_spi_modifyreg(struct bcm_spi_softc *sc, uint32_t off, uint32_t mask,
-	uint32_t value)
+bcm_spi_modifyreg(
+    struct bcm_spi_softc *sc, uint32_t off, uint32_t mask, uint32_t value)
 {
 	uint32_t reg;
 
@@ -111,8 +106,7 @@ bcm_spi_modifyreg(struct bcm_spi_softc *sc, uint32_t off, uint32_t mask,
 	BCM_SPI_WRITE(sc, off, reg);
 }
 
-static int
-bcm_spi_clock_proc(SYSCTL_HANDLER_ARGS)
+static int bcm_spi_clock_proc(SYSCTL_HANDLER_ARGS)
 {
 	struct bcm_spi_softc *sc;
 	uint32_t clk;
@@ -155,36 +149,31 @@ bcm_spi_cs_bit_proc(SYSCTL_HANDLER_ARGS, uint32_t bit)
 	return (0);
 }
 
-static int
-bcm_spi_cpol_proc(SYSCTL_HANDLER_ARGS)
+static int bcm_spi_cpol_proc(SYSCTL_HANDLER_ARGS)
 {
 
 	return (bcm_spi_cs_bit_proc(oidp, arg1, arg2, req, SPI_CS_CPOL));
 }
 
-static int
-bcm_spi_cpha_proc(SYSCTL_HANDLER_ARGS)
+static int bcm_spi_cpha_proc(SYSCTL_HANDLER_ARGS)
 {
 
 	return (bcm_spi_cs_bit_proc(oidp, arg1, arg2, req, SPI_CS_CPHA));
 }
 
-static int
-bcm_spi_cspol0_proc(SYSCTL_HANDLER_ARGS)
+static int bcm_spi_cspol0_proc(SYSCTL_HANDLER_ARGS)
 {
 
 	return (bcm_spi_cs_bit_proc(oidp, arg1, arg2, req, SPI_CS_CSPOL0));
 }
 
-static int
-bcm_spi_cspol1_proc(SYSCTL_HANDLER_ARGS)
+static int bcm_spi_cspol1_proc(SYSCTL_HANDLER_ARGS)
 {
 
 	return (bcm_spi_cs_bit_proc(oidp, arg1, arg2, req, SPI_CS_CSPOL1));
 }
 
-static int
-bcm_spi_cspol2_proc(SYSCTL_HANDLER_ARGS)
+static int bcm_spi_cspol2_proc(SYSCTL_HANDLER_ARGS)
 {
 
 	return (bcm_spi_cs_bit_proc(oidp, arg1, arg2, req, SPI_CS_CSPOL2));
@@ -253,8 +242,8 @@ bcm_spi_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
 		return (ENXIO);
@@ -264,8 +253,8 @@ bcm_spi_attach(device_t dev)
 	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!sc->sc_irq_res) {
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot allocate interrupt\n");
@@ -274,7 +263,7 @@ bcm_spi_attach(device_t dev)
 
 	/* Hook up our interrupt handler. */
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, bcm_spi_intr, sc, &sc->sc_intrhand)) {
+		NULL, bcm_spi_intr, sc, &sc->sc_intrhand)) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot setup the interrupt handler\n");
@@ -286,7 +275,7 @@ bcm_spi_attach(device_t dev)
 	/* Add sysctl nodes. */
 	bcm_spi_sysctl_init(sc);
 
-#ifdef	BCM_SPI_DEBUG
+#ifdef BCM_SPI_DEBUG
 	bcm_spi_printr(dev);
 #endif
 
@@ -296,7 +285,7 @@ bcm_spi_attach(device_t dev)
 	 */
 	BCM_SPI_WRITE(sc, SPI_CS, SPI_CS_CLEAR_RXFIFO | SPI_CS_CLEAR_TXFIFO);
 
-#ifdef	BCM_SPI_DEBUG
+#ifdef BCM_SPI_DEBUG
 	bcm_spi_printr(dev);
 #endif
 
@@ -333,8 +322,7 @@ bcm_spi_fill_fifo(struct bcm_spi_softc *sc)
 
 	cmd = sc->sc_cmd;
 	cs = BCM_SPI_READ(sc, SPI_CS) & (SPI_CS_TA | SPI_CS_TXD);
-	while (sc->sc_written < sc->sc_len &&
-	    cs == (SPI_CS_TA | SPI_CS_TXD)) {
+	while (sc->sc_written < sc->sc_len && cs == (SPI_CS_TA | SPI_CS_TXD)) {
 		data = (uint8_t *)cmd->tx_cmd;
 		written = sc->sc_written++;
 		if (written >= cmd->tx_cmd_sz) {
@@ -390,8 +378,8 @@ bcm_spi_intr(void *arg)
 	/* Check for end of transfer. */
 	if (sc->sc_written == sc->sc_len && sc->sc_read == sc->sc_len) {
 		/* Disable interrupts and the SPI engine. */
-		bcm_spi_modifyreg(sc, SPI_CS,
-		    SPI_CS_TA | SPI_CS_INTR | SPI_CS_INTD, 0);
+		bcm_spi_modifyreg(
+		    sc, SPI_CS, SPI_CS_TA | SPI_CS_INTR | SPI_CS_INTD, 0);
 		wakeup(sc->sc_dev);
 	}
 
@@ -407,33 +395,30 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	sc = device_get_softc(dev);
 
-	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz, 
+	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz,
 	    ("TX/RX command sizes should be equal"));
-	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz, 
+	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz,
 	    ("TX/RX data sizes should be equal"));
 
 	/* Get the bus speed, mode, and chip select for this child. */
 
 	spibus_get_cs(child, &cs);
 	if ((cs & (~SPIBUS_CS_HIGH)) > 2) {
-		device_printf(dev,
-		    "Invalid chip select %u requested by %s\n", cs,
-		    device_get_nameunit(child));
+		device_printf(dev, "Invalid chip select %u requested by %s\n",
+		    cs, device_get_nameunit(child));
 		return (EINVAL);
 	}
 
 	spibus_get_clock(child, &clock);
 	if (clock == 0) {
-		device_printf(dev,
-		    "Invalid clock %uHz requested by %s\n", clock,
-		    device_get_nameunit(child));
+		device_printf(dev, "Invalid clock %uHz requested by %s\n",
+		    clock, device_get_nameunit(child));
 		return (EINVAL);
 	}
 
 	spibus_get_mode(child, &mode);
 	if (mode > 3) {
-		device_printf(dev,
-		    "Invalid mode %u requested by %s\n", mode,
+		device_printf(dev, "Invalid mode %u requested by %s\n", mode,
 		    device_get_nameunit(child));
 		return (EINVAL);
 	}
@@ -447,8 +432,7 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	sc->sc_flags = BCM_SPI_BUSY;
 
 	/* Clear the FIFO. */
-	bcm_spi_modifyreg(sc, SPI_CS,
-	    SPI_CS_CLEAR_RXFIFO | SPI_CS_CLEAR_TXFIFO,
+	bcm_spi_modifyreg(sc, SPI_CS, SPI_CS_CLEAR_RXFIFO | SPI_CS_CLEAR_TXFIFO,
 	    SPI_CS_CLEAR_RXFIFO | SPI_CS_CLEAR_TXFIFO);
 
 	/* Save a pointer to the SPI command. */
@@ -457,26 +441,21 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	sc->sc_written = 0;
 	sc->sc_len = cmd->tx_cmd_sz + cmd->tx_data_sz;
 
-#ifdef	BCM2835_SPI_USE_CS_HIGH /* TODO: for when behavior is correct */
+#ifdef BCM2835_SPI_USE_CS_HIGH /* TODO: for when behavior is correct */
 	/*
 	 * Assign CS polarity first, while the CS indicates 'inactive'.
 	 * This will need to set the correct polarity bit based on the 'cs', and
-	 * the polarity bit will remain in this state, even after the transaction
-	 * is complete.
+	 * the polarity bit will remain in this state, even after the
+	 * transaction is complete.
 	 */
-	if((cs & ~SPIBUS_CS_HIGH) == 0) {
-		bcm_spi_modifyreg(sc, SPI_CS,
-		    SPI_CS_CSPOL0,
+	if ((cs & ~SPIBUS_CS_HIGH) == 0) {
+		bcm_spi_modifyreg(sc, SPI_CS, SPI_CS_CSPOL0,
 		    ((cs & (SPIBUS_CS_HIGH)) ? SPI_CS_CSPOL0 : 0));
-	}
-	else if((cs & ~SPIBUS_CS_HIGH) == 1) {
-		bcm_spi_modifyreg(sc, SPI_CS,
-		    SPI_CS_CSPOL1,
+	} else if ((cs & ~SPIBUS_CS_HIGH) == 1) {
+		bcm_spi_modifyreg(sc, SPI_CS, SPI_CS_CSPOL1,
 		    ((cs & (SPIBUS_CS_HIGH)) ? SPI_CS_CSPOL1 : 0));
-	}
-	else if((cs & ~SPIBUS_CS_HIGH) == 2) {
-		bcm_spi_modifyreg(sc, SPI_CS,
-		    SPI_CS_CSPOL2,
+	} else if ((cs & ~SPIBUS_CS_HIGH) == 2) {
+		bcm_spi_modifyreg(sc, SPI_CS, SPI_CS_CSPOL2,
 		    ((cs & (SPIBUS_CS_HIGH)) ? SPI_CS_CSPOL2 : 0));
 	}
 #endif
@@ -486,10 +465,9 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	 * This must happen before CS output pin is active.
 	 * Otherwise, you might glitch and drop the first bit.
 	 */
-	bcm_spi_modifyreg(sc, SPI_CS,
-	    SPI_CS_CPOL | SPI_CS_CPHA,
+	bcm_spi_modifyreg(sc, SPI_CS, SPI_CS_CPOL | SPI_CS_CPHA,
 	    ((mode & SPIBUS_MODE_CPHA) ? SPI_CS_CPHA : 0) |
-	    ((mode & SPIBUS_MODE_CPOL) ? SPI_CS_CPOL : 0));
+		((mode & SPIBUS_MODE_CPOL) ? SPI_CS_CPOL : 0));
 
 	/*
 	 * Set the clock divider in 'SPI_CLK - see 'bcm_spi_clock_proc()'.
@@ -513,7 +491,7 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	bcm_spi_modifyreg(sc, SPI_CS,
 	    SPI_CS_MASK | SPI_CS_TA | SPI_CS_INTR | SPI_CS_INTD,
 	    (cs & (~SPIBUS_CS_HIGH)) | /* cs is the lower 2 bits of the reg */
-	    SPI_CS_TA | SPI_CS_INTR | SPI_CS_INTD);
+		SPI_CS_TA | SPI_CS_INTR | SPI_CS_INTD);
 
 	/* Wait for the transaction to complete. */
 	err = mtx_sleep(dev, &sc->sc_mtx, 0, "bcm_spi", hz * 2);
@@ -548,15 +526,15 @@ bcm_spi_get_node(device_t bus, device_t dev)
 
 static device_method_t bcm_spi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		bcm_spi_probe),
-	DEVMETHOD(device_attach,	bcm_spi_attach),
-	DEVMETHOD(device_detach,	bcm_spi_detach),
+	DEVMETHOD(device_probe, bcm_spi_probe),
+	DEVMETHOD(device_attach, bcm_spi_attach),
+	DEVMETHOD(device_detach, bcm_spi_detach),
 
 	/* SPI interface */
-	DEVMETHOD(spibus_transfer,	bcm_spi_transfer),
+	DEVMETHOD(spibus_transfer, bcm_spi_transfer),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	bcm_spi_get_node),
+	DEVMETHOD(ofw_bus_get_node, bcm_spi_get_node),
 
 	DEVMETHOD_END
 };

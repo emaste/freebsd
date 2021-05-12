@@ -35,11 +35,11 @@
  */
 
 #ifndef _MACHINE_IN_CKSUM_H_
-#define	_MACHINE_IN_CKSUM_H_	1
+#define _MACHINE_IN_CKSUM_H_ 1
 
 #include <sys/cdefs.h>
 
-#define in_cksum(m, len)	in_cksum_skip(m, len, 0)
+#define in_cksum(m, len) in_cksum_skip(m, len, 0)
 
 #if defined(IPVERSION) && (IPVERSION == 4)
 /*
@@ -60,12 +60,12 @@ in_cksum_update(struct ip *ip)
 
 #else
 
-#define	in_cksum_update(ip) \
-	do { \
-		int __tmpsum; \
-		__tmpsum = (int)ntohs(ip->ip_sum) + 256; \
+#define in_cksum_update(ip)                                      \
+	do {                                                     \
+		int __tmpsum;                                    \
+		__tmpsum = (int)ntohs(ip->ip_sum) + 256;         \
 		ip->ip_sum = htons(__tmpsum + (__tmpsum >> 16)); \
-	} while(0)
+	} while (0)
 
 #endif
 #endif
@@ -74,9 +74,9 @@ in_cksum_update(struct ip *ip)
 #if defined(IPVERSION) && (IPVERSION == 4)
 u_int in_cksum_hdr(const struct ip *ip);
 #endif
-u_short	in_addword(u_short sum, u_short b);
-u_short	in_pseudo(u_int sum, u_int b, u_int c);
-u_short	in_cksum_skip(struct mbuf *m, int len, int skip);
+u_short in_addword(u_short sum, u_short b);
+u_short in_pseudo(u_int sum, u_int b, u_int c);
+u_short in_cksum_skip(struct mbuf *m, int len, int skip);
 #endif
 
 #endif /* _MACHINE_IN_CKSUM_H_ */

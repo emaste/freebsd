@@ -38,75 +38,73 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <arm/freescale/vybrid/vf_iomuxc.h>
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include <arm/freescale/vybrid/vf_common.h>
+#include <arm/freescale/vybrid/vf_iomuxc.h>
 
-#define	MUX_MODE_MASK		7
-#define	MUX_MODE_SHIFT		20
-#define	MUX_MODE_GPIO		0
-#define	MUX_MODE_VBUS_EN_OTG	2
+#define MUX_MODE_MASK 7
+#define MUX_MODE_SHIFT 20
+#define MUX_MODE_GPIO 0
+#define MUX_MODE_VBUS_EN_OTG 2
 
-#define	IBE		(1 << 0)	/* Input Buffer Enable Field */
-#define	OBE		(1 << 1)	/* Output Buffer Enable Field. */
-#define	PUE		(1 << 2)	/* Pull / Keep Select Field. */
-#define	PKE		(1 << 3)	/* Pull / Keep Enable Field. */
-#define	HYS		(1 << 9)	/* Hysteresis Enable Field */
-#define	ODE		(1 << 10)	/* Open Drain Enable Field. */
-#define	SRE		(1 << 11)	/* Slew Rate Field. */
+#define IBE (1 << 0) /* Input Buffer Enable Field */
+#define OBE (1 << 1) /* Output Buffer Enable Field. */
+#define PUE (1 << 2) /* Pull / Keep Select Field. */
+#define PKE (1 << 3) /* Pull / Keep Enable Field. */
+#define HYS (1 << 9) /* Hysteresis Enable Field */
+#define ODE (1 << 10) /* Open Drain Enable Field. */
+#define SRE (1 << 11) /* Slew Rate Field. */
 
-#define	SPEED_SHIFT		12
-#define	SPEED_MASK		0x3
-#define	SPEED_LOW		0	/* 50 MHz */
-#define	SPEED_MEDIUM		0x1	/* 100 MHz */
-#define	SPEED_HIGH		0x3	/* 200 MHz */
+#define SPEED_SHIFT 12
+#define SPEED_MASK 0x3
+#define SPEED_LOW 0 /* 50 MHz */
+#define SPEED_MEDIUM 0x1 /* 100 MHz */
+#define SPEED_HIGH 0x3 /* 200 MHz */
 
-#define	PUS_SHIFT		4	/* Pull Up / Down Config Field Shift */
-#define	PUS_MASK		0x3
-#define	PUS_100_KOHM_PULL_DOWN	0
-#define	PUS_47_KOHM_PULL_UP	0x1
-#define	PUS_100_KOHM_PULL_UP	0x2
-#define	PUS_22_KOHM_PULL_UP	0x3
+#define PUS_SHIFT 4 /* Pull Up / Down Config Field Shift */
+#define PUS_MASK 0x3
+#define PUS_100_KOHM_PULL_DOWN 0
+#define PUS_47_KOHM_PULL_UP 0x1
+#define PUS_100_KOHM_PULL_UP 0x2
+#define PUS_22_KOHM_PULL_UP 0x3
 
-#define	DSE_SHIFT		6	/* Drive Strength Field Shift */
-#define	DSE_MASK		0x7
-#define	DSE_DISABLED		0	/* Output driver disabled */
-#define	DSE_150_OHM		0x1
-#define	DSE_75_OHM		0x2
-#define	DSE_50_OHM		0x3
-#define	DSE_37_OHM		0x4
-#define	DSE_30_OHM		0x5
-#define	DSE_25_OHM		0x6
-#define	DSE_20_OHM		0x7
+#define DSE_SHIFT 6 /* Drive Strength Field Shift */
+#define DSE_MASK 0x7
+#define DSE_DISABLED 0 /* Output driver disabled */
+#define DSE_150_OHM 0x1
+#define DSE_75_OHM 0x2
+#define DSE_50_OHM 0x3
+#define DSE_37_OHM 0x4
+#define DSE_30_OHM 0x5
+#define DSE_25_OHM 0x6
+#define DSE_20_OHM 0x7
 
-#define	MAX_MUX_LEN		1024
+#define MAX_MUX_LEN 1024
 
 struct iomuxc_softc {
-	struct resource		*tmr_res[1];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	device_t		dev;
+	struct resource *tmr_res[1];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	device_t dev;
 };
 
-static struct resource_spec iomuxc_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec iomuxc_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 static int
 iomuxc_probe(device_t dev)
@@ -154,7 +152,7 @@ pinmux_set(struct iomuxc_softc *sc)
 			values = len / (sizeof(uint32_t));
 			for (i = 0; i < values; i += 2) {
 				pin = iomux_config[i];
-				pin_cfg = iomux_config[i+1];
+				pin_cfg = iomux_config[i + 1];
 #if 0
 				device_printf(sc->dev, "Set pin %d to 0x%08x\n",
 				    pin, pin_cfg);
@@ -195,11 +193,9 @@ iomuxc_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t iomuxc_methods[] = {
-	DEVMETHOD(device_probe,		iomuxc_probe),
-	DEVMETHOD(device_attach,	iomuxc_attach),
-	{ 0, 0 }
-};
+static device_method_t iomuxc_methods[] = { DEVMETHOD(
+						device_probe, iomuxc_probe),
+	DEVMETHOD(device_attach, iomuxc_attach), { 0, 0 } };
 
 static driver_t iomuxc_driver = {
 	"iomuxc",

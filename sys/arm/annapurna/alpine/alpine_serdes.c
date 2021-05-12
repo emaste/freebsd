@@ -31,28 +31,29 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/bus.h>
-#include <sys/rman.h>
-#include <sys/conf.h>
 #include <sys/resource.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
+
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include "al_serdes.h"
 #include "alpine_serdes.h"
 
-#define SERDES_NUM_GROUPS	5
+#define SERDES_NUM_GROUPS 5
 
 static void *serdes_base;
-static uint32_t serdes_grp_offset[] = {0, 0x400, 0x800, 0xc00, 0x2000};
+static uint32_t serdes_grp_offset[] = { 0, 0x400, 0x800, 0xc00, 0x2000 };
 
 static struct alpine_serdes_eth_group_mode {
-	struct mtx			lock;
-	enum alpine_serdes_eth_mode	mode;
-	bool				mode_set;
+	struct mtx lock;
+	enum alpine_serdes_eth_mode mode;
+	bool mode_set;
 } alpine_serdes_eth_group_mode[SERDES_NUM_GROUPS];
 
 static int al_serdes_probe(device_t dev);
@@ -60,34 +61,27 @@ static int al_serdes_attach(device_t dev);
 static int al_serdes_detach(device_t dev);
 
 static struct resource_spec al_serdes_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, { -1, 0 }
 };
 
 struct al_serdes_softc {
 	struct resource *res;
 };
 
-static device_method_t al_serdes_methods[] = {
-	DEVMETHOD(device_probe,		al_serdes_probe),
-	DEVMETHOD(device_attach,	al_serdes_attach),
-	DEVMETHOD(device_detach,	al_serdes_detach),
+static device_method_t al_serdes_methods[] = { DEVMETHOD(device_probe,
+						   al_serdes_probe),
+	DEVMETHOD(device_attach, al_serdes_attach),
+	DEVMETHOD(device_detach, al_serdes_detach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
-static driver_t al_serdes_driver = {
-	"serdes",
-	al_serdes_methods,
-	sizeof(struct al_serdes_softc)
-};
+static driver_t al_serdes_driver = { "serdes", al_serdes_methods,
+	sizeof(struct al_serdes_softc) };
 
 static devclass_t al_serdes_devclass;
 
-DRIVER_MODULE(al_serdes, simplebus, al_serdes_driver,
-    al_serdes_devclass, 0, 0);
-DRIVER_MODULE(al_serdes, ofwbus, al_serdes_driver,
-    al_serdes_devclass, 0, 0);
+DRIVER_MODULE(al_serdes, simplebus, al_serdes_driver, al_serdes_devclass, 0, 0);
+DRIVER_MODULE(al_serdes, ofwbus, al_serdes_driver, al_serdes_devclass, 0, 0);
 
 static int
 al_serdes_probe(device_t dev)
@@ -181,8 +175,8 @@ alpine_serdes_eth_mode_set(uint32_t group, enum alpine_serdes_eth_mode mode)
 	if (!group_mode->mode_set || (group_mode->mode != mode)) {
 		struct al_serdes_grp_obj obj;
 
-		al_serdes_handle_grp_init(alpine_serdes_resource_get(group),
-		    group, &obj);
+		al_serdes_handle_grp_init(
+		    alpine_serdes_resource_get(group), group, &obj);
 
 		if (mode == ALPINE_SERDES_ETH_MODE_SGMII)
 			obj.mode_set_sgmii(&obj);

@@ -39,64 +39,76 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
+#include <sys/systm.h> /* just for boothowto */
 #include <sys/cons.h>
+#include <sys/exec.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
-#include <sys/systm.h>	/* just for boothowto */
-#include <sys/exec.h>
 #ifdef KDB
 #include <sys/kdb.h>
 #endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_map.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_map.h>
 
-#include <machine/db_machdep.h>
 #include <machine/cpu.h>
+#include <machine/db_machdep.h>
 #include <machine/machdep.h>
 #include <machine/vmparam.h>
 
-#include <ddb/ddb.h>
 #include <ddb/db_access.h>
 #include <ddb/db_command.h>
 #include <ddb/db_output.h>
-#include <ddb/db_variables.h>
 #include <ddb/db_sym.h>
+#include <ddb/db_variables.h>
+#include <ddb/ddb.h>
 
 static int nil = 0;
 
-int db_access_und_sp (struct db_variable *, db_expr_t *, int);
-int db_access_abt_sp (struct db_variable *, db_expr_t *, int);
-int db_access_irq_sp (struct db_variable *, db_expr_t *, int);
+int db_access_und_sp(struct db_variable *, db_expr_t *, int);
+int db_access_abt_sp(struct db_variable *, db_expr_t *, int);
+int db_access_irq_sp(struct db_variable *, db_expr_t *, int);
 
 static db_varfcn_t db_frame;
 
-#define DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
+#define DB_OFFSET(x) (db_expr_t *)offsetof(struct trapframe, x)
 struct db_variable db_regs[] = {
-	{ "spsr", DB_OFFSET(tf_spsr),	db_frame },
-	{ "r0", DB_OFFSET(tf_r0),	db_frame },
-	{ "r1", DB_OFFSET(tf_r1),	db_frame },
-	{ "r2", DB_OFFSET(tf_r2),	db_frame },
-	{ "r3", DB_OFFSET(tf_r3),	db_frame },
-	{ "r4", DB_OFFSET(tf_r4),	db_frame },
-	{ "r5", DB_OFFSET(tf_r5),	db_frame },
-	{ "r6", DB_OFFSET(tf_r6),	db_frame },
-	{ "r7", DB_OFFSET(tf_r7),	db_frame },
-	{ "r8", DB_OFFSET(tf_r8),	db_frame },
-	{ "r9", DB_OFFSET(tf_r9),	db_frame },
-	{ "r10", DB_OFFSET(tf_r10),	db_frame },
-	{ "r11", DB_OFFSET(tf_r11),	db_frame },
-	{ "r12", DB_OFFSET(tf_r12),	db_frame },
+	{ "spsr", DB_OFFSET(tf_spsr), db_frame },
+	{ "r0", DB_OFFSET(tf_r0), db_frame },
+	{ "r1", DB_OFFSET(tf_r1), db_frame },
+	{ "r2", DB_OFFSET(tf_r2), db_frame },
+	{ "r3", DB_OFFSET(tf_r3), db_frame },
+	{ "r4", DB_OFFSET(tf_r4), db_frame },
+	{ "r5", DB_OFFSET(tf_r5), db_frame },
+	{ "r6", DB_OFFSET(tf_r6), db_frame },
+	{ "r7", DB_OFFSET(tf_r7), db_frame },
+	{ "r8", DB_OFFSET(tf_r8), db_frame },
+	{ "r9", DB_OFFSET(tf_r9), db_frame },
+	{ "r10", DB_OFFSET(tf_r10), db_frame },
+	{ "r11", DB_OFFSET(tf_r11), db_frame },
+	{ "r12", DB_OFFSET(tf_r12), db_frame },
 	{ "usr_sp", DB_OFFSET(tf_usr_sp), db_frame },
 	{ "usr_lr", DB_OFFSET(tf_usr_lr), db_frame },
 	{ "svc_sp", DB_OFFSET(tf_svc_sp), db_frame },
 	{ "svc_lr", DB_OFFSET(tf_svc_lr), db_frame },
-	{ "pc", DB_OFFSET(tf_pc), 	db_frame },
-	{ "und_sp", &nil, db_access_und_sp, },
-	{ "abt_sp", &nil, db_access_abt_sp, },
-	{ "irq_sp", &nil, db_access_irq_sp, },
+	{ "pc", DB_OFFSET(tf_pc), db_frame },
+	{
+	    "und_sp",
+	    &nil,
+	    db_access_und_sp,
+	},
+	{
+	    "abt_sp",
+	    &nil,
+	    db_access_abt_sp,
+	},
+	{
+	    "irq_sp",
+	    &nil,
+	    db_access_irq_sp,
+	},
 };
 
 struct db_variable *db_eregs = db_regs + nitems(db_regs);
@@ -134,7 +146,8 @@ db_access_irq_sp(struct db_variable *vp, db_expr_t *valp, int rw)
 	return (0);
 }
 
-int db_frame(struct db_variable *vp, db_expr_t *valp, int rw)
+int
+db_frame(struct db_variable *vp, db_expr_t *valp, int rw)
 {
 	int *reg;
 
@@ -168,7 +181,7 @@ db_validate_address(vm_offset_t addr)
 #else
 	    addr >= VM_MIN_KERNEL_ADDRESS
 #endif
-	   )
+	)
 		pmap = kernel_pmap;
 	else
 		pmap = p->p_vmspace->vm_map.pmap;
@@ -179,13 +192,11 @@ db_validate_address(vm_offset_t addr)
 /*
  * Read bytes from kernel address space for debugger.
  */
-int
-db_read_bytes(addr, size, data)
-	vm_offset_t	addr;
-	size_t	size;
-	char	*data;
+int db_read_bytes(addr, size, data) vm_offset_t addr;
+size_t size;
+char *data;
 {
-	char	*src = (char *)addr;
+	char *src = (char *)addr;
 
 	if (db_validate_address((u_int)src)) {
 		db_printf("address %p is invalid\n", src);
@@ -193,12 +204,12 @@ db_read_bytes(addr, size, data)
 	}
 
 	if (size == 4 && (addr & 3) == 0 && ((uintptr_t)data & 3) == 0) {
-		*((int*)data) = *((int*)src);
+		*((int *)data) = *((int *)src);
 		return (0);
 	}
 
 	if (size == 2 && (addr & 1) == 0 && ((uintptr_t)data & 1) == 0) {
-		*((short*)data) = *((short*)src);
+		*((short *)data) = *((short *)src);
 		return (0);
 	}
 
@@ -228,10 +239,9 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 	}
 
 	if (size == 4 && (addr & 3) == 0 && ((uintptr_t)data & 3) == 0)
-		*((int*)dst) = *((int*)data);
-	else
-	if (size == 2 && (addr & 1) == 0 && ((uintptr_t)data & 1) == 0)
-		*((short*)dst) = *((short*)data);
+		*((int *)dst) = *((int *)data);
+	else if (size == 2 && (addr & 1) == 0 && ((uintptr_t)data & 1) == 0)
+		*((short *)dst) = *((short *)data);
 	else {
 		loop = size;
 		while (loop-- > 0) {

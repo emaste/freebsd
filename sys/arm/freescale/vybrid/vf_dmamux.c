@@ -38,45 +38,44 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include <arm/freescale/vybrid/vf_common.h>
 #include <arm/freescale/vybrid/vf_dmamux.h>
 
-#define	DMAMUX_CHCFG(n)		(0x1 * n)	/* Channels 0-15 Cfg Reg */
-#define	CHCFG_ENBL		(1 << 7)	/* Channel Enable */
-#define	CHCFG_TRIG		(1 << 6)	/* Channel Trigger Enable */
-#define	CHCFG_SOURCE_MASK	0x3f		/* Channel Source (Slot) */
-#define	CHCFG_SOURCE_SHIFT	0
+#define DMAMUX_CHCFG(n) (0x1 * n) /* Channels 0-15 Cfg Reg */
+#define CHCFG_ENBL (1 << 7) /* Channel Enable */
+#define CHCFG_TRIG (1 << 6) /* Channel Trigger Enable */
+#define CHCFG_SOURCE_MASK 0x3f /* Channel Source (Slot) */
+#define CHCFG_SOURCE_SHIFT 0
 
 struct dmamux_softc {
-	struct resource		*res[4];
-	bus_space_tag_t		bst[4];
-	bus_space_handle_t	bsh[4];
+	struct resource *res[4];
+	bus_space_tag_t bst[4];
+	bus_space_handle_t bsh[4];
 };
 
 struct dmamux_softc *dmamux_sc;
 
-static struct resource_spec dmamux_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE }, /* DMAMUX0 */
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE }, /* DMAMUX1 */
-	{ SYS_RES_MEMORY,	2,	RF_ACTIVE }, /* DMAMUX2 */
-	{ SYS_RES_MEMORY,	3,	RF_ACTIVE }, /* DMAMUX3 */
-	{ -1, 0 }
-};
+static struct resource_spec dmamux_spec[] = { { SYS_RES_MEMORY, 0,
+						  RF_ACTIVE }, /* DMAMUX0 */
+	{ SYS_RES_MEMORY, 1, RF_ACTIVE },		       /* DMAMUX1 */
+	{ SYS_RES_MEMORY, 2, RF_ACTIVE },		       /* DMAMUX2 */
+	{ SYS_RES_MEMORY, 3, RF_ACTIVE },		       /* DMAMUX3 */
+	{ -1, 0 } };
 
 static int
 dmamux_probe(device_t dev)
@@ -138,11 +137,9 @@ dmamux_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t dmamux_methods[] = {
-	DEVMETHOD(device_probe,		dmamux_probe),
-	DEVMETHOD(device_attach,	dmamux_attach),
-	{ 0, 0 }
-};
+static device_method_t dmamux_methods[] = { DEVMETHOD(
+						device_probe, dmamux_probe),
+	DEVMETHOD(device_attach, dmamux_attach), { 0, 0 } };
 
 static driver_t dmamux_driver = {
 	"dmamux",

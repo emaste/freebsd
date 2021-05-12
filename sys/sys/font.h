@@ -35,7 +35,7 @@
  */
 
 #ifndef _SYS_FONT_H_
-#define	_SYS_FONT_H_
+#define _SYS_FONT_H_
 
 #include <sys/queue.h>
 
@@ -52,11 +52,11 @@
  */
 
 enum vfnt_map_type {
-	VFNT_MAP_NORMAL = 0,	/* Normal font. */
-	VFNT_MAP_NORMAL_RIGHT,	/* Normal font right hand. */
-	VFNT_MAP_BOLD,		/* Bold font. */
-	VFNT_MAP_BOLD_RIGHT,	/* Bold font right hand. */
-	VFNT_MAPS		/* Number of maps. */
+	VFNT_MAP_NORMAL = 0,   /* Normal font. */
+	VFNT_MAP_NORMAL_RIGHT, /* Normal font right hand. */
+	VFNT_MAP_BOLD,	       /* Bold font. */
+	VFNT_MAP_BOLD_RIGHT,   /* Bold font right hand. */
+	VFNT_MAPS	       /* Number of maps. */
 };
 
 struct font_info {
@@ -68,55 +68,55 @@ struct font_info {
 };
 
 struct vfnt_map {
-	uint32_t	 vfm_src;
-	uint16_t	 vfm_dst;
-	uint16_t	 vfm_len;
+	uint32_t vfm_src;
+	uint16_t vfm_dst;
+	uint16_t vfm_len;
 } __packed;
 typedef struct vfnt_map vfnt_map_t;
 
 struct vt_font {
-	vfnt_map_t	*vf_map[VFNT_MAPS];
-	uint8_t		*vf_bytes;
-	uint32_t	 vf_height;
-	uint32_t	 vf_width;
-	uint32_t	 vf_map_count[VFNT_MAPS];
-	uint32_t	 vf_refcount;
+	vfnt_map_t *vf_map[VFNT_MAPS];
+	uint8_t *vf_bytes;
+	uint32_t vf_height;
+	uint32_t vf_width;
+	uint32_t vf_map_count[VFNT_MAPS];
+	uint32_t vf_refcount;
 };
 
 typedef struct vt_font_bitmap_data {
-        uint32_t	vfbd_width;
-        uint32_t	vfbd_height;
-        uint32_t	vfbd_compressed_size;
-        uint32_t	vfbd_uncompressed_size;
-        uint8_t		*vfbd_compressed_data;
-        struct vt_font	*vfbd_font;
+	uint32_t vfbd_width;
+	uint32_t vfbd_height;
+	uint32_t vfbd_compressed_size;
+	uint32_t vfbd_uncompressed_size;
+	uint8_t *vfbd_compressed_data;
+	struct vt_font *vfbd_font;
 } vt_font_bitmap_data_t;
 
 typedef enum {
-	FONT_AUTO,	/* This font is loaded by software */
-	FONT_MANUAL,	/* This font is loaded manually by user */
-	FONT_BUILTIN,	/* This font was built in at compile time */
-	FONT_RELOAD	/* This font is marked to be re-read from file */
+	FONT_AUTO,    /* This font is loaded by software */
+	FONT_MANUAL,  /* This font is loaded manually by user */
+	FONT_BUILTIN, /* This font was built in at compile time */
+	FONT_RELOAD   /* This font is marked to be re-read from file */
 } FONT_FLAGS;
 
 struct fontlist {
-	char			*font_name;
-	FONT_FLAGS		font_flags;
-	vt_font_bitmap_data_t	*font_data;
-	vt_font_bitmap_data_t	*(*font_load)(char *);
-	STAILQ_ENTRY(fontlist)	font_next;
+	char *font_name;
+	FONT_FLAGS font_flags;
+	vt_font_bitmap_data_t *font_data;
+	vt_font_bitmap_data_t *(*font_load)(char *);
+	STAILQ_ENTRY(fontlist) font_next;
 };
 
 typedef STAILQ_HEAD(font_list, fontlist) font_list_t;
 
-#define	FONT_HEADER_MAGIC	"VFNT0002"
+#define FONT_HEADER_MAGIC "VFNT0002"
 struct font_header {
-	uint8_t		fh_magic[8];
-	uint8_t		fh_width;
-	uint8_t		fh_height;
-	uint16_t	fh_pad;
-	uint32_t	fh_glyph_count;
-	uint32_t	fh_map_count[VFNT_MAPS];
+	uint8_t fh_magic[8];
+	uint8_t fh_width;
+	uint8_t fh_height;
+	uint16_t fh_pad;
+	uint32_t fh_glyph_count;
+	uint32_t fh_map_count[VFNT_MAPS];
 } __packed;
 
 #endif /* !_SYS_FONT_H_ */

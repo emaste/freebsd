@@ -44,11 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
 
 #include <arm64/coresight/coresight.h>
 #include <arm64/coresight/coresight_replicator.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
 static int
 replicator_acpi_probe(device_t dev)
@@ -56,8 +56,8 @@ replicator_acpi_probe(device_t dev)
 	static char *replicator_ids[] = { "ARMHC98D", NULL };
 	int error;
 
-	error = ACPI_ID_PROBE(device_get_parent(dev), dev,
-	    replicator_ids, NULL);
+	error = ACPI_ID_PROBE(
+	    device_get_parent(dev), dev, replicator_ids, NULL);
 	if (error <= 0)
 		device_set_desc(dev, "ARM Coresight Replicator");
 
@@ -77,8 +77,8 @@ replicator_acpi_attach(device_t dev)
 
 static device_method_t replicator_acpi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		replicator_acpi_probe),
-	DEVMETHOD(device_attach,	replicator_acpi_attach),
+	DEVMETHOD(device_probe, replicator_acpi_probe),
+	DEVMETHOD(device_attach, replicator_acpi_attach),
 
 	/* End */
 	DEVMETHOD_END
@@ -90,5 +90,4 @@ DEFINE_CLASS_1(replicator, replicator_acpi_driver, replicator_acpi_methods,
 static devclass_t replicator_acpi_devclass;
 
 EARLY_DRIVER_MODULE(replicator, acpi, replicator_acpi_driver,
-    replicator_acpi_devclass, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+    replicator_acpi_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

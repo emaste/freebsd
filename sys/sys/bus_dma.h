@@ -82,31 +82,31 @@
 /*
  * Flags used in various bus DMA methods.
  */
-#define	BUS_DMA_WAITOK		0x00	/* safe to sleep (pseudo-flag) */
-#define	BUS_DMA_NOWAIT		0x01	/* not safe to sleep */
-#define	BUS_DMA_ALLOCNOW	0x02	/* perform resource allocation now */
-#define	BUS_DMA_COHERENT	0x04	/* hint: map memory in a coherent way */
-#define	BUS_DMA_ZERO		0x08	/* allocate zero'ed memory */
-#define	BUS_DMA_BUS1		0x10	/* placeholders for bus functions... */
-#define	BUS_DMA_BUS2		0x20
-#define	BUS_DMA_BUS3		0x40
-#define	BUS_DMA_BUS4		0x80
+#define BUS_DMA_WAITOK 0x00   /* safe to sleep (pseudo-flag) */
+#define BUS_DMA_NOWAIT 0x01   /* not safe to sleep */
+#define BUS_DMA_ALLOCNOW 0x02 /* perform resource allocation now */
+#define BUS_DMA_COHERENT 0x04 /* hint: map memory in a coherent way */
+#define BUS_DMA_ZERO 0x08     /* allocate zero'ed memory */
+#define BUS_DMA_BUS1 0x10     /* placeholders for bus functions... */
+#define BUS_DMA_BUS2 0x20
+#define BUS_DMA_BUS3 0x40
+#define BUS_DMA_BUS4 0x80
 
 /*
  * The following two flags are non-standard or specific to only certain
  * architectures
  */
-#define	BUS_DMA_NOWRITE		0x100
-#define	BUS_DMA_NOCACHE		0x200
+#define BUS_DMA_NOWRITE 0x100
+#define BUS_DMA_NOCACHE 0x200
 
 /*
  * The following flag is a DMA tag hint that the page offset of the
  * loaded kernel virtual address must be preserved in the first
  * physical segment address, when the KVA is loaded into DMA.
  */
-#define	BUS_DMA_KEEP_PG_OFFSET	0x400
+#define BUS_DMA_KEEP_PG_OFFSET 0x400
 
-#define	BUS_DMA_LOAD_MBUF	0x800
+#define BUS_DMA_LOAD_MBUF 0x800
 
 /* Forwards needed by prototypes below. */
 union ccb;
@@ -121,10 +121,10 @@ struct uio;
 /*
  * Operations performed by bus_dmamap_sync().
  */
-#define	BUS_DMASYNC_PREREAD	1
-#define	BUS_DMASYNC_POSTREAD	2
-#define	BUS_DMASYNC_PREWRITE	4
-#define	BUS_DMASYNC_POSTWRITE	8
+#define BUS_DMASYNC_PREREAD 1
+#define BUS_DMASYNC_POSTREAD 2
+#define BUS_DMASYNC_PREWRITE 4
+#define BUS_DMASYNC_POSTWRITE 8
 
 /*
  *	bus_dma_segment_t
@@ -133,8 +133,8 @@ struct uio;
  *	are suitable for programming into DMA registers.
  */
 typedef struct bus_dma_segment {
-	bus_addr_t	ds_addr;	/* DMA address */
-	bus_size_t	ds_len;		/* length of transfer */
+	bus_addr_t ds_addr; /* DMA address */
+	bus_size_t ds_len;  /* length of transfer */
 } bus_dma_segment_t;
 
 #ifdef _KERNEL
@@ -175,11 +175,10 @@ void busdma_lock_mutex(void *arg, bus_dma_lock_op_t op);
  */
 /* XXX Should probably allow specification of alignment */
 int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
-		       bus_addr_t boundary, bus_addr_t lowaddr,
-		       bus_addr_t highaddr, bus_dma_filter_t *filtfunc,
-		       void *filtfuncarg, bus_size_t maxsize, int nsegments,
-		       bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
-		       void *lockfuncarg, bus_dma_tag_t *dmat);
+    bus_addr_t boundary, bus_addr_t lowaddr, bus_addr_t highaddr,
+    bus_dma_filter_t *filtfunc, void *filtfuncarg, bus_size_t maxsize,
+    int nsegments, bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
+    void *lockfuncarg, bus_dma_tag_t *dmat);
 
 /*
  * Functions for creating and cloning tags via a template,
@@ -189,18 +188,18 @@ int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
  * should only be accessed via the documented APIs and macros
  */
 typedef struct {
-	bus_dma_tag_t		parent;
-	bus_size_t		alignment;
-	bus_addr_t		boundary;
-	bus_addr_t		lowaddr;
-	bus_addr_t		highaddr;
-	bus_size_t		maxsize;
-	int			nsegments;
-	bus_size_t		maxsegsize;
-	int			flags;
-	bus_dma_lock_t		*lockfunc;
-	void			*lockfuncarg;
-	const char		*name;
+	bus_dma_tag_t parent;
+	bus_size_t alignment;
+	bus_addr_t boundary;
+	bus_addr_t lowaddr;
+	bus_addr_t highaddr;
+	bus_size_t maxsize;
+	int nsegments;
+	bus_size_t maxsegsize;
+	int flags;
+	bus_dma_lock_t *lockfunc;
+	void *lockfuncarg;
+	const char *name;
 } bus_dma_template_t;
 
 /*
@@ -208,24 +207,24 @@ typedef struct {
  * invalid key and will trigger a panic.
  */
 typedef enum {
-	BD_PARAM_INVALID	= 0,
-	BD_PARAM_PARENT		= 1,
-	BD_PARAM_ALIGNMENT	= 2,
-	BD_PARAM_BOUNDARY	= 3,
-	BD_PARAM_LOWADDR	= 4,
-	BD_PARAM_HIGHADDR	= 5,
-	BD_PARAM_MAXSIZE	= 6,
-	BD_PARAM_NSEGMENTS	= 7,
-	BD_PARAM_MAXSEGSIZE	= 8,
-	BD_PARAM_FLAGS		= 9,
-	BD_PARAM_LOCKFUNC	= 10,
-	BD_PARAM_LOCKFUNCARG	= 11,
-	BD_PARAM_NAME		= 12
+	BD_PARAM_INVALID = 0,
+	BD_PARAM_PARENT = 1,
+	BD_PARAM_ALIGNMENT = 2,
+	BD_PARAM_BOUNDARY = 3,
+	BD_PARAM_LOWADDR = 4,
+	BD_PARAM_HIGHADDR = 5,
+	BD_PARAM_MAXSIZE = 6,
+	BD_PARAM_NSEGMENTS = 7,
+	BD_PARAM_MAXSEGSIZE = 8,
+	BD_PARAM_FLAGS = 9,
+	BD_PARAM_LOCKFUNC = 10,
+	BD_PARAM_LOCKFUNCARG = 11,
+	BD_PARAM_NAME = 12
 } bus_dma_param_key_t;
 
 /* These contents should also be considered private */
 typedef struct {
-	bus_dma_param_key_t	key;
+	bus_dma_param_key_t key;
 	union {
 		void *ptr;
 		vm_paddr_t pa;
@@ -233,30 +232,67 @@ typedef struct {
 	};
 } bus_dma_param_t;
 
-#define BD_PARENT(val)		{ BD_PARAM_PARENT, .ptr = val }
-#define BD_ALIGNMENT(val)	{ BD_PARAM_ALIGNMENT, .num = val }
-#define BD_BOUNDARY(val)	{ BD_PARAM_BOUNDARY, .num = val }
-#define BD_LOWADDR(val)		{ BD_PARAM_LOWADDR, .pa = val }
-#define BD_HIGHADDR(val)	{ BD_PARAM_HIGHADDR, .pa = val }
-#define BD_MAXSIZE(val)		{ BD_PARAM_MAXSIZE, .num = val }
-#define BD_NSEGMENTS(val)	{ BD_PARAM_NSEGMENTS, .num = val }
-#define BD_MAXSEGSIZE(val)	{ BD_PARAM_MAXSEGSIZE, .num = val }
-#define BD_FLAGS(val)		{ BD_PARAM_FLAGS, .num = val }
-#define BD_LOCKFUNC(val)	{ BD_PARAM_LOCKFUNC, .ptr = val }
-#define BD_LOCKFUNCARG(val)	{ BD_PARAM_LOCKFUNCARG, .ptr = val }
-#define BD_NAME(val)		{ BD_PARAM_NAME, .ptr = val }
+#define BD_PARENT(val)                      \
+	{                                   \
+		BD_PARAM_PARENT, .ptr = val \
+	}
+#define BD_ALIGNMENT(val)                      \
+	{                                      \
+		BD_PARAM_ALIGNMENT, .num = val \
+	}
+#define BD_BOUNDARY(val)                      \
+	{                                     \
+		BD_PARAM_BOUNDARY, .num = val \
+	}
+#define BD_LOWADDR(val)                     \
+	{                                   \
+		BD_PARAM_LOWADDR, .pa = val \
+	}
+#define BD_HIGHADDR(val)                     \
+	{                                    \
+		BD_PARAM_HIGHADDR, .pa = val \
+	}
+#define BD_MAXSIZE(val)                      \
+	{                                    \
+		BD_PARAM_MAXSIZE, .num = val \
+	}
+#define BD_NSEGMENTS(val)                      \
+	{                                      \
+		BD_PARAM_NSEGMENTS, .num = val \
+	}
+#define BD_MAXSEGSIZE(val)                      \
+	{                                       \
+		BD_PARAM_MAXSEGSIZE, .num = val \
+	}
+#define BD_FLAGS(val)                      \
+	{                                  \
+		BD_PARAM_FLAGS, .num = val \
+	}
+#define BD_LOCKFUNC(val)                      \
+	{                                     \
+		BD_PARAM_LOCKFUNC, .ptr = val \
+	}
+#define BD_LOCKFUNCARG(val)                      \
+	{                                        \
+		BD_PARAM_LOCKFUNCARG, .ptr = val \
+	}
+#define BD_NAME(val)                      \
+	{                                 \
+		BD_PARAM_NAME, .ptr = val \
+	}
 
-#define BUS_DMA_TEMPLATE_FILL(t, kv...) \
-do {					\
-	bus_dma_param_t pm[] = { kv };	\
-	bus_dma_template_fill(t, pm, howmany(sizeof(pm), sizeof(pm[0]))); \
-} while (0)
+#define BUS_DMA_TEMPLATE_FILL(t, kv...)                         \
+	do {                                                    \
+		bus_dma_param_t pm[] = { kv };                  \
+		bus_dma_template_fill(                          \
+		    t, pm, howmany(sizeof(pm), sizeof(pm[0]))); \
+	} while (0)
 
 void bus_dma_template_init(bus_dma_template_t *t, bus_dma_tag_t parent);
 int bus_dma_template_tag(bus_dma_template_t *t, bus_dma_tag_t *dmat);
 void bus_dma_template_clone(bus_dma_template_t *t, bus_dma_tag_t dmat);
-void bus_dma_template_fill(bus_dma_template_t *t, bus_dma_param_t *kv,
-    u_int count);
+void bus_dma_template_fill(
+    bus_dma_template_t *t, bus_dma_param_t *kv, u_int count);
 
 /*
  * Set the memory domain to be used for allocations.
@@ -279,68 +315,62 @@ typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
  * defined as a separate interface to maintain compatibility for users
  * of bus_dmamap_callback_t--at some point these interfaces should be merged.
  */
-typedef void bus_dmamap_callback2_t(void *, bus_dma_segment_t *, int, bus_size_t, int);
+typedef void bus_dmamap_callback2_t(
+    void *, bus_dma_segment_t *, int, bus_size_t, int);
 
 /*
  * Map the buffer buf into bus space using the dmamap map.
  */
 int bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-		    bus_size_t buflen, bus_dmamap_callback_t *callback,
-		    void *callback_arg, int flags);
+    bus_size_t buflen, bus_dmamap_callback_t *callback, void *callback_arg,
+    int flags);
 
 /*
  * Like bus_dmamap_load but for mbufs.  Note the use of the
  * bus_dmamap_callback2_t interface.
  */
 int bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
-			 struct mbuf *mbuf,
-			 bus_dmamap_callback2_t *callback, void *callback_arg,
-			 int flags);
+    struct mbuf *mbuf, bus_dmamap_callback2_t *callback, void *callback_arg,
+    int flags);
 
 int bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
-			    struct mbuf *mbuf, bus_dma_segment_t *segs,
-			    int *nsegs, int flags);
+    struct mbuf *mbuf, bus_dma_segment_t *segs, int *nsegs, int flags);
 
 /*
  * Like bus_dmamap_load but for uios.  Note the use of the
  * bus_dmamap_callback2_t interface.
  */
-int bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
-			struct uio *ui,
-			bus_dmamap_callback2_t *callback, void *callback_arg,
-			int flags);
+int bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *ui,
+    bus_dmamap_callback2_t *callback, void *callback_arg, int flags);
 
 /*
  * Like bus_dmamap_load but for cam control blocks.
  */
 int bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
-			bus_dmamap_callback_t *callback, void *callback_arg,
-			int flags);
+    bus_dmamap_callback_t *callback, void *callback_arg, int flags);
 
 /*
  * Like bus_dmamap_load but for bios.
  */
 int bus_dmamap_load_bio(bus_dma_tag_t dmat, bus_dmamap_t map, struct bio *bio,
-			bus_dmamap_callback_t *callback, void *callback_arg,
-			int flags);
+    bus_dmamap_callback_t *callback, void *callback_arg, int flags);
 
 /*
  * Like bus_dmamap_load but for crypto ops.
  */
 int bus_dmamap_load_crp(bus_dma_tag_t dmat, bus_dmamap_t map,
-			struct cryptop *crp, bus_dmamap_callback_t *callback,
-			void *callback_arg, int flags);
+    struct cryptop *crp, bus_dmamap_callback_t *callback, void *callback_arg,
+    int flags);
 int bus_dmamap_load_crp_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
-			       struct crypto_buffer *cb,
-			       bus_dmamap_callback_t *callback,
-			       void *callback_arg, int flags);
+    struct crypto_buffer *cb, bus_dmamap_callback_t *callback,
+    void *callback_arg, int flags);
 
 /*
  * Loads any memory descriptor.
  */
 int bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
-			struct memdesc *mem, bus_dmamap_callback_t *callback,
-			void *callback_arg, int flags);
+    struct memdesc *mem, bus_dmamap_callback_t *callback, void *callback_arg,
+    int flags);
 
 /*
  * Placeholder for use by busdma implementations which do not benefit
@@ -361,7 +391,8 @@ int bus_dmamap_load_ma_triv(bus_dma_tag_t dmat, bus_dmamap_t map,
  * Allocate a handle for mapping from kva/uva/physical
  * address space into bus device space.
  */
-BUS_DMAMAP_OP int bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp);
+BUS_DMAMAP_OP int bus_dmamap_create(
+    bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp);
 
 /*
  * Destroy a handle for mapping from kva/uva/physical
@@ -374,20 +405,22 @@ BUS_DMAMAP_OP int bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map);
  * bus device space based on the constraints listed in the dma tag.
  * A dmamap to for use with dmamap_load is also allocated.
  */
-BUS_DMAMAP_OP int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
-		     bus_dmamap_t *mapp);
+BUS_DMAMAP_OP int bus_dmamem_alloc(
+    bus_dma_tag_t dmat, void **vaddr, int flags, bus_dmamap_t *mapp);
 
 /*
  * Free a piece of memory and its allocated dmamap, that was allocated
  * via bus_dmamem_alloc.
  */
-BUS_DMAMAP_OP void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
+BUS_DMAMAP_OP void bus_dmamem_free(
+    bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
 
 /*
  * Perform a synchronization operation on the given map. If the map
  * is NULL we have a fully IO-coherent system.
  */
-BUS_DMAMAP_OP void bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t dmamap, bus_dmasync_op_t op);
+BUS_DMAMAP_OP void bus_dmamap_sync(
+    bus_dma_tag_t dmat, bus_dmamap_t dmamap, bus_dmasync_op_t op);
 
 /*
  * Release the mapping held by map.

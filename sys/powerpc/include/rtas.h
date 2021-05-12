@@ -33,6 +33,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+
 #include <dev/ofw/openfirm.h>
 
 /*
@@ -49,14 +50,14 @@ int rtas_call_method(cell_t token, int nargs, int nreturns, ...);
 cell_t rtas_token_lookup(const char *method);
 
 /* RTAS Status Codes: see CHRP or PAPR specification */
-#define	RTAS_OK				0
-#define	RTAS_HW_ERROR			-1
-#define	RTAS_BUSY			-2
-#define	RTAS_PARAM_ERROR		-3
-#define	RTAS_STATE_CHANGE		-7
-#define	RTAS_VENDOR_BEGIN		9000
-#define	RTAS_EXTENDED_DELAY		9900
-#define	RTAS_ISOLATION_ERROR		-9000
-#define	RTAS_VENDOR_ERROR_BEGIN		-9004
+#define RTAS_OK 0
+#define RTAS_HW_ERROR -1
+#define RTAS_BUSY -2
+#define RTAS_PARAM_ERROR -3
+#define RTAS_STATE_CHANGE -7
+#define RTAS_VENDOR_BEGIN 9000
+#define RTAS_EXTENDED_DELAY 9900
+#define RTAS_ISOLATION_ERROR -9000
+#define RTAS_VENDOR_ERROR_BEGIN -9004
 
 #endif /* _MACHINE_RTAS_H_ */

@@ -35,90 +35,90 @@
  */
 
 #ifndef _NFS_NFSRVCACHE_H_
-#define	_NFS_NFSRVCACHE_H_
+#define _NFS_NFSRVCACHE_H_
 
 /*
  * Definitions for the server recent request cache
  */
-#define	NFSRVCACHE_MAX_SIZE	2048
-#define	NFSRVCACHE_MIN_SIZE	  64
+#define NFSRVCACHE_MAX_SIZE 2048
+#define NFSRVCACHE_MIN_SIZE 64
 
-#define	NFSRVCACHE_HASHSIZE	500
+#define NFSRVCACHE_HASHSIZE 500
 
 /* Cache table entry. */
 struct nfsrvcache {
-	LIST_ENTRY(nfsrvcache) rc_hash;		/* Hash chain */
-	LIST_ENTRY(nfsrvcache) rc_ahash;	/* ACK hash chain */
-	TAILQ_ENTRY(nfsrvcache)	rc_lru;		/* UDP lru chain */
-	u_int32_t	rc_xid;			/* rpc id number */
-	time_t		rc_timestamp;		/* Time done */
+	LIST_ENTRY(nfsrvcache) rc_hash;	 /* Hash chain */
+	LIST_ENTRY(nfsrvcache) rc_ahash; /* ACK hash chain */
+	TAILQ_ENTRY(nfsrvcache) rc_lru;	 /* UDP lru chain */
+	u_int32_t rc_xid;		 /* rpc id number */
+	time_t rc_timestamp;		 /* Time done */
 	union {
-		struct mbuf *repmb;		/* Reply mbuf list OR */
-		int repstat;			/* Reply status */
+		struct mbuf *repmb; /* Reply mbuf list OR */
+		int repstat;	    /* Reply status */
 	} rc_un;
 	union {
 		struct {
 			union nethostaddr haddr; /* Host address */
 		} udp;
 		struct {
-			u_int64_t	sockref;
-			u_int32_t	len;
-			u_int32_t	tcpseq;
-			int16_t		refcnt;
-			u_int16_t	cksum;
-			time_t		cachetime;
-			int		acked;
+			u_int64_t sockref;
+			u_int32_t len;
+			u_int32_t tcpseq;
+			int16_t refcnt;
+			u_int16_t cksum;
+			time_t cachetime;
+			int acked;
 		} ot;
 	} rc_un2;
-	u_int16_t	rc_proc;		/* rpc proc number */
-	u_int16_t	rc_flag;		/* Flag bits */
+	u_int16_t rc_proc; /* rpc proc number */
+	u_int16_t rc_flag; /* Flag bits */
 };
 
-#define	rc_reply	rc_un.repmb
-#define	rc_status	rc_un.repstat
-#define	rc_inet		rc_un2.udp.haddr.had_inet.s_addr
-#define	rc_inet6	rc_un2.udp.haddr.had_inet6
-#define	rc_haddr	rc_un2.udp.haddr
-#define	rc_sockref	rc_un2.ot.sockref
-#define	rc_tcpseq	rc_un2.ot.tcpseq
-#define	rc_refcnt	rc_un2.ot.refcnt
-#define	rc_reqlen	rc_un2.ot.len
-#define	rc_cksum	rc_un2.ot.cksum
-#define	rc_cachetime	rc_un2.ot.cachetime
-#define	rc_acked	rc_un2.ot.acked
+#define rc_reply rc_un.repmb
+#define rc_status rc_un.repstat
+#define rc_inet rc_un2.udp.haddr.had_inet.s_addr
+#define rc_inet6 rc_un2.udp.haddr.had_inet6
+#define rc_haddr rc_un2.udp.haddr
+#define rc_sockref rc_un2.ot.sockref
+#define rc_tcpseq rc_un2.ot.tcpseq
+#define rc_refcnt rc_un2.ot.refcnt
+#define rc_reqlen rc_un2.ot.len
+#define rc_cksum rc_un2.ot.cksum
+#define rc_cachetime rc_un2.ot.cachetime
+#define rc_acked rc_un2.ot.acked
 
 /* TCP ACK values */
-#define	RC_NO_SEQ		0
-#define	RC_NO_ACK		1
-#define	RC_ACK			2
-#define	RC_NACK			3
+#define RC_NO_SEQ 0
+#define RC_NO_ACK 1
+#define RC_ACK 2
+#define RC_NACK 3
 
 /* Return values */
-#define	RC_DROPIT		0
-#define	RC_REPLY		1
-#define	RC_DOIT			2
+#define RC_DROPIT 0
+#define RC_REPLY 1
+#define RC_DOIT 2
 
 /* Flag bits */
-#define	RC_LOCKED	0x0001
-#define	RC_WANTED	0x0002
-#define	RC_REPSTATUS	0x0004
-#define	RC_REPMBUF	0x0008
-#define	RC_UDP		0x0010
-#define	RC_INETIPV6	0x0020
-#define	RC_INPROG	0x0040
-#define	RC_NFSV2	0x0100
-#define	RC_NFSV3	0x0200
-#define	RC_NFSV4	0x0400
-#define	RC_NFSVERS	(RC_NFSV2 | RC_NFSV3 | RC_NFSV4)
-#define	RC_REFCNT	0x0800
-#define	RC_SAMETCPCONN	0x1000
+#define RC_LOCKED 0x0001
+#define RC_WANTED 0x0002
+#define RC_REPSTATUS 0x0004
+#define RC_REPMBUF 0x0008
+#define RC_UDP 0x0010
+#define RC_INETIPV6 0x0020
+#define RC_INPROG 0x0040
+#define RC_NFSV2 0x0100
+#define RC_NFSV3 0x0200
+#define RC_NFSV4 0x0400
+#define RC_NFSVERS (RC_NFSV2 | RC_NFSV3 | RC_NFSV4)
+#define RC_REFCNT 0x0800
+#define RC_SAMETCPCONN 0x1000
 
 LIST_HEAD(nfsrvhashhead, nfsrvcache);
 
 /* The fine-grained locked cache hash table for TCP. */
 struct nfsrchash_bucket {
-	struct mtx		mtx;
-	struct nfsrvhashhead	tbl;
+	struct mtx mtx;
+	struct nfsrvhashhead tbl;
 };
 
-#endif	/* _NFS_NFSRVCACHE_H_ */
+#endif /* _NFS_NFSRVCACHE_H_ */

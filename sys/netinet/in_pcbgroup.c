@@ -46,9 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 
 #include <net/rss_config.h>
-
 #include <netinet/in.h>
-
 #include <netinet/in_pcb.h>
 #include <netinet/in_rss.h>
 #ifdef INET6
@@ -124,8 +122,8 @@ __FBSDID("$FreeBSD$");
  */
 
 void
-in_pcbgroup_init(struct inpcbinfo *pcbinfo, u_int hashfields,
-    int hash_nelements)
+in_pcbgroup_init(
+    struct inpcbinfo *pcbinfo, u_int hashfields, int hash_nelements)
 {
 	struct inpcbgroup *pcbgroup;
 	u_int numpcbgroups, pgn;
@@ -167,15 +165,16 @@ in_pcbgroup_init(struct inpcbinfo *pcbinfo, u_int hashfields,
 #endif
 
 	pcbinfo->ipi_hashfields = hashfields;
-	pcbinfo->ipi_pcbgroups = malloc(numpcbgroups *
-	    sizeof(*pcbinfo->ipi_pcbgroups), M_PCB, M_WAITOK | M_ZERO);
+	pcbinfo->ipi_pcbgroups = malloc(
+	    numpcbgroups * sizeof(*pcbinfo->ipi_pcbgroups), M_PCB,
+	    M_WAITOK | M_ZERO);
 	pcbinfo->ipi_npcbgroups = numpcbgroups;
-	pcbinfo->ipi_wildbase = hashinit(hash_nelements, M_PCB,
-	    &pcbinfo->ipi_wildmask);
+	pcbinfo->ipi_wildbase = hashinit(
+	    hash_nelements, M_PCB, &pcbinfo->ipi_wildmask);
 	for (pgn = 0; pgn < pcbinfo->ipi_npcbgroups; pgn++) {
 		pcbgroup = &pcbinfo->ipi_pcbgroups[pgn];
-		pcbgroup->ipg_hashbase = hashinit(hash_nelements, M_PCB,
-		    &pcbgroup->ipg_hashmask);
+		pcbgroup->ipg_hashbase = hashinit(
+		    hash_nelements, M_PCB, &pcbgroup->ipg_hashmask);
 		INP_GROUP_LOCK_INIT(pcbgroup, "pcbgroup");
 
 		/*
@@ -210,8 +209,8 @@ in_pcbgroup_destroy(struct inpcbinfo *pcbinfo)
 		KASSERT(CK_LIST_EMPTY(pcbinfo->ipi_listhead),
 		    ("in_pcbinfo_destroy: listhead not empty"));
 		INP_GROUP_LOCK_DESTROY(pcbgroup);
-		hashdestroy(pcbgroup->ipg_hashbase, M_PCB,
-		    pcbgroup->ipg_hashmask);
+		hashdestroy(
+		    pcbgroup->ipg_hashbase, M_PCB, pcbgroup->ipg_hashmask);
 	}
 	hashdestroy(pcbinfo->ipi_wildbase, M_PCB, pcbinfo->ipi_wildmask);
 	free(pcbinfo->ipi_pcbgroups, M_PCB);
@@ -248,13 +247,14 @@ in_pcbgroup_byhash(struct inpcbinfo *pcbinfo, u_int hashtype, uint32_t hash)
 
 #ifdef RSS
 	if ((pcbinfo->ipi_hashfields == IPI_HASHFIELDS_4TUPLE &&
-	    hashtype == M_HASHTYPE_RSS_TCP_IPV4) ||
+		hashtype == M_HASHTYPE_RSS_TCP_IPV4) ||
 	    (pcbinfo->ipi_hashfields == IPI_HASHFIELDS_4TUPLE &&
-	    hashtype == M_HASHTYPE_RSS_UDP_IPV4) ||
+		hashtype == M_HASHTYPE_RSS_UDP_IPV4) ||
 	    (pcbinfo->ipi_hashfields == IPI_HASHFIELDS_2TUPLE &&
-	    hashtype == M_HASHTYPE_RSS_IPV4))
-		return (&pcbinfo->ipi_pcbgroups[
-		    in_pcbgroup_getbucket(pcbinfo, hash)]);
+		hashtype == M_HASHTYPE_RSS_IPV4))
+		return (
+		    &pcbinfo
+			 ->ipi_pcbgroups[in_pcbgroup_getbucket(pcbinfo, hash)]);
 #endif
 	return (NULL);
 }
@@ -263,8 +263,8 @@ static struct inpcbgroup *
 in_pcbgroup_bymbuf(struct inpcbinfo *pcbinfo, struct mbuf *m)
 {
 
-	return (in_pcbgroup_byhash(pcbinfo, M_HASHTYPE_GET(m),
-	    m->m_pkthdr.flowid));
+	return (
+	    in_pcbgroup_byhash(pcbinfo, M_HASHTYPE_GET(m), m->m_pkthdr.flowid));
 }
 
 struct inpcbgroup *
@@ -298,24 +298,24 @@ in_pcbgroup_bytuple(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 	default:
 		hash = 0;
 	}
-	return (&pcbinfo->ipi_pcbgroups[in_pcbgroup_getbucket(pcbinfo,
-	    hash)]);
+	return (&pcbinfo->ipi_pcbgroups[in_pcbgroup_getbucket(pcbinfo, hash)]);
 }
 
 struct inpcbgroup *
 in_pcbgroup_byinpcb(struct inpcb *inp)
 {
-#ifdef	RSS
+#ifdef RSS
 	/*
 	 * Listen sockets with INP_RSS_BUCKET_SET set have a pre-determined
 	 * RSS bucket and thus we should use this pcbgroup, rather than
 	 * using a tuple or hash.
 	 *
-	 * XXX should verify that there's actually pcbgroups and inp_rss_listen_bucket
-	 * fits in that!
+	 * XXX should verify that there's actually pcbgroups and
+	 * inp_rss_listen_bucket fits in that!
 	 */
 	if (inp->inp_flags2 & INP_RSS_BUCKET_SET)
-		return (&inp->inp_pcbinfo->ipi_pcbgroups[inp->inp_rss_listen_bucket]);
+		return (&inp->inp_pcbinfo
+			     ->ipi_pcbgroups[inp->inp_rss_listen_bucket]);
 #endif
 
 	return (in_pcbgroup_bytuple(inp->inp_pcbinfo, inp->inp_laddr,
@@ -330,14 +330,14 @@ in_pcbwild_add(struct inpcb *inp)
 	u_int pgn;
 
 	INP_WLOCK_ASSERT(inp);
-	KASSERT(!(inp->inp_flags2 & INP_PCBGROUPWILD),
-	    ("%s: is wild",__func__));
+	KASSERT(
+	    !(inp->inp_flags2 & INP_PCBGROUPWILD), ("%s: is wild", __func__));
 
 	pcbinfo = inp->inp_pcbinfo;
 	for (pgn = 0; pgn < pcbinfo->ipi_npcbgroups; pgn++)
 		INP_GROUP_LOCK(&pcbinfo->ipi_pcbgroups[pgn]);
-	head = &pcbinfo->ipi_wildbase[INP_PCBHASH(INADDR_ANY, inp->inp_lport,
-	    0, pcbinfo->ipi_wildmask)];
+	head = &pcbinfo->ipi_wildbase[INP_PCBHASH(
+	    INADDR_ANY, inp->inp_lport, 0, pcbinfo->ipi_wildmask)];
 	CK_LIST_INSERT_HEAD(head, inp, inp_pcbgroup_wild);
 	inp->inp_flags2 |= INP_PCBGROUPWILD;
 	for (pgn = 0; pgn < pcbinfo->ipi_npcbgroups; pgn++)
@@ -351,8 +351,8 @@ in_pcbwild_remove(struct inpcb *inp)
 	u_int pgn;
 
 	INP_WLOCK_ASSERT(inp);
-	KASSERT((inp->inp_flags2 & INP_PCBGROUPWILD),
-	    ("%s: not wild", __func__));
+	KASSERT(
+	    (inp->inp_flags2 & INP_PCBGROUPWILD), ("%s: not wild", __func__));
 
 	pcbinfo = inp->inp_pcbinfo;
 	for (pgn = 0; pgn < pcbinfo->ipi_npcbgroups; pgn++)
@@ -366,7 +366,7 @@ in_pcbwild_remove(struct inpcb *inp)
 static __inline int
 in_pcbwild_needed(struct inpcb *inp)
 {
-#ifdef	RSS
+#ifdef RSS
 	/*
 	 * If it's a listen socket and INP_RSS_BUCKET_SET is set,
 	 * it's a wildcard socket _but_ it's in a specific pcbgroup.
@@ -436,13 +436,12 @@ in_pcbgroup_update_internal(struct inpcbinfo *pcbinfo,
 		 * INADDR_ANY and the far port is 0.
 		 */
 		if (inp->inp_flags2 & INP_RSS_BUCKET_SET) {
-			pcbhash = &newpcbgroup->ipg_hashbase[
-			    INP_PCBHASH(INADDR_ANY, inp->inp_lport, 0,
-			    newpcbgroup->ipg_hashmask)];
+			pcbhash =
+			    &newpcbgroup->ipg_hashbase[INP_PCBHASH(INADDR_ANY,
+				inp->inp_lport, 0, newpcbgroup->ipg_hashmask)];
 		} else {
-			pcbhash = &newpcbgroup->ipg_hashbase[
-			    INP_PCBHASH(hashkey_faddr, inp->inp_lport,
-			    inp->inp_fport,
+			pcbhash = &newpcbgroup->ipg_hashbase[INP_PCBHASH(
+			    hashkey_faddr, inp->inp_lport, inp->inp_fport,
 			    newpcbgroup->ipg_hashmask)];
 		}
 		CK_LIST_INSERT_HEAD(pcbhash, inp, inp_pcbgrouphash);

@@ -32,42 +32,40 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/kernel.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/pfil.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
-#include <net/pfil.h>
 #include <net/vnet.h>
-
+#include <netinet/icmp6.h>
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_var.h>
-#include <netinet/ip_var.h>
 #include <netinet/ip6.h>
-#include <netinet/icmp6.h>
-#include <netinet6/in6_var.h>
+#include <netinet/ip_var.h>
 #include <netinet6/in6_fib.h>
+#include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
 
 static int
-ip6_findroute(struct nhop_object **pnh, const struct sockaddr_in6 *dst,
-    struct mbuf *m)
+ip6_findroute(
+    struct nhop_object **pnh, const struct sockaddr_in6 *dst, struct mbuf *m)
 {
 	struct nhop_object *nh;
 
-	nh = fib6_lookup(M_GETFIB(m), &dst->sin6_addr,
-	    dst->sin6_scope_id, NHR_NONE, m->m_pkthdr.flowid);
-       if (nh == NULL) {
+	nh = fib6_lookup(M_GETFIB(m), &dst->sin6_addr, dst->sin6_scope_id,
+	    NHR_NONE, m->m_pkthdr.flowid);
+	if (nh == NULL) {
 		IP6STAT_INC(ip6s_noroute);
 		IP6STAT_INC(ip6s_cantforward);
-		icmp6_error(m, ICMP6_DST_UNREACH,
-		    ICMP6_DST_UNREACH_NOROUTE, 0);
+		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_NOROUTE, 0);
 		return (EHOSTUNREACH);
 	}
 	if (nh->nh_flags & NHF_BLACKHOLE) {
@@ -78,8 +76,7 @@ ip6_findroute(struct nhop_object **pnh, const struct sockaddr_in6 *dst,
 
 	if (nh->nh_flags & NHF_REJECT) {
 		IP6STAT_INC(ip6s_cantforward);
-		icmp6_error(m, ICMP6_DST_UNREACH,
-		    ICMP6_DST_UNREACH_REJECT, 0);
+		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_REJECT, 0);
 		return (EHOSTUNREACH);
 	}
 
@@ -88,7 +85,7 @@ ip6_findroute(struct nhop_object **pnh, const struct sockaddr_in6 *dst,
 	return (0);
 }
 
-struct mbuf*
+struct mbuf *
 ip6_tryforward(struct mbuf *m)
 {
 	struct sockaddr_in6 dst;
@@ -137,8 +134,8 @@ ip6_tryforward(struct mbuf *m)
 			m->m_len = sizeof(struct ip6_hdr) + plen;
 			m->m_pkthdr.len = sizeof(struct ip6_hdr) + plen;
 		} else
-			m_adj(m, sizeof(struct ip6_hdr) + plen -
-			    m->m_pkthdr.len);
+			m_adj(
+			    m, sizeof(struct ip6_hdr) + plen - m->m_pkthdr.len);
 	}
 
 	/*
@@ -147,12 +144,12 @@ ip6_tryforward(struct mbuf *m)
 #ifdef IPSTEALTH
 	if (!V_ip6stealth)
 #endif
-	if (ip6->ip6_hlim <= IPV6_HLIMDEC) {
-		icmp6_error(m, ICMP6_TIME_EXCEEDED,
-		    ICMP6_TIME_EXCEED_TRANSIT, 0);
-		m = NULL;
-		goto dropin;
-	}
+		if (ip6->ip6_hlim <= IPV6_HLIMDEC) {
+			icmp6_error(m, ICMP6_TIME_EXCEEDED,
+			    ICMP6_TIME_EXCEED_TRANSIT, 0);
+			m = NULL;
+			goto dropin;
+		}
 
 	bzero(&dst, sizeof(dst));
 	dst.sin6_family = AF_INET6;
@@ -214,8 +211,8 @@ passin:
 	/*
 	 * Outgoing packet firewall processing.
 	 */
-	if (pfil_run_hooks(V_inet6_pfil_head, &m, nh->nh_ifp, PFIL_OUT |
-	    PFIL_FWD, NULL) != PFIL_PASS)
+	if (pfil_run_hooks(V_inet6_pfil_head, &m, nh->nh_ifp,
+		PFIL_OUT | PFIL_FWD, NULL) != PFIL_PASS)
 		goto dropout;
 
 	/*
@@ -277,13 +274,13 @@ passout:
 		ip6->ip6_hlim -= IPV6_HLIMDEC;
 	}
 
-	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
+	m_clrprotoflags(m); /* Avoid confusing lower layers. */
 	IP_PROBE(send, NULL, NULL, ip6, nh->nh_ifp, NULL, ip6);
 
 	if (nh->nh_flags & NHF_GATEWAY)
 		dst.sin6_addr = nh->gw6_sa.sin6_addr;
-	error = (*nh->nh_ifp->if_output)(nh->nh_ifp, m,
-	    (struct sockaddr *)&dst, NULL);
+	error = (*nh->nh_ifp->if_output)(
+	    nh->nh_ifp, m, (struct sockaddr *)&dst, NULL);
 	if (error != 0) {
 		in6_ifstat_inc(nh->nh_ifp, ifs6_out_discard);
 		IP6STAT_INC(ip6s_cantforward);

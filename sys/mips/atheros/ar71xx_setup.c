@@ -32,18 +32,16 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/reboot.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
-
-#include <net/ethernet.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -53,29 +51,28 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
-#include <mips/atheros/ar71xxreg.h>
-#include <mips/atheros/ar933xreg.h>
-#include <mips/atheros/ar934xreg.h>
-#include <mips/atheros/qca955xreg.h>
-#include <mips/atheros/qca953xreg.h>
-
-#include <mips/atheros/ar71xx_setup.h>
-
-#include <mips/atheros/ar71xx_cpudef.h>
+#include <net/ethernet.h>
 
 #include <mips/atheros/ar71xx_chip.h>
+#include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xx_setup.h>
+#include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar724x_chip.h>
 #include <mips/atheros/ar91xx_chip.h>
 #include <mips/atheros/ar933x_chip.h>
+#include <mips/atheros/ar933xreg.h>
 #include <mips/atheros/ar934x_chip.h>
+#include <mips/atheros/ar934xreg.h>
 #include <mips/atheros/qca953x_chip.h>
+#include <mips/atheros/qca953xreg.h>
 #include <mips/atheros/qca955x_chip.h>
+#include <mips/atheros/qca955xreg.h>
 
-#define	AR71XX_SYS_TYPE_LEN		128
+#define AR71XX_SYS_TYPE_LEN 128
 
 static char ar71xx_sys_type[AR71XX_SYS_TYPE_LEN];
 enum ar71xx_soc_type ar71xx_soc;
-struct ar71xx_cpu_def * ar71xx_cpu_ops = NULL;
+struct ar71xx_cpu_def *ar71xx_cpu_ops = NULL;
 
 void
 ar71xx_detect_sys_type(void)

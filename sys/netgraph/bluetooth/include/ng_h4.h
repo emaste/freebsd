@@ -31,7 +31,7 @@
  *
  * $Id: ng_h4.h,v 1.1 2002/11/24 19:47:05 max Exp $
  * $FreeBSD$
- * 
+ *
  * Based on:
  * ---------
  *
@@ -57,22 +57,22 @@
  **************************************************************************/
 
 /* Hook name */
-#define NG_H4_HOOK		"hook"
+#define NG_H4_HOOK "hook"
 
 /* Node type name and magic cookie */
-#define NG_H4_NODE_TYPE		"h4"
-#define NGM_H4_COOKIE		1013899512
+#define NG_H4_NODE_TYPE "h4"
+#define NGM_H4_COOKIE 1013899512
 
 /* Node states */
-#define NG_H4_W4_PKT_IND	1	/* Waiting for packet indicator */
-#define NG_H4_W4_PKT_HDR	2	/* Waiting for packet header */
-#define NG_H4_W4_PKT_DATA	3	/* Waiting for packet data */
+#define NG_H4_W4_PKT_IND 1  /* Waiting for packet indicator */
+#define NG_H4_W4_PKT_HDR 2  /* Waiting for packet header */
+#define NG_H4_W4_PKT_DATA 3 /* Waiting for packet data */
 
 /* Debug levels */
-#define NG_H4_ALERT_LEVEL	1
-#define NG_H4_ERR_LEVEL		2
-#define NG_H4_WARN_LEVEL	3
-#define NG_H4_INFO_LEVEL	4
+#define NG_H4_ALERT_LEVEL 1
+#define NG_H4_ERR_LEVEL 2
+#define NG_H4_WARN_LEVEL 3
+#define NG_H4_INFO_LEVEL 4
 
 /**************************************************************************
  **************************************************************************
@@ -81,34 +81,34 @@
  **************************************************************************/
 
 /* Reset node */
-#define NGM_H4_NODE_RESET	1
+#define NGM_H4_NODE_RESET 1
 
 /* Get node state (see states above) */
-#define NGM_H4_NODE_GET_STATE	2
-typedef u_int16_t	ng_h4_node_state_ep;
+#define NGM_H4_NODE_GET_STATE 2
+typedef u_int16_t ng_h4_node_state_ep;
 
 /* Get/Set node debug level (see levels above) */
-#define NGM_H4_NODE_GET_DEBUG	3
-#define NGM_H4_NODE_SET_DEBUG	4
-typedef u_int16_t	ng_h4_node_debug_ep;
+#define NGM_H4_NODE_GET_DEBUG 3
+#define NGM_H4_NODE_SET_DEBUG 4
+typedef u_int16_t ng_h4_node_debug_ep;
 
 /* Get/Set max queue length for the node */
-#define NGM_H4_NODE_GET_QLEN	5
-#define NGM_H4_NODE_SET_QLEN	6
-typedef int32_t		ng_h4_node_qlen_ep;
+#define NGM_H4_NODE_GET_QLEN 5
+#define NGM_H4_NODE_SET_QLEN 6
+typedef int32_t ng_h4_node_qlen_ep;
 
 /* Get node statistic */
-#define NGM_H4_NODE_GET_STAT	7
+#define NGM_H4_NODE_GET_STAT 7
 typedef struct {
-	u_int32_t	pckts_recv; /* # of packets received */
-	u_int32_t	bytes_recv; /* # of bytes received */
-	u_int32_t	pckts_sent; /* # of packets sent */
-	u_int32_t	bytes_sent; /* # of bytes sent */
-	u_int32_t	oerrors;    /* # of output errors */
-	u_int32_t	ierrors;    /* # of input errors */
+	u_int32_t pckts_recv; /* # of packets received */
+	u_int32_t bytes_recv; /* # of bytes received */
+	u_int32_t pckts_sent; /* # of packets sent */
+	u_int32_t bytes_sent; /* # of bytes sent */
+	u_int32_t oerrors;    /* # of output errors */
+	u_int32_t ierrors;    /* # of input errors */
 } ng_h4_node_stat_ep;
 
 /* Reset node statistic */
-#define NGM_H4_NODE_RESET_STAT	8
+#define NGM_H4_NODE_RESET_STAT 8
 
 #endif /* _NETGRAPH_H4_H_ */

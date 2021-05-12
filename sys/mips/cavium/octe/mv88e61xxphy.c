@@ -37,11 +37,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/socket.h>
-#include <sys/errno.h>
-#include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 
 #include <net/ethernet.h>
@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 
 #include "miibus_if.h"
-
 #include "mv88e61xxphyreg.h"
 
 struct mv88e61xxphy_softc;
@@ -63,7 +62,7 @@ struct mv88e61xxphy_port_softc {
 	unsigned sc_flags;
 };
 
-#define	MV88E61XXPHY_PORT_FLAG_VTU_UPDATE	(0x0001)
+#define MV88E61XXPHY_PORT_FLAG_VTU_UPDATE (0x0001)
 
 struct mv88e61xxphy_softc {
 	device_t sc_dev;
@@ -92,17 +91,18 @@ enum mv88e61xxphy_sysctl_port_type {
 /*
  * Register access macros.
  */
-#define	MV88E61XX_READ(sc, phy, reg)					\
+#define MV88E61XX_READ(sc, phy, reg) \
 	MIIBUS_READREG(device_get_parent((sc)->sc_dev), (phy), (reg))
 
-#define	MV88E61XX_WRITE(sc, phy, reg, val)				\
+#define MV88E61XX_WRITE(sc, phy, reg, val) \
 	MIIBUS_WRITEREG(device_get_parent((sc)->sc_dev), (phy), (reg), (val))
 
-#define	MV88E61XX_READ_PORT(psc, reg)					\
+#define MV88E61XX_READ_PORT(psc, reg) \
 	MV88E61XX_READ((psc)->sc_switch, MV88E61XX_PORT((psc)->sc_port), (reg))
 
-#define	MV88E61XX_WRITE_PORT(psc, reg, val)				\
-	MV88E61XX_WRITE((psc)->sc_switch, MV88E61XX_PORT((psc)->sc_port), (reg), (val))
+#define MV88E61XX_WRITE_PORT(psc, reg, val) \
+	MV88E61XX_WRITE(                    \
+	    (psc)->sc_switch, MV88E61XX_PORT((psc)->sc_port), (reg), (val))
 
 static int mv88e61xxphy_probe(device_t);
 static int mv88e61xxphy_attach(device_t);
@@ -113,7 +113,8 @@ static void mv88e61xxphy_init_vtu(struct mv88e61xxphy_softc *);
 static int mv88e61xxphy_sysctl_link_proc(SYSCTL_HANDLER_ARGS);
 static int mv88e61xxphy_sysctl_port_proc(SYSCTL_HANDLER_ARGS);
 static void mv88e61xxphy_vtu_load(struct mv88e61xxphy_softc *, uint16_t);
-static void mv88e61xxphy_vtu_set_membership(struct mv88e61xxphy_softc *, unsigned, enum mv88e61xxphy_vtu_membership_type);
+static void mv88e61xxphy_vtu_set_membership(struct mv88e61xxphy_softc *,
+    unsigned, enum mv88e61xxphy_vtu_membership_type);
 static void mv88e61xxphy_vtu_wait(struct mv88e61xxphy_softc *);
 
 static int
@@ -121,17 +122,20 @@ mv88e61xxphy_probe(device_t dev)
 {
 	uint16_t val;
 
-	val = MIIBUS_READREG(device_get_parent(dev), MV88E61XX_PORT(0),
-	    MV88E61XX_PORT_REVISION);
+	val = MIIBUS_READREG(
+	    device_get_parent(dev), MV88E61XX_PORT(0), MV88E61XX_PORT_REVISION);
 	switch (val >> 4) {
 	case 0x121:
-		device_set_desc(dev, "Marvell Link Street 88E6123 3-Port Gigabit Switch");
+		device_set_desc(
+		    dev, "Marvell Link Street 88E6123 3-Port Gigabit Switch");
 		return (0);
 	case 0x161:
-		device_set_desc(dev, "Marvell Link Street 88E6161 6-Port Gigabit Switch");
+		device_set_desc(
+		    dev, "Marvell Link Street 88E6161 6-Port Gigabit Switch");
 		return (0);
 	case 0x165:
-		device_set_desc(dev, "Marvell Link Street 88E6161 6-Port Advanced Gigabit Switch");
+		device_set_desc(dev,
+		    "Marvell Link Street 88E6161 6-Port Advanced Gigabit Switch");
 		return (0);
 	default:
 		return (ENXIO);
@@ -162,9 +166,9 @@ mv88e61xxphy_attach(device_t dev)
 		psc = &sc->sc_ports[port];
 		psc->sc_switch = sc;
 		psc->sc_port = port;
-		psc->sc_domain = 0; /* One broadcast domain by default.  */
+		psc->sc_domain = 0;	 /* One broadcast domain by default.  */
 		psc->sc_vlan = port + 1; /* Tag VLANs by default.  */
-		psc->sc_priority = 0; /* No default special priority.  */
+		psc->sc_priority = 0;	 /* No default special priority.  */
 		psc->sc_flags = 0;
 	}
 
@@ -249,13 +253,15 @@ mv88e61xxphy_init(struct mv88e61xxphy_softc *sc)
 	/* Reset the switch.  */
 	MV88E61XX_WRITE(sc, MV88E61XX_GLOBAL, MV88E61XX_GLOBAL_CONTROL, 0xc400);
 	for (i = 0; i < 100; i++) {
-		val = MV88E61XX_READ(sc, MV88E61XX_GLOBAL, MV88E61XX_GLOBAL_STATUS);
+		val = MV88E61XX_READ(
+		    sc, MV88E61XX_GLOBAL, MV88E61XX_GLOBAL_STATUS);
 		if ((val & 0xc800) == 0xc800)
 			break;
 		DELAY(10);
 	}
 	if (i == 100) {
-		device_printf(sc->sc_dev, "%s: switch reset timed out.\n", __func__);
+		device_printf(
+		    sc->sc_dev, "%s: switch reset timed out.\n", __func__);
 		return;
 	}
 
@@ -265,14 +271,17 @@ mv88e61xxphy_init(struct mv88e61xxphy_softc *sc)
 	/* Configure host port and send monitor frames to it.  */
 	MV88E61XX_WRITE(sc, MV88E61XX_GLOBAL, MV88E61XX_GLOBAL_MONITOR,
 	    (MV88E61XX_HOST_PORT << 12) | (MV88E61XX_HOST_PORT << 8) |
-	    (MV88E61XX_HOST_PORT << 4));
+		(MV88E61XX_HOST_PORT << 4));
 
 	/* Disable remote management.  */
-	MV88E61XX_WRITE(sc, MV88E61XX_GLOBAL, MV88E61XX_GLOBAL_REMOTE_MGMT, 0x0000);
+	MV88E61XX_WRITE(
+	    sc, MV88E61XX_GLOBAL, MV88E61XX_GLOBAL_REMOTE_MGMT, 0x0000);
 
 	/* Send all specifically-addressed frames to the host port.  */
-	MV88E61XX_WRITE(sc, MV88E61XX_GLOBAL2, MV88E61XX_GLOBAL2_MANAGE_2X, 0xffff);
-	MV88E61XX_WRITE(sc, MV88E61XX_GLOBAL2, MV88E61XX_GLOBAL2_MANAGE_0X, 0xffff);
+	MV88E61XX_WRITE(
+	    sc, MV88E61XX_GLOBAL2, MV88E61XX_GLOBAL2_MANAGE_2X, 0xffff);
+	MV88E61XX_WRITE(
+	    sc, MV88E61XX_GLOBAL2, MV88E61XX_GLOBAL2_MANAGE_0X, 0xffff);
 
 	/* Remove provider-supplied tag and use it for switching.  */
 	MV88E61XX_WRITE(sc, MV88E61XX_GLOBAL2, MV88E61XX_GLOBAL2_CONTROL2,
@@ -353,32 +362,32 @@ mv88e61xxphy_init_port(struct mv88e61xxphy_port_softc *psc)
 		allow_mask = (1 << MV88E61XX_PORTS) - 1;
 		allow_mask &= ~(1 << MV88E61XX_HOST_PORT);
 	}
-	MV88E61XX_WRITE_PORT(psc, MV88E61XX_PORT_VLAN_MAP,
-	    (psc->sc_domain << 12) | allow_mask);
+	MV88E61XX_WRITE_PORT(
+	    psc, MV88E61XX_PORT_VLAN_MAP, (psc->sc_domain << 12) | allow_mask);
 
 	/* VLAN tagging.  Set default priority and VLAN tag (or none.)  */
-	MV88E61XX_WRITE_PORT(psc, MV88E61XX_PORT_VLAN,
-	    (psc->sc_priority << 14) | psc->sc_vlan);
+	MV88E61XX_WRITE_PORT(
+	    psc, MV88E61XX_PORT_VLAN, (psc->sc_priority << 14) | psc->sc_vlan);
 
 	if (psc->sc_port == MV88E61XX_HOST_PORT) {
 		/* Set provider ingress tag.  */
-		MV88E61XX_WRITE_PORT(psc, MV88E61XX_PORT_PROVIDER_PROTO,
-		    ETHERTYPE_VLAN);
+		MV88E61XX_WRITE_PORT(
+		    psc, MV88E61XX_PORT_PROVIDER_PROTO, ETHERTYPE_VLAN);
 
 		/* Set provider egress tag.  */
-		MV88E61XX_WRITE_PORT(psc, MV88E61XX_PORT_ETHER_PROTO,
-		    ETHERTYPE_VLAN);
+		MV88E61XX_WRITE_PORT(
+		    psc, MV88E61XX_PORT_ETHER_PROTO, ETHERTYPE_VLAN);
 
 		/* Use secure 802.1q mode and accept only tagged frames.  */
 		MV88E61XX_WRITE_PORT(psc, MV88E61XX_PORT_FILTER,
 		    MV88E61XX_PORT_FILTER_MAP_DEST |
-		    MV88E61XX_PORT_FILTER_8021Q_SECURE |
-		    MV88E61XX_PORT_FILTER_DISCARD_UNTAGGED);
+			MV88E61XX_PORT_FILTER_8021Q_SECURE |
+			MV88E61XX_PORT_FILTER_DISCARD_UNTAGGED);
 	} else {
 		/* Don't allow tagged frames.  */
 		MV88E61XX_WRITE_PORT(psc, MV88E61XX_PORT_FILTER,
 		    MV88E61XX_PORT_FILTER_MAP_DEST |
-		    MV88E61XX_PORT_FILTER_DISCARD_TAGGED);
+			MV88E61XX_PORT_FILTER_DISCARD_TAGGED);
 	}
 }
 
@@ -425,8 +434,7 @@ mv88e61xxphy_init_vtu(struct mv88e61xxphy_softc *sc)
 	mv88e61xxphy_vtu_wait(sc);
 }
 
-static int
-mv88e61xxphy_sysctl_link_proc(SYSCTL_HANDLER_ARGS)
+static int mv88e61xxphy_sysctl_link_proc(SYSCTL_HANDLER_ARGS)
 {
 	struct mv88e61xxphy_port_softc *psc = arg1;
 	enum mv88e61xxphy_sysctl_link_type type = arg2;
@@ -469,8 +477,7 @@ mv88e61xxphy_sysctl_link_proc(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_int(oidp, NULL, out, req));
 }
 
-static int
-mv88e61xxphy_sysctl_port_proc(SYSCTL_HANDLER_ARGS)
+static int mv88e61xxphy_sysctl_port_proc(SYSCTL_HANDLER_ARGS)
 {
 	struct mv88e61xxphy_port_softc *psc = arg1;
 	enum mv88e61xxphy_sysctl_port_type type = arg2;
@@ -539,17 +546,20 @@ mv88e61xxphy_vtu_load(struct mv88e61xxphy_softc *sc, uint16_t vid)
 			 * Send this port its VLAN traffic untagged.
 			 */
 			psc->sc_flags &= ~MV88E61XXPHY_PORT_FLAG_VTU_UPDATE;
-			mv88e61xxphy_vtu_set_membership(sc, port, MV88E61XXPHY_VTU_UNTAGGED);
+			mv88e61xxphy_vtu_set_membership(
+			    sc, port, MV88E61XXPHY_VTU_UNTAGGED);
 		} else if (psc->sc_port == MV88E61XX_HOST_PORT) {
 			/*
 			 * The host sees all VLANs tagged.
 			 */
-			mv88e61xxphy_vtu_set_membership(sc, port, MV88E61XXPHY_VTU_TAGGED);
+			mv88e61xxphy_vtu_set_membership(
+			    sc, port, MV88E61XXPHY_VTU_TAGGED);
 		} else {
 			/*
 			 * This port isn't on this VLAN.
 			 */
-			mv88e61xxphy_vtu_set_membership(sc, port, MV88E61XXPHY_VTU_DISCARDED);
+			mv88e61xxphy_vtu_set_membership(
+			    sc, port, MV88E61XXPHY_VTU_DISCARDED);
 		}
 	}
 
@@ -557,8 +567,7 @@ mv88e61xxphy_vtu_load(struct mv88e61xxphy_softc *sc, uint16_t vid)
 	 * Start adding this entry.
 	 */
 	MV88E61XX_WRITE(sc, MV88E61XX_GLOBAL, MV88E61XX_GLOBAL_VTU_OP,
-	    MV88E61XX_GLOBAL_VTU_OP_BUSY |
-	    MV88E61XX_GLOBAL_VTU_OP_OP_VTU_LOAD);
+	    MV88E61XX_GLOBAL_VTU_OP_BUSY | MV88E61XX_GLOBAL_VTU_OP_OP_VTU_LOAD);
 }
 
 static void
@@ -605,7 +614,8 @@ mv88e61xxphy_vtu_wait(struct mv88e61xxphy_softc *sc)
 	uint16_t val;
 
 	for (;;) {
-		val = MV88E61XX_READ(sc, MV88E61XX_GLOBAL, MV88E61XX_GLOBAL_VTU_OP);
+		val = MV88E61XX_READ(
+		    sc, MV88E61XX_GLOBAL, MV88E61XX_GLOBAL_VTU_OP);
 		if ((val & MV88E61XX_GLOBAL_VTU_OP_BUSY) == 0)
 			return;
 	}
@@ -613,19 +623,16 @@ mv88e61xxphy_vtu_wait(struct mv88e61xxphy_softc *sc)
 
 static device_method_t mv88e61xxphy_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_probe,		mv88e61xxphy_probe),
-	DEVMETHOD(device_attach,	mv88e61xxphy_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, mv88e61xxphy_probe),
+	DEVMETHOD(device_attach, mv88e61xxphy_attach),
+	DEVMETHOD(device_detach, bus_generic_detach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown), { 0, 0 }
 };
 
 static devclass_t mv88e61xxphy_devclass;
 
-static driver_t mv88e61xxphy_driver = {
-	"mv88e61xxphy",
-	mv88e61xxphy_methods,
-	sizeof(struct mv88e61xxphy_softc)
-};
+static driver_t mv88e61xxphy_driver = { "mv88e61xxphy", mv88e61xxphy_methods,
+	sizeof(struct mv88e61xxphy_softc) };
 
-DRIVER_MODULE(mv88e61xxphy, octe, mv88e61xxphy_driver, mv88e61xxphy_devclass, 0, 0);
+DRIVER_MODULE(
+    mv88e61xxphy, octe, mv88e61xxphy_driver, mv88e61xxphy_devclass, 0, 0);

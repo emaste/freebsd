@@ -35,7 +35,8 @@
 #ifndef _SYS_SYSLIMITS_H_
 #define _SYS_SYSLIMITS_H_
 
-#if !defined(_STANDALONE) && !defined(_KERNEL) && !defined(_LIMITS_H_) && !defined(_SYS_PARAM_H_)
+#if !defined(_STANDALONE) && !defined(_KERNEL) && !defined(_LIMITS_H_) && \
+    !defined(_SYS_PARAM_H_)
 #ifndef _SYS_CDEFS_H_
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
@@ -49,25 +50,25 @@
  * the file for why.)
  */
 #ifndef __ILP32__
-#define	ARG_MAX	      (2 * 256 * 1024)	/* max bytes for an exec function */
+#define ARG_MAX (2 * 256 * 1024) /* max bytes for an exec function */
 #else
-#define	ARG_MAX		  (256 * 1024)	/* max bytes for KVA-starved archs */
+#define ARG_MAX (256 * 1024) /* max bytes for KVA-starved archs */
 #endif
 #ifndef CHILD_MAX
-#define	CHILD_MAX		   40	/* max simultaneous processes */
+#define CHILD_MAX 40 /* max simultaneous processes */
 #endif
-#define	MAX_CANON		  255	/* max bytes in term canon input line */
-#define	MAX_INPUT		  255	/* max bytes in terminal input */
-#define	NAME_MAX		  255	/* max bytes in a file name */
+#define MAX_CANON 255 /* max bytes in term canon input line */
+#define MAX_INPUT 255 /* max bytes in terminal input */
+#define NAME_MAX 255  /* max bytes in a file name */
 #ifndef NGROUPS_MAX
-#define	NGROUPS_MAX	 	 1023	/* max supplemental group id's */
+#define NGROUPS_MAX 1023 /* max supplemental group id's */
 #endif
 #ifndef OPEN_MAX
-#define	OPEN_MAX		   64	/* max open files per process */
+#define OPEN_MAX 64 /* max open files per process */
 #endif
-#define	PATH_MAX		 1024	/* max bytes in pathname */
-#define	PIPE_BUF		  512	/* max bytes for atomic pipe writes */
-#define	IOV_MAX			 1024	/* max elements in i/o vector */
+#define PATH_MAX 1024 /* max bytes in pathname */
+#define PIPE_BUF 512  /* max bytes for atomic pipe writes */
+#define IOV_MAX 1024  /* max elements in i/o vector */
 
 /*
  * We leave the following values undefined to force applications to either

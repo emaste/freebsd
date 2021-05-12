@@ -29,51 +29,55 @@
  * $FreeBSD$
  */
 #ifndef _LINUX_NET_IPV6_H_
-#define	_LINUX_NET_IPV6_H_
+#define _LINUX_NET_IPV6_H_
 
 #include <sys/types.h>
+
 #include <netinet/in.h>
+
 #include <linux/types.h>
 
-#define	IPV6_DEFAULT_HOPLIMIT 64
+#define IPV6_DEFAULT_HOPLIMIT 64
 
-#define	ipv6_addr_loopback(addr) IN6_IS_ADDR_LOOPBACK(addr)
-#define	ipv6_addr_any(addr) IN6_IS_ADDR_UNSPECIFIED(addr)
+#define ipv6_addr_loopback(addr) IN6_IS_ADDR_LOOPBACK(addr)
+#define ipv6_addr_any(addr) IN6_IS_ADDR_UNSPECIFIED(addr)
 
-#define	ipv6_addr_copy(dst, src)			\
-	memcpy((dst), (src), sizeof(struct in6_addr))
+#define ipv6_addr_copy(dst, src) memcpy((dst), (src), sizeof(struct in6_addr))
 
 static inline void
-ipv6_ib_mc_map(const struct in6_addr *addr, const unsigned char *broadcast,
-    char *buf)
+ipv6_ib_mc_map(
+    const struct in6_addr *addr, const unsigned char *broadcast, char *buf)
 {
 	unsigned char scope;
 
 	scope = broadcast[5] & 0xF;
-	buf[0]  = 0;
-	buf[1]  = 0xff;
-	buf[2]  = 0xff;
-	buf[3]  = 0xff;
-	buf[4]  = 0xff;
-	buf[5]  = 0x10 | scope;
-	buf[6]  = 0x60;
-	buf[7]  = 0x1b;
-	buf[8]  = broadcast[8];
-	buf[9]  = broadcast[9];
+	buf[0] = 0;
+	buf[1] = 0xff;
+	buf[2] = 0xff;
+	buf[3] = 0xff;
+	buf[4] = 0xff;
+	buf[5] = 0x10 | scope;
+	buf[6] = 0x60;
+	buf[7] = 0x1b;
+	buf[8] = broadcast[8];
+	buf[9] = broadcast[9];
 	memcpy(&buf[10], &addr->s6_addr[6], 10);
 }
 
-static inline void __ipv6_addr_set_half(__be32 *addr, __be32 wh, __be32 wl)
+static inline void
+__ipv6_addr_set_half(__be32 *addr, __be32 wh, __be32 wl)
 {
 #if BITS_PER_LONG == 64
 #if defined(__BIG_ENDIAN)
 	if (__builtin_constant_p(wh) && __builtin_constant_p(wl)) {
-		*(__force u64 *)addr = ((__force u64)(wh) << 32 | (__force u64)(wl));
+		*(__force u64 *)addr = ((__force u64)(wh) << 32 |
+		    (__force u64)(wl));
 		return;
 	}
 #elif defined(__LITTLE_ENDIAN)
 	if (__builtin_constant_p(wl) && __builtin_constant_p(wh)) {
-		*(__force u64 *)addr = ((__force u64)(wl) << 32 | (__force u64)(wh));
+		*(__force u64 *)addr = ((__force u64)(wl) << 32 |
+		    (__force u64)(wh));
 		return;
 	}
 #endif
@@ -82,32 +86,30 @@ static inline void __ipv6_addr_set_half(__be32 *addr, __be32 wh, __be32 wl)
 	addr[1] = wl;
 }
 
-static inline void ipv6_addr_set(struct in6_addr *addr,
-				     __be32 w1, __be32 w2,
-				     __be32 w3, __be32 w4)
+static inline void
+ipv6_addr_set(struct in6_addr *addr, __be32 w1, __be32 w2, __be32 w3, __be32 w4)
 {
 	__ipv6_addr_set_half(&addr->s6_addr32[0], w1, w2);
 	__ipv6_addr_set_half(&addr->s6_addr32[2], w3, w4);
 }
 
-static inline void ipv6_addr_set_v4mapped(const __be32 addr,
-					  struct in6_addr *v4mapped)
+static inline void
+ipv6_addr_set_v4mapped(const __be32 addr, struct in6_addr *v4mapped)
 {
-	ipv6_addr_set(v4mapped,
-			0, 0,
-			htonl(0x0000FFFF),
-			addr);
+	ipv6_addr_set(v4mapped, 0, 0, htonl(0x0000FFFF), addr);
 }
 
-static inline int ipv6_addr_v4mapped(const struct in6_addr *a)
+static inline int
+ipv6_addr_v4mapped(const struct in6_addr *a)
 {
 	return ((a->s6_addr32[0] | a->s6_addr32[1] |
-		(a->s6_addr32[2] ^ htonl(0x0000ffff))) == 0);
+		    (a->s6_addr32[2] ^ htonl(0x0000ffff))) == 0);
 }
 
-static inline int ipv6_addr_cmp(const struct in6_addr *a1, const struct in6_addr *a2)
+static inline int
+ipv6_addr_cmp(const struct in6_addr *a1, const struct in6_addr *a2)
 {
 	return memcmp(a1, a2, sizeof(struct in6_addr));
 }
 
-#endif	/* _LINUX_NET_IPV6_H_ */
+#endif /* _LINUX_NET_IPV6_H_ */

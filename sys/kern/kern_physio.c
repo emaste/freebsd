@@ -32,14 +32,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/racct.h>
 #include <sys/rwlock.h>
 #include <sys/uio.h>
-#include <geom/geom.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_map.h>
+
+#include <geom/geom.h>
 
 int
 physio(struct cdev *dev, struct uio *uio, int ioflag)
@@ -73,22 +74,22 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	 */
 	if (dev->si_flags & SI_NOSPLIT &&
 	    (uio->uio_resid > dev->si_iosize_max || uio->uio_resid > maxphys ||
-	    uio->uio_iovcnt > 1)) {
+		uio->uio_iovcnt > 1)) {
 		/*
 		 * Tell the user why his I/O was rejected.
 		 */
 		if (uio->uio_resid > dev->si_iosize_max)
 			uprintf("%s: request size=%zd > si_iosize_max=%d; "
-			    "cannot split request\n", devtoname(dev),
-			    uio->uio_resid, dev->si_iosize_max);
+				"cannot split request\n",
+			    devtoname(dev), uio->uio_resid, dev->si_iosize_max);
 		if (uio->uio_resid > maxphys)
 			uprintf("%s: request size=%zd > maxphys=%lu; "
-			    "cannot split request\n", devtoname(dev),
-			    uio->uio_resid, maxphys);
+				"cannot split request\n",
+			    devtoname(dev), uio->uio_resid, maxphys);
 		if (uio->uio_iovcnt > 1)
 			uprintf("%s: request vectors=%d > 1; "
-			    "cannot split request\n", devtoname(dev),
-			    uio->uio_iovcnt);
+				"cannot split request\n",
+			    devtoname(dev), uio->uio_iovcnt);
 		return (EFBIG);
 	}
 
@@ -115,7 +116,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 	prot = VM_PROT_READ;
 	if (uio->uio_rw == UIO_READ)
-		prot |= VM_PROT_WRITE;	/* Less backwards than it looks */
+		prot |= VM_PROT_WRITE; /* Less backwards than it looks */
 	error = 0;
 	for (i = 0; i < uio->uio_iovcnt; i++) {
 #ifdef RACCT
@@ -155,16 +156,16 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 
 			if (pages) {
 				if ((npages = vm_fault_quick_hold_pages(
-				    &curproc->p_vmspace->vm_map,
-				    (vm_offset_t)base, bp->bio_length,
-				    prot, pages, maxpages)) < 0) {
+					 &curproc->p_vmspace->vm_map,
+					 (vm_offset_t)base, bp->bio_length,
+					 prot, pages, maxpages)) < 0) {
 					error = EFAULT;
 					goto doerror;
 				}
 				poff = (vm_offset_t)base & PAGE_MASK;
 				if (pbuf && sa) {
-					pmap_qenter((vm_offset_t)sa,
-					    pages, npages);
+					pmap_qenter(
+					    (vm_offset_t)sa, pages, npages);
 					bp->bio_data = sa + poff;
 				} else {
 					bp->bio_ma = pages;
@@ -190,7 +191,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 
 			iolen = bp->bio_length - bp->bio_resid;
 			if (iolen == 0 && !(bp->bio_flags & BIO_ERROR))
-				goto doerror;	/* EOF */
+				goto doerror; /* EOF */
 			uio->uio_iov[i].iov_len -= iolen;
 			uio->uio_iov[i].iov_base =
 			    (char *)uio->uio_iov[i].iov_base + iolen;

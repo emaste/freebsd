@@ -28,23 +28,23 @@
  */
 
 #ifndef _X86_CPUTYPES_H_
-#define	_X86_CPUTYPES_H_
+#define _X86_CPUTYPES_H_
 
 /*
  * Vendors of processor.
  */
-#define	CPU_VENDOR_NSC		0x100b		/* NSC */
-#define	CPU_VENDOR_IBM		0x1014		/* IBM */
-#define	CPU_VENDOR_AMD		0x1022		/* AMD */
-#define	CPU_VENDOR_SIS		0x1039		/* SiS */
-#define	CPU_VENDOR_UMC		0x1060		/* UMC */
-#define	CPU_VENDOR_NEXGEN	0x1074		/* Nexgen */
-#define	CPU_VENDOR_CYRIX	0x1078		/* Cyrix */
-#define	CPU_VENDOR_IDT		0x111d		/* Centaur/IDT/VIA */
-#define	CPU_VENDOR_TRANSMETA	0x1279		/* Transmeta */
-#define	CPU_VENDOR_INTEL	0x8086		/* Intel */
-#define	CPU_VENDOR_RISE		0xdead2bad	/* Rise */
-#define	CPU_VENDOR_CENTAUR	CPU_VENDOR_IDT
-#define	CPU_VENDOR_HYGON	0x1d94		/* Hygon */
+#define CPU_VENDOR_NSC 0x100b	    /* NSC */
+#define CPU_VENDOR_IBM 0x1014	    /* IBM */
+#define CPU_VENDOR_AMD 0x1022	    /* AMD */
+#define CPU_VENDOR_SIS 0x1039	    /* SiS */
+#define CPU_VENDOR_UMC 0x1060	    /* UMC */
+#define CPU_VENDOR_NEXGEN 0x1074    /* Nexgen */
+#define CPU_VENDOR_CYRIX 0x1078	    /* Cyrix */
+#define CPU_VENDOR_IDT 0x111d	    /* Centaur/IDT/VIA */
+#define CPU_VENDOR_TRANSMETA 0x1279 /* Transmeta */
+#define CPU_VENDOR_INTEL 0x8086	    /* Intel */
+#define CPU_VENDOR_RISE 0xdead2bad  /* Rise */
+#define CPU_VENDOR_CENTAUR CPU_VENDOR_IDT
+#define CPU_VENDOR_HYGON 0x1d94 /* Hygon */
 
 #endif /* !_X86_CPUTYPES_H_ */

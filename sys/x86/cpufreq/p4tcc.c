@@ -51,53 +51,51 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
-#include "cpufreq_if.h"
+#include <dev/acpica/acpivar.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 
-#include <dev/acpica/acpivar.h>
 #include "acpi_if.h"
+#include "cpufreq_if.h"
 
 struct p4tcc_softc {
-	device_t	dev;
-	int		set_count;
-	int		lowest_val;
-	int		auto_mode;
+	device_t dev;
+	int set_count;
+	int lowest_val;
+	int auto_mode;
 };
 
-#define TCC_NUM_SETTINGS	8
+#define TCC_NUM_SETTINGS 8
 
-#define TCC_ENABLE_ONDEMAND	(1<<4)
-#define TCC_REG_OFFSET		1
-#define TCC_SPEED_PERCENT(x)	((10000 * (x)) / TCC_NUM_SETTINGS)
+#define TCC_ENABLE_ONDEMAND (1 << 4)
+#define TCC_REG_OFFSET 1
+#define TCC_SPEED_PERCENT(x) ((10000 * (x)) / TCC_NUM_SETTINGS)
 
-static int	p4tcc_features(driver_t *driver, u_int *features);
-static void	p4tcc_identify(driver_t *driver, device_t parent);
-static int	p4tcc_probe(device_t dev);
-static int	p4tcc_attach(device_t dev);
-static int	p4tcc_detach(device_t dev);
-static int	p4tcc_settings(device_t dev, struct cf_setting *sets,
-		    int *count);
-static int	p4tcc_set(device_t dev, const struct cf_setting *set);
-static int	p4tcc_get(device_t dev, struct cf_setting *set);
-static int	p4tcc_type(device_t dev, int *type);
+static int p4tcc_features(driver_t *driver, u_int *features);
+static void p4tcc_identify(driver_t *driver, device_t parent);
+static int p4tcc_probe(device_t dev);
+static int p4tcc_attach(device_t dev);
+static int p4tcc_detach(device_t dev);
+static int p4tcc_settings(device_t dev, struct cf_setting *sets, int *count);
+static int p4tcc_set(device_t dev, const struct cf_setting *set);
+static int p4tcc_get(device_t dev, struct cf_setting *set);
+static int p4tcc_type(device_t dev, int *type);
 
 static device_method_t p4tcc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	p4tcc_identify),
-	DEVMETHOD(device_probe,		p4tcc_probe),
-	DEVMETHOD(device_attach,	p4tcc_attach),
-	DEVMETHOD(device_detach,	p4tcc_detach),
+	DEVMETHOD(device_identify, p4tcc_identify),
+	DEVMETHOD(device_probe, p4tcc_probe),
+	DEVMETHOD(device_attach, p4tcc_attach),
+	DEVMETHOD(device_detach, p4tcc_detach),
 
 	/* cpufreq interface */
-	DEVMETHOD(cpufreq_drv_set,	p4tcc_set),
-	DEVMETHOD(cpufreq_drv_get,	p4tcc_get),
-	DEVMETHOD(cpufreq_drv_type,	p4tcc_type),
-	DEVMETHOD(cpufreq_drv_settings,	p4tcc_settings),
+	DEVMETHOD(cpufreq_drv_set, p4tcc_set),
+	DEVMETHOD(cpufreq_drv_get, p4tcc_get),
+	DEVMETHOD(cpufreq_drv_type, p4tcc_type),
+	DEVMETHOD(cpufreq_drv_settings, p4tcc_settings),
 
 	/* ACPI interface */
-	DEVMETHOD(acpi_get_features,	p4tcc_features),
-	{0, 0}
+	DEVMETHOD(acpi_get_features, p4tcc_features), { 0, 0 }
 };
 
 static driver_t p4tcc_driver = {
@@ -188,13 +186,13 @@ p4tcc_attach(device_t dev)
 		 */
 		sc->set_count -= 1;
 		break;
-	case 0x07:	/* errata N44 and P18 */
+	case 0x07: /* errata N44 and P18 */
 	case 0x0a:
 	case 0x12:
 	case 0x13:
-	case 0x62:	/* Pentium D B1: errata AA21 */
-	case 0x64:	/* Pentium D C1: errata AA21 */
-	case 0x65:	/* Pentium D D0: errata AA21 */
+	case 0x62: /* Pentium D B1: errata AA21 */
+	case 0x64: /* Pentium D C1: errata AA21 */
+	case 0x65: /* Pentium D D0: errata AA21 */
 		/*
 		 * These CPU models hang when set to 12.5% or 25%.
 		 * See Errata N44, P18l and AA21.
@@ -230,7 +228,7 @@ p4tcc_detach(device_t dev)
 	 */
 	set.freq = 10000;
 	p4tcc_set(dev, &set);
-	return(0);
+	return (0);
 }
 
 static int

@@ -47,14 +47,14 @@
  */
 
 #ifndef _MACHINE_CPU_H_
-#define	_MACHINE_CPU_H_
+#define _MACHINE_CPU_H_
 
 #include <machine/endian.h>
 
 /* BEGIN: these are going away */
 
-#define	soft_int_mask(softintr)	(1 << ((softintr) + 8))
-#define	hard_int_mask(hardintr)	(1 << ((hardintr) + 10))
+#define soft_int_mask(softintr) (1 << ((softintr) + 8))
+#define hard_int_mask(hardintr) (1 << ((hardintr) + 10))
 
 /* END: These are going away */
 
@@ -66,18 +66,18 @@
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
 
-#define	TRAPF_USERMODE(framep)  (((framep)->sr & MIPS_SR_KSU_USER) != 0)
-#define	TRAPF_PC(framep)	((framep)->pc)
-#define	cpu_getstack(td)	((td)->td_frame->sp)
-#define	cpu_setstack(td, nsp)	((td)->td_frame->sp = (nsp))
-#define	cpu_spinwait()		/* nothing */
-#define	cpu_lock_delay()	DELAY(1)
+#define TRAPF_USERMODE(framep) (((framep)->sr & MIPS_SR_KSU_USER) != 0)
+#define TRAPF_PC(framep) ((framep)->pc)
+#define cpu_getstack(td) ((td)->td_frame->sp)
+#define cpu_setstack(td, nsp) ((td)->td_frame->sp = (nsp))
+#define cpu_spinwait() /* nothing */
+#define cpu_lock_delay() DELAY(1)
 
 /*
  * A machine-independent interface to the CPU's counter.
  */
-#define get_cyclecount()	mips_rd_count()
-#endif				/* !_LOCORE */
+#define get_cyclecount() mips_rd_count()
+#endif /* !_LOCORE */
 
 #if defined(_KERNEL) && !defined(_LOCORE)
 
@@ -88,5 +88,5 @@ void swi_vm(void *);
 void cpu_halt(void);
 void cpu_reset(void);
 
-#endif				/* _KERNEL */
-#endif				/* !_MACHINE_CPU_H_ */
+#endif /* _KERNEL */
+#endif /* !_MACHINE_CPU_H_ */

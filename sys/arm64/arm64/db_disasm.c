@@ -30,11 +30,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
-#include <ddb/ddb.h>
-#include <ddb/db_access.h>
-#include <ddb/db_sym.h>
 
 #include <machine/disassem.h>
+
+#include <ddb/db_access.h>
+#include <ddb/db_sym.h>
+#include <ddb/ddb.h>
 
 static u_int db_disasm_read_word(vm_offset_t);
 static void db_disasm_printaddr(vm_offset_t);

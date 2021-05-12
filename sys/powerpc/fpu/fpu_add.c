@@ -108,9 +108,9 @@ fpu_add(struct fpemu *fe)
 	}
 	rd = ((fe->fe_fpscr) & FPSCR_RN);
 	if (ISZERO(y)) {
-		if (rd != FP_RM)	/* only -0 + -0 gives -0 */
+		if (rd != FP_RM) /* only -0 + -0 gives -0 */
 			y->fp_sign &= x->fp_sign;
-		else			/* any -0 operand gives -0 */
+		else /* any -0 operand gives -0 */
 			y->fp_sign |= x->fp_sign;
 		DUMPFPN(FPE_REG, y);
 		return (y);
@@ -159,7 +159,7 @@ fpu_add(struct fpemu *fe)
 		FPU_ADDCS(r->fp_mant[1], x->fp_mant[1], y->fp_mant[1]);
 		FPU_ADDC(r0, x->fp_mant[0], y->fp_mant[0]);
 		if ((r->fp_mant[0] = r0) >= FP_2) {
-			(void) fpu_shr(r, 1);
+			(void)fpu_shr(r, 1);
 			r->fp_exp++;
 		}
 	} else {

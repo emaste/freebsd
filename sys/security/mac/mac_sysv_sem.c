@@ -43,19 +43,19 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
-#include <sys/sbuf.h>
-#include <sys/systm.h>
-#include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/file.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/sbuf.h>
 #include <sys/sdt.h>
-#include <sys/sysctl.h>
 #include <sys/sem.h>
+#include <sys/sysctl.h>
+#include <sys/vnode.h>
 
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
@@ -103,8 +103,8 @@ void
 mac_sysvsem_create(struct ucred *cred, struct semid_kernel *semakptr)
 {
 
-	MAC_POLICY_PERFORM_NOSLEEP(sysvsem_create, cred, semakptr,
-	    semakptr->label);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    sysvsem_create, cred, semakptr, semakptr->label);
 }
 
 void
@@ -114,49 +114,49 @@ mac_sysvsem_cleanup(struct semid_kernel *semakptr)
 	MAC_POLICY_PERFORM_NOSLEEP(sysvsem_cleanup, semakptr->label);
 }
 
-MAC_CHECK_PROBE_DEFINE3(sysvsem_check_semctl, "struct ucred *",
-    "struct semid_kernel *", "int");
+MAC_CHECK_PROBE_DEFINE3(
+    sysvsem_check_semctl, "struct ucred *", "struct semid_kernel *", "int");
 
 int
-mac_sysvsem_check_semctl(struct ucred *cred, struct semid_kernel *semakptr,
-    int cmd)
+mac_sysvsem_check_semctl(
+    struct ucred *cred, struct semid_kernel *semakptr, int cmd)
 {
 	int error;
 
-	MAC_POLICY_CHECK_NOSLEEP(sysvsem_check_semctl, cred, semakptr,
-	    semakptr->label, cmd);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    sysvsem_check_semctl, cred, semakptr, semakptr->label, cmd);
 	MAC_CHECK_PROBE3(sysvsem_check_semctl, error, cred, semakptr, cmd);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(sysvsem_check_semget, "struct ucred *",
-    "struct semid_kernel *");
+MAC_CHECK_PROBE_DEFINE2(
+    sysvsem_check_semget, "struct ucred *", "struct semid_kernel *");
 
 int
 mac_sysvsem_check_semget(struct ucred *cred, struct semid_kernel *semakptr)
 {
 	int error;
 
-	MAC_POLICY_CHECK_NOSLEEP(sysvsem_check_semget, cred, semakptr,
-	    semakptr->label);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    sysvsem_check_semget, cred, semakptr, semakptr->label);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(sysvsem_check_semop, "struct ucred *",
-    "struct semid_kernel *", "size_t");
+MAC_CHECK_PROBE_DEFINE3(
+    sysvsem_check_semop, "struct ucred *", "struct semid_kernel *", "size_t");
 
 int
-mac_sysvsem_check_semop(struct ucred *cred, struct semid_kernel *semakptr,
-    size_t accesstype)
+mac_sysvsem_check_semop(
+    struct ucred *cred, struct semid_kernel *semakptr, size_t accesstype)
 {
 	int error;
 
-	MAC_POLICY_CHECK_NOSLEEP(sysvsem_check_semop, cred, semakptr,
-	    semakptr->label, accesstype);
-	MAC_CHECK_PROBE3(sysvsem_check_semop, error, cred, semakptr,
-	    accesstype);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    sysvsem_check_semop, cred, semakptr, semakptr->label, accesstype);
+	MAC_CHECK_PROBE3(
+	    sysvsem_check_semop, error, cred, semakptr, accesstype);
 
 	return (error);
 }

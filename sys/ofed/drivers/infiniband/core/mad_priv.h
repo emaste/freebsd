@@ -47,24 +47,25 @@
 #include <rdma/ib_smi.h>
 #include <rdma/opa_smi.h>
 
-#define IB_MAD_QPS_CORE		2 /* Always QP0 and QP1 as a minimum */
+#define IB_MAD_QPS_CORE 2 /* Always QP0 and QP1 as a minimum */
 
 /* QP and CQ parameters */
-#define IB_MAD_QP_SEND_SIZE	128
-#define IB_MAD_QP_RECV_SIZE	512
-#define IB_MAD_QP_MIN_SIZE	64
-#define IB_MAD_QP_MAX_SIZE	8192
-#define IB_MAD_SEND_REQ_MAX_SG	2
-#define IB_MAD_RECV_REQ_MAX_SG	1
+#define IB_MAD_QP_SEND_SIZE 128
+#define IB_MAD_QP_RECV_SIZE 512
+#define IB_MAD_QP_MIN_SIZE 64
+#define IB_MAD_QP_MAX_SIZE 8192
+#define IB_MAD_SEND_REQ_MAX_SG 2
+#define IB_MAD_RECV_REQ_MAX_SG 1
 
-#define IB_MAD_SEND_Q_PSN	0
+#define IB_MAD_SEND_Q_PSN 0
 
 /* Registration table sizes */
-#define MAX_MGMT_CLASS		80
-#define MAX_MGMT_VERSION	0x83
-#define MAX_MGMT_OUI		8
-#define MAX_MGMT_VENDOR_RANGE2	(IB_MGMT_CLASS_VENDOR_RANGE2_END - \
-				IB_MGMT_CLASS_VENDOR_RANGE2_START + 1)
+#define MAX_MGMT_CLASS 80
+#define MAX_MGMT_VERSION 0x83
+#define MAX_MGMT_OUI 8
+#define MAX_MGMT_VENDOR_RANGE2                                                 \
+	(IB_MGMT_CLASS_VENDOR_RANGE2_END - IB_MGMT_CLASS_VENDOR_RANGE2_START + \
+	    1)
 
 struct ib_mad_list_head {
 	struct list_head list;
@@ -77,14 +78,14 @@ struct ib_mad_private_header {
 	struct ib_mad_recv_wc recv_wc;
 	struct ib_wc wc;
 	u64 mapping;
-} __attribute__ ((packed));
+} __attribute__((packed));
 
 struct ib_mad_private {
 	struct ib_mad_private_header header;
 	size_t mad_size;
 	struct ib_grh grh;
 	u8 mad[0];
-} __attribute__ ((packed));
+} __attribute__((packed));
 
 struct ib_rmpp_segment {
 	struct list_head list;
@@ -165,7 +166,7 @@ struct ib_mad_mgmt_class_table {
 };
 
 struct ib_mad_mgmt_vendor_class {
-	u8	oui[MAX_MGMT_OUI][3];
+	u8 oui[MAX_MGMT_OUI][3];
 	struct ib_mad_mgmt_method_table *method_table[MAX_MGMT_OUI];
 };
 
@@ -214,16 +215,16 @@ struct ib_mad_port_private {
 
 int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr);
 
-struct ib_mad_send_wr_private *
-ib_find_send_mad(const struct ib_mad_agent_private *mad_agent_priv,
-		 const struct ib_mad_recv_wc *mad_recv_wc);
+struct ib_mad_send_wr_private *ib_find_send_mad(
+    const struct ib_mad_agent_private *mad_agent_priv,
+    const struct ib_mad_recv_wc *mad_recv_wc);
 
 void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
-			     struct ib_mad_send_wc *mad_send_wc);
+    struct ib_mad_send_wc *mad_send_wc);
 
 void ib_mark_mad_done(struct ib_mad_send_wr_private *mad_send_wr);
 
-void ib_reset_mad_timeout(struct ib_mad_send_wr_private *mad_send_wr,
-			  int timeout_ms);
+void ib_reset_mad_timeout(
+    struct ib_mad_send_wr_private *mad_send_wr, int timeout_ms);
 
-#endif	/* __IB_MAD_PRIV_H__ */
+#endif /* __IB_MAD_PRIV_H__ */

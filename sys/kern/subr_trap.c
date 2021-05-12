@@ -51,14 +51,15 @@ __FBSDID("$FreeBSD$");
 #include "opt_sched.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/capsicum.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/pmckern.h>
 #include <sys/proc.h>
-#include <sys/ktr.h>
 #include <sys/ptrace.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
@@ -67,21 +68,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
-#include <sys/systm.h>
 #include <sys/vmmeter.h>
 #ifdef KTRACE
-#include <sys/uio.h>
 #include <sys/ktrace.h>
+#include <sys/uio.h>
 #endif
-#include <security/audit/audit.h>
-
 #include <machine/cpu.h>
+
+#include <security/audit/audit.h>
 
 #ifdef VIMAGE
 #include <net/vnet.h>
 #endif
 
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
 
@@ -99,7 +99,7 @@ userret(struct thread *td, struct trapframe *frame)
 	struct proc *p = td->td_proc;
 
 	CTR3(KTR_SYSC, "userret: thread %p (pid %d, %s)", td, p->p_pid,
-            td->td_name);
+	    td->td_name);
 	KASSERT((p->p_flag & P_WEXIT) == 0,
 	    ("Exiting process returns to usermode"));
 #ifdef DIAGNOSTIC
@@ -117,12 +117,13 @@ userret(struct thread *td, struct trapframe *frame)
 		thread_lock(td);
 		if ((p->p_flag & P_PPWAIT) == 0 &&
 		    (td->td_pflags & TDP_SIGFASTBLOCK) == 0) {
-			if (SIGPENDING(td) && (td->td_flags &
-			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) !=
-			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) {
+			if (SIGPENDING(td) &&
+			    (td->td_flags &
+				(TDF_NEEDSIGCHK | TDF_ASTPENDING)) !=
+				(TDF_NEEDSIGCHK | TDF_ASTPENDING)) {
 				thread_unlock(td);
 				panic(
-	"failed to set signal flags for ast p %p td %p fl %x",
+				    "failed to set signal flags for ast p %p td %p fl %x",
 				    p, td, td->td_flags);
 			}
 		}
@@ -155,19 +156,19 @@ userret(struct thread *td, struct trapframe *frame)
 	 * at ast() checkpoint, which is past userret().
 	 */
 	WITNESS_WARN(WARN_PANIC, NULL, "userret: returning");
-	KASSERT(td->td_critnest == 0,
-	    ("userret: Returning in a critical section"));
+	KASSERT(
+	    td->td_critnest == 0, ("userret: Returning in a critical section"));
 	KASSERT(td->td_locks == 0,
 	    ("userret: Returning with %d locks held", td->td_locks));
 	KASSERT(td->td_rw_rlocks == 0,
 	    ("userret: Returning with %d rwlocks held in read mode",
-	    td->td_rw_rlocks));
+		td->td_rw_rlocks));
 	KASSERT(td->td_sx_slocks == 0,
 	    ("userret: Returning with %d sx locks held in shared mode",
-	    td->td_sx_slocks));
+		td->td_sx_slocks));
 	KASSERT(td->td_lk_slocks == 0,
 	    ("userret: Returning with %d lockmanager locks held in shared mode",
-	    td->td_lk_slocks));
+		td->td_lk_slocks));
 	KASSERT((td->td_pflags & TDP_NOFAULTING) == 0,
 	    ("userret: Returning with pagefaults disabled"));
 	if (__predict_false(!THREAD_CAN_SLEEP())) {
@@ -188,8 +189,8 @@ userret(struct thread *td, struct trapframe *frame)
 	/* Unfortunately td_vnet_lpush needs VNET_DEBUG. */
 	VNET_ASSERT(curvnet == NULL,
 	    ("%s: Returning on td %p (pid %d, %s) with vnet %p set in %s",
-	    __func__, td, p->p_pid, td->td_name, curvnet,
-	    (td->td_vnet_lpush != NULL) ? td->td_vnet_lpush : "N/A"));
+		__func__, td, p->p_pid, td->td_name, curvnet,
+		(td->td_vnet_lpush != NULL) ? td->td_vnet_lpush : "N/A"));
 #endif
 }
 
@@ -209,8 +210,7 @@ ast(struct trapframe *framep)
 	td = curthread;
 	p = td->td_proc;
 
-	CTR3(KTR_SYSC, "ast: thread %p (pid %d, %s)", td, p->p_pid,
-            p->p_comm);
+	CTR3(KTR_SYSC, "ast: thread %p (pid %d, %s)", td, p->p_pid, p->p_comm);
 	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
 	WITNESS_WARN(WARN_PANIC, NULL, "Returning to user mode");
 	mtx_assert(&Giant, MA_NOTOWNED);
@@ -242,7 +242,8 @@ ast(struct trapframe *framep)
 #ifdef HWPMC_HOOKS
 	/* Handle Software PMC callchain capture. */
 	if (PMC_IS_PENDING_CALLCHAIN(td))
-		PMC_CALL_HOOK_UNLOCKED(td, PMC_FN_USER_CALLCHAIN_SOFT, (void *) framep);
+		PMC_CALL_HOOK_UNLOCKED(
+		    td, PMC_FN_USER_CALLCHAIN_SOFT, (void *)framep);
 #endif
 	if (flags & TDF_ALRMPEND) {
 		PROC_LOCK(p);
@@ -295,12 +296,13 @@ ast(struct trapframe *framep)
 		 */
 		if ((p->p_flag & P_PPWAIT) == 0 &&
 		    (td->td_pflags & TDP_SIGFASTBLOCK) == 0) {
-			if (SIGPENDING(td) && (td->td_flags &
-			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) !=
-			    (TDF_NEEDSIGCHK | TDF_ASTPENDING)) {
+			if (SIGPENDING(td) &&
+			    (td->td_flags &
+				(TDF_NEEDSIGCHK | TDF_ASTPENDING)) !=
+				(TDF_NEEDSIGCHK | TDF_ASTPENDING)) {
 				thread_unlock(td); /* fix dumps */
 				panic(
-	"failed2 to set signal flags for ast p %p td %p fl %x %x",
+				    "failed2 to set signal flags for ast p %p td %p fl %x %x",
 				    p, td, flags, td->td_flags);
 			}
 		}

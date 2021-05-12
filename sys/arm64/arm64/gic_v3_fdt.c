@@ -41,11 +41,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/resource.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/arm/gic_common.h>
+
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
@@ -56,27 +57,27 @@ static int gic_v3_fdt_probe(device_t);
 static int gic_v3_fdt_attach(device_t);
 static int gic_v3_fdt_print_child(device_t, device_t);
 
-static struct resource *gic_v3_ofw_bus_alloc_res(device_t, device_t, int, int *,
-    rman_res_t, rman_res_t, rman_res_t, u_int);
+static struct resource *gic_v3_ofw_bus_alloc_res(
+    device_t, device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static const struct ofw_bus_devinfo *gic_v3_ofw_get_devinfo(device_t, device_t);
 
 static device_method_t gic_v3_fdt_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		gic_v3_fdt_probe),
-	DEVMETHOD(device_attach,	gic_v3_fdt_attach),
+	DEVMETHOD(device_probe, gic_v3_fdt_probe),
+	DEVMETHOD(device_attach, gic_v3_fdt_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,		gic_v3_fdt_print_child),
-	DEVMETHOD(bus_alloc_resource,		gic_v3_ofw_bus_alloc_res),
-	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
+	DEVMETHOD(bus_print_child, gic_v3_fdt_print_child),
+	DEVMETHOD(bus_alloc_resource, gic_v3_ofw_bus_alloc_res),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_devinfo,	gic_v3_ofw_get_devinfo),
-	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
-	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
-	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
-	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
-	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+	DEVMETHOD(ofw_bus_get_devinfo, gic_v3_ofw_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat, ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model, ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name, ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node, ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type, ofw_bus_gen_get_type),
 
 	/* End */
 	DEVMETHOD_END
@@ -89,8 +90,8 @@ static devclass_t gic_v3_fdt_devclass;
 
 EARLY_DRIVER_MODULE(gic_v3, simplebus, gic_v3_fdt_driver, gic_v3_fdt_devclass,
     0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(gic_v3, ofwbus, gic_v3_fdt_driver, gic_v3_fdt_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(gic_v3, ofwbus, gic_v3_fdt_driver, gic_v3_fdt_devclass, 0,
+    0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 /*
  * Helper functions declarations.
@@ -132,7 +133,7 @@ gic_v3_fdt_attach(device_t dev)
 	 * Recover number of the Re-Distributor regions.
 	 */
 	if (OF_getencprop(ofw_bus_get_node(dev), "#redistributor-regions",
-	    &redist_regions, sizeof(redist_regions)) <= 0)
+		&redist_regions, sizeof(redist_regions)) <= 0)
 		sc->gic_redists.nregions = 1;
 	else
 		sc->gic_redists.nregions = redist_regions;
@@ -147,7 +148,8 @@ gic_v3_fdt_attach(device_t dev)
 			sc->gic_mbi_end = mbi_ranges[0] + mbi_ranges[1] - 1;
 		} else {
 			if (bootverbose)
-				device_printf(dev, "Malformed mbi-ranges property\n");
+				device_printf(
+				    dev, "Malformed mbi-ranges property\n");
 		}
 		free(mbi_ranges, M_OFWPROP);
 	}
@@ -171,7 +173,7 @@ gic_v3_fdt_attach(device_t dev)
 	OF_device_register_xref(xref, dev);
 
 	if (intr_pic_claim_root(dev, xref, arm_gic_v3_intr, sc,
-	    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
+		GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
 		err = ENXIO;
 		goto error;
 	}
@@ -183,20 +185,20 @@ gic_v3_fdt_attach(device_t dev)
 	 */
 	if (gic_v3_ofw_bus_attach(dev) != 0) {
 		if (bootverbose) {
-			device_printf(dev,
-			    "Failed to attach ITS to this GIC\n");
+			device_printf(
+			    dev, "Failed to attach ITS to this GIC\n");
 		}
 	}
 
-	if (device_get_children(dev, &sc->gic_children, &sc->gic_nchildren) != 0)
+	if (device_get_children(dev, &sc->gic_children, &sc->gic_nchildren) !=
+	    0)
 		sc->gic_nchildren = 0;
 
 	return (err);
 
 error:
 	if (bootverbose) {
-		device_printf(dev,
-		    "Failed to attach. Error %d\n", err);
+		device_printf(dev, "Failed to attach. Error %d\n", err);
 	}
 	/* Failure so free resources */
 	gic_v3_detach(dev);
@@ -206,9 +208,9 @@ error:
 
 /* OFW bus interface */
 struct gic_v3_ofw_devinfo {
-	struct gic_v3_devinfo	di_gic_dinfo;
-	struct ofw_bus_devinfo	di_dinfo;
-	struct resource_list	di_rl;
+	struct gic_v3_devinfo di_gic_dinfo;
+	struct ofw_bus_devinfo di_dinfo;
+	struct resource_list di_rl;
 };
 
 static int
@@ -265,14 +267,14 @@ gic_v3_ofw_bus_alloc_res(device_t bus, device_t child, int type, int *rid,
 		ranges_len = OF_getproplen(ofw_bus_get_node(bus), "ranges");
 		if (ranges_len != 0) {
 			if (bootverbose) {
-				device_printf(child,
-				    "Ranges remap not supported\n");
+				device_printf(
+				    child, "Ranges remap not supported\n");
 			}
 			return (NULL);
 		}
 	}
-	return (bus_generic_alloc_resource(bus, child, type, rid, start, end,
-	    count, flags));
+	return (bus_generic_alloc_resource(
+	    bus, child, type, rid, start, end, count, flags));
 }
 
 /* Helper functions */
@@ -295,11 +297,11 @@ gic_v3_ofw_bus_attach(device_t dev)
 	parent = ofw_bus_get_node(dev);
 	if (parent > 0) {
 		addr_cells = 2;
-		OF_getencprop(parent, "#address-cells", &addr_cells,
-		    sizeof(addr_cells));
+		OF_getencprop(
+		    parent, "#address-cells", &addr_cells, sizeof(addr_cells));
 		size_cells = 2;
-		OF_getencprop(parent, "#size-cells", &size_cells,
-		    sizeof(size_cells));
+		OF_getencprop(
+		    parent, "#size-cells", &size_cells, sizeof(size_cells));
 		/* Iterate through all GIC subordinates */
 		for (node = OF_child(parent); node > 0; node = OF_peer(node)) {
 			/* Allocate and populate devinfo. */
@@ -307,8 +309,8 @@ gic_v3_ofw_bus_attach(device_t dev)
 
 			/* Read the numa node, or -1 if there is none */
 			if (OF_getencprop(node, "numa-node-id",
-			    &di->di_gic_dinfo.gic_domain,
-			    sizeof(di->di_gic_dinfo.gic_domain)) <= 0) {
+				&di->di_gic_dinfo.gic_domain,
+				sizeof(di->di_gic_dinfo.gic_domain)) <= 0) {
 				di->di_gic_dinfo.gic_domain = -1;
 			}
 
@@ -323,8 +325,8 @@ gic_v3_ofw_bus_attach(device_t dev)
 
 			/* Initialize and populate resource list. */
 			resource_list_init(&di->di_rl);
-			ofw_bus_reg_to_rl(dev, node, addr_cells, size_cells,
-			    &di->di_rl);
+			ofw_bus_reg_to_rl(
+			    dev, node, addr_cells, size_cells, &di->di_rl);
 
 			/* Should not have any interrupts, so don't add any */
 

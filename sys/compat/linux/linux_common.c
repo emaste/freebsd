@@ -47,8 +47,8 @@ MODULE_VERSION(linux_common, 1);
 
 SET_DECLARE(linux_device_handler_set, struct linux_device_handler);
 
-TAILQ_HEAD(, linux_ioctl_handler_element) linux_ioctl_handlers =
-    TAILQ_HEAD_INITIALIZER(linux_ioctl_handlers);
+TAILQ_HEAD(, linux_ioctl_handler_element)
+    linux_ioctl_handlers = TAILQ_HEAD_INITIALIZER(linux_ioctl_handlers);
 struct sx linux_ioctl_sx;
 SX_SYSINIT(linux_ioctl, &linux_ioctl_sx, "Linux ioctl handlers");
 
@@ -57,7 +57,7 @@ linux_common_modevent(module_t mod, int type, void *data)
 {
 	struct linux_device_handler **ldhp;
 
-	switch(type) {
+	switch (type) {
 	case MOD_LOAD:
 #ifdef INVARIANTS
 		linux_check_errtbl();
@@ -65,7 +65,7 @@ linux_common_modevent(module_t mod, int type, void *data)
 		linux_dev_shm_create();
 		linux_osd_jail_register();
 		SET_FOREACH(ldhp, linux_device_handler_set)
-			linux_device_register_handler(*ldhp);
+		linux_device_register_handler(*ldhp);
 		LIST_INIT(&futex_list);
 		mtx_init(&futex_mtx, "ftllk", NULL, MTX_DEF);
 		break;
@@ -73,7 +73,7 @@ linux_common_modevent(module_t mod, int type, void *data)
 		linux_dev_shm_destroy();
 		linux_osd_jail_deregister();
 		SET_FOREACH(ldhp, linux_device_handler_set)
-			linux_device_unregister_handler(*ldhp);
+		linux_device_unregister_handler(*ldhp);
 		mtx_destroy(&futex_mtx);
 		break;
 	default:
@@ -82,11 +82,8 @@ linux_common_modevent(module_t mod, int type, void *data)
 	return (0);
 }
 
-static moduledata_t linux_common_mod = {
-	"linuxcommon",
-	linux_common_modevent,
-	0
-};
+static moduledata_t linux_common_mod = { "linuxcommon", linux_common_modevent,
+	0 };
 
 DECLARE_MODULE(linuxcommon, linux_common_mod, SI_SUB_EXEC, SI_ORDER_ANY);
 MODULE_VERSION(linuxcommon, 1);

@@ -28,26 +28,26 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_DMA_MAPPING_H_
+#ifndef _LINUX_DMA_MAPPING_H_
 #define _LINUX_DMA_MAPPING_H_
-
-#include <linux/types.h>
-#include <linux/device.h>
-#include <linux/err.h>
-#include <linux/dma-attrs.h>
-#include <linux/scatterlist.h>
-#include <linux/mm.h>
-#include <linux/page.h>
-#include <linux/sizes.h>
 
 #include <sys/systm.h>
 #include <sys/malloc.h>
 
 #include <vm/vm.h>
-#include <vm/vm_page.h>
 #include <vm/pmap.h>
+#include <vm/vm_page.h>
 
 #include <machine/bus.h>
+
+#include <linux/device.h>
+#include <linux/dma-attrs.h>
+#include <linux/err.h>
+#include <linux/mm.h>
+#include <linux/page.h>
+#include <linux/scatterlist.h>
+#include <linux/sizes.h>
+#include <linux/types.h>
 
 enum dma_data_direction {
 	DMA_BIDIRECTIONAL = 0,
@@ -57,17 +57,17 @@ enum dma_data_direction {
 };
 
 struct dma_map_ops {
-	void* (*alloc_coherent)(struct device *dev, size_t size,
-	    dma_addr_t *dma_handle, gfp_t gfp);
-	void (*free_coherent)(struct device *dev, size_t size,
-	    void *vaddr, dma_addr_t dma_handle);
+	void *(*alloc_coherent)(
+	    struct device *dev, size_t size, dma_addr_t *dma_handle, gfp_t gfp);
+	void (*free_coherent)(struct device *dev, size_t size, void *vaddr,
+	    dma_addr_t dma_handle);
 	dma_addr_t (*map_page)(struct device *dev, struct page *page,
 	    unsigned long offset, size_t size, enum dma_data_direction dir,
 	    struct dma_attrs *attrs);
 	void (*unmap_page)(struct device *dev, dma_addr_t dma_handle,
 	    size_t size, enum dma_data_direction dir, struct dma_attrs *attrs);
-	int (*map_sg)(struct device *dev, struct scatterlist *sg,
-	    int nents, enum dma_data_direction dir, struct dma_attrs *attrs);
+	int (*map_sg)(struct device *dev, struct scatterlist *sg, int nents,
+	    enum dma_data_direction dir, struct dma_attrs *attrs);
 	void (*unmap_sg)(struct device *dev, struct scatterlist *sg, int nents,
 	    enum dma_data_direction dir, struct dma_attrs *attrs);
 	void (*sync_single_for_cpu)(struct device *dev, dma_addr_t dma_handle,
@@ -89,11 +89,11 @@ struct dma_map_ops {
 	int is_phys;
 };
 
-#define	DMA_BIT_MASK(n)	((2ULL << ((n) - 1)) - 1ULL)
+#define DMA_BIT_MASK(n) ((2ULL << ((n)-1)) - 1ULL)
 
 int linux_dma_tag_init(struct device *dev, u64 mask);
-void *linux_dma_alloc_coherent(struct device *dev, size_t size,
-    dma_addr_t *dma_handle, gfp_t flag);
+void *linux_dma_alloc_coherent(
+    struct device *dev, size_t size, dma_addr_t *dma_handle, gfp_t flag);
 dma_addr_t linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len);
 void linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t size);
 int linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
@@ -141,23 +141,23 @@ dma_set_mask_and_coherent(struct device *dev, u64 mask)
 }
 
 static inline void *
-dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
-    gfp_t flag)
+dma_alloc_coherent(
+    struct device *dev, size_t size, dma_addr_t *dma_handle, gfp_t flag)
 {
 	return (linux_dma_alloc_coherent(dev, size, dma_handle, flag));
 }
 
 static inline void *
-dma_zalloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
-    gfp_t flag)
+dma_zalloc_coherent(
+    struct device *dev, size_t size, dma_addr_t *dma_handle, gfp_t flag)
 {
 
 	return (dma_alloc_coherent(dev, size, dma_handle, flag | __GFP_ZERO));
 }
 
 static inline void
-dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
-    dma_addr_t dma_addr)
+dma_free_coherent(
+    struct device *dev, size_t size, void *cpu_addr, dma_addr_t dma_addr)
 {
 
 	linux_dma_unmap(dev, dma_addr, size);
@@ -205,8 +205,8 @@ dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg, int nents,
 }
 
 static inline dma_addr_t
-dma_map_page(struct device *dev, struct page *page,
-    unsigned long offset, size_t size, enum dma_data_direction direction)
+dma_map_page(struct device *dev, struct page *page, unsigned long offset,
+    size_t size, enum dma_data_direction direction)
 {
 
 	return (linux_dma_map_phys(dev, VM_PAGE_TO_PHYS(page) + offset, size));
@@ -270,8 +270,8 @@ dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 	return (dma_addr == 0);
 }
 
-static inline unsigned int dma_set_max_seg_size(struct device *dev,
-    unsigned int size)
+static inline unsigned int
+dma_set_max_seg_size(struct device *dev, unsigned int size)
 {
 	return (0);
 }
@@ -281,14 +281,14 @@ static inline unsigned int dma_set_max_seg_size(struct device *dev,
 #define dma_map_sg(d, s, n, r) dma_map_sg_attrs(d, s, n, r, NULL)
 #define dma_unmap_sg(d, s, n, r) dma_unmap_sg_attrs(d, s, n, r, NULL)
 
-#define	DEFINE_DMA_UNMAP_ADDR(name)		dma_addr_t name
-#define	DEFINE_DMA_UNMAP_LEN(name)		__u32 name
-#define	dma_unmap_addr(p, name)			((p)->name)
-#define	dma_unmap_addr_set(p, name, v)		(((p)->name) = (v))
-#define	dma_unmap_len(p, name)			((p)->name)
-#define	dma_unmap_len_set(p, name, v)		(((p)->name) = (v))
+#define DEFINE_DMA_UNMAP_ADDR(name) dma_addr_t name
+#define DEFINE_DMA_UNMAP_LEN(name) __u32 name
+#define dma_unmap_addr(p, name) ((p)->name)
+#define dma_unmap_addr_set(p, name, v) (((p)->name) = (v))
+#define dma_unmap_len(p, name) ((p)->name)
+#define dma_unmap_len_set(p, name, v) (((p)->name) = (v))
 
 extern int uma_align_cache;
-#define	dma_get_cache_alignment()	uma_align_cache
+#define dma_get_cache_alignment() uma_align_cache
 
-#endif	/* _LINUX_DMA_MAPPING_H_ */
+#endif /* _LINUX_DMA_MAPPING_H_ */

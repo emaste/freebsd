@@ -51,73 +51,73 @@
  * ABI should be preserved.
  */
 struct pcb {
-	register_t	pcb_r15;	/* (*) */
-	register_t	pcb_r14;	/* (*) */
-	register_t	pcb_r13;	/* (*) */
-	register_t	pcb_r12;	/* (*) */
-	register_t	pcb_rbp;	/* (*) */
-	register_t	pcb_rsp;	/* (*) */
-	register_t	pcb_rbx;	/* (*) */
-	register_t	pcb_rip;	/* (*) */
-	register_t	pcb_fsbase;
-	register_t	pcb_gsbase;
-	register_t	pcb_kgsbase;
-	register_t	pcb_cr0;
-	register_t	pcb_cr2;
-	register_t	pcb_cr3;
-	register_t	pcb_cr4;
-	register_t	pcb_dr0;
-	register_t	pcb_dr1;
-	register_t	pcb_dr2;
-	register_t	pcb_dr3;
-	register_t	pcb_dr6;
-	register_t	pcb_dr7;
+	register_t pcb_r15; /* (*) */
+	register_t pcb_r14; /* (*) */
+	register_t pcb_r13; /* (*) */
+	register_t pcb_r12; /* (*) */
+	register_t pcb_rbp; /* (*) */
+	register_t pcb_rsp; /* (*) */
+	register_t pcb_rbx; /* (*) */
+	register_t pcb_rip; /* (*) */
+	register_t pcb_fsbase;
+	register_t pcb_gsbase;
+	register_t pcb_kgsbase;
+	register_t pcb_cr0;
+	register_t pcb_cr2;
+	register_t pcb_cr3;
+	register_t pcb_cr4;
+	register_t pcb_dr0;
+	register_t pcb_dr1;
+	register_t pcb_dr2;
+	register_t pcb_dr3;
+	register_t pcb_dr6;
+	register_t pcb_dr7;
 
 	struct region_descriptor pcb_gdt;
 	struct region_descriptor pcb_idt;
 	struct region_descriptor pcb_ldt;
-	uint16_t	pcb_tr;
+	uint16_t pcb_tr;
 
-	u_int		pcb_flags;
-#define	PCB_FULL_IRET	0x01	/* full iret is required */
-#define	PCB_DBREGS	0x02	/* process using debug registers */
-#define	PCB_KERNFPU	0x04	/* kernel uses fpu */
-#define	PCB_FPUINITDONE	0x08	/* fpu state is initialized */
-#define	PCB_USERFPUINITDONE 0x10 /* fpu user state is initialized */
-#define	PCB_KERNFPU_THR	0x20	/* fpu_kern_thread() */
-#define	PCB_32BIT	0x40	/* process has 32 bit context (segs etc) */
-#define	PCB_FPUNOSAVE	0x80	/* no save area for current FPU ctx */
+	u_int pcb_flags;
+#define PCB_FULL_IRET 0x01 /* full iret is required */
+#define PCB_DBREGS 0x02 /* process using debug registers */
+#define PCB_KERNFPU 0x04 /* kernel uses fpu */
+#define PCB_FPUINITDONE 0x08 /* fpu state is initialized */
+#define PCB_USERFPUINITDONE 0x10 /* fpu user state is initialized */
+#define PCB_KERNFPU_THR 0x20 /* fpu_kern_thread() */
+#define PCB_32BIT 0x40 /* process has 32 bit context (segs etc) */
+#define PCB_FPUNOSAVE 0x80 /* no save area for current FPU ctx */
 
-	uint16_t	pcb_initial_fpucw;
+	uint16_t pcb_initial_fpucw;
 
 	/* copyin/out fault recovery */
-	caddr_t		pcb_onfault;
+	caddr_t pcb_onfault;
 
-	uint64_t	pcb_saved_ucr3;
+	uint64_t pcb_saved_ucr3;
 
 	/* local tss, with i/o bitmap; NULL for common */
 	struct amd64tss *pcb_tssp;
 
 	/* model specific registers */
-	register_t	pcb_efer;
-	register_t	pcb_star;
-	register_t	pcb_lstar;
-	register_t	pcb_cstar;
-	register_t	pcb_sfmask;
+	register_t pcb_efer;
+	register_t pcb_star;
+	register_t pcb_lstar;
+	register_t pcb_cstar;
+	register_t pcb_sfmask;
 
-	struct savefpu	*pcb_save;
+	struct savefpu *pcb_save;
 
-	uint64_t	pcb_pad[5];
+	uint64_t pcb_pad[5];
 };
 
 /* Per-CPU state saved during suspend and resume. */
 struct susppcb {
-	struct pcb	sp_pcb;
+	struct pcb sp_pcb;
 
 	/* fpu context for suspend/resume */
-	void		*sp_fpususpend;
+	void *sp_fpususpend;
 };
-#else	/* 32bit */
+#else /* 32bit */
 struct pcb {
 	uint64_t pcb_dummy[40];
 };
@@ -126,15 +126,15 @@ struct pcb {
 #ifdef _KERNEL
 struct trapframe;
 
-void	clear_pcb_flags(struct pcb *pcb, const u_int flags);
-void	makectx(struct trapframe *, struct pcb *);
-void	set_pcb_flags(struct pcb *pcb, const u_int flags);
-void	set_pcb_flags_raw(struct pcb *pcb, const u_int flags);
-int	savectx(struct pcb *) __returns_twice;
-void	resumectx(struct pcb *);
+void clear_pcb_flags(struct pcb *pcb, const u_int flags);
+void makectx(struct trapframe *, struct pcb *);
+void set_pcb_flags(struct pcb *pcb, const u_int flags);
+void set_pcb_flags_raw(struct pcb *pcb, const u_int flags);
+int savectx(struct pcb *) __returns_twice;
+void resumectx(struct pcb *);
 
 /* Ensure that pcb_gsbase and pcb_fsbase are up to date */
-#define	update_pcb_bases(pcb)	set_pcb_flags((pcb), PCB_FULL_IRET)
+#define update_pcb_bases(pcb) set_pcb_flags((pcb), PCB_FULL_IRET)
 #endif
 
 #endif /* _AMD64_PCB_H_ */

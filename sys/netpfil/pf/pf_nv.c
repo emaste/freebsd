@@ -29,67 +29,64 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/limits.h>
-#include <sys/systm.h>
 
 #include <netpfil/pf/pf_nv.h>
 
-#define	PF_NV_IMPL_UINT(fnname, type, max)					\
-	int									\
-	pf_nv ## fnname(const nvlist_t *nvl, const char *name, type *val)	\
-	{									\
-		uint64_t raw;							\
-		if (! nvlist_exists_number(nvl, name))				\
-			return (EINVAL);					\
-		raw = nvlist_get_number(nvl, name);				\
-		if (raw > max)							\
-			return (ERANGE);					\
-		*val = (type)raw;						\
-		return (0);							\
-	}									\
-	int									\
-	pf_nv ## fnname ## _array(const nvlist_t *nvl, const char *name,	\
-	    type *array, size_t maxelems, size_t *nelems)			\
-	{									\
-		const uint64_t *n;						\
-		size_t nitems;							\
-		bzero(array, sizeof(type) * maxelems);				\
-		if (! nvlist_exists_number_array(nvl, name))			\
-			return (EINVAL);					\
-		n = nvlist_get_number_array(nvl, name, &nitems);		\
-		if (nitems != maxelems)						\
-			return (E2BIG);						\
-		if (nelems != NULL)						\
-			*nelems = nitems;					\
-		for (size_t i = 0; i < nitems; i++) {				\
-			if (n[i] > max)						\
-				return (ERANGE);				\
-			array[i] = (type)n[i];					\
-		}								\
-		return (0);							\
-	}									\
-	void									\
-	pf_ ## fnname ## _array_nv(nvlist_t *nvl, const char *name,		\
-	    const type *numbers, size_t count)					\
-	{									\
-		uint64_t tmp;							\
-		for (size_t i = 0; i < count; i++) {				\
-			tmp = numbers[i];					\
-			nvlist_append_number_array(nvl, name, tmp);		\
-		}								\
+#define PF_NV_IMPL_UINT(fnname, type, max)                                  \
+	int pf_nv##fnname(const nvlist_t *nvl, const char *name, type *val) \
+	{                                                                   \
+		uint64_t raw;                                               \
+		if (!nvlist_exists_number(nvl, name))                       \
+			return (EINVAL);                                    \
+		raw = nvlist_get_number(nvl, name);                         \
+		if (raw > max)                                              \
+			return (ERANGE);                                    \
+		*val = (type)raw;                                           \
+		return (0);                                                 \
+	}                                                                   \
+	int pf_nv##fnname##_array(const nvlist_t *nvl, const char *name,    \
+	    type *array, size_t maxelems, size_t *nelems)                   \
+	{                                                                   \
+		const uint64_t *n;                                          \
+		size_t nitems;                                              \
+		bzero(array, sizeof(type) * maxelems);                      \
+		if (!nvlist_exists_number_array(nvl, name))                 \
+			return (EINVAL);                                    \
+		n = nvlist_get_number_array(nvl, name, &nitems);            \
+		if (nitems != maxelems)                                     \
+			return (E2BIG);                                     \
+		if (nelems != NULL)                                         \
+			*nelems = nitems;                                   \
+		for (size_t i = 0; i < nitems; i++) {                       \
+			if (n[i] > max)                                     \
+				return (ERANGE);                            \
+			array[i] = (type)n[i];                              \
+		}                                                           \
+		return (0);                                                 \
+	}                                                                   \
+	void pf_##fnname##_array_nv(nvlist_t *nvl, const char *name,        \
+	    const type *numbers, size_t count)                              \
+	{                                                                   \
+		uint64_t tmp;                                               \
+		for (size_t i = 0; i < count; i++) {                        \
+			tmp = numbers[i];                                   \
+			nvlist_append_number_array(nvl, name, tmp);         \
+		}                                                           \
 	}
 
 int
-pf_nvbinary(const nvlist_t *nvl, const char *name, void *data,
-    size_t expected_size)
+pf_nvbinary(
+    const nvlist_t *nvl, const char *name, void *data, size_t expected_size)
 {
 	const uint8_t *nvdata;
 	size_t len;
 
 	bzero(data, expected_size);
 
-	if (! nvlist_exists_binary(nvl, name))
+	if (!nvlist_exists_binary(nvl, name))
 		return (EINVAL);
 
 	nvdata = (const uint8_t *)nvlist_get_binary(nvl, name, &len);
@@ -111,7 +108,7 @@ pf_nvint(const nvlist_t *nvl, const char *name, int *val)
 {
 	int64_t raw;
 
-	if (! nvlist_exists_number(nvl, name))
+	if (!nvlist_exists_number(nvl, name))
 		return (EINVAL);
 
 	raw = nvlist_get_number(nvl, name);
@@ -128,7 +125,7 @@ pf_nvstring(const nvlist_t *nvl, const char *name, char *str, size_t maxlen)
 {
 	int ret;
 
-	if (! nvlist_exists_string(nvl, name))
+	if (!nvlist_exists_string(nvl, name))
 		return (EINVAL);
 
 	ret = strlcpy(str, nvlist_get_string(nvl, name), maxlen);

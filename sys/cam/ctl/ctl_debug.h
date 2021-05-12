@@ -38,27 +38,27 @@
  * Author: Ken Merry <ken@FreeBSD.org>
  */
 
-#ifndef	_CTL_DEBUG_H_
-#define	_CTL_DEBUG_H_
+#ifndef _CTL_DEBUG_H_
+#define _CTL_DEBUG_H_
 
 /*
  * Debugging flags.
  */
 typedef enum {
-	CTL_DEBUG_NONE		= 0x00,	/* no debugging */
-	CTL_DEBUG_INFO		= 0x01,	/* SCSI errors */
-	CTL_DEBUG_CDB		= 0x02,	/* SCSI CDBs and tasks */
-	CTL_DEBUG_CDB_DATA	= 0x04	/* SCSI CDB DATA */
+	CTL_DEBUG_NONE = 0x00,	  /* no debugging */
+	CTL_DEBUG_INFO = 0x01,	  /* SCSI errors */
+	CTL_DEBUG_CDB = 0x02,	  /* SCSI CDBs and tasks */
+	CTL_DEBUG_CDB_DATA = 0x04 /* SCSI CDB DATA */
 } ctl_debug_flags;
 
-#ifdef	CAM_CTL_DEBUG
-#define	CTL_DEBUG_PRINT(X)		\
-	do {				\
-		printf("ctl_debug: ");	\
-		printf X;		\
+#ifdef CAM_CTL_DEBUG
+#define CTL_DEBUG_PRINT(X)             \
+	do {                           \
+		printf("ctl_debug: "); \
+		printf X;              \
 	} while (0)
 #else /* CAM_CTL_DEBUG */
-#define	CTL_DEBUG_PRINT(X)
+#define CTL_DEBUG_PRINT(X)
 #endif /* CAM_CTL_DEBUG */
 
-#endif	/* _CTL_DEBUG_H_ */
+#endif /* _CTL_DEBUG_H_ */

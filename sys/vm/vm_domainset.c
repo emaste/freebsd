@@ -36,18 +36,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bitset.h>
 #include <sys/domainset.h>
-#include <sys/proc.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_domainset.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 #include <vm/vm_phys.h>
 
 #ifdef NUMA
@@ -98,8 +98,8 @@ static void
 vm_domainset_iter_rr(struct vm_domainset_iter *di, int *domain)
 {
 
-	*domain = di->di_domain->ds_order[
-	    ++(*di->di_iter) % di->di_domain->ds_cnt];
+	*domain =
+	    di->di_domain->ds_order[++(*di->di_iter) % di->di_domain->ds_cnt];
 }
 
 static void
@@ -108,8 +108,8 @@ vm_domainset_iter_prefer(struct vm_domainset_iter *di, int *domain)
 	int d;
 
 	do {
-		d = di->di_domain->ds_order[
-		    ++(*di->di_iter) % di->di_domain->ds_cnt];
+		d = di->di_domain
+			->ds_order[++(*di->di_iter) % di->di_domain->ds_cnt];
 	} while (d == di->di_domain->ds_prefer);
 	*domain = d;
 }
@@ -128,8 +128,8 @@ static void
 vm_domainset_iter_next(struct vm_domainset_iter *di, int *domain)
 {
 
-	KASSERT(di->di_n > 0,
-	    ("vm_domainset_iter_first: Invalid n %d", di->di_n));
+	KASSERT(
+	    di->di_n > 0, ("vm_domainset_iter_first: Invalid n %d", di->di_n));
 	switch (di->di_policy) {
 	case DOMAINSET_POLICY_FIRSTTOUCH:
 		/*
@@ -189,8 +189,8 @@ vm_domainset_iter_first(struct vm_domainset_iter *di, int *domain)
 		panic("vm_domainset_iter_first: Unknown policy %d",
 		    di->di_policy);
 	}
-	KASSERT(di->di_n > 0,
-	    ("vm_domainset_iter_first: Invalid n %d", di->di_n));
+	KASSERT(
+	    di->di_n > 0, ("vm_domainset_iter_first: Invalid n %d", di->di_n));
 	KASSERT(*domain < vm_ndomains,
 	    ("vm_domainset_iter_first: Invalid domain %d", *domain));
 }
@@ -220,8 +220,8 @@ vm_domainset_iter_page_init(struct vm_domainset_iter *di, struct vm_object *obj,
 }
 
 int
-vm_domainset_iter_page(struct vm_domainset_iter *di, struct vm_object *obj,
-    int *domain)
+vm_domainset_iter_page(
+    struct vm_domainset_iter *di, struct vm_object *obj, int *domain)
 {
 
 	/* If there are more domains to visit we run the iterator. */
@@ -258,8 +258,8 @@ vm_domainset_iter_page(struct vm_domainset_iter *di, struct vm_object *obj,
 }
 
 static void
-_vm_domainset_iter_policy_init(struct vm_domainset_iter *di, int *domain,
-    int *flags)
+_vm_domainset_iter_policy_init(
+    struct vm_domainset_iter *di, int *domain, int *flags)
 {
 
 	di->di_flags = *flags;
@@ -270,8 +270,8 @@ _vm_domainset_iter_policy_init(struct vm_domainset_iter *di, int *domain,
 }
 
 void
-vm_domainset_iter_policy_init(struct vm_domainset_iter *di,
-    struct domainset *ds, int *domain, int *flags)
+vm_domainset_iter_policy_init(
+    struct vm_domainset_iter *di, struct domainset *ds, int *domain, int *flags)
 {
 
 	vm_domainset_iter_init(di, ds, &curthread->td_domain.dr_iter, NULL, 0);
@@ -321,8 +321,8 @@ vm_domainset_iter_policy(struct vm_domainset_iter *di, int *domain)
 #else /* !NUMA */
 
 int
-vm_domainset_iter_page(struct vm_domainset_iter *di, struct vm_object *obj,
-    int *domain)
+vm_domainset_iter_page(
+    struct vm_domainset_iter *di, struct vm_object *obj, int *domain)
 {
 
 	return (EJUSTRETURN);
@@ -344,8 +344,8 @@ vm_domainset_iter_policy(struct vm_domainset_iter *di, int *domain)
 }
 
 void
-vm_domainset_iter_policy_init(struct vm_domainset_iter *di,
-    struct domainset *ds, int *domain, int *flags)
+vm_domainset_iter_policy_init(
+    struct vm_domainset_iter *di, struct domainset *ds, int *domain, int *flags)
 {
 
 	*domain = 0;

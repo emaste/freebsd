@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_DEVMAP_H_
-#define	_SYS_DEVMAP_H_
+#ifndef _SYS_DEVMAP_H_
+#define _SYS_DEVMAP_H_
 
 #ifndef _KERNEL
 #error "no user-serviceable parts inside"
@@ -40,9 +40,9 @@
  * which are established as part of bringing up the MMU early in the boot.
  */
 struct devmap_entry {
-	vm_offset_t	pd_va;		/* virtual address */
-	vm_paddr_t	pd_pa;		/* physical address */
-	vm_size_t	pd_size;	/* size of region */
+	vm_offset_t pd_va; /* virtual address */
+	vm_paddr_t pd_pa;  /* physical address */
+	vm_size_t pd_size; /* size of region */
 };
 
 /*
@@ -67,7 +67,7 @@ void devmap_add_entry(vm_paddr_t pa, vm_size_t sz);
  * code that allocates and fills in its own local table but does not have its
  * own platform-specific init routine.
  */
-void devmap_register_table(const struct devmap_entry * _table);
+void devmap_register_table(const struct devmap_entry *_table);
 
 /*
  * Establish mappings for all the entries in the table.  This is called
@@ -76,8 +76,7 @@ void devmap_register_table(const struct devmap_entry * _table);
  * in older code.  If the table pointer is NULL, this will use the table
  * installed previously by devmap_register_table().
  */
-void devmap_bootstrap(vm_offset_t _l1pt,
-    const struct devmap_entry *_table);
+void devmap_bootstrap(vm_offset_t _l1pt, const struct devmap_entry *_table);
 
 /*
  * Translate between virtual and physical addresses within a region that is
@@ -88,10 +87,10 @@ void devmap_bootstrap(vm_offset_t _l1pt,
  * occupies the end of the physical address space, you're only prevented from
  * doing vtop for that single byte.  If you vtop a size bigger than 1 it works.
  */
-#define	DEVMAP_PADDR_NOTFOUND	((vm_paddr_t)(-1))
+#define DEVMAP_PADDR_NOTFOUND ((vm_paddr_t)(-1))
 
-void *     devmap_ptov(vm_paddr_t _pa, vm_size_t _sz);
-vm_paddr_t devmap_vtop(void * _va, vm_size_t _sz);
+void *devmap_ptov(vm_paddr_t _pa, vm_size_t _sz);
+vm_paddr_t devmap_vtop(void *_va, vm_size_t _sz);
 
 /* Print the static mapping table; used for bootverbose output. */
 void devmap_print_table(void);

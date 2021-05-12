@@ -40,27 +40,27 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/types.h>
-#include <sys/malloc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 
+#include <cam/ctl/ctl.h>
+#include <cam/ctl/ctl_backend.h>
+#include <cam/ctl/ctl_debug.h>
+#include <cam/ctl/ctl_frontend.h>
+#include <cam/ctl/ctl_ha.h>
+#include <cam/ctl/ctl_io.h>
+#include <cam/ctl/ctl_ioctl.h>
+#include <cam/ctl/ctl_private.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_da.h>
-#include <cam/ctl/ctl_io.h>
-#include <cam/ctl/ctl.h>
-#include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_backend.h>
-#include <cam/ctl/ctl_ioctl.h>
-#include <cam/ctl/ctl_ha.h>
-#include <cam/ctl/ctl_private.h>
-#include <cam/ctl/ctl_debug.h>
 
 extern struct ctl_softc *control_softc;
 
@@ -73,7 +73,7 @@ ctl_backend_register(struct ctl_backend_driver *be)
 
 	/* Sanity check, make sure this isn't a duplicate registration. */
 	mtx_lock(&softc->ctl_lock);
-	STAILQ_FOREACH(be_tmp, &softc->be_list, links) {
+	STAILQ_FOREACH (be_tmp, &softc->be_list, links) {
 		if (strcmp(be_tmp->name, be->name) == 0) {
 			mtx_unlock(&softc->ctl_lock);
 			return (-1);
@@ -87,8 +87,7 @@ ctl_backend_register(struct ctl_backend_driver *be)
 	/* Call the backend's initialization routine. */
 	if (be->init != NULL) {
 		if ((error = be->init()) != 0) {
-			printf("%s backend init error: %d\n",
-			    be->name, error);
+			printf("%s backend init error: %d\n", be->name, error);
 			return (error);
 		}
 	}
@@ -109,8 +108,8 @@ ctl_backend_deregister(struct ctl_backend_driver *be)
 	/* Call the backend's shutdown routine. */
 	if (be->shutdown != NULL) {
 		if ((error = be->shutdown()) != 0) {
-			printf("%s backend shutdown error: %d\n",
-			    be->name, error);
+			printf(
+			    "%s backend shutdown error: %d\n", be->name, error);
 			return (error);
 		}
 	}
@@ -129,7 +128,7 @@ ctl_backend_find(char *backend_name)
 	struct ctl_backend_driver *be_tmp;
 
 	mtx_lock(&softc->ctl_lock);
-	STAILQ_FOREACH(be_tmp, &softc->be_list, links) {
+	STAILQ_FOREACH (be_tmp, &softc->be_list, links) {
 		if (strcmp(be_tmp->name, backend_name) == 0) {
 			mtx_unlock(&softc->ctl_lock);
 			return (be_tmp);

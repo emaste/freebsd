@@ -27,14 +27,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/bus.h>
+#include <sys/interrupt.h>
+#include <sys/priority.h>
+
 #include <linux/compat.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
-
-#include <sys/bus.h>
-#include <sys/interrupt.h>
-#include <sys/priority.h>
 
 enum {
 	KTHREAD_SHOULD_STOP_MASK = (1 << 0),
@@ -53,7 +53,8 @@ bool
 linux_kthread_should_stop(void)
 {
 
-	return (atomic_read(&current->kthread_flags) & KTHREAD_SHOULD_STOP_MASK);
+	return (
+	    atomic_read(&current->kthread_flags) & KTHREAD_SHOULD_STOP_MASK);
 }
 
 int
@@ -97,8 +98,9 @@ linux_kthread_parkme(void)
 	task = current;
 	set_task_state(task, TASK_PARKED | TASK_UNINTERRUPTIBLE);
 	while (linux_kthread_should_park()) {
-		while ((atomic_fetch_or(KTHREAD_IS_PARKED_MASK,
-		    &task->kthread_flags) & KTHREAD_IS_PARKED_MASK) == 0)
+		while ((atomic_fetch_or(
+			    KTHREAD_IS_PARKED_MASK, &task->kthread_flags) &
+			   KTHREAD_IS_PARKED_MASK) == 0)
 			complete(&task->parked);
 		schedule();
 		set_task_state(task, TASK_PARKED | TASK_UNINTERRUPTIBLE);
@@ -122,12 +124,13 @@ linux_kthread_unpark(struct task_struct *task)
 
 	atomic_andnot(KTHREAD_SHOULD_PARK_MASK, &task->kthread_flags);
 	if ((atomic_fetch_andnot(KTHREAD_IS_PARKED_MASK, &task->kthread_flags) &
-	    KTHREAD_IS_PARKED_MASK) != 0)
+		KTHREAD_IS_PARKED_MASK) != 0)
 		wake_up_state(task, TASK_PARKED);
 }
 
 struct task_struct *
-linux_kthread_setup_and_run(struct thread *td, linux_task_fn_t *task_fn, void *arg)
+linux_kthread_setup_and_run(
+    struct thread *td, linux_task_fn_t *task_fn, void *arg)
 {
 	struct task_struct *task;
 

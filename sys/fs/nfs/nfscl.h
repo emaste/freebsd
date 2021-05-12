@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_NFS_NFSCL_H
-#define	_NFS_NFSCL_H
+#ifndef _NFS_NFSCL_H
+#define _NFS_NFSCL_H
 
 /*
  * Extra stuff for a NFSv4 nfsnode.
@@ -39,51 +39,53 @@
  * name.
  */
 struct nfsv4node {
-	u_int16_t	n4_fhlen;
-	u_int16_t	n4_namelen;
-	u_int8_t	n4_data[1];
+	u_int16_t n4_fhlen;
+	u_int16_t n4_namelen;
+	u_int8_t n4_data[1];
 };
 
-#define	NFS4NODENAME(n)	(&((n)->n4_data[(n)->n4_fhlen]))
+#define NFS4NODENAME(n) (&((n)->n4_data[(n)->n4_fhlen]))
 
 /*
  * Just a macro to convert the nfscl_reqstart arguments.
  */
-#define	NFSCL_REQSTART(n, p, v) 					\
-	nfscl_reqstart((n), (p), VFSTONFS((v)->v_mount), 		\
-	    VTONFS(v)->n_fhp->nfh_fh, VTONFS(v)->n_fhp->nfh_len, NULL,	\
-	    NULL, 0, 0)
+#define NFSCL_REQSTART(n, p, v)                                              \
+	nfscl_reqstart((n), (p), VFSTONFS((v)->v_mount),                     \
+	    VTONFS(v)->n_fhp->nfh_fh, VTONFS(v)->n_fhp->nfh_len, NULL, NULL, \
+	    0, 0)
 
 /*
  * These two macros convert between a lease duration and renew interval.
  * For now, just make the renew interval 1/2 the lease duration.
  * (They should be inverse operators.)
  */
-#define	NFSCL_RENEW(l)	(((l) < 2) ? 1 : ((l) / 2))
-#define	NFSCL_LEASE(r)	((r) * 2)
+#define NFSCL_RENEW(l) (((l) < 2) ? 1 : ((l) / 2))
+#define NFSCL_LEASE(r) ((r)*2)
 
 /* This macro checks to see if a forced dismount is about to occur. */
-#define	NFSCL_FORCEDISM(m)	(((m)->mnt_kern_flag & MNTK_UNMOUNTF) != 0 || \
-    (VFSTONFS(m)->nm_privflag & NFSMNTP_FORCEDISM) != 0)
+#define NFSCL_FORCEDISM(m)                            \
+	(((m)->mnt_kern_flag & MNTK_UNMOUNTF) != 0 || \
+	    (VFSTONFS(m)->nm_privflag & NFSMNTP_FORCEDISM) != 0)
 
 /*
  * These flag bits are used for the argument to nfscl_fillsattr() to
  * indicate special handling of the attributes.
  */
-#define	NFSSATTR_FULL		0x1
-#define	NFSSATTR_SIZE0		0x2
-#define	NFSSATTR_SIZENEG1	0x4
-#define	NFSSATTR_SIZERDEV	0x8
+#define NFSSATTR_FULL 0x1
+#define NFSSATTR_SIZE0 0x2
+#define NFSSATTR_SIZENEG1 0x4
+#define NFSSATTR_SIZERDEV 0x8
 
 /* Use this macro for debug printfs. */
-#define	NFSCL_DEBUG(level, ...)	do {					\
-		if (nfscl_debuglevel >= (level))			\
-			printf(__VA_ARGS__);				\
+#define NFSCL_DEBUG(level, ...)                  \
+	do {                                     \
+		if (nfscl_debuglevel >= (level)) \
+			printf(__VA_ARGS__);     \
 	} while (0)
 
 struct nfscl_reconarg {
-	int	minorvers;
-	uint8_t	sessionid[NFSX_V4SESSIONID];
+	int minorvers;
+	uint8_t sessionid[NFSX_V4SESSIONID];
 };
 
-#endif	/* _NFS_NFSCL_H */
+#endif /* _NFS_NFSCL_H */

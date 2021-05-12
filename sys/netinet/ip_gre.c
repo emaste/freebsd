@@ -41,25 +41,24 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
-#include <sys/jail.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
+#include <sys/jail.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
-#include <sys/mbuf.h>
-#include <sys/errno.h>
-#include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
-#include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_encap.h>
 #include <netinet/ip_var.h>
@@ -70,33 +69,36 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #endif
 
-#include <net/if_gre.h>
 #include <machine/in_cksum.h>
 
-#define	GRE_TTL			30
+#include <net/if_gre.h>
+
+#define GRE_TTL 30
 VNET_DEFINE(int, ip_gre_ttl) = GRE_TTL;
-#define	V_ip_gre_ttl		VNET(ip_gre_ttl)
+#define V_ip_gre_ttl VNET(ip_gre_ttl)
 SYSCTL_INT(_net_inet_ip, OID_AUTO, grettl, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_gre_ttl), 0, "Default TTL value for encapsulated packets");
 
 struct in_gre_socket {
-	struct gre_socket		base;
-	in_addr_t			addr;
+	struct gre_socket base;
+	in_addr_t addr;
 };
 VNET_DEFINE_STATIC(struct gre_sockets *, ipv4_sockets) = NULL;
 VNET_DEFINE_STATIC(struct gre_list *, ipv4_hashtbl) = NULL;
 VNET_DEFINE_STATIC(struct gre_list *, ipv4_srchashtbl) = NULL;
-#define	V_ipv4_sockets		VNET(ipv4_sockets)
-#define	V_ipv4_hashtbl		VNET(ipv4_hashtbl)
-#define	V_ipv4_srchashtbl	VNET(ipv4_srchashtbl)
-#define	GRE_HASH(src, dst)	(V_ipv4_hashtbl[\
-    in_gre_hashval((src), (dst)) & (GRE_HASH_SIZE - 1)])
-#define	GRE_SRCHASH(src)	(V_ipv4_srchashtbl[\
-    fnv_32_buf(&(src), sizeof(src), FNV1_32_INIT) & (GRE_HASH_SIZE - 1)])
-#define	GRE_SOCKHASH(src)	(V_ipv4_sockets[\
-    fnv_32_buf(&(src), sizeof(src), FNV1_32_INIT) & (GRE_HASH_SIZE - 1)])
-#define	GRE_HASH_SC(sc)		GRE_HASH((sc)->gre_oip.ip_src.s_addr,\
-    (sc)->gre_oip.ip_dst.s_addr)
+#define V_ipv4_sockets VNET(ipv4_sockets)
+#define V_ipv4_hashtbl VNET(ipv4_hashtbl)
+#define V_ipv4_srchashtbl VNET(ipv4_srchashtbl)
+#define GRE_HASH(src, dst) \
+	(V_ipv4_hashtbl[in_gre_hashval((src), (dst)) & (GRE_HASH_SIZE - 1)])
+#define GRE_SRCHASH(src)                                                   \
+	(V_ipv4_srchashtbl[fnv_32_buf(&(src), sizeof(src), FNV1_32_INIT) & \
+	    (GRE_HASH_SIZE - 1)])
+#define GRE_SOCKHASH(src)                                               \
+	(V_ipv4_sockets[fnv_32_buf(&(src), sizeof(src), FNV1_32_INIT) & \
+	    (GRE_HASH_SIZE - 1)])
+#define GRE_HASH_SC(sc) \
+	GRE_HASH((sc)->gre_oip.ip_src.s_addr, (sc)->gre_oip.ip_dst.s_addr)
 
 static uint32_t
 in_gre_hashval(in_addr_t src, in_addr_t dst)
@@ -107,13 +109,14 @@ in_gre_hashval(in_addr_t src, in_addr_t dst)
 	return (fnv_32_buf(&dst, sizeof(dst), ret));
 }
 
-static struct gre_socket*
+static struct gre_socket *
 in_gre_lookup_socket(in_addr_t addr)
 {
 	struct gre_socket *gs;
 	struct in_gre_socket *s;
 
-	CK_LIST_FOREACH(gs, &GRE_SOCKHASH(addr), chain) {
+	CK_LIST_FOREACH(gs, &GRE_SOCKHASH(addr), chain)
+	{
 		s = __containerof(gs, struct in_gre_socket, base);
 		if (s->addr == addr)
 			break;
@@ -122,15 +125,14 @@ in_gre_lookup_socket(in_addr_t addr)
 }
 
 static int
-in_gre_checkdup(const struct gre_softc *sc, in_addr_t src, in_addr_t dst,
-    uint32_t opts)
+in_gre_checkdup(
+    const struct gre_softc *sc, in_addr_t src, in_addr_t dst, uint32_t opts)
 {
 	struct gre_list *head;
 	struct gre_softc *tmp;
 	struct gre_socket *gs;
 
-	if (sc->gre_family == AF_INET &&
-	    sc->gre_oip.ip_src.s_addr == src &&
+	if (sc->gre_family == AF_INET && sc->gre_oip.ip_src.s_addr == src &&
 	    sc->gre_oip.ip_dst.s_addr == dst &&
 	    (sc->gre_options & GRE_UDPENCAP) == (opts & GRE_UDPENCAP))
 		return (EEXIST);
@@ -143,7 +145,8 @@ in_gre_checkdup(const struct gre_softc *sc, in_addr_t src, in_addr_t dst,
 	} else
 		head = &GRE_HASH(src, dst);
 
-	CK_LIST_FOREACH(tmp, head, chain) {
+	CK_LIST_FOREACH(tmp, head, chain)
+	{
 		if (tmp == sc)
 			continue;
 		if (tmp->gre_oip.ip_src.s_addr == src &&
@@ -164,8 +167,9 @@ in_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
 
 	NET_EPOCH_ASSERT();
 	ip = mtod(m, const struct ip *);
-	CK_LIST_FOREACH(sc, &GRE_HASH(ip->ip_dst.s_addr,
-	    ip->ip_src.s_addr), chain) {
+	CK_LIST_FOREACH(
+	    sc, &GRE_HASH(ip->ip_dst.s_addr, ip->ip_src.s_addr), chain)
+	{
 		/*
 		 * This is an inbound packet, its ip_dst is source address
 		 * in softc.
@@ -200,8 +204,8 @@ in_gre_set_running(struct gre_softc *sc)
  * source address spoofing.
  */
 static void
-in_gre_srcaddr(void *arg __unused, const struct sockaddr *sa,
-    int event __unused)
+in_gre_srcaddr(
+    void *arg __unused, const struct sockaddr *sa, int event __unused)
 {
 	const struct sockaddr_in *sin;
 	struct gre_softc *sc;
@@ -212,7 +216,8 @@ in_gre_srcaddr(void *arg __unused, const struct sockaddr *sa,
 
 	NET_EPOCH_ASSERT();
 	sin = (const struct sockaddr_in *)sa;
-	CK_LIST_FOREACH(sc, &GRE_SRCHASH(sin->sin_addr.s_addr), srchash) {
+	CK_LIST_FOREACH(sc, &GRE_SRCHASH(sin->sin_addr.s_addr), srchash)
+	{
 		if (sc->gre_oip.ip_src.s_addr != sin->sin_addr.s_addr)
 			continue;
 		in_gre_set_running(sc);
@@ -245,11 +250,12 @@ in_gre_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 
 	gs = (struct gre_socket *)ctx;
 	dst = ((const struct sockaddr_in *)sa)->sin_addr.s_addr;
-	CK_LIST_FOREACH(sc, &gs->list, chain) {
+	CK_LIST_FOREACH(sc, &gs->list, chain)
+	{
 		if (sc->gre_oip.ip_dst.s_addr == dst)
 			break;
 	}
-	if (sc != NULL && (GRE2IFP(sc)->if_flags & IFF_UP) != 0){
+	if (sc != NULL && (GRE2IFP(sc)->if_flags & IFF_UP) != 0) {
 		gre_input(m, off + sizeof(struct udphdr), IPPROTO_UDP, sc);
 		NET_EPOCH_EXIT(et);
 		return;
@@ -301,9 +307,8 @@ in_gre_setup_socket(struct gre_softc *sc)
 			s->addr = addr;
 			gs = &s->base;
 
-			error = socreate(sc->gre_family, &gs->so,
-			    SOCK_DGRAM, IPPROTO_UDP, curthread->td_ucred,
-			    curthread);
+			error = socreate(sc->gre_family, &gs->so, SOCK_DGRAM,
+			    IPPROTO_UDP, curthread->td_ucred, curthread);
 			if (error != 0) {
 				if_printf(GRE2IFP(sc),
 				    "cannot create socket: %d\n", error);
@@ -311,8 +316,8 @@ in_gre_setup_socket(struct gre_softc *sc)
 				return (error);
 			}
 
-			error = udp_set_kernel_tunneling(gs->so,
-			    in_gre_udp_input, NULL, gs);
+			error = udp_set_kernel_tunneling(
+			    gs->so, in_gre_udp_input, NULL, gs);
 			if (error != 0) {
 				if_printf(GRE2IFP(sc),
 				    "cannot set UDP tunneling: %d\n", error);
@@ -338,8 +343,8 @@ in_gre_setup_socket(struct gre_softc *sc)
 			sin.sin_len = sizeof(sin);
 			sin.sin_addr.s_addr = addr;
 			sin.sin_port = htons(GRE_UDPPORT);
-			error = sobind(gs->so, (struct sockaddr *)&sin,
-			    curthread);
+			error = sobind(
+			    gs->so, (struct sockaddr *)&sin, curthread);
 			if (error != 0) {
 				if_printf(GRE2IFP(sc),
 				    "cannot bind socket: %d\n", error);
@@ -373,7 +378,7 @@ in_gre_attach(struct gre_softc *sc)
 		gh = &sc->gre_udphdr->gi_gre;
 		gre_update_udphdr(sc, &sc->gre_udp,
 		    in_pseudo(sc->gre_oip.ip_src.s_addr,
-		    sc->gre_oip.ip_dst.s_addr, 0));
+			sc->gre_oip.ip_dst.s_addr, 0));
 	} else {
 		sc->gre_hlen = sizeof(struct greip);
 		sc->gre_oip.ip_p = IPPROTO_GRE;
@@ -393,8 +398,8 @@ in_gre_attach(struct gre_softc *sc)
 			return (error);
 	} else
 		CK_LIST_INSERT_HEAD(&GRE_HASH_SC(sc), sc, chain);
-	CK_LIST_INSERT_HEAD(&GRE_SRCHASH(sc->gre_oip.ip_src.s_addr),
-	    sc, srchash);
+	CK_LIST_INSERT_HEAD(
+	    &GRE_SRCHASH(sc->gre_oip.ip_src.s_addr), sc, srchash);
 
 	/* Set IFF_DRV_RUNNING if interface is ready */
 	in_gre_set_running(sc);
@@ -483,8 +488,8 @@ in_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
 			error = 0;
 			break;
 		}
-		ip = malloc(sizeof(struct greudp) + 3 * sizeof(uint32_t),
-		    M_GRE, M_WAITOK | M_ZERO);
+		ip = malloc(sizeof(struct greudp) + 3 * sizeof(uint32_t), M_GRE,
+		    M_WAITOK | M_ZERO);
 		ip->ip_src.s_addr = src->sin_addr.s_addr;
 		ip->ip_dst.s_addr = dst->sin_addr.s_addr;
 		if (sc->gre_family != 0) {
@@ -515,8 +520,8 @@ in_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
 		memset(src, 0, sizeof(*src));
 		src->sin_family = AF_INET;
 		src->sin_len = sizeof(*src);
-		src->sin_addr = (cmd == SIOCGIFPSRCADDR) ?
-		    sc->gre_oip.ip_src: sc->gre_oip.ip_dst;
+		src->sin_addr = (cmd == SIOCGIFPSRCADDR) ? sc->gre_oip.ip_src :
+								 sc->gre_oip.ip_dst;
 		error = prison_if(curthread->td_ucred, (struct sockaddr *)src);
 		if (error != 0)
 			memset(src, 0, sizeof(*src));
@@ -557,13 +562,11 @@ in_gre_output(struct mbuf *m, int af, int hlen)
 
 static const struct srcaddrtab *ipv4_srcaddrtab = NULL;
 static const struct encaptab *ecookie = NULL;
-static const struct encap_config ipv4_encap_cfg = {
-	.proto = IPPROTO_GRE,
+static const struct encap_config ipv4_encap_cfg = { .proto = IPPROTO_GRE,
 	.min_length = sizeof(struct greip) + sizeof(struct ip),
 	.exact_match = ENCAP_DRV_LOOKUP,
 	.lookup = in_gre_lookup,
-	.input = gre_input
-};
+	.input = gre_input };
 
 void
 in_gre_init(void)
@@ -571,8 +574,8 @@ in_gre_init(void)
 
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
-	ipv4_srcaddrtab = ip_encap_register_srcaddr(in_gre_srcaddr,
-	    NULL, M_WAITOK);
+	ipv4_srcaddrtab = ip_encap_register_srcaddr(
+	    in_gre_srcaddr, NULL, M_WAITOK);
 	ecookie = ip_encap_attach(&ipv4_encap_cfg, NULL, M_WAITOK);
 }
 

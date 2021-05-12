@@ -31,79 +31,79 @@
 #define _NET80211_IEEE80211_RATECTL_H_
 
 enum ieee80211_ratealgs {
-	IEEE80211_RATECTL_AMRR		= 0,
-	IEEE80211_RATECTL_RSSADAPT	= 1,
-	IEEE80211_RATECTL_ONOE		= 2,
-	IEEE80211_RATECTL_SAMPLE	= 3,
-	IEEE80211_RATECTL_NONE		= 4,
+	IEEE80211_RATECTL_AMRR = 0,
+	IEEE80211_RATECTL_RSSADAPT = 1,
+	IEEE80211_RATECTL_ONOE = 2,
+	IEEE80211_RATECTL_SAMPLE = 3,
+	IEEE80211_RATECTL_NONE = 4,
 	IEEE80211_RATECTL_MAX
 };
 
 /* used fields for tx_complete() events */
-#define IEEE80211_RATECTL_STATUS_PKTLEN		0x00000001
-#define IEEE80211_RATECTL_STATUS_FINAL_RATE	0x00000002
-#define IEEE80211_RATECTL_STATUS_SHORT_RETRY	0x00000004
-#define IEEE80211_RATECTL_STATUS_LONG_RETRY	0x00000008
-#define IEEE80211_RATECTL_STATUS_RSSI		0x00000010
+#define IEEE80211_RATECTL_STATUS_PKTLEN 0x00000001
+#define IEEE80211_RATECTL_STATUS_FINAL_RATE 0x00000002
+#define IEEE80211_RATECTL_STATUS_SHORT_RETRY 0x00000004
+#define IEEE80211_RATECTL_STATUS_LONG_RETRY 0x00000008
+#define IEEE80211_RATECTL_STATUS_RSSI 0x00000010
 
 /* failure reason */
 enum ieee80211_ratectl_tx_fail_reason {
-	IEEE80211_RATECTL_TX_SUCCESS		= 0,
-	IEEE80211_RATECTL_TX_FAIL_SHORT		= 1,	/* too many RTS retries */
-	IEEE80211_RATECTL_TX_FAIL_LONG		= 2,	/* too many retries */
-	IEEE80211_RATECTL_TX_FAIL_EXPIRED	= 3,	/* lifetime expired */
-	IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED	= 4,	/* another reason */
+	IEEE80211_RATECTL_TX_SUCCESS = 0,
+	IEEE80211_RATECTL_TX_FAIL_SHORT = 1,	   /* too many RTS retries */
+	IEEE80211_RATECTL_TX_FAIL_LONG = 2,	   /* too many retries */
+	IEEE80211_RATECTL_TX_FAIL_EXPIRED = 3,	   /* lifetime expired */
+	IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED = 4, /* another reason */
 };
-#define IEEE80211_RATECTL_TX_FAIL_MAX	\
+#define IEEE80211_RATECTL_TX_FAIL_MAX \
 	(IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED + 1)
 
 struct ieee80211_ratectl_tx_status {
-	uint32_t	flags;		/* mark used fields */
-	enum ieee80211_ratectl_tx_fail_reason status;	/* Tx status */
+	uint32_t flags;				      /* mark used fields */
+	enum ieee80211_ratectl_tx_fail_reason status; /* Tx status */
 
-	int		pktlen;		/* frame length */
-	int		final_rate;	/* transmission rate */
-	uint_fast8_t	short_retries;	/* RTS/CTS retries */
-	uint_fast8_t	long_retries;	/* ACK retries */
-	int8_t		rssi;		/* ACK RSSI */
+	int pktlen;		    /* frame length */
+	int final_rate;		    /* transmission rate */
+	uint_fast8_t short_retries; /* RTS/CTS retries */
+	uint_fast8_t long_retries;  /* ACK retries */
+	int8_t rssi;		    /* ACK RSSI */
 
-	uint8_t		spare[15];	/* for future use */
+	uint8_t spare[15]; /* for future use */
 };
 
 /* used fields for tx_update() events */
-#define IEEE80211_RATECTL_TX_STATS_NODE		0x00000001
-#define IEEE80211_RATECTL_TX_STATS_RETRIES	0x00000002
+#define IEEE80211_RATECTL_TX_STATS_NODE 0x00000001
+#define IEEE80211_RATECTL_TX_STATS_RETRIES 0x00000002
 
 struct ieee80211_ratectl_tx_stats {
-	uint32_t	flags;		/* mark used fields */
+	uint32_t flags; /* mark used fields */
 
-	struct ieee80211_node *ni;	/* receiver */
-	int		nframes;	/* transmitted frames */
-	int		nsuccess;	/* ACKed frames */
-	int		nretries;	/* number of retries */
+	struct ieee80211_node *ni; /* receiver */
+	int nframes;		   /* transmitted frames */
+	int nsuccess;		   /* ACKed frames */
+	int nretries;		   /* number of retries */
 };
 
 struct ieee80211_ratectl {
 	const char *ir_name;
-	int	(*ir_attach)(const struct ieee80211vap *);
-	void	(*ir_detach)(const struct ieee80211vap *);
-	void	(*ir_init)(struct ieee80211vap *);
-	void	(*ir_deinit)(struct ieee80211vap *);
-	void	(*ir_node_init)(struct ieee80211_node *);
-	void	(*ir_node_deinit)(struct ieee80211_node *);
-	int	(*ir_rate)(struct ieee80211_node *, void *, uint32_t);
-	void	(*ir_tx_complete)(const struct ieee80211_node *,
-	    			  const struct ieee80211_ratectl_tx_status *);
-	void	(*ir_tx_update)(struct ieee80211vap *,
-				struct ieee80211_ratectl_tx_stats *);
-	void	(*ir_setinterval)(const struct ieee80211vap *, int);
-	void	(*ir_node_stats)(struct ieee80211_node *ni, struct sbuf *s);
+	int (*ir_attach)(const struct ieee80211vap *);
+	void (*ir_detach)(const struct ieee80211vap *);
+	void (*ir_init)(struct ieee80211vap *);
+	void (*ir_deinit)(struct ieee80211vap *);
+	void (*ir_node_init)(struct ieee80211_node *);
+	void (*ir_node_deinit)(struct ieee80211_node *);
+	int (*ir_rate)(struct ieee80211_node *, void *, uint32_t);
+	void (*ir_tx_complete)(const struct ieee80211_node *,
+	    const struct ieee80211_ratectl_tx_status *);
+	void (*ir_tx_update)(
+	    struct ieee80211vap *, struct ieee80211_ratectl_tx_stats *);
+	void (*ir_setinterval)(const struct ieee80211vap *, int);
+	void (*ir_node_stats)(struct ieee80211_node *ni, struct sbuf *s);
 };
 
-void	ieee80211_ratectl_register(int, const struct ieee80211_ratectl *);
-void	ieee80211_ratectl_unregister(int);
-void	ieee80211_ratectl_init(struct ieee80211vap *);
-void	ieee80211_ratectl_set(struct ieee80211vap *, int);
+void ieee80211_ratectl_register(int, const struct ieee80211_ratectl *);
+void ieee80211_ratectl_unregister(int);
+void ieee80211_ratectl_init(struct ieee80211vap *);
+void ieee80211_ratectl_set(struct ieee80211vap *, int);
 
 MALLOC_DECLARE(M_80211_RATECTL);
 
@@ -129,8 +129,8 @@ ieee80211_ratectl_node_deinit(struct ieee80211_node *ni)
 	vap->iv_rate->ir_node_deinit(ni);
 }
 
-static int __inline
-ieee80211_ratectl_rate(struct ieee80211_node *ni, void *arg, uint32_t iarg)
+static int __inline ieee80211_ratectl_rate(
+    struct ieee80211_node *ni, void *arg, uint32_t iarg)
 {
 	const struct ieee80211vap *vap = ni->ni_vap;
 
@@ -147,8 +147,8 @@ ieee80211_ratectl_tx_complete(const struct ieee80211_node *ni,
 }
 
 static __inline void
-ieee80211_ratectl_tx_update(struct ieee80211vap *vap,
-    struct ieee80211_ratectl_tx_stats *stats)
+ieee80211_ratectl_tx_update(
+    struct ieee80211vap *vap, struct ieee80211_ratectl_tx_stats *stats)
 {
 	if (vap->iv_rate->ir_tx_update == NULL)
 		return;
@@ -173,4 +173,4 @@ ieee80211_ratectl_node_stats(struct ieee80211_node *ni, struct sbuf *s)
 	vap->iv_rate->ir_node_stats(ni, s);
 }
 
-#endif	/* _NET80211_IEEE80211_RATECTL_H_ */
+#endif /* _NET80211_IEEE80211_RATECTL_H_ */

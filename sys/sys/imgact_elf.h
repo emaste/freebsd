@@ -31,20 +31,32 @@
  */
 
 #ifndef _SYS_IMGACT_ELF_H_
-#define	_SYS_IMGACT_ELF_H_
+#define _SYS_IMGACT_ELF_H_
 
 #include <machine/elf.h>
 
 #ifdef _KERNEL
 
-#define	AUXARGS_ENTRY(pos, id, val) \
-    {(pos)->a_type = (id); (pos)->a_un.a_val = (val); (pos)++;}
+#define AUXARGS_ENTRY(pos, id, val)        \
+	{                                  \
+		(pos)->a_type = (id);      \
+		(pos)->a_un.a_val = (val); \
+		(pos)++;                   \
+	}
 #if (defined(__LP64__) && __ELF_WORD_SIZE == 32)
-#define	AUXARGS_ENTRY_PTR(pos, id, ptr) \
-    {(pos)->a_type = (id); (pos)->a_un.a_val = (uintptr_t)(ptr); (pos)++;}
+#define AUXARGS_ENTRY_PTR(pos, id, ptr)               \
+	{                                             \
+		(pos)->a_type = (id);                 \
+		(pos)->a_un.a_val = (uintptr_t)(ptr); \
+		(pos)++;                              \
+	}
 #else
-#define	AUXARGS_ENTRY_PTR(pos, id, ptr) \
-    {(pos)->a_type = (id); (pos)->a_un.a_ptr = (ptr); (pos)++;}
+#define AUXARGS_ENTRY_PTR(pos, id, ptr)    \
+	{                                  \
+		(pos)->a_type = (id);      \
+		(pos)->a_un.a_ptr = (ptr); \
+		(pos)++;                   \
+	}
 #endif
 
 struct image_params;
@@ -56,61 +68,61 @@ struct vnode;
  * stack fixup routine.
  */
 typedef struct {
-	Elf_Ssize	execfd;
-	Elf_Size	phdr;
-	Elf_Size	phent;
-	Elf_Size	phnum;
-	Elf_Size	pagesz;
-	Elf_Size	base;
-	Elf_Size	flags;
-	Elf_Size	entry;
-	Elf_Word	hdr_eflags;		/* e_flags field from ehdr */
+	Elf_Ssize execfd;
+	Elf_Size phdr;
+	Elf_Size phent;
+	Elf_Size phnum;
+	Elf_Size pagesz;
+	Elf_Size base;
+	Elf_Size flags;
+	Elf_Size entry;
+	Elf_Word hdr_eflags; /* e_flags field from ehdr */
 } __ElfN(Auxargs);
 
 typedef struct {
-	Elf_Note	hdr;
-	const char *	vendor;
-	int		flags;
-	bool		(*trans_osrel)(const Elf_Note *, int32_t *);
-#define	BN_CAN_FETCH_OSREL	0x0001	/* Deprecated. */
-#define	BN_TRANSLATE_OSREL	0x0002	/* Use trans_osrel to fetch osrel */
-		/* after checking the image ABI specification, if needed. */
+	Elf_Note hdr;
+	const char *vendor;
+	int flags;
+	bool (*trans_osrel)(const Elf_Note *, int32_t *);
+#define BN_CAN_FETCH_OSREL 0x0001 /* Deprecated. */
+#define BN_TRANSLATE_OSREL 0x0002 /* Use trans_osrel to fetch osrel */
+	/* after checking the image ABI specification, if needed. */
 } Elf_Brandnote;
 
 typedef struct {
 	int brand;
 	int machine;
-	const char *compat_3_brand;	/* pre Binutils 2.10 method (FBSD 3) */
+	const char *compat_3_brand; /* pre Binutils 2.10 method (FBSD 3) */
 	const char *emul_path;
 	const char *interp_path;
 	struct sysentvec *sysvec;
 	const char *interp_newpath;
 	int flags;
 	Elf_Brandnote *brand_note;
-	boolean_t	(*header_supported)(struct image_params *,
-	    int32_t *, uint32_t *);
-#define	BI_CAN_EXEC_DYN		0x0001
-#define	BI_BRAND_NOTE		0x0002	/* May have note.ABI-tag section. */
-#define	BI_BRAND_NOTE_MANDATORY	0x0004	/* Must have note.ABI-tag section. */
-#define	BI_BRAND_ONLY_STATIC	0x0008	/* Match only interp-less binaries. */
+	boolean_t (*header_supported)(
+	    struct image_params *, int32_t *, uint32_t *);
+#define BI_CAN_EXEC_DYN 0x0001
+#define BI_BRAND_NOTE 0x0002 /* May have note.ABI-tag section. */
+#define BI_BRAND_NOTE_MANDATORY 0x0004 /* Must have note.ABI-tag section. */
+#define BI_BRAND_ONLY_STATIC 0x0008 /* Match only interp-less binaries. */
 } __ElfN(Brandinfo);
 
 __ElfType(Auxargs);
 __ElfType(Brandinfo);
 
-#define	MAX_BRANDS	8
+#define MAX_BRANDS 8
 
-int	__elfN(brand_inuse)(Elf_Brandinfo *entry);
-int	__elfN(insert_brand_entry)(Elf_Brandinfo *entry);
-int	__elfN(remove_brand_entry)(Elf_Brandinfo *entry);
-int	__elfN(freebsd_fixup)(uintptr_t *, struct image_params *);
-int	__elfN(coredump)(struct thread *, struct vnode *, off_t, int);
-size_t	__elfN(populate_note)(int, void *, void *, size_t, void **);
-void	__elfN(stackgap)(struct image_params *, uintptr_t *);
-int	__elfN(freebsd_copyout_auxargs)(struct image_params *, uintptr_t);
+int __elfN(brand_inuse)(Elf_Brandinfo *entry);
+int __elfN(insert_brand_entry)(Elf_Brandinfo *entry);
+int __elfN(remove_brand_entry)(Elf_Brandinfo *entry);
+int __elfN(freebsd_fixup)(uintptr_t *, struct image_params *);
+int __elfN(coredump)(struct thread *, struct vnode *, off_t, int);
+size_t __elfN(populate_note)(int, void *, void *, size_t, void **);
+void __elfN(stackgap)(struct image_params *, uintptr_t *);
+int __elfN(freebsd_copyout_auxargs)(struct image_params *, uintptr_t);
 
 /* Machine specific function to dump per-thread information. */
-void	__elfN(dump_thread)(struct thread *, void *, size_t *);
+void __elfN(dump_thread)(struct thread *, void *, size_t *);
 
 extern int __elfN(fallback_brand);
 extern Elf_Brandnote __elfN(freebsd_brandnote);

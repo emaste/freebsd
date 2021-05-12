@@ -45,22 +45,22 @@ typedef enum {
 } topo_node_type;
 
 /* Hardware indenitifier of a topology component. */
-typedef	unsigned int hwid_t;
+typedef unsigned int hwid_t;
 /* Logical CPU idenitifier. */
-typedef	int cpuid_t;
+typedef int cpuid_t;
 
 /* A node in the topology. */
 struct topo_node {
-	struct topo_node			*parent;
-	TAILQ_HEAD(topo_children, topo_node)	children;
-	TAILQ_ENTRY(topo_node)			siblings;
-	cpuset_t				cpuset;
-	topo_node_type				type;
-	uintptr_t				subtype;
-	hwid_t					hwid;
-	cpuid_t					id;
-	int					nchildren;
-	int					cpu_count;
+	struct topo_node *parent;
+	TAILQ_HEAD(topo_children, topo_node) children;
+	TAILQ_ENTRY(topo_node) siblings;
+	cpuset_t cpuset;
+	topo_node_type type;
+	uintptr_t subtype;
+	hwid_t hwid;
+	cpuid_t id;
+	int nchildren;
+	int cpu_count;
 };
 
 /*
@@ -77,13 +77,13 @@ struct topo_node {
  */
 
 struct cpu_group {
-	struct cpu_group *cg_parent;	/* Our parent group. */
-	struct cpu_group *cg_child;	/* Optional children groups. */
-	cpuset_t	cg_mask;	/* Mask of cpus in this group. */
-	int32_t		cg_count;	/* Count of cpus in this group. */
-	int16_t		cg_children;	/* Number of children groups. */
-	int8_t		cg_level;	/* Shared cache level. */
-	int8_t		cg_flags;	/* Traversal modifiers. */
+	struct cpu_group *cg_parent; /* Our parent group. */
+	struct cpu_group *cg_child;  /* Optional children groups. */
+	cpuset_t cg_mask;	     /* Mask of cpus in this group. */
+	int32_t cg_count;	     /* Count of cpus in this group. */
+	int16_t cg_children;	     /* Number of children groups. */
+	int8_t cg_level;	     /* Shared cache level. */
+	int8_t cg_flags;	     /* Traversal modifiers. */
 };
 
 typedef struct cpu_group *cpu_group_t;
@@ -92,19 +92,19 @@ typedef struct cpu_group *cpu_group_t;
  * Defines common resources for CPUs in the group.  The highest level
  * resource should be used when multiple are shared.
  */
-#define	CG_SHARE_NONE	0
-#define	CG_SHARE_L1	1
-#define	CG_SHARE_L2	2
-#define	CG_SHARE_L3	3
+#define CG_SHARE_NONE 0
+#define CG_SHARE_L1 1
+#define CG_SHARE_L2 2
+#define CG_SHARE_L3 3
 
-#define MAX_CACHE_LEVELS	CG_SHARE_L3
+#define MAX_CACHE_LEVELS CG_SHARE_L3
 
 /*
  * Behavior modifiers for load balancing and affinity.
  */
-#define	CG_FLAG_HTT	0x01		/* Schedule the alternate core last. */
-#define	CG_FLAG_SMT	0x02		/* New age htt, less crippled. */
-#define	CG_FLAG_THREAD	(CG_FLAG_HTT | CG_FLAG_SMT)	/* Any threading. */
+#define CG_FLAG_HTT 0x01 /* Schedule the alternate core last. */
+#define CG_FLAG_SMT 0x02 /* New age htt, less crippled. */
+#define CG_FLAG_THREAD (CG_FLAG_HTT | CG_FLAG_SMT) /* Any threading. */
 
 /*
  * Convenience routines for building and traversing topologies.
@@ -112,15 +112,14 @@ typedef struct cpu_group *cpu_group_t;
 #ifdef SMP
 void topo_init_node(struct topo_node *node);
 void topo_init_root(struct topo_node *root);
-struct topo_node * topo_add_node_by_hwid(struct topo_node *parent, int hwid,
-    topo_node_type type, uintptr_t subtype);
-struct topo_node * topo_find_node_by_hwid(struct topo_node *parent, int hwid,
-    topo_node_type type, uintptr_t subtype);
+struct topo_node *topo_add_node_by_hwid(
+    struct topo_node *parent, int hwid, topo_node_type type, uintptr_t subtype);
+struct topo_node *topo_find_node_by_hwid(
+    struct topo_node *parent, int hwid, topo_node_type type, uintptr_t subtype);
 void topo_promote_child(struct topo_node *child);
-struct topo_node * topo_next_node(struct topo_node *top,
-    struct topo_node *node);
-struct topo_node * topo_next_nonchild_node(struct topo_node *top,
-    struct topo_node *node);
+struct topo_node *topo_next_node(struct topo_node *top, struct topo_node *node);
+struct topo_node *topo_next_nonchild_node(
+    struct topo_node *top, struct topo_node *node);
 void topo_set_pu_id(struct topo_node *node, cpuid_t id);
 
 enum topo_level {
@@ -134,33 +133,33 @@ enum topo_level {
 	TOPO_LEVEL_CACHEGROUP,
 	TOPO_LEVEL_CORE,
 	TOPO_LEVEL_THREAD,
-	TOPO_LEVEL_COUNT	/* Must be last */
+	TOPO_LEVEL_COUNT /* Must be last */
 };
 struct topo_analysis {
 	int entities[TOPO_LEVEL_COUNT];
 };
-int topo_analyze(struct topo_node *topo_root, int all,
-    struct topo_analysis *results);
+int topo_analyze(
+    struct topo_node *topo_root, int all, struct topo_analysis *results);
 
-#define	TOPO_FOREACH(i, root)	\
+#define TOPO_FOREACH(i, root) \
 	for (i = root; i != NULL; i = topo_next_node(root, i))
 
 struct cpu_group *smp_topo(void);
 struct cpu_group *smp_topo_alloc(u_int count);
 struct cpu_group *smp_topo_none(void);
 struct cpu_group *smp_topo_1level(int l1share, int l1count, int l1flags);
-struct cpu_group *smp_topo_2level(int l2share, int l2count, int l1share,
-    int l1count, int l1flags);
+struct cpu_group *smp_topo_2level(
+    int l2share, int l2count, int l1share, int l1count, int l1flags);
 struct cpu_group *smp_topo_find(struct cpu_group *top, int cpu);
 
 extern void (*cpustop_restartfunc)(void);
 /* The suspend/resume cpusets are x86 only, but minimize ifdefs. */
-extern volatile cpuset_t resuming_cpus;	/* woken up cpus in suspend pen */
-extern volatile cpuset_t started_cpus;	/* cpus to let out of stop pen */
-extern volatile cpuset_t stopped_cpus;	/* cpus in stop pen */
+extern volatile cpuset_t resuming_cpus;	 /* woken up cpus in suspend pen */
+extern volatile cpuset_t started_cpus;	 /* cpus to let out of stop pen */
+extern volatile cpuset_t stopped_cpus;	 /* cpus in stop pen */
 extern volatile cpuset_t suspended_cpus; /* cpus [near] sleeping in susp pen */
-extern volatile cpuset_t toresume_cpus;	/* cpus to let out of suspend pen */
-extern cpuset_t hlt_cpus_mask;		/* XXX 'mask' is detail in old impl */
+extern volatile cpuset_t toresume_cpus;	 /* cpus to let out of suspend pen */
+extern cpuset_t hlt_cpus_mask;		 /* XXX 'mask' is detail in old impl */
 extern cpuset_t logical_cpus_mask;
 #endif /* SMP */
 
@@ -173,14 +172,14 @@ extern volatile int smp_started;
 extern int smp_threads_per_core;
 
 extern cpuset_t all_cpus;
-extern cpuset_t cpuset_domain[MAXMEMDOM]; 	/* CPUs in each NUMA domain. */
+extern cpuset_t cpuset_domain[MAXMEMDOM]; /* CPUs in each NUMA domain. */
 
 /*
  * Macro allowing us to determine whether a CPU is absent at any given
  * time, thus permitting us to configure sparse maps of cpuid-dependent
  * (per-CPU) structures.
  */
-#define	CPU_ABSENT(x_cpu)	(!CPU_ISSET(x_cpu, &all_cpus))
+#define CPU_ABSENT(x_cpu) (!CPU_ISSET(x_cpu, &all_cpus))
 
 /*
  * Macros to iterate over non-absent CPUs.  CPU_FOREACH() takes an
@@ -190,8 +189,8 @@ extern cpuset_t cpuset_domain[MAXMEMDOM]; 	/* CPUs in each NUMA domain. */
  * CPU_FIRST() once the end of the list is reached.  The iterators are
  * currently implemented via inline functions.
  */
-#define	CPU_FOREACH(i)							\
-	for ((i) = 0; (i) <= mp_maxid; (i)++)				\
+#define CPU_FOREACH(i)                        \
+	for ((i) = 0; (i) <= mp_maxid; (i)++) \
 		if (!CPU_ABSENT((i)))
 
 static __inline int
@@ -217,8 +216,8 @@ cpu_next(int i)
 	}
 }
 
-#define	CPU_FIRST()	cpu_first()
-#define	CPU_NEXT(i)	cpu_next((i))
+#define CPU_FIRST() cpu_first()
+#define CPU_NEXT(i) cpu_next((i))
 
 #ifdef SMP
 /*
@@ -243,51 +242,43 @@ cpu_next(int i)
 struct thread;
 
 struct cpu_group *cpu_topo(void);
-void	cpu_mp_announce(void);
-int	cpu_mp_probe(void);
-void	cpu_mp_setmaxid(void);
-void	cpu_mp_start(void);
+void cpu_mp_announce(void);
+int cpu_mp_probe(void);
+void cpu_mp_setmaxid(void);
+void cpu_mp_start(void);
 
-void	forward_signal(struct thread *);
-int	restart_cpus(cpuset_t);
-int	stop_cpus(cpuset_t);
-int	stop_cpus_hard(cpuset_t);
+void forward_signal(struct thread *);
+int restart_cpus(cpuset_t);
+int stop_cpus(cpuset_t);
+int stop_cpus_hard(cpuset_t);
 #if defined(__amd64__) || defined(__i386__)
-int	suspend_cpus(cpuset_t);
-int	resume_cpus(cpuset_t);
+int suspend_cpus(cpuset_t);
+int resume_cpus(cpuset_t);
 #endif
 
-void	smp_rendezvous_action(void);
-extern	struct mtx smp_ipi_mtx;
+void smp_rendezvous_action(void);
+extern struct mtx smp_ipi_mtx;
 
 #endif /* SMP */
 
-int	quiesce_all_cpus(const char *, int);
-int	quiesce_cpus(cpuset_t, const char *, int);
-void	quiesce_all_critical(void);
-void	cpus_fence_seq_cst(void);
-void	smp_no_rendezvous_barrier(void *);
-void	smp_rendezvous(void (*)(void *), 
-		       void (*)(void *),
-		       void (*)(void *),
-		       void *arg);
-void	smp_rendezvous_cpus(cpuset_t,
-		       void (*)(void *), 
-		       void (*)(void *),
-		       void (*)(void *),
-		       void *arg);
+int quiesce_all_cpus(const char *, int);
+int quiesce_cpus(cpuset_t, const char *, int);
+void quiesce_all_critical(void);
+void cpus_fence_seq_cst(void);
+void smp_no_rendezvous_barrier(void *);
+void smp_rendezvous(
+    void (*)(void *), void (*)(void *), void (*)(void *), void *arg);
+void smp_rendezvous_cpus(
+    cpuset_t, void (*)(void *), void (*)(void *), void (*)(void *), void *arg);
 
 struct smp_rendezvous_cpus_retry_arg {
 	cpuset_t cpus;
 };
-void	smp_rendezvous_cpus_retry(cpuset_t,
-		       void (*)(void *),
-		       void (*)(void *),
-		       void (*)(void *),
-		       void (*)(void *, int),
-		       struct smp_rendezvous_cpus_retry_arg *);
+void smp_rendezvous_cpus_retry(cpuset_t, void (*)(void *), void (*)(void *),
+    void (*)(void *), void (*)(void *, int),
+    struct smp_rendezvous_cpus_retry_arg *);
 
-void	smp_rendezvous_cpus_done(struct smp_rendezvous_cpus_retry_arg *);
+void smp_rendezvous_cpus_done(struct smp_rendezvous_cpus_retry_arg *);
 
 #endif /* !LOCORE */
 #endif /* _KERNEL */

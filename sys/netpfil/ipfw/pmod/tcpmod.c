@@ -39,25 +39,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 
+#include <machine/in_cksum.h>
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/pfil.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet/ip_fw.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
-#include <netinet/ip_fw.h>
-#include <netinet/ip6.h>
-
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/pmod/pmod.h>
 
-#include <machine/in_cksum.h>
-
 VNET_DEFINE_STATIC(uint16_t, tcpmod_setmss_eid) = 0;
-#define	V_tcpmod_setmss_eid	VNET(tcpmod_setmss_eid)
+#define V_tcpmod_setmss_eid VNET(tcpmod_setmss_eid)
 
 static int
 tcpmod_setmss(struct mbuf **mp, struct tcphdr *tcp, int tlen, uint16_t mss)
@@ -79,8 +77,8 @@ tcpmod_setmss(struct mbuf **mp, struct tcphdr *tcp, int tlen, uint16_t mss)
 			return (ret);
 	}
 	/* Parse TCP options. */
-	for (tlen -= sizeof(struct tcphdr), cp = (u_char *)(tcp + 1);
-	    tlen > 0; tlen -= optlen, cp += optlen) {
+	for (tlen -= sizeof(struct tcphdr), cp = (u_char *)(tcp + 1); tlen > 0;
+	     tlen -= optlen, cp += optlen) {
 		if (cp[0] == TCPOPT_EOL)
 			break;
 		if (cp[0] == TCPOPT_NOP) {
@@ -103,7 +101,7 @@ tcpmod_setmss(struct mbuf **mp, struct tcphdr *tcp, int tlen, uint16_t mss)
 			bcopy(&mss, cp + 2, sizeof(mss));
 			/* Update checksum if it is not delayed. */
 			if ((m->m_pkthdr.csum_flags &
-			    (CSUM_TCP | CSUM_TCP_IPV6)) == 0) {
+				(CSUM_TCP | CSUM_TCP_IPV6)) == 0) {
 				bcopy(&tcp->th_sum, &csum, sizeof(csum));
 				csum = cksum_adjust(csum, oldmss, mss);
 				bcopy(&csum, &tcp->th_sum, sizeof(csum));
@@ -173,8 +171,8 @@ tcpmod_ipv4_setmss(struct mbuf **mp, uint16_t mss)
  * ipfw external action handler.
  */
 static int
-ipfw_tcpmod(struct ip_fw_chain *chain, struct ip_fw_args *args,
-    ipfw_insn *cmd, int *done)
+ipfw_tcpmod(struct ip_fw_chain *chain, struct ip_fw_args *args, ipfw_insn *cmd,
+    int *done)
 {
 	ipfw_insn *icmd;
 	int ret;
@@ -208,14 +206,14 @@ ipfw_tcpmod(struct ip_fw_chain *chain, struct ip_fw_args *args,
 
 	switch (args->f_id.addr_type) {
 #ifdef INET
-		case 4:
-			ret = tcpmod_ipv4_setmss(&args->m, htons(icmd->arg1));
-			break;
+	case 4:
+		ret = tcpmod_ipv4_setmss(&args->m, htons(icmd->arg1));
+		break;
 #endif
 #ifdef INET6
-		case 6:
-			ret = tcpmod_ipv6_setmss(&args->m, htons(icmd->arg1));
-			break;
+	case 6:
+		ret = tcpmod_ipv6_setmss(&args->m, htons(icmd->arg1));
+		break;
 #endif
 	}
 	/*

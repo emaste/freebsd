@@ -35,9 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 
 #include <arm64/coresight/coresight.h>
@@ -45,13 +46,13 @@ __FBSDID("$FreeBSD$");
 
 #include "coresight_if.h"
 
-#define	ETM_DEBUG
+#define ETM_DEBUG
 #undef ETM_DEBUG
-   
+
 #ifdef ETM_DEBUG
-#define	dprintf(fmt, ...)	printf(fmt, ##__VA_ARGS__)
+#define dprintf(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #else
-#define	dprintf(fmt, ...)
+#define dprintf(fmt, ...)
 #endif
 
 /*
@@ -63,10 +64,8 @@ __FBSDID("$FreeBSD$");
  * CPU3 -> ETM3 -> funnel1 -^
  */
 
-static struct resource_spec etm_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec etm_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 static int
 etm_prepare(device_t dev, struct coresight_event *event)
@@ -127,8 +126,7 @@ etm_prepare(device_t dev, struct coresight_event *event)
 	bus_write_4(sc->res, TRCVICTLR, reg);
 
 	for (i = 0; i < event->naddr * 2; i++) {
-		dprintf("configure range %d, address %lx\n",
-		    i, event->addr[i]);
+		dprintf("configure range %d, address %lx\n", i, event->addr[i]);
 		bus_write_8(sc->res, TRCACVR(i), event->addr[i]);
 
 		reg = 0;
@@ -192,8 +190,7 @@ etm_init(device_t dev)
 }
 
 static int
-etm_enable(device_t dev, struct endpoint *endp,
-    struct coresight_event *event)
+etm_enable(device_t dev, struct endpoint *endp, struct coresight_event *event)
 {
 	struct etm_softc *sc;
 	uint32_t reg;
@@ -217,8 +214,7 @@ etm_enable(device_t dev, struct endpoint *endp,
 }
 
 static void
-etm_disable(device_t dev, struct endpoint *endp,
-    struct coresight_event *event)
+etm_disable(device_t dev, struct endpoint *endp, struct coresight_event *event)
 {
 	struct etm_softc *sc;
 	uint32_t reg;
@@ -257,10 +253,9 @@ etm_attach(device_t dev)
 
 static device_method_t etm_methods[] = {
 	/* Coresight interface */
-	DEVMETHOD(coresight_init,	etm_init),
-	DEVMETHOD(coresight_enable,	etm_enable),
-	DEVMETHOD(coresight_disable,	etm_disable),
-	DEVMETHOD_END
+	DEVMETHOD(coresight_init, etm_init),
+	DEVMETHOD(coresight_enable, etm_enable),
+	DEVMETHOD(coresight_disable, etm_disable), DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(etm, etm_driver, etm_methods, sizeof(struct etm_softc));

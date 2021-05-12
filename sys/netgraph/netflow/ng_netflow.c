@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/counter.h>
+#include <sys/ctype.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/limits.h>
@@ -47,192 +48,137 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/ctype.h>
+
 #include <vm/uma.h>
 
-#include <net/if.h>
+#include <net/bpf.h>
 #include <net/ethernet.h>
-#include <net/route.h>
+#include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_var.h>
 #include <net/if_vlan_var.h>
-#include <net/bpf.h>
+#include <net/route.h>
+#include <netgraph/netflow/netflow.h>
+#include <netgraph/netflow/netflow_v9.h>
+#include <netgraph/netflow/ng_netflow.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
+#include <netinet/sctp.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
-#include <netinet/sctp.h>
-
-#include <netgraph/ng_message.h>
-#include <netgraph/ng_parse.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/netflow/netflow.h>
-#include <netgraph/netflow/netflow_v9.h>
-#include <netgraph/netflow/ng_netflow.h>
 
 /* Netgraph methods */
-static ng_constructor_t	ng_netflow_constructor;
-static ng_rcvmsg_t	ng_netflow_rcvmsg;
-static ng_close_t	ng_netflow_close;
-static ng_shutdown_t	ng_netflow_rmnode;
-static ng_newhook_t	ng_netflow_newhook;
-static ng_rcvdata_t	ng_netflow_rcvdata;
-static ng_disconnect_t	ng_netflow_disconnect;
+static ng_constructor_t ng_netflow_constructor;
+static ng_rcvmsg_t ng_netflow_rcvmsg;
+static ng_close_t ng_netflow_close;
+static ng_shutdown_t ng_netflow_rmnode;
+static ng_newhook_t ng_netflow_newhook;
+static ng_rcvdata_t ng_netflow_rcvdata;
+static ng_disconnect_t ng_netflow_disconnect;
 
 /* Parse type for struct ng_netflow_info */
-static const struct ng_parse_struct_field ng_netflow_info_type_fields[]
-	= NG_NETFLOW_INFO_TYPE;
+static const struct ng_parse_struct_field ng_netflow_info_type_fields[] =
+    NG_NETFLOW_INFO_TYPE;
 static const struct ng_parse_type ng_netflow_info_type = {
-	&ng_parse_struct_type,
-	&ng_netflow_info_type_fields
+	&ng_parse_struct_type, &ng_netflow_info_type_fields
 };
 
 /*  Parse type for struct ng_netflow_ifinfo */
-static const struct ng_parse_struct_field ng_netflow_ifinfo_type_fields[]
-	= NG_NETFLOW_IFINFO_TYPE;
+static const struct ng_parse_struct_field ng_netflow_ifinfo_type_fields[] =
+    NG_NETFLOW_IFINFO_TYPE;
 static const struct ng_parse_type ng_netflow_ifinfo_type = {
-	&ng_parse_struct_type,
-	&ng_netflow_ifinfo_type_fields
+	&ng_parse_struct_type, &ng_netflow_ifinfo_type_fields
 };
 
 /* Parse type for struct ng_netflow_setdlt */
-static const struct ng_parse_struct_field ng_netflow_setdlt_type_fields[]
-	= NG_NETFLOW_SETDLT_TYPE;
+static const struct ng_parse_struct_field ng_netflow_setdlt_type_fields[] =
+    NG_NETFLOW_SETDLT_TYPE;
 static const struct ng_parse_type ng_netflow_setdlt_type = {
-	&ng_parse_struct_type,
-	&ng_netflow_setdlt_type_fields
+	&ng_parse_struct_type, &ng_netflow_setdlt_type_fields
 };
 
 /* Parse type for ng_netflow_setifindex */
-static const struct ng_parse_struct_field ng_netflow_setifindex_type_fields[]
-	= NG_NETFLOW_SETIFINDEX_TYPE;
+static const struct ng_parse_struct_field ng_netflow_setifindex_type_fields[] =
+    NG_NETFLOW_SETIFINDEX_TYPE;
 static const struct ng_parse_type ng_netflow_setifindex_type = {
-	&ng_parse_struct_type,
-	&ng_netflow_setifindex_type_fields
+	&ng_parse_struct_type, &ng_netflow_setifindex_type_fields
 };
 
 /* Parse type for ng_netflow_settimeouts */
-static const struct ng_parse_struct_field ng_netflow_settimeouts_type_fields[]
-	= NG_NETFLOW_SETTIMEOUTS_TYPE;
+static const struct ng_parse_struct_field ng_netflow_settimeouts_type_fields[] =
+    NG_NETFLOW_SETTIMEOUTS_TYPE;
 static const struct ng_parse_type ng_netflow_settimeouts_type = {
-	&ng_parse_struct_type,
-	&ng_netflow_settimeouts_type_fields
+	&ng_parse_struct_type, &ng_netflow_settimeouts_type_fields
 };
 
 /* Parse type for ng_netflow_setconfig */
-static const struct ng_parse_struct_field ng_netflow_setconfig_type_fields[]
-	= NG_NETFLOW_SETCONFIG_TYPE;
+static const struct ng_parse_struct_field ng_netflow_setconfig_type_fields[] =
+    NG_NETFLOW_SETCONFIG_TYPE;
 static const struct ng_parse_type ng_netflow_setconfig_type = {
-	&ng_parse_struct_type,
-	&ng_netflow_setconfig_type_fields
+	&ng_parse_struct_type, &ng_netflow_setconfig_type_fields
 };
 
 /* Parse type for ng_netflow_settemplate */
-static const struct ng_parse_struct_field ng_netflow_settemplate_type_fields[]
-	= NG_NETFLOW_SETTEMPLATE_TYPE;
+static const struct ng_parse_struct_field ng_netflow_settemplate_type_fields[] =
+    NG_NETFLOW_SETTEMPLATE_TYPE;
 static const struct ng_parse_type ng_netflow_settemplate_type = {
-	&ng_parse_struct_type,
-	&ng_netflow_settemplate_type_fields
+	&ng_parse_struct_type, &ng_netflow_settemplate_type_fields
 };
 
 /* Parse type for ng_netflow_setmtu */
-static const struct ng_parse_struct_field ng_netflow_setmtu_type_fields[]
-	= NG_NETFLOW_SETMTU_TYPE;
+static const struct ng_parse_struct_field ng_netflow_setmtu_type_fields[] =
+    NG_NETFLOW_SETMTU_TYPE;
 static const struct ng_parse_type ng_netflow_setmtu_type = {
-	&ng_parse_struct_type,
-	&ng_netflow_setmtu_type_fields
+	&ng_parse_struct_type, &ng_netflow_setmtu_type_fields
 };
 
 /* Parse type for struct ng_netflow_v9info */
-static const struct ng_parse_struct_field ng_netflow_v9info_type_fields[]
-	= NG_NETFLOW_V9INFO_TYPE;
+static const struct ng_parse_struct_field ng_netflow_v9info_type_fields[] =
+    NG_NETFLOW_V9INFO_TYPE;
 static const struct ng_parse_type ng_netflow_v9info_type = {
-	&ng_parse_struct_type,
-	&ng_netflow_v9info_type_fields
+	&ng_parse_struct_type, &ng_netflow_v9info_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_netflow_cmds[] = {
-       {
-	 NGM_NETFLOW_COOKIE,
-	 NGM_NETFLOW_INFO,
-	 "info",
-	 NULL,
-	 &ng_netflow_info_type
-       },
-       {
-	NGM_NETFLOW_COOKIE,
-	NGM_NETFLOW_IFINFO,
-	"ifinfo",
-	&ng_parse_uint16_type,
-	&ng_netflow_ifinfo_type
-       },
-       {
-	NGM_NETFLOW_COOKIE,
-	NGM_NETFLOW_SETDLT,
-	"setdlt",
-	&ng_netflow_setdlt_type,
-	NULL
-       },
-       {
-	NGM_NETFLOW_COOKIE,
-	NGM_NETFLOW_SETIFINDEX,
-	"setifindex",
-	&ng_netflow_setifindex_type,
-	NULL
-       },
-       {
-	NGM_NETFLOW_COOKIE,
-	NGM_NETFLOW_SETTIMEOUTS,
-	"settimeouts",
-	&ng_netflow_settimeouts_type,
-	NULL
-       },
-       {
-	NGM_NETFLOW_COOKIE,
-	NGM_NETFLOW_SETCONFIG,
-	"setconfig",
-	&ng_netflow_setconfig_type,
-	NULL
-       },
-       {
-	NGM_NETFLOW_COOKIE,
-	NGM_NETFLOW_SETTEMPLATE,
-	"settemplate",
-	&ng_netflow_settemplate_type,
-	NULL
-       },
-       {
-	NGM_NETFLOW_COOKIE,
-	NGM_NETFLOW_SETMTU,
-	"setmtu",
-	&ng_netflow_setmtu_type,
-	NULL
-       },
-       {
-	 NGM_NETFLOW_COOKIE,
-	 NGM_NETFLOW_V9INFO,
-	 "v9info",
-	 NULL,
-	 &ng_netflow_v9info_type
-       },
-       { 0 }
+	{ NGM_NETFLOW_COOKIE, NGM_NETFLOW_INFO, "info", NULL,
+	    &ng_netflow_info_type },
+	{ NGM_NETFLOW_COOKIE, NGM_NETFLOW_IFINFO, "ifinfo",
+	    &ng_parse_uint16_type, &ng_netflow_ifinfo_type },
+	{ NGM_NETFLOW_COOKIE, NGM_NETFLOW_SETDLT, "setdlt",
+	    &ng_netflow_setdlt_type, NULL },
+	{ NGM_NETFLOW_COOKIE, NGM_NETFLOW_SETIFINDEX, "setifindex",
+	    &ng_netflow_setifindex_type, NULL },
+	{ NGM_NETFLOW_COOKIE, NGM_NETFLOW_SETTIMEOUTS, "settimeouts",
+	    &ng_netflow_settimeouts_type, NULL },
+	{ NGM_NETFLOW_COOKIE, NGM_NETFLOW_SETCONFIG, "setconfig",
+	    &ng_netflow_setconfig_type, NULL },
+	{ NGM_NETFLOW_COOKIE, NGM_NETFLOW_SETTEMPLATE, "settemplate",
+	    &ng_netflow_settemplate_type, NULL },
+	{ NGM_NETFLOW_COOKIE, NGM_NETFLOW_SETMTU, "setmtu",
+	    &ng_netflow_setmtu_type, NULL },
+	{ NGM_NETFLOW_COOKIE, NGM_NETFLOW_V9INFO, "v9info", NULL,
+	    &ng_netflow_v9info_type },
+	{ 0 }
 };
 
 /* Netgraph node type descriptor */
 static struct ng_type ng_netflow_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_NETFLOW_NODE_TYPE,
-	.constructor =	ng_netflow_constructor,
-	.rcvmsg =	ng_netflow_rcvmsg,
-	.close =	ng_netflow_close,
-	.shutdown =	ng_netflow_rmnode,
-	.newhook =	ng_netflow_newhook,
-	.rcvdata =	ng_netflow_rcvdata,
-	.disconnect =	ng_netflow_disconnect,
-	.cmdlist =	ng_netflow_cmds,
+	.version = NG_ABI_VERSION,
+	.name = NG_NETFLOW_NODE_TYPE,
+	.constructor = ng_netflow_constructor,
+	.rcvmsg = ng_netflow_rcvmsg,
+	.close = ng_netflow_close,
+	.shutdown = ng_netflow_rmnode,
+	.newhook = ng_netflow_newhook,
+	.rcvdata = ng_netflow_rcvdata,
+	.disconnect = ng_netflow_disconnect,
+	.cmdlist = ng_netflow_cmds,
 };
 NETGRAPH_INIT(netflow, &ng_netflow_typestruct);
 
@@ -282,8 +228,8 @@ ng_netflow_newhook(node_p node, hook_p hook, const char *name)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
-	if (strncmp(name, NG_NETFLOW_HOOK_DATA,	/* an iface hook? */
-	    strlen(NG_NETFLOW_HOOK_DATA)) == 0) {
+	if (strncmp(name, NG_NETFLOW_HOOK_DATA, /* an iface hook? */
+		strlen(NG_NETFLOW_HOOK_DATA)) == 0) {
 		iface_p iface;
 		int ifnum = -1;
 		const char *cp;
@@ -315,7 +261,7 @@ ng_netflow_newhook(node_p node, hook_p hook, const char *name)
 		iface->info.ifinfo_dlt = DLT_EN10MB;
 
 	} else if (strncmp(name, NG_NETFLOW_HOOK_OUT,
-	    strlen(NG_NETFLOW_HOOK_OUT)) == 0) {
+		       strlen(NG_NETFLOW_HOOK_OUT)) == 0) {
 		iface_p iface;
 		int ifnum = -1;
 		const char *cp;
@@ -350,7 +296,7 @@ ng_netflow_newhook(node_p node, hook_p hook, const char *name)
 		priv->export = hook;
 
 		/* Exporter is ready. Let's schedule expiry. */
-		callout_reset(&priv->exp_callout, (1*hz), &ng_netflow_expire,
+		callout_reset(&priv->exp_callout, (1 * hz), &ng_netflow_expire,
 		    (void *)priv);
 	} else if (strcmp(name, NG_NETFLOW_HOOK_EXPORT9) == 0) {
 		if (priv->export9 != NULL)
@@ -359,7 +305,7 @@ ng_netflow_newhook(node_p node, hook_p hook, const char *name)
 		priv->export9 = hook;
 
 		/* Exporter is ready. Let's schedule expiry. */
-		callout_reset(&priv->exp_callout, (1*hz), &ng_netflow_expire,
+		callout_reset(&priv->exp_callout, (1 * hz), &ng_netflow_expire,
 		    (void *)priv);
 	} else
 		return (EINVAL);
@@ -369,7 +315,7 @@ ng_netflow_newhook(node_p node, hook_p hook, const char *name)
 
 /* Get a netgraph control message. */
 static int
-ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
+ng_netflow_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *resp = NULL;
@@ -382,8 +328,7 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 	switch (msg->header.typecookie) {
 	case NGM_NETFLOW_COOKIE:
 		switch (msg->header.cmd) {
-		case NGM_NETFLOW_INFO:
-		    {
+		case NGM_NETFLOW_INFO: {
 			struct ng_netflow_info *i;
 
 			NG_MKRESPONSE(resp, msg, sizeof(struct ng_netflow_info),
@@ -392,33 +337,31 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			ng_netflow_copyinfo(priv, i);
 
 			break;
-		    }
-		case NGM_NETFLOW_IFINFO:
-		    {
+		}
+		case NGM_NETFLOW_IFINFO: {
 			struct ng_netflow_ifinfo *i;
 			const uint16_t *index;
 
 			if (msg->header.arglen != sizeof(uint16_t))
-				 ERROUT(EINVAL);
+				ERROUT(EINVAL);
 
-			index  = (uint16_t *)msg->data;
+			index = (uint16_t *)msg->data;
 			if (*index >= NG_NETFLOW_MAXIFACES)
 				ERROUT(EINVAL);
 
 			/* connected iface? */
 			if (priv->ifaces[*index].hook == NULL)
-				 ERROUT(EINVAL);
+				ERROUT(EINVAL);
 
 			NG_MKRESPONSE(resp, msg,
-			     sizeof(struct ng_netflow_ifinfo), M_NOWAIT);
+			    sizeof(struct ng_netflow_ifinfo), M_NOWAIT);
 			i = (struct ng_netflow_ifinfo *)resp->data;
 			memcpy((void *)i, (void *)&priv->ifaces[*index].info,
 			    sizeof(priv->ifaces[*index].info));
 
 			break;
-		    }
-		case NGM_NETFLOW_SETDLT:
-		    {
+		}
+		case NGM_NETFLOW_SETDLT: {
 			struct ng_netflow_setdlt *set;
 			struct ng_netflow_iface *iface;
 
@@ -436,19 +379,18 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 				ERROUT(EINVAL);
 
 			switch (set->dlt) {
-			case	DLT_EN10MB:
+			case DLT_EN10MB:
 				iface->info.ifinfo_dlt = DLT_EN10MB;
 				break;
-			case	DLT_RAW:
+			case DLT_RAW:
 				iface->info.ifinfo_dlt = DLT_RAW;
 				break;
 			default:
 				ERROUT(EINVAL);
 			}
 			break;
-		    }
-		case NGM_NETFLOW_SETIFINDEX:
-		    {
+		}
+		case NGM_NETFLOW_SETIFINDEX: {
 			struct ng_netflow_setifindex *set;
 			struct ng_netflow_iface *iface;
 
@@ -468,9 +410,8 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			iface->info.ifinfo_index = set->index;
 
 			break;
-		    }
-		case NGM_NETFLOW_SETTIMEOUTS:
-		    {
+		}
+		case NGM_NETFLOW_SETTIMEOUTS: {
 			struct ng_netflow_settimeouts *set;
 
 			if (msg->header.arglen !=
@@ -483,9 +424,8 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			priv->nfinfo_act_t = set->active_timeout;
 
 			break;
-		    }
-		case NGM_NETFLOW_SETCONFIG:
-		    {
+		}
+		case NGM_NETFLOW_SETCONFIG: {
 			struct ng_netflow_setconfig *set;
 
 			if (msg->header.arglen !=
@@ -496,13 +436,12 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 
 			if (set->iface >= NG_NETFLOW_MAXIFACES)
 				ERROUT(EINVAL);
-			
+
 			priv->ifaces[set->iface].info.conf = set->conf;
 
 			break;
-		    }
-		case NGM_NETFLOW_SETTEMPLATE:
-		    {
+		}
+		case NGM_NETFLOW_SETTEMPLATE: {
 			struct ng_netflow_settemplate *set;
 
 			if (msg->header.arglen !=
@@ -515,9 +454,8 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			priv->templ_time = set->time;
 
 			break;
-		    }
-		case NGM_NETFLOW_SETMTU:
-		    {
+		}
+		case NGM_NETFLOW_SETMTU: {
 			struct ng_netflow_setmtu *set;
 
 			if (msg->header.arglen !=
@@ -531,7 +469,7 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			priv->mtu = set->mtu;
 
 			break;
-		    }
+		}
 		case NGM_NETFLOW_SHOW:
 			if (msg->header.arglen !=
 			    sizeof(struct ngnf_show_header))
@@ -550,8 +488,7 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 				NG_FREE_MSG(resp);
 
 			break;
-		case NGM_NETFLOW_V9INFO:
-		    {
+		case NGM_NETFLOW_V9INFO: {
 			struct ng_netflow_v9info *i;
 
 			NG_MKRESPONSE(resp, msg,
@@ -560,14 +497,14 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			ng_netflow_copyv9info(priv, i);
 
 			break;
-		    }
+		}
 		default:
-			ERROUT(EINVAL);		/* unknown command */
+			ERROUT(EINVAL); /* unknown command */
 			break;
 		}
 		break;
 	default:
-		ERROUT(EINVAL);		/* incorrect cookie */
+		ERROUT(EINVAL); /* incorrect cookie */
 		break;
 	}
 
@@ -584,7 +521,7 @@ done:
 
 /* Receive data on hook. */
 static int
-ng_netflow_rcvdata (hook_p hook, item_p item)
+ng_netflow_rcvdata(hook_p hook, item_p item)
 {
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
@@ -599,7 +536,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	int error = 0, l3_off = 0;
 	unsigned int src_if_index;
 	caddr_t upper_ptr = NULL;
-	fib_export_p fe;	
+	fib_export_p fe;
 	uint32_t fib;
 
 	if ((hook == priv->export) || (hook == priv->export9)) {
@@ -622,10 +559,11 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	} else
 		ERROUT(EINVAL);
 
-	if ((!bypass) && (iface->info.conf &
-	    (NG_NETFLOW_CONF_ONCE | NG_NETFLOW_CONF_THISONCE))) {
-		mtag = m_tag_locate(NGI_M(item), MTAG_NETFLOW,
-		    MTAG_NETFLOW_CALLED, NULL);
+	if ((!bypass) &&
+	    (iface->info.conf &
+		(NG_NETFLOW_CONF_ONCE | NG_NETFLOW_CONF_THISONCE))) {
+		mtag = m_tag_locate(
+		    NGI_M(item), MTAG_NETFLOW, MTAG_NETFLOW_CALLED, NULL);
 		while (mtag != NULL) {
 			if ((iface->info.conf & NG_NETFLOW_CONF_ONCE) ||
 			    ((ng_ID_t *)(mtag + 1))[0] == NG_NODE_ID(node)) {
@@ -675,23 +613,24 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 	 * pass data to downstream hook, if it is available.
 	 */
 
-#define	M_CHECK(length)	do {					\
-	pullup_len += length;					\
-	if (((m)->m_pkthdr.len < (pullup_len)) ||		\
-	   ((pullup_len) > MHLEN)) {				\
-		error = EINVAL;					\
-		goto bypass;					\
-	} 							\
-	if ((m)->m_len < (pullup_len) &&			\
-	   (((m) = m_pullup((m),(pullup_len))) == NULL)) {	\
-		error = ENOBUFS;				\
-		goto done;					\
-	}							\
-} while (0)
+#define M_CHECK(length)                                              \
+	do {                                                         \
+		pullup_len += length;                                \
+		if (((m)->m_pkthdr.len < (pullup_len)) ||            \
+		    ((pullup_len) > MHLEN)) {                        \
+			error = EINVAL;                              \
+			goto bypass;                                 \
+		}                                                    \
+		if ((m)->m_len < (pullup_len) &&                     \
+		    (((m) = m_pullup((m), (pullup_len))) == NULL)) { \
+			error = ENOBUFS;                             \
+			goto done;                                   \
+		}                                                    \
+	} while (0)
 
 	switch (iface->info.ifinfo_dlt) {
-	case DLT_EN10MB:	/* Ethernet */
-	    {
+	case DLT_EN10MB: /* Ethernet */
+	{
 		struct ether_header *eh;
 		uint16_t etype;
 
@@ -722,8 +661,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			l3_off = sizeof(struct ether_header);
 			break;
 #endif
-		case ETHERTYPE_VLAN:
-		    {
+		case ETHERTYPE_VLAN: {
 			struct ether_vlan_header *evh;
 
 			M_CHECK(sizeof(struct ether_vlan_header) -
@@ -745,13 +683,13 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 				break;
 #endif
 			}
-		    }
+		}
 		default:
-			goto bypass;	/* pass this frame */
+			goto bypass; /* pass this frame */
 		}
 		break;
-	    }
-	case DLT_RAW:		/* IP packets */
+	}
+	case DLT_RAW: /* IP packets */
 		M_CHECK(sizeof(struct ip));
 		ip = mtod(m, struct ip *);
 		/* l3_off is already zero */
@@ -899,7 +837,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		}
 #endif
 	}
-#undef	M_CHECK
+#undef M_CHECK
 
 #ifdef INET6
 loopend:
@@ -912,7 +850,7 @@ loopend:
 			ip = (struct ip *)(mtod(m, caddr_t) + l3_off);
 		else if (ip6 != NULL)
 			ip6 = (struct ip6_hdr *)(mtod(m, caddr_t) + l3_off);
- 	}
+	}
 
 	upper_ptr = (caddr_t)(mtod(m, caddr_t) + off);
 
@@ -927,7 +865,8 @@ loopend:
 	/* Check packet FIB */
 	fib = M_GETFIB(m);
 	if (fib >= priv->maxfibs) {
-		CTR2(KTR_NET, "ng_netflow_rcvdata(): packet fib %d is out of "
+		CTR2(KTR_NET,
+		    "ng_netflow_rcvdata(): packet fib %d is out of "
 		    "range of available fibs: 0 .. %d",
 		    fib, priv->maxfibs);
 		goto bypass;
@@ -945,16 +884,16 @@ loopend:
 
 #ifdef INET
 	if (ip != NULL)
-		error = ng_netflow_flow_add(priv, fe, ip, upper_ptr,
-		    upper_proto, flags, src_if_index);
+		error = ng_netflow_flow_add(
+		    priv, fe, ip, upper_ptr, upper_proto, flags, src_if_index);
 #endif
 #if defined(INET6) && defined(INET)
 	else
 #endif
 #ifdef INET6
-	if (ip6 != NULL)
-		error = ng_netflow_flow6_add(priv, fe, ip6, upper_ptr,
-		    upper_proto, flags, src_if_index);
+	    if (ip6 != NULL)
+		error = ng_netflow_flow6_add(
+		    priv, fe, ip6, upper_ptr, upper_proto, flags, src_if_index);
 #endif
 	else
 		goto bypass;
@@ -966,12 +905,12 @@ bypass:
 			/* Accounting failure */
 			if (ip != NULL) {
 				counter_u64_add(priv->nfinfo_spackets, 1);
-				counter_u64_add(priv->nfinfo_sbytes,
-				    m->m_pkthdr.len);
+				counter_u64_add(
+				    priv->nfinfo_sbytes, m->m_pkthdr.len);
 			} else if (ip6 != NULL) {
 				counter_u64_add(priv->nfinfo_spackets6, 1);
-				counter_u64_add(priv->nfinfo_sbytes6,
-				    m->m_pkthdr.len);
+				counter_u64_add(
+				    priv->nfinfo_sbytes6, m->m_pkthdr.len);
 			}
 		}
 
@@ -985,7 +924,7 @@ done:
 	if (m)
 		NG_FREE_M(m);
 
-	return (error);	
+	return (error);
 }
 
 /* We will be shut down in a moment */

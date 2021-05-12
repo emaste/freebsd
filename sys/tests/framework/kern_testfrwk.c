@@ -36,11 +36,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/queue.h>
 #include <sys/sdt.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <sys/queue.h>
+
 #include <tests/kern_testfrwk.h>
 #ifdef SMP
 #include <machine/cpu.h>
@@ -75,13 +76,14 @@ struct kern_totfrwk {
 struct kern_totfrwk kfrwk;
 static int ktest_frwk_inited = 0;
 
-#define KTFRWK_MUTEX_INIT() mtx_init(&kfrwk.kfrwk_mtx, "kern_test_frwk", "tfrwk", MTX_DEF)
+#define KTFRWK_MUTEX_INIT() \
+	mtx_init(&kfrwk.kfrwk_mtx, "kern_test_frwk", "tfrwk", MTX_DEF)
 
 #define KTFRWK_DESTROY() mtx_destroy(&kfrwk.kfrwk_mtx)
 
 #define KTFRWK_LOCK() mtx_lock(&kfrwk.kfrwk_mtx)
 
-#define KTFRWK_UNLOCK()	mtx_unlock(&kfrwk.kfrwk_mtx)
+#define KTFRWK_UNLOCK() mtx_unlock(&kfrwk.kfrwk_mtx)
 
 static void
 kfrwk_task(void *context, int pending)
@@ -118,7 +120,7 @@ kfrwk_task(void *context, int pending)
 	}
 	/* Execute the test */
 	if (ktf) {
-		(*ktf) (&kt_data);
+		(*ktf)(&kt_data);
 	}
 	/* We are done */
 	atomic_add_int(&tf->kfrwk_waiting, 1);
@@ -134,13 +136,14 @@ kerntest_frwk_init(void)
 	TAILQ_INIT(&kfrwk.kfrwk_testlist);
 	/* Now lets start up a number of tasks to do the work */
 	TASK_INIT(&kfrwk.kfrwk_que, 0, kfrwk_task, &kfrwk);
-	kfrwk.kfrwk_tq = taskqueue_create_fast("sbtls_task", M_NOWAIT,
-	    taskqueue_thread_enqueue, &kfrwk.kfrwk_tq);
+	kfrwk.kfrwk_tq = taskqueue_create_fast(
+	    "sbtls_task", M_NOWAIT, taskqueue_thread_enqueue, &kfrwk.kfrwk_tq);
 	if (kfrwk.kfrwk_tq == NULL) {
 		printf("Can't start taskqueue for Kernel Test Framework\n");
 		panic("Taskqueue init fails for kfrwk");
 	}
-	taskqueue_start_threads(&kfrwk.kfrwk_tq, ncpus, PI_NET, "[kt_frwk task]");
+	taskqueue_start_threads(
+	    &kfrwk.kfrwk_tq, ncpus, PI_NET, "[kt_frwk task]");
 	kfrwk.kfrwk_waiting = ncpus;
 	ktest_frwk_inited = 1;
 	return (0);
@@ -163,18 +166,15 @@ kerntest_frwk_fini(void)
 	return (0);
 }
 
-
 static int kerntest_execute(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_NODE(_kern, OID_AUTO, testfrwk, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Kernel Test Framework");
 SYSCTL_PROC(_kern_testfrwk, OID_AUTO, runtest,
-    CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    0, 0, kerntest_execute, "IU",
-    "Execute a kernel test");
+    CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0, kerntest_execute,
+    "IU", "Execute a kernel test");
 
-int
-kerntest_execute(SYSCTL_HANDLER_ARGS)
+int kerntest_execute(SYSCTL_HANDLER_ARGS)
 {
 	struct kern_test kt;
 	struct kern_test_list *li, *te = NULL;
@@ -199,7 +199,7 @@ kerntest_execute(SYSCTL_HANDLER_ARGS)
 		goto out;
 	}
 	KTFRWK_LOCK();
-	TAILQ_FOREACH(li, &kfrwk.kfrwk_testlist, next) {
+	TAILQ_FOREACH (li, &kfrwk.kfrwk_testlist, next) {
 		if (strcmp(li->name, kt.name) == 0) {
 			te = li;
 			break;
@@ -252,7 +252,7 @@ kern_testframework_register(const char *name, kerntfunc func)
 	}
 	KTFRWK_LOCK();
 	/* First does it already exist? */
-	TAILQ_FOREACH(li, &kfrwk.kfrwk_testlist, next) {
+	TAILQ_FOREACH (li, &kfrwk.kfrwk_testlist, next) {
 		if (strcmp(li->name, name) == 0) {
 			error = EALREADY;
 			free(te, M_KTFRWK);
@@ -277,7 +277,7 @@ kern_testframework_deregister(const char *name)
 
 	KTFRWK_LOCK();
 	/* First does it already exist? */
-	TAILQ_FOREACH(li, &kfrwk.kfrwk_testlist, next) {
+	TAILQ_FOREACH (li, &kfrwk.kfrwk_testlist, next) {
 		if (strcmp(li->name, name) == 0) {
 			te = li;
 			break;
@@ -333,11 +333,10 @@ kerntest_mod_init(module_t mod, int type, void *data)
 	return (err);
 }
 
-static moduledata_t kern_test_framework = {
-	.name = "kernel_testfrwk",
+static moduledata_t kern_test_framework = { .name = "kernel_testfrwk",
 	.evhand = kerntest_mod_init,
-	.priv = 0
-};
+	.priv = 0 };
 
 MODULE_VERSION(kern_testframework, 1);
-DECLARE_MODULE(kern_testframework, kern_test_framework, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(
+    kern_testframework, kern_test_framework, SI_SUB_PSEUDO, SI_ORDER_ANY);

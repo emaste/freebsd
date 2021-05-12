@@ -34,11 +34,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/libkern.h>
 
-char *
-(strcpy)(char * __restrict to, const char * __restrict from)
+char *(strcpy)(char *__restrict to, const char *__restrict from)
 {
 	char *save = to;
 
-	for (; (*to = *from) != 0; ++from, ++to);
-	return(save);
+	for (; (*to = *from) != 0; ++from, ++to)
+		;
+	return (save);
 }

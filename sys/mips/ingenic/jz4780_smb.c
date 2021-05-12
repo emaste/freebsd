@@ -35,44 +35,43 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/time.h>
+
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
+#include <dev/iicbus/iicbus.h>
+#include <dev/iicbus/iiconf.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/iicbus/iiconf.h>
-#include <dev/iicbus/iicbus.h>
-
-#include <dev/extres/clk/clk.h>
 
 #include <mips/ingenic/jz4780_smb.h>
 
 #include "iicbus_if.h"
 
-#define	JZSMB_TIMEOUT			((300UL * hz) / 1000)
+#define JZSMB_TIMEOUT ((300UL * hz) / 1000)
 
-#define	JZSMB_SPEED_STANDARD		100000
-#define	JZSMB_SETUP_TIME_STANDARD	300
-#define	JZSMB_HOLD_TIME_STANDARD	400
-#define	JZSMB_PERIOD_MIN_STANDARD	4000
-#define	JZSMB_PERIOD_MAX_STANDARD	4700
+#define JZSMB_SPEED_STANDARD 100000
+#define JZSMB_SETUP_TIME_STANDARD 300
+#define JZSMB_HOLD_TIME_STANDARD 400
+#define JZSMB_PERIOD_MIN_STANDARD 4000
+#define JZSMB_PERIOD_MAX_STANDARD 4700
 
-#define	JZSMB_SPEED_FAST		400000
-#define	JZSMB_SETUP_TIME_FAST		450
-#define	JZSMB_HOLD_TIME_FAST		450
-#define	JZSMB_PERIOD_MIN_FAST		600
-#define	JZSMB_PERIOD_MAX_FAST		1300
+#define JZSMB_SPEED_FAST 400000
+#define JZSMB_SETUP_TIME_FAST 450
+#define JZSMB_HOLD_TIME_FAST 450
+#define JZSMB_PERIOD_MIN_FAST 600
+#define JZSMB_PERIOD_MAX_FAST 1300
 
-#define	JZSMB_HCNT_BASE			8
-#define	JZSMB_HCNT_MIN			6
-#define	JZSMB_LCNT_BASE			1
-#define	JZSMB_LCNT_MIN			8
+#define JZSMB_HCNT_BASE 8
+#define JZSMB_HCNT_MIN 6
+#define JZSMB_LCNT_BASE 1
+#define JZSMB_LCNT_MIN 8
 
 static inline int
 tstohz(const struct timespec *tsp)
@@ -83,34 +82,30 @@ tstohz(const struct timespec *tsp)
 	return (tvtohz(&tv));
 }
 
-static struct ofw_compat_data compat_data[] = {
-	{ "ingenic,jz4780-i2c",		1 },
-	{ NULL,				0 }
-};
+static struct ofw_compat_data compat_data[] = { { "ingenic,jz4780-i2c", 1 },
+	{ NULL, 0 } };
 
-static struct resource_spec jzsmb_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec jzsmb_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 struct jzsmb_softc {
-	struct resource	*res;
-	struct mtx	mtx;
-	clk_t		clk;
-	device_t	iicbus;
-	int		busy;
-	uint32_t	i2c_freq;
-	uint64_t	bus_freq;
-	uint32_t	status;
+	struct resource *res;
+	struct mtx mtx;
+	clk_t clk;
+	device_t iicbus;
+	int busy;
+	uint32_t i2c_freq;
+	uint64_t bus_freq;
+	uint32_t status;
 
-	struct iic_msg	*msg;
+	struct iic_msg *msg;
 };
 
-#define	SMB_LOCK(sc)			mtx_lock(&(sc)->mtx)
-#define	SMB_UNLOCK(sc)			mtx_unlock(&(sc)->mtx)
-#define	SMB_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->mtx, MA_OWNED)
-#define	SMB_READ(sc, reg)		bus_read_2((sc)->res, (reg))
-#define	SMB_WRITE(sc, reg, val)		bus_write_2((sc)->res, (reg), (val))
+#define SMB_LOCK(sc) mtx_lock(&(sc)->mtx)
+#define SMB_UNLOCK(sc) mtx_unlock(&(sc)->mtx)
+#define SMB_ASSERT_LOCKED(sc) mtx_assert(&(sc)->mtx, MA_OWNED)
+#define SMB_READ(sc, reg) bus_read_2((sc)->res, (reg))
+#define SMB_WRITE(sc, reg, val) bus_write_2((sc)->res, (reg), (val))
 
 static phandle_t
 jzsmb_get_node(device_t bus, device_t dev)
@@ -251,8 +246,9 @@ jzsmb_transfer_read(device_t dev, struct iic_msg *msg)
 			getnanouptime(&diff);
 			timespecsub(&diff, &start, &diff);
 			if ((SMB_READ(sc, SMBST) & SMBST_RFNE) != 0) {
-				msg->buf[msg->len - resid] =
-				    SMB_READ(sc, SMBDC) & SMBDC_DAT;
+				msg->buf[msg->len - resid] = SMB_READ(
+								 sc, SMBDC) &
+				    SMBDC_DAT;
 				break;
 			} else
 				DELAY(1000);
@@ -296,8 +292,8 @@ jzsmb_transfer_write(device_t dev, struct iic_msg *msg, int stop_hold)
 			getnanouptime(&diff);
 			timespecsub(&diff, &start, &diff);
 			if ((SMB_READ(sc, SMBST) & SMBST_TFNF) != 0) {
-				SMB_WRITE(sc, SMBDC,
-				    msg->buf[msg->len - resid]);
+				SMB_WRITE(
+				    sc, SMBDC, msg->buf[msg->len - resid]);
 				break;
 			} else
 				DELAY((1000 * hz) / JZSMB_TIMEOUT);
@@ -345,8 +341,8 @@ jzsmb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		if ((msgs[n].flags & IIC_M_RD) != 0)
 			error = jzsmb_transfer_read(dev, &msgs[n]);
 		else
-			error = jzsmb_transfer_write(dev, &msgs[n],
-			    n < nmsgs - 1);
+			error = jzsmb_transfer_write(
+			    dev, &msgs[n], n < nmsgs - 1);
 
 		if (error != 0)
 			goto done;
@@ -417,8 +413,9 @@ jzsmb_attach(device_t dev)
 	}
 
 	if (OF_getencprop(node, "clock-frequency", &sc->i2c_freq,
-	    sizeof(sc->i2c_freq)) != 0 || sc->i2c_freq == 0)
-		sc->i2c_freq = 100000;	/* Default to standard mode */
+		sizeof(sc->i2c_freq)) != 0 ||
+	    sc->i2c_freq == 0)
+		sc->i2c_freq = 100000; /* Default to standard mode */
 
 	sc->iicbus = device_add_child(dev, "iicbus", -1);
 	if (sc->iicbus == NULL) {
@@ -441,27 +438,27 @@ fail:
 
 static device_method_t jzsmb_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		jzsmb_probe),
-	DEVMETHOD(device_attach,	jzsmb_attach),
+	DEVMETHOD(device_probe, jzsmb_probe),
+	DEVMETHOD(device_attach, jzsmb_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
+	DEVMETHOD(bus_alloc_resource, bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
-	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
-	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_adjust_resource, bus_generic_adjust_resource),
+	DEVMETHOD(bus_set_resource, bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource, bus_generic_rl_get_resource),
 
 	/* OFW methods */
-	DEVMETHOD(ofw_bus_get_node,	jzsmb_get_node),
+	DEVMETHOD(ofw_bus_get_node, jzsmb_get_node),
 
 	/* iicbus interface */
-	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
-	DEVMETHOD(iicbus_reset,		jzsmb_reset),
-	DEVMETHOD(iicbus_transfer,	jzsmb_transfer),
+	DEVMETHOD(iicbus_callback, iicbus_null_callback),
+	DEVMETHOD(iicbus_reset, jzsmb_reset),
+	DEVMETHOD(iicbus_transfer, jzsmb_transfer),
 
 	DEVMETHOD_END
 };

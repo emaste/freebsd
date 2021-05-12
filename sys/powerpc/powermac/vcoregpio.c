@@ -32,12 +32,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -45,23 +45,19 @@ __FBSDID("$FreeBSD$");
 
 #include <powerpc/powermac/macgpiovar.h>
 
-static int	vcoregpio_probe(device_t);
-static int	vcoregpio_attach(device_t);
-static void	vcoregpio_pre_change(device_t, const struct cf_level *level);
-static void	vcoregpio_post_change(device_t, const struct cf_level *level);
+static int vcoregpio_probe(device_t);
+static int vcoregpio_attach(device_t);
+static void vcoregpio_pre_change(device_t, const struct cf_level *level);
+static void vcoregpio_post_change(device_t, const struct cf_level *level);
 
-static device_method_t  vcoregpio_methods[] = {
+static device_method_t vcoregpio_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		vcoregpio_probe),
-	DEVMETHOD(device_attach,	vcoregpio_attach),
+	DEVMETHOD(device_probe, vcoregpio_probe),
+	DEVMETHOD(device_attach, vcoregpio_attach),
 	{ 0, 0 },
 };
 
-static driver_t vcoregpio_driver = {
-	"vcoregpio",
-	vcoregpio_methods,
-	0
-};
+static driver_t vcoregpio_driver = { "vcoregpio", vcoregpio_methods, 0 };
 
 static devclass_t vcoregpio_devclass;
 

@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef	IMX_CCMVAR_H
-#define	IMX_CCMVAR_H
+#ifndef IMX_CCMVAR_H
+#define IMX_CCMVAR_H
 
 /*
  * We need a clock management system that works across unrelated SoCs and
@@ -57,10 +57,10 @@ void imx_ccm_ssi_configure(device_t _ssidev);
 int imx_ccm_pll_video_enable(void);
 void imx_ccm_hdmi_enable(void);
 void imx_ccm_ipu_enable(int ipu);
-int  imx6_ccm_sata_enable(void);
+int imx6_ccm_sata_enable(void);
 
 /* Routines to get and set the arm clock root divisor register. */
 uint32_t imx_ccm_get_cacrr(void);
-void     imx_ccm_set_cacrr(uint32_t _divisor);
+void imx_ccm_set_cacrr(uint32_t _divisor);
 
 #endif

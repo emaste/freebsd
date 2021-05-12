@@ -8,7 +8,7 @@
  * copyright (c) 2003
  * the regents of the university of michigan
  * all rights reserved
- * 
+ *
  * permission is granted to use, copy, create derivative works and redistribute
  * this software and such derivative works for any purpose, so long as the name
  * of the university of michigan is not used in any advertising or publicity
@@ -16,7 +16,7 @@
  * written prior authorization.  if the above copyright notice or any other
  * identification of the university of michigan is included in any copy of any
  * portion of this software, then the disclaimer below must also be included.
- * 
+ *
  * this software is provided as is, without representation from the university
  * of michigan as to its fitness for any purpose, and without warranty by the
  * university of michigan of any kind, either express or implied, including
@@ -62,10 +62,8 @@
  *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
  */
 
-
 #ifndef _RPC_RPCM_SUBS_H_
 #define _RPC_RPCM_SUBS_H_
-
 
 /*
  * Now for the macros that do the simple stuff and call the functions
@@ -80,52 +78,58 @@
  * unions.
  */
 
-#define	rpcm_build(a,c,s) \
-		{ if ((s) > M_TRAILINGSPACE(mb)) { \
+#define rpcm_build(a, c, s)                             \
+	{                                               \
+		if ((s) > M_TRAILINGSPACE(mb)) {        \
 			mb2 = m_get(M_WAITOK, MT_DATA); \
-			if ((s) > MLEN) \
-				panic("build > MLEN"); \
-			mb->m_next = mb2; \
-			mb = mb2; \
-			mb->m_len = 0; \
-			bpos = mtod(mb, caddr_t); \
-		} \
-		(a) = (c)(bpos); \
-		mb->m_len += (s); \
-		bpos += (s); }
+			if ((s) > MLEN)                 \
+				panic("build > MLEN");  \
+			mb->m_next = mb2;               \
+			mb = mb2;                       \
+			mb->m_len = 0;                  \
+			bpos = mtod(mb, caddr_t);       \
+		}                                       \
+		(a) = (c)(bpos);                        \
+		mb->m_len += (s);                       \
+		bpos += (s);                            \
+	}
 
-#define	rpcm_dissect(a, c, s) \
-		{ t1 = mtod(md, caddr_t)+md->m_len-dpos; \
-		if (t1 >= (s)) { \
-			(a) = (c)(dpos); \
-			dpos += (s); \
-		} else if ((t1 = rpcm_disct(&md, &dpos, (s), t1, &cp2)) != 0){ \
-			error = t1; \
-			goto rpcmout; \
-		} else { \
-			(a) = (c)cp2; \
-		} }
+#define rpcm_dissect(a, c, s)                                              \
+	{                                                                  \
+		t1 = mtod(md, caddr_t) + md->m_len - dpos;                 \
+		if (t1 >= (s)) {                                           \
+			(a) = (c)(dpos);                                   \
+			dpos += (s);                                       \
+		} else if ((t1 = rpcm_disct(&md, &dpos, (s), t1, &cp2)) != \
+		    0) {                                                   \
+			error = t1;                                        \
+			goto rpcmout;                                      \
+		} else {                                                   \
+			(a) = (c)cp2;                                      \
+		}                                                          \
+	}
 
 #if 0
-#define rpcm_mtouio(p,s) \
-		if ((s) > 0 && \
-		   (t1 = rpcm_mbuftouio(&md,(p),(s),&dpos)) != 0) { \
-			error = t1; \
-			goto rpcmout; \
-		}
+#define rpcm_mtouio(p, s)                                                  \
+	if ((s) > 0 && (t1 = rpcm_mbuftouio(&md, (p), (s), &dpos)) != 0) { \
+		error = t1;                                                \
+		goto rpcmout;                                              \
+	}
 #endif
 
-#define rpcm_rndup(a)	(((a)+3)&(~0x3))
+#define rpcm_rndup(a) (((a) + 3) & (~0x3))
 
-#define	rpcm_adv(s) \
-		{ t1 = mtod(md, caddr_t)+md->m_len-dpos; \
-		if (t1 >= (s)) { \
-			dpos += (s); \
+#define rpcm_adv(s)                                                    \
+	{                                                              \
+		t1 = mtod(md, caddr_t) + md->m_len - dpos;             \
+		if (t1 >= (s)) {                                       \
+			dpos += (s);                                   \
 		} else if ((t1 = rpc_adv(&md, &dpos, (s), t1)) != 0) { \
-			error = t1; \
-			goto rpcmout; \
-		} }
+			error = t1;                                    \
+			goto rpcmout;                                  \
+		}                                                      \
+	}
 
-#define RPCMADV(m, s)   (m)->m_data += (s)
+#define RPCMADV(m, s) (m)->m_data += (s)
 
 #endif /* _RPC_RPCM_SUBS_H_ */

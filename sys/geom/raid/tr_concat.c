@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
@@ -37,18 +38,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include "geom/raid/g_raid.h"
+
 #include "g_raid_tr_if.h"
+#include "geom/raid/g_raid.h"
 
 static MALLOC_DEFINE(M_TR_CONCAT, "tr_concat_data", "GEOM_RAID CONCAT data");
 
 struct g_raid_tr_concat_object {
-	struct g_raid_tr_object	 trso_base;
-	int			 trso_starting;
-	int			 trso_stopped;
+	struct g_raid_tr_object trso_base;
+	int trso_starting;
+	int trso_stopped;
 };
 
 static g_raid_tr_taste_t g_raid_tr_taste_concat;
@@ -60,29 +62,23 @@ static g_raid_tr_iodone_t g_raid_tr_iodone_concat;
 static g_raid_tr_kerneldump_t g_raid_tr_kerneldump_concat;
 static g_raid_tr_free_t g_raid_tr_free_concat;
 
-static kobj_method_t g_raid_tr_concat_methods[] = {
-	KOBJMETHOD(g_raid_tr_taste,	g_raid_tr_taste_concat),
-	KOBJMETHOD(g_raid_tr_event,	g_raid_tr_event_concat),
-	KOBJMETHOD(g_raid_tr_start,	g_raid_tr_start_concat),
-	KOBJMETHOD(g_raid_tr_stop,	g_raid_tr_stop_concat),
-	KOBJMETHOD(g_raid_tr_iostart,	g_raid_tr_iostart_concat),
-	KOBJMETHOD(g_raid_tr_iodone,	g_raid_tr_iodone_concat),
-	KOBJMETHOD(g_raid_tr_kerneldump,	g_raid_tr_kerneldump_concat),
-	KOBJMETHOD(g_raid_tr_free,	g_raid_tr_free_concat),
-	{ 0, 0 }
-};
+static kobj_method_t g_raid_tr_concat_methods[] = { KOBJMETHOD(g_raid_tr_taste,
+							g_raid_tr_taste_concat),
+	KOBJMETHOD(g_raid_tr_event, g_raid_tr_event_concat),
+	KOBJMETHOD(g_raid_tr_start, g_raid_tr_start_concat),
+	KOBJMETHOD(g_raid_tr_stop, g_raid_tr_stop_concat),
+	KOBJMETHOD(g_raid_tr_iostart, g_raid_tr_iostart_concat),
+	KOBJMETHOD(g_raid_tr_iodone, g_raid_tr_iodone_concat),
+	KOBJMETHOD(g_raid_tr_kerneldump, g_raid_tr_kerneldump_concat),
+	KOBJMETHOD(g_raid_tr_free, g_raid_tr_free_concat), { 0, 0 } };
 
-static struct g_raid_tr_class g_raid_tr_concat_class = {
-	"CONCAT",
-	g_raid_tr_concat_methods,
-	sizeof(struct g_raid_tr_concat_object),
-	.trc_enable = 1,
-	.trc_priority = 50,
-	.trc_accept_unmapped = 1
-};
+static struct g_raid_tr_class g_raid_tr_concat_class = { "CONCAT",
+	g_raid_tr_concat_methods, sizeof(struct g_raid_tr_concat_object),
+	.trc_enable = 1, .trc_priority = 50, .trc_accept_unmapped = 1 };
 
 static int
-g_raid_tr_taste_concat(struct g_raid_tr_object *tr, struct g_raid_volume *volume)
+g_raid_tr_taste_concat(
+    struct g_raid_tr_object *tr, struct g_raid_volume *volume)
 {
 	struct g_raid_tr_concat_object *trs;
 
@@ -90,7 +86,7 @@ g_raid_tr_taste_concat(struct g_raid_tr_object *tr, struct g_raid_volume *volume
 	if (tr->tro_volume->v_raid_level != G_RAID_VOLUME_RL_SINGLE &&
 	    tr->tro_volume->v_raid_level != G_RAID_VOLUME_RL_CONCAT &&
 	    !(tr->tro_volume->v_disks_count == 1 &&
-	      tr->tro_volume->v_raid_level != G_RAID_VOLUME_RL_UNKNOWN))
+		tr->tro_volume->v_raid_level != G_RAID_VOLUME_RL_UNKNOWN))
 		return (G_RAID_TR_TASTE_FAIL);
 	trs->trso_starting = 1;
 	return (G_RAID_TR_TASTE_SUCCEED);
@@ -139,8 +135,9 @@ g_raid_tr_update_state_concat(struct g_raid_volume *vol)
 			vol->v_mediasize = size;
 		}
 
-		g_raid_event_send(vol, G_RAID_VOLUME_S_ALIVE(s) ?
-		    G_RAID_VOLUME_E_UP : G_RAID_VOLUME_E_DOWN,
+		g_raid_event_send(vol,
+		    G_RAID_VOLUME_S_ALIVE(s) ? G_RAID_VOLUME_E_UP :
+						     G_RAID_VOLUME_E_DOWN,
 		    G_RAID_EVENT_VOLUME);
 		g_raid_change_volume_state(vol, s);
 		if (!trs->trso_starting && !trs->trso_stopped)
@@ -150,8 +147,8 @@ g_raid_tr_update_state_concat(struct g_raid_volume *vol)
 }
 
 static int
-g_raid_tr_event_concat(struct g_raid_tr_object *tr,
-    struct g_raid_subdisk *sd, u_int event)
+g_raid_tr_event_concat(
+    struct g_raid_tr_object *tr, struct g_raid_subdisk *sd, u_int event)
 {
 	struct g_raid_tr_concat_object *trs;
 	struct g_raid_softc *sc;
@@ -166,14 +163,12 @@ g_raid_tr_event_concat(struct g_raid_tr_object *tr,
 	if (state != G_RAID_SUBDISK_S_NONE &&
 	    state != G_RAID_SUBDISK_S_FAILED &&
 	    state != G_RAID_SUBDISK_S_ACTIVE) {
-		G_RAID_DEBUG1(1, sc,
-		    "Promote subdisk %s:%d from %s to ACTIVE.",
+		G_RAID_DEBUG1(1, sc, "Promote subdisk %s:%d from %s to ACTIVE.",
 		    vol->v_name, sd->sd_pos,
 		    g_raid_subdisk_state2str(sd->sd_state));
 		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
 	}
-	if (state != sd->sd_state &&
-	    !trs->trso_starting && !trs->trso_stopped)
+	if (state != sd->sd_state && !trs->trso_starting && !trs->trso_stopped)
 		g_raid_write_metadata(sc, vol, sd, NULL);
 	g_raid_tr_update_state_concat(vol);
 	return (0);
@@ -235,8 +230,8 @@ g_raid_tr_iostart_concat(struct g_raid_tr_object *tr, struct bio *bp)
 	else
 		addr = bp->bio_data;
 	no = 0;
-	while (no < vol->v_disks_count &&
-	    offset >= vol->v_subdisks[no].sd_size) {
+	while (
+	    no < vol->v_disks_count && offset >= vol->v_subdisks[no].sd_size) {
 		offset -= vol->v_subdisks[no].sd_size;
 		no++;
 	}
@@ -257,7 +252,8 @@ g_raid_tr_iostart_concat(struct g_raid_tr_object *tr, struct bio *bp)
 			cbp->bio_ma += cbp->bio_ma_offset / PAGE_SIZE;
 			cbp->bio_ma_offset %= PAGE_SIZE;
 			cbp->bio_ma_n = round_page(cbp->bio_ma_offset +
-			    cbp->bio_length) / PAGE_SIZE;
+					    cbp->bio_length) /
+			    PAGE_SIZE;
 		} else
 			cbp->bio_data = addr;
 		cbp->bio_caller1 = sd;
@@ -268,8 +264,8 @@ g_raid_tr_iostart_concat(struct g_raid_tr_object *tr, struct bio *bp)
 		offset = 0;
 		no++;
 		KASSERT(no < vol->v_disks_count || remain == 0,
-		    ("Request ends after volume end (%ju, %ju)",
-			bp->bio_offset, bp->bio_length));
+		    ("Request ends after volume end (%ju, %ju)", bp->bio_offset,
+			bp->bio_length));
 	} while (remain > 0);
 	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		sd = cbp->bio_caller1;
@@ -286,8 +282,8 @@ failure:
 }
 
 static int
-g_raid_tr_kerneldump_concat(struct g_raid_tr_object *tr,
-    void *virtual, vm_offset_t physical, off_t boffset, size_t blength)
+g_raid_tr_kerneldump_concat(struct g_raid_tr_object *tr, void *virtual,
+    vm_offset_t physical, off_t boffset, size_t blength)
 {
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
@@ -303,8 +299,8 @@ g_raid_tr_kerneldump_concat(struct g_raid_tr_object *tr,
 	remain = blength;
 	addr = virtual;
 	no = 0;
-	while (no < vol->v_disks_count &&
-	    offset >= vol->v_subdisks[no].sd_size) {
+	while (
+	    no < vol->v_disks_count && offset >= vol->v_subdisks[no].sd_size) {
 		offset -= vol->v_subdisks[no].sd_size;
 		no++;
 	}
@@ -313,8 +309,8 @@ g_raid_tr_kerneldump_concat(struct g_raid_tr_object *tr,
 	do {
 		sd = &vol->v_subdisks[no];
 		length = MIN(sd->sd_size - offset, remain);
-		error = g_raid_subdisk_kerneldump(&vol->v_subdisks[no],
-		    addr, 0, offset, length);
+		error = g_raid_subdisk_kerneldump(
+		    &vol->v_subdisks[no], addr, 0, offset, length);
 		if (error != 0)
 			return (error);
 		remain -= length;
@@ -322,15 +318,15 @@ g_raid_tr_kerneldump_concat(struct g_raid_tr_object *tr,
 		offset = 0;
 		no++;
 		KASSERT(no < vol->v_disks_count || remain == 0,
-		    ("Request ends after volume end (%ju, %zu)",
-			boffset, blength));
+		    ("Request ends after volume end (%ju, %zu)", boffset,
+			blength));
 	} while (remain > 0);
 	return (0);
 }
 
 static void
-g_raid_tr_iodone_concat(struct g_raid_tr_object *tr,
-    struct g_raid_subdisk *sd,struct bio *bp)
+g_raid_tr_iodone_concat(
+    struct g_raid_tr_object *tr, struct g_raid_subdisk *sd, struct bio *bp)
 {
 	struct bio *pbp;
 

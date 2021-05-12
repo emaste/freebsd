@@ -37,13 +37,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #ifndef _KERNEL
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <time.h>
 #include <sys/errno.h>
-#include <ufs/ufs/dinode.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 #include <ufs/ffs/fs.h>
+#include <ufs/ufs/dinode.h>
 
 uint32_t calculate_crc32c(uint32_t, const void *, size_t);
 uint32_t ffs_calc_sbhash(struct fs *);
@@ -53,27 +54,27 @@ struct malloc_type;
 /*
  * Request standard superblock location in ffs_sbget
  */
-#define	STDSB			-1	/* Fail if check-hash is bad */
-#define	STDSB_NOHASHFAIL	-2	/* Ignore check-hash failure */
+#define STDSB -1 /* Fail if check-hash is bad */
+#define STDSB_NOHASHFAIL -2 /* Ignore check-hash failure */
 
 #else /* _KERNEL */
 #include <sys/systm.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
 #include <sys/gsb_crc32.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/vnode.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
 #include <sys/ucred.h>
+#include <sys/vnode.h>
 
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/ufsmount.h>
-#include <ufs/ufs/ufs_extern.h>
 #include <ufs/ffs/ffs_extern.h>
 #include <ufs/ffs/fs.h>
+#include <ufs/ufs/extattr.h>
+#include <ufs/ufs/inode.h>
+#include <ufs/ufs/quota.h>
+#include <ufs/ufs/ufs_extern.h>
+#include <ufs/ufs/ufsmount.h>
 
 #define UFS_MALLOC(size, type, flags) malloc(size, type, flags)
 #define UFS_FREE(ptr, type) free(ptr, type)
@@ -129,7 +130,7 @@ ffs_update_dinode_ckhash(struct fs *fs, struct ufs2_dinode *dip)
  */
 static off_t sblock_try[] = SBLOCKSEARCH;
 static int readsuper(void *, struct fs **, off_t, int, int,
-	int (*)(void *, off_t, void **, int));
+    int (*)(void *, off_t, void **, int));
 
 /*
  * Read a superblock from the devfd device.
@@ -166,8 +167,8 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
 	fs = NULL;
 	*fsp = NULL;
 	if (altsblock >= 0) {
-		if ((error = readsuper(devfd, &fs, altsblock, 1, 0,
-		     readfunc)) != 0) {
+		if ((error = readsuper(
+			 devfd, &fs, altsblock, 1, 0, readfunc)) != 0) {
 			if (fs != NULL)
 				UFS_FREE(fs, filltype);
 			return (error);
@@ -178,7 +179,7 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
 			chkhash = 0;
 		for (i = 0; sblock_try[i] != -1; i++) {
 			if ((error = readsuper(devfd, &fs, sblock_try[i], 0,
-			     chkhash, readfunc)) == 0)
+				 chkhash, readfunc)) == 0)
 				break;
 			if (fs != NULL) {
 				UFS_FREE(fs, filltype);
@@ -262,12 +263,11 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	fs = *fsp;
 	if (fs->fs_magic == FS_BAD_MAGIC)
 		return (EINVAL);
-	if (((fs->fs_magic == FS_UFS1_MAGIC && (isaltsblk ||
-	      sblockloc <= SBLOCK_UFS1)) ||
-	     (fs->fs_magic == FS_UFS2_MAGIC && (isaltsblk ||
-	      sblockloc == fs->fs_sblockloc))) &&
-	    fs->fs_ncg >= 1 &&
-	    fs->fs_bsize >= MINBSIZE &&
+	if (((fs->fs_magic == FS_UFS1_MAGIC &&
+		 (isaltsblk || sblockloc <= SBLOCK_UFS1)) ||
+		(fs->fs_magic == FS_UFS2_MAGIC &&
+		    (isaltsblk || sblockloc == fs->fs_sblockloc))) &&
+	    fs->fs_ncg >= 1 && fs->fs_bsize >= MINBSIZE &&
 	    fs->fs_bsize <= MAXBSIZE &&
 	    fs->fs_bsize >= roundup(sizeof(struct fs), DEV_BSIZE) &&
 	    fs->fs_sbsize <= SBLOCKSIZE) {
@@ -285,7 +285,8 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 		fs->fs_flags &= FS_SUPPORTED;
 		if (fs->fs_ckhash != (ckhash = ffs_calc_sbhash(fs))) {
 #ifdef _KERNEL
-			res = uprintf("Superblock check-hash failed: recorded "
+			res = uprintf(
+			    "Superblock check-hash failed: recorded "
 			    "check-hash 0x%x != computed check-hash 0x%x%s\n",
 			    fs->fs_ckhash, ckhash,
 			    chkhash == 0 ? " (Ignored)" : "");
@@ -298,8 +299,9 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 			 */
 			if (res == 0)
 				printf("Superblock check-hash failed: recorded "
-				    "check-hash 0x%x != computed check-hash "
-				    "0x%x%s\n", fs->fs_ckhash, ckhash,
+				       "check-hash 0x%x != computed check-hash "
+				       "0x%x%s\n",
+				    fs->fs_ckhash, ckhash,
 				    chkhash == 0 ? " (Ignored)" : "");
 			if (chkhash == 0) {
 				fs->fs_flags |= FS_NEEDSFSCK;
@@ -346,8 +348,8 @@ ffs_sbput(void *devfd, struct fs *fs, off_t loc,
 			if (i + fs->fs_frag > blks)
 				size = (blks - i) * fs->fs_fsize;
 			if ((error = (*writefunc)(devfd,
-			     dbtob(fsbtodb(fs, fs->fs_csaddr + i)),
-			     space, size)) != 0)
+				 dbtob(fsbtodb(fs, fs->fs_csaddr + i)), space,
+				 size)) != 0)
 				return (error);
 			space += size;
 		}

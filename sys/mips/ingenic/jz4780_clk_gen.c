@@ -34,8 +34,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
@@ -48,13 +48,13 @@ __FBSDID("$FreeBSD$");
 /* JZ4780 generic mux and div clocks implementation */
 static int jz4780_clk_gen_init(struct clknode *clk, device_t dev);
 static int jz4780_clk_gen_recalc_freq(struct clknode *clk, uint64_t *freq);
-static int jz4780_clk_gen_set_freq(struct clknode *clk, uint64_t fin,
-    uint64_t *fout, int flags, int *stop);
+static int jz4780_clk_gen_set_freq(
+    struct clknode *clk, uint64_t fin, uint64_t *fout, int flags, int *stop);
 static int jz4780_clk_gen_set_gate(struct clknode *clk, bool enable);
 static int jz4780_clk_gen_set_mux(struct clknode *clk, int src);
 
 struct jz4780_clk_gen_sc {
-	struct mtx	*clk_mtx;
+	struct mtx *clk_mtx;
 	struct resource *clk_res;
 	int clk_reg;
 	const struct jz4780_clk_descr *clk_descr;
@@ -63,17 +63,16 @@ struct jz4780_clk_gen_sc {
 /*
  * JZ4780 clock PLL clock methods
  */
-static clknode_method_t jz4780_clk_gen_methods[] = {
-	CLKNODEMETHOD(clknode_init,		jz4780_clk_gen_init),
-	CLKNODEMETHOD(clknode_set_gate,		jz4780_clk_gen_set_gate),
-	CLKNODEMETHOD(clknode_recalc_freq,	jz4780_clk_gen_recalc_freq),
-	CLKNODEMETHOD(clknode_set_freq,		jz4780_clk_gen_set_freq),
-	CLKNODEMETHOD(clknode_set_mux,		jz4780_clk_gen_set_mux),
+static clknode_method_t jz4780_clk_gen_methods[] = { CLKNODEMETHOD(clknode_init,
+							 jz4780_clk_gen_init),
+	CLKNODEMETHOD(clknode_set_gate, jz4780_clk_gen_set_gate),
+	CLKNODEMETHOD(clknode_recalc_freq, jz4780_clk_gen_recalc_freq),
+	CLKNODEMETHOD(clknode_set_freq, jz4780_clk_gen_set_freq),
+	CLKNODEMETHOD(clknode_set_mux, jz4780_clk_gen_set_mux),
 
-	CLKNODEMETHOD_END
-};
+	CLKNODEMETHOD_END };
 DEFINE_CLASS_1(jz4780_clk_pll, jz4780_clk_gen_class, jz4780_clk_gen_methods,
-       sizeof(struct jz4780_clk_gen_sc), clknode_class);
+    sizeof(struct jz4780_clk_gen_sc), clknode_class);
 
 static inline unsigned
 mux_to_reg(unsigned src, unsigned map)
@@ -145,11 +144,11 @@ jz4780_clk_gen_recalc_freq(struct clknode *clk, uint64_t *freq)
 	return (0);
 }
 
-#define DIV_TIMEOUT	100
+#define DIV_TIMEOUT 100
 
 static int
-jz4780_clk_gen_set_freq(struct clknode *clk, uint64_t fin,
-    uint64_t *fout, int flags, int *stop)
+jz4780_clk_gen_set_freq(
+    struct clknode *clk, uint64_t fin, uint64_t *fout, int flags, int *stop)
 {
 	struct jz4780_clk_gen_sc *sc;
 	uint64_t _fout;
@@ -162,7 +161,9 @@ jz4780_clk_gen_set_freq(struct clknode *clk, uint64_t fin,
 	div_l = howmany(fin, *fout);
 	div_h = fin / *fout;
 	divider = abs((int64_t)*fout - (fin / div_l)) <
-	    abs((int64_t)*fout - (fin / div_h)) ? div_l : div_h;
+		abs((int64_t)*fout - (fin / div_h)) ?
+		  div_l :
+		  div_h;
 
 	/* Adjust for divider multiplier */
 	div_reg = divider >> sc->clk_descr->clk_div.div_lg;
@@ -218,9 +219,10 @@ jz4780_clk_gen_set_freq(struct clknode *clk, uint64_t fin,
 	if (sc->clk_descr->clk_div.div_busy_bit >= 0) {
 		int i;
 
-		for (i = 0;  i < DIV_TIMEOUT; i++) {
+		for (i = 0; i < DIV_TIMEOUT; i++) {
 			reg = CLK_RD_4(sc, sc->clk_descr->clk_div.div_reg);
-			if (!(reg & (1u << sc->clk_descr->clk_div.div_busy_bit)))
+			if (!(reg &
+				(1u << sc->clk_descr->clk_div.div_busy_bit)))
 				break;
 			DELAY(1000);
 		}
@@ -251,7 +253,7 @@ jz4780_clk_gen_set_mux(struct clknode *clk, int src)
 	CLK_LOCK(sc);
 	reg = CLK_RD_4(sc, sc->clk_descr->clk_mux.mux_reg);
 	reg &= ~(msk << sc->clk_descr->clk_mux.mux_shift);
-	reg |=  (src << sc->clk_descr->clk_mux.mux_shift);
+	reg |= (src << sc->clk_descr->clk_mux.mux_shift);
 	CLK_WR_4(sc, sc->clk_descr->clk_mux.mux_reg, reg);
 	CLK_UNLOCK(sc);
 
@@ -290,7 +292,8 @@ jz4780_clk_gen_set_gate(struct clknode *clk, bool enable)
 	return (0);
 }
 
-int jz4780_clk_gen_register(struct clkdom *clkdom,
+int
+jz4780_clk_gen_register(struct clkdom *clkdom,
     const struct jz4780_clk_descr *descr, struct mtx *dev_mtx,
     struct resource *mem_res)
 {

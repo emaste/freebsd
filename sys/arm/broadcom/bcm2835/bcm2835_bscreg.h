@@ -29,41 +29,40 @@
  * $FreeBSD$
  */
 
-#ifndef	_BCM2835_BSCREG_H_
-#define	_BCM2835_BSCREG_H_
+#ifndef _BCM2835_BSCREG_H_
+#define _BCM2835_BSCREG_H_
 
-#define	BCM_BSC_CORE_CLK	150000000U
-#define	BCM_BSC_CTRL		0x00
-#define	BCM_BSC_CTRL_I2CEN		(1 << 15)
-#define	BCM_BSC_CTRL_INTR		(1 << 10)
-#define	BCM_BSC_CTRL_INTT		(1 << 9)
-#define	BCM_BSC_CTRL_INTD		(1 << 8)
-#define	BCM_BSC_CTRL_ST			(1 << 7)
-#define	BCM_BSC_CTRL_CLEAR1		(1 << 5)
-#define	BCM_BSC_CTRL_CLEAR0		(1 << 4)
-#define	BCM_BSC_CTRL_READ		(1 << 0)
-#define	BCM_BSC_CTRL_INT_ALL \
-    (BCM_BSC_CTRL_INTR | BCM_BSC_CTRL_INTT | BCM_BSC_CTRL_INTD)
+#define BCM_BSC_CORE_CLK 150000000U
+#define BCM_BSC_CTRL 0x00
+#define BCM_BSC_CTRL_I2CEN (1 << 15)
+#define BCM_BSC_CTRL_INTR (1 << 10)
+#define BCM_BSC_CTRL_INTT (1 << 9)
+#define BCM_BSC_CTRL_INTD (1 << 8)
+#define BCM_BSC_CTRL_ST (1 << 7)
+#define BCM_BSC_CTRL_CLEAR1 (1 << 5)
+#define BCM_BSC_CTRL_CLEAR0 (1 << 4)
+#define BCM_BSC_CTRL_READ (1 << 0)
+#define BCM_BSC_CTRL_INT_ALL \
+	(BCM_BSC_CTRL_INTR | BCM_BSC_CTRL_INTT | BCM_BSC_CTRL_INTD)
 
-#define	BCM_BSC_STATUS		0x04
-#define	BCM_BSC_STATUS_CLKT		(1 << 9)
-#define	BCM_BSC_STATUS_ERR		(1 << 8)
-#define	BCM_BSC_STATUS_RXF		(1 << 7)
-#define	BCM_BSC_STATUS_TXE		(1 << 6)
-#define	BCM_BSC_STATUS_RXD		(1 << 5)
-#define	BCM_BSC_STATUS_TXD		(1 << 4)
-#define	BCM_BSC_STATUS_RXR		(1 << 3)
-#define	BCM_BSC_STATUS_TXW		(1 << 2)
-#define	BCM_BSC_STATUS_DONE		(1 << 1)
-#define	BCM_BSC_STATUS_TA		(1 << 0)
-#define	BCM_BSC_STATUS_ERRBITS \
-    (BCM_BSC_STATUS_CLKT | BCM_BSC_STATUS_ERR)
+#define BCM_BSC_STATUS 0x04
+#define BCM_BSC_STATUS_CLKT (1 << 9)
+#define BCM_BSC_STATUS_ERR (1 << 8)
+#define BCM_BSC_STATUS_RXF (1 << 7)
+#define BCM_BSC_STATUS_TXE (1 << 6)
+#define BCM_BSC_STATUS_RXD (1 << 5)
+#define BCM_BSC_STATUS_TXD (1 << 4)
+#define BCM_BSC_STATUS_RXR (1 << 3)
+#define BCM_BSC_STATUS_TXW (1 << 2)
+#define BCM_BSC_STATUS_DONE (1 << 1)
+#define BCM_BSC_STATUS_TA (1 << 0)
+#define BCM_BSC_STATUS_ERRBITS (BCM_BSC_STATUS_CLKT | BCM_BSC_STATUS_ERR)
 
-#define	BCM_BSC_DLEN		0x08
-#define	BCM_BSC_SLAVE		0x0c
-#define	BCM_BSC_DATA		0x10
-#define	BCM_BSC_CLOCK		0x14
-#define	BCM_BSC_DELAY		0x18
-#define	BCM_BSC_CLKT		0x1c
+#define BCM_BSC_DLEN 0x08
+#define BCM_BSC_SLAVE 0x0c
+#define BCM_BSC_DATA 0x10
+#define BCM_BSC_CLOCK 0x14
+#define BCM_BSC_DELAY 0x18
+#define BCM_BSC_CLKT 0x1c
 
-#endif	/* _BCM2835_BSCREG_H_ */
+#endif /* _BCM2835_BSCREG_H_ */

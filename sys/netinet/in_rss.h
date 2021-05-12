@@ -30,30 +30,29 @@
  */
 
 #ifndef _NETINET_IN_RSS_H_
-#define	_NETINET_IN_RSS_H_
+#define _NETINET_IN_RSS_H_
 
-#include <netinet/in.h>		/* in_addr_t */
+#include <netinet/in.h> /* in_addr_t */
 
 /*
  * Network stack interface to generate a hash for a protocol tuple.
  */
-uint32_t	rss_hash_ip4_4tuple(struct in_addr src, u_short srcport,
-		    struct in_addr dst, u_short dstport);
-uint32_t	rss_hash_ip4_2tuple(struct in_addr src, struct in_addr dst);
+uint32_t rss_hash_ip4_4tuple(
+    struct in_addr src, u_short srcport, struct in_addr dst, u_short dstport);
+uint32_t rss_hash_ip4_2tuple(struct in_addr src, struct in_addr dst);
 
 /*
  * Functions to calculate a software RSS hash for a given mbuf or
  * packet detail.
  */
-int		rss_mbuf_software_hash_v4(const struct mbuf *m, int dir,
-		    uint32_t *hashval, uint32_t *hashtype);
-int		rss_proto_software_hash_v4(struct in_addr src,
-		    struct in_addr dst, u_short src_port, u_short dst_port,
-		    int proto, uint32_t *hashval,
-		    uint32_t *hashtype);
-struct mbuf *	rss_soft_m2cpuid_v4(struct mbuf *m, uintptr_t source,
-		    u_int *cpuid);
-uint32_t	xps_proto_software_hash_v4(struct in_addr s, struct in_addr d,
-		    u_short sp, u_short dp, int proto, uint32_t *hashtype);
+int rss_mbuf_software_hash_v4(
+    const struct mbuf *m, int dir, uint32_t *hashval, uint32_t *hashtype);
+int rss_proto_software_hash_v4(struct in_addr src, struct in_addr dst,
+    u_short src_port, u_short dst_port, int proto, uint32_t *hashval,
+    uint32_t *hashtype);
+struct mbuf *rss_soft_m2cpuid_v4(
+    struct mbuf *m, uintptr_t source, u_int *cpuid);
+uint32_t xps_proto_software_hash_v4(struct in_addr s, struct in_addr d,
+    u_short sp, u_short dp, int proto, uint32_t *hashtype);
 
 #endif /* !_NETINET_IN_RSS_H_ */

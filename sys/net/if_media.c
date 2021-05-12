@@ -54,10 +54,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/socket.h>
-#include <sys/sockio.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -70,15 +70,15 @@ __FBSDID("$FreeBSD$");
  * 	Useful for debugging newly-ported  drivers.
  */
 
-static struct ifmedia_entry *ifmedia_match(struct ifmedia *ifm,
-    int flags, int mask);
+static struct ifmedia_entry *ifmedia_match(
+    struct ifmedia *ifm, int flags, int mask);
 
 #ifdef IFMEDIA_DEBUG
 #include <net/if_var.h>
-int	ifmedia_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, ifmedia, CTLFLAG_RW, &ifmedia_debug,
-	    0, "if_media debugging msgs");
-static	void ifmedia_printword(int);
+int ifmedia_debug = 0;
+SYSCTL_INT(_debug, OID_AUTO, ifmedia, CTLFLAG_RW, &ifmedia_debug, 0,
+    "if_media debugging msgs");
+static void ifmedia_printword(int);
 #endif
 
 /*
@@ -92,7 +92,7 @@ ifmedia_init(struct ifmedia *ifm, int dontcare_mask,
 	LIST_INIT(&ifm->ifm_list);
 	ifm->ifm_cur = NULL;
 	ifm->ifm_media = 0;
-	ifm->ifm_mask = dontcare_mask;		/* IF don't-care bits */
+	ifm->ifm_mask = dontcare_mask; /* IF don't-care bits */
 	ifm->ifm_change = change_callback;
 	ifm->ifm_status = status_callback;
 }
@@ -150,12 +150,12 @@ ifmedia_list_add(struct ifmedia *ifm, struct ifmedia_entry *lp, int count)
 	int i;
 
 	for (i = 0; i < count; i++)
-		ifmedia_add(ifm, lp[i].ifm_media, lp[i].ifm_data,
-		    lp[i].ifm_aux);
+		ifmedia_add(
+		    ifm, lp[i].ifm_media, lp[i].ifm_data, lp[i].ifm_aux);
 }
 
 /*
- * Set the default active media. 
+ * Set the default active media.
  *
  * Called by device-specific code which is assumed to have already
  * selected the default media in hardware.  We do _not_ call the
@@ -169,8 +169,8 @@ ifmedia_set(struct ifmedia *ifm, int target)
 	match = ifmedia_match(ifm, target, ifm->ifm_mask);
 
 	if (match == NULL) {
-		printf("ifmedia_set: no match for 0x%x/0x%x\n",
-		    target, ~ifm->ifm_mask);
+		printf("ifmedia_set: no match for 0x%x/0x%x\n", target,
+		    ~ifm->ifm_mask);
 		panic("ifmedia_set");
 	}
 	ifm->ifm_cur = match;
@@ -194,7 +194,7 @@ compat_media(int media)
 {
 
 	if (IFM_TYPE(media) == IFM_ETHER && IFM_SUBTYPE(media) > IFM_OTHER) {
-		media &= ~(IFM_ETH_XTYPE|IFM_TMASK);
+		media &= ~(IFM_ETH_XTYPE | IFM_TMASK);
 		media |= IFM_OTHER;
 	}
 	return (media);
@@ -204,11 +204,11 @@ compat_media(int media)
  * Device-independent media ioctl support function.
  */
 int
-ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
-    u_long cmd)
+ifmedia_ioctl(
+    struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm, u_long cmd)
 {
 	struct ifmedia_entry *match;
-	struct ifmediareq *ifmr = (struct ifmediareq *) ifr;
+	struct ifmediareq *ifmr = (struct ifmediareq *)ifr;
 	int error = 0;
 
 	if (ifp == NULL || ifr == NULL || ifm == NULL)
@@ -218,8 +218,7 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
 	/*
 	 * Set the current media.
 	 */
-	case  SIOCSIFMEDIA:
-	{
+	case SIOCSIFMEDIA: {
 		struct ifmedia_entry *oldentry;
 		int oldmedia;
 		int newmedia = ifr->ifr_media;
@@ -229,7 +228,7 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
 #ifdef IFMEDIA_DEBUG
 			if (ifmedia_debug) {
 				printf(
-		    "ifmedia_ioctl: no media found for %#010x mask %#010x\n", 
+				    "ifmedia_ioctl: no media found for %#010x mask %#010x\n",
 				    newmedia, ifm->ifm_mask);
 			}
 #endif
@@ -246,15 +245,15 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
 		    newmedia == ifm->ifm_media && match == ifm->ifm_cur)
 			return (0);
 
-		/*
-		 * We found a match, now make the driver switch to it.
-		 * Make sure to preserve our old media type in case the
-		 * driver can't switch.
-		 */
+			/*
+			 * We found a match, now make the driver switch to it.
+			 * Make sure to preserve our old media type in case the
+			 * driver can't switch.
+			 */
 #ifdef IFMEDIA_DEBUG
 		if (ifmedia_debug) {
-			printf("ifmedia_ioctl: switching %s to ",
-			    ifp->if_xname);
+			printf(
+			    "ifmedia_ioctl: switching %s to ", ifp->if_xname);
 			ifmedia_printword(match->ifm_media);
 		}
 #endif
@@ -273,9 +272,8 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
 	/*
 	 * Get list of available media and current media on interface.
 	 */
-	case  SIOCGIFMEDIA: 
-	case  SIOCGIFXMEDIA: 
-	{
+	case SIOCGIFMEDIA:
+	case SIOCGIFXMEDIA: {
 		struct ifmedia_entry *ep;
 		int i;
 
@@ -284,10 +282,12 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
 
 		if (cmd == SIOCGIFMEDIA) {
 			ifmr->ifm_active = ifmr->ifm_current = ifm->ifm_cur ?
-			    compat_media(ifm->ifm_cur->ifm_media) : IFM_NONE;
+				  compat_media(ifm->ifm_cur->ifm_media) :
+				  IFM_NONE;
 		} else {
 			ifmr->ifm_active = ifmr->ifm_current = ifm->ifm_cur ?
-			    ifm->ifm_cur->ifm_media : IFM_NONE;
+				  ifm->ifm_cur->ifm_media :
+				  IFM_NONE;
 		}
 		ifmr->ifm_mask = ifm->ifm_mask;
 		ifmr->ifm_status = 0;
@@ -300,7 +300,7 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
 		 * allocate.
 		 */
 		i = 0;
-		LIST_FOREACH(ep, &ifm->ifm_list, ifm_list) {
+		LIST_FOREACH (ep, &ifm->ifm_list, ifm_list) {
 			if (i < ifmr->ifm_count) {
 				error = copyout(&ep->ifm_media,
 				    ifmr->ifm_ulist + i, sizeof(int));
@@ -334,12 +334,13 @@ ifmedia_match(struct ifmedia *ifm, int target, int mask)
 	match = NULL;
 	mask = ~mask;
 
-	LIST_FOREACH(next, &ifm->ifm_list, ifm_list) {
+	LIST_FOREACH (next, &ifm->ifm_list, ifm_list) {
 		if ((next->ifm_media & mask) == (target & mask)) {
 #if defined(IFMEDIA_DEBUG) || defined(DIAGNOSTIC)
 			if (match) {
 				printf("ifmedia_match: multiple match for "
-				    "%#010x/%#010x\n", target, mask);
+				       "%#010x/%#010x\n",
+				    target, mask);
 			}
 #endif
 			match = next;
@@ -353,7 +354,7 @@ ifmedia_match(struct ifmedia *ifm, int target, int mask)
  * Compute the interface `baudrate' from the media, for the interface
  * metrics (used by routing daemons).
  */
-static const struct ifmedia_baudrate ifmedia_baudrate_descriptions[] =   
+static const struct ifmedia_baudrate ifmedia_baudrate_descriptions[] =
     IFM_BAUDRATE_DESCRIPTIONS;
 
 uint64_t
@@ -362,8 +363,8 @@ ifmedia_baudrate(int mword)
 	int i;
 
 	for (i = 0; ifmedia_baudrate_descriptions[i].ifmb_word != 0; i++) {
-		if (IFM_TYPE_MATCH(mword, ifmedia_baudrate_descriptions[i].
-		    ifmb_word))
+		if (IFM_TYPE_MATCH(
+			mword, ifmedia_baudrate_descriptions[i].ifmb_word))
 			return (ifmedia_baudrate_descriptions[i].ifmb_baudrate);
 	}
 
@@ -380,18 +381,18 @@ static const struct ifmedia_description ifm_subtype_ethernet_descriptions[] =
 
 static const struct ifmedia_description
     ifm_subtype_ethernet_option_descriptions[] =
-    IFM_SUBTYPE_ETHERNET_OPTION_DESCRIPTIONS;
+	IFM_SUBTYPE_ETHERNET_OPTION_DESCRIPTIONS;
 
 static const struct ifmedia_description ifm_subtype_ieee80211_descriptions[] =
     IFM_SUBTYPE_IEEE80211_DESCRIPTIONS;
 
 static const struct ifmedia_description
     ifm_subtype_ieee80211_option_descriptions[] =
-    IFM_SUBTYPE_IEEE80211_OPTION_DESCRIPTIONS;
+	IFM_SUBTYPE_IEEE80211_OPTION_DESCRIPTIONS;
 
 static const struct ifmedia_description
     ifm_subtype_ieee80211_mode_descriptions[] =
-    IFM_SUBTYPE_IEEE80211_MODE_DESCRIPTIONS;
+	IFM_SUBTYPE_IEEE80211_MODE_DESCRIPTIONS;
 
 static const struct ifmedia_description ifm_subtype_atm_descriptions[] =
     IFM_SUBTYPE_ATM_DESCRIPTIONS;
@@ -414,19 +415,17 @@ struct ifmedia_type_to_subtype {
 /* must be in the same order as IFM_TYPE_DESCRIPTIONS */
 static const struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 	{
-	  &ifm_subtype_ethernet_descriptions[0],
-	  &ifm_subtype_ethernet_option_descriptions[0],
-	  NULL,
+	    &ifm_subtype_ethernet_descriptions[0],
+	    &ifm_subtype_ethernet_option_descriptions[0],
+	    NULL,
 	},
+	{ &ifm_subtype_ieee80211_descriptions[0],
+	    &ifm_subtype_ieee80211_option_descriptions[0],
+	    &ifm_subtype_ieee80211_mode_descriptions[0] },
 	{
-	  &ifm_subtype_ieee80211_descriptions[0],
-	  &ifm_subtype_ieee80211_option_descriptions[0],
-	  &ifm_subtype_ieee80211_mode_descriptions[0]
-	},
-	{
-	  &ifm_subtype_atm_descriptions[0],
-	  &ifm_subtype_atm_option_descriptions[0],
-	  NULL,
+	    &ifm_subtype_atm_descriptions[0],
+	    &ifm_subtype_atm_option_descriptions[0],
+	    NULL,
 	},
 };
 
@@ -442,7 +441,7 @@ ifmedia_printword(int ifmw)
 
 	/* Find the top-level interface type. */
 	for (desc = ifm_type_descriptions, ttos = ifmedia_types_to_subtypes;
-	    desc->ifmt_string != NULL; desc++, ttos++)
+	     desc->ifmt_string != NULL; desc++, ttos++)
 		if (IFM_TYPE(ifmw) == desc->ifmt_word)
 			break;
 	if (desc->ifmt_string == NULL) {
@@ -463,8 +462,8 @@ ifmedia_printword(int ifmw)
 	 * Check for the shared subtype descriptions first, then the
 	 * type-specific ones.
 	 */
-	for (desc = ifm_subtype_shared_descriptions;
-	    desc->ifmt_string != NULL; desc++)
+	for (desc = ifm_subtype_shared_descriptions; desc->ifmt_string != NULL;
+	     desc++)
 		if (IFM_SUBTYPE(ifmw) == desc->ifmt_word)
 			goto got_subtype;
 
@@ -476,14 +475,14 @@ ifmedia_printword(int ifmw)
 		return;
 	}
 
- got_subtype:
+got_subtype:
 	printf(" %s", desc->ifmt_string);
 
 	/*
 	 * Look for shared options.
 	 */
-	for (desc = ifm_shared_option_descriptions;
-	    desc->ifmt_string != NULL; desc++) {
+	for (desc = ifm_shared_option_descriptions; desc->ifmt_string != NULL;
+	     desc++) {
 		if (ifmw & desc->ifmt_word) {
 			if (seen_option == 0)
 				printf(" <");
@@ -500,7 +499,7 @@ ifmedia_printword(int ifmw)
 			if (seen_option == 0)
 				printf(" <");
 			printf("%s%s", seen_option++ ? "," : "",
-			    desc->ifmt_string); 
+			    desc->ifmt_string);
 		}
 	}
 	printf("%s\n", seen_option ? ">" : "");

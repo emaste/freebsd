@@ -32,34 +32,34 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/condvar.h>
+#include <sys/conf.h>
+#include <sys/dnv.h>
 #include <sys/kernel.h>
-#include <sys/types.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/malloc.h>
-#include <sys/conf.h>
+#include <sys/nv.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
-#include <sys/nv.h>
-#include <sys/dnv.h>
 
 #include <cam/cam.h>
-#include <cam/scsi/scsi_all.h>
-#include <cam/scsi/scsi_da.h>
-#include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
-#include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_backend.h>
-#include <cam/ctl/ctl_ioctl.h>
-#include <cam/ctl/ctl_ha.h>
-#include <cam/ctl/ctl_private.h>
 #include <cam/ctl/ctl_debug.h>
 #include <cam/ctl/ctl_error.h>
+#include <cam/ctl/ctl_frontend.h>
+#include <cam/ctl/ctl_ha.h>
+#include <cam/ctl/ctl_io.h>
+#include <cam/ctl/ctl_ioctl.h>
+#include <cam/ctl/ctl_private.h>
+#include <cam/ctl/ctl_util.h>
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_da.h>
 
 typedef enum {
 	CTL_IOCTL_INPROG,
@@ -68,20 +68,20 @@ typedef enum {
 } ctl_fe_ioctl_state;
 
 struct ctl_fe_ioctl_params {
-	struct cv		sem;
-	struct mtx		ioctl_mtx;
-	ctl_fe_ioctl_state	state;
+	struct cv sem;
+	struct mtx ioctl_mtx;
+	ctl_fe_ioctl_state state;
 };
 
 struct cfi_port {
-	TAILQ_ENTRY(cfi_port)	link;
-	uint32_t		cur_tag_num;
-	struct cdev *		dev;
-	struct ctl_port		port;
+	TAILQ_ENTRY(cfi_port) link;
+	uint32_t cur_tag_num;
+	struct cdev *dev;
+	struct ctl_port port;
 };
 
 struct cfi_softc {
-	TAILQ_HEAD(, cfi_port)	ports;
+	TAILQ_HEAD(, cfi_port) ports;
 };
 
 static struct cfi_softc cfi_softc;
@@ -90,19 +90,16 @@ static int cfi_init(void);
 static int cfi_shutdown(void);
 static void cfi_datamove(union ctl_io *io);
 static void cfi_done(union ctl_io *io);
-static int cfi_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
-    struct thread *td);
+static int cfi_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td);
 static void cfi_ioctl_port_create(struct ctl_req *req);
 static void cfi_ioctl_port_remove(struct ctl_req *req);
 
-static struct cdevsw cfi_cdevsw = {
-	.d_version = D_VERSION,
+static struct cdevsw cfi_cdevsw = { .d_version = D_VERSION,
 	.d_flags = 0,
-	.d_ioctl = ctl_ioctl_io
-};
+	.d_ioctl = ctl_ioctl_io };
 
-static struct ctl_frontend cfi_frontend =
-{
+static struct ctl_frontend cfi_frontend = {
 	.name = "ioctl",
 	.init = cfi_init,
 	.ioctl = cfi_ioctl,
@@ -150,13 +147,13 @@ cfi_shutdown(void)
 	struct ctl_port *port;
 	int error;
 
-	TAILQ_FOREACH_SAFE(cfi, &isoftc->ports, link, temp) {
+	TAILQ_FOREACH_SAFE (cfi, &isoftc->ports, link, temp) {
 		port = &cfi->port;
 		ctl_port_offline(port);
 		error = ctl_port_deregister(port);
 		if (error != 0) {
-			printf("%s: ctl_frontend_deregister() failed\n",
-			   __func__);
+			printf(
+			    "%s: ctl_frontend_deregister() failed\n", __func__);
 			return (error);
 		}
 
@@ -188,8 +185,8 @@ cfi_ioctl_port_create(struct ctl_req *req)
 
 	if (pp != -1) {
 		/* Check for duplicates */
-		TAILQ_FOREACH(cfi, &isoftc->ports, link) {
-			if (pp == cfi->port.physical_port && 
+		TAILQ_FOREACH (cfi, &isoftc->ports, link) {
+			if (pp == cfi->port.physical_port &&
 			    vp == cfi->port.virtual_port) {
 				req->status = CTL_LUN_ERROR;
 				snprintf(req->error_str, sizeof(req->error_str),
@@ -200,7 +197,7 @@ cfi_ioctl_port_create(struct ctl_req *req)
 		}
 	} else {
 		/* Find free port number */
-		TAILQ_FOREACH(cfi, &isoftc->ports, link) {
+		TAILQ_FOREACH (cfi, &isoftc->ports, link) {
 			pp = MAX(pp, cfi->port.physical_port);
 		}
 
@@ -274,7 +271,7 @@ cfi_ioctl_port_remove(struct ctl_req *req)
 		return;
 	}
 
-	TAILQ_FOREACH(cfi, &isoftc->ports, link) {
+	TAILQ_FOREACH (cfi, &isoftc->ports, link) {
 		if (cfi->port.targ_port == port_id)
 			break;
 	}
@@ -304,8 +301,8 @@ cfi_ioctl_port_remove(struct ctl_req *req)
 }
 
 static int
-cfi_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
-    struct thread *td)
+cfi_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct ctl_req *req;
 
@@ -364,8 +361,8 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		int len_seen;
 
 		ext_sglen = ctsio->ext_sg_entries * sizeof(*ext_sglist);
-		ext_sglist = (struct ctl_sg_entry *)malloc(ext_sglen, M_CTL,
-							   M_WAITOK);
+		ext_sglist = (struct ctl_sg_entry *)malloc(
+		    ext_sglen, M_CTL, M_WAITOK);
 		ext_sglist_malloced = 1;
 		if (copyin(ctsio->ext_data_ptr, ext_sglist, ext_sglen) != 0) {
 			ctsio->io_hdr.port_status = 31343;
@@ -377,7 +374,7 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		len_seen = 0;
 		for (i = 0; i < ext_sg_entries; i++) {
 			if ((len_seen + ext_sglist[i].len) >=
-			     ctsio->ext_data_filled) {
+			    ctsio->ext_data_filled) {
 				ext_sg_start = i;
 				ext_offset = ctsio->ext_data_filled - len_seen;
 				break;
@@ -411,7 +408,7 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		uint8_t *ext_ptr, *kern_ptr;
 
 		len_to_copy = MIN(ext_sglist[i].len - ext_watermark,
-				  kern_sglist[j].len - kern_watermark);
+		    kern_sglist[j].len - kern_watermark);
 
 		ext_ptr = (uint8_t *)ext_sglist[i].addr;
 		ext_ptr = ext_ptr + ext_watermark;
@@ -428,21 +425,25 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 		kern_ptr = kern_ptr + kern_watermark;
 
 		if ((ctsio->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
-		     CTL_FLAG_DATA_IN) {
+		    CTL_FLAG_DATA_IN) {
 			CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: copying %d "
-					 "bytes to user\n", len_to_copy));
+					 "bytes to user\n",
+			    len_to_copy));
 			CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: from %p "
-					 "to %p\n", kern_ptr, ext_ptr));
+					 "to %p\n",
+			    kern_ptr, ext_ptr));
 			if (copyout(kern_ptr, ext_ptr, len_to_copy) != 0) {
 				ctsio->io_hdr.port_status = 31344;
 				goto bailout;
 			}
 		} else {
 			CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: copying %d "
-					 "bytes from user\n", len_to_copy));
+					 "bytes from user\n",
+			    len_to_copy));
 			CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: from %p "
-					 "to %p\n", ext_ptr, kern_ptr));
-			if (copyin(ext_ptr, kern_ptr, len_to_copy)!= 0){
+					 "to %p\n",
+			    ext_ptr, kern_ptr));
+			if (copyin(ext_ptr, kern_ptr, len_to_copy) != 0) {
 				ctsio->io_hdr.port_status = 31345;
 				goto bailout;
 			}
@@ -465,11 +466,11 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 	}
 
 	CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: ext_sg_entries: %d, "
-			 "kern_sg_entries: %d\n", ext_sg_entries,
-			 kern_sg_entries));
+			 "kern_sg_entries: %d\n",
+	    ext_sg_entries, kern_sg_entries));
 	CTL_DEBUG_PRINT(("ctl_ioctl_do_datamove: ext_data_len = %d, "
-			 "kern_data_len = %d\n", ctsio->ext_data_len,
-			 ctsio->kern_data_len));
+			 "kern_data_len = %d\n",
+	    ctsio->ext_data_len, ctsio->kern_data_len));
 
 bailout:
 	if (ext_sglist_malloced != 0)
@@ -483,8 +484,9 @@ cfi_datamove(union ctl_io *io)
 {
 	struct ctl_fe_ioctl_params *params;
 
-	params = (struct ctl_fe_ioctl_params *)
-		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+	params = (struct ctl_fe_ioctl_params *)io->io_hdr
+		     .ctl_private[CTL_PRIV_FRONTEND]
+		     .ptr;
 
 	mtx_lock(&params->ioctl_mtx);
 	params->state = CTL_IOCTL_DATAMOVE;
@@ -497,8 +499,9 @@ cfi_done(union ctl_io *io)
 {
 	struct ctl_fe_ioctl_params *params;
 
-	params = (struct ctl_fe_ioctl_params *)
-		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+	params = (struct ctl_fe_ioctl_params *)io->io_hdr
+		     .ctl_private[CTL_PRIV_FRONTEND]
+		     .ptr;
 
 	mtx_lock(&params->ioctl_mtx);
 	params->state = CTL_IOCTL_DONE;
@@ -587,8 +590,8 @@ cfi_submit_wait(union ctl_io *io)
 }
 
 int
-ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
-    struct thread *td)
+ctl_ioctl_io(
+    struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct cfi_port *cfi;
 	union ctl_io *io;
@@ -598,9 +601,8 @@ ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	if (cmd != CTL_IO)
 		return (ENOTTY);
 
-	cfi = dev->si_drv2 == NULL
-	    ? TAILQ_FIRST(&cfi_softc.ports)
-	    : dev->si_drv2;
+	cfi = dev->si_drv2 == NULL ? TAILQ_FIRST(&cfi_softc.ports) :
+					   dev->si_drv2;
 
 	/*
 	 * If we haven't been "enabled", don't allow any SCSI I/O

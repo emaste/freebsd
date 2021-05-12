@@ -33,33 +33,34 @@
 
 #ifdef _KERNEL
 
-#define	IPI_AST			0
-#define	IPI_PREEMPT		1
-#define	IPI_RENDEZVOUS		2
-#define	IPI_STOP		3
-#define	IPI_STOP_HARD		3
-#define	IPI_HARDCLOCK		4
+#define IPI_AST 0
+#define IPI_PREEMPT 1
+#define IPI_RENDEZVOUS 2
+#define IPI_STOP 3
+#define IPI_STOP_HARD 3
+#define IPI_HARDCLOCK 4
 
 #ifndef LOCORE
 
-#include <machine/pcb.h>
 #include <sys/_cpuset.h>
 
-void	ipi_all_but_self(int ipi);
-void	ipi_cpu(int cpu, u_int ipi);
-void	ipi_selected(cpuset_t cpus, int ipi);
+#include <machine/pcb.h>
+
+void ipi_all_but_self(int ipi);
+void ipi_cpu(int cpu, u_int ipi);
+void ipi_selected(cpuset_t cpus, int ipi);
 
 struct cpuref {
-	uintptr_t	cr_hwref;
-	u_int		cr_cpuid;
-	u_int		cr_domain;
+	uintptr_t cr_hwref;
+	u_int cr_cpuid;
+	u_int cr_domain;
 };
 
-void	pmap_cpu_bootstrap(int);
-void	cpudep_ap_early_bootstrap(void);
+void pmap_cpu_bootstrap(int);
+void cpudep_ap_early_bootstrap(void);
 uintptr_t cpudep_ap_bootstrap(void);
-void	cpudep_ap_setup(void);
-void	machdep_ap_bootstrap(void);
+void cpudep_ap_setup(void);
+void machdep_ap_bootstrap(void);
 
 extern struct pcb stoppcbs[];
 

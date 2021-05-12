@@ -43,10 +43,8 @@ __FBSDID("$FreeBSD$");
 #include "gssd.h"
 
 OM_uint32
-gss_set_cred_option(OM_uint32 *minor_status,
-	       gss_cred_id_t *cred,
-	       const gss_OID option_name,
-	       const gss_buffer_t option_value)
+gss_set_cred_option(OM_uint32 *minor_status, gss_cred_id_t *cred,
+    const gss_OID option_name, const gss_buffer_t option_value)
 {
 	struct set_cred_option_res res;
 	struct set_cred_option_args args;

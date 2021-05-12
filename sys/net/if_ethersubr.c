@@ -34,8 +34,8 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_netgraph.h"
 #include "opt_mbuf_profiling.h"
+#include "opt_netgraph.h"
 #include "opt_rss.h"
 
 #include <sys/param.h>
@@ -46,80 +46,82 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/module.h>
 #include <sys/mbuf.h>
-#include <sys/proc.h>
+#include <sys/module.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/uuid.h>
 
-#include <net/ieee_oui.h>
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_arp.h>
-#include <net/netisr.h>
-#include <net/route.h>
-#include <net/if_llc.h>
-#include <net/if_dl.h>
-#include <net/if_types.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
+#include <net/ieee_oui.h>
+#include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_bridgevar.h>
-#include <net/if_vlan_var.h>
+#include <net/if_dl.h>
 #include <net/if_llatbl.h>
+#include <net/if_llc.h>
+#include <net/if_types.h>
+#include <net/if_var.h>
+#include <net/if_vlan_var.h>
+#include <net/netisr.h>
 #include <net/pfil.h>
+#include <net/route.h>
 #include <net/rss_config.h>
 #include <net/vnet.h>
-
 #include <netpfil/pf/pf_mtag.h>
 
 #if defined(INET) || defined(INET6)
+#include <netinet/if_ether.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#include <netinet/if_ether.h>
 #include <netinet/ip_carp.h>
 #include <netinet/ip_var.h>
 #endif
 #ifdef INET6
 #include <netinet6/nd6.h>
 #endif
+#include <crypto/sha1.h>
 #include <security/mac/mac_framework.h>
 
-#include <crypto/sha1.h>
-
 #ifdef CTASSERT
-CTASSERT(sizeof (struct ether_header) == ETHER_ADDR_LEN * 2 + 2);
-CTASSERT(sizeof (struct ether_addr) == ETHER_ADDR_LEN);
+CTASSERT(sizeof(struct ether_header) == ETHER_ADDR_LEN * 2 + 2);
+CTASSERT(sizeof(struct ether_addr) == ETHER_ADDR_LEN);
 #endif
 
-VNET_DEFINE(pfil_head_t, link_pfil_head);	/* Packet filter hooks */
+VNET_DEFINE(pfil_head_t, link_pfil_head); /* Packet filter hooks */
 
 /* netgraph node hooks for ng_ether(4) */
-void	(*ng_ether_input_p)(struct ifnet *ifp, struct mbuf **mp);
-void	(*ng_ether_input_orphan_p)(struct ifnet *ifp, struct mbuf *m);
-int	(*ng_ether_output_p)(struct ifnet *ifp, struct mbuf **mp);
-void	(*ng_ether_attach_p)(struct ifnet *ifp);
-void	(*ng_ether_detach_p)(struct ifnet *ifp);
+void (*ng_ether_input_p)(struct ifnet *ifp, struct mbuf **mp);
+void (*ng_ether_input_orphan_p)(struct ifnet *ifp, struct mbuf *m);
+int (*ng_ether_output_p)(struct ifnet *ifp, struct mbuf **mp);
+void (*ng_ether_attach_p)(struct ifnet *ifp);
+void (*ng_ether_detach_p)(struct ifnet *ifp);
 
-void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
+void (*vlan_input_p)(struct ifnet *, struct mbuf *);
 
 /* if_bridge(4) support */
-void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
+void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
 
 /* if_lagg(4) support */
-struct mbuf *(*lagg_input_ethernet_p)(struct ifnet *, struct mbuf *); 
+struct mbuf *(*lagg_input_ethernet_p)(struct ifnet *, struct mbuf *);
 
-static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
-			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] = { 0xff, 0xff, 0xff,
+	0xff, 0xff, 0xff };
 
-static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
-		struct sockaddr *);
-static	int ether_requestencap(struct ifnet *, struct if_encap_req *);
+static int ether_resolvemulti(
+    struct ifnet *, struct sockaddr **, struct sockaddr *);
+static int ether_requestencap(struct ifnet *, struct if_encap_req *);
 
-#define senderr(e) do { error = (e); goto bad;} while (0)
+#define senderr(e)           \
+	do {                 \
+		error = (e); \
+		goto bad;    \
+	} while (0)
 
 static void
 update_mbuf_csumflags(struct mbuf *src, struct mbuf *dst)
@@ -127,9 +129,9 @@ update_mbuf_csumflags(struct mbuf *src, struct mbuf *dst)
 	int csum_flags = 0;
 
 	if (src->m_pkthdr.csum_flags & CSUM_IP)
-		csum_flags |= (CSUM_IP_CHECKED|CSUM_IP_VALID);
+		csum_flags |= (CSUM_IP_CHECKED | CSUM_IP_VALID);
 	if (src->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
-		csum_flags |= (CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
+		csum_flags |= (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 	if (src->m_pkthdr.csum_flags & CSUM_SCTP)
 		csum_flags |= CSUM_SCTP_VALID;
 	dst->m_pkthdr.csum_flags |= csum_flags;
@@ -169,7 +171,7 @@ ether_requestencap(struct ifnet *ifp, struct if_encap_req *req)
 		ah = (struct arphdr *)req->hdata;
 		ah->ar_hrd = htons(ARPHRD_ETHER);
 
-		switch(ntohs(ah->ar_op)) {
+		switch (ntohs(ah->ar_op)) {
 		case ARPOP_REVREQUEST:
 		case ARPOP_REVREPLY:
 			etype = htons(ETHERTYPE_REVARP);
@@ -198,8 +200,8 @@ ether_requestencap(struct ifnet *ifp, struct if_encap_req *req)
 
 static int
 ether_resolve_addr(struct ifnet *ifp, struct mbuf *m,
-	const struct sockaddr *dst, struct route *ro, u_char *phdr,
-	uint32_t *pflags, struct llentry **plle)
+    const struct sockaddr *dst, struct route *ro, u_char *phdr,
+    uint32_t *pflags, struct llentry **plle)
 {
 	struct ether_header *eh;
 	uint32_t lleflags = 0;
@@ -216,15 +218,16 @@ ether_resolve_addr(struct ifnet *ifp, struct mbuf *m,
 #ifdef INET
 	case AF_INET:
 		if ((m->m_flags & (M_BCAST | M_MCAST)) == 0)
-			error = arpresolve(ifp, 0, m, dst, phdr, &lleflags,
-			    plle);
+			error = arpresolve(
+			    ifp, 0, m, dst, phdr, &lleflags, plle);
 		else {
 			if (m->m_flags & M_BCAST)
 				memcpy(eh->ether_dhost, ifp->if_broadcastaddr,
 				    ETHER_ADDR_LEN);
 			else {
 				const struct in_addr *a;
-				a = &(((const struct sockaddr_in *)dst)->sin_addr);
+				a = &(((const struct sockaddr_in *)dst)
+					  ->sin_addr);
 				ETHER_MAP_IP_MULTICAST(a, eh->ether_dhost);
 			}
 			etype = htons(ETHERTYPE_IP);
@@ -236,8 +239,8 @@ ether_resolve_addr(struct ifnet *ifp, struct mbuf *m,
 #ifdef INET6
 	case AF_INET6:
 		if ((m->m_flags & M_MCAST) == 0)
-			error = nd6_resolve(ifp, 0, m, dst, phdr, &lleflags,
-			    plle);
+			error = nd6_resolve(
+			    ifp, 0, m, dst, phdr, &lleflags, plle);
 		else {
 			const struct in6_addr *a6;
 			a6 = &(((const struct sockaddr_in6 *)dst)->sin6_addr);
@@ -277,15 +280,15 @@ ether_resolve_addr(struct ifnet *ifp, struct mbuf *m,
  * packet leaves a multiple of 512 bytes of data in remainder.
  */
 int
-ether_output(struct ifnet *ifp, struct mbuf *m,
-	const struct sockaddr *dst, struct route *ro)
+ether_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+    struct route *ro)
 {
 	int error = 0;
 	char linkhdr[ETHER_HDR_LEN], *phdr;
 	struct ether_header *eh;
 	struct pf_mtag *t;
 	bool loop_copy;
-	int hlen;	/* link layer header length */
+	int hlen; /* link layer header length */
 	uint32_t pflags;
 	struct llentry *lle = NULL;
 	int addref = 0;
@@ -303,7 +306,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 				if (lle != NULL &&
 				    (lle->la_flags & LLE_VALID) == 0) {
 					LLE_FREE(lle);
-					lle = NULL;	/* redundant */
+					lle = NULL; /* redundant */
 					ro->ro_lle = NULL;
 				}
 				if (lle == NULL) {
@@ -335,15 +338,15 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	if (ifp->if_flags & IFF_MONITOR)
 		senderr(ENETDOWN);
 	if (!((ifp->if_flags & IFF_UP) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
+		(ifp->if_drv_flags & IFF_DRV_RUNNING)))
 		senderr(ENETDOWN);
 
 	if (phdr == NULL) {
 		/* No prepend data supplied. Try to calculate ourselves. */
 		phdr = linkhdr;
 		hlen = ETHER_HDR_LEN;
-		error = ether_resolve_addr(ifp, m, dst, ro, phdr, &pflags,
-		    addref ? &lle : NULL);
+		error = ether_resolve_addr(
+		    ifp, m, dst, ro, phdr, &pflags, addref ? &lle : NULL);
 		if (addref && lle != NULL)
 			ro->ro_lle = lle;
 		if (error != 0)
@@ -381,7 +384,8 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	 * on the wire). However, we don't do that here for security
 	 * reasons and compatibility with the original behavior.
 	 */
-	if ((m->m_flags & M_BCAST) && loop_copy && (ifp->if_flags & IFF_SIMPLEX) &&
+	if ((m->m_flags & M_BCAST) && loop_copy &&
+	    (ifp->if_flags & IFF_SIMPLEX) &&
 	    ((t = pf_find_mtag(m)) == NULL || !t->routed)) {
 		struct mbuf *n;
 
@@ -404,26 +408,26 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 	}
 
-       /*
-	* Bridges require special output handling.
-	*/
+	/*
+	 * Bridges require special output handling.
+	 */
 	if (ifp->if_bridge) {
 		BRIDGE_OUTPUT(ifp, m, error);
 		return (error);
 	}
 
 #if defined(INET) || defined(INET6)
-	if (ifp->if_carp &&
-	    (error = (*carp_output_p)(ifp, m, dst)))
+	if (ifp->if_carp && (error = (*carp_output_p)(ifp, m, dst)))
 		goto bad;
 #endif
 
 	/* Handle ng_ether(4) processing, if any */
 	if (ifp->if_l2com != NULL) {
-		KASSERT(ng_ether_output_p != NULL,
-		    ("ng_ether_output_p is NULL"));
+		KASSERT(
+		    ng_ether_output_p != NULL, ("ng_ether_output_p is NULL"));
 		if ((error = (*ng_ether_output_p)(ifp, &m)) != 0) {
-bad:			if (m != NULL)
+		bad:
+			if (m != NULL)
 				m_freem(m);
 			return (error);
 		}
@@ -472,8 +476,8 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 		return (0);
 
 	if (PFIL_HOOKED_OUT(V_link_pfil_head))
-		switch (pfil_run_hooks(V_link_pfil_head, &m, ifp, PFIL_OUT,
-		    NULL)) {
+		switch (
+		    pfil_run_hooks(V_link_pfil_head, &m, ifp, PFIL_OUT, NULL)) {
 		case PFIL_DROPPED:
 			return (EACCES);
 		case PFIL_CONSUMED:
@@ -531,9 +535,10 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 #endif
 	if (m->m_len < ETHER_HDR_LEN) {
 		/* XXX maybe should pullup? */
-		if_printf(ifp, "discard frame w/o leading ethernet "
-				"header (len %u pkt len %u)\n",
-				m->m_len, m->m_pkthdr.len);
+		if_printf(ifp,
+		    "discard frame w/o leading ethernet "
+		    "header (len %u pkt len %u)\n",
+		    m->m_len, m->m_pkthdr.len);
 		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		return;
@@ -736,7 +741,7 @@ ether_nh_input(struct mbuf *m)
 	ether_input_internal(m->m_pkthdr.rcvif, m);
 }
 
-static struct netisr_handler	ether_nh = {
+static struct netisr_handler ether_nh = {
 	.nh_name = "ether",
 	.nh_handler = ether_nh_input,
 	.nh_proto = NETISR_ETHER,
@@ -773,8 +778,8 @@ vnet_ether_init(__unused void *arg)
 	netisr_register_vnet(&ether_nh);
 #endif
 }
-VNET_SYSINIT(vnet_ether_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
-    vnet_ether_init, NULL);
+VNET_SYSINIT(
+    vnet_ether_init, SI_SUB_PROTO_IF, SI_ORDER_ANY, vnet_ether_init, NULL);
 
 #ifdef VIMAGE
 static void
@@ -792,8 +797,8 @@ vnet_ether_destroy(__unused void *arg)
 
 	netisr_unregister_vnet(&ether_nh);
 }
-VNET_SYSUNINIT(vnet_ether_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY,
-    vnet_ether_destroy, NULL);
+VNET_SYSUNINIT(
+    vnet_ether_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY, vnet_ether_destroy, NULL);
 #endif
 
 static void
@@ -822,8 +827,10 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		 * context, so assert it is correct here.
 		 */
 		MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
-		KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch m %p "
-		    "rcvif %p ifp %p", __func__, m, m->m_pkthdr.rcvif, ifp));
+		KASSERT(m->m_pkthdr.rcvif == ifp,
+		    ("%s: ifnet mismatch m %p "
+		     "rcvif %p ifp %p",
+			__func__, m, m->m_pkthdr.rcvif, ifp));
 		netisr_dispatch(NETISR_ETHER, m);
 		m = mn;
 	}
@@ -866,8 +873,8 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 			m_freem(m);
 			return;
 		}
-		KASSERT(vlan_input_p != NULL,("%s: VLAN not loaded!",
-		    __func__));
+		KASSERT(
+		    vlan_input_p != NULL, ("%s: VLAN not loaded!", __func__));
 		/* Clear before possibly re-entering ether_input(). */
 		m->m_flags &= ~M_PROMISC;
 		(*vlan_input_p)(ifp, m);
@@ -952,7 +959,7 @@ char *
 ether_sprintf(const u_char *ap)
 {
 	static char etherbuf[18];
-	snprintf(etherbuf, sizeof (etherbuf), "%6D", ap, ":");
+	snprintf(etherbuf, sizeof(etherbuf), "%6D", ap, ":");
 	return (etherbuf);
 }
 
@@ -978,7 +985,7 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 	ifp->if_reassign = ether_reassign;
 #endif
 	if (ifp->if_baudrate == 0)
-		ifp->if_baudrate = IF_Mbps(10);		/* just a default */
+		ifp->if_baudrate = IF_Mbps(10); /* just a default */
 	ifp->if_broadcastaddr = etherbroadcastaddr;
 
 	ifa = ifp->if_addr;
@@ -998,7 +1005,7 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 	/* Announce Ethernet MAC address if non-zero. */
 	for (i = 0; i < ifp->if_addrlen; i++)
 		if (lla[i] != 0)
-			break; 
+			break;
 	if (i != ifp->if_addrlen)
 		if_printf(ifp, "Ethernet address: %6D\n", lla, ":");
 
@@ -1022,8 +1029,8 @@ ether_ifdetach(struct ifnet *ifp)
 	uuid_ether_del(LLADDR(sdl));
 
 	if (ifp->if_l2com != NULL) {
-		KASSERT(ng_ether_detach_p != NULL,
-		    ("ng_ether_detach_p is NULL"));
+		KASSERT(
+		    ng_ether_detach_p != NULL, ("ng_ether_detach_p is NULL"));
 		(*ng_ether_detach_p)(ifp);
 	}
 
@@ -1037,8 +1044,8 @@ ether_reassign(struct ifnet *ifp, struct vnet *new_vnet, char *unused __unused)
 {
 
 	if (ifp->if_l2com != NULL) {
-		KASSERT(ng_ether_detach_p != NULL,
-		    ("ng_ether_detach_p is NULL"));
+		KASSERT(
+		    ng_ether_detach_p != NULL, ("ng_ether_detach_p is NULL"));
 		(*ng_ether_detach_p)(ifp);
 	}
 
@@ -1051,8 +1058,8 @@ ether_reassign(struct ifnet *ifp, struct vnet *new_vnet, char *unused __unused)
 #endif
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "Ethernet");
+SYSCTL_NODE(
+    _net_link, IFT_ETHER, ether, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "Ethernet");
 
 #if 0
 /*
@@ -1085,16 +1092,14 @@ ether_crc32_le(const uint8_t *buf, size_t len)
 uint32_t
 ether_crc32_le(const uint8_t *buf, size_t len)
 {
-	static const uint32_t crctab[] = {
-		0x00000000, 0x1db71064, 0x3b6e20c8, 0x26d930ac,
-		0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,
-		0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c,
-		0x9b64c2b0, 0x86d3d2d4, 0xa00ae278, 0xbdbdf21c
-	};
+	static const uint32_t crctab[] = { 0x00000000, 0x1db71064, 0x3b6e20c8,
+		0x26d930ac, 0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,
+		0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c, 0x9b64c2b0,
+		0x86d3d2d4, 0xa00ae278, 0xbdbdf21c };
 	size_t i;
 	uint32_t crc;
 
-	crc = 0xffffffff;	/* initial value */
+	crc = 0xffffffff; /* initial value */
 
 	for (i = 0; i < len; i++) {
 		crc ^= buf[i];
@@ -1114,7 +1119,7 @@ ether_crc32_be(const uint8_t *buf, size_t len)
 	int bit;
 	uint8_t data;
 
-	crc = 0xffffffff;	/* initial value */
+	crc = 0xffffffff; /* initial value */
 
 	for (i = 0; i < len; i++) {
 		for (data = *buf++, bit = 0; bit < 8; bit++, data >>= 1) {
@@ -1131,8 +1136,8 @@ ether_crc32_be(const uint8_t *buf, size_t len)
 int
 ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	struct ifaddr *ifa = (struct ifaddr *) data;
-	struct ifreq *ifr = (struct ifreq *) data;
+	struct ifaddr *ifa = (struct ifaddr *)data;
+	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0;
 
 	switch (command) {
@@ -1142,7 +1147,7 @@ ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 		case AF_INET:
-			ifp->if_init(ifp->if_softc);	/* before arpwhohas */
+			ifp->if_init(ifp->if_softc); /* before arpwhohas */
 			arp_ifinit(ifp, ifa);
 			break;
 #endif
@@ -1153,8 +1158,8 @@ ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCGIFADDR:
-		bcopy(IF_LLADDR(ifp), &ifr->ifr_addr.sa_data[0],
-		    ETHER_ADDR_LEN);
+		bcopy(
+		    IF_LLADDR(ifp), &ifr->ifr_addr.sa_data[0], ETHER_ADDR_LEN);
 		break;
 
 	case SIOCSIFMTU:
@@ -1187,15 +1192,15 @@ ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	default:
-		error = EINVAL;			/* XXX netbsd has ENOTTY??? */
+		error = EINVAL; /* XXX netbsd has ENOTTY??? */
 		break;
 	}
 	return (error);
 }
 
 static int
-ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
-	struct sockaddr *sa)
+ether_resolvemulti(
+    struct ifnet *ifp, struct sockaddr **llsa, struct sockaddr *sa)
 {
 	struct sockaddr_dl *sdl;
 #ifdef INET
@@ -1206,7 +1211,7 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 #endif
 	u_char *e_addr;
 
-	switch(sa->sa_family) {
+	switch (sa->sa_family) {
 	case AF_LINK:
 		/*
 		 * No mapping needed. Just check that it's a valid MC address.
@@ -1327,8 +1332,8 @@ ether_vlanencap_proto(struct mbuf *m, uint16_t tag, uint16_t proto)
 	 * with 802.1Q encapsulation.
 	 */
 	evl = mtod(m, struct ether_vlan_header *);
-	bcopy((char *)evl + ETHER_VLAN_ENCAP_LEN,
-	    (char *)evl, ETHER_HDR_LEN - ETHER_TYPE_LEN);
+	bcopy((char *)evl + ETHER_VLAN_ENCAP_LEN, (char *)evl,
+	    ETHER_HDR_LEN - ETHER_TYPE_LEN);
 	evl->evl_encap_proto = htons(proto);
 	evl->evl_tag = htons(tag);
 	return (m);
@@ -1336,15 +1341,13 @@ ether_vlanencap_proto(struct mbuf *m, uint16_t tag, uint16_t proto)
 
 static SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "IEEE 802.1Q VLAN");
-static SYSCTL_NODE(_net_link_vlan, PF_LINK, link,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "for consistency");
+static SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, "for consistency");
 
 VNET_DEFINE_STATIC(int, soft_pad);
-#define	V_soft_pad	VNET(soft_pad)
+#define V_soft_pad VNET(soft_pad)
 SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW | CTLFLAG_VNET,
-    &VNET_NAME(soft_pad), 0,
-    "pad short frames before tagging");
+    &VNET_NAME(soft_pad), 0, "pad short frames before tagging");
 
 /*
  * For now, make preserving PCP via an mbuf tag optional, as it increases
@@ -1352,8 +1355,7 @@ SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW | CTLFLAG_VNET,
  * preferable to reuse ether_vtag for this, or similar.
  */
 int vlan_mtag_pcp = 0;
-SYSCTL_INT(_net_link_vlan, OID_AUTO, mtag_pcp, CTLFLAG_RW,
-    &vlan_mtag_pcp, 0,
+SYSCTL_INT(_net_link_vlan, OID_AUTO, mtag_pcp, CTLFLAG_RW, &vlan_mtag_pcp, 0,
     "Retain VLAN PCP information as packets are passed up the stack");
 
 bool
@@ -1363,7 +1365,7 @@ ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
 	struct m_tag *mtag;
 	int n;
 	uint16_t tag;
-	static const char pad[8];	/* just zeros */
+	static const char pad[8]; /* just zeros */
 
 	/*
 	 * Pad the frame to the minimum size allowed if told to.
@@ -1378,8 +1380,8 @@ ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
 	 * them somehow.
 	 */
 	if (V_soft_pad && p->if_type == IFT_ETHER) {
-		for (n = ETHERMIN + ETHER_HDR_LEN - (*mp)->m_pkthdr.len;
-		     n > 0; n -= sizeof(pad)) {
+		for (n = ETHERMIN + ETHER_HDR_LEN - (*mp)->m_pkthdr.len; n > 0;
+		     n -= sizeof(pad)) {
 			if (!m_append(*mp, min(n, sizeof(pad)), pad))
 				break;
 		}
@@ -1405,8 +1407,9 @@ ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
 	 * knows how to find the VLAN tag to use, so we attach a
 	 * packet tag that holds it.
 	 */
-	if (vlan_mtag_pcp && (mtag = m_tag_locate(*mp, MTAG_8021Q,
-	    MTAG_8021Q_PCP_OUT, NULL)) != NULL)
+	if (vlan_mtag_pcp &&
+	    (mtag = m_tag_locate(*mp, MTAG_8021Q, MTAG_8021Q_PCP_OUT, NULL)) !=
+		NULL)
 		tag = EVL_MAKETAG(qtag->vid, *(uint8_t *)(mtag + 1), 0);
 	else
 		tag = EVL_MAKETAG(qtag->vid, qtag->pcp, 0);
@@ -1446,8 +1449,7 @@ ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr)
 	/* If each (vnet) jail would also have a unique hostuuid this would not
 	 * be necessary. */
 	getjailname(curthread->td_ucred, jailname, sizeof(jailname));
-	sz = asprintf(&buf, M_TEMP, "%s-%s-%s", uuid, if_name(ifp),
-	    jailname);
+	sz = asprintf(&buf, M_TEMP, "%s-%s-%s", uuid, if_name(ifp), jailname);
 	if (sz < 0) {
 		/* Fall back to a random mac address. */
 		arc4rand(hwaddr, sizeof(*hwaddr), 0);

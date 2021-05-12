@@ -32,22 +32,22 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 
 #include <machine/stdarg.h>
 
 #include <linux/bitmap.h>
+#include <linux/err.h>
+#include <linux/idr.h>
 #include <linux/kobject.h>
 #include <linux/slab.h>
-#include <linux/idr.h>
-#include <linux/err.h>
 
-#define	MAX_IDR_LEVEL	((MAX_IDR_SHIFT + IDR_BITS - 1) / IDR_BITS)
-#define	MAX_IDR_FREE	(MAX_IDR_LEVEL * 2)
+#define MAX_IDR_LEVEL ((MAX_IDR_SHIFT + IDR_BITS - 1) / IDR_BITS)
+#define MAX_IDR_FREE (MAX_IDR_LEVEL * 2)
 
 struct linux_idr_cache {
 	spinlock_t lock;
@@ -89,9 +89,9 @@ idr_preload_init(void *arg)
 {
 	int cpu;
 
-	CPU_FOREACH(cpu) {
-		struct linux_idr_cache *lic =
-		    DPCPU_ID_PTR(cpu, linux_idr_cache);
+	CPU_FOREACH (cpu) {
+		struct linux_idr_cache *lic = DPCPU_ID_PTR(
+		    cpu, linux_idr_cache);
 
 		spin_lock_init(&lic->lock);
 	}
@@ -103,10 +103,10 @@ idr_preload_uninit(void *arg)
 {
 	int cpu;
 
-	CPU_FOREACH(cpu) {
+	CPU_FOREACH (cpu) {
 		struct idr_layer *cacheval;
-		struct linux_idr_cache *lic =
-		    DPCPU_ID_PTR(cpu, linux_idr_cache);
+		struct linux_idr_cache *lic = DPCPU_ID_PTR(
+		    cpu, linux_idr_cache);
 
 		while (1) {
 			spin_lock(&lic->lock);
@@ -120,7 +120,8 @@ idr_preload_uninit(void *arg)
 		spin_lock_destroy(&lic->lock);
 	}
 }
-SYSUNINIT(idr_preload_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, idr_preload_uninit, NULL);
+SYSUNINIT(
+    idr_preload_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, idr_preload_uninit, NULL);
 
 void
 idr_preload(gfp_t gfp_mask)
@@ -248,8 +249,8 @@ idr_remove_locked(struct idr *idr, int id)
 	 * and a warning so I don't think it's necessary.
 	 */
 	if (il == NULL || (il->bitmap & (1 << idx)) != 0)
-		panic("idr_remove: Item %d not allocated (%p, %p)\n",
-		    id, idr, il);
+		panic("idr_remove: Item %d not allocated (%p, %p)\n", id, idr,
+		    il);
 	res = il->ary[idx];
 	il->ary[idx] = NULL;
 	il->bitmap |= 1 << idx;
@@ -407,9 +408,11 @@ idr_get(struct idr *idp)
 
 	if ((il = idr_free_list_get(idp)) != NULL) {
 		MPASS(il->bitmap != 0);
-	} else if ((il = malloc(sizeof(*il), M_IDR, M_ZERO | M_NOWAIT)) != NULL) {
+	} else if ((il = malloc(sizeof(*il), M_IDR, M_ZERO | M_NOWAIT)) !=
+	    NULL) {
 		bitmap_fill(&il->bitmap, IDR_SIZE);
-	} else if ((il = idr_preload_dequeue_locked(&DPCPU_GET(linux_idr_cache))) != NULL) {
+	} else if ((il = idr_preload_dequeue_locked(
+			&DPCPU_GET(linux_idr_cache))) != NULL) {
 		bitmap_fill(&il->bitmap, IDR_SIZE);
 	} else {
 		return (NULL);
@@ -460,8 +463,8 @@ idr_get_new_locked(struct idr *idr, void *ptr, int *idp)
 		stack[layer] = il;
 		idx = ffsl(il->bitmap);
 		if (idx == 0)
-			panic("idr_get_new: Invalid leaf state (%p, %p)\n",
-			    idr, il);
+			panic("idr_get_new: Invalid leaf state (%p, %p)\n", idr,
+			    il);
 		idx--;
 		id |= idx << (layer * IDR_BITS);
 		if (layer == 0)
@@ -490,8 +493,8 @@ idr_get_new_locked(struct idr *idr, void *ptr, int *idp)
 out:
 #ifdef INVARIANTS
 	if (error == 0 && idr_find_locked(idr, id) != ptr) {
-		panic("idr_get_new: Failed for idr %p, id %d, ptr %p\n",
-		    idr, id, ptr);
+		panic("idr_get_new: Failed for idr %p, id %d, ptr %p\n", idr,
+		    id, ptr);
 	}
 #endif
 	return (error);
@@ -565,8 +568,8 @@ restart:
 		/* Returns index numbered from 0 or size if none exists. */
 		idx = find_next_bit(&il->bitmap, IDR_SIZE, sidx);
 		if (idx == IDR_SIZE && sidx == 0)
-			panic("idr_get_new: Invalid leaf state (%p, %p)\n",
-			    idr, il);
+			panic("idr_get_new: Invalid leaf state (%p, %p)\n", idr,
+			    il);
 		/*
 		 * We may have walked a path where there was a free bit but
 		 * it was lower than what we wanted.  Restart the search with
@@ -580,7 +583,7 @@ restart:
 			goto restart;
 		}
 		if (idx > sidx)
-			starting_id = 0;	/* Search the whole subtree. */
+			starting_id = 0; /* Search the whole subtree. */
 		id |= idx << (layer * IDR_BITS);
 		if (layer == 0)
 			break;
@@ -677,7 +680,8 @@ idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
 	int retval;
 
 	mtx_lock(&idr->lock);
-	retval = idr_alloc_locked(idr, ptr, max(start, idr->next_cyclic_id), end);
+	retval = idr_alloc_locked(
+	    idr, ptr, max(start, idr->next_cyclic_id), end);
 	if (unlikely(retval == -ENOSPC))
 		retval = idr_alloc_locked(idr, ptr, start, end);
 	if (likely(retval >= 0))
@@ -698,7 +702,7 @@ idr_for_each_layer(struct idr_layer *il, int offset, int layer,
 		for (i = 0; i < IDR_SIZE; i++) {
 			if (il->ary[i] == NULL)
 				continue;
-			err = f(i + offset, il->ary[i],  data);
+			err = f(i + offset, il->ary[i], data);
 			if (err)
 				return (err);
 		}
@@ -707,8 +711,8 @@ idr_for_each_layer(struct idr_layer *il, int offset, int layer,
 	for (i = 0; i < IDR_SIZE; i++) {
 		if (il->ary[i] == NULL)
 			continue;
-		err = idr_for_each_layer(il->ary[i],
-		    (i + offset) * IDR_SIZE, layer - 1, f, data);
+		err = idr_for_each_layer(
+		    il->ary[i], (i + offset) * IDR_SIZE, layer - 1, f, data);
 		if (err)
 			return (err);
 	}
@@ -743,15 +747,15 @@ ida_pre_get(struct ida *ida, gfp_t flags)
 		return (0);
 
 	if (ida->free_bitmap == NULL) {
-		ida->free_bitmap =
-		    malloc(sizeof(struct ida_bitmap), M_IDR, flags);
+		ida->free_bitmap = malloc(
+		    sizeof(struct ida_bitmap), M_IDR, flags);
 	}
 	return (ida->free_bitmap != NULL);
 }
 
 int
-ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
-    gfp_t flags)
+ida_simple_get(
+    struct ida *ida, unsigned int start, unsigned int end, gfp_t flags)
 {
 	int ret, id;
 	unsigned int max;

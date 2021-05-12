@@ -27,7 +27,7 @@
  */
 
 #ifndef _LINUX_BITMAP_H_
-#define	_LINUX_BITMAP_H_
+#define _LINUX_BITMAP_H_
 
 #include <linux/bitops.h>
 #include <linux/slab.h>
@@ -139,9 +139,8 @@ bitmap_clear(unsigned long *map, unsigned int start, int nr)
 
 static inline unsigned int
 bitmap_find_next_zero_area_off(const unsigned long *map,
-    const unsigned int size, unsigned int start,
-    unsigned int nr, unsigned int align_mask,
-    unsigned int align_offset)
+    const unsigned int size, unsigned int start, unsigned int nr,
+    unsigned int align_mask, unsigned int align_offset)
 {
 	unsigned int index;
 	unsigned int end;
@@ -150,7 +149,8 @@ bitmap_find_next_zero_area_off(const unsigned long *map,
 retry:
 	index = find_next_zero_bit(map, size, start);
 
-	index = (((index + align_offset) + align_mask) & ~align_mask) - align_offset;
+	index = (((index + align_offset) + align_mask) & ~align_mask) -
+	    align_offset;
 
 	end = index + nr;
 	if (end > size)
@@ -165,12 +165,11 @@ retry:
 }
 
 static inline unsigned int
-bitmap_find_next_zero_area(const unsigned long *map,
-    const unsigned int size, unsigned int start,
-    unsigned int nr, unsigned int align_mask)
+bitmap_find_next_zero_area(const unsigned long *map, const unsigned int size,
+    unsigned int start, unsigned int nr, unsigned int align_mask)
 {
-	return (bitmap_find_next_zero_area_off(map, size,
-	    start, nr, align_mask, 0));
+	return (bitmap_find_next_zero_area_off(
+	    map, size, start, nr, align_mask, 0));
 }
 
 static inline int
@@ -223,8 +222,7 @@ bitmap_weight(unsigned long *addr, const unsigned int size)
 }
 
 static inline int
-bitmap_equal(const unsigned long *pa,
-    const unsigned long *pb, unsigned size)
+bitmap_equal(const unsigned long *pa, const unsigned long *pb, unsigned size)
 {
 	const unsigned int end = BIT_WORD(size);
 	const unsigned int tail = size & (BITS_PER_LONG - 1);
@@ -245,8 +243,7 @@ bitmap_equal(const unsigned long *pa,
 }
 
 static inline int
-bitmap_subset(const unsigned long *pa,
-    const unsigned long *pb, unsigned size)
+bitmap_subset(const unsigned long *pa, const unsigned long *pb, unsigned size)
 {
 	const unsigned end = BIT_WORD(size);
 	const unsigned tail = size & (BITS_PER_LONG - 1);
@@ -267,8 +264,8 @@ bitmap_subset(const unsigned long *pa,
 }
 
 static inline void
-bitmap_complement(unsigned long *dst, const unsigned long *src,
-    const unsigned int size)
+bitmap_complement(
+    unsigned long *dst, const unsigned long *src, const unsigned int size)
 {
 	const unsigned int end = BITS_TO_LONGS(size);
 	unsigned int i;
@@ -278,8 +275,8 @@ bitmap_complement(unsigned long *dst, const unsigned long *src,
 }
 
 static inline void
-bitmap_copy(unsigned long *dst, const unsigned long *src,
-    const unsigned int size)
+bitmap_copy(
+    unsigned long *dst, const unsigned long *src, const unsigned int size)
 {
 	const unsigned int end = BITS_TO_LONGS(size);
 	unsigned int i;
@@ -335,8 +332,8 @@ bitmap_xor(unsigned long *dst, const unsigned long *src1,
 static inline unsigned long *
 bitmap_alloc(unsigned int size, gfp_t flags)
 {
-	return (kmalloc_array(BITS_TO_LONGS(size),
-	    sizeof(unsigned long), flags));
+	return (
+	    kmalloc_array(BITS_TO_LONGS(size), sizeof(unsigned long), flags));
 }
 
 static inline unsigned long *
@@ -351,4 +348,4 @@ bitmap_free(const unsigned long *bitmap)
 	kfree(bitmap);
 }
 
-#endif					/* _LINUX_BITMAP_H_ */
+#endif /* _LINUX_BITMAP_H_ */

@@ -31,8 +31,8 @@
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
 
@@ -43,11 +43,11 @@
 #include <machine/tlb.h>
 
 #if defined(CPU_CNMIPS)
-#define	MIPS_MAX_TLB_ENTRIES	128
+#define MIPS_MAX_TLB_ENTRIES 128
 #elif defined(CPU_NLM)
-#define	MIPS_MAX_TLB_ENTRIES	(2048 + 128)
+#define MIPS_MAX_TLB_ENTRIES (2048 + 128)
 #else
-#define	MIPS_MAX_TLB_ENTRIES	64
+#define MIPS_MAX_TLB_ENTRIES 64
 #endif
 
 struct tlb_state {
@@ -72,21 +72,21 @@ COMPILE_TIME_ASSERT(POPCNT(TLBMASK_MASK) % 2 == 0);
 static inline void
 tlb_probe(void)
 {
-	__asm __volatile ("tlbp" : : : "memory");
+	__asm __volatile("tlbp" : : : "memory");
 	mips_cp0_sync();
 }
 
 static inline void
 tlb_read(void)
 {
-	__asm __volatile ("tlbr" : : : "memory");
+	__asm __volatile("tlbr" : : : "memory");
 	mips_cp0_sync();
 }
 
 static inline void
 tlb_write_indexed(void)
 {
-	__asm __volatile ("tlbwi" : : : "memory");
+	__asm __volatile("tlbwi" : : : "memory");
 	mips_cp0_sync();
 }
 
@@ -222,8 +222,8 @@ tlb_invalidate_range(pmap_t pmap, vm_offset_t start, vm_offset_t end)
 	/*
 	 * Select the fastest method for invalidating the TLB entries.
 	 */
-	if (end - start < num_tlbentries << TLBMASK_SHIFT || (end == 0 &&
-	    start >= -(num_tlbentries << TLBMASK_SHIFT))) {
+	if (end - start < num_tlbentries << TLBMASK_SHIFT ||
+	    (end == 0 && start >= -(num_tlbentries << TLBMASK_SHIFT))) {
 		/*
 		 * The virtual address range is small compared to the size of
 		 * the TLB.  Probe the TLB for each even numbered page frame
@@ -246,15 +246,15 @@ tlb_invalidate_range(pmap_t pmap, vm_offset_t start, vm_offset_t end)
 			mips_wr_index(i);
 			tlb_read();
 			hi = mips_rd_entryhi();
-			if ((hi & TLBHI_ASID_MASK) == asid && (hi < end_hi ||
-			    end == 0)) {
+			if ((hi & TLBHI_ASID_MASK) == asid &&
+			    (hi < end_hi || end == 0)) {
 				/*
 				 * If "hi" is a large page that spans
 				 * "start_hi", then it must be invalidated.
 				 */
 				hi_pagemask = mips_rd_pagemask();
-				if (hi >= (start_hi & ~(hi_pagemask <<
-				    TLBMASK_SHIFT)))
+				if (hi >= (start_hi &
+					      ~(hi_pagemask << TLBMASK_SHIFT)))
 					tlb_invalidate_one(i);
 			}
 		}
@@ -354,8 +354,8 @@ DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
 	}
 	if (num_tlbentries > MIPS_MAX_TLB_ENTRIES) {
 		ntlb = MIPS_MAX_TLB_ENTRIES;
-		db_printf("Warning: Only %d of %d TLB entries saved!\n",
-		    ntlb, num_tlbentries);
+		db_printf("Warning: Only %d of %d TLB entries saved!\n", ntlb,
+		    num_tlbentries);
 	} else
 		ntlb = num_tlbentries;
 
@@ -380,9 +380,12 @@ DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
 		if (elo0 == 0 && elo1 == 0)
 			continue;
 
-		db_printf("#%u\t=> %jx (pagemask %jx)\n", i, (intmax_t)ehi, (intmax_t) epagemask);
-		db_printf(" Lo0\t%jx\t(%#jx)\n", (intmax_t)elo0, (intmax_t)TLBLO_PTE_TO_PA(elo0));
-		db_printf(" Lo1\t%jx\t(%#jx)\n", (intmax_t)elo1, (intmax_t)TLBLO_PTE_TO_PA(elo1));
+		db_printf("#%u\t=> %jx (pagemask %jx)\n", i, (intmax_t)ehi,
+		    (intmax_t)epagemask);
+		db_printf(" Lo0\t%jx\t(%#jx)\n", (intmax_t)elo0,
+		    (intmax_t)TLBLO_PTE_TO_PA(elo0));
+		db_printf(" Lo1\t%jx\t(%#jx)\n", (intmax_t)elo1,
+		    (intmax_t)TLBLO_PTE_TO_PA(elo1));
 	}
 	db_printf("Finished.\n");
 }

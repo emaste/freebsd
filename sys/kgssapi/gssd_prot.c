@@ -85,8 +85,8 @@ xdr_gss_OID(XDR *xdrs, gss_OID *oidp)
 		oid = *oidp;
 		if (oid) {
 			is_null = FALSE;
-			if (!xdr_bool(xdrs, &is_null)
-			    || !xdr_gss_OID_desc(xdrs, oid))
+			if (!xdr_bool(xdrs, &is_null) ||
+			    !xdr_gss_OID_desc(xdrs, oid))
 				return (FALSE);
 		} else {
 			is_null = TRUE;
@@ -129,12 +129,12 @@ xdr_gss_OID_set_desc(XDR *xdrs, gss_OID_set_desc *set)
 	u_int len;
 
 	len = set->count;
-	addr = (caddr_t) set->elements;
+	addr = (caddr_t)set->elements;
 	if (!xdr_array(xdrs, &addr, &len, ~0, sizeof(gss_OID_desc),
-		(xdrproc_t) xdr_gss_OID_desc))
+		(xdrproc_t)xdr_gss_OID_desc))
 		return (FALSE);
 	set->count = len;
-	set->elements = (gss_OID) addr;
+	set->elements = (gss_OID)addr;
 
 	return (TRUE);
 }
@@ -150,8 +150,8 @@ xdr_gss_OID_set(XDR *xdrs, gss_OID_set *setp)
 		set = *setp;
 		if (set) {
 			is_null = FALSE;
-			if (!xdr_bool(xdrs, &is_null)
-			    || !xdr_gss_OID_set_desc(xdrs, set))
+			if (!xdr_bool(xdrs, &is_null) ||
+			    !xdr_gss_OID_set_desc(xdrs, set))
 				return (FALSE);
 		} else {
 			is_null = TRUE;
@@ -198,15 +198,13 @@ xdr_gss_channel_bindings_t(XDR *xdrs, gss_channel_bindings_t *chp)
 		ch = *chp;
 		if (ch) {
 			is_null = FALSE;
-			if (!xdr_bool(xdrs, &is_null)
-			    || !xdr_uint32_t(xdrs, &ch->initiator_addrtype)
-			    || !xdr_gss_buffer_desc(xdrs,
-				&ch->initiator_address)
-			    || !xdr_uint32_t(xdrs, &ch->acceptor_addrtype)
-			    || !xdr_gss_buffer_desc(xdrs,
-				&ch->acceptor_address)
-			    || !xdr_gss_buffer_desc(xdrs,
-				&ch->application_data))
+			if (!xdr_bool(xdrs, &is_null) ||
+			    !xdr_uint32_t(xdrs, &ch->initiator_addrtype) ||
+			    !xdr_gss_buffer_desc(
+				xdrs, &ch->initiator_address) ||
+			    !xdr_uint32_t(xdrs, &ch->acceptor_addrtype) ||
+			    !xdr_gss_buffer_desc(xdrs, &ch->acceptor_address) ||
+			    !xdr_gss_buffer_desc(xdrs, &ch->application_data))
 				return (FALSE);
 		} else {
 			is_null = TRUE;
@@ -223,14 +221,12 @@ xdr_gss_channel_bindings_t(XDR *xdrs, gss_channel_bindings_t *chp)
 		} else {
 			ch = mem_alloc(sizeof(*ch));
 			memset(ch, 0, sizeof(*ch));
-			if (!xdr_uint32_t(xdrs, &ch->initiator_addrtype)
-			    || !xdr_gss_buffer_desc(xdrs,
-				&ch->initiator_address)
-			    || !xdr_uint32_t(xdrs, &ch->acceptor_addrtype)
-			    || !xdr_gss_buffer_desc(xdrs,
-				&ch->acceptor_address)
-			    || !xdr_gss_buffer_desc(xdrs,
-				&ch->application_data)) {
+			if (!xdr_uint32_t(xdrs, &ch->initiator_addrtype) ||
+			    !xdr_gss_buffer_desc(
+				xdrs, &ch->initiator_address) ||
+			    !xdr_uint32_t(xdrs, &ch->acceptor_addrtype) ||
+			    !xdr_gss_buffer_desc(xdrs, &ch->acceptor_address) ||
+			    !xdr_gss_buffer_desc(xdrs, &ch->application_data)) {
 				mem_free(ch, sizeof(*ch));
 				return (FALSE);
 			}

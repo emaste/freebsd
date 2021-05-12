@@ -38,56 +38,52 @@ __FBSDID("$FreeBSD$");
 #include <sys/fbio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/resource.h>
-#include <machine/bus.h>
+#include <sys/rman.h>
+
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/pmap.h>
+
+#include <machine/bus.h>
 
 #include <dev/fdt/simplebus.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#define TI_AM3_SCM			14
-#define TI_AM4_SCM			13
-#define TI_DM814_SCRM			12
-#define TI_DM816_SCRM			11
-#define TI_OMAP2_SCM			10
-#define TI_OMAP3_SCM			9
-#define TI_OMAP4_SCM_CORE		8
-#define TI_OMAP4_SCM_PADCONF_CORE	7
-#define TI_OMAP4_SCM_WKUP		6
-#define TI_OMAP4_SCM_PADCONF_WKUP	5
-#define TI_OMAP5_SCM_CORE		4
-#define TI_OMAP5_SCM_PADCONF_CORE	3
-#define TI_OMAP5_SCM_WKUP_PAD_CONF	2
-#define TI_DRA7_SCM_CORE		1
-#define TI_SCM_END			0
+#define TI_AM3_SCM 14
+#define TI_AM4_SCM 13
+#define TI_DM814_SCRM 12
+#define TI_DM816_SCRM 11
+#define TI_OMAP2_SCM 10
+#define TI_OMAP3_SCM 9
+#define TI_OMAP4_SCM_CORE 8
+#define TI_OMAP4_SCM_PADCONF_CORE 7
+#define TI_OMAP4_SCM_WKUP 6
+#define TI_OMAP4_SCM_PADCONF_WKUP 5
+#define TI_OMAP5_SCM_CORE 4
+#define TI_OMAP5_SCM_PADCONF_CORE 3
+#define TI_OMAP5_SCM_WKUP_PAD_CONF 2
+#define TI_DRA7_SCM_CORE 1
+#define TI_SCM_END 0
 
-static struct ofw_compat_data compat_data[] = {
-	{ "ti,am3-scm",			TI_AM3_SCM },
-	{ "ti,am4-scm",			TI_AM4_SCM },
-	{ "ti,dm814-scrm",		TI_DM814_SCRM },
-	{ "ti,dm816-scrm",		TI_DM816_SCRM },
-	{ "ti,omap2-scm",		TI_OMAP2_SCM },
-	{ "ti,omap3-scm",		TI_OMAP3_SCM },
-	{ "ti,omap4-scm-core",		TI_OMAP4_SCM_CORE },
-	{ "ti,omap4-scm-padconf-core",	TI_OMAP4_SCM_PADCONF_CORE },
-	{ "ti,omap4-scm-wkup",		TI_OMAP4_SCM_WKUP },
-	{ "ti,omap4-scm-padconf-wkup",	TI_OMAP4_SCM_PADCONF_WKUP },
-	{ "ti,omap5-scm-core",		TI_OMAP5_SCM_CORE },
-	{ "ti,omap5-scm-padconf-core",	TI_OMAP5_SCM_PADCONF_CORE },
-	{ "ti,omap5-scm-wkup-pad-conf",	TI_OMAP5_SCM_WKUP_PAD_CONF },
-	{ "ti,dra7-scm-core",		TI_DRA7_SCM_CORE },
-	{ NULL,				TI_SCM_END }
-};
+static struct ofw_compat_data compat_data[] = { { "ti,am3-scm", TI_AM3_SCM },
+	{ "ti,am4-scm", TI_AM4_SCM }, { "ti,dm814-scrm", TI_DM814_SCRM },
+	{ "ti,dm816-scrm", TI_DM816_SCRM }, { "ti,omap2-scm", TI_OMAP2_SCM },
+	{ "ti,omap3-scm", TI_OMAP3_SCM },
+	{ "ti,omap4-scm-core", TI_OMAP4_SCM_CORE },
+	{ "ti,omap4-scm-padconf-core", TI_OMAP4_SCM_PADCONF_CORE },
+	{ "ti,omap4-scm-wkup", TI_OMAP4_SCM_WKUP },
+	{ "ti,omap4-scm-padconf-wkup", TI_OMAP4_SCM_PADCONF_WKUP },
+	{ "ti,omap5-scm-core", TI_OMAP5_SCM_CORE },
+	{ "ti,omap5-scm-padconf-core", TI_OMAP5_SCM_PADCONF_CORE },
+	{ "ti,omap5-scm-wkup-pad-conf", TI_OMAP5_SCM_WKUP_PAD_CONF },
+	{ "ti,dra7-scm-core", TI_DRA7_SCM_CORE }, { NULL, TI_SCM_END } };
 
 struct ti_scm_softc {
-	struct simplebus_softc	sc;
-	device_t		dev;
+	struct simplebus_softc sc;
+	device_t dev;
 };
 
 static int ti_scm_probe(device_t dev);
@@ -142,9 +138,9 @@ ti_scm_detach(device_t dev)
 
 static device_method_t ti_scm_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ti_scm_probe),
-	DEVMETHOD(device_attach,	ti_scm_attach),
-	DEVMETHOD(device_detach,	ti_scm_detach),
+	DEVMETHOD(device_probe, ti_scm_probe),
+	DEVMETHOD(device_attach, ti_scm_attach),
+	DEVMETHOD(device_detach, ti_scm_detach),
 
 	DEVMETHOD_END
 };
@@ -154,7 +150,7 @@ DEFINE_CLASS_1(ti_scm, ti_scm_driver, ti_scm_methods,
 
 static devclass_t ti_scm_devclass;
 
-EARLY_DRIVER_MODULE(ti_scm, simplebus, ti_scm_driver,
-    ti_scm_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
+EARLY_DRIVER_MODULE(ti_scm, simplebus, ti_scm_driver, ti_scm_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
 MODULE_VERSION(ti_scm, 1);
 MODULE_DEPEND(ti_scm, ti_sysc, 1, 1, 1);

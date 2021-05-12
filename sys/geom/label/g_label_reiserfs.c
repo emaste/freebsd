@@ -40,15 +40,15 @@ __FBSDID("$FreeBSD$");
 
 #define REISERFS_NEW_DISK_OFFSET 64 * 1024
 #define REISERFS_OLD_DISK_OFFSET 8 * 1024
-#define REISERFS_SUPER_MAGIC	"ReIsEr"
+#define REISERFS_SUPER_MAGIC "ReIsEr"
 
 typedef struct reiserfs_sb {
-	uint8_t		fake1[52];
-	char		s_magic[10];
-	uint8_t		fake2[10];
-	uint16_t	s_version;
-	uint8_t		fake3[26];
-	char		s_volume_name[16];
+	uint8_t fake1[52];
+	char s_magic[10];
+	uint8_t fake2[10];
+	uint16_t s_version;
+	uint8_t fake3[26];
+	char s_volume_name[16];
 } reiserfs_sb_t;
 
 static reiserfs_sb_t *
@@ -67,7 +67,7 @@ g_label_reiserfs_read_super(struct g_consumer *cp, off_t offset)
 		return (NULL);
 
 	if (strncmp(fs->s_magic, REISERFS_SUPER_MAGIC,
-	    strlen(REISERFS_SUPER_MAGIC)) != 0) {
+		strlen(REISERFS_SUPER_MAGIC)) != 0) {
 		g_free(fs);
 		return (NULL);
 	}
@@ -96,8 +96,8 @@ g_label_reiserfs_taste(struct g_consumer *cp, char *label, size_t size)
 
 	/* Check version */
 	if (fs->s_version == 2) {
-		G_LABEL_DEBUG(1, "reiserfs file system detected on %s.",
-		    pp->name);
+		G_LABEL_DEBUG(
+		    1, "reiserfs file system detected on %s.", pp->name);
 	} else {
 		goto exit_free;
 	}
@@ -114,10 +114,9 @@ exit_free:
 	g_free(fs);
 }
 
-struct g_label_desc g_label_reiserfs = {
-	.ld_taste = g_label_reiserfs_taste,
+struct g_label_desc g_label_reiserfs = { .ld_taste = g_label_reiserfs_taste,
 	.ld_dirprefix = "reiserfs/",
-	.ld_enabled = 1
-};
+	.ld_enabled = 1 };
 
-G_LABEL_INIT(reiserfs, g_label_reiserfs, "Create device nodes for REISERFS volumes");
+G_LABEL_INIT(
+    reiserfs, g_label_reiserfs, "Create device nodes for REISERFS volumes");

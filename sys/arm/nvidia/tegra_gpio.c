@@ -31,115 +31,113 @@ __FBSDID("$FreeBSD$");
  * Tegra GPIO driver.
  */
 #include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
-#include <sys/rman.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
 
 #include <dev/gpio/gpiobusvar.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "pic_if.h"
 
-#define	GPIO_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
-#define	GPIO_UNLOCK(_sc)	mtx_unlock(&(_sc)->mtx)
-#define	GPIO_LOCK_INIT(_sc)	mtx_init(&_sc->mtx, 			\
-	    device_get_nameunit(_sc->dev), "tegra_gpio", MTX_DEF)
-#define	GPIO_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->mtx);
-#define	GPIO_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->mtx, MA_OWNED);
-#define	GPIO_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->mtx, MA_NOTOWNED);
+#define GPIO_LOCK(_sc) mtx_lock(&(_sc)->mtx)
+#define GPIO_UNLOCK(_sc) mtx_unlock(&(_sc)->mtx)
+#define GPIO_LOCK_INIT(_sc) \
+	mtx_init(           \
+	    &_sc->mtx, device_get_nameunit(_sc->dev), "tegra_gpio", MTX_DEF)
+#define GPIO_LOCK_DESTROY(_sc) mtx_destroy(&_sc->mtx);
+#define GPIO_ASSERT_LOCKED(_sc) mtx_assert(&_sc->mtx, MA_OWNED);
+#define GPIO_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->mtx, MA_NOTOWNED);
 
-#define	WR4(_sc, _r, _v)	bus_write_4((_sc)->mem_res, (_r), (_v))
-#define	RD4(_sc, _r)		bus_read_4((_sc)->mem_res, (_r))
+#define WR4(_sc, _r, _v) bus_write_4((_sc)->mem_res, (_r), (_v))
+#define RD4(_sc, _r) bus_read_4((_sc)->mem_res, (_r))
 
-#define	GPIO_BANK_OFFS		0x100	/* Bank offset */
-#define	GPIO_NUM_BANKS		8	/* Total number per bank */
-#define	GPIO_REGS_IN_BANK	4	/* Total registers in bank */
-#define	GPIO_PINS_IN_REG	8	/* Total pin in register */
+#define GPIO_BANK_OFFS 0x100 /* Bank offset */
+#define GPIO_NUM_BANKS 8 /* Total number per bank */
+#define GPIO_REGS_IN_BANK 4 /* Total registers in bank */
+#define GPIO_PINS_IN_REG 8 /* Total pin in register */
 
-#define	GPIO_BANKNUM(n)		((n) / (GPIO_REGS_IN_BANK * GPIO_PINS_IN_REG))
-#define	GPIO_PORTNUM(n)		(((n) / GPIO_PINS_IN_REG) % GPIO_REGS_IN_BANK)
-#define	GPIO_BIT(n)		((n) % GPIO_PINS_IN_REG)
+#define GPIO_BANKNUM(n) ((n) / (GPIO_REGS_IN_BANK * GPIO_PINS_IN_REG))
+#define GPIO_PORTNUM(n) (((n) / GPIO_PINS_IN_REG) % GPIO_REGS_IN_BANK)
+#define GPIO_BIT(n) ((n) % GPIO_PINS_IN_REG)
 
-#define	GPIO_REGNUM(n)		(GPIO_BANKNUM(n) * GPIO_BANK_OFFS + \
-				    GPIO_PORTNUM(n) * 4)
+#define GPIO_REGNUM(n) (GPIO_BANKNUM(n) * GPIO_BANK_OFFS + GPIO_PORTNUM(n) * 4)
 
-#define	NGPIO	((GPIO_NUM_BANKS * GPIO_REGS_IN_BANK * GPIO_PINS_IN_REG) - 8)
+#define NGPIO ((GPIO_NUM_BANKS * GPIO_REGS_IN_BANK * GPIO_PINS_IN_REG) - 8)
 
 /* Register offsets */
-#define	GPIO_CNF		0x00
-#define	GPIO_OE			0x10
-#define	GPIO_OUT		0x20
-#define	GPIO_IN			0x30
-#define	GPIO_INT_STA		0x40
-#define	GPIO_INT_ENB		0x50
-#define	GPIO_INT_LVL		0x60
-#define  GPIO_INT_LVL_DELTA		(1 << 16)
-#define  GPIO_INT_LVL_EDGE		(1 << 8)
-#define  GPIO_INT_LVL_HIGH		(1 << 0)
-#define  GPIO_INT_LVL_MASK		(GPIO_INT_LVL_DELTA |		\
-					 GPIO_INT_LVL_EDGE | GPIO_INT_LVL_HIGH)
-#define	GPIO_INT_CLR		0x70
-#define	GPIO_MSK_CNF		0x80
-#define	GPIO_MSK_OE		0x90
-#define	GPIO_MSK_OUT		0xA0
-#define	GPIO_MSK_INT_STA	0xC0
-#define	GPIO_MSK_INT_ENB	0xD0
-#define	GPIO_MSK_INT_LVL	0xE0
+#define GPIO_CNF 0x00
+#define GPIO_OE 0x10
+#define GPIO_OUT 0x20
+#define GPIO_IN 0x30
+#define GPIO_INT_STA 0x40
+#define GPIO_INT_ENB 0x50
+#define GPIO_INT_LVL 0x60
+#define GPIO_INT_LVL_DELTA (1 << 16)
+#define GPIO_INT_LVL_EDGE (1 << 8)
+#define GPIO_INT_LVL_HIGH (1 << 0)
+#define GPIO_INT_LVL_MASK \
+	(GPIO_INT_LVL_DELTA | GPIO_INT_LVL_EDGE | GPIO_INT_LVL_HIGH)
+#define GPIO_INT_CLR 0x70
+#define GPIO_MSK_CNF 0x80
+#define GPIO_MSK_OE 0x90
+#define GPIO_MSK_OUT 0xA0
+#define GPIO_MSK_INT_STA 0xC0
+#define GPIO_MSK_INT_ENB 0xD0
+#define GPIO_MSK_INT_LVL 0xE0
 
 char *tegra_gpio_port_names[] = {
-	 "A",  "B",  "C",  "D", /* Bank 0 */
-	 "E",  "F",  "G",  "H", /* Bank 1 */
-	 "I",  "J",  "K",  "L", /* Bank 2 */
-	 "M",  "N",  "O",  "P", /* Bank 3 */
-	 "Q",  "R",  "S",  "T", /* Bank 4 */
-	 "U",  "V",  "W",  "X", /* Bank 5 */
-	 "Y",  "Z", "AA", "BB", /* Bank 6 */
-	"CC", "DD", "EE"	/* Bank 7 */
+	"A", "B", "C", "D",   /* Bank 0 */
+	"E", "F", "G", "H",   /* Bank 1 */
+	"I", "J", "K", "L",   /* Bank 2 */
+	"M", "N", "O", "P",   /* Bank 3 */
+	"Q", "R", "S", "T",   /* Bank 4 */
+	"U", "V", "W", "X",   /* Bank 5 */
+	"Y", "Z", "AA", "BB", /* Bank 6 */
+	"CC", "DD", "EE"      /* Bank 7 */
 };
 
 struct tegra_gpio_irqsrc {
-	struct intr_irqsrc	isrc;
-	u_int			irq;
-	uint32_t		cfgreg;
+	struct intr_irqsrc isrc;
+	u_int irq;
+	uint32_t cfgreg;
 };
 
 struct tegra_gpio_softc;
 struct tegra_gpio_irq_cookie {
-	struct tegra_gpio_softc	*sc;
-	int			bank_num;
+	struct tegra_gpio_softc *sc;
+	int bank_num;
 };
 
 struct tegra_gpio_softc {
-	device_t		dev;
-	device_t		busdev;
-	struct mtx		mtx;
-	struct resource		*mem_res;
-	struct resource		*irq_res[GPIO_NUM_BANKS];
-	void			*irq_ih[GPIO_NUM_BANKS];
+	device_t dev;
+	device_t busdev;
+	struct mtx mtx;
+	struct resource *mem_res;
+	struct resource *irq_res[GPIO_NUM_BANKS];
+	void *irq_ih[GPIO_NUM_BANKS];
 	struct tegra_gpio_irq_cookie irq_cookies[GPIO_NUM_BANKS];
-	int			gpio_npins;
-	struct gpio_pin		gpio_pins[NGPIO];
+	int gpio_npins;
+	struct gpio_pin gpio_pins[NGPIO];
 	struct tegra_gpio_irqsrc *isrcs;
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{"nvidia,tegra124-gpio", 1},
-	{"nvidia,tegra210-gpio", 1},
-	{NULL,			0}
-};
+static struct ofw_compat_data compat_data[] = { { "nvidia,tegra124-gpio", 1 },
+	{ "nvidia,tegra210-gpio", 1 }, { NULL, 0 } };
 
 /* --------------------------------------------------------------------------
  *
@@ -154,8 +152,8 @@ gpio_write_masked(struct tegra_gpio_softc *sc, bus_size_t reg,
 	int bit;
 
 	bit = GPIO_BIT(pin->gp_pin);
-	tmp = 0x100 << bit;		/* mask */
-	tmp |= (val & 1) << bit;	/* value */
+	tmp = 0x100 << bit;	 /* mask */
+	tmp |= (val & 1) << bit; /* value */
 	bus_write_4(sc->mem_res, reg + GPIO_REGNUM(pin->gp_pin), tmp);
 }
 
@@ -171,11 +169,11 @@ gpio_read(struct tegra_gpio_softc *sc, bus_size_t reg, struct gpio_pin *pin)
 }
 
 static void
-tegra_gpio_pin_configure(struct tegra_gpio_softc *sc, struct gpio_pin *pin,
-    unsigned int flags)
+tegra_gpio_pin_configure(
+    struct tegra_gpio_softc *sc, struct gpio_pin *pin, unsigned int flags)
 {
 
-	if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) == 0)
+	if ((flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) == 0)
 		return;
 
 	/* Manage input/output */
@@ -271,13 +269,13 @@ tegra_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		return (EINVAL);
 
 	GPIO_LOCK(sc);
-	cnf = gpio_read(sc, GPIO_CNF,  &sc->gpio_pins[pin]);
+	cnf = gpio_read(sc, GPIO_CNF, &sc->gpio_pins[pin]);
 	if (cnf == 0) {
 		/* XXX - allow this for while ....
 		GPIO_UNLOCK(sc);
 		return (ENXIO);
 		*/
-		gpio_write_masked(sc, GPIO_MSK_CNF,  &sc->gpio_pins[pin], 1);
+		gpio_write_masked(sc, GPIO_MSK_CNF, &sc->gpio_pins[pin], 1);
 	}
 	tegra_gpio_pin_configure(sc, &sc->gpio_pins[pin], flags);
 	GPIO_UNLOCK(sc);
@@ -327,7 +325,7 @@ tegra_gpio_pin_toggle(device_t dev, uint32_t pin)
 
 	GPIO_LOCK(sc);
 	gpio_write_masked(sc, GPIO_MSK_OE, &sc->gpio_pins[pin],
-	     gpio_read(sc, GPIO_IN, &sc->gpio_pins[pin]) ^ 1);
+	    gpio_read(sc, GPIO_IN, &sc->gpio_pins[pin]) ^ 1);
 	GPIO_UNLOCK(sc);
 
 	return (0);
@@ -346,8 +344,8 @@ intr_write_masked(struct tegra_gpio_softc *sc, bus_addr_t reg,
 	int bit;
 
 	bit = GPIO_BIT(tgi->irq);
-	tmp = 0x100 << bit;		/* mask */
-	tmp |= (val & 1) << bit;	/* value */
+	tmp = 0x100 << bit;	 /* mask */
+	tmp |= (val & 1) << bit; /* value */
 	bus_write_4(sc->mem_res, reg + GPIO_REGNUM(tgi->irq), tmp);
 }
 
@@ -368,16 +366,15 @@ intr_write_modify(struct tegra_gpio_softc *sc, bus_addr_t reg,
 }
 
 static inline void
-tegra_gpio_isrc_mask(struct tegra_gpio_softc *sc,
-     struct tegra_gpio_irqsrc *tgi, uint32_t val)
+tegra_gpio_isrc_mask(
+    struct tegra_gpio_softc *sc, struct tegra_gpio_irqsrc *tgi, uint32_t val)
 {
 
 	intr_write_masked(sc, GPIO_MSK_INT_ENB, tgi, val);
 }
 
 static inline void
-tegra_gpio_isrc_eoi(struct tegra_gpio_softc *sc,
-     struct tegra_gpio_irqsrc *tgi)
+tegra_gpio_isrc_eoi(struct tegra_gpio_softc *sc, struct tegra_gpio_irqsrc *tgi)
 {
 
 	intr_write_masked(sc, GPIO_INT_CLR, tgi, 1);
@@ -404,13 +401,14 @@ tegra_gpio_intr(void *arg)
 	tf = curthread->td_intr_frame;
 
 	for (i = 0; i < GPIO_REGS_IN_BANK; i++) {
-		basepin  = cookie->bank_num * GPIO_REGS_IN_BANK *
-		    GPIO_PINS_IN_REG + i * GPIO_PINS_IN_REG;
+		basepin = cookie->bank_num * GPIO_REGS_IN_BANK *
+			GPIO_PINS_IN_REG +
+		    i * GPIO_PINS_IN_REG;
 
-		val = bus_read_4(sc->mem_res, GPIO_INT_STA +
-		    GPIO_REGNUM(basepin));
-		val &= bus_read_4(sc->mem_res, GPIO_INT_ENB +
-		    GPIO_REGNUM(basepin));
+		val = bus_read_4(
+		    sc->mem_res, GPIO_INT_STA + GPIO_REGNUM(basepin));
+		val &= bus_read_4(
+		    sc->mem_res, GPIO_INT_ENB + GPIO_REGNUM(basepin));
 		/* Interrupt handling */
 		for (j = 0; j < GPIO_PINS_IN_REG; j++) {
 			if ((val & (1 << j)) == 0)
@@ -423,8 +421,8 @@ tegra_gpio_intr(void *arg)
 				tegra_gpio_isrc_mask(sc, tgi, 0);
 				if (tegra_gpio_isrc_is_level(tgi))
 					tegra_gpio_isrc_eoi(sc, tgi);
-				device_printf(sc->dev,
-				    "Stray irq %u disabled\n", irq);
+				device_printf(
+				    sc->dev, "Stray irq %u disabled\n", irq);
 			}
 		}
 	}
@@ -439,20 +437,20 @@ tegra_gpio_pic_attach(struct tegra_gpio_softc *sc)
 	uint32_t irq;
 	const char *name;
 
-	sc->isrcs = malloc(sizeof(*sc->isrcs) * sc->gpio_npins, M_DEVBUF,
-	    M_WAITOK | M_ZERO);
+	sc->isrcs = malloc(
+	    sizeof(*sc->isrcs) * sc->gpio_npins, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	name = device_get_nameunit(sc->dev);
 	for (irq = 0; irq < sc->gpio_npins; irq++) {
 		sc->isrcs[irq].irq = irq;
 		sc->isrcs[irq].cfgreg = 0;
-		error = intr_isrc_register(&sc->isrcs[irq].isrc,
-		    sc->dev, 0, "%s,%u", name, irq);
+		error = intr_isrc_register(
+		    &sc->isrcs[irq].isrc, sc->dev, 0, "%s,%u", name, irq);
 		if (error != 0)
 			return (error); /* XXX deregister ISRCs */
 	}
-	if (intr_pic_register(sc->dev,
-	    OF_xref_from_node(ofw_bus_get_node(sc->dev))) == NULL)
+	if (intr_pic_register(
+		sc->dev, OF_xref_from_node(ofw_bus_get_node(sc->dev))) == NULL)
 		return (ENXIO);
 
 	return (0);
@@ -570,8 +568,8 @@ tegra_gpio_pic_map_gpio(struct tegra_gpio_softc *sc, u_int gpio_pin_num,
 }
 
 static int
-tegra_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+tegra_gpio_pic_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	int rv;
 	u_int irq;
@@ -583,14 +581,14 @@ tegra_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 		struct intr_map_data_fdt *daf;
 
 		daf = (struct intr_map_data_fdt *)data;
-		rv = tegra_gpio_pic_map_fdt(sc, daf->ncells, daf->cells, &irq,
-		    NULL);
+		rv = tegra_gpio_pic_map_fdt(
+		    sc, daf->ncells, daf->cells, &irq, NULL);
 	} else if (data->type == INTR_MAP_DATA_GPIO) {
 		struct intr_map_data_gpio *dag;
 
 		dag = (struct intr_map_data_gpio *)data;
 		rv = tegra_gpio_pic_map_gpio(sc, dag->gpio_pin_num,
-		   dag->gpio_pin_flags, dag->gpio_intr_mode, &irq, NULL);
+		    dag->gpio_pin_flags, dag->gpio_intr_mode, &irq, NULL);
 	} else
 		return (ENOTSUP);
 
@@ -657,14 +655,14 @@ tegra_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 		struct intr_map_data_fdt *daf;
 
 		daf = (struct intr_map_data_fdt *)data;
-		rv = tegra_gpio_pic_map_fdt(sc, daf->ncells, daf->cells, &irq,
-		    &cfgreg);
+		rv = tegra_gpio_pic_map_fdt(
+		    sc, daf->ncells, daf->cells, &irq, &cfgreg);
 	} else if (data->type == INTR_MAP_DATA_GPIO) {
 		struct intr_map_data_gpio *dag;
 
 		dag = (struct intr_map_data_gpio *)data;
 		rv = tegra_gpio_pic_map_gpio(sc, dag->gpio_pin_num,
-		   dag->gpio_pin_flags, dag->gpio_intr_mode, &irq, &cfgreg);
+		    dag->gpio_pin_flags, dag->gpio_intr_mode, &irq, &cfgreg);
 	} else
 		return (ENOTSUP);
 	if (rv != 0)
@@ -740,14 +738,14 @@ tegra_gpio_detach(device_t dev)
 
 	for (i = 0; i < GPIO_NUM_BANKS; i++) {
 		if (sc->irq_res[i] != NULL)
-			bus_release_resource(dev, SYS_RES_IRQ, 0,
-			    sc->irq_res[i]);
+			bus_release_resource(
+			    dev, SYS_RES_IRQ, 0, sc->irq_res[i]);
 	}
 	if (sc->mem_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem_res);
 	GPIO_LOCK_DESTROY(sc);
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -762,8 +760,8 @@ tegra_gpio_attach(device_t dev)
 
 	/* Allocate bus_space resources. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Cannot allocate memory resources\n");
 		tegra_gpio_detach(dev);
@@ -774,15 +772,16 @@ tegra_gpio_attach(device_t dev)
 	for (i = 0; i < sc->gpio_npins; i++) {
 		sc->gpio_pins[i].gp_pin = i;
 		sc->gpio_pins[i].gp_caps = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |
-		    GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH | 
+		    GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH |
 		    GPIO_INTR_EDGE_RISING | GPIO_INTR_EDGE_FALLING |
 		    GPIO_INTR_EDGE_BOTH;
 		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME, "gpio_%s.%d",
-		    tegra_gpio_port_names[ i / GPIO_PINS_IN_REG],
+		    tegra_gpio_port_names[i / GPIO_PINS_IN_REG],
 		    i % GPIO_PINS_IN_REG);
-		sc->gpio_pins[i].gp_flags =
-		    gpio_read(sc, GPIO_OE, &sc->gpio_pins[i]) != 0 ?
-		    GPIO_PIN_OUTPUT : GPIO_PIN_INPUT;
+		sc->gpio_pins[i].gp_flags = gpio_read(sc, GPIO_OE,
+						&sc->gpio_pins[i]) != 0 ?
+			  GPIO_PIN_OUTPUT :
+			  GPIO_PIN_INPUT;
 	}
 
 	/* Init interrupt related registes. */
@@ -797,16 +796,16 @@ tegra_gpio_attach(device_t dev)
 		sc->irq_cookies[i].sc = sc;
 		sc->irq_cookies[i].bank_num = i;
 		rid = i;
-		sc->irq_res[i] = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-		    &rid, RF_ACTIVE);
+		sc->irq_res[i] = bus_alloc_resource_any(
+		    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 		if (sc->irq_res[i] == NULL) {
 			device_printf(dev, "Cannot allocate IRQ resources\n");
 			tegra_gpio_detach(dev);
 			return (ENXIO);
 		}
 		if ((bus_setup_intr(dev, sc->irq_res[i],
-		    INTR_TYPE_MISC | INTR_MPSAFE, tegra_gpio_intr, NULL,
-		    &sc->irq_cookies[i], &sc->irq_ih[i]))) {
+			INTR_TYPE_MISC | INTR_MPSAFE, tegra_gpio_intr, NULL,
+			&sc->irq_cookies[i], &sc->irq_ih[i]))) {
 			device_printf(dev,
 			    "WARNING: unable to register interrupt handler\n");
 			tegra_gpio_detach(dev);
@@ -830,14 +829,14 @@ tegra_gpio_attach(device_t dev)
 }
 
 static int
-tegra_map_gpios(device_t dev, phandle_t pdev, phandle_t gparent,
-    int gcells, pcell_t *gpios, uint32_t *pin, uint32_t *flags)
+tegra_map_gpios(device_t dev, phandle_t pdev, phandle_t gparent, int gcells,
+    pcell_t *gpios, uint32_t *pin, uint32_t *flags)
 {
 
 	if (gcells != 2)
 		return (ERANGE);
 	*pin = gpios[0];
-	*flags= gpios[1];
+	*flags = gpios[1];
 	return (0);
 }
 
@@ -849,38 +848,37 @@ tegra_gpio_get_node(device_t bus, device_t dev)
 	return (ofw_bus_get_node(bus));
 }
 
-static device_method_t tegra_gpio_methods[] = {
-	DEVMETHOD(device_probe,		tegra_gpio_probe),
-	DEVMETHOD(device_attach,	tegra_gpio_attach),
-	DEVMETHOD(device_detach,	tegra_gpio_detach),
+static device_method_t tegra_gpio_methods[] = { DEVMETHOD(device_probe,
+						    tegra_gpio_probe),
+	DEVMETHOD(device_attach, tegra_gpio_attach),
+	DEVMETHOD(device_detach, tegra_gpio_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_disable_intr,	tegra_gpio_pic_disable_intr),
-	DEVMETHOD(pic_enable_intr,	tegra_gpio_pic_enable_intr),
-	DEVMETHOD(pic_map_intr,		tegra_gpio_pic_map_intr),
-	DEVMETHOD(pic_setup_intr,	tegra_gpio_pic_setup_intr),
-	DEVMETHOD(pic_teardown_intr,	tegra_gpio_pic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	tegra_gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	tegra_gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	tegra_gpio_pic_pre_ithread),
+	DEVMETHOD(pic_disable_intr, tegra_gpio_pic_disable_intr),
+	DEVMETHOD(pic_enable_intr, tegra_gpio_pic_enable_intr),
+	DEVMETHOD(pic_map_intr, tegra_gpio_pic_map_intr),
+	DEVMETHOD(pic_setup_intr, tegra_gpio_pic_setup_intr),
+	DEVMETHOD(pic_teardown_intr, tegra_gpio_pic_teardown_intr),
+	DEVMETHOD(pic_post_filter, tegra_gpio_pic_post_filter),
+	DEVMETHOD(pic_post_ithread, tegra_gpio_pic_post_ithread),
+	DEVMETHOD(pic_pre_ithread, tegra_gpio_pic_pre_ithread),
 
 	/* GPIO protocol */
-	DEVMETHOD(gpio_get_bus,		tegra_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max,		tegra_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname,	tegra_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getflags,	tegra_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_getcaps,	tegra_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_setflags,	tegra_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_get,		tegra_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set,		tegra_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle,	tegra_gpio_pin_toggle),
-	DEVMETHOD(gpio_map_gpios,	tegra_map_gpios),
+	DEVMETHOD(gpio_get_bus, tegra_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max, tegra_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname, tegra_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getflags, tegra_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_getcaps, tegra_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_setflags, tegra_gpio_pin_setflags),
+	DEVMETHOD(gpio_pin_get, tegra_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set, tegra_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle, tegra_gpio_pin_toggle),
+	DEVMETHOD(gpio_map_gpios, tegra_map_gpios),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	tegra_gpio_get_node),
+	DEVMETHOD(ofw_bus_get_node, tegra_gpio_get_node),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static devclass_t tegra_gpio_devclass;
 static DEFINE_CLASS_0(gpio, tegra_gpio_driver, tegra_gpio_methods,

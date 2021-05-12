@@ -28,28 +28,29 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_PAGE_H_
+#ifndef _LINUX_PAGE_H_
 #define _LINUX_PAGE_H_
-
-#include <linux/types.h>
 
 #include <sys/param.h>
 #include <sys/vmmeter.h>
 
-#include <machine/atomic.h>
 #include <vm/vm.h>
-#include <vm/vm_page.h>
 #include <vm/pmap.h>
+#include <vm/vm_page.h>
+
+#include <machine/atomic.h>
+
+#include <linux/types.h>
 
 typedef unsigned long linux_pte_t;
 typedef unsigned long linux_pmd_t;
 typedef unsigned long linux_pgd_t;
 typedef unsigned long pgprot_t;
 
-#define page	vm_page
+#define page vm_page
 
-#define	LINUXKPI_PROT_VALID (1 << 3)
-#define	LINUXKPI_CACHE_MODE_SHIFT 4
+#define LINUXKPI_PROT_VALID (1 << 3)
+#define LINUXKPI_CACHE_MODE_SHIFT 4
 
 CTASSERT((VM_PROT_ALL & -LINUXKPI_PROT_VALID) == 0);
 
@@ -68,29 +69,29 @@ pgprot2cachemode(pgprot_t prot)
 		return (VM_MEMATTR_DEFAULT);
 }
 
-#define	virt_to_page(x)		PHYS_TO_VM_PAGE(vtophys(x))
-#define	page_to_pfn(pp)		(VM_PAGE_TO_PHYS(pp) >> PAGE_SHIFT)
-#define	pfn_to_page(pfn)	(PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
-#define	nth_page(page,n)	pfn_to_page(page_to_pfn(page) + (n))
+#define virt_to_page(x) PHYS_TO_VM_PAGE(vtophys(x))
+#define page_to_pfn(pp) (VM_PAGE_TO_PHYS(pp) >> PAGE_SHIFT)
+#define pfn_to_page(pfn) (PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
+#define nth_page(page, n) pfn_to_page(page_to_pfn(page) + (n))
 
-#define	clear_page(page)		memset(page, 0, PAGE_SIZE)
-#define	pgprot_noncached(prot)		\
-	(((prot) & VM_PROT_ALL) | cachemode2protval(VM_MEMATTR_UNCACHEABLE))
-#define	pgprot_writecombine(prot)	\
-	(((prot) & VM_PROT_ALL) | cachemode2protval(VM_MEMATTR_WRITE_COMBINING))
+#define clear_page(page) memset(page, 0, PAGE_SIZE)
+#define pgprot_noncached(prot) \
+	(((prot)&VM_PROT_ALL) | cachemode2protval(VM_MEMATTR_UNCACHEABLE))
+#define pgprot_writecombine(prot) \
+	(((prot)&VM_PROT_ALL) | cachemode2protval(VM_MEMATTR_WRITE_COMBINING))
 
-#undef	PAGE_MASK
-#define	PAGE_MASK	(~(PAGE_SIZE-1))
+#undef PAGE_MASK
+#define PAGE_MASK (~(PAGE_SIZE - 1))
 /*
  * Modifying PAGE_MASK in the above way breaks trunc_page, round_page,
  * and btoc macros. Therefore, redefine them in a way that makes sense
  * so the LinuxKPI consumers don't get totally broken behavior.
  */
-#undef	btoc
-#define	btoc(x)	(((vm_offset_t)(x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
-#undef	round_page
-#define	round_page(x)	((((uintptr_t)(x)) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
-#undef	trunc_page
-#define	trunc_page(x)	((uintptr_t)(x) & ~(PAGE_SIZE - 1))
+#undef btoc
+#define btoc(x) (((vm_offset_t)(x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
+#undef round_page
+#define round_page(x) ((((uintptr_t)(x)) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
+#undef trunc_page
+#define trunc_page(x) ((uintptr_t)(x) & ~(PAGE_SIZE - 1))
 
-#endif	/* _LINUX_PAGE_H_ */
+#endif /* _LINUX_PAGE_H_ */

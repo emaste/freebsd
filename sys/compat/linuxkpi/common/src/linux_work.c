@@ -27,24 +27,24 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <linux/workqueue.h>
-#include <linux/wait.h>
-#include <linux/compat.h>
-#include <linux/spinlock.h>
-#include <linux/rcupdate.h>
-#include <linux/irq_work.h>
-
 #include <sys/kernel.h>
+
+#include <linux/compat.h>
+#include <linux/irq_work.h>
+#include <linux/rcupdate.h>
+#include <linux/spinlock.h>
+#include <linux/wait.h>
+#include <linux/workqueue.h>
 
 /*
  * Define all work struct states
  */
 enum {
-	WORK_ST_IDLE,			/* idle - not started */
-	WORK_ST_TIMER,			/* timer is being started */
-	WORK_ST_TASK,			/* taskqueue is being queued */
-	WORK_ST_EXEC,			/* callback is being called */
-	WORK_ST_CANCEL,			/* cancel is being requested */
+	WORK_ST_IDLE,	/* idle - not started */
+	WORK_ST_TIMER,	/* timer is being started */
+	WORK_ST_TASK,	/* taskqueue is being queued */
+	WORK_ST_EXEC,	/* callback is being called */
+	WORK_ST_CANCEL, /* cancel is being requested */
 	WORK_ST_MAX,
 };
 
@@ -103,7 +103,7 @@ linux_work_exec_unblock(struct work_struct *work)
 		goto done;
 
 	WQ_EXEC_LOCK(wq);
-	TAILQ_FOREACH(exec, &wq->exec_head, entry) {
+	TAILQ_FOREACH (exec, &wq->exec_head, entry) {
 		if (exec->target == work) {
 			exec->target = NULL;
 			retval = true;
@@ -130,15 +130,15 @@ linux_delayed_work_enqueue(struct delayed_work *dwork)
  * [re-]queued. Else the work is already pending for completion.
  */
 bool
-linux_queue_work_on(int cpu __unused, struct workqueue_struct *wq,
-    struct work_struct *work)
+linux_queue_work_on(
+    int cpu __unused, struct workqueue_struct *wq, struct work_struct *work)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
-		[WORK_ST_IDLE] = WORK_ST_TASK,		/* start queuing task */
-		[WORK_ST_TIMER] = WORK_ST_TIMER,	/* NOP */
-		[WORK_ST_TASK] = WORK_ST_TASK,		/* NOP */
-		[WORK_ST_EXEC] = WORK_ST_TASK,		/* queue task another time */
-		[WORK_ST_CANCEL] = WORK_ST_TASK,	/* start queuing task again */
+		[WORK_ST_IDLE] = WORK_ST_TASK,	 /* start queuing task */
+		[WORK_ST_TIMER] = WORK_ST_TIMER, /* NOP */
+		[WORK_ST_TASK] = WORK_ST_TASK,	 /* NOP */
+		[WORK_ST_EXEC] = WORK_ST_TASK,	 /* queue task another time */
+		[WORK_ST_CANCEL] = WORK_ST_TASK, /* start queuing task again */
 	};
 
 	if (atomic_read(&wq->draining) != 0)
@@ -155,7 +155,7 @@ linux_queue_work_on(int cpu __unused, struct workqueue_struct *wq,
 		taskqueue_enqueue(wq->taskqueue, &work->work_task);
 		return (true);
 	default:
-		return (false);		/* already on a queue */
+		return (false); /* already on a queue */
 	}
 }
 
@@ -217,11 +217,11 @@ linux_queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
     struct delayed_work *dwork, unsigned delay)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
-		[WORK_ST_IDLE] = WORK_ST_TIMER,		/* start timeout */
-		[WORK_ST_TIMER] = WORK_ST_TIMER,	/* NOP */
-		[WORK_ST_TASK] = WORK_ST_TASK,		/* NOP */
-		[WORK_ST_EXEC] = WORK_ST_TIMER,		/* start timeout */
-		[WORK_ST_CANCEL] = WORK_ST_TIMER,	/* start timeout */
+		[WORK_ST_IDLE] = WORK_ST_TIMER,	  /* start timeout */
+		[WORK_ST_TIMER] = WORK_ST_TIMER,  /* NOP */
+		[WORK_ST_TASK] = WORK_ST_TASK,	  /* NOP */
+		[WORK_ST_EXEC] = WORK_ST_TIMER,	  /* start timeout */
+		[WORK_ST_CANCEL] = WORK_ST_TIMER, /* start timeout */
 	};
 
 	if (atomic_read(&wq->draining) != 0)
@@ -254,7 +254,7 @@ linux_queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 		}
 		return (true);
 	default:
-		return (false);		/* already on a queue */
+		return (false); /* already on a queue */
 	}
 }
 
@@ -262,11 +262,11 @@ void
 linux_work_fn(void *context, int pending)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
-		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
-		[WORK_ST_TIMER] = WORK_ST_EXEC,		/* delayed work w/o timeout */
-		[WORK_ST_TASK] = WORK_ST_EXEC,		/* call callback */
-		[WORK_ST_EXEC] = WORK_ST_IDLE,		/* complete callback */
-		[WORK_ST_CANCEL] = WORK_ST_EXEC,	/* failed to cancel */
+		[WORK_ST_IDLE] = WORK_ST_IDLE,	 /* NOP */
+		[WORK_ST_TIMER] = WORK_ST_EXEC,	 /* delayed work w/o timeout */
+		[WORK_ST_TASK] = WORK_ST_EXEC,	 /* call callback */
+		[WORK_ST_EXEC] = WORK_ST_IDLE,	 /* complete callback */
+		[WORK_ST_CANCEL] = WORK_ST_EXEC, /* failed to cancel */
 	};
 	struct work_struct *work;
 	struct workqueue_struct *wq;
@@ -340,11 +340,11 @@ static void
 linux_delayed_work_timer_fn(void *arg)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
-		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
-		[WORK_ST_TIMER] = WORK_ST_TASK,		/* start queueing task */
-		[WORK_ST_TASK] = WORK_ST_TASK,		/* NOP */
-		[WORK_ST_EXEC] = WORK_ST_EXEC,		/* NOP */
-		[WORK_ST_CANCEL] = WORK_ST_TASK,	/* failed to cancel */
+		[WORK_ST_IDLE] = WORK_ST_IDLE,	 /* NOP */
+		[WORK_ST_TIMER] = WORK_ST_TASK,	 /* start queueing task */
+		[WORK_ST_TASK] = WORK_ST_TASK,	 /* NOP */
+		[WORK_ST_EXEC] = WORK_ST_EXEC,	 /* NOP */
+		[WORK_ST_CANCEL] = WORK_ST_TASK, /* failed to cancel */
 	};
 	struct delayed_work *dwork = arg;
 
@@ -367,11 +367,11 @@ bool
 linux_cancel_work_sync(struct work_struct *work)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
-		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
-		[WORK_ST_TIMER] = WORK_ST_TIMER,	/* can't happen */
-		[WORK_ST_TASK] = WORK_ST_IDLE,		/* cancel and drain */
-		[WORK_ST_EXEC] = WORK_ST_IDLE,		/* too late, drain */
-		[WORK_ST_CANCEL] = WORK_ST_IDLE,	/* cancel and drain */
+		[WORK_ST_IDLE] = WORK_ST_IDLE,	 /* NOP */
+		[WORK_ST_TIMER] = WORK_ST_TIMER, /* can't happen */
+		[WORK_ST_TASK] = WORK_ST_IDLE,	 /* cancel and drain */
+		[WORK_ST_EXEC] = WORK_ST_IDLE,	 /* too late, drain */
+		[WORK_ST_CANCEL] = WORK_ST_IDLE, /* cancel and drain */
 	};
 	struct taskqueue *tq;
 	bool retval = false;
@@ -387,7 +387,7 @@ retry:
 		tq = work->work_queue->taskqueue;
 		if (taskqueue_cancel(tq, &work->work_task, NULL) != 0)
 			taskqueue_drain(tq, &work->work_task);
-		goto retry;	/* work may have restarted itself */
+		goto retry; /* work may have restarted itself */
 	default:
 		tq = work->work_queue->taskqueue;
 		if (taskqueue_cancel(tq, &work->work_task, NULL) != 0)
@@ -428,11 +428,11 @@ bool
 linux_cancel_delayed_work(struct delayed_work *dwork)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
-		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
-		[WORK_ST_TIMER] = WORK_ST_CANCEL,	/* try to cancel */
-		[WORK_ST_TASK] = WORK_ST_CANCEL,	/* try to cancel */
-		[WORK_ST_EXEC] = WORK_ST_EXEC,		/* NOP */
-		[WORK_ST_CANCEL] = WORK_ST_CANCEL,	/* NOP */
+		[WORK_ST_IDLE] = WORK_ST_IDLE,	   /* NOP */
+		[WORK_ST_TIMER] = WORK_ST_CANCEL,  /* try to cancel */
+		[WORK_ST_TASK] = WORK_ST_CANCEL,   /* try to cancel */
+		[WORK_ST_EXEC] = WORK_ST_EXEC,	   /* NOP */
+		[WORK_ST_CANCEL] = WORK_ST_CANCEL, /* NOP */
 	};
 	struct taskqueue *tq;
 	bool cancelled;
@@ -443,8 +443,8 @@ linux_cancel_delayed_work(struct delayed_work *dwork)
 	case WORK_ST_CANCEL:
 		cancelled = (callout_stop(&dwork->timer.callout) == 1);
 		if (cancelled) {
-			atomic_cmpxchg(&dwork->work.state,
-			    WORK_ST_CANCEL, WORK_ST_IDLE);
+			atomic_cmpxchg(
+			    &dwork->work.state, WORK_ST_CANCEL, WORK_ST_IDLE);
 			mtx_unlock(&dwork->timer.mtx);
 			return (true);
 		}
@@ -452,8 +452,8 @@ linux_cancel_delayed_work(struct delayed_work *dwork)
 	case WORK_ST_TASK:
 		tq = dwork->work.work_queue->taskqueue;
 		if (taskqueue_cancel(tq, &dwork->work.work_task, NULL) == 0) {
-			atomic_cmpxchg(&dwork->work.state,
-			    WORK_ST_CANCEL, WORK_ST_IDLE);
+			atomic_cmpxchg(
+			    &dwork->work.state, WORK_ST_CANCEL, WORK_ST_IDLE);
 			mtx_unlock(&dwork->timer.mtx);
 			return (true);
 		}
@@ -473,11 +473,11 @@ bool
 linux_cancel_delayed_work_sync(struct delayed_work *dwork)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
-		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
-		[WORK_ST_TIMER] = WORK_ST_IDLE,		/* cancel and drain */
-		[WORK_ST_TASK] = WORK_ST_IDLE,		/* cancel and drain */
-		[WORK_ST_EXEC] = WORK_ST_IDLE,		/* too late, drain */
-		[WORK_ST_CANCEL] = WORK_ST_IDLE,	/* cancel and drain */
+		[WORK_ST_IDLE] = WORK_ST_IDLE,	 /* NOP */
+		[WORK_ST_TIMER] = WORK_ST_IDLE,	 /* cancel and drain */
+		[WORK_ST_TASK] = WORK_ST_IDLE,	 /* cancel and drain */
+		[WORK_ST_EXEC] = WORK_ST_IDLE,	 /* too late, drain */
+		[WORK_ST_CANCEL] = WORK_ST_IDLE, /* cancel and drain */
 	};
 	struct taskqueue *tq;
 	bool retval = false;
@@ -616,8 +616,8 @@ linux_create_workqueue_common(const char *name, int cpus)
 		cpus = linux_default_wq_cpus;
 
 	wq = kmalloc(sizeof(*wq), M_WAITOK | M_ZERO);
-	wq->taskqueue = taskqueue_create(name, M_WAITOK,
-	    taskqueue_thread_enqueue, &wq->taskqueue);
+	wq->taskqueue = taskqueue_create(
+	    name, M_WAITOK, taskqueue_thread_enqueue, &wq->taskqueue);
 	atomic_set(&wq->draining, 0);
 	taskqueue_start_threads(&wq->taskqueue, cpus, PWAIT, "%s", name);
 	TAILQ_INIT(&wq->exec_head);
@@ -665,8 +665,10 @@ linux_work_init(void *arg)
 	/* set default number of CPUs */
 	linux_default_wq_cpus = max_wq_cpus;
 
-	linux_system_short_wq = alloc_workqueue("linuxkpi_short_wq", 0, max_wq_cpus);
-	linux_system_long_wq = alloc_workqueue("linuxkpi_long_wq", 0, max_wq_cpus);
+	linux_system_short_wq = alloc_workqueue(
+	    "linuxkpi_short_wq", 0, max_wq_cpus);
+	linux_system_long_wq = alloc_workqueue(
+	    "linuxkpi_long_wq", 0, max_wq_cpus);
 
 	/* populate the workqueue pointers */
 	system_long_wq = linux_system_long_wq;
@@ -690,7 +692,8 @@ linux_work_uninit(void *arg)
 	system_unbound_wq = NULL;
 	system_highpri_wq = NULL;
 }
-SYSUNINIT(linux_work_uninit, SI_SUB_TASKQ, SI_ORDER_THIRD, linux_work_uninit, NULL);
+SYSUNINIT(
+    linux_work_uninit, SI_SUB_TASKQ, SI_ORDER_THIRD, linux_work_uninit, NULL);
 
 void
 linux_irq_work_fn(void *context, int pending)
@@ -713,20 +716,20 @@ linux_irq_work_init_fn(void *context, int pending)
 	if (current == NULL)
 		panic("irq_work taskqueue is not initialized");
 }
-static struct task linux_irq_work_init_task =
-    TASK_INITIALIZER(0, linux_irq_work_init_fn, &linux_irq_work_init_task);
+static struct task linux_irq_work_init_task = TASK_INITIALIZER(
+    0, linux_irq_work_init_fn, &linux_irq_work_init_task);
 
 static void
 linux_irq_work_init(void *arg)
 {
-	linux_irq_work_tq = taskqueue_create_fast("linuxkpi_irq_wq",
-	    M_WAITOK, taskqueue_thread_enqueue, &linux_irq_work_tq);
-	taskqueue_start_threads(&linux_irq_work_tq, 1, PWAIT,
-	    "linuxkpi_irq_wq");
+	linux_irq_work_tq = taskqueue_create_fast("linuxkpi_irq_wq", M_WAITOK,
+	    taskqueue_thread_enqueue, &linux_irq_work_tq);
+	taskqueue_start_threads(
+	    &linux_irq_work_tq, 1, PWAIT, "linuxkpi_irq_wq");
 	taskqueue_enqueue(linux_irq_work_tq, &linux_irq_work_init_task);
 }
-SYSINIT(linux_irq_work_init, SI_SUB_TASKQ, SI_ORDER_SECOND,
-    linux_irq_work_init, NULL);
+SYSINIT(linux_irq_work_init, SI_SUB_TASKQ, SI_ORDER_SECOND, linux_irq_work_init,
+    NULL);
 
 static void
 linux_irq_work_uninit(void *arg)

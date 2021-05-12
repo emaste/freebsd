@@ -35,50 +35,48 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	LINUXKPI_PARAM_PREFIX ibcore_
+#define LINUXKPI_PARAM_PREFIX ibcore_
 
+#include <linux/bitops.h>
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
-#include <linux/bitops.h>
 #include <linux/random.h>
 #include <linux/rbtree.h>
-
+#include <linux/slab.h>
 #include <rdma/ib_cache.h>
+
 #include "sa.h"
 
 static void mcast_add_one(struct ib_device *device);
 static void mcast_remove_one(struct ib_device *device, void *client_data);
 
-static struct ib_client mcast_client = {
-	.name   = "ib_multicast",
-	.add    = mcast_add_one,
-	.remove = mcast_remove_one
-};
+static struct ib_client mcast_client = { .name = "ib_multicast",
+	.add = mcast_add_one,
+	.remove = mcast_remove_one };
 
-static struct ib_sa_client	sa_client;
-static struct workqueue_struct	*mcast_wq;
+static struct ib_sa_client sa_client;
+static struct workqueue_struct *mcast_wq;
 static union ib_gid mgid0;
 
 struct mcast_device;
 
 struct mcast_port {
-	struct mcast_device	*dev;
-	spinlock_t		lock;
-	struct rb_root		table;
-	atomic_t		refcount;
-	struct completion	comp;
-	u8			port_num;
+	struct mcast_device *dev;
+	spinlock_t lock;
+	struct rb_root table;
+	atomic_t refcount;
+	struct completion comp;
+	u8 port_num;
 };
 
 struct mcast_device {
-	struct ib_device	*device;
-	struct ib_event_handler	event_handler;
-	int			start_port;
-	int			end_port;
-	struct mcast_port	port[0];
+	struct ib_device *device;
+	struct ib_event_handler event_handler;
+	int start_port;
+	int end_port;
+	struct mcast_port port[0];
 };
 
 enum mcast_state {
@@ -94,47 +92,45 @@ enum mcast_group_state {
 	MCAST_PKEY_EVENT
 };
 
-enum {
-	MCAST_INVALID_PKEY_INDEX = 0xFFFF
-};
+enum { MCAST_INVALID_PKEY_INDEX = 0xFFFF };
 
 struct mcast_member;
 
 struct mcast_group {
 	struct ib_sa_mcmember_rec rec;
-	struct rb_node		node;
-	struct mcast_port	*port;
-	spinlock_t		lock;
-	struct work_struct	work;
-	struct list_head	pending_list;
-	struct list_head	active_list;
-	struct mcast_member	*last_join;
-	int			members[NUM_JOIN_MEMBERSHIP_TYPES];
-	atomic_t		refcount;
-	enum mcast_group_state	state;
-	struct ib_sa_query	*query;
-	u16			pkey_index;
-	u8			leave_state;
-	int			retries;
+	struct rb_node node;
+	struct mcast_port *port;
+	spinlock_t lock;
+	struct work_struct work;
+	struct list_head pending_list;
+	struct list_head active_list;
+	struct mcast_member *last_join;
+	int members[NUM_JOIN_MEMBERSHIP_TYPES];
+	atomic_t refcount;
+	enum mcast_group_state state;
+	struct ib_sa_query *query;
+	u16 pkey_index;
+	u8 leave_state;
+	int retries;
 };
 
 struct mcast_member {
-	struct ib_sa_multicast	multicast;
-	struct ib_sa_client	*client;
-	struct mcast_group	*group;
-	struct list_head	list;
-	enum mcast_state	state;
-	atomic_t		refcount;
-	struct completion	comp;
+	struct ib_sa_multicast multicast;
+	struct ib_sa_client *client;
+	struct mcast_group *group;
+	struct list_head list;
+	enum mcast_state state;
+	atomic_t refcount;
+	struct completion comp;
 };
 
-static void join_handler(int status, struct ib_sa_mcmember_rec *rec,
-			 void *context);
-static void leave_handler(int status, struct ib_sa_mcmember_rec *rec,
-			  void *context);
+static void join_handler(
+    int status, struct ib_sa_mcmember_rec *rec, void *context);
+static void leave_handler(
+    int status, struct ib_sa_mcmember_rec *rec, void *context);
 
-static struct mcast_group *mcast_find(struct mcast_port *port,
-				      union ib_gid *mgid)
+static struct mcast_group *
+mcast_find(struct mcast_port *port, union ib_gid *mgid)
 {
 	struct rb_node *node = port->table.rb_node;
 	struct mcast_group *group;
@@ -154,9 +150,9 @@ static struct mcast_group *mcast_find(struct mcast_port *port,
 	return NULL;
 }
 
-static struct mcast_group *mcast_insert(struct mcast_port *port,
-					struct mcast_group *group,
-					int allow_duplicates)
+static struct mcast_group *
+mcast_insert(
+    struct mcast_port *port, struct mcast_group *group, int allow_duplicates)
 {
 	struct rb_node **link = &port->table.rb_node;
 	struct rb_node *parent = NULL;
@@ -168,7 +164,7 @@ static struct mcast_group *mcast_insert(struct mcast_port *port,
 		cur_group = rb_entry(parent, struct mcast_group, node);
 
 		ret = memcmp(group->rec.mgid.raw, cur_group->rec.mgid.raw,
-			     sizeof group->rec.mgid);
+		    sizeof group->rec.mgid);
 		if (ret < 0)
 			link = &(*link)->rb_left;
 		else if (ret > 0)
@@ -183,13 +179,15 @@ static struct mcast_group *mcast_insert(struct mcast_port *port,
 	return NULL;
 }
 
-static void deref_port(struct mcast_port *port)
+static void
+deref_port(struct mcast_port *port)
 {
 	if (atomic_dec_and_test(&port->refcount))
 		complete(&port->comp);
 }
 
-static void release_group(struct mcast_group *group)
+static void
+release_group(struct mcast_group *group)
 {
 	struct mcast_port *port = group->port;
 	unsigned long flags;
@@ -204,13 +202,15 @@ static void release_group(struct mcast_group *group)
 		spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static void deref_member(struct mcast_member *member)
+static void
+deref_member(struct mcast_member *member)
 {
 	if (atomic_dec_and_test(&member->refcount))
 		complete(&member->comp);
 }
 
-static void queue_join(struct mcast_member *member)
+static void
+queue_join(struct mcast_member *member)
 {
 	struct mcast_group *group = member->group;
 	unsigned long flags;
@@ -232,7 +232,8 @@ static void queue_join(struct mcast_member *member)
  * type based on their join state.  Adjust the number of members the belong to
  * the specified join states.
  */
-static void adjust_membership(struct mcast_group *group, u8 join_state, int inc)
+static void
+adjust_membership(struct mcast_group *group, u8 join_state, int inc)
 {
 	int i;
 
@@ -247,7 +248,8 @@ static void adjust_membership(struct mcast_group *group, u8 join_state, int inc)
  * Determine which join states we still belong to, but that do not have any
  * active members.
  */
-static u8 get_leave_state(struct mcast_group *group)
+static u8
+get_leave_state(struct mcast_group *group)
 {
 	u8 leave_state = 0;
 	int i;
@@ -259,10 +261,9 @@ static u8 get_leave_state(struct mcast_group *group)
 	return leave_state & group->rec.join_state;
 }
 
-static int check_selector(ib_sa_comp_mask comp_mask,
-			  ib_sa_comp_mask selector_mask,
-			  ib_sa_comp_mask value_mask,
-			  u8 selector, u8 src_value, u8 dst_value)
+static int
+check_selector(ib_sa_comp_mask comp_mask, ib_sa_comp_mask selector_mask,
+    ib_sa_comp_mask value_mask, u8 selector, u8 src_value, u8 dst_value)
 {
 	int err;
 
@@ -287,8 +288,9 @@ static int check_selector(ib_sa_comp_mask comp_mask,
 	return err;
 }
 
-static int cmp_rec(struct ib_sa_mcmember_rec *src,
-		   struct ib_sa_mcmember_rec *dst, ib_sa_comp_mask comp_mask)
+static int
+cmp_rec(struct ib_sa_mcmember_rec *src, struct ib_sa_mcmember_rec *dst,
+    ib_sa_comp_mask comp_mask)
 {
 	/* MGID must already match */
 
@@ -300,8 +302,7 @@ static int cmp_rec(struct ib_sa_mcmember_rec *src,
 	if (comp_mask & IB_SA_MCMEMBER_REC_MLID && src->mlid != dst->mlid)
 		return -EINVAL;
 	if (check_selector(comp_mask, IB_SA_MCMEMBER_REC_MTU_SELECTOR,
-			   IB_SA_MCMEMBER_REC_MTU, dst->mtu_selector,
-			   src->mtu, dst->mtu))
+		IB_SA_MCMEMBER_REC_MTU, dst->mtu_selector, src->mtu, dst->mtu))
 		return -EINVAL;
 	if (comp_mask & IB_SA_MCMEMBER_REC_TRAFFIC_CLASS &&
 	    src->traffic_class != dst->traffic_class)
@@ -309,14 +310,14 @@ static int cmp_rec(struct ib_sa_mcmember_rec *src,
 	if (comp_mask & IB_SA_MCMEMBER_REC_PKEY && src->pkey != dst->pkey)
 		return -EINVAL;
 	if (check_selector(comp_mask, IB_SA_MCMEMBER_REC_RATE_SELECTOR,
-			   IB_SA_MCMEMBER_REC_RATE, dst->rate_selector,
-			   src->rate, dst->rate))
+		IB_SA_MCMEMBER_REC_RATE, dst->rate_selector, src->rate,
+		dst->rate))
 		return -EINVAL;
 	if (check_selector(comp_mask,
-			   IB_SA_MCMEMBER_REC_PACKET_LIFE_TIME_SELECTOR,
-			   IB_SA_MCMEMBER_REC_PACKET_LIFE_TIME,
-			   dst->packet_life_time_selector,
-			   src->packet_life_time, dst->packet_life_time))
+		IB_SA_MCMEMBER_REC_PACKET_LIFE_TIME_SELECTOR,
+		IB_SA_MCMEMBER_REC_PACKET_LIFE_TIME,
+		dst->packet_life_time_selector, src->packet_life_time,
+		dst->packet_life_time))
 		return -EINVAL;
 	if (comp_mask & IB_SA_MCMEMBER_REC_SL && src->sl != dst->sl)
 		return -EINVAL;
@@ -334,22 +335,22 @@ static int cmp_rec(struct ib_sa_mcmember_rec *src,
 	return 0;
 }
 
-static int send_join(struct mcast_group *group, struct mcast_member *member)
+static int
+send_join(struct mcast_group *group, struct mcast_member *member)
 {
 	struct mcast_port *port = group->port;
 	int ret;
 
 	group->last_join = member;
 	ret = ib_sa_mcmember_rec_query(&sa_client, port->dev->device,
-				       port->port_num, IB_MGMT_METHOD_SET,
-				       &member->multicast.rec,
-				       member->multicast.comp_mask,
-				       3000, GFP_KERNEL, join_handler, group,
-				       &group->query);
+	    port->port_num, IB_MGMT_METHOD_SET, &member->multicast.rec,
+	    member->multicast.comp_mask, 3000, GFP_KERNEL, join_handler, group,
+	    &group->query);
 	return (ret > 0) ? 0 : ret;
 }
 
-static int send_leave(struct mcast_group *group, u8 leave_state)
+static int
+send_leave(struct mcast_group *group, u8 leave_state)
 {
 	struct mcast_port *port = group->port;
 	struct ib_sa_mcmember_rec rec;
@@ -360,17 +361,16 @@ static int send_leave(struct mcast_group *group, u8 leave_state)
 	group->leave_state = leave_state;
 
 	ret = ib_sa_mcmember_rec_query(&sa_client, port->dev->device,
-				       port->port_num, IB_SA_METHOD_DELETE, &rec,
-				       IB_SA_MCMEMBER_REC_MGID     |
-				       IB_SA_MCMEMBER_REC_PORT_GID |
-				       IB_SA_MCMEMBER_REC_JOIN_STATE,
-				       3000, GFP_KERNEL, leave_handler,
-				       group, &group->query);
+	    port->port_num, IB_SA_METHOD_DELETE, &rec,
+	    IB_SA_MCMEMBER_REC_MGID | IB_SA_MCMEMBER_REC_PORT_GID |
+		IB_SA_MCMEMBER_REC_JOIN_STATE,
+	    3000, GFP_KERNEL, leave_handler, group, &group->query);
 	return (ret > 0) ? 0 : ret;
 }
 
-static void join_group(struct mcast_group *group, struct mcast_member *member,
-		       u8 join_state)
+static void
+join_group(
+    struct mcast_group *group, struct mcast_member *member, u8 join_state)
 {
 	member->state = MCAST_MEMBER;
 	adjust_membership(group, join_state, 1);
@@ -380,8 +380,8 @@ static void join_group(struct mcast_group *group, struct mcast_member *member,
 	list_move(&member->list, &group->active_list);
 }
 
-static int fail_join(struct mcast_group *group, struct mcast_member *member,
-		     int status)
+static int
+fail_join(struct mcast_group *group, struct mcast_member *member, int status)
 {
 	spin_lock_irq(&group->lock);
 	list_del_init(&member->list);
@@ -389,7 +389,8 @@ static int fail_join(struct mcast_group *group, struct mcast_member *member,
 	return member->multicast.callback(status, &member->multicast);
 }
 
-static void process_group_error(struct mcast_group *group)
+static void
+process_group_error(struct mcast_group *group)
 {
 	struct mcast_member *member;
 	int ret = 0;
@@ -397,8 +398,8 @@ static void process_group_error(struct mcast_group *group)
 
 	if (group->state == MCAST_PKEY_EVENT)
 		ret = ib_find_pkey(group->port->dev->device,
-				   group->port->port_num,
-				   be16_to_cpu(group->rec.pkey), &pkey_index);
+		    group->port->port_num, be16_to_cpu(group->rec.pkey),
+		    &pkey_index);
 
 	spin_lock_irq(&group->lock);
 	if (group->state == MCAST_PKEY_EVENT && !ret &&
@@ -406,16 +407,16 @@ static void process_group_error(struct mcast_group *group)
 		goto out;
 
 	while (!list_empty(&group->active_list)) {
-		member = list_entry(group->active_list.next,
-				    struct mcast_member, list);
+		member = list_entry(
+		    group->active_list.next, struct mcast_member, list);
 		atomic_inc(&member->refcount);
 		list_del_init(&member->list);
 		adjust_membership(group, member->multicast.rec.join_state, -1);
 		member->state = MCAST_ERROR;
 		spin_unlock_irq(&group->lock);
 
-		ret = member->multicast.callback(-ENETRESET,
-						 &member->multicast);
+		ret = member->multicast.callback(
+		    -ENETRESET, &member->multicast);
 		deref_member(member);
 		if (ret)
 			ib_sa_free_multicast(&member->multicast);
@@ -428,7 +429,8 @@ out:
 	spin_unlock_irq(&group->lock);
 }
 
-static void mcast_work_handler(struct work_struct *work)
+static void
+mcast_work_handler(struct work_struct *work)
 {
 	struct mcast_group *group;
 	struct mcast_member *member;
@@ -439,8 +441,8 @@ static void mcast_work_handler(struct work_struct *work)
 	group = container_of(work, typeof(*group), work);
 retest:
 	spin_lock_irq(&group->lock);
-	while (!list_empty(&group->pending_list) ||
-	       (group->state != MCAST_BUSY)) {
+	while (
+	    !list_empty(&group->pending_list) || (group->state != MCAST_BUSY)) {
 
 		if (group->state != MCAST_BUSY) {
 			spin_unlock_irq(&group->lock);
@@ -448,15 +450,15 @@ retest:
 			goto retest;
 		}
 
-		member = list_entry(group->pending_list.next,
-				    struct mcast_member, list);
+		member = list_entry(
+		    group->pending_list.next, struct mcast_member, list);
 		multicast = &member->multicast;
 		join_state = multicast->rec.join_state;
 		atomic_inc(&member->refcount);
 
 		if (join_state == (group->rec.join_state & join_state)) {
-			status = cmp_rec(&group->rec, &multicast->rec,
-					 multicast->comp_mask);
+			status = cmp_rec(
+			    &group->rec, &multicast->rec, multicast->comp_mask);
 			if (!status)
 				join_group(group, member, join_state);
 			else
@@ -495,14 +497,15 @@ retest:
 /*
  * Fail a join request if it is still active - at the head of the pending queue.
  */
-static void process_join_error(struct mcast_group *group, int status)
+static void
+process_join_error(struct mcast_group *group, int status)
 {
 	struct mcast_member *member;
 	int ret;
 
 	spin_lock_irq(&group->lock);
-	member = list_entry(group->pending_list.next,
-			    struct mcast_member, list);
+	member = list_entry(
+	    group->pending_list.next, struct mcast_member, list);
 	if (group->last_join == member) {
 		atomic_inc(&member->refcount);
 		list_del_init(&member->list);
@@ -515,8 +518,8 @@ static void process_join_error(struct mcast_group *group, int status)
 		spin_unlock_irq(&group->lock);
 }
 
-static void join_handler(int status, struct ib_sa_mcmember_rec *rec,
-			 void *context)
+static void
+join_handler(int status, struct ib_sa_mcmember_rec *rec, void *context)
 {
 	struct mcast_group *group = context;
 	u16 pkey_index = MCAST_INVALID_PKEY_INDEX;
@@ -525,21 +528,22 @@ static void join_handler(int status, struct ib_sa_mcmember_rec *rec,
 		process_join_error(group, status);
 	else {
 		int mgids_changed, is_mgid0;
-		if (ib_find_pkey(group->port->dev->device, group->port->port_num,
-				 be16_to_cpu(rec->pkey), &pkey_index))
+		if (ib_find_pkey(group->port->dev->device,
+			group->port->port_num, be16_to_cpu(rec->pkey),
+			&pkey_index))
 			pkey_index = MCAST_INVALID_PKEY_INDEX;
 
 		spin_lock_irq(&group->port->lock);
 		if (group->state == MCAST_BUSY &&
 		    group->pkey_index == MCAST_INVALID_PKEY_INDEX)
 			group->pkey_index = pkey_index;
-		mgids_changed = memcmp(&rec->mgid, &group->rec.mgid,
-				       sizeof(group->rec.mgid));
+		mgids_changed = memcmp(
+		    &rec->mgid, &group->rec.mgid, sizeof(group->rec.mgid));
 		group->rec = *rec;
 		if (mgids_changed) {
 			rb_erase(&group->node, &group->port->table);
-			is_mgid0 = !memcmp(&mgid0, &group->rec.mgid,
-					   sizeof(mgid0));
+			is_mgid0 = !memcmp(
+			    &mgid0, &group->rec.mgid, sizeof(mgid0));
 			mcast_insert(group->port, group, is_mgid0);
 		}
 		spin_unlock_irq(&group->port->lock);
@@ -547,8 +551,8 @@ static void join_handler(int status, struct ib_sa_mcmember_rec *rec,
 	mcast_work_handler(&group->work);
 }
 
-static void leave_handler(int status, struct ib_sa_mcmember_rec *rec,
-			  void *context)
+static void
+leave_handler(int status, struct ib_sa_mcmember_rec *rec, void *context)
 {
 	struct mcast_group *group = context;
 
@@ -559,8 +563,8 @@ static void leave_handler(int status, struct ib_sa_mcmember_rec *rec,
 		mcast_work_handler(&group->work);
 }
 
-static struct mcast_group *acquire_group(struct mcast_port *port,
-					 union ib_gid *mgid, gfp_t gfp_mask)
+static struct mcast_group *
+acquire_group(struct mcast_port *port, union ib_gid *mgid, gfp_t gfp_mask)
 {
 	struct mcast_group *group, *cur_group;
 	unsigned long flags;
@@ -609,13 +613,11 @@ found:
  * difficult.
  */
 struct ib_sa_multicast *
-ib_sa_join_multicast(struct ib_sa_client *client,
-		     struct ib_device *device, u8 port_num,
-		     struct ib_sa_mcmember_rec *rec,
-		     ib_sa_comp_mask comp_mask, gfp_t gfp_mask,
-		     int (*callback)(int status,
-				     struct ib_sa_multicast *multicast),
-		     void *context)
+ib_sa_join_multicast(struct ib_sa_client *client, struct ib_device *device,
+    u8 port_num, struct ib_sa_mcmember_rec *rec, ib_sa_comp_mask comp_mask,
+    gfp_t gfp_mask,
+    int (*callback)(int status, struct ib_sa_multicast *multicast),
+    void *context)
 {
 	struct mcast_device *dev;
 	struct mcast_member *member;
@@ -640,8 +642,8 @@ ib_sa_join_multicast(struct ib_sa_client *client,
 	atomic_set(&member->refcount, 1);
 	member->state = MCAST_JOINING;
 
-	member->group = acquire_group(&dev->port[port_num - dev->start_port],
-				      &rec->mgid, gfp_mask);
+	member->group = acquire_group(
+	    &dev->port[port_num - dev->start_port], &rec->mgid, gfp_mask);
 	if (!member->group) {
 		ret = -ENOMEM;
 		goto err;
@@ -664,7 +666,8 @@ err:
 }
 EXPORT_SYMBOL(ib_sa_join_multicast);
 
-void ib_sa_free_multicast(struct ib_sa_multicast *multicast)
+void
+ib_sa_free_multicast(struct ib_sa_multicast *multicast)
 {
 	struct mcast_member *member;
 	struct mcast_group *group;
@@ -695,8 +698,9 @@ void ib_sa_free_multicast(struct ib_sa_multicast *multicast)
 }
 EXPORT_SYMBOL(ib_sa_free_multicast);
 
-int ib_sa_get_mcmember_rec(struct ib_device *device, u8 port_num,
-			   union ib_gid *mgid, struct ib_sa_mcmember_rec *rec)
+int
+ib_sa_get_mcmember_rec(struct ib_device *device, u8 port_num,
+    union ib_gid *mgid, struct ib_sa_mcmember_rec *rec)
 {
 	struct mcast_device *dev;
 	struct mcast_port *port;
@@ -721,11 +725,10 @@ int ib_sa_get_mcmember_rec(struct ib_device *device, u8 port_num,
 }
 EXPORT_SYMBOL(ib_sa_get_mcmember_rec);
 
-int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
-			     struct ib_sa_mcmember_rec *rec,
-			     struct net_device *ndev,
-			     enum ib_gid_type gid_type,
-			     struct ib_ah_attr *ah_attr)
+int
+ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
+    struct ib_sa_mcmember_rec *rec, struct net_device *ndev,
+    enum ib_gid_type gid_type, struct ib_ah_attr *ah_attr)
 {
 	int ret;
 	u16 gid_index;
@@ -738,10 +741,8 @@ int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 	else if (!rdma_protocol_roce(device, port_num))
 		return -EINVAL;
 
-	ret = ib_find_cached_gid_by_port(device, &rec->port_gid,
-					 gid_type, port_num,
-					 ndev,
-					 &gid_index);
+	ret = ib_find_cached_gid_by_port(
+	    device, &rec->port_gid, gid_type, port_num, ndev, &gid_index);
 	if (ret)
 		return ret;
 
@@ -754,7 +755,7 @@ int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 	ah_attr->ah_flags = IB_AH_GRH;
 	ah_attr->grh.dgid = rec->mgid;
 
-	ah_attr->grh.sgid_index = (u8) gid_index;
+	ah_attr->grh.sgid_index = (u8)gid_index;
 	ah_attr->grh.flow_label = be32_to_cpu(rec->flow_label);
 	ah_attr->grh.hop_limit = rec->hop_limit;
 	ah_attr->grh.traffic_class = rec->traffic_class;
@@ -763,8 +764,8 @@ int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 }
 EXPORT_SYMBOL(ib_init_ah_from_mcmember);
 
-static void mcast_groups_event(struct mcast_port *port,
-			       enum mcast_group_state state)
+static void
+mcast_groups_event(struct mcast_port *port, enum mcast_group_state state)
 {
 	struct mcast_group *group;
 	struct rb_node *node;
@@ -785,8 +786,8 @@ static void mcast_groups_event(struct mcast_port *port,
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static void mcast_event_handler(struct ib_event_handler *handler,
-				struct ib_event *event)
+static void
+mcast_event_handler(struct ib_event_handler *handler, struct ib_event *event)
 {
 	struct mcast_device *dev;
 	int index;
@@ -812,15 +813,16 @@ static void mcast_event_handler(struct ib_event_handler *handler,
 	}
 }
 
-static void mcast_add_one(struct ib_device *device)
+static void
+mcast_add_one(struct ib_device *device)
 {
 	struct mcast_device *dev;
 	struct mcast_port *port;
 	int i;
 	int count = 0;
 
-	dev = kmalloc(sizeof *dev + device->phys_port_cnt * sizeof *port,
-		      GFP_KERNEL);
+	dev = kmalloc(
+	    sizeof *dev + device->phys_port_cnt * sizeof *port, GFP_KERNEL);
 	if (!dev)
 		return;
 
@@ -852,7 +854,8 @@ static void mcast_add_one(struct ib_device *device)
 	ib_register_event_handler(&dev->event_handler);
 }
 
-static void mcast_remove_one(struct ib_device *device, void *client_data)
+static void
+mcast_remove_one(struct ib_device *device, void *client_data)
 {
 	struct mcast_device *dev = client_data;
 	struct mcast_port *port;
@@ -875,7 +878,8 @@ static void mcast_remove_one(struct ib_device *device, void *client_data)
 	kfree(dev);
 }
 
-int mcast_init(void)
+int
+mcast_init(void)
 {
 	int ret;
 
@@ -896,7 +900,8 @@ err:
 	return ret;
 }
 
-void mcast_cleanup(void)
+void
+mcast_cleanup(void)
 {
 	ib_unregister_client(&mcast_client);
 	ib_sa_unregister_client(&sa_client);

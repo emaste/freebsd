@@ -31,20 +31,22 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/bio.h>
-#include <sys/sysctl.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
+
 #include <vm/uma.h>
+
+#include <geom/cache/g_cache.h>
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/cache/g_cache.h>
 
 FEATURE(geom_cache, "GEOM cache module");
 
@@ -57,18 +59,17 @@ static u_int g_cache_debug = 0;
 SYSCTL_UINT(_kern_geom_cache, OID_AUTO, debug, CTLFLAG_RW, &g_cache_debug, 0,
     "Debug level");
 static u_int g_cache_enable = 1;
-SYSCTL_UINT(_kern_geom_cache, OID_AUTO, enable, CTLFLAG_RW, &g_cache_enable, 0,
-    "");
+SYSCTL_UINT(
+    _kern_geom_cache, OID_AUTO, enable, CTLFLAG_RW, &g_cache_enable, 0, "");
 static u_int g_cache_timeout = 10;
-SYSCTL_UINT(_kern_geom_cache, OID_AUTO, timeout, CTLFLAG_RW, &g_cache_timeout,
-    0, "");
+SYSCTL_UINT(
+    _kern_geom_cache, OID_AUTO, timeout, CTLFLAG_RW, &g_cache_timeout, 0, "");
 static u_int g_cache_idletime = 5;
-SYSCTL_UINT(_kern_geom_cache, OID_AUTO, idletime, CTLFLAG_RW, &g_cache_idletime,
-    0, "");
+SYSCTL_UINT(
+    _kern_geom_cache, OID_AUTO, idletime, CTLFLAG_RW, &g_cache_idletime, 0, "");
 static u_int g_cache_used_lo = 5;
 static u_int g_cache_used_hi = 20;
-static int
-sysctl_handle_pct(SYSCTL_HANDLER_ARGS)
+static int sysctl_handle_pct(SYSCTL_HANDLER_ARGS)
 {
 	u_int val = *(u_int *)arg1;
 	int error;
@@ -86,12 +87,10 @@ sysctl_handle_pct(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_kern_geom_cache, OID_AUTO, used_lo,
     CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &g_cache_used_lo, 0,
-    sysctl_handle_pct, "IU",
-    "");
+    sysctl_handle_pct, "IU", "");
 SYSCTL_PROC(_kern_geom_cache, OID_AUTO, used_hi,
     CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &g_cache_used_hi, 0,
-    sysctl_handle_pct, "IU",
-    "");
+    sysctl_handle_pct, "IU", "");
 
 static int g_cache_destroy(struct g_cache_softc *sc, boolean_t force);
 static g_ctl_destroy_geom_t g_cache_destroy_geom;
@@ -100,16 +99,14 @@ static g_taste_t g_cache_taste;
 static g_ctl_req_t g_cache_config;
 static g_dumpconf_t g_cache_dumpconf;
 
-struct g_class g_cache_class = {
-	.name = G_CACHE_CLASS_NAME,
+struct g_class g_cache_class = { .name = G_CACHE_CLASS_NAME,
 	.version = G_VERSION,
 	.ctlreq = g_cache_config,
 	.taste = g_cache_taste,
-	.destroy_geom = g_cache_destroy_geom
-};
+	.destroy_geom = g_cache_destroy_geom };
 
-#define	OFF2BNO(off, sc)	((off) >> (sc)->sc_bshift)
-#define	BNO2OFF(bno, sc)	((bno) << (sc)->sc_bshift)
+#define OFF2BNO(off, sc) ((off) >> (sc)->sc_bshift)
+#define BNO2OFF(bno, sc) ((bno) << (sc)->sc_bshift)
 
 static struct g_cache_desc *
 g_cache_alloc(struct g_cache_softc *sc)
@@ -180,8 +177,8 @@ g_cache_deliver(struct g_cache_softc *sc, struct bio *bp,
 
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
 	KASSERT(OFF2BNO(bp->bio_offset, sc) <= dp->d_bno, ("wrong entry"));
-	KASSERT(OFF2BNO(bp->bio_offset + bp->bio_length - 1, sc) >=
-	    dp->d_bno, ("wrong entry"));
+	KASSERT(OFF2BNO(bp->bio_offset + bp->bio_length - 1, sc) >= dp->d_bno,
+	    ("wrong entry"));
 
 	off1 = BNO2OFF(dp->d_bno, sc);
 	off = MAX(bp->bio_offset, off1);
@@ -220,12 +217,14 @@ g_cache_done(struct bio *bp)
 	struct bio *bp2, *tmpbp;
 
 	sc = bp->bio_from->geom->softc;
-	KASSERT(G_CACHE_DESC1(bp) == sc, ("corrupt bio_caller in g_cache_done()"));
+	KASSERT(
+	    G_CACHE_DESC1(bp) == sc, ("corrupt bio_caller in g_cache_done()"));
 	dp = G_CACHE_DESC2(bp);
 	mtx_lock(&sc->sc_mtx);
 	bp2 = dp->d_biolist;
 	while (bp2 != NULL) {
-		KASSERT(G_CACHE_NEXT_BIO1(bp2) == sc, ("corrupt bio_driver in g_cache_done()"));
+		KASSERT(G_CACHE_NEXT_BIO1(bp2) == sc,
+		    ("corrupt bio_driver in g_cache_done()"));
 		tmpbp = G_CACHE_NEXT_BIO2(bp2);
 		g_cache_deliver(sc, bp2, dp, bp->bio_error);
 		bp2 = tmpbp;
@@ -253,7 +252,7 @@ g_cache_lookup(struct g_cache_softc *sc, off_t bno)
 
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
 
-	LIST_FOREACH(dp, &sc->sc_desclist[G_CACHE_BUCKET(bno)], d_next)
+	LIST_FOREACH (dp, &sc->sc_desclist[G_CACHE_BUCKET(bno)], d_next)
 		if (dp->d_bno == bno)
 			return (dp);
 	return (NULL);
@@ -266,8 +265,8 @@ g_cache_read(struct g_cache_softc *sc, struct bio *bp)
 	struct g_cache_desc *dp;
 
 	mtx_lock(&sc->sc_mtx);
-	dp = g_cache_lookup(sc,
-	    OFF2BNO(bp->bio_offset + bp->bio_completed, sc));
+	dp = g_cache_lookup(
+	    sc, OFF2BNO(bp->bio_offset + bp->bio_completed, sc));
 	if (dp != NULL) {
 		/* Add to waiters list or deliver. */
 		sc->sc_cachehits++;
@@ -299,8 +298,8 @@ g_cache_read(struct g_cache_softc *sc, struct bio *bp)
 	G_CACHE_NEXT_BIO1(bp) = sc;
 	G_CACHE_NEXT_BIO2(bp) = NULL;
 	dp->d_biolist = bp;
-	LIST_INSERT_HEAD(&sc->sc_desclist[G_CACHE_BUCKET(dp->d_bno)],
-	    dp, d_next);
+	LIST_INSERT_HEAD(
+	    &sc->sc_desclist[G_CACHE_BUCKET(dp->d_bno)], dp, d_next);
 	mtx_unlock(&sc->sc_mtx);
 
 	G_CACHE_DESC1(cbp) = sc;
@@ -415,7 +414,7 @@ g_cache_go(void *arg)
 
 	/* Forcibly mark idle ready entries as used. */
 	for (i = 0; i < G_CACHE_BUCKETS; i++) {
-		LIST_FOREACH(dp, &sc->sc_desclist[i], d_next) {
+		LIST_FOREACH (dp, &sc->sc_desclist[i], d_next) {
 			if (dp->d_flags & D_FLAG_USED ||
 			    dp->d_biolist != NULL ||
 			    time_uptime - dp->d_atime < g_cache_idletime)
@@ -460,7 +459,7 @@ g_cache_find_device(struct g_class *mp, const char *name)
 {
 	struct g_geom *gp;
 
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		if (strcmp(gp->name, name) == 0)
 			return (gp->softc);
 	}
@@ -497,7 +496,8 @@ g_cache_create(struct g_class *mp, struct g_provider *pp,
 	if (md->md_bsize == 0 || md->md_bsize > maxphys ||
 	    md->md_bsize != 1 << bshift ||
 	    (md->md_bsize % pp->sectorsize) != 0) {
-		G_CACHE_DEBUG(0, "Invalid blocksize for provider %s.", pp->name);
+		G_CACHE_DEBUG(
+		    0, "Invalid blocksize for provider %s.", pp->name);
 		return (NULL);
 	}
 
@@ -512,8 +512,8 @@ g_cache_create(struct g_class *mp, struct g_provider *pp,
 	sc->sc_type = type;
 	sc->sc_bshift = bshift;
 	sc->sc_bsize = 1 << bshift;
-	sc->sc_zone = uma_zcreate("gcache", sc->sc_bsize, NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
+	sc->sc_zone = uma_zcreate(
+	    "gcache", sc->sc_bsize, NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	mtx_init(&sc->sc_mtx, "GEOM CACHE mutex", NULL, MTX_DEF);
 	for (i = 0; i < G_CACHE_BUCKETS; i++)
 		LIST_INIT(&sc->sc_desclist[i]);
@@ -566,8 +566,10 @@ g_cache_destroy(struct g_cache_softc *sc, boolean_t force)
 	pp = LIST_FIRST(&gp->provider);
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
 		if (force) {
-			G_CACHE_DEBUG(0, "Device %s is still open, so it "
-			    "can't be definitely removed.", pp->name);
+			G_CACHE_DEBUG(0,
+			    "Device %s is still open, so it "
+			    "can't be definitely removed.",
+			    pp->name);
 		} else {
 			G_CACHE_DEBUG(1, "Device %s is still open (r%dw%de%d).",
 			    pp->name, pp->acr, pp->acw, pp->ace);
@@ -597,7 +599,8 @@ g_cache_destroy(struct g_cache_softc *sc, boolean_t force)
 }
 
 static int
-g_cache_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
+g_cache_destroy_geom(
+    struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 {
 
 	return (g_cache_destroy(gp->softc, 0));
@@ -617,8 +620,8 @@ g_cache_read_metadata(struct g_consumer *cp, struct g_cache_metadata *md)
 		return (error);
 	pp = cp->provider;
 	g_topology_unlock();
-	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
-	    &error);
+	buf = g_read_data(
+	    cp, pp->mediasize - pp->sectorsize, pp->sectorsize, &error);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 	if (buf == NULL)
@@ -647,7 +650,8 @@ g_cache_write_metadata(struct g_consumer *cp, struct g_cache_metadata *md)
 	buf = malloc((size_t)pp->sectorsize, M_GCACHE, M_WAITOK | M_ZERO);
 	cache_metadata_encode(md, buf);
 	g_topology_unlock();
-	error = g_write_data(cp, pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
+	error = g_write_data(
+	    cp, pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
 	g_topology_lock();
 	g_access(cp, 0, -1, 0);
 	free(buf, M_GCACHE);
@@ -962,8 +966,7 @@ g_cache_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 	} else if (strcmp(verb, "configure") == 0) {
 		g_cache_ctl_configure(req, mp);
 		return;
-	} else if (strcmp(verb, "destroy") == 0 ||
-	    strcmp(verb, "stop") == 0) {
+	} else if (strcmp(verb, "destroy") == 0 || strcmp(verb, "stop") == 0) {
 		g_cache_ctl_destroy(req, mp);
 		return;
 	} else if (strcmp(verb, "reset") == 0) {
@@ -988,26 +991,26 @@ g_cache_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	sbuf_printf(sb, "%s<TailOffset>%ju</TailOffset>\n", indent,
 	    (uintmax_t)sc->sc_tail);
 	sbuf_printf(sb, "%s<Entries>%u</Entries>\n", indent, sc->sc_nent);
-	sbuf_printf(sb, "%s<UsedEntries>%u</UsedEntries>\n", indent,
-	    sc->sc_nused);
+	sbuf_printf(
+	    sb, "%s<UsedEntries>%u</UsedEntries>\n", indent, sc->sc_nused);
 	sbuf_printf(sb, "%s<InvalidEntries>%u</InvalidEntries>\n", indent,
 	    sc->sc_invalid);
 	sbuf_printf(sb, "%s<Reads>%ju</Reads>\n", indent, sc->sc_reads);
-	sbuf_printf(sb, "%s<ReadBytes>%ju</ReadBytes>\n", indent,
-	    sc->sc_readbytes);
-	sbuf_printf(sb, "%s<CacheReads>%ju</CacheReads>\n", indent,
-	    sc->sc_cachereads);
+	sbuf_printf(
+	    sb, "%s<ReadBytes>%ju</ReadBytes>\n", indent, sc->sc_readbytes);
+	sbuf_printf(
+	    sb, "%s<CacheReads>%ju</CacheReads>\n", indent, sc->sc_cachereads);
 	sbuf_printf(sb, "%s<CacheReadBytes>%ju</CacheReadBytes>\n", indent,
 	    sc->sc_cachereadbytes);
-	sbuf_printf(sb, "%s<CacheHits>%ju</CacheHits>\n", indent,
-	    sc->sc_cachehits);
+	sbuf_printf(
+	    sb, "%s<CacheHits>%ju</CacheHits>\n", indent, sc->sc_cachehits);
 	sbuf_printf(sb, "%s<CacheMisses>%ju</CacheMisses>\n", indent,
 	    sc->sc_cachemisses);
-	sbuf_printf(sb, "%s<CacheFull>%ju</CacheFull>\n", indent,
-	    sc->sc_cachefull);
+	sbuf_printf(
+	    sb, "%s<CacheFull>%ju</CacheFull>\n", indent, sc->sc_cachefull);
 	sbuf_printf(sb, "%s<Writes>%ju</Writes>\n", indent, sc->sc_writes);
-	sbuf_printf(sb, "%s<WroteBytes>%ju</WroteBytes>\n", indent,
-	    sc->sc_wrotebytes);
+	sbuf_printf(
+	    sb, "%s<WroteBytes>%ju</WroteBytes>\n", indent, sc->sc_wrotebytes);
 }
 
 DECLARE_GEOM_CLASS(g_cache_class, g_cache);

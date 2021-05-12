@@ -33,13 +33,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/cons.h>
 #include <sys/consio.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
 #include <sys/terminal.h>
 #include <sys/tty.h>
 
@@ -56,114 +56,120 @@ static MALLOC_DEFINE(M_TERMINAL, "terminal", "terminal device");
  * console device, because cnputc() can be called at the same time.
  * This means terminals may need to be locked down using a spin lock.
  */
-#define	TERMINAL_LOCK(tm)	do {					\
-	if ((tm)->tm_flags & TF_CONS)					\
-		mtx_lock_spin(&(tm)->tm_mtx);				\
-	else if ((tm)->tm_tty != NULL)					\
-		tty_lock((tm)->tm_tty);					\
-} while (0)
-#define	TERMINAL_UNLOCK(tm)	do {					\
-	if ((tm)->tm_flags & TF_CONS)					\
-		mtx_unlock_spin(&(tm)->tm_mtx);				\
-	else if ((tm)->tm_tty != NULL)					\
-		tty_unlock((tm)->tm_tty);				\
-} while (0)
-#define	TERMINAL_LOCK_TTY(tm)	do {					\
-	if ((tm)->tm_flags & TF_CONS)					\
-		mtx_lock_spin(&(tm)->tm_mtx);				\
-} while (0)
-#define	TERMINAL_UNLOCK_TTY(tm)	do {					\
-	if ((tm)->tm_flags & TF_CONS)					\
-		mtx_unlock_spin(&(tm)->tm_mtx);				\
-} while (0)
-#define	TERMINAL_LOCK_CONS(tm)		mtx_lock_spin(&(tm)->tm_mtx)
-#define	TERMINAL_UNLOCK_CONS(tm)	mtx_unlock_spin(&(tm)->tm_mtx)
+#define TERMINAL_LOCK(tm)                             \
+	do {                                          \
+		if ((tm)->tm_flags & TF_CONS)         \
+			mtx_lock_spin(&(tm)->tm_mtx); \
+		else if ((tm)->tm_tty != NULL)        \
+			tty_lock((tm)->tm_tty);       \
+	} while (0)
+#define TERMINAL_UNLOCK(tm)                             \
+	do {                                            \
+		if ((tm)->tm_flags & TF_CONS)           \
+			mtx_unlock_spin(&(tm)->tm_mtx); \
+		else if ((tm)->tm_tty != NULL)          \
+			tty_unlock((tm)->tm_tty);       \
+	} while (0)
+#define TERMINAL_LOCK_TTY(tm)                         \
+	do {                                          \
+		if ((tm)->tm_flags & TF_CONS)         \
+			mtx_lock_spin(&(tm)->tm_mtx); \
+	} while (0)
+#define TERMINAL_UNLOCK_TTY(tm)                         \
+	do {                                            \
+		if ((tm)->tm_flags & TF_CONS)           \
+			mtx_unlock_spin(&(tm)->tm_mtx); \
+	} while (0)
+#define TERMINAL_LOCK_CONS(tm) mtx_lock_spin(&(tm)->tm_mtx)
+#define TERMINAL_UNLOCK_CONS(tm) mtx_unlock_spin(&(tm)->tm_mtx)
 
 /*
  * TTY routines.
  */
 
-static tsw_open_t	termtty_open;
-static tsw_close_t	termtty_close;
-static tsw_outwakeup_t	termtty_outwakeup;
-static tsw_ioctl_t	termtty_ioctl;
-static tsw_mmap_t	termtty_mmap;
+static tsw_open_t termtty_open;
+static tsw_close_t termtty_close;
+static tsw_outwakeup_t termtty_outwakeup;
+static tsw_ioctl_t termtty_ioctl;
+static tsw_mmap_t termtty_mmap;
 
 static struct ttydevsw terminal_tty_class = {
-	.tsw_open	= termtty_open,
-	.tsw_close	= termtty_close,
-	.tsw_outwakeup	= termtty_outwakeup,
-	.tsw_ioctl	= termtty_ioctl,
-	.tsw_mmap	= termtty_mmap,
+	.tsw_open = termtty_open,
+	.tsw_close = termtty_close,
+	.tsw_outwakeup = termtty_outwakeup,
+	.tsw_ioctl = termtty_ioctl,
+	.tsw_mmap = termtty_mmap,
 };
 
 /*
  * Terminal emulator routines.
  */
 
-static tf_bell_t	termteken_bell;
-static tf_cursor_t	termteken_cursor;
-static tf_putchar_t	termteken_putchar;
-static tf_fill_t	termteken_fill;
-static tf_copy_t	termteken_copy;
-static tf_pre_input_t	termteken_pre_input;
-static tf_post_input_t	termteken_post_input;
-static tf_param_t	termteken_param;
-static tf_respond_t	termteken_respond;
+static tf_bell_t termteken_bell;
+static tf_cursor_t termteken_cursor;
+static tf_putchar_t termteken_putchar;
+static tf_fill_t termteken_fill;
+static tf_copy_t termteken_copy;
+static tf_pre_input_t termteken_pre_input;
+static tf_post_input_t termteken_post_input;
+static tf_param_t termteken_param;
+static tf_respond_t termteken_respond;
 
 static teken_funcs_t terminal_drawmethods = {
-	.tf_bell	= termteken_bell,
-	.tf_cursor	= termteken_cursor,
-	.tf_putchar	= termteken_putchar,
-	.tf_fill	= termteken_fill,
-	.tf_copy	= termteken_copy,
-	.tf_pre_input	= termteken_pre_input,
-	.tf_post_input	= termteken_post_input,
-	.tf_param	= termteken_param,
-	.tf_respond	= termteken_respond,
+	.tf_bell = termteken_bell,
+	.tf_cursor = termteken_cursor,
+	.tf_putchar = termteken_putchar,
+	.tf_fill = termteken_fill,
+	.tf_copy = termteken_copy,
+	.tf_pre_input = termteken_pre_input,
+	.tf_post_input = termteken_post_input,
+	.tf_param = termteken_param,
+	.tf_respond = termteken_respond,
 };
 
 /* Kernel message formatting. */
-static teken_attr_t kernel_message = {
-	.ta_fgcolor	= TCHAR_FGCOLOR(TERMINAL_KERN_ATTR),
-	.ta_bgcolor	= TCHAR_BGCOLOR(TERMINAL_KERN_ATTR),
-	.ta_format	= TCHAR_FORMAT(TERMINAL_KERN_ATTR)
-};
+static teken_attr_t kernel_message = { .ta_fgcolor = TCHAR_FGCOLOR(
+					   TERMINAL_KERN_ATTR),
+	.ta_bgcolor = TCHAR_BGCOLOR(TERMINAL_KERN_ATTR),
+	.ta_format = TCHAR_FORMAT(TERMINAL_KERN_ATTR) };
 
-static teken_attr_t default_message = {
-	.ta_fgcolor	= TCHAR_FGCOLOR(TERMINAL_NORM_ATTR),
-	.ta_bgcolor	= TCHAR_BGCOLOR(TERMINAL_NORM_ATTR),
-	.ta_format	= TCHAR_FORMAT(TERMINAL_NORM_ATTR)
-};
+static teken_attr_t default_message = { .ta_fgcolor = TCHAR_FGCOLOR(
+					    TERMINAL_NORM_ATTR),
+	.ta_bgcolor = TCHAR_BGCOLOR(TERMINAL_NORM_ATTR),
+	.ta_format = TCHAR_FORMAT(TERMINAL_NORM_ATTR) };
 
 /* Fudge fg brightness as TF_BOLD (shifted). */
-#define	TCOLOR_FG_FUDGED(color) __extension__ ({			\
-	teken_color_t _c;						\
-									\
-	_c = (color);							\
-	TCOLOR_FG(_c & 7) | ((_c & 8) << 18);				\
-})
+#define TCOLOR_FG_FUDGED(color)                       \
+	__extension__({                               \
+		teken_color_t _c;                     \
+                                                      \
+		_c = (color);                         \
+		TCOLOR_FG(_c & 7) | ((_c & 8) << 18); \
+	})
 
 /* Fudge bg brightness as TF_BLINK (shifted). */
-#define	TCOLOR_BG_FUDGED(color) __extension__ ({			\
-	teken_color_t _c;						\
-									\
-	_c = (color);							\
-	TCOLOR_BG(_c & 7) | ((_c & 8) << 20);				\
-})
+#define TCOLOR_BG_FUDGED(color)                       \
+	__extension__({                               \
+		teken_color_t _c;                     \
+                                                      \
+		_c = (color);                         \
+		TCOLOR_BG(_c & 7) | ((_c & 8) << 20); \
+	})
 
-#define	TCOLOR_256TO16(color) __extension__ ({				\
-	teken_color_t _c;						\
-									\
-	_c = (color);							\
-	if (_c >= 16)							\
-		_c = teken_256to16(_c);					\
-	_c;								\
-})
+#define TCOLOR_256TO16(color)                   \
+	__extension__({                         \
+		teken_color_t _c;               \
+                                                \
+		_c = (color);                   \
+		if (_c >= 16)                   \
+			_c = teken_256to16(_c); \
+		_c;                             \
+	})
 
-#define	TCHAR_CREATE(c, a)	((c) | TFORMAT((a)->ta_format) |	\
-	TCOLOR_FG_FUDGED(TCOLOR_256TO16((a)->ta_fgcolor)) |		\
-	TCOLOR_BG_FUDGED(TCOLOR_256TO16((a)->ta_bgcolor)))
+#define TCHAR_CREATE(c, a)                                      \
+	((c) | TFORMAT((a)->ta_format) |                        \
+	    TCOLOR_FG_FUDGED(TCOLOR_256TO16((a)->ta_fgcolor)) | \
+	    TCOLOR_BG_FUDGED(TCOLOR_256TO16((a)->ta_bgcolor)))
 
 static void
 terminal_init(struct terminal *tm)
@@ -204,7 +210,7 @@ terminal_alloc(const struct terminal_class *tc, void *softc)
 {
 	struct terminal *tm;
 
-	tm = malloc(sizeof(struct terminal), M_TERMINAL, M_WAITOK|M_ZERO);
+	tm = malloc(sizeof(struct terminal), M_TERMINAL, M_WAITOK | M_ZERO);
 	terminal_init(tm);
 
 	tm->tm_class = tc;
@@ -271,8 +277,8 @@ terminal_set_winsize_blank(struct terminal *tm, const struct winsize *size,
 	TERMINAL_UNLOCK(tm);
 
 	if ((blank != 0) && !(tm->tm_flags & TF_MUTE))
-		tm->tm_class->tc_fill(tm, &r,
-		    TCHAR_CREATE((teken_char_t)' ', attr));
+		tm->tm_class->tc_fill(
+		    tm, &r, TCHAR_CREATE((teken_char_t)' ', attr));
 
 	terminal_sync_ttysize(tm);
 }
@@ -281,8 +287,8 @@ void
 terminal_set_winsize(struct terminal *tm, const struct winsize *size)
 {
 
-	terminal_set_winsize_blank(tm, size, 1,
-	    (const term_attr_t *)&default_message);
+	terminal_set_winsize_blank(
+	    tm, size, 1, (const term_attr_t *)&default_message);
 }
 
 /*
@@ -328,27 +334,17 @@ terminal_input_char(struct terminal *tm, term_char_t c)
 	if (c < 0x80) {
 		ttydisc_rint(tp, c, 0);
 	} else if (c < 0x800) {
-		char str[2] = {
-			0xc0 | (c >> 6),
-			0x80 | (c & 0x3f)
-		};
+		char str[2] = { 0xc0 | (c >> 6), 0x80 | (c & 0x3f) };
 
 		ttydisc_rint_simple(tp, str, sizeof str);
 	} else if (c < 0x10000) {
-		char str[3] = {
-			0xe0 | (c >> 12),
-			0x80 | ((c >> 6) & 0x3f),
-			0x80 | (c & 0x3f)
-		};
+		char str[3] = { 0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f),
+			0x80 | (c & 0x3f) };
 
 		ttydisc_rint_simple(tp, str, sizeof str);
 	} else {
-		char str[4] = {
-			0xf0 | (c >> 18),
-			0x80 | ((c >> 12) & 0x3f),
-			0x80 | ((c >> 6) & 0x3f),
-			0x80 | (c & 0x3f)
-		};
+		char str[4] = { 0xf0 | (c >> 18), 0x80 | ((c >> 12) & 0x3f),
+			0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f) };
 
 		ttydisc_rint_simple(tp, str, sizeof str);
 	}
@@ -494,8 +490,8 @@ termtty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 }
 
 static int
-termtty_mmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t * paddr,
-    int nprot, vm_memattr_t *memattr)
+termtty_mmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr, int nprot,
+    vm_memattr_t *memattr)
 {
 	struct terminal *tm = tty_softc(tp);
 
@@ -506,22 +502,22 @@ termtty_mmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t * paddr,
  * Binding with the kernel and debug console.
  */
 
-static cn_probe_t	termcn_cnprobe;
-static cn_init_t	termcn_cninit;
-static cn_term_t	termcn_cnterm;
-static cn_getc_t	termcn_cngetc;
-static cn_putc_t	termcn_cnputc;
-static cn_grab_t	termcn_cngrab;
-static cn_ungrab_t	termcn_cnungrab;
+static cn_probe_t termcn_cnprobe;
+static cn_init_t termcn_cninit;
+static cn_term_t termcn_cnterm;
+static cn_getc_t termcn_cngetc;
+static cn_putc_t termcn_cnputc;
+static cn_grab_t termcn_cngrab;
+static cn_ungrab_t termcn_cnungrab;
 
 const struct consdev_ops termcn_cnops = {
-	.cn_probe	= termcn_cnprobe,
-	.cn_init	= termcn_cninit,
-	.cn_term	= termcn_cnterm,
-	.cn_getc	= termcn_cngetc,
-	.cn_putc	= termcn_cnputc,
-	.cn_grab	= termcn_cngrab,
-	.cn_ungrab	= termcn_cnungrab,
+	.cn_probe = termcn_cnprobe,
+	.cn_init = termcn_cninit,
+	.cn_term = termcn_cnterm,
+	.cn_getc = termcn_cngetc,
+	.cn_putc = termcn_cnputc,
+	.cn_grab = termcn_cngrab,
+	.cn_ungrab = termcn_cnungrab,
 };
 
 void
@@ -531,8 +527,8 @@ termcn_cnregister(struct terminal *tm)
 
 	cp = tm->consdev;
 	if (cp == NULL) {
-		cp = malloc(sizeof(struct consdev), M_TERMINAL,
-		    M_WAITOK|M_ZERO);
+		cp = malloc(
+		    sizeof(struct consdev), M_TERMINAL, M_WAITOK | M_ZERO);
 		cp->cn_ops = &termcn_cnops;
 		cp->cn_arg = tm;
 		cp->cn_pri = CN_INTERNAL;
@@ -583,13 +579,11 @@ termcn_cnprobe(struct consdev *cp)
 static void
 termcn_cninit(struct consdev *cp)
 {
-
 }
 
 static void
 termcn_cnterm(struct consdev *cp)
 {
-
 }
 
 static int
@@ -639,8 +633,8 @@ termteken_cursor(void *softc, const teken_pos_t *p)
 }
 
 static void
-termteken_putchar(void *softc, const teken_pos_t *p, teken_char_t c,
-    const teken_attr_t *a)
+termteken_putchar(
+    void *softc, const teken_pos_t *p, teken_char_t c, const teken_attr_t *a)
 {
 	struct terminal *tm = softc;
 
@@ -648,8 +642,8 @@ termteken_putchar(void *softc, const teken_pos_t *p, teken_char_t c,
 }
 
 static void
-termteken_fill(void *softc, const teken_rect_t *r, teken_char_t c,
-    const teken_attr_t *a)
+termteken_fill(
+    void *softc, const teken_rect_t *r, teken_char_t c, const teken_attr_t *a)
 {
 	struct terminal *tm = softc;
 

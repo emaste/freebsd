@@ -32,8 +32,8 @@
 /*
  * Hostap implementation definitions.
  */
-void	ieee80211_hostap_attach(struct ieee80211com *);
-void	ieee80211_hostap_detach(struct ieee80211com *);
+void ieee80211_hostap_attach(struct ieee80211com *);
+void ieee80211_hostap_detach(struct ieee80211com *);
 
 /*
  * This method can be overridden

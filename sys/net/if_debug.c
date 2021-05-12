@@ -31,9 +31,9 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -46,10 +46,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DDB
 struct ifindex_entry {
-	struct  ifnet *ife_ifnet;
+	struct ifnet *ife_ifnet;
 };
 VNET_DECLARE(struct ifindex_entry *, ifindex_table);
-#define	V_ifindex_table		VNET(ifindex_table)
+#define V_ifindex_table VNET(ifindex_table)
 
 static void
 if_show_ifnet(struct ifnet *ifp)
@@ -58,7 +58,7 @@ if_show_ifnet(struct ifnet *ifp)
 	if (ifp == NULL)
 		return;
 	db_printf("%s:\n", ifp->if_xname);
-#define	IF_DB_PRINTF(f, e)	db_printf("   %s = " f "\n", #e, ifp->e);
+#define IF_DB_PRINTF(f, e) db_printf("   %s = " f "\n", #e, ifp->e);
 	IF_DB_PRINTF("%s", if_dname);
 	IF_DB_PRINTF("%d", if_dunit);
 	IF_DB_PRINTF("%s", if_description);
@@ -119,7 +119,8 @@ DB_SHOW_ALL_COMMAND(ifnets, db_show_all_ifnets)
 	struct ifnet *ifp;
 	u_short idx;
 
-	VNET_FOREACH(vnet_iter) {
+	VNET_FOREACH(vnet_iter)
+	{
 		CURVNET_SET_QUIET(vnet_iter);
 #ifdef VIMAGE
 		db_printf("vnet=%p\n", curvnet);
@@ -128,7 +129,7 @@ DB_SHOW_ALL_COMMAND(ifnets, db_show_all_ifnets)
 			ifp = V_ifindex_table[idx].ife_ifnet;
 			if (ifp == NULL)
 				continue;
-			db_printf( "%20s ifp=%p\n", ifp->if_xname, ifp);
+			db_printf("%20s ifp=%p\n", ifp->if_xname, ifp);
 			if (db_pager_quit)
 				break;
 		}

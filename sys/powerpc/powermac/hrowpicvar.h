@@ -29,49 +29,47 @@
  * $FreeBSD$
  */
 
-#ifndef  _POWERPC_POWERMAC_HROWPICVAR_H_
-#define  _POWERPC_POWERMAC_HROWPICVAR_H_
+#ifndef _POWERPC_POWERMAC_HROWPICVAR_H_
+#define _POWERPC_POWERMAC_HROWPICVAR_H_
 
-#define HROWPIC_IRQMAX	64
-#define HROWPIC_IRQ_REGNUM	32	/* irqs per register */
-#define HROWPIC_IRQ_SHIFT	5	/* high or low irq word */
-#define HROWPIC_IRQ_MASK ((HROWPIC_IRQMAX-1) >> 1)  /* irq bit pos in word */
+#define HROWPIC_IRQMAX 64
+#define HROWPIC_IRQ_REGNUM 32			     /* irqs per register */
+#define HROWPIC_IRQ_SHIFT 5			     /* high or low irq word */
+#define HROWPIC_IRQ_MASK ((HROWPIC_IRQMAX - 1) >> 1) /* irq bit pos in word */
 
 /*
  * Register offsets within bank. There are two identical banks,
  * separated by 16 bytes. Interrupts 0->31 are processed in the
  * second bank, and 32->63 in the first bank.
  */
-#define  HPIC_STATUS	0x00		/* active interrupt sources */
-#define  HPIC_ENABLE	0x04		/* interrupt asserts ppc EXTINT */
-#define  HPIC_CLEAR	0x08		/* clear int source */
-#define  HPIC_TRIGGER	0x0c		/* edge/level int trigger */
+#define HPIC_STATUS 0x00  /* active interrupt sources */
+#define HPIC_ENABLE 0x04  /* interrupt asserts ppc EXTINT */
+#define HPIC_CLEAR 0x08	  /* clear int source */
+#define HPIC_TRIGGER 0x0c /* edge/level int trigger */
 
-#define HPIC_PRIMARY	1	/* primary register bank */
-#define HPIC_SECONDARY  0       /* secondary register bank */
+#define HPIC_PRIMARY 1	 /* primary register bank */
+#define HPIC_SECONDARY 0 /* secondary register bank */
 
 /*
  * Convert an interrupt into a prim/sec bank number
  */
-#define HPIC_INT_TO_BANK(x) \
-	(((x) >> HROWPIC_IRQ_SHIFT) ^ 1)
+#define HPIC_INT_TO_BANK(x) (((x) >> HROWPIC_IRQ_SHIFT) ^ 1)
 
 /*
  * Convert an interrupt into the bit number within a bank register
  */
-#define HPIC_INT_TO_REGBIT(x) \
-	((x) & HROWPIC_IRQ_MASK)
+#define HPIC_INT_TO_REGBIT(x) ((x)&HROWPIC_IRQ_MASK)
 
-#define  HPIC_1ST_OFFSET  0x10		/* offset to primary reg bank */
+#define HPIC_1ST_OFFSET 0x10 /* offset to primary reg bank */
 
 struct hrowpic_softc {
-	device_t	sc_dev;			/* macio device */
-	struct resource *sc_rres;		/* macio bus resource */
-	bus_space_tag_t sc_bt;			/* macio bus tag/handle */
+	device_t sc_dev;	  /* macio device */
+	struct resource *sc_rres; /* macio bus resource */
+	bus_space_tag_t sc_bt;	  /* macio bus tag/handle */
 	bus_space_handle_t sc_bh;
-	int		sc_rrid;
-	uint32_t	sc_softreg[2];		/* ENABLE reg copy */
-	u_int		sc_vector[HROWPIC_IRQMAX];
+	int sc_rrid;
+	uint32_t sc_softreg[2]; /* ENABLE reg copy */
+	u_int sc_vector[HROWPIC_IRQMAX];
 };
 
-#endif  /* _POWERPC_POWERMAC_HROWPICVAR_H_ */
+#endif /* _POWERPC_POWERMAC_HROWPICVAR_H_ */

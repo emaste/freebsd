@@ -47,19 +47,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/socket.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
-#include <net/ethernet.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
+
+#include <nfs/nfsdiskless.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
-#include <nfs/nfsdiskless.h>
 
-#define	NFS_IFACE_TIMEOUT_SECS	10 /* Timeout for interface to appear. */
+#define NFS_IFACE_TIMEOUT_SECS 10 /* Timeout for interface to appear. */
 
 static int inaddr_to_sockaddr(char *ev, struct sockaddr_in *sa);
 static int hwaddr_to_sockaddr(char *ev, struct sockaddr_dl *sa);
@@ -70,9 +70,9 @@ static int decode_nfshandle(char *ev, u_char *fh, int maxfh);
  * server for a diskless/dataless machine. It is initialized below just
  * to ensure that it is allocated to initialized data (.data not .bss).
  */
-struct nfs_diskless	nfs_diskless = { { { 0 } } };
-struct nfsv3_diskless	nfsv3_diskless = { { { 0 } } };
-int			nfs_diskless_valid = 0;
+struct nfs_diskless nfs_diskless = { { { 0 } } };
+struct nfsv3_diskless nfsv3_diskless = { { { 0 } } };
+int nfs_diskless_valid = 0;
 
 /*
  * Validate/sanity check a rsize/wsize parameter.
@@ -86,7 +86,7 @@ checkrwsize(unsigned long v, const char *name)
 	 * 64K/reassembled packet.  The lower bound is pretty
 	 * much arbitrary.
 	 */
-	if (!(4 <= v && v <= 32*1024)) {
+	if (!(4 <= v && v <= 32 * 1024)) {
 		printf("nfs_parse_options: invalid %s %lu ignored\n", name, v);
 		return 0;
 	} else
@@ -128,20 +128,20 @@ nfs_parse_options(const char *envopts, struct nfs_args *nd)
 		else if (strcmp(o, "udp") == 0)
 			nd->sotype = SOCK_DGRAM;
 		else if (strncmp(o, "rsize=", 6) == 0) {
-			v = strtoul(o+6, NULL, 10);
+			v = strtoul(o + 6, NULL, 10);
 			if (checkrwsize(v, "rsize")) {
-				nd->rsize = (int) v;
+				nd->rsize = (int)v;
 				nd->flags |= NFSMNT_RSIZE;
 			}
 		} else if (strncmp(o, "wsize=", 6) == 0) {
-			v = strtoul(o+6, NULL, 10);
+			v = strtoul(o + 6, NULL, 10);
 			if (checkrwsize(v, "wsize")) {
-				nd->wsize = (int) v;
+				nd->wsize = (int)v;
 				nd->flags |= NFSMNT_WSIZE;
 			}
 		} else
-			printf("%s: skipping unknown option \"%s\"\n",
-			    __func__, o);
+			printf("%s: skipping unknown option \"%s\"\n", __func__,
+			    o);
 	}
 	free(opts, M_TEMP);
 }
@@ -202,16 +202,16 @@ nfs_setup_diskless(void)
 	if (is_nfsv3 != 0) {
 		bcopy(&myaddr, &nd3->myif.ifra_addr, sizeof(myaddr));
 		bcopy(&myaddr, &nd3->myif.ifra_broadaddr, sizeof(myaddr));
-		((struct sockaddr_in *) 
-		   &nd3->myif.ifra_broadaddr)->sin_addr.s_addr =
-		    myaddr.sin_addr.s_addr | ~ netmask.sin_addr.s_addr;
+		((struct sockaddr_in *)&nd3->myif.ifra_broadaddr)
+		    ->sin_addr.s_addr = myaddr.sin_addr.s_addr |
+		    ~netmask.sin_addr.s_addr;
 		bcopy(&netmask, &nd3->myif.ifra_mask, sizeof(netmask));
 	} else {
 		bcopy(&myaddr, &nd->myif.ifra_addr, sizeof(myaddr));
 		bcopy(&myaddr, &nd->myif.ifra_broadaddr, sizeof(myaddr));
-		((struct sockaddr_in *) 
-		   &nd->myif.ifra_broadaddr)->sin_addr.s_addr =
-		    myaddr.sin_addr.s_addr | ~ netmask.sin_addr.s_addr;
+		((struct sockaddr_in *)&nd->myif.ifra_broadaddr)
+		    ->sin_addr.s_addr = myaddr.sin_addr.s_addr |
+		    ~netmask.sin_addr.s_addr;
 		bcopy(&netmask, &nd->myif.ifra_mask, sizeof(netmask));
 	}
 
@@ -224,18 +224,19 @@ nfs_setup_diskless(void)
 retry:
 	CURVNET_SET(TD_TO_VNET(curthread));
 	IFNET_RLOCK();
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link)
+	{
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		{
 			if (ifa->ifa_addr->sa_family == AF_LINK) {
 				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 				if ((sdl->sdl_type == ourdl.sdl_type) &&
 				    (sdl->sdl_alen == ourdl.sdl_alen) &&
-				    !bcmp(LLADDR(sdl),
-					  LLADDR(&ourdl),
-					  sdl->sdl_alen)) {
-				    IFNET_RUNLOCK();
-				    CURVNET_RESTORE();
-				    goto match_done;
+				    !bcmp(LLADDR(sdl), LLADDR(&ourdl),
+					sdl->sdl_alen)) {
+					IFNET_RUNLOCK();
+					CURVNET_RESTORE();
+					goto match_done;
 				}
 			}
 		}
@@ -247,7 +248,7 @@ retry:
 		goto retry;
 	}
 	printf("nfs_diskless: no interface\n");
-	return;	/* no matching interface */
+	return; /* no matching interface */
 match_done:
 	kern_setenv("boot.netif.name", ifp->if_xname);
 	if (is_nfsv3 != 0) {
@@ -258,19 +259,19 @@ match_done:
 		inaddr_to_sockaddr("boot.netif.gateway", &nd3->mygateway);
 
 		/* set up root mount */
-		nd3->root_args.rsize = 32768;		/* XXX tunable? */
+		nd3->root_args.rsize = 32768; /* XXX tunable? */
 		nd3->root_args.wsize = 32768;
 		nd3->root_args.sotype = SOCK_STREAM;
 		nd3->root_args.flags = (NFSMNT_NFSV3 | NFSMNT_WSIZE |
 		    NFSMNT_RSIZE | NFSMNT_RESVPORT);
-		if (inaddr_to_sockaddr("boot.nfsroot.server",
-		    &nd3->root_saddr)) {
+		if (inaddr_to_sockaddr(
+			"boot.nfsroot.server", &nd3->root_saddr)) {
 			printf("nfs_diskless: no server\n");
 			return;
 		}
 		nd3->root_saddr.sin_port = htons(NFS_PORT);
-		fhlen = decode_nfshandle("boot.nfsroot.nfshandle",
-		    &nd3->root_fh[0], NFSX_V3FHMAX);
+		fhlen = decode_nfshandle(
+		    "boot.nfsroot.nfshandle", &nd3->root_fh[0], NFSX_V3FHMAX);
 		if (fhlen == 0) {
 			printf("nfs_diskless: no NFS handle\n");
 			return;
@@ -297,19 +298,19 @@ match_done:
 		inaddr_to_sockaddr("boot.netif.gateway", &nd->mygateway);
 
 		/* set up root mount */
-		nd->root_args.rsize = 8192;		/* XXX tunable? */
+		nd->root_args.rsize = 8192; /* XXX tunable? */
 		nd->root_args.wsize = 8192;
 		nd->root_args.sotype = SOCK_STREAM;
-		nd->root_args.flags = (NFSMNT_WSIZE |
-		    NFSMNT_RSIZE | NFSMNT_RESVPORT);
-		if (inaddr_to_sockaddr("boot.nfsroot.server",
-		    &nd->root_saddr)) {
+		nd->root_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE |
+		    NFSMNT_RESVPORT);
+		if (inaddr_to_sockaddr(
+			"boot.nfsroot.server", &nd->root_saddr)) {
 			printf("nfs_diskless: no server\n");
 			return;
 		}
 		nd->root_saddr.sin_port = htons(NFS_PORT);
-		if (decode_nfshandle("boot.nfsroot.nfshandle",
-		    &nd->root_fh[0], NFSX_V2FH) == 0) {
+		if (decode_nfshandle("boot.nfsroot.nfshandle", &nd->root_fh[0],
+			NFSX_V2FH) == 0) {
 			printf("nfs_diskless: no NFS handle\n");
 			return;
 		}
@@ -357,8 +358,8 @@ inaddr_to_sockaddr(char *ev, struct sockaddr_in *sa)
 	freeenv(cp);
 	if (count != 4)
 		return (1);
-	sa->sin_addr.s_addr =
-	    htonl((a[0] << 24) | (a[1] << 16) | (a[2] << 8) | a[3]);
+	sa->sin_addr.s_addr = htonl(
+	    (a[0] << 24) | (a[1] << 16) | (a[2] << 8) | a[3]);
 	return (0);
 }
 
@@ -376,8 +377,8 @@ hwaddr_to_sockaddr(char *ev, struct sockaddr_dl *sa)
 	sa->sdl_alen = ETHER_ADDR_LEN;
 	if ((cp = kern_getenv(ev)) == NULL)
 		return (1);
-	count = sscanf(cp, "%x:%x:%x:%x:%x:%x",
-	    &a[0], &a[1], &a[2], &a[3], &a[4], &a[5]);
+	count = sscanf(
+	    cp, "%x:%x:%x:%x:%x:%x", &a[0], &a[1], &a[2], &a[3], &a[4], &a[5]);
 	freeenv(cp);
 	if (count != 6)
 		return (1);
@@ -391,7 +392,7 @@ hwaddr_to_sockaddr(char *ev, struct sockaddr_dl *sa)
 }
 
 static int
-decode_nfshandle(char *ev, u_char *fh, int maxfh) 
+decode_nfshandle(char *ev, u_char *fh, int maxfh)
 {
 	u_char *cp, *ep;
 	int len, val;
@@ -418,8 +419,8 @@ decode_nfshandle(char *ev, u_char *fh, int maxfh)
 		len++;
 		cp += 2;
 		if (len > maxfh) {
-		    freeenv(ep);
-		    return (0);
+			freeenv(ep);
+			return (0);
 		}
 	}
 }

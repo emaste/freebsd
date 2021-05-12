@@ -35,7 +35,7 @@
  */
 
 #ifndef _MACHINE_IN_CKSUM_H_
-#define	_MACHINE_IN_CKSUM_H_	1
+#define _MACHINE_IN_CKSUM_H_ 1
 
 #include <sys/cdefs.h>
 
@@ -52,10 +52,10 @@ static __inline u_short
 in_pseudo(u_int sum, u_int b, u_int c)
 {
 	__asm __volatile("adds %0, %0, %1\n"
-	    		"adcs %0, %0, %2\n"
-			"adc %0, %0, #0\n"
-			: "+r" (sum)
-			: "r" (b), "r" (c));
+			 "adcs %0, %0, %2\n"
+			 "adc %0, %0, #0\n"
+			 : "+r"(sum)
+			 : "r"(b), "r"(c));
 	sum = (sum & 0xffff) + (sum >> 16);
 	if (sum > 0xffff)
 		sum -= 0xffff;

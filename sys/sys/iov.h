@@ -33,20 +33,20 @@
 
 #include <sys/ioccom.h>
 
-#define	PF_CONFIG_NAME		"PF"
-#define	VF_SCHEMA_NAME		"VF"
+#define PF_CONFIG_NAME "PF"
+#define VF_SCHEMA_NAME "VF"
 
-#define	VF_PREFIX		"VF-"
-#define	VF_PREFIX_LEN		3
-#define	VF_NUM_LEN		5	/* The maximum VF num is 65535. */
-#define	VF_MAX_NAME		(VF_PREFIX_LEN + VF_NUM_LEN + 1)
+#define VF_PREFIX "VF-"
+#define VF_PREFIX_LEN 3
+#define VF_NUM_LEN 5 /* The maximum VF num is 65535. */
+#define VF_MAX_NAME (VF_PREFIX_LEN + VF_NUM_LEN + 1)
 
-#define	DRIVER_CONFIG_NAME	"DRIVER"
-#define	IOV_CONFIG_NAME		"IOV"
+#define DRIVER_CONFIG_NAME "DRIVER"
+#define IOV_CONFIG_NAME "IOV"
 
-#define	TYPE_SCHEMA_NAME	"TYPE"
-#define	DEFAULT_SCHEMA_NAME	"DEFAULT"
-#define	REQUIRED_SCHEMA_NAME	"REQUIRED"
+#define TYPE_SCHEMA_NAME "TYPE"
+#define DEFAULT_SCHEMA_NAME "DEFAULT"
+#define REQUIRED_SCHEMA_NAME "REQUIRED"
 
 /*
  * Because each PF device is expected to expose a unique set of possible
@@ -157,8 +157,7 @@
  *              type (STRING): [bool]
  *              default (BOOL): FALSE
  */
-struct pci_iov_schema
-{
+struct pci_iov_schema {
 	void *schema;
 	size_t len;
 	int error;
@@ -245,14 +244,13 @@ struct pci_iov_schema
  *         mac-addr (BINARY): 6 020102030405
  *     iov (NVLIST):
  */
-struct pci_iov_arg
-{
+struct pci_iov_arg {
 	void *config;
 	size_t len;
 };
 
-#define	IOV_CONFIG	_IOW('p', 10, struct pci_iov_arg)
-#define	IOV_DELETE	_IO('p', 11)
-#define	IOV_GET_SCHEMA	_IOWR('p', 12, struct pci_iov_schema)
+#define IOV_CONFIG _IOW('p', 10, struct pci_iov_arg)
+#define IOV_DELETE _IO('p', 11)
+#define IOV_GET_SCHEMA _IOWR('p', 12, struct pci_iov_schema)
 
 #endif

@@ -37,11 +37,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/uart/uart.h>
-#include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_bus.h>
+#include <dev/uart/uart_cpu.h>
 
-#include <mips/atheros/ar531x/ar5315reg.h>
 #include <mips/atheros/ar531x/ar5315_cpudef.h>
+#include <mips/atheros/ar531x/ar5315reg.h>
 
 #include "uart_if.h"
 
@@ -50,10 +50,9 @@ extern struct uart_class uart_ar5315_uart_class;
 
 static device_method_t uart_ar5315_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		uart_ar5315_probe),
-	DEVMETHOD(device_attach,	uart_bus_attach),
-	DEVMETHOD(device_detach,	uart_bus_detach),
-	DEVMETHOD_END
+	DEVMETHOD(device_probe, uart_ar5315_probe),
+	DEVMETHOD(device_attach, uart_bus_attach),
+	DEVMETHOD(device_detach, uart_bus_detach), DEVMETHOD_END
 };
 
 static driver_t uart_ar5315_driver = {

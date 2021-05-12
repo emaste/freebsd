@@ -31,23 +31,23 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/kobj.h>
 #include <sys/gpt.h>
+#include <sys/kernel.h>
+#include <sys/kobj.h>
+#include <sys/malloc.h>
 #include <sys/sbuf.h>
 
 #include <geom/geom.h>
 #include <geom/label/g_label.h>
 #include <geom/part/g_part.h>
 
-#define	PART_CLASS_NAME	"PART"
-#define	SCHEME_NAME	"GPT"
+#define PART_CLASS_NAME "PART"
+#define SCHEME_NAME "GPT"
 
 /* XXX: Also defined in geom/part/g_part_gpt.c */
 struct g_part_gpt_entry {
-	struct g_part_entry     base;
-	struct gpt_ent          ent;
+	struct g_part_entry base;
+	struct gpt_ent ent;
 };
 
 /* XXX: Shamelessly stolen from g_part_gpt.c */
@@ -58,14 +58,14 @@ sbuf_nprintf_utf16(struct sbuf *sb, uint16_t *str, size_t len)
 	uint32_t ch;
 	uint16_t c;
 
-	bo = LITTLE_ENDIAN;	/* GPT is little-endian */
+	bo = LITTLE_ENDIAN; /* GPT is little-endian */
 	while (len > 0 && *str != 0) {
 		ch = (bo == BIG_ENDIAN) ? be16toh(*str) : le16toh(*str);
 		str++, len--;
 		if ((ch & 0xf800) == 0xd800) {
 			if (len > 0) {
-				c = (bo == BIG_ENDIAN) ? be16toh(*str)
-				    : le16toh(*str);
+				c = (bo == BIG_ENDIAN) ? be16toh(*str) :
+							       le16toh(*str);
 				str++, len--;
 			} else
 				c = 0xfffd;
@@ -84,8 +84,8 @@ sbuf_nprintf_utf16(struct sbuf *sb, uint16_t *str, size_t len)
 		if (ch < 0x80)
 			sbuf_printf(sb, "%c", ch);
 		else if (ch < 0x800)
-			sbuf_printf(sb, "%c%c", 0xc0 | (ch >> 6),
-			    0x80 | (ch & 0x3f));
+			sbuf_printf(
+			    sb, "%c%c", 0xc0 | (ch >> 6), 0x80 | (ch & 0x3f));
 		else if (ch < 0x10000)
 			sbuf_printf(sb, "%c%c%c", 0xe0 | (ch >> 12),
 			    0x80 | ((ch >> 6) & 0x3f), 0x80 | (ch & 0x3f));
@@ -110,7 +110,8 @@ g_label_gpt_taste(struct g_consumer *cp, char *label, size_t size)
 	label[0] = '\0';
 
 	/* We taste only partitions handled by GPART */
-	if (strncmp(pp->geom->class->name, PART_CLASS_NAME, sizeof(PART_CLASS_NAME)))
+	if (strncmp(pp->geom->class->name, PART_CLASS_NAME,
+		sizeof(PART_CLASS_NAME)))
 		return;
 	/* and only GPT */
 	if (strncmp(tp->gpt_scheme->name, SCHEME_NAME, sizeof(SCHEME_NAME)))
@@ -122,9 +123,11 @@ g_label_gpt_taste(struct g_consumer *cp, char *label, size_t size)
 	 * Create sbuf with biggest possible size.
 	 * We need max. 4 bytes for every 2-byte utf16 char.
 	 */
-	lbl = sbuf_new(NULL, NULL, sizeof(part_gpt_entry->ent.ent_name) << 1, SBUF_FIXEDLEN);
+	lbl = sbuf_new(NULL, NULL, sizeof(part_gpt_entry->ent.ent_name) << 1,
+	    SBUF_FIXEDLEN);
 	/* Size is the number of characters, not bytes */
-	sbuf_nprintf_utf16(lbl, part_gpt_entry->ent.ent_name, sizeof(part_gpt_entry->ent.ent_name) >> 1);
+	sbuf_nprintf_utf16(lbl, part_gpt_entry->ent.ent_name,
+	    sizeof(part_gpt_entry->ent.ent_name) >> 1);
 	sbuf_finish(lbl);
 	strlcpy(label, sbuf_data(lbl), size);
 	sbuf_delete(lbl);
@@ -143,7 +146,8 @@ g_label_gpt_uuid_taste(struct g_consumer *cp, char *label, size_t size)
 	label[0] = '\0';
 
 	/* We taste only partitions handled by GPART */
-	if (strncmp(pp->geom->class->name, PART_CLASS_NAME, sizeof(PART_CLASS_NAME)))
+	if (strncmp(pp->geom->class->name, PART_CLASS_NAME,
+		sizeof(PART_CLASS_NAME)))
 		return;
 	/* and only GPT */
 	if (strncmp(tp->gpt_scheme->name, SCHEME_NAME, sizeof(SCHEME_NAME)))
@@ -153,17 +157,13 @@ g_label_gpt_uuid_taste(struct g_consumer *cp, char *label, size_t size)
 	snprintf_uuid(label, size, &part_gpt_entry->ent.ent_uuid);
 }
 
-struct g_label_desc g_label_gpt = {
-	.ld_taste = g_label_gpt_taste,
+struct g_label_desc g_label_gpt = { .ld_taste = g_label_gpt_taste,
 	.ld_dirprefix = "gpt/",
-	.ld_enabled = 1
-};
+	.ld_enabled = 1 };
 
-struct g_label_desc g_label_gpt_uuid = {
-	.ld_taste = g_label_gpt_uuid_taste,
+struct g_label_desc g_label_gpt_uuid = { .ld_taste = g_label_gpt_uuid_taste,
 	.ld_dirprefix = "gptid/",
-	.ld_enabled = 1
-};
+	.ld_enabled = 1 };
 
 G_LABEL_INIT(gpt, g_label_gpt, "Create device nodes for GPT labels");
 G_LABEL_INIT(gptid, g_label_gpt_uuid, "Create device nodes for GPT UUIDs");

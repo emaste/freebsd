@@ -76,7 +76,8 @@ static inline sbintime_t
 cam_iosched_sbintime_t(uintptr_t delta)
 {
 
-	/* Cast here is to widen the type so the left shift doesn't lose precision */
+	/* Cast here is to widen the type so the left shift doesn't lose
+	 * precision */
 	return (sbintime_t)((uint64_t)delta << CAM_IOSCHED_TIME_SHIFT);
 }
 
@@ -84,13 +85,16 @@ typedef void (*cam_iosched_latfcn_t)(void *, sbintime_t, struct bio *);
 
 int cam_iosched_init(struct cam_iosched_softc **, struct cam_periph *periph);
 void cam_iosched_fini(struct cam_iosched_softc *);
-void cam_iosched_sysctl_init(struct cam_iosched_softc *, struct sysctl_ctx_list *, struct sysctl_oid *);
+void cam_iosched_sysctl_init(
+    struct cam_iosched_softc *, struct sysctl_ctx_list *, struct sysctl_oid *);
 struct bio *cam_iosched_next_trim(struct cam_iosched_softc *isc);
 struct bio *cam_iosched_get_trim(struct cam_iosched_softc *isc);
 struct bio *cam_iosched_next_bio(struct cam_iosched_softc *isc);
 void cam_iosched_queue_work(struct cam_iosched_softc *isc, struct bio *bp);
-void cam_iosched_flush(struct cam_iosched_softc *isc, struct devstat *stp, int err);
-void cam_iosched_schedule(struct cam_iosched_softc *isc, struct cam_periph *periph);
+void cam_iosched_flush(
+    struct cam_iosched_softc *isc, struct devstat *stp, int err);
+void cam_iosched_schedule(
+    struct cam_iosched_softc *isc, struct cam_periph *periph);
 void cam_iosched_finish_trim(struct cam_iosched_softc *isc);
 void cam_iosched_submit_trim(struct cam_iosched_softc *isc);
 void cam_iosched_put_back_trim(struct cam_iosched_softc *isc, struct bio *bp);
@@ -99,8 +103,10 @@ int cam_iosched_has_work_flags(struct cam_iosched_softc *isc, uint32_t flags);
 void cam_iosched_set_work_flags(struct cam_iosched_softc *isc, uint32_t flags);
 void cam_iosched_clr_work_flags(struct cam_iosched_softc *isc, uint32_t flags);
 void cam_iosched_trim_done(struct cam_iosched_softc *isc);
-int cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp, union ccb *done_ccb);
-void cam_iosched_set_latfcn(struct cam_iosched_softc *isc, cam_iosched_latfcn_t, void *);
+int cam_iosched_bio_complete(
+    struct cam_iosched_softc *isc, struct bio *bp, union ccb *done_ccb);
+void cam_iosched_set_latfcn(
+    struct cam_iosched_softc *isc, cam_iosched_latfcn_t, void *);
 void cam_iosched_set_trim_goal(struct cam_iosched_softc *isc, int goal);
 void cam_iosched_set_trim_ticks(struct cam_iosched_softc *isc, int ticks);
 #endif

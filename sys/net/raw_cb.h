@@ -44,48 +44,48 @@
  */
 struct rawcb {
 	LIST_ENTRY(rawcb) list;
-	struct	socket *rcb_socket;	/* back pointer to socket */
-	struct	sockproto rcb_proto;	/* protocol family, protocol */
+	struct socket *rcb_socket;  /* back pointer to socket */
+	struct sockproto rcb_proto; /* protocol family, protocol */
 };
 
-#define	sotorawcb(so)		((struct rawcb *)(so)->so_pcb)
+#define sotorawcb(so) ((struct rawcb *)(so)->so_pcb)
 
 /*
  * Nominal space allocated to a raw socket.
  */
-#define	RAWSNDQ		8192
-#define	RAWRCVQ		8192
+#define RAWSNDQ 8192
+#define RAWRCVQ 8192
 
 #ifdef _KERNEL
 VNET_DECLARE(LIST_HEAD(rawcb_list_head, rawcb), rawcb_list);
-#define	V_rawcb_list	VNET(rawcb_list)
+#define V_rawcb_list VNET(rawcb_list)
 
 extern struct mtx rawcb_mtx;
 
 /*
  * Generic protosw entries for raw socket protocols.
  */
-pr_ctlinput_t	raw_ctlinput;
-pr_init_t	raw_init;
+pr_ctlinput_t raw_ctlinput;
+pr_init_t raw_init;
 
 /*
  * Library routines for raw socket usrreq functions; will always be wrapped
  * so that protocol-specific functions can be handled.
  */
-typedef int (*raw_input_cb_fn)(struct mbuf *, struct sockproto *,
-    struct sockaddr *, struct rawcb *);
+typedef int (*raw_input_cb_fn)(
+    struct mbuf *, struct sockproto *, struct sockaddr *, struct rawcb *);
 
-int	 raw_attach(struct socket *, int);
-void	 raw_detach(struct rawcb *);
-void	 raw_input(struct mbuf *, struct sockproto *, struct sockaddr *);
-void	 raw_input_ext(struct mbuf *, struct sockproto *, struct sockaddr *,
-	    raw_input_cb_fn);
+int raw_attach(struct socket *, int);
+void raw_detach(struct rawcb *);
+void raw_input(struct mbuf *, struct sockproto *, struct sockaddr *);
+void raw_input_ext(
+    struct mbuf *, struct sockproto *, struct sockaddr *, raw_input_cb_fn);
 
 /*
  * Generic pr_usrreqs entries for raw socket protocols, usually wrapped so
  * that protocol-specific functions can be handled.
  */
-extern	struct pr_usrreqs raw_usrreqs;
+extern struct pr_usrreqs raw_usrreqs;
 #endif
 
 #endif

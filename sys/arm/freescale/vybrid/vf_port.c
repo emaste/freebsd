@@ -38,72 +38,67 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <arm/freescale/vybrid/vf_port.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include <arm/freescale/vybrid/vf_common.h>
+#include <arm/freescale/vybrid/vf_port.h>
 
 /* Pin Control Register */
-#define PORT_PCR(n)		(0x1000 * (n >> 5) + 0x4 * (n % 32))
-#define	 PCR_IRQC_S	16
-#define	 PCR_IRQC_M	0xF
-#define	 PCR_DMA_RE	0x1
-#define	 PCR_DMA_FE	0x2
-#define	 PCR_DMA_EE	0x3
-#define	 PCR_INT_LZ	0x8
-#define	 PCR_INT_RE	0x9
-#define	 PCR_INT_FE	0xA
-#define	 PCR_INT_EE	0xB
-#define	 PCR_INT_LO	0xC
-#define	 PCR_ISF	(1 << 24)
-#define	PORT0_ISFR	0xA0	/* Interrupt Status Flag Register */
-#define	PORT0_DFER	0xC0	/* Digital Filter Enable Register */
-#define	PORT0_DFCR	0xC4	/* Digital Filter Clock Register */
-#define	PORT0_DFWR	0xC8	/* Digital Filter Width Register */
+#define PORT_PCR(n) (0x1000 * (n >> 5) + 0x4 * (n % 32))
+#define PCR_IRQC_S 16
+#define PCR_IRQC_M 0xF
+#define PCR_DMA_RE 0x1
+#define PCR_DMA_FE 0x2
+#define PCR_DMA_EE 0x3
+#define PCR_INT_LZ 0x8
+#define PCR_INT_RE 0x9
+#define PCR_INT_FE 0xA
+#define PCR_INT_EE 0xB
+#define PCR_INT_LO 0xC
+#define PCR_ISF (1 << 24)
+#define PORT0_ISFR 0xA0 /* Interrupt Status Flag Register */
+#define PORT0_DFER 0xC0 /* Digital Filter Enable Register */
+#define PORT0_DFCR 0xC4 /* Digital Filter Clock Register */
+#define PORT0_DFWR 0xC8 /* Digital Filter Width Register */
 
 struct port_event {
-	uint32_t	enabled;
-	uint32_t	mux_num;
-	uint32_t	mux_src;
-	uint32_t	mux_chn;
-	void		(*ih) (void *);
-	void		*ih_user;
-	enum ev_type	pevt;
+	uint32_t enabled;
+	uint32_t mux_num;
+	uint32_t mux_src;
+	uint32_t mux_chn;
+	void (*ih)(void *);
+	void *ih_user;
+	enum ev_type pevt;
 };
 
 static struct port_event event_map[NGPIO];
 
 struct port_softc {
-	struct resource		*res[6];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	void			*gpio_ih[NGPIO];
+	struct resource *res[6];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	void *gpio_ih[NGPIO];
 };
 
 struct port_softc *port_sc;
 
-static struct resource_spec port_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		2,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		3,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		4,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec port_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { SYS_RES_IRQ, 1, RF_ACTIVE },
+	{ SYS_RES_IRQ, 2, RF_ACTIVE }, { SYS_RES_IRQ, 3, RF_ACTIVE },
+	{ SYS_RES_IRQ, 4, RF_ACTIVE }, { -1, 0 } };
 
 static int
 port_intr(void *arg)
@@ -220,9 +215,9 @@ port_attach(device_t dev)
 
 	port_sc = sc;
 
-	for (irq = 0; irq < NPORTS; irq ++) {
+	for (irq = 0; irq < NPORTS; irq++) {
 		if ((bus_setup_intr(dev, sc->res[1 + irq], INTR_TYPE_MISC,
-		    port_intr, NULL, sc, &sc->gpio_ih[irq]))) {
+			port_intr, NULL, sc, &sc->gpio_ih[irq]))) {
 			device_printf(dev,
 			    "ERROR: Unable to register interrupt handler\n");
 			return (ENXIO);
@@ -232,11 +227,8 @@ port_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t port_methods[] = {
-	DEVMETHOD(device_probe,		port_probe),
-	DEVMETHOD(device_attach,	port_attach),
-	{ 0, 0 }
-};
+static device_method_t port_methods[] = { DEVMETHOD(device_probe, port_probe),
+	DEVMETHOD(device_attach, port_attach), { 0, 0 } };
 
 static driver_t port_driver = {
 	"port",

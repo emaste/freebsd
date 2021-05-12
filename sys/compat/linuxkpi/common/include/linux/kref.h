@@ -35,12 +35,11 @@
 #include <sys/types.h>
 #include <sys/refcount.h>
 
+#include <asm/atomic.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/refcount.h>
-
-#include <asm/atomic.h>
 
 struct kref {
 	atomic_t refcount;
@@ -79,8 +78,8 @@ kref_put(struct kref *kref, void (*rel)(struct kref *kref))
 }
 
 static inline int
-kref_put_lock(struct kref *kref, void (*rel)(struct kref *kref),
-    spinlock_t *lock)
+kref_put_lock(
+    struct kref *kref, void (*rel)(struct kref *kref), spinlock_t *lock)
 {
 
 	if (refcount_release(&kref->refcount.counter)) {
@@ -92,8 +91,7 @@ kref_put_lock(struct kref *kref, void (*rel)(struct kref *kref),
 }
 
 static inline int
-kref_sub(struct kref *kref, unsigned int count,
-    void (*rel)(struct kref *kref))
+kref_sub(struct kref *kref, unsigned int count, void (*rel)(struct kref *kref))
 {
 
 	while (count--) {
@@ -112,8 +110,9 @@ kref_get_unless_zero(struct kref *kref)
 	return atomic_add_unless(&kref->refcount, 1, 0);
 }
 
-static inline int kref_put_mutex(struct kref *kref,
-    void (*release)(struct kref *kref), struct mutex *lock)
+static inline int
+kref_put_mutex(
+    struct kref *kref, void (*release)(struct kref *kref), struct mutex *lock)
 {
 	WARN_ON(release == NULL);
 	if (unlikely(!atomic_add_unless(&kref->refcount, -1, 1))) {

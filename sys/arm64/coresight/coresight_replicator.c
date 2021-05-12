@@ -35,9 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 
 #include <arm64/coresight/coresight.h>
@@ -46,8 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "coresight_if.h"
 
 static struct resource_spec replicator_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, { -1, 0 }
 };
 
 static int
@@ -64,8 +64,8 @@ replicator_init(device_t dev)
 }
 
 static int
-replicator_enable(device_t dev, struct endpoint *endp,
-    struct coresight_event *event)
+replicator_enable(
+    device_t dev, struct endpoint *endp, struct coresight_event *event)
 {
 	struct replicator_softc *sc;
 
@@ -84,8 +84,8 @@ replicator_enable(device_t dev, struct endpoint *endp,
 }
 
 static void
-replicator_disable(device_t dev, struct endpoint *endp,
-    struct coresight_event *event)
+replicator_disable(
+    device_t dev, struct endpoint *endp, struct coresight_event *event)
 {
 	struct replicator_softc *sc;
 
@@ -118,10 +118,9 @@ replicator_attach(device_t dev)
 
 static device_method_t replicator_methods[] = {
 	/* Coresight interface */
-	DEVMETHOD(coresight_init,	replicator_init),
-	DEVMETHOD(coresight_enable,	replicator_enable),
-	DEVMETHOD(coresight_disable,	replicator_disable),
-	DEVMETHOD_END
+	DEVMETHOD(coresight_init, replicator_init),
+	DEVMETHOD(coresight_enable, replicator_enable),
+	DEVMETHOD(coresight_disable, replicator_disable), DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(replicator, replicator_driver, replicator_methods,

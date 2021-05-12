@@ -33,42 +33,39 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/lock.h>
-#include <sys/sysctl.h>
-#include <sys/socket.h>
-#include <sys/uio.h>
-
-#include <sys/iconv.h>
-
-#include <netsmb/smb.h>
-#include <netsmb/smb_subr.h>
-#include <netsmb/smb_rq.h>
-#include <netsmb/smb_conn.h>
-#include <netsmb/smb_tran.h>
-
 #include "opt_netsmb.h"
 
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/iconv.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/proc.h>
+#include <sys/socket.h>
+#include <sys/sysctl.h>
+#include <sys/uio.h>
+
+#include <netsmb/smb.h>
+#include <netsmb/smb_conn.h>
+#include <netsmb/smb_rq.h>
+#include <netsmb/smb_subr.h>
+#include <netsmb/smb_tran.h>
+
 struct smb_dialect {
-	int		d_id;
-	const char *	d_name;
+	int d_id;
+	const char *d_name;
 };
 
-static struct smb_dialect smb_dialects[] = {
-	{SMB_DIALECT_CORE,	"PC NETWORK PROGRAM 1.0"},
-	{SMB_DIALECT_COREPLUS,	"MICROSOFT NETWORKS 1.03"},
-	{SMB_DIALECT_LANMAN1_0,	"MICROSOFT NETWORKS 3.0"},
-	{SMB_DIALECT_LANMAN1_0,	"LANMAN1.0"},
-	{SMB_DIALECT_LANMAN2_0,	"LM1.2X002"},
-	{SMB_DIALECT_LANMAN2_0,	"Samba"},
-	{SMB_DIALECT_NTLM0_12,	"NT LANMAN 1.0"},
-	{SMB_DIALECT_NTLM0_12,	"NT LM 0.12"},
-	{-1,			NULL}
-};
+static struct smb_dialect smb_dialects[] = { { SMB_DIALECT_CORE,
+						 "PC NETWORK PROGRAM 1.0" },
+	{ SMB_DIALECT_COREPLUS, "MICROSOFT NETWORKS 1.03" },
+	{ SMB_DIALECT_LANMAN1_0, "MICROSOFT NETWORKS 3.0" },
+	{ SMB_DIALECT_LANMAN1_0, "LANMAN1.0" },
+	{ SMB_DIALECT_LANMAN2_0, "LM1.2X002" },
+	{ SMB_DIALECT_LANMAN2_0, "Samba" },
+	{ SMB_DIALECT_NTLM0_12, "NT LANMAN 1.0" },
+	{ SMB_DIALECT_NTLM0_12, "NT LM 0.12" }, { -1, NULL } };
 
 static u_int32_t
 smb_vc_maxread(struct smb_vc *vcp)
@@ -83,7 +80,7 @@ smb_vc_maxread(struct smb_vc *vcp)
 	 */
 	if ((vcp->vc_sopt.sv_caps & SMB_CAP_LARGE_READX) &&
 	    (vcp->vc_hflags2 & SMB_FLAGS2_SECURITY_SIGNATURE) == 0)
-		return (60*1024);
+		return (60 * 1024);
 	else
 		return (vcp->vc_sopt.sv_maxtx - SMB_HDRLEN - 64);
 }
@@ -96,7 +93,7 @@ smb_vc_maxwrite(struct smb_vc *vcp)
 	 */
 	if ((vcp->vc_sopt.sv_caps & SMB_CAP_LARGE_WRITEX) &&
 	    (vcp->vc_hflags2 & SMB_FLAGS2_SECURITY_SIGNATURE) == 0)
-		return (60*1024);
+		return (60 * 1024);
 	else
 		return (vcp->vc_sopt.sv_maxtx - SMB_HDRLEN - 64);
 }
@@ -122,15 +119,15 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 	u_int16_t dindex, tw, tw1, swlen, bc;
 	int error, maxqsz;
 	int unicode = SMB_UNICODE_STRINGS(vcp);
-	void * servercharset = vcp->vc_toserver;
-	void * localcharset = vcp->vc_tolocal;
+	void *servercharset = vcp->vc_toserver;
+	void *localcharset = vcp->vc_tolocal;
 
 	if (smb_smb_nomux(vcp, scred, __func__) != 0)
 		return EINVAL;
-	/* Disable Unicode for SMB_COM_NEGOTIATE requests */ 
+	/* Disable Unicode for SMB_COM_NEGOTIATE requests */
 	if (unicode) {
 		vcp->vc_toserver = vcp->vc_cp_toserver;
-		vcp->vc_tolocal  = vcp->vc_cp_tolocal;
+		vcp->vc_tolocal = vcp->vc_cp_tolocal;
 	}
 	vcp->vc_hflags = 0;
 	vcp->vc_hflags2 = 0;
@@ -144,7 +141,7 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 	smb_rq_wstart(rqp);
 	smb_rq_wend(rqp);
 	smb_rq_bstart(rqp);
-	for(dp = smb_dialects; dp->d_id != -1; dp++) {
+	for (dp = smb_dialects; dp->d_id != -1; dp++) {
 		mb_put_uint8(mbp, SMB_DT_DIALECT);
 		smb_put_dstring(mbp, vcp, dp->d_name, SMB_CS_NONE);
 	}
@@ -162,7 +159,8 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 		if (error)
 			break;
 		if (dindex > 7) {
-			SMBERROR("Don't know how to talk with server %s (%d)\n", "xxx", dindex);
+			SMBERROR("Don't know how to talk with server %s (%d)\n",
+			    "xxx", dindex);
 			error = EBADRPC;
 			break;
 		}
@@ -181,11 +179,13 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 			md_get_uint32le(mdp, &sp->sv_skey);
 			md_get_uint32le(mdp, &sp->sv_caps);
 			md_get_mem(mdp, stime, 8, MB_MSYSTEM);
-			md_get_uint16le(mdp, (u_int16_t*)&sp->sv_tz);
+			md_get_uint16le(mdp, (u_int16_t *)&sp->sv_tz);
 			md_get_uint8(mdp, &sblen);
 			if (sblen && (sp->sv_sm & SMB_SM_ENCRYPT)) {
 				if (sblen != SMB_MAXCHALLENGELEN) {
-					SMBERROR("Unexpected length of security blob (%d)\n", sblen);
+					SMBERROR(
+					    "Unexpected length of security blob (%d)\n",
+					    sblen);
 					break;
 				}
 				error = md_get_uint16le(mdp, &bc);
@@ -193,19 +193,21 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 					break;
 				if (sp->sv_caps & SMB_CAP_EXT_SECURITY)
 					md_get_mem(mdp, NULL, 16, MB_MSYSTEM);
-				error = md_get_mem(mdp, vcp->vc_ch, sblen, MB_MSYSTEM);
+				error = md_get_mem(
+				    mdp, vcp->vc_ch, sblen, MB_MSYSTEM);
 				if (error)
 					break;
 				vcp->vc_chlen = sblen;
 				vcp->obj.co_flags |= SMBV_ENCRYPT;
 			}
 			if (sp->sv_sm & SMB_SM_SIGS_REQUIRE)
-				vcp->vc_hflags2 |= SMB_FLAGS2_SECURITY_SIGNATURE;
+				vcp->vc_hflags2 |=
+				    SMB_FLAGS2_SECURITY_SIGNATURE;
 			if (vcp->vc_ucs_toserver &&
-				sp->sv_caps & SMB_CAP_UNICODE) {
+			    sp->sv_caps & SMB_CAP_UNICODE) {
 				/*
-				* They do Unicode.
-				*/
+				 * They do Unicode.
+				 */
 				vcp->obj.co_flags |= SMBV_UNICODE;
 			}
 			vcp->vc_hflags2 |= SMB_FLAGS2_KNOWS_LONG_NAMES;
@@ -218,8 +220,8 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 			error = 0;
 			break;
 		}
-		vcp->vc_hflags2 &= ~(SMB_FLAGS2_EXT_SEC|SMB_FLAGS2_DFS|
-				     SMB_FLAGS2_ERR_STATUS|SMB_FLAGS2_UNICODE);
+		vcp->vc_hflags2 &= ~(SMB_FLAGS2_EXT_SEC | SMB_FLAGS2_DFS |
+		    SMB_FLAGS2_ERR_STATUS | SMB_FLAGS2_UNICODE);
 		unicode = 0;
 		if (dp->d_id > SMB_DIALECT_CORE) {
 			md_get_uint16le(mdp, &tw);
@@ -228,22 +230,23 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 			sp->sv_maxtx = tw;
 			md_get_uint16le(mdp, &sp->sv_maxmux);
 			md_get_uint16le(mdp, &sp->sv_maxvcs);
-			md_get_uint16le(mdp, &tw);	/* rawmode */
+			md_get_uint16le(mdp, &tw); /* rawmode */
 			md_get_uint32le(mdp, &sp->sv_skey);
-			if (wc == 13) {		/* >= LANMAN1 */
-				md_get_uint16(mdp, &tw);		/* time */
-				md_get_uint16(mdp, &tw1);		/* date */
-				md_get_uint16le(mdp, (u_int16_t*)&sp->sv_tz);
+			if (wc == 13) {			  /* >= LANMAN1 */
+				md_get_uint16(mdp, &tw);  /* time */
+				md_get_uint16(mdp, &tw1); /* date */
+				md_get_uint16le(mdp, (u_int16_t *)&sp->sv_tz);
 				md_get_uint16le(mdp, &swlen);
 				if (swlen > SMB_MAXCHALLENGELEN)
 					break;
-				md_get_uint16(mdp, NULL);	/* mbz */
+				md_get_uint16(mdp, NULL); /* mbz */
 				if (md_get_uint16le(mdp, &bc) != 0)
 					break;
 				if (bc < swlen)
 					break;
 				if (swlen && (sp->sv_sm & SMB_SM_ENCRYPT)) {
-					error = md_get_mem(mdp, vcp->vc_ch, swlen, MB_MSYSTEM);
+					error = md_get_mem(
+					    mdp, vcp->vc_ch, swlen, MB_MSYSTEM);
 					if (error)
 						break;
 					vcp->vc_chlen = swlen;
@@ -251,7 +254,7 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 				}
 			}
 			vcp->vc_hflags2 |= SMB_FLAGS2_KNOWS_LONG_NAMES;
-		} else {	/* an old CORE protocol */
+		} else { /* an old CORE protocol */
 			sp->sv_maxmux = 1;
 		}
 		error = 0;
@@ -265,8 +268,8 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 		if (sp->sv_maxtx <= 0 || sp->sv_maxtx > 0xffff)
 			sp->sv_maxtx = 1024;
 		else
-			sp->sv_maxtx = min(sp->sv_maxtx,
-					   63*1024 + SMB_HDRLEN + 16);
+			sp->sv_maxtx = min(
+			    sp->sv_maxtx, 63 * 1024 + SMB_HDRLEN + 16);
 		SMB_TRAN_GETPARAM(vcp, SMBTP_RCVSZ, &maxqsz);
 		vcp->vc_rxmax = min(smb_vc_maxread(vcp), maxqsz - 1024);
 		SMB_TRAN_GETPARAM(vcp, SMBTP_SNDSZ, &maxqsz);
@@ -283,7 +286,7 @@ bad:
 	/* Restore Unicode conversion state */
 	if (unicode) {
 		vcp->vc_toserver = servercharset;
-		vcp->vc_tolocal  = localcharset;
+		vcp->vc_tolocal = localcharset;
 		vcp->vc_hflags2 |= SMB_FLAGS2_UNICODE;
 	}
 	smb_rq_done(rqp);
@@ -295,8 +298,8 @@ smb_smb_ssnsetup(struct smb_vc *vcp, struct smb_cred *scred)
 {
 	struct smb_rq *rqp;
 	struct mbchain *mbp;
-/*	u_int8_t wc;
-	u_int16_t tw, tw1;*/
+	/*	u_int8_t wc;
+		u_int16_t tw, tw1;*/
 	smb_uniptr unipp, ntencpass = NULL;
 	char *pp, *up, *pbuf, *encpass;
 	int error, plen, uniplen, ulen, upper;
@@ -314,7 +317,8 @@ again:
 	if (smb_smb_nomux(vcp, scred, __func__) != 0)
 		return EINVAL;
 
-	error = smb_rq_alloc(VCTOCP(vcp), SMB_COM_SESSION_SETUP_ANDX, scred, &rqp);
+	error = smb_rq_alloc(
+	    VCTOCP(vcp), SMB_COM_SESSION_SETUP_ANDX, scred, &rqp);
 	if (error)
 		return error;
 	pbuf = malloc(SMB_MAXPASSWORDLEN + 1, M_SMBTEMP, M_WAITOK);
@@ -327,7 +331,7 @@ again:
 		 */
 		if (upper++) {
 			iconv_convstr(vcp->vc_toupper, pbuf,
-				      smb_vc_getpass(vcp)/*, SMB_MAXPASSWORDLEN*/);
+			    smb_vc_getpass(vcp) /*, SMB_MAXPASSWORDLEN*/);
 		} else {
 			strncpy(pbuf, smb_vc_getpass(vcp), SMB_MAXPASSWORDLEN);
 			pbuf[SMB_MAXPASSWORDLEN] = '\0';
@@ -342,13 +346,13 @@ again:
 			ntencpass = malloc(uniplen, M_SMBTEMP, M_WAITOK);
 			if (SMB_UNICODE_STRINGS(vcp)) {
 				strncpy(pbuf, smb_vc_getpass(vcp),
-					SMB_MAXPASSWORDLEN);
+				    SMB_MAXPASSWORDLEN);
 				pbuf[SMB_MAXPASSWORDLEN] = '\0';
 			} else
 				iconv_convstr(vcp->vc_toserver, pbuf,
 					      smb_vc_getpass(vcp)/*,
 					      SMB_MAXPASSWORDLEN*/);
-			smb_ntencrypt(pbuf, vcp->vc_ch, (u_char*)ntencpass);
+			smb_ntencrypt(pbuf, vcp->vc_ch, (u_char *)ntencpass);
 			pp = encpass;
 			unipp = ntencpass;
 		} else {
@@ -365,7 +369,7 @@ again:
 			 * "bug" is actually a workaround for problems in
 			 * Microsoft clients.
 			 */
-			uniplen = 0/*-= 2*/;
+			uniplen = 0 /*-= 2*/;
 			unipp = ntencpass;
 		}
 	} else {
@@ -373,10 +377,10 @@ again:
 		 * In the share security mode password will be used
 		 * only in the tree authentication
 		 */
-		 pp = "";
-		 plen = 1;
-		 unipp = &smb_unieol;
-		 uniplen = 0 /* sizeof(smb_unieol) */;
+		pp = "";
+		plen = 1;
+		unipp = &smb_unieol;
+		uniplen = 0 /* sizeof(smb_unieol) */;
 	}
 	smb_rq_wstart(rqp);
 	mbp = &rqp->sr_rq;
@@ -404,16 +408,19 @@ again:
 		smb_put_dstring(mbp, vcp, up, SMB_CS_NONE);
 	} else {
 		mb_put_uint16le(mbp, uniplen);
-		mb_put_uint32le(mbp, 0);		/* reserved */
+		mb_put_uint32le(mbp, 0); /* reserved */
 		mb_put_uint32le(mbp, caps);
 		smb_rq_wend(rqp);
 		smb_rq_bstart(rqp);
 		mb_put_mem(mbp, pp, plen, MB_MSYSTEM);
 		mb_put_mem(mbp, (caddr_t)unipp, uniplen, MB_MSYSTEM);
-		smb_put_dstring(mbp, vcp, up, SMB_CS_NONE);		/* AccountName */
-		smb_put_dstring(mbp, vcp, vcp->vc_domain, SMB_CS_NONE);	/* PrimaryDomain */
-		smb_put_dstring(mbp, vcp, "FreeBSD", SMB_CS_NONE);	/* Client's OS */
-		smb_put_dstring(mbp, vcp, "NETSMB", SMB_CS_NONE);		/* Client name */
+		smb_put_dstring(mbp, vcp, up, SMB_CS_NONE); /* AccountName */
+		smb_put_dstring(
+		    mbp, vcp, vcp->vc_domain, SMB_CS_NONE); /* PrimaryDomain */
+		smb_put_dstring(
+		    mbp, vcp, "FreeBSD", SMB_CS_NONE); /* Client's OS */
+		smb_put_dstring(
+		    mbp, vcp, "NETSMB", SMB_CS_NONE); /* Client name */
 	}
 	smb_rq_bend(rqp);
 	if (ntencpass)
@@ -475,20 +482,20 @@ smb_share_typename(int stype)
 	char *pp;
 
 	switch (stype) {
-	    case SMB_ST_DISK:
+	case SMB_ST_DISK:
 		pp = "A:";
 		break;
-	    case SMB_ST_PRINTER:
-		pp = smb_any_share;		/* can't use LPT: here... */
+	case SMB_ST_PRINTER:
+		pp = smb_any_share; /* can't use LPT: here... */
 		break;
-	    case SMB_ST_PIPE:
+	case SMB_ST_PIPE:
 		pp = "IPC";
 		break;
-	    case SMB_ST_COMM:
+	case SMB_ST_COMM:
 		pp = "COMM";
 		break;
-	    case SMB_ST_ANY:
-	    default:
+	case SMB_ST_ANY:
+	default:
 		pp = smb_any_share;
 		break;
 	}
@@ -516,7 +523,8 @@ again:
 	}
 
 	ssp->ss_tid = SMB_TID_UNKNOWN;
-	error = smb_rq_alloc(SSTOCP(ssp), SMB_COM_TREE_CONNECT_ANDX, scred, &rqp);
+	error = smb_rq_alloc(
+	    SSTOCP(ssp), SMB_COM_TREE_CONNECT_ANDX, scred, &rqp);
 	if (error)
 		return error;
 	vcp = rqp->sr_vc;
@@ -539,8 +547,8 @@ again:
 				      smb_share_getpass(ssp)/*,
 				      SMB_MAXPASSWORDLEN*/);
 		} else {
-			strncpy(pbuf, smb_share_getpass(ssp),
-				SMB_MAXPASSWORDLEN);
+			strncpy(
+			    pbuf, smb_share_getpass(ssp), SMB_MAXPASSWORDLEN);
 			pbuf[SMB_MAXPASSWORDLEN] = '\0';
 		}
 		if (vcp->vc_sopt.sv_sm & SMB_SM_ENCRYPT) {
@@ -557,7 +565,7 @@ again:
 	mb_put_uint8(mbp, 0xff);
 	mb_put_uint8(mbp, 0);
 	mb_put_uint16le(mbp, 0);
-	mb_put_uint16le(mbp, 0);		/* Flags */
+	mb_put_uint16le(mbp, 0); /* Flags */
 	mb_put_uint16le(mbp, plen);
 	smb_rq_wend(rqp);
 	smb_rq_bstart(rqp);
@@ -624,7 +632,7 @@ smb_smb_treedisconnect(struct smb_share *ssp, struct smb_cred *scred)
 
 static __inline int
 smb_smb_readx(struct smb_share *ssp, u_int16_t fid, int *len, int *rresid,
-	      struct uio *uio, struct smb_cred *scred)
+    struct uio *uio, struct smb_cred *scred)
 {
 	struct smb_rq *rqp;
 	struct mbchain *mbp;
@@ -639,17 +647,17 @@ smb_smb_readx(struct smb_share *ssp, u_int16_t fid, int *len, int *rresid,
 		return error;
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
-	mb_put_uint8(mbp, 0xff);	/* no secondary command */
-	mb_put_uint8(mbp, 0);		/* MBZ */
-	mb_put_uint16le(mbp, 0);	/* offset to secondary */
+	mb_put_uint8(mbp, 0xff); /* no secondary command */
+	mb_put_uint8(mbp, 0);	 /* MBZ */
+	mb_put_uint16le(mbp, 0); /* offset to secondary */
 	mb_put_mem(mbp, (caddr_t)&fid, sizeof(fid), MB_MSYSTEM);
 	mb_put_uint32le(mbp, uio->uio_offset);
 	*len = min(SSTOVC(ssp)->vc_rxmax, *len);
-	mb_put_uint16le(mbp, *len);	/* MaxCount */
-	mb_put_uint16le(mbp, *len);	/* MinCount (only indicates blocking) */
-	mb_put_uint32le(mbp, (unsigned)*len >> 16);	/* MaxCountHigh */
-	mb_put_uint16le(mbp, *len);	/* Remaining ("obsolete") */
-	mb_put_uint32le(mbp, uio->uio_offset >> 32);	/* OffsetHigh */
+	mb_put_uint16le(mbp, *len); /* MaxCount */
+	mb_put_uint16le(mbp, *len); /* MinCount (only indicates blocking) */
+	mb_put_uint32le(mbp, (unsigned)*len >> 16); /* MaxCountHigh */
+	mb_put_uint16le(mbp, *len);		    /* Remaining ("obsolete") */
+	mb_put_uint32le(mbp, uio->uio_offset >> 32); /* OffsetHigh */
 	smb_rq_wend(rqp);
 	smb_rq_bstart(rqp);
 	smb_rq_bend(rqp);
@@ -673,22 +681,22 @@ smb_smb_readx(struct smb_share *ssp, u_int16_t fid, int *len, int *rresid,
 		off += 2;
 		md_get_uint16le(mdp, NULL);
 		off += 2;
-		md_get_uint16le(mdp, NULL);	/* data compaction mode */
+		md_get_uint16le(mdp, NULL); /* data compaction mode */
 		off += 2;
 		md_get_uint16le(mdp, NULL);
 		off += 2;
 		md_get_uint16le(mdp, &residlo);
 		off += 2;
-		md_get_uint16le(mdp, &doff);	/* data offset */
+		md_get_uint16le(mdp, &doff); /* data offset */
 		off += 2;
 		md_get_uint16le(mdp, &residhi);
 		off += 2;
 		resid = (residhi << 16) | residlo;
 		md_get_mem(mdp, NULL, 4 * 2, MB_MSYSTEM);
-		off += 4*2;
-		md_get_uint16le(mdp, NULL);	/* ByteCount */
+		off += 4 * 2;
+		md_get_uint16le(mdp, NULL); /* ByteCount */
 		off += 2;
-		if (doff > off)	/* pad byte(s)? */
+		if (doff > off) /* pad byte(s)? */
 			md_get_mem(mdp, NULL, doff - off, MB_MSYSTEM);
 		if (resid == 0) {
 			*rresid = resid;
@@ -698,14 +706,14 @@ smb_smb_readx(struct smb_share *ssp, u_int16_t fid, int *len, int *rresid,
 		if (error)
 			break;
 		*rresid = resid;
-	} while(0);
+	} while (0);
 	smb_rq_done(rqp);
 	return (error);
 }
 
 static __inline int
 smb_smb_writex(struct smb_share *ssp, u_int16_t fid, int *len, int *rresid,
-	struct uio *uio, struct smb_cred *scred)
+    struct uio *uio, struct smb_cred *scred)
 {
 	struct smb_rq *rqp;
 	struct mbchain *mbp;
@@ -719,23 +727,23 @@ smb_smb_writex(struct smb_share *ssp, u_int16_t fid, int *len, int *rresid,
 		return (error);
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
-	mb_put_uint8(mbp, 0xff);	/* no secondary command */
-	mb_put_uint8(mbp, 0);		/* MBZ */
-	mb_put_uint16le(mbp, 0);	/* offset to secondary */
+	mb_put_uint8(mbp, 0xff); /* no secondary command */
+	mb_put_uint8(mbp, 0);	 /* MBZ */
+	mb_put_uint16le(mbp, 0); /* offset to secondary */
 	mb_put_mem(mbp, (caddr_t)&fid, sizeof(fid), MB_MSYSTEM);
 	mb_put_uint32le(mbp, uio->uio_offset);
-	mb_put_uint32le(mbp, 0);	/* MBZ (timeout) */
-	mb_put_uint16le(mbp, 0);	/* !write-thru */
+	mb_put_uint32le(mbp, 0); /* MBZ (timeout) */
+	mb_put_uint16le(mbp, 0); /* !write-thru */
 	mb_put_uint16le(mbp, 0);
 	*len = min(SSTOVC(ssp)->vc_wxmax, *len);
 	mb_put_uint16le(mbp, (unsigned)*len >> 16);
 	mb_put_uint16le(mbp, *len);
-	mb_put_uint16le(mbp, 64);	/* data offset from header start */
-	mb_put_uint32le(mbp, uio->uio_offset >> 32);	/* OffsetHigh */
+	mb_put_uint16le(mbp, 64); /* data offset from header start */
+	mb_put_uint32le(mbp, uio->uio_offset >> 32); /* OffsetHigh */
 	smb_rq_wend(rqp);
 	smb_rq_bstart(rqp);
 	do {
-		mb_put_uint8(mbp, 0xee);	/* mimic xp pad byte! */
+		mb_put_uint8(mbp, 0xee); /* mimic xp pad byte! */
 		error = mb_put_uio(mbp, uio, *len);
 		if (error)
 			break;
@@ -754,15 +762,15 @@ smb_smb_writex(struct smb_share *ssp, u_int16_t fid, int *len, int *rresid,
 		md_get_uint16le(mdp, NULL);
 		md_get_uint16le(mdp, &resid);
 		*rresid = resid;
-	} while(0);
+	} while (0);
 
 	smb_rq_done(rqp);
 	return (error);
 }
 
 static __inline int
-smb_smb_read(struct smb_share *ssp, u_int16_t fid,
-	int *len, int *rresid, struct uio *uio, struct smb_cred *scred)
+smb_smb_read(struct smb_share *ssp, u_int16_t fid, int *len, int *rresid,
+    struct uio *uio, struct smb_cred *scred)
 {
 	struct smb_rq *rqp;
 	struct mbchain *mbp;
@@ -803,7 +811,7 @@ smb_smb_read(struct smb_share *ssp, u_int16_t fid,
 		md_get_uint16le(mdp, &resid);
 		md_get_mem(mdp, NULL, 4 * 2, MB_MSYSTEM);
 		md_get_uint16le(mdp, &bc);
-		md_get_uint8(mdp, NULL);		/* ignore buffer type */
+		md_get_uint8(mdp, NULL); /* ignore buffer type */
 		md_get_uint16le(mdp, &resid);
 		if (resid == 0) {
 			*rresid = resid;
@@ -813,14 +821,14 @@ smb_smb_read(struct smb_share *ssp, u_int16_t fid,
 		if (error)
 			break;
 		*rresid = resid;
-	} while(0);
+	} while (0);
 	smb_rq_done(rqp);
 	return error;
 }
 
 int
 smb_read(struct smb_share *ssp, u_int16_t fid, struct uio *uio,
-	struct smb_cred *scred)
+    struct smb_cred *scred)
 {
 	int tsize, len, resid;
 	int error = 0;
@@ -841,7 +849,7 @@ smb_read(struct smb_share *ssp, u_int16_t fid, struct uio *uio,
 
 static __inline int
 smb_smb_write(struct smb_share *ssp, u_int16_t fid, int *len, int *rresid,
-	struct uio *uio, struct smb_cred *scred)
+    struct uio *uio, struct smb_cred *scred)
 {
 	struct smb_rq *rqp;
 	struct mbchain *mbp;
@@ -888,14 +896,14 @@ smb_smb_write(struct smb_share *ssp, u_int16_t fid, int *len, int *rresid,
 		}
 		md_get_uint16le(mdp, &resid);
 		*rresid = resid;
-	} while(0);
+	} while (0);
 	smb_rq_done(rqp);
 	return error;
 }
 
 int
 smb_write(struct smb_share *ssp, u_int16_t fid, struct uio *uio,
-	struct smb_cred *scred)
+    struct smb_cred *scred)
 {
 	int error = 0, len, tsize, resid;
 	struct uio olduio;

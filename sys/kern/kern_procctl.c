@@ -46,8 +46,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_map.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_map.h>
 
 static int
 protect_setchild(struct thread *td, struct proc *p, int flags)
@@ -86,17 +86,18 @@ protect_setchildren(struct thread *td, struct proc *top, int flags)
 		 */
 		if (!LIST_EMPTY(&p->p_children))
 			p = LIST_FIRST(&p->p_children);
-		else for (;;) {
-			if (p == top) {
-				PROC_LOCK(p);
-				return (ret);
+		else
+			for (;;) {
+				if (p == top) {
+					PROC_LOCK(p);
+					return (ret);
+				}
+				if (LIST_NEXT(p, p_sibling)) {
+					p = LIST_NEXT(p, p_sibling);
+					break;
+				}
+				p = p->p_pptr;
 			}
-			if (LIST_NEXT(p, p_sibling)) {
-				p = LIST_NEXT(p, p_sibling);
-				break;
-			}
-			p = p->p_pptr;
-		}
 		PROC_LOCK(p);
 	}
 }
@@ -163,8 +164,7 @@ reap_release(struct thread *td, struct proc *p)
 }
 
 static int
-reap_status(struct thread *td, struct proc *p,
-    struct procctl_reaper_status *rs)
+reap_status(struct thread *td, struct proc *p, struct procctl_reaper_status *rs)
 {
 	struct proc *reap, *p2, *first_p;
 
@@ -186,7 +186,7 @@ reap_status(struct thread *td, struct proc *p,
 		if (first_p == NULL)
 			first_p = LIST_FIRST(&reap->p_reaplist);
 		rs->rs_pid = first_p->p_pid;
-		LIST_FOREACH(p2, &reap->p_reaplist, p_reapsibling) {
+		LIST_FOREACH (p2, &reap->p_reaplist, p_reapsibling) {
 			if (proc_realparent(p2) == reap)
 				rs->rs_children++;
 			rs->rs_descendants++;
@@ -210,14 +210,14 @@ reap_getpids(struct thread *td, struct proc *p, struct procctl_reaper_pids *rp)
 	reap = (p->p_treeflag & P_TREE_REAPER) == 0 ? p->p_reaper : p;
 	n = i = 0;
 	error = 0;
-	LIST_FOREACH(p2, &reap->p_reaplist, p_reapsibling)
+	LIST_FOREACH (p2, &reap->p_reaplist, p_reapsibling)
 		n++;
 	sx_unlock(&proctree_lock);
 	if (rp->rp_count < n)
 		n = rp->rp_count;
 	pi = malloc(n * sizeof(*pi), M_TEMP, M_WAITOK);
 	sx_slock(&proctree_lock);
-	LIST_FOREACH(p2, &reap->p_reaplist, p_reapsibling) {
+	LIST_FOREACH (p2, &reap->p_reaplist, p_reapsibling) {
 		if (i == n)
 			break;
 		pip = &pi[i];
@@ -288,10 +288,10 @@ reap_kill(struct thread *td, struct proc *p, struct procctl_reaper_kill *rk)
 	if (IN_CAPABILITY_MODE(td))
 		return (ECAPMODE);
 	if (rk->rk_sig <= 0 || rk->rk_sig > _SIG_MAXSIG ||
-	    (rk->rk_flags & ~(REAPER_KILL_CHILDREN |
-	    REAPER_KILL_SUBTREE)) != 0 || (rk->rk_flags &
-	    (REAPER_KILL_CHILDREN | REAPER_KILL_SUBTREE)) ==
-	    (REAPER_KILL_CHILDREN | REAPER_KILL_SUBTREE))
+	    (rk->rk_flags & ~(REAPER_KILL_CHILDREN | REAPER_KILL_SUBTREE)) !=
+		0 ||
+	    (rk->rk_flags & (REAPER_KILL_CHILDREN | REAPER_KILL_SUBTREE)) ==
+		(REAPER_KILL_CHILDREN | REAPER_KILL_SUBTREE))
 		return (EINVAL);
 	PROC_UNLOCK(p);
 	reap = (p->p_treeflag & P_TREE_REAPER) == 0 ? p->p_reaper : p;
@@ -305,7 +305,7 @@ reap_kill(struct thread *td, struct proc *p, struct procctl_reaper_kill *rk)
 	rk->rk_fpid = -1;
 	if ((rk->rk_flags & REAPER_KILL_CHILDREN) != 0) {
 		for (p2 = LIST_FIRST(&reap->p_children); p2 != NULL;
-		    p2 = LIST_NEXT(p2, p_sibling)) {
+		     p2 = LIST_NEXT(p2, p_sibling)) {
 			reap_kill_proc(td, p2, &ksi, rk, &error);
 			/*
 			 * Do not end the loop on error, signal
@@ -318,8 +318,8 @@ reap_kill(struct thread *td, struct proc *p, struct procctl_reaper_kill *rk)
 		while ((t = TAILQ_FIRST(&tracker)) != NULL) {
 			MPASS((t->parent->p_treeflag & P_TREE_REAPER) != 0);
 			TAILQ_REMOVE(&tracker, t, link);
-			for (p2 = LIST_FIRST(&t->parent->p_reaplist); p2 != NULL;
-			    p2 = LIST_NEXT(p2, p_reapsibling)) {
+			for (p2 = LIST_FIRST(&t->parent->p_reaplist);
+			     p2 != NULL; p2 = LIST_NEXT(p2, p_reapsibling)) {
 				if (t->parent == reap &&
 				    (rk->rk_flags & REAPER_KILL_SUBTREE) != 0 &&
 				    p2->p_reapsubtree != rk->rk_subtree)
@@ -415,7 +415,7 @@ trapcap_status(struct thread *td, struct proc *p, int *data)
 {
 
 	*data = (p->p_flag2 & P2_TRAPCAP) != 0 ? PROC_TRAPCAP_CTL_ENABLE :
-	    PROC_TRAPCAP_CTL_DISABLE;
+						       PROC_TRAPCAP_CTL_DISABLE;
 	return (0);
 }
 
@@ -525,8 +525,10 @@ stackgap_ctl(struct thread *td, struct proc *p, int state)
 {
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	if ((state & ~(PROC_STACKGAP_ENABLE | PROC_STACKGAP_DISABLE |
-	    PROC_STACKGAP_ENABLE_EXEC | PROC_STACKGAP_DISABLE_EXEC)) != 0)
+	if ((state &
+		~(PROC_STACKGAP_ENABLE | PROC_STACKGAP_DISABLE |
+		    PROC_STACKGAP_ENABLE_EXEC | PROC_STACKGAP_DISABLE_EXEC)) !=
+	    0)
 		return (EINVAL);
 	switch (state & (PROC_STACKGAP_ENABLE | PROC_STACKGAP_DISABLE)) {
 	case PROC_STACKGAP_ENABLE:
@@ -541,8 +543,8 @@ stackgap_ctl(struct thread *td, struct proc *p, int state)
 	default:
 		return (EINVAL);
 	}
-	switch (state & (PROC_STACKGAP_ENABLE_EXEC |
-	    PROC_STACKGAP_DISABLE_EXEC)) {
+	switch (
+	    state & (PROC_STACKGAP_ENABLE_EXEC | PROC_STACKGAP_DISABLE_EXEC)) {
 	case PROC_STACKGAP_ENABLE_EXEC:
 		p->p_flag2 &= ~P2_STKGAP_DISABLE_EXEC;
 		break;
@@ -563,18 +565,19 @@ stackgap_status(struct thread *td, struct proc *p, int *data)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	*data = (p->p_flag2 & P2_STKGAP_DISABLE) != 0 ? PROC_STACKGAP_DISABLE :
-	    PROC_STACKGAP_ENABLE;
+							      PROC_STACKGAP_ENABLE;
 	*data |= (p->p_flag2 & P2_STKGAP_DISABLE_EXEC) != 0 ?
-	    PROC_STACKGAP_DISABLE_EXEC : PROC_STACKGAP_ENABLE_EXEC;
+		  PROC_STACKGAP_DISABLE_EXEC :
+		  PROC_STACKGAP_ENABLE_EXEC;
 	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct procctl_args {
 	idtype_t idtype;
-	id_t	id;
-	int	com;
-	void	*data;
+	id_t id;
+	int com;
+	void *data;
 };
 #endif
 /* ARGSUSED */
@@ -590,8 +593,8 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 	int error, error1, flags, signum;
 
 	if (uap->com >= PROC_PROCCTL_MD_MIN)
-		return (cpu_procctl(td, uap->idtype, uap->id,
-		    uap->com, uap->data));
+		return (
+		    cpu_procctl(td, uap->idtype, uap->id, uap->com, uap->data));
 
 	switch (uap->com) {
 	case PROC_ASLR_CTL:
@@ -821,7 +824,7 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 		PGRP_UNLOCK(pg);
 		ok = 0;
 		first_error = 0;
-		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
+		LIST_FOREACH (p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
 			if (p->p_state == PRS_NEW || p_cansee(td, p) != 0) {
 				PROC_UNLOCK(p);

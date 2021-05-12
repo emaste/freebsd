@@ -35,22 +35,21 @@
 
 struct spigen_transfer {
 	struct iovec st_command; /* master to slave */
-	struct iovec st_data;    /* slave to master and/or master to slave */
+	struct iovec st_data;	 /* slave to master and/or master to slave */
 };
 
 struct spigen_transfer_mmapped {
 	size_t stm_command_length; /* at offset 0 in mmap(2) area */
-	size_t stm_data_length;    /* at offset stm_command_length */
+	size_t stm_data_length;	   /* at offset stm_command_length */
 };
 
-#define SPIGENIOC_BASE     'S'
-#define SPIGENIOC_TRANSFER 	   _IOW(SPIGENIOC_BASE, 0, \
-	    struct spigen_transfer)
-#define SPIGENIOC_TRANSFER_MMAPPED _IOW(SPIGENIOC_BASE, 1, \
-	    struct spigen_transfer_mmapped)
-#define SPIGENIOC_GET_CLOCK_SPEED  _IOR(SPIGENIOC_BASE, 2, uint32_t)
-#define SPIGENIOC_SET_CLOCK_SPEED  _IOW(SPIGENIOC_BASE, 3, uint32_t)
-#define SPIGENIOC_GET_SPI_MODE     _IOR(SPIGENIOC_BASE, 4, uint32_t)
-#define SPIGENIOC_SET_SPI_MODE     _IOW(SPIGENIOC_BASE, 5, uint32_t)
+#define SPIGENIOC_BASE 'S'
+#define SPIGENIOC_TRANSFER _IOW(SPIGENIOC_BASE, 0, struct spigen_transfer)
+#define SPIGENIOC_TRANSFER_MMAPPED \
+	_IOW(SPIGENIOC_BASE, 1, struct spigen_transfer_mmapped)
+#define SPIGENIOC_GET_CLOCK_SPEED _IOR(SPIGENIOC_BASE, 2, uint32_t)
+#define SPIGENIOC_SET_CLOCK_SPEED _IOW(SPIGENIOC_BASE, 3, uint32_t)
+#define SPIGENIOC_GET_SPI_MODE _IOR(SPIGENIOC_BASE, 4, uint32_t)
+#define SPIGENIOC_SET_SPI_MODE _IOW(SPIGENIOC_BASE, 5, uint32_t)
 
 #endif /* !_SYS_SPIGENIO_H_ */

@@ -30,20 +30,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/pciio.h>
 #include <sys/rman.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_pci.h>
-
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
@@ -55,106 +52,102 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/ofwpci.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/pci/pcib_private.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include "pcib_if.h"
-#include <dev/pci/pcib_private.h>
 #include "pic_if.h"
 
 /*
  * IBM CPC9X5 Hypertransport Device interface.
  */
-static int		cpcht_probe(device_t);
-static int		cpcht_attach(device_t);
+static int cpcht_probe(device_t);
+static int cpcht_attach(device_t);
 
-static void		cpcht_configure_htbridge(device_t, phandle_t);
+static void cpcht_configure_htbridge(device_t, phandle_t);
 
 /*
  * pcib interface.
  */
-static u_int32_t	cpcht_read_config(device_t, u_int, u_int, u_int,
-			    u_int, int);
-static void		cpcht_write_config(device_t, u_int, u_int, u_int,
-			    u_int, u_int32_t, int);
-static int		cpcht_route_interrupt(device_t, device_t, int);
-static int		cpcht_alloc_msi(device_t dev, device_t child,
-			    int count, int maxcount, int *irqs);
-static int		cpcht_release_msi(device_t dev, device_t child,
-			    int count, int *irqs);
-static int		cpcht_alloc_msix(device_t dev, device_t child,
-			    int *irq);
-static int		cpcht_release_msix(device_t dev, device_t child,
-			    int irq);
-static int		cpcht_map_msi(device_t dev, device_t child,
-			    int irq, uint64_t *addr, uint32_t *data);
+static u_int32_t cpcht_read_config(device_t, u_int, u_int, u_int, u_int, int);
+static void cpcht_write_config(
+    device_t, u_int, u_int, u_int, u_int, u_int32_t, int);
+static int cpcht_route_interrupt(device_t, device_t, int);
+static int cpcht_alloc_msi(
+    device_t dev, device_t child, int count, int maxcount, int *irqs);
+static int cpcht_release_msi(
+    device_t dev, device_t child, int count, int *irqs);
+static int cpcht_alloc_msix(device_t dev, device_t child, int *irq);
+static int cpcht_release_msix(device_t dev, device_t child, int irq);
+static int cpcht_map_msi(
+    device_t dev, device_t child, int irq, uint64_t *addr, uint32_t *data);
 
 /*
  * Driver methods.
  */
-static device_method_t	cpcht_methods[] = {
+static device_method_t cpcht_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		cpcht_probe),
-	DEVMETHOD(device_attach,	cpcht_attach),
+	DEVMETHOD(device_probe, cpcht_probe),
+	DEVMETHOD(device_attach, cpcht_attach),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_read_config,	cpcht_read_config),
-	DEVMETHOD(pcib_write_config,	cpcht_write_config),
-	DEVMETHOD(pcib_route_interrupt,	cpcht_route_interrupt),
-	DEVMETHOD(pcib_alloc_msi,	cpcht_alloc_msi),
-	DEVMETHOD(pcib_release_msi,	cpcht_release_msi),
-	DEVMETHOD(pcib_alloc_msix,	cpcht_alloc_msix),
-	DEVMETHOD(pcib_release_msix,	cpcht_release_msix),
-	DEVMETHOD(pcib_map_msi,		cpcht_map_msi),
-	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
+	DEVMETHOD(pcib_read_config, cpcht_read_config),
+	DEVMETHOD(pcib_write_config, cpcht_write_config),
+	DEVMETHOD(pcib_route_interrupt, cpcht_route_interrupt),
+	DEVMETHOD(pcib_alloc_msi, cpcht_alloc_msi),
+	DEVMETHOD(pcib_release_msi, cpcht_release_msi),
+	DEVMETHOD(pcib_alloc_msix, cpcht_alloc_msix),
+	DEVMETHOD(pcib_release_msix, cpcht_release_msix),
+	DEVMETHOD(pcib_map_msi, cpcht_map_msi),
+	DEVMETHOD(pcib_request_feature, pcib_request_feature_allow),
 
 	DEVMETHOD_END
 };
 
 struct cpcht_irq {
-	enum {
-	    IRQ_NONE, IRQ_HT, IRQ_MSI, IRQ_INTERNAL
-	}		irq_type; 
+	enum { IRQ_NONE, IRQ_HT, IRQ_MSI, IRQ_INTERNAL } irq_type;
 
-	int		ht_source;
+	int ht_source;
 
-	vm_offset_t	ht_base;
-	vm_offset_t	apple_eoi;
-	uint32_t	eoi_data;
-	int		edge;
+	vm_offset_t ht_base;
+	vm_offset_t apple_eoi;
+	uint32_t eoi_data;
+	int edge;
 };
 
 static struct cpcht_irq *cpcht_irqmap = NULL;
 uint32_t cpcht_msipic = 0;
 
 struct cpcht_softc {
-	struct ofw_pci_softc	pci_sc;
-	vm_offset_t		sc_data;
-	uint64_t		sc_populated_slots;
+	struct ofw_pci_softc pci_sc;
+	vm_offset_t sc_data;
+	uint64_t sc_populated_slots;
 
-	struct cpcht_irq	htirq_map[128];
-	struct mtx		htirq_mtx;
+	struct cpcht_irq htirq_map[128];
+	struct mtx htirq_mtx;
 };
 
-static devclass_t	cpcht_devclass;
+static devclass_t cpcht_devclass;
 DEFINE_CLASS_1(pcib, cpcht_driver, cpcht_methods, sizeof(struct cpcht_softc),
     ofw_pci_driver);
-EARLY_DRIVER_MODULE(cpcht, ofwbus, cpcht_driver, cpcht_devclass, 0, 0,
-    BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(
+    cpcht, ofwbus, cpcht_driver, cpcht_devclass, 0, 0, BUS_PASS_BUS);
 
-#define CPCHT_IOPORT_BASE	0xf4000000UL /* Hardwired */
-#define CPCHT_IOPORT_SIZE	0x00400000UL
+#define CPCHT_IOPORT_BASE 0xf4000000UL /* Hardwired */
+#define CPCHT_IOPORT_SIZE 0x00400000UL
 
-#define HTAPIC_REQUEST_EOI	0x20
-#define HTAPIC_TRIGGER_LEVEL	0x02
-#define HTAPIC_MASK		0x01
+#define HTAPIC_REQUEST_EOI 0x20
+#define HTAPIC_TRIGGER_LEVEL 0x02
+#define HTAPIC_MASK 0x01
 
 static int
 cpcht_probe(device_t dev)
 {
-	const char	*type, *compatible;
+	const char *type, *compatible;
 
 	type = ofw_bus_get_type(dev);
 	compatible = ofw_bus_get_compat(dev);
@@ -175,10 +168,10 @@ cpcht_probe(device_t dev)
 static int
 cpcht_attach(device_t dev)
 {
-	struct		cpcht_softc *sc;
-	phandle_t	node, child;
-	u_int32_t	reg[3];
-	int		i;
+	struct cpcht_softc *sc;
+	phandle_t node, child;
+	u_int32_t reg[3];
+	int i;
 
 	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
@@ -252,19 +245,19 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 	 */
 
 	/* All the devices we are interested in have caps */
-	if (!(PCIB_READ_CONFIG(dev, b, s, f, PCIR_STATUS, 2)
-	    & PCIM_STATUS_CAPPRESENT))
+	if (!(PCIB_READ_CONFIG(dev, b, s, f, PCIR_STATUS, 2) &
+		PCIM_STATUS_CAPPRESENT))
 		return;
 
 	nextptr = PCIB_READ_CONFIG(dev, b, s, f, PCIR_CAP_PTR, 1);
 	while (nextptr != 0) {
 		ptr = nextptr;
-		nextptr = PCIB_READ_CONFIG(dev, b, s, f,
-		    ptr + PCICAP_NEXTPTR, 1);
+		nextptr = PCIB_READ_CONFIG(
+		    dev, b, s, f, ptr + PCICAP_NEXTPTR, 1);
 
 		/* Find the HT IRQ capabilities */
-		if (PCIB_READ_CONFIG(dev, b, s, f,
-		    ptr + PCICAP_ID, 1) != PCIY_HT)
+		if (PCIB_READ_CONFIG(dev, b, s, f, ptr + PCICAP_ID, 1) !=
+		    PCIY_HT)
 			continue;
 
 		val = PCIB_READ_CONFIG(dev, b, s, f, ptr + PCIR_HT_COMMAND, 2);
@@ -279,52 +272,52 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 		device_printf(dev, "%d HT IRQs on device %d.%d\n", nirq, s, f);
 
 		for (i = 0; i < nirq; i++) {
-			PCIB_WRITE_CONFIG(dev, b, s, f,
-			     ptr + PCIR_HT_COMMAND, 0x10 + (i << 1), 1);
+			PCIB_WRITE_CONFIG(dev, b, s, f, ptr + PCIR_HT_COMMAND,
+			    0x10 + (i << 1), 1);
 			irq = PCIB_READ_CONFIG(dev, b, s, f, ptr + 4, 4);
 
 			/*
 			 * Mask this interrupt for now.
 			 */
-			PCIB_WRITE_CONFIG(dev, b, s, f, ptr + 4,
-			    irq | HTAPIC_MASK, 4);
+			PCIB_WRITE_CONFIG(
+			    dev, b, s, f, ptr + 4, irq | HTAPIC_MASK, 4);
 			irq = (irq >> 16) & 0xff;
 
 			sc->htirq_map[irq].irq_type = IRQ_HT;
 			sc->htirq_map[irq].ht_source = i;
-			sc->htirq_map[irq].ht_base = sc->sc_data + 
+			sc->htirq_map[irq].ht_base = sc->sc_data +
 			    (((((s & 0x1f) << 3) | (f & 0x07)) << 8) | (ptr));
 
-			PCIB_WRITE_CONFIG(dev, b, s, f,
-			     ptr + PCIR_HT_COMMAND, 0x11 + (i << 1), 1);
-			sc->htirq_map[irq].eoi_data =
-			    PCIB_READ_CONFIG(dev, b, s, f, ptr + 4, 4) |
+			PCIB_WRITE_CONFIG(dev, b, s, f, ptr + PCIR_HT_COMMAND,
+			    0x11 + (i << 1), 1);
+			sc->htirq_map[irq].eoi_data = PCIB_READ_CONFIG(dev, b,
+							  s, f, ptr + 4, 4) |
 			    0x80000000;
 
 			/*
 			 * Apple uses a non-compliant IO/APIC that differs
-			 * in how we signal EOIs. Check if this device was 
+			 * in how we signal EOIs. Check if this device was
 			 * made by Apple, and act accordingly.
 			 */
-			vend = PCIB_READ_CONFIG(dev, b, s, f,
-			    PCIR_DEVVENDOR, 4);
+			vend = PCIB_READ_CONFIG(
+			    dev, b, s, f, PCIR_DEVVENDOR, 4);
 			if ((vend & 0xffff) == 0x106b)
-				sc->htirq_map[irq].apple_eoi = 
-				 (sc->htirq_map[irq].ht_base - ptr) + 0x60;
+				sc->htirq_map[irq].apple_eoi =
+				    (sc->htirq_map[irq].ht_base - ptr) + 0x60;
 		}
 	}
 }
 
 static u_int32_t
-cpcht_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
-    int width)
+cpcht_read_config(
+    device_t dev, u_int bus, u_int slot, u_int func, u_int reg, int width)
 {
-	struct		cpcht_softc *sc;
-	vm_offset_t	caoff;
+	struct cpcht_softc *sc;
+	vm_offset_t caoff;
 
 	sc = device_get_softc(dev);
-	caoff = sc->sc_data + 
-		(((((slot & 0x1f) << 3) | (func & 0x07)) << 8) | reg);
+	caoff = sc->sc_data +
+	    (((((slot & 0x1f) << 3) | (func & 0x07)) << 8) | reg);
 
 	if (bus == 0 && (!(sc->sc_populated_slots & (1 << slot)) || func > 0))
 		return (0xffffffff);
@@ -348,15 +341,15 @@ cpcht_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 }
 
 static void
-cpcht_write_config(device_t dev, u_int bus, u_int slot, u_int func,
-    u_int reg, u_int32_t val, int width)
+cpcht_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
+    u_int32_t val, int width)
 {
-	struct		cpcht_softc *sc;
-	vm_offset_t	caoff;
+	struct cpcht_softc *sc;
+	vm_offset_t caoff;
 
 	sc = device_get_softc(dev);
-	caoff = sc->sc_data + 
-		(((((slot & 0x1f) << 3) | (func & 0x07)) << 8) | reg);
+	caoff = sc->sc_data +
+	    (((((slot & 0x1f) << 3) | (func & 0x07)) << 8) | reg);
 
 	if (bus == 0 && (!(sc->sc_populated_slots & (1 << slot)) || func > 0))
 		return;
@@ -384,8 +377,8 @@ cpcht_route_interrupt(device_t bus, device_t dev, int pin)
 }
 
 static int
-cpcht_alloc_msi(device_t dev, device_t child, int count, int maxcount,
-    int *irqs)
+cpcht_alloc_msi(
+    device_t dev, device_t child, int count, int maxcount, int *irqs)
 {
 	struct cpcht_softc *sc;
 	int i, j;
@@ -400,7 +393,7 @@ cpcht_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 	mtx_lock(&sc->htirq_mtx);
 	for (i = 8; i < 124 - count; i++) {
 		for (j = 0; j < count; j++) {
-			if (sc->htirq_map[i+j].irq_type != IRQ_NONE)
+			if (sc->htirq_map[i + j].irq_type != IRQ_NONE)
 				break;
 		}
 		if (j == count)
@@ -415,8 +408,8 @@ cpcht_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 	}
 
 	for (j = 0; j < count; j++) {
-		irqs[j] = MAP_IRQ(cpcht_msipic, i+j);
-		sc->htirq_map[i+j].irq_type = IRQ_MSI;
+		irqs[j] = MAP_IRQ(cpcht_msipic, i + j);
+		sc->htirq_map[i + j].irq_type = IRQ_MSI;
 	}
 	mtx_unlock(&sc->htirq_mtx);
 
@@ -481,15 +474,15 @@ cpcht_release_msix(device_t dev, device_t child, int irq)
 }
 
 static int
-cpcht_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
-    uint32_t *data)
+cpcht_map_msi(
+    device_t dev, device_t child, int irq, uint64_t *addr, uint32_t *data)
 {
 	device_t pcib;
 	struct pci_devinfo *dinfo;
 	struct pcicfg_ht *ht = NULL;
 
-	for (pcib = child; pcib != dev; pcib =
-	    device_get_parent(device_get_parent(pcib))) {
+	for (pcib = child; pcib != dev;
+	     pcib = device_get_parent(device_get_parent(pcib))) {
 		dinfo = device_get_ivars(pcib);
 		ht = &dinfo->cfg.ht;
 
@@ -510,29 +503,29 @@ cpcht_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
  * Driver for the integrated MPIC on U3/U4 (CPC925/CPC945)
  */
 
-static int	openpic_cpcht_probe(device_t);
-static int	openpic_cpcht_attach(device_t);
-static void	openpic_cpcht_config(device_t, u_int irq,
-		    enum intr_trigger trig, enum intr_polarity pol);
-static void	openpic_cpcht_enable(device_t, u_int irq, u_int vector,
-		    void **priv);
-static void	openpic_cpcht_unmask(device_t, u_int irq, void *priv);
-static void	openpic_cpcht_eoi(device_t, u_int irq, void *priv);
+static int openpic_cpcht_probe(device_t);
+static int openpic_cpcht_attach(device_t);
+static void openpic_cpcht_config(
+    device_t, u_int irq, enum intr_trigger trig, enum intr_polarity pol);
+static void openpic_cpcht_enable(
+    device_t, u_int irq, u_int vector, void **priv);
+static void openpic_cpcht_unmask(device_t, u_int irq, void *priv);
+static void openpic_cpcht_eoi(device_t, u_int irq, void *priv);
 
-static device_method_t  openpic_cpcht_methods[] = {
+static device_method_t openpic_cpcht_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		openpic_cpcht_probe),
-	DEVMETHOD(device_attach,	openpic_cpcht_attach),
+	DEVMETHOD(device_probe, openpic_cpcht_probe),
+	DEVMETHOD(device_attach, openpic_cpcht_attach),
 
 	/* PIC interface */
-	DEVMETHOD(pic_bind,		openpic_bind),
-	DEVMETHOD(pic_config,		openpic_cpcht_config),
-	DEVMETHOD(pic_dispatch,		openpic_dispatch),
-	DEVMETHOD(pic_enable,		openpic_cpcht_enable),
-	DEVMETHOD(pic_eoi,		openpic_cpcht_eoi),
-	DEVMETHOD(pic_ipi,		openpic_ipi),
-	DEVMETHOD(pic_mask,		openpic_mask),
-	DEVMETHOD(pic_unmask,		openpic_cpcht_unmask),
+	DEVMETHOD(pic_bind, openpic_bind),
+	DEVMETHOD(pic_config, openpic_cpcht_config),
+	DEVMETHOD(pic_dispatch, openpic_dispatch),
+	DEVMETHOD(pic_enable, openpic_cpcht_enable),
+	DEVMETHOD(pic_eoi, openpic_cpcht_eoi),
+	DEVMETHOD(pic_ipi, openpic_ipi),
+	DEVMETHOD(pic_mask, openpic_mask),
+	DEVMETHOD(pic_unmask, openpic_cpcht_unmask),
 
 	{ 0, 0 },
 };
@@ -549,8 +542,8 @@ static driver_t openpic_cpcht_driver = {
 	sizeof(struct openpic_cpcht_softc),
 };
 
-EARLY_DRIVER_MODULE(openpic, unin, openpic_cpcht_driver, openpic_devclass,
-    0, 0, BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(openpic, unin, openpic_cpcht_driver, openpic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT);
 
 static int
 openpic_cpcht_probe(device_t dev)
@@ -558,7 +551,7 @@ openpic_cpcht_probe(device_t dev)
 	const char *type = ofw_bus_get_type(dev);
 
 	if (strcmp(type, "open-pic") != 0)
-                return (ENXIO);
+		return (ENXIO);
 
 	device_set_desc(dev, OPENPIC_DEVSTR);
 	return (0);
@@ -587,7 +580,7 @@ openpic_cpcht_attach(device_t dev)
 	 * Interrupts 0-3 are internally sourced and are level triggered
 	 * active low. Interrupts 4-123 are connected to a pulse generator
 	 * and should be programmed as edge triggered low-to-high.
-	 * 
+	 *
 	 * IBM CPC945 Manual, Section 9.3.
 	 */
 
@@ -608,8 +601,8 @@ openpic_cpcht_attach(device_t dev)
 }
 
 static void
-openpic_cpcht_config(device_t dev, u_int irq, enum intr_trigger trig,
-    enum intr_polarity pol)
+openpic_cpcht_config(
+    device_t dev, u_int irq, enum intr_trigger trig, enum intr_polarity pol)
 {
 	struct openpic_cpcht_softc *sc;
 	uint32_t ht_irq;
@@ -636,7 +629,7 @@ openpic_cpcht_config(device_t dev, u_int irq, enum intr_trigger trig,
 
 		/* Mask the IRQ while we fiddle settings */
 		out32rb(cpcht_irqmap[irq].ht_base + 4, ht_irq | HTAPIC_MASK);
-		
+
 		/* Program the interrupt sense */
 		ht_irq &= ~(HTAPIC_TRIGGER_LEVEL | HTAPIC_REQUEST_EOI);
 		if (trig == INTR_TRIGGER_EDGE) {
@@ -676,7 +669,7 @@ openpic_cpcht_enable(device_t dev, u_int irq, u_int vec, void **priv)
 
 		mtx_unlock_spin(&sc->sc_ht_mtx);
 	}
-		
+
 	openpic_cpcht_eoi(dev, irq, *priv);
 }
 

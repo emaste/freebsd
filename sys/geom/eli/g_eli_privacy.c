@@ -31,33 +31,34 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/linker.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/bio.h>
-#include <sys/sysctl.h>
-#include <sys/malloc.h>
+#include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/linker.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 
 #include <vm/uma.h>
 
-#include <geom/geom.h>
-#include <geom/geom_dbg.h>
 #include <geom/eli/g_eli.h>
 #include <geom/eli/pkcs5v2.h>
+#include <geom/geom.h>
+#include <geom/geom_dbg.h>
 
 /*
  * Code paths:
  * BIO_READ:
- *	g_eli_start -> g_eli_crypto_read -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
- * BIO_WRITE:
- *	g_eli_start -> g_eli_crypto_run -> g_eli_crypto_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
+ *	g_eli_start -> g_eli_crypto_read -> g_io_request -> g_eli_read_done ->
+ *g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver BIO_WRITE:
+ *	g_eli_start -> g_eli_crypto_run -> g_eli_crypto_write_done ->
+ *g_io_request -> g_eli_write_done -> g_io_deliver
  */
 
 MALLOC_DECLARE(M_ELI);
@@ -87,7 +88,8 @@ g_eli_bio_copyin(struct bio *bp, void *kaddr)
 /*
  * The function is called after we read and decrypt data.
  *
- * g_eli_start -> g_eli_crypto_read -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> G_ELI_CRYPTO_READ_DONE -> g_io_deliver
+ * g_eli_start -> g_eli_crypto_read -> g_io_request -> g_eli_read_done ->
+ * g_eli_crypto_run -> G_ELI_CRYPTO_READ_DONE -> g_io_deliver
  */
 static int
 g_eli_crypto_read_done(struct cryptop *crp)
@@ -138,7 +140,8 @@ g_eli_crypto_read_done(struct cryptop *crp)
 /*
  * The function is called after data encryption.
  *
- * g_eli_start -> g_eli_crypto_run -> G_ELI_CRYPTO_WRITE_DONE -> g_io_request -> g_eli_write_done -> g_io_deliver
+ * g_eli_start -> g_eli_crypto_run -> G_ELI_CRYPTO_WRITE_DONE -> g_io_request ->
+ * g_eli_write_done -> g_io_deliver
  */
 static int
 g_eli_crypto_write_done(struct cryptop *crp)
@@ -188,7 +191,7 @@ g_eli_crypto_write_done(struct cryptop *crp)
 		return (0);
 	}
 	cbp->bio_data = bp->bio_driver2;
-	/* 
+	/*
 	 * Clear BIO_UNMAPPED, which was inherited from where we cloned the bio
 	 * in g_eli_start, because we manually set bio_data
 	 */
@@ -207,7 +210,8 @@ g_eli_crypto_write_done(struct cryptop *crp)
 /*
  * The function is called to read encrypted data.
  *
- * g_eli_start -> G_ELI_CRYPTO_READ -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
+ * g_eli_start -> G_ELI_CRYPTO_READ -> g_io_request -> g_eli_read_done ->
+ * g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
  */
 void
 g_eli_crypto_read(struct g_eli_softc *sc, struct bio *bp, boolean_t fromworker)
@@ -253,9 +257,10 @@ g_eli_crypto_read(struct g_eli_softc *sc, struct bio *bp, boolean_t fromworker)
  * with crypto(9) subsystem).
  *
  * BIO_READ:
- *	g_eli_start -> g_eli_crypto_read -> g_io_request -> g_eli_read_done -> G_ELI_CRYPTO_RUN -> g_eli_crypto_read_done -> g_io_deliver
- * BIO_WRITE:
- *	g_eli_start -> G_ELI_CRYPTO_RUN -> g_eli_crypto_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
+ *	g_eli_start -> g_eli_crypto_read -> g_io_request -> g_eli_read_done ->
+ *G_ELI_CRYPTO_RUN -> g_eli_crypto_read_done -> g_io_deliver BIO_WRITE:
+ *	g_eli_start -> G_ELI_CRYPTO_RUN -> g_eli_crypto_write_done ->
+ *g_io_request -> g_eli_write_done -> g_io_deliver
  */
 void
 g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
@@ -287,7 +292,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	if (bp->bio_cmd == BIO_WRITE) {
 		data = malloc(bp->bio_length, M_ELI, M_WAITOK);
 		bp->bio_driver2 = data;
-		/* 
+		/*
 		 * This copy could be eliminated by using crypto's output
 		 * buffer, instead of using a single overwriting buffer.
 		 */
@@ -332,13 +337,13 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		crp->crp_payload_start = 0;
 		crp->crp_payload_length = secsize;
 		if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) == 0) {
-			crp->crp_cipher_key = g_eli_key_hold(sc, dstoff,
-			    secsize);
+			crp->crp_cipher_key = g_eli_key_hold(
+			    sc, dstoff, secsize);
 		}
 		if (g_eli_ivlen(sc->sc_ealgo) != 0) {
 			crp->crp_flags |= CRYPTO_F_IV_SEPARATE;
-			g_eli_crypto_ivgen(sc, dstoff, crp->crp_iv,
-			    sizeof(crp->crp_iv));
+			g_eli_crypto_ivgen(
+			    sc, dstoff, crp->crp_iv, sizeof(crp->crp_iv));
 		}
 
 		if (batch) {

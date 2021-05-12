@@ -40,35 +40,35 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
-#include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/vmem.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <dev/fdt/simplebus.h>
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <arm64/intel/intel-smc.h>
-#include <arm64/intel/stratix10-svc.h>
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#include <dev/fdt/simplebus.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
+#include <arm64/intel/intel-smc.h>
+#include <arm64/intel/stratix10-svc.h>
+
 struct s10_svc_softc {
-	device_t		dev;
-	vmem_t			*vmem;
-	intel_smc_callfn_t	callfn;
+	device_t dev;
+	vmem_t *vmem;
+	intel_smc_callfn_t callfn;
 };
 
 static int
@@ -141,8 +141,7 @@ s10_svc_allocate_memory(device_t dev, struct s10_svc_mem *mem, int size)
 	if (size <= 0)
 		return (EINVAL);
 
-	if (vmem_alloc(sc->vmem, size,
-	    M_FIRSTFIT | M_NOWAIT, &mem->paddr)) {
+	if (vmem_alloc(sc->vmem, size, M_FIRSTFIT | M_NOWAIT, &mem->paddr)) {
 		device_printf(dev, "Can't allocate memory\n");
 		return (ENOMEM);
 	}
@@ -172,21 +171,21 @@ s10_get_memory(struct s10_svc_softc *sc)
 	vmem_size_t size;
 	vmem_t *vmem;
 
-	sc->callfn(INTEL_SIP_SMC_FPGA_CONFIG_GET_MEM,
-	    0, 0, 0, 0, 0, 0, 0, &res);
+	sc->callfn(
+	    INTEL_SIP_SMC_FPGA_CONFIG_GET_MEM, 0, 0, 0, 0, 0, 0, 0, &res);
 	if (res.a0 != INTEL_SIP_SMC_STATUS_OK)
 		return (ENXIO);
 
-	vmem = vmem_create("stratix10 vmem", 0, 0, PAGE_SIZE,
-	    PAGE_SIZE, M_BESTFIT | M_WAITOK);
+	vmem = vmem_create(
+	    "stratix10 vmem", 0, 0, PAGE_SIZE, PAGE_SIZE, M_BESTFIT | M_WAITOK);
 	if (vmem == NULL)
 		return (ENXIO);
 
 	addr = res.a1;
 	size = res.a2;
 
-	device_printf(sc->dev, "Shared memory address 0x%lx size 0x%lx\n",
-	    addr, size);
+	device_printf(
+	    sc->dev, "Shared memory address 0x%lx size 0x%lx\n", addr, size);
 
 	vmem_add(vmem, addr, size, 0);
 
@@ -206,8 +205,8 @@ s10_svc_get_callfn(struct s10_svc_softc *sc, phandle_t node)
 		else if (strcmp(method, "smc") == 0)
 			return (arm_smccc_smc);
 		else
-			device_printf(sc->dev,
-			    "Invalid method \"%s\"\n", method);
+			device_printf(
+			    sc->dev, "Invalid method \"%s\"\n", method);
 	} else
 		device_printf(sc->dev, "SMC method not provided\n");
 
@@ -253,11 +252,9 @@ s10_svc_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t s10_svc_methods[] = {
-	DEVMETHOD(device_probe,		s10_svc_probe),
-	DEVMETHOD(device_attach,	s10_svc_attach),
-	{ 0, 0 }
-};
+static device_method_t s10_svc_methods[] = { DEVMETHOD(
+						 device_probe, s10_svc_probe),
+	DEVMETHOD(device_attach, s10_svc_attach), { 0, 0 } };
 
 static driver_t s10_svc_driver = {
 	"s10_svc",
@@ -267,5 +264,5 @@ static driver_t s10_svc_driver = {
 
 static devclass_t s10_svc_devclass;
 
-EARLY_DRIVER_MODULE(s10_svc, firmware, s10_svc_driver,
-    s10_svc_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(s10_svc, firmware, s10_svc_driver, s10_svc_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);

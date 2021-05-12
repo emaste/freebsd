@@ -42,12 +42,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/rwlock.h>
 #include <sys/stddef.h>
-#include <sys/sysent.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/vdso.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -55,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
 
 static struct sx shared_page_alloc_sx;
 static vm_object_t shared_page_obj;
@@ -120,8 +120,8 @@ shared_page_init(void *dummy __unused)
 	vm_offset_t addr;
 
 	sx_init(&shared_page_alloc_sx, "shpsx");
-	shared_page_obj = vm_pager_allocate(OBJT_PHYS, 0, PAGE_SIZE,
-	    VM_PROT_DEFAULT, 0, NULL);
+	shared_page_obj = vm_pager_allocate(
+	    OBJT_PHYS, 0, PAGE_SIZE, VM_PROT_DEFAULT, 0, NULL);
 	VM_OBJECT_WLOCK(shared_page_obj);
 	m = vm_page_grab(shared_page_obj, 0, VM_ALLOC_ZERO);
 	VM_OBJECT_WUNLOCK(shared_page_obj);
@@ -132,8 +132,8 @@ shared_page_init(void *dummy __unused)
 	shared_page_mapping = (char *)addr;
 }
 
-SYSINIT(shp, SI_SUB_EXEC, SI_ORDER_FIRST, (sysinit_cfunc_t)shared_page_init,
-    NULL);
+SYSINIT(
+    shp, SI_SUB_EXEC, SI_ORDER_FIRST, (sysinit_cfunc_t)shared_page_init, NULL);
 
 /*
  * Push the timehands update to the shared page.
@@ -235,7 +235,8 @@ alloc_sv_tk(void)
 	tk_ver = VDSO_TK_VER_CURR;
 	svtk = malloc(sizeof(struct vdso_sv_tk), M_TEMP, M_WAITOK | M_ZERO);
 	tk_base = shared_page_alloc(sizeof(struct vdso_timekeep) +
-	    sizeof(struct vdso_timehands) * VDSO_TH_NUM, 16);
+		sizeof(struct vdso_timehands) * VDSO_TH_NUM,
+	    16);
 	KASSERT(tk_base != -1, ("tk_base -1 for native"));
 	shared_page_write(tk_base + offsetof(struct vdso_timekeep, tk_ver),
 	    sizeof(uint32_t), &tk_ver);
@@ -255,10 +256,11 @@ alloc_sv_tk_compat32(void)
 	svtk = malloc(sizeof(struct vdso_sv_tk), M_TEMP, M_WAITOK | M_ZERO);
 	tk_ver = VDSO_TK_VER_CURR;
 	tk_base = shared_page_alloc(sizeof(struct vdso_timekeep32) +
-	    sizeof(struct vdso_timehands32) * VDSO_TH_NUM, 16);
+		sizeof(struct vdso_timehands32) * VDSO_TH_NUM,
+	    16);
 	KASSERT(tk_base != -1, ("tk_base -1 for 32bit"));
-	shared_page_write(tk_base + offsetof(struct vdso_timekeep32,
-	    tk_ver), sizeof(uint32_t), &tk_ver);
+	shared_page_write(tk_base + offsetof(struct vdso_timekeep32, tk_ver),
+	    sizeof(uint32_t), &tk_ver);
 	svtk->sv_timekeep_off = tk_base;
 	timekeep_push_vdso();
 	return (svtk);
@@ -274,8 +276,8 @@ fxrng_push_seed_generation(uint64_t gen)
 	KASSERT(gen < INT32_MAX,
 	    ("fxrng seed version shouldn't roll over a 32-bit counter "
 	     "for approximately 456,000 years"));
-	atomic_store_rel_32(&fxrng_shpage_mapping->fx_generation32,
-	    (uint32_t)gen);
+	atomic_store_rel_32(
+	    &fxrng_shpage_mapping->fx_generation32, (uint32_t)gen);
 }
 
 static void

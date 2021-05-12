@@ -91,13 +91,12 @@
  */
 
 #include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
-#include <sys/signal.h>
 #include <sys/pcpu.h>
+#include <sys/signal.h>
 
 #include <machine/gdb_machdep.h>
 #include <machine/pcb.h>
@@ -110,14 +109,14 @@ void *
 gdb_cpu_getreg(int regnum, size_t *regsz)
 {
 
- 	*regsz = gdb_cpu_regsz(regnum);
- 	if (kdb_thread == curthread) {
+	*regsz = gdb_cpu_regsz(regnum);
+	if (kdb_thread == curthread) {
 		register_t *zero_ptr = &kdb_frame->zero;
 		return zero_ptr + regnum;
 	}
 
 	switch (regnum) {
-	/* 
+	/*
 	 * S0..S7
 	 */
 	case 16:
@@ -128,16 +127,16 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 	case 21:
 	case 22:
 	case 23:
- 		return (&kdb_thrctx->pcb_context[PCB_REG_S0 + regnum - 16]);
-	case 28: 
+		return (&kdb_thrctx->pcb_context[PCB_REG_S0 + regnum - 16]);
+	case 28:
 		return (&kdb_thrctx->pcb_context[PCB_REG_GP]);
-	case 29: 
+	case 29:
 		return (&kdb_thrctx->pcb_context[PCB_REG_SP]);
-	case 30: 
+	case 30:
 		return (&kdb_thrctx->pcb_context[PCB_REG_S8]);
-	case 31: 
+	case 31:
 		return (&kdb_thrctx->pcb_context[PCB_REG_RA]);
-	case 37: 
+	case 37:
 		return (&kdb_thrctx->pcb_context[PCB_REG_PC]);
 	}
 	return (NULL);
@@ -159,30 +158,30 @@ gdb_cpu_signal(int entry, int code)
 {
 	switch (entry) {
 	case T_TLB_MOD:
-	case T_TLB_MOD+T_USER:
+	case T_TLB_MOD + T_USER:
 	case T_TLB_LD_MISS:
 	case T_TLB_ST_MISS:
-	case T_TLB_LD_MISS+T_USER:
-	case T_TLB_ST_MISS+T_USER:
+	case T_TLB_LD_MISS + T_USER:
+	case T_TLB_ST_MISS + T_USER:
 	case T_ADDR_ERR_LD:		/* misaligned access */
 	case T_ADDR_ERR_ST:		/* misaligned access */
 	case T_BUS_ERR_LD_ST:		/* BERR asserted to CPU */
-	case T_ADDR_ERR_LD+T_USER:	/* misaligned or kseg access */
-	case T_ADDR_ERR_ST+T_USER:	/* misaligned or kseg access */
-	case T_BUS_ERR_IFETCH+T_USER:	/* BERR asserted to CPU */
-	case T_BUS_ERR_LD_ST+T_USER:	/* BERR asserted to CPU */
+	case T_ADDR_ERR_LD + T_USER:	/* misaligned or kseg access */
+	case T_ADDR_ERR_ST + T_USER:	/* misaligned or kseg access */
+	case T_BUS_ERR_IFETCH + T_USER: /* BERR asserted to CPU */
+	case T_BUS_ERR_LD_ST + T_USER:	/* BERR asserted to CPU */
 		return (SIGSEGV);
 
 	case T_BREAK:
-	case T_BREAK+T_USER:
+	case T_BREAK + T_USER:
 		return (SIGTRAP);
 
-	case T_RES_INST+T_USER:
-	case T_COP_UNUSABLE+T_USER:
+	case T_RES_INST + T_USER:
+	case T_COP_UNUSABLE + T_USER:
 		return (SIGILL);
 
-	case T_FPE+T_USER:
-	case T_OVFLOW+T_USER:
+	case T_FPE + T_USER:
+	case T_OVFLOW + T_USER:
 		return (SIGFPE);
 
 	default:

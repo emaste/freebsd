@@ -34,22 +34,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
-#include <machine/bus.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
+#include <machine/bus.h>
 
 #include <dev/extres/syscon/syscon.h>
 #include <dev/fdt/simple_mfd.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
-static struct ofw_compat_data compat_data[] = {
-	{"rockchip,rk3288-grf", 1},
-	{"rockchip,rk3328-grf", 1},
-	{"rockchip,rk3399-grf", 1},
-	{"rockchip,rk3399-pmugrf", 1},
-	{NULL,             0}
-};
+static struct ofw_compat_data compat_data[] = { { "rockchip,rk3288-grf", 1 },
+	{ "rockchip,rk3328-grf", 1 }, { "rockchip,rk3399-grf", 1 },
+	{ "rockchip,rk3399-pmugrf", 1 }, { NULL, 0 } };
 
 static int
 rk_grf_probe(device_t dev)
@@ -64,16 +60,15 @@ rk_grf_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-static device_method_t rk_grf_methods[] = {
-	DEVMETHOD(device_probe, rk_grf_probe),
+static device_method_t rk_grf_methods[] = { DEVMETHOD(
+						device_probe, rk_grf_probe),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 DEFINE_CLASS_1(rk_grf, rk_grf_driver, rk_grf_methods,
     sizeof(struct simple_mfd_softc), simple_mfd_driver);
 
 static devclass_t rk_grf_devclass;
-EARLY_DRIVER_MODULE(rk_grf, simplebus, rk_grf_driver, rk_grf_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(rk_grf, simplebus, rk_grf_driver, rk_grf_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(rk_grf, 1);

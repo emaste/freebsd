@@ -43,28 +43,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
+#include <vm/uma.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
 #include <vm/vm_phys.h>
-#include <vm/uma.h>
 
-static vm_object_t sg_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
-    vm_ooffset_t, struct ucred *);
+static vm_object_t sg_pager_alloc(
+    void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t, struct ucred *);
 static void sg_pager_dealloc(vm_object_t);
 static int sg_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
-static void sg_pager_putpages(vm_object_t, vm_page_t *, int, 
-		boolean_t, int *);
-static boolean_t sg_pager_haspage(vm_object_t, vm_pindex_t, int *,
-		int *);
+static void sg_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
+static boolean_t sg_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 
 const struct pagerops sgpagerops = {
-	.pgo_alloc =	sg_pager_alloc,
-	.pgo_dealloc =	sg_pager_dealloc,
-	.pgo_getpages =	sg_pager_getpages,
-	.pgo_putpages =	sg_pager_putpages,
-	.pgo_haspage =	sg_pager_haspage,
+	.pgo_alloc = sg_pager_alloc,
+	.pgo_dealloc = sg_pager_dealloc,
+	.pgo_getpages = sg_pager_getpages,
+	.pgo_putpages = sg_pager_putpages,
+	.pgo_haspage = sg_pager_haspage,
 };
 
 static vm_object_t
@@ -142,8 +140,8 @@ sg_pager_dealloc(vm_object_t object)
 }
 
 static int
-sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
-    int *rahead)
+sg_pager_getpages(
+    vm_object_t object, vm_page_t *m, int count, int *rbehind, int *rahead)
 {
 	struct sglist *sg;
 	vm_page_t m_paddr, page;
@@ -183,12 +181,12 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	    pmap_page_get_memattr(m_paddr) != memattr) {
 		memattr = pmap_page_get_memattr(m_paddr);
 		printf(
-	    "WARNING: A device driver has set \"memattr\" inconsistently.\n");
+		    "WARNING: A device driver has set \"memattr\" inconsistently.\n");
 	}
 
 	/* Return a fake page for the requested page. */
-	KASSERT(!(m[0]->flags & PG_FICTITIOUS),
-	    ("backing page for SG is fake"));
+	KASSERT(
+	    !(m[0]->flags & PG_FICTITIOUS), ("backing page for SG is fake"));
 
 	/* Construct a new fake page. */
 	page = vm_page_getfake(paddr, memattr);
@@ -208,16 +206,16 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 }
 
 static void
-sg_pager_putpages(vm_object_t object, vm_page_t *m, int count,
-    boolean_t sync, int *rtvals)
+sg_pager_putpages(
+    vm_object_t object, vm_page_t *m, int count, boolean_t sync, int *rtvals)
 {
 
 	panic("sg_pager_putpage called");
 }
 
 static boolean_t
-sg_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
-    int *after)
+sg_pager_haspage(
+    vm_object_t object, vm_pindex_t pindex, int *before, int *after)
 {
 
 	if (before != NULL)

@@ -38,24 +38,24 @@
  */
 
 #ifndef _SYS_TYPES_H_
-#define	_SYS_TYPES_H_
+#define _SYS_TYPES_H_
 
 #include <sys/cdefs.h>
 
 /* Machine type dependent parameters. */
-#include <machine/endian.h>
+#include <sys/_pthreadtypes.h>
 #include <sys/_types.h>
 
-#include <sys/_pthreadtypes.h>
+#include <machine/endian.h>
 
 #if __BSD_VISIBLE
-typedef	unsigned char	u_char;
-typedef	unsigned short	u_short;
-typedef	unsigned int	u_int;
-typedef	unsigned long	u_long;
+typedef unsigned char u_char;
+typedef unsigned short u_short;
+typedef unsigned int u_int;
+typedef unsigned long u_long;
 #ifndef _KERNEL
-typedef	unsigned short	ushort;		/* Sys V compatibility */
-typedef	unsigned int	uint;		/* Sys V compatibility */
+typedef unsigned short ushort; /* Sys V compatibility */
+typedef unsigned int uint;     /* Sys V compatibility */
 #endif
 #endif
 
@@ -64,191 +64,191 @@ typedef	unsigned int	uint;		/* Sys V compatibility */
  */
 #include <sys/_stdint.h>
 
-typedef __uint8_t	u_int8_t;	/* unsigned integrals (deprecated) */
-typedef __uint16_t	u_int16_t;
-typedef __uint32_t	u_int32_t;
-typedef __uint64_t	u_int64_t;
+typedef __uint8_t u_int8_t; /* unsigned integrals (deprecated) */
+typedef __uint16_t u_int16_t;
+typedef __uint32_t u_int32_t;
+typedef __uint64_t u_int64_t;
 
-typedef	__uint64_t	u_quad_t;	/* quads (deprecated) */
-typedef	__int64_t	quad_t;
-typedef	quad_t *	qaddr_t;
+typedef __uint64_t u_quad_t; /* quads (deprecated) */
+typedef __int64_t quad_t;
+typedef quad_t *qaddr_t;
 
-typedef	char *		caddr_t;	/* core address */
-typedef	const char *	c_caddr_t;	/* core address, pointer to const */
+typedef char *caddr_t;	       /* core address */
+typedef const char *c_caddr_t; /* core address, pointer to const */
 
 #ifndef _BLKSIZE_T_DECLARED
-typedef	__blksize_t	blksize_t;
-#define	_BLKSIZE_T_DECLARED
+typedef __blksize_t blksize_t;
+#define _BLKSIZE_T_DECLARED
 #endif
 
-typedef	__cpuwhich_t	cpuwhich_t;
-typedef	__cpulevel_t	cpulevel_t;
-typedef	__cpusetid_t	cpusetid_t;
+typedef __cpuwhich_t cpuwhich_t;
+typedef __cpulevel_t cpulevel_t;
+typedef __cpusetid_t cpusetid_t;
 
 #ifndef _BLKCNT_T_DECLARED
-typedef	__blkcnt_t	blkcnt_t;
-#define	_BLKCNT_T_DECLARED
+typedef __blkcnt_t blkcnt_t;
+#define _BLKCNT_T_DECLARED
 #endif
 
 #ifndef _CLOCK_T_DECLARED
-typedef	__clock_t	clock_t;
-#define	_CLOCK_T_DECLARED
+typedef __clock_t clock_t;
+#define _CLOCK_T_DECLARED
 #endif
 
 #ifndef _CLOCKID_T_DECLARED
-typedef	__clockid_t	clockid_t;
-#define	_CLOCKID_T_DECLARED
+typedef __clockid_t clockid_t;
+#define _CLOCKID_T_DECLARED
 #endif
 
-typedef	__critical_t	critical_t;	/* Critical section value */
-typedef	__daddr_t	daddr_t;	/* disk address */
+typedef __critical_t critical_t; /* Critical section value */
+typedef __daddr_t daddr_t;	 /* disk address */
 
 #ifndef _DEV_T_DECLARED
-typedef	__dev_t		dev_t;		/* device number or struct cdev */
-#define	_DEV_T_DECLARED
+typedef __dev_t dev_t; /* device number or struct cdev */
+#define _DEV_T_DECLARED
 #endif
 
 #ifndef _FFLAGS_T_DECLARED
-typedef	__fflags_t	fflags_t;	/* file flags */
-#define	_FFLAGS_T_DECLARED
+typedef __fflags_t fflags_t; /* file flags */
+#define _FFLAGS_T_DECLARED
 #endif
 
-typedef	__fixpt_t	fixpt_t;	/* fixed point number */
+typedef __fixpt_t fixpt_t; /* fixed point number */
 
-#ifndef _FSBLKCNT_T_DECLARED		/* for statvfs() */
-typedef	__fsblkcnt_t	fsblkcnt_t;
-typedef	__fsfilcnt_t	fsfilcnt_t;
-#define	_FSBLKCNT_T_DECLARED
+#ifndef _FSBLKCNT_T_DECLARED /* for statvfs() */
+typedef __fsblkcnt_t fsblkcnt_t;
+typedef __fsfilcnt_t fsfilcnt_t;
+#define _FSBLKCNT_T_DECLARED
 #endif
 
 #ifndef _GID_T_DECLARED
-typedef	__gid_t		gid_t;		/* group id */
-#define	_GID_T_DECLARED
+typedef __gid_t gid_t; /* group id */
+#define _GID_T_DECLARED
 #endif
 
 #ifndef _IN_ADDR_T_DECLARED
-typedef	__uint32_t	in_addr_t;	/* base type for internet address */
-#define	_IN_ADDR_T_DECLARED
+typedef __uint32_t in_addr_t; /* base type for internet address */
+#define _IN_ADDR_T_DECLARED
 #endif
 
 #ifndef _IN_PORT_T_DECLARED
-typedef	__uint16_t	in_port_t;
-#define	_IN_PORT_T_DECLARED
+typedef __uint16_t in_port_t;
+#define _IN_PORT_T_DECLARED
 #endif
 
 #ifndef _ID_T_DECLARED
-typedef	__id_t		id_t;		/* can hold a uid_t or pid_t */
-#define	_ID_T_DECLARED
+typedef __id_t id_t; /* can hold a uid_t or pid_t */
+#define _ID_T_DECLARED
 #endif
 
 #ifndef _INO_T_DECLARED
-typedef	__ino_t		ino_t;		/* inode number */
-#define	_INO_T_DECLARED
+typedef __ino_t ino_t; /* inode number */
+#define _INO_T_DECLARED
 #endif
 
 #ifndef _KEY_T_DECLARED
-typedef	__key_t		key_t;		/* IPC key (for Sys V IPC) */
-#define	_KEY_T_DECLARED
+typedef __key_t key_t; /* IPC key (for Sys V IPC) */
+#define _KEY_T_DECLARED
 #endif
 
 #ifndef _LWPID_T_DECLARED
-typedef	__lwpid_t	lwpid_t;	/* Thread ID (a.k.a. LWP) */
-#define	_LWPID_T_DECLARED
+typedef __lwpid_t lwpid_t; /* Thread ID (a.k.a. LWP) */
+#define _LWPID_T_DECLARED
 #endif
 
 #ifndef _MODE_T_DECLARED
-typedef	__mode_t	mode_t;		/* permissions */
-#define	_MODE_T_DECLARED
+typedef __mode_t mode_t; /* permissions */
+#define _MODE_T_DECLARED
 #endif
 
 #ifndef _ACCMODE_T_DECLARED
-typedef	__accmode_t	accmode_t;	/* access permissions */
-#define	_ACCMODE_T_DECLARED
+typedef __accmode_t accmode_t; /* access permissions */
+#define _ACCMODE_T_DECLARED
 #endif
 
 #ifndef _NLINK_T_DECLARED
-typedef	__nlink_t	nlink_t;	/* link count */
-#define	_NLINK_T_DECLARED
+typedef __nlink_t nlink_t; /* link count */
+#define _NLINK_T_DECLARED
 #endif
 
 #ifndef _OFF_T_DECLARED
-typedef	__off_t		off_t;		/* file offset */
-#define	_OFF_T_DECLARED
+typedef __off_t off_t; /* file offset */
+#define _OFF_T_DECLARED
 #endif
 
 #ifndef _OFF64_T_DECLARED
-typedef	__off64_t	off64_t;	/* file offset (alias) */
-#define	_OFF64_T_DECLARED
+typedef __off64_t off64_t; /* file offset (alias) */
+#define _OFF64_T_DECLARED
 #endif
 
 #ifndef _PID_T_DECLARED
-typedef	__pid_t		pid_t;		/* process id */
-#define	_PID_T_DECLARED
+typedef __pid_t pid_t; /* process id */
+#define _PID_T_DECLARED
 #endif
 
-typedef	__register_t	register_t;
+typedef __register_t register_t;
 
 #ifndef _RLIM_T_DECLARED
-typedef	__rlim_t	rlim_t;		/* resource limit */
-#define	_RLIM_T_DECLARED
+typedef __rlim_t rlim_t; /* resource limit */
+#define _RLIM_T_DECLARED
 #endif
 
-typedef	__int64_t	sbintime_t;
+typedef __int64_t sbintime_t;
 
-typedef	__segsz_t	segsz_t;	/* segment size (in pages) */
+typedef __segsz_t segsz_t; /* segment size (in pages) */
 
 #ifndef _SIZE_T_DECLARED
-typedef	__size_t	size_t;
-#define	_SIZE_T_DECLARED
+typedef __size_t size_t;
+#define _SIZE_T_DECLARED
 #endif
 
 #ifndef _SSIZE_T_DECLARED
-typedef	__ssize_t	ssize_t;
-#define	_SSIZE_T_DECLARED
+typedef __ssize_t ssize_t;
+#define _SSIZE_T_DECLARED
 #endif
 
 #ifndef _SUSECONDS_T_DECLARED
-typedef	__suseconds_t	suseconds_t;	/* microseconds (signed) */
-#define	_SUSECONDS_T_DECLARED
+typedef __suseconds_t suseconds_t; /* microseconds (signed) */
+#define _SUSECONDS_T_DECLARED
 #endif
 
 #ifndef _TIME_T_DECLARED
-typedef	__time_t	time_t;
-#define	_TIME_T_DECLARED
+typedef __time_t time_t;
+#define _TIME_T_DECLARED
 #endif
 
 #ifndef _TIMER_T_DECLARED
-typedef	__timer_t	timer_t;
-#define	_TIMER_T_DECLARED
+typedef __timer_t timer_t;
+#define _TIMER_T_DECLARED
 #endif
 
 #ifndef _MQD_T_DECLARED
-typedef	__mqd_t	mqd_t;
-#define	_MQD_T_DECLARED
+typedef __mqd_t mqd_t;
+#define _MQD_T_DECLARED
 #endif
 
-typedef	__u_register_t	u_register_t;
+typedef __u_register_t u_register_t;
 
 #ifndef _UID_T_DECLARED
-typedef	__uid_t		uid_t;		/* user id */
-#define	_UID_T_DECLARED
+typedef __uid_t uid_t; /* user id */
+#define _UID_T_DECLARED
 #endif
 
 #ifndef _USECONDS_T_DECLARED
-typedef	__useconds_t	useconds_t;	/* microseconds (unsigned) */
-#define	_USECONDS_T_DECLARED
+typedef __useconds_t useconds_t; /* microseconds (unsigned) */
+#define _USECONDS_T_DECLARED
 #endif
 
 #ifndef _CAP_IOCTL_T_DECLARED
-#define	_CAP_IOCTL_T_DECLARED
-typedef	unsigned long	cap_ioctl_t;
+#define _CAP_IOCTL_T_DECLARED
+typedef unsigned long cap_ioctl_t;
 #endif
 
 #ifndef _CAP_RIGHTS_T_DECLARED
-#define	_CAP_RIGHTS_T_DECLARED
+#define _CAP_RIGHTS_T_DECLARED
 struct cap_rights;
 
-typedef	struct cap_rights	cap_rights_t;
+typedef struct cap_rights cap_rights_t;
 #endif
 
 /*
@@ -257,23 +257,23 @@ typedef	struct cap_rights	cap_rights_t;
  * word size.  These should be used in place of vm_paddr_t, (u)intptr_t, and
  * size_t in structs which contain such types that are shared with userspace.
  */
-typedef	__uint64_t	kpaddr_t;
-typedef	__uint64_t	kvaddr_t;
-typedef	__uint64_t	ksize_t;
-typedef	__int64_t	kssize_t;
+typedef __uint64_t kpaddr_t;
+typedef __uint64_t kvaddr_t;
+typedef __uint64_t ksize_t;
+typedef __int64_t kssize_t;
 
-typedef	__vm_offset_t	vm_offset_t;
-typedef	__uint64_t	vm_ooffset_t;
-typedef	__vm_paddr_t	vm_paddr_t;
-typedef	__uint64_t	vm_pindex_t;
-typedef	__vm_size_t	vm_size_t;
+typedef __vm_offset_t vm_offset_t;
+typedef __uint64_t vm_ooffset_t;
+typedef __vm_paddr_t vm_paddr_t;
+typedef __uint64_t vm_pindex_t;
+typedef __vm_size_t vm_size_t;
 
-typedef __rman_res_t    rman_res_t;
+typedef __rman_res_t rman_res_t;
 
 #ifdef _KERNEL
-typedef	int		boolean_t;
-typedef	struct _device	*device_t;
-typedef	__intfptr_t	intfptr_t;
+typedef int boolean_t;
+typedef struct _device *device_t;
+typedef __intfptr_t intfptr_t;
 
 /*
  * XXX this is fixed width for historical reasons.  It should have had type
@@ -285,22 +285,22 @@ typedef	__intfptr_t	intfptr_t;
  *
  * XXX this is bogus in -current, but still used for spl*().
  */
-typedef	__uint32_t	intrmask_t;	/* Interrupt mask (spl, xxx_imask...) */
+typedef __uint32_t intrmask_t; /* Interrupt mask (spl, xxx_imask...) */
 
-typedef	__uintfptr_t	uintfptr_t;
-typedef	__uint64_t	uoff_t;
-typedef	char		vm_memattr_t;	/* memory attribute codes */
-typedef	struct vm_page	*vm_page_t;
+typedef __uintfptr_t uintfptr_t;
+typedef __uint64_t uoff_t;
+typedef char vm_memattr_t; /* memory attribute codes */
+typedef struct vm_page *vm_page_t;
 
 #define offsetof(type, field) __offsetof(type, field)
 #endif /* _KERNEL */
 
-#if	defined(_KERNEL) || defined(_STANDALONE)
+#if defined(_KERNEL) || defined(_STANDALONE)
 #if !defined(__bool_true_false_are_defined) && !defined(__cplusplus)
-#define	__bool_true_false_are_defined	1
-#define	false	0
-#define	true	1
-typedef	_Bool	bool;
+#define __bool_true_false_are_defined 1
+#define false 0
+#define true 1
+typedef _Bool bool;
 #endif /* !__bool_true_false_are_defined && !__cplusplus */
 #endif /* KERNEL || _STANDALONE */
 
@@ -310,11 +310,11 @@ typedef	_Bool	bool;
  */
 
 #ifdef __POPCNT__
-#define	__bitcount64(x)	__builtin_popcountll((__uint64_t)(x))
-#define	__bitcount32(x)	__builtin_popcount((__uint32_t)(x))
-#define	__bitcount16(x)	__builtin_popcount((__uint16_t)(x))
-#define	__bitcountl(x)	__builtin_popcountl((unsigned long)(x))
-#define	__bitcount(x)	__builtin_popcount((unsigned int)(x))
+#define __bitcount64(x) __builtin_popcountll((__uint64_t)(x))
+#define __bitcount32(x) __builtin_popcount((__uint32_t)(x))
+#define __bitcount16(x) __builtin_popcount((__uint16_t)(x))
+#define __bitcountl(x) __builtin_popcountl((unsigned long)(x))
+#define __bitcount(x) __builtin_popcount((unsigned int)(x))
 #else
 /*
  * Population count algorithm using SWAR approach
@@ -357,7 +357,7 @@ __bitcount64(__uint64_t _x)
 	return (_x);
 }
 
-#define	__bitcountl(x)	__bitcount64((unsigned long)(x))
+#define __bitcountl(x) __bitcount64((unsigned long)(x))
 #else
 static __inline __uint64_t
 __bitcount64(__uint64_t _x)
@@ -366,9 +366,9 @@ __bitcount64(__uint64_t _x)
 	return (__bitcount32(_x >> 32) + __bitcount32(_x));
 }
 
-#define	__bitcountl(x)	__bitcount32((unsigned long)(x))
+#define __bitcountl(x) __bitcount32((unsigned long)(x))
 #endif
-#define	__bitcount(x)	__bitcount32((unsigned int)(x))
+#define __bitcount(x) __bitcount32((unsigned int)(x))
 #endif
 
 #if __BSD_VISIBLE
@@ -386,19 +386,19 @@ __bitcount64(__uint64_t _x)
  * instead of shifting 3 upper m bytes to close the gap.  Compatibility for
  * minor() is achieved iff the upper m byte is 0.
  */
-#define	major(d)	__major(d)
+#define major(d) __major(d)
 static __inline int
 __major(dev_t _d)
 {
 	return (((_d >> 32) & 0xffffff00) | ((_d >> 8) & 0xff));
 }
-#define	minor(d)	__minor(d)
+#define minor(d) __minor(d)
 static __inline int
 __minor(dev_t _d)
 {
 	return (((_d >> 24) & 0xff00) | (_d & 0xffff00ff));
 }
-#define	makedev(M, m)	__makedev((M), (m))
+#define makedev(M, m) __makedev((M), (m))
 static __inline dev_t
 __makedev(int _Major, int _Minor)
 {
@@ -414,20 +414,20 @@ __makedev(int _Major, int _Minor)
 #ifndef _KERNEL
 __BEGIN_DECLS
 #ifndef _FTRUNCATE_DECLARED
-#define	_FTRUNCATE_DECLARED
-int	 ftruncate(int, off_t);
+#define _FTRUNCATE_DECLARED
+int ftruncate(int, off_t);
 #endif
 #ifndef _LSEEK_DECLARED
-#define	_LSEEK_DECLARED
-off_t	 lseek(int, off_t, int);
+#define _LSEEK_DECLARED
+off_t lseek(int, off_t, int);
 #endif
 #ifndef _MMAP_DECLARED
-#define	_MMAP_DECLARED
-void *	 mmap(void *, size_t, int, int, int, off_t);
+#define _MMAP_DECLARED
+void *mmap(void *, size_t, int, int, int, off_t);
 #endif
 #ifndef _TRUNCATE_DECLARED
-#define	_TRUNCATE_DECLARED
-int	 truncate(const char *, off_t);
+#define _TRUNCATE_DECLARED
+int truncate(const char *, off_t);
 #endif
 __END_DECLS
 #endif /* !_KERNEL */

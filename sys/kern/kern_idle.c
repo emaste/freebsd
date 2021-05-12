@@ -62,16 +62,17 @@ idle_setup(void *dummy)
 
 	p = NULL; /* start with no idle process */
 #ifdef SMP
-	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH (pc, &cpuhead, pc_allcpu) {
 #endif
 #ifdef SMP
 		error = kproc_kthread_add(sched_idletd, NULL, &p, &td,
-		    RFSTOPPED | RFHIGHPID, 0, "idle", "idle: cpu%d", pc->pc_cpuid);
+		    RFSTOPPED | RFHIGHPID, 0, "idle", "idle: cpu%d",
+		    pc->pc_cpuid);
 		pc->pc_idlethread = td;
 #else
-		error = kproc_kthread_add(sched_idletd, NULL, &p, &td,
-		    RFSTOPPED | RFHIGHPID, 0, "idle", "idle");
-		PCPU_SET(idlethread, td);
+	error = kproc_kthread_add(sched_idletd, NULL, &p, &td,
+	    RFSTOPPED | RFHIGHPID, 0, "idle", "idle");
+	PCPU_SET(idlethread, td);
 #endif
 		if (error)
 			panic("idle_setup: kproc_create error %d\n", error);

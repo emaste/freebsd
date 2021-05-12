@@ -33,20 +33,21 @@
  */
 
 #ifndef _MACHINE_PROFILE_H_
-#define	_MACHINE_PROFILE_H_
+#define _MACHINE_PROFILE_H_
 
 #ifndef _KERNEL
 
 #include <sys/cdefs.h>
 
-#define	FUNCTION_ALIGNMENT	4
+#define FUNCTION_ALIGNMENT 4
 
-#define	_MCOUNT_DECL \
-static void _mcount(uintfptr_t frompc, uintfptr_t selfpc) __used; \
-static void _mcount
+#define _MCOUNT_DECL                                                      \
+	static void _mcount(uintfptr_t frompc, uintfptr_t selfpc) __used; \
+	static void _mcount
 
 #ifdef __GNUCLIKE_ASM
-#define	MCOUNT __asm("			\n\
+#define MCOUNT \
+	__asm("			\n\
 	.text				\n\
 	.p2align 4,0x90			\n\
 	.globl	.mcount			\n\
@@ -78,44 +79,44 @@ static void _mcount
  * into.  I've left it here as documentation of what the code above is
  * supposed to do.
  */
-#define	MCOUNT								\
-void									\
-mcount()								\
-{									\
-	uintfptr_t selfpc, frompc;					\
-	/*								\
-	 * Find the return address for mcount,				\
-	 * and the return address for mcount's caller.			\
-	 *								\
-	 * selfpc = pc pushed by call to mcount				\
-	 */								\
-	__asm("movq 8(%%rbp),%0" : "=r" (selfpc));			\
-	/*								\
-	 * frompc = pc pushed by call to mcount's caller.		\
-	 * The caller's stack frame has already been built, so %rbp is	\
-	 * the caller's frame pointer.  The caller's raddr is in the	\
-	 * caller's frame following the caller's caller's frame pointer.\
-	 */								\
-	__asm("movq (%%rbp),%0" : "=r" (frompc));			\
-	frompc = ((uintfptr_t *)frompc)[1];				\
-	_mcount(frompc, selfpc);					\
-}
+#define MCOUNT                                                                 \
+	void mcount()                                                          \
+	{                                                                      \
+		uintfptr_t selfpc, frompc;                                     \
+		/*                                                             \
+		 * Find the return address for mcount,                         \
+		 * and the return address for mcount's caller.                 \
+		 *                                                             \
+		 * selfpc = pc pushed by call to mcount                        \
+		 */                                                            \
+		__asm("movq 8(%%rbp),%0" : "=r"(selfpc));                      \
+		/*                                                             \
+		 * frompc = pc pushed by call to mcount's caller.              \
+		 * The caller's stack frame has already been built, so %rbp is \
+		 * the caller's frame pointer.  The caller's raddr is in the   \
+		 * caller's frame following the caller's caller's frame        \
+		 * pointer.                                                    \
+		 */                                                            \
+		__asm("movq (%%rbp),%0" : "=r"(frompc));                       \
+		frompc = ((uintfptr_t *)frompc)[1];                            \
+		_mcount(frompc, selfpc);                                       \
+	}
 #endif
 #else /* !__GNUCLIKE_ASM */
-#define	MCOUNT
+#define MCOUNT
 #endif /* __GNUCLIKE_ASM */
 
-typedef	u_long	uintfptr_t;
+typedef u_long uintfptr_t;
 
 /*
  * An unsigned integral type that can hold non-negative difference between
  * function pointers.
  */
-typedef	u_long	fptrdiff_t;
+typedef u_long fptrdiff_t;
 
 __BEGIN_DECLS
 #ifdef __GNUCLIKE_ASM
-void	mcount(void) __asm(".mcount");
+void mcount(void) __asm(".mcount");
 #endif
 __END_DECLS
 

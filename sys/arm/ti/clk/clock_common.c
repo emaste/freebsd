@@ -30,20 +30,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/bus.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/systm.h>
-#include <sys/libkern.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 
 #include <machine/bus.h>
-#include <dev/fdt/simplebus.h>
 
 #include <dev/extres/clk/clk_mux.h>
+#include <dev/fdt/simplebus.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -56,10 +56,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 void
-read_clock_cells(device_t dev, struct clock_cell_info *clk) {
+read_clock_cells(device_t dev, struct clock_cell_info *clk)
+{
 	ssize_t numbytes_clocks;
 	phandle_t node, parent, *cells;
-        int index, ncells, rv;
+	int index, ncells, rv;
 
 	node = ofw_bus_get_node(dev);
 
@@ -71,16 +72,17 @@ read_clock_cells(device_t dev, struct clock_cell_info *clk) {
 	/* clock_cells / clock_cells_ncells will be freed in
 	 * find_parent_clock_names()
 	 */
-	clk->clock_cells = malloc(numbytes_clocks, M_DEVBUF, M_WAITOK|M_ZERO);
-	clk->clock_cells_ncells = malloc(clk->num_clock_cells*sizeof(uint8_t),
-		M_DEVBUF, M_WAITOK|M_ZERO);
-        OF_getencprop(node, "clocks", clk->clock_cells, numbytes_clocks);
+	clk->clock_cells = malloc(numbytes_clocks, M_DEVBUF, M_WAITOK | M_ZERO);
+	clk->clock_cells_ncells = malloc(clk->num_clock_cells * sizeof(uint8_t),
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+	OF_getencprop(node, "clocks", clk->clock_cells, numbytes_clocks);
 
 	/* Count number of clocks */
 	clk->num_real_clocks = 0;
 	for (index = 0; index < clk->num_clock_cells; index++) {
-		rv = ofw_bus_parse_xref_list_alloc(node, "clocks", "#clock-cells",
-			clk->num_real_clocks, &parent, &ncells, &cells);
+		rv = ofw_bus_parse_xref_list_alloc(node, "clocks",
+		    "#clock-cells", clk->num_real_clocks, &parent, &ncells,
+		    &cells);
 		if (rv != 0)
 			continue;
 
@@ -94,20 +96,23 @@ read_clock_cells(device_t dev, struct clock_cell_info *clk) {
 }
 
 int
-find_parent_clock_names(device_t dev, struct clock_cell_info *clk, struct clknode_init_def *def) {
-	int	index, clock_index, err;
-	bool	found_all = true;
-	clk_t	parent;
+find_parent_clock_names(
+    device_t dev, struct clock_cell_info *clk, struct clknode_init_def *def)
+{
+	int index, clock_index, err;
+	bool found_all = true;
+	clk_t parent;
 
 	/* Figure out names */
-	for (index = 0, clock_index = 0; index < clk->num_clock_cells; index++) {
+	for (index = 0, clock_index = 0; index < clk->num_clock_cells;
+	     index++) {
 		/* Get name of parent clock */
 		err = clk_get_by_ofw_index(dev, 0, clock_index, &parent);
 		if (err != 0) {
 			clock_index++;
 			found_all = false;
 			DPRINTF(dev, "Failed to find clock_cells[%d]=0x%x\n",
-				index, clk->clock_cells[index]);
+			    index, clk->clock_cells[index]);
 
 			index += clk->clock_cells_ncells[index];
 			continue;
@@ -116,9 +121,8 @@ find_parent_clock_names(device_t dev, struct clock_cell_info *clk, struct clknod
 		def->parent_names[clock_index] = clk_get_name(parent);
 		clk_release(parent);
 
-		DPRINTF(dev, "Found parent clock[%d/%d]: %s\n",
-			clock_index, clk->num_real_clocks,
-			def->parent_names[clock_index]);
+		DPRINTF(dev, "Found parent clock[%d/%d]: %s\n", clock_index,
+		    clk->num_real_clocks, def->parent_names[clock_index]);
 
 		clock_index++;
 		index += clk->clock_cells_ncells[index];
@@ -134,7 +138,9 @@ find_parent_clock_names(device_t dev, struct clock_cell_info *clk, struct clknod
 }
 
 void
-create_clkdef(device_t dev, struct clock_cell_info *clk, struct clknode_init_def *def) {
+create_clkdef(
+    device_t dev, struct clock_cell_info *clk, struct clknode_init_def *def)
+{
 	def->id = 1;
 
 	clk_parse_ofw_clk_name(dev, ofw_bus_get_node(dev), &def->name);
@@ -142,11 +148,12 @@ create_clkdef(device_t dev, struct clock_cell_info *clk, struct clknode_init_def
 	DPRINTF(dev, "node name: %s\n", def->name);
 
 	def->parent_cnt = clk->num_real_clocks;
-	def->parent_names = malloc(clk->num_real_clocks*sizeof(char *),
-					 M_OFWPROP, M_WAITOK);
+	def->parent_names = malloc(
+	    clk->num_real_clocks * sizeof(char *), M_OFWPROP, M_WAITOK);
 }
 void
-free_clkdef(struct clknode_init_def *def) {
+free_clkdef(struct clknode_init_def *def)
+{
 	OF_prop_free(__DECONST(char *, def->name));
 	OF_prop_free(def->parent_names);
 }

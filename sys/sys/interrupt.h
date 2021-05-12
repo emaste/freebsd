@@ -46,25 +46,25 @@ struct trapframe;
  * together.
  */
 struct intr_handler {
-	driver_filter_t	*ih_filter;	/* Filter handler function. */
-	driver_intr_t	*ih_handler;	/* Threaded handler function. */
-	void		*ih_argument;	/* Argument to pass to handlers. */
-	int		 ih_flags;
-	char		 ih_name[MAXCOMLEN + 1]; /* Name of handler. */
-	struct intr_event *ih_event;	/* Event we are connected to. */
-	int		 ih_need;	/* Needs service. */
+	driver_filter_t *ih_filter; /* Filter handler function. */
+	driver_intr_t *ih_handler;  /* Threaded handler function. */
+	void *ih_argument;	    /* Argument to pass to handlers. */
+	int ih_flags;
+	char ih_name[MAXCOMLEN + 1];	      /* Name of handler. */
+	struct intr_event *ih_event;	      /* Event we are connected to. */
+	int ih_need;			      /* Needs service. */
 	CK_SLIST_ENTRY(intr_handler) ih_next; /* Next handler for this event. */
-	u_char		 ih_pri;	/* Priority of this handler. */
+	u_char ih_pri;			      /* Priority of this handler. */
 };
 
 /* Interrupt handle flags kept in ih_flags */
-#define	IH_NET		0x00000001	/* Network. */
-#define	IH_EXCLUSIVE	0x00000002	/* Exclusive interrupt. */
-#define	IH_ENTROPY	0x00000004	/* Device is a good entropy source. */
-#define	IH_DEAD		0x00000008	/* Handler should be removed. */
-#define	IH_SUSP		0x00000010	/* Device is powered down. */
-#define	IH_CHANGED	0x40000000	/* Handler state is changed. */
-#define	IH_MPSAFE	0x80000000	/* Handler does not need Giant. */
+#define IH_NET 0x00000001 /* Network. */
+#define IH_EXCLUSIVE 0x00000002 /* Exclusive interrupt. */
+#define IH_ENTROPY 0x00000004 /* Device is a good entropy source. */
+#define IH_DEAD 0x00000008 /* Handler should be removed. */
+#define IH_SUSP 0x00000010 /* Device is powered down. */
+#define IH_CHANGED 0x40000000 /* Handler state is changed. */
+#define IH_MPSAFE 0x80000000 /* Handler does not need Giant. */
 
 /*
  * Describe an interrupt event.  An event holds a list of handlers.
@@ -109,92 +109,89 @@ struct intr_handler {
 struct intr_event {
 	TAILQ_ENTRY(intr_event) ie_list;
 	CK_SLIST_HEAD(, intr_handler) ie_handlers; /* Interrupt handlers. */
-	char		ie_name[MAXCOMLEN + 1]; /* Individual event name. */
-	char		ie_fullname[MAXCOMLEN + 1];
-	struct mtx	ie_lock;
-	void		*ie_source;	/* Cookie used by MD code. */
-	struct intr_thread *ie_thread;	/* Thread we are connected to. */
-	void		(*ie_pre_ithread)(void *);
-	void		(*ie_post_ithread)(void *);
-	void		(*ie_post_filter)(void *);
-	int		(*ie_assign_cpu)(void *, int);
-	int		ie_flags;
-	int		ie_hflags;	/* Cumulative flags of all handlers. */
-	int		ie_count;	/* Loop counter. */
-	int		ie_warncnt;	/* Rate-check interrupt storm warns. */
-	struct timeval	ie_warntm;
-	int		ie_irq;		/* Physical irq number if !SOFT. */
-	int		ie_cpu;		/* CPU this event is bound to. */
-	volatile int	ie_phase;	/* Switched to establish a barrier. */
-	volatile int	ie_active[2];	/* Filters in ISR context. */
+	char ie_name[MAXCOMLEN + 1];		   /* Individual event name. */
+	char ie_fullname[MAXCOMLEN + 1];
+	struct mtx ie_lock;
+	void *ie_source;	       /* Cookie used by MD code. */
+	struct intr_thread *ie_thread; /* Thread we are connected to. */
+	void (*ie_pre_ithread)(void *);
+	void (*ie_post_ithread)(void *);
+	void (*ie_post_filter)(void *);
+	int (*ie_assign_cpu)(void *, int);
+	int ie_flags;
+	int ie_hflags;	/* Cumulative flags of all handlers. */
+	int ie_count;	/* Loop counter. */
+	int ie_warncnt; /* Rate-check interrupt storm warns. */
+	struct timeval ie_warntm;
+	int ie_irq;		   /* Physical irq number if !SOFT. */
+	int ie_cpu;		   /* CPU this event is bound to. */
+	volatile int ie_phase;	   /* Switched to establish a barrier. */
+	volatile int ie_active[2]; /* Filters in ISR context. */
 };
 
 /* Interrupt event flags kept in ie_flags. */
-#define	IE_SOFT		0x000001	/* Software interrupt. */
-#define	IE_ADDING_THREAD 0x000004	/* Currently building an ithread. */
+#define IE_SOFT 0x000001 /* Software interrupt. */
+#define IE_ADDING_THREAD 0x000004 /* Currently building an ithread. */
 
 /* Flags to pass to swi_sched. */
-#define	SWI_FROMNMI	0x1
-#define	SWI_DELAY	0x2
+#define SWI_FROMNMI 0x1
+#define SWI_DELAY 0x2
 
 /*
  * Software interrupt numbers in priority order.  The priority determines
  * the priority of the corresponding interrupt thread.
  */
-#define	SWI_TTY		0
-#define	SWI_NET		1
-#define	SWI_CAMBIO	2
-#define	SWI_VM		3
-#define	SWI_CLOCK	4
-#define	SWI_TQ_FAST	5
-#define	SWI_TQ		6
-#define	SWI_TQ_GIANT	6
+#define SWI_TTY 0
+#define SWI_NET 1
+#define SWI_CAMBIO 2
+#define SWI_VM 3
+#define SWI_CLOCK 4
+#define SWI_TQ_FAST 5
+#define SWI_TQ 6
+#define SWI_TQ_GIANT 6
 
 struct proc;
 
-extern struct	intr_event *clk_intr_event;
-extern struct	intr_event *tty_intr_event;
-extern void	*vm_ih;
+extern struct intr_event *clk_intr_event;
+extern struct intr_event *tty_intr_event;
+extern void *vm_ih;
 
 /* Counts and names for statistics (defined in MD code). */
-extern u_long 	*intrcnt;	/* counts for for each device and stray */
-extern char 	*intrnames;	/* string table containing device names */
-extern size_t	sintrcnt;	/* size of intrcnt table */
-extern size_t	sintrnames;	/* size of intrnames table */
+extern u_long *intrcnt;	  /* counts for for each device and stray */
+extern char *intrnames;	  /* string table containing device names */
+extern size_t sintrcnt;	  /* size of intrcnt table */
+extern size_t sintrnames; /* size of intrnames table */
 
 #ifdef DDB
-void	db_dump_intr_event(struct intr_event *ie, int handlers);
+void db_dump_intr_event(struct intr_event *ie, int handlers);
 #endif
-u_char	intr_priority(enum intr_type flags);
-int	intr_event_add_handler(struct intr_event *ie, const char *name,
-	    driver_filter_t filter, driver_intr_t handler, void *arg, 
-	    u_char pri, enum intr_type flags, void **cookiep);	    
-int	intr_event_bind(struct intr_event *ie, int cpu);
-int	intr_event_bind_irqonly(struct intr_event *ie, int cpu);
-int	intr_event_bind_ithread(struct intr_event *ie, int cpu);
+u_char intr_priority(enum intr_type flags);
+int intr_event_add_handler(struct intr_event *ie, const char *name,
+    driver_filter_t filter, driver_intr_t handler, void *arg, u_char pri,
+    enum intr_type flags, void **cookiep);
+int intr_event_bind(struct intr_event *ie, int cpu);
+int intr_event_bind_irqonly(struct intr_event *ie, int cpu);
+int intr_event_bind_ithread(struct intr_event *ie, int cpu);
 struct _cpuset;
-int	intr_event_bind_ithread_cpuset(struct intr_event *ie,
-	    struct _cpuset *mask);
-int	intr_event_create(struct intr_event **event, void *source,
-	    int flags, int irq, void (*pre_ithread)(void *),
-	    void (*post_ithread)(void *), void (*post_filter)(void *),
-	    int (*assign_cpu)(void *, int), const char *fmt, ...)
-	    __printflike(9, 10);
-int	intr_event_describe_handler(struct intr_event *ie, void *cookie,
-	    const char *descr);
-int	intr_event_destroy(struct intr_event *ie);
-int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
-int	intr_event_remove_handler(void *cookie);
-int	intr_event_suspend_handler(void *cookie);
-int	intr_event_resume_handler(void *cookie);
-int	intr_getaffinity(int irq, int mode, void *mask);
-void	*intr_handler_source(void *cookie);
-int	intr_setaffinity(int irq, int mode, void *mask);
-void	_intr_drain(int irq);  /* LinuxKPI only. */
-int	swi_add(struct intr_event **eventp, const char *name,
-	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,
-	    void **cookiep);
-void	swi_sched(void *cookie, int flags);
-int	swi_remove(void *cookie);
+int intr_event_bind_ithread_cpuset(struct intr_event *ie, struct _cpuset *mask);
+int intr_event_create(struct intr_event **event, void *source, int flags,
+    int irq, void (*pre_ithread)(void *), void (*post_ithread)(void *),
+    void (*post_filter)(void *), int (*assign_cpu)(void *, int),
+    const char *fmt, ...) __printflike(9, 10);
+int intr_event_describe_handler(
+    struct intr_event *ie, void *cookie, const char *descr);
+int intr_event_destroy(struct intr_event *ie);
+int intr_event_handle(struct intr_event *ie, struct trapframe *frame);
+int intr_event_remove_handler(void *cookie);
+int intr_event_suspend_handler(void *cookie);
+int intr_event_resume_handler(void *cookie);
+int intr_getaffinity(int irq, int mode, void *mask);
+void *intr_handler_source(void *cookie);
+int intr_setaffinity(int irq, int mode, void *mask);
+void _intr_drain(int irq); /* LinuxKPI only. */
+int swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
+    void *arg, int pri, enum intr_type flags, void **cookiep);
+void swi_sched(void *cookie, int flags);
+int swi_remove(void *cookie);
 
 #endif

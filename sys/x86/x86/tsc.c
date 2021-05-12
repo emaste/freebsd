@@ -32,32 +32,36 @@ __FBSDID("$FreeBSD$");
 #include "opt_clock.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
+#include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
-#include <sys/systm.h>
+#include <sys/power.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/timetc.h>
-#include <sys/kernel.h>
-#include <sys/power.h>
-#include <sys/smp.h>
 #include <sys/vdso.h>
+
 #include <machine/clock.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+
 #include <x86/vmware.h>
+
 #include <dev/acpica/acpi_hpet.h>
+
 #include <contrib/dev/acpica/include/acpi.h>
 
 #include "cpufreq_if.h"
 
-uint64_t	tsc_freq;
-int		tsc_is_invariant;
-int		tsc_perf_stat;
+uint64_t tsc_freq;
+int tsc_is_invariant;
+int tsc_perf_stat;
 
 static eventhandler_tag tsc_levels_tag, tsc_pre_tag, tsc_post_tag;
 
@@ -65,32 +69,31 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, invariant_tsc, CTLFLAG_RDTUN,
     &tsc_is_invariant, 0, "Indicates whether the TSC is P-state invariant");
 
 #ifdef SMP
-int	smp_tsc;
+int smp_tsc;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, smp_tsc, CTLFLAG_RDTUN, &smp_tsc, 0,
     "Indicates whether the TSC is safe to use in SMP mode");
 
-int	smp_tsc_adjust = 0;
+int smp_tsc_adjust = 0;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, smp_tsc_adjust, CTLFLAG_RDTUN,
     &smp_tsc_adjust, 0, "Try to adjust TSC on APs to match BSP");
 #endif
 
-static int	tsc_shift = 1;
-SYSCTL_INT(_kern_timecounter, OID_AUTO, tsc_shift, CTLFLAG_RDTUN,
-    &tsc_shift, 0, "Shift to pre-apply for the maximum TSC frequency");
+static int tsc_shift = 1;
+SYSCTL_INT(_kern_timecounter, OID_AUTO, tsc_shift, CTLFLAG_RDTUN, &tsc_shift, 0,
+    "Shift to pre-apply for the maximum TSC frequency");
 
-static int	tsc_disabled;
+static int tsc_disabled;
 SYSCTL_INT(_machdep, OID_AUTO, disable_tsc, CTLFLAG_RDTUN, &tsc_disabled, 0,
     "Disable x86 Time Stamp Counter");
 
-static int	tsc_skip_calibration;
+static int tsc_skip_calibration;
 SYSCTL_INT(_machdep, OID_AUTO, disable_tsc_calibration, CTLFLAG_RDTUN,
-    &tsc_skip_calibration, 0,
-    "Disable TSC frequency calibration");
+    &tsc_skip_calibration, 0, "Disable TSC frequency calibration");
 
-static void tsc_freq_changed(void *arg, const struct cf_level *level,
-    int status);
-static void tsc_freq_changing(void *arg, const struct cf_level *level,
-    int *status);
+static void tsc_freq_changed(
+    void *arg, const struct cf_level *level, int status);
+static void tsc_freq_changing(
+    void *arg, const struct cf_level *level, int *status);
 static u_int tsc_get_timecount(struct timecounter *tc);
 static inline u_int tsc_get_timecount_low(struct timecounter *tc);
 static u_int tsc_get_timecount_lfence(struct timecounter *tc);
@@ -100,21 +103,21 @@ static u_int tsc_get_timecount_low_mfence(struct timecounter *tc);
 static u_int tscp_get_timecount(struct timecounter *tc);
 static u_int tscp_get_timecount_low(struct timecounter *tc);
 static void tsc_levels_changed(void *arg, int unit);
-static uint32_t x86_tsc_vdso_timehands(struct vdso_timehands *vdso_th,
-    struct timecounter *tc);
+static uint32_t x86_tsc_vdso_timehands(
+    struct vdso_timehands *vdso_th, struct timecounter *tc);
 #ifdef COMPAT_FREEBSD32
-static uint32_t x86_tsc_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
-    struct timecounter *tc);
+static uint32_t x86_tsc_vdso_timehands32(
+    struct vdso_timehands32 *vdso_th32, struct timecounter *tc);
 #endif
 
 static struct timecounter tsc_timecounter = {
-	.tc_get_timecount =		tsc_get_timecount,
-	.tc_counter_mask =		~0u,
-	.tc_name =			"TSC",
-	.tc_quality =			800,	/* adjusted in code */
-	.tc_fill_vdso_timehands = 	x86_tsc_vdso_timehands,
+	.tc_get_timecount = tsc_get_timecount,
+	.tc_counter_mask = ~0u,
+	.tc_name = "TSC",
+	.tc_quality = 800, /* adjusted in code */
+	.tc_fill_vdso_timehands = x86_tsc_vdso_timehands,
 #ifdef COMPAT_FREEBSD32
-	.tc_fill_vdso_timehands32 = 	x86_tsc_vdso_timehands32,
+	.tc_fill_vdso_timehands32 = x86_tsc_vdso_timehands32,
 #endif
 };
 
@@ -208,7 +211,7 @@ tsc_freq_intel(void)
 			default:
 				return;
 			}
-#define	C2D(c)	((c) - '0')
+#define C2D(c) ((c) - '0')
 			if (p[1] == '.') {
 				freq = C2D(p[0]) * 1000;
 				freq += C2D(p[2]) * 100;
@@ -255,7 +258,7 @@ probe_tsc_freq(void)
 	case CPU_VENDOR_HYGON:
 		if ((amd_pminfo & AMDPM_TSC_INVARIANT) != 0 ||
 		    (vm_guest == VM_GUEST_NO &&
-		    CPUID_TO_FAMILY(cpu_id) >= 0x10))
+			CPUID_TO_FAMILY(cpu_id) >= 0x10))
 			tsc_is_invariant = 1;
 		if (cpu_feature & CPUID_SSE2) {
 			tsc_timecounter.tc_get_timecount =
@@ -265,10 +268,10 @@ probe_tsc_freq(void)
 	case CPU_VENDOR_INTEL:
 		if ((amd_pminfo & AMDPM_TSC_INVARIANT) != 0 ||
 		    (vm_guest == VM_GUEST_NO &&
-		    ((CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-		    CPUID_TO_MODEL(cpu_id) >= 0xe) ||
-		    (CPUID_TO_FAMILY(cpu_id) == 0xf &&
-		    CPUID_TO_MODEL(cpu_id) >= 0x3))))
+			((CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+			     CPUID_TO_MODEL(cpu_id) >= 0xe) ||
+			    (CPUID_TO_FAMILY(cpu_id) == 0xf &&
+				CPUID_TO_MODEL(cpu_id) >= 0x3))))
 			tsc_is_invariant = 1;
 		if (cpu_feature & CPUID_SSE2) {
 			tsc_timecounter.tc_get_timecount =
@@ -276,8 +279,7 @@ probe_tsc_freq(void)
 		}
 		break;
 	case CPU_VENDOR_CENTAUR:
-		if (vm_guest == VM_GUEST_NO &&
-		    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		if (vm_guest == VM_GUEST_NO && CPUID_TO_FAMILY(cpu_id) == 0x6 &&
 		    CPUID_TO_MODEL(cpu_id) >= 0xf &&
 		    (rdmsr(0x1203) & 0x100000000ULL) == 0)
 			tsc_is_invariant = 1;
@@ -312,19 +314,20 @@ probe_tsc_freq(void)
 		 * reports it in FADT boot flags, so just compare the
 		 * frequencies directly.
 		 */
-		if (tsc_freq_cpuid(&tmp_freq) && qabs(tsc_freq - tmp_freq) >
-		    uqmin(tsc_freq, tmp_freq)) {
+		if (tsc_freq_cpuid(&tmp_freq) &&
+		    qabs(tsc_freq - tmp_freq) > uqmin(tsc_freq, tmp_freq)) {
 			no_cpuid_override = 0;
 			TUNABLE_INT_FETCH("machdep.disable_tsc_cpuid_override",
 			    &no_cpuid_override);
 			if (!no_cpuid_override) {
 				if (bootverbose) {
 					printf(
-	"TSC clock: calibration freq %ju Hz, CPUID freq %ju Hz%s\n",
+					    "TSC clock: calibration freq %ju Hz, CPUID freq %ju Hz%s\n",
 					    (uintmax_t)tsc_freq,
 					    (uintmax_t)tmp_freq,
-					    no_cpuid_override ? "" :
-					    ", doing CPUID override");
+					    no_cpuid_override ?
+						      "" :
+						      ", doing CPUID override");
 				}
 				tsc_freq = tmp_freq;
 			}
@@ -373,7 +376,7 @@ init_TSC(void)
 		break;
 	}
 #endif
-		
+
 	probe_tsc_freq();
 
 	/*
@@ -413,22 +416,21 @@ init_TSC(void)
  * Do not use do_cpuid(), since we do not need CPUID results, which
  * have to be written into memory with do_cpuid().
  */
-#define	TSC_READ(x)							\
-static void								\
-tsc_read_##x(void *arg)							\
-{									\
-	uint64_t *tsc = arg;						\
-	u_int cpu = PCPU_GET(cpuid);					\
-									\
-	__asm __volatile("cpuid" : : : "eax", "ebx", "ecx", "edx");	\
-	tsc[cpu * 3 + x] = rdtsc();					\
-}
+#define TSC_READ(x)                                                         \
+	static void tsc_read_##x(void *arg)                                 \
+	{                                                                   \
+		uint64_t *tsc = arg;                                        \
+		u_int cpu = PCPU_GET(cpuid);                                \
+                                                                            \
+		__asm __volatile("cpuid" : : : "eax", "ebx", "ecx", "edx"); \
+		tsc[cpu * 3 + x] = rdtsc();                                 \
+	}
 TSC_READ(0)
 TSC_READ(1)
 TSC_READ(2)
 #undef TSC_READ
 
-#define	N	1000
+#define N 1000
 
 static void
 comp_smp_tsc(void *arg)
@@ -440,7 +442,7 @@ comp_smp_tsc(void *arg)
 
 	size = (mp_maxid + 1) * 3;
 	for (i = 0, tsc = arg; i < N; i++, tsc += size)
-		CPU_FOREACH(j) {
+		CPU_FOREACH (j) {
 			if (j == cpu)
 				continue;
 			d1 = tsc[cpu * 3 + 1] - tsc[j * 3];
@@ -483,16 +485,14 @@ adj_smp_tsc(void *arg)
 	if (min > max)
 		return;
 	d = min / 2 + max / 2;
-	__asm __volatile (
-		"movl $0x10, %%ecx\n\t"
-		"rdmsr\n\t"
-		"addl %%edi, %%eax\n\t"
-		"adcl %%esi, %%edx\n\t"
-		"wrmsr\n"
-		: /* No output */
-		: "D" ((uint32_t)d), "S" ((uint32_t)(d >> 32))
-		: "ax", "cx", "dx", "cc"
-	);
+	__asm __volatile("movl $0x10, %%ecx\n\t"
+			 "rdmsr\n\t"
+			 "addl %%edi, %%eax\n\t"
+			 "adcl %%esi, %%edx\n\t"
+			 "wrmsr\n"
+			 : /* No output */
+			 : "D"((uint32_t)d), "S"((uint32_t)(d >> 32))
+			 : "ax", "cx", "dx", "cc");
 }
 
 static int
@@ -517,7 +517,7 @@ test_tsc(int adj_max_count)
 retry:
 	for (i = 0, tsc = data; i < N; i++, tsc += size)
 		smp_rendezvous(tsc_read_0, tsc_read_1, tsc_read_2, tsc);
-	smp_tsc = 1;	/* XXX */
+	smp_tsc = 1; /* XXX */
 	smp_rendezvous(smp_no_rendezvous_barrier, comp_smp_tsc,
 	    smp_no_rendezvous_barrier, data);
 	if (!smp_tsc && adj < adj_max_count) {
@@ -529,7 +529,7 @@ retry:
 	free(data, M_TEMP);
 	if (bootverbose)
 		printf("SMP: %sed TSC synchronization test%s\n",
-		    smp_tsc ? "pass" : "fail", 
+		    smp_tsc ? "pass" : "fail",
 		    adj > 0 ? " after adjustment" : "");
 	if (smp_tsc && tsc_is_invariant) {
 		switch (cpu_vendor_id) {
@@ -585,8 +585,8 @@ init_TSC_tc(void)
 
 	/*
 	 * We can not use the TSC if we support APM.  Precise timekeeping
-	 * on an APM'ed machine is at best a fools pursuit, since 
-	 * any and all of the time spent in various SMM code can't 
+	 * on an APM'ed machine is at best a fools pursuit, since
+	 * any and all of the time spent in various SMM code can't
 	 * be reliably accounted for.  Reading the RTC is your only
 	 * source of reliable time info.  The i8254 loses too, of course,
 	 * but we need to have some kind of time...
@@ -631,7 +631,7 @@ init_TSC_tc(void)
 		tsc_timecounter.tc_quality = test_tsc(smp_tsc_adjust);
 	else
 #endif /* SMP */
-	if (tsc_is_invariant)
+	    if (tsc_is_invariant)
 		tsc_timecounter.tc_quality = 1000;
 	max_freq >>= tsc_shift;
 
@@ -648,21 +648,23 @@ init:
 	 */
 	if ((amd_feature & AMDID_RDTSCP) != 0) {
 		tsc_timecounter.tc_get_timecount = shift > 0 ?
-		    tscp_get_timecount_low : tscp_get_timecount;
+			  tscp_get_timecount_low :
+			  tscp_get_timecount;
 	} else if ((cpu_feature & CPUID_SSE2) != 0 && mp_ncpus > 1) {
 		if (cpu_vendor_id == CPU_VENDOR_AMD ||
 		    cpu_vendor_id == CPU_VENDOR_HYGON) {
 			tsc_timecounter.tc_get_timecount = shift > 0 ?
-			    tsc_get_timecount_low_mfence :
-			    tsc_get_timecount_mfence;
+				  tsc_get_timecount_low_mfence :
+				  tsc_get_timecount_mfence;
 		} else {
 			tsc_timecounter.tc_get_timecount = shift > 0 ?
-			    tsc_get_timecount_low_lfence :
-			    tsc_get_timecount_lfence;
+				  tsc_get_timecount_low_lfence :
+				  tsc_get_timecount_lfence;
 		}
 	} else {
 		tsc_timecounter.tc_get_timecount = shift > 0 ?
-		    tsc_get_timecount_low : tsc_get_timecount;
+			  tsc_get_timecount_low :
+			  tsc_get_timecount;
 	}
 	if (shift > 0) {
 		tsc_timecounter.tc_name = "TSC-low";
@@ -753,7 +755,7 @@ tsc_freq_changing(void *arg, const struct cf_level *level, int *status)
 		return;
 
 	printf("timecounter TSC must not be in use when "
-	    "changing frequencies; change denied\n");
+	       "changing frequencies; change denied\n");
 	*status = EBUSY;
 }
 
@@ -770,12 +772,11 @@ tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 	/* Total setting for this level gives the new frequency in MHz. */
 	freq = (uint64_t)level->total_set.freq * 1000000;
 	atomic_store_rel_64(&tsc_freq, freq);
-	tsc_timecounter.tc_frequency =
-	    freq >> (int)(intptr_t)tsc_timecounter.tc_priv;
+	tsc_timecounter.tc_frequency = freq >>
+	    (int)(intptr_t)tsc_timecounter.tc_priv;
 }
 
-static int
-sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
+static int sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	uint64_t freq;
@@ -793,9 +794,8 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq,
-    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    0, 0, sysctl_machdep_tsc_freq, "QU",
-    "Time Stamp Counter frequency");
+    CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0, sysctl_machdep_tsc_freq,
+    "QU", "Time Stamp Counter frequency");
 
 static u_int
 tsc_get_timecount(struct timecounter *tc __unused)
@@ -817,7 +817,9 @@ tsc_get_timecount_low(struct timecounter *tc)
 	uint32_t rv;
 
 	__asm __volatile("rdtsc; shrd %%cl, %%edx, %0"
-	    : "=a" (rv) : "c" ((int)(intptr_t)tc->tc_priv) : "edx");
+			 : "=a"(rv)
+			 : "c"((int)(intptr_t)tc->tc_priv)
+			 : "edx");
 	return (rv);
 }
 
@@ -827,7 +829,9 @@ tscp_get_timecount_low(struct timecounter *tc)
 	uint32_t rv;
 
 	__asm __volatile("rdtscp; movl %1, %%ecx; shrd %%cl, %%edx, %0"
-	    : "=&a" (rv) : "m" (tc->tc_priv) : "ecx", "edx");
+			 : "=&a"(rv)
+			 : "m"(tc->tc_priv)
+			 : "ecx", "edx");
 	return (rv);
 }
 
@@ -876,8 +880,8 @@ x86_tsc_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
 
 #ifdef COMPAT_FREEBSD32
 static uint32_t
-x86_tsc_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
-    struct timecounter *tc)
+x86_tsc_vdso_timehands32(
+    struct vdso_timehands32 *vdso_th32, struct timecounter *tc)
 {
 
 	vdso_th32->th_algo = VDSO_TH_ALGO_X86_TSC;

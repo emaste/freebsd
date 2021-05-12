@@ -31,15 +31,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/bio.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
+
 #include <vm/uma.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
 #include <geom/shsec/g_shsec.h>
@@ -51,8 +53,8 @@ static MALLOC_DEFINE(M_SHSEC, "shsec_data", "GEOM_SHSEC Data");
 static uma_zone_t g_shsec_zone;
 
 static int g_shsec_destroy(struct g_shsec_softc *sc, boolean_t force);
-static int g_shsec_destroy_geom(struct gctl_req *req, struct g_class *mp,
-    struct g_geom *gp);
+static int g_shsec_destroy_geom(
+    struct gctl_req *req, struct g_class *mp, struct g_geom *gp);
 
 static g_taste_t g_shsec_taste;
 static g_ctl_req_t g_shsec_config;
@@ -60,15 +62,13 @@ static g_dumpconf_t g_shsec_dumpconf;
 static g_init_t g_shsec_init;
 static g_fini_t g_shsec_fini;
 
-struct g_class g_shsec_class = {
-	.name = G_SHSEC_CLASS_NAME,
+struct g_class g_shsec_class = { .name = G_SHSEC_CLASS_NAME,
 	.version = G_VERSION,
 	.ctlreq = g_shsec_config,
 	.taste = g_shsec_taste,
 	.destroy_geom = g_shsec_destroy_geom,
 	.init = g_shsec_init,
-	.fini = g_shsec_fini
-};
+	.fini = g_shsec_fini };
 
 SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, shsec, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -78,8 +78,8 @@ SYSCTL_UINT(_kern_geom_shsec, OID_AUTO, debug, CTLFLAG_RWTUN, &g_shsec_debug, 0,
     "Debug level");
 static u_long g_shsec_maxmem;
 SYSCTL_ULONG(_kern_geom_shsec, OID_AUTO, maxmem,
-    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &g_shsec_maxmem,
-    0, "Maximum memory that can be allocated for I/O (in bytes)");
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &g_shsec_maxmem, 0,
+    "Maximum memory that can be allocated for I/O (in bytes)");
 static u_int g_shsec_alloc_failed = 0;
 SYSCTL_UINT(_kern_geom_shsec, OID_AUTO, alloc_failed, CTLFLAG_RD,
     &g_shsec_alloc_failed, 0, "How many times I/O allocation failed");
@@ -116,8 +116,8 @@ g_shsec_init(struct g_class *mp __unused)
 
 	g_shsec_maxmem = maxphys * 100;
 	TUNABLE_ULONG_FETCH("kern.geom.shsec.maxmem,", &g_shsec_maxmem);
-	g_shsec_zone = uma_zcreate("g_shsec_zone", maxphys, NULL, NULL, NULL,
-	    NULL, 0, 0);
+	g_shsec_zone = uma_zcreate(
+	    "g_shsec_zone", maxphys, NULL, NULL, NULL, NULL, 0, 0);
 	g_shsec_maxmem -= g_shsec_maxmem % maxphys;
 	uma_zone_set_max(g_shsec_zone, g_shsec_maxmem / maxphys);
 }
@@ -157,8 +157,8 @@ g_shsec_remove_disk(struct g_consumer *cp)
 	KASSERT(sc != NULL, ("NULL sc in %s.", __func__));
 	no = cp->index;
 
-	G_SHSEC_DEBUG(0, "Disk %s removed from %s.", cp->provider->name,
-	    sc->sc_name);
+	G_SHSEC_DEBUG(
+	    0, "Disk %s removed from %s.", cp->provider->name, sc->sc_name);
 
 	sc->sc_disks[no] = NULL;
 	if (sc->sc_provider != NULL) {
@@ -210,7 +210,7 @@ g_shsec_access(struct g_provider *pp, int dr, int dw, int de)
 		de--;
 
 	error = ENXIO;
-	LIST_FOREACH_SAFE(cp1, &gp->consumer, consumer, tmp) {
+	LIST_FOREACH_SAFE (cp1, &gp->consumer, consumer, tmp) {
 		error = g_access(cp1, dr, dw, de);
 		if (error != 0)
 			goto fail;
@@ -229,7 +229,7 @@ g_shsec_access(struct g_provider *pp, int dr, int dw, int de)
 
 fail:
 	/* If we fail here, backout all previous changes. */
-	LIST_FOREACH(cp2, &gp->consumer, consumer) {
+	LIST_FOREACH (cp2, &gp->consumer, consumer) {
 		if (cp1 == cp2)
 			break;
 		g_access(cp2, -dr, -dw, -de);
@@ -257,8 +257,8 @@ g_shsec_done(struct bio *bp)
 	if (bp->bio_error == 0)
 		G_SHSEC_LOGREQ(2, bp, "Request done.");
 	else {
-		G_SHSEC_LOGREQ(0, bp, "Request failed (error=%d).",
-		    bp->bio_error);
+		G_SHSEC_LOGREQ(
+		    0, bp, "Request failed (error=%d).", bp->bio_error);
 		if (pbp->bio_error == 0)
 			pbp->bio_error = bp->bio_error;
 	}
@@ -311,7 +311,7 @@ g_shsec_start(struct bio *bp)
 	 */
 	KASSERT(sc != NULL,
 	    ("Provider's error should be set (error=%d)(device=%s).",
-	    bp->bio_to->error, bp->bio_to->name));
+		bp->bio_to->error, bp->bio_to->name));
 
 	G_SHSEC_LOGREQ(2, bp, "Request received.");
 
@@ -363,8 +363,8 @@ g_shsec_start(struct bio *bp)
 				dst = (uint32_t *)cbp->bio_data;
 				bcopy(bp->bio_data, dst, len);
 			} else {
-				g_shsec_xor2((uint32_t *)cbp->bio_data, dst,
-				    len);
+				g_shsec_xor2(
+				    (uint32_t *)cbp->bio_data, dst, len);
 			}
 		}
 	}
@@ -418,8 +418,8 @@ g_shsec_check_and_run(struct g_shsec_softc *sc)
 		ms -= sc->sc_disks[no]->provider->sectorsize;
 		if (ms < mediasize)
 			mediasize = ms;
-		sectorsize = lcm(sectorsize,
-		    sc->sc_disks[no]->provider->sectorsize);
+		sectorsize = lcm(
+		    sectorsize, sc->sc_disks[no]->provider->sectorsize);
 	}
 	sc->sc_provider->sectorsize = sectorsize;
 	sc->sc_provider->mediasize = mediasize;
@@ -442,8 +442,8 @@ g_shsec_read_metadata(struct g_consumer *cp, struct g_shsec_metadata *md)
 		return (error);
 	pp = cp->provider;
 	g_topology_unlock();
-	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
-	    &error);
+	buf = g_read_data(
+	    cp, pp->mediasize - pp->sectorsize, pp->sectorsize, &error);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 	if (buf == NULL)
@@ -538,11 +538,11 @@ g_shsec_create(struct g_class *mp, const struct g_shsec_metadata *md)
 	}
 
 	/* Check for duplicate unit */
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc != NULL && strcmp(sc->sc_name, md->md_name) == 0) {
-			G_SHSEC_DEBUG(0, "Device %s already configured.",
-			    sc->sc_name);
+			G_SHSEC_DEBUG(
+			    0, "Device %s already configured.", sc->sc_name);
 			return (NULL);
 		}
 	}
@@ -585,12 +585,13 @@ g_shsec_destroy(struct g_shsec_softc *sc, boolean_t force)
 	pp = sc->sc_provider;
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
 		if (force) {
-			G_SHSEC_DEBUG(0, "Device %s is still open, so it "
-			    "can't be definitely removed.", pp->name);
+			G_SHSEC_DEBUG(0,
+			    "Device %s is still open, so it "
+			    "can't be definitely removed.",
+			    pp->name);
 		} else {
-			G_SHSEC_DEBUG(1,
-			    "Device %s is still open (r%dw%de%d).", pp->name,
-			    pp->acr, pp->acw, pp->ace);
+			G_SHSEC_DEBUG(1, "Device %s is still open (r%dw%de%d).",
+			    pp->name, pp->acr, pp->acw, pp->ace);
 			return (EBUSY);
 		}
 	}
@@ -602,8 +603,8 @@ g_shsec_destroy(struct g_shsec_softc *sc, boolean_t force)
 
 	gp = sc->sc_geom;
 	gp->softc = NULL;
-	KASSERT(sc->sc_provider == NULL, ("Provider still exists? (device=%s)",
-	    gp->name));
+	KASSERT(sc->sc_provider == NULL,
+	    ("Provider still exists? (device=%s)", gp->name));
 	free(sc->sc_disks, M_SHSEC);
 	free(sc, M_SHSEC);
 
@@ -663,8 +664,8 @@ g_shsec_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (strcmp(md.md_magic, G_SHSEC_MAGIC) != 0)
 		return (NULL);
 	if (md.md_version > G_SHSEC_VERSION) {
-		G_SHSEC_DEBUG(0, "Kernel module is too old to handle %s.\n",
-		    pp->name);
+		G_SHSEC_DEBUG(
+		    0, "Kernel module is too old to handle %s.\n", pp->name);
 		return (NULL);
 	}
 	/*
@@ -684,7 +685,7 @@ g_shsec_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	 * Let's check if device already exists.
 	 */
 	sc = NULL;
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
@@ -705,7 +706,8 @@ g_shsec_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	} else {
 		gp = g_shsec_create(mp, &md);
 		if (gp == NULL) {
-			G_SHSEC_DEBUG(0, "Cannot create device %s.", md.md_name);
+			G_SHSEC_DEBUG(
+			    0, "Cannot create device %s.", md.md_name);
 			return (NULL);
 		}
 		sc = gp->softc;
@@ -727,7 +729,7 @@ g_shsec_find_device(struct g_class *mp, const char *name)
 	struct g_shsec_softc *sc;
 	struct g_geom *gp;
 
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
@@ -821,8 +823,8 @@ g_shsec_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (pp != NULL) {
 		/* Nothing here. */
 	} else if (cp != NULL) {
-		sbuf_printf(sb, "%s<Number>%u</Number>\n", indent,
-		    (u_int)cp->index);
+		sbuf_printf(
+		    sb, "%s<Number>%u</Number>\n", indent, (u_int)cp->index);
 	} else {
 		sbuf_printf(sb, "%s<ID>%u</ID>\n", indent, (u_int)sc->sc_id);
 		sbuf_printf(sb, "%s<Status>Total=%u, Online=%u</Status>\n",

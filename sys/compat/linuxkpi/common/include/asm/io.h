@@ -33,4 +33,4 @@
 
 #include <linux/io.h>
 
-#endif	/* _ASM_IO_H_ */
+#endif /* _ASM_IO_H_ */

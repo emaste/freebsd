@@ -32,8 +32,9 @@
  */
 
 #include <sys/types.h>
+
 #include <machine/param.h>
-/* 
+/*
  * Do not change the size unless you know what you are
  * doing, the current size of 5 is designed around
  * the cache-line size for an amd64 processor. Other processors
@@ -42,13 +43,13 @@
 #define NUM_FILTER_ENTRIES 3
 
 struct filter_entry {
-	uint64_t value;		/* Value */
-	uint32_t time_up;	/* Time updated */
-} __packed ;
+	uint64_t value;	  /* Value */
+	uint32_t time_up; /* Time updated */
+} __packed;
 
 struct filter_entry_small {
-	uint32_t value;		/* Value */
-	uint32_t time_up;	/* Time updated */
+	uint32_t value;	  /* Value */
+	uint32_t time_up; /* Time updated */
 };
 
 struct time_filter {
@@ -56,7 +57,7 @@ struct time_filter {
 	struct filter_entry entries[NUM_FILTER_ENTRIES];
 #ifdef _KERNEL
 } __aligned(CACHE_LINE_SIZE);
-#else	
+#else
 };
 #endif
 struct time_filter_small {
@@ -90,42 +91,38 @@ uint32_t apply_filter_min(struct time_filter *tf, uint64_t value, uint32_t now);
 uint32_t apply_filter_max(struct time_filter *tf, uint64_t value, uint32_t now);
 void filter_reduce_by(struct time_filter *tf, uint64_t reduce_by, uint32_t now);
 void filter_increase_by(struct time_filter *tf, uint64_t incr_by, uint32_t now);
-static uint64_t inline
-get_filter_value(struct time_filter *tf)
+static uint64_t inline get_filter_value(struct time_filter *tf)
 {
-	return(tf->entries[0].value);
+	return (tf->entries[0].value);
 }
 
-static uint32_t inline
-get_cur_timelim(struct time_filter *tf)
+static uint32_t inline get_cur_timelim(struct time_filter *tf)
 {
-	return(tf->cur_time_limit);
+	return (tf->cur_time_limit);
 }
 
-int setup_time_filter_small(struct time_filter_small *tf,
-			    int fil_type, uint32_t time_len);
+int setup_time_filter_small(
+    struct time_filter_small *tf, int fil_type, uint32_t time_len);
 void reset_time_small(struct time_filter_small *tf, uint32_t time_len);
-void forward_filter_clock_small(struct time_filter_small *tf,
-				uint32_t ticks_forward);
+void forward_filter_clock_small(
+    struct time_filter_small *tf, uint32_t ticks_forward);
 void tick_filter_clock_small(struct time_filter_small *tf, uint32_t now);
-uint32_t apply_filter_min_small(struct time_filter_small *tf,
-				uint32_t value, uint32_t now);
-uint32_t apply_filter_max_small(struct time_filter_small *tf,
-				uint32_t value, uint32_t now);
-void filter_reduce_by_small(struct time_filter_small *tf,
-			    uint32_t reduce_by, uint32_t now);
-void filter_increase_by_small(struct time_filter_small *tf,
-			      uint32_t incr_by, uint32_t now);
-static uint64_t inline
-get_filter_value_small(struct time_filter_small *tf)
+uint32_t apply_filter_min_small(
+    struct time_filter_small *tf, uint32_t value, uint32_t now);
+uint32_t apply_filter_max_small(
+    struct time_filter_small *tf, uint32_t value, uint32_t now);
+void filter_reduce_by_small(
+    struct time_filter_small *tf, uint32_t reduce_by, uint32_t now);
+void filter_increase_by_small(
+    struct time_filter_small *tf, uint32_t incr_by, uint32_t now);
+static uint64_t inline get_filter_value_small(struct time_filter_small *tf)
 {
-	return(tf->entries[0].value);
+	return (tf->entries[0].value);
 }
 
-static uint32_t inline
-get_cur_timelim_small(struct time_filter_small *tf)
+static uint32_t inline get_cur_timelim_small(struct time_filter_small *tf)
 {
-	return(tf->cur_time_limit);
+	return (tf->cur_time_limit);
 }
 
 #endif

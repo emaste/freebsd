@@ -44,26 +44,26 @@ __FBSDID("$FreeBSD$");
 #include "opt_vm.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/counter.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
-#include <sys/sysctl.h>
-#include <sys/systm.h>
-#include <sys/counter.h>
-#include <sys/ktr.h>
-#include <sys/vmmeter.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pagequeue.h>
+#include <vm/vm_param.h>
 #include <vm/vm_phys.h>
 #include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
@@ -78,54 +78,54 @@ __FBSDID("$FreeBSD$");
 #if VM_NRESERVLEVEL > 0
 
 #ifndef VM_LEVEL_0_ORDER_MAX
-#define	VM_LEVEL_0_ORDER_MAX	VM_LEVEL_0_ORDER
+#define VM_LEVEL_0_ORDER_MAX VM_LEVEL_0_ORDER
 #endif
 
 /*
  * The number of small pages that are contained in a level 0 reservation
  */
-#define	VM_LEVEL_0_NPAGES	(1 << VM_LEVEL_0_ORDER)
-#define	VM_LEVEL_0_NPAGES_MAX	(1 << VM_LEVEL_0_ORDER_MAX)
+#define VM_LEVEL_0_NPAGES (1 << VM_LEVEL_0_ORDER)
+#define VM_LEVEL_0_NPAGES_MAX (1 << VM_LEVEL_0_ORDER_MAX)
 
 /*
  * The number of bits by which a physical address is shifted to obtain the
  * reservation number
  */
-#define	VM_LEVEL_0_SHIFT	(VM_LEVEL_0_ORDER + PAGE_SHIFT)
+#define VM_LEVEL_0_SHIFT (VM_LEVEL_0_ORDER + PAGE_SHIFT)
 
 /*
  * The size of a level 0 reservation in bytes
  */
-#define	VM_LEVEL_0_SIZE		(1 << VM_LEVEL_0_SHIFT)
+#define VM_LEVEL_0_SIZE (1 << VM_LEVEL_0_SHIFT)
 
 /*
  * Computes the index of the small page underlying the given (object, pindex)
  * within the reservation's array of small pages.
  */
-#define	VM_RESERV_INDEX(object, pindex)	\
-    (((object)->pg_color + (pindex)) & (VM_LEVEL_0_NPAGES - 1))
+#define VM_RESERV_INDEX(object, pindex) \
+	(((object)->pg_color + (pindex)) & (VM_LEVEL_0_NPAGES - 1))
 
 /*
  * The size of a population map entry
  */
-typedef	u_long		popmap_t;
+typedef u_long popmap_t;
 
 /*
  * The number of bits in a population map entry
  */
-#define	NBPOPMAP	(NBBY * sizeof(popmap_t))
+#define NBPOPMAP (NBBY * sizeof(popmap_t))
 
 /*
  * The number of population map entries in a reservation
  */
-#define	NPOPMAP		howmany(VM_LEVEL_0_NPAGES, NBPOPMAP)
-#define	NPOPMAP_MAX	howmany(VM_LEVEL_0_NPAGES_MAX, NBPOPMAP)
+#define NPOPMAP howmany(VM_LEVEL_0_NPAGES, NBPOPMAP)
+#define NPOPMAP_MAX howmany(VM_LEVEL_0_NPAGES_MAX, NBPOPMAP)
 
 /*
  * Number of elapsed ticks before we update the LRU queue position.  Used
  * to reduce contention and churn on the list.
  */
-#define	PARTPOPSLOP	1
+#define PARTPOPSLOP 1
 
 /*
  * Clear a bit in the population map.
@@ -188,27 +188,26 @@ popmap_is_set(popmap_t popmap[], int i)
  * s - vm_reserv_domain_scan_lock
  */
 struct vm_reserv {
-	struct mtx	lock;			/* reservation lock. */
-	TAILQ_ENTRY(vm_reserv) partpopq;	/* (d, r) per-domain queue. */
-	LIST_ENTRY(vm_reserv) objq;		/* (o, r) object queue */
-	vm_object_t	object;			/* (o, r) containing object */
-	vm_pindex_t	pindex;			/* (o, r) offset in object */
-	vm_page_t	pages;			/* (c) first page  */
-	uint16_t	popcnt;			/* (r) # of pages in use */
-	uint8_t		domain;			/* (c) NUMA domain. */
-	char		inpartpopq;		/* (d, r) */
-	int		lasttick;		/* (r) last pop update tick. */
-	popmap_t	popmap[NPOPMAP_MAX];	/* (r) bit vector, used pages */
+	struct mtx lock;		 /* reservation lock. */
+	TAILQ_ENTRY(vm_reserv) partpopq; /* (d, r) per-domain queue. */
+	LIST_ENTRY(vm_reserv) objq;	 /* (o, r) object queue */
+	vm_object_t object;		 /* (o, r) containing object */
+	vm_pindex_t pindex;		 /* (o, r) offset in object */
+	vm_page_t pages;		 /* (c) first page  */
+	uint16_t popcnt;		 /* (r) # of pages in use */
+	uint8_t domain;			 /* (c) NUMA domain. */
+	char inpartpopq;		 /* (d, r) */
+	int lasttick;			 /* (r) last pop update tick. */
+	popmap_t popmap[NPOPMAP_MAX];	 /* (r) bit vector, used pages */
 };
 
 TAILQ_HEAD(vm_reserv_queue, vm_reserv);
 
-#define	vm_reserv_lockptr(rv)		(&(rv)->lock)
-#define	vm_reserv_assert_locked(rv)					\
-	    mtx_assert(vm_reserv_lockptr(rv), MA_OWNED)
-#define	vm_reserv_lock(rv)		mtx_lock(vm_reserv_lockptr(rv))
-#define	vm_reserv_trylock(rv)		mtx_trylock(vm_reserv_lockptr(rv))
-#define	vm_reserv_unlock(rv)		mtx_unlock(vm_reserv_lockptr(rv))
+#define vm_reserv_lockptr(rv) (&(rv)->lock)
+#define vm_reserv_assert_locked(rv) mtx_assert(vm_reserv_lockptr(rv), MA_OWNED)
+#define vm_reserv_lock(rv) mtx_lock(vm_reserv_lockptr(rv))
+#define vm_reserv_trylock(rv) mtx_trylock(vm_reserv_lockptr(rv))
+#define vm_reserv_unlock(rv) mtx_unlock(vm_reserv_lockptr(rv))
 
 /*
  * The reservation array
@@ -229,7 +228,7 @@ TAILQ_HEAD(vm_reserv_queue, vm_reserv);
  * An "active" reservation is a valid reservation structure that has a non-NULL
  * "object" field and a non-zero "popcnt" field.  In other words, every active
  * reservation belongs to a particular object.  Moreover, every active
- * reservation has an entry in the containing object's list of reservations.  
+ * reservation has an entry in the containing object's list of reservations.
  */
 static vm_reserv_t vm_reserv_array;
 
@@ -245,44 +244,44 @@ static vm_reserv_t vm_reserv_array;
  * lock.
  */
 struct vm_reserv_domain {
-	struct mtx 		lock;
-	struct vm_reserv_queue	partpop;	/* (d) */
-	struct vm_reserv	marker;		/* (d, s) scan marker/lock */
+	struct mtx lock;
+	struct vm_reserv_queue partpop; /* (d) */
+	struct vm_reserv marker;	/* (d, s) scan marker/lock */
 } __aligned(CACHE_LINE_SIZE);
 
 static struct vm_reserv_domain vm_rvd[MAXMEMDOM];
 
-#define	vm_reserv_domain_lockptr(d)	(&vm_rvd[(d)].lock)
-#define	vm_reserv_domain_assert_locked(d)	\
+#define vm_reserv_domain_lockptr(d) (&vm_rvd[(d)].lock)
+#define vm_reserv_domain_assert_locked(d) \
 	mtx_assert(vm_reserv_domain_lockptr(d), MA_OWNED)
-#define	vm_reserv_domain_lock(d)	mtx_lock(vm_reserv_domain_lockptr(d))
-#define	vm_reserv_domain_unlock(d)	mtx_unlock(vm_reserv_domain_lockptr(d))
+#define vm_reserv_domain_lock(d) mtx_lock(vm_reserv_domain_lockptr(d))
+#define vm_reserv_domain_unlock(d) mtx_unlock(vm_reserv_domain_lockptr(d))
 
-#define	vm_reserv_domain_scan_lock(d)	mtx_lock(&vm_rvd[(d)].marker.lock)
-#define	vm_reserv_domain_scan_unlock(d)	mtx_unlock(&vm_rvd[(d)].marker.lock)
+#define vm_reserv_domain_scan_lock(d) mtx_lock(&vm_rvd[(d)].marker.lock)
+#define vm_reserv_domain_scan_unlock(d) mtx_unlock(&vm_rvd[(d)].marker.lock)
 
-static SYSCTL_NODE(_vm, OID_AUTO, reserv, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "Reservation Info");
+static SYSCTL_NODE(
+    _vm, OID_AUTO, reserv, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Reservation Info");
 
 static COUNTER_U64_DEFINE_EARLY(vm_reserv_broken);
-SYSCTL_COUNTER_U64(_vm_reserv, OID_AUTO, broken, CTLFLAG_RD,
-    &vm_reserv_broken, "Cumulative number of broken reservations");
+SYSCTL_COUNTER_U64(_vm_reserv, OID_AUTO, broken, CTLFLAG_RD, &vm_reserv_broken,
+    "Cumulative number of broken reservations");
 
 static COUNTER_U64_DEFINE_EARLY(vm_reserv_freed);
-SYSCTL_COUNTER_U64(_vm_reserv, OID_AUTO, freed, CTLFLAG_RD,
-    &vm_reserv_freed, "Cumulative number of freed reservations");
+SYSCTL_COUNTER_U64(_vm_reserv, OID_AUTO, freed, CTLFLAG_RD, &vm_reserv_freed,
+    "Cumulative number of freed reservations");
 
 static int sysctl_vm_reserv_fullpop(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_PROC(_vm_reserv, OID_AUTO, fullpop, CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD,
-    NULL, 0, sysctl_vm_reserv_fullpop, "I", "Current number of full reservations");
+SYSCTL_PROC(_vm_reserv, OID_AUTO, fullpop,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD, NULL, 0,
+    sysctl_vm_reserv_fullpop, "I", "Current number of full reservations");
 
 static int sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_OID(_vm_reserv, OID_AUTO, partpopq,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_vm_reserv_partpopq, "A",
-    "Partially populated reservation queues");
+    sysctl_vm_reserv_partpopq, "A", "Partially populated reservation queues");
 
 static COUNTER_U64_DEFINE_EARLY(vm_reserv_reclaimed);
 SYSCTL_COUNTER_U64(_vm_reserv, OID_AUTO, reclaimed, CTLFLAG_RD,
@@ -294,26 +293,25 @@ SYSCTL_COUNTER_U64(_vm_reserv, OID_AUTO, reclaimed, CTLFLAG_RD,
  *
  * The "hash" function could be made faster without divide and modulo.
  */
-#define	VM_RESERV_OBJ_LOCK_COUNT	MAXCPU
+#define VM_RESERV_OBJ_LOCK_COUNT MAXCPU
 
 struct mtx_padalign vm_reserv_object_mtx[VM_RESERV_OBJ_LOCK_COUNT];
 
-#define	vm_reserv_object_lock_idx(object)			\
-	    (((uintptr_t)object / sizeof(*object)) % VM_RESERV_OBJ_LOCK_COUNT)
-#define	vm_reserv_object_lock_ptr(object)			\
-	    &vm_reserv_object_mtx[vm_reserv_object_lock_idx((object))]
-#define	vm_reserv_object_lock(object)				\
-	    mtx_lock(vm_reserv_object_lock_ptr((object)))
-#define	vm_reserv_object_unlock(object)				\
-	    mtx_unlock(vm_reserv_object_lock_ptr((object)))
+#define vm_reserv_object_lock_idx(object) \
+	(((uintptr_t)object / sizeof(*object)) % VM_RESERV_OBJ_LOCK_COUNT)
+#define vm_reserv_object_lock_ptr(object) \
+	&vm_reserv_object_mtx[vm_reserv_object_lock_idx((object))]
+#define vm_reserv_object_lock(object) \
+	mtx_lock(vm_reserv_object_lock_ptr((object)))
+#define vm_reserv_object_unlock(object) \
+	mtx_unlock(vm_reserv_object_lock_ptr((object)))
 
-static void		vm_reserv_break(vm_reserv_t rv);
-static void		vm_reserv_depopulate(vm_reserv_t rv, int index);
-static vm_reserv_t	vm_reserv_from_page(vm_page_t m);
-static boolean_t	vm_reserv_has_pindex(vm_reserv_t rv,
-			    vm_pindex_t pindex);
-static void		vm_reserv_populate(vm_reserv_t rv, int index);
-static void		vm_reserv_reclaim(vm_reserv_t rv);
+static void vm_reserv_break(vm_reserv_t rv);
+static void vm_reserv_depopulate(vm_reserv_t rv, int index);
+static vm_reserv_t vm_reserv_from_page(vm_page_t m);
+static boolean_t vm_reserv_has_pindex(vm_reserv_t rv, vm_pindex_t pindex);
+static void vm_reserv_populate(vm_reserv_t rv, int index);
+static void vm_reserv_reclaim(vm_reserv_t rv);
 
 /*
  * Returns the current number of full reservations.
@@ -321,8 +319,7 @@ static void		vm_reserv_reclaim(vm_reserv_t rv);
  * Since the number of full reservations is computed without acquiring any
  * locks, the returned value is inexact.
  */
-static int
-sysctl_vm_reserv_fullpop(SYSCTL_HANDLER_ARGS)
+static int sysctl_vm_reserv_fullpop(SYSCTL_HANDLER_ARGS)
 {
 	vm_paddr_t paddr;
 	struct vm_phys_seg *seg;
@@ -339,8 +336,8 @@ sysctl_vm_reserv_fullpop(SYSCTL_HANDLER_ARGS)
 #else
 		rv = &vm_reserv_array[paddr >> VM_LEVEL_0_SHIFT];
 #endif
-		while (paddr + VM_LEVEL_0_SIZE > paddr && paddr +
-		    VM_LEVEL_0_SIZE <= seg->end) {
+		while (paddr + VM_LEVEL_0_SIZE > paddr &&
+		    paddr + VM_LEVEL_0_SIZE <= seg->end) {
 			fullpop += rv->popcnt == VM_LEVEL_0_NPAGES;
 			paddr += VM_LEVEL_0_SIZE;
 			rv++;
@@ -352,8 +349,7 @@ sysctl_vm_reserv_fullpop(SYSCTL_HANDLER_ARGS)
 /*
  * Describes the current state of the partially populated reservation queue.
  */
-static int
-sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
+static int sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sbuf;
 	vm_reserv_t rv;
@@ -369,16 +365,16 @@ sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
 			counter = 0;
 			unused_pages = 0;
 			vm_reserv_domain_lock(domain);
-			TAILQ_FOREACH(rv, &vm_rvd[domain].partpop, partpopq) {
+			TAILQ_FOREACH (rv, &vm_rvd[domain].partpop, partpopq) {
 				if (rv == &vm_rvd[domain].marker)
 					continue;
 				counter++;
 				unused_pages += VM_LEVEL_0_NPAGES - rv->popcnt;
 			}
 			vm_reserv_domain_unlock(domain);
-			sbuf_printf(&sbuf, "%6d, %7d, %6dK, %6d\n",
-			    domain, level,
-			    unused_pages * ((int)PAGE_SIZE / 1024), counter);
+			sbuf_printf(&sbuf, "%6d, %7d, %6dK, %6d\n", domain,
+			    level, unused_pages * ((int)PAGE_SIZE / 1024),
+			    counter);
 		}
 	}
 	error = sbuf_finish(&sbuf);
@@ -395,10 +391,10 @@ vm_reserv_remove(vm_reserv_t rv)
 	vm_object_t object;
 
 	vm_reserv_assert_locked(rv);
-	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d",
-	    __FUNCTION__, rv, rv->object, rv->popcnt, rv->inpartpopq);
-	KASSERT(rv->object != NULL,
-	    ("vm_reserv_remove: reserv %p is free", rv));
+	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d", __FUNCTION__,
+	    rv, rv->object, rv->popcnt, rv->inpartpopq);
+	KASSERT(
+	    rv->object != NULL, ("vm_reserv_remove: reserv %p is free", rv));
 	KASSERT(!rv->inpartpopq,
 	    ("vm_reserv_remove: reserv %p's inpartpopq is TRUE", rv));
 	object = rv->object;
@@ -417,12 +413,10 @@ vm_reserv_insert(vm_reserv_t rv, vm_object_t object, vm_pindex_t pindex)
 	int i;
 
 	vm_reserv_assert_locked(rv);
-	CTR6(KTR_VM,
-	    "%s: rv %p(%p) object %p new %p popcnt %d",
-	    __FUNCTION__, rv, rv->pages, rv->object, object,
-	   rv->popcnt);
-	KASSERT(rv->object == NULL,
-	    ("vm_reserv_insert: reserv %p isn't free", rv));
+	CTR6(KTR_VM, "%s: rv %p(%p) object %p new %p popcnt %d", __FUNCTION__,
+	    rv, rv->pages, rv->object, object, rv->popcnt);
+	KASSERT(
+	    rv->object == NULL, ("vm_reserv_insert: reserv %p isn't free", rv));
 	KASSERT(rv->popcnt == 0,
 	    ("vm_reserv_insert: reserv %p's popcnt is corrupted", rv));
 	KASSERT(!rv->inpartpopq,
@@ -450,22 +444,21 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 	struct vm_domain *vmd;
 
 	vm_reserv_assert_locked(rv);
-	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d",
-	    __FUNCTION__, rv, rv->object, rv->popcnt, rv->inpartpopq);
+	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d", __FUNCTION__,
+	    rv, rv->object, rv->popcnt, rv->inpartpopq);
 	KASSERT(rv->object != NULL,
 	    ("vm_reserv_depopulate: reserv %p is free", rv));
 	KASSERT(popmap_is_set(rv->popmap, index),
 	    ("vm_reserv_depopulate: reserv %p's popmap[%d] is clear", rv,
-	    index));
+		index));
 	KASSERT(rv->popcnt > 0,
 	    ("vm_reserv_depopulate: reserv %p's popcnt is corrupted", rv));
 	KASSERT(rv->domain < vm_ndomains,
-	    ("vm_reserv_depopulate: reserv %p's domain is corrupted %d",
-	    rv, rv->domain));
+	    ("vm_reserv_depopulate: reserv %p's domain is corrupted %d", rv,
+		rv->domain));
 	if (rv->popcnt == VM_LEVEL_0_NPAGES) {
 		KASSERT(rv->pages->psind == 1,
-		    ("vm_reserv_depopulate: reserv %p is already demoted",
-		    rv));
+		    ("vm_reserv_depopulate: reserv %p is already demoted", rv));
 		rv->pages->psind = 0;
 	}
 	popmap_clear(rv->popmap, index);
@@ -479,8 +472,8 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 		}
 		if (rv->popcnt != 0) {
 			rv->inpartpopq = TRUE;
-			TAILQ_INSERT_TAIL(&vm_rvd[rv->domain].partpop, rv,
-			    partpopq);
+			TAILQ_INSERT_TAIL(
+			    &vm_rvd[rv->domain].partpop, rv, partpopq);
 		}
 		vm_reserv_domain_unlock(rv->domain);
 		rv->lasttick = ticks;
@@ -517,8 +510,8 @@ vm_reserv_from_page(vm_page_t m)
  * Returns an existing reservation or NULL and initialized successor pointer.
  */
 static vm_reserv_t
-vm_reserv_from_object(vm_object_t object, vm_pindex_t pindex,
-    vm_page_t mpred, vm_page_t *msuccp)
+vm_reserv_from_object(
+    vm_object_t object, vm_pindex_t pindex, vm_page_t mpred, vm_page_t *msuccp)
 {
 	vm_reserv_t rv;
 	vm_page_t msucc;
@@ -570,24 +563,23 @@ vm_reserv_populate(vm_reserv_t rv, int index)
 {
 
 	vm_reserv_assert_locked(rv);
-	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d",
-	    __FUNCTION__, rv, rv->object, rv->popcnt, rv->inpartpopq);
-	KASSERT(rv->object != NULL,
-	    ("vm_reserv_populate: reserv %p is free", rv));
+	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d", __FUNCTION__,
+	    rv, rv->object, rv->popcnt, rv->inpartpopq);
+	KASSERT(
+	    rv->object != NULL, ("vm_reserv_populate: reserv %p is free", rv));
 	KASSERT(popmap_is_clear(rv->popmap, index),
-	    ("vm_reserv_populate: reserv %p's popmap[%d] is set", rv,
-	    index));
+	    ("vm_reserv_populate: reserv %p's popmap[%d] is set", rv, index));
 	KASSERT(rv->popcnt < VM_LEVEL_0_NPAGES,
 	    ("vm_reserv_populate: reserv %p is already full", rv));
 	KASSERT(rv->pages->psind == 0,
 	    ("vm_reserv_populate: reserv %p is already promoted", rv));
 	KASSERT(rv->domain < vm_ndomains,
-	    ("vm_reserv_populate: reserv %p's domain is corrupted %d",
-	    rv, rv->domain));
+	    ("vm_reserv_populate: reserv %p's domain is corrupted %d", rv,
+		rv->domain));
 	popmap_set(rv->popmap, index);
 	rv->popcnt++;
-	if ((unsigned)(ticks - rv->lasttick) < PARTPOPSLOP &&
-	    rv->inpartpopq && rv->popcnt != VM_LEVEL_0_NPAGES)
+	if ((unsigned)(ticks - rv->lasttick) < PARTPOPSLOP && rv->inpartpopq &&
+	    rv->popcnt != VM_LEVEL_0_NPAGES)
 		return;
 	rv->lasttick = ticks;
 	vm_reserv_domain_lock(rv->domain);
@@ -600,8 +592,7 @@ vm_reserv_populate(vm_reserv_t rv, int index)
 		TAILQ_INSERT_TAIL(&vm_rvd[rv->domain].partpop, rv, partpopq);
 	} else {
 		KASSERT(rv->pages->psind == 0,
-		    ("vm_reserv_populate: reserv %p is already promoted",
-		    rv));
+		    ("vm_reserv_populate: reserv %p is already promoted", rv));
 		rv->pages->psind = 1;
 	}
 	vm_reserv_domain_unlock(rv->domain);
@@ -695,7 +686,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
 			vm_reserv_populate(rv, index + i);
 		vm_reserv_unlock(rv);
 		return (m);
-out:
+	out:
 		vm_reserv_unlock(rv);
 		return (NULL);
 	}
@@ -795,7 +786,7 @@ out:
 		rv = vm_reserv_from_page(m);
 		KASSERT(rv->pages == m,
 		    ("vm_reserv_alloc_contig: reserv %p's pages is corrupted",
-		    rv));
+			rv));
 		vm_reserv_lock(rv);
 		vm_reserv_insert(rv, object, first);
 		n = ulmin(VM_LEVEL_0_NPAGES - index, npages);
@@ -837,8 +828,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
 	/*
 	 * Is a reservation fundamentally impossible?
 	 */
-	if (pindex < VM_RESERV_INDEX(object, pindex) ||
-	    pindex >= object->size)
+	if (pindex < VM_RESERV_INDEX(object, pindex) || pindex >= object->size)
 		return (NULL);
 
 	/*
@@ -864,7 +854,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
 			m = NULL;
 		else
 			vm_reserv_populate(rv, index);
-out:
+	out:
 		vm_reserv_unlock(rv);
 		return (m);
 	}
@@ -918,8 +908,8 @@ out:
 	vmd = VM_DOMAIN(domain);
 	if (vm_domain_allocate(vmd, req, 1)) {
 		vm_domain_free_lock(vmd);
-		m = vm_phys_alloc_pages(domain, VM_FREEPOOL_DEFAULT,
-		    VM_LEVEL_0_ORDER);
+		m = vm_phys_alloc_pages(
+		    domain, VM_FREEPOOL_DEFAULT, VM_LEVEL_0_ORDER);
 		vm_domain_free_unlock(vmd);
 		if (m == NULL) {
 			vm_domain_freecnt_inc(vmd, 1);
@@ -954,8 +944,8 @@ vm_reserv_break(vm_reserv_t rv)
 	int bitpos, hi, i, lo;
 
 	vm_reserv_assert_locked(rv);
-	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d",
-	    __FUNCTION__, rv, rv->object, rv->popcnt, rv->inpartpopq);
+	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d", __FUNCTION__,
+	    rv, rv->object, rv->popcnt, rv->inpartpopq);
 	vm_reserv_remove(rv);
 	rv->pages->psind = 0;
 	hi = lo = -1;
@@ -1092,8 +1082,8 @@ vm_reserv_init(void)
 		paddr = roundup2(seg->start, VM_LEVEL_0_SIZE);
 		rv = seg->first_reserv + (paddr >> VM_LEVEL_0_SHIFT) -
 		    (seg->start >> VM_LEVEL_0_SHIFT);
-		while (paddr + VM_LEVEL_0_SIZE > paddr && paddr +
-		    VM_LEVEL_0_SIZE <= seg->end) {
+		while (paddr + VM_LEVEL_0_SIZE > paddr &&
+		    paddr + VM_LEVEL_0_SIZE <= seg->end) {
 			rv->pages = PHYS_TO_VM_PAGE(paddr);
 			rv->domain = seg->domain;
 			mtx_init(&rv->lock, "vm reserv", NULL, MTX_DEF);
@@ -1117,8 +1107,8 @@ vm_reserv_init(void)
 	}
 
 	for (i = 0; i < VM_RESERV_OBJ_LOCK_COUNT; i++)
-		mtx_init(&vm_reserv_object_mtx[i], "resv obj lock", NULL,
-		    MTX_DEF);
+		mtx_init(
+		    &vm_reserv_object_mtx[i], "resv obj lock", NULL, MTX_DEF);
 }
 
 /*
@@ -1171,8 +1161,8 @@ vm_reserv_dequeue(vm_reserv_t rv)
 
 	vm_reserv_domain_assert_locked(rv->domain);
 	vm_reserv_assert_locked(rv);
-	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d",
-	    __FUNCTION__, rv, rv->object, rv->popcnt, rv->inpartpopq);
+	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d", __FUNCTION__,
+	    rv, rv->object, rv->popcnt, rv->inpartpopq);
 	KASSERT(rv->inpartpopq,
 	    ("vm_reserv_reclaim: reserv %p's inpartpopq is FALSE", rv));
 
@@ -1189,8 +1179,8 @@ vm_reserv_reclaim(vm_reserv_t rv)
 {
 
 	vm_reserv_assert_locked(rv);
-	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d",
-	    __FUNCTION__, rv, rv->object, rv->popcnt, rv->inpartpopq);
+	CTR5(KTR_VM, "%s: rv %p object %p popcnt %d inpartpop %d", __FUNCTION__,
+	    rv, rv->object, rv->popcnt, rv->inpartpopq);
 	if (rv->inpartpopq) {
 		vm_reserv_domain_lock(rv->domain);
 		vm_reserv_dequeue(rv);
@@ -1211,7 +1201,7 @@ vm_reserv_reclaim_inactive(int domain)
 	vm_reserv_t rv;
 
 	vm_reserv_domain_lock(domain);
-	TAILQ_FOREACH(rv, &vm_rvd[domain].partpop, partpopq) {
+	TAILQ_FOREACH (rv, &vm_rvd[domain].partpop, partpopq) {
 		/*
 		 * A locked reservation is likely being updated or reclaimed,
 		 * so just skip ahead.
@@ -1246,12 +1236,12 @@ vm_reserv_test_contig(vm_reserv_t rv, u_long npages, vm_paddr_t low,
 	vm_reserv_assert_locked(rv);
 	size = npages << PAGE_SHIFT;
 	pa = VM_PAGE_TO_PHYS(&rv->pages[0]);
-	lo = (pa < low) ?
-	    ((low + PAGE_MASK - pa) >> PAGE_SHIFT) : 0;
+	lo = (pa < low) ? ((low + PAGE_MASK - pa) >> PAGE_SHIFT) : 0;
 	i = lo / NBPOPMAP;
 	changes = rv->popmap[i] | ((1UL << (lo % NBPOPMAP)) - 1);
 	hi = (pa + VM_LEVEL_0_SIZE > high) ?
-	    ((high + PAGE_MASK - pa) >> PAGE_SHIFT) : VM_LEVEL_0_NPAGES;
+		  ((high + PAGE_MASK - pa) >> PAGE_SHIFT) :
+		  VM_LEVEL_0_NPAGES;
 	n = hi / NBPOPMAP;
 	bits_left = hi % NBPOPMAP;
 	hi = lo = -1;
@@ -1300,8 +1290,9 @@ vm_reserv_test_contig(vm_reserv_t rv, u_long npages, vm_paddr_t low,
 		if (++i < n)
 			changes = rv->popmap[i];
 		else if (i == n)
-			changes = bits_left == 0 ? -1UL :
-			    (rv->popmap[n] | (-1UL << bits_left));
+			changes = bits_left == 0 ?
+				  -1UL :
+				  (rv->popmap[n] | (-1UL << bits_left));
 		else
 			return (false);
 	}
@@ -1329,7 +1320,7 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 
 	vm_reserv_domain_scan_lock(domain);
 	vm_reserv_domain_lock(domain);
-	TAILQ_FOREACH_SAFE(rv, queue, partpopq, rvn) {
+	TAILQ_FOREACH_SAFE (rv, queue, partpopq, rvn) {
 		pa = VM_PAGE_TO_PHYS(&rv->pages[0]);
 		if (pa + VM_LEVEL_0_SIZE - size < low) {
 			/* This entire reservation is too low; go to next. */
@@ -1356,8 +1347,8 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 			TAILQ_REMOVE(queue, marker, partpopq);
 		}
 		vm_reserv_domain_unlock(domain);
-		if (vm_reserv_test_contig(rv, npages, low, high,
-		    alignment, boundary)) {
+		if (vm_reserv_test_contig(
+			rv, npages, low, high, alignment, boundary)) {
 			vm_reserv_domain_scan_unlock(domain);
 			vm_reserv_reclaim(rv);
 			vm_reserv_unlock(rv);
@@ -1441,8 +1432,8 @@ vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end)
 		count += howmany(vm_phys_segs[i].end, VM_LEVEL_0_SIZE) -
 		    vm_phys_segs[i].start / VM_LEVEL_0_SIZE;
 #else
-		count = MAX(count,
-		    howmany(vm_phys_segs[i].end, VM_LEVEL_0_SIZE));
+		count = MAX(
+		    count, howmany(vm_phys_segs[i].end, VM_LEVEL_0_SIZE));
 #endif
 	}
 
@@ -1451,8 +1442,7 @@ vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end)
 		count += howmany(phys_avail[i + 1], VM_LEVEL_0_SIZE) -
 		    phys_avail[i] / VM_LEVEL_0_SIZE;
 #else
-		count = MAX(count,
-		    howmany(phys_avail[i + 1], VM_LEVEL_0_SIZE));
+		count = MAX(count, howmany(phys_avail[i + 1], VM_LEVEL_0_SIZE));
 #endif
 	}
 
@@ -1470,8 +1460,8 @@ vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end)
 	 * next available virtual address is returned by reference.
 	 */
 	new_end = end - round_page(size);
-	vm_reserv_array = (void *)(uintptr_t)pmap_map(vaddr, new_end, end,
-	    VM_PROT_READ | VM_PROT_WRITE);
+	vm_reserv_array = (void *)(uintptr_t)pmap_map(
+	    vaddr, new_end, end, VM_PROT_READ | VM_PROT_WRITE);
 	bzero(vm_reserv_array, size);
 
 	/*
@@ -1498,4 +1488,4 @@ vm_reserv_to_superpage(vm_page_t m)
 	return (m);
 }
 
-#endif	/* VM_NRESERVLEVEL > 0 */
+#endif /* VM_NRESERVLEVEL > 0 */

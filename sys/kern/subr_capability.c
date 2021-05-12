@@ -42,8 +42,9 @@ __FBSDID("$FreeBSD$");
 #ifdef _KERNEL
 #include <sys/systm.h>
 #include <sys/kernel.h>
+
 #include <machine/stdarg.h>
-#else	/* !_KERNEL */
+#else /* !_KERNEL */
 #include <assert.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -52,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef _KERNEL
-#define	assert(exp)	KASSERT((exp), ("%s:%u", __func__, __LINE__))
+#define assert(exp) KASSERT((exp), ("%s:%u", __func__, __LINE__))
 __read_mostly cap_rights_t cap_accept_rights;
 __read_mostly cap_rights_t cap_bind_rights;
 __read_mostly cap_rights_t cap_chflags_rights;
@@ -154,16 +155,15 @@ SYSINIT(cap_rights_sysinit, SI_SUB_COPYRIGHT, SI_ORDER_ANY, cap_rights_sysinit,
 
 #endif
 
-#define	CAPARSIZE_MIN	(CAP_RIGHTS_VERSION_00 + 2)
-#define	CAPARSIZE_MAX	(CAP_RIGHTS_VERSION + 2)
+#define CAPARSIZE_MIN (CAP_RIGHTS_VERSION_00 + 2)
+#define CAPARSIZE_MAX (CAP_RIGHTS_VERSION + 2)
 
 static __inline int
 right_to_index(uint64_t right)
 {
-	static const int bit2idx[] = {
-		-1, 0, 1, -1, 2, -1, -1, -1, 3, -1, -1, -1, -1, -1, -1, -1,
-		4, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-	};
+	static const int bit2idx[] = { -1, 0, 1, -1, 2, -1, -1, -1, 3, -1, -1,
+		-1, -1, -1, -1, -1, 4, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+		-1, -1, -1, -1, -1 };
 	int idx;
 
 	idx = CAPIDXBIT(right);
@@ -375,8 +375,8 @@ cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src)
 	assert(n >= CAPARSIZE_MIN && n <= CAPARSIZE_MAX);
 
 	for (i = 0; i < n; i++) {
-		dst->cr_rights[i] &=
-		    ~(src->cr_rights[i] & 0x01FFFFFFFFFFFFFFULL);
+		dst->cr_rights[i] &= ~(
+		    src->cr_rights[i] & 0x01FFFFFFFFFFFFFFULL);
 	}
 
 	assert(cap_rights_is_valid(src));

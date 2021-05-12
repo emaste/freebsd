@@ -35,77 +35,72 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
-
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/iicbus/iiconf.h>
-#include <dev/iicbus/iicbus.h>
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
+#include <dev/iicbus/iicbus.h>
+#include <dev/iicbus/iiconf.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include "iicbus_if.h"
 
-#define	RSB_CTRL		0x00
-#define	 START_TRANS		(1 << 7)
-#define	 GLOBAL_INT_ENB		(1 << 1)
-#define	 SOFT_RESET		(1 << 0)
-#define	RSB_CCR		0x04
-#define	RSB_INTE		0x08
-#define	RSB_INTS		0x0c
-#define	 INT_TRANS_ERR_ID(x)	(((x) >> 8) & 0xf)
-#define	 INT_LOAD_BSY		(1 << 2)
-#define	 INT_TRANS_ERR		(1 << 1)
-#define	 INT_TRANS_OVER		(1 << 0)
-#define	 INT_MASK		(INT_LOAD_BSY|INT_TRANS_ERR|INT_TRANS_OVER)
-#define	RSB_DADDR0		0x10
-#define	RSB_DADDR1		0x14
-#define	RSB_DLEN		0x18
-#define	 DLEN_READ		(1 << 4)
-#define	RSB_DATA0		0x1c
-#define	RSB_DATA1		0x20
-#define	RSB_CMD			0x2c
-#define	 CMD_SRTA		0xe8
-#define	 CMD_RD8		0x8b
-#define	 CMD_RD16		0x9c
-#define	 CMD_RD32		0xa6
-#define	 CMD_WR8		0x4e
-#define	 CMD_WR16		0x59
-#define	 CMD_WR32		0x63
-#define	RSB_DAR			0x30
-#define	 DAR_RTA		(0xff << 16)
-#define	 DAR_RTA_SHIFT		16
-#define	 DAR_DA			(0xffff << 0)
-#define	 DAR_DA_SHIFT		0
+#define RSB_CTRL 0x00
+#define START_TRANS (1 << 7)
+#define GLOBAL_INT_ENB (1 << 1)
+#define SOFT_RESET (1 << 0)
+#define RSB_CCR 0x04
+#define RSB_INTE 0x08
+#define RSB_INTS 0x0c
+#define INT_TRANS_ERR_ID(x) (((x) >> 8) & 0xf)
+#define INT_LOAD_BSY (1 << 2)
+#define INT_TRANS_ERR (1 << 1)
+#define INT_TRANS_OVER (1 << 0)
+#define INT_MASK (INT_LOAD_BSY | INT_TRANS_ERR | INT_TRANS_OVER)
+#define RSB_DADDR0 0x10
+#define RSB_DADDR1 0x14
+#define RSB_DLEN 0x18
+#define DLEN_READ (1 << 4)
+#define RSB_DATA0 0x1c
+#define RSB_DATA1 0x20
+#define RSB_CMD 0x2c
+#define CMD_SRTA 0xe8
+#define CMD_RD8 0x8b
+#define CMD_RD16 0x9c
+#define CMD_RD32 0xa6
+#define CMD_WR8 0x4e
+#define CMD_WR16 0x59
+#define CMD_WR32 0x63
+#define RSB_DAR 0x30
+#define DAR_RTA (0xff << 16)
+#define DAR_RTA_SHIFT 16
+#define DAR_DA (0xffff << 0)
+#define DAR_DA_SHIFT 0
 
-#define	RSB_MAXLEN		8
-#define	RSB_RESET_RETRY		100
-#define	RSB_I2C_TIMEOUT		hz
+#define RSB_MAXLEN 8
+#define RSB_RESET_RETRY 100
+#define RSB_I2C_TIMEOUT hz
 
-#define	RSB_ADDR_PMIC_PRIMARY	0x3a3
-#define	RSB_ADDR_PMIC_SECONDARY	0x745
-#define	RSB_ADDR_PERIPH_IC	0xe89
+#define RSB_ADDR_PMIC_PRIMARY 0x3a3
+#define RSB_ADDR_PMIC_SECONDARY 0x745
+#define RSB_ADDR_PERIPH_IC 0xe89
 
-#define	A31_P2WI	1
-#define	A23_RSB		2
+#define A31_P2WI 1
+#define A23_RSB 2
 
-static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun6i-a31-p2wi",		A31_P2WI },
-	{ "allwinner,sun8i-a23-rsb",		A23_RSB },
-	{ NULL,					0 }
-};
+static struct ofw_compat_data compat_data[] = { { "allwinner,sun6i-a31-p2wi",
+						    A31_P2WI },
+	{ "allwinner,sun8i-a23-rsb", A23_RSB }, { NULL, 0 } };
 
-static struct resource_spec rsb_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec rsb_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 /*
  * Device address to Run-time address mappings.
@@ -118,34 +113,31 @@ static struct resource_spec rsb_spec[] = {
  * and 0x4e for the peripheral IC (where applicable).
  */
 static const struct {
-	uint16_t	addr;
-	uint8_t		rta;
-} rsb_rtamap[] = {
-	{ .addr = RSB_ADDR_PMIC_PRIMARY,	.rta = 0x2d },
-	{ .addr = RSB_ADDR_PMIC_SECONDARY,	.rta = 0x3a },
-	{ .addr = RSB_ADDR_PERIPH_IC,		.rta = 0x4e },
-	{ .addr = 0,				.rta = 0 }
-};
+	uint16_t addr;
+	uint8_t rta;
+} rsb_rtamap[] = { { .addr = RSB_ADDR_PMIC_PRIMARY, .rta = 0x2d },
+	{ .addr = RSB_ADDR_PMIC_SECONDARY, .rta = 0x3a },
+	{ .addr = RSB_ADDR_PERIPH_IC, .rta = 0x4e }, { .addr = 0, .rta = 0 } };
 
 struct rsb_softc {
-	struct resource	*res;
-	struct mtx	mtx;
-	clk_t		clk;
-	hwreset_t	rst;
-	device_t	iicbus;
-	int		busy;
-	uint32_t	status;
-	uint16_t	cur_addr;
-	int		type;
+	struct resource *res;
+	struct mtx mtx;
+	clk_t clk;
+	hwreset_t rst;
+	device_t iicbus;
+	int busy;
+	uint32_t status;
+	uint16_t cur_addr;
+	int type;
 
-	struct iic_msg	*msg;
+	struct iic_msg *msg;
 };
 
-#define	RSB_LOCK(sc)			mtx_lock(&(sc)->mtx)
-#define	RSB_UNLOCK(sc)			mtx_unlock(&(sc)->mtx)
-#define	RSB_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->mtx, MA_OWNED)
-#define	RSB_READ(sc, reg)		bus_read_4((sc)->res, (reg))
-#define	RSB_WRITE(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
+#define RSB_LOCK(sc) mtx_lock(&(sc)->mtx)
+#define RSB_UNLOCK(sc) mtx_unlock(&(sc)->mtx)
+#define RSB_ASSERT_LOCKED(sc) mtx_assert(&(sc)->mtx, MA_OWNED)
+#define RSB_READ(sc, reg) bus_read_4((sc)->res, (reg))
+#define RSB_WRITE(sc, reg, val) bus_write_4((sc)->res, (reg), (val))
 
 static phandle_t
 rsb_get_node(device_t bus, device_t dev)
@@ -225,13 +217,12 @@ rsb_start(device_t dev)
 		DELAY((1000 * hz) / RSB_I2C_TIMEOUT);
 	}
 	if (error == 0 && (sc->status & INT_TRANS_OVER) == 0) {
-		device_printf(dev, "transfer error, status 0x%08x\n",
-		    sc->status);
+		device_printf(
+		    dev, "transfer error, status 0x%08x\n", sc->status);
 		error = EIO;
 	}
 
 	return (error);
-
 }
 
 static int
@@ -286,8 +277,8 @@ rsb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	 * same.
 	 */
 	if (nmsgs != 2 || (msgs[0].flags & IIC_M_RD) == IIC_M_RD ||
-	    (msgs[0].slave >> 1) != (msgs[1].slave >> 1) ||
-	    msgs[0].len != 1 || msgs[1].len > RSB_MAXLEN)
+	    (msgs[0].slave >> 1) != (msgs[1].slave >> 1) || msgs[0].len != 1 ||
+	    msgs[1].len > RSB_MAXLEN)
 		return (EINVAL);
 
 	/* The RSB controller can read or write 1, 2, or 4 bytes at a time. */
@@ -459,27 +450,27 @@ fail:
 
 static device_method_t rsb_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		rsb_probe),
-	DEVMETHOD(device_attach,	rsb_attach),
+	DEVMETHOD(device_probe, rsb_probe),
+	DEVMETHOD(device_attach, rsb_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
+	DEVMETHOD(bus_alloc_resource, bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
-	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
-	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_adjust_resource, bus_generic_adjust_resource),
+	DEVMETHOD(bus_set_resource, bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource, bus_generic_rl_get_resource),
 
 	/* OFW methods */
-	DEVMETHOD(ofw_bus_get_node,	rsb_get_node),
+	DEVMETHOD(ofw_bus_get_node, rsb_get_node),
 
 	/* iicbus interface */
-	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
-	DEVMETHOD(iicbus_reset,		rsb_reset),
-	DEVMETHOD(iicbus_transfer,	rsb_transfer),
+	DEVMETHOD(iicbus_callback, iicbus_null_callback),
+	DEVMETHOD(iicbus_reset, rsb_reset),
+	DEVMETHOD(iicbus_transfer, rsb_transfer),
 
 	DEVMETHOD_END
 };

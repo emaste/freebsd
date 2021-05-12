@@ -35,24 +35,22 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/eventhandler.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
-#include <sys/kernel.h>
-#include <sys/reboot.h>
+#include <sys/eventhandler.h>
 #include <sys/gpio.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/reboot.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 
+#include <dev/extres/regulator/regulator.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
-
-#include <dev/gpio/gpiobusvar.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/extres/regulator/regulator.h>
 
 #include "gpio_if.h"
 #include "iicbus_if.h"
@@ -60,152 +58,152 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_AXP8XX_REG, "AXP8xx regulator", "AXP8xx power regulator");
 
-#define	AXP_POWERSRC		0x00
-#define	 AXP_POWERSRC_ACIN	(1 << 7)
-#define	 AXP_POWERSRC_VBUS	(1 << 5)
-#define	 AXP_POWERSRC_VBAT	(1 << 3)
-#define	 AXP_POWERSRC_CHARING	(1 << 2)	/* Charging Direction */
-#define	 AXP_POWERSRC_SHORTED	(1 << 1)
-#define	 AXP_POWERSRC_STARTUP	(1 << 0)
-#define	AXP_POWERMODE		0x01
-#define	 AXP_POWERMODE_BAT_CHARGING	(1 << 6)
-#define	 AXP_POWERMODE_BAT_PRESENT	(1 << 5)
-#define	 AXP_POWERMODE_BAT_VALID	(1 << 4)
-#define	AXP_ICTYPE		0x03
-#define	AXP_POWERCTL1		0x10
-#define	 AXP_POWERCTL1_DCDC7	(1 << 6)	/* AXP813/818 only */
-#define	 AXP_POWERCTL1_DCDC6	(1 << 5)
-#define	 AXP_POWERCTL1_DCDC5	(1 << 4)
-#define	 AXP_POWERCTL1_DCDC4	(1 << 3)
-#define	 AXP_POWERCTL1_DCDC3	(1 << 2)
-#define	 AXP_POWERCTL1_DCDC2	(1 << 1)
-#define	 AXP_POWERCTL1_DCDC1	(1 << 0)
-#define	AXP_POWERCTL2		0x12
-#define	 AXP_POWERCTL2_DC1SW	(1 << 7)	/* AXP803 only */
-#define	 AXP_POWERCTL2_DLDO4	(1 << 6)
-#define	 AXP_POWERCTL2_DLDO3	(1 << 5)
-#define	 AXP_POWERCTL2_DLDO2	(1 << 4)
-#define	 AXP_POWERCTL2_DLDO1	(1 << 3)
-#define	 AXP_POWERCTL2_ELDO3	(1 << 2)
-#define	 AXP_POWERCTL2_ELDO2	(1 << 1)
-#define	 AXP_POWERCTL2_ELDO1	(1 << 0)
-#define	AXP_POWERCTL3		0x13
-#define	 AXP_POWERCTL3_ALDO3	(1 << 7)
-#define	 AXP_POWERCTL3_ALDO2	(1 << 6)
-#define	 AXP_POWERCTL3_ALDO1	(1 << 5)
-#define	 AXP_POWERCTL3_FLDO3	(1 << 4)	/* AXP813/818 only */
-#define	 AXP_POWERCTL3_FLDO2	(1 << 3)
-#define	 AXP_POWERCTL3_FLDO1	(1 << 2)
-#define	AXP_VOLTCTL_DLDO1	0x15
-#define	AXP_VOLTCTL_DLDO2	0x16
-#define	AXP_VOLTCTL_DLDO3	0x17
-#define	AXP_VOLTCTL_DLDO4	0x18
-#define	AXP_VOLTCTL_ELDO1	0x19
-#define	AXP_VOLTCTL_ELDO2	0x1A
-#define	AXP_VOLTCTL_ELDO3	0x1B
-#define	AXP_VOLTCTL_FLDO1	0x1C
-#define	AXP_VOLTCTL_FLDO2	0x1D
-#define	AXP_VOLTCTL_DCDC1	0x20
-#define	AXP_VOLTCTL_DCDC2	0x21
-#define	AXP_VOLTCTL_DCDC3	0x22
-#define	AXP_VOLTCTL_DCDC4	0x23
-#define	AXP_VOLTCTL_DCDC5	0x24
-#define	AXP_VOLTCTL_DCDC6	0x25
-#define	AXP_VOLTCTL_DCDC7	0x26
-#define	AXP_VOLTCTL_ALDO1	0x28
-#define	AXP_VOLTCTL_ALDO2	0x29
-#define	AXP_VOLTCTL_ALDO3	0x2A
-#define	 AXP_VOLTCTL_STATUS	(1 << 7)
-#define	 AXP_VOLTCTL_MASK	0x7f
-#define	AXP_POWERBAT		0x32
-#define	 AXP_POWERBAT_SHUTDOWN	(1 << 7)
-#define	AXP_CHARGERCTL1		0x33
-#define	 AXP_CHARGERCTL1_MIN	0
-#define	 AXP_CHARGERCTL1_MAX	13
-#define	 AXP_CHARGERCTL1_CMASK	0xf
-#define	AXP_IRQEN1		0x40
-#define	 AXP_IRQEN1_ACIN_HI	(1 << 6)
-#define	 AXP_IRQEN1_ACIN_LO	(1 << 5)
-#define	 AXP_IRQEN1_VBUS_HI	(1 << 3)
-#define	 AXP_IRQEN1_VBUS_LO	(1 << 2)
-#define	AXP_IRQEN2		0x41
-#define	 AXP_IRQEN2_BAT_IN	(1 << 7)
-#define	 AXP_IRQEN2_BAT_NO	(1 << 6)
-#define	 AXP_IRQEN2_BATCHGC	(1 << 3)
-#define	 AXP_IRQEN2_BATCHGD	(1 << 2)
-#define	AXP_IRQEN3		0x42
-#define	AXP_IRQEN4		0x43
-#define	 AXP_IRQEN4_BATLVL_LO1	(1 << 1)
-#define	 AXP_IRQEN4_BATLVL_LO0	(1 << 0)
-#define	AXP_IRQEN5		0x44
-#define	 AXP_IRQEN5_POKSIRQ	(1 << 4)
-#define	 AXP_IRQEN5_POKLIRQ	(1 << 3)
-#define	AXP_IRQEN6		0x45
-#define	AXP_IRQSTAT1		0x48
-#define	 AXP_IRQSTAT1_ACIN_HI	(1 << 6)
-#define	 AXP_IRQSTAT1_ACIN_LO	(1 << 5)
-#define	 AXP_IRQSTAT1_VBUS_HI	(1 << 3)
-#define	 AXP_IRQSTAT1_VBUS_LO	(1 << 2)
-#define	AXP_IRQSTAT2		0x49
-#define	 AXP_IRQSTAT2_BAT_IN	(1 << 7)
-#define	 AXP_IRQSTAT2_BAT_NO	(1 << 6)
-#define	 AXP_IRQSTAT2_BATCHGC	(1 << 3)
-#define	 AXP_IRQSTAT2_BATCHGD	(1 << 2)
-#define	AXP_IRQSTAT3		0x4a
-#define	AXP_IRQSTAT4		0x4b
-#define	 AXP_IRQSTAT4_BATLVL_LO1	(1 << 1)
-#define	 AXP_IRQSTAT4_BATLVL_LO0	(1 << 0)
-#define	AXP_IRQSTAT5		0x4c
-#define	 AXP_IRQSTAT5_POKSIRQ	(1 << 4)
-#define	 AXP_IRQEN5_POKLIRQ	(1 << 3)
-#define	AXP_IRQSTAT6		0x4d
-#define	AXP_BATSENSE_HI		0x78
-#define	AXP_BATSENSE_LO		0x79
-#define	AXP_BATCHG_HI		0x7a
-#define	AXP_BATCHG_LO		0x7b
-#define	AXP_BATDISCHG_HI	0x7c
-#define	AXP_BATDISCHG_LO	0x7d
-#define	AXP_GPIO0_CTRL		0x90
-#define	AXP_GPIO0LDO_CTRL	0x91
-#define	AXP_GPIO1_CTRL		0x92
-#define	AXP_GPIO1LDO_CTRL	0x93
-#define	 AXP_GPIO_FUNC		(0x7 << 0)
-#define	 AXP_GPIO_FUNC_SHIFT	0
-#define	 AXP_GPIO_FUNC_DRVLO	0
-#define	 AXP_GPIO_FUNC_DRVHI	1
-#define	 AXP_GPIO_FUNC_INPUT	2
-#define	 AXP_GPIO_FUNC_LDO_ON	3
-#define	 AXP_GPIO_FUNC_LDO_OFF	4
-#define	AXP_GPIO_SIGBIT		0x94
-#define	AXP_GPIO_PD		0x97
-#define	AXP_FUEL_GAUGECTL	0xb8
-#define	 AXP_FUEL_GAUGECTL_EN	(1 << 7)
+#define AXP_POWERSRC 0x00
+#define AXP_POWERSRC_ACIN (1 << 7)
+#define AXP_POWERSRC_VBUS (1 << 5)
+#define AXP_POWERSRC_VBAT (1 << 3)
+#define AXP_POWERSRC_CHARING (1 << 2) /* Charging Direction */
+#define AXP_POWERSRC_SHORTED (1 << 1)
+#define AXP_POWERSRC_STARTUP (1 << 0)
+#define AXP_POWERMODE 0x01
+#define AXP_POWERMODE_BAT_CHARGING (1 << 6)
+#define AXP_POWERMODE_BAT_PRESENT (1 << 5)
+#define AXP_POWERMODE_BAT_VALID (1 << 4)
+#define AXP_ICTYPE 0x03
+#define AXP_POWERCTL1 0x10
+#define AXP_POWERCTL1_DCDC7 (1 << 6) /* AXP813/818 only */
+#define AXP_POWERCTL1_DCDC6 (1 << 5)
+#define AXP_POWERCTL1_DCDC5 (1 << 4)
+#define AXP_POWERCTL1_DCDC4 (1 << 3)
+#define AXP_POWERCTL1_DCDC3 (1 << 2)
+#define AXP_POWERCTL1_DCDC2 (1 << 1)
+#define AXP_POWERCTL1_DCDC1 (1 << 0)
+#define AXP_POWERCTL2 0x12
+#define AXP_POWERCTL2_DC1SW (1 << 7) /* AXP803 only */
+#define AXP_POWERCTL2_DLDO4 (1 << 6)
+#define AXP_POWERCTL2_DLDO3 (1 << 5)
+#define AXP_POWERCTL2_DLDO2 (1 << 4)
+#define AXP_POWERCTL2_DLDO1 (1 << 3)
+#define AXP_POWERCTL2_ELDO3 (1 << 2)
+#define AXP_POWERCTL2_ELDO2 (1 << 1)
+#define AXP_POWERCTL2_ELDO1 (1 << 0)
+#define AXP_POWERCTL3 0x13
+#define AXP_POWERCTL3_ALDO3 (1 << 7)
+#define AXP_POWERCTL3_ALDO2 (1 << 6)
+#define AXP_POWERCTL3_ALDO1 (1 << 5)
+#define AXP_POWERCTL3_FLDO3 (1 << 4) /* AXP813/818 only */
+#define AXP_POWERCTL3_FLDO2 (1 << 3)
+#define AXP_POWERCTL3_FLDO1 (1 << 2)
+#define AXP_VOLTCTL_DLDO1 0x15
+#define AXP_VOLTCTL_DLDO2 0x16
+#define AXP_VOLTCTL_DLDO3 0x17
+#define AXP_VOLTCTL_DLDO4 0x18
+#define AXP_VOLTCTL_ELDO1 0x19
+#define AXP_VOLTCTL_ELDO2 0x1A
+#define AXP_VOLTCTL_ELDO3 0x1B
+#define AXP_VOLTCTL_FLDO1 0x1C
+#define AXP_VOLTCTL_FLDO2 0x1D
+#define AXP_VOLTCTL_DCDC1 0x20
+#define AXP_VOLTCTL_DCDC2 0x21
+#define AXP_VOLTCTL_DCDC3 0x22
+#define AXP_VOLTCTL_DCDC4 0x23
+#define AXP_VOLTCTL_DCDC5 0x24
+#define AXP_VOLTCTL_DCDC6 0x25
+#define AXP_VOLTCTL_DCDC7 0x26
+#define AXP_VOLTCTL_ALDO1 0x28
+#define AXP_VOLTCTL_ALDO2 0x29
+#define AXP_VOLTCTL_ALDO3 0x2A
+#define AXP_VOLTCTL_STATUS (1 << 7)
+#define AXP_VOLTCTL_MASK 0x7f
+#define AXP_POWERBAT 0x32
+#define AXP_POWERBAT_SHUTDOWN (1 << 7)
+#define AXP_CHARGERCTL1 0x33
+#define AXP_CHARGERCTL1_MIN 0
+#define AXP_CHARGERCTL1_MAX 13
+#define AXP_CHARGERCTL1_CMASK 0xf
+#define AXP_IRQEN1 0x40
+#define AXP_IRQEN1_ACIN_HI (1 << 6)
+#define AXP_IRQEN1_ACIN_LO (1 << 5)
+#define AXP_IRQEN1_VBUS_HI (1 << 3)
+#define AXP_IRQEN1_VBUS_LO (1 << 2)
+#define AXP_IRQEN2 0x41
+#define AXP_IRQEN2_BAT_IN (1 << 7)
+#define AXP_IRQEN2_BAT_NO (1 << 6)
+#define AXP_IRQEN2_BATCHGC (1 << 3)
+#define AXP_IRQEN2_BATCHGD (1 << 2)
+#define AXP_IRQEN3 0x42
+#define AXP_IRQEN4 0x43
+#define AXP_IRQEN4_BATLVL_LO1 (1 << 1)
+#define AXP_IRQEN4_BATLVL_LO0 (1 << 0)
+#define AXP_IRQEN5 0x44
+#define AXP_IRQEN5_POKSIRQ (1 << 4)
+#define AXP_IRQEN5_POKLIRQ (1 << 3)
+#define AXP_IRQEN6 0x45
+#define AXP_IRQSTAT1 0x48
+#define AXP_IRQSTAT1_ACIN_HI (1 << 6)
+#define AXP_IRQSTAT1_ACIN_LO (1 << 5)
+#define AXP_IRQSTAT1_VBUS_HI (1 << 3)
+#define AXP_IRQSTAT1_VBUS_LO (1 << 2)
+#define AXP_IRQSTAT2 0x49
+#define AXP_IRQSTAT2_BAT_IN (1 << 7)
+#define AXP_IRQSTAT2_BAT_NO (1 << 6)
+#define AXP_IRQSTAT2_BATCHGC (1 << 3)
+#define AXP_IRQSTAT2_BATCHGD (1 << 2)
+#define AXP_IRQSTAT3 0x4a
+#define AXP_IRQSTAT4 0x4b
+#define AXP_IRQSTAT4_BATLVL_LO1 (1 << 1)
+#define AXP_IRQSTAT4_BATLVL_LO0 (1 << 0)
+#define AXP_IRQSTAT5 0x4c
+#define AXP_IRQSTAT5_POKSIRQ (1 << 4)
+#define AXP_IRQEN5_POKLIRQ (1 << 3)
+#define AXP_IRQSTAT6 0x4d
+#define AXP_BATSENSE_HI 0x78
+#define AXP_BATSENSE_LO 0x79
+#define AXP_BATCHG_HI 0x7a
+#define AXP_BATCHG_LO 0x7b
+#define AXP_BATDISCHG_HI 0x7c
+#define AXP_BATDISCHG_LO 0x7d
+#define AXP_GPIO0_CTRL 0x90
+#define AXP_GPIO0LDO_CTRL 0x91
+#define AXP_GPIO1_CTRL 0x92
+#define AXP_GPIO1LDO_CTRL 0x93
+#define AXP_GPIO_FUNC (0x7 << 0)
+#define AXP_GPIO_FUNC_SHIFT 0
+#define AXP_GPIO_FUNC_DRVLO 0
+#define AXP_GPIO_FUNC_DRVHI 1
+#define AXP_GPIO_FUNC_INPUT 2
+#define AXP_GPIO_FUNC_LDO_ON 3
+#define AXP_GPIO_FUNC_LDO_OFF 4
+#define AXP_GPIO_SIGBIT 0x94
+#define AXP_GPIO_PD 0x97
+#define AXP_FUEL_GAUGECTL 0xb8
+#define AXP_FUEL_GAUGECTL_EN (1 << 7)
 
-#define	AXP_BAT_CAP		0xb9
-#define	 AXP_BAT_CAP_VALID	(1 << 7)
-#define	 AXP_BAT_CAP_PERCENT	0x7f
+#define AXP_BAT_CAP 0xb9
+#define AXP_BAT_CAP_VALID (1 << 7)
+#define AXP_BAT_CAP_PERCENT 0x7f
 
-#define	AXP_BAT_MAX_CAP_HI	0xe0
-#define	 AXP_BAT_MAX_CAP_VALID	(1 << 7)
-#define	AXP_BAT_MAX_CAP_LO	0xe1
+#define AXP_BAT_MAX_CAP_HI 0xe0
+#define AXP_BAT_MAX_CAP_VALID (1 << 7)
+#define AXP_BAT_MAX_CAP_LO 0xe1
 
-#define	AXP_BAT_COULOMB_HI	0xe2
-#define	 AXP_BAT_COULOMB_VALID	(1 << 7)
-#define	AXP_BAT_COULOMB_LO	0xe3
+#define AXP_BAT_COULOMB_HI 0xe2
+#define AXP_BAT_COULOMB_VALID (1 << 7)
+#define AXP_BAT_COULOMB_LO 0xe3
 
-#define	AXP_BAT_CAP_WARN	0xe6
-#define	 AXP_BAT_CAP_WARN_LV1		0xf0	/* Bits 4, 5, 6, 7 */
-#define	 AXP_BAP_CAP_WARN_LV1BASE	5	/* 5-20%, 1% per step */
-#define	 AXP_BAT_CAP_WARN_LV2		0xf	/* Bits 0, 1, 2, 3 */
+#define AXP_BAT_CAP_WARN 0xe6
+#define AXP_BAT_CAP_WARN_LV1 0xf0 /* Bits 4, 5, 6, 7 */
+#define AXP_BAP_CAP_WARN_LV1BASE 5 /* 5-20%, 1% per step */
+#define AXP_BAT_CAP_WARN_LV2 0xf /* Bits 0, 1, 2, 3 */
 
 /* Sensor conversion macros */
-#define	AXP_SENSOR_BAT_H(hi)		((hi) << 4)
-#define	AXP_SENSOR_BAT_L(lo)		((lo) & 0xf)
-#define	AXP_SENSOR_COULOMB(hi, lo)	(((hi & ~(1 << 7)) << 8) | (lo))
+#define AXP_SENSOR_BAT_H(hi) ((hi) << 4)
+#define AXP_SENSOR_BAT_L(lo) ((lo)&0xf)
+#define AXP_SENSOR_COULOMB(hi, lo) (((hi & ~(1 << 7)) << 8) | (lo))
 
 static const struct {
 	const char *name;
-	uint8_t	ctrl_reg;
+	uint8_t ctrl_reg;
 } axp8xx_pins[] = {
 	{ "GPIO0", AXP_GPIO0_CTRL },
 	{ "GPIO1", AXP_GPIO1_CTRL },
@@ -216,33 +214,28 @@ enum AXP8XX_TYPE {
 	AXP813,
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{ "x-powers,axp803",			AXP803 },
-	{ "x-powers,axp813",			AXP813 },
-	{ "x-powers,axp818",			AXP813 },
-	{ NULL,					0 }
-};
+static struct ofw_compat_data compat_data[] = { { "x-powers,axp803", AXP803 },
+	{ "x-powers,axp813", AXP813 }, { "x-powers,axp818", AXP813 },
+	{ NULL, 0 } };
 
-static struct resource_spec axp8xx_spec[] = {
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec axp8xx_spec[] = { { SYS_RES_IRQ, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 struct axp8xx_regdef {
-	intptr_t		id;
-	char			*name;
-	char			*supply_name;
-	uint8_t			enable_reg;
-	uint8_t			enable_mask;
-	uint8_t			enable_value;
-	uint8_t			disable_value;
-	uint8_t			voltage_reg;
-	int			voltage_min;
-	int			voltage_max;
-	int			voltage_step1;
-	int			voltage_nstep1;
-	int			voltage_step2;
-	int			voltage_nstep2;
+	intptr_t id;
+	char *name;
+	char *supply_name;
+	uint8_t enable_reg;
+	uint8_t enable_mask;
+	uint8_t enable_value;
+	uint8_t disable_value;
+	uint8_t voltage_reg;
+	int voltage_min;
+	int voltage_max;
+	int voltage_step1;
+	int voltage_nstep1;
+	int voltage_step2;
+	int voltage_nstep2;
 };
 
 enum axp8xx_reg_id {
@@ -273,285 +266,285 @@ enum axp8xx_reg_id {
 
 static struct axp8xx_regdef axp803_regdefs[] = {
 	{
-		.id = AXP803_REG_ID_DC1SW,
-		.name = "dc1sw",
-		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = (uint8_t) AXP_POWERCTL2_DC1SW,
-		.enable_value = AXP_POWERCTL2_DC1SW,
+	    .id = AXP803_REG_ID_DC1SW,
+	    .name = "dc1sw",
+	    .enable_reg = AXP_POWERCTL2,
+	    .enable_mask = (uint8_t)AXP_POWERCTL2_DC1SW,
+	    .enable_value = AXP_POWERCTL2_DC1SW,
 	},
 };
 
 static struct axp8xx_regdef axp813_regdefs[] = {
 	{
-		.id = AXP813_REG_ID_DCDC7,
-		.name = "dcdc7",
-		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC7,
-		.enable_value = AXP_POWERCTL1_DCDC7,
-		.voltage_reg = AXP_VOLTCTL_DCDC7,
-		.voltage_min = 600,
-		.voltage_max = 1520,
-		.voltage_step1 = 10,
-		.voltage_nstep1 = 50,
-		.voltage_step2 = 20,
-		.voltage_nstep2 = 21,
+	    .id = AXP813_REG_ID_DCDC7,
+	    .name = "dcdc7",
+	    .enable_reg = AXP_POWERCTL1,
+	    .enable_mask = (uint8_t)AXP_POWERCTL1_DCDC7,
+	    .enable_value = AXP_POWERCTL1_DCDC7,
+	    .voltage_reg = AXP_VOLTCTL_DCDC7,
+	    .voltage_min = 600,
+	    .voltage_max = 1520,
+	    .voltage_step1 = 10,
+	    .voltage_nstep1 = 50,
+	    .voltage_step2 = 20,
+	    .voltage_nstep2 = 21,
 	},
 };
 
 static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 	{
-		.id = AXP8XX_REG_ID_DCDC1,
-		.name = "dcdc1",
-		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC1,
-		.enable_value = AXP_POWERCTL1_DCDC1,
-		.voltage_reg = AXP_VOLTCTL_DCDC1,
-		.voltage_min = 1600,
-		.voltage_max = 3400,
-		.voltage_step1 = 100,
-		.voltage_nstep1 = 18,
+	    .id = AXP8XX_REG_ID_DCDC1,
+	    .name = "dcdc1",
+	    .enable_reg = AXP_POWERCTL1,
+	    .enable_mask = (uint8_t)AXP_POWERCTL1_DCDC1,
+	    .enable_value = AXP_POWERCTL1_DCDC1,
+	    .voltage_reg = AXP_VOLTCTL_DCDC1,
+	    .voltage_min = 1600,
+	    .voltage_max = 3400,
+	    .voltage_step1 = 100,
+	    .voltage_nstep1 = 18,
 	},
 	{
-		.id = AXP8XX_REG_ID_DCDC2,
-		.name = "dcdc2",
-		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC2,
-		.enable_value = AXP_POWERCTL1_DCDC2,
-		.voltage_reg = AXP_VOLTCTL_DCDC2,
-		.voltage_min = 500,
-		.voltage_max = 1300,
-		.voltage_step1 = 10,
-		.voltage_nstep1 = 70,
-		.voltage_step2 = 20,
-		.voltage_nstep2 = 5,
+	    .id = AXP8XX_REG_ID_DCDC2,
+	    .name = "dcdc2",
+	    .enable_reg = AXP_POWERCTL1,
+	    .enable_mask = (uint8_t)AXP_POWERCTL1_DCDC2,
+	    .enable_value = AXP_POWERCTL1_DCDC2,
+	    .voltage_reg = AXP_VOLTCTL_DCDC2,
+	    .voltage_min = 500,
+	    .voltage_max = 1300,
+	    .voltage_step1 = 10,
+	    .voltage_nstep1 = 70,
+	    .voltage_step2 = 20,
+	    .voltage_nstep2 = 5,
 	},
 	{
-		.id = AXP8XX_REG_ID_DCDC3,
-		.name = "dcdc3",
-		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC3,
-		.enable_value = AXP_POWERCTL1_DCDC3,
-		.voltage_reg = AXP_VOLTCTL_DCDC3,
-		.voltage_min = 500,
-		.voltage_max = 1300,
-		.voltage_step1 = 10,
-		.voltage_nstep1 = 70,
-		.voltage_step2 = 20,
-		.voltage_nstep2 = 5,
+	    .id = AXP8XX_REG_ID_DCDC3,
+	    .name = "dcdc3",
+	    .enable_reg = AXP_POWERCTL1,
+	    .enable_mask = (uint8_t)AXP_POWERCTL1_DCDC3,
+	    .enable_value = AXP_POWERCTL1_DCDC3,
+	    .voltage_reg = AXP_VOLTCTL_DCDC3,
+	    .voltage_min = 500,
+	    .voltage_max = 1300,
+	    .voltage_step1 = 10,
+	    .voltage_nstep1 = 70,
+	    .voltage_step2 = 20,
+	    .voltage_nstep2 = 5,
 	},
 	{
-		.id = AXP8XX_REG_ID_DCDC4,
-		.name = "dcdc4",
-		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC4,
-		.enable_value = AXP_POWERCTL1_DCDC4,
-		.voltage_reg = AXP_VOLTCTL_DCDC4,
-		.voltage_min = 500,
-		.voltage_max = 1300,
-		.voltage_step1 = 10,
-		.voltage_nstep1 = 70,
-		.voltage_step2 = 20,
-		.voltage_nstep2 = 5,
+	    .id = AXP8XX_REG_ID_DCDC4,
+	    .name = "dcdc4",
+	    .enable_reg = AXP_POWERCTL1,
+	    .enable_mask = (uint8_t)AXP_POWERCTL1_DCDC4,
+	    .enable_value = AXP_POWERCTL1_DCDC4,
+	    .voltage_reg = AXP_VOLTCTL_DCDC4,
+	    .voltage_min = 500,
+	    .voltage_max = 1300,
+	    .voltage_step1 = 10,
+	    .voltage_nstep1 = 70,
+	    .voltage_step2 = 20,
+	    .voltage_nstep2 = 5,
 	},
 	{
-		.id = AXP8XX_REG_ID_DCDC5,
-		.name = "dcdc5",
-		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC5,
-		.enable_value = AXP_POWERCTL1_DCDC5,
-		.voltage_reg = AXP_VOLTCTL_DCDC5,
-		.voltage_min = 800,
-		.voltage_max = 1840,
-		.voltage_step1 = 10,
-		.voltage_nstep1 = 42,
-		.voltage_step2 = 20,
-		.voltage_nstep2 = 36,
+	    .id = AXP8XX_REG_ID_DCDC5,
+	    .name = "dcdc5",
+	    .enable_reg = AXP_POWERCTL1,
+	    .enable_mask = (uint8_t)AXP_POWERCTL1_DCDC5,
+	    .enable_value = AXP_POWERCTL1_DCDC5,
+	    .voltage_reg = AXP_VOLTCTL_DCDC5,
+	    .voltage_min = 800,
+	    .voltage_max = 1840,
+	    .voltage_step1 = 10,
+	    .voltage_nstep1 = 42,
+	    .voltage_step2 = 20,
+	    .voltage_nstep2 = 36,
 	},
 	{
-		.id = AXP8XX_REG_ID_DCDC6,
-		.name = "dcdc6",
-		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC6,
-		.enable_value = AXP_POWERCTL1_DCDC6,
-		.voltage_reg = AXP_VOLTCTL_DCDC6,
-		.voltage_min = 600,
-		.voltage_max = 1520,
-		.voltage_step1 = 10,
-		.voltage_nstep1 = 50,
-		.voltage_step2 = 20,
-		.voltage_nstep2 = 21,
+	    .id = AXP8XX_REG_ID_DCDC6,
+	    .name = "dcdc6",
+	    .enable_reg = AXP_POWERCTL1,
+	    .enable_mask = (uint8_t)AXP_POWERCTL1_DCDC6,
+	    .enable_value = AXP_POWERCTL1_DCDC6,
+	    .voltage_reg = AXP_VOLTCTL_DCDC6,
+	    .voltage_min = 600,
+	    .voltage_max = 1520,
+	    .voltage_step1 = 10,
+	    .voltage_nstep1 = 50,
+	    .voltage_step2 = 20,
+	    .voltage_nstep2 = 21,
 	},
 	{
-		.id = AXP8XX_REG_ID_DLDO1,
-		.name = "dldo1",
-		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = (uint8_t) AXP_POWERCTL2_DLDO1,
-		.enable_value = AXP_POWERCTL2_DLDO1,
-		.voltage_reg = AXP_VOLTCTL_DLDO1,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step1 = 100,
-		.voltage_nstep1 = 26,
+	    .id = AXP8XX_REG_ID_DLDO1,
+	    .name = "dldo1",
+	    .enable_reg = AXP_POWERCTL2,
+	    .enable_mask = (uint8_t)AXP_POWERCTL2_DLDO1,
+	    .enable_value = AXP_POWERCTL2_DLDO1,
+	    .voltage_reg = AXP_VOLTCTL_DLDO1,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step1 = 100,
+	    .voltage_nstep1 = 26,
 	},
 	{
-		.id = AXP8XX_REG_ID_DLDO2,
-		.name = "dldo2",
-		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = (uint8_t) AXP_POWERCTL2_DLDO2,
-		.enable_value = AXP_POWERCTL2_DLDO2,
-		.voltage_reg = AXP_VOLTCTL_DLDO2,
-		.voltage_min = 700,
-		.voltage_max = 4200,
-		.voltage_step1 = 100,
-		.voltage_nstep1 = 27,
-		.voltage_step2 = 200,
-		.voltage_nstep2 = 4,
+	    .id = AXP8XX_REG_ID_DLDO2,
+	    .name = "dldo2",
+	    .enable_reg = AXP_POWERCTL2,
+	    .enable_mask = (uint8_t)AXP_POWERCTL2_DLDO2,
+	    .enable_value = AXP_POWERCTL2_DLDO2,
+	    .voltage_reg = AXP_VOLTCTL_DLDO2,
+	    .voltage_min = 700,
+	    .voltage_max = 4200,
+	    .voltage_step1 = 100,
+	    .voltage_nstep1 = 27,
+	    .voltage_step2 = 200,
+	    .voltage_nstep2 = 4,
 	},
 	{
-		.id = AXP8XX_REG_ID_DLDO3,
-		.name = "dldo3",
-		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = (uint8_t) AXP_POWERCTL2_DLDO3,
-		.enable_value = AXP_POWERCTL2_DLDO3,
-		.voltage_reg = AXP_VOLTCTL_DLDO3,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step1 = 100,
-		.voltage_nstep1 = 26,
+	    .id = AXP8XX_REG_ID_DLDO3,
+	    .name = "dldo3",
+	    .enable_reg = AXP_POWERCTL2,
+	    .enable_mask = (uint8_t)AXP_POWERCTL2_DLDO3,
+	    .enable_value = AXP_POWERCTL2_DLDO3,
+	    .voltage_reg = AXP_VOLTCTL_DLDO3,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step1 = 100,
+	    .voltage_nstep1 = 26,
 	},
 	{
-		.id = AXP8XX_REG_ID_DLDO4,
-		.name = "dldo4",
-		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = (uint8_t) AXP_POWERCTL2_DLDO4,
-		.enable_value = AXP_POWERCTL2_DLDO4,
-		.voltage_reg = AXP_VOLTCTL_DLDO4,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step1 = 100,
-		.voltage_nstep1 = 26,
+	    .id = AXP8XX_REG_ID_DLDO4,
+	    .name = "dldo4",
+	    .enable_reg = AXP_POWERCTL2,
+	    .enable_mask = (uint8_t)AXP_POWERCTL2_DLDO4,
+	    .enable_value = AXP_POWERCTL2_DLDO4,
+	    .voltage_reg = AXP_VOLTCTL_DLDO4,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step1 = 100,
+	    .voltage_nstep1 = 26,
 	},
 	{
-		.id = AXP8XX_REG_ID_ALDO1,
-		.name = "aldo1",
-		.enable_reg = AXP_POWERCTL3,
-		.enable_mask = (uint8_t) AXP_POWERCTL3_ALDO1,
-		.enable_value = AXP_POWERCTL3_ALDO1,
-		.voltage_reg = AXP_VOLTCTL_ALDO1,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step1 = 100,
-		.voltage_nstep1 = 26,
+	    .id = AXP8XX_REG_ID_ALDO1,
+	    .name = "aldo1",
+	    .enable_reg = AXP_POWERCTL3,
+	    .enable_mask = (uint8_t)AXP_POWERCTL3_ALDO1,
+	    .enable_value = AXP_POWERCTL3_ALDO1,
+	    .voltage_reg = AXP_VOLTCTL_ALDO1,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step1 = 100,
+	    .voltage_nstep1 = 26,
 	},
 	{
-		.id = AXP8XX_REG_ID_ALDO2,
-		.name = "aldo2",
-		.enable_reg = AXP_POWERCTL3,
-		.enable_mask = (uint8_t) AXP_POWERCTL3_ALDO2,
-		.enable_value = AXP_POWERCTL3_ALDO2,
-		.voltage_reg = AXP_VOLTCTL_ALDO2,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step1 = 100,
-		.voltage_nstep1 = 26,
+	    .id = AXP8XX_REG_ID_ALDO2,
+	    .name = "aldo2",
+	    .enable_reg = AXP_POWERCTL3,
+	    .enable_mask = (uint8_t)AXP_POWERCTL3_ALDO2,
+	    .enable_value = AXP_POWERCTL3_ALDO2,
+	    .voltage_reg = AXP_VOLTCTL_ALDO2,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step1 = 100,
+	    .voltage_nstep1 = 26,
 	},
 	{
-		.id = AXP8XX_REG_ID_ALDO3,
-		.name = "aldo3",
-		.enable_reg = AXP_POWERCTL3,
-		.enable_mask = (uint8_t) AXP_POWERCTL3_ALDO3,
-		.enable_value = AXP_POWERCTL3_ALDO3,
-		.voltage_reg = AXP_VOLTCTL_ALDO3,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step1 = 100,
-		.voltage_nstep1 = 26,
+	    .id = AXP8XX_REG_ID_ALDO3,
+	    .name = "aldo3",
+	    .enable_reg = AXP_POWERCTL3,
+	    .enable_mask = (uint8_t)AXP_POWERCTL3_ALDO3,
+	    .enable_value = AXP_POWERCTL3_ALDO3,
+	    .voltage_reg = AXP_VOLTCTL_ALDO3,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step1 = 100,
+	    .voltage_nstep1 = 26,
 	},
 	{
-		.id = AXP8XX_REG_ID_ELDO1,
-		.name = "eldo1",
-		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = (uint8_t) AXP_POWERCTL2_ELDO1,
-		.enable_value = AXP_POWERCTL2_ELDO1,
-		.voltage_reg = AXP_VOLTCTL_ELDO1,
-		.voltage_min = 700,
-		.voltage_max = 1900,
-		.voltage_step1 = 50,
-		.voltage_nstep1 = 24,
+	    .id = AXP8XX_REG_ID_ELDO1,
+	    .name = "eldo1",
+	    .enable_reg = AXP_POWERCTL2,
+	    .enable_mask = (uint8_t)AXP_POWERCTL2_ELDO1,
+	    .enable_value = AXP_POWERCTL2_ELDO1,
+	    .voltage_reg = AXP_VOLTCTL_ELDO1,
+	    .voltage_min = 700,
+	    .voltage_max = 1900,
+	    .voltage_step1 = 50,
+	    .voltage_nstep1 = 24,
 	},
 	{
-		.id = AXP8XX_REG_ID_ELDO2,
-		.name = "eldo2",
-		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = (uint8_t) AXP_POWERCTL2_ELDO2,
-		.enable_value = AXP_POWERCTL2_ELDO2,
-		.voltage_reg = AXP_VOLTCTL_ELDO2,
-		.voltage_min = 700,
-		.voltage_max = 1900,
-		.voltage_step1 = 50,
-		.voltage_nstep1 = 24,
+	    .id = AXP8XX_REG_ID_ELDO2,
+	    .name = "eldo2",
+	    .enable_reg = AXP_POWERCTL2,
+	    .enable_mask = (uint8_t)AXP_POWERCTL2_ELDO2,
+	    .enable_value = AXP_POWERCTL2_ELDO2,
+	    .voltage_reg = AXP_VOLTCTL_ELDO2,
+	    .voltage_min = 700,
+	    .voltage_max = 1900,
+	    .voltage_step1 = 50,
+	    .voltage_nstep1 = 24,
 	},
 	{
-		.id = AXP8XX_REG_ID_ELDO3,
-		.name = "eldo3",
-		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = (uint8_t) AXP_POWERCTL2_ELDO3,
-		.enable_value = AXP_POWERCTL2_ELDO3,
-		.voltage_reg = AXP_VOLTCTL_ELDO3,
-		.voltage_min = 700,
-		.voltage_max = 1900,
-		.voltage_step1 = 50,
-		.voltage_nstep1 = 24,
+	    .id = AXP8XX_REG_ID_ELDO3,
+	    .name = "eldo3",
+	    .enable_reg = AXP_POWERCTL2,
+	    .enable_mask = (uint8_t)AXP_POWERCTL2_ELDO3,
+	    .enable_value = AXP_POWERCTL2_ELDO3,
+	    .voltage_reg = AXP_VOLTCTL_ELDO3,
+	    .voltage_min = 700,
+	    .voltage_max = 1900,
+	    .voltage_step1 = 50,
+	    .voltage_nstep1 = 24,
 	},
 	{
-		.id = AXP8XX_REG_ID_FLDO1,
-		.name = "fldo1",
-		.enable_reg = AXP_POWERCTL3,
-		.enable_mask = (uint8_t) AXP_POWERCTL3_FLDO1,
-		.enable_value = AXP_POWERCTL3_FLDO1,
-		.voltage_reg = AXP_VOLTCTL_FLDO1,
-		.voltage_min = 700,
-		.voltage_max = 1450,
-		.voltage_step1 = 50,
-		.voltage_nstep1 = 15,
+	    .id = AXP8XX_REG_ID_FLDO1,
+	    .name = "fldo1",
+	    .enable_reg = AXP_POWERCTL3,
+	    .enable_mask = (uint8_t)AXP_POWERCTL3_FLDO1,
+	    .enable_value = AXP_POWERCTL3_FLDO1,
+	    .voltage_reg = AXP_VOLTCTL_FLDO1,
+	    .voltage_min = 700,
+	    .voltage_max = 1450,
+	    .voltage_step1 = 50,
+	    .voltage_nstep1 = 15,
 	},
 	{
-		.id = AXP8XX_REG_ID_FLDO2,
-		.name = "fldo2",
-		.enable_reg = AXP_POWERCTL3,
-		.enable_mask = (uint8_t) AXP_POWERCTL3_FLDO2,
-		.enable_value = AXP_POWERCTL3_FLDO2,
-		.voltage_reg = AXP_VOLTCTL_FLDO2,
-		.voltage_min = 700,
-		.voltage_max = 1450,
-		.voltage_step1 = 50,
-		.voltage_nstep1 = 15,
+	    .id = AXP8XX_REG_ID_FLDO2,
+	    .name = "fldo2",
+	    .enable_reg = AXP_POWERCTL3,
+	    .enable_mask = (uint8_t)AXP_POWERCTL3_FLDO2,
+	    .enable_value = AXP_POWERCTL3_FLDO2,
+	    .voltage_reg = AXP_VOLTCTL_FLDO2,
+	    .voltage_min = 700,
+	    .voltage_max = 1450,
+	    .voltage_step1 = 50,
+	    .voltage_nstep1 = 15,
 	},
 	{
-		.id = AXP8XX_REG_ID_GPIO0_LDO,
-		.name = "ldo-io0",
-		.enable_reg = AXP_GPIO0_CTRL,
-		.enable_mask = (uint8_t) AXP_GPIO_FUNC,
-		.enable_value = AXP_GPIO_FUNC_LDO_ON,
-		.disable_value = AXP_GPIO_FUNC_LDO_OFF,
-		.voltage_reg = AXP_GPIO0LDO_CTRL,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step1 = 100,
-		.voltage_nstep1 = 26,
+	    .id = AXP8XX_REG_ID_GPIO0_LDO,
+	    .name = "ldo-io0",
+	    .enable_reg = AXP_GPIO0_CTRL,
+	    .enable_mask = (uint8_t)AXP_GPIO_FUNC,
+	    .enable_value = AXP_GPIO_FUNC_LDO_ON,
+	    .disable_value = AXP_GPIO_FUNC_LDO_OFF,
+	    .voltage_reg = AXP_GPIO0LDO_CTRL,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step1 = 100,
+	    .voltage_nstep1 = 26,
 	},
 	{
-		.id = AXP8XX_REG_ID_GPIO1_LDO,
-		.name = "ldo-io1",
-		.enable_reg = AXP_GPIO1_CTRL,
-		.enable_mask = (uint8_t) AXP_GPIO_FUNC,
-		.enable_value = AXP_GPIO_FUNC_LDO_ON,
-		.disable_value = AXP_GPIO_FUNC_LDO_OFF,
-		.voltage_reg = AXP_GPIO1LDO_CTRL,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step1 = 100,
-		.voltage_nstep1 = 26,
+	    .id = AXP8XX_REG_ID_GPIO1_LDO,
+	    .name = "ldo-io1",
+	    .enable_reg = AXP_GPIO1_CTRL,
+	    .enable_mask = (uint8_t)AXP_GPIO_FUNC,
+	    .enable_value = AXP_GPIO_FUNC_LDO_ON,
+	    .disable_value = AXP_GPIO_FUNC_LDO_OFF,
+	    .voltage_reg = AXP_GPIO1LDO_CTRL,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step1 = 100,
+	    .voltage_nstep1 = 26,
 	},
 };
 
@@ -570,97 +563,97 @@ enum axp8xx_sensor {
 };
 
 enum battery_capacity_state {
-	BATT_CAPACITY_NORMAL = 1,	/* normal cap in battery */
-	BATT_CAPACITY_WARNING,		/* warning cap in battery */
-	BATT_CAPACITY_CRITICAL,		/* critical cap in battery */
-	BATT_CAPACITY_HIGH,		/* high cap in battery */
-	BATT_CAPACITY_MAX,		/* maximum cap in battery */
-	BATT_CAPACITY_LOW		/* low cap in battery */
+	BATT_CAPACITY_NORMAL = 1, /* normal cap in battery */
+	BATT_CAPACITY_WARNING,	  /* warning cap in battery */
+	BATT_CAPACITY_CRITICAL,	  /* critical cap in battery */
+	BATT_CAPACITY_HIGH,	  /* high cap in battery */
+	BATT_CAPACITY_MAX,	  /* maximum cap in battery */
+	BATT_CAPACITY_LOW	  /* low cap in battery */
 };
 
 struct axp8xx_sensors {
-	int             id;
-	const char      *name;
-	const char      *desc;
-	const char      *format;
+	int id;
+	const char *name;
+	const char *desc;
+	const char *format;
 };
 
 static const struct axp8xx_sensors axp8xx_common_sensors[] = {
 	{
-		.id = AXP_SENSOR_ACIN_PRESENT,
-		.name = "acin",
-		.format = "I",
-		.desc = "ACIN Present",
+	    .id = AXP_SENSOR_ACIN_PRESENT,
+	    .name = "acin",
+	    .format = "I",
+	    .desc = "ACIN Present",
 	},
 	{
-		.id = AXP_SENSOR_VBUS_PRESENT,
-		.name = "vbus",
-		.format = "I",
-		.desc = "VBUS Present",
+	    .id = AXP_SENSOR_VBUS_PRESENT,
+	    .name = "vbus",
+	    .format = "I",
+	    .desc = "VBUS Present",
 	},
 	{
-		.id = AXP_SENSOR_BATT_PRESENT,
-		.name = "bat",
-		.format = "I",
-		.desc = "Battery Present",
+	    .id = AXP_SENSOR_BATT_PRESENT,
+	    .name = "bat",
+	    .format = "I",
+	    .desc = "Battery Present",
 	},
 	{
-		.id = AXP_SENSOR_BATT_CHARGING,
-		.name = "batcharging",
-		.format = "I",
-		.desc = "Battery Charging",
+	    .id = AXP_SENSOR_BATT_CHARGING,
+	    .name = "batcharging",
+	    .format = "I",
+	    .desc = "Battery Charging",
 	},
 	{
-		.id = AXP_SENSOR_BATT_CHARGE_STATE,
-		.name = "batchargestate",
-		.format = "I",
-		.desc = "Battery Charge State",
+	    .id = AXP_SENSOR_BATT_CHARGE_STATE,
+	    .name = "batchargestate",
+	    .format = "I",
+	    .desc = "Battery Charge State",
 	},
 	{
-		.id = AXP_SENSOR_BATT_VOLTAGE,
-		.name = "batvolt",
-		.format = "I",
-		.desc = "Battery Voltage",
+	    .id = AXP_SENSOR_BATT_VOLTAGE,
+	    .name = "batvolt",
+	    .format = "I",
+	    .desc = "Battery Voltage",
 	},
 	{
-		.id = AXP_SENSOR_BATT_CHARGE_CURRENT,
-		.name = "batchargecurrent",
-		.format = "I",
-		.desc = "Average Battery Charging Current",
+	    .id = AXP_SENSOR_BATT_CHARGE_CURRENT,
+	    .name = "batchargecurrent",
+	    .format = "I",
+	    .desc = "Average Battery Charging Current",
 	},
 	{
-		.id = AXP_SENSOR_BATT_DISCHARGE_CURRENT,
-		.name = "batdischargecurrent",
-		.format = "I",
-		.desc = "Average Battery Discharging Current",
+	    .id = AXP_SENSOR_BATT_DISCHARGE_CURRENT,
+	    .name = "batdischargecurrent",
+	    .format = "I",
+	    .desc = "Average Battery Discharging Current",
 	},
 	{
-		.id = AXP_SENSOR_BATT_CAPACITY_PERCENT,
-		.name = "batcapacitypercent",
-		.format = "I",
-		.desc = "Battery Capacity Percentage",
+	    .id = AXP_SENSOR_BATT_CAPACITY_PERCENT,
+	    .name = "batcapacitypercent",
+	    .format = "I",
+	    .desc = "Battery Capacity Percentage",
 	},
 	{
-		.id = AXP_SENSOR_BATT_MAXIMUM_CAPACITY,
-		.name = "batmaxcapacity",
-		.format = "I",
-		.desc = "Battery Maximum Capacity",
+	    .id = AXP_SENSOR_BATT_MAXIMUM_CAPACITY,
+	    .name = "batmaxcapacity",
+	    .format = "I",
+	    .desc = "Battery Maximum Capacity",
 	},
 	{
-		.id = AXP_SENSOR_BATT_CURRENT_CAPACITY,
-		.name = "batcurrentcapacity",
-		.format = "I",
-		.desc = "Battery Current Capacity",
+	    .id = AXP_SENSOR_BATT_CURRENT_CAPACITY,
+	    .name = "batcurrentcapacity",
+	    .format = "I",
+	    .desc = "Battery Current Capacity",
 	},
 };
 
 struct axp8xx_config {
-	const char		*name;
-	int			batsense_step;  /* uV */
-	int			charge_step;    /* uA */
-	int			discharge_step; /* uA */
-	int			maxcap_step;    /* uAh */
-	int			coulomb_step;   /* uAh */
+	const char *name;
+	int batsense_step;  /* uV */
+	int charge_step;    /* uA */
+	int discharge_step; /* uA */
+	int maxcap_step;    /* uAh */
+	int coulomb_step;   /* uAh */
 };
 
 static struct axp8xx_config axp803_config = {
@@ -675,43 +668,43 @@ static struct axp8xx_config axp803_config = {
 struct axp8xx_softc;
 
 struct axp8xx_reg_sc {
-	struct regnode		*regnode;
-	device_t		base_dev;
-	struct axp8xx_regdef	*def;
-	phandle_t		xref;
+	struct regnode *regnode;
+	device_t base_dev;
+	struct axp8xx_regdef *def;
+	phandle_t xref;
 	struct regnode_std_param *param;
 };
 
 struct axp8xx_softc {
-	struct resource		*res;
-	uint16_t		addr;
-	void			*ih;
-	device_t		gpiodev;
-	struct mtx		mtx;
-	int			busy;
+	struct resource *res;
+	uint16_t addr;
+	void *ih;
+	device_t gpiodev;
+	struct mtx mtx;
+	int busy;
 
-	int			type;
+	int type;
 
 	/* Configs */
-	const struct axp8xx_config	*config;
+	const struct axp8xx_config *config;
 
 	/* Sensors */
-	const struct axp8xx_sensors	*sensors;
-	int				nsensors;
+	const struct axp8xx_sensors *sensors;
+	int nsensors;
 
 	/* Regulators */
-	struct axp8xx_reg_sc	**regs;
-	int			nregs;
+	struct axp8xx_reg_sc **regs;
+	int nregs;
 
 	/* Warning, shutdown thresholds */
-	int			warn_thres;
-	int			shut_thres;
+	int warn_thres;
+	int shut_thres;
 };
 
-#define	AXP_LOCK(sc)	mtx_lock(&(sc)->mtx)
-#define	AXP_UNLOCK(sc)	mtx_unlock(&(sc)->mtx)
-static int axp8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
-    int max_uvolt, int *udelay);
+#define AXP_LOCK(sc) mtx_lock(&(sc)->mtx)
+#define AXP_UNLOCK(sc) mtx_unlock(&(sc)->mtx)
+static int axp8xx_regnode_set_voltage(
+    struct regnode *regnode, int min_uvolt, int max_uvolt, int *udelay);
 
 static int
 axp8xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
@@ -767,13 +760,13 @@ axp8xx_regnode_init(struct regnode *regnode)
 	if (param->min_uvolt == 0)
 		return (0);
 
-	/* 
+	/*
 	 * Set the regulator at the correct voltage
 	 * Do not enable it, this is will be done either by a
 	 * consumer or by regnode_set_constraint if boot_on is true
 	 */
-	rv = axp8xx_regnode_set_voltage(regnode, param->min_uvolt,
-	    param->max_uvolt, &udelay);
+	rv = axp8xx_regnode_set_voltage(
+	    regnode, param->min_uvolt, param->max_uvolt, &udelay);
 	if (rv != 0)
 		DELAY(udelay);
 
@@ -790,8 +783,7 @@ axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 
 	if (bootverbose)
 		device_printf(sc->base_dev, "%sable %s (%s)\n",
-		    enable ? "En" : "Dis",
-		    regnode_get_name(regnode),
+		    enable ? "En" : "Dis", regnode_get_name(regnode),
 		    sc->def->name);
 
 	axp8xx_read(sc->base_dev, sc->def->enable_reg, &val, 1);
@@ -824,8 +816,8 @@ axp8xx_regnode_reg_to_voltage(struct axp8xx_reg_sc *sc, uint8_t val, int *uv)
 }
 
 static int
-axp8xx_regnode_voltage_to_reg(struct axp8xx_reg_sc *sc, int min_uvolt,
-    int max_uvolt, uint8_t *val)
+axp8xx_regnode_voltage_to_reg(
+    struct axp8xx_reg_sc *sc, int min_uvolt, int max_uvolt, uint8_t *val)
 {
 	uint8_t nval;
 	int nstep, uvolt;
@@ -851,8 +843,8 @@ axp8xx_regnode_voltage_to_reg(struct axp8xx_reg_sc *sc, int min_uvolt,
 }
 
 static int
-axp8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
-    int max_uvolt, int *udelay)
+axp8xx_regnode_set_voltage(
+    struct regnode *regnode, int min_uvolt, int max_uvolt, int *udelay)
 {
 	struct axp8xx_reg_sc *sc;
 	uint8_t val;
@@ -861,9 +853,8 @@ axp8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 
 	if (bootverbose)
 		device_printf(sc->base_dev, "Setting %s (%s) to %d<->%d\n",
-		    regnode_get_name(regnode),
-		    sc->def->name,
-		    min_uvolt, max_uvolt);
+		    regnode_get_name(regnode), sc->def->name, min_uvolt,
+		    max_uvolt);
 
 	if (sc->def->voltage_step1 == 0)
 		return (ENXIO);
@@ -897,11 +888,11 @@ axp8xx_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 
 static regnode_method_t axp8xx_regnode_methods[] = {
 	/* Regulator interface */
-	REGNODEMETHOD(regnode_init,		axp8xx_regnode_init),
-	REGNODEMETHOD(regnode_enable,		axp8xx_regnode_enable),
-	REGNODEMETHOD(regnode_set_voltage,	axp8xx_regnode_set_voltage),
-	REGNODEMETHOD(regnode_get_voltage,	axp8xx_regnode_get_voltage),
-	REGNODEMETHOD(regnode_check_voltage,	regnode_method_check_voltage),
+	REGNODEMETHOD(regnode_init, axp8xx_regnode_init),
+	REGNODEMETHOD(regnode_enable, axp8xx_regnode_enable),
+	REGNODEMETHOD(regnode_set_voltage, axp8xx_regnode_set_voltage),
+	REGNODEMETHOD(regnode_get_voltage, axp8xx_regnode_get_voltage),
+	REGNODEMETHOD(regnode_check_voltage, regnode_method_check_voltage),
 	REGNODEMETHOD_END
 };
 DEFINE_CLASS_1(axp8xx_regnode, axp8xx_regnode_class, axp8xx_regnode_methods,
@@ -923,8 +914,7 @@ axp8xx_shutdown(void *devp, int howto)
 	axp8xx_write(dev, AXP_POWERBAT, AXP_POWERBAT_SHUTDOWN);
 }
 
-static int
-axp8xx_sysctl_chargecurrent(SYSCTL_HANDLER_ARGS)
+static int axp8xx_sysctl_chargecurrent(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev = arg1;
 	uint8_t data;
@@ -950,8 +940,7 @@ axp8xx_sysctl_chargecurrent(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-axp8xx_sysctl(SYSCTL_HANDLER_ARGS)
+static int axp8xx_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct axp8xx_softc *sc;
 	device_t dev = arg1;
@@ -1118,9 +1107,11 @@ axp8xx_intr(void *arg)
 		if (bootverbose)
 			device_printf(dev, "AXP_IRQSTAT4 val: %x\n", val);
 		if (val & AXP_IRQSTAT4_BATLVL_LO0)
-			devctl_notify("PMU", "Battery", "shutdown-threshold", NULL);
+			devctl_notify(
+			    "PMU", "Battery", "shutdown-threshold", NULL);
 		if (val & AXP_IRQSTAT4_BATLVL_LO1)
-			devctl_notify("PMU", "Battery", "warning-threshold", NULL);
+			devctl_notify(
+			    "PMU", "Battery", "warning-threshold", NULL);
 		/* Acknowledge */
 		axp8xx_write(dev, AXP_IRQSTAT4, val);
 	}
@@ -1234,7 +1225,7 @@ axp8xx_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	error = axp8xx_read(dev, axp8xx_pins[pin].ctrl_reg, &data, 1);
 	if (error == 0) {
 		data &= ~AXP_GPIO_FUNC;
-		if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) != 0) {
+		if ((flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) != 0) {
 			if ((flags & GPIO_PIN_OUTPUT) == 0)
 				data |= AXP_GPIO_FUNC_INPUT;
 		}
@@ -1374,8 +1365,7 @@ axp8xx_get_node(device_t dev, device_t bus)
 }
 
 static struct axp8xx_reg_sc *
-axp8xx_reg_attach(device_t dev, phandle_t node,
-    struct axp8xx_regdef *def)
+axp8xx_reg_attach(device_t dev, phandle_t node, struct axp8xx_regdef *def)
 {
 	struct axp8xx_reg_sc *reg_sc;
 	struct regnode_init_def initdef;
@@ -1409,8 +1399,8 @@ axp8xx_reg_attach(device_t dev, phandle_t node,
 }
 
 static int
-axp8xx_regdev_map(device_t dev, phandle_t xref, int ncells, pcell_t *cells,
-    intptr_t *num)
+axp8xx_regdev_map(
+    device_t dev, phandle_t xref, int ncells, pcell_t *cells, intptr_t *num)
 {
 	struct axp8xx_softc *sc;
 	int i;
@@ -1434,8 +1424,7 @@ axp8xx_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data)
-	{
+	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
 	case AXP803:
 		device_set_desc(dev, "X-Powers AXP803 Power Management Unit");
 		break;
@@ -1516,16 +1505,13 @@ axp8xx_attach(device_t dev)
 					break;
 				}
 			}
-			child = ofw_bus_find_child(rnode,
-			    regname);
+			child = ofw_bus_find_child(rnode, regname);
 			if (child == 0)
 				continue;
-			reg = axp8xx_reg_attach(dev, child,
-			    regdef);
+			reg = axp8xx_reg_attach(dev, child, regdef);
 			if (reg == NULL) {
 				device_printf(dev,
-				    "cannot attach regulator %s\n",
-				    regname);
+				    "cannot attach regulator %s\n", regname);
 				continue;
 			}
 			sc->regs[i] = reg;
@@ -1535,19 +1521,18 @@ axp8xx_attach(device_t dev)
 	/* Add sensors */
 	for (i = 0; i < sc->nsensors; i++) {
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, sc->sensors[i].name,
-		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
-		    dev, sc->sensors[i].id, axp8xx_sysctl,
-		    sc->sensors[i].format,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    sc->sensors[i].name,
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, dev,
+		    sc->sensors[i].id, axp8xx_sysctl, sc->sensors[i].format,
 		    sc->sensors[i].desc);
 	}
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "batchargecurrentstep",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-	    dev, 0, axp8xx_sysctl_chargecurrent,
-	    "I", "Battery Charging Current Step, "
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "batchargecurrentstep",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, dev, 0,
+	    axp8xx_sysctl_chargecurrent, "I",
+	    "Battery Charging Current Step, "
 	    "0: 200mA, 1: 400mA, 2: 600mA, 3: 800mA, "
 	    "4: 1000mA, 5: 1200mA, 6: 1400mA, 7: 1600mA, "
 	    "8: 1800mA, 9: 2000mA, 10: 2200mA, 11: 2400mA, "
@@ -1559,45 +1544,37 @@ axp8xx_attach(device_t dev)
 		sc->warn_thres += AXP_BAP_CAP_WARN_LV1BASE;
 		sc->shut_thres = (val & AXP_BAT_CAP_WARN_LV2);
 		if (bootverbose) {
-			device_printf(dev,
-			    "Raw reg val: 0x%02x\n", val);
-			device_printf(dev,
-			    "Warning threshold: 0x%02x\n", sc->warn_thres);
-			device_printf(dev,
-			    "Shutdown threshold: 0x%02x\n", sc->shut_thres);
+			device_printf(dev, "Raw reg val: 0x%02x\n", val);
+			device_printf(
+			    dev, "Warning threshold: 0x%02x\n", sc->warn_thres);
+			device_printf(dev, "Shutdown threshold: 0x%02x\n",
+			    sc->shut_thres);
 		}
 	}
 
 	/* Enable interrupts */
 	axp8xx_write(dev, AXP_IRQEN1,
-	    AXP_IRQEN1_VBUS_LO |
-	    AXP_IRQEN1_VBUS_HI |
-	    AXP_IRQEN1_ACIN_LO |
-	    AXP_IRQEN1_ACIN_HI);
+	    AXP_IRQEN1_VBUS_LO | AXP_IRQEN1_VBUS_HI | AXP_IRQEN1_ACIN_LO |
+		AXP_IRQEN1_ACIN_HI);
 	axp8xx_write(dev, AXP_IRQEN2,
-	    AXP_IRQEN2_BATCHGD |
-	    AXP_IRQEN2_BATCHGC |
-	    AXP_IRQEN2_BAT_NO |
-	    AXP_IRQEN2_BAT_IN);
+	    AXP_IRQEN2_BATCHGD | AXP_IRQEN2_BATCHGC | AXP_IRQEN2_BAT_NO |
+		AXP_IRQEN2_BAT_IN);
 	axp8xx_write(dev, AXP_IRQEN3, 0);
-	axp8xx_write(dev, AXP_IRQEN4,
-	    AXP_IRQEN4_BATLVL_LO0 |
-	    AXP_IRQEN4_BATLVL_LO1);
-	axp8xx_write(dev, AXP_IRQEN5,
-	    AXP_IRQEN5_POKSIRQ |
-	    AXP_IRQEN5_POKLIRQ);
+	axp8xx_write(
+	    dev, AXP_IRQEN4, AXP_IRQEN4_BATLVL_LO0 | AXP_IRQEN4_BATLVL_LO1);
+	axp8xx_write(dev, AXP_IRQEN5, AXP_IRQEN5_POKSIRQ | AXP_IRQEN5_POKLIRQ);
 	axp8xx_write(dev, AXP_IRQEN6, 0);
 
 	/* Install interrupt handler */
-	error = bus_setup_intr(dev, sc->res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, axp8xx_intr, dev, &sc->ih);
+	error = bus_setup_intr(dev, sc->res, INTR_TYPE_MISC | INTR_MPSAFE, NULL,
+	    axp8xx_intr, dev, &sc->ih);
 	if (error != 0) {
 		device_printf(dev, "cannot setup interrupt handler\n");
 		return (error);
 	}
 
-	EVENTHANDLER_REGISTER(shutdown_final, axp8xx_shutdown, dev,
-	    SHUTDOWN_PRI_LAST);
+	EVENTHANDLER_REGISTER(
+	    shutdown_final, axp8xx_shutdown, dev, SHUTDOWN_PRI_LAST);
 
 	sc->gpiodev = gpiobus_attach_bus(dev);
 
@@ -1606,26 +1583,26 @@ axp8xx_attach(device_t dev)
 
 static device_method_t axp8xx_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		axp8xx_probe),
-	DEVMETHOD(device_attach,	axp8xx_attach),
+	DEVMETHOD(device_probe, axp8xx_probe),
+	DEVMETHOD(device_attach, axp8xx_attach),
 
 	/* GPIO interface */
-	DEVMETHOD(gpio_get_bus,		axp8xx_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max,		axp8xx_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname,	axp8xx_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getcaps,	axp8xx_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_getflags,	axp8xx_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_setflags,	axp8xx_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_get,		axp8xx_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set,		axp8xx_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle,	axp8xx_gpio_pin_toggle),
-	DEVMETHOD(gpio_map_gpios,	axp8xx_gpio_map_gpios),
+	DEVMETHOD(gpio_get_bus, axp8xx_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max, axp8xx_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname, axp8xx_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getcaps, axp8xx_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_getflags, axp8xx_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_setflags, axp8xx_gpio_pin_setflags),
+	DEVMETHOD(gpio_pin_get, axp8xx_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set, axp8xx_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle, axp8xx_gpio_pin_toggle),
+	DEVMETHOD(gpio_map_gpios, axp8xx_gpio_map_gpios),
 
 	/* Regdev interface */
-	DEVMETHOD(regdev_map,		axp8xx_regdev_map),
+	DEVMETHOD(regdev_map, axp8xx_regdev_map),
 
 	/* OFW bus interface */
-	DEVMETHOD(ofw_bus_get_node,	axp8xx_get_node),
+	DEVMETHOD(ofw_bus_get_node, axp8xx_get_node),
 
 	DEVMETHOD_END
 };

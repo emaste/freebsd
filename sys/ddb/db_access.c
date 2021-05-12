@@ -34,30 +34,27 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kdb.h>
 #include <sys/endian.h>
+#include <sys/kdb.h>
 
-#include <ddb/ddb.h>
 #include <ddb/db_access.h>
+#include <ddb/ddb.h>
 
 /*
  * Access unaligned data items on aligned (longword)
  * boundaries.
  */
 
-static unsigned db_extend[] = {	/* table for sign-extending */
-	0,
-	0xFFFFFF80U,
-	0xFFFF8000U,
-	0xFF800000U
+static unsigned db_extend[] = { /* table for sign-extending */
+	0, 0xFFFFFF80U, 0xFFFF8000U, 0xFF800000U
 };
 
 db_expr_t
 db_get_value(db_addr_t addr, int size, bool is_signed)
 {
-	char		data[sizeof(u_int64_t)];
-	db_expr_t	value;
-	int		i;
+	char data[sizeof(u_int64_t)];
+	db_expr_t value;
+	int i;
 
 	if (db_read_bytes(addr, size, data) != 0) {
 		db_printf("*** error reading from address %llx ***\n",
@@ -68,16 +65,16 @@ db_get_value(db_addr_t addr, int size, bool is_signed)
 	value = 0;
 #if _BYTE_ORDER == _BIG_ENDIAN
 	for (i = 0; i < size; i++)
-#else	/* _LITTLE_ENDIAN */
+#else /* _LITTLE_ENDIAN */
 	for (i = size - 1; i >= 0; i--)
 #endif
 	{
-	    value = (value << 8) + (data[i] & 0xFF);
+		value = (value << 8) + (data[i] & 0xFF);
 	}
 
 	if (size < 4) {
-	    if (is_signed && (value & db_extend[size]) != 0)
-		value |= db_extend[size];
+		if (is_signed && (value & db_extend[size]) != 0)
+			value |= db_extend[size];
 	}
 	return (value);
 }
@@ -85,22 +82,22 @@ db_get_value(db_addr_t addr, int size, bool is_signed)
 void
 db_put_value(db_addr_t addr, int size, db_expr_t value)
 {
-	char		data[sizeof(int)];
-	int		i;
+	char data[sizeof(int)];
+	int i;
 
 #if _BYTE_ORDER == _BIG_ENDIAN
 	for (i = size - 1; i >= 0; i--)
-#else	/* _LITTLE_ENDIAN */
+#else /* _LITTLE_ENDIAN */
 	for (i = 0; i < size; i++)
 #endif
 	{
-	    data[i] = value & 0xFF;
-	    value >>= 8;
+		data[i] = value & 0xFF;
+		value >>= 8;
 	}
 
 	if (db_write_bytes(addr, size, data) != 0) {
-		db_printf("*** error writing to address %llx ***\n",
-		    (long long)addr);
+		db_printf(
+		    "*** error writing to address %llx ***\n", (long long)addr);
 		kdb_reenter();
 	}
 }

@@ -27,9 +27,9 @@
  */
 
 #ifndef _MACHINE_STACK_H_
-#define	_MACHINE_STACK_H_
+#define _MACHINE_STACK_H_
 
-#define	INKERNEL(va) \
+#define INKERNEL(va) \
 	((va) >= VM_MIN_KERNEL_ADDRESS && (va) <= VM_MAX_KERNEL_ADDRESS)
 
 struct unwind_state {

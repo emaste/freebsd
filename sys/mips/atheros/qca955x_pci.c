@@ -34,11 +34,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
 #include <sys/bus.h>
 #include <sys/interrupt.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
 
@@ -50,20 +49,19 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
 
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
-
 #include <dev/pci/pcib_private.h>
-#include "pcib_if.h"
-
-#include <mips/atheros/ar71xxreg.h> /* XXX aim to eliminate this! */
-#include <mips/atheros/qca955xreg.h>
-#include <mips/atheros/ar71xx_setup.h>
-#include <mips/atheros/ar71xx_pci_bus_space.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xx_pci_bus_space.h>
+#include <mips/atheros/ar71xx_setup.h>
+#include <mips/atheros/ar71xxreg.h> /* XXX aim to eliminate this! */
+#include <mips/atheros/qca955xreg.h>
 
-#undef	AR724X_PCI_DEBUG
+#include "pcib_if.h"
+
+#undef AR724X_PCI_DEBUG
 //#define AR724X_PCI_DEBUG
 #ifdef AR724X_PCI_DEBUG
 #define dprintf printf
@@ -84,29 +82,29 @@ struct ar71xx_pci_irq {
 };
 
 struct ar71xx_pci_softc {
-	device_t		sc_dev;
+	device_t sc_dev;
 
-	int			sc_busno;
-	struct rman		sc_mem_rman;
-	struct rman		sc_irq_rman;
+	int sc_busno;
+	struct rman sc_mem_rman;
+	struct rman sc_irq_rman;
 
-	uint32_t		sc_pci_reg_base;	/* XXX until bus stuff is done */
-	uint32_t		sc_pci_crp_base;	/* XXX until bus stuff is done */
-	uint32_t		sc_pci_ctrl_base;	/* XXX until bus stuff is done */
-	uint32_t		sc_pci_mem_base;	/* XXX until bus stuff is done */
-	uint32_t		sc_pci_membase_limit;
+	uint32_t sc_pci_reg_base;  /* XXX until bus stuff is done */
+	uint32_t sc_pci_crp_base;  /* XXX until bus stuff is done */
+	uint32_t sc_pci_ctrl_base; /* XXX until bus stuff is done */
+	uint32_t sc_pci_mem_base;  /* XXX until bus stuff is done */
+	uint32_t sc_pci_membase_limit;
 
-	struct intr_event	*sc_eventstab[AR71XX_PCI_NIRQS];
-	mips_intrcnt_t		sc_intr_counter[AR71XX_PCI_NIRQS];
-	struct ar71xx_pci_irq	sc_pci_irq[AR71XX_PCI_NIRQS];
-	struct resource		*sc_irq;
-	void			*sc_ih;
+	struct intr_event *sc_eventstab[AR71XX_PCI_NIRQS];
+	mips_intrcnt_t sc_intr_counter[AR71XX_PCI_NIRQS];
+	struct ar71xx_pci_irq sc_pci_irq[AR71XX_PCI_NIRQS];
+	struct resource *sc_irq;
+	void *sc_ih;
 };
 
-static int qca955x_pci_setup_intr(device_t, device_t, struct resource *, int, 
-		    driver_filter_t *, driver_intr_t *, void *, void **);
-static int qca955x_pci_teardown_intr(device_t, device_t, struct resource *,
-		    void *);
+static int qca955x_pci_setup_intr(device_t, device_t, struct resource *, int,
+    driver_filter_t *, driver_intr_t *, void *, void **);
+static int qca955x_pci_teardown_intr(
+    device_t, device_t, struct resource *, void *);
 static int qca955x_pci_intr(void *);
 
 static void
@@ -126,13 +124,13 @@ qca955x_pci_write(uint32_t reg, uint32_t offset, uint32_t data, int bytes)
 	val |= ((data & mask) << shift);
 	ATH_WRITE_REG(reg + (offset & ~3), val);
 
-	dprintf("%s: %#x/%#x addr=%#x, data=%#x(%#x), bytes=%d\n", __func__, 
+	dprintf("%s: %#x/%#x addr=%#x, data=%#x(%#x), bytes=%d\n", __func__,
 	    reg, reg + (offset & ~3), offset, data, val, bytes);
 }
 
 static uint32_t
-qca955x_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, 
-    u_int reg, int bytes)
+qca955x_pci_read_config(
+    device_t dev, u_int bus, u_int slot, u_int func, u_int reg, int bytes)
 {
 	struct ar71xx_pci_softc *sc = device_get_softc(dev);
 	uint32_t data, shift, mask;
@@ -148,8 +146,8 @@ qca955x_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 	else
 		mask = 0xffffffff;
 
-	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot,
-	    func, reg, bytes);
+	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot, func,
+	    reg, bytes);
 
 	if ((bus == 0) && (slot == 0) && (func == 0))
 		data = ATH_READ_REG(sc->sc_pci_reg_base + (reg & ~3));
@@ -170,7 +168,7 @@ qca955x_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 {
 	struct ar71xx_pci_softc *sc = device_get_softc(dev);
 
-	dprintf("%s: tag (%x, %x, %x) reg %d(%d): %x\n", __func__, bus, slot, 
+	dprintf("%s: tag (%x, %x, %x) reg %d(%d): %x\n", __func__, bus, slot,
 	    func, reg, bytes, data);
 
 	if ((bus != 0) || (slot != 0) || (func != 0))
@@ -230,8 +228,10 @@ qca955x_pci_setup(device_t dev)
 	qca955x_pci_write(sc->sc_pci_crp_base, PCIR_COMMAND, reg, 2);
 
 	/* These are the memory/prefetch base/limit parameters */
-	qca955x_pci_write(sc->sc_pci_crp_base, 0x20, sc->sc_pci_membase_limit, 4);
-	qca955x_pci_write(sc->sc_pci_crp_base, 0x24, sc->sc_pci_membase_limit, 4);
+	qca955x_pci_write(
+	    sc->sc_pci_crp_base, 0x20, sc->sc_pci_membase_limit, 4);
+	qca955x_pci_write(
+	    sc->sc_pci_crp_base, 0x24, sc->sc_pci_membase_limit, 4);
 
 	reg = ATH_READ_REG(sc->sc_pci_ctrl_base + QCA955X_PCI_RESET);
 	if (reg != 0x7) {
@@ -246,7 +246,7 @@ qca955x_pci_setup(device_t dev)
 
 	ATH_WRITE_REG(sc->sc_pci_ctrl_base + QCA955X_PCI_APP, 0x1ffc1);
 	/* Flush write */
-	(void) ATH_READ_REG(sc->sc_pci_ctrl_base + QCA955X_PCI_APP);
+	(void)ATH_READ_REG(sc->sc_pci_ctrl_base + QCA955X_PCI_APP);
 
 	DELAY(1000);
 
@@ -295,18 +295,17 @@ qca955x_pci_attach(device_t dev)
 
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "qca955x PCI memory window";
-	if (rman_init(&sc->sc_mem_rman) != 0 || 
-	    rman_manage_region(&sc->sc_mem_rman,
-	    sc->sc_pci_mem_base,
-	    sc->sc_pci_mem_base + QCA955X_PCI_MEM_SIZE - 1) != 0) {
+	if (rman_init(&sc->sc_mem_rman) != 0 ||
+	    rman_manage_region(&sc->sc_mem_rman, sc->sc_pci_mem_base,
+		sc->sc_pci_mem_base + QCA955X_PCI_MEM_SIZE - 1) != 0) {
 		panic("qca955x_pci_attach: failed to set up I/O rman");
 	}
 
 	sc->sc_irq_rman.rm_type = RMAN_ARRAY;
 	sc->sc_irq_rman.rm_descr = "qca955x PCI IRQs";
 	if (rman_init(&sc->sc_irq_rman) != 0 ||
-	    rman_manage_region(&sc->sc_irq_rman, AR71XX_PCI_IRQ_START, 
-	        AR71XX_PCI_IRQ_END) != 0)
+	    rman_manage_region(&sc->sc_irq_rman, AR71XX_PCI_IRQ_START,
+		AR71XX_PCI_IRQ_END) != 0)
 		panic("qca955x_pci_attach: failed to set up IRQ rman");
 
 	/* Disable interrupts */
@@ -314,16 +313,16 @@ qca955x_pci_attach(device_t dev)
 	ATH_WRITE_REG(sc->sc_pci_ctrl_base + QCA955X_PCI_INTR_MASK, 0);
 
 	/* Hook up our interrupt handler. */
-	if ((sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+	if ((sc->sc_irq = bus_alloc_resource_any(
+		 dev, SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		device_printf(dev, "unable to allocate IRQ resource\n");
 		return (ENXIO);
 	}
 
-	if ((bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC,
-			    qca955x_pci_intr, NULL, sc, &sc->sc_ih))) {
-		device_printf(dev, 
-		    "WARNING: unable to register interrupt handler\n");
+	if ((bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC, qca955x_pci_intr,
+		NULL, sc, &sc->sc_ih))) {
+		device_printf(
+		    dev, "WARNING: unable to register interrupt handler\n");
 		return (ENXIO);
 	}
 
@@ -350,22 +349,22 @@ qca955x_pci_attach(device_t dev)
 	 * the initial BAR is supposed to be determined by /other/
 	 * means.
 	 */
-	qca955x_pci_write_config(dev, 0, 0, 0, PCIR_BAR(0),
-	    sc->sc_pci_mem_base,
-	    4);
+	qca955x_pci_write_config(
+	    dev, 0, 0, 0, PCIR_BAR(0), sc->sc_pci_mem_base, 4);
 
 	/* Fixup internal PCI bridge */
 	qca955x_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND,
-            PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN
-	    | PCIM_CMD_SERRESPEN | PCIM_CMD_BACKTOBACK
-	    | PCIM_CMD_PERRESPEN | PCIM_CMD_MWRICEN, 2);
+	    PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN | PCIM_CMD_SERRESPEN |
+		PCIM_CMD_BACKTOBACK | PCIM_CMD_PERRESPEN | PCIM_CMD_MWRICEN,
+	    2);
 
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 
 static int
-qca955x_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+qca955x_pci_read_ivar(
+    device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct ar71xx_pci_softc *sc = device_get_softc(dev);
 
@@ -382,9 +381,10 @@ qca955x_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result
 }
 
 static int
-qca955x_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t result)
+qca955x_pci_write_ivar(
+    device_t dev, device_t child, int which, uintptr_t result)
 {
-	struct ar71xx_pci_softc * sc = device_get_softc(dev);
+	struct ar71xx_pci_softc *sc = device_get_softc(dev);
 
 	switch (which) {
 	case PCIB_IVAR_BUS:
@@ -426,20 +426,20 @@ qca955x_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			rman_release_resource(rv);
 			return (NULL);
 		}
-	} 
+	}
 
 	return (rv);
 }
 
 static int
-qca955x_pci_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+qca955x_pci_activate_resource(
+    device_t bus, device_t child, int type, int rid, struct resource *r)
 {
-	int res = (BUS_ACTIVATE_RESOURCE(device_get_parent(bus),
-	    child, type, rid, r));
+	int res = (BUS_ACTIVATE_RESOURCE(
+	    device_get_parent(bus), child, type, rid, r));
 
 	if (!res) {
-		switch(type) {
+		switch (type) {
 		case SYS_RES_MEMORY:
 		case SYS_RES_IOPORT:
 
@@ -453,8 +453,8 @@ qca955x_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 qca955x_pci_setup_intr(device_t bus, device_t child, struct resource *ires,
-		int flags, driver_filter_t *filt, driver_intr_t *handler,
-		void *arg, void **cookiep)
+    int flags, driver_filter_t *filt, driver_intr_t *handler, void *arg,
+    void **cookiep)
 {
 	struct ar71xx_pci_softc *sc = device_get_softc(bus);
 	struct intr_event *event;
@@ -469,23 +469,19 @@ qca955x_pci_setup_intr(device_t bus, device_t child, struct resource *ires,
 		sc->sc_pci_irq[irq].sc = sc;
 		sc->sc_pci_irq[irq].irq = irq;
 		error = intr_event_create(&event, (void *)&sc->sc_pci_irq[irq],
-		    0, irq,
-		    qca955x_pci_mask_irq,
-		    qca955x_pci_unmask_irq,
-		    NULL, NULL,
-		    "pci intr%d:", irq);
+		    0, irq, qca955x_pci_mask_irq, qca955x_pci_unmask_irq, NULL,
+		    NULL, "pci intr%d:", irq);
 
 		if (error == 0) {
 			sc->sc_eventstab[irq] = event;
-			sc->sc_intr_counter[irq] =
-			    mips_intrcnt_create(event->ie_name);
-		}
-		else
+			sc->sc_intr_counter[irq] = mips_intrcnt_create(
+			    event->ie_name);
+		} else
 			return error;
 	}
 
-	intr_event_add_handler(event, device_get_nameunit(child), filt,
-	    handler, arg, intr_priority(flags), flags, cookiep);
+	intr_event_add_handler(event, device_get_nameunit(child), filt, handler,
+	    arg, intr_priority(flags), flags, cookiep);
 	mips_intrcnt_setname(sc->sc_intr_counter[irq], event->ie_fullname);
 
 	qca955x_pci_unmask_irq(&sc->sc_pci_irq[irq]);
@@ -494,8 +490,8 @@ qca955x_pci_setup_intr(device_t bus, device_t child, struct resource *ires,
 }
 
 static int
-qca955x_pci_teardown_intr(device_t dev, device_t child, struct resource *ires,
-    void *cookie)
+qca955x_pci_teardown_intr(
+    device_t dev, device_t child, struct resource *ires, void *cookie)
 {
 	struct ar71xx_pci_softc *sc = device_get_softc(dev);
 	int irq, result;
@@ -568,28 +564,28 @@ qca955x_pci_route_interrupt(device_t pcib, device_t device, int pin)
 
 static device_method_t qca955x_pci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		qca955x_pci_probe),
-	DEVMETHOD(device_attach,	qca955x_pci_attach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_probe, qca955x_pci_probe),
+	DEVMETHOD(device_attach, qca955x_pci_attach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,	qca955x_pci_read_ivar),
-	DEVMETHOD(bus_write_ivar,	qca955x_pci_write_ivar),
-	DEVMETHOD(bus_alloc_resource,	qca955x_pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_read_ivar, qca955x_pci_read_ivar),
+	DEVMETHOD(bus_write_ivar, qca955x_pci_write_ivar),
+	DEVMETHOD(bus_alloc_resource, qca955x_pci_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, qca955x_pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	qca955x_pci_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	qca955x_pci_teardown_intr),
+	DEVMETHOD(bus_setup_intr, qca955x_pci_setup_intr),
+	DEVMETHOD(bus_teardown_intr, qca955x_pci_teardown_intr),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_maxslots,	qca955x_pci_maxslots),
-	DEVMETHOD(pcib_read_config,	qca955x_pci_read_config),
-	DEVMETHOD(pcib_write_config,	qca955x_pci_write_config),
-	DEVMETHOD(pcib_route_interrupt,	qca955x_pci_route_interrupt),
-	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
+	DEVMETHOD(pcib_maxslots, qca955x_pci_maxslots),
+	DEVMETHOD(pcib_read_config, qca955x_pci_read_config),
+	DEVMETHOD(pcib_write_config, qca955x_pci_write_config),
+	DEVMETHOD(pcib_route_interrupt, qca955x_pci_route_interrupt),
+	DEVMETHOD(pcib_request_feature, pcib_request_feature_allow),
 
 	DEVMETHOD_END
 };
@@ -602,5 +598,6 @@ static driver_t qca955x_pci_driver = {
 
 static devclass_t qca955x_pci_devclass;
 
-DRIVER_MODULE(qca955x_pci, nexus, qca955x_pci_driver, qca955x_pci_devclass, 0, 0);
+DRIVER_MODULE(
+    qca955x_pci, nexus, qca955x_pci_driver, qca955x_pci_devclass, 0, 0);
 DRIVER_MODULE(qca955x_pci, apb, qca955x_pci_driver, qca955x_pci_devclass, 0, 0);

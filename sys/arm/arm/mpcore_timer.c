@@ -51,62 +51,60 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
-
 #include <machine/machdep.h> /* For arm_set_delay */
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <machine/bus.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/arm/mpcore_timervar.h>
 
 /* Private (per-CPU) timer register map */
-#define PRV_TIMER_LOAD                 0x0000
-#define PRV_TIMER_COUNT                0x0004
-#define PRV_TIMER_CTRL                 0x0008
-#define PRV_TIMER_INTR                 0x000C
+#define PRV_TIMER_LOAD 0x0000
+#define PRV_TIMER_COUNT 0x0004
+#define PRV_TIMER_CTRL 0x0008
+#define PRV_TIMER_INTR 0x000C
 
-#define PRV_TIMER_CTR_PRESCALER_SHIFT  8
-#define PRV_TIMER_CTRL_IRQ_ENABLE      (1UL << 2)
-#define PRV_TIMER_CTRL_AUTO_RELOAD     (1UL << 1)
-#define PRV_TIMER_CTRL_TIMER_ENABLE    (1UL << 0)
+#define PRV_TIMER_CTR_PRESCALER_SHIFT 8
+#define PRV_TIMER_CTRL_IRQ_ENABLE (1UL << 2)
+#define PRV_TIMER_CTRL_AUTO_RELOAD (1UL << 1)
+#define PRV_TIMER_CTRL_TIMER_ENABLE (1UL << 0)
 
-#define PRV_TIMER_INTR_EVENT           (1UL << 0)
+#define PRV_TIMER_INTR_EVENT (1UL << 0)
 
 /* Global timer register map */
-#define GBL_TIMER_COUNT_LOW            0x0000
-#define GBL_TIMER_COUNT_HIGH           0x0004
-#define GBL_TIMER_CTRL                 0x0008
-#define GBL_TIMER_INTR                 0x000C
+#define GBL_TIMER_COUNT_LOW 0x0000
+#define GBL_TIMER_COUNT_HIGH 0x0004
+#define GBL_TIMER_CTRL 0x0008
+#define GBL_TIMER_INTR 0x000C
 
-#define GBL_TIMER_CTR_PRESCALER_SHIFT  8
-#define GBL_TIMER_CTRL_AUTO_INC        (1UL << 3)
-#define GBL_TIMER_CTRL_IRQ_ENABLE      (1UL << 2)
-#define GBL_TIMER_CTRL_COMP_ENABLE     (1UL << 1)
-#define GBL_TIMER_CTRL_TIMER_ENABLE    (1UL << 0)
+#define GBL_TIMER_CTR_PRESCALER_SHIFT 8
+#define GBL_TIMER_CTRL_AUTO_INC (1UL << 3)
+#define GBL_TIMER_CTRL_IRQ_ENABLE (1UL << 2)
+#define GBL_TIMER_CTRL_COMP_ENABLE (1UL << 1)
+#define GBL_TIMER_CTRL_TIMER_ENABLE (1UL << 0)
 
-#define GBL_TIMER_INTR_EVENT           (1UL << 0)
+#define GBL_TIMER_INTR_EVENT (1UL << 0)
 
 struct arm_tmr_softc {
-	device_t		dev;
-	int			irqrid;
-	int			memrid;
-	struct resource *	gbl_mem;
-	struct resource *	prv_mem;
-	struct resource *	prv_irq;
-	uint64_t		clkfreq;
-	struct eventtimer	et;
+	device_t dev;
+	int irqrid;
+	int memrid;
+	struct resource *gbl_mem;
+	struct resource *prv_mem;
+	struct resource *prv_irq;
+	uint64_t clkfreq;
+	struct eventtimer et;
 };
 
 static struct eventtimer *arm_tmr_et;
@@ -114,37 +112,36 @@ static struct timecounter *arm_tmr_tc;
 static uint64_t arm_tmr_freq;
 static boolean_t arm_tmr_freq_varies;
 
-#define	tmr_prv_read_4(sc, reg)         bus_read_4((sc)->prv_mem, reg)
-#define	tmr_prv_write_4(sc, reg, val)   bus_write_4((sc)->prv_mem, reg, val)
-#define	tmr_gbl_read_4(sc, reg)         bus_read_4((sc)->gbl_mem, reg)
-#define	tmr_gbl_write_4(sc, reg, val)   bus_write_4((sc)->gbl_mem, reg, val)
+#define tmr_prv_read_4(sc, reg) bus_read_4((sc)->prv_mem, reg)
+#define tmr_prv_write_4(sc, reg, val) bus_write_4((sc)->prv_mem, reg, val)
+#define tmr_gbl_read_4(sc, reg) bus_read_4((sc)->gbl_mem, reg)
+#define tmr_gbl_write_4(sc, reg, val) bus_write_4((sc)->gbl_mem, reg, val)
 
 static void arm_tmr_delay(int, void *);
 
 static timecounter_get_t arm_tmr_get_timecount;
 
 static struct timecounter arm_tmr_timecount = {
-	.tc_name           = "MPCore",
-	.tc_get_timecount  = arm_tmr_get_timecount,
-	.tc_poll_pps       = NULL,
-	.tc_counter_mask   = ~0u,
-	.tc_frequency      = 0,
-	.tc_quality        = 800,
+	.tc_name = "MPCore",
+	.tc_get_timecount = arm_tmr_get_timecount,
+	.tc_poll_pps = NULL,
+	.tc_counter_mask = ~0u,
+	.tc_frequency = 0,
+	.tc_quality = 800,
 };
 
-#define	TMR_GBL		0x01
-#define	TMR_PRV		0x02
-#define	TMR_BOTH	(TMR_GBL | TMR_PRV)
-#define	TMR_NONE	0
+#define TMR_GBL 0x01
+#define TMR_PRV 0x02
+#define TMR_BOTH (TMR_GBL | TMR_PRV)
+#define TMR_NONE 0
 
 static struct ofw_compat_data compat_data[] = {
-	{"arm,mpcore-timers",		TMR_BOTH}, /* Non-standard, FreeBSD. */
-	{"arm,cortex-a9-global-timer",	TMR_GBL},
-	{"arm,cortex-a5-global-timer",	TMR_GBL},
-	{"arm,cortex-a9-twd-timer",	TMR_PRV},
-	{"arm,cortex-a5-twd-timer",	TMR_PRV},
-	{"arm,arm11mp-twd-timer",	TMR_PRV},
-	{NULL,				TMR_NONE}
+	{ "arm,mpcore-timers", TMR_BOTH }, /* Non-standard, FreeBSD. */
+	{ "arm,cortex-a9-global-timer", TMR_GBL },
+	{ "arm,cortex-a5-global-timer", TMR_GBL },
+	{ "arm,cortex-a9-twd-timer", TMR_PRV },
+	{ "arm,cortex-a5-twd-timer", TMR_PRV },
+	{ "arm,arm11mp-twd-timer", TMR_PRV }, { NULL, TMR_NONE }
 };
 
 /**
@@ -215,7 +212,8 @@ arm_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
  *	arm_tmr_stop - stops the eventtimer (private) timer
  *	@et: pointer to eventtimer struct
  *
- *	Simply stops the private timer by clearing all bits in the ctrl register.
+ *	Simply stops the private timer by clearing all bits in the ctrl
+ *register.
  *
  *	RETURNS
  *	Always returns 0
@@ -285,10 +283,11 @@ attach_tc(struct arm_tmr_softc *sc)
 		return (EBUSY);
 
 	rid = sc->memrid;
-	sc->gbl_mem = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->gbl_mem = bus_alloc_resource_any(
+	    sc->dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->gbl_mem == NULL) {
-		device_printf(sc->dev, "could not allocate gbl mem resources\n");
+		device_printf(
+		    sc->dev, "could not allocate gbl mem resources\n");
 		return (ENXIO);
 	}
 	tmr_gbl_write_4(sc, GBL_TIMER_CTRL, 0x00000000);
@@ -313,25 +312,30 @@ attach_et(struct arm_tmr_softc *sc)
 		return (EBUSY);
 
 	mrid = sc->memrid;
-	sc->prv_mem = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY, &mrid,
-	    RF_ACTIVE);
+	sc->prv_mem = bus_alloc_resource_any(
+	    sc->dev, SYS_RES_MEMORY, &mrid, RF_ACTIVE);
 	if (sc->prv_mem == NULL) {
-		device_printf(sc->dev, "could not allocate prv mem resources\n");
+		device_printf(
+		    sc->dev, "could not allocate prv mem resources\n");
 		return (ENXIO);
 	}
 	tmr_prv_write_4(sc, PRV_TIMER_CTRL, 0x00000000);
 
 	irid = sc->irqrid;
-	sc->prv_irq = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &irid, RF_ACTIVE);
+	sc->prv_irq = bus_alloc_resource_any(
+	    sc->dev, SYS_RES_IRQ, &irid, RF_ACTIVE);
 	if (sc->prv_irq == NULL) {
-		bus_release_resource(sc->dev, SYS_RES_MEMORY, mrid, sc->prv_mem);
-		device_printf(sc->dev, "could not allocate prv irq resources\n");
+		bus_release_resource(
+		    sc->dev, SYS_RES_MEMORY, mrid, sc->prv_mem);
+		device_printf(
+		    sc->dev, "could not allocate prv irq resources\n");
 		return (ENXIO);
 	}
 
 	if (bus_setup_intr(sc->dev, sc->prv_irq, INTR_TYPE_CLK, arm_tmr_intr,
-			NULL, sc, &ihl) != 0) {
-		bus_release_resource(sc->dev, SYS_RES_MEMORY, mrid, sc->prv_mem);
+		NULL, sc, &ihl) != 0) {
+		bus_release_resource(
+		    sc->dev, SYS_RES_MEMORY, mrid, sc->prv_mem);
 		bus_release_resource(sc->dev, SYS_RES_IRQ, irid, sc->prv_irq);
 		device_printf(sc->dev, "unable to setup the et irq handler.\n");
 		return (ENXIO);
@@ -347,11 +351,12 @@ attach_et(struct arm_tmr_softc *sc)
 	 * nanoseconds is pretty much completely arbitrary.
 	 */
 	sc->et.et_name = "MPCore";
-	sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT | ET_FLAGS_PERCPU;
+	sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT |
+	    ET_FLAGS_PERCPU;
 	sc->et.et_quality = 1000;
 	sc->et.et_frequency = sc->clkfreq;
 	sc->et.et_min_period = nstosbt(20);
-	sc->et.et_max_period =  2 * SBT_1S;
+	sc->et.et_max_period = 2 * SBT_1S;
 	sc->et.et_start = arm_tmr_start;
 	sc->et.et_stop = arm_tmr_stop;
 	sc->et.et_priv = sc;
@@ -391,8 +396,9 @@ arm_tmr_attach(device_t dev)
 			/* Get the base clock frequency */
 			node = ofw_bus_get_node(dev);
 			if ((OF_getencprop(node, "clock-frequency", &clock,
-			    sizeof(clock))) <= 0) {
-				device_printf(dev, "missing clock-frequency "
+				sizeof(clock))) <= 0) {
+				device_printf(dev,
+				    "missing clock-frequency "
 				    "attribute in FDT\n");
 				return (ENXIO);
 			}
@@ -447,11 +453,9 @@ arm_tmr_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t arm_tmr_methods[] = {
-	DEVMETHOD(device_probe,		arm_tmr_probe),
-	DEVMETHOD(device_attach,	arm_tmr_attach),
-	{ 0, 0 }
-};
+static device_method_t arm_tmr_methods[] = { DEVMETHOD(
+						 device_probe, arm_tmr_probe),
+	DEVMETHOD(device_attach, arm_tmr_attach), { 0, 0 } };
 
 static driver_t arm_tmr_driver = {
 	"mp_tmr",
@@ -545,13 +549,14 @@ DELAY(int usec)
 	int32_t counts;
 
 	TSENTER();
-	/* Check the timers are setup, if not just use a for loop for the meantime */
+	/* Check the timers are setup, if not just use a for loop for the
+	 * meantime */
 	if (arm_tmr_tc == NULL || arm_tmr_timecount.tc_frequency == 0) {
 		for (; usec > 0; usec--)
 			for (counts = 200; counts > 0; counts--)
-				cpufunc_nullop();	/* Prevent gcc from optimizing
-							 * out the loop
-							 */
+				cpufunc_nullop(); /* Prevent gcc from optimizing
+						   * out the loop
+						   */
 	} else {
 		sc = arm_tmr_tc->tc_priv;
 		arm_tmr_delay(usec, sc);

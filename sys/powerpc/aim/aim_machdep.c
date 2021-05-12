@@ -61,15 +61,14 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 #include "opt_platform.h"
 
-#include <sys/endian.h>
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/endian.h>
 #include <sys/eventhandler.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -82,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
 #include <sys/rwlock.h>
@@ -95,17 +95,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
-#include <net/netisr.h>
-
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
 #include <machine/altivec.h>
+
+#include <net/netisr.h>
 #ifndef __powerpc64__
 #include <machine/bat.h>
 #endif
@@ -117,54 +117,56 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/mmuvar.h>
+#include <machine/ofw_machdep.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
 #include <machine/sigframe.h>
 #include <machine/spr.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
-#include <machine/ofw_machdep.h>
-
-#include <ddb/ddb.h>
 
 #include <dev/ofw/openfirm.h>
+
+#include <ddb/ddb.h>
 
 #ifdef __powerpc64__
 #include "mmu_oea64.h"
 #endif
 
 #ifndef __powerpc64__
-struct bat	battable[16];
+struct bat battable[16];
 #endif
 
 int radix_mmu = 0;
 
 #ifndef __powerpc64__
 /* Bits for running on 64-bit systems in 32-bit mode. */
-extern void	*testppc64, *testppc64size;
-extern void	*restorebridge, *restorebridgesize;
-extern void	*rfid_patch, *rfi_patch1, *rfi_patch2;
-extern void	*trapcode64;
+extern void *testppc64, *testppc64size;
+extern void *restorebridge, *restorebridgesize;
+extern void *rfid_patch, *rfi_patch1, *rfi_patch2;
+extern void *trapcode64;
 
-extern Elf_Addr	_GLOBAL_OFFSET_TABLE_[];
+extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
 #endif
 
-extern void	*rstcode, *rstcodeend;
-extern void	*trapcode, *trapcodeend;
-extern void	*hypertrapcode, *hypertrapcodeend;
-extern void	*generictrap, *generictrap64;
-extern void	*alitrap, *aliend;
-extern void	*dsitrap, *dsiend;
-extern void	*decrint, *decrsize;
-extern void     *extint, *extsize;
-extern void	*dblow, *dbend;
-extern void	*imisstrap, *imisssize;
-extern void	*dlmisstrap, *dlmisssize;
-extern void	*dsmisstrap, *dsmisssize;
+extern void *rstcode, *rstcodeend;
+extern void *trapcode, *trapcodeend;
+extern void *hypertrapcode, *hypertrapcodeend;
+extern void *generictrap, *generictrap64;
+extern void *alitrap, *aliend;
+extern void *dsitrap, *dsiend;
+extern void *decrint, *decrsize;
+extern void *extint, *extsize;
+extern void *dblow, *dbend;
+extern void *imisstrap, *imisssize;
+extern void *dlmisstrap, *dlmisssize;
+extern void *dsmisstrap, *dsmisssize;
 
 extern void *ap_pcpu;
-extern void __restartkernel(vm_offset_t, vm_offset_t, vm_offset_t, void *, uint32_t, register_t offset, register_t msr);
-extern void __restartkernel_virtual(vm_offset_t, vm_offset_t, vm_offset_t, void *, uint32_t, register_t offset, register_t msr);
+extern void __restartkernel(vm_offset_t, vm_offset_t, vm_offset_t, void *,
+    uint32_t, register_t offset, register_t msr);
+extern void __restartkernel_virtual(vm_offset_t, vm_offset_t, vm_offset_t,
+    void *, uint32_t, register_t offset, register_t msr);
 
 void aim_early_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry,
     void *mdp, uint32_t mdp_cookie);
@@ -174,7 +176,7 @@ void
 aim_early_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
     uint32_t mdp_cookie)
 {
-	register_t	scratch;
+	register_t scratch;
 
 	/*
 	 * If running from an FDT, make sure we are in real mode to avoid
@@ -208,44 +210,44 @@ aim_early_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 
 	/* Various very early CPU fix ups */
 	switch (mfpvr() >> 16) {
-		/*
-		 * PowerPC 970 CPUs have a misfeature requested by Apple that
-		 * makes them pretend they have a 32-byte cacheline. Turn this
-		 * off before we measure the cacheline size.
-		 */
-		case IBM970:
-		case IBM970FX:
-		case IBM970MP:
-		case IBM970GX:
-			scratch = mfspr(SPR_HID5);
-			scratch &= ~HID5_970_DCBZ_SIZE_HI;
-			mtspr(SPR_HID5, scratch);
-			break;
-	#ifdef __powerpc64__
-		case IBMPOWER7:
-		case IBMPOWER7PLUS:
-		case IBMPOWER8:
-		case IBMPOWER8E:
-		case IBMPOWER8NVL:
-		case IBMPOWER9:
-			/* XXX: get from ibm,slb-size in device tree */
-			n_slbs = 32;
-			break;
-	#endif
+	/*
+	 * PowerPC 970 CPUs have a misfeature requested by Apple that
+	 * makes them pretend they have a 32-byte cacheline. Turn this
+	 * off before we measure the cacheline size.
+	 */
+	case IBM970:
+	case IBM970FX:
+	case IBM970MP:
+	case IBM970GX:
+		scratch = mfspr(SPR_HID5);
+		scratch &= ~HID5_970_DCBZ_SIZE_HI;
+		mtspr(SPR_HID5, scratch);
+		break;
+#ifdef __powerpc64__
+	case IBMPOWER7:
+	case IBMPOWER7PLUS:
+	case IBMPOWER8:
+	case IBMPOWER8E:
+	case IBMPOWER8NVL:
+	case IBMPOWER9:
+		/* XXX: get from ibm,slb-size in device tree */
+		n_slbs = 32;
+		break;
+#endif
 	}
 }
 
 void
 aim_cpu_init(vm_offset_t toc)
 {
-	size_t		trap_offset, trapsize;
-	vm_offset_t	trap;
-	register_t	msr;
-	uint8_t		*cache_check;
-	int		cacheline_warn;
+	size_t trap_offset, trapsize;
+	vm_offset_t trap;
+	register_t msr;
+	uint8_t *cache_check;
+	int cacheline_warn;
 #ifndef __powerpc64__
-	register_t	scratch;
-	int		ppc64;
+	register_t scratch;
+	int ppc64;
 #endif
 
 	trap_offset = 0;
@@ -320,11 +322,13 @@ aim_cpu_init(vm_offset_t toc)
 	for (cacheline_size = 0; cacheline_size < 0x100; cacheline_size++)
 		cache_check[cacheline_size] = 0xff;
 
-	__asm __volatile("dcbz 0,%0":: "r" (cache_check) : "memory");
+	__asm __volatile("dcbz 0,%0" ::"r"(cache_check) : "memory");
 
 	/* Find the first byte dcbz did not zero to get the cache line size */
-	for (cacheline_size = 0; cacheline_size < 0x100 &&
-	    cache_check[cacheline_size] == 0; cacheline_size++);
+	for (cacheline_size = 0;
+	     cacheline_size < 0x100 && cache_check[cacheline_size] == 0;
+	     cacheline_size++)
+		;
 
 	/* Work around psim bug */
 	if (cacheline_size == 0) {
@@ -332,7 +336,7 @@ aim_cpu_init(vm_offset_t toc)
 		cacheline_size = 32;
 	}
 
-	#ifndef __powerpc64__
+#ifndef __powerpc64__
 	/*
 	 * Figure out whether we need to use the 64 bit PMAP. This works by
 	 * executing an instruction that is only legal on 64-bit PPC (mtmsrd),
@@ -341,7 +345,7 @@ aim_cpu_init(vm_offset_t toc)
 
 	ppc64 = 1;
 
-	bcopy(&testppc64, (void *)EXC_PGM,  (size_t)&testppc64size);
+	bcopy(&testppc64, (void *)EXC_PGM, (size_t)&testppc64size);
 	__syncicache((void *)EXC_PGM, (size_t)&testppc64size);
 
 	__asm __volatile("\
@@ -350,7 +354,7 @@ aim_cpu_init(vm_offset_t toc)
 				\
 		mtmsrd %0;	\
 		mfsprg2 %1;"
-	    : "=r"(scratch), "=r"(ppc64));
+			 : "=r"(scratch), "=r"(ppc64));
 
 	if (ppc64)
 		cpu_features |= PPC_FEATURE_64;
@@ -362,15 +366,15 @@ aim_cpu_init(vm_offset_t toc)
 
 	if (cpu_features & PPC_FEATURE_64) {
 		/* Patch the two instances of rfi -> rfid */
-		bcopy(&rfid_patch,&rfi_patch1,4);
-	#ifdef KDB
+		bcopy(&rfid_patch, &rfi_patch1, 4);
+#ifdef KDB
 		/* rfi_patch2 is at the end of dbleave */
-		bcopy(&rfid_patch,&rfi_patch2,4);
-	#endif
+		bcopy(&rfid_patch, &rfi_patch2, 4);
+#endif
 	}
-	#else /* powerpc64 */
+#else /* powerpc64 */
 	cpu_features |= PPC_FEATURE_64;
-	#endif
+#endif
 
 	trapsize = (size_t)&trapcodeend - (size_t)&trapcode;
 
@@ -381,7 +385,7 @@ aim_cpu_init(vm_offset_t toc)
 	for (trap = EXC_RST; trap < EXC_LAST; trap += 0x20)
 		bcopy(&trapcode, (void *)trap, trapsize);
 
-	#ifndef __powerpc64__
+#ifndef __powerpc64__
 	if (cpu_features & PPC_FEATURE_64) {
 		/*
 		 * Copy a code snippet to restore 32-bit bridge mode
@@ -410,44 +414,45 @@ aim_cpu_init(vm_offset_t toc)
 		battable[0x0].batl = BATL(0x00000000, BAT_M, BAT_PP_RW);
 		battable[0x0].batu = BATU(0x00000000, BAT_BL_256M, BAT_Vs);
 
-		__asm (".balign 32; \n"
+		__asm(
+		    ".balign 32; \n"
 		    "mtibatu 0,%0; mtibatl 0,%1; isync; \n"
-		    "mtdbatu 0,%0; mtdbatl 0,%1; isync"
-		    :: "r"(battable[0].batu), "r"(battable[0].batl));
+		    "mtdbatu 0,%0; mtdbatl 0,%1; isync" ::"r"(battable[0].batu),
+		    "r"(battable[0].batl));
 	}
-	#else
+#else
 	trapsize = (size_t)&hypertrapcodeend - (size_t)&hypertrapcode;
 	bcopy(&hypertrapcode, (void *)(EXC_HEA + trap_offset), trapsize);
 	bcopy(&hypertrapcode, (void *)(EXC_HMI + trap_offset), trapsize);
 	bcopy(&hypertrapcode, (void *)(EXC_HVI + trap_offset), trapsize);
 	bcopy(&hypertrapcode, (void *)(EXC_SOFT_PATCH + trap_offset), trapsize);
-	#endif
+#endif
 
-	bcopy(&rstcode, (void *)(EXC_RST + trap_offset), (size_t)&rstcodeend -
-	    (size_t)&rstcode);
+	bcopy(&rstcode, (void *)(EXC_RST + trap_offset),
+	    (size_t)&rstcodeend - (size_t)&rstcode);
 
 #ifdef KDB
-	bcopy(&dblow, (void *)(EXC_MCHK + trap_offset), (size_t)&dbend -
-	    (size_t)&dblow);
-	bcopy(&dblow, (void *)(EXC_PGM + trap_offset), (size_t)&dbend -
-	    (size_t)&dblow);
-	bcopy(&dblow, (void *)(EXC_TRC + trap_offset), (size_t)&dbend -
-	    (size_t)&dblow);
-	bcopy(&dblow, (void *)(EXC_BPT + trap_offset), (size_t)&dbend -
-	    (size_t)&dblow);
+	bcopy(&dblow, (void *)(EXC_MCHK + trap_offset),
+	    (size_t)&dbend - (size_t)&dblow);
+	bcopy(&dblow, (void *)(EXC_PGM + trap_offset),
+	    (size_t)&dbend - (size_t)&dblow);
+	bcopy(&dblow, (void *)(EXC_TRC + trap_offset),
+	    (size_t)&dbend - (size_t)&dblow);
+	bcopy(&dblow, (void *)(EXC_BPT + trap_offset),
+	    (size_t)&dbend - (size_t)&dblow);
 #endif
-	bcopy(&alitrap,  (void *)(EXC_ALI + trap_offset),  (size_t)&aliend -
-	    (size_t)&alitrap);
-	bcopy(&dsitrap,  (void *)(EXC_DSI + trap_offset),  (size_t)&dsiend -
-	    (size_t)&dsitrap);
+	bcopy(&alitrap, (void *)(EXC_ALI + trap_offset),
+	    (size_t)&aliend - (size_t)&alitrap);
+	bcopy(&dsitrap, (void *)(EXC_DSI + trap_offset),
+	    (size_t)&dsiend - (size_t)&dsitrap);
 
 	/* Set address of generictrap for self-reloc calculations */
 	*((void **)TRAP_GENTRAP) = &generictrap;
-	#ifdef __powerpc64__
+#ifdef __powerpc64__
 	/* Set TOC base so that the interrupt code can get at it */
 	*((void **)TRAP_ENTRY) = &generictrap;
 	*((register_t *)TRAP_TOCBASE) = toc;
-	#else
+#else
 	/* Set branch address for trap code */
 	if (cpu_features & PPC_FEATURE_64)
 		*((void **)TRAP_ENTRY) = &generictrap64;
@@ -456,10 +461,10 @@ aim_cpu_init(vm_offset_t toc)
 	*((void **)TRAP_TOCBASE) = _GLOBAL_OFFSET_TABLE_;
 
 	/* G2-specific TLB miss helper handlers */
-	bcopy(&imisstrap, (void *)EXC_IMISS,  (size_t)&imisssize);
-	bcopy(&dlmisstrap, (void *)EXC_DLMISS,  (size_t)&dlmisssize);
-	bcopy(&dsmisstrap, (void *)EXC_DSMISS,  (size_t)&dsmisssize);
-	#endif
+	bcopy(&imisstrap, (void *)EXC_IMISS, (size_t)&imisssize);
+	bcopy(&dlmisstrap, (void *)EXC_DLMISS, (size_t)&dlmisssize);
+	bcopy(&dsmisstrap, (void *)EXC_DSMISS, (size_t)&dsmisssize);
+#endif
 	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
 
 	/*
@@ -543,8 +548,8 @@ void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
 #ifdef __powerpc64__
-/* Copy the SLB contents from the current CPU */
-memcpy(pcpu->pc_aim.slb, PCPU_GET(aim.slb), sizeof(pcpu->pc_aim.slb));
+	/* Copy the SLB contents from the current CPU */
+	memcpy(pcpu->pc_aim.slb, PCPU_GET(aim.slb), sizeof(pcpu->pc_aim.slb));
 #endif
 }
 
@@ -564,13 +569,15 @@ cpu_machine_check(struct thread *td, struct trapframe *frame, int *ucode)
 		if ((frame->cpu.aim.dsisr & DSISR_MC_SLB_MULTIHIT) != 0)
 			return (0);
 		if ((frame->cpu.aim.dsisr &
-		    (DSISR_MC_DERAT_MULTIHIT | DSISR_MC_TLB_MULTIHIT)) != 0) {
+			(DSISR_MC_DERAT_MULTIHIT | DSISR_MC_TLB_MULTIHIT)) !=
+		    0) {
 			pmap_tlbie_all();
 			return (0);
 		}
 		/* TODO: Add other machine check recovery procedures. */
 	} else {
-		if ((frame->srr1 & SRR1_MCHK_IFETCH_M) == SRR1_MCHK_IFETCH_SLBMH)
+		if ((frame->srr1 & SRR1_MCHK_IFETCH_M) ==
+		    SRR1_MCHK_IFETCH_SLBMH)
 			return (0);
 	}
 #endif
@@ -640,9 +647,9 @@ flush_disable_caches(void)
 	__asm__ __volatile__(".long 0x7e00066c; sync");
 	powerpc_sync();
 	isync();
-	__asm__ __volatile__("dcbf 0,%0" :: "r"(0));
-	__asm__ __volatile__("dcbf 0,%0" :: "r"(0));
-	__asm__ __volatile__("dcbf 0,%0" :: "r"(0));
+	__asm__ __volatile__("dcbf 0,%0" ::"r"(0));
+	__asm__ __volatile__("dcbf 0,%0" ::"r"(0));
+	__asm__ __volatile__("dcbf 0,%0" ::"r"(0));
 
 	/* Lock the L1 Data cache. */
 	mtspr(SPR_LDSTCR, mfspr(SPR_LDSTCR) | 0xFF);
@@ -652,14 +659,14 @@ flush_disable_caches(void)
 	mtspr(SPR_LDSTCR, 0);
 
 	/*
-	 * Perform this in two stages: Flush the cache starting in RAM, then do it
-	 * from ROM.
+	 * Perform this in two stages: Flush the cache starting in RAM, then do
+	 * it from ROM.
 	 */
 	memp = (volatile uint32_t *)0x00000000;
 	for (i = 0; i < 128 * 1024; i++) {
 		temp = *memp;
-		__asm__ __volatile__("dcbf 0,%0" :: "r"(memp));
-		memp += 32/sizeof(*memp);
+		__asm__ __volatile__("dcbf 0,%0" ::"r"(memp));
+		memp += 32 / sizeof(*memp);
 	}
 
 	memp = (volatile uint32_t *)0xfff00000;
@@ -669,8 +676,8 @@ flush_disable_caches(void)
 		mtspr(SPR_LDSTCR, x);
 		for (i = 0; i < 128; i++) {
 			temp = *memp;
-			__asm__ __volatile__("dcbf 0,%0" :: "r"(memp));
-			memp += 32/sizeof(*memp);
+			__asm__ __volatile__("dcbf 0,%0" ::"r"(memp));
+			memp += 32 / sizeof(*memp);
 		}
 		x = ((x << 1) | 1) & 0xff;
 	}

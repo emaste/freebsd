@@ -43,34 +43,34 @@
 #include <net/if_tun.h>
 
 /* maximum receive packet size (hard limit) */
-#define	TAPMRU		65535
+#define TAPMRU 65535
 
-#define	tapinfo		tuninfo
+#define tapinfo tuninfo
 
 /*
  * ioctl's for get/set debug; these are aliases of TUN* ioctls, see net/if_tun.h
  * for details.
  */
-#define	TAPSDEBUG		TUNSDEBUG
-#define	TAPGDEBUG		TUNGDEBUG
-#define	TAPSIFINFO		TUNSIFINFO
-#define	TAPGIFINFO		TUNGIFINFO
-#define	TAPGIFNAME		TUNGIFNAME
-#define	TAPSVNETHDR		_IOW('t', 91, int)
-#define	TAPGVNETHDR		_IOR('t', 94, int)
+#define TAPSDEBUG TUNSDEBUG
+#define TAPGDEBUG TUNGDEBUG
+#define TAPSIFINFO TUNSIFINFO
+#define TAPGIFINFO TUNGIFINFO
+#define TAPGIFNAME TUNGIFNAME
+#define TAPSVNETHDR _IOW('t', 91, int)
+#define TAPGVNETHDR _IOR('t', 94, int)
 
 /* VMware ioctl's */
-#define VMIO_SIOCSIFFLAGS	_IOWINT('V', 0)
-#define VMIO_SIOCSKEEP		_IO('V', 1)
-#define VMIO_SIOCSIFBR		_IO('V', 2)
-#define VMIO_SIOCSLADRF		_IO('V', 3)
+#define VMIO_SIOCSIFFLAGS _IOWINT('V', 0)
+#define VMIO_SIOCSKEEP _IO('V', 1)
+#define VMIO_SIOCSIFBR _IO('V', 2)
+#define VMIO_SIOCSLADRF _IO('V', 3)
 
 /* XXX -- unimplemented */
-#define VMIO_SIOCSETMACADDR	_IO('V', 4)
+#define VMIO_SIOCSETMACADDR _IO('V', 4)
 
 /* XXX -- not used? */
-#define VMIO_SIOCPORT		_IO('V', 5)
-#define VMIO_SIOCBRIDGE		_IO('V', 6)
-#define VMIO_SIOCNETIF		_IO('V', 7)
+#define VMIO_SIOCPORT _IO('V', 5)
+#define VMIO_SIOCBRIDGE _IO('V', 6)
+#define VMIO_SIOCNETIF _IO('V', 7)
 
 #endif /* !_NET_IF_TAP_H_ */

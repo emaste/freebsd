@@ -37,23 +37,23 @@
 #include <sys/types.h>
 
 /* ASAN constants. Part of the compiler ABI. */
-#define KASAN_SHADOW_SCALE		8
-#define KASAN_SHADOW_SCALE_SHIFT	3
+#define KASAN_SHADOW_SCALE 8
+#define KASAN_SHADOW_SCALE_SHIFT 3
 
 /* Stack redzone values. Part of the compiler ABI. */
-#define KASAN_STACK_LEFT	0xF1
-#define KASAN_STACK_MID		0xF2
-#define KASAN_STACK_RIGHT	0xF3
-#define KASAN_USE_AFTER_RET	0xF5
-#define KASAN_USE_AFTER_SCOPE	0xF8
+#define KASAN_STACK_LEFT 0xF1
+#define KASAN_STACK_MID 0xF2
+#define KASAN_STACK_RIGHT 0xF3
+#define KASAN_USE_AFTER_RET 0xF5
+#define KASAN_USE_AFTER_SCOPE 0xF8
 
 /* Our redzone values. */
-#define KASAN_GENERIC_REDZONE	0xFA
-#define KASAN_MALLOC_REDZONE	0xFB
-#define KASAN_KMEM_REDZONE	0xFC
-#define	KASAN_UMA_FREED		0xFD
-#define	KASAN_KSTACK_FREED	0xFE
-#define	KASAN_EXEC_ARGS_FREED	0xFF
+#define KASAN_GENERIC_REDZONE 0xFA
+#define KASAN_MALLOC_REDZONE 0xFB
+#define KASAN_KMEM_REDZONE 0xFC
+#define KASAN_UMA_FREED 0xFD
+#define KASAN_KSTACK_FREED 0xFE
+#define KASAN_EXEC_ARGS_FREED 0xFF
 
 void kasan_init(void);
 void kasan_shadow_map(vm_offset_t, size_t);

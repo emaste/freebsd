@@ -51,39 +51,39 @@ struct mbuf;
  */
 struct ieee80211_psq {
 	ieee80211_psq_lock_t psq_lock;
-	int	psq_len;
-	int	psq_maxlen;
-	int	psq_drops;
+	int psq_len;
+	int psq_maxlen;
+	int psq_drops;
 	struct ieee80211_psq_head {
 		struct mbuf *head;
 		struct mbuf *tail;
 		int len;
-	} psq_head[2];			/* 2 priorities */
+	} psq_head[2]; /* 2 priorities */
 };
 
-void	ieee80211_psq_init(struct ieee80211_psq *, const char *);
-void	ieee80211_psq_cleanup(struct ieee80211_psq *);
+void ieee80211_psq_init(struct ieee80211_psq *, const char *);
+void ieee80211_psq_cleanup(struct ieee80211_psq *);
 
-void	ieee80211_power_attach(struct ieee80211com *);
-void	ieee80211_power_detach(struct ieee80211com *);
-void	ieee80211_power_vattach(struct ieee80211vap *);
-void	ieee80211_power_vdetach(struct ieee80211vap *);
-void	ieee80211_power_latevattach(struct ieee80211vap *);
+void ieee80211_power_attach(struct ieee80211com *);
+void ieee80211_power_detach(struct ieee80211com *);
+void ieee80211_power_vattach(struct ieee80211vap *);
+void ieee80211_power_vdetach(struct ieee80211vap *);
+void ieee80211_power_latevattach(struct ieee80211vap *);
 
 struct mbuf *ieee80211_node_psq_dequeue(struct ieee80211_node *ni, int *qlen);
-int	ieee80211_node_psq_drain(struct ieee80211_node *);
-int	ieee80211_node_psq_age(struct ieee80211_node *);
+int ieee80211_node_psq_drain(struct ieee80211_node *);
+int ieee80211_node_psq_age(struct ieee80211_node *);
 
 /*
  * Don't call these directly from the stack; they are vap methods
  * that should be overridden.
  */
-int	ieee80211_pwrsave(struct ieee80211_node *, struct mbuf *);
-void	ieee80211_node_pwrsave(struct ieee80211_node *, int enable);
-void	ieee80211_sta_pwrsave(struct ieee80211vap *, int enable);
-void	ieee80211_sta_tim_notify(struct ieee80211vap *vap, int set);
-void	ieee80211_sta_ps_timer_check(struct ieee80211vap *vap);
+int ieee80211_pwrsave(struct ieee80211_node *, struct mbuf *);
+void ieee80211_node_pwrsave(struct ieee80211_node *, int enable);
+void ieee80211_sta_pwrsave(struct ieee80211vap *, int enable);
+void ieee80211_sta_tim_notify(struct ieee80211vap *vap, int set);
+void ieee80211_sta_ps_timer_check(struct ieee80211vap *vap);
 
 /* XXX what's this? */
-void	ieee80211_power_poll(struct ieee80211com *);
+void ieee80211_power_poll(struct ieee80211com *);
 #endif /* _NET80211_IEEE80211_POWER_H_ */

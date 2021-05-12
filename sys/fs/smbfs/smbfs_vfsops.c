@@ -30,22 +30,22 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
-#include <sys/vnode.h>
-#include <sys/mount.h>
-#include <sys/stat.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mount.h>
+#include <sys/proc.h>
+#include <sys/stat.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/vnode.h>
 
 #include <netsmb/smb.h>
 #include <netsmb/smb_conn.h>
-#include <netsmb/smb_subr.h>
 #include <netsmb/smb_dev.h>
+#include <netsmb/smb_subr.h>
 
 #include <fs/smbfs/smbfs.h>
 #include <fs/smbfs/smbfs_node.h>
@@ -58,27 +58,28 @@ static int smbfs_version = SMBFS_VERSION;
 SYSCTL_NODE(_vfs, OID_AUTO, smbfs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "SMB/CIFS filesystem");
 SYSCTL_INT(_vfs_smbfs, OID_AUTO, version, CTLFLAG_RD, &smbfs_version, 0, "");
-SYSCTL_INT(_vfs_smbfs, OID_AUTO, debuglevel, CTLFLAG_RW, &smbfs_debuglevel, 0, "");
+SYSCTL_INT(
+    _vfs_smbfs, OID_AUTO, debuglevel, CTLFLAG_RW, &smbfs_debuglevel, 0, "");
 
-static vfs_init_t       smbfs_init;
-static vfs_uninit_t     smbfs_uninit;
-static vfs_cmount_t     smbfs_cmount;
-static vfs_mount_t      smbfs_mount;
-static vfs_root_t       smbfs_root;
-static vfs_quotactl_t   smbfs_quotactl;
-static vfs_statfs_t     smbfs_statfs;
-static vfs_unmount_t    smbfs_unmount;
+static vfs_init_t smbfs_init;
+static vfs_uninit_t smbfs_uninit;
+static vfs_cmount_t smbfs_cmount;
+static vfs_mount_t smbfs_mount;
+static vfs_root_t smbfs_root;
+static vfs_quotactl_t smbfs_quotactl;
+static vfs_statfs_t smbfs_statfs;
+static vfs_unmount_t smbfs_unmount;
 
 static struct vfsops smbfs_vfsops = {
-	.vfs_init =		smbfs_init,
-	.vfs_cmount =		smbfs_cmount,
-	.vfs_mount =		smbfs_mount,
-	.vfs_quotactl =		smbfs_quotactl,
-	.vfs_root =		smbfs_root,
-	.vfs_statfs =		smbfs_statfs,
-	.vfs_sync =		vfs_stdsync,
-	.vfs_uninit =		smbfs_uninit,
-	.vfs_unmount =		smbfs_unmount,
+	.vfs_init = smbfs_init,
+	.vfs_cmount = smbfs_cmount,
+	.vfs_mount = smbfs_mount,
+	.vfs_quotactl = smbfs_quotactl,
+	.vfs_root = smbfs_root,
+	.vfs_statfs = smbfs_statfs,
+	.vfs_sync = vfs_stdsync,
+	.vfs_uninit = smbfs_uninit,
+	.vfs_unmount = smbfs_unmount,
 };
 
 VFS_SET(smbfs_vfsops, smbfs, VFCF_NETWORK);
@@ -90,7 +91,7 @@ MODULE_DEPEND(smbfs, libmchain, 1, 1, 1);
 uma_zone_t smbfs_pbuf_zone;
 
 static int
-smbfs_cmount(struct mntarg *ma, void * data, uint64_t flags)
+smbfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct smbfs_args args;
 	int error;
@@ -122,11 +123,9 @@ smbfs_cmount(struct mntarg *ma, void * data, uint64_t flags)
 	return (error);
 }
 
-static const char *smbfs_opts[] = {
-	"fd", "soft", "intr", "strong", "have_nls", "long",
-	"mountpoint", "rootpath", "uid", "gid", "file_mode", "dir_mode",
-	"caseopt", "errmsg", NULL
-};
+static const char *smbfs_opts[] = { "fd", "soft", "intr", "strong", "have_nls",
+	"long", "mountpoint", "rootpath", "uid", "gid", "file_mode", "dir_mode",
+	"caseopt", "errmsg", NULL };
 
 static int
 smbfs_mount(struct mount *mp)
@@ -176,8 +175,8 @@ smbfs_mount(struct mount *mp)
 	smp->sm_share = ssp;
 	smp->sm_root = NULL;
 	smp->sm_dev = dev;
-	if (1 != vfs_scanopt(mp->mnt_optnew,
-	    "caseopt", "%d", &smp->sm_caseopt)) {
+	if (1 !=
+	    vfs_scanopt(mp->mnt_optnew, "caseopt", "%d", &smp->sm_caseopt)) {
 		vfs_mount_error(mp, "Invalid caseopt");
 		error = EINVAL;
 		goto bad;
@@ -201,17 +200,17 @@ smbfs_mount(struct mount *mp)
 		error = EINVAL;
 		goto bad;
 	}
-	smp->sm_file_mode = (v & (S_IRWXU|S_IRWXG|S_IRWXO)) | S_IFREG;
+	smp->sm_file_mode = (v & (S_IRWXU | S_IRWXG | S_IRWXO)) | S_IFREG;
 
 	if (1 != vfs_scanopt(mp->mnt_optnew, "dir_mode", "%d", &v)) {
 		vfs_mount_error(mp, "Invalid dir_mode");
 		error = EINVAL;
 		goto bad;
 	}
-	smp->sm_dir_mode  = (v & (S_IRWXU|S_IRWXG|S_IRWXO)) | S_IFDIR;
+	smp->sm_dir_mode = (v & (S_IRWXU | S_IRWXG | S_IRWXO)) | S_IFDIR;
 
-	vfs_flagopt(mp->mnt_optnew,
-	    "nolong", &smp->sm_flags, SMBFS_MOUNT_NO_LONG);
+	vfs_flagopt(
+	    mp->mnt_optnew, "nolong", &smp->sm_flags, SMBFS_MOUNT_NO_LONG);
 
 	pc = mp->mnt_stat.f_mntfromname;
 	pe = pc + sizeof(mp->mnt_stat.f_mntfromname);
@@ -219,7 +218,7 @@ smbfs_mount(struct mount *mp)
 	*pc++ = '/';
 	*pc++ = '/';
 	pc = strchr(strncpy(pc, vcp->vc_username, pe - pc - 2), 0);
-	if (pc < pe-1) {
+	if (pc < pe - 1) {
 		*(pc++) = '@';
 		pc = strchr(strncpy(pc, vcp->vc_srvname, pe - pc - 2), 0);
 		if (pc < pe - 1) {
@@ -244,7 +243,7 @@ smbfs_mount(struct mount *mp)
 bad:
 	if (ssp)
 		smb_share_put(ssp, scred);
-	smbfs_free_scred(scred);	
+	smbfs_free_scred(scred);
 	SMB_LOCK();
 	if (error && smp->sm_dev == dev) {
 		smp->sm_dev = NULL;
@@ -271,7 +270,7 @@ smbfs_unmount(struct mount *mp, int mntflags)
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 	/*
-	 * Keep trying to flush the vnode list for the mount while 
+	 * Keep trying to flush the vnode list for the mount while
 	 * some are still busy and we are making progress towards
 	 * making them not busy. This is needed because smbfs vnodes
 	 * reference their parent directory but may appear after their
@@ -307,7 +306,7 @@ out:
 	return error;
 }
 
-/* 
+/*
  * Return locked root vnode of a filesystem
  */
 static int
@@ -351,12 +350,10 @@ out:
  * Do operations associated with quotas, not supported
  */
 /* ARGSUSED */
-static int
-smbfs_quotactl(mp, cmd, uid, arg)
-	struct mount *mp;
-	int cmd;
-	uid_t uid;
-	void *arg;
+static int smbfs_quotactl(mp, cmd, uid, arg) struct mount *mp;
+int cmd;
+uid_t uid;
+void *arg;
 {
 	SMBVDEBUG("return EOPNOTSUPP\n");
 	return EOPNOTSUPP;
@@ -400,7 +397,7 @@ smbfs_statfs(struct mount *mp, struct statfs *sbp)
 		return EINVAL;
 	}
 
-	sbp->f_iosize = SSTOVC(ssp)->vc_txmax;		/* optimal transfer block size */
+	sbp->f_iosize = SSTOVC(ssp)->vc_txmax; /* optimal transfer block size */
 	scred = smbfs_malloc_scred();
 	smb_makescred(scred, td, td->td_ucred);
 	error = smbfs_smb_statfs(ssp, sbp, scred);

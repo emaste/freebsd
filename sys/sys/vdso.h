@@ -28,48 +28,49 @@
  */
 
 #ifndef _SYS_VDSO_H
-#define	_SYS_VDSO_H
+#define _SYS_VDSO_H
 
 #include <sys/types.h>
+
 #include <machine/vdso.h>
 
 struct vdso_timehands {
-	uint32_t	th_algo;
-	uint32_t	th_gen;
-	uint64_t	th_scale;
-	uint32_t 	th_offset_count;
-	uint32_t	th_counter_mask;
-	struct bintime	th_offset;
-	struct bintime	th_boottime;
+	uint32_t th_algo;
+	uint32_t th_gen;
+	uint64_t th_scale;
+	uint32_t th_offset_count;
+	uint32_t th_counter_mask;
+	struct bintime th_offset;
+	struct bintime th_boottime;
 	VDSO_TIMEHANDS_MD
 };
 
 struct vdso_timekeep {
-	uint32_t	tk_ver;
-	uint32_t	tk_enabled;
-	uint32_t	tk_current;
-	struct vdso_timehands	tk_th[];
+	uint32_t tk_ver;
+	uint32_t tk_enabled;
+	uint32_t tk_current;
+	struct vdso_timehands tk_th[];
 };
 
-#define	VDSO_TK_CURRENT_BUSY	0xffffffff
-#define	VDSO_TK_VER_1		0x1
-#define	VDSO_TK_VER_CURR	VDSO_TK_VER_1
-#define	VDSO_TH_ALGO_1		0x1
-#define	VDSO_TH_ALGO_2		0x2
-#define	VDSO_TH_ALGO_3		0x3
-#define	VDSO_TH_ALGO_4		0x4
+#define VDSO_TK_CURRENT_BUSY 0xffffffff
+#define VDSO_TK_VER_1 0x1
+#define VDSO_TK_VER_CURR VDSO_TK_VER_1
+#define VDSO_TH_ALGO_1 0x1
+#define VDSO_TH_ALGO_2 0x2
+#define VDSO_TH_ALGO_3 0x3
+#define VDSO_TH_ALGO_4 0x4
 
 struct vdso_fxrng_generation_1 {
-	uint32_t	fx_vdso_version;	/* 1 */
-	uint32_t	fx_generation32;
-	uint64_t	_fx_reserved;
+	uint32_t fx_vdso_version; /* 1 */
+	uint32_t fx_generation32;
+	uint64_t _fx_reserved;
 };
 _Static_assert(sizeof(struct vdso_fxrng_generation_1) == 16, "");
-#define	vdso_fxrng_generation	vdso_fxrng_generation_1
+#define vdso_fxrng_generation vdso_fxrng_generation_1
 
 /* fx_vdso_version values: */
-#define	VDSO_FXRNG_VER_1	0x1
-#define	VDSO_FXRNG_VER_CURR	VDSO_FXRNG_VER_1
+#define VDSO_FXRNG_VER_1 0x1
+#define VDSO_FXRNG_VER_CURR VDSO_FXRNG_VER_1
 
 #ifndef _KERNEL
 
@@ -89,9 +90,9 @@ int __vdso_gettimekeep(struct vdso_timekeep **tk);
 struct timecounter;
 
 struct vdso_sv_tk {
-	int		sv_timekeep_off;
-	int		sv_timekeep_curr;
-	uint32_t	sv_timekeep_gen;
+	int sv_timekeep_off;
+	int sv_timekeep_curr;
+	uint32_t sv_timekeep_gen;
 };
 
 #ifdef RANDOM_FENESTRASX
@@ -109,12 +110,12 @@ uint32_t tc_fill_vdso_timehands(struct vdso_timehands *vdso_th);
  * global sysctl enable override is handled by machine-independed code
  * after cpu_fill_vdso_timehands() call is made.
  */
-uint32_t cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th,
-    struct timecounter *tc);
+uint32_t cpu_fill_vdso_timehands(
+    struct vdso_timehands *vdso_th, struct timecounter *tc);
 
 struct vdso_sv_tk *alloc_sv_tk(void);
 
-#define	VDSO_TH_NUM	4
+#define VDSO_TH_NUM 4
 
 #ifdef COMPAT_FREEBSD32
 
@@ -123,34 +124,34 @@ struct vdso_sv_tk *alloc_sv_tk(void);
  */
 struct bintime32 {
 #if defined(__amd64__)
-	uint32_t	sec;
+	uint32_t sec;
 #else
-	uint64_t	sec;
+	uint64_t sec;
 #endif
-	uint32_t	frac[2];
+	uint32_t frac[2];
 };
 
 struct vdso_timehands32 {
-	uint32_t	th_algo;
-	uint32_t	th_gen;
-	uint32_t	th_scale[2];
-	uint32_t 	th_offset_count;
-	uint32_t	th_counter_mask;
-	struct bintime32	th_offset;
-	struct bintime32	th_boottime;
+	uint32_t th_algo;
+	uint32_t th_gen;
+	uint32_t th_scale[2];
+	uint32_t th_offset_count;
+	uint32_t th_counter_mask;
+	struct bintime32 th_offset;
+	struct bintime32 th_boottime;
 	VDSO_TIMEHANDS_MD32
 };
 
 struct vdso_timekeep32 {
-	uint32_t	tk_ver;
-	uint32_t	tk_enabled;
-	uint32_t	tk_current;
-	struct vdso_timehands32	tk_th[];
+	uint32_t tk_ver;
+	uint32_t tk_enabled;
+	uint32_t tk_current;
+	struct vdso_timehands32 tk_th[];
 };
 
 uint32_t tc_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32);
-uint32_t cpu_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
-    struct timecounter *tc);
+uint32_t cpu_fill_vdso_timehands32(
+    struct vdso_timehands32 *vdso_th32, struct timecounter *tc);
 struct vdso_sv_tk *alloc_sv_tk_compat32(void);
 
 #endif

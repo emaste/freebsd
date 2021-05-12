@@ -39,31 +39,36 @@
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/endian.h>
+#include <sys/lock.h>
 #include <sys/md5.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
 
 #ifdef _KERNEL
-#include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #else
 #include <err.h>
 #define CTASSERT(foo)
-#define KASSERT(foo, bar) do { if(!(foo)) { warn bar ; exit (1); } } while (0)
+#define KASSERT(foo, bar)         \
+	do {                      \
+		if (!(foo)) {     \
+			warn bar; \
+			exit(1);  \
+		}                 \
+	} while (0)
 #include <errno.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
-#define g_free(foo)	free(foo)
+#include <stdlib.h>
+#include <string.h>
+#define g_free(foo) free(foo)
 #endif
 
 #include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/sha2/sha512.h>
-
-#include <geom/geom.h>
 #include <geom/bde/g_bde.h>
+#include <geom/geom.h>
 
 /*
  * Hash the raw pass-phrase.
@@ -115,11 +120,11 @@ g_bde_hash_pass(struct g_bde_softc *sc, const void *input, u_int len)
  * average density of zero bits (from the numeric fields) is not currently
  * a concern.
  *
- * Should this later become a concern, a simple software update and 
- * pass-phrase change can remedy the situation.  One possible solution 
+ * Should this later become a concern, a simple software update and
+ * pass-phrase change can remedy the situation.  One possible solution
  * could be to XOR the numeric fields with a key-material derived PRN.
  *
- * The chosen shuffle algorithm only works as long as we have no more than 16 
+ * The chosen shuffle algorithm only works as long as we have no more than 16
  * fields in the stored part of the lock structure (hence the CTASSERT below).
  */
 
@@ -132,11 +137,11 @@ g_bde_shuffle_lock(u_char *sha2, int *buf)
 	u_int u;
 
 	/* Assign the fields sequential positions */
-	for(u = 0; u < NLOCK_FIELDS; u++)
+	for (u = 0; u < NLOCK_FIELDS; u++)
 		buf[u] = u;
 
 	/* Then mix it all up */
-	for(u = 48; u < SHA512_DIGEST_LENGTH; u++) {
+	for (u = 48; u < SHA512_DIGEST_LENGTH; u++) {
 		j = sha2[u] % NLOCK_FIELDS;
 		k = (sha2[u] / NLOCK_FIELDS) % NLOCK_FIELDS;
 		l = buf[j];
@@ -157,7 +162,7 @@ g_bde_encode_lock(u_char *sha2, struct g_bde_key *gl, u_char *ptr)
 	hash = NULL;
 	g_bde_shuffle_lock(sha2, shuffle);
 	for (i = 0; i < NLOCK_FIELDS; i++) {
-		switch(shuffle[i]) {
+		switch (shuffle[i]) {
 		case 0:
 			le64enc(p, gl->sector0);
 			p += 8;
@@ -204,15 +209,15 @@ g_bde_encode_lock(u_char *sha2, struct g_bde_key *gl, u_char *ptr)
 			break;
 		}
 	}
-	if(ptr + G_BDE_LOCKSIZE != p)
-		return(-1);
+	if (ptr + G_BDE_LOCKSIZE != p)
+		return (-1);
 	if (hash == NULL)
-		return(-1);
+		return (-1);
 	MD5Init(&c);
-	MD5Update(&c, "0000", 4);	/* Versioning */
+	MD5Update(&c, "0000", 4); /* Versioning */
 	MD5Update(&c, ptr, G_BDE_LOCKSIZE);
 	MD5Final(hash, &c);
-	return(0);
+	return (0);
 }
 
 int
@@ -227,7 +232,7 @@ g_bde_decode_lock(struct g_bde_softc *sc, struct g_bde_key *gl, u_char *ptr)
 	p = ptr;
 	g_bde_shuffle_lock(sc->sha2, shuffle);
 	for (i = 0; i < NLOCK_FIELDS; i++) {
-		switch(shuffle[i]) {
+		switch (shuffle[i]) {
 		case 0:
 			gl->sector0 = le64dec(p);
 			p += 8;
@@ -274,10 +279,10 @@ g_bde_decode_lock(struct g_bde_softc *sc, struct g_bde_key *gl, u_char *ptr)
 			break;
 		}
 	}
-	if(ptr + G_BDE_LOCKSIZE != p)
-		return(-1);
+	if (ptr + G_BDE_LOCKSIZE != p)
+		return (-1);
 	MD5Init(&c);
-	MD5Update(&c, "0000", 4);	/* Versioning */
+	MD5Update(&c, "0000", 4); /* Versioning */
 	MD5Update(&c, ptr, G_BDE_LOCKSIZE);
 	MD5Final(hash, &c);
 	if (bcmp(hash, hash2, sizeof hash2))
@@ -336,7 +341,7 @@ g_bde_keyloc_decrypt(u_char *sha2, void *input, uint64_t *output)
 	explicit_bzero(buf, sizeof buf);
 	explicit_bzero(&ci, sizeof ci);
 	explicit_bzero(&ki, sizeof ki);
-	return(0);
+	return (0);
 }
 
 /*
@@ -353,7 +358,8 @@ g_bde_keyloc_decrypt(u_char *sha2, void *input, uint64_t *output)
  */
 
 static int
-g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *meta, off_t mediasize, u_int sectorsize, u_int *nkey)
+g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *meta, off_t mediasize,
+    u_int sectorsize, u_int *nkey)
 {
 	u_char *buf, *q;
 	struct g_bde_key *gl;
@@ -382,12 +388,11 @@ g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *meta, off_t mediasize, u_int
 		m++;
 
 	/* Read the suspected sector(s) */
-	buf = g_read_data(sc->consumer,
-		off - (off % sectorsize),
-		m * sectorsize, &error);
+	buf = g_read_data(
+	    sc->consumer, off - (off % sectorsize), m * sectorsize, &error);
 	if (buf == NULL) {
 		off = 0;
-		return(error);
+		return (error);
 	}
 
 	/* Find the byte-offset of the stored byte sequence */
@@ -413,10 +418,10 @@ g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *meta, off_t mediasize, u_int
 	q = NULL;
 	if (i < 0) {
 		off = 0;
-		return (EDOOFUS);	/* Programming error */
+		return (EDOOFUS); /* Programming error */
 	} else if (i > 0) {
 		off = 0;
-		return (ENOTDIR);	/* Hash didn't match */
+		return (ENOTDIR); /* Hash didn't match */
 	}
 
 	bzero(buf, sectorsize * m);
@@ -443,7 +448,8 @@ g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *meta, off_t mediasize, u_int
 }
 
 int
-g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *keymat, u_char *meta, off_t mediasize, u_int sectorsize, u_int *nkey)
+g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *keymat, u_char *meta,
+    off_t mediasize, u_int sectorsize, u_int *nkey)
 {
 	u_char *buf, buf1[16];
 	int error, e, i;
@@ -454,19 +460,19 @@ g_bde_decrypt_lock(struct g_bde_softc *sc, u_char *keymat, u_char *meta, off_t m
 	/* If passed-in metadata is non-zero, use it */
 	bzero(buf1, sizeof buf1);
 	if (meta != NULL && bcmp(buf1, meta, sizeof buf1))
-		return (g_bde_decrypt_lockx(sc, meta, mediasize,
-		    sectorsize, nkey));
+		return (
+		    g_bde_decrypt_lockx(sc, meta, mediasize, sectorsize, nkey));
 
 	/* Read sector zero */
 	buf = g_read_data(sc->consumer, 0, sectorsize, &error);
 	if (buf == NULL)
-		return(error);
+		return (error);
 
 	/* Try each index in turn, save indicative errors for final result */
 	error = EINVAL;
 	for (i = 0; i < G_BDE_MAXKEYS; i++) {
-		e = g_bde_decrypt_lockx(sc, buf + i * 16, mediasize,
-		    sectorsize, nkey);
+		e = g_bde_decrypt_lockx(
+		    sc, buf + i * 16, mediasize, sectorsize, nkey);
 		/* Success or destroyed master key terminates */
 		if (e == 0 || e == ENOENT) {
 			error = e;

@@ -32,50 +32,44 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
-#include <sys/malloc.h>
 
 #include <machine/fdt.h>
 
-#include <dev/ofw/openfirm.h>
+#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <mips/mediatek/mtk_sysctl.h>
 
-#include <dev/fdt/fdt_common.h>
-
 struct mtk_sysctl_softc {
-	device_t	dev;
-	struct resource	*mem_res;
-	int		mem_rid;
-	struct mtx	mtx;
+	device_t dev;
+	struct resource *mem_res;
+	int mem_rid;
+	struct mtx mtx;
 };
 
 static struct mtk_sysctl_softc *mtk_sysctl_sc = NULL;
 
-static struct ofw_compat_data compat_data[] = {
-	{ "ralink,rt2880-sysc",		1 },
-	{ "ralink,rt3050-sysc",		1 },
-	{ "ralink,rt3352-sysc",		1 },
-	{ "ralink,rt3883-sysc",		1 },
-	{ "ralink,rt5350-sysc",		1 },
-	{ "ralink,mt7620a-sysc",	1 },
-	{ "mtk,mt7621-sysc",		1 },
+static struct ofw_compat_data compat_data[] = { { "ralink,rt2880-sysc", 1 },
+	{ "ralink,rt3050-sysc", 1 }, { "ralink,rt3352-sysc", 1 },
+	{ "ralink,rt3883-sysc", 1 }, { "ralink,rt5350-sysc", 1 },
+	{ "ralink,mt7620a-sysc", 1 }, { "mtk,mt7621-sysc", 1 },
 
 	/* Sentinel */
-	{ NULL,				0 }
-};
+	{ NULL, 0 } };
 
-#define MTK_SYSCTL_LOCK(sc)		mtx_lock_spin(&(sc)->mtx)
-#define MTK_SYSCTL_UNLOCK(sc)		mtx_unlock_spin(&(sc)->mtx)
-#define MTK_SYSCTL_LOCK_INIT(sc)		\
-    mtx_init(&(sc)->mtx, device_get_nameunit((sc)->dev),	\
-    "mtk_sysctl", MTX_SPIN)
-#define MTK_SYSCTL_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->mtx)
+#define MTK_SYSCTL_LOCK(sc) mtx_lock_spin(&(sc)->mtx)
+#define MTK_SYSCTL_UNLOCK(sc) mtx_unlock_spin(&(sc)->mtx)
+#define MTK_SYSCTL_LOCK_INIT(sc)                                           \
+	mtx_init(&(sc)->mtx, device_get_nameunit((sc)->dev), "mtk_sysctl", \
+	    MTX_SPIN)
+#define MTK_SYSCTL_LOCK_DESTROY(sc) mtx_destroy(&(sc)->mtx)
 
 static int
 mtk_sysctl_probe(device_t dev)
@@ -108,8 +102,8 @@ mtk_sysctl_attach(device_t dev)
 
 	/* Map control/status registers. */
 	sc->mem_rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->mem_rid, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->mem_rid, RF_ACTIVE);
 
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "couldn't map memory\n");
@@ -130,12 +124,12 @@ mtk_sysctl_detach(device_t dev)
 	struct mtk_sysctl_softc *sc = device_get_softc(dev);
 
 	if (sc->mem_res)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid,
-		    sc->mem_res);
+		bus_release_resource(
+		    dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem_res);
 
 	MTK_SYSCTL_LOCK_DESTROY(sc);
 
-	return(0);
+	return (0);
 }
 
 uint32_t
@@ -172,13 +166,12 @@ mtk_sysctl_clr_set(uint32_t reg, uint32_t clr, uint32_t set)
 	MTK_SYSCTL_UNLOCK(mtk_sysctl_sc);
 }
 
-static device_method_t mtk_sysctl_methods[] = {
-	DEVMETHOD(device_probe,		mtk_sysctl_probe),
-	DEVMETHOD(device_attach,	mtk_sysctl_attach),
-	DEVMETHOD(device_detach,	mtk_sysctl_detach),
+static device_method_t mtk_sysctl_methods[] = { DEVMETHOD(device_probe,
+						    mtk_sysctl_probe),
+	DEVMETHOD(device_attach, mtk_sysctl_attach),
+	DEVMETHOD(device_detach, mtk_sysctl_detach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t mtk_sysctl_driver = {
 	"sysc",

@@ -43,32 +43,30 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/sockopt.h>
-#include <sys/syslog.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
-#include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
+#include <netinet/ip_var.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/ip_fw_nat64.h>
-
 #include <netpfil/ipfw/ip_fw_private.h>
 
 #include "nat64clat.h"
 
 VNET_DEFINE(uint16_t, nat64clat_eid) = 0;
 
-static struct nat64clat_cfg *nat64clat_alloc_config(const char *name,
-    uint8_t set);
-static void nat64clat_free_config(struct nat64clat_cfg *cfg);
-static struct nat64clat_cfg *nat64clat_find(struct namedobj_instance *ni,
+static struct nat64clat_cfg *nat64clat_alloc_config(
     const char *name, uint8_t set);
+static void nat64clat_free_config(struct nat64clat_cfg *cfg);
+static struct nat64clat_cfg *nat64clat_find(
+    struct namedobj_instance *ni, const char *name, uint8_t set);
 
 static struct nat64clat_cfg *
 nat64clat_alloc_config(const char *name, uint8_t set)
@@ -93,8 +91,8 @@ nat64clat_free_config(struct nat64clat_cfg *cfg)
 }
 
 static void
-nat64clat_export_config(struct ip_fw_chain *ch, struct nat64clat_cfg *cfg,
-    ipfw_nat64clat_cfg *uc)
+nat64clat_export_config(
+    struct ip_fw_chain *ch, struct nat64clat_cfg *cfg, ipfw_nat64clat_cfg *uc)
 {
 	uc->plat_prefix = cfg->base.plat_prefix;
 	uc->plat_plen = cfg->base.plat_plen;
@@ -111,8 +109,8 @@ struct nat64clat_dump_arg {
 };
 
 static int
-export_config_cb(struct namedobj_instance *ni, struct named_object *no,
-    void *arg)
+export_config_cb(
+    struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
 	struct nat64clat_dump_arg *da = (struct nat64clat_dump_arg *)arg;
 	ipfw_nat64clat_cfg *uc;
@@ -127,8 +125,8 @@ nat64clat_find(struct namedobj_instance *ni, const char *name, uint8_t set)
 {
 	struct nat64clat_cfg *cfg;
 
-	cfg = (struct nat64clat_cfg *)ipfw_objhash_lookup_name_type(ni, set,
-	    IPFW_TLV_NAT64CLAT_NAME, name);
+	cfg = (struct nat64clat_cfg *)ipfw_objhash_lookup_name_type(
+	    ni, set, IPFW_TLV_NAT64CLAT_NAME, name);
 
 	return (cfg);
 }
@@ -141,8 +139,8 @@ nat64clat_find(struct namedobj_instance *ni, const char *name, uint8_t set)
  * Returns 0 on success
  */
 static int
-nat64clat_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nat64clat_create(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	ipfw_obj_lheader *olh;
 	ipfw_nat64clat_cfg *uc;
@@ -177,8 +175,8 @@ nat64clat_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	cfg->base.plat_plen = uc->plat_plen;
 	cfg->base.clat_prefix = uc->clat_prefix;
 	cfg->base.clat_plen = uc->clat_plen;
-	cfg->base.flags = (uc->flags & NAT64CLAT_FLAGSMASK) |
-	    NAT64_CLATPFX | NAT64_PLATPFX;
+	cfg->base.flags = (uc->flags & NAT64CLAT_FLAGSMASK) | NAT64_CLATPFX |
+	    NAT64_PLATPFX;
 	if (IN6_IS_ADDR_WKPFX(&cfg->base.plat_prefix))
 		cfg->base.flags |= NAT64_WKPFX;
 
@@ -212,8 +210,8 @@ nat64clat_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  * Returns 0 on success
  */
 static int
-nat64clat_config(struct ip_fw_chain *ch, ip_fw3_opheader *op,
-    struct sockopt_data *sd)
+nat64clat_config(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op, struct sockopt_data *sd)
 {
 	ipfw_obj_header *oh;
 	ipfw_nat64clat_cfg *uc;
@@ -224,8 +222,8 @@ nat64clat_config(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 	if (sd->valsize != sizeof(*oh) + sizeof(*uc))
 		return (EINVAL);
 
-	oh = (ipfw_obj_header *)ipfw_get_sopt_space(sd,
-	    sizeof(*oh) + sizeof(*uc));
+	oh = (ipfw_obj_header *)ipfw_get_sopt_space(
+	    sd, sizeof(*oh) + sizeof(*uc));
 	uc = (ipfw_nat64clat_cfg *)(oh + 1);
 
 	if (ipfw_check_object_name_generic(oh->ntlv.name) != 0 ||
@@ -313,8 +311,8 @@ nat64clat_detach_config(struct ip_fw_chain *ch, struct nat64clat_cfg *cfg)
  * Returns 0 on success
  */
 static int
-nat64clat_destroy(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nat64clat_destroy(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	ipfw_obj_header *oh;
 	struct nat64clat_cfg *cfg;
@@ -355,8 +353,8 @@ nat64clat_destroy(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  * Returns 0 on success
  */
 static int
-nat64clat_list(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nat64clat_list(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	ipfw_obj_lheader *olh;
 	struct nat64clat_dump_arg da;
@@ -368,8 +366,8 @@ nat64clat_list(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	olh = (ipfw_obj_lheader *)ipfw_get_sopt_header(sd, sizeof(*olh));
 
 	IPFW_UH_RLOCK(ch);
-	olh->count = ipfw_objhash_count_type(CHAIN_TO_SRV(ch),
-	    IPFW_TLV_NAT64CLAT_NAME);
+	olh->count = ipfw_objhash_count_type(
+	    CHAIN_TO_SRV(ch), IPFW_TLV_NAT64CLAT_NAME);
 	olh->objsize = sizeof(ipfw_nat64clat_cfg);
 	olh->size = sizeof(*olh) + olh->count * olh->objsize;
 
@@ -380,14 +378,14 @@ nat64clat_list(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	memset(&da, 0, sizeof(da));
 	da.ch = ch;
 	da.sd = sd;
-	ipfw_objhash_foreach_type(CHAIN_TO_SRV(ch), export_config_cb,
-	    &da, IPFW_TLV_NAT64CLAT_NAME);
+	ipfw_objhash_foreach_type(
+	    CHAIN_TO_SRV(ch), export_config_cb, &da, IPFW_TLV_NAT64CLAT_NAME);
 	IPFW_UH_RUNLOCK(ch);
 
 	return (0);
 }
 
-#define	__COPY_STAT_FIELD(_cfg, _stats, _field)	\
+#define __COPY_STAT_FIELD(_cfg, _stats, _field) \
 	(_stats)->_field = NAT64STAT_FETCH(&(_cfg)->base.stats, _field)
 static void
 export_stats(struct ip_fw_chain *ch, struct nat64clat_cfg *cfg,
@@ -415,8 +413,8 @@ export_stats(struct ip_fw_chain *ch, struct nat64clat_cfg *cfg,
  * Returns 0 on success
  */
 static int
-nat64clat_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
-    struct sockopt_data *sd)
+nat64clat_stats(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op, struct sockopt_data *sd)
 {
 	struct ipfw_nat64clat_stats stats;
 	struct nat64clat_cfg *cfg;
@@ -462,8 +460,8 @@ nat64clat_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
  * Returns 0 on success
  */
 static int
-nat64clat_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
-    struct sockopt_data *sd)
+nat64clat_reset_stats(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op, struct sockopt_data *sd)
 {
 	struct nat64clat_cfg *cfg;
 	ipfw_obj_header *oh;
@@ -486,13 +484,13 @@ nat64clat_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 	return (0);
 }
 
-static struct ipfw_sopt_handler	scodes[] = {
-	{ IP_FW_NAT64CLAT_CREATE, 0,	HDIR_SET,	nat64clat_create },
-	{ IP_FW_NAT64CLAT_DESTROY,0,	HDIR_SET,	nat64clat_destroy },
-	{ IP_FW_NAT64CLAT_CONFIG, 0,	HDIR_BOTH,	nat64clat_config },
-	{ IP_FW_NAT64CLAT_LIST,   0,	HDIR_GET,	nat64clat_list },
-	{ IP_FW_NAT64CLAT_STATS,  0,	HDIR_GET,	nat64clat_stats },
-	{ IP_FW_NAT64CLAT_RESET_STATS,0,	HDIR_SET,	nat64clat_reset_stats },
+static struct ipfw_sopt_handler scodes[] = {
+	{ IP_FW_NAT64CLAT_CREATE, 0, HDIR_SET, nat64clat_create },
+	{ IP_FW_NAT64CLAT_DESTROY, 0, HDIR_SET, nat64clat_destroy },
+	{ IP_FW_NAT64CLAT_CONFIG, 0, HDIR_BOTH, nat64clat_config },
+	{ IP_FW_NAT64CLAT_LIST, 0, HDIR_GET, nat64clat_list },
+	{ IP_FW_NAT64CLAT_STATS, 0, HDIR_GET, nat64clat_stats },
+	{ IP_FW_NAT64CLAT_RESET_STATS, 0, HDIR_SET, nat64clat_reset_stats },
 };
 
 static int
@@ -501,8 +499,7 @@ nat64clat_classify(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
 	ipfw_insn *icmd;
 
 	icmd = cmd - 1;
-	if (icmd->opcode != O_EXTERNAL_ACTION ||
-	    icmd->arg1 != V_nat64clat_eid)
+	if (icmd->opcode != O_EXTERNAL_ACTION || icmd->arg1 != V_nat64clat_eid)
 		return (1);
 
 	*puidx = cmd->arg1;
@@ -518,13 +515,13 @@ nat64clat_update_arg1(ipfw_insn *cmd, uint16_t idx)
 }
 
 static int
-nat64clat_findbyname(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct named_object **pno)
+nat64clat_findbyname(
+    struct ip_fw_chain *ch, struct tid_info *ti, struct named_object **pno)
 {
 	int err;
 
-	err = ipfw_objhash_find_type(CHAIN_TO_SRV(ch), ti,
-	    IPFW_TLV_NAT64CLAT_NAME, pno);
+	err = ipfw_objhash_find_type(
+	    CHAIN_TO_SRV(ch), ti, IPFW_TLV_NAT64CLAT_NAME, pno);
 	return (err);
 }
 
@@ -547,25 +544,25 @@ nat64clat_manage_sets(struct ip_fw_chain *ch, uint16_t set, uint8_t new_set,
     enum ipfw_sets_cmd cmd)
 {
 
-	return (ipfw_obj_manage_sets(CHAIN_TO_SRV(ch), IPFW_TLV_NAT64CLAT_NAME,
-	    set, new_set, cmd));
+	return (ipfw_obj_manage_sets(
+	    CHAIN_TO_SRV(ch), IPFW_TLV_NAT64CLAT_NAME, set, new_set, cmd));
 }
 
 static struct opcode_obj_rewrite opcodes[] = {
 	{
-		.opcode = O_EXTERNAL_INSTANCE,
-		.etlv = IPFW_TLV_EACTION /* just show it isn't table */,
-		.classifier = nat64clat_classify,
-		.update = nat64clat_update_arg1,
-		.find_byname = nat64clat_findbyname,
-		.find_bykidx = nat64clat_findbykidx,
-		.manage_sets = nat64clat_manage_sets,
+	    .opcode = O_EXTERNAL_INSTANCE,
+	    .etlv = IPFW_TLV_EACTION /* just show it isn't table */,
+	    .classifier = nat64clat_classify,
+	    .update = nat64clat_update_arg1,
+	    .find_byname = nat64clat_findbyname,
+	    .find_bykidx = nat64clat_findbykidx,
+	    .manage_sets = nat64clat_manage_sets,
 	},
 };
 
 static int
-destroy_config_cb(struct namedobj_instance *ni, struct named_object *no,
-    void *arg)
+destroy_config_cb(
+    struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
 	struct nat64clat_cfg *cfg;
 	struct ip_fw_chain *ch;
@@ -605,8 +602,8 @@ nat64clat_uninit(struct ip_fw_chain *ch, int last)
 	 * IPFW_WLOCK().
 	 */
 	IPFW_UH_WLOCK(ch);
-	ipfw_objhash_foreach_type(CHAIN_TO_SRV(ch), destroy_config_cb, ch,
-	    IPFW_TLV_NAT64CLAT_NAME);
+	ipfw_objhash_foreach_type(
+	    CHAIN_TO_SRV(ch), destroy_config_cb, ch, IPFW_TLV_NAT64CLAT_NAME);
 	V_nat64clat_eid = 0;
 	IPFW_UH_WUNLOCK(ch);
 }

@@ -39,24 +39,25 @@
  */
 
 #include <sys/types.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
-#include <sys/systm.h>
 #include <sys/taskqueue.h>
 
-#include "usbdevs.h"
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
+#include <netgraph/bluetooth/drivers/ubt/ng_ubt_var.h>
 #include <netgraph/bluetooth/include/ng_bluetooth.h>
 #include <netgraph/bluetooth/include/ng_hci.h>
 #include <netgraph/bluetooth/include/ng_ubt.h>
-#include <netgraph/bluetooth/drivers/ubt/ng_ubt_var.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
+
+#include "usbdevs.h"
 
 enum {
 	UBT_INTEL_DEVICE_7260,
@@ -74,17 +75,16 @@ struct ubt_intel_version_rp {
 	uint8_t fw_build_ww;
 	uint8_t fw_build_yy;
 	uint8_t fw_patch_num;
-} __attribute__ ((packed));
+} __attribute__((packed));
 
-static device_probe_t	ubt_intel_probe;
+static device_probe_t ubt_intel_probe;
 
 /*
  * List of supported bluetooth devices. If you add a new device PID here ensure
  * that it is blacklisted in ng_ubt.c and is supported by iwmbtfw utility.
  */
 
-static const STRUCT_USB_HOST_ID ubt_intel_devs[] =
-{
+static const STRUCT_USB_HOST_ID ubt_intel_devs[] = {
 	/* Intel Wireless 7260/7265 and successors */
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x07dc, UBT_INTEL_DEVICE_7260) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0a2a, UBT_INTEL_DEVICE_7260) },
@@ -102,18 +102,19 @@ static const STRUCT_USB_HOST_ID ubt_intel_devs[] =
  */
 
 static usb_error_t
-ubt_intel_do_hci_request(struct usb_device *udev, uint16_t opcode,
-    void *resp, uint8_t resp_len)
+ubt_intel_do_hci_request(
+    struct usb_device *udev, uint16_t opcode, void *resp, uint8_t resp_len)
 {
-#define	UBT_INTEL_HCICMD_TIMEOUT	2000	/* ms */
+#define UBT_INTEL_HCICMD_TIMEOUT 2000 /* ms */
 	struct ubt_hci_event_command_compl *evt;
 	struct ubt_hci_cmd cmd;
 	usb_error_t error;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = htole16(opcode);
-	evt = malloc(offsetof(struct ubt_hci_event_command_compl, data) +
-	    resp_len, M_TEMP, M_ZERO | M_WAITOK);
+	evt = malloc(
+	    offsetof(struct ubt_hci_event_command_compl, data) + resp_len,
+	    M_TEMP, M_ZERO | M_WAITOK);
 	evt->header.length = resp_len + UBT_HCI_EVENT_COMPL_HEAD_SIZE;
 
 	error = ubt_do_hci_request(udev, &cmd, evt, UBT_INTEL_HCICMD_TIMEOUT);
@@ -137,7 +138,7 @@ exit:
 static int
 ubt_intel_probe(device_t dev)
 {
-	struct usb_attach_arg	*uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ubt_intel_version_rp version;
 	ng_hci_reset_rp reset;
 	int error;
@@ -148,8 +149,8 @@ ubt_intel_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != 0)
 		return (ENXIO);
 
-	error = usbd_lookup_id_by_uaa(ubt_intel_devs, sizeof(ubt_intel_devs),
-	    uaa);
+	error = usbd_lookup_id_by_uaa(
+	    ubt_intel_devs, sizeof(ubt_intel_devs), uaa);
 	if (error != 0)
 		return (error);
 
@@ -162,8 +163,8 @@ ubt_intel_probe(device_t dev)
 		 * commands and allow further normal command processing.
 		 */
 		if (ubt_intel_do_hci_request(uaa->device,
-		    NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND, NG_HCI_OCF_RESET),
-		    &reset, sizeof(reset)) != USB_ERR_NORMAL_COMPLETION)
+			NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND, NG_HCI_OCF_RESET),
+			&reset, sizeof(reset)) != USB_ERR_NORMAL_COMPLETION)
 			return (ENXIO);
 		if (reset.status != 0)
 			return (ENXIO);
@@ -173,8 +174,8 @@ ubt_intel_probe(device_t dev)
 		 * it is always 0x00 and we need to patch the device again.
 		 */
 		if (ubt_intel_do_hci_request(uaa->device,
-		    NG_HCI_OPCODE(NG_HCI_OGF_VENDOR, 0x05),
-		    &version, sizeof(version)) != USB_ERR_NORMAL_COMPLETION)
+			NG_HCI_OPCODE(NG_HCI_OGF_VENDOR, 0x05), &version,
+			sizeof(version)) != USB_ERR_NORMAL_COMPLETION)
 			return (ENXIO);
 		if (version.fw_patch_num == 0)
 			return (ENXIO);
@@ -188,8 +189,8 @@ ubt_intel_probe(device_t dev)
 		 * The value 0x23 identifies the operational firmware.
 		 */
 		if (ubt_intel_do_hci_request(uaa->device,
-		    NG_HCI_OPCODE(NG_HCI_OGF_VENDOR, 0x05),
-		    &version, sizeof(version)) != USB_ERR_NORMAL_COMPLETION)
+			NG_HCI_OPCODE(NG_HCI_OGF_VENDOR, 0x05), &version,
+			sizeof(version)) != USB_ERR_NORMAL_COMPLETION)
 			return (ENXIO);
 		if (version.fw_variant != 0x23)
 			return (ENXIO);
@@ -207,16 +208,16 @@ ubt_intel_probe(device_t dev)
  * registration and PNP string are inherited from ng_ubt.c driver.
  */
 
-static device_method_t	ubt_intel_methods[] =
-{
-	DEVMETHOD(device_probe,	ubt_intel_probe),
-	DEVMETHOD_END
+static device_method_t ubt_intel_methods[] = {
+	DEVMETHOD(device_probe, ubt_intel_probe), DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(ubt, ubt_intel_driver, ubt_intel_methods,
     sizeof(struct ubt_softc), ubt_driver);
 DRIVER_MODULE(ng_ubt_intel, uhub, ubt_intel_driver, ubt_devclass, 0, 0);
 MODULE_VERSION(ng_ubt_intel, NG_BLUETOOTH_VERSION);
-MODULE_DEPEND(ng_ubt_intel, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
-MODULE_DEPEND(ng_ubt_intel, ng_hci, NG_BLUETOOTH_VERSION, NG_BLUETOOTH_VERSION, NG_BLUETOOTH_VERSION);
+MODULE_DEPEND(
+    ng_ubt_intel, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
+MODULE_DEPEND(ng_ubt_intel, ng_hci, NG_BLUETOOTH_VERSION, NG_BLUETOOTH_VERSION,
+    NG_BLUETOOTH_VERSION);
 MODULE_DEPEND(ng_ubt_intel, usb, 1, 1, 1);

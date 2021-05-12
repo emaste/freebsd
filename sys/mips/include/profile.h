@@ -37,60 +37,65 @@
  * $FreeBSD$
  */
 #ifndef _MACHINE_PROFILE_H_
-#define	_MACHINE_PROFILE_H_
+#define _MACHINE_PROFILE_H_
 
-#define	_MCOUNT_DECL void ___mcount
+#define _MCOUNT_DECL void ___mcount
 
 /*XXX The cprestore instruction is a "dummy" to shut up as(1). */
 
 /*XXX This is not MIPS64 safe. */
 
-#define	MCOUNT \
-	__asm(".text;"			\
-	".globl _mcount;"		\
-	".type _mcount,@function;"	\
-	"_mcount:;"			\
-	".set noreorder;"		\
-	".set noat;"			\
-	".cpload $25;"			\
-	".cprestore 4;"			\
-	"sw $4,8($29);"			\
-	"sw $5,12($29);"		\
-	"sw $6,16($29);"		\
-	"sw $7,20($29);"		\
-	"sw $1,0($29);"			\
-	"sw $31,4($29);"		\
-	"move $5,$31;"			\
-	"jal ___mcount;"		\
-	"move $4,$1;"			\
-	"lw $4,8($29);"			\
-	"lw $5,12($29);"		\
-	"lw $6,16($29);"		\
-	"lw $7,20($29);"		\
-	"lw $31,4($29);"		\
-	"lw $1,0($29);"			\
-	"addu $29,$29,8;"		\
-	"j $31;"			\
-	"move $31,$1;"			\
-	".set reorder;"			\
-	".set at");
+#define MCOUNT                           \
+	__asm(".text;"                   \
+	      ".globl _mcount;"          \
+	      ".type _mcount,@function;" \
+	      "_mcount:;"                \
+	      ".set noreorder;"          \
+	      ".set noat;"               \
+	      ".cpload $25;"             \
+	      ".cprestore 4;"            \
+	      "sw $4,8($29);"            \
+	      "sw $5,12($29);"           \
+	      "sw $6,16($29);"           \
+	      "sw $7,20($29);"           \
+	      "sw $1,0($29);"            \
+	      "sw $31,4($29);"           \
+	      "move $5,$31;"             \
+	      "jal ___mcount;"           \
+	      "move $4,$1;"              \
+	      "lw $4,8($29);"            \
+	      "lw $5,12($29);"           \
+	      "lw $6,16($29);"           \
+	      "lw $7,20($29);"           \
+	      "lw $31,4($29);"           \
+	      "lw $1,0($29);"            \
+	      "addu $29,$29,8;"          \
+	      "j $31;"                   \
+	      "move $31,$1;"             \
+	      ".set reorder;"            \
+	      ".set at");
 
 #ifdef _KERNEL
-#define	MCOUNT_DECL(s)	u_long s;
+#define MCOUNT_DECL(s) u_long s;
 #ifdef SMP
-extern int	mcount_lock;
-#define	MCOUNT_ENTER(s)	{					\
-	s = intr_disable();					\
-	while (!atomic_cmpset_acq_int(&mcount_lock, 0, 1))	\
-		/* nothing */ ;					\
-}
-#define	MCOUNT_EXIT(s)	{					\
-	atomic_store_rel_int(&mcount_lock, 0);			\
-	intr_restore(s);						\
-}
+extern int mcount_lock;
+#define MCOUNT_ENTER(s)                                            \
+	{                                                          \
+		s = intr_disable();                                \
+		while (!atomic_cmpset_acq_int(&mcount_lock, 0, 1)) \
+			/* nothing */;                             \
+	}
+#define MCOUNT_EXIT(s)                                 \
+	{                                              \
+		atomic_store_rel_int(&mcount_lock, 0); \
+		intr_restore(s);                       \
+	}
 #else
-#define	MCOUNT_ENTER(s)	{ s = intr_disable(); }
-#define	MCOUNT_EXIT(s)	(intr_restore(s))
+#define MCOUNT_ENTER(s)             \
+	{                           \
+		s = intr_disable(); \
+	}
+#define MCOUNT_EXIT(s) (intr_restore(s))
 #endif
 
 /* REVISIT for mips */
@@ -98,23 +103,23 @@ extern int	mcount_lock;
  * Config generates something to tell the compiler to align functions on 16
  * byte boundaries.  A strict alignment is good for keeping the tables small.
  */
-#define	FUNCTION_ALIGNMENT	16
+#define FUNCTION_ALIGNMENT 16
 
 #ifdef GUPROF
 struct gmonparam;
-void	stopguprof __P((struct gmonparam *p));
+void stopguprof __P((struct gmonparam * p));
 #else
-#define	stopguprof(p)
+#define stopguprof(p)
 #endif /* GUPROF */
 
-#else	/* !_KERNEL */
+#else /* !_KERNEL */
 
-#define	FUNCTION_ALIGNMENT	4
+#define FUNCTION_ALIGNMENT 4
 
 #ifdef __mips_n64
-typedef u_long	uintfptr_t;
+typedef u_long uintfptr_t;
 #else
-typedef u_int	uintfptr_t;
+typedef u_int uintfptr_t;
 #endif
 
 #endif /* _KERNEL */
@@ -124,25 +129,25 @@ typedef u_int	uintfptr_t;
  * function pointers.
  */
 #ifdef __mips_n64
-typedef u_long	fptrdiff_t;
+typedef u_long fptrdiff_t;
 #else
-typedef u_int	fptrdiff_t;
+typedef u_int fptrdiff_t;
 #endif
 
 #ifdef _KERNEL
 
-void	mcount(uintfptr_t frompc, uintfptr_t selfpc);
+void mcount(uintfptr_t frompc, uintfptr_t selfpc);
 
 #ifdef GUPROF
 struct gmonparam;
 
-void	nullfunc_loop_profiled(void);
-void	nullfunc_profiled(void);
-void	startguprof(struct gmonparam *p);
-void	stopguprof(struct gmonparam *p);
+void nullfunc_loop_profiled(void);
+void nullfunc_profiled(void);
+void startguprof(struct gmonparam *p);
+void stopguprof(struct gmonparam *p);
 #else
-#define	startguprof(p)
-#define	stopguprof(p)
+#define startguprof(p)
+#define stopguprof(p)
 #endif /* GUPROF */
 
 #else /* !_KERNEL */
@@ -152,26 +157,26 @@ void	stopguprof(struct gmonparam *p);
 __BEGIN_DECLS
 #ifdef __GNUC__
 #ifdef __ELF__
-void	mcount(void) __asm(".mcount");
+void mcount(void) __asm(".mcount");
 #else
-void	mcount(void) __asm("mcount");
+void mcount(void) __asm("mcount");
 #endif
 #endif
-void	_mcount(uintfptr_t frompc, uintfptr_t selfpc);
+void _mcount(uintfptr_t frompc, uintfptr_t selfpc);
 __END_DECLS
 
 #endif /* _KERNEL */
 
 #ifdef GUPROF
 /* XXX doesn't quite work outside kernel yet. */
-extern int	cputime_bias;
+extern int cputime_bias;
 
 __BEGIN_DECLS
-int	cputime(void);
-void	empty_loop(void);
-void	mexitcount(uintfptr_t selfpc);
-void	nullfunc(void);
-void	nullfunc_loop(void);
+int cputime(void);
+void empty_loop(void);
+void mexitcount(uintfptr_t selfpc);
+void nullfunc(void);
+void nullfunc_loop(void);
 __END_DECLS
 #endif
 

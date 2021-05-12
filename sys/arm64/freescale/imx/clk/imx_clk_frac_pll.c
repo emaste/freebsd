@@ -41,37 +41,34 @@ __FBSDID("$FreeBSD$");
 #include "clkdev_if.h"
 
 struct imx_clk_frac_pll_sc {
-	uint32_t	offset;
+	uint32_t offset;
 };
 
-#define	WRITE4(_clk, off, val)						\
+#define WRITE4(_clk, off, val) \
 	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
-#define	READ4(_clk, off, val)						\
-	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
-#define	DEVICE_LOCK(_clk)						\
-	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
-#define	DEVICE_UNLOCK(_clk)						\
-	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
+#define READ4(_clk, off, val) CLKDEV_READ_4(clknode_get_device(_clk), off, val)
+#define DEVICE_LOCK(_clk) CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
+#define DEVICE_UNLOCK(_clk) CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
-#define	CFG0	0
-#define	 CFG0_PLL_LOCK		(1 << 31)
-#define	 CFG0_PD		(1 << 19)
-#define	 CFG0_BYPASS		(1 << 14)
-#define	 CFG0_NEWDIV_VAL	(1 << 12)
-#define	 CFG0_NEWDIV_ACK	(1 << 11)
-#define	 CFG0_OUTPUT_DIV_MASK	(0x1f << 0)
-#define	 CFG0_OUTPUT_DIV_SHIFT	0
-#define	CFG1	4
-#define	 CFG1_FRAC_DIV_MASK	(0xffffff << 7)
-#define	 CFG1_FRAC_DIV_SHIFT	7
-#define	 CFG1_INT_DIV_MASK	(0x7f << 0)
-#define	 CFG1_INT_DIV_SHIFT	0
+#define CFG0 0
+#define CFG0_PLL_LOCK (1 << 31)
+#define CFG0_PD (1 << 19)
+#define CFG0_BYPASS (1 << 14)
+#define CFG0_NEWDIV_VAL (1 << 12)
+#define CFG0_NEWDIV_ACK (1 << 11)
+#define CFG0_OUTPUT_DIV_MASK (0x1f << 0)
+#define CFG0_OUTPUT_DIV_SHIFT 0
+#define CFG1 4
+#define CFG1_FRAC_DIV_MASK (0xffffff << 7)
+#define CFG1_FRAC_DIV_SHIFT 7
+#define CFG1_INT_DIV_MASK (0x7f << 0)
+#define CFG1_INT_DIV_SHIFT 0
 
 #if 0
-#define	dprintf(format, arg...)						\
+#define dprintf(format, arg...) \
 	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg)
 #else
-#define	dprintf(format, arg...)
+#define dprintf(format, arg...)
 #endif
 
 static int
@@ -137,7 +134,7 @@ imx_clk_frac_pll_recalc(struct clknode *clk, uint64_t *freq)
 	if (cfg0 & CFG0_BYPASS)
 		return (0);
 
-	divf_val = 1 + divfi + (divff/0x1000000);
+	divf_val = 1 + divfi + (divff / 0x1000000);
 	*freq = *freq * 8 * divf_val / div;
 
 	return (0);
@@ -145,9 +142,9 @@ imx_clk_frac_pll_recalc(struct clknode *clk, uint64_t *freq)
 
 static clknode_method_t imx_clk_frac_pll_clknode_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init,		imx_clk_frac_pll_init),
-	CLKNODEMETHOD(clknode_set_gate,		imx_clk_frac_pll_set_gate),
-	CLKNODEMETHOD(clknode_recalc_freq,	imx_clk_frac_pll_recalc),
+	CLKNODEMETHOD(clknode_init, imx_clk_frac_pll_init),
+	CLKNODEMETHOD(clknode_set_gate, imx_clk_frac_pll_set_gate),
+	CLKNODEMETHOD(clknode_recalc_freq, imx_clk_frac_pll_recalc),
 	CLKNODEMETHOD_END
 };
 
@@ -156,14 +153,14 @@ DEFINE_CLASS_1(imx_clk_frac_pll_clknode, imx_clk_frac_pll_clknode_class,
     clknode_class);
 
 int
-imx_clk_frac_pll_register(struct clkdom *clkdom,
-    struct imx_clk_frac_pll_def *clkdef)
+imx_clk_frac_pll_register(
+    struct clkdom *clkdom, struct imx_clk_frac_pll_def *clkdef)
 {
 	struct clknode *clk;
 	struct imx_clk_frac_pll_sc *sc;
 
-	clk = clknode_create(clkdom, &imx_clk_frac_pll_clknode_class,
-	    &clkdef->clkdef);
+	clk = clknode_create(
+	    clkdom, &imx_clk_frac_pll_clknode_class, &clkdef->clkdef);
 	if (clk == NULL)
 		return (1);
 

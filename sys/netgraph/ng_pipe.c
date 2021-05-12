@@ -36,13 +36,13 @@
  * This node permits simple traffic shaping by emulating bandwidth
  * and delay, as well as random packet losses.
  * The node has two hooks, upper and lower. Traffic flowing from upper to
- * lower hook is referenced as downstream, and vice versa. Parameters for 
+ * lower hook is referenced as downstream, and vice versa. Parameters for
  * both directions can be set separately, except for delay.
  */
 
 #include <sys/param.h>
-#include <sys/errno.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -51,200 +51,178 @@
 #include <vm/uma.h>
 
 #include <net/vnet.h>
-
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
+#include <netgraph/ng_pipe.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
-#include <netgraph/ng_pipe.h>
 
 static MALLOC_DEFINE(M_NG_PIPE, "ng_pipe", "ng_pipe");
 
 /* Packet header struct */
 struct ngp_hdr {
-	TAILQ_ENTRY(ngp_hdr)	ngp_link;	/* next pkt in queue */
-	struct timeval		when;		/* this packet's due time */
-	struct mbuf		*m;		/* ptr to the packet data */
+	TAILQ_ENTRY(ngp_hdr) ngp_link; /* next pkt in queue */
+	struct timeval when;	       /* this packet's due time */
+	struct mbuf *m;		       /* ptr to the packet data */
 };
 TAILQ_HEAD(p_head, ngp_hdr);
 
 /* FIFO queue struct */
 struct ngp_fifo {
-	TAILQ_ENTRY(ngp_fifo)	fifo_le;	/* list of active queues only */
-	struct p_head		packet_head;	/* FIFO queue head */
-	u_int32_t		hash;		/* flow signature */
-	struct timeval		vtime;		/* virtual time, for WFQ */
-	u_int32_t		rr_deficit;	/* for DRR */
-	u_int32_t		packets;	/* # of packets in this queue */
+	TAILQ_ENTRY(ngp_fifo) fifo_le; /* list of active queues only */
+	struct p_head packet_head;     /* FIFO queue head */
+	u_int32_t hash;		       /* flow signature */
+	struct timeval vtime;	       /* virtual time, for WFQ */
+	u_int32_t rr_deficit;	       /* for DRR */
+	u_int32_t packets;	       /* # of packets in this queue */
 };
 
 /* Per hook info */
 struct hookinfo {
-	hook_p			hook;
-	int			noqueue;	/* bypass any processing */
-	TAILQ_HEAD(, ngp_fifo)	fifo_head;	/* FIFO queues */
-	TAILQ_HEAD(, ngp_hdr)	qout_head;	/* delay queue head */
-	struct timeval		qin_utime;
-	struct ng_pipe_hookcfg	cfg;
-	struct ng_pipe_hookrun	run;
-	struct ng_pipe_hookstat	stats;
-	uint64_t		*ber_p;		/* loss_p(BER,psize) map */
+	hook_p hook;
+	int noqueue;			  /* bypass any processing */
+	TAILQ_HEAD(, ngp_fifo) fifo_head; /* FIFO queues */
+	TAILQ_HEAD(, ngp_hdr) qout_head;  /* delay queue head */
+	struct timeval qin_utime;
+	struct ng_pipe_hookcfg cfg;
+	struct ng_pipe_hookrun run;
+	struct ng_pipe_hookstat stats;
+	uint64_t *ber_p; /* loss_p(BER,psize) map */
 };
 
 /* Per node info */
 struct node_priv {
-	u_int64_t		delay;
-	u_int32_t		overhead;
-	u_int32_t		header_offset;
-	struct hookinfo		lower;
-	struct hookinfo		upper;
-	struct callout		timer;
-	int			timer_scheduled;
+	u_int64_t delay;
+	u_int32_t overhead;
+	u_int32_t header_offset;
+	struct hookinfo lower;
+	struct hookinfo upper;
+	struct callout timer;
+	int timer_scheduled;
 };
 typedef struct node_priv *priv_p;
 
 /* Macro for calculating the virtual time for packet dequeueing in WFQ */
-#define FIFO_VTIME_SORT(plen)						\
-	if (hinfo->cfg.wfq && hinfo->cfg.bandwidth) {			\
-		ngp_f->vtime.tv_usec = now->tv_usec + ((uint64_t) (plen) \
-			+ priv->overhead ) * hinfo->run.fifo_queues *	\
-			8000000 / hinfo->cfg.bandwidth;			\
-		ngp_f->vtime.tv_sec = now->tv_sec +			\
-			ngp_f->vtime.tv_usec / 1000000;			\
-		ngp_f->vtime.tv_usec = ngp_f->vtime.tv_usec % 1000000;	\
-		TAILQ_FOREACH(ngp_f1, &hinfo->fifo_head, fifo_le)	\
-			if (ngp_f1->vtime.tv_sec > ngp_f->vtime.tv_sec || \
-			    (ngp_f1->vtime.tv_sec == ngp_f->vtime.tv_sec && \
-			    ngp_f1->vtime.tv_usec > ngp_f->vtime.tv_usec)) \
-				break;					\
-		if (ngp_f1 == NULL)					\
-			TAILQ_INSERT_TAIL(&hinfo->fifo_head, ngp_f, fifo_le); \
-		else							\
-			TAILQ_INSERT_BEFORE(ngp_f1, ngp_f, fifo_le);	\
-	} else								\
-		TAILQ_INSERT_TAIL(&hinfo->fifo_head, ngp_f, fifo_le);	\
+#define FIFO_VTIME_SORT(plen)                                                  \
+	if (hinfo->cfg.wfq && hinfo->cfg.bandwidth) {                          \
+		ngp_f->vtime.tv_usec = now->tv_usec +                          \
+		    ((uint64_t)(plen) + priv->overhead) *                      \
+			hinfo->run.fifo_queues * 8000000 /                     \
+			hinfo->cfg.bandwidth;                                  \
+		ngp_f->vtime.tv_sec = now->tv_sec +                            \
+		    ngp_f->vtime.tv_usec / 1000000;                            \
+		ngp_f->vtime.tv_usec = ngp_f->vtime.tv_usec % 1000000;         \
+		TAILQ_FOREACH (ngp_f1, &hinfo->fifo_head, fifo_le)             \
+			if (ngp_f1->vtime.tv_sec > ngp_f->vtime.tv_sec ||      \
+			    (ngp_f1->vtime.tv_sec == ngp_f->vtime.tv_sec &&    \
+				ngp_f1->vtime.tv_usec > ngp_f->vtime.tv_usec)) \
+				break;                                         \
+		if (ngp_f1 == NULL)                                            \
+			TAILQ_INSERT_TAIL(&hinfo->fifo_head, ngp_f, fifo_le);  \
+		else                                                           \
+			TAILQ_INSERT_BEFORE(ngp_f1, ngp_f, fifo_le);           \
+	} else                                                                 \
+		TAILQ_INSERT_TAIL(&hinfo->fifo_head, ngp_f, fifo_le);
 
-static void	parse_cfg(struct ng_pipe_hookcfg *, struct ng_pipe_hookcfg *,
-			struct hookinfo *, priv_p);
-static void	pipe_dequeue(struct hookinfo *, struct timeval *);
-static void	ngp_callout(node_p, hook_p, void *, int);
-static int	ngp_modevent(module_t, int, void *);
+static void parse_cfg(struct ng_pipe_hookcfg *, struct ng_pipe_hookcfg *,
+    struct hookinfo *, priv_p);
+static void pipe_dequeue(struct hookinfo *, struct timeval *);
+static void ngp_callout(node_p, hook_p, void *, int);
+static int ngp_modevent(module_t, int, void *);
 
 /* zone for storing ngp_hdr-s */
 static uma_zone_t ngp_zone;
 
 /* Netgraph methods */
-static ng_constructor_t	ngp_constructor;
-static ng_rcvmsg_t	ngp_rcvmsg;
-static ng_shutdown_t	ngp_shutdown;
-static ng_newhook_t	ngp_newhook;
-static ng_rcvdata_t	ngp_rcvdata;
-static ng_disconnect_t	ngp_disconnect;
+static ng_constructor_t ngp_constructor;
+static ng_rcvmsg_t ngp_rcvmsg;
+static ng_shutdown_t ngp_shutdown;
+static ng_newhook_t ngp_newhook;
+static ng_rcvdata_t ngp_rcvdata;
+static ng_disconnect_t ngp_disconnect;
 
 /* Parse type for struct ng_pipe_hookstat */
-static const struct ng_parse_struct_field
-	ng_pipe_hookstat_type_fields[] = NG_PIPE_HOOKSTAT_INFO;
+static const struct ng_parse_struct_field ng_pipe_hookstat_type_fields[] =
+    NG_PIPE_HOOKSTAT_INFO;
 static const struct ng_parse_type ng_pipe_hookstat_type = {
-	&ng_parse_struct_type,
-	&ng_pipe_hookstat_type_fields
+	&ng_parse_struct_type, &ng_pipe_hookstat_type_fields
 };
 
 /* Parse type for struct ng_pipe_stats */
 static const struct ng_parse_struct_field ng_pipe_stats_type_fields[] =
-	NG_PIPE_STATS_INFO(&ng_pipe_hookstat_type);
-static const struct ng_parse_type ng_pipe_stats_type = {
-	&ng_parse_struct_type,
-	&ng_pipe_stats_type_fields
-};
+    NG_PIPE_STATS_INFO(&ng_pipe_hookstat_type);
+static const struct ng_parse_type ng_pipe_stats_type = { &ng_parse_struct_type,
+	&ng_pipe_stats_type_fields };
 
 /* Parse type for struct ng_pipe_hookrun */
-static const struct ng_parse_struct_field
-	ng_pipe_hookrun_type_fields[] = NG_PIPE_HOOKRUN_INFO;
+static const struct ng_parse_struct_field ng_pipe_hookrun_type_fields[] =
+    NG_PIPE_HOOKRUN_INFO;
 static const struct ng_parse_type ng_pipe_hookrun_type = {
-	&ng_parse_struct_type,
-	&ng_pipe_hookrun_type_fields
+	&ng_parse_struct_type, &ng_pipe_hookrun_type_fields
 };
 
 /* Parse type for struct ng_pipe_run */
-static const struct ng_parse_struct_field
-	ng_pipe_run_type_fields[] = NG_PIPE_RUN_INFO(&ng_pipe_hookrun_type);
-static const struct ng_parse_type ng_pipe_run_type = {
-	&ng_parse_struct_type,
-	&ng_pipe_run_type_fields
-};
+static const struct ng_parse_struct_field ng_pipe_run_type_fields[] =
+    NG_PIPE_RUN_INFO(&ng_pipe_hookrun_type);
+static const struct ng_parse_type ng_pipe_run_type = { &ng_parse_struct_type,
+	&ng_pipe_run_type_fields };
 
 /* Parse type for struct ng_pipe_hookcfg */
-static const struct ng_parse_struct_field
-	ng_pipe_hookcfg_type_fields[] = NG_PIPE_HOOKCFG_INFO;
+static const struct ng_parse_struct_field ng_pipe_hookcfg_type_fields[] =
+    NG_PIPE_HOOKCFG_INFO;
 static const struct ng_parse_type ng_pipe_hookcfg_type = {
-	&ng_parse_struct_type,
-	&ng_pipe_hookcfg_type_fields
+	&ng_parse_struct_type, &ng_pipe_hookcfg_type_fields
 };
 
 /* Parse type for struct ng_pipe_cfg */
-static const struct ng_parse_struct_field
-	ng_pipe_cfg_type_fields[] = NG_PIPE_CFG_INFO(&ng_pipe_hookcfg_type);
-static const struct ng_parse_type ng_pipe_cfg_type = {
-	&ng_parse_struct_type,
-	&ng_pipe_cfg_type_fields
-};
+static const struct ng_parse_struct_field ng_pipe_cfg_type_fields[] =
+    NG_PIPE_CFG_INFO(&ng_pipe_hookcfg_type);
+static const struct ng_parse_type ng_pipe_cfg_type = { &ng_parse_struct_type,
+	&ng_pipe_cfg_type_fields };
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ngp_cmds[] = {
+	{ .cookie = NGM_PIPE_COOKIE,
+	    .cmd = NGM_PIPE_GET_STATS,
+	    .name = "getstats",
+	    .respType = &ng_pipe_stats_type },
+	{ .cookie = NGM_PIPE_COOKIE,
+	    .cmd = NGM_PIPE_CLR_STATS,
+	    .name = "clrstats" },
+	{ .cookie = NGM_PIPE_COOKIE,
+	    .cmd = NGM_PIPE_GETCLR_STATS,
+	    .name = "getclrstats",
+	    .respType = &ng_pipe_stats_type },
+	{ .cookie = NGM_PIPE_COOKIE,
+	    .cmd = NGM_PIPE_GET_RUN,
+	    .name = "getrun",
+	    .respType = &ng_pipe_run_type },
+	{ .cookie = NGM_PIPE_COOKIE,
+	    .cmd = NGM_PIPE_GET_CFG,
+	    .name = "getcfg",
+	    .respType = &ng_pipe_cfg_type },
 	{
-		.cookie =	NGM_PIPE_COOKIE,
-		.cmd =		NGM_PIPE_GET_STATS,
-		.name = 	"getstats",
-		.respType =	 &ng_pipe_stats_type
-	},
-	{
-		.cookie =	NGM_PIPE_COOKIE,
-		.cmd =		NGM_PIPE_CLR_STATS,
-		.name =		"clrstats"
-	},
-	{
-		.cookie =	NGM_PIPE_COOKIE,
-		.cmd =		NGM_PIPE_GETCLR_STATS,
-		.name =		"getclrstats",
-		.respType =	&ng_pipe_stats_type
-	},
-	{
-		.cookie =	NGM_PIPE_COOKIE,
-		.cmd =		NGM_PIPE_GET_RUN,
-		.name =		"getrun",
-		.respType =	&ng_pipe_run_type
-	},
-	{
-		.cookie =	NGM_PIPE_COOKIE,
-		.cmd =		NGM_PIPE_GET_CFG,
-		.name =		"getcfg",
-		.respType =	&ng_pipe_cfg_type
-	},
-	{
-		.cookie =	NGM_PIPE_COOKIE,
-		.cmd =		NGM_PIPE_SET_CFG,
-		.name =		"setcfg",
-		.mesgType =	&ng_pipe_cfg_type,
+	    .cookie = NGM_PIPE_COOKIE,
+	    .cmd = NGM_PIPE_SET_CFG,
+	    .name = "setcfg",
+	    .mesgType = &ng_pipe_cfg_type,
 	},
 	{ 0 }
 };
 
 /* Netgraph type descriptor */
-static struct ng_type ng_pipe_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_PIPE_NODE_TYPE,
-	.mod_event =	ngp_modevent,
-	.constructor =	ngp_constructor,
-	.shutdown =	ngp_shutdown,
-	.rcvmsg =	ngp_rcvmsg,
-	.newhook =	ngp_newhook,
-	.rcvdata =	ngp_rcvdata,
-	.disconnect =	ngp_disconnect,
-	.cmdlist =	ngp_cmds
-};
+static struct ng_type ng_pipe_typestruct = { .version = NG_ABI_VERSION,
+	.name = NG_PIPE_NODE_TYPE,
+	.mod_event = ngp_modevent,
+	.constructor = ngp_constructor,
+	.shutdown = ngp_shutdown,
+	.rcvmsg = ngp_rcvmsg,
+	.newhook = ngp_newhook,
+	.rcvdata = ngp_rcvdata,
+	.disconnect = ngp_disconnect,
+	.cmdlist = ngp_cmds };
 NETGRAPH_INIT(pipe, &ng_pipe_typestruct);
 
 /* Node constructor */
@@ -313,13 +291,13 @@ ngp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_PIPE_CLR_STATS:
 		case NGM_PIPE_GETCLR_STATS:
 			if (msg->header.cmd != NGM_PIPE_CLR_STATS) {
-				NG_MKRESPONSE(resp, msg,
-				    sizeof(*stats), M_NOWAIT);
+				NG_MKRESPONSE(
+				    resp, msg, sizeof(*stats), M_NOWAIT);
 				if (resp == NULL) {
 					error = ENOMEM;
 					break;
 				}
-				stats = (struct ng_pipe_stats *) resp->data;
+				stats = (struct ng_pipe_stats *)resp->data;
 				bcopy(&priv->upper.stats, &stats->downstream,
 				    sizeof(stats->downstream));
 				bcopy(&priv->lower.stats, &stats->upstream,
@@ -338,11 +316,11 @@ ngp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 				break;
 			}
-			run = (struct ng_pipe_run *) resp->data;
+			run = (struct ng_pipe_run *)resp->data;
 			bcopy(&priv->upper.run, &run->downstream,
-				sizeof(run->downstream));
+			    sizeof(run->downstream));
 			bcopy(&priv->lower.run, &run->upstream,
-				sizeof(run->upstream));
+			    sizeof(run->upstream));
 			break;
 		case NGM_PIPE_GET_CFG:
 			NG_MKRESPONSE(resp, msg, sizeof(*cfg), M_NOWAIT);
@@ -350,11 +328,11 @@ ngp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 				break;
 			}
-			cfg = (struct ng_pipe_cfg *) resp->data;
+			cfg = (struct ng_pipe_cfg *)resp->data;
 			bcopy(&priv->upper.cfg, &cfg->downstream,
-				sizeof(cfg->downstream));
+			    sizeof(cfg->downstream));
 			bcopy(&priv->lower.cfg, &cfg->upstream,
-				sizeof(cfg->upstream));
+			    sizeof(cfg->upstream));
 			cfg->delay = priv->delay;
 			cfg->overhead = priv->overhead;
 			cfg->header_offset = priv->header_offset;
@@ -367,7 +345,7 @@ ngp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				cfg->bandwidth = 0;
 			break;
 		case NGM_PIPE_SET_CFG:
-			cfg = (struct ng_pipe_cfg *) msg->data;
+			cfg = (struct ng_pipe_cfg *)msg->data;
 			if (msg->header.arglen != sizeof(*cfg)) {
 				error = EINVAL;
 				break;
@@ -387,7 +365,8 @@ ngp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				priv->upper.cfg.bandwidth = cfg->bandwidth;
 				priv->lower.cfg.bandwidth = cfg->bandwidth;
 				if (cfg->bandwidth >= 10000000)
-					priv->overhead = 8+4+12; /* Ethernet */
+					priv->overhead = 8 + 4 +
+					    12; /* Ethernet */
 				else
 					priv->overhead = 10; /* HDLC */
 			}
@@ -454,7 +433,7 @@ ngp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 static void
 parse_cfg(struct ng_pipe_hookcfg *current, struct ng_pipe_hookcfg *new,
-	struct hookinfo *hinfo, priv_p priv)
+    struct hookinfo *hinfo, priv_p priv)
 {
 
 	if (new->ber == -1) {
@@ -469,8 +448,8 @@ parse_cfg(struct ng_pipe_hookcfg *current, struct ng_pipe_hookcfg *new,
 		uint32_t fsize, i;
 
 		if (hinfo->ber_p == NULL)
-			hinfo->ber_p =
-			    malloc((MAX_FSIZE + MAX_OHSIZE) * sizeof(uint64_t),
+			hinfo->ber_p = malloc(
+			    (MAX_FSIZE + MAX_OHSIZE) * sizeof(uint64_t),
 			    M_NG_PIPE, M_WAITOK);
 		current->ber = new->ber;
 
@@ -496,7 +475,7 @@ parse_cfg(struct ng_pipe_hookcfg *current, struct ng_pipe_hookcfg *new,
 
 	if (new->qin_size_limit == -1)
 		current->qin_size_limit = 0;
-	else if (new->qin_size_limit >= 5) 
+	else if (new->qin_size_limit >= 5)
 		current->qin_size_limit = new->qin_size_limit;
 
 	if (new->qout_size_limit == -1)
@@ -528,7 +507,7 @@ parse_cfg(struct ng_pipe_hookcfg *current, struct ng_pipe_hookcfg *new,
 		if (new->drr >= 32)
 			current->drr = new->drr;
 		else
-			current->drr = 2048;		/* default quantum */
+			current->drr = 2048; /* default quantum */
 	}
 
 	if (new->droptail) {
@@ -549,8 +528,8 @@ parse_cfg(struct ng_pipe_hookcfg *current, struct ng_pipe_hookcfg *new,
 	} else if (new->bandwidth >= 100 && new->bandwidth <= 1000000000)
 		current->bandwidth = new->bandwidth;
 
-	if (current->bandwidth | priv->delay | 
-	    current->duplicate | current->ber)
+	if (current->bandwidth | priv->delay | current->duplicate |
+	    current->ber)
 		hinfo->noqueue = 0;
 	else
 		hinfo->noqueue = 1;
@@ -567,14 +546,14 @@ ip_hash(struct mbuf *m, int offset)
 	u_int64_t i;
 	struct ip *ip = (struct ip *)(mtod(m, u_char *) + offset);
 
-	if (m->m_len < sizeof(struct ip) + offset ||
-	    ip->ip_v != 4 || ip->ip_hl << 2 != sizeof(struct ip))
+	if (m->m_len < sizeof(struct ip) + offset || ip->ip_v != 4 ||
+	    ip->ip_hl << 2 != sizeof(struct ip))
 		return 0;
 
-	i = ((u_int64_t) ip->ip_src.s_addr ^
-	    ((u_int64_t) ip->ip_src.s_addr << 13) ^
-	    ((u_int64_t) ip->ip_dst.s_addr << 7) ^
-	    ((u_int64_t) ip->ip_dst.s_addr << 19));
+	i = ((u_int64_t)ip->ip_src.s_addr ^
+	    ((u_int64_t)ip->ip_src.s_addr << 13) ^
+	    ((u_int64_t)ip->ip_dst.s_addr << 7) ^
+	    ((u_int64_t)ip->ip_dst.s_addr << 19));
 	return (i ^ (i >> 32));
 }
 
@@ -634,8 +613,9 @@ ngp_rcvdata(hook_p hook, item_p item)
 	 */
 	if (hinfo->run.qin_frames == 0) {
 		struct timeval *when = &hinfo->qin_utime;
-		if (when->tv_sec < now->tv_sec || (when->tv_sec == now->tv_sec
-		    && when->tv_usec < now->tv_usec)) {
+		if (when->tv_sec < now->tv_sec ||
+		    (when->tv_sec == now->tv_sec &&
+			when->tv_usec < now->tv_usec)) {
 			when->tv_sec = now->tv_sec;
 			when->tv_usec = now->tv_usec;
 		}
@@ -650,12 +630,12 @@ ngp_rcvdata(hook_p hook, item_p item)
 	NG_FREE_ITEM(item);
 
 	if (hinfo->cfg.fifo)
-		hash = 0;	/* all packets go into a single FIFO queue */
+		hash = 0; /* all packets go into a single FIFO queue */
 	else
 		hash = ip_hash(m, priv->header_offset);
 
 	/* Find the appropriate FIFO queue for the packet and enqueue it*/
-	TAILQ_FOREACH(ngp_f, &hinfo->fifo_head, fifo_le)
+	TAILQ_FOREACH (ngp_f, &hinfo->fifo_head, fifo_le)
 		if (hash == ngp_f->hash)
 			break;
 	if (ngp_f == NULL) {
@@ -664,7 +644,7 @@ ngp_rcvdata(hook_p hook, item_p item)
 		TAILQ_INIT(&ngp_f->packet_head);
 		ngp_f->hash = hash;
 		ngp_f->packets = 1;
-		ngp_f->rr_deficit = hinfo->cfg.drr;	/* DRR quantum */
+		ngp_f->rr_deficit = hinfo->cfg.drr; /* DRR quantum */
 		hinfo->run.fifo_queues++;
 		TAILQ_INSERT_TAIL(&ngp_f->packet_head, ngp_h, ngp_link);
 		FIFO_VTIME_SORT(m->m_pkthdr.len);
@@ -681,16 +661,16 @@ ngp_rcvdata(hook_p hook, item_p item)
 		int longest = 0;
 
 		/* Find the longest queue */
-		TAILQ_FOREACH(ngp_f1, &hinfo->fifo_head, fifo_le)
+		TAILQ_FOREACH (ngp_f1, &hinfo->fifo_head, fifo_le)
 			if (ngp_f1->packets > longest) {
 				longest = ngp_f1->packets;
 				ngp_f = ngp_f1;
 			}
 
 		/* Drop a frame from the queue head/tail, depending on cfg */
-		if (hinfo->cfg.drophead) 
+		if (hinfo->cfg.drophead)
 			ngp_h = TAILQ_FIRST(&ngp_f->packet_head);
-		else 
+		else
 			ngp_h = TAILQ_LAST(&ngp_f->packet_head, p_head);
 		TAILQ_REMOVE(&ngp_f->packet_head, ngp_h, ngp_link);
 		m1 = ngp_h->m;
@@ -728,7 +708,8 @@ ngp_rcvdata(hook_p hook, item_p item)
  *     is not due to be dequeued yet
  */
 static void
-pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
+pipe_dequeue(struct hookinfo *hinfo, struct timeval *now)
+{
 	static uint64_t rand, oldrand;
 	const node_p node = NG_HOOK_NODE(hinfo->hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
@@ -748,8 +729,9 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 	/* Bandwidth queue processing */
 	while ((ngp_f = TAILQ_FIRST(&hinfo->fifo_head))) {
 		when = &hinfo->qin_utime;
-		if (when->tv_sec > now->tv_sec || (when->tv_sec == now->tv_sec
-		    && when->tv_usec > now->tv_usec))
+		if (when->tv_sec > now->tv_sec ||
+		    (when->tv_sec == now->tv_sec &&
+			when->tv_usec > now->tv_usec))
 			break;
 
 		ngp_h = TAILQ_FIRST(&ngp_f->packet_head);
@@ -762,8 +744,8 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 			} else {
 				ngp_f->rr_deficit += hinfo->cfg.drr;
 				TAILQ_REMOVE(&hinfo->fifo_head, ngp_f, fifo_le);
-				TAILQ_INSERT_TAIL(&hinfo->fifo_head,
-				    ngp_f, fifo_le);
+				TAILQ_INSERT_TAIL(
+				    &hinfo->fifo_head, ngp_f, fifo_le);
 				continue;
 			}
 		}
@@ -785,16 +767,16 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 			hinfo->run.qin_octets -= m->m_pkthdr.len;
 			ngp_f->packets--;
 		}
-		
+
 		/* Calculate the serialization delay */
 		if (hinfo->cfg.bandwidth) {
-			hinfo->qin_utime.tv_usec +=
-			    ((uint64_t) m->m_pkthdr.len + priv->overhead ) *
+			hinfo->qin_utime.tv_usec += ((uint64_t)m->m_pkthdr.len +
+							priv->overhead) *
 			    8000000 / hinfo->cfg.bandwidth;
-			hinfo->qin_utime.tv_sec +=
-			    hinfo->qin_utime.tv_usec / 1000000;
-			hinfo->qin_utime.tv_usec =
-			    hinfo->qin_utime.tv_usec % 1000000;
+			hinfo->qin_utime.tv_sec += hinfo->qin_utime.tv_usec /
+			    1000000;
+			hinfo->qin_utime.tv_usec = hinfo->qin_utime.tv_usec %
+			    1000000;
 		}
 		when = &ngp_h->when;
 		when->tv_sec = hinfo->qin_utime.tv_sec;
@@ -804,8 +786,8 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 		if (ngp_f->packets) {
 			if (hinfo->cfg.wfq) {
 				TAILQ_REMOVE(&hinfo->fifo_head, ngp_f, fifo_le);
-				FIFO_VTIME_SORT(TAILQ_FIRST(
-				    &ngp_f->packet_head)->m->m_pkthdr.len)
+				FIFO_VTIME_SORT(TAILQ_FIRST(&ngp_f->packet_head)
+						    ->m->m_pkthdr.len)
 			}
 		} else {
 			TAILQ_REMOVE(&hinfo->fifo_head, ngp_f, fifo_le);
@@ -829,7 +811,7 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 
 		/* Discard frame if outbound queue size limit exceeded */
 		if (hinfo->cfg.qout_size_limit &&
-		    hinfo->run.qout_frames>=hinfo->cfg.qout_size_limit) {
+		    hinfo->run.qout_frames >= hinfo->cfg.qout_size_limit) {
 			hinfo->stats.out_disc_frames++;
 			hinfo->stats.out_disc_octets += m->m_pkthdr.len;
 			uma_zfree(ngp_zone, ngp_h);
@@ -854,7 +836,7 @@ pipe_dequeue(struct hookinfo *hinfo, struct timeval *now) {
 		m = ngp_h->m;
 		if (when->tv_sec > now->tv_sec ||
 		    (when->tv_sec == now->tv_sec &&
-		    when->tv_usec > now->tv_usec))
+			when->tv_usec > now->tv_usec))
 			break;
 
 		/* Update outbound queue stats */
@@ -974,9 +956,9 @@ ngp_modevent(module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		ngp_zone = uma_zcreate("ng_pipe", max(sizeof(struct ngp_hdr),
-		    sizeof (struct ngp_fifo)), NULL, NULL, NULL, NULL,
-		    UMA_ALIGN_PTR, 0);
+		ngp_zone = uma_zcreate("ng_pipe",
+		    max(sizeof(struct ngp_hdr), sizeof(struct ngp_fifo)), NULL,
+		    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 		if (ngp_zone == NULL)
 			panic("ng_pipe: couldn't allocate descriptor zone");
 		break;

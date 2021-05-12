@@ -27,14 +27,14 @@
  */
 
 #ifndef __LINUX_DCACHE_H
-#define	__LINUX_DCACHE_H
+#define __LINUX_DCACHE_H
 
 struct vnode;
 struct pfs_node;
 
 struct dentry {
 	struct vnode *d_inode;
-	struct pfs_node *d_pfs_node;	/* FreeBSD specific field */
+	struct pfs_node *d_pfs_node; /* FreeBSD specific field */
 };
 
 static inline struct vnode *

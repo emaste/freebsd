@@ -35,64 +35,63 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk_gate.h>
+#include <dev/extres/clk/clk_mux.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_subr.h>
 
-#include <dev/extres/clk/clk_mux.h>
-#include <dev/extres/clk/clk_gate.h>
-
 #include "clkdev_if.h"
 
-#define	GMAC_CLK_PIT		(0x1 << 2)
-#define	GMAC_CLK_PIT_SHIFT	2
-#define	GMAC_CLK_PIT_MII	0
-#define	GMAC_CLK_PIT_RGMII	1
-#define	GMAC_CLK_SRC		(0x3 << 0)
-#define	GMAC_CLK_SRC_SHIFT	0
-#define	GMAC_CLK_SRC_MII	0
-#define	GMAC_CLK_SRC_EXT_RGMII	1
-#define	GMAC_CLK_SRC_RGMII	2
+#define GMAC_CLK_PIT (0x1 << 2)
+#define GMAC_CLK_PIT_SHIFT 2
+#define GMAC_CLK_PIT_MII 0
+#define GMAC_CLK_PIT_RGMII 1
+#define GMAC_CLK_SRC (0x3 << 0)
+#define GMAC_CLK_SRC_SHIFT 0
+#define GMAC_CLK_SRC_MII 0
+#define GMAC_CLK_SRC_EXT_RGMII 1
+#define GMAC_CLK_SRC_RGMII 2
 
-#define	EMAC_TXC_DIV_CFG	(1 << 15)
-#define	EMAC_TXC_DIV_CFG_SHIFT	15
-#define	EMAC_TXC_DIV_CFG_125MHZ	0
-#define	EMAC_TXC_DIV_CFG_25MHZ	1
-#define	EMAC_PHY_SELECT		(1 << 16)
-#define	EMAC_PHY_SELECT_SHIFT	16
-#define	EMAC_PHY_SELECT_INT	0
-#define	EMAC_PHY_SELECT_EXT	1
-#define	EMAC_ETXDC		(0x7 << 10)
-#define	EMAC_ETXDC_SHIFT	10
-#define	EMAC_ERXDC		(0x1f << 5)
-#define	EMAC_ERXDC_SHIFT	5
+#define EMAC_TXC_DIV_CFG (1 << 15)
+#define EMAC_TXC_DIV_CFG_SHIFT 15
+#define EMAC_TXC_DIV_CFG_125MHZ 0
+#define EMAC_TXC_DIV_CFG_25MHZ 1
+#define EMAC_PHY_SELECT (1 << 16)
+#define EMAC_PHY_SELECT_SHIFT 16
+#define EMAC_PHY_SELECT_INT 0
+#define EMAC_PHY_SELECT_EXT 1
+#define EMAC_ETXDC (0x7 << 10)
+#define EMAC_ETXDC_SHIFT 10
+#define EMAC_ERXDC (0x1f << 5)
+#define EMAC_ERXDC_SHIFT 5
 
-#define	CLK_IDX_MII		0
-#define	CLK_IDX_RGMII		1
-#define	CLK_IDX_COUNT		2
+#define CLK_IDX_MII 0
+#define CLK_IDX_RGMII 1
+#define CLK_IDX_COUNT 2
 
 static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun7i-a20-gmac-clk",	1 },
-	{ NULL, 0 }
+	{ "allwinner,sun7i-a20-gmac-clk", 1 }, { NULL, 0 }
 };
 
 struct aw_gmacclk_sc {
-	device_t	clkdev;
-	bus_addr_t	reg;
+	device_t clkdev;
+	bus_addr_t reg;
 
-	int		rx_delay;
-	int		tx_delay;
+	int rx_delay;
+	int tx_delay;
 };
 
-#define	GMACCLK_READ(sc, val)	CLKDEV_READ_4((sc)->clkdev, (sc)->reg, (val))
-#define	GMACCLK_WRITE(sc, val)	CLKDEV_WRITE_4((sc)->clkdev, (sc)->reg, (val))
-#define	DEVICE_LOCK(sc)		CLKDEV_DEVICE_LOCK((sc)->clkdev)
-#define	DEVICE_UNLOCK(sc)	CLKDEV_DEVICE_UNLOCK((sc)->clkdev)
+#define GMACCLK_READ(sc, val) CLKDEV_READ_4((sc)->clkdev, (sc)->reg, (val))
+#define GMACCLK_WRITE(sc, val) CLKDEV_WRITE_4((sc)->clkdev, (sc)->reg, (val))
+#define DEVICE_LOCK(sc) CLKDEV_DEVICE_LOCK((sc)->clkdev)
+#define DEVICE_UNLOCK(sc) CLKDEV_DEVICE_UNLOCK((sc)->clkdev)
 
 static int
 aw_gmacclk_init(struct clknode *clk, device_t dev)
@@ -159,9 +158,8 @@ aw_gmacclk_set_mux(struct clknode *clk, int index)
 
 static clknode_method_t aw_gmacclk_clknode_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init,		aw_gmacclk_init),
-	CLKNODEMETHOD(clknode_set_mux,		aw_gmacclk_set_mux),
-	CLKNODEMETHOD_END
+	CLKNODEMETHOD(clknode_init, aw_gmacclk_init),
+	CLKNODEMETHOD(clknode_set_mux, aw_gmacclk_set_mux), CLKNODEMETHOD_END
 };
 DEFINE_CLASS_1(aw_gmacclk_clknode, aw_gmacclk_clknode_class,
     aw_gmacclk_clknode_methods, sizeof(struct aw_gmacclk_sc), clknode_class);
@@ -199,8 +197,8 @@ aw_gmacclk_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	error = ofw_bus_parse_xref_list_get_length(node, "clocks",
-	    "#clock-cells", &ncells);
+	error = ofw_bus_parse_xref_list_get_length(
+	    node, "clocks", "#clock-cells", &ncells);
 	if (error != 0 || ncells != CLK_IDX_COUNT) {
 		device_printf(dev, "couldn't find parent clocks\n");
 		return (ENXIO);
@@ -261,17 +259,13 @@ fail:
 
 static device_method_t aw_gmacclk_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		aw_gmacclk_probe),
-	DEVMETHOD(device_attach,	aw_gmacclk_attach),
+	DEVMETHOD(device_probe, aw_gmacclk_probe),
+	DEVMETHOD(device_attach, aw_gmacclk_attach),
 
 	DEVMETHOD_END
 };
 
-static driver_t aw_gmacclk_driver = {
-	"aw_gmacclk",
-	aw_gmacclk_methods,
-	0
-};
+static driver_t aw_gmacclk_driver = { "aw_gmacclk", aw_gmacclk_methods, 0 };
 
 static devclass_t aw_gmacclk_devclass;
 

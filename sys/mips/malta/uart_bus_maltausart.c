@@ -41,12 +41,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
+
+#include <machine/bus.h>
 #include <machine/resource.h>
 
 #include <dev/pci/pcivar.h>
-
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
@@ -61,10 +61,9 @@ extern struct uart_class malta_uart_class;
 
 static device_method_t uart_malta_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		uart_malta_probe),
-	DEVMETHOD(device_attach,	uart_bus_attach),
-	DEVMETHOD(device_detach,	uart_bus_detach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, uart_malta_probe),
+	DEVMETHOD(device_attach, uart_bus_attach),
+	DEVMETHOD(device_detach, uart_bus_detach), { 0, 0 }
 };
 
 static driver_t uart_malta_driver = {
@@ -87,7 +86,7 @@ uart_malta_probe(device_t dev)
 	sc->sc_sysdev->bas.bsh = MIPS_PHYS_TO_KSEG1(MALTA_UART0ADR);
 	sc->sc_bas.bst = mips_bus_space_generic;
 	sc->sc_bas.bsh = MIPS_PHYS_TO_KSEG1(MALTA_UART0ADR);
-	return(uart_bus_probe(dev, 0, 0, 0, 0, 0, 0));
+	return (uart_bus_probe(dev, 0, 0, 0, 0, 0, 0));
 }
 
 DRIVER_MODULE(uart, obio, uart_malta_driver, uart_devclass, 0, 0);

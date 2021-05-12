@@ -26,7 +26,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE. 
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -35,17 +35,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/socket.h>
 
-#include <security/audit/audit.h>
-
 #include <bsm/audit_record.h>
 #include <bsm/audit_socket_type.h>
+#include <security/audit/audit.h>
 
 struct bsm_socket_type {
-	u_short	bst_bsm_socket_type;
-	int	bst_local_socket_type;
+	u_short bst_bsm_socket_type;
+	int bst_local_socket_type;
 };
 
-#define	ST_NO_LOCAL_MAPPING	-600
+#define ST_NO_LOCAL_MAPPING -600
 
 static const struct bsm_socket_type bsm_socket_types[] = {
 	{ BSM_SOCK_DGRAM, SOCK_DGRAM },
@@ -86,8 +85,7 @@ bsm_lookup_bsm_socket_type(u_short bsm_socket_type)
 	int i;
 
 	for (i = 0; i < bsm_socket_types_count; i++) {
-		if (bsm_socket_types[i].bst_bsm_socket_type ==
-		    bsm_socket_type)
+		if (bsm_socket_types[i].bst_bsm_socket_type == bsm_socket_type)
 			return (&bsm_socket_types[i]);
 	}
 	return (NULL);

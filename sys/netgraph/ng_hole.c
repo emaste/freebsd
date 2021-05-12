@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -50,77 +50,62 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <netgraph/ng_message.h>
+
 #include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
 #include <netgraph/ng_hole.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
 
 /* Per hook private info. */
 struct ng_hole_hookinfo {
-	struct ng_hole_hookstat	stats;
+	struct ng_hole_hookstat stats;
 };
 typedef struct ng_hole_hookinfo *hinfo_p;
 
 /* Parse type for struct ng_hole_hookstat. */
 static const struct ng_parse_struct_field ng_hole_hookstat_type_fields[] =
-	NG_HOLE_HOOKSTAT_TYPE_INFO;
+    NG_HOLE_HOOKSTAT_TYPE_INFO;
 static const struct ng_parse_type ng_hole_hookstat_type = {
-	&ng_parse_struct_type,
-	&ng_hole_hookstat_type_fields
+	&ng_parse_struct_type, &ng_hole_hookstat_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII. */
 static const struct ng_cmdlist ng_hole_cmdlist[] = {
-	{
-	  NGM_HOLE_COOKIE,
-	  NGM_HOLE_GET_STATS,
-	  "getstats",
-	  &ng_parse_hookbuf_type,
-	  &ng_hole_hookstat_type
-	},
-	{
-	  NGM_HOLE_COOKIE,
-	  NGM_HOLE_CLR_STATS,
-	  "clrstats",
-	  &ng_parse_hookbuf_type,
-	  NULL
-	},
-	{
-	  NGM_HOLE_COOKIE,
-	  NGM_HOLE_GETCLR_STATS,
-	  "getclrstats",
-	  &ng_parse_hookbuf_type,
-	  &ng_hole_hookstat_type
-	},
+	{ NGM_HOLE_COOKIE, NGM_HOLE_GET_STATS, "getstats",
+	    &ng_parse_hookbuf_type, &ng_hole_hookstat_type },
+	{ NGM_HOLE_COOKIE, NGM_HOLE_CLR_STATS, "clrstats",
+	    &ng_parse_hookbuf_type, NULL },
+	{ NGM_HOLE_COOKIE, NGM_HOLE_GETCLR_STATS, "getclrstats",
+	    &ng_parse_hookbuf_type, &ng_hole_hookstat_type },
 	{ 0 }
 };
 
 /* Netgraph methods */
-static ng_constructor_t	ngh_cons;
-static ng_rcvmsg_t	ngh_rcvmsg;
-static ng_newhook_t	ngh_newhook;
-static ng_rcvdata_t	ngh_rcvdata;
-static ng_disconnect_t	ngh_disconnect;
+static ng_constructor_t ngh_cons;
+static ng_rcvmsg_t ngh_rcvmsg;
+static ng_newhook_t ngh_newhook;
+static ng_rcvdata_t ngh_rcvdata;
+static ng_disconnect_t ngh_disconnect;
 
 static struct ng_type typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_HOLE_NODE_TYPE,
-	.constructor =	ngh_cons,
-	.rcvmsg =	ngh_rcvmsg,
-	.newhook = 	ngh_newhook,
-	.rcvdata =	ngh_rcvdata,
-	.disconnect =	ngh_disconnect,
-	.cmdlist =	ng_hole_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_HOLE_NODE_TYPE,
+	.constructor = ngh_cons,
+	.rcvmsg = ngh_rcvmsg,
+	.newhook = ngh_newhook,
+	.rcvdata = ngh_rcvdata,
+	.disconnect = ngh_disconnect,
+	.cmdlist = ng_hole_cmdlist,
 };
 NETGRAPH_INIT(hole, &typestruct);
 
-/* 
+/*
  * Be obliging. but no work to do.
  */
 static int
 ngh_cons(node_p node)
 {
-	return(0);
+	return (0);
 }
 
 /*
@@ -172,8 +157,8 @@ ngh_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			stats = &((hinfo_p)NG_HOOK_PRIVATE(hook))->stats;
 			/* Build response (if desired). */
 			if (msg->header.cmd != NGM_HOLE_CLR_STATS) {
-				NG_MKRESPONSE(resp, msg, sizeof(*stats),
-				    M_NOWAIT);
+				NG_MKRESPONSE(
+				    resp, msg, sizeof(*stats), M_NOWAIT);
 				if (resp == NULL) {
 					error = ENOMEM;
 					break;
@@ -184,12 +169,12 @@ ngh_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (msg->header.cmd != NGM_HOLE_GET_STATS)
 				bzero(stats, sizeof(*stats));
 			break;
-		default:		/* Unknown command. */
+		default: /* Unknown command. */
 			error = EINVAL;
 			break;
 		}
 		break;
-	default:			/* Unknown type cookie. */
+	default: /* Unknown type cookie. */
 		error = EINVAL;
 		break;
 	}

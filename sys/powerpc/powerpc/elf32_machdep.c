@@ -28,36 +28,36 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 
 #define __ELF_WORD_SIZE 32
 
 #include <sys/exec.h>
-#include <sys/imgact.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/namei.h>
 #include <sys/fcntl.h>
-#include <sys/sysent.h>
+#include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/jail.h>
+#include <sys/linker.h>
+#include <sys/malloc.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
-#include <sys/signalvar.h>
+#include <sys/sysent.h>
 #include <sys/vnode.h>
-#include <sys/linker.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 
 #include <machine/altivec.h>
 #include <machine/cpu.h>
-#include <machine/fpu.h>
 #include <machine/elf.h>
-#include <machine/reg.h>
+#include <machine/fpu.h>
 #include <machine/md_var.h>
+#include <machine/reg.h>
 
 #include <powerpc/powerpc/elf_common.c>
 
@@ -68,107 +68,101 @@
 extern const char *freebsd32_syscallnames[];
 static void ppc32_fixlimit(struct rlimit *rl, int which);
 
-static SYSCTL_NODE(_compat, OID_AUTO, ppc32, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "32-bit mode");
+static SYSCTL_NODE(
+    _compat, OID_AUTO, ppc32, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "32-bit mode");
 
-#define PPC32_MAXDSIZ (1024*1024*1024)
+#define PPC32_MAXDSIZ (1024 * 1024 * 1024)
 static u_long ppc32_maxdsiz = PPC32_MAXDSIZ;
-SYSCTL_ULONG(_compat_ppc32, OID_AUTO, maxdsiz, CTLFLAG_RWTUN, &ppc32_maxdsiz,
-             0, "");
-#define PPC32_MAXSSIZ (64*1024*1024)
+SYSCTL_ULONG(
+    _compat_ppc32, OID_AUTO, maxdsiz, CTLFLAG_RWTUN, &ppc32_maxdsiz, 0, "");
+#define PPC32_MAXSSIZ (64 * 1024 * 1024)
 u_long ppc32_maxssiz = PPC32_MAXSSIZ;
-SYSCTL_ULONG(_compat_ppc32, OID_AUTO, maxssiz, CTLFLAG_RWTUN, &ppc32_maxssiz,
-             0, "");
+SYSCTL_ULONG(
+    _compat_ppc32, OID_AUTO, maxssiz, CTLFLAG_RWTUN, &ppc32_maxssiz, 0, "");
 #else
 static void ppc32_runtime_resolve(void);
 #endif
 
 struct sysentvec elf32_freebsd_sysvec = {
-	.sv_size	= SYS_MAXSYSCALL,
+	.sv_size = SYS_MAXSYSCALL,
 #ifdef __powerpc64__
-	.sv_table	= freebsd32_sysent,
+	.sv_table = freebsd32_sysent,
 #else
-	.sv_table	= sysent,
+	.sv_table = sysent,
 #endif
-	.sv_transtrap	= NULL,
-	.sv_fixup	= __elfN(freebsd_fixup),
+	.sv_transtrap = NULL,
+	.sv_fixup = __elfN(freebsd_fixup),
 	.sv_copyout_auxargs = __elfN(powerpc_copyout_auxargs),
-	.sv_sendsig	= sendsig,
-	.sv_sigcode	= sigcode32,
-	.sv_szsigcode	= &szsigcode32,
-	.sv_name	= "FreeBSD ELF32",
-	.sv_coredump	= __elfN(coredump),
-	.sv_imgact_try	= NULL,
-	.sv_minsigstksz	= MINSIGSTKSZ,
-	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_stackprot	= VM_PROT_ALL,
+	.sv_sendsig = sendsig,
+	.sv_sigcode = sigcode32,
+	.sv_szsigcode = &szsigcode32,
+	.sv_name = "FreeBSD ELF32",
+	.sv_coredump = __elfN(coredump),
+	.sv_imgact_try = NULL,
+	.sv_minsigstksz = MINSIGSTKSZ,
+	.sv_minuser = VM_MIN_ADDRESS,
+	.sv_stackprot = VM_PROT_ALL,
 #ifdef __powerpc64__
-	.sv_maxuser	= VM_MAXUSER_ADDRESS32,
-	.sv_usrstack	= FREEBSD32_USRSTACK,
-	.sv_psstrings	= FREEBSD32_PS_STRINGS,
+	.sv_maxuser = VM_MAXUSER_ADDRESS32,
+	.sv_usrstack = FREEBSD32_USRSTACK,
+	.sv_psstrings = FREEBSD32_PS_STRINGS,
 	.sv_copyout_strings = freebsd32_copyout_strings,
-	.sv_setregs	= ppc32_setregs,
+	.sv_setregs = ppc32_setregs,
 	.sv_syscallnames = freebsd32_syscallnames,
-	.sv_fixlimit	= ppc32_fixlimit,
+	.sv_fixlimit = ppc32_fixlimit,
 #else
-	.sv_maxuser	= VM_MAXUSER_ADDRESS,
-	.sv_usrstack	= USRSTACK,
-	.sv_psstrings	= PS_STRINGS,
+	.sv_maxuser = VM_MAXUSER_ADDRESS,
+	.sv_usrstack = USRSTACK,
+	.sv_psstrings = PS_STRINGS,
 	.sv_copyout_strings = exec_copyout_strings,
-	.sv_setregs	= exec_setregs,
+	.sv_setregs = exec_setregs,
 	.sv_syscallnames = syscallnames,
-	.sv_fixlimit	= NULL,
+	.sv_fixlimit = NULL,
 #endif
-	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32 | SV_SHP | SV_ASLR |
-			    SV_TIMEKEEP | SV_RNG_SEED_VER,
+	.sv_maxssiz = NULL,
+	.sv_flags = SV_ABI_FREEBSD | SV_ILP32 | SV_SHP | SV_ASLR | SV_TIMEKEEP |
+	    SV_RNG_SEED_VER,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_shared_page_base = FREEBSD32_SHAREDPAGE,
 	.sv_shared_page_len = PAGE_SIZE,
-	.sv_schedtail	= NULL,
+	.sv_schedtail = NULL,
 	.sv_thread_detach = NULL,
-	.sv_trap	= NULL,
-	.sv_hwcap	= &cpu_features,
-	.sv_hwcap2	= &cpu_features2,
+	.sv_trap = NULL,
+	.sv_hwcap = &cpu_features,
+	.sv_hwcap2 = &cpu_features2,
 };
 INIT_SYSENTVEC(elf32_sysvec, &elf32_freebsd_sysvec);
 
-static Elf32_Brandinfo freebsd_brand_info = {
-	.brand		= ELFOSABI_FREEBSD,
-	.machine	= EM_PPC,
-	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
-	.interp_path	= "/libexec/ld-elf.so.1",
-	.sysvec		= &elf32_freebsd_sysvec,
+static Elf32_Brandinfo freebsd_brand_info = { .brand = ELFOSABI_FREEBSD,
+	.machine = EM_PPC,
+	.compat_3_brand = "FreeBSD",
+	.emul_path = NULL,
+	.interp_path = "/libexec/ld-elf.so.1",
+	.sysvec = &elf32_freebsd_sysvec,
 #ifdef __powerpc64__
-	.interp_newpath	= "/libexec/ld-elf32.so.1",
+	.interp_newpath = "/libexec/ld-elf32.so.1",
 #else
-	.interp_newpath	= NULL,
+	.interp_newpath = NULL,
 #endif
-	.brand_note	= &elf32_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
-};
+	.brand_note = &elf32_freebsd_brandnote,
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_NOTE };
 
 SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST,
-    (sysinit_cfunc_t) elf32_insert_brand_entry,
-    &freebsd_brand_info);
+    (sysinit_cfunc_t)elf32_insert_brand_entry, &freebsd_brand_info);
 
-static Elf32_Brandinfo freebsd_brand_oinfo = {
-	.brand		= ELFOSABI_FREEBSD,
-	.machine	= EM_PPC,
-	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
-	.interp_path	= "/usr/libexec/ld-elf.so.1",
-	.sysvec		= &elf32_freebsd_sysvec,
-	.interp_newpath	= NULL,
-	.brand_note	= &elf32_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
-};
+static Elf32_Brandinfo freebsd_brand_oinfo = { .brand = ELFOSABI_FREEBSD,
+	.machine = EM_PPC,
+	.compat_3_brand = "FreeBSD",
+	.emul_path = NULL,
+	.interp_path = "/usr/libexec/ld-elf.so.1",
+	.sysvec = &elf32_freebsd_sysvec,
+	.interp_newpath = NULL,
+	.brand_note = &elf32_freebsd_brandnote,
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_NOTE };
 
 SYSINIT(oelf32, SI_SUB_EXEC, SI_ORDER_ANY,
-	(sysinit_cfunc_t) elf32_insert_brand_entry,
-	&freebsd_brand_oinfo);
+    (sysinit_cfunc_t)elf32_insert_brand_entry, &freebsd_brand_oinfo);
 
 void elf_reloc_self(Elf_Dyn *dynp, Elf_Addr relocbase);
 
@@ -187,32 +181,32 @@ elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 	if (pcb->pcb_flags & PCB_VEC) {
 		save_vec_nodrop(td);
 		if (dst != NULL) {
-			len += elf32_populate_note(NT_PPC_VMX,
-			    &pcb->pcb_vec, (char *)dst + len,
-			    sizeof(pcb->pcb_vec), NULL);
+			len += elf32_populate_note(NT_PPC_VMX, &pcb->pcb_vec,
+			    (char *)dst + len, sizeof(pcb->pcb_vec), NULL);
 		} else
-			len += elf32_populate_note(NT_PPC_VMX, NULL, NULL,
-			    sizeof(pcb->pcb_vec), NULL);
+			len += elf32_populate_note(
+			    NT_PPC_VMX, NULL, NULL, sizeof(pcb->pcb_vec), NULL);
 	}
 
 	if (pcb->pcb_flags & PCB_VSX) {
 		save_fpu_nodrop(td);
 		if (dst != NULL) {
 			/*
-			 * Doubleword 0 of VSR0-VSR31 overlap with FPR0-FPR31 and
-			 * VSR32-VSR63 overlap with VR0-VR31, so we only copy
-			 * the non-overlapping data, which is doubleword 1 of VSR0-VSR31.
+			 * Doubleword 0 of VSR0-VSR31 overlap with FPR0-FPR31
+			 * and VSR32-VSR63 overlap with VR0-VR31, so we only
+			 * copy the non-overlapping data, which is doubleword 1
+			 * of VSR0-VSR31.
 			 */
 			for (vsr_idx = 0; vsr_idx < nitems(vshr); vsr_idx++) {
-				vsr_dw1 = (uint64_t *)&pcb->pcb_fpu.fpr[vsr_idx].vsr[2];
+				vsr_dw1 = (uint64_t *)&pcb->pcb_fpu.fpr[vsr_idx]
+					      .vsr[2];
 				vshr[vsr_idx] = *vsr_dw1;
 			}
-			len += elf32_populate_note(NT_PPC_VSX,
-			    vshr, (char *)dst + len,
-			    sizeof(vshr), NULL);
+			len += elf32_populate_note(NT_PPC_VSX, vshr,
+			    (char *)dst + len, sizeof(vshr), NULL);
 		} else
-			len += elf32_populate_note(NT_PPC_VSX, NULL, NULL,
-			    sizeof(vshr), NULL);
+			len += elf32_populate_note(
+			    NT_PPC_VSX, NULL, NULL, sizeof(vshr), NULL);
 	}
 
 	*off = len;
@@ -245,8 +239,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 	case ELF_RELOC_RELA:
 		rela = (const Elf_Rela *)data;
-		where = (Elf_Addr *) ((uintptr_t)relocbase + rela->r_offset);
-		hwhere = (Elf_Half *) ((uintptr_t)relocbase + rela->r_offset);
+		where = (Elf_Addr *)((uintptr_t)relocbase + rela->r_offset);
+		hwhere = (Elf_Half *)((uintptr_t)relocbase + rela->r_offset);
 		addend = rela->r_addend;
 		rtype = ELF_R_TYPE(rela->r_info);
 		symidx = ELF_R_SYM(rela->r_info);
@@ -264,7 +258,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		if (error != 0)
 			return (-1);
 		*where = elf_relocaddr(lf, addr + addend);
-			break;
+		break;
 
 	case R_PPC_ADDR16_LO: /* #lo(S) */
 		error = lookup(lf, symidx, 1, &addr);
@@ -293,8 +287,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		if (addr > relocbase && addr <= (relocbase + addend))
 			addr = relocbase;
 		addr = elf_relocaddr(lf, addr + addend);
-		*hwhere = ((addr >> 16) + ((addr & 0x8000) ? 1 : 0))
-		    & 0xffff;
+		*hwhere = ((addr >> 16) + ((addr & 0x8000) ? 1 : 0)) & 0xffff;
 		break;
 
 	case R_PPC_RELATIVE: /* word32 B + A */
@@ -317,14 +310,15 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 
 	case R_PPC_IRELATIVE:
 		addr = relocbase + addend;
-		val = ((Elf32_Addr (*)(void))addr)();
+		val = ((Elf32_Addr(*)(void))addr)();
 		if (*where != val)
 			*where = val;
 		break;
 
 	default:
 		printf("kldload: unexpected relocation type %d, "
-		    "symbol index %d\n", (int)rtype, symidx);
+		       "symbol index %d\n",
+		    (int)rtype, symidx);
 		return (-1);
 	}
 	return (0);
@@ -343,7 +337,7 @@ elf_reloc_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 	for (; dynp->d_tag != DT_NULL; dynp++) {
 		switch (dynp->d_tag) {
 		case DT_RELA:
-			rela = (Elf_Rela *)(relocbase+dynp->d_un.d_ptr);
+			rela = (Elf_Rela *)(relocbase + dynp->d_un.d_ptr);
 			break;
 		case DT_RELASZ:
 			relasz = dynp->d_un.d_val;

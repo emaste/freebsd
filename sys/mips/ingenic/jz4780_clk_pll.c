@@ -34,8 +34,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
@@ -47,54 +47,53 @@ __FBSDID("$FreeBSD$");
 /**********************************************************************
  *  JZ4780 PLL control register bit fields
  **********************************************************************/
-#define CGU_PLL_M_SHIFT		19
-#define CGU_PLL_M_WIDTH		13
+#define CGU_PLL_M_SHIFT 19
+#define CGU_PLL_M_WIDTH 13
 
-#define CGU_PLL_N_SHIFT		13
-#define CGU_PLL_N_WIDTH		6
+#define CGU_PLL_N_SHIFT 13
+#define CGU_PLL_N_WIDTH 6
 
-#define CGU_PLL_OD_SHIFT	9
-#define CGU_PLL_OD_WIDTH	4
+#define CGU_PLL_OD_SHIFT 9
+#define CGU_PLL_OD_WIDTH 4
 
-#define CGU_PLL_LOCK_SHIFT	6
-#define CGU_PLL_LOCK_WIDTH	1
+#define CGU_PLL_LOCK_SHIFT 6
+#define CGU_PLL_LOCK_WIDTH 1
 
-#define CGU_PLL_ON_SHIFT	4
-#define CGU_PLL_ON_WIDTH	1
+#define CGU_PLL_ON_SHIFT 4
+#define CGU_PLL_ON_WIDTH 1
 
-#define CGU_PLL_MODE_SHIFT	3
-#define CGU_PLL_MODE_WIDTH	1
+#define CGU_PLL_MODE_SHIFT 3
+#define CGU_PLL_MODE_WIDTH 1
 
-#define CGU_PLL_BP_SHIFT	1
-#define CGU_PLL_BP_WIDTH	1
+#define CGU_PLL_BP_SHIFT 1
+#define CGU_PLL_BP_WIDTH 1
 
-#define CGU_PLL_EN_SHIFT	0
-#define CGU_PLL_EN_WIDTH	1
+#define CGU_PLL_EN_SHIFT 0
+#define CGU_PLL_EN_WIDTH 1
 
 /* JZ4780 PLL clock */
 static int jz4780_clk_pll_init(struct clknode *clk, device_t dev);
 static int jz4780_clk_pll_recalc_freq(struct clknode *clk, uint64_t *freq);
-static int jz4780_clk_pll_set_freq(struct clknode *clk, uint64_t fin,
-    uint64_t *fout, int flags, int *stop);
+static int jz4780_clk_pll_set_freq(
+    struct clknode *clk, uint64_t fin, uint64_t *fout, int flags, int *stop);
 
 struct jz4780_clk_pll_sc {
-	struct mtx	*clk_mtx;
+	struct mtx *clk_mtx;
 	struct resource *clk_res;
-	uint32_t	 clk_reg;
+	uint32_t clk_reg;
 };
 
 /*
  * JZ4780 PLL clock methods
  */
-static clknode_method_t jz4780_clk_pll_methods[] = {
-	CLKNODEMETHOD(clknode_init,		jz4780_clk_pll_init),
-	CLKNODEMETHOD(clknode_recalc_freq,	jz4780_clk_pll_recalc_freq),
-	CLKNODEMETHOD(clknode_set_freq,		jz4780_clk_pll_set_freq),
+static clknode_method_t jz4780_clk_pll_methods[] = { CLKNODEMETHOD(clknode_init,
+							 jz4780_clk_pll_init),
+	CLKNODEMETHOD(clknode_recalc_freq, jz4780_clk_pll_recalc_freq),
+	CLKNODEMETHOD(clknode_set_freq, jz4780_clk_pll_set_freq),
 
-	CLKNODEMETHOD_END
-};
+	CLKNODEMETHOD_END };
 DEFINE_CLASS_1(jz4780_clk_pll, jz4780_clk_pll_class, jz4780_clk_pll_methods,
-       sizeof(struct jz4780_clk_pll_sc), clknode_class);
+    sizeof(struct jz4780_clk_pll_sc), clknode_class);
 
 static int
 jz4780_clk_pll_init(struct clknode *clk, device_t dev)
@@ -145,15 +144,15 @@ jz4780_clk_pll_recalc_freq(struct clknode *clk, uint64_t *freq)
 	return (0);
 }
 
-#define MHZ		(1000 * 1000)
-#define PLL_TIMEOUT	100
+#define MHZ (1000 * 1000)
+#define PLL_TIMEOUT 100
 
 static int
 jz4780_clk_pll_wait_lock(struct jz4780_clk_pll_sc *sc)
 {
 	int i;
 
-	for (i = 0;  i < PLL_TIMEOUT; i++) {
+	for (i = 0; i < PLL_TIMEOUT; i++) {
 		if (CLK_RD_4(sc, sc->clk_reg) & REG_VAL(CGU_PLL_LOCK, 1))
 			return (0);
 		DELAY(1000);
@@ -162,8 +161,8 @@ jz4780_clk_pll_wait_lock(struct jz4780_clk_pll_sc *sc)
 }
 
 static int
-jz4780_clk_pll_set_freq(struct clknode *clk, uint64_t fin,
-    uint64_t *fout, int flags, int *stop)
+jz4780_clk_pll_set_freq(
+    struct clknode *clk, uint64_t fin, uint64_t *fout, int flags, int *stop)
 {
 	struct jz4780_clk_pll_sc *sc;
 	uint32_t reg, m, n, od;
@@ -183,7 +182,7 @@ jz4780_clk_pll_set_freq(struct clknode *clk, uint64_t fin,
 	if (flags & CLK_SET_DRYRUN) {
 		if (((flags & (CLK_SET_ROUND_UP | CLK_SET_ROUND_DOWN)) == 0) &&
 		    (*fout != (((fin / n) * m) / od)))
-		return (ERANGE);
+			return (ERANGE);
 
 		*fout = ((fin / n) * m) / od;
 		return (0);
@@ -214,9 +213,9 @@ jz4780_clk_pll_set_freq(struct clknode *clk, uint64_t fin,
 	return (0);
 }
 
-int jz4780_clk_pll_register(struct clkdom *clkdom,
-    struct clknode_init_def *clkdef, struct mtx *dev_mtx,
-    struct resource *mem_res, uint32_t mem_reg)
+int
+jz4780_clk_pll_register(struct clkdom *clkdom, struct clknode_init_def *clkdef,
+    struct mtx *dev_mtx, struct resource *mem_res, uint32_t mem_reg)
 {
 	struct clknode *clk;
 	struct jz4780_clk_pll_sc *sc;

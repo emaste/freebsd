@@ -34,24 +34,24 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_REG_H_
-#define	_MACHINE_REG_H_
+#ifndef _MACHINE_REG_H_
+#define _MACHINE_REG_H_
 
 struct reg {
-	uint64_t ra;		/* return address */
-	uint64_t sp;		/* stack pointer */
-	uint64_t gp;		/* global pointer */
-	uint64_t tp;		/* thread pointer */
-	uint64_t t[7];		/* temporaries */
-	uint64_t s[12];		/* saved registers */
-	uint64_t a[8];		/* function arguments */
-	uint64_t sepc;		/* exception program counter */
-	uint64_t sstatus;	/* status register */
+	uint64_t ra;	  /* return address */
+	uint64_t sp;	  /* stack pointer */
+	uint64_t gp;	  /* global pointer */
+	uint64_t tp;	  /* thread pointer */
+	uint64_t t[7];	  /* temporaries */
+	uint64_t s[12];	  /* saved registers */
+	uint64_t a[8];	  /* function arguments */
+	uint64_t sepc;	  /* exception program counter */
+	uint64_t sstatus; /* status register */
 };
 
 struct fpreg {
-	uint64_t	fp_x[32][2];	/* Floating point registers */
-	uint64_t	fp_fcsr;	/* Floating point control reg */
+	uint64_t fp_x[32][2]; /* Floating point registers */
+	uint64_t fp_fcsr;     /* Floating point control reg */
 };
 
 struct dbreg {
@@ -62,12 +62,12 @@ struct dbreg {
 /*
  * XXX these interfaces are MI, so they should be declared in a MI place.
  */
-int	fill_regs(struct thread *, struct reg *);
-int	set_regs(struct thread *, struct reg *);
-int	fill_fpregs(struct thread *, struct fpreg *);
-int	set_fpregs(struct thread *, struct fpreg *);
-int	fill_dbregs(struct thread *, struct dbreg *);
-int	set_dbregs(struct thread *, struct dbreg *);
+int fill_regs(struct thread *, struct reg *);
+int set_regs(struct thread *, struct reg *);
+int fill_fpregs(struct thread *, struct fpreg *);
+int set_fpregs(struct thread *, struct fpreg *);
+int fill_dbregs(struct thread *, struct dbreg *);
+int set_dbregs(struct thread *, struct dbreg *);
 #endif
 
 #endif /* !_MACHINE_REG_H_ */

@@ -32,7 +32,7 @@
  */
 
 #ifndef _ALTQ_ALTQ_RMCLASS_DEBUG_H_
-#define	_ALTQ_ALTQ_RMCLASS_DEBUG_H_
+#define _ALTQ_ALTQ_RMCLASS_DEBUG_H_
 
 /* #pragma ident	"@(#)rm_class_debug.h	1.7	98/05/04 SMI" */
 
@@ -44,9 +44,9 @@
 extern "C" {
 #endif
 
-#ifdef	CBQ_TRACE
+#ifdef CBQ_TRACE
 #ifndef NCBQTRACE
-#define	NCBQTRACE (16 * 1024)
+#define NCBQTRACE (16 * 1024)
 #endif
 
 /*
@@ -63,51 +63,54 @@ extern "C" {
 
 struct cbqtrace {
 	int count;
-	int function;		/* address of function */
-	int trace_action;	/* descriptive 4 characters */
-	int object;		/* object operated on */
+	int function;	  /* address of function */
+	int trace_action; /* descriptive 4 characters */
+	int object;	  /* object operated on */
 };
 
 extern struct cbqtrace cbqtrace_buffer[];
 extern struct cbqtrace *cbqtrace_ptr;
 extern int cbqtrace_count;
 
-#define	CBQTRACEINIT() {				\
-	if (cbqtrace_ptr == NULL)		\
-		cbqtrace_ptr = cbqtrace_buffer; \
-	else { \
-		cbqtrace_ptr = cbqtrace_buffer; \
-		bzero((void *)cbqtrace_ptr, sizeof(cbqtrace_buffer)); \
-		cbqtrace_count = 0; \
-	} \
-}
+#define CBQTRACEINIT()                                                        \
+	{                                                                     \
+		if (cbqtrace_ptr == NULL)                                     \
+			cbqtrace_ptr = cbqtrace_buffer;                       \
+		else {                                                        \
+			cbqtrace_ptr = cbqtrace_buffer;                       \
+			bzero((void *)cbqtrace_ptr, sizeof(cbqtrace_buffer)); \
+			cbqtrace_count = 0;                                   \
+		}                                                             \
+	}
 
-#define	LOCK_TRACE()	splimp()
-#define	UNLOCK_TRACE(x)	splx(x)
+#define LOCK_TRACE() splimp()
+#define UNLOCK_TRACE(x) splx(x)
 
-#define	CBQTRACE(func, act, obj) {		\
-	int __s = LOCK_TRACE();			\
-	int *_p = &cbqtrace_ptr->count;	\
-	*_p++ = ++cbqtrace_count;		\
-	*_p++ = (int)(func);			\
-	*_p++ = (int)(act);			\
-	*_p++ = (int)(obj);			\
-	if ((struct cbqtrace *)(void *)_p >= &cbqtrace_buffer[NCBQTRACE])\
-		cbqtrace_ptr = cbqtrace_buffer; \
-	else					\
-		cbqtrace_ptr = (struct cbqtrace *)(void *)_p; \
-	UNLOCK_TRACE(__s);			\
+#define CBQTRACE(func, act, obj)                                      \
+	{                                                             \
+		int __s = LOCK_TRACE();                               \
+		int *_p = &cbqtrace_ptr->count;                       \
+		*_p++ = ++cbqtrace_count;                             \
+		*_p++ = (int)(func);                                  \
+		*_p++ = (int)(act);                                   \
+		*_p++ = (int)(obj);                                   \
+		if ((struct cbqtrace *)(void *)_p >=                  \
+		    &cbqtrace_buffer[NCBQTRACE])                      \
+			cbqtrace_ptr = cbqtrace_buffer;               \
+		else                                                  \
+			cbqtrace_ptr = (struct cbqtrace *)(void *)_p; \
+		UNLOCK_TRACE(__s);                                    \
 	}
 #else
 
 /* If no tracing, define no-ops */
-#define	CBQTRACEINIT()
-#define	CBQTRACE(a, b, c)
+#define CBQTRACEINIT()
+#define CBQTRACE(a, b, c)
 
-#endif	/* !CBQ_TRACE */
+#endif /* !CBQ_TRACE */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif	/* _ALTQ_ALTQ_RMCLASS_DEBUG_H_ */
+#endif /* _ALTQ_ALTQ_RMCLASS_DEBUG_H_ */

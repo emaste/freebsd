@@ -41,53 +41,51 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "am335x_pwm.h"
 
-#define	ECAP_TSCTR		0x00
-#define	ECAP_CAP1		0x08
-#define	ECAP_CAP2		0x0C
-#define	ECAP_CAP3		0x10
-#define	ECAP_CAP4		0x14
-#define	ECAP_ECCTL2		0x2A
-#define		ECCTL2_MODE_APWM		(1 << 9)
-#define		ECCTL2_SYNCO_SEL		(3 << 6)
-#define		ECCTL2_TSCTRSTOP_FREERUN	(1 << 4)
+#define ECAP_TSCTR 0x00
+#define ECAP_CAP1 0x08
+#define ECAP_CAP2 0x0C
+#define ECAP_CAP3 0x10
+#define ECAP_CAP4 0x14
+#define ECAP_ECCTL2 0x2A
+#define ECCTL2_MODE_APWM (1 << 9)
+#define ECCTL2_SYNCO_SEL (3 << 6)
+#define ECCTL2_TSCTRSTOP_FREERUN (1 << 4)
 
-#define	ECAP_READ2(_sc, reg)	bus_read_2((_sc)->sc_mem_res, reg);
-#define	ECAP_WRITE2(_sc, reg, value)	\
-    bus_write_2((_sc)->sc_mem_res, reg, value);
-#define	ECAP_READ4(_sc, reg)	bus_read_4((_sc)->sc_mem_res, reg);
-#define	ECAP_WRITE4(_sc, reg, value)	\
-    bus_write_4((_sc)->sc_mem_res, reg, value);
+#define ECAP_READ2(_sc, reg) bus_read_2((_sc)->sc_mem_res, reg);
+#define ECAP_WRITE2(_sc, reg, value) bus_write_2((_sc)->sc_mem_res, reg, value);
+#define ECAP_READ4(_sc, reg) bus_read_4((_sc)->sc_mem_res, reg);
+#define ECAP_WRITE4(_sc, reg, value) bus_write_4((_sc)->sc_mem_res, reg, value);
 
-#define	PWM_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	PWM_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define	PWM_LOCK_INIT(_sc)	mtx_init(&(_sc)->sc_mtx, \
-    device_get_nameunit(_sc->sc_dev), "am335x_ecap softc", MTX_DEF)
-#define	PWM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
+#define PWM_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define PWM_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
+#define PWM_LOCK_INIT(_sc)                                         \
+	mtx_init(&(_sc)->sc_mtx, device_get_nameunit(_sc->sc_dev), \
+	    "am335x_ecap softc", MTX_DEF)
+#define PWM_LOCK_DESTROY(_sc) mtx_destroy(&(_sc)->sc_mtx)
 
 static device_probe_t am335x_ecap_probe;
 static device_attach_t am335x_ecap_attach;
 static device_detach_t am335x_ecap_detach;
 
 struct am335x_ecap_softc {
-	device_t		sc_dev;
-	struct mtx		sc_mtx;
-	struct resource		*sc_mem_res;
-	int			sc_mem_rid;
+	device_t sc_dev;
+	struct mtx sc_mtx;
+	struct resource *sc_mem_res;
+	int sc_mem_rid;
 };
 
-static device_method_t am335x_ecap_methods[] = {
-	DEVMETHOD(device_probe,		am335x_ecap_probe),
-	DEVMETHOD(device_attach,	am335x_ecap_attach),
-	DEVMETHOD(device_detach,	am335x_ecap_detach),
+static device_method_t am335x_ecap_methods[] = { DEVMETHOD(device_probe,
+						     am335x_ecap_probe),
+	DEVMETHOD(device_attach, am335x_ecap_attach),
+	DEVMETHOD(device_detach, am335x_ecap_detach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t am335x_ecap_driver = {
 	"am335x_ecap",
@@ -162,8 +160,8 @@ am335x_ecap_attach(device_t dev)
 
 	PWM_LOCK_INIT(sc);
 
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->sc_mem_rid, RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->sc_mem_rid, RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {
 		device_printf(dev, "cannot allocate memory resources\n");
 		goto fail;
@@ -185,8 +183,8 @@ am335x_ecap_detach(device_t dev)
 
 	PWM_LOCK(sc);
 	if (sc->sc_mem_res)
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    sc->sc_mem_rid, sc->sc_mem_res);
+		bus_release_resource(
+		    dev, SYS_RES_MEMORY, sc->sc_mem_rid, sc->sc_mem_res);
 	PWM_UNLOCK(sc);
 
 	PWM_LOCK_DESTROY(sc);
@@ -194,6 +192,7 @@ am335x_ecap_detach(device_t dev)
 	return (0);
 }
 
-DRIVER_MODULE(am335x_ecap, am335x_pwmss, am335x_ecap_driver, am335x_ecap_devclass, 0, 0);
+DRIVER_MODULE(
+    am335x_ecap, am335x_pwmss, am335x_ecap_driver, am335x_ecap_devclass, 0, 0);
 MODULE_VERSION(am335x_ecap, 1);
 MODULE_DEPEND(am335x_ecap, am335x_pwmss, 1, 1, 1);

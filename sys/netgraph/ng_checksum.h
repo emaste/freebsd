@@ -30,18 +30,18 @@
 #define _NETGRAPH_NG_CHECKSUM_H_
 
 /* Node type name. */
-#define	NG_CHECKSUM_NODE_TYPE	"checksum"
+#define NG_CHECKSUM_NODE_TYPE "checksum"
 
 /* Node type cookie. */
-#define	NGM_CHECKSUM_COOKIE	439419912
+#define NGM_CHECKSUM_COOKIE 439419912
 
 /* Hook names */
-#define	NG_CHECKSUM_HOOK_IN	"in"
-#define	NG_CHECKSUM_HOOK_OUT	"out"
+#define NG_CHECKSUM_HOOK_IN "in"
+#define NG_CHECKSUM_HOOK_OUT "out"
 
 /* Checksum flags */
-#define NG_CHECKSUM_CSUM_IPV4	(CSUM_IP|CSUM_TCP|CSUM_UDP)
-#define NG_CHECKSUM_CSUM_IPV6	(CSUM_TCP_IPV6|CSUM_UDP_IPV6)
+#define NG_CHECKSUM_CSUM_IPV4 (CSUM_IP | CSUM_TCP | CSUM_UDP)
+#define NG_CHECKSUM_CSUM_IPV6 (CSUM_TCP_IPV6 | CSUM_UDP_IPV6)
 
 /* Netgraph commands understood by this node type */
 enum {
@@ -56,28 +56,34 @@ enum {
 
 /* Parsing declarations */
 
-#define	NG_CHECKSUM_CONFIG_TYPE {				\
-	{ "csum_flags",		&ng_parse_uint64_type	},	\
-	{ "csum_offload",	&ng_parse_uint64_type	},	\
-	{ NULL }						\
-}
+#define NG_CHECKSUM_CONFIG_TYPE                                \
+	{                                                      \
+		{ "csum_flags", &ng_parse_uint64_type },       \
+		    { "csum_offload", &ng_parse_uint64_type }, \
+		{                                              \
+			NULL                                   \
+		}                                              \
+	}
 
-#define	NG_CHECKSUM_STATS_TYPE {				\
-	{ "Received",		&ng_parse_uint64_type	},	\
-	{ "Processed",		&ng_parse_uint64_type	},	\
-	{ "Dropped",		&ng_parse_uint64_type	},	\
-	{ NULL }					\
-}
+#define NG_CHECKSUM_STATS_TYPE                              \
+	{                                                   \
+		{ "Received", &ng_parse_uint64_type },      \
+		    { "Processed", &ng_parse_uint64_type }, \
+		    { "Dropped", &ng_parse_uint64_type },   \
+		{                                           \
+			NULL                                \
+		}                                           \
+	}
 
 struct ng_checksum_config {
-	uint64_t	csum_flags;
-	uint64_t	csum_offload;
+	uint64_t csum_flags;
+	uint64_t csum_offload;
 };
 
 struct ng_checksum_stats {
-	uint64_t	received;
-	uint64_t	processed;
-	uint64_t	dropped;
+	uint64_t received;
+	uint64_t processed;
+	uint64_t dropped;
 };
 
 struct ng_checksum_vlan_header {

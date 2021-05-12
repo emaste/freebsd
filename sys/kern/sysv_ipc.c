@@ -43,11 +43,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sem.h>
-#include <sys/shm.h>
 #include <sys/ipc.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
 #include <sys/ucred.h>
 
 #ifndef SYSVSHM
@@ -55,9 +55,7 @@ void (*shmfork_hook)(struct proc *, struct proc *) = NULL;
 void (*shmexit_hook)(struct vmspace *) = NULL;
 
 /* called from kern_fork.c */
-void
-shmfork(p1, p2)
-	struct proc *p1, *p2;
+void shmfork(p1, p2) struct proc *p1, *p2;
 {
 
 	if (shmfork_hook != NULL)
@@ -186,6 +184,7 @@ ipcperm_new2old(struct ipc_perm *new, struct ipc_perm_old *old)
 #ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <sys/socket.h>
+
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_ipc.h>
 #include <compat/freebsd32/freebsd32_proto.h>

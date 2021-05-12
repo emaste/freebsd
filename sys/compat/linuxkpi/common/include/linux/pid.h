@@ -26,45 +26,43 @@
  * $FreeBSD$
  */
 
-#ifndef	_LINUX_PID_H_
-#define	_LINUX_PID_H_
+#ifndef _LINUX_PID_H_
+#define _LINUX_PID_H_
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 
-enum pid_type {
-	PIDTYPE_PID,
-	PIDTYPE_PGID,
-	PIDTYPE_SID,
-	PIDTYPE_MAX
-};
+enum pid_type { PIDTYPE_PID, PIDTYPE_PGID, PIDTYPE_SID, PIDTYPE_MAX };
 
-#define	pid_nr(n) (n)
-#define	pid_vnr(n) (n)
-#define	from_kuid_munged(a, uid) (uid)
+#define pid_nr(n) (n)
+#define pid_vnr(n) (n)
+#define from_kuid_munged(a, uid) (uid)
 
-#define	pid_task(pid, type) ({			\
-	struct task_struct *__ts;		\
-	CTASSERT((type) == PIDTYPE_PID);	\
-	__ts = linux_pid_task(pid);		\
-	__ts;					\
-})
+#define pid_task(pid, type)                      \
+	({                                       \
+		struct task_struct *__ts;        \
+		CTASSERT((type) == PIDTYPE_PID); \
+		__ts = linux_pid_task(pid);      \
+		__ts;                            \
+	})
 
-#define	get_pid_task(pid, type) ({		\
-	struct task_struct *__ts;		\
-	CTASSERT((type) == PIDTYPE_PID);	\
-	__ts = linux_get_pid_task(pid);		\
-	__ts;					\
-})
+#define get_pid_task(pid, type)                  \
+	({                                       \
+		struct task_struct *__ts;        \
+		CTASSERT((type) == PIDTYPE_PID); \
+		__ts = linux_get_pid_task(pid);  \
+		__ts;                            \
+	})
 
-#define	get_task_pid(task, type) ({		\
-	CTASSERT((type) == PIDTYPE_PID);	\
-	(task)->task_thread->td_tid;		\
-})
+#define get_task_pid(task, type)                 \
+	({                                       \
+		CTASSERT((type) == PIDTYPE_PID); \
+		(task)->task_thread->td_tid;     \
+	})
 
 struct task_struct;
 extern struct task_struct *linux_pid_task(pid_t);
 extern struct task_struct *linux_get_pid_task(pid_t);
 
-#endif					/* _LINUX_PID_H_ */
+#endif /* _LINUX_PID_H_ */

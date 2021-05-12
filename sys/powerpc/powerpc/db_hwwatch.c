@@ -30,11 +30,11 @@
 
 #include <vm/vm.h>
 
-#include <ddb/ddb.h>
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
 #include <ddb/db_watch.h>
+#include <ddb/ddb.h>
 
 void
 db_md_list_watchpoints(void)

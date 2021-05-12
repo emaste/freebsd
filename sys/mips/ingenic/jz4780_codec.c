@@ -35,44 +35,40 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
-#include <sys/gpio.h>
 
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
 #include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/gpio/gpiobusvar.h>
-
-#include <dev/extres/clk/clk.h>
-
-#include <mips/ingenic/jz4780_common.h>
 #include <mips/ingenic/jz4780_codec.h>
+#include <mips/ingenic/jz4780_common.h>
 
-#define	CI20_HP_PIN	13
-#define	CI20_HP_PORT	3
+#define CI20_HP_PIN 13
+#define CI20_HP_PORT 3
 
 struct codec_softc {
-	device_t		dev;
-	struct resource		*res[1];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	clk_t			clk;
+	device_t dev;
+	struct resource *res[1];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	clk_t clk;
 };
 
-static struct resource_spec codec_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec codec_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 static int codec_probe(device_t dev);
 static int codec_attach(device_t dev);
@@ -92,7 +88,7 @@ codec_write(struct codec_softc *sc, uint32_t reg, uint32_t val)
 
 	WRITE4(sc, CODEC_RGADW, tmp);
 
-	while(READ4(sc, CODEC_RGADW) & RGADW_RGWR)
+	while (READ4(sc, CODEC_RGADW) & RGADW_RGWR)
 		;
 
 	clk_disable(sc->clk);
@@ -186,15 +182,15 @@ ci20_hp_unmute(struct codec_softc *sc)
 
 	err = GPIO_PIN_SETFLAGS(dev, pin, GPIO_PIN_OUTPUT);
 	if (err != 0) {
-		device_printf(dev, "Cannot configure GPIO pin %d on %s\n",
-		    pin, device_get_nameunit(dev));
+		device_printf(dev, "Cannot configure GPIO pin %d on %s\n", pin,
+		    device_get_nameunit(dev));
 		return (err);
 	}
 
 	err = GPIO_PIN_SET(dev, pin, 0);
 	if (err != 0) {
-		device_printf(dev, "Cannot configure GPIO pin %d on %s\n",
-		    pin, device_get_nameunit(dev));
+		device_printf(dev, "Cannot configure GPIO pin %d on %s\n", pin,
+		    device_get_nameunit(dev));
 		return (err);
 	}
 
@@ -292,9 +288,9 @@ codec_detach(device_t dev)
 
 static device_method_t codec_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,			codec_probe),
-	DEVMETHOD(device_attach,		codec_attach),
-	DEVMETHOD(device_detach,		codec_detach),
+	DEVMETHOD(device_probe, codec_probe),
+	DEVMETHOD(device_attach, codec_attach),
+	DEVMETHOD(device_detach, codec_detach),
 
 	DEVMETHOD_END
 };

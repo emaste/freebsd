@@ -36,52 +36,49 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/malloc.h>
 #include <sys/endian.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
-
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#define	READ4(_sc, _reg)	\
-	bus_space_read_4(_sc->bst, _sc->bsh, _reg)
-#define	WRITE4(_sc, _reg, _val)	\
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
+#define READ4(_sc, _reg) bus_space_read_4(_sc->bst, _sc->bsh, _reg)
+#define WRITE4(_sc, _reg, _val) \
 	bus_space_write_4(_sc->bst, _sc->bsh, _reg, _val)
 
-#define	AUDMUX_PTCR(n)	(0x8 * (n - 1))	/* Port Timing Control Register */
-#define	 PTCR_TFS_DIR	(1 << 31)	/* Transmit Frame Sync Direction Control */
-#define	 PTCR_TFSEL_S	27		/* Transmit Frame Sync Select */
-#define	 PTCR_TFSEL_M	0xf
-#define	 PTCR_TCLKDIR	(1 << 26)	/* Transmit Clock Direction Control */
-#define	 PTCR_TCSEL_S	22		/* Transmit Clock Select. */
-#define	 PTCR_TCSEL_M	0xf
-#define	 PTCR_RFS_DIR	(1 << 21)	/* Receive Frame Sync Direction Control */
-#define	 PTCR_SYN	(1 << 11)
-#define	AUDMUX_PDCR(n)	(0x8 * (n - 1) + 0x4)	/* Port Data Control Reg */
-#define	 PDCR_RXDSEL_S		13	/* Receive Data Select */
-#define	 PDCR_RXDSEL_M		0x3
-#define	 PDCR_RXDSEL_PORT(n)	(n - 1)
+#define AUDMUX_PTCR(n) (0x8 * (n - 1)) /* Port Timing Control Register */
+#define PTCR_TFS_DIR (1 << 31) /* Transmit Frame Sync Direction Control */
+#define PTCR_TFSEL_S 27 /* Transmit Frame Sync Select */
+#define PTCR_TFSEL_M 0xf
+#define PTCR_TCLKDIR (1 << 26) /* Transmit Clock Direction Control */
+#define PTCR_TCSEL_S 22 /* Transmit Clock Select. */
+#define PTCR_TCSEL_M 0xf
+#define PTCR_RFS_DIR (1 << 21) /* Receive Frame Sync Direction Control */
+#define PTCR_SYN (1 << 11)
+#define AUDMUX_PDCR(n) (0x8 * (n - 1) + 0x4) /* Port Data Control Reg */
+#define PDCR_RXDSEL_S 13 /* Receive Data Select */
+#define PDCR_RXDSEL_M 0x3
+#define PDCR_RXDSEL_PORT(n) (n - 1)
 
 struct audmux_softc {
-	struct resource		*res[1];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	void			*ih;
+	struct resource *res[1];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	void *ih;
 };
 
-static struct resource_spec audmux_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec audmux_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 static int
 audmux_probe(device_t dev)
@@ -98,8 +95,7 @@ audmux_probe(device_t dev)
 }
 
 static int
-audmux_configure(struct audmux_softc *sc,
-	int ssi_port, int audmux_port)
+audmux_configure(struct audmux_softc *sc, int ssi_port, int audmux_port)
 {
 	uint32_t reg;
 
@@ -141,9 +137,8 @@ audmux_attach(device_t dev)
 
 static device_method_t audmux_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		audmux_probe),
-	DEVMETHOD(device_attach,	audmux_attach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, audmux_probe),
+	DEVMETHOD(device_attach, audmux_attach), { 0, 0 }
 };
 
 static driver_t audmux_driver = {

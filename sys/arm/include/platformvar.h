@@ -70,14 +70,14 @@ struct platform_kobj {
 	struct platform_class *cls;
 };
 
-typedef struct platform_kobj	*platform_t;
-typedef struct platform_class	platform_def_t;
-#define platform_method_t	kobj_method_t
+typedef struct platform_kobj *platform_t;
+typedef struct platform_class platform_def_t;
+#define platform_method_t kobj_method_t
 
-#define PLATFORMMETHOD		KOBJMETHOD
-#define	PLATFORMMETHOD_END	KOBJMETHOD_END
+#define PLATFORMMETHOD KOBJMETHOD
+#define PLATFORMMETHOD_END KOBJMETHOD_END
 
-#define PLATFORM_DEF(name)	DATA_SET(platform_set, name)
+#define PLATFORM_DEF(name) DATA_SET(platform_set, name)
 
 #ifdef FDT
 struct fdt_platform_class {
@@ -90,27 +90,28 @@ typedef struct fdt_platform_class fdt_platform_def_t;
 
 extern platform_method_t fdt_platform_methods[];
 
-#define FDT_PLATFORM_DEF2(NAME, VAR_NAME, NAME_STR, _size, _compatible,	\
-    _delay)								\
-CTASSERT(_delay > 0);							\
-static fdt_platform_def_t VAR_NAME ## _fdt_platform = {			\
-	.name = NAME_STR,						\
-	.methods = fdt_platform_methods,				\
-	.fdt_compatible = _compatible,					\
-};									\
-static kobj_class_t VAR_NAME ## _baseclasses[] =			\
-	{ (kobj_class_t)&VAR_NAME ## _fdt_platform, NULL };		\
-static platform_def_t VAR_NAME ## _platform = {				\
-	.name = NAME_STR,						\
-	.methods = NAME ## _methods,					\
-	.size = _size,							\
-	.baseclasses = VAR_NAME ## _baseclasses,			\
-	.delay_count = _delay,						\
-};									\
-DATA_SET(platform_set, VAR_NAME ## _platform)
+#define FDT_PLATFORM_DEF2(                                    \
+    NAME, VAR_NAME, NAME_STR, _size, _compatible, _delay)     \
+	CTASSERT(_delay > 0);                                 \
+	static fdt_platform_def_t VAR_NAME##_fdt_platform = { \
+		.name = NAME_STR,                             \
+		.methods = fdt_platform_methods,              \
+		.fdt_compatible = _compatible,                \
+	};                                                    \
+	static kobj_class_t VAR_NAME##_baseclasses[] = {      \
+		(kobj_class_t)&VAR_NAME##_fdt_platform, NULL  \
+	};                                                    \
+	static platform_def_t VAR_NAME##_platform = {         \
+		.name = NAME_STR,                             \
+		.methods = NAME##_methods,                    \
+		.size = _size,                                \
+		.baseclasses = VAR_NAME##_baseclasses,        \
+		.delay_count = _delay,                        \
+	};                                                    \
+	DATA_SET(platform_set, VAR_NAME##_platform)
 
-#define	FDT_PLATFORM_DEF(NAME, NAME_STR, size, compatible, delay)	\
-    FDT_PLATFORM_DEF2(NAME, NAME, NAME_STR, size, compatible, delay)
+#define FDT_PLATFORM_DEF(NAME, NAME_STR, size, compatible, delay) \
+	FDT_PLATFORM_DEF2(NAME, NAME, NAME_STR, size, compatible, delay)
 
 #endif
 

@@ -25,7 +25,7 @@
  */
 
 #ifndef _AW_MP_H_
-#define	_AW_MP_H_
+#define _AW_MP_H_
 
 void aw_mp_setmaxid(platform_t plat);
 void aw_mp_start_ap(platform_t plat);

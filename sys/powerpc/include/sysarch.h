@@ -32,13 +32,13 @@
  */
 
 #ifndef _MACHINE_SYSARCH_H_
-#define	_MACHINE_SYSARCH_H_
+#define _MACHINE_SYSARCH_H_
 
 #ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	sysarch(int, void *);
+int sysarch(int, void *);
 __END_DECLS
 #endif
 

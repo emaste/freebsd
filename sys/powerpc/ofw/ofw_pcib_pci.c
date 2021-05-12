@@ -32,41 +32,40 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
-
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_pci.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcib_private.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 
 #include <machine/intr_machdep.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/pci/pcib_private.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
 #include "pcib_if.h"
 
-static int	ofw_pcib_pci_probe(device_t bus);
-static int	ofw_pcib_pci_attach(device_t bus);
+static int ofw_pcib_pci_probe(device_t bus);
+static int ofw_pcib_pci_attach(device_t bus);
 static phandle_t ofw_pcib_pci_get_node(device_t bus, device_t dev);
-static int	ofw_pcib_pci_route_interrupt(device_t bridge, device_t dev,
-		    int intpin);
+static int ofw_pcib_pci_route_interrupt(
+    device_t bridge, device_t dev, int intpin);
 
 static device_method_t ofw_pcib_pci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ofw_pcib_pci_probe),
-	DEVMETHOD(device_attach,	ofw_pcib_pci_attach),
+	DEVMETHOD(device_probe, ofw_pcib_pci_probe),
+	DEVMETHOD(device_attach, ofw_pcib_pci_attach),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_route_interrupt,	ofw_pcib_pci_route_interrupt),
-	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
+	DEVMETHOD(pcib_route_interrupt, ofw_pcib_pci_route_interrupt),
+	DEVMETHOD(pcib_request_feature, pcib_request_feature_allow),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	ofw_pcib_pci_get_node),
+	DEVMETHOD(ofw_bus_get_node, ofw_pcib_pci_get_node),
 
 	DEVMETHOD_END
 };
@@ -74,20 +73,20 @@ static device_method_t ofw_pcib_pci_methods[] = {
 static devclass_t pcib_devclass;
 
 struct ofw_pcib_softc {
-        /*
-         * This is here so that we can use pci bridge methods, too - the
-         * generic routines only need the dev, secbus and subbus members
-         * filled.
-         */
-        struct pcib_softc       ops_pcib_sc;
-	phandle_t		ops_node;
-        struct ofw_bus_iinfo    ops_iinfo;
+	/*
+	 * This is here so that we can use pci bridge methods, too - the
+	 * generic routines only need the dev, secbus and subbus members
+	 * filled.
+	 */
+	struct pcib_softc ops_pcib_sc;
+	phandle_t ops_node;
+	struct ofw_bus_iinfo ops_iinfo;
 };
 
 DEFINE_CLASS_1(pcib, ofw_pcib_pci_driver, ofw_pcib_pci_methods,
     sizeof(struct ofw_pcib_softc), pcib_driver);
-EARLY_DRIVER_MODULE(ofw_pcib, pci, ofw_pcib_pci_driver, pcib_devclass, 0, 0,
-    BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(
+    ofw_pcib, pci, ofw_pcib_pci_driver, pcib_devclass, 0, 0, BUS_PASS_BUS);
 
 static int
 ofw_pcib_pci_probe(device_t dev)
@@ -114,8 +113,7 @@ ofw_pcib_pci_attach(device_t dev)
 	sc->ops_pcib_sc.dev = dev;
 	sc->ops_node = ofw_bus_get_node(dev);
 
-	ofw_bus_setup_iinfo(sc->ops_node, &sc->ops_iinfo,
-	    sizeof(cell_t));
+	ofw_bus_setup_iinfo(sc->ops_node, &sc->ops_iinfo, sizeof(cell_t));
 
 	pcib_attach_common(dev);
 	return (pcib_attach_child(dev));
@@ -159,8 +157,8 @@ ofw_pcib_pci_route_interrupt(device_t bridge, device_t dev, int intpin)
 			 * it again on higher levels - that causes problems
 			 * in some cases, and never seems to be required.
 			 */
-			mintr[0] = ofw_bus_map_intr(dev, iparent, intrcells,
-			    mintr);
+			mintr[0] = ofw_bus_map_intr(
+			    dev, iparent, intrcells, mintr);
 			return (mintr[0]);
 		}
 	} else if (intpin >= 1 && intpin <= 4) {
@@ -170,6 +168,6 @@ ofw_pcib_pci_route_interrupt(device_t bridge, device_t dev, int intpin)
 		 */
 		return (pcib_route_interrupt(bridge, dev, intpin));
 	}
-	return (PCIB_ROUTE_INTERRUPT(device_get_parent(device_get_parent(
-	    bridge)), bridge, intpin));
+	return (PCIB_ROUTE_INTERRUPT(
+	    device_get_parent(device_get_parent(bridge)), bridge, intpin));
 }

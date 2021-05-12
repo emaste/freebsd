@@ -32,27 +32,26 @@
  */
 
 #ifndef _NET_BPF_ZEROCOPY_H_
-#define	_NET_BPF_ZEROCOPY_H_
+#define _NET_BPF_ZEROCOPY_H_
 
 #ifndef _KERNEL
 #error "no user-serviceable parts inside"
 #endif
 
-void	bpf_zerocopy_append_bytes(struct bpf_d *d, caddr_t buf, u_int offset,
-	    void *src, u_int len);
-void	bpf_zerocopy_append_mbuf(struct bpf_d *d, caddr_t buf, u_int offset,
-	    void *src, u_int len);
-void	bpf_zerocopy_buffull(struct bpf_d *);
-void	bpf_zerocopy_bufheld(struct bpf_d *);
-void	bpf_zerocopy_buf_reclaimed(struct bpf_d *);
-int	bpf_zerocopy_canfreebuf(struct bpf_d *);
-int	bpf_zerocopy_canwritebuf(struct bpf_d *);
-void	bpf_zerocopy_free(struct bpf_d *d);
-int	bpf_zerocopy_ioctl_getzmax(struct thread *td, struct bpf_d *d,
-	    size_t *i);
-int	bpf_zerocopy_ioctl_rotzbuf(struct thread *td, struct bpf_d *d,
-	    struct bpf_zbuf *bz);
-int	bpf_zerocopy_ioctl_setzbuf(struct thread *td, struct bpf_d *d,
-	    struct bpf_zbuf *bz);
+void bpf_zerocopy_append_bytes(
+    struct bpf_d *d, caddr_t buf, u_int offset, void *src, u_int len);
+void bpf_zerocopy_append_mbuf(
+    struct bpf_d *d, caddr_t buf, u_int offset, void *src, u_int len);
+void bpf_zerocopy_buffull(struct bpf_d *);
+void bpf_zerocopy_bufheld(struct bpf_d *);
+void bpf_zerocopy_buf_reclaimed(struct bpf_d *);
+int bpf_zerocopy_canfreebuf(struct bpf_d *);
+int bpf_zerocopy_canwritebuf(struct bpf_d *);
+void bpf_zerocopy_free(struct bpf_d *d);
+int bpf_zerocopy_ioctl_getzmax(struct thread *td, struct bpf_d *d, size_t *i);
+int bpf_zerocopy_ioctl_rotzbuf(
+    struct thread *td, struct bpf_d *d, struct bpf_zbuf *bz);
+int bpf_zerocopy_ioctl_setzbuf(
+    struct thread *td, struct bpf_d *d, struct bpf_zbuf *bz);
 
 #endif /* !_NET_BPF_ZEROCOPY_H_ */

@@ -39,38 +39,37 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/queue.h>
 
-#include <rpc/rpc.h>
 #include <rpc/replay.h>
+#include <rpc/rpc.h>
 
 struct replay_cache_entry {
-	int		rce_hash;
-	struct rpc_msg	rce_msg;
+	int rce_hash;
+	struct rpc_msg rce_msg;
 	struct sockaddr_storage rce_addr;
-	struct rpc_msg	rce_repmsg;
-	struct mbuf	*rce_repbody;
+	struct rpc_msg rce_repmsg;
+	struct mbuf *rce_repbody;
 
 	TAILQ_ENTRY(replay_cache_entry) rce_link;
 	TAILQ_ENTRY(replay_cache_entry) rce_alllink;
 };
 TAILQ_HEAD(replay_cache_list, replay_cache_entry);
 
-static struct replay_cache_entry *
-		replay_alloc(struct replay_cache *rc, struct rpc_msg *msg,
-		    struct sockaddr *addr, int h);
-static void	replay_free(struct replay_cache *rc,
-    struct replay_cache_entry *rce);
-static void	replay_prune(struct replay_cache *rc);
+static struct replay_cache_entry *replay_alloc(
+    struct replay_cache *rc, struct rpc_msg *msg, struct sockaddr *addr, int h);
+static void replay_free(
+    struct replay_cache *rc, struct replay_cache_entry *rce);
+static void replay_prune(struct replay_cache *rc);
 
-#define REPLAY_HASH_SIZE	256
-#define REPLAY_MAX		1024
+#define REPLAY_HASH_SIZE 256
+#define REPLAY_MAX 1024
 
 struct replay_cache {
-	struct replay_cache_list	rc_cache[REPLAY_HASH_SIZE];
-	struct replay_cache_list	rc_all;
-	struct mtx			rc_lock;
-	int				rc_count;
-	size_t				rc_size;
-	size_t				rc_maxsize;
+	struct replay_cache_list rc_cache[REPLAY_HASH_SIZE];
+	struct replay_cache_list rc_all;
+	struct mtx rc_lock;
+	int rc_count;
+	size_t rc_size;
+	size_t rc_maxsize;
 };
 
 struct replay_cache *
@@ -79,7 +78,7 @@ replay_newcache(size_t maxsize)
 	struct replay_cache *rc;
 	int i;
 
-	rc = malloc(sizeof(*rc), M_RPC, M_WAITOK|M_ZERO);
+	rc = malloc(sizeof(*rc), M_RPC, M_WAITOK | M_ZERO);
 	for (i = 0; i < REPLAY_HASH_SIZE; i++)
 		TAILQ_INIT(&rc->rc_cache[i]);
 	TAILQ_INIT(&rc->rc_all);
@@ -111,15 +110,15 @@ replay_freecache(struct replay_cache *rc)
 }
 
 static struct replay_cache_entry *
-replay_alloc(struct replay_cache *rc,
-    struct rpc_msg *msg, struct sockaddr *addr, int h)
+replay_alloc(
+    struct replay_cache *rc, struct rpc_msg *msg, struct sockaddr *addr, int h)
 {
 	struct replay_cache_entry *rce;
 
 	mtx_assert(&rc->rc_lock, MA_OWNED);
 
 	rc->rc_count++;
-	rce = malloc(sizeof(*rce), M_RPC, M_NOWAIT|M_ZERO);
+	rce = malloc(sizeof(*rce), M_RPC, M_NOWAIT | M_ZERO);
 	if (!rce)
 		return (NULL);
 	rce->rce_hash = h;
@@ -162,32 +161,32 @@ replay_prune(struct replay_cache *rc)
 		/*
 		 * Try to free an entry. Don't free in-progress entries.
 		 */
-		TAILQ_FOREACH_REVERSE(rce, &rc->rc_all, replay_cache_list,
-		    rce_alllink) {
+		TAILQ_FOREACH_REVERSE (
+		    rce, &rc->rc_all, replay_cache_list, rce_alllink) {
 			if (rce->rce_repmsg.rm_xid)
 				break;
 		}
 		if (rce)
 			replay_free(rc, rce);
-	} while (rce && (rc->rc_count >= REPLAY_MAX
-	    || rc->rc_size > rc->rc_maxsize));
+	} while (rce &&
+	    (rc->rc_count >= REPLAY_MAX || rc->rc_size > rc->rc_maxsize));
 }
 
 enum replay_state
-replay_find(struct replay_cache *rc, struct rpc_msg *msg,
-    struct sockaddr *addr, struct rpc_msg *repmsg, struct mbuf **mp)
+replay_find(struct replay_cache *rc, struct rpc_msg *msg, struct sockaddr *addr,
+    struct rpc_msg *repmsg, struct mbuf **mp)
 {
 	int h = HASHSTEP(HASHINIT, msg->rm_xid) % REPLAY_HASH_SIZE;
 	struct replay_cache_entry *rce;
 
 	mtx_lock(&rc->rc_lock);
-	TAILQ_FOREACH(rce, &rc->rc_cache[h], rce_link) {
-		if (rce->rce_msg.rm_xid == msg->rm_xid
-		    && rce->rce_msg.rm_call.cb_prog == msg->rm_call.cb_prog	
-		    && rce->rce_msg.rm_call.cb_vers == msg->rm_call.cb_vers
-		    && rce->rce_msg.rm_call.cb_proc == msg->rm_call.cb_proc
-		    && rce->rce_addr.ss_len == addr->sa_len
-		    && bcmp(&rce->rce_addr, addr, addr->sa_len) == 0) {
+	TAILQ_FOREACH (rce, &rc->rc_cache[h], rce_link) {
+		if (rce->rce_msg.rm_xid == msg->rm_xid &&
+		    rce->rce_msg.rm_call.cb_prog == msg->rm_call.cb_prog &&
+		    rce->rce_msg.rm_call.cb_vers == msg->rm_call.cb_vers &&
+		    rce->rce_msg.rm_call.cb_proc == msg->rm_call.cb_proc &&
+		    rce->rce_addr.ss_len == addr->sa_len &&
+		    bcmp(&rce->rce_addr, addr, addr->sa_len) == 0) {
 			if (rce->rce_repmsg.rm_xid) {
 				/*
 				 * We have a reply for this
@@ -195,12 +194,12 @@ replay_find(struct replay_cache *rc, struct rpc_msg *msg,
 				 * replay_all LRU sorted
 				 */
 				TAILQ_REMOVE(&rc->rc_all, rce, rce_alllink);
-				TAILQ_INSERT_HEAD(&rc->rc_all, rce,
-				    rce_alllink);
+				TAILQ_INSERT_HEAD(
+				    &rc->rc_all, rce, rce_alllink);
 				*repmsg = rce->rce_repmsg;
 				if (rce->rce_repbody) {
-					*mp = m_copym(rce->rce_repbody,
-					    0, M_COPYALL, M_NOWAIT);
+					*mp = m_copym(rce->rce_repbody, 0,
+					    M_COPYALL, M_NOWAIT);
 					mtx_unlock(&rc->rc_lock);
 					if (!*mp)
 						return (RS_ERROR);
@@ -228,8 +227,8 @@ replay_find(struct replay_cache *rc, struct rpc_msg *msg,
 }
 
 void
-replay_setreply(struct replay_cache *rc,
-    struct rpc_msg *repmsg, struct sockaddr *addr, struct mbuf *m)
+replay_setreply(struct replay_cache *rc, struct rpc_msg *repmsg,
+    struct sockaddr *addr, struct mbuf *m)
 {
 	int h = HASHSTEP(HASHINIT, repmsg->rm_xid) % REPLAY_HASH_SIZE;
 	struct replay_cache_entry *rce;
@@ -241,10 +240,10 @@ replay_setreply(struct replay_cache *rc,
 		m = m_copym(m, 0, M_COPYALL, M_WAITOK);
 
 	mtx_lock(&rc->rc_lock);
-	TAILQ_FOREACH(rce, &rc->rc_cache[h], rce_link) {
-		if (rce->rce_msg.rm_xid == repmsg->rm_xid
-		    && rce->rce_addr.ss_len == addr->sa_len
-		    && bcmp(&rce->rce_addr, addr, addr->sa_len) == 0) {
+	TAILQ_FOREACH (rce, &rc->rc_cache[h], rce_link) {
+		if (rce->rce_msg.rm_xid == repmsg->rm_xid &&
+		    rce->rce_addr.ss_len == addr->sa_len &&
+		    bcmp(&rce->rce_addr, addr, addr->sa_len) == 0) {
 			break;
 		}
 	}

@@ -39,10 +39,13 @@ __FBSDID("$FreeBSD$");
 #include "opt_vm.h"
 
 #include <sys/param.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#define	PMTYPE	pmap_nopae_
-#define	pm_pdir	pm_pdir_nopae
-#include <machine/pmap_nopae.h>
+#define PMTYPE pmap_nopae_
+#define pm_pdir pm_pdir_nopae
 #include <vm/pmap.h>
+
+#include <machine/pmap_nopae.h>
+
 #include "pmap.c"

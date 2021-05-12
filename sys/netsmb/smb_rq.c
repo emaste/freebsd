@@ -33,14 +33,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/proc.h>
-#include <sys/lock.h>
-#include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/mbuf.h>
+#include <sys/sysctl.h>
 
 #include <netsmb/smb.h>
 #include <netsmb/smb_conn.h>
@@ -52,16 +52,16 @@ static MALLOC_DEFINE(M_SMBRQ, "SMBRQ", "SMB request");
 
 MODULE_DEPEND(netsmb, libmchain, 1, 1, 1);
 
-static int  smb_rq_reply(struct smb_rq *rqp);
-static int  smb_rq_enqueue(struct smb_rq *rqp);
-static int  smb_rq_getenv(struct smb_connobj *layer,
-		struct smb_vc **vcpp, struct smb_share **sspp);
-static int  smb_rq_new(struct smb_rq *rqp, u_char cmd);
-static int  smb_t2_reply(struct smb_t2rq *t2p);
+static int smb_rq_reply(struct smb_rq *rqp);
+static int smb_rq_enqueue(struct smb_rq *rqp);
+static int smb_rq_getenv(
+    struct smb_connobj *layer, struct smb_vc **vcpp, struct smb_share **sspp);
+static int smb_rq_new(struct smb_rq *rqp, u_char cmd);
+static int smb_t2_reply(struct smb_t2rq *t2p);
 
 int
 smb_rq_alloc(struct smb_connobj *layer, u_char cmd, struct smb_cred *scred,
-	struct smb_rq **rqpp)
+    struct smb_rq **rqpp)
 {
 	struct smb_rq *rqp;
 	int error;
@@ -83,7 +83,7 @@ static char tzero[12];
 
 int
 smb_rq_init(struct smb_rq *rqp, struct smb_connobj *layer, u_char cmd,
-	struct smb_cred *scred)
+    struct smb_cred *scred)
 {
 	int error;
 
@@ -121,7 +121,7 @@ smb_rq_new(struct smb_rq *rqp, u_char cmd)
 		return error;
 	mb_put_mem(mbp, SMB_SIGNATURE, SMB_SIGLEN, MB_MSYSTEM);
 	mb_put_uint8(mbp, cmd);
-	mb_put_uint32le(mbp, 0);		/* DosError */
+	mb_put_uint32le(mbp, 0); /* DosError */
 	mb_put_uint8(mbp, vcp->vc_hflags);
 	flags2 = vcp->vc_hflags2;
 	if (cmd == SMB_COM_TRANSACTION || cmd == SMB_COM_TRANSACTION_SECONDARY)
@@ -173,7 +173,8 @@ smb_rq_simple(struct smb_rq *rqp)
 		error = smb_rq_reply(rqp);
 		if (error == 0)
 			break;
-		if ((rqp->sr_flags & (SMBR_RESTART | SMBR_NORESTART)) != SMBR_RESTART)
+		if ((rqp->sr_flags & (SMBR_RESTART | SMBR_NORESTART)) !=
+		    SMBR_RESTART)
 			break;
 	}
 	return error;
@@ -197,7 +198,8 @@ smb_rq_enqueue(struct smb_rq *rqp)
 				return EINTR;
 			continue;
 		}
-		if (smb_share_valid(ssp) || (ssp->ss_flags & SMBS_CONNECTED) == 0) {
+		if (smb_share_valid(ssp) ||
+		    (ssp->ss_flags & SMBS_CONNECTED) == 0) {
 			SMBS_ST_UNLOCK(ssp);
 		} else {
 			SMBS_ST_UNLOCK(ssp);
@@ -224,7 +226,7 @@ void
 smb_rq_wend(struct smb_rq *rqp)
 {
 	if (rqp->sr_wcount == NULL) {
-		SMBERROR("no wcount\n");	/* actually panic */
+		SMBERROR("no wcount\n"); /* actually panic */
 		return;
 	}
 	if (rqp->sr_rq.mb_count & 1)
@@ -245,7 +247,7 @@ smb_rq_bend(struct smb_rq *rqp)
 	int bcnt;
 
 	if (rqp->sr_bcount == NULL) {
-		SMBERROR("no bcount\n");	/* actually panic */
+		SMBERROR("no bcount\n"); /* actually panic */
 		return;
 	}
 	bcnt = rqp->sr_rq.mb_count;
@@ -277,8 +279,8 @@ smb_rq_getreply(struct smb_rq *rqp, struct mdchain **mbpp)
 }
 
 static int
-smb_rq_getenv(struct smb_connobj *layer,
-	struct smb_vc **vcpp, struct smb_share **sspp)
+smb_rq_getenv(
+    struct smb_connobj *layer, struct smb_vc **vcpp, struct smb_share **sspp)
 {
 	struct smb_vc *vcp = NULL;
 	struct smb_share *ssp = NULL;
@@ -286,7 +288,7 @@ smb_rq_getenv(struct smb_connobj *layer,
 	int error = 0;
 
 	switch (layer->co_level) {
-	    case SMBL_VC:
+	case SMBL_VC:
 		vcp = CPTOVC(layer);
 		if (layer->co_parent == NULL) {
 			SMBERROR("zombie VC %s\n", vcp->vc_srvname);
@@ -294,7 +296,7 @@ smb_rq_getenv(struct smb_connobj *layer,
 			break;
 		}
 		break;
-	    case SMBL_SHARE:
+	case SMBL_SHARE:
 		ssp = CPTOSS(layer);
 		cp = layer->co_parent;
 		if (cp == NULL) {
@@ -306,7 +308,7 @@ smb_rq_getenv(struct smb_connobj *layer,
 		if (error)
 			break;
 		break;
-	    default:
+	default:
 		SMBERROR("invalid layer %d passed\n", layer->co_level);
 		error = EINVAL;
 	}
@@ -342,7 +344,8 @@ smb_rq_reply(struct smb_rq *rqp)
 		error = md_get_uint8(mdp, &tb);
 		error = md_get_uint16le(mdp, &rqp->sr_serror);
 		if (!error)
-			rperror = smb_maperror(rqp->sr_errclass, rqp->sr_serror);
+			rperror = smb_maperror(
+			    rqp->sr_errclass, rqp->sr_serror);
 	}
 	error = md_get_uint8(mdp, &rqp->sr_rpflags);
 	error = md_get_uint16le(mdp, &rqp->sr_rpflags2);
@@ -360,20 +363,20 @@ smb_rq_reply(struct smb_rq *rqp)
 	    (rqp->sr_vc->vc_hflags2 & SMB_FLAGS2_SECURITY_SIGNATURE))
 		error = smb_rq_verify(rqp);
 
-	SMBSDEBUG("M:%04x, P:%04x, U:%04x, T:%04x, E: %d:%d\n",
-	    rqp->sr_rpmid, rqp->sr_rppid, rqp->sr_rpuid, rqp->sr_rptid,
-	    rqp->sr_errclass, rqp->sr_serror);
+	SMBSDEBUG("M:%04x, P:%04x, U:%04x, T:%04x, E: %d:%d\n", rqp->sr_rpmid,
+	    rqp->sr_rppid, rqp->sr_rpuid, rqp->sr_rptid, rqp->sr_errclass,
+	    rqp->sr_serror);
 	return error ? error : rperror;
 }
 
-#define ALIGN4(a)	(((a) + 3) & ~3)
+#define ALIGN4(a) (((a) + 3) & ~3)
 
 /*
  * TRANS2 request implementation
  */
 int
 smb_t2_alloc(struct smb_connobj *layer, u_short setup, struct smb_cred *scred,
-	struct smb_t2rq **t2pp)
+    struct smb_t2rq **t2pp)
 {
 	struct smb_t2rq *t2p;
 	int error;
@@ -393,7 +396,7 @@ smb_t2_alloc(struct smb_connobj *layer, u_short setup, struct smb_cred *scred,
 
 int
 smb_t2_init(struct smb_t2rq *t2p, struct smb_connobj *source, u_short setup,
-	struct smb_cred *scred)
+    struct smb_cred *scred)
 {
 	int error;
 
@@ -422,8 +425,8 @@ smb_t2_done(struct smb_t2rq *t2p)
 }
 
 static int
-smb_t2_placedata(struct mbuf *mtop, u_int16_t offset, u_int16_t count,
-	struct mdchain *mdp)
+smb_t2_placedata(
+    struct mbuf *mtop, u_int16_t offset, u_int16_t count, struct mdchain *mdp)
 {
 	struct mbuf *m, *m0;
 	int len;
@@ -452,7 +455,7 @@ smb_t2_reply(struct smb_t2rq *t2p)
 	if (error)
 		return error;
 	if ((t2p->t2_flags & SMBT2_ALLSENT) == 0) {
-		/* 
+		/*
 		 * this is an interim response, ignore it.
 		 */
 		SMBRQ_SLOCK(rqp);
@@ -510,16 +513,16 @@ smb_t2_reply(struct smb_t2rq *t2p)
 			md_get_uint16(mdp, NULL);
 		if ((error = md_get_uint16le(mdp, &bc)) != 0)
 			break;
-/*		tmp = SMB_HDRLEN + 1 + 10 * 2 + 2 * wc + 2;*/
+		/*		tmp = SMB_HDRLEN + 1 + 10 * 2 + 2 * wc + 2;*/
 		if (dcount) {
-			error = smb_t2_placedata(mdp->md_top, doff, dcount,
-			    &t2p->t2_rdata);
+			error = smb_t2_placedata(
+			    mdp->md_top, doff, dcount, &t2p->t2_rdata);
 			if (error)
 				break;
 		}
 		if (pcount) {
-			error = smb_t2_placedata(mdp->md_top, poff, pcount,
-			    &t2p->t2_rparam);
+			error = smb_t2_placedata(
+			    mdp->md_top, poff, pcount, &t2p->t2_rparam);
 			if (error)
 				break;
 		}
@@ -560,16 +563,16 @@ smb_t2_request_int(struct smb_t2rq *t2p)
 
 	m = t2p->t2_tparam.mb_top;
 	if (m) {
-		md_initm(&mbparam, m);	/* do not free it! */
+		md_initm(&mbparam, m); /* do not free it! */
 		totpcount = m_fixhdr(m);
-		if (totpcount > 0xffff)		/* maxvalue for u_short */
+		if (totpcount > 0xffff) /* maxvalue for u_short */
 			return EINVAL;
 	} else
 		totpcount = 0;
 	m = t2p->t2_tdata.mb_top;
 	if (m) {
-		md_initm(&mbdata, m);	/* do not free it! */
-		totdcount =  m_fixhdr(m);
+		md_initm(&mbdata, m); /* do not free it! */
+		totdcount = m_fixhdr(m);
 		if (totdcount > 0xffff)
 			return EINVAL;
 	} else
@@ -577,8 +580,9 @@ smb_t2_request_int(struct smb_t2rq *t2p)
 	leftdcount = totdcount;
 	leftpcount = totpcount;
 	txmax = vcp->vc_txmax;
-	error = smb_rq_alloc(t2p->t2_source, t2p->t_name ?
-	    SMB_COM_TRANSACTION : SMB_COM_TRANSACTION2, scred, &rqp);
+	error = smb_rq_alloc(t2p->t2_source,
+	    t2p->t_name ? SMB_COM_TRANSACTION : SMB_COM_TRANSACTION2, scred,
+	    &rqp);
 	if (error)
 		return error;
 	rqp->sr_flags |= SMBR_MULTIPACKET;
@@ -591,10 +595,10 @@ smb_t2_request_int(struct smb_t2rq *t2p)
 	mb_put_uint16le(mbp, t2p->t2_maxpcount);
 	mb_put_uint16le(mbp, t2p->t2_maxdcount);
 	mb_put_uint8(mbp, t2p->t2_maxscount);
-	mb_put_uint8(mbp, 0);			/* reserved */
-	mb_put_uint16le(mbp, 0);			/* flags */
-	mb_put_uint32le(mbp, 0);			/* Timeout */
-	mb_put_uint16le(mbp, 0);			/* reserved 2 */
+	mb_put_uint8(mbp, 0);	 /* reserved */
+	mb_put_uint16le(mbp, 0); /* flags */
+	mb_put_uint32le(mbp, 0); /* Timeout */
+	mb_put_uint16le(mbp, 0); /* reserved 2 */
 	len = mb_fixhdr(mbp);
 	/*
 	 * now we have known packet size as
@@ -630,7 +634,7 @@ smb_t2_request_int(struct smb_t2rq *t2p)
 	/* TDUNICODE */
 	if (t2p->t_name)
 		mb_put_mem(mbp, t2p->t_name, nmlen, MB_MSYSTEM);
-	mb_put_uint8(mbp, 0);	/* terminating zero */
+	mb_put_uint8(mbp, 0); /* terminating zero */
 	len = mb_fixhdr(mbp);
 	if (txpcount) {
 		mb_put_mem(mbp, NULL, ALIGN4(len) - len, MB_MZERO);
@@ -648,7 +652,7 @@ smb_t2_request_int(struct smb_t2rq *t2p)
 			goto freerq;
 		mb_put_mbuf(mbp, m);
 	}
-	smb_rq_bend(rqp);	/* incredible, but thats it... */
+	smb_rq_bend(rqp); /* incredible, but thats it... */
 	error = smb_rq_enqueue(rqp);
 	if (error)
 		goto freerq;
@@ -659,8 +663,9 @@ smb_t2_request_int(struct smb_t2rq *t2p)
 		goto bad;
 	while (leftpcount || leftdcount) {
 		t2p->t2_flags |= SMBT2_SECONDARY;
-		error = smb_rq_new(rqp, t2p->t_name ? 
-		    SMB_COM_TRANSACTION_SECONDARY : SMB_COM_TRANSACTION2_SECONDARY);
+		error = smb_rq_new(rqp,
+		    t2p->t_name ? SMB_COM_TRANSACTION_SECONDARY :
+					SMB_COM_TRANSACTION2_SECONDARY);
 		if (error)
 			goto bad;
 		mbp = &rqp->sr_rq;
@@ -700,7 +705,7 @@ smb_t2_request_int(struct smb_t2rq *t2p)
 			mb_put_uint16le(mbp, t2p->t2_fid);
 		smb_rq_wend(rqp);
 		smb_rq_bstart(rqp);
-		mb_put_uint8(mbp, 0);	/* name */
+		mb_put_uint8(mbp, 0); /* name */
 		len = mb_fixhdr(mbp);
 		if (txpcount) {
 			mb_put_mem(mbp, NULL, ALIGN4(len) - len, MB_MZERO);
@@ -722,7 +727,7 @@ smb_t2_request_int(struct smb_t2rq *t2p)
 		error = smb_iod_request(vcp->vc_iod, SMBIOD_EV_NEWRQ, NULL);
 		if (error)
 			goto bad;
-	}	/* while left params or data */
+	} /* while left params or data */
 	t2p->t2_flags |= SMBT2_ALLSENT;
 	mdp = &t2p->t2_rdata;
 	if (mdp->md_top) {
@@ -757,7 +762,8 @@ smb_t2_request(struct smb_t2rq *t2p)
 		error = smb_t2_request_int(t2p);
 		if (error == 0)
 			break;
-		if ((t2p->t2_flags & (SMBT2_RESTART | SMBT2_NORESTART)) != SMBT2_RESTART)
+		if ((t2p->t2_flags & (SMBT2_RESTART | SMBT2_NORESTART)) !=
+		    SMBT2_RESTART)
 			break;
 	}
 	return error;

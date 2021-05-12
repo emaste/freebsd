@@ -37,22 +37,25 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/memdesc.h>
 #include <sys/mutex.h>
 #include <sys/uio.h>
 #include <sys/vmmeter.h>
+
 #include <vm/vm.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_phys.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
+
 #include <machine/bus.h>
+
 #include <x86/include/busdma_impl.h>
 
 /*
@@ -108,13 +111,13 @@ bus_dma_run_filter(struct bus_dma_tag_common *tc, vm_paddr_t paddr)
 	retval = 0;
 	do {
 		if ((paddr >= BUS_SPACE_MAXADDR ||
-		    (paddr > tc->lowaddr && paddr <= tc->highaddr) ||
-		    (paddr & (tc->alignment - 1)) != 0) &&
+			(paddr > tc->lowaddr && paddr <= tc->highaddr) ||
+			(paddr & (tc->alignment - 1)) != 0) &&
 		    (tc->filter == NULL ||
-		    (*tc->filter)(tc->filterarg, paddr) != 0))
+			(*tc->filter)(tc->filterarg, paddr) != 0))
 			retval = 1;
 
-		tc = tc->parent;		
+		tc = tc->parent;
 	} while (retval == 0 && tc != NULL);
 	return (retval);
 }
@@ -175,8 +178,8 @@ common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
 		if (common->boundary == 0)
 			common->boundary = parent->boundary;
 		else if (parent->boundary != 0) {
-			common->boundary = MIN(parent->boundary,
-			    common->boundary);
+			common->boundary = MIN(
+			    parent->boundary, common->boundary);
 		}
 		if (common->filter == NULL) {
 			/*
@@ -190,8 +193,8 @@ common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
 		common->domain = parent->domain;
 		atomic_add_int(&parent->ref_count, 1);
 	}
-	common->domain = vm_phys_domain_match(common->domain, 0ul,
-	    common->lowaddr);
+	common->domain = vm_phys_domain_match(
+	    common->domain, 0ul, common->lowaddr);
 	*dmat = common;
 	return (0);
 }
@@ -229,9 +232,9 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		    nsegments, maxsegsz, flags, lockfunc, lockfuncarg, dmat);
 	} else {
 		tc = (struct bus_dma_tag_common *)parent;
-		error = tc->impl->tag_create(parent, alignment,
-		    boundary, lowaddr, highaddr, filter, filterarg, maxsize,
-		    nsegments, maxsegsz, flags, lockfunc, lockfuncarg, dmat);
+		error = tc->impl->tag_create(parent, alignment, boundary,
+		    lowaddr, highaddr, filter, filterarg, maxsize, nsegments,
+		    maxsegsz, flags, lockfunc, lockfuncarg, dmat);
 	}
 	return (error);
 }

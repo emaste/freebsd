@@ -57,8 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_persona.h>
 #include <compat/linux/linux_util.h>
 
-#define STACK_SIZE  (2 * 1024 * 1024)
-#define GUARD_SIZE  (4 * PAGE_SIZE)
+#define STACK_SIZE (2 * 1024 * 1024)
+#define GUARD_SIZE (4 * PAGE_SIZE)
 
 #if defined(__amd64__)
 static void linux_fixup_prot(struct thread *td, int *prot);
@@ -85,8 +85,8 @@ linux_mmap_common(struct thread *td, uintptr_t addr, size_t len, int prot,
 	int bsd_flags, error;
 	struct file *fp;
 
-	LINUX_CTR6(mmap2, "0x%lx, %ld, %ld, 0x%08lx, %ld, 0x%lx",
-	    addr, len, prot, flags, fd, pos);
+	LINUX_CTR6(mmap2, "0x%lx, %ld, %ld, 0x%08lx, %ld, 0x%lx", addr, len,
+	    prot, flags, fd, pos);
 
 	error = 0;
 	bsd_flags = 0;
@@ -421,6 +421,5 @@ linux_fixup_prot(struct thread *td, int *prot)
 		if (pem->persona & LINUX_READ_IMPLIES_EXEC)
 			*prot |= PROT_EXEC;
 	}
-
 }
 #endif

@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_PHYSMEM_H_
-#define	_SYS_PHYSMEM_H_
+#ifndef _SYS_PHYSMEM_H_
+#define _SYS_PHYSMEM_H_
 
 /*
  * Routines to help configure physical ram.
@@ -46,8 +46,8 @@
  * that communicate physical ram configuration to other parts of the kernel.
  */
 
-#define	EXFLAG_NODUMP	0x01
-#define	EXFLAG_NOALLOC	0x02
+#define EXFLAG_NODUMP 0x01
+#define EXFLAG_NOALLOC 0x02
 
 void physmem_hardware_region(uint64_t pa, uint64_t sz);
 void physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t flags);
@@ -64,7 +64,7 @@ void physmem_print_tables(void);
 #include <machine/ofw_machdep.h>
 
 static inline void
-physmem_hardware_regions(struct mem_region * mrptr, int mrcount)
+physmem_hardware_regions(struct mem_region *mrptr, int mrcount)
 {
 	while (mrcount--) {
 		physmem_hardware_region(mrptr->mr_start, mrptr->mr_size);
@@ -73,12 +73,11 @@ physmem_hardware_regions(struct mem_region * mrptr, int mrcount)
 }
 
 static inline void
-physmem_exclude_regions(struct mem_region * mrptr, int mrcount,
-    uint32_t exflags)
+physmem_exclude_regions(struct mem_region *mrptr, int mrcount, uint32_t exflags)
 {
 	while (mrcount--) {
-		physmem_exclude_region(mrptr->mr_start, mrptr->mr_size,
-		    exflags);
+		physmem_exclude_region(
+		    mrptr->mr_start, mrptr->mr_size, exflags);
 		++mrptr;
 	}
 }

@@ -44,28 +44,28 @@ __FBSDID("$FreeBSD$");
  * and the drivers are initialized.
  */
 #include "opt_bootp.h"
-#include "opt_isa.h"
 #include "opt_bus.h"
+#include "opt_isa.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/reboot.h>
+#include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/cons.h>
-
+#include <sys/reboot.h>
 #include <sys/socket.h>
+
+#include <machine/md_var.h>
+
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
-#include <net/ethernet.h>
 #include <netinet/in.h>
-
-#include <machine/md_var.h>
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>
@@ -73,9 +73,9 @@ __FBSDID("$FreeBSD$");
 device_t isa_bus_device = 0;
 #endif
 
-static void	configure_first(void *);
-static void	configure(void *);
-static void	configure_final(void *);
+static void configure_first(void *);
+static void configure(void *);
+static void configure_final(void *);
 
 SYSINIT(configure1, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure_first, NULL);
 /* SI_ORDER_SECOND is hookable */
@@ -115,7 +115,7 @@ static void
 configure_final(void *dummy)
 {
 
-	cninit_finish(); 
+	cninit_finish();
 
 	if (bootverbose)
 		printf("Device configuration finished.\n");

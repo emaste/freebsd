@@ -34,14 +34,14 @@
 
 struct rk_clk_mux_def {
 	struct clknode_init_def clkdef;
-	uint32_t		offset;
-	uint32_t		shift;
-	uint32_t		width;
-	int			mux_flags;
+	uint32_t offset;
+	uint32_t shift;
+	uint32_t width;
+	int mux_flags;
 };
 
-#define	RK_CLK_MUX_MASK		0xFFFF0000
-#define	RK_CLK_MUX_REPARENT	(1 << 0)
+#define RK_CLK_MUX_MASK 0xFFFF0000
+#define RK_CLK_MUX_REPARENT (1 << 0)
 
 int rk_clk_mux_register(struct clkdom *clkdom, struct rk_clk_mux_def *clkdef);
 

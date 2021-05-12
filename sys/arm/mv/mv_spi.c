@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -38,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -51,56 +50,54 @@ __FBSDID("$FreeBSD$");
 #include "spibus_if.h"
 
 struct mv_spi_softc {
-	device_t		sc_dev;
-	struct mtx		sc_mtx;
-	struct resource		*sc_mem_res;
-	struct resource		*sc_irq_res;
-	struct spi_command	*sc_cmd;
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
-	uint32_t		sc_len;
-	uint32_t		sc_read;
-	uint32_t		sc_flags;
-	uint32_t		sc_written;
-	void			*sc_intrhand;
+	device_t sc_dev;
+	struct mtx sc_mtx;
+	struct resource *sc_mem_res;
+	struct resource *sc_irq_res;
+	struct spi_command *sc_cmd;
+	bus_space_tag_t sc_bst;
+	bus_space_handle_t sc_bsh;
+	uint32_t sc_len;
+	uint32_t sc_read;
+	uint32_t sc_flags;
+	uint32_t sc_written;
+	void *sc_intrhand;
 };
 
-#define	MV_SPI_BUSY		0x1
-#define	MV_SPI_WRITE(_sc, _off, _val)		\
-    bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off), (_val))
-#define	MV_SPI_READ(_sc, _off)			\
-    bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off))
-#define	MV_SPI_LOCK(_sc)	mtx_lock(&(_sc)->sc_mtx)
-#define	MV_SPI_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
+#define MV_SPI_BUSY 0x1
+#define MV_SPI_WRITE(_sc, _off, _val) \
+	bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off), (_val))
+#define MV_SPI_READ(_sc, _off) \
+	bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off))
+#define MV_SPI_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define MV_SPI_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
 
-#define	MV_SPI_CONTROL		0
-#define	MV_SPI_CTRL_CS_MASK		7
-#define	MV_SPI_CTRL_CS_SHIFT		2
-#define	MV_SPI_CTRL_SMEMREADY		(1 << 1)
-#define	MV_SPI_CTRL_CS_ACTIVE		(1 << 0)
-#define	MV_SPI_CONF		0x4
-#define	MV_SPI_CONF_MODE_SHIFT		12
-#define	MV_SPI_CONF_MODE_MASK		(3 << MV_SPI_CONF_MODE_SHIFT)
-#define	MV_SPI_CONF_BYTELEN		(1 << 5)
-#define	MV_SPI_CONF_CLOCK_SPR_MASK	0xf
-#define	MV_SPI_CONF_CLOCK_SPPR_MASK	1
-#define	MV_SPI_CONF_CLOCK_SPPR_SHIFT	4
-#define	MV_SPI_CONF_CLOCK_SPPRHI_MASK	3
-#define	MV_SPI_CONF_CLOCK_SPPRHI_SHIFT	6
-#define	MV_SPI_CONF_CLOCK_MASK						\
-    ((MV_SPI_CONF_CLOCK_SPPRHI_MASK << MV_SPI_CONF_CLOCK_SPPRHI_SHIFT) | \
-    (MV_SPI_CONF_CLOCK_SPPR_MASK << MV_SPI_CONF_CLOCK_SPPR_SHIFT) |	\
-    MV_SPI_CONF_CLOCK_SPR_MASK)
-#define	MV_SPI_DATAOUT		0x8
-#define	MV_SPI_DATAIN		0xc
-#define	MV_SPI_INTR_STAT	0x10
-#define	MV_SPI_INTR_MASK	0x14
-#define	MV_SPI_INTR_SMEMREADY		(1 << 0)
+#define MV_SPI_CONTROL 0
+#define MV_SPI_CTRL_CS_MASK 7
+#define MV_SPI_CTRL_CS_SHIFT 2
+#define MV_SPI_CTRL_SMEMREADY (1 << 1)
+#define MV_SPI_CTRL_CS_ACTIVE (1 << 0)
+#define MV_SPI_CONF 0x4
+#define MV_SPI_CONF_MODE_SHIFT 12
+#define MV_SPI_CONF_MODE_MASK (3 << MV_SPI_CONF_MODE_SHIFT)
+#define MV_SPI_CONF_BYTELEN (1 << 5)
+#define MV_SPI_CONF_CLOCK_SPR_MASK 0xf
+#define MV_SPI_CONF_CLOCK_SPPR_MASK 1
+#define MV_SPI_CONF_CLOCK_SPPR_SHIFT 4
+#define MV_SPI_CONF_CLOCK_SPPRHI_MASK 3
+#define MV_SPI_CONF_CLOCK_SPPRHI_SHIFT 6
+#define MV_SPI_CONF_CLOCK_MASK                                               \
+	((MV_SPI_CONF_CLOCK_SPPRHI_MASK << MV_SPI_CONF_CLOCK_SPPRHI_SHIFT) | \
+	    (MV_SPI_CONF_CLOCK_SPPR_MASK << MV_SPI_CONF_CLOCK_SPPR_SHIFT) |  \
+	    MV_SPI_CONF_CLOCK_SPR_MASK)
+#define MV_SPI_DATAOUT 0x8
+#define MV_SPI_DATAIN 0xc
+#define MV_SPI_INTR_STAT 0x10
+#define MV_SPI_INTR_MASK 0x14
+#define MV_SPI_INTR_SMEMREADY (1 << 0)
 
-static struct ofw_compat_data compat_data[] = {
-        {"marvell,armada-380-spi",	1},
-        {NULL,                          0}
-};
+static struct ofw_compat_data compat_data[] = { { "marvell,armada-380-spi", 1 },
+	{ NULL, 0 } };
 
 static void mv_spi_intr(void *);
 
@@ -129,8 +126,8 @@ mv_spi_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
 		return (ENXIO);
@@ -140,8 +137,8 @@ mv_spi_attach(device_t dev)
 	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!sc->sc_irq_res) {
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot allocate interrupt\n");
@@ -162,7 +159,7 @@ mv_spi_attach(device_t dev)
 
 	/* Hook up our interrupt handler. */
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, mv_spi_intr, sc, &sc->sc_intrhand)) {
+		NULL, mv_spi_intr, sc, &sc->sc_intrhand)) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot setup the interrupt handler\n");
@@ -203,7 +200,7 @@ mv_spi_rx_byte(struct mv_spi_softc *sc)
 	uint32_t read;
 	uint8_t *p;
 
-	cmd = sc->sc_cmd; 
+	cmd = sc->sc_cmd;
 	p = (uint8_t *)cmd->rx_cmd;
 	read = sc->sc_read++;
 	if (read >= cmd->rx_cmd_sz) {
@@ -220,7 +217,7 @@ mv_spi_tx_byte(struct mv_spi_softc *sc)
 	uint32_t written;
 	uint8_t *p;
 
-	cmd = sc->sc_cmd; 
+	cmd = sc->sc_cmd;
 	p = (uint8_t *)cmd->tx_cmd;
 	written = sc->sc_written++;
 	if (written >= cmd->tx_cmd_sz) {
@@ -291,16 +288,14 @@ mv_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	cs &= ~SPIBUS_CS_HIGH;
 	spibus_get_mode(child, &mode);
 	if (mode > 3) {
-		device_printf(dev,
-		    "Invalid mode %u requested by %s\n", mode,
+		device_printf(dev, "Invalid mode %u requested by %s\n", mode,
 		    device_get_nameunit(child));
 		return (EINVAL);
 	}
 	spibus_get_clock(child, &clock);
 	if (clock == 0 || mv_spi_psc_calc(clock, &spr, &sppr) != 0) {
-		device_printf(dev,
-		    "Invalid clock %uHz requested by %s\n", clock,
-		    device_get_nameunit(child));
+		device_printf(dev, "Invalid clock %uHz requested by %s\n",
+		    clock, device_get_nameunit(child));
 		return (EINVAL);
 	}
 
@@ -325,10 +320,10 @@ mv_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	reg &= ~(MV_SPI_CONF_MODE_MASK | MV_SPI_CONF_CLOCK_MASK);
 	reg |= mode << MV_SPI_CONF_MODE_SHIFT;
 	reg |= spr & MV_SPI_CONF_CLOCK_SPR_MASK;
-	reg |= (sppr & MV_SPI_CONF_CLOCK_SPPR_MASK) <<
-	    MV_SPI_CONF_CLOCK_SPPR_SHIFT;
-	reg |= (sppr & MV_SPI_CONF_CLOCK_SPPRHI_MASK) <<
-	    MV_SPI_CONF_CLOCK_SPPRHI_SHIFT;
+	reg |= (sppr & MV_SPI_CONF_CLOCK_SPPR_MASK)
+	    << MV_SPI_CONF_CLOCK_SPPR_SHIFT;
+	reg |= (sppr & MV_SPI_CONF_CLOCK_SPPRHI_MASK)
+	    << MV_SPI_CONF_CLOCK_SPPRHI_SHIFT;
 	MV_SPI_WRITE(sc, MV_SPI_CONTROL, reg);
 
 	/* Set CS number and assert CS. */
@@ -384,15 +379,15 @@ mv_spi_get_node(device_t bus, device_t dev)
 
 static device_method_t mv_spi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		mv_spi_probe),
-	DEVMETHOD(device_attach,	mv_spi_attach),
-	DEVMETHOD(device_detach,	mv_spi_detach),
+	DEVMETHOD(device_probe, mv_spi_probe),
+	DEVMETHOD(device_attach, mv_spi_attach),
+	DEVMETHOD(device_detach, mv_spi_detach),
 
 	/* SPI interface */
-	DEVMETHOD(spibus_transfer,	mv_spi_transfer),
+	DEVMETHOD(spibus_transfer, mv_spi_transfer),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	mv_spi_get_node),
+	DEVMETHOD(ofw_bus_get_node, mv_spi_get_node),
 
 	DEVMETHOD_END
 };

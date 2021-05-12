@@ -26,31 +26,33 @@
  */
 
 #ifndef __LINUX_SHRINKER_H__
-#define	__LINUX_SHRINKER_H__
+#define __LINUX_SHRINKER_H__
 
 #include <sys/queue.h>
 
 struct shrink_control {
-	unsigned long	nr_to_scan;
-	unsigned long	nr_scanned;
+	unsigned long nr_to_scan;
+	unsigned long nr_scanned;
 };
 
 struct shrinker {
-	unsigned long		(*count_objects)(struct shrinker *, struct shrink_control *);
-	unsigned long		(*scan_objects)(struct shrinker *, struct shrink_control *);
-	int			seeks;
-	long			batch;
-	TAILQ_ENTRY(shrinker)	next;
+	unsigned long (*count_objects)(
+	    struct shrinker *, struct shrink_control *);
+	unsigned long (*scan_objects)(
+	    struct shrinker *, struct shrink_control *);
+	int seeks;
+	long batch;
+	TAILQ_ENTRY(shrinker) next;
 };
 
-#define	SHRINK_STOP	(~0UL)
+#define SHRINK_STOP (~0UL)
 
-#define	DEFAULT_SEEKS	2
+#define DEFAULT_SEEKS 2
 
-int	linuxkpi_register_shrinker(struct shrinker *s);
-void	linuxkpi_unregister_shrinker(struct shrinker *s);
+int linuxkpi_register_shrinker(struct shrinker *s);
+void linuxkpi_unregister_shrinker(struct shrinker *s);
 
-#define	register_shrinker(s)	linuxkpi_register_shrinker(s)
-#define	unregister_shrinker(s)	linuxkpi_unregister_shrinker(s)
+#define register_shrinker(s) linuxkpi_register_shrinker(s)
+#define unregister_shrinker(s) linuxkpi_unregister_shrinker(s)
 
-#endif	/* __LINUX_SHRINKER_H__ */
+#endif /* __LINUX_SHRINKER_H__ */

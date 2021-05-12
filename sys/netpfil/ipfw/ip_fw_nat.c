@@ -32,51 +32,49 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
-#include <sys/rwlock.h>
 #include <sys/rmlock.h>
+#include <sys/rwlock.h>
 
-#include <netinet/libalias/alias.h>
-#include <netinet/libalias/alias_local.h>
+#include <machine/in_cksum.h> /* XXX for in_cksum */
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
+#include <netinet/ip_var.h>
+#include <netinet/libalias/alias.h>
+#include <netinet/libalias/alias_local.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
-
 #include <netpfil/ipfw/ip_fw_private.h>
 
-#include <machine/in_cksum.h>	/* XXX for in_cksum */
-
 struct cfg_spool {
-	LIST_ENTRY(cfg_spool)   _next;          /* chain of spool instances */
-	struct in_addr          addr;
-	uint16_t		port;
+	LIST_ENTRY(cfg_spool) _next; /* chain of spool instances */
+	struct in_addr addr;
+	uint16_t port;
 };
 
 /* Nat redirect configuration. */
 struct cfg_redir {
-	LIST_ENTRY(cfg_redir)	_next;	/* chain of redir instances */
-	uint16_t		mode;	/* type of redirect mode */
-	uint16_t		proto;	/* protocol: tcp/udp */
-	struct in_addr		laddr;	/* local ip address */
-	struct in_addr		paddr;	/* public ip address */
-	struct in_addr		raddr;	/* remote ip address */
-	uint16_t		lport;	/* local port */
-	uint16_t		pport;	/* public port */
-	uint16_t		rport;	/* remote port	*/
-	uint16_t		pport_cnt;	/* number of public ports */
-	uint16_t		rport_cnt;	/* number of remote ports */
-	struct alias_link	**alink;	
-	u_int16_t		spool_cnt; /* num of entry in spool chain */
+	LIST_ENTRY(cfg_redir) _next; /* chain of redir instances */
+	uint16_t mode;		     /* type of redirect mode */
+	uint16_t proto;		     /* protocol: tcp/udp */
+	struct in_addr laddr;	     /* local ip address */
+	struct in_addr paddr;	     /* public ip address */
+	struct in_addr raddr;	     /* remote ip address */
+	uint16_t lport;		     /* local port */
+	uint16_t pport;		     /* public port */
+	uint16_t rport;		     /* remote port	*/
+	uint16_t pport_cnt;	     /* number of public ports */
+	uint16_t rport_cnt;	     /* number of remote ports */
+	struct alias_link **alink;
+	u_int16_t spool_cnt; /* num of entry in spool chain */
 	/* chain of spool instances */
 	LIST_HEAD(spool_chain, cfg_spool) spool_chain;
 };
@@ -84,17 +82,17 @@ struct cfg_redir {
 /* Nat configuration data struct. */
 struct cfg_nat {
 	/* chain of nat instances */
-	LIST_ENTRY(cfg_nat)	_next;
-	int			id;		/* nat id  */
-	struct in_addr		ip;		/* nat ip address */
-	struct libalias		*lib;		/* libalias instance */
-	int			mode;		/* aliasing mode */
-	int			redir_cnt; /* number of entry in spool chain */
+	LIST_ENTRY(cfg_nat) _next;
+	int id;		      /* nat id  */
+	struct in_addr ip;    /* nat ip address */
+	struct libalias *lib; /* libalias instance */
+	int mode;	      /* aliasing mode */
+	int redir_cnt;	      /* number of entry in spool chain */
 	/* chain of redir instances */
-	LIST_HEAD(redir_chain, cfg_redir) redir_chain;  
-	char			if_name[IF_NAMESIZE];	/* interface name */
-	u_short			alias_port_lo;	/* low range for port aliasing */
-	u_short			alias_port_hi;	/* high range for port aliasing */
+	LIST_HEAD(redir_chain, cfg_redir) redir_chain;
+	char if_name[IF_NAMESIZE]; /* interface name */
+	u_short alias_port_lo;	   /* low range for port aliasing */
+	u_short alias_port_hi;	   /* high range for port aliasing */
 };
 
 static eventhandler_tag ifaddr_event_tag;
@@ -115,21 +113,22 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 	chain = &V_layer3_chain;
 	IPFW_UH_WLOCK(chain);
 	/* Check every nat entry... */
-	LIST_FOREACH(ptr, &chain->nat, _next) {
+	LIST_FOREACH (ptr, &chain->nat, _next) {
 		struct epoch_tracker et;
 
 		/* ...using nic 'ifp->if_xname' as dynamic alias address. */
 		if (strncmp(ptr->if_name, ifp->if_xname, IF_NAMESIZE) != 0)
 			continue;
 		NET_EPOCH_ENTER(et);
-		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		{
 			if (ifa->ifa_addr == NULL)
 				continue;
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			IPFW_WLOCK(chain);
-			ptr->ip = ((struct sockaddr_in *)
-			    (ifa->ifa_addr))->sin_addr;
+			ptr->ip =
+			    ((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr;
 			LibAliasSetAddress(ptr->lib, ptr->ip);
 			IPFW_WUNLOCK(chain);
 		}
@@ -151,7 +150,7 @@ flush_nat_ptrs(struct ip_fw_chain *chain, const int ix)
 	for (i = 0; i < chain->n_rules; i++) {
 		cmd = (ipfw_insn_nat *)ipfw_get_action(chain->map[i]);
 		if (cmd->o.opcode == O_NAT && cmd->nat != NULL &&
-			    (ix < 0 || cmd->nat->id == ix))
+		    (ix < 0 || cmd->nat->id == ix))
 			cmd->nat = NULL;
 	}
 }
@@ -163,7 +162,7 @@ del_redir_spool_cfg(struct cfg_nat *n, struct redir_chain *head)
 	struct cfg_spool *s, *tmp_s;
 	int i, num;
 
-	LIST_FOREACH_SAFE(r, head, _next, tmp_r) {
+	LIST_FOREACH_SAFE (r, head, _next, tmp_r) {
 		num = 1; /* Number of alias_link to delete. */
 		switch (r->mode) {
 		case NAT44_REDIR_PORT:
@@ -175,7 +174,7 @@ del_redir_spool_cfg(struct cfg_nat *n, struct redir_chain *head)
 			for (i = 0; i < num; i++)
 				LibAliasRedirectDelete(n->lib, r->alink[i]);
 			/* Del spool cfg if any. */
-			LIST_FOREACH_SAFE(s, &r->spool_chain, _next, tmp_s) {
+			LIST_FOREACH_SAFE (s, &r->spool_chain, _next, tmp_s) {
 				LIST_REMOVE(s, _next);
 				free(s, M_IPFW);
 			}
@@ -215,18 +214,18 @@ add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
 		r->rport_cnt = ser_r->rport_cnt;
 		r->proto = ser_r->proto;
 		r->spool_cnt = ser_r->spool_cnt;
-		//memcpy(r, ser_r, SOF_REDIR);
+		// memcpy(r, ser_r, SOF_REDIR);
 		LIST_INIT(&r->spool_chain);
 		off += sizeof(struct nat44_cfg_redir);
 		r->alink = malloc(sizeof(struct alias_link *) * r->pport_cnt,
 		    M_IPFW, M_WAITOK | M_ZERO);
 		switch (r->mode) {
 		case NAT44_REDIR_ADDR:
-			r->alink[0] = LibAliasRedirectAddr(ptr->lib, r->laddr,
-			    r->paddr);
+			r->alink[0] = LibAliasRedirectAddr(
+			    ptr->lib, r->laddr, r->paddr);
 			break;
 		case NAT44_REDIR_PORT:
-			for (i = 0 ; i < r->pport_cnt; i++) {
+			for (i = 0; i < r->pport_cnt; i++) {
 				/* If remotePort is all ports, set it to 0. */
 				u_short remotePortCopy = r->rport + i;
 				if (r->rport_cnt == 1 && r->rport == 0)
@@ -242,8 +241,8 @@ add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
 			}
 			break;
 		case NAT44_REDIR_PROTO:
-			r->alink[0] = LibAliasRedirectProto(ptr->lib ,r->laddr,
-			    r->raddr, r->paddr, r->proto);
+			r->alink[0] = LibAliasRedirectProto(
+			    ptr->lib, r->laddr, r->raddr, r->paddr, r->proto);
 			break;
 		default:
 			printf("unknown redirect mode: %u\n", r->mode);
@@ -261,8 +260,8 @@ add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
 			s = malloc(sizeof(*s), M_IPFW, M_WAITOK | M_ZERO);
 			s->addr = ser_s->addr;
 			s->port = ser_s->port;
-			LibAliasAddServer(ptr->lib, r->alink[0],
-			    s->addr, htons(s->port));
+			LibAliasAddServer(
+			    ptr->lib, r->alink[0], s->addr, htons(s->port));
 			off += sizeof(struct nat44_cfg_spool);
 			/* Hook spool entry. */
 			LIST_INSERT_HEAD(&r->spool_chain, s, _next);
@@ -360,11 +359,11 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 		chain = &V_layer3_chain;
 		IPFW_RLOCK_ASSERT(chain);
 		/* Check every nat entry... */
-		LIST_FOREACH(t, &chain->nat, _next) {
+		LIST_FOREACH (t, &chain->nat, _next) {
 			if ((t->mode & PKT_ALIAS_SKIP_GLOBAL) != 0)
 				continue;
-			retval = LibAliasOutTry(t->lib, c,
-			    mcl->m_len + M_TRAILINGSPACE(mcl), 0);
+			retval = LibAliasOutTry(
+			    t->lib, c, mcl->m_len + M_TRAILINGSPACE(mcl), 0);
 			if (retval == PKT_ALIAS_OK) {
 				/* Nat instance recognises state */
 				found = 1;
@@ -378,11 +377,11 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 		}
 	} else {
 		if (args->flags & IPFW_ARGS_IN)
-			retval = LibAliasIn(t->lib, c,
-				mcl->m_len + M_TRAILINGSPACE(mcl));
+			retval = LibAliasIn(
+			    t->lib, c, mcl->m_len + M_TRAILINGSPACE(mcl));
 		else
-			retval = LibAliasOut(t->lib, c,
-				mcl->m_len + M_TRAILINGSPACE(mcl));
+			retval = LibAliasOut(
+			    t->lib, c, mcl->m_len + M_TRAILINGSPACE(mcl));
 	}
 
 	/*
@@ -395,9 +394,9 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	 */
 	if (retval == PKT_ALIAS_ERROR ||
 	    ((args->flags & IPFW_ARGS_IN) &&
-	    (retval == PKT_ALIAS_UNRESOLVED_FRAGMENT ||
-	    (retval == PKT_ALIAS_IGNORED &&
-	    (t->mode & PKT_ALIAS_DENY_INCOMING) != 0)))) {
+		(retval == PKT_ALIAS_UNRESOLVED_FRAGMENT ||
+		    (retval == PKT_ALIAS_IGNORED &&
+			(t->mode & PKT_ALIAS_DENY_INCOMING) != 0)))) {
 		/* XXX - should i add some logging? */
 		m_free(mcl);
 		args->m = NULL;
@@ -413,9 +412,8 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	 * 'duct tape' (see above)
 	 */
 
-	if ((ip->ip_off & htons(IP_OFFMASK)) == 0 &&
-	    ip->ip_p == IPPROTO_TCP) {
-		struct tcphdr 	*th;
+	if ((ip->ip_off & htons(IP_OFFMASK)) == 0 && ip->ip_p == IPPROTO_TCP) {
+		struct tcphdr *th;
 
 		th = (struct tcphdr *)(ip + 1);
 		if (th->th_x2)
@@ -423,8 +421,8 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	}
 
 	if (ldt) {
-		struct tcphdr 	*th;
-		struct udphdr 	*uh;
+		struct tcphdr *th;
+		struct udphdr *uh;
 		uint16_t ip_len, cksum;
 
 		ip_len = ntohs(ip->ip_len);
@@ -440,14 +438,14 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 			 */
 			th->th_x2 = 0;
 			th->th_sum = cksum;
-			mcl->m_pkthdr.csum_data =
-			    offsetof(struct tcphdr, th_sum);
+			mcl->m_pkthdr.csum_data = offsetof(
+			    struct tcphdr, th_sum);
 			break;
 		case IPPROTO_UDP:
 			uh = (struct udphdr *)(ip + 1);
 			uh->uh_sum = cksum;
-			mcl->m_pkthdr.csum_data =
-			    offsetof(struct udphdr, uh_sum);
+			mcl->m_pkthdr.csum_data = offsetof(
+			    struct udphdr, uh_sum);
 			break;
 		}
 		/* No hw checksum offloading: do it ourselves */
@@ -465,7 +463,7 @@ lookup_nat(struct nat_list *l, int nat_id)
 {
 	struct cfg_nat *res;
 
-	LIST_FOREACH(res, l, _next) {
+	LIST_FOREACH (res, l, _next) {
 		if (res->id == nat_id)
 			break;
 	}
@@ -483,7 +481,7 @@ lookup_nat_name(struct nat_list *l, char *name)
 	if (id == 0 || *errptr != '\0')
 		return (NULL);
 
-	LIST_FOREACH(res, l, _next) {
+	LIST_FOREACH (res, l, _next) {
 		if (res->id == id)
 			break;
 	}
@@ -536,7 +534,8 @@ nat44_config(struct ip_fw_chain *chain, struct nat44_cfg_nat *ucfg)
 	strlcpy(ptr->if_name, ucfg->if_name, sizeof(ptr->if_name));
 	LibAliasSetMode(ptr->lib, ptr->mode, ~0);
 	LibAliasSetAddress(ptr->lib, ptr->ip);
-	LibAliasSetAliasPortRange(ptr->lib, ptr->alias_port_lo, ptr->alias_port_hi);
+	LibAliasSetAliasPortRange(
+	    ptr->lib, ptr->alias_port_lo, ptr->alias_port_hi);
 
 	/*
 	 * Redir and LSNAT configuration.
@@ -550,7 +549,7 @@ nat44_config(struct ip_fw_chain *chain, struct nat44_cfg_nat *ucfg)
 	/* Extra check to avoid race with another ipfw_nat_cfg() */
 	tcfg = NULL;
 	if (gencnt != chain->gencnt)
-	    tcfg = lookup_nat_name(&chain->nat, ucfg->name);
+		tcfg = lookup_nat_name(&chain->nat, ucfg->name);
 	IPFW_WLOCK(chain);
 	if (tcfg != NULL)
 		LIST_REMOVE(tcfg, _next);
@@ -572,8 +571,8 @@ nat44_config(struct ip_fw_chain *chain, struct nat44_cfg_nat *ucfg)
  * Returns 0 on success
  */
 static int
-nat44_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nat44_cfg(
+    struct ip_fw_chain *chain, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	ipfw_obj_header *oh;
 	struct nat44_cfg_nat *ucfg;
@@ -602,7 +601,8 @@ nat44_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 
 	read = sizeof(*oh) + sizeof(*ucfg);
 	/* Check number of redirs */
-	if (sd->valsize < read + ucfg->redir_cnt*sizeof(struct nat44_cfg_redir))
+	if (sd->valsize <
+	    read + ucfg->redir_cnt * sizeof(struct nat44_cfg_redir))
 		return (EINVAL);
 
 	nat44_config(chain, ucfg);
@@ -617,8 +617,8 @@ nat44_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
  * Returns 0 on success
  */
 static int
-nat44_destroy(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nat44_destroy(
+    struct ip_fw_chain *chain, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	ipfw_obj_header *oh;
 	struct cfg_nat *ptr;
@@ -677,8 +677,8 @@ export_nat_cfg(struct cfg_nat *ptr, struct nat44_cfg_nat *ucfg)
  * Returns 0 on success
  */
 static int
-nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nat44_get_cfg(
+    struct ip_fw_chain *chain, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	ipfw_obj_header *oh;
 	struct nat44_cfg_nat *ucfg;
@@ -717,9 +717,9 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 
 	/* Estimate memory amount */
 	sz = sizeof(ipfw_obj_header) + sizeof(struct nat44_cfg_nat);
-	LIST_FOREACH(r, &ptr->redir_chain, _next) {
+	LIST_FOREACH (r, &ptr->redir_chain, _next) {
 		sz += sizeof(struct nat44_cfg_redir);
-		LIST_FOREACH(s, &r->spool_chain, _next)
+		LIST_FOREACH (s, &r->spool_chain, _next)
 			sz += sizeof(struct nat44_cfg_spool);
 	}
 
@@ -736,9 +736,9 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	}
 
 	/* Size OK, let's copy data */
-	LIST_FOREACH(r, &ptr->redir_chain, _next) {
-		ser_r = (struct nat44_cfg_redir *)ipfw_get_sopt_space(sd,
-		    sizeof(*ser_r));
+	LIST_FOREACH (r, &ptr->redir_chain, _next) {
+		ser_r = (struct nat44_cfg_redir *)ipfw_get_sopt_space(
+		    sd, sizeof(*ser_r));
 		ser_r->mode = r->mode;
 		ser_r->laddr = r->laddr;
 		ser_r->paddr = r->paddr;
@@ -751,7 +751,7 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 		ser_r->proto = r->proto;
 		ser_r->spool_cnt = r->spool_cnt;
 
-		LIST_FOREACH(s, &r->spool_chain, _next) {
+		LIST_FOREACH (s, &r->spool_chain, _next) {
 			ser_s = (struct nat44_cfg_spool *)ipfw_get_sopt_space(
 			    sd, sizeof(*ser_s));
 
@@ -774,8 +774,8 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
  * Returns 0 on success
  */
 static int
-nat44_list_nat(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nat44_list_nat(
+    struct ip_fw_chain *chain, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	ipfw_obj_lheader *olh;
 	struct nat44_cfg_nat *ucfg;
@@ -789,7 +789,7 @@ nat44_list_nat(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	olh = (ipfw_obj_lheader *)ipfw_get_sopt_header(sd, sizeof(*olh));
 	IPFW_UH_RLOCK(chain);
 	nat_count = 0;
-	LIST_FOREACH(ptr, &chain->nat, _next)
+	LIST_FOREACH (ptr, &chain->nat, _next)
 		nat_count++;
 
 	olh->count = nat_count;
@@ -801,9 +801,9 @@ nat44_list_nat(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 		return (ENOMEM);
 	}
 
-	LIST_FOREACH(ptr, &chain->nat, _next) {
-		ucfg = (struct nat44_cfg_nat *)ipfw_get_sopt_space(sd,
-		    sizeof(*ucfg));
+	LIST_FOREACH (ptr, &chain->nat, _next) {
+		ucfg = (struct nat44_cfg_nat *)ipfw_get_sopt_space(
+		    sd, sizeof(*ucfg));
 		export_nat_cfg(ptr, ucfg);
 	}
 
@@ -821,8 +821,8 @@ nat44_list_nat(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
  * Returns 0 on success
  */
 static int
-nat44_get_log(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nat44_get_log(
+    struct ip_fw_chain *chain, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	ipfw_obj_header *oh;
 	struct nat44_cfg_nat *ucfg;
@@ -882,12 +882,12 @@ nat44_get_log(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	return (0);
 }
 
-static struct ipfw_sopt_handler	scodes[] = {
-	{ IP_FW_NAT44_XCONFIG,	0,	HDIR_SET,	nat44_cfg },
-	{ IP_FW_NAT44_DESTROY,	0,	HDIR_SET,	nat44_destroy },
-	{ IP_FW_NAT44_XGETCONFIG,	0,	HDIR_GET,	nat44_get_cfg },
-	{ IP_FW_NAT44_LIST_NAT,	0,	HDIR_GET,	nat44_list_nat },
-	{ IP_FW_NAT44_XGETLOG,	0,	HDIR_GET,	nat44_get_log },
+static struct ipfw_sopt_handler scodes[] = {
+	{ IP_FW_NAT44_XCONFIG, 0, HDIR_SET, nat44_cfg },
+	{ IP_FW_NAT44_DESTROY, 0, HDIR_SET, nat44_destroy },
+	{ IP_FW_NAT44_XGETCONFIG, 0, HDIR_GET, nat44_get_cfg },
+	{ IP_FW_NAT44_LIST_NAT, 0, HDIR_GET, nat44_list_nat },
+	{ IP_FW_NAT44_XGETLOG, 0, HDIR_GET, nat44_get_log },
 };
 
 /*
@@ -895,37 +895,37 @@ static struct ipfw_sopt_handler	scodes[] = {
  */
 
 struct cfg_spool_legacy {
-	LIST_ENTRY(cfg_spool_legacy)	_next;
-	struct in_addr			addr;
-	u_short				port;
+	LIST_ENTRY(cfg_spool_legacy) _next;
+	struct in_addr addr;
+	u_short port;
 };
 
 struct cfg_redir_legacy {
-	LIST_ENTRY(cfg_redir)   _next;
-	u_int16_t               mode;
-	struct in_addr	        laddr;
-	struct in_addr	        paddr;
-	struct in_addr	        raddr;
-	u_short                 lport;
-	u_short                 pport;
-	u_short                 rport;
-	u_short                 pport_cnt;
-	u_short                 rport_cnt;
-	int                     proto;
-	struct alias_link       **alink;
-	u_int16_t               spool_cnt;
+	LIST_ENTRY(cfg_redir) _next;
+	u_int16_t mode;
+	struct in_addr laddr;
+	struct in_addr paddr;
+	struct in_addr raddr;
+	u_short lport;
+	u_short pport;
+	u_short rport;
+	u_short pport_cnt;
+	u_short rport_cnt;
+	int proto;
+	struct alias_link **alink;
+	u_int16_t spool_cnt;
 	LIST_HEAD(, cfg_spool_legacy) spool_chain;
 };
 
 struct cfg_nat_legacy {
-	LIST_ENTRY(cfg_nat_legacy)	_next;
-	int				id;
-	struct in_addr			ip;
-	char				if_name[IF_NAMESIZE];
-	int				mode;
-	struct libalias			*lib;
-	int				redir_cnt;
-	LIST_HEAD(, cfg_redir_legacy)	redir_chain;
+	LIST_ENTRY(cfg_nat_legacy) _next;
+	int id;
+	struct in_addr ip;
+	char if_name[IF_NAMESIZE];
+	int mode;
+	struct libalias *lib;
+	int redir_cnt;
+	LIST_HEAD(, cfg_redir_legacy) redir_chain;
 };
 
 static int
@@ -1040,12 +1040,12 @@ ipfw_nat_get_cfg(struct sockopt *sopt)
 retry:
 	gencnt = chain->gencnt;
 	/* Estimate memory amount */
-	LIST_FOREACH(n, &chain->nat, _next) {
+	LIST_FOREACH (n, &chain->nat, _next) {
 		nat_cnt++;
 		len += sizeof(struct cfg_nat_legacy);
-		LIST_FOREACH(r, &n->redir_chain, _next) {
+		LIST_FOREACH (r, &n->redir_chain, _next) {
 			len += sizeof(struct cfg_redir_legacy);
-			LIST_FOREACH(s, &r->spool_chain, _next)
+			LIST_FOREACH (s, &r->spool_chain, _next)
 				len += sizeof(struct cfg_spool_legacy);
 		}
 	}
@@ -1063,7 +1063,7 @@ retry:
 		goto retry;
 	}
 	/* Serialize all the data. */
-	LIST_FOREACH(n, &chain->nat, _next) {
+	LIST_FOREACH (n, &chain->nat, _next) {
 		ucfg = (struct cfg_nat_legacy *)&data[len];
 		ucfg->id = n->id;
 		ucfg->ip = n->ip;
@@ -1071,7 +1071,7 @@ retry:
 		ucfg->mode = n->mode;
 		strlcpy(ucfg->if_name, n->if_name, sizeof(ucfg->if_name));
 		len += sizeof(struct cfg_nat_legacy);
-		LIST_FOREACH(r, &n->redir_chain, _next) {
+		LIST_FOREACH (r, &n->redir_chain, _next) {
 			ser_r = (struct cfg_redir_legacy *)&data[len];
 			ser_r->mode = r->mode;
 			ser_r->laddr = r->laddr;
@@ -1085,7 +1085,7 @@ retry:
 			ser_r->proto = r->proto;
 			ser_r->spool_cnt = r->spool_cnt;
 			len += sizeof(struct cfg_redir_legacy);
-			LIST_FOREACH(s, &r->spool_chain, _next) {
+			LIST_FOREACH (s, &r->spool_chain, _next) {
 				ser_s = (struct cfg_spool_legacy *)&data[len];
 				ser_s->addr = s->addr;
 				ser_s->port = s->port;
@@ -1115,7 +1115,7 @@ ipfw_nat_get_log(struct sockopt *sopt)
 	IPFW_RLOCK(chain);
 	/* one pass to count, one to copy the data */
 	i = 0;
-	LIST_FOREACH(ptr, &chain->nat, _next) {
+	LIST_FOREACH (ptr, &chain->nat, _next) {
 		if (ptr->lib->logDesc == NULL)
 			continue;
 		i++;
@@ -1127,7 +1127,7 @@ ipfw_nat_get_log(struct sockopt *sopt)
 		return (ENOSPC);
 	}
 	i = 0;
-	LIST_FOREACH(ptr, &chain->nat, _next) {
+	LIST_FOREACH (ptr, &chain->nat, _next) {
 		if (ptr->lib->logDesc == NULL)
 			continue;
 		bcopy(&ptr->id, &data[i], sizeof(int));
@@ -1138,7 +1138,7 @@ ipfw_nat_get_log(struct sockopt *sopt)
 	IPFW_RUNLOCK(chain);
 	sooptcopyout(sopt, data, size);
 	free(data, M_IPFW);
-	return(0);
+	return (0);
 }
 
 static int
@@ -1158,7 +1158,7 @@ vnet_ipfw_nat_uninit(const void *arg __unused)
 	chain = &V_layer3_chain;
 	IPFW_WLOCK(chain);
 	V_ipfw_nat_ready = 0;
-	LIST_FOREACH_SAFE(ptr, &chain->nat, _next, ptr_temp) {
+	LIST_FOREACH_SAFE (ptr, &chain->nat, _next, ptr_temp) {
 		LIST_REMOVE(ptr, _next);
 		free_nat_instance(ptr);
 	}
@@ -1180,8 +1180,8 @@ ipfw_nat_init(void)
 	ipfw_nat_get_log_ptr = ipfw_nat_get_log;
 	IPFW_ADD_SOPT_HANDLER(1, scodes);
 
-	ifaddr_event_tag = EVENTHANDLER_REGISTER(ifaddr_event, ifaddr_change,
-	    NULL, EVENTHANDLER_PRI_ANY);
+	ifaddr_event_tag = EVENTHANDLER_REGISTER(
+	    ifaddr_event, ifaddr_change, NULL, EVENTHANDLER_PRI_ANY);
 }
 
 static void
@@ -1218,17 +1218,13 @@ ipfw_nat_modevent(module_t mod, int type, void *unused)
 	return err;
 }
 
-static moduledata_t ipfw_nat_mod = {
-	"ipfw_nat",
-	ipfw_nat_modevent,
-	0
-};
+static moduledata_t ipfw_nat_mod = { "ipfw_nat", ipfw_nat_modevent, 0 };
 
 /* Define startup order. */
-#define	IPFW_NAT_SI_SUB_FIREWALL	SI_SUB_PROTO_FIREWALL
-#define	IPFW_NAT_MODEVENT_ORDER		(SI_ORDER_ANY - 128) /* after ipfw */
-#define	IPFW_NAT_MODULE_ORDER		(IPFW_NAT_MODEVENT_ORDER + 1)
-#define	IPFW_NAT_VNET_ORDER		(IPFW_NAT_MODEVENT_ORDER + 2)
+#define IPFW_NAT_SI_SUB_FIREWALL SI_SUB_PROTO_FIREWALL
+#define IPFW_NAT_MODEVENT_ORDER (SI_ORDER_ANY - 128) /* after ipfw */
+#define IPFW_NAT_MODULE_ORDER (IPFW_NAT_MODEVENT_ORDER + 1)
+#define IPFW_NAT_VNET_ORDER (IPFW_NAT_MODEVENT_ORDER + 2)
 
 DECLARE_MODULE(ipfw_nat, ipfw_nat_mod, IPFW_NAT_SI_SUB_FIREWALL, SI_ORDER_ANY);
 MODULE_DEPEND(ipfw_nat, libalias, 1, 1, 1);

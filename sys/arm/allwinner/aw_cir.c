@@ -38,103 +38,103 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
+
 #include <machine/bus.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/evdev/evdev.h>
+#include <dev/evdev/input.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
-#include <dev/evdev/input.h>
-#include <dev/evdev/evdev.h>
-
-#define	READ(_sc, _r)		bus_read_4((_sc)->res[0], (_r))
-#define	WRITE(_sc, _r, _v)	bus_write_4((_sc)->res[0], (_r), (_v))
+#define READ(_sc, _r) bus_read_4((_sc)->res[0], (_r))
+#define WRITE(_sc, _r, _v) bus_write_4((_sc)->res[0], (_r), (_v))
 
 /* IR Control */
-#define	AW_IR_CTL			0x00
+#define AW_IR_CTL 0x00
 /* Global Enable */
-#define	 AW_IR_CTL_GEN			(1 << 0)
+#define AW_IR_CTL_GEN (1 << 0)
 /* RX enable */
-#define	 AW_IR_CTL_RXEN			(1 << 1)
+#define AW_IR_CTL_RXEN (1 << 1)
 /* CIR mode enable */
-#define	 AW_IR_CTL_MD			(1 << 4) | (1 << 5)
+#define AW_IR_CTL_MD (1 << 4) | (1 << 5)
 
 /* RX Config Reg */
-#define	AW_IR_RXCTL			0x10
+#define AW_IR_RXCTL 0x10
 /* Pulse Polarity Invert flag */
-#define	 AW_IR_RXCTL_RPPI		(1 << 2)
+#define AW_IR_RXCTL_RPPI (1 << 2)
 
 /* RX Data */
-#define	AW_IR_RXFIFO			0x20
+#define AW_IR_RXFIFO 0x20
 
 /* RX Interrupt Control */
-#define	AW_IR_RXINT			0x2C
+#define AW_IR_RXINT 0x2C
 /* RX FIFO Overflow */
-#define	 AW_IR_RXINT_ROI_EN		(1 << 0)
+#define AW_IR_RXINT_ROI_EN (1 << 0)
 /* RX Packet End */
-#define	 AW_IR_RXINT_RPEI_EN		(1 << 1)
+#define AW_IR_RXINT_RPEI_EN (1 << 1)
 /* RX FIFO Data Available */
-#define	 AW_IR_RXINT_RAI_EN		(1 << 4)
+#define AW_IR_RXINT_RAI_EN (1 << 4)
 /* RX FIFO available byte level */
-#define	 AW_IR_RXINT_RAL(val)		((val) << 8)
+#define AW_IR_RXINT_RAL(val) ((val) << 8)
 
 /* RX Interrupt Status Reg */
-#define	AW_IR_RXSTA			0x30
+#define AW_IR_RXSTA 0x30
 /* RX FIFO Get Available Counter */
-#define	 AW_IR_RXSTA_COUNTER(val)	(((val) >> 8) & (sc->fifo_size * 2 - 1))
+#define AW_IR_RXSTA_COUNTER(val) (((val) >> 8) & (sc->fifo_size * 2 - 1))
 /* Clear all interrupt status */
-#define	 AW_IR_RXSTA_CLEARALL		0xff
+#define AW_IR_RXSTA_CLEARALL 0xff
 
 /* IR Sample Configure Reg */
-#define	AW_IR_CIR			0x34
+#define AW_IR_CIR 0x34
 
 /*
  * Frequency sample: 23437.5Hz (Cycle: 42.7us)
  * Pulse of NEC Remote > 560us
  */
 /* Filter Threshold = 8 * 42.7 = ~341us < 500us */
-#define	 AW_IR_RXFILT_VAL		(((8) & 0x3f) << 2)
+#define AW_IR_RXFILT_VAL (((8) & 0x3f) << 2)
 /* Idle Threshold = (2 + 1) * 128 * 42.7 = ~16.4ms > 9ms */
-#define	 AW_IR_RXIDLE_VAL		(((2) & 0xff) << 8)
+#define AW_IR_RXIDLE_VAL (((2) & 0xff) << 8)
 
 /* Bit 15 - value (pulse/space) */
-#define	VAL_MASK			0x80
+#define VAL_MASK 0x80
 /* Bits 0:14 - sample duration  */
-#define	PERIOD_MASK			0x7f
+#define PERIOD_MASK 0x7f
 
 /* Clock rate for IR0 or IR1 clock in CIR mode */
-#define	AW_IR_BASE_CLK			3000000
+#define AW_IR_BASE_CLK 3000000
 /* Frequency sample 3MHz/64 = 46875Hz (21.3us) */
-#define	AW_IR_SAMPLE_64			(0 << 0)
+#define AW_IR_SAMPLE_64 (0 << 0)
 /* Frequency sample 3MHz/128 = 23437.5Hz (42.7us) */
-#define	AW_IR_SAMPLE_128		(1 << 0)
+#define AW_IR_SAMPLE_128 (1 << 0)
 
-#define	AW_IR_ERROR_CODE		0xffffffff
-#define	AW_IR_REPEAT_CODE		0x0
+#define AW_IR_ERROR_CODE 0xffffffff
+#define AW_IR_REPEAT_CODE 0x0
 
 /* 80 * 42.7 = ~3.4ms, Lead1(4.5ms) > AW_IR_L1_MIN */
-#define	AW_IR_L1_MIN			80
+#define AW_IR_L1_MIN 80
 /* 40 * 42.7 = ~1.7ms, Lead0(4.5ms) Lead0R(2.25ms) > AW_IR_L0_MIN */
-#define	AW_IR_L0_MIN			40
+#define AW_IR_L0_MIN 40
 /* 26 * 42.7 = ~1109us ~= 561 * 2, Pulse < AW_IR_PMAX */
-#define	AW_IR_PMAX			26
+#define AW_IR_PMAX 26
 /* 26 * 42.7 = ~1109us ~= 561 * 2, D1 > AW_IR_DMID, D0 <= AW_IR_DMID */
-#define	AW_IR_DMID			26
+#define AW_IR_DMID 26
 /* 53 * 42.7 = ~2263us ~= 561 * 4, D < AW_IR_DMAX */
-#define	AW_IR_DMAX			53
+#define AW_IR_DMAX 53
 
 /* Active Thresholds */
-#define	AW_IR_ACTIVE_T_VAL		AW_IR_L1_MIN
-#define	AW_IR_ACTIVE_T			(((AW_IR_ACTIVE_T_VAL - 1) & 0xff) << 16)
-#define	AW_IR_ACTIVE_T_C_VAL		0
-#define	AW_IR_ACTIVE_T_C		((AW_IR_ACTIVE_T_C_VAL & 0xff) << 23)
+#define AW_IR_ACTIVE_T_VAL AW_IR_L1_MIN
+#define AW_IR_ACTIVE_T (((AW_IR_ACTIVE_T_VAL - 1) & 0xff) << 16)
+#define AW_IR_ACTIVE_T_C_VAL 0
+#define AW_IR_ACTIVE_T_C ((AW_IR_ACTIVE_T_C_VAL & 0xff) << 23)
 
 /* Code masks */
-#define	CODE_MASK			0x00ff00ff
-#define	INV_CODE_MASK			0xff00ff00
-#define	VALID_CODE_MASK			0x00ff0000
+#define CODE_MASK 0x00ff00ff
+#define INV_CODE_MASK 0xff00ff00
+#define VALID_CODE_MASK 0x00ff0000
 
 enum {
 	A10_IR = 1,
@@ -142,30 +142,25 @@ enum {
 	A31_IR,
 };
 
-#define	AW_IR_RAW_BUF_SIZE		128
+#define AW_IR_RAW_BUF_SIZE 128
 
 struct aw_ir_softc {
-	device_t		dev;
-	struct resource		*res[2];
-	void *			intrhand;
-	int			fifo_size;
-	int			dcnt;	/* Packet Count */
-	unsigned char		buf[AW_IR_RAW_BUF_SIZE];
-	struct evdev_dev	*sc_evdev;
+	device_t dev;
+	struct resource *res[2];
+	void *intrhand;
+	int fifo_size;
+	int dcnt; /* Packet Count */
+	unsigned char buf[AW_IR_RAW_BUF_SIZE];
+	struct evdev_dev *sc_evdev;
 };
 
-static struct resource_spec aw_ir_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE | RF_SHAREABLE },
-	{ -1, 0 }
-};
+static struct resource_spec aw_ir_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE | RF_SHAREABLE }, { -1, 0 } };
 
-static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun4i-a10-ir",	A10_IR },
-	{ "allwinner,sun5i-a13-ir",	A13_IR },
-	{ "allwinner,sun6i-a31-ir",	A31_IR },
-	{ NULL,				0 }
-};
+static struct ofw_compat_data compat_data[] = { { "allwinner,sun4i-a10-ir",
+						    A10_IR },
+	{ "allwinner,sun5i-a13-ir", A13_IR },
+	{ "allwinner,sun6i-a31-ir", A31_IR }, { NULL, 0 } };
 
 static void
 aw_ir_buf_reset(struct aw_ir_softc *sc)
@@ -180,9 +175,8 @@ aw_ir_buf_write(struct aw_ir_softc *sc, unsigned char data)
 
 	if (sc->dcnt < AW_IR_RAW_BUF_SIZE)
 		sc->buf[sc->dcnt++] = data;
-	else
-		if (bootverbose)
-			device_printf(sc->dev, "IR RX Buffer Full!\n");
+	else if (bootverbose)
+		device_printf(sc->dev, "IR RX Buffer Full!\n");
 }
 
 static int
@@ -216,7 +210,7 @@ aw_ir_decode_packets(struct aw_ir_softc *sc)
 	len = active_delay;
 	if (bootverbose)
 		device_printf(sc->dev, "Initial len: %d\n", len);
-	for (i = 0;  i < sc->dcnt; i++) {
+	for (i = 0; i < sc->dcnt; i++) {
 		val = sc->buf[i];
 		if (val & VAL_MASK)
 			len += (val & PERIOD_MASK) + 1;
@@ -239,7 +233,7 @@ aw_ir_decode_packets(struct aw_ir_softc *sc)
 	for (; i < sc->dcnt; i++) {
 		val = sc->buf[i];
 		if (val & VAL_MASK) {
-			if(len > AW_IR_L0_MIN)
+			if (len > AW_IR_L0_MIN)
 				break;
 			len = 0;
 		} else
@@ -287,7 +281,7 @@ aw_ir_decode_packets(struct aw_ir_softc *sc)
 					}
 					bitcount++;
 					if (bitcount == 32)
-						break;  /* Finish decoding */
+						break; /* Finish decoding */
 				}
 				last = 1;
 				len = (val & PERIOD_MASK) + 1;
@@ -312,9 +306,9 @@ aw_ir_validate_code(unsigned long code)
 	v2 = (code & INV_CODE_MASK) >> 8;
 
 	if (((v1 ^ v2) & VALID_CODE_MASK) == VALID_CODE_MASK)
-		return (0);	/* valid */
+		return (0); /* valid */
 	else
-		return (1);	/* invalid */
+		return (1); /* invalid */
 }
 
 static void
@@ -339,16 +333,16 @@ aw_ir_intr(void *arg)
 	/* When Rx FIFO Data available or Packet end */
 	if (val & (AW_IR_RXINT_RAI_EN | AW_IR_RXINT_RPEI_EN)) {
 		if (bootverbose)
-			device_printf(sc->dev,
-			    "RX FIFO Data available or Packet end\n");
+			device_printf(
+			    sc->dev, "RX FIFO Data available or Packet end\n");
 		/* Get available message count in RX FIFO */
-		dcnt  = AW_IR_RXSTA_COUNTER(val);
+		dcnt = AW_IR_RXSTA_COUNTER(val);
 		/* Read FIFO */
 		for (i = 0; i < dcnt; i++) {
 			if (aw_ir_buf_full(sc)) {
 				if (bootverbose)
-					device_printf(sc->dev,
-					    "raw buffer full\n");
+					device_printf(
+					    sc->dev, "raw buffer full\n");
 				break;
 			} else
 				aw_ir_buf_write(sc, aw_ir_read_data(sc));
@@ -362,15 +356,13 @@ aw_ir_intr(void *arg)
 		ir_code = aw_ir_decode_packets(sc);
 		stat = aw_ir_validate_code(ir_code);
 		if (stat == 0) {
-			evdev_push_event(sc->sc_evdev,
-			    EV_MSC, MSC_SCAN, ir_code);
+			evdev_push_event(
+			    sc->sc_evdev, EV_MSC, MSC_SCAN, ir_code);
 			evdev_sync(sc->sc_evdev);
 		}
 		if (bootverbose) {
-			device_printf(sc->dev, "Final IR code: %lx\n",
-			    ir_code);
-			device_printf(sc->dev, "IR code status: %d\n",
-			    stat);
+			device_printf(sc->dev, "Final IR code: %lx\n", ir_code);
+			device_printf(sc->dev, "IR code status: %d\n", stat);
 		}
 		aw_ir_buf_reset(sc);
 	}
@@ -468,9 +460,8 @@ aw_ir_attach(device_t dev)
 		goto error;
 	}
 
-	if (bus_setup_intr(dev, sc->res[1],
-	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, aw_ir_intr, sc,
-	    &sc->intrhand)) {
+	if (bus_setup_intr(dev, sc->res[1], INTR_TYPE_MISC | INTR_MPSAFE, NULL,
+		aw_ir_intr, sc, &sc->intrhand)) {
 		bus_release_resources(dev, aw_ir_spec, sc->res);
 		device_printf(dev, "cannot setup interrupt handler\n");
 		err = ENXIO;
@@ -500,8 +491,9 @@ aw_ir_attach(device_t dev)
 	 * and FIFO available.
 	 * RX FIFO Threshold = FIFO size / 2
 	 */
-	WRITE(sc, AW_IR_RXINT, AW_IR_RXINT_ROI_EN | AW_IR_RXINT_RPEI_EN |
-	    AW_IR_RXINT_RAI_EN | AW_IR_RXINT_RAL((sc->fifo_size >> 1) - 1));
+	WRITE(sc, AW_IR_RXINT,
+	    AW_IR_RXINT_ROI_EN | AW_IR_RXINT_RPEI_EN | AW_IR_RXINT_RAI_EN |
+		AW_IR_RXINT_RAL((sc->fifo_size >> 1) - 1));
 
 	/* Enable IR Module */
 	val = READ(sc, AW_IR_CTL);
@@ -517,8 +509,7 @@ aw_ir_attach(device_t dev)
 
 	err = evdev_register(sc->sc_evdev);
 	if (err) {
-		device_printf(dev,
-		    "failed to register evdev: error=%d\n", err);
+		device_printf(dev, "failed to register evdev: error=%d\n", err);
 		goto error;
 	}
 
@@ -531,18 +522,16 @@ error:
 	if (rst_apb != NULL)
 		hwreset_release(rst_apb);
 	evdev_free(sc->sc_evdev);
-	sc->sc_evdev = NULL;	/* Avoid double free */
+	sc->sc_evdev = NULL; /* Avoid double free */
 
 	bus_release_resources(dev, aw_ir_spec, sc->res);
 	return (ENXIO);
 }
 
-static device_method_t aw_ir_methods[] = {
-	DEVMETHOD(device_probe, aw_ir_probe),
+static device_method_t aw_ir_methods[] = { DEVMETHOD(device_probe, aw_ir_probe),
 	DEVMETHOD(device_attach, aw_ir_attach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t aw_ir_driver = {
 	"aw_ir",

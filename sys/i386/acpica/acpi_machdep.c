@@ -38,17 +38,17 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/accommon.h>
-#include <contrib/dev/acpica/include/actables.h>
+#include <machine/nexusvar.h>
 
 #include <dev/acpica/acpivar.h>
 
-#include <machine/nexusvar.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/actables.h>
 
 uint32_t acpi_resume_beep;
-SYSCTL_UINT(_debug_acpi, OID_AUTO, resume_beep, CTLFLAG_RWTUN, &acpi_resume_beep,
-    0, "Beep the PC speaker when resuming");
+SYSCTL_UINT(_debug_acpi, OID_AUTO, resume_beep, CTLFLAG_RWTUN,
+    &acpi_resume_beep, 0, "Beep the PC speaker when resuming");
 
 uint32_t acpi_reset_video;
 TUNABLE_INT("hw.acpi.reset_video", &acpi_reset_video);
@@ -72,8 +72,8 @@ acpi_machdep_init(device_t dev)
 		acpi_SetIntrModel(intr_model);
 
 	SYSCTL_ADD_UINT(&sc->acpi_sysctl_ctx,
-	    SYSCTL_CHILDREN(sc->acpi_sysctl_tree), OID_AUTO,
-	    "reset_video", CTLFLAG_RW, &acpi_reset_video, 0,
+	    SYSCTL_CHILDREN(sc->acpi_sysctl_tree), OID_AUTO, "reset_video",
+	    CTLFLAG_RW, &acpi_reset_video, 0,
 	    "Call the VESA reset BIOS vector on the resume path");
 
 	return (0);
@@ -98,7 +98,7 @@ acpi_machdep_quirks(int *quirks)
 	sscanf(va + 11, "%2d", &year);
 	pmap_unmapbios((vm_offset_t)va, 16);
 
-	/* 
+	/*
 	 * Date must be >= 1/1/1999 or we don't trust ACPI.  Note that this
 	 * check must be changed by my 114th birthday.
 	 */
@@ -298,9 +298,8 @@ nexus_acpi_attach(device_t dev)
 
 static device_method_t nexus_acpi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		nexus_acpi_probe),
-	DEVMETHOD(device_attach,	nexus_acpi_attach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, nexus_acpi_probe),
+	DEVMETHOD(device_attach, nexus_acpi_attach), { 0, 0 }
 };
 
 DEFINE_CLASS_1(nexus, nexus_acpi_driver, nexus_acpi_methods, 1, nexus_driver);

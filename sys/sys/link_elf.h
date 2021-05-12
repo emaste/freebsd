@@ -41,7 +41,7 @@
  */
 
 #ifndef _SYS_LINK_ELF_H_
-#define	_SYS_LINK_ELF_H_
+#define _SYS_LINK_ELF_H_
 
 #include <sys/elf.h>
 
@@ -49,48 +49,47 @@
  * Flags that describe the origin of the entries in Dl_serinfo.
  * SunOS has these in <sys/link.h>, we follow the suit.
  */
-#define	LA_SER_ORIG	0x01	/* original (needed) name */
-#define	LA_SER_LIBPATH	0x02	/* LD_LIBRARY_PATH entry prepended */
-#define	LA_SER_RUNPATH	0x04	/* runpath entry prepended */
-#define	LA_SER_CONFIG	0x08	/* configuration entry prepended */
-#define	LA_SER_DEFAULT	0x40	/* default path prepended */
-#define	LA_SER_SECURE	0x80	/* default (secure) path prepended */
+#define LA_SER_ORIG 0x01    /* original (needed) name */
+#define LA_SER_LIBPATH 0x02 /* LD_LIBRARY_PATH entry prepended */
+#define LA_SER_RUNPATH 0x04 /* runpath entry prepended */
+#define LA_SER_CONFIG 0x08  /* configuration entry prepended */
+#define LA_SER_DEFAULT 0x40 /* default path prepended */
+#define LA_SER_SECURE 0x80  /* default (secure) path prepended */
 
 typedef struct link_map {
-	caddr_t		l_base;			/* Base Address of library */
+	caddr_t l_base; /* Base Address of library */
 #ifdef __mips__
-	caddr_t		l_xxx;			/* unused */
+	caddr_t l_xxx; /* unused */
 #endif
-	const char	*l_name;		/* Absolute Path to Library */
-	const void	*l_ld;			/* Pointer to .dynamic in memory */
-	struct link_map	*l_next, *l_prev;	/* linked list of of mapped libs */
-	caddr_t		l_addr;			/* Load Offset of library */
-	const char	*l_refname;		/* object we are filtering for */
+	const char *l_name;		  /* Absolute Path to Library */
+	const void *l_ld;		  /* Pointer to .dynamic in memory */
+	struct link_map *l_next, *l_prev; /* linked list of of mapped libs */
+	caddr_t l_addr;			  /* Load Offset of library */
+	const char *l_refname;		  /* object we are filtering for */
 } Link_map;
 
 struct r_debug {
-	int		r_version;		/* Currently '1' */
-	struct link_map *r_map;			/* list of loaded images */
-	void		(*r_brk)(struct r_debug *, struct link_map *);
-						/* pointer to break point */
+	int r_version;		/* Currently '1' */
+	struct link_map *r_map; /* list of loaded images */
+	void (*r_brk)(struct r_debug *, struct link_map *);
+	/* pointer to break point */
 	enum {
-		RT_CONSISTENT,			/* things are stable */
-		RT_ADD,				/* adding a shared library */
-		RT_DELETE			/* removing a shared library */
-	}		r_state;
-	void		*r_ldbase;		/* Base address of rtld */
+		RT_CONSISTENT, /* things are stable */
+		RT_ADD,	       /* adding a shared library */
+		RT_DELETE      /* removing a shared library */
+	} r_state;
+	void *r_ldbase; /* Base address of rtld */
 };
 
-#define	R_DEBUG_VERSION		1
+#define R_DEBUG_VERSION 1
 
-struct dl_phdr_info
-{
-	Elf_Addr dlpi_addr;			/* module relocation base */
-	const char *dlpi_name;			/* module name */
-	const Elf_Phdr *dlpi_phdr;		/* pointer to module's phdr */
-	Elf_Half dlpi_phnum;			/* number of entries in phdr */
-	unsigned long long int dlpi_adds;	/* total # of loads */
-	unsigned long long int dlpi_subs;	/* total # of unloads */
+struct dl_phdr_info {
+	Elf_Addr dlpi_addr;		  /* module relocation base */
+	const char *dlpi_name;		  /* module name */
+	const Elf_Phdr *dlpi_phdr;	  /* pointer to module's phdr */
+	Elf_Half dlpi_phnum;		  /* number of entries in phdr */
+	unsigned long long int dlpi_adds; /* total # of loads */
+	unsigned long long int dlpi_subs; /* total # of unloads */
 	size_t dlpi_tls_modid;
 	void *dlpi_tls_data;
 };
@@ -104,7 +103,7 @@ int _rtld_get_stack_prot(void);
 int _rtld_is_dlopened(void *);
 
 #ifdef __ARM_EABI__
-void * dl_unwind_find_exidx(const void *, int *);
+void *dl_unwind_find_exidx(const void *, int *);
 #endif
 
 __END_DECLS

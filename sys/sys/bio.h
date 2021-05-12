@@ -38,41 +38,42 @@
  */
 
 #ifndef _SYS_BIO_H_
-#define	_SYS_BIO_H_
+#define _SYS_BIO_H_
 
-#include <sys/queue.h>
 #include <sys/disk_zone.h>
+#include <sys/queue.h>
 
 /* bio_cmd */
-#define BIO_READ	0x01	/* Read I/O data */
-#define BIO_WRITE	0x02	/* Write I/O data */
-#define BIO_DELETE	0x03	/* TRIM or free blocks, i.e. mark as unused */
-#define BIO_GETATTR	0x04	/* Get GEOM attributes of object */
-#define BIO_FLUSH	0x05	/* Commit outstanding I/O now */
-#define BIO_CMD0	0x06	/* Available for local hacks */
-#define BIO_CMD1	0x07	/* Available for local hacks */
-#define BIO_CMD2	0x08	/* Available for local hacks */
-#define BIO_ZONE	0x09	/* Zone command */
-#define BIO_SPEEDUP	0x0a	/* Upper layers face shortage */
+#define BIO_READ 0x01	 /* Read I/O data */
+#define BIO_WRITE 0x02	 /* Write I/O data */
+#define BIO_DELETE 0x03	 /* TRIM or free blocks, i.e. mark as unused */
+#define BIO_GETATTR 0x04 /* Get GEOM attributes of object */
+#define BIO_FLUSH 0x05	 /* Commit outstanding I/O now */
+#define BIO_CMD0 0x06	 /* Available for local hacks */
+#define BIO_CMD1 0x07	 /* Available for local hacks */
+#define BIO_CMD2 0x08	 /* Available for local hacks */
+#define BIO_ZONE 0x09	 /* Zone command */
+#define BIO_SPEEDUP 0x0a /* Upper layers face shortage */
 
 /* bio_flags */
-#define BIO_ERROR	0x01	/* An error occurred processing this bio. */
-#define BIO_DONE	0x02	/* This bio is finished. */
-#define BIO_ONQUEUE	0x04	/* This bio is in a queue & not yet taken. */
+#define BIO_ERROR 0x01	 /* An error occurred processing this bio. */
+#define BIO_DONE 0x02	 /* This bio is finished. */
+#define BIO_ONQUEUE 0x04 /* This bio is in a queue & not yet taken. */
 /*
  * This bio must be executed after all previous bios in the queue have been
  * executed, and before any successive bios can be executed.
  */
-#define BIO_ORDERED	0x08
-#define	BIO_UNMAPPED	0x10
-#define	BIO_TRANSIENT_MAPPING	0x20
-#define	BIO_VLIST	0x40
+#define BIO_ORDERED 0x08
+#define BIO_UNMAPPED 0x10
+#define BIO_TRANSIENT_MAPPING 0x20
+#define BIO_VLIST 0x40
 
-#define	PRINT_BIO_FLAGS "\20\7vlist\6transient_mapping\5unmapped" \
+#define PRINT_BIO_FLAGS                           \
+	"\20\7vlist\6transient_mapping\5unmapped" \
 	"\4ordered\3onqueue\2done\1error"
 
-#define BIO_SPEEDUP_WRITE	0x4000	/* Resource shortage at upper layers */
-#define BIO_SPEEDUP_TRIM	0x8000	/* Resource shortage at upper layers */
+#define BIO_SPEEDUP_WRITE 0x4000 /* Resource shortage at upper layers */
+#define BIO_SPEEDUP_TRIM 0x8000	 /* Resource shortage at upper layers */
 
 #ifdef _KERNEL
 struct disk;
@@ -85,54 +86,54 @@ typedef void bio_task_t(void *);
  * The bio structure describes an I/O operation in the kernel.
  */
 struct bio {
-	uint16_t bio_cmd;		/* I/O operation. */
-	uint16_t bio_flags;		/* General flags. */
-	uint16_t bio_cflags;		/* Private use by the consumer. */
-	uint16_t bio_pflags;		/* Private use by the provider. */
-	struct cdev *bio_dev;		/* Device to do I/O on. */
-	struct disk *bio_disk;		/* Valid below geom_disk.c only */
-	off_t	bio_offset;		/* Offset into file. */
-	long	bio_bcount;		/* Valid bytes in buffer. */
-	caddr_t	bio_data;		/* Memory, superblocks, indirect etc. */
-	struct vm_page **bio_ma;	/* Or unmapped. */
-	int	bio_ma_offset;		/* Offset in the first page of bio_ma. */
-	int	bio_ma_n;		/* Number of pages in bio_ma. */
-	int	bio_error;		/* Errno for BIO_ERROR. */
-	long	bio_resid;		/* Remaining I/O in bytes. */
-	void	(*bio_done)(struct bio *);
-	void	*bio_driver1;		/* Private use by the provider. */
-	void	*bio_driver2;		/* Private use by the provider. */
-	void	*bio_caller1;		/* Private use by the consumer. */
-	void	*bio_caller2;		/* Private use by the consumer. */
+	uint16_t bio_cmd;	 /* I/O operation. */
+	uint16_t bio_flags;	 /* General flags. */
+	uint16_t bio_cflags;	 /* Private use by the consumer. */
+	uint16_t bio_pflags;	 /* Private use by the provider. */
+	struct cdev *bio_dev;	 /* Device to do I/O on. */
+	struct disk *bio_disk;	 /* Valid below geom_disk.c only */
+	off_t bio_offset;	 /* Offset into file. */
+	long bio_bcount;	 /* Valid bytes in buffer. */
+	caddr_t bio_data;	 /* Memory, superblocks, indirect etc. */
+	struct vm_page **bio_ma; /* Or unmapped. */
+	int bio_ma_offset;	 /* Offset in the first page of bio_ma. */
+	int bio_ma_n;		 /* Number of pages in bio_ma. */
+	int bio_error;		 /* Errno for BIO_ERROR. */
+	long bio_resid;		 /* Remaining I/O in bytes. */
+	void (*bio_done)(struct bio *);
+	void *bio_driver1;		/* Private use by the provider. */
+	void *bio_driver2;		/* Private use by the provider. */
+	void *bio_caller1;		/* Private use by the consumer. */
+	void *bio_caller2;		/* Private use by the consumer. */
 	TAILQ_ENTRY(bio) bio_queue;	/* Disksort queue. */
 	const char *bio_attribute;	/* Attribute for BIO_[GS]ETATTR */
-	struct  disk_zone_args bio_zone;/* Used for BIO_ZONE */
+	struct disk_zone_args bio_zone; /* Used for BIO_ZONE */
 	struct g_consumer *bio_from;	/* GEOM linkage */
 	struct g_provider *bio_to;	/* GEOM linkage */
-	off_t	bio_length;		/* Like bio_bcount */
-	off_t	bio_completed;		/* Inverse of bio_resid */
-	u_int	bio_children;		/* Number of spawned bios */
-	u_int	bio_inbed;		/* Children safely home by now */
+	off_t bio_length;		/* Like bio_bcount */
+	off_t bio_completed;		/* Inverse of bio_resid */
+	u_int bio_children;		/* Number of spawned bios */
+	u_int bio_inbed;		/* Children safely home by now */
 	struct bio *bio_parent;		/* Pointer to parent */
 	struct bintime bio_t0;		/* Time request started */
 
-	bio_task_t *bio_task;		/* Task_queue handler */
-	void	*bio_task_arg;		/* Argument to above */
+	bio_task_t *bio_task; /* Task_queue handler */
+	void *bio_task_arg;   /* Argument to above */
 
-	void	*bio_spare1;
-	void	*bio_spare2;
+	void *bio_spare1;
+	void *bio_spare2;
 
 #ifdef DIAGNOSTIC
-	void	*_bio_caller1;
-	void	*_bio_caller2;
-	uint8_t	_bio_cflags;
+	void *_bio_caller1;
+	void *_bio_caller2;
+	uint8_t _bio_cflags;
 #endif
 #if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
-	struct buf *bio_track_bp;	/* Parent buf for tracking */
+	struct buf *bio_track_bp; /* Parent buf for tracking */
 #endif
 
 	/* XXX: these go away when bio chaining is introduced */
-	daddr_t bio_pblkno;               /* physical block number */
+	daddr_t bio_pblkno; /* physical block number */
 };
 
 struct uio;
@@ -141,7 +142,7 @@ struct devstat;
 struct bio_queue_head {
 	TAILQ_HEAD(bio_queue, bio) queue;
 	off_t last_offset;
-	struct	bio *insert_point;
+	struct bio *insert_point;
 	int total;
 	int batched;
 };
@@ -179,7 +180,7 @@ void bioq_insert_head(struct bio_queue_head *head, struct bio *bp);
 void bioq_insert_tail(struct bio_queue_head *head, struct bio *bp);
 void bioq_remove(struct bio_queue_head *head, struct bio *bp);
 
-int	physio(struct cdev *dev, struct uio *uio, int ioflag);
+int physio(struct cdev *dev, struct uio *uio, int ioflag);
 #define physread physio
 #define physwrite physio
 

@@ -37,35 +37,35 @@
 
 #ifdef _KERNEL
 /* debug flags */
-#define KEYDEBUG_STAMP		0x00000001 /* path */
-#define KEYDEBUG_DATA		0x00000002 /* data */
-#define KEYDEBUG_DUMP		0x00000004 /* dump */
+#define KEYDEBUG_STAMP 0x00000001 /* path */
+#define KEYDEBUG_DATA 0x00000002  /* data */
+#define KEYDEBUG_DUMP 0x00000004  /* dump */
 
-#define KEYDEBUG_KEY		0x00000010 /* key processing */
-#define KEYDEBUG_ALG		0x00000020 /* ciph & auth algorithm */
-#define KEYDEBUG_IPSEC		0x00000040 /* ipsec processing */
+#define KEYDEBUG_KEY 0x00000010	  /* key processing */
+#define KEYDEBUG_ALG 0x00000020	  /* ciph & auth algorithm */
+#define KEYDEBUG_IPSEC 0x00000040 /* ipsec processing */
 
-#define KEYDEBUG_KEY_STAMP	(KEYDEBUG_KEY | KEYDEBUG_STAMP)
-#define KEYDEBUG_KEY_DATA	(KEYDEBUG_KEY | KEYDEBUG_DATA)
-#define KEYDEBUG_KEY_DUMP	(KEYDEBUG_KEY | KEYDEBUG_DUMP)
-#define KEYDEBUG_ALG_STAMP	(KEYDEBUG_ALG | KEYDEBUG_STAMP)
-#define KEYDEBUG_ALG_DATA	(KEYDEBUG_ALG | KEYDEBUG_DATA)
-#define KEYDEBUG_ALG_DUMP	(KEYDEBUG_ALG | KEYDEBUG_DUMP)
-#define KEYDEBUG_IPSEC_STAMP	(KEYDEBUG_IPSEC | KEYDEBUG_STAMP)
-#define KEYDEBUG_IPSEC_DATA	(KEYDEBUG_IPSEC | KEYDEBUG_DATA)
-#define KEYDEBUG_IPSEC_DUMP	(KEYDEBUG_IPSEC | KEYDEBUG_DUMP)
+#define KEYDEBUG_KEY_STAMP (KEYDEBUG_KEY | KEYDEBUG_STAMP)
+#define KEYDEBUG_KEY_DATA (KEYDEBUG_KEY | KEYDEBUG_DATA)
+#define KEYDEBUG_KEY_DUMP (KEYDEBUG_KEY | KEYDEBUG_DUMP)
+#define KEYDEBUG_ALG_STAMP (KEYDEBUG_ALG | KEYDEBUG_STAMP)
+#define KEYDEBUG_ALG_DATA (KEYDEBUG_ALG | KEYDEBUG_DATA)
+#define KEYDEBUG_ALG_DUMP (KEYDEBUG_ALG | KEYDEBUG_DUMP)
+#define KEYDEBUG_IPSEC_STAMP (KEYDEBUG_IPSEC | KEYDEBUG_STAMP)
+#define KEYDEBUG_IPSEC_DATA (KEYDEBUG_IPSEC | KEYDEBUG_DATA)
+#define KEYDEBUG_IPSEC_DUMP (KEYDEBUG_IPSEC | KEYDEBUG_DUMP)
 
 #ifdef IPSEC_DEBUG
-#define KEYDBG(lev, arg)	\
-    if ((V_key_debug_level & (KEYDEBUG_ ## lev)) == (KEYDEBUG_ ## lev)) { \
-	    arg;		\
-    }
+#define KEYDBG(lev, arg)                                                  \
+	if ((V_key_debug_level & (KEYDEBUG_##lev)) == (KEYDEBUG_##lev)) { \
+		arg;                                                      \
+	}
 #else
-#define	KEYDBG(lev, arg)
+#define KEYDBG(lev, arg)
 #endif /* !IPSEC_DEBUG */
 
 VNET_DECLARE(uint32_t, key_debug_level);
-#define	V_key_debug_level	VNET(key_debug_level)
+#define V_key_debug_level VNET(key_debug_level)
 #endif /*_KERNEL*/
 
 struct sadb_msg;
@@ -82,12 +82,12 @@ struct secasvar;
 struct secreplay;
 struct mbuf;
 union sockaddr_union;
-const char* kdebug_secpolicy_state(u_int);
-const char* kdebug_secpolicy_policy(u_int);
-const char* kdebug_secpolicyindex_dir(u_int);
-const char* kdebug_ipsecrequest_level(u_int);
-const char* kdebug_secasindex_mode(u_int);
-const char* kdebug_secasv_state(u_int);
+const char *kdebug_secpolicy_state(u_int);
+const char *kdebug_secpolicy_policy(u_int);
+const char *kdebug_secpolicyindex_dir(u_int);
+const char *kdebug_ipsecrequest_level(u_int);
+const char *kdebug_secasindex_mode(u_int);
+const char *kdebug_secasv_state(u_int);
 void kdebug_secpolicy(struct secpolicy *);
 void kdebug_secpolicyindex(struct secpolicyindex *, const char *);
 void kdebug_secasindex(const struct secasindex *, const char *);

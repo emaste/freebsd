@@ -6,7 +6,7 @@
  *
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -18,7 +18,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -77,8 +77,8 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-static MALLOC_DEFINE(M_PACKET_TAGS, MBUF_TAG_MEM_NAME,
-    "packet-attached information");
+static MALLOC_DEFINE(
+    M_PACKET_TAGS, MBUF_TAG_MEM_NAME, "packet-attached information");
 
 /* can't call it m_dup(), as freebsd[34] uses m_dup() with different arg */
 static struct mbuf *m_dup1(struct mbuf *, int, int, int);
@@ -101,21 +101,22 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	int writable;
 
 	/* check invalid arguments. */
-	KASSERT(m != NULL, ("%s: fix caller: m is NULL off %d len %d offp %p\n",
-	    __func__, off, len, offp));
+	KASSERT(m != NULL,
+	    ("%s: fix caller: m is NULL off %d len %d offp %p\n", __func__, off,
+		len, offp));
 	if (len > MCLBYTES) {
 		m_freem(m);
-		return NULL;	/* impossible */
+		return NULL; /* impossible */
 	}
 
 #ifdef PULLDOWN_DEBUG
-    {
-	struct mbuf *t;
-	printf("before:");
-	for (t = m; t; t = t->m_next)
-		printf(" %d", t->m_len);
-	printf("\n");
-    }
+	{
+		struct mbuf *t;
+		printf("before:");
+		for (t = m; t; t = t->m_next)
+			printf(" %d", t->m_len);
+		printf("\n");
+	}
 #endif
 	n = m;
 	while (n != NULL && off > 0) {
@@ -129,7 +130,7 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 		n = n->m_next;
 	if (!n) {
 		m_freem(m);
-		return NULL;	/* mbuf chain too short */
+		return NULL; /* mbuf chain too short */
 	}
 
 	/*
@@ -174,7 +175,7 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 		o = m_dup1(n, off, n->m_len - off, M_NOWAIT);
 		if (o == NULL) {
 			m_freem(m);
-			return NULL;	/* ENOBUFS */
+			return NULL; /* ENOBUFS */
 		}
 		n->m_len = off;
 		o->m_next = n->m_next;
@@ -201,22 +202,21 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 		olen += o->m_len;
 	if (hlen + olen < len) {
 		m_freem(m);
-		return NULL;	/* mbuf chain too short */
+		return NULL; /* mbuf chain too short */
 	}
 
 	/*
 	 * easy cases first.
 	 * we need to use m_copydata() to get data from <n->m_next, 0>.
 	 */
-	if ((off == 0 || offp) && M_TRAILINGSPACE(n) >= tlen
-	 && writable) {
+	if ((off == 0 || offp) && M_TRAILINGSPACE(n) >= tlen && writable) {
 		m_copydata(n->m_next, 0, tlen, mtod(n, caddr_t) + n->m_len);
 		n->m_len += tlen;
 		m_adj(n->m_next, tlen);
 		goto ok;
 	}
-	if ((off == 0 || offp) && M_LEADINGSPACE(n->m_next) >= hlen
-	 && writable && n->m_next->m_len >= tlen) {
+	if ((off == 0 || offp) && M_LEADINGSPACE(n->m_next) >= hlen &&
+	    writable && n->m_next->m_len >= tlen) {
 		n->m_next->m_data -= hlen;
 		n->m_next->m_len += hlen;
 		bcopy(mtod(n, caddr_t) + off, mtod(n->m_next, caddr_t), hlen);
@@ -236,7 +236,7 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 		o = m_get(M_NOWAIT, m->m_type);
 	if (!o) {
 		m_freem(m);
-		return NULL;	/* ENOBUFS */
+		return NULL; /* ENOBUFS */
 	}
 	/* get hlen from <n, off> into <o, 0> */
 	o->m_len = hlen;
@@ -251,15 +251,15 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	n = o;
 	off = 0;
 
-ok:
+ok :
 #ifdef PULLDOWN_DEBUG
-    {
+{
 	struct mbuf *t;
 	printf("after:");
 	for (t = m; t; t = t->m_next)
 		printf("%c%d", t == n ? '*' : ' ', t->m_len);
 	printf(" (off=%d)\n", off);
-    }
+}
 #endif
 	if (offp)
 		*offp = off;
@@ -369,7 +369,7 @@ m_tag_delete_nonpersistent(struct mbuf *m)
 {
 	struct m_tag *p, *q;
 
-	SLIST_FOREACH_SAFE(p, &m->m_pkthdr.tags, m_tag_link, q)
+	SLIST_FOREACH_SAFE (p, &m->m_pkthdr.tags, m_tag_link, q)
 		if ((p->m_tag_id & MTAG_PERSISTENT) == 0)
 			m_tag_delete(m, p);
 }
@@ -435,9 +435,9 @@ m_tag_copy_chain(struct mbuf *to, const struct mbuf *from, int how)
 
 	MBUF_CHECKSLEEP(how);
 	KASSERT(to && from,
-		("m_tag_copy_chain: null argument, to %p from %p", to, from));
+	    ("m_tag_copy_chain: null argument, to %p from %p", to, from));
 	m_tag_delete_chain(to, NULL);
-	SLIST_FOREACH(p, &from->m_pkthdr.tags, m_tag_link) {
+	SLIST_FOREACH (p, &from->m_pkthdr.tags, m_tag_link) {
 		t = m_tag_copy(p, how);
 		if (t == NULL) {
 			m_tag_delete_chain(to, NULL);

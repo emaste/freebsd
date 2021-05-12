@@ -51,6 +51,7 @@
 
 #include <sys/param.h>
 #include <sys/domain.h>
+#include <sys/epoch.h>
 #include <sys/hash.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
@@ -58,9 +59,8 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
-#include <sys/proc.h>
-#include <sys/epoch.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
@@ -69,11 +69,10 @@
 #include <sys/sysctl.h>
 
 #include <net/vnet.h>
-
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include <netgraph/ng_socketvar.h>
+#include <netgraph/ng_message.h>
 #include <netgraph/ng_socket.h>
+#include <netgraph/ng_socketvar.h>
 
 #ifdef NG_SEPARATE_MALLOC
 static MALLOC_DEFINE(M_NETGRAPH_PATH, "netgraph_path", "netgraph path info");
@@ -110,55 +109,55 @@ static MALLOC_DEFINE(M_NETGRAPH_SOCK, "netgraph_sock", "netgraph socket info");
  */
 
 /* Netgraph node methods */
-static ng_constructor_t	ngs_constructor;
-static ng_rcvmsg_t	ngs_rcvmsg;
-static ng_shutdown_t	ngs_shutdown;
-static ng_newhook_t	ngs_newhook;
-static ng_connect_t	ngs_connect;
-static ng_findhook_t	ngs_findhook;
-static ng_rcvdata_t	ngs_rcvdata;
-static ng_disconnect_t	ngs_disconnect;
+static ng_constructor_t ngs_constructor;
+static ng_rcvmsg_t ngs_rcvmsg;
+static ng_shutdown_t ngs_shutdown;
+static ng_newhook_t ngs_newhook;
+static ng_connect_t ngs_connect;
+static ng_findhook_t ngs_findhook;
+static ng_rcvdata_t ngs_rcvdata;
+static ng_disconnect_t ngs_disconnect;
 
 /* Internal methods */
-static int	ng_attach_data(struct socket *so);
-static int	ng_attach_cntl(struct socket *so);
-static int	ng_attach_common(struct socket *so, int type);
-static void	ng_detach_common(struct ngpcb *pcbp, int type);
-static void	ng_socket_free_priv(struct ngsock *priv);
-static int	ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp);
-static int	ng_bind(struct sockaddr *nam, struct ngpcb *pcbp);
+static int ng_attach_data(struct socket *so);
+static int ng_attach_cntl(struct socket *so);
+static int ng_attach_common(struct socket *so, int type);
+static void ng_detach_common(struct ngpcb *pcbp, int type);
+static void ng_socket_free_priv(struct ngsock *priv);
+static int ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp);
+static int ng_bind(struct sockaddr *nam, struct ngpcb *pcbp);
 
-static int	ngs_mod_event(module_t mod, int event, void *data);
-static void	ng_socket_item_applied(void *context, int error);
+static int ngs_mod_event(module_t mod, int event, void *data);
+static void ng_socket_item_applied(void *context, int error);
 
 /* Netgraph type descriptor */
 static struct ng_type typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_SOCKET_NODE_TYPE,
-	.mod_event =	ngs_mod_event,
-	.constructor =	ngs_constructor,
-	.rcvmsg =	ngs_rcvmsg,
-	.shutdown =	ngs_shutdown,
-	.newhook =	ngs_newhook,
-	.connect =	ngs_connect,
-	.findhook =	ngs_findhook,
-	.rcvdata =	ngs_rcvdata,
-	.disconnect =	ngs_disconnect,
+	.version = NG_ABI_VERSION,
+	.name = NG_SOCKET_NODE_TYPE,
+	.mod_event = ngs_mod_event,
+	.constructor = ngs_constructor,
+	.rcvmsg = ngs_rcvmsg,
+	.shutdown = ngs_shutdown,
+	.newhook = ngs_newhook,
+	.connect = ngs_connect,
+	.findhook = ngs_findhook,
+	.rcvdata = ngs_rcvdata,
+	.disconnect = ngs_disconnect,
 };
 NETGRAPH_INIT_ORDERED(socket, &typestruct, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);
 
 /* Buffer space */
-static u_long ngpdg_sendspace = 20 * 1024;	/* really max datagram size */
-SYSCTL_ULONG(_net_graph, OID_AUTO, maxdgram, CTLFLAG_RW,
-    &ngpdg_sendspace , 0, "Maximum outgoing Netgraph datagram size");
+static u_long ngpdg_sendspace = 20 * 1024; /* really max datagram size */
+SYSCTL_ULONG(_net_graph, OID_AUTO, maxdgram, CTLFLAG_RW, &ngpdg_sendspace, 0,
+    "Maximum outgoing Netgraph datagram size");
 static u_long ngpdg_recvspace = 20 * 1024;
-SYSCTL_ULONG(_net_graph, OID_AUTO, recvspace, CTLFLAG_RW,
-    &ngpdg_recvspace , 0, "Maximum space for incoming Netgraph datagrams");
+SYSCTL_ULONG(_net_graph, OID_AUTO, recvspace, CTLFLAG_RW, &ngpdg_recvspace, 0,
+    "Maximum space for incoming Netgraph datagrams");
 
 /* List of all sockets (for netstat -f netgraph) */
 static LIST_HEAD(, ngpcb) ngsocklist;
 
-static struct mtx	ngsocketlist_mtx;
+static struct mtx ngsocketlist_mtx;
 
 #define sotongpcb(so) ((struct ngpcb *)(so)->so_pcb)
 
@@ -168,25 +167,25 @@ static struct mtx	ngsocketlist_mtx;
 #endif
 
 struct hookpriv {
-	LIST_ENTRY(hookpriv)	next;
-	hook_p			hook;
+	LIST_ENTRY(hookpriv) next;
+	hook_p hook;
 };
 LIST_HEAD(ngshash, hookpriv);
 
 /* Per-node private data */
 struct ngsock {
-	struct ng_node	*node;		/* the associated netgraph node */
-	struct ngpcb	*datasock;	/* optional data socket */
-	struct ngpcb	*ctlsock;	/* optional control socket */
-	struct ngshash	*hash;		/* hash for hook names */
-	u_long		hmask;		/* hash mask */
-	int	flags;
-	int	refs;
-	struct mtx	mtx;		/* mtx to wait on */
-	int		error;		/* place to store error */
+	struct ng_node *node;	/* the associated netgraph node */
+	struct ngpcb *datasock; /* optional data socket */
+	struct ngpcb *ctlsock;	/* optional control socket */
+	struct ngshash *hash;	/* hash for hook names */
+	u_long hmask;		/* hash mask */
+	int flags;
+	int refs;
+	struct mtx mtx; /* mtx to wait on */
+	int error;	/* place to store error */
 };
 
-#define	NGS_FLAG_NOLINGER	1	/* close with last hook */
+#define NGS_FLAG_NOLINGER 1 /* close with last hook */
 
 /***************************************************************
 	Control sockets
@@ -217,11 +216,11 @@ ngc_detach(struct socket *so)
 
 static int
 ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
-	 struct mbuf *control, struct thread *td)
+    struct mbuf *control, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 	struct ngsock *const priv = NG_NODE_PRIVATE(pcbp->sockdata->node);
-	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
+	struct sockaddr_ng *const sap = (struct sockaddr_ng *)addr;
 	struct ng_mesg *msg;
 	struct mbuf *m0;
 	item_p item;
@@ -282,15 +281,15 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 */
 	if (msg->header.typecookie == NGM_GENERIC_COOKIE &&
 	    msg->header.cmd == NGM_MKPEER) {
-		struct ngm_mkpeer *const mkp = (struct ngm_mkpeer *) msg->data;
+		struct ngm_mkpeer *const mkp = (struct ngm_mkpeer *)msg->data;
 
 		if (ng_findtype(mkp->type) == NULL) {
 			char filename[NG_TYPESIZ + 3];
 			int fileid;
 
 			/* Not found, try to load it as a loadable module. */
-			snprintf(filename, sizeof(filename), "ng_%s",
-			    mkp->type);
+			snprintf(
+			    filename, sizeof(filename), "ng_%s", mkp->type);
 			error = kern_kldload(curthread, filename, &fileid);
 			if (error != 0) {
 				free(msg, M_NETGRAPH_MSG);
@@ -300,17 +299,17 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 			/* See if type has been loaded successfully. */
 			if (ng_findtype(mkp->type) == NULL) {
 				free(msg, M_NETGRAPH_MSG);
-				(void)kern_kldunload(curthread, fileid,
-				    LINKER_UNLOAD_NORMAL);
-				error =  ENXIO;
+				(void)kern_kldunload(
+				    curthread, fileid, LINKER_UNLOAD_NORMAL);
+				error = ENXIO;
 				goto release;
 			}
 		}
 	}
 
 	item = ng_package_msg(msg, NG_WAITOK);
-	if ((error = ng_address_path((pcbp->sockdata->node), item, path, 0))
-	    != 0) {
+	if ((error = ng_address_path((pcbp->sockdata->node), item, path, 0)) !=
+	    0) {
 #ifdef TRACE_MESSAGES
 		printf("ng_address_path: errx=%d\n", error);
 #endif
@@ -319,13 +318,9 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 
 #ifdef TRACE_MESSAGES
 	printf("[%x]:<---------[socket]: c=<%d>cmd=%x(%s) f=%x #%d (%s)\n",
-		item->el_dest->nd_ID,
-		msg->header.typecookie,
-		msg->header.cmd,
-		msg->header.cmdstr,
-		msg->header.flags,
-		msg->header.token,
-		item->el_dest->nd_type->name);
+	    item->el_dest->nd_ID, msg->header.typecookie, msg->header.cmd,
+	    msg->header.cmdstr, msg->header.flags, msg->header.token,
+	    item->el_dest->nd_type->name);
 #endif
 	SAVE_LINE(item);
 	/*
@@ -348,8 +343,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	if (priv->error == -1)
 		msleep(priv, &priv->mtx, 0, "ngsock", 0);
 	mtx_unlock(&priv->mtx);
-	KASSERT(priv->error != -1,
-	    ("ng_socket: priv->error wasn't updated"));
+	KASSERT(priv->error != -1, ("ng_socket: priv->error wasn't updated"));
 	error = priv->error;
 
 release:
@@ -408,15 +402,15 @@ ngd_detach(struct socket *so)
 
 static int
 ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
-	 struct mbuf *control, struct thread *td)
+    struct mbuf *control, struct thread *td)
 {
 	struct epoch_tracker et;
 	struct ngpcb *const pcbp = sotongpcb(so);
-	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
-	int	len, error;
-	hook_p  hook = NULL;
-	item_p	item;
-	char	hookname[NG_HOOKSIZ];
+	struct sockaddr_ng *const sap = (struct sockaddr_ng *)addr;
+	int len, error;
+	hook_p hook = NULL;
+	item_p item;
+	char hookname[NG_HOOKSIZ];
 
 	if ((pcbp == NULL) || (control != NULL)) {
 		error = EINVAL;
@@ -428,10 +422,10 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	}
 
 	if (sap == NULL) {
-		len = 0;		/* Make compiler happy. */
+		len = 0; /* Make compiler happy. */
 	} else {
-		if (sap->sg_len > NG_NODESIZ +
-		    offsetof(struct sockaddr_ng, sg_data)) {
+		if (sap->sg_len >
+		    NG_NODESIZ + offsetof(struct sockaddr_ng, sg_data)) {
 			error = EINVAL;
 			goto release;
 		}
@@ -514,8 +508,7 @@ ng_getsockaddr(struct socket *so, struct sockaddr **addr)
 		/* XXXGL: can this still happen? */
 		return (EINVAL);
 
-	sg_len = sizeof(struct sockaddr_ng) + NG_NODESIZ -
-	    sizeof(sg->sg_data);
+	sg_len = sizeof(struct sockaddr_ng) + NG_NODESIZ - sizeof(sg->sg_data);
 	sg = malloc(sg_len, M_SONAME, M_WAITOK | M_ZERO);
 
 	mtx_lock(&pcbp->sockdata->mtx);
@@ -581,7 +574,7 @@ ng_attach_cntl(struct socket *so)
 	pcbp->sockdata = priv;
 	priv->refs++;
 	priv->node = node;
-	pcbp->node_id = node->nd_ID;	/* hint for netstat(1) */
+	pcbp->node_id = node->nd_ID; /* hint for netstat(1) */
 
 	/* Link the node and the private data. */
 	NG_NODE_SET_PRIVATE(priv->node, priv);
@@ -714,11 +707,11 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 	 * Use ng_package_data() and ng_address_path() to do this.
 	 */
 
-	sap = (struct sockaddr_ng *) nam;
+	sap = (struct sockaddr_ng *)nam;
 	/* The item will hold the node reference. */
 	item = ng_package_data(NULL, NG_WAITOK);
 
-	if ((error = ng_address_path(NULL, item,  sap->sg_data, 0)))
+	if ((error = ng_address_path(NULL, item, sap->sg_data, 0)))
 		return (error); /* item is freed on failure */
 
 	/*
@@ -733,7 +726,7 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 	}
 	priv = NG_NODE_PRIVATE(farnode);
 	if (priv->datasock != NULL) {
-		NG_FREE_ITEM(item);	/* drop the reference to the node */
+		NG_FREE_ITEM(item); /* drop the reference to the node */
 		return (EADDRINUSE);
 	}
 
@@ -744,10 +737,10 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 	mtx_lock(&priv->mtx);
 	priv->datasock = pcbp;
 	pcbp->sockdata = priv;
-	pcbp->node_id = priv->node->nd_ID;	/* hint for netstat(1) */
+	pcbp->node_id = priv->node->nd_ID; /* hint for netstat(1) */
 	priv->refs++;
 	mtx_unlock(&priv->mtx);
-	NG_FREE_ITEM(item);	/* drop the reference to the node */
+	NG_FREE_ITEM(item); /* drop the reference to the node */
 	return (0);
 }
 
@@ -758,7 +751,7 @@ static int
 ng_bind(struct sockaddr *nam, struct ngpcb *pcbp)
 {
 	struct ngsock *const priv = pcbp->sockdata;
-	struct sockaddr_ng *const sap = (struct sockaddr_ng *) nam;
+	struct sockaddr_ng *const sap = (struct sockaddr_ng *)nam;
 
 	if (priv == NULL) {
 		TRAP_ERROR;
@@ -796,12 +789,12 @@ ngs_rehash(node_p node)
 	uint32_t h;
 	u_long hmask;
 
-	new = hashinit_flags((priv->hmask + 1) * 2, M_NETGRAPH_SOCK, &hmask,
-	    HASH_NOWAIT);
+	new = hashinit_flags(
+	    (priv->hmask + 1) * 2, M_NETGRAPH_SOCK, &hmask, HASH_NOWAIT);
 	if (new == NULL)
 		return;
 
-	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
+	LIST_FOREACH (hook, &node->nd_hooks, hk_hooks) {
 		hp = NG_HOOK_PRIVATE(hook);
 #ifdef INVARIANTS
 		LIST_REMOVE(hp, next);
@@ -882,7 +875,7 @@ ngs_findhook(node_p node, const char *name)
 
 	h = hash32_str(name, HASHINIT) & priv->hmask;
 
-	LIST_FOREACH(hp, &priv->hash[h], next)
+	LIST_FOREACH (hp, &priv->hash[h], next)
 		if (strcmp(NG_HOOK_NAME(hp->hook), name) == 0)
 			return (hp->hook);
 
@@ -902,7 +895,7 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	struct sockaddr_ng addr;
 	struct ng_mesg *msg;
 	struct mbuf *m;
-	ng_ID_t	retaddr = NGI_RETADDR(item);
+	ng_ID_t retaddr = NGI_RETADDR(item);
 	int addrlen;
 	int error = 0;
 
@@ -933,13 +926,9 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	mtx_unlock(&priv->mtx);
 
 #ifdef TRACE_MESSAGES
-	printf("[%x]:---------->[socket]: c=<%d>cmd=%x(%s) f=%x #%d\n",
-		retaddr,
-		msg->header.typecookie,
-		msg->header.cmd,
-		msg->header.cmdstr,
-		msg->header.flags,
-		msg->header.token);
+	printf("[%x]:---------->[socket]: c=<%d>cmd=%x(%s) f=%x #%d\n", retaddr,
+	    msg->header.typecookie, msg->header.cmd, msg->header.cmdstr,
+	    msg->header.flags, msg->header.token);
 #endif
 
 	if (msg->header.typecookie == NGM_SOCKET_COOKIE) {
@@ -951,7 +940,7 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			priv->flags &= ~NGS_FLAG_NOLINGER;
 			break;
 		default:
-			error = EINVAL;		/* unknown command */
+			error = EINVAL; /* unknown command */
 		}
 		SOCKBUF_UNLOCK(&so->so_rcv);
 
@@ -964,8 +953,8 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	bzero(&addr, sizeof(addr));
 	addr.sg_len = sizeof(addr);
 	addr.sg_family = AF_NETGRAPH;
-	addrlen = snprintf((char *)&addr.sg_data, sizeof(addr.sg_data),
-	    "[%x]:", retaddr);
+	addrlen = snprintf(
+	    (char *)&addr.sg_data, sizeof(addr.sg_data), "[%x]:", retaddr);
 	if (addrlen < 0 || addrlen > sizeof(addr.sg_data)) {
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		printf("%s: snprintf([%x]) failed - %d\n", __func__, retaddr,
@@ -991,8 +980,8 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	}
 
 	/* Send it up to the socket. */
-	if (sbappendaddr_locked(&so->so_rcv, (struct sockaddr *)&addr, m,
-	    NULL) == 0) {
+	if (sbappendaddr_locked(
+		&so->so_rcv, (struct sockaddr *)&addr, m, NULL) == 0) {
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		TRAP_ERROR;
 		m_freem(m);
@@ -1030,8 +1019,8 @@ ngs_rcvdata(hook_p hook, item_p item)
 	so = pcbp->ng_socket;
 
 	/* Get the return address into a sockaddr. */
-	addrlen = strlen(NG_HOOK_NAME(hook));	/* <= NG_HOOKSIZ - 1 */
-	addr = (struct sockaddr_ng *) addrbuf;
+	addrlen = strlen(NG_HOOK_NAME(hook)); /* <= NG_HOOKSIZ - 1 */
+	addr = (struct sockaddr_ng *)addrbuf;
 	addr->sg_len = addrlen + 3;
 	addr->sg_family = AF_NETGRAPH;
 	bcopy(NG_HOOK_NAME(hook), addr->sg_data, addrlen);
@@ -1039,8 +1028,8 @@ ngs_rcvdata(hook_p hook, item_p item)
 
 	/* Try to tell the socket which hook it came in on. */
 	SOCKBUF_LOCK(&so->so_rcv);
-	if (sbappendaddr_locked(&so->so_rcv, (struct sockaddr *)addr, m,
-	    NULL) == 0) {
+	if (sbappendaddr_locked(
+		&so->so_rcv, (struct sockaddr *)addr, m, NULL) == 0) {
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		m_freem(m);
 		TRAP_ERROR;
@@ -1120,10 +1109,9 @@ ng_socket_item_applied(void *context, int error)
 	priv->error = error;
 	wakeup(priv);
 	mtx_unlock(&priv->mtx);
-
 }
 
-static	int
+static int
 dummy_disconnect(struct socket *so)
 {
 	return (0);
@@ -1135,62 +1123,55 @@ dummy_disconnect(struct socket *so)
  */
 
 static struct pr_usrreqs ngc_usrreqs = {
-	.pru_abort =		NULL,
-	.pru_attach =		ngc_attach,
-	.pru_bind =		ngc_bind,
-	.pru_connect =		ngc_connect,
-	.pru_detach =		ngc_detach,
-	.pru_disconnect =	dummy_disconnect,
-	.pru_peeraddr =		NULL,
-	.pru_send =		ngc_send,
-	.pru_shutdown =		NULL,
-	.pru_sockaddr =		ng_getsockaddr,
-	.pru_close =		NULL,
+	.pru_abort = NULL,
+	.pru_attach = ngc_attach,
+	.pru_bind = ngc_bind,
+	.pru_connect = ngc_connect,
+	.pru_detach = ngc_detach,
+	.pru_disconnect = dummy_disconnect,
+	.pru_peeraddr = NULL,
+	.pru_send = ngc_send,
+	.pru_shutdown = NULL,
+	.pru_sockaddr = ng_getsockaddr,
+	.pru_close = NULL,
 };
 
 static struct pr_usrreqs ngd_usrreqs = {
-	.pru_abort =		NULL,
-	.pru_attach =		ngd_attach,
-	.pru_bind =		NULL,
-	.pru_connect =		ngd_connect,
-	.pru_detach =		ngd_detach,
-	.pru_disconnect =	dummy_disconnect,
-	.pru_peeraddr =		NULL,
-	.pru_send =		ngd_send,
-	.pru_shutdown =		NULL,
-	.pru_sockaddr =		ng_getsockaddr,
-	.pru_close =		NULL,
+	.pru_abort = NULL,
+	.pru_attach = ngd_attach,
+	.pru_bind = NULL,
+	.pru_connect = ngd_connect,
+	.pru_detach = ngd_detach,
+	.pru_disconnect = dummy_disconnect,
+	.pru_peeraddr = NULL,
+	.pru_send = ngd_send,
+	.pru_shutdown = NULL,
+	.pru_sockaddr = ng_getsockaddr,
+	.pru_close = NULL,
 };
 
 /*
  * Definitions of protocols supported in the NETGRAPH domain.
  */
 
-extern struct domain ngdomain;		/* stop compiler warnings */
+extern struct domain ngdomain; /* stop compiler warnings */
 
-static struct protosw ngsw[] = {
-{
-	.pr_type =		SOCK_DGRAM,
-	.pr_domain =		&ngdomain,
-	.pr_protocol =		NG_CONTROL,
-	.pr_flags =		PR_ATOMIC | PR_ADDR /* | PR_RIGHTS */,
-	.pr_usrreqs =		&ngc_usrreqs
-},
-{
-	.pr_type =		SOCK_DGRAM,
-	.pr_domain =		&ngdomain,
-	.pr_protocol =		NG_DATA,
-	.pr_flags =		PR_ATOMIC | PR_ADDR,
-	.pr_usrreqs =		&ngd_usrreqs
-}
-};
+static struct protosw ngsw[] = { { .pr_type = SOCK_DGRAM,
+				     .pr_domain = &ngdomain,
+				     .pr_protocol = NG_CONTROL,
+				     .pr_flags = PR_ATOMIC |
+					 PR_ADDR /* | PR_RIGHTS */,
+				     .pr_usrreqs = &ngc_usrreqs },
+	{ .pr_type = SOCK_DGRAM,
+	    .pr_domain = &ngdomain,
+	    .pr_protocol = NG_DATA,
+	    .pr_flags = PR_ATOMIC | PR_ADDR,
+	    .pr_usrreqs = &ngd_usrreqs } };
 
-struct domain ngdomain = {
-	.dom_family =		AF_NETGRAPH,
-	.dom_name =		"netgraph",
-	.dom_protosw =		ngsw,
-	.dom_protoswNPROTOSW =	&ngsw[nitems(ngsw)]
-};
+struct domain ngdomain = { .dom_family = AF_NETGRAPH,
+	.dom_name = "netgraph",
+	.dom_protosw = ngsw,
+	.dom_protoswNPROTOSW = &ngsw[nitems(ngsw)] };
 
 /*
  * Handle loading and unloading for this node type.
@@ -1225,10 +1206,13 @@ ngs_mod_event(module_t mod, int event, void *data)
 
 VNET_DOMAIN_SET(ng);
 
-SYSCTL_INT(_net_graph, OID_AUTO, family, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, AF_NETGRAPH, "");
-static SYSCTL_NODE(_net_graph, OID_AUTO, data, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "DATA");
-SYSCTL_INT(_net_graph_data, OID_AUTO, proto, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_DATA, "");
-static SYSCTL_NODE(_net_graph, OID_AUTO, control, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "CONTROL");
-SYSCTL_INT(_net_graph_control, OID_AUTO, proto, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_CONTROL, "");
+SYSCTL_INT(_net_graph, OID_AUTO, family, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
+    AF_NETGRAPH, "");
+static SYSCTL_NODE(
+    _net_graph, OID_AUTO, data, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "DATA");
+SYSCTL_INT(_net_graph_data, OID_AUTO, proto, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
+    NG_DATA, "");
+static SYSCTL_NODE(
+    _net_graph, OID_AUTO, control, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "CONTROL");
+SYSCTL_INT(_net_graph_control, OID_AUTO, proto, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
+    NG_CONTROL, "");

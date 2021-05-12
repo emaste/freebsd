@@ -51,50 +51,51 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/timepps.h>
 #include <sys/timetc.h>
+
 #include <machine/bus.h>
 
-#include <dev/ofw/openfirm.h>
+#include <dev/extres/clk/clk.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/extres/clk/clk.h>
+#include <dev/ofw/openfirm.h>
 
-#include <arm/ti/ti_sysc.h>
-#include <arm/ti/ti_pinmux.h>
 #include <arm/ti/am335x/am335x_scm_padconf.h>
+#include <arm/ti/ti_pinmux.h>
+#include <arm/ti/ti_sysc.h>
 
 #include "am335x_dmtreg.h"
 
-#define	PPS_CDEV_NAME	"dmtpps"
+#define PPS_CDEV_NAME "dmtpps"
 
 struct dmtpps_softc {
-	device_t		dev;
-	int			mem_rid;
-	struct resource *	mem_res;
-	int			tmr_num;	/* N from hwmod str "timerN" */
-	char			tmr_name[12];	/* "DMTimerN" */
-	uint32_t		tclr;		/* Cached TCLR register. */
-	struct timecounter	tc;
-	int			pps_curmode;	/* Edge mode now set in hw. */
-	struct cdev *		pps_cdev;
-	struct pps_state	pps_state;
-	struct mtx		pps_mtx;
-	clk_t			clk_fck;
-	uint64_t		sysclk_freq;
+	device_t dev;
+	int mem_rid;
+	struct resource *mem_res;
+	int tmr_num;	   /* N from hwmod str "timerN" */
+	char tmr_name[12]; /* "DMTimerN" */
+	uint32_t tclr;	   /* Cached TCLR register. */
+	struct timecounter tc;
+	int pps_curmode; /* Edge mode now set in hw. */
+	struct cdev *pps_cdev;
+	struct pps_state pps_state;
+	struct mtx pps_mtx;
+	clk_t clk_fck;
+	uint64_t sysclk_freq;
 };
 
-static int dmtpps_tmr_num;	/* Set by probe() */
+static int dmtpps_tmr_num; /* Set by probe() */
 
 /* List of compatible strings for FDT tree */
 static struct ofw_compat_data compat_data[] = {
-	{"ti,am335x-timer",     1},
-	{"ti,am335x-timer-1ms", 1},
-	{NULL,                  0},
+	{ "ti,am335x-timer", 1 },
+	{ "ti,am335x-timer-1ms", 1 },
+	{ NULL, 0 },
 };
 SIMPLEBUS_PNP_INFO(compat_data);
 
@@ -102,28 +103,16 @@ SIMPLEBUS_PNP_INFO(compat_data);
  * A table relating pad names to the hardware timer number they can be mux'd to.
  */
 struct padinfo {
-	char *	ballname;
-	int	tmr_num;
+	char *ballname;
+	int tmr_num;
 };
-static struct padinfo dmtpps_padinfo[] = {
-	{"GPMC_ADVn_ALE",    4},
-	{"I2C0_SDA",         4},
-	{"MII1_TX_EN",       4},
-	{"XDMA_EVENT_INTR0", 4},
-	{"GPMC_BEn0_CLE",    5},
-	{"MDC",              5},
-	{"MMC0_DAT3",        5},
-	{"UART1_RTSn",       5},
-	{"GPMC_WEn",         6},
-	{"MDIO",             6},
-	{"MMC0_DAT2",        6},
-	{"UART1_CTSn",       6},
-	{"GPMC_OEn_REn",     7},
-	{"I2C0_SCL",         7},
-	{"UART0_CTSn",       7},
-	{"XDMA_EVENT_INTR1", 7},
-	{NULL, 0}
-};
+static struct padinfo dmtpps_padinfo[] = { { "GPMC_ADVn_ALE", 4 },
+	{ "I2C0_SDA", 4 }, { "MII1_TX_EN", 4 }, { "XDMA_EVENT_INTR0", 4 },
+	{ "GPMC_BEn0_CLE", 5 }, { "MDC", 5 }, { "MMC0_DAT3", 5 },
+	{ "UART1_RTSn", 5 }, { "GPMC_WEn", 6 }, { "MDIO", 6 },
+	{ "MMC0_DAT2", 6 }, { "UART1_CTSn", 6 }, { "GPMC_OEn_REn", 7 },
+	{ "I2C0_SCL", 7 }, { "UART0_CTSn", 7 }, { "XDMA_EVENT_INTR1", 7 },
+	{ NULL, 0 } };
 
 /*
  * This is either brilliantly user-friendly, or utterly lame...
@@ -133,19 +122,19 @@ static struct padinfo dmtpps_padinfo[] = {
  * users to configure the input pin by giving the name of the header pin.
  */
 struct nicknames {
-	const char * nick;
-	const char * name;
+	const char *nick;
+	const char *name;
 };
-static struct nicknames dmtpps_pin_nicks[] = {
-	{"P8-7",  "GPMC_ADVn_ALE"},
-	{"P8-9",  "GPMC_BEn0_CLE"},
-	{"P8-10", "GPMC_WEn"},
-	{"P8-8",  "GPMC_OEn_REn",},
-	{NULL, NULL}
-};
+static struct nicknames dmtpps_pin_nicks[] = { { "P8-7", "GPMC_ADVn_ALE" },
+	{ "P8-9", "GPMC_BEn0_CLE" }, { "P8-10", "GPMC_WEn" },
+	{
+	    "P8-8",
+	    "GPMC_OEn_REn",
+	},
+	{ NULL, NULL } };
 
-#define	DMTIMER_READ4(sc, reg)		bus_read_4((sc)->mem_res, (reg))
-#define	DMTIMER_WRITE4(sc, reg, val)	bus_write_4((sc)->mem_res, (reg), (val))
+#define DMTIMER_READ4(sc, reg) bus_read_4((sc)->mem_res, (reg))
+#define DMTIMER_WRITE4(sc, reg, val) bus_write_4((sc)->mem_res, (reg), (val))
 
 /*
  * Translate a short friendly case-insensitive name to its canonical name.
@@ -173,7 +162,7 @@ dmtpps_find_tmr_num_by_tunable(void)
 	struct padinfo *pi;
 	char iname[20];
 	char muxmode[12];
-	const char * ballname;
+	const char *ballname;
 	int err;
 
 	if (!TUNABLE_STR_FETCH("hw.am335x_dmtpps.input", iname, sizeof(iname)))
@@ -183,15 +172,17 @@ dmtpps_find_tmr_num_by_tunable(void)
 		if (strcmp(ballname, pi->ballname) != 0)
 			continue;
 		snprintf(muxmode, sizeof(muxmode), "timer%d", pi->tmr_num);
-		err = ti_pinmux_padconf_set(pi->ballname, muxmode,
-		    PADCONF_INPUT);
+		err = ti_pinmux_padconf_set(
+		    pi->ballname, muxmode, PADCONF_INPUT);
 		if (err != 0) {
 			printf("am335x_dmtpps: unable to configure capture pin "
-			    "for %s to input mode\n", muxmode);
+			       "for %s to input mode\n",
+			    muxmode);
 			return (-1);
 		} else if (bootverbose) {
 			printf("am335x_dmtpps: configured pin %s as input "
-			    "for %s\n", iname, muxmode);
+			       "for %s\n",
+			    iname, muxmode);
 		}
 		return (pi->tmr_num);
 	}
@@ -210,7 +201,7 @@ dmtpps_find_tmr_num_by_padconf(void)
 {
 	int err;
 	unsigned int padstate;
-	const char * padmux;
+	const char *padmux;
 	struct padinfo *pi;
 	char muxmode[12];
 
@@ -239,7 +230,7 @@ dmtpps_find_tmr_num(void)
 
 	if (tmr_num <= 0) {
 		printf("am335x_dmtpps: PPS driver not enabled: unable to find "
-		    "or configure a capture input pin\n");
+		       "or configure a capture input pin\n");
 		tmr_num = -1; /* Must return non-zero to prevent re-probing. */
 	}
 	return (tmr_num);
@@ -313,8 +304,7 @@ dmtpps_poll(struct timecounter *tc)
 }
 
 static int
-dmtpps_open(struct cdev *dev, int flags, int fmt, 
-    struct thread *td)
+dmtpps_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct dmtpps_softc *sc;
 
@@ -331,9 +321,8 @@ dmtpps_open(struct cdev *dev, int flags, int fmt,
 	return 0;
 }
 
-static	int
-dmtpps_close(struct cdev *dev, int flags, int fmt, 
-    struct thread *td)
+static int
+dmtpps_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct dmtpps_softc *sc;
 
@@ -350,8 +339,8 @@ dmtpps_close(struct cdev *dev, int flags, int fmt,
 }
 
 static int
-dmtpps_ioctl(struct cdev *dev, u_long cmd, caddr_t data, 
-    int flags, struct thread *td)
+dmtpps_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	struct dmtpps_softc *sc;
 	int err;
@@ -375,11 +364,11 @@ dmtpps_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 }
 
 static struct cdevsw dmtpps_cdevsw = {
-	.d_version =    D_VERSION,
-	.d_open =       dmtpps_open,
-	.d_close =      dmtpps_close,
-	.d_ioctl =      dmtpps_ioctl,
-	.d_name =       PPS_CDEV_NAME,
+	.d_version = D_VERSION,
+	.d_open = dmtpps_open,
+	.d_close = dmtpps_close,
+	.d_ioctl = dmtpps_ioctl,
+	.d_name = PPS_CDEV_NAME,
 };
 
 static int
@@ -409,39 +398,39 @@ dmtpps_probe(device_t dev)
 	 */
 	rev_address = ti_sysc_get_rev_address(device_get_parent(dev));
 	switch (rev_address) {
-		case DMTIMER1_1MS_REV:
-			tmr_num = 1;
-			break;
-		case DMTIMER2_REV:
-			tmr_num = 2;
-			break;
-		case DMTIMER3_REV:
-			tmr_num = 3;
-			break;
-		case DMTIMER4_REV:
-			tmr_num = 4;
-			break;
-		case DMTIMER5_REV:
-			tmr_num = 5;
-			break;
-		case DMTIMER6_REV:
-			tmr_num = 6;
-			break;
-		case DMTIMER7_REV:
-			tmr_num = 7;
-			break;
-		default:
-			return (ENXIO);
-        }
+	case DMTIMER1_1MS_REV:
+		tmr_num = 1;
+		break;
+	case DMTIMER2_REV:
+		tmr_num = 2;
+		break;
+	case DMTIMER3_REV:
+		tmr_num = 3;
+		break;
+	case DMTIMER4_REV:
+		tmr_num = 4;
+		break;
+	case DMTIMER5_REV:
+		tmr_num = 5;
+		break;
+	case DMTIMER6_REV:
+		tmr_num = 6;
+		break;
+	case DMTIMER7_REV:
+		tmr_num = 7;
+		break;
+	default:
+		return (ENXIO);
+	}
 
 	if (dmtpps_tmr_num != tmr_num)
 		return (ENXIO);
 
-	snprintf(strbuf, sizeof(strbuf), "AM335x PPS-Capture DMTimer%d",
-	    tmr_num);
+	snprintf(
+	    strbuf, sizeof(strbuf), "AM335x PPS-Capture DMTimer%d", tmr_num);
 	device_set_desc_copy(dev, strbuf);
 
-	return(BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -459,28 +448,28 @@ dmtpps_attach(device_t dev)
 	/* Figure out which hardware timer this is and set the name string. */
 	rev_address = ti_sysc_get_rev_address(device_get_parent(dev));
 	switch (rev_address) {
-		case DMTIMER1_1MS_REV:
-			sc->tmr_num = 1;
-			break;
-		case DMTIMER2_REV:
-			sc->tmr_num = 2;
-			break;
-		case DMTIMER3_REV:
-			sc->tmr_num = 3;
-			break;
-		case DMTIMER4_REV:
-			sc->tmr_num = 4;
-			break;
-		case DMTIMER5_REV:
-			sc->tmr_num = 5;
-			break;
-		case DMTIMER6_REV:
-			sc->tmr_num = 6;
-			break;
-		case DMTIMER7_REV:
-			sc->tmr_num = 7;
-			break;
-        }
+	case DMTIMER1_1MS_REV:
+		sc->tmr_num = 1;
+		break;
+	case DMTIMER2_REV:
+		sc->tmr_num = 2;
+		break;
+	case DMTIMER3_REV:
+		sc->tmr_num = 3;
+		break;
+	case DMTIMER4_REV:
+		sc->tmr_num = 4;
+		break;
+	case DMTIMER5_REV:
+		sc->tmr_num = 5;
+		break;
+	case DMTIMER6_REV:
+		sc->tmr_num = 6;
+		break;
+	case DMTIMER7_REV:
+		sc->tmr_num = 7;
+		break;
+	}
 	snprintf(sc->tmr_name, sizeof(sc->tmr_name), "DMTimer%d", sc->tmr_num);
 
 	/* expect one clock */
@@ -517,8 +506,8 @@ dmtpps_attach(device_t dev)
 		return (ENXIO);
 	}
 	/* Request the memory resources. */
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->mem_rid, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->mem_rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		return (ENXIO);
 	}
@@ -542,12 +531,12 @@ dmtpps_attach(device_t dev)
 	DMTIMER_WRITE4(sc, DMT_TCLR, sc->tclr);
 
 	/* Register the timecounter. */
-	sc->tc.tc_name           = sc->tmr_name;
-	sc->tc.tc_get_timecount  = dmtpps_get_timecount;
-	sc->tc.tc_counter_mask   = ~0u;
-	sc->tc.tc_frequency      = sc->sysclk_freq;
-	sc->tc.tc_quality        = 1000;
-	sc->tc.tc_priv           = sc;
+	sc->tc.tc_name = sc->tmr_name;
+	sc->tc.tc_get_timecount = dmtpps_get_timecount;
+	sc->tc.tc_counter_mask = ~0u;
+	sc->tc.tc_frequency = sc->sysclk_freq;
+	sc->tc.tc_quality = 1000;
+	sc->tc.tc_priv = sc;
 
 	tc_init(&sc->tc);
 
@@ -602,12 +591,10 @@ dmtpps_detach(device_t dev)
 	return (EBUSY);
 }
 
-static device_method_t dmtpps_methods[] = {
-	DEVMETHOD(device_probe,		dmtpps_probe),
-	DEVMETHOD(device_attach,	dmtpps_attach),
-	DEVMETHOD(device_detach,	dmtpps_detach),
-	{ 0, 0 }
-};
+static device_method_t dmtpps_methods[] = { DEVMETHOD(
+						device_probe, dmtpps_probe),
+	DEVMETHOD(device_attach, dmtpps_attach),
+	DEVMETHOD(device_detach, dmtpps_detach), { 0, 0 } };
 
 static driver_t dmtpps_driver = {
 	"am335x_dmtpps",

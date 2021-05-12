@@ -47,24 +47,25 @@
  * values.
  */
 #if __BSD_VISIBLE
-#define	WCOREFLAG	0200
+#define WCOREFLAG 0200
 #endif
-#define	_W_INT(i)	(i)
+#define _W_INT(i) (i)
 
-#define	_WSTATUS(x)	(_W_INT(x) & 0177)
-#define	_WSTOPPED	0177		/* _WSTATUS if process is stopped */
-#define	WIFSTOPPED(x)	(_WSTATUS(x) == _WSTOPPED)
-#define	WSTOPSIG(x)	(_W_INT(x) >> 8)
-#define	WIFSIGNALED(x)	(_WSTATUS(x) != _WSTOPPED && _WSTATUS(x) != 0 && (x) != 0x13)
-#define	WTERMSIG(x)	(_WSTATUS(x))
-#define	WIFEXITED(x)	(_WSTATUS(x) == 0)
-#define	WEXITSTATUS(x)	(_W_INT(x) >> 8)
-#define	WIFCONTINUED(x)	(x == 0x13)	/* 0x13 == SIGCONT */
+#define _WSTATUS(x) (_W_INT(x) & 0177)
+#define _WSTOPPED 0177 /* _WSTATUS if process is stopped */
+#define WIFSTOPPED(x) (_WSTATUS(x) == _WSTOPPED)
+#define WSTOPSIG(x) (_W_INT(x) >> 8)
+#define WIFSIGNALED(x) \
+	(_WSTATUS(x) != _WSTOPPED && _WSTATUS(x) != 0 && (x) != 0x13)
+#define WTERMSIG(x) (_WSTATUS(x))
+#define WIFEXITED(x) (_WSTATUS(x) == 0)
+#define WEXITSTATUS(x) (_W_INT(x) >> 8)
+#define WIFCONTINUED(x) (x == 0x13) /* 0x13 == SIGCONT */
 #if __BSD_VISIBLE
-#define	WCOREDUMP(x)	(_W_INT(x) & WCOREFLAG)
+#define WCOREDUMP(x) (_W_INT(x) & WCOREFLAG)
 
-#define	W_EXITCODE(ret, sig)	((ret) << 8 | (sig))
-#define	W_STOPCODE(sig)		((sig) << 8 | _WSTOPPED)
+#define W_EXITCODE(ret, sig) ((ret) << 8 | (sig))
+#define W_STOPCODE(sig) ((sig) << 8 | _WSTOPPED)
 #endif
 
 /*
@@ -77,25 +78,27 @@
  * about them is returned. WNOWAIT only request information about zombie,
  * leaving the proc around, available for later waits.
  */
-#define	WNOHANG		1	/* Don't hang in wait. */
-#define	WUNTRACED	2	/* Tell about stopped, untraced children. */
-#define	WSTOPPED	WUNTRACED   /* SUS compatibility */
-#define	WCONTINUED	4	/* Report a job control continued process. */
-#define	WNOWAIT		8	/* Poll only. Don't delete the proc entry. */
-#define	WEXITED		16	/* Wait for exited processes. */
-#define	WTRAPPED	32	/* Wait for a process to hit a trap or
-				   a breakpoint. */
+#define WNOHANG 1	   /* Don't hang in wait. */
+#define WUNTRACED 2	   /* Tell about stopped, untraced children. */
+#define WSTOPPED WUNTRACED /* SUS compatibility */
+#define WCONTINUED 4	   /* Report a job control continued process. */
+#define WNOWAIT 8	   /* Poll only. Don't delete the proc entry. */
+#define WEXITED 16	   /* Wait for exited processes. */
+#define WTRAPPED                                  \
+	32 /* Wait for a process to hit a trap or \
+	      a breakpoint. */
 
 #if __BSD_VISIBLE
-#define	WLINUXCLONE 0x80000000	/* Wait for kthread spawned from linux_clone. */
+#define WLINUXCLONE 0x80000000 /* Wait for kthread spawned from linux_clone. \
+				*/
 #endif
 
 #ifndef _IDTYPE_T_DECLARED
 typedef enum
 #if __BSD_VISIBLE
-	idtype		/* pollutes XPG4.2 namespace */
+    idtype /* pollutes XPG4.2 namespace */
 #endif
-		{
+{
 	/*
 	 * These names were mostly lifted from Solaris source code and
 	 * still use Solaris style naming to avoid breaking any
@@ -106,28 +109,28 @@ typedef enum
 	 * The numerical values are kept synchronized with the Solaris
 	 * values.
 	 */
-	P_PID,			/* A process identifier. */
-	P_PPID,			/* A parent process identifier.	*/
-	P_PGID,			/* A process group identifier. */
-	P_SID,			/* A session identifier. */
-	P_CID,			/* A scheduling class identifier. */
-	P_UID,			/* A user identifier. */
-	P_GID,			/* A group identifier. */
-	P_ALL,			/* All processes. */
-	P_LWPID,		/* An LWP identifier. */
-	P_TASKID,		/* A task identifier. */
-	P_PROJID,		/* A project identifier. */
-	P_POOLID,		/* A pool identifier. */
-	P_JAILID,		/* A zone identifier. */
-	P_CTID,			/* A (process) contract identifier. */
-	P_CPUID,		/* CPU identifier. */
-	P_PSETID		/* Processor set identifier. */
-} idtype_t;			/* The type of id_t we are using. */
+	P_PID,	  /* A process identifier. */
+	P_PPID,	  /* A parent process identifier.	*/
+	P_PGID,	  /* A process group identifier. */
+	P_SID,	  /* A session identifier. */
+	P_CID,	  /* A scheduling class identifier. */
+	P_UID,	  /* A user identifier. */
+	P_GID,	  /* A group identifier. */
+	P_ALL,	  /* All processes. */
+	P_LWPID,  /* An LWP identifier. */
+	P_TASKID, /* A task identifier. */
+	P_PROJID, /* A project identifier. */
+	P_POOLID, /* A pool identifier. */
+	P_JAILID, /* A zone identifier. */
+	P_CTID,	  /* A (process) contract identifier. */
+	P_CPUID,  /* CPU identifier. */
+	P_PSETID  /* Processor set identifier. */
+} idtype_t;	  /* The type of id_t we are using. */
 
 #if __BSD_VISIBLE
-#define	P_ZONEID	P_JAILID
+#define P_ZONEID P_JAILID
 #endif
-#define	_IDTYPE_T_DECLARED
+#define _IDTYPE_T_DECLARED
 #endif
 
 /*
@@ -136,8 +139,8 @@ typedef enum
  * process and its children within one wait6() call.
  */
 #if __BSD_VISIBLE
-#define	WAIT_ANY	(-1)	/* any process */
-#define	WAIT_MYPGRP	0	/* any process in my process group */
+#define WAIT_ANY (-1) /* any process */
+#define WAIT_MYPGRP 0 /* any process in my process group */
 #endif /* __BSD_VISIBLE */
 
 #if defined(_KERNEL) || defined(_WANT_KW_EXITCODE)
@@ -147,9 +150,9 @@ typedef enum
  * Should be used in kernel to construct the wait(2)-compatible process
  * status to usermode.
  */
-#define	KW_EXITCODE(ret, sig)	W_EXITCODE((ret) & 0xff, (sig))
+#define KW_EXITCODE(ret, sig) W_EXITCODE((ret)&0xff, (sig))
 
-#endif	/* _KERNEL || _WANT_KW_EXITCODE */
+#endif /* _KERNEL || _WANT_KW_EXITCODE */
 
 #ifndef _KERNEL
 
@@ -157,18 +160,17 @@ typedef enum
 
 __BEGIN_DECLS
 struct __siginfo;
-pid_t	wait(int *);
-pid_t	waitpid(pid_t, int *, int);
+pid_t wait(int *);
+pid_t waitpid(pid_t, int *, int);
 #if __POSIX_VISIBLE >= 200112
-int	waitid(idtype_t, id_t, struct __siginfo *, int);
+int waitid(idtype_t, id_t, struct __siginfo *, int);
 #endif
 #if __BSD_VISIBLE
 struct rusage;
 struct __wrusage;
-pid_t	wait3(int *, int, struct rusage *);
-pid_t	wait4(pid_t, int *, int, struct rusage *);
-pid_t	wait6(idtype_t, id_t, int *, int, struct __wrusage *,
-	    struct __siginfo *);
+pid_t wait3(int *, int, struct rusage *);
+pid_t wait4(pid_t, int *, int, struct rusage *);
+pid_t wait6(idtype_t, id_t, int *, int, struct __wrusage *, struct __siginfo *);
 #endif
 __END_DECLS
 #endif /* !_KERNEL */

@@ -31,22 +31,22 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/systm.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
+
 #include <vm/uma.h>
 
 #include <machine/octeon_cop2.h>
 
 static uma_zone_t ctxzone;
 
-static void 
-octeon_cop2_init(void* dummy)
+static void
+octeon_cop2_init(void *dummy)
 {
 	printf("Create COP2 context zone\n");
-	ctxzone = uma_zcreate("COP2 context",
-	                        sizeof(struct octeon_cop2_state), 
-				NULL, NULL, NULL, NULL, UMA_ALIGN_LONG, 0);
+	ctxzone = uma_zcreate("COP2 context", sizeof(struct octeon_cop2_state),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_LONG, 0);
 }
 
 struct octeon_cop2_state *

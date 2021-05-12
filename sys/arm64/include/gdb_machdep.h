@@ -29,20 +29,20 @@
  */
 
 #ifndef _MACHINE_GDB_MACHDEP_H_
-#define	_MACHINE_GDB_MACHDEP_H_
+#define _MACHINE_GDB_MACHDEP_H_
 
-#define	GDB_BUFSZ	4096
-#define	GDB_NREGS	68
-#define	GDB_REG_X0	0
-#define	GDB_REG_X29	29
-#define	GDB_REG_LR	30
-#define	GDB_REG_SP	31
-#define	GDB_REG_PC	32
-#define	GDB_REG_CSPR	33
-#define	GDB_REG_V0	34
-#define	GDB_REG_V31	65
-#define	GDB_REG_FPSR	66
-#define	GDB_REG_FPCR	67
+#define GDB_BUFSZ 4096
+#define GDB_NREGS 68
+#define GDB_REG_X0 0
+#define GDB_REG_X29 29
+#define GDB_REG_LR 30
+#define GDB_REG_SP 31
+#define GDB_REG_PC 32
+#define GDB_REG_CSPR 33
+#define GDB_REG_V0 34
+#define GDB_REG_V31 65
+#define GDB_REG_FPSR 66
+#define GDB_REG_FPCR 67
 _Static_assert(GDB_BUFSZ >= (GDB_NREGS * 16), "buffer fits 'g' regs");
 
 static __inline size_t

@@ -56,17 +56,17 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/vnode.h>
+#include <sys/mount.h>
 #include <sys/sdt.h>
 #include <sys/stat.h>
-#include <sys/mount.h>
+#include <sys/vnode.h>
 
+#include <fs/ext2fs/ext2_extern.h>
+#include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/htree.h>
 #include <fs/ext2fs/inode.h>
-#include <fs/ext2fs/ext2_mount.h>
-#include <fs/ext2fs/ext2_extern.h>
 
 SDT_PROVIDER_DECLARE(ext2fs);
 /*
@@ -88,20 +88,23 @@ SDT_PROBE_DEFINE2(ext2fs, , trace, hash, "int", "char*");
  * FF, GG, and HH are transformations for rounds 1, 2, and 3.
  * Rotation is separated from addition to prevent recomputation.
  */
-#define FF(a, b, c, d, x, s) { \
-	(a) += F ((b), (c), (d)) + (x); \
-	(a) = ROTATE_LEFT ((a), (s)); \
-}
+#define FF(a, b, c, d, x, s)                   \
+	{                                      \
+		(a) += F((b), (c), (d)) + (x); \
+		(a) = ROTATE_LEFT((a), (s));   \
+	}
 
-#define GG(a, b, c, d, x, s) { \
-	(a) += G ((b), (c), (d)) + (x) + (uint32_t)0x5A827999; \
-	(a) = ROTATE_LEFT ((a), (s)); \
-}
+#define GG(a, b, c, d, x, s)                                          \
+	{                                                             \
+		(a) += G((b), (c), (d)) + (x) + (uint32_t)0x5A827999; \
+		(a) = ROTATE_LEFT((a), (s));                          \
+	}
 
-#define HH(a, b, c, d, x, s) { \
-	(a) += H ((b), (c), (d)) + (x) + (uint32_t)0x6ED9EBA1; \
-	(a) = ROTATE_LEFT ((a), (s)); \
-}
+#define HH(a, b, c, d, x, s)                                          \
+	{                                                             \
+		(a) += H((b), (c), (d)) + (x) + (uint32_t)0x6ED9EBA1; \
+		(a) = ROTATE_LEFT((a), (s));                          \
+	}
 
 /*
  * MD4 basic transformation.  It transforms state based on block.
@@ -120,32 +123,32 @@ ext2_half_md4(uint32_t hash[4], uint32_t data[8])
 	uint32_t a = hash[0], b = hash[1], c = hash[2], d = hash[3];
 
 	/* Round 1 */
-	FF(a, b, c, d, data[0],  3);
-	FF(d, a, b, c, data[1],  7);
+	FF(a, b, c, d, data[0], 3);
+	FF(d, a, b, c, data[1], 7);
 	FF(c, d, a, b, data[2], 11);
 	FF(b, c, d, a, data[3], 19);
-	FF(a, b, c, d, data[4],  3);
-	FF(d, a, b, c, data[5],  7);
+	FF(a, b, c, d, data[4], 3);
+	FF(d, a, b, c, data[5], 7);
 	FF(c, d, a, b, data[6], 11);
 	FF(b, c, d, a, data[7], 19);
 
 	/* Round 2 */
-	GG(a, b, c, d, data[1],  3);
-	GG(d, a, b, c, data[3],  5);
-	GG(c, d, a, b, data[5],  9);
+	GG(a, b, c, d, data[1], 3);
+	GG(d, a, b, c, data[3], 5);
+	GG(c, d, a, b, data[5], 9);
 	GG(b, c, d, a, data[7], 13);
-	GG(a, b, c, d, data[0],  3);
-	GG(d, a, b, c, data[2],  5);
-	GG(c, d, a, b, data[4],  9);
+	GG(a, b, c, d, data[0], 3);
+	GG(d, a, b, c, data[2], 5);
+	GG(c, d, a, b, data[4], 9);
 	GG(b, c, d, a, data[6], 13);
 
 	/* Round 3 */
-	HH(a, b, c, d, data[3],  3);
-	HH(d, a, b, c, data[7],  9);
+	HH(a, b, c, d, data[3], 3);
+	HH(d, a, b, c, data[7], 9);
 	HH(c, d, a, b, data[2], 11);
 	HH(b, c, d, a, data[6], 15);
-	HH(a, b, c, d, data[1],  3);
-	HH(d, a, b, c, data[5],  9);
+	HH(a, b, c, d, data[1], 3);
+	HH(d, a, b, c, data[5], 9);
 	HH(c, d, a, b, data[0], 11);
 	HH(b, c, d, a, data[4], 15);
 
@@ -204,8 +207,8 @@ ext2_legacy_hash(const char *name, int len, int unsigned_char)
 }
 
 static void
-ext2_prep_hashbuf(const char *src, int slen, uint32_t *dst, int dlen,
-    int unsigned_char)
+ext2_prep_hashbuf(
+    const char *src, int slen, uint32_t *dst, int dlen, int unsigned_char)
 {
 	uint32_t padding = slen | (slen << 8) | (slen << 16) | (slen << 24);
 	uint32_t buf_val;
@@ -252,9 +255,8 @@ ext2_prep_hashbuf(const char *src, int slen, uint32_t *dst, int dlen,
 }
 
 int
-ext2_htree_hash(const char *name, int len,
-    uint32_t *hash_seed, int hash_version,
-    uint32_t *hash_major, uint32_t *hash_minor)
+ext2_htree_hash(const char *name, int len, uint32_t *hash_seed,
+    int hash_version, uint32_t *hash_major, uint32_t *hash_minor)
 {
 	uint32_t hash[4];
 	uint32_t data[8];

@@ -35,40 +35,35 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/condvar.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/gpio.h>
+#include <sys/rman.h>
 
 #include <dev/extres/clk/clk.h>
-
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_util.h>
-
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
-#include <dev/usb/controller/ehci.h>
-#include <dev/usb/controller/ehcireg.h>
-
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/gpio/gpiobusvar.h>
+#include <dev/usb/controller/ehci.h>
+#include <dev/usb/controller/ehcireg.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_core.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 
 #include <mips/ingenic/jz4780_clock.h>
 #include <mips/ingenic/jz4780_regs.h>
 
-#define EHCI_HC_DEVSTR		"Ingenic JZ4780 EHCI"
+#define EHCI_HC_DEVSTR "Ingenic JZ4780 EHCI"
 
 struct jz4780_ehci_softc {
-	ehci_softc_t		base;	/* storage for EHCI code */
-	clk_t			clk;
+	ehci_softc_t base; /* storage for EHCI code */
+	clk_t clk;
 	struct gpiobus_pin *gpio_vbus;
 };
 
@@ -100,18 +95,22 @@ jz4780_ehci_vbus_gpio_enable(device_t dev)
 	}
 
 	if (sc->gpio_vbus != NULL) {
-		err = GPIO_PIN_SETFLAGS(sc->gpio_vbus->dev, sc->gpio_vbus->pin,
-		    GPIO_PIN_OUTPUT);
+		err = GPIO_PIN_SETFLAGS(
+		    sc->gpio_vbus->dev, sc->gpio_vbus->pin, GPIO_PIN_OUTPUT);
 		if (err != 0) {
-			device_printf(dev, "Cannot configure GPIO pin %d on %s\n",
-			    sc->gpio_vbus->pin, device_get_nameunit(sc->gpio_vbus->dev));
+			device_printf(dev,
+			    "Cannot configure GPIO pin %d on %s\n",
+			    sc->gpio_vbus->pin,
+			    device_get_nameunit(sc->gpio_vbus->dev));
 			return (err);
 		}
 
 		err = GPIO_PIN_SET(sc->gpio_vbus->dev, sc->gpio_vbus->pin, 1);
 		if (err != 0) {
-			device_printf(dev, "Cannot configure GPIO pin %d on %s\n",
-			    sc->gpio_vbus->pin, device_get_nameunit(sc->gpio_vbus->dev));
+			device_printf(dev,
+			    "Cannot configure GPIO pin %d on %s\n",
+			    sc->gpio_vbus->pin,
+			    device_get_nameunit(sc->gpio_vbus->dev));
 			return (err);
 		}
 	}
@@ -185,8 +184,8 @@ jz4780_ehci_attach(device_t dev)
 	sc->sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
-	if (usb_bus_mem_alloc_all(&sc->sc_bus,
-	    USB_GET_DMA_TAG(dev), &ehci_iterate_hw_softc)) {
+	if (usb_bus_mem_alloc_all(
+		&sc->sc_bus, USB_GET_DMA_TAG(dev), &ehci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
 
@@ -197,7 +196,8 @@ jz4780_ehci_attach(device_t dev)
 		goto error;
 
 	rid = 0;
-	sc->sc_io_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->sc_io_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_io_res) {
 		device_printf(dev, "Could not map memory\n");
 		goto error;
@@ -224,8 +224,8 @@ jz4780_ehci_attach(device_t dev)
 	EWRITE4(sc, EHCI_USBINTR, 0);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_irq_res == NULL) {
 		device_printf(dev, "Could not allocate irq\n");
 		goto error;
@@ -297,8 +297,8 @@ jz4780_ehci_detach(device_t dev)
 
 		if (err)
 			/* XXX or should we panic? */
-			device_printf(dev, "Could not tear down irq, %d\n",
-			    err);
+			device_printf(
+			    dev, "Could not tear down irq, %d\n", err);
 		sc->sc_intr_hdl = NULL;
 	}
 
@@ -307,8 +307,7 @@ jz4780_ehci_detach(device_t dev)
 		sc->sc_irq_res = NULL;
 	}
 	if (sc->sc_io_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, 0,
-		    sc->sc_io_res);
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
 

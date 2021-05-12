@@ -32,35 +32,35 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/syslog.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/bus.h>
-#include <sys/interrupt.h>
-#include <sys/conf.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
+#include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/syslog.h>
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
-#include <machine/intr.h>
 #include <machine/cpu.h>
+#include <machine/intr.h>
 #include <machine/smp.h>
 
 #include "pic_if.h"
 
 #ifdef SMP
-#define INTR_IPI_NAMELEN	(MAXCOMLEN + 1)
+#define INTR_IPI_NAMELEN (MAXCOMLEN + 1)
 
 struct intr_ipi {
-	intr_ipi_handler_t *	ii_handler;
-	void *			ii_handler_arg;
-	intr_ipi_send_t *	ii_send;
-	void *			ii_send_arg;
-	char			ii_name[INTR_IPI_NAMELEN];
-	u_long *		ii_count;
+	intr_ipi_handler_t *ii_handler;
+	void *ii_handler_arg;
+	intr_ipi_send_t *ii_send;
+	void *ii_send_arg;
+	char ii_name[INTR_IPI_NAMELEN];
+	u_long *ii_count;
 };
 
 static struct intr_ipi ipi_sources[INTR_IPI_COUNT];
@@ -209,8 +209,8 @@ pic_ipi_send(void *arg, cpuset_t cpus, u_int ipi)
  *  Not SMP coherent.
  */
 int
-intr_pic_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
-    void *arg)
+intr_pic_ipi_setup(
+    u_int ipi, const char *name, intr_ipi_handler_t *hand, void *arg)
 {
 	int error;
 	struct intr_irqsrc *isrc;

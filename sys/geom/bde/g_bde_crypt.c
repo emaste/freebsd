@@ -40,19 +40,18 @@
 
 #include <sys/param.h>
 #include <sys/bio.h>
+#include <sys/endian.h>
+#include <sys/libkern.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/md5.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
-#include <sys/malloc.h>
-#include <sys/libkern.h>
-#include <sys/endian.h>
-#include <sys/md5.h>
 
 #include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/sha2/sha512.h>
-
-#include <geom/geom.h>
 #include <geom/bde/g_bde.h>
+#include <geom/geom.h>
 
 /*
  * XXX: Debugging DO NOT ENABLE
@@ -269,7 +268,7 @@ void
 g_bde_map_sector(struct g_bde_work *wp)
 {
 
-	u_int	zone, zoff, u, len;
+	u_int zone, zoff, u, len;
 	uint64_t ko;
 	struct g_bde_softc *sc;
 	struct g_bde_key *kp;
@@ -306,7 +305,7 @@ g_bde_map_sector(struct g_bde_work *wp)
 	wp->kso = zone * kp->zone_width + kp->zone_cont;
 	wp->kso += kp->keyoffset;
 	wp->kso %= kp->media_width;
-	wp->kso += kp->sector0; 
+	wp->kso += kp->sector0;
 
 	/* Compensate for lock sectors */
 	for (u = 0; u < G_BDE_MAXKEYS; u++) {
@@ -335,26 +334,19 @@ g_bde_map_sector(struct g_bde_work *wp)
 #endif
 	KASSERT(wp->so + wp->length <= kp->sectorN,
 	    ("wp->so (%jd) + wp->length (%jd) > EOM (%jd), offset = %jd",
-	    (intmax_t)wp->so,
-	    (intmax_t)wp->length,
-	    (intmax_t)kp->sectorN,
-	    (intmax_t)wp->offset));
+		(intmax_t)wp->so, (intmax_t)wp->length, (intmax_t)kp->sectorN,
+		(intmax_t)wp->offset));
 
 	KASSERT(wp->kso + kp->sectorsize <= kp->sectorN,
 	    ("wp->kso (%jd) + kp->sectorsize > EOM (%jd), offset = %jd",
-	    (intmax_t)wp->kso,
-	    (intmax_t)kp->sectorN,
-	    (intmax_t)wp->offset));
+		(intmax_t)wp->kso, (intmax_t)kp->sectorN,
+		(intmax_t)wp->offset));
 
 	KASSERT(wp->so >= kp->sector0,
-	    ("wp->so (%jd) < BOM (%jd), offset = %jd",
-	    (intmax_t)wp->so,
-	    (intmax_t)kp->sector0,
-	    (intmax_t)wp->offset));
+	    ("wp->so (%jd) < BOM (%jd), offset = %jd", (intmax_t)wp->so,
+		(intmax_t)kp->sector0, (intmax_t)wp->offset));
 
 	KASSERT(wp->kso >= kp->sector0,
-	    ("wp->kso (%jd) <BOM (%jd), offset = %jd",
-	    (intmax_t)wp->kso,
-	    (intmax_t)kp->sector0,
-	    (intmax_t)wp->offset));
+	    ("wp->kso (%jd) <BOM (%jd), offset = %jd", (intmax_t)wp->kso,
+		(intmax_t)kp->sector0, (intmax_t)wp->offset));
 }

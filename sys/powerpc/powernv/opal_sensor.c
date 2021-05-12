@@ -26,39 +26,39 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
-#include <sys/endian.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "opal.h"
 
 struct opal_sensor_softc {
-	device_t	 sc_dev;
-	struct mtx	 sc_mtx;
-	uint32_t	 sc_handle;
-	uint32_t	 sc_min_handle;
-	uint32_t	 sc_max_handle;
-	char		*sc_label;
-	int		 sc_type;
+	device_t sc_dev;
+	struct mtx sc_mtx;
+	uint32_t sc_handle;
+	uint32_t sc_min_handle;
+	uint32_t sc_max_handle;
+	char *sc_label;
+	int sc_type;
 };
 
-#define	SENSOR_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	SENSOR_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define	SENSOR_LOCK_INIT(_sc) \
+#define SENSOR_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define SENSOR_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
+#define SENSOR_LOCK_INIT(_sc)                                    \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
 	    "opal-sensor", MTX_DEF)
 
@@ -70,24 +70,18 @@ struct opal_sensor_softc {
  * are the real sensors.
  */
 enum opal_sensor_type {
-	OPAL_SENSOR_TEMP	= 0,	/* From OPAL: degC */
-	OPAL_SENSOR_FAN		= 1,	/* From OPAL: RPM */
-	OPAL_SENSOR_POWER	= 2,	/* From OPAL: W */
-	OPAL_SENSOR_IN		= 3,	/* From OPAL: mV */
-	OPAL_SENSOR_ENERGY	= 4,	/* From OPAL: uJ */
-	OPAL_SENSOR_CURR	= 5,	/* From OPAL: mA */
+	OPAL_SENSOR_TEMP = 0,	/* From OPAL: degC */
+	OPAL_SENSOR_FAN = 1,	/* From OPAL: RPM */
+	OPAL_SENSOR_POWER = 2,	/* From OPAL: W */
+	OPAL_SENSOR_IN = 3,	/* From OPAL: mV */
+	OPAL_SENSOR_ENERGY = 4, /* From OPAL: uJ */
+	OPAL_SENSOR_CURR = 5,	/* From OPAL: mA */
 	OPAL_SENSOR_MAX
 };
 
 /* This must be kept sorted with the enum above. */
-const char *opal_sensor_types[] = {
-	"temp",
-	"fan",
-	"power",
-	"in",
-	"energy",
-	"curr"
-};
+const char *opal_sensor_types[] = { "temp", "fan", "power", "in", "energy",
+	"curr" };
 
 /*
  * Retrieve the raw value from OPAL.  This will be cooked by the sysctl handler.
@@ -123,8 +117,7 @@ opal_sensor_get_val(struct opal_sensor_softc *sc, uint32_t key, uint64_t *val)
 	return (rv);
 }
 
-static int
-opal_sensor_sysctl(SYSCTL_HANDLER_ARGS)
+static int opal_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct opal_sensor_softc *sc;
 	int error, result;
@@ -171,17 +164,18 @@ opal_sensor_attach(device_t dev)
 	struct opal_sensor_softc *sc;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *tree;
-	char		type[8];
-	phandle_t	node;
-	cell_t		sensor_id;
-	int		i;
+	char type[8];
+	phandle_t node;
+	cell_t sensor_id;
+	int i;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
 	node = ofw_bus_get_node(dev);
 
-	if (OF_getencprop(node, "sensor-data", &sensor_id, sizeof(sensor_id)) < 0) {
+	if (OF_getencprop(node, "sensor-data", &sensor_id, sizeof(sensor_id)) <
+	    0) {
 		device_printf(dev, "Missing sensor ID\n");
 		return (ENXIO);
 	}
@@ -206,35 +200,35 @@ opal_sensor_attach(device_t dev)
 	tree = device_get_sysctl_tree(dev);
 
 	sc->sc_handle = sensor_id;
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "sensor", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
-	    sensor_id, opal_sensor_sysctl,
-	    (sc->sc_type == OPAL_SENSOR_TEMP) ? "IK" : "I", "current value");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "sensor",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, sensor_id,
+	    opal_sensor_sysctl, (sc->sc_type == OPAL_SENSOR_TEMP) ? "IK" : "I",
+	    "current value");
 
 	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "type",
-	    CTLFLAG_RD, __DECONST(char *, opal_sensor_types[sc->sc_type]),
-	    0, "");
+	    CTLFLAG_RD, __DECONST(char *, opal_sensor_types[sc->sc_type]), 0,
+	    "");
 
 	OF_getprop_alloc(node, "label", (void **)&sc->sc_label);
 	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "label",
 	    CTLFLAG_RD, sc->sc_label, 0, "");
 
-	if (OF_getencprop(node, "sensor-data-min",
-	    &sensor_id, sizeof(sensor_id)) > 0) {
+	if (OF_getencprop(
+		node, "sensor-data-min", &sensor_id, sizeof(sensor_id)) > 0) {
 		sc->sc_min_handle = sensor_id;
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		    "sensor_min", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-		    sc, sensor_id, opal_sensor_sysctl,
+		    "sensor_min", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
+		    sensor_id, opal_sensor_sysctl,
 		    (sc->sc_type == OPAL_SENSOR_TEMP) ? "IK" : "I",
 		    "minimum value");
 	}
 
-	if (OF_getencprop(node, "sensor-data-max",
-	    &sensor_id, sizeof(sensor_id)) > 0) {
+	if (OF_getencprop(
+		node, "sensor-data-max", &sensor_id, sizeof(sensor_id)) > 0) {
 		sc->sc_max_handle = sensor_id;
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		    "sensor_max", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-		    sc, sensor_id, opal_sensor_sysctl,
+		    "sensor_max", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc,
+		    sensor_id, opal_sensor_sysctl,
 		    (sc->sc_type == OPAL_SENSOR_TEMP) ? "IK" : "I",
 		    "maximum value");
 	}
@@ -245,15 +239,12 @@ opal_sensor_attach(device_t dev)
 }
 
 static device_method_t opal_sensor_methods[] = {
-	DEVMETHOD(device_probe,		opal_sensor_probe),
-	DEVMETHOD(device_attach,		opal_sensor_attach),
+	DEVMETHOD(device_probe, opal_sensor_probe),
+	DEVMETHOD(device_attach, opal_sensor_attach),
 };
 
-static driver_t opal_sensor_driver = {
-        "opal_sensor",
-        opal_sensor_methods,
-        sizeof(struct opal_sensor_softc)
-};
+static driver_t opal_sensor_driver = { "opal_sensor", opal_sensor_methods,
+	sizeof(struct opal_sensor_softc) };
 
 static devclass_t opal_sensor_devclass;
 
@@ -271,7 +262,7 @@ opalsens_probe(device_t dev)
 	return (BUS_PROBE_GENERIC);
 }
 
-static int 
+static int
 opalsens_attach(device_t dev)
 {
 	phandle_t child;
@@ -279,7 +270,7 @@ opalsens_attach(device_t dev)
 	struct ofw_bus_devinfo *dinfo;
 
 	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
-	    child = OF_peer(child)) {
+	     child = OF_peer(child)) {
 		dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
 		if (ofw_bus_gen_setup_devinfo(dinfo, child) != 0) {
 			free(dinfo, M_DEVBUF);
@@ -302,30 +293,26 @@ opalsens_attach(device_t dev)
 static const struct ofw_bus_devinfo *
 opalsens_get_devinfo(device_t dev, device_t child)
 {
-        return (device_get_ivars(child));
+	return (device_get_ivars(child));
 }
 
 static device_method_t opalsens_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		opalsens_probe),
-	DEVMETHOD(device_attach,	opalsens_attach),
+	DEVMETHOD(device_probe, opalsens_probe),
+	DEVMETHOD(device_attach, opalsens_attach),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_devinfo,	opalsens_get_devinfo),
-	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
-	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
-	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
-	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
-	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+	DEVMETHOD(ofw_bus_get_devinfo, opalsens_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat, ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model, ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name, ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node, ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type, ofw_bus_gen_get_type),
 
 	DEVMETHOD_END
 };
 
-static driver_t opalsens_driver = {
-        "opalsens",
-        opalsens_methods,
-        0
-};
+static driver_t opalsens_driver = { "opalsens", opalsens_methods, 0 };
 
 static devclass_t opalsens_devclass;
 

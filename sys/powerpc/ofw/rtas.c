@@ -29,17 +29,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/endian.h>
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
 #include <sys/proc.h>
 
 #include <vm/vm.h>
-#include <vm/vm_page.h>
 #include <vm/pmap.h>
+#include <vm/vm_page.h>
 
 #include <machine/bus.h>
 #include <machine/md_var.h>
@@ -51,18 +51,18 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_RTAS, "rtas", "Run Time Abstraction Service");
 
-static vm_offset_t	rtas_bounce_phys;
-static caddr_t		rtas_bounce_virt;
-static off_t		rtas_bounce_offset;
-static size_t		rtas_bounce_size;
-static uintptr_t	rtas_private_data;
-static struct mtx	rtas_mtx;
-static phandle_t	rtas;
+static vm_offset_t rtas_bounce_phys;
+static caddr_t rtas_bounce_virt;
+static off_t rtas_bounce_offset;
+static size_t rtas_bounce_size;
+static uintptr_t rtas_private_data;
+static struct mtx rtas_mtx;
+static phandle_t rtas;
 
 /* From ofwcall.S */
 int rtascall(vm_offset_t callbuffer, uintptr_t rtas_privdat);
-extern uintptr_t	rtas_entry;
-extern register_t	rtasmsr;
+extern uintptr_t rtas_entry;
+extern register_t rtasmsr;
 
 /*
  * After the VM is up, allocate RTAS memory and instantiate it
@@ -92,9 +92,9 @@ rtas_setup(void *junk)
 	/* RTAS must be called with everything turned off in MSR */
 	rtasmsr = mfmsr();
 	rtasmsr &= ~(PSL_IR | PSL_DR | PSL_EE | PSL_SE | PSL_LE);
-	#ifdef __powerpc64__
+#ifdef __powerpc64__
 	rtasmsr &= ~PSL_SF;
-	#endif
+#endif
 
 	/*
 	 * Allocate rtas_size + one page of contiguous, wired physical memory
@@ -107,11 +107,11 @@ rtas_setup(void *junk)
 	OF_getencprop(rtas, "rtas-size", &rtas_size, sizeof(rtas_size));
 	rtas_size = round_page(rtas_size);
 	rtas_bounce_virt = contigmalloc(rtas_size + PAGE_SIZE, M_RTAS, 0, 0,
-	    ulmin(platform_real_maxaddr(), BUS_SPACE_MAXADDR_32BIT),
-	    4096, 256*1024*1024);
+	    ulmin(platform_real_maxaddr(), BUS_SPACE_MAXADDR_32BIT), 4096,
+	    256 * 1024 * 1024);
 
 	rtas_private_data = vtophys(rtas_bounce_virt);
-	rtas_bounce_virt += rtas_size;	/* Actual bounce area */
+	rtas_bounce_virt += rtas_size; /* Actual bounce area */
 	rtas_bounce_phys = vtophys(rtas_bounce_virt);
 	rtas_bounce_size = PAGE_SIZE;
 
@@ -121,17 +121,17 @@ rtas_setup(void *junk)
 
 	if (OF_hasprop(rtas, "linux,rtas-entry") &&
 	    OF_hasprop(rtas, "linux,rtas-base")) {
-		OF_getencprop(rtas, "linux,rtas-base", &rtas_ptr,
-		    sizeof(rtas_ptr));
+		OF_getencprop(
+		    rtas, "linux,rtas-base", &rtas_ptr, sizeof(rtas_ptr));
 		rtas_private_data = rtas_ptr;
-		OF_getencprop(rtas, "linux,rtas-entry", &rtas_ptr,
-		    sizeof(rtas_ptr));
+		OF_getencprop(
+		    rtas, "linux,rtas-entry", &rtas_ptr, sizeof(rtas_ptr));
 	} else {
 		rtasi = OF_open(path);
 		if (rtasi == 0) {
 			rtas = 0;
 			printf("Error initializing RTAS: could not open "
-			    "node\n");
+			       "node\n");
 			return;
 		}
 
@@ -231,18 +231,18 @@ rtas_call_method(cell_t token, int nargs, int nreturns, ...)
 	argsptr = rtas_real_map(&args, sizeof(args));
 
 	/* Get rid of any stale machine checks that have been waiting.  */
-	__asm __volatile ("sync; isync");
+	__asm __volatile("sync; isync");
 	oldfaultbuf = curthread->td_pcb->pcb_onfault;
 	curthread->td_pcb->pcb_onfault = &env;
 	if (!setjmp(env)) {
-		__asm __volatile ("sync");
+		__asm __volatile("sync");
 		result = rtascall(argsptr, rtas_private_data);
-		__asm __volatile ("sync; isync");
+		__asm __volatile("sync; isync");
 	} else {
 		result = RTAS_HW_ERROR;
 	}
 	curthread->td_pcb->pcb_onfault = oldfaultbuf;
-	__asm __volatile ("sync");
+	__asm __volatile("sync");
 
 	rtas_real_unmap(argsptr, &args, sizeof(args));
 	mtx_unlock_spin(&rtas_mtx);

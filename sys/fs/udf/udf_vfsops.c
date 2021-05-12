@@ -75,11 +75,11 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/uio.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/dirent.h>
+#include <sys/endian.h>
 #include <sys/fcntl.h>
 #include <sys/iconv.h>
 #include <sys/kernel.h>
@@ -89,11 +89,8 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/uio.h>
 #include <sys/vnode.h>
-#include <sys/endian.h>
-
-#include <geom/geom.h>
-#include <geom/geom_vfs.h>
 
 #include <vm/uma.h>
 
@@ -101,6 +98,8 @@
 #include <fs/udf/osta.h>
 #include <fs/udf/udf.h>
 #include <fs/udf/udf_mount.h>
+#include <geom/geom.h>
+#include <geom/geom_vfs.h>
 
 static MALLOC_DEFINE(M_UDFMOUNT, "udf_mount", "UDF mount structure");
 MALLOC_DEFINE(M_UDFFENTRY, "udf_fentry", "UDF file entry structure");
@@ -112,25 +111,25 @@ uma_zone_t udf_zone_trans = NULL;
 uma_zone_t udf_zone_node = NULL;
 uma_zone_t udf_zone_ds = NULL;
 
-static vfs_init_t      udf_init;
-static vfs_uninit_t    udf_uninit;
-static vfs_mount_t     udf_mount;
-static vfs_root_t      udf_root;
-static vfs_statfs_t    udf_statfs;
-static vfs_unmount_t   udf_unmount;
-static vfs_fhtovp_t	udf_fhtovp;
+static vfs_init_t udf_init;
+static vfs_uninit_t udf_uninit;
+static vfs_mount_t udf_mount;
+static vfs_root_t udf_root;
+static vfs_statfs_t udf_statfs;
+static vfs_unmount_t udf_unmount;
+static vfs_fhtovp_t udf_fhtovp;
 
 static int udf_find_partmaps(struct udf_mnt *, struct logvol_desc *);
 
 static struct vfsops udf_vfsops = {
-	.vfs_fhtovp =		udf_fhtovp,
-	.vfs_init =		udf_init,
-	.vfs_mount =		udf_mount,
-	.vfs_root =		udf_root,
-	.vfs_statfs =		udf_statfs,
-	.vfs_uninit =		udf_uninit,
-	.vfs_unmount =		udf_unmount,
-	.vfs_vget =		udf_vget,
+	.vfs_fhtovp = udf_fhtovp,
+	.vfs_init = udf_init,
+	.vfs_mount = udf_mount,
+	.vfs_root = udf_root,
+	.vfs_statfs = udf_statfs,
+	.vfs_uninit = udf_uninit,
+	.vfs_unmount = udf_unmount,
+	.vfs_vget = udf_vget,
 };
 VFS_SET(udf_vfsops, udf, VFCF_READONLY);
 
@@ -147,8 +146,8 @@ udf_init(struct vfsconf *foo)
 	 * pool, reducing the need to grow the zones later on.  UMA doesn't
 	 * advertise any such functionality, unfortunately =-<
 	 */
-	udf_zone_trans = uma_zcreate("UDF translation buffer, zone", MAXNAMLEN *
-	    sizeof(unicode_t), NULL, NULL, NULL, NULL, 0, 0);
+	udf_zone_trans = uma_zcreate("UDF translation buffer, zone",
+	    MAXNAMLEN * sizeof(unicode_t), NULL, NULL, NULL, NULL, 0, 0);
 
 	udf_zone_node = uma_zcreate("UDF Node zone", sizeof(struct udf_node),
 	    NULL, NULL, NULL, NULL, 0, 0);
@@ -190,7 +189,7 @@ udf_uninit(struct vfsconf *foo)
 static int
 udf_mount(struct mount *mp)
 {
-	struct vnode *devvp;	/* vnode of the mount device */
+	struct vnode *devvp; /* vnode of the mount device */
 	struct thread *td;
 	struct udf_mnt *imp = NULL;
 	struct vfsoptlist *opts;
@@ -342,8 +341,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 		mp->mnt_iosize_max = maxphys;
 
 	/* XXX: should be M_WAITOK */
-	udfmp = malloc(sizeof(struct udf_mnt), M_UDFMOUNT,
-	    M_NOWAIT | M_ZERO);
+	udfmp = malloc(sizeof(struct udf_mnt), M_UDFMOUNT, M_NOWAIT | M_ZERO);
 	if (udfmp == NULL) {
 		printf("Cannot allocate UDF mount struct\n");
 		error = ENOMEM;
@@ -381,13 +379,13 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 
 	bsize = cp->provider->sectorsize;
 
-	/* 
+	/*
 	 * Get the Anchor Volume Descriptor Pointer from sector 256.
 	 * XXX Should also check sector n - 256, n, and 512.
 	 */
 	sector = 256;
 	if ((error = bread(devvp, sector * btodb(logical_secsize), bsize,
-			   NOCRED, &bp)) != 0)
+		 NOCRED, &bp)) != 0)
 		goto bail;
 	if ((error = udf_checktag((struct desc_tag *)bp->b_data, TAGID_ANCHOR)))
 		goto bail;
@@ -406,7 +404,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 	mvds_end = mvds_start + (le32toh(avdp.main_vds_ex.len) - 1) / bsize;
 	for (sector = mvds_start; sector < mvds_end; sector++) {
 		if ((error = bread(devvp, sector * btodb(logical_secsize),
-				   bsize, NOCRED, &bp)) != 0) {
+			 bsize, NOCRED, &bp)) != 0) {
 			printf("Can't read sector %d of VDS\n", sector);
 			goto bail;
 		}
@@ -429,7 +427,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 			udfmp->part_start = le32toh(pd->start_loc);
 		}
 
-		brelse(bp); 
+		brelse(bp);
 		bp = NULL;
 		if ((part_found) && (logvol_found))
 			break;
@@ -599,7 +597,7 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	/*
 	 * We must promote to an exclusive lock for vnode creation.  This
 	 * can happen if lookup is passed LOCKSHARED.
- 	 */
+	 */
 	if ((flags & LK_TYPE_MASK) == LK_SHARED) {
 		flags &= ~LK_TYPE_MASK;
 		flags |= LK_EXCLUSIVE;
@@ -761,14 +759,14 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 	struct buf *bp;
 	unsigned char regid_id[UDF_REGID_ID_SIZE + 1];
 	int i, k, ptype, psize, error;
-	uint8_t *pmap = (uint8_t *) &lvd->maps[0];
+	uint8_t *pmap = (uint8_t *)&lvd->maps[0];
 
 	for (i = 0; i < le32toh(lvd->n_pm); i++) {
 		ptype = pmap[0];
 		psize = pmap[1];
 		if (((ptype != 1) && (ptype != 2)) ||
 		    ((psize != UDF_PMAP_TYPE1_SIZE) &&
-		     (psize != UDF_PMAP_TYPE2_SIZE))) {
+			(psize != UDF_PMAP_TYPE2_SIZE))) {
 			printf("Invalid partition map found\n");
 			return (1);
 		}
@@ -785,15 +783,15 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 		bcopy(&pmap_id->id[0], &regid_id[0], UDF_REGID_ID_SIZE);
 
 		if (bcmp(&regid_id[0], "*UDF Sparable Partition",
-		    UDF_REGID_ID_SIZE)) {
+			UDF_REGID_ID_SIZE)) {
 			printf("Unsupported partition map: %s\n", &regid_id[0]);
 			return (1);
 		}
 
 		pms = (struct part_map_spare *)pmap;
 		pmap += UDF_PMAP_TYPE2_SIZE;
-		udfmp->s_table = malloc(le32toh(pms->st_size),
-		    M_UDFMOUNT, M_NOWAIT | M_ZERO);
+		udfmp->s_table = malloc(
+		    le32toh(pms->st_size), M_UDFMOUNT, M_NOWAIT | M_ZERO);
 		if (udfmp->s_table == NULL)
 			return (ENOMEM);
 
@@ -806,7 +804,7 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 		 * for another table.
 		 */
 		if ((error = udf_readdevblks(udfmp, le32toh(pms->st_loc[0]),
-					   le32toh(pms->st_size), &bp)) != 0) {
+			 le32toh(pms->st_size), &bp)) != 0) {
 			if (bp != NULL)
 				brelse(bp);
 			printf("Failed to read Sparing Table at sector %d\n",

@@ -39,9 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <kgssapi/gssapi_impl.h>
 
 OM_uint32
-gss_add_oid_set_member(OM_uint32 *minor_status,
-    const gss_OID member_oid,
-    gss_OID_set *oid_set)
+gss_add_oid_set_member(
+    OM_uint32 *minor_status, const gss_OID member_oid, gss_OID_set *oid_set)
 {
 	OM_uint32 major_status;
 	gss_OID_set set = *oid_set;
@@ -51,15 +50,15 @@ gss_add_oid_set_member(OM_uint32 *minor_status,
 
 	*minor_status = 0;
 
-	major_status = gss_test_oid_set_member(minor_status,
-	    member_oid, *oid_set, &t);
+	major_status = gss_test_oid_set_member(
+	    minor_status, member_oid, *oid_set, &t);
 	if (major_status)
 		return (major_status);
 	if (t)
 		return (GSS_S_COMPLETE);
 
-	new_elements = malloc((set->count + 1) * sizeof(gss_OID_desc),
-	    M_GSSAPI, M_WAITOK);
+	new_elements = malloc(
+	    (set->count + 1) * sizeof(gss_OID_desc), M_GSSAPI, M_WAITOK);
 
 	new_oid = &new_elements[set->count];
 	new_oid->elements = malloc(member_oid->length, M_GSSAPI, M_WAITOK);

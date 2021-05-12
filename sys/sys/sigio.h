@@ -47,23 +47,24 @@
  */
 struct sigio {
 	union {
-		struct	proc *siu_proc; /* (c)	process to receive SIGIO/SIGURG */
-		struct	pgrp *siu_pgrp; /* (c)	process group to receive ... */
+		struct proc
+		    *siu_proc;	       /* (c)	process to receive SIGIO/SIGURG */
+		struct pgrp *siu_pgrp; /* (c)	process group to receive ... */
 	} sio_u;
-	SLIST_ENTRY(sigio) sio_pgsigio;	/* (pg)	sigio's for process or group */
-	struct	sigio **sio_myref;	/* (c)	location of the pointer that holds
-					 * 	the reference to this structure */
-	struct	ucred *sio_ucred;	/* (c)	current credentials */
-	pid_t	sio_pgid;		/* (c)	pgid for signals */
+	SLIST_ENTRY(sigio) sio_pgsigio; /* (pg)	sigio's for process or group */
+	struct sigio **sio_myref;	/* (c)	location of the pointer that
+					 * holds       the reference to this structure */
+	struct ucred *sio_ucred;	/* (c)	current credentials */
+	pid_t sio_pgid;			/* (c)	pgid for signals */
 };
-#define	sio_proc	sio_u.siu_proc
-#define	sio_pgrp	sio_u.siu_pgrp
+#define sio_proc sio_u.siu_proc
+#define sio_pgrp sio_u.siu_pgrp
 
 SLIST_HEAD(sigiolst, sigio);
 
-pid_t	fgetown(struct sigio **sigiop);
-int	fsetown(pid_t pgid, struct sigio **sigiop);
-void	funsetown(struct sigio **sigiop);
-void	funsetownlst(struct sigiolst *sigiolst);
+pid_t fgetown(struct sigio **sigiop);
+int fsetown(pid_t pgid, struct sigio **sigiop);
+void funsetown(struct sigio **sigiop);
+void funsetownlst(struct sigiolst *sigiolst);
 
 #endif /* _SYS_SIGIO_H_ */

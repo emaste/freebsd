@@ -35,38 +35,38 @@
  */
 
 #ifndef _NET_ROUTE_NHGRP_VAR_H_
-#define	_NET_ROUTE_NHGRP_VAR_H_
+#define _NET_ROUTE_NHGRP_VAR_H_
 
 /* nhgrp hash definition */
 /* produce hash value for an object */
-#define	mpath_hash_obj(_obj)	(hash_nhgrp(_obj))
+#define mpath_hash_obj(_obj) (hash_nhgrp(_obj))
 /* compare two objects */
-#define	mpath_cmp(_one, _two)	(cmp_nhgrp(_one, _two))
+#define mpath_cmp(_one, _two) (cmp_nhgrp(_one, _two))
 /* next object accessor */
-#define	mpath_next(_obj)	(_obj)->nhg_priv_next
+#define mpath_next(_obj) (_obj)->nhg_priv_next
 
 struct nhgrp_priv {
-	uint32_t		nhg_idx;
-	uint8_t			nhg_nh_count;	/* number of items in nh_weights */
-	uint8_t			nhg_spare[3];
-	u_int			nhg_refcount;	/* use refcount */
-	u_int			nhg_linked;	/* refcount(9), == 2 if linked to the list */
-	struct nh_control	*nh_control;	/* parent control structure */
-	struct nhgrp_priv	*nhg_priv_next;
-	struct nhgrp_object	*nhg;
-	struct epoch_context	nhg_epoch_ctx;	/* epoch data for nhop */
-	struct weightened_nhop	nhg_nh_weights[0];
+	uint32_t nhg_idx;
+	uint8_t nhg_nh_count; /* number of items in nh_weights */
+	uint8_t nhg_spare[3];
+	u_int nhg_refcount; /* use refcount */
+	u_int nhg_linked;   /* refcount(9), == 2 if linked to the list */
+	struct nh_control *nh_control; /* parent control structure */
+	struct nhgrp_priv *nhg_priv_next;
+	struct nhgrp_object *nhg;
+	struct epoch_context nhg_epoch_ctx; /* epoch data for nhop */
+	struct weightened_nhop nhg_nh_weights[0];
 };
 
-#define	_NHGRP_PRIV(_src)	 (&(_src)->nhops[(_src)->nhg_size])
-#define	NHGRP_PRIV(_src)	 ((struct nhgrp_priv *)_NHGRP_PRIV(_src))
-#define	NHGRP_PRIV_CONST(_src)	 ((const struct nhgrp_priv *)_NHGRP_PRIV(_src))
+#define _NHGRP_PRIV(_src) (&(_src)->nhops[(_src)->nhg_size])
+#define NHGRP_PRIV(_src) ((struct nhgrp_priv *)_NHGRP_PRIV(_src))
+#define NHGRP_PRIV_CONST(_src) ((const struct nhgrp_priv *)_NHGRP_PRIV(_src))
 
 /* nhgrp.c */
 bool nhgrp_ctl_alloc_default(struct nh_control *ctl, int malloc_flags);
-struct nhgrp_priv *find_nhgrp(struct nh_control *ctl, const struct nhgrp_priv *key);
+struct nhgrp_priv *find_nhgrp(
+    struct nh_control *ctl, const struct nhgrp_priv *key);
 int link_nhgrp(struct nh_control *ctl, struct nhgrp_priv *grp_priv);
 struct nhgrp_priv *unlink_nhgrp(struct nh_control *ctl, struct nhgrp_priv *key);
 
 #endif
-

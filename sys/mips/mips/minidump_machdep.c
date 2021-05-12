@@ -39,19 +39,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <sys/msgbuf.h>
-#include <sys/watchdog.h>
 #include <sys/vmmeter.h>
+#include <sys/watchdog.h>
+
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <vm/vm_page.h>
-#include <vm/vm_phys.h>
 #include <vm/vm_dumpset.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
+
 #include <machine/atomic.h>
+#include <machine/cache.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
 #include <machine/minidump.h>
-#include <machine/cache.h>
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
@@ -83,18 +85,9 @@ static struct {
 	int min_per;
 	int max_per;
 	int visited;
-} progress_track[10] = {
-	{  0,  10, 0},
-	{ 10,  20, 0},
-	{ 20,  30, 0},
-	{ 30,  40, 0},
-	{ 40,  50, 0},
-	{ 50,  60, 0},
-	{ 60,  70, 0},
-	{ 70,  80, 0},
-	{ 80,  90, 0},
-	{ 90, 100, 0}
-};
+} progress_track[10] = { { 0, 10, 0 }, { 10, 20, 0 }, { 20, 30, 0 },
+	{ 30, 40, 0 }, { 40, 50, 0 }, { 50, 60, 0 }, { 60, 70, 0 },
+	{ 70, 80, 0 }, { 80, 90, 0 }, { 90, 100, 0 } };
 
 static void
 report_progress(uint64_t progress, uint64_t dumpsize)
@@ -123,7 +116,7 @@ write_buffer(struct dumperinfo *di, char *ptr, size_t sz)
 
 	maxdumpsz = di->maxiosize;
 
-	if (maxdumpsz == 0)	/* seatbelt */
+	if (maxdumpsz == 0) /* seatbelt */
 		maxdumpsz = PAGE_SIZE;
 
 	error = 0;
@@ -135,7 +128,7 @@ write_buffer(struct dumperinfo *di, char *ptr, size_t sz)
 
 		if (counter >> 22) {
 			report_progress(progress, dumpsize);
-			counter &= (1<<22) - 1;
+			counter &= (1 << 22) - 1;
 		}
 
 		wdog_kern_pat(WD_LASTVAL);
@@ -196,7 +189,7 @@ minidumpsys(struct dumperinfo *di)
 	}
 
 	/*
-	 * Now mark pages from 0 to phys_avail[0], that's where kernel 
+	 * Now mark pages from 0 to phys_avail[0], that's where kernel
 	 * and pages allocated by pmap_steal reside
 	 */
 	for (pa = 0; pa < phys_avail[0]; pa += PAGE_SIZE) {
@@ -209,7 +202,7 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += round_page(msgbufp->msg_size);
 	dumpsize += round_page(nitems(dump_avail) * sizeof(uint64_t));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH (pa) {
 		/* Clear out undumpable pages now if needed */
 		if (is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
@@ -230,8 +223,8 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.kernbase = VM_MIN_KERNEL_ADDRESS;
 	mdhdr.dumpavailsize = round_page(nitems(dump_avail) * sizeof(uint64_t));
 
-	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_MIPS_VERSION,
-	    dumpsize);
+	dump_init_header(
+	    di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_MIPS_VERSION, dumpsize);
 
 	error = dump_start(di, &kdh);
 	if (error != 0)
@@ -248,14 +241,15 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump msgbuf up front */
-	error = write_buffer(di, (char *)msgbufp->msg_ptr, 
-	    round_page(msgbufp->msg_size));
+	error = write_buffer(
+	    di, (char *)msgbufp->msg_ptr, round_page(msgbufp->msg_size));
 	if (error)
 		goto fail;
 
 	/* Dump dump_avail.  Make a copy using 64-bit physical addresses. */
-	_Static_assert(nitems(dump_avail) * sizeof(uint64_t) <=
-	    sizeof(tmpbuffer), "Large dump_avail not handled");
+	_Static_assert(
+	    nitems(dump_avail) * sizeof(uint64_t) <= sizeof(tmpbuffer),
+	    "Large dump_avail not handled");
 	bzero(tmpbuffer, sizeof(tmpbuffer));
 	if (sizeof(dump_avail[0]) != sizeof(uint64_t)) {
 		dump_avail_buf = (uint64_t *)tmpbuffer;
@@ -287,8 +281,8 @@ minidumpsys(struct dumperinfo *di)
 			if ((vm_offset_t)pte == (prev_pte + count * PAGE_SIZE))
 				count++;
 			else {
-				error = write_buffer(di, (char*)prev_pte,
-				    count * PAGE_SIZE);
+				error = write_buffer(
+				    di, (char *)prev_pte, count * PAGE_SIZE);
 				if (error)
 					goto fail;
 				count = 1;
@@ -298,7 +292,7 @@ minidumpsys(struct dumperinfo *di)
 	}
 
 	if (count) {
-		error = write_buffer(di, (char*)prev_pte, count * PAGE_SIZE);
+		error = write_buffer(di, (char *)prev_pte, count * PAGE_SIZE);
 		if (error)
 			goto fail;
 		count = 0;
@@ -306,7 +300,7 @@ minidumpsys(struct dumperinfo *di)
 	}
 
 	/* Dump memory chunks  page by page*/
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH (pa) {
 		dump_va = pmap_kenter_temporary(pa, 0);
 		error = write_buffer(di, dump_va, PAGE_SIZE);
 		if (error)
@@ -329,7 +323,8 @@ fail:
 		printf("\nDump aborted\n");
 	else if (error == E2BIG || error == ENOSPC) {
 		printf("\nDump failed. Partition too small (about %lluMB were "
-		    "needed this time).\n", (long long)dumpsize >> 20);
+		       "needed this time).\n",
+		    (long long)dumpsize >> 20);
 	} else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);
 	return (error);

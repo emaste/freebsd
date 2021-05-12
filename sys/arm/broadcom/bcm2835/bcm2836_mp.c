@@ -33,50 +33,50 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/smp.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/cpu.h>
-#include <machine/smp.h>
 #include <machine/bus.h>
+#include <machine/cpu.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
 #include <machine/platformvar.h>
+#include <machine/smp.h>
 
 #include <arm/broadcom/bcm2835/bcm2836_mp.h>
 
 #ifdef DEBUG
-#define	DPRINTF(fmt, ...) do {			\
-	printf("%s:%u: ", __func__, __LINE__);	\
-	printf(fmt, ##__VA_ARGS__);		\
-} while (0)
+#define DPRINTF(fmt, ...)                              \
+	do {                                           \
+		printf("%s:%u: ", __func__, __LINE__); \
+		printf(fmt, ##__VA_ARGS__);            \
+	} while (0)
 #else
-#define	DPRINTF(fmt, ...)
+#define DPRINTF(fmt, ...)
 #endif
 
-#define	ARM_LOCAL_BASE		0x40000000
-#define	ARM_LOCAL_SIZE		0x00001000
+#define ARM_LOCAL_BASE 0x40000000
+#define ARM_LOCAL_SIZE 0x00001000
 
 /* mailbox registers */
-#define	MBOXINTRCTRL_CORE(n)	(0x00000050 + (0x04 * (n)))
-#define	MBOX0SET_CORE(n)	(0x00000080 + (0x10 * (n)))
-#define	MBOX1SET_CORE(n)	(0x00000084 + (0x10 * (n)))
-#define	MBOX2SET_CORE(n)	(0x00000088 + (0x10 * (n)))
-#define	MBOX3SET_CORE(n)	(0x0000008C + (0x10 * (n)))
-#define	MBOX0CLR_CORE(n)	(0x000000C0 + (0x10 * (n)))
-#define	MBOX1CLR_CORE(n)	(0x000000C4 + (0x10 * (n)))
-#define	MBOX2CLR_CORE(n)	(0x000000C8 + (0x10 * (n)))
-#define	MBOX3CLR_CORE(n)	(0x000000CC + (0x10 * (n)))
+#define MBOXINTRCTRL_CORE(n) (0x00000050 + (0x04 * (n)))
+#define MBOX0SET_CORE(n) (0x00000080 + (0x10 * (n)))
+#define MBOX1SET_CORE(n) (0x00000084 + (0x10 * (n)))
+#define MBOX2SET_CORE(n) (0x00000088 + (0x10 * (n)))
+#define MBOX3SET_CORE(n) (0x0000008C + (0x10 * (n)))
+#define MBOX0CLR_CORE(n) (0x000000C0 + (0x10 * (n)))
+#define MBOX1CLR_CORE(n) (0x000000C4 + (0x10 * (n)))
+#define MBOX2CLR_CORE(n) (0x000000C8 + (0x10 * (n)))
+#define MBOX3CLR_CORE(n) (0x000000CC + (0x10 * (n)))
 
 static bus_space_handle_t bs_periph;
 
-#define	BSRD4(addr) \
-	bus_space_read_4(fdtbus_bs_tag, bs_periph, (addr))
-#define	BSWR4(addr, val) \
+#define BSRD4(addr) bus_space_read_4(fdtbus_bs_tag, bs_periph, (addr))
+#define BSWR4(addr, val) \
 	bus_space_write_4(fdtbus_bs_tag, bs_periph, (addr), (val))
 
 void
@@ -101,8 +101,8 @@ bcm2836_mp_start_ap(platform_t plat)
 	DPRINTF("platform_mp_start_ap\n");
 
 	/* initialize */
-	if (bus_space_map(fdtbus_bs_tag, ARM_LOCAL_BASE, ARM_LOCAL_SIZE,
-	    0, &bs_periph) != 0)
+	if (bus_space_map(fdtbus_bs_tag, ARM_LOCAL_BASE, ARM_LOCAL_SIZE, 0,
+		&bs_periph) != 0)
 		panic("can't map local peripheral\n");
 	for (i = 0; i < mp_ncpus; i++) {
 		/* clear mailbox 0/3 */

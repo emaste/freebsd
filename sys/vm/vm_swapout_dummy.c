@@ -83,18 +83,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_param.h>
 
 static int vm_swap_enabled = 0;
-SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled, CTLFLAG_RD,
-    &vm_swap_enabled, 0,
-    "Enable entire process swapout");
+SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled, CTLFLAG_RD, &vm_swap_enabled,
+    0, "Enable entire process swapout");
 
 static int vm_swap_idle_enabled = 0;
-SYSCTL_INT(_vm, OID_AUTO, swap_idle_enabled, CTLFLAG_RD,
-    &vm_swap_idle_enabled, 0,
-    "Allow swapout on idle criteria");
+SYSCTL_INT(_vm, OID_AUTO, swap_idle_enabled, CTLFLAG_RD, &vm_swap_idle_enabled,
+    0, "Allow swapout on idle criteria");
 
 void
 vm_swapout_run(void)

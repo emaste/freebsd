@@ -34,15 +34,16 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
 #include <sys/bus.h>
+#include <sys/firmware.h>
 #include <sys/interrupt.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
+#include <sys/linker.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -52,21 +53,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
 
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
-
 #include <dev/pci/pcib_private.h>
-#include "pcib_if.h"
-
-#include <mips/atheros/ar71xxreg.h>
-#include <mips/atheros/ar71xx_pci_bus_space.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <mips/atheros/ar71xx_cpudef.h>
-
-#include <sys/linker.h>
-#include <sys/firmware.h>
-
 #include <mips/atheros/ar71xx_fixup.h>
+#include <mips/atheros/ar71xx_pci_bus_space.h>
+#include <mips/atheros/ar71xxreg.h>
+
+#include "pcib_if.h"
 
 /*
  * Take a copy of the EEPROM contents and squirrel it away in a firmware.
@@ -78,19 +74,19 @@ ar71xx_pci_slot_create_eeprom_firmware(device_t dev, u_int bus, u_int slot,
     u_int func, long int flash_addr, int size)
 {
 	char buf[64];
-	uint16_t *cal_data = (uint16_t *) MIPS_PHYS_TO_KSEG1(flash_addr);
+	uint16_t *cal_data = (uint16_t *)MIPS_PHYS_TO_KSEG1(flash_addr);
 	void *eeprom = NULL;
 	const struct firmware *fw = NULL;
 
-	device_printf(dev, "EEPROM firmware: 0x%lx @ %d bytes\n",
-	    flash_addr, size);
+	device_printf(
+	    dev, "EEPROM firmware: 0x%lx @ %d bytes\n", flash_addr, size);
 
 	eeprom = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
-	if (! eeprom) {
+	if (!eeprom) {
 		device_printf(dev,
-			    "%s: malloc failed for '%s', aborting EEPROM\n",
-			    __func__, buf);
-			return;
+		    "%s: malloc failed for '%s', aborting EEPROM\n", __func__,
+		    buf);
+		return;
 	}
 
 	memcpy(eeprom, cal_data, size);
@@ -105,8 +101,8 @@ ar71xx_pci_slot_create_eeprom_firmware(device_t dev, u_int bus, u_int slot,
 	    device_get_name(dev), device_get_unit(dev), bus, slot, func);
 	fw = firmware_register(buf, eeprom, size, 1, NULL);
 	if (fw == NULL) {
-		device_printf(dev, "%s: firmware_register (%s) failed\n",
-		    __func__, buf);
+		device_printf(
+		    dev, "%s: firmware_register (%s) failed\n", __func__, buf);
 		free(eeprom, M_DEVBUF);
 		return;
 	}

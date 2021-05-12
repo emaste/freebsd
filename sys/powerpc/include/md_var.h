@@ -29,48 +29,48 @@
  */
 
 #ifndef _MACHINE_MD_VAR_H_
-#define	_MACHINE_MD_VAR_H_
+#define _MACHINE_MD_VAR_H_
 
 /*
  * Miscellaneous machine-dependent declarations.
  */
 
-extern	char	sigcode32[];
-extern	int	szsigcode32;
+extern char sigcode32[];
+extern int szsigcode32;
 
 #ifdef __powerpc64__
-extern	char	sigcode64[], sigcode64_elfv2[];
-extern	int	szsigcode64, szsigcode64_elfv2;
+extern char sigcode64[], sigcode64_elfv2[];
+extern int szsigcode64, szsigcode64_elfv2;
 
-struct	dumperinfo;
-int	minidumpsys(struct dumperinfo *);
-int	is_dumpable(vm_paddr_t);
+struct dumperinfo;
+int minidumpsys(struct dumperinfo *);
+int is_dumpable(vm_paddr_t);
 #endif
 
-extern	long	Maxmem;
-extern	int	busdma_swi_pending;
+extern long Maxmem;
+extern int busdma_swi_pending;
 
-extern	vm_offset_t	kstack0;
-extern	vm_offset_t	kstack0_phys;
+extern vm_offset_t kstack0;
+extern vm_offset_t kstack0_phys;
 
-extern	int powerpc_pow_enabled;
-extern	int cacheline_size;
-extern  int hw_direct_map;
+extern int powerpc_pow_enabled;
+extern int cacheline_size;
+extern int hw_direct_map;
 
-void	__syncicache(void *, int);
+void __syncicache(void *, int);
 
-void	busdma_swi(void);
-int	is_physical_memory(vm_offset_t addr);
-int	mem_valid(vm_offset_t addr, int len);
+void busdma_swi(void);
+int is_physical_memory(vm_offset_t addr);
+int mem_valid(vm_offset_t addr, int len);
 
-void	decr_init(void);
-void	decr_ap_init(void);
-void	decr_tc_init(void);
+void decr_init(void);
+void decr_ap_init(void);
+void decr_tc_init(void);
 
-void	cpu_feature_setup(void);
-void	cpu_setup(u_int);
+void cpu_feature_setup(void);
+void cpu_setup(u_int);
 
-struct	trapframe;
-void	powerpc_interrupt(struct trapframe *);
+struct trapframe;
+void powerpc_interrupt(struct trapframe *);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

@@ -28,33 +28,33 @@
  * $FreeBSD$
  */
 
-#ifndef	_IP_FW_NAT64_H_
-#define	_IP_FW_NAT64_H_
+#ifndef _IP_FW_NAT64_H_
+#define _IP_FW_NAT64_H_
 
-#define	DPRINTF(mask, fmt, ...)	\
-    if (V_nat64_debug & (mask))	\
-	printf("NAT64: %s: " fmt "\n", __func__, ## __VA_ARGS__)
-#define	DP_GENERIC	0x0001
-#define	DP_OBJ		0x0002
-#define	DP_JQUEUE	0x0004
-#define	DP_STATE	0x0008
-#define	DP_DROPS	0x0010
-#define	DP_ALL		0xFFFF
+#define DPRINTF(mask, fmt, ...)     \
+	if (V_nat64_debug & (mask)) \
+	printf("NAT64: %s: " fmt "\n", __func__, ##__VA_ARGS__)
+#define DP_GENERIC 0x0001
+#define DP_OBJ 0x0002
+#define DP_JQUEUE 0x0004
+#define DP_STATE 0x0008
+#define DP_DROPS 0x0010
+#define DP_ALL 0xFFFF
 
 VNET_DECLARE(int, nat64_debug);
-#define	V_nat64_debug		VNET(nat64_debug)
+#define V_nat64_debug VNET(nat64_debug)
 
 #if 0
-#define	NAT64NOINLINE	__noinline
+#define NAT64NOINLINE __noinline
 #else
-#define	NAT64NOINLINE
+#define NAT64NOINLINE
 #endif
 
-int	nat64stl_init(struct ip_fw_chain *ch, int first);
-void	nat64stl_uninit(struct ip_fw_chain *ch, int last);
-int	nat64lsn_init(struct ip_fw_chain *ch, int first);
-void	nat64lsn_uninit(struct ip_fw_chain *ch, int last);
-int	nat64clat_init(struct ip_fw_chain *ch, int first);
-void	nat64clat_uninit(struct ip_fw_chain *ch, int last);
+int nat64stl_init(struct ip_fw_chain *ch, int first);
+void nat64stl_uninit(struct ip_fw_chain *ch, int last);
+int nat64lsn_init(struct ip_fw_chain *ch, int first);
+void nat64lsn_uninit(struct ip_fw_chain *ch, int last);
+int nat64clat_init(struct ip_fw_chain *ch, int first);
+void nat64clat_uninit(struct ip_fw_chain *ch, int last);
 
 #endif /* _IP_FW_NAT64_H_ */

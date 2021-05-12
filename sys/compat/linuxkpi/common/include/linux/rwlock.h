@@ -28,34 +28,44 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_RWLOCK_H_
-#define	_LINUX_RWLOCK_H_
+#ifndef _LINUX_RWLOCK_H_
+#define _LINUX_RWLOCK_H_
 
 #include <sys/types.h>
+#include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
-#include <sys/libkern.h>
 
 typedef struct {
 	struct rwlock rw;
 } rwlock_t;
 
-#define	read_lock(_l)		rw_rlock(&(_l)->rw)
-#define	write_lock(_l)		rw_wlock(&(_l)->rw)
-#define	read_unlock(_l)		rw_runlock(&(_l)->rw)
-#define	write_unlock(_l)	rw_wunlock(&(_l)->rw)
-#define	read_lock_irq(lock)	read_lock((lock))
-#define	read_unlock_irq(lock)	read_unlock((lock))
-#define	write_lock_irq(lock)	write_lock((lock))
-#define	write_unlock_irq(lock)	write_unlock((lock))
-#define	read_lock_irqsave(lock, flags)					\
-    do {(flags) = 0; read_lock(lock); } while (0)
-#define	write_lock_irqsave(lock, flags)					\
-    do {(flags) = 0; write_lock(lock); } while (0)
-#define	read_unlock_irqrestore(lock, flags)				\
-    do { read_unlock(lock); } while (0)
-#define	write_unlock_irqrestore(lock, flags)				\
-    do { write_unlock(lock); } while (0)
+#define read_lock(_l) rw_rlock(&(_l)->rw)
+#define write_lock(_l) rw_wlock(&(_l)->rw)
+#define read_unlock(_l) rw_runlock(&(_l)->rw)
+#define write_unlock(_l) rw_wunlock(&(_l)->rw)
+#define read_lock_irq(lock) read_lock((lock))
+#define read_unlock_irq(lock) read_unlock((lock))
+#define write_lock_irq(lock) write_lock((lock))
+#define write_unlock_irq(lock) write_unlock((lock))
+#define read_lock_irqsave(lock, flags) \
+	do {                           \
+		(flags) = 0;           \
+		read_lock(lock);       \
+	} while (0)
+#define write_lock_irqsave(lock, flags) \
+	do {                            \
+		(flags) = 0;            \
+		write_lock(lock);       \
+	} while (0)
+#define read_unlock_irqrestore(lock, flags) \
+	do {                                \
+		read_unlock(lock);          \
+	} while (0)
+#define write_unlock_irqrestore(lock, flags) \
+	do {                                 \
+		write_unlock(lock);          \
+	} while (0)
 
 static inline void
 rwlock_init(rwlock_t *lock)
@@ -65,4 +75,4 @@ rwlock_init(rwlock_t *lock)
 	rw_init_flags(&lock->rw, "lnxrw", RW_NOWITNESS);
 }
 
-#endif	/* _LINUX_RWLOCK_H_ */
+#endif /* _LINUX_RWLOCK_H_ */

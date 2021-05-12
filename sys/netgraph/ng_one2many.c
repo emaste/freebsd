@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 2000 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -50,46 +50,46 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ctype.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/ctype.h>
 #include <sys/mbuf.h>
-#include <sys/errno.h>
 
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
+#include <netgraph/ng_message.h>
 #include <netgraph/ng_one2many.h>
+#include <netgraph/ng_parse.h>
 
 /* Per-link private data */
 struct ng_one2many_link {
-	hook_p				hook;	/* netgraph hook */
-	struct ng_one2many_link_stats	stats;	/* link stats */
+	hook_p hook;			     /* netgraph hook */
+	struct ng_one2many_link_stats stats; /* link stats */
 };
 
 /* Per-node private data */
 struct ng_one2many_private {
-	node_p				node;		/* link to node */
-	struct ng_one2many_config	conf;		/* node configuration */
-	struct ng_one2many_link		one;		/* "one" hook */
-	struct ng_one2many_link		many[NG_ONE2MANY_MAX_LINKS];
-	u_int16_t			nextMany;	/* next round-robin */
-	u_int16_t			numActiveMany;	/* # active "many" */
-	u_int16_t			activeMany[NG_ONE2MANY_MAX_LINKS];
+	node_p node;			/* link to node */
+	struct ng_one2many_config conf; /* node configuration */
+	struct ng_one2many_link one;	/* "one" hook */
+	struct ng_one2many_link many[NG_ONE2MANY_MAX_LINKS];
+	u_int16_t nextMany;	 /* next round-robin */
+	u_int16_t numActiveMany; /* # active "many" */
+	u_int16_t activeMany[NG_ONE2MANY_MAX_LINKS];
 };
 typedef struct ng_one2many_private *priv_p;
 
 /* Netgraph node methods */
-static ng_constructor_t	ng_one2many_constructor;
-static ng_rcvmsg_t	ng_one2many_rcvmsg;
-static ng_shutdown_t	ng_one2many_shutdown;
-static ng_newhook_t	ng_one2many_newhook;
-static ng_rcvdata_t	ng_one2many_rcvdata;
-static ng_disconnect_t	ng_one2many_disconnect;
+static ng_constructor_t ng_one2many_constructor;
+static ng_rcvmsg_t ng_one2many_rcvmsg;
+static ng_shutdown_t ng_one2many_shutdown;
+static ng_newhook_t ng_one2many_newhook;
+static ng_rcvdata_t ng_one2many_rcvdata;
+static ng_disconnect_t ng_one2many_disconnect;
 
 /* Other functions */
-static void		ng_one2many_update_many(priv_p priv);
-static void		ng_one2many_notify(priv_p priv, uint32_t cmd);
+static void ng_one2many_update_many(priv_p priv);
+static void ng_one2many_notify(priv_p priv, uint32_t cmd);
 
 /******************************************************************
 		    NETGRAPH PARSE TYPES
@@ -97,80 +97,56 @@ static void		ng_one2many_notify(priv_p priv, uint32_t cmd);
 
 /* Parse type for struct ng_one2many_config */
 static const struct ng_parse_fixedarray_info
-    ng_one2many_enableLinks_array_type_info = {
-	&ng_parse_uint8_type,
-	NG_ONE2MANY_MAX_LINKS
-};
+    ng_one2many_enableLinks_array_type_info = { &ng_parse_uint8_type,
+	    NG_ONE2MANY_MAX_LINKS };
 static const struct ng_parse_type ng_one2many_enableLinks_array_type = {
 	&ng_parse_fixedarray_type,
 	&ng_one2many_enableLinks_array_type_info,
 };
-static const struct ng_parse_struct_field ng_one2many_config_type_fields[]
-	= NG_ONE2MANY_CONFIG_TYPE_INFO(&ng_one2many_enableLinks_array_type);
+static const struct ng_parse_struct_field ng_one2many_config_type_fields[] =
+    NG_ONE2MANY_CONFIG_TYPE_INFO(&ng_one2many_enableLinks_array_type);
 static const struct ng_parse_type ng_one2many_config_type = {
-	&ng_parse_struct_type,
-	&ng_one2many_config_type_fields
+	&ng_parse_struct_type, &ng_one2many_config_type_fields
 };
 
 /* Parse type for struct ng_one2many_link_stats */
-static const struct ng_parse_struct_field ng_one2many_link_stats_type_fields[]
-	= NG_ONE2MANY_LINK_STATS_TYPE_INFO;
+static const struct ng_parse_struct_field ng_one2many_link_stats_type_fields[] =
+    NG_ONE2MANY_LINK_STATS_TYPE_INFO;
 static const struct ng_parse_type ng_one2many_link_stats_type = {
-	&ng_parse_struct_type,
-	&ng_one2many_link_stats_type_fields
+	&ng_parse_struct_type, &ng_one2many_link_stats_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_one2many_cmdlist[] = {
+	{ NGM_ONE2MANY_COOKIE, NGM_ONE2MANY_SET_CONFIG, "setconfig",
+	    &ng_one2many_config_type, NULL },
+	{ NGM_ONE2MANY_COOKIE, NGM_ONE2MANY_GET_CONFIG, "getconfig", NULL,
+	    &ng_one2many_config_type },
+	{ NGM_ONE2MANY_COOKIE, NGM_ONE2MANY_GET_STATS, "getstats",
+	    &ng_parse_int32_type, &ng_one2many_link_stats_type },
 	{
-	  NGM_ONE2MANY_COOKIE,
-	  NGM_ONE2MANY_SET_CONFIG,
-	  "setconfig",
-	  &ng_one2many_config_type,
-	  NULL
+	    NGM_ONE2MANY_COOKIE,
+	    NGM_ONE2MANY_CLR_STATS,
+	    "clrstats",
+	    &ng_parse_int32_type,
+	    NULL,
 	},
-	{
-	  NGM_ONE2MANY_COOKIE,
-	  NGM_ONE2MANY_GET_CONFIG,
-	  "getconfig",
-	  NULL,
-	  &ng_one2many_config_type
-	},
-	{
-	  NGM_ONE2MANY_COOKIE,
-	  NGM_ONE2MANY_GET_STATS,
-	  "getstats",
-	  &ng_parse_int32_type,
-	  &ng_one2many_link_stats_type
-	},
-	{
-	  NGM_ONE2MANY_COOKIE,
-	  NGM_ONE2MANY_CLR_STATS,
-	  "clrstats",
-	  &ng_parse_int32_type,
-	  NULL,
-	},
-	{
-	  NGM_ONE2MANY_COOKIE,
-	  NGM_ONE2MANY_GETCLR_STATS,
-	  "getclrstats",
-	  &ng_parse_int32_type,
-	  &ng_one2many_link_stats_type
-	},
+	{ NGM_ONE2MANY_COOKIE, NGM_ONE2MANY_GETCLR_STATS, "getclrstats",
+	    &ng_parse_int32_type, &ng_one2many_link_stats_type },
 	{ 0 }
 };
 
 /* Node type descriptor */
 static struct ng_type ng_one2many_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_ONE2MANY_NODE_TYPE,
-	.constructor =	ng_one2many_constructor,
-	.rcvmsg =	ng_one2many_rcvmsg,
-	.shutdown =	ng_one2many_shutdown,
-	.newhook =	ng_one2many_newhook,
-	.rcvdata =	ng_one2many_rcvdata,
-	.disconnect =	ng_one2many_disconnect,
-	.cmdlist =	ng_one2many_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_ONE2MANY_NODE_TYPE,
+	.constructor = ng_one2many_constructor,
+	.rcvmsg = ng_one2many_rcvmsg,
+	.shutdown = ng_one2many_shutdown,
+	.newhook = ng_one2many_newhook,
+	.rcvdata = ng_one2many_rcvdata,
+	.disconnect = ng_one2many_disconnect,
+	.cmdlist = ng_one2many_cmdlist,
 };
 NETGRAPH_INIT(one2many, &ng_one2many_typestruct);
 
@@ -202,7 +178,7 @@ ng_one2many_constructor(node_p node)
 /*
  * Method for attaching a new hook
  */
-static	int
+static int
 ng_one2many_newhook(node_p node, hook_p hook, const char *name)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
@@ -212,7 +188,7 @@ ng_one2many_newhook(node_p node, hook_p hook, const char *name)
 
 	/* Which hook? */
 	if (strncmp(name, NG_ONE2MANY_HOOK_MANY_PREFIX,
-	    strlen(NG_ONE2MANY_HOOK_MANY_PREFIX)) == 0) {
+		strlen(NG_ONE2MANY_HOOK_MANY_PREFIX)) == 0) {
 		const char *cp;
 		char *eptr;
 
@@ -239,7 +215,7 @@ ng_one2many_newhook(node_p node, hook_p hook, const char *name)
 	link->hook = hook;
 	bzero(&link->stats, sizeof(link->stats));
 	if (linkNum != NG_ONE2MANY_ONE_LINKNUM) {
-		priv->conf.enabledLinks[linkNum] = 1;	/* auto-enable link */
+		priv->conf.enabledLinks[linkNum] = 1; /* auto-enable link */
 		ng_one2many_update_many(priv);
 	}
 
@@ -262,8 +238,7 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	switch (msg->header.typecookie) {
 	case NGM_ONE2MANY_COOKIE:
 		switch (msg->header.cmd) {
-		case NGM_ONE2MANY_SET_CONFIG:
-		    {
+		case NGM_ONE2MANY_SET_CONFIG: {
 			struct ng_one2many_config *conf;
 			int i;
 
@@ -293,7 +268,7 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (error != 0)
 				break;
 
-			/* Normalized many link enabled bits */ 
+			/* Normalized many link enabled bits */
 			for (i = 0; i < NG_ONE2MANY_MAX_LINKS; i++)
 				conf->enabledLinks[i] = !!conf->enabledLinks[i];
 
@@ -301,9 +276,8 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			bcopy(conf, &priv->conf, sizeof(*conf));
 			ng_one2many_update_many(priv);
 			break;
-		    }
-		case NGM_ONE2MANY_GET_CONFIG:
-		    {
+		}
+		case NGM_ONE2MANY_GET_CONFIG: {
 			struct ng_one2many_config *conf;
 
 			NG_MKRESPONSE(resp, msg, sizeof(*conf), M_NOWAIT);
@@ -314,11 +288,10 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			conf = (struct ng_one2many_config *)resp->data;
 			bcopy(&priv->conf, conf, sizeof(priv->conf));
 			break;
-		    }
+		}
 		case NGM_ONE2MANY_GET_STATS:
 		case NGM_ONE2MANY_CLR_STATS:
-		case NGM_ONE2MANY_GETCLR_STATS:
-		    {
+		case NGM_ONE2MANY_GETCLR_STATS: {
 			struct ng_one2many_link *link;
 			int linkNum;
 
@@ -330,8 +303,8 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			linkNum = *((int32_t *)msg->data);
 			if (linkNum == NG_ONE2MANY_ONE_LINKNUM)
 				link = &priv->one;
-			else if (linkNum >= 0
-			    && linkNum < NG_ONE2MANY_MAX_LINKS) {
+			else if (linkNum >= 0 &&
+			    linkNum < NG_ONE2MANY_MAX_LINKS) {
 				link = &priv->many[linkNum];
 			} else {
 				error = EINVAL;
@@ -340,19 +313,19 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			/* Get/clear stats */
 			if (msg->header.cmd != NGM_ONE2MANY_CLR_STATS) {
-				NG_MKRESPONSE(resp, msg,
-				    sizeof(link->stats), M_NOWAIT);
+				NG_MKRESPONSE(
+				    resp, msg, sizeof(link->stats), M_NOWAIT);
 				if (resp == NULL) {
 					error = ENOMEM;
 					break;
 				}
-				bcopy(&link->stats,
-				    resp->data, sizeof(link->stats));
+				bcopy(&link->stats, resp->data,
+				    sizeof(link->stats));
 			}
 			if (msg->header.cmd != NGM_ONE2MANY_GET_STATS)
 				bzero(&link->stats, sizeof(link->stats));
 			break;
-		    }
+		}
 		default:
 			error = EINVAL;
 			break;
@@ -363,8 +336,7 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	 * configured to listen to these message, then we remove/add
 	 * this hook from array of active hooks.
 	 */
-	case NGM_FLOW_COOKIE:
-	    {
+	case NGM_FLOW_COOKIE: {
 		int linkNum;
 
 		if (priv->conf.failAlg != NG_ONE2MANY_FAIL_NOTIFY)
@@ -393,7 +365,7 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			break;
 		}
 		break;
-	    }
+	}
 	default:
 		error = EINVAL;
 		break;
@@ -423,13 +395,13 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 	m = NGI_M(item); /* just peaking, mbuf still owned by item */
 	/* Get link number */
 	linkNum = (intptr_t)NG_HOOK_PRIVATE(hook);
-	KASSERT(linkNum == NG_ONE2MANY_ONE_LINKNUM
-	    || (linkNum >= 0 && linkNum < NG_ONE2MANY_MAX_LINKS),
+	KASSERT(linkNum == NG_ONE2MANY_ONE_LINKNUM ||
+		(linkNum >= 0 && linkNum < NG_ONE2MANY_MAX_LINKS),
 	    ("%s: linkNum=%d", __func__, linkNum));
 
 	/* Figure out source link */
-	src = (linkNum == NG_ONE2MANY_ONE_LINKNUM) ?
-	    &priv->one : &priv->many[linkNum];
+	src = (linkNum == NG_ONE2MANY_ONE_LINKNUM) ? &priv->one :
+							   &priv->many[linkNum];
 	KASSERT(src->hook != NULL, ("%s: no src%d", __func__, linkNum));
 
 	/* Update receive stats */
@@ -442,10 +414,11 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 			NG_FREE_ITEM(item);
 			return (ENOTCONN);
 		}
-		switch(priv->conf.xmitAlg) {
+		switch (priv->conf.xmitAlg) {
 		case NG_ONE2MANY_XMIT_ROUNDROBIN:
 			dst = &priv->many[priv->activeMany[priv->nextMany]];
-			priv->nextMany = (priv->nextMany + 1) % priv->numActiveMany;
+			priv->nextMany = (priv->nextMany + 1) %
+			    priv->numActiveMany;
 			break;
 		case NG_ONE2MANY_XMIT_ALL:
 			/* no need to copy data for the 1st one */
@@ -520,8 +493,8 @@ ng_one2many_disconnect(hook_p hook)
 
 	/* Get link number */
 	linkNum = (intptr_t)NG_HOOK_PRIVATE(hook);
-	KASSERT(linkNum == NG_ONE2MANY_ONE_LINKNUM
-	    || (linkNum >= 0 && linkNum < NG_ONE2MANY_MAX_LINKS),
+	KASSERT(linkNum == NG_ONE2MANY_ONE_LINKNUM ||
+		(linkNum >= 0 && linkNum < NG_ONE2MANY_MAX_LINKS),
 	    ("%s: linkNum=%d", __func__, linkNum));
 
 	/* Nuke the link */
@@ -534,14 +507,14 @@ ng_one2many_disconnect(hook_p hook)
 	}
 
 	/* If no hooks left, go away */
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
+	    (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
 
 /******************************************************************
-		    	OTHER FUNCTIONS
+			OTHER FUNCTIONS
 ******************************************************************/
 
 /*
@@ -559,8 +532,8 @@ ng_one2many_update_many(priv_p priv)
 		switch (priv->conf.failAlg) {
 		case NG_ONE2MANY_FAIL_MANUAL:
 		case NG_ONE2MANY_FAIL_NOTIFY:
-			if (priv->many[linkNum].hook != NULL
-			    && priv->conf.enabledLinks[linkNum]) {
+			if (priv->many[linkNum].hook != NULL &&
+			    priv->conf.enabledLinks[linkNum]) {
 				priv->activeMany[priv->numActiveMany] = linkNum;
 				priv->numActiveMany++;
 			}
@@ -608,5 +581,6 @@ ng_one2many_notify(priv_p priv, uint32_t cmd)
 
 	NG_MKMESSAGE(msg, NGM_FLOW_COOKIE, cmd, 0, M_NOWAIT);
 	if (msg != NULL)
-		NG_SEND_MSG_HOOK(dummy_error, priv->node, msg, priv->one.hook, 0);
+		NG_SEND_MSG_HOOK(
+		    dummy_error, priv->node, msg, priv->one.hook, 0);
 }

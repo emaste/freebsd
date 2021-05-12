@@ -28,32 +28,29 @@
 __FBSDID("$FreeBSD$");
 
 /*
-* X-Power AXP209/AXP211 PMU for Allwinner SoCs
-*/
+ * X-Power AXP209/AXP211 PMU for Allwinner SoCs
+ */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/clock.h>
 #include <sys/eventhandler.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/clock.h>
-#include <sys/time.h>
-#include <sys/bus.h>
 #include <sys/proc.h>
-#include <sys/gpio.h>
 #include <sys/reboot.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
-
-#include <dev/iicbus/iiconf.h>
-
-#include <dev/gpio/gpiobusvar.h>
-
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
+#include <sys/time.h>
 
 #include <dev/extres/regulator/regulator.h>
+#include <dev/gpio/gpiobusvar.h>
+#include <dev/iicbus/iiconf.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/allwinner/axp209reg.h>
 
@@ -63,532 +60,532 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_AXP2XX_REG, "Axp2XX regulator", "Axp2XX power regulator");
 
 struct axp2xx_regdef {
-	intptr_t		id;
-	char			*name;
-	uint8_t			enable_reg;
-	uint8_t			enable_mask;
-	uint8_t			voltage_reg;
-	uint8_t			voltage_mask;
-	uint8_t			voltage_shift;
-	int			voltage_min;
-	int			voltage_max;
-	int			voltage_step;
-	int			voltage_nstep;
+	intptr_t id;
+	char *name;
+	uint8_t enable_reg;
+	uint8_t enable_mask;
+	uint8_t voltage_reg;
+	uint8_t voltage_mask;
+	uint8_t voltage_shift;
+	int voltage_min;
+	int voltage_max;
+	int voltage_step;
+	int voltage_nstep;
 };
 
 static struct axp2xx_regdef axp209_regdefs[] = {
 	{
-		.id = AXP209_REG_ID_DCDC2,
-		.name = "dcdc2",
-		.enable_reg = AXP209_POWERCTL,
-		.enable_mask = AXP209_POWERCTL_DCDC2,
-		.voltage_reg = AXP209_REG_DCDC2_VOLTAGE,
-		.voltage_mask = 0x3f,
-		.voltage_min = 700,
-		.voltage_max = 2275,
-		.voltage_step = 25,
-		.voltage_nstep = 64,
+	    .id = AXP209_REG_ID_DCDC2,
+	    .name = "dcdc2",
+	    .enable_reg = AXP209_POWERCTL,
+	    .enable_mask = AXP209_POWERCTL_DCDC2,
+	    .voltage_reg = AXP209_REG_DCDC2_VOLTAGE,
+	    .voltage_mask = 0x3f,
+	    .voltage_min = 700,
+	    .voltage_max = 2275,
+	    .voltage_step = 25,
+	    .voltage_nstep = 64,
 	},
 	{
-		.id = AXP209_REG_ID_DCDC3,
-		.name = "dcdc3",
-		.enable_reg = AXP209_POWERCTL,
-		.enable_mask = AXP209_POWERCTL_DCDC3,
-		.voltage_reg = AXP209_REG_DCDC3_VOLTAGE,
-		.voltage_mask = 0x7f,
-		.voltage_min = 700,
-		.voltage_max = 3500,
-		.voltage_step = 25,
-		.voltage_nstep = 128,
+	    .id = AXP209_REG_ID_DCDC3,
+	    .name = "dcdc3",
+	    .enable_reg = AXP209_POWERCTL,
+	    .enable_mask = AXP209_POWERCTL_DCDC3,
+	    .voltage_reg = AXP209_REG_DCDC3_VOLTAGE,
+	    .voltage_mask = 0x7f,
+	    .voltage_min = 700,
+	    .voltage_max = 3500,
+	    .voltage_step = 25,
+	    .voltage_nstep = 128,
 	},
 	{
-		.id = AXP209_REG_ID_LDO2,
-		.name = "ldo2",
-		.enable_reg = AXP209_POWERCTL,
-		.enable_mask = AXP209_POWERCTL_LDO2,
-		.voltage_reg = AXP209_REG_LDO24_VOLTAGE,
-		.voltage_mask = 0xf0,
-		.voltage_shift = 4,
-		.voltage_min = 1800,
-		.voltage_max = 3300,
-		.voltage_step = 100,
-		.voltage_nstep = 16,
+	    .id = AXP209_REG_ID_LDO2,
+	    .name = "ldo2",
+	    .enable_reg = AXP209_POWERCTL,
+	    .enable_mask = AXP209_POWERCTL_LDO2,
+	    .voltage_reg = AXP209_REG_LDO24_VOLTAGE,
+	    .voltage_mask = 0xf0,
+	    .voltage_shift = 4,
+	    .voltage_min = 1800,
+	    .voltage_max = 3300,
+	    .voltage_step = 100,
+	    .voltage_nstep = 16,
 	},
 	{
-		.id = AXP209_REG_ID_LDO3,
-		.name = "ldo3",
-		.enable_reg = AXP209_POWERCTL,
-		.enable_mask = AXP209_POWERCTL_LDO3,
-		.voltage_reg = AXP209_REG_LDO3_VOLTAGE,
-		.voltage_mask = 0x7f,
-		.voltage_min = 700,
-		.voltage_max = 2275,
-		.voltage_step = 25,
-		.voltage_nstep = 128,
+	    .id = AXP209_REG_ID_LDO3,
+	    .name = "ldo3",
+	    .enable_reg = AXP209_POWERCTL,
+	    .enable_mask = AXP209_POWERCTL_LDO3,
+	    .voltage_reg = AXP209_REG_LDO3_VOLTAGE,
+	    .voltage_mask = 0x7f,
+	    .voltage_min = 700,
+	    .voltage_max = 2275,
+	    .voltage_step = 25,
+	    .voltage_nstep = 128,
 	},
 };
 
 static struct axp2xx_regdef axp221_regdefs[] = {
 	{
-		.id = AXP221_REG_ID_DLDO1,
-		.name = "dldo1",
-		.enable_reg = AXP221_POWERCTL_2,
-		.enable_mask = AXP221_POWERCTL2_DLDO1,
-		.voltage_reg = AXP221_REG_DLDO1_VOLTAGE,
-		.voltage_mask = 0x1f,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step = 100,
-		.voltage_nstep = 26,
+	    .id = AXP221_REG_ID_DLDO1,
+	    .name = "dldo1",
+	    .enable_reg = AXP221_POWERCTL_2,
+	    .enable_mask = AXP221_POWERCTL2_DLDO1,
+	    .voltage_reg = AXP221_REG_DLDO1_VOLTAGE,
+	    .voltage_mask = 0x1f,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step = 100,
+	    .voltage_nstep = 26,
 	},
 	{
-		.id = AXP221_REG_ID_DLDO2,
-		.name = "dldo2",
-		.enable_reg = AXP221_POWERCTL_2,
-		.enable_mask = AXP221_POWERCTL2_DLDO2,
-		.voltage_reg = AXP221_REG_DLDO2_VOLTAGE,
-		.voltage_mask = 0x1f,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step = 100,
-		.voltage_nstep = 26,
+	    .id = AXP221_REG_ID_DLDO2,
+	    .name = "dldo2",
+	    .enable_reg = AXP221_POWERCTL_2,
+	    .enable_mask = AXP221_POWERCTL2_DLDO2,
+	    .voltage_reg = AXP221_REG_DLDO2_VOLTAGE,
+	    .voltage_mask = 0x1f,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step = 100,
+	    .voltage_nstep = 26,
 	},
 	{
-		.id = AXP221_REG_ID_DLDO3,
-		.name = "dldo3",
-		.enable_reg = AXP221_POWERCTL_2,
-		.enable_mask = AXP221_POWERCTL2_DLDO3,
-		.voltage_reg = AXP221_REG_DLDO3_VOLTAGE,
-		.voltage_mask = 0x1f,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step = 100,
-		.voltage_nstep = 26,
+	    .id = AXP221_REG_ID_DLDO3,
+	    .name = "dldo3",
+	    .enable_reg = AXP221_POWERCTL_2,
+	    .enable_mask = AXP221_POWERCTL2_DLDO3,
+	    .voltage_reg = AXP221_REG_DLDO3_VOLTAGE,
+	    .voltage_mask = 0x1f,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step = 100,
+	    .voltage_nstep = 26,
 	},
 	{
-		.id = AXP221_REG_ID_DLDO4,
-		.name = "dldo4",
-		.enable_reg = AXP221_POWERCTL_2,
-		.enable_mask = AXP221_POWERCTL2_DLDO4,
-		.voltage_reg = AXP221_REG_DLDO4_VOLTAGE,
-		.voltage_mask = 0x1f,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step = 100,
-		.voltage_nstep = 26,
+	    .id = AXP221_REG_ID_DLDO4,
+	    .name = "dldo4",
+	    .enable_reg = AXP221_POWERCTL_2,
+	    .enable_mask = AXP221_POWERCTL2_DLDO4,
+	    .voltage_reg = AXP221_REG_DLDO4_VOLTAGE,
+	    .voltage_mask = 0x1f,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step = 100,
+	    .voltage_nstep = 26,
 	},
 	{
-		.id = AXP221_REG_ID_ELDO1,
-		.name = "eldo1",
-		.enable_reg = AXP221_POWERCTL_2,
-		.enable_mask = AXP221_POWERCTL2_ELDO1,
-		.voltage_reg = AXP221_REG_ELDO1_VOLTAGE,
-		.voltage_mask = 0x1f,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step = 100,
-		.voltage_nstep = 26,
+	    .id = AXP221_REG_ID_ELDO1,
+	    .name = "eldo1",
+	    .enable_reg = AXP221_POWERCTL_2,
+	    .enable_mask = AXP221_POWERCTL2_ELDO1,
+	    .voltage_reg = AXP221_REG_ELDO1_VOLTAGE,
+	    .voltage_mask = 0x1f,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step = 100,
+	    .voltage_nstep = 26,
 	},
 	{
-		.id = AXP221_REG_ID_ELDO2,
-		.name = "eldo2",
-		.enable_reg = AXP221_POWERCTL_2,
-		.enable_mask = AXP221_POWERCTL2_ELDO2,
-		.voltage_reg = AXP221_REG_ELDO2_VOLTAGE,
-		.voltage_mask = 0x1f,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step = 100,
-		.voltage_nstep = 26,
+	    .id = AXP221_REG_ID_ELDO2,
+	    .name = "eldo2",
+	    .enable_reg = AXP221_POWERCTL_2,
+	    .enable_mask = AXP221_POWERCTL2_ELDO2,
+	    .voltage_reg = AXP221_REG_ELDO2_VOLTAGE,
+	    .voltage_mask = 0x1f,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step = 100,
+	    .voltage_nstep = 26,
 	},
 	{
-		.id = AXP221_REG_ID_ELDO3,
-		.name = "eldo3",
-		.enable_reg = AXP221_POWERCTL_2,
-		.enable_mask = AXP221_POWERCTL2_ELDO3,
-		.voltage_reg = AXP221_REG_ELDO3_VOLTAGE,
-		.voltage_mask = 0x1f,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step = 100,
-		.voltage_nstep = 26,
+	    .id = AXP221_REG_ID_ELDO3,
+	    .name = "eldo3",
+	    .enable_reg = AXP221_POWERCTL_2,
+	    .enable_mask = AXP221_POWERCTL2_ELDO3,
+	    .voltage_reg = AXP221_REG_ELDO3_VOLTAGE,
+	    .voltage_mask = 0x1f,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step = 100,
+	    .voltage_nstep = 26,
 	},
 	{
-		.id = AXP221_REG_ID_DC5LDO,
-		.name = "dc5ldo",
-		.enable_reg = AXP221_POWERCTL_1,
-		.enable_mask = AXP221_POWERCTL1_DC5LDO,
-		.voltage_reg = AXP221_REG_DC5LDO_VOLTAGE,
-		.voltage_mask = 0x3,
-		.voltage_min = 700,
-		.voltage_max = 1400,
-		.voltage_step = 100,
-		.voltage_nstep = 7,
+	    .id = AXP221_REG_ID_DC5LDO,
+	    .name = "dc5ldo",
+	    .enable_reg = AXP221_POWERCTL_1,
+	    .enable_mask = AXP221_POWERCTL1_DC5LDO,
+	    .voltage_reg = AXP221_REG_DC5LDO_VOLTAGE,
+	    .voltage_mask = 0x3,
+	    .voltage_min = 700,
+	    .voltage_max = 1400,
+	    .voltage_step = 100,
+	    .voltage_nstep = 7,
 	},
 	{
-		.id = AXP221_REG_ID_DCDC1,
-		.name = "dcdc1",
-		.enable_reg = AXP221_POWERCTL_1,
-		.enable_mask = AXP221_POWERCTL1_DCDC1,
-		.voltage_reg = AXP221_REG_DCDC1_VOLTAGE,
-		.voltage_mask = 0x1f,
-		.voltage_min = 1600,
-		.voltage_max = 3400,
-		.voltage_step = 100,
-		.voltage_nstep = 18,
+	    .id = AXP221_REG_ID_DCDC1,
+	    .name = "dcdc1",
+	    .enable_reg = AXP221_POWERCTL_1,
+	    .enable_mask = AXP221_POWERCTL1_DCDC1,
+	    .voltage_reg = AXP221_REG_DCDC1_VOLTAGE,
+	    .voltage_mask = 0x1f,
+	    .voltage_min = 1600,
+	    .voltage_max = 3400,
+	    .voltage_step = 100,
+	    .voltage_nstep = 18,
 	},
 	{
-		.id = AXP221_REG_ID_DCDC2,
-		.name = "dcdc2",
-		.enable_reg = AXP221_POWERCTL_1,
-		.enable_mask = AXP221_POWERCTL1_DCDC2,
-		.voltage_reg = AXP221_REG_DCDC2_VOLTAGE,
-		.voltage_mask = 0x3f,
-		.voltage_min = 600,
-		.voltage_max = 1540,
-		.voltage_step = 20,
-		.voltage_nstep = 47,
+	    .id = AXP221_REG_ID_DCDC2,
+	    .name = "dcdc2",
+	    .enable_reg = AXP221_POWERCTL_1,
+	    .enable_mask = AXP221_POWERCTL1_DCDC2,
+	    .voltage_reg = AXP221_REG_DCDC2_VOLTAGE,
+	    .voltage_mask = 0x3f,
+	    .voltage_min = 600,
+	    .voltage_max = 1540,
+	    .voltage_step = 20,
+	    .voltage_nstep = 47,
 	},
 	{
-		.id = AXP221_REG_ID_DCDC3,
-		.name = "dcdc3",
-		.enable_reg = AXP221_POWERCTL_1,
-		.enable_mask = AXP221_POWERCTL1_DCDC3,
-		.voltage_reg = AXP221_REG_DCDC3_VOLTAGE,
-		.voltage_mask = 0x3f,
-		.voltage_min = 600,
-		.voltage_max = 1860,
-		.voltage_step = 20,
-		.voltage_nstep = 63,
+	    .id = AXP221_REG_ID_DCDC3,
+	    .name = "dcdc3",
+	    .enable_reg = AXP221_POWERCTL_1,
+	    .enable_mask = AXP221_POWERCTL1_DCDC3,
+	    .voltage_reg = AXP221_REG_DCDC3_VOLTAGE,
+	    .voltage_mask = 0x3f,
+	    .voltage_min = 600,
+	    .voltage_max = 1860,
+	    .voltage_step = 20,
+	    .voltage_nstep = 63,
 	},
 	{
-		.id = AXP221_REG_ID_DCDC4,
-		.name = "dcdc4",
-		.enable_reg = AXP221_POWERCTL_1,
-		.enable_mask = AXP221_POWERCTL1_DCDC4,
-		.voltage_reg = AXP221_REG_DCDC4_VOLTAGE,
-		.voltage_mask = 0x3f,
-		.voltage_min = 600,
-		.voltage_max = 1540,
-		.voltage_step = 20,
-		.voltage_nstep = 47,
+	    .id = AXP221_REG_ID_DCDC4,
+	    .name = "dcdc4",
+	    .enable_reg = AXP221_POWERCTL_1,
+	    .enable_mask = AXP221_POWERCTL1_DCDC4,
+	    .voltage_reg = AXP221_REG_DCDC4_VOLTAGE,
+	    .voltage_mask = 0x3f,
+	    .voltage_min = 600,
+	    .voltage_max = 1540,
+	    .voltage_step = 20,
+	    .voltage_nstep = 47,
 	},
 	{
-		.id = AXP221_REG_ID_DCDC5,
-		.name = "dcdc5",
-		.enable_reg = AXP221_POWERCTL_1,
-		.enable_mask = AXP221_POWERCTL1_DCDC5,
-		.voltage_reg = AXP221_REG_DCDC5_VOLTAGE,
-		.voltage_mask = 0x1f,
-		.voltage_min = 1000,
-		.voltage_max = 2550,
-		.voltage_step = 50,
-		.voltage_nstep = 31,
+	    .id = AXP221_REG_ID_DCDC5,
+	    .name = "dcdc5",
+	    .enable_reg = AXP221_POWERCTL_1,
+	    .enable_mask = AXP221_POWERCTL1_DCDC5,
+	    .voltage_reg = AXP221_REG_DCDC5_VOLTAGE,
+	    .voltage_mask = 0x1f,
+	    .voltage_min = 1000,
+	    .voltage_max = 2550,
+	    .voltage_step = 50,
+	    .voltage_nstep = 31,
 	},
 	{
-		.id = AXP221_REG_ID_ALDO1,
-		.name = "aldo1",
-		.enable_reg = AXP221_POWERCTL_1,
-		.enable_mask = AXP221_POWERCTL1_ALDO1,
-		.voltage_reg = AXP221_REG_ALDO1_VOLTAGE,
-		.voltage_mask = 0x1f,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step = 100,
-		.voltage_nstep = 26,
+	    .id = AXP221_REG_ID_ALDO1,
+	    .name = "aldo1",
+	    .enable_reg = AXP221_POWERCTL_1,
+	    .enable_mask = AXP221_POWERCTL1_ALDO1,
+	    .voltage_reg = AXP221_REG_ALDO1_VOLTAGE,
+	    .voltage_mask = 0x1f,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step = 100,
+	    .voltage_nstep = 26,
 	},
 	{
-		.id = AXP221_REG_ID_ALDO2,
-		.name = "aldo2",
-		.enable_reg = AXP221_POWERCTL_1,
-		.enable_mask = AXP221_POWERCTL1_ALDO2,
-		.voltage_reg = AXP221_REG_ALDO2_VOLTAGE,
-		.voltage_mask = 0x1f,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step = 100,
-		.voltage_nstep = 26,
+	    .id = AXP221_REG_ID_ALDO2,
+	    .name = "aldo2",
+	    .enable_reg = AXP221_POWERCTL_1,
+	    .enable_mask = AXP221_POWERCTL1_ALDO2,
+	    .voltage_reg = AXP221_REG_ALDO2_VOLTAGE,
+	    .voltage_mask = 0x1f,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step = 100,
+	    .voltage_nstep = 26,
 	},
 	{
-		.id = AXP221_REG_ID_ALDO3,
-		.name = "aldo3",
-		.enable_reg = AXP221_POWERCTL_3,
-		.enable_mask = AXP221_POWERCTL3_ALDO3,
-		.voltage_reg = AXP221_REG_ALDO3_VOLTAGE,
-		.voltage_mask = 0x1f,
-		.voltage_min = 700,
-		.voltage_max = 3300,
-		.voltage_step = 100,
-		.voltage_nstep = 26,
+	    .id = AXP221_REG_ID_ALDO3,
+	    .name = "aldo3",
+	    .enable_reg = AXP221_POWERCTL_3,
+	    .enable_mask = AXP221_POWERCTL3_ALDO3,
+	    .voltage_reg = AXP221_REG_ALDO3_VOLTAGE,
+	    .voltage_mask = 0x1f,
+	    .voltage_min = 700,
+	    .voltage_max = 3300,
+	    .voltage_step = 100,
+	    .voltage_nstep = 26,
 	},
 	{
-		.id = AXP221_REG_ID_DC1SW,
-		.name = "dc1sw",
-		.enable_reg = AXP221_POWERCTL_2,
-		.enable_mask = AXP221_POWERCTL2_DC1SW,
+	    .id = AXP221_REG_ID_DC1SW,
+	    .name = "dc1sw",
+	    .enable_reg = AXP221_POWERCTL_2,
+	    .enable_mask = AXP221_POWERCTL2_DC1SW,
 	},
 };
 
 struct axp2xx_reg_sc {
-	struct regnode		*regnode;
-	device_t		base_dev;
-	struct axp2xx_regdef	*def;
-	phandle_t		xref;
+	struct regnode *regnode;
+	device_t base_dev;
+	struct axp2xx_regdef *def;
+	phandle_t xref;
 	struct regnode_std_param *param;
 };
 
 struct axp2xx_pins {
-	const char	*name;
-	uint8_t		ctrl_reg;
-	uint8_t		status_reg;
-	uint8_t		status_mask;
-	uint8_t		status_shift;
+	const char *name;
+	uint8_t ctrl_reg;
+	uint8_t status_reg;
+	uint8_t status_mask;
+	uint8_t status_shift;
 };
 
 /* GPIO3 is different, don't expose it for now */
 static const struct axp2xx_pins axp209_pins[] = {
 	{
-		.name = "GPIO0",
-		.ctrl_reg = AXP2XX_GPIO0_CTRL,
-		.status_reg = AXP2XX_GPIO_STATUS,
-		.status_mask = 0x10,
-		.status_shift = 4,
+	    .name = "GPIO0",
+	    .ctrl_reg = AXP2XX_GPIO0_CTRL,
+	    .status_reg = AXP2XX_GPIO_STATUS,
+	    .status_mask = 0x10,
+	    .status_shift = 4,
 	},
 	{
-		.name = "GPIO1",
-		.ctrl_reg = AXP2XX_GPIO1_CTRL,
-		.status_reg = AXP2XX_GPIO_STATUS,
-		.status_mask = 0x20,
-		.status_shift = 5,
+	    .name = "GPIO1",
+	    .ctrl_reg = AXP2XX_GPIO1_CTRL,
+	    .status_reg = AXP2XX_GPIO_STATUS,
+	    .status_mask = 0x20,
+	    .status_shift = 5,
 	},
 	{
-		.name = "GPIO2",
-		.ctrl_reg = AXP209_GPIO2_CTRL,
-		.status_reg = AXP2XX_GPIO_STATUS,
-		.status_mask = 0x40,
-		.status_shift = 6,
+	    .name = "GPIO2",
+	    .ctrl_reg = AXP209_GPIO2_CTRL,
+	    .status_reg = AXP2XX_GPIO_STATUS,
+	    .status_mask = 0x40,
+	    .status_shift = 6,
 	},
 };
 
 static const struct axp2xx_pins axp221_pins[] = {
 	{
-		.name = "GPIO0",
-		.ctrl_reg = AXP2XX_GPIO0_CTRL,
-		.status_reg = AXP2XX_GPIO_STATUS,
-		.status_mask = 0x1,
-		.status_shift = 0x0,
+	    .name = "GPIO0",
+	    .ctrl_reg = AXP2XX_GPIO0_CTRL,
+	    .status_reg = AXP2XX_GPIO_STATUS,
+	    .status_mask = 0x1,
+	    .status_shift = 0x0,
 	},
 	{
-		.name = "GPIO1",
-		.ctrl_reg = AXP2XX_GPIO0_CTRL,
-		.status_reg = AXP2XX_GPIO_STATUS,
-		.status_mask = 0x2,
-		.status_shift = 0x1,
+	    .name = "GPIO1",
+	    .ctrl_reg = AXP2XX_GPIO0_CTRL,
+	    .status_reg = AXP2XX_GPIO_STATUS,
+	    .status_mask = 0x2,
+	    .status_shift = 0x1,
 	},
 };
 
 struct axp2xx_sensors {
-	int		id;
-	const char	*name;
-	const char	*desc;
-	const char	*format;
-	uint8_t		enable_reg;
-	uint8_t		enable_mask;
-	uint8_t		value_reg;
-	uint8_t		value_size;
-	uint8_t		h_value_mask;
-	uint8_t		h_value_shift;
-	uint8_t		l_value_mask;
-	uint8_t		l_value_shift;
-	int		value_step;
-	int		value_convert;
+	int id;
+	const char *name;
+	const char *desc;
+	const char *format;
+	uint8_t enable_reg;
+	uint8_t enable_mask;
+	uint8_t value_reg;
+	uint8_t value_size;
+	uint8_t h_value_mask;
+	uint8_t h_value_shift;
+	uint8_t l_value_mask;
+	uint8_t l_value_shift;
+	int value_step;
+	int value_convert;
 };
 
 static const struct axp2xx_sensors axp209_sensors[] = {
 	{
-		.id = AXP209_ACVOLT,
-		.name = "acvolt",
-		.desc = "AC Voltage (microvolt)",
-		.format = "I",
-		.enable_reg = AXP2XX_ADC_ENABLE1,
-		.enable_mask = AXP209_ADC1_ACVOLT,
-		.value_reg = AXP209_ACIN_VOLTAGE,
-		.value_size = 2,
-		.h_value_mask = 0xff,
-		.h_value_shift = 4,
-		.l_value_mask = 0xf,
-		.l_value_shift = 0,
-		.value_step = AXP209_VOLT_STEP,
+	    .id = AXP209_ACVOLT,
+	    .name = "acvolt",
+	    .desc = "AC Voltage (microvolt)",
+	    .format = "I",
+	    .enable_reg = AXP2XX_ADC_ENABLE1,
+	    .enable_mask = AXP209_ADC1_ACVOLT,
+	    .value_reg = AXP209_ACIN_VOLTAGE,
+	    .value_size = 2,
+	    .h_value_mask = 0xff,
+	    .h_value_shift = 4,
+	    .l_value_mask = 0xf,
+	    .l_value_shift = 0,
+	    .value_step = AXP209_VOLT_STEP,
 	},
 	{
-		.id = AXP209_ACCURRENT,
-		.name = "accurrent",
-		.desc = "AC Current (microAmpere)",
-		.format = "I",
-		.enable_reg = AXP2XX_ADC_ENABLE1,
-		.enable_mask = AXP209_ADC1_ACCURRENT,
-		.value_reg = AXP209_ACIN_CURRENT,
-		.value_size = 2,
-		.h_value_mask = 0xff,
-		.h_value_shift = 4,
-		.l_value_mask = 0xf,
-		.l_value_shift = 0,
-		.value_step = AXP209_ACCURRENT_STEP,
+	    .id = AXP209_ACCURRENT,
+	    .name = "accurrent",
+	    .desc = "AC Current (microAmpere)",
+	    .format = "I",
+	    .enable_reg = AXP2XX_ADC_ENABLE1,
+	    .enable_mask = AXP209_ADC1_ACCURRENT,
+	    .value_reg = AXP209_ACIN_CURRENT,
+	    .value_size = 2,
+	    .h_value_mask = 0xff,
+	    .h_value_shift = 4,
+	    .l_value_mask = 0xf,
+	    .l_value_shift = 0,
+	    .value_step = AXP209_ACCURRENT_STEP,
 	},
 	{
-		.id = AXP209_VBUSVOLT,
-		.name = "vbusvolt",
-		.desc = "VBUS Voltage (microVolt)",
-		.format = "I",
-		.enable_reg = AXP2XX_ADC_ENABLE1,
-		.enable_mask = AXP209_ADC1_VBUSVOLT,
-		.value_reg = AXP209_VBUS_VOLTAGE,
-		.value_size = 2,
-		.h_value_mask = 0xff,
-		.h_value_shift = 4,
-		.l_value_mask = 0xf,
-		.l_value_shift = 0,
-		.value_step = AXP209_VOLT_STEP,
+	    .id = AXP209_VBUSVOLT,
+	    .name = "vbusvolt",
+	    .desc = "VBUS Voltage (microVolt)",
+	    .format = "I",
+	    .enable_reg = AXP2XX_ADC_ENABLE1,
+	    .enable_mask = AXP209_ADC1_VBUSVOLT,
+	    .value_reg = AXP209_VBUS_VOLTAGE,
+	    .value_size = 2,
+	    .h_value_mask = 0xff,
+	    .h_value_shift = 4,
+	    .l_value_mask = 0xf,
+	    .l_value_shift = 0,
+	    .value_step = AXP209_VOLT_STEP,
 	},
 	{
-		.id = AXP209_VBUSCURRENT,
-		.name = "vbuscurrent",
-		.desc = "VBUS Current (microAmpere)",
-		.format = "I",
-		.enable_reg = AXP2XX_ADC_ENABLE1,
-		.enable_mask = AXP209_ADC1_VBUSCURRENT,
-		.value_reg = AXP209_VBUS_CURRENT,
-		.value_size = 2,
-		.h_value_mask = 0xff,
-		.h_value_shift = 4,
-		.l_value_mask = 0xf,
-		.l_value_shift = 0,
-		.value_step = AXP209_VBUSCURRENT_STEP,
+	    .id = AXP209_VBUSCURRENT,
+	    .name = "vbuscurrent",
+	    .desc = "VBUS Current (microAmpere)",
+	    .format = "I",
+	    .enable_reg = AXP2XX_ADC_ENABLE1,
+	    .enable_mask = AXP209_ADC1_VBUSCURRENT,
+	    .value_reg = AXP209_VBUS_CURRENT,
+	    .value_size = 2,
+	    .h_value_mask = 0xff,
+	    .h_value_shift = 4,
+	    .l_value_mask = 0xf,
+	    .l_value_shift = 0,
+	    .value_step = AXP209_VBUSCURRENT_STEP,
 	},
 	{
-		.id = AXP2XX_BATVOLT,
-		.name = "batvolt",
-		.desc = "Battery Voltage (microVolt)",
-		.format = "I",
-		.enable_reg = AXP2XX_ADC_ENABLE1,
-		.enable_mask = AXP2XX_ADC1_BATVOLT,
-		.value_reg = AXP2XX_BAT_VOLTAGE,
-		.value_size = 2,
-		.h_value_mask = 0xff,
-		.h_value_shift = 4,
-		.l_value_mask = 0xf,
-		.l_value_shift = 0,
-		.value_step = AXP2XX_BATVOLT_STEP,
+	    .id = AXP2XX_BATVOLT,
+	    .name = "batvolt",
+	    .desc = "Battery Voltage (microVolt)",
+	    .format = "I",
+	    .enable_reg = AXP2XX_ADC_ENABLE1,
+	    .enable_mask = AXP2XX_ADC1_BATVOLT,
+	    .value_reg = AXP2XX_BAT_VOLTAGE,
+	    .value_size = 2,
+	    .h_value_mask = 0xff,
+	    .h_value_shift = 4,
+	    .l_value_mask = 0xf,
+	    .l_value_shift = 0,
+	    .value_step = AXP2XX_BATVOLT_STEP,
 	},
 	{
-		.id = AXP2XX_BATCHARGECURRENT,
-		.name = "batchargecurrent",
-		.desc = "Battery Charging Current (microAmpere)",
-		.format = "I",
-		.enable_reg = AXP2XX_ADC_ENABLE1,
-		.enable_mask = AXP2XX_ADC1_BATCURRENT,
-		.value_reg = AXP2XX_BAT_CHARGE_CURRENT,
-		.value_size = 2,
-		.h_value_mask = 0xff,
-		.h_value_shift = 5,
-		.l_value_mask = 0x1f,
-		.l_value_shift = 0,
-		.value_step = AXP2XX_BATCURRENT_STEP,
+	    .id = AXP2XX_BATCHARGECURRENT,
+	    .name = "batchargecurrent",
+	    .desc = "Battery Charging Current (microAmpere)",
+	    .format = "I",
+	    .enable_reg = AXP2XX_ADC_ENABLE1,
+	    .enable_mask = AXP2XX_ADC1_BATCURRENT,
+	    .value_reg = AXP2XX_BAT_CHARGE_CURRENT,
+	    .value_size = 2,
+	    .h_value_mask = 0xff,
+	    .h_value_shift = 5,
+	    .l_value_mask = 0x1f,
+	    .l_value_shift = 0,
+	    .value_step = AXP2XX_BATCURRENT_STEP,
 	},
 	{
-		.id = AXP2XX_BATDISCHARGECURRENT,
-		.name = "batdischargecurrent",
-		.desc = "Battery Discharging Current (microAmpere)",
-		.format = "I",
-		.enable_reg = AXP2XX_ADC_ENABLE1,
-		.enable_mask = AXP2XX_ADC1_BATCURRENT,
-		.value_reg = AXP2XX_BAT_DISCHARGE_CURRENT,
-		.value_size = 2,
-		.h_value_mask = 0xff,
-		.h_value_shift = 5,
-		.l_value_mask = 0x1f,
-		.l_value_shift = 0,
-		.value_step = AXP2XX_BATCURRENT_STEP,
+	    .id = AXP2XX_BATDISCHARGECURRENT,
+	    .name = "batdischargecurrent",
+	    .desc = "Battery Discharging Current (microAmpere)",
+	    .format = "I",
+	    .enable_reg = AXP2XX_ADC_ENABLE1,
+	    .enable_mask = AXP2XX_ADC1_BATCURRENT,
+	    .value_reg = AXP2XX_BAT_DISCHARGE_CURRENT,
+	    .value_size = 2,
+	    .h_value_mask = 0xff,
+	    .h_value_shift = 5,
+	    .l_value_mask = 0x1f,
+	    .l_value_shift = 0,
+	    .value_step = AXP2XX_BATCURRENT_STEP,
 	},
 	{
-		.id = AXP2XX_TEMP,
-		.name = "temp",
-		.desc = "Internal Temperature",
-		.format = "IK",
-		.enable_reg = AXP209_ADC_ENABLE2,
-		.enable_mask = AXP209_ADC2_TEMP,
-		.value_reg = AXP209_TEMPMON,
-		.value_size = 2,
-		.h_value_mask = 0xff,
-		.h_value_shift = 4,
-		.l_value_mask = 0xf,
-		.l_value_shift = 0,
-		.value_step = 1,
-		.value_convert = -(AXP209_TEMPMON_MIN - AXP209_0C_TO_K),
+	    .id = AXP2XX_TEMP,
+	    .name = "temp",
+	    .desc = "Internal Temperature",
+	    .format = "IK",
+	    .enable_reg = AXP209_ADC_ENABLE2,
+	    .enable_mask = AXP209_ADC2_TEMP,
+	    .value_reg = AXP209_TEMPMON,
+	    .value_size = 2,
+	    .h_value_mask = 0xff,
+	    .h_value_shift = 4,
+	    .l_value_mask = 0xf,
+	    .l_value_shift = 0,
+	    .value_step = 1,
+	    .value_convert = -(AXP209_TEMPMON_MIN - AXP209_0C_TO_K),
 	},
 };
 
 static const struct axp2xx_sensors axp221_sensors[] = {
 	{
-		.id = AXP2XX_BATVOLT,
-		.name = "batvolt",
-		.desc = "Battery Voltage (microVolt)",
-		.format = "I",
-		.enable_reg = AXP2XX_ADC_ENABLE1,
-		.enable_mask = AXP2XX_ADC1_BATVOLT,
-		.value_reg = AXP2XX_BAT_VOLTAGE,
-		.value_size = 2,
-		.h_value_mask = 0xff,
-		.h_value_shift = 4,
-		.l_value_mask = 0xf,
-		.l_value_shift = 0,
-		.value_step = AXP2XX_BATVOLT_STEP,
+	    .id = AXP2XX_BATVOLT,
+	    .name = "batvolt",
+	    .desc = "Battery Voltage (microVolt)",
+	    .format = "I",
+	    .enable_reg = AXP2XX_ADC_ENABLE1,
+	    .enable_mask = AXP2XX_ADC1_BATVOLT,
+	    .value_reg = AXP2XX_BAT_VOLTAGE,
+	    .value_size = 2,
+	    .h_value_mask = 0xff,
+	    .h_value_shift = 4,
+	    .l_value_mask = 0xf,
+	    .l_value_shift = 0,
+	    .value_step = AXP2XX_BATVOLT_STEP,
 	},
 	{
-		.id = AXP2XX_BATCHARGECURRENT,
-		.name = "batchargecurrent",
-		.desc = "Battery Charging Current (microAmpere)",
-		.format = "I",
-		.enable_reg = AXP2XX_ADC_ENABLE1,
-		.enable_mask = AXP2XX_ADC1_BATCURRENT,
-		.value_reg = AXP2XX_BAT_CHARGE_CURRENT,
-		.value_size = 2,
-		.h_value_mask = 0xff,
-		.h_value_shift = 5,
-		.l_value_mask = 0x1f,
-		.l_value_shift = 0,
-		.value_step = AXP2XX_BATCURRENT_STEP,
+	    .id = AXP2XX_BATCHARGECURRENT,
+	    .name = "batchargecurrent",
+	    .desc = "Battery Charging Current (microAmpere)",
+	    .format = "I",
+	    .enable_reg = AXP2XX_ADC_ENABLE1,
+	    .enable_mask = AXP2XX_ADC1_BATCURRENT,
+	    .value_reg = AXP2XX_BAT_CHARGE_CURRENT,
+	    .value_size = 2,
+	    .h_value_mask = 0xff,
+	    .h_value_shift = 5,
+	    .l_value_mask = 0x1f,
+	    .l_value_shift = 0,
+	    .value_step = AXP2XX_BATCURRENT_STEP,
 	},
 	{
-		.id = AXP2XX_BATDISCHARGECURRENT,
-		.name = "batdischargecurrent",
-		.desc = "Battery Discharging Current (microAmpere)",
-		.format = "I",
-		.enable_reg = AXP2XX_ADC_ENABLE1,
-		.enable_mask = AXP2XX_ADC1_BATCURRENT,
-		.value_reg = AXP2XX_BAT_DISCHARGE_CURRENT,
-		.value_size = 2,
-		.h_value_mask = 0xff,
-		.h_value_shift = 5,
-		.l_value_mask = 0x1f,
-		.l_value_shift = 0,
-		.value_step = AXP2XX_BATCURRENT_STEP,
+	    .id = AXP2XX_BATDISCHARGECURRENT,
+	    .name = "batdischargecurrent",
+	    .desc = "Battery Discharging Current (microAmpere)",
+	    .format = "I",
+	    .enable_reg = AXP2XX_ADC_ENABLE1,
+	    .enable_mask = AXP2XX_ADC1_BATCURRENT,
+	    .value_reg = AXP2XX_BAT_DISCHARGE_CURRENT,
+	    .value_size = 2,
+	    .h_value_mask = 0xff,
+	    .h_value_shift = 5,
+	    .l_value_mask = 0x1f,
+	    .l_value_shift = 0,
+	    .value_step = AXP2XX_BATCURRENT_STEP,
 	},
 	{
-		.id = AXP2XX_TEMP,
-		.name = "temp",
-		.desc = "Internal Temperature",
-		.format = "IK",
-		.enable_reg = AXP2XX_ADC_ENABLE1,
-		.enable_mask = AXP221_ADC1_TEMP,
-		.value_reg = AXP221_TEMPMON,
-		.value_size = 2,
-		.h_value_mask = 0xff,
-		.h_value_shift = 4,
-		.l_value_mask = 0xf,
-		.l_value_shift = 0,
-		.value_step = 1,
-		.value_convert = -(AXP221_TEMPMON_MIN - AXP209_0C_TO_K),
+	    .id = AXP2XX_TEMP,
+	    .name = "temp",
+	    .desc = "Internal Temperature",
+	    .format = "IK",
+	    .enable_reg = AXP2XX_ADC_ENABLE1,
+	    .enable_mask = AXP221_ADC1_TEMP,
+	    .value_reg = AXP221_TEMPMON,
+	    .value_size = 2,
+	    .h_value_mask = 0xff,
+	    .h_value_shift = 4,
+	    .l_value_mask = 0xf,
+	    .l_value_shift = 0,
+	    .value_step = 1,
+	    .value_convert = -(AXP221_TEMPMON_MIN - AXP209_0C_TO_K),
 	},
 };
 
@@ -598,41 +595,36 @@ enum AXP2XX_TYPE {
 };
 
 struct axp2xx_softc {
-	device_t		dev;
-	struct resource *	res[1];
-	void *			intrcookie;
-	struct intr_config_hook	intr_hook;
-	struct mtx		mtx;
-	uint8_t			type;
+	device_t dev;
+	struct resource *res[1];
+	void *intrcookie;
+	struct intr_config_hook intr_hook;
+	struct mtx mtx;
+	uint8_t type;
 
 	/* GPIO */
-	device_t		gpiodev;
-	int			npins;
-	const struct axp2xx_pins	*pins;
+	device_t gpiodev;
+	int npins;
+	const struct axp2xx_pins *pins;
 
 	/* Sensors */
-	const struct axp2xx_sensors	*sensors;
-	int				nsensors;
+	const struct axp2xx_sensors *sensors;
+	int nsensors;
 
 	/* Regulators */
-	struct axp2xx_reg_sc	**regs;
-	int			nregs;
-	struct axp2xx_regdef	*regdefs;
+	struct axp2xx_reg_sc **regs;
+	int nregs;
+	struct axp2xx_regdef *regdefs;
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{ "x-powers,axp209",		AXP209 },
-	{ "x-powers,axp221",		AXP221 },
-	{ NULL,				0 }
-};
+static struct ofw_compat_data compat_data[] = { { "x-powers,axp209", AXP209 },
+	{ "x-powers,axp221", AXP221 }, { NULL, 0 } };
 
-static struct resource_spec axp_res_spec[] = {
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1,			0,	0 }
-};
+static struct resource_spec axp_res_spec[] = { { SYS_RES_IRQ, 0, RF_ACTIVE },
+	{ -1, 0, 0 } };
 
-#define	AXP_LOCK(sc)	mtx_lock(&(sc)->mtx)
-#define	AXP_UNLOCK(sc)	mtx_unlock(&(sc)->mtx)
+#define AXP_LOCK(sc) mtx_lock(&(sc)->mtx)
+#define AXP_UNLOCK(sc) mtx_unlock(&(sc)->mtx)
 
 static int
 axp2xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
@@ -681,13 +673,13 @@ axp2xx_regnode_reg_to_voltage(struct axp2xx_reg_sc *sc, uint8_t val, int *uv)
 		*uv = sc->def->voltage_min + val * sc->def->voltage_step;
 	else
 		*uv = sc->def->voltage_min +
-		       (sc->def->voltage_nstep * sc->def->voltage_step);
+		    (sc->def->voltage_nstep * sc->def->voltage_step);
 	*uv *= 1000;
 }
 
 static int
-axp2xx_regnode_voltage_to_reg(struct axp2xx_reg_sc *sc, int min_uvolt,
-    int max_uvolt, uint8_t *val)
+axp2xx_regnode_voltage_to_reg(
+    struct axp2xx_reg_sc *sc, int min_uvolt, int max_uvolt, uint8_t *val)
 {
 	uint8_t nval;
 	int nstep, uvolt;
@@ -724,8 +716,8 @@ axp2xx_regnode_status(struct regnode *regnode, int *status)
 }
 
 static int
-axp2xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
-    int max_uvolt, int *udelay)
+axp2xx_regnode_set_voltage(
+    struct regnode *regnode, int min_uvolt, int max_uvolt, int *udelay)
 {
 	struct axp2xx_reg_sc *sc;
 	uint8_t val;
@@ -764,19 +756,18 @@ axp2xx_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 
 static regnode_method_t axp2xx_regnode_methods[] = {
 	/* Regulator interface */
-	REGNODEMETHOD(regnode_init,		axp2xx_regnode_init),
-	REGNODEMETHOD(regnode_enable,		axp2xx_regnode_enable),
-	REGNODEMETHOD(regnode_status,		axp2xx_regnode_status),
-	REGNODEMETHOD(regnode_set_voltage,	axp2xx_regnode_set_voltage),
-	REGNODEMETHOD(regnode_get_voltage,	axp2xx_regnode_get_voltage),
-	REGNODEMETHOD(regnode_check_voltage,	regnode_method_check_voltage),
+	REGNODEMETHOD(regnode_init, axp2xx_regnode_init),
+	REGNODEMETHOD(regnode_enable, axp2xx_regnode_enable),
+	REGNODEMETHOD(regnode_status, axp2xx_regnode_status),
+	REGNODEMETHOD(regnode_set_voltage, axp2xx_regnode_set_voltage),
+	REGNODEMETHOD(regnode_get_voltage, axp2xx_regnode_get_voltage),
+	REGNODEMETHOD(regnode_check_voltage, regnode_method_check_voltage),
 	REGNODEMETHOD_END
 };
 DEFINE_CLASS_1(axp2xx_regnode, axp2xx_regnode_class, axp2xx_regnode_methods,
     sizeof(struct axp2xx_reg_sc), regnode_class);
 
-static int
-axp2xx_sysctl(SYSCTL_HANDLER_ARGS)
+static int axp2xx_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct axp2xx_softc *sc;
 	device_t dev = arg1;
@@ -800,10 +791,10 @@ axp2xx_sysctl(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 
-	val = ((data[0] & sc->sensors[i].h_value_mask) <<
-	    sc->sensors[i].h_value_shift);
-	val |= ((data[1] & sc->sensors[i].l_value_mask) <<
-	    sc->sensors[i].l_value_shift);
+	val = ((data[0] & sc->sensors[i].h_value_mask)
+	    << sc->sensors[i].h_value_shift);
+	val |= ((data[1] & sc->sensors[i].l_value_mask)
+	    << sc->sensors[i].l_value_shift);
 	val *= sc->sensors[i].value_step;
 	val += sc->sensors[i].value_convert;
 
@@ -984,7 +975,7 @@ axp2xx_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	error = axp2xx_read(dev, sc->pins[pin].ctrl_reg, &data, 1);
 	if (error == 0) {
 		data &= ~AXP2XX_GPIO_FUNC_MASK;
-		if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) != 0) {
+		if ((flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) != 0) {
 			if ((flags & GPIO_PIN_OUTPUT) == 0)
 				data |= AXP2XX_GPIO_FUNC_INPUT;
 		}
@@ -1019,8 +1010,8 @@ axp2xx_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 			*val = 1;
 			break;
 		case AXP2XX_GPIO_FUNC_INPUT:
-			error = axp2xx_read(dev, sc->pins[pin].status_reg,
-			    &data, 1);
+			error = axp2xx_read(
+			    dev, sc->pins[pin].status_reg, &data, 1);
 			if (error == 0) {
 				*val = (data & sc->pins[pin].status_mask);
 				*val >>= sc->pins[pin].status_shift;
@@ -1141,8 +1132,7 @@ axp2xx_get_node(device_t dev, device_t bus)
 }
 
 static struct axp2xx_reg_sc *
-axp2xx_reg_attach(device_t dev, phandle_t node,
-    struct axp2xx_regdef *def)
+axp2xx_reg_attach(device_t dev, phandle_t node, struct axp2xx_regdef *def)
 {
 	struct axp2xx_reg_sc *reg_sc;
 	struct regnode_init_def initdef;
@@ -1178,8 +1168,8 @@ axp2xx_reg_attach(device_t dev, phandle_t node,
 }
 
 static int
-axp2xx_regdev_map(device_t dev, phandle_t xref, int ncells, pcell_t *cells,
-    intptr_t *num)
+axp2xx_regdev_map(
+    device_t dev, phandle_t xref, int ncells, pcell_t *cells, intptr_t *num)
 {
 	struct axp2xx_softc *sc;
 	int i;
@@ -1202,7 +1192,7 @@ axp2xx_start(void *pdev)
 {
 	device_t dev;
 	struct axp2xx_softc *sc;
-	const char *pwr_name[] = {"Battery", "AC", "USB", "AC and USB"};
+	const char *pwr_name[] = { "Battery", "AC", "USB", "AC and USB" };
 	int i;
 	uint8_t reg, data;
 	uint8_t pwr_src;
@@ -1222,38 +1212,32 @@ axp2xx_start(void *pdev)
 		pwr_src = ((data & AXP2XX_PSR_ACIN) >> AXP2XX_PSR_ACIN_SHIFT) |
 		    ((data & AXP2XX_PSR_VBUS) >> (AXP2XX_PSR_VBUS_SHIFT - 1));
 
-		device_printf(dev, "Powered by %s\n",
-		    pwr_name[pwr_src]);
+		device_printf(dev, "Powered by %s\n", pwr_name[pwr_src]);
 	}
 
 	/* Only enable interrupts that we are interested in */
 	axp2xx_write(dev, AXP2XX_IRQ1_ENABLE,
-	    AXP2XX_IRQ1_AC_OVERVOLT |
-	    AXP2XX_IRQ1_AC_DISCONN |
-	    AXP2XX_IRQ1_AC_CONN |
-	    AXP2XX_IRQ1_VBUS_OVERVOLT |
-	    AXP2XX_IRQ1_VBUS_DISCONN |
-	    AXP2XX_IRQ1_VBUS_CONN);
+	    AXP2XX_IRQ1_AC_OVERVOLT | AXP2XX_IRQ1_AC_DISCONN |
+		AXP2XX_IRQ1_AC_CONN | AXP2XX_IRQ1_VBUS_OVERVOLT |
+		AXP2XX_IRQ1_VBUS_DISCONN | AXP2XX_IRQ1_VBUS_CONN);
 	axp2xx_write(dev, AXP2XX_IRQ2_ENABLE,
-	    AXP2XX_IRQ2_BATT_CONN |
-	    AXP2XX_IRQ2_BATT_DISCONN |
-	    AXP2XX_IRQ2_BATT_CHARGE_ACCT_ON |
-	    AXP2XX_IRQ2_BATT_CHARGE_ACCT_OFF |
-	    AXP2XX_IRQ2_BATT_CHARGING |
-	    AXP2XX_IRQ2_BATT_CHARGED |
-	    AXP2XX_IRQ2_BATT_TEMP_OVER |
-	    AXP2XX_IRQ2_BATT_TEMP_LOW);
+	    AXP2XX_IRQ2_BATT_CONN | AXP2XX_IRQ2_BATT_DISCONN |
+		AXP2XX_IRQ2_BATT_CHARGE_ACCT_ON |
+		AXP2XX_IRQ2_BATT_CHARGE_ACCT_OFF | AXP2XX_IRQ2_BATT_CHARGING |
+		AXP2XX_IRQ2_BATT_CHARGED | AXP2XX_IRQ2_BATT_TEMP_OVER |
+		AXP2XX_IRQ2_BATT_TEMP_LOW);
 	axp2xx_write(dev, AXP2XX_IRQ3_ENABLE,
 	    AXP2XX_IRQ3_PEK_SHORT | AXP2XX_IRQ3_PEK_LONG);
 	axp2xx_write(dev, AXP2XX_IRQ4_ENABLE, AXP2XX_IRQ4_APS_LOW_2);
 	axp2xx_write(dev, AXP2XX_IRQ5_ENABLE, 0x0);
 
-	EVENTHANDLER_REGISTER(shutdown_final, axp2xx_shutdown, dev,
-	    SHUTDOWN_PRI_LAST);
+	EVENTHANDLER_REGISTER(
+	    shutdown_final, axp2xx_shutdown, dev, SHUTDOWN_PRI_LAST);
 
 	/* Enable ADC sensors */
 	for (i = 0; i < sc->nsensors; i++) {
-		if (axp2xx_read(dev, sc->sensors[i].enable_reg, &reg, 1) == -1) {
+		if (axp2xx_read(dev, sc->sensors[i].enable_reg, &reg, 1) ==
+		    -1) {
 			device_printf(dev, "Cannot enable sensor '%s'\n",
 			    sc->sensors[i].name);
 			continue;
@@ -1265,16 +1249,15 @@ axp2xx_start(void *pdev)
 			continue;
 		}
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, sc->sensors[i].name,
-		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
-		    dev, sc->sensors[i].id, axp2xx_sysctl,
-		    sc->sensors[i].format,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    sc->sensors[i].name,
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, dev,
+		    sc->sensors[i].id, axp2xx_sysctl, sc->sensors[i].format,
 		    sc->sensors[i].desc);
 	}
 
-	if ((bus_setup_intr(dev, sc->res[0], INTR_TYPE_MISC | INTR_MPSAFE,
-	      NULL, axp2xx_intr, sc, &sc->intrcookie)))
+	if ((bus_setup_intr(dev, sc->res[0], INTR_TYPE_MISC | INTR_MPSAFE, NULL,
+		axp2xx_intr, sc, &sc->intrcookie)))
 		device_printf(dev, "unable to register interrupt handler\n");
 
 	config_intrhook_disestablish(&sc->intr_hook);
@@ -1287,8 +1270,7 @@ axp2xx_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data)
-	{
+	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
 	case AXP209:
 		device_set_desc(dev, "X-Powers AXP209 Power Management Unit");
 		break;
@@ -1358,8 +1340,7 @@ axp2xx_attach(device_t dev)
 	rnode = ofw_bus_find_child(ofw_bus_get_node(dev), "regulators");
 	if (rnode > 0) {
 		for (i = 0; i < sc->nregs; i++) {
-			child = ofw_bus_find_child(rnode,
-			    regdefs[i].name);
+			child = ofw_bus_find_child(rnode, regdefs[i].name);
 			if (child == 0)
 				continue;
 			reg = axp2xx_reg_attach(dev, child, &regdefs[i]);
@@ -1379,30 +1360,29 @@ axp2xx_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t axp2xx_methods[] = {
-	DEVMETHOD(device_probe,		axp2xx_probe),
-	DEVMETHOD(device_attach,	axp2xx_attach),
+static device_method_t axp2xx_methods[] = { DEVMETHOD(
+						device_probe, axp2xx_probe),
+	DEVMETHOD(device_attach, axp2xx_attach),
 
 	/* GPIO interface */
-	DEVMETHOD(gpio_get_bus,		axp2xx_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max,		axp2xx_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname,	axp2xx_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getcaps,	axp2xx_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_getflags,	axp2xx_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_setflags,	axp2xx_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_get,		axp2xx_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set,		axp2xx_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle,	axp2xx_gpio_pin_toggle),
-	DEVMETHOD(gpio_map_gpios,	axp2xx_gpio_map_gpios),
+	DEVMETHOD(gpio_get_bus, axp2xx_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max, axp2xx_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname, axp2xx_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getcaps, axp2xx_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_getflags, axp2xx_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_setflags, axp2xx_gpio_pin_setflags),
+	DEVMETHOD(gpio_pin_get, axp2xx_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set, axp2xx_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle, axp2xx_gpio_pin_toggle),
+	DEVMETHOD(gpio_map_gpios, axp2xx_gpio_map_gpios),
 
 	/* Regdev interface */
-	DEVMETHOD(regdev_map,		axp2xx_regdev_map),
+	DEVMETHOD(regdev_map, axp2xx_regdev_map),
 
 	/* OFW bus interface */
-	DEVMETHOD(ofw_bus_get_node,	axp2xx_get_node),
+	DEVMETHOD(ofw_bus_get_node, axp2xx_get_node),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t axp2xx_driver = {
 	"axp2xx_pmu",
@@ -1414,11 +1394,10 @@ static devclass_t axp2xx_devclass;
 extern devclass_t ofwgpiobus_devclass, gpioc_devclass;
 extern driver_t ofw_gpiobus_driver, gpioc_driver;
 
-EARLY_DRIVER_MODULE(axp2xx, iicbus, axp2xx_driver, axp2xx_devclass,
-  0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
+EARLY_DRIVER_MODULE(axp2xx, iicbus, axp2xx_driver, axp2xx_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 EARLY_DRIVER_MODULE(ofw_gpiobus, axp2xx_pmu, ofw_gpiobus_driver,
     ofwgpiobus_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
-DRIVER_MODULE(gpioc, axp2xx_pmu, gpioc_driver, gpioc_devclass,
-    0, 0);
+DRIVER_MODULE(gpioc, axp2xx_pmu, gpioc_driver, gpioc_devclass, 0, 0);
 MODULE_VERSION(axp2xx, 1);
 MODULE_DEPEND(axp2xx, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);

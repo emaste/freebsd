@@ -26,21 +26,21 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_RUNQ_H_
-#define	_MACHINE_RUNQ_H_
+#ifndef _MACHINE_RUNQ_H_
+#define _MACHINE_RUNQ_H_
 
-#define	RQB_LEN		(1)		/* Number of priority status words. */
-#define	RQB_L2BPW	(6)		/* Log2(sizeof(rqb_word_t) * NBBY)). */
-#define	RQB_BPW		(1<<RQB_L2BPW)	/* Bits in an rqb_word_t. */
+#define RQB_LEN (1)		 /* Number of priority status words. */
+#define RQB_L2BPW (6)		 /* Log2(sizeof(rqb_word_t) * NBBY)). */
+#define RQB_BPW (1 << RQB_L2BPW) /* Bits in an rqb_word_t. */
 
-#define	RQB_BIT(pri)	(1ul << ((pri) & (RQB_BPW - 1)))
-#define	RQB_WORD(pri)	((pri) >> RQB_L2BPW)
+#define RQB_BIT(pri) (1ul << ((pri) & (RQB_BPW - 1)))
+#define RQB_WORD(pri) ((pri) >> RQB_L2BPW)
 
-#define	RQB_FFS(word)	(ffsl(word) - 1)
+#define RQB_FFS(word) (ffsl(word) - 1)
 
 /*
  * Type of run queue status word.
  */
-typedef	unsigned long	rqb_word_t;
+typedef unsigned long rqb_word_t;
 
 #endif

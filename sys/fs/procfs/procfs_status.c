@@ -40,18 +40,17 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/exec.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/jail.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
+#include <sys/sx.h>
 #include <sys/sysent.h>
 #include <sys/tty.h>
 
@@ -59,11 +58,10 @@
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
 
-#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
+#include <fs/pseudofs/pseudofs.h>
 
-int
-procfs_doprocstatus(PFS_FILL_ARGS)
+int procfs_doprocstatus(PFS_FILL_ARGS)
 {
 	struct session *sess;
 	struct thread *tdfirst;
@@ -84,9 +82,9 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	SESS_LOCK(sess);
 	sid = sess->s_leader ? sess->s_leader->p_pid : 0;
 
-/* comm pid ppid pgid sid tty ctty,sldr start ut st wmsg
-				euid ruid rgid,egid,groups[1 .. ngroups]
-*/
+	/* comm pid ppid pgid sid tty ctty,sldr start ut st wmsg
+					euid ruid rgid,egid,groups[1 .. ngroups]
+	*/
 
 	pc = p->p_comm;
 	do {
@@ -135,9 +133,8 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		getboottime(&boottime);
 		timevaladd(&start, &boottime);
 		sbuf_printf(sb, " %jd,%ld %jd,%ld %jd,%ld",
-		    (intmax_t)start.tv_sec, start.tv_usec,
-		    (intmax_t)ut.tv_sec, ut.tv_usec,
-		    (intmax_t)st.tv_sec, st.tv_usec);
+		    (intmax_t)start.tv_sec, start.tv_usec, (intmax_t)ut.tv_sec,
+		    ut.tv_usec, (intmax_t)st.tv_sec, st.tv_usec);
 	} else
 		sbuf_printf(sb, " -1,-1 -1,-1 -1,-1");
 
@@ -145,10 +142,8 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 
 	cr = p->p_ucred;
 
-	sbuf_printf(sb, " %lu %lu %lu",
-		(u_long)cr->cr_uid,
-		(u_long)cr->cr_ruid,
-		(u_long)cr->cr_rgid);
+	sbuf_printf(sb, " %lu %lu %lu", (u_long)cr->cr_uid, (u_long)cr->cr_ruid,
+	    (u_long)cr->cr_rgid);
 
 	/* egid (cr->cr_svgid) is equal to cr_ngroups[0]
 	   see also getegid(2) in /sys/kern/kern_prot.c */
@@ -171,8 +166,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	return (0);
 }
 
-int
-procfs_doproccmdline(PFS_FILL_ARGS)
+int procfs_doproccmdline(PFS_FILL_ARGS)
 {
 
 	/*

@@ -28,22 +28,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
 #include "opt_ar531x.h"
+#include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/reboot.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
-
-#include <net/ethernet.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -53,24 +51,24 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
-#include <mips/atheros/ar531x/ar5315reg.h>
-#include <mips/atheros/ar531x/ar5312reg.h>
-#include <mips/atheros/ar531x/ar5315_setup.h>
+#include <dev/ath/ath_hal/ah_soc.h>
 
-#include <mips/atheros/ar531x/ar5315_cpudef.h>
+#include <net/ethernet.h>
 
-#include <mips/atheros/ar531x/ar5315_chip.h>
 #include <mips/atheros/ar531x/ar5312_chip.h>
+#include <mips/atheros/ar531x/ar5312reg.h>
+#include <mips/atheros/ar531x/ar5315_chip.h>
+#include <mips/atheros/ar531x/ar5315_cpudef.h>
+#include <mips/atheros/ar531x/ar5315_setup.h>
+#include <mips/atheros/ar531x/ar5315reg.h>
 #include <mips/atheros/ar724x_chip.h>
 #include <mips/atheros/ar91xx_chip.h>
 
-#include <dev/ath/ath_hal/ah_soc.h>
-
-#define	AR5315_SYS_TYPE_LEN		128
+#define AR5315_SYS_TYPE_LEN 128
 
 static char ar5315_sys_type[AR5315_SYS_TYPE_LEN];
 enum ar531x_soc_type ar531x_soc;
-struct ar5315_cpu_def * ar5315_cpu_ops = NULL;
+struct ar5315_cpu_def *ar5315_cpu_ops = NULL;
 
 void
 ar5315_detect_sys_type(void)
@@ -103,11 +101,10 @@ ar5315_detect_sys_type(void)
 	soctype = AR_SECOND_GEN;
 #endif
 
-	if(soctype == AR_SECOND_GEN) {
+	if (soctype == AR_SECOND_GEN) {
 		ar5315_cpu_ops = &ar5315_chip_def;
 
-		ver = ATH_READ_REG(AR5315_SYSREG_BASE +
-			AR5315_SYSREG_SREV);
+		ver = ATH_READ_REG(AR5315_SYSREG_BASE + AR5315_SYSREG_SREV);
 
 		switch (ver) {
 		case 0x86:
@@ -130,8 +127,7 @@ ar5315_detect_sys_type(void)
 	} else {
 		ar5315_cpu_ops = &ar5312_chip_def;
 
-		ver = ATH_READ_REG(AR5312_SYSREG_BASE +
-			AR5312_SYSREG_REVISION);
+		ver = ATH_READ_REG(AR5312_SYSREG_BASE + AR5312_SYSREG_REVISION);
 		rev = AR5312_REVISION_MINOR(ver);
 
 		switch (AR5312_REVISION_MAJOR(ver)) {

@@ -34,7 +34,7 @@
  */
 
 #ifndef _X86_SIGNAL_H
-#define	_X86_SIGNAL_H 1
+#define _X86_SIGNAL_H 1
 
 /*
  * Machine-dependent signal definitions
@@ -48,51 +48,51 @@ typedef int sig_atomic_t;
 
 #if __BSD_VISIBLE
 struct sigcontext {
-	struct __sigset sc_mask;	/* signal mask to restore */
-	int	sc_onstack;		/* sigstack state to restore */
-	int	sc_gs;			/* machine state (struct trapframe) */
-	int	sc_fs;
-	int	sc_es;
-	int	sc_ds;
-	int	sc_edi;
-	int	sc_esi;
-	int	sc_ebp;
-	int	sc_isp;
-	int	sc_ebx;
-	int	sc_edx;
-	int	sc_ecx;
-	int	sc_eax;
-	int	sc_trapno;
-	int	sc_err;
-	int	sc_eip;
-	int	sc_cs;
-	int	sc_efl;
-	int	sc_esp;
-	int	sc_ss;
-	int	sc_len;			/* sizeof(mcontext_t) */
+	struct __sigset sc_mask; /* signal mask to restore */
+	int sc_onstack;		 /* sigstack state to restore */
+	int sc_gs;		 /* machine state (struct trapframe) */
+	int sc_fs;
+	int sc_es;
+	int sc_ds;
+	int sc_edi;
+	int sc_esi;
+	int sc_ebp;
+	int sc_isp;
+	int sc_ebx;
+	int sc_edx;
+	int sc_ecx;
+	int sc_eax;
+	int sc_trapno;
+	int sc_err;
+	int sc_eip;
+	int sc_cs;
+	int sc_efl;
+	int sc_esp;
+	int sc_ss;
+	int sc_len; /* sizeof(mcontext_t) */
 	/*
 	 * See <machine/ucontext.h> and <machine/npx.h> for
 	 * the following fields.
 	 */
-	int	sc_fpformat;
-	int	sc_ownedfp;
-	int	sc_flags;
-	int	sc_fpstate[128] __aligned(16);
+	int sc_fpformat;
+	int sc_ownedfp;
+	int sc_flags;
+	int sc_fpstate[128] __aligned(16);
 
-	int	sc_fsbase;
-	int	sc_gsbase;
+	int sc_fsbase;
+	int sc_gsbase;
 
-	int	sc_xfpustate;
-	int	sc_xfpustate_len;
+	int sc_xfpustate;
+	int sc_xfpustate_len;
 
-	int	sc_spare2[4];
+	int sc_spare2[4];
 };
 
-#define	sc_sp		sc_esp
-#define	sc_fp		sc_ebp
-#define	sc_pc		sc_eip
-#define	sc_ps		sc_efl
-#define	sc_eflags	sc_efl
+#define sc_sp sc_esp
+#define sc_fp sc_ebp
+#define sc_pc sc_eip
+#define sc_ps sc_efl
+#define sc_eflags sc_efl
 
 #endif /* __BSD_VISIBLE */
 #endif /* __i386__ */
@@ -112,52 +112,52 @@ typedef long sig_atomic_t;
  * sigcontext must match those in mcontext_t and struct trapframe.
  */
 struct sigcontext {
-	struct __sigset sc_mask;	/* signal mask to restore */
-	long	sc_onstack;		/* sigstack state to restore */
-	long	sc_rdi;		/* machine state (struct trapframe) */
-	long	sc_rsi;
-	long	sc_rdx;
-	long	sc_rcx;
-	long	sc_r8;
-	long	sc_r9;
-	long	sc_rax;
-	long	sc_rbx;
-	long	sc_rbp;
-	long	sc_r10;
-	long	sc_r11;
-	long	sc_r12;
-	long	sc_r13;
-	long	sc_r14;
-	long	sc_r15;
-	int	sc_trapno;
-	short	sc_fs;
-	short	sc_gs;
-	long	sc_addr;
-	int	sc_flags;
-	short	sc_es;
-	short	sc_ds;
-	long	sc_err;
-	long	sc_rip;
-	long	sc_cs;
-	long	sc_rflags;
-	long	sc_rsp;
-	long	sc_ss;
-	long	sc_len;			/* sizeof(mcontext_t) */
+	struct __sigset sc_mask; /* signal mask to restore */
+	long sc_onstack;	 /* sigstack state to restore */
+	long sc_rdi;		 /* machine state (struct trapframe) */
+	long sc_rsi;
+	long sc_rdx;
+	long sc_rcx;
+	long sc_r8;
+	long sc_r9;
+	long sc_rax;
+	long sc_rbx;
+	long sc_rbp;
+	long sc_r10;
+	long sc_r11;
+	long sc_r12;
+	long sc_r13;
+	long sc_r14;
+	long sc_r15;
+	int sc_trapno;
+	short sc_fs;
+	short sc_gs;
+	long sc_addr;
+	int sc_flags;
+	short sc_es;
+	short sc_ds;
+	long sc_err;
+	long sc_rip;
+	long sc_cs;
+	long sc_rflags;
+	long sc_rsp;
+	long sc_ss;
+	long sc_len; /* sizeof(mcontext_t) */
 	/*
 	 * See <machine/ucontext.h> and <machine/fpu.h> for the following
 	 * fields.
 	 */
-	long	sc_fpformat;
-	long	sc_ownedfp;
-	long	sc_fpstate[64] __aligned(16);
+	long sc_fpformat;
+	long sc_ownedfp;
+	long sc_fpstate[64] __aligned(16);
 
-	long	sc_fsbase;
-	long	sc_gsbase;
+	long sc_fsbase;
+	long sc_gsbase;
 
-	long	sc_xfpustate;
-	long	sc_xfpustate_len;
+	long sc_xfpustate;
+	long sc_xfpustate_len;
 
-	long	sc_spare[4];
+	long sc_spare[4];
 };
 #endif /* __BSD_VISIBLE */
 #endif /* __amd64__ */

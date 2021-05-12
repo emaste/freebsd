@@ -39,11 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/systm.h>
 
-#include <dev/ofw/openfirm.h>
+#include <machine/bus.h>
+
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <machine/bus.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
 
@@ -59,55 +59,55 @@ __FBSDID("$FreeBSD$");
  * Peripherals are mapped further up at spots that vary per-SOC.
  */
 struct bcm283x_memory_mapping {
-	vm_paddr_t	armc_start;
-	vm_paddr_t	armc_size;
-	vm_paddr_t	vcbus_start;
+	vm_paddr_t armc_start;
+	vm_paddr_t armc_size;
+	vm_paddr_t vcbus_start;
 };
 
 static struct bcm283x_memory_mapping bcm2835_memmap[] = {
 	{
-		/* SDRAM */
-		.armc_start = 0x00000000,
-		.armc_size = BCM2835_ARM_IO_BASE,
-		.vcbus_start = BCM2835_VCBUS_SDRAM_BASE,
+	    /* SDRAM */
+	    .armc_start = 0x00000000,
+	    .armc_size = BCM2835_ARM_IO_BASE,
+	    .vcbus_start = BCM2835_VCBUS_SDRAM_BASE,
 	},
 	{
-		/* Peripherals */
-		.armc_start = BCM2835_ARM_IO_BASE,
-		.armc_size  = BCM28XX_ARM_IO_SIZE,
-		.vcbus_start = BCM2835_VCBUS_IO_BASE,
+	    /* Peripherals */
+	    .armc_start = BCM2835_ARM_IO_BASE,
+	    .armc_size = BCM28XX_ARM_IO_SIZE,
+	    .vcbus_start = BCM2835_VCBUS_IO_BASE,
 	},
 	{ 0, 0, 0 },
 };
 
 static struct bcm283x_memory_mapping bcm2836_memmap[] = {
 	{
-		/* SDRAM */
-		.armc_start = 0x00000000,
-		.armc_size = BCM2836_ARM_IO_BASE,
-		.vcbus_start = BCM2836_VCBUS_SDRAM_BASE,
+	    /* SDRAM */
+	    .armc_start = 0x00000000,
+	    .armc_size = BCM2836_ARM_IO_BASE,
+	    .vcbus_start = BCM2836_VCBUS_SDRAM_BASE,
 	},
 	{
-		/* Peripherals */
-		.armc_start = BCM2836_ARM_IO_BASE,
-		.armc_size  = BCM28XX_ARM_IO_SIZE,
-		.vcbus_start = BCM2836_VCBUS_IO_BASE,
+	    /* Peripherals */
+	    .armc_start = BCM2836_ARM_IO_BASE,
+	    .armc_size = BCM28XX_ARM_IO_SIZE,
+	    .vcbus_start = BCM2836_VCBUS_IO_BASE,
 	},
 	{ 0, 0, 0 },
 };
 
 static struct bcm283x_memory_mapping bcm2837_memmap[] = {
 	{
-		/* SDRAM */
-		.armc_start = 0x00000000,
-		.armc_size = BCM2837_ARM_IO_BASE,
-		.vcbus_start = BCM2837_VCBUS_SDRAM_BASE,
+	    /* SDRAM */
+	    .armc_start = 0x00000000,
+	    .armc_size = BCM2837_ARM_IO_BASE,
+	    .vcbus_start = BCM2837_VCBUS_SDRAM_BASE,
 	},
 	{
-		/* Peripherals */
-		.armc_start = BCM2837_ARM_IO_BASE,
-		.armc_size  = BCM28XX_ARM_IO_SIZE,
-		.vcbus_start = BCM2837_VCBUS_IO_BASE,
+	    /* Peripherals */
+	    .armc_start = BCM2837_ARM_IO_BASE,
+	    .armc_size = BCM28XX_ARM_IO_SIZE,
+	    .vcbus_start = BCM2837_VCBUS_IO_BASE,
 	},
 	{ 0, 0, 0 },
 };
@@ -120,63 +120,63 @@ static struct bcm283x_memory_mapping bcm2837_memmap[] = {
  */
 static struct bcm283x_memory_mapping bcm2838_memmap[] = {
 	{
-		/* SDRAM */
-		.armc_start = 0x00000000,
-		.armc_size = 0x40000000,
-		.vcbus_start = BCM2838_VCBUS_SDRAM_BASE,
+	    /* SDRAM */
+	    .armc_start = 0x00000000,
+	    .armc_size = 0x40000000,
+	    .vcbus_start = BCM2838_VCBUS_SDRAM_BASE,
 	},
 	{
-		/* Main peripherals */
-		.armc_start = BCM2838_ARM_IO_BASE,
-		.armc_size = BCM28XX_ARM_IO_SIZE,
-		.vcbus_start = BCM2838_VCBUS_IO_BASE,
+	    /* Main peripherals */
+	    .armc_start = BCM2838_ARM_IO_BASE,
+	    .armc_size = BCM28XX_ARM_IO_SIZE,
+	    .vcbus_start = BCM2838_VCBUS_IO_BASE,
 	},
 	{ 0, 0, 0 },
 };
 
 static struct bcm283x_memory_soc_cfg {
-	struct bcm283x_memory_mapping	*memmap;
-	const char			*soc_compat;
-	bus_addr_t			 busdma_lowaddr;
+	struct bcm283x_memory_mapping *memmap;
+	const char *soc_compat;
+	bus_addr_t busdma_lowaddr;
 } bcm283x_memory_configs[] = {
 	/* Legacy */
 	{
-		.memmap = bcm2835_memmap,
-		.soc_compat = "raspberrypi,model-b",
-		.busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
+	    .memmap = bcm2835_memmap,
+	    .soc_compat = "raspberrypi,model-b",
+	    .busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
 	},
 	/* Modern */
 	{
-		.memmap = bcm2835_memmap,
-		.soc_compat = "brcm,bcm2835",
-		.busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
+	    .memmap = bcm2835_memmap,
+	    .soc_compat = "brcm,bcm2835",
+	    .busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
 	},
 	/* Legacy */
 	{
-		.memmap = bcm2836_memmap,
-		.soc_compat = "brcm,bcm2709",
-		.busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
+	    .memmap = bcm2836_memmap,
+	    .soc_compat = "brcm,bcm2709",
+	    .busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
 	},
 	/* Modern */
 	{
-		.memmap = bcm2836_memmap,
-		.soc_compat = "brcm,bcm2836",
-		.busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
+	    .memmap = bcm2836_memmap,
+	    .soc_compat = "brcm,bcm2836",
+	    .busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
 	},
 	{
-		.memmap = bcm2837_memmap,
-		.soc_compat = "brcm,bcm2837",
-		.busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
+	    .memmap = bcm2837_memmap,
+	    .soc_compat = "brcm,bcm2837",
+	    .busdma_lowaddr = BUS_SPACE_MAXADDR_32BIT,
 	},
 	{
-		.memmap = bcm2838_memmap,
-		.soc_compat = "brcm,bcm2711",
-		.busdma_lowaddr = BCM2838_PERIPH_MAXADDR,
+	    .memmap = bcm2838_memmap,
+	    .soc_compat = "brcm,bcm2711",
+	    .busdma_lowaddr = BCM2838_PERIPH_MAXADDR,
 	},
 	{
-		.memmap = bcm2838_memmap,
-		.soc_compat = "brcm,bcm2838",
-		.busdma_lowaddr = BCM2838_PERIPH_MAXADDR,
+	    .memmap = bcm2838_memmap,
+	    .soc_compat = "brcm,bcm2838",
+	    .busdma_lowaddr = BCM2838_PERIPH_MAXADDR,
 	},
 };
 
@@ -201,8 +201,8 @@ bcm283x_get_current_memcfg(void)
 		if (bootverbose)
 			printf("Checking root against %s\n",
 			    booted_soc_memcfg->soc_compat);
-		if (ofw_bus_node_is_compatible(root,
-		    booted_soc_memcfg->soc_compat))
+		if (ofw_bus_node_is_compatible(
+			root, booted_soc_memcfg->soc_compat))
 			return (booted_soc_memcfg);
 	}
 
@@ -214,9 +214,9 @@ bcm283x_get_current_memcfg(void)
 	panic("No suitable SOC memory configuration found.");
 }
 
-#define	BCM283X_MEMMAP_ISTERM(ent)	\
-    ((ent)->armc_start == 0 && (ent)->armc_size == 0 && \
-    (ent)->vcbus_start == 0)
+#define BCM283X_MEMMAP_ISTERM(ent)                          \
+	((ent)->armc_start == 0 && (ent)->armc_size == 0 && \
+	    (ent)->vcbus_start == 0)
 
 vm_paddr_t
 bcm283x_armc_to_vcbus(vm_paddr_t pa)

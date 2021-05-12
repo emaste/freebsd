@@ -33,33 +33,34 @@
  * $FreeBSD$
  */
 
-#include <sys/stdint.h>
-#include <sys/stddef.h>
-#include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/sysctl.h>
-#include <sys/sx.h>
-#include <sys/unistd.h>
 #include <sys/callout.h>
-#include <sys/malloc.h>
-#include <sys/priv.h>
+#include <sys/condvar.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/priv.h>
+#include <sys/queue.h>
+#include <sys/stddef.h>
+#include <sys/stdint.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/unistd.h>
+
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_ioctl.h>
+#include <dev/usb/usbdi.h>
 
 #include "usbdevs.h"
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-#include <dev/usb/usb_ioctl.h>
 
-#define	USB_DEBUG_VAR usb_debug
+#define USB_DEBUG_VAR usb_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_dev.h>
 
@@ -67,11 +68,11 @@
  * Download firmware to BCM2033.
  */
 
-#define	UBTBCMFW_CONFIG_NO	1	/* Config number */
-#define	UBTBCMFW_IFACE_IDX	0	/* Control interface */
+#define UBTBCMFW_CONFIG_NO 1 /* Config number */
+#define UBTBCMFW_IFACE_IDX 0 /* Control interface */
 
-#define	UBTBCMFW_BSIZE		1024
-#define	UBTBCMFW_IFQ_MAXLEN	2
+#define UBTBCMFW_BSIZE 1024
+#define UBTBCMFW_IFQ_MAXLEN 2
 
 enum {
 	UBTBCMFW_BULK_DT_WR = 0,
@@ -80,46 +81,45 @@ enum {
 };
 
 struct ubtbcmfw_softc {
-	struct usb_device	*sc_udev;
-	struct mtx		sc_mtx;
-	struct usb_xfer	*sc_xfer[UBTBCMFW_N_TRANSFER];
-	struct usb_fifo_sc	sc_fifo;
+	struct usb_device *sc_udev;
+	struct mtx sc_mtx;
+	struct usb_xfer *sc_xfer[UBTBCMFW_N_TRANSFER];
+	struct usb_fifo_sc sc_fifo;
 };
 
 /*
  * Prototypes
  */
 
-static device_probe_t		ubtbcmfw_probe;
-static device_attach_t		ubtbcmfw_attach;
-static device_detach_t		ubtbcmfw_detach;
+static device_probe_t ubtbcmfw_probe;
+static device_attach_t ubtbcmfw_attach;
+static device_detach_t ubtbcmfw_detach;
 
-static usb_callback_t		ubtbcmfw_write_callback;
-static usb_callback_t		ubtbcmfw_read_callback;
+static usb_callback_t ubtbcmfw_write_callback;
+static usb_callback_t ubtbcmfw_read_callback;
 
-static usb_fifo_close_t	ubtbcmfw_close;
-static usb_fifo_cmd_t		ubtbcmfw_start_read;
-static usb_fifo_cmd_t		ubtbcmfw_start_write;
-static usb_fifo_cmd_t		ubtbcmfw_stop_read;
-static usb_fifo_cmd_t		ubtbcmfw_stop_write;
-static usb_fifo_ioctl_t	ubtbcmfw_ioctl;
-static usb_fifo_open_t		ubtbcmfw_open;
+static usb_fifo_close_t ubtbcmfw_close;
+static usb_fifo_cmd_t ubtbcmfw_start_read;
+static usb_fifo_cmd_t ubtbcmfw_start_write;
+static usb_fifo_cmd_t ubtbcmfw_stop_read;
+static usb_fifo_cmd_t ubtbcmfw_stop_write;
+static usb_fifo_ioctl_t ubtbcmfw_ioctl;
+static usb_fifo_open_t ubtbcmfw_open;
 
-static struct usb_fifo_methods	ubtbcmfw_fifo_methods = 
-{
-	.f_close =		&ubtbcmfw_close,
-	.f_ioctl =		&ubtbcmfw_ioctl,
-	.f_open =		&ubtbcmfw_open,
-	.f_start_read =		&ubtbcmfw_start_read,
-	.f_start_write =	&ubtbcmfw_start_write,
-	.f_stop_read =		&ubtbcmfw_stop_read,
-	.f_stop_write =		&ubtbcmfw_stop_write,
-	.basename[0] =		"ubtbcmfw",
-	.basename[1] =		"ubtbcmfw",
-	.basename[2] =		"ubtbcmfw",
-	.postfix[0] =		"",
-	.postfix[1] =		".1",
-	.postfix[2] =		".2",
+static struct usb_fifo_methods ubtbcmfw_fifo_methods = {
+	.f_close = &ubtbcmfw_close,
+	.f_ioctl = &ubtbcmfw_ioctl,
+	.f_open = &ubtbcmfw_open,
+	.f_start_read = &ubtbcmfw_start_read,
+	.f_start_write = &ubtbcmfw_start_write,
+	.f_stop_read = &ubtbcmfw_stop_read,
+	.f_stop_write = &ubtbcmfw_stop_write,
+	.basename[0] = "ubtbcmfw",
+	.basename[1] = "ubtbcmfw",
+	.basename[2] = "ubtbcmfw",
+	.postfix[0] = "",
+	.postfix[1] = ".1",
+	.postfix[2] = ".2",
 };
 
 /*
@@ -155,25 +155,21 @@ static const struct usb_config	ubtbcmfw_config[UBTBCMFW_N_TRANSFER] =
  * Module
  */
 
-static devclass_t	ubtbcmfw_devclass;
+static devclass_t ubtbcmfw_devclass;
 
-static device_method_t	ubtbcmfw_methods[] =
-{
-	DEVMETHOD(device_probe, ubtbcmfw_probe),
+static device_method_t ubtbcmfw_methods[] = { DEVMETHOD(
+						  device_probe, ubtbcmfw_probe),
 	DEVMETHOD(device_attach, ubtbcmfw_attach),
-	DEVMETHOD(device_detach, ubtbcmfw_detach),
-	{0, 0}
-};
+	DEVMETHOD(device_detach, ubtbcmfw_detach), { 0, 0 } };
 
-static driver_t		ubtbcmfw_driver =
-{
-	.name =		"ubtbcmfw",
-	.methods =	ubtbcmfw_methods,
-	.size =		sizeof(struct ubtbcmfw_softc),
+static driver_t ubtbcmfw_driver = {
+	.name = "ubtbcmfw",
+	.methods = ubtbcmfw_methods,
+	.size = sizeof(struct ubtbcmfw_softc),
 };
 
 static const STRUCT_USB_HOST_ID ubtbcmfw_devs[] = {
-/* Broadcom BCM2033 devices only */
+	/* Broadcom BCM2033 devices only */
 	{ USB_VPI(USB_VENDOR_BROADCOM, USB_PRODUCT_BROADCOM_BCM2033, 0) },
 };
 
@@ -188,7 +184,7 @@ USB_PNP_HOST_INFO(ubtbcmfw_devs);
 static int
 ubtbcmfw_probe(device_t dev)
 {
-	struct usb_attach_arg	*uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -196,7 +192,8 @@ ubtbcmfw_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != 0)
 		return (ENXIO);
 
-	return (usbd_lookup_id_by_uaa(ubtbcmfw_devs, sizeof(ubtbcmfw_devs), uaa));
+	return (
+	    usbd_lookup_id_by_uaa(ubtbcmfw_devs, sizeof(ubtbcmfw_devs), uaa));
 } /* ubtbcmfw_probe */
 
 /*
@@ -206,10 +203,10 @@ ubtbcmfw_probe(device_t dev)
 static int
 ubtbcmfw_attach(device_t dev)
 {
-	struct usb_attach_arg	*uaa = device_get_ivars(dev);
-	struct ubtbcmfw_softc	*sc = device_get_softc(dev);
-	uint8_t			iface_index;
-	int			error;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct ubtbcmfw_softc *sc = device_get_softc(dev);
+	uint8_t iface_index;
+	int error;
 
 	sc->sc_udev = uaa->device;
 
@@ -219,31 +216,29 @@ ubtbcmfw_attach(device_t dev)
 
 	iface_index = UBTBCMFW_IFACE_IDX;
 	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
-				ubtbcmfw_config, UBTBCMFW_N_TRANSFER,
-				sc, &sc->sc_mtx);
+	    ubtbcmfw_config, UBTBCMFW_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error != 0) {
 		device_printf(dev, "allocating USB transfers failed. %s\n",
-			usbd_errstr(error));
+		    usbd_errstr(error));
 		goto detach;
 	}
 
 	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
-			&ubtbcmfw_fifo_methods, &sc->sc_fifo,
-			device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
-			UID_ROOT, GID_OPERATOR, 0644);
+	    &ubtbcmfw_fifo_methods, &sc->sc_fifo, device_get_unit(dev), 0 - 1,
+	    uaa->info.bIfaceIndex, UID_ROOT, GID_OPERATOR, 0644);
 	if (error != 0) {
-		device_printf(dev, "could not attach fifo. %s\n",
-			usbd_errstr(error));
+		device_printf(
+		    dev, "could not attach fifo. %s\n", usbd_errstr(error));
 		goto detach;
 	}
 
-	return (0);	/* success */
+	return (0); /* success */
 
 detach:
 	ubtbcmfw_detach(dev);
 
-	return (ENXIO);	/* failure */
-} /* ubtbcmfw_attach */ 
+	return (ENXIO); /* failure */
+} /* ubtbcmfw_attach */
 
 /*
  * Detach the device
@@ -252,7 +247,7 @@ detach:
 static int
 ubtbcmfw_detach(device_t dev)
 {
-	struct ubtbcmfw_softc	*sc = device_get_softc(dev);
+	struct ubtbcmfw_softc *sc = device_get_softc(dev);
 
 	usb_fifo_detach(&sc->sc_fifo);
 
@@ -270,18 +265,18 @@ ubtbcmfw_detach(device_t dev)
 static void
 ubtbcmfw_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ubtbcmfw_softc	*sc = usbd_xfer_softc(xfer);
-	struct usb_fifo	*f = sc->sc_fifo.fp[USB_FIFO_TX];
-	struct usb_page_cache	*pc;
-	uint32_t		actlen;
+	struct ubtbcmfw_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_fifo *f = sc->sc_fifo.fp[USB_FIFO_TX];
+	struct usb_page_cache *pc;
+	uint32_t actlen;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
-setup_next:
+	setup_next:
 		pc = usbd_xfer_get_frame(xfer, 0);
-		if (usb_fifo_get_data(f, pc, 0, usbd_xfer_max_len(xfer),
-			    &actlen, 0)) {
+		if (usb_fifo_get_data(
+			f, pc, 0, usbd_xfer_max_len(xfer), &actlen, 0)) {
 			usbd_xfer_set_frame_len(xfer, 0, actlen);
 			usbd_transfer_submit(xfer);
 		}
@@ -304,10 +299,10 @@ setup_next:
 static void
 ubtbcmfw_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ubtbcmfw_softc	*sc = usbd_xfer_softc(xfer);
-	struct usb_fifo	*fifo = sc->sc_fifo.fp[USB_FIFO_RX];
-	struct usb_page_cache	*pc;
-	int			actlen;
+	struct ubtbcmfw_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_fifo *fifo = sc->sc_fifo.fp[USB_FIFO_RX];
+	struct usb_page_cache *pc;
+	int actlen;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
@@ -318,9 +313,10 @@ ubtbcmfw_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* FALLTHROUGH */
 
 	case USB_ST_SETUP:
-setup_next:
+	setup_next:
 		if (usb_fifo_put_bytes_max(fifo) > 0) {
-			usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+			usbd_xfer_set_frame_len(
+			    xfer, 0, usbd_xfer_max_len(xfer));
 			usbd_transfer_submit(xfer);
 		}
 		break;
@@ -342,7 +338,7 @@ setup_next:
 static void
 ubtbcmfw_start_read(struct usb_fifo *fifo)
 {
-	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
+	struct ubtbcmfw_softc *sc = usb_fifo_softc(fifo);
 
 	usbd_transfer_start(sc->sc_xfer[UBTBCMFW_INTR_DT_RD]);
 } /* ubtbcmfw_start_read */
@@ -354,7 +350,7 @@ ubtbcmfw_start_read(struct usb_fifo *fifo)
 static void
 ubtbcmfw_stop_read(struct usb_fifo *fifo)
 {
-	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
+	struct ubtbcmfw_softc *sc = usb_fifo_softc(fifo);
 
 	usbd_transfer_stop(sc->sc_xfer[UBTBCMFW_INTR_DT_RD]);
 } /* ubtbcmfw_stop_read */
@@ -367,7 +363,7 @@ ubtbcmfw_stop_read(struct usb_fifo *fifo)
 static void
 ubtbcmfw_start_write(struct usb_fifo *fifo)
 {
-	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
+	struct ubtbcmfw_softc *sc = usb_fifo_softc(fifo);
 
 	usbd_transfer_start(sc->sc_xfer[UBTBCMFW_BULK_DT_WR]);
 } /* ubtbcmfw_start_write */
@@ -379,7 +375,7 @@ ubtbcmfw_start_write(struct usb_fifo *fifo)
 static void
 ubtbcmfw_stop_write(struct usb_fifo *fifo)
 {
-	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
+	struct ubtbcmfw_softc *sc = usb_fifo_softc(fifo);
 
 	usbd_transfer_stop(sc->sc_xfer[UBTBCMFW_BULK_DT_WR]);
 } /* ubtbcmfw_stop_write */
@@ -391,8 +387,8 @@ ubtbcmfw_stop_write(struct usb_fifo *fifo)
 static int
 ubtbcmfw_open(struct usb_fifo *fifo, int fflags)
 {
-	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
-	struct usb_xfer	*xfer;
+	struct ubtbcmfw_softc *sc = usb_fifo_softc(fifo);
+	struct usb_xfer *xfer;
 
 	/*
 	 * f_open fifo method can only be called with either FREAD
@@ -404,16 +400,16 @@ ubtbcmfw_open(struct usb_fifo *fifo, int fflags)
 	else if (fflags & FWRITE)
 		xfer = sc->sc_xfer[UBTBCMFW_BULK_DT_WR];
 	else
-		return (EINVAL);	/* should not happen */
+		return (EINVAL); /* should not happen */
 
-	if (usb_fifo_alloc_buffer(fifo, usbd_xfer_max_len(xfer),
-			UBTBCMFW_IFQ_MAXLEN) != 0)
+	if (usb_fifo_alloc_buffer(
+		fifo, usbd_xfer_max_len(xfer), UBTBCMFW_IFQ_MAXLEN) != 0)
 		return (ENOMEM);
 
 	return (0);
 } /* ubtbcmfw_open */
 
-/* 
+/*
  * Called when fifo is closed
  */
 
@@ -429,16 +425,15 @@ ubtbcmfw_close(struct usb_fifo *fifo, int fflags)
  */
 
 static int
-ubtbcmfw_ioctl(struct usb_fifo *fifo, u_long cmd, void *data,
-    int fflags)
+ubtbcmfw_ioctl(struct usb_fifo *fifo, u_long cmd, void *data, int fflags)
 {
-	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
-	int			error = 0;
+	struct ubtbcmfw_softc *sc = usb_fifo_softc(fifo);
+	int error = 0;
 
 	switch (cmd) {
 	case USB_GET_DEVICE_DESC:
 		memcpy(data, usbd_get_device_descriptor(sc->sc_udev),
-			sizeof(struct usb_device_descriptor));
+		    sizeof(struct usb_device_descriptor));
 		break;
 
 	default:

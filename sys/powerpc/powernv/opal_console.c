@@ -25,10 +25,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/endian.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/endian.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -36,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
 #include <sys/tty.h>
 
 #include <vm/vm.h>
@@ -44,12 +44,12 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/uart/uart.h>
-#include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_bus.h>
+#include <dev/uart/uart_cpu.h>
 
 #include "opal.h"
 #include "uart_if.h"
@@ -77,22 +77,20 @@ struct uart_opal_softc {
 #endif
 };
 
-static struct uart_opal_softc	*console_sc = NULL;
+static struct uart_opal_softc *console_sc = NULL;
 static struct consdev *stdout_cp;
 
-enum {
-	OPAL_RAW, OPAL_HVSI
-};
+enum { OPAL_RAW, OPAL_HVSI };
 
-#define VS_DATA_PACKET_HEADER		0xff
-#define VS_CONTROL_PACKET_HEADER	0xfe
-#define  VSV_SET_MODEM_CTL		0x01
-#define  VSV_MODEM_CTL_UPDATE		0x02
-#define  VSV_RENEGOTIATE_CONNECTION	0x03
-#define VS_QUERY_PACKET_HEADER		0xfd
-#define  VSV_SEND_VERSION_NUMBER	0x01
-#define  VSV_SEND_MODEM_CTL_STATUS	0x02
-#define VS_QUERY_RESPONSE_PACKET_HEADER	0xfc
+#define VS_DATA_PACKET_HEADER 0xff
+#define VS_CONTROL_PACKET_HEADER 0xfe
+#define VSV_SET_MODEM_CTL 0x01
+#define VSV_MODEM_CTL_UPDATE 0x02
+#define VSV_RENEGOTIATE_CONNECTION 0x03
+#define VS_QUERY_PACKET_HEADER 0xfd
+#define VSV_SEND_VERSION_NUMBER 0x01
+#define VSV_SEND_MODEM_CTL_STATUS 0x02
+#define VS_QUERY_RESPONSE_PACKET_HEADER 0xfc
 
 static int uart_opal_probe(device_t dev);
 static int uart_opal_attach(device_t dev);
@@ -100,8 +98,8 @@ static void uart_opal_intr(void *v);
 
 static device_method_t uart_opal_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		uart_opal_probe),
-	DEVMETHOD(device_attach,	uart_opal_attach),
+	DEVMETHOD(device_probe, uart_opal_probe),
+	DEVMETHOD(device_attach, uart_opal_attach),
 
 	DEVMETHOD_END
 };
@@ -128,8 +126,8 @@ CONSOLE_DRIVER(uart_opal);
 static void uart_opal_ttyoutwakeup(struct tty *tp);
 
 static struct ttydevsw uart_opal_tty_class = {
-	.tsw_flags	= TF_INITLOCK|TF_CALLOUT,
-	.tsw_outwakeup	= uart_opal_ttyoutwakeup,
+	.tsw_flags = TF_INITLOCK | TF_CALLOUT,
+	.tsw_outwakeup = uart_opal_ttyoutwakeup,
 };
 
 static struct {
@@ -151,10 +149,10 @@ uart_opal_real_map_outbuffer(uint64_t *bufferp, uint64_t *lenp)
 
 	mtx_lock_spin(&opalcons_buffer.mtx);
 
-	opalcons_buffer.size = *(uint64_t *)(*lenp) =
-	    min(sizeof(opalcons_buffer.tmpbuf), *(uint64_t *)(*lenp));
-	memcpy(opalcons_buffer.tmpbuf, (void *)(*bufferp),
-	    *(uint64_t *)(*lenp));
+	opalcons_buffer.size = *(uint64_t *)(*lenp) = min(
+	    sizeof(opalcons_buffer.tmpbuf), *(uint64_t *)(*lenp));
+	memcpy(
+	    opalcons_buffer.tmpbuf, (void *)(*bufferp), *(uint64_t *)(*lenp));
 	*bufferp = (uint64_t)opalcons_buffer.tmpbuf;
 	*lenp = (uint64_t)&opalcons_buffer.size;
 }
@@ -183,7 +181,7 @@ uart_opal_console_write_buffer_space(int vtermid)
 		buffer_space_ptr = (vm_paddr_t)&buffer_space_val;
 
 	if (opal_call(OPAL_CONSOLE_WRITE_BUFFER_SPACE, vtermid,
-	    buffer_space_ptr) != OPAL_SUCCESS)
+		buffer_space_ptr) != OPAL_SUCCESS)
 		return (-1);
 
 	return (be64toh(buffer_space_val));
@@ -264,8 +262,8 @@ uart_opal_cnprobe(struct consdev *cp)
 	sc.node = input;
 	if (uart_opal_probe_node(&sc) != 0)
 		goto fail;
-	mtx_init(&sc.sc_mtx, "uart_opal", NULL, MTX_SPIN | MTX_QUIET |
-	    MTX_NOWITNESS);
+	mtx_init(&sc.sc_mtx, "uart_opal", NULL,
+	    MTX_SPIN | MTX_QUIET | MTX_NOWITNESS);
 
 	cp->cn_pri = CN_NORMAL;
 	console_sc = &sc;
@@ -305,8 +303,8 @@ uart_opal_attach(device_t dev)
 
 	sc->dev = dev;
 	sc->irqrid = 0;
-	sc->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqrid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->irqres = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &sc->irqrid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->irqres != NULL) {
 		bus_setup_intr(dev, sc->irqres, INTR_TYPE_TTY | INTR_MPSAFE,
 		    NULL, uart_opal_intr, sc, &sc->sc_icookie);
@@ -365,7 +363,7 @@ uart_opal_get(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 				uart_unlock(&sc->sc_mtx);
 				return (-1);
 			}
-			hdr = 1; 
+			hdr = 1;
 			sc->inbuflen = be64toh(sc->inbuflen);
 		}
 
@@ -401,8 +399,8 @@ uart_opal_put(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 {
 	uint16_t seqno;
 	uint64_t len;
-	char	cbuf[16];
-	int	err;
+	char cbuf[16];
+	int err;
 	uint64_t olen = (uint64_t)&len;
 	uint64_t obuf = (uint64_t)cbuf;
 
@@ -411,9 +409,9 @@ uart_opal_put(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 		len = bufsize;
 
 		uart_opal_real_map_outbuffer(&obuf, &olen);
-		*(uint64_t*)olen = htobe64(*(uint64_t*)olen);
+		*(uint64_t *)olen = htobe64(*(uint64_t *)olen);
 		err = opal_call(OPAL_CONSOLE_WRITE, sc->vtermid, olen, obuf);
-		*(uint64_t*)olen = be64toh(*(uint64_t*)olen);
+		*(uint64_t *)olen = be64toh(*(uint64_t *)olen);
 		uart_opal_real_unmap_outbuffer(&len);
 	} else {
 		uart_lock(&sc->sc_mtx);
@@ -428,9 +426,9 @@ uart_opal_put(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 		len = 4 + bufsize;
 
 		uart_opal_real_map_outbuffer(&obuf, &olen);
-		*(uint64_t*)olen = htobe64(*(uint64_t*)olen);
+		*(uint64_t *)olen = htobe64(*(uint64_t *)olen);
 		err = opal_call(OPAL_CONSOLE_WRITE, sc->vtermid, olen, obuf);
-		*(uint64_t*)olen = be64toh(*(uint64_t*)olen);
+		*(uint64_t *)olen = be64toh(*(uint64_t *)olen);
 		uart_opal_real_unmap_outbuffer(&len);
 
 		uart_unlock(&sc->sc_mtx);
@@ -441,7 +439,7 @@ uart_opal_put(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 	if (err == OPAL_SUCCESS)
 		return (len);
 	else if (err == OPAL_BUSY_EVENT)
-		return(0);
+		return (0);
 
 	return (-1);
 }
@@ -506,7 +504,8 @@ uart_opal_ttyoutwakeup(struct tty *tp)
 	while ((len = ttydisc_getc(tp, buffer, sizeof(buffer))) != 0) {
 		int bytes_written = 0;
 		while (bytes_written == 0) {
-			buffer_space = uart_opal_console_write_buffer_space(sc->vtermid);
+			buffer_space = uart_opal_console_write_buffer_space(
+			    sc->vtermid);
 			if (buffer_space == -1)
 				/* OPAL failure or invalid terminal */
 				break;
@@ -555,7 +554,7 @@ opalcons_probe(device_t dev)
 	return (BUS_PROBE_SPECIFIC);
 }
 
-static int 
+static int
 opalcons_attach(device_t dev)
 {
 	phandle_t child;
@@ -563,7 +562,7 @@ opalcons_attach(device_t dev)
 	struct ofw_bus_devinfo *dinfo;
 
 	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
-	    child = OF_peer(child)) {
+	     child = OF_peer(child)) {
 		dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
 		if (ofw_bus_gen_setup_devinfo(dinfo, child) != 0) {
 			free(dinfo, M_DEVBUF);
@@ -586,30 +585,26 @@ opalcons_attach(device_t dev)
 static const struct ofw_bus_devinfo *
 opalcons_get_devinfo(device_t dev, device_t child)
 {
-        return (device_get_ivars(child));
+	return (device_get_ivars(child));
 }
 
 static device_method_t opalcons_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		opalcons_probe),
-	DEVMETHOD(device_attach,	opalcons_attach),
+	DEVMETHOD(device_probe, opalcons_probe),
+	DEVMETHOD(device_attach, opalcons_attach),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_devinfo,	opalcons_get_devinfo),
-	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
-	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
-	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
-	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
-	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+	DEVMETHOD(ofw_bus_get_devinfo, opalcons_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat, ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model, ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name, ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node, ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type, ofw_bus_gen_get_type),
 
 	DEVMETHOD_END
 };
 
-static driver_t opalcons_driver = {
-        "opalcons",
-        opalcons_methods,
-        0
-};
+static driver_t opalcons_driver = { "opalcons", opalcons_methods, 0 };
 
 static devclass_t opalcons_devclass;
 

@@ -29,65 +29,61 @@
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/kernel.h>
-#include <sys/pciio.h>
 #include <sys/endian.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/pciio.h>
 #include <sys/rman.h>
 #include <sys/vmem.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_pci.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/ofwpci.h>
-
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/ofwpci.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
-#include "pcib_if.h"
-#include "pic_if.h"
 #include "iommu_if.h"
 #include "opal.h"
+#include "pcib_if.h"
+#include "pic_if.h"
 
-#define	OPAL_PCI_TCE_MAX_ENTRIES	(1024*1024UL)
-#define	OPAL_PCI_TCE_DEFAULT_SEG_SIZE	(16*1024*1024UL)
-#define	OPAL_PCI_TCE_R			(1UL << 0)
-#define	OPAL_PCI_TCE_W			(1UL << 1)
-#define	PHB3_TCE_KILL_INVAL_ALL		(1UL << 63)
+#define OPAL_PCI_TCE_MAX_ENTRIES (1024 * 1024UL)
+#define OPAL_PCI_TCE_DEFAULT_SEG_SIZE (16 * 1024 * 1024UL)
+#define OPAL_PCI_TCE_R (1UL << 0)
+#define OPAL_PCI_TCE_W (1UL << 1)
+#define PHB3_TCE_KILL_INVAL_ALL (1UL << 63)
 
 /*
  * Device interface.
  */
-static int		opalpci_probe(device_t);
-static int		opalpci_attach(device_t);
+static int opalpci_probe(device_t);
+static int opalpci_attach(device_t);
 
 /*
  * pcib interface.
  */
-static uint32_t		opalpci_read_config(device_t, u_int, u_int, u_int,
-			    u_int, int);
-static void		opalpci_write_config(device_t, u_int, u_int, u_int,
-			    u_int, u_int32_t, int);
-static int		opalpci_alloc_msi(device_t dev, device_t child,
-			    int count, int maxcount, int *irqs);
-static int		opalpci_release_msi(device_t dev, device_t child,
-			    int count, int *irqs);
-static int		opalpci_alloc_msix(device_t dev, device_t child,
-			    int *irq);
-static int		opalpci_release_msix(device_t dev, device_t child,
-			    int irq);
-static int		opalpci_map_msi(device_t dev, device_t child,
-			    int irq, uint64_t *addr, uint32_t *data);
+static uint32_t opalpci_read_config(device_t, u_int, u_int, u_int, u_int, int);
+static void opalpci_write_config(
+    device_t, u_int, u_int, u_int, u_int, u_int32_t, int);
+static int opalpci_alloc_msi(
+    device_t dev, device_t child, int count, int maxcount, int *irqs);
+static int opalpci_release_msi(
+    device_t dev, device_t child, int count, int *irqs);
+static int opalpci_alloc_msix(device_t dev, device_t child, int *irq);
+static int opalpci_release_msix(device_t dev, device_t child, int irq);
+static int opalpci_map_msi(
+    device_t dev, device_t child, int irq, uint64_t *addr, uint32_t *data);
 static int opalpci_route_interrupt(device_t bus, device_t dev, int pin);
 
 /*
@@ -102,57 +98,57 @@ static bus_dma_tag_t opalpci_get_dma_tag(device_t dev, device_t child);
 /*
  * Commands
  */
-#define	OPAL_M32_WINDOW_TYPE		1
-#define	OPAL_M64_WINDOW_TYPE		2
-#define	OPAL_IO_WINDOW_TYPE		3
+#define OPAL_M32_WINDOW_TYPE 1
+#define OPAL_M64_WINDOW_TYPE 2
+#define OPAL_IO_WINDOW_TYPE 3
 
-#define	OPAL_RESET_PHB_COMPLETE		1
-#define	OPAL_RESET_PCI_IODA_TABLE	6
+#define OPAL_RESET_PHB_COMPLETE 1
+#define OPAL_RESET_PCI_IODA_TABLE 6
 
-#define	OPAL_DISABLE_M64		0
-#define	OPAL_ENABLE_M64_SPLIT		1
-#define	OPAL_ENABLE_M64_NON_SPLIT	2
+#define OPAL_DISABLE_M64 0
+#define OPAL_ENABLE_M64_SPLIT 1
+#define OPAL_ENABLE_M64_NON_SPLIT 2
 
-#define	OPAL_EEH_ACTION_CLEAR_FREEZE_MMIO	1
-#define	OPAL_EEH_ACTION_CLEAR_FREEZE_DMA	2
-#define	OPAL_EEH_ACTION_CLEAR_FREEZE_ALL	3
+#define OPAL_EEH_ACTION_CLEAR_FREEZE_MMIO 1
+#define OPAL_EEH_ACTION_CLEAR_FREEZE_DMA 2
+#define OPAL_EEH_ACTION_CLEAR_FREEZE_ALL 3
 
-#define	OPAL_EEH_STOPPED_NOT_FROZEN		0
+#define OPAL_EEH_STOPPED_NOT_FROZEN 0
 
 /*
  * Constants
  */
-#define OPAL_PCI_DEFAULT_PE			1
+#define OPAL_PCI_DEFAULT_PE 1
 
-#define OPAL_PCI_BUS_SPACE_LOWADDR_32BIT	0x7FFFFFFFUL
+#define OPAL_PCI_BUS_SPACE_LOWADDR_32BIT 0x7FFFFFFFUL
 
 /*
  * Driver methods.
  */
-static device_method_t	opalpci_methods[] = {
+static device_method_t opalpci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		opalpci_probe),
-	DEVMETHOD(device_attach,	opalpci_attach),
+	DEVMETHOD(device_probe, opalpci_probe),
+	DEVMETHOD(device_attach, opalpci_attach),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_read_config,	opalpci_read_config),
-	DEVMETHOD(pcib_write_config,	opalpci_write_config),
+	DEVMETHOD(pcib_read_config, opalpci_read_config),
+	DEVMETHOD(pcib_write_config, opalpci_write_config),
 
-	DEVMETHOD(pcib_alloc_msi,	opalpci_alloc_msi),
-	DEVMETHOD(pcib_release_msi,	opalpci_release_msi),
-	DEVMETHOD(pcib_alloc_msix,	opalpci_alloc_msix),
-	DEVMETHOD(pcib_release_msix,	opalpci_release_msix),
-	DEVMETHOD(pcib_map_msi,		opalpci_map_msi),
-	DEVMETHOD(pcib_route_interrupt,	opalpci_route_interrupt),
+	DEVMETHOD(pcib_alloc_msi, opalpci_alloc_msi),
+	DEVMETHOD(pcib_release_msi, opalpci_release_msi),
+	DEVMETHOD(pcib_alloc_msix, opalpci_alloc_msix),
+	DEVMETHOD(pcib_release_msix, opalpci_release_msix),
+	DEVMETHOD(pcib_map_msi, opalpci_map_msi),
+	DEVMETHOD(pcib_route_interrupt, opalpci_route_interrupt),
 
 	/* PIC interface for MSIs */
-	DEVMETHOD(pic_enable,		opalpic_pic_enable),
-	DEVMETHOD(pic_eoi,		opalpic_pic_eoi),
+	DEVMETHOD(pic_enable, opalpic_pic_enable),
+	DEVMETHOD(pic_eoi, opalpic_pic_eoi),
 
 	/* Bus interface */
-	DEVMETHOD(bus_get_dma_tag,	opalpci_get_dma_tag),
-	DEVMETHOD(bus_get_cpus,		ofw_pcibus_get_cpus),
-	DEVMETHOD(bus_get_domain,	ofw_pcibus_get_domain),
+	DEVMETHOD(bus_get_dma_tag, opalpci_get_dma_tag),
+	DEVMETHOD(bus_get_cpus, ofw_pcibus_get_cpus),
+	DEVMETHOD(bus_get_domain, ofw_pcibus_get_domain),
 
 	DEVMETHOD_END
 };
@@ -161,34 +157,34 @@ struct opalpci_softc {
 	struct ofw_pci_softc ofw_sc;
 	uint64_t phb_id;
 	vmem_t *msi_vmem;
-	int msi_base;		/* Base XIVE number */
-	int base_msi_irq;	/* Base IRQ assigned by FreeBSD to this PIC */
-	uint64_t *tce;		/* TCE table for 1:1 mapping */
+	int msi_base;	  /* Base XIVE number */
+	int base_msi_irq; /* Base IRQ assigned by FreeBSD to this PIC */
+	uint64_t *tce;	  /* TCE table for 1:1 mapping */
 	struct resource *r_reg;
 };
 
-static devclass_t	opalpci_devclass;
+static devclass_t opalpci_devclass;
 DEFINE_CLASS_1(pcib, opalpci_driver, opalpci_methods,
     sizeof(struct opalpci_softc), ofw_pci_driver);
-EARLY_DRIVER_MODULE(opalpci, ofwbus, opalpci_driver, opalpci_devclass, 0, 0,
-    BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(
+    opalpci, ofwbus, opalpci_driver, opalpci_devclass, 0, 0, BUS_PASS_BUS);
 
 static int
 opalpci_probe(device_t dev)
 {
-	const char	*type;
+	const char *type;
 
 	if (opal_check() != 0)
 		return (ENXIO);
 
 	type = ofw_bus_get_type(dev);
 
-	if (type == NULL || (strcmp(type, "pci") != 0 &&
-	    strcmp(type, "pciex") != 0))
+	if (type == NULL ||
+	    (strcmp(type, "pci") != 0 && strcmp(type, "pciex") != 0))
 		return (ENXIO);
 
 	if (!OF_hasprop(ofw_bus_get_node(dev), "ibm,opal-phbid"))
-		return (ENXIO); 
+		return (ENXIO);
 
 	device_set_desc(dev, "OPAL Host-PCI bridge");
 	return (BUS_PROBE_GENERIC);
@@ -227,9 +223,9 @@ max_tce_size(device_t dev)
 
 	node = ofw_bus_get_node(dev);
 
-	count = OF_getencprop(node, "ibm,supported-tce-sizes",
-	    sizes, sizeof(sizes));
-	if (count < (int) sizeof(cell_t))
+	count = OF_getencprop(
+	    node, "ibm,supported-tce-sizes", sizes, sizeof(sizes));
+	if (count < (int)sizeof(cell_t))
 		return OPAL_PCI_TCE_DEFAULT_SEG_SIZE;
 
 	count /= sizeof(cell_t);
@@ -273,8 +269,8 @@ opalpci_attach(device_t dev)
 		device_printf(dev, "OPAL ID %#lx\n", sc->phb_id);
 
 	rid = 0;
-	sc->r_reg = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE | RF_SHAREABLE);
+	sc->r_reg = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->r_reg == NULL) {
 		device_printf(dev, "Failed to allocate PHB[%jd] registers\n",
 		    (uintmax_t)sc->phb_id);
@@ -322,8 +318,8 @@ opalpci_attach(device_t dev)
 	 * Map all devices on the bus to partitionable endpoint one until
 	 * such time as we start wanting to do things like bhyve.
 	 */
-	err = opal_call(OPAL_PCI_SET_PE, sc->phb_id, OPAL_PCI_DEFAULT_PE,
-	    0, OPAL_PCI_BUS_ANY, OPAL_IGNORE_RID_DEVICE_NUMBER,
+	err = opal_call(OPAL_PCI_SET_PE, sc->phb_id, OPAL_PCI_DEFAULT_PE, 0,
+	    OPAL_PCI_BUS_ANY, OPAL_IGNORE_RID_DEVICE_NUMBER,
 	    OPAL_IGNORE_RID_FUNC_NUMBER, OPAL_MAP_PE);
 	if (err != 0) {
 		device_printf(dev, "PE mapping failed: %d\n", err);
@@ -342,19 +338,19 @@ opalpci_attach(device_t dev)
 			device_printf(dev, "MMIO %d map failed: %d\n", i, err);
 	}
 
-	if (OF_getencprop(node, "ibm,opal-available-m64-ranges",
-	    m64ranges, sizeof(m64ranges)) == sizeof(m64ranges))
+	if (OF_getencprop(node, "ibm,opal-available-m64-ranges", m64ranges,
+		sizeof(m64ranges)) == sizeof(m64ranges))
 		m64bar = m64ranges[0];
 	else
-	    m64bar = 0;
+		m64bar = 0;
 
 	/* XXX: multiple M64 windows? */
-	if (OF_getencprop(node, "ibm,opal-m64-window",
-	    m64window, sizeof(m64window)) == sizeof(m64window)) {
+	if (OF_getencprop(node, "ibm,opal-m64-window", m64window,
+		sizeof(m64window)) == sizeof(m64window)) {
 		opal_call(OPAL_PCI_PHB_MMIO_ENABLE, sc->phb_id,
 		    OPAL_M64_WINDOW_TYPE, m64bar, 0);
 		opal_call(OPAL_PCI_SET_PHB_MEM_WINDOW, sc->phb_id,
-		    OPAL_M64_WINDOW_TYPE, m64bar /* index */, 
+		    OPAL_M64_WINDOW_TYPE, m64bar /* index */,
 		    ((uint64_t)m64window[2] << 32) | m64window[3], 0,
 		    ((uint64_t)m64window[4] << 32) | m64window[5]);
 		opal_call(OPAL_PCI_MAP_PE_MMIO_WINDOW, sc->phb_id,
@@ -376,33 +372,34 @@ opalpci_attach(device_t dev)
 		panic("POWERNV supports only %jdGB of memory space\n",
 		    (uintmax_t)((OPAL_PCI_TCE_MAX_ENTRIES * tce_size) >> 30));
 	if (bootverbose)
-		device_printf(dev, "Mapping 0-%#jx for DMA\n", (uintmax_t)maxmem);
-	sc->tce = contigmalloc(tce_tbl_size,
-	    M_DEVBUF, M_NOWAIT | M_ZERO, 0,
+		device_printf(
+		    dev, "Mapping 0-%#jx for DMA\n", (uintmax_t)maxmem);
+	sc->tce = contigmalloc(tce_tbl_size, M_DEVBUF, M_NOWAIT | M_ZERO, 0,
 	    BUS_SPACE_MAXADDR, tce_tbl_size, 0);
 	if (sc->tce == NULL)
 		panic("Failed to allocate TCE memory for PHB %jd\n",
 		    (uintmax_t)sc->phb_id);
 
 	for (i = 0; i < entries; i++)
-		sc->tce[i] = htobe64((i * tce_size) | OPAL_PCI_TCE_R | OPAL_PCI_TCE_W);
+		sc->tce[i] = htobe64(
+		    (i * tce_size) | OPAL_PCI_TCE_R | OPAL_PCI_TCE_W);
 
 	/* Map TCE for every PE. It seems necessary for Power8 */
 	for (i = 0; i < npe; i++) {
-		err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW, sc->phb_id,
-		    i, (i << 1),
-		    1, pmap_kextract((uint64_t)&sc->tce[0]),
+		err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW, sc->phb_id, i,
+		    (i << 1), 1, pmap_kextract((uint64_t)&sc->tce[0]),
 		    tce_tbl_size, tce_size);
 		if (err != 0) {
-			device_printf(dev, "DMA IOMMU mapping failed: %d\n", err);
+			device_printf(
+			    dev, "DMA IOMMU mapping failed: %d\n", err);
 			return (ENXIO);
 		}
 
-		err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW_REAL, sc->phb_id,
-		    i, (i << 1) + 1,
-		    (1UL << 59), maxmem);
+		err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW_REAL, sc->phb_id, i,
+		    (i << 1) + 1, (1UL << 59), maxmem);
 		if (err != 0) {
-			device_printf(dev, "DMA 64b bypass mapping failed: %d\n", err);
+			device_printf(
+			    dev, "DMA 64b bypass mapping failed: %d\n", err);
 			return (ENXIO);
 		}
 	}
@@ -422,16 +419,16 @@ opalpci_attach(device_t dev)
 	sc->msi_vmem = NULL;
 	if (OF_getproplen(node, "ibm,opal-msi-ranges") > 0) {
 		cell_t msi_ranges[2];
-		OF_getencprop(node, "ibm,opal-msi-ranges",
-		    msi_ranges, sizeof(msi_ranges));
+		OF_getencprop(node, "ibm,opal-msi-ranges", msi_ranges,
+		    sizeof(msi_ranges));
 		sc->msi_base = msi_ranges[0];
 
 		sc->msi_vmem = vmem_create("OPAL MSI", msi_ranges[0],
 		    msi_ranges[1], 1, 0, M_BESTFIT | M_WAITOK);
 
 		sc->base_msi_irq = powerpc_register_pic(dev,
-		    OF_xref_from_node(node),
-		    msi_ranges[0] + msi_ranges[1], 0, FALSE);
+		    OF_xref_from_node(node), msi_ranges[0] + msi_ranges[1], 0,
+		    FALSE);
 
 		if (bootverbose)
 			device_printf(dev, "Supports %d MSIs starting at %d\n",
@@ -445,15 +442,15 @@ opalpci_attach(device_t dev)
 	 */
 	if (ofw_bus_is_compatible(dev, "ibm,ioda2-phb")) {
 		err = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
-		    1, 0,				/* alignment, bounds */
-		    OPAL_PCI_BUS_SPACE_LOWADDR_32BIT,	/* lowaddr */
-		    BUS_SPACE_MAXADDR_32BIT,		/* highaddr */
-		    NULL, NULL,				/* filter, filterarg */
-		    BUS_SPACE_MAXSIZE,			/* maxsize */
-		    BUS_SPACE_UNRESTRICTED,		/* nsegments */
-		    BUS_SPACE_MAXSIZE,			/* maxsegsize */
-		    0,					/* flags */
-		    NULL, NULL,				/* lockfunc, lockarg */
+		    1, 0,			      /* alignment, bounds */
+		    OPAL_PCI_BUS_SPACE_LOWADDR_32BIT, /* lowaddr */
+		    BUS_SPACE_MAXADDR_32BIT,	      /* highaddr */
+		    NULL, NULL,			      /* filter, filterarg */
+		    BUS_SPACE_MAXSIZE,		      /* maxsize */
+		    BUS_SPACE_UNRESTRICTED,	      /* nsegments */
+		    BUS_SPACE_MAXSIZE,		      /* maxsegsize */
+		    0,				      /* flags */
+		    NULL, NULL,			      /* lockfunc, lockarg */
 		    &sc->ofw_sc.sc_dmat);
 		if (err != 0) {
 			device_printf(dev, "Failed to create DMA tag\n");
@@ -478,30 +475,30 @@ opalpci_attach(device_t dev)
 	/*
 	 * OPAL stores 64-bit BARs in a special property rather than "ranges"
 	 */
-	if (OF_getencprop(node, "ibm,opal-m64-window",
-	    m64window, sizeof(m64window)) == sizeof(m64window)) {
+	if (OF_getencprop(node, "ibm,opal-m64-window", m64window,
+		sizeof(m64window)) == sizeof(m64window)) {
 		struct ofw_pci_range *rp;
 
 		sc->ofw_sc.sc_nrange++;
 		sc->ofw_sc.sc_range = realloc(sc->ofw_sc.sc_range,
 		    sc->ofw_sc.sc_nrange * sizeof(sc->ofw_sc.sc_range[0]),
 		    M_DEVBUF, M_WAITOK);
-		rp = &sc->ofw_sc.sc_range[sc->ofw_sc.sc_nrange-1];
+		rp = &sc->ofw_sc.sc_range[sc->ofw_sc.sc_nrange - 1];
 		rp->pci_hi = OFW_PCI_PHYS_HI_SPACE_MEM64 |
 		    OFW_PCI_PHYS_HI_PREFETCHABLE;
 		rp->pci = ((uint64_t)m64window[0] << 32) | m64window[1];
 		rp->host = ((uint64_t)m64window[2] << 32) | m64window[3];
 		rp->size = ((uint64_t)m64window[4] << 32) | m64window[5];
-		rman_manage_region(&sc->ofw_sc.sc_mem_rman, rp->pci,
-		   rp->pci + rp->size - 1);
+		rman_manage_region(
+		    &sc->ofw_sc.sc_mem_rman, rp->pci, rp->pci + rp->size - 1);
 	}
 
 	return (ofw_pci_attach(dev));
 }
 
 static uint32_t
-opalpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
-    int width)
+opalpci_read_config(
+    device_t dev, u_int bus, u_int slot, u_int func, u_int reg, int width)
 {
 	struct opalpci_softc *sc;
 	uint64_t config_addr;
@@ -542,16 +539,15 @@ opalpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	 * the host bridge hang up. Clear any errors.
 	 */
 
-	if (error != OPAL_SUCCESS ||
-	    (word == ((1UL << (8 * width)) - 1))) {
+	if (error != OPAL_SUCCESS || (word == ((1UL << (8 * width)) - 1))) {
 		if (error != OPAL_HARDWARE) {
 			opal_call(OPAL_PCI_EEH_FREEZE_STATUS, sc->phb_id,
 			    OPAL_PCI_DEFAULT_PE, vtophys(&eeh_state),
 			    vtophys(&err_type), NULL);
 			err_type = be16toh(err_type); /* XXX unused */
 			if (eeh_state != OPAL_EEH_STOPPED_NOT_FROZEN)
-				opal_call(OPAL_PCI_EEH_FREEZE_CLEAR,
-				    sc->phb_id, OPAL_PCI_DEFAULT_PE,
+				opal_call(OPAL_PCI_EEH_FREEZE_CLEAR, sc->phb_id,
+				    OPAL_PCI_DEFAULT_PE,
 				    OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 		}
 		if (error != OPAL_SUCCESS)
@@ -562,8 +558,8 @@ opalpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 }
 
 static void
-opalpci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
-    u_int reg, uint32_t val, int width)
+opalpci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
+    uint32_t val, int width)
 {
 	struct opalpci_softc *sc;
 	uint64_t config_addr;
@@ -594,8 +590,8 @@ opalpci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 		 * the host bridge hang up. Clear any errors.
 		 */
 		if (error != OPAL_HARDWARE) {
-			opal_call(OPAL_PCI_EEH_FREEZE_CLEAR,
-			    sc->phb_id, OPAL_PCI_DEFAULT_PE,
+			opal_call(OPAL_PCI_EEH_FREEZE_CLEAR, sc->phb_id,
+			    OPAL_PCI_DEFAULT_PE,
 			    OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 		}
 	}
@@ -609,8 +605,8 @@ opalpci_route_interrupt(device_t bus, device_t dev, int pin)
 }
 
 static int
-opalpci_alloc_msi(device_t dev, device_t child, int count, int maxcount,
-    int *irqs)
+opalpci_alloc_msi(
+    device_t dev, device_t child, int count, int maxcount, int *irqs)
 {
 	struct opalpci_softc *sc;
 	vmem_addr_t start;
@@ -660,8 +656,8 @@ opalpci_release_msix(device_t dev, device_t child, int irq)
 }
 
 static int
-opalpci_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
-    uint32_t *data)
+opalpci_map_msi(
+    device_t dev, device_t child, int irq, uint64_t *addr, uint32_t *data)
 {
 	struct opalpci_softc *sc;
 	struct pci_devinfo *dinfo;
@@ -704,7 +700,8 @@ opalpic_pic_enable(device_t dev, u_int irq, u_int vector, void **priv)
 	opal_call(OPAL_PCI_MSI_EOI, sc->phb_id, irq, priv);
 }
 
-static void opalpic_pic_eoi(device_t dev, u_int irq, void *priv)
+static void
+opalpic_pic_eoi(device_t dev, u_int irq, void *priv)
 {
 	struct opalpci_softc *sc;
 

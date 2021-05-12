@@ -46,19 +46,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
-#include <sys/kernel.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <net/vnet.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/netisr.h>
-
+#include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
@@ -81,8 +79,8 @@ __FBSDID("$FreeBSD$");
 /*
  * Allocate enough space to hold a full IP packet
  */
-#define	DIVSNDQ		(65536 + 100)
-#define	DIVRCVQ		(65536 + 100)
+#define DIVSNDQ (65536 + 100)
+#define DIVRCVQ (65536 + 100)
 
 /*
  * Divert sockets work in conjunction with ipfw or other packet filters,
@@ -114,16 +112,16 @@ __FBSDID("$FreeBSD$");
 VNET_DEFINE_STATIC(struct inpcbhead, divcb);
 VNET_DEFINE_STATIC(struct inpcbinfo, divcbinfo);
 
-#define	V_divcb				VNET(divcb)
-#define	V_divcbinfo			VNET(divcbinfo)
+#define V_divcb VNET(divcb)
+#define V_divcbinfo VNET(divcbinfo)
 
-static u_long	div_sendspace = DIVSNDQ;	/* XXX sysctl ? */
-static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
+static u_long div_sendspace = DIVSNDQ; /* XXX sysctl ? */
+static u_long div_recvspace = DIVRCVQ; /* XXX sysctl ? */
 
 static eventhandler_tag ip_divert_event_tag;
 
-static int div_output_inbound(int fmaily, struct socket *so, struct mbuf *m,
-    struct sockaddr_in *sin);
+static int div_output_inbound(
+    int fmaily, struct socket *so, struct mbuf *m, struct sockaddr_in *sin);
 static int div_output_outbound(int family, struct socket *so, struct mbuf *m);
 
 /*
@@ -164,8 +162,8 @@ div_destroy(void *unused __unused)
 
 	in_pcbinfo_destroy(&V_divcbinfo);
 }
-VNET_SYSUNINIT(divert, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY,
-    div_destroy, NULL);
+VNET_SYSUNINIT(
+    divert, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, div_destroy, NULL);
 
 /*
  * IPPROTO_DIVERT is not in the real IP protocol number space; this
@@ -231,7 +229,7 @@ divert_packet(struct mbuf *m, bool incoming)
 	divsrc.sin_len = sizeof(divsrc);
 	divsrc.sin_family = AF_INET;
 	/* record matching rule, in host format */
-	divsrc.sin_port = ((struct ipfw_rule_ref *)(mtag+1))->rulenum;
+	divsrc.sin_port = ((struct ipfw_rule_ref *)(mtag + 1))->rulenum;
 	/*
 	 * Record receive interface address, if any.
 	 * But only for incoming packets.
@@ -245,11 +243,12 @@ divert_packet(struct mbuf *m, bool incoming)
 
 		/* Find IP address for receive interface */
 		ifp = m->m_pkthdr.rcvif;
-		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		{
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			divsrc.sin_addr =
-			    ((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
+			    ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
 			break;
 		}
 	}
@@ -281,8 +280,9 @@ divert_packet(struct mbuf *m, bool incoming)
 
 	/* Put packet on socket queue, if any */
 	sa = NULL;
-	nport = htons((u_int16_t)(((struct ipfw_rule_ref *)(mtag+1))->info));
-	CK_LIST_FOREACH(inp, &V_divcb, inp_list) {
+	nport = htons((u_int16_t)(((struct ipfw_rule_ref *)(mtag + 1))->info));
+	CK_LIST_FOREACH(inp, &V_divcb, inp_list)
+	{
 		/* XXX why does only one socket match? */
 		if (inp->inp_lport == nport) {
 			INP_RLOCK(inp);
@@ -293,10 +293,10 @@ divert_packet(struct mbuf *m, bool incoming)
 			sa = inp->inp_socket;
 			SOCKBUF_LOCK(&sa->so_rcv);
 			if (sbappendaddr_locked(&sa->so_rcv,
-			    (struct sockaddr *)&divsrc, m,
-			    (struct mbuf *)0) == 0) {
+				(struct sockaddr *)&divsrc, m,
+				(struct mbuf *)0) == 0) {
 				SOCKBUF_UNLOCK(&sa->so_rcv);
-				sa = NULL;	/* force mbuf reclaim below */
+				sa = NULL; /* force mbuf reclaim below */
 			} else
 				sorwakeup_locked(sa);
 			INP_RUNLOCK(inp);
@@ -307,7 +307,7 @@ divert_packet(struct mbuf *m, bool incoming)
 		m_freem(m);
 		KMOD_IPSTAT_INC(ips_noproto);
 		KMOD_IPSTAT_DEC(ips_delivered);
-        }
+	}
 }
 
 /*
@@ -328,7 +328,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 	int error, family;
 
 	if (control) {
-		m_freem(control);		/* XXX */
+		m_freem(control); /* XXX */
 		control = NULL;
 	}
 
@@ -362,7 +362,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		}
 		m_tag_prepend(m, mtag);
 	}
-	dt = (struct ipfw_rule_ref *)(mtag+1);
+	dt = (struct ipfw_rule_ref *)(mtag + 1);
 
 	/* Loopback avoidance and state recovery */
 	if (sin) {
@@ -374,7 +374,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		 */
 		dt->slot = 1; /* dummy, chain_id is invalid */
 		dt->chain_id = 0;
-		dt->rulenum = sin->sin_port+1; /* host format ? */
+		dt->rulenum = sin->sin_port + 1; /* host format ? */
 		dt->rule_id = 0;
 		/* XXX: broken for IPv6 */
 		/*
@@ -385,7 +385,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		 */
 		for (i = 0; i < sizeof(sin->sin_zero) && sin->sin_zero[i]; i++)
 			;
-		if ( i > 0 && i < sizeof(sin->sin_zero))
+		if (i > 0 && i < sizeof(sin->sin_zero))
 			m->m_pkthdr.rcvif = ifunit(sin->sin_zero);
 	}
 
@@ -441,7 +441,7 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 		 * will crash.
 		 */
 		if ((((ip->ip_hl << 2) != sizeof(struct ip)) &&
-		    inp->inp_options != NULL) ||
+			inp->inp_options != NULL) ||
 		    ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
@@ -449,8 +449,7 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 		}
 		break;
 #ifdef INET6
-	case AF_INET6:
-	    {
+	case AF_INET6: {
 		struct ip6_hdr *const ip6 = mtod(m, struct ip6_hdr *);
 
 		/* Don't allow packet length sizes that will crash */
@@ -460,12 +459,12 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 			return (EINVAL);
 		}
 		break;
-	    }
+	}
 #endif
 	}
 
 	/* Send packet to output processing */
-	KMOD_IPSTAT_INC(ips_rawout);		/* XXX */
+	KMOD_IPSTAT_INC(ips_rawout); /* XXX */
 
 #ifdef MAC
 	mac_inpcb_create_mbuf(inp, m);
@@ -506,8 +505,9 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 	switch (family) {
 	case AF_INET:
 		error = ip_output(m, options, NULL,
-		    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0)
-		    | IP_ALLOWBROADCAST | IP_RAWOUTPUT, NULL, NULL);
+		    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0) |
+			IP_ALLOWBROADCAST | IP_RAWOUTPUT,
+		    NULL, NULL);
 		break;
 #ifdef INET6
 	case AF_INET6:
@@ -527,8 +527,8 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
  * Returns 0 on success or an errno value on failure.  @m is always consumed.
  */
 static int
-div_output_inbound(int family, struct socket *so, struct mbuf *m,
-    struct sockaddr_in *sin)
+div_output_inbound(
+    int family, struct socket *so, struct mbuf *m, struct sockaddr_in *sin)
 {
 	const struct ip *ip;
 	struct ifaddr *ifa;
@@ -543,7 +543,7 @@ div_output_inbound(int family, struct socket *so, struct mbuf *m,
 		/* XXX: broken for IPv6 */
 		bzero(sin->sin_zero, sizeof(sin->sin_zero));
 		sin->sin_port = 0;
-		ifa = ifa_ifwithaddr((struct sockaddr *) sin);
+		ifa = ifa_ifwithaddr((struct sockaddr *)sin);
 		if (ifa == NULL) {
 			m_freem(m);
 			return (EADDRNOTAVAIL);
@@ -586,7 +586,7 @@ div_attach(struct socket *so, int proto, struct thread *td)
 	struct inpcb *inp;
 	int error;
 
-	inp  = sotoinpcb(so);
+	inp = sotoinpcb(so);
 	KASSERT(inp == NULL, ("div_attach: inp != NULL"));
 	if (td != NULL) {
 		error = priv_check(td, PRIV_NETINET_DIVERT);
@@ -674,8 +674,8 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 {
 
 	/* Packet must have a header (but that's about it) */
-	if (m->m_len < sizeof (struct ip) &&
-	    (m = m_pullup(m, sizeof (struct ip))) == NULL) {
+	if (m->m_len < sizeof(struct ip) &&
+	    (m = m_pullup(m, sizeof(struct ip))) == NULL) {
 		KMOD_IPSTAT_INC(ips_toosmall);
 		if (control != NULL)
 			m_freem(control);
@@ -690,17 +690,16 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 static void
 div_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
-        struct in_addr faddr;
+	struct in_addr faddr;
 
 	faddr = ((struct sockaddr_in *)sa)->sin_addr;
 	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
-        	return;
+		return;
 	if (PRC_IS_REDIRECT(cmd))
 		return;
 }
 
-static int
-div_pcblist(SYSCTL_HANDLER_ARGS)
+static int div_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	struct xinpgen xig;
 	struct epoch_tracker et;
@@ -732,9 +731,8 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 		return error;
 
 	NET_EPOCH_ENTER(et);
-	for (inp = CK_LIST_FIRST(V_divcbinfo.ipi_listhead);
-	    inp != NULL;
-	    inp = CK_LIST_NEXT(inp, inp_list)) {
+	for (inp = CK_LIST_FIRST(V_divcbinfo.ipi_listhead); inp != NULL;
+	     inp = CK_LIST_NEXT(inp, inp_list)) {
 		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= xig.xig_gen) {
 			struct xinpcb xi;
@@ -766,36 +764,30 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 
 #ifdef SYSCTL_NODE
 static SYSCTL_NODE(_net_inet, IPPROTO_DIVERT, divert,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "IPDIVERT");
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "IPDIVERT");
 SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist,
-   CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, 0, div_pcblist, "S,xinpcb",
-    "List of active divert sockets");
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0, div_pcblist,
+    "S,xinpcb", "List of active divert sockets");
 #endif
 
-struct pr_usrreqs div_usrreqs = {
-	.pru_attach =		div_attach,
-	.pru_bind =		div_bind,
-	.pru_control =		in_control,
-	.pru_detach =		div_detach,
-	.pru_peeraddr =		in_getpeeraddr,
-	.pru_send =		div_send,
-	.pru_shutdown =		div_shutdown,
-	.pru_sockaddr =		in_getsockaddr,
-	.pru_sosetlabel =	in_pcbsosetlabel
-};
+struct pr_usrreqs div_usrreqs = { .pru_attach = div_attach,
+	.pru_bind = div_bind,
+	.pru_control = in_control,
+	.pru_detach = div_detach,
+	.pru_peeraddr = in_getpeeraddr,
+	.pru_send = div_send,
+	.pru_shutdown = div_shutdown,
+	.pru_sockaddr = in_getsockaddr,
+	.pru_sosetlabel = in_pcbsosetlabel };
 
-struct protosw div_protosw = {
-	.pr_type =		SOCK_RAW,
-	.pr_protocol =		IPPROTO_DIVERT,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		div_input,
-	.pr_ctlinput =		div_ctlinput,
-	.pr_ctloutput =		ip_ctloutput,
-	.pr_init =		div_init,
-	.pr_usrreqs =		&div_usrreqs
-};
+struct protosw div_protosw = { .pr_type = SOCK_RAW,
+	.pr_protocol = IPPROTO_DIVERT,
+	.pr_flags = PR_ATOMIC | PR_ADDR,
+	.pr_input = div_input,
+	.pr_ctlinput = div_ctlinput,
+	.pr_ctloutput = ip_ctloutput,
+	.pr_init = div_init,
+	.pr_usrreqs = &div_usrreqs };
 
 static int
 div_modevent(module_t mod, int type, void *unused)
@@ -857,11 +849,7 @@ div_modevent(module_t mod, int type, void *unused)
 	return err;
 }
 
-static moduledata_t ipdivertmod = {
-        "ipdivert",
-        div_modevent,
-        0
-};
+static moduledata_t ipdivertmod = { "ipdivert", div_modevent, 0 };
 
 DECLARE_MODULE(ipdivert, ipdivertmod, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY);
 MODULE_DEPEND(ipdivert, ipfw, 3, 3, 3);

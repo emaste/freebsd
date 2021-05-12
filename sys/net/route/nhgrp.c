@@ -33,32 +33,30 @@
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/rmlock.h>
-#include <sys/rwlock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/refcount.h>
+#include <sys/rmlock.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/kernel.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
+#include <net/if_var.h>
 #include <net/route.h>
+#include <net/route/nhgrp_var.h>
+#include <net/route/nhop.h>
+#include <net/route/nhop_utils.h>
+#include <net/route/nhop_var.h>
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
-#include <netinet/in_var.h>
 #include <netinet/in_fib.h>
-
-#include <net/route/nhop_utils.h>
-#include <net/route/nhop.h>
-#include <net/route/nhop_var.h>
-#include <net/route/nhgrp_var.h>
+#include <netinet/in_var.h>
 
 /*
  * This file contains data structures management logic for the nexthop
@@ -82,8 +80,8 @@
  *
  */
 
-static void consider_resize(struct nh_control *ctl, uint32_t new_gr_buckets,
-    uint32_t new_idx_items);
+static void consider_resize(
+    struct nh_control *ctl, uint32_t new_gr_buckets, uint32_t new_idx_items);
 
 static int cmp_nhgrp(const struct nhgrp_priv *a, const struct nhgrp_priv *b);
 static unsigned int hash_nhgrp(const struct nhgrp_priv *obj);
@@ -126,7 +124,8 @@ hash_nhgrp(const struct nhgrp_priv *obj)
 
 	key = (const unsigned char *)obj->nhg_nh_weights;
 
-	return (djb_hash(key, sizeof(struct weightened_nhop) * obj->nhg_nh_count));
+	return (
+	    djb_hash(key, sizeof(struct weightened_nhop) * obj->nhg_nh_count));
 }
 
 /*
@@ -140,7 +139,8 @@ find_nhgrp(struct nh_control *ctl, const struct nhgrp_priv *key)
 	NHOPS_RLOCK(ctl);
 	CHT_SLIST_FIND_BYOBJ(&ctl->gr_head, mpath, key, priv_ret);
 	if (priv_ret != NULL) {
-		if (refcount_acquire_if_not_zero(&priv_ret->nhg_refcount) == 0) {
+		if (refcount_acquire_if_not_zero(&priv_ret->nhg_refcount) ==
+		    0) {
 			/* refcount is 0 -> group is being deleted */
 			priv_ret = NULL;
 		}
@@ -210,13 +210,14 @@ unlink_nhgrp(struct nh_control *ctl, struct nhgrp_priv *key)
  *
  */
 static void
-consider_resize(struct nh_control *ctl, uint32_t new_gr_bucket, uint32_t new_idx_items)
+consider_resize(
+    struct nh_control *ctl, uint32_t new_gr_bucket, uint32_t new_idx_items)
 {
 	void *gr_ptr, *gr_idx_ptr;
 	void *old_idx_ptr;
 	size_t alloc_size;
 
-	gr_ptr = NULL ;
+	gr_ptr = NULL;
 	if (new_gr_bucket != 0) {
 		alloc_size = CHT_SLIST_GET_RESIZE_SIZE(new_gr_bucket);
 		gr_ptr = malloc(alloc_size, M_NHOP, M_NOWAIT | M_ZERO);
@@ -243,8 +244,10 @@ consider_resize(struct nh_control *ctl, uint32_t new_gr_bucket, uint32_t new_idx
 		CHT_SLIST_RESIZE(&ctl->gr_head, mpath, gr_ptr, new_gr_bucket);
 	}
 	if (gr_idx_ptr != NULL) {
-		if (bitmask_copy(&ctl->gr_idx_head, gr_idx_ptr, new_idx_items) == 0)
-			bitmask_swap(&ctl->gr_idx_head, gr_idx_ptr, new_idx_items, &old_idx_ptr);
+		if (bitmask_copy(
+			&ctl->gr_idx_head, gr_idx_ptr, new_idx_items) == 0)
+			bitmask_swap(&ctl->gr_idx_head, gr_idx_ptr,
+			    new_idx_items, &old_idx_ptr);
 	}
 	NHOPS_WUNLOCK(ctl);
 
@@ -336,9 +339,10 @@ nhgrp_ctl_unlink_all(struct nh_control *ctl)
 
 	NHOPS_WLOCK_ASSERT(ctl);
 
-	CHT_SLIST_FOREACH(&ctl->gr_head, mpath, nhg_priv) {
+	CHT_SLIST_FOREACH(&ctl->gr_head, mpath, nhg_priv)
+	{
 		DPRINTF("Marking nhgrp %u unlinked", nhg_priv->nhg_idx);
 		refcount_release(&nhg_priv->nhg_linked);
-	} CHT_SLIST_FOREACH_END;
+	}
+	CHT_SLIST_FOREACH_END;
 }
-

@@ -27,22 +27,21 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/syscallsubr.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
-
-#include <contrib/cloudabi/cloudabi64_types.h>
 
 #include <compat/cloudabi64/cloudabi64_proto.h>
 #include <compat/cloudabi64/cloudabi64_util.h>
+#include <contrib/cloudabi/cloudabi64_types.h>
 
 /* Copies in 64-bit iovec structures from userspace. */
 static int
-cloudabi64_copyinuio(const cloudabi64_iovec_t *iovp, size_t iovcnt,
-    struct uio **uiop)
+cloudabi64_copyinuio(
+    const cloudabi64_iovec_t *iovp, size_t iovcnt, struct uio **uiop)
 {
 	cloudabi64_iovec_t iovobj;
 	struct uio *uio;
@@ -53,8 +52,8 @@ cloudabi64_copyinuio(const cloudabi64_iovec_t *iovp, size_t iovcnt,
 	/* Allocate uio and iovecs. */
 	if (iovcnt > UIO_MAXIOV)
 		return (EINVAL);
-	uio = malloc(sizeof(struct uio) + iovcnt * sizeof(struct iovec),
-	    M_IOV, M_WAITOK);
+	uio = malloc(sizeof(struct uio) + iovcnt * sizeof(struct iovec), M_IOV,
+	    M_WAITOK);
 	iov = (struct iovec *)(uio + 1);
 
 	/* Initialize uio. */
@@ -85,8 +84,8 @@ cloudabi64_copyinuio(const cloudabi64_iovec_t *iovp, size_t iovcnt,
 }
 
 int
-cloudabi64_sys_fd_pread(struct thread *td,
-    struct cloudabi64_sys_fd_pread_args *uap)
+cloudabi64_sys_fd_pread(
+    struct thread *td, struct cloudabi64_sys_fd_pread_args *uap)
 {
 	struct uio *uio;
 	int error;
@@ -100,8 +99,8 @@ cloudabi64_sys_fd_pread(struct thread *td,
 }
 
 int
-cloudabi64_sys_fd_pwrite(struct thread *td,
-    struct cloudabi64_sys_fd_pwrite_args *uap)
+cloudabi64_sys_fd_pwrite(
+    struct thread *td, struct cloudabi64_sys_fd_pwrite_args *uap)
 {
 	struct uio *uio;
 	int error;
@@ -115,8 +114,8 @@ cloudabi64_sys_fd_pwrite(struct thread *td,
 }
 
 int
-cloudabi64_sys_fd_read(struct thread *td,
-    struct cloudabi64_sys_fd_read_args *uap)
+cloudabi64_sys_fd_read(
+    struct thread *td, struct cloudabi64_sys_fd_read_args *uap)
 {
 	struct uio *uio;
 	int error;
@@ -130,8 +129,8 @@ cloudabi64_sys_fd_read(struct thread *td,
 }
 
 int
-cloudabi64_sys_fd_write(struct thread *td,
-    struct cloudabi64_sys_fd_write_args *uap)
+cloudabi64_sys_fd_write(
+    struct thread *td, struct cloudabi64_sys_fd_write_args *uap)
 {
 	struct uio *uio;
 	int error;

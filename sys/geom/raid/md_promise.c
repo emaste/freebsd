@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
@@ -39,121 +40,123 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include "geom/raid/g_raid.h"
+
 #include "g_raid_md_if.h"
+#include "geom/raid/g_raid.h"
 
-static MALLOC_DEFINE(M_MD_PROMISE, "md_promise_data", "GEOM_RAID Promise metadata");
+static MALLOC_DEFINE(
+    M_MD_PROMISE, "md_promise_data", "GEOM_RAID Promise metadata");
 
-#define	PROMISE_MAX_DISKS	8
-#define	PROMISE_MAX_SUBDISKS	2
-#define	PROMISE_META_OFFSET	14
+#define PROMISE_MAX_DISKS 8
+#define PROMISE_MAX_SUBDISKS 2
+#define PROMISE_META_OFFSET 14
 
 struct promise_raid_disk {
-	uint8_t		flags;			/* Subdisk status. */
-#define PROMISE_F_VALID		0x01
-#define PROMISE_F_ONLINE	0x02
-#define PROMISE_F_ASSIGNED	0x04
-#define PROMISE_F_SPARE		0x08
-#define PROMISE_F_DUPLICATE	0x10
-#define PROMISE_F_REDIR		0x20
-#define PROMISE_F_DOWN		0x40
-#define PROMISE_F_READY		0x80
+	uint8_t flags; /* Subdisk status. */
+#define PROMISE_F_VALID 0x01
+#define PROMISE_F_ONLINE 0x02
+#define PROMISE_F_ASSIGNED 0x04
+#define PROMISE_F_SPARE 0x08
+#define PROMISE_F_DUPLICATE 0x10
+#define PROMISE_F_REDIR 0x20
+#define PROMISE_F_DOWN 0x40
+#define PROMISE_F_READY 0x80
 
-	uint8_t		number;			/* Position in a volume. */
-	uint8_t		channel;		/* ATA channel number. */
-	uint8_t		device;			/* ATA device number. */
-	uint64_t	id __packed;		/* Subdisk ID. */
+	uint8_t number;	      /* Position in a volume. */
+	uint8_t channel;      /* ATA channel number. */
+	uint8_t device;	      /* ATA device number. */
+	uint64_t id __packed; /* Subdisk ID. */
 } __packed;
 
 struct promise_raid_conf {
-	char		promise_id[24];
-#define PROMISE_MAGIC		"Promise Technology, Inc."
-#define FREEBSD_MAGIC		"FreeBSD ATA driver RAID "
+	char promise_id[24];
+#define PROMISE_MAGIC "Promise Technology, Inc."
+#define FREEBSD_MAGIC "FreeBSD ATA driver RAID "
 
-	uint32_t	dummy_0;
-	uint64_t	magic_0;
-#define PROMISE_MAGIC0(x)	(((uint64_t)(x.channel) << 48) | \
-				((uint64_t)(x.device != 0) << 56))
-	uint16_t	magic_1;
-	uint32_t	magic_2;
-	uint8_t		filler1[470];
+	uint32_t dummy_0;
+	uint64_t magic_0;
+#define PROMISE_MAGIC0(x) \
+	(((uint64_t)(x.channel) << 48) | ((uint64_t)(x.device != 0) << 56))
+	uint16_t magic_1;
+	uint32_t magic_2;
+	uint8_t filler1[470];
 
-	uint32_t	integrity;
-#define PROMISE_I_VALID		0x00000080
+	uint32_t integrity;
+#define PROMISE_I_VALID 0x00000080
 
-	struct promise_raid_disk	disk;	/* This subdisk info. */
-	uint32_t	disk_offset;		/* Subdisk offset. */
-	uint32_t	disk_sectors;		/* Subdisk size */
-	uint32_t	disk_rebuild;		/* Rebuild position. */
-	uint16_t	generation;		/* Generation number. */
-	uint8_t		status;			/* Volume status. */
-#define PROMISE_S_VALID		0x01
-#define PROMISE_S_ONLINE	0x02
-#define PROMISE_S_INITED	0x04
-#define PROMISE_S_READY		0x08
-#define PROMISE_S_DEGRADED	0x10
-#define PROMISE_S_MARKED	0x20
-#define PROMISE_S_MIGRATING	0x40
-#define PROMISE_S_FUNCTIONAL	0x80
+	struct promise_raid_disk disk; /* This subdisk info. */
+	uint32_t disk_offset;	       /* Subdisk offset. */
+	uint32_t disk_sectors;	       /* Subdisk size */
+	uint32_t disk_rebuild;	       /* Rebuild position. */
+	uint16_t generation;	       /* Generation number. */
+	uint8_t status;		       /* Volume status. */
+#define PROMISE_S_VALID 0x01
+#define PROMISE_S_ONLINE 0x02
+#define PROMISE_S_INITED 0x04
+#define PROMISE_S_READY 0x08
+#define PROMISE_S_DEGRADED 0x10
+#define PROMISE_S_MARKED 0x20
+#define PROMISE_S_MIGRATING 0x40
+#define PROMISE_S_FUNCTIONAL 0x80
 
-	uint8_t		type;			/* Voluem type. */
-#define PROMISE_T_RAID0		0x00
-#define PROMISE_T_RAID1		0x01
-#define PROMISE_T_RAID3		0x02
-#define PROMISE_T_RAID5		0x04
-#define PROMISE_T_SPAN		0x08
-#define PROMISE_T_JBOD		0x10
+	uint8_t type; /* Voluem type. */
+#define PROMISE_T_RAID0 0x00
+#define PROMISE_T_RAID1 0x01
+#define PROMISE_T_RAID3 0x02
+#define PROMISE_T_RAID5 0x04
+#define PROMISE_T_SPAN 0x08
+#define PROMISE_T_JBOD 0x10
 
-	uint8_t		total_disks;		/* Disks in this volume. */
-	uint8_t		stripe_shift;		/* Strip size. */
-	uint8_t		array_width;		/* Number of RAID0 stripes. */
-	uint8_t		array_number;		/* Global volume number. */
-	uint32_t	total_sectors;		/* Volume size. */
-	uint16_t	cylinders;		/* Volume geometry: C. */
-	uint8_t		heads;			/* Volume geometry: H. */
-	uint8_t		sectors;		/* Volume geometry: S. */
-	uint64_t	volume_id __packed;	/* Volume ID, */
-	struct promise_raid_disk	disks[PROMISE_MAX_DISKS];
-						/* Subdisks in this volume. */
-	char		name[32];		/* Volume label. */
+	uint8_t total_disks;	     /* Disks in this volume. */
+	uint8_t stripe_shift;	     /* Strip size. */
+	uint8_t array_width;	     /* Number of RAID0 stripes. */
+	uint8_t array_number;	     /* Global volume number. */
+	uint32_t total_sectors;	     /* Volume size. */
+	uint16_t cylinders;	     /* Volume geometry: C. */
+	uint8_t heads;		     /* Volume geometry: H. */
+	uint8_t sectors;	     /* Volume geometry: S. */
+	uint64_t volume_id __packed; /* Volume ID, */
+	struct promise_raid_disk disks[PROMISE_MAX_DISKS];
+	/* Subdisks in this volume. */
+	char name[32]; /* Volume label. */
 
-	uint32_t	filler2[8];
-	uint32_t	magic_3;	/* Something related to rebuild. */
-	uint64_t	rebuild_lba64;	/* Per-volume rebuild position. */
-	uint32_t	magic_4;
-	uint32_t	magic_5;
-	uint32_t	total_sectors_high;
-	uint8_t		magic_6;
-	uint8_t		sector_size;
-	uint16_t	magic_7;
-	uint32_t	magic_8[31];
-	uint32_t	backup_time;
-	uint16_t	magic_9;
-	uint32_t	disk_offset_high;
-	uint32_t	disk_sectors_high;
-	uint32_t	disk_rebuild_high;
-	uint16_t	magic_10;
-	uint32_t	magic_11[3];
-	uint32_t	filler3[284];
-	uint32_t	checksum;
+	uint32_t filler2[8];
+	uint32_t magic_3;	/* Something related to rebuild. */
+	uint64_t rebuild_lba64; /* Per-volume rebuild position. */
+	uint32_t magic_4;
+	uint32_t magic_5;
+	uint32_t total_sectors_high;
+	uint8_t magic_6;
+	uint8_t sector_size;
+	uint16_t magic_7;
+	uint32_t magic_8[31];
+	uint32_t backup_time;
+	uint16_t magic_9;
+	uint32_t disk_offset_high;
+	uint32_t disk_sectors_high;
+	uint32_t disk_rebuild_high;
+	uint16_t magic_10;
+	uint32_t magic_11[3];
+	uint32_t filler3[284];
+	uint32_t checksum;
 } __packed;
 
 struct g_raid_md_promise_perdisk {
-	int		 pd_updated;
-	int		 pd_subdisks;
-	struct promise_raid_conf	*pd_meta[PROMISE_MAX_SUBDISKS];
+	int pd_updated;
+	int pd_subdisks;
+	struct promise_raid_conf *pd_meta[PROMISE_MAX_SUBDISKS];
 };
 
 struct g_raid_md_promise_pervolume {
-	struct promise_raid_conf	*pv_meta;
-	uint64_t			 pv_id;
-	uint16_t			 pv_generation;
-	int				 pv_disks_present;
-	int				 pv_started;
-	struct callout			 pv_start_co;	/* STARTING state timer. */
+	struct promise_raid_conf *pv_meta;
+	uint64_t pv_id;
+	uint16_t pv_generation;
+	int pv_disks_present;
+	int pv_started;
+	struct callout pv_start_co; /* STARTING state timer. */
 };
 
 static g_raid_md_create_t g_raid_md_create_promise;
@@ -168,26 +171,21 @@ static g_raid_md_free_volume_t g_raid_md_free_volume_promise;
 static g_raid_md_free_t g_raid_md_free_promise;
 
 static kobj_method_t g_raid_md_promise_methods[] = {
-	KOBJMETHOD(g_raid_md_create,	g_raid_md_create_promise),
-	KOBJMETHOD(g_raid_md_taste,	g_raid_md_taste_promise),
-	KOBJMETHOD(g_raid_md_event,	g_raid_md_event_promise),
-	KOBJMETHOD(g_raid_md_volume_event,	g_raid_md_volume_event_promise),
-	KOBJMETHOD(g_raid_md_ctl,	g_raid_md_ctl_promise),
-	KOBJMETHOD(g_raid_md_write,	g_raid_md_write_promise),
-	KOBJMETHOD(g_raid_md_fail_disk,	g_raid_md_fail_disk_promise),
-	KOBJMETHOD(g_raid_md_free_disk,	g_raid_md_free_disk_promise),
-	KOBJMETHOD(g_raid_md_free_volume,	g_raid_md_free_volume_promise),
-	KOBJMETHOD(g_raid_md_free,	g_raid_md_free_promise),
-	{ 0, 0 }
+	KOBJMETHOD(g_raid_md_create, g_raid_md_create_promise),
+	KOBJMETHOD(g_raid_md_taste, g_raid_md_taste_promise),
+	KOBJMETHOD(g_raid_md_event, g_raid_md_event_promise),
+	KOBJMETHOD(g_raid_md_volume_event, g_raid_md_volume_event_promise),
+	KOBJMETHOD(g_raid_md_ctl, g_raid_md_ctl_promise),
+	KOBJMETHOD(g_raid_md_write, g_raid_md_write_promise),
+	KOBJMETHOD(g_raid_md_fail_disk, g_raid_md_fail_disk_promise),
+	KOBJMETHOD(g_raid_md_free_disk, g_raid_md_free_disk_promise),
+	KOBJMETHOD(g_raid_md_free_volume, g_raid_md_free_volume_promise),
+	KOBJMETHOD(g_raid_md_free, g_raid_md_free_promise), { 0, 0 }
 };
 
-static struct g_raid_md_class g_raid_md_promise_class = {
-	"Promise",
-	g_raid_md_promise_methods,
-	sizeof(struct g_raid_md_object),
-	.mdc_enable = 1,
-	.mdc_priority = 100
-};
+static struct g_raid_md_class g_raid_md_promise_class = { "Promise",
+	g_raid_md_promise_methods, sizeof(struct g_raid_md_object),
+	.mdc_enable = 1, .mdc_priority = 100 };
 
 static void
 g_raid_md_promise_print(struct promise_raid_conf *meta)
@@ -218,7 +216,7 @@ g_raid_md_promise_print(struct promise_raid_conf *meta)
 	printf("sectors             %u\n", meta->sectors);
 	printf("volume_id           0x%016jx\n", meta->volume_id);
 	printf("disks:\n");
-	for (i = 0; i < PROMISE_MAX_DISKS; i++ ) {
+	for (i = 0; i < PROMISE_MAX_DISKS; i++) {
 		printf("                    %02x %02x %02x %02x %016jx\n",
 		    meta->disks[i].flags, meta->disks[i].number,
 		    meta->disks[i].channel, meta->disks[i].device,
@@ -287,9 +285,9 @@ promise_meta_unused_range(struct promise_raid_conf **metaarr, int nsd,
 		if (i >= nsd)
 			break;
 		coff = ((off_t)metaarr[i]->disk_offset_high << 32) +
-		     metaarr[i]->disk_offset +
+		    metaarr[i]->disk_offset +
 		    ((off_t)metaarr[i]->disk_sectors_high << 32) +
-		     metaarr[i]->disk_sectors;
+		    metaarr[i]->disk_sectors;
 		csize = sectors - coff;
 		i++;
 	}
@@ -350,8 +348,9 @@ promise_meta_read(struct g_consumer *cp, struct promise_raid_conf **metaarr)
 	}
 next:
 	/* Read metadata block. */
-	buf = g_read_data(cp, pp->mediasize - pp->sectorsize *
-	    (63 - subdisks * PROMISE_META_OFFSET),
+	buf = g_read_data(cp,
+	    pp->mediasize -
+		pp->sectorsize * (63 - subdisks * PROMISE_META_OFFSET),
 	    pp->sectorsize * 4, &error);
 	if (buf == NULL) {
 		G_RAID_DEBUG(1, "Cannot read metadata from %s (error=%d).",
@@ -364,8 +363,8 @@ next:
 	if (strncmp(meta->promise_id, PROMISE_MAGIC, strlen(PROMISE_MAGIC)) &&
 	    strncmp(meta->promise_id, FREEBSD_MAGIC, strlen(FREEBSD_MAGIC))) {
 		if (subdisks == 0)
-			G_RAID_DEBUG(1,
-			    "Promise signature check failed on %s", pp->name);
+			G_RAID_DEBUG(1, "Promise signature check failed on %s",
+			    pp->name);
 		g_free(buf);
 		return (subdisks);
 	}
@@ -377,7 +376,8 @@ next:
 	for (checksum = 0, ptr = (uint32_t *)meta, i = 0; i < 511; i++)
 		checksum += *ptr++;
 	if (checksum != meta->checksum) {
-		G_RAID_DEBUG(1, "Promise checksum check failed on %s", pp->name);
+		G_RAID_DEBUG(
+		    1, "Promise checksum check failed on %s", pp->name);
 		free(meta, M_MD_PROMISE);
 		return (subdisks);
 	}
@@ -389,8 +389,8 @@ next:
 	}
 
 	if (meta->total_disks > PROMISE_MAX_DISKS) {
-		G_RAID_DEBUG(1, "Wrong number of disks on %s (%d)",
-		    pp->name, meta->total_disks);
+		G_RAID_DEBUG(1, "Wrong number of disks on %s (%d)", pp->name,
+		    meta->total_disks);
 		free(meta, M_MD_PROMISE);
 		return (subdisks);
 	}
@@ -426,8 +426,8 @@ next:
 }
 
 static int
-promise_meta_write(struct g_consumer *cp,
-    struct promise_raid_conf **metaarr, int nsd)
+promise_meta_write(
+    struct g_consumer *cp, struct promise_raid_conf **metaarr, int nsd)
 {
 	struct g_provider *pp;
 	struct promise_raid_conf *meta;
@@ -444,9 +444,10 @@ next:
 	meta = NULL;
 	if (subdisk < nsd) {
 		meta = metaarr[subdisk];
-	} else if (!fake && promise_meta_unused_range(metaarr, nsd,
-	    cp->provider->mediasize / cp->provider->sectorsize,
-	    &off, &size)) {
+	} else if (!fake &&
+	    promise_meta_unused_range(metaarr, nsd,
+		cp->provider->mediasize / cp->provider->sectorsize, &off,
+		&size)) {
 		/* Optionally add record for unused space. */
 		meta = (struct promise_raid_conf *)buf;
 		memcpy(&meta->promise_id[0], PROMISE_MAGIC,
@@ -472,8 +473,9 @@ next:
 		meta->checksum = checksum;
 		memcpy(buf, meta, MIN(pp->sectorsize * 4, sizeof(*meta)));
 	}
-	error = g_write_data(cp, pp->mediasize - pp->sectorsize *
-	    (63 - subdisk * PROMISE_META_OFFSET),
+	error = g_write_data(cp,
+	    pp->mediasize -
+		pp->sectorsize * (63 - subdisk * PROMISE_META_OFFSET),
 	    buf, pp->sectorsize * 4);
 	if (error != 0) {
 		G_RAID_DEBUG(1, "Cannot write metadata to %s (error=%d).",
@@ -498,12 +500,14 @@ promise_meta_erase(struct g_consumer *cp)
 	pp = cp->provider;
 	buf = malloc(4 * pp->sectorsize, M_MD_PROMISE, M_WAITOK | M_ZERO);
 	for (subdisk = 0; subdisk < PROMISE_MAX_SUBDISKS; subdisk++) {
-		error = g_write_data(cp, pp->mediasize - pp->sectorsize *
-		    (63 - subdisk * PROMISE_META_OFFSET),
+		error = g_write_data(cp,
+		    pp->mediasize -
+			pp->sectorsize * (63 - subdisk * PROMISE_META_OFFSET),
 		    buf, 4 * pp->sectorsize);
 		if (error != 0) {
-			G_RAID_DEBUG(1, "Cannot erase metadata on %s (error=%d).",
-			    pp->name, error);
+			G_RAID_DEBUG(1,
+			    "Cannot erase metadata on %s (error=%d).", pp->name,
+			    error);
 		}
 	}
 	free(buf, M_MD_PROMISE);
@@ -537,10 +541,10 @@ promise_meta_write_spare(struct g_consumer *cp)
 static struct g_raid_volume *
 g_raid_md_promise_get_volume(struct g_raid_softc *sc, uint64_t id)
 {
-	struct g_raid_volume	*vol;
+	struct g_raid_volume *vol;
 	struct g_raid_md_promise_pervolume *pv;
 
-	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+	TAILQ_FOREACH (vol, &sc->sc_volumes, v_next) {
 		pv = vol->v_md_data;
 		if (pv->pv_id == id)
 			break;
@@ -551,17 +555,18 @@ g_raid_md_promise_get_volume(struct g_raid_softc *sc, uint64_t id)
 static int
 g_raid_md_promise_purge_volumes(struct g_raid_softc *sc)
 {
-	struct g_raid_volume	*vol, *tvol;
+	struct g_raid_volume *vol, *tvol;
 	struct g_raid_md_promise_pervolume *pv;
 	int i, res;
 
 	res = 0;
-	TAILQ_FOREACH_SAFE(vol, &sc->sc_volumes, v_next, tvol) {
+	TAILQ_FOREACH_SAFE (vol, &sc->sc_volumes, v_next, tvol) {
 		pv = vol->v_md_data;
 		if (!pv->pv_started || vol->v_stopping)
 			continue;
 		for (i = 0; i < vol->v_disks_count; i++) {
-			if (vol->v_subdisks[i].sd_state != G_RAID_SUBDISK_S_NONE)
+			if (vol->v_subdisks[i].sd_state !=
+			    G_RAID_SUBDISK_S_NONE)
 				break;
 		}
 		if (i >= vol->v_disks_count) {
@@ -575,21 +580,21 @@ g_raid_md_promise_purge_volumes(struct g_raid_softc *sc)
 static int
 g_raid_md_promise_purge_disks(struct g_raid_softc *sc)
 {
-	struct g_raid_disk	*disk, *tdisk;
-	struct g_raid_volume	*vol;
+	struct g_raid_disk *disk, *tdisk;
+	struct g_raid_volume *vol;
 	struct g_raid_md_promise_perdisk *pd;
 	int i, j, res;
 
 	res = 0;
-	TAILQ_FOREACH_SAFE(disk, &sc->sc_disks, d_next, tdisk) {
+	TAILQ_FOREACH_SAFE (disk, &sc->sc_disks, d_next, tdisk) {
 		if (disk->d_state == G_RAID_DISK_S_SPARE)
 			continue;
 		pd = (struct g_raid_md_promise_perdisk *)disk->d_md_data;
 
 		/* Scan for deleted volumes. */
-		for (i = 0; i < pd->pd_subdisks; ) {
-			vol = g_raid_md_promise_get_volume(sc,
-			    pd->pd_meta[i]->volume_id);
+		for (i = 0; i < pd->pd_subdisks;) {
+			vol = g_raid_md_promise_get_volume(
+			    sc, pd->pd_meta[i]->volume_id);
 			if (vol != NULL && !vol->v_stopping) {
 				i++;
 				continue;
@@ -662,8 +667,8 @@ g_raid_md_promise_supported(int level, int qual, int disks, int force)
 }
 
 static int
-g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn,
-    struct g_raid_volume *vol)
+g_raid_md_promise_start_disk(
+    struct g_raid_disk *disk, int sdn, struct g_raid_volume *vol)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_subdisk *sd;
@@ -681,7 +686,8 @@ g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn,
 
 	if (sdn >= 0) {
 		/* Find disk position in metadata by its serial. */
-		md_disk_pos = promise_meta_find_disk(meta, pd->pd_meta[sdn]->disk.id);
+		md_disk_pos = promise_meta_find_disk(
+		    meta, pd->pd_meta[sdn]->disk.id);
 		/* For RAID0+1 we need to translate order. */
 		disk_pos = promise_meta_translate_disk(vol, md_disk_pos);
 	} else {
@@ -692,9 +698,9 @@ g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn,
 		G_RAID_DEBUG1(1, sc, "Disk %s is not part of the volume %s",
 		    g_raid_get_diskname(disk), vol->v_name);
 		/* Failed stale disk is useless for us. */
-		if (sdn >= 0 &&
-		    pd->pd_meta[sdn]->disk.flags & PROMISE_F_DOWN) {
-			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE_FAILED);
+		if (sdn >= 0 && pd->pd_meta[sdn]->disk.flags & PROMISE_F_DOWN) {
+			g_raid_change_disk_state(
+			    disk, G_RAID_DISK_S_STALE_FAILED);
 			return (0);
 		}
 		/* If we were given specific metadata subdisk - erase it. */
@@ -714,7 +720,7 @@ g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn,
 		 */
 		promise_meta_unused_range(pd->pd_meta, pd->pd_subdisks,
 		    disk->d_consumer->provider->mediasize /
-		    disk->d_consumer->provider->sectorsize,
+			disk->d_consumer->provider->sectorsize,
 		    &eoff, &esize);
 		if (esize == 0) {
 			G_RAID_DEBUG1(1, sc, "No free space on disk %s",
@@ -728,28 +734,30 @@ g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn,
 				size = sd->sd_size;
 			if (sd->sd_state <= G_RAID_SUBDISK_S_FAILED &&
 			    (disk_pos < 0 ||
-			     vol->v_subdisks[i].sd_state < sd->sd_state))
+				vol->v_subdisks[i].sd_state < sd->sd_state))
 				disk_pos = i;
 		}
 		if (disk_pos >= 0 &&
 		    vol->v_raid_level != G_RAID_VOLUME_RL_CONCAT &&
 		    (off_t)esize * 512 < size) {
-			G_RAID_DEBUG1(1, sc, "Disk %s free space "
+			G_RAID_DEBUG1(1, sc,
+			    "Disk %s free space "
 			    "is too small (%ju < %ju)",
-			    g_raid_get_diskname(disk),
-			    (off_t)esize * 512, size);
+			    g_raid_get_diskname(disk), (off_t)esize * 512,
+			    size);
 			disk_pos = -1;
 		}
 		if (disk_pos >= 0) {
 			if (vol->v_raid_level != G_RAID_VOLUME_RL_CONCAT)
 				esize = size / 512;
 			/* For RAID0+1 we need to translate order. */
-			md_disk_pos = promise_meta_translate_disk(vol, disk_pos);
+			md_disk_pos = promise_meta_translate_disk(
+			    vol, disk_pos);
 		} else {
-nofit:
+		nofit:
 			if (pd->pd_subdisks == 0) {
-				g_raid_change_disk_state(disk,
-				    G_RAID_DISK_S_SPARE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_SPARE);
 			}
 			return (0);
 		}
@@ -761,10 +769,9 @@ nofit:
 	sd = &vol->v_subdisks[disk_pos];
 
 	if (resurrection && sd->sd_disk != NULL) {
-		g_raid_change_disk_state(sd->sd_disk,
-		    G_RAID_DISK_S_STALE_FAILED);
-		TAILQ_REMOVE(&sd->sd_disk->d_subdisks,
-		    sd, sd_next);
+		g_raid_change_disk_state(
+		    sd->sd_disk, G_RAID_DISK_S_STALE_FAILED);
+		TAILQ_REMOVE(&sd->sd_disk->d_subdisks, sd, sd_next);
 	}
 	vol->v_subdisks[disk_pos].sd_disk = disk;
 	TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
@@ -782,46 +789,45 @@ nofit:
 		sd->sd_size = (off_t)esize * 512;
 	} else {
 		sd->sd_offset = (((off_t)pd->pd_meta[sdn]->disk_offset_high
-		    << 32) + pd->pd_meta[sdn]->disk_offset) * 512;
+				     << 32) +
+				    pd->pd_meta[sdn]->disk_offset) *
+		    512;
 		sd->sd_size = (((off_t)pd->pd_meta[sdn]->disk_sectors_high
-		    << 32) + pd->pd_meta[sdn]->disk_sectors) * 512;
+				   << 32) +
+				  pd->pd_meta[sdn]->disk_sectors) *
+		    512;
 	}
 
 	if (resurrection) {
 		/* Stale disk, almost same as new. */
-		g_raid_change_subdisk_state(sd,
-		    G_RAID_SUBDISK_S_NEW);
+		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NEW);
 	} else if (meta->disks[md_disk_pos].flags & PROMISE_F_DOWN) {
 		/* Failed disk. */
-		g_raid_change_subdisk_state(sd,
-		    G_RAID_SUBDISK_S_FAILED);
+		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_FAILED);
 	} else if (meta->disks[md_disk_pos].flags & PROMISE_F_REDIR) {
 		/* Rebuilding disk. */
-		g_raid_change_subdisk_state(sd,
-		    G_RAID_SUBDISK_S_REBUILD);
+		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_REBUILD);
 		if (pd->pd_meta[sdn]->generation != meta->generation)
 			sd->sd_rebuild_pos = 0;
 		else {
 			sd->sd_rebuild_pos =
-			    (((off_t)pd->pd_meta[sdn]->disk_rebuild_high << 32) +
-			     pd->pd_meta[sdn]->disk_rebuild) * 512;
+			    (((off_t)pd->pd_meta[sdn]->disk_rebuild_high
+				 << 32) +
+				pd->pd_meta[sdn]->disk_rebuild) *
+			    512;
 		}
 	} else if (!(meta->disks[md_disk_pos].flags & PROMISE_F_ONLINE)) {
 		/* Rebuilding disk. */
-		g_raid_change_subdisk_state(sd,
-		    G_RAID_SUBDISK_S_NEW);
+		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NEW);
 	} else if (pd->pd_meta[sdn]->generation != meta->generation ||
 	    (meta->status & PROMISE_S_MARKED)) {
 		/* Stale disk or dirty volume (unclean shutdown). */
-		g_raid_change_subdisk_state(sd,
-		    G_RAID_SUBDISK_S_STALE);
+		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_STALE);
 	} else {
 		/* Up to date disk. */
-		g_raid_change_subdisk_state(sd,
-		    G_RAID_SUBDISK_S_ACTIVE);
+		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
 	}
-	g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
-	    G_RAID_EVENT_SUBDISK);
+	g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW, G_RAID_EVENT_SUBDISK);
 
 	return (resurrection);
 }
@@ -840,7 +846,7 @@ g_raid_md_promise_refill(struct g_raid_softc *sc)
 	md = sc->sc_md;
 restart:
 	updated = 0;
-	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+	TAILQ_FOREACH (vol, &sc->sc_volumes, v_next) {
 		pv = vol->v_md_data;
 		if (!pv->pv_started || vol->v_stopping)
 			continue;
@@ -851,15 +857,17 @@ restart:
 			sd = &vol->v_subdisks[i];
 			if (sd->sd_state == G_RAID_SUBDISK_S_NONE ||
 			    sd->sd_state == G_RAID_SUBDISK_S_FAILED)
-			        bad = 1;
+				bad = 1;
 		}
 		if (!bad)
 			continue;
 
-		G_RAID_DEBUG1(1, sc, "Volume %s is not complete, "
-		    "trying to refill.", vol->v_name);
+		G_RAID_DEBUG1(1, sc,
+		    "Volume %s is not complete, "
+		    "trying to refill.",
+		    vol->v_name);
 
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			/* Skip failed. */
 			if (disk->d_state < G_RAID_DISK_S_SPARE)
 				continue;
@@ -875,8 +883,8 @@ restart:
 			/* Try to use disk if it has empty extents. */
 			pd = disk->d_md_data;
 			if (pd->pd_subdisks < PROMISE_MAX_SUBDISKS) {
-				update =
-				    g_raid_md_promise_start_disk(disk, -1, vol);
+				update = g_raid_md_promise_start_disk(
+				    disk, -1, vol);
 			} else
 				update = 0;
 			if (update) {
@@ -926,24 +934,26 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 		vol->v_raid_level = G_RAID_VOLUME_RL_SINGLE;
 	else
 		vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
-	vol->v_strip_size = 512 << meta->stripe_shift; //ZZZ
+	vol->v_strip_size = 512 << meta->stripe_shift; // ZZZ
 	vol->v_disks_count = meta->total_disks;
-	vol->v_mediasize = (off_t)meta->total_sectors * 512; //ZZZ
+	vol->v_mediasize = (off_t)meta->total_sectors * 512; // ZZZ
 	if (meta->total_sectors_high < 256) /* If value looks sane. */
-		vol->v_mediasize +=
-		    ((off_t)meta->total_sectors_high << 32) * 512; //ZZZ
+		vol->v_mediasize += ((off_t)meta->total_sectors_high << 32) *
+		    512; // ZZZ
 	vol->v_sectorsize = 512 * meta->sector_size;
 	for (i = 0; i < vol->v_disks_count; i++) {
 		sd = &vol->v_subdisks[i];
 		sd->sd_offset = (((off_t)meta->disk_offset_high << 32) +
-		    meta->disk_offset) * 512;
+				    meta->disk_offset) *
+		    512;
 		sd->sd_size = (((off_t)meta->disk_sectors_high << 32) +
-		    meta->disk_sectors) * 512;
+				  meta->disk_sectors) *
+		    512;
 	}
 	g_raid_start_volume(vol);
 
 	/* Make all disks found till the moment take their places. */
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 		pd = disk->d_md_data;
 		for (i = 0; i < pd->pd_subdisks; i++) {
 			if (pd->pd_meta[i]->volume_id == meta->volume_id)
@@ -974,8 +984,8 @@ g_raid_promise_go(void *arg)
 	sc = vol->v_softc;
 	if (!pv->pv_started) {
 		G_RAID_DEBUG1(0, sc, "Force volume start due to timeout.");
-		g_raid_event_send(vol, G_RAID_VOLUME_E_STARTMD,
-		    G_RAID_EVENT_VOLUME);
+		g_raid_event_send(
+		    vol, G_RAID_VOLUME_E_STARTMD, G_RAID_EVENT_VOLUME);
 	}
 }
 
@@ -1008,21 +1018,23 @@ g_raid_md_promise_new_disk(struct g_raid_disk *disk)
 		vol = g_raid_md_promise_get_volume(sc, pdmeta->volume_id);
 		if (vol == NULL) {
 			promise_meta_get_name(pdmeta, buf);
-			vol = g_raid_create_volume(sc, buf, pdmeta->array_number);
-			pv = malloc(sizeof(*pv), M_MD_PROMISE, M_WAITOK | M_ZERO);
+			vol = g_raid_create_volume(
+			    sc, buf, pdmeta->array_number);
+			pv = malloc(
+			    sizeof(*pv), M_MD_PROMISE, M_WAITOK | M_ZERO);
 			pv->pv_id = pdmeta->volume_id;
 			vol->v_md_data = pv;
 			callout_init(&pv->pv_start_co, 1);
 			callout_reset(&pv->pv_start_co,
-			    g_raid_start_timeout * hz,
-			    g_raid_promise_go, vol);
+			    g_raid_start_timeout * hz, g_raid_promise_go, vol);
 		} else
 			pv = vol->v_md_data;
 
 		/* If we haven't started yet - check metadata freshness. */
 		if (pv->pv_meta == NULL || !pv->pv_started) {
 			if (pv->pv_meta == NULL ||
-			    ((int16_t)(pdmeta->generation - pv->pv_generation)) > 0) {
+			    ((int16_t)(
+				pdmeta->generation - pv->pv_generation)) > 0) {
 				G_RAID_DEBUG1(1, sc, "Newer disk");
 				if (pv->pv_meta != NULL)
 					free(pv->pv_meta, M_MD_PROMISE);
@@ -1031,7 +1043,8 @@ g_raid_md_promise_new_disk(struct g_raid_disk *disk)
 				pv->pv_disks_present = 1;
 			} else if (pdmeta->generation == pv->pv_generation) {
 				pv->pv_disks_present++;
-				G_RAID_DEBUG1(1, sc, "Matching disk (%d of %d up)",
+				G_RAID_DEBUG1(1, sc,
+				    "Matching disk (%d of %d up)",
 				    pv->pv_disks_present,
 				    pv->pv_meta->total_disks);
 			} else {
@@ -1061,14 +1074,14 @@ g_raid_md_promise_new_disk(struct g_raid_disk *disk)
 }
 
 static int
-g_raid_md_create_promise(struct g_raid_md_object *md, struct g_class *mp,
-    struct g_geom **gp)
+g_raid_md_create_promise(
+    struct g_raid_md_object *md, struct g_class *mp, struct g_geom **gp)
 {
 	struct g_geom *geom;
 	struct g_raid_softc *sc;
 
 	/* Search for existing node. */
-	LIST_FOREACH(geom, &mp->geom, geom) {
+	LIST_FOREACH (geom, &mp->geom, geom) {
 		sc = geom->softc;
 		if (sc == NULL)
 			continue;
@@ -1094,7 +1107,7 @@ g_raid_md_create_promise(struct g_raid_md_object *md, struct g_class *mp,
 
 static int
 g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
-                              struct g_consumer *cp, struct g_geom **gp)
+    struct g_consumer *cp, struct g_geom **gp)
 {
 	struct g_consumer *rcp;
 	struct g_provider *pp;
@@ -1121,8 +1134,8 @@ g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
 	if (subdisks == 0) {
 		if (g_raid_aggressive_spare) {
 			if (vendor == 0x105a || vendor == 0x1002) {
-				G_RAID_DEBUG(1,
-				    "No Promise metadata, forcing spare.");
+				G_RAID_DEBUG(
+				    1, "No Promise metadata, forcing spare.");
 				goto search;
 			} else {
 				G_RAID_DEBUG(1,
@@ -1139,7 +1152,7 @@ g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
 		g_raid_md_promise_print(metaarr[i]);
 
 	/* Purge meaningless (empty/spare) records. */
-	for (i = 0; i < subdisks; ) {
+	for (i = 0; i < subdisks;) {
 		if (metaarr[i]->disk.flags & PROMISE_F_ASSIGNED) {
 			i++;
 			continue;
@@ -1154,7 +1167,7 @@ g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
 search:
 	/* Search for matching node. */
 	sc = NULL;
-	LIST_FOREACH(geom, &mp->geom, geom) {
+	LIST_FOREACH (geom, &mp->geom, geom) {
 		sc = geom->softc;
 		if (sc == NULL)
 			continue;
@@ -1185,7 +1198,7 @@ search:
 	rcp->flags |= G_CF_DIRECT_RECEIVE;
 	g_attach(rcp, pp);
 	if (g_access(rcp, 1, 1, 1) != 0)
-		; //goto fail1;
+		; // goto fail1;
 
 	g_topology_unlock();
 	sx_xlock(&sc->sc_lock);
@@ -1210,8 +1223,8 @@ search:
 }
 
 static int
-g_raid_md_event_promise(struct g_raid_md_object *md,
-    struct g_raid_disk *disk, u_int event)
+g_raid_md_event_promise(
+    struct g_raid_md_object *md, struct g_raid_disk *disk, u_int event)
 {
 	struct g_raid_softc *sc;
 
@@ -1239,8 +1252,8 @@ g_raid_md_event_promise(struct g_raid_md_object *md,
 }
 
 static int
-g_raid_md_volume_event_promise(struct g_raid_md_object *md,
-    struct g_raid_volume *vol, u_int event)
+g_raid_md_volume_event_promise(
+    struct g_raid_md_object *md, struct g_raid_volume *vol, u_int event)
 {
 	struct g_raid_md_promise_pervolume *pv;
 
@@ -1255,8 +1268,7 @@ g_raid_md_volume_event_promise(struct g_raid_md_object *md,
 }
 
 static int
-g_raid_md_ctl_promise(struct g_raid_md_object *md,
-    struct gctl_req *req)
+g_raid_md_ctl_promise(struct g_raid_md_object *md, struct gctl_req *req)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol, *vol1;
@@ -1302,9 +1314,10 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 		}
 		numdisks = *nargs - 3;
 		force = gctl_get_paraml(req, "force", sizeof(*force));
-		if (!g_raid_md_promise_supported(level, qual, numdisks,
-		    force ? *force : 0)) {
-			gctl_error(req, "Unsupported RAID level "
+		if (!g_raid_md_promise_supported(
+			level, qual, numdisks, force ? *force : 0)) {
+			gctl_error(req,
+			    "Unsupported RAID level "
 			    "(0x%02x/0x%02x), or number of disks (%d).",
 			    level, qual, numdisks);
 			return (-5);
@@ -1326,24 +1339,28 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			if (strcmp(diskname, "NONE") == 0)
 				continue;
 
-			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-				if (disk->d_consumer != NULL && 
+			TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
+				if (disk->d_consumer != NULL &&
 				    disk->d_consumer->provider != NULL &&
 				    strcmp(disk->d_consumer->provider->name,
-				     diskname) == 0)
+					diskname) == 0)
 					break;
 			}
 			if (disk != NULL) {
 				if (disk->d_state != G_RAID_DISK_S_ACTIVE) {
-					gctl_error(req, "Disk '%s' is in a "
-					    "wrong state (%s).", diskname,
-					    g_raid_disk_state2str(disk->d_state));
+					gctl_error(req,
+					    "Disk '%s' is in a "
+					    "wrong state (%s).",
+					    diskname,
+					    g_raid_disk_state2str(
+						disk->d_state));
 					error = -7;
 					break;
 				}
 				pd = disk->d_md_data;
 				if (pd->pd_subdisks >= PROMISE_MAX_SUBDISKS) {
-					gctl_error(req, "Disk '%s' already "
+					gctl_error(req,
+					    "Disk '%s' already "
 					    "used by %d volumes.",
 					    diskname, pd->pd_subdisks);
 					error = -7;
@@ -1353,8 +1370,8 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 				disks[i] = disk;
 				promise_meta_unused_range(pd->pd_meta,
 				    pd->pd_subdisks,
-				    pp->mediasize / pp->sectorsize,
-				    &offs[i], &esize);
+				    pp->mediasize / pp->sectorsize, &offs[i],
+				    &esize);
 				size = MIN(size, (off_t)esize * pp->sectorsize);
 				sectorsize = MAX(sectorsize, pp->sectorsize);
 				continue;
@@ -1363,14 +1380,15 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			g_topology_lock();
 			cp = g_raid_open_consumer(sc, diskname);
 			if (cp == NULL) {
-				gctl_error(req, "Can't open disk '%s'.",
-				    diskname);
+				gctl_error(
+				    req, "Can't open disk '%s'.", diskname);
 				g_topology_unlock();
 				error = -8;
 				break;
 			}
 			pp = cp->provider;
-			pd = malloc(sizeof(*pd), M_MD_PROMISE, M_WAITOK | M_ZERO);
+			pd = malloc(
+			    sizeof(*pd), M_MD_PROMISE, M_WAITOK | M_ZERO);
 			disk = g_raid_create_disk(sc);
 			disk->d_md_data = (void *)pd;
 			disk->d_consumer = cp;
@@ -1381,7 +1399,8 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			g_raid_get_disk_info(disk);
 
 			/* Reserve some space for metadata. */
-			size = MIN(size, pp->mediasize - 131072llu * pp->sectorsize);
+			size = MIN(
+			    size, pp->mediasize - 131072llu * pp->sectorsize);
 			sectorsize = MAX(sectorsize, pp->sectorsize);
 		}
 		if (error != 0) {
@@ -1480,12 +1499,11 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			if (disk == NULL)
 				continue;
 			TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
-			g_raid_change_disk_state(disk,
-			    G_RAID_DISK_S_ACTIVE);
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_ACTIVE);
-			g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
-			    G_RAID_EVENT_SUBDISK);
+			g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
+			g_raid_change_subdisk_state(
+			    sd, G_RAID_SUBDISK_S_ACTIVE);
+			g_raid_event_send(
+			    sd, G_RAID_SUBDISK_E_NEW, G_RAID_EVENT_SUBDISK);
 		}
 
 		/* Write metadata based on created entities. */
@@ -1495,12 +1513,13 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 		/* Pickup any STALE/SPARE disks to refill array if needed. */
 		g_raid_md_promise_refill(sc);
 
-		g_raid_event_send(vol, G_RAID_VOLUME_E_START,
-		    G_RAID_EVENT_VOLUME);
+		g_raid_event_send(
+		    vol, G_RAID_VOLUME_E_START, G_RAID_EVENT_VOLUME);
 		return (0);
 	}
 	if (strcmp(verb, "add") == 0) {
-		gctl_error(req, "`add` command is not applicable, "
+		gctl_error(req,
+		    "`add` command is not applicable, "
 		    "use `label` instead.");
 		return (-99);
 	}
@@ -1519,7 +1538,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 				return (-4);
 			}
 
-			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+			TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 				if (disk->d_consumer)
 					promise_meta_erase(disk->d_consumer);
 			}
@@ -1532,15 +1551,15 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			gctl_error(req, "Invalid number of arguments.");
 			return (-1);
 		}
-		volname = gctl_get_asciiparam(req,
-		    nodename != NULL ? "arg1" : "arg0");
+		volname = gctl_get_asciiparam(
+		    req, nodename != NULL ? "arg1" : "arg0");
 		if (volname == NULL) {
 			gctl_error(req, "No volume name.");
 			return (-2);
 		}
 
 		/* Search for volume. */
-		TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+		TAILQ_FOREACH (vol, &sc->sc_volumes, v_next) {
 			if (strcmp(vol->v_name, volname) == 0)
 				break;
 			pp = vol->v_provider;
@@ -1555,7 +1574,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 		if (vol == NULL) {
 			i = strtol(volname, &tmp, 10);
 			if (verb != volname && tmp[0] == 0) {
-				TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+				TAILQ_FOREACH (vol, &sc->sc_volumes, v_next) {
 					if (vol->v_global_id == i)
 						break;
 				}
@@ -1568,22 +1587,21 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 
 		/* Check if volume is still open. */
 		force = gctl_get_paraml(req, "force", sizeof(*force));
-		if (force != NULL && *force == 0 &&
-		    vol->v_provider_open != 0) {
+		if (force != NULL && *force == 0 && vol->v_provider_open != 0) {
 			gctl_error(req, "Volume is still open.");
 			return (-4);
 		}
 
 		/* Destroy volume and potentially node. */
 		i = 0;
-		TAILQ_FOREACH(vol1, &sc->sc_volumes, v_next)
+		TAILQ_FOREACH (vol1, &sc->sc_volumes, v_next)
 			i++;
 		if (i >= 2) {
 			g_raid_destroy_volume(vol);
 			g_raid_md_promise_purge_disks(sc);
 			g_raid_md_write_promise(md, NULL, NULL, NULL);
 		} else {
-			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+			TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 				if (disk->d_consumer)
 					promise_meta_erase(disk->d_consumer);
 			}
@@ -1591,8 +1609,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 		}
 		return (0);
 	}
-	if (strcmp(verb, "remove") == 0 ||
-	    strcmp(verb, "fail") == 0) {
+	if (strcmp(verb, "remove") == 0 || strcmp(verb, "fail") == 0) {
 		if (*nargs < 2) {
 			gctl_error(req, "Invalid number of arguments.");
 			return (-1);
@@ -1608,16 +1625,16 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			if (strncmp(diskname, _PATH_DEV, 5) == 0)
 				diskname += 5;
 
-			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-				if (disk->d_consumer != NULL && 
+			TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
+				if (disk->d_consumer != NULL &&
 				    disk->d_consumer->provider != NULL &&
 				    strcmp(disk->d_consumer->provider->name,
-				     diskname) == 0)
+					diskname) == 0)
 					break;
 			}
 			if (disk == NULL) {
-				gctl_error(req, "Disk '%s' not found.",
-				    diskname);
+				gctl_error(
+				    req, "Disk '%s' not found.", diskname);
 				error = -3;
 				break;
 			}
@@ -1662,8 +1679,8 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			g_topology_lock();
 			cp = g_raid_open_consumer(sc, diskname);
 			if (cp == NULL) {
-				gctl_error(req, "Can't open disk '%s'.",
-				    diskname);
+				gctl_error(
+				    req, "Can't open disk '%s'.", diskname);
 				g_topology_unlock();
 				error = -4;
 				break;
@@ -1671,7 +1688,8 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			pp = cp->provider;
 			g_topology_unlock();
 
-			pd = malloc(sizeof(*pd), M_MD_PROMISE, M_WAITOK | M_ZERO);
+			pd = malloc(
+			    sizeof(*pd), M_MD_PROMISE, M_WAITOK | M_ZERO);
 
 			disk = g_raid_create_disk(sc);
 			disk->d_consumer = cp;
@@ -1710,7 +1728,7 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		return (0);
 
 	/* Generate new per-volume metadata for affected volumes. */
-	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
+	TAILQ_FOREACH (vol, &sc->sc_volumes, v_next) {
 		if (vol->v_stopping)
 			continue;
 
@@ -1734,8 +1752,8 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		meta = malloc(sizeof(*meta), M_MD_PROMISE, M_WAITOK | M_ZERO);
 		if (pv->pv_meta != NULL)
 			memcpy(meta, pv->pv_meta, sizeof(*meta));
-		memcpy(meta->promise_id, PROMISE_MAGIC,
-		    sizeof(PROMISE_MAGIC) - 1);
+		memcpy(
+		    meta->promise_id, PROMISE_MAGIC, sizeof(PROMISE_MAGIC) - 1);
 		meta->dummy_0 = 0x00020000;
 		meta->integrity = PROMISE_I_VALID;
 
@@ -1785,11 +1803,11 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			if (sd->sd_state == G_RAID_SUBDISK_S_NONE) {
 				meta->disks[pos].flags |= 0;
 			} else if (sd->sd_state == G_RAID_SUBDISK_S_FAILED) {
-				meta->disks[pos].flags |=
-				    PROMISE_F_DOWN | PROMISE_F_REDIR;
+				meta->disks[pos].flags |= PROMISE_F_DOWN |
+				    PROMISE_F_REDIR;
 			} else if (sd->sd_state <= G_RAID_SUBDISK_S_REBUILD) {
-				meta->disks[pos].flags |=
-				    PROMISE_F_ONLINE | PROMISE_F_REDIR;
+				meta->disks[pos].flags |= PROMISE_F_ONLINE |
+				    PROMISE_F_REDIR;
 				if (sd->sd_state == G_RAID_SUBDISK_S_REBUILD) {
 					rebuild_lba64 = MIN(rebuild_lba64,
 					    sd->sd_rebuild_pos / 512);
@@ -1800,15 +1818,18 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 				meta->disks[pos].flags |= PROMISE_F_ONLINE;
 				if (sd->sd_state < G_RAID_SUBDISK_S_ACTIVE) {
 					meta->status |= PROMISE_S_MARKED;
-					if (sd->sd_state == G_RAID_SUBDISK_S_RESYNC) {
-						rebuild_lba64 = MIN(rebuild_lba64,
+					if (sd->sd_state ==
+					    G_RAID_SUBDISK_S_RESYNC) {
+						rebuild_lba64 = MIN(
+						    rebuild_lba64,
 						    sd->sd_rebuild_pos / 512);
 					} else
 						rebuild_lba64 = 0;
 				}
 			}
 			if (pv->pv_meta != NULL) {
-				meta->disks[pos].id = pv->pv_meta->disks[pos].id;
+				meta->disks[pos].id =
+				    pv->pv_meta->disks[pos].id;
 			} else {
 				meta->disks[pos].number = i * 2;
 				arc4rand(&meta->disks[pos].id,
@@ -1827,7 +1848,8 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1 ||
 			    vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E) {
 				rebuild_lba64 *= meta->array_width;
-			} else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID3 ||
+			} else if (vol->v_raid_level ==
+				G_RAID_VOLUME_RL_RAID3 ||
 			    vol->v_raid_level == G_RAID_VOLUME_RL_RAID5) {
 				rebuild_lba64 *= meta->array_width - 1;
 			} else
@@ -1850,9 +1872,11 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 				continue;
 			/* For RAID0+1 we need to translate order. */
 			pos = promise_meta_translate_disk(vol, i);
-			pd = (struct g_raid_md_promise_perdisk *)disk->d_md_data;
+			pd = (struct g_raid_md_promise_perdisk *)
+				 disk->d_md_data;
 			for (j = 0; j < pd->pd_subdisks; j++) {
-				if (pd->pd_meta[j]->volume_id == meta->volume_id)
+				if (pd->pd_meta[j]->volume_id ==
+				    meta->volume_id)
 					break;
 			}
 			if (j == pd->pd_subdisks)
@@ -1862,11 +1886,13 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			pd->pd_meta[j] = promise_meta_copy(meta);
 			pd->pd_meta[j]->disk = meta->disks[pos];
 			pd->pd_meta[j]->disk.number = pos;
-			pd->pd_meta[j]->disk_offset_high =
-			    (sd->sd_offset / 512) >> 32;
+			pd->pd_meta[j]->disk_offset_high = (sd->sd_offset /
+							       512) >>
+			    32;
 			pd->pd_meta[j]->disk_offset = sd->sd_offset / 512;
-			pd->pd_meta[j]->disk_sectors_high =
-			    (sd->sd_size / 512) >> 32;
+			pd->pd_meta[j]->disk_sectors_high = (sd->sd_size /
+								512) >>
+			    32;
 			pd->pd_meta[j]->disk_sectors = sd->sd_size / 512;
 			if (sd->sd_state == G_RAID_SUBDISK_S_REBUILD) {
 				pd->pd_meta[j]->disk_rebuild_high =
@@ -1884,7 +1910,7 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		}
 	}
 
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_promise_perdisk *)disk->d_md_data;
 		if (disk->d_state != G_RAID_DISK_S_ACTIVE)
 			continue;
@@ -1894,8 +1920,8 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		    g_raid_get_diskname(disk));
 		for (i = 0; i < pd->pd_subdisks; i++)
 			g_raid_md_promise_print(pd->pd_meta[i]);
-		promise_meta_write(disk->d_consumer,
-		    pd->pd_meta, pd->pd_subdisks);
+		promise_meta_write(
+		    disk->d_consumer, pd->pd_meta, pd->pd_subdisks);
 		pd->pd_updated = 0;
 	}
 
@@ -1926,26 +1952,24 @@ g_raid_md_fail_disk_promise(struct g_raid_md_object *md,
 		G_RAID_DEBUG(1, "Writing Promise metadata to %s",
 		    g_raid_get_diskname(tdisk));
 	for (i = 0; i < pd->pd_subdisks; i++) {
-		pd->pd_meta[i]->disk.flags |=
-		    PROMISE_F_DOWN | PROMISE_F_REDIR;
+		pd->pd_meta[i]->disk.flags |= PROMISE_F_DOWN | PROMISE_F_REDIR;
 		pos = pd->pd_meta[i]->disk.number;
 		if (pos >= 0 && pos < PROMISE_MAX_DISKS) {
-			pd->pd_meta[i]->disks[pos].flags |=
-			    PROMISE_F_DOWN | PROMISE_F_REDIR;
+			pd->pd_meta[i]->disks[pos].flags |= PROMISE_F_DOWN |
+			    PROMISE_F_REDIR;
 		}
 		g_raid_md_promise_print(pd->pd_meta[i]);
 	}
 	if (tdisk->d_consumer != NULL)
-		promise_meta_write(tdisk->d_consumer,
-		    pd->pd_meta, pd->pd_subdisks);
+		promise_meta_write(
+		    tdisk->d_consumer, pd->pd_meta, pd->pd_subdisks);
 
 	/* Change states. */
 	g_raid_change_disk_state(tdisk, G_RAID_DISK_S_FAILED);
-	TAILQ_FOREACH(sd, &tdisk->d_subdisks, sd_next) {
-		g_raid_change_subdisk_state(sd,
-		    G_RAID_SUBDISK_S_FAILED);
-		g_raid_event_send(sd, G_RAID_SUBDISK_E_FAILED,
-		    G_RAID_EVENT_SUBDISK);
+	TAILQ_FOREACH (sd, &tdisk->d_subdisks, sd_next) {
+		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_FAILED);
+		g_raid_event_send(
+		    sd, G_RAID_SUBDISK_E_FAILED, G_RAID_EVENT_SUBDISK);
 	}
 
 	/* Write updated metadata to remaining disks. */
@@ -1956,8 +1980,8 @@ g_raid_md_fail_disk_promise(struct g_raid_md_object *md,
 }
 
 static int
-g_raid_md_free_disk_promise(struct g_raid_md_object *md,
-    struct g_raid_disk *disk)
+g_raid_md_free_disk_promise(
+    struct g_raid_md_object *md, struct g_raid_disk *disk)
 {
 	struct g_raid_md_promise_perdisk *pd;
 	int i;
@@ -1975,8 +1999,8 @@ g_raid_md_free_disk_promise(struct g_raid_md_object *md,
 }
 
 static int
-g_raid_md_free_volume_promise(struct g_raid_md_object *md,
-    struct g_raid_volume *vol)
+g_raid_md_free_volume_promise(
+    struct g_raid_md_object *md, struct g_raid_volume *vol)
 {
 	struct g_raid_md_promise_pervolume *pv;
 

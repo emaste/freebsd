@@ -31,16 +31,16 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
 
-#include <dev/ofw/openfirm.h>
-
 #include <machine/platform.h>
 #include <machine/platformvar.h>
+
+#include <dev/ofw/openfirm.h>
 
 #include "platform_if.h"
 
@@ -53,21 +53,16 @@ static u_long bare_timebase_freq(platform_t, struct cpuref *cpuref);
 
 static void bare_reset(platform_t);
 
-static platform_method_t bare_methods[] = {
-	PLATFORMMETHOD(platform_probe,		bare_probe),
-	PLATFORMMETHOD(platform_mem_regions,	bare_mem_regions),
-	PLATFORMMETHOD(platform_timebase_freq,	bare_timebase_freq),
+static platform_method_t bare_methods[] = { PLATFORMMETHOD(
+						platform_probe, bare_probe),
+	PLATFORMMETHOD(platform_mem_regions, bare_mem_regions),
+	PLATFORMMETHOD(platform_timebase_freq, bare_timebase_freq),
 
-	PLATFORMMETHOD(platform_reset,		bare_reset),
+	PLATFORMMETHOD(platform_reset, bare_reset),
 
-	PLATFORMMETHOD_END
-};
+	PLATFORMMETHOD_END };
 
-static platform_def_t bare_platform = {
-	"bare",
-	bare_methods,
-	0
-};
+static platform_def_t bare_platform = { "bare", bare_methods, 0 };
 
 PLATFORM_DEF(bare_platform);
 
@@ -114,15 +109,13 @@ bare_timebase_freq(platform_t plat, struct cpuref *cpuref)
 		goto out;
 
 	switch (OF_getproplen(child, "timebase-frequency")) {
-	case 4:
-	{
+	case 4: {
 		uint32_t tbase;
 		OF_getprop(child, "timebase-frequency", &tbase, sizeof(tbase));
 		ticks = tbase;
 		return (ticks);
 	}
-	case 8:
-	{
+	case 8: {
 		uint64_t tbase;
 		OF_getprop(child, "timebase-frequency", &tbase, sizeof(tbase));
 		ticks = tbase;
@@ -133,8 +126,8 @@ bare_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	}
 
 	freq = 0;
-	if (OF_getprop(child, "bus-frequency", (void *)&freq,
-	    sizeof(freq)) <= 0)
+	if (OF_getprop(child, "bus-frequency", (void *)&freq, sizeof(freq)) <=
+	    0)
 		goto out;
 
 	/*

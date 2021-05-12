@@ -48,14 +48,14 @@
 #ifndef _MACHINE_PMAP_V6_H_
 #define _MACHINE_PMAP_V6_H_
 
-#include <sys/queue.h>
 #include <sys/_cpuset.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/queue.h>
 
-typedef	uint32_t	pt1_entry_t;		/* L1 table entry */
-typedef	uint32_t	pt2_entry_t;		/* L2 table entry */
-typedef uint32_t	ttb_entry_t;		/* TTB entry */
+typedef uint32_t pt1_entry_t; /* L1 table entry */
+typedef uint32_t pt2_entry_t; /* L2 table entry */
+typedef uint32_t ttb_entry_t; /* TTB entry */
 
 #ifdef _KERNEL
 
@@ -86,48 +86,47 @@ typedef uint32_t	ttb_entry_t;		/* TTB entry */
  *	1 GB physical memory <=> 10 pages is enough
  *	2 GB physical memory <=> 21 pages is enough
  */
-#define NKPT2PG		32
+#define NKPT2PG 32
 #endif
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
 /*
  * Pmap stuff
  */
-struct	pv_entry;
-struct	pv_chunk;
+struct pv_entry;
+struct pv_chunk;
 
-struct	md_page {
-	TAILQ_HEAD(,pv_entry)	pv_list;
-	uint16_t		pt2_wirecount[4];
-	vm_memattr_t		pat_mode;
+struct md_page {
+	TAILQ_HEAD(, pv_entry) pv_list;
+	uint16_t pt2_wirecount[4];
+	vm_memattr_t pat_mode;
 };
 
-struct	pmap {
-	struct mtx		pm_mtx;
-	pt1_entry_t		*pm_pt1;	/* KVA of pt1 */
-	pt2_entry_t		*pm_pt2tab;	/* KVA of pt2 pages table */
-	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
-	cpuset_t		pm_active;	/* active on cpus */
-	struct pmap_statistics	pm_stats;	/* pmap statictics */
-	LIST_ENTRY(pmap) 	pm_list;	/* List of all pmaps */
+struct pmap {
+	struct mtx pm_mtx;
+	pt1_entry_t *pm_pt1;		   /* KVA of pt1 */
+	pt2_entry_t *pm_pt2tab;		   /* KVA of pt2 pages table */
+	TAILQ_HEAD(, pv_chunk) pm_pvchunk; /* list of mappings in pmap */
+	cpuset_t pm_active;		   /* active on cpus */
+	struct pmap_statistics pm_stats;   /* pmap statictics */
+	LIST_ENTRY(pmap) pm_list;	   /* List of all pmaps */
 };
 
 typedef struct pmap *pmap_t;
 
 #ifdef _KERNEL
-extern struct pmap	        kernel_pmap_store;
-#define kernel_pmap	        (&kernel_pmap_store)
+extern struct pmap kernel_pmap_store;
+#define kernel_pmap (&kernel_pmap_store)
 
-#define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
-#define	PMAP_LOCK_ASSERT(pmap, type) \
-				mtx_assert(&(pmap)->pm_mtx, (type))
-#define	PMAP_LOCK_DESTROY(pmap)	mtx_destroy(&(pmap)->pm_mtx)
-#define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, "pmap", \
-				    NULL, MTX_DEF | MTX_DUPOK)
-#define	PMAP_LOCKED(pmap)	mtx_owned(&(pmap)->pm_mtx)
-#define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
-#define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
-#define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
+#define PMAP_LOCK(pmap) mtx_lock(&(pmap)->pm_mtx)
+#define PMAP_LOCK_ASSERT(pmap, type) mtx_assert(&(pmap)->pm_mtx, (type))
+#define PMAP_LOCK_DESTROY(pmap) mtx_destroy(&(pmap)->pm_mtx)
+#define PMAP_LOCK_INIT(pmap) \
+	mtx_init(&(pmap)->pm_mtx, "pmap", NULL, MTX_DEF | MTX_DUPOK)
+#define PMAP_LOCKED(pmap) mtx_owned(&(pmap)->pm_mtx)
+#define PMAP_MTX(pmap) (&(pmap)->pm_mtx)
+#define PMAP_TRYLOCK(pmap) mtx_trylock(&(pmap)->pm_mtx)
+#define PMAP_UNLOCK(pmap) mtx_unlock(&(pmap)->pm_mtx)
 #endif
 
 /*
@@ -135,28 +134,28 @@ extern struct pmap	        kernel_pmap_store;
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_list.
  */
 typedef struct pv_entry {
-	vm_offset_t	pv_va;		/* virtual address for mapping */
-	TAILQ_ENTRY(pv_entry)	pv_next;
-} *pv_entry_t;
+	vm_offset_t pv_va; /* virtual address for mapping */
+	TAILQ_ENTRY(pv_entry) pv_next;
+} * pv_entry_t;
 
 /*
  * pv_entries are allocated in chunks per-process.  This avoids the
  * need to track per-pmap assignments.
  */
-#define	_NPCM	11
-#define	_NPCPV	336
+#define _NPCM 11
+#define _NPCPV 336
 struct pv_chunk {
-	pmap_t			pc_pmap;
-	TAILQ_ENTRY(pv_chunk)	pc_list;
-	uint32_t		pc_map[_NPCM];	/* bitmap; 1 = free */
-	TAILQ_ENTRY(pv_chunk)	pc_lru;
-	struct pv_entry		pc_pventry[_NPCPV];
+	pmap_t pc_pmap;
+	TAILQ_ENTRY(pv_chunk) pc_list;
+	uint32_t pc_map[_NPCM]; /* bitmap; 1 = free */
+	TAILQ_ENTRY(pv_chunk) pc_lru;
+	struct pv_entry pc_pventry[_NPCPV];
 };
 
 #ifdef _KERNEL
-extern ttb_entry_t pmap_kern_ttb; 	/* TTB for kernel pmap */
+extern ttb_entry_t pmap_kern_ttb; /* TTB for kernel pmap */
 
-#define	pmap_page_get_memattr(m)	((m)->md.pat_mode)
+#define pmap_page_get_memattr(m) ((m)->md.pat_mode)
 
 /*
  * Only the following functions or macros may be used before pmap_bootstrap()
@@ -167,7 +166,7 @@ void pmap_bootstrap(vm_offset_t);
 void pmap_kenter(vm_offset_t, vm_paddr_t);
 void pmap_kremove(vm_offset_t);
 boolean_t pmap_page_is_mapped(vm_page_t);
-bool	pmap_ps_enabled(pmap_t pmap);
+bool pmap_ps_enabled(pmap_t pmap);
 
 void pmap_tlb_flush(pmap_t, vm_offset_t);
 void pmap_tlb_flush_range(pmap_t, vm_offset_t, vm_size_t);
@@ -186,9 +185,9 @@ vm_paddr_t pmap_preboot_get_pages(u_int);
 void pmap_preboot_map_pages(vm_paddr_t, vm_offset_t, u_int);
 vm_offset_t pmap_preboot_reserve_pages(u_int);
 vm_offset_t pmap_preboot_get_vpages(u_int);
-void pmap_preboot_map_attr(vm_paddr_t, vm_offset_t, vm_size_t, vm_prot_t,
-    vm_memattr_t);
+void pmap_preboot_map_attr(
+    vm_paddr_t, vm_offset_t, vm_size_t, vm_prot_t, vm_memattr_t);
 void pmap_remap_vm_attr(vm_memattr_t old_attr, vm_memattr_t new_attr);
 
-#endif	/* _KERNEL */
-#endif	/* !_MACHINE_PMAP_V6_H_ */
+#endif /* _KERNEL */
+#endif /* !_MACHINE_PMAP_V6_H_ */

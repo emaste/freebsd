@@ -31,38 +31,37 @@
  */
 
 #ifndef _MACHINE_UCODE_H_
-#define	_MACHINE_UCODE_H_
+#define _MACHINE_UCODE_H_
 
 struct ucode_intel_header {
-	uint32_t	header_version;
-	int32_t		update_revision;
-	uint32_t	dat;
-	uint32_t	processor_signature;
-	uint32_t	checksum;
-	uint32_t	loader_revision;
-	uint32_t	processor_flags;
-#define	UCODE_INTEL_DEFAULT_DATA_SIZE		2000
-	uint32_t	data_size;
-	uint32_t	total_size;
-	uint32_t	reserved[3];
+	uint32_t header_version;
+	int32_t update_revision;
+	uint32_t dat;
+	uint32_t processor_signature;
+	uint32_t checksum;
+	uint32_t loader_revision;
+	uint32_t processor_flags;
+#define UCODE_INTEL_DEFAULT_DATA_SIZE 2000
+	uint32_t data_size;
+	uint32_t total_size;
+	uint32_t reserved[3];
 };
 
 struct ucode_intel_extsig_table {
-	uint32_t	signature_count;
-	uint32_t	signature_table_checksum;
-	uint32_t	reserved[3];
+	uint32_t signature_count;
+	uint32_t signature_table_checksum;
+	uint32_t reserved[3];
 	struct ucode_intel_extsig {
-		uint32_t	processor_signature;
-		uint32_t	processor_flags;
-		uint32_t	checksum;
+		uint32_t processor_signature;
+		uint32_t processor_flags;
+		uint32_t checksum;
 	} entries[0];
 };
 
-int	ucode_intel_load(void *data, bool unsafe,
-	    uint64_t *nrevp, uint64_t *orevp);
-size_t	ucode_load_bsp(uintptr_t free);
-void	ucode_load_ap(int cpu);
-void	ucode_reload(void);
-void *	ucode_update(void *data);
+int ucode_intel_load(void *data, bool unsafe, uint64_t *nrevp, uint64_t *orevp);
+size_t ucode_load_bsp(uintptr_t free);
+void ucode_load_ap(int cpu);
+void ucode_reload(void);
+void *ucode_update(void *data);
 
 #endif /* _MACHINE_UCODE_H_ */

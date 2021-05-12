@@ -6,7 +6,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -17,7 +17,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -46,54 +46,58 @@
 #define _NETGRAPH_NG_TEE_H_
 
 /* Node type name and magic cookie */
-#define NG_TEE_NODE_TYPE	"tee"
-#define NGM_TEE_COOKIE		916107047
+#define NG_TEE_NODE_TYPE "tee"
+#define NGM_TEE_COOKIE 916107047
 
 /* Hook names */
-#define NG_TEE_HOOK_RIGHT	"right"
-#define NG_TEE_HOOK_LEFT	"left"
-#define NG_TEE_HOOK_RIGHT2LEFT	"right2left"
-#define NG_TEE_HOOK_LEFT2RIGHT	"left2right"
+#define NG_TEE_HOOK_RIGHT "right"
+#define NG_TEE_HOOK_LEFT "left"
+#define NG_TEE_HOOK_RIGHT2LEFT "right2left"
+#define NG_TEE_HOOK_LEFT2RIGHT "left2right"
 
 /* Statistics structure for one hook */
 struct ng_tee_hookstat {
-	u_int64_t	inOctets;
-	u_int64_t	inFrames;
-	u_int64_t	outOctets;
-	u_int64_t	outFrames;
+	u_int64_t inOctets;
+	u_int64_t inFrames;
+	u_int64_t outOctets;
+	u_int64_t outFrames;
 };
 
 /* Keep this in sync with the above structure definition */
-#define NG_TEE_HOOKSTAT_INFO	{				\
-	  { "inOctets",		&ng_parse_uint64_type	},	\
-	  { "inFrames",		&ng_parse_uint64_type	},	\
-	  { "outOctets",	&ng_parse_uint64_type	},	\
-	  { "outFrames",	&ng_parse_uint64_type	},	\
-	  { NULL }						\
-}
+#define NG_TEE_HOOKSTAT_INFO                                \
+	{                                                   \
+		{ "inOctets", &ng_parse_uint64_type },      \
+		    { "inFrames", &ng_parse_uint64_type },  \
+		    { "outOctets", &ng_parse_uint64_type }, \
+		    { "outFrames", &ng_parse_uint64_type }, \
+		{                                           \
+			NULL                                \
+		}                                           \
+	}
 
 /* Statistics structure returned by NGM_TEE_GET_STATS */
 struct ng_tee_stats {
-	struct ng_tee_hookstat	right;
-	struct ng_tee_hookstat	left;
-	struct ng_tee_hookstat	right2left;
-	struct ng_tee_hookstat	left2right;
+	struct ng_tee_hookstat right;
+	struct ng_tee_hookstat left;
+	struct ng_tee_hookstat right2left;
+	struct ng_tee_hookstat left2right;
 };
 
 /* Keep this in sync with the above structure definition */
-#define NG_TEE_STATS_INFO(hstype)	{			\
-	  { "right",		(hstype)		},	\
-	  { "left",		(hstype)		},	\
-	  { "right2left",	(hstype)		},	\
-	  { "left2right",	(hstype)		},	\
-	  { NULL }						\
-}
+#define NG_TEE_STATS_INFO(hstype)                                           \
+	{                                                                   \
+		{ "right", (hstype) }, { "left", (hstype) },                \
+		    { "right2left", (hstype) }, { "left2right", (hstype) }, \
+		{                                                           \
+			NULL                                                \
+		}                                                           \
+	}
 
 /* Netgraph commands */
 enum {
-	NGM_TEE_GET_STATS = 1,		/* get stats */
-	NGM_TEE_CLR_STATS,		/* clear stats */
-	NGM_TEE_GETCLR_STATS,		/* atomically get and clear stats */
+	NGM_TEE_GET_STATS = 1, /* get stats */
+	NGM_TEE_CLR_STATS,     /* clear stats */
+	NGM_TEE_GETCLR_STATS,  /* atomically get and clear stats */
 };
 
 #endif /* _NETGRAPH_NG_TEE_H_ */

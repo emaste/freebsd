@@ -34,26 +34,26 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/resource.h>
-#include <sys/rman.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/resource.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
 
-#include <arm/arm/mpcore_timervar.h>
-#include <arm/ti/tivar.h>
-#include <arm/ti/ti_prcm.h>
-#include <arm/ti/omap4/omap4_reg.h>
-
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
+#include <arm/arm/mpcore_timervar.h>
+#include <arm/ti/omap4/omap4_reg.h>
+#include <arm/ti/ti_prcm.h>
+#include <arm/ti/tivar.h>
 
 /*
  *	This file defines the clock configuration for the OMAP4xxx series of
@@ -61,221 +61,229 @@ __FBSDID("$FreeBSD$");
  *
  *	How This is Suppose to Work
  *	===========================
- *	- There is a top level omap_prcm module that defines all OMAP SoC drivers
- *	should use to enable/disable the system clocks regardless of the version
- *	of OMAP device they are running on.  This top level PRCM module is just
- *	a thin shim to chip specific functions that perform the donkey work of
+ *	- There is a top level omap_prcm module that defines all OMAP SoC
+ *drivers should use to enable/disable the system clocks regardless of the
+ *version of OMAP device they are running on.  This top level PRCM module is
+ *just a thin shim to chip specific functions that perform the donkey work of
  *	configuring the clock - this file is the 'donkey' for OMAP44xx devices.
  *
  *	- The key bit in this file is the omap_clk_devmap array, it's
- *	used by the omap_prcm driver to determine what clocks are valid and which
- *	functions to call to manipulate them.
+ *	used by the omap_prcm driver to determine what clocks are valid and
+ *which functions to call to manipulate them.
  *
  *	- In essence you just need to define some callbacks for each of the
  *	clocks and then you're done.
  *
  *	- The other thing that is worth noting is that when the omap_prcm device
  *	is registered you typically pass in some memory ranges which are the
- *	SYS_MEMORY resources.  These resources are in turn allocated using 
+ *	SYS_MEMORY resources.  These resources are in turn allocated using
  *	bus_allocate_resources(...) and the resource handles are passed to all
- *	individual clock callback handlers. 
+ *	individual clock callback handlers.
  *
  *
  *
- *	OMAP4 devices are different from the previous OMAP3 devices in that there
- *	is no longer a separate functional and interface clock for each module,
+ *	OMAP4 devices are different from the previous OMAP3 devices in that
+ *there is no longer a separate functional and interface clock for each module,
  *	instead there is typically an interface clock that spans many modules.
  */
 
-#define FREQ_96MHZ    96000000
-#define FREQ_64MHZ    64000000
-#define FREQ_48MHZ    48000000
-#define FREQ_32KHZ    32000
+#define FREQ_96MHZ 96000000
+#define FREQ_64MHZ 64000000
+#define FREQ_48MHZ 48000000
+#define FREQ_32KHZ 32000
 
-#define PRM_INSTANCE    1
-#define CM1_INSTANCE    2
-#define CM2_INSTANCE    3
-
-/**
- *	Address offsets from the PRM memory region to the top level clock control
- *	registers.
- */
-#define CKGEN_PRM_OFFSET               0x00000100UL
-#define MPU_PRM_OFFSET                 0x00000300UL
-#define DSP_PRM_OFFSET                 0x00000400UL
-#define ABE_PRM_OFFSET                 0x00000500UL
-#define ALWAYS_ON_PRM_OFFSET           0x00000600UL
-#define CORE_PRM_OFFSET                0x00000700UL
-#define IVAHD_PRM_OFFSET               0x00000F00UL
-#define CAM_PRM_OFFSET                 0x00001000UL
-#define DSS_PRM_OFFSET                 0x00001100UL
-#define SGX_PRM_OFFSET                 0x00001200UL
-#define L3INIT_PRM_OFFSET              0x00001300UL
-#define L4PER_PRM_OFFSET               0x00001400UL
-#define WKUP_PRM_OFFSET                0x00001700UL
-#define WKUP_CM_OFFSET                 0x00001800UL
-#define EMU_PRM_OFFSET                 0x00001900UL
-#define EMU_CM_OFFSET                  0x00001A00UL
-#define DEVICE_PRM_OFFSET              0x00001B00UL
-#define INSTR_PRM_OFFSET               0x00001F00UL
-
-#define CM_ABE_DSS_SYS_CLKSEL_OFFSET   (CKGEN_PRM_OFFSET + 0x0000UL)
-#define CM_L4_WKUP_CLKSELL_OFFSET      (CKGEN_PRM_OFFSET + 0x0008UL)
-#define CM_ABE_PLL_REF_CLKSEL_OFFSET   (CKGEN_PRM_OFFSET + 0x000CUL)
-#define CM_SYS_CLKSEL_OFFSET           (CKGEN_PRM_OFFSET + 0x0010UL)
+#define PRM_INSTANCE 1
+#define CM1_INSTANCE 2
+#define CM2_INSTANCE 3
 
 /**
- *	Address offsets from the CM1 memory region to the top level clock control
- *	registers.
+ *	Address offsets from the PRM memory region to the top level clock
+ *control registers.
  */
-#define CKGEN_CM1_OFFSET               0x00000100UL
-#define MPU_CM1_OFFSET                 0x00000300UL
-#define DSP_CM1_OFFSET                 0x00000400UL
-#define ABE_CM1_OFFSET                 0x00000500UL
-#define RESTORE_CM1_OFFSET             0x00000E00UL
-#define INSTR_CM1_OFFSET               0x00000F00UL
+#define CKGEN_PRM_OFFSET 0x00000100UL
+#define MPU_PRM_OFFSET 0x00000300UL
+#define DSP_PRM_OFFSET 0x00000400UL
+#define ABE_PRM_OFFSET 0x00000500UL
+#define ALWAYS_ON_PRM_OFFSET 0x00000600UL
+#define CORE_PRM_OFFSET 0x00000700UL
+#define IVAHD_PRM_OFFSET 0x00000F00UL
+#define CAM_PRM_OFFSET 0x00001000UL
+#define DSS_PRM_OFFSET 0x00001100UL
+#define SGX_PRM_OFFSET 0x00001200UL
+#define L3INIT_PRM_OFFSET 0x00001300UL
+#define L4PER_PRM_OFFSET 0x00001400UL
+#define WKUP_PRM_OFFSET 0x00001700UL
+#define WKUP_CM_OFFSET 0x00001800UL
+#define EMU_PRM_OFFSET 0x00001900UL
+#define EMU_CM_OFFSET 0x00001A00UL
+#define DEVICE_PRM_OFFSET 0x00001B00UL
+#define INSTR_PRM_OFFSET 0x00001F00UL
 
-#define CM_CLKSEL_DPLL_MPU             (CKGEN_CM1_OFFSET + 0x006CUL)
+#define CM_ABE_DSS_SYS_CLKSEL_OFFSET (CKGEN_PRM_OFFSET + 0x0000UL)
+#define CM_L4_WKUP_CLKSELL_OFFSET (CKGEN_PRM_OFFSET + 0x0008UL)
+#define CM_ABE_PLL_REF_CLKSEL_OFFSET (CKGEN_PRM_OFFSET + 0x000CUL)
+#define CM_SYS_CLKSEL_OFFSET (CKGEN_PRM_OFFSET + 0x0010UL)
 
 /**
- *	Address offsets from the CM2 memory region to the top level clock control
- *	registers.
+ *	Address offsets from the CM1 memory region to the top level clock
+ *control registers.
  */
-#define INTRCONN_SOCKET_CM2_OFFSET     0x00000000UL
-#define CKGEN_CM2_OFFSET               0x00000100UL
-#define ALWAYS_ON_CM2_OFFSET           0x00000600UL
-#define CORE_CM2_OFFSET                0x00000700UL
-#define IVAHD_CM2_OFFSET               0x00000F00UL
-#define CAM_CM2_OFFSET                 0x00001000UL
-#define DSS_CM2_OFFSET                 0x00001100UL
-#define SGX_CM2_OFFSET                 0x00001200UL
-#define L3INIT_CM2_OFFSET              0x00001300UL
-#define L4PER_CM2_OFFSET               0x00001400UL
-#define RESTORE_CM2_OFFSET             0x00001E00UL
-#define INSTR_CM2_OFFSET               0x00001F00UL
+#define CKGEN_CM1_OFFSET 0x00000100UL
+#define MPU_CM1_OFFSET 0x00000300UL
+#define DSP_CM1_OFFSET 0x00000400UL
+#define ABE_CM1_OFFSET 0x00000500UL
+#define RESTORE_CM1_OFFSET 0x00000E00UL
+#define INSTR_CM1_OFFSET 0x00000F00UL
 
-#define CLKCTRL_MODULEMODE_MASK       0x00000003UL
-#define CLKCTRL_MODULEMODE_DISABLE    0x00000000UL
-#define CLKCTRL_MODULEMODE_AUTO       0x00000001UL
-#define CLKCTRL_MODULEMODE_ENABLE     0x00000001UL
+#define CM_CLKSEL_DPLL_MPU (CKGEN_CM1_OFFSET + 0x006CUL)
 
-#define CLKCTRL_IDLEST_MASK           0x00030000UL
-#define CLKCTRL_IDLEST_ENABLED        0x00000000UL
-#define CLKCTRL_IDLEST_WAKING         0x00010000UL
-#define CLKCTRL_IDLEST_IDLE           0x00020000UL
-#define CLKCTRL_IDLEST_DISABLED       0x00030000UL
+/**
+ *	Address offsets from the CM2 memory region to the top level clock
+ *control registers.
+ */
+#define INTRCONN_SOCKET_CM2_OFFSET 0x00000000UL
+#define CKGEN_CM2_OFFSET 0x00000100UL
+#define ALWAYS_ON_CM2_OFFSET 0x00000600UL
+#define CORE_CM2_OFFSET 0x00000700UL
+#define IVAHD_CM2_OFFSET 0x00000F00UL
+#define CAM_CM2_OFFSET 0x00001000UL
+#define DSS_CM2_OFFSET 0x00001100UL
+#define SGX_CM2_OFFSET 0x00001200UL
+#define L3INIT_CM2_OFFSET 0x00001300UL
+#define L4PER_CM2_OFFSET 0x00001400UL
+#define RESTORE_CM2_OFFSET 0x00001E00UL
+#define INSTR_CM2_OFFSET 0x00001F00UL
+
+#define CLKCTRL_MODULEMODE_MASK 0x00000003UL
+#define CLKCTRL_MODULEMODE_DISABLE 0x00000000UL
+#define CLKCTRL_MODULEMODE_AUTO 0x00000001UL
+#define CLKCTRL_MODULEMODE_ENABLE 0x00000001UL
+
+#define CLKCTRL_IDLEST_MASK 0x00030000UL
+#define CLKCTRL_IDLEST_ENABLED 0x00000000UL
+#define CLKCTRL_IDLEST_WAKING 0x00010000UL
+#define CLKCTRL_IDLEST_IDLE 0x00020000UL
+#define CLKCTRL_IDLEST_DISABLED 0x00030000UL
 
 static struct ofw_compat_data compat_data[] = {
-	{"ti,omap4-cm1",	(uintptr_t)CM1_INSTANCE},
-	{"ti,omap4-cm2",	(uintptr_t)CM2_INSTANCE},
-	{"ti,omap4-prm",	(uintptr_t)PRM_INSTANCE},
-	{NULL,			(uintptr_t)0},
+	{ "ti,omap4-cm1", (uintptr_t)CM1_INSTANCE },
+	{ "ti,omap4-cm2", (uintptr_t)CM2_INSTANCE },
+	{ "ti,omap4-prm", (uintptr_t)PRM_INSTANCE },
+	{ NULL, (uintptr_t)0 },
 };
 
 struct omap4_prcm_softc {
-	struct resource	*sc_res;
-	int		sc_rid;
-	int		sc_instance;
-	int		attach_done;
+	struct resource *sc_res;
+	int sc_rid;
+	int sc_instance;
+	int attach_done;
 };
 
 static int omap4_clk_generic_activate(struct ti_clock_dev *clkdev);
 static int omap4_clk_generic_deactivate(struct ti_clock_dev *clkdev);
 static int omap4_clk_generic_accessible(struct ti_clock_dev *clkdev);
-static int omap4_clk_generic_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
-static int omap4_clk_generic_get_source_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
+static int omap4_clk_generic_set_source(
+    struct ti_clock_dev *clkdev, clk_src_t clksrc);
+static int omap4_clk_generic_get_source_freq(
+    struct ti_clock_dev *clkdev, unsigned int *freq);
 
-static int omap4_clk_gptimer_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
-static int omap4_clk_gptimer_get_source_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
+static int omap4_clk_gptimer_set_source(
+    struct ti_clock_dev *clkdev, clk_src_t clksrc);
+static int omap4_clk_gptimer_get_source_freq(
+    struct ti_clock_dev *clkdev, unsigned int *freq);
 
-static int omap4_clk_hsmmc_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
-static int omap4_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
+static int omap4_clk_hsmmc_set_source(
+    struct ti_clock_dev *clkdev, clk_src_t clksrc);
+static int omap4_clk_hsmmc_get_source_freq(
+    struct ti_clock_dev *clkdev, unsigned int *freq);
 
-static int omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
+static int omap4_clk_hsusbhost_set_source(
+    struct ti_clock_dev *clkdev, clk_src_t clksrc);
 static int omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev);
 static int omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev);
 static int omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev);
 
-static int omap4_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
-static int omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
+static int omap4_clk_get_sysclk_freq(
+    struct ti_clock_dev *clkdev, unsigned int *freq);
+static int omap4_clk_get_arm_fclk_freq(
+    struct ti_clock_dev *clkdev, unsigned int *freq);
 
 /**
  *	omap_clk_devmap - Array of clock devices available on OMAP4xxx devices
  *
  *	This map only defines which clocks are valid and the callback functions
- *	for clock activate, deactivate, etc.  It is used by the top level omap_prcm
- *	driver.
+ *	for clock activate, deactivate, etc.  It is used by the top level
+ *omap_prcm driver.
  *
  *	The actual details of the clocks (config registers, bit fields, sources,
  *	etc) are in the private g_omap3_clk_details array below.
  *
  */
 
-#define OMAP4_GENERIC_CLOCK_DEV(i) \
-	{	.id = (i), \
-		.clk_activate = omap4_clk_generic_activate, \
-		.clk_deactivate = omap4_clk_generic_deactivate, \
-		.clk_set_source = omap4_clk_generic_set_source, \
-		.clk_accessible = omap4_clk_generic_accessible, \
+#define OMAP4_GENERIC_CLOCK_DEV(i)                                        \
+	{                                                                 \
+		.id = (i), .clk_activate = omap4_clk_generic_activate,    \
+		.clk_deactivate = omap4_clk_generic_deactivate,           \
+		.clk_set_source = omap4_clk_generic_set_source,           \
+		.clk_accessible = omap4_clk_generic_accessible,           \
 		.clk_get_source_freq = omap4_clk_generic_get_source_freq, \
-		.clk_set_source_freq = NULL \
+		.clk_set_source_freq = NULL                               \
 	}
 
-#define OMAP4_GPTIMER_CLOCK_DEV(i) \
-	{	.id = (i), \
-		.clk_activate = omap4_clk_generic_activate, \
-		.clk_deactivate = omap4_clk_generic_deactivate, \
-		.clk_set_source = omap4_clk_gptimer_set_source, \
-		.clk_accessible = omap4_clk_generic_accessible, \
+#define OMAP4_GPTIMER_CLOCK_DEV(i)                                        \
+	{                                                                 \
+		.id = (i), .clk_activate = omap4_clk_generic_activate,    \
+		.clk_deactivate = omap4_clk_generic_deactivate,           \
+		.clk_set_source = omap4_clk_gptimer_set_source,           \
+		.clk_accessible = omap4_clk_generic_accessible,           \
 		.clk_get_source_freq = omap4_clk_gptimer_get_source_freq, \
-		.clk_set_source_freq = NULL \
+		.clk_set_source_freq = NULL                               \
 	}
 
-#define OMAP4_HSMMC_CLOCK_DEV(i) \
-	{	.id = (i), \
-		.clk_activate = omap4_clk_generic_activate, \
-		.clk_deactivate = omap4_clk_generic_deactivate, \
-		.clk_set_source = omap4_clk_hsmmc_set_source, \
-		.clk_accessible = omap4_clk_generic_accessible, \
+#define OMAP4_HSMMC_CLOCK_DEV(i)                                        \
+	{                                                               \
+		.id = (i), .clk_activate = omap4_clk_generic_activate,  \
+		.clk_deactivate = omap4_clk_generic_deactivate,         \
+		.clk_set_source = omap4_clk_hsmmc_set_source,           \
+		.clk_accessible = omap4_clk_generic_accessible,         \
 		.clk_get_source_freq = omap4_clk_hsmmc_get_source_freq, \
-		.clk_set_source_freq = NULL \
+		.clk_set_source_freq = NULL                             \
 	}
 
-#define OMAP4_HSUSBHOST_CLOCK_DEV(i) \
-	{	.id = (i), \
-		.clk_activate = omap4_clk_hsusbhost_activate, \
-		.clk_deactivate = omap4_clk_hsusbhost_deactivate, \
-		.clk_set_source = omap4_clk_hsusbhost_set_source, \
-		.clk_accessible = omap4_clk_hsusbhost_accessible, \
-		.clk_get_source_freq = NULL, \
-		.clk_set_source_freq = NULL \
+#define OMAP4_HSUSBHOST_CLOCK_DEV(i)                                     \
+	{                                                                \
+		.id = (i), .clk_activate = omap4_clk_hsusbhost_activate, \
+		.clk_deactivate = omap4_clk_hsusbhost_deactivate,        \
+		.clk_set_source = omap4_clk_hsusbhost_set_source,        \
+		.clk_accessible = omap4_clk_hsusbhost_accessible,        \
+		.clk_get_source_freq = NULL, .clk_set_source_freq = NULL \
 	}
 
 struct ti_clock_dev ti_omap4_clk_devmap[] = {
 	/* System clocks */
-	{	.id                  = SYS_CLK,
-		.clk_activate        = NULL,
-		.clk_deactivate      = NULL,
-		.clk_set_source      = NULL,
-		.clk_accessible      = NULL,
-		.clk_get_source_freq = omap4_clk_get_sysclk_freq,
-		.clk_set_source_freq = NULL,
+	{
+	    .id = SYS_CLK,
+	    .clk_activate = NULL,
+	    .clk_deactivate = NULL,
+	    .clk_set_source = NULL,
+	    .clk_accessible = NULL,
+	    .clk_get_source_freq = omap4_clk_get_sysclk_freq,
+	    .clk_set_source_freq = NULL,
 	},
 	/* MPU (ARM) core clocks */
-	{	.id                  = MPU_CLK,
-		.clk_activate        = NULL,
-		.clk_deactivate      = NULL,
-		.clk_set_source      = NULL,
-		.clk_accessible      = NULL,
-		.clk_get_source_freq = omap4_clk_get_arm_fclk_freq,
-		.clk_set_source_freq = NULL,
+	{
+	    .id = MPU_CLK,
+	    .clk_activate = NULL,
+	    .clk_deactivate = NULL,
+	    .clk_set_source = NULL,
+	    .clk_accessible = NULL,
+	    .clk_get_source_freq = omap4_clk_get_arm_fclk_freq,
+	    .clk_set_source_freq = NULL,
 	},
 
 	/* UART device clocks */
-	OMAP4_GENERIC_CLOCK_DEV(UART1_CLK),
-	OMAP4_GENERIC_CLOCK_DEV(UART2_CLK),
-	OMAP4_GENERIC_CLOCK_DEV(UART3_CLK),
-	OMAP4_GENERIC_CLOCK_DEV(UART4_CLK),
+	OMAP4_GENERIC_CLOCK_DEV(UART1_CLK), OMAP4_GENERIC_CLOCK_DEV(UART2_CLK),
+	OMAP4_GENERIC_CLOCK_DEV(UART3_CLK), OMAP4_GENERIC_CLOCK_DEV(UART4_CLK),
 
 	/* Timer device source clocks */
 	OMAP4_GPTIMER_CLOCK_DEV(TIMER1_CLK),
@@ -291,10 +299,8 @@ struct ti_clock_dev ti_omap4_clk_devmap[] = {
 	OMAP4_GPTIMER_CLOCK_DEV(TIMER11_CLK),
 
 	/* MMC device clocks (MMC1 and MMC2 can have different input clocks) */
-	OMAP4_HSMMC_CLOCK_DEV(MMC1_CLK),
-	OMAP4_HSMMC_CLOCK_DEV(MMC2_CLK),
-	OMAP4_GENERIC_CLOCK_DEV(MMC3_CLK),
-	OMAP4_GENERIC_CLOCK_DEV(MMC4_CLK),
+	OMAP4_HSMMC_CLOCK_DEV(MMC1_CLK), OMAP4_HSMMC_CLOCK_DEV(MMC2_CLK),
+	OMAP4_GENERIC_CLOCK_DEV(MMC3_CLK), OMAP4_GENERIC_CLOCK_DEV(MMC4_CLK),
 	OMAP4_GENERIC_CLOCK_DEV(MMC5_CLK),
 
 	/* USB HS (high speed TLL, EHCI and OHCI) */
@@ -309,141 +315,136 @@ struct ti_clock_dev ti_omap4_clk_devmap[] = {
 	OMAP4_HSUSBHOST_CLOCK_DEV(USBP2_HSIC_CLK),
 
 	/* GPIO */
-	OMAP4_GENERIC_CLOCK_DEV(GPIO1_CLK),
-	OMAP4_GENERIC_CLOCK_DEV(GPIO2_CLK),
-	OMAP4_GENERIC_CLOCK_DEV(GPIO3_CLK),
-	OMAP4_GENERIC_CLOCK_DEV(GPIO4_CLK),
-	OMAP4_GENERIC_CLOCK_DEV(GPIO5_CLK),
-	OMAP4_GENERIC_CLOCK_DEV(GPIO6_CLK),
+	OMAP4_GENERIC_CLOCK_DEV(GPIO1_CLK), OMAP4_GENERIC_CLOCK_DEV(GPIO2_CLK),
+	OMAP4_GENERIC_CLOCK_DEV(GPIO3_CLK), OMAP4_GENERIC_CLOCK_DEV(GPIO4_CLK),
+	OMAP4_GENERIC_CLOCK_DEV(GPIO5_CLK), OMAP4_GENERIC_CLOCK_DEV(GPIO6_CLK),
 
 	/* sDMA */
-	OMAP4_GENERIC_CLOCK_DEV(SDMA_CLK),	
+	OMAP4_GENERIC_CLOCK_DEV(SDMA_CLK),
 
 	/* I2C */
-	OMAP4_GENERIC_CLOCK_DEV(I2C1_CLK),
-	OMAP4_GENERIC_CLOCK_DEV(I2C2_CLK),
-	OMAP4_GENERIC_CLOCK_DEV(I2C3_CLK),
-	OMAP4_GENERIC_CLOCK_DEV(I2C4_CLK),
-	{  INVALID_CLK_IDENT, NULL, NULL, NULL, NULL }
+	OMAP4_GENERIC_CLOCK_DEV(I2C1_CLK), OMAP4_GENERIC_CLOCK_DEV(I2C2_CLK),
+	OMAP4_GENERIC_CLOCK_DEV(I2C3_CLK), OMAP4_GENERIC_CLOCK_DEV(I2C4_CLK),
+	{ INVALID_CLK_IDENT, NULL, NULL, NULL, NULL }
 };
 
 /**
- *	omap4_clk_details - Stores details for all the different clocks supported
+ *	omap4_clk_details - Stores details for all the different clocks
+ *supported
  *
- *	Whenever an operation on a clock is being performed (activated, deactivated,
- *	etc) this array is looked up to find the correct register and bit(s) we
- *	should be modifying.
+ *	Whenever an operation on a clock is being performed (activated,
+ *deactivated, etc) this array is looked up to find the correct register and
+ *bit(s) we should be modifying.
  *
  */
 struct omap4_clk_details {
 	clk_ident_t id;
 
-	uint32_t    instance;
-	uint32_t    clksel_reg;
+	uint32_t instance;
+	uint32_t clksel_reg;
 
-	int32_t     src_freq;
+	int32_t src_freq;
 
-	uint32_t    enable_mode;
+	uint32_t enable_mode;
 };
 
-#define OMAP4_GENERIC_CLOCK_DETAILS(i, f, di, r, e) \
-	{	.id = (i), \
-		.instance = (di), \
-		.clksel_reg = (r), \
-		.src_freq = (f), \
-		.enable_mode = (e), \
+#define OMAP4_GENERIC_CLOCK_DETAILS(i, f, di, r, e)             \
+	{                                                       \
+		.id = (i), .instance = (di), .clksel_reg = (r), \
+		.src_freq = (f), .enable_mode = (e),            \
 	}
 
 static struct omap4_clk_details g_omap4_clk_details[] = {
 	/* UART */
 	OMAP4_GENERIC_CLOCK_DETAILS(UART1_CLK, FREQ_48MHZ, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x0140), CLKCTRL_MODULEMODE_ENABLE),
+	    (L4PER_CM2_OFFSET + 0x0140), CLKCTRL_MODULEMODE_ENABLE),
 	OMAP4_GENERIC_CLOCK_DETAILS(UART2_CLK, FREQ_48MHZ, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x0148), CLKCTRL_MODULEMODE_ENABLE),
+	    (L4PER_CM2_OFFSET + 0x0148), CLKCTRL_MODULEMODE_ENABLE),
 	OMAP4_GENERIC_CLOCK_DETAILS(UART3_CLK, FREQ_48MHZ, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x0150), CLKCTRL_MODULEMODE_ENABLE),
+	    (L4PER_CM2_OFFSET + 0x0150), CLKCTRL_MODULEMODE_ENABLE),
 	OMAP4_GENERIC_CLOCK_DETAILS(UART4_CLK, FREQ_48MHZ, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x0158), CLKCTRL_MODULEMODE_ENABLE),
+	    (L4PER_CM2_OFFSET + 0x0158), CLKCTRL_MODULEMODE_ENABLE),
 
 	/* General purpose timers */
-	OMAP4_GENERIC_CLOCK_DETAILS(TIMER1_CLK,  -1, PRM_INSTANCE,
-		(WKUP_CM_OFFSET + 0x040), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(TIMER2_CLK,  -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x038), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(TIMER3_CLK,  -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x040), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(TIMER4_CLK,  -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x048), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(TIMER5_CLK,  -1, CM1_INSTANCE,
-		(ABE_CM1_OFFSET + 0x068), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(TIMER6_CLK,  -1, CM1_INSTANCE,
-		(ABE_CM1_OFFSET + 0x070), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(TIMER7_CLK,  -1, CM1_INSTANCE,
-		(ABE_CM1_OFFSET + 0x078), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(TIMER8_CLK,  -1, CM1_INSTANCE,
-		(ABE_CM1_OFFSET + 0x080), CLKCTRL_MODULEMODE_ENABLE),
-	OMAP4_GENERIC_CLOCK_DETAILS(TIMER9_CLK,  -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x050), CLKCTRL_MODULEMODE_ENABLE),
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER1_CLK, -1, PRM_INSTANCE,
+	    (WKUP_CM_OFFSET + 0x040), CLKCTRL_MODULEMODE_ENABLE),
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER2_CLK, -1, CM2_INSTANCE,
+	    (L4PER_CM2_OFFSET + 0x038), CLKCTRL_MODULEMODE_ENABLE),
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER3_CLK, -1, CM2_INSTANCE,
+	    (L4PER_CM2_OFFSET + 0x040), CLKCTRL_MODULEMODE_ENABLE),
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER4_CLK, -1, CM2_INSTANCE,
+	    (L4PER_CM2_OFFSET + 0x048), CLKCTRL_MODULEMODE_ENABLE),
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER5_CLK, -1, CM1_INSTANCE,
+	    (ABE_CM1_OFFSET + 0x068), CLKCTRL_MODULEMODE_ENABLE),
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER6_CLK, -1, CM1_INSTANCE,
+	    (ABE_CM1_OFFSET + 0x070), CLKCTRL_MODULEMODE_ENABLE),
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER7_CLK, -1, CM1_INSTANCE,
+	    (ABE_CM1_OFFSET + 0x078), CLKCTRL_MODULEMODE_ENABLE),
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER8_CLK, -1, CM1_INSTANCE,
+	    (ABE_CM1_OFFSET + 0x080), CLKCTRL_MODULEMODE_ENABLE),
+	OMAP4_GENERIC_CLOCK_DETAILS(TIMER9_CLK, -1, CM2_INSTANCE,
+	    (L4PER_CM2_OFFSET + 0x050), CLKCTRL_MODULEMODE_ENABLE),
 	OMAP4_GENERIC_CLOCK_DETAILS(TIMER10_CLK, -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x028), CLKCTRL_MODULEMODE_ENABLE),
+	    (L4PER_CM2_OFFSET + 0x028), CLKCTRL_MODULEMODE_ENABLE),
 	OMAP4_GENERIC_CLOCK_DETAILS(TIMER11_CLK, -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x030), CLKCTRL_MODULEMODE_ENABLE),
+	    (L4PER_CM2_OFFSET + 0x030), CLKCTRL_MODULEMODE_ENABLE),
 
 	/* HSMMC (MMC1 and MMC2 can have different input clocks) */
 	OMAP4_GENERIC_CLOCK_DETAILS(MMC1_CLK, -1, CM2_INSTANCE,
-		(L3INIT_CM2_OFFSET + 0x028), /*CLKCTRL_MODULEMODE_ENABLE*/2),
+	    (L3INIT_CM2_OFFSET + 0x028), /*CLKCTRL_MODULEMODE_ENABLE*/ 2),
 	OMAP4_GENERIC_CLOCK_DETAILS(MMC2_CLK, -1, CM2_INSTANCE,
-		(L3INIT_CM2_OFFSET + 0x030), /*CLKCTRL_MODULEMODE_ENABLE*/2),
+	    (L3INIT_CM2_OFFSET + 0x030), /*CLKCTRL_MODULEMODE_ENABLE*/ 2),
 	OMAP4_GENERIC_CLOCK_DETAILS(MMC3_CLK, FREQ_48MHZ, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x120), /*CLKCTRL_MODULEMODE_ENABLE*/2),
+	    (L4PER_CM2_OFFSET + 0x120), /*CLKCTRL_MODULEMODE_ENABLE*/ 2),
 	OMAP4_GENERIC_CLOCK_DETAILS(MMC4_CLK, FREQ_48MHZ, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x128), /*CLKCTRL_MODULEMODE_ENABLE*/2),
+	    (L4PER_CM2_OFFSET + 0x128), /*CLKCTRL_MODULEMODE_ENABLE*/ 2),
 	OMAP4_GENERIC_CLOCK_DETAILS(MMC5_CLK, FREQ_48MHZ, CM2_INSTANCE,
-	       (L4PER_CM2_OFFSET + 0x160), /*CLKCTRL_MODULEMODE_ENABLE*/1),
+	    (L4PER_CM2_OFFSET + 0x160), /*CLKCTRL_MODULEMODE_ENABLE*/ 1),
 
 	/* GPIO modules */
 	OMAP4_GENERIC_CLOCK_DETAILS(GPIO1_CLK, -1, PRM_INSTANCE,
-		(WKUP_CM_OFFSET + 0x038), CLKCTRL_MODULEMODE_AUTO),
+	    (WKUP_CM_OFFSET + 0x038), CLKCTRL_MODULEMODE_AUTO),
 	OMAP4_GENERIC_CLOCK_DETAILS(GPIO2_CLK, -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x060), CLKCTRL_MODULEMODE_AUTO),
+	    (L4PER_CM2_OFFSET + 0x060), CLKCTRL_MODULEMODE_AUTO),
 	OMAP4_GENERIC_CLOCK_DETAILS(GPIO3_CLK, -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x068), CLKCTRL_MODULEMODE_AUTO),
+	    (L4PER_CM2_OFFSET + 0x068), CLKCTRL_MODULEMODE_AUTO),
 	OMAP4_GENERIC_CLOCK_DETAILS(GPIO4_CLK, -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x070), CLKCTRL_MODULEMODE_AUTO),
+	    (L4PER_CM2_OFFSET + 0x070), CLKCTRL_MODULEMODE_AUTO),
 	OMAP4_GENERIC_CLOCK_DETAILS(GPIO5_CLK, -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x078), CLKCTRL_MODULEMODE_AUTO),
+	    (L4PER_CM2_OFFSET + 0x078), CLKCTRL_MODULEMODE_AUTO),
 	OMAP4_GENERIC_CLOCK_DETAILS(GPIO6_CLK, -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x080), CLKCTRL_MODULEMODE_AUTO),
-		
+	    (L4PER_CM2_OFFSET + 0x080), CLKCTRL_MODULEMODE_AUTO),
+
 	/* sDMA block */
 	OMAP4_GENERIC_CLOCK_DETAILS(SDMA_CLK, -1, CM2_INSTANCE,
-		(CORE_CM2_OFFSET + 0x300), CLKCTRL_MODULEMODE_AUTO),
+	    (CORE_CM2_OFFSET + 0x300), CLKCTRL_MODULEMODE_AUTO),
 
 	/* I2C modules */
 	OMAP4_GENERIC_CLOCK_DETAILS(I2C1_CLK, -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x0A0), CLKCTRL_MODULEMODE_ENABLE),
+	    (L4PER_CM2_OFFSET + 0x0A0), CLKCTRL_MODULEMODE_ENABLE),
 	OMAP4_GENERIC_CLOCK_DETAILS(I2C2_CLK, -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x0A8), CLKCTRL_MODULEMODE_ENABLE),
+	    (L4PER_CM2_OFFSET + 0x0A8), CLKCTRL_MODULEMODE_ENABLE),
 	OMAP4_GENERIC_CLOCK_DETAILS(I2C3_CLK, -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x0B0), CLKCTRL_MODULEMODE_ENABLE),
+	    (L4PER_CM2_OFFSET + 0x0B0), CLKCTRL_MODULEMODE_ENABLE),
 	OMAP4_GENERIC_CLOCK_DETAILS(I2C4_CLK, -1, CM2_INSTANCE,
-		(L4PER_CM2_OFFSET + 0x0B8), CLKCTRL_MODULEMODE_ENABLE),
+	    (L4PER_CM2_OFFSET + 0x0B8), CLKCTRL_MODULEMODE_ENABLE),
 
 	{ INVALID_CLK_IDENT, 0, 0, 0, 0 },
 };
 
 /**
- *	MAX_MODULE_ENABLE_WAIT - the number of loops to wait for the module to come
- *	alive.
+ *	MAX_MODULE_ENABLE_WAIT - the number of loops to wait for the module to
+ *come alive.
  *
  */
-#define MAX_MODULE_ENABLE_WAIT    100
+#define MAX_MODULE_ENABLE_WAIT 100
 
 /**
- *	ARRAY_SIZE - Macro to return the number of elements in a static const array.
+ *	ARRAY_SIZE - Macro to return the number of elements in a static const
+ *array.
  *
  */
-#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
 /**
  *	omap4_clk_details - writes a 32-bit value to one of the timer registers
@@ -455,12 +456,13 @@ static struct omap4_clk_details g_omap4_clk_details[] = {
  *	RETURNS:
  *	nothing
  */
-static struct omap4_clk_details*
+static struct omap4_clk_details *
 omap4_clk_details(clk_ident_t id)
 {
 	struct omap4_clk_details *walker;
 
-	for (walker = g_omap4_clk_details; walker->id != INVALID_CLK_IDENT; walker++) {
+	for (walker = g_omap4_clk_details; walker->id != INVALID_CLK_IDENT;
+	     walker++) {
 		if (id == walker->id)
 			return (walker);
 	}
@@ -494,8 +496,8 @@ omap4_prcm_get_instance_softc(int module_instance)
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -507,8 +509,8 @@ static int
 omap4_clk_generic_activate(struct ti_clock_dev *clkdev)
 {
 	struct omap4_prcm_softc *sc;
-	struct omap4_clk_details* clk_details;
-	struct resource* clk_mem_res;
+	struct omap4_clk_details *clk_details;
+	struct resource *clk_mem_res;
 	uint32_t clksel;
 	unsigned int i;
 	clk_details = omap4_clk_details(clkdev->id);
@@ -525,12 +527,13 @@ omap4_clk_generic_activate(struct ti_clock_dev *clkdev)
 	if (clk_mem_res == NULL)
 		return (EINVAL);
 
-	/* All the 'generic' clocks have a CLKCTRL register which is more or less
-	 * generic - the have at least two fielda called MODULEMODE and IDLEST.
+	/* All the 'generic' clocks have a CLKCTRL register which is more or
+	 * less generic - the have at least two fielda called MODULEMODE and
+	 * IDLEST.
 	 */
 	clksel = bus_read_4(clk_mem_res, clk_details->clksel_reg);
 	clksel &= ~CLKCTRL_MODULEMODE_MASK;
-	clksel |=  clk_details->enable_mode;
+	clksel |= clk_details->enable_mode;
 	bus_write_4(clk_mem_res, clk_details->clksel_reg, clksel);
 
 	/* Now poll on the IDLEST register to tell us if the module has come up.
@@ -544,11 +547,13 @@ omap4_clk_generic_activate(struct ti_clock_dev *clkdev)
 			break;
 		DELAY(10);
 	}
-		
+
 	/* Check the enabled state */
 	if ((clksel & CLKCTRL_IDLEST_MASK) != CLKCTRL_IDLEST_ENABLED) {
-		printf("Error: failed to enable module with clock %d\n", clkdev->id);
-		printf("Error: 0x%08x => 0x%08x\n", clk_details->clksel_reg, clksel);
+		printf("Error: failed to enable module with clock %d\n",
+		    clkdev->id);
+		printf("Error: 0x%08x => 0x%08x\n", clk_details->clksel_reg,
+		    clksel);
 		return (ETIMEDOUT);
 	}
 
@@ -560,8 +565,8 @@ omap4_clk_generic_activate(struct ti_clock_dev *clkdev)
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -573,8 +578,8 @@ static int
 omap4_clk_generic_deactivate(struct ti_clock_dev *clkdev)
 {
 	struct omap4_prcm_softc *sc;
-	struct omap4_clk_details* clk_details;
-	struct resource* clk_mem_res;
+	struct omap4_clk_details *clk_details;
+	struct resource *clk_mem_res;
 	uint32_t clksel;
 
 	clk_details = omap4_clk_details(clkdev->id);
@@ -591,12 +596,13 @@ omap4_clk_generic_deactivate(struct ti_clock_dev *clkdev)
 	if (clk_mem_res == NULL)
 		return (EINVAL);
 
-	/* All the 'generic' clocks have a CLKCTRL register which is more or less
-	 * generic - the have at least two fielda called MODULEMODE and IDLEST.
+	/* All the 'generic' clocks have a CLKCTRL register which is more or
+	 * less generic - the have at least two fielda called MODULEMODE and
+	 * IDLEST.
 	 */
 	clksel = bus_read_4(clk_mem_res, clk_details->clksel_reg);
 	clksel &= ~CLKCTRL_MODULEMODE_MASK;
-	clksel |=  CLKCTRL_MODULEMODE_DISABLE;
+	clksel |= CLKCTRL_MODULEMODE_DISABLE;
 	bus_write_4(clk_mem_res, clk_details->clksel_reg, clksel);
 
 	return (0);
@@ -607,8 +613,8 @@ omap4_clk_generic_deactivate(struct ti_clock_dev *clkdev)
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -617,8 +623,7 @@ omap4_clk_generic_deactivate(struct ti_clock_dev *clkdev)
  *	Returns 0 on success or a positive error code on failure.
  */
 static int
-omap4_clk_generic_set_source(struct ti_clock_dev *clkdev,
-                             clk_src_t clksrc)
+omap4_clk_generic_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc)
 {
 
 	return (0);
@@ -629,8 +634,8 @@ omap4_clk_generic_set_source(struct ti_clock_dev *clkdev,
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -642,8 +647,8 @@ static int
 omap4_clk_generic_accessible(struct ti_clock_dev *clkdev)
 {
 	struct omap4_prcm_softc *sc;
-	struct omap4_clk_details* clk_details;
-	struct resource* clk_mem_res;
+	struct omap4_clk_details *clk_details;
+	struct resource *clk_mem_res;
 	uint32_t clksel;
 
 	clk_details = omap4_clk_details(clkdev->id);
@@ -661,7 +666,7 @@ omap4_clk_generic_accessible(struct ti_clock_dev *clkdev)
 		return (EINVAL);
 
 	clksel = bus_read_4(clk_mem_res, clk_details->clksel_reg);
-		
+
 	/* Check the enabled state */
 	if ((clksel & CLKCTRL_IDLEST_MASK) != CLKCTRL_IDLEST_ENABLED)
 		return (0);
@@ -674,8 +679,8 @@ omap4_clk_generic_accessible(struct ti_clock_dev *clkdev)
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -684,11 +689,10 @@ omap4_clk_generic_accessible(struct ti_clock_dev *clkdev)
  *	Returns 0 on success or a negative error code on failure.
  */
 static int
-omap4_clk_generic_get_source_freq(struct ti_clock_dev *clkdev,
-                                  unsigned int *freq
-                                  )
+omap4_clk_generic_get_source_freq(
+    struct ti_clock_dev *clkdev, unsigned int *freq)
 {
-	struct omap4_clk_details* clk_details = omap4_clk_details(clkdev->id);
+	struct omap4_clk_details *clk_details = omap4_clk_details(clkdev->id);
 
 	if (clk_details == NULL)
 		return (ENXIO);
@@ -705,8 +709,8 @@ omap4_clk_generic_get_source_freq(struct ti_clock_dev *clkdev,
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -715,12 +719,11 @@ omap4_clk_generic_get_source_freq(struct ti_clock_dev *clkdev,
  *	Returns 0 on success or a negative error code on failure.
  */
 static int
-omap4_clk_gptimer_set_source(struct ti_clock_dev *clkdev,
-                             clk_src_t clksrc)
+omap4_clk_gptimer_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc)
 {
 	struct omap4_prcm_softc *sc;
-	struct omap4_clk_details* clk_details;
-	struct resource* clk_mem_res;
+	struct omap4_clk_details *clk_details;
+	struct resource *clk_mem_res;
 
 	clk_details = omap4_clk_details(clkdev->id);
 
@@ -746,8 +749,8 @@ omap4_clk_gptimer_set_source(struct ti_clock_dev *clkdev,
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -756,13 +759,12 @@ omap4_clk_gptimer_set_source(struct ti_clock_dev *clkdev,
  *	Returns 0 on success or a negative error code on failure.
  */
 static int
-omap4_clk_gptimer_get_source_freq(struct ti_clock_dev *clkdev,
-                                  unsigned int *freq
-                                  )
+omap4_clk_gptimer_get_source_freq(
+    struct ti_clock_dev *clkdev, unsigned int *freq)
 {
 	struct omap4_prcm_softc *sc;
-	struct omap4_clk_details* clk_details;
-	struct resource* clk_mem_res;
+	struct omap4_clk_details *clk_details;
+	struct resource *clk_mem_res;
 	uint32_t clksel;
 	unsigned int src_freq;
 
@@ -796,8 +798,9 @@ omap4_clk_gptimer_get_source_freq(struct ti_clock_dev *clkdev,
 
 /**
  *	omap4_clk_hsmmc_set_source - sets the source clock (freq)
- *	@clkdev: pointer to the clockdev structure (id field will contain clock id)
- *	
+ *	@clkdev: pointer to the clockdev structure (id field will contain clock
+ *id)
+ *
  *	The MMC 1 and 2 clocks can be source from either a 64MHz or 96MHz clock.
  *
  *	LOCKING:
@@ -807,12 +810,11 @@ omap4_clk_gptimer_get_source_freq(struct ti_clock_dev *clkdev,
  *	Returns 0 on success or a negative error code on failure.
  */
 static int
-omap4_clk_hsmmc_set_source(struct ti_clock_dev *clkdev,
-                           clk_src_t clksrc)
+omap4_clk_hsmmc_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc)
 {
 	struct omap4_prcm_softc *sc;
-	struct omap4_clk_details* clk_details;
-	struct resource* clk_mem_res;
+	struct omap4_clk_details *clk_details;
+	struct resource *clk_mem_res;
 	uint32_t clksel;
 
 	clk_details = omap4_clk_details(clkdev->id);
@@ -828,8 +830,9 @@ omap4_clk_hsmmc_set_source(struct ti_clock_dev *clkdev,
 
 	if (clk_mem_res == NULL)
 		return (EINVAL);
-		
-	/* For MMC modules 3, 4 & 5 you can't change the freq, it's always 48MHz */
+
+	/* For MMC modules 3, 4 & 5 you can't change the freq, it's always 48MHz
+	 */
 	if ((clkdev->id == MMC3_CLK) || (clkdev->id == MMC4_CLK) ||
 	    (clkdev->id == MMC5_CLK)) {
 		if (clksrc != F48MHZ_CLK)
@@ -846,7 +849,7 @@ omap4_clk_hsmmc_set_source(struct ti_clock_dev *clkdev,
 		clksel |= (0x1UL << 24);
 	else
 		return (EINVAL);
-		
+
 	bus_write_4(clk_mem_res, clk_details->clksel_reg, clksel);
 
 	return (0);
@@ -854,9 +857,10 @@ omap4_clk_hsmmc_set_source(struct ti_clock_dev *clkdev,
 
 /**
  *	omap4_clk_hsmmc_get_source_freq - checks if a module is accessible
- *	@clkdev: pointer to the clockdev structure (id field will contain clock id)
- *	
- *	
+ *	@clkdev: pointer to the clockdev structure (id field will contain clock
+ *id)
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -865,13 +869,11 @@ omap4_clk_hsmmc_set_source(struct ti_clock_dev *clkdev,
  *	Returns 0 on success or a negative error code on failure.
  */
 static int
-omap4_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,
-                                unsigned int *freq
-                                )
+omap4_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
 {
 	struct omap4_prcm_softc *sc;
-	struct omap4_clk_details* clk_details;
-	struct resource* clk_mem_res;
+	struct omap4_clk_details *clk_details;
+	struct resource *clk_mem_res;
 	uint32_t clksel;
 	unsigned int src_freq;
 
@@ -892,7 +894,8 @@ omap4_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,
 	switch (clkdev->id) {
 	case MMC1_CLK:
 	case MMC2_CLK:
-		/* Need to read the CLKSEL field to determine the clock source */
+		/* Need to read the CLKSEL field to determine the clock source
+		 */
 		clksel = bus_read_4(clk_mem_res, clk_details->clksel_reg);
 		if (clksel & (0x1UL << 24))
 			src_freq = FREQ_96MHZ;
@@ -907,7 +910,7 @@ omap4_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,
 	default:
 		return (EINVAL);
 	}
-		
+
 	/* Return the frequency */
 	if (freq)
 		*freq = src_freq;
@@ -919,15 +922,14 @@ omap4_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,
  *	omap4_clk_get_sysclk_freq - gets the sysclk frequency
  *	@sc: pointer to the clk module/device context
  *
- *	Read the clocking information from the power-control/boot-strap registers,
- *  and stored in two global variables.
+ *	Read the clocking information from the power-control/boot-strap
+ *registers, and stored in two global variables.
  *
  *	RETURNS:
  *	nothing, values are saved in global variables
  */
 static int
-omap4_clk_get_sysclk_freq(struct ti_clock_dev *clkdev,
-                          unsigned int *freq)
+omap4_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
 {
 	uint32_t clksel;
 	uint32_t sysclk;
@@ -937,7 +939,8 @@ omap4_clk_get_sysclk_freq(struct ti_clock_dev *clkdev,
 	if (sc == NULL)
 		return ENXIO;
 
-	/* Read the input clock freq from the configuration register (CM_SYS_CLKSEL) */
+	/* Read the input clock freq from the configuration register
+	 * (CM_SYS_CLKSEL) */
 	clksel = bus_read_4(sc->sc_res, CM_SYS_CLKSEL_OFFSET);
 	switch (clksel & 0x7) {
 	case 0x1:
@@ -967,7 +970,7 @@ omap4_clk_get_sysclk_freq(struct ti_clock_dev *clkdev,
 	/* Return the value */
 	if (freq)
 		*freq = sysclk;
-		
+
 	return (0);
 }
 
@@ -984,8 +987,7 @@ omap4_clk_get_sysclk_freq(struct ti_clock_dev *clkdev,
  *	returns 0 on success, a positive error code on failure.
  */
 static int
-omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev,
-                            unsigned int *freq)
+omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
 {
 	uint32_t clksel;
 	uint32_t pll_mult, pll_div;
@@ -1013,19 +1015,21 @@ omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev,
 	/* Return the value */
 	if (freq)
 		*freq = mpuclk;
-		
+
 	return (0);
 }
 
 /**
- *	omap4_clk_hsusbhost_activate - activates the USB clocks for the given module
+ *	omap4_clk_hsusbhost_activate - activates the USB clocks for the given
+ *module
  *	@clkdev: pointer to the clock device structure.
- *	@mem_res: array of memory resources allocated by the top level PRCM driver.
- *	
- *	The USB clocking setup seems to be a bit more tricky than the other modules,
- *	to start with the clocking diagram for the HS host module shows 13 different
- *	clocks.  So to try and make it easier to follow the clocking activation
- *	and deactivation is handled in its own set of callbacks.
+ *	@mem_res: array of memory resources allocated by the top level PRCM
+ *driver.
+ *
+ *	The USB clocking setup seems to be a bit more tricky than the other
+ *modules, to start with the clocking diagram for the HS host module shows 13
+ *different clocks.  So to try and make it easier to follow the clocking
+ *activation and deactivation is handled in its own set of callbacks.
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -1047,29 +1051,29 @@ struct dpll_param {
 /* USB parameters */
 struct dpll_param usb_dpll_param[7] = {
 	/* 12M values */
-	{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+	{ 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 },
 	/* 13M values */
-	{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+	{ 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 },
 	/* 16.8M values */
-	{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+	{ 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 },
 	/* 19.2M values */
-	{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+	{ 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 },
 	/* 26M values */
-	{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+	{ 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 },
 	/* 27M values */
-	{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
-	/* 38.4M values */
+	{ 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 },
+/* 38.4M values */
 #ifdef CONFIG_OMAP4_SDC
-	{0x32, 0x1, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0},
+	{ 0x32, 0x1, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0 },
 #else
-	{0x32, 0x1, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0},
+	{ 0x32, 0x1, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0 },
 #endif
 };
 static int
 omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 {
 	struct omap4_prcm_softc *sc;
-	struct resource* clk_mem_res;
+	struct resource *clk_mem_res;
 	uint32_t clksel_reg_off;
 	uint32_t clksel;
 	unsigned int i;
@@ -1086,17 +1090,18 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 		 *  - TLL_CH1_FCLK
 		 */
 
-		/* We need the CM_L3INIT_HSUSBTLL_CLKCTRL register in CM2 register set */
+		/* We need the CM_L3INIT_HSUSBTLL_CLKCTRL register in CM2
+		 * register set */
 		clk_mem_res = sc->sc_res;
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x68;
 
-		/* Enable the module and also enable the optional func clocks for
-		 * channels 0 & 1 (is this needed ?)
+		/* Enable the module and also enable the optional func clocks
+		 * for channels 0 & 1 (is this needed ?)
 		 */
 		clksel = bus_read_4(clk_mem_res, clksel_reg_off);
 		clksel &= ~CLKCTRL_MODULEMODE_MASK;
-		clksel |=  CLKCTRL_MODULEMODE_ENABLE;
-		
+		clksel |= CLKCTRL_MODULEMODE_ENABLE;
+
 		clksel |= (0x1 << 8); /* USB-HOST optional clock: USB_CH0_CLK */
 		clksel |= (0x1 << 9); /* USB-HOST optional clock: USB_CH1_CLK */
 		break;
@@ -1108,41 +1113,53 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 	case USBP2_UTMI_CLK:
 	case USBP1_HSIC_CLK:
 	case USBP2_HSIC_CLK:
-		/* For the USB HS HOST module we need to enable the following clocks:
+		/* For the USB HS HOST module we need to enable the following
+		 * clocks:
 		 *  - INIT_L4_ICLK     (will be enabled by bootloader)
 		 *  - INIT_L3_ICLK     (will be enabled by bootloader)
 		 *  - INIT_48MC_FCLK
-		 *  - UTMI_ROOT_GFCLK  (UTMI only, create a new clock for that ?)
-		 *  - UTMI_P1_FCLK     (UTMI only, create a new clock for that ?)
-		 *  - UTMI_P2_FCLK     (UTMI only, create a new clock for that ?)
-		 *  - HSIC_P1_60       (HSIC only, create a new clock for that ?)
-		 *  - HSIC_P1_480      (HSIC only, create a new clock for that ?)
-		 *  - HSIC_P2_60       (HSIC only, create a new clock for that ?)
-		 *  - HSIC_P2_480      (HSIC only, create a new clock for that ?)
+		 *  - UTMI_ROOT_GFCLK  (UTMI only, create a new clock for that
+		 * ?)
+		 *  - UTMI_P1_FCLK     (UTMI only, create a new clock for that
+		 * ?)
+		 *  - UTMI_P2_FCLK     (UTMI only, create a new clock for that
+		 * ?)
+		 *  - HSIC_P1_60       (HSIC only, create a new clock for that
+		 * ?)
+		 *  - HSIC_P1_480      (HSIC only, create a new clock for that
+		 * ?)
+		 *  - HSIC_P2_60       (HSIC only, create a new clock for that
+		 * ?)
+		 *  - HSIC_P2_480      (HSIC only, create a new clock for that
+		 * ?)
 		 */
 
-		/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2 register set */
+		/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2
+		 * register set */
 		clk_mem_res = sc->sc_res;
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x58;
-		clksel = bus_read_4(clk_mem_res, clksel_reg_off);	
+		clksel = bus_read_4(clk_mem_res, clksel_reg_off);
 		/* Enable the module and also enable the optional func clocks */
 		if (clkdev->id == USBHSHOST_CLK) {
 			clksel &= ~CLKCTRL_MODULEMODE_MASK;
-			clksel |=  /*CLKCTRL_MODULEMODE_ENABLE*/2;
+			clksel |= /*CLKCTRL_MODULEMODE_ENABLE*/ 2;
 
-			clksel |= (0x1 << 15); /* USB-HOST clock control: FUNC48MCLK */
+			clksel |= (0x1
+			    << 15); /* USB-HOST clock control: FUNC48MCLK */
 		}
-		
+
 		else if (clkdev->id == USBP1_UTMI_CLK)
-			clksel |= (0x1 << 8);  /* UTMI_P1_CLK */
+			clksel |= (0x1 << 8); /* UTMI_P1_CLK */
 		else if (clkdev->id == USBP2_UTMI_CLK)
-			clksel |= (0x1 << 9);  /* UTMI_P2_CLK */
+			clksel |= (0x1 << 9); /* UTMI_P2_CLK */
 
 		else if (clkdev->id == USBP1_HSIC_CLK)
-			clksel |= (0x5 << 11);  /* HSIC60M_P1_CLK + HSIC480M_P1_CLK */
+			clksel |= (0x5
+			    << 11); /* HSIC60M_P1_CLK + HSIC480M_P1_CLK */
 		else if (clkdev->id == USBP2_HSIC_CLK)
-			clksel |= (0x5 << 12);  /* HSIC60M_P2_CLK + HSIC480M_P2_CLK */
-		
+			clksel |= (0x5
+			    << 12); /* HSIC60M_P2_CLK + HSIC480M_P2_CLK */
+
 		break;
 
 	default:
@@ -1157,10 +1174,11 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 		if ((clksel & CLKCTRL_IDLEST_MASK) == CLKCTRL_IDLEST_ENABLED)
 			break;
 	}
-		
+
 	/* Check the enabled state */
 	if ((clksel & CLKCTRL_IDLEST_MASK) != CLKCTRL_IDLEST_ENABLED) {
-		printf("Error: HERE failed to enable module with clock %d\n", clkdev->id);
+		printf("Error: HERE failed to enable module with clock %d\n",
+		    clkdev->id);
 		printf("Error: 0x%08x => 0x%08x\n", clksel_reg_off, clksel);
 		return (ETIMEDOUT);
 	}
@@ -1171,9 +1189,10 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 /**
  *	omap4_clk_generic_deactivate - checks if a module is accessible
  *	@clkdev: pointer to the clock device structure.
- *	@mem_res: array of memory resources allocated by the top level PRCM driver.
- *	
- *	
+ *	@mem_res: array of memory resources allocated by the top level PRCM
+ *driver.
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -1185,7 +1204,7 @@ static int
 omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev)
 {
 	struct omap4_prcm_softc *sc;
-	struct resource* clk_mem_res;
+	struct resource *clk_mem_res;
 	uint32_t clksel_reg_off;
 	uint32_t clksel;
 
@@ -1195,13 +1214,14 @@ omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev)
 
 	switch (clkdev->id) {
 	case USBTLL_CLK:
-		/* We need the CM_L3INIT_HSUSBTLL_CLKCTRL register in CM2 register set */
+		/* We need the CM_L3INIT_HSUSBTLL_CLKCTRL register in CM2
+		 * register set */
 		clk_mem_res = sc->sc_res;
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x68;
 
 		clksel = bus_read_4(clk_mem_res, clksel_reg_off);
 		clksel &= ~CLKCTRL_MODULEMODE_MASK;
-		clksel |=  CLKCTRL_MODULEMODE_DISABLE;
+		clksel |= CLKCTRL_MODULEMODE_DISABLE;
 		break;
 
 	case USBHSHOST_CLK:
@@ -1211,20 +1231,29 @@ omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev)
 	case USBP2_UTMI_CLK:
 	case USBP1_HSIC_CLK:
 	case USBP2_HSIC_CLK:
-		/* For the USB HS HOST module we need to enable the following clocks:
+		/* For the USB HS HOST module we need to enable the following
+		 * clocks:
 		 *  - INIT_L4_ICLK     (will be enabled by bootloader)
 		 *  - INIT_L3_ICLK     (will be enabled by bootloader)
 		 *  - INIT_48MC_FCLK
-		 *  - UTMI_ROOT_GFCLK  (UTMI only, create a new clock for that ?)
-		 *  - UTMI_P1_FCLK     (UTMI only, create a new clock for that ?)
-		 *  - UTMI_P2_FCLK     (UTMI only, create a new clock for that ?)
-		 *  - HSIC_P1_60       (HSIC only, create a new clock for that ?)
-		 *  - HSIC_P1_480      (HSIC only, create a new clock for that ?)
-		 *  - HSIC_P2_60       (HSIC only, create a new clock for that ?)
-		 *  - HSIC_P2_480      (HSIC only, create a new clock for that ?)
+		 *  - UTMI_ROOT_GFCLK  (UTMI only, create a new clock for that
+		 * ?)
+		 *  - UTMI_P1_FCLK     (UTMI only, create a new clock for that
+		 * ?)
+		 *  - UTMI_P2_FCLK     (UTMI only, create a new clock for that
+		 * ?)
+		 *  - HSIC_P1_60       (HSIC only, create a new clock for that
+		 * ?)
+		 *  - HSIC_P1_480      (HSIC only, create a new clock for that
+		 * ?)
+		 *  - HSIC_P2_60       (HSIC only, create a new clock for that
+		 * ?)
+		 *  - HSIC_P2_480      (HSIC only, create a new clock for that
+		 * ?)
 		 */
 
-		/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2 register set */
+		/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2
+		 * register set */
 		clk_mem_res = sc->sc_res;
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x58;
 		clksel = bus_read_4(clk_mem_res, clksel_reg_off);
@@ -1232,21 +1261,24 @@ omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev)
 		/* Enable the module and also enable the optional func clocks */
 		if (clkdev->id == USBHSHOST_CLK) {
 			clksel &= ~CLKCTRL_MODULEMODE_MASK;
-			clksel |=  CLKCTRL_MODULEMODE_DISABLE;
+			clksel |= CLKCTRL_MODULEMODE_DISABLE;
 
-			clksel &= ~(0x1 << 15); /* USB-HOST clock control: FUNC48MCLK */
+			clksel &= ~(
+			    0x1 << 15); /* USB-HOST clock control: FUNC48MCLK */
 		}
-		
+
 		else if (clkdev->id == USBP1_UTMI_CLK)
-			clksel &= ~(0x1 << 8);  /* UTMI_P1_CLK */
+			clksel &= ~(0x1 << 8); /* UTMI_P1_CLK */
 		else if (clkdev->id == USBP2_UTMI_CLK)
-			clksel &= ~(0x1 << 9);  /* UTMI_P2_CLK */
+			clksel &= ~(0x1 << 9); /* UTMI_P2_CLK */
 
 		else if (clkdev->id == USBP1_HSIC_CLK)
-			clksel &= ~(0x5 << 11);  /* HSIC60M_P1_CLK + HSIC480M_P1_CLK */
+			clksel &= ~(
+			    0x5 << 11); /* HSIC60M_P1_CLK + HSIC480M_P1_CLK */
 		else if (clkdev->id == USBP2_HSIC_CLK)
-			clksel &= ~(0x5 << 12);  /* HSIC60M_P2_CLK + HSIC480M_P2_CLK */
-		
+			clksel &= ~(
+			    0x5 << 12); /* HSIC60M_P2_CLK + HSIC480M_P2_CLK */
+
 		break;
 
 	default:
@@ -1261,9 +1293,10 @@ omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev)
 /**
  *	omap4_clk_hsusbhost_accessible - checks if a module is accessible
  *	@clkdev: pointer to the clock device structure.
- *	@mem_res: array of memory resources allocated by the top level PRCM driver.
- *	
- *	
+ *	@mem_res: array of memory resources allocated by the top level PRCM
+ *driver.
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -1276,7 +1309,7 @@ static int
 omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev)
 {
 	struct omap4_prcm_softc *sc;
-	struct resource* clk_mem_res;
+	struct resource *clk_mem_res;
 	uint32_t clksel_reg_off;
 	uint32_t clksel;
 
@@ -1285,21 +1318,21 @@ omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev)
 		return ENXIO;
 
 	if (clkdev->id == USBTLL_CLK) {
-		/* We need the CM_L3INIT_HSUSBTLL_CLKCTRL register in CM2 register set */
+		/* We need the CM_L3INIT_HSUSBTLL_CLKCTRL register in CM2
+		 * register set */
 		clk_mem_res = sc->sc_res;
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x68;
-	}
-	else if (clkdev->id == USBHSHOST_CLK) {
-		/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2 register set */
+	} else if (clkdev->id == USBHSHOST_CLK) {
+		/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2
+		 * register set */
 		clk_mem_res = sc->sc_res;
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x58;
-	}
-	else {
+	} else {
 		return (EINVAL);
 	}
 
 	clksel = bus_read_4(clk_mem_res, clksel_reg_off);
-		
+
 	/* Check the enabled state */
 	if ((clksel & CLKCTRL_IDLEST_MASK) != CLKCTRL_IDLEST_ENABLED)
 		return (0);
@@ -1311,9 +1344,10 @@ omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev)
  *	omap4_clk_hsusbhost_set_source - sets the source clocks
  *	@clkdev: pointer to the clock device structure.
  *	@clksrc: the clock source ID for the given clock.
- *	@mem_res: array of memory resources allocated by the top level PRCM driver.
- *	
- *	
+ *	@mem_res: array of memory resources allocated by the top level PRCM
+ *driver.
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -1322,11 +1356,10 @@ omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev)
  *	Returns 0 if successful otherwise a negative error code on failure.
  */
 static int
-omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev,
-                               clk_src_t clksrc)
+omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc)
 {
 	struct omap4_prcm_softc *sc;
-	struct resource* clk_mem_res;
+	struct resource *clk_mem_res;
 	uint32_t clksel_reg_off;
 	uint32_t clksel;
 	unsigned int bit;
@@ -1342,7 +1375,8 @@ omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev,
 	else
 		return (EINVAL);
 
-	/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2 register set */
+	/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2 register set
+	 */
 	clk_mem_res = sc->sc_res;
 	clksel_reg_off = L3INIT_CM2_OFFSET + 0x58;
 	clksel = bus_read_4(clk_mem_res, clksel_reg_off);
@@ -1358,8 +1392,8 @@ omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev,
 	return (0);
 }
 
-#define PRM_RSTCTRL		0x1b00
-#define PRM_RSTCTRL_RESET	0x2
+#define PRM_RSTCTRL 0x1b00
+#define PRM_RSTCTRL_RESET 0x2
 
 static void
 omap4_prcm_reset(void)
@@ -1400,18 +1434,22 @@ omap4_prcm_probe(device_t dev)
 		return (ENXIO);
 
 	switch ((int)ocd->ocd_data) {
-		case PRM_INSTANCE:
-			device_set_desc(dev, "TI OMAP Power, Reset and Clock Management (PRM)");
-			break;
-		case CM1_INSTANCE:
-			device_set_desc(dev, "TI OMAP Power, Reset and Clock Management (C1)");
-			break;
-		case CM2_INSTANCE:
-			device_set_desc(dev, "TI OMAP Power, Reset and Clock Management (C2)");
-			break;
-		default:
-			device_printf(dev, "unknown instance type: %d\n", (int)ocd->ocd_data);
-			return (ENXIO);
+	case PRM_INSTANCE:
+		device_set_desc(
+		    dev, "TI OMAP Power, Reset and Clock Management (PRM)");
+		break;
+	case CM1_INSTANCE:
+		device_set_desc(
+		    dev, "TI OMAP Power, Reset and Clock Management (C1)");
+		break;
+	case CM2_INSTANCE:
+		device_set_desc(
+		    dev, "TI OMAP Power, Reset and Clock Management (C2)");
+		break;
+	default:
+		device_printf(
+		    dev, "unknown instance type: %d\n", (int)ocd->ocd_data);
+		return (ENXIO);
 	}
 
 	return (BUS_PROBE_DEFAULT);
@@ -1443,8 +1481,8 @@ omap4_prcm_attach(device_t dev)
 	ocd = ofw_bus_search_compatible(dev, compat_data);
 	sc->sc_instance = (int)ocd->ocd_data;
 
-	sc->sc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rid,
-	    RF_ACTIVE);
+	sc->sc_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->sc_rid, RF_ACTIVE);
 	if (sc->sc_res == NULL) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
@@ -1462,14 +1500,14 @@ omap4_prcm_new_pass(device_t dev)
 	unsigned int freq;
 
 	if (sc->attach_done ||
-	  bus_current_pass < (BUS_PASS_TIMER + BUS_PASS_ORDER_EARLY)) {
+	    bus_current_pass < (BUS_PASS_TIMER + BUS_PASS_ORDER_EARLY)) {
 		bus_generic_new_pass(dev);
 		return;
 	}
 	sc->attach_done = 1;
 
 	/*
-	 * In order to determine ARM frequency we need both RPM and CM1 
+	 * In order to determine ARM frequency we need both RPM and CM1
 	 * instances up and running. So wait until all CRM devices are
 	 * initialized. Should be replaced with proper clock framework
 	 */
@@ -1488,7 +1526,7 @@ static device_method_t omap4_prcm_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_new_pass, omap4_prcm_new_pass),
 
-	{0, 0},
+	{ 0, 0 },
 };
 
 static driver_t omap4_prcm_driver = {

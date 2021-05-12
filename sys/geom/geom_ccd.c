@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $ 
+ * $NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $
  */
 
 /*-
@@ -84,11 +84,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bio.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/sbuf.h>
+
 #include <geom/geom.h>
 
 /*
@@ -101,13 +102,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /* sc_flags */
-#define CCDF_UNIFORM	0x02	/* use LCCD of sizes for uniform interleave */
-#define CCDF_MIRROR	0x04	/* use mirroring */
-#define CCDF_NO_OFFSET	0x08	/* do not leave space in front */
-#define CCDF_LINUX	0x10	/* use Linux compatibility mode */
+#define CCDF_UNIFORM 0x02 /* use LCCD of sizes for uniform interleave */
+#define CCDF_MIRROR 0x04 /* use mirroring */
+#define CCDF_NO_OFFSET 0x08 /* do not leave space in front */
+#define CCDF_LINUX 0x10 /* use Linux compatibility mode */
 
 /* Mask of user-settable ccd flags. */
-#define CCDF_USERMASK	(CCDF_UNIFORM|CCDF_MIRROR)
+#define CCDF_USERMASK (CCDF_UNIFORM | CCDF_MIRROR)
 
 /*
  * Interleave description table.
@@ -136,10 +137,10 @@ __FBSDID("$FreeBSD$");
  * 2 starting at offset 5.
  */
 struct ccdiinfo {
-	int	ii_ndisk;	/* # of disks range is interleaved over */
-	daddr_t	ii_startblk;	/* starting scaled block # for range */
-	daddr_t	ii_startoff;	/* starting component offset (block #) */
-	int	*ii_index;	/* ordered list of components in range */
+	int ii_ndisk;	     /* # of disks range is interleaved over */
+	daddr_t ii_startblk; /* starting scaled block # for range */
+	daddr_t ii_startoff; /* starting component offset (block #) */
+	int *ii_index;	     /* ordered list of components in range */
 };
 
 /*
@@ -147,9 +148,9 @@ struct ccdiinfo {
  * Describes a single component of a concatenated disk.
  */
 struct ccdcinfo {
-	daddr_t		ci_size; 		/* size */
-	struct g_provider *ci_provider;		/* provider */
-	struct g_consumer *ci_consumer;		/* consumer */
+	daddr_t ci_size;		/* size */
+	struct g_provider *ci_provider; /* provider */
+	struct g_consumer *ci_consumer; /* consumer */
 };
 
 /*
@@ -159,25 +160,25 @@ struct ccdcinfo {
 struct ccd_s {
 	LIST_ENTRY(ccd_s) list;
 
-	int		 sc_unit;		/* logical unit number */
-	int		 sc_flags;		/* flags */
-	daddr_t		 sc_size;		/* size of ccd */
-	int		 sc_ileave;		/* interleave */
-	u_int		 sc_ndisks;		/* number of components */
-	struct ccdcinfo	 *sc_cinfo;		/* component info */
-	struct ccdiinfo	 *sc_itable;		/* interleave table */
-	u_int32_t	 sc_secsize;		/* # bytes per sector */
-	int		 sc_pick;		/* side of mirror picked */
-	daddr_t		 sc_blk[2];		/* mirror localization */
-	u_int32_t	 sc_offset;		/* actual offset used */
+	int sc_unit;		    /* logical unit number */
+	int sc_flags;		    /* flags */
+	daddr_t sc_size;	    /* size of ccd */
+	int sc_ileave;		    /* interleave */
+	u_int sc_ndisks;	    /* number of components */
+	struct ccdcinfo *sc_cinfo;  /* component info */
+	struct ccdiinfo *sc_itable; /* interleave table */
+	u_int32_t sc_secsize;	    /* # bytes per sector */
+	int sc_pick;		    /* side of mirror picked */
+	daddr_t sc_blk[2];	    /* mirror localization */
+	u_int32_t sc_offset;	    /* actual offset used */
 };
 
 static g_start_t g_ccd_start;
 static void ccdiodone(struct bio *bp);
 static void ccdinterleave(struct ccd_s *);
 static int ccdinit(struct gctl_req *req, struct ccd_s *);
-static int ccdbuffer(struct bio **ret, struct ccd_s *,
-		      struct bio *, daddr_t, caddr_t, long);
+static int ccdbuffer(
+    struct bio **ret, struct ccd_s *, struct bio *, daddr_t, caddr_t, long);
 
 static void
 g_ccd_orphan(struct g_consumer *cp)
@@ -201,10 +202,10 @@ g_ccd_access(struct g_provider *pp, int dr, int dw, int de)
 
 	gp = pp->geom;
 	error = ENXIO;
-	LIST_FOREACH(cp1, &gp->consumer, consumer) {
+	LIST_FOREACH (cp1, &gp->consumer, consumer) {
 		error = g_access(cp1, dr, dw, de);
 		if (error) {
-			LIST_FOREACH(cp2, &gp->consumer, consumer) {
+			LIST_FOREACH (cp2, &gp->consumer, consumer) {
 				if (cp1 == cp2)
 					break;
 				g_access(cp2, -dr, -dw, -de);
@@ -253,8 +254,9 @@ ccdinit(struct gctl_req *req, struct ccd_s *cs)
 		cs->sc_offset = 0;
 		cs->sc_ileave *= 2;
 		if (cs->sc_flags & CCDF_MIRROR && cs->sc_ndisks != 2)
-			gctl_error(req, "Mirror mode for Linux raids is "
-			                "only supported with 2 devices");
+			gctl_error(req,
+			    "Mirror mode for Linux raids is "
+			    "only supported with 2 devices");
 	} else {
 		if (cs->sc_flags & CCDF_NO_OFFSET)
 			cs->sc_offset = 0;
@@ -278,7 +280,7 @@ ccdinit(struct gctl_req *req, struct ccd_s *cs)
 		if (size == 0) {
 			gctl_error(req, "Component %s has effective size zero",
 			    ci->ci_provider->name);
-			return(ENODEV);
+			return (ENODEV);
 		}
 
 		if (minsize == 0 || size < minsize)
@@ -291,10 +293,9 @@ ccdinit(struct gctl_req *req, struct ccd_s *cs)
 	 * Don't allow the interleave to be smaller than
 	 * the biggest component sector.
 	 */
-	if ((cs->sc_ileave > 0) &&
-	    (cs->sc_ileave < (maxsecsize / DEV_BSIZE))) {
+	if ((cs->sc_ileave > 0) && (cs->sc_ileave < (maxsecsize / DEV_BSIZE))) {
 		gctl_error(req, "Interleave to small for sector size");
-		return(EINVAL);
+		return (EINVAL);
 	}
 
 	/*
@@ -318,21 +319,21 @@ ccdinit(struct gctl_req *req, struct ccd_s *cs)
 		/*
 		 * Check to see if an even number of components
 		 * have been specified.  The interleave must also
-		 * be non-zero in order for us to be able to 
+		 * be non-zero in order for us to be able to
 		 * guarantee the topology.
 		 */
 		if (cs->sc_ndisks % 2) {
-			gctl_error(req,
-			      "Mirroring requires an even number of disks");
-			return(EINVAL);
+			gctl_error(
+			    req, "Mirroring requires an even number of disks");
+			return (EINVAL);
 		}
 		if (cs->sc_ileave == 0) {
 			gctl_error(req,
-			     "An interleave must be specified when mirroring");
-			return(EINVAL);
+			    "An interleave must be specified when mirroring");
+			return (EINVAL);
 		}
-		cs->sc_size = (cs->sc_ndisks/2) * minsize;
-	} 
+		cs->sc_size = (cs->sc_ndisks / 2) * minsize;
+	}
 
 	/*
 	 * Construct the interleave table.
@@ -396,23 +397,23 @@ ccdinterleave(struct ccd_s *cs)
 	 */
 	size = 0;
 	bn = lbn = 0;
-	for (ii = cs->sc_itable; ; ii++) {
+	for (ii = cs->sc_itable;; ii++) {
 		/*
 		 * Allocate space for ii_index.  We might allocate more then
 		 * we use.
 		 */
-		ii->ii_index = g_malloc((sizeof(int) * cs->sc_ndisks),
-		    M_WAITOK);
+		ii->ii_index = g_malloc(
+		    (sizeof(int) * cs->sc_ndisks), M_WAITOK);
 
 		/*
 		 * Locate the smallest of the remaining components
 		 */
 		smallci = NULL;
-		for (ci = cs->sc_cinfo; ci < &cs->sc_cinfo[cs->sc_ndisks]; 
-		    ci++) {
+		for (ci = cs->sc_cinfo; ci < &cs->sc_cinfo[cs->sc_ndisks];
+		     ci++) {
 			if (ci->ci_size > size &&
 			    (smallci == NULL ||
-			     ci->ci_size < smallci->ci_size)) {
+				ci->ci_size < smallci->ci_size)) {
 				smallci = ci;
 			}
 		}
@@ -433,7 +434,7 @@ ccdinterleave(struct ccd_s *cs)
 		ii->ii_startblk = bn / cs->sc_ileave;
 
 		/*
-		 * Record starting component block using an sc_ileave 
+		 * Record starting component block using an sc_ileave
 		 * blocksize.  This value is relative to the beginning of
 		 * a component disk.
 		 */
@@ -444,8 +445,8 @@ ccdinterleave(struct ccd_s *cs)
 		 * and record their indices.
 		 */
 		ix = 0;
-		for (ci = cs->sc_cinfo; 
-		    ci < &cs->sc_cinfo[cs->sc_ndisks]; ci++) {
+		for (ci = cs->sc_cinfo; ci < &cs->sc_cinfo[cs->sc_ndisks];
+		     ci++) {
 			if (ci->ci_size >= smallci->ci_size) {
 				ii->ii_index[ix++] = ci - cs->sc_cinfo;
 			}
@@ -474,7 +475,7 @@ g_ccd_start(struct bio *bp)
 	 * subdevices we should ship it off to.
 	 * XXX: this may not be the right policy.
 	 */
-	if(bp->bio_cmd == BIO_GETATTR) {
+	if (bp->bio_cmd == BIO_GETATTR) {
 		g_io_deliver(bp, EINVAL);
 		return;
 	}
@@ -518,8 +519,7 @@ g_ccd_start(struct bio *bp)
 				daddr_t range = cs->sc_size / 16;
 
 				if (bn < cs->sc_blk[pick] - range ||
-				    bn > cs->sc_blk[pick] + range
-				) {
+				    bn > cs->sc_blk[pick] + range) {
 					cs->sc_pick = pick = 1 - pick;
 				}
 				cs->sc_blk[pick] = bn + btodb(rcount);
@@ -540,7 +540,8 @@ g_ccd_start(struct bio *bp)
  * Build a component buffer header.
  */
 static int
-ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t addr, long bcount)
+ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn,
+    caddr_t addr, long bcount)
 {
 	struct ccdcinfo *ci, *ci2 = NULL;
 	struct bio *cbp;
@@ -573,8 +574,8 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 		 * and cboff, a normal block offset (DEV_BSIZE chunks) relative
 		 * to cbn.
 		 */
-		cboff = cbn % cs->sc_ileave;	/* DEV_BSIZE gran */
-		cbn = cbn / cs->sc_ileave;	/* DEV_BSIZE * ileave gran */
+		cboff = cbn % cs->sc_ileave; /* DEV_BSIZE gran */
+		cbn = cbn / cs->sc_ileave;   /* DEV_BSIZE * ileave gran */
 
 		/*
 		 * Figure out which interleave table to use.
@@ -586,8 +587,8 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 		ii--;
 
 		/*
-		 * off is the logical superblock relative to the beginning 
-		 * of this interleave block.  
+		 * off is the logical superblock relative to the beginning
+		 * of this interleave block.
 		 */
 		off = cbn - ii->ii_startblk;
 
@@ -598,7 +599,7 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 		 * adding 'off' and ii->ii_startoff together.  However, 'off'
 		 * must typically be divided by the number of components in
 		 * this interleave array to be properly convert it from a
-		 * CCD-relative logical superblock number to a 
+		 * CCD-relative logical superblock number to a
 		 * component-relative superblock number.
 		 */
 		if (ii->ii_ndisk == 1) {
@@ -615,7 +616,7 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 				 * in a single interleave array.  We double
 				 * up on the first half of the available
 				 * components and our mirror is in the second
-				 * half.  This only works with a single 
+				 * half.  This only works with a single
 				 * interleave array because doubling up
 				 * doubles the number of sectors, so there
 				 * cannot be another interleave array because
@@ -652,9 +653,9 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 	cbp->bio_offset = dbtob(cbn + cboff + cs->sc_offset);
 	cbp->bio_data = addr;
 	if (cs->sc_ileave == 0)
-              cbc = dbtob((off_t)(ci->ci_size - cbn));
+		cbc = dbtob((off_t)(ci->ci_size - cbn));
 	else
-              cbc = dbtob((off_t)(cs->sc_ileave - cboff));
+		cbc = dbtob((off_t)(cs->sc_ileave - cboff));
 	cbp->bio_length = (cbc < bcount) ? cbc : bcount;
 
 	cbp->bio_from = ci->ci_consumer;
@@ -736,24 +737,24 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 	int i, error;
 
 	g_topology_assert();
-	unit = gctl_get_paraml(req, "unit", sizeof (*unit));
+	unit = gctl_get_paraml(req, "unit", sizeof(*unit));
 	if (unit == NULL) {
 		gctl_error(req, "unit parameter not given");
 		return;
 	}
-	ileave = gctl_get_paraml(req, "ileave", sizeof (*ileave));
+	ileave = gctl_get_paraml(req, "ileave", sizeof(*ileave));
 	if (ileave == NULL) {
 		gctl_error(req, "ileave parameter not given");
 		return;
 	}
-	nprovider = gctl_get_paraml(req, "nprovider", sizeof (*nprovider));
+	nprovider = gctl_get_paraml(req, "nprovider", sizeof(*nprovider));
 	if (nprovider == NULL) {
 		gctl_error(req, "nprovider parameter not given");
 		return;
 	}
 
 	/* Check for duplicate unit */
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc != NULL && sc->sc_unit == *unit) {
 			gctl_error(req, "Unit %d already configured", *unit);
@@ -780,8 +781,8 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 	sc->sc_ndisks = *nprovider;
 
 	/* Allocate space for the component info. */
-	sc->sc_cinfo = g_malloc(sc->sc_ndisks * sizeof(struct ccdcinfo),
-	    M_WAITOK | M_ZERO);
+	sc->sc_cinfo = g_malloc(
+	    sc->sc_ndisks * sizeof(struct ccdcinfo), M_WAITOK | M_ZERO);
 
 	/* Create consumers and attach to all providers */
 	for (i = 0; i < *nprovider; i++) {
@@ -833,14 +834,12 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 	sb = sbuf_new_auto();
 	sbuf_printf(sb, "ccd%d: %d components ", sc->sc_unit, *nprovider);
 	for (i = 0; i < *nprovider; i++) {
-		sbuf_printf(sb, "%s%s",
-		    i == 0 ? "(" : ", ", 
+		sbuf_printf(sb, "%s%s", i == 0 ? "(" : ", ",
 		    sc->sc_cinfo[i].ci_provider->name);
 	}
 	sbuf_printf(sb, "), %jd blocks ", (off_t)pp->mediasize / DEV_BSIZE);
 	if (sc->sc_ileave != 0)
-		sbuf_printf(sb, "interleaved at %d blocks\n",
-			sc->sc_ileave);
+		sbuf_printf(sb, "interleaved at %d blocks\n", sc->sc_ileave);
 	else
 		sbuf_printf(sb, "concatenated\n");
 	sbuf_finish(sb);
@@ -860,8 +859,8 @@ g_ccd_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 	if (sc == NULL || pp == NULL)
 		return (EBUSY);
 	if (pp->acr != 0 || pp->acw != 0 || pp->ace != 0) {
-		gctl_error(req, "%s is open(r%dw%de%d)", gp->name,
-		    pp->acr, pp->acw, pp->ace);
+		gctl_error(req, "%s is open(r%dw%de%d)", gp->name, pp->acr,
+		    pp->acw, pp->ace);
 		return (EBUSY);
 	}
 	g_ccd_freesc(sc);
@@ -878,20 +877,20 @@ g_ccd_list(struct gctl_req *req, struct g_class *mp)
 	struct g_geom *gp;
 	int i, unit, *up;
 
-	up = gctl_get_paraml(req, "unit", sizeof (*up));
+	up = gctl_get_paraml(req, "unit", sizeof(*up));
 	if (up == NULL) {
 		gctl_error(req, "unit parameter not given");
 		return;
 	}
 	unit = *up;
 	sb = sbuf_new_auto();
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		cs = gp->softc;
 		if (cs == NULL || (unit >= 0 && unit != cs->sc_unit))
 			continue;
-		sbuf_printf(sb, "ccd%d\t\t%d\t%d\t",
-		    cs->sc_unit, cs->sc_ileave, cs->sc_flags & CCDF_USERMASK);
-			
+		sbuf_printf(sb, "ccd%d\t\t%d\t%d\t", cs->sc_unit, cs->sc_ileave,
+		    cs->sc_flags & CCDF_USERMASK);
+
 		for (i = 0; i < cs->sc_ndisks; ++i) {
 			sbuf_printf(sb, "%s/dev/%s", i == 0 ? "" : " ",
 			    cs->sc_cinfo[i].ci_provider->name);

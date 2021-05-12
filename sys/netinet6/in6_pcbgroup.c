@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/rss_config.h>
-
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #ifdef INET6
@@ -66,7 +65,7 @@ in6_pcbgroup_getbucket(struct inpcbinfo *pcbinfo, uint32_t hash)
 }
 
 /*
- * Map a (hashtype, hash) tuple into a connection group, or NULL if the hash 
+ * Map a (hashtype, hash) tuple into a connection group, or NULL if the hash
  * information is insufficient to identify the pcbgroup.  This might occur if
  * a TCP packet turnsup with a 2-tuple hash, or if an RSS hash is present but
  * RSS is not compiled into the kernel.
@@ -77,13 +76,13 @@ in6_pcbgroup_byhash(struct inpcbinfo *pcbinfo, u_int hashtype, uint32_t hash)
 
 #ifdef RSS
 	if ((pcbinfo->ipi_hashfields == IPI_HASHFIELDS_4TUPLE &&
-	    hashtype == M_HASHTYPE_RSS_TCP_IPV6) ||
+		hashtype == M_HASHTYPE_RSS_TCP_IPV6) ||
 	    (pcbinfo->ipi_hashfields == IPI_HASHFIELDS_4TUPLE &&
-	    hashtype == M_HASHTYPE_RSS_UDP_IPV6) ||
+		hashtype == M_HASHTYPE_RSS_UDP_IPV6) ||
 	    (pcbinfo->ipi_hashfields == IPI_HASHFIELDS_2TUPLE &&
-	    hashtype == M_HASHTYPE_RSS_IPV6))
-		return (&pcbinfo->ipi_pcbgroups[
-		    in6_pcbgroup_getbucket(pcbinfo, hash)]);
+		hashtype == M_HASHTYPE_RSS_IPV6))
+		return (&pcbinfo->ipi_pcbgroups[in6_pcbgroup_getbucket(
+		    pcbinfo, hash)]);
 #endif
 	return (NULL);
 }
@@ -92,8 +91,8 @@ struct inpcbgroup *
 in6_pcbgroup_bymbuf(struct inpcbinfo *pcbinfo, struct mbuf *m)
 {
 
-	return (in6_pcbgroup_byhash(pcbinfo, M_HASHTYPE_GET(m),
-	    m->m_pkthdr.flowid));
+	return (in6_pcbgroup_byhash(
+	    pcbinfo, M_HASHTYPE_GET(m), m->m_pkthdr.flowid));
 }
 
 struct inpcbgroup *
@@ -127,25 +126,25 @@ in6_pcbgroup_bytuple(struct inpcbinfo *pcbinfo, const struct in6_addr *laddrp,
 	default:
 		hash = 0;
 	}
-	return (&pcbinfo->ipi_pcbgroups[in6_pcbgroup_getbucket(pcbinfo,
-	    hash)]);
+	return (&pcbinfo->ipi_pcbgroups[in6_pcbgroup_getbucket(pcbinfo, hash)]);
 }
 
 struct inpcbgroup *
 in6_pcbgroup_byinpcb(struct inpcb *inp)
 {
 
-#ifdef	RSS
+#ifdef RSS
 	/*
 	 * Listen sockets with INP_RSS_BUCKET_SET set have a pre-determined
 	 * RSS bucket and thus we should use this pcbgroup, rather than
 	 * using a tuple or hash.
 	 *
-	 * XXX should verify that there's actually pcbgroups and inp_rss_listen_bucket
-	 * fits in that!
+	 * XXX should verify that there's actually pcbgroups and
+	 * inp_rss_listen_bucket fits in that!
 	 */
 	if (inp->inp_flags2 & INP_RSS_BUCKET_SET)
-		return (&inp->inp_pcbinfo->ipi_pcbgroups[inp->inp_rss_listen_bucket]);
+		return (&inp->inp_pcbinfo
+			     ->ipi_pcbgroups[inp->inp_rss_listen_bucket]);
 #endif
 
 	return (in6_pcbgroup_bytuple(inp->inp_pcbinfo, &inp->in6p_laddr,

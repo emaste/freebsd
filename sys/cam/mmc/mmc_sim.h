@@ -26,18 +26,18 @@
  */
 
 #ifndef __MMC_SIM_H__
-#define	__MMC_SIM_H__
+#define __MMC_SIM_H__
 
 struct mmc_sim {
-	struct mmc_cam_sim_softc	*sc;
-	struct mtx			mtx;
-	struct cam_devq			*devq;
-	struct cam_sim			*sim;
-	device_t			dev;
+	struct mmc_cam_sim_softc *sc;
+	struct mtx mtx;
+	struct cam_devq *devq;
+	struct cam_sim *sim;
+	device_t dev;
 };
 
 int mmc_cam_sim_alloc(device_t dev, const char *name, struct mmc_sim *mmc_sim);
 void mmc_cam_sim_free(struct mmc_sim *sim);
 void mmc_cam_sim_discover(struct mmc_sim *mmc_sim);
 
-#endif	/* __MMC_SIM_H__ */
+#endif /* __MMC_SIM_H__ */

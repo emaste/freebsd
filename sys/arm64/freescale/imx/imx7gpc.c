@@ -32,32 +32,29 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
-#include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "pic_if.h"
 
 struct imx7gpc_softc {
-	device_t		dev;
-	struct resource		*memres;
-	device_t		parent;
+	device_t dev;
+	struct resource *memres;
+	device_t parent;
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{ "fsl,imx7gpc",		1},
-	{ "fsl,imx8mq-gpc",		1},
-	{ NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "fsl,imx7gpc", 1 },
+	{ "fsl,imx8mq-gpc", 1 }, { NULL, 0 } };
 
 static int
 imx7gpc_activate_intr(device_t dev, struct intr_irqsrc *isrc,
@@ -85,8 +82,8 @@ imx7gpc_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-imx7gpc_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+imx7gpc_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct imx7gpc_softc *sc = device_get_softc(dev);
 
@@ -103,8 +100,8 @@ imx7gpc_deactivate_intr(device_t dev, struct intr_irqsrc *isrc,
 }
 
 static int
-imx7gpc_setup_intr(device_t dev, struct intr_irqsrc *isrc,
-    struct resource *res, struct intr_map_data *data)
+imx7gpc_setup_intr(device_t dev, struct intr_irqsrc *isrc, struct resource *res,
+    struct intr_map_data *data)
 {
 	struct imx7gpc_softc *sc = device_get_softc(dev);
 
@@ -180,8 +177,8 @@ imx7gpc_attach(device_t dev)
 
 	node = ofw_bus_get_node(dev);
 
-	rv = OF_getencprop(node, "interrupt-parent", &parent_xref,
-	    sizeof(parent_xref));
+	rv = OF_getencprop(
+	    node, "interrupt-parent", &parent_xref, sizeof(parent_xref));
 	if (rv <= 0) {
 		device_printf(dev, "Can't read parent node property\n");
 		return (ENXIO);
@@ -193,8 +190,7 @@ imx7gpc_attach(device_t dev)
 	}
 
 	i = 0;
-	sc->memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &i,
-	    RF_ACTIVE);
+	sc->memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &i, RF_ACTIVE);
 	if (sc->memres == NULL) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
@@ -211,27 +207,26 @@ imx7gpc_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t imx7gpc_methods[] = {
-	DEVMETHOD(device_probe,		imx7gpc_probe),
-	DEVMETHOD(device_attach,	imx7gpc_attach),
+static device_method_t imx7gpc_methods[] = { DEVMETHOD(
+						 device_probe, imx7gpc_probe),
+	DEVMETHOD(device_attach, imx7gpc_attach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_activate_intr,	imx7gpc_activate_intr),
-	DEVMETHOD(pic_disable_intr,	imx7gpc_disable_intr),
-	DEVMETHOD(pic_enable_intr,	imx7gpc_enable_intr),
-	DEVMETHOD(pic_map_intr,		imx7gpc_map_intr),
-	DEVMETHOD(pic_deactivate_intr,	imx7gpc_deactivate_intr),
-	DEVMETHOD(pic_setup_intr,	imx7gpc_setup_intr),
-	DEVMETHOD(pic_teardown_intr,	imx7gpc_teardown_intr),
-	DEVMETHOD(pic_pre_ithread,	imx7gpc_pre_ithread),
-	DEVMETHOD(pic_post_ithread,	imx7gpc_post_ithread),
-	DEVMETHOD(pic_post_filter,	imx7gpc_post_filter),
+	DEVMETHOD(pic_activate_intr, imx7gpc_activate_intr),
+	DEVMETHOD(pic_disable_intr, imx7gpc_disable_intr),
+	DEVMETHOD(pic_enable_intr, imx7gpc_enable_intr),
+	DEVMETHOD(pic_map_intr, imx7gpc_map_intr),
+	DEVMETHOD(pic_deactivate_intr, imx7gpc_deactivate_intr),
+	DEVMETHOD(pic_setup_intr, imx7gpc_setup_intr),
+	DEVMETHOD(pic_teardown_intr, imx7gpc_teardown_intr),
+	DEVMETHOD(pic_pre_ithread, imx7gpc_pre_ithread),
+	DEVMETHOD(pic_post_ithread, imx7gpc_post_ithread),
+	DEVMETHOD(pic_post_filter, imx7gpc_post_filter),
 #ifdef SMP
-	DEVMETHOD(pic_bind_intr,	imx7gpc_bind_intr),
+	DEVMETHOD(pic_bind_intr, imx7gpc_bind_intr),
 #endif
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t imx7gpc_driver = {
 	"imx7gpc",

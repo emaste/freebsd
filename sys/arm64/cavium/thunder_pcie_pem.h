@@ -30,25 +30,25 @@
  */
 
 #ifndef __THUNDER_PCIE_PEM_H__
-#define	__THUNDER_PCIE_PEM_H__
+#define __THUNDER_PCIE_PEM_H__
 
-#define	THUNDER_PEM_DESC		"ThunderX PEM"
+#define THUNDER_PEM_DESC "ThunderX PEM"
 
 struct thunder_pem_softc {
-	device_t		dev;
-	struct resource		*reg;
-	bus_space_tag_t		reg_bst;
-	bus_space_handle_t	reg_bsh;
-	bus_dma_tag_t		dmat;
-	struct pcie_range	ranges[MAX_RANGES_TUPLES];
-	struct rman		mem_rman;
-	struct rman		io_rman;
-	bus_space_handle_t	pem_sli_base;
-	uint32_t		node;
-	uint32_t		id;
-	uint32_t		sli;
-	uint32_t		sli_group;
-	uint64_t		sli_window_base;
+	device_t dev;
+	struct resource *reg;
+	bus_space_tag_t reg_bst;
+	bus_space_handle_t reg_bsh;
+	bus_dma_tag_t dmat;
+	struct pcie_range ranges[MAX_RANGES_TUPLES];
+	struct rman mem_rman;
+	struct rman io_rman;
+	bus_space_handle_t pem_sli_base;
+	uint32_t node;
+	uint32_t id;
+	uint32_t sli;
+	uint32_t sli_group;
+	uint64_t sli_window_base;
 };
 
 #endif

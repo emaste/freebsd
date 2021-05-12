@@ -36,7 +36,7 @@
  */
 
 #ifndef _ISA_ISA_H_
-#define	_ISA_ISA_H_
+#define _ISA_ISA_H_
 
 /*
  * ISA Bus conventions
@@ -46,23 +46,23 @@
  * Input / Output Port Assignments
  */
 #ifndef IO_ISABEGIN
-#define	IO_ISABEGIN	0x000		/* 0x000 - Beginning of I/O Registers */
-#define	IO_ICU1		0x020		/* 8259A Interrupt Controller #1 */
-#define	IO_KBD		0x060		/* 8042 Keyboard */
-#define	IO_RTC		0x070		/* RTC */
-#define	IO_ICU2		0x0A0		/* 8259A Interrupt Controller #2 */
+#define IO_ISABEGIN 0x000 /* 0x000 - Beginning of I/O Registers */
+#define IO_ICU1 0x020	  /* 8259A Interrupt Controller #1 */
+#define IO_KBD 0x060	  /* 8042 Keyboard */
+#define IO_RTC 0x070	  /* RTC */
+#define IO_ICU2 0x0A0	  /* 8259A Interrupt Controller #2 */
 
-#define	IO_MDA		0x3B0		/* Monochome Adapter */
-#define	IO_VGA		0x3C0		/* E/VGA Ports */
-#define	IO_CGA		0x3D0		/* CGA Ports */
+#define IO_MDA 0x3B0 /* Monochome Adapter */
+#define IO_VGA 0x3C0 /* E/VGA Ports */
+#define IO_CGA 0x3D0 /* CGA Ports */
 
 #endif /* !IO_ISABEGIN */
 
 /*
  * Input / Output Port Sizes
  */
-#define	IO_CGASIZE	12		/* CGA controllers */
-#define	IO_MDASIZE	12		/* Monochrome display controllers */
-#define	IO_VGASIZE	16		/* VGA controllers */
+#define IO_CGASIZE 12 /* CGA controllers */
+#define IO_MDASIZE 12 /* Monochrome display controllers */
+#define IO_VGASIZE 16 /* VGA controllers */
 
 #endif /* !_ISA_ISA_H_ */

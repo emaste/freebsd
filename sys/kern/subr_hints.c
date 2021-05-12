@@ -30,18 +30,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/lock.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kenv.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
 
-#define	FBACK_MDENV	0	/* MD env (e.g. loader.conf) */
-#define	FBACK_STENV	1	/* Static env */
-#define	FBACK_STATIC	2	/* static_hints */
+#define FBACK_MDENV 0 /* MD env (e.g. loader.conf) */
+#define FBACK_STENV 1 /* Static env */
+#define FBACK_STATIC 2 /* static_hints */
 
 /*
  * We'll use hintenv_merged to indicate that the dynamic environment has been
@@ -49,10 +49,10 @@ __FBSDID("$FreeBSD$");
  * has already been setup (dynamic_kenv) and that we have added any supplied
  * static_hints to the dynamic environment.
  */
-static bool	hintenv_merged;
+static bool hintenv_merged;
 /* Static environment and static hints cannot change, so we'll skip known bad */
-static bool	stenv_skip;
-static bool	sthints_skip;
+static bool stenv_skip;
+static bool sthints_skip;
 /*
  * Access functions for device resources.
  */
@@ -122,10 +122,10 @@ _res_checkenv(char *envp)
  * The start point can be remembered for incremental searches.
  */
 static int
-res_find(char **hintp_cookie, int *line, int *startln,
-    const char *name, int *unit, const char *resname, const char *value,
-    const char **ret_name, int *ret_namelen, int *ret_unit,
-    const char **ret_resname, int *ret_resnamelen, const char **ret_value)
+res_find(char **hintp_cookie, int *line, int *startln, const char *name,
+    int *unit, const char *resname, const char *value, const char **ret_name,
+    int *ret_namelen, int *ret_unit, const char **ret_resname,
+    int *ret_resnamelen, const char **ret_value)
 {
 	int fbacklvl = FBACK_MDENV, i = 0, n = 0;
 	char r_name[32];
@@ -170,7 +170,7 @@ res_find(char **hintp_cookie, int *line, int *startln,
 			 * the hint we are looking for.  We don't provide any
 			 * fallback when searching the dynamic environment.
 			 */
-fallback:
+		fallback:
 			if (dyn_used || fbacklvl >= FBACK_STATIC)
 				return (ENOENT);
 
@@ -194,7 +194,8 @@ fallback:
 				/* FALLTHROUGH */
 			case FBACK_STATIC:
 				fbacklvl++;
-				/* We'll fallback to static_hints if needed/can */
+				/* We'll fallback to static_hints if needed/can
+				 */
 				if (!sthints_skip &&
 				    _res_checkenv(static_hints))
 					hintp = static_hints;
@@ -254,7 +255,7 @@ fallback:
 			goto nexthint;
 		/* Successfully found a hint matching all criteria */
 		break;
-nexthint:
+	nexthint:
 		if (dyn_used) {
 			cp = kenvp[++i];
 			if (cp == NULL)
@@ -277,23 +278,23 @@ nexthint:
 	s = cp;
 	/* This is a bit of a hack, but at least is reentrant */
 	/* Note that it returns some !unterminated! strings. */
-	s = strchr(s, '.') + 1;		/* start of device */
+	s = strchr(s, '.') + 1; /* start of device */
 	if (ret_name)
 		*ret_name = s;
-	s = strchr(s, '.') + 1;		/* start of unit */
+	s = strchr(s, '.') + 1; /* start of unit */
 	if (ret_namelen && ret_name)
 		*ret_namelen = s - *ret_name - 1; /* device length */
 	if (ret_unit)
 		*ret_unit = r_unit;
-	s = strchr(s, '.') + 1;		/* start of resname */
+	s = strchr(s, '.') + 1; /* start of resname */
 	if (ret_resname)
 		*ret_resname = s;
-	s = strchr(s, '=') + 1;		/* start of value */
+	s = strchr(s, '=') + 1; /* start of value */
 	if (ret_resnamelen && ret_resname)
 		*ret_resnamelen = s - *ret_resname - 1; /* value len */
 	if (ret_value)
 		*ret_value = s;
-	if (startln)			/* line number for anchor */
+	if (startln) /* line number for anchor */
 		*startln = *line + 1;
 	return 0;
 }
@@ -303,10 +304,10 @@ nexthint:
  * dynamic hints first as overrides for static or fallback hints.
  */
 static int
-resource_find(int *line, int *startln,
-    const char *name, int *unit, const char *resname, const char *value,
-    const char **ret_name, int *ret_namelen, int *ret_unit,
-    const char **ret_resname, int *ret_resnamelen, const char **ret_value)
+resource_find(int *line, int *startln, const char *name, int *unit,
+    const char *resname, const char *value, const char **ret_name,
+    int *ret_namelen, int *ret_unit, const char **ret_resname,
+    int *ret_resnamelen, const char **ret_value)
 {
 	int i;
 	int un;
@@ -325,9 +326,8 @@ resource_find(int *line, int *startln,
 		return ENOENT;
 	/* If we are still here, search for wildcard matches */
 	un = -1;
-	i = res_find(&hintp, line, startln, name, &un, resname, value,
-	    ret_name, ret_namelen, ret_unit, ret_resname, ret_resnamelen,
-	    ret_value);
+	i = res_find(&hintp, line, startln, name, &un, resname, value, ret_name,
+	    ret_namelen, ret_unit, ret_resname, ret_resnamelen, ret_value);
 	if (i == 0)
 		return 0;
 	return ENOENT;
@@ -343,22 +343,22 @@ resource_int_value(const char *name, int unit, const char *resname, int *result)
 	int line;
 
 	line = 0;
-	error = resource_find(&line, NULL, name, &unit, resname, NULL,
-	    NULL, NULL, NULL, NULL, NULL, &str);
+	error = resource_find(&line, NULL, name, &unit, resname, NULL, NULL,
+	    NULL, NULL, NULL, NULL, &str);
 	if (error)
 		return error;
-	if (*str == '\0') 
+	if (*str == '\0')
 		return EFTYPE;
 	val = strtoul(str, &op, 0);
-	if (*op != '\0') 
+	if (*op != '\0')
 		return EFTYPE;
 	*result = val;
 	return 0;
 }
 
 int
-resource_long_value(const char *name, int unit, const char *resname,
-    long *result)
+resource_long_value(
+    const char *name, int unit, const char *resname, long *result)
 {
 	int error;
 	const char *str;
@@ -367,30 +367,30 @@ resource_long_value(const char *name, int unit, const char *resname,
 	int line;
 
 	line = 0;
-	error = resource_find(&line, NULL, name, &unit, resname, NULL,
-	    NULL, NULL, NULL, NULL, NULL, &str);
+	error = resource_find(&line, NULL, name, &unit, resname, NULL, NULL,
+	    NULL, NULL, NULL, NULL, &str);
 	if (error)
 		return error;
-	if (*str == '\0') 
+	if (*str == '\0')
 		return EFTYPE;
 	val = strtoul(str, &op, 0);
-	if (*op != '\0') 
+	if (*op != '\0')
 		return EFTYPE;
 	*result = val;
 	return 0;
 }
 
 int
-resource_string_value(const char *name, int unit, const char *resname,
-    const char **result)
+resource_string_value(
+    const char *name, int unit, const char *resname, const char **result)
 {
 	int error;
 	const char *str;
 	int line;
 
 	line = 0;
-	error = resource_find(&line, NULL, name, &unit, resname, NULL,
-	    NULL, NULL, NULL, NULL, NULL, &str);
+	error = resource_find(&line, NULL, name, &unit, resname, NULL, NULL,
+	    NULL, NULL, NULL, NULL, &str);
 	if (error)
 		return error;
 	*result = str;
@@ -457,16 +457,16 @@ resource_find_match(int *anchor, const char **name, int *unit,
  * set *anchor to zero before starting.
  */
 int
-resource_find_dev(int *anchor, const char *name, int *unit,
-    const char *resname, const char *value)
+resource_find_dev(int *anchor, const char *name, int *unit, const char *resname,
+    const char *value)
 {
 	int found_unit;
 	int newln;
 	int ret;
 
 	newln = *anchor;
-	ret = resource_find(anchor, &newln, name, NULL, resname, value,
-	    NULL, NULL, &found_unit, NULL, NULL, NULL);
+	ret = resource_find(anchor, &newln, name, NULL, resname, value, NULL,
+	    NULL, &found_unit, NULL, NULL, NULL);
 	if (ret == 0) {
 		*unit = found_unit;
 	}
@@ -484,7 +484,7 @@ resource_disabled(const char *name, int unit)
 
 	error = resource_int_value(name, unit, "disabled", &value);
 	if (error)
-	       return (0);
+		return (0);
 	return (value);
 }
 
@@ -502,8 +502,8 @@ resource_unset_value(const char *name, int unit, const char *resname)
 	size_t len;
 
 	line = 0;
-	error = resource_find(&line, NULL, name, &unit, resname, NULL,
-	    &retname, NULL, NULL, NULL, NULL, &retvalue);
+	error = resource_find(&line, NULL, name, &unit, resname, NULL, &retname,
+	    NULL, NULL, NULL, NULL, &retvalue);
 	if (error)
 		return (error);
 

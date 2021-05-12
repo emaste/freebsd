@@ -35,44 +35,44 @@
 /**
  *	Functions to configure the PIN multiplexing on the chip.
  *
- *	This is different from the GPIO module in that it is used to configure the
- *	pins between modules not just GPIO input output.
+ *	This is different from the GPIO module in that it is used to configure
+ *the pins between modules not just GPIO input output.
  *
  */
 #ifndef _TI_PINMUX_H_
 #define _TI_PINMUX_H_
 
 struct ti_pinmux_padconf {
-	uint16_t    reg_off;
-	uint16_t    gpio_pin;
-	uint16_t    gpio_mode;
-	const char  *ballname;
-	const char  *muxmodes[8];
+	uint16_t reg_off;
+	uint16_t gpio_pin;
+	uint16_t gpio_mode;
+	const char *ballname;
+	const char *muxmodes[8];
 };
 
 struct ti_pinmux_padstate {
-	const char  *state;
-	uint16_t    reg;
+	const char *state;
+	uint16_t reg;
 };
 
 struct ti_pinmux_device {
-	uint16_t		padconf_muxmode_mask;
-	uint16_t		padconf_sate_mask;
-	const struct ti_pinmux_padstate	*padstate;
-	const struct ti_pinmux_padconf	*padconf;
+	uint16_t padconf_muxmode_mask;
+	uint16_t padconf_sate_mask;
+	const struct ti_pinmux_padstate *padstate;
+	const struct ti_pinmux_padconf *padconf;
 };
 
 struct ti_pinmux_softc {
-	device_t		sc_dev;
-	struct resource *	sc_res[4];
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
+	device_t sc_dev;
+	struct resource *sc_res[4];
+	bus_space_tag_t sc_bst;
+	bus_space_handle_t sc_bsh;
 };
 
-int ti_pinmux_padconf_set(const char *padname, const char *muxmode, 
-    unsigned int state);
-int ti_pinmux_padconf_get(const char *padname, const char **muxmode,
-    unsigned int *state);
+int ti_pinmux_padconf_set(
+    const char *padname, const char *muxmode, unsigned int state);
+int ti_pinmux_padconf_get(
+    const char *padname, const char **muxmode, unsigned int *state);
 int ti_pinmux_padconf_set_gpiomode(uint32_t gpio, unsigned int state);
 int ti_pinmux_padconf_get_gpiomode(uint32_t gpio, unsigned int *state);
 

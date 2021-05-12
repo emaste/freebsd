@@ -44,19 +44,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 
 #include <vm/vm.h>
-#include <vm/vm_page.h>
-#include <vm/vm_map.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
+#include <vm/vm_map.h>
+#include <vm/vm_page.h>
 
-#include <machine/riscvreg.h>
 #include <machine/cpu.h>
-#include <machine/pcb.h>
 #include <machine/frame.h>
+#include <machine/pcb.h>
+#include <machine/riscvreg.h>
 #include <machine/sbi.h>
 
 #if __riscv_xlen == 64
-#define	TP_OFFSET	16	/* sizeof(struct tcb) */
+#define TP_OFFSET 16 /* sizeof(struct tcb) */
 #endif
 
 /*
@@ -76,7 +76,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	/* RISCVTODO: save the FPU state here */
 
 	pcb2 = (struct pcb *)(td2->td_kstack +
-	    td2->td_kstack_pages * PAGE_SIZE) - 1;
+		   td2->td_kstack_pages * PAGE_SIZE) -
+	    1;
 
 	td2->td_pcb = pcb2;
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
@@ -112,7 +113,8 @@ cpu_reset(void)
 
 	sbi_system_reset(SBI_SRST_TYPE_COLD_REBOOT, SBI_SRST_REASON_NONE);
 
-	while(1);
+	while (1)
+		;
 }
 
 void
@@ -135,19 +137,19 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	if (__predict_true(error == 0)) {
 		frame->tf_a[0] = td->td_retval[0];
 		frame->tf_a[1] = td->td_retval[1];
-		frame->tf_t[0] = 0;		/* syscall succeeded */
+		frame->tf_t[0] = 0; /* syscall succeeded */
 		return;
 	}
 
 	switch (error) {
 	case ERESTART:
-		frame->tf_sepc -= 4;		/* prev instruction */
+		frame->tf_sepc -= 4; /* prev instruction */
 		break;
 	case EJUSTRETURN:
 		break;
 	default:
 		frame->tf_a[0] = error;
-		frame->tf_t[0] = 1;		/* syscall error */
+		frame->tf_t[0] = 1; /* syscall error */
 		break;
 	}
 }
@@ -181,8 +183,8 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
  * the entry function with the given argument.
  */
 void
-cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
-	stack_t *stack)
+cpu_set_upcall(
+    struct thread *td, void (*entry)(void *), void *arg, stack_t *stack)
 {
 	struct trapframe *tf;
 
@@ -219,7 +221,8 @@ cpu_thread_alloc(struct thread *td)
 {
 
 	td->td_pcb = (struct pcb *)(td->td_kstack +
-	    td->td_kstack_pages * PAGE_SIZE) - 1;
+			 td->td_kstack_pages * PAGE_SIZE) -
+	    1;
 	td->td_frame = (struct trapframe *)STACKALIGN(
 	    (caddr_t)td->td_pcb - 8 - sizeof(struct trapframe));
 }

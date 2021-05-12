@@ -31,17 +31,16 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #ifdef _KERNEL
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #endif /* _KERNEL */
 #include <sys/queue.h>
 #include <sys/tree.h>
 
-#include <geom/geom.h>
-
 #include <geom/eli/g_eli.h>
+#include <geom/geom.h>
 
 #ifdef _KERNEL
 MALLOC_DECLARE(M_ELI);
@@ -137,7 +136,7 @@ g_eli_key_find_last(struct g_eli_softc *sc)
 
 	mtx_assert(&sc->sc_ekeys_lock, MA_OWNED);
 
-	TAILQ_FOREACH(key, &sc->sc_ekeys_queue, gek_next) {
+	TAILQ_FOREACH (key, &sc->sc_ekeys_queue, gek_next) {
 		if (key->gek_count == 0)
 			break;
 	}
@@ -191,8 +190,8 @@ g_eli_key_init(struct g_eli_softc *sc)
 		/*
 		 * The encryption key is: ekey = HMAC_SHA512(Data-Key, 0x10)
 		 */
-		g_eli_crypto_hmac(mkey, G_ELI_MAXKEYLEN, "\x10", 1,
-		    sc->sc_ekey, 0);
+		g_eli_crypto_hmac(
+		    mkey, G_ELI_MAXKEYLEN, "\x10", 1, sc->sc_ekey, 0);
 	}
 
 	if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) != 0) {
@@ -212,8 +211,9 @@ g_eli_key_init(struct g_eli_softc *sc)
 			mediasize = sc->sc_mediasize;
 			blocksize = sc->sc_sectorsize;
 		}
-		sc->sc_ekeys_total =
-		    ((mediasize - 1) >> G_ELI_KEY_SHIFT) / blocksize + 1;
+		sc->sc_ekeys_total = ((mediasize - 1) >> G_ELI_KEY_SHIFT) /
+			blocksize +
+		    1;
 		sc->sc_ekeys_allocated = 0;
 		TAILQ_INIT(&sc->sc_ekeys_queue);
 		RB_INIT(&sc->sc_ekeys_tree);
@@ -224,8 +224,8 @@ g_eli_key_init(struct g_eli_softc *sc)
 				(void)g_eli_key_allocate(sc, keyno);
 			KASSERT(sc->sc_ekeys_total == sc->sc_ekeys_allocated,
 			    ("sc_ekeys_total=%ju != sc_ekeys_allocated=%ju",
-			    (uintmax_t)sc->sc_ekeys_total,
-			    (uintmax_t)sc->sc_ekeys_allocated));
+				(uintmax_t)sc->sc_ekeys_total,
+				(uintmax_t)sc->sc_ekeys_allocated));
 		}
 	}
 
@@ -277,18 +277,18 @@ g_eli_key_resize(struct g_eli_softc *sc)
 	/* We only allow to grow. */
 	KASSERT(new_ekeys_total >= sc->sc_ekeys_total,
 	    ("new_ekeys_total=%ju < sc_ekeys_total=%ju",
-	    (uintmax_t)new_ekeys_total, (uintmax_t)sc->sc_ekeys_total));
+		(uintmax_t)new_ekeys_total, (uintmax_t)sc->sc_ekeys_total));
 	if (new_ekeys_total <= g_eli_key_cache_limit) {
 		uint64_t keyno;
 
 		for (keyno = sc->sc_ekeys_total; keyno < new_ekeys_total;
-		    keyno++) {
+		     keyno++) {
 			(void)g_eli_key_allocate(sc, keyno);
 		}
 		KASSERT(new_ekeys_total == sc->sc_ekeys_allocated,
 		    ("new_ekeys_total=%ju != sc_ekeys_allocated=%ju",
-		    (uintmax_t)new_ekeys_total,
-		    (uintmax_t)sc->sc_ekeys_allocated));
+			(uintmax_t)new_ekeys_total,
+			(uintmax_t)sc->sc_ekeys_allocated));
 	}
 
 	sc->sc_ekeys_total = new_ekeys_total;
@@ -314,8 +314,8 @@ g_eli_key_hold(struct g_eli_softc *sc, off_t offset, size_t blocksize)
 	keyno = (offset >> G_ELI_KEY_SHIFT) / blocksize;
 
 	KASSERT(keyno < sc->sc_ekeys_total,
-	    ("%s: keyno=%ju >= sc_ekeys_total=%ju",
-	    __func__, (uintmax_t)keyno, (uintmax_t)sc->sc_ekeys_total));
+	    ("%s: keyno=%ju >= sc_ekeys_total=%ju", __func__, (uintmax_t)keyno,
+		(uintmax_t)sc->sc_ekeys_total));
 
 	keysearch.gek_keyno = keyno;
 
@@ -323,8 +323,8 @@ g_eli_key_hold(struct g_eli_softc *sc, off_t offset, size_t blocksize)
 		/* We have all the keys, so avoid some overhead. */
 		key = RB_FIND(g_eli_key_tree, &sc->sc_ekeys_tree, &keysearch);
 		KASSERT(key != NULL, ("No key %ju found.", (uintmax_t)keyno));
-		KASSERT(key->gek_magic == G_ELI_KEY_MAGIC,
-		    ("Invalid key magic."));
+		KASSERT(
+		    key->gek_magic == G_ELI_KEY_MAGIC, ("Invalid key magic."));
 		return (key->gek_key);
 	}
 

@@ -34,41 +34,42 @@
 #ifndef __AR71XX_GPIOVAR_H__
 #define __AR71XX_GPIOVAR_H__
 
-#define GPIO_LOCK(_sc)		mtx_lock(&(_sc)->gpio_mtx)
-#define GPIO_UNLOCK(_sc)	mtx_unlock(&(_sc)->gpio_mtx)
-#define GPIO_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->gpio_mtx, MA_OWNED)
+#define GPIO_LOCK(_sc) mtx_lock(&(_sc)->gpio_mtx)
+#define GPIO_UNLOCK(_sc) mtx_unlock(&(_sc)->gpio_mtx)
+#define GPIO_LOCK_ASSERT(_sc) mtx_assert(&(_sc)->gpio_mtx, MA_OWNED)
 
 /*
  * register space access macros
  */
-#define GPIO_WRITE(sc, reg, val)	do {	\
+#define GPIO_WRITE(sc, reg, val)                             \
+	do {                                                 \
 		bus_write_4(sc->gpio_mem_res, (reg), (val)); \
 	} while (0)
 
-#define GPIO_READ(sc, reg)	 bus_read_4(sc->gpio_mem_res, (reg))
+#define GPIO_READ(sc, reg) bus_read_4(sc->gpio_mem_res, (reg))
 
-#define GPIO_SET_BITS(sc, reg, bits)	\
+#define GPIO_SET_BITS(sc, reg, bits) \
 	GPIO_WRITE(sc, reg, GPIO_READ(sc, (reg)) | (bits))
 
-#define GPIO_CLEAR_BITS(sc, reg, bits)	\
+#define GPIO_CLEAR_BITS(sc, reg, bits) \
 	GPIO_WRITE(sc, reg, GPIO_READ(sc, (reg)) & ~(bits))
 
-#define	AR71XX_GPIO_PINS	12
-#define	AR724X_GPIO_PINS	18
-#define	AR7241_GPIO_PINS	20
-#define	AR91XX_GPIO_PINS	22
+#define AR71XX_GPIO_PINS 12
+#define AR724X_GPIO_PINS 18
+#define AR7241_GPIO_PINS 20
+#define AR91XX_GPIO_PINS 22
 
 struct ar71xx_gpio_softc {
-	device_t		dev;
-	device_t		busdev;
-	struct mtx		gpio_mtx;
-	struct resource		*gpio_mem_res;
-	int			gpio_mem_rid;
-	struct resource		*gpio_irq_res;
-	int			gpio_irq_rid;
-	void			*gpio_ih;
-	int			gpio_npins;
-	struct gpio_pin		*gpio_pins;
+	device_t dev;
+	device_t busdev;
+	struct mtx gpio_mtx;
+	struct resource *gpio_mem_res;
+	int gpio_mem_rid;
+	struct resource *gpio_irq_res;
+	int gpio_irq_rid;
+	void *gpio_ih;
+	int gpio_npins;
+	struct gpio_pin *gpio_pins;
 };
 
-#endif	/* __AR71XX_GPIOVAR_H__ */
+#endif /* __AR71XX_GPIOVAR_H__ */

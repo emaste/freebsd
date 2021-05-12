@@ -33,49 +33,52 @@
 #define _NETGRAPH_NG_PRED1_H_
 
 /* Node type name and magic cookie */
-#define NG_PRED1_NODE_TYPE	"pred1"
-#define NGM_PRED1_COOKIE	1166902612
+#define NG_PRED1_NODE_TYPE "pred1"
+#define NGM_PRED1_COOKIE 1166902612
 
 /* Hook names */
-#define NG_PRED1_HOOK_COMP	"comp"		/* compression hook */
-#define NG_PRED1_HOOK_DECOMP	"decomp"	/* decompression hook */
+#define NG_PRED1_HOOK_COMP "comp"     /* compression hook */
+#define NG_PRED1_HOOK_DECOMP "decomp" /* decompression hook */
 
 /* Config struct */
 struct ng_pred1_config {
-	u_char		enable;			/* node enabled */
+	u_char enable; /* node enabled */
 };
 
 /* Keep this in sync with the above structure definition. */
-#define NG_PRED1_CONFIG_INFO	{			\
-	{ "enable",	&ng_parse_uint8_type	},	\
-	{ NULL }					\
-}
+#define NG_PRED1_CONFIG_INFO                                 \
+	{                                                    \
+		{ "enable", &ng_parse_uint8_type }, { NULL } \
+	}
 
 /* Statistics structure for one direction. */
 struct ng_pred1_stats {
-	uint64_t	FramesPlain;
-	uint64_t	FramesComp;
-	uint64_t	FramesUncomp;
-	uint64_t	InOctets;
-	uint64_t	OutOctets;
-	uint64_t	Errors;
+	uint64_t FramesPlain;
+	uint64_t FramesComp;
+	uint64_t FramesUncomp;
+	uint64_t InOctets;
+	uint64_t OutOctets;
+	uint64_t Errors;
 };
 
 /* Keep this in sync with the above structure definition. */
-#define NG_PRED1_STATS_INFO	{				\
-	{ "FramesPlain",&ng_parse_uint64_type	},	\
-	{ "FramesComp",	&ng_parse_uint64_type	},	\
-	{ "FramesUncomp", &ng_parse_uint64_type	},	\
-	{ "InOctets",	&ng_parse_uint64_type	},	\
-	{ "OutOctets",	&ng_parse_uint64_type	},	\
-	{ "Errors",	&ng_parse_uint64_type	},	\
-	{ NULL }					\
-}
+#define NG_PRED1_STATS_INFO                                    \
+	{                                                      \
+		{ "FramesPlain", &ng_parse_uint64_type },      \
+		    { "FramesComp", &ng_parse_uint64_type },   \
+		    { "FramesUncomp", &ng_parse_uint64_type }, \
+		    { "InOctets", &ng_parse_uint64_type },     \
+		    { "OutOctets", &ng_parse_uint64_type },    \
+		    { "Errors", &ng_parse_uint64_type },       \
+		{                                              \
+			NULL                                   \
+		}                                              \
+	}
 
 /* Netgraph commands */
 enum {
 	NGM_PRED1_CONFIG = 1,
-	NGM_PRED1_RESETREQ,			/* sent either way! */
+	NGM_PRED1_RESETREQ, /* sent either way! */
 	NGM_PRED1_GET_STATS,
 	NGM_PRED1_CLR_STATS,
 	NGM_PRED1_GETCLR_STATS,

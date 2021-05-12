@@ -41,14 +41,14 @@
  */
 
 #ifndef _ARM_INCLUDE__ALIGN_H_
-#define	_ARM_INCLUDE__ALIGN_H_
+#define _ARM_INCLUDE__ALIGN_H_
 
 /*
  * Round p (pointer or byte index) up to the hardware-required alignment which
  * is sufficient for any data type, pointer or numeric.  The resulting type
  * is equivelent to arm's uintptr_t (but is purposely spelled "unsigned" here).
  */
-#define	_ALIGNBYTES	(sizeof(int) - 1)
-#define	_ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
+#define _ALIGNBYTES (sizeof(int) - 1)
+#define _ALIGN(p) (((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
 
 #endif /* !_ARM_INCLUDE__ALIGN_H_ */

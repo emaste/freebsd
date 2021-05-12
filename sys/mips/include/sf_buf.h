@@ -31,12 +31,12 @@
 #ifndef _MACHINE_SF_BUF_H_
 #define _MACHINE_SF_BUF_H_
 
-#ifdef __mips_n64	/* In 64 bit the whole memory is directly mapped */
+#ifdef __mips_n64 /* In 64 bit the whole memory is directly mapped */
 
 static inline vm_offset_t
 sf_buf_kva(struct sf_buf *sf)
 {
-	vm_page_t	m;
+	vm_page_t m;
 
 	m = (vm_page_t)sf;
 	return (MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m)));
@@ -49,7 +49,7 @@ sf_buf_page(struct sf_buf *sf)
 	return ((vm_page_t)sf);
 }
 
-#else	/* !__mips_n64 */
+#else /* !__mips_n64 */
 
 static inline void
 sf_buf_map(struct sf_buf *sf, int flags)
@@ -66,6 +66,6 @@ sf_buf_unmap(struct sf_buf *sf)
 	return (1);
 }
 
-#endif	/* __mips_n64 */
+#endif /* __mips_n64 */
 
 #endif /* !_MACHINE_SF_BUF_H_ */

@@ -25,22 +25,22 @@ void
 dn_free_pkts(struct mbuf *m)
 {
 	struct mbuf *x;
-	while ( (x = m) ) {
+	while ((x = m)) {
 		m = m->m_nextpkt;
 		m_freem(x);
 	}
 }
-		
+
 int
 dn_delete_queue(void *_q, void *do_free)
 {
 	struct dn_queue *q = _q;
 
 	(void)do_free;
-        if (q->mq.head)
-                dn_free_pkts(q->mq.head);
-        free(q);
-        return 0;
+	if (q->mq.head)
+		dn_free_pkts(q->mq.head);
+	free(q);
+	return 0;
 }
 
 /*
@@ -52,33 +52,33 @@ dn_delete_queue(void *_q, void *do_free)
  * Return 0 on success, 1 on drop. The packet is consumed anyways.
  */
 int
-dn_enqueue(struct dn_queue *q, struct mbuf* m, int drop)
+dn_enqueue(struct dn_queue *q, struct mbuf *m, int drop)
 {
-        if (drop)
-                goto drop;
-        if (q->ni.length >= 200)
-                goto drop;
-        mq_append(&q->mq, m);
-        q->ni.length++;
-        q->ni.tot_bytes += m->m_pkthdr.len;
-        q->ni.tot_pkts++;
-        return 0;
+	if (drop)
+		goto drop;
+	if (q->ni.length >= 200)
+		goto drop;
+	mq_append(&q->mq, m);
+	q->ni.length++;
+	q->ni.tot_bytes += m->m_pkthdr.len;
+	q->ni.tot_pkts++;
+	return 0;
 
 drop:
-        q->ni.drops++;
-        return 1;
+	q->ni.drops++;
+	return 1;
 }
 
 int
 ipdn_bound_var(int *v, int dflt, int lo, int hi, const char *msg)
 {
 	(void)msg;
-        if (*v < lo) {
-                *v = dflt;
-        } else if (*v > hi) {
-                *v = hi;
-        }
-        return *v;
+	if (*v < lo) {
+		*v = dflt;
+	} else if (*v > hi) {
+		*v = hi;
+	}
+	return *v;
 }
 
 #ifndef __FreeBSD__

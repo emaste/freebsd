@@ -46,23 +46,24 @@
  */
 
 #ifndef _MACHINE_PMAP_H_
-#define	_MACHINE_PMAP_H_
+#define _MACHINE_PMAP_H_
 
 #include <vm/vm_param.h>
+
 #include <machine/pte.h>
 
 #if defined(__mips_n32) || defined(__mips_n64) /* PHYSADDR_64BIT */
-#define	NKPT		256	/* mem > 4G, vm_page_startup needs more KPTs */
+#define NKPT 256 /* mem > 4G, vm_page_startup needs more KPTs */
 #else
-#define	NKPT		120	/* actual number of kernel page tables */
+#define NKPT 120 /* actual number of kernel page tables */
 #endif
 
 #ifndef LOCORE
 
-#include <sys/queue.h>
 #include <sys/_cpuset.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/queue.h>
 
 /*
  * Pmap stuff
@@ -75,75 +76,74 @@ struct md_page {
 	TAILQ_HEAD(, pv_entry) pv_list;
 };
 
-#define	PV_TABLE_REF		0x02	/* referenced */
-#define	PV_MEMATTR_MASK		0xf0	/* store vm_memattr_t here */
-#define	PV_MEMATTR_SHIFT	0x04
+#define PV_TABLE_REF 0x02 /* referenced */
+#define PV_MEMATTR_MASK 0xf0 /* store vm_memattr_t here */
+#define PV_MEMATTR_SHIFT 0x04
 
-#define	ASID_BITS		8
-#define	ASIDGEN_BITS		(32 - ASID_BITS)
-#define	ASIDGEN_MASK		((1 << ASIDGEN_BITS) - 1)
+#define ASID_BITS 8
+#define ASIDGEN_BITS (32 - ASID_BITS)
+#define ASIDGEN_MASK ((1 << ASIDGEN_BITS) - 1)
 
 struct pmap {
-	pd_entry_t *pm_segtab;	/* KVA of segment table */
-	TAILQ_HEAD(, pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
-	cpuset_t	pm_active;		/* active on cpus */
+	pd_entry_t *pm_segtab;		   /* KVA of segment table */
+	TAILQ_HEAD(, pv_chunk) pm_pvchunk; /* list of mappings in pmap */
+	cpuset_t pm_active;		   /* active on cpus */
 	struct {
-		u_int32_t asid:ASID_BITS;	/* TLB address space tag */
-		u_int32_t gen:ASIDGEN_BITS;	/* its generation number */
-	}      pm_asid[MAXSMPCPU];
-	struct pmap_statistics pm_stats;	/* pmap statistics */
+		u_int32_t asid : ASID_BITS;   /* TLB address space tag */
+		u_int32_t gen : ASIDGEN_BITS; /* its generation number */
+	} pm_asid[MAXSMPCPU];
+	struct pmap_statistics pm_stats; /* pmap statistics */
 	struct mtx pm_mtx;
 };
 
 typedef struct pmap *pmap_t;
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 
 pt_entry_t *pmap_pte(pmap_t, vm_offset_t);
 vm_paddr_t pmap_kextract(vm_offset_t va);
 
-#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
-#define	pmap_asid(pmap)	(pmap)->pm_asid[PCPU_GET(cpuid)].asid
+#define vtophys(va) pmap_kextract(((vm_offset_t)(va)))
+#define pmap_asid(pmap) (pmap)->pm_asid[PCPU_GET(cpuid)].asid
 
-extern struct pmap	kernel_pmap_store;
-#define kernel_pmap	(&kernel_pmap_store)
+extern struct pmap kernel_pmap_store;
+#define kernel_pmap (&kernel_pmap_store)
 
-#define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
-#define	PMAP_LOCK_ASSERT(pmap, type)	mtx_assert(&(pmap)->pm_mtx, (type))
-#define	PMAP_LOCK_DESTROY(pmap) mtx_destroy(&(pmap)->pm_mtx)
-#define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, "pmap", \
-				    NULL, MTX_DEF)
-#define	PMAP_LOCKED(pmap)	mtx_owned(&(pmap)->pm_mtx)
-#define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
-#define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
-#define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
+#define PMAP_LOCK(pmap) mtx_lock(&(pmap)->pm_mtx)
+#define PMAP_LOCK_ASSERT(pmap, type) mtx_assert(&(pmap)->pm_mtx, (type))
+#define PMAP_LOCK_DESTROY(pmap) mtx_destroy(&(pmap)->pm_mtx)
+#define PMAP_LOCK_INIT(pmap) mtx_init(&(pmap)->pm_mtx, "pmap", NULL, MTX_DEF)
+#define PMAP_LOCKED(pmap) mtx_owned(&(pmap)->pm_mtx)
+#define PMAP_MTX(pmap) (&(pmap)->pm_mtx)
+#define PMAP_TRYLOCK(pmap) mtx_trylock(&(pmap)->pm_mtx)
+#define PMAP_UNLOCK(pmap) mtx_unlock(&(pmap)->pm_mtx)
 
 /*
  * For each vm_page_t, there is a list of all currently valid virtual
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_table.
  */
 typedef struct pv_entry {
-	vm_offset_t pv_va;	/* virtual address for mapping */
+	vm_offset_t pv_va; /* virtual address for mapping */
 	TAILQ_ENTRY(pv_entry) pv_list;
-}       *pv_entry_t;
+} * pv_entry_t;
 
 /*
  * pv_entries are allocated in chunks per-process.  This avoids the
  * need to track per-pmap assignments.
  */
 #ifdef __mips_n64
-#define	_NPCM	3
-#define	_NPCPV	168
+#define _NPCM 3
+#define _NPCPV 168
 #else
-#define	_NPCM	11
-#define	_NPCPV	336
+#define _NPCM 11
+#define _NPCPV 336
 #endif
 struct pv_chunk {
-	pmap_t			pc_pmap;
-	TAILQ_ENTRY(pv_chunk)	pc_list;
-	u_long			pc_map[_NPCM];	/* bitmap; 1 = free */
-	TAILQ_ENTRY(pv_chunk)	pc_lru;
-	struct pv_entry		pc_pventry[_NPCPV];
+	pmap_t pc_pmap;
+	TAILQ_ENTRY(pv_chunk) pc_list;
+	u_long pc_map[_NPCM]; /* bitmap; 1 = free */
+	TAILQ_ENTRY(pv_chunk) pc_lru;
+	struct pv_entry pc_pventry[_NPCPV];
 };
 
 /*
@@ -162,9 +162,10 @@ extern vm_paddr_t physmem_desc[PHYS_AVAIL_COUNT];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
-#define	pmap_page_get_memattr(m) (((m)->md.pv_flags & PV_MEMATTR_MASK) >> PV_MEMATTR_SHIFT)
-#define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
-#define	pmap_page_is_write_mapped(m)	(((m)->a.flags & PGA_WRITEABLE) != 0)
+#define pmap_page_get_memattr(m) \
+	(((m)->md.pv_flags & PV_MEMATTR_MASK) >> PV_MEMATTR_SHIFT)
+#define pmap_page_is_mapped(m) (!TAILQ_EMPTY(&(m)->md.pv_list))
+#define pmap_page_is_write_mapped(m) (((m)->a.flags & PGA_WRITEABLE) != 0)
 
 void pmap_bootstrap(void);
 void *pmap_mapdev(vm_paddr_t, vm_size_t);
@@ -196,8 +197,8 @@ pmap_ps_enabled(pmap_t pmap __unused)
 	return (false);
 }
 
-#endif				/* _KERNEL */
+#endif /* _KERNEL */
 
-#endif				/* !LOCORE */
+#endif /* !LOCORE */
 
-#endif				/* !_MACHINE_PMAP_H_ */
+#endif /* !_MACHINE_PMAP_H_ */

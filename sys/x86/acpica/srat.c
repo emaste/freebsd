@@ -37,11 +37,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
-
 #include <machine/md_var.h>
 
 #include <dev/acpica/acpivar.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 
 #if MAXMEMDOM > 1
 
@@ -53,7 +53,7 @@ parse_acpi_tables(void *dummy)
 	acpi_pxm_parse_tables();
 	acpi_pxm_set_mem_locality();
 }
-SYSINIT(parse_acpi_tables, SI_SUB_VM - 1, SI_ORDER_FIRST, parse_acpi_tables,
-    NULL);
+SYSINIT(
+    parse_acpi_tables, SI_SUB_VM - 1, SI_ORDER_FIRST, parse_acpi_tables, NULL);
 
 #endif /* MAXMEMDOM > 1 */

@@ -29,8 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/smp.h>
 
@@ -46,11 +46,9 @@ __FBSDID("$FreeBSD$");
 static int rb_probe(platform_t);
 static int rb_attach(platform_t);
 
-static platform_method_t rb_methods[] = {
-	PLATFORMMETHOD(platform_probe,		rb_probe),
-	PLATFORMMETHOD(platform_attach,		rb_attach),
-	PLATFORMMETHOD_END
-};
+static platform_method_t rb_methods[] = { PLATFORMMETHOD(
+					      platform_probe, rb_probe),
+	PLATFORMMETHOD(platform_attach, rb_attach), PLATFORMMETHOD_END };
 
 DEFINE_CLASS_1(rb, rb_platform, rb_methods, 0, mpc85xx_platform);
 

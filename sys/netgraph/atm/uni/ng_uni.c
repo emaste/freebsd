@@ -36,31 +36,32 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/callout.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/callout.h>
-#include <sys/sbuf.h>
+#include <sys/syslog.h>
+
 #include <machine/stdarg.h>
 
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
-#include <netnatm/unimsg.h>
-#include <netnatm/msg/unistruct.h>
+#include <netgraph/atm/ng_sscfu.h>
+#include <netgraph/atm/ng_sscop.h>
+#include <netgraph/atm/ng_uni.h>
 #include <netgraph/atm/ngatmbase.h>
-#include <netnatm/saal/sscopdef.h>
-#include <netnatm/saal/sscfudef.h>
 #include <netgraph/atm/uni/ng_uni_cust.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
+#include <netnatm/msg/unistruct.h>
+#include <netnatm/saal/sscfudef.h>
+#include <netnatm/saal/sscopdef.h>
 #include <netnatm/sig/uni.h>
 #include <netnatm/sig/unisig.h>
-#include <netgraph/atm/ng_sscop.h>
-#include <netgraph/atm/ng_sscfu.h>
-#include <netgraph/atm/ng_uni.h>
+#include <netnatm/unimsg.h>
 
 static MALLOC_DEFINE(M_NG_UNI, "netgraph_uni_node", "netgraph uni node");
 static MALLOC_DEFINE(M_UNI, "netgraph_uni_data", "uni protocol data");
@@ -71,34 +72,30 @@ MODULE_DEPEND(ng_uni, ngatmbase, 1, 1, 1);
  * Private node data
  */
 struct priv {
-	hook_p	upper;
-	hook_p	lower;
+	hook_p upper;
+	hook_p lower;
 	struct uni *uni;
-	int	enabled;
+	int enabled;
 };
 
 /* UNI CONFIG MASK */
 static const struct ng_parse_struct_field ng_uni_config_mask_type_info[] =
-	NGM_UNI_CONFIG_MASK_INFO;
+    NGM_UNI_CONFIG_MASK_INFO;
 static const struct ng_parse_type ng_uni_config_mask_type = {
-	&ng_parse_struct_type,
-	ng_uni_config_mask_type_info
+	&ng_parse_struct_type, ng_uni_config_mask_type_info
 };
 
 /* UNI_CONFIG */
 static const struct ng_parse_struct_field ng_uni_config_type_info[] =
-	NGM_UNI_CONFIG_INFO;
-static const struct ng_parse_type ng_uni_config_type = {
-	&ng_parse_struct_type,
-	ng_uni_config_type_info
-};
+    NGM_UNI_CONFIG_INFO;
+static const struct ng_parse_type ng_uni_config_type = { &ng_parse_struct_type,
+	ng_uni_config_type_info };
 
 /* SET CONFIG */
 static const struct ng_parse_struct_field ng_uni_set_config_type_info[] =
-	NGM_UNI_SET_CONFIG_INFO;
+    NGM_UNI_SET_CONFIG_INFO;
 static const struct ng_parse_type ng_uni_set_config_type = {
-	&ng_parse_struct_type,
-	ng_uni_set_config_type_info
+	&ng_parse_struct_type, ng_uni_set_config_type_info
 };
 
 /*
@@ -107,69 +104,46 @@ static const struct ng_parse_type ng_uni_set_config_type = {
 static const struct ng_parse_fixedarray_info ng_uni_debuglevel_type_info =
     NGM_UNI_DEBUGLEVEL_INFO;
 static const struct ng_parse_type ng_uni_debuglevel_type = {
-	&ng_parse_fixedarray_type,
-	&ng_uni_debuglevel_type_info
+	&ng_parse_fixedarray_type, &ng_uni_debuglevel_type_info
 };
 static const struct ng_parse_struct_field ng_uni_debug_type_info[] =
     NGM_UNI_DEBUG_INFO;
-static const struct ng_parse_type ng_uni_debug_type = {
-	&ng_parse_struct_type,
-	ng_uni_debug_type_info
-};
+static const struct ng_parse_type ng_uni_debug_type = { &ng_parse_struct_type,
+	ng_uni_debug_type_info };
 
 /*
  * Command list
  */
 static const struct ng_cmdlist ng_uni_cmdlist[] = {
+	{ NGM_UNI_COOKIE, NGM_UNI_GETDEBUG, "getdebug", NULL,
+	    &ng_uni_debug_type },
+	{ NGM_UNI_COOKIE, NGM_UNI_SETDEBUG, "setdebug", &ng_uni_debug_type,
+	    NULL },
+	{ NGM_UNI_COOKIE, NGM_UNI_GET_CONFIG, "get_config", NULL,
+	    &ng_uni_config_type },
 	{
-	  NGM_UNI_COOKIE,
-	  NGM_UNI_GETDEBUG,
-	  "getdebug",
-	  NULL,
-	  &ng_uni_debug_type
+	    NGM_UNI_COOKIE,
+	    NGM_UNI_SET_CONFIG,
+	    "set_config",
+	    &ng_uni_set_config_type,
+	    &ng_uni_config_mask_type,
 	},
 	{
-	  NGM_UNI_COOKIE,
-	  NGM_UNI_SETDEBUG,
-	  "setdebug",
-	  &ng_uni_debug_type,
-	  NULL
+	    NGM_UNI_COOKIE,
+	    NGM_UNI_ENABLE,
+	    "enable",
+	    NULL,
+	    NULL,
 	},
 	{
-	  NGM_UNI_COOKIE,
-	  NGM_UNI_GET_CONFIG,
-	  "get_config",
-	  NULL,
-	  &ng_uni_config_type
+	    NGM_UNI_COOKIE,
+	    NGM_UNI_DISABLE,
+	    "disable",
+	    NULL,
+	    NULL,
 	},
-	{
-	  NGM_UNI_COOKIE,
-	  NGM_UNI_SET_CONFIG,
-	  "set_config",
-	  &ng_uni_set_config_type,
-	  &ng_uni_config_mask_type,
-	},
-	{
-	  NGM_UNI_COOKIE,
-	  NGM_UNI_ENABLE,
-	  "enable",
-	  NULL,
-	  NULL,
-	},
-	{
-	  NGM_UNI_COOKIE,
-	  NGM_UNI_DISABLE,
-	  "disable",
-	  NULL,
-	  NULL,
-	},
-	{
-	  NGM_UNI_COOKIE,
-	  NGM_UNI_GETSTATE,
-	  "getstate",
-	  NULL,
-	  &ng_parse_uint32_type
-	},
+	{ NGM_UNI_COOKIE, NGM_UNI_GETSTATE, "getstate", NULL,
+	    &ng_parse_uint32_type },
 	{ 0 }
 };
 
@@ -177,44 +151,40 @@ static const struct ng_cmdlist ng_uni_cmdlist[] = {
  * Netgraph module data
  */
 static ng_constructor_t ng_uni_constructor;
-static ng_shutdown_t	ng_uni_shutdown;
-static ng_rcvmsg_t	ng_uni_rcvmsg;
-static ng_newhook_t	ng_uni_newhook;
-static ng_disconnect_t	ng_uni_disconnect;
-static ng_rcvdata_t	ng_uni_rcvlower;
-static ng_rcvdata_t	ng_uni_rcvupper;
+static ng_shutdown_t ng_uni_shutdown;
+static ng_rcvmsg_t ng_uni_rcvmsg;
+static ng_newhook_t ng_uni_newhook;
+static ng_disconnect_t ng_uni_disconnect;
+static ng_rcvdata_t ng_uni_rcvlower;
+static ng_rcvdata_t ng_uni_rcvupper;
 
 static int ng_uni_mod_event(module_t, int, void *);
 
 static struct ng_type ng_uni_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_UNI_NODE_TYPE,
-	.mod_event =	ng_uni_mod_event,
-	.constructor =	ng_uni_constructor,
-	.rcvmsg =	ng_uni_rcvmsg,
-	.shutdown =	ng_uni_shutdown,
-	.newhook =	ng_uni_newhook,
-	.rcvdata =	ng_uni_rcvlower,
-	.disconnect =	ng_uni_disconnect,
-	.cmdlist =	ng_uni_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_UNI_NODE_TYPE,
+	.mod_event = ng_uni_mod_event,
+	.constructor = ng_uni_constructor,
+	.rcvmsg = ng_uni_rcvmsg,
+	.shutdown = ng_uni_shutdown,
+	.newhook = ng_uni_newhook,
+	.rcvdata = ng_uni_rcvlower,
+	.disconnect = ng_uni_disconnect,
+	.cmdlist = ng_uni_cmdlist,
 };
 NETGRAPH_INIT(uni, &ng_uni_typestruct);
 
-static void uni_uni_output(struct uni *, void *, enum uni_sig, u_int32_t,
-    struct uni_msg *);
-static void uni_saal_output(struct uni *, void *, enum saal_sig,
-    struct uni_msg *);
+static void uni_uni_output(
+    struct uni *, void *, enum uni_sig, u_int32_t, struct uni_msg *);
+static void uni_saal_output(
+    struct uni *, void *, enum saal_sig, struct uni_msg *);
 static void uni_verbose(struct uni *, void *, u_int, const char *, ...)
     __printflike(4, 5);
 static void uni_do_status(struct uni *, void *, void *, const char *, ...)
     __printflike(4, 5);
 
-static const struct uni_funcs uni_funcs = {
-	uni_uni_output,
-	uni_saal_output,
-	uni_verbose,
-	uni_do_status
-};
+static const struct uni_funcs uni_funcs = { uni_uni_output, uni_saal_output,
+	uni_verbose, uni_do_status };
 
 /************************************************************/
 /*
@@ -315,9 +285,9 @@ ng_uni_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	NGI_GET_MSG(item, msg);
 
 	switch (msg->header.typecookie) {
-	  case NGM_GENERIC_COOKIE:
+	case NGM_GENERIC_COOKIE:
 		switch (msg->header.cmd) {
-		  case NGM_TEXT_STATUS:
+		case NGM_TEXT_STATUS:
 			NG_MKRESPONSE(resp, msg, NG_TEXTRESPONSE, M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
@@ -325,19 +295,20 @@ ng_uni_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 
 			resp->header.arglen = text_status(node, priv,
-			    (char *)resp->data, resp->header.arglen) + 1;
+						  (char *)resp->data,
+						  resp->header.arglen) +
+			    1;
 			break;
 
-		  default:
+		default:
 			error = EINVAL;
 			break;
 		}
 		break;
 
-	  case NGM_UNI_COOKIE:
+	case NGM_UNI_COOKIE:
 		switch (msg->header.cmd) {
-		  case NGM_UNI_SETDEBUG:
-		    {
+		case NGM_UNI_SETDEBUG: {
 			struct ngm_uni_debug *arg;
 
 			if (msg->header.arglen > sizeof(*arg)) {
@@ -348,14 +319,13 @@ ng_uni_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			for (i = 0; i < UNI_MAXFACILITY; i++)
 				uni_set_debug(priv->uni, i, arg->level[i]);
 			break;
-		    }
+		}
 
-		  case NGM_UNI_GETDEBUG:
-		    {
+		case NGM_UNI_GETDEBUG: {
 			struct ngm_uni_debug *arg;
 
 			NG_MKRESPONSE(resp, msg, sizeof(*arg), M_NOWAIT);
-			if(resp == NULL) {
+			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
@@ -363,10 +333,9 @@ ng_uni_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			for (i = 0; i < UNI_MAXFACILITY; i++)
 				arg->level[i] = uni_get_debug(priv->uni, i);
 			break;
-		    }
+		}
 
-		  case NGM_UNI_GET_CONFIG:
-		    {
+		case NGM_UNI_GET_CONFIG: {
 			struct uni_config *config;
 
 			if (msg->header.arglen != 0) {
@@ -382,10 +351,9 @@ ng_uni_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			uni_get_config(priv->uni, config);
 
 			break;
-		    }
+		}
 
-		  case NGM_UNI_SET_CONFIG:
-		    {
+		case NGM_UNI_SET_CONFIG: {
 			struct ngm_uni_set_config *arg;
 			struct ngm_uni_config_mask *mask;
 
@@ -404,13 +372,13 @@ ng_uni_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			*mask = arg->mask;
 
-			uni_set_config(priv->uni, &arg->config,
-			    &mask->mask, &mask->popt_mask, &mask->option_mask);
+			uni_set_config(priv->uni, &arg->config, &mask->mask,
+			    &mask->popt_mask, &mask->option_mask);
 
 			break;
-		    }
+		}
 
-		  case NGM_UNI_ENABLE:
+		case NGM_UNI_ENABLE:
 			if (msg->header.arglen != 0) {
 				error = EINVAL;
 				break;
@@ -422,7 +390,7 @@ ng_uni_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			priv->enabled = 1;
 			break;
 
-		  case NGM_UNI_DISABLE:
+		case NGM_UNI_DISABLE:
 			if (msg->header.arglen != 0) {
 				error = EINVAL;
 				break;
@@ -435,28 +403,28 @@ ng_uni_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			uni_reset(priv->uni);
 			break;
 
-		  case NGM_UNI_GETSTATE:
+		case NGM_UNI_GETSTATE:
 			if (msg->header.arglen != 0) {
 				error = EINVAL;
 				break;
 			}
 			NG_MKRESPONSE(resp, msg, sizeof(u_int32_t), M_NOWAIT);
-			if(resp == NULL) {
+			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
-			*(u_int32_t *)resp->data =
-			    priv->enabled ? (uni_getcustate(priv->uni) + 1)
-			                  : 0;
+			*(u_int32_t *)resp->data = priv->enabled ?
+				  (uni_getcustate(priv->uni) + 1) :
+				  0;
 			break;
 
-		  default:
+		default:
 			error = EINVAL;
 			break;
 		}
 		break;
 
-	  default:
+	default:
 		error = EINVAL;
 		break;
 	}
@@ -477,7 +445,7 @@ ng_uni_newhook(node_p node, hook_p hook, const char *name)
 
 	if (strcmp(name, "lower") == 0) {
 		priv->lower = hook;
-	} else if(strcmp(name, "upper") == 0) {
+	} else if (strcmp(name, "upper") == 0) {
 		priv->upper = hook;
 		NG_HOOK_SET_RCVDATA(hook, ng_uni_rcvupper);
 	} else
@@ -492,9 +460,9 @@ ng_uni_disconnect(hook_p hook)
 	node_p node = NG_HOOK_NODE(hook);
 	struct priv *priv = NG_NODE_PRIVATE(node);
 
-	if(hook == priv->lower)
+	if (hook == priv->lower)
 		priv->lower = NULL;
-	else if(hook == priv->upper)
+	else if (hook == priv->upper)
 		priv->upper = NULL;
 	else
 		printf("%s: bogus hook %s\n", __func__, NG_HOOK_NAME(hook));
@@ -619,22 +587,26 @@ dump_saal_signal(node_p node, enum saal_sig sig, struct uni_msg *msg, int to)
 	printf("signal %s SAAL: ", to ? "to" : "from");
 
 	switch (sig) {
-#define D(S) case S: printf("%s", #S); break
+#define D(S)                      \
+	case S:                   \
+		printf("%s", #S); \
+		break
 
-	D(SAAL_ESTABLISH_request);
-	D(SAAL_ESTABLISH_indication);
-	D(SAAL_ESTABLISH_confirm);
-	D(SAAL_RELEASE_request);
-	D(SAAL_RELEASE_confirm);
-	D(SAAL_RELEASE_indication);
-	D(SAAL_DATA_request);
-	D(SAAL_DATA_indication);
-	D(SAAL_UDATA_request);
-	D(SAAL_UDATA_indication);
+		D(SAAL_ESTABLISH_request);
+		D(SAAL_ESTABLISH_indication);
+		D(SAAL_ESTABLISH_confirm);
+		D(SAAL_RELEASE_request);
+		D(SAAL_RELEASE_confirm);
+		D(SAAL_RELEASE_indication);
+		D(SAAL_DATA_request);
+		D(SAAL_DATA_indication);
+		D(SAAL_UDATA_request);
+		D(SAAL_UDATA_indication);
 
 #undef D
-	  default:
-		printf("sig=%d", sig); break;
+	default:
+		printf("sig=%d", sig);
+		break;
 	}
 	if (msg != NULL) {
 		printf(" data=%zu\n", uni_msg_len(msg));
@@ -703,7 +675,8 @@ ng_uni_rcvlower(hook_p hook __unused, item_p item)
  * Pack the message into an mbuf chain.
  */
 static void
-uni_saal_output(struct uni *uni, void *varg, enum saal_sig sig, struct uni_msg *msg)
+uni_saal_output(
+    struct uni *uni, void *varg, enum saal_sig sig, struct uni_msg *msg)
 {
 	node_p node = (node_p)varg;
 	struct priv *priv = NG_NODE_PRIVATE(node);
@@ -756,43 +729,38 @@ uni_verbose(struct uni *uni, void *varg, u_int fac, const char *fmt, ...)
  * Memory debugging
  */
 struct unimem_debug {
-	const char	*file;
-	u_int		lno;
+	const char *file;
+	u_int lno;
 	LIST_ENTRY(unimem_debug) link;
-	char		data[0];
+	char data[0];
 };
 LIST_HEAD(unimem_debug_list, unimem_debug);
 
 static struct unimem_debug_list nguni_freemem[UNIMEM_TYPES] = {
-    LIST_HEAD_INITIALIZER(nguni_freemem[0]),
-    LIST_HEAD_INITIALIZER(nguni_freemem[1]),
-    LIST_HEAD_INITIALIZER(nguni_freemem[2]),
-    LIST_HEAD_INITIALIZER(nguni_freemem[3]),
-    LIST_HEAD_INITIALIZER(nguni_freemem[4]),
+	LIST_HEAD_INITIALIZER(nguni_freemem[0]),
+	LIST_HEAD_INITIALIZER(nguni_freemem[1]),
+	LIST_HEAD_INITIALIZER(nguni_freemem[2]),
+	LIST_HEAD_INITIALIZER(nguni_freemem[3]),
+	LIST_HEAD_INITIALIZER(nguni_freemem[4]),
 };
 static struct unimem_debug_list nguni_usedmem[UNIMEM_TYPES] = {
-    LIST_HEAD_INITIALIZER(nguni_usedmem[0]),
-    LIST_HEAD_INITIALIZER(nguni_usedmem[1]),
-    LIST_HEAD_INITIALIZER(nguni_usedmem[2]),
-    LIST_HEAD_INITIALIZER(nguni_usedmem[3]),
-    LIST_HEAD_INITIALIZER(nguni_usedmem[4]),
+	LIST_HEAD_INITIALIZER(nguni_usedmem[0]),
+	LIST_HEAD_INITIALIZER(nguni_usedmem[1]),
+	LIST_HEAD_INITIALIZER(nguni_usedmem[2]),
+	LIST_HEAD_INITIALIZER(nguni_usedmem[3]),
+	LIST_HEAD_INITIALIZER(nguni_usedmem[4]),
 };
 
 static struct mtx nguni_unilist_mtx;
 
-static const char *unimem_names[UNIMEM_TYPES] = {
-	"instance",
-	"all",
-	"signal",
-	"call",
-	"party"
-};
+static const char *unimem_names[UNIMEM_TYPES] = { "instance", "all", "signal",
+	"call", "party" };
 
 static void
 uni_init(void)
 {
-	mtx_init(&nguni_unilist_mtx, "netgraph UNI structure lists", NULL,
-	    MTX_DEF);
+	mtx_init(
+	    &nguni_unilist_mtx, "netgraph UNI structure lists", NULL, MTX_DEF);
 }
 
 static void
@@ -810,8 +778,8 @@ uni_fini(void)
 		while ((h = LIST_FIRST(&nguni_usedmem[type])) != NULL) {
 			LIST_REMOVE(h, link);
 			printf("ng_uni: %s in use: %p (%s,%u)\n",
-			    unimem_names[type], (caddr_t)h->data,
-			    h->file, h->lno);
+			    unimem_names[type], (caddr_t)h->data, h->file,
+			    h->lno);
 			free(h, M_UNI);
 		}
 	}
@@ -860,12 +828,12 @@ ng_uni_free(enum unimem type, void *ptr, const char *file, u_int lno)
 {
 	struct unimem_debug *d, *h;
 
-	d = (struct unimem_debug *)
-	    ((char *)ptr - offsetof(struct unimem_debug, data));
+	d = (struct unimem_debug *)((char *)ptr -
+	    offsetof(struct unimem_debug, data));
 
 	mtx_lock(&nguni_unilist_mtx);
 
-	LIST_FOREACH(h, &nguni_usedmem[type], link)
+	LIST_FOREACH (h, &nguni_usedmem[type], link)
 		if (d == h)
 			break;
 
@@ -876,7 +844,7 @@ ng_uni_free(enum unimem type, void *ptr, const char *file, u_int lno)
 		/*
 		 * Not on used list - try free list.
 		 */
-		LIST_FOREACH(h, &nguni_freemem[type], link)
+		LIST_FOREACH (h, &nguni_freemem[type], link)
 			if (d == h)
 				break;
 		if (h == NULL)
@@ -884,9 +852,9 @@ ng_uni_free(enum unimem type, void *ptr, const char *file, u_int lno)
 			    file, lno, ptr, unimem_names[type]);
 		else
 			printf("ng_uni: %s,%u: %p(%s) was already destroyed "
-			    "in %s,%u\n",
-			    file, lno, ptr, unimem_names[type],
-			    h->file, h->lno);
+			       "in %s,%u\n",
+			    file, lno, ptr, unimem_names[type], h->file,
+			    h->lno);
 	}
 	mtx_unlock(&nguni_unilist_mtx);
 }
@@ -903,16 +871,16 @@ ng_uni_mod_event(module_t mod, int event, void *data)
 {
 	int error = 0;
 
-	switch(event) {
-	  case MOD_LOAD:
+	switch (event) {
+	case MOD_LOAD:
 		uni_init();
 		break;
 
-	  case MOD_UNLOAD:
+	case MOD_UNLOAD:
 		uni_fini();
 		break;
 
-	  default:
+	default:
 		error = EOPNOTSUPP;
 		break;
 	}

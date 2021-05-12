@@ -28,7 +28,7 @@
  */
 
 #ifndef _MACHINE_HWFUNC_H_
-#define	_MACHINE_HWFUNC_H_
+#define _MACHINE_HWFUNC_H_
 
 #include <sys/_cpuset.h>
 
@@ -38,7 +38,7 @@ struct timecounter;
  * Hooks downward into platform functionality.
  */
 void platform_reset(void);
-void platform_start(__register_t, __register_t,  __register_t, __register_t);
+void platform_start(__register_t, __register_t, __register_t, __register_t);
 
 /* For clocks and ticks and such */
 void platform_initclocks(void);
@@ -106,6 +106,6 @@ extern void platform_cpu_mask(cpuset_t *mask);
  */
 struct cpu_group *platform_smp_topo(void);
 
-#endif	/* SMP */
+#endif /* SMP */
 
 #endif /* !_MACHINE_HWFUNC_H_ */

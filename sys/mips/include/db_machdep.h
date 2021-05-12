@@ -36,56 +36,56 @@
  * $FreeBSD$
  */
 
-#ifndef	_MIPS_DB_MACHDEP_H_
-#define	_MIPS_DB_MACHDEP_H_
+#ifndef _MIPS_DB_MACHDEP_H_
+#define _MIPS_DB_MACHDEP_H_
 
 #include <machine/frame.h>
 #include <machine/trap.h>
 
 typedef struct trapframe db_regs_t;
-extern db_regs_t	ddb_regs;	/* register state */
+extern db_regs_t ddb_regs; /* register state */
 
-typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
-typedef	register_t	db_expr_t;	/* expression - signed */
+typedef vm_offset_t db_addr_t; /* address - unsigned */
+typedef register_t db_expr_t;  /* expression - signed */
 
-#define	SOFTWARE_SSTEP		/* Need software single step */
-#define	SOFTWARE_SSTEP_EMUL	/* next_instr_address() emulates 100% */
-db_addr_t	next_instr_address(db_addr_t, boolean_t);
-#define	BKPT_SIZE			(4)
-#define	BKPT_SET(ins)			(MIPS_BREAK_DDB)
-#define	DB_VALID_BREAKPOINT(addr)	(((addr) & 3) == 0)
+#define SOFTWARE_SSTEP /* Need software single step */
+#define SOFTWARE_SSTEP_EMUL /* next_instr_address() emulates 100% */
+db_addr_t next_instr_address(db_addr_t, boolean_t);
+#define BKPT_SIZE (4)
+#define BKPT_SET(ins) (MIPS_BREAK_DDB)
+#define DB_VALID_BREAKPOINT(addr) (((addr)&3) == 0)
 
-#define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_BREAK)
-#define	IS_WATCHPOINT_TRAP(type, code)	(0)	/* XXX mips3 watchpoint */
+#define IS_BREAKPOINT_TRAP(type, code) ((type) == T_BREAK)
+#define IS_WATCHPOINT_TRAP(type, code) (0) /* XXX mips3 watchpoint */
 
-#define	PC_REGS()	((db_addr_t)kdb_thrctx->pcb_regs.pc)
-#define	BKPT_SKIP					\
-	do {							\
-		if((db_get_value(kdb_frame->pc, sizeof(int), FALSE) &	\
-		    ~MIPS_BREAK_VAL_MASK) == MIPS_BREAK_INSTR) {	\
-			kdb_frame->pc += BKPT_SIZE;			\
-			kdb_thrctx->pcb_regs.pc +=  BKPT_SIZE;		\
-		}							\
+#define PC_REGS() ((db_addr_t)kdb_thrctx->pcb_regs.pc)
+#define BKPT_SKIP                                                      \
+	do {                                                           \
+		if ((db_get_value(kdb_frame->pc, sizeof(int), FALSE) & \
+			~MIPS_BREAK_VAL_MASK) == MIPS_BREAK_INSTR) {   \
+			kdb_frame->pc += BKPT_SIZE;                    \
+			kdb_thrctx->pcb_regs.pc += BKPT_SIZE;          \
+		}                                                      \
 	} while (0);
 
 /*
  *  Test of instructions to see class.
  */
-#define	IT_CALL		0x01
-#define	IT_BRANCH	0x02
-#define	IT_LOAD		0x03
-#define	IT_STORE	0x04
+#define IT_CALL 0x01
+#define IT_BRANCH 0x02
+#define IT_LOAD 0x03
+#define IT_STORE 0x04
 
-#define	inst_branch(i)		(db_inst_type(i) == IT_BRANCH)
-#define	inst_trap_return(i)	((i) & 0)
-#define	inst_call(i)		(db_inst_type(i) == IT_CALL)
-#define	inst_return(i)		((i) == 0x03e00008)
-#define	inst_load(i)		(db_inst_type(i) == IT_LOAD)
-#define	inst_store(i)		(db_inst_type(i) == IT_STORE)
+#define inst_branch(i) (db_inst_type(i) == IT_BRANCH)
+#define inst_trap_return(i) ((i)&0)
+#define inst_call(i) (db_inst_type(i) == IT_CALL)
+#define inst_return(i) ((i) == 0x03e00008)
+#define inst_load(i) (db_inst_type(i) == IT_LOAD)
+#define inst_store(i) (db_inst_type(i) == IT_STORE)
 
 int db_inst_type(int);
 db_addr_t branch_taken(int inst, db_addr_t pc);
 int32_t kdbpeek(int *);
 int64_t kdbpeekd(int *);
 
-#endif	/* !_MIPS_DB_MACHDEP_H_ */
+#endif /* !_MIPS_DB_MACHDEP_H_ */

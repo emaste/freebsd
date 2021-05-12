@@ -47,30 +47,30 @@
  */
 
 #ifndef _SYS_MAC_H_
-#define	_SYS_MAC_H_
+#define _SYS_MAC_H_
 
 #ifndef _POSIX_MAC
-#define	_POSIX_MAC
+#define _POSIX_MAC
 #endif
 
 /*
  * MAC framework-related constants and limits.
  */
-#define	MAC_MAX_POLICY_NAME		32
-#define	MAC_MAX_LABEL_ELEMENT_NAME	32
-#define	MAC_MAX_LABEL_ELEMENT_DATA	4096
-#define	MAC_MAX_LABEL_BUF_LEN		8192
+#define MAC_MAX_POLICY_NAME 32
+#define MAC_MAX_LABEL_ELEMENT_NAME 32
+#define MAC_MAX_LABEL_ELEMENT_DATA 4096
+#define MAC_MAX_LABEL_BUF_LEN 8192
 
 /*
  * struct mac is the data structure used to carry MAC labels in system calls
  * and ioctls between userspace and the kernel.
  */
 struct mac {
-	size_t		 m_buflen;
-	char		*m_string;
+	size_t m_buflen;
+	char *m_string;
 };
 
-typedef struct mac	*mac_t;
+typedef struct mac *mac_t;
 
 #ifndef _KERNEL
 
@@ -78,34 +78,34 @@ typedef struct mac	*mac_t;
  * Location of the userland MAC framework configuration file.  mac.conf
  * set defaults for MAC-aware applications.
  */
-#define	MAC_CONFFILE	"/etc/mac.conf"
+#define MAC_CONFFILE "/etc/mac.conf"
 
 /*
  * Extended non-POSIX.1e interfaces that offer additional services available
  * from the userland and kernel MAC frameworks.
  */
 __BEGIN_DECLS
-int	 mac_execve(char *fname, char **argv, char **envv, mac_t _label);
-int	 mac_free(mac_t _label);
-int	 mac_from_text(mac_t *_label, const char *_text);
-int	 mac_get_fd(int _fd, mac_t _label);
-int	 mac_get_file(const char *_path, mac_t _label);
-int	 mac_get_link(const char *_path, mac_t _label);
-int	 mac_get_peer(int _fd, mac_t _label);
-int	 mac_get_pid(pid_t _pid, mac_t _label);
-int	 mac_get_proc(mac_t _label);
-int	 mac_is_present(const char *_policyname);
-int	 mac_prepare(mac_t *_label, const char *_elements);
-int	 mac_prepare_file_label(mac_t *_label);
-int	 mac_prepare_ifnet_label(mac_t *_label);
-int	 mac_prepare_process_label(mac_t *_label);
-int	 mac_prepare_type(mac_t *_label, const char *_type);
-int	 mac_set_fd(int _fildes, const mac_t _label);
-int	 mac_set_file(const char *_path, mac_t _label);
-int	 mac_set_link(const char *_path, mac_t _label);
-int	 mac_set_proc(const mac_t _label);
-int	 mac_syscall(const char *_policyname, int _call, void *_arg);
-int	 mac_to_text(mac_t mac, char **_text);
+int mac_execve(char *fname, char **argv, char **envv, mac_t _label);
+int mac_free(mac_t _label);
+int mac_from_text(mac_t *_label, const char *_text);
+int mac_get_fd(int _fd, mac_t _label);
+int mac_get_file(const char *_path, mac_t _label);
+int mac_get_link(const char *_path, mac_t _label);
+int mac_get_peer(int _fd, mac_t _label);
+int mac_get_pid(pid_t _pid, mac_t _label);
+int mac_get_proc(mac_t _label);
+int mac_is_present(const char *_policyname);
+int mac_prepare(mac_t *_label, const char *_elements);
+int mac_prepare_file_label(mac_t *_label);
+int mac_prepare_ifnet_label(mac_t *_label);
+int mac_prepare_process_label(mac_t *_label);
+int mac_prepare_type(mac_t *_label, const char *_type);
+int mac_set_fd(int _fildes, const mac_t _label);
+int mac_set_file(const char *_path, mac_t _label);
+int mac_set_link(const char *_path, mac_t _label);
+int mac_set_proc(const mac_t _label);
+int mac_syscall(const char *_policyname, int _call, void *_arg);
+int mac_to_text(mac_t mac, char **_text);
 __END_DECLS
 
 #endif /* !_KERNEL */

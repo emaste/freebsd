@@ -43,12 +43,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/filedesc.h>
-#include <sys/kernel.h>
 #include <sys/jail.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
@@ -58,11 +58,11 @@
 
 static MALLOC_DEFINE(M_FDESCMNT, "fdesc_mount", "FDESC mount structure");
 
-static vfs_cmount_t	fdesc_cmount;
-static vfs_mount_t	fdesc_mount;
-static vfs_unmount_t	fdesc_unmount;
-static vfs_statfs_t	fdesc_statfs;
-static vfs_root_t	fdesc_root;
+static vfs_cmount_t fdesc_cmount;
+static vfs_mount_t fdesc_mount;
+static vfs_unmount_t fdesc_unmount;
+static vfs_statfs_t fdesc_statfs;
+static vfs_root_t fdesc_root;
 
 /*
  * Compatibility shim for old mount(2) system call.
@@ -90,8 +90,7 @@ fdesc_mount(struct mount *mp)
 	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
 		return (EOPNOTSUPP);
 
-	fmp = malloc(sizeof(struct fdescmount),
-				M_FDESCMNT, M_WAITOK);	/* XXX */
+	fmp = malloc(sizeof(struct fdescmount), M_FDESCMNT, M_WAITOK); /* XXX */
 
 	/*
 	 * We need to initialize a few bits of our local mount point struct to
@@ -210,22 +209,22 @@ fdesc_statfs(struct mount *mp, struct statfs *sbp)
 	sbp->f_flags = 0;
 	sbp->f_bsize = DEV_BSIZE;
 	sbp->f_iosize = DEV_BSIZE;
-	sbp->f_blocks = 2;		/* 1K to keep df happy */
+	sbp->f_blocks = 2; /* 1K to keep df happy */
 	sbp->f_bfree = 0;
 	sbp->f_bavail = 0;
-	sbp->f_files = lim + 1;		/* Allow for "." */
-	sbp->f_ffree = freefd;		/* See comments above */
+	sbp->f_files = lim + 1; /* Allow for "." */
+	sbp->f_ffree = freefd;	/* See comments above */
 	return (0);
 }
 
 static struct vfsops fdesc_vfsops = {
-	.vfs_cmount =		fdesc_cmount,
-	.vfs_init =		fdesc_init,
-	.vfs_mount =		fdesc_mount,
-	.vfs_root =		fdesc_root,
-	.vfs_statfs =		fdesc_statfs,
-	.vfs_uninit =		fdesc_uninit,
-	.vfs_unmount =		fdesc_unmount,
+	.vfs_cmount = fdesc_cmount,
+	.vfs_init = fdesc_init,
+	.vfs_mount = fdesc_mount,
+	.vfs_root = fdesc_root,
+	.vfs_statfs = fdesc_statfs,
+	.vfs_uninit = fdesc_uninit,
+	.vfs_unmount = fdesc_unmount,
 };
 
 VFS_SET(fdesc_vfsops, fdescfs, VFCF_SYNTHETIC | VFCF_JAIL);

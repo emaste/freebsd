@@ -21,10 +21,21 @@ met:
       derived from this software without specific prior written
       permission.
 
-This Software, including technical data, may be subject to U.S. export  control laws, including the U.S. Export Administration Act and its  associated regulations, and may be subject to export or import  regulations in other countries.
+This Software, including technical data, may be subject to U.S. export  control
+laws, including the U.S. Export Administration Act and its  associated
+regulations, and may be subject to export or import  regulations in other
+countries.
 
 TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
-AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
+AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
 
 *************************************************************************/
 /* $FreeBSD$ */
@@ -40,6 +51,7 @@ AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR W
 #define CAVIUM_ETHERNET_H
 
 #include <sys/taskqueue.h>
+
 #include <net/if_media.h>
 #include <net/ifq.h>
 
@@ -51,15 +63,17 @@ typedef struct {
 	/* XXX FreeBSD device softcs must start with an ifnet pointer.  */
 	struct ifnet *ifp;
 
-	int                     port;           /* PKO hardware output port */
-	int                     queue;          /* PKO hardware queue for the port */
-	int                     fau;            /* Hardware fetch and add to count outstanding tx buffers */
-	int                     imode;          /* Type of port. This is one of the enums in cvmx_helper_interface_mode_t */
+	int port;  /* PKO hardware output port */
+	int queue; /* PKO hardware queue for the port */
+	int fau;   /* Hardware fetch and add to count outstanding tx buffers */
+	int imode; /* Type of port. This is one of the enums in
+		      cvmx_helper_interface_mode_t */
 #if 0
 	struct ifnet_stats stats;          /* Device statistics */
 #endif
-	uint64_t                link_info;      /* Last negotiated link state */
-	void (*poll)(struct ifnet *ifp);   /* Called periodically to check link status */
+	uint64_t link_info; /* Last negotiated link state */
+	void (*poll)(
+	    struct ifnet *ifp); /* Called periodically to check link status */
 
 	/*
 	 * FreeBSD additions.

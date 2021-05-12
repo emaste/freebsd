@@ -26,7 +26,7 @@
  */
 
 #ifndef _CLOUDABI_UTIL_H_
-#define	_CLOUDABI_UTIL_H_
+#define _CLOUDABI_UTIL_H_
 
 #include <sys/socket.h>
 
@@ -38,8 +38,8 @@ struct thread;
 struct timespec;
 
 /* Fetches the time value of a clock. */
-int cloudabi_clock_time_get(struct thread *, cloudabi_clockid_t,
-    cloudabi_timestamp_t *);
+int cloudabi_clock_time_get(
+    struct thread *, cloudabi_clockid_t, cloudabi_timestamp_t *);
 
 /* Converts a FreeBSD errno to a CloudABI errno. */
 cloudabi_errno_t cloudabi_convert_errno(int);
@@ -51,8 +51,8 @@ cloudabi_filetype_t cloudabi_convert_filetype(const struct file *);
 int cloudabi_convert_rights(cloudabi_rights_t, cap_rights_t *);
 
 /* Removes rights that conflict with the file descriptor type. */
-void cloudabi_remove_conflicting_rights(cloudabi_filetype_t,
-    cloudabi_rights_t *, cloudabi_rights_t *);
+void cloudabi_remove_conflicting_rights(
+    cloudabi_filetype_t, cloudabi_rights_t *, cloudabi_rights_t *);
 
 /* Converts a struct timespec to a CloudABI timestamp. */
 int cloudabi_convert_timespec(const struct timespec *, cloudabi_timestamp_t *);

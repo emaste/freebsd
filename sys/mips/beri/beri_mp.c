@@ -40,9 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/hwfunc.h>
 #include <machine/smp.h>
 
-#include <mips/beri/beri_mp.h>
-
 #include <dev/fdt/fdt_common.h>
+
+#include <mips/beri/beri_mp.h>
 
 struct spin_entry {
 	uint64_t entry_addr;
@@ -77,14 +77,15 @@ platform_cpu_mask(cpuset_t *mask)
 	ncores = beri_get_ncores();
 	nthreads = beri_get_nthreads();
 	KASSERT(ncores <= 0x10000, ("%s: too many cores %d", __func__, ncores));
-	KASSERT(nthreads <= 0x10000, ("%s: too many threads %d", __func__,
-	    nthreads));
+	KASSERT(nthreads <= 0x10000,
+	    ("%s: too many threads %d", __func__, nthreads));
 	KASSERT(ncores < 0xffff || nthreads < 0xffff,
 	    ("%s: cores x thread (%d x %d) would overflow", __func__, ncores,
-	    nthreads));
+		nthreads));
 	ncpus = ncores * nthreads;
 	if (MAXCPU > 1 && ncpus > MAXCPU)
-		printf("%s: Hardware supports more CPUs (%d) than kernel (%d)\n",
+		printf(
+		    "%s: Hardware supports more CPUs (%d) than kernel (%d)\n",
 		    __func__, ncpus, MAXCPU);
 	printf("%s: hardware has %d cores with %d threads each\n", __func__,
 	    ncores, nthreads);
@@ -100,8 +101,8 @@ platform_cpu_mask(cpuset_t *mask)
 	CPU_ZERO(mask);
 	do {
 		if (OF_getprop(cpu, "reg", &reg, sizeof(reg)) <= 0) {
-			printf("%s: cpu device with no reg property\n",
-			    __func__);
+			printf(
+			    "%s: cpu device with no reg property\n", __func__);
 			goto error;
 		}
 		if (reg > MAXCPU) {
@@ -113,27 +114,32 @@ platform_cpu_mask(cpuset_t *mask)
 
 		if (reg != 0) {
 			if (OF_getprop(cpu, "enable-method", &prop,
-			    sizeof(prop)) <= 0 && OF_getprop(OF_parent(cpu),
-			    "enable-method", &prop, sizeof(prop)) <= 0) {
+				sizeof(prop)) <= 0 &&
+			    OF_getprop(OF_parent(cpu), "enable-method", &prop,
+				sizeof(prop)) <= 0) {
 				printf("%s: CPU %d has no enable-method "
-				    "property\n", __func__, reg);
+				       "property\n",
+				    __func__, reg);
 				continue;
 			}
 			if (strcmp("spin-table", prop) != 0) {
 				printf("%s: CPU %d enable-method is '%s' not "
-				    "'spin-table'\n", __func__, reg, prop);
+				       "'spin-table'\n",
+				    __func__, reg, prop);
 				continue;
 			}
 
 			if (OF_getprop(cpu, "cpu-release-addr", &se,
-			    sizeof(se)) <= 0) {
+				sizeof(se)) <= 0) {
 				printf("%s: CPU %d has missing or invalid "
-				    "cpu-release-addr\n", __func__, reg);
+				       "cpu-release-addr\n",
+				    __func__, reg);
 				continue;
 			}
 			if (se->entry_addr != 1) {
 				printf("%s: CPU %d has uninitialized spin "
-				    "entry\n", __func__, reg);
+				       "entry\n",
+				    __func__, reg);
 				continue;
 			}
 		}
@@ -175,7 +181,7 @@ void
 platform_ipi_send(int cpuid)
 {
 
-	mips_sync();	/* Ordering, liveness. */
+	mips_sync(); /* Ordering, liveness. */
 
 	beripic_send_ipi(picmap[cpuid], cpuid);
 }
@@ -269,28 +275,31 @@ platform_start_ap(int cpuid)
 	if (OF_getprop(cpu, "status", &prop, sizeof(prop)) <= 0) {
 		if (bootverbose)
 			printf("%s: CPU %d has no status property, "
-			    "trying parent\n", __func__, cpuid);
-		if (OF_getprop(OF_parent(cpu), "status", &prop,
-		    sizeof(prop)) <= 0)
+			       "trying parent\n",
+			    __func__, cpuid);
+		if (OF_getprop(OF_parent(cpu), "status", &prop, sizeof(prop)) <=
+		    0)
 			panic("%s: CPU %d has no status property", __func__,
 			    cpuid);
 	}
 	if (strcmp("disabled", prop) != 0)
-		panic("%s: CPU %d status is '%s' not 'disabled'",
-		    __func__, cpuid, prop);
+		panic("%s: CPU %d status is '%s' not 'disabled'", __func__,
+		    cpuid, prop);
 
 	if (OF_getprop(cpu, "enable-method", &prop, sizeof(prop)) <= 0) {
 		if (bootverbose)
 			printf("%s: CPU %d has no enable-method, "
-			    "trying parent\n", __func__, cpuid);
+			       "trying parent\n",
+			    __func__, cpuid);
 		if (OF_getprop(OF_parent(cpu), "enable-method", &prop,
-		    sizeof(prop)) <= 0)
+			sizeof(prop)) <= 0)
 			panic("%s: CPU %d has no enable-method property",
 			    __func__, cpuid);
 	}
 	if (strcmp("spin-table", prop) != 0)
 		panic("%s: CPU %d enable-method is '%s' not "
-		    "'spin-table'", __func__, cpuid, prop);
+		      "'spin-table'",
+		    __func__, cpuid, prop);
 
 	if (OF_getprop(cpu, "cpu-release-addr", &se, sizeof(se)) <= 0)
 		panic("%s: CPU %d has missing or invalid cpu-release-addr",
@@ -300,9 +309,9 @@ platform_start_ap(int cpuid)
 		printf("%s: writing %p to %p\n", __func__, mpentry,
 		    &se->entry_addr);
 
-	mips_sync();	/* Ordering. */
+	mips_sync(); /* Ordering. */
 	se->entry_addr = (intptr_t)mpentry;
-	mips_sync();	/* Liveness. */
+	mips_sync(); /* Liveness. */
 
 	return (0);
 }

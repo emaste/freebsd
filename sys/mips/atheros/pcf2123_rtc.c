@@ -31,25 +31,25 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/bus.h>
-#include <sys/lock.h>
-#include <sys/time.h>
-#include <sys/clock.h>
-#include <sys/resource.h>
 #include <sys/systm.h>
-#include <sys/rman.h>
+#include <sys/bus.h>
+#include <sys/clock.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/resource.h>
+#include <sys/rman.h>
+#include <sys/time.h>
+
+#include <dev/spibus/spi.h>
 
 #include <mips/atheros/pcf2123reg.h>
 
-#include <dev/spibus/spi.h>
+#include "clock_if.h"
 #include "spibus_if.h"
 
-#include "clock_if.h"
-
-#define	YEAR_BASE	1970
-#define	PCF2123_DELAY	50
+#define YEAR_BASE 1970
+#define PCF2123_DELAY 50
 
 struct pcf2123_rtc_softc {
 	device_t dev;
@@ -187,11 +187,11 @@ pcf2123_rtc_settime(device_t dev, struct timespec *ts)
 }
 
 static device_method_t pcf2123_rtc_methods[] = {
-	DEVMETHOD(device_probe,		pcf2123_rtc_probe),
-	DEVMETHOD(device_attach,	pcf2123_rtc_attach),
+	DEVMETHOD(device_probe, pcf2123_rtc_probe),
+	DEVMETHOD(device_attach, pcf2123_rtc_attach),
 
-	DEVMETHOD(clock_gettime,	pcf2123_rtc_gettime),
-	DEVMETHOD(clock_settime,	pcf2123_rtc_settime),
+	DEVMETHOD(clock_gettime, pcf2123_rtc_gettime),
+	DEVMETHOD(clock_settime, pcf2123_rtc_settime),
 
 	{ 0, 0 },
 };
@@ -203,4 +203,5 @@ static driver_t pcf2123_rtc_driver = {
 };
 static devclass_t pcf2123_rtc_devclass;
 
-DRIVER_MODULE(pcf2123_rtc, spibus, pcf2123_rtc_driver, pcf2123_rtc_devclass, 0, 0);
+DRIVER_MODULE(
+    pcf2123_rtc, spibus, pcf2123_rtc_driver, pcf2123_rtc_devclass, 0, 0);

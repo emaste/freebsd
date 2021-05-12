@@ -52,8 +52,8 @@
  *   http://caia.swin.edu.au/urp/newtcp/
  */
 
-#ifndef	_NETINET_KHELP_H_ERTT_
-#define	_NETINET_KHELP_H_ERTT_
+#ifndef _NETINET_KHELP_H_ERTT_
+#define _NETINET_KHELP_H_ERTT_
 
 struct txseginfo;
 
@@ -62,30 +62,30 @@ struct ertt {
 	/* Information about transmitted segments to aid in RTT calculation. */
 	TAILQ_HEAD(txseginfo_head, txseginfo) txsegi_q;
 	/* Bytes TX so far in marked RTT. */
-	long		bytes_tx_in_rtt;
+	long bytes_tx_in_rtt;
 	/* Final version of above. */
-	long		bytes_tx_in_marked_rtt;
+	long bytes_tx_in_marked_rtt;
 	/* cwnd for marked RTT. */
-	unsigned long	marked_snd_cwnd;
+	unsigned long marked_snd_cwnd;
 	/* Per-packet measured RTT. */
-	int		rtt;
+	int rtt;
 	/* Maximum RTT measured. */
-	int		maxrtt;
+	int maxrtt;
 	/* Minimum RTT measured. */
-	int		minrtt;
+	int minrtt;
 	/* Guess if the receiver is using delayed ack. */
-	int		dlyack_rx;
+	int dlyack_rx;
 	/* Keep track of inconsistencies in packet timestamps. */
-	int		timestamp_errors;
+	int timestamp_errors;
 	/* RTT for a marked packet. */
-	int		markedpkt_rtt;
+	int markedpkt_rtt;
 	/* Flags to signal conditions between hook function calls. */
-	uint32_t	flags;
+	uint32_t flags;
 };
 
 /* Flags for struct ertt. */
-#define	ERTT_NEW_MEASUREMENT		0x01
-#define	ERTT_MEASUREMENT_IN_PROGRESS	0x02
-#define	ERTT_TSO_DISABLED		0x04
+#define ERTT_NEW_MEASUREMENT 0x01
+#define ERTT_MEASUREMENT_IN_PROGRESS 0x02
+#define ERTT_TSO_DISABLED 0x04
 
 #endif /* _NETINET_KHELP_H_ERTT_ */

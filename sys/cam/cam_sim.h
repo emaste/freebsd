@@ -50,33 +50,23 @@ struct cam_devq;
 typedef void (*sim_action_func)(struct cam_sim *sim, union ccb *ccb);
 typedef void (*sim_poll_func)(struct cam_sim *sim);
 
-struct cam_devq * cam_simq_alloc(u_int32_t max_sim_transactions);
-void		  cam_simq_free(struct cam_devq *devq);
+struct cam_devq *cam_simq_alloc(u_int32_t max_sim_transactions);
+void cam_simq_free(struct cam_devq *devq);
 
-struct cam_sim *  cam_sim_alloc(sim_action_func sim_action,
-				sim_poll_func sim_poll,
-				const char *sim_name,
-				void *softc,
-				u_int32_t unit,
-				struct mtx *mtx,
-				int max_dev_transactions,
-				int max_tagged_dev_transactions,
-				struct cam_devq *queue);
-struct cam_sim *  cam_sim_alloc_dev(sim_action_func sim_action,
-				sim_poll_func sim_poll,
-				const char *sim_name,
-				void *softc,
-				device_t dev,
-				struct mtx *mtx,
-				int max_dev_transactions,
-				int max_tagged_dev_transactions,
-				struct cam_devq *queue);
-void		  cam_sim_free(struct cam_sim *sim, int free_devq);
-void		  cam_sim_hold(struct cam_sim *sim);
-void		  cam_sim_release(struct cam_sim *sim);
+struct cam_sim *cam_sim_alloc(sim_action_func sim_action,
+    sim_poll_func sim_poll, const char *sim_name, void *softc, u_int32_t unit,
+    struct mtx *mtx, int max_dev_transactions, int max_tagged_dev_transactions,
+    struct cam_devq *queue);
+struct cam_sim *cam_sim_alloc_dev(sim_action_func sim_action,
+    sim_poll_func sim_poll, const char *sim_name, void *softc, device_t dev,
+    struct mtx *mtx, int max_dev_transactions, int max_tagged_dev_transactions,
+    struct cam_devq *queue);
+void cam_sim_free(struct cam_sim *sim, int free_devq);
+void cam_sim_hold(struct cam_sim *sim);
+void cam_sim_release(struct cam_sim *sim);
 
 /* Optional sim attributes may be set with these. */
-void	cam_sim_set_path(struct cam_sim *sim, u_int32_t path_id);
+void cam_sim_set_path(struct cam_sim *sim, u_int32_t path_id);
 
 /* Generically useful offsets into the sim private area */
 #define spriv_ptr0 sim_priv.entries[0].ptr
@@ -89,28 +79,28 @@ void	cam_sim_set_path(struct cam_sim *sim, u_int32_t path_id);
  * structure.
  */
 struct cam_sim {
-	sim_action_func		sim_action;
-	sim_poll_func		sim_poll;
-	const char		*sim_name;
-	void			*softc;
-	struct mtx		*mtx;
-	TAILQ_HEAD(, ccb_hdr)	sim_doneq;
-	TAILQ_ENTRY(cam_sim)	links;
-	u_int32_t		path_id;/* The Boot device may set this to 0? */
-	u_int32_t		unit_number;
-	u_int32_t		bus_id;
-	int			max_tagged_dev_openings;
-	int			max_dev_openings;
-	u_int32_t		flags;
-#define	CAM_SIM_REL_TIMEOUT_PENDING	0x01
-	struct callout		callout;
-	struct cam_devq 	*devq;	/* Device Queue to use for this SIM */
-	int			refcount; /* References to the SIM. */
-	device_t		sim_dev; /* For attached peripherals. */
+	sim_action_func sim_action;
+	sim_poll_func sim_poll;
+	const char *sim_name;
+	void *softc;
+	struct mtx *mtx;
+	TAILQ_HEAD(, ccb_hdr) sim_doneq;
+	TAILQ_ENTRY(cam_sim) links;
+	u_int32_t path_id; /* The Boot device may set this to 0? */
+	u_int32_t unit_number;
+	u_int32_t bus_id;
+	int max_tagged_dev_openings;
+	int max_dev_openings;
+	u_int32_t flags;
+#define CAM_SIM_REL_TIMEOUT_PENDING 0x01
+	struct callout callout;
+	struct cam_devq *devq; /* Device Queue to use for this SIM */
+	int refcount;	       /* References to the SIM. */
+	device_t sim_dev;      /* For attached peripherals. */
 };
 
-#define CAM_SIM_LOCK(sim)	mtx_lock((sim)->mtx)
-#define CAM_SIM_UNLOCK(sim)	mtx_unlock((sim)->mtx)
+#define CAM_SIM_LOCK(sim) mtx_lock((sim)->mtx)
+#define CAM_SIM_UNLOCK(sim) mtx_unlock((sim)->mtx)
 
 static __inline u_int32_t
 cam_sim_path(const struct cam_sim *sim)

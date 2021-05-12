@@ -34,13 +34,13 @@ enum hdmi_infoframe_type {
 };
 
 #define HDMI_IEEE_OUI 0x000c03
-#define HDMI_INFOFRAME_HEADER_SIZE  4
-#define HDMI_AVI_INFOFRAME_SIZE    13
-#define HDMI_SPD_INFOFRAME_SIZE    25
-#define HDMI_AUDIO_INFOFRAME_SIZE  10
+#define HDMI_INFOFRAME_HEADER_SIZE 4
+#define HDMI_AVI_INFOFRAME_SIZE 13
+#define HDMI_SPD_INFOFRAME_SIZE 25
+#define HDMI_AUDIO_INFOFRAME_SIZE 10
 
-#define HDMI_INFOFRAME_SIZE(type)	\
-	(HDMI_INFOFRAME_HEADER_SIZE + HDMI_ ## type ## _INFOFRAME_SIZE)
+#define HDMI_INFOFRAME_SIZE(type) \
+	(HDMI_INFOFRAME_HEADER_SIZE + HDMI_##type##_INFOFRAME_SIZE)
 
 struct hdmi_any_infoframe {
 	enum hdmi_infoframe_type type;
@@ -157,8 +157,8 @@ struct hdmi_avi_infoframe {
 };
 
 int hdmi_avi_infoframe_init(struct hdmi_avi_infoframe *frame);
-ssize_t hdmi_avi_infoframe_pack(struct hdmi_avi_infoframe *frame, void *buffer,
-				size_t size);
+ssize_t hdmi_avi_infoframe_pack(
+    struct hdmi_avi_infoframe *frame, void *buffer, size_t size);
 
 enum hdmi_spd_sdi {
 	HDMI_SPD_SDI_UNKNOWN,
@@ -186,10 +186,10 @@ struct hdmi_spd_infoframe {
 	enum hdmi_spd_sdi sdi;
 };
 
-int hdmi_spd_infoframe_init(struct hdmi_spd_infoframe *frame,
-			    const char *vendor, const char *product);
-ssize_t hdmi_spd_infoframe_pack(struct hdmi_spd_infoframe *frame, void *buffer,
-				size_t size);
+int hdmi_spd_infoframe_init(
+    struct hdmi_spd_infoframe *frame, const char *vendor, const char *product);
+ssize_t hdmi_spd_infoframe_pack(
+    struct hdmi_spd_infoframe *frame, void *buffer, size_t size);
 
 enum hdmi_audio_coding_type {
 	HDMI_AUDIO_CODING_TYPE_STREAM,
@@ -262,12 +262,11 @@ struct hdmi_audio_infoframe {
 	unsigned char channel_allocation;
 	unsigned char level_shift_value;
 	bool downmix_inhibit;
-
 };
 
 int hdmi_audio_infoframe_init(struct hdmi_audio_infoframe *frame);
-ssize_t hdmi_audio_infoframe_pack(struct hdmi_audio_infoframe *frame,
-				  void *buffer, size_t size);
+ssize_t hdmi_audio_infoframe_pack(
+    struct hdmi_audio_infoframe *frame, void *buffer, size_t size);
 
 enum hdmi_3d_structure {
 	HDMI_3D_STRUCTURE_INVALID = -1,
@@ -292,8 +291,8 @@ struct hdmi_vendor_infoframe {
 };
 
 int hdmi_vendor_infoframe_init(struct hdmi_vendor_infoframe *frame);
-ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
-				   void *buffer, size_t size);
+ssize_t hdmi_vendor_infoframe_pack(
+    struct hdmi_vendor_infoframe *frame, void *buffer, size_t size);
 
 union hdmi_vendor_any_infoframe {
 	struct {
@@ -306,7 +305,8 @@ union hdmi_vendor_any_infoframe {
 };
 
 /**
- * union hdmi_infoframe - overall union of all abstract infoframe representations
+ * union hdmi_infoframe - overall union of all abstract infoframe
+ * representations
  * @any: generic infoframe
  * @avi: avi infoframe
  * @spd: spd infoframe
@@ -325,8 +325,8 @@ union hdmi_infoframe {
 	struct hdmi_audio_infoframe audio;
 };
 
-ssize_t
-hdmi_infoframe_pack(union hdmi_infoframe *frame, void *buffer, size_t size);
+ssize_t hdmi_infoframe_pack(
+    union hdmi_infoframe *frame, void *buffer, size_t size);
 int hdmi_infoframe_unpack(union hdmi_infoframe *frame, void *buffer);
 void hdmi_infoframe_log(union hdmi_infoframe *frame);
 

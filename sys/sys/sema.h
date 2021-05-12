@@ -29,36 +29,35 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_SEMA_H_
-#define	_SYS_SEMA_H_
+#ifndef _SYS_SEMA_H_
+#define _SYS_SEMA_H_
 
-#include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/condvar.h>
+#include <sys/queue.h>
 
 struct sema {
-	struct mtx	sema_mtx;	/* General protection lock. */
-	struct cv	sema_cv;	/* Waiters. */
-	int		sema_waiters;	/* Number of waiters. */
-	int		sema_value;	/* Semaphore value. */
+	struct mtx sema_mtx; /* General protection lock. */
+	struct cv sema_cv;   /* Waiters. */
+	int sema_waiters;    /* Number of waiters. */
+	int sema_value;	     /* Semaphore value. */
 };
 
 #ifdef _KERNEL
-void	sema_init(struct sema *sema, int value, const char *description);
-void	sema_destroy(struct sema *sema);
-void	_sema_post(struct sema *sema, const char *file, int line);
-void	_sema_wait(struct sema *sema, const char *file, int line);
-int	_sema_timedwait(struct sema *sema, int timo, const char *file, int
-    line);
-int	_sema_trywait(struct sema *sema, const char *file, int line);
-int	sema_value(struct sema *sema);
+void sema_init(struct sema *sema, int value, const char *description);
+void sema_destroy(struct sema *sema);
+void _sema_post(struct sema *sema, const char *file, int line);
+void _sema_wait(struct sema *sema, const char *file, int line);
+int _sema_timedwait(struct sema *sema, int timo, const char *file, int line);
+int _sema_trywait(struct sema *sema, const char *file, int line);
+int sema_value(struct sema *sema);
 
-#define	sema_post(sema)		_sema_post((sema), LOCK_FILE, LOCK_LINE)
-#define	sema_wait(sema)		_sema_wait((sema), LOCK_FILE, LOCK_LINE)
-#define	sema_timedwait(sema, timo)					\
+#define sema_post(sema) _sema_post((sema), LOCK_FILE, LOCK_LINE)
+#define sema_wait(sema) _sema_wait((sema), LOCK_FILE, LOCK_LINE)
+#define sema_timedwait(sema, timo) \
 	_sema_timedwait((sema), (timo), LOCK_FILE, LOCK_LINE)
-#define	sema_trywait(sema)	_sema_trywait((sema), LOCK_FILE, LOCK_LINE)
+#define sema_trywait(sema) _sema_trywait((sema), LOCK_FILE, LOCK_LINE)
 
-#endif	/* _KERNEL */
-#endif	/* _SYS_SEMA_H_ */
+#endif /* _KERNEL */
+#endif /* _SYS_SEMA_H_ */

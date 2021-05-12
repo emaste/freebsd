@@ -32,17 +32,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/disk.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
+#include <sys/conf.h>
 #include <sys/devicestat.h>
+#include <sys/disk.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/sdt.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/conf.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
@@ -52,17 +53,15 @@ SDT_PROVIDER_DEFINE(io);
 
 SDT_PROBE_DEFINE2(io, , , start, "struct bio *", "struct devstat *");
 SDT_PROBE_DEFINE2(io, , , done, "struct bio *", "struct devstat *");
-SDT_PROBE_DEFINE2(io, , , wait__start, "struct bio *",
-    "struct devstat *");
-SDT_PROBE_DEFINE2(io, , , wait__done, "struct bio *",
-    "struct devstat *");
+SDT_PROBE_DEFINE2(io, , , wait__start, "struct bio *", "struct devstat *");
+SDT_PROBE_DEFINE2(io, , , wait__done, "struct bio *", "struct devstat *");
 
-#define	DTRACE_DEVSTAT_START()		SDT_PROBE2(io, , , start, NULL, ds)
-#define	DTRACE_DEVSTAT_BIO_START()	SDT_PROBE2(io, , , start, bp, ds)
-#define	DTRACE_DEVSTAT_DONE()		SDT_PROBE2(io, , , done, NULL, ds)
-#define	DTRACE_DEVSTAT_BIO_DONE()	SDT_PROBE2(io, , , done, bp, ds)
-#define	DTRACE_DEVSTAT_WAIT_START()	SDT_PROBE2(io, , , wait__start, NULL, ds)
-#define	DTRACE_DEVSTAT_WAIT_DONE()	SDT_PROBE2(io, , , wait__done, NULL, ds)
+#define DTRACE_DEVSTAT_START() SDT_PROBE2(io, , , start, NULL, ds)
+#define DTRACE_DEVSTAT_BIO_START() SDT_PROBE2(io, , , start, bp, ds)
+#define DTRACE_DEVSTAT_DONE() SDT_PROBE2(io, , , done, NULL, ds)
+#define DTRACE_DEVSTAT_BIO_DONE() SDT_PROBE2(io, , , done, bp, ds)
+#define DTRACE_DEVSTAT_WAIT_START() SDT_PROBE2(io, , , wait__start, NULL, ds)
+#define DTRACE_DEVSTAT_WAIT_DONE() SDT_PROBE2(io, , , wait__done, NULL, ds)
 
 static int devstat_num_devs;
 static long devstat_generation = 1;
@@ -74,21 +73,17 @@ MTX_SYSINIT(devstat_mutex, &devstat_mutex, "devstat", MTX_DEF);
 static struct devstatlist device_statq = STAILQ_HEAD_INITIALIZER(device_statq);
 static struct devstat *devstat_alloc(void);
 static void devstat_free(struct devstat *);
-static void devstat_add_entry(struct devstat *ds, const void *dev_name, 
-		       int unit_number, uint32_t block_size,
-		       devstat_support_flags flags,
-		       devstat_type_flags device_type,
-		       devstat_priority priority);
+static void devstat_add_entry(struct devstat *ds, const void *dev_name,
+    int unit_number, uint32_t block_size, devstat_support_flags flags,
+    devstat_type_flags device_type, devstat_priority priority);
 
 /*
  * Allocate a devstat and initialize it
  */
 struct devstat *
-devstat_new_entry(const void *dev_name,
-		  int unit_number, uint32_t block_size,
-		  devstat_support_flags flags,
-		  devstat_type_flags device_type,
-		  devstat_priority priority)
+devstat_new_entry(const void *dev_name, int unit_number, uint32_t block_size,
+    devstat_support_flags flags, devstat_type_flags device_type,
+    devstat_priority priority)
 {
 	struct devstat *ds;
 
@@ -102,23 +97,21 @@ devstat_new_entry(const void *dev_name,
 		binuptime(&ds->creation_time);
 		devstat_generation++;
 	} else {
-		devstat_add_entry(ds, dev_name, unit_number, block_size,
-				  flags, device_type, priority);
+		devstat_add_entry(ds, dev_name, unit_number, block_size, flags,
+		    device_type, priority);
 	}
 	mtx_unlock(&devstat_mutex);
 	return (ds);
 }
 
 /*
- * Take a malloced and zeroed devstat structure given to us, fill it in 
- * and add it to the queue of devices.  
+ * Take a malloced and zeroed devstat structure given to us, fill it in
+ * and add it to the queue of devices.
  */
 static void
-devstat_add_entry(struct devstat *ds, const void *dev_name, 
-		  int unit_number, uint32_t block_size,
-		  devstat_support_flags flags,
-		  devstat_type_flags device_type,
-		  devstat_priority priority)
+devstat_add_entry(struct devstat *ds, const void *dev_name, int unit_number,
+    uint32_t block_size, devstat_support_flags flags,
+    devstat_type_flags device_type, devstat_priority priority)
 {
 	struct devstatlist *devstat_head;
 	struct devstat *ds_tmp;
@@ -132,7 +125,7 @@ devstat_add_entry(struct devstat *ds, const void *dev_name,
 	 * Priority sort.  Each driver passes in its priority when it adds
 	 * its devstat entry.  Drivers are sorted first by priority, and
 	 * then by probe order.
-	 * 
+	 *
 	 * For the first device, we just insert it, since the priority
 	 * doesn't really matter yet.  Subsequent devices are inserted into
 	 * the list using the order outlined above.
@@ -140,7 +133,7 @@ devstat_add_entry(struct devstat *ds, const void *dev_name,
 	if (devstat_num_devs == 1)
 		STAILQ_INSERT_TAIL(devstat_head, ds, dev_links);
 	else {
-		STAILQ_FOREACH(ds_tmp, devstat_head, dev_links) {
+		STAILQ_FOREACH (ds_tmp, devstat_head, dev_links) {
 			struct devstat *ds_next;
 
 			ds_next = STAILQ_NEXT(ds_tmp, dev_links);
@@ -151,11 +144,11 @@ devstat_add_entry(struct devstat *ds, const void *dev_name,
 			 * break, insert it.  This also applies if the
 			 * "lower priority item" is the end of the list.
 			 */
-			if ((priority <= ds_tmp->priority)
-			 && ((ds_next == NULL)
-			   || (priority > ds_next->priority))) {
-				STAILQ_INSERT_AFTER(devstat_head, ds_tmp, ds,
-						    dev_links);
+			if ((priority <= ds_tmp->priority) &&
+			    ((ds_next == NULL) ||
+				(priority > ds_next->priority))) {
+				STAILQ_INSERT_AFTER(
+				    devstat_head, ds_tmp, ds, dev_links);
 				break;
 			} else if (priority > ds_tmp->priority) {
 				/*
@@ -164,16 +157,16 @@ devstat_add_entry(struct devstat *ds, const void *dev_name,
 				 * list.  If we can't, something is wrong.
 				 */
 				if (ds_tmp == STAILQ_FIRST(devstat_head)) {
-					STAILQ_INSERT_HEAD(devstat_head,
-							   ds, dev_links);
+					STAILQ_INSERT_HEAD(
+					    devstat_head, ds, dev_links);
 					break;
 				} else {
-					STAILQ_INSERT_TAIL(devstat_head,
-							   ds, dev_links);
+					STAILQ_INSERT_TAIL(
+					    devstat_head, ds, dev_links);
 					printf("devstat_add_entry: HELP! "
 					       "sorting problem detected "
 					       "for name %p unit %d\n",
-					       dev_name, unit_number);
+					    dev_name, unit_number);
 					break;
 				}
 			}
@@ -299,9 +292,9 @@ devstat_start_transaction_bio_t0(struct devstat *ds, struct bio *bp)
  * atomic instructions using appropriate memory barriers.
  */
 void
-devstat_end_transaction(struct devstat *ds, uint32_t bytes, 
-			devstat_tag_type tag_type, devstat_trans_flags flags,
-			const struct bintime *now, const struct bintime *then)
+devstat_end_transaction(struct devstat *ds, uint32_t bytes,
+    devstat_tag_type tag_type, devstat_trans_flags flags,
+    const struct bintime *now, const struct bintime *then)
 {
 	struct bintime dt, lnow;
 
@@ -352,8 +345,8 @@ devstat_end_transaction_bio(struct devstat *ds, const struct bio *bp)
 }
 
 void
-devstat_end_transaction_bio_bt(struct devstat *ds, const struct bio *bp,
-    const struct bintime *now)
+devstat_end_transaction_bio_bt(
+    struct devstat *ds, const struct bio *bp, const struct bintime *now)
 {
 	devstat_trans_flags flg;
 	devstat_tag_type tag;
@@ -368,17 +361,17 @@ devstat_end_transaction_bio_bt(struct devstat *ds, const struct bio *bp,
 		tag = DEVSTAT_TAG_SIMPLE;
 	if (bp->bio_cmd == BIO_DELETE)
 		flg = DEVSTAT_FREE;
-	else if ((bp->bio_cmd == BIO_READ)
-	      || ((bp->bio_cmd == BIO_ZONE)
-	       && (bp->bio_zone.zone_cmd == DISK_ZONE_REPORT_ZONES)))
+	else if ((bp->bio_cmd == BIO_READ) ||
+	    ((bp->bio_cmd == BIO_ZONE) &&
+		(bp->bio_zone.zone_cmd == DISK_ZONE_REPORT_ZONES)))
 		flg = DEVSTAT_READ;
 	else if (bp->bio_cmd == BIO_WRITE)
 		flg = DEVSTAT_WRITE;
-	else 
+	else
 		flg = DEVSTAT_NO_DATA;
 
-	devstat_end_transaction(ds, bp->bio_bcount - bp->bio_resid,
-				tag, flg, now, &bp->bio_t0);
+	devstat_end_transaction(
+	    ds, bp->bio_bcount - bp->bio_resid, tag, flg, now, &bp->bio_t0);
 	DTRACE_DEVSTAT_BIO_DONE();
 }
 
@@ -392,8 +385,7 @@ devstat_end_transaction_bio_bt(struct devstat *ds, const struct bio *bp,
  * want to hold the devstat_mutex for any amount of time, so we grab it
  * only when we need to and keep an eye on devstat_generation all the time.
  */
-static int
-sysctl_devstat(SYSCTL_HANDLER_ARGS)
+static int sysctl_devstat(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	long mygen;
@@ -414,13 +406,13 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, &mygen, sizeof(mygen));
 
 	if (devstat_num_devs == 0)
-		return(0);
+		return (0);
 
 	if (error != 0)
 		return (error);
 
 	mtx_lock(&devstat_mutex);
-	nds = STAILQ_FIRST(&device_statq); 
+	nds = STAILQ_FIRST(&device_statq);
 	if (mygen != devstat_generation)
 		error = EBUSY;
 	mtx_unlock(&devstat_mutex);
@@ -428,7 +420,7 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 
-	for (;nds != NULL;) {
+	for (; nds != NULL;) {
 		error = SYSCTL_OUT(req, nds, sizeof(struct devstat));
 		if (error != 0)
 			return (error);
@@ -441,30 +433,29 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
 		if (error != 0)
 			return (error);
 	}
-	return(error);
+	return (error);
 }
 
 /*
  * Sysctl entries for devstat.  The first one is a node that all the rest
- * hang off of. 
+ * hang off of.
  */
 static SYSCTL_NODE(_kern, OID_AUTO, devstat, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Device Statistics");
 
 SYSCTL_PROC(_kern_devstat, OID_AUTO, all,
-    CTLFLAG_RD | CTLTYPE_OPAQUE | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_devstat, "S,devstat",
-    "All devices in the devstat list");
+    CTLFLAG_RD | CTLTYPE_OPAQUE | CTLFLAG_MPSAFE, NULL, 0, sysctl_devstat,
+    "S,devstat", "All devices in the devstat list");
 /*
  * Export the number of devices in the system so that userland utilities
  * can determine how much memory to allocate to hold all the devices.
  */
-SYSCTL_INT(_kern_devstat, OID_AUTO, numdevs, CTLFLAG_RD, 
-    &devstat_num_devs, 0, "Number of devices in the devstat list");
+SYSCTL_INT(_kern_devstat, OID_AUTO, numdevs, CTLFLAG_RD, &devstat_num_devs, 0,
+    "Number of devices in the devstat list");
 SYSCTL_LONG(_kern_devstat, OID_AUTO, generation, CTLFLAG_RD,
     &devstat_generation, 0, "Devstat list generation");
-SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD, 
-    &devstat_version, 0, "Devstat list version number");
+SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD, &devstat_version, 0,
+    "Devstat list version number");
 
 /*
  * Allocator for struct devstat structures.  We sub-allocate these from pages
@@ -478,25 +469,25 @@ static d_ioctl_t devstat_ioctl;
 static d_mmap_t devstat_mmap;
 
 static struct cdevsw devstat_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_ioctl =	devstat_ioctl,
-	.d_mmap =	devstat_mmap,
-	.d_name =	"devstat",
+	.d_version = D_VERSION,
+	.d_ioctl = devstat_ioctl,
+	.d_mmap = devstat_mmap,
+	.d_name = "devstat",
 };
 
 struct statspage {
-	TAILQ_ENTRY(statspage)	list;
-	struct devstat		*stat;
-	u_int			nfree;
+	TAILQ_ENTRY(statspage) list;
+	struct devstat *stat;
+	u_int nfree;
 };
 
 static size_t pagelist_pages = 0;
-static TAILQ_HEAD(, statspage)	pagelist = TAILQ_HEAD_INITIALIZER(pagelist);
+static TAILQ_HEAD(, statspage) pagelist = TAILQ_HEAD_INITIALIZER(pagelist);
 static MALLOC_DEFINE(M_DEVSTAT, "devstat", "Device statistics");
 
 static int
-devstat_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
-    struct thread *td)
+devstat_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	int error = ENOTTY;
 
@@ -519,7 +510,7 @@ devstat_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 	if (nprot != VM_PROT_READ)
 		return (-1);
 	mtx_lock(&devstat_mutex);
-	TAILQ_FOREACH(spp, &pagelist, list) {
+	TAILQ_FOREACH (spp, &pagelist, list) {
 		if (offset == 0) {
 			*paddr = vtophys(spp->stat);
 			mtx_unlock(&devstat_mutex);
@@ -549,7 +540,7 @@ devstat_alloc(void)
 	spp2 = NULL;
 	mtx_lock(&devstat_mutex);
 	for (;;) {
-		TAILQ_FOREACH(spp, &pagelist, list) {
+		TAILQ_FOREACH (spp, &pagelist, list) {
 			if (spp->nfree > 0)
 				break;
 		}
@@ -565,7 +556,7 @@ devstat_alloc(void)
 		 * just reuse them.
 		 */
 		mtx_lock(&devstat_mutex);
-		TAILQ_FOREACH(spp, &pagelist, list)
+		TAILQ_FOREACH (spp, &pagelist, list)
 			if (spp->nfree > 0)
 				break;
 		if (spp == NULL) {
@@ -604,7 +595,7 @@ devstat_free(struct devstat *dsp)
 
 	mtx_assert(&devstat_mutex, MA_OWNED);
 	bzero(dsp, sizeof *dsp);
-	TAILQ_FOREACH(spp, &pagelist, list) {
+	TAILQ_FOREACH (spp, &pagelist, list) {
 		if (dsp >= spp->stat && dsp < (spp->stat + statsperpage)) {
 			spp->nfree++;
 			return;
@@ -612,5 +603,5 @@ devstat_free(struct devstat *dsp)
 	}
 }
 
-SYSCTL_INT(_debug_sizeof, OID_AUTO, devstat, CTLFLAG_RD,
-    SYSCTL_NULL_INT_PTR, sizeof(struct devstat), "sizeof(struct devstat)");
+SYSCTL_INT(_debug_sizeof, OID_AUTO, devstat, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
+    sizeof(struct devstat), "sizeof(struct devstat)");

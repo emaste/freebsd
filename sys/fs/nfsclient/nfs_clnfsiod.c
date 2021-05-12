@@ -39,45 +39,45 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
-#include <sys/file.h>
-#include <sys/vnode.h>
-#include <sys/malloc.h>
-#include <sys/mount.h>
-#include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/domain.h>
+#include <sys/fcntl.h>
+#include <sys/file.h>
+#include <sys/kernel.h>
+#include <sys/kthread.h>
+#include <sys/lockf.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/domain.h>
-#include <sys/protosw.h>
-#include <sys/namei.h>
-#include <sys/unistd.h>
-#include <sys/kthread.h>
-#include <sys/fcntl.h>
-#include <sys/lockf.h>
-#include <sys/mutex.h>
+#include <sys/sysctl.h>
+#include <sys/sysproto.h>
 #include <sys/taskqueue.h>
+#include <sys/unistd.h>
+#include <sys/vnode.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
 #include <fs/nfs/nfsport.h>
-#include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfs.h>
+#include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfsnode.h>
 
-extern struct mtx	ncl_iod_mutex;
-extern struct task	ncl_nfsiodnew_task;
+extern struct mtx ncl_iod_mutex;
+extern struct task ncl_nfsiodnew_task;
 
 int ncl_numasync;
 enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
 struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 
-static void	nfssvc_iod(void *);
+static void nfssvc_iod(void *);
 
 static int nfs_asyncdaemon[NFS_MAXASYNCDAEMON];
 
@@ -96,8 +96,7 @@ static unsigned int nfs_iodmin = 0;
 
 static int nfs_nfsiodnew_sync(void);
 
-static int
-sysctl_iodmin(SYSCTL_HANDLER_ARGS)
+static int sysctl_iodmin(SYSCTL_HANDLER_ARGS)
 {
 	int error, i;
 	int newmin;
@@ -121,16 +120,14 @@ sysctl_iodmin(SYSCTL_HANDLER_ARGS)
 	for (i = nfs_iodmin - ncl_numasync; i > 0; i--)
 		nfs_nfsiodnew_sync();
 out:
-	NFSUNLOCKIOD();	
+	NFSUNLOCKIOD();
 	return (0);
 }
 SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmin,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof (nfs_iodmin),
-    sysctl_iodmin, "IU",
-    "Min number of nfsiod kthreads to keep as spares");
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof(nfs_iodmin),
+    sysctl_iodmin, "IU", "Min number of nfsiod kthreads to keep as spares");
 
-static int
-sysctl_iodmax(SYSCTL_HANDLER_ARGS)
+static int sysctl_iodmax(SYSCTL_HANDLER_ARGS)
 {
 	int error, i;
 	int iod, newmax;
@@ -162,9 +159,8 @@ out:
 	return (0);
 }
 SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmax,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof (ncl_iodmax),
-    sysctl_iodmax, "IU",
-    "Max number of nfsiod kthreads");
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof(ncl_iodmax),
+    sysctl_iodmax, "IU", "Max number of nfsiod kthreads");
 
 static int
 nfs_nfsiodnew_sync(void)
@@ -181,8 +177,8 @@ nfs_nfsiodnew_sync(void)
 	if (i == ncl_iodmax)
 		return (0);
 	NFSUNLOCKIOD();
-	error = kproc_create(nfssvc_iod, nfs_asyncdaemon + i, NULL,
-	    RFHIGHPID, 0, "newnfs %d", i);
+	error = kproc_create(nfssvc_iod, nfs_asyncdaemon + i, NULL, RFHIGHPID,
+	    0, "newnfs %d", i);
 	NFSLOCKIOD();
 	if (error == 0) {
 		ncl_numasync++;
@@ -256,82 +252,85 @@ nfssvc_iod(void *instance)
 	 * Main loop
 	 */
 	for (;;) {
-	    while (((nmp = ncl_iodmount[myiod]) == NULL)
-		   || !TAILQ_FIRST(&nmp->nm_bufq)) {
-		if (myiod >= ncl_iodmax)
-			goto finish;
-		if (nmp)
-			nmp->nm_bufqiods--;
-		if (ncl_iodwant[myiod] == NFSIOD_NOT_AVAILABLE)
-			ncl_iodwant[myiod] = NFSIOD_AVAILABLE;
-		ncl_iodmount[myiod] = NULL;
-		/*
-		 * Always keep at least nfs_iodmin kthreads.
-		 */
-		timo = (myiod < nfs_iodmin) ? 0 : nfs_iodmaxidle * hz;
-		error = msleep(&ncl_iodwant[myiod], &ncl_iod_mutex, PWAIT | PCATCH,
-		    "-", timo);
-		if (error) {
-			nmp = ncl_iodmount[myiod];
+		while (((nmp = ncl_iodmount[myiod]) == NULL) ||
+		    !TAILQ_FIRST(&nmp->nm_bufq)) {
+			if (myiod >= ncl_iodmax)
+				goto finish;
+			if (nmp)
+				nmp->nm_bufqiods--;
+			if (ncl_iodwant[myiod] == NFSIOD_NOT_AVAILABLE)
+				ncl_iodwant[myiod] = NFSIOD_AVAILABLE;
+			ncl_iodmount[myiod] = NULL;
 			/*
-			 * Rechecking the nm_bufq closes a rare race where the 
-			 * nfsiod is woken up at the exact time the idle timeout
-			 * fires
+			 * Always keep at least nfs_iodmin kthreads.
 			 */
-			if (nmp && TAILQ_FIRST(&nmp->nm_bufq))
-				error = 0;
+			timo = (myiod < nfs_iodmin) ? 0 : nfs_iodmaxidle * hz;
+			error = msleep(&ncl_iodwant[myiod], &ncl_iod_mutex,
+			    PWAIT | PCATCH, "-", timo);
+			if (error) {
+				nmp = ncl_iodmount[myiod];
+				/*
+				 * Rechecking the nm_bufq closes a rare race
+				 * where the nfsiod is woken up at the exact
+				 * time the idle timeout fires
+				 */
+				if (nmp && TAILQ_FIRST(&nmp->nm_bufq))
+					error = 0;
+				break;
+			}
+		}
+		if (error)
 			break;
-		}
-	    }
-	    if (error)
-		    break;
-	    while ((bp = TAILQ_FIRST(&nmp->nm_bufq)) != NULL) {
-		/* Take one off the front of the list */
-		TAILQ_REMOVE(&nmp->nm_bufq, bp, b_freelist);
-		nmp->nm_bufqlen--;
-		if (nmp->nm_bufqwant && nmp->nm_bufqlen <= ncl_numasync) {
-		    nmp->nm_bufqwant = 0;
-		    wakeup(&nmp->nm_bufq);
-		}
-		NFSUNLOCKIOD();
-		if (bp->b_flags & B_DIRECT) {
-			KASSERT((bp->b_iocmd == BIO_WRITE), ("nfscvs_iod: BIO_WRITE not set"));
-			(void)ncl_doio_directwrite(bp);
-		} else {
-			if (bp->b_iocmd == BIO_READ)
-				(void) ncl_doio(bp->b_vp, bp, bp->b_rcred,
-				    NULL, 0);
-			else
-				(void) ncl_doio(bp->b_vp, bp, bp->b_wcred,
-				    NULL, 0);
-		}
-		NFSLOCKIOD();
-		/*
-		 * Make sure the nmp hasn't been dismounted as soon as
-		 * ncl_doio() completes for the last buffer.
-		 */
-		nmp = ncl_iodmount[myiod];
-		if (nmp == NULL)
-			break;
+		while ((bp = TAILQ_FIRST(&nmp->nm_bufq)) != NULL) {
+			/* Take one off the front of the list */
+			TAILQ_REMOVE(&nmp->nm_bufq, bp, b_freelist);
+			nmp->nm_bufqlen--;
+			if (nmp->nm_bufqwant &&
+			    nmp->nm_bufqlen <= ncl_numasync) {
+				nmp->nm_bufqwant = 0;
+				wakeup(&nmp->nm_bufq);
+			}
+			NFSUNLOCKIOD();
+			if (bp->b_flags & B_DIRECT) {
+				KASSERT((bp->b_iocmd == BIO_WRITE),
+				    ("nfscvs_iod: BIO_WRITE not set"));
+				(void)ncl_doio_directwrite(bp);
+			} else {
+				if (bp->b_iocmd == BIO_READ)
+					(void)ncl_doio(
+					    bp->b_vp, bp, bp->b_rcred, NULL, 0);
+				else
+					(void)ncl_doio(
+					    bp->b_vp, bp, bp->b_wcred, NULL, 0);
+			}
+			NFSLOCKIOD();
+			/*
+			 * Make sure the nmp hasn't been dismounted as soon as
+			 * ncl_doio() completes for the last buffer.
+			 */
+			nmp = ncl_iodmount[myiod];
+			if (nmp == NULL)
+				break;
 
-		/*
-		 * If there are more than one iod on this mount, then defect
-		 * so that the iods can be shared out fairly between the mounts
-		 */
-		if (nfs_defect && nmp->nm_bufqiods > 1) {
-		    NFS_DPF(ASYNCIO,
-			    ("nfssvc_iod: iod %d defecting from mount %p\n",
-			     myiod, nmp));
-		    ncl_iodmount[myiod] = NULL;
-		    nmp->nm_bufqiods--;
-		    break;
+			/*
+			 * If there are more than one iod on this mount, then
+			 * defect so that the iods can be shared out fairly
+			 * between the mounts
+			 */
+			if (nfs_defect && nmp->nm_bufqiods > 1) {
+				NFS_DPF(ASYNCIO,
+				    ("nfssvc_iod: iod %d defecting from mount %p\n",
+					myiod, nmp));
+				ncl_iodmount[myiod] = NULL;
+				nmp->nm_bufqiods--;
+				break;
+			}
 		}
-	    }
 	}
 finish:
 	nfs_asyncdaemon[myiod] = 0;
 	if (nmp)
-	    nmp->nm_bufqiods--;
+		nmp->nm_bufqiods--;
 	ncl_iodwant[myiod] = NFSIOD_NOT_AVAILABLE;
 	ncl_iodmount[myiod] = NULL;
 	/* Someone may be waiting for the last nfsiod to terminate. */

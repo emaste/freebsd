@@ -34,13 +34,13 @@
 #include <sys/queue.h>
 
 struct eventhandler_entry {
-	TAILQ_ENTRY(eventhandler_entry)	ee_link;
-	int				ee_priority;
-#define	EHE_DEAD_PRIORITY	(-1)
-	void				*ee_arg;
+	TAILQ_ENTRY(eventhandler_entry) ee_link;
+	int ee_priority;
+#define EHE_DEAD_PRIORITY (-1)
+	void *ee_arg;
 };
 
-typedef struct eventhandler_entry	*eventhandler_tag;
+typedef struct eventhandler_entry *eventhandler_tag;
 
 /*
  * You can optionally use the EVENTHANDLER_LIST and EVENTHANDLER_DIRECT macros
@@ -54,19 +54,18 @@ typedef struct eventhandler_entry	*eventhandler_tag;
  * it is suggested that you directly define a list for them.
  */
 struct eventhandler_list;
-#define	EVENTHANDLER_LIST_DECLARE(name)					\
-extern struct eventhandler_list *_eventhandler_list_ ## name		\
+#define EVENTHANDLER_LIST_DECLARE(name) \
+	extern struct eventhandler_list *_eventhandler_list_##name
 
 /*
  * Event handlers need to be declared, but do not need to be defined. The
  * declaration must be in scope wherever the handler is to be invoked.
  */
-#define EVENTHANDLER_DECLARE(name, type)				\
-struct eventhandler_entry_ ## name 					\
-{									\
-	struct eventhandler_entry	ee;				\
-	type				eh_func;			\
-};									\
-struct __hack
+#define EVENTHANDLER_DECLARE(name, type)      \
+	struct eventhandler_entry_##name {    \
+		struct eventhandler_entry ee; \
+		type eh_func;                 \
+	};                                    \
+	struct __hack
 
 #endif

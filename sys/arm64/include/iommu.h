@@ -3,8 +3,8 @@
  */
 /* $FreeBSD$ */
 
-#ifndef	_MACHINE_IOMMU_H_
-#define	_MACHINE_IOMMU_H_
+#ifndef _MACHINE_IOMMU_H_
+#define _MACHINE_IOMMU_H_
 
 #include <arm64/iommu/iommu.h>
 

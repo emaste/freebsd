@@ -41,19 +41,18 @@
  */
 
 #ifndef _MALTA_OBIOVAR_H_
-#define	_MALTA_OBIOVAR_H_
+#define _MALTA_OBIOVAR_H_
 
 #include <sys/rman.h>
 
 struct obio_softc {
-	bus_space_tag_t oba_st;		/* bus space tag */
-	bus_addr_t oba_addr;		/* address of device */
-	bus_size_t oba_size;		/* size of device */
-	int oba_width;			/* bus width */
-	int oba_irq;			/* XINT interrupt bit # */
+	bus_space_tag_t oba_st; /* bus space tag */
+	bus_addr_t oba_addr;	/* address of device */
+	bus_size_t oba_size;	/* size of device */
+	int oba_width;		/* bus width */
+	int oba_irq;		/* XINT interrupt bit # */
 	struct rman oba_rman;
 	struct rman oba_irq_rman;
-
 };
 extern struct bus_space obio_bs_tag;
 

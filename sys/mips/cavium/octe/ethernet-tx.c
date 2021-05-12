@@ -21,10 +21,21 @@ met:
       derived from this software without specific prior written
       permission.
 
-This Software, including technical data, may be subject to U.S. export  control laws, including the U.S. Export Administration Act and its  associated regulations, and may be subject to export or import  regulations in other countries.
+This Software, including technical data, may be subject to U.S. export  control
+laws, including the U.S. Export Administration Act and its  associated
+regulations, and may be subject to export or import  regulations in other
+countries.
 
 TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
-AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
+AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
 
 *************************************************************************/
 
@@ -44,8 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 
-#include "wrapper-cvmx-includes.h"
 #include "ethernet-headers.h"
+#include "wrapper-cvmx-includes.h"
 
 /* You can define GET_MBUF_QOS() to override how the mbuf output function
    determines which output queue is used. The default implementation
@@ -53,7 +64,7 @@ __FBSDID("$FreeBSD$");
    to use the m->priority fieid, define GET_MBUF_QOS as:
    #define GET_MBUF_QOS(m) ((m)->priority) */
 #ifndef GET_MBUF_QOS
-    #define GET_MBUF_QOS(m) 0
+#define GET_MBUF_QOS(m) 0
 #endif
 
 /**
@@ -63,13 +74,14 @@ __FBSDID("$FreeBSD$");
  * @param dev    Device info structure
  * @return Always returns zero
  */
-int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
+int
+cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 {
-	cvmx_pko_command_word0_t    pko_command;
-	cvmx_buf_ptr_t              hw_buffer;
-	int                         dropped;
-	int                         qos;
-	cvm_oct_private_t          *priv = (cvm_oct_private_t *)ifp->if_softc;
+	cvmx_pko_command_word0_t pko_command;
+	cvmx_buf_ptr_t hw_buffer;
+	int dropped;
+	int qos;
+	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 	int32_t in_use;
 	int32_t buffers_to_free;
 	cvmx_wqe_t *work;
@@ -100,29 +112,36 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 	   68 bytes whenever we are in half duplex mode. We don't handle
 	   the case of having a small packet but no room to add the padding.
 	   The kernel should always give us at least a cache line */
-	if (__predict_false(m->m_pkthdr.len < 64) && OCTEON_IS_MODEL(OCTEON_CN3XXX)) {
+	if (__predict_false(m->m_pkthdr.len < 64) &&
+	    OCTEON_IS_MODEL(OCTEON_CN3XXX)) {
 		cvmx_gmxx_prtx_cfg_t gmx_prt_cfg;
 		int interface = INTERFACE(priv->port);
 		int index = INDEX(priv->port);
 
 		if (interface < 2) {
 			/* We only need to pad packet in half duplex mode */
-			gmx_prt_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
+			gmx_prt_cfg.u64 = cvmx_read_csr(
+			    CVMX_GMXX_PRTX_CFG(index, interface));
 			if (gmx_prt_cfg.s.duplex == 0) {
 				static uint8_t pad[64];
 
-				if (!m_append(m, sizeof pad - m->m_pkthdr.len, pad))
-					printf("%s: unable to padd small packet.", __func__);
+				if (!m_append(
+					m, sizeof pad - m->m_pkthdr.len, pad))
+					printf(
+					    "%s: unable to padd small packet.",
+					    __func__);
 			}
 		}
 	}
 
 #ifdef OCTEON_VENDOR_RADISYS
 	/*
-	 * The RSYS4GBE will hang if asked to transmit a packet less than 60 bytes.
+	 * The RSYS4GBE will hang if asked to transmit a packet less than 60
+	 * bytes.
 	 */
 	if (__predict_false(m->m_pkthdr.len < 60) &&
-	    cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE) {
+	    cvmx_sysinfo_get()->board_type ==
+		CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE) {
 		static uint8_t pad[60];
 
 		if (!m_append(m, sizeof pad - m->m_pkthdr.len, pad))
@@ -143,7 +162,8 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		/* Build the PKO command */
 		pko_command.u64 = 0;
 		pko_command.s.segs = 1;
-		pko_command.s.dontfree = 1; /* Do not put this buffer into the FPA.  */
+		pko_command.s.dontfree =
+		    1; /* Do not put this buffer into the FPA.  */
 
 		work = NULL;
 	} else {
@@ -165,12 +185,15 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		segs = 0;
 		gp = (uint64_t *)work;
 		for (n = m; n != NULL; n = n->m_next) {
-			if (segs == CVMX_FPA_WQE_POOL_SIZE / sizeof (uint64_t))
-				panic("%s: too many segments in packet; call m_collapse().", __func__);
+			if (segs == CVMX_FPA_WQE_POOL_SIZE / sizeof(uint64_t))
+				panic(
+				    "%s: too many segments in packet; call m_collapse().",
+				    __func__);
 
 			/* Build the PKO buffer pointer */
 			hw_buffer.u64 = 0;
-			hw_buffer.s.i = 1; /* Do not put this buffer into the FPA.  */
+			hw_buffer.s.i =
+			    1; /* Do not put this buffer into the FPA.  */
 			hw_buffer.s.addr = cvmx_ptr_to_phys(n->m_data);
 			hw_buffer.s.pool = 0;
 			hw_buffer.s.size = n->m_len;
@@ -189,12 +212,13 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		pko_command.u64 = 0;
 		pko_command.s.segs = segs;
 		pko_command.s.gather = 1;
-		pko_command.s.dontfree = 0; /* Put the WQE above back into the FPA.  */
+		pko_command.s.dontfree =
+		    0; /* Put the WQE above back into the FPA.  */
 	}
 
 	/* Finish building the PKO command */
 	pko_command.s.n2 = 1; /* Don't pollute L2 with the outgoing packet */
-	pko_command.s.reg0 = priv->fau+qos*4;
+	pko_command.s.reg0 = priv->fau + qos * 4;
 	pko_command.s.total_bytes = m->m_pkthdr.len;
 	pko_command.s.size0 = CVMX_FAU_OP_SIZE_32;
 	pko_command.s.subone0 = 1;
@@ -212,25 +236,28 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 	 */
 	IF_LOCK(&priv->tx_free_queue[qos]);
 	/* Get the number of mbufs in use by the hardware */
-	in_use = cvmx_fau_fetch_and_add32(priv->fau+qos*4, 1);
-	buffers_to_free = cvmx_fau_fetch_and_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
+	in_use = cvmx_fau_fetch_and_add32(priv->fau + qos * 4, 1);
+	buffers_to_free = cvmx_fau_fetch_and_add32(
+	    FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
 
-	cvmx_pko_send_packet_prepare(priv->port, priv->queue + qos, CVMX_PKO_LOCK_CMD_QUEUE);
+	cvmx_pko_send_packet_prepare(
+	    priv->port, priv->queue + qos, CVMX_PKO_LOCK_CMD_QUEUE);
 
 	/* Drop this packet if we have too many already queued to the HW */
 	if (_IF_QFULL(&priv->tx_free_queue[qos])) {
 		dropped = 1;
 	}
 	/* Send the packet to the output queue */
-	else
-	if (__predict_false(cvmx_pko_send_packet_finish(priv->port, priv->queue + qos, pko_command, hw_buffer, CVMX_PKO_LOCK_CMD_QUEUE))) {
+	else if (__predict_false(
+		     cvmx_pko_send_packet_finish(priv->port, priv->queue + qos,
+			 pko_command, hw_buffer, CVMX_PKO_LOCK_CMD_QUEUE))) {
 		DEBUGPRINT("%s: Failed to send the packet\n", if_name(ifp));
 		dropped = 1;
 	}
 
 	if (__predict_false(dropped)) {
 		m_freem(m);
-		cvmx_fau_atomic_add32(priv->fau+qos*4, -1);
+		cvmx_fau_atomic_add32(priv->fau + qos * 4, -1);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	} else {
 		/* Put this packet on the queue to be freed later */
@@ -260,7 +287,8 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
  *
  * @param dev    Device being shutdown
  */
-void cvm_oct_tx_shutdown(struct ifnet *ifp)
+void
+cvm_oct_tx_shutdown(struct ifnet *ifp)
 {
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 	int qos;

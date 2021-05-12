@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
 
 #include "ipoib.h"
 
-int ipoib_mcast_attach(struct ipoib_dev_priv *priv, u16 mlid, union ib_gid *mgid, int set_qkey)
+int
+ipoib_mcast_attach(
+    struct ipoib_dev_priv *priv, u16 mlid, union ib_gid *mgid, int set_qkey)
 {
 	struct ib_qp_attr *qp_attr = NULL;
 	int ret;
@@ -61,7 +63,8 @@ int ipoib_mcast_attach(struct ipoib_dev_priv *priv, u16 mlid, union ib_gid *mgid
 		qp_attr->qkey = priv->qkey;
 		ret = ib_modify_qp(priv->qp, qp_attr, IB_QP_QKEY);
 		if (ret) {
-			ipoib_warn(priv, "failed to modify QP, ret = %d\n", ret);
+			ipoib_warn(
+			    priv, "failed to modify QP, ret = %d\n", ret);
 			goto out;
 		}
 	}
@@ -69,14 +72,16 @@ int ipoib_mcast_attach(struct ipoib_dev_priv *priv, u16 mlid, union ib_gid *mgid
 	/* attach QP to multicast group */
 	ret = ib_attach_mcast(priv->qp, mgid, mlid);
 	if (ret)
-		ipoib_warn(priv, "failed to attach to multicast group, ret = %d\n", ret);
+		ipoib_warn(priv,
+		    "failed to attach to multicast group, ret = %d\n", ret);
 
 out:
 	kfree(qp_attr);
 	return ret;
 }
 
-int ipoib_init_qp(struct ipoib_dev_priv *priv)
+int
+ipoib_init_qp(struct ipoib_dev_priv *priv)
 {
 	int ret;
 	struct ib_qp_attr qp_attr;
@@ -89,15 +94,12 @@ int ipoib_init_qp(struct ipoib_dev_priv *priv)
 	qp_attr.qkey = 0;
 	qp_attr.port_num = priv->port;
 	qp_attr.pkey_index = priv->pkey_index;
-	attr_mask =
-	    IB_QP_QKEY |
-	    IB_QP_PORT |
-	    IB_QP_PKEY_INDEX |
-	    IB_QP_STATE;
+	attr_mask = IB_QP_QKEY | IB_QP_PORT | IB_QP_PKEY_INDEX | IB_QP_STATE;
 
 	ret = ib_modify_qp(priv->qp, &qp_attr, attr_mask);
 	if (ret) {
-		ipoib_warn(priv, "failed to modify QP to init, ret = %d\n", ret);
+		ipoib_warn(
+		    priv, "failed to modify QP to init, ret = %d\n", ret);
 		goto out_fail;
 	}
 
@@ -130,17 +132,16 @@ out_fail:
 	return ret;
 }
 
-int ipoib_transport_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca)
+int
+ipoib_transport_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca)
 {
 	struct ib_qp_init_attr init_attr = {
-		.cap = {
-			.max_send_wr  = ipoib_sendq_size,
-			.max_recv_wr  = ipoib_recvq_size,
-			.max_send_sge = 1,
-			.max_recv_sge = IPOIB_UD_RX_SG
-		},
+		.cap = { .max_send_wr = ipoib_sendq_size,
+		    .max_recv_wr = ipoib_recvq_size,
+		    .max_send_sge = 1,
+		    .max_recv_sge = IPOIB_UD_RX_SG },
 		.sq_sig_type = IB_SIGNAL_ALL_WR,
-		.qp_type     = IB_QPT_UD
+		.qp_type = IB_QPT_UD
 	};
 	struct ib_cq_init_attr cq_attr = {};
 
@@ -159,21 +160,24 @@ int ipoib_transport_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca)
 	if (!ret) {
 		size += ipoib_sendq_size;
 		if (ipoib_cm_has_srq(priv))
-			size += ipoib_recvq_size + 1; /* 1 extra for rx_drain_qp */
+			size += ipoib_recvq_size +
+			    1; /* 1 extra for rx_drain_qp */
 		else
 			size += ipoib_recvq_size * ipoib_max_conn_qp;
 	}
 
 	cq_attr.cqe = size;
-	priv->recv_cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL, priv, &cq_attr);
+	priv->recv_cq = ib_create_cq(
+	    priv->ca, ipoib_ib_completion, NULL, priv, &cq_attr);
 	if (IS_ERR(priv->recv_cq)) {
-		printk(KERN_WARNING "%s: failed to create receive CQ\n", ca->name);
+		printk(
+		    KERN_WARNING "%s: failed to create receive CQ\n", ca->name);
 		goto out_free_mr;
 	}
 
 	cq_attr.cqe = ipoib_sendq_size;
-	priv->send_cq = ib_create_cq(priv->ca, ipoib_send_comp_handler, NULL,
-				     priv, &cq_attr);
+	priv->send_cq = ib_create_cq(
+	    priv->ca, ipoib_send_comp_handler, NULL, priv, &cq_attr);
 	if (IS_ERR(priv->send_cq)) {
 		printk(KERN_WARNING "%s: failed to create send CQ\n", ca->name);
 		goto out_free_recv_cq;
@@ -213,15 +217,15 @@ int ipoib_transport_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca)
 	}
 
 	IF_LLADDR(priv->dev)[1] = (priv->qp->qp_num >> 16) & 0xff;
-	IF_LLADDR(priv->dev)[2] = (priv->qp->qp_num >>  8) & 0xff;
-	IF_LLADDR(priv->dev)[3] = (priv->qp->qp_num      ) & 0xff;
+	IF_LLADDR(priv->dev)[2] = (priv->qp->qp_num >> 8) & 0xff;
+	IF_LLADDR(priv->dev)[3] = (priv->qp->qp_num) & 0xff;
 
 	for (i = 0; i < IPOIB_MAX_TX_SG; ++i)
 		priv->tx_sge[i].lkey = priv->pd->local_dma_lkey;
 
-	priv->tx_wr.wr.opcode		= IB_WR_SEND;
-	priv->tx_wr.wr.sg_list		= priv->tx_sge;
-	priv->tx_wr.wr.send_flags	= IB_SEND_SIGNALED;
+	priv->tx_wr.wr.opcode = IB_WR_SEND;
+	priv->tx_wr.wr.sg_list = priv->tx_sge;
+	priv->tx_wr.wr.send_flags = IB_SEND_SIGNALED;
 
 	for (i = 0; i < IPOIB_UD_RX_SG; ++i)
 		priv->rx_sge[i].lkey = priv->pd->local_dma_lkey;
@@ -243,7 +247,8 @@ out_free_mr:
 	return -ENODEV;
 }
 
-void ipoib_transport_dev_cleanup(struct ipoib_dev_priv *priv)
+void
+ipoib_transport_dev_cleanup(struct ipoib_dev_priv *priv)
 {
 
 	if (priv->qp) {
@@ -265,25 +270,25 @@ void ipoib_transport_dev_cleanup(struct ipoib_dev_priv *priv)
 	ib_dealloc_pd(priv->pd);
 }
 
-void ipoib_event(struct ib_event_handler *handler,
-		 struct ib_event *record)
+void
+ipoib_event(struct ib_event_handler *handler, struct ib_event *record)
 {
-	struct ipoib_dev_priv *priv =
-		container_of(handler, struct ipoib_dev_priv, event_handler);
+	struct ipoib_dev_priv *priv = container_of(
+	    handler, struct ipoib_dev_priv, event_handler);
 
 	if (record->element.port_num != priv->port)
 		return;
 
 	ipoib_dbg(priv, "Event %d on device %s port %d\n", record->event,
-		  record->device->name, record->element.port_num);
+	    record->device->name, record->element.port_num);
 
 	if (record->event == IB_EVENT_SM_CHANGE ||
 	    record->event == IB_EVENT_CLIENT_REREGISTER) {
 		queue_work(ipoib_workqueue, &priv->flush_light);
 	} else if (record->event == IB_EVENT_PORT_ERR ||
-		   record->event == IB_EVENT_PORT_ACTIVE ||
-		   record->event == IB_EVENT_LID_CHANGE ||
-		   record->event == IB_EVENT_DEVICE_FATAL) {
+	    record->event == IB_EVENT_PORT_ACTIVE ||
+	    record->event == IB_EVENT_LID_CHANGE ||
+	    record->event == IB_EVENT_DEVICE_FATAL) {
 		queue_work(ipoib_workqueue, &priv->flush_normal);
 	} else if (record->event == IB_EVENT_PKEY_CHANGE) {
 		queue_work(ipoib_workqueue, &priv->flush_heavy);

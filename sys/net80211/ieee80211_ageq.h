@@ -33,24 +33,22 @@ struct ieee80211_node;
 struct mbuf;
 
 struct ieee80211_ageq {
-	ieee80211_ageq_lock_t	aq_lock;
-	int			aq_len;		/* # items on queue */
-	int			aq_maxlen;	/* max queue length */
-	int			aq_drops;	/* frames dropped */
-	struct mbuf		*aq_head;	/* frames linked w/ m_nextpkt */
-	struct mbuf		*aq_tail;	/* last frame in queue */
+	ieee80211_ageq_lock_t aq_lock;
+	int aq_len;	      /* # items on queue */
+	int aq_maxlen;	      /* max queue length */
+	int aq_drops;	      /* frames dropped */
+	struct mbuf *aq_head; /* frames linked w/ m_nextpkt */
+	struct mbuf *aq_tail; /* last frame in queue */
 };
 
-void	ieee80211_ageq_init(struct ieee80211_ageq *, int maxlen,
-	    const char *name);
-void	ieee80211_ageq_cleanup(struct ieee80211_ageq *);
-void	ieee80211_ageq_mfree(struct mbuf *);
-int	ieee80211_ageq_append(struct ieee80211_ageq *, struct mbuf *,
-	    int age);
-void	ieee80211_ageq_drain(struct ieee80211_ageq *);
-void	ieee80211_ageq_drain_node(struct ieee80211_ageq *,
-	    struct ieee80211_node *);
+void ieee80211_ageq_init(struct ieee80211_ageq *, int maxlen, const char *name);
+void ieee80211_ageq_cleanup(struct ieee80211_ageq *);
+void ieee80211_ageq_mfree(struct mbuf *);
+int ieee80211_ageq_append(struct ieee80211_ageq *, struct mbuf *, int age);
+void ieee80211_ageq_drain(struct ieee80211_ageq *);
+void ieee80211_ageq_drain_node(
+    struct ieee80211_ageq *, struct ieee80211_node *);
 struct mbuf *ieee80211_ageq_age(struct ieee80211_ageq *, int quanta);
-struct mbuf *ieee80211_ageq_remove(struct ieee80211_ageq *,
-	    struct ieee80211_node *match);
+struct mbuf *ieee80211_ageq_remove(
+    struct ieee80211_ageq *, struct ieee80211_node *match);
 #endif /* _NET80211_IEEE80211_STAGEQ_H_ */

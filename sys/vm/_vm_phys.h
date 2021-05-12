@@ -33,13 +33,13 @@
  * $FreeBSD$
  */
 
-#ifndef	__VM_PHYS_H_
-#define	__VM_PHYS_H_
+#ifndef __VM_PHYS_H_
+#define __VM_PHYS_H_
 
 #include <machine/vmparam.h>
 
 #ifndef VM_NFREEORDER_MAX
-#define	VM_NFREEORDER_MAX	VM_NFREEORDER
+#define VM_NFREEORDER_MAX VM_NFREEORDER
 #endif
 
 struct vm_page;
@@ -54,16 +54,16 @@ struct vm_freelist {
 };
 
 struct vm_phys_seg {
-	vm_paddr_t	start;
-	vm_paddr_t	end;
-	vm_page_t	first_page;
+	vm_paddr_t start;
+	vm_paddr_t end;
+	vm_page_t first_page;
 #if VM_NRESERVLEVEL > 0
-	vm_reserv_t	first_reserv;
+	vm_reserv_t first_reserv;
 #endif
 #ifdef __aarch64__
-	void		*md_first;
+	void *md_first;
 #endif
-	int		domain;
+	int domain;
 	struct vm_freelist (*free_queues)[VM_NFREEPOOL][VM_NFREEORDER_MAX];
 };
 

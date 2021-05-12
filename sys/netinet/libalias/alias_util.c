@@ -49,11 +49,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #else
 #include <sys/types.h>
+
 #include <stdio.h>
 #endif
 
-#include <netinet/in_systm.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
@@ -72,8 +73,7 @@ __FBSDID("$FreeBSD$");
  * purposes);
  */
 u_short
-LibAliasInternetChecksum(struct libalias *la __unused, u_short * ptr,
-	int nbytes)
+LibAliasInternetChecksum(struct libalias *la __unused, u_short *ptr, int nbytes)
 {
 	int sum, oddbyte;
 
@@ -85,8 +85,8 @@ LibAliasInternetChecksum(struct libalias *la __unused, u_short * ptr,
 	}
 	if (nbytes == 1) {
 		oddbyte = 0;
-		((u_char *) & oddbyte)[0] = *(u_char *) ptr;
-		((u_char *) & oddbyte)[1] = 0;
+		((u_char *)&oddbyte)[0] = *(u_char *)ptr;
+		((u_char *)&oddbyte)[1] = 0;
 		sum += oddbyte;
 	}
 	sum = (sum >> 16) + (sum & 0xffff);
@@ -95,13 +95,12 @@ LibAliasInternetChecksum(struct libalias *la __unused, u_short * ptr,
 	return (~sum);
 }
 
-#ifndef	_KERNEL
+#ifndef _KERNEL
 u_short
 IpChecksum(struct ip *pip)
 {
-	return (LibAliasInternetChecksum(NULL, (u_short *) pip,
-	    (pip->ip_hl << 2)));
-
+	return (
+	    LibAliasInternetChecksum(NULL, (u_short *)pip, (pip->ip_hl << 2)));
 }
 
 u_short
@@ -116,9 +115,9 @@ TcpChecksum(struct ip *pip)
 	ntcp = ntohs(pip->ip_len) - nhdr;
 
 	tc = (struct tcphdr *)ip_next(pip);
-	ptr = (u_short *) tc;
+	ptr = (u_short *)tc;
 
-/* Add up TCP header and data */
+	/* Add up TCP header and data */
 	nbytes = ntcp;
 	sum = 0;
 	while (nbytes > 1) {
@@ -127,31 +126,31 @@ TcpChecksum(struct ip *pip)
 	}
 	if (nbytes == 1) {
 		oddbyte = 0;
-		((u_char *) & oddbyte)[0] = *(u_char *) ptr;
-		((u_char *) & oddbyte)[1] = 0;
+		((u_char *)&oddbyte)[0] = *(u_char *)ptr;
+		((u_char *)&oddbyte)[1] = 0;
 		sum += oddbyte;
 	}
-/* "Pseudo-header" data */
+	/* "Pseudo-header" data */
 	ptr = (void *)&pip->ip_dst;
 	sum += *ptr++;
 	sum += *ptr;
 	ptr = (void *)&pip->ip_src;
 	sum += *ptr++;
 	sum += *ptr;
-	sum += htons((u_short) ntcp);
-	sum += htons((u_short) pip->ip_p);
+	sum += htons((u_short)ntcp);
+	sum += htons((u_short)pip->ip_p);
 
-/* Roll over carry bits */
+	/* Roll over carry bits */
 	sum = (sum >> 16) + (sum & 0xffff);
 	sum += (sum >> 16);
 
-/* Return checksum */
-	return ((u_short) ~ sum);
+	/* Return checksum */
+	return ((u_short)~sum);
 }
-#endif	/* not _KERNEL */
+#endif /* not _KERNEL */
 
 void
-DifferentialChecksum(u_short * cksum, void *newp, void *oldp, int n)
+DifferentialChecksum(u_short *cksum, void *newp, void *oldp, int n)
 {
 	int i;
 	int accumulate;
@@ -160,7 +159,7 @@ DifferentialChecksum(u_short * cksum, void *newp, void *oldp, int n)
 
 	accumulate = *cksum;
 	for (i = 0; i < n; i++) {
-		accumulate -= *new++;
+		accumulate -= *new ++;
 		accumulate += *old++;
 	}
 
@@ -168,10 +167,10 @@ DifferentialChecksum(u_short * cksum, void *newp, void *oldp, int n)
 		accumulate = -accumulate;
 		accumulate = (accumulate >> 16) + (accumulate & 0xffff);
 		accumulate += accumulate >> 16;
-		*cksum = (u_short) ~ accumulate;
+		*cksum = (u_short)~accumulate;
 	} else {
 		accumulate = (accumulate >> 16) + (accumulate & 0xffff);
 		accumulate += accumulate >> 16;
-		*cksum = (u_short) accumulate;
+		*cksum = (u_short)accumulate;
 	}
 }

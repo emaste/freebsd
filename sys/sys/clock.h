@@ -49,7 +49,7 @@
 #ifndef _SYS_CLOCK_H_
 #define _SYS_CLOCK_H_
 
-#ifdef _KERNEL		/* No user serviceable parts */
+#ifdef _KERNEL /* No user serviceable parts */
 
 int utc_offset(void);
 
@@ -72,14 +72,14 @@ int utc_offset(void);
  * field will always be 4-digit on output.
  */
 struct clocktime {
-	int	year;			/* year (4 digit year) */
-	int	mon;			/* month (1 - 12) */
-	int	day;			/* day (1 - 31) */
-	int	hour;			/* hour (0 - 23) */
-	int	min;			/* minute (0 - 59) */
-	int	sec;			/* second (0 - 59) */
-	int	dow;			/* day of week (0 - 6; 0 = Sunday) */
-	long	nsec;			/* nano seconds */
+	int year;  /* year (4 digit year) */
+	int mon;   /* month (1 - 12) */
+	int day;   /* day (1 - 31) */
+	int hour;  /* hour (0 - 23) */
+	int min;   /* minute (0 - 59) */
+	int sec;   /* second (0 - 59) */
+	int dow;   /* day of week (0 - 6; 0 = Sunday) */
+	long nsec; /* nano seconds */
 };
 
 int clock_ct_to_ts(const struct clocktime *, struct timespec *);
@@ -108,19 +108,20 @@ void clock_ts_to_ct(const struct timespec *, struct clocktime *);
  * set to false.
  */
 struct bcd_clocktime {
-	uint16_t year;			/* year (2 or 4 digit year) */
-	uint8_t  mon;			/* month (1 - 12) */
-	uint8_t  day;			/* day (1 - 31) */
-	uint8_t  hour;			/* hour (0 - 23 or 1 - 12) */
-	uint8_t  min;			/* minute (0 - 59) */
-	uint8_t  sec;			/* second (0 - 59) */
-	uint8_t  dow;			/* day of week (0 - 6; 0 = Sunday) */
-	long     nsec;			/* nanoseconds */
-	bool     ispm;			/* true if hour represents pm time */
+	uint16_t year; /* year (2 or 4 digit year) */
+	uint8_t mon;   /* month (1 - 12) */
+	uint8_t day;   /* day (1 - 31) */
+	uint8_t hour;  /* hour (0 - 23 or 1 - 12) */
+	uint8_t min;   /* minute (0 - 59) */
+	uint8_t sec;   /* second (0 - 59) */
+	uint8_t dow;   /* day of week (0 - 6; 0 = Sunday) */
+	long nsec;     /* nanoseconds */
+	bool ispm;     /* true if hour represents pm time */
 };
 
 int clock_bcd_to_ts(const struct bcd_clocktime *, struct timespec *, bool ampm);
-void clock_ts_to_bcd(const struct timespec *, struct bcd_clocktime *, bool ampm);
+void clock_ts_to_bcd(
+    const struct timespec *, struct bcd_clocktime *, bool ampm);
 
 /*
  * Time-of-day clock functions and flags.  These functions might sleep.
@@ -149,9 +150,9 @@ void clock_ts_to_bcd(const struct timespec *, struct bcd_clocktime *, bool ampm)
  *    returned from clock_gettime(), the driver has already applied them.
  */
 
-#define	CLOCKF_SETTIME_NO_TS	0x00000001
-#define	CLOCKF_SETTIME_NO_ADJ	0x00000002
-#define	CLOCKF_GETTIME_NO_ADJ	0x00000004
+#define CLOCKF_SETTIME_NO_TS 0x00000001
+#define CLOCKF_SETTIME_NO_ADJ 0x00000002
+#define CLOCKF_GETTIME_NO_ADJ 0x00000004
 
 void clock_register(device_t _clockdev, long _resolution_us);
 void clock_register_flags(device_t _clockdev, long _resolution_us, int _flags);
@@ -161,20 +162,20 @@ void clock_unregister(device_t _clockdev);
 /*
  * BCD to decimal and decimal to BCD.
  */
-#define	FROMBCD(x)	bcd2bin(x)
-#define	TOBCD(x)	bin2bcd(x)
+#define FROMBCD(x) bcd2bin(x)
+#define TOBCD(x) bin2bcd(x)
 
 /* Some handy constants. */
-#define SECDAY		(24 * 60 * 60)
-#define SECYR		(SECDAY * 365)
+#define SECDAY (24 * 60 * 60)
+#define SECYR (SECDAY * 365)
 
 /* Traditional POSIX base year */
-#define	POSIX_BASE_YEAR	1970
+#define POSIX_BASE_YEAR 1970
 
 void timespec2fattime(const struct timespec *tsp, int utc, u_int16_t *ddp,
     u_int16_t *dtp, u_int8_t *dhp);
-void fattime2timespec(unsigned dd, unsigned dt, unsigned dh, int utc,
-    struct timespec *tsp);
+void fattime2timespec(
+    unsigned dd, unsigned dt, unsigned dh, int utc, struct timespec *tsp);
 
 /*
  * Print a [bcd_]clocktime or timespec, optionally with fractional seconds.  The
@@ -183,15 +184,15 @@ void fattime2timespec(unsigned dd, unsigned dt, unsigned dh, int utc,
  */
 void clock_print_bcd(const struct bcd_clocktime *bct, int nsdig);
 void clock_print_ct(const struct clocktime *ct, int nsdig);
-void clock_print_ts(const struct timespec  *ts, int nsdig);
+void clock_print_ts(const struct timespec *ts, int nsdig);
 
 /*
  * Debugging helpers for RTC clock drivers.  Print a [bcd_]clocktime or
  * timespec, only if rtc clock debugging has been enabled.  The rw argument is
  * one of CLOCK_DBG_READ or CLOCK_DBG_WRITE.
  */
-#define	CLOCK_DBG_READ	0x01
-#define	CLOCK_DBG_WRITE	0x02
+#define CLOCK_DBG_READ 0x01
+#define CLOCK_DBG_WRITE 0x02
 void clock_dbgprint_bcd(device_t dev, int rw, const struct bcd_clocktime *bct);
 void clock_dbgprint_ct(device_t dev, int rw, const struct clocktime *ct);
 void clock_dbgprint_err(device_t dev, int rw, int err);

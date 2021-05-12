@@ -61,16 +61,16 @@ static union {
 	/* sizeof includes trailing nul byte and this is intentional. */
 	char txu_fullbuf[GDB_BUFSZ + sizeof("$#..")];
 } gdb_tx_u;
-#define	gdb_txbuf	gdb_tx_u.txu_midbuf.mb_buf
-#define	gdb_tx_fullbuf	gdb_tx_u.txu_fullbuf
+#define gdb_txbuf gdb_tx_u.txu_midbuf.mb_buf
+#define gdb_tx_fullbuf gdb_tx_u.txu_fullbuf
 _Static_assert(sizeof(gdb_tx_u.txu_midbuf) == sizeof(gdb_tx_u.txu_fullbuf) &&
-    offsetof(struct _midbuf, mb_buf) == 1,
+	offsetof(struct _midbuf, mb_buf) == 1,
     "assertions necessary for correctness");
-char *gdb_txp = NULL;			/* Used in inline functions. */
+char *gdb_txp = NULL; /* Used in inline functions. */
 
-#define	C2N(c)	(((c) < 'A') ? (c) - '0' : \
-	    10 + (((c) < 'a') ? (c) - 'A' : (c) - 'a'))
-#define	N2C(n)	(((n) < 10) ? (n) + '0' : (n) + 'a' - 10)
+#define C2N(c) \
+	(((c) < 'A') ? (c) - '0' : 10 + (((c) < 'a') ? (c) - 'A' : (c) - 'a'))
+#define N2C(n) (((n) < 10) ? (n) + '0' : (n) + 'a' - 10)
 
 /*
  * Get a single character
@@ -306,8 +306,8 @@ gdb_tx_end(void)
 			while (runlen >= 97) {
 				gdb_cur->gdb_putc('*');
 				cksum += '*';
-				gdb_cur->gdb_putc(97+29);
-				cksum += 97+29;
+				gdb_cur->gdb_putc(97 + 29);
+				cksum += 97 + 29;
 				runlen -= 97;
 				if (runlen > 0) {
 					gdb_cur->gdb_putc(c);
@@ -335,8 +335,8 @@ gdb_tx_end(void)
 			}
 			gdb_cur->gdb_putc('*');
 			cksum += '*';
-			gdb_cur->gdb_putc(runlen+29);
-			cksum += runlen+29;
+			gdb_cur->gdb_putc(runlen + 29);
+			cksum += runlen + 29;
 		}
 
 		gdb_cur->gdb_putc('#');
@@ -345,7 +345,7 @@ gdb_tx_end(void)
 		c = cksum & 0x0f;
 		gdb_cur->gdb_putc(N2C(c));
 
-getack:
+	getack:
 		/*
 		 * In NoAckMode, it is assumed that the underlying transport is
 		 * reliable and thus neither conservant sends acknowledgements;
@@ -403,7 +403,8 @@ gdb_txbuf_has_capacity(size_t req)
 	return (((char *)gdb_txbuf + sizeof(gdb_txbuf) - gdb_txp) >= req);
 }
 
-/* Read binary data up until the end of the packet or until we have datalen decoded bytes */
+/* Read binary data up until the end of the packet or until we have datalen
+ * decoded bytes */
 int
 gdb_rx_bindata(unsigned char *data, size_t datalen, size_t *amt)
 {
@@ -430,7 +431,8 @@ gdb_rx_bindata(unsigned char *data, size_t datalen, size_t *amt)
 }
 
 int
-gdb_search_mem(const unsigned char *addr, size_t size, const unsigned char *pat, size_t patlen, const unsigned char **found)
+gdb_search_mem(const unsigned char *addr, size_t size, const unsigned char *pat,
+    size_t patlen, const unsigned char **found)
 {
 	void *prev;
 	jmp_buf jb;

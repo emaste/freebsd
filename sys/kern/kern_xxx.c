@@ -36,14 +36,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
 #include <sys/kernel.h>
-#include <sys/priv.h>
-#include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/sysproto.h>
 #include <sys/utsname.h>
 
 #include <vm/vm_param.h>
@@ -58,8 +58,8 @@ ogethostname(struct thread *td, struct ogethostname_args *uap)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
-	return (userland_sysctl(td, name, 2, uap->hostname, &len,
-	    1, 0, 0, 0, 0));
+	return (
+	    userland_sysctl(td, name, 2, uap->hostname, &len, 1, 0, 0, 0, 0));
 }
 
 int
@@ -69,13 +69,13 @@ osethostname(struct thread *td, struct osethostname_args *uap)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
-	return (userland_sysctl(td, name, 2, 0, 0, 0, uap->hostname,
-	    uap->len, 0, 0));
+	return (userland_sysctl(
+	    td, name, 2, 0, 0, 0, uap->hostname, uap->len, 0, 0));
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct ogethostid_args {
-	int	dummy;
+	int dummy;
 };
 #endif
 /* ARGSUSED */
@@ -87,8 +87,8 @@ ogethostid(struct thread *td, struct ogethostid_args *uap)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTID;
-	return (kernel_sysctl(td, name, 2, (long *)td->td_retval, &len,
-	    NULL, 0, NULL, 0));
+	return (kernel_sysctl(
+	    td, name, 2, (long *)td->td_retval, &len, NULL, 0, NULL, 0));
 }
 
 int
@@ -109,16 +109,16 @@ oquota(struct thread *td, struct oquota_args *uap)
 	return (ENOSYS);
 }
 
-#define	KINFO_PROC		(0<<8)
-#define	KINFO_RT		(1<<8)
-#define	KINFO_VNODE		(2<<8)
-#define	KINFO_FILE		(3<<8)
-#define	KINFO_METER		(4<<8)
-#define	KINFO_LOADAVG		(5<<8)
-#define	KINFO_CLOCKRATE		(6<<8)
+#define KINFO_PROC (0 << 8)
+#define KINFO_RT (1 << 8)
+#define KINFO_VNODE (2 << 8)
+#define KINFO_FILE (3 << 8)
+#define KINFO_METER (4 << 8)
+#define KINFO_LOADAVG (5 << 8)
+#define KINFO_CLOCKRATE (6 << 8)
 
 /* Non-standard BSDI extension - only present on their 4.3 net-2 releases */
-#define	KINFO_BSDI_SYSINFO	(101<<8)
+#define KINFO_BSDI_SYSINFO (101 << 8)
 
 /*
  * XXX this is bloat, but I hope it's better here than on the potentially
@@ -126,32 +126,33 @@ oquota(struct thread *td, struct oquota_args *uap)
  */
 
 static struct {
-	int	bsdi_machine;		/* "i386" on BSD/386 */
-/*      ^^^ this is an offset to the string, relative to the struct start */
-	char	*pad0;
-	long	pad1;
-	long	pad2;
-	long	pad3;
-	u_long	pad4;
-	u_long	pad5;
-	u_long	pad6;
+	int bsdi_machine; /* "i386" on BSD/386 */
+	/*      ^^^ this is an offset to the string, relative to the struct
+	 * start */
+	char *pad0;
+	long pad1;
+	long pad2;
+	long pad3;
+	u_long pad4;
+	u_long pad5;
+	u_long pad6;
 
-	int	bsdi_ostype;		/* "BSD/386" on BSD/386 */
-	int	bsdi_osrelease;		/* "1.1" on BSD/386 */
-	long	pad7;
-	long	pad8;
-	char	*pad9;
+	int bsdi_ostype;    /* "BSD/386" on BSD/386 */
+	int bsdi_osrelease; /* "1.1" on BSD/386 */
+	long pad7;
+	long pad8;
+	char *pad9;
 
-	long	pad10;
-	long	pad11;
-	int	pad12;
-	long	pad13;
-	quad_t	pad14;
-	long	pad15;
+	long pad10;
+	long pad11;
+	int pad12;
+	long pad13;
+	quad_t pad14;
+	long pad15;
 
-	struct	timeval pad16;
+	struct timeval pad16;
 	/* we dont set this, because BSDI's uname used gethostname() instead */
-	int	bsdi_hostname;		/* hostname on BSD/386 */
+	int bsdi_hostname; /* hostname on BSD/386 */
 
 	/* the actual string data is appended here */
 
@@ -163,7 +164,7 @@ static struct {
  * This contains "FreeBSD\02.0-BUILT-nnnnnn\0i386\0", and these strings
  * should not exceed the length of the buffer here... (or else!! :-)
  */
-static char bsdi_strings[80];	/* It had better be less than this! */
+static char bsdi_strings[80]; /* It had better be less than this! */
 
 int
 ogetkerninfo(struct thread *td, struct ogetkerninfo_args *uap)
@@ -180,15 +181,15 @@ ogetkerninfo(struct thread *td, struct ogetkerninfo_args *uap)
 		name[3] = (uap->op & 0xff0000) >> 16;
 		name[4] = uap->op & 0xff;
 		name[5] = uap->arg;
-		error = userland_sysctl(td, name, 6, uap->where, uap->size,
-			0, 0, 0, &size, 0);
+		error = userland_sysctl(
+		    td, name, 6, uap->where, uap->size, 0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_VNODE:
 		name[0] = CTL_KERN;
 		name[1] = KERN_VNODE;
-		error = userland_sysctl(td, name, 2, uap->where, uap->size,
-			0, 0, 0, &size, 0);
+		error = userland_sysctl(
+		    td, name, 2, uap->where, uap->size, 0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_PROC:
@@ -196,36 +197,36 @@ ogetkerninfo(struct thread *td, struct ogetkerninfo_args *uap)
 		name[1] = KERN_PROC;
 		name[2] = uap->op & 0xff;
 		name[3] = uap->arg;
-		error = userland_sysctl(td, name, 4, uap->where, uap->size,
-			0, 0, 0, &size, 0);
+		error = userland_sysctl(
+		    td, name, 4, uap->where, uap->size, 0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_FILE:
 		name[0] = CTL_KERN;
 		name[1] = KERN_FILE;
-		error = userland_sysctl(td, name, 2, uap->where, uap->size,
-			0, 0, 0, &size, 0);
+		error = userland_sysctl(
+		    td, name, 2, uap->where, uap->size, 0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_METER:
 		name[0] = CTL_VM;
 		name[1] = VM_TOTAL;
-		error = userland_sysctl(td, name, 2, uap->where, uap->size,
-			0, 0, 0, &size, 0);
+		error = userland_sysctl(
+		    td, name, 2, uap->where, uap->size, 0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_LOADAVG:
 		name[0] = CTL_VM;
 		name[1] = VM_LOADAVG;
-		error = userland_sysctl(td, name, 2, uap->where, uap->size,
-			0, 0, 0, &size, 0);
+		error = userland_sysctl(
+		    td, name, 2, uap->where, uap->size, 0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_CLOCKRATE:
 		name[0] = CTL_KERN;
 		name[1] = KERN_CLOCKRATE;
-		error = userland_sysctl(td, name, 2, uap->where, uap->size,
-			0, 0, 0, &size, 0);
+		error = userland_sysctl(
+		    td, name, 2, uap->where, uap->size, 0, 0, 0, &size, 0);
 		break;
 
 	case KINFO_BSDI_SYSINFO: {
@@ -287,8 +288,8 @@ ogetkerninfo(struct thread *td, struct ogetkerninfo_args *uap)
 		/* is there any point in continuing? */
 		if (left > sizeof(bsdi_si)) {
 			left -= sizeof(bsdi_si);
-			error = copyout(&bsdi_strings,
-					uap->where + sizeof(bsdi_si), left);
+			error = copyout(
+			    &bsdi_strings, uap->where + sizeof(bsdi_si), left);
 		}
 		break;
 	}
@@ -318,7 +319,7 @@ ogetkerninfo(struct thread *td, struct ogetkerninfo_args *uap)
 #endif
 #ifndef _SYS_SYSPROTO_H_
 struct uname_args {
-	struct utsname  *name;
+	struct utsname *name;
 };
 #endif
 /* ARGSUSED */
@@ -331,100 +332,101 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_OSTYPE;
-	len = sizeof (uap->name->sysname);
-	error = userland_sysctl(td, name, 2, uap->name->sysname, &len, 
-		1, 0, 0, 0, 0);
+	len = sizeof(uap->name->sysname);
+	error = userland_sysctl(
+	    td, name, 2, uap->name->sysname, &len, 1, 0, 0, 0, 0);
 	if (error)
 		return (error);
-	subyte( uap->name->sysname + sizeof(uap->name->sysname) - 1, 0);
+	subyte(uap->name->sysname + sizeof(uap->name->sysname) - 1, 0);
 
 	name[1] = KERN_HOSTNAME;
 	len = sizeof uap->name->nodename;
-	error = userland_sysctl(td, name, 2, uap->name->nodename, &len, 
-		1, 0, 0, 0, 0);
+	error = userland_sysctl(
+	    td, name, 2, uap->name->nodename, &len, 1, 0, 0, 0, 0);
 	if (error)
 		return (error);
-	subyte( uap->name->nodename + sizeof(uap->name->nodename) - 1, 0);
+	subyte(uap->name->nodename + sizeof(uap->name->nodename) - 1, 0);
 
 	name[1] = KERN_OSRELEASE;
 	len = sizeof uap->name->release;
-	error = userland_sysctl(td, name, 2, uap->name->release, &len, 
-		1, 0, 0, 0, 0);
+	error = userland_sysctl(
+	    td, name, 2, uap->name->release, &len, 1, 0, 0, 0, 0);
 	if (error)
 		return (error);
-	subyte( uap->name->release + sizeof(uap->name->release) - 1, 0);
+	subyte(uap->name->release + sizeof(uap->name->release) - 1, 0);
 
-/*
-	name = KERN_VERSION;
-	len = sizeof uap->name->version;
-	error = userland_sysctl(td, name, 2, uap->name->version, &len, 
-		1, 0, 0, 0, 0);
-	if (error)
-		return (error);
-	subyte( uap->name->version + sizeof(uap->name->version) - 1, 0);
-*/
+	/*
+		name = KERN_VERSION;
+		len = sizeof uap->name->version;
+		error = userland_sysctl(td, name, 2, uap->name->version, &len,
+			1, 0, 0, 0, 0);
+		if (error)
+			return (error);
+		subyte( uap->name->version + sizeof(uap->name->version) - 1, 0);
+	*/
 
-/*
- * this stupid hackery to make the version field look like FreeBSD 1.1
- */
-	for(s = version; *s && *s != '#'; s++);
+	/*
+	 * this stupid hackery to make the version field look like FreeBSD 1.1
+	 */
+	for (s = version; *s && *s != '#'; s++)
+		;
 
-	for(us = uap->name->version; *s && *s != ':'; s++) {
-		error = subyte( us++, *s);
+	for (us = uap->name->version; *s && *s != ':'; s++) {
+		error = subyte(us++, *s);
 		if (error)
 			return (error);
 	}
-	error = subyte( us++, 0);
+	error = subyte(us++, 0);
 	if (error)
 		return (error);
 
 	name[0] = CTL_HW;
 	name[1] = HW_MACHINE;
 	len = sizeof uap->name->machine;
-	error = userland_sysctl(td, name, 2, uap->name->machine, &len, 
-		1, 0, 0, 0, 0);
+	error = userland_sysctl(
+	    td, name, 2, uap->name->machine, &len, 1, 0, 0, 0, 0);
 	if (error)
 		return (error);
-	subyte( uap->name->machine + sizeof(uap->name->machine) - 1, 0);
+	subyte(uap->name->machine + sizeof(uap->name->machine) - 1, 0);
 	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct getdomainname_args {
-	char    *domainname;
-	int     len;
+	char *domainname;
+	int len;
 };
 #endif
 /* ARGSUSED */
 int
-freebsd4_getdomainname(struct thread *td,
-    struct freebsd4_getdomainname_args *uap)
+freebsd4_getdomainname(
+    struct thread *td, struct freebsd4_getdomainname_args *uap)
 {
 	int name[2];
 	size_t len = uap->len;
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_NISDOMAINNAME;
-	return (userland_sysctl(td, name, 2, uap->domainname, &len,
-	    1, 0, 0, 0, 0));
+	return (
+	    userland_sysctl(td, name, 2, uap->domainname, &len, 1, 0, 0, 0, 0));
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct setdomainname_args {
-	char    *domainname;
-	int     len;
+	char *domainname;
+	int len;
 };
 #endif
 /* ARGSUSED */
 int
-freebsd4_setdomainname(struct thread *td,
-    struct freebsd4_setdomainname_args *uap)
+freebsd4_setdomainname(
+    struct thread *td, struct freebsd4_setdomainname_args *uap)
 {
 	int name[2];
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_NISDOMAINNAME;
-	return (userland_sysctl(td, name, 2, 0, 0, 0, uap->domainname,
-	    uap->len, 0, 0));
+	return (userland_sysctl(
+	    td, name, 2, 0, 0, 0, uap->domainname, uap->len, 0, 0));
 }
 #endif /* COMPAT_FREEBSD4 */

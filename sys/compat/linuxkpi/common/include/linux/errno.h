@@ -28,41 +28,41 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_ERRNO_H_
-#define	_LINUX_ERRNO_H_
+#ifndef _LINUX_ERRNO_H_
+#define _LINUX_ERRNO_H_
 
 #include <sys/errno.h>
 
-#define	EBADRQC		56	/* Bad request code */
+#define EBADRQC 56 /* Bad request code */
 
-#define	ECHRNG		EDOM
-#define	ETIME		ETIMEDOUT
-#define	ECOMM		ESTALE
-#define	ENODATA		ECONNREFUSED
-#define	ENOIOCTLCMD     ENOIOCTL
+#define ECHRNG EDOM
+#define ETIME ETIMEDOUT
+#define ECOMM ESTALE
+#define ENODATA ECONNREFUSED
+#define ENOIOCTLCMD ENOIOCTL
 /* Use same value as Linux, because BSD's ERESTART is negative */
-#define	ERESTARTSYS     512
-#define	ENOTSUPP	EOPNOTSUPP
-#define	ENONET		EHOSTDOWN
+#define ERESTARTSYS 512
+#define ENOTSUPP EOPNOTSUPP
+#define ENONET EHOSTDOWN
 
 /*
  * The error numbers below are arbitrary and do not resemble the numbers
  * used in Linux.  They should not be returned to user space.
  */
-#define	ERESTARTNOINTR	513
-#define	ERESTARTNOHAND	514
-#define	ERESTART_RESTARTBLOCK 516
-#define	EPROBE_DEFER	517
-#define	EOPENSTALE	518
-#define	EBADHANDLE	521
-#define	ENOTSYNC	522
-#define	EBADCOOKIE	523
-#define	ETOOSMALL	525
-#define	ESERVERFAULT	526
-#define	EBADTYPE	527
-#define	EJUKEBOX	528
-#define	EIOCBQUEUED	529
-#define	ERFKILL		530
-#define	EBADE		531
+#define ERESTARTNOINTR 513
+#define ERESTARTNOHAND 514
+#define ERESTART_RESTARTBLOCK 516
+#define EPROBE_DEFER 517
+#define EOPENSTALE 518
+#define EBADHANDLE 521
+#define ENOTSYNC 522
+#define EBADCOOKIE 523
+#define ETOOSMALL 525
+#define ESERVERFAULT 526
+#define EBADTYPE 527
+#define EJUKEBOX 528
+#define EIOCBQUEUED 529
+#define ERFKILL 530
+#define EBADE 531
 
-#endif					/* _LINUX_ERRNO_H_ */
+#endif /* _LINUX_ERRNO_H_ */

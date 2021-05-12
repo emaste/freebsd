@@ -34,11 +34,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 
 #include <arm64/coresight/coresight.h>
@@ -51,8 +52,8 @@ coresight_register(struct coresight_desc *desc)
 {
 	struct coresight_device *cs_dev;
 
-	cs_dev = malloc(sizeof(struct coresight_device),
-	    M_CORESIGHT, M_WAITOK | M_ZERO);
+	cs_dev = malloc(
+	    sizeof(struct coresight_device), M_CORESIGHT, M_WAITOK | M_ZERO);
 	cs_dev->dev = desc->dev;
 	cs_dev->pdata = desc->pdata;
 	cs_dev->dev_type = desc->dev_type;
@@ -72,7 +73,7 @@ coresight_get_output_endpoint(struct coresight_platform_data *pdata)
 	if (pdata->out_ports != 1)
 		return (NULL);
 
-	TAILQ_FOREACH(endp, &pdata->endpoints, link) {
+	TAILQ_FOREACH (endp, &pdata->endpoints, link) {
 		if (endp->input == 0)
 			return (endp);
 	}
@@ -87,9 +88,9 @@ coresight_get_output_device(struct endpoint *endp, struct endpoint **out_endp)
 	struct coresight_device *cs_dev;
 	struct endpoint *endp2;
 
-	TAILQ_FOREACH(cs_dev, &cs_devs, link) {
+	TAILQ_FOREACH (cs_dev, &cs_devs, link) {
 		pdata = cs_dev->pdata;
-		TAILQ_FOREACH(endp2, &cs_dev->pdata->endpoints, link) {
+		TAILQ_FOREACH (endp2, &cs_dev->pdata->endpoints, link) {
 			switch (pdata->bus_type) {
 			case CORESIGHT_BUS_FDT:
 #ifdef FDT

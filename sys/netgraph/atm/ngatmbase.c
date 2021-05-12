@@ -35,26 +35,24 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/module.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <machine/stdarg.h>
-#include <netnatm/unimsg.h>
-#include <netgraph/atm/ngatmbase.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 
-#define NGATMBASE_VERSION	1
+#include <machine/stdarg.h>
+
+#include <netgraph/atm/ngatmbase.h>
+#include <netnatm/unimsg.h>
+
+#define NGATMBASE_VERSION 1
 
 static int ngatm_handler(module_t, int, void *);
 
-static moduledata_t ngatm_data = {
-	"ngatmbase",
-	ngatm_handler,
-	0
-};
+static moduledata_t ngatm_data = { "ngatmbase", ngatm_handler, 0 };
 
 MODULE_VERSION(ngatmbase, NGATMBASE_VERSION);
 DECLARE_MODULE(ngatmbase, ngatm_data, SI_SUB_EXEC, SI_ORDER_ANY);
@@ -66,7 +64,7 @@ DECLARE_MODULE(ngatmbase, ngatm_data, SI_SUB_EXEC, SI_ORDER_ANY);
 static MALLOC_DEFINE(M_UNIMSG, "unimsg", "uni message buffers");
 static MALLOC_DEFINE(M_UNIMSGHDR, "unimsghdr", "uni message headers");
 
-#define EXTRA	128
+#define EXTRA 128
 
 /* mutex to protect the free list (and the used list if debugging) */
 static struct mtx ngatm_unilist_mtx;
@@ -77,8 +75,8 @@ static struct mtx ngatm_unilist_mtx;
 static void
 uni_msg_init(void)
 {
-	mtx_init(&ngatm_unilist_mtx, "netgraph UNI msg header lists", NULL,
-	    MTX_DEF);
+	mtx_init(
+	    &ngatm_unilist_mtx, "netgraph UNI msg header lists", NULL, MTX_DEF);
 }
 
 /*
@@ -188,7 +186,7 @@ uni_msg_pack_mbuf(struct uni_msg *msg, void *hdr, size_t hdrlen)
 
 	return (m0);
 
-  drop:
+drop:
 	m_freem(m0);
 	return (NULL);
 }
@@ -208,10 +206,10 @@ struct ngatm_msg {
 /*
  * These are the lists of free and used message headers.
  */
-static LIST_HEAD(, ngatm_msg) ngatm_freeuni =
-    LIST_HEAD_INITIALIZER(ngatm_freeuni);
-static LIST_HEAD(, ngatm_msg) ngatm_useduni =
-    LIST_HEAD_INITIALIZER(ngatm_useduni);
+static LIST_HEAD(, ngatm_msg) ngatm_freeuni = LIST_HEAD_INITIALIZER(
+    ngatm_freeuni);
+static LIST_HEAD(, ngatm_msg) ngatm_useduni = LIST_HEAD_INITIALIZER(
+    ngatm_useduni);
 
 /*
  * Clean-up UNI message subsystem
@@ -228,9 +226,9 @@ uni_msg_fini(void)
 	}
 
 	/* forget about still used messages */
-	LIST_FOREACH(h, &ngatm_useduni, link)
-		printf("unimsg header in use: %p (%s, %d)\n",
-		    &h->msg, h->file, h->line);
+	LIST_FOREACH (h, &ngatm_useduni, link)
+		printf("unimsg header in use: %p (%s, %d)\n", &h->msg, h->file,
+		    h->line);
 
 	mtx_destroy(&ngatm_unilist_mtx);
 }
@@ -253,7 +251,7 @@ _uni_msg_alloc(size_t s, const char *file, int line)
 		return (NULL);
 
 	s += EXTRA;
-	if((m->msg.b_buf = malloc(s, M_UNIMSG, M_NOWAIT | M_ZERO)) == NULL) {
+	if ((m->msg.b_buf = malloc(s, M_UNIMSG, M_NOWAIT | M_ZERO)) == NULL) {
 		mtx_lock(&ngatm_unilist_mtx);
 		LIST_INSERT_HEAD(&ngatm_freeuni, m, link);
 		mtx_unlock(&ngatm_unilist_mtx);
@@ -282,7 +280,7 @@ _uni_msg_destroy(struct uni_msg *m, const char *file, int line)
 	d = (struct ngatm_msg *)((char *)m - offsetof(struct ngatm_msg, msg));
 
 	mtx_lock(&ngatm_unilist_mtx);
-	LIST_FOREACH(h, &ngatm_useduni, link)
+	LIST_FOREACH (h, &ngatm_useduni, link)
 		if (h == d)
 			break;
 
@@ -290,17 +288,18 @@ _uni_msg_destroy(struct uni_msg *m, const char *file, int line)
 		/*
 		 * Not on used list. Ups.
 		 */
-		LIST_FOREACH(h, &ngatm_freeuni, link)
+		LIST_FOREACH (h, &ngatm_freeuni, link)
 			if (h == d)
 				break;
 
 		if (h == NULL)
 			printf("uni_msg %p was never allocated; found "
-			    "in %s:%u\n", m, file, line);
+			       "in %s:%u\n",
+			    m, file, line);
 		else
 			printf("uni_msg %p was already destroyed in %s,%d; "
-			    "found in %s:%u\n", m, h->file, h->line,
-			    file, line);
+			       "found in %s:%u\n",
+			    m, h->file, h->line, file, line);
 	} else {
 		free(m->b_buf, M_UNIMSG);
 
@@ -325,8 +324,8 @@ struct ngatm_msg {
 };
 
 /* Lists of free message headers.  */
-static LIST_HEAD(, ngatm_msg) ngatm_freeuni =
-    LIST_HEAD_INITIALIZER(ngatm_freeuni);
+static LIST_HEAD(, ngatm_msg) ngatm_freeuni = LIST_HEAD_INITIALIZER(
+    ngatm_freeuni);
 
 /*
  * Clean-up UNI message subsystem
@@ -367,7 +366,7 @@ uni_msg_alloc(size_t s)
 		m = (struct uni_msg *)a;
 
 	s += EXTRA;
-	if((m->b_buf = malloc(s, M_UNIMSG, M_NOWAIT | M_ZERO)) == NULL) {
+	if ((m->b_buf = malloc(s, M_UNIMSG, M_NOWAIT | M_ZERO)) == NULL) {
 		mtx_lock(&ngatm_unilist_mtx);
 		LIST_INSERT_HEAD(&ngatm_freeuni, a, link);
 		mtx_unlock(&ngatm_unilist_mtx);
@@ -451,8 +450,8 @@ uni_msg_build(void *ptr, ...)
  */
 #ifdef NGATM_DEBUG
 int
-_uni_msg_unpack_mbuf(struct mbuf *m, struct uni_msg **pmsg, const char *file,
-    int line)
+_uni_msg_unpack_mbuf(
+    struct mbuf *m, struct uni_msg **pmsg, const char *file, int line)
 #else
 int
 uni_msg_unpack_mbuf(struct mbuf *m, struct uni_msg **pmsg)
@@ -483,15 +482,15 @@ ngatm_handler(module_t mod, int what, void *arg)
 	int error = 0;
 
 	switch (what) {
-	  case MOD_LOAD:
+	case MOD_LOAD:
 		uni_msg_init();
 		break;
 
-	  case MOD_UNLOAD:
+	case MOD_UNLOAD:
 		uni_msg_fini();
 		break;
 
-	  default:
+	default:
 		error = EOPNOTSUPP;
 		break;
 	}

@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_mptable_force_htt.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -42,111 +43,91 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_param.h>
 
 #include <dev/pci/pcivar.h>
 #ifdef NEW_PCIB
 #include <dev/pci/pcib_private.h>
 #endif
-#include <x86/apicreg.h>
-#include <x86/mptable.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <x86/apicvar.h>
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
+
+#include <x86/apicreg.h>
+#include <x86/apicvar.h>
+#include <x86/mptable.h>
 #ifdef NEW_PCIB
 #include <machine/resource.h>
 #endif
 #include <machine/specialreg.h>
 
 /* string defined by the Intel MP Spec as identifying the MP table */
-#define	MP_SIG			0x5f504d5f	/* _MP_ */
+#define MP_SIG 0x5f504d5f /* _MP_ */
 
 #ifdef __amd64__
-#define	MAX_LAPIC_ID		63	/* Max local APIC ID for HTT fixup */
+#define MAX_LAPIC_ID 63 /* Max local APIC ID for HTT fixup */
 #else
-#define	MAX_LAPIC_ID		31	/* Max local APIC ID for HTT fixup */
+#define MAX_LAPIC_ID 31 /* Max local APIC ID for HTT fixup */
 #endif
 
-#define BIOS_BASE		(0xf0000)
-#define BIOS_SIZE		(0x10000)
-#define BIOS_COUNT		(BIOS_SIZE/4)
+#define BIOS_BASE (0xf0000)
+#define BIOS_SIZE (0x10000)
+#define BIOS_COUNT (BIOS_SIZE / 4)
 
-typedef	void mptable_entry_handler(u_char *entry, void *arg);
-typedef	void mptable_extended_entry_handler(ext_entry_ptr entry, void *arg);
+typedef void mptable_entry_handler(u_char *entry, void *arg);
+typedef void mptable_extended_entry_handler(ext_entry_ptr entry, void *arg);
 
 /* descriptions of MP table entries */
 typedef struct BASETABLE_ENTRY {
-	uint8_t	type;
-	uint8_t	length;
-	uint8_t	name[16];
-}       basetable_entry;
+	uint8_t type;
+	uint8_t length;
+	uint8_t name[16];
+} basetable_entry;
 
-static basetable_entry basetable_entry_types[] =
-{
-	{0, 20, "Processor"},
-	{1, 8, "Bus"},
-	{2, 8, "I/O APIC"},
-	{3, 8, "I/O INT"},
-	{4, 8, "Local INT"}
-};
+static basetable_entry basetable_entry_types[] = { { 0, 20, "Processor" },
+	{ 1, 8, "Bus" }, { 2, 8, "I/O APIC" }, { 3, 8, "I/O INT" },
+	{ 4, 8, "Local INT" } };
 
 typedef struct BUSDATA {
-	u_char  bus_id;
+	u_char bus_id;
 	enum busTypes bus_type;
-}       bus_datum;
+} bus_datum;
 
 typedef struct INTDATA {
-	u_char  int_type;
+	u_char int_type;
 	u_short int_flags;
-	u_char  src_bus_id;
-	u_char  src_bus_irq;
-	u_char  dst_apic_id;
-	u_char  dst_apic_int;
-	u_char	int_vector;
-}       io_int, local_int;
+	u_char src_bus_id;
+	u_char src_bus_irq;
+	u_char dst_apic_id;
+	u_char dst_apic_int;
+	u_char int_vector;
+} io_int, local_int;
 
 typedef struct BUSTYPENAME {
-	u_char  type;
-	char    name[7];
-}       bus_type_name;
+	u_char type;
+	char name[7];
+} bus_type_name;
 
 /* From MP spec v1.4, table 4-8. */
-static bus_type_name bus_type_table[] =
-{
-	{UNKNOWN_BUSTYPE, "CBUS  "},
-	{UNKNOWN_BUSTYPE, "CBUSII"},
-	{EISA, "EISA  "},
-	{UNKNOWN_BUSTYPE, "FUTURE"},
-	{UNKNOWN_BUSTYPE, "INTERN"},
-	{ISA, "ISA   "},
-	{UNKNOWN_BUSTYPE, "MBI   "},
-	{UNKNOWN_BUSTYPE, "MBII  "},
-	{MCA, "MCA   "},
-	{UNKNOWN_BUSTYPE, "MPI   "},
-	{UNKNOWN_BUSTYPE, "MPSA  "},
-	{UNKNOWN_BUSTYPE, "NUBUS "},
-	{PCI, "PCI   "},
-	{UNKNOWN_BUSTYPE, "PCMCIA"},
-	{UNKNOWN_BUSTYPE, "TC    "},
-	{UNKNOWN_BUSTYPE, "VL    "},
-	{UNKNOWN_BUSTYPE, "VME   "},
-	{UNKNOWN_BUSTYPE, "XPRESS"}
-};
+static bus_type_name bus_type_table[] = { { UNKNOWN_BUSTYPE, "CBUS  " },
+	{ UNKNOWN_BUSTYPE, "CBUSII" }, { EISA, "EISA  " },
+	{ UNKNOWN_BUSTYPE, "FUTURE" }, { UNKNOWN_BUSTYPE, "INTERN" },
+	{ ISA, "ISA   " }, { UNKNOWN_BUSTYPE, "MBI   " },
+	{ UNKNOWN_BUSTYPE, "MBII  " }, { MCA, "MCA   " },
+	{ UNKNOWN_BUSTYPE, "MPI   " }, { UNKNOWN_BUSTYPE, "MPSA  " },
+	{ UNKNOWN_BUSTYPE, "NUBUS " }, { PCI, "PCI   " },
+	{ UNKNOWN_BUSTYPE, "PCMCIA" }, { UNKNOWN_BUSTYPE, "TC    " },
+	{ UNKNOWN_BUSTYPE, "VL    " }, { UNKNOWN_BUSTYPE, "VME   " },
+	{ UNKNOWN_BUSTYPE, "XPRESS" } };
 
 /* From MP spec v1.4, table 5-1. */
-static int default_data[7][5] =
-{
-/*   nbus, id0, type0, id1, type1 */
-	{1, 0, ISA, 255, NOBUS},
-	{1, 0, EISA, 255, NOBUS},
-	{1, 0, EISA, 255, NOBUS},
-	{1, 0, MCA, 255, NOBUS},
-	{2, 0, ISA, 1, PCI},
-	{2, 0, EISA, 1, PCI},
-	{2, 0, MCA, 1, PCI}
+static int default_data[7][5] = {
+	/*   nbus, id0, type0, id1, type1 */
+	{ 1, 0, ISA, 255, NOBUS }, { 1, 0, EISA, 255, NOBUS },
+	{ 1, 0, EISA, 255, NOBUS }, { 1, 0, MCA, 255, NOBUS },
+	{ 2, 0, ISA, 1, PCI }, { 2, 0, EISA, 1, PCI }, { 2, 0, MCA, 1, PCI }
 };
 
 struct pci_probe_table_args {
@@ -155,9 +136,9 @@ struct pci_probe_table_args {
 };
 
 struct pci_route_interrupt_args {
-	u_char bus;		/* Source bus. */
-	u_char irq;		/* Source slot:pin. */
-	int vector;		/* Return value. */
+	u_char bus; /* Source bus. */
+	u_char irq; /* Source slot:pin. */
+	int vector; /* Return value. */
 };
 
 static mpfps_t mpfps;
@@ -170,49 +151,46 @@ static int pci0 = -1;
 
 static MALLOC_DEFINE(M_MPTABLE, "mptable", "MP Table Items");
 
-static enum intr_polarity conforming_polarity(u_char src_bus,
-	    u_char src_bus_irq);
+static enum intr_polarity conforming_polarity(
+    u_char src_bus, u_char src_bus_irq);
 static enum intr_trigger conforming_trigger(u_char src_bus, u_char src_bus_irq);
 static enum intr_polarity intentry_polarity(int_entry_ptr intr);
 static enum intr_trigger intentry_trigger(int_entry_ptr intr);
-static int	lookup_bus_type(char *name);
-static void	mptable_count_items(void);
-static void	mptable_count_items_handler(u_char *entry, void *arg);
+static int lookup_bus_type(char *name);
+static void mptable_count_items(void);
+static void mptable_count_items_handler(u_char *entry, void *arg);
 #ifdef MPTABLE_FORCE_HTT
-static void	mptable_hyperthread_fixup(u_int id_mask);
+static void mptable_hyperthread_fixup(u_int id_mask);
 #endif
-static void	mptable_parse_apics_and_busses(void);
-static void	mptable_parse_apics_and_busses_handler(u_char *entry,
-    void *arg);
-static void	mptable_parse_default_config_ints(void);
-static void	mptable_parse_ints(void);
-static void	mptable_parse_ints_handler(u_char *entry, void *arg);
-static void	mptable_parse_io_int(int_entry_ptr intr);
-static void	mptable_parse_local_int(int_entry_ptr intr);
-static void	mptable_pci_probe_table_handler(u_char *entry, void *arg);
-static void	mptable_pci_route_interrupt_handler(u_char *entry, void *arg);
-static void	mptable_pci_setup(void);
-static int	mptable_probe(void);
-static int	mptable_probe_cpus(void);
-static void	mptable_probe_cpus_handler(u_char *entry, void *arg __unused);
-static void	mptable_setup_cpus_handler(u_char *entry, void *arg __unused);
-static void	mptable_register(void *dummy);
-static int	mptable_setup_local(void);
-static int	mptable_setup_io(void);
+static void mptable_parse_apics_and_busses(void);
+static void mptable_parse_apics_and_busses_handler(u_char *entry, void *arg);
+static void mptable_parse_default_config_ints(void);
+static void mptable_parse_ints(void);
+static void mptable_parse_ints_handler(u_char *entry, void *arg);
+static void mptable_parse_io_int(int_entry_ptr intr);
+static void mptable_parse_local_int(int_entry_ptr intr);
+static void mptable_pci_probe_table_handler(u_char *entry, void *arg);
+static void mptable_pci_route_interrupt_handler(u_char *entry, void *arg);
+static void mptable_pci_setup(void);
+static int mptable_probe(void);
+static int mptable_probe_cpus(void);
+static void mptable_probe_cpus_handler(u_char *entry, void *arg __unused);
+static void mptable_setup_cpus_handler(u_char *entry, void *arg __unused);
+static void mptable_register(void *dummy);
+static int mptable_setup_local(void);
+static int mptable_setup_io(void);
 #ifdef NEW_PCIB
-static void	mptable_walk_extended_table(
+static void mptable_walk_extended_table(
     mptable_extended_entry_handler *handler, void *arg);
 #endif
-static void	mptable_walk_table(mptable_entry_handler *handler, void *arg);
-static int	search_for_sig(u_int32_t target, int count);
+static void mptable_walk_table(mptable_entry_handler *handler, void *arg);
+static int search_for_sig(u_int32_t target, int count);
 
-static struct apic_enumerator mptable_enumerator = {
-	.apic_name = "MPTable",
+static struct apic_enumerator mptable_enumerator = { .apic_name = "MPTable",
 	.apic_probe = mptable_probe,
 	.apic_probe_cpus = mptable_probe_cpus,
 	.apic_setup_local = mptable_setup_local,
-	.apic_setup_io = mptable_setup_io
-};
+	.apic_setup_io = mptable_setup_io };
 
 /*
  * look for the MP spec signature
@@ -221,7 +199,7 @@ static struct apic_enumerator mptable_enumerator = {
 static int
 search_for_sig(u_int32_t target, int count)
 {
-	int     x;
+	int x;
 	u_int32_t *addr;
 
 	addr = (u_int32_t *)BIOS_PADDRTOVADDR(target);
@@ -235,7 +213,7 @@ search_for_sig(u_int32_t target, int count)
 static int
 lookup_bus_type(char *name)
 {
-	int     x;
+	int x;
 
 	for (x = 0; x < MAX_BUSTYPE; ++x)
 		if (strncmp(bus_type_table[x].name, name, 6) == 0)
@@ -250,25 +228,25 @@ lookup_bus_type(char *name)
 static int
 mptable_probe(void)
 {
-	int     x;
-	u_long  segment;
+	int x;
+	u_long segment;
 	u_int32_t target;
 
 	/* see if EBDA exists */
 	if ((segment = *(u_short *)BIOS_PADDRTOVADDR(0x40e)) != 0) {
 		/* search first 1K of EBDA */
-		target = (u_int32_t) (segment << 4);
+		target = (u_int32_t)(segment << 4);
 		if ((x = search_for_sig(target, 1024 / 4)) >= 0)
 			goto found;
 	} else {
 		/* last 1K of base memory, effective 'top of base' passed in */
-		target = (u_int32_t) ((basemem * 1024) - 0x400);
+		target = (u_int32_t)((basemem * 1024) - 0x400);
 		if ((x = search_for_sig(target, 1024 / 4)) >= 0)
 			goto found;
 	}
 
 	/* search the BIOS */
-	target = (u_int32_t) BIOS_BASE;
+	target = (u_int32_t)BIOS_BASE;
 	if ((x = search_for_sig(target, BIOS_COUNT)) >= 0)
 		goto found;
 
@@ -282,11 +260,11 @@ found:
 	if (mpfps->config_type != 0) {
 		if (bootverbose)
 			printf(
-		"MP Table version 1.%d found using Default Configuration %d\n",
+			    "MP Table version 1.%d found using Default Configuration %d\n",
 			    mpfps->spec_rev, mpfps->config_type);
 		if (mpfps->config_type != 5 && mpfps->config_type != 6) {
 			printf(
-			"MP Table Default Configuration %d is unsupported\n",
+			    "MP Table Default Configuration %d is unsupported\n",
 			    mpfps->config_type);
 			return (ENXIO);
 		}
@@ -306,19 +284,21 @@ found:
 		}
 		if (mpct->extended_table_length != 0 &&
 		    mpct->extended_table_length + mpct->base_table_length +
-		    (uintptr_t)mpfps->pap < 1024 * 1024)
-			mpet = (ext_entry_ptr)((char *)mpct +
-			    mpct->base_table_length);
+			    (uintptr_t)mpfps->pap <
+			1024 * 1024)
+			mpet = (ext_entry_ptr)(
+			    (char *)mpct + mpct->base_table_length);
 		if (mpct->signature[0] != 'P' || mpct->signature[1] != 'C' ||
 		    mpct->signature[2] != 'M' || mpct->signature[3] != 'P') {
-			printf("%s: MP Config Table has bad signature: %c%c%c%c\n",
+			printf(
+			    "%s: MP Config Table has bad signature: %c%c%c%c\n",
 			    __func__, mpct->signature[0], mpct->signature[1],
 			    mpct->signature[2], mpct->signature[3]);
 			return (ENXIO);
 		}
 		if (bootverbose)
 			printf(
-			"MP Configuration Table version 1.%d found at %p\n",
+			    "MP Configuration Table version 1.%d found at %p\n",
 			    mpct->spec_rev, mpct);
 	}
 
@@ -389,13 +369,13 @@ mptable_setup_io(void)
 
 	/* First, we count individual items and allocate arrays. */
 	mptable_count_items();
-	busses = malloc((mptable_maxbusid + 1) * sizeof(bus_datum), M_MPTABLE,
-	    M_WAITOK);
+	busses = malloc(
+	    (mptable_maxbusid + 1) * sizeof(bus_datum), M_MPTABLE, M_WAITOK);
 	for (i = 0; i <= mptable_maxbusid; i++)
 		busses[i].bus_type = NOBUS;
 
 	/* Second, we run through adding I/O APIC's and buses. */
-	mptable_parse_apics_and_busses();	
+	mptable_parse_apics_and_busses();
 
 	/* Third, we run through the table tweaking interrupt sources. */
 	mptable_parse_ints();
@@ -410,10 +390,10 @@ mptable_setup_io(void)
 
 	/* Finally, we throw the switch to enable the I/O APIC's. */
 	if (mpfps->mpfb2 & MPFB2_IMCR_PRESENT) {
-		outb(0x22, 0x70);	/* select IMCR */
-		byte = inb(0x23);	/* current contents */
-		byte |= 0x01;		/* mask external INTR */
-		outb(0x23, byte);	/* disconnect 8259s/NMI */
+		outb(0x22, 0x70); /* select IMCR */
+		byte = inb(0x23); /* current contents */
+		byte |= 0x01;	  /* mask external INTR */
+		outb(0x23, byte); /* disconnect 8259s/NMI */
 	}
 
 	return (0);
@@ -506,8 +486,8 @@ mptable_setup_cpus_handler(u_char *entry, void *arg)
 	case MPCT_ENTRY_PROCESSOR:
 		proc = (proc_entry_ptr)entry;
 		if (proc->cpu_flags & PROCENTRY_FLAG_EN) {
-			lapic_create(proc->apic_id, proc->cpu_flags &
-			    PROCENTRY_FLAG_BP);
+			lapic_create(
+			    proc->apic_id, proc->cpu_flags & PROCENTRY_FLAG_BP);
 			if (proc->apic_id < MAX_LAPIC_ID) {
 				cpu_mask = (u_int *)arg;
 				*cpu_mask |= (1ul << proc->apic_id);
@@ -601,10 +581,9 @@ mptable_parse_apics_and_busses_handler(u_char *entry, void *arg __unused)
 			panic("%s: I/O APIC ID %d too high", __func__,
 			    apic->apic_id);
 		if (ioapics[apic->apic_id] != NULL)
-			panic("%s: Double APIC ID %d", __func__,
-			    apic->apic_id);
-		ioapics[apic->apic_id] = ioapic_create(apic->apic_address,
-		    apic->apic_id, -1);
+			panic("%s: Double APIC ID %d", __func__, apic->apic_id);
+		ioapics[apic->apic_id] = ioapic_create(
+		    apic->apic_address, apic->apic_id, -1);
 		break;
 	default:
 		break;
@@ -629,8 +608,8 @@ mptable_parse_apics_and_busses(void)
 			    default_data[mpfps->config_type - 1][4];
 		}
 	} else
-		mptable_walk_table(mptable_parse_apics_and_busses_handler,
-		    NULL);
+		mptable_walk_table(
+		    mptable_parse_apics_and_busses_handler, NULL);
 }
 
 /*
@@ -687,8 +666,8 @@ intentry_polarity(int_entry_ptr intr)
 
 	switch (intr->int_flags & INTENTRY_FLAGS_POLARITY) {
 	case INTENTRY_FLAGS_POLARITY_CONFORM:
-		return (conforming_polarity(intr->src_bus_id,
-			    intr->src_bus_irq));
+		return (
+		    conforming_polarity(intr->src_bus_id, intr->src_bus_irq));
 	case INTENTRY_FLAGS_POLARITY_ACTIVEHI:
 		return (INTR_POLARITY_HIGH);
 	case INTENTRY_FLAGS_POLARITY_ACTIVELO:
@@ -704,8 +683,8 @@ intentry_trigger(int_entry_ptr intr)
 
 	switch (intr->int_flags & INTENTRY_FLAGS_TRIGGER) {
 	case INTENTRY_FLAGS_TRIGGER_CONFORM:
-		return (conforming_trigger(intr->src_bus_id,
-			    intr->src_bus_irq));
+		return (
+		    conforming_trigger(intr->src_bus_id, intr->src_bus_irq));
 	case INTENTRY_FLAGS_TRIGGER_EDGE:
 		return (INTR_TRIGGER_EDGE);
 	case INTENTRY_FLAGS_TRIGGER_LEVEL:
@@ -739,7 +718,7 @@ mptable_parse_io_int(int_entry_ptr intr)
 				apic_id++;
 		} else {
 			printf(
-			"MPTable: Ignoring global interrupt entry for pin %d\n",
+			    "MPTable: Ignoring global interrupt entry for pin %d\n",
 			    intr->dst_apic_int);
 			return;
 		}
@@ -752,7 +731,7 @@ mptable_parse_io_int(int_entry_ptr intr)
 	ioapic = ioapics[apic_id];
 	if (ioapic == NULL) {
 		printf(
-	"MPTable: Ignoring interrupt entry for missing ioapic%d\n",
+		    "MPTable: Ignoring interrupt entry for missing ioapic%d\n",
 		    apic_id);
 		return;
 	}
@@ -798,11 +777,11 @@ mptable_parse_io_int(int_entry_ptr intr)
 	}
 	if (intr->int_type == INTENTRY_TYPE_INT ||
 	    (intr->int_flags & INTENTRY_FLAGS_TRIGGER) !=
-	    INTENTRY_FLAGS_TRIGGER_CONFORM)
+		INTENTRY_FLAGS_TRIGGER_CONFORM)
 		ioapic_set_triggermode(ioapic, pin, intentry_trigger(intr));
 	if (intr->int_type == INTENTRY_TYPE_INT ||
 	    (intr->int_flags & INTENTRY_FLAGS_POLARITY) !=
-	    INTENTRY_FLAGS_POLARITY_CONFORM)
+		INTENTRY_FLAGS_POLARITY_CONFORM)
 		ioapic_set_polarity(ioapic, pin, intentry_polarity(intr));
 }
 
@@ -826,7 +805,7 @@ mptable_parse_local_int(int_entry_ptr intr)
 	case INTENTRY_TYPE_INT:
 #if 1
 		printf(
-	"MPTable: Ignoring vectored local interrupt for LINTIN%d vector %d\n",
+		    "MPTable: Ignoring vectored local interrupt for LINTIN%d vector %d\n",
 		    intr->dst_apic_int, intr->src_bus_irq);
 		return;
 #else
@@ -848,8 +827,7 @@ mptable_parse_local_int(int_entry_ptr intr)
 	}
 	if ((intr->int_flags & INTENTRY_FLAGS_TRIGGER) !=
 	    INTENTRY_FLAGS_TRIGGER_CONFORM)
-		lapic_set_lvt_triggermode(apic_id, pin,
-		    intentry_trigger(intr));
+		lapic_set_lvt_triggermode(apic_id, pin, intentry_trigger(intr));
 	if ((intr->int_flags & INTENTRY_FLAGS_POLARITY) !=
 	    INTENTRY_FLAGS_POLARITY_CONFORM)
 		lapic_set_lvt_polarity(apic_id, pin, intentry_polarity(intr));
@@ -935,9 +913,10 @@ mptable_parse_ints(void)
 	/* Is this a pre-defined config? */
 	if (mpfps->config_type != 0) {
 		/* Configure LINT pins. */
-		lapic_set_lvt_mode(APIC_ID_ALL, APIC_LVT_LINT0,
-		    APIC_LVT_DM_EXTINT);
-		lapic_set_lvt_mode(APIC_ID_ALL, APIC_LVT_LINT1, APIC_LVT_DM_NMI);
+		lapic_set_lvt_mode(
+		    APIC_ID_ALL, APIC_LVT_LINT0, APIC_LVT_DM_EXTINT);
+		lapic_set_lvt_mode(
+		    APIC_ID_ALL, APIC_LVT_LINT1, APIC_LVT_DM_NMI);
 
 		/* Configure I/O APIC pins. */
 		mptable_parse_default_config_ints();
@@ -995,7 +974,7 @@ mptable_hyperthread_fixup(u_int id_mask)
 		for (i = id + 1; i < id + logical_cpus; i++) {
 			if (bootverbose)
 				printf(
-			"MPTable: Adding logical CPU %d from main CPU %d\n",
+				    "MPTable: Adding logical CPU %d from main CPU %d\n",
 				    i, id);
 			lapic_create(i, 0);
 		}
@@ -1022,7 +1001,7 @@ mptable_pci_setup(void)
 				pci0 = i;
 			else if (pci0 != 0)
 				panic(
-		"MPTable contains multiple PCI buses but no PCI bus 0");
+				    "MPTable contains multiple PCI buses but no PCI bus 0");
 		}
 }
 
@@ -1036,8 +1015,8 @@ mptable_pci_probe_table_handler(u_char *entry, void *arg)
 		return;
 	intr = (int_entry_ptr)entry;
 	args = (struct pci_probe_table_args *)arg;
-	KASSERT(args->bus <= mptable_maxbusid,
-	    ("bus %d is too big", args->bus));
+	KASSERT(
+	    args->bus <= mptable_maxbusid, ("bus %d is too big", args->bus));
 	KASSERT(busses[args->bus].bus_type == PCI, ("probing for non-PCI bus"));
 	if (intr->src_bus_id == args->bus)
 		args->found = 1;
@@ -1086,14 +1065,14 @@ mptable_pci_route_interrupt_handler(u_char *entry, void *arg)
 	 * has the same vector as this entry, just return.  Otherwise,
 	 * we use the vector for this APIC / pin combination.
 	 */
-	vector = ioapic_get_vector(ioapics[intr->dst_apic_id],
-	    intr->dst_apic_int);
+	vector = ioapic_get_vector(
+	    ioapics[intr->dst_apic_id], intr->dst_apic_int);
 	if (args->vector == vector)
 		return;
 	KASSERT(args->vector == -1,
 	    ("Multiple IRQs for PCI interrupt %d.%d.INT%c: %d and %d\n",
-	    args->bus, args->irq >> 2, 'A' + (args->irq & 0x3), args->vector,
-	    vector));
+		args->bus, args->irq >> 2, 'A' + (args->irq & 0x3),
+		args->vector, vector));
 	args->vector = vector;
 }
 
@@ -1119,8 +1098,8 @@ mptable_pci_route_interrupt(device_t pcib, device_t dev, int pin)
 	args.vector = -1;
 	mptable_walk_table(mptable_pci_route_interrupt_handler, &args);
 	if (args.vector < 0) {
-		device_printf(pcib, "unable to route slot %d INT%c\n", slot,
-		    'A' + pin);
+		device_printf(
+		    pcib, "unable to route slot %d INT%c\n", slot, 'A' + pin);
 		return (PCI_INVALID_IRQ);
 	}
 	if (bootverbose)
@@ -1133,7 +1112,7 @@ mptable_pci_route_interrupt(device_t pcib, device_t dev, int pin)
 struct host_res_args {
 	struct mptable_hostb_softc *sc;
 	device_t dev;
-	u_char	bus;
+	u_char bus;
 };
 
 /*
@@ -1172,7 +1151,7 @@ mptable_host_res_handler(ext_entry_ptr entry, void *arg)
 			break;
 		default:
 			printf(
-	    "MPTable: Unknown systems address space type for bus %u: %d\n",
+			    "MPTable: Unknown systems address space type for bus %u: %d\n",
 			    sas->bus_id, sas->address_type);
 			return;
 		}
@@ -1181,22 +1160,22 @@ mptable_host_res_handler(ext_entry_ptr entry, void *arg)
 #ifdef __i386__
 		if (start > ULONG_MAX) {
 			device_printf(args->dev,
-			    "Ignoring %d range above 4GB (%#jx-%#jx)\n",
-			    type, (uintmax_t)start, (uintmax_t)end);
+			    "Ignoring %d range above 4GB (%#jx-%#jx)\n", type,
+			    (uintmax_t)start, (uintmax_t)end);
 			break;
 		}
 		if (end > ULONG_MAX) {
 			device_printf(args->dev,
-		    "Truncating end of %d range above 4GB (%#jx-%#jx)\n",
+			    "Truncating end of %d range above 4GB (%#jx-%#jx)\n",
 			    type, (uintmax_t)start, (uintmax_t)end);
 			end = ULONG_MAX;
 		}
 #endif
-		error = pcib_host_res_decodes(&args->sc->sc_host_res, type,
-		    start, end, flags);
+		error = pcib_host_res_decodes(
+		    &args->sc->sc_host_res, type, start, end, flags);
 		if (error)
-			panic("Failed to manage %d range (%#jx-%#jx): %d",
-			    type, (uintmax_t)start, (uintmax_t)end, error);
+			panic("Failed to manage %d range (%#jx-%#jx): %d", type,
+			    (uintmax_t)start, (uintmax_t)end, error);
 		break;
 	case MPCT_EXTENTRY_CBASM:
 		cbasm = (cbasm_entry_ptr)entry;
@@ -1213,30 +1192,30 @@ mptable_host_res_handler(ext_entry_ptr entry, void *arg)
 			break;
 		default:
 			printf(
-    "MPTable: Unknown compatiblity address space range for bus %u: %d\n",
+			    "MPTable: Unknown compatiblity address space range for bus %u: %d\n",
 			    cbasm->bus_id, cbasm->predefined_range);
 			return;
 		}
 		if (*flagp != 0)
 			printf(
-		    "MPTable: Duplicate compatibility %s range for bus %u\n",
+			    "MPTable: Duplicate compatibility %s range for bus %u\n",
 			    name, cbasm->bus_id);
 		switch (cbasm->address_mod) {
 		case CBASMENTRY_ADDRESS_MOD_ADD:
 			*flagp = 1;
 			if (bootverbose)
-				device_printf(args->dev, "decoding %s ports\n",
-				    name);
+				device_printf(
+				    args->dev, "decoding %s ports\n", name);
 			break;
 		case CBASMENTRY_ADDRESS_MOD_SUBTRACT:
 			*flagp = -1;
 			if (bootverbose)
-				device_printf(args->dev,
-				    "not decoding %s ports\n", name);
+				device_printf(
+				    args->dev, "not decoding %s ports\n", name);
 			break;
 		default:
 			printf(
-	    "MPTable: Unknown compatibility address space modifier: %u\n",
+			    "MPTable: Unknown compatibility address space modifier: %u\n",
 			    cbasm->address_mod);
 			break;
 		}

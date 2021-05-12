@@ -12,19 +12,19 @@
 #include <sys/proc.h>
 #include <sys/smp.h>
 
-#include <machine/kdb.h>
-#include <machine/md_var.h>
-
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <ddb/ddb.h>
-#include <ddb/db_sym.h>
-#include <ddb/db_command.h>
-#include <ddb/db_access.h>
-#include <ddb/db_output.h>
+#include <machine/kdb.h>
+#include <machine/md_var.h>
 
 #include <dev/ofw/openfirm.h>
+
+#include <ddb/db_access.h>
+#include <ddb/db_command.h>
+#include <ddb/db_output.h>
+#include <ddb/db_sym.h>
+#include <ddb/ddb.h>
 
 int
 db_read_bytes(vm_offset_t addr, size_t size, char *data)
@@ -40,7 +40,7 @@ db_read_bytes(vm_offset_t addr, size_t size, char *data)
 		src = (char *)addr;
 
 		if (size == 8)
-			*((uint64_t*)data) = *((uint64_t*)src);
+			*((uint64_t *)data) = *((uint64_t *)src);
 		if (size == 4)
 			*((int *)data) = *((int *)src);
 		else if (size == 2)
@@ -69,12 +69,11 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 		cnt = size;
 
 		if (size == 8)
-			*((uint64_t*)dst) = *((uint64_t*)data);
+			*((uint64_t *)dst) = *((uint64_t *)data);
 		if (size == 4)
-			*((int*)dst) = *((int*)data);
-		else
-		if (size == 2)
-			*((short*)dst) = *((short*)data);
+			*((int *)dst) = *((int *)data);
+		else if (size == 2)
+			*((short *)dst) = *((short *)data);
 		else
 			while (cnt-- > 0)
 				*dst++ = *data++;

@@ -28,44 +28,41 @@ __FBSDID("$FreeBSD$");
  * SUCH DAMAGE.
  */
 
-#include <sys/stdint.h>
-#include <sys/stddef.h>
-#include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/sysctl.h>
-#include <sys/sx.h>
-#include <sys/unistd.h>
 #include <sys/callout.h>
+#include <sys/condvar.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
+#include <sys/queue.h>
 #include <sys/rman.h>
+#include <sys/stddef.h>
+#include <sys/stdint.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/unistd.h>
 
 #include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-
-#include <dev/usb/usb_core.h>
+#include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
-
+#include <contrib/octeon-sdk/cvmx-usb.h>
 #include <contrib/octeon-sdk/cvmx.h>
 #include <mips/cavium/octeon_irq.h>
-#include <contrib/octeon-sdk/cvmx-usb.h>
-
 #include <mips/cavium/usb/octusb.h>
 
-#define	MEM_RID	0
+#define MEM_RID 0
 
 static device_identify_t octusb_octeon_identify;
 static device_probe_t octusb_octeon_probe;
@@ -73,7 +70,7 @@ static device_attach_t octusb_octeon_attach;
 static device_detach_t octusb_octeon_detach;
 
 struct octusb_octeon_softc {
-	struct octusb_softc sc_dci;	/* must be first */
+	struct octusb_softc sc_dci; /* must be first */
 };
 
 static void
@@ -108,8 +105,8 @@ octusb_octeon_attach(device_t dev)
 	sc->sc_dci.sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
-	if (usb_bus_mem_alloc_all(&sc->sc_dci.sc_bus,
-	    USB_GET_DMA_TAG(dev), NULL)) {
+	if (usb_bus_mem_alloc_all(
+		&sc->sc_dci.sc_bus, USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);
 	}
 	nports = cvmx_usb_get_num_ports();
@@ -117,19 +114,23 @@ octusb_octeon_attach(device_t dev)
 		panic("octusb: too many USB ports %d", nports);
 	for (i = 0; i < nports; i++) {
 		rid = 0;
-		sc->sc_dci.sc_irq_res[i] =
-		    bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-			       OCTEON_IRQ_USB0 + i, OCTEON_IRQ_USB0 + i, 1, RF_ACTIVE);
+		sc->sc_dci.sc_irq_res[i] = bus_alloc_resource(dev, SYS_RES_IRQ,
+		    &rid, OCTEON_IRQ_USB0 + i, OCTEON_IRQ_USB0 + i, 1,
+		    RF_ACTIVE);
 		if (!(sc->sc_dci.sc_irq_res[i])) {
 			goto error;
 		}
 
 #if (__FreeBSD_version >= 700031)
-		err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res[i], INTR_TYPE_BIO | INTR_MPSAFE,
-		    NULL, (driver_intr_t *)octusb_interrupt, sc, &sc->sc_dci.sc_intr_hdl[i]);
+		err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res[i],
+		    INTR_TYPE_BIO | INTR_MPSAFE, NULL,
+		    (driver_intr_t *)octusb_interrupt, sc,
+		    &sc->sc_dci.sc_intr_hdl[i]);
 #else
-		err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res[i], INTR_TYPE_BIO | INTR_MPSAFE,
-		    (driver_intr_t *)octusb_interrupt, sc, &sc->sc_dci.sc_intr_hdl[i]);
+		err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res[i],
+		    INTR_TYPE_BIO | INTR_MPSAFE,
+		    (driver_intr_t *)octusb_interrupt, sc,
+		    &sc->sc_dci.sc_intr_hdl[i]);
 #endif
 		if (err) {
 			sc->sc_dci.sc_intr_hdl[i] = NULL;
@@ -170,8 +171,8 @@ octusb_octeon_detach(device_t dev)
 
 	if (sc->sc_dci.sc_irq_res[0] && sc->sc_dci.sc_intr_hdl[0])
 		/*
-	 	 * only call octusb_octeon_uninit() after octusb_octeon_init()
-	 	 */
+		 * only call octusb_octeon_uninit() after octusb_octeon_init()
+		 */
 		octusb_uninit(&sc->sc_dci);
 
 	nports = cvmx_usb_get_num_ports();
@@ -184,8 +185,8 @@ octusb_octeon_detach(device_t dev)
 			sc->sc_dci.sc_intr_hdl[i] = NULL;
 		}
 		if (sc->sc_dci.sc_irq_res[i]) {
-			bus_release_resource(dev, SYS_RES_IRQ, 0,
-			    sc->sc_dci.sc_irq_res[i]);
+			bus_release_resource(
+			    dev, SYS_RES_IRQ, 0, sc->sc_dci.sc_irq_res[i]);
 			sc->sc_dci.sc_irq_res[i] = NULL;
 		}
 	}

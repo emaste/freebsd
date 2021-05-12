@@ -32,21 +32,21 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/capsicum.h>
+#include <sys/conf.h>
 #include <sys/dirent.h>
+#include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
-#include <sys/systm.h>
 #include <sys/tty.h>
 #include <sys/vnode.h>
-#include <sys/conf.h>
-#include <sys/fcntl.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -56,8 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 
-#include <compat/linux/linux_util.h>
 #include <compat/linux/linux_file.h>
+#include <compat/linux/linux_util.h>
 
 static void
 translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
@@ -89,26 +89,26 @@ linux_kern_statat(struct thread *td, int flag, int fd, const char *path,
     enum uio_seg pathseg, struct stat *sbp)
 {
 
-	return (kern_statat(td, flag, fd, path, pathseg, sbp,
-	    translate_vnhook_major_minor));
+	return (kern_statat(
+	    td, flag, fd, path, pathseg, sbp, translate_vnhook_major_minor));
 }
 
 #ifdef LINUX_LEGACY_SYSCALLS
 static int
-linux_kern_stat(struct thread *td, const char *path, enum uio_seg pathseg,
-    struct stat *sbp)
+linux_kern_stat(
+    struct thread *td, const char *path, enum uio_seg pathseg, struct stat *sbp)
 {
 
 	return (linux_kern_statat(td, 0, AT_FDCWD, path, pathseg, sbp));
 }
 
 static int
-linux_kern_lstat(struct thread *td, const char *path, enum uio_seg pathseg,
-    struct stat *sbp)
+linux_kern_lstat(
+    struct thread *td, const char *path, enum uio_seg pathseg, struct stat *sbp)
 {
 
-	return (linux_kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, path,
-	    pathseg, sbp));
+	return (linux_kern_statat(
+	    td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, path, pathseg, sbp));
 }
 #endif
 
@@ -143,8 +143,8 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 		struct tty *tp = fp->f_data;
 
 		/* Convert the numbers for the slave device. */
-		if (linux_driver_get_major_minor(devtoname(tp->t_dev),
-					 &major, &minor) == 0) {
+		if (linux_driver_get_major_minor(
+			devtoname(tp->t_dev), &major, &minor) == 0) {
 			buf->st_rdev = (major << 8 | minor);
 		}
 	}
@@ -168,7 +168,7 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
  * ones that can be mounted on, so it is consistent with the translation
  * for st_dev except when the renumbering or truncation causes conflicts.
  */
-#define	dev_to_ldev(d)	((uint16_t)(d))
+#define dev_to_ldev(d) ((uint16_t)(d))
 
 static int
 newstat_copyout(struct stat *buf, void *ubuf)
@@ -321,53 +321,54 @@ linux_lstat(struct thread *td, struct linux_lstat_args *args)
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 struct l_statfs {
-	l_long		f_type;
-	l_long		f_bsize;
-	l_long		f_blocks;
-	l_long		f_bfree;
-	l_long		f_bavail;
-	l_long		f_files;
-	l_long		f_ffree;
-	l_fsid_t	f_fsid;
-	l_long		f_namelen;
-	l_long		f_frsize;
-	l_long		f_flags;
-	l_long		f_spare[4];
+	l_long f_type;
+	l_long f_bsize;
+	l_long f_blocks;
+	l_long f_bfree;
+	l_long f_bavail;
+	l_long f_files;
+	l_long f_ffree;
+	l_fsid_t f_fsid;
+	l_long f_namelen;
+	l_long f_frsize;
+	l_long f_flags;
+	l_long f_spare[4];
 };
 
-#define	LINUX_CODA_SUPER_MAGIC	0x73757245L
-#define	LINUX_EXT2_SUPER_MAGIC	0xEF53L
-#define	LINUX_HPFS_SUPER_MAGIC	0xf995e849L
-#define	LINUX_ISOFS_SUPER_MAGIC	0x9660L
-#define	LINUX_MSDOS_SUPER_MAGIC	0x4d44L
-#define	LINUX_NCP_SUPER_MAGIC	0x564cL
-#define	LINUX_NFS_SUPER_MAGIC	0x6969L
-#define	LINUX_NTFS_SUPER_MAGIC	0x5346544EL
-#define	LINUX_PROC_SUPER_MAGIC	0x9fa0L
-#define	LINUX_UFS_SUPER_MAGIC	0x00011954L	/* XXX - UFS_MAGIC in Linux */
-#define	LINUX_ZFS_SUPER_MAGIC	0x2FC12FC1
-#define	LINUX_DEVFS_SUPER_MAGIC	0x1373L
-#define	LINUX_SHMFS_MAGIC	0x01021994
+#define LINUX_CODA_SUPER_MAGIC 0x73757245L
+#define LINUX_EXT2_SUPER_MAGIC 0xEF53L
+#define LINUX_HPFS_SUPER_MAGIC 0xf995e849L
+#define LINUX_ISOFS_SUPER_MAGIC 0x9660L
+#define LINUX_MSDOS_SUPER_MAGIC 0x4d44L
+#define LINUX_NCP_SUPER_MAGIC 0x564cL
+#define LINUX_NFS_SUPER_MAGIC 0x6969L
+#define LINUX_NTFS_SUPER_MAGIC 0x5346544EL
+#define LINUX_PROC_SUPER_MAGIC 0x9fa0L
+#define LINUX_UFS_SUPER_MAGIC 0x00011954L /* XXX - UFS_MAGIC in Linux */
+#define LINUX_ZFS_SUPER_MAGIC 0x2FC12FC1
+#define LINUX_DEVFS_SUPER_MAGIC 0x1373L
+#define LINUX_SHMFS_MAGIC 0x01021994
 
 static long
 bsd_to_linux_ftype(const char *fstypename)
 {
 	int i;
-	static struct {const char *bsd_name; long linux_type;} b2l_tbl[] = {
-		{"ufs",     LINUX_UFS_SUPER_MAGIC},
-		{"zfs",     LINUX_ZFS_SUPER_MAGIC},
-		{"cd9660",  LINUX_ISOFS_SUPER_MAGIC},
-		{"nfs",     LINUX_NFS_SUPER_MAGIC},
-		{"ext2fs",  LINUX_EXT2_SUPER_MAGIC},
-		{"procfs",  LINUX_PROC_SUPER_MAGIC},
-		{"msdosfs", LINUX_MSDOS_SUPER_MAGIC},
-		{"ntfs",    LINUX_NTFS_SUPER_MAGIC},
-		{"nwfs",    LINUX_NCP_SUPER_MAGIC},
-		{"hpfs",    LINUX_HPFS_SUPER_MAGIC},
-		{"coda",    LINUX_CODA_SUPER_MAGIC},
-		{"devfs",   LINUX_DEVFS_SUPER_MAGIC},
-		{"tmpfs",   LINUX_SHMFS_MAGIC},
-		{NULL,      0L}};
+	static struct {
+		const char *bsd_name;
+		long linux_type;
+	} b2l_tbl[] = { { "ufs", LINUX_UFS_SUPER_MAGIC },
+		{ "zfs", LINUX_ZFS_SUPER_MAGIC },
+		{ "cd9660", LINUX_ISOFS_SUPER_MAGIC },
+		{ "nfs", LINUX_NFS_SUPER_MAGIC },
+		{ "ext2fs", LINUX_EXT2_SUPER_MAGIC },
+		{ "procfs", LINUX_PROC_SUPER_MAGIC },
+		{ "msdosfs", LINUX_MSDOS_SUPER_MAGIC },
+		{ "ntfs", LINUX_NTFS_SUPER_MAGIC },
+		{ "nwfs", LINUX_NCP_SUPER_MAGIC },
+		{ "hpfs", LINUX_HPFS_SUPER_MAGIC },
+		{ "coda", LINUX_CODA_SUPER_MAGIC },
+		{ "devfs", LINUX_DEVFS_SUPER_MAGIC },
+		{ "tmpfs", LINUX_SHMFS_MAGIC }, { NULL, 0L } };
 
 	for (i = 0; b2l_tbl[i].bsd_name != NULL; i++)
 		if (strcmp(b2l_tbl[i].bsd_name, fstypename) == 0)
@@ -382,15 +383,17 @@ bsd_to_linux_statfs(struct statfs *bsd_statfs, struct l_statfs *linux_statfs)
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 	uint64_t tmp;
 
-#define	LINUX_HIBITS	0xffffffff00000000ULL
+#define LINUX_HIBITS 0xffffffff00000000ULL
 
 	tmp = bsd_statfs->f_blocks | bsd_statfs->f_bfree | bsd_statfs->f_files |
 	    bsd_statfs->f_bsize;
-	if ((bsd_statfs->f_bavail != -1 && (bsd_statfs->f_bavail & LINUX_HIBITS)) ||
-	    (bsd_statfs->f_ffree != -1 && (bsd_statfs->f_ffree & LINUX_HIBITS)) ||
+	if ((bsd_statfs->f_bavail != -1 &&
+		(bsd_statfs->f_bavail & LINUX_HIBITS)) ||
+	    (bsd_statfs->f_ffree != -1 &&
+		(bsd_statfs->f_ffree & LINUX_HIBITS)) ||
 	    (tmp & LINUX_HIBITS))
 		return (EOVERFLOW);
-#undef	LINUX_HIBITS
+#undef LINUX_HIBITS
 #endif
 	linux_statfs->f_type = bsd_to_linux_ftype(bsd_statfs->f_fstypename);
 	linux_statfs->f_bsize = bsd_statfs->f_bsize;
@@ -436,7 +439,8 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 static void
-bsd_to_linux_statfs64(struct statfs *bsd_statfs, struct l_statfs64 *linux_statfs)
+bsd_to_linux_statfs64(
+    struct statfs *bsd_statfs, struct l_statfs64 *linux_statfs)
 {
 
 	linux_statfs->f_type = bsd_to_linux_ftype(bsd_statfs->f_fstypename);
@@ -520,12 +524,11 @@ linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 	return (copyout(&linux_statfs, args->buf, sizeof(linux_statfs)));
 }
 
-struct l_ustat
-{
-	l_daddr_t	f_tfree;
-	l_ino_t		f_tinode;
-	char		f_fname[6];
-	char		f_fpack[6];
+struct l_ustat {
+	l_daddr_t f_tfree;
+	l_ino_t f_tinode;
+	char f_fname[6];
+	char f_fpack[6];
 };
 
 #ifdef LINUX_LEGACY_SYSCALLS
@@ -581,7 +584,8 @@ linux_stat64(struct thread *td, struct linux_stat64_args *args)
 	int error;
 
 	if (!LUSECONVPATH(td)) {
-		error = linux_kern_stat(td, args->filename, UIO_USERSPACE, &buf);
+		error = linux_kern_stat(
+		    td, args->filename, UIO_USERSPACE, &buf);
 	} else {
 		LCONVPATHEXIST(td, args->filename, &filename);
 		error = linux_kern_stat(td, filename, UIO_SYSSPACE, &buf);
@@ -600,7 +604,8 @@ linux_lstat64(struct thread *td, struct linux_lstat64_args *args)
 	int error;
 
 	if (!LUSECONVPATH(td)) {
-		error = linux_kern_lstat(td, args->filename, UIO_USERSPACE, &sb);
+		error = linux_kern_lstat(
+		    td, args->filename, UIO_USERSPACE, &sb);
 	} else {
 		LCONVPATHEXIST(td, args->filename, &filename);
 		error = linux_kern_lstat(td, filename, UIO_SYSSPACE, &sb);
@@ -636,18 +641,18 @@ linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 		linux_msg(td, "fstatat64 unsupported flag 0x%x", args->flag);
 		return (EINVAL);
 	}
-	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) ?
-	    AT_SYMLINK_NOFOLLOW : 0;
-	flag |= (args->flag & LINUX_AT_EMPTY_PATH) ?
-	    AT_EMPTY_PATH : 0;
+	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) ? AT_SYMLINK_NOFOLLOW :
+								0;
+	flag |= (args->flag & LINUX_AT_EMPTY_PATH) ? AT_EMPTY_PATH : 0;
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
 	if (!LUSECONVPATH(td)) {
-		error = linux_kern_statat(td, flag, dfd, args->pathname,
-		    UIO_USERSPACE, &buf);
+		error = linux_kern_statat(
+		    td, flag, dfd, args->pathname, UIO_USERSPACE, &buf);
 	} else {
 		LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
-		error = linux_kern_statat(td, flag, dfd, path, UIO_SYSSPACE, &buf);
+		error = linux_kern_statat(
+		    td, flag, dfd, path, UIO_SYSSPACE, &buf);
 		LFREEPATH(path);
 	}
 	if (error == 0)
@@ -670,18 +675,18 @@ linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
 		return (EINVAL);
 	}
 
-	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) ?
-	    AT_SYMLINK_NOFOLLOW : 0;
-	flag |= (args->flag & LINUX_AT_EMPTY_PATH) ?
-	    AT_EMPTY_PATH : 0;
+	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) ? AT_SYMLINK_NOFOLLOW :
+								0;
+	flag |= (args->flag & LINUX_AT_EMPTY_PATH) ? AT_EMPTY_PATH : 0;
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
 	if (!LUSECONVPATH(td)) {
-		error = linux_kern_statat(td, flag, dfd, args->pathname,
-		    UIO_USERSPACE, &buf);
+		error = linux_kern_statat(
+		    td, flag, dfd, args->pathname, UIO_USERSPACE, &buf);
 	} else {
 		LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
-		error = linux_kern_statat(td, flag, dfd, path, UIO_SYSSPACE, &buf);
+		error = linux_kern_statat(
+		    td, flag, dfd, path, UIO_SYSSPACE, &buf);
 		LFREEPATH(path);
 	}
 	if (error == 0)
@@ -726,7 +731,7 @@ linux_syncfs(struct thread *td, struct linux_syncfs_args *args)
 	}
 	vfs_unbusy(mp);
 
- out:
+out:
 	vrele(vp);
 	return (error);
 }

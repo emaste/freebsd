@@ -59,6 +59,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/libkern.h>
@@ -67,26 +68,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
-
-#include <ddb/ddb.h>
-#include <ddb/db_command.h>
-#include <ddb/db_lex.h>
 
 #include <machine/setjmp.h>
+
+#include <ddb/db_command.h>
+#include <ddb/db_lex.h>
+#include <ddb/ddb.h>
 
 /*
  * struct ddb_script describes an individual script.
  */
 struct ddb_script {
-	char	ds_scriptname[DB_MAXSCRIPTNAME];
-	char	ds_script[DB_MAXSCRIPTLEN];
+	char ds_scriptname[DB_MAXSCRIPTNAME];
+	char ds_script[DB_MAXSCRIPTLEN];
 };
 
 /*
  * Global list of scripts -- defined scripts have non-empty name fields.
  */
-static struct ddb_script	db_script_table[DB_MAXSCRIPTS];
+static struct ddb_script db_script_table[DB_MAXSCRIPTS];
 
 /*
  * While executing a script, we parse it using strsep(), so require a
@@ -95,16 +95,16 @@ static struct ddb_script	db_script_table[DB_MAXSCRIPTS];
  * each concurrently executing script.
  */
 static struct db_recursion_data {
-	char	drd_buffer[DB_MAXSCRIPTLEN];
+	char drd_buffer[DB_MAXSCRIPTLEN];
 } db_recursion_data[DB_MAXSCRIPTRECURSION];
-static int	db_recursion = -1;
+static int db_recursion = -1;
 
 /*
  * We use a separate static buffer for script validation so that it is safe
  * to validate scripts from within a script.  This is used only in
  * db_script_valid(), which should never be called reentrantly.
  */
-static char	db_static_buffer[DB_MAXSCRIPTLEN];
+static char db_static_buffer[DB_MAXSCRIPTLEN];
 
 /*
  * Synchronization is not required from within the debugger, as it is
@@ -113,15 +113,15 @@ static char	db_static_buffer[DB_MAXSCRIPTLEN];
  * processes.  Sysctl procedures acquire db_script_mtx before accessing the
  * global script data structures.
  */
-static struct mtx 	db_script_mtx;
+static struct mtx db_script_mtx;
 MTX_SYSINIT(db_script_mtx, &db_script_mtx, "db_script_mtx", MTX_DEF);
 
 /*
  * Some script names have special meaning, such as those executed
  * automatically when KDB is entered.
  */
-#define	DB_SCRIPT_KDBENTER_PREFIX	"kdb.enter"	/* KDB has entered. */
-#define	DB_SCRIPT_KDBENTER_DEFAULT	"kdb.enter.default"
+#define DB_SCRIPT_KDBENTER_PREFIX "kdb.enter" /* KDB has entered. */
+#define DB_SCRIPT_KDBENTER_DEFAULT "kdb.enter.default"
 
 /*
  * Find the existing script slot for a named script, if any.
@@ -132,8 +132,7 @@ db_script_lookup(const char *scriptname)
 	int i;
 
 	for (i = 0; i < DB_MAXSCRIPTS; i++) {
-		if (strcmp(db_script_table[i].ds_scriptname, scriptname) ==
-		    0)
+		if (strcmp(db_script_table[i].ds_scriptname, scriptname) == 0)
 			return (&db_script_table[i]);
 	}
 	return (NULL);
@@ -199,8 +198,8 @@ db_script_set(const char *scriptname, const char *script)
 		dsp = db_script_new();
 		if (dsp == NULL)
 			return (ENOSPC);
-		strlcpy(dsp->ds_scriptname, scriptname,
-		    sizeof(dsp->ds_scriptname));
+		strlcpy(
+		    dsp->ds_scriptname, scriptname, sizeof(dsp->ds_scriptname));
 	}
 	strlcpy(dsp->ds_script, script, sizeof(dsp->ds_script));
 	return (0);
@@ -303,8 +302,8 @@ db_script_exec(const char *scriptname, int warnifnotfound)
 		if (setjmp(jb) == 0)
 			db_command_script(command);
 		else
-			db_printf("Script command '%s' returned error\n",
-			    command);
+			db_printf(
+			    "Script command '%s' returned error\n", command);
 		kdb_jmpbuf(prev_jb);
 	}
 	db_recursion--;
@@ -341,15 +340,13 @@ db_script_kdbenter(const char *eventname)
  * List scripts and their contents.
  */
 void
-db_scripts_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
-    char *modif)
+db_scripts_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
 	int i;
 
 	for (i = 0; i < DB_MAXSCRIPTS; i++) {
 		if (strlen(db_script_table[i].ds_scriptname) != 0) {
-			db_printf("%s=%s\n",
-			    db_script_table[i].ds_scriptname,
+			db_printf("%s=%s\n", db_script_table[i].ds_scriptname,
 			    db_script_table[i].ds_script);
 		}
 	}
@@ -383,8 +380,7 @@ db_run_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
  * we do not wish to use db_lex's token processing.
  */
 void
-db_script_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
-    char *modif)
+db_script_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
 	char *buf, scriptname[DB_MAXSCRIPTNAME];
 	struct ddb_script *dsp;
@@ -415,8 +411,8 @@ db_script_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
 		db_printf("%s=%s\n", scriptname, dsp->ds_script);
 	} else if (t == tEQ) {
 		buf = db_get_line();
-		if (buf[strlen(buf)-1] == '\n')
-			buf[strlen(buf)-1] = '\0';
+		if (buf[strlen(buf) - 1] == '\n')
+			buf[strlen(buf) - 1] = '\0';
 		error = db_script_set(scriptname, buf);
 		if (error != 0)
 			db_printf("Error: %d\n", error);
@@ -429,8 +425,7 @@ db_script_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
  * Remove a named script.
  */
 void
-db_unscript_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
-    char *modif)
+db_unscript_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
 	int error, t;
 
@@ -462,12 +457,10 @@ db_unscript_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
  * like RPCs and a bit less like normal get/set requests.  The ddb(8) command
  * line tool wraps them to make things a bit more user-friendly.
  */
-static SYSCTL_NODE(_debug_ddb, OID_AUTO, scripting,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "DDB script settings");
+static SYSCTL_NODE(_debug_ddb, OID_AUTO, scripting, CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, "DDB script settings");
 
-static int
-sysctl_debug_ddb_scripting_scripts(SYSCTL_HANDLER_ARGS)
+static int sysctl_debug_ddb_scripting_scripts(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sb;
 	int error, i, len;
@@ -498,11 +491,9 @@ sysctl_debug_ddb_scripting_scripts(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_debug_ddb_scripting, OID_AUTO, scripts,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, 0, 0,
-    sysctl_debug_ddb_scripting_scripts, "A",
-    "List of defined scripts");
+    sysctl_debug_ddb_scripting_scripts, "A", "List of defined scripts");
 
-static int
-sysctl_debug_ddb_scripting_script(SYSCTL_HANDLER_ARGS)
+static int sysctl_debug_ddb_scripting_script(SYSCTL_HANDLER_ARGS)
 {
 	char *buffer, *script, *scriptname;
 	int error, len;
@@ -536,15 +527,13 @@ out:
 }
 SYSCTL_PROC(_debug_ddb_scripting, OID_AUTO, script,
     CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
-    sysctl_debug_ddb_scripting_script, "A",
-    "Set a script");
+    sysctl_debug_ddb_scripting_script, "A", "Set a script");
 
 /*
  * debug.ddb.scripting.unscript has somewhat unusual sysctl semantics -- set
  * the name of the script that you want to delete.
  */
-static int
-sysctl_debug_ddb_scripting_unscript(SYSCTL_HANDLER_ARGS)
+static int sysctl_debug_ddb_scripting_unscript(SYSCTL_HANDLER_ARGS)
 {
 	char name[DB_MAXSCRIPTNAME];
 	int error;
@@ -559,10 +548,9 @@ sysctl_debug_ddb_scripting_unscript(SYSCTL_HANDLER_ARGS)
 	error = db_script_unset(name);
 	mtx_unlock(&db_script_mtx);
 	if (error == ENOENT)
-		return (EINVAL);	/* Don't confuse sysctl consumers. */
+		return (EINVAL); /* Don't confuse sysctl consumers. */
 	return (0);
 }
 SYSCTL_PROC(_debug_ddb_scripting, OID_AUTO, unscript,
     CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
-    sysctl_debug_ddb_scripting_unscript, "A",
-    "Unset a script");
+    sysctl_debug_ddb_scripting_unscript, "A", "Unset a script");

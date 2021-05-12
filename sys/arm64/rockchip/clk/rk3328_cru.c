@@ -33,559 +33,561 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
-
-#include <dev/fdt/simplebus.h>
-
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/extres/clk/clk_div.h>
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/clk/clk_mux.h>
+#include <dev/fdt/simplebus.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm64/rockchip/clk/rk_cru.h>
 
 /* Registers */
-#define	RK3328_GRF_SOC_CON4	0x410
-#define	RK3328_GRF_MAC_CON1	0x904
-#define	RK3328_GRF_MAC_CON2	0x908
+#define RK3328_GRF_SOC_CON4 0x410
+#define RK3328_GRF_MAC_CON1 0x904
+#define RK3328_GRF_MAC_CON2 0x908
 
 /* GATES */
 
-#define	SCLK_I2S0		41
-#define	SCLK_I2S1		42
-#define	SCLK_I2S2		43
-#define	SCLK_I2S1_OUT		44
-#define	SCLK_I2S2_OUT		45
-#define	SCLK_MAC2PHY_RXTX	83
-#define	SCLK_MAC2PHY_SRC	84
-#define	SCLK_MAC2PHY_REF	85
-#define	SCLK_MAC2PHY_OUT	86
-#define	SCLK_MAC2IO_RX		87
-#define	SCLK_MAC2IO_TX		88
-#define	SCLK_MAC2IO_REFOUT	89
-#define	SCLK_MAC2IO_REF		90
-#define	SCLK_MAC2IO_OUT		91
-#define	SCLK_USB3OTG_REF	96
-#define	SCLK_MAC2IO_SRC		99
-#define	SCLK_MAC2IO		100
-#define	SCLK_MAC2PHY		101
-#define	SCLK_MAC2IO_EXT		102
-#define	ACLK_USB3OTG		132
-#define ACLK_GMAC		146
-#define ACLK_MAC2PHY		149
-#define ACLK_MAC2IO		150
-#define	ACLK_PERI		153
-#define	PCLK_GPIO0		200
-#define	PCLK_GPIO1		201
-#define	PCLK_GPIO2		202
-#define	PCLK_GPIO3		203
-#define	PCLK_I2C0		205
-#define	PCLK_I2C1		206
-#define	PCLK_I2C2		207
-#define	PCLK_I2C3		208
-#define	PCLK_TSADC		213
-#define PCLK_GMAC		220
-#define PCLK_MAC2PHY		222
-#define PCLK_MAC2IO		223
-#define	PCLK_USB3PHY_OTG	224
-#define	PCLK_USB3PHY_PIPE	225
-#define	PCLK_USB3_GRF		226
-#define	PCLK_ACODECPHY		235
-#define	HCLK_I2S0_8CH		311
-#define	HCLK_I2S1_8CH		312
-#define	HCLK_I2S2_2CH		313
-#define	HCLK_SDMMC		317
-#define	HCLK_SDIO		318
-#define	HCLK_EMMC		319
-#define	HCLK_SDMMC_EXT		320
+#define SCLK_I2S0 41
+#define SCLK_I2S1 42
+#define SCLK_I2S2 43
+#define SCLK_I2S1_OUT 44
+#define SCLK_I2S2_OUT 45
+#define SCLK_MAC2PHY_RXTX 83
+#define SCLK_MAC2PHY_SRC 84
+#define SCLK_MAC2PHY_REF 85
+#define SCLK_MAC2PHY_OUT 86
+#define SCLK_MAC2IO_RX 87
+#define SCLK_MAC2IO_TX 88
+#define SCLK_MAC2IO_REFOUT 89
+#define SCLK_MAC2IO_REF 90
+#define SCLK_MAC2IO_OUT 91
+#define SCLK_USB3OTG_REF 96
+#define SCLK_MAC2IO_SRC 99
+#define SCLK_MAC2IO 100
+#define SCLK_MAC2PHY 101
+#define SCLK_MAC2IO_EXT 102
+#define ACLK_USB3OTG 132
+#define ACLK_GMAC 146
+#define ACLK_MAC2PHY 149
+#define ACLK_MAC2IO 150
+#define ACLK_PERI 153
+#define PCLK_GPIO0 200
+#define PCLK_GPIO1 201
+#define PCLK_GPIO2 202
+#define PCLK_GPIO3 203
+#define PCLK_I2C0 205
+#define PCLK_I2C1 206
+#define PCLK_I2C2 207
+#define PCLK_I2C3 208
+#define PCLK_TSADC 213
+#define PCLK_GMAC 220
+#define PCLK_MAC2PHY 222
+#define PCLK_MAC2IO 223
+#define PCLK_USB3PHY_OTG 224
+#define PCLK_USB3PHY_PIPE 225
+#define PCLK_USB3_GRF 226
+#define PCLK_ACODECPHY 235
+#define HCLK_I2S0_8CH 311
+#define HCLK_I2S1_8CH 312
+#define HCLK_I2S2_2CH 313
+#define HCLK_SDMMC 317
+#define HCLK_SDIO 318
+#define HCLK_EMMC 319
+#define HCLK_SDMMC_EXT 320
 
 static struct rk_cru_gate rk3328_gates[] = {
 	/* CRU_CLKGATE_CON0 */
-	CRU_GATE(0, "apll_core", "apll", 0x200, 0)
-	CRU_GATE(0, "dpll_core", "dpll", 0x200, 1)
-	CRU_GATE(0, "gpll_core", "gpll", 0x200, 2)
-	CRU_GATE(0, "npll_core", "npll", 0x200, 12)
+	CRU_GATE(0, "apll_core", "apll", 0x200, 0) CRU_GATE(0, "dpll_core",
+	    "dpll", 0x200, 1) CRU_GATE(0, "gpll_core", "gpll", 0x200, 2)
+	    CRU_GATE(0, "npll_core", "npll", 0x200, 12)
 
 	/* CRU_CLKGATE_CON1 */
 	CRU_GATE(SCLK_I2S0, "clk_i2s0", "clk_i2s0_mux", 0x204, 3)
-	CRU_GATE(SCLK_I2S1, "clk_i2s1", "clk_i2s1_mux", 0x204, 6)
-	CRU_GATE(SCLK_I2S1, "clk_i2s2", "clk_i2s2_mux", 0x204, 10)
+	    CRU_GATE(SCLK_I2S1, "clk_i2s1", "clk_i2s1_mux", 0x204, 6)
+		CRU_GATE(SCLK_I2S1, "clk_i2s2", "clk_i2s2_mux", 0x204, 10)
 
 	/* CRU_CLKGATE_CON4 */
 	CRU_GATE(0, "gpll_peri", "gpll", 0x210, 0)
-	CRU_GATE(0, "cpll_peri", "cpll", 0x210, 1)
-	CRU_GATE(SCLK_USB3OTG_REF, "clk_usb3otg_ref", "xin24m", 0x210, 7)
+	    CRU_GATE(0, "cpll_peri", "cpll", 0x210, 1) CRU_GATE(
+		SCLK_USB3OTG_REF, "clk_usb3otg_ref", "xin24m", 0x210, 7)
 
 	/* CRU_CLKGATE_CON8 */
 	CRU_GATE(0, "pclk_bus", "pclk_bus_pre", 0x220, 3)
-	CRU_GATE(0, "pclk_phy_pre", "pclk_bus_pre", 0x220, 4)
+	    CRU_GATE(0, "pclk_phy_pre", "pclk_bus_pre", 0x220, 4)
 
 	/* CRU_CLKGATE_CON8 */
-	CRU_GATE(SCLK_MAC2IO_REF, "clk_mac2io_ref", "clk_mac2io", 0x224, 7)
-	CRU_GATE(SCLK_MAC2IO_REFOUT, "clk_mac2io_refout", "clk_mac2io", 0x224, 6)
-	CRU_GATE(SCLK_MAC2IO_TX, "clk_mac2io_tx", "clk_mac2io", 0x224, 5)
-	CRU_GATE(SCLK_MAC2IO_RX, "clk_mac2io_rx", "clk_mac2io", 0x224, 4)
-	CRU_GATE(SCLK_MAC2PHY_REF, "clk_mac2phy_ref", "clk_mac2phy", 0x224, 3)
-	CRU_GATE(SCLK_MAC2PHY_RXTX, "clk_mac2phy_rxtx", "clk_mac2phy", 0x224, 1)
+	CRU_GATE(SCLK_MAC2IO_REF, "clk_mac2io_ref", "clk_mac2io", 0x224,
+	    7) CRU_GATE(SCLK_MAC2IO_REFOUT, "clk_mac2io_refout", "clk_mac2io",
+	    0x224,
+	    6) CRU_GATE(SCLK_MAC2IO_TX, "clk_mac2io_tx", "clk_mac2io", 0x224, 5)
+	    CRU_GATE(SCLK_MAC2IO_RX, "clk_mac2io_rx", "clk_mac2io", 0x224, 4)
+		CRU_GATE(SCLK_MAC2PHY_REF, "clk_mac2phy_ref", "clk_mac2phy",
+		    0x224, 3) CRU_GATE(SCLK_MAC2PHY_RXTX, "clk_mac2phy_rxtx",
+		    "clk_mac2phy", 0x224, 1)
 
 	/* CRU_CLKGATE_CON10 */
 	CRU_GATE(ACLK_PERI, "aclk_peri", "aclk_peri_pre", 0x228, 0)
 
 	/* CRU_CLKGATE_CON15*/
 	CRU_GATE(HCLK_I2S0_8CH, "hclk_i2s0_8ch", "hclk_bus_pre", 0x23C, 3)
-	CRU_GATE(HCLK_I2S1_8CH, "hclk_i2s1_8ch", "hclk_bus_pre", 0x23C, 4)
-	CRU_GATE(HCLK_I2S2_2CH, "hclk_i2s2_2ch", "hclk_bus_pre", 0x23C, 5)
-	CRU_GATE(PCLK_I2C0, "pclk_i2c0", "pclk_bus", 0x23C, 10)
+	    CRU_GATE(HCLK_I2S1_8CH, "hclk_i2s1_8ch", "hclk_bus_pre", 0x23C, 4)
+		CRU_GATE(HCLK_I2S2_2CH, "hclk_i2s2_2ch", "hclk_bus_pre", 0x23C,
+		    5) CRU_GATE(PCLK_I2C0, "pclk_i2c0", "pclk_bus", 0x23C, 10)
 
 	/* CRU_CLKGATE_CON16 */
-	CRU_GATE(PCLK_I2C1, "pclk_i2c1", "pclk_bus", 0x23C, 0)
-	CRU_GATE(PCLK_I2C2, "pclk_i2c2", "pclk_bus", 0x23C, 1)
-	CRU_GATE(PCLK_I2C3, "pclk_i2c3", "pclk_bus", 0x23C, 2)
-	CRU_GATE(PCLK_TSADC, "pclk_tsadc", "pclk_bus", 0x23C, 14)
+	CRU_GATE(PCLK_I2C1, "pclk_i2c1", "pclk_bus", 0x23C, 0) CRU_GATE(
+	    PCLK_I2C2, "pclk_i2c2", "pclk_bus", 0x23C, 1) CRU_GATE(PCLK_I2C3,
+	    "pclk_i2c3", "pclk_bus", 0x23C,
+	    2) CRU_GATE(PCLK_TSADC, "pclk_tsadc", "pclk_bus", 0x23C, 14)
 
-	CRU_GATE(PCLK_GPIO0, "pclk_gpio0", "pclk_bus", 0x240, 7)
-	CRU_GATE(PCLK_GPIO1, "pclk_gpio1", "pclk_bus", 0x240, 8)
-	CRU_GATE(PCLK_GPIO2, "pclk_gpio2", "pclk_bus", 0x240, 9)
-	CRU_GATE(PCLK_GPIO3, "pclk_gpio3", "pclk_bus", 0x240, 10)
+	    CRU_GATE(PCLK_GPIO0, "pclk_gpio0", "pclk_bus", 0x240, 7) CRU_GATE(
+		PCLK_GPIO1, "pclk_gpio1", "pclk_bus", 0x240, 8)
+		CRU_GATE(PCLK_GPIO2, "pclk_gpio2", "pclk_bus", 0x240, 9)
+		    CRU_GATE(PCLK_GPIO3, "pclk_gpio3", "pclk_bus", 0x240, 10)
 
 	/* CRU_CLKGATE_CON17 */
 	CRU_GATE(PCLK_USB3_GRF, "pclk_usb3_grf", "pclk_phy_pre", 0x244, 2)
-	CRU_GATE(PCLK_ACODECPHY, "pclk_acodecphy", "pclk_phy_pre", 0x244, 5)
+	    CRU_GATE(PCLK_ACODECPHY, "pclk_acodecphy", "pclk_phy_pre", 0x244, 5)
 
 	/* CRU_CLKGATE_CON19 */
 	CRU_GATE(HCLK_SDMMC, "hclk_sdmmc", "hclk_peri", 0x24C, 0)
-	CRU_GATE(HCLK_SDIO, "hclk_sdio", "hclk_peri", 0x24C, 1)
-	CRU_GATE(HCLK_EMMC, "hclk_emmc", "hclk_peri", 0x24C, 2)
-	CRU_GATE(0, "hclk_peri_niu", "hclk_peri", 0x24C, 12)
-	CRU_GATE(0, "pclk_peri_niu", "hclk_peri", 0x24C, 13)
-	CRU_GATE(ACLK_USB3OTG, "aclk_usb3otg", "aclk_peri", 0x24C, 14)
-	CRU_GATE(HCLK_SDMMC_EXT, "hclk_sdmmc_ext", "hclk_peri", 0x24C, 15)
+	    CRU_GATE(HCLK_SDIO, "hclk_sdio", "hclk_peri", 0x24C, 1)
+		CRU_GATE(HCLK_EMMC, "hclk_emmc", "hclk_peri", 0x24C, 2)
+		    CRU_GATE(0, "hclk_peri_niu", "hclk_peri", 0x24C, 12)
+			CRU_GATE(0, "pclk_peri_niu", "hclk_peri", 0x24C, 13)
+			    CRU_GATE(ACLK_USB3OTG, "aclk_usb3otg", "aclk_peri",
+				0x24C, 14) CRU_GATE(HCLK_SDMMC_EXT,
+				"hclk_sdmmc_ext", "hclk_peri", 0x24C, 15)
 
 	/* CRU_CLKGATE_CON26 */
 	CRU_GATE(ACLK_MAC2PHY, "aclk_mac2phy", "aclk_gmac", 0x268, 0)
-	CRU_GATE(PCLK_MAC2PHY, "pclk_mac2phy", "pclk_gmac", 0x268, 1)
-	CRU_GATE(ACLK_MAC2IO, "aclk_mac2io", "aclk_gmac", 0x268, 2)
-	CRU_GATE(PCLK_MAC2IO, "pclk_mac2io", "pclk_gmac", 0x268, 3)
+	    CRU_GATE(PCLK_MAC2PHY, "pclk_mac2phy", "pclk_gmac", 0x268, 1)
+		CRU_GATE(ACLK_MAC2IO, "aclk_mac2io", "aclk_gmac", 0x268, 2)
+		    CRU_GATE(PCLK_MAC2IO, "pclk_mac2io", "pclk_gmac", 0x268, 3)
 
 	/* CRU_CLKGATE_CON28 */
 	CRU_GATE(PCLK_USB3PHY_OTG, "pclk_usb3phy_otg", "pclk_phy_pre", 0x270, 1)
-	CRU_GATE(PCLK_USB3PHY_PIPE, "pclk_usb3phy_pipe", "pclk_phy_pre", 0x270, 2)
+	    CRU_GATE(PCLK_USB3PHY_PIPE, "pclk_usb3phy_pipe", "pclk_phy_pre",
+		0x270, 2)
 };
 
 /*
  * PLLs
  */
 
-#define PLL_APLL		1
-#define PLL_DPLL		2
-#define PLL_CPLL		3
-#define PLL_GPLL		4
-#define PLL_NPLL		5
+#define PLL_APLL 1
+#define PLL_DPLL 2
+#define PLL_CPLL 3
+#define PLL_GPLL 4
+#define PLL_NPLL 5
 
 static struct rk_clk_pll_rate rk3328_pll_rates[] = {
 	{
-		.freq = 1608000000,
-		.refdiv = 1,
-		.fbdiv = 67,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1608000000,
+	    .refdiv = 1,
+	    .fbdiv = 67,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1584000000,
-		.refdiv = 1,
-		.fbdiv = 66,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1584000000,
+	    .refdiv = 1,
+	    .fbdiv = 66,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1560000000,
-		.refdiv = 1,
-		.fbdiv = 65,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1560000000,
+	    .refdiv = 1,
+	    .fbdiv = 65,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1536000000,
-		.refdiv = 1,
-		.fbdiv = 64,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1536000000,
+	    .refdiv = 1,
+	    .fbdiv = 64,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1512000000,
-		.refdiv = 1,
-		.fbdiv = 63,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1512000000,
+	    .refdiv = 1,
+	    .fbdiv = 63,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1488000000,
-		.refdiv = 1,
-		.fbdiv = 62,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1488000000,
+	    .refdiv = 1,
+	    .fbdiv = 62,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1464000000,
-		.refdiv = 1,
-		.fbdiv = 61,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1464000000,
+	    .refdiv = 1,
+	    .fbdiv = 61,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1440000000,
-		.refdiv = 1,
-		.fbdiv = 60,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1440000000,
+	    .refdiv = 1,
+	    .fbdiv = 60,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1416000000,
-		.refdiv = 1,
-		.fbdiv = 59,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1416000000,
+	    .refdiv = 1,
+	    .fbdiv = 59,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1392000000,
-		.refdiv = 1,
-		.fbdiv = 58,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1392000000,
+	    .refdiv = 1,
+	    .fbdiv = 58,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1368000000,
-		.refdiv = 1,
-		.fbdiv = 57,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1368000000,
+	    .refdiv = 1,
+	    .fbdiv = 57,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1344000000,
-		.refdiv = 1,
-		.fbdiv = 56,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1344000000,
+	    .refdiv = 1,
+	    .fbdiv = 56,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1320000000,
-		.refdiv = 1,
-		.fbdiv = 55,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1320000000,
+	    .refdiv = 1,
+	    .fbdiv = 55,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1296000000,
-		.refdiv = 1,
-		.fbdiv = 54,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1296000000,
+	    .refdiv = 1,
+	    .fbdiv = 54,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1272000000,
-		.refdiv = 1,
-		.fbdiv = 53,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1272000000,
+	    .refdiv = 1,
+	    .fbdiv = 53,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1248000000,
-		.refdiv = 1,
-		.fbdiv = 52,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1248000000,
+	    .refdiv = 1,
+	    .fbdiv = 52,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1200000000,
-		.refdiv = 1,
-		.fbdiv = 50,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1200000000,
+	    .refdiv = 1,
+	    .fbdiv = 50,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1188000000,
-		.refdiv = 2,
-		.fbdiv = 99,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1188000000,
+	    .refdiv = 2,
+	    .fbdiv = 99,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1104000000,
-		.refdiv = 1,
-		.fbdiv = 46,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1104000000,
+	    .refdiv = 1,
+	    .fbdiv = 46,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1100000000,
-		.refdiv = 12,
-		.fbdiv = 550,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1100000000,
+	    .refdiv = 12,
+	    .fbdiv = 550,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1008000000,
-		.refdiv = 1,
-		.fbdiv = 84,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1008000000,
+	    .refdiv = 1,
+	    .fbdiv = 84,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 1000000000,
-		.refdiv = 6,
-		.fbdiv = 500,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 1000000000,
+	    .refdiv = 6,
+	    .fbdiv = 500,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 984000000,
-		.refdiv = 1,
-		.fbdiv = 82,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 984000000,
+	    .refdiv = 1,
+	    .fbdiv = 82,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 960000000,
-		.refdiv = 1,
-		.fbdiv = 80,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 960000000,
+	    .refdiv = 1,
+	    .fbdiv = 80,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 936000000,
-		.refdiv = 1,
-		.fbdiv = 78,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 936000000,
+	    .refdiv = 1,
+	    .fbdiv = 78,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 912000000,
-		.refdiv = 1,
-		.fbdiv = 76,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 912000000,
+	    .refdiv = 1,
+	    .fbdiv = 76,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 900000000,
-		.refdiv = 4,
-		.fbdiv = 300,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 900000000,
+	    .refdiv = 4,
+	    .fbdiv = 300,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 888000000,
-		.refdiv = 1,
-		.fbdiv = 74,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 888000000,
+	    .refdiv = 1,
+	    .fbdiv = 74,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 864000000,
-		.refdiv = 1,
-		.fbdiv = 72,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 864000000,
+	    .refdiv = 1,
+	    .fbdiv = 72,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 840000000,
-		.refdiv = 1,
-		.fbdiv = 70,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 840000000,
+	    .refdiv = 1,
+	    .fbdiv = 70,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 816000000,
-		.refdiv = 1,
-		.fbdiv = 68,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 816000000,
+	    .refdiv = 1,
+	    .fbdiv = 68,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 800000000,
-		.refdiv = 6,
-		.fbdiv = 400,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 800000000,
+	    .refdiv = 6,
+	    .fbdiv = 400,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 700000000,
-		.refdiv = 6,
-		.fbdiv = 350,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 700000000,
+	    .refdiv = 6,
+	    .fbdiv = 350,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 696000000,
-		.refdiv = 1,
-		.fbdiv = 58,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 696000000,
+	    .refdiv = 1,
+	    .fbdiv = 58,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 600000000,
-		.refdiv = 1,
-		.fbdiv = 75,
-		.postdiv1 = 3,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 600000000,
+	    .refdiv = 1,
+	    .fbdiv = 75,
+	    .postdiv1 = 3,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 594000000,
-		.refdiv = 2,
-		.fbdiv = 99,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 594000000,
+	    .refdiv = 2,
+	    .fbdiv = 99,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 504000000,
-		.refdiv = 1,
-		.fbdiv = 63,
-		.postdiv1 = 3,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 504000000,
+	    .refdiv = 1,
+	    .fbdiv = 63,
+	    .postdiv1 = 3,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 500000000,
-		.refdiv = 6,
-		.fbdiv = 250,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 1,
+	    .freq = 500000000,
+	    .refdiv = 6,
+	    .fbdiv = 250,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 408000000,
-		.refdiv = 1,
-		.fbdiv = 68,
-		.postdiv1 = 2,
-		.postdiv2 = 2,
-		.dsmpd = 1,
+	    .freq = 408000000,
+	    .refdiv = 1,
+	    .fbdiv = 68,
+	    .postdiv1 = 2,
+	    .postdiv2 = 2,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 312000000,
-		.refdiv = 1,
-		.fbdiv = 52,
-		.postdiv1 = 2,
-		.postdiv2 = 2,
-		.dsmpd = 1,
+	    .freq = 312000000,
+	    .refdiv = 1,
+	    .fbdiv = 52,
+	    .postdiv1 = 2,
+	    .postdiv2 = 2,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 216000000,
-		.refdiv = 1,
-		.fbdiv = 72,
-		.postdiv1 = 4,
-		.postdiv2 = 2,
-		.dsmpd = 1,
+	    .freq = 216000000,
+	    .refdiv = 1,
+	    .fbdiv = 72,
+	    .postdiv1 = 4,
+	    .postdiv2 = 2,
+	    .dsmpd = 1,
 	},
 	{
-		.freq = 96000000,
-		.refdiv = 1,
-		.fbdiv = 64,
-		.postdiv1 = 4,
-		.postdiv2 = 4,
-		.dsmpd = 1,
+	    .freq = 96000000,
+	    .refdiv = 1,
+	    .fbdiv = 64,
+	    .postdiv1 = 4,
+	    .postdiv2 = 4,
+	    .dsmpd = 1,
 	},
 	{},
 };
 
 static struct rk_clk_pll_rate rk3328_pll_frac_rates[] = {
 	{
-		.freq = 1016064000,
-		.refdiv = 3,
-		.fbdiv = 127,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 0,
-		.frac = 134217,
+	    .freq = 1016064000,
+	    .refdiv = 3,
+	    .fbdiv = 127,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 0,
+	    .frac = 134217,
 	},
 	{
-		.freq = 983040000,
-		.refdiv = 24,
-		.fbdiv = 983,
-		.postdiv1 = 1,
-		.postdiv2 = 1,
-		.dsmpd = 0,
-		.frac = 671088,
+	    .freq = 983040000,
+	    .refdiv = 24,
+	    .fbdiv = 983,
+	    .postdiv1 = 1,
+	    .postdiv2 = 1,
+	    .dsmpd = 0,
+	    .frac = 671088,
 	},
 	{
-		.freq = 491520000,
-		.refdiv = 24,
-		.fbdiv = 983,
-		.postdiv1 = 2,
-		.postdiv2 = 1,
-		.dsmpd = 0,
-		.frac = 671088,
+	    .freq = 491520000,
+	    .refdiv = 24,
+	    .fbdiv = 983,
+	    .postdiv1 = 2,
+	    .postdiv2 = 1,
+	    .dsmpd = 0,
+	    .frac = 671088,
 	},
 	{
-		.freq = 61440000,
-		.refdiv = 6,
-		.fbdiv = 215,
-		.postdiv1 = 7,
-		.postdiv2 = 2,
-		.dsmpd = 0,
-		.frac = 671088,
+	    .freq = 61440000,
+	    .refdiv = 6,
+	    .fbdiv = 215,
+	    .postdiv1 = 7,
+	    .postdiv2 = 2,
+	    .dsmpd = 0,
+	    .frac = 671088,
 	},
 	{
-		.freq = 56448000,
-		.refdiv = 12,
-		.fbdiv = 451,
-		.postdiv1 = 4,
-		.postdiv2 = 4,
-		.dsmpd = 0,
-		.frac = 9797894,
+	    .freq = 56448000,
+	    .refdiv = 12,
+	    .fbdiv = 451,
+	    .postdiv1 = 4,
+	    .postdiv2 = 4,
+	    .dsmpd = 0,
+	    .frac = 9797894,
 	},
 	{
-		.freq = 40960000,
-		.refdiv = 12,
-		.fbdiv = 409,
-		.postdiv1 = 4,
-		.postdiv2 = 5,
-		.dsmpd = 0,
-		.frac = 10066329,
+	    .freq = 40960000,
+	    .refdiv = 12,
+	    .fbdiv = 409,
+	    .postdiv1 = 4,
+	    .postdiv2 = 5,
+	    .dsmpd = 0,
+	    .frac = 10066329,
 	},
 	{},
 };
 
-static const char *pll_parents[] = {"xin24m"};
+static const char *pll_parents[] = { "xin24m" };
 static struct rk_clk_pll_def apll = {
 	.clkdef = {
 		.id = PLL_APLL,
@@ -663,10 +665,10 @@ static struct rk_clk_pll_def npll = {
 };
 
 /* CRU_CLKSEL_CON0 */
-#define ACLK_BUS_PRE		136
+#define ACLK_BUS_PRE 136
 
 /* Needs hdmiphy as parent too*/
-static const char *aclk_bus_pre_parents[] = {"cpll", "gpll"};
+static const char *aclk_bus_pre_parents[] = { "cpll", "gpll" };
 static struct rk_clk_composite_def aclk_bus_pre = {
 	.clkdef = {
 		.id = ACLK_BUS_PRE,
@@ -689,57 +691,57 @@ static struct rk_clk_composite_def aclk_bus_pre = {
 
 static struct rk_clk_armclk_rates rk3328_armclk_rates[] = {
 	{
-		.freq = 1296000000,
-		.div = 1,
+	    .freq = 1296000000,
+	    .div = 1,
 	},
 	{
-		.freq = 1200000000,
-		.div = 1,
+	    .freq = 1200000000,
+	    .div = 1,
 	},
 	{
-		.freq = 1104000000,
-		.div = 1,
+	    .freq = 1104000000,
+	    .div = 1,
 	},
 	{
-		.freq = 1008000000,
-		.div = 1,
+	    .freq = 1008000000,
+	    .div = 1,
 	},
 	{
-		.freq = 912000000,
-		.div = 1,
+	    .freq = 912000000,
+	    .div = 1,
 	},
 	{
-		.freq = 816000000,
-		.div = 1,
+	    .freq = 816000000,
+	    .div = 1,
 	},
 	{
-		.freq = 696000000,
-		.div = 1,
+	    .freq = 696000000,
+	    .div = 1,
 	},
 	{
-		.freq = 600000000,
-		.div = 1,
+	    .freq = 600000000,
+	    .div = 1,
 	},
 	{
-		.freq = 408000000,
-		.div = 1,
+	    .freq = 408000000,
+	    .div = 1,
 	},
 	{
-		.freq = 312000000,
-		.div = 1,
+	    .freq = 312000000,
+	    .div = 1,
 	},
 	{
-		.freq = 216000000,
-		.div = 1,
+	    .freq = 216000000,
+	    .div = 1,
 	},
 	{
-		.freq = 96000000,
-		.div = 1,
+	    .freq = 96000000,
+	    .div = 1,
 	},
 };
 
-#define	ARMCLK	6
-static const char *armclk_parents[] = {"apll", "gpll", "dpll", "npll" };
+#define ARMCLK 6
+static const char *armclk_parents[] = { "apll", "gpll", "dpll", "npll" };
 static struct rk_clk_armclk_def armclk = {
 	.clkdef = {
 		.id = ARMCLK,
@@ -764,10 +766,10 @@ static struct rk_clk_armclk_def armclk = {
 
 /* CRU_CLKSEL_CON1 */
 
-#define PCLK_BUS_PRE		216
-#define HCLK_BUS_PRE		328
+#define PCLK_BUS_PRE 216
+#define HCLK_BUS_PRE 328
 
-static const char *hclk_bus_pre_parents[] = {"aclk_bus_pre"};
+static const char *hclk_bus_pre_parents[] = { "aclk_bus_pre" };
 static struct rk_clk_composite_def hclk_bus_pre = {
 	.clkdef = {
 		.id = HCLK_BUS_PRE,
@@ -786,7 +788,7 @@ static struct rk_clk_composite_def hclk_bus_pre = {
 	.flags = RK_CLK_COMPOSITE_HAVE_GATE,
 };
 
-static const char *pclk_bus_pre_parents[] = {"aclk_bus_pre"};
+static const char *pclk_bus_pre_parents[] = { "aclk_bus_pre" };
 static struct rk_clk_composite_def pclk_bus_pre = {
 	.clkdef = {
 		.id = PCLK_BUS_PRE,
@@ -807,9 +809,9 @@ static struct rk_clk_composite_def pclk_bus_pre = {
 
 /* CRU_CLKSEL_CON22 */
 
-#define SCLK_TSADC		36
+#define SCLK_TSADC 36
 
-static const char *clk_tsadc_parents[] = {"xin24m"};
+static const char *clk_tsadc_parents[] = { "xin24m" };
 static struct rk_clk_composite_def clk_tsadc = {
 	.clkdef = {
 		.id = SCLK_TSADC,
@@ -823,9 +825,10 @@ static struct rk_clk_composite_def clk_tsadc = {
 
 /* CRU_CLKSEL_CON28 */
 
-#define ACLK_PERI_PRE		137
+#define ACLK_PERI_PRE 137
 
-static const char *aclk_peri_pre_parents[] = {"cpll", "gpll"/* , "hdmiphy" */};
+static const char *aclk_peri_pre_parents[] = { "cpll",
+	"gpll" /* , "hdmiphy" */ };
 static struct rk_clk_composite_def aclk_peri_pre = {
 	.clkdef = {
 		.id = ACLK_PERI_PRE,
@@ -846,10 +849,10 @@ static struct rk_clk_composite_def aclk_peri_pre = {
 
 /* CRU_CLKSEL_CON29 */
 
-#define PCLK_PERI		230
-#define HCLK_PERI		308
+#define PCLK_PERI 230
+#define HCLK_PERI 308
 
-static const char *phclk_peri_parents[] = {"aclk_peri_pre"};
+static const char *phclk_peri_parents[] = { "aclk_peri_pre" };
 static struct rk_clk_composite_def pclk_peri = {
 	.clkdef = {
 		.id = PCLK_PERI,
@@ -888,9 +891,10 @@ static struct rk_clk_composite_def hclk_peri = {
 
 /* CRU_CLKSEL_CON30 */
 
-#define SCLK_SDMMC		33
+#define SCLK_SDMMC 33
 
-static const char *mmc_parents[] = {"cpll", "gpll", "xin24m"/* , "usb480m" */};
+static const char *mmc_parents[] = { "cpll", "gpll",
+	"xin24m" /* , "usb480m" */ };
 static struct rk_clk_composite_def sdmmc = {
 	.clkdef = {
 		.id = SCLK_SDMMC,
@@ -914,7 +918,7 @@ static struct rk_clk_composite_def sdmmc = {
 };
 
 /* CRU_CLKSEL_CON31 */
-#define SCLK_SDIO		34
+#define SCLK_SDIO 34
 
 static struct rk_clk_composite_def sdio = {
 	.clkdef = {
@@ -939,7 +943,7 @@ static struct rk_clk_composite_def sdio = {
 };
 
 /* CRU_CLKSEL_CON32 */
-#define SCLK_EMMC		35
+#define SCLK_EMMC 35
 
 static struct rk_clk_composite_def emmc = {
 	.clkdef = {
@@ -964,10 +968,10 @@ static struct rk_clk_composite_def emmc = {
 };
 
 /* CRU_CLKSEL_CON34 */
-#define	SCLK_I2C0	55
-#define	SCLK_I2C1	56
+#define SCLK_I2C0 55
+#define SCLK_I2C1 56
 
-static const char *i2c_parents[] = {"cpll", "gpll"};
+static const char *i2c_parents[] = { "cpll", "gpll" };
 
 static struct rk_clk_composite_def i2c0 = {
 	.clkdef = {
@@ -1014,8 +1018,8 @@ static struct rk_clk_composite_def i2c1 = {
 };
 
 /* CRU_CLKSEL_CON35 */
-#define	SCLK_I2C2	57
-#define	SCLK_I2C3	58
+#define SCLK_I2C2 57
+#define SCLK_I2C3 58
 
 static struct rk_clk_composite_def i2c2 = {
 	.clkdef = {
@@ -1061,12 +1065,12 @@ static struct rk_clk_composite_def i2c3 = {
 	.flags = RK_CLK_COMPOSITE_HAVE_MUX | RK_CLK_COMPOSITE_HAVE_GATE,
 };
 
-#define	SCLK_USB3_REF		72
-#define	SCLK_USB3_SUSPEND	73
-#define	SCLK_USB3PHY_REF	94
-#define	SCLK_REF_USB3OTG	95
-#define	SCLK_USB3OTG_SUSPEND	97
-#define	SCLK_REF_USB3OTG_SRC	98
+#define SCLK_USB3_REF 72
+#define SCLK_USB3_SUSPEND 73
+#define SCLK_USB3PHY_REF 94
+#define SCLK_REF_USB3OTG 95
+#define SCLK_USB3OTG_SUSPEND 97
+#define SCLK_REF_USB3OTG_SRC 98
 
 static const char *ref_usb3otg_parents[] = { "xin24m", "clk_usb3otg_ref" };
 
@@ -1085,7 +1089,7 @@ static struct rk_clk_composite_def ref_usb3otg = {
 	.flags = RK_CLK_COMPOSITE_HAVE_MUX,
 };
 
-static const char *usb3otg_suspend_parents[] = { "xin24m"/*, "clk_rtc32k" */};
+static const char *usb3otg_suspend_parents[] = { "xin24m" /*, "clk_rtc32k" */ };
 
 static struct rk_clk_composite_def usb3otg_suspend = {
 	.clkdef = {
@@ -1176,7 +1180,8 @@ static struct rk_clk_fract_def i2s0_frac = {
 	.flags = RK_CLK_FRACT_HAVE_GATE,
 };
 
-static const char *i2s0_mux_parents[] = { "clk_i2s0_div", "clk_i2s0_frac", "xin12m", "xin12m" };
+static const char *i2s0_mux_parents[] = { "clk_i2s0_div", "clk_i2s0_frac",
+	"xin12m", "xin12m" };
 static struct rk_clk_mux_def i2s0_mux = {
 	.clkdef = {
 		.id = 0,
@@ -1235,7 +1240,8 @@ static struct rk_clk_fract_def i2s1_frac = {
 	.flags = RK_CLK_FRACT_HAVE_GATE,
 };
 
-static const char *i2s1_mux_parents[] = { "clk_i2s1_div", "clk_i2s1_frac", "clkin_i2s1", "xin12m" };
+static const char *i2s1_mux_parents[] = { "clk_i2s1_div", "clk_i2s1_frac",
+	"clkin_i2s1", "xin12m" };
 static struct rk_clk_mux_def i2s1_mux = {
 	.clkdef = {
 		.id = 0,
@@ -1251,12 +1257,10 @@ static struct rk_clk_mux_def i2s1_mux = {
 };
 
 static struct clk_fixed_def clkin_i2s1 = {
-	.clkdef = {
-		.id = 0,
-		.name = "clkin_i2s1",
-		.parent_names = NULL,
-		.parent_cnt = 0
-	},
+	.clkdef = { .id = 0,
+	    .name = "clkin_i2s1",
+	    .parent_names = NULL,
+	    .parent_cnt = 0 },
 
 	.freq = 0,
 };
@@ -1304,7 +1308,8 @@ static struct rk_clk_fract_def i2s2_frac = {
 	.flags = RK_CLK_FRACT_HAVE_GATE,
 };
 
-static const char *i2s2_mux_parents[] = { "clk_i2s2_div", "clk_i2s2_frac", "clkin_i2s2", "xin12m" };
+static const char *i2s2_mux_parents[] = { "clk_i2s2_div", "clk_i2s2_frac",
+	"clkin_i2s2", "xin12m" };
 static struct rk_clk_mux_def i2s2_mux = {
 	.clkdef = {
 		.id = 0,
@@ -1321,23 +1326,19 @@ static struct rk_clk_mux_def i2s2_mux = {
 };
 
 static struct clk_fixed_def clkin_i2s2 = {
-	.clkdef = {
-		.id = 0,
-		.name = "clkin_i2s2",
-		.parent_names = NULL,
-		.parent_cnt = 0
-	},
+	.clkdef = { .id = 0,
+	    .name = "clkin_i2s2",
+	    .parent_names = NULL,
+	    .parent_cnt = 0 },
 
 	.freq = 0,
 };
 
 static struct clk_fixed_def xin12m = {
-	.clkdef = {
-		.id = 0,
-		.name = "xin12m",
-		.parent_names = NULL,
-		.parent_cnt = 0
-	},
+	.clkdef = { .id = 0,
+	    .name = "xin12m",
+	    .parent_names = NULL,
+	    .parent_cnt = 0 },
 
 	.freq = 12000000,
 };
@@ -1547,195 +1548,72 @@ static struct rk_clk_composite_def pclk_gmac = {
 };
 
 static struct rk_clk rk3328_clks[] = {
+	{ .type = RK3328_CLK_PLL, .clk.pll = &apll },
+	{ .type = RK3328_CLK_PLL, .clk.pll = &dpll },
+	{ .type = RK3328_CLK_PLL, .clk.pll = &cpll },
+	{ .type = RK3328_CLK_PLL, .clk.pll = &gpll },
+	{ .type = RK3328_CLK_PLL, .clk.pll = &npll },
+
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &aclk_bus_pre },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &hclk_bus_pre },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &pclk_bus_pre },
+
 	{
-		.type = RK3328_CLK_PLL,
-		.clk.pll = &apll
-	},
-	{
-		.type = RK3328_CLK_PLL,
-		.clk.pll = &dpll
-	},
-	{
-		.type = RK3328_CLK_PLL,
-		.clk.pll = &cpll
-	},
-	{
-		.type = RK3328_CLK_PLL,
-		.clk.pll = &gpll
-	},
-	{
-		.type = RK3328_CLK_PLL,
-		.clk.pll = &npll
+	    .type = RK_CLK_ARMCLK,
+	    .clk.armclk = &armclk,
 	},
 
 	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &aclk_bus_pre
+	    .type = RK_CLK_COMPOSITE,
+	    .clk.composite = &clk_tsadc,
 	},
 	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &hclk_bus_pre
+	    .type = RK_CLK_COMPOSITE,
+	    .clk.composite = &aclk_peri_pre,
 	},
 	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &pclk_bus_pre
+	    .type = RK_CLK_COMPOSITE,
+	    .clk.composite = &pclk_peri,
 	},
+	{
+	    .type = RK_CLK_COMPOSITE,
+	    .clk.composite = &hclk_peri,
+	},
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &sdmmc },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &sdio },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &emmc },
 
-	{
-		.type = RK_CLK_ARMCLK,
-		.clk.armclk = &armclk,
-	},
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &i2c0 },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &i2c1 },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &i2c2 },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &i2c3 },
 
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &clk_tsadc,
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &aclk_peri_pre,
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &pclk_peri,
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &hclk_peri,
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &sdmmc
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &sdio
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &emmc
-	},
-
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &i2c0
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &i2c1
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &i2c2
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &i2c3
-	},
-
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &ref_usb3otg
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &ref_usb3otg_src
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &usb3otg_suspend
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &i2s0_div
-	},
-	{
-		.type = RK_CLK_FRACT,
-		.clk.fract = &i2s0_frac
-	},
-	{
-		.type = RK_CLK_MUX,
-		.clk.mux = &i2s0_mux
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &i2s1_div
-	},
-	{
-		.type = RK_CLK_FRACT,
-		.clk.fract = &i2s1_frac
-	},
-	{
-		.type = RK_CLK_MUX,
-		.clk.mux = &i2s1_mux
-	},
-	{
-		.type = RK_CLK_FIXED,
-		.clk.fixed = &clkin_i2s1
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &i2s2_div
-	},
-	{
-		.type = RK_CLK_FRACT,
-		.clk.fract = &i2s2_frac
-	},
-	{
-		.type = RK_CLK_MUX,
-		.clk.mux = &i2s2_mux
-	},
-	{
-		.type = RK_CLK_FIXED,
-		.clk.fixed = &clkin_i2s2
-	},
-	{
-		.type = RK_CLK_FIXED,
-		.clk.fixed = &xin12m
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &mac2io_src
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &mac2io
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &mac2io_out
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &mac2io_ext
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &mac2phy_src
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &mac2phy
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &mac2phy_out
-	},
-	{
-		.type = RK_CLK_FIXED,
-		.clk.fixed = &phy_50m_out
-	},
-	{
-		.type = RK_CLK_LINK,
-		.clk.link = &gmac_clkin
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &aclk_gmac
-	},
-	{
-		.type = RK_CLK_COMPOSITE,
-		.clk.composite = &pclk_gmac
-	},
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &ref_usb3otg },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &ref_usb3otg_src },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &usb3otg_suspend },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &i2s0_div },
+	{ .type = RK_CLK_FRACT, .clk.fract = &i2s0_frac },
+	{ .type = RK_CLK_MUX, .clk.mux = &i2s0_mux },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &i2s1_div },
+	{ .type = RK_CLK_FRACT, .clk.fract = &i2s1_frac },
+	{ .type = RK_CLK_MUX, .clk.mux = &i2s1_mux },
+	{ .type = RK_CLK_FIXED, .clk.fixed = &clkin_i2s1 },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &i2s2_div },
+	{ .type = RK_CLK_FRACT, .clk.fract = &i2s2_frac },
+	{ .type = RK_CLK_MUX, .clk.mux = &i2s2_mux },
+	{ .type = RK_CLK_FIXED, .clk.fixed = &clkin_i2s2 },
+	{ .type = RK_CLK_FIXED, .clk.fixed = &xin12m },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &mac2io_src },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &mac2io },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &mac2io_out },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &mac2io_ext },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &mac2phy_src },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &mac2phy },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &mac2phy_out },
+	{ .type = RK_CLK_FIXED, .clk.fixed = &phy_50m_out },
+	{ .type = RK_CLK_LINK, .clk.link = &gmac_clkin },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &aclk_gmac },
+	{ .type = RK_CLK_COMPOSITE, .clk.composite = &pclk_gmac },
 };
 
 static int
@@ -1775,8 +1653,8 @@ rk3328_cru_attach(device_t dev)
 
 static device_method_t rk3328_cru_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		rk3328_cru_probe),
-	DEVMETHOD(device_attach,	rk3328_cru_attach),
+	DEVMETHOD(device_probe, rk3328_cru_probe),
+	DEVMETHOD(device_attach, rk3328_cru_attach),
 
 	DEVMETHOD_END
 };
@@ -1784,7 +1662,7 @@ static device_method_t rk3328_cru_methods[] = {
 static devclass_t rk3328_cru_devclass;
 
 DEFINE_CLASS_1(rk3328_cru, rk3328_cru_driver, rk3328_cru_methods,
-  sizeof(struct rk_cru_softc), rk_cru_driver);
+    sizeof(struct rk_cru_softc), rk_cru_driver);
 
 EARLY_DRIVER_MODULE(rk3328_cru, simplebus, rk3328_cru_driver,
     rk3328_cru_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);

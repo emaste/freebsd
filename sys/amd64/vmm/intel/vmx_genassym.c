@@ -33,16 +33,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/assym.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
 
 #include <machine/vmm.h>
-#include "vmx_cpufunc.h"
+
 #include "vmx.h"
+#include "vmx_cpufunc.h"
 
 ASSYM(VMXCTX_GUEST_RDI, offsetof(struct vmxctx, guest_rdi));
 ASSYM(VMXCTX_GUEST_RSI, offsetof(struct vmxctx, guest_rsi));
@@ -71,8 +72,8 @@ ASSYM(VMXCTX_HOST_RBX, offsetof(struct vmxctx, host_rbx));
 
 ASSYM(VMXCTX_INST_FAIL_STATUS, offsetof(struct vmxctx, inst_fail_status));
 
-ASSYM(VM_FAIL_INVALID,	VM_FAIL_INVALID);
-ASSYM(VM_FAIL_VALID,	VM_FAIL_VALID);
+ASSYM(VM_FAIL_INVALID, VM_FAIL_INVALID);
+ASSYM(VM_FAIL_VALID, VM_FAIL_VALID);
 ASSYM(VMX_GUEST_VMEXIT, VMX_GUEST_VMEXIT);
 ASSYM(VMX_VMRESUME_ERROR, VMX_VMRESUME_ERROR);
 ASSYM(VMX_VMLAUNCH_ERROR, VMX_VMLAUNCH_ERROR);

@@ -35,7 +35,7 @@
 #ifndef _DN_SCHED_H
 #define _DN_SCHED_H
 
-#define	DN_MULTIQUEUE	0x01
+#define DN_MULTIQUEUE 0x01
 /*
  * Descriptor for a scheduling algorithm.
  * Contains all function pointers for a given scheduler
@@ -43,9 +43,9 @@
  * in a global list of schedulers.
  */
 struct dn_alg {
-	uint32_t type;           /* the scheduler type */
-	const char *name;   /* scheduler name */
-	uint32_t flags;	/* DN_MULTIQUEUE if supports multiple queues */
+	uint32_t type;	  /* the scheduler type */
+	const char *name; /* scheduler name */
+	uint32_t flags;	  /* DN_MULTIQUEUE if supports multiple queues */
 
 	/*
 	 * The following define the size of 3 optional data structures
@@ -63,7 +63,7 @@ struct dn_alg {
 	 */
 	size_t si_datalen;
 
-	size_t q_datalen;	/* per-queue parameters (e.g. S,F) */
+	size_t q_datalen; /* per-queue parameters (e.g. S,F) */
 
 	/*
 	 * Methods implemented by the scheduler:
@@ -77,7 +77,7 @@ struct dn_alg {
 	 *	This function is called in two cases:
 	 *	 - when a new packet arrives to the scheduler;
 	 *	 - when a scheduler is reconfigured. In this case the
-	 *	   call is issued by the new_queue callback, with a 
+	 *	   call is issued by the new_queue callback, with a
 	 *	   non empty queue (q) and m pointing to the first
 	 *	   mbuf in the queue. For this reason, the function
 	 *	   should internally check for (m != q->mq.head)
@@ -122,12 +122,11 @@ struct dn_alg {
 	 *	all the above. If the queue has data in it, also remove
 	 *	from the scheduler. This can e.g. happen during a reconfigure.
 	 */
-	int (*enqueue)(struct dn_sch_inst *, struct dn_queue *,
-		struct mbuf *);
-	struct mbuf * (*dequeue)(struct dn_sch_inst *);
+	int (*enqueue)(struct dn_sch_inst *, struct dn_queue *, struct mbuf *);
+	struct mbuf *(*dequeue)(struct dn_sch_inst *);
 
 	int (*config)(struct dn_schk *);
-	int (*destroy)(struct dn_schk*);
+	int (*destroy)(struct dn_schk *);
 	int (*new_sched)(struct dn_sch_inst *);
 	int (*free_sched)(struct dn_sch_inst *);
 	int (*new_fsk)(struct dn_fsk *f);
@@ -140,7 +139,7 @@ struct dn_alg {
 #endif
 
 	/* run-time fields */
-	int ref_count;      /* XXX number of instances in the system */
+	int ref_count;		  /* XXX number of instances in the system */
 	SLIST_ENTRY(dn_alg) next; /* Next scheduler in the list */
 };
 
@@ -148,7 +147,7 @@ struct dn_alg {
 #ifdef _WIN32
 #define _SI(fld)
 #else
-#define _SI(fld)	fld
+#define _SI(fld) fld
 #endif
 
 /*
@@ -157,7 +156,7 @@ struct dn_alg {
  */
 
 void dn_free_pkts(struct mbuf *mnext);
-int dn_enqueue(struct dn_queue *q, struct mbuf* m, int drop);
+int dn_enqueue(struct dn_queue *q, struct mbuf *m, int drop);
 /* bound a variable between min and max */
 int ipdn_bound_var(int *v, int dflt, int lo, int hi, const char *msg);
 
@@ -165,7 +164,7 @@ int ipdn_bound_var(int *v, int dflt, int lo, int hi, const char *msg);
  * Extract the head of a queue, update stats. Must be the very last
  * thing done on a dequeue as the queue itself may go away.
  */
-static __inline struct mbuf*
+static __inline struct mbuf *
 dn_dequeue(struct dn_queue *q)
 {
 	struct mbuf *m = q->mq.head;
@@ -173,7 +172,7 @@ dn_dequeue(struct dn_queue *q)
 		return NULL;
 #ifdef NEW_AQM
 	/* Call AQM dequeue function  */
-	if (q->fs->aqmfp && q->fs->aqmfp->dequeue )
+	if (q->fs->aqmfp && q->fs->aqmfp->dequeue)
 		return q->fs->aqmfp->dequeue(q);
 #endif
 	q->mq.head = m->m_nextpkt;
@@ -193,11 +192,9 @@ dn_dequeue(struct dn_queue *q)
 
 int dn_sched_modevent(module_t mod, int cmd, void *arg);
 
-#define DECLARE_DNSCHED_MODULE(name, dnsched)			\
-	static moduledata_t name##_mod = {			\
-		#name, dn_sched_modevent, dnsched		\
-	};							\
-	DECLARE_MODULE(name, name##_mod, 			\
-		SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY); 		\
-        MODULE_DEPEND(name, dummynet, 3, 3, 3)
+#define DECLARE_DNSCHED_MODULE(name, dnsched)                                  \
+	static moduledata_t name##_mod = { #name, dn_sched_modevent,           \
+		dnsched };                                                     \
+	DECLARE_MODULE(name, name##_mod, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY); \
+	MODULE_DEPEND(name, dummynet, 3, 3, 3)
 #endif /* _DN_SCHED_H */

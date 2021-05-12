@@ -43,15 +43,15 @@
  * Provides time of last daemon update, clock status and bound on error.
  */
 struct ffclock_estimate {
-	struct bintime	update_time;	/* Time of last estimates update. */
-	ffcounter	update_ffcount;	/* Counter value at last update. */
-	ffcounter	leapsec_next;	/* Counter value of next leap second. */
-	uint64_t	period;		/* Estimate of counter period. */
-	uint32_t	errb_abs;	/* Bound on absolute clock error [ns]. */
-	uint32_t	errb_rate;	/* Bound on counter rate error [ps/s]. */
-	uint32_t	status;		/* Clock status. */
-	int16_t		leapsec_total;	/* All leap seconds seen so far. */
-	int8_t		leapsec;	/* Next leap second (in {-1,0,1}). */
+	struct bintime update_time; /* Time of last estimates update. */
+	ffcounter update_ffcount;   /* Counter value at last update. */
+	ffcounter leapsec_next;	    /* Counter value of next leap second. */
+	uint64_t period;	    /* Estimate of counter period. */
+	uint32_t errb_abs;	    /* Bound on absolute clock error [ns]. */
+	uint32_t errb_rate;	    /* Bound on counter rate error [ps/s]. */
+	uint32_t status;	    /* Clock status. */
+	int16_t leapsec_total;	    /* All leap seconds seen so far. */
+	int8_t leapsec;		    /* Next leap second (in {-1,0,1}). */
 };
 
 #if __BSD_VISIBLE
@@ -67,20 +67,20 @@ SYSCTL_DECL(_kern_sysclock_ffclock);
  * Index into the sysclocks array for obtaining the ASCII name of a particular
  * sysclock.
  */
-#define	SYSCLOCK_FBCK	0
-#define	SYSCLOCK_FFWD	1
+#define SYSCLOCK_FBCK 0
+#define SYSCLOCK_FFWD 1
 extern int sysclock_active;
 
 /*
  * Parameters of counter characterisation required by feed-forward algorithms.
  */
-#define	FFCLOCK_SKM_SCALE	1024
+#define FFCLOCK_SKM_SCALE 1024
 
 /*
  * Feed-forward clock status
  */
-#define	FFCLOCK_STA_UNSYNC	1
-#define	FFCLOCK_STA_WARMUP	2
+#define FFCLOCK_STA_UNSYNC 1
+#define FFCLOCK_STA_WARMUP 2
 
 /*
  * Flags for use by sysclock_snap2bintime() and various ffclock_ functions to
@@ -94,15 +94,15 @@ extern int sysclock_active;
  * FFCLOCK_LEAPSEC:	Include leap seconds.
  * {FB|FF}CLOCK_UPTIME:	Time stamp should be relative to system boot, not epoch.
  */
-#define	FFCLOCK_FAST		0x00000001
-#define	FFCLOCK_LERP		0x00000002
-#define	FFCLOCK_LEAPSEC		0x00000004
-#define	FFCLOCK_UPTIME		0x00000008
-#define	FFCLOCK_MASK		0x0000ffff
+#define FFCLOCK_FAST 0x00000001
+#define FFCLOCK_LERP 0x00000002
+#define FFCLOCK_LEAPSEC 0x00000004
+#define FFCLOCK_UPTIME 0x00000008
+#define FFCLOCK_MASK 0x0000ffff
 
-#define	FBCLOCK_FAST		0x00010000 /* Currently unused. */
-#define	FBCLOCK_UPTIME		0x00020000
-#define	FBCLOCK_MASK		0xffff0000
+#define FBCLOCK_FAST 0x00010000 /* Currently unused. */
+#define FBCLOCK_UPTIME 0x00020000
+#define FBCLOCK_MASK 0xffff0000
 
 /*
  * Feedback clock specific info structure. The feedback clock's estimation of
@@ -110,10 +110,10 @@ extern int sysclock_active;
  * is determined by the userland daemon.
  */
 struct fbclock_info {
-	struct bintime		error;
-	struct bintime		tick_time;
-	uint64_t		th_scale;
-	int			status;
+	struct bintime error;
+	struct bintime tick_time;
+	uint64_t th_scale;
+	int status;
 };
 
 /*
@@ -123,13 +123,13 @@ struct fbclock_info {
  * is determined by the userland daemon.
  */
 struct ffclock_info {
-	struct bintime		error;
-	struct bintime		tick_time;
-	struct bintime		tick_time_lerp;
-	uint64_t		period;
-	uint64_t		period_lerp;
-	int			leapsec_adjustment;
-	int			status;
+	struct bintime error;
+	struct bintime tick_time;
+	struct bintime tick_time_lerp;
+	uint64_t period;
+	uint64_t period_lerp;
+	int leapsec_adjustment;
+	int status;
 };
 
 /*
@@ -139,11 +139,11 @@ struct ffclock_info {
  * at the time of the read.
  */
 struct sysclock_snap {
-	struct fbclock_info	fb_info;
-	struct ffclock_info	ff_info;
-	ffcounter		ffcount;
-	unsigned int		delta;
-	int			sysclock_active;
+	struct fbclock_info fb_info;
+	struct ffclock_info ff_info;
+	ffcounter ffcount;
+	unsigned int delta;
+	int sysclock_active;
 };
 
 /* Take a snapshot of the system clocks and related information. */
@@ -197,8 +197,8 @@ void ffclock_convert_diff(ffcounter ffdelta, struct bintime *bt);
  */
 void ffclock_abstime(ffcounter *ffcount, struct bintime *bt,
     struct bintime *error_bound, uint32_t flags);
-void ffclock_difftime(ffcounter ffdelta, struct bintime *bt,
-    struct bintime *error_bound);
+void ffclock_difftime(
+    ffcounter ffdelta, struct bintime *bt, struct bintime *error_bound);
 
 /*
  * Wrapper routines to return current absolute time using the feed-forward

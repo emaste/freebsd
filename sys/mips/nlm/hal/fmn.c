@@ -35,39 +35,40 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/cpufunc.h>
-#include <mips/nlm/hal/mips-extns.h>
+
+#include <mips/nlm/hal/fmn.h>
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
-#include <mips/nlm/hal/fmn.h>
+#include <mips/nlm/hal/mips-extns.h>
 
 /* XLP can take upto 16K of FMN messages per hardware queue, as spill.
-* But, configuring all 16K causes the total spill memory to required
-* to blow upto 192MB for single chip configuration, and 768MB in four
-* chip configuration. Hence for now, we will setup the per queue spill
-* as 1K FMN messages. With this, the total spill memory needed for 1024
-* hardware queues (with 12bytes per single entry FMN message) becomes
-* (1*1024)*12*1024queues = 12MB. For the four chip config, the memory
-* needed = 12 * 4 = 48MB.
-*/
+ * But, configuring all 16K causes the total spill memory to required
+ * to blow upto 192MB for single chip configuration, and 768MB in four
+ * chip configuration. Hence for now, we will setup the per queue spill
+ * as 1K FMN messages. With this, the total spill memory needed for 1024
+ * hardware queues (with 12bytes per single entry FMN message) becomes
+ * (1*1024)*12*1024queues = 12MB. For the four chip config, the memory
+ * needed = 12 * 4 = 48MB.
+ */
 uint64_t nlm_cms_spill_total_messages = 1 * 1024;
 
 /* On a XLP832, we have the following FMN stations:
-* CPU    stations: 8
-* PCIE0  stations: 1
-* PCIE1  stations: 1
-* PCIE2  stations: 1
-* PCIE3  stations: 1
-* GDX    stations: 1
-* CRYPTO stations: 1
-* RSA    stations: 1
-* CMP    stations: 1
-* POE    stations: 1
-* NAE    stations: 1
-* ==================
-* Total          : 18 stations per chip
-*
-* For all 4 nodes, there are 18*4 = 72 FMN stations
-*/
+ * CPU    stations: 8
+ * PCIE0  stations: 1
+ * PCIE1  stations: 1
+ * PCIE2  stations: 1
+ * PCIE3  stations: 1
+ * GDX    stations: 1
+ * CRYPTO stations: 1
+ * RSA    stations: 1
+ * CMP    stations: 1
+ * POE    stations: 1
+ * NAE    stations: 1
+ * ==================
+ * Total          : 18 stations per chip
+ *
+ * For all 4 nodes, there are 18*4 = 72 FMN stations
+ */
 uint32_t nlm_cms_total_stations = 18 * 4 /*xlp_num_nodes*/;
 
 /**
@@ -138,13 +139,13 @@ uint32_t nlm_cms_total_stations = 18 * 4 /*xlp_num_nodes*/;
  *
  */
 
-void nlm_cms_setup_credits(uint64_t base, int destid, int srcid, int credit)
+void
+nlm_cms_setup_credits(uint64_t base, int destid, int srcid, int credit)
 {
 	uint64_t val;
 
 	val = (((uint64_t)credit << 24) | (destid << 12) | (srcid << 0));
 	nlm_write_cms_reg(base, CMS_OUTPUTQ_CREDIT_CFG, val);
-
 }
 
 /*
@@ -155,8 +156,8 @@ void nlm_cms_setup_credits(uint64_t base, int destid, int srcid, int credit)
  * nsegs	- No of segments where a "1" indicates 4KB. Spill size must be
  *                a multiple of 4KB.
  */
-int nlm_cms_alloc_spill_q(uint64_t base, int qid, uint64_t spill_base,
-				int nsegs)
+int
+nlm_cms_alloc_spill_q(uint64_t base, int qid, uint64_t spill_base, int nsegs)
 {
 	uint64_t queue_config;
 	uint32_t spill_start;
@@ -165,26 +166,27 @@ int nlm_cms_alloc_spill_q(uint64_t base, int qid, uint64_t spill_base,
 		return 1;
 	}
 
-	queue_config = nlm_read_cms_reg(base,(CMS_OUTPUTQ_CONFIG(qid)));
+	queue_config = nlm_read_cms_reg(base, (CMS_OUTPUTQ_CONFIG(qid)));
 
 	spill_start = ((spill_base >> 12) & 0x3F);
 	/* Spill configuration */
 	queue_config = (((uint64_t)CMS_SPILL_ENA << 62) |
-				(((spill_base >> 18) & 0x3FFFFF) << 27) |
-				(spill_start + nsegs - 1) << 21 |
-				(spill_start << 15));
+	    (((spill_base >> 18) & 0x3FFFFF) << 27) |
+	    (spill_start + nsegs - 1) << 21 | (spill_start << 15));
 
-	nlm_write_cms_reg(base,(CMS_OUTPUTQ_CONFIG(qid)),queue_config);
+	nlm_write_cms_reg(base, (CMS_OUTPUTQ_CONFIG(qid)), queue_config);
 
 	return 0;
 }
 
-uint64_t nlm_cms_get_onchip_queue (uint64_t base, int qid)
+uint64_t
+nlm_cms_get_onchip_queue(uint64_t base, int qid)
 {
 	return nlm_read_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid));
 }
 
-void nlm_cms_set_onchip_queue (uint64_t base, int qid, uint64_t val)
+void
+nlm_cms_set_onchip_queue(uint64_t base, int qid, uint64_t val)
 {
 	uint64_t rdval;
 
@@ -193,8 +195,8 @@ void nlm_cms_set_onchip_queue (uint64_t base, int qid, uint64_t val)
 	nlm_write_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid), rdval);
 }
 
-void nlm_cms_per_queue_level_intr(uint64_t base, int qid, int sub_type,
-					int intr_val)
+void
+nlm_cms_per_queue_level_intr(uint64_t base, int qid, int sub_type, int intr_val)
 {
 	uint64_t val;
 
@@ -202,14 +204,13 @@ void nlm_cms_per_queue_level_intr(uint64_t base, int qid, int sub_type,
 
 	val &= ~((0x7ULL << 56) | (0x3ULL << 54));
 
-	val |= (((uint64_t)sub_type<<54) |
-		((uint64_t)intr_val<<56));
+	val |= (((uint64_t)sub_type << 54) | ((uint64_t)intr_val << 56));
 
 	nlm_write_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid), val);
 }
 
-void nlm_cms_per_queue_timer_intr(uint64_t base, int qid, int sub_type,
-					int intr_val)
+void
+nlm_cms_per_queue_timer_intr(uint64_t base, int qid, int sub_type, int intr_val)
 {
 	uint64_t val;
 
@@ -217,14 +218,14 @@ void nlm_cms_per_queue_timer_intr(uint64_t base, int qid, int sub_type,
 
 	val &= ~((0x7ULL << 51) | (0x3ULL << 49));
 
-	val |= (((uint64_t)sub_type<<49) |
-		((uint64_t)intr_val<<51));
+	val |= (((uint64_t)sub_type << 49) | ((uint64_t)intr_val << 51));
 
 	nlm_write_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid), val);
 }
 
 /* returns 1 if interrupt has been generated for this output queue */
-int nlm_cms_outputq_intr_check(uint64_t base, int qid)
+int
+nlm_cms_outputq_intr_check(uint64_t base, int qid)
 {
 	uint64_t val;
 	val = nlm_read_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid));
@@ -232,108 +233,121 @@ int nlm_cms_outputq_intr_check(uint64_t base, int qid)
 	return ((val >> 59) & 0x1);
 }
 
-void nlm_cms_outputq_clr_intr(uint64_t base, int qid)
+void
+nlm_cms_outputq_clr_intr(uint64_t base, int qid)
 {
 	uint64_t val;
 	val = nlm_read_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid));
-	val |= (1ULL<<59);
+	val |= (1ULL << 59);
 	nlm_write_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid), val);
 }
 
-void nlm_cms_illegal_dst_error_intr(uint64_t base, int en)
+void
+nlm_cms_illegal_dst_error_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
 	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
-	val |= (en<<8);
+	val |= (en << 8);
 	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
-void nlm_cms_timeout_error_intr(uint64_t base, int en)
+void
+nlm_cms_timeout_error_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
 	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
-	val |= (en<<7);
+	val |= (en << 7);
 	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
-void nlm_cms_biu_error_resp_intr(uint64_t base, int en)
+void
+nlm_cms_biu_error_resp_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
 	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
-	val |= (en<<6);
+	val |= (en << 6);
 	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
-void nlm_cms_spill_uncorrectable_ecc_error_intr(uint64_t base, int en)
+void
+nlm_cms_spill_uncorrectable_ecc_error_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
 	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
-	val |= (en<<5) | (en<<3);
+	val |= (en << 5) | (en << 3);
 	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
-void nlm_cms_spill_correctable_ecc_error_intr(uint64_t base, int en)
+void
+nlm_cms_spill_correctable_ecc_error_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
 	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
-	val |= (en<<4) | (en<<2);
+	val |= (en << 4) | (en << 2);
 	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
-void nlm_cms_outputq_uncorrectable_ecc_error_intr(uint64_t base, int en)
+void
+nlm_cms_outputq_uncorrectable_ecc_error_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
 	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
-	val |= (en<<1);
+	val |= (en << 1);
 	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
-void nlm_cms_outputq_correctable_ecc_error_intr(uint64_t base, int en)
+void
+nlm_cms_outputq_correctable_ecc_error_intr(uint64_t base, int en)
 {
 	uint64_t val;
 
 	val = nlm_read_cms_reg(base, CMS_MSG_CONFIG);
-	val |= (en<<0);
+	val |= (en << 0);
 	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
-uint64_t nlm_cms_network_error_status(uint64_t base)
+uint64_t
+nlm_cms_network_error_status(uint64_t base)
 {
 	return nlm_read_cms_reg(base, CMS_MSG_ERR);
 }
 
-int nlm_cms_get_net_error_code(uint64_t err)
+int
+nlm_cms_get_net_error_code(uint64_t err)
 {
 	return ((err >> 12) & 0xf);
 }
 
-int nlm_cms_get_net_error_syndrome(uint64_t err)
+int
+nlm_cms_get_net_error_syndrome(uint64_t err)
 {
 	return ((err >> 32) & 0x1ff);
 }
 
-int nlm_cms_get_net_error_ramindex(uint64_t err)
+int
+nlm_cms_get_net_error_ramindex(uint64_t err)
 {
 	return ((err >> 44) & 0x7fff);
 }
 
-int nlm_cms_get_net_error_outputq(uint64_t err)
+int
+nlm_cms_get_net_error_outputq(uint64_t err)
 {
 	return ((err >> 16) & 0xfff);
 }
 
 /*========================= FMN Tracing related APIs ================*/
 
-void nlm_cms_trace_setup(uint64_t base, int en, uint64_t trace_base,
-				uint64_t trace_limit, int match_dstid_en,
-				int dst_id, int match_srcid_en, int src_id,
-				int wrap)
+void
+nlm_cms_trace_setup(uint64_t base, int en, uint64_t trace_base,
+    uint64_t trace_limit, int match_dstid_en, int dst_id, int match_srcid_en,
+    int src_id, int wrap)
 {
 	uint64_t val;
 
@@ -341,16 +355,14 @@ void nlm_cms_trace_setup(uint64_t base, int en, uint64_t trace_base,
 	nlm_write_cms_reg(base, CMS_TRACE_LIMIT_ADDR, trace_limit);
 
 	val = nlm_read_cms_reg(base, CMS_TRACE_CONFIG);
-	val |= (((uint64_t)match_dstid_en << 39) |
-		((dst_id & 0xfff) << 24) |
-		(match_srcid_en << 23) |
-		((src_id & 0xfff) << 8) |
-		(wrap << 1) |
-		(en << 0));
+	val |= (((uint64_t)match_dstid_en << 39) | ((dst_id & 0xfff) << 24) |
+	    (match_srcid_en << 23) | ((src_id & 0xfff) << 8) | (wrap << 1) |
+	    (en << 0));
 	nlm_write_cms_reg(base, CMS_MSG_CONFIG, val);
 }
 
-void nlm_cms_endian_byte_swap (uint64_t base, int en)
+void
+nlm_cms_endian_byte_swap(uint64_t base, int en)
 {
 	nlm_write_cms_reg(base, CMS_MSG_ENDIAN_SWAP, en);
 }

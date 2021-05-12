@@ -38,13 +38,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/kdb.h>
+#include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/kdb.h>
-#include <sys/ktr.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/kernel.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -56,74 +56,74 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-int			cpu_disable_c2_sleep = 0; /* Timer dies in C2. */
-int			cpu_disable_c3_sleep = 0; /* Timer dies in C3. */
+int cpu_disable_c2_sleep = 0; /* Timer dies in C2. */
+int cpu_disable_c3_sleep = 0; /* Timer dies in C3. */
 
-static void		setuptimer(void);
-static void		loadtimer(sbintime_t now, int first);
-static int		doconfigtimer(void);
-static void		configtimer(int start);
-static int		round_freq(struct eventtimer *et, int freq);
+static void setuptimer(void);
+static void loadtimer(sbintime_t now, int first);
+static int doconfigtimer(void);
+static void configtimer(int start);
+static int round_freq(struct eventtimer *et, int freq);
 
-static sbintime_t	getnextcpuevent(int idle);
-static sbintime_t	getnextevent(void);
-static int		handleevents(sbintime_t now, int fake);
+static sbintime_t getnextcpuevent(int idle);
+static sbintime_t getnextevent(void);
+static int handleevents(sbintime_t now, int fake);
 
-static struct mtx	et_hw_mtx;
+static struct mtx et_hw_mtx;
 
-#define	ET_HW_LOCK(state)						\
-	{								\
-		if (timer->et_flags & ET_FLAGS_PERCPU)			\
-			mtx_lock_spin(&(state)->et_hw_mtx);		\
-		else							\
-			mtx_lock_spin(&et_hw_mtx);			\
+#define ET_HW_LOCK(state)                                   \
+	{                                                   \
+		if (timer->et_flags & ET_FLAGS_PERCPU)      \
+			mtx_lock_spin(&(state)->et_hw_mtx); \
+		else                                        \
+			mtx_lock_spin(&et_hw_mtx);          \
 	}
 
-#define	ET_HW_UNLOCK(state)						\
-	{								\
-		if (timer->et_flags & ET_FLAGS_PERCPU)			\
-			mtx_unlock_spin(&(state)->et_hw_mtx);		\
-		else							\
-			mtx_unlock_spin(&et_hw_mtx);			\
+#define ET_HW_UNLOCK(state)                                   \
+	{                                                     \
+		if (timer->et_flags & ET_FLAGS_PERCPU)        \
+			mtx_unlock_spin(&(state)->et_hw_mtx); \
+		else                                          \
+			mtx_unlock_spin(&et_hw_mtx);          \
 	}
 
 static struct eventtimer *timer = NULL;
-static sbintime_t	timerperiod;	/* Timer period for periodic mode. */
-static sbintime_t	statperiod;	/* statclock() events period. */
-static sbintime_t	profperiod;	/* profclock() events period. */
-static sbintime_t	nexttick;	/* Next global timer tick time. */
-static u_int		busy = 1;	/* Reconfiguration is in progress. */
-static int		profiling;	/* Profiling events enabled. */
+static sbintime_t timerperiod; /* Timer period for periodic mode. */
+static sbintime_t statperiod;  /* statclock() events period. */
+static sbintime_t profperiod;  /* profclock() events period. */
+static sbintime_t nexttick;    /* Next global timer tick time. */
+static u_int busy = 1;	       /* Reconfiguration is in progress. */
+static int profiling;	       /* Profiling events enabled. */
 
-static char		timername[32];	/* Wanted timer. */
+static char timername[32]; /* Wanted timer. */
 TUNABLE_STR("kern.eventtimer.timer", timername, sizeof(timername));
 
-static int		singlemul;	/* Multiplier for periodic mode. */
-SYSCTL_INT(_kern_eventtimer, OID_AUTO, singlemul, CTLFLAG_RWTUN, &singlemul,
-    0, "Multiplier for periodic mode");
+static int singlemul; /* Multiplier for periodic mode. */
+SYSCTL_INT(_kern_eventtimer, OID_AUTO, singlemul, CTLFLAG_RWTUN, &singlemul, 0,
+    "Multiplier for periodic mode");
 
-static u_int		idletick;	/* Run periodic events when idle. */
-SYSCTL_UINT(_kern_eventtimer, OID_AUTO, idletick, CTLFLAG_RWTUN, &idletick,
-    0, "Run periodic events when idle");
+static u_int idletick; /* Run periodic events when idle. */
+SYSCTL_UINT(_kern_eventtimer, OID_AUTO, idletick, CTLFLAG_RWTUN, &idletick, 0,
+    "Run periodic events when idle");
 
-static int		periodic;	/* Periodic or one-shot mode. */
-static int		want_periodic;	/* What mode to prefer. */
+static int periodic;	  /* Periodic or one-shot mode. */
+static int want_periodic; /* What mode to prefer. */
 TUNABLE_INT("kern.eventtimer.periodic", &want_periodic);
 
 struct pcpu_state {
-	struct mtx	et_hw_mtx;	/* Per-CPU timer mutex. */
-	u_int		action;		/* Reconfiguration requests. */
-	u_int		handle;		/* Immediate handle resuests. */
-	sbintime_t	now;		/* Last tick time. */
-	sbintime_t	nextevent;	/* Next scheduled event on this CPU. */
-	sbintime_t	nexttick;	/* Next timer tick time. */
-	sbintime_t	nexthard;	/* Next hardclock() event. */
-	sbintime_t	nextstat;	/* Next statclock() event. */
-	sbintime_t	nextprof;	/* Next profclock() event. */
-	sbintime_t	nextcall;	/* Next callout event. */
-	sbintime_t	nextcallopt;	/* Next optional callout event. */
-	int		ipi;		/* This CPU needs IPI. */
-	int		idle;		/* This CPU is in idle mode. */
+	struct mtx et_hw_mtx;	/* Per-CPU timer mutex. */
+	u_int action;		/* Reconfiguration requests. */
+	u_int handle;		/* Immediate handle resuests. */
+	sbintime_t now;		/* Last tick time. */
+	sbintime_t nextevent;	/* Next scheduled event on this CPU. */
+	sbintime_t nexttick;	/* Next timer tick time. */
+	sbintime_t nexthard;	/* Next hardclock() event. */
+	sbintime_t nextstat;	/* Next statclock() event. */
+	sbintime_t nextprof;	/* Next profclock() event. */
+	sbintime_t nextcall;	/* Next callout event. */
+	sbintime_t nextcallopt; /* Next optional callout event. */
+	int ipi;		/* This CPU needs IPI. */
+	int idle;		/* This CPU is in idle mode. */
 };
 
 DPCPU_DEFINE_STATIC(struct pcpu_state, timerstate);
@@ -143,8 +143,8 @@ hardclockintr(void)
 		return (FILTER_HANDLED);
 	state = DPCPU_PTR(timerstate);
 	now = state->now;
-	CTR3(KTR_SPARE2, "ipi  at %d:    now  %d.%08x",
-	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff));
+	CTR3(KTR_SPARE2, "ipi  at %d:    now  %d.%08x", curcpu,
+	    (int)(now >> 32), (u_int)(now & 0xffffffff));
 	done = handleevents(now, 0);
 	return (done ? FILTER_HANDLED : FILTER_STRAY);
 }
@@ -161,8 +161,8 @@ handleevents(sbintime_t now, int fake)
 	int usermode;
 	int done, runs;
 
-	CTR3(KTR_SPARE2, "handle at %d:  now  %d.%08x",
-	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff));
+	CTR3(KTR_SPARE2, "handle at %d:  now  %d.%08x", curcpu,
+	    (int)(now >> 32), (u_int)(now & 0xffffffff));
 	done = 0;
 	if (fake) {
 		frame = NULL;
@@ -218,8 +218,8 @@ handleevents(sbintime_t now, int fake)
 	if (!busy) {
 		state->idle = 0;
 		state->nextevent = t;
-		loadtimer(now, (fake == 2) &&
-		    (timer->et_flags & ET_FLAGS_PERCPU));
+		loadtimer(
+		    now, (fake == 2) && (timer->et_flags & ET_FLAGS_PERCPU));
 	}
 	ET_HW_UNLOCK(state);
 	return (done);
@@ -244,7 +244,7 @@ getnextcpuevent(int idle)
 #ifdef SMP
 		    && curcpu == CPU_FIRST()
 #endif
-		    )
+		)
 			hardfreq = hz / tc_min_ticktock_freq;
 		if (hardfreq > 1)
 			event += tick_sbt * (hardfreq - 1);
@@ -270,10 +270,10 @@ getnextevent(void)
 	struct pcpu_state *state;
 	sbintime_t event;
 #ifdef SMP
-	int	cpu;
+	int cpu;
 #endif
 #ifdef KTR
-	int	c;
+	int c;
 
 	c = -1;
 #endif
@@ -281,7 +281,7 @@ getnextevent(void)
 	event = state->nextevent;
 #ifdef SMP
 	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0) {
-		CPU_FOREACH(cpu) {
+		CPU_FOREACH (cpu) {
 			state = DPCPU_ID_PTR(cpu, timerstate);
 			if (event > state->nextevent) {
 				event = state->nextevent;
@@ -292,8 +292,8 @@ getnextevent(void)
 		}
 	}
 #endif
-	CTR4(KTR_SPARE2, "next at %d:    next %d.%08x by %d",
-	    curcpu, (int)(event >> 32), (u_int)(event & 0xffffffff), c);
+	CTR4(KTR_SPARE2, "next at %d:    next %d.%08x by %d", curcpu,
+	    (int)(event >> 32), (u_int)(event & 0xffffffff), c);
 	return (event);
 }
 
@@ -321,10 +321,10 @@ timercb(struct eventtimer *et, void *arg)
 	if (periodic)
 		*next = now + timerperiod;
 	else
-		*next = -1;	/* Next tick is not scheduled yet. */
+		*next = -1; /* Next tick is not scheduled yet. */
 	state->now = now;
-	CTR3(KTR_SPARE2, "intr at %d:    now  %d.%08x",
-	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff));
+	CTR3(KTR_SPARE2, "intr at %d:    now  %d.%08x", curcpu,
+	    (int)(now >> 32), (u_int)(now & 0xffffffff));
 
 #ifdef SMP
 #ifdef EARLY_AP_STARTUP
@@ -337,7 +337,7 @@ timercb(struct eventtimer *et, void *arg)
 #else
 	if ((et->et_flags & ET_FLAGS_PERCPU) == 0 && smp_started) {
 #endif
-		CPU_FOREACH(cpu) {
+		CPU_FOREACH (cpu) {
 			state = DPCPU_ID_PTR(cpu, timerstate);
 			ET_HW_LOCK(state);
 			state->now = now;
@@ -359,7 +359,7 @@ timercb(struct eventtimer *et, void *arg)
 #ifdef SMP
 	/* Broadcast interrupt to other CPUs for non-per-CPU timers. */
 	if (bcast) {
-		CPU_FOREACH(cpu) {
+		CPU_FOREACH (cpu) {
 			if (curcpu == cpu)
 				continue;
 			state = DPCPU_ID_PTR(cpu, timerstate);
@@ -397,9 +397,10 @@ loadtimer(sbintime_t now, int start)
 			 */
 			tmp = now % timerperiod;
 			new = timerperiod - tmp;
-			if (new < tmp)		/* Left less then passed. */
+			if (new < tmp) /* Left less then passed. */
 				new += timerperiod;
-			CTR5(KTR_SPARE2, "load p at %d:   now %d.%08x first in %d.%08x",
+			CTR5(KTR_SPARE2,
+			    "load p at %d:   now %d.%08x first in %d.%08x",
 			    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff),
 			    (int)(new >> 32), (u_int)(new & 0xffffffff));
 			*next = new + now;
@@ -408,8 +409,8 @@ loadtimer(sbintime_t now, int start)
 	} else {
 		new = getnextevent();
 		eq = (new == *next);
-		CTR4(KTR_SPARE2, "load at %d:    next %d.%08x eq %d",
-		    curcpu, (int)(new >> 32), (u_int)(new & 0xffffffff), eq);
+		CTR4(KTR_SPARE2, "load at %d:    next %d.%08x eq %d", curcpu,
+		    (int)(new >> 32), (u_int)(new & 0xffffffff), eq);
 		if (!eq) {
 			*next = new;
 			et_start(timer, new - now, 0);
@@ -500,7 +501,7 @@ configtimer(int start)
 #ifdef EARLY_AP_STARTUP
 		MPASS(mp_ncpus == 1 || smp_started);
 #endif
-		CPU_FOREACH(cpu) {
+		CPU_FOREACH (cpu) {
 			state = DPCPU_ID_PTR(cpu, timerstate);
 			state->now = now;
 #ifndef EARLY_AP_STARTUP
@@ -541,17 +542,17 @@ configtimer(int start)
 		return;
 	}
 	/* Set reconfigure flags for other CPUs. */
-	CPU_FOREACH(cpu) {
+	CPU_FOREACH (cpu) {
 		state = DPCPU_ID_PTR(cpu, timerstate);
-		atomic_store_rel_int(&state->action,
-		    (cpu == curcpu) ? 0 : ( start ? 1 : 2));
+		atomic_store_rel_int(
+		    &state->action, (cpu == curcpu) ? 0 : (start ? 1 : 2));
 	}
 	/* Broadcast reconfigure IPI. */
 	ipi_all_but_self(IPI_HARDCLOCK);
 	/* Wait for reconfiguration completed. */
 restart:
 	cpu_spinwait();
-	CPU_FOREACH(cpu) {
+	CPU_FOREACH (cpu) {
 		if (cpu == curcpu)
 			continue;
 		state = DPCPU_ID_PTR(cpu, timerstate);
@@ -596,7 +597,7 @@ cpu_initclocks_bsp(void)
 	int base, div, cpu;
 
 	mtx_init(&et_hw_mtx, "et_hw_mtx", NULL, MTX_SPIN);
-	CPU_FOREACH(cpu) {
+	CPU_FOREACH (cpu) {
 		state = DPCPU_ID_PTR(cpu, timerstate);
 		mtx_init(&state->et_hw_mtx, "et_hw_mtx", NULL, MTX_SPIN);
 		state->nextcall = SBT_MAX;
@@ -607,16 +608,13 @@ cpu_initclocks_bsp(void)
 	if (timername[0])
 		timer = et_find(timername, 0, 0);
 	if (timer == NULL && periodic) {
-		timer = et_find(NULL,
-		    ET_FLAGS_PERIODIC, ET_FLAGS_PERIODIC);
+		timer = et_find(NULL, ET_FLAGS_PERIODIC, ET_FLAGS_PERIODIC);
 	}
 	if (timer == NULL) {
-		timer = et_find(NULL,
-		    ET_FLAGS_ONESHOT, ET_FLAGS_ONESHOT);
+		timer = et_find(NULL, ET_FLAGS_ONESHOT, ET_FLAGS_ONESHOT);
 	}
 	if (timer == NULL && !periodic) {
-		timer = et_find(NULL,
-		    ET_FLAGS_PERIODIC, ET_FLAGS_PERIODIC);
+		timer = et_find(NULL, ET_FLAGS_PERIODIC, ET_FLAGS_PERIODIC);
 	}
 	if (timer == NULL)
 		panic("No usable event timer found!");
@@ -748,7 +746,7 @@ cpu_stopprofclock(void)
 			profiling = 0;
 			configtimer(1);
 		} else
-		profiling = 0;
+			profiling = 0;
 	} else
 		profiling--;
 	ET_UNLOCK();
@@ -768,15 +766,15 @@ cpu_idleclock(void)
 #ifdef DEVICE_POLLING
 	    || curcpu == CPU_FIRST()
 #endif
-	    )
+	)
 		return (-1);
 	state = DPCPU_PTR(timerstate);
 	if (periodic)
 		now = state->now;
 	else
 		now = sbinuptime();
-	CTR3(KTR_SPARE2, "idle at %d:    now  %d.%08x",
-	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff));
+	CTR3(KTR_SPARE2, "idle at %d:    now  %d.%08x", curcpu,
+	    (int)(now >> 32), (u_int)(now & 0xffffffff));
 	t = getnextcpuevent(1);
 	ET_HW_LOCK(state);
 	state->idle = 1;
@@ -804,8 +802,8 @@ cpu_activeclock(void)
 		now = state->now;
 	else
 		now = sbinuptime();
-	CTR3(KTR_SPARE2, "active at %d:  now  %d.%08x",
-	    curcpu, (int)(now >> 32), (u_int)(now & 0xffffffff));
+	CTR3(KTR_SPARE2, "active at %d:  now  %d.%08x", curcpu,
+	    (int)(now >> 32), (u_int)(now & 0xffffffff));
 	spinlock_enter();
 	td = curthread;
 	td->td_intr_nesting_level++;
@@ -841,8 +839,8 @@ cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt)
 	/* Do not touch anything if somebody reconfiguring timers. */
 	if (busy)
 		return;
-	CTR6(KTR_SPARE2, "new co at %d:    on %d at %d.%08x - %d.%08x",
-	    curcpu, cpu, (int)(bt_opt >> 32), (u_int)(bt_opt & 0xffffffff),
+	CTR6(KTR_SPARE2, "new co at %d:    on %d at %d.%08x - %d.%08x", curcpu,
+	    cpu, (int)(bt_opt >> 32), (u_int)(bt_opt & 0xffffffff),
 	    (int)(bt >> 32), (u_int)(bt & 0xffffffff));
 
 	KASSERT(!CPU_ABSENT(cpu), ("Absent CPU %d", cpu));
@@ -870,7 +868,7 @@ cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt)
 	/* If timer is global or of the current CPU -- reprogram it. */
 	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 || cpu == curcpu) {
 		loadtimer(sbinuptime(), 0);
-done:
+	done:
 		ET_HW_UNLOCK(state);
 		return;
 	}
@@ -885,8 +883,7 @@ done:
 /*
  * Report or change the active event timers hardware.
  */
-static int
-sysctl_kern_eventtimer_timer(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_eventtimer_timer(SYSCTL_HANDLER_ARGS)
 {
 	char buf[32];
 	struct eventtimer *et;
@@ -923,14 +920,13 @@ sysctl_kern_eventtimer_timer(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_kern_eventtimer, OID_AUTO, timer,
-    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 0, sysctl_kern_eventtimer_timer, "A", "Chosen event timer");
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_kern_eventtimer_timer, "A", "Chosen event timer");
 
 /*
  * Report or change the active event timer periodicity.
  */
-static int
-sysctl_kern_eventtimer_periodic(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_eventtimer_periodic(SYSCTL_HANDLER_ARGS)
 {
 	int error, val;
 
@@ -946,8 +942,8 @@ sysctl_kern_eventtimer_periodic(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_kern_eventtimer, OID_AUTO, periodic,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 0, sysctl_kern_eventtimer_periodic, "I", "Enable event timer periodic mode");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_kern_eventtimer_periodic, "I", "Enable event timer periodic mode");
 
 #include "opt_ddb.h"
 
@@ -959,17 +955,15 @@ DB_SHOW_COMMAND(clocksource, db_show_clocksource)
 	struct pcpu_state *st;
 	int c;
 
-	CPU_FOREACH(c) {
+	CPU_FOREACH (c) {
 		st = DPCPU_ID_PTR(c, timerstate);
-		db_printf(
-		    "CPU %2d: action %d handle %d  ipi %d idle %d\n"
-		    "        now %#jx nevent %#jx (%jd)\n"
-		    "        ntick %#jx (%jd) nhard %#jx (%jd)\n"
-		    "        nstat %#jx (%jd) nprof %#jx (%jd)\n"
-		    "        ncall %#jx (%jd) ncallopt %#jx (%jd)\n",
+		db_printf("CPU %2d: action %d handle %d  ipi %d idle %d\n"
+			  "        now %#jx nevent %#jx (%jd)\n"
+			  "        ntick %#jx (%jd) nhard %#jx (%jd)\n"
+			  "        nstat %#jx (%jd) nprof %#jx (%jd)\n"
+			  "        ncall %#jx (%jd) ncallopt %#jx (%jd)\n",
 		    c, st->action, st->handle, st->ipi, st->idle,
-		    (uintmax_t)st->now,
-		    (uintmax_t)st->nextevent,
+		    (uintmax_t)st->now, (uintmax_t)st->nextevent,
 		    (uintmax_t)(st->nextevent - st->now) / tick_sbt,
 		    (uintmax_t)st->nexttick,
 		    (uintmax_t)(st->nexttick - st->now) / tick_sbt,

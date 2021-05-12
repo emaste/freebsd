@@ -32,28 +32,28 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
-
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 
-#include "vmm_util.h"
-#include "vmm_mem.h"
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
 #include "iommu.h"
+#include "vmm_mem.h"
+#include "vmm_util.h"
 
 SYSCTL_DECL(_hw_vmm);
 SYSCTL_NODE(_hw_vmm, OID_AUTO, iommu, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "bhyve iommu parameters");
 
 static int iommu_avail;
-SYSCTL_INT(_hw_vmm_iommu, OID_AUTO, initialized, CTLFLAG_RD, &iommu_avail,
-    0, "bhyve iommu initialized?");
+SYSCTL_INT(_hw_vmm_iommu, OID_AUTO, initialized, CTLFLAG_RD, &iommu_avail, 0,
+    "bhyve iommu initialized?");
 
 static int iommu_enable = 1;
 SYSCTL_INT(_hw_vmm_iommu, OID_AUTO, enable, CTLFLAG_RDTUN, &iommu_enable, 0,
@@ -104,7 +104,7 @@ IOMMU_CREATE_MAPPING(void *domain, vm_paddr_t gpa, vm_paddr_t hpa, uint64_t len)
 	if (ops != NULL && iommu_avail)
 		return ((*ops->create_mapping)(domain, gpa, hpa, len));
 	else
-		return (len);		/* XXX */
+		return (len); /* XXX */
 }
 
 static __inline uint64_t
@@ -114,7 +114,7 @@ IOMMU_REMOVE_MAPPING(void *domain, vm_paddr_t gpa, uint64_t len)
 	if (ops != NULL && iommu_avail)
 		return ((*ops->remove_mapping)(domain, gpa, len));
 	else
-		return (len);		/* XXX */
+		return (len); /* XXX */
 }
 
 static __inline void
@@ -216,8 +216,8 @@ iommu_init(void)
 	iommu_create_mapping(host_domain, 0, 0, maxaddr);
 
 	add_tag = EVENTHANDLER_REGISTER(pci_add_device, iommu_pci_add, NULL, 0);
-	delete_tag = EVENTHANDLER_REGISTER(pci_delete_device, iommu_pci_delete,
-	    NULL, 0);
+	delete_tag = EVENTHANDLER_REGISTER(
+	    pci_delete_device, iommu_pci_delete, NULL, 0);
 	dc = devclass_find("ppt");
 	for (bus = 0; bus <= PCI_BUSMAX; bus++) {
 		for (slot = 0; slot <= PCI_SLOTMAX; slot++) {
@@ -235,13 +235,11 @@ iommu_init(void)
 				 * Everything else belongs to the host
 				 * domain.
 				 */
-				iommu_add_device(host_domain,
-				    pci_get_rid(dev));
+				iommu_add_device(host_domain, pci_get_rid(dev));
 			}
 		}
 	}
 	IOMMU_ENABLE();
-
 }
 
 void

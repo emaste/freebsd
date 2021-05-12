@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sx.h>
 
@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_MAX77620_REG, "MAX77620 regulator", "MAX77620 power regulator");
 
-#define	DIV_ROUND_UP(n,d) howmany(n, d)
+#define DIV_ROUND_UP(n, d) howmany(n, d)
 
 enum max77620_reg_id {
 	MAX77620_REG_ID_SD0,
@@ -69,7 +69,7 @@ enum max77620_reg_id {
 
 /* Initial configuration. */
 struct max77620_regnode_init_def {
-	struct regnode_init_def	reg_init_def;
+	struct regnode_init_def reg_init_def;
 	int active_fps_src;
 	int active_fps_pu_slot;
 	int active_fps_pd_slot;
@@ -81,284 +81,283 @@ struct max77620_regnode_init_def {
 
 /* Regulator HW definition. */
 struct reg_def {
-	intptr_t		id;		/* ID */
-	char			*name;		/* Regulator name */
-	char			*supply_name;	/* Source property name */
-	bool 			is_sd_reg; 	/* SD or LDO regulator? */
-	uint8_t			volt_reg;
-	uint8_t			volt_vsel_mask;
-	uint8_t			cfg_reg;
-	uint8_t			fps_reg;
-	uint8_t			pwr_mode_reg;
-	uint8_t			pwr_mode_mask;
-	uint8_t			pwr_mode_shift;
-	struct regulator_range	*ranges;
-	int			nranges;
+	intptr_t id;	   /* ID */
+	char *name;	   /* Regulator name */
+	char *supply_name; /* Source property name */
+	bool is_sd_reg;	   /* SD or LDO regulator? */
+	uint8_t volt_reg;
+	uint8_t volt_vsel_mask;
+	uint8_t cfg_reg;
+	uint8_t fps_reg;
+	uint8_t pwr_mode_reg;
+	uint8_t pwr_mode_mask;
+	uint8_t pwr_mode_shift;
+	struct regulator_range *ranges;
+	int nranges;
 };
 
 struct max77620_reg_sc {
-	struct regnode		*regnode;
-	struct max77620_softc	*base_sc;
-	struct reg_def		*def;
-	phandle_t		xref;
+	struct regnode *regnode;
+	struct max77620_softc *base_sc;
+	struct reg_def *def;
+	phandle_t xref;
 
 	struct regnode_std_param *param;
 	/* Configured values */
-	int			active_fps_src;
-	int			active_fps_pu_slot;
-	int			active_fps_pd_slot;
-	int			suspend_fps_src;
-	int			suspend_fps_pu_slot;
-	int			suspend_fps_pd_slot;
-	int			ramp_rate_setting;
-	int			enable_usec;
-	uint8_t			enable_pwr_mode;
+	int active_fps_src;
+	int active_fps_pu_slot;
+	int active_fps_pd_slot;
+	int suspend_fps_src;
+	int suspend_fps_pu_slot;
+	int suspend_fps_pd_slot;
+	int ramp_rate_setting;
+	int enable_usec;
+	uint8_t enable_pwr_mode;
 
 	/* Cached values */
-	uint8_t			fps_src;
-	uint8_t			pwr_mode;
-	int			pwr_ramp_delay;
+	uint8_t fps_src;
+	uint8_t pwr_mode;
+	int pwr_ramp_delay;
 };
 
 static struct regulator_range max77620_sd0_ranges[] = {
-	REG_RANGE_INIT(0, 64, 600000, 12500),  /* 0.6V - 1.4V / 12.5mV */
+	REG_RANGE_INIT(0, 64, 600000, 12500), /* 0.6V - 1.4V / 12.5mV */
 };
 
 static struct regulator_range max77620_sd1_ranges[] = {
-	REG_RANGE_INIT(0, 76, 600000, 12500),  /* 0.6V - 1.55V / 12.5mV */
+	REG_RANGE_INIT(0, 76, 600000, 12500), /* 0.6V - 1.55V / 12.5mV */
 };
 
 static struct regulator_range max77620_sdx_ranges[] = {
-	REG_RANGE_INIT(0, 255, 600000, 12500),  /* 0.6V - 3.7875V / 12.5mV */
+	REG_RANGE_INIT(0, 255, 600000, 12500), /* 0.6V - 3.7875V / 12.5mV */
 };
 
 static struct regulator_range max77620_ldo0_1_ranges[] = {
-	REG_RANGE_INIT(0, 63, 800000, 25000),  /* 0.8V - 2.375V / 25mV */
+	REG_RANGE_INIT(0, 63, 800000, 25000), /* 0.8V - 2.375V / 25mV */
 };
 
 static struct regulator_range max77620_ldo4_ranges[] = {
-	REG_RANGE_INIT(0, 63, 800000, 12500),  /* 0.8V - 1.5875V / 12.5mV */
+	REG_RANGE_INIT(0, 63, 800000, 12500), /* 0.8V - 1.5875V / 12.5mV */
 };
 
 static struct regulator_range max77620_ldox_ranges[] = {
-	REG_RANGE_INIT(0, 63, 800000, 50000),  /* 0.8V - 3.95V / 50mV */
+	REG_RANGE_INIT(0, 63, 800000, 50000), /* 0.8V - 3.95V / 50mV */
 };
 
 static struct reg_def max77620s_def[] = {
 	{
-		.id = MAX77620_REG_ID_SD0,
-		.name = "sd0",
-		.supply_name = "in-sd0",
-		.is_sd_reg = true,
-		.volt_reg = MAX77620_REG_SD0,
-		.volt_vsel_mask = MAX77620_SD0_VSEL_MASK,
-		.cfg_reg = MAX77620_REG_CFG_SD0,
-		.fps_reg = MAX77620_REG_FPS_SD0,
-		.pwr_mode_reg = MAX77620_REG_CFG_SD0,
-		.pwr_mode_mask = MAX77620_SD_POWER_MODE_MASK,
-		.pwr_mode_shift = MAX77620_SD_POWER_MODE_SHIFT,
-		.ranges = max77620_sd0_ranges,
-		.nranges = nitems(max77620_sd0_ranges),
+	    .id = MAX77620_REG_ID_SD0,
+	    .name = "sd0",
+	    .supply_name = "in-sd0",
+	    .is_sd_reg = true,
+	    .volt_reg = MAX77620_REG_SD0,
+	    .volt_vsel_mask = MAX77620_SD0_VSEL_MASK,
+	    .cfg_reg = MAX77620_REG_CFG_SD0,
+	    .fps_reg = MAX77620_REG_FPS_SD0,
+	    .pwr_mode_reg = MAX77620_REG_CFG_SD0,
+	    .pwr_mode_mask = MAX77620_SD_POWER_MODE_MASK,
+	    .pwr_mode_shift = MAX77620_SD_POWER_MODE_SHIFT,
+	    .ranges = max77620_sd0_ranges,
+	    .nranges = nitems(max77620_sd0_ranges),
 	},
 	{
-		.id = MAX77620_REG_ID_SD1,
-		.name = "sd1",
-		.supply_name = "in-sd1",
-		.is_sd_reg = true,
-		.volt_reg = MAX77620_REG_SD1,
-		.volt_vsel_mask = MAX77620_SD1_VSEL_MASK,
-		.cfg_reg = MAX77620_REG_CFG_SD1,
-		.fps_reg = MAX77620_REG_FPS_SD1,
-		.pwr_mode_reg = MAX77620_REG_CFG_SD1,
-		.pwr_mode_mask = MAX77620_SD_POWER_MODE_MASK,
-		.pwr_mode_shift = MAX77620_SD_POWER_MODE_SHIFT,
-		.ranges = max77620_sd1_ranges,
-		.nranges = nitems(max77620_sd1_ranges),
+	    .id = MAX77620_REG_ID_SD1,
+	    .name = "sd1",
+	    .supply_name = "in-sd1",
+	    .is_sd_reg = true,
+	    .volt_reg = MAX77620_REG_SD1,
+	    .volt_vsel_mask = MAX77620_SD1_VSEL_MASK,
+	    .cfg_reg = MAX77620_REG_CFG_SD1,
+	    .fps_reg = MAX77620_REG_FPS_SD1,
+	    .pwr_mode_reg = MAX77620_REG_CFG_SD1,
+	    .pwr_mode_mask = MAX77620_SD_POWER_MODE_MASK,
+	    .pwr_mode_shift = MAX77620_SD_POWER_MODE_SHIFT,
+	    .ranges = max77620_sd1_ranges,
+	    .nranges = nitems(max77620_sd1_ranges),
 	},
 	{
-		.id = MAX77620_REG_ID_SD2,
-		.name = "sd2",
-		.supply_name = "in-sd2",
-		.is_sd_reg = true,
-		.volt_reg = MAX77620_REG_SD2,
-		.volt_vsel_mask = MAX77620_SDX_VSEL_MASK,
-		.cfg_reg = MAX77620_REG_CFG_SD2,
-		.fps_reg = MAX77620_REG_FPS_SD2,
-		.pwr_mode_reg = MAX77620_REG_CFG_SD2,
-		.pwr_mode_mask = MAX77620_SD_POWER_MODE_MASK,
-		.pwr_mode_shift = MAX77620_SD_POWER_MODE_SHIFT,
-		.ranges = max77620_sdx_ranges,
-		.nranges = nitems(max77620_sdx_ranges),
+	    .id = MAX77620_REG_ID_SD2,
+	    .name = "sd2",
+	    .supply_name = "in-sd2",
+	    .is_sd_reg = true,
+	    .volt_reg = MAX77620_REG_SD2,
+	    .volt_vsel_mask = MAX77620_SDX_VSEL_MASK,
+	    .cfg_reg = MAX77620_REG_CFG_SD2,
+	    .fps_reg = MAX77620_REG_FPS_SD2,
+	    .pwr_mode_reg = MAX77620_REG_CFG_SD2,
+	    .pwr_mode_mask = MAX77620_SD_POWER_MODE_MASK,
+	    .pwr_mode_shift = MAX77620_SD_POWER_MODE_SHIFT,
+	    .ranges = max77620_sdx_ranges,
+	    .nranges = nitems(max77620_sdx_ranges),
 	},
 	{
-		.id = MAX77620_REG_ID_SD3,
-		.name = "sd3",
-		.supply_name = "in-sd3",
-		.is_sd_reg = true,
-		.volt_reg = MAX77620_REG_SD3,
-		.volt_vsel_mask = MAX77620_SDX_VSEL_MASK,
-		.cfg_reg = MAX77620_REG_CFG_SD3,
-		.fps_reg = MAX77620_REG_FPS_SD3,
-		.pwr_mode_reg = MAX77620_REG_CFG_SD3,
-		.pwr_mode_mask = MAX77620_SD_POWER_MODE_MASK,
-		.pwr_mode_shift = MAX77620_SD_POWER_MODE_SHIFT,
-		.ranges = max77620_sdx_ranges,
-		.nranges = nitems(max77620_sdx_ranges),
+	    .id = MAX77620_REG_ID_SD3,
+	    .name = "sd3",
+	    .supply_name = "in-sd3",
+	    .is_sd_reg = true,
+	    .volt_reg = MAX77620_REG_SD3,
+	    .volt_vsel_mask = MAX77620_SDX_VSEL_MASK,
+	    .cfg_reg = MAX77620_REG_CFG_SD3,
+	    .fps_reg = MAX77620_REG_FPS_SD3,
+	    .pwr_mode_reg = MAX77620_REG_CFG_SD3,
+	    .pwr_mode_mask = MAX77620_SD_POWER_MODE_MASK,
+	    .pwr_mode_shift = MAX77620_SD_POWER_MODE_SHIFT,
+	    .ranges = max77620_sdx_ranges,
+	    .nranges = nitems(max77620_sdx_ranges),
 	},
 	{
-		.id = MAX77620_REG_ID_LDO0,
-		.name = "ldo0",
-		.supply_name = "vin-ldo0-1",
-		.volt_reg = MAX77620_REG_CFG_LDO0,
-		.volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
-		.is_sd_reg = false,
-		.cfg_reg = MAX77620_REG_CFG2_LDO0,
-		.fps_reg = MAX77620_REG_FPS_LDO0,
-		.pwr_mode_reg = MAX77620_REG_CFG_LDO0,
-		.pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
-		.pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
-		.ranges = max77620_ldo0_1_ranges,
-		.nranges = nitems(max77620_ldo0_1_ranges),
+	    .id = MAX77620_REG_ID_LDO0,
+	    .name = "ldo0",
+	    .supply_name = "vin-ldo0-1",
+	    .volt_reg = MAX77620_REG_CFG_LDO0,
+	    .volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
+	    .is_sd_reg = false,
+	    .cfg_reg = MAX77620_REG_CFG2_LDO0,
+	    .fps_reg = MAX77620_REG_FPS_LDO0,
+	    .pwr_mode_reg = MAX77620_REG_CFG_LDO0,
+	    .pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
+	    .pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
+	    .ranges = max77620_ldo0_1_ranges,
+	    .nranges = nitems(max77620_ldo0_1_ranges),
 	},
 	{
-		.id = MAX77620_REG_ID_LDO1,
-		.name = "ldo1",
-		.supply_name = "in-ldo0-1",
-		.is_sd_reg = false,
-		.volt_reg = MAX77620_REG_CFG_LDO1,
-		.volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
-		.cfg_reg = MAX77620_REG_CFG2_LDO1,
-		.fps_reg = MAX77620_REG_FPS_LDO1,
-		.pwr_mode_reg = MAX77620_REG_CFG_LDO1,
-		.pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
-		.pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
-		.ranges = max77620_ldo0_1_ranges,
-		.nranges = nitems(max77620_ldo0_1_ranges),
+	    .id = MAX77620_REG_ID_LDO1,
+	    .name = "ldo1",
+	    .supply_name = "in-ldo0-1",
+	    .is_sd_reg = false,
+	    .volt_reg = MAX77620_REG_CFG_LDO1,
+	    .volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
+	    .cfg_reg = MAX77620_REG_CFG2_LDO1,
+	    .fps_reg = MAX77620_REG_FPS_LDO1,
+	    .pwr_mode_reg = MAX77620_REG_CFG_LDO1,
+	    .pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
+	    .pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
+	    .ranges = max77620_ldo0_1_ranges,
+	    .nranges = nitems(max77620_ldo0_1_ranges),
 	},
 	{
-		.id = MAX77620_REG_ID_LDO2,
-		.name = "ldo2",
-		.supply_name = "in-ldo2",
-		.is_sd_reg = false,
-		.volt_reg = MAX77620_REG_CFG_LDO2,
-		.volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
-		.cfg_reg = MAX77620_REG_CFG2_LDO2,
-		.fps_reg = MAX77620_REG_FPS_LDO2,
-		.pwr_mode_reg = MAX77620_REG_CFG_LDO2,
-		.pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
-		.pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
-		.ranges = max77620_ldox_ranges,
-		.nranges = nitems(max77620_ldox_ranges),
+	    .id = MAX77620_REG_ID_LDO2,
+	    .name = "ldo2",
+	    .supply_name = "in-ldo2",
+	    .is_sd_reg = false,
+	    .volt_reg = MAX77620_REG_CFG_LDO2,
+	    .volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
+	    .cfg_reg = MAX77620_REG_CFG2_LDO2,
+	    .fps_reg = MAX77620_REG_FPS_LDO2,
+	    .pwr_mode_reg = MAX77620_REG_CFG_LDO2,
+	    .pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
+	    .pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
+	    .ranges = max77620_ldox_ranges,
+	    .nranges = nitems(max77620_ldox_ranges),
 	},
 	{
-		.id = MAX77620_REG_ID_LDO3,
-		.name = "ldo3",
-		.supply_name = "in-ldo3-5",
-		.is_sd_reg = false,
-		.volt_reg = MAX77620_REG_CFG_LDO3,
-		.volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
-		.cfg_reg = MAX77620_REG_CFG2_LDO3,
-		.fps_reg = MAX77620_REG_FPS_LDO3,
-		.pwr_mode_reg = MAX77620_REG_CFG_LDO3,
-		.pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
-		.pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
-		.ranges = max77620_ldox_ranges,
-		.nranges = nitems(max77620_ldox_ranges),
+	    .id = MAX77620_REG_ID_LDO3,
+	    .name = "ldo3",
+	    .supply_name = "in-ldo3-5",
+	    .is_sd_reg = false,
+	    .volt_reg = MAX77620_REG_CFG_LDO3,
+	    .volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
+	    .cfg_reg = MAX77620_REG_CFG2_LDO3,
+	    .fps_reg = MAX77620_REG_FPS_LDO3,
+	    .pwr_mode_reg = MAX77620_REG_CFG_LDO3,
+	    .pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
+	    .pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
+	    .ranges = max77620_ldox_ranges,
+	    .nranges = nitems(max77620_ldox_ranges),
 	},
 	{
-		.id = MAX77620_REG_ID_LDO4,
-		.name = "ldo4",
-		.supply_name = "in-ldo4-6",
-		.is_sd_reg = false,
-		.volt_reg = MAX77620_REG_CFG_LDO4,
-		.volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
-		.cfg_reg = MAX77620_REG_CFG2_LDO4,
-		.fps_reg = MAX77620_REG_FPS_LDO4,
-		.pwr_mode_reg = MAX77620_REG_CFG_LDO4,
-		.pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
-		.pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
-		.ranges = max77620_ldo4_ranges,
-		.nranges = nitems(max77620_ldo4_ranges),
+	    .id = MAX77620_REG_ID_LDO4,
+	    .name = "ldo4",
+	    .supply_name = "in-ldo4-6",
+	    .is_sd_reg = false,
+	    .volt_reg = MAX77620_REG_CFG_LDO4,
+	    .volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
+	    .cfg_reg = MAX77620_REG_CFG2_LDO4,
+	    .fps_reg = MAX77620_REG_FPS_LDO4,
+	    .pwr_mode_reg = MAX77620_REG_CFG_LDO4,
+	    .pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
+	    .pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
+	    .ranges = max77620_ldo4_ranges,
+	    .nranges = nitems(max77620_ldo4_ranges),
 	},
 	{
-		.id = MAX77620_REG_ID_LDO5,
-		.name = "ldo5",
-		.supply_name = "in-ldo3-5",
-		.is_sd_reg = false,
-		.volt_reg = MAX77620_REG_CFG_LDO5,
-		.volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
-		.cfg_reg = MAX77620_REG_CFG2_LDO5,
-		.fps_reg = MAX77620_REG_FPS_LDO5,
-		.pwr_mode_reg = MAX77620_REG_CFG_LDO5,
-		.pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
-		.pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
-		.ranges = max77620_ldox_ranges,
-		.nranges = nitems(max77620_ldox_ranges),
+	    .id = MAX77620_REG_ID_LDO5,
+	    .name = "ldo5",
+	    .supply_name = "in-ldo3-5",
+	    .is_sd_reg = false,
+	    .volt_reg = MAX77620_REG_CFG_LDO5,
+	    .volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
+	    .cfg_reg = MAX77620_REG_CFG2_LDO5,
+	    .fps_reg = MAX77620_REG_FPS_LDO5,
+	    .pwr_mode_reg = MAX77620_REG_CFG_LDO5,
+	    .pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
+	    .pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
+	    .ranges = max77620_ldox_ranges,
+	    .nranges = nitems(max77620_ldox_ranges),
 	},
 	{
-		.id = MAX77620_REG_ID_LDO6,
-		.name = "ldo6",
-		.supply_name = "in-ldo4-6",
-		.is_sd_reg = false,
-		.volt_reg = MAX77620_REG_CFG_LDO6,
-		.volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
-		.cfg_reg = MAX77620_REG_CFG2_LDO6,
-		.fps_reg = MAX77620_REG_FPS_LDO6,
-		.pwr_mode_reg = MAX77620_REG_CFG_LDO6,
-		.pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
-		.pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
-		.ranges = max77620_ldox_ranges,
-		.nranges = nitems(max77620_ldox_ranges),
+	    .id = MAX77620_REG_ID_LDO6,
+	    .name = "ldo6",
+	    .supply_name = "in-ldo4-6",
+	    .is_sd_reg = false,
+	    .volt_reg = MAX77620_REG_CFG_LDO6,
+	    .volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
+	    .cfg_reg = MAX77620_REG_CFG2_LDO6,
+	    .fps_reg = MAX77620_REG_FPS_LDO6,
+	    .pwr_mode_reg = MAX77620_REG_CFG_LDO6,
+	    .pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
+	    .pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
+	    .ranges = max77620_ldox_ranges,
+	    .nranges = nitems(max77620_ldox_ranges),
 	},
 	{
-		.id = MAX77620_REG_ID_LDO7,
-		.name = "ldo7",
-		.supply_name = "in-ldo7-8",
-		.is_sd_reg = false,
-		.volt_reg = MAX77620_REG_CFG_LDO7,
-		.volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
-		.cfg_reg = MAX77620_REG_CFG2_LDO7,
-		.fps_reg = MAX77620_REG_FPS_LDO7,
-		.pwr_mode_reg = MAX77620_REG_CFG_LDO7,
-		.pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
-		.pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
-		.ranges = max77620_ldox_ranges,
-		.nranges = nitems(max77620_ldox_ranges),
+	    .id = MAX77620_REG_ID_LDO7,
+	    .name = "ldo7",
+	    .supply_name = "in-ldo7-8",
+	    .is_sd_reg = false,
+	    .volt_reg = MAX77620_REG_CFG_LDO7,
+	    .volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
+	    .cfg_reg = MAX77620_REG_CFG2_LDO7,
+	    .fps_reg = MAX77620_REG_FPS_LDO7,
+	    .pwr_mode_reg = MAX77620_REG_CFG_LDO7,
+	    .pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
+	    .pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
+	    .ranges = max77620_ldox_ranges,
+	    .nranges = nitems(max77620_ldox_ranges),
 	},
 	{
-		.id = MAX77620_REG_ID_LDO8,
-		.name = "ldo8",
-		.supply_name = "in-ldo7-8",
-		.is_sd_reg = false,
-		.volt_reg = MAX77620_REG_CFG_LDO8,
-		.volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
-		.cfg_reg = MAX77620_REG_CFG2_LDO8,
-		.fps_reg = MAX77620_REG_FPS_LDO8,
-		.pwr_mode_reg = MAX77620_REG_CFG_LDO8,
-		.pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
-		.pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
-		.ranges = max77620_ldox_ranges,
-		.nranges = nitems(max77620_ldox_ranges),
+	    .id = MAX77620_REG_ID_LDO8,
+	    .name = "ldo8",
+	    .supply_name = "in-ldo7-8",
+	    .is_sd_reg = false,
+	    .volt_reg = MAX77620_REG_CFG_LDO8,
+	    .volt_vsel_mask = MAX77620_LDO_VSEL_MASK,
+	    .cfg_reg = MAX77620_REG_CFG2_LDO8,
+	    .fps_reg = MAX77620_REG_FPS_LDO8,
+	    .pwr_mode_reg = MAX77620_REG_CFG_LDO8,
+	    .pwr_mode_mask = MAX77620_LDO_POWER_MODE_MASK,
+	    .pwr_mode_shift = MAX77620_LDO_POWER_MODE_SHIFT,
+	    .ranges = max77620_ldox_ranges,
+	    .nranges = nitems(max77620_ldox_ranges),
 	},
 };
 
-
 static int max77620_regnode_init(struct regnode *regnode);
-static int max77620_regnode_enable(struct regnode *regnode, bool enable,
-    int *udelay);
-static int max77620_regnode_set_volt(struct regnode *regnode, int min_uvolt,
-    int max_uvolt, int *udelay);
+static int max77620_regnode_enable(
+    struct regnode *regnode, bool enable, int *udelay);
+static int max77620_regnode_set_volt(
+    struct regnode *regnode, int min_uvolt, int max_uvolt, int *udelay);
 static int max77620_regnode_get_volt(struct regnode *regnode, int *uvolt);
 static regnode_method_t max77620_regnode_methods[] = {
 	/* Regulator interface */
-	REGNODEMETHOD(regnode_init,		max77620_regnode_init),
-	REGNODEMETHOD(regnode_enable,		max77620_regnode_enable),
-	REGNODEMETHOD(regnode_set_voltage,	max77620_regnode_set_volt),
-	REGNODEMETHOD(regnode_get_voltage,	max77620_regnode_get_volt),
+	REGNODEMETHOD(regnode_init, max77620_regnode_init),
+	REGNODEMETHOD(regnode_enable, max77620_regnode_enable),
+	REGNODEMETHOD(regnode_set_voltage, max77620_regnode_set_volt),
+	REGNODEMETHOD(regnode_get_voltage, max77620_regnode_get_volt),
 	REGNODEMETHOD_END
 };
-DEFINE_CLASS_1(max77620_regnode, max77620_regnode_class, max77620_regnode_methods,
-   sizeof(struct max77620_reg_sc), regnode_class);
+DEFINE_CLASS_1(max77620_regnode, max77620_regnode_class,
+    max77620_regnode_methods, sizeof(struct max77620_reg_sc), regnode_class);
 
 static int
 max77620_get_sel(struct max77620_reg_sc *sc, uint8_t *sel)
@@ -384,8 +383,7 @@ max77620_set_sel(struct max77620_reg_sc *sc, uint8_t sel)
 	sel <<= ffs(sc->def->volt_vsel_mask) - 1;
 	sel &= sc->def->volt_vsel_mask;
 
-	rv = RM1(sc->base_sc, sc->def->volt_reg,
-	    sc->def->volt_vsel_mask, sel);
+	rv = RM1(sc->base_sc, sc->def->volt_reg, sc->def->volt_vsel_mask, sel);
 	if (rv != 0) {
 		printf("%s: cannot set volatge selector: %d\n",
 		    regnode_get_name(sc->regnode), rv);
@@ -404,7 +402,7 @@ max77620_get_fps_src(struct max77620_reg_sc *sc, uint8_t *fps_src)
 	if (rv != 0)
 		return (rv);
 
-	*fps_src  = (val & MAX77620_FPS_SRC_MASK) >> MAX77620_FPS_SRC_SHIFT;
+	*fps_src = (val & MAX77620_FPS_SRC_MASK) >> MAX77620_FPS_SRC_SHIFT;
 	return (0);
 }
 
@@ -464,7 +462,7 @@ max77620_get_pwr_mode(struct max77620_reg_sc *sc, uint8_t *pwr_mode)
 	if (rv != 0)
 		return (rv);
 
-	*pwr_mode  = (val & sc->def->pwr_mode_mask) >> sc->def->pwr_mode_shift;
+	*pwr_mode = (val & sc->def->pwr_mode_mask) >> sc->def->pwr_mode_shift;
 	return (0);
 }
 
@@ -595,7 +593,7 @@ printf("%s: Volt: 0x%02X, CFG: 0x%02X, FPS: 0x%02X\n", regnode_get_name(sc->regn
 	/* Configure power mode non-FPS controlled regulators. */
 	if (sc->active_fps_src != MAX77620_FPS_SRC_NONE ||
 	    (sc->pwr_mode != MAX77620_POWER_MODE_DISABLE &&
-	    sc->pwr_mode != sc->enable_pwr_mode)) {
+		sc->pwr_mode != sc->enable_pwr_mode)) {
 		rv = max77620_set_pwr_mode(sc, (uint8_t)sc->enable_pwr_mode);
 		if (rv != 0) {
 			printf("%s: cannot set power mode: %d\n",
@@ -632,15 +630,15 @@ printf("%s: Volt: 0x%02X, CFG: 0x%02X, FPS: 0x%02X\n", regnode_get_name(sc->regn
 }
 
 static void
-max77620_fdt_parse(struct max77620_softc *sc, phandle_t node, struct reg_def *def,
-struct max77620_regnode_init_def *init_def)
+max77620_fdt_parse(struct max77620_softc *sc, phandle_t node,
+    struct reg_def *def, struct max77620_regnode_init_def *init_def)
 {
 	int rv;
 	phandle_t parent, supply_node;
 	char prop_name[64]; /* Maximum OFW property name length. */
 
-	rv = regulator_parse_ofw_stdparam(sc->dev, node,
-	    &init_def->reg_init_def);
+	rv = regulator_parse_ofw_stdparam(
+	    sc->dev, node, &init_def->reg_init_def);
 
 	rv = OF_getencprop(node, "maxim,active-fps-source",
 	    &init_def->active_fps_src, sizeof(init_def->active_fps_src));
@@ -648,12 +646,14 @@ struct max77620_regnode_init_def *init_def)
 		init_def->active_fps_src = MAX77620_FPS_SRC_DEF;
 
 	rv = OF_getencprop(node, "maxim,active-fps-power-up-slot",
-	    &init_def->active_fps_pu_slot, sizeof(init_def->active_fps_pu_slot));
+	    &init_def->active_fps_pu_slot,
+	    sizeof(init_def->active_fps_pu_slot));
 	if (rv <= 0)
 		init_def->active_fps_pu_slot = -1;
 
 	rv = OF_getencprop(node, "maxim,active-fps-power-down-slot",
-	    &init_def->active_fps_pd_slot, sizeof(init_def->active_fps_pd_slot));
+	    &init_def->active_fps_pd_slot,
+	    sizeof(init_def->active_fps_pd_slot));
 	if (rv <= 0)
 		init_def->active_fps_pd_slot = -1;
 
@@ -663,12 +663,14 @@ struct max77620_regnode_init_def *init_def)
 		init_def->suspend_fps_src = -1;
 
 	rv = OF_getencprop(node, "maxim,suspend-fps-power-up-slot",
-	    &init_def->suspend_fps_pu_slot, sizeof(init_def->suspend_fps_pu_slot));
+	    &init_def->suspend_fps_pu_slot,
+	    sizeof(init_def->suspend_fps_pu_slot));
 	if (rv <= 0)
 		init_def->suspend_fps_pu_slot = -1;
 
 	rv = OF_getencprop(node, "maxim,suspend-fps-power-down-slot",
-	    &init_def->suspend_fps_pd_slot, sizeof(init_def->suspend_fps_pd_slot));
+	    &init_def->suspend_fps_pd_slot,
+	    sizeof(init_def->suspend_fps_pd_slot));
 	if (rv <= 0)
 		init_def->suspend_fps_pd_slot = -1;
 
@@ -679,13 +681,12 @@ struct max77620_regnode_init_def *init_def)
 
 	/* Get parent supply. */
 	if (def->supply_name == NULL)
-		 return;
+		return;
 
 	parent = OF_parent(node);
-	snprintf(prop_name, sizeof(prop_name), "%s-supply",
-	    def->supply_name);
-	rv = OF_getencprop(parent, prop_name, &supply_node,
-	    sizeof(supply_node));
+	snprintf(prop_name, sizeof(prop_name), "%s-supply", def->supply_name);
+	rv = OF_getencprop(
+	    parent, prop_name, &supply_node, sizeof(supply_node));
 	if (rv <= 0)
 		return;
 	supply_node = OF_node_from_xref(supply_node);
@@ -707,8 +708,8 @@ max77620_attach(struct max77620_softc *sc, phandle_t node, struct reg_def *def)
 	max77620_fdt_parse(sc, node, def, &init_def);
 	init_def.reg_init_def.id = def->id;
 	init_def.reg_init_def.ofw_node = node;
-	regnode = regnode_create(sc->dev, &max77620_regnode_class,
-	    &init_def.reg_init_def);
+	regnode = regnode_create(
+	    sc->dev, &max77620_regnode_class, &init_def.reg_init_def);
 	if (regnode == NULL) {
 		device_printf(sc->dev, "Cannot create regulator.\n");
 		return (NULL);
@@ -736,12 +737,12 @@ max77620_attach(struct max77620_softc *sc, phandle_t node, struct reg_def *def)
 		rv = regnode_get_voltage(regnode, &volt);
 		if (rv == ENODEV) {
 			device_printf(sc->dev,
-			   " Regulator %s: parent doesn't exist yet.\n",
-			   regnode_get_name(regnode));
+			    " Regulator %s: parent doesn't exist yet.\n",
+			    regnode_get_name(regnode));
 		} else if (rv != 0) {
 			device_printf(sc->dev,
-			   " Regulator %s: voltage: INVALID!!!\n",
-			   regnode_get_name(regnode));
+			    " Regulator %s: voltage: INVALID!!!\n",
+			    regnode_get_name(regnode));
 		} else {
 			device_printf(sc->dev,
 			    " Regulator %s: voltage: %d uV\n",
@@ -774,7 +775,6 @@ max77620_regulator_attach(struct max77620_softc *sc, phandle_t node)
 	sc->regs = malloc(sizeof(struct max77620_reg_sc *) * sc->nregs,
 	    M_MAX77620_REG, M_WAITOK | M_ZERO);
 
-
 	/* Attach all known regulators if exist in DT. */
 	for (i = 0; i < sc->nregs; i++) {
 		child = ofw_bus_find_child(rnode, max77620s_def[i].name);
@@ -799,8 +799,8 @@ max77620_regulator_attach(struct max77620_softc *sc, phandle_t node)
 }
 
 int
-max77620_regulator_map(device_t dev, phandle_t xref, int ncells,
-    pcell_t *cells, intptr_t *num)
+max77620_regulator_map(
+    device_t dev, phandle_t xref, int ncells, pcell_t *cells, intptr_t *num)
 {
 	struct max77620_softc *sc;
 	int i;
@@ -850,8 +850,8 @@ max77620_regnode_enable(struct regnode *regnode, bool val, int *udelay)
 }
 
 static int
-max77620_regnode_set_volt(struct regnode *regnode, int min_uvolt, int max_uvolt,
-    int *udelay)
+max77620_regnode_set_volt(
+    struct regnode *regnode, int min_uvolt, int max_uvolt, int *udelay)
 {
 	struct max77620_reg_sc *sc;
 	uint8_t sel;
@@ -860,8 +860,8 @@ max77620_regnode_set_volt(struct regnode *regnode, int min_uvolt, int max_uvolt,
 	sc = regnode_get_softc(regnode);
 
 	*udelay = 0;
-	rv = regulator_range_volt_to_sel8(sc->def->ranges, sc->def->nranges,
-	    min_uvolt, max_uvolt, &sel);
+	rv = regulator_range_volt_to_sel8(
+	    sc->def->ranges, sc->def->nranges, min_uvolt, max_uvolt, &sel);
 	if (rv != 0)
 		return (rv);
 	rv = max77620_set_sel(sc, sel);
@@ -881,8 +881,8 @@ max77620_regnode_get_volt(struct regnode *regnode, int *uvolt)
 	if (rv != 0)
 		return (rv);
 
-	rv = regulator_range_sel8_to_volt(sc->def->ranges, sc->def->nranges,
-	    sel, uvolt);
+	rv = regulator_range_sel8_to_volt(
+	    sc->def->ranges, sc->def->nranges, sel, uvolt);
 	return (rv);
-	return(0);
+	return (0);
 }

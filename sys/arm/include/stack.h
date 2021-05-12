@@ -30,14 +30,14 @@
  */
 
 #ifndef _MACHINE_STACK_H_
-#define	_MACHINE_STACK_H_
+#define _MACHINE_STACK_H_
 
-#define INKERNEL(va)	(((vm_offset_t)(va)) >= VM_MIN_KERNEL_ADDRESS)
+#define INKERNEL(va) (((vm_offset_t)(va)) >= VM_MIN_KERNEL_ADDRESS)
 
-#define FR_SCP	(0)
-#define FR_RLV	(-1)
-#define FR_RSP	(-2)
-#define FR_RFP	(-3)
+#define FR_SCP (0)
+#define FR_RLV (-1)
+#define FR_RSP (-2)
+#define FR_RFP (-3)
 
 /* The state of the unwind process */
 struct unwind_state {
@@ -50,10 +50,10 @@ struct unwind_state {
 };
 
 /* The register names */
-#define	FP	11
-#define	SP	13
-#define	LR	14
-#define	PC	15
+#define FP 11
+#define SP 13
+#define LR 14
+#define PC 15
 
 #ifdef _KERNEL
 

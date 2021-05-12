@@ -69,8 +69,8 @@ refcount_read(refcount_t *ref)
 }
 
 static inline bool
-refcount_dec_and_lock_irqsave(refcount_t *ref, spinlock_t *lock,
-    unsigned long *flags)
+refcount_dec_and_lock_irqsave(
+    refcount_t *ref, spinlock_t *lock, unsigned long *flags)
 {
 	if (atomic_dec_and_test(&ref->value) == true) {
 		spin_lock_irqsave(lock, flags);

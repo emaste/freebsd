@@ -50,29 +50,28 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/broadcom/bcm2835/bcm2835_clkman.h>
 
-static struct ofw_compat_data compat_data[] = {
-	{"brcm,bcm2835-cprman",		1},
-	{"broadcom,bcm2835-cprman",	1},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "brcm,bcm2835-cprman", 1 },
+	{ "broadcom,bcm2835-cprman", 1 }, { NULL, 0 } };
 
 struct bcm2835_clkman_softc {
-	device_t		sc_dev;
+	device_t sc_dev;
 
-	struct resource *	sc_m_res;
-	bus_space_tag_t		sc_m_bst;
-	bus_space_handle_t	sc_m_bsh;
+	struct resource *sc_m_res;
+	bus_space_tag_t sc_m_bst;
+	bus_space_handle_t sc_m_bsh;
 };
 
-#define BCM_CLKMAN_WRITE(_sc, _off, _val)              \
-    bus_space_write_4(_sc->sc_m_bst, _sc->sc_m_bsh, _off, _val)
-#define BCM_CLKMAN_READ(_sc, _off)                     \
-    bus_space_read_4(_sc->sc_m_bst, _sc->sc_m_bsh, _off)
+#define BCM_CLKMAN_WRITE(_sc, _off, _val) \
+	bus_space_write_4(_sc->sc_m_bst, _sc->sc_m_bsh, _off, _val)
+#define BCM_CLKMAN_READ(_sc, _off) \
+	bus_space_read_4(_sc->sc_m_bst, _sc->sc_m_bsh, _off)
 
-#define W_CMCLK(_sc, unit, _val) BCM_CLKMAN_WRITE(_sc, unit, 0x5a000000 | (_val))
+#define W_CMCLK(_sc, unit, _val) \
+	BCM_CLKMAN_WRITE(_sc, unit, 0x5a000000 | (_val))
 #define R_CMCLK(_sc, unit) BCM_CLKMAN_READ(_sc, unit)
-#define W_CMDIV(_sc, unit, _val) BCM_CLKMAN_WRITE(_sc, (unit) + 4, 0x5a000000 | (_val))
-#define R_CMDIV(_sc,  unit) BCM_CLKMAN_READ(_sc, (unit) + 4)
+#define W_CMDIV(_sc, unit, _val) \
+	BCM_CLKMAN_WRITE(_sc, (unit) + 4, 0x5a000000 | (_val))
+#define R_CMDIV(_sc, unit) BCM_CLKMAN_READ(_sc, (unit) + 4)
 
 static int
 bcm2835_clkman_probe(device_t dev)
@@ -104,8 +103,8 @@ bcm2835_clkman_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	rid = 0;
-	sc->sc_m_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_m_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_m_res) {
 		device_printf(dev, "cannot allocate memory window\n");
 		return (ENXIO);
@@ -127,52 +126,49 @@ bcm2835_clkman_set_frequency(device_t dev, uint32_t unit, uint32_t hz)
 	sc = device_get_softc(dev);
 
 	if (unit != BCM_PWM_CLKSRC) {
-		device_printf(sc->sc_dev,
-		    "Unsupported unit 0x%x", unit);
+		device_printf(sc->sc_dev, "Unsupported unit 0x%x", unit);
 		return (0);
 	}
 
 	W_CMCLK(sc, unit, 6);
 	for (i = 0; i < 10; i++) {
 		u = R_CMCLK(sc, unit);
-		if (!(u&0x80))
+		if (!(u & 0x80))
 			break;
 		DELAY(1000);
 	}
 	if (u & 0x80) {
-		device_printf(sc->sc_dev,
-		    "Failed to stop clock for unit 0x%x", unit);
+		device_printf(
+		    sc->sc_dev, "Failed to stop clock for unit 0x%x", unit);
 		return (0);
 	}
 	if (hz == 0)
 		return (0);
 
-	u = 500000000/hz;
+	u = 500000000 / hz;
 	if (u < 4) {
 		device_printf(sc->sc_dev,
-		    "Frequency too high for unit 0x%x (max: 125 MHz)",
-		    unit);
+		    "Frequency too high for unit 0x%x (max: 125 MHz)", unit);
 		return (0);
 	}
 	if (u > 0xfff) {
 		device_printf(sc->sc_dev,
-		    "Frequency too low for unit 0x%x (min: 123 kHz)",
-		    unit);
+		    "Frequency too low for unit 0x%x (min: 123 kHz)", unit);
 		return (0);
 	}
-	hz = 500000000/u;
+	hz = 500000000 / u;
 	W_CMDIV(sc, unit, u << 12);
 
 	W_CMCLK(sc, unit, 0x16);
 	for (i = 0; i < 10; i++) {
 		u = R_CMCLK(sc, unit);
-		if ((u&0x80))
+		if ((u & 0x80))
 			break;
 		DELAY(1000);
 	}
 	if (!(u & 0x80)) {
-		device_printf(sc->sc_dev,
-		    "Failed to start clock for unit 0x%x", unit);
+		device_printf(
+		    sc->sc_dev, "Failed to start clock for unit 0x%x", unit);
 		return (0);
 	}
 	return (hz);
@@ -194,9 +190,9 @@ bcm2835_clkman_detach(device_t dev)
 
 static device_method_t bcm2835_clkman_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		bcm2835_clkman_probe),
-	DEVMETHOD(device_attach,	bcm2835_clkman_attach),
-	DEVMETHOD(device_detach,	bcm2835_clkman_detach),
+	DEVMETHOD(device_probe, bcm2835_clkman_probe),
+	DEVMETHOD(device_attach, bcm2835_clkman_attach),
+	DEVMETHOD(device_detach, bcm2835_clkman_detach),
 
 	DEVMETHOD_END
 };

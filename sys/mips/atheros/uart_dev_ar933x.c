@@ -33,11 +33,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+
 #include <machine/bus.h>
 
 #include <dev/uart/uart.h>
-#include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_bus.h>
+#include <dev/uart/uart_cpu.h>
 
 #include <mips/atheros/ar933x_uart.h>
 
@@ -47,11 +48,10 @@ __FBSDID("$FreeBSD$");
  * Default system clock is 25MHz; see ar933x_chip.c for how
  * the startup process determines whether it's 25MHz or 40MHz.
  */
-#define	DEFAULT_RCLK	(25 * 1000 * 1000)
+#define DEFAULT_RCLK (25 * 1000 * 1000)
 
-#define	ar933x_getreg(bas, reg)           \
-	bus_space_read_4((bas)->bst, (bas)->bsh, reg)
-#define	ar933x_setreg(bas, reg, value)    \
+#define ar933x_getreg(bas, reg) bus_space_read_4((bas)->bst, (bas)->bsh, reg)
+#define ar933x_setreg(bas, reg, value) \
 	bus_space_write_4((bas)->bst, (bas)->bsh, reg, value)
 
 static int
@@ -60,12 +60,12 @@ ar933x_drain(struct uart_bas *bas, int what)
 	int limit;
 
 	if (what & UART_DRAIN_TRANSMITTER) {
-		limit = 10*1024;
+		limit = 10 * 1024;
 
 		/* Loop over until the TX FIFO shows entirely clear */
 		while (--limit) {
-			if ((ar933x_getreg(bas, AR933X_UART_CS_REG)
-			    & AR933X_UART_CS_TX_BUSY) == 0)
+			if ((ar933x_getreg(bas, AR933X_UART_CS_REG) &
+				AR933X_UART_CS_TX_BUSY) == 0)
 				break;
 		}
 		if (limit == 0) {
@@ -74,23 +74,23 @@ ar933x_drain(struct uart_bas *bas, int what)
 	}
 
 	if (what & UART_DRAIN_RECEIVER) {
-		limit=10*4096;
+		limit = 10 * 4096;
 		while (--limit) {
 			/* XXX duplicated from ar933x_getc() */
 			/* XXX TODO: refactor! */
 
 			/* If there's nothing to read, stop! */
 			if ((ar933x_getreg(bas, AR933X_UART_DATA_REG) &
-			    AR933X_UART_DATA_RX_CSR) == 0) {
+				AR933X_UART_DATA_RX_CSR) == 0) {
 				break;
 			}
 
 			/* Read the top of the RX FIFO */
-			(void) ar933x_getreg(bas, AR933X_UART_DATA_REG);
+			(void)ar933x_getreg(bas, AR933X_UART_DATA_REG);
 
 			/* Remove that entry from said RX FIFO */
-			ar933x_setreg(bas, AR933X_UART_DATA_REG,
-			    AR933X_UART_DATA_RX_CSR);
+			ar933x_setreg(
+			    bas, AR933X_UART_DATA_REG, AR933X_UART_DATA_RX_CSR);
 
 			uart_barrier(bas);
 			DELAY(2);
@@ -106,8 +106,7 @@ ar933x_drain(struct uart_bas *bas, int what)
  * Calculate the baud from the given chip configuration parameters.
  */
 static unsigned long
-ar933x_uart_get_baud(unsigned int clk, unsigned int scale,
-    unsigned int step)
+ar933x_uart_get_baud(unsigned int clk, unsigned int scale, unsigned int step)
 {
 	uint64_t t;
 	uint32_t div;
@@ -159,8 +158,8 @@ ar933x_uart_get_scale_step(struct uart_bas *bas, unsigned int baud,
 }
 
 static int
-ar933x_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
-    int parity)
+ar933x_param(
+    struct uart_bas *bas, int baudrate, int databits, int stopbits, int parity)
 {
 	/* UART always 8 bits */
 
@@ -173,8 +172,8 @@ ar933x_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 		uint32_t clock_scale, clock_step;
 
 		/* Find the best fit for the given baud rate */
-		ar933x_uart_get_scale_step(bas, baudrate, &clock_scale,
-		    &clock_step);
+		ar933x_uart_get_scale_step(
+		    bas, baudrate, &clock_scale, &clock_step);
 
 		/*
 		 * Program the clock register in its entirety - no need
@@ -182,8 +181,8 @@ ar933x_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 		 */
 		ar933x_setreg(bas, AR933X_UART_CLOCK_REG,
 		    ((clock_scale & AR933X_UART_CLOCK_SCALE_M)
-		      << AR933X_UART_CLOCK_SCALE_S) |
-		    (clock_step & AR933X_UART_CLOCK_STEP_M));
+			<< AR933X_UART_CLOCK_SCALE_S) |
+			(clock_step & AR933X_UART_CLOCK_STEP_M));
 	}
 
 	uart_barrier(bas);
@@ -218,8 +217,8 @@ ar933x_probe(struct uart_bas *bas)
 }
 
 static void
-ar933x_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
-    int parity)
+ar933x_init(
+    struct uart_bas *bas, int baudrate, int databits, int stopbits, int parity)
 {
 	uint32_t reg;
 
@@ -259,13 +258,14 @@ ar933x_putc(struct uart_bas *bas, int c)
 	limit = 250000;
 
 	/* Wait for space in the TX FIFO */
-	while ( ((ar933x_getreg(bas, AR933X_UART_DATA_REG) &
-	    AR933X_UART_DATA_TX_CSR) == 0) && --limit)
+	while (((ar933x_getreg(bas, AR933X_UART_DATA_REG) &
+		    AR933X_UART_DATA_TX_CSR) == 0) &&
+	    --limit)
 		DELAY(4);
 
 	/* Write the actual byte */
-	ar933x_setreg(bas, AR933X_UART_DATA_REG,
-	    (c & 0xff) | AR933X_UART_DATA_TX_CSR);
+	ar933x_setreg(
+	    bas, AR933X_UART_DATA_REG, (c & 0xff) | AR933X_UART_DATA_TX_CSR);
 }
 
 static int
@@ -273,8 +273,8 @@ ar933x_rxready(struct uart_bas *bas)
 {
 
 	/* Wait for a character to come ready */
-	return (!!(ar933x_getreg(bas, AR933X_UART_DATA_REG)
-	    & AR933X_UART_DATA_RX_CSR));
+	return (!!(ar933x_getreg(bas, AR933X_UART_DATA_REG) &
+	    AR933X_UART_DATA_RX_CSR));
 }
 
 static int
@@ -286,7 +286,7 @@ ar933x_getc(struct uart_bas *bas, struct mtx *hwmtx)
 
 	/* Wait for a character to come ready */
 	while ((ar933x_getreg(bas, AR933X_UART_DATA_REG) &
-	    AR933X_UART_DATA_RX_CSR) == 0) {
+		   AR933X_UART_DATA_RX_CSR) == 0) {
 		uart_unlock(hwmtx);
 		DELAY(4);
 		uart_lock(hwmtx);
@@ -309,7 +309,7 @@ ar933x_getc(struct uart_bas *bas, struct mtx *hwmtx)
 struct ar933x_softc {
 	struct uart_softc base;
 
-	uint32_t	u_ier;
+	uint32_t u_ier;
 };
 
 static int ar933x_bus_attach(struct uart_softc *);
@@ -326,38 +326,30 @@ static int ar933x_bus_transmit(struct uart_softc *);
 static void ar933x_bus_grab(struct uart_softc *);
 static void ar933x_bus_ungrab(struct uart_softc *);
 
-static kobj_method_t ar933x_methods[] = {
-	KOBJMETHOD(uart_attach,		ar933x_bus_attach),
-	KOBJMETHOD(uart_detach,		ar933x_bus_detach),
-	KOBJMETHOD(uart_flush,		ar933x_bus_flush),
-	KOBJMETHOD(uart_getsig,		ar933x_bus_getsig),
-	KOBJMETHOD(uart_ioctl,		ar933x_bus_ioctl),
-	KOBJMETHOD(uart_ipend,		ar933x_bus_ipend),
-	KOBJMETHOD(uart_param,		ar933x_bus_param),
-	KOBJMETHOD(uart_probe,		ar933x_bus_probe),
-	KOBJMETHOD(uart_receive,	ar933x_bus_receive),
-	KOBJMETHOD(uart_setsig,		ar933x_bus_setsig),
-	KOBJMETHOD(uart_transmit,	ar933x_bus_transmit),
-	KOBJMETHOD(uart_grab,		ar933x_bus_grab),
-	KOBJMETHOD(uart_ungrab,		ar933x_bus_ungrab),
-	{ 0, 0 }
-};
+static kobj_method_t ar933x_methods[] = { KOBJMETHOD(
+					      uart_attach, ar933x_bus_attach),
+	KOBJMETHOD(uart_detach, ar933x_bus_detach),
+	KOBJMETHOD(uart_flush, ar933x_bus_flush),
+	KOBJMETHOD(uart_getsig, ar933x_bus_getsig),
+	KOBJMETHOD(uart_ioctl, ar933x_bus_ioctl),
+	KOBJMETHOD(uart_ipend, ar933x_bus_ipend),
+	KOBJMETHOD(uart_param, ar933x_bus_param),
+	KOBJMETHOD(uart_probe, ar933x_bus_probe),
+	KOBJMETHOD(uart_receive, ar933x_bus_receive),
+	KOBJMETHOD(uart_setsig, ar933x_bus_setsig),
+	KOBJMETHOD(uart_transmit, ar933x_bus_transmit),
+	KOBJMETHOD(uart_grab, ar933x_bus_grab),
+	KOBJMETHOD(uart_ungrab, ar933x_bus_ungrab), { 0, 0 } };
 
-struct uart_class uart_ar933x_class = {
-	"ar933x",
-	ar933x_methods,
-	sizeof(struct ar933x_softc),
-	.uc_ops = &uart_ar933x_ops,
-	.uc_range = 8,
-	.uc_rclk = DEFAULT_RCLK,
-	.uc_rshift = 0
-};
+struct uart_class uart_ar933x_class = { "ar933x", ar933x_methods,
+	sizeof(struct ar933x_softc), .uc_ops = &uart_ar933x_ops, .uc_range = 8,
+	.uc_rclk = DEFAULT_RCLK, .uc_rshift = 0 };
 
-#define	SIGCHG(c, i, s, d)				\
-	if (c) {					\
-		i |= (i & s) ? s : s | d;		\
-	} else {					\
-		i = (i & s) ? (i & ~s) | d : i;		\
+#define SIGCHG(c, i, s, d)                      \
+	if (c) {                                \
+		i |= (i & s) ? s : s | d;       \
+	} else {                                \
+		i = (i & s) ? (i & ~s) | d : i; \
 	}
 
 static int
@@ -431,7 +423,7 @@ ar933x_bus_getsig(struct uart_softc *sc)
 	SIGCHG(1, sig, SER_DSR, SER_DDSR);
 	SIGCHG(1, sig, SER_CTS, SER_DCTS);
 	SIGCHG(1, sig, SER_DCD, SER_DDCD);
-	SIGCHG(1, sig,  SER_RI,  SER_DRI);
+	SIGCHG(1, sig, SER_RI, SER_DRI);
 
 	sc->sc_hwsig = sig & ~SER_MASK_DELTA;
 
@@ -453,7 +445,7 @@ ar933x_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 	case UART_IOCTL_OFLOW:
 		break;
 	case UART_IOCTL_BAUD:
-		*(int*)data = 115200;
+		*(int *)data = 115200;
 		break;
 	default:
 		error = EINVAL;
@@ -545,8 +537,8 @@ ar933x_bus_ipend(struct uart_softc *sc)
 }
 
 static int
-ar933x_bus_param(struct uart_softc *sc, int baudrate, int databits,
-    int stopbits, int parity)
+ar933x_bus_param(
+    struct uart_softc *sc, int baudrate, int databits, int stopbits, int parity)
 {
 	struct uart_bas *bas;
 	int error;
@@ -571,7 +563,7 @@ ar933x_bus_probe(struct uart_softc *sc)
 		return (error);
 
 	/* Reset FIFOs. */
-	ar933x_drain(bas, UART_FLUSH_RECEIVER|UART_FLUSH_TRANSMITTER);
+	ar933x_drain(bas, UART_FLUSH_RECEIVER | UART_FLUSH_TRANSMITTER);
 
 	/* XXX TODO: actually find out what the FIFO depth is! */
 	sc->sc_rxfifosz = 16;
@@ -599,8 +591,8 @@ ar933x_bus_receive(struct uart_softc *sc)
 		xc = ar933x_getreg(bas, AR933X_UART_DATA_REG) & 0xff;
 
 		/* Remove that entry from said RX FIFO */
-		ar933x_setreg(bas, AR933X_UART_DATA_REG,
-		    AR933X_UART_DATA_RX_CSR);
+		ar933x_setreg(
+		    bas, AR933X_UART_DATA_REG, AR933X_UART_DATA_RX_CSR);
 		uart_barrier(bas);
 
 		/* XXX frame, parity error */
@@ -674,8 +666,7 @@ ar933x_bus_transmit(struct uart_softc *sc)
 	uart_lock(sc->sc_hwmtx);
 
 	/* Wait for the FIFO to be clear - see above */
-	while (ar933x_getreg(bas, AR933X_UART_CS_REG) &
-	    AR933X_UART_CS_TX_BUSY)
+	while (ar933x_getreg(bas, AR933X_UART_CS_REG) & AR933X_UART_CS_TX_BUSY)
 		;
 
 	/*

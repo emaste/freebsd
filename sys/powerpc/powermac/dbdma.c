@@ -31,14 +31,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/endian.h>
-#include <sys/bus.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 #include <machine/dbdma.h>
-#include <sys/rman.h>
 
 #include "dbdmavar.h"
 
@@ -64,8 +65,8 @@ dbdma_allocate_channel(struct resource *dbdma_regs, u_int offset,
 	int error = 0;
 	dbdma_channel_t *channel;
 
-	channel = *chan = malloc(sizeof(struct dbdma_channel), M_DBDMA, 
-	    M_WAITOK | M_ZERO);
+	channel = *chan = malloc(
+	    sizeof(struct dbdma_channel), M_DBDMA, M_WAITOK | M_ZERO);
 
 	channel->sc_regs = dbdma_regs;
 	channel->sc_off = offset;
@@ -294,7 +295,7 @@ dbdma_insert_command(dbdma_channel_t *chan, int slot, int command, int stream,
 	cmd.reqCount = count;
 	cmd.address = (uint32_t)(data);
 	if (command != DBDMA_STORE_QUAD && command != DBDMA_LOAD_QUAD)
-		cmd.cmdDep = chan->sc_slots_pa + 
+		cmd.cmdDep = chan->sc_slots_pa +
 		    branch_slot * sizeof(struct dbdma_command);
 	else
 		cmd.cmdDep = branch_slot;

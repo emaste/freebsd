@@ -22,28 +22,28 @@
 /* Refer to if_tunvar.h for the softc stuff */
 
 /* Maximum transmit packet size (default) */
-#define	TUNMTU		1500
+#define TUNMTU 1500
 
 /* Maximum receive packet size (hard limit) */
-#define	TUNMRU		65535
+#define TUNMRU 65535
 
 struct tuninfo {
-	int	baudrate;		/* linespeed */
-	unsigned short	mtu;		/* maximum transmission unit */
-	u_char	type;			/* ethernet, tokenring, etc. */
-	u_char	dummy;			/* place holder */
+	int baudrate;	    /* linespeed */
+	unsigned short mtu; /* maximum transmission unit */
+	u_char type;	    /* ethernet, tokenring, etc. */
+	u_char dummy;	    /* place holder */
 };
 
 /* ioctl's for get/set debug */
-#define	TUNSDEBUG	_IOW('t', 90, int)
-#define	TUNGDEBUG	_IOR('t', 89, int)
-#define	TUNSIFINFO	_IOW('t', 91, struct tuninfo)
-#define	TUNGIFINFO	_IOR('t', 92, struct tuninfo)
-#define	TUNSLMODE	_IOW('t', 93, int)
-#define	TUNGIFNAME	_IOR('t', 93, struct ifreq)
-#define	TUNSIFMODE	_IOW('t', 94, int)
-#define	TUNSIFPID	_IO('t', 95)
-#define	TUNSIFHEAD	_IOW('t', 96, int)
-#define	TUNGIFHEAD	_IOR('t', 97, int)
+#define TUNSDEBUG _IOW('t', 90, int)
+#define TUNGDEBUG _IOR('t', 89, int)
+#define TUNSIFINFO _IOW('t', 91, struct tuninfo)
+#define TUNGIFINFO _IOR('t', 92, struct tuninfo)
+#define TUNSLMODE _IOW('t', 93, int)
+#define TUNGIFNAME _IOR('t', 93, struct ifreq)
+#define TUNSIFMODE _IOW('t', 94, int)
+#define TUNSIFPID _IO('t', 95)
+#define TUNSIFHEAD _IOW('t', 96, int)
+#define TUNGIFHEAD _IOR('t', 97, int)
 
 #endif /* !_NET_IF_TUN_H_ */

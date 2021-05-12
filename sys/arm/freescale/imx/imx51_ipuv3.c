@@ -38,7 +38,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/consio.h>
 #include <sys/endian.h>
+#include <sys/fbio.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
@@ -50,69 +53,63 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/time.h>
 #include <sys/timetc.h>
-#include <sys/fbio.h>
-#include <sys/consio.h>
-
-#include <sys/kdb.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/fdt.h>
-#include <machine/resource.h>
 #include <machine/intr.h>
-
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
+#include <machine/resource.h>
 
 #include <dev/fb/fbreg.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/syscons/syscons.h>
 
 #include <arm/freescale/imx/imx51_ccmvar.h>
-
 #include <arm/freescale/imx/imx51_ipuv3reg.h>
 
-#define	IMX51_IPU_HSP_CLOCK	665000000
-#define	IPU3FB_FONT_HEIGHT	16
+#define IMX51_IPU_HSP_CLOCK 665000000
+#define IPU3FB_FONT_HEIGHT 16
 
 struct ipu3sc_softc {
-	device_t		dev;
-	bus_addr_t		pbase;
-	bus_addr_t		vbase;
+	device_t dev;
+	bus_addr_t pbase;
+	bus_addr_t vbase;
 
-	bus_space_tag_t		iot;
-	bus_space_handle_t	ioh;
-	bus_space_handle_t	cm_ioh;
-	bus_space_handle_t	dp_ioh;
-	bus_space_handle_t	di0_ioh;
-	bus_space_handle_t	di1_ioh;
-	bus_space_handle_t	dctmpl_ioh;
-	bus_space_handle_t	dc_ioh;
-	bus_space_handle_t	dmfc_ioh;
-	bus_space_handle_t	idmac_ioh;
-	bus_space_handle_t	cpmem_ioh;
+	bus_space_tag_t iot;
+	bus_space_handle_t ioh;
+	bus_space_handle_t cm_ioh;
+	bus_space_handle_t dp_ioh;
+	bus_space_handle_t di0_ioh;
+	bus_space_handle_t di1_ioh;
+	bus_space_handle_t dctmpl_ioh;
+	bus_space_handle_t dc_ioh;
+	bus_space_handle_t dmfc_ioh;
+	bus_space_handle_t idmac_ioh;
+	bus_space_handle_t cpmem_ioh;
 };
 
 struct video_adapter_softc {
 	/* Videoadpater part */
-	video_adapter_t	va;
+	video_adapter_t va;
 
-	intptr_t	fb_addr;
-	intptr_t	fb_paddr;
-	unsigned int	fb_size;
+	intptr_t fb_addr;
+	intptr_t fb_paddr;
+	unsigned int fb_size;
 
-	int		bpp;
-	int		depth;
-	unsigned int	height;
-	unsigned int	width;
-	unsigned int	stride;
+	int bpp;
+	int depth;
+	unsigned int height;
+	unsigned int width;
+	unsigned int stride;
 
-	unsigned int	xmargin;
-	unsigned int	ymargin;
+	unsigned int xmargin;
+	unsigned int ymargin;
 
-	unsigned char	*font;
-	int		initialized;
+	unsigned char *font;
+	int initialized;
 };
 
 static struct ipu3sc_softc *ipu3sc_softc;
@@ -120,92 +117,95 @@ static struct video_adapter_softc va_softc;
 
 /* FIXME: not only 2 bytes color supported */
 static uint16_t colors[16] = {
-	0x0000,	/* black */
-	0x001f,	/* blue */
-	0x07e0,	/* green */
-	0x07ff,	/* cyan */
-	0xf800,	/* red */
-	0xf81f,	/* magenta */
-	0x3800,	/* brown */
-	0xc618,	/* light grey */
-	0xc618,	/* XXX: dark grey */
-	0x001f,	/* XXX: light blue */
-	0x07e0,	/* XXX: light green */
-	0x07ff,	/* XXX: light cyan */
-	0xf800,	/* XXX: light red */
-	0xf81f,	/* XXX: light magenta */
-	0xffe0,	/* yellow */
-	0xffff,	/* white */
+	0x0000, /* black */
+	0x001f, /* blue */
+	0x07e0, /* green */
+	0x07ff, /* cyan */
+	0xf800, /* red */
+	0xf81f, /* magenta */
+	0x3800, /* brown */
+	0xc618, /* light grey */
+	0xc618, /* XXX: dark grey */
+	0x001f, /* XXX: light blue */
+	0x07e0, /* XXX: light green */
+	0x07ff, /* XXX: light cyan */
+	0xf800, /* XXX: light red */
+	0xf81f, /* XXX: light magenta */
+	0xffe0, /* yellow */
+	0xffff, /* white */
 };
 static uint32_t colors_24[16] = {
-	0x000000,/* Black	*/
-	0x000080,/* Blue	*/
-	0x008000,/* Green 	*/
-	0x008080,/* Cyan 	*/
-	0x800000,/* Red 	*/
-	0x800080,/* Magenta	*/
-	0xcc6600,/* brown	*/
-	0xC0C0C0,/* Silver 	*/
-	0x808080,/* Gray 	*/
-	0x0000FF,/* Light Blue 	*/
-	0x00FF00,/* Light Green */
-	0x00FFFF,/* Light Cyan 	*/
-	0xFF0000,/* Light Red 	*/
-	0xFF00FF,/* Light Magenta */
-	0xFFFF00,/* Yellow 	*/
-	0xFFFFFF,/* White 	*/
+	0x000000, /* Black	*/
+	0x000080, /* Blue	*/
+	0x008000, /* Green 	*/
+	0x008080, /* Cyan 	*/
+	0x800000, /* Red 	*/
+	0x800080, /* Magenta	*/
+	0xcc6600, /* brown	*/
+	0xC0C0C0, /* Silver 	*/
+	0x808080, /* Gray 	*/
+	0x0000FF, /* Light Blue 	*/
+	0x00FF00, /* Light Green */
+	0x00FFFF, /* Light Cyan 	*/
+	0xFF0000, /* Light Red 	*/
+	0xFF00FF, /* Light Magenta */
+	0xFFFF00, /* Yellow 	*/
+	0xFFFFFF, /* White 	*/
 
 };
 
-#define	IPUV3_READ(ipuv3, module, reg)					\
+#define IPUV3_READ(ipuv3, module, reg) \
 	bus_space_read_4((ipuv3)->iot, (ipuv3)->module##_ioh, (reg))
-#define	IPUV3_WRITE(ipuv3, module, reg, val)				\
+#define IPUV3_WRITE(ipuv3, module, reg, val) \
 	bus_space_write_4((ipuv3)->iot, (ipuv3)->module##_ioh, (reg), (val))
 
-#define	CPMEM_CHANNEL_OFFSET(_c)	((_c) * 0x40)
-#define	CPMEM_WORD_OFFSET(_w)		((_w) * 0x20)
-#define	CPMEM_DP_OFFSET(_d)		((_d) * 0x10000)
-#define	IMX_IPU_DP0		0
-#define	IMX_IPU_DP1		1
-#define	CPMEM_CHANNEL(_dp, _ch, _w)					\
-	    (CPMEM_DP_OFFSET(_dp) + CPMEM_CHANNEL_OFFSET(_ch) +		\
-		CPMEM_WORD_OFFSET(_w))
-#define	CPMEM_OFFSET(_dp, _ch, _w, _o)					\
-	    (CPMEM_CHANNEL((_dp), (_ch), (_w)) + (_o))
+#define CPMEM_CHANNEL_OFFSET(_c) ((_c)*0x40)
+#define CPMEM_WORD_OFFSET(_w) ((_w)*0x20)
+#define CPMEM_DP_OFFSET(_d) ((_d)*0x10000)
+#define IMX_IPU_DP0 0
+#define IMX_IPU_DP1 1
+#define CPMEM_CHANNEL(_dp, _ch, _w)                         \
+	(CPMEM_DP_OFFSET(_dp) + CPMEM_CHANNEL_OFFSET(_ch) + \
+	    CPMEM_WORD_OFFSET(_w))
+#define CPMEM_OFFSET(_dp, _ch, _w, _o) \
+	(CPMEM_CHANNEL((_dp), (_ch), (_w)) + (_o))
 
-#define	IPUV3_DEBUG 100
+#define IPUV3_DEBUG 100
 
 #ifdef IPUV3_DEBUG
-#define	SUBMOD_DUMP_REG(_sc, _m, _l)					\
-	{								\
-		int i;							\
-		printf("*** " #_m " ***\n");				\
-		for (i = 0; i <= (_l); i += 4) {			\
-			if ((i % 32) == 0)				\
-				printf("%04x: ", i & 0xffff);		\
-			printf("0x%08x%c", IPUV3_READ((_sc), _m, i),	\
-			    ((i + 4) % 32)?' ':'\n');			\
-		}							\
-		printf("\n");						\
+#define SUBMOD_DUMP_REG(_sc, _m, _l)                                 \
+	{                                                            \
+		int i;                                               \
+		printf("*** " #_m " ***\n");                         \
+		for (i = 0; i <= (_l); i += 4) {                     \
+			if ((i % 32) == 0)                           \
+				printf("%04x: ", i & 0xffff);        \
+			printf("0x%08x%c", IPUV3_READ((_sc), _m, i), \
+			    ((i + 4) % 32) ? ' ' : '\n');            \
+		}                                                    \
+		printf("\n");                                        \
 	}
 #endif
 
 #ifdef IPUV3_DEBUG
 int ipuv3_debug = IPUV3_DEBUG;
-#define	DPRINTFN(n,x)   if (ipuv3_debug>(n)) printf x; else
+#define DPRINTFN(n, x)         \
+	if (ipuv3_debug > (n)) \
+		printf x;      \
+	else
 #else
-#define	DPRINTFN(n,x)
+#define DPRINTFN(n, x)
 #endif
 
-static int	ipu3_fb_probe(device_t);
-static int	ipu3_fb_attach(device_t);
+static int ipu3_fb_probe(device_t);
+static int ipu3_fb_attach(device_t);
 
 static int
 ipu3_fb_malloc(struct ipu3sc_softc *sc, size_t size)
 {
 
-	sc->vbase = (uint32_t)contigmalloc(size, M_DEVBUF, M_ZERO, 0, ~0,
-	    PAGE_SIZE, 0);
+	sc->vbase = (uint32_t)contigmalloc(
+	    size, M_DEVBUF, M_ZERO, 0, ~0, PAGE_SIZE, 0);
 	sc->pbase = vtophys(sc->vbase);
 
 	return (0);
@@ -263,8 +263,8 @@ ipu3_fb_probe(device_t dev)
 
 	device_set_desc(dev, "i.MX5x Image Processing Unit v3 (FB)");
 
-	error = sc_probe_unit(device_get_unit(dev), 
-	    device_get_flags(dev) | SC_AUTODETECT_KBD);
+	error = sc_probe_unit(
+	    device_get_unit(dev), device_get_flags(dev) | SC_AUTODETECT_KBD);
 
 	if (error != 0)
 		return (error);
@@ -294,8 +294,8 @@ ipu3_fb_attach(device_t dev)
 
 	sc->dev = dev;
 
-	err = (sc_attach_unit(device_get_unit(dev),
-	    device_get_flags(dev) | SC_AUTODETECT_KBD));
+	err = (sc_attach_unit(
+	    device_get_unit(dev), device_get_flags(dev) | SC_AUTODETECT_KBD));
 
 	if (err) {
 		device_printf(dev, "failed to attach syscons\n");
@@ -354,29 +354,27 @@ ipu3_fb_attach(device_t dev)
 	sc->dc_ioh = ioh;
 
 	/* map Image DMA Controller registers */
-	err = bus_space_map(iot, IPU_IDMAC_BASE(base), IPU_IDMAC_SIZE, 0,
-	    &ioh);
+	err = bus_space_map(iot, IPU_IDMAC_BASE(base), IPU_IDMAC_SIZE, 0, &ioh);
 	if (err)
 		goto fail_retarn_idmac;
 	sc->idmac_ioh = ioh;
 
 	/* map CPMEM registers */
-	err = bus_space_map(iot, IPU_CPMEM_BASE(base), IPU_CPMEM_SIZE, 0,
-	    &ioh);
+	err = bus_space_map(iot, IPU_CPMEM_BASE(base), IPU_CPMEM_SIZE, 0, &ioh);
 	if (err)
 		goto fail_retarn_cpmem;
 	sc->cpmem_ioh = ioh;
 
 	/* map DCTEMPL registers */
-	err = bus_space_map(iot, IPU_DCTMPL_BASE(base), IPU_DCTMPL_SIZE, 0,
-	    &ioh);
+	err = bus_space_map(
+	    iot, IPU_DCTMPL_BASE(base), IPU_DCTMPL_SIZE, 0, &ioh);
 	if (err)
 		goto fail_retarn_dctmpl;
 	sc->dctmpl_ioh = ioh;
 
 #ifdef notyet
-	sc->ih = imx51_ipuv3_intr_establish(IMX51_INT_IPUV3, IPL_BIO,
-	    ipuv3intr, sc);
+	sc->ih = imx51_ipuv3_intr_establish(
+	    IMX51_INT_IPUV3, IPL_BIO, ipuv3intr, sc);
 	if (sc->ih == NULL) {
 		device_printf(sc->dev,
 		    "unable to establish interrupt at irq %d\n",
@@ -386,7 +384,7 @@ ipu3_fb_attach(device_t dev)
 #endif
 
 	/*
-	 * We have to wait until interrupts are enabled. 
+	 * We have to wait until interrupts are enabled.
 	 * Mailbox relies on it to get data from VideoCore
 	 */
 	ipu3_fb_init(sc);
@@ -412,16 +410,14 @@ fail_retarn_di0:
 fail_retarn_dmfc:
 	bus_space_unmap(sc->iot, sc->dc_ioh, IPU_CM_SIZE);
 fail_retarn_cm:
-	device_printf(sc->dev,
-	    "failed to map registers (errno=%d)\n", err);
+	device_printf(sc->dev, "failed to map registers (errno=%d)\n", err);
 	return (err);
 }
 
 static device_method_t ipu3_fb_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ipu3_fb_probe),
-	DEVMETHOD(device_attach,	ipu3_fb_attach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, ipu3_fb_probe),
+	DEVMETHOD(device_attach, ipu3_fb_attach), { 0, 0 }
 };
 
 static devclass_t ipu3_fb_devclass;
@@ -437,71 +433,71 @@ DRIVER_MODULE(ipu3fb, simplebus, ipu3_fb_driver, ipu3_fb_devclass, 0, 0);
 /*
  * Video driver routines and glue.
  */
-static int			ipu3fb_configure(int);
-static vi_probe_t		ipu3fb_probe;
-static vi_init_t		ipu3fb_init;
-static vi_get_info_t		ipu3fb_get_info;
-static vi_query_mode_t		ipu3fb_query_mode;
-static vi_set_mode_t		ipu3fb_set_mode;
-static vi_save_font_t		ipu3fb_save_font;
-static vi_load_font_t		ipu3fb_load_font;
-static vi_show_font_t		ipu3fb_show_font;
-static vi_save_palette_t	ipu3fb_save_palette;
-static vi_load_palette_t	ipu3fb_load_palette;
-static vi_set_border_t		ipu3fb_set_border;
-static vi_save_state_t		ipu3fb_save_state;
-static vi_load_state_t		ipu3fb_load_state;
-static vi_set_win_org_t		ipu3fb_set_win_org;
-static vi_read_hw_cursor_t	ipu3fb_read_hw_cursor;
-static vi_set_hw_cursor_t	ipu3fb_set_hw_cursor;
-static vi_set_hw_cursor_shape_t	ipu3fb_set_hw_cursor_shape;
-static vi_blank_display_t	ipu3fb_blank_display;
-static vi_mmap_t		ipu3fb_mmap;
-static vi_ioctl_t		ipu3fb_ioctl;
-static vi_clear_t		ipu3fb_clear;
-static vi_fill_rect_t		ipu3fb_fill_rect;
-static vi_bitblt_t		ipu3fb_bitblt;
-static vi_diag_t		ipu3fb_diag;
-static vi_save_cursor_palette_t	ipu3fb_save_cursor_palette;
-static vi_load_cursor_palette_t	ipu3fb_load_cursor_palette;
-static vi_copy_t		ipu3fb_copy;
-static vi_putp_t		ipu3fb_putp;
-static vi_putc_t		ipu3fb_putc;
-static vi_puts_t		ipu3fb_puts;
-static vi_putm_t		ipu3fb_putm;
+static int ipu3fb_configure(int);
+static vi_probe_t ipu3fb_probe;
+static vi_init_t ipu3fb_init;
+static vi_get_info_t ipu3fb_get_info;
+static vi_query_mode_t ipu3fb_query_mode;
+static vi_set_mode_t ipu3fb_set_mode;
+static vi_save_font_t ipu3fb_save_font;
+static vi_load_font_t ipu3fb_load_font;
+static vi_show_font_t ipu3fb_show_font;
+static vi_save_palette_t ipu3fb_save_palette;
+static vi_load_palette_t ipu3fb_load_palette;
+static vi_set_border_t ipu3fb_set_border;
+static vi_save_state_t ipu3fb_save_state;
+static vi_load_state_t ipu3fb_load_state;
+static vi_set_win_org_t ipu3fb_set_win_org;
+static vi_read_hw_cursor_t ipu3fb_read_hw_cursor;
+static vi_set_hw_cursor_t ipu3fb_set_hw_cursor;
+static vi_set_hw_cursor_shape_t ipu3fb_set_hw_cursor_shape;
+static vi_blank_display_t ipu3fb_blank_display;
+static vi_mmap_t ipu3fb_mmap;
+static vi_ioctl_t ipu3fb_ioctl;
+static vi_clear_t ipu3fb_clear;
+static vi_fill_rect_t ipu3fb_fill_rect;
+static vi_bitblt_t ipu3fb_bitblt;
+static vi_diag_t ipu3fb_diag;
+static vi_save_cursor_palette_t ipu3fb_save_cursor_palette;
+static vi_load_cursor_palette_t ipu3fb_load_cursor_palette;
+static vi_copy_t ipu3fb_copy;
+static vi_putp_t ipu3fb_putp;
+static vi_putc_t ipu3fb_putc;
+static vi_puts_t ipu3fb_puts;
+static vi_putm_t ipu3fb_putm;
 
 static video_switch_t ipu3fbvidsw = {
-	.probe			= ipu3fb_probe,
-	.init			= ipu3fb_init,
-	.get_info		= ipu3fb_get_info,
-	.query_mode		= ipu3fb_query_mode,
-	.set_mode		= ipu3fb_set_mode,
-	.save_font		= ipu3fb_save_font,
-	.load_font		= ipu3fb_load_font,
-	.show_font		= ipu3fb_show_font,
-	.save_palette		= ipu3fb_save_palette,
-	.load_palette		= ipu3fb_load_palette,
-	.set_border		= ipu3fb_set_border,
-	.save_state		= ipu3fb_save_state,
-	.load_state		= ipu3fb_load_state,
-	.set_win_org		= ipu3fb_set_win_org,
-	.read_hw_cursor		= ipu3fb_read_hw_cursor,
-	.set_hw_cursor		= ipu3fb_set_hw_cursor,
-	.set_hw_cursor_shape	= ipu3fb_set_hw_cursor_shape,
-	.blank_display		= ipu3fb_blank_display,
-	.mmap			= ipu3fb_mmap,
-	.ioctl			= ipu3fb_ioctl,
-	.clear			= ipu3fb_clear,
-	.fill_rect		= ipu3fb_fill_rect,
-	.bitblt			= ipu3fb_bitblt,
-	.diag			= ipu3fb_diag,
-	.save_cursor_palette	= ipu3fb_save_cursor_palette,
-	.load_cursor_palette	= ipu3fb_load_cursor_palette,
-	.copy			= ipu3fb_copy,
-	.putp			= ipu3fb_putp,
-	.putc			= ipu3fb_putc,
-	.puts			= ipu3fb_puts,
-	.putm			= ipu3fb_putm,
+	.probe = ipu3fb_probe,
+	.init = ipu3fb_init,
+	.get_info = ipu3fb_get_info,
+	.query_mode = ipu3fb_query_mode,
+	.set_mode = ipu3fb_set_mode,
+	.save_font = ipu3fb_save_font,
+	.load_font = ipu3fb_load_font,
+	.show_font = ipu3fb_show_font,
+	.save_palette = ipu3fb_save_palette,
+	.load_palette = ipu3fb_load_palette,
+	.set_border = ipu3fb_set_border,
+	.save_state = ipu3fb_save_state,
+	.load_state = ipu3fb_load_state,
+	.set_win_org = ipu3fb_set_win_org,
+	.read_hw_cursor = ipu3fb_read_hw_cursor,
+	.set_hw_cursor = ipu3fb_set_hw_cursor,
+	.set_hw_cursor_shape = ipu3fb_set_hw_cursor_shape,
+	.blank_display = ipu3fb_blank_display,
+	.mmap = ipu3fb_mmap,
+	.ioctl = ipu3fb_ioctl,
+	.clear = ipu3fb_clear,
+	.fill_rect = ipu3fb_fill_rect,
+	.bitblt = ipu3fb_bitblt,
+	.diag = ipu3fb_diag,
+	.save_cursor_palette = ipu3fb_save_cursor_palette,
+	.load_cursor_palette = ipu3fb_load_cursor_palette,
+	.copy = ipu3fb_copy,
+	.putp = ipu3fb_putp,
+	.putc = ipu3fb_putc,
+	.puts = ipu3fb_puts,
+	.putm = ipu3fb_putm,
 };
 
 VIDEO_DRIVER(ipu3fb, ipu3fbvidsw, ipu3fb_configure);
@@ -510,7 +506,7 @@ extern sc_rndr_sw_t txtrndrsw;
 RENDERER(ipu3fb, 0, txtrndrsw, gfb_set);
 RENDERER_MODULE(ipu3fb, gfb_set);
 
-static uint16_t ipu3fb_static_window[ROW*COL];
+static uint16_t ipu3fb_static_window[ROW * COL];
 extern u_char dflt_font_16[];
 
 static int
@@ -556,8 +552,8 @@ ipu3fb_init(int unit, video_adapter_t *adp, int flags)
 	sc->font = dflt_font_16;
 	vi->vi_cheight = IPU3FB_FONT_HEIGHT;
 	vi->vi_cwidth = 8;
-	vi->vi_width = sc->width/8;
-	vi->vi_height = sc->height/vi->vi_cheight;
+	vi->vi_width = sc->width / 8;
+	vi->vi_height = sc->height / vi->vi_cheight;
 
 	/*
 	 * Clamp width/height to syscons maximums
@@ -568,9 +564,9 @@ ipu3fb_init(int unit, video_adapter_t *adp, int flags)
 		vi->vi_height = ROW;
 
 	sc->xmargin = (sc->width - (vi->vi_width * vi->vi_cwidth)) / 2;
-	sc->ymargin = (sc->height - (vi->vi_height * vi->vi_cheight))/2;
+	sc->ymargin = (sc->height - (vi->vi_height * vi->vi_cheight)) / 2;
 
-	adp->va_window = (vm_offset_t) ipu3fb_static_window;
+	adp->va_window = (vm_offset_t)ipu3fb_static_window;
 	adp->va_flags |= V_ADP_FONT /* | V_ADP_COLOR | V_ADP_MODECHANGE */;
 	adp->va_line_width = sc->stride;
 	adp->va_buffer_size = sc->fb_size;
@@ -687,8 +683,8 @@ ipu3fb_set_hw_cursor(video_adapter_t *adp, int col, int row)
 }
 
 static int
-ipu3fb_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
-    int celsize, int blink)
+ipu3fb_set_hw_cursor_shape(
+    video_adapter_t *adp, int base, int height, int celsize, int blink)
 {
 
 	return (0);
@@ -826,9 +822,8 @@ ipu3fb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
 	col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
 	p = sc->font + c * IPU3FB_FONT_HEIGHT;
-	addr = (uint8_t *)sc->fb_addr
-	    + (row + sc->ymargin) * (sc->stride)
-	    + bpp * (col + sc->xmargin);
+	addr = (uint8_t *)sc->fb_addr + (row + sc->ymargin) * (sc->stride) +
+	    bpp * (col + sc->xmargin);
 
 	if (bpp == 2) {
 		bg = colors[(a >> 4) & 0x0f];
@@ -847,15 +842,14 @@ ipu3fb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 			else
 				color = fg;
 			/* FIXME: BPP maybe different */
-			for (b = 0; b < bpp; b ++)
-				addr[bpp * j + b] =
-				    (color >> (b << 3)) & 0xff;
+			for (b = 0; b < bpp; b++)
+				addr[bpp * j + b] = (color >> (b << 3)) & 0xff;
 		}
 
 		addr += (sc->stride);
 	}
 
-        return (0);
+	return (0);
 }
 
 static int
@@ -863,7 +857,7 @@ ipu3fb_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
 {
 	int i;
 
-	for (i = 0; i < len; i++) 
+	for (i = 0; i < len; i++)
 		ipu3fb_putc(adp, off + i, s[i] & 0xff, (s[i] & 0xff00) >> 8);
 
 	return (0);

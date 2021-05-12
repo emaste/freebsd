@@ -39,11 +39,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
+#include <sys/domain.h>
+#include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/fcntl.h>
 #include <sys/ipc.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -51,39 +53,36 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
+#include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/protosw.h>
-#include <sys/domain.h>
 #include <sys/sx.h>
-#include <sys/sysproto.h>
 #include <sys/sysent.h>
-#include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/ucred.h>
 #include <sys/uio.h>
 #include <sys/un.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
-#include <bsm/audit.h>
-#include <bsm/audit_internal.h>
-#include <bsm/audit_kevents.h>
-
-#include <netinet/in.h>
-#include <netinet/in_pcb.h>
-
-#include <security/audit/audit.h>
-#include <security/audit/audit_private.h>
-
 #include <vm/uma.h>
 
 #include <machine/stdarg.h>
 
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
+
+#include <bsm/audit.h>
+#include <bsm/audit_internal.h>
+#include <bsm/audit_kevents.h>
+#include <security/audit/audit.h>
+#include <security/audit/audit_private.h>
+
 /*
  * Worker thread that will schedule disk I/O, etc.
  */
-static struct proc		*audit_thread;
+static struct proc *audit_thread;
 
 /*
  * audit_cred and audit_vp are the stored credential and vnode to use for
@@ -94,18 +93,17 @@ static struct proc		*audit_thread;
  * is cleared when the next rotation takes place.  It is also protected by
  * the audit worker lock.
  */
-static int		 audit_file_rotate_wait;
-static struct ucred	*audit_cred;
-static struct vnode	*audit_vp;
-static off_t		 audit_size;
-static struct sx	 audit_worker_lock;
+static int audit_file_rotate_wait;
+static struct ucred *audit_cred;
+static struct vnode *audit_vp;
+static off_t audit_size;
+static struct sx audit_worker_lock;
 
-#define	AUDIT_WORKER_LOCK_INIT()	sx_init(&audit_worker_lock, \
-					    "audit_worker_lock");
-#define	AUDIT_WORKER_LOCK_ASSERT()	sx_assert(&audit_worker_lock, \
-					    SA_XLOCKED)
-#define	AUDIT_WORKER_LOCK()		sx_xlock(&audit_worker_lock)
-#define	AUDIT_WORKER_UNLOCK()		sx_xunlock(&audit_worker_lock)
+#define AUDIT_WORKER_LOCK_INIT() \
+	sx_init(&audit_worker_lock, "audit_worker_lock");
+#define AUDIT_WORKER_LOCK_ASSERT() sx_assert(&audit_worker_lock, SA_XLOCKED)
+#define AUDIT_WORKER_LOCK() sx_xlock(&audit_worker_lock)
+#define AUDIT_WORKER_UNLOCK() sx_xunlock(&audit_worker_lock)
 
 static void
 audit_worker_sync_vp(struct vnode *vp, struct mount *mp, const char *fmt, ...)
@@ -136,8 +134,7 @@ audit_worker_sync_vp(struct vnode *vp, struct mount *mp, const char *fmt, ...)
  * the audit daemon, since the message is asynchronous anyway.
  */
 static void
-audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
-    size_t len)
+audit_record_write(struct vnode *vp, struct ucred *cred, void *data, size_t len)
 {
 	static struct timeval last_lowspace_trigger;
 	static struct timeval last_fail;
@@ -214,11 +211,11 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 		temp = mnt_stat->f_blocks / (100 / audit_qctrl.aq_minfree);
 		if (mnt_stat->f_bfree < temp) {
 			if (ppsratecheck(&last_lowspace_trigger,
-			    &cur_lowspace_trigger, 1)) {
+				&cur_lowspace_trigger, 1)) {
 				(void)audit_send_trigger(
 				    AUDIT_TRIGGER_LOW_SPACE);
 				printf("Warning: disk space low (< %d%% free) "
-				    "on audit log file-system\n",
+				       "on audit log file-system\n",
 				    audit_qctrl.aq_minfree);
 			}
 		}
@@ -230,7 +227,8 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	 * records may be generated before the daemon rotates the file.
 	 */
 	if (audit_fstat.af_filesz != 0 &&
-	    audit_size >= audit_fstat.af_filesz * (audit_file_rotate_wait + 1)) {
+	    audit_size >=
+		audit_fstat.af_filesz * (audit_file_rotate_wait + 1)) {
 		AUDIT_WORKER_LOCK_ASSERT();
 
 		audit_file_rotate_wait++;
@@ -250,12 +248,13 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	 */
 	if (audit_fail_stop) {
 		if ((unsigned long)((audit_q_len + audit_pre_q_len + 1) *
-		    MAX_AUDIT_RECORD_SIZE) / mnt_stat->f_bsize >=
+			MAX_AUDIT_RECORD_SIZE) /
+			mnt_stat->f_bsize >=
 		    (unsigned long)(mnt_stat->f_bfree)) {
 			if (ppsratecheck(&last_fail, &cur_fail, 1))
 				printf("audit_record_write: free space "
-				    "below size of audit queue, failing "
-				    "stop\n");
+				       "below size of audit queue, failing "
+				       "stop\n");
 			audit_in_failure = 1;
 		} else if (audit_in_failure) {
 			/*
@@ -267,7 +266,7 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	}
 
 	error = vn_rdwr(UIO_WRITE, vp, data, len, (off_t)0, UIO_SYSSPACE,
-	    IO_APPEND|IO_UNIT, cred, NULL, NULL, curthread);
+	    IO_APPEND | IO_UNIT, cred, NULL, NULL, curthread);
 	if (error == ENOSPC)
 		goto fail_enospc;
 	else if (error)
@@ -301,8 +300,8 @@ fail_enospc:
 	 * space, or ENOSPC returned by the vnode write call.
 	 */
 	if (audit_fail_stop) {
-		audit_worker_sync_vp(vp, mp,
-		    "Audit log space exhausted and fail-stop set.");
+		audit_worker_sync_vp(
+		    vp, mp, "Audit log space exhausted and fail-stop set.");
 	}
 	(void)audit_send_trigger(AUDIT_TRIGGER_NO_SPACE);
 	audit_trail_suspended = 1;
@@ -315,8 +314,8 @@ fail:
 	 * lost, which may require an immediate system halt.
 	 */
 	if (audit_panic_on_write_fail) {
-		audit_worker_sync_vp(vp, mp,
-		    "audit_worker: write error %d\n", error);
+		audit_worker_sync_vp(
+		    vp, mp, "audit_worker: write error %d\n", error);
 	} else if (ppsratecheck(&last_fail, &cur_fail, 1))
 		printf("audit_worker: write error %d\n", error);
 	if (mp != NULL)
@@ -346,7 +345,7 @@ audit_worker_process_record(struct kaudit_record *ar)
 	 * up in two different trail files.
 	 */
 	if (((ar->k_ar_commit & AR_COMMIT_USER) &&
-	    (ar->k_ar_commit & AR_PRESELECT_USER_TRAIL)) ||
+		(ar->k_ar_commit & AR_PRESELECT_USER_TRAIL)) ||
 	    (ar->k_ar_commit & AR_PRESELECT_TRAIL)) {
 		AUDIT_WORKER_LOCK();
 		locked = 1;
@@ -360,8 +359,8 @@ audit_worker_process_record(struct kaudit_record *ar)
 	if ((ar->k_ar_commit & AR_COMMIT_USER) &&
 	    (ar->k_ar_commit & AR_PRESELECT_USER_TRAIL)) {
 		AUDIT_WORKER_LOCK_ASSERT();
-		audit_record_write(audit_vp, audit_cred, ar->k_udata,
-		    ar->k_ulen);
+		audit_record_write(
+		    audit_vp, audit_cred, ar->k_udata, ar->k_ulen);
 	}
 
 	if ((ar->k_ar_commit & AR_COMMIT_USER) &&
@@ -370,8 +369,8 @@ audit_worker_process_record(struct kaudit_record *ar)
 
 	if (!(ar->k_ar_commit & AR_COMMIT_KERNEL) ||
 	    ((ar->k_ar_commit & AR_PRESELECT_PIPE) == 0 &&
-	    (ar->k_ar_commit & AR_PRESELECT_TRAIL) == 0 &&
-	    (ar->k_ar_commit & AR_PRESELECT_DTRACE) == 0))
+		(ar->k_ar_commit & AR_PRESELECT_TRAIL) == 0 &&
+		(ar->k_ar_commit & AR_PRESELECT_DTRACE) == 0))
 		goto out;
 
 	auid = ar->k_ar.ar_subj_auid;
@@ -405,8 +404,7 @@ audit_worker_process_record(struct kaudit_record *ar)
 
 	if (ar->k_ar_commit & AR_PRESELECT_PIPE)
 		audit_pipe_submit(auid, event, class, sorf,
-		    ar->k_ar_commit & AR_PRESELECT_TRAIL, bsm->data,
-		    bsm->len);
+		    ar->k_ar_commit & AR_PRESELECT_TRAIL, bsm->data, bsm->len);
 
 #ifdef KDTRACE_HOOKS
 	/*
@@ -414,8 +412,8 @@ audit_worker_process_record(struct kaudit_record *ar)
 	 */
 	if (ar->k_ar_commit & AR_PRESELECT_DTRACE) {
 		if (dtaudit_hook_bsm != NULL)
-			dtaudit_hook_bsm(ar, auid, event, class, sorf,
-			    bsm->data, bsm->len);
+			dtaudit_hook_bsm(
+			    ar, auid, event, class, sorf, bsm->data, bsm->len);
 	}
 #endif
 
@@ -527,8 +525,8 @@ audit_rotate_vnode(struct ucred *cred, struct vnode *vp)
 	 * If there was an old vnode/credential, close and free.
 	 */
 	if (old_audit_vp != NULL) {
-		vn_close(old_audit_vp, AUDIT_CLOSE_FLAGS, old_audit_cred,
-		    curthread);
+		vn_close(
+		    old_audit_vp, AUDIT_CLOSE_FLAGS, old_audit_cred, curthread);
 		crfree(old_audit_cred);
 	}
 }
@@ -539,8 +537,8 @@ audit_worker_init(void)
 	int error;
 
 	AUDIT_WORKER_LOCK_INIT();
-	error = kproc_create(audit_worker, NULL, &audit_thread, RFHIGHPID,
-	    0, "audit");
+	error = kproc_create(
+	    audit_worker, NULL, &audit_thread, RFHIGHPID, 0, "audit");
 	if (error)
 		panic("audit_worker_init: kproc_create returned %d", error);
 }

@@ -39,15 +39,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/reboot.h>
 
-#include <contrib/octeon-sdk/cvmx.h>
 #include <contrib/octeon-sdk/cvmx-bootmem.h>
 #include <contrib/octeon-sdk/cvmx-interrupt.h>
+#include <contrib/octeon-sdk/cvmx.h>
 #include <contrib/octeon-sdk/octeon-pci-console.h>
 
 #ifdef OCTEON_VENDOR_RADISYS
-#define	OPCIC_FLAG_RSYS		(0x00000001)
+#define OPCIC_FLAG_RSYS (0x00000001)
 
-#define	OPCIC_RSYS_FIFO_SIZE	(0x2000)
+#define OPCIC_RSYS_FIFO_SIZE (0x2000)
 #endif
 
 struct opcic_softc {
@@ -87,8 +87,8 @@ opcic_cnprobe(struct consdev *cp)
 	switch (cvmx_sysinfo_get()->board_type) {
 #ifdef OCTEON_VENDOR_RADISYS
 	case CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE:
-		pci_console_block =
-		    cvmx_bootmem_find_named_block("rsys_gbl_memory");
+		pci_console_block = cvmx_bootmem_find_named_block(
+		    "rsys_gbl_memory");
 		if (pci_console_block != NULL) {
 			sc->sc_flags |= OPCIC_FLAG_RSYS;
 			sc->sc_base_addr = pci_console_block->base_addr;
@@ -96,8 +96,8 @@ opcic_cnprobe(struct consdev *cp)
 		}
 #endif
 	default:
-		pci_console_block =
-		    cvmx_bootmem_find_named_block(OCTEON_PCI_CONSOLE_BLOCK_NAME);
+		pci_console_block = cvmx_bootmem_find_named_block(
+		    OCTEON_PCI_CONSOLE_BLOCK_NAME);
 		if (pci_console_block == NULL)
 			return;
 		sc->sc_base_addr = pci_console_block->base_addr;
@@ -135,8 +135,8 @@ opcic_cngetc(struct consdev *cp)
 		return (opcic_rsys_cngetc(sc));
 #endif
 
-	rv = octeon_pci_console_read(sc->sc_base_addr, 0, &ch, 1,
-	    OCT_PCI_CON_FLAG_NONBLOCK);
+	rv = octeon_pci_console_read(
+	    sc->sc_base_addr, 0, &ch, 1, OCT_PCI_CON_FLAG_NONBLOCK);
 	if (rv != 1)
 		return (-1);
 	return (ch);

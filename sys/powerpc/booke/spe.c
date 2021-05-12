@@ -35,9 +35,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/limits.h>
+#include <sys/proc.h>
 
 #include <machine/altivec.h>
 #include <machine/fpu.h>
@@ -56,8 +56,8 @@ static int spe_emu_instr(uint32_t, struct fpemu *, struct fpn **, uint32_t *);
 static void
 save_vec_int(struct thread *td)
 {
-	int	msr;
-	struct	pcb *pcb;
+	int msr;
+	struct pcb *pcb;
 
 	pcb = td->td_pcb;
 
@@ -70,21 +70,44 @@ save_vec_int(struct thread *td)
 	/*
 	 * Save the vector registers and SPEFSCR to the PCB
 	 */
-#define EVSTDW(n)   __asm ("evstdw %1,0(%0)" \
-		:: "b"(pcb->pcb_vec.vr[n]), "n"(n));
-	EVSTDW(0);	EVSTDW(1);	EVSTDW(2);	EVSTDW(3);
-	EVSTDW(4);	EVSTDW(5);	EVSTDW(6);	EVSTDW(7);
-	EVSTDW(8);	EVSTDW(9);	EVSTDW(10);	EVSTDW(11);
-	EVSTDW(12);	EVSTDW(13);	EVSTDW(14);	EVSTDW(15);
-	EVSTDW(16);	EVSTDW(17);	EVSTDW(18);	EVSTDW(19);
-	EVSTDW(20);	EVSTDW(21);	EVSTDW(22);	EVSTDW(23);
-	EVSTDW(24);	EVSTDW(25);	EVSTDW(26);	EVSTDW(27);
-	EVSTDW(28);	EVSTDW(29);	EVSTDW(30);	EVSTDW(31);
+#define EVSTDW(n) __asm("evstdw %1,0(%0)" ::"b"(pcb->pcb_vec.vr[n]), "n"(n));
+	EVSTDW(0);
+	EVSTDW(1);
+	EVSTDW(2);
+	EVSTDW(3);
+	EVSTDW(4);
+	EVSTDW(5);
+	EVSTDW(6);
+	EVSTDW(7);
+	EVSTDW(8);
+	EVSTDW(9);
+	EVSTDW(10);
+	EVSTDW(11);
+	EVSTDW(12);
+	EVSTDW(13);
+	EVSTDW(14);
+	EVSTDW(15);
+	EVSTDW(16);
+	EVSTDW(17);
+	EVSTDW(18);
+	EVSTDW(19);
+	EVSTDW(20);
+	EVSTDW(21);
+	EVSTDW(22);
+	EVSTDW(23);
+	EVSTDW(24);
+	EVSTDW(25);
+	EVSTDW(26);
+	EVSTDW(27);
+	EVSTDW(28);
+	EVSTDW(29);
+	EVSTDW(30);
+	EVSTDW(31);
 #undef EVSTDW
 
-	__asm ( "evxor 0,0,0\n"
-		"evmwumiaa 0,0,0\n"
-		"evstdd 0,0(%0)" :: "b"(&pcb->pcb_vec.spare[0]));
+	__asm("evxor 0,0,0\n"
+	      "evmwumiaa 0,0,0\n"
+	      "evstdd 0,0(%0)" ::"b"(&pcb->pcb_vec.spare[0]));
 	pcb->pcb_vec.vscr = mfspr(SPR_SPEFSCR);
 
 	/*
@@ -92,15 +115,14 @@ save_vec_int(struct thread *td)
 	 */
 	isync();
 	mtmsr(msr);
-
 }
 
 void
 enable_vec(struct thread *td)
 {
-	int	msr;
-	struct	pcb *pcb;
-	struct	trapframe *tf;
+	int msr;
+	struct pcb *pcb;
+	struct trapframe *tf;
 
 	pcb = td->td_pcb;
 	tf = trapframe(td);
@@ -134,23 +156,48 @@ enable_vec(struct thread *td)
 
 	/* Restore SPEFSCR and ACC.  Use %r0 as the scratch for ACC. */
 	mtspr(SPR_SPEFSCR, pcb->pcb_vec.vscr);
-	__asm __volatile("isync;evldd 0, 0(%0); evmra 0,0\n"
-	    :: "b"(&pcb->pcb_vec.spare[0]));
+	__asm __volatile(
+	    "isync;evldd 0, 0(%0); evmra 0,0\n" ::"b"(&pcb->pcb_vec.spare[0]));
 
-	/* 
+	/*
 	 * The lower half of each register will be restored on trap return.  Use
 	 * %r0 as a scratch register, and restore it last.
 	 */
-#define	EVLDW(n)   __asm __volatile("evldw 0, 0(%0); evmergehilo "#n",0,"#n \
-	    :: "b"(&pcb->pcb_vec.vr[n]));
-	EVLDW(1);	EVLDW(2);	EVLDW(3);	EVLDW(4);
-	EVLDW(5);	EVLDW(6);	EVLDW(7);	EVLDW(8);
-	EVLDW(9);	EVLDW(10);	EVLDW(11);	EVLDW(12);
-	EVLDW(13);	EVLDW(14);	EVLDW(15);	EVLDW(16);
-	EVLDW(17);	EVLDW(18);	EVLDW(19);	EVLDW(20);
-	EVLDW(21);	EVLDW(22);	EVLDW(23);	EVLDW(24);
-	EVLDW(25);	EVLDW(26);	EVLDW(27);	EVLDW(28);
-	EVLDW(29);	EVLDW(30);	EVLDW(31);	EVLDW(0);
+#define EVLDW(n)                                           \
+	__asm __volatile("evldw 0, 0(%0); evmergehilo " #n \
+			 ",0," #n ::"b"(&pcb->pcb_vec.vr[n]));
+	EVLDW(1);
+	EVLDW(2);
+	EVLDW(3);
+	EVLDW(4);
+	EVLDW(5);
+	EVLDW(6);
+	EVLDW(7);
+	EVLDW(8);
+	EVLDW(9);
+	EVLDW(10);
+	EVLDW(11);
+	EVLDW(12);
+	EVLDW(13);
+	EVLDW(14);
+	EVLDW(15);
+	EVLDW(16);
+	EVLDW(17);
+	EVLDW(18);
+	EVLDW(19);
+	EVLDW(20);
+	EVLDW(21);
+	EVLDW(22);
+	EVLDW(23);
+	EVLDW(24);
+	EVLDW(25);
+	EVLDW(26);
+	EVLDW(27);
+	EVLDW(28);
+	EVLDW(29);
+	EVLDW(30);
+	EVLDW(31);
+	EVLDW(0);
 #undef EVLDW
 
 	isync();
@@ -192,96 +239,96 @@ save_vec_nodrop(struct thread *td)
 	pcb = td->td_pcb;
 
 	for (i = 0; i < 32; i++) {
-		pcb->pcb_vec.vr[i][1] =
-		    td->td_frame ? td->td_frame->fixreg[i] : 0;
+		pcb->pcb_vec.vr[i][1] = td->td_frame ? td->td_frame->fixreg[i] :
+							     0;
 	}
 }
 
-#define	SPE_INST_MASK	0x31f
-#define	EADD	0x200
-#define	ESUB	0x201
-#define	EABS	0x204
-#define	ENABS	0x205
-#define	ENEG	0x206
-#define	EMUL	0x208
-#define	EDIV	0x209
-#define	ECMPGT	0x20c
-#define	ECMPLT	0x20d
-#define	ECMPEQ	0x20e
-#define	ECFUI	0x210
-#define	ECFSI	0x211
-#define	ECTUI	0x214
-#define	ECTSI	0x215
-#define	ECTUF	0x216
-#define	ECTSF	0x217
-#define	ECTUIZ	0x218
-#define	ECTSIZ	0x21a
+#define SPE_INST_MASK 0x31f
+#define EADD 0x200
+#define ESUB 0x201
+#define EABS 0x204
+#define ENABS 0x205
+#define ENEG 0x206
+#define EMUL 0x208
+#define EDIV 0x209
+#define ECMPGT 0x20c
+#define ECMPLT 0x20d
+#define ECMPEQ 0x20e
+#define ECFUI 0x210
+#define ECFSI 0x211
+#define ECTUI 0x214
+#define ECTSI 0x215
+#define ECTUF 0x216
+#define ECTSF 0x217
+#define ECTUIZ 0x218
+#define ECTSIZ 0x21a
 
-#define	SPE		0x4
-#define	SPFP		0x6
-#define	DPFP		0x7
+#define SPE 0x4
+#define SPFP 0x6
+#define DPFP 0x7
 
-#define	SPE_OPC		4
-#define	OPC_SHIFT	26
+#define SPE_OPC 4
+#define OPC_SHIFT 26
 
-#define	EVFSADD		0x280
-#define	EVFSSUB		0x281
-#define	EVFSABS		0x284
-#define	EVFSNABS	0x285
-#define	EVFSNEG		0x286
-#define	EVFSMUL		0x288
-#define	EVFSDIV		0x289
-#define	EVFSCMPGT	0x28c
-#define	EVFSCMPLT	0x28d
-#define	EVFSCMPEQ	0x28e
-#define	EVFSCFUI	0x290
-#define	EVFSCFSI	0x291
-#define	EVFSCTUI	0x294
-#define	EVFSCTSI	0x295
-#define	EVFSCTUF	0x296
-#define	EVFSCTSF	0x297
-#define	EVFSCTUIZ	0x298
-#define	EVFSCTSIZ	0x29a
+#define EVFSADD 0x280
+#define EVFSSUB 0x281
+#define EVFSABS 0x284
+#define EVFSNABS 0x285
+#define EVFSNEG 0x286
+#define EVFSMUL 0x288
+#define EVFSDIV 0x289
+#define EVFSCMPGT 0x28c
+#define EVFSCMPLT 0x28d
+#define EVFSCMPEQ 0x28e
+#define EVFSCFUI 0x290
+#define EVFSCFSI 0x291
+#define EVFSCTUI 0x294
+#define EVFSCTSI 0x295
+#define EVFSCTUF 0x296
+#define EVFSCTSF 0x297
+#define EVFSCTUIZ 0x298
+#define EVFSCTSIZ 0x29a
 
-#define	EFSADD		0x2c0
-#define	EFSSUB		0x2c1
-#define	EFSABS		0x2c4
-#define	EFSNABS		0x2c5
-#define	EFSNEG		0x2c6
-#define	EFSMUL		0x2c8
-#define	EFSDIV		0x2c9
-#define	EFSCMPGT	0x2cc
-#define	EFSCMPLT	0x2cd
-#define	EFSCMPEQ	0x2ce
-#define	EFSCFD		0x2cf
-#define	EFSCFUI		0x2d0
-#define	EFSCFSI		0x2d1
-#define	EFSCTUI		0x2d4
-#define	EFSCTSI		0x2d5
-#define	EFSCTUF		0x2d6
-#define	EFSCTSF		0x2d7
-#define	EFSCTUIZ	0x2d8
-#define	EFSCTSIZ	0x2da
+#define EFSADD 0x2c0
+#define EFSSUB 0x2c1
+#define EFSABS 0x2c4
+#define EFSNABS 0x2c5
+#define EFSNEG 0x2c6
+#define EFSMUL 0x2c8
+#define EFSDIV 0x2c9
+#define EFSCMPGT 0x2cc
+#define EFSCMPLT 0x2cd
+#define EFSCMPEQ 0x2ce
+#define EFSCFD 0x2cf
+#define EFSCFUI 0x2d0
+#define EFSCFSI 0x2d1
+#define EFSCTUI 0x2d4
+#define EFSCTSI 0x2d5
+#define EFSCTUF 0x2d6
+#define EFSCTSF 0x2d7
+#define EFSCTUIZ 0x2d8
+#define EFSCTSIZ 0x2da
 
-#define	EFDADD		0x2e0
-#define	EFDSUB		0x2e1
-#define	EFDABS		0x2e4
-#define	EFDNABS		0x2e5
-#define	EFDNEG		0x2e6
-#define	EFDMUL		0x2e8
-#define	EFDDIV		0x2e9
-#define	EFDCMPGT	0x2ec
-#define	EFDCMPLT	0x2ed
-#define	EFDCMPEQ	0x2ee
-#define	EFDCFS		0x2ef
-#define	EFDCFUI		0x2f0
-#define	EFDCFSI		0x2f1
-#define	EFDCTUI		0x2f4
-#define	EFDCTSI		0x2f5
-#define	EFDCTUF		0x2f6
-#define	EFDCTSF		0x2f7
-#define	EFDCTUIZ	0x2f8
-#define	EFDCTSIZ	0x2fa
+#define EFDADD 0x2e0
+#define EFDSUB 0x2e1
+#define EFDABS 0x2e4
+#define EFDNABS 0x2e5
+#define EFDNEG 0x2e6
+#define EFDMUL 0x2e8
+#define EFDDIV 0x2e9
+#define EFDCMPGT 0x2ec
+#define EFDCMPLT 0x2ed
+#define EFDCMPEQ 0x2ee
+#define EFDCFS 0x2ef
+#define EFDCFUI 0x2f0
+#define EFDCFSI 0x2f1
+#define EFDCTUI 0x2f4
+#define EFDCTSI 0x2f5
+#define EFDCTUF 0x2f6
+#define EFDCTSF 0x2f7
+#define EFDCTUIZ 0x2f8
+#define EFDCTSIZ 0x2fa
 
 enum {
 	NONE,
@@ -290,7 +337,8 @@ enum {
 	VECTOR,
 };
 
-static uint32_t fpscr_to_spefscr(uint32_t fpscr)
+static uint32_t
+fpscr_to_spefscr(uint32_t fpscr)
 {
 	uint32_t spefscr;
 
@@ -333,8 +381,8 @@ spe_to_int(struct fpemu *fpemu, struct fpn *fpn, uint32_t *val, int sign)
  * returns -1, or -2 if no result needs recorded.
  */
 static int
-spe_emu_instr(uint32_t instr, struct fpemu *fpemu,
-    struct fpn **result, uint32_t *iresult)
+spe_emu_instr(
+    uint32_t instr, struct fpemu *fpemu, struct fpn **result, uint32_t *iresult)
 {
 	switch (instr & SPE_INST_MASK) {
 	case EABS:
@@ -389,8 +437,8 @@ spe_emu_instr(uint32_t instr, struct fpemu *fpemu,
 }
 
 static int
-spe_explode(struct fpemu *fe, struct fpn *fp, uint32_t type,
-    uint32_t hi, uint32_t lo)
+spe_explode(
+    struct fpemu *fe, struct fpn *fp, uint32_t type, uint32_t hi, uint32_t lo)
 {
 	uint32_t s;
 
@@ -415,7 +463,7 @@ spe_explode(struct fpemu *fe, struct fpn *fp, uint32_t type,
 		 * (we can tell signalling ones by their class).
 		 */
 		fp->fp_mant[0] |= FP_QUIETBIT;
-		fe->fe_cx = FPSCR_VXSNAN;	/* assert invalid operand */
+		fe->fe_cx = FPSCR_VXSNAN; /* assert invalid operand */
 		s = FPC_SNAN;
 	}
 	fp->fp_class = s;
@@ -430,17 +478,44 @@ static uint32_t
 spe_save_reg_high(int reg)
 {
 	uint32_t vec[2];
-#define EVSTDW(n)   case n: __asm __volatile ("evstdw %1,0(%0)" \
-		:: "b"(vec), "n"(n) : "memory"); break;
+#define EVSTDW(n)                                                     \
+	case n:                                                       \
+		__asm __volatile("evstdw %1,0(%0)" ::"b"(vec), "n"(n) \
+				 : "memory");                         \
+		break;
 	switch (reg) {
-	EVSTDW(0);	EVSTDW(1);	EVSTDW(2);	EVSTDW(3);
-	EVSTDW(4);	EVSTDW(5);	EVSTDW(6);	EVSTDW(7);
-	EVSTDW(8);	EVSTDW(9);	EVSTDW(10);	EVSTDW(11);
-	EVSTDW(12);	EVSTDW(13);	EVSTDW(14);	EVSTDW(15);
-	EVSTDW(16);	EVSTDW(17);	EVSTDW(18);	EVSTDW(19);
-	EVSTDW(20);	EVSTDW(21);	EVSTDW(22);	EVSTDW(23);
-	EVSTDW(24);	EVSTDW(25);	EVSTDW(26);	EVSTDW(27);
-	EVSTDW(28);	EVSTDW(29);	EVSTDW(30);	EVSTDW(31);
+		EVSTDW(0);
+		EVSTDW(1);
+		EVSTDW(2);
+		EVSTDW(3);
+		EVSTDW(4);
+		EVSTDW(5);
+		EVSTDW(6);
+		EVSTDW(7);
+		EVSTDW(8);
+		EVSTDW(9);
+		EVSTDW(10);
+		EVSTDW(11);
+		EVSTDW(12);
+		EVSTDW(13);
+		EVSTDW(14);
+		EVSTDW(15);
+		EVSTDW(16);
+		EVSTDW(17);
+		EVSTDW(18);
+		EVSTDW(19);
+		EVSTDW(20);
+		EVSTDW(21);
+		EVSTDW(22);
+		EVSTDW(23);
+		EVSTDW(24);
+		EVSTDW(25);
+		EVSTDW(26);
+		EVSTDW(27);
+		EVSTDW(28);
+		EVSTDW(29);
+		EVSTDW(30);
+		EVSTDW(31);
 	}
 #undef EVSTDW
 
@@ -453,20 +528,45 @@ spe_save_reg_high(int reg)
 static void
 spe_load_reg_high(int reg, uint32_t val)
 {
-#define	EVLDW(n)   case n: __asm __volatile("evmergelo "#n",%0,"#n \
-	    :: "r"(val)); break;
+#define EVLDW(n)                                                        \
+	case n:                                                         \
+		__asm __volatile("evmergelo " #n ",%0," #n ::"r"(val)); \
+		break;
 	switch (reg) {
-	EVLDW(1);	EVLDW(2);	EVLDW(3);	EVLDW(4);
-	EVLDW(5);	EVLDW(6);	EVLDW(7);	EVLDW(8);
-	EVLDW(9);	EVLDW(10);	EVLDW(11);	EVLDW(12);
-	EVLDW(13);	EVLDW(14);	EVLDW(15);	EVLDW(16);
-	EVLDW(17);	EVLDW(18);	EVLDW(19);	EVLDW(20);
-	EVLDW(21);	EVLDW(22);	EVLDW(23);	EVLDW(24);
-	EVLDW(25);	EVLDW(26);	EVLDW(27);	EVLDW(28);
-	EVLDW(29);	EVLDW(30);	EVLDW(31);	EVLDW(0);
+		EVLDW(1);
+		EVLDW(2);
+		EVLDW(3);
+		EVLDW(4);
+		EVLDW(5);
+		EVLDW(6);
+		EVLDW(7);
+		EVLDW(8);
+		EVLDW(9);
+		EVLDW(10);
+		EVLDW(11);
+		EVLDW(12);
+		EVLDW(13);
+		EVLDW(14);
+		EVLDW(15);
+		EVLDW(16);
+		EVLDW(17);
+		EVLDW(18);
+		EVLDW(19);
+		EVLDW(20);
+		EVLDW(21);
+		EVLDW(22);
+		EVLDW(23);
+		EVLDW(24);
+		EVLDW(25);
+		EVLDW(26);
+		EVLDW(27);
+		EVLDW(28);
+		EVLDW(29);
+		EVLDW(30);
+		EVLDW(31);
+		EVLDW(0);
 	}
 #undef EVLDW
-
 }
 
 void
@@ -487,7 +587,7 @@ spe_handle_fpdata(struct trapframe *frame)
 
 	if (err != 0)
 		return;
-		/* Fault. */;
+	/* Fault. */;
 
 	if ((instr >> OPC_SHIFT) != SPE_OPC)
 		return;
@@ -535,8 +635,8 @@ spe_handle_fpdata(struct trapframe *frame)
 			    spe_save_reg_high(ra), 0);
 			spe_explode(&fpemu, &fpemu.fe_f2, SINGLE,
 			    spe_save_reg_high(rb), 0);
-			high = spe_emu_instr(instr_sec_op, &fpemu, &result,
-			    &tmp);
+			high = spe_emu_instr(
+			    instr_sec_op, &fpemu, &result, &tmp);
 
 			if (high < 0)
 				spe_load_reg_high(rd, tmp);
@@ -546,13 +646,13 @@ spe_handle_fpdata(struct trapframe *frame)
 			memset(&fpemu, 0, sizeof(fpemu));
 
 			/* Now low word */
-			spe_explode(&fpemu, &fpemu.fe_f1, SINGLE,
-			    frame->fixreg[ra], 0);
-			spe_explode(&fpemu, &fpemu.fe_f2, SINGLE,
-			    frame->fixreg[rb], 0);
+			spe_explode(
+			    &fpemu, &fpemu.fe_f1, SINGLE, frame->fixreg[ra], 0);
+			spe_explode(
+			    &fpemu, &fpemu.fe_f2, SINGLE, frame->fixreg[rb], 0);
 			spefscr |= fpscr_to_spefscr(fpemu.fe_cx);
-			low = spe_emu_instr(instr_sec_op, &fpemu, &result,
-			    &frame->fixreg[rd]);
+			low = spe_emu_instr(
+			    instr_sec_op, &fpemu, &result, &frame->fixreg[rd]);
 			if (instr_sec_op == EVFSCMPEQ ||
 			    instr_sec_op == EVFSCMPGT ||
 			    instr_sec_op == EVFSCMPLT) {
@@ -584,10 +684,10 @@ spe_handle_fpdata(struct trapframe *frame)
 			width = SINGLE;
 			break;
 		default:
-			spe_explode(&fpemu, &fpemu.fe_f1, SINGLE,
-			    frame->fixreg[ra], 0);
-			spe_explode(&fpemu, &fpemu.fe_f2, SINGLE,
-			    frame->fixreg[rb], 0);
+			spe_explode(
+			    &fpemu, &fpemu.fe_f1, SINGLE, frame->fixreg[ra], 0);
+			spe_explode(
+			    &fpemu, &fpemu.fe_f2, SINGLE, frame->fixreg[rb], 0);
 			width = SINGLE;
 		}
 		break;
@@ -610,8 +710,8 @@ spe_handle_fpdata(struct trapframe *frame)
 			spe_load_reg_high(rd, high);
 			break;
 		case EFDCFS:
-			spe_explode(&fpemu, &fpemu.fe_f3, SINGLE,
-			    frame->fixreg[rb], 0);
+			spe_explode(
+			    &fpemu, &fpemu.fe_f3, SINGLE, frame->fixreg[rb], 0);
 			result = &fpemu.fe_f3;
 			width = DOUBLE;
 			break;
@@ -630,8 +730,8 @@ spe_handle_fpdata(struct trapframe *frame)
 		/* Already handled. */
 		break;
 	default:
-		res = spe_emu_instr(instr_sec_op, &fpemu, &result,
-		    &frame->fixreg[rd]);
+		res = spe_emu_instr(
+		    instr_sec_op, &fpemu, &result, &frame->fixreg[rd]);
 		if (res != -1)
 			res <<= 2;
 		break;
@@ -658,7 +758,8 @@ spe_handle_fpdata(struct trapframe *frame)
 			frame->fixreg[rd] = fpu_ftos(&fpemu, result);
 			break;
 		case DOUBLE:
-			spe_load_reg_high(rd, fpu_ftod(&fpemu, result, ftod_res));
+			spe_load_reg_high(
+			    rd, fpu_ftod(&fpemu, result, ftod_res));
 			frame->fixreg[rd] = ftod_res[1];
 			break;
 		default:

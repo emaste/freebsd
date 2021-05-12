@@ -48,14 +48,14 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
-#include <ddb/ddb.h>
 #include <ddb/db_output.h>
+#include <ddb/ddb.h>
 
 struct dbputchar_arg {
-	size_t	da_nbufr;
-	size_t	da_remain;
-	char	*da_pbufr;
-	char	*da_pnext;
+	size_t da_nbufr;
+	size_t da_remain;
+	char *da_pbufr;
+	char *da_pnext;
 };
 
 /*
@@ -70,23 +70,23 @@ struct dbputchar_arg {
  *	don't print trailing spaces.  This avoids most
  *	of the wraparounds.
  */
-static int	db_output_position = 0;		/* output column */
-static int	db_last_non_space = 0;		/* last non-space character */
-db_expr_t	db_tab_stop_width = 8;		/* how wide are tab stops? */
-#define	NEXT_TAB(i) rounddown((i) + db_tab_stop_width, db_tab_stop_width)
-db_expr_t	db_max_width = 79;		/* output line width */
-db_expr_t	db_lines_per_page = 20;		/* lines per page */
-volatile int	db_pager_quit;			/* user requested quit */
-static int	db_newlines;			/* # lines this page */
-static int	db_maxlines;			/* max lines/page when paging */
-static int	ddb_use_printf = 0;
+static int db_output_position = 0; /* output column */
+static int db_last_non_space = 0;  /* last non-space character */
+db_expr_t db_tab_stop_width = 8;   /* how wide are tab stops? */
+#define NEXT_TAB(i) rounddown((i) + db_tab_stop_width, db_tab_stop_width)
+db_expr_t db_max_width = 79;	  /* output line width */
+db_expr_t db_lines_per_page = 20; /* lines per page */
+volatile int db_pager_quit;	  /* user requested quit */
+static int db_newlines;		  /* # lines this page */
+static int db_maxlines;		  /* max lines/page when paging */
+static int ddb_use_printf = 0;
 SYSCTL_INT(_debug, OID_AUTO, ddb_use_printf, CTLFLAG_RW, &ddb_use_printf, 0,
     "use printf for all ddb output");
 
-static void	db_putc(int c);
-static void	db_puts(const char *str);
-static void	db_putchar(int c, void *arg);
-static void	db_pager(void);
+static void db_putc(int c);
+static void db_puts(const char *str);
+static void db_putchar(int c, void *arg);
+static void db_pager(void);
 
 /*
  * Force pending whitespace.
@@ -98,19 +98,19 @@ db_force_whitespace(void)
 
 	last_print = db_last_non_space;
 	while (last_print < db_output_position) {
-	    next_tab = NEXT_TAB(last_print);
-	    if (next_tab <= db_output_position) {
-		while (last_print < next_tab) { /* DON'T send a tab!!! */
+		next_tab = NEXT_TAB(last_print);
+		if (next_tab <= db_output_position) {
+			while (
+			    last_print < next_tab) { /* DON'T send a tab!!! */
+				cnputc(' ');
+				db_capture_writech(' ');
+				last_print++;
+			}
+		} else {
 			cnputc(' ');
 			db_capture_writech(' ');
 			last_print++;
 		}
-	    }
-	    else {
-		cnputc(' ');
-		db_capture_writech(' ');
-		last_print++;
-	    }
 	}
 	db_last_non_space = db_output_position;
 }
@@ -124,7 +124,7 @@ db_putchar(int c, void *arg)
 	struct dbputchar_arg *dap = arg;
 
 	if (dap->da_pbufr == NULL) {
-		 /* No bufferized output is provided. */
+		/* No bufferized output is provided. */
 		db_putc(c);
 	} else {
 		*dap->da_pnext++ = c;
@@ -167,50 +167,45 @@ db_putc(int c)
 
 	/* Otherwise, output data directly to the console. */
 	if (c > ' ' && c <= '~') {
-	    /*
-	     * Printing character.
-	     * If we have spaces to print, print them first.
-	     * Use tabs if possible.
-	     */
-	    db_force_whitespace();
-	    cnputc(c);
-	    db_capture_writech(c);
-	    db_output_position++;
-	    db_last_non_space = db_output_position;
-	}
-	else if (c == '\n') {
-	    /* Newline */
-	    cnputc(c);
-	    db_capture_writech(c);
-	    db_output_position = 0;
-	    db_last_non_space = 0;
-	    db_check_interrupt();
-	    if (db_maxlines > 0) {
-		    db_newlines++;
-		    if (db_newlines >= db_maxlines)
-			    db_pager();
-	    }
-	}
-	else if (c == '\r') {
-	    /* Return */
-	    cnputc(c);
-	    db_capture_writech(c);
-	    db_output_position = 0;
-	    db_last_non_space = 0;
-	    db_check_interrupt();
-	}
-	else if (c == '\t') {
-	    /* assume tabs every 8 positions */
-	    db_output_position = NEXT_TAB(db_output_position);
-	}
-	else if (c == ' ') {
-	    /* space */
-	    db_output_position++;
-	}
-	else if (c == '\007') {
-	    /* bell */
-	    cnputc(c);
-	    /* No need to beep in a log: db_capture_writech(c); */
+		/*
+		 * Printing character.
+		 * If we have spaces to print, print them first.
+		 * Use tabs if possible.
+		 */
+		db_force_whitespace();
+		cnputc(c);
+		db_capture_writech(c);
+		db_output_position++;
+		db_last_non_space = db_output_position;
+	} else if (c == '\n') {
+		/* Newline */
+		cnputc(c);
+		db_capture_writech(c);
+		db_output_position = 0;
+		db_last_non_space = 0;
+		db_check_interrupt();
+		if (db_maxlines > 0) {
+			db_newlines++;
+			if (db_newlines >= db_maxlines)
+				db_pager();
+		}
+	} else if (c == '\r') {
+		/* Return */
+		cnputc(c);
+		db_capture_writech(c);
+		db_output_position = 0;
+		db_last_non_space = 0;
+		db_check_interrupt();
+	} else if (c == '\t') {
+		/* assume tabs every 8 positions */
+		db_output_position = NEXT_TAB(db_output_position);
+	} else if (c == ' ') {
+		/* space */
+		db_output_position++;
+	} else if (c == '\007') {
+		/* bell */
+		cnputc(c);
+		/* No need to beep in a log: db_capture_writech(c); */
 	}
 	/* other characters are assumed non-printing */
 }
@@ -322,7 +317,7 @@ db_printf(const char *fmt, ...)
 	char bufr[DDB_BUFR_SIZE];
 #endif
 	struct dbputchar_arg dca;
-	va_list	listp;
+	va_list listp;
 	int retval;
 
 #ifdef DDB_BUFR_SIZE
@@ -336,7 +331,7 @@ db_printf(const char *fmt, ...)
 #endif
 
 	va_start(listp, fmt);
-	retval = kvprintf (fmt, db_putchar, &dca, db_radix, listp);
+	retval = kvprintf(fmt, db_putchar, &dca, db_radix, listp);
 	va_end(listp);
 
 #ifdef DDB_BUFR_SIZE
@@ -349,7 +344,7 @@ db_printf(const char *fmt, ...)
 int db_indent;
 
 void
-db_iprintf(const char *fmt,...)
+db_iprintf(const char *fmt, ...)
 {
 #ifdef DDB_BUFR_SIZE
 	char bufr[DDB_BUFR_SIZE];
@@ -374,7 +369,7 @@ db_iprintf(const char *fmt,...)
 #endif
 
 	va_start(listp, fmt);
-	kvprintf (fmt, db_putchar, &dca, db_radix, listp);
+	kvprintf(fmt, db_putchar, &dca, db_radix, listp);
 	va_end(listp);
 
 #ifdef DDB_BUFR_SIZE
@@ -390,5 +385,5 @@ void
 db_end_line(int field_width)
 {
 	if (db_output_position + field_width > db_max_width)
-	    db_printf("\n");
+		db_printf("\n");
 }

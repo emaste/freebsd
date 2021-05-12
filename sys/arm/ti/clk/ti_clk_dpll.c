@@ -52,26 +52,23 @@ __FBSDID("$FreeBSD$");
  */
 
 struct ti_dpll_clknode_sc {
-	uint32_t		ti_clkmode_offset; /* control */
-	uint8_t			ti_clkmode_flags;
+	uint32_t ti_clkmode_offset; /* control */
+	uint8_t ti_clkmode_flags;
 
-	uint32_t		ti_idlest_offset;
+	uint32_t ti_idlest_offset;
 
-	uint32_t		ti_clksel_offset; /* mult-div1 */
-	struct ti_clk_factor	n; /* ti_clksel_mult */
-	struct ti_clk_factor	p; /* ti_clksel_div */
+	uint32_t ti_clksel_offset; /* mult-div1 */
+	struct ti_clk_factor n;	   /* ti_clksel_mult */
+	struct ti_clk_factor p;	   /* ti_clksel_div */
 
-	uint32_t		ti_autoidle_offset;
+	uint32_t ti_autoidle_offset;
 };
 
-#define	WRITE4(_clk, off, val)						\
+#define WRITE4(_clk, off, val) \
 	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
-#define	READ4(_clk, off, val)						\
-	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
-#define	DEVICE_LOCK(_clk)						\
-	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
-#define	DEVICE_UNLOCK(_clk)						\
-	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
+#define READ4(_clk, off, val) CLKDEV_READ_4(clknode_get_device(_clk), off, val)
+#define DEVICE_LOCK(_clk) CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
+#define DEVICE_UNLOCK(_clk) CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
 static int
 ti_dpll_clk_init(struct clknode *clk, device_t dev)
@@ -118,7 +115,7 @@ ti_clk_factor_get_min(struct ti_clk_factor *factor)
 
 static uint64_t
 ti_dpll_clk_find_best(struct ti_dpll_clknode_sc *sc, uint64_t fparent,
-	uint64_t *fout, uint32_t *factor_n, uint32_t *factor_p)
+    uint64_t *fout, uint32_t *factor_n, uint32_t *factor_p)
 {
 	uint64_t cur, best;
 	uint32_t n, p, max_n, max_p, min_n, min_p;
@@ -130,8 +127,8 @@ ti_dpll_clk_find_best(struct ti_dpll_clknode_sc *sc, uint64_t fparent,
 	min_n = ti_clk_factor_get_min(&sc->n);
 	min_p = ti_clk_factor_get_min(&sc->p);
 
-	for (p = min_p; p <= max_p; ) {
-		for (n = min_n; n <= max_n; ) {
+	for (p = min_p; p <= max_p;) {
+		for (n = min_n; n <= max_n;) {
 			cur = fparent * n / p;
 			if (abs(*fout - cur) < abs(*fout - best)) {
 				best = cur;
@@ -182,8 +179,8 @@ ti_clk_factor_get_value(struct ti_clk_factor *factor, uint32_t raw)
 }
 
 static int
-ti_dpll_clk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
-    int flags, int *stop)
+ti_dpll_clk_set_freq(
+    struct clknode *clk, uint64_t fparent, uint64_t *fout, int flags, int *stop)
 {
 	struct ti_dpll_clknode_sc *sc;
 	uint64_t cur, best;
@@ -193,8 +190,7 @@ ti_dpll_clk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 
 	best = cur = 0;
 
-	best = ti_dpll_clk_find_best(sc, fparent, fout,
-	    &best_n, &best_p);
+	best = ti_dpll_clk_find_best(sc, fparent, fout, &best_n, &best_p);
 
 	if ((flags & CLK_SET_DRYRUN) != 0) {
 		*fout = best;
@@ -202,13 +198,11 @@ ti_dpll_clk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		return (0);
 	}
 
-	if ((best < *fout) &&
-	  (flags == CLK_SET_ROUND_DOWN)) {
+	if ((best < *fout) && (flags == CLK_SET_ROUND_DOWN)) {
 		*stop = 1;
 		return (ERANGE);
 	}
-	if ((best > *fout) &&
-	  (flags == CLK_SET_ROUND_UP)) {
+	if ((best > *fout) && (flags == CLK_SET_ROUND_UP)) {
 		*stop = 1;
 		return (ERANGE);
 	}
@@ -290,14 +284,13 @@ ti_dpll_clk_recalc(struct clknode *clk, uint64_t *freq)
 
 static clknode_method_t ti_dpll_clknode_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init,		ti_dpll_clk_init),
-	CLKNODEMETHOD(clknode_recalc_freq,	ti_dpll_clk_recalc),
-	CLKNODEMETHOD(clknode_set_freq,		ti_dpll_clk_set_freq),
-	CLKNODEMETHOD_END
+	CLKNODEMETHOD(clknode_init, ti_dpll_clk_init),
+	CLKNODEMETHOD(clknode_recalc_freq, ti_dpll_clk_recalc),
+	CLKNODEMETHOD(clknode_set_freq, ti_dpll_clk_set_freq), CLKNODEMETHOD_END
 };
 
 DEFINE_CLASS_1(ti_dpll_clknode, ti_dpll_clknode_class, ti_dpll_clknode_methods,
-	sizeof(struct ti_dpll_clknode_sc), clknode_class);
+    sizeof(struct ti_dpll_clknode_sc), clknode_class);
 
 int
 ti_clknode_dpll_register(struct clkdom *clkdom, struct ti_clk_dpll_def *clkdef)

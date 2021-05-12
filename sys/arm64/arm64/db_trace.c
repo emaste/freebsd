@@ -32,23 +32,23 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/kdb.h>
-
-#include <machine/pcb.h>
-#include <ddb/ddb.h>
-#include <ddb/db_sym.h>
+#include <sys/proc.h>
 
 #include <machine/armreg.h>
 #include <machine/debug_monitor.h>
+#include <machine/pcb.h>
 #include <machine/stack.h>
 #include <machine/vmparam.h>
 
-#define	FRAME_NORMAL	0
-#define	FRAME_SYNC	1
-#define	FRAME_IRQ	2
-#define	FRAME_SERROR	3
-#define	FRAME_UNHANDLED	4
+#include <ddb/db_sym.h>
+#include <ddb/ddb.h>
+
+#define FRAME_NORMAL 0
+#define FRAME_SYNC 1
+#define FRAME_IRQ 2
+#define FRAME_SERROR 3
+#define FRAME_UNHANDLED 4
 
 void
 db_md_list_watchpoints()
@@ -82,7 +82,7 @@ db_stack_trace_cmd(struct thread *td, struct unwind_state *frame)
 		    strcmp(name, "handle_el1h_sync") == 0)
 			frame_type = FRAME_SYNC;
 		else if (strcmp(name, "handle_el0_irq") == 0 ||
-		     strcmp(name, "handle_el1h_irq") == 0)
+		    strcmp(name, "handle_el1h_irq") == 0)
 			frame_type = FRAME_IRQ;
 		else if (strcmp(name, "handle_serror") == 0)
 			frame_type = FRAME_SERROR;
@@ -95,23 +95,23 @@ db_stack_trace_cmd(struct thread *td, struct unwind_state *frame)
 			struct trapframe *tf;
 
 			tf = (struct trapframe *)(uintptr_t)frame->fp - 1;
-			if (!kstack_contains(td, (vm_offset_t)tf,
-			    sizeof(*tf))) {
+			if (!kstack_contains(
+				td, (vm_offset_t)tf, sizeof(*tf))) {
 				db_printf("--- invalid trapframe %p\n", tf);
 				break;
 			}
 
 			switch (frame_type) {
 			case FRAME_SYNC:
-				db_printf("--- exception, esr %#x\n",
-				    tf->tf_esr);
+				db_printf(
+				    "--- exception, esr %#x\n", tf->tf_esr);
 				break;
 			case FRAME_IRQ:
 				db_printf("--- interrupt\n");
 				break;
 			case FRAME_SERROR:
-				db_printf("--- system error, esr %#x\n",
-				    tf->tf_esr);
+				db_printf(
+				    "--- system error, esr %#x\n", tf->tf_esr);
 				break;
 			case FRAME_UNHANDLED:
 				db_printf("--- unhandled exception, esr %#x\n",

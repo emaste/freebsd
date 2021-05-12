@@ -21,9 +21,9 @@
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
@@ -92,7 +92,8 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 	uint32_t base = 0xffffffff;
 
 	while (offset > 0) {
-		KASSERT(m != NULL, ("sctp_calculate_cksum, offset > length of mbuf chain"));
+		KASSERT(m != NULL,
+		    ("sctp_calculate_cksum, offset > length of mbuf chain"));
 		if (offset < (uint32_t)m->m_len) {
 			break;
 		}
@@ -106,9 +107,8 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 		m = m->m_next;
 	}
 	while (m != NULL) {
-		base = calculate_crc32c(base,
-		    (unsigned char *)m->m_data,
-		    (unsigned int)m->m_len);
+		base = calculate_crc32c(
+		    base, (unsigned char *)m->m_data, (unsigned int)m->m_len);
 		m = m->m_next;
 	}
 	base = sctp_finalize_crc32c(base);
@@ -138,7 +138,8 @@ sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
 		panic("sctp_delayed_cksum(): m->m_pkthdr.len: %d, offset: %u.",
 		    m->m_pkthdr.len, offset);
 #else
-		SCTP_PRINTF("sctp_delayed_cksum(): m->m_pkthdr.len: %d, offset: %u.\n",
+		SCTP_PRINTF(
+		    "sctp_delayed_cksum(): m->m_pkthdr.len: %d, offset: %u.\n",
 		    m->m_pkthdr.len, offset);
 #endif
 		return;

@@ -31,69 +31,69 @@
 #include <dev/gpio/gpiobusvar.h>
 
 struct tegra_bo {
- 	struct drm_gem_object	gem_obj;
+	struct drm_gem_object gem_obj;
 	/* mapped memory buffer */
-	vm_paddr_t		pbase;
-	vm_offset_t		vbase;
-	size_t			npages;
-	vm_page_t 		*m;
-	vm_object_t		cdev_pager;
+	vm_paddr_t pbase;
+	vm_offset_t vbase;
+	size_t npages;
+	vm_page_t *m;
+	vm_object_t cdev_pager;
 };
 
 struct tegra_plane {
-	struct drm_plane	drm_plane;
-	int			index;		/* Window index */
+	struct drm_plane drm_plane;
+	int index; /* Window index */
 };
 
 struct tegra_fb {
-	struct drm_framebuffer	drm_fb;
-	struct drm_fb_helper	fb_helper;
-	struct tegra_bo		**planes;	/* Attached planes */
-	int			nplanes;
+	struct drm_framebuffer drm_fb;
+	struct drm_fb_helper fb_helper;
+	struct tegra_bo **planes; /* Attached planes */
+	int nplanes;
 
 	/* Surface and display geometry */
-	bool			block_linear;	/* Surface_kind */
-	uint32_t		block_height;
-	int			rotation; 	/* In degrees */
-	bool			flip_x;		/* Inverted X-axis */
-	bool			flip_y;		/* Inverted Y-axis */
+	bool block_linear; /* Surface_kind */
+	uint32_t block_height;
+	int rotation; /* In degrees */
+	bool flip_x;  /* Inverted X-axis */
+	bool flip_y;  /* Inverted Y-axis */
 };
 
 struct tegra_crtc {
-	struct drm_crtc 	drm_crtc;
-	device_t		dev;
-	int			nvidia_head;
-	vm_paddr_t		cursor_pbase;	/* Cursor buffer */
-	vm_offset_t		cursor_vbase;
+	struct drm_crtc drm_crtc;
+	device_t dev;
+	int nvidia_head;
+	vm_paddr_t cursor_pbase; /* Cursor buffer */
+	vm_offset_t cursor_vbase;
 };
 
 struct tegra_drm_encoder {
-	device_t 		dev;
+	device_t dev;
 
-	void 			*panel;		/* XXX For LVDS panel */
-	device_t  		ddc;
-	struct edid 		*edid;
+	void *panel; /* XXX For LVDS panel */
+	device_t ddc;
+	struct edid *edid;
 
-	gpio_pin_t		gpio_hpd;
+	gpio_pin_t gpio_hpd;
 
-	struct drm_encoder 	encoder;
-	struct drm_connector 	connector;
-	int			(*setup_clock)(struct tegra_drm_encoder *output,
-				    clk_t clk, uint64_t pclk);
+	struct drm_encoder encoder;
+	struct drm_connector connector;
+	int (*setup_clock)(
+	    struct tegra_drm_encoder *output, clk_t clk, uint64_t pclk);
 };
 
 struct tegra_drm {
-	struct drm_device 	drm_dev;
-	struct tegra_fb 	*fb;		/* Prime framebuffer */
-	int			pitch_align;
+	struct drm_device drm_dev;
+	struct tegra_fb *fb; /* Prime framebuffer */
+	int pitch_align;
 };
 
 /* tegra_drm_subr.c */
 int tegra_drm_encoder_attach(struct tegra_drm_encoder *output, phandle_t node);
-int tegra_drm_encoder_init(struct tegra_drm_encoder *output,
-    struct tegra_drm *drm);
-int tegra_drm_encoder_exit(struct tegra_drm_encoder *output,
-    struct tegra_drm *drm);
+int tegra_drm_encoder_init(
+    struct tegra_drm_encoder *output, struct tegra_drm *drm);
+int tegra_drm_encoder_exit(
+    struct tegra_drm_encoder *output, struct tegra_drm *drm);
 enum drm_connector_status tegra_drm_connector_detect(
     struct drm_connector *connector, bool force);
 int tegra_drm_connector_get_modes(struct drm_connector *connector);
@@ -101,8 +101,8 @@ struct drm_encoder *tegra_drm_connector_best_encoder(
     struct drm_connector *connector);
 
 /* tegra_dc.c */
-void tegra_dc_cancel_page_flip(struct drm_crtc *drm_crtc,
-    struct drm_file *file);
+void tegra_dc_cancel_page_flip(
+    struct drm_crtc *drm_crtc, struct drm_file *file);
 void tegra_dc_enable_vblank(struct drm_crtc *drm_crtc);
 void tegra_dc_disable_vblank(struct drm_crtc *drm_crtc);
 int tegra_dc_get_pipe(struct drm_crtc *drm_crtc);
@@ -117,8 +117,8 @@ void tegra_drm_fb_destroy(struct drm_device *drm);
 
 /* tegra_bo.c */
 struct tegra_bo;
-int tegra_bo_create(struct drm_device *drm, size_t size,
-    struct tegra_bo **res_bo);
+int tegra_bo_create(
+    struct drm_device *drm, size_t size, struct tegra_bo **res_bo);
 void tegra_bo_driver_register(struct drm_driver *drm_drv);
 
 #endif /* _TEGRA_DRM_H_ */

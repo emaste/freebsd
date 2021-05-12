@@ -27,13 +27,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
-
-#include <contrib/cloudabi/cloudabi64_types.h>
+#include <sys/proc.h>
 
 #include <compat/cloudabi64/cloudabi64_proto.h>
 #include <compat/cloudabi64/cloudabi64_util.h>
+#include <contrib/cloudabi/cloudabi64_types.h>
 
 struct thread_create_args {
 	cloudabi64_threadattr_t attr;
@@ -54,8 +53,8 @@ initialize_thread(struct thread *td, void *thunk)
 }
 
 int
-cloudabi64_sys_thread_create(struct thread *td,
-    struct cloudabi64_sys_thread_create_args *uap)
+cloudabi64_sys_thread_create(
+    struct thread *td, struct cloudabi64_sys_thread_create_args *uap)
 {
 	struct thread_create_args args;
 	int error;
@@ -65,8 +64,9 @@ cloudabi64_sys_thread_create(struct thread *td,
 		return (error);
 
 	/* Remove some space on the top of the stack for the TCB. */
-	args.tcb = rounddown(args.attr.stack + args.attr.stack_len -
-	    sizeof(cloudabi64_tcb_t), _Alignof(cloudabi64_tcb_t));
+	args.tcb = rounddown(
+	    args.attr.stack + args.attr.stack_len - sizeof(cloudabi64_tcb_t),
+	    _Alignof(cloudabi64_tcb_t));
 	args.attr.stack_len = args.tcb - args.attr.stack;
 
 	error = thread_create(td, NULL, initialize_thread, &args);

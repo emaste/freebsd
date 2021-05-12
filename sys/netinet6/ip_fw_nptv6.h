@@ -27,28 +27,28 @@
  * $FreeBSD$
  */
 
-#ifndef	_NETINET6_IP_FW_NPTV6_H_
-#define	_NETINET6_IP_FW_NPTV6_H_
+#ifndef _NETINET6_IP_FW_NPTV6_H_
+#define _NETINET6_IP_FW_NPTV6_H_
 
 struct ipfw_nptv6_stats {
-	uint64_t	in2ex;		/* Int->Ext packets translated */
-	uint64_t	ex2in;		/* Ext->Int packets translated */
-	uint64_t	dropped;	/* dropped due to some errors */
-	uint64_t	reserved[5];
+	uint64_t in2ex;	  /* Int->Ext packets translated */
+	uint64_t ex2in;	  /* Ext->Int packets translated */
+	uint64_t dropped; /* dropped due to some errors */
+	uint64_t reserved[5];
 };
 
 typedef struct _ipfw_nptv6_cfg {
-	char		name[64];	/* NPTv6 instance name */
-	struct in6_addr	internal;	/* NPTv6 internal prefix */
+	char name[64];		  /* NPTv6 instance name */
+	struct in6_addr internal; /* NPTv6 internal prefix */
 	union {
-		struct in6_addr	external; /* NPTv6 external prefix */
-		char	if_name[IF_NAMESIZE];
+		struct in6_addr external; /* NPTv6 external prefix */
+		char if_name[IF_NAMESIZE];
 	};
-	uint8_t		plen;		/* Prefix length */
-	uint8_t		set;		/* Named instance set [0..31] */
-	uint8_t		spare[2];
-	uint32_t	flags;
-#define	NPTV6_DYNAMIC_PREFIX	1	/* Use dynamic external prefix */
+	uint8_t plen; /* Prefix length */
+	uint8_t set;  /* Named instance set [0..31] */
+	uint8_t spare[2];
+	uint32_t flags;
+#define NPTV6_DYNAMIC_PREFIX 1 /* Use dynamic external prefix */
 } ipfw_nptv6_cfg;
 
 #endif /* _NETINET6_IP_FW_NPTV6_H_ */

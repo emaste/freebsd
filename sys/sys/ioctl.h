@@ -37,16 +37,15 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_IOCTL_H_
-#define	_SYS_IOCTL_H_
+#ifndef _SYS_IOCTL_H_
+#define _SYS_IOCTL_H_
 
 #ifdef _KERNEL
 #error "Don't #include ioctl.h in the kernel.  Include xxxio.h instead."
 #endif /* _KERNEL */
 
-#include <sys/ioccom.h>
-
 #include <sys/filio.h>
+#include <sys/ioccom.h>
 #include <sys/sockio.h>
 #include <sys/ttycom.h>
 

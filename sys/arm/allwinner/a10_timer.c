@@ -31,21 +31,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/machdep.h>
 
-#include <dev/ofw/openfirm.h>
+#include <dev/extres/clk/clk.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/extres/clk/clk.h>
+#include <dev/ofw/openfirm.h>
 
 #if defined(__aarch64__)
 #include "opt_soc.h"
@@ -57,35 +57,35 @@ __FBSDID("$FreeBSD$");
  * Timer registers addr
  *
  */
-#define	TIMER_IRQ_EN_REG 	0x00
-#define	 TIMER_IRQ_ENABLE(x)	(1 << x)
+#define TIMER_IRQ_EN_REG 0x00
+#define TIMER_IRQ_ENABLE(x) (1 << x)
 
-#define	TIMER_IRQ_STA_REG 	0x04
-#define	 TIMER_IRQ_PENDING(x)	(1 << x)
+#define TIMER_IRQ_STA_REG 0x04
+#define TIMER_IRQ_PENDING(x) (1 << x)
 
 /*
  * On A10, A13, A20 and A31/A31s 6 timers are available
  */
-#define	TIMER_CTRL_REG(x)		(0x10 + 0x10 * x)
-#define	 TIMER_CTRL_START		(1 << 0)
-#define	 TIMER_CTRL_AUTORELOAD		(1 << 1)
-#define	 TIMER_CTRL_CLKSRC_MASK		(3 << 2)
-#define	 TIMER_CTRL_OSC24M		(1 << 2)
-#define	 TIMER_CTRL_PRESCALAR_MASK	(0x7 << 4)
-#define	 TIMER_CTRL_PRESCALAR(x)	((x - 1) << 4)
-#define	 TIMER_CTRL_MODE_MASK		(1 << 7)
-#define	 TIMER_CTRL_MODE_SINGLE		(1 << 7)
-#define	 TIMER_CTRL_MODE_CONTINUOUS	(0 << 7)
-#define	TIMER_INTV_REG(x)		(0x14 + 0x10 * x)
-#define	TIMER_CURV_REG(x)		(0x18 + 0x10 * x)
+#define TIMER_CTRL_REG(x) (0x10 + 0x10 * x)
+#define TIMER_CTRL_START (1 << 0)
+#define TIMER_CTRL_AUTORELOAD (1 << 1)
+#define TIMER_CTRL_CLKSRC_MASK (3 << 2)
+#define TIMER_CTRL_OSC24M (1 << 2)
+#define TIMER_CTRL_PRESCALAR_MASK (0x7 << 4)
+#define TIMER_CTRL_PRESCALAR(x) ((x - 1) << 4)
+#define TIMER_CTRL_MODE_MASK (1 << 7)
+#define TIMER_CTRL_MODE_SINGLE (1 << 7)
+#define TIMER_CTRL_MODE_CONTINUOUS (0 << 7)
+#define TIMER_INTV_REG(x) (0x14 + 0x10 * x)
+#define TIMER_CURV_REG(x) (0x18 + 0x10 * x)
 
 /* 64 bit counter, available in A10 and A13 */
-#define	CNT64_CTRL_REG		0xa0
-#define	 CNT64_CTRL_RL_EN	0x02 /* read latch enable */
-#define	CNT64_LO_REG	0xa4
-#define	CNT64_HI_REG	0xa8
+#define CNT64_CTRL_REG 0xa0
+#define CNT64_CTRL_RL_EN 0x02 /* read latch enable */
+#define CNT64_LO_REG 0xa4
+#define CNT64_HI_REG 0xa8
 
-#define	SYS_TIMER_CLKSRC	24000000 /* clock source */
+#define SYS_TIMER_CLKSRC 24000000 /* clock source */
 
 enum a10_timer_type {
 	A10_TIMER = 1,
@@ -93,25 +93,24 @@ enum a10_timer_type {
 };
 
 struct a10_timer_softc {
-	device_t 	sc_dev;
+	device_t sc_dev;
 	struct resource *res[2];
-	void 		*sc_ih;		/* interrupt handler */
-	uint32_t 	sc_period;
-	uint64_t 	timer0_freq;
-	struct eventtimer	et;
-	enum a10_timer_type	type;
+	void *sc_ih; /* interrupt handler */
+	uint32_t sc_period;
+	uint64_t timer0_freq;
+	struct eventtimer et;
+	enum a10_timer_type type;
 };
 
-#define timer_read_4(sc, reg)	\
-	bus_read_4(sc->res[A10_TIMER_MEMRES], reg)
-#define timer_write_4(sc, reg, val)	\
+#define timer_read_4(sc, reg) bus_read_4(sc->res[A10_TIMER_MEMRES], reg)
+#define timer_write_4(sc, reg, val) \
 	bus_write_4(sc->res[A10_TIMER_MEMRES], reg, val)
 
-static u_int	a10_timer_get_timecount(struct timecounter *);
+static u_int a10_timer_get_timecount(struct timecounter *);
 #if defined(__arm__)
-static int	a10_timer_timer_start(struct eventtimer *,
-    sbintime_t first, sbintime_t period);
-static int	a10_timer_timer_stop(struct eventtimer *);
+static int a10_timer_timer_start(
+    struct eventtimer *, sbintime_t first, sbintime_t period);
+static int a10_timer_timer_stop(struct eventtimer *);
 #endif
 
 static uint64_t timer_read_counter64(struct a10_timer_softc *sc);
@@ -133,39 +132,37 @@ static delay_func a10_timer_delay;
 #endif
 
 static struct timecounter a10_timer_timecounter = {
-	.tc_name           = "a10_timer timer0",
-	.tc_get_timecount  = a10_timer_get_timecount,
-	.tc_counter_mask   = ~0u,
-	.tc_frequency      = 0,
-	.tc_quality        = 1000,
+	.tc_name = "a10_timer timer0",
+	.tc_get_timecount = a10_timer_get_timecount,
+	.tc_counter_mask = ~0u,
+	.tc_frequency = 0,
+	.tc_quality = 1000,
 };
 
 #if defined(__aarch64__)
 static struct timecounter a23_timer_timecounter = {
-	.tc_name           = "a10_timer timer0",
-	.tc_get_timecount  = a23_timer_get_timecount,
-	.tc_counter_mask   = ~0u,
-	.tc_frequency      = 0,
+	.tc_name = "a10_timer timer0",
+	.tc_get_timecount = a23_timer_get_timecount,
+	.tc_counter_mask = ~0u,
+	.tc_frequency = 0,
 	/* We want it to be selected over the arm generic timecounter */
-	.tc_quality        = 2000,
+	.tc_quality = 2000,
 };
 #endif
 
-#define	A10_TIMER_MEMRES		0
-#define	A10_TIMER_IRQRES		1
+#define A10_TIMER_MEMRES 0
+#define A10_TIMER_IRQRES 1
 
-static struct resource_spec a10_timer_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec a10_timer_spec[] = { { SYS_RES_MEMORY, 0,
+						     RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
 static struct ofw_compat_data compat_data[] = {
-	{"allwinner,sun4i-a10-timer", A10_TIMER},
+	{ "allwinner,sun4i-a10-timer", A10_TIMER },
 #if defined(__aarch64__)
-	{"allwinner,sun8i-a23-timer", A23_TIMER},
+	{ "allwinner,sun8i-a23-timer", A23_TIMER },
 #endif
-	{NULL, 0},
+	{ NULL, 0 },
 };
 
 static int
@@ -215,8 +212,10 @@ a10_timer_attach(device_t dev)
 	    a10_timer_irq, NULL, sc, &sc->sc_ih);
 	if (err != 0) {
 		bus_release_resources(dev, a10_timer_spec, sc->res);
-		device_printf(dev, "Unable to setup the clock irq handler, "
-		    "err = %d\n", err);
+		device_printf(dev,
+		    "Unable to setup the clock irq handler, "
+		    "err = %d\n",
+		    err);
 		return (ENXIO);
 	}
 
@@ -224,7 +223,8 @@ a10_timer_attach(device_t dev)
 		sc->timer0_freq = SYS_TIMER_CLKSRC;
 	else {
 		if (clk_get_freq(clk, &sc->timer0_freq) != 0) {
-			device_printf(dev, "Cannot get clock source frequency\n");
+			device_printf(
+			    dev, "Cannot get clock source frequency\n");
 			return (ENXIO);
 		}
 	}
@@ -240,11 +240,12 @@ a10_timer_attach(device_t dev)
 #endif
 
 	if (bootverbose) {
-		device_printf(sc->sc_dev, "clock: hz=%d stathz = %d\n", hz, stathz);
+		device_printf(
+		    sc->sc_dev, "clock: hz=%d stathz = %d\n", hz, stathz);
 
-		device_printf(sc->sc_dev, "event timer clock frequency %ju\n", 
+		device_printf(sc->sc_dev, "event timer clock frequency %ju\n",
 		    sc->timer0_freq);
-		device_printf(sc->sc_dev, "timecounter clock frequency %jd\n", 
+		device_printf(sc->sc_dev, "timecounter clock frequency %jd\n",
 		    a10_timer_timecounter.tc_frequency);
 	}
 
@@ -265,12 +266,12 @@ a10_timer_irq(void *arg)
 	val = timer_read_4(sc, TIMER_CTRL_REG(0));
 
 	/*
-	 * Disabled autoreload and sc_period > 0 means 
+	 * Disabled autoreload and sc_period > 0 means
 	 * timer_start was called with non NULL first value.
-	 * Now we will set periodic timer with the given period 
+	 * Now we will set periodic timer with the given period
 	 * value.
 	 */
-	if ((val & (1<<1)) == 0 && sc->sc_period > 0) {
+	if ((val & (1 << 1)) == 0 && sc->sc_period > 0) {
 		/* Update timer */
 		timer_write_4(sc, TIMER_CURV_REG(0), sc->sc_period);
 
@@ -297,7 +298,8 @@ a10_timer_eventtimer_setup(struct a10_timer_softc *sc)
 
 	/* Set clock source to OSC24M, 1 pre-division, continuous mode */
 	val = timer_read_4(sc, TIMER_CTRL_REG(0));
-	val &= ~TIMER_CTRL_PRESCALAR_MASK | ~TIMER_CTRL_MODE_MASK | ~TIMER_CTRL_CLKSRC_MASK;
+	val &= ~TIMER_CTRL_PRESCALAR_MASK | ~TIMER_CTRL_MODE_MASK |
+	    ~TIMER_CTRL_CLKSRC_MASK;
 	val |= TIMER_CTRL_PRESCALAR(1) | TIMER_CTRL_OSC24M;
 	timer_write_4(sc, TIMER_CTRL_REG(0), val);
 
@@ -320,8 +322,8 @@ a10_timer_eventtimer_setup(struct a10_timer_softc *sc)
 }
 
 static int
-a10_timer_timer_start(struct eventtimer *et, sbintime_t first,
-    sbintime_t period)
+a10_timer_timer_start(
+    struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct a10_timer_softc *sc;
 	uint32_t count;
@@ -388,7 +390,8 @@ a23_timer_timecounter_setup(struct a10_timer_softc *sc)
 
 	/* Set clock source to OSC24M, 1 pre-division, continuous mode */
 	val = timer_read_4(sc, TIMER_CTRL_REG(0));
-	val &= ~TIMER_CTRL_PRESCALAR_MASK | ~TIMER_CTRL_MODE_MASK | ~TIMER_CTRL_CLKSRC_MASK;
+	val &= ~TIMER_CTRL_PRESCALAR_MASK | ~TIMER_CTRL_MODE_MASK |
+	    ~TIMER_CTRL_CLKSRC_MASK;
 	val |= TIMER_CTRL_PRESCALAR(1) | TIMER_CTRL_OSC24M;
 	timer_write_4(sc, TIMER_CTRL_REG(0), val);
 
@@ -469,12 +472,11 @@ a10_timer_get_timecount(struct timecounter *tc)
 	return ((u_int)timer_read_counter64(tc->tc_priv));
 }
 
-static device_method_t a10_timer_methods[] = {
-	DEVMETHOD(device_probe,		a10_timer_probe),
-	DEVMETHOD(device_attach,	a10_timer_attach),
+static device_method_t a10_timer_methods[] = { DEVMETHOD(device_probe,
+						   a10_timer_probe),
+	DEVMETHOD(device_attach, a10_timer_attach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t a10_timer_driver = {
 	"a10_timer",
@@ -484,5 +486,5 @@ static driver_t a10_timer_driver = {
 
 static devclass_t a10_timer_devclass;
 
-EARLY_DRIVER_MODULE(a10_timer, simplebus, a10_timer_driver, a10_timer_devclass, 0, 0,
-    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(a10_timer, simplebus, a10_timer_driver, a10_timer_devclass,
+    0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);

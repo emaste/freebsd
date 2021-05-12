@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_NET_NETEVENT_H_
-#define	_LINUX_NET_NETEVENT_H_
+#ifndef _LINUX_NET_NETEVENT_H_
+#define _LINUX_NET_NETEVENT_H_
 
 #include <sys/types.h>
 #include <sys/eventhandler.h>

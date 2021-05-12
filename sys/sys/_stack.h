@@ -29,13 +29,13 @@
  */
 
 #ifndef _SYS__STACK_H_
-#define	_SYS__STACK_H_
+#define _SYS__STACK_H_
 
-#define	STACK_MAX	18
+#define STACK_MAX 18
 
 struct stack {
-	int		depth;
-	vm_offset_t	pcs[STACK_MAX];
+	int depth;
+	vm_offset_t pcs[STACK_MAX];
 };
 
 #endif

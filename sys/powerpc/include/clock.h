@@ -7,13 +7,13 @@
  */
 
 #ifndef _MACHINE_CLOCK_H_
-#define	_MACHINE_CLOCK_H_
+#define _MACHINE_CLOCK_H_
 
 #ifdef _KERNEL
 
 struct trapframe;
 
-void	decr_intr(struct trapframe *);
+void decr_intr(struct trapframe *);
 
 #endif
 

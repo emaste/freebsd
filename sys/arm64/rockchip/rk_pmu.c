@@ -34,19 +34,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
-#include <machine/bus.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
+#include <machine/bus.h>
 
 #include <dev/extres/syscon/syscon.h>
 #include <dev/fdt/simple_mfd.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
-static struct ofw_compat_data compat_data[] = {
-	{"rockchip,rk3288-pmu",	1},
-	{NULL,			0}
-};
+static struct ofw_compat_data compat_data[] = { { "rockchip,rk3288-pmu", 1 },
+	{ NULL, 0 } };
 
 static int
 rk_pmu_probe(device_t dev)
@@ -61,17 +59,15 @@ rk_pmu_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-static device_method_t rk_pmu_methods[] = {
-	DEVMETHOD(device_probe, rk_pmu_probe),
+static device_method_t rk_pmu_methods[] = { DEVMETHOD(
+						device_probe, rk_pmu_probe),
 
-	DEVMETHOD_END
-};
-
+	DEVMETHOD_END };
 
 DEFINE_CLASS_1(rk_pmu, rk_pmu_driver, rk_pmu_methods,
     sizeof(struct simple_mfd_softc), simple_mfd_driver);
 
 static devclass_t rk_pmu_devclass;
-EARLY_DRIVER_MODULE(rk_pmu, simplebus, rk_pmu_driver, rk_pmu_devclass,
-    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(rk_pmu, simplebus, rk_pmu_driver, rk_pmu_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(rk_pmu, 1);

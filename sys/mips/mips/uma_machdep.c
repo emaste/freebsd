@@ -31,17 +31,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/malloc.h>
+
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_pageout.h>
-#include <vm/vm_dumpset.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
+#include <vm/vm_dumpset.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
+#include <vm/vm_param.h>
 
 void *
-uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
-    int wait)
+uma_small_alloc(
+    uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags, int wait)
 {
 	vm_paddr_t pa;
 	vm_page_t m;
@@ -56,11 +57,12 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
 #endif
 
 	for (;;) {
-		m = vm_page_alloc_freelist_domain(domain, VM_FREELIST_DIRECT,
-		    pflags);
+		m = vm_page_alloc_freelist_domain(
+		    domain, VM_FREELIST_DIRECT, pflags);
 #ifndef __mips_n64
-		if (m == NULL && vm_page_reclaim_contig(pflags, 1,
-		    0, MIPS_KSEG0_LARGEST_PHYS, PAGE_SIZE, 0))
+		if (m == NULL &&
+		    vm_page_reclaim_contig(
+			pflags, 1, 0, MIPS_KSEG0_LARGEST_PHYS, PAGE_SIZE, 0))
 			continue;
 #endif
 		if (m != NULL)

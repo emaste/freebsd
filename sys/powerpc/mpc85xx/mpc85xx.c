@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -38,16 +39,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_param.h>
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/machdep.h>
 #include <machine/pio.h>
 #include <machine/spr.h>
-
-#include <dev/fdt/fdt_common.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -152,7 +151,7 @@ law_read(uint32_t n, uint64_t *bar, uint32_t *sr)
 static int
 law_find_free(void)
 {
-	uint32_t i,sr;
+	uint32_t i, sr;
 	uint64_t bar;
 	int law_max;
 
@@ -167,8 +166,8 @@ law_find_free(void)
 	return (i);
 }
 
-#define	_LAW_SR(trgt,size)	(0x80000000 | (trgt << 20) | \
-				(flsl(size + (size - 1)) - 2))
+#define _LAW_SR(trgt, size) \
+	(0x80000000 | (trgt << 20) | (flsl(size + (size - 1)) - 2))
 
 int
 law_enable(int trgt, uint64_t bar, uint32_t size)
@@ -273,10 +272,10 @@ l3cache_inval(void)
 {
 
 	/* Flash invalidate the CPC and clear all the locks */
-	ccsr_write4(OCP85XX_CPC_CSR0, OCP85XX_CPC_CSR0_FI |
-	    OCP85XX_CPC_CSR0_LFC);
-	while (ccsr_read4(OCP85XX_CPC_CSR0) & (OCP85XX_CPC_CSR0_FI |
-	    OCP85XX_CPC_CSR0_LFC))
+	ccsr_write4(
+	    OCP85XX_CPC_CSR0, OCP85XX_CPC_CSR0_FI | OCP85XX_CPC_CSR0_LFC);
+	while (ccsr_read4(OCP85XX_CPC_CSR0) &
+	    (OCP85XX_CPC_CSR0_FI | OCP85XX_CPC_CSR0_LFC))
 		;
 }
 
@@ -284,8 +283,8 @@ static void
 l3cache_enable(void)
 {
 
-	ccsr_write4(OCP85XX_CPC_CSR0, OCP85XX_CPC_CSR0_CE |
-	    OCP85XX_CPC_CSR0_PE);
+	ccsr_write4(
+	    OCP85XX_CPC_CSR0, OCP85XX_CPC_CSR0_CE | OCP85XX_CPC_CSR0_PE);
 	/* Read back to sync write */
 	ccsr_read4(OCP85XX_CPC_CSR0);
 }
@@ -308,10 +307,11 @@ mpc85xx_enable_l3_cache(void)
 		csr = ccsr_read4(OCP85XX_CPC_CSR0);
 		if ((boothowto & RB_VERBOSE) != 0 ||
 		    (csr & OCP85XX_CPC_CSR0_CE) == 0) {
-			size = OCP85XX_CPC_CFG0_SZ_K(ccsr_read4(OCP85XX_CPC_CFG0));
+			size = OCP85XX_CPC_CFG0_SZ_K(
+			    ccsr_read4(OCP85XX_CPC_CFG0));
 			printf("L3 Corenet Platform Cache: %d KB %sabled\n",
-			    size, (csr & OCP85XX_CPC_CSR0_CE) == 0 ?
-			    "dis" : "en");
+			    size,
+			    (csr & OCP85XX_CPC_CSR0_CE) == 0 ? "dis" : "en");
 		}
 	}
 }
@@ -321,7 +321,8 @@ mpc85xx_is_qoriq(void)
 {
 	uint16_t pvr = mfpvr() >> 16;
 
-	/* QorIQ register set is only in e500mc and derivative core based SoCs. */
+	/* QorIQ register set is only in e500mc and derivative core based SoCs.
+	 */
 	if (pvr == FSL_E500mc || pvr == FSL_E5500 || pvr == FSL_E6500)
 		return (1);
 

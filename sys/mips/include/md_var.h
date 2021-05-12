@@ -34,54 +34,55 @@
  */
 
 #ifndef _MACHINE_MD_VAR_H_
-#define	_MACHINE_MD_VAR_H_
+#define _MACHINE_MD_VAR_H_
 
 #include <machine/reg.h>
 
 /*
  * Miscellaneous machine-dependent declarations.
  */
-extern	long	Maxmem;
-extern	char	cpu_board[];
-extern	char	cpu_model[];
-extern	char	sigcode[];
-extern	int	szsigcode;
+extern long Maxmem;
+extern char cpu_board[];
+extern char cpu_model[];
+extern char sigcode[];
+extern int szsigcode;
 #if defined(__mips_n32) || defined(__mips_n64)
-extern	char	sigcode32[];
-extern	int	szsigcode32;
+extern char sigcode32[];
+extern int szsigcode32;
 #endif
 
 extern vm_offset_t kstack0;
 extern vm_offset_t kernel_kseg0_end;
 
 uint32_t MipsFPID(void);
-void	MipsSaveCurFPState(struct thread *);
-void	fork_trampoline(void);
+void MipsSaveCurFPState(struct thread *);
+void fork_trampoline(void);
 uintptr_t MipsEmulateBranch(struct trapframe *, uintptr_t, int, uintptr_t);
 void MipsSwitchFPState(struct thread *, struct trapframe *);
-int	is_cacheable_mem(vm_paddr_t addr);
-void	mips_wait(void);
+int is_cacheable_mem(vm_paddr_t addr);
+void mips_wait(void);
 
-#define	MIPS_DEBUG   0
+#define MIPS_DEBUG 0
 
 #if MIPS_DEBUG
-#define	MIPS_DEBUG_PRINT(fmt, args...)	printf("%s: " fmt "\n" , __FUNCTION__ , ## args)
+#define MIPS_DEBUG_PRINT(fmt, args...) \
+	printf("%s: " fmt "\n", __FUNCTION__, ##args)
 #else
-#define	MIPS_DEBUG_PRINT(fmt, args...)
+#define MIPS_DEBUG_PRINT(fmt, args...)
 #endif
 
-void	mips_vector_init(void);
-void	mips_cpu_init(void);
-void	mips_pcpu0_init(void);
-void	mips_proc0_init(void);
-void	mips_postboot_fixup(void);
-void	cpu_identify(void);
-void	cpu_switch_set_userlocal(void) __asm(__STRING(cpu_switch_set_userlocal));
+void mips_vector_init(void);
+void mips_cpu_init(void);
+void mips_pcpu0_init(void);
+void mips_proc0_init(void);
+void mips_postboot_fixup(void);
+void cpu_identify(void);
+void cpu_switch_set_userlocal(void) __asm(__STRING(cpu_switch_set_userlocal));
 
 extern int busdma_swi_pending;
-void	busdma_swi(void);
+void busdma_swi(void);
 
-struct	dumperinfo;
-int	minidumpsys(struct dumperinfo *);
+struct dumperinfo;
+int minidumpsys(struct dumperinfo *);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

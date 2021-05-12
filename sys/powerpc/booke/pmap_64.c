@@ -31,21 +31,21 @@
  * a few other pmap modules from the FreeBSD tree.
  */
 
- /*
-  * VM layout notes:
-  *
-  * Kernel and user threads run within one common virtual address space
-  * defined by AS=0.
-  *
-  * 64-bit pmap:
-  * Virtual address space layout:
-  * -----------------------------
-  * 0x0000_0000_0000_0000 - 0x3fff_ffff_ffff_ffff      : user process
-  * 0x4000_0000_0000_0000 - 0x7fff_ffff_ffff_ffff      : unused
-  * 0x8000_0000_0000_0000 - 0xbfff_ffff_ffff_ffff      : mmio region
-  * 0xc000_0000_0000_0000 - 0xdfff_ffff_ffff_ffff      : direct map
-  * 0xe000_0000_0000_0000 - 0xffff_ffff_ffff_ffff      : KVA
-  */
+/*
+ * VM layout notes:
+ *
+ * Kernel and user threads run within one common virtual address space
+ * defined by AS=0.
+ *
+ * 64-bit pmap:
+ * Virtual address space layout:
+ * -----------------------------
+ * 0x0000_0000_0000_0000 - 0x3fff_ffff_ffff_ffff      : user process
+ * 0x4000_0000_0000_0000 - 0x7fff_ffff_ffff_ffff      : unused
+ * 0x8000_0000_0000_0000 - 0xbfff_ffff_ffff_ffff      : mmio region
+ * 0xc000_0000_0000_0000 - 0xdfff_ffff_ffff_ffff      : direct map
+ * 0xe000_0000_0000_0000 - 0xffff_ffff_ffff_ffff      : KVA
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -54,58 +54,57 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/malloc.h>
-#include <sys/ktr.h>
-#include <sys/proc.h>
-#include <sys/user.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
+#include <sys/ktr.h>
 #include <sys/linker.h>
-#include <sys/msgbuf.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/msgbuf.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/user.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_page.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_pageout.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_object.h>
-#include <vm/vm_param.h>
-#include <vm/vm_map.h>
-#include <vm/vm_pager.h>
-#include <vm/vm_phys.h>
-#include <vm/vm_pagequeue.h>
 #include <vm/uma.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
+#include <vm/vm_pagequeue.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #include <machine/_inttypes.h>
 #include <machine/cpu.h>
-#include <machine/pcb.h>
-#include <machine/platform.h>
-
-#include <machine/tlb.h>
-#include <machine/spr.h>
 #include <machine/md_var.h>
 #include <machine/mmuvar.h>
+#include <machine/pcb.h>
+#include <machine/platform.h>
 #include <machine/pmap.h>
 #include <machine/pte.h>
+#include <machine/spr.h>
+#include <machine/tlb.h>
 
 #include <ddb/ddb.h>
 
-#ifdef  DEBUG
+#ifdef DEBUG
 #define debugf(fmt, args...) printf(fmt, ##args)
 #else
 #define debugf(fmt, args...)
 #endif
 
-#define	PRI0ptrX	"016lx"
+#define PRI0ptrX "016lx"
 
 /**************************************************************************/
 /* PMAP */
@@ -123,8 +122,8 @@ static pte_t ****kernel_ptbl_root;
  * us to map akin to the DMAP, with addresses identical to the PA, offset by the
  * base.
  */
-#define	VM_MAPDEV_BASE		0x8000000000000000
-#define	VM_MAPDEV_PA_MAX	0x4000000000000000 /* Don't encroach on DMAP */
+#define VM_MAPDEV_BASE 0x8000000000000000
+#define VM_MAPDEV_PA_MAX 0x4000000000000000 /* Don't encroach on DMAP */
 
 static void tid_flush(tlbtid_t tid);
 static unsigned long ilog2(unsigned long);
@@ -133,9 +132,9 @@ static unsigned long ilog2(unsigned long);
 /* Page table management */
 /**************************************************************************/
 
-#define PMAP_ROOT_SIZE	(sizeof(pte_t****) * PG_ROOT_NENTRIES)
-static pte_t *ptbl_alloc(pmap_t pmap, vm_offset_t va,
-    bool nosleep, bool *is_new);
+#define PMAP_ROOT_SIZE (sizeof(pte_t ****) * PG_ROOT_NENTRIES)
+static pte_t *ptbl_alloc(
+    pmap_t pmap, vm_offset_t va, bool nosleep, bool *is_new);
 static void ptbl_hold(pmap_t, pte_t *);
 static int ptbl_unhold(pmap_t, vm_offset_t);
 
@@ -154,8 +153,8 @@ static void kernel_pte_alloc(vm_offset_t, vm_offset_t);
 static vm_offset_t
 mmu_booke_alloc_page(pmap_t pmap, unsigned int idx, bool nosleep)
 {
-	vm_page_t	m;
-	int		req;
+	vm_page_t m;
+	int req;
 
 	req = VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO;
 	while ((m = vm_page_alloc(NULL, idx, req)) == NULL) {
@@ -186,9 +185,9 @@ ptbl_init(void)
 static __inline pte_t *
 pte_find(pmap_t pmap, vm_offset_t va)
 {
-	pte_t        ***pdir_l1;
-	pte_t         **pdir;
-	pte_t          *ptbl;
+	pte_t ***pdir_l1;
+	pte_t **pdir;
+	pte_t *ptbl;
 
 	KASSERT((pmap != NULL), ("pte_find: invalid pmap"));
 
@@ -207,10 +206,10 @@ pte_find(pmap_t pmap, vm_offset_t va)
 static __inline pte_t *
 pte_find_next(pmap_t pmap, vm_offset_t *pva)
 {
-	vm_offset_t	va;
-	pte_t	    ****pm_root;
-	pte_t	       *pte;
-	unsigned long	i, j, k, l;
+	vm_offset_t va;
+	pte_t ****pm_root;
+	pte_t *pte;
+	unsigned long i, j, k, l;
 
 	KASSERT((pmap != NULL), ("pte_find: invalid pmap"));
 
@@ -237,8 +236,7 @@ pte_find_next(pmap_t pmap, vm_offset_t *pva)
 					if (!PTE_ISVALID(pte))
 						continue;
 					*pva = va + PG_ROOT_SIZE * i +
-					    PDIR_L1_SIZE * j +
-					    PDIR_SIZE * k +
+					    PDIR_L1_SIZE * j + PDIR_SIZE * k +
 					    PAGE_SIZE * l;
 					return (pte);
 				}
@@ -261,11 +259,11 @@ unhold_free_page(pmap_t pmap, vm_page_t m)
 }
 
 static vm_offset_t
-get_pgtbl_page(pmap_t pmap, vm_offset_t *ptr_tbl, uint32_t index,
-    bool nosleep, bool hold_parent, bool *isnew)
+get_pgtbl_page(pmap_t pmap, vm_offset_t *ptr_tbl, uint32_t index, bool nosleep,
+    bool hold_parent, bool *isnew)
 {
-	vm_offset_t	page;
-	vm_page_t	m;
+	vm_offset_t page;
+	vm_page_t m;
 
 	page = ptr_tbl[index];
 	KASSERT(page != 0 || pmap != kernel_pmap,
@@ -276,7 +274,8 @@ get_pgtbl_page(pmap_t pmap, vm_offset_t *ptr_tbl, uint32_t index,
 			*isnew = true;
 			ptr_tbl[index] = page;
 			if (hold_parent) {
-				m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)ptr_tbl));
+				m = PHYS_TO_VM_PAGE(
+				    pmap_kextract((vm_offset_t)ptr_tbl));
 				m->ref_count++;
 			}
 			return (page);
@@ -293,13 +292,13 @@ get_pgtbl_page(pmap_t pmap, vm_offset_t *ptr_tbl, uint32_t index,
 }
 
 /* Allocate page table. */
-static pte_t*
+static pte_t *
 ptbl_alloc(pmap_t pmap, vm_offset_t va, bool nosleep, bool *is_new)
 {
-	unsigned int	pg_root_idx = PG_ROOT_IDX(va);
-	unsigned int	pdir_l1_idx = PDIR_L1_IDX(va);
-	unsigned int	pdir_idx = PDIR_IDX(va);
-	vm_offset_t	pdir_l1, pdir, ptbl;
+	unsigned int pg_root_idx = PG_ROOT_IDX(va);
+	unsigned int pdir_l1_idx = PDIR_L1_IDX(va);
+	unsigned int pdir_idx = PDIR_IDX(va);
+	vm_offset_t pdir_l1, pdir, ptbl;
 
 	/* When holding a parent, no need to hold the root index pages. */
 	pdir_l1 = get_pgtbl_page(pmap, (vm_offset_t *)pmap->pm_root,
@@ -310,8 +309,8 @@ ptbl_alloc(pmap_t pmap, vm_offset_t va, bool nosleep, bool *is_new)
 	    nosleep, !*is_new, is_new);
 	if (pdir == 0)
 		return (NULL);
-	ptbl = get_pgtbl_page(pmap, (vm_offset_t *)pdir, pdir_idx,
-	    nosleep, !*is_new, is_new);
+	ptbl = get_pgtbl_page(
+	    pmap, (vm_offset_t *)pdir, pdir_idx, nosleep, !*is_new, is_new);
 
 	return ((pte_t *)ptbl);
 }
@@ -319,45 +318,44 @@ ptbl_alloc(pmap_t pmap, vm_offset_t va, bool nosleep, bool *is_new)
 /*
  * Decrement ptbl pages hold count and attempt to free ptbl pages. Called
  * when removing pte entry from ptbl.
- * 
+ *
  * Return 1 if ptbl pages were freed.
  */
 static int
 ptbl_unhold(pmap_t pmap, vm_offset_t va)
 {
-	pte_t          *ptbl;
-	vm_page_t	m;
-	u_int		pg_root_idx;
-	pte_t        ***pdir_l1;
-	u_int		pdir_l1_idx;
-	pte_t         **pdir;
-	u_int		pdir_idx;
+	pte_t *ptbl;
+	vm_page_t m;
+	u_int pg_root_idx;
+	pte_t ***pdir_l1;
+	u_int pdir_l1_idx;
+	pte_t **pdir;
+	u_int pdir_idx;
 
 	pg_root_idx = PG_ROOT_IDX(va);
 	pdir_l1_idx = PDIR_L1_IDX(va);
 	pdir_idx = PDIR_IDX(va);
 
-	KASSERT((pmap != kernel_pmap),
-		("ptbl_unhold: unholding kernel ptbl!"));
+	KASSERT((pmap != kernel_pmap), ("ptbl_unhold: unholding kernel ptbl!"));
 
 	pdir_l1 = pmap->pm_root[pg_root_idx];
 	pdir = pdir_l1[pdir_l1_idx];
 	ptbl = pdir[pdir_idx];
 
 	/* decrement hold count */
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) ptbl));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)ptbl));
 
 	if (!unhold_free_page(pmap, m))
 		return (0);
 
 	pdir[pdir_idx] = NULL;
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) pdir));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pdir));
 
 	if (!unhold_free_page(pmap, m))
 		return (1);
 
 	pdir_l1[pdir_l1_idx] = NULL;
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) pdir_l1));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pdir_l1));
 
 	if (!unhold_free_page(pmap, m))
 		return (1);
@@ -373,29 +371,29 @@ ptbl_unhold(pmap_t pmap, vm_offset_t va)
 static void
 ptbl_hold(pmap_t pmap, pte_t *ptbl)
 {
-	vm_page_t	m;
+	vm_page_t m;
 
-	KASSERT((pmap != kernel_pmap),
-		("ptbl_hold: holding kernel ptbl!"));
+	KASSERT((pmap != kernel_pmap), ("ptbl_hold: holding kernel ptbl!"));
 
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t) ptbl));
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)ptbl));
 	m->ref_count++;
 }
 
 /*
  * Clean pte entry, try to free page table page if requested.
- * 
+ *
  * Return 1 if ptbl pages were freed, otherwise return 0.
  */
 static int
 pte_remove(pmap_t pmap, vm_offset_t va, u_int8_t flags)
 {
-	vm_page_t	m;
-	pte_t          *pte;
+	vm_page_t m;
+	pte_t *pte;
 
 	pte = pte_find(pmap, va);
-	KASSERT(pte != NULL, ("%s: NULL pte for va %#jx, pmap %p",
-	    __func__, (uintmax_t)va, pmap));
+	KASSERT(pte != NULL,
+	    ("%s: NULL pte for va %#jx, pmap %p", __func__, (uintmax_t)va,
+		pmap));
 
 	if (!PTE_ISVALID(pte))
 		return (0);
@@ -444,12 +442,12 @@ pte_remove(pmap_t pmap, vm_offset_t va, u_int8_t flags)
  * Insert PTE for a given page and virtual address.
  */
 static int
-pte_enter(pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
-    boolean_t nosleep)
+pte_enter(
+    pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags, boolean_t nosleep)
 {
-	unsigned int	ptbl_idx = PTBL_IDX(va);
-	pte_t          *ptbl, *pte, pte_tmp;
-	bool		is_new;
+	unsigned int ptbl_idx = PTBL_IDX(va);
+	pte_t *ptbl, *pte, pte_tmp;
+	bool is_new;
 
 	/* Get the page directory pointer. */
 	ptbl = ptbl_alloc(pmap, va, nosleep, &is_new);
@@ -506,11 +504,11 @@ pte_enter(pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 }
 
 /* Return the pa for the given pmap/va. */
-static	vm_paddr_t
+static vm_paddr_t
 pte_vatopa(pmap_t pmap, vm_offset_t va)
 {
-	vm_paddr_t	pa = 0;
-	pte_t          *pte;
+	vm_paddr_t pa = 0;
+	pte_t *pte;
 
 	pte = pte_find(pmap, va);
 	if ((pte != NULL) && PTE_ISVALID(pte))
@@ -522,11 +520,11 @@ pte_vatopa(pmap_t pmap, vm_offset_t va)
 static void
 kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)
 {
-	pte_t		*pte;
-	vm_size_t	kva_size;
-	int		kernel_pdirs, kernel_pgtbls, pdir_l1s;
-	vm_offset_t	va, l1_va, pdir_va, ptbl_va;
-	int		i, j, k;
+	pte_t *pte;
+	vm_size_t kva_size;
+	int kernel_pdirs, kernel_pgtbls, pdir_l1s;
+	vm_offset_t va, l1_va, pdir_va, ptbl_va;
+	int i, j, k;
 
 	kva_size = VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS;
 	kernel_pmap->pm_root = kernel_ptbl_root;
@@ -548,16 +546,16 @@ kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)
 
 	va = VM_MIN_KERNEL_ADDRESS;
 	for (i = PG_ROOT_IDX(va); i < PG_ROOT_IDX(va) + pdir_l1s;
-	    i++, l1_va += PAGE_SIZE) {
+	     i++, l1_va += PAGE_SIZE) {
 		kernel_pmap->pm_root[i] = (pte_t ***)l1_va;
-		for (j = 0;
-		    j < PDIR_L1_NENTRIES && va < VM_MAX_KERNEL_ADDRESS;
-		    j++, pdir_va += PAGE_SIZE) {
+		for (j = 0; j < PDIR_L1_NENTRIES && va < VM_MAX_KERNEL_ADDRESS;
+		     j++, pdir_va += PAGE_SIZE) {
 			kernel_pmap->pm_root[i][j] = (pte_t **)pdir_va;
 			for (k = 0;
-			    k < PDIR_NENTRIES && va < VM_MAX_KERNEL_ADDRESS;
-			    k++, va += PDIR_SIZE, ptbl_va += PAGE_SIZE)
-				kernel_pmap->pm_root[i][j][k] = (pte_t *)ptbl_va;
+			     k < PDIR_NENTRIES && va < VM_MAX_KERNEL_ADDRESS;
+			     k++, va += PDIR_SIZE, ptbl_va += PAGE_SIZE)
+				kernel_pmap->pm_root[i][j][k] = (pte_t *)
+				    ptbl_va;
 		}
 	}
 	/*
@@ -567,7 +565,8 @@ kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)
 	 * addresses.
 	 */
 	for (va = addr; va < data_end; va += PAGE_SIZE) {
-		pte = &(kernel_pmap->pm_root[PG_ROOT_IDX(va)][PDIR_L1_IDX(va)][PDIR_IDX(va)][PTBL_IDX(va)]);
+		pte = &(kernel_pmap->pm_root[PG_ROOT_IDX(va)][PDIR_L1_IDX(va)]
+					    [PDIR_IDX(va)][PTBL_IDX(va)]);
 		*pte = PTE_RPN_FROM_PA(kernload + (va - kernstart));
 		*pte |= PTE_M | PTE_SR | PTE_SW | PTE_SX | PTE_WIRED |
 		    PTE_VALID | PTE_PS_4KB;
@@ -600,7 +599,8 @@ mmu_booke_pinit(pmap_t pmap)
 	CTR4(KTR_PMAP, "%s: pmap = %p, proc %d '%s'", __func__, pmap,
 	    curthread->td_proc->p_pid, curthread->td_proc->p_comm);
 
-	KASSERT((pmap != kernel_pmap), ("pmap_pinit: initializing kernel_pmap"));
+	KASSERT(
+	    (pmap != kernel_pmap), ("pmap_pinit: initializing kernel_pmap"));
 
 	for (i = 0; i < MAXCPU; i++)
 		pmap->pm_tid[i] = TID_NONE;
@@ -623,7 +623,7 @@ mmu_booke_release(pmap_t pmap)
 
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
-	    pmap->pm_stats.resident_count));
+		pmap->pm_stats.resident_count));
 #ifdef INVARIANTS
 	/*
 	 * Verify that all page directories are gone.
@@ -631,7 +631,8 @@ mmu_booke_release(pmap_t pmap)
 	 */
 	for (int i = 0; i < PG_ROOT_NENTRIES; i++)
 		KASSERT(pmap->pm_root[i] == 0,
-		    ("Index %d on root page %p is non-zero!\n", i, pmap->pm_root));
+		    ("Index %d on root page %p is non-zero!\n", i,
+			pmap->pm_root));
 #endif
 	uma_zfree(ptbl_root_zone, pmap->pm_root);
 }
@@ -690,7 +691,7 @@ mmu_booke_zero_page(vm_page_t m)
 	va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 
 	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
-		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
+		__asm __volatile("dcbz 0,%0" ::"r"(va + off));
 }
 
 /*
@@ -709,8 +710,8 @@ mmu_booke_copy_page(vm_page_t sm, vm_page_t dm)
 }
 
 static inline void
-mmu_booke_copy_pages(vm_page_t *ma, vm_offset_t a_offset,
-    vm_page_t *mb, vm_offset_t b_offset, int xfersize)
+mmu_booke_copy_pages(vm_page_t *ma, vm_offset_t a_offset, vm_page_t *mb,
+    vm_offset_t b_offset, int xfersize)
 {
 	void *a_cp, *b_cp;
 	vm_offset_t a_pg_offset, b_pg_offset;
@@ -725,10 +726,10 @@ mmu_booke_copy_pages(vm_page_t *ma, vm_offset_t a_offset,
 		pb = mb[b_offset >> PAGE_SHIFT];
 		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		a_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pa)) +
-		    a_pg_offset);
-		b_cp = (caddr_t)((uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pb)) +
-		    b_pg_offset);
+		a_cp = (caddr_t)(
+		    (uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pa)) + a_pg_offset);
+		b_cp = (caddr_t)(
+		    (uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pb)) + b_pg_offset);
 		bcopy(a_cp, b_cp, cnt);
 		a_offset += cnt;
 		b_offset += cnt;
@@ -759,7 +760,7 @@ ilog2(unsigned long num)
 {
 	long lz;
 
-	__asm ("cntlzd %0, %1" : "=r" (lz) : "r" (num));
+	__asm("cntlzd %0, %1" : "=r"(lz) : "r"(num));
 	return (63 - lz);
 }
 
@@ -787,5 +788,5 @@ tid_flush(tlbtid_t tid)
 	mtspr(SPR_MAS6, tid << MAS6_SPID0_SHIFT);
 	__asm __volatile("isync; .long 0x7c200024; isync; msync");
 
-	__asm __volatile("wrtee %0" :: "r"(msr));
+	__asm __volatile("wrtee %0" ::"r"(msr));
 }

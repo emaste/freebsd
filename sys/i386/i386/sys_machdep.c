@@ -38,8 +38,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
-#include <sys/capsicum.h>
 #include <sys/systm.h>
+#include <sys/capsicum.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -50,8 +50,9 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_map.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_kern.h> /* for kernel_map */
+#include <vm/vm_map.h>
 
 #include <machine/atomic.h>
 #include <machine/cpu.h>
@@ -62,19 +63,17 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
-#include <vm/vm_kern.h>		/* for kernel_map */
-
 #define MAX_LD 8192
 #define LD_PER_PAGE 512
-#define	NEW_MAX_LD(num)  rounddown2(num + LD_PER_PAGE, LD_PER_PAGE)
+#define NEW_MAX_LD(num) rounddown2(num + LD_PER_PAGE, LD_PER_PAGE)
 #define SIZE_FROM_LARGEST_LD(num) (NEW_MAX_LD(num) << 3)
-#define	NULL_LDT_BASE	((caddr_t)NULL)
+#define NULL_LDT_BASE ((caddr_t)NULL)
 
 #ifdef SMP
 static void set_user_ldt_rv(void *arg);
 #endif
-static int i386_set_ldt_data(struct thread *, int start, int num,
-    union descriptor *descs);
+static int i386_set_ldt_data(
+    struct thread *, int start, int num, union descriptor *descs);
 static int i386_ldt_grow(struct thread *td, int len);
 
 void
@@ -83,7 +82,7 @@ fill_based_sd(struct segment_descriptor *sdp, uint32_t base)
 
 	sdp->sd_lobase = base & 0xffffff;
 	sdp->sd_hibase = (base >> 24) & 0xff;
-	sdp->sd_lolimit = 0xffff;	/* 4GB limit, wraps around */
+	sdp->sd_lolimit = 0xffff; /* 4GB limit, wraps around */
 	sdp->sd_hilimit = 0xf;
 	sdp->sd_type = SDT_MEMRWA;
 	sdp->sd_dpl = SEL_UPL;
@@ -181,18 +180,18 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	case I386_GET_IOPERM:
 	case I386_SET_IOPERM:
 		if ((error = copyin(uap->parms, &kargs.iargs,
-		    sizeof(struct i386_ioperm_args))) != 0)
+			 sizeof(struct i386_ioperm_args))) != 0)
 			return (error);
 		break;
 	case I386_GET_LDT:
 	case I386_SET_LDT:
 		if ((error = copyin(uap->parms, &kargs.largs,
-		    sizeof(struct i386_ldt_args))) != 0)
+			 sizeof(struct i386_ldt_args))) != 0)
 			return (error);
 		break;
 	case I386_GET_XFPUSTATE:
 		if ((error = copyin(uap->parms, &kargs.xfpu,
-		    sizeof(struct i386_get_xfpustate))) != 0)
+			 sizeof(struct i386_get_xfpustate))) != 0)
 			return (error);
 		break;
 	default:
@@ -265,8 +264,8 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		}
 		break;
 	case I386_GET_XFPUSTATE:
-		if (kargs.xfpu.len > cpu_max_ext_state_size -
-		    sizeof(union savefpu))
+		if (kargs.xfpu.len >
+		    cpu_max_ext_state_size - sizeof(union savefpu))
 			return (EINVAL);
 		npxgetregs(td);
 		error = copyout((char *)(get_pcb_user_save_td(td) + 1),
@@ -286,14 +285,13 @@ i386_extend_pcb(struct thread *td)
 	u_long *addr;
 	struct pcb_ext *ext;
 	struct soft_segment_descriptor ssd = {
-		0,			/* segment base address (overwritten) */
-		ctob(IOPAGES + 1) - 1,	/* length */
-		SDT_SYS386TSS,		/* segment type */
-		0,			/* priority level */
-		1,			/* descriptor present */
-		0, 0,
-		0,			/* default 32 size */
-		0			/* granularity */
+		0,		       /* segment base address (overwritten) */
+		ctob(IOPAGES + 1) - 1, /* length */
+		SDT_SYS386TSS,	       /* segment type */
+		0,		       /* priority level */
+		1,		       /* descriptor present */
+		0, 0, 0,	       /* default 32 size */
+		0		       /* granularity */
 	};
 
 	ext = pmap_trm_alloc(ctob(IOPAGES + 1), M_WAITOK | M_ZERO);
@@ -305,7 +303,7 @@ i386_extend_pcb(struct thread *td)
 	 * address on a doubleword boundary.
 	 */
 	offset = PAGE_SIZE - 16;
-	ext->ext_tss.tss_ioopt = 
+	ext->ext_tss.tss_ioopt =
 	    (offset - ((unsigned)&ext->ext_tss - (unsigned)ext)) << 16;
 	ext->ext_iomap = (caddr_t)ext + offset;
 	ext->ext_vm86.vm86_intmap = (caddr_t)ext + offset - 32;
@@ -333,10 +331,8 @@ i386_extend_pcb(struct thread *td)
 	return 0;
 }
 
-int
-i386_set_ioperm(td, uap)
-	struct thread *td;
-	struct i386_ioperm_args *uap;
+int i386_set_ioperm(td, uap) struct thread *td;
+struct i386_ioperm_args *uap;
 {
 	char *iomap;
 	u_int i;
@@ -347,7 +343,7 @@ i386_set_ioperm(td, uap)
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		return (error);
 	/*
-	 * XXX 
+	 * XXX
 	 * While this is restricted to root, we should probably figure out
 	 * whether any other driver is using this i/o address, as so not to
 	 * cause confusion.  This probably requires a global 'usage registry'.
@@ -371,10 +367,8 @@ i386_set_ioperm(td, uap)
 	return (error);
 }
 
-int
-i386_get_ioperm(td, uap)
-	struct thread *td;
-	struct i386_ioperm_args *uap;
+int i386_get_ioperm(td, uap) struct thread *td;
+struct i386_ioperm_args *uap;
 {
 	int i, state;
 	char *iomap;
@@ -407,7 +401,7 @@ done:
 /*
  * Update the GDT entry pointing to the LDT to point to the LDT of the
  * current process. Manage dt_lock holding/unholding autonomously.
- */   
+ */
 static void
 set_user_ldt_locked(struct mdproc *mdp)
 {
@@ -418,7 +412,7 @@ set_user_ldt_locked(struct mdproc *mdp)
 
 	pldt = mdp->md_ldt;
 	gdt_idx = GUSERLDT_SEL;
-	gdt_idx += PCPU_GET(cpuid) * NGDT;	/* always 0 on UP */
+	gdt_idx += PCPU_GET(cpuid) * NGDT; /* always 0 on UP */
 	gdt[gdt_idx].sd = pldt->ldt_sd;
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
 	PCPU_SET(currentldt, GSEL(GUSERLDT_SEL, SEL_KPL));
@@ -458,8 +452,8 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 	new_ldt = malloc(sizeof(struct proc_ldt), M_SUBPROC, M_WAITOK);
 
 	new_ldt->ldt_len = len = NEW_MAX_LD(len);
-	new_ldt->ldt_base = pmap_trm_alloc(len * sizeof(union descriptor),
-	    M_WAITOK | M_ZERO);
+	new_ldt->ldt_base = pmap_trm_alloc(
+	    len * sizeof(union descriptor), M_WAITOK | M_ZERO);
 	new_ldt->ldt_refcnt = 1;
 	new_ldt->ldt_active = 0;
 
@@ -511,8 +505,8 @@ user_ldt_deref(struct proc_ldt *pldt)
 	mtx_assert(&dt_lock, MA_OWNED);
 	if (--pldt->ldt_refcnt == 0) {
 		mtx_unlock_spin(&dt_lock);
-		pmap_trm_free(pldt->ldt_base, pldt->ldt_len *
-		    sizeof(union descriptor));
+		pmap_trm_free(
+		    pldt->ldt_base, pldt->ldt_len * sizeof(union descriptor));
 		free(pldt, M_SUBPROC);
 	} else
 		mtx_unlock_spin(&dt_lock);
@@ -533,8 +527,8 @@ i386_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 	int error;
 
 #ifdef DEBUG
-	printf("i386_get_ldt: start=%u num=%u descs=%p\n",
-	    uap->start, uap->num, (void *)uap->descs);
+	printf("i386_get_ldt: start=%u num=%u descs=%p\n", uap->start, uap->num,
+	    (void *)uap->descs);
 #endif
 
 	num = min(uap->num, MAX_LD);
@@ -547,8 +541,9 @@ i386_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 	} else {
 		num = min(num, nldt - uap->start);
 		bcopy(pldt != NULL ?
-		    &((union descriptor *)(pldt->ldt_base))[uap->start] :
-		    &ldt[uap->start], data, num * sizeof(union descriptor));
+			      &((union descriptor *)(pldt->ldt_base))[uap->start] :
+			      &ldt[uap->start],
+		    data, num * sizeof(union descriptor));
 	}
 	mtx_unlock_spin(&dt_lock);
 	error = copyout(data, uap->descs, num * sizeof(union descriptor));
@@ -559,8 +554,8 @@ i386_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 }
 
 int
-i386_set_ldt(struct thread *td, struct i386_ldt_args *uap,
-    union descriptor *descs)
+i386_set_ldt(
+    struct thread *td, struct i386_ldt_args *uap, union descriptor *descs)
 {
 	struct mdproc *mdp;
 	struct proc_ldt *pldt;
@@ -569,8 +564,8 @@ i386_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 	int error;
 
 #ifdef DEBUG
-	printf("i386_set_ldt: start=%u num=%u descs=%p\n",
-	    uap->start, uap->num, (void *)uap->descs);
+	printf("i386_set_ldt: start=%u num=%u descs=%p\n", uap->start, uap->num,
+	    (void *)uap->descs);
 #endif
 	error = 0;
 	mdp = &td->td_proc->p_md;
@@ -595,8 +590,8 @@ i386_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 		if (largest_ld > pldt->ldt_len)
 			largest_ld = pldt->ldt_len;
 		for (i = uap->start; i < largest_ld; i++)
-			atomic_store_rel_64(&((uint64_t *)(pldt->ldt_base))[i],
-			    0);
+			atomic_store_rel_64(
+			    &((uint64_t *)(pldt->ldt_base))[i], 0);
 		mtx_unlock_spin(&dt_lock);
 		return (0);
 	}
@@ -613,7 +608,7 @@ i386_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 		dp = &descs[i];
 
 		switch (dp->sd.sd_type) {
-		case SDT_SYSNULL:	/* system null */ 
+		case SDT_SYSNULL: /* system null */
 			dp->sd.sd_p = 0;
 			break;
 		case SDT_SYS286TSS: /* system 286 TSS available */
@@ -622,37 +617,37 @@ i386_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 		case SDT_SYSTASKGT: /* system task gate */
 		case SDT_SYS286IGT: /* system 286 interrupt gate */
 		case SDT_SYS286TGT: /* system 286 trap gate */
-		case SDT_SYSNULL2:  /* undefined by Intel */ 
+		case SDT_SYSNULL2:  /* undefined by Intel */
 		case SDT_SYS386TSS: /* system 386 TSS available */
 		case SDT_SYSNULL3:  /* undefined by Intel */
 		case SDT_SYS386BSY: /* system 386 TSS busy */
-		case SDT_SYSNULL4:  /* undefined by Intel */ 
+		case SDT_SYSNULL4:  /* undefined by Intel */
 		case SDT_SYS386IGT: /* system 386 interrupt gate */
 		case SDT_SYS386TGT: /* system 386 trap gate */
-		case SDT_SYS286CGT: /* system 286 call gate */ 
+		case SDT_SYS286CGT: /* system 286 call gate */
 		case SDT_SYS386CGT: /* system 386 call gate */
 			return (EACCES);
 
 		/* memory segment types */
-		case SDT_MEMEC:   /* memory execute only conforming */
+		case SDT_MEMEC:	  /* memory execute only conforming */
 		case SDT_MEMEAC:  /* memory execute only accessed conforming */
 		case SDT_MEMERC:  /* memory execute read conforming */
 		case SDT_MEMERAC: /* memory execute read accessed conforming */
-			 /* Must be "present" if executable and conforming. */
+			/* Must be "present" if executable and conforming. */
 			if (dp->sd.sd_p == 0)
 				return (EACCES);
 			break;
-		case SDT_MEMRO:   /* memory read only */
+		case SDT_MEMRO:	  /* memory read only */
 		case SDT_MEMROA:  /* memory read only accessed */
-		case SDT_MEMRW:   /* memory read write */
+		case SDT_MEMRW:	  /* memory read write */
 		case SDT_MEMRWA:  /* memory read write accessed */
 		case SDT_MEMROD:  /* memory read only expand dwn limit */
 		case SDT_MEMRODA: /* memory read only expand dwn lim accessed */
-		case SDT_MEMRWD:  /* memory read write expand dwn limit */  
+		case SDT_MEMRWD:  /* memory read write expand dwn limit */
 		case SDT_MEMRWDA: /* memory read write expand dwn lim acessed */
-		case SDT_MEME:    /* memory execute only */ 
-		case SDT_MEMEA:   /* memory execute only accessed */
-		case SDT_MEMER:   /* memory execute read */
+		case SDT_MEME:	  /* memory execute only */
+		case SDT_MEMEA:	  /* memory execute only accessed */
+		case SDT_MEMER:	  /* memory execute read */
 		case SDT_MEMERA:  /* memory execute read accessed */
 			break;
 		default:
@@ -674,7 +669,7 @@ i386_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 			}
 			pldt = mdp->md_ldt;
 		}
-again:
+	again:
 		/*
 		 * start scanning a bit up to leave room for NVidia and
 		 * Wine, which still user the "Blat" method of allocation.
@@ -686,7 +681,7 @@ again:
 			dp++;
 		}
 		if (i >= pldt->ldt_len) {
-			if ((error = i386_ldt_grow(td, pldt->ldt_len+1))) {
+			if ((error = i386_ldt_grow(td, pldt->ldt_len + 1))) {
 				mtx_unlock_spin(&dt_lock);
 				return (error);
 			}
@@ -699,8 +694,8 @@ again:
 		largest_ld = uap->start + uap->num;
 		mtx_lock_spin(&dt_lock);
 		if (!(error = i386_ldt_grow(td, largest_ld))) {
-			error = i386_set_ldt_data(td, uap->start, uap->num,
-			    descs);
+			error = i386_set_ldt_data(
+			    td, uap->start, uap->num, descs);
 		}
 		mtx_unlock_spin(&dt_lock);
 	}
@@ -710,8 +705,8 @@ again:
 }
 
 static int
-i386_set_ldt_data(struct thread *td, int start, int num,
-    union descriptor *descs)
+i386_set_ldt_data(
+    struct thread *td, int start, int num, union descriptor *descs)
 {
 	struct mdproc *mdp;
 	struct proc_ldt *pldt;
@@ -736,7 +731,7 @@ i386_set_ldt_data(struct thread *td, int start, int num,
 }
 
 static int
-i386_ldt_grow(struct thread *td, int len) 
+i386_ldt_grow(struct thread *td, int len)
 {
 	struct mdproc *mdp;
 	struct proc_ldt *new_ldt, *pldt;
@@ -769,7 +764,8 @@ i386_ldt_grow(struct thread *td, int len)
 				 */
 				mtx_unlock_spin(&dt_lock);
 				pmap_trm_free(new_ldt->ldt_base,
-				   new_ldt->ldt_len * sizeof(union descriptor));
+				    new_ldt->ldt_len *
+					sizeof(union descriptor));
 				free(new_ldt, M_SUBPROC);
 				mtx_lock_spin(&dt_lock);
 				return (0);
@@ -794,15 +790,15 @@ i386_ldt_grow(struct thread *td, int len)
 		 * to acquire it.
 		 */
 		mtx_unlock_spin(&dt_lock);
-		smp_rendezvous(NULL, set_user_ldt_rv, NULL,
-		    td->td_proc->p_vmspace);
+		smp_rendezvous(
+		    NULL, set_user_ldt_rv, NULL, td->td_proc->p_vmspace);
 #else
 		set_user_ldt_locked(&td->td_proc->p_md);
 		mtx_unlock_spin(&dt_lock);
 #endif
 		if (old_ldt_base != NULL_LDT_BASE) {
-			pmap_trm_free(old_ldt_base, old_ldt_len *
-			    sizeof(union descriptor));
+			pmap_trm_free(old_ldt_base,
+			    old_ldt_len * sizeof(union descriptor));
 			free(new_ldt, M_SUBPROC);
 		}
 		mtx_lock_spin(&dt_lock);

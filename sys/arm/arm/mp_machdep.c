@@ -33,27 +33,27 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/proc.h>
 #include <sys/pcpu.h>
+#include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
-#include <sys/ktr.h>
-#include <sys/malloc.h>
 
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/pmap.h>
 
 #include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/debug_monitor.h>
-#include <machine/smp.h>
-#include <machine/pcb.h>
 #include <machine/intr.h>
+#include <machine/pcb.h>
+#include <machine/smp.h>
 #include <machine/vmparam.h>
 #ifdef VFP
 #include <machine/vfp.h>
@@ -97,7 +97,7 @@ check_ap(void)
 
 	for (ms = 0; ms < 2000; ++ms) {
 		if ((mp_naps + 1) == mp_ncpus)
-			return (0);		/* success */
+			return (0); /* success */
 		else
 			DELAY(1000);
 	}
@@ -114,7 +114,7 @@ cpu_mp_start(void)
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	/* Reserve memory for application processors */
-	for(i = 0; i < (mp_ncpus - 1); i++)
+	for (i = 0; i < (mp_ncpus - 1); i++)
 		dpcpu[i] = (void *)kmem_malloc(DPCPU_SIZE, M_WAITOK | M_ZERO);
 
 	dcache_wbinv_poc_all();
@@ -135,7 +135,6 @@ cpu_mp_start(void)
 void
 cpu_mp_announce(void)
 {
-
 }
 
 void
@@ -158,7 +157,7 @@ init_secondary(int cpu)
 	 * pcpu_init() updates queue, so it should not be executed in parallel
 	 * on several cores
 	 */
-	while(mp_naps < (cpu - 1))
+	while (mp_naps < (cpu - 1))
 		;
 
 	pcpu_init(pc, cpu, sizeof(struct pcpu));

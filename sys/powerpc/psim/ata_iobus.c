@@ -35,53 +35,55 @@ __FBSDID("$FreeBSD$");
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
+#include <sys/ata.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
-#include <machine/stdarg.h>
-#include <vm/uma.h>
-#include <machine/resource.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <sys/ata.h>
-#include <dev/ata/ata-all.h>
-#include <ata_if.h>
 
+#include <vm/uma.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <machine/stdarg.h>
+
+#include <dev/ata/ata-all.h>
 #include <dev/ofw/openfirm.h>
+
+#include <ata_if.h>
 #include <powerpc/psim/iobusvar.h>
 
 /*
  * Define the iobus ata bus attachment. This creates a pseudo-bus that
  * the ATA device can be attached to
  */
-static  int  ata_iobus_attach(device_t dev);
-static  int  ata_iobus_probe(device_t dev);
-static  int  ata_iobus_print_child(device_t dev, device_t child);
-struct resource *ata_iobus_alloc_resource(device_t, device_t, int, int *,
-					  rman_res_t, rman_res_t, rman_res_t,
-					  u_int);
-static int ata_iobus_release_resource(device_t, device_t, int, int,
-				      struct resource *);
+static int ata_iobus_attach(device_t dev);
+static int ata_iobus_probe(device_t dev);
+static int ata_iobus_print_child(device_t dev, device_t child);
+struct resource *ata_iobus_alloc_resource(
+    device_t, device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+static int ata_iobus_release_resource(
+    device_t, device_t, int, int, struct resource *);
 
 static device_method_t ata_iobus_methods[] = {
-        /* Device interface */
-	DEVMETHOD(device_probe,		ata_iobus_probe),
-	DEVMETHOD(device_attach,        ata_iobus_attach),
-	DEVMETHOD(device_shutdown,      bus_generic_shutdown),
-	DEVMETHOD(device_suspend,       bus_generic_suspend),
-	DEVMETHOD(device_resume,        bus_generic_resume),
+	/* Device interface */
+	DEVMETHOD(device_probe, ata_iobus_probe),
+	DEVMETHOD(device_attach, ata_iobus_attach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
 
 	/* Bus methods */
-	DEVMETHOD(bus_print_child,          ata_iobus_print_child),
-	DEVMETHOD(bus_alloc_resource,       ata_iobus_alloc_resource),
-	DEVMETHOD(bus_release_resource,     ata_iobus_release_resource),
-	DEVMETHOD(bus_activate_resource,    bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,  bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,           bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,        bus_generic_teardown_intr),
+	DEVMETHOD(bus_print_child, ata_iobus_print_child),
+	DEVMETHOD(bus_alloc_resource, ata_iobus_alloc_resource),
+	DEVMETHOD(bus_release_resource, ata_iobus_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
 
 	DEVMETHOD_END
 };
@@ -94,8 +96,8 @@ static driver_t ata_iobus_driver = {
 
 static devclass_t ata_iobus_devclass;
 
-DRIVER_MODULE(ataiobus, iobus, ata_iobus_driver, ata_iobus_devclass, NULL,
-    NULL);
+DRIVER_MODULE(
+    ataiobus, iobus, ata_iobus_driver, ata_iobus_devclass, NULL, NULL);
 MODULE_DEPEND(ata, ata, 1, 1, 1);
 
 static int
@@ -135,8 +137,7 @@ ata_iobus_print_child(device_t dev, device_t child)
 
 struct resource *
 ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
-			 rman_res_t start, rman_res_t end, rman_res_t count,
-			 u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res = NULL;
 	int myrid;
@@ -164,8 +165,7 @@ ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			end = start + ATA_IOSIZE - 1;
 			count = ATA_IOSIZE;
 			res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-						 SYS_RES_MEMORY, &myrid,
-						 start, end, count, flags);
+			    SYS_RES_MEMORY, &myrid, start, end, count, flags);
 			break;
 
 		case ATA_CTLADDR_RID:
@@ -174,8 +174,7 @@ ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			end = start + ATA_CTLIOSIZE - 1;
 			count = ATA_CTLIOSIZE;
 			res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-						 SYS_RES_MEMORY, &myrid,
-						 start, end, count, flags);
+			    SYS_RES_MEMORY, &myrid, start, end, count, flags);
 			break;
 
 		case ATA_BMADDR_RID:
@@ -189,7 +188,7 @@ ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		 * Pass this on to the parent
 		 */
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
-					   SYS_RES_IRQ, rid, 0, ~0, 1, flags));
+		    SYS_RES_IRQ, rid, 0, ~0, 1, flags));
 
 	} else {
 		return (NULL);
@@ -197,8 +196,8 @@ ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 static int
-ata_iobus_release_resource(device_t dev, device_t child, int type, int rid,
-			   struct resource *r)
+ata_iobus_release_resource(
+    device_t dev, device_t child, int type, int rid, struct resource *r)
 {
 	/* no hotplug... */
 	return (0);
@@ -209,19 +208,18 @@ ata_iobus_release_resource(device_t dev, device_t child, int type, int rid,
  * to allow the higher layer bus to massage the resource allocation.
  */
 
-static  int  ata_iobus_sub_probe(device_t dev);
-static  int  ata_iobus_sub_setmode(device_t dev, int target, int mode);
+static int ata_iobus_sub_probe(device_t dev);
+static int ata_iobus_sub_setmode(device_t dev, int target, int mode);
 
 static device_method_t ata_iobus_sub_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,     ata_iobus_sub_probe),
-	DEVMETHOD(device_attach,    ata_attach),
-	DEVMETHOD(device_detach,    ata_detach),
-	DEVMETHOD(device_resume,    ata_resume),
+	DEVMETHOD(device_probe, ata_iobus_sub_probe),
+	DEVMETHOD(device_attach, ata_attach),
+	DEVMETHOD(device_detach, ata_detach),
+	DEVMETHOD(device_resume, ata_resume),
 
 	/* ATA interface */
-	DEVMETHOD(ata_setmode,	    ata_iobus_sub_setmode),
-	DEVMETHOD_END
+	DEVMETHOD(ata_setmode, ata_iobus_sub_setmode), DEVMETHOD_END
 };
 
 static driver_t ata_iobus_sub_driver = {
@@ -239,7 +237,7 @@ ata_iobus_sub_probe(device_t dev)
 
 	/* Only a single unit per controller thus far */
 	ch->unit = 0;
-	ch->flags = (ATA_USE_16BIT|ATA_NO_SLAVE);
+	ch->flags = (ATA_USE_16BIT | ATA_NO_SLAVE);
 	ata_generic_hw(dev);
 
 	return ata_probe(dev);

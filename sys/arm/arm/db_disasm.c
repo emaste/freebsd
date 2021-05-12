@@ -39,23 +39,21 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
+
 #include <machine/db_machdep.h>
-#include <ddb/ddb.h>
+#include <machine/disassem.h>
+
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
-
-#include <machine/disassem.h>
+#include <ddb/ddb.h>
 
 /* Glue code to interface db_disasm to the generic ARM disassembler */
 
 static u_int db_disasm_read_word(u_int);
 static void db_disasm_printaddr(u_int);
 
-static const disasm_interface_t db_disasm_interface = {
-	db_disasm_read_word,
-	db_disasm_printaddr,
-       	db_printf
-};
+static const disasm_interface_t db_disasm_interface = { db_disasm_read_word,
+	db_disasm_printaddr, db_printf };
 
 static u_int
 db_disasm_read_word(u_int address)

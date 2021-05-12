@@ -18,7 +18,7 @@
  * as part of the DARPA CHATS research program.
  *
  * This software was developed at the University of Cambridge Computer
- * Laboratory with support from a grant from Google, Inc. 
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,19 +48,19 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/mac.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
 #include <sys/priv.h>
+#include <sys/protosw.h>
 #include <sys/sbuf.h>
 #include <sys/sdt.h>
-#include <sys/systm.h>
-#include <sys/mount.h>
-#include <sys/file.h>
-#include <sys/namei.h>
-#include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -104,7 +104,7 @@ mac_mbuf_to_label(struct mbuf *m)
 	tag = m_tag_find(m, PACKET_TAG_MACLABEL, NULL);
 	if (tag == NULL)
 		return (NULL);
-	label = (struct label *)(tag+1);
+	label = (struct label *)(tag + 1);
 	return (label);
 }
 
@@ -154,7 +154,7 @@ mac_mbuf_tag_init(struct m_tag *tag, int flag)
 	struct label *label;
 	int error;
 
-	label = (struct label *) (tag + 1);
+	label = (struct label *)(tag + 1);
 	mac_init_label(label);
 
 	if (flag & M_WAITOK)
@@ -177,8 +177,8 @@ mac_mbuf_init(struct mbuf *m, int flag)
 	M_ASSERTPKTHDR(m);
 
 	if (mac_labeled & MPC_OBJECT_MBUF) {
-		tag = m_tag_get(PACKET_TAG_MACLABEL, sizeof(struct label),
-		    flag);
+		tag = m_tag_get(
+		    PACKET_TAG_MACLABEL, sizeof(struct label), flag);
 		if (tag == NULL)
 			return (ENOMEM);
 		error = mac_mbuf_tag_init(tag, flag);
@@ -232,7 +232,7 @@ mac_mbuf_tag_destroy(struct m_tag *tag)
 {
 	struct label *label;
 
-	label = (struct label *)(tag+1);
+	label = (struct label *)(tag + 1);
 
 	MAC_POLICY_PERFORM_NOSLEEP(mbuf_destroy_label, label);
 	mac_destroy_label(label);
@@ -247,8 +247,8 @@ mac_mbuf_tag_copy(struct m_tag *src, struct m_tag *dest)
 {
 	struct label *src_label, *dest_label;
 
-	src_label = (struct label *)(src+1);
-	dest_label = (struct label *)(dest+1);
+	src_label = (struct label *)(src + 1);
+	dest_label = (struct label *)(dest + 1);
 
 	/*
 	 * mac_mbuf_tag_init() is called on the target tag in m_tag_copy(),
@@ -279,8 +279,8 @@ mac_ifnet_copy_label(struct label *src, struct label *dest)
 }
 
 static int
-mac_ifnet_externalize_label(struct label *label, char *elements,
-    char *outbuf, size_t outbuflen)
+mac_ifnet_externalize_label(
+    struct label *label, char *elements, char *outbuf, size_t outbuflen)
 {
 	int error;
 
@@ -332,8 +332,8 @@ mac_bpfdesc_create_mbuf(struct bpf_d *d, struct mbuf *m)
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_POLICY_PERFORM_NOSLEEP(bpfdesc_create_mbuf, d, d->bd_label, m,
-	    label);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    bpfdesc_create_mbuf, d, d->bd_label, m, label);
 }
 
 void
@@ -348,13 +348,13 @@ mac_ifnet_create_mbuf(struct ifnet *ifp, struct mbuf *m)
 	label = mac_mbuf_to_label(m);
 
 	MAC_IFNET_LOCK(ifp, locked);
-	MAC_POLICY_PERFORM_NOSLEEP(ifnet_create_mbuf, ifp, ifp->if_label, m,
-	    label);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    ifnet_create_mbuf, ifp, ifp->if_label, m, label);
 	MAC_IFNET_UNLOCK(ifp, locked);
 }
 
-MAC_CHECK_PROBE_DEFINE2(bpfdesc_check_receive, "struct bpf_d *",
-    "struct ifnet *");
+MAC_CHECK_PROBE_DEFINE2(
+    bpfdesc_check_receive, "struct bpf_d *", "struct ifnet *");
 
 int
 mac_bpfdesc_check_receive(struct bpf_d *d, struct ifnet *ifp)
@@ -368,16 +368,16 @@ mac_bpfdesc_check_receive(struct bpf_d *d, struct ifnet *ifp)
 		return (0);
 
 	MAC_IFNET_LOCK(ifp, locked);
-	MAC_POLICY_CHECK_NOSLEEP(bpfdesc_check_receive, d, d->bd_label, ifp,
-	    ifp->if_label);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    bpfdesc_check_receive, d, d->bd_label, ifp, ifp->if_label);
 	MAC_CHECK_PROBE2(bpfdesc_check_receive, error, d, ifp);
 	MAC_IFNET_UNLOCK(ifp, locked);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(ifnet_check_transmit, "struct ifnet *",
-    "struct mbuf *");
+MAC_CHECK_PROBE_DEFINE2(
+    ifnet_check_transmit, "struct ifnet *", "struct mbuf *");
 
 int
 mac_ifnet_check_transmit(struct ifnet *ifp, struct mbuf *m)
@@ -393,8 +393,8 @@ mac_ifnet_check_transmit(struct ifnet *ifp, struct mbuf *m)
 	label = mac_mbuf_to_label(m);
 
 	MAC_IFNET_LOCK(ifp, locked);
-	MAC_POLICY_CHECK_NOSLEEP(ifnet_check_transmit, ifp, ifp->if_label, m,
-	    label);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    ifnet_check_transmit, ifp, ifp->if_label, m, label);
 	MAC_CHECK_PROBE2(ifnet_check_transmit, error, ifp, m);
 	MAC_IFNET_UNLOCK(ifp, locked);
 
@@ -402,8 +402,7 @@ mac_ifnet_check_transmit(struct ifnet *ifp, struct mbuf *m)
 }
 
 int
-mac_ifnet_ioctl_get(struct ucred *cred, struct ifreq *ifr,
-    struct ifnet *ifp)
+mac_ifnet_ioctl_get(struct ucred *cred, struct ifreq *ifr, struct ifnet *ifp)
 {
 	char *elements, *buffer;
 	struct label *intlabel;
@@ -433,11 +432,11 @@ mac_ifnet_ioctl_get(struct ucred *cred, struct ifreq *ifr,
 	MAC_IFNET_LOCK(ifp, locked);
 	mac_ifnet_copy_label(ifp->if_label, intlabel);
 	MAC_IFNET_UNLOCK(ifp, locked);
-	error = mac_ifnet_externalize_label(intlabel, elements, buffer,
-	    mac.m_buflen);
+	error = mac_ifnet_externalize_label(
+	    intlabel, elements, buffer, mac.m_buflen);
 	mac_ifnet_label_free(intlabel);
 	if (error == 0)
-		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
+		error = copyout(buffer, mac.m_string, strlen(buffer) + 1);
 
 	free(buffer, M_MACTEMP);
 	free(elements, M_MACTEMP);
@@ -491,16 +490,16 @@ mac_ifnet_ioctl_set(struct ucred *cred, struct ifreq *ifr, struct ifnet *ifp)
 	}
 
 	MAC_IFNET_LOCK(ifp, locked);
-	MAC_POLICY_CHECK_NOSLEEP(ifnet_check_relabel, cred, ifp,
-	    ifp->if_label, intlabel);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    ifnet_check_relabel, cred, ifp, ifp->if_label, intlabel);
 	if (error) {
 		MAC_IFNET_UNLOCK(ifp, locked);
 		mac_ifnet_label_free(intlabel);
 		return (error);
 	}
 
-	MAC_POLICY_PERFORM_NOSLEEP(ifnet_relabel, cred, ifp, ifp->if_label,
-	    intlabel);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    ifnet_relabel, cred, ifp, ifp->if_label, intlabel);
 	MAC_IFNET_UNLOCK(ifp, locked);
 
 	mac_ifnet_label_free(intlabel);

@@ -27,17 +27,17 @@
  * $FreeBSD$
  */
 
-#ifndef	_BCM2835_CLKMAN_H_
-#define	_BCM2835_CLKMAN_H_
+#ifndef _BCM2835_CLKMAN_H_
+#define _BCM2835_CLKMAN_H_
 
 // Offset into BAR0 for unit
 enum bcm2835_clksrc {
-	BCM_GPIO0_CLKSRC =	0x70,
-	BCM_GPIO1_CLKSRC =	0x78,
-	BCM_GPIO2_CLKSRC =	0x80,
-	BCM_PWM_CLKSRC =	0xa0,
+	BCM_GPIO0_CLKSRC = 0x70,
+	BCM_GPIO1_CLKSRC = 0x78,
+	BCM_GPIO2_CLKSRC = 0x80,
+	BCM_PWM_CLKSRC = 0xa0,
 };
 
 uint32_t bcm2835_clkman_set_frequency(device_t, uint32_t, uint32_t);
 
-#endif	/* _BCM2835_CLKMAN_H_ */
+#endif /* _BCM2835_CLKMAN_H_ */

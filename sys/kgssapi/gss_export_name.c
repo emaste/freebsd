@@ -43,8 +43,8 @@ __FBSDID("$FreeBSD$");
 #include "gssd.h"
 
 OM_uint32
-gss_export_name(OM_uint32 *minor_status, gss_name_t input_name,
-    gss_buffer_t exported_name)
+gss_export_name(
+    OM_uint32 *minor_status, gss_name_t input_name, gss_buffer_t exported_name)
 {
 	struct export_name_res res;
 	struct export_name_args args;
@@ -72,7 +72,7 @@ gss_export_name(OM_uint32 *minor_status, gss_name_t input_name,
 	}
 
 	kgss_copy_buffer(&res.exported_name, exported_name);
-	xdr_free((xdrproc_t) xdr_export_name_res, &res);
+	xdr_free((xdrproc_t)xdr_export_name_res, &res);
 
 	return (GSS_S_COMPLETE);
 }

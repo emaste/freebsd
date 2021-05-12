@@ -44,41 +44,42 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/errno.h>
 #include <sys/time.h>
-#include <geom/geom.h>
-#include <geom/geom_int.h>
 
 #include <machine/stdarg.h>
+
+#include <geom/geom.h>
+#include <geom/geom_int.h>
 
 TAILQ_HEAD(event_tailq_head, g_event);
 
 static struct event_tailq_head g_events = TAILQ_HEAD_INITIALIZER(g_events);
 static u_int g_pending_events;
-static TAILQ_HEAD(,g_provider) g_doorstep = TAILQ_HEAD_INITIALIZER(g_doorstep);
+static TAILQ_HEAD(, g_provider) g_doorstep = TAILQ_HEAD_INITIALIZER(g_doorstep);
 static struct mtx g_eventlock;
 static int g_wither_work;
 
-#define G_N_EVENTREFS		20
+#define G_N_EVENTREFS 20
 
 struct g_event {
-	TAILQ_ENTRY(g_event)	events;
-	g_event_t		*func;
-	void			*arg;
-	int			flag;
-	void			*ref[G_N_EVENTREFS];
+	TAILQ_ENTRY(g_event) events;
+	g_event_t *func;
+	void *arg;
+	int flag;
+	void *ref[G_N_EVENTREFS];
 };
 
-#define EV_DONE		0x80000
-#define EV_WAKEUP	0x40000
-#define EV_CANCELED	0x20000
-#define EV_INPROGRESS	0x10000
+#define EV_DONE 0x80000
+#define EV_WAKEUP 0x40000
+#define EV_CANCELED 0x20000
+#define EV_INPROGRESS 0x10000
 
 void
 g_waitidle(void)
@@ -89,8 +90,8 @@ g_waitidle(void)
 	mtx_lock(&g_eventlock);
 	TSWAIT("GEOM events");
 	while (!TAILQ_EMPTY(&g_events))
-		msleep(&g_pending_events, &g_eventlock, PPAUSE,
-		    "g_waitidle", hz/5);
+		msleep(&g_pending_events, &g_eventlock, PPAUSE, "g_waitidle",
+		    hz / 5);
 	TSUNWAIT("GEOM events");
 	mtx_unlock(&g_eventlock);
 	curthread->td_pflags &= ~TDP_GEOM;
@@ -134,7 +135,7 @@ g_attr_changed_event(void *arg, int flag)
 		/*
 		 * Tell all consumers of the change.
 		 */
-		LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, next_cp) {
+		LIST_FOREACH_SAFE (cp, &pp->consumers, consumers, next_cp) {
 			if (cp->geom->attrchanged != NULL)
 				cp->geom->attrchanged(cp, args->attr);
 		}
@@ -164,11 +165,11 @@ g_orphan_provider(struct g_provider *pp, int error)
 {
 
 	/* G_VALID_PROVIDER(pp)  We likely lack topology lock */
-	g_trace(G_T_TOPOLOGY, "g_orphan_provider(%p(%s), %d)",
-	    pp, pp->name, error);
+	g_trace(
+	    G_T_TOPOLOGY, "g_orphan_provider(%p(%s), %d)", pp, pp->name, error);
 	KASSERT(error != 0,
-	    ("g_orphan_provider(%p(%s), 0) error must be non-zero\n",
-	     pp, pp->name));
+	    ("g_orphan_provider(%p(%s), 0) error must be non-zero\n", pp,
+		pp->name));
 
 	pp->error = error;
 	mtx_lock(&g_eventlock);
@@ -204,10 +205,10 @@ g_orphan_register(struct g_provider *pp)
 	 * Tell all consumers the bad news.
 	 * Don't be surprised if they self-destruct.
 	 */
-	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, cp2) {
+	LIST_FOREACH_SAFE (cp, &pp->consumers, consumers, cp2) {
 		KASSERT(cp->geom->orphan != NULL,
-		    ("geom %s has no orphan, class %s",
-		    cp->geom->name, cp->geom->class->name));
+		    ("geom %s has no orphan, class %s", cp->geom->name,
+			cp->geom->class->name));
 		/*
 		 * XXX: g_dev_orphan method does deferred destroying
 		 * and it is possible, that other event could already
@@ -294,8 +295,8 @@ g_run_events()
 			g_topology_unlock();
 		} else {
 			g_topology_unlock();
-			msleep(&g_wait_event, &g_eventlock, PRIBIO | PDROP,
-			    "-", 0);
+			msleep(&g_wait_event, &g_eventlock, PRIBIO | PDROP, "-",
+			    0);
 		}
 	}
 	/* NOTREACHED */
@@ -309,13 +310,13 @@ g_cancel_event(void *ref)
 	u_int n;
 
 	mtx_lock(&g_eventlock);
-	TAILQ_FOREACH(pp, &g_doorstep, orphan) {
+	TAILQ_FOREACH (pp, &g_doorstep, orphan) {
 		if (pp != ref)
 			continue;
 		TAILQ_REMOVE(&g_doorstep, pp, orphan);
 		break;
 	}
-	TAILQ_FOREACH_SAFE(ep, &g_events, events, epn) {
+	TAILQ_FOREACH_SAFE (ep, &g_events, events, epn) {
 		if (ep->flag & EV_INPROGRESS)
 			continue;
 		for (n = 0; n < G_N_EVENTREFS; n++) {
@@ -328,7 +329,7 @@ g_cancel_event(void *ref)
 			ep->func(ep->arg, EV_CANCEL);
 			mtx_assert(&g_eventlock, MA_OWNED);
 			if (ep->flag & EV_WAKEUP) {
-				ep->flag |= (EV_DONE|EV_CANCELED);
+				ep->flag |= (EV_DONE | EV_CANCELED);
 				wakeup(ep);
 			} else {
 				g_free(ep);
@@ -342,14 +343,15 @@ g_cancel_event(void *ref)
 }
 
 static int
-g_post_event_x(g_event_t *func, void *arg, int flag, int wuflag, struct g_event **epp, va_list ap)
+g_post_event_x(g_event_t *func, void *arg, int flag, int wuflag,
+    struct g_event **epp, va_list ap)
 {
 	struct g_event *ep;
 	void *p;
 	u_int n;
 
-	g_trace(G_T_TOPOLOGY, "g_post_event_x(%p, %p, %d, %d)",
-	    func, arg, flag, wuflag);
+	g_trace(G_T_TOPOLOGY, "g_post_event_x(%p, %p, %d, %d)", func, arg, flag,
+	    wuflag);
 	KASSERT(wuflag == 0 || wuflag == EV_WAKEUP,
 	    ("Wrong wuflag in g_post_event_x(0x%x)", wuflag));
 	ep = g_malloc(sizeof *ep, flag | M_ZERO);

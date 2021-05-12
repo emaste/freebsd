@@ -28,11 +28,11 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_IOCTL_H_
-#define	_LINUX_IOCTL_H_
+#ifndef _LINUX_IOCTL_H_
+#define _LINUX_IOCTL_H_
 
 #include <sys/ioccom.h>
 
-#define	_IOC_SIZE(cmd) IOCPARM_LEN(cmd)
+#define _IOC_SIZE(cmd) IOCPARM_LEN(cmd)
 
-#endif	/* _LINUX_IOCTL_H_ */
+#endif /* _LINUX_IOCTL_H_ */

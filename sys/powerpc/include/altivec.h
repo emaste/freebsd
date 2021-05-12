@@ -28,14 +28,14 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_ALTIVEC_H_
-#define	_MACHINE_ALTIVEC_H_
+#ifndef _MACHINE_ALTIVEC_H_
+#define _MACHINE_ALTIVEC_H_
 
-#define ALTIVEC_VSCR_NJ		0x00010000	/* Enable non-Java mode */
-#define ALTIVEC_VSCR_SAT	0x00000001	/* Saturation status bit */
+#define ALTIVEC_VSCR_NJ 0x00010000  /* Enable non-Java mode */
+#define ALTIVEC_VSCR_SAT 0x00000001 /* Saturation status bit */
 
-void    enable_vec(struct thread *);
-void    save_vec(struct thread *);
-void    save_vec_nodrop(struct thread *);
+void enable_vec(struct thread *);
+void save_vec(struct thread *);
+void save_vec_nodrop(struct thread *);
 
-#endif	/* _MACHINE_ALTIVEC_H_ */
+#endif /* _MACHINE_ALTIVEC_H_ */

@@ -12,7 +12,7 @@
  * N66001-04-C-6019 ("SEFOS").
  *
  * This software was developed at the University of Cambridge Computer
- * Laboratory with support from a grant from Google, Inc. 
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,12 +43,12 @@ __FBSDID("$FreeBSD$");
 #include "opt_posix.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ksem.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/sdt.h>
-#include <sys/systm.h>
 #include <sys/sysctl.h>
 
 #include <security/mac/mac_framework.h>
@@ -100,16 +100,14 @@ mac_posixsem_create(struct ucred *cred, struct ksem *ks)
 	MAC_POLICY_PERFORM_NOSLEEP(posixsem_create, cred, ks, ks->ks_label);
 }
 
-MAC_CHECK_PROBE_DEFINE2(posixsem_check_open, "struct ucred *",
-    "struct ksem *");
+MAC_CHECK_PROBE_DEFINE2(posixsem_check_open, "struct ucred *", "struct ksem *");
 
 int
 mac_posixsem_check_open(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_POLICY_CHECK_NOSLEEP(posixsem_check_open, cred, ks,
-	    ks->ks_label);
+	MAC_POLICY_CHECK_NOSLEEP(posixsem_check_open, cred, ks, ks->ks_label);
 	MAC_CHECK_PROBE2(posixsem_check_open, error, cred, ks);
 
 	return (error);
@@ -119,113 +117,111 @@ MAC_CHECK_PROBE_DEFINE3(posixsem_check_getvalue, "struct ucred *",
     "struct ucred *", "struct ksem *");
 
 int
-mac_posixsem_check_getvalue(struct ucred *active_cred, struct ucred *file_cred,
-    struct ksem *ks)
+mac_posixsem_check_getvalue(
+    struct ucred *active_cred, struct ucred *file_cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_POLICY_CHECK_NOSLEEP(posixsem_check_getvalue, active_cred,
-	    file_cred, ks, ks->ks_label);
-	MAC_CHECK_PROBE3(posixsem_check_getvalue, error, active_cred,
-	    file_cred, ks);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    posixsem_check_getvalue, active_cred, file_cred, ks, ks->ks_label);
+	MAC_CHECK_PROBE3(
+	    posixsem_check_getvalue, error, active_cred, file_cred, ks);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(posixsem_check_post, "struct ucred *",
-    "struct ucred *", "struct ksem *");
+MAC_CHECK_PROBE_DEFINE3(
+    posixsem_check_post, "struct ucred *", "struct ucred *", "struct ksem *");
 
 int
-mac_posixsem_check_post(struct ucred *active_cred, struct ucred *file_cred,
-    struct ksem *ks)
+mac_posixsem_check_post(
+    struct ucred *active_cred, struct ucred *file_cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_POLICY_CHECK_NOSLEEP(posixsem_check_post, active_cred, file_cred,
-	    ks, ks->ks_label);
-	MAC_CHECK_PROBE3(posixsem_check_post, error, active_cred, file_cred,
-	    ks);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    posixsem_check_post, active_cred, file_cred, ks, ks->ks_label);
+	MAC_CHECK_PROBE3(
+	    posixsem_check_post, error, active_cred, file_cred, ks);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(posixsem_check_stat, "struct ucred *",
-    "struct ucred *", "struct ksem *");
+MAC_CHECK_PROBE_DEFINE3(
+    posixsem_check_stat, "struct ucred *", "struct ucred *", "struct ksem *");
 
 int
-mac_posixsem_check_stat(struct ucred *active_cred, struct ucred *file_cred,
-    struct ksem *ks)
+mac_posixsem_check_stat(
+    struct ucred *active_cred, struct ucred *file_cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_POLICY_CHECK_NOSLEEP(posixsem_check_stat, active_cred, file_cred,
-	    ks, ks->ks_label);
-	MAC_CHECK_PROBE3(posixsem_check_stat, error, active_cred, file_cred,
-	    ks);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    posixsem_check_stat, active_cred, file_cred, ks, ks->ks_label);
+	MAC_CHECK_PROBE3(
+	    posixsem_check_stat, error, active_cred, file_cred, ks);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(posixsem_check_unlink, "struct ucred *",
-    "struct ksem *");
+MAC_CHECK_PROBE_DEFINE2(
+    posixsem_check_unlink, "struct ucred *", "struct ksem *");
 
 int
 mac_posixsem_check_unlink(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_POLICY_CHECK_NOSLEEP(posixsem_check_unlink, cred, ks,
-	    ks->ks_label);
+	MAC_POLICY_CHECK_NOSLEEP(posixsem_check_unlink, cred, ks, ks->ks_label);
 	MAC_CHECK_PROBE2(posixsem_check_unlink, error, cred, ks);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(posixsem_check_wait, "struct ucred *",
-    "struct ucred *", "struct ksem *");
+MAC_CHECK_PROBE_DEFINE3(
+    posixsem_check_wait, "struct ucred *", "struct ucred *", "struct ksem *");
 
 int
-mac_posixsem_check_wait(struct ucred *active_cred, struct ucred *file_cred,
-    struct ksem *ks)
+mac_posixsem_check_wait(
+    struct ucred *active_cred, struct ucred *file_cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_POLICY_CHECK_NOSLEEP(posixsem_check_wait, active_cred, file_cred,
-	    ks, ks->ks_label);
-	MAC_CHECK_PROBE3(posixsem_check_wait, error, active_cred, file_cred,
-	    ks);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    posixsem_check_wait, active_cred, file_cred, ks, ks->ks_label);
+	MAC_CHECK_PROBE3(
+	    posixsem_check_wait, error, active_cred, file_cred, ks);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(posixsem_check_setmode, "struct ucred *",
-    "struct ksem *", "mode_t");
+MAC_CHECK_PROBE_DEFINE3(
+    posixsem_check_setmode, "struct ucred *", "struct ksem *", "mode_t");
 
 int
 mac_posixsem_check_setmode(struct ucred *cred, struct ksem *ks, mode_t mode)
 {
 	int error;
 
-	MAC_POLICY_CHECK_NOSLEEP(posixsem_check_setmode, cred, ks,
-	    ks->ks_label, mode);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    posixsem_check_setmode, cred, ks, ks->ks_label, mode);
 	MAC_CHECK_PROBE3(posixsem_check_setmode, error, cred, ks, mode);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE4(posixsem_check_setowner, "struct ucred *",
-    "struct ks *", "uid_t", "gid_t");
+MAC_CHECK_PROBE_DEFINE4(
+    posixsem_check_setowner, "struct ucred *", "struct ks *", "uid_t", "gid_t");
 
 int
-mac_posixsem_check_setowner(struct ucred *cred, struct ksem *ks, uid_t uid,
-    gid_t gid)
+mac_posixsem_check_setowner(
+    struct ucred *cred, struct ksem *ks, uid_t uid, gid_t gid)
 {
 	int error;
 
-	MAC_POLICY_CHECK_NOSLEEP(posixsem_check_setowner, cred, ks,
-	    ks->ks_label, uid, gid);
-	MAC_CHECK_PROBE4(posixsem_check_setowner, error, cred, ks,
-	    uid, gid);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    posixsem_check_setowner, cred, ks, ks->ks_label, uid, gid);
+	MAC_CHECK_PROBE4(posixsem_check_setowner, error, cred, ks, uid, gid);
 
 	return (error);
 }

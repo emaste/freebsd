@@ -94,41 +94,45 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/vmmeter.h>
 #include <sys/sysctl.h>
+#include <sys/vmmeter.h>
+
 #include <machine/bootinfo.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #ifdef DEV_APIC
 #include <sys/bus.h>
+
 #include <machine/intr_machdep.h>
+
 #include <x86/apicvar.h>
 #endif
 #include <x86/ifunc.h>
 
-static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "VM/pmap parameters");
+static SYSCTL_NODE(
+    _vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "VM/pmap parameters");
 
-#include <machine/vmparam.h>
 #include <vm/vm.h>
-#include <vm/vm_page.h>
 #include <vm/pmap.h>
-#include <machine/pmap_base.h>
+#include <vm/vm_page.h>
 
-vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
-vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
+#include <machine/pmap_base.h>
+#include <machine/vmparam.h>
+
+vm_offset_t virtual_avail; /* VA of first avail page (after kernel bss) */
+vm_offset_t virtual_end;   /* VA of last avail page (end of kernel AS) */
 
 int unmapped_buf_allowed = 1;
 
 int pti;
 
-u_long physfree;	/* phys addr of next free page */
-u_long vm86phystk;	/* PA of vm86/bios stack */
-u_long vm86paddr;	/* address of vm86 region */
-int vm86pa;		/* phys addr of vm86 region */
-u_long KERNend;		/* phys addr end of kernel (just after bss) */
-u_long KPTphys;		/* phys addr of kernel page tables */
+u_long physfree;   /* phys addr of next free page */
+u_long vm86phystk; /* PA of vm86/bios stack */
+u_long vm86paddr;  /* address of vm86 region */
+int vm86pa;	   /* phys addr of vm86 region */
+u_long KERNend;	   /* phys addr end of kernel (just after bss) */
+u_long KPTphys;	   /* phys addr of kernel page tables */
 caddr_t ptvmmap = 0;
 vm_offset_t kernel_vm_end;
 
@@ -137,23 +141,19 @@ int i386_pmap_VM_LEVEL_0_ORDER;
 int i386_pmap_PDRSHIFT;
 
 int pat_works = 1;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD,
-    &pat_works, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD, &pat_works, 0,
     "Is page attribute table fully functional?");
 
 int pg_ps_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
-    &pg_ps_enabled, 0,
-    "Are large page mappings enabled?");
+    &pg_ps_enabled, 0, "Are large page mappings enabled?");
 
 int pv_entry_max = 0;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_max, CTLFLAG_RD,
-    &pv_entry_max, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_max, CTLFLAG_RD, &pv_entry_max, 0,
     "Max number of PV entries");
 
 int pv_entry_count = 0;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD,
-    &pv_entry_count, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
     "Current number of pv entries");
 
 #ifndef PMAP_SHPGPERPROC
@@ -161,51 +161,42 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD,
 #endif
 
 int shpgperproc = PMAP_SHPGPERPROC;
-SYSCTL_INT(_vm_pmap, OID_AUTO, shpgperproc, CTLFLAG_RD,
-    &shpgperproc, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, shpgperproc, CTLFLAG_RD, &shpgperproc, 0,
     "Page share factor per proc");
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, pde, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "2/4MB page mapping counters");
 
 u_long pmap_pde_demotions;
-SYSCTL_ULONG(_vm_pmap_pde, OID_AUTO, demotions, CTLFLAG_RD,
-    &pmap_pde_demotions, 0,
-    "2/4MB page demotions");
+SYSCTL_ULONG(_vm_pmap_pde, OID_AUTO, demotions, CTLFLAG_RD, &pmap_pde_demotions,
+    0, "2/4MB page demotions");
 
 u_long pmap_pde_mappings;
-SYSCTL_ULONG(_vm_pmap_pde, OID_AUTO, mappings, CTLFLAG_RD,
-    &pmap_pde_mappings, 0,
-    "2/4MB page mappings");
+SYSCTL_ULONG(_vm_pmap_pde, OID_AUTO, mappings, CTLFLAG_RD, &pmap_pde_mappings,
+    0, "2/4MB page mappings");
 
 u_long pmap_pde_p_failures;
 SYSCTL_ULONG(_vm_pmap_pde, OID_AUTO, p_failures, CTLFLAG_RD,
-    &pmap_pde_p_failures, 0,
-    "2/4MB page promotion failures");
+    &pmap_pde_p_failures, 0, "2/4MB page promotion failures");
 
 u_long pmap_pde_promotions;
 SYSCTL_ULONG(_vm_pmap_pde, OID_AUTO, promotions, CTLFLAG_RD,
-    &pmap_pde_promotions, 0,
-    "2/4MB page promotions");
+    &pmap_pde_promotions, 0, "2/4MB page promotions");
 
 #ifdef SMP
 int PMAP1changedcpu;
-SYSCTL_INT(_debug, OID_AUTO, PMAP1changedcpu, CTLFLAG_RD,
-    &PMAP1changedcpu, 0,
+SYSCTL_INT(_debug, OID_AUTO, PMAP1changedcpu, CTLFLAG_RD, &PMAP1changedcpu, 0,
     "Number of times pmap_pte_quick changed CPU with same PMAP1");
 #endif
 
 int PMAP1changed;
-SYSCTL_INT(_debug, OID_AUTO, PMAP1changed, CTLFLAG_RD,
-    &PMAP1changed, 0,
+SYSCTL_INT(_debug, OID_AUTO, PMAP1changed, CTLFLAG_RD, &PMAP1changed, 0,
     "Number of times pmap_pte_quick changed PMAP1");
 int PMAP1unchanged;
-SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD,
-    &PMAP1unchanged, 0,
+SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD, &PMAP1unchanged, 0,
     "Number of times pmap_pte_quick didn't change PMAP1");
 
-static int
-kvm_size(SYSCTL_HANDLER_ARGS)
+static int kvm_size(SYSCTL_HANDLER_ARGS)
 {
 	unsigned long ksize;
 
@@ -213,11 +204,9 @@ kvm_size(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_long(oidp, &ksize, 0, req));
 }
 SYSCTL_PROC(_vm, OID_AUTO, kvm_size, CTLTYPE_LONG | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    0, 0, kvm_size, "IU",
-    "Size of KVM");
+    0, 0, kvm_size, "IU", "Size of KVM");
 
-static int
-kvm_free(SYSCTL_HANDLER_ARGS)
+static int kvm_free(SYSCTL_HANDLER_ARGS)
 {
 	unsigned long kfree;
 
@@ -225,49 +214,39 @@ kvm_free(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_long(oidp, &kfree, 0, req));
 }
 SYSCTL_PROC(_vm, OID_AUTO, kvm_free, CTLTYPE_LONG | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    0, 0, kvm_free, "IU",
-    "Amount of KVM free");
+    0, 0, kvm_free, "IU", "Amount of KVM free");
 
 #ifdef PV_STATS
 int pc_chunk_count, pc_chunk_allocs, pc_chunk_frees, pc_chunk_tryfail;
 long pv_entry_frees, pv_entry_allocs;
 int pv_entry_spare;
 
-SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_count, CTLFLAG_RD,
-    &pc_chunk_count, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_count, CTLFLAG_RD, &pc_chunk_count, 0,
     "Current number of pv entry chunks");
-SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_allocs, CTLFLAG_RD,
-    &pc_chunk_allocs, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_allocs, CTLFLAG_RD, &pc_chunk_allocs, 0,
     "Current number of pv entry chunks allocated");
-SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_frees, CTLFLAG_RD,
-    &pc_chunk_frees, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_frees, CTLFLAG_RD, &pc_chunk_frees, 0,
     "Current number of pv entry chunks frees");
-SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_tryfail, CTLFLAG_RD,
-    &pc_chunk_tryfail, 0,
-    "Number of times tried to get a chunk page but failed.");
-SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_frees, CTLFLAG_RD,
-    &pv_entry_frees, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pc_chunk_tryfail, CTLFLAG_RD, &pc_chunk_tryfail,
+    0, "Number of times tried to get a chunk page but failed.");
+SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_frees, CTLFLAG_RD, &pv_entry_frees, 0,
     "Current number of pv entry frees");
-SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_allocs, CTLFLAG_RD,
-    &pv_entry_allocs, 0,
-    "Current number of pv entry allocs");
-SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_spare, CTLFLAG_RD,
-    &pv_entry_spare, 0,
+SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_allocs, CTLFLAG_RD, &pv_entry_allocs,
+    0, "Current number of pv entry allocs");
+SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_spare, CTLFLAG_RD, &pv_entry_spare, 0,
     "Current number of spare pv entries");
 #endif
 
 struct pmap kernel_pmap_store;
 static struct pmap_methods *pmap_methods_ptr;
 
-static int
-sysctl_kmaps(SYSCTL_HANDLER_ARGS)
+static int sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 {
 	return (pmap_methods_ptr->pm_sysctl_kmaps(oidp, arg1, arg2, req));
 }
 SYSCTL_OID(_vm_pmap, OID_AUTO, kernel_maps,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_SKIP,
-    NULL, 0, sysctl_kmaps, "A",
-    "Dump kernel address layout");
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_SKIP, NULL, 0,
+    sysctl_kmaps, "A", "Dump kernel address layout");
 
 /*
  * Initialize a vm_page's machine-dependent fields.
@@ -287,10 +266,9 @@ invltlb_glob(void)
 	invltlb();
 }
 
-static void pmap_invalidate_cache_range_selfsnoop(vm_offset_t sva,
-    vm_offset_t eva);
-static void pmap_invalidate_cache_range_all(vm_offset_t sva,
-    vm_offset_t eva);
+static void pmap_invalidate_cache_range_selfsnoop(
+    vm_offset_t sva, vm_offset_t eva);
+static void pmap_invalidate_cache_range_all(vm_offset_t sva, vm_offset_t eva);
 
 void
 pmap_flush_page(vm_page_t m)
@@ -309,7 +287,7 @@ DEFINE_IFUNC(, void, pmap_invalidate_cache_range, (vm_offset_t, vm_offset_t))
 	return (pmap_invalidate_cache_range_all);
 }
 
-#define	PMAP_CLFLUSH_THRESHOLD	(2 * 1024 * 1024)
+#define PMAP_CLFLUSH_THRESHOLD (2 * 1024 * 1024)
 
 static void
 pmap_invalidate_cache_range_check_align(vm_offset_t sva, vm_offset_t eva)
@@ -422,12 +400,12 @@ pmap_remap_lowptdi(bool enable)
 }
 
 void
-pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
-    vm_offset_t *addr, vm_size_t size)
+pmap_align_superpage(
+    vm_object_t object, vm_ooffset_t offset, vm_offset_t *addr, vm_size_t size)
 {
 
-	return (pmap_methods_ptr->pm_align_superpage(object, offset,
-	    addr, size));
+	return (
+	    pmap_methods_ptr->pm_align_superpage(object, offset, addr, size));
 }
 
 vm_offset_t
@@ -787,16 +765,16 @@ void *
 pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 {
 
-	return (pmap_methods_ptr->pm_mapdev_attr(pa, size, mode,
-	    MAPDEV_SETATTR));
+	return (
+	    pmap_methods_ptr->pm_mapdev_attr(pa, size, mode, MAPDEV_SETATTR));
 }
 
 void *
 pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 {
 
-	return (pmap_methods_ptr->pm_mapdev_attr(pa, size, PAT_UNCACHEABLE,
-	    MAPDEV_SETATTR));
+	return (pmap_methods_ptr->pm_mapdev_attr(
+	    pa, size, PAT_UNCACHEABLE, MAPDEV_SETATTR));
 }
 
 void *
@@ -949,8 +927,7 @@ pmap_kremove(vm_offset_t va)
 extern struct pmap_methods pmap_pae_methods, pmap_nopae_methods;
 int pae_mode;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pae_mode, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
-    &pae_mode, 0,
-    "PAE");
+    &pae_mode, 0, "PAE");
 
 void
 pmap_cold(void)

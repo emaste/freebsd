@@ -29,11 +29,11 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -43,19 +43,19 @@
 #include <machine/md_var.h>
 #include <machine/platform.h>
 
-#include "ps3-hvcall.h"
 #include "pic_if.h"
+#include "ps3-hvcall.h"
 
-static void	ps3pic_identify(driver_t *driver, device_t parent);
-static int	ps3pic_probe(device_t);
-static int	ps3pic_attach(device_t);
+static void ps3pic_identify(driver_t *driver, device_t parent);
+static int ps3pic_probe(device_t);
+static int ps3pic_attach(device_t);
 
-static void	ps3pic_dispatch(device_t, struct trapframe *);
-static void	ps3pic_enable(device_t, u_int, u_int, void **);
-static void	ps3pic_eoi(device_t, u_int, void *);
-static void	ps3pic_ipi(device_t, u_int);
-static void	ps3pic_mask(device_t, u_int, void *);
-static void	ps3pic_unmask(device_t, u_int, void *);
+static void ps3pic_dispatch(device_t, struct trapframe *);
+static void ps3pic_enable(device_t, u_int, u_int, void **);
+static void ps3pic_eoi(device_t, u_int, void *);
+static void ps3pic_ipi(device_t, u_int);
+static void ps3pic_mask(device_t, u_int, void *);
+static void ps3pic_unmask(device_t, u_int, void *);
 
 struct ps3pic_softc {
 	volatile uint64_t *bitmap_thread0;
@@ -63,33 +63,30 @@ struct ps3pic_softc {
 	volatile uint64_t *bitmap_thread1;
 	volatile uint64_t *mask_thread1;
 
-	uint64_t	sc_ipi_outlet[2];
-	uint64_t	sc_ipi_virq;
-	int		sc_vector[64];
+	uint64_t sc_ipi_outlet[2];
+	uint64_t sc_ipi_virq;
+	int sc_vector[64];
 };
 
-static device_method_t  ps3pic_methods[] = {
+static device_method_t ps3pic_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	ps3pic_identify),
-	DEVMETHOD(device_probe,		ps3pic_probe),
-	DEVMETHOD(device_attach,	ps3pic_attach),
+	DEVMETHOD(device_identify, ps3pic_identify),
+	DEVMETHOD(device_probe, ps3pic_probe),
+	DEVMETHOD(device_attach, ps3pic_attach),
 
 	/* PIC interface */
-	DEVMETHOD(pic_dispatch,		ps3pic_dispatch),
-	DEVMETHOD(pic_enable,		ps3pic_enable),
-	DEVMETHOD(pic_eoi,		ps3pic_eoi),
-	DEVMETHOD(pic_ipi,		ps3pic_ipi),
-	DEVMETHOD(pic_mask,		ps3pic_mask),
-	DEVMETHOD(pic_unmask,		ps3pic_unmask),
+	DEVMETHOD(pic_dispatch, ps3pic_dispatch),
+	DEVMETHOD(pic_enable, ps3pic_enable),
+	DEVMETHOD(pic_eoi, ps3pic_eoi),
+	DEVMETHOD(pic_ipi, ps3pic_ipi),
+	DEVMETHOD(pic_mask, ps3pic_mask),
+	DEVMETHOD(pic_unmask, ps3pic_unmask),
 
 	{ 0, 0 },
 };
 
-static driver_t ps3pic_driver = {
-	"ps3pic",
-	ps3pic_methods,
-	sizeof(struct ps3pic_softc)
-};
+static driver_t ps3pic_driver = { "ps3pic", ps3pic_methods,
+	sizeof(struct ps3pic_softc) };
 
 static devclass_t ps3pic_devclass;
 
@@ -132,22 +129,22 @@ ps3pic_attach(device_t dev)
 
 	lv1_get_logical_ppe_id(&ppe);
 	thread = 32 - fls(mfctrl());
-	lv1_configure_irq_state_bitmap(ppe, thread,
-	    vtophys(sc->bitmap_thread0));
+	lv1_configure_irq_state_bitmap(
+	    ppe, thread, vtophys(sc->bitmap_thread0));
 
 	sc->sc_ipi_virq = 63;
 
 #ifdef SMP
-	lv1_configure_irq_state_bitmap(ppe, !thread,
-	    vtophys(sc->bitmap_thread1));
+	lv1_configure_irq_state_bitmap(
+	    ppe, !thread, vtophys(sc->bitmap_thread1));
 
 	/* Map both IPIs to the same VIRQ to avoid changes in intr_machdep */
 	lv1_construct_event_receive_port(&sc->sc_ipi_outlet[0]);
-	lv1_connect_irq_plug_ext(ppe, thread, sc->sc_ipi_virq,
-	    sc->sc_ipi_outlet[0], 0);
+	lv1_connect_irq_plug_ext(
+	    ppe, thread, sc->sc_ipi_virq, sc->sc_ipi_outlet[0], 0);
 	lv1_construct_event_receive_port(&sc->sc_ipi_outlet[1]);
-	lv1_connect_irq_plug_ext(ppe, !thread, sc->sc_ipi_virq,
-	    sc->sc_ipi_outlet[1], 0);
+	lv1_connect_irq_plug_ext(
+	    ppe, !thread, sc->sc_ipi_virq, sc->sc_ipi_outlet[1], 0);
 #endif
 
 	powerpc_register_pic(dev, 0, sc->sc_ipi_virq, 1, FALSE);

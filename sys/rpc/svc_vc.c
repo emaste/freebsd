@@ -6,27 +6,27 @@
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
+ * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * - Redistributions of source code must retain the above copyright notice, 
+ * - Redistributions of source code must retain the above copyright notice,
  *   this list of conditions and the following disclaimer.
- * - Redistributions in binary form must reproduce the above copyright notice, 
- *   this list of conditions and the following disclaimer in the documentation 
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
  *   and/or other materials provided with the distribution.
- * - Neither the name of Sun Microsystems, Inc. nor the names of its 
- *   contributors may be used to endorse or promote products derived 
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
@@ -38,7 +38,7 @@ static char *sccsid = "@(#)svc_tcp.c	2.2 88/08/01 4.0 RPCSRC";
 __FBSDID("$FreeBSD$");
 
 /*
- * svc_vc.c, Server side for Connection Oriented based RPC. 
+ * svc_vc.c, Server side for Connection Oriented based RPC.
  *
  * Actually implements two flavors of transporter -
  * a tcp rendezvouser (a listner and connection establisher)
@@ -48,10 +48,11 @@ __FBSDID("$FreeBSD$");
 #include "opt_kern_tls.h"
 
 #include <sys/param.h>
-#include <sys/limits.h>
-#include <sys/lock.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktls.h>
+#include <sys/limits.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
@@ -61,74 +62,68 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sx.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
 
 #include <net/vnet.h>
-
 #include <netinet/tcp.h>
 
-#include <rpc/rpc.h>
-#include <rpc/rpcsec_tls.h>
-
 #include <rpc/krpc.h>
+#include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
-
+#include <rpc/rpcsec_tls.h>
 #include <security/mac/mac_framework.h>
 
-static bool_t svc_vc_rendezvous_recv(SVCXPRT *, struct rpc_msg *,
-    struct sockaddr **, struct mbuf **);
+static bool_t svc_vc_rendezvous_recv(
+    SVCXPRT *, struct rpc_msg *, struct sockaddr **, struct mbuf **);
 static enum xprt_stat svc_vc_rendezvous_stat(SVCXPRT *);
 static void svc_vc_rendezvous_destroy(SVCXPRT *);
 static bool_t svc_vc_null(void);
 static void svc_vc_destroy(SVCXPRT *);
 static enum xprt_stat svc_vc_stat(SVCXPRT *);
 static bool_t svc_vc_ack(SVCXPRT *, uint32_t *);
-static bool_t svc_vc_recv(SVCXPRT *, struct rpc_msg *,
-    struct sockaddr **, struct mbuf **);
-static bool_t svc_vc_reply(SVCXPRT *, struct rpc_msg *,
-    struct sockaddr *, struct mbuf *, uint32_t *seq);
+static bool_t svc_vc_recv(
+    SVCXPRT *, struct rpc_msg *, struct sockaddr **, struct mbuf **);
+static bool_t svc_vc_reply(SVCXPRT *, struct rpc_msg *, struct sockaddr *,
+    struct mbuf *, uint32_t *seq);
 static bool_t svc_vc_control(SVCXPRT *xprt, const u_int rq, void *in);
-static bool_t svc_vc_rendezvous_control (SVCXPRT *xprt, const u_int rq,
-    void *in);
+static bool_t svc_vc_rendezvous_control(
+    SVCXPRT *xprt, const u_int rq, void *in);
 static void svc_vc_backchannel_destroy(SVCXPRT *);
 static enum xprt_stat svc_vc_backchannel_stat(SVCXPRT *);
-static bool_t svc_vc_backchannel_recv(SVCXPRT *, struct rpc_msg *,
-    struct sockaddr **, struct mbuf **);
-static bool_t svc_vc_backchannel_reply(SVCXPRT *, struct rpc_msg *,
-    struct sockaddr *, struct mbuf *, uint32_t *);
-static bool_t svc_vc_backchannel_control(SVCXPRT *xprt, const u_int rq,
-    void *in);
-static SVCXPRT *svc_vc_create_conn(SVCPOOL *pool, struct socket *so,
-    struct sockaddr *raddr);
+static bool_t svc_vc_backchannel_recv(
+    SVCXPRT *, struct rpc_msg *, struct sockaddr **, struct mbuf **);
+static bool_t svc_vc_backchannel_reply(
+    SVCXPRT *, struct rpc_msg *, struct sockaddr *, struct mbuf *, uint32_t *);
+static bool_t svc_vc_backchannel_control(
+    SVCXPRT *xprt, const u_int rq, void *in);
+static SVCXPRT *svc_vc_create_conn(
+    SVCPOOL *pool, struct socket *so, struct sockaddr *raddr);
 static int svc_vc_accept(struct socket *head, struct socket **sop);
 static int svc_vc_soupcall(struct socket *so, void *arg, int waitflag);
 static int svc_vc_rendezvous_soupcall(struct socket *, void *, int);
 
 static struct xp_ops svc_vc_rendezvous_ops = {
-	.xp_recv =	svc_vc_rendezvous_recv,
-	.xp_stat =	svc_vc_rendezvous_stat,
-	.xp_reply =	(bool_t (*)(SVCXPRT *, struct rpc_msg *,
-		struct sockaddr *, struct mbuf *, uint32_t *))svc_vc_null,
-	.xp_destroy =	svc_vc_rendezvous_destroy,
-	.xp_control =	svc_vc_rendezvous_control
+	.xp_recv = svc_vc_rendezvous_recv,
+	.xp_stat = svc_vc_rendezvous_stat,
+	.xp_reply = (bool_t(*)(SVCXPRT *, struct rpc_msg *, struct sockaddr *,
+	    struct mbuf *, uint32_t *))svc_vc_null,
+	.xp_destroy = svc_vc_rendezvous_destroy,
+	.xp_control = svc_vc_rendezvous_control
 };
 
-static struct xp_ops svc_vc_ops = {
-	.xp_recv =	svc_vc_recv,
-	.xp_stat =	svc_vc_stat,
-	.xp_ack =	svc_vc_ack,
-	.xp_reply =	svc_vc_reply,
-	.xp_destroy =	svc_vc_destroy,
-	.xp_control =	svc_vc_control
-};
+static struct xp_ops svc_vc_ops = { .xp_recv = svc_vc_recv,
+	.xp_stat = svc_vc_stat,
+	.xp_ack = svc_vc_ack,
+	.xp_reply = svc_vc_reply,
+	.xp_destroy = svc_vc_destroy,
+	.xp_control = svc_vc_control };
 
 static struct xp_ops svc_vc_backchannel_ops = {
-	.xp_recv =	svc_vc_backchannel_recv,
-	.xp_stat =	svc_vc_backchannel_stat,
-	.xp_reply =	svc_vc_backchannel_reply,
-	.xp_destroy =	svc_vc_backchannel_destroy,
-	.xp_control =	svc_vc_backchannel_control
+	.xp_recv = svc_vc_backchannel_recv,
+	.xp_stat = svc_vc_backchannel_stat,
+	.xp_reply = svc_vc_backchannel_reply,
+	.xp_destroy = svc_vc_backchannel_destroy,
+	.xp_control = svc_vc_backchannel_control
 };
 
 /*
@@ -148,15 +143,15 @@ static struct xp_ops svc_vc_backchannel_ops = {
  * 0 => use the system default.
  */
 SVCXPRT *
-svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
-    size_t recvsize)
+svc_vc_create(
+    SVCPOOL *pool, struct socket *so, size_t sendsize, size_t recvsize)
 {
 	SVCXPRT *xprt;
-	struct sockaddr* sa;
+	struct sockaddr *sa;
 	int error;
 
 	SOCK_LOCK(so);
-	if (so->so_state & (SS_ISCONNECTED|SS_ISDISCONNECTED)) {
+	if (so->so_state & (SS_ISCONNECTED | SS_ISDISCONNECTED)) {
 		SOCK_UNLOCK(so);
 		CURVNET_SET(so->so_vnet);
 		error = so->so_proto->pr_usrreqs->pru_peeraddr(so, &sa);
@@ -213,7 +208,7 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 {
 	SVCXPRT *xprt;
 	struct cf_conn *cd;
-	struct sockaddr* sa = NULL;
+	struct sockaddr *sa = NULL;
 	struct sockopt opt;
 	int one = 1;
 	int error;
@@ -455,8 +450,9 @@ svc_vc_destroy_common(SVCXPRT *xprt)
 	uint32_t reterr;
 
 	if (xprt->xp_socket) {
-		if ((xprt->xp_tls & (RPCTLS_FLAGS_HANDSHAKE |
-		    RPCTLS_FLAGS_HANDSHFAIL)) != 0) {
+		if ((xprt->xp_tls &
+			(RPCTLS_FLAGS_HANDSHAKE | RPCTLS_FLAGS_HANDSHFAIL)) !=
+		    0) {
 			if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0) {
 				/*
 				 * If the upcall fails, the socket has
@@ -478,7 +474,7 @@ svc_vc_destroy_common(SVCXPRT *xprt)
 	}
 
 	if (xprt->xp_netid)
-		(void) mem_free(xprt->xp_netid, strlen(xprt->xp_netid) + 1);
+		(void)mem_free(xprt->xp_netid, strlen(xprt->xp_netid) + 1);
 	svc_xprt_free(xprt);
 }
 
@@ -604,7 +600,7 @@ svc_vc_backchannel_stat(SVCXPRT *xprt)
 static int
 svc_vc_process_pending(SVCXPRT *xprt)
 {
-	struct cf_conn *cd = (struct cf_conn *) xprt->xp_p1;
+	struct cf_conn *cd = (struct cf_conn *)xprt->xp_p1;
 	struct socket *so = xprt->xp_socket;
 	struct mbuf *m;
 
@@ -632,8 +628,7 @@ svc_vc_process_pending(SVCXPRT *xprt)
 			so->so_rcv.sb_lowat = sizeof(uint32_t) - n;
 			return (FALSE);
 		}
-		m_copydata(cd->mpending, 0, sizeof(header),
-		    (char *)&header);
+		m_copydata(cd->mpending, 0, sizeof(header), (char *)&header);
 		header = ntohl(header);
 		cd->eor = (header & 0x80000000) != 0;
 		cd->resid = header & 0x7fffffff;
@@ -649,10 +644,9 @@ svc_vc_process_pending(SVCXPRT *xprt)
 	 */
 	while (cd->mpending && cd->resid) {
 		m = cd->mpending;
-		if (cd->mpending->m_next
-		    || cd->mpending->m_len > cd->resid)
-			cd->mpending = m_split(cd->mpending,
-			    cd->resid, M_WAITOK);
+		if (cd->mpending->m_next || cd->mpending->m_len > cd->resid)
+			cd->mpending = m_split(
+			    cd->mpending, cd->resid, M_WAITOK);
 		else
 			cd->mpending = NULL;
 		if (cd->mreq)
@@ -672,19 +666,19 @@ svc_vc_process_pending(SVCXPRT *xprt)
 	if (cd->mpending)
 		so->so_rcv.sb_lowat = INT_MAX;
 	else
-		so->so_rcv.sb_lowat =
-		    imax(1, imin(cd->resid, so->so_rcv.sb_hiwat / 2));
+		so->so_rcv.sb_lowat = imax(
+		    1, imin(cd->resid, so->so_rcv.sb_hiwat / 2));
 	return (TRUE);
 }
 
 static bool_t
-svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
-    struct sockaddr **addrp, struct mbuf **mp)
+svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg, struct sockaddr **addrp,
+    struct mbuf **mp)
 {
-	struct cf_conn *cd = (struct cf_conn *) xprt->xp_p1;
+	struct cf_conn *cd = (struct cf_conn *)xprt->xp_p1;
 	struct uio uio;
 	struct mbuf *m, *ctrl;
-	struct socket* so = xprt->xp_socket;
+	struct socket *so = xprt->xp_socket;
 	XDR xdrs;
 	int error, rcvflag;
 	uint32_t reterr, xid_plus_direction[2];
@@ -715,20 +709,19 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 			 * and the message direction is the second one.
 			 */
 			if ((cd->mreq->m_len >= sizeof(xid_plus_direction) ||
-			    m_length(cd->mreq, NULL) >=
-			    sizeof(xid_plus_direction)) &&
+				m_length(cd->mreq, NULL) >=
+				    sizeof(xid_plus_direction)) &&
 			    xprt->xp_p2 != NULL) {
 				m_copydata(cd->mreq, 0,
 				    sizeof(xid_plus_direction),
 				    (char *)xid_plus_direction);
-				xid_plus_direction[0] =
-				    ntohl(xid_plus_direction[0]);
-				xid_plus_direction[1] =
-				    ntohl(xid_plus_direction[1]);
+				xid_plus_direction[0] = ntohl(
+				    xid_plus_direction[0]);
+				xid_plus_direction[1] = ntohl(
+				    xid_plus_direction[1]);
 				/* Check message direction. */
 				if (xid_plus_direction[1] == REPLY) {
-					clnt_bck_svccall(xprt->xp_p2,
-					    cd->mreq,
+					clnt_bck_svccall(xprt->xp_p2, cd->mreq,
 					    xid_plus_direction[0]);
 					cd->mreq = NULL;
 					continue;
@@ -749,7 +742,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 			sx_xunlock(&xprt->xp_lock);
 
-			if (! xdr_callmsg(&xdrs, msg)) {
+			if (!xdr_callmsg(&xdrs, msg)) {
 				XDR_DESTROY(&xdrs);
 				return (FALSE);
 			}
@@ -768,7 +761,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 		rcvflag = MSG_DONTWAIT;
 		if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0)
 			rcvflag |= MSG_TLSAPPDATA;
-tryagain:
+	tryagain:
 		if (xprt->xp_dontrcv) {
 			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
@@ -816,8 +809,7 @@ tryagain:
 			xprt->xp_dontrcv = TRUE;
 			sx_xunlock(&xprt->xp_lock);
 			ret = rpctls_srv_handlerecord(xprt->xp_sslsec,
-			    xprt->xp_sslusec, xprt->xp_sslrefno,
-			    &reterr);
+			    xprt->xp_sslusec, xprt->xp_sslrefno, &reterr);
 			sx_xlock(&xprt->xp_lock);
 			xprt->xp_dontrcv = FALSE;
 			if (ret != RPC_SUCCESS || reterr != RPCTLSERR_OK) {
@@ -829,7 +821,7 @@ tryagain:
 				goto tryagain;
 			}
 			sx_xunlock(&xprt->xp_lock);
-			xprt_active(xprt);   /* Harmless if already active. */
+			xprt_active(xprt); /* Harmless if already active. */
 			return (FALSE);
 		}
 
@@ -889,7 +881,7 @@ static bool_t
 svc_vc_backchannel_recv(SVCXPRT *xprt, struct rpc_msg *msg,
     struct sockaddr **addrp, struct mbuf **mp)
 {
-	struct cf_conn *cd = (struct cf_conn *) xprt->xp_p1;
+	struct cf_conn *cd = (struct cf_conn *)xprt->xp_p1;
 	struct ct_data *ct;
 	struct mbuf *m;
 	XDR xdrs;
@@ -913,7 +905,7 @@ svc_vc_backchannel_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	sx_xunlock(&xprt->xp_lock);
 
 	xdrmbuf_create(&xdrs, m, XDR_DECODE);
-	if (! xdr_callmsg(&xdrs, msg)) {
+	if (!xdr_callmsg(&xdrs, msg)) {
 		XDR_DESTROY(&xdrs);
 		return (FALSE);
 	}
@@ -924,8 +916,8 @@ svc_vc_backchannel_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 }
 
 static bool_t
-svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
-    struct sockaddr *addr, struct mbuf *m, uint32_t *seq)
+svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg, struct sockaddr *addr,
+    struct mbuf *m, uint32_t *seq)
 {
 	XDR xdrs;
 	struct mbuf *mrep;
@@ -961,8 +953,8 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 		 */
 		M_PREPEND(mrep, sizeof(uint32_t), M_WAITOK);
 		len = mrep->m_pkthdr.len;
-		*mtod(mrep, uint32_t *) =
-			htonl(0x80000000 | (len - sizeof(uint32_t)));
+		*mtod(mrep, uint32_t *) = htonl(
+		    0x80000000 | (len - sizeof(uint32_t)));
 
 		/* For RPC-over-TLS, copy mrep to a chain of ext_pgs. */
 		if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0) {
@@ -981,8 +973,8 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 		/*
 		 * sosend consumes mreq.
 		 */
-		error = sosend(xprt->xp_socket, NULL, NULL, mrep, NULL,
-		    0, curthread);
+		error = sosend(
+		    xprt->xp_socket, NULL, NULL, mrep, NULL, 0, curthread);
 		if (!error) {
 			atomic_add_rel_32(&xprt->xp_snt_cnt, len);
 			if (seq)
@@ -1037,9 +1029,8 @@ svc_vc_backchannel_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 		 * Prepend a record marker containing the reply length.
 		 */
 		M_PREPEND(mrep, sizeof(uint32_t), M_WAITOK);
-		*mtod(mrep, uint32_t *) =
-			htonl(0x80000000 | (mrep->m_pkthdr.len
-				- sizeof(uint32_t)));
+		*mtod(mrep, uint32_t *) = htonl(
+		    0x80000000 | (mrep->m_pkthdr.len - sizeof(uint32_t)));
 
 		/* For RPC-over-TLS, copy mrep to a chain of ext_pgs. */
 		if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0) {
@@ -1057,8 +1048,8 @@ svc_vc_backchannel_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 		sx_xlock(&xprt->xp_lock);
 		ct = (struct ct_data *)xprt->xp_p2;
 		if (ct != NULL)
-			error = sosend(ct->ct_socket, NULL, NULL, mrep, NULL,
-			    0, curthread);
+			error = sosend(ct->ct_socket, NULL, NULL, mrep, NULL, 0,
+			    curthread);
 		else
 			error = EPIPE;
 		sx_xunlock(&xprt->xp_lock);
@@ -1084,7 +1075,7 @@ svc_vc_null()
 static int
 svc_vc_soupcall(struct socket *so, void *arg, int waitflag)
 {
-	SVCXPRT *xprt = (SVCXPRT *) arg;
+	SVCXPRT *xprt = (SVCXPRT *)arg;
 
 	if (soreadable(xprt->xp_socket))
 		xprt_active(xprt);
@@ -1094,7 +1085,7 @@ svc_vc_soupcall(struct socket *so, void *arg, int waitflag)
 static int
 svc_vc_rendezvous_soupcall(struct socket *head, void *arg, int waitflag)
 {
-	SVCXPRT *xprt = (SVCXPRT *) arg;
+	SVCXPRT *xprt = (SVCXPRT *)arg;
 
 	if (!TAILQ_EMPTY(&head->sol_comp))
 		xprt_active(xprt);

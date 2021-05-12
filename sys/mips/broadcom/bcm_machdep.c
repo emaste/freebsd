@@ -36,38 +36,38 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/imgact.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
-#include <sys/cpu.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/cpu.h>
 #include <sys/exec.h>
-#include <sys/ucontext.h>
-#include <sys/proc.h>
+#include <sys/imgact.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
 #include <sys/signalvar.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/ucontext.h>
 #include <sys/user.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
+#include <vm/vm_dumpset.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 #include <vm/vm_phys.h>
-#include <vm/vm_dumpset.h>
 
 #include <machine/cache.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
-#include <machine/cpuinfo.h>
 #include <machine/cpufunc.h>
+#include <machine/cpuinfo.h>
 #include <machine/cpuregs.h>
 #include <machine/hwfunc.h>
 #include <machine/intr_machdep.h>
@@ -77,20 +77,17 @@ __FBSDID("$FreeBSD$");
 #include <machine/sigframe.h>
 #include <machine/trap.h>
 
-#include <dev/bhnd/bhnd.h>
-#include <dev/bhnd/bhndreg.h>
-#include <dev/bhnd/bhnd_eromvar.h>
-
 #include <dev/bhnd/bcma/bcma_eromvar.h>
-
+#include <dev/bhnd/bhnd.h>
+#include <dev/bhnd/bhnd_eromvar.h>
+#include <dev/bhnd/bhndreg.h>
+#include <dev/bhnd/cores/chipc/chipcreg.h>
+#include <dev/bhnd/cores/pmu/bhnd_pmureg.h>
 #include <dev/bhnd/siba/sibareg.h>
 #include <dev/bhnd/siba/sibavar.h>
 
-#include <dev/bhnd/cores/chipc/chipcreg.h>
-#include <dev/bhnd/cores/pmu/bhnd_pmureg.h>
-
-#include "bcm_machdep.h"
 #include "bcm_bmips_exts.h"
+#include "bcm_machdep.h"
 
 #ifdef CFE
 #include <dev/cfe/cfe_api.h>
@@ -98,45 +95,42 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #if 0
-#define	BCM_TRACE(_fmt, ...)	printf(_fmt, ##__VA_ARGS__)
+#define BCM_TRACE(_fmt, ...) printf(_fmt, ##__VA_ARGS__)
 #else
-#define	BCM_TRACE(_fmt, ...)
+#define BCM_TRACE(_fmt, ...)
 #endif
 
-static int	bcm_init_platform_data(struct bcm_platform *bp);
+static int bcm_init_platform_data(struct bcm_platform *bp);
 
-static int	bcm_find_core(struct bcm_platform *bp,
-		    const struct bhnd_core_match *descs, size_t num_descs,
-		    struct bhnd_core_info *info, uintptr_t *addr);
+static int bcm_find_core(struct bcm_platform *bp,
+    const struct bhnd_core_match *descs, size_t num_descs,
+    struct bhnd_core_info *info, uintptr_t *addr);
 
-static int	bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls,
-		    kobj_ops_t erom_ops, bhnd_erom_t *erom, size_t esize,
-		    struct bhnd_erom_io *eio, struct bhnd_chipid *cid);
+static int bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls,
+    kobj_ops_t erom_ops, bhnd_erom_t *erom, size_t esize,
+    struct bhnd_erom_io *eio, struct bhnd_chipid *cid);
 
-extern int	*edata;
-extern int	*end;
+extern int *edata;
+extern int *end;
 
-static struct bcm_platform	 bcm_platform_data;
-static bool			 bcm_platform_data_avail = false;
+static struct bcm_platform bcm_platform_data;
+static bool bcm_platform_data_avail = false;
 
 #ifdef CFE
-static struct bcm_nvram_iocfe	 bcm_cfe_nvram;
+static struct bcm_nvram_iocfe bcm_cfe_nvram;
 #endif
 
 static const struct bhnd_core_match bcm_chipc_cores[] = {
-	{ BHND_MATCH_CORE(BHND_MFGID_BCM,	BHND_COREID_CC)		},
-	{ BHND_MATCH_CORE(BHND_MFGID_BCM,	BHND_COREID_4706_CC)	},
+	{ BHND_MATCH_CORE(BHND_MFGID_BCM, BHND_COREID_CC) },
+	{ BHND_MATCH_CORE(BHND_MFGID_BCM, BHND_COREID_4706_CC) },
 };
 
 static const struct bhnd_core_match bcm_cpu0_cores[] = {
-	{
-		BHND_MATCH_CORE_CLASS(BHND_DEVCLASS_CPU),
-		BHND_MATCH_CORE_UNIT(0)
-	}
+	{ BHND_MATCH_CORE_CLASS(BHND_DEVCLASS_CPU), BHND_MATCH_CORE_UNIT(0) }
 };
 
 static const struct bhnd_core_match bcm_pmu_cores[] = {
-	{ BHND_MATCH_CORE(BHND_MFGID_BCM,	BHND_COREID_PMU)	},
+	{ BHND_MATCH_CORE(BHND_MFGID_BCM, BHND_COREID_PMU) },
 };
 
 struct bcm_platform *
@@ -172,7 +166,7 @@ bcm_get_bus_size(void)
 
 /**
  * Search the device enumeration table for a core matching @p descs,
- * 
+ *
  * @param	bp		Platform state containing a valid EROM parser.
  * @param	descs		The core match descriptor table.
  * @param	num_descs	The number of match descriptors in @p descs.
@@ -185,9 +179,9 @@ static int
 bcm_find_core(struct bcm_platform *bp, const struct bhnd_core_match *descs,
     size_t num_descs, struct bhnd_core_info *info, uintptr_t *addr)
 {
-	bhnd_addr_t		b_addr;
-	bhnd_size_t		b_size;
-	int			error;
+	bhnd_addr_t b_addr;
+	bhnd_size_t b_size;
+	int error;
 
 	/* Fetch core info */
 	for (size_t i = 0; i < num_descs; i++) {
@@ -248,13 +242,13 @@ bcm_get_nvram(struct bcm_platform *bp, const char *name, void *buf, size_t *len,
 	if (bp->nvram_io == NULL || bp->nvram_cls == NULL)
 		return (ENOENT);
 
-	return (bhnd_nvram_data_getvar_direct(bp->nvram_cls, bp->nvram_io, name,
-	    buf, len, type));
+	return (bhnd_nvram_data_getvar_direct(
+	    bp->nvram_cls, bp->nvram_io, name, buf, len, type));
 }
 
 /**
  * Probe and attach a bhnd_erom parser instance for the bhnd bus.
- * 
+ *
  * @param[out]	erom_cls	The probed EROM class.
  * @param[out]	erom_ops	The storage to be used when compiling
  *				@p erom_cls.
@@ -271,9 +265,9 @@ bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls, kobj_ops_t erom_ops,
     bhnd_erom_t *erom, size_t esize, struct bhnd_erom_io *eio,
     struct bhnd_chipid *cid)
 {
-	bhnd_erom_class_t	**clsp;
-	bus_addr_t		  bus_addr;
-	int			  error, prio, result;
+	bhnd_erom_class_t **clsp;
+	bus_addr_t bus_addr;
+	int error, prio, result;
 
 	*erom_cls = NULL;
 	prio = 0;
@@ -288,10 +282,11 @@ bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls, kobj_ops_t erom_ops,
 		return (error);
 	}
 
-	SET_FOREACH(clsp, bhnd_erom_class_set) {
-		struct bhnd_chipid	 pcid;
-		bhnd_erom_class_t	*cls;
-		struct kobj_ops		 kops;
+	SET_FOREACH(clsp, bhnd_erom_class_set)
+	{
+		struct bhnd_chipid pcid;
+		bhnd_erom_class_t *cls;
+		struct kobj_ops kops;
 
 		cls = *clsp;
 
@@ -323,7 +318,7 @@ bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls, kobj_ops_t erom_ops,
 
 	/* Valid EROM class probed? */
 	if (*erom_cls == NULL) {
-		BCM_ERR("no erom parser found for root bus at %#jx\n", 
+		BCM_ERR("no erom parser found for root bus at %#jx\n",
 		    (uintmax_t)bus_addr);
 
 		return (ENOENT);
@@ -344,11 +339,11 @@ bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls, kobj_ops_t erom_ops,
 static int
 bcm_init_platform_data(struct bcm_platform *bp)
 {
-	bus_addr_t		bus_addr, bus_size;
-	bus_space_tag_t		erom_bst;
-	bus_space_handle_t	erom_bsh;
-	bool			aob, pmu;
-	int			error;
+	bus_addr_t bus_addr, bus_size;
+	bus_space_tag_t erom_bst;
+	bus_space_handle_t erom_bsh;
+	bool aob, pmu;
+	int error;
 
 	bus_addr = bcm_get_bus_addr();
 	bus_size = bcm_get_bus_size();
@@ -373,8 +368,8 @@ bcm_init_platform_data(struct bcm_platform *bp)
 	erom_bst = mips_bus_space_generic;
 	erom_bsh = BCM_SOC_BSH(bus_addr, 0);
 
-	error = bhnd_erom_iobus_init(&bp->erom_io, bus_addr, bus_size, erom_bst,
-	    erom_bsh);
+	error = bhnd_erom_iobus_init(
+	    &bp->erom_io, bus_addr, bus_size, erom_bst, erom_bsh);
 	if (error) {
 		BCM_ERR("failed to initialize erom I/O callbacks: %d\n", error);
 		return (error);
@@ -401,7 +396,7 @@ bcm_init_platform_data(struct bcm_platform *bp)
 
 	/* Fetch chipc capability flags */
 	bp->cc_caps = BCM_SOC_READ_4(bp->cc_addr, CHIPC_CAPABILITIES);
-	bp->cc_caps_ext = 0x0;	
+	bp->cc_caps_ext = 0x0;
 
 	if (CHIPC_HWREV_HAS_CAP_EXT(bp->cc_id.hwrev))
 		bp->cc_caps_ext = BCM_CHIPC_READ_4(bp, CHIPC_CAPABILITIES_EXT);
@@ -413,7 +408,7 @@ bcm_init_platform_data(struct bcm_platform *bp)
 	if (pmu && aob) {
 		/* PMU block mapped to a PMU core on the Always-on-Bus (aob) */
 		error = bcm_find_core(bp, bcm_pmu_cores, nitems(bcm_pmu_cores),
-		    &bp->pmu_id,  &bp->pmu_addr);
+		    &bp->pmu_id, &bp->pmu_addr);
 		if (error) {
 			BCM_ERR("error locating pmu core: %d\n", error);
 			return (error);
@@ -430,8 +425,8 @@ bcm_init_platform_data(struct bcm_platform *bp)
 
 	/* Initialize PMU query state */
 	if (pmu) {
-		error = bhnd_pmu_query_init(&bp->pmu, NULL, bp->cid,
-		    &bcm_pmu_soc_io, bp);
+		error = bhnd_pmu_query_init(
+		    &bp->pmu, NULL, bp->cid, &bcm_pmu_soc_io, bp);
 		if (error) {
 			BCM_ERR("bhnd_pmu_query_init() failed: %d\n", error);
 			return (error);
@@ -440,7 +435,7 @@ bcm_init_platform_data(struct bcm_platform *bp)
 
 	/* Find CPU core info */
 	error = bcm_find_core(bp, bcm_cpu0_cores, nitems(bcm_cpu0_cores),
-	    &bp->cpu_id,  &bp->cpu_addr);
+	    &bp->cpu_id, &bp->cpu_addr);
 	if (error) {
 		BCM_ERR("error locating CPU core: %d\n", error);
 		return (error);
@@ -498,7 +493,7 @@ mips_init(void)
 			 */
 			phys_avail[i] += MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
 		}
-		
+
 		BCM_TRACE("phys memory is available for: %d\n", i);
 		BCM_TRACE(" => addr =  %jx\n", addr);
 		BCM_TRACE(" => len =  %jd\n", len);
@@ -532,8 +527,8 @@ mips_init(void)
 void
 platform_reset(void)
 {
-	struct bcm_platform	*bp;
-	bool			 bcm4785war;
+	struct bcm_platform *bp;
+	bool bcm4785war;
 
 	printf("bcm::platform_reset()\n");
 	intr_disable();
@@ -543,7 +538,8 @@ platform_reset(void)
 	 * data initialization */
 	if (!bcm_platform_data_avail) {
 		cfe_exit(0, 0);
-		while (1);
+		while (1)
+			;
 	}
 #endif
 
@@ -570,16 +566,17 @@ platform_reset(void)
 		__asm __volatile("wait");
 	}
 
-	while (1);
+	while (1)
+		;
 }
 
 void
-platform_start(__register_t a0, __register_t a1, __register_t a2,
-	       __register_t a3)
+platform_start(
+    __register_t a0, __register_t a1, __register_t a2, __register_t a3)
 {
-	vm_offset_t 		 kernend;
-	uint64_t		 platform_counter_freq;
-	int			 error;
+	vm_offset_t kernend;
+	uint64_t platform_counter_freq;
+	int error;
 
 	/* clear the BSS and SBSS segments */
 	kernend = (vm_offset_t)&end;
@@ -632,10 +629,10 @@ platform_start(__register_t a0, __register_t a1, __register_t a2,
 static void
 bcm_cfe_eputc(int c)
 {
-	unsigned char	ch;
-	int		handle;
+	unsigned char ch;
+	int handle;
 
-	ch = (unsigned char) c;
+	ch = (unsigned char)c;
 
 	/* bcm_get_platform() cannot be used here, as we may be called
 	 * from bcm_init_platform_data(). */

@@ -9,7 +9,7 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice(s), this list of conditions and the following disclaimer as
- *    the first lines of this file unmodified other than the possible 
+ *    the first lines of this file unmodified other than the possible
  *    addition of one or more copyright notices.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice(s), this list of conditions and the following disclaimer in the
@@ -30,15 +30,15 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS__SX_H_
-#define	_SYS__SX_H_
+#ifndef _SYS__SX_H_
+#define _SYS__SX_H_
 
 /*
  * Shared/exclusive lock main structure definition.
  */
 struct sx {
-	struct lock_object	lock_object;
-	volatile uintptr_t	sx_lock;
+	struct lock_object lock_object;
+	volatile uintptr_t sx_lock;
 };
 
-#endif	/* !_SYS__SX_H_ */
+#endif /* !_SYS__SX_H_ */

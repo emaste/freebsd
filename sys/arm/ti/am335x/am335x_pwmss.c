@@ -41,47 +41,45 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <dev/extres/syscon/syscon.h>
 #include <dev/fdt/simplebus.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/ti/ti_sysc.h>
 
-#include <dev/extres/syscon/syscon.h>
-#include "syscon_if.h"
-
 #include "am335x_pwm.h"
 #include "am335x_scm.h"
+#include "syscon_if.h"
 
-#define	PWMSS_IDVER		0x00
-#define	PWMSS_SYSCONFIG		0x04
-#define	PWMSS_CLKCONFIG		0x08
-#define		CLKCONFIG_EPWMCLK_EN	(1 << 8)
-#define	PWMSS_CLKSTATUS		0x0C
+#define PWMSS_IDVER 0x00
+#define PWMSS_SYSCONFIG 0x04
+#define PWMSS_CLKCONFIG 0x08
+#define CLKCONFIG_EPWMCLK_EN (1 << 8)
+#define PWMSS_CLKSTATUS 0x0C
 
 /* TRM chapter 2 memory map table 2-3 + VER register location */
-#define PWMSS_REV_0		0x0000
-#define PWMSS_REV_1		0x2000
-#define PWMSS_REV_2		0x4000
+#define PWMSS_REV_0 0x0000
+#define PWMSS_REV_1 0x2000
+#define PWMSS_REV_2 0x4000
 
 static device_probe_t am335x_pwmss_probe;
 static device_attach_t am335x_pwmss_attach;
 static device_detach_t am335x_pwmss_detach;
 
 struct am335x_pwmss_softc {
-	struct simplebus_softc	sc_simplebus;
-	device_t		sc_dev;
-	struct syscon           *syscon;
+	struct simplebus_softc sc_simplebus;
+	device_t sc_dev;
+	struct syscon *syscon;
 };
 
-static device_method_t am335x_pwmss_methods[] = {
-	DEVMETHOD(device_probe,		am335x_pwmss_probe),
-	DEVMETHOD(device_attach,	am335x_pwmss_attach),
-	DEVMETHOD(device_detach,	am335x_pwmss_detach),
+static device_method_t am335x_pwmss_methods[] = { DEVMETHOD(device_probe,
+						      am335x_pwmss_probe),
+	DEVMETHOD(device_attach, am335x_pwmss_attach),
+	DEVMETHOD(device_detach, am335x_pwmss_detach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static int
 am335x_pwmss_probe(device_t dev)
@@ -116,10 +114,12 @@ am335x_pwmss_attach(device_t dev)
 		return (ENXIO);
 	}
 	if (!OF_hasprop(opp_table, "syscon")) {
-		device_printf(dev, "/opp-table doesnt have required syscon property\n");
+		device_printf(
+		    dev, "/opp-table doesnt have required syscon property\n");
 		return (ENXIO);
 	}
-	if (syscon_get_by_ofw_property(dev, opp_table, "syscon", &sc->syscon) != 0) {
+	if (syscon_get_by_ofw_property(dev, opp_table, "syscon", &sc->syscon) !=
+	    0) {
 		device_printf(dev, "Failed to get syscon\n");
 		return (ENXIO);
 	}
@@ -174,6 +174,7 @@ am335x_pwmss_detach(device_t dev)
 DEFINE_CLASS_1(am335x_pwmss, am335x_pwmss_driver, am335x_pwmss_methods,
     sizeof(struct am335x_pwmss_softc), simplebus_driver);
 static devclass_t am335x_pwmss_devclass;
-DRIVER_MODULE(am335x_pwmss, simplebus, am335x_pwmss_driver, am335x_pwmss_devclass, 0, 0);
+DRIVER_MODULE(
+    am335x_pwmss, simplebus, am335x_pwmss_driver, am335x_pwmss_devclass, 0, 0);
 MODULE_VERSION(am335x_pwmss, 1);
 MODULE_DEPEND(am335x_pwmss, ti_sysc, 1, 1, 1);

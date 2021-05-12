@@ -36,97 +36,92 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/resource.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/extres/clk/clk.h>
 
 #include "pwmbus_if.h"
 
 /* Register offsets. */
-#define	RK_PWM_COUNTER			0x00
-#define	RK_PWM_PERIOD			0x04
-#define	RK_PWM_DUTY			0x08
-#define	RK_PWM_CTRL			0x0c
+#define RK_PWM_COUNTER 0x00
+#define RK_PWM_PERIOD 0x04
+#define RK_PWM_DUTY 0x08
+#define RK_PWM_CTRL 0x0c
 
-#define	SET(reg,mask,val)		reg = ((reg & ~mask) | val)
+#define SET(reg, mask, val) reg = ((reg & ~mask) | val)
 
-#define	RK_PWM_CTRL_ENABLE_MASK		(1 << 0)
-#define	 RK_PWM_CTRL_ENABLED		(1 << 0)
-#define	 RK_PWM_CTRL_DISABLED		(0)
+#define RK_PWM_CTRL_ENABLE_MASK (1 << 0)
+#define RK_PWM_CTRL_ENABLED (1 << 0)
+#define RK_PWM_CTRL_DISABLED (0)
 
-#define	RK_PWM_CTRL_MODE_MASK		(3 << 1)
-#define	 RK_PWM_CTRL_MODE_ONESHOT	(0)
-#define	 RK_PWM_CTRL_MODE_CONTINUOUS	(1 << 1)
-#define	 RK_PWM_CTRL_MODE_CAPTURE	(1 << 2)
+#define RK_PWM_CTRL_MODE_MASK (3 << 1)
+#define RK_PWM_CTRL_MODE_ONESHOT (0)
+#define RK_PWM_CTRL_MODE_CONTINUOUS (1 << 1)
+#define RK_PWM_CTRL_MODE_CAPTURE (1 << 2)
 
-#define	RK_PWM_CTRL_DUTY_MASK		(1 << 3)
-#define	 RK_PWM_CTRL_DUTY_POSITIVE	(1 << 3)
-#define	 RK_PWM_CTRL_DUTY_NEGATIVE	(0)
+#define RK_PWM_CTRL_DUTY_MASK (1 << 3)
+#define RK_PWM_CTRL_DUTY_POSITIVE (1 << 3)
+#define RK_PWM_CTRL_DUTY_NEGATIVE (0)
 
-#define	RK_PWM_CTRL_INACTIVE_MASK	(1 << 4)
-#define	 RK_PWM_CTRL_INACTIVE_POSITIVE	(1 << 4)
-#define	 RK_PWM_CTRL_INACTIVE_NEGATIVE	(0)
+#define RK_PWM_CTRL_INACTIVE_MASK (1 << 4)
+#define RK_PWM_CTRL_INACTIVE_POSITIVE (1 << 4)
+#define RK_PWM_CTRL_INACTIVE_NEGATIVE (0)
 
 /* PWM Output Alignment */
-#define	RK_PWM_CTRL_ALIGN_MASK		(1 << 5)
-#define	 RK_PWM_CTRL_ALIGN_CENTER	(1 << 5)
-#define	 RK_PWM_CTRL_ALIGN_LEFT		(0)
+#define RK_PWM_CTRL_ALIGN_MASK (1 << 5)
+#define RK_PWM_CTRL_ALIGN_CENTER (1 << 5)
+#define RK_PWM_CTRL_ALIGN_LEFT (0)
 
 /* Low power mode: disable prescaler when inactive */
-#define	RK_PWM_CTRL_LP_MASK		(1 << 8)
-#define	 RK_PWM_CTRL_LP_ENABLE		(1 << 8)
-#define	 RK_PWM_CTRL_LP_DISABLE		(0)
+#define RK_PWM_CTRL_LP_MASK (1 << 8)
+#define RK_PWM_CTRL_LP_ENABLE (1 << 8)
+#define RK_PWM_CTRL_LP_DISABLE (0)
 
 /* Clock source: bypass the scaler or not */
-#define	RK_PWM_CTRL_CLOCKSRC_MASK	(1 << 9)
-#define	 RK_PWM_CTRL_CLOCKSRC_NONSCALED	(0)
-#define	 RK_PWM_CTRL_CLOCKSRC_SCALED	(1 << 9)
+#define RK_PWM_CTRL_CLOCKSRC_MASK (1 << 9)
+#define RK_PWM_CTRL_CLOCKSRC_NONSCALED (0)
+#define RK_PWM_CTRL_CLOCKSRC_SCALED (1 << 9)
 
-#define	RK_PWM_CTRL_PRESCALE_MASK	(7 << 12)
-#define	RK_PWM_CTRL_PRESCALE_SHIFT	12
+#define RK_PWM_CTRL_PRESCALE_MASK (7 << 12)
+#define RK_PWM_CTRL_PRESCALE_SHIFT 12
 
-#define	RK_PWM_CTRL_SCALE_MASK		(0xFF << 16)
-#define	RK_PWM_CTRL_SCALE_SHIFT		16
+#define RK_PWM_CTRL_SCALE_MASK (0xFF << 16)
+#define RK_PWM_CTRL_SCALE_SHIFT 16
 
-#define	RK_PWM_CTRL_REPEAT_MASK		(0xFF << 24)
-#define	RK_PWM_CTRL_REPEAT_SHIFT	24
+#define RK_PWM_CTRL_REPEAT_MASK (0xFF << 24)
+#define RK_PWM_CTRL_REPEAT_SHIFT 24
 
-#define	NS_PER_SEC	1000000000
+#define NS_PER_SEC 1000000000
 
-static struct ofw_compat_data compat_data[] = {
-	{ "rockchip,rk3288-pwm",		1 },
-	{ "rockchip,rk3399-pwm",		1 },
-	{ NULL,					0 }
-};
+static struct ofw_compat_data compat_data[] = { { "rockchip,rk3288-pwm", 1 },
+	{ "rockchip,rk3399-pwm", 1 }, { NULL, 0 } };
 
-static struct resource_spec rk_pwm_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec rk_pwm_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 struct rk_pwm_softc {
-	device_t	dev;
-	device_t	busdev;
-	clk_t		clk;
-	struct resource	*res;
+	device_t dev;
+	device_t busdev;
+	clk_t clk;
+	struct resource *res;
 
-	uint64_t	clk_freq;
-	unsigned int	period;
-	unsigned int	duty;
-	uint32_t	flags;
-	uint8_t		prescaler;
-	uint8_t		scaler;
-	bool		using_scaler;
-	bool		enabled;
+	uint64_t clk_freq;
+	unsigned int period;
+	unsigned int duty;
+	uint32_t flags;
+	uint8_t prescaler;
+	uint8_t scaler;
+	bool using_scaler;
+	bool enabled;
 };
 
-#define	RK_PWM_READ(sc, reg)		bus_read_4((sc)->res, (reg))
-#define	RK_PWM_WRITE(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
+#define RK_PWM_READ(sc, reg) bus_read_4((sc)->res, (reg))
+#define RK_PWM_WRITE(sc, reg, val) bus_write_4((sc)->res, (reg), (val))
 
 static int rk_pwm_probe(device_t dev);
 static int rk_pwm_attach(device_t dev);
@@ -208,11 +203,9 @@ rk_pwm_attach(device_t dev)
 	}
 
 	reg = RK_PWM_READ(sc, RK_PWM_PERIOD);
-	sc->period = NS_PER_SEC /
-		(clk_freq / reg);
+	sc->period = NS_PER_SEC / (clk_freq / reg);
 	reg = RK_PWM_READ(sc, RK_PWM_DUTY);
-	sc->duty = NS_PER_SEC /
-		(clk_freq / reg);
+	sc->duty = NS_PER_SEC / (clk_freq / reg);
 
 	node = ofw_bus_get_node(dev);
 	OF_device_register_xref(OF_xref_from_node(node), dev);
@@ -290,7 +283,7 @@ rk_pwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
 	}
 
 	/* Assuming 24 MHz reference, we should never actually have
-           to use the divider due to pwm API limitations. */
+	   to use the divider due to pwm API limitations. */
 	prescaler = 0;
 	scaler = 0;
 	using_scaler = false;
@@ -315,9 +308,8 @@ rk_pwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
 	SET(reg, RK_PWM_CTRL_ALIGN_MASK, RK_PWM_CTRL_ALIGN_LEFT);
 	SET(reg, RK_PWM_CTRL_CLOCKSRC_MASK, using_scaler);
 	SET(reg, RK_PWM_CTRL_PRESCALE_MASK,
-		prescaler <<  RK_PWM_CTRL_PRESCALE_SHIFT);
-	SET(reg, RK_PWM_CTRL_SCALE_MASK,
-		scaler << RK_PWM_CTRL_SCALE_SHIFT);
+	    prescaler << RK_PWM_CTRL_PRESCALE_SHIFT);
+	SET(reg, RK_PWM_CTRL_SCALE_MASK, scaler << RK_PWM_CTRL_SCALE_SHIFT);
 
 	RK_PWM_WRITE(sc, RK_PWM_CTRL, reg);
 
@@ -328,7 +320,8 @@ rk_pwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
 }
 
 static int
-rk_pwm_channel_get_config(device_t dev, u_int channel, u_int *period, u_int *duty)
+rk_pwm_channel_get_config(
+    device_t dev, u_int channel, u_int *period, u_int *duty)
 {
 	struct rk_pwm_softc *sc;
 
@@ -375,19 +368,19 @@ rk_pwm_channel_is_enabled(device_t dev, u_int channel, bool *enabled)
 
 static device_method_t rk_pwm_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		rk_pwm_probe),
-	DEVMETHOD(device_attach,	rk_pwm_attach),
-	DEVMETHOD(device_detach,	rk_pwm_detach),
+	DEVMETHOD(device_probe, rk_pwm_probe),
+	DEVMETHOD(device_attach, rk_pwm_attach),
+	DEVMETHOD(device_detach, rk_pwm_detach),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	aw_pwm_get_node),
+	DEVMETHOD(ofw_bus_get_node, aw_pwm_get_node),
 
 	/* pwm interface */
-	DEVMETHOD(pwmbus_channel_count,		rk_pwm_channel_count),
-	DEVMETHOD(pwmbus_channel_config,	rk_pwm_channel_config),
-	DEVMETHOD(pwmbus_channel_get_config,	rk_pwm_channel_get_config),
-	DEVMETHOD(pwmbus_channel_enable,	rk_pwm_channel_enable),
-	DEVMETHOD(pwmbus_channel_is_enabled,	rk_pwm_channel_is_enabled),
+	DEVMETHOD(pwmbus_channel_count, rk_pwm_channel_count),
+	DEVMETHOD(pwmbus_channel_config, rk_pwm_channel_config),
+	DEVMETHOD(pwmbus_channel_get_config, rk_pwm_channel_get_config),
+	DEVMETHOD(pwmbus_channel_enable, rk_pwm_channel_enable),
+	DEVMETHOD(pwmbus_channel_is_enabled, rk_pwm_channel_is_enabled),
 
 	DEVMETHOD_END
 };

@@ -29,80 +29,80 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/bus.h>
-#include <sys/time.h>
-#include <sys/rman.h>
-#include <sys/clock.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/clock.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/resource.h>
+#include <sys/rman.h>
+#include <sys/time.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+#include <dev/extres/clk/clk_fixed.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/extres/clk/clk_fixed.h>
 
 #include <arm/allwinner/aw_machdep.h>
 
 #include "clock_if.h"
 
-#define	LOSC_CTRL_REG			0x00
-#define	A10_RTC_DATE_REG		0x04
-#define	A10_RTC_TIME_REG		0x08
-#define	A31_LOSC_AUTO_SWT_STA		0x04
-#define	A31_RTC_DATE_REG		0x10
-#define	A31_RTC_TIME_REG		0x14
+#define LOSC_CTRL_REG 0x00
+#define A10_RTC_DATE_REG 0x04
+#define A10_RTC_TIME_REG 0x08
+#define A31_LOSC_AUTO_SWT_STA 0x04
+#define A31_RTC_DATE_REG 0x10
+#define A31_RTC_TIME_REG 0x14
 
-#define	TIME_MASK			0x001f3f3f
+#define TIME_MASK 0x001f3f3f
 
-#define	LOSC_OSC_SRC			(1 << 0)
-#define	LOSC_GSM			(1 << 3)
-#define	LOSC_AUTO_SW_EN			(1 << 14)
-#define	LOSC_MAGIC			0x16aa0000
-#define	LOSC_BUSY_MASK			0x00000380
+#define LOSC_OSC_SRC (1 << 0)
+#define LOSC_GSM (1 << 3)
+#define LOSC_AUTO_SW_EN (1 << 14)
+#define LOSC_MAGIC 0x16aa0000
+#define LOSC_BUSY_MASK 0x00000380
 
-#define	IS_SUN7I			(sc->conf->is_a20 == true)
+#define IS_SUN7I (sc->conf->is_a20 == true)
 
-#define	YEAR_MIN			(IS_SUN7I ? 1970 : 2010)
-#define	YEAR_MAX			(IS_SUN7I ? 2100 : 2073)
-#define	YEAR_OFFSET			(IS_SUN7I ? 1900 : 2010)
-#define	YEAR_MASK			(IS_SUN7I ? 0xff : 0x3f)
-#define	LEAP_BIT			(IS_SUN7I ? 24 : 22)
+#define YEAR_MIN (IS_SUN7I ? 1970 : 2010)
+#define YEAR_MAX (IS_SUN7I ? 2100 : 2073)
+#define YEAR_OFFSET (IS_SUN7I ? 1900 : 2010)
+#define YEAR_MASK (IS_SUN7I ? 0xff : 0x3f)
+#define LEAP_BIT (IS_SUN7I ? 24 : 22)
 
-#define	GET_SEC_VALUE(x)		((x)  & 0x0000003f)
-#define	GET_MIN_VALUE(x)		(((x) & 0x00003f00) >> 8)
-#define	GET_HOUR_VALUE(x)		(((x) & 0x001f0000) >> 16)
-#define	GET_DAY_VALUE(x)		((x)  & 0x0000001f)
-#define	GET_MON_VALUE(x)		(((x) & 0x00000f00) >> 8)
-#define	GET_YEAR_VALUE(x)		(((x) >> 16) & YEAR_MASK)
+#define GET_SEC_VALUE(x) ((x)&0x0000003f)
+#define GET_MIN_VALUE(x) (((x)&0x00003f00) >> 8)
+#define GET_HOUR_VALUE(x) (((x)&0x001f0000) >> 16)
+#define GET_DAY_VALUE(x) ((x)&0x0000001f)
+#define GET_MON_VALUE(x) (((x)&0x00000f00) >> 8)
+#define GET_YEAR_VALUE(x) (((x) >> 16) & YEAR_MASK)
 
-#define	SET_DAY_VALUE(x)		GET_DAY_VALUE(x)
-#define	SET_MON_VALUE(x)		(((x) & 0x0000000f) << 8)
-#define	SET_YEAR_VALUE(x)		(((x) & YEAR_MASK)  << 16)
-#define	SET_LEAP_VALUE(x)		(((x) & 0x00000001) << LEAP_BIT)
-#define	SET_SEC_VALUE(x)		GET_SEC_VALUE(x)
-#define	SET_MIN_VALUE(x)		(((x) & 0x0000003f) << 8)
-#define	SET_HOUR_VALUE(x)		(((x) & 0x0000001f) << 16)
+#define SET_DAY_VALUE(x) GET_DAY_VALUE(x)
+#define SET_MON_VALUE(x) (((x)&0x0000000f) << 8)
+#define SET_YEAR_VALUE(x) (((x)&YEAR_MASK) << 16)
+#define SET_LEAP_VALUE(x) (((x)&0x00000001) << LEAP_BIT)
+#define SET_SEC_VALUE(x) GET_SEC_VALUE(x)
+#define SET_MIN_VALUE(x) (((x)&0x0000003f) << 8)
+#define SET_HOUR_VALUE(x) (((x)&0x0000001f) << 16)
 
-#define	HALF_OF_SEC_NS			500000000
-#define	RTC_RES_US			1000000
-#define	RTC_TIMEOUT			70
+#define HALF_OF_SEC_NS 500000000
+#define RTC_RES_US 1000000
+#define RTC_TIMEOUT 70
 
-#define	RTC_READ(sc, reg) 		bus_read_4((sc)->res, (reg))
-#define	RTC_WRITE(sc, reg, val)		bus_write_4((sc)->res, (reg), (val))
+#define RTC_READ(sc, reg) bus_read_4((sc)->res, (reg))
+#define RTC_WRITE(sc, reg, val) bus_write_4((sc)->res, (reg), (val))
 
-#define	IS_LEAP_YEAR(y) (((y) % 400) == 0 || (((y) % 100) != 0 && ((y) % 4) == 0))
+#define IS_LEAP_YEAR(y) \
+	(((y) % 400) == 0 || (((y) % 100) != 0 && ((y) % 4) == 0))
 
 struct aw_rtc_conf {
-	uint64_t	iosc_freq;
-	bus_size_t	rtc_date;
-	bus_size_t	rtc_time;
-	bus_size_t	rtc_losc_sta;
-	bool		is_a20;
+	uint64_t iosc_freq;
+	bus_size_t rtc_date;
+	bus_size_t rtc_time;
+	bus_size_t rtc_losc_sta;
+	bool is_a20;
 };
 
 struct aw_rtc_conf a10_conf = {
@@ -119,7 +119,7 @@ struct aw_rtc_conf a20_conf = {
 };
 
 struct aw_rtc_conf a31_conf = {
-	.iosc_freq = 650000,			/* between 600 and 700 Khz */
+	.iosc_freq = 650000, /* between 600 and 700 Khz */
 	.rtc_date = A31_RTC_DATE_REG,
 	.rtc_time = A31_RTC_TIME_REG,
 	.rtc_losc_sta = A31_LOSC_AUTO_SWT_STA,
@@ -132,20 +132,18 @@ struct aw_rtc_conf h3_conf = {
 	.rtc_losc_sta = A31_LOSC_AUTO_SWT_STA,
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun4i-a10-rtc", (uintptr_t) &a10_conf },
-	{ "allwinner,sun7i-a20-rtc", (uintptr_t) &a20_conf },
-	{ "allwinner,sun6i-a31-rtc", (uintptr_t) &a31_conf },
-	{ "allwinner,sun8i-h3-rtc", (uintptr_t) &h3_conf },
-	{ "allwinner,sun50i-h5-rtc", (uintptr_t) &h3_conf },
-	{ "allwinner,sun50i-h6-rtc", (uintptr_t) &h3_conf },
-	{ NULL, 0 }
-};
+static struct ofw_compat_data compat_data[] = { { "allwinner,sun4i-a10-rtc",
+						    (uintptr_t)&a10_conf },
+	{ "allwinner,sun7i-a20-rtc", (uintptr_t)&a20_conf },
+	{ "allwinner,sun6i-a31-rtc", (uintptr_t)&a31_conf },
+	{ "allwinner,sun8i-h3-rtc", (uintptr_t)&h3_conf },
+	{ "allwinner,sun50i-h5-rtc", (uintptr_t)&h3_conf },
+	{ "allwinner,sun50i-h6-rtc", (uintptr_t)&h3_conf }, { NULL, 0 } };
 
 struct aw_rtc_softc {
-	struct resource		*res;
-	struct aw_rtc_conf	*conf;
-	int			type;
+	struct resource *res;
+	struct aw_rtc_conf *conf;
+	int type;
 };
 
 static struct clk_fixed_def aw_rtc_osc32k = {
@@ -157,7 +155,7 @@ static struct clk_fixed_def aw_rtc_iosc = {
 	.clkdef.id = 2,
 };
 
-static void	aw_rtc_install_clocks(struct aw_rtc_softc *sc, device_t dev);
+static void aw_rtc_install_clocks(struct aw_rtc_softc *sc, device_t dev);
 
 static int aw_rtc_probe(device_t dev);
 static int aw_rtc_attach(device_t dev);
@@ -166,16 +164,15 @@ static int aw_rtc_detach(device_t dev);
 static int aw_rtc_gettime(device_t dev, struct timespec *ts);
 static int aw_rtc_settime(device_t dev, struct timespec *ts);
 
-static device_method_t aw_rtc_methods[] = {
-	DEVMETHOD(device_probe,		aw_rtc_probe),
-	DEVMETHOD(device_attach,	aw_rtc_attach),
-	DEVMETHOD(device_detach,	aw_rtc_detach),
+static device_method_t aw_rtc_methods[] = { DEVMETHOD(
+						device_probe, aw_rtc_probe),
+	DEVMETHOD(device_attach, aw_rtc_attach),
+	DEVMETHOD(device_detach, aw_rtc_detach),
 
-	DEVMETHOD(clock_gettime,	aw_rtc_gettime),
-	DEVMETHOD(clock_settime,	aw_rtc_settime),
+	DEVMETHOD(clock_gettime, aw_rtc_gettime),
+	DEVMETHOD(clock_settime, aw_rtc_settime),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t aw_rtc_driver = {
 	"rtc",
@@ -207,7 +204,7 @@ aw_rtc_probe(device_t dev)
 static int
 aw_rtc_attach(device_t dev)
 {
-	struct aw_rtc_softc *sc  = device_get_softc(dev);
+	struct aw_rtc_softc *sc = device_get_softc(dev);
 	uint32_t val;
 	int rid = 0;
 
@@ -217,7 +214,9 @@ aw_rtc_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->conf = (struct aw_rtc_conf *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	sc->conf = (struct aw_rtc_conf *)ofw_bus_search_compatible(
+	    dev, compat_data)
+		       ->ocd_data;
 	val = RTC_READ(sc, LOSC_CTRL_REG);
 	val |= LOSC_AUTO_SW_EN;
 	val |= LOSC_MAGIC | LOSC_GSM | LOSC_OSC_SRC;
@@ -248,20 +247,23 @@ aw_rtc_detach(device_t dev)
 }
 
 static void
-aw_rtc_install_clocks(struct aw_rtc_softc *sc, device_t dev) {
+aw_rtc_install_clocks(struct aw_rtc_softc *sc, device_t dev)
+{
 	struct clkdom *clkdom;
 	const char **clknames;
 	phandle_t node;
 	int nclocks;
 
 	node = ofw_bus_get_node(dev);
-	nclocks = ofw_bus_string_list_to_array(node, "clock-output-names", &clknames);
+	nclocks = ofw_bus_string_list_to_array(
+	    node, "clock-output-names", &clknames);
 	/* No clocks to export */
 	if (nclocks <= 0)
 		return;
 
 	if (nclocks != 3) {
-		device_printf(dev, "Having only %d clocks instead of 3, aborting\n", nclocks);
+		device_printf(dev,
+		    "Having only %d clocks instead of 3, aborting\n", nclocks);
 		return;
 	}
 
@@ -285,7 +287,7 @@ aw_rtc_install_clocks(struct aw_rtc_softc *sc, device_t dev) {
 static int
 aw_rtc_gettime(device_t dev, struct timespec *ts)
 {
-	struct aw_rtc_softc *sc  = device_get_softc(dev);
+	struct aw_rtc_softc *sc = device_get_softc(dev);
 	struct clocktime ct;
 	uint32_t rdate, rtime;
 
@@ -311,7 +313,7 @@ aw_rtc_gettime(device_t dev, struct timespec *ts)
 static int
 aw_rtc_settime(device_t dev, struct timespec *ts)
 {
-	struct aw_rtc_softc *sc  = device_get_softc(dev);
+	struct aw_rtc_softc *sc = device_get_softc(dev);
 	struct clocktime ct;
 	uint32_t clk, rdate, rtime;
 
@@ -338,11 +340,11 @@ aw_rtc_settime(device_t dev, struct timespec *ts)
 	RTC_WRITE(sc, sc->conf->rtc_time, 0);
 
 	rdate = SET_DAY_VALUE(ct.day) | SET_MON_VALUE(ct.mon) |
-		SET_YEAR_VALUE(ct.year - YEAR_OFFSET) | 
-		SET_LEAP_VALUE(IS_LEAP_YEAR(ct.year));
-			
+	    SET_YEAR_VALUE(ct.year - YEAR_OFFSET) |
+	    SET_LEAP_VALUE(IS_LEAP_YEAR(ct.year));
+
 	rtime = SET_SEC_VALUE(ct.sec) | SET_MIN_VALUE(ct.min) |
-		SET_HOUR_VALUE(ct.hour);
+	    SET_HOUR_VALUE(ct.hour);
 
 	for (clk = 0; RTC_READ(sc, LOSC_CTRL_REG) & LOSC_BUSY_MASK; clk++) {
 		if (clk > RTC_TIMEOUT) {

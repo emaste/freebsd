@@ -35,27 +35,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/vnode.h>
 
-#include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/extattr.h>
-#include <ufs/ffs/ffs_extern.h>
-
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
 #include <geom/label/g_label.h>
+#include <ufs/ffs/ffs_extern.h>
+#include <ufs/ffs/fs.h>
+#include <ufs/ufs/dinode.h>
+#include <ufs/ufs/extattr.h>
+#include <ufs/ufs/quota.h>
 
-#define	G_LABEL_UFS_VOLUME	0
-#define	G_LABEL_UFS_ID		1
+#define G_LABEL_UFS_VOLUME 0
+#define G_LABEL_UFS_ID 1
 
 /*
  * G_LABEL_UFS_CMP returns true if difference between provider mediasize
  * and filesystem size is less than G_LABEL_UFS_MAXDIFF sectors
  */
-#define	G_LABEL_UFS_CMP(prov, fsys, size) 				   \
-	( abs( ((fsys)->size) - ( (prov)->mediasize / (fsys)->fs_fsize ))  \
-				< G_LABEL_UFS_MAXDIFF )
-#define	G_LABEL_UFS_MAXDIFF	0x100
+#define G_LABEL_UFS_CMP(prov, fsys, size)                               \
+	(abs(((fsys)->size) - ((prov)->mediasize / (fsys)->fs_fsize)) < \
+	    G_LABEL_UFS_MAXDIFF)
+#define G_LABEL_UFS_MAXDIFF 0x100
 
 /*
  * Try to find a superblock on the provider. If successful, then
@@ -64,7 +63,8 @@ __FBSDID("$FreeBSD$");
  * and create an appropriate provider based on that.
  */
 static void
-g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int what)
+g_label_ufs_taste_common(
+    struct g_consumer *cp, char *label, size_t size, int what)
 {
 	struct g_provider *pp;
 	struct fs *fs;
@@ -74,8 +74,9 @@ g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int wh
 	label[0] = '\0';
 
 	fs = NULL;
-	if (SBLOCKSIZE % pp->sectorsize != 0 || ffs_sbget(cp, &fs,
-	    STDSB_NOHASHFAIL, M_GEOM, g_use_g_read_data) != 0) {
+	if (SBLOCKSIZE % pp->sectorsize != 0 ||
+	    ffs_sbget(cp, &fs, STDSB_NOHASHFAIL, M_GEOM, g_use_g_read_data) !=
+		0) {
 		KASSERT(fs == NULL,
 		    ("g_label_ufs_taste_common: non-NULL fs %p\n", fs));
 		return;
@@ -93,12 +94,12 @@ g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int wh
 	 * to large sector size (it improves compression rates).
 	 */
 	if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_fsize > 0 &&
-	    ( G_LABEL_UFS_CMP(pp, fs, fs_old_size)
-		|| G_LABEL_UFS_CMP(pp, fs, fs_providersize))) {
+	    (G_LABEL_UFS_CMP(pp, fs, fs_old_size) ||
+		G_LABEL_UFS_CMP(pp, fs, fs_providersize))) {
 		/* Valid UFS1. */
 	} else if (fs->fs_magic == FS_UFS2_MAGIC && fs->fs_fsize > 0 &&
-	    ( G_LABEL_UFS_CMP(pp, fs, fs_size)
-		|| G_LABEL_UFS_CMP(pp, fs, fs_providersize))) {
+	    (G_LABEL_UFS_CMP(pp, fs, fs_size) ||
+		G_LABEL_UFS_CMP(pp, fs, fs_providersize))) {
 		/* Valid UFS2. */
 	} else {
 		goto out;
@@ -137,19 +138,17 @@ g_label_ufs_id_taste(struct g_consumer *cp, char *label, size_t size)
 	g_label_ufs_taste_common(cp, label, size, G_LABEL_UFS_ID);
 }
 
-struct g_label_desc g_label_ufs_volume = {
-	.ld_taste = g_label_ufs_volume_taste,
+struct g_label_desc g_label_ufs_volume = { .ld_taste = g_label_ufs_volume_taste,
 	.ld_dirprefix = "ufs/",
-	.ld_enabled = 1
-};
+	.ld_enabled = 1 };
 
-struct g_label_desc g_label_ufs_id = {
-	.ld_taste = g_label_ufs_id_taste,
+struct g_label_desc g_label_ufs_id = { .ld_taste = g_label_ufs_id_taste,
 	.ld_dirprefix = "ufsid/",
-	.ld_enabled = 1
-};
+	.ld_enabled = 1 };
 
-G_LABEL_INIT(ufsid, g_label_ufs_id, "Create device nodes for UFS file system IDs");
-G_LABEL_INIT(ufs, g_label_ufs_volume, "Create device nodes for UFS volume names");
+G_LABEL_INIT(
+    ufsid, g_label_ufs_id, "Create device nodes for UFS file system IDs");
+G_LABEL_INIT(
+    ufs, g_label_ufs_volume, "Create device nodes for UFS volume names");
 
 MODULE_DEPEND(g_label, ufs, 1, 1, 1);

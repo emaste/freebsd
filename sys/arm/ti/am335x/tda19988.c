@@ -27,225 +27,222 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 /*
-* NXP TDA19988 HDMI encoder 
-*/
+ * NXP TDA19988 HDMI encoder
+ */
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
+#include <sys/bus.h>
 #include <sys/clock.h>
 #include <sys/eventhandler.h>
-#include <sys/time.h>
-#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
-#include <sys/types.h>
-#include <sys/systm.h>
+#include <sys/time.h>
 
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
-
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/videomode/videomode.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/videomode/edidvar.h>
+#include <dev/videomode/videomode.h>
 
-#include "iicbus_if.h"
 #include "hdmi_if.h"
+#include "iicbus_if.h"
 
-#define	MKREG(page, addr)	(((page) << 8) | (addr))
+#define MKREG(page, addr) (((page) << 8) | (addr))
 
-#define	REGPAGE(reg)		(((reg) >> 8) & 0xff)
-#define	REGADDR(reg)		((reg) & 0xff)
+#define REGPAGE(reg) (((reg) >> 8) & 0xff)
+#define REGADDR(reg) ((reg)&0xff)
 
-#define TDA_VERSION		MKREG(0x00, 0x00)
-#define TDA_MAIN_CNTRL0		MKREG(0x00, 0x01)
-#define 	MAIN_CNTRL0_SR		(1 << 0)
-#define TDA_VERSION_MSB		MKREG(0x00, 0x02)
-#define	TDA_SOFTRESET		MKREG(0x00, 0x0a)
-#define		SOFTRESET_I2C		(1 << 1)
-#define		SOFTRESET_AUDIO		(1 << 0)
-#define	TDA_DDC_CTRL		MKREG(0x00, 0x0b)
-#define		DDC_ENABLE		0
-#define	TDA_CCLK		MKREG(0x00, 0x0c)
-#define		CCLK_ENABLE		1
-#define	TDA_INT_FLAGS_2		MKREG(0x00, 0x11)
-#define		INT_FLAGS_2_EDID_BLK_RD	(1 << 1)
+#define TDA_VERSION MKREG(0x00, 0x00)
+#define TDA_MAIN_CNTRL0 MKREG(0x00, 0x01)
+#define MAIN_CNTRL0_SR (1 << 0)
+#define TDA_VERSION_MSB MKREG(0x00, 0x02)
+#define TDA_SOFTRESET MKREG(0x00, 0x0a)
+#define SOFTRESET_I2C (1 << 1)
+#define SOFTRESET_AUDIO (1 << 0)
+#define TDA_DDC_CTRL MKREG(0x00, 0x0b)
+#define DDC_ENABLE 0
+#define TDA_CCLK MKREG(0x00, 0x0c)
+#define CCLK_ENABLE 1
+#define TDA_INT_FLAGS_2 MKREG(0x00, 0x11)
+#define INT_FLAGS_2_EDID_BLK_RD (1 << 1)
 
-#define	TDA_VIP_CNTRL_0		MKREG(0x00, 0x20)
-#define	TDA_VIP_CNTRL_1		MKREG(0x00, 0x21)
-#define	TDA_VIP_CNTRL_2		MKREG(0x00, 0x22)
-#define	TDA_VIP_CNTRL_3		MKREG(0x00, 0x23)
-#define		VIP_CNTRL_3_SYNC_HS	(2 << 4)
-#define		VIP_CNTRL_3_V_TGL	(1 << 2)
-#define		VIP_CNTRL_3_H_TGL	(1 << 1)
+#define TDA_VIP_CNTRL_0 MKREG(0x00, 0x20)
+#define TDA_VIP_CNTRL_1 MKREG(0x00, 0x21)
+#define TDA_VIP_CNTRL_2 MKREG(0x00, 0x22)
+#define TDA_VIP_CNTRL_3 MKREG(0x00, 0x23)
+#define VIP_CNTRL_3_SYNC_HS (2 << 4)
+#define VIP_CNTRL_3_V_TGL (1 << 2)
+#define VIP_CNTRL_3_H_TGL (1 << 1)
 
-#define	TDA_VIP_CNTRL_4		MKREG(0x00, 0x24)
-#define		VIP_CNTRL_4_BLANKIT_NDE		(0 << 2)
-#define		VIP_CNTRL_4_BLANKIT_HS_VS	(1 << 2)
-#define		VIP_CNTRL_4_BLANKIT_NHS_VS	(2 << 2)
-#define		VIP_CNTRL_4_BLANKIT_HE_VE	(3 << 2)
-#define		VIP_CNTRL_4_BLC_NONE		(0 << 0)
-#define		VIP_CNTRL_4_BLC_RGB444		(1 << 0)
-#define		VIP_CNTRL_4_BLC_YUV444		(2 << 0)
-#define		VIP_CNTRL_4_BLC_YUV422		(3 << 0)
-#define	TDA_VIP_CNTRL_5		MKREG(0x00, 0x25)
-#define		VIP_CNTRL_5_SP_CNT(n)	(((n) & 3) << 1)
-#define	TDA_MUX_VP_VIP_OUT	MKREG(0x00, 0x27)
-#define TDA_MAT_CONTRL		MKREG(0x00, 0x80)
-#define		MAT_CONTRL_MAT_BP	(1 << 2)
-#define	TDA_VIDFORMAT		MKREG(0x00, 0xa0)
-#define	TDA_REFPIX_MSB		MKREG(0x00, 0xa1)
-#define	TDA_REFPIX_LSB		MKREG(0x00, 0xa2)
-#define	TDA_REFLINE_MSB		MKREG(0x00, 0xa3)
-#define	TDA_REFLINE_LSB		MKREG(0x00, 0xa4)
-#define	TDA_NPIX_MSB		MKREG(0x00, 0xa5)
-#define	TDA_NPIX_LSB		MKREG(0x00, 0xa6)
-#define	TDA_NLINE_MSB		MKREG(0x00, 0xa7)
-#define	TDA_NLINE_LSB		MKREG(0x00, 0xa8)
-#define	TDA_VS_LINE_STRT_1_MSB	MKREG(0x00, 0xa9)
-#define	TDA_VS_LINE_STRT_1_LSB	MKREG(0x00, 0xaa)
-#define	TDA_VS_PIX_STRT_1_MSB	MKREG(0x00, 0xab)
-#define	TDA_VS_PIX_STRT_1_LSB	MKREG(0x00, 0xac)
-#define	TDA_VS_LINE_END_1_MSB	MKREG(0x00, 0xad)
-#define	TDA_VS_LINE_END_1_LSB	MKREG(0x00, 0xae)
-#define	TDA_VS_PIX_END_1_MSB	MKREG(0x00, 0xaf)
-#define	TDA_VS_PIX_END_1_LSB	MKREG(0x00, 0xb0)
-#define	TDA_VS_LINE_STRT_2_MSB	MKREG(0x00, 0xb1)
-#define	TDA_VS_LINE_STRT_2_LSB	MKREG(0x00, 0xb2)
-#define	TDA_VS_PIX_STRT_2_MSB	MKREG(0x00, 0xb3)
-#define	TDA_VS_PIX_STRT_2_LSB	MKREG(0x00, 0xb4)
-#define	TDA_VS_LINE_END_2_MSB	MKREG(0x00, 0xb5)
-#define	TDA_VS_LINE_END_2_LSB	MKREG(0x00, 0xb6)
-#define	TDA_VS_PIX_END_2_MSB	MKREG(0x00, 0xb7)
-#define	TDA_VS_PIX_END_2_LSB	MKREG(0x00, 0xb8)
-#define	TDA_HS_PIX_START_MSB	MKREG(0x00, 0xb9)
-#define	TDA_HS_PIX_START_LSB	MKREG(0x00, 0xba)
-#define	TDA_HS_PIX_STOP_MSB	MKREG(0x00, 0xbb)
-#define	TDA_HS_PIX_STOP_LSB	MKREG(0x00, 0xbc)
-#define	TDA_VWIN_START_1_MSB	MKREG(0x00, 0xbd)
-#define	TDA_VWIN_START_1_LSB	MKREG(0x00, 0xbe)
-#define	TDA_VWIN_END_1_MSB	MKREG(0x00, 0xbf)
-#define	TDA_VWIN_END_1_LSB	MKREG(0x00, 0xc0)
-#define	TDA_VWIN_START_2_MSB	MKREG(0x00, 0xc1)
-#define	TDA_VWIN_START_2_LSB	MKREG(0x00, 0xc2)
-#define	TDA_VWIN_END_2_MSB	MKREG(0x00, 0xc3)
-#define	TDA_VWIN_END_2_LSB	MKREG(0x00, 0xc4)
-#define	TDA_DE_START_MSB	MKREG(0x00, 0xc5)
-#define	TDA_DE_START_LSB	MKREG(0x00, 0xc6)
-#define	TDA_DE_STOP_MSB		MKREG(0x00, 0xc7)
-#define	TDA_DE_STOP_LSB		MKREG(0x00, 0xc8)
+#define TDA_VIP_CNTRL_4 MKREG(0x00, 0x24)
+#define VIP_CNTRL_4_BLANKIT_NDE (0 << 2)
+#define VIP_CNTRL_4_BLANKIT_HS_VS (1 << 2)
+#define VIP_CNTRL_4_BLANKIT_NHS_VS (2 << 2)
+#define VIP_CNTRL_4_BLANKIT_HE_VE (3 << 2)
+#define VIP_CNTRL_4_BLC_NONE (0 << 0)
+#define VIP_CNTRL_4_BLC_RGB444 (1 << 0)
+#define VIP_CNTRL_4_BLC_YUV444 (2 << 0)
+#define VIP_CNTRL_4_BLC_YUV422 (3 << 0)
+#define TDA_VIP_CNTRL_5 MKREG(0x00, 0x25)
+#define VIP_CNTRL_5_SP_CNT(n) (((n)&3) << 1)
+#define TDA_MUX_VP_VIP_OUT MKREG(0x00, 0x27)
+#define TDA_MAT_CONTRL MKREG(0x00, 0x80)
+#define MAT_CONTRL_MAT_BP (1 << 2)
+#define TDA_VIDFORMAT MKREG(0x00, 0xa0)
+#define TDA_REFPIX_MSB MKREG(0x00, 0xa1)
+#define TDA_REFPIX_LSB MKREG(0x00, 0xa2)
+#define TDA_REFLINE_MSB MKREG(0x00, 0xa3)
+#define TDA_REFLINE_LSB MKREG(0x00, 0xa4)
+#define TDA_NPIX_MSB MKREG(0x00, 0xa5)
+#define TDA_NPIX_LSB MKREG(0x00, 0xa6)
+#define TDA_NLINE_MSB MKREG(0x00, 0xa7)
+#define TDA_NLINE_LSB MKREG(0x00, 0xa8)
+#define TDA_VS_LINE_STRT_1_MSB MKREG(0x00, 0xa9)
+#define TDA_VS_LINE_STRT_1_LSB MKREG(0x00, 0xaa)
+#define TDA_VS_PIX_STRT_1_MSB MKREG(0x00, 0xab)
+#define TDA_VS_PIX_STRT_1_LSB MKREG(0x00, 0xac)
+#define TDA_VS_LINE_END_1_MSB MKREG(0x00, 0xad)
+#define TDA_VS_LINE_END_1_LSB MKREG(0x00, 0xae)
+#define TDA_VS_PIX_END_1_MSB MKREG(0x00, 0xaf)
+#define TDA_VS_PIX_END_1_LSB MKREG(0x00, 0xb0)
+#define TDA_VS_LINE_STRT_2_MSB MKREG(0x00, 0xb1)
+#define TDA_VS_LINE_STRT_2_LSB MKREG(0x00, 0xb2)
+#define TDA_VS_PIX_STRT_2_MSB MKREG(0x00, 0xb3)
+#define TDA_VS_PIX_STRT_2_LSB MKREG(0x00, 0xb4)
+#define TDA_VS_LINE_END_2_MSB MKREG(0x00, 0xb5)
+#define TDA_VS_LINE_END_2_LSB MKREG(0x00, 0xb6)
+#define TDA_VS_PIX_END_2_MSB MKREG(0x00, 0xb7)
+#define TDA_VS_PIX_END_2_LSB MKREG(0x00, 0xb8)
+#define TDA_HS_PIX_START_MSB MKREG(0x00, 0xb9)
+#define TDA_HS_PIX_START_LSB MKREG(0x00, 0xba)
+#define TDA_HS_PIX_STOP_MSB MKREG(0x00, 0xbb)
+#define TDA_HS_PIX_STOP_LSB MKREG(0x00, 0xbc)
+#define TDA_VWIN_START_1_MSB MKREG(0x00, 0xbd)
+#define TDA_VWIN_START_1_LSB MKREG(0x00, 0xbe)
+#define TDA_VWIN_END_1_MSB MKREG(0x00, 0xbf)
+#define TDA_VWIN_END_1_LSB MKREG(0x00, 0xc0)
+#define TDA_VWIN_START_2_MSB MKREG(0x00, 0xc1)
+#define TDA_VWIN_START_2_LSB MKREG(0x00, 0xc2)
+#define TDA_VWIN_END_2_MSB MKREG(0x00, 0xc3)
+#define TDA_VWIN_END_2_LSB MKREG(0x00, 0xc4)
+#define TDA_DE_START_MSB MKREG(0x00, 0xc5)
+#define TDA_DE_START_LSB MKREG(0x00, 0xc6)
+#define TDA_DE_STOP_MSB MKREG(0x00, 0xc7)
+#define TDA_DE_STOP_LSB MKREG(0x00, 0xc8)
 
-#define	TDA_TBG_CNTRL_0		MKREG(0x00, 0xca)
-#define		TBG_CNTRL_0_SYNC_ONCE	(1 << 7)
-#define		TBG_CNTRL_0_SYNC_MTHD	(1 << 6)
+#define TDA_TBG_CNTRL_0 MKREG(0x00, 0xca)
+#define TBG_CNTRL_0_SYNC_ONCE (1 << 7)
+#define TBG_CNTRL_0_SYNC_MTHD (1 << 6)
 
-#define	TDA_TBG_CNTRL_1		MKREG(0x00, 0xcb)
-#define		TBG_CNTRL_1_DWIN_DIS	(1 << 6)
-#define		TBG_CNTRL_1_TGL_EN	(1 << 2)
-#define		TBG_CNTRL_1_V_TGL	(1 << 1)
-#define		TBG_CNTRL_1_H_TGL	(1 << 0)
+#define TDA_TBG_CNTRL_1 MKREG(0x00, 0xcb)
+#define TBG_CNTRL_1_DWIN_DIS (1 << 6)
+#define TBG_CNTRL_1_TGL_EN (1 << 2)
+#define TBG_CNTRL_1_V_TGL (1 << 1)
+#define TBG_CNTRL_1_H_TGL (1 << 0)
 
-#define	TDA_HVF_CNTRL_0		MKREG(0x00, 0xe4)
-#define		HVF_CNTRL_0_PREFIL_NONE		(0 << 2)
-#define		HVF_CNTRL_0_INTPOL_BYPASS	(0 << 0)
-#define	TDA_HVF_CNTRL_1		MKREG(0x00, 0xe5)
-#define		HVF_CNTRL_1_VQR(x)	(((x) & 3) << 2)
-#define		HVF_CNTRL_1_VQR_FULL	HVF_CNTRL_1_VQR(0)
-#define	TDA_ENABLE_SPACE	MKREG(0x00, 0xd6)
-#define	TDA_RPT_CNTRL		MKREG(0x00, 0xf0)
+#define TDA_HVF_CNTRL_0 MKREG(0x00, 0xe4)
+#define HVF_CNTRL_0_PREFIL_NONE (0 << 2)
+#define HVF_CNTRL_0_INTPOL_BYPASS (0 << 0)
+#define TDA_HVF_CNTRL_1 MKREG(0x00, 0xe5)
+#define HVF_CNTRL_1_VQR(x) (((x)&3) << 2)
+#define HVF_CNTRL_1_VQR_FULL HVF_CNTRL_1_VQR(0)
+#define TDA_ENABLE_SPACE MKREG(0x00, 0xd6)
+#define TDA_RPT_CNTRL MKREG(0x00, 0xf0)
 
-#define	TDA_PLL_SERIAL_1	MKREG(0x02, 0x00)
-#define		PLL_SERIAL_1_SRL_MAN_IP	(1 << 6)
-#define	TDA_PLL_SERIAL_2	MKREG(0x02, 0x01)
-#define		PLL_SERIAL_2_SRL_PR(x)		(((x) & 0xf) << 4)
-#define		PLL_SERIAL_2_SRL_NOSC(x)	(((x) & 0x3) << 0)
-#define	TDA_PLL_SERIAL_3	MKREG(0x02, 0x02)
-#define		PLL_SERIAL_3_SRL_PXIN_SEL	(1 << 4)
-#define		PLL_SERIAL_3_SRL_DE		(1 << 2)
-#define		PLL_SERIAL_3_SRL_CCIR		(1 << 0)
-#define	TDA_SERIALIZER		MKREG(0x02, 0x03)
-#define	TDA_BUFFER_OUT		MKREG(0x02, 0x04)
-#define	TDA_PLL_SCG1		MKREG(0x02, 0x05)
-#define	TDA_PLL_SCG2		MKREG(0x02, 0x06)
-#define	TDA_PLL_SCGN1		MKREG(0x02, 0x07)
-#define	TDA_PLL_SCGN2		MKREG(0x02, 0x08)
-#define	TDA_PLL_SCGR1		MKREG(0x02, 0x09)
-#define	TDA_PLL_SCGR2		MKREG(0x02, 0x0a)
+#define TDA_PLL_SERIAL_1 MKREG(0x02, 0x00)
+#define PLL_SERIAL_1_SRL_MAN_IP (1 << 6)
+#define TDA_PLL_SERIAL_2 MKREG(0x02, 0x01)
+#define PLL_SERIAL_2_SRL_PR(x) (((x)&0xf) << 4)
+#define PLL_SERIAL_2_SRL_NOSC(x) (((x)&0x3) << 0)
+#define TDA_PLL_SERIAL_3 MKREG(0x02, 0x02)
+#define PLL_SERIAL_3_SRL_PXIN_SEL (1 << 4)
+#define PLL_SERIAL_3_SRL_DE (1 << 2)
+#define PLL_SERIAL_3_SRL_CCIR (1 << 0)
+#define TDA_SERIALIZER MKREG(0x02, 0x03)
+#define TDA_BUFFER_OUT MKREG(0x02, 0x04)
+#define TDA_PLL_SCG1 MKREG(0x02, 0x05)
+#define TDA_PLL_SCG2 MKREG(0x02, 0x06)
+#define TDA_PLL_SCGN1 MKREG(0x02, 0x07)
+#define TDA_PLL_SCGN2 MKREG(0x02, 0x08)
+#define TDA_PLL_SCGR1 MKREG(0x02, 0x09)
+#define TDA_PLL_SCGR2 MKREG(0x02, 0x0a)
 
-#define	TDA_SEL_CLK		MKREG(0x02, 0x11)
-#define		SEL_CLK_ENA_SC_CLK	(1 << 3)
-#define		SEL_CLK_SEL_VRF_CLK(x)	(((x) & 3) << 1)
-#define		SEL_CLK_SEL_CLK1	(1 << 0)
-#define	TDA_ANA_GENERAL		MKREG(0x02, 0x12)
+#define TDA_SEL_CLK MKREG(0x02, 0x11)
+#define SEL_CLK_ENA_SC_CLK (1 << 3)
+#define SEL_CLK_SEL_VRF_CLK(x) (((x)&3) << 1)
+#define SEL_CLK_SEL_CLK1 (1 << 0)
+#define TDA_ANA_GENERAL MKREG(0x02, 0x12)
 
-#define	TDA_EDID_DATA0		MKREG(0x09, 0x00)
-#define	TDA_EDID_CTRL		MKREG(0x09, 0xfa)
-#define	TDA_DDC_ADDR		MKREG(0x09, 0xfb)
-#define	TDA_DDC_OFFS		MKREG(0x09, 0xfc)
-#define	TDA_DDC_SEGM_ADDR	MKREG(0x09, 0xfd)
-#define	TDA_DDC_SEGM		MKREG(0x09, 0xfe)
+#define TDA_EDID_DATA0 MKREG(0x09, 0x00)
+#define TDA_EDID_CTRL MKREG(0x09, 0xfa)
+#define TDA_DDC_ADDR MKREG(0x09, 0xfb)
+#define TDA_DDC_OFFS MKREG(0x09, 0xfc)
+#define TDA_DDC_SEGM_ADDR MKREG(0x09, 0xfd)
+#define TDA_DDC_SEGM MKREG(0x09, 0xfe)
 
-#define	TDA_IF_VSP		MKREG(0x10, 0x20)
-#define	TDA_IF_AVI		MKREG(0x10, 0x40)
-#define	TDA_IF_SPD		MKREG(0x10, 0x60)
-#define	TDA_IF_AUD		MKREG(0x10, 0x80)
-#define	TDA_IF_MPS		MKREG(0x10, 0xa0)
+#define TDA_IF_VSP MKREG(0x10, 0x20)
+#define TDA_IF_AVI MKREG(0x10, 0x40)
+#define TDA_IF_SPD MKREG(0x10, 0x60)
+#define TDA_IF_AUD MKREG(0x10, 0x80)
+#define TDA_IF_MPS MKREG(0x10, 0xa0)
 
-#define	TDA_ENC_CNTRL		MKREG(0x11, 0x0d)
-#define		ENC_CNTRL_DVI_MODE	(0 << 2)
-#define		ENC_CNTRL_HDMI_MODE	(1 << 2)
-#define	TDA_DIP_IF_FLAGS	MKREG(0x11, 0x0f)
-#define		DIP_IF_FLAGS_IF5	(1 << 5)
-#define		DIP_IF_FLAGS_IF4	(1 << 4)
-#define		DIP_IF_FLAGS_IF3	(1 << 3)
-#define		DIP_IF_FLAGS_IF2	(1 << 2) /* AVI IF on page 10h */
-#define		DIP_IF_FLAGS_IF1	(1 << 1)
+#define TDA_ENC_CNTRL MKREG(0x11, 0x0d)
+#define ENC_CNTRL_DVI_MODE (0 << 2)
+#define ENC_CNTRL_HDMI_MODE (1 << 2)
+#define TDA_DIP_IF_FLAGS MKREG(0x11, 0x0f)
+#define DIP_IF_FLAGS_IF5 (1 << 5)
+#define DIP_IF_FLAGS_IF4 (1 << 4)
+#define DIP_IF_FLAGS_IF3 (1 << 3)
+#define DIP_IF_FLAGS_IF2 (1 << 2) /* AVI IF on page 10h */
+#define DIP_IF_FLAGS_IF1 (1 << 1)
 
-#define	TDA_TX3			MKREG(0x12, 0x9a)
-#define	TDA_TX4			MKREG(0x12, 0x9b)
-#define		TX4_PD_RAM		(1 << 1)
-#define	TDA_HDCP_TX33		MKREG(0x12, 0xb8)
-#define		HDCP_TX33_HDMI		(1 << 1)
+#define TDA_TX3 MKREG(0x12, 0x9a)
+#define TDA_TX4 MKREG(0x12, 0x9b)
+#define TX4_PD_RAM (1 << 1)
+#define TDA_HDCP_TX33 MKREG(0x12, 0xb8)
+#define HDCP_TX33_HDMI (1 << 1)
 
-#define	TDA_CURPAGE_ADDR	0xff
+#define TDA_CURPAGE_ADDR 0xff
 
-#define	TDA_CEC_ENAMODS		0xff
-#define		ENAMODS_RXSENS		(1 << 2)
-#define		ENAMODS_HDMI		(1 << 1)
-#define	TDA_CEC_FRO_IM_CLK_CTRL	0xfb
-#define		CEC_FRO_IM_CLK_CTRL_GHOST_DIS	(1 << 7)
-#define		CEC_FRO_IM_CLK_CTRL_IMCLK_SEL	(1 << 1)
+#define TDA_CEC_ENAMODS 0xff
+#define ENAMODS_RXSENS (1 << 2)
+#define ENAMODS_HDMI (1 << 1)
+#define TDA_CEC_FRO_IM_CLK_CTRL 0xfb
+#define CEC_FRO_IM_CLK_CTRL_GHOST_DIS (1 << 7)
+#define CEC_FRO_IM_CLK_CTRL_IMCLK_SEL (1 << 1)
 
-/* EDID reading */ 
-#define EDID_LENGTH		0x80
-#define	MAX_READ_ATTEMPTS	100
+/* EDID reading */
+#define EDID_LENGTH 0x80
+#define MAX_READ_ATTEMPTS 100
 
 /* EDID fields */
-#define	EDID_MODES0		35
-#define	EDID_MODES1		36
-#define	EDID_TIMING_START	38
-#define	EDID_TIMING_END		54
-#define	EDID_TIMING_X(v)	(((v) + 31) * 8)
-#define	EDID_FREQ(v)		(((v) & 0x3f) + 60)
-#define	EDID_RATIO(v)		(((v) >> 6) & 0x3)
-#define	EDID_RATIO_10x16	0
-#define	EDID_RATIO_3x4		1	
-#define	EDID_RATIO_4x5		2	
-#define	EDID_RATIO_9x16		3
+#define EDID_MODES0 35
+#define EDID_MODES1 36
+#define EDID_TIMING_START 38
+#define EDID_TIMING_END 54
+#define EDID_TIMING_X(v) (((v) + 31) * 8)
+#define EDID_FREQ(v) (((v)&0x3f) + 60)
+#define EDID_RATIO(v) (((v) >> 6) & 0x3)
+#define EDID_RATIO_10x16 0
+#define EDID_RATIO_3x4 1
+#define EDID_RATIO_4x5 2
+#define EDID_RATIO_9x16 3
 
-#define	TDA19988		0x0301
+#define TDA19988 0x0301
 
 struct tda19988_softc {
-	device_t		sc_dev;
-	uint32_t		sc_addr;
-	uint32_t		sc_cec_addr;
-	uint16_t		sc_version;
-	int			sc_current_page;
-	uint8_t			*sc_edid;
-	uint32_t		sc_edid_len;
+	device_t sc_dev;
+	uint32_t sc_addr;
+	uint32_t sc_cec_addr;
+	uint16_t sc_version;
+	int sc_current_page;
+	uint8_t *sc_edid;
+	uint32_t sc_edid_len;
 };
 
 static int
@@ -279,7 +276,7 @@ tda19988_cec_read(struct tda19988_softc *sc, uint8_t addr, uint8_t *data)
 		{ sc->sc_cec_addr, IIC_M_RD, 1, data },
 	};
 
-	result =  iicbus_transfer(sc->sc_dev, msg, 2);
+	result = iicbus_transfer(sc->sc_dev, msg, 2);
 	if (result)
 		printf("tda19988_cec_read failed: %d\n", result);
 	return (result);
@@ -304,7 +301,8 @@ tda19988_cec_write(struct tda19988_softc *sc, uint8_t address, uint8_t data)
 }
 
 static int
-tda19988_block_read(struct tda19988_softc *sc, uint16_t addr, uint8_t *data, int len)
+tda19988_block_read(
+    struct tda19988_softc *sc, uint16_t addr, uint8_t *data, int len)
 {
 	uint8_t reg;
 	int result;
@@ -320,7 +318,8 @@ tda19988_block_read(struct tda19988_softc *sc, uint16_t addr, uint8_t *data, int
 
 	result = (iicbus_transfer(sc->sc_dev, msg, 2));
 	if (result)
-		device_printf(sc->sc_dev, "tda19988_block_read failed: %d\n", result);
+		device_printf(
+		    sc->sc_dev, "tda19988_block_read failed: %d\n", result);
 	return (result);
 }
 
@@ -341,7 +340,8 @@ tda19988_reg_read(struct tda19988_softc *sc, uint16_t addr, uint8_t *data)
 
 	result = (iicbus_transfer(sc->sc_dev, msg, 2));
 	if (result)
-		device_printf(sc->sc_dev, "tda19988_reg_read failed: %d\n", result);
+		device_printf(
+		    sc->sc_dev, "tda19988_reg_read failed: %d\n", result);
 	return (result);
 }
 
@@ -362,7 +362,8 @@ tda19988_reg_write(struct tda19988_softc *sc, uint16_t address, uint8_t data)
 
 	result = iicbus_transfer(sc->sc_dev, msg, 1);
 	if (result)
-		device_printf(sc->sc_dev, "tda19988_reg_write failed: %d\n", result);
+		device_printf(
+		    sc->sc_dev, "tda19988_reg_write failed: %d\n", result);
 
 	return (result);
 }
@@ -385,7 +386,8 @@ tda19988_reg_write2(struct tda19988_softc *sc, uint16_t address, uint16_t data)
 
 	result = iicbus_transfer(sc->sc_dev, msg, 1);
 	if (result)
-		device_printf(sc->sc_dev, "tda19988_reg_write2 failed: %d\n", result);
+		device_printf(
+		    sc->sc_dev, "tda19988_reg_write2 failed: %d\n", result);
 
 	return (result);
 }
@@ -454,26 +456,29 @@ tda19988_init_encoder(struct tda19988_softc *sc, const struct videomode *mode)
 
 		vs1_pix_start = vs1_pix_stop = hs_pix_start;
 		vs1_line_start = mode->vsync_start - mode->vdisplay;
-		vs1_line_end = vs1_line_start + mode->vsync_end - mode->vsync_start;
+		vs1_line_end = vs1_line_start + mode->vsync_end -
+		    mode->vsync_start;
 
 		vwin2_line_start = vwin2_line_end = 0;
 		vs2_pix_start = vs2_pix_stop = 0;
 		vs2_line_start = vs2_line_end = 0;
 	} else {
-		ref_line = 1 + (mode->vsync_start - mode->vdisplay)/2;
-		vwin1_line_start = (mode->vtotal - mode->vdisplay)/2;
-		vwin1_line_end = vwin1_line_start + mode->vdisplay/2;
+		ref_line = 1 + (mode->vsync_start - mode->vdisplay) / 2;
+		vwin1_line_start = (mode->vtotal - mode->vdisplay) / 2;
+		vwin1_line_end = vwin1_line_start + mode->vdisplay / 2;
 
 		vs1_pix_start = vs1_pix_stop = hs_pix_start;
-		vs1_line_start = (mode->vsync_start - mode->vdisplay)/2;
-		vs1_line_end = vs1_line_start + (mode->vsync_end - mode->vsync_start)/2;
+		vs1_line_start = (mode->vsync_start - mode->vdisplay) / 2;
+		vs1_line_end = vs1_line_start +
+		    (mode->vsync_end - mode->vsync_start) / 2;
 
-		vwin2_line_start = vwin1_line_start + mode->vtotal/2;
-		vwin2_line_end = vwin2_line_start + mode->vdisplay/2;
+		vwin2_line_start = vwin1_line_start + mode->vtotal / 2;
+		vwin2_line_end = vwin2_line_start + mode->vdisplay / 2;
 
-		vs2_pix_start = vs2_pix_stop = hs_pix_start + mode->htotal/2;
-		vs2_line_start = vs1_line_start + mode->vtotal/2 ;
-		vs2_line_end = vs2_line_start + (mode->vsync_end - mode->vsync_start)/2;
+		vs2_pix_start = vs2_pix_stop = hs_pix_start + mode->htotal / 2;
+		vs2_line_start = vs1_line_start + mode->vtotal / 2;
+		vs2_line_end = vs2_line_start +
+		    (mode->vsync_end - mode->vsync_start) / 2;
 	}
 
 	div = 148500 / mode->dot_clock;
@@ -502,11 +507,11 @@ tda19988_init_encoder(struct tda19988_softc *sc, const struct videomode *mode)
 	tda19988_reg_write(sc, TDA_HVF_CNTRL_1, HVF_CNTRL_1_VQR_FULL);
 
 	tda19988_reg_write(sc, TDA_RPT_CNTRL, 0);
-	tda19988_reg_write(sc, TDA_SEL_CLK, SEL_CLK_SEL_VRF_CLK(0) |
-			SEL_CLK_SEL_CLK1 | SEL_CLK_ENA_SC_CLK);
+	tda19988_reg_write(sc, TDA_SEL_CLK,
+	    SEL_CLK_SEL_VRF_CLK(0) | SEL_CLK_SEL_CLK1 | SEL_CLK_ENA_SC_CLK);
 
-	tda19988_reg_write(sc, TDA_PLL_SERIAL_2, PLL_SERIAL_2_SRL_NOSC(div) |
-			PLL_SERIAL_2_SRL_PR(0));
+	tda19988_reg_write(sc, TDA_PLL_SERIAL_2,
+	    PLL_SERIAL_2_SRL_NOSC(div) | PLL_SERIAL_2_SRL_PR(0));
 
 	tda19988_reg_set(sc, TDA_MAT_CONTRL, MAT_CONTRL_MAT_BP);
 
@@ -623,12 +628,12 @@ tda19988_read_edid(struct tda19988_softc *sc)
 
 	blocks = sc->sc_edid[0x7e];
 	if (blocks > 0) {
-		sc->sc_edid = realloc(sc->sc_edid, 
-		    EDID_LENGTH*(blocks+1), M_DEVBUF, M_WAITOK);
-		sc->sc_edid_len = EDID_LENGTH*(blocks+1);
+		sc->sc_edid = realloc(sc->sc_edid, EDID_LENGTH * (blocks + 1),
+		    M_DEVBUF, M_WAITOK);
+		sc->sc_edid_len = EDID_LENGTH * (blocks + 1);
 		for (i = 0; i < blocks; i++) {
 			/* TODO: check validity */
-			buf = sc->sc_edid + EDID_LENGTH*(i+1);
+			buf = sc->sc_edid + EDID_LENGTH * (i + 1);
 			err = tda19988_read_edid_block(sc, buf, i);
 			if (err)
 				goto done;
@@ -673,7 +678,8 @@ tda19988_start(struct tda19988_softc *sc)
 	tda19988_reg_write(sc, TDA_SERIALIZER, 0x00);
 	tda19988_reg_write(sc, TDA_BUFFER_OUT, 0x00);
 	tda19988_reg_write(sc, TDA_PLL_SCG1, 0x00);
-	tda19988_reg_write(sc, TDA_SEL_CLK, SEL_CLK_SEL_CLK1 | SEL_CLK_ENA_SC_CLK);
+	tda19988_reg_write(
+	    sc, TDA_SEL_CLK, SEL_CLK_SEL_CLK1 | SEL_CLK_ENA_SC_CLK);
 	tda19988_reg_write(sc, TDA_PLL_SCGN1, 0xfa);
 	tda19988_reg_write(sc, TDA_PLL_SCGN2, 0x00);
 	tda19988_reg_write(sc, TDA_PLL_SCGR1, 0x5b);
@@ -692,19 +698,19 @@ tda19988_start(struct tda19988_softc *sc)
 	/* Clear feature bits */
 	sc->sc_version = version & ~0x30;
 	switch (sc->sc_version) {
-		case TDA19988:
-			device_printf(dev, "TDA19988\n");
-			break;
-		default:
-			device_printf(dev, "Unknown device: %04x\n", sc->sc_version);
-			return;
+	case TDA19988:
+		device_printf(dev, "TDA19988\n");
+		break;
+	default:
+		device_printf(dev, "Unknown device: %04x\n", sc->sc_version);
+		return;
 	}
 
 	tda19988_reg_write(sc, TDA_DDC_CTRL, DDC_ENABLE);
 	tda19988_reg_write(sc, TDA_TX3, 39);
 
-    	tda19988_cec_write(sc, TDA_CEC_FRO_IM_CLK_CTRL,
-            CEC_FRO_IM_CLK_CTRL_GHOST_DIS | CEC_FRO_IM_CLK_CTRL_IMCLK_SEL);
+	tda19988_cec_write(sc, TDA_CEC_FRO_IM_CLK_CTRL,
+	    CEC_FRO_IM_CLK_CTRL_GHOST_DIS | CEC_FRO_IM_CLK_CTRL_IMCLK_SEL);
 
 	if (tda19988_read_edid(sc) < 0) {
 		device_printf(dev, "failed to read EDID\n");
@@ -778,14 +784,14 @@ tda19988_set_videomode(device_t dev, const struct videomode *mode)
 }
 
 static device_method_t tda_methods[] = {
-	DEVMETHOD(device_probe,		tda19988_probe),
-	DEVMETHOD(device_attach,	tda19988_attach),
-	DEVMETHOD(device_detach,	tda19988_detach),
+	DEVMETHOD(device_probe, tda19988_probe),
+	DEVMETHOD(device_attach, tda19988_attach),
+	DEVMETHOD(device_detach, tda19988_detach),
 
 	/* HDMI methods */
-	DEVMETHOD(hdmi_get_edid,	tda19988_get_edid),
-	DEVMETHOD(hdmi_set_videomode,	tda19988_set_videomode),
-	{0, 0},
+	DEVMETHOD(hdmi_get_edid, tda19988_get_edid),
+	DEVMETHOD(hdmi_set_videomode, tda19988_set_videomode),
+	{ 0, 0 },
 };
 
 static driver_t tda_driver = {

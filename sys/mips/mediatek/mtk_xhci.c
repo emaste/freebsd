@@ -28,50 +28,46 @@ __FBSDID("$FreeBSD$");
  * SUCH DAMAGE.
  */
 
-#include <sys/stdint.h>
-#include <sys/stddef.h>
-#include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/sysctl.h>
-#include <sys/sx.h>
-#include <sys/unistd.h>
 #include <sys/callout.h>
+#include <sys/condvar.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
+#include <sys/queue.h>
 #include <sys/rman.h>
+#include <sys/stddef.h>
+#include <sys/stdint.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/unistd.h>
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_util.h>
-
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
-
-#include <dev/usb/controller/xhci.h>
-
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/usb/controller/xhci.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_core.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 
-#define XHCI_HC_DEVSTR	"MTK USB 3.0 controller"
+#define XHCI_HC_DEVSTR "MTK USB 3.0 controller"
 
-static device_probe_t	mtk_xhci_fdt_probe;
-static device_attach_t	mtk_xhci_fdt_attach;
-static device_detach_t	mtk_xhci_fdt_detach;
+static device_probe_t mtk_xhci_fdt_probe;
+static device_attach_t mtk_xhci_fdt_attach;
+static device_detach_t mtk_xhci_fdt_detach;
 
-static void		mtk_xhci_fdt_init(device_t dev);
+static void mtk_xhci_fdt_init(device_t dev);
 
 static int
 mtk_xhci_fdt_probe(device_t self)
@@ -101,8 +97,8 @@ mtk_xhci_fdt_attach(device_t self)
 	sc->sc_bus.devices_max = XHCI_MAX_DEVICES;
 
 	rid = 0;
-	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_io_res = bus_alloc_resource_any(
+	    self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_io_res) {
 		device_printf(self, "Could not map memory\n");
 		goto error;
@@ -114,8 +110,8 @@ mtk_xhci_fdt_attach(device_t self)
 	mtk_xhci_fdt_init(self);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    self, SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE);
 	if (sc->sc_irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");
 		goto error;
@@ -174,18 +170,16 @@ mtk_xhci_fdt_detach(device_t self)
 
 		err = bus_teardown_intr(self, sc->sc_irq_res, sc->sc_intr_hdl);
 		if (err)
-			device_printf(self, "Could not tear down irq, %d\n",
-			    err);
+			device_printf(
+			    self, "Could not tear down irq, %d\n", err);
 		sc->sc_intr_hdl = NULL;
 	}
 	if (sc->sc_irq_res) {
-		bus_release_resource(self, SYS_RES_IRQ, 0,
-		    sc->sc_irq_res);
+		bus_release_resource(self, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		sc->sc_irq_res = NULL;
 	}
 	if (sc->sc_io_res) {
-		bus_release_resource(self, SYS_RES_MEMORY, 0,
-		    sc->sc_io_res);
+		bus_release_resource(self, SYS_RES_MEMORY, 0, sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
 
@@ -194,12 +188,12 @@ mtk_xhci_fdt_detach(device_t self)
 
 static device_method_t mtk_xhci_fdt_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		mtk_xhci_fdt_probe),
-	DEVMETHOD(device_attach,	mtk_xhci_fdt_attach),
-	DEVMETHOD(device_detach,	mtk_xhci_fdt_detach),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_probe, mtk_xhci_fdt_probe),
+	DEVMETHOD(device_attach, mtk_xhci_fdt_attach),
+	DEVMETHOD(device_detach, mtk_xhci_fdt_detach),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	DEVMETHOD_END
 };
@@ -212,46 +206,46 @@ static driver_t mtk_xhci_fdt_driver = {
 
 static devclass_t mtk_xhci_fdt_devclass;
 
-DRIVER_MODULE(xhci, simplebus, mtk_xhci_fdt_driver, mtk_xhci_fdt_devclass, 0,
-    0);
+DRIVER_MODULE(
+    xhci, simplebus, mtk_xhci_fdt_driver, mtk_xhci_fdt_devclass, 0, 0);
 
-#define	USB_HDMA_CFG		0x950
-#define	USB_HDMA_CFG_MT7621_VAL	0x10E0E0C
+#define USB_HDMA_CFG 0x950
+#define USB_HDMA_CFG_MT7621_VAL 0x10E0E0C
 
-#define	U3_LTSSM_TIMING_PARAM3	0x2514
-#define	U3_LTSSM_TIMING_VAL	0x3E8012C
+#define U3_LTSSM_TIMING_PARAM3 0x2514
+#define U3_LTSSM_TIMING_VAL 0x3E8012C
 
-#define	SYNC_HS_EOF		0x938
-#define	SYNC_HS_EOF_VAL		0x201F3
+#define SYNC_HS_EOF 0x938
+#define SYNC_HS_EOF_VAL 0x201F3
 
-#define	USB_IP_SPAR0		0x107C8
-#define	USB_IP_SPAR0_VAL	1
+#define USB_IP_SPAR0 0x107C8
+#define USB_IP_SPAR0_VAL 1
 
-#define	U2_PHY_BASE_P0		0x10800
-#define	U2_PHY_BASE_P1		0x11000
-#define	U2_PHYD_CR1		0x64
-#define	U2_PHYD_CR1_MASK	(3<<18)
-#define	U2_PHYD_CR1_VAL		(1<<18)
+#define U2_PHY_BASE_P0 0x10800
+#define U2_PHY_BASE_P1 0x11000
+#define U2_PHYD_CR1 0x64
+#define U2_PHYD_CR1_MASK (3 << 18)
+#define U2_PHYD_CR1_VAL (1 << 18)
 
-#define	USB_IP_PW_CTRL		0x10700
-#define	USB_IP_PW_CTRL_1	0x10704
-#define	USB_IP_CAP		0x10724
-#define	USB_U3_CTRL(p)		(0x10730 + ((p) * 0x08))
-#define	USB_U2_CTRL(p)		(0x10750 + ((p) * 0x08))
+#define USB_IP_PW_CTRL 0x10700
+#define USB_IP_PW_CTRL_1 0x10704
+#define USB_IP_CAP 0x10724
+#define USB_U3_CTRL(p) (0x10730 + ((p)*0x08))
+#define USB_U2_CTRL(p) (0x10750 + ((p)*0x08))
 
-#define	USB_IP_SW_RST		(1 << 0)
-#define	USB_IP_PDN		(1 << 0)
+#define USB_IP_SW_RST (1 << 0)
+#define USB_IP_PDN (1 << 0)
 
-#define	USB_PORT_DIS		(1 << 0)
-#define	USB_PORT_PDN		(1 << 1)
+#define USB_PORT_DIS (1 << 0)
+#define USB_PORT_PDN (1 << 1)
 
-#define	U3_PORT_NUM(p)		(p & 0xFF)
-#define	U2_PORT_NUM(p)		((p>>8) & 0xFF)
+#define U3_PORT_NUM(p) (p & 0xFF)
+#define U2_PORT_NUM(p) ((p >> 8) & 0xFF)
 
-#define	RD4(_sc, _reg)		bus_read_4((_sc)->sc_io_res, (_reg))
-#define	WR4(_sc, _reg, _val)	bus_write_4((_sc)->sc_io_res, (_reg), (_val))
-#define	CLRSET4(_sc, _reg, _clr, _set)	\
-    WR4((_sc), (_reg), (RD4((_sc), (_reg)) & ~(_clr)) | (_set))
+#define RD4(_sc, _reg) bus_read_4((_sc)->sc_io_res, (_reg))
+#define WR4(_sc, _reg, _val) bus_write_4((_sc)->sc_io_res, (_reg), (_val))
+#define CLRSET4(_sc, _reg, _clr, _set) \
+	WR4((_sc), (_reg), (RD4((_sc), (_reg)) & ~(_clr)) | (_set))
 
 static void
 mtk_xhci_fdt_init(device_t dev)
@@ -265,8 +259,8 @@ mtk_xhci_fdt_init(device_t dev)
 	u3_ports = U3_PORT_NUM(temp);
 	u2_ports = U2_PORT_NUM(temp);
 
-	device_printf(dev, "%d USB3 ports, %d USB2 ports\n",
-	    u3_ports, u2_ports);
+	device_printf(
+	    dev, "%d USB3 ports, %d USB2 ports\n", u3_ports, u2_ports);
 
 	CLRSET4(sc, USB_IP_PW_CTRL, 0, USB_IP_SW_RST);
 	CLRSET4(sc, USB_IP_PW_CTRL, USB_IP_SW_RST, 0);

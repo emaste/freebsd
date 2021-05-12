@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 
 #include <dev/fdt/simplebus.h>
-
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/ti/ti_prcm.h>
@@ -52,36 +51,33 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /* relative to prcm address range */
-#define TI_PRM_PER_RSTCTRL	0xC00
+#define TI_PRM_PER_RSTCTRL 0xC00
 
 struct ti_prm_softc {
-	device_t		dev;
-	uint8_t			type;
-	bool			has_reset;
+	device_t dev;
+	uint8_t type;
+	bool has_reset;
 };
 
 /* Device */
-#define TI_OMAP_PRM_INST	10
+#define TI_OMAP_PRM_INST 10
 
-#define TI_AM3_PRM_INST		5
-#define TI_AM4_PRM_INST		4
-#define TI_OMAP4_PRM_INST	3
-#define TI_OMAP5_PRM_INST	2
-#define TI_DRA7_PRM_INST	1
-#define TI_END			0
+#define TI_AM3_PRM_INST 5
+#define TI_AM4_PRM_INST 4
+#define TI_OMAP4_PRM_INST 3
+#define TI_OMAP5_PRM_INST 2
+#define TI_DRA7_PRM_INST 1
+#define TI_END 0
 
-static struct ofw_compat_data compat_data[] = {
-	{ "ti,am3-prm-inst",	TI_AM3_PRM_INST },
-	{ "ti,am4-prm-inst",	TI_AM4_PRM_INST },
-	{ "ti,omap4-prm-inst",	TI_OMAP4_PRM_INST },
-	{ "ti,omap5-prm-inst",	TI_OMAP5_PRM_INST },
-	{ "ti,dra7-prm-inst",	TI_DRA7_PRM_INST },
-	{ NULL,		TI_END }
-};
+static struct ofw_compat_data compat_data[] = { { "ti,am3-prm-inst",
+						    TI_AM3_PRM_INST },
+	{ "ti,am4-prm-inst", TI_AM4_PRM_INST },
+	{ "ti,omap4-prm-inst", TI_OMAP4_PRM_INST },
+	{ "ti,omap5-prm-inst", TI_OMAP5_PRM_INST },
+	{ "ti,dra7-prm-inst", TI_DRA7_PRM_INST }, { NULL, TI_END } };
 
 static struct ofw_compat_data required_data[] = {
-	{ "ti,omap-prm-inst", TI_OMAP_PRM_INST },
-	{ NULL, TI_END }
+	{ "ti,omap-prm-inst", TI_OMAP_PRM_INST }, { NULL, TI_END }
 };
 
 /* device interface */
@@ -98,7 +94,7 @@ ti_prm_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "TI OMAP Power Management");
-	return(BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -107,7 +103,7 @@ ti_prm_attach(device_t dev)
 	struct ti_prm_softc *sc;
 	phandle_t node;
 
- 	sc = device_get_softc(dev);
+	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 
@@ -125,7 +121,8 @@ ti_prm_attach(device_t dev)
 }
 
 static int
-ti_prm_detach(device_t dev) {
+ti_prm_detach(device_t dev)
+{
 	return (EBUSY);
 }
 
@@ -191,20 +188,19 @@ ti_prm_modify_4(device_t dev, bus_addr_t addr, uint32_t clr, uint32_t set)
 	return (0);
 }
 
-static device_method_t ti_prm_methods[] = {
-	DEVMETHOD(device_probe,		ti_prm_probe),
-	DEVMETHOD(device_attach,	ti_prm_attach),
-	DEVMETHOD(device_detach,	ti_prm_detach),
+static device_method_t ti_prm_methods[] = { DEVMETHOD(
+						device_probe, ti_prm_probe),
+	DEVMETHOD(device_attach, ti_prm_attach),
+	DEVMETHOD(device_detach, ti_prm_detach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 DEFINE_CLASS_1(ti_prm, ti_prm_driver, ti_prm_methods,
     sizeof(struct ti_prm_softc), simplebus_driver);
 
 static devclass_t ti_prm_devclass;
 
-EARLY_DRIVER_MODULE(ti_prm, simplebus, ti_prm_driver,
-    ti_prm_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ti_prm, simplebus, ti_prm_driver, ti_prm_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ti_prm, 1);
 MODULE_DEPEND(ti_prm, ti_sysc, 1, 1, 1);

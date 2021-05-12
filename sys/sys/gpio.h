@@ -58,49 +58,48 @@
 #endif
 
 /* GPIO pin states */
-#define GPIO_PIN_LOW		0x00	/* low level (logical 0) */
-#define GPIO_PIN_HIGH		0x01	/* high level (logical 1) */
+#define GPIO_PIN_LOW 0x00  /* low level (logical 0) */
+#define GPIO_PIN_HIGH 0x01 /* high level (logical 1) */
 
 /* Max name length of a pin */
-#define GPIOMAXNAME		64
+#define GPIOMAXNAME 64
 
 /* GPIO pin configuration flags */
-#define GPIO_PIN_INPUT		0x00000001	/* input direction */
-#define GPIO_PIN_OUTPUT		0x00000002	/* output direction */
-#define GPIO_PIN_OPENDRAIN	0x00000004	/* open-drain output */
-#define GPIO_PIN_PUSHPULL	0x00000008	/* push-pull output */
-#define GPIO_PIN_TRISTATE	0x00000010	/* output disabled */
-#define GPIO_PIN_PULLUP		0x00000020	/* internal pull-up enabled */
-#define GPIO_PIN_PULLDOWN	0x00000040	/* internal pull-down enabled */
-#define GPIO_PIN_INVIN		0x00000080	/* invert input */
-#define GPIO_PIN_INVOUT		0x00000100	/* invert output */
-#define GPIO_PIN_PULSATE	0x00000200	/* pulsate in hardware */
-#define GPIO_PIN_PRESET_LOW	0x00000400	/* preset pin to high or */
-#define GPIO_PIN_PRESET_HIGH	0x00000800	/* low before enabling output */
+#define GPIO_PIN_INPUT 0x00000001	/* input direction */
+#define GPIO_PIN_OUTPUT 0x00000002	/* output direction */
+#define GPIO_PIN_OPENDRAIN 0x00000004	/* open-drain output */
+#define GPIO_PIN_PUSHPULL 0x00000008	/* push-pull output */
+#define GPIO_PIN_TRISTATE 0x00000010	/* output disabled */
+#define GPIO_PIN_PULLUP 0x00000020	/* internal pull-up enabled */
+#define GPIO_PIN_PULLDOWN 0x00000040	/* internal pull-down enabled */
+#define GPIO_PIN_INVIN 0x00000080	/* invert input */
+#define GPIO_PIN_INVOUT 0x00000100	/* invert output */
+#define GPIO_PIN_PULSATE 0x00000200	/* pulsate in hardware */
+#define GPIO_PIN_PRESET_LOW 0x00000400	/* preset pin to high or */
+#define GPIO_PIN_PRESET_HIGH 0x00000800 /* low before enabling output */
 /* GPIO interrupt capabilities */
-#define GPIO_INTR_NONE		0x00000000	/* no interrupt support */
-#define GPIO_INTR_LEVEL_LOW	0x00010000	/* level trigger, low */
-#define GPIO_INTR_LEVEL_HIGH	0x00020000	/* level trigger, high */
-#define GPIO_INTR_EDGE_RISING	0x00040000	/* edge trigger, rising */
-#define GPIO_INTR_EDGE_FALLING	0x00080000	/* edge trigger, falling */
-#define GPIO_INTR_EDGE_BOTH	0x00100000	/* edge trigger, both */
-#define GPIO_INTR_ATTACHED	0x00200000	/* interrupt attached to file */
-#define GPIO_INTR_MASK		(GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH |  \
-				GPIO_INTR_EDGE_RISING |			       \
-				GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH | \
-				GPIO_INTR_ATTACHED)
+#define GPIO_INTR_NONE 0x00000000	  /* no interrupt support */
+#define GPIO_INTR_LEVEL_LOW 0x00010000	  /* level trigger, low */
+#define GPIO_INTR_LEVEL_HIGH 0x00020000	  /* level trigger, high */
+#define GPIO_INTR_EDGE_RISING 0x00040000  /* edge trigger, rising */
+#define GPIO_INTR_EDGE_FALLING 0x00080000 /* edge trigger, falling */
+#define GPIO_INTR_EDGE_BOTH 0x00100000	  /* edge trigger, both */
+#define GPIO_INTR_ATTACHED 0x00200000	  /* interrupt attached to file */
+#define GPIO_INTR_MASK                                                        \
+	(GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH | GPIO_INTR_EDGE_RISING | \
+	    GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH | GPIO_INTR_ATTACHED)
 
 struct gpio_pin {
-	uint32_t gp_pin;			/* pin number */
-	char gp_name[GPIOMAXNAME];		/* human-readable name */
-	uint32_t gp_caps;			/* capabilities */
-	uint32_t gp_flags;			/* current flags */
+	uint32_t gp_pin;	   /* pin number */
+	char gp_name[GPIOMAXNAME]; /* human-readable name */
+	uint32_t gp_caps;	   /* capabilities */
+	uint32_t gp_flags;	   /* current flags */
 };
 
 /* GPIO pin request (read/write/toggle) */
 struct gpio_req {
-	uint32_t gp_pin;			/* pin number */
-	uint32_t gp_value;			/* value */
+	uint32_t gp_pin;   /* pin number */
+	uint32_t gp_value; /* value */
 };
 
 /*
@@ -111,9 +110,9 @@ struct gpio_req {
  * when there are no new events to report).
  */
 struct gpio_event_detail {
-	sbintime_t	gp_time;	/* Time of event */
-	uint16_t	gp_pin;		/* Pin number */
-	bool		gp_pinstate;	/* Pin state at time of event */
+	sbintime_t gp_time; /* Time of event */
+	uint16_t gp_pin;    /* Pin number */
+	bool gp_pinstate;   /* Pin state at time of event */
 };
 
 /*
@@ -124,12 +123,12 @@ struct gpio_event_detail {
  * mode when there are no new events to report).
  */
 struct gpio_event_summary {
-	sbintime_t	gp_first_time;	/* Time of first event */
-	sbintime_t	gp_last_time;	/* Time of last event */
-	uint16_t	gp_pin;		/* Pin number */
-	uint16_t	gp_count;	/* Event count */
-	bool		gp_first_state;	/* Pin state at first event */
-	bool		gp_last_state;	/* Pin state at last event */
+	sbintime_t gp_first_time; /* Time of first event */
+	sbintime_t gp_last_time;  /* Time of last event */
+	uint16_t gp_pin;	  /* Pin number */
+	uint16_t gp_count;	  /* Event count */
+	bool gp_first_state;	  /* Pin state at first event */
+	bool gp_last_state;	  /* Pin state at last event */
 };
 
 /*
@@ -142,12 +141,12 @@ struct gpio_event_summary {
  * a per-open-descriptor basis.
  */
 enum {
-	GPIO_EVENT_REPORT_DETAIL,	/* Report detail on each event */
-	GPIO_EVENT_REPORT_SUMMARY,	/* Report summary of events */
+	GPIO_EVENT_REPORT_DETAIL,  /* Report detail on each event */
+	GPIO_EVENT_REPORT_SUMMARY, /* Report summary of events */
 };
 struct gpio_event_config {
-	uint32_t	gp_report_type; /* Detail or summary reporting */
-	uint32_t	gp_fifo_size;	/* FIFO size (used for detail only) */
+	uint32_t gp_report_type; /* Detail or summary reporting */
+	uint32_t gp_fifo_size;	 /* FIFO size (used for detail only) */
 };
 
 /*
@@ -169,7 +168,7 @@ struct gpio_event_config {
  * Invalid values in first_pin result in an EINVAL error return.
  *
  * The starting state of the pins is captured and stored in orig_pins, then the
- * pins are set to ((starting_state & ~clear_pins) ^ change_pins). 
+ * pins are set to ((starting_state & ~clear_pins) ^ change_pins).
  *
  *   Clear  Change  Hardware pin after call
  *     0      0        No change
@@ -178,10 +177,10 @@ struct gpio_event_config {
  *     1      1        Set
  */
 struct gpio_access_32 {
-	uint32_t first_pin;	/* First pin in group of 32 adjacent */
-	uint32_t clear_pins;	/* Pins are changed using: */
-	uint32_t change_pins;	/* ((hwstate & ~clear_pins) ^ change_pins) */
-	uint32_t orig_pins;	/* Returned hwstate of pins before change. */
+	uint32_t first_pin;   /* First pin in group of 32 adjacent */
+	uint32_t clear_pins;  /* Pins are changed using: */
+	uint32_t change_pins; /* ((hwstate & ~clear_pins) ^ change_pins) */
+	uint32_t orig_pins;   /* Returned hwstate of pins before change. */
 };
 
 /*
@@ -221,15 +220,15 @@ struct gpio_config_32 {
 /*
  * ioctls
  */
-#define GPIOMAXPIN		_IOR('G', 0, int)
-#define	GPIOGETCONFIG		_IOWR('G', 1, struct gpio_pin)
-#define	GPIOSETCONFIG		_IOW('G', 2, struct gpio_pin)
-#define	GPIOGET			_IOWR('G', 3, struct gpio_req)
-#define	GPIOSET			_IOW('G', 4, struct gpio_req)
-#define	GPIOTOGGLE		_IOWR('G', 5, struct gpio_req)
-#define	GPIOSETNAME		_IOW('G', 6, struct gpio_pin)
-#define	GPIOACCESS32		_IOWR('G', 7, struct gpio_access_32)
-#define	GPIOCONFIG32		_IOW('G', 8, struct gpio_config_32)
-#define	GPIOCONFIGEVENTS	_IOW('G', 9, struct gpio_event_config)
+#define GPIOMAXPIN _IOR('G', 0, int)
+#define GPIOGETCONFIG _IOWR('G', 1, struct gpio_pin)
+#define GPIOSETCONFIG _IOW('G', 2, struct gpio_pin)
+#define GPIOGET _IOWR('G', 3, struct gpio_req)
+#define GPIOSET _IOW('G', 4, struct gpio_req)
+#define GPIOTOGGLE _IOWR('G', 5, struct gpio_req)
+#define GPIOSETNAME _IOW('G', 6, struct gpio_pin)
+#define GPIOACCESS32 _IOWR('G', 7, struct gpio_access_32)
+#define GPIOCONFIG32 _IOW('G', 8, struct gpio_config_32)
+#define GPIOCONFIGEVENTS _IOW('G', 9, struct gpio_event_config)
 
 #endif /* __GPIO_H__ */

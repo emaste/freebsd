@@ -41,19 +41,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <sys/msgbuf.h>
-#include <sys/watchdog.h>
 #include <sys/vmmeter.h>
+#include <sys/watchdog.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_phys.h>
-#include <vm/vm_dumpset.h>
 #include <vm/pmap.h>
+#include <vm/vm_dumpset.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #include <machine/md_var.h>
-#include <machine/pte.h>
 #include <machine/minidump.h>
+#include <machine/pte.h>
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
@@ -98,18 +98,9 @@ static struct {
 	int min_per;
 	int max_per;
 	int visited;
-} progress_track[10] = {
-	{  0,  10, 0},
-	{ 10,  20, 0},
-	{ 20,  30, 0},
-	{ 30,  40, 0},
-	{ 40,  50, 0},
-	{ 50,  60, 0},
-	{ 60,  70, 0},
-	{ 70,  80, 0},
-	{ 80,  90, 0},
-	{ 90, 100, 0}
-};
+} progress_track[10] = { { 0, 10, 0 }, { 10, 20, 0 }, { 20, 30, 0 },
+	{ 30, 40, 0 }, { 40, 50, 0 }, { 50, 60, 0 }, { 60, 70, 0 },
+	{ 70, 80, 0 }, { 80, 90, 0 }, { 90, 100, 0 } };
 
 static void
 report_progress(size_t progress, size_t dumpsize)
@@ -137,7 +128,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 	u_int maxdumpsz;
 
 	maxdumpsz = min(di->maxiosize, MAXDUMPPGS * PAGE_SIZE);
-	if (maxdumpsz == 0)	/* seatbelt */
+	if (maxdumpsz == 0) /* seatbelt */
 		maxdumpsz = PAGE_SIZE;
 	error = 0;
 	if ((sz % PAGE_SIZE) != 0) {
@@ -213,7 +204,7 @@ minidumpsys(struct dumperinfo *di)
 	int error, i, j, retry_count;
 
 	retry_count = 0;
- retry:
+retry:
 	retry_count++;
 	error = 0;
 	pmapsize = 0;
@@ -225,7 +216,7 @@ minidumpsys(struct dumperinfo *di)
 		if ((*l1 & ATTR_DESCR_MASK) == L1_BLOCK) {
 			pa = *l1 & ~ATTR_MASK;
 			for (i = 0; i < Ln_ENTRIES * Ln_ENTRIES;
-			    i++, pa += PAGE_SIZE)
+			     i++, pa += PAGE_SIZE)
 				if (is_dumpable(pa))
 					dump_add_page(pa);
 			pmapsize += (Ln_ENTRIES - 1) * PAGE_SIZE;
@@ -252,7 +243,7 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += round_page(msgbufp->msg_size);
 	dumpsize += round_page(sizeof(dump_avail));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH (pa) {
 		if (is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
 		else
@@ -275,8 +266,8 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.dmapend = DMAP_MAX_ADDRESS;
 	mdhdr.dumpavailsize = round_page(sizeof(dump_avail));
 
-	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_AARCH64_VERSION,
-	    dumpsize);
+	dump_init_header(
+	    di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_AARCH64_VERSION, dumpsize);
 
 	error = dump_start(di, &kdh);
 	if (error != 0)
@@ -293,8 +284,8 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump msgbuf up front */
-	error = blk_write(di, (char *)msgbufp->msg_ptr, 0,
-	    round_page(msgbufp->msg_size));
+	error = blk_write(
+	    di, (char *)msgbufp->msg_ptr, 0, round_page(msgbufp->msg_size));
 	if (error)
 		goto fail;
 
@@ -335,11 +326,11 @@ minidumpsys(struct dumperinfo *di)
 			for (i = 0; i < Ln_ENTRIES; i++) {
 				for (j = 0; j < Ln_ENTRIES; j++) {
 					tmpbuffer[j] = pa + i * L2_SIZE +
-					    j * PAGE_SIZE | ATTR_DEFAULT |
-					    L3_PAGE;
+						j * PAGE_SIZE |
+					    ATTR_DEFAULT | L3_PAGE;
 				}
-				error = blk_write(di, (char *)&tmpbuffer, 0,
-				    PAGE_SIZE);
+				error = blk_write(
+				    di, (char *)&tmpbuffer, 0, PAGE_SIZE);
 				if (error)
 					goto fail;
 			}
@@ -376,7 +367,7 @@ minidumpsys(struct dumperinfo *di)
 	}
 
 	/* Dump memory chunks */
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH (pa) {
 		error = blk_write(di, 0, pa, PAGE_SIZE);
 		if (error)
 			goto fail;
@@ -405,12 +396,12 @@ fail:
 			goto retry;
 		}
 		printf("Dump failed.\n");
-	}
-	else if (error == ECANCELED)
+	} else if (error == ECANCELED)
 		printf("Dump aborted\n");
 	else if (error == E2BIG) {
 		printf("Dump failed. Partition too small (about %lluMB were "
-		    "needed this time).\n", (long long)dumpsize >> 20);
+		       "needed this time).\n",
+		    (long long)dumpsize >> 20);
 	} else
 		printf("** DUMP FAILED (ERROR %d) **\n", error);
 	return (error);

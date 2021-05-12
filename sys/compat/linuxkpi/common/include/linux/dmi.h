@@ -29,7 +29,7 @@
  */
 
 #ifndef __LINUX_DMI_H__
-#define	__LINUX_DMI_H__
+#define __LINUX_DMI_H__
 
 #include <linux/mod_devicetable.h>
 
@@ -38,9 +38,9 @@ bool linux_dmi_match(enum dmi_field, const char *);
 const struct dmi_system_id *linux_dmi_first_match(const struct dmi_system_id *);
 const char *linux_dmi_get_system_info(int);
 
-#define	dmi_check_system(sysid)	linux_dmi_check_system(sysid)
-#define	dmi_match(f, str)	linux_dmi_match(f, str)
-#define	dmi_first_match(sysid)	linux_dmi_first_match(sysid)
-#define	dmi_get_system_info(sysid)	linux_dmi_get_system_info(sysid)
+#define dmi_check_system(sysid) linux_dmi_check_system(sysid)
+#define dmi_match(f, str) linux_dmi_match(f, str)
+#define dmi_first_match(sysid) linux_dmi_first_match(sysid)
+#define dmi_get_system_info(sysid) linux_dmi_get_system_info(sysid)
 
-#endif	/* __LINUX_DMI_H__ */
+#endif /* __LINUX_DMI_H__ */

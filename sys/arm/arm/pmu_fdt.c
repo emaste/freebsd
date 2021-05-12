@@ -38,38 +38,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "pmu.h"
 
-static struct ofw_compat_data compat_data[] = {
-	{"arm,armv8-pmuv3",	1},
-	{"arm,cortex-a77-pmu",  1},
-	{"arm,cortex-a76-pmu",  1},
-	{"arm,cortex-a75-pmu",  1},
-	{"arm,cortex-a73-pmu",  1},
-	{"arm,cortex-a72-pmu",  1},
-	{"arm,cortex-a65-pmu",  1},
-	{"arm,cortex-a57-pmu",  1},
-	{"arm,cortex-a55-pmu",  1},
-	{"arm,cortex-a53-pmu",  1},
-	{"arm,cortex-a34-pmu",  1},
+static struct ofw_compat_data compat_data[] = { { "arm,armv8-pmuv3", 1 },
+	{ "arm,cortex-a77-pmu", 1 }, { "arm,cortex-a76-pmu", 1 },
+	{ "arm,cortex-a75-pmu", 1 }, { "arm,cortex-a73-pmu", 1 },
+	{ "arm,cortex-a72-pmu", 1 }, { "arm,cortex-a65-pmu", 1 },
+	{ "arm,cortex-a57-pmu", 1 }, { "arm,cortex-a55-pmu", 1 },
+	{ "arm,cortex-a53-pmu", 1 }, { "arm,cortex-a34-pmu", 1 },
 
-	{"arm,cortex-a17-pmu",	1},
-	{"arm,cortex-a15-pmu",	1},
-	{"arm,cortex-a12-pmu",	1},
-	{"arm,cortex-a9-pmu",	1},
-	{"arm,cortex-a8-pmu",	1},
-	{"arm,cortex-a7-pmu",	1},
-	{"arm,cortex-a5-pmu",	1},
-	{"arm,arm11mpcore-pmu",	1},
-	{"arm,arm1176-pmu",	1},
-	{"arm,arm1136-pmu",	1},
-	{"qcom,krait-pmu",	1},
-	{NULL,			0}
-};
+	{ "arm,cortex-a17-pmu", 1 }, { "arm,cortex-a15-pmu", 1 },
+	{ "arm,cortex-a12-pmu", 1 }, { "arm,cortex-a9-pmu", 1 },
+	{ "arm,cortex-a8-pmu", 1 }, { "arm,cortex-a7-pmu", 1 },
+	{ "arm,cortex-a5-pmu", 1 }, { "arm,arm11mpcore-pmu", 1 },
+	{ "arm,arm1176-pmu", 1 }, { "arm,arm1136-pmu", 1 },
+	{ "qcom,krait-pmu", 1 }, { NULL, 0 } };
 
 static int
 pmu_fdt_probe(device_t dev)
@@ -93,13 +80,12 @@ pmu_parse_affinity(device_t dev, struct pmu_softc *sc, struct pmu_intr *irq,
 	struct pcpu *pcpu;
 	int i, err;
 
-
-	if (xref  != 0) {
-		err = OF_getencprop(OF_node_from_xref(xref), "reg", &mpidr,
-		    sizeof(mpidr));
+	if (xref != 0) {
+		err = OF_getencprop(
+		    OF_node_from_xref(xref), "reg", &mpidr, sizeof(mpidr));
 		if (err < 0) {
 			device_printf(dev, "missing 'reg' property\n");
-				return (ENXIO);
+			return (ENXIO);
 		}
 	}
 
@@ -122,7 +108,6 @@ pmu_parse_intr(device_t dev, struct pmu_softc *sc)
 	phandle_t node, *cpus;
 	int rid, err, ncpus, i;
 
-
 	node = ofw_bus_get_node(dev);
 	has_affinity = OF_hasprop(node, "interrupt-affinity");
 
@@ -131,19 +116,19 @@ pmu_parse_intr(device_t dev, struct pmu_softc *sc)
 
 	cpus = NULL;
 	if (has_affinity) {
-		ncpus = OF_getencprop_alloc_multi(node, "interrupt-affinity",
-		    sizeof(*cpus), (void **)&cpus);
+		ncpus = OF_getencprop_alloc_multi(
+		    node, "interrupt-affinity", sizeof(*cpus), (void **)&cpus);
 		if (ncpus < 0) {
-			device_printf(dev,
-			    "Cannot read interrupt affinity property\n");
+			device_printf(
+			    dev, "Cannot read interrupt affinity property\n");
 			return (ENXIO);
 		}
 	}
 
 	/* Process first interrupt */
 	rid = 0;
-	sc->irq[0].res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->irq[0].res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE | RF_SHAREABLE);
 
 	if (sc->irq[0].res == NULL) {
 		device_printf(dev, "Cannot get interrupt\n");
@@ -154,8 +139,8 @@ pmu_parse_intr(device_t dev, struct pmu_softc *sc)
 	/* Check if PMU have one per-CPU interrupt */
 	if (intr_is_per_cpu(sc->irq[0].res)) {
 		if (has_affinity) {
-			device_printf(dev,
-			    "Per CPU interupt have declared affinity\n");
+			device_printf(
+			    dev, "Per CPU interupt have declared affinity\n");
 			err = ENXIO;
 			goto done;
 		}
@@ -166,8 +151,8 @@ pmu_parse_intr(device_t dev, struct pmu_softc *sc)
 	 * PMU with set of generic interrupts (one per core)
 	 * Each one must be binded to exact core.
 	 */
-	err = pmu_parse_affinity(dev, sc, sc->irq + 0,
-	    has_affinity ? cpus[0] : 0, 0);
+	err = pmu_parse_affinity(
+	    dev, sc, sc->irq + 0, has_affinity ? cpus[0] : 0, 0);
 	if (err != 0) {
 		device_printf(dev, "Cannot parse affinity for CPUid: 0\n");
 		goto done;
@@ -175,30 +160,30 @@ pmu_parse_intr(device_t dev, struct pmu_softc *sc)
 
 	for (i = 1; i < MAX_RLEN; i++) {
 		rid = i;
-		sc->irq[i].res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-		    &rid, RF_ACTIVE | RF_SHAREABLE);
+		sc->irq[i].res = bus_alloc_resource_any(
+		    dev, SYS_RES_IRQ, &rid, RF_ACTIVE | RF_SHAREABLE);
 		if (sc->irq[i].res == NULL)
 			break;
 
-		if (intr_is_per_cpu(sc->irq[i].res))
-		{
+		if (intr_is_per_cpu(sc->irq[i].res)) {
 			device_printf(dev, "Unexpected per CPU interupt\n");
 			err = ENXIO;
 			goto done;
 		}
 
 		if (has_affinity && i >= ncpus) {
-			device_printf(dev, "Missing value in interrupt "
+			device_printf(dev,
+			    "Missing value in interrupt "
 			    "affinity property\n");
 			err = ENXIO;
 			goto done;
 		}
 
-		err = pmu_parse_affinity(dev, sc, sc->irq + i,
-		    has_affinity ? cpus[i] : 0, i);
+		err = pmu_parse_affinity(
+		    dev, sc, sc->irq + i, has_affinity ? cpus[i] : 0, i);
 		if (err != 0) {
-			device_printf(dev,
-			   "Cannot parse affinity for CPUid: %d.\n", i);
+			device_printf(
+			    dev, "Cannot parse affinity for CPUid: %d.\n", i);
 			goto done;
 		}
 	}
@@ -222,11 +207,9 @@ pmu_fdt_attach(device_t dev)
 	return (pmu_attach(dev));
 }
 
-static device_method_t pmu_fdt_methods[] = {
-	DEVMETHOD(device_probe,		pmu_fdt_probe),
-	DEVMETHOD(device_attach,	pmu_fdt_attach),
-	{ 0, 0 }
-};
+static device_method_t pmu_fdt_methods[] = { DEVMETHOD(
+						 device_probe, pmu_fdt_probe),
+	DEVMETHOD(device_attach, pmu_fdt_attach), { 0, 0 } };
 
 static driver_t pmu_fdt_driver = {
 	"pmu",

@@ -52,17 +52,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/ptrace.h>
 #include <sys/queue.h>
 #include <sys/signal.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/syslog.h>
-#include <sys/vmmeter.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/signalvar.h>
-#include <sys/ptrace.h>
+#include <sys/syslog.h>
 #include <sys/vmmeter.h>
 #ifdef KDB
 #include <sys/kdb.h>
@@ -74,11 +73,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/asm.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
-#include <machine/undefined.h>
-#include <machine/trap.h>
-
 #include <machine/disassem.h>
+#include <machine/frame.h>
+#include <machine/trap.h>
+#include <machine/undefined.h>
 
 #ifdef DDB
 #include <ddb/db_output.h>
@@ -88,18 +86,19 @@ __FBSDID("$FreeBSD$");
 #include <machine/db_machdep.h>
 #endif
 
-#define	ARM_COPROC_INSN(insn)	(((insn) & (1 << 27)) != 0)
-#define	ARM_VFP_INSN(insn)	((((insn) & 0xfe000000) == 0xf2000000) || \
-    (((insn) & 0xff100000) == 0xf4000000))
-#define	ARM_COPROC(insn)	(((insn) >> 8) & 0xf)
+#define ARM_COPROC_INSN(insn) (((insn) & (1 << 27)) != 0)
+#define ARM_VFP_INSN(insn)                      \
+	((((insn)&0xfe000000) == 0xf2000000) || \
+	    (((insn)&0xff100000) == 0xf4000000))
+#define ARM_COPROC(insn) (((insn) >> 8) & 0xf)
 
-#define	THUMB_32BIT_INSN(insn)	((insn) >= 0xe800)
-#define	THUMB_COPROC_INSN(insn)	(((insn) & (3 << 26)) == (3 << 26))
-#define	THUMB_COPROC_UNDEFINED(insn) (((insn) & 0x3e << 20) == 0)
-#define	THUMB_VFP_INSN(insn)	(((insn) & (3 << 24)) == (3 << 24))
-#define	THUMB_COPROC(insn)	(((insn) >> 8) & 0xf)
+#define THUMB_32BIT_INSN(insn) ((insn) >= 0xe800)
+#define THUMB_COPROC_INSN(insn) (((insn) & (3 << 26)) == (3 << 26))
+#define THUMB_COPROC_UNDEFINED(insn) (((insn)&0x3e << 20) == 0)
+#define THUMB_VFP_INSN(insn) (((insn) & (3 << 24)) == (3 << 24))
+#define THUMB_COPROC(insn) (((insn) >> 8) & 0xf)
 
-#define	COPROC_VFP	10
+#define COPROC_VFP 10
 
 static int gdb_trapper(u_int, u_int, struct trapframe *, int);
 
@@ -240,7 +239,7 @@ undefinedinstruction(struct trapframe *frame)
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = SIGILL;
 			ksi.ksi_code = ILL_ILLADR;
-			ksi.ksi_addr = (u_int32_t *)(intptr_t) fault_pc;
+			ksi.ksi_addr = (u_int32_t *)(intptr_t)fault_pc;
 			trapsignal(td, &ksi);
 			userret(td, frame);
 			return;
@@ -267,7 +266,7 @@ undefinedinstruction(struct trapframe *frame)
 
 		if (ARM_COPROC_INSN(fault_instruction))
 			coprocessor = ARM_COPROC(fault_instruction);
-		else {          /* check for special instructions */
+		else { /* check for special instructions */
 			if (ARM_VFP_INSN(fault_instruction))
 				coprocessor = COPROC_VFP; /* vfp / simd */
 		}
@@ -288,8 +287,8 @@ undefinedinstruction(struct trapframe *frame)
 				} else if (THUMB_VFP_INSN(fault_instruction))
 					coprocessor = COPROC_VFP;
 				else
-					coprocessor =
-					    THUMB_COPROC(fault_instruction);
+					coprocessor = THUMB_COPROC(
+					    fault_instruction);
 			}
 		}
 #else
@@ -299,7 +298,7 @@ undefinedinstruction(struct trapframe *frame)
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGILL;
 		ksi.ksi_code = ILL_ILLADR;
-		ksi.ksi_addr = (u_int32_t *)(intptr_t) fault_pc;
+		ksi.ksi_addr = (u_int32_t *)(intptr_t)fault_pc;
 		trapsignal(td, &ksi);
 		userret(td, frame);
 		return;
@@ -317,17 +316,17 @@ undefinedinstruction(struct trapframe *frame)
 		fault_code = 0;
 
 	/* OK this is were we do something about the instruction. */
-	LIST_FOREACH(uh, &undefined_handlers[coprocessor], uh_link)
-	    if (uh->uh_handler(fault_pc, fault_instruction, frame,
-			       fault_code) == 0)
-		    break;
+	LIST_FOREACH (uh, &undefined_handlers[coprocessor], uh_link)
+		if (uh->uh_handler(
+			fault_pc, fault_instruction, frame, fault_code) == 0)
+			break;
 
 	if (uh == NULL && (fault_code & FAULT_USER)) {
 		/* Fault has not been handled */
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGILL;
 		ksi.ksi_code = ILL_ILLOPC;
-		ksi.ksi_addr = (u_int32_t *)(intptr_t) fault_pc;
+		ksi.ksi_addr = (u_int32_t *)(intptr_t)fault_pc;
 		trapsignal(td, &ksi);
 	}
 
@@ -339,8 +338,7 @@ undefinedinstruction(struct trapframe *frame)
 			printf("No debugger in kernel.\n");
 #endif
 			return;
-		}
-		else
+		} else
 			panic("Undefined instruction in kernel.\n");
 	}
 

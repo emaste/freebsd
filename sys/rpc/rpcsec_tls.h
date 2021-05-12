@@ -27,61 +27,60 @@
  * $FreeBSD$
  */
 
-#ifndef	_RPC_RPCSEC_TLS_H_
-#define	_RPC_RPCSEC_TLS_H_
+#ifndef _RPC_RPCSEC_TLS_H_
+#define _RPC_RPCSEC_TLS_H_
 
 /* Operation values for rpctls syscall. */
-#define	RPCTLS_SYSC_CLSETPATH	1
-#define	RPCTLS_SYSC_CLSOCKET	2
-#define	RPCTLS_SYSC_CLSHUTDOWN	3
-#define	RPCTLS_SYSC_SRVSETPATH	4
-#define	RPCTLS_SYSC_SRVSOCKET	5
-#define	RPCTLS_SYSC_SRVSHUTDOWN	6
+#define RPCTLS_SYSC_CLSETPATH 1
+#define RPCTLS_SYSC_CLSOCKET 2
+#define RPCTLS_SYSC_CLSHUTDOWN 3
+#define RPCTLS_SYSC_SRVSETPATH 4
+#define RPCTLS_SYSC_SRVSOCKET 5
+#define RPCTLS_SYSC_SRVSHUTDOWN 6
 
 /* System call used by the rpctlscd, rpctlssd daemons. */
-int	rpctls_syscall(int, const char *);
+int rpctls_syscall(int, const char *);
 
 /* Flag bits to indicate certificate results. */
-#define	RPCTLS_FLAGS_HANDSHAKE	0x01
-#define	RPCTLS_FLAGS_GOTCERT	0x02
-#define	RPCTLS_FLAGS_SELFSIGNED	0x04
-#define	RPCTLS_FLAGS_VERIFIED	0x08
-#define	RPCTLS_FLAGS_DISABLED	0x10
-#define	RPCTLS_FLAGS_CERTUSER	0x20
-#define	RPCTLS_FLAGS_HANDSHFAIL	0x40
+#define RPCTLS_FLAGS_HANDSHAKE 0x01
+#define RPCTLS_FLAGS_GOTCERT 0x02
+#define RPCTLS_FLAGS_SELFSIGNED 0x04
+#define RPCTLS_FLAGS_VERIFIED 0x08
+#define RPCTLS_FLAGS_DISABLED 0x10
+#define RPCTLS_FLAGS_CERTUSER 0x20
+#define RPCTLS_FLAGS_HANDSHFAIL 0x40
 
 /* Error return values for upcall rpcs. */
-#define	RPCTLSERR_OK		0
-#define	RPCTLSERR_NOCLOSE	1
-#define	RPCTLSERR_NOSSL		2
-#define	RPCTLSERR_NOSOCKET	3
+#define RPCTLSERR_OK 0
+#define RPCTLSERR_NOCLOSE 1
+#define RPCTLSERR_NOSSL 2
+#define RPCTLSERR_NOSOCKET 3
 
 #ifdef _KERNEL
 /* Functions that perform upcalls to the rpctlsd daemon. */
-enum clnt_stat	rpctls_connect(CLIENT *newclient, char *certname,
-		    struct socket *so, uint64_t *sslp, uint32_t *reterr);
-enum clnt_stat	rpctls_cl_handlerecord(uint64_t sec, uint64_t usec,
-		    uint64_t ssl, uint32_t *reterr);
-enum clnt_stat	rpctls_srv_handlerecord(uint64_t sec, uint64_t usec,
-		    uint64_t ssl, uint32_t *reterr);
-enum clnt_stat	rpctls_cl_disconnect(uint64_t sec, uint64_t usec,
-		    uint64_t ssl, uint32_t *reterr);
-enum clnt_stat	rpctls_srv_disconnect(uint64_t sec, uint64_t usec,
-		    uint64_t ssl, uint32_t *reterr);
+enum clnt_stat rpctls_connect(CLIENT *newclient, char *certname,
+    struct socket *so, uint64_t *sslp, uint32_t *reterr);
+enum clnt_stat rpctls_cl_handlerecord(
+    uint64_t sec, uint64_t usec, uint64_t ssl, uint32_t *reterr);
+enum clnt_stat rpctls_srv_handlerecord(
+    uint64_t sec, uint64_t usec, uint64_t ssl, uint32_t *reterr);
+enum clnt_stat rpctls_cl_disconnect(
+    uint64_t sec, uint64_t usec, uint64_t ssl, uint32_t *reterr);
+enum clnt_stat rpctls_srv_disconnect(
+    uint64_t sec, uint64_t usec, uint64_t ssl, uint32_t *reterr);
 
 /* Initialization function for rpcsec_tls. */
-int		rpctls_init(void);
+int rpctls_init(void);
 
 /* Get TLS information function. */
-bool		rpctls_getinfo(u_int *maxlen, bool rpctlscd_run,
-		    bool rpctlssd_run);
+bool rpctls_getinfo(u_int *maxlen, bool rpctlscd_run, bool rpctlssd_run);
 
 /* String for AUTH_TLS reply verifier. */
-#define	RPCTLS_START_STRING	"STARTTLS"
+#define RPCTLS_START_STRING "STARTTLS"
 
 /* ssl refno value to indicate TLS handshake being done. */
-#define	RPCTLS_REFNO_HANDSHAKE	0xFFFFFFFFFFFFFFFFULL
+#define RPCTLS_REFNO_HANDSHAKE 0xFFFFFFFFFFFFFFFFULL
 
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
-#endif	/* _RPC_RPCSEC_TLS_H_ */
+#endif /* _RPC_RPCSEC_TLS_H_ */

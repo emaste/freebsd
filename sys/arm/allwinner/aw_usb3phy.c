@@ -35,63 +35,61 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/gpio.h>
-#include <machine/bus.h>
+#include <sys/rman.h>
 
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
+#include <machine/bus.h>
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
-#include <dev/extres/regulator/regulator.h>
 #include <dev/extres/phy/phy_usb.h>
+#include <dev/extres/regulator/regulator.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include "phynode_if.h"
 
-#define	USB3PHY_APP			0x00
-#define	 APP_FORCE_VBUS			(0x3 << 12)
+#define USB3PHY_APP 0x00
+#define APP_FORCE_VBUS (0x3 << 12)
 
-#define	USB3PHY_PIPE_CLOCK_CONTROL	0x14
-#define	 PCC_PIPE_CLK_OPEN		(1 << 6)
+#define USB3PHY_PIPE_CLOCK_CONTROL 0x14
+#define PCC_PIPE_CLK_OPEN (1 << 6)
 
-#define	USB3PHY_PHY_TUNE_LOW		0x18
-#define	 PTL_MAGIC			0x0047fc87
+#define USB3PHY_PHY_TUNE_LOW 0x18
+#define PTL_MAGIC 0x0047fc87
 
-#define	USB3PHY_PHY_TUNE_HIGH		0x1c
-#define	 PTH_TX_DEEMPH_3P5DB		(0x1F << 19)
-#define	 PTH_TX_DEEMPH_6DB		(0x3F << 13)
-#define	 PTH_TX_SWING_FULL		(0x7F << 6)
-#define	 PTH_LOS_BIAS			(0x7 << 3)
-#define	 PTH_TX_BOOST_LVL		(0x7 << 0)
+#define USB3PHY_PHY_TUNE_HIGH 0x1c
+#define PTH_TX_DEEMPH_3P5DB (0x1F << 19)
+#define PTH_TX_DEEMPH_6DB (0x3F << 13)
+#define PTH_TX_SWING_FULL (0x7F << 6)
+#define PTH_LOS_BIAS (0x7 << 3)
+#define PTH_TX_BOOST_LVL (0x7 << 0)
 
-#define	USB3PHY_PHY_EXTERNAL_CONTROL	0x20
-#define	 PEC_REF_SSP_EN			(1 << 26)
-#define	 PEC_SSC_EN			(1 << 24)
-#define	 PEC_EXTERN_VBUS		(0x3 << 1)
+#define USB3PHY_PHY_EXTERNAL_CONTROL 0x20
+#define PEC_REF_SSP_EN (1 << 26)
+#define PEC_SSC_EN (1 << 24)
+#define PEC_EXTERN_VBUS (0x3 << 1)
 
-#define __LOWEST_SET_BIT(__mask) ((((__mask) - 1) & (__mask)) ^ (__mask))
-#define __SHIFTIN(__x, __mask) ((__x) * __LOWEST_SET_BIT(__mask))
+#define __LOWEST_SET_BIT(__mask) ((((__mask)-1) & (__mask)) ^ (__mask))
+#define __SHIFTIN(__x, __mask) ((__x)*__LOWEST_SET_BIT(__mask))
 
 static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun50i-h6-usb3-phy",	1 },
-	{ NULL,					0 }
+	{ "allwinner,sun50i-h6-usb3-phy", 1 }, { NULL, 0 }
 };
 
 static struct resource_spec aw_usb3phy_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, { -1, 0 }
 };
 
 struct awusb3phy_softc {
-	struct resource *	res;
-	regulator_t		reg;
-	int			mode;
+	struct resource *res;
+	regulator_t reg;
+	int mode;
 };
 
- /* Phy class and methods. */
+/* Phy class and methods. */
 static int awusb3phy_phy_enable(struct phynode *phy, bool enable);
 static int awusb3phy_get_mode(struct phynode *phy, int *mode);
 static int awusb3phy_set_mode(struct phynode *phy, int mode);
@@ -102,11 +100,12 @@ static phynode_usb_method_t awusb3phy_phynode_methods[] = {
 
 	PHYNODEMETHOD_END
 };
-DEFINE_CLASS_1(awusb3phy_phynode, awusb3phy_phynode_class, awusb3phy_phynode_methods,
-  sizeof(struct phynode_usb_sc), phynode_usb_class);
+DEFINE_CLASS_1(awusb3phy_phynode, awusb3phy_phynode_class,
+    awusb3phy_phynode_methods, sizeof(struct phynode_usb_sc),
+    phynode_usb_class);
 
-#define	RD4(res, o)	bus_read_4(res, (o))
-#define	WR4(res, o, v)	bus_write_4(res, (o), (v))
+#define RD4(res, o) bus_read_4(res, (o))
+#define WR4(res, o, v) bus_write_4(res, (o), (v))
 
 static int
 awusb3phy_phy_enable(struct phynode *phynode, bool enable)
@@ -165,8 +164,7 @@ awusb3phy_phy_enable(struct phynode *phynode, bool enable)
 	}
 
 	if (error != 0) {
-		device_printf(dev,
-		    "couldn't %s regulator for phy\n",
+		device_printf(dev, "couldn't %s regulator for phy\n",
 		    enable ? "enable" : "disable");
 		return (error);
 	}
@@ -253,8 +251,7 @@ awusb3phy_attach(device_t dev)
 	for (i = 0; hwreset_get_by_ofw_idx(dev, 0, i, &rst) == 0; i++) {
 		error = hwreset_deassert(rst);
 		if (error != 0) {
-			device_printf(dev, "couldn't de-assert reset %d\n",
-			    i);
+			device_printf(dev, "couldn't de-assert reset %d\n", i);
 			return (error);
 		}
 	}
@@ -264,8 +261,7 @@ awusb3phy_attach(device_t dev)
 
 	/* Create the phy */
 	phy_init.ofw_node = ofw_bus_get_node(dev);
-	phynode = phynode_create(dev, &awusb3phy_phynode_class,
-	    &phy_init);
+	phynode = phynode_create(dev, &awusb3phy_phynode_class, &phy_init);
 	if (phynode == NULL) {
 		device_printf(dev, "failed to create USB PHY\n");
 		return (ENXIO);
@@ -280,20 +276,18 @@ awusb3phy_attach(device_t dev)
 
 static device_method_t awusb3phy_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		awusb3phy_probe),
-	DEVMETHOD(device_attach,	awusb3phy_attach),
+	DEVMETHOD(device_probe, awusb3phy_probe),
+	DEVMETHOD(device_attach, awusb3phy_attach),
 
 	DEVMETHOD_END
 };
 
-static driver_t awusb3phy_driver = {
-	"awusb3phy",
-	awusb3phy_methods,
-	sizeof(struct awusb3phy_softc)
-};
+static driver_t awusb3phy_driver = { "awusb3phy", awusb3phy_methods,
+	sizeof(struct awusb3phy_softc) };
 
 static devclass_t awusb3phy_devclass;
-/* aw_usb3phy needs to come up after regulators/gpio/etc, but before ehci/ohci */
+/* aw_usb3phy needs to come up after regulators/gpio/etc, but before ehci/ohci
+ */
 EARLY_DRIVER_MODULE(awusb3phy, simplebus, awusb3phy_driver, awusb3phy_devclass,
     0, 0, BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(awusb3phy, 1);

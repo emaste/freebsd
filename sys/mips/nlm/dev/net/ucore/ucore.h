@@ -30,46 +30,46 @@
  * $FreeBSD$
  */
 #ifndef __NLM_UCORE_H__
-#define	__NLM_UCORE_H__
+#define __NLM_UCORE_H__
 
 /* Microcode registers */
-#define	UCORE_OUTBUF_DONE	0x8000
-#define	UCORE_RX_PKT_RDY	0x8004
-#define	UCORE_RX_PKT_INFO	0x8008
-#define	UCORE_CAM0		0x800c
-#define	UCORE_CAM1		0x8010
-#define	UCORE_CAM2		0x8014
-#define	UCORE_CAM3		0x8018
-#define	UCORE_CAM_RESULT	0x801c
-#define	UCORE_CSUMINFO		0x8020
-#define	UCORE_CRCINFO		0x8024
-#define	UCORE_CRCPOS		0x8028
-#define	UCORE_FR_FIFOEMPTY	0x802c
-#define	UCORE_PKT_DISTR		0x8030
+#define UCORE_OUTBUF_DONE 0x8000
+#define UCORE_RX_PKT_RDY 0x8004
+#define UCORE_RX_PKT_INFO 0x8008
+#define UCORE_CAM0 0x800c
+#define UCORE_CAM1 0x8010
+#define UCORE_CAM2 0x8014
+#define UCORE_CAM3 0x8018
+#define UCORE_CAM_RESULT 0x801c
+#define UCORE_CSUMINFO 0x8020
+#define UCORE_CRCINFO 0x8024
+#define UCORE_CRCPOS 0x8028
+#define UCORE_FR_FIFOEMPTY 0x802c
+#define UCORE_PKT_DISTR 0x8030
 
-#define	PACKET_MEMORY		0xFFE00
-#define	PACKET_DATA_OFFSET	64
-#define	SHARED_SCRATCH_MEM	0x18000
+#define PACKET_MEMORY 0xFFE00
+#define PACKET_DATA_OFFSET 64
+#define SHARED_SCRATCH_MEM 0x18000
 
 /* Distribution mode */
-#define	VAL_PDM(x)		(((x) & 0x7) << 0)
+#define VAL_PDM(x) (((x)&0x7) << 0)
 
 /* Dest distribution or distribution list */
-#define	VAL_DEST(x)		(((x) & 0x3ff) << 8)
-#define	VAL_PDL(x)		(((x) & 0xf) << 4)
+#define VAL_DEST(x) (((x)&0x3ff) << 8)
+#define VAL_PDL(x) (((x)&0xf) << 4)
 
 /*output buffer done*/
-#define	VAL_FSV(x)		(x << 19)
-#define	VAL_FFS(x)		(x << 14)
+#define VAL_FSV(x) (x << 19)
+#define VAL_FFS(x) (x << 14)
 
-#define	FWD_DEST_ONLY		1
-#define	FWD_ENQ_DIST_VEC	2
-#define	FWD_ENQ_DEST		3
-#define	FWD_DIST_VEC		4
-#define	FWD_ENQ_DIST_VEC_SER	6
-#define	FWD_ENQ_DEST_SER	7
+#define FWD_DEST_ONLY 1
+#define FWD_ENQ_DIST_VEC 2
+#define FWD_ENQ_DEST 3
+#define FWD_DIST_VEC 4
+#define FWD_ENQ_DIST_VEC_SER 6
+#define FWD_ENQ_DEST_SER 7
 
-#define	USE_HASH_DST		(1 << 20)
+#define USE_HASH_DST (1 << 20)
 
 static __inline unsigned int
 nlm_read_ucore_reg(int reg)
@@ -87,32 +87,31 @@ nlm_write_ucore_reg(int reg, unsigned int val)
 	*addr = val;
 }
 
-#define	NLM_DEFINE_UCORE(name, reg)				\
-static __inline unsigned int					\
-nlm_read_ucore_##name(void)					\
-{								\
-	return nlm_read_ucore_reg(reg);				\
-}								\
-								\
-static __inline void						\
-nlm_write_ucore_##name(unsigned int v)				\
-{								\
-	nlm_write_ucore_reg(reg, v);				\
-} struct __hack
+#define NLM_DEFINE_UCORE(name, reg)                                 \
+	static __inline unsigned int nlm_read_ucore_##name(void)    \
+	{                                                           \
+		return nlm_read_ucore_reg(reg);                     \
+	}                                                           \
+                                                                    \
+	static __inline void nlm_write_ucore_##name(unsigned int v) \
+	{                                                           \
+		nlm_write_ucore_reg(reg, v);                        \
+	}                                                           \
+	struct __hack
 
-NLM_DEFINE_UCORE(obufdone,		UCORE_OUTBUF_DONE);
-NLM_DEFINE_UCORE(rxpktrdy,		UCORE_RX_PKT_RDY);
-NLM_DEFINE_UCORE(rxpktinfo,		UCORE_RX_PKT_INFO);
-NLM_DEFINE_UCORE(cam0,			UCORE_CAM0);
-NLM_DEFINE_UCORE(cam1,			UCORE_CAM1);
-NLM_DEFINE_UCORE(cam2,			UCORE_CAM2);
-NLM_DEFINE_UCORE(cam3,			UCORE_CAM3);
-NLM_DEFINE_UCORE(camresult,		UCORE_CAM_RESULT);
-NLM_DEFINE_UCORE(csuminfo,		UCORE_CSUMINFO);
-NLM_DEFINE_UCORE(crcinfo,		UCORE_CRCINFO);
-NLM_DEFINE_UCORE(crcpos,		UCORE_CRCPOS);
-NLM_DEFINE_UCORE(freefifo_empty,	UCORE_FR_FIFOEMPTY);
-NLM_DEFINE_UCORE(pktdistr,		UCORE_PKT_DISTR);
+NLM_DEFINE_UCORE(obufdone, UCORE_OUTBUF_DONE);
+NLM_DEFINE_UCORE(rxpktrdy, UCORE_RX_PKT_RDY);
+NLM_DEFINE_UCORE(rxpktinfo, UCORE_RX_PKT_INFO);
+NLM_DEFINE_UCORE(cam0, UCORE_CAM0);
+NLM_DEFINE_UCORE(cam1, UCORE_CAM1);
+NLM_DEFINE_UCORE(cam2, UCORE_CAM2);
+NLM_DEFINE_UCORE(cam3, UCORE_CAM3);
+NLM_DEFINE_UCORE(camresult, UCORE_CAM_RESULT);
+NLM_DEFINE_UCORE(csuminfo, UCORE_CSUMINFO);
+NLM_DEFINE_UCORE(crcinfo, UCORE_CRCINFO);
+NLM_DEFINE_UCORE(crcpos, UCORE_CRCPOS);
+NLM_DEFINE_UCORE(freefifo_empty, UCORE_FR_FIFOEMPTY);
+NLM_DEFINE_UCORE(pktdistr, UCORE_PKT_DISTR);
 
 /*
  * l3cachelines - number of cache lines to allocate into l3
@@ -147,8 +146,8 @@ NLM_DEFINE_UCORE(pktdistr,		UCORE_PKT_DISTR);
  */
 static __inline__ void
 nlm_ucore_pkt_done(int l3cachelines, int fsv, int ffs, int prepad_en,
-    int prepad_ovride, int prepad_size, int prepad0, int prepad1,
-    int prepad2, int prepad3, int pkt_discard, int rd5)
+    int prepad_ovride, int prepad_size, int prepad0, int prepad1, int prepad2,
+    int prepad3, int pkt_discard, int rd5)
 {
 	unsigned int val = 0;
 
@@ -249,7 +248,7 @@ static __inline__ int
 nlm_ucore_get_cam_result(unsigned int cam_result)
 {
 	if (((cam_result >> 15) & 0x1) == 1) /* valid result */
-	    return (cam_result & 0x3fff);
+		return (cam_result & 0x3fff);
 
 	return 0;
 }
@@ -285,8 +284,9 @@ nlm_ucore_csum_setup(int iphdr_start, int iphdr_len)
  * endcrc - This information needs to be setup only for SCTP. For FCoE this
  * information is provided by hardware.
  * valid - if set to 1, CRC status is placed into bit 2 of rx descriptor
- *         if set to 0, TCP checksum status is placed into bit 2 of rx descriptor
- * keysize - defines the number of bytes in the pre-pad that contains the key
+ *         if set to 0, TCP checksum status is placed into bit 2 of rx
+ * descriptor keysize - defines the number of bytes in the pre-pad that contains
+ * the key
  */
 static __inline__ void
 nlm_ucore_crc_setup(int crcpos, int cps, int cfi, int cbm, int fcoe,

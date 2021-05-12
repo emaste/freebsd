@@ -73,122 +73,122 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/ktr.h>
+#include <sys/malloc.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 
 #include <machine/bus.h>
 #include <machine/cache.h>
 
 static struct bus_space generic_space = {
 	/* cookie */
-	.bs_cookie =	(void *) 0,
+	.bs_cookie = (void *)0,
 
 	/* mapping/unmapping */
-	.bs_map =	generic_bs_map,
-	.bs_unmap =	generic_bs_unmap,
-	.bs_subregion =	generic_bs_subregion,
+	.bs_map = generic_bs_map,
+	.bs_unmap = generic_bs_unmap,
+	.bs_subregion = generic_bs_subregion,
 
 	/* allocation/deallocation */
-	.bs_alloc =	generic_bs_alloc,
-	.bs_free =	generic_bs_free,
+	.bs_alloc = generic_bs_alloc,
+	.bs_free = generic_bs_free,
 
 	/* barrier */
-	.bs_barrier =	generic_bs_barrier,
+	.bs_barrier = generic_bs_barrier,
 
 	/* read (single) */
-	.bs_r_1 =	generic_bs_r_1,
-	.bs_r_2 =	generic_bs_r_2,
-	.bs_r_4 =	generic_bs_r_4,
-	.bs_r_8 =	generic_bs_r_8,
+	.bs_r_1 = generic_bs_r_1,
+	.bs_r_2 = generic_bs_r_2,
+	.bs_r_4 = generic_bs_r_4,
+	.bs_r_8 = generic_bs_r_8,
 
 	/* read multiple */
-	.bs_rm_1 =	generic_bs_rm_1,
-	.bs_rm_2 =	generic_bs_rm_2,
-	.bs_rm_4 =	generic_bs_rm_4,
-	.bs_rm_8 =	generic_bs_rm_8,
+	.bs_rm_1 = generic_bs_rm_1,
+	.bs_rm_2 = generic_bs_rm_2,
+	.bs_rm_4 = generic_bs_rm_4,
+	.bs_rm_8 = generic_bs_rm_8,
 
 	/* read region */
-	.bs_rr_1 =	generic_bs_rr_1,
-	.bs_rr_2 =	generic_bs_rr_2,
-	.bs_rr_4 =	generic_bs_rr_4,
-	.bs_rr_8 =	generic_bs_rr_8,
+	.bs_rr_1 = generic_bs_rr_1,
+	.bs_rr_2 = generic_bs_rr_2,
+	.bs_rr_4 = generic_bs_rr_4,
+	.bs_rr_8 = generic_bs_rr_8,
 
 	/* write (single) */
-	.bs_w_1 =	generic_bs_w_1,
-	.bs_w_2 =	generic_bs_w_2,
-	.bs_w_4 =	generic_bs_w_4,
-	.bs_w_8 =	generic_bs_w_8,
+	.bs_w_1 = generic_bs_w_1,
+	.bs_w_2 = generic_bs_w_2,
+	.bs_w_4 = generic_bs_w_4,
+	.bs_w_8 = generic_bs_w_8,
 
 	/* write multiple */
-	.bs_wm_1 =	generic_bs_wm_1,
-	.bs_wm_2 =	generic_bs_wm_2,
-	.bs_wm_4 =	generic_bs_wm_4,
-	.bs_wm_8 =	generic_bs_wm_8,
+	.bs_wm_1 = generic_bs_wm_1,
+	.bs_wm_2 = generic_bs_wm_2,
+	.bs_wm_4 = generic_bs_wm_4,
+	.bs_wm_8 = generic_bs_wm_8,
 
 	/* write region */
-	.bs_wr_1 =	generic_bs_wr_1,
-	.bs_wr_2 =	generic_bs_wr_2,
-	.bs_wr_4 =	generic_bs_wr_4,
-	.bs_wr_8 =	generic_bs_wr_8,
+	.bs_wr_1 = generic_bs_wr_1,
+	.bs_wr_2 = generic_bs_wr_2,
+	.bs_wr_4 = generic_bs_wr_4,
+	.bs_wr_8 = generic_bs_wr_8,
 
 	/* set multiple */
-	.bs_sm_1 =	generic_bs_sm_1,
-	.bs_sm_2 =	generic_bs_sm_2,
-	.bs_sm_4 =	generic_bs_sm_4,
-	.bs_sm_8 =	generic_bs_sm_8,
+	.bs_sm_1 = generic_bs_sm_1,
+	.bs_sm_2 = generic_bs_sm_2,
+	.bs_sm_4 = generic_bs_sm_4,
+	.bs_sm_8 = generic_bs_sm_8,
 
 	/* set region */
-	.bs_sr_1 =	generic_bs_sr_1,
-	.bs_sr_2 =	generic_bs_sr_2,
-	.bs_sr_4 =	generic_bs_sr_4,
-	.bs_sr_8 =	generic_bs_sr_8,
+	.bs_sr_1 = generic_bs_sr_1,
+	.bs_sr_2 = generic_bs_sr_2,
+	.bs_sr_4 = generic_bs_sr_4,
+	.bs_sr_8 = generic_bs_sr_8,
 
 	/* copy */
-	.bs_c_1 =	generic_bs_c_1,
-	.bs_c_2 =	generic_bs_c_2,
-	.bs_c_4 =	generic_bs_c_4,
-	.bs_c_8 =	generic_bs_c_8,
+	.bs_c_1 = generic_bs_c_1,
+	.bs_c_2 = generic_bs_c_2,
+	.bs_c_4 = generic_bs_c_4,
+	.bs_c_8 = generic_bs_c_8,
 
 	/* read (single) stream */
-	.bs_r_1_s =	generic_bs_r_1,
-	.bs_r_2_s =	generic_bs_r_2,
-	.bs_r_4_s =	generic_bs_r_4,
-	.bs_r_8_s =	generic_bs_r_8,
+	.bs_r_1_s = generic_bs_r_1,
+	.bs_r_2_s = generic_bs_r_2,
+	.bs_r_4_s = generic_bs_r_4,
+	.bs_r_8_s = generic_bs_r_8,
 
 	/* read multiple stream */
-	.bs_rm_1_s =	generic_bs_rm_1,
-	.bs_rm_2_s =	generic_bs_rm_2,
-	.bs_rm_4_s =	generic_bs_rm_4,
-	.bs_rm_8_s =	generic_bs_rm_8,
+	.bs_rm_1_s = generic_bs_rm_1,
+	.bs_rm_2_s = generic_bs_rm_2,
+	.bs_rm_4_s = generic_bs_rm_4,
+	.bs_rm_8_s = generic_bs_rm_8,
 
 	/* read region stream */
-	.bs_rr_1_s =	generic_bs_rr_1,
-	.bs_rr_2_s =	generic_bs_rr_2,
-	.bs_rr_4_s =	generic_bs_rr_4,
-	.bs_rr_8_s =	generic_bs_rr_8,
+	.bs_rr_1_s = generic_bs_rr_1,
+	.bs_rr_2_s = generic_bs_rr_2,
+	.bs_rr_4_s = generic_bs_rr_4,
+	.bs_rr_8_s = generic_bs_rr_8,
 
 	/* write (single) stream */
-	.bs_w_1_s =	generic_bs_w_1,
-	.bs_w_2_s =	generic_bs_w_2,
-	.bs_w_4_s =	generic_bs_w_4,
-	.bs_w_8_s =	generic_bs_w_8,
+	.bs_w_1_s = generic_bs_w_1,
+	.bs_w_2_s = generic_bs_w_2,
+	.bs_w_4_s = generic_bs_w_4,
+	.bs_w_8_s = generic_bs_w_8,
 
 	/* write multiple stream */
-	.bs_wm_1_s =	generic_bs_wm_1,
-	.bs_wm_2_s =	generic_bs_wm_2,
-	.bs_wm_4_s =	generic_bs_wm_4,
-	.bs_wm_8_s =	generic_bs_wm_8,
+	.bs_wm_1_s = generic_bs_wm_1,
+	.bs_wm_2_s = generic_bs_wm_2,
+	.bs_wm_4_s = generic_bs_wm_4,
+	.bs_wm_8_s = generic_bs_wm_8,
 
 	/* write region stream */
-	.bs_wr_1_s =	generic_bs_wr_1,
-	.bs_wr_2_s =	generic_bs_wr_2,
-	.bs_wr_4_s =	generic_bs_wr_4,
-	.bs_wr_8_s =	generic_bs_wr_8,
+	.bs_wr_1_s = generic_bs_wr_1,
+	.bs_wr_2_s = generic_bs_wr_2,
+	.bs_wr_4_s = generic_bs_wr_4,
+	.bs_wr_8_s = generic_bs_wr_8,
 };
 
 /* Ultra-gross kludge */
@@ -207,7 +207,7 @@ static struct bus_space generic_space = {
 #define rd16(a) readw(a)
 #define rd32(a) readl(a)
 #ifdef readq
-#define rd64(a)	readq((a))
+#define rd64(a) readq((a))
 #endif
 #define wr8(a, v) writeb(a, v)
 #define wr16(a, v) writew(a, v)
@@ -221,19 +221,17 @@ static struct bus_space generic_space = {
 bus_space_tag_t mips_bus_space_generic = &generic_space;
 
 int
-generic_bs_map(void *t __unused, bus_addr_t addr,
-	      bus_size_t size, int flags __unused,
-	      bus_space_handle_t *bshp)
+generic_bs_map(void *t __unused, bus_addr_t addr, bus_size_t size,
+    int flags __unused, bus_space_handle_t *bshp)
 {
 
-	*bshp = (bus_space_handle_t)pmap_mapdev((vm_paddr_t)addr,
-	    (vm_size_t)size);
+	*bshp = (bus_space_handle_t)pmap_mapdev(
+	    (vm_paddr_t)addr, (vm_size_t)size);
 	return (0);
 }
 
 void
-generic_bs_unmap(void *t __unused, bus_space_handle_t bh,
-	      bus_size_t size)
+generic_bs_unmap(void *t __unused, bus_space_handle_t bh, bus_size_t size)
 {
 
 	pmap_unmapdev((vm_offset_t)bh, (vm_size_t)size);
@@ -241,8 +239,7 @@ generic_bs_unmap(void *t __unused, bus_space_handle_t bh,
 
 int
 generic_bs_subregion(void *t __unused, bus_space_handle_t handle,
-	      bus_size_t offset, bus_size_t size __unused,
-	      bus_space_handle_t *bshp)
+    bus_size_t offset, bus_size_t size __unused, bus_space_handle_t *bshp)
 {
 
 	*bshp = handle + offset;
@@ -250,15 +247,15 @@ generic_bs_subregion(void *t __unused, bus_space_handle_t handle,
 }
 
 int
-generic_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
-    bus_size_t size, bus_size_t alignment, bus_size_t boundary, int flags,
-    bus_addr_t *bpap, bus_space_handle_t *bshp)
+generic_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend, bus_size_t size,
+    bus_size_t alignment, bus_size_t boundary, int flags, bus_addr_t *bpap,
+    bus_space_handle_t *bshp)
 {
 
 	panic("%s: not implemented", __func__);
 }
 
-void    
+void
 generic_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
 {
 
@@ -266,24 +263,21 @@ generic_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
 }
 
 uint8_t
-generic_bs_r_1(void *t, bus_space_handle_t handle,
-    bus_size_t offset)
+generic_bs_r_1(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
 	return (rd8(handle + offset));
 }
 
 uint16_t
-generic_bs_r_2(void *t, bus_space_handle_t handle,
-    bus_size_t offset)
+generic_bs_r_2(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
 	return (rd16(handle + offset));
 }
 
 uint32_t
-generic_bs_r_4(void *t, bus_space_handle_t handle,
-    bus_size_t offset)
+generic_bs_r_4(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
 	return (rd32(handle + offset));
@@ -294,15 +288,15 @@ generic_bs_r_8(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
 #ifdef rd64
-	return(rd64(handle + offset));
+	return (rd64(handle + offset));
 #else
 	panic("%s: not implemented", __func__);
 #endif
 }
 
 void
-generic_bs_rm_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint8_t *addr, size_t count)
+generic_bs_rm_1(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint8_t *addr, size_t count)
 {
 
 	while (count--)
@@ -310,8 +304,8 @@ generic_bs_rm_1(void *t, bus_space_handle_t bsh,
 }
 
 void
-generic_bs_rm_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint16_t *addr, size_t count)
+generic_bs_rm_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint16_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -320,8 +314,8 @@ generic_bs_rm_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-generic_bs_rm_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t *addr, size_t count)
+generic_bs_rm_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint32_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -349,8 +343,8 @@ generic_bs_rm_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
  * buffer provided.
  */
 void
-generic_bs_rr_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint8_t *addr, size_t count)
+generic_bs_rr_1(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint8_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -361,8 +355,8 @@ generic_bs_rr_1(void *t, bus_space_handle_t bsh,
 }
 
 void
-generic_bs_rr_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint16_t *addr, size_t count)
+generic_bs_rr_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint16_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -373,8 +367,8 @@ generic_bs_rr_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-generic_bs_rr_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t *addr, size_t count)
+generic_bs_rr_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint32_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -405,32 +399,32 @@ generic_bs_rr_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
  * described by tag/handle/offset.
  */
 void
-generic_bs_w_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint8_t value)
+generic_bs_w_1(
+    void *t, bus_space_handle_t bsh, bus_size_t offset, uint8_t value)
 {
 
 	wr8(bsh + offset, value);
 }
 
 void
-generic_bs_w_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint16_t value)
+generic_bs_w_2(
+    void *t, bus_space_handle_t bsh, bus_size_t offset, uint16_t value)
 {
 
 	wr16(bsh + offset, value);
 }
 
 void
-generic_bs_w_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t value)
+generic_bs_w_4(
+    void *t, bus_space_handle_t bsh, bus_size_t offset, uint32_t value)
 {
 
 	wr32(bsh + offset, value);
 }
 
 void
-generic_bs_w_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
-    uint64_t value)
+generic_bs_w_8(
+    void *t, bus_space_handle_t bsh, bus_size_t offset, uint64_t value)
 {
 
 #ifdef wr64
@@ -445,8 +439,8 @@ generic_bs_w_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
  * provided to bus space described by tag/handle/offset.
  */
 void
-generic_bs_wm_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint8_t *addr, size_t count)
+generic_bs_wm_1(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint8_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -455,8 +449,8 @@ generic_bs_wm_1(void *t, bus_space_handle_t bsh,
 }
 
 void
-generic_bs_wm_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint16_t *addr, size_t count)
+generic_bs_wm_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint16_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -465,8 +459,8 @@ generic_bs_wm_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-generic_bs_wm_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint32_t *addr, size_t count)
+generic_bs_wm_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint32_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -493,8 +487,8 @@ generic_bs_wm_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
  * to bus space described by tag/handle starting at `offset'.
  */
 void
-generic_bs_wr_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint8_t *addr, size_t count)
+generic_bs_wr_1(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint8_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -505,8 +499,8 @@ generic_bs_wr_1(void *t, bus_space_handle_t bsh,
 }
 
 void
-generic_bs_wr_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint16_t *addr, size_t count)
+generic_bs_wr_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint16_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -517,8 +511,8 @@ generic_bs_wr_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-generic_bs_wr_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint32_t *addr, size_t count)
+generic_bs_wr_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint32_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -549,8 +543,8 @@ generic_bs_wr_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
  * by tag/handle/offset `count' times.
  */
 void
-generic_bs_sm_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint8_t value, size_t count)
+generic_bs_sm_1(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint8_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -559,8 +553,8 @@ generic_bs_sm_1(void *t, bus_space_handle_t bsh,
 }
 
 void
-generic_bs_sm_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint16_t value, size_t count)
+generic_bs_sm_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint16_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -569,8 +563,8 @@ generic_bs_sm_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-generic_bs_sm_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t value, size_t count)
+generic_bs_sm_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint32_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -597,8 +591,8 @@ generic_bs_sm_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
  * by tag/handle starting at `offset'.
  */
 void
-generic_bs_sr_1(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint8_t value, size_t count)
+generic_bs_sr_1(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint8_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -607,8 +601,8 @@ generic_bs_sr_1(void *t, bus_space_handle_t bsh,
 }
 
 void
-generic_bs_sr_2(void *t, bus_space_handle_t bsh,
-		       bus_size_t offset, uint16_t value, size_t count)
+generic_bs_sr_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint16_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -617,8 +611,8 @@ generic_bs_sr_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-generic_bs_sr_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t value, size_t count)
+generic_bs_sr_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint32_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -645,9 +639,8 @@ generic_bs_sr_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
  * at tag/bsh1/off1 to bus space starting at tag/bsh2/off2.
  */
 void
-generic_bs_c_1(void *t, bus_space_handle_t bsh1,
-    bus_size_t off1, bus_space_handle_t bsh2,
-    bus_size_t off2, size_t count)
+generic_bs_c_1(void *t, bus_space_handle_t bsh1, bus_size_t off1,
+    bus_space_handle_t bsh2, bus_size_t off2, size_t count)
 {
 	bus_addr_t addr1 = bsh1 + off1;
 	bus_addr_t addr2 = bsh2 + off2;
@@ -658,16 +651,15 @@ generic_bs_c_1(void *t, bus_space_handle_t bsh1,
 			wr8(addr2, rd8(addr1));
 	} else {
 		/* dest after src: copy backwards */
-		for (addr1 += (count - 1), addr2 += (count - 1);
-		    count != 0; count--, addr1--, addr2--)
+		for (addr1 += (count - 1), addr2 += (count - 1); count != 0;
+		     count--, addr1--, addr2--)
 			wr8(addr2, rd8(addr1));
 	}
 }
 
 void
-generic_bs_c_2(void *t, bus_space_handle_t bsh1,
-    bus_size_t off1, bus_space_handle_t bsh2,
-    bus_size_t off2, size_t count)
+generic_bs_c_2(void *t, bus_space_handle_t bsh1, bus_size_t off1,
+    bus_space_handle_t bsh2, bus_size_t off2, size_t count)
 {
 	bus_addr_t addr1 = bsh1 + off1;
 	bus_addr_t addr2 = bsh2 + off2;
@@ -679,15 +671,14 @@ generic_bs_c_2(void *t, bus_space_handle_t bsh1,
 	} else {
 		/* dest after src: copy backwards */
 		for (addr1 += 2 * (count - 1), addr2 += 2 * (count - 1);
-		    count != 0; count--, addr1 -= 2, addr2 -= 2)
+		     count != 0; count--, addr1 -= 2, addr2 -= 2)
 			wr16(addr2, rd16(addr1));
 	}
 }
 
 void
-generic_bs_c_4(void *t, bus_space_handle_t bsh1,
-    bus_size_t off1, bus_space_handle_t bsh2,
-    bus_size_t off2, size_t count)
+generic_bs_c_4(void *t, bus_space_handle_t bsh1, bus_size_t off1,
+    bus_space_handle_t bsh2, bus_size_t off2, size_t count)
 {
 	bus_addr_t addr1 = bsh1 + off1;
 	bus_addr_t addr2 = bsh2 + off2;
@@ -699,7 +690,7 @@ generic_bs_c_4(void *t, bus_space_handle_t bsh1,
 	} else {
 		/* dest after src: copy backwards */
 		for (addr1 += 4 * (count - 1), addr2 += 4 * (count - 1);
-		    count != 0; count--, addr1 -= 4, addr2 -= 4)
+		     count != 0; count--, addr1 -= 4, addr2 -= 4)
 			wr32(addr2, rd32(addr1));
 	}
 }
@@ -719,7 +710,7 @@ generic_bs_c_8(void *t, bus_space_handle_t bsh1, bus_size_t off1,
 	} else {
 		/* dest after src: copy backwards */
 		for (addr1 += 8 * (count - 1), addr2 += 8 * (count - 1);
-		    count != 0; count--, addr1 -= 8, addr2 -= 8)
+		     count != 0; count--, addr1 -= 8, addr2 -= 8)
 			wr64(addr2, rd64(addr1));
 	}
 #else
@@ -728,10 +719,8 @@ generic_bs_c_8(void *t, bus_space_handle_t bsh1, bus_size_t off1,
 }
 
 void
-generic_bs_barrier(void *t __unused, 
-		bus_space_handle_t bsh __unused,
-		bus_size_t offset __unused, bus_size_t len __unused, 
-		int flags)
+generic_bs_barrier(void *t __unused, bus_space_handle_t bsh __unused,
+    bus_size_t offset __unused, bus_size_t len __unused, int flags)
 {
 #if 0
 	if (flags & BUS_SPACE_BARRIER_WRITE)

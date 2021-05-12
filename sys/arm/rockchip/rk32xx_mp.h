@@ -28,7 +28,7 @@
  */
 
 #ifndef _RK32XX_MP_H_
-#define	_RK32XX_MP_H_
+#define _RK32XX_MP_H_
 
 void rk32xx_mp_setmaxid(platform_t plat);
 void rk32xx_mp_start_ap(platform_t plat);

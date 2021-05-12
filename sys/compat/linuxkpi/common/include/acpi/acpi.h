@@ -36,26 +36,26 @@
  * FreeBSD import of ACPICA has a typedef for BOOLEAN which conflicts with
  * amdgpu driver. Workaround it on preprocessor level.
  */
-#define	ACPI_USE_SYSTEM_INTTYPES
-#define	BOOLEAN			unsigned char
-typedef unsigned char		UINT8;
-typedef unsigned short		UINT16;
-typedef short			INT16;
-typedef unsigned int		UINT32;
-typedef int			INT32;
-typedef uint64_t		UINT64;
-typedef int64_t			INT64;
+#define ACPI_USE_SYSTEM_INTTYPES
+#define BOOLEAN unsigned char
+typedef unsigned char UINT8;
+typedef unsigned short UINT16;
+typedef short INT16;
+typedef unsigned int UINT32;
+typedef int INT32;
+typedef uint64_t UINT64;
+typedef int64_t INT64;
 #include <contrib/dev/acpica/include/acpi.h>
 #undef BOOLEAN
 
-typedef ACPI_HANDLE		acpi_handle;
-typedef ACPI_OBJECT		acpi_object;
-typedef ACPI_OBJECT_HANDLER	acpi_object_handler;
-typedef ACPI_OBJECT_TYPE	acpi_object_type;
-typedef ACPI_STATUS		acpi_status;
-typedef ACPI_STRING		acpi_string;
-typedef ACPI_SIZE		acpi_size;
-typedef ACPI_WALK_CALLBACK	acpi_walk_callback;
+typedef ACPI_HANDLE acpi_handle;
+typedef ACPI_OBJECT acpi_object;
+typedef ACPI_OBJECT_HANDLER acpi_object_handler;
+typedef ACPI_OBJECT_TYPE acpi_object_type;
+typedef ACPI_STATUS acpi_status;
+typedef ACPI_STRING acpi_string;
+typedef ACPI_SIZE acpi_size;
+typedef ACPI_WALK_CALLBACK acpi_walk_callback;
 
 static inline ACPI_STATUS
 acpi_evaluate_object(ACPI_HANDLE Object, ACPI_STRING Pathname,
@@ -72,8 +72,8 @@ acpi_format_exception(ACPI_STATUS Exception)
 }
 
 static inline ACPI_STATUS
-acpi_get_handle(ACPI_HANDLE Parent, ACPI_STRING Pathname,
-    ACPI_HANDLE *RetHandle)
+acpi_get_handle(
+    ACPI_HANDLE Parent, ACPI_STRING Pathname, ACPI_HANDLE *RetHandle)
 {
 	return (AcpiGetHandle(Parent, Pathname, RetHandle));
 }
@@ -91,8 +91,8 @@ acpi_get_name(ACPI_HANDLE Object, UINT32 NameType, ACPI_BUFFER *RetPathPtr)
 }
 
 static inline ACPI_STATUS
-acpi_get_table(ACPI_STRING Signature, UINT32 Instance,
-    ACPI_TABLE_HEADER **OutTable)
+acpi_get_table(
+    ACPI_STRING Signature, UINT32 Instance, ACPI_TABLE_HEADER **OutTable)
 {
 	return (AcpiGetTable(Signature, Instance, OutTable));
 }

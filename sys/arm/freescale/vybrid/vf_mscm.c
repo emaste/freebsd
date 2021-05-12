@@ -38,38 +38,36 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include <arm/freescale/vybrid/vf_common.h>
 
-#define	VF_NINT	112	/* Total number of interrupts */
+#define VF_NINT 112 /* Total number of interrupts */
 
 /* Int Router Shared Peripheral Routing Control */
-#define	MSCM_IRSPRC(n)	(0x880 + 2 * n)
+#define MSCM_IRSPRC(n) (0x880 + 2 * n)
 
 struct mscm_softc {
-	struct resource		*res[1];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
+	struct resource *res[1];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
 };
 
-static struct resource_spec mscm_spec[] = {
-	{ SYS_RES_MEMORY,       0,      RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec mscm_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 static int
 mscm_probe(device_t dev)
@@ -81,7 +79,8 @@ mscm_probe(device_t dev)
 	if (!ofw_bus_is_compatible(dev, "fsl,mvf600-mscm"))
 		return (ENXIO);
 
-	device_set_desc(dev, "Vybrid Family Miscellaneous System Control Module");
+	device_set_desc(
+	    dev, "Vybrid Family Miscellaneous System Control Module");
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -109,11 +108,8 @@ mscm_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t mscm_methods[] = {
-	DEVMETHOD(device_probe,		mscm_probe),
-	DEVMETHOD(device_attach,	mscm_attach),
-	{ 0, 0 }
-};
+static device_method_t mscm_methods[] = { DEVMETHOD(device_probe, mscm_probe),
+	DEVMETHOD(device_attach, mscm_attach), { 0, 0 } };
 
 static driver_t mscm_driver = {
 	"mscm",

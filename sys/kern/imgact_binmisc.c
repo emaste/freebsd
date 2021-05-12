@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
-#include <sys/sysctl.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 
 #include <machine/atomic.h>
 
@@ -59,56 +59,56 @@ __FBSDID("$FreeBSD$");
  */
 typedef struct imgact_binmisc_entry {
 	SLIST_ENTRY(imgact_binmisc_entry) link;
-	char				 *ibe_name;
-	uint8_t				 *ibe_magic;
-	uint8_t				 *ibe_mask;
-	uint8_t				 *ibe_interpreter;
-	ssize_t				  ibe_interp_offset;
-	uint32_t			  ibe_interp_argcnt;
-	uint32_t			  ibe_interp_length;
-	uint32_t			  ibe_argv0_cnt;
-	uint32_t			  ibe_flags;
-	uint32_t			  ibe_moffset;
-	uint32_t			  ibe_msize;
+	char *ibe_name;
+	uint8_t *ibe_magic;
+	uint8_t *ibe_mask;
+	uint8_t *ibe_interpreter;
+	ssize_t ibe_interp_offset;
+	uint32_t ibe_interp_argcnt;
+	uint32_t ibe_interp_length;
+	uint32_t ibe_argv0_cnt;
+	uint32_t ibe_flags;
+	uint32_t ibe_moffset;
+	uint32_t ibe_msize;
 } imgact_binmisc_entry_t;
 
 /*
  * sysctl() commands.
  */
-#define IBC_ADD		1	/* Add given entry. */
-#define IBC_REMOVE	2	/* Remove entry for a given name. */
-#define IBC_DISABLE	3	/* Disable entry for a given name. */
-#define IBC_ENABLE	4	/* Enable entry for a given name. */
-#define IBC_LOOKUP	5	/* Lookup and return entry for given name. */
-#define IBC_LIST	6	/* Get a snapshot of the interpretor list. */
+#define IBC_ADD 1 /* Add given entry. */
+#define IBC_REMOVE 2 /* Remove entry for a given name. */
+#define IBC_DISABLE 3 /* Disable entry for a given name. */
+#define IBC_ENABLE 4 /* Enable entry for a given name. */
+#define IBC_LOOKUP 5 /* Lookup and return entry for given name. */
+#define IBC_LIST 6 /* Get a snapshot of the interpretor list. */
 
 /*
  * Interpreter string macros.
  *
  * They all start with '#' followed by a single letter:
  */
-#define	ISM_POUND	'#'	/* "##" is the escape sequence for single #. */
-#define	ISM_OLD_ARGV0	'a'	/* "#a" is replaced with the old argv0. */
+#define ISM_POUND '#' /* "##" is the escape sequence for single #. */
+#define ISM_OLD_ARGV0 'a' /* "#a" is replaced with the old argv0. */
 
 MALLOC_DEFINE(M_BINMISC, KMOD_NAME, "misc binary image activator");
 
 /* The interpreter list. */
-static SLIST_HEAD(, imgact_binmisc_entry) interpreter_list =
-	SLIST_HEAD_INITIALIZER(interpreter_list);
+static SLIST_HEAD(, imgact_binmisc_entry)
+    interpreter_list = SLIST_HEAD_INITIALIZER(interpreter_list);
 
 static int interp_list_entry_count;
 
 static struct sx interp_list_sx;
 
-#define	INTERP_LIST_WLOCK()		sx_xlock(&interp_list_sx)
-#define	INTERP_LIST_RLOCK()		sx_slock(&interp_list_sx)
-#define	INTERP_LIST_WUNLOCK()		sx_xunlock(&interp_list_sx)
-#define	INTERP_LIST_RUNLOCK()		sx_sunlock(&interp_list_sx)
+#define INTERP_LIST_WLOCK() sx_xlock(&interp_list_sx)
+#define INTERP_LIST_RLOCK() sx_slock(&interp_list_sx)
+#define INTERP_LIST_WUNLOCK() sx_xunlock(&interp_list_sx)
+#define INTERP_LIST_RUNLOCK() sx_sunlock(&interp_list_sx)
 
-#define	INTERP_LIST_LOCK_INIT()		sx_init(&interp_list_sx, KMOD_NAME)
-#define	INTERP_LIST_LOCK_DESTROY()	sx_destroy(&interp_list_sx)
+#define INTERP_LIST_LOCK_INIT() sx_init(&interp_list_sx, KMOD_NAME)
+#define INTERP_LIST_LOCK_DESTROY() sx_destroy(&interp_list_sx)
 
-#define	INTERP_LIST_ASSERT_LOCKED()	sx_assert(&interp_list_sx, SA_LOCKED)
+#define INTERP_LIST_ASSERT_LOCKED() sx_assert(&interp_list_sx, SA_LOCKED)
 
 /*
  * Populate the entry with the information about the interpreter.
@@ -126,7 +126,8 @@ imgact_binmisc_populate_interp(char *str, imgact_binmisc_entry_t *ibe)
 	 * Normalize interpreter string. Replace white space between args with
 	 * single space.
 	 */
-	sp = str; tp = t;
+	sp = str;
+	tp = t;
 	while (*sp != '\0') {
 		if (*sp == ' ' || *sp == '\t') {
 			if (++len >= IBE_INTERP_LEN_MAX)
@@ -144,7 +145,7 @@ imgact_binmisc_populate_interp(char *str, imgact_binmisc_entry_t *ibe)
 	*tp = '\0';
 	len++;
 
-	ibe->ibe_interpreter = malloc(len, M_BINMISC, M_WAITOK|M_ZERO);
+	ibe->ibe_interpreter = malloc(len, M_BINMISC, M_WAITOK | M_ZERO);
 
 	/* Populate all the ibe fields for the interpreter. */
 	memcpy(ibe->ibe_interpreter, t, len);
@@ -156,23 +157,23 @@ imgact_binmisc_populate_interp(char *str, imgact_binmisc_entry_t *ibe)
  * Allocate memory and populate a new entry for the interpreter table.
  */
 static imgact_binmisc_entry_t *
-imgact_binmisc_new_entry(ximgact_binmisc_entry_t *xbe, ssize_t interp_offset,
-    int argv0_cnt)
+imgact_binmisc_new_entry(
+    ximgact_binmisc_entry_t *xbe, ssize_t interp_offset, int argv0_cnt)
 {
 	imgact_binmisc_entry_t *ibe = NULL;
 	size_t namesz = min(strlen(xbe->xbe_name) + 1, IBE_NAME_MAX);
 
-	ibe = malloc(sizeof(*ibe), M_BINMISC, M_WAITOK|M_ZERO);
+	ibe = malloc(sizeof(*ibe), M_BINMISC, M_WAITOK | M_ZERO);
 
-	ibe->ibe_name = malloc(namesz, M_BINMISC, M_WAITOK|M_ZERO);
+	ibe->ibe_name = malloc(namesz, M_BINMISC, M_WAITOK | M_ZERO);
 	strlcpy(ibe->ibe_name, xbe->xbe_name, namesz);
 
 	imgact_binmisc_populate_interp(xbe->xbe_interpreter, ibe);
 
-	ibe->ibe_magic = malloc(xbe->xbe_msize, M_BINMISC, M_WAITOK|M_ZERO);
+	ibe->ibe_magic = malloc(xbe->xbe_msize, M_BINMISC, M_WAITOK | M_ZERO);
 	memcpy(ibe->ibe_magic, xbe->xbe_magic, xbe->xbe_msize);
 
-	ibe->ibe_mask = malloc(xbe->xbe_msize, M_BINMISC, M_WAITOK|M_ZERO);
+	ibe->ibe_mask = malloc(xbe->xbe_msize, M_BINMISC, M_WAITOK | M_ZERO);
 	memcpy(ibe->ibe_mask, xbe->xbe_mask, xbe->xbe_msize);
 
 	ibe->ibe_moffset = xbe->xbe_moffset;
@@ -214,7 +215,7 @@ imgact_binmisc_find_entry(char *name)
 
 	INTERP_LIST_ASSERT_LOCKED();
 
-	SLIST_FOREACH(ibe, &interpreter_list, link) {
+	SLIST_FOREACH (ibe, &interpreter_list, link) {
 		if (strncmp(name, ibe->ibe_name, IBE_NAME_MAX) == 0)
 			return (ibe);
 	}
@@ -239,11 +240,11 @@ imgact_binmisc_add_entry(ximgact_binmisc_entry_t *xbe)
 	if (xbe->xbe_moffset + xbe->xbe_msize > IBE_MATCH_MAX)
 		return (EINVAL);
 
-	for(cnt = 0, p = xbe->xbe_name; *p != 0; cnt++, p++)
+	for (cnt = 0, p = xbe->xbe_name; *p != 0; cnt++, p++)
 		if (cnt >= IBE_NAME_MAX || !isascii((int)*p))
 			return (EINVAL);
 
-	for(cnt = 0, p = xbe->xbe_interpreter; *p != 0; cnt++, p++)
+	for (cnt = 0, p = xbe->xbe_interpreter; *p != 0; cnt++, p++)
 		if (cnt >= IBE_INTERP_LEN_MAX || !isascii((int)*p))
 			return (EINVAL);
 
@@ -253,7 +254,7 @@ imgact_binmisc_add_entry(ximgact_binmisc_entry_t *xbe)
 	argv0_cnt = 0;
 	while ((p = strchr(p, '#')) != NULL) {
 		p++;
-		switch(*p) {
+		switch (*p) {
 		case ISM_POUND:
 			/* "##" */
 			p++;
@@ -353,8 +354,8 @@ imgact_binmisc_enable_entry(char *name)
 }
 
 static int
-imgact_binmisc_populate_xbe(ximgact_binmisc_entry_t *xbe,
-    imgact_binmisc_entry_t *ibe)
+imgact_binmisc_populate_xbe(
+    ximgact_binmisc_entry_t *xbe, imgact_binmisc_entry_t *ibe)
 {
 	uint32_t i;
 
@@ -363,9 +364,9 @@ imgact_binmisc_populate_xbe(ximgact_binmisc_entry_t *xbe,
 	strlcpy(xbe->xbe_name, ibe->ibe_name, IBE_NAME_MAX);
 
 	/* Copy interpreter string.  Replace NULL breaks with space. */
-	memcpy(xbe->xbe_interpreter, ibe->ibe_interpreter,
-	    ibe->ibe_interp_length);
-	for(i = 0; i < (ibe->ibe_interp_length - 1); i++)
+	memcpy(
+	    xbe->xbe_interpreter, ibe->ibe_interpreter, ibe->ibe_interp_length);
+	for (i = 0; i < (ibe->ibe_interp_length - 1); i++)
 		if (xbe->xbe_interpreter[i] == '\0')
 			xbe->xbe_interpreter[i] = ' ';
 
@@ -413,10 +414,10 @@ imgact_binmisc_get_all_entries(struct sysctl_req *req)
 
 	INTERP_LIST_RLOCK();
 	count = interp_list_entry_count;
-	xbe = malloc(sizeof(*xbe) * count, M_BINMISC, M_WAITOK|M_ZERO);
+	xbe = malloc(sizeof(*xbe) * count, M_BINMISC, M_WAITOK | M_ZERO);
 
 	xbep = xbe;
-	SLIST_FOREACH(ibe, &interpreter_list, link) {
+	SLIST_FOREACH (ibe, &interpreter_list, link) {
 		error = imgact_binmisc_populate_xbe(xbep++, ibe);
 		if (error)
 			break;
@@ -434,13 +435,12 @@ imgact_binmisc_get_all_entries(struct sysctl_req *req)
  * sysctl() handler for munipulating interpretor table.
  * Not MP safe (locked by sysctl).
  */
-static int
-sysctl_kern_binmisc(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_binmisc(SYSCTL_HANDLER_ARGS)
 {
 	ximgact_binmisc_entry_t xbe;
 	int error = 0;
 
-	switch(arg2) {
+	switch (arg2) {
 	case IBC_ADD:
 		/* Add an entry. Limited to IBE_MAX_ENTRIES. */
 		error = SYSCTL_IN(req, &xbe, sizeof(xbe));
@@ -502,12 +502,12 @@ sysctl_kern_binmisc(SYSCTL_HANDLER_ARGS)
 
 		if (!req->oldptr) {
 			/* No pointer then just return the list size. */
-			error = SYSCTL_OUT(req, 0, interp_list_entry_count *
-			    sizeof(ximgact_binmisc_entry_t));
+			error = SYSCTL_OUT(req, 0,
+			    interp_list_entry_count *
+				sizeof(ximgact_binmisc_entry_t));
 			return (error);
-		} else
-			if (!req->oldlen)
-				return (EINVAL);
+		} else if (!req->oldlen)
+			return (EINVAL);
 
 		error = imgact_binmisc_get_all_entries(req);
 		break;
@@ -523,33 +523,32 @@ SYSCTL_NODE(_kern, OID_AUTO, binmisc, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Image activator for miscellaneous binaries");
 
 SYSCTL_PROC(_kern_binmisc, OID_AUTO, add,
-    CTLFLAG_MPSAFE|CTLTYPE_STRUCT|CTLFLAG_WR, NULL, IBC_ADD,
-    sysctl_kern_binmisc, "S,ximgact_binmisc_entry",
-    "Add an activator entry");
+    CTLFLAG_MPSAFE | CTLTYPE_STRUCT | CTLFLAG_WR, NULL, IBC_ADD,
+    sysctl_kern_binmisc, "S,ximgact_binmisc_entry", "Add an activator entry");
 
 SYSCTL_PROC(_kern_binmisc, OID_AUTO, remove,
-    CTLFLAG_MPSAFE|CTLTYPE_STRUCT|CTLFLAG_WR, NULL, IBC_REMOVE,
+    CTLFLAG_MPSAFE | CTLTYPE_STRUCT | CTLFLAG_WR, NULL, IBC_REMOVE,
     sysctl_kern_binmisc, "S,ximgact_binmisc_entry",
     "Remove an activator entry");
 
 SYSCTL_PROC(_kern_binmisc, OID_AUTO, disable,
-    CTLFLAG_MPSAFE|CTLTYPE_STRUCT|CTLFLAG_WR, NULL, IBC_DISABLE,
+    CTLFLAG_MPSAFE | CTLTYPE_STRUCT | CTLFLAG_WR, NULL, IBC_DISABLE,
     sysctl_kern_binmisc, "S,ximgact_binmisc_entry",
     "Disable an activator entry");
 
 SYSCTL_PROC(_kern_binmisc, OID_AUTO, enable,
-    CTLFLAG_MPSAFE|CTLTYPE_STRUCT|CTLFLAG_WR, NULL, IBC_ENABLE,
+    CTLFLAG_MPSAFE | CTLTYPE_STRUCT | CTLFLAG_WR, NULL, IBC_ENABLE,
     sysctl_kern_binmisc, "S,ximgact_binmisc_entry",
     "Enable an activator entry");
 
 SYSCTL_PROC(_kern_binmisc, OID_AUTO, lookup,
-    CTLFLAG_MPSAFE|CTLTYPE_STRUCT|CTLFLAG_RW|CTLFLAG_ANYBODY, NULL, IBC_LOOKUP,
-    sysctl_kern_binmisc, "S,ximgact_binmisc_entry",
+    CTLFLAG_MPSAFE | CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_ANYBODY, NULL,
+    IBC_LOOKUP, sysctl_kern_binmisc, "S,ximgact_binmisc_entry",
     "Lookup an activator entry");
 
 SYSCTL_PROC(_kern_binmisc, OID_AUTO, list,
-    CTLFLAG_MPSAFE|CTLTYPE_STRUCT|CTLFLAG_RD|CTLFLAG_ANYBODY, NULL, IBC_LIST,
-    sysctl_kern_binmisc, "S,ximgact_binmisc_entry",
+    CTLFLAG_MPSAFE | CTLTYPE_STRUCT | CTLFLAG_RD | CTLFLAG_ANYBODY, NULL,
+    IBC_LIST, sysctl_kern_binmisc, "S,ximgact_binmisc_entry",
     "Get snapshot of all the activator entries");
 
 static imgact_binmisc_entry_t *
@@ -562,7 +561,7 @@ imgact_binmisc_find_interpreter(const char *image_header)
 
 	INTERP_LIST_ASSERT_LOCKED();
 
-	SLIST_FOREACH(ibe, &interpreter_list, link) {
+	SLIST_FOREACH (ibe, &interpreter_list, link) {
 		if (!(IBF_ENABLED & ibe->ibe_flags))
 			continue;
 
@@ -663,12 +662,12 @@ imgact_binmisc_exec(struct image_params *imgp)
 	 */
 	s = ibe->ibe_interpreter;
 	d = imgp->args->begin_argv;
-	while(*s != '\0') {
+	while (*s != '\0') {
 		switch (*s) {
 		case '#':
 			/* Handle "#" in interpreter string. */
 			s++;
-			switch(*s) {
+			switch (*s) {
 			case ISM_POUND:
 				/* "##": Replace with a single '#' */
 				*d++ = '#';
@@ -720,9 +719,9 @@ imgact_binmisc_fini(void *arg)
 
 	/* Free all the interpreters. */
 	INTERP_LIST_WLOCK();
-	SLIST_FOREACH_SAFE(ibe, &interpreter_list, link, ibe_tmp) {
-		SLIST_REMOVE(&interpreter_list, ibe, imgact_binmisc_entry,
-		    link);
+	SLIST_FOREACH_SAFE (ibe, &interpreter_list, link, ibe_tmp) {
+		SLIST_REMOVE(
+		    &interpreter_list, ibe, imgact_binmisc_entry, link);
 		imgact_binmisc_destroy_entry(ibe);
 	}
 	INTERP_LIST_WUNLOCK();
@@ -730,16 +729,14 @@ imgact_binmisc_fini(void *arg)
 	INTERP_LIST_LOCK_DESTROY();
 }
 
-SYSINIT(imgact_binmisc, SI_SUB_EXEC, SI_ORDER_MIDDLE, imgact_binmisc_init,
-    NULL);
-SYSUNINIT(imgact_binmisc, SI_SUB_EXEC, SI_ORDER_MIDDLE, imgact_binmisc_fini,
-    NULL);
+SYSINIT(
+    imgact_binmisc, SI_SUB_EXEC, SI_ORDER_MIDDLE, imgact_binmisc_init, NULL);
+SYSUNINIT(
+    imgact_binmisc, SI_SUB_EXEC, SI_ORDER_MIDDLE, imgact_binmisc_fini, NULL);
 
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  */
-static struct execsw imgact_binmisc_execsw = {
-	.ex_imgact = imgact_binmisc_exec,
-	.ex_name = KMOD_NAME
-};
+static struct execsw imgact_binmisc_execsw = { .ex_imgact = imgact_binmisc_exec,
+	.ex_name = KMOD_NAME };
 EXEC_SET(imgact_binmisc, imgact_binmisc_execsw);

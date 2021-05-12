@@ -37,13 +37,14 @@
 #include <sys/types.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
+
 #include <vm/vm.h>
 
-typedef	uint32_t	cell_t;
+typedef uint32_t cell_t;
 
 struct mem_region {
-	uint64_t	mr_start;
-	uint64_t	mr_size;
+	uint64_t mr_start;
+	uint64_t mr_size;
 };
 
 #endif /* _MACHINE_OFW_MACHDEP_H_ */

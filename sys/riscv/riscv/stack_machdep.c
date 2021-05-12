@@ -42,9 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/stack.h>
 
-#include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/stack.h>
+#include <machine/vmparam.h>
 
 static void
 stack_capture(struct thread *td, struct stack *st, struct unwind_state *frame)
@@ -68,8 +68,8 @@ stack_save_td(struct stack *st, struct thread *td)
 	struct unwind_state frame;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	KASSERT(!TD_IS_SWAPPED(td),
-	    ("stack_save_td: thread %p is swapped", td));
+	KASSERT(
+	    !TD_IS_SWAPPED(td), ("stack_save_td: thread %p is swapped", td));
 
 	if (TD_IS_RUNNING(td))
 		return (EOPNOTSUPP);
@@ -88,7 +88,7 @@ stack_save(struct stack *st)
 	struct unwind_state frame;
 	uintptr_t sp;
 
-	__asm __volatile("mv %0, sp" : "=&r" (sp));
+	__asm __volatile("mv %0, sp" : "=&r"(sp));
 
 	frame.sp = sp;
 	frame.fp = (uintptr_t)__builtin_frame_address(0);

@@ -35,33 +35,36 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/lock.h>
 #include <sys/kernel.h>
-#include <sys/mutex.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
-#include <machine/pci_cfgreg.h>
-#include <machine/pc/bios.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_param.h>
 
-#define PRVERB(a) do {							\
-	if (bootverbose)						\
-		printf a ;						\
-} while(0)
+#include <machine/pc/bios.h>
+#include <machine/pci_cfgreg.h>
+
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
+#define PRVERB(a)                 \
+	do {                      \
+		if (bootverbose)  \
+			printf a; \
+	} while (0)
 
 #define PCIE_CACHE 8
 struct pcie_cfg_elem {
-	TAILQ_ENTRY(pcie_cfg_elem)	elem;
-	vm_offset_t	vapage;
-	vm_paddr_t	papage;
+	TAILQ_ENTRY(pcie_cfg_elem) elem;
+	vm_offset_t vapage;
+	vm_paddr_t papage;
 };
 
 SYSCTL_DECL(_hw_pci);
@@ -77,15 +80,16 @@ static int mcfg_enable = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, mcfg, CTLFLAG_RDTUN, &mcfg_enable, 0,
     "Enable support for PCI-e memory mapped config access");
 
-static uint32_t	pci_docfgregread(int bus, int slot, int func, int reg,
-		    int bytes);
-static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
-static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
-static int	pcireg_cfgopen(void);
-static int	pciereg_cfgread(int bus, unsigned slot, unsigned func,
-		    unsigned reg, unsigned bytes);
-static void	pciereg_cfgwrite(int bus, unsigned slot, unsigned func,
-		    unsigned reg, int data, unsigned bytes);
+static uint32_t pci_docfgregread(
+    int bus, int slot, int func, int reg, int bytes);
+static int pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
+static void pcireg_cfgwrite(
+    int bus, int slot, int func, int reg, int data, int bytes);
+static int pcireg_cfgopen(void);
+static int pciereg_cfgread(
+    int bus, unsigned slot, unsigned func, unsigned reg, unsigned bytes);
+static void pciereg_cfgwrite(int bus, unsigned slot, unsigned func,
+    unsigned reg, int data, unsigned bytes);
 
 /*
  * Some BIOS writers seem to want to ignore the spec and put
@@ -94,7 +98,7 @@ static void	pciereg_cfgwrite(int bus, unsigned slot, unsigned func,
  * apparently undocumented anywhere.  Assume these are completely bogus
  * and map them to 255, which means "none".
  */
-static __inline int 
+static __inline int
 pci_i386_map_intline(int line)
 {
 	if (line == 0 || line >= 128)
@@ -123,8 +127,8 @@ pcibios_get_version(void)
 	return (args.ebx & 0xffff);
 }
 
-/* 
- * Initialise access to PCI configuration space 
+/*
+ * Initialise access to PCI configuration space
  */
 int
 pci_cfgregopen(void)
@@ -164,7 +168,7 @@ pci_docfgregread(int bus, int slot, int func, int reg, int bytes)
 		return (pcireg_cfgread(bus, slot, func, reg, bytes));
 }
 
-/* 
+/*
  * Read configuration space register
  */
 u_int32_t
@@ -184,8 +188,8 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 	return (pci_docfgregread(bus, slot, func, reg, bytes));
 }
 
-/* 
- * Write configuration space register 
+/*
+ * Write configuration space register
  */
 void
 pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
@@ -199,7 +203,7 @@ pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
 		pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
 }
 
-/* 
+/*
  * Configuration space access using direct register operations
  */
 
@@ -209,19 +213,15 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 {
 	int dataport = 0;
 
-	if (bus <= PCI_BUSMAX
-	    && slot < devmax
-	    && func <= PCI_FUNCMAX
-	    && (unsigned)reg <= PCI_REGMAX
-	    && bytes != 3
-	    && (unsigned)bytes <= 4
-	    && (reg & (bytes - 1)) == 0) {
+	if (bus <= PCI_BUSMAX && slot < devmax && func <= PCI_FUNCMAX &&
+	    (unsigned)reg <= PCI_REGMAX && bytes != 3 && (unsigned)bytes <= 4 &&
+	    (reg & (bytes - 1)) == 0) {
 		switch (cfgmech) {
 		case CFGMECH_PCIE:
 		case CFGMECH_1:
-			outl(CONF1_ADDR_PORT, (1U << 31)
-			    | (bus << 16) | (slot << 11) 
-			    | (func << 8) | (reg & ~0x03));
+			outl(CONF1_ADDR_PORT,
+			    (1U << 31) | (bus << 16) | (slot << 11) |
+				(func << 8) | (reg & ~0x03));
 			dataport = CONF1_DATA_PORT + (reg & 0x03);
 			break;
 		case CFGMECH_2:
@@ -313,11 +313,11 @@ pci_cfgcheck(int maxdev)
 	uint8_t device;
 	int port;
 
-	if (bootverbose) 
+	if (bootverbose)
 		printf("pci_cfgcheck:\tdevice ");
 
 	for (device = 0; device < maxdev; device++) {
-		if (bootverbose) 
+		if (bootverbose)
 			printf("%d ", device);
 
 		port = pci_cfgenable(0, device, 0, 0, 4);
@@ -345,7 +345,7 @@ pci_cfgcheck(int maxdev)
 		pci_cfgdisable();
 		return (1);
 	}
-	if (bootverbose) 
+	if (bootverbose)
 		printf("-- nothing found\n");
 
 	pci_cfgdisable();
@@ -375,11 +375,11 @@ pcireg_cfgopen(void)
 	outl(CONF1_ADDR_PORT, oldval1);
 
 	if (bootverbose)
-		printf("pci_open(1a):\tmode1res=0x%08x (0x%08lx)\n",  mode1res,
+		printf("pci_open(1a):\tmode1res=0x%08x (0x%08lx)\n", mode1res,
 		    CONF1_ENABLE_CHK);
 
 	if (mode1res) {
-		if (pci_cfgcheck(32)) 
+		if (pci_cfgcheck(32))
 			return (cfgmech);
 	}
 
@@ -388,11 +388,11 @@ pcireg_cfgopen(void)
 	outl(CONF1_ADDR_PORT, oldval1);
 
 	if (bootverbose)
-		printf("pci_open(1b):\tmode1res=0x%08x (0x%08lx)\n",  mode1res,
+		printf("pci_open(1b):\tmode1res=0x%08x (0x%08lx)\n", mode1res,
 		    CONF1_ENABLE_CHK1);
 
 	if ((mode1res & CONF1_ENABLE_MSK1) == CONF1_ENABLE_RES1) {
-		if (pci_cfgcheck(32)) 
+		if (pci_cfgcheck(32))
 			return (cfgmech);
 	}
 
@@ -413,14 +413,15 @@ pcireg_cfgopen(void)
 		outb(CONF2_ENABLE_PORT, oldval2);
 
 		if (bootverbose)
-			printf("pci_open(2a):\tmode2res=0x%02x (0x%02x)\n", 
+			printf("pci_open(2a):\tmode2res=0x%02x (0x%02x)\n",
 			    mode2res, CONF2_ENABLE_CHK);
 
 		if (mode2res == CONF2_ENABLE_RES) {
 			if (bootverbose)
-				printf("pci_open(2a):\tnow trying mechanism 2\n");
+				printf(
+				    "pci_open(2a):\tnow trying mechanism 2\n");
 
-			if (pci_cfgcheck(16)) 
+			if (pci_cfgcheck(16))
 				return (cfgmech);
 		}
 	}
@@ -452,17 +453,17 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 	if (!pae_mode && base >= 0x100000000) {
 		if (bootverbose)
 			printf(
-	    "PCI: Memory Mapped PCI configuration area base 0x%jx too high\n",
+			    "PCI: Memory Mapped PCI configuration area base 0x%jx too high\n",
 			    (uintmax_t)base);
 		return (0);
 	}
-		
+
 	if (bootverbose)
 		printf("PCIe: Memory Mapped configuration base @ 0x%jx\n",
 		    (uintmax_t)base);
 
 #ifdef SMP
-	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu)
+	STAILQ_FOREACH (pc, &cpuhead, pc_allcpu)
 #endif
 	{
 		pcie_array = malloc(sizeof(struct pcie_cfg_elem) * PCIE_CACHE,
@@ -517,12 +518,10 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 	return (1);
 }
 
-#define PCIE_PADDR(base, reg, bus, slot, func)	\
-	((base)				+	\
-	((((bus) & 0xff) << 20)		|	\
-	(((slot) & 0x1f) << 15)		|	\
-	(((func) & 0x7) << 12)		|	\
-	((reg) & 0xfff)))
+#define PCIE_PADDR(base, reg, bus, slot, func)              \
+	((base) +                                           \
+	    ((((bus)&0xff) << 20) | (((slot)&0x1f) << 15) | \
+		(((func)&0x7) << 12) | ((reg)&0xfff)))
 
 static __inline vm_offset_t
 pciereg_findaddr(int bus, unsigned slot, unsigned func, unsigned reg)
@@ -541,7 +540,7 @@ pciereg_findaddr(int bus, unsigned slot, unsigned func, unsigned reg)
 	 * efficient?
 	 */
 	pcielist = &pcie_list[PCPU_GET(cpuid)];
-	TAILQ_FOREACH(elem, pcielist, elem) {
+	TAILQ_FOREACH (elem, pcielist, elem) {
 		if (elem->papage == papage)
 			break;
 	}
@@ -572,8 +571,8 @@ pciereg_findaddr(int bus, unsigned slot, unsigned func, unsigned reg)
  */
 
 static int
-pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
-    unsigned bytes)
+pciereg_cfgread(
+    int bus, unsigned slot, unsigned func, unsigned reg, unsigned bytes)
 {
 	vm_offset_t va;
 	int data = -1;
@@ -587,16 +586,19 @@ pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
 
 	switch (bytes) {
 	case 4:
-		__asm("movl %1, %0" : "=a" (data)
-		    : "m" (*(volatile uint32_t *)va));
+		__asm("movl %1, %0"
+		      : "=a"(data)
+		      : "m"(*(volatile uint32_t *)va));
 		break;
 	case 2:
-		__asm("movzwl %1, %0" : "=a" (data)
-		    : "m" (*(volatile uint16_t *)va));
+		__asm("movzwl %1, %0"
+		      : "=a"(data)
+		      : "m"(*(volatile uint16_t *)va));
 		break;
 	case 1:
-		__asm("movzbl %1, %0" : "=a" (data)
-		    : "m" (*(volatile uint8_t *)va));
+		__asm("movzbl %1, %0"
+		      : "=a"(data)
+		      : "m"(*(volatile uint8_t *)va));
 		break;
 	}
 
@@ -619,16 +621,19 @@ pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
 
 	switch (bytes) {
 	case 4:
-		__asm("movl %1, %0" : "=m" (*(volatile uint32_t *)va)
-		    : "a" (data));
+		__asm("movl %1, %0"
+		      : "=m"(*(volatile uint32_t *)va)
+		      : "a"(data));
 		break;
 	case 2:
-		__asm("movw %1, %0" : "=m" (*(volatile uint16_t *)va)
-		    : "a" ((uint16_t)data));
+		__asm("movw %1, %0"
+		      : "=m"(*(volatile uint16_t *)va)
+		      : "a"((uint16_t)data));
 		break;
 	case 1:
-		__asm("movb %1, %0" : "=m" (*(volatile uint8_t *)va)
-		    : "a" ((uint8_t)data));
+		__asm("movb %1, %0"
+		      : "=m"(*(volatile uint8_t *)va)
+		      : "a"((uint8_t)data));
 		break;
 	}
 

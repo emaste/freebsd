@@ -36,35 +36,34 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/pciio.h>
 
-#include <dev/ofw/openfirm.h>
-
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pci_private.h>
-
 #include <machine/bus.h>
 #include <machine/rtas.h>
+
+#include <dev/ofw/openfirm.h>
+#include <dev/pci/pci_private.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <powerpc/ofw/ofw_pcibus.h>
 #include <powerpc/pseries/plpar_iommu.h>
 
-#include "pci_if.h"
 #include "iommu_if.h"
+#include "pci_if.h"
 
-static int		plpar_pcibus_probe(device_t);
-static bus_dma_tag_t	plpar_pcibus_get_dma_tag(device_t dev, device_t child);
+static int plpar_pcibus_probe(device_t);
+static bus_dma_tag_t plpar_pcibus_get_dma_tag(device_t dev, device_t child);
 
 /*
  * Driver methods.
  */
-static device_method_t	plpar_pcibus_methods[] = {
+static device_method_t plpar_pcibus_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		plpar_pcibus_probe),
+	DEVMETHOD(device_probe, plpar_pcibus_probe),
 
 	/* IOMMU functions */
-	DEVMETHOD(bus_get_dma_tag,	plpar_pcibus_get_dma_tag),
-	DEVMETHOD(iommu_map,		phyp_iommu_map),
-	DEVMETHOD(iommu_unmap,		phyp_iommu_unmap),
+	DEVMETHOD(bus_get_dma_tag, plpar_pcibus_get_dma_tag),
+	DEVMETHOD(iommu_map, phyp_iommu_map),
+	DEVMETHOD(iommu_unmap, phyp_iommu_unmap),
 
 	DEVMETHOD_END
 };
@@ -104,10 +103,10 @@ plpar_pcibus_get_dma_tag(device_t dev, device_t child)
 	if (dinfo->opd_dma_tag != NULL)
 		return (dinfo->opd_dma_tag);
 
-	bus_dma_tag_create(bus_get_dma_tag(dev),
-	    1, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-	    NULL, NULL, BUS_SPACE_MAXSIZE, BUS_SPACE_UNRESTRICTED,
-	    BUS_SPACE_MAXSIZE, 0, NULL, NULL, &dinfo->opd_dma_tag);
+	bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0, BUS_SPACE_MAXADDR,
+	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE,
+	    BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE, 0, NULL, NULL,
+	    &dinfo->opd_dma_tag);
 	phyp_iommu_set_dma_tag(dev, child, dinfo->opd_dma_tag);
 
 	return (dinfo->opd_dma_tag);

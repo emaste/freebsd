@@ -135,16 +135,16 @@ ti_plat_cpu_reset(platform_t plat)
 
 #if defined(SOC_OMAP4)
 static platform_method_t omap4_methods[] = {
-	PLATFORMMETHOD(platform_attach, 	omap4_attach),
-	PLATFORMMETHOD(platform_devmap_init,	ti_omap4_devmap_init),
-	PLATFORMMETHOD(platform_cpu_reset,	ti_plat_cpu_reset),
+	PLATFORMMETHOD(platform_attach, omap4_attach),
+	PLATFORMMETHOD(platform_devmap_init, ti_omap4_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset, ti_plat_cpu_reset),
 
 #ifdef SMP
-	PLATFORMMETHOD(platform_mp_start_ap,	omap4_mp_start_ap),
-	PLATFORMMETHOD(platform_mp_setmaxid,	omap4_mp_setmaxid),
+	PLATFORMMETHOD(platform_mp_start_ap, omap4_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid, omap4_mp_setmaxid),
 #endif
 
-	PLATFORMMETHOD(platform_pl310_init,	omap4_pl310_init),
+	PLATFORMMETHOD(platform_pl310_init, omap4_pl310_init),
 	PLATFORMMETHOD(platform_pl310_write_ctrl, omap4_pl310_write_ctrl),
 	PLATFORMMETHOD(platform_pl310_write_debug, omap4_pl310_write_debug),
 
@@ -155,9 +155,9 @@ FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430", 200);
 
 #if defined(SOC_TI_AM335X)
 static platform_method_t am335x_methods[] = {
-	PLATFORMMETHOD(platform_attach, 	ti_am335x_attach),
-	PLATFORMMETHOD(platform_devmap_init,	ti_am335x_devmap_init),
-	PLATFORMMETHOD(platform_cpu_reset,	ti_plat_cpu_reset),
+	PLATFORMMETHOD(platform_attach, ti_am335x_attach),
+	PLATFORMMETHOD(platform_devmap_init, ti_am335x_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset, ti_plat_cpu_reset),
 
 	PLATFORMMETHOD_END,
 };

@@ -6,7 +6,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -17,7 +17,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -45,44 +45,47 @@
 #ifndef _NETGRAPH_NG_VJC_H_
 #define _NETGRAPH_NG_VJC_H_
 
- /* Node type name and magic cookie */
-#define NG_VJC_NODE_TYPE	"vjc"
-#define NGM_VJC_COOKIE		868219210
+/* Node type name and magic cookie */
+#define NG_VJC_NODE_TYPE "vjc"
+#define NGM_VJC_COOKIE 868219210
 
- /* Hook names */
-#define NG_VJC_HOOK_IP		"ip"		/* normal IP traffic */
-#define NG_VJC_HOOK_VJCOMP	"vjcomp"	/* compressed TCP */
-#define NG_VJC_HOOK_VJUNCOMP	"vjuncomp"	/* uncompressed TCP */
-#define NG_VJC_HOOK_VJIP	"vjip"		/* uncompressed IP */
+/* Hook names */
+#define NG_VJC_HOOK_IP "ip"		/* normal IP traffic */
+#define NG_VJC_HOOK_VJCOMP "vjcomp"	/* compressed TCP */
+#define NG_VJC_HOOK_VJUNCOMP "vjuncomp" /* uncompressed TCP */
+#define NG_VJC_HOOK_VJIP "vjip"		/* uncompressed IP */
 
- /* Minimum and maximum number of compression channels */
-#define NG_VJC_MIN_CHANNELS	4
-#define NG_VJC_MAX_CHANNELS	16
+/* Minimum and maximum number of compression channels */
+#define NG_VJC_MIN_CHANNELS 4
+#define NG_VJC_MAX_CHANNELS 16
 
- /* Configure struct */
+/* Configure struct */
 struct ngm_vjc_config {
-	u_char	enableComp;	/* Enable compression */
-	u_char	enableDecomp;	/* Enable decompression */
-	u_char	maxChannel;	/* Number of compression channels - 1 */
-	u_char	compressCID;	/* OK to compress outgoing CID's */
+	u_char enableComp;   /* Enable compression */
+	u_char enableDecomp; /* Enable decompression */
+	u_char maxChannel;   /* Number of compression channels - 1 */
+	u_char compressCID;  /* OK to compress outgoing CID's */
 };
 
 /* Keep this in sync with the above structure definition */
-#define NG_VJC_CONFIG_TYPE_INFO	{				\
-	  { "enableComp",	&ng_parse_uint8_type	},	\
-	  { "enableDecomp",	&ng_parse_uint8_type	},	\
-	  { "maxChannel",	&ng_parse_uint8_type	},	\
-	  { "compressCID",	&ng_parse_uint8_type	},	\
-	  { NULL }						\
-}
+#define NG_VJC_CONFIG_TYPE_INFO                               \
+	{                                                     \
+		{ "enableComp", &ng_parse_uint8_type },       \
+		    { "enableDecomp", &ng_parse_uint8_type }, \
+		    { "maxChannel", &ng_parse_uint8_type },   \
+		    { "compressCID", &ng_parse_uint8_type },  \
+		{                                             \
+			NULL                                  \
+		}                                             \
+	}
 
- /* Netgraph commands */
+/* Netgraph commands */
 enum {
-	NGM_VJC_SET_CONFIG,	/* Supply a struct ngm_vjc_config */
-	NGM_VJC_GET_CONFIG,	/* Returns a struct ngm_vjc_config */
-	NGM_VJC_GET_STATE,	/* Returns current struct slcompress */
-	NGM_VJC_CLR_STATS,	/* Clears statistics counters */
-	NGM_VJC_RECV_ERROR,	/* Indicate loss of incoming frame */
+	NGM_VJC_SET_CONFIG, /* Supply a struct ngm_vjc_config */
+	NGM_VJC_GET_CONFIG, /* Returns a struct ngm_vjc_config */
+	NGM_VJC_GET_STATE,  /* Returns current struct slcompress */
+	NGM_VJC_CLR_STATS,  /* Clears statistics counters */
+	NGM_VJC_RECV_ERROR, /* Indicate loss of incoming frame */
 };
 
 #endif /* _NETGRAPH_NG_VJC_H_ */

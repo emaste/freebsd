@@ -33,6 +33,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sysent.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_param.h>
+
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
@@ -40,14 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/stack.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-
-#include <ddb/ddb.h>
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
+#include <ddb/ddb.h>
 
 static db_varfcn_t db_esp;
 static db_varfcn_t db_frame;
@@ -58,24 +58,24 @@ static db_varfcn_t db_ss;
 /*
  * Machine register set.
  */
-#define	DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
+#define DB_OFFSET(x) (db_expr_t *)offsetof(struct trapframe, x)
 struct db_variable db_regs[] = {
-	{ "cs",		DB_OFFSET(tf_cs),	db_frame_seg },
-	{ "ds",		DB_OFFSET(tf_ds),	db_frame_seg },
-	{ "es",		DB_OFFSET(tf_es),	db_frame_seg },
-	{ "fs",		DB_OFFSET(tf_fs),	db_frame_seg },
-	{ "gs",		NULL,			db_gs },
-	{ "ss",		NULL,			db_ss },
-	{ "eax",	DB_OFFSET(tf_eax),	db_frame },
-	{ "ecx",	DB_OFFSET(tf_ecx),	db_frame },
-	{ "edx",	DB_OFFSET(tf_edx),	db_frame },
-	{ "ebx",	DB_OFFSET(tf_ebx),	db_frame },
-	{ "esp",	NULL,			db_esp },
-	{ "ebp",	DB_OFFSET(tf_ebp),	db_frame },
-	{ "esi",	DB_OFFSET(tf_esi),	db_frame },
-	{ "edi",	DB_OFFSET(tf_edi),	db_frame },
-	{ "eip",	DB_OFFSET(tf_eip),	db_frame },
-	{ "efl",	DB_OFFSET(tf_eflags),	db_frame },
+	{ "cs", DB_OFFSET(tf_cs), db_frame_seg },
+	{ "ds", DB_OFFSET(tf_ds), db_frame_seg },
+	{ "es", DB_OFFSET(tf_es), db_frame_seg },
+	{ "fs", DB_OFFSET(tf_fs), db_frame_seg },
+	{ "gs", NULL, db_gs },
+	{ "ss", NULL, db_ss },
+	{ "eax", DB_OFFSET(tf_eax), db_frame },
+	{ "ecx", DB_OFFSET(tf_ecx), db_frame },
+	{ "edx", DB_OFFSET(tf_edx), db_frame },
+	{ "ebx", DB_OFFSET(tf_ebx), db_frame },
+	{ "esp", NULL, db_esp },
+	{ "ebp", DB_OFFSET(tf_ebp), db_frame },
+	{ "esi", DB_OFFSET(tf_esi), db_frame },
+	{ "edi", DB_OFFSET(tf_edi), db_frame },
+	{ "eip", DB_OFFSET(tf_eip), db_frame },
+	{ "efl", DB_OFFSET(tf_eflags), db_frame },
 };
 struct db_variable *db_eregs = db_regs + nitems(db_regs);
 
@@ -180,34 +180,32 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
 
 	if (op == DB_VAR_GET)
 		*valuep = TF_HAS_STACKREGS(kdb_frame) ? kdb_frame->tf_ss :
-		    rss();
+							      rss();
 	else if (TF_HAS_STACKREGS(kdb_frame))
 		kdb_frame->tf_ss = *valuep;
 	return (1);
 }
 
-#define NORMAL		0
-#define	TRAP		1
-#define	INTERRUPT	2
-#define	SYSCALL		3
-#define	DOUBLE_FAULT	4
+#define NORMAL 0
+#define TRAP 1
+#define INTERRUPT 2
+#define SYSCALL 3
+#define DOUBLE_FAULT 4
 
 static void db_nextframe(struct i386_frame **, db_addr_t *, struct thread *);
 static int db_numargs(struct i386_frame *);
-static void db_print_stack_entry(const char *, int, char **, int *, db_addr_t,
-    void *);
+static void db_print_stack_entry(
+    const char *, int, char **, int *, db_addr_t, void *);
 static void decode_syscall(int, struct thread *);
 
 /*
  * Figure out how many arguments were passed into the frame at "fp".
  */
-static int
-db_numargs(fp)
-	struct i386_frame *fp;
+static int db_numargs(fp) struct i386_frame *fp;
 {
-	char   *argp;
-	int	inst;
-	int	args;
+	char *argp;
+	int inst;
+	int args;
 
 	argp = (char *)db_get_value((int)&fp->f_retaddr, 4, false);
 	/*
@@ -218,13 +216,13 @@ db_numargs(fp)
 	if (argp < btext || argp >= etext) {
 		args = -1;
 	} else {
-retry:
+	retry:
 		inst = db_get_value((int)argp, 4, false);
-		if ((inst & 0xff) == 0x59)	/* popl %ecx */
+		if ((inst & 0xff) == 0x59) /* popl %ecx */
 			args = 1;
-		else if ((inst & 0xffff) == 0xc483)	/* addl $Ibs, %esp */
+		else if ((inst & 0xffff) == 0xc483) /* addl $Ibs, %esp */
 			args = ((inst >> 16) & 0xff) / 4;
-		else if ((inst & 0xf8ff) == 0xc089) {	/* movl %eax, %Reg */
+		else if ((inst & 0xf8ff) == 0xc089) { /* movl %eax, %Reg */
 			argp += 2;
 			goto retry;
 		} else
@@ -233,14 +231,13 @@ retry:
 	return (args);
 }
 
-static void
-db_print_stack_entry(name, narg, argnp, argp, callpc, frame)
-	const char *name;
-	int narg;
-	char **argnp;
-	int *argp;
-	db_addr_t callpc;
-	void *frame;
+static void db_print_stack_entry(name, narg, argnp, argp, callpc, frame) const
+    char *name;
+int narg;
+char **argnp;
+int *argp;
+db_addr_t callpc;
+void *frame;
 {
 	int n = narg >= 0 ? narg : 5;
 
@@ -297,8 +294,8 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	c_db_sym_t sym;
 	const char *name;
 
-	eip = db_get_value((int) &(*fp)->f_retaddr, 4, false);
-	ebp = db_get_value((int) &(*fp)->f_frame, 4, false);
+	eip = db_get_value((int)&(*fp)->f_retaddr, 4, false);
+	ebp = db_get_value((int)&(*fp)->f_frame, 4, false);
 
 	/*
 	 * Figure out frame type.  We look at the address just before
@@ -312,8 +309,8 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	frame_type = NORMAL;
 
 	if (eip >= PMAP_TRM_MIN_ADDRESS) {
-		sym = db_search_symbol(eip - 1 - setidt_disp, DB_STGY_ANY,
-		    &offset);
+		sym = db_search_symbol(
+		    eip - 1 - setidt_disp, DB_STGY_ANY, &offset);
 	} else {
 		sym = db_search_symbol(eip - 1, DB_STGY_ANY, &offset);
 	}
@@ -345,8 +342,8 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	 * Normal frames need no special processing.
 	 */
 	if (frame_type == NORMAL) {
-		*ip = (db_addr_t) eip;
-		*fp = (struct i386_frame *) ebp;
+		*ip = (db_addr_t)eip;
+		*fp = (struct i386_frame *)ebp;
 		return;
 	}
 
@@ -362,10 +359,10 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 		eip = PCPU_GET(common_tssp)->tss_eip;
 		ebp = PCPU_GET(common_tssp)->tss_ebp;
 		db_printf(
-		    "--- trap 0x17, eip = %#r, esp = %#r, ebp = %#r ---\n",
-		    eip, esp, ebp);
-		*ip = (db_addr_t) eip;
-		*fp = (struct i386_frame *) ebp;
+		    "--- trap 0x17, eip = %#r, esp = %#r, ebp = %#r ---\n", eip,
+		    esp, ebp);
+		*ip = (db_addr_t)eip;
+		*fp = (struct i386_frame *)ebp;
 		return;
 	}
 
@@ -423,8 +420,8 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 		break;
 	}
 
-	*ip = (db_addr_t) eip;
-	*fp = (struct i386_frame *) ebp;
+	*ip = (db_addr_t)eip;
+	*fp = (struct i386_frame *)ebp;
 }
 
 static int
@@ -432,7 +429,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
     db_addr_t pc, register_t sp, int count)
 {
 	struct i386_frame *actframe;
-#define MAXNARG	16
+#define MAXNARG 16
 	char *argnames[MAXNARG], **argnp = NULL;
 	const char *name;
 	int *argp;
@@ -443,10 +440,9 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 
 	if (db_segsize(tf) == 16) {
 		db_printf(
-"--- 16-bit%s, cs:eip = %#x:%#x, ss:esp = %#x:%#x, ebp = %#x, tf = %p ---\n",
-		    (tf->tf_eflags & PSL_VM) ? " (vm86)" : "",
-		    tf->tf_cs, tf->tf_eip,
-		    TF_HAS_STACKREGS(tf) ? tf->tf_ss : rss(),
+		    "--- 16-bit%s, cs:eip = %#x:%#x, ss:esp = %#x:%#x, ebp = %#x, tf = %p ---\n",
+		    (tf->tf_eflags & PSL_VM) ? " (vm86)" : "", tf->tf_cs,
+		    tf->tf_eip, TF_HAS_STACKREGS(tf) ? tf->tf_ss : rss(),
 		    TF_HAS_STACKREGS(tf) ? tf->tf_esp : (intptr_t)&tf->tf_esp,
 		    tf->tf_ebp, tf);
 		return (0);
@@ -508,11 +504,10 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 				 * jumped to a bogus location, so try and use
 				 * the return address to find our caller.
 				 */
-				db_print_stack_entry(name, 0, 0, 0, pc,
-				    NULL);
+				db_print_stack_entry(name, 0, 0, 0, pc, NULL);
 				pc = db_get_value(sp, 4, false);
 				if (db_search_symbol(pc, DB_STGY_PROC,
-				    &offset) == C_DB_SYM_NULL)
+					&offset) == C_DB_SYM_NULL)
 					break;
 				continue;
 			} else if (tf != NULL) {
@@ -539,8 +534,8 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 				 * Don't try to walk back on a stack for a
 				 * process that hasn't actually been run yet.
 				 */
-				db_print_stack_entry(name, 0, 0, 0, pc,
-				    actframe);
+				db_print_stack_entry(
+				    name, 0, 0, 0, pc, actframe);
 				break;
 			}
 		}
@@ -557,14 +552,14 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 
 		if (actframe != frame) {
 			/* `frame' belongs to caller. */
-			pc = (db_addr_t)
-			    db_get_value((int)&actframe->f_retaddr, 4, false);
+			pc = (db_addr_t)db_get_value(
+			    (int)&actframe->f_retaddr, 4, false);
 			continue;
 		}
 
 		db_nextframe(&frame, &pc, td);
 
-out:
+	out:
 		/*
 		 * 'frame' can be null here, either because it was initially
 		 * null or because db_nextframe() found no frame.
@@ -574,8 +569,8 @@ out:
 		 */
 		if (frame == NULL || frame <= actframe) {
 			if (pc != 0) {
-				sym = db_search_symbol(pc, DB_STGY_ANY,
-				    &offset);
+				sym = db_search_symbol(
+				    pc, DB_STGY_ANY, &offset);
 				db_symbol_values(sym, &name, NULL);
 				db_print_stack_entry(name, 0, 0, 0, pc, frame);
 			}
@@ -593,7 +588,7 @@ db_trace_self(void)
 	db_addr_t callpc;
 	register_t ebp;
 
-	__asm __volatile("movl %%ebp,%0" : "=r" (ebp));
+	__asm __volatile("movl %%ebp,%0" : "=r"(ebp));
 	frame = (struct i386_frame *)ebp;
 	callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, false);
 	frame = frame->f_frame;

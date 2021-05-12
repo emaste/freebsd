@@ -8,7 +8,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -31,7 +31,7 @@
  */
 
 #ifndef _SYS__UCONTEXT_H_
-#define	_SYS__UCONTEXT_H_
+#define _SYS__UCONTEXT_H_
 
 typedef struct __ucontext {
 	/*
@@ -42,13 +42,13 @@ typedef struct __ucontext {
 	 * support them both at the same time.
 	 * note: the union is not defined, though.
 	 */
-	__sigset_t	uc_sigmask;
-	mcontext_t	uc_mcontext;
+	__sigset_t uc_sigmask;
+	mcontext_t uc_mcontext;
 
 	struct __ucontext *uc_link;
 	struct __stack_t uc_stack;
-	int		uc_flags;
-	int		__spare__[4];
+	int uc_flags;
+	int __spare__[4];
 } ucontext_t;
 
 #endif /* _SYS__UCONTEXT_H */

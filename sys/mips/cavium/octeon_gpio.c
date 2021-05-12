@@ -28,7 +28,7 @@
  */
 
 /*
- * GPIO driver for Cavium Octeon 
+ * GPIO driver for Cavium Octeon
  */
 
 #include <sys/cdefs.h>
@@ -37,27 +37,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/gpio.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#include <contrib/octeon-sdk/cvmx.h>
-#include <contrib/octeon-sdk/cvmx-gpio.h>
-#include <mips/cavium/octeon_irq.h>
-
-#include <mips/cavium/octeon_gpiovar.h>
 #include <dev/gpio/gpiobusvar.h>
+
+#include <contrib/octeon-sdk/cvmx-gpio.h>
+#include <contrib/octeon-sdk/cvmx.h>
+#include <mips/cavium/octeon_gpiovar.h>
+#include <mips/cavium/octeon_irq.h>
 
 #include "gpio_if.h"
 
-#define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
+#define DEFAULT_CAPS (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
 
 struct octeon_gpio_pin {
 	const char *name;
@@ -70,15 +69,15 @@ struct octeon_gpio_pin {
  *
  */
 static struct octeon_gpio_pin octeon_gpio_pins[] = {
-	{ "F/D", 7,  GPIO_PIN_INPUT},
-	{ NULL, 0, 0},
+	{ "F/D", 7, GPIO_PIN_INPUT },
+	{ NULL, 0, 0 },
 };
 
 /*
  * Helpers
  */
-static void octeon_gpio_pin_configure(struct octeon_gpio_softc *sc, 
-    struct gpio_pin *pin, uint32_t flags);
+static void octeon_gpio_pin_configure(
+    struct octeon_gpio_softc *sc, struct gpio_pin *pin, uint32_t flags);
 
 /*
  * Driver stuff
@@ -96,8 +95,8 @@ static void octeon_gpio_intr(void *arg);
 static device_t octeon_gpio_get_bus(device_t);
 static int octeon_gpio_pin_max(device_t dev, int *maxpin);
 static int octeon_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps);
-static int octeon_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t
-    *flags);
+static int octeon_gpio_pin_getflags(
+    device_t dev, uint32_t pin, uint32_t *flags);
 static int octeon_gpio_pin_getname(device_t dev, uint32_t pin, char *name);
 static int octeon_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags);
 static int octeon_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value);
@@ -105,8 +104,8 @@ static int octeon_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val);
 static int octeon_gpio_pin_toggle(device_t dev, uint32_t pin);
 
 static void
-octeon_gpio_pin_configure(struct octeon_gpio_softc *sc, struct gpio_pin *pin,
-    unsigned int flags)
+octeon_gpio_pin_configure(
+    struct octeon_gpio_softc *sc, struct gpio_pin *pin, unsigned int flags)
 {
 	uint32_t mask;
 	cvmx_gpio_bit_cfgx_t gpio_cfgx;
@@ -117,14 +116,13 @@ octeon_gpio_pin_configure(struct octeon_gpio_softc *sc, struct gpio_pin *pin,
 	/*
 	 * Manage input/output
 	 */
-	if (flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) {
+	if (flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) {
 		gpio_cfgx.u64 = cvmx_read_csr(CVMX_GPIO_BIT_CFGX(pin->gp_pin));
-		pin->gp_flags &= ~(GPIO_PIN_INPUT|GPIO_PIN_OUTPUT);
+		pin->gp_flags &= ~(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT);
 		if (flags & GPIO_PIN_OUTPUT) {
 			pin->gp_flags |= GPIO_PIN_OUTPUT;
 			gpio_cfgx.s.tx_oe = 1;
-		}
-		else {
+		} else {
 			pin->gp_flags |= GPIO_PIN_INPUT;
 			gpio_cfgx.s.tx_oe = 0;
 		}
@@ -302,7 +300,7 @@ octeon_gpio_pin_toggle(device_t dev, uint32_t pin)
 
 	GPIO_LOCK(sc);
 	/*
-	 * XXX: Need to check if read returns actual state of output 
+	 * XXX: Need to check if read returns actual state of output
 	 * pins or we need to keep this information by ourself
 	 */
 	state = cvmx_gpio_read();
@@ -346,8 +344,7 @@ octeon_gpio_intr(void *arg)
 	long int irq = (cookie - sc->gpio_intr_cookies);
 
 	if ((irq < 0) || (irq >= OCTEON_GPIO_IRQS)) {
-		printf("%s: invalid GPIO IRQ: %ld\n", 
-		    __func__, irq);
+		printf("%s: invalid GPIO IRQ: %ld\n", __func__, irq);
 		return;
 	}
 
@@ -391,22 +388,22 @@ octeon_gpio_attach(device_t dev)
 
 	mtx_init(&sc->gpio_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
-	for ( i = 0; i < OCTEON_GPIO_IRQS; i++) {
-		if ((sc->gpio_irq_res[i] = bus_alloc_resource(dev, 
-		    SYS_RES_IRQ, &sc->gpio_irq_rid[i], 
-		    OCTEON_IRQ_GPIO0 + i, OCTEON_IRQ_GPIO0 + i, 1, 
-		    RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+	for (i = 0; i < OCTEON_GPIO_IRQS; i++) {
+		if ((sc->gpio_irq_res[i] = bus_alloc_resource(dev, SYS_RES_IRQ,
+			 &sc->gpio_irq_rid[i], OCTEON_IRQ_GPIO0 + i,
+			 OCTEON_IRQ_GPIO0 + i, 1, RF_SHAREABLE | RF_ACTIVE)) ==
+		    NULL) {
 			device_printf(dev, "unable to allocate IRQ resource\n");
 			octeon_gpio_detach(dev);
 			return (ENXIO);
 		}
 
 		sc->gpio_intr_cookies[i] = sc;
-		if ((bus_setup_intr(dev, sc->gpio_irq_res[i], INTR_TYPE_MISC, 
-	    	    octeon_gpio_filter, octeon_gpio_intr, 
-		    &(sc->gpio_intr_cookies[i]), &sc->gpio_ih[i]))) {
+		if ((bus_setup_intr(dev, sc->gpio_irq_res[i], INTR_TYPE_MISC,
+			octeon_gpio_filter, octeon_gpio_intr,
+			&(sc->gpio_intr_cookies[i]), &sc->gpio_ih[i]))) {
 			device_printf(dev,
-		    	"WARNING: unable to register interrupt handler\n");
+			    "WARNING: unable to register interrupt handler\n");
 			octeon_gpio_detach(dev);
 			return (ENXIO);
 		}
@@ -443,9 +440,11 @@ octeon_gpio_attach(device_t dev)
 	if (bootverbose) {
 		for (i = 0; i < 16; i++) {
 			gpio_cfgx.u64 = cvmx_read_csr(CVMX_GPIO_BIT_CFGX(i));
-			device_printf(dev, "[pin%d] output=%d, invinput=%d, intr=%d, intr_type=%s\n", 
-			    i, gpio_cfgx.s.tx_oe, gpio_cfgx.s.rx_xor, 
-			    gpio_cfgx.s.int_en, gpio_cfgx.s.int_type ? "rising edge" : "level");
+			device_printf(dev,
+			    "[pin%d] output=%d, invinput=%d, intr=%d, intr_type=%s\n",
+			    i, gpio_cfgx.s.tx_oe, gpio_cfgx.s.rx_xor,
+			    gpio_cfgx.s.int_en,
+			    gpio_cfgx.s.int_type ? "rising edge" : "level");
 		}
 	}
 	sc->busdev = gpiobus_attach_bus(dev);
@@ -465,10 +464,10 @@ octeon_gpio_detach(device_t dev)
 
 	KASSERT(mtx_initialized(&sc->gpio_mtx), ("gpio mutex not initialized"));
 
-	for ( i = 0; i < OCTEON_GPIO_IRQS; i++) {
+	for (i = 0; i < OCTEON_GPIO_IRQS; i++) {
 		if (sc->gpio_ih[i])
-			bus_teardown_intr(dev, sc->gpio_irq_res[i],
-			    sc->gpio_ih[i]);
+			bus_teardown_intr(
+			    dev, sc->gpio_irq_res[i], sc->gpio_ih[i]);
 		if (sc->gpio_irq_res[i])
 			bus_release_resource(dev, SYS_RES_IRQ,
 			    sc->gpio_irq_rid[i], sc->gpio_irq_res[i]);
@@ -476,7 +475,7 @@ octeon_gpio_detach(device_t dev)
 	gpiobus_detach_bus(dev);
 	mtx_destroy(&sc->gpio_mtx);
 
-	return(0);
+	return (0);
 }
 
 static device_method_t octeon_gpio_methods[] = {
@@ -495,7 +494,7 @@ static device_method_t octeon_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get, octeon_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set, octeon_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle, octeon_gpio_pin_toggle),
-	{0, 0},
+	{ 0, 0 },
 };
 
 static driver_t octeon_gpio_driver = {

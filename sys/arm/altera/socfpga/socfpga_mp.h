@@ -26,7 +26,7 @@
  */
 
 #ifndef _SOCFPGA_MP_H_
-#define	_SOCFPGA_MP_H_
+#define _SOCFPGA_MP_H_
 
 void socfpga_mp_setmaxid(platform_t);
 void socfpga_mp_start_ap(platform_t);

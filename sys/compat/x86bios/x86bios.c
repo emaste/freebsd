@@ -39,48 +39,50 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 
-#include <contrib/x86emu/x86emu.h>
-#include <contrib/x86emu/x86emu_regs.h>
-#include <compat/x86bios/x86bios.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include <compat/x86bios/x86bios.h>
+#include <contrib/x86emu/x86emu.h>
+#include <contrib/x86emu/x86emu_regs.h>
 
 #ifdef __amd64__
-#define	X86BIOS_NATIVE_ARCH
+#define X86BIOS_NATIVE_ARCH
 #endif
 #ifdef __i386__
-#define	X86BIOS_NATIVE_VM86
+#define X86BIOS_NATIVE_VM86
 #endif
 
-#define	X86BIOS_MEM_SIZE	0x00100000	/* 1M */
+#define X86BIOS_MEM_SIZE 0x00100000 /* 1M */
 
-#define	X86BIOS_TRACE(h, n, r)	do {					\
-	printf(__STRING(h)						\
-	    " (ax=0x%04x bx=0x%04x cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",\
-	    (n), (r)->R_AX, (r)->R_BX, (r)->R_CX, (r)->R_DX,		\
-	    (r)->R_ES, (r)->R_DI);					\
-} while (0)
+#define X86BIOS_TRACE(h, n, r)                                                                 \
+	do {                                                                                   \
+		printf(                                                                        \
+		    __STRING(                                                                  \
+			h) " (ax=0x%04x bx=0x%04x cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n", \
+		    (n), (r)->R_AX, (r)->R_BX, (r)->R_CX, (r)->R_DX,                           \
+		    (r)->R_ES, (r)->R_DI);                                                     \
+	} while (0)
 
 static struct mtx x86bios_lock;
 
 static SYSCTL_NODE(_debug, OID_AUTO, x86bios, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "x86bios debugging");
 static int x86bios_trace_call;
-SYSCTL_INT(_debug_x86bios, OID_AUTO, call, CTLFLAG_RWTUN, &x86bios_trace_call, 0,
-    "Trace far function calls");
+SYSCTL_INT(_debug_x86bios, OID_AUTO, call, CTLFLAG_RWTUN, &x86bios_trace_call,
+    0, "Trace far function calls");
 static int x86bios_trace_int;
 SYSCTL_INT(_debug_x86bios, OID_AUTO, int, CTLFLAG_RWTUN, &x86bios_trace_int, 0,
     "Trace software interrupt handlers");
 
 #ifdef X86BIOS_NATIVE_VM86
 
+#include <machine/pc/bios.h>
 #include <machine/vm86.h>
 #include <machine/vmparam.h>
-#include <machine/pc/bios.h>
 
 struct vm86context x86bios_vmc;
 
@@ -123,8 +125,8 @@ x86bios_alloc(uint32_t *offset, size_t size, int flags)
 
 	if (offset == NULL || size == 0)
 		return (NULL);
-	vaddr = contigmalloc(size, M_DEVBUF, flags, 0, X86BIOS_MEM_SIZE,
-	    PAGE_SIZE, 0);
+	vaddr = contigmalloc(
+	    size, M_DEVBUF, flags, 0, X86BIOS_MEM_SIZE, PAGE_SIZE, 0);
 	if (vaddr != NULL) {
 		*offset = vtophys(vaddr);
 		mtx_lock(&x86bios_lock);
@@ -180,7 +182,7 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 	struct vm86frame vmf;
 
 	if (x86bios_trace_call)
-		X86BIOS_TRACE(Calling 0x%06x, (seg << 4) + off, regs);
+		X86BIOS_TRACE(Calling 0x % 06x, (seg << 4) + off, regs);
 
 	bzero(&vmf, sizeof(vmf));
 	x86bios_emu2vmf((struct x86emu_regs *)regs, &vmf);
@@ -192,7 +194,7 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 	x86bios_vmf2emu(&vmf, (struct x86emu_regs *)regs);
 
 	if (x86bios_trace_call)
-		X86BIOS_TRACE(Exiting 0x%06x, (seg << 4) + off, regs);
+		X86BIOS_TRACE(Exiting 0x % 06x, (seg << 4) + off, regs);
 }
 
 uint32_t
@@ -215,7 +217,7 @@ x86bios_intr(struct x86regs *regs, int intno)
 	struct vm86frame vmf;
 
 	if (x86bios_trace_int)
-		X86BIOS_TRACE(Calling INT 0x%02x, intno, regs);
+		X86BIOS_TRACE(Calling INT 0x % 02x, intno, regs);
 
 	bzero(&vmf, sizeof(vmf));
 	x86bios_emu2vmf((struct x86emu_regs *)regs, &vmf);
@@ -225,7 +227,7 @@ x86bios_intr(struct x86regs *regs, int intno)
 	x86bios_vmf2emu(&vmf, (struct x86emu_regs *)regs);
 
 	if (x86bios_trace_int)
-		X86BIOS_TRACE(Exiting INT 0x%02x, intno, regs);
+		X86BIOS_TRACE(Exiting INT 0x % 02x, intno, regs);
 }
 
 void *
@@ -233,8 +235,8 @@ x86bios_offset(uint32_t offset)
 {
 	vm_offset_t addr;
 
-	addr = vm86_getaddr(&x86bios_vmc, X86BIOS_PHYSTOSEG(offset),
-	    X86BIOS_PHYSTOOFF(offset));
+	addr = vm86_getaddr(
+	    &x86bios_vmc, X86BIOS_PHYSTOSEG(offset), X86BIOS_PHYSTOOFF(offset));
 	if (addr == 0)
 		addr = BIOS_PADDRTOVADDR(offset);
 
@@ -264,21 +266,21 @@ x86bios_uninit(void)
 
 #include <machine/iodev.h>
 
-#define	X86BIOS_PAGE_SIZE	0x00001000	/* 4K */
+#define X86BIOS_PAGE_SIZE 0x00001000 /* 4K */
 
-#define	X86BIOS_IVT_SIZE	0x00000500	/* 1K + 256 (BDA) */
+#define X86BIOS_IVT_SIZE 0x00000500 /* 1K + 256 (BDA) */
 
-#define	X86BIOS_IVT_BASE	0x00000000
-#define	X86BIOS_RAM_BASE	0x00001000
-#define	X86BIOS_ROM_BASE	0x000a0000
+#define X86BIOS_IVT_BASE 0x00000000
+#define X86BIOS_RAM_BASE 0x00001000
+#define X86BIOS_ROM_BASE 0x000a0000
 
-#define	X86BIOS_ROM_SIZE	(X86BIOS_MEM_SIZE - x86bios_rom_phys)
-#define	X86BIOS_SEG_SIZE	X86BIOS_PAGE_SIZE
+#define X86BIOS_ROM_SIZE (X86BIOS_MEM_SIZE - x86bios_rom_phys)
+#define X86BIOS_SEG_SIZE X86BIOS_PAGE_SIZE
 
-#define	X86BIOS_PAGES		(X86BIOS_MEM_SIZE / X86BIOS_PAGE_SIZE)
+#define X86BIOS_PAGES (X86BIOS_MEM_SIZE / X86BIOS_PAGE_SIZE)
 
-#define	X86BIOS_R_SS		_pad2
-#define	X86BIOS_R_SP		_pad3.I16_reg.x_reg
+#define X86BIOS_R_SS _pad2
+#define X86BIOS_R_SP _pad3.I16_reg.x_reg
 
 static struct x86emu x86bios_emu;
 
@@ -330,7 +332,7 @@ x86bios_set_pages(vm_offset_t va, vm_paddr_t pa, size_t size)
 	int i, j;
 
 	for (i = pa / X86BIOS_PAGE_SIZE, j = 0;
-	    j < howmany(size, X86BIOS_PAGE_SIZE); i++, j++)
+	     j < howmany(size, X86BIOS_PAGE_SIZE); i++, j++)
 		x86bios_map[i] = va + j * X86BIOS_PAGE_SIZE;
 }
 
@@ -360,7 +362,7 @@ x86bios_emu_rdw(struct x86emu *emu, uint32_t addr)
 		return (le16dec(va));
 	else
 #endif
-	return (le16toh(*va));
+		return (le16toh(*va));
 }
 
 static uint32_t
@@ -377,7 +379,7 @@ x86bios_emu_rdl(struct x86emu *emu, uint32_t addr)
 		return (le32dec(va));
 	else
 #endif
-	return (le32toh(*va));
+		return (le32toh(*va));
 }
 
 static void
@@ -406,7 +408,7 @@ x86bios_emu_wrw(struct x86emu *emu, uint32_t addr, uint16_t val)
 		le16enc(va, val);
 	else
 #endif
-	*va = htole16(val);
+		*va = htole16(val);
 }
 
 static void
@@ -423,7 +425,7 @@ x86bios_emu_wrl(struct x86emu *emu, uint32_t addr, uint32_t val)
 		le32enc(va, val);
 	else
 #endif
-	*va = htole32(val);
+		*va = htole32(val);
 }
 
 static uint8_t
@@ -454,7 +456,7 @@ x86bios_emu_inw(struct x86emu *emu, uint16_t port)
 		val |= iodev_read_1(port + 1) << 8;
 	} else
 #endif
-	val = iodev_read_2(port);
+		val = iodev_read_2(port);
 
 	return (val);
 }
@@ -477,7 +479,7 @@ x86bios_emu_inl(struct x86emu *emu, uint16_t port)
 		val |= iodev_read_2(port + 2) << 16;
 	} else
 #endif
-	val = iodev_read_4(port);
+		val = iodev_read_4(port);
 
 	return (val);
 }
@@ -509,7 +511,7 @@ x86bios_emu_outw(struct x86emu *emu, uint16_t port, uint16_t val)
 		iodev_write_1(port + 1, val >> 8);
 	} else
 #endif
-	iodev_write_2(port, val);
+		iodev_write_2(port, val);
 }
 
 static void
@@ -529,7 +531,7 @@ x86bios_emu_outl(struct x86emu *emu, uint16_t port, uint32_t val)
 		iodev_write_2(port + 2, val >> 16);
 	} else
 #endif
-	iodev_write_4(port, val);
+		iodev_write_4(port, val);
 }
 
 void *
@@ -583,7 +585,7 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 {
 
 	if (x86bios_trace_call)
-		X86BIOS_TRACE(Calling 0x%06x, (seg << 4) + off, regs);
+		X86BIOS_TRACE(Calling 0x % 06x, (seg << 4) + off, regs);
 
 	mtx_lock(&x86bios_lock);
 	memcpy((struct x86regs *)&x86bios_emu.x86, regs, sizeof(*regs));
@@ -595,7 +597,7 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 	mtx_unlock(&x86bios_lock);
 
 	if (x86bios_trace_call) {
-		X86BIOS_TRACE(Exiting 0x%06x, (seg << 4) + off, regs);
+		X86BIOS_TRACE(Exiting 0x % 06x, (seg << 4) + off, regs);
 		if (x86bios_fault)
 			printf("Page fault at 0x%06x from 0x%04x:0x%04x.\n",
 			    x86bios_fault_addr, x86bios_fault_cs,
@@ -625,7 +627,7 @@ x86bios_intr(struct x86regs *regs, int intno)
 		return;
 
 	if (x86bios_trace_int)
-		X86BIOS_TRACE(Calling INT 0x%02x, intno, regs);
+		X86BIOS_TRACE(Calling INT 0x % 02x, intno, regs);
 
 	mtx_lock(&x86bios_lock);
 	memcpy((struct x86regs *)&x86bios_emu.x86, regs, sizeof(*regs));
@@ -637,7 +639,7 @@ x86bios_intr(struct x86regs *regs, int intno)
 	mtx_unlock(&x86bios_lock);
 
 	if (x86bios_trace_int) {
-		X86BIOS_TRACE(Exiting INT 0x%02x, intno, regs);
+		X86BIOS_TRACE(Exiting INT 0x % 02x, intno, regs);
 		if (x86bios_fault)
 			printf("Page fault at 0x%06x from 0x%04x:0x%04x.\n",
 			    x86bios_fault_addr, x86bios_fault_cs,
@@ -680,8 +682,8 @@ static __inline int
 x86bios_map_mem(void)
 {
 
-	x86bios_map = malloc(sizeof(*x86bios_map) * X86BIOS_PAGES, M_DEVBUF,
-	    M_NOWAIT | M_ZERO);
+	x86bios_map = malloc(
+	    sizeof(*x86bios_map) * X86BIOS_PAGES, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (x86bios_map == NULL)
 		goto fail;
 
@@ -693,8 +695,8 @@ x86bios_map_mem(void)
 	x86bios_rom_phys = x86bios_rom_phys << 4;
 	if (x86bios_rom_phys != 0 && x86bios_rom_phys < X86BIOS_ROM_BASE &&
 	    X86BIOS_ROM_BASE - x86bios_rom_phys <= 128 * 1024)
-		x86bios_rom_phys =
-		    rounddown(x86bios_rom_phys, X86BIOS_PAGE_SIZE);
+		x86bios_rom_phys = rounddown(
+		    x86bios_rom_phys, X86BIOS_PAGE_SIZE);
 	else
 #else
 	x86bios_ivt = malloc(X86BIOS_IVT_SIZE, M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -702,7 +704,7 @@ x86bios_map_mem(void)
 		goto fail;
 #endif
 
-	x86bios_rom_phys = X86BIOS_ROM_BASE;
+		x86bios_rom_phys = X86BIOS_ROM_BASE;
 	x86bios_rom = pmap_mapdev(x86bios_rom_phys, X86BIOS_ROM_SIZE);
 	if (x86bios_rom == NULL)
 		goto fail;
@@ -710,22 +712,22 @@ x86bios_map_mem(void)
 	/* Change attribute for EBDA. */
 	if (x86bios_rom_phys < X86BIOS_ROM_BASE &&
 	    pmap_change_attr((vm_offset_t)x86bios_rom,
-	    X86BIOS_ROM_BASE - x86bios_rom_phys, PAT_WRITE_BACK) != 0)
+		X86BIOS_ROM_BASE - x86bios_rom_phys, PAT_WRITE_BACK) != 0)
 		goto fail;
 #endif
 
 	x86bios_seg = contigmalloc(X86BIOS_SEG_SIZE, M_DEVBUF, M_NOWAIT,
 	    X86BIOS_RAM_BASE, x86bios_rom_phys, X86BIOS_PAGE_SIZE, 0);
 	if (x86bios_seg == NULL)
-	    goto fail;
+		goto fail;
 	x86bios_seg_phys = vtophys(x86bios_seg);
 
-	x86bios_set_pages((vm_offset_t)x86bios_ivt, X86BIOS_IVT_BASE,
-	    X86BIOS_IVT_SIZE);
-	x86bios_set_pages((vm_offset_t)x86bios_rom, x86bios_rom_phys,
-	    X86BIOS_ROM_SIZE);
-	x86bios_set_pages((vm_offset_t)x86bios_seg, x86bios_seg_phys,
-	    X86BIOS_SEG_SIZE);
+	x86bios_set_pages(
+	    (vm_offset_t)x86bios_ivt, X86BIOS_IVT_BASE, X86BIOS_IVT_SIZE);
+	x86bios_set_pages(
+	    (vm_offset_t)x86bios_rom, x86bios_rom_phys, X86BIOS_ROM_SIZE);
+	x86bios_set_pages(
+	    (vm_offset_t)x86bios_seg, x86bios_seg_phys, X86BIOS_SEG_SIZE);
 
 	if (bootverbose) {
 		printf("x86bios:  IVT 0x%06jx-0x%06jx at %p\n",

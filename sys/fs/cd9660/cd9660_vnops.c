@@ -41,55 +41,54 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
-#include <sys/kernel.h>
-#include <sys/conf.h>
-#include <sys/stat.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/mount.h>
-#include <sys/vnode.h>
-#include <sys/malloc.h>
+#include <sys/conf.h>
 #include <sys/dirent.h>
-#include <sys/unistd.h>
 #include <sys/filio.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/namei.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/unistd.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
-#include <vm/vnode_pager.h>
 #include <vm/uma.h>
+#include <vm/vnode_pager.h>
 
-#include <fs/cd9660/iso.h>
 #include <fs/cd9660/cd9660_node.h>
+#include <fs/cd9660/iso.h>
 #include <fs/cd9660/iso_rrip.h>
 
-static vop_setattr_t	cd9660_setattr;
-static vop_open_t	cd9660_open;
-static vop_access_t	cd9660_access;
-static vop_getattr_t	cd9660_getattr;
-static vop_ioctl_t	cd9660_ioctl;
-static vop_pathconf_t	cd9660_pathconf;
-static vop_read_t	cd9660_read;
+static vop_setattr_t cd9660_setattr;
+static vop_open_t cd9660_open;
+static vop_access_t cd9660_access;
+static vop_getattr_t cd9660_getattr;
+static vop_ioctl_t cd9660_ioctl;
+static vop_pathconf_t cd9660_pathconf;
+static vop_read_t cd9660_read;
 struct isoreaddir;
 static int iso_uiodir(struct isoreaddir *idp, struct dirent *dp, off_t off);
 static int iso_shipdir(struct isoreaddir *idp);
-static vop_readdir_t	cd9660_readdir;
-static vop_readlink_t	cd9660_readlink;
-static vop_strategy_t	cd9660_strategy;
-static vop_vptofh_t	cd9660_vptofh;
-static vop_getpages_t	cd9660_getpages;
+static vop_readdir_t cd9660_readdir;
+static vop_readlink_t cd9660_readlink;
+static vop_strategy_t cd9660_strategy;
+static vop_vptofh_t cd9660_vptofh;
+static vop_getpages_t cd9660_getpages;
 
 /*
  * Setattr call. Only allowed for block and character special devices.
  */
-static int
-cd9660_setattr(ap)
-	struct vop_setattr_args /* {
-		struct vnodeop_desc *a_desc;
-		struct vnode *a_vp;
-		struct vattr *a_vap;
-		struct ucred *a_cred;
-	} */ *ap;
+static int cd9660_setattr(ap) struct vop_setattr_args
+    /* {
+struct vnodeop_desc *a_desc;
+struct vnode *a_vp;
+struct vattr *a_vap;
+struct ucred *a_cred;
+} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
@@ -124,14 +123,13 @@ cd9660_setattr(ap)
  * super user is granted all permissions.
  */
 /* ARGSUSED */
-static int
-cd9660_access(ap)
-	struct vop_access_args /* {
-		struct vnode *a_vp;
-		accmode_t a_accmode;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+static int cd9660_access(ap) struct vop_access_args
+    /* {
+struct vnode *a_vp;
+accmode_t a_accmode;
+struct ucred *a_cred;
+struct thread *a_td;
+} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct iso_node *ip = VTOI(vp);
@@ -161,15 +159,14 @@ cd9660_access(ap)
 	    ip->inode.iso_gid, ap->a_accmode, ap->a_cred));
 }
 
-static int
-cd9660_open(ap)
-	struct vop_open_args /* {
-		struct vnode *a_vp;
-		int a_mode;
-		struct ucred *a_cred;
-		struct thread *a_td;
-		struct file *a_fp;
-	} */ *ap;
+static int cd9660_open(ap) struct vop_open_args
+    /* {
+struct vnode *a_vp;
+int a_mode;
+struct ucred *a_cred;
+struct thread *a_td;
+struct file *a_fp;
+} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct iso_node *ip = VTOI(vp);
@@ -181,32 +178,31 @@ cd9660_open(ap)
 	return (0);
 }
 
-static int
-cd9660_getattr(ap)
-	struct vop_getattr_args /* {
-		struct vnode *a_vp;
-		struct vattr *a_vap;
-		struct ucred *a_cred;
-	} */ *ap;
+static int cd9660_getattr(ap) struct vop_getattr_args
+    /* {
+struct vnode *a_vp;
+struct vattr *a_vap;
+struct ucred *a_cred;
+} */ *ap;
 
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
 	struct iso_node *ip = VTOI(vp);
 
-	vap->va_fsid    = dev2udev(ip->i_mnt->im_dev);
-	vap->va_fileid	= ip->i_number;
+	vap->va_fsid = dev2udev(ip->i_mnt->im_dev);
+	vap->va_fileid = ip->i_number;
 
-	vap->va_mode	= ip->inode.iso_mode;
-	vap->va_nlink	= ip->inode.iso_links;
-	vap->va_uid	= ip->inode.iso_uid;
-	vap->va_gid	= ip->inode.iso_gid;
-	vap->va_atime	= ip->inode.iso_atime;
-	vap->va_mtime	= ip->inode.iso_mtime;
-	vap->va_ctime	= ip->inode.iso_ctime;
-	vap->va_rdev	= ip->inode.iso_rdev;
+	vap->va_mode = ip->inode.iso_mode;
+	vap->va_nlink = ip->inode.iso_links;
+	vap->va_uid = ip->inode.iso_uid;
+	vap->va_gid = ip->inode.iso_gid;
+	vap->va_atime = ip->inode.iso_atime;
+	vap->va_mtime = ip->inode.iso_mtime;
+	vap->va_ctime = ip->inode.iso_ctime;
+	vap->va_rdev = ip->inode.iso_rdev;
 
-	vap->va_size	= (u_quad_t) ip->i_size;
+	vap->va_size = (u_quad_t)ip->i_size;
 	if (ip->i_size == 0 && (vap->va_mode & S_IFMT) == S_IFLNK) {
 		struct vop_readlink_args rdlnk;
 		struct iovec aiov;
@@ -230,28 +226,27 @@ cd9660_getattr(ap)
 			vap->va_size = MAXPATHLEN - auio.uio_resid;
 		free(cp, M_TEMP);
 	}
-	vap->va_flags	= 0;
+	vap->va_flags = 0;
 	vap->va_gen = 1;
 	vap->va_blocksize = ip->i_mnt->logical_block_size;
-	vap->va_bytes	= (u_quad_t) ip->i_size;
-	vap->va_type	= vp->v_type;
-	vap->va_filerev	= 0;
+	vap->va_bytes = (u_quad_t)ip->i_size;
+	vap->va_type = vp->v_type;
+	vap->va_filerev = 0;
 	return (0);
 }
 
 /*
  * Vnode op for ioctl.
  */
-static int
-cd9660_ioctl(ap)
-	struct vop_ioctl_args /* {
-		struct vnode *a_vp;
-		u_long  a_command;
-		caddr_t  a_data;
-		int  a_fflag;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+static int cd9660_ioctl(ap) struct vop_ioctl_args
+    /* {
+struct vnode *a_vp;
+u_long  a_command;
+caddr_t  a_data;
+int  a_fflag;
+struct ucred *a_cred;
+struct thread *a_td;
+} */ *ap;
 {
 	struct vnode *vp;
 	struct iso_node *ip;
@@ -287,14 +282,13 @@ cd9660_ioctl(ap)
 /*
  * Vnode op for reading.
  */
-static int
-cd9660_read(ap)
-	struct vop_read_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
+static int cd9660_read(ap) struct vop_read_args
+    /* {
+struct vnode *a_vp;
+struct uio *a_uio;
+int a_ioflag;
+struct ucred *a_cred;
+} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
@@ -330,17 +324,17 @@ cd9660_read(ap)
 		rablock = lbn + 1;
 		if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			if (lblktosize(imp, rablock) < ip->i_size)
-				error = cluster_read(vp, (off_t)ip->i_size,
-					 lbn, size, NOCRED, uio->uio_resid,
-					 (ap->a_ioflag >> 16), 0, &bp);
+				error = cluster_read(vp, (off_t)ip->i_size, lbn,
+				    size, NOCRED, uio->uio_resid,
+				    (ap->a_ioflag >> 16), 0, &bp);
 			else
 				error = bread(vp, lbn, size, NOCRED, &bp);
 		} else {
 			if (seqcount > 1 &&
 			    lblktosize(imp, rablock) < ip->i_size) {
 				rasize = blksize(imp, ip, rablock);
-				error = breadn(vp, lbn, size, &rablock,
-					       &rasize, 1, NOCRED, &bp);
+				error = breadn(vp, lbn, size, &rablock, &rasize,
+				    1, NOCRED, &bp);
 			} else
 				error = bread(vp, lbn, size, NOCRED, &bp);
 		}
@@ -371,11 +365,9 @@ struct isoreaddir {
 	int ncookies;
 };
 
-static int
-iso_uiodir(idp,dp,off)
-	struct isoreaddir *idp;
-	struct dirent *dp;
-	off_t off;
+static int iso_uiodir(idp, dp, off) struct isoreaddir *idp;
+struct dirent *dp;
+off_t off;
 {
 	int error;
 
@@ -403,9 +395,7 @@ iso_uiodir(idp,dp,off)
 	return (0);
 }
 
-static int
-iso_shipdir(idp)
-	struct isoreaddir *idp;
+static int iso_shipdir(idp) struct isoreaddir *idp;
 {
 	struct dirent *dp;
 	int cl, sl, assoc;
@@ -428,15 +418,16 @@ iso_shipdir(idp)
 		sl = dp->d_namlen - 1;
 	}
 	if (sl > 0) {
-		if (sl != cl
-		    || bcmp(sname,cname,sl)) {
+		if (sl != cl || bcmp(sname, cname, sl)) {
 			if (idp->assocent.d_namlen) {
-				if ((error = iso_uiodir(idp,&idp->assocent,idp->assocoff)) != 0)
+				if ((error = iso_uiodir(idp, &idp->assocent,
+					 idp->assocoff)) != 0)
 					return (error);
 				idp->assocent.d_namlen = 0;
 			}
 			if (idp->saveent.d_namlen) {
-				if ((error = iso_uiodir(idp,&idp->saveent,idp->saveoff)) != 0)
+				if ((error = iso_uiodir(idp, &idp->saveent,
+					 idp->saveoff)) != 0)
 					return (error);
 				idp->saveent.d_namlen = 0;
 			}
@@ -456,16 +447,15 @@ iso_shipdir(idp)
 /*
  * Vnode op for readdir
  */
-static int
-cd9660_readdir(ap)
-	struct vop_readdir_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		struct ucred *a_cred;
-		int *a_eofflag;
-		int *a_ncookies;
-		u_long **a_cookies;
-	} */ *ap;
+static int cd9660_readdir(ap) struct vop_readdir_args
+    /* {
+struct vnode *a_vp;
+struct uio *a_uio;
+struct ucred *a_cred;
+int *a_eofflag;
+int *a_ncookies;
+u_long **a_cookies;
+} */ *ap;
 {
 	struct uio *uio = ap->a_uio;
 	struct isoreaddir *idp;
@@ -504,8 +494,7 @@ cd9660_readdir(ap)
 		 * Guess the number of cookies needed.
 		 */
 		ncookies = uio->uio_resid / 16;
-		cookies = malloc(ncookies * sizeof(u_long),
-		    M_TEMP, M_WAITOK);
+		cookies = malloc(ncookies * sizeof(u_long), M_TEMP, M_WAITOK);
 		idp->cookies = cookies;
 		idp->ncookies = ncookies;
 	}
@@ -529,22 +518,22 @@ cd9660_readdir(ap)
 		if ((idp->curroff & bmask) == 0) {
 			if (bp != NULL)
 				brelse(bp);
-			if ((error =
-			    cd9660_blkatoff(vdp, (off_t)idp->curroff, NULL, &bp)) != 0)
+			if ((error = cd9660_blkatoff(
+				 vdp, (off_t)idp->curroff, NULL, &bp)) != 0)
 				break;
 			entryoffsetinblock = 0;
 		}
 		/*
 		 * Get pointer to next entry.
 		 */
-		ep = (struct iso_directory_record *)
-			((char *)bp->b_data + entryoffsetinblock);
+		ep = (struct iso_directory_record *)((char *)bp->b_data +
+		    entryoffsetinblock);
 
 		reclen = isonum_711(ep->length);
 		if (reclen == 0) {
 			/* skip to next block, if any */
-			idp->curroff =
-			    (idp->curroff & ~bmask) + imp->logical_block_size;
+			idp->curroff = (idp->curroff & ~bmask) +
+			    imp->logical_block_size;
 			continue;
 		}
 
@@ -562,17 +551,18 @@ cd9660_readdir(ap)
 
 		idp->current.d_namlen = isonum_711(ep->name_len);
 
-		if (reclen < ISO_DIRECTORY_RECORD_SIZE + idp->current.d_namlen) {
+		if (reclen <
+		    ISO_DIRECTORY_RECORD_SIZE + idp->current.d_namlen) {
 			error = EINVAL;
 			/* illegal entry, stop */
 			break;
 		}
 
-		if (isonum_711(ep->flags)&2)
+		if (isonum_711(ep->flags) & 2)
 			idp->current.d_fileno = isodirino(ep, imp);
 		else
 			idp->current.d_fileno = dbtob(bp->b_blkno) +
-				entryoffsetinblock;
+			    entryoffsetinblock;
 
 		idp->curroff += reclen;
 		/* NOTE: d_off is the offset of *next* entry. */
@@ -581,34 +571,39 @@ cd9660_readdir(ap)
 		switch (imp->iso_ftype) {
 		case ISO_FTYPE_RRIP:
 			ino = idp->current.d_fileno;
-			cd9660_rrip_getname(ep, idp->current.d_name, &namelen,
-			    &ino, imp);
+			cd9660_rrip_getname(
+			    ep, idp->current.d_name, &namelen, &ino, imp);
 			idp->current.d_fileno = ino;
 			idp->current.d_namlen = (u_char)namelen;
 			if (idp->current.d_namlen)
-				error = iso_uiodir(idp,&idp->current,idp->curroff);
+				error = iso_uiodir(
+				    idp, &idp->current, idp->curroff);
 			break;
-		default: /* ISO_FTYPE_DEFAULT || ISO_FTYPE_9660 || ISO_FTYPE_HIGH_SIERRA*/
-			strcpy(idp->current.d_name,"..");
+		default: /* ISO_FTYPE_DEFAULT || ISO_FTYPE_9660 ||
+			    ISO_FTYPE_HIGH_SIERRA*/
+			strcpy(idp->current.d_name, "..");
 			if (idp->current.d_namlen == 1 && ep->name[0] == 0) {
 				idp->current.d_namlen = 1;
-				error = iso_uiodir(idp,&idp->current,idp->curroff);
-			} else if (idp->current.d_namlen == 1 && ep->name[0] == 1) {
+				error = iso_uiodir(
+				    idp, &idp->current, idp->curroff);
+			} else if (idp->current.d_namlen == 1 &&
+			    ep->name[0] == 1) {
 				idp->current.d_namlen = 2;
-				error = iso_uiodir(idp,&idp->current,idp->curroff);
+				error = iso_uiodir(
+				    idp, &idp->current, idp->curroff);
 			} else {
-				isofntrans(ep->name,idp->current.d_namlen,
-					   idp->current.d_name, &namelen,
-					   imp->iso_ftype == ISO_FTYPE_9660,
-					   isonum_711(ep->flags)&4,
-					   imp->joliet_level,
-					   imp->im_flags,
-					   imp->im_d2l);
+				isofntrans(ep->name, idp->current.d_namlen,
+				    idp->current.d_name, &namelen,
+				    imp->iso_ftype == ISO_FTYPE_9660,
+				    isonum_711(ep->flags) & 4,
+				    imp->joliet_level, imp->im_flags,
+				    imp->im_d2l);
 				idp->current.d_namlen = (u_char)namelen;
 				if (imp->iso_ftype == ISO_FTYPE_DEFAULT)
 					error = iso_shipdir(idp);
 				else
-					error = iso_uiodir(idp,&idp->current,idp->curroff);
+					error = iso_uiodir(
+					    idp, &idp->current, idp->curroff);
 			}
 		}
 		if (error)
@@ -637,7 +632,7 @@ cd9660_readdir(ap)
 	}
 
 	if (bp)
-		brelse (bp);
+		brelse(bp);
 
 	uio->uio_offset = idp->uio_off;
 	*ap->a_eofflag = idp->eofflag;
@@ -654,26 +649,25 @@ cd9660_readdir(ap)
  * But otherwise the block read here is in the block buffer two times.
  */
 typedef struct iso_directory_record ISODIR;
-typedef struct iso_node		    ISONODE;
-typedef struct iso_mnt		    ISOMNT;
-static int
-cd9660_readlink(ap)
-	struct vop_readlink_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		struct ucred *a_cred;
-	} */ *ap;
+typedef struct iso_node ISONODE;
+typedef struct iso_mnt ISOMNT;
+static int cd9660_readlink(ap) struct vop_readlink_args
+    /* {
+struct vnode *a_vp;
+struct uio *a_uio;
+struct ucred *a_cred;
+} */ *ap;
 {
-	ISONODE	*ip;
-	ISODIR	*dirp;
-	ISOMNT	*imp;
-	struct	buf *bp;
-	struct	uio *uio;
-	u_short	symlen;
-	int	error;
-	char	*symname;
+	ISONODE *ip;
+	ISODIR *dirp;
+	ISOMNT *imp;
+	struct buf *bp;
+	struct uio *uio;
+	u_short symlen;
+	int error;
+	char *symname;
 
-	ip  = VTOI(ap->a_vp);
+	ip = VTOI(ap->a_vp);
 	imp = ip->i_mnt;
 	uio = ap->a_uio;
 
@@ -684,9 +678,8 @@ cd9660_readlink(ap)
 	 * Get parents directory record block that this inode included.
 	 */
 	error = bread(imp->im_devvp,
-		      (ip->i_number >> imp->im_bshift) <<
-		      (imp->im_bshift - DEV_BSHIFT),
-		      imp->logical_block_size, NOCRED, &bp);
+	    (ip->i_number >> imp->im_bshift) << (imp->im_bshift - DEV_BSHIFT),
+	    imp->logical_block_size, NOCRED, &bp);
 	if (error) {
 		return (EINVAL);
 	}
@@ -700,8 +693,8 @@ cd9660_readlink(ap)
 	 * Just make sure, we have a right one....
 	 *   1: Check not cross boundary on block
 	 */
-	if ((ip->i_number & imp->im_bmask) + isonum_711(dirp->length)
-	    > (unsigned)imp->logical_block_size) {
+	if ((ip->i_number & imp->im_bmask) + isonum_711(dirp->length) >
+	    (unsigned)imp->logical_block_size) {
 		brelse(bp);
 		return (EINVAL);
 	}
@@ -747,12 +740,11 @@ cd9660_readlink(ap)
  * Calculate the logical to physical mapping if not done already,
  * then call the device strategy routine.
  */
-static int
-cd9660_strategy(ap)
-	struct vop_strategy_args /* {
-		struct buf *a_vp;
-		struct buf *a_bp;
-	} */ *ap;
+static int cd9660_strategy(ap) struct vop_strategy_args
+    /* {
+struct buf *a_vp;
+struct buf *a_bp;
+} */ *ap;
 {
 	struct buf *bp = ap->a_bp;
 	struct vnode *vp = ap->a_vp;
@@ -763,8 +755,8 @@ cd9660_strategy(ap)
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("cd9660_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-		bp->b_blkno = (ip->iso_start + bp->b_lblkno) <<
-		    (ip->i_mnt->im_bshift - DEV_BSHIFT);
+		bp->b_blkno = (ip->iso_start + bp->b_lblkno)
+		    << (ip->i_mnt->im_bshift - DEV_BSHIFT);
 	}
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	bo = ip->i_mnt->im_bo;
@@ -775,13 +767,12 @@ cd9660_strategy(ap)
 /*
  * Return POSIX pathconf information applicable to cd9660 filesystems.
  */
-static int
-cd9660_pathconf(ap)
-	struct vop_pathconf_args /* {
-		struct vnode *a_vp;
-		int a_name;
-		register_t *a_retval;
-	} */ *ap;
+static int cd9660_pathconf(ap) struct vop_pathconf_args
+    /* {
+struct vnode *a_vp;
+int a_name;
+register_t *a_retval;
+} */ *ap;
 {
 
 	switch (ap->a_name) {
@@ -815,12 +806,11 @@ cd9660_pathconf(ap)
 /*
  * Vnode pointer to File handle
  */
-static int
-cd9660_vptofh(ap)
-	struct vop_vptofh_args /* {
-		struct vnode *a_vp;
-		struct fid *a_fhp;
-	} */ *ap;
+static int cd9660_vptofh(ap) struct vop_vptofh_args
+    /* {
+struct vnode *a_vp;
+struct fid *a_fhp;
+} */ *ap;
 {
 	struct ifid ifh;
 	struct iso_node *ip = VTOI(ap->a_vp);
@@ -835,9 +825,9 @@ cd9660_vptofh(ap)
 	 */
 	memcpy(ap->a_fhp, &ifh, sizeof(ifh));
 
-#ifdef	ISOFS_DBG
-	printf("vptofh: ino %jd, start %ld\n",
-	    (uintmax_t)ifh.ifid_ino, ifh.ifid_start);
+#ifdef ISOFS_DBG
+	printf("vptofh: ino %jd, start %ld\n", (uintmax_t)ifh.ifid_ino,
+	    ifh.ifid_start);
 #endif
 
 	return (0);
@@ -846,9 +836,8 @@ cd9660_vptofh(ap)
 SYSCTL_NODE(_vfs, OID_AUTO, cd9660, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "cd9660 filesystem");
 static int use_buf_pager = 1;
-SYSCTL_INT(_vfs_cd9660, OID_AUTO, use_buf_pager, CTLFLAG_RWTUN,
-    &use_buf_pager, 0,
-    "Use buffer pager instead of bmap");
+SYSCTL_INT(_vfs_cd9660, OID_AUTO, use_buf_pager, CTLFLAG_RWTUN, &use_buf_pager,
+    0, "Use buffer pager instead of bmap");
 
 static daddr_t
 cd9660_gbp_getblkno(struct vnode *vp, vm_ooffset_t off)
@@ -879,32 +868,32 @@ cd9660_getpages(struct vop_getpages_args *ap)
 		return (vfs_bio_getpages(vp, ap->a_m, ap->a_count,
 		    ap->a_rbehind, ap->a_rahead, cd9660_gbp_getblkno,
 		    cd9660_gbp_getblksz));
-	return (vnode_pager_generic_getpages(vp, ap->a_m, ap->a_count,
-	    ap->a_rbehind, ap->a_rahead, NULL, NULL));
+	return (vnode_pager_generic_getpages(
+	    vp, ap->a_m, ap->a_count, ap->a_rbehind, ap->a_rahead, NULL, NULL));
 }
 
 /*
  * Global vfs data structures for cd9660
  */
 struct vop_vector cd9660_vnodeops = {
-	.vop_default =		&default_vnodeops,
-	.vop_open =		cd9660_open,
-	.vop_access =		cd9660_access,
-	.vop_bmap =		cd9660_bmap,
-	.vop_cachedlookup =	cd9660_lookup,
-	.vop_getattr =		cd9660_getattr,
-	.vop_inactive =		cd9660_inactive,
-	.vop_ioctl =		cd9660_ioctl,
-	.vop_lookup =		vfs_cache_lookup,
-	.vop_pathconf =		cd9660_pathconf,
-	.vop_read =		cd9660_read,
-	.vop_readdir =		cd9660_readdir,
-	.vop_readlink =		cd9660_readlink,
-	.vop_reclaim =		cd9660_reclaim,
-	.vop_setattr =		cd9660_setattr,
-	.vop_strategy =		cd9660_strategy,
-	.vop_vptofh =		cd9660_vptofh,
-	.vop_getpages =		cd9660_getpages,
+	.vop_default = &default_vnodeops,
+	.vop_open = cd9660_open,
+	.vop_access = cd9660_access,
+	.vop_bmap = cd9660_bmap,
+	.vop_cachedlookup = cd9660_lookup,
+	.vop_getattr = cd9660_getattr,
+	.vop_inactive = cd9660_inactive,
+	.vop_ioctl = cd9660_ioctl,
+	.vop_lookup = vfs_cache_lookup,
+	.vop_pathconf = cd9660_pathconf,
+	.vop_read = cd9660_read,
+	.vop_readdir = cd9660_readdir,
+	.vop_readlink = cd9660_readlink,
+	.vop_reclaim = cd9660_reclaim,
+	.vop_setattr = cd9660_setattr,
+	.vop_strategy = cd9660_strategy,
+	.vop_vptofh = cd9660_vptofh,
+	.vop_getpages = cd9660_getpages,
 };
 VFS_VOP_VECTOR_REGISTER(cd9660_vnodeops);
 
@@ -913,12 +902,12 @@ VFS_VOP_VECTOR_REGISTER(cd9660_vnodeops);
  */
 
 struct vop_vector cd9660_fifoops = {
-	.vop_default =		&fifo_specops,
-	.vop_access =		cd9660_access,
-	.vop_getattr =		cd9660_getattr,
-	.vop_inactive =		cd9660_inactive,
-	.vop_reclaim =		cd9660_reclaim,
-	.vop_setattr =		cd9660_setattr,
-	.vop_vptofh =		cd9660_vptofh,
+	.vop_default = &fifo_specops,
+	.vop_access = cd9660_access,
+	.vop_getattr = cd9660_getattr,
+	.vop_inactive = cd9660_inactive,
+	.vop_reclaim = cd9660_reclaim,
+	.vop_setattr = cd9660_setattr,
+	.vop_vptofh = cd9660_vptofh,
 };
 VFS_VOP_VECTOR_REGISTER(cd9660_fifoops);

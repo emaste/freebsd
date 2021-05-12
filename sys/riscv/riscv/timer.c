@@ -45,35 +45,34 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <sys/proc.h>
-
+#include <machine/asm.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/intr.h>
-#include <machine/asm.h>
-#include <machine/trap.h>
 #include <machine/sbi.h>
+#include <machine/trap.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
-#define	TIMER_COUNTS		0x00
-#define	TIMER_MTIMECMP(cpu)	(cpu * 8)
+#define TIMER_COUNTS 0x00
+#define TIMER_MTIMECMP(cpu) (cpu * 8)
 
 struct riscv_timer_softc {
-	void			*ih;
-	uint32_t		clkfreq;
-	struct eventtimer	et;
+	void *ih;
+	uint32_t clkfreq;
+	struct eventtimer et;
 };
 
 static struct riscv_timer_softc *riscv_timer_sc = NULL;
@@ -81,12 +80,12 @@ static struct riscv_timer_softc *riscv_timer_sc = NULL;
 static timecounter_get_t riscv_timer_get_timecount;
 
 static struct timecounter riscv_timer_timecount = {
-	.tc_name           = "RISC-V Timecounter",
-	.tc_get_timecount  = riscv_timer_get_timecount,
-	.tc_poll_pps       = NULL,
-	.tc_counter_mask   = ~0u,
-	.tc_frequency      = 0,
-	.tc_quality        = 1000,
+	.tc_name = "RISC-V Timecounter",
+	.tc_get_timecount = riscv_timer_get_timecount,
+	.tc_poll_pps = NULL,
+	.tc_counter_mask = ~0u,
+	.tc_frequency = 0,
+	.tc_quality = 1000,
 };
 
 static inline uint64_t
@@ -130,7 +129,6 @@ riscv_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	}
 
 	return (EINVAL);
-
 }
 
 static int
@@ -173,8 +171,8 @@ riscv_timer_get_timebase(device_t dev, uint32_t *freq)
 	len = OF_getproplen(node, "timebase-frequency");
 	if (len != 4) {
 		if (bootverbose)
-			device_printf(dev,
-			    "Can't find timebase-frequency property.\n");
+			device_printf(
+			    dev, "Can't find timebase-frequency property.\n");
 		return (ENXIO);
 	}
 
@@ -239,11 +237,9 @@ riscv_timer_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t riscv_timer_methods[] = {
-	DEVMETHOD(device_probe,		riscv_timer_probe),
-	DEVMETHOD(device_attach,	riscv_timer_attach),
-	{ 0, 0 }
-};
+static device_method_t riscv_timer_methods[] = { DEVMETHOD(device_probe,
+						     riscv_timer_probe),
+	DEVMETHOD(device_attach, riscv_timer_attach), { 0, 0 } };
 
 static driver_t riscv_timer_driver = {
 	"timer",
@@ -253,8 +249,8 @@ static driver_t riscv_timer_driver = {
 
 static devclass_t riscv_timer_devclass;
 
-EARLY_DRIVER_MODULE(timer, nexus, riscv_timer_driver, riscv_timer_devclass,
-    0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(timer, nexus, riscv_timer_driver, riscv_timer_devclass, 0,
+    0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
 void
 DELAY(int usec)

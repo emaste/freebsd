@@ -57,8 +57,8 @@ vm_snapshot_buf_err(const char *bufname, const enum vm_snapshot_op op)
 }
 
 int
-vm_snapshot_buf(volatile void *data, size_t data_size,
-	     struct vm_snapshot_meta *meta)
+vm_snapshot_buf(
+    volatile void *data, size_t data_size, struct vm_snapshot_meta *meta)
 {
 	struct vm_snapshot_buffer *buffer;
 	int op;
@@ -96,7 +96,7 @@ vm_get_snapshot_size(struct vm_snapshot_meta *meta)
 
 	if (buffer->buf_size < buffer->buf_rem) {
 		printf("%s: Invalid buffer: size = %zu, rem = %zu\r\n",
-		       __func__, buffer->buf_size, buffer->buf_rem);
+		    __func__, buffer->buf_size, buffer->buf_rem);
 		length = 0;
 	} else {
 		length = buffer->buf_size - buffer->buf_rem;
@@ -106,8 +106,8 @@ vm_get_snapshot_size(struct vm_snapshot_meta *meta)
 }
 
 int
-vm_snapshot_buf_cmp(volatile void *data, size_t data_size,
-		    struct vm_snapshot_meta *meta)
+vm_snapshot_buf_cmp(
+    volatile void *data, size_t data_size, struct vm_snapshot_meta *meta)
 {
 	struct vm_snapshot_buffer *buffer;
 	int op;

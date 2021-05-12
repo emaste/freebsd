@@ -35,38 +35,38 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "a10_sramc.h"
 
-#define	SRAM_CTL1_CFG		0x04
-#define	CTL1_CFG_SRAMD_MAP_USB0	(1 << 0)
+#define SRAM_CTL1_CFG 0x04
+#define CTL1_CFG_SRAMD_MAP_USB0 (1 << 0)
 
 struct a10_sramc_softc {
-	struct resource		*res;
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
+	struct resource *res;
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
 };
 
 static struct a10_sramc_softc *a10_sramc_sc;
 
-#define	sramc_read_4(sc, reg)		\
-    bus_space_read_4((sc)->bst, (sc)->bsh, (reg))
-#define	sramc_write_4(sc, reg, val)	\
-    bus_space_write_4((sc)->bst, (sc)->bsh, (reg), (val))
+#define sramc_read_4(sc, reg) bus_space_read_4((sc)->bst, (sc)->bsh, (reg))
+#define sramc_write_4(sc, reg, val) \
+	bus_space_write_4((sc)->bst, (sc)->bsh, (reg), (val))
 
 static int
 a10_sramc_probe(device_t dev)
@@ -100,11 +100,9 @@ a10_sramc_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t a10_sramc_methods[] = {
-	DEVMETHOD(device_probe,		a10_sramc_probe),
-	DEVMETHOD(device_attach,	a10_sramc_attach),
-	{ 0, 0 }
-};
+static device_method_t a10_sramc_methods[] = { DEVMETHOD(device_probe,
+						   a10_sramc_probe),
+	DEVMETHOD(device_attach, a10_sramc_attach), { 0, 0 } };
 
 static driver_t a10_sramc_driver = {
 	"a10_sramc",

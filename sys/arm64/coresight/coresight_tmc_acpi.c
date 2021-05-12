@@ -44,11 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
 
 #include <arm64/coresight/coresight.h>
 #include <arm64/coresight/coresight_tmc.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
 static int
 tmc_acpi_probe(device_t dev)
@@ -76,17 +76,17 @@ tmc_acpi_attach(device_t dev)
 
 static device_method_t tmc_acpi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,			tmc_acpi_probe),
-	DEVMETHOD(device_attach,		tmc_acpi_attach),
+	DEVMETHOD(device_probe, tmc_acpi_probe),
+	DEVMETHOD(device_attach, tmc_acpi_attach),
 
 	/* End */
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(tmc, tmc_acpi_driver, tmc_acpi_methods,
-    sizeof(struct tmc_softc), tmc_driver);
+DEFINE_CLASS_1(tmc, tmc_acpi_driver, tmc_acpi_methods, sizeof(struct tmc_softc),
+    tmc_driver);
 
 static devclass_t tmc_acpi_devclass;
 
-EARLY_DRIVER_MODULE(tmc, acpi, tmc_acpi_driver, tmc_acpi_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(tmc, acpi, tmc_acpi_driver, tmc_acpi_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

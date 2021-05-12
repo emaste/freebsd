@@ -37,8 +37,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_VM_SWAP_PAGER_H_
-#define	_VM_SWAP_PAGER_H_
+#ifndef _VM_SWAP_PAGER_H_
+#define _VM_SWAP_PAGER_H_
 
 #include <sys/_types.h>
 
@@ -51,22 +51,22 @@ typedef void sw_close_t(struct thread *, struct swdevt *);
  * Swap device table
  */
 struct swdevt {
-	int	sw_flags;
-	int	sw_nblks;
-	int     sw_used;
-	dev_t	sw_dev;
+	int sw_flags;
+	int sw_nblks;
+	int sw_used;
+	dev_t sw_dev;
 	struct vnode *sw_vp;
-	void	*sw_id;
+	void *sw_id;
 	__daddr_t sw_first;
 	__daddr_t sw_end;
 	struct blist *sw_blist;
-	TAILQ_ENTRY(swdevt)	sw_list;
-	sw_strategy_t		*sw_strategy;
-	sw_close_t		*sw_close;
+	TAILQ_ENTRY(swdevt) sw_list;
+	sw_strategy_t *sw_strategy;
+	sw_close_t *sw_close;
 };
 
-#define	SW_UNMAPPED	0x01
-#define	SW_CLOSING	0x04
+#define SW_UNMAPPED 0x01
+#define SW_CLOSING 0x04
 
 #ifdef _KERNEL
 
@@ -83,5 +83,5 @@ void swap_pager_status(int *total, int *used);
 u_long swap_pager_swapped_pages(vm_object_t object);
 void swapoff_all(void);
 
-#endif				/* _KERNEL */
-#endif				/* _VM_SWAP_PAGER_H_ */
+#endif /* _KERNEL */
+#endif /* _VM_SWAP_PAGER_H_ */

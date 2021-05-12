@@ -36,19 +36,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/pcpu.h>
-#include <sys/systm.h>
 
 #include <machine/cpu.h>
 
 #include <dev/psci/smccc.h>
 
-typedef void (cpu_quirk_install)(void);
+typedef void(cpu_quirk_install)(void);
 struct cpu_quirks {
 	cpu_quirk_install *quirk_install;
-	u_int		midr_mask;
-	u_int		midr_value;
+	u_int midr_mask;
+	u_int midr_value;
 };
 
 static enum {
@@ -63,47 +63,45 @@ static cpu_quirk_install install_thunderx_bcast_tlbi_workaround;
 
 static struct cpu_quirks cpu_quirks[] = {
 	{
-		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
-		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A57,0,0),
-		.quirk_install = install_psci_bp_hardening,
+	    .midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+	    .midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A57, 0, 0),
+	    .quirk_install = install_psci_bp_hardening,
 	},
 	{
-		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
-		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A72,0,0),
-		.quirk_install = install_psci_bp_hardening,
+	    .midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+	    .midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A72, 0, 0),
+	    .quirk_install = install_psci_bp_hardening,
 	},
 	{
-		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
-		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A73,0,0),
-		.quirk_install = install_psci_bp_hardening,
+	    .midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+	    .midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A73, 0, 0),
+	    .quirk_install = install_psci_bp_hardening,
 	},
 	{
-		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
-		.midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A75,0,0),
-		.quirk_install = install_psci_bp_hardening,
+	    .midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+	    .midr_value = CPU_ID_RAW(CPU_IMPL_ARM, CPU_PART_CORTEX_A75, 0, 0),
+	    .quirk_install = install_psci_bp_hardening,
 	},
 	{
-		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
-		.midr_value =
-		    CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDERX2, 0,0),
-		.quirk_install = install_psci_bp_hardening,
+	    .midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+	    .midr_value = CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDERX2, 0, 0),
+	    .quirk_install = install_psci_bp_hardening,
 	},
 	{
-		.midr_mask = 0,
-		.midr_value = 0,
-		.quirk_install = install_ssbd_workaround,
+	    .midr_mask = 0,
+	    .midr_value = 0,
+	    .quirk_install = install_ssbd_workaround,
 	},
 	{
-		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
-		.midr_value =
-		    CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDERX, 0, 0),
-		.quirk_install = install_thunderx_bcast_tlbi_workaround,
+	    .midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+	    .midr_value = CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDERX, 0, 0),
+	    .quirk_install = install_thunderx_bcast_tlbi_workaround,
 	},
 	{
-		.midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
-		.midr_value =
-		    CPU_ID_RAW(CPU_IMPL_CAVIUM, CPU_PART_THUNDERX_81XX, 0, 0),
-		.quirk_install = install_thunderx_bcast_tlbi_workaround,
+	    .midr_mask = CPU_IMPL_MASK | CPU_PART_MASK,
+	    .midr_value = CPU_ID_RAW(
+		CPU_IMPL_CAVIUM, CPU_PART_THUNDERX_81XX, 0, 0),
+	    .quirk_install = install_thunderx_bcast_tlbi_workaround,
 	},
 };
 
@@ -137,7 +135,7 @@ install_ssbd_workaround(void)
 	if (smccc_arch_features(SMCCC_ARCH_WORKAROUND_2) != SMCCC_RET_SUCCESS)
 		return;
 
-	switch(ssbd_method) {
+	switch (ssbd_method) {
 	case SSBD_FORCE_ON:
 		smccc_arch_workaround_2(1);
 		break;

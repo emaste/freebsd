@@ -37,14 +37,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/sysproto.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
+#include <sys/sysproto.h>
 
 #include <machine/cpufunc.h>
 #include <machine/cpuinfo.h>
-#include <machine/sysarch.h>
 #include <machine/cpuregs.h>
+#include <machine/sysarch.h>
 #include <machine/tls.h>
 
 #ifndef _SYS_SYSPROTO_H_
@@ -75,7 +75,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 			    td->td_proc->p_md.md_tls_tcb_offset));
 		}
 		return (0);
-	case MIPS_GET_TLS: 
+	case MIPS_GET_TLS:
 		tlsbase = td->td_md.md_tls;
 		error = copyout(&tlsbase, uap->parms, sizeof(tlsbase));
 		return (error);

@@ -36,11 +36,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/vmem.h>
 
+#include <machine/bus.h>
+
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
-
-#include <machine/bus.h>
 
 #include <powerpc/pseries/phyp-hvcall.h>
 #include <powerpc/pseries/plpar_iommu.h>
@@ -53,8 +53,8 @@ struct papr_iommu_map {
 	struct papr_iommu_map *next;
 };
 
-static SLIST_HEAD(iommu_maps, iommu_map) iommu_map_head =
-    SLIST_HEAD_INITIALIZER(iommu_map_head);
+static SLIST_HEAD(iommu_maps,
+    iommu_map) iommu_map_head = SLIST_HEAD_INITIALIZER(iommu_map_head);
 static int papr_supports_stuff_tce = -1;
 
 struct iommu_map {
@@ -90,24 +90,24 @@ phyp_iommu_set_dma_tag(device_t bus, device_t dev, bus_dma_tag_t tag)
 		return (ENXIO);
 
 	node = ofw_bus_get_node(p);
-	if (OF_getencprop(node, "ibm,#dma-size-cells", &dma_scells,
-	    sizeof(cell_t)) <= 0)
-		OF_searchencprop(node, "#size-cells", &dma_scells,
-		    sizeof(cell_t));
+	if (OF_getencprop(
+		node, "ibm,#dma-size-cells", &dma_scells, sizeof(cell_t)) <= 0)
+		OF_searchencprop(
+		    node, "#size-cells", &dma_scells, sizeof(cell_t));
 	if (OF_getencprop(node, "ibm,#dma-address-cells", &dma_acells,
-	    sizeof(cell_t)) <= 0)
-		OF_searchencprop(node, "#address-cells", &dma_acells,
-		    sizeof(cell_t));
+		sizeof(cell_t)) <= 0)
+		OF_searchencprop(
+		    node, "#address-cells", &dma_acells, sizeof(cell_t));
 
 	if (ofw_bus_has_prop(p, "ibm,my-dma-window"))
 		OF_getencprop(node, "ibm,my-dma-window", dmawindow,
-		    sizeof(cell_t)*(dma_scells + dma_acells + 1));
+		    sizeof(cell_t) * (dma_scells + dma_acells + 1));
 	else
 		OF_getencprop(node, "ibm,dma-window", dmawindow,
-		    sizeof(cell_t)*(dma_scells + dma_acells + 1));
+		    sizeof(cell_t) * (dma_scells + dma_acells + 1));
 
-	struct dma_window *window = malloc(sizeof(struct dma_window),
-	    M_PHYPIOMMU, M_WAITOK);
+	struct dma_window *window = malloc(
+	    sizeof(struct dma_window), M_PHYPIOMMU, M_WAITOK);
 	window->start = 0;
 	for (cell = 1; cell < 1 + dma_acells; cell++) {
 		window->start <<= 32;
@@ -123,7 +123,7 @@ phyp_iommu_set_dma_tag(device_t bus, device_t dev, bus_dma_tag_t tag)
 	if (bootverbose)
 		device_printf(dev, "Mapping IOMMU domain %#x\n", dmawindow[0]);
 	window->map = NULL;
-	SLIST_FOREACH(i, &iommu_map_head, entries) {
+	SLIST_FOREACH (i, &iommu_map_head, entries) {
 		if (i->iobn == dmawindow[0]) {
 			window->map = i;
 			break;
@@ -131,8 +131,8 @@ phyp_iommu_set_dma_tag(device_t bus, device_t dev, bus_dma_tag_t tag)
 	}
 
 	if (window->map == NULL) {
-		window->map = malloc(sizeof(struct iommu_map), M_PHYPIOMMU,
-		    M_WAITOK);
+		window->map = malloc(
+		    sizeof(struct iommu_map), M_PHYPIOMMU, M_WAITOK);
 		window->map->iobn = dmawindow[0];
 		/*
 		 * Allocate IOMMU range beginning at PAGE_SIZE. Some drivers
@@ -150,8 +150,9 @@ phyp_iommu_set_dma_tag(device_t bus, device_t dev, bus_dma_tag_t tag)
 	 * it
 	 */
 	if (papr_supports_stuff_tce == -1)
-		papr_supports_stuff_tce = !(phyp_hcall(H_STUFF_TCE,
-		    window->map->iobn, 0, 0, 0) == H_FUNCTION);
+		papr_supports_stuff_tce = !(
+		    phyp_hcall(H_STUFF_TCE, window->map->iobn, 0, 0, 0) ==
+		    H_FUNCTION);
 
 	bus_dma_tag_set_iommu(tag, bus, window);
 
@@ -178,8 +179,8 @@ phyp_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,
 
 	/* XXX: consolidate segs? */
 	for (i = 0; i < *nsegs; i++) {
-		allocsize = round_page(segs[i].ds_len +
-		    (segs[i].ds_addr & PAGE_MASK));
+		allocsize = round_page(
+		    segs[i].ds_len + (segs[i].ds_addr & PAGE_MASK));
 		error = vmem_xalloc(window->map->vmem, allocsize,
 		    (alignment < PAGE_SIZE) ? PAGE_SIZE : alignment, 0,
 		    boundary, minaddr, maxaddr, M_BESTFIT | M_NOWAIT, &alloced);
@@ -188,15 +189,15 @@ phyp_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,
 			return (error);
 		}
 		KASSERT(alloced % PAGE_SIZE == 0, ("Alloc not page aligned"));
-		KASSERT((alloced + (segs[i].ds_addr & PAGE_MASK)) %
-		    alignment == 0,
+		KASSERT(
+		    (alloced + (segs[i].ds_addr & PAGE_MASK)) % alignment == 0,
 		    ("Allocated segment does not match alignment constraint"));
 
 		tce = trunc_page(segs[i].ds_addr);
 		tce |= 0x3; /* read/write */
 		for (j = 0; j < allocsize; j += PAGE_SIZE) {
-			error = phyp_hcall(H_PUT_TCE, window->map->iobn,
-			    alloced + j, tce + j);
+			error = phyp_hcall(
+			    H_PUT_TCE, window->map->iobn, alloced + j, tce + j);
 			if (error < 0) {
 				panic("IOMMU mapping error: %d\n", error);
 				return (ENOMEM);
@@ -227,12 +228,12 @@ phyp_iommu_unmap(device_t dev, bus_dma_segment_t *segs, int nsegs, void *cookie)
 
 	for (i = 0; i < nsegs; i++) {
 		pageround = trunc_page(segs[i].ds_addr);
-		roundedsize = round_page(segs[i].ds_len +
-		    (segs[i].ds_addr & PAGE_MASK));
+		roundedsize = round_page(
+		    segs[i].ds_len + (segs[i].ds_addr & PAGE_MASK));
 
 		if (papr_supports_stuff_tce) {
 			phyp_hcall(H_STUFF_TCE, window->map->iobn, pageround, 0,
-			    roundedsize/PAGE_SIZE);
+			    roundedsize / PAGE_SIZE);
 		} else {
 			for (j = 0; j < roundedsize; j += PAGE_SIZE)
 				phyp_hcall(H_PUT_TCE, window->map->iobn,

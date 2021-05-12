@@ -36,34 +36,32 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
-#include <sys/ioccom.h>
-#include <sys/mount.h>
-#include <sys/vnode.h>
 #include <sys/conf.h>
+#include <sys/ioccom.h>
 #include <sys/jail.h>
+#include <sys/mount.h>
 #include <sys/sx.h>
+#include <sys/vnode.h>
 
 #include <security/mac/mac_framework.h>
-
+#include <ufs/ffs/ffs_extern.h>
+#include <ufs/ffs/fs.h>
 #include <ufs/ufs/extattr.h>
+#include <ufs/ufs/inode.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
-#include <ufs/ufs/inode.h>
-
-#include <ufs/ffs/fs.h>
-#include <ufs/ffs/ffs_extern.h>
 
 static d_open_t ffs_susp_open;
 static d_write_t ffs_susp_rdwr;
 static d_ioctl_t ffs_susp_ioctl;
 
 static struct cdevsw ffs_susp_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	ffs_susp_open,
-	.d_read =	ffs_susp_rdwr,
-	.d_write =	ffs_susp_rdwr,
-	.d_ioctl =	ffs_susp_ioctl,
-	.d_name =	"ffs_susp",
+	.d_version = D_VERSION,
+	.d_open = ffs_susp_open,
+	.d_read = ffs_susp_rdwr,
+	.d_write = ffs_susp_rdwr,
+	.d_ioctl = ffs_susp_ioctl,
+	.d_name = "ffs_susp",
 };
 
 static struct cdev *ffs_susp_dev;
@@ -83,8 +81,8 @@ ffs_susp_suspended(struct mount *mp)
 }
 
 static int
-ffs_susp_open(struct cdev *dev __unused, int flags __unused,
-    int fmt __unused, struct thread *td __unused)
+ffs_susp_open(struct cdev *dev __unused, int flags __unused, int fmt __unused,
+    struct thread *td __unused)
 {
 
 	return (0);
@@ -138,8 +136,8 @@ ffs_susp_rdwr(struct cdev *dev, struct uio *uio, int ioflag)
 				error = EINVAL;
 				goto out;
 			}
-			error = bread(devvp, btodb(uio->uio_offset), len,
-			    NOCRED, &bp);
+			error = bread(
+			    devvp, btodb(uio->uio_offset), len, NOCRED, &bp);
 			if (error != 0)
 				goto out;
 			if (uio->uio_rw == UIO_WRITE) {
@@ -196,8 +194,8 @@ ffs_susp_suspend(struct mount *mp)
 	 * it's harmless.
 	 */
 	vn_lock(ump->um_odevvp, LK_EXCLUSIVE | LK_RETRY);
-	error = VOP_ACCESS(ump->um_odevvp, VREAD | VWRITE,
-	    curthread->td_ucred, curthread);
+	error = VOP_ACCESS(
+	    ump->um_odevvp, VREAD | VWRITE, curthread->td_ucred, curthread);
 	VOP_UNLOCK(ump->um_odevvp);
 	if (error != 0)
 		return (error);
@@ -262,8 +260,8 @@ ffs_susp_dtor(void *data)
 		return;
 	}
 
-	KASSERT((mp->mnt_kern_flag & MNTK_SUSPEND) != 0,
-	    ("MNTK_SUSPEND not set"));
+	KASSERT(
+	    (mp->mnt_kern_flag & MNTK_SUSPEND) != 0, ("MNTK_SUSPEND not set"));
 
 	error = ffs_reload(mp, curthread, FFSR_FORCE | FFSR_UNSUSPEND);
 	if (error != 0)
@@ -274,8 +272,8 @@ ffs_susp_dtor(void *data)
 }
 
 static int
-ffs_susp_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
-    struct thread *td)
+ffs_susp_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct mount *mp;
 	fsid_t *fsidp;
@@ -340,8 +338,8 @@ ffs_susp_initialize(void)
 {
 
 	sx_init(&ffs_susp_lock, "ffs_susp");
-	ffs_susp_dev = make_dev(&ffs_susp_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "ufssuspend");
+	ffs_susp_dev = make_dev(
+	    &ffs_susp_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ufssuspend");
 }
 
 void

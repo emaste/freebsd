@@ -35,16 +35,16 @@
  */
 
 #ifndef _OMAP_USB_H_
-#define	_OMAP_USB_H_
+#define _OMAP_USB_H_
 
-#define	OMAP_HS_USB_PORTS	3
+#define OMAP_HS_USB_PORTS 3
 
-#define EHCI_HCD_OMAP_MODE_UNKNOWN  0
-#define EHCI_HCD_OMAP_MODE_PHY      1
-#define EHCI_HCD_OMAP_MODE_TLL      2
-#define EHCI_HCD_OMAP_MODE_HSIC     3
+#define EHCI_HCD_OMAP_MODE_UNKNOWN 0
+#define EHCI_HCD_OMAP_MODE_PHY 1
+#define EHCI_HCD_OMAP_MODE_TLL 2
+#define EHCI_HCD_OMAP_MODE_HSIC 3
 
 void omap_tll_utmi_enable(unsigned int en_mask);
 int omap_usb_port_mode(device_t dev, int port);
 
-#endif	/* _OMAP_USB_H_ */
+#endif /* _OMAP_USB_H_ */

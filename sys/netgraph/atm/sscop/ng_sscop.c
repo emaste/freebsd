@@ -35,36 +35,37 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/callout.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/callout.h>
-#include <sys/sbuf.h>
 #include <sys/stdint.h>
+#include <sys/syslog.h>
+
 #include <machine/stdarg.h>
 
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
-#include <netnatm/saal/sscopdef.h>
 #include <netgraph/atm/ng_sscop.h>
 #include <netgraph/atm/sscop/ng_sscop_cust.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
 #include <netnatm/saal/sscop.h>
+#include <netnatm/saal/sscopdef.h>
 
 #define DDD printf("%s: %d\n", __func__, __LINE__)
 
 #ifdef SSCOP_DEBUG
-#define VERBOSE(P,M,F)							\
-    do {								\
-	if (sscop_getdebug((P)->sscop) & (M))				\
-		sscop_verbose F ;					\
-    } while(0)
+#define VERBOSE(P, M, F)                              \
+	do {                                          \
+		if (sscop_getdebug((P)->sscop) & (M)) \
+			sscop_verbose F;              \
+	} while (0)
 #else
-#define VERBOSE(P,M,F)
+#define VERBOSE(P, M, F)
 #endif
 
 MALLOC_DEFINE(M_NG_SSCOP, "netgraph_sscop", "netgraph sscop node");
@@ -72,42 +73,40 @@ MALLOC_DEFINE(M_NG_SSCOP, "netgraph_sscop", "netgraph sscop node");
 MODULE_DEPEND(ng_sscop, ngatmbase, 1, 1, 1);
 
 struct stats {
-	uint64_t	in_packets;
-	uint64_t	out_packets;
-	uint64_t	aa_signals;
-	uint64_t	errors;
-	uint64_t	data_delivered;
-	uint64_t	aa_dropped;
-	uint64_t	maa_dropped;
-	uint64_t	maa_signals;
-	uint64_t	in_dropped;
-	uint64_t	out_dropped;
+	uint64_t in_packets;
+	uint64_t out_packets;
+	uint64_t aa_signals;
+	uint64_t errors;
+	uint64_t data_delivered;
+	uint64_t aa_dropped;
+	uint64_t maa_dropped;
+	uint64_t maa_signals;
+	uint64_t in_dropped;
+	uint64_t out_dropped;
 };
 
 /*
  * Private data
  */
 struct priv {
-	hook_p		upper;		/* SAAL interface */
-	hook_p		lower;		/* AAL5 interface */
-	hook_p		manage;		/* management interface */
+	hook_p upper;  /* SAAL interface */
+	hook_p lower;  /* AAL5 interface */
+	hook_p manage; /* management interface */
 
-	struct sscop	*sscop;		/* sscop state */
-	int		enabled;	/* whether the protocol is enabled */
-	int		flow;		/* flow control states */
-	struct stats	stats;		/* sadistics */
+	struct sscop *sscop; /* sscop state */
+	int enabled;	     /* whether the protocol is enabled */
+	int flow;	     /* flow control states */
+	struct stats stats;  /* sadistics */
 };
 
 /*
  * Parse PARAM type
  */
-static const struct ng_parse_struct_field ng_sscop_param_type_info[] = 
+static const struct ng_parse_struct_field ng_sscop_param_type_info[] =
     NG_SSCOP_PARAM_INFO;
 
-static const struct ng_parse_type ng_sscop_param_type = {
-	&ng_parse_struct_type,
-	ng_sscop_param_type_info
-};
+static const struct ng_parse_type ng_sscop_param_type = { &ng_parse_struct_type,
+	ng_sscop_param_type_info };
 
 /*
  * Parse a SET PARAM type.
@@ -132,98 +131,56 @@ static const struct ng_parse_type ng_sscop_setparam_resp_type = {
 };
 
 static const struct ng_cmdlist ng_sscop_cmdlist[] = {
-	{
-	  NGM_SSCOP_COOKIE,
-	  NGM_SSCOP_GETPARAM,
-	  "getparam",
-	  NULL,
-	  &ng_sscop_param_type
-	},
-	{
-	  NGM_SSCOP_COOKIE,
-	  NGM_SSCOP_SETPARAM,
-	  "setparam",
-	  &ng_sscop_setparam_type,
-	  &ng_sscop_setparam_resp_type
-	},
-	{
-	  NGM_SSCOP_COOKIE,
-	  NGM_SSCOP_ENABLE,
-	  "enable",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_SSCOP_COOKIE,
-	  NGM_SSCOP_DISABLE,
-	  "disable",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_SSCOP_COOKIE,
-	  NGM_SSCOP_GETDEBUG,
-	  "getdebug",
-	  NULL,
-	  &ng_parse_hint32_type
-	},
-	{
-	  NGM_SSCOP_COOKIE,
-	  NGM_SSCOP_SETDEBUG,
-	  "setdebug",
-	  &ng_parse_hint32_type,
-	  NULL
-	},
-	{
-	  NGM_SSCOP_COOKIE,
-	  NGM_SSCOP_GETSTATE,
-	  "getstate",
-	  NULL,
-	  &ng_parse_uint32_type
-	},
+	{ NGM_SSCOP_COOKIE, NGM_SSCOP_GETPARAM, "getparam", NULL,
+	    &ng_sscop_param_type },
+	{ NGM_SSCOP_COOKIE, NGM_SSCOP_SETPARAM, "setparam",
+	    &ng_sscop_setparam_type, &ng_sscop_setparam_resp_type },
+	{ NGM_SSCOP_COOKIE, NGM_SSCOP_ENABLE, "enable", NULL, NULL },
+	{ NGM_SSCOP_COOKIE, NGM_SSCOP_DISABLE, "disable", NULL, NULL },
+	{ NGM_SSCOP_COOKIE, NGM_SSCOP_GETDEBUG, "getdebug", NULL,
+	    &ng_parse_hint32_type },
+	{ NGM_SSCOP_COOKIE, NGM_SSCOP_SETDEBUG, "setdebug",
+	    &ng_parse_hint32_type, NULL },
+	{ NGM_SSCOP_COOKIE, NGM_SSCOP_GETSTATE, "getstate", NULL,
+	    &ng_parse_uint32_type },
 	{ 0 }
 };
 
 static ng_constructor_t ng_sscop_constructor;
-static ng_shutdown_t	ng_sscop_shutdown;
-static ng_rcvmsg_t	ng_sscop_rcvmsg;
-static ng_newhook_t	ng_sscop_newhook;
-static ng_disconnect_t	ng_sscop_disconnect;
-static ng_rcvdata_t	ng_sscop_rcvlower;
-static ng_rcvdata_t	ng_sscop_rcvupper;
-static ng_rcvdata_t	ng_sscop_rcvmanage;
+static ng_shutdown_t ng_sscop_shutdown;
+static ng_rcvmsg_t ng_sscop_rcvmsg;
+static ng_newhook_t ng_sscop_newhook;
+static ng_disconnect_t ng_sscop_disconnect;
+static ng_rcvdata_t ng_sscop_rcvlower;
+static ng_rcvdata_t ng_sscop_rcvupper;
+static ng_rcvdata_t ng_sscop_rcvmanage;
 
 static int ng_sscop_mod_event(module_t, int, void *);
 
 static struct ng_type ng_sscop_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_SSCOP_NODE_TYPE,
-	.mod_event =	ng_sscop_mod_event,
-	.constructor =	ng_sscop_constructor,
-	.rcvmsg =	ng_sscop_rcvmsg,
-	.shutdown =	ng_sscop_shutdown,
-	.newhook =	ng_sscop_newhook,
-	.rcvdata =	ng_sscop_rcvlower,
-	.disconnect =	ng_sscop_disconnect,
-	.cmdlist =	ng_sscop_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_SSCOP_NODE_TYPE,
+	.mod_event = ng_sscop_mod_event,
+	.constructor = ng_sscop_constructor,
+	.rcvmsg = ng_sscop_rcvmsg,
+	.shutdown = ng_sscop_shutdown,
+	.newhook = ng_sscop_newhook,
+	.rcvdata = ng_sscop_rcvlower,
+	.disconnect = ng_sscop_disconnect,
+	.cmdlist = ng_sscop_cmdlist,
 };
 NETGRAPH_INIT(sscop, &ng_sscop_typestruct);
 
 static void sscop_send_manage(struct sscop *, void *, enum sscop_maasig,
-	struct SSCOP_MBUF_T *, u_int, u_int);
-static void sscop_send_upper(struct sscop *, void *, enum sscop_aasig,
-	struct SSCOP_MBUF_T *, u_int);
-static void sscop_send_lower(struct sscop *, void *,
-	struct SSCOP_MBUF_T *);
+    struct SSCOP_MBUF_T *, u_int, u_int);
+static void sscop_send_upper(
+    struct sscop *, void *, enum sscop_aasig, struct SSCOP_MBUF_T *, u_int);
+static void sscop_send_lower(struct sscop *, void *, struct SSCOP_MBUF_T *);
 static void sscop_verbose(struct sscop *, void *, const char *, ...)
-	__printflike(3, 4);
+    __printflike(3, 4);
 
-static const struct sscop_funcs sscop_funcs = {
-	sscop_send_manage,
-	sscop_send_upper,
-	sscop_send_lower,
-	sscop_verbose
-};
+static const struct sscop_funcs sscop_funcs = { sscop_send_manage,
+	sscop_send_upper, sscop_send_lower, sscop_verbose };
 
 static void
 sscop_verbose(struct sscop *sscop, void *arg, const char *fmt, ...)
@@ -302,27 +259,28 @@ flow_upper(node_p node, struct ng_mesg *msg)
 	q = (struct ngm_queue_state *)msg->data;
 
 	switch (msg->header.cmd) {
-	  case NGM_HIGH_WATER_PASSED:
+	case NGM_HIGH_WATER_PASSED:
 		if (priv->flow) {
-			VERBOSE(priv, SSCOP_DBG_FLOW, (priv->sscop, priv,
-			    "flow control stopped"));
+			VERBOSE(priv, SSCOP_DBG_FLOW,
+			    (priv->sscop, priv, "flow control stopped"));
 			priv->flow = 0;
 		}
 		break;
 
-	  case NGM_LOW_WATER_PASSED:
+	case NGM_LOW_WATER_PASSED:
 		window = sscop_window(priv->sscop, 0);
 		space = q->max_queuelen_packets - q->current;
 		if (space > window) {
-			VERBOSE(priv, SSCOP_DBG_FLOW, (priv->sscop, priv,
-			    "flow control opened window by %u messages",
-			    space - window));
+			VERBOSE(priv, SSCOP_DBG_FLOW,
+			    (priv->sscop, priv,
+				"flow control opened window by %u messages",
+				space - window));
 			(void)sscop_window(priv->sscop, space - window);
 		}
 		priv->flow = 1;
 		break;
 
-	  case NGM_SYNC_QUEUE_STATE:
+	case NGM_SYNC_QUEUE_STATE:
 		if (q->high_watermark <= q->current)
 			break;
 		window = sscop_window(priv->sscop, 0);
@@ -331,15 +289,16 @@ flow_upper(node_p node, struct ng_mesg *msg)
 		else
 			space = q->high_watermark - q->current;
 		if (space > window) {
-			VERBOSE(priv, SSCOP_DBG_FLOW, (priv->sscop, priv,
-			    "flow control opened window by %u messages",
-			    space - window));
+			VERBOSE(priv, SSCOP_DBG_FLOW,
+			    (priv->sscop, priv,
+				"flow control opened window by %u messages",
+				space - window));
 			(void)sscop_window(priv->sscop, space - window);
 		}
 		priv->flow = 1;
 		break;
 
-	  default:
+	default:
 		return (EINVAL);
 	}
 	return (0);
@@ -354,15 +313,15 @@ flow_lower(node_p node, struct ng_mesg *msg)
 		return (EINVAL);
 
 	switch (msg->header.cmd) {
-	  case NGM_HIGH_WATER_PASSED:
+	case NGM_HIGH_WATER_PASSED:
 		sscop_setbusy(priv->sscop, 1);
 		break;
 
-	  case NGM_LOW_WATER_PASSED:
+	case NGM_LOW_WATER_PASSED:
 		sscop_setbusy(priv->sscop, 1);
 		break;
 
-	  default:
+	default:
 		return (EINVAL);
 	}
 	return (0);
@@ -404,30 +363,30 @@ text_status(node_p node, struct priv *priv, char *arg, u_int len)
 
 	sbuf_printf(&sbuf, "sscop state: %s\n",
 	    !priv->enabled ? "<disabled>" :
-	    sscop_statename(sscop_getstate(priv->sscop)));
+				   sscop_statename(sscop_getstate(priv->sscop)));
 
-	sbuf_printf(&sbuf, "input packets:  %ju\n",
-	    (uintmax_t)priv->stats.in_packets);
-	sbuf_printf(&sbuf, "input dropped:  %ju\n",
-	    (uintmax_t)priv->stats.in_dropped);
-	sbuf_printf(&sbuf, "output packets: %ju\n",
-	    (uintmax_t)priv->stats.out_packets);
-	sbuf_printf(&sbuf, "output dropped: %ju\n",
-	    (uintmax_t)priv->stats.out_dropped);
-	sbuf_printf(&sbuf, "aa signals:     %ju\n",
-	    (uintmax_t)priv->stats.aa_signals);
-	sbuf_printf(&sbuf, "aa dropped:     %ju\n",
-	    (uintmax_t)priv->stats.aa_dropped);
-	sbuf_printf(&sbuf, "maa signals:    %ju\n",
-	    (uintmax_t)priv->stats.maa_signals);
-	sbuf_printf(&sbuf, "maa dropped:    %ju\n",
-	    (uintmax_t)priv->stats.maa_dropped);
-	sbuf_printf(&sbuf, "errors:         %ju\n",
-	    (uintmax_t)priv->stats.errors);
+	sbuf_printf(
+	    &sbuf, "input packets:  %ju\n", (uintmax_t)priv->stats.in_packets);
+	sbuf_printf(
+	    &sbuf, "input dropped:  %ju\n", (uintmax_t)priv->stats.in_dropped);
+	sbuf_printf(
+	    &sbuf, "output packets: %ju\n", (uintmax_t)priv->stats.out_packets);
+	sbuf_printf(
+	    &sbuf, "output dropped: %ju\n", (uintmax_t)priv->stats.out_dropped);
+	sbuf_printf(
+	    &sbuf, "aa signals:     %ju\n", (uintmax_t)priv->stats.aa_signals);
+	sbuf_printf(
+	    &sbuf, "aa dropped:     %ju\n", (uintmax_t)priv->stats.aa_dropped);
+	sbuf_printf(
+	    &sbuf, "maa signals:    %ju\n", (uintmax_t)priv->stats.maa_signals);
+	sbuf_printf(
+	    &sbuf, "maa dropped:    %ju\n", (uintmax_t)priv->stats.maa_dropped);
+	sbuf_printf(
+	    &sbuf, "errors:         %ju\n", (uintmax_t)priv->stats.errors);
 	sbuf_printf(&sbuf, "data delivered: %ju\n",
 	    (uintmax_t)priv->stats.data_delivered);
-	sbuf_printf(&sbuf, "window:         %u\n",
-	    sscop_window(priv->sscop, 0));
+	sbuf_printf(
+	    &sbuf, "window:         %u\n", sscop_window(priv->sscop, 0));
 
 	sbuf_finish(&sbuf);
 	return (sbuf_len(&sbuf));
@@ -447,9 +406,9 @@ ng_sscop_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	NGI_GET_MSG(item, msg);
 
 	switch (msg->header.typecookie) {
-	  case NGM_GENERIC_COOKIE:
+	case NGM_GENERIC_COOKIE:
 		switch (msg->header.cmd) {
-		  case NGM_TEXT_STATUS:
+		case NGM_TEXT_STATUS:
 			NG_MKRESPONSE(resp, msg, NG_TEXTRESPONSE, M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
@@ -457,16 +416,18 @@ ng_sscop_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 
 			resp->header.arglen = text_status(node, priv,
-			    (char *)resp->data, resp->header.arglen) + 1;
+						  (char *)resp->data,
+						  resp->header.arglen) +
+			    1;
 			break;
 
-		  default:
+		default:
 			error = EINVAL;
 			break;
 		}
 		break;
 
-	  case NGM_FLOW_COOKIE:
+	case NGM_FLOW_COOKIE:
 		if (priv->enabled && lasthook != NULL) {
 			if (lasthook == priv->upper)
 				error = flow_upper(node, msg);
@@ -475,10 +436,9 @@ ng_sscop_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		}
 		break;
 
-	  case NGM_SSCOP_COOKIE:
+	case NGM_SSCOP_COOKIE:
 		switch (msg->header.cmd) {
-		  case NGM_SSCOP_GETPARAM:
-		    {
+		case NGM_SSCOP_GETPARAM: {
 			struct sscop_param *p;
 
 			NG_MKRESPONSE(resp, msg, sizeof(*p), M_NOWAIT);
@@ -489,10 +449,9 @@ ng_sscop_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			p = (struct sscop_param *)resp->data;
 			sscop_getparam(priv->sscop, p);
 			break;
-		    }
+		}
 
-		  case NGM_SSCOP_SETPARAM:
-		    {
+		case NGM_SSCOP_SETPARAM: {
 			struct ng_sscop_setparam *arg;
 			struct ng_sscop_setparam_resp *p;
 
@@ -512,12 +471,12 @@ ng_sscop_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			p = (struct ng_sscop_setparam_resp *)resp->data;
 			p->mask = arg->mask;
-			p->error = sscop_setparam(priv->sscop,
-			    &arg->param, &p->mask);
+			p->error = sscop_setparam(
+			    priv->sscop, &arg->param, &p->mask);
 			break;
-		    }
+		}
 
-		  case NGM_SSCOP_ENABLE:
+		case NGM_SSCOP_ENABLE:
 			if (msg->header.arglen != 0) {
 				error = EINVAL;
 				break;
@@ -531,7 +490,7 @@ ng_sscop_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			memset(&priv->stats, 0, sizeof(priv->stats));
 			break;
 
-		  case NGM_SSCOP_DISABLE:
+		case NGM_SSCOP_DISABLE:
 			if (msg->header.arglen != 0) {
 				error = EINVAL;
 				break;
@@ -544,20 +503,20 @@ ng_sscop_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			sscop_reset(priv->sscop);
 			break;
 
-		  case NGM_SSCOP_GETDEBUG:
+		case NGM_SSCOP_GETDEBUG:
 			if (msg->header.arglen != 0) {
 				error = EINVAL;
 				break;
 			}
 			NG_MKRESPONSE(resp, msg, sizeof(u_int32_t), M_NOWAIT);
-			if(resp == NULL) {
+			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
 			*(u_int32_t *)resp->data = sscop_getdebug(priv->sscop);
 			break;
 
-		  case NGM_SSCOP_SETDEBUG:
+		case NGM_SSCOP_SETDEBUG:
 			if (msg->header.arglen != sizeof(u_int32_t)) {
 				error = EINVAL;
 				break;
@@ -565,28 +524,28 @@ ng_sscop_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			sscop_setdebug(priv->sscop, *(u_int32_t *)msg->data);
 			break;
 
-		  case NGM_SSCOP_GETSTATE:
+		case NGM_SSCOP_GETSTATE:
 			if (msg->header.arglen != 0) {
 				error = EINVAL;
 				break;
 			}
 			NG_MKRESPONSE(resp, msg, sizeof(u_int32_t), M_NOWAIT);
-			if(resp == NULL) {
+			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
-			*(u_int32_t *)resp->data =
-			    priv->enabled ? (sscop_getstate(priv->sscop) + 1)
-			                  : 0;
+			*(u_int32_t *)resp->data = priv->enabled ?
+				  (sscop_getstate(priv->sscop) + 1) :
+				  0;
 			break;
 
-		  default:
+		default:
 			error = EINVAL;
 			break;
 		}
 		break;
 
-	  default:
+	default:
 		error = EINVAL;
 		break;
 	}
@@ -606,12 +565,12 @@ ng_sscop_newhook(node_p node, hook_p hook, const char *name)
 {
 	struct priv *priv = NG_NODE_PRIVATE(node);
 
-	if(strcmp(name, "upper") == 0) {
+	if (strcmp(name, "upper") == 0) {
 		priv->upper = hook;
 		NG_HOOK_SET_RCVDATA(hook, ng_sscop_rcvupper);
-	} else if(strcmp(name, "lower") == 0) {
+	} else if (strcmp(name, "lower") == 0) {
 		priv->lower = hook;
-	} else if(strcmp(name, "manage") == 0) {
+	} else if (strcmp(name, "manage") == 0) {
 		priv->manage = hook;
 		NG_HOOK_SET_RCVDATA(hook, ng_sscop_rcvmanage);
 	} else
@@ -625,26 +584,26 @@ ng_sscop_disconnect(hook_p hook)
 	node_p node = NG_HOOK_NODE(hook);
 	struct priv *priv = NG_NODE_PRIVATE(node);
 
-	if(hook == priv->upper)
+	if (hook == priv->upper)
 		priv->upper = NULL;
-	else if(hook == priv->lower)
+	else if (hook == priv->lower)
 		priv->lower = NULL;
-	else if(hook == priv->manage)
+	else if (hook == priv->manage)
 		priv->manage = NULL;
 
-	if(NG_NODE_NUMHOOKS(node) == 0) {
-		if(NG_NODE_IS_VALID(node))
+	if (NG_NODE_NUMHOOKS(node) == 0) {
+		if (NG_NODE_IS_VALID(node))
 			ng_rmnode_self(node);
 	} else {
 		/*
 		 * Imply a release request, if the upper layer is
 		 * disconnected.
 		 */
-		if(priv->upper == NULL && priv->lower != NULL &&
-		   priv->enabled &&
-		   sscop_getstate(priv->sscop) != SSCOP_IDLE) {
-			sscop_aasig(priv->sscop, SSCOP_RELEASE_request,
-			    NULL, 0);
+		if (priv->upper == NULL && priv->lower != NULL &&
+		    priv->enabled &&
+		    sscop_getstate(priv->sscop) != SSCOP_IDLE) {
+			sscop_aasig(
+			    priv->sscop, SSCOP_RELEASE_request, NULL, 0);
 		}
 	}
 	return 0;
@@ -858,13 +817,13 @@ ng_sscop_mod_event(module_t mod, int event, void *data)
 	int error = 0;
 
 	switch (event) {
-	  case MOD_LOAD:
+	case MOD_LOAD:
 		break;
 
-	  case MOD_UNLOAD:
+	case MOD_UNLOAD:
 		break;
 
-	  default:
+	default:
 		error = EOPNOTSUPP;
 		break;
 	}

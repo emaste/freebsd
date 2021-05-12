@@ -29,11 +29,11 @@
  */
 
 #ifndef _MACHINE_GDB_MACHDEP_H_
-#define	_MACHINE_GDB_MACHDEP_H_
+#define _MACHINE_GDB_MACHDEP_H_
 
-#define	GDB_BUFSZ	400
-#define	GDB_NREGS	16
-#define	GDB_REG_PC	8
+#define GDB_BUFSZ 400
+#define GDB_NREGS 16
+#define GDB_REG_PC 8
 
 static __inline size_t
 gdb_cpu_regsz(int regnum __unused)
@@ -57,7 +57,6 @@ gdb_begin_write(void)
 static __inline void
 gdb_end_write(void *arg __unused)
 {
-
 }
 
 void *gdb_cpu_getreg(int, size_t *);

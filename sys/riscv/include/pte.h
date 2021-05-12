@@ -36,61 +36,62 @@
  */
 
 #ifndef _MACHINE_PTE_H_
-#define	_MACHINE_PTE_H_
+#define _MACHINE_PTE_H_
 
 #ifndef LOCORE
-typedef	uint64_t	pd_entry_t;		/* page directory entry */
-typedef	uint64_t	pt_entry_t;		/* page table entry */
-typedef	uint64_t	pn_t;			/* page number */
+typedef uint64_t pd_entry_t; /* page directory entry */
+typedef uint64_t pt_entry_t; /* page table entry */
+typedef uint64_t pn_t;	     /* page number */
 #endif
 
 /* Level 0 table, 512GiB per entry */
-#define	L0_SHIFT	39
+#define L0_SHIFT 39
 
 /* Level 1 table, 1GiB per entry */
-#define	L1_SHIFT	30
-#define	L1_SIZE 	(1 << L1_SHIFT)
-#define	L1_OFFSET 	(L1_SIZE - 1)
+#define L1_SHIFT 30
+#define L1_SIZE (1 << L1_SHIFT)
+#define L1_OFFSET (L1_SIZE - 1)
 
 /* Level 2 table, 2MiB per entry */
-#define	L2_SHIFT	21
-#define	L2_SIZE 	(1 << L2_SHIFT)
-#define	L2_OFFSET 	(L2_SIZE - 1)
+#define L2_SHIFT 21
+#define L2_SIZE (1 << L2_SHIFT)
+#define L2_OFFSET (L2_SIZE - 1)
 
 /* Level 3 table, 4KiB per entry */
-#define	L3_SHIFT	12
-#define	L3_SIZE 	(1 << L3_SHIFT)
-#define	L3_OFFSET 	(L3_SIZE - 1)
+#define L3_SHIFT 12
+#define L3_SIZE (1 << L3_SHIFT)
+#define L3_OFFSET (L3_SIZE - 1)
 
-#define	Ln_ENTRIES_SHIFT 9
-#define	Ln_ENTRIES	(1 << Ln_ENTRIES_SHIFT)
-#define	Ln_ADDR_MASK	(Ln_ENTRIES - 1)
+#define Ln_ENTRIES_SHIFT 9
+#define Ln_ENTRIES (1 << Ln_ENTRIES_SHIFT)
+#define Ln_ADDR_MASK (Ln_ENTRIES - 1)
 
 /* Bits 9:8 are reserved for software */
-#define	PTE_SW_MANAGED	(1 << 9)
-#define	PTE_SW_WIRED	(1 << 8)
-#define	PTE_D		(1 << 7) /* Dirty */
-#define	PTE_A		(1 << 6) /* Accessed */
-#define	PTE_G		(1 << 5) /* Global */
-#define	PTE_U		(1 << 4) /* User */
-#define	PTE_X		(1 << 3) /* Execute */
-#define	PTE_W		(1 << 2) /* Write */
-#define	PTE_R		(1 << 1) /* Read */
-#define	PTE_V		(1 << 0) /* Valid */
-#define	PTE_RWX		(PTE_R | PTE_W | PTE_X)
-#define	PTE_RX		(PTE_R | PTE_X)
-#define	PTE_KERN	(PTE_V | PTE_R | PTE_W | PTE_A | PTE_D)
-#define	PTE_PROMOTE	(PTE_V | PTE_RWX | PTE_D | PTE_A | PTE_G | PTE_U | \
-			 PTE_SW_MANAGED | PTE_SW_WIRED)
+#define PTE_SW_MANAGED (1 << 9)
+#define PTE_SW_WIRED (1 << 8)
+#define PTE_D (1 << 7) /* Dirty */
+#define PTE_A (1 << 6) /* Accessed */
+#define PTE_G (1 << 5) /* Global */
+#define PTE_U (1 << 4) /* User */
+#define PTE_X (1 << 3) /* Execute */
+#define PTE_W (1 << 2) /* Write */
+#define PTE_R (1 << 1) /* Read */
+#define PTE_V (1 << 0) /* Valid */
+#define PTE_RWX (PTE_R | PTE_W | PTE_X)
+#define PTE_RX (PTE_R | PTE_X)
+#define PTE_KERN (PTE_V | PTE_R | PTE_W | PTE_A | PTE_D)
+#define PTE_PROMOTE                                                         \
+	(PTE_V | PTE_RWX | PTE_D | PTE_A | PTE_G | PTE_U | PTE_SW_MANAGED | \
+	    PTE_SW_WIRED)
 
 /* Bits 63 - 54 are reserved for future use. */
-#define PTE_HI_MASK	0xFFC0000000000000ULL
+#define PTE_HI_MASK 0xFFC0000000000000ULL
 
-#define	PTE_PPN0_S	10
-#define	PTE_PPN1_S	19
-#define	PTE_PPN2_S	28
-#define	PTE_PPN3_S	37
-#define	PTE_SIZE	8
+#define PTE_PPN0_S 10
+#define PTE_PPN1_S 19
+#define PTE_PPN2_S 28
+#define PTE_PPN3_S 37
+#define PTE_SIZE 8
 
 #endif /* !_MACHINE_PTE_H_ */
 

@@ -32,19 +32,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_crtc_helper.h>
 #include <dev/drm2/drm_fb_helper.h>
 #include <dev/drm2/drm_fixed.h>
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -52,26 +52,26 @@ __FBSDID("$FreeBSD$");
 #include <arm/nvidia/drm2/tegra_drm.h>
 #include <arm/nvidia/tegra_pmc.h>
 
-#include "tegra_drm_if.h"
 #include "tegra_dc_if.h"
+#include "tegra_drm_if.h"
 
-#define	WR4(_sc, _r, _v)	bus_write_4((_sc)->mem_res, 4 * (_r), (_v))
-#define	RD4(_sc, _r)		bus_read_4((_sc)->mem_res, 4 * (_r))
+#define WR4(_sc, _r, _v) bus_write_4((_sc)->mem_res, 4 * (_r), (_v))
+#define RD4(_sc, _r) bus_read_4((_sc)->mem_res, 4 * (_r))
 
-#define	LOCK(_sc)		mtx_lock(&(_sc)->mtx)
-#define	UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
-#define	SLEEP(_sc, timeout)						\
+#define LOCK(_sc) mtx_lock(&(_sc)->mtx)
+#define UNLOCK(_sc) mtx_unlock(&(_sc)->mtx)
+#define SLEEP(_sc, timeout) \
 	mtx_sleep(sc, &sc->mtx, 0, "tegra_dc_wait", timeout);
-#define	LOCK_INIT(_sc)							\
+#define LOCK_INIT(_sc) \
 	mtx_init(&_sc->mtx, device_get_nameunit(_sc->dev), "tegra_dc", MTX_DEF)
-#define	LOCK_DESTROY(_sc)	mtx_destroy(&_sc->mtx)
-#define	ASSERT_LOCKED(_sc)	mtx_assert(&_sc->mtx, MA_OWNED)
-#define	ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->mtx, MA_NOTOWNED)
+#define LOCK_DESTROY(_sc) mtx_destroy(&_sc->mtx)
+#define ASSERT_LOCKED(_sc) mtx_assert(&_sc->mtx, MA_OWNED)
+#define ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->mtx, MA_NOTOWNED)
 
-#define	SYNCPT_VBLANK0 26
-#define	SYNCPT_VBLANK1 27
+#define SYNCPT_VBLANK0 26
+#define SYNCPT_VBLANK1 27
 
-#define	DC_MAX_PLANES 2		/* Maximum planes */
+#define DC_MAX_PLANES 2 /* Maximum planes */
 
 /* DRM Formats supported by DC */
 /* XXXX expand me */
@@ -88,57 +88,57 @@ static uint32_t dc_plane_formats[] = {
 /* Complete description of one window (plane) */
 struct dc_window {
 	/* Source (in framebuffer) rectangle, in pixels */
-	u_int			src_x;
-	u_int			src_y;
-	u_int			src_w;
-	u_int			src_h;
+	u_int src_x;
+	u_int src_y;
+	u_int src_w;
+	u_int src_h;
 
 	/* Destination (on display) rectangle, in pixels */
-	u_int			dst_x;
-	u_int			dst_y;
-	u_int			dst_w;
-	u_int			dst_h;
+	u_int dst_x;
+	u_int dst_y;
+	u_int dst_w;
+	u_int dst_h;
 
 	/* Parsed pixel format */
-	u_int			bits_per_pixel;
-	bool			is_yuv;		/* any YUV mode */
-	bool			is_yuv_planar;	/* planar YUV mode */
-	uint32_t 		color_mode;	/* DC_WIN_COLOR_DEPTH */
-	uint32_t		swap;		/* DC_WIN_BYTE_SWAP */
-	uint32_t		surface_kind;	/* DC_WINBUF_SURFACE_KIND */
-	uint32_t		block_height;	/* DC_WINBUF_SURFACE_KIND */
+	u_int bits_per_pixel;
+	bool is_yuv;	       /* any YUV mode */
+	bool is_yuv_planar;    /* planar YUV mode */
+	uint32_t color_mode;   /* DC_WIN_COLOR_DEPTH */
+	uint32_t swap;	       /* DC_WIN_BYTE_SWAP */
+	uint32_t surface_kind; /* DC_WINBUF_SURFACE_KIND */
+	uint32_t block_height; /* DC_WINBUF_SURFACE_KIND */
 
 	/* Parsed flipping, rotation is not supported for pitched modes */
-	bool			flip_x;		/* inverted X-axis */
-	bool			flip_y;		/* inverted Y-axis */
-	bool			transpose_xy;	/* swap X and Y-axis */
+	bool flip_x;	   /* inverted X-axis */
+	bool flip_y;	   /* inverted Y-axis */
+	bool transpose_xy; /* swap X and Y-axis */
 
 	/* Color planes base addresses and strides */
-	bus_size_t		base[3];
-	uint32_t		stride[3];	/* stride[2] isn't used by HW */
+	bus_size_t base[3];
+	uint32_t stride[3]; /* stride[2] isn't used by HW */
 };
 
 struct dc_softc {
-	device_t		dev;
-	struct resource		*mem_res;
-	struct resource		*irq_res;
-	void			*irq_ih;
-	struct mtx		mtx;
+	device_t dev;
+	struct resource *mem_res;
+	struct resource *irq_res;
+	void *irq_ih;
+	struct mtx mtx;
 
-	clk_t			clk_parent;
-	clk_t			clk_dc;
-	hwreset_t		hwreset_dc;
+	clk_t clk_parent;
+	clk_t clk_dc;
+	hwreset_t hwreset_dc;
 
-	int			pitch_align;
+	int pitch_align;
 
-	struct tegra_crtc 	tegra_crtc;
+	struct tegra_crtc tegra_crtc;
 	struct drm_pending_vblank_event *event;
-	struct drm_gem_object 	*cursor_gem;
+	struct drm_gem_object *cursor_gem;
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"nvidia,tegra124-dc",	1},
-	{NULL,			0},
+	{ "nvidia,tegra124-dc", 1 },
+	{ NULL, 0 },
 };
 
 /* Convert standard drm pixel format to tegra windows parameters. */
@@ -212,8 +212,8 @@ dc_parse_drm_format(struct tegra_fb *fb, struct dc_window *win)
 	case 180:
 		break;
 
-	case 90: 		/* Rotation is supported only */
-	case 270:		/*  for block linear surfaces */
+	case 90:  /* Rotation is supported only */
+	case 270: /*  for block linear surfaces */
 		if (!fb->block_linear)
 			return (-EINVAL);
 		break;
@@ -226,29 +226,29 @@ dc_parse_drm_format(struct tegra_fb *fb, struct dc_window *win)
 	if (win == NULL)
 		return (0);
 
-	win->surface_kind =
-	    fb->block_linear ? SURFACE_KIND_BL_16B2: SURFACE_KIND_PITCH;
+	win->surface_kind = fb->block_linear ? SURFACE_KIND_BL_16B2 :
+						     SURFACE_KIND_PITCH;
 	win->block_height = fb->block_height;
 	switch (fb->rotation) {
-	case 0:					/* (0,0,0) */
+	case 0: /* (0,0,0) */
 		win->transpose_xy = false;
 		win->flip_x = false;
 		win->flip_y = false;
 		break;
 
-	case 90:				/* (1,0,1) */
+	case 90: /* (1,0,1) */
 		win->transpose_xy = true;
 		win->flip_x = false;
 		win->flip_y = true;
 		break;
 
-	case 180:				/* (0,1,1) */
+	case 180: /* (0,1,1) */
 		win->transpose_xy = false;
 		win->flip_x = true;
 		win->flip_y = true;
 		break;
 
-	case 270:				/* (1,1,0) */
+	case 270: /* (1,1,0) */
 		win->transpose_xy = true;
 		win->flip_x = true;
 		win->flip_y = false;
@@ -292,9 +292,9 @@ dc_scaling_incr(uint32_t src, uint32_t dst, uint32_t maxscale)
 {
 	uint32_t val;
 
-	val = (src - 1) << 12 ; /* 4.12 fixed float */
+	val = (src - 1) << 12; /* 4.12 fixed float */
 	val /= (dst - 1);
-	if (val  > (maxscale << 12))
+	if (val > (maxscale << 12))
 		val = maxscale << 12;
 	return val;
 }
@@ -323,11 +323,11 @@ dc_setup_clk(struct dc_softc *sc, struct drm_crtc *crtc,
 
 	/* Find attached encoder */
 	output = NULL;
-	list_for_each_entry(encoder, &crtc->dev->mode_config.encoder_list,
-	    head) {
+	list_for_each_entry(encoder, &crtc->dev->mode_config.encoder_list, head)
+	{
 		if (encoder->crtc == crtc) {
-			output = container_of(encoder, struct tegra_drm_encoder,
-			    encoder);
+			output = container_of(
+			    encoder, struct tegra_drm_encoder, encoder);
 			break;
 		}
 	}
@@ -338,8 +338,8 @@ dc_setup_clk(struct dc_softc *sc, struct drm_crtc *crtc,
 		panic("Output have not setup_clock function.\n");
 	rv = output->setup_clock(output, sc->clk_dc, pclk);
 	if (rv != 0) {
-		device_printf(sc->dev, "Cannot setup pixel clock: %llu\n",
-		    pclk);
+		device_printf(
+		    sc->dev, "Cannot setup pixel clock: %llu\n", pclk);
 		return (rv);
 	}
 
@@ -360,12 +360,12 @@ dc_setup_window(struct dc_softc *sc, unsigned int index, struct dc_window *win)
 
 #ifdef DMR_DEBUG_WINDOW
 	printf("%s window: %d\n", __func__, index);
-	printf("  src: x: %d, y: %d, w: %d, h: %d\n",
-	   win->src_x, win->src_y, win->src_w, win->src_h);
-	printf("  dst: x: %d, y: %d, w: %d, h: %d\n",
-	   win->dst_x, win->dst_y, win->dst_w, win->dst_h);
-	printf("  bpp: %d, color_mode: %d, swap: %d\n",
-	   win->bits_per_pixel, win->color_mode, win->swap);
+	printf("  src: x: %d, y: %d, w: %d, h: %d\n", win->src_x, win->src_y,
+	    win->src_w, win->src_h);
+	printf("  dst: x: %d, y: %d, w: %d, h: %d\n", win->dst_x, win->dst_y,
+	    win->dst_w, win->dst_h);
+	printf("  bpp: %d, color_mode: %d, swap: %d\n", win->bits_per_pixel,
+	    win->color_mode, win->swap);
 #endif
 
 	if (win->is_yuv)
@@ -392,10 +392,10 @@ dc_setup_window(struct dc_softc *sc, unsigned int index, struct dc_window *win)
 	/* Adjust offsets for planar yuv modes */
 	if (win->is_yuv_planar) {
 		h_offset &= ~1;
-		if (win->flip_x )
+		if (win->flip_x)
 			h_offset |= 1;
 		v_offset &= ~1;
-		if (win->flip_y )
+		if (win->flip_y)
 			v_offset |= 1;
 	}
 
@@ -406,17 +406,17 @@ dc_setup_window(struct dc_softc *sc, unsigned int index, struct dc_window *win)
 		h_incr_dda = dc_scaling_incr(win->src_w, win->dst_w, 4);
 		v_incr_dda = dc_scaling_incr(win->src_h, win->dst_h, 15);
 	} else {
-		h_init_dda =  dc_scaling_init(win->src_y);
-		v_init_dda =  dc_scaling_init(win->src_x);
+		h_init_dda = dc_scaling_init(win->src_y);
+		v_init_dda = dc_scaling_init(win->src_x);
 		h_incr_dda = dc_scaling_incr(win->src_h, win->dst_h, 4);
 		v_incr_dda = dc_scaling_incr(win->src_w, win->dst_w, 15);
 	}
 #ifdef DMR_DEBUG_WINDOW
 	printf("\n");
-	printf("  bpp: %d, size: h: %d v: %d, offset: h:%d v: %d\n",
-	   bpp, h_size, v_size, h_offset, v_offset);
-	printf("  init_dda: h: %d v: %d, incr_dda: h: %d v: %d\n",
-	   h_init_dda, v_init_dda, h_incr_dda, v_incr_dda);
+	printf("  bpp: %d, size: h: %d v: %d, offset: h:%d v: %d\n", bpp,
+	    h_size, v_size, h_offset, v_offset);
+	printf("  init_dda: h: %d v: %d, incr_dda: h: %d v: %d\n", h_init_dda,
+	    v_init_dda, h_incr_dda, v_incr_dda);
 #endif
 
 	LOCK(sc);
@@ -442,7 +442,7 @@ dc_setup_window(struct dc_softc *sc, unsigned int index, struct dc_window *win)
 		WR4(sc, DC_WINBUF_START_ADDR_U, win->base[1]);
 		WR4(sc, DC_WINBUF_START_ADDR_V, win->base[2]);
 		WR4(sc, DC_WIN_LINE_STRIDE,
-		     win->stride[1] << 16 | win->stride[0]);
+		    win->stride[1] << 16 | win->stride[0]);
 	} else {
 		WR4(sc, DC_WIN_LINE_STRIDE, win->stride[0]);
 	}
@@ -463,14 +463,14 @@ dc_setup_window(struct dc_softc *sc, unsigned int index, struct dc_window *win)
 
 	/* Color space coefs for YUV modes */
 	if (win->is_yuv) {
-		WR4(sc, DC_WINC_CSC_YOF,   0x00f0);
+		WR4(sc, DC_WINC_CSC_YOF, 0x00f0);
 		WR4(sc, DC_WINC_CSC_KYRGB, 0x012a);
-		WR4(sc, DC_WINC_CSC_KUR,   0x0000);
-		WR4(sc, DC_WINC_CSC_KVR,   0x0198);
-		WR4(sc, DC_WINC_CSC_KUG,   0x039b);
-		WR4(sc, DC_WINC_CSC_KVG,   0x032f);
-		WR4(sc, DC_WINC_CSC_KUB,   0x0204);
-		WR4(sc, DC_WINC_CSC_KVB,   0x0000);
+		WR4(sc, DC_WINC_CSC_KUR, 0x0000);
+		WR4(sc, DC_WINC_CSC_KVR, 0x0198);
+		WR4(sc, DC_WINC_CSC_KUG, 0x039b);
+		WR4(sc, DC_WINC_CSC_KVG, 0x032f);
+		WR4(sc, DC_WINC_CSC_KUB, 0x0204);
+		WR4(sc, DC_WINC_CSC_KVB, 0x0000);
 	}
 
 	val = WIN_ENABLE;
@@ -502,9 +502,9 @@ dc_setup_window(struct dc_softc *sc, unsigned int index, struct dc_window *win)
  */
 static int
 dc_plane_update(struct drm_plane *drm_plane, struct drm_crtc *drm_crtc,
-    struct drm_framebuffer *drm_fb,
-    int crtc_x, int crtc_y, unsigned int crtc_w, unsigned int crtc_h,
-    uint32_t src_x, uint32_t src_y, uint32_t src_w, uint32_t src_h)
+    struct drm_framebuffer *drm_fb, int crtc_x, int crtc_y, unsigned int crtc_w,
+    unsigned int crtc_h, uint32_t src_x, uint32_t src_y, uint32_t src_w,
+    uint32_t src_h)
 {
 	struct tegra_plane *plane;
 	struct tegra_crtc *crtc;
@@ -530,8 +530,8 @@ dc_plane_update(struct drm_plane *drm_plane, struct drm_crtc *drm_crtc,
 
 	rv = dc_parse_drm_format(fb, &win);
 	if (rv != 0) {
-		DRM_WARNING("unsupported pixel format %d\n",
-		    fb->drm_fb.pixel_format);
+		DRM_WARNING(
+		    "unsupported pixel format %d\n", fb->drm_fb.pixel_format);
 		return (rv);
 	}
 
@@ -627,8 +627,8 @@ dc_set_base(struct dc_softc *sc, int x, int y, struct tegra_fb *fb)
 
 	rv = dc_parse_drm_format(fb, &win);
 	if (rv != 0) {
-		DRM_WARNING("unsupported pixel format %d\n",
-		    fb->drm_fb.pixel_format);
+		DRM_WARNING(
+		    "unsupported pixel format %d\n", fb->drm_fb.pixel_format);
 		return (rv);
 	}
 	dc_setup_window(sc, 0, &win);
@@ -664,28 +664,25 @@ dc_crtc_mode_set(struct drm_crtc *drm_crtc, struct drm_display_mode *mode,
 	/* Timing */
 	WR4(sc, DC_DISP_DISP_TIMING_OPTIONS, 0);
 
-	WR4(sc, DC_DISP_REF_TO_SYNC,
-	    (v_ref_to_sync << 16) |
-	     h_ref_to_sync);
+	WR4(sc, DC_DISP_REF_TO_SYNC, (v_ref_to_sync << 16) | h_ref_to_sync);
 
 	WR4(sc, DC_DISP_SYNC_WIDTH,
 	    ((mode->vsync_end - mode->vsync_start) << 16) |
-	    ((mode->hsync_end - mode->hsync_start) <<  0));
+		((mode->hsync_end - mode->hsync_start) << 0));
 
 	WR4(sc, DC_DISP_BACK_PORCH,
 	    ((mode->vtotal - mode->vsync_end) << 16) |
-	    ((mode->htotal - mode->hsync_end) <<  0));
+		((mode->htotal - mode->hsync_end) << 0));
 
 	WR4(sc, DC_DISP_FRONT_PORCH,
 	    ((mode->vsync_start - mode->vdisplay) << 16) |
-	    ((mode->hsync_start - mode->hdisplay) <<  0));
+		((mode->hsync_start - mode->hdisplay) << 0));
 
-	WR4(sc, DC_DISP_DISP_ACTIVE,
-	    (mode->vdisplay << 16) | mode->hdisplay);
+	WR4(sc, DC_DISP_DISP_ACTIVE, (mode->vdisplay << 16) | mode->hdisplay);
 
 	WR4(sc, DC_DISP_DISP_INTERFACE_CONTROL, DISP_DATA_FORMAT(DF1P1C));
 
-	WR4(sc,DC_DISP_DISP_CLOCK_CONTROL,
+	WR4(sc, DC_DISP_DISP_CLOCK_CONTROL,
 	    SHIFT_CLK_DIVIDER(div) | PIXEL_CLK_DIVIDER(PCD1));
 
 	memset(&win, 0, sizeof(win));
@@ -708,12 +705,11 @@ dc_crtc_mode_set(struct drm_crtc *drm_crtc, struct drm_display_mode *mode,
 	dc_setup_window(sc, 0, &win);
 
 	return (0);
-
 }
 
 static int
-dc_crtc_mode_set_base(struct drm_crtc *drm_crtc, int x, int y,
-    struct drm_framebuffer *old_fb)
+dc_crtc_mode_set_base(
+    struct drm_crtc *drm_crtc, int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct dc_softc *sc;
 	struct tegra_crtc *crtc;
@@ -745,24 +741,26 @@ dc_crtc_prepare(struct drm_crtc *drm_crtc)
 
 	WR4(sc, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL, SYNCPT_CNTRL_NO_STALL);
 	/* XXX allocate syncpoint from host1x */
-	WR4(sc, DC_CMD_CONT_SYNCPT_VSYNC, SYNCPT_VSYNC_ENABLE |
-	    (sc->tegra_crtc.nvidia_head == 0 ? SYNCPT_VBLANK0: SYNCPT_VBLANK1));
+	WR4(sc, DC_CMD_CONT_SYNCPT_VSYNC,
+	    SYNCPT_VSYNC_ENABLE |
+		(sc->tegra_crtc.nvidia_head == 0 ? SYNCPT_VBLANK0 :
+							 SYNCPT_VBLANK1));
 
 	WR4(sc, DC_CMD_DISPLAY_POWER_CONTROL,
-	    PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
-	    PW4_ENABLE | PM0_ENABLE | PM1_ENABLE);
+	    PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE | PW4_ENABLE |
+		PM0_ENABLE | PM1_ENABLE);
 
 	val = RD4(sc, DC_CMD_DISPLAY_COMMAND);
 	val |= DISPLAY_CTRL_MODE(CTRL_MODE_C_DISPLAY);
 	WR4(sc, DC_CMD_DISPLAY_COMMAND, val);
 
 	WR4(sc, DC_CMD_INT_MASK,
-	    WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
-	    WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT);
+	    WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT | WIN_A_OF_INT |
+		WIN_B_OF_INT | WIN_C_OF_INT);
 
 	WR4(sc, DC_CMD_INT_ENABLE,
 	    VBLANK_INT | WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
-	    WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT);
+		WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT);
 }
 
 static void
@@ -785,7 +783,7 @@ dc_crtc_commit(struct drm_crtc *drm_crtc)
 	val |= FRAME_END_INT;
 	WR4(sc, DC_CMD_INT_ENABLE, val);
 
-	WR4(sc, DC_CMD_STATE_CONTROL,  GENERAL_ACT_REQ | WIN_A_ACT_REQ);
+	WR4(sc, DC_CMD_STATE_CONTROL, GENERAL_ACT_REQ | WIN_A_ACT_REQ);
 }
 
 static void
@@ -812,7 +810,8 @@ drm_crtc_index(struct drm_crtc *crtc)
 	struct drm_crtc *tmp;
 
 	idx = 0;
-	list_for_each_entry(tmp, &crtc->dev->mode_config.crtc_list, head) {
+	list_for_each_entry(tmp, &crtc->dev->mode_config.crtc_list, head)
+	{
 		if (tmp == crtc)
 			return (idx);
 		idx++;
@@ -968,8 +967,8 @@ dc_page_flip(struct drm_crtc *drm_crtc, struct drm_framebuffer *drm_fb,
 }
 
 static int
-dc_cursor_set(struct drm_crtc *drm_crtc, struct drm_file *file,
-    uint32_t handle, uint32_t width, uint32_t height)
+dc_cursor_set(struct drm_crtc *drm_crtc, struct drm_file *file, uint32_t handle,
+    uint32_t width, uint32_t height)
 {
 
 	struct dc_softc *sc;
@@ -1053,7 +1052,7 @@ dc_cursor_set(struct drm_crtc *drm_crtc, struct drm_file *file,
 	/* XXX This fixes cursor underflow issues, but why ?  */
 	WR4(sc, DC_DISP_CURSOR_UNDERFLOW_CTRL, CURSOR_UFLOW_CYA);
 
-	WR4(sc, DC_CMD_STATE_CONTROL, GENERAL_UPDATE | CURSOR_UPDATE );
+	WR4(sc, DC_CMD_STATE_CONTROL, GENERAL_UPDATE | CURSOR_UPDATE);
 	WR4(sc, DC_CMD_STATE_CONTROL, GENERAL_ACT_REQ | CURSOR_ACT_REQ);
 	return (0);
 }
@@ -1125,7 +1124,7 @@ dc_display_enable(device_t dev, bool enable)
 	sc = device_get_softc(dev);
 
 	/* Set display mode */
-	val = enable ? CTRL_MODE_C_DISPLAY: CTRL_MODE_STOP;
+	val = enable ? CTRL_MODE_C_DISPLAY : CTRL_MODE_STOP;
 	WR4(sc, DC_CMD_DISPLAY_COMMAND, DISPLAY_CTRL_MODE(val));
 
 	/* and commit it*/
@@ -1147,7 +1146,6 @@ dc_hdmi_enable(device_t dev, bool enable)
 	else
 		val &= ~HDMI_ENABLE;
 	WR4(sc, DC_DISP_DISP_WIN_OPTIONS, val);
-
 }
 
 static void
@@ -1182,8 +1180,8 @@ dc_intr(void *arg)
 	status = RD4(sc, DC_CMD_INT_STATUS);
 	WR4(sc, DC_CMD_INT_STATUS, status);
 	if (status & VBLANK_INT) {
-		drm_handle_vblank(sc->tegra_crtc.drm_crtc.dev,
-		    sc->tegra_crtc.nvidia_head);
+		drm_handle_vblank(
+		    sc->tegra_crtc.drm_crtc.dev, sc->tegra_crtc.nvidia_head);
 		dc_finish_page_flip(sc);
 	}
 }
@@ -1204,18 +1202,18 @@ dc_init_client(device_t dev, device_t host1x, struct tegra_drm *drm)
 	drm_crtc_helper_add(&sc->tegra_crtc.drm_crtc, &dc_crtc_helper_funcs);
 
 	rv = dc_init_planes(sc, drm);
-	if (rv!= 0){
+	if (rv != 0) {
 		device_printf(dev, "Cannot init planes\n");
 		return (rv);
 	}
 
 	WR4(sc, DC_CMD_INT_TYPE,
-	    WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
-	    WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT);
+	    WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT | WIN_A_OF_INT |
+		WIN_B_OF_INT | WIN_C_OF_INT);
 
 	WR4(sc, DC_CMD_INT_POLARITY,
-	    WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
-	    WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT);
+	    WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT | WIN_A_OF_INT |
+		WIN_B_OF_INT | WIN_C_OF_INT);
 
 	WR4(sc, DC_CMD_INT_ENABLE, 0);
 	WR4(sc, DC_CMD_INT_MASK, 0);
@@ -1273,8 +1271,7 @@ get_fdt_resources(struct dc_softc *sc, phandle_t node)
 	rv = OF_getencprop(node, "nvidia,head", &sc->tegra_crtc.nvidia_head,
 	    sizeof(sc->tegra_crtc.nvidia_head));
 	if (rv <= 0) {
-		device_printf(sc->dev,
-		    "Cannot get 'nvidia,head' property\n");
+		device_printf(sc->dev, "Cannot get 'nvidia,head' property\n");
 		return (rv);
 	}
 	return (0);
@@ -1291,8 +1288,8 @@ enable_fdt_resources(struct dc_softc *sc)
 		return (rv);
 	}
 
-	id = (sc->tegra_crtc.nvidia_head == 0) ?
-	    TEGRA_POWERGATE_DIS: TEGRA_POWERGATE_DISB;
+	id = (sc->tegra_crtc.nvidia_head == 0) ? TEGRA_POWERGATE_DIS :
+						       TEGRA_POWERGATE_DISB;
 	rv = tegra_powergate_sequence_power_up(id, sc->clk_dc, sc->hwreset_dc);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot enable 'DIS' powergate\n");
@@ -1331,8 +1328,8 @@ dc_attach(device_t dev)
 	LOCK_INIT(sc);
 
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Cannot allocate memory resources\n");
 		goto fail;
@@ -1419,23 +1416,22 @@ dc_detach(device_t dev)
 
 static device_method_t tegra_dc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,			dc_probe),
-	DEVMETHOD(device_attach,		dc_attach),
-	DEVMETHOD(device_detach,		dc_detach),
+	DEVMETHOD(device_probe, dc_probe), DEVMETHOD(device_attach, dc_attach),
+	DEVMETHOD(device_detach, dc_detach),
 
 	/* tegra drm interface */
-	DEVMETHOD(tegra_drm_init_client,	dc_init_client),
-	DEVMETHOD(tegra_drm_exit_client,	dc_exit_client),
+	DEVMETHOD(tegra_drm_init_client, dc_init_client),
+	DEVMETHOD(tegra_drm_exit_client, dc_exit_client),
 
 	/* tegra dc interface */
-	DEVMETHOD(tegra_dc_display_enable,	dc_display_enable),
-	DEVMETHOD(tegra_dc_hdmi_enable,		dc_hdmi_enable),
-	DEVMETHOD(tegra_dc_setup_timing,	dc_setup_timing),
+	DEVMETHOD(tegra_dc_display_enable, dc_display_enable),
+	DEVMETHOD(tegra_dc_hdmi_enable, dc_hdmi_enable),
+	DEVMETHOD(tegra_dc_setup_timing, dc_setup_timing),
 
 	DEVMETHOD_END
 };
 
 static devclass_t tegra_dc_devclass;
-DEFINE_CLASS_0(tegra_dc, tegra_dc_driver, tegra_dc_methods,
-    sizeof(struct dc_softc));
+DEFINE_CLASS_0(
+    tegra_dc, tegra_dc_driver, tegra_dc_methods, sizeof(struct dc_softc));
 DRIVER_MODULE(tegra_dc, host1x, tegra_dc_driver, tegra_dc_devclass, NULL, NULL);

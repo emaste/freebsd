@@ -46,37 +46,28 @@ __FBSDID("$FreeBSD$");
 #else
 #include <stand.h>
 #endif
-#include <sys/reboot.h>
 #include <sys/boot.h>
+#include <sys/reboot.h>
 
 #ifdef _KERNEL
-#define SETENV(k, v)	kern_setenv(k, v)
-#define GETENV(k)	kern_getenv(k)
-#define FREE(v)		freeenv(v)
-#else	/* Boot loader */
-#define SETENV(k, v)	setenv(k, v, 1)
-#define GETENV(k)	getenv(k)
-#define	FREE(v)
+#define SETENV(k, v) kern_setenv(k, v)
+#define GETENV(k) kern_getenv(k)
+#define FREE(v) freeenv(v)
+#else /* Boot loader */
+#define SETENV(k, v) setenv(k, v, 1)
+#define GETENV(k) getenv(k)
+#define FREE(v)
 #endif
 
-static struct
-{
-	const char	*ev;
-	int		mask;
-} howto_names[] = {
-	{ "boot_askname",	RB_ASKNAME},
-	{ "boot_cdrom",		RB_CDROM},
-	{ "boot_ddb",		RB_KDB},
-	{ "boot_dfltroot",	RB_DFLTROOT},
-	{ "boot_gdb",		RB_GDB},
-	{ "boot_multicons",	RB_MULTIPLE},
-	{ "boot_mute",		RB_MUTE},
-	{ "boot_pause",		RB_PAUSE},
-	{ "boot_serial",	RB_SERIAL},
-	{ "boot_single",	RB_SINGLE},
-	{ "boot_verbose",	RB_VERBOSE},
-	{ NULL,	0}
-};
+static struct {
+	const char *ev;
+	int mask;
+} howto_names[] = { { "boot_askname", RB_ASKNAME }, { "boot_cdrom", RB_CDROM },
+	{ "boot_ddb", RB_KDB }, { "boot_dfltroot", RB_DFLTROOT },
+	{ "boot_gdb", RB_GDB }, { "boot_multicons", RB_MULTIPLE },
+	{ "boot_mute", RB_MUTE }, { "boot_pause", RB_PAUSE },
+	{ "boot_serial", RB_SERIAL }, { "boot_single", RB_SINGLE },
+	{ "boot_verbose", RB_VERBOSE }, { NULL, 0 } };
 
 /*
  * In the boot environment, we often parse a command line and have to throw away
@@ -154,19 +145,46 @@ static int howto_masks[] = {
 		while (*v != '\0') {
 			v++;
 			switch (*v) {
-			case 'a': howto |= RB_ASKNAME; break;
-			case 'C': howto |= RB_CDROM; break;
-			case 'd': howto |= RB_KDB; break;
-			case 'D': howto |= RB_MULTIPLE; break;
-			case 'm': howto |= RB_MUTE; break;
-			case 'g': howto |= RB_GDB; break;
-			case 'h': howto |= RB_SERIAL; break;
-			case 'p': howto |= RB_PAUSE; break;
-			case 'P': howto |= RB_PROBE; break;
-			case 'r': howto |= RB_DFLTROOT; break;
-			case 's': howto |= RB_SINGLE; break;
-			case 'S': SETENV("comconsole_speed", v + 1); v += strlen(v); break;
-			case 'v': howto |= RB_VERBOSE; break;
+			case 'a':
+				howto |= RB_ASKNAME;
+				break;
+			case 'C':
+				howto |= RB_CDROM;
+				break;
+			case 'd':
+				howto |= RB_KDB;
+				break;
+			case 'D':
+				howto |= RB_MULTIPLE;
+				break;
+			case 'm':
+				howto |= RB_MUTE;
+				break;
+			case 'g':
+				howto |= RB_GDB;
+				break;
+			case 'h':
+				howto |= RB_SERIAL;
+				break;
+			case 'p':
+				howto |= RB_PAUSE;
+				break;
+			case 'P':
+				howto |= RB_PROBE;
+				break;
+			case 'r':
+				howto |= RB_DFLTROOT;
+				break;
+			case 's':
+				howto |= RB_SINGLE;
+				break;
+			case 'S':
+				SETENV("comconsole_speed", v + 1);
+				v += strlen(v);
+				break;
+			case 'v':
+				howto |= RB_VERBOSE;
+				break;
 			}
 		}
 	} else {
@@ -214,10 +232,10 @@ boot_parse_cmdline(char *cmdline)
 int
 boot_parse_args(int argc, char *argv[])
 {
-        int i, howto;
+	int i, howto;
 
 	howto = 0;
-        for (i = 1; i < argc; i++)
-                howto |= boot_parse_arg(argv[i]);
+	for (i = 1; i < argc; i++)
+		howto |= boot_parse_arg(argv[i]);
 	return (howto);
 }

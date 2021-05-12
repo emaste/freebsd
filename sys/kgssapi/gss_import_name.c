@@ -43,10 +43,8 @@ __FBSDID("$FreeBSD$");
 #include "gssd.h"
 
 OM_uint32
-gss_import_name(OM_uint32 *minor_status,
-    const gss_buffer_t input_name_buffer,
-    const gss_OID input_name_type,
-    gss_name_t *output_name)
+gss_import_name(OM_uint32 *minor_status, const gss_buffer_t input_name_buffer,
+    const gss_OID input_name_type, gss_name_t *output_name)
 {
 	struct import_name_res res;
 	struct import_name_args args;

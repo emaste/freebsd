@@ -36,27 +36,27 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/time.h>
 #include <sys/taskqueue.h>
-#include <net/if.h>	/* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
-#include <netinet/in.h>
-#include <netinet/ip_var.h>	/* ip_output(), IP_FORWARDING */
-#include <netinet/ip_fw.h>
-#include <netinet/ip_dummynet.h>
+#include <sys/time.h>
 
-#include <netpfil/ipfw/ip_fw_private.h>
+#include <net/if.h> /* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
+#include <netinet/in.h>
+#include <netinet/ip_dummynet.h>
+#include <netinet/ip_fw.h>
+#include <netinet/ip_var.h> /* ip_output(), IP_FORWARDING */
 #include <netpfil/ipfw/dn_heap.h>
 #include <netpfil/ipfw/ip_dn_private.h>
+#include <netpfil/ipfw/ip_fw_private.h>
 #ifdef NEW_AQM
 #include <netpfil/ipfw/dn_aqm.h>
 #endif
@@ -65,207 +65,208 @@
 /* FREEBSD7.2 ip_dummynet.h r191715*/
 
 struct dn_heap_entry7 {
-	int64_t key;        /* sorting key. Topmost element is smallest one */
-	void *object;      /* object pointer */
+	int64_t key;  /* sorting key. Topmost element is smallest one */
+	void *object; /* object pointer */
 };
 
 struct dn_heap7 {
 	int size;
 	int elements;
 	int offset; /* XXX if > 0 this is the offset of direct ptr to obj */
-	struct dn_heap_entry7 *p;   /* really an array of "size" entries */
+	struct dn_heap_entry7 *p; /* really an array of "size" entries */
 };
 
 /* Common to 7.2 and 8 */
 struct dn_flow_set {
-	SLIST_ENTRY(dn_flow_set)    next;   /* linked list in a hash slot */
+	SLIST_ENTRY(dn_flow_set) next; /* linked list in a hash slot */
 
-	u_short fs_nr ;             /* flow_set number       */
+	u_short fs_nr; /* flow_set number       */
 	u_short flags_fs;
-#define DNOLD_HAVE_FLOW_MASK   0x0001
-#define DNOLD_IS_RED       0x0002
-#define DNOLD_IS_GENTLE_RED    0x0004
-#define DNOLD_QSIZE_IS_BYTES   0x0008  /* queue size is measured in bytes */
-#define DNOLD_NOERROR      0x0010  /* do not report ENOBUFS on drops  */
-#define DNOLD_HAS_PROFILE      0x0020  /* the pipe has a delay profile. */
-#define DNOLD_IS_PIPE      0x4000
-#define DNOLD_IS_QUEUE     0x8000
+#define DNOLD_HAVE_FLOW_MASK 0x0001
+#define DNOLD_IS_RED 0x0002
+#define DNOLD_IS_GENTLE_RED 0x0004
+#define DNOLD_QSIZE_IS_BYTES 0x0008 /* queue size is measured in bytes */
+#define DNOLD_NOERROR 0x0010 /* do not report ENOBUFS on drops  */
+#define DNOLD_HAS_PROFILE 0x0020 /* the pipe has a delay profile. */
+#define DNOLD_IS_PIPE 0x4000
+#define DNOLD_IS_QUEUE 0x8000
 
-	struct dn_pipe7 *pipe ;  /* pointer to parent pipe */
-	u_short parent_nr ;     /* parent pipe#, 0 if local to a pipe */
+	struct dn_pipe7 *pipe; /* pointer to parent pipe */
+	u_short parent_nr;     /* parent pipe#, 0 if local to a pipe */
 
-	int weight ;        /* WFQ queue weight */
-	int qsize ;         /* queue size in slots or bytes */
-	int plr ;           /* pkt loss rate (2^31-1 means 100%) */
+	int weight; /* WFQ queue weight */
+	int qsize;  /* queue size in slots or bytes */
+	int plr;    /* pkt loss rate (2^31-1 means 100%) */
 
-	struct ipfw_flow_id flow_mask ;
+	struct ipfw_flow_id flow_mask;
 
 	/* hash table of queues onto this flow_set */
-	int rq_size ;       /* number of slots */
-	int rq_elements ;       /* active elements */
-	struct dn_flow_queue7 **rq;  /* array of rq_size entries */
+	int rq_size;		    /* number of slots */
+	int rq_elements;	    /* active elements */
+	struct dn_flow_queue7 **rq; /* array of rq_size entries */
 
-	u_int32_t last_expired ;    /* do not expire too frequently */
-	int backlogged ;        /* #active queues for this flowset */
+	u_int32_t last_expired; /* do not expire too frequently */
+	int backlogged;		/* #active queues for this flowset */
 
-        /* RED parameters */
-#define SCALE_RED               16
-#define SCALE(x)                ( (x) << SCALE_RED )
-#define SCALE_VAL(x)            ( (x) >> SCALE_RED )
-#define SCALE_MUL(x,y)          ( ( (x) * (y) ) >> SCALE_RED )
-	int w_q ;           /* queue weight (scaled) */
-	int max_th ;        /* maximum threshold for queue (scaled) */
-	int min_th ;        /* minimum threshold for queue (scaled) */
-	int max_p ;         /* maximum value for p_b (scaled) */
-	u_int c_1 ;         /* max_p/(max_th-min_th) (scaled) */
-	u_int c_2 ;         /* max_p*min_th/(max_th-min_th) (scaled) */
-	u_int c_3 ;         /* for GRED, (1-max_p)/max_th (scaled) */
-	u_int c_4 ;         /* for GRED, 1 - 2*max_p (scaled) */
-	u_int * w_q_lookup ;    /* lookup table for computing (1-w_q)^t */
-	u_int lookup_depth ;    /* depth of lookup table */
-	int lookup_step ;       /* granularity inside the lookup table */
-	int lookup_weight ;     /* equal to (1-w_q)^t / (1-w_q)^(t+1) */
-	int avg_pkt_size ;      /* medium packet size */
-	int max_pkt_size ;      /* max packet size */
+	/* RED parameters */
+#define SCALE_RED 16
+#define SCALE(x) ((x) << SCALE_RED)
+#define SCALE_VAL(x) ((x) >> SCALE_RED)
+#define SCALE_MUL(x, y) (((x) * (y)) >> SCALE_RED)
+	int w_q;	    /* queue weight (scaled) */
+	int max_th;	    /* maximum threshold for queue (scaled) */
+	int min_th;	    /* minimum threshold for queue (scaled) */
+	int max_p;	    /* maximum value for p_b (scaled) */
+	u_int c_1;	    /* max_p/(max_th-min_th) (scaled) */
+	u_int c_2;	    /* max_p*min_th/(max_th-min_th) (scaled) */
+	u_int c_3;	    /* for GRED, (1-max_p)/max_th (scaled) */
+	u_int c_4;	    /* for GRED, 1 - 2*max_p (scaled) */
+	u_int *w_q_lookup;  /* lookup table for computing (1-w_q)^t */
+	u_int lookup_depth; /* depth of lookup table */
+	int lookup_step;    /* granularity inside the lookup table */
+	int lookup_weight;  /* equal to (1-w_q)^t / (1-w_q)^(t+1) */
+	int avg_pkt_size;   /* medium packet size */
+	int max_pkt_size;   /* max packet size */
 };
 SLIST_HEAD(dn_flow_set_head, dn_flow_set);
 
-#define DN_IS_PIPE		0x4000
-#define DN_IS_QUEUE		0x8000
+#define DN_IS_PIPE 0x4000
+#define DN_IS_QUEUE 0x8000
 struct dn_flow_queue7 {
-	struct dn_flow_queue7 *next ;
-	struct ipfw_flow_id id ;
+	struct dn_flow_queue7 *next;
+	struct ipfw_flow_id id;
 
-	struct mbuf *head, *tail ;  /* queue of packets */
-	u_int len ;
-	u_int len_bytes ;
+	struct mbuf *head, *tail; /* queue of packets */
+	u_int len;
+	u_int len_bytes;
 
 	u_long numbytes;
 
-	u_int64_t tot_pkts ;    /* statistics counters  */
-	u_int64_t tot_bytes ;
-	u_int32_t drops ;
+	u_int64_t tot_pkts; /* statistics counters  */
+	u_int64_t tot_bytes;
+	u_int32_t drops;
 
-	int hash_slot ;     /* debugging/diagnostic */
+	int hash_slot; /* debugging/diagnostic */
 
 	/* RED parameters */
-	int avg ;                   /* average queue length est. (scaled) */
-	int count ;                 /* arrivals since last RED drop */
-	int random ;                /* random value (scaled) */
-	u_int32_t q_time;      /* start of queue idle time */
+	int avg;	  /* average queue length est. (scaled) */
+	int count;	  /* arrivals since last RED drop */
+	int random;	  /* random value (scaled) */
+	u_int32_t q_time; /* start of queue idle time */
 
 	/* WF2Q+ support */
-	struct dn_flow_set *fs ;    /* parent flow set */
-	int heap_pos ;      /* position (index) of struct in heap */
-	int64_t sched_time ;     /* current time when queue enters ready_heap */
+	struct dn_flow_set *fs; /* parent flow set */
+	int heap_pos;		/* position (index) of struct in heap */
+	int64_t sched_time;	/* current time when queue enters ready_heap */
 
-	int64_t S,F ;        /* start time, finish time */
+	int64_t S, F; /* start time, finish time */
 };
 
-struct dn_pipe7 {        /* a pipe */
-	SLIST_ENTRY(dn_pipe7)    next;   /* linked list in a hash slot */
+struct dn_pipe7 {		    /* a pipe */
+	SLIST_ENTRY(dn_pipe7) next; /* linked list in a hash slot */
 
-	int pipe_nr ;       /* number   */
-	int bandwidth;      /* really, bytes/tick.  */
-	int delay ;         /* really, ticks    */
+	int pipe_nr;   /* number   */
+	int bandwidth; /* really, bytes/tick.  */
+	int delay;     /* really, ticks    */
 
-	struct  mbuf *head, *tail ; /* packets in delay line */
+	struct mbuf *head, *tail; /* packets in delay line */
 
 	/* WF2Q+ */
-	struct dn_heap7 scheduler_heap ; /* top extract - key Finish time*/
+	struct dn_heap7 scheduler_heap;	   /* top extract - key Finish time*/
 	struct dn_heap7 not_eligible_heap; /* top extract- key Start time */
-	struct dn_heap7 idle_heap ; /* random extract - key Start=Finish time */
+	struct dn_heap7 idle_heap; /* random extract - key Start=Finish time */
 
-	int64_t V ;          /* virtual time */
-	int sum;            /* sum of weights of all active sessions */
+	int64_t V; /* virtual time */
+	int sum;   /* sum of weights of all active sessions */
 
 	int numbytes;
 
-	int64_t sched_time ;     /* time pipe was scheduled in ready_heap */
+	int64_t sched_time; /* time pipe was scheduled in ready_heap */
 
 	/*
-	* When the tx clock come from an interface (if_name[0] != '\0'), its name
-	* is stored below, whereas the ifp is filled when the rule is configured.
-	*/
+	 * When the tx clock come from an interface (if_name[0] != '\0'), its
+	 * name is stored below, whereas the ifp is filled when the rule is
+	 * configured.
+	 */
 	char if_name[IFNAMSIZ];
-	struct ifnet *ifp ;
-	int ready ; /* set if ifp != NULL and we got a signal from it */
+	struct ifnet *ifp;
+	int ready; /* set if ifp != NULL and we got a signal from it */
 
-	struct dn_flow_set fs ; /* used with fixed-rate flows */
+	struct dn_flow_set fs; /* used with fixed-rate flows */
 };
 SLIST_HEAD(dn_pipe_head7, dn_pipe7);
 
 /* FREEBSD8 ip_dummynet.h r196045 */
 struct dn_flow_queue8 {
-	struct dn_flow_queue8 *next ;
-	struct ipfw_flow_id id ;
+	struct dn_flow_queue8 *next;
+	struct ipfw_flow_id id;
 
-	struct mbuf *head, *tail ;  /* queue of packets */
-	u_int len ;
-	u_int len_bytes ;
+	struct mbuf *head, *tail; /* queue of packets */
+	u_int len;
+	u_int len_bytes;
 
-	uint64_t numbytes ;     /* credit for transmission (dynamic queues) */
-	int64_t extra_bits;     /* extra bits simulating unavailable channel */
+	uint64_t numbytes;  /* credit for transmission (dynamic queues) */
+	int64_t extra_bits; /* extra bits simulating unavailable channel */
 
-	u_int64_t tot_pkts ;    /* statistics counters  */
-	u_int64_t tot_bytes ;
-	u_int32_t drops ;
+	u_int64_t tot_pkts; /* statistics counters  */
+	u_int64_t tot_bytes;
+	u_int32_t drops;
 
-	int hash_slot ;     /* debugging/diagnostic */
+	int hash_slot; /* debugging/diagnostic */
 
 	/* RED parameters */
-	int avg ;                   /* average queue length est. (scaled) */
-	int count ;                 /* arrivals since last RED drop */
-	int random ;                /* random value (scaled) */
-	int64_t idle_time;       /* start of queue idle time */
+	int avg;	   /* average queue length est. (scaled) */
+	int count;	   /* arrivals since last RED drop */
+	int random;	   /* random value (scaled) */
+	int64_t idle_time; /* start of queue idle time */
 
 	/* WF2Q+ support */
-	struct dn_flow_set *fs ;    /* parent flow set */
-	int heap_pos ;      /* position (index) of struct in heap */
-	int64_t sched_time ;     /* current time when queue enters ready_heap */
+	struct dn_flow_set *fs; /* parent flow set */
+	int heap_pos;		/* position (index) of struct in heap */
+	int64_t sched_time;	/* current time when queue enters ready_heap */
 
-	int64_t S,F ;        /* start time, finish time */
+	int64_t S, F; /* start time, finish time */
 };
 
-struct dn_pipe8 {        /* a pipe */
-	SLIST_ENTRY(dn_pipe8)    next;   /* linked list in a hash slot */
+struct dn_pipe8 {		    /* a pipe */
+	SLIST_ENTRY(dn_pipe8) next; /* linked list in a hash slot */
 
-	int pipe_nr ;       /* number   */
-	int bandwidth;      /* really, bytes/tick.  */
-	int delay ;         /* really, ticks    */
+	int pipe_nr;   /* number   */
+	int bandwidth; /* really, bytes/tick.  */
+	int delay;     /* really, ticks    */
 
-	struct  mbuf *head, *tail ; /* packets in delay line */
+	struct mbuf *head, *tail; /* packets in delay line */
 
 	/* WF2Q+ */
-	struct dn_heap7 scheduler_heap ; /* top extract - key Finish time*/
+	struct dn_heap7 scheduler_heap;	   /* top extract - key Finish time*/
 	struct dn_heap7 not_eligible_heap; /* top extract- key Start time */
-	struct dn_heap7 idle_heap ; /* random extract - key Start=Finish time */
+	struct dn_heap7 idle_heap; /* random extract - key Start=Finish time */
 
-	int64_t V ;          /* virtual time */
-	int sum;            /* sum of weights of all active sessions */
+	int64_t V; /* virtual time */
+	int sum;   /* sum of weights of all active sessions */
 
 	/* Same as in dn_flow_queue, numbytes can become large */
-	int64_t numbytes;       /* bits I can transmit (more or less). */
-	uint64_t burst;     /* burst size, scaled: bits * hz */
+	int64_t numbytes; /* bits I can transmit (more or less). */
+	uint64_t burst;	  /* burst size, scaled: bits * hz */
 
-	int64_t sched_time ;     /* time pipe was scheduled in ready_heap */
-	int64_t idle_time;       /* start of pipe idle time */
+	int64_t sched_time; /* time pipe was scheduled in ready_heap */
+	int64_t idle_time;  /* start of pipe idle time */
 
 	char if_name[IFNAMSIZ];
-	struct ifnet *ifp ;
-	int ready ; /* set if ifp != NULL and we got a signal from it */
+	struct ifnet *ifp;
+	int ready; /* set if ifp != NULL and we got a signal from it */
 
-	struct dn_flow_set fs ; /* used with fixed-rate flows */
+	struct dn_flow_set fs; /* used with fixed-rate flows */
 
-    /* fields to simulate a delay profile */
-#define ED_MAX_NAME_LEN     32
+	/* fields to simulate a delay profile */
+#define ED_MAX_NAME_LEN 32
 	char name[ED_MAX_NAME_LEN];
 	int loss_level;
 	int samples_no;
 	int *samples;
 };
 
-#define ED_MAX_SAMPLES_NO   1024
+#define ED_MAX_SAMPLES_NO 1024
 struct dn_pipe_max8 {
 	struct dn_pipe8 pipe;
 	int samples[ED_MAX_SAMPLES_NO];
@@ -371,11 +372,11 @@ convertflags2old(int src)
 static int
 dn_compat_del(void *v)
 {
-	struct dn_pipe7 *p = (struct dn_pipe7 *) v;
-	struct dn_pipe8 *p8 = (struct dn_pipe8 *) v;
+	struct dn_pipe7 *p = (struct dn_pipe7 *)v;
+	struct dn_pipe8 *p8 = (struct dn_pipe8 *)v;
 	struct {
 		struct dn_id oid;
-		uintptr_t a[1];	/* add more if we want a list */
+		uintptr_t a[1]; /* add more if we want a list */
 	} cmd;
 
 	/* XXX DN_API_VERSION ??? */
@@ -405,7 +406,7 @@ dn_compat_del(void *v)
 }
 
 static int
-dn_compat_config_queue(struct dn_fs *fs, void* v)
+dn_compat_config_queue(struct dn_fs *fs, void *v)
 {
 	struct dn_pipe7 *p7 = (struct dn_pipe7 *)v;
 	struct dn_pipe8 *p8 = (struct dn_pipe8 *)v;
@@ -435,8 +436,8 @@ dn_compat_config_queue(struct dn_fs *fs, void* v)
 }
 
 static int
-dn_compat_config_pipe(struct dn_sch *sch, struct dn_link *p, 
-		      struct dn_fs *fs, void* v)
+dn_compat_config_pipe(
+    struct dn_sch *sch, struct dn_link *p, struct dn_fs *fs, void *v)
 {
 	struct dn_pipe7 *p7 = (struct dn_pipe7 *)v;
 	struct dn_pipe8 *p8 = (struct dn_pipe8 *)v;
@@ -445,7 +446,7 @@ dn_compat_config_pipe(struct dn_sch *sch, struct dn_link *p,
 	sch->sched_nr = i;
 	sch->oid.subtype = 0;
 	p->link_nr = i;
-	fs->fs_nr = i + 2*DN_MAX_ID;
+	fs->fs_nr = i + 2 * DN_MAX_ID;
 	fs->sched_nr = i + DN_MAX_ID;
 
 	/* Common to 7 and 8 */
@@ -458,7 +459,7 @@ dn_compat_config_pipe(struct dn_sch *sch, struct dn_link *p,
 
 	/* fill the fifo flowset */
 	dn_compat_config_queue(fs, v);
-	fs->fs_nr = i + 2*DN_MAX_ID;
+	fs->fs_nr = i + 2 * DN_MAX_ID;
 	fs->sched_nr = i + DN_MAX_ID;
 
 	/* Move scheduler related parameter from fs to sch */
@@ -475,8 +476,7 @@ dn_compat_config_pipe(struct dn_sch *sch, struct dn_link *p,
 }
 
 static int
-dn_compat_config_profile(struct dn_profile *pf, struct dn_link *p,
-			 void *v)
+dn_compat_config_profile(struct dn_profile *pf, struct dn_link *p, void *v)
 {
 	struct dn_pipe8 *p8 = (struct dn_pipe8 *)v;
 
@@ -484,9 +484,9 @@ dn_compat_config_profile(struct dn_profile *pf, struct dn_link *p,
 
 	pf->link_nr = p->link_nr;
 	pf->loss_level = p8->loss_level;
-// 	pf->bandwidth = p->bandwidth; //XXX bandwidth redundant?
+	// 	pf->bandwidth = p->bandwidth; //XXX bandwidth redundant?
 	pf->samples_no = p8->samples_no;
-	strncpy(pf->name, p8->name,sizeof(pf->name));
+	strncpy(pf->name, p8->name, sizeof(pf->name));
 	bcopy(p8->samples, pf->samples, sizeof(pf->samples));
 
 	return 0;
@@ -512,11 +512,11 @@ dn_compat_configure(void *v)
 
 	int i; /* number of object to configure */
 
-	lmax = sizeof(struct dn_id);	/* command header */
+	lmax = sizeof(struct dn_id); /* command header */
 	lmax += sizeof(struct dn_sch) + sizeof(struct dn_link) +
-		sizeof(struct dn_fs) + sizeof(struct dn_profile);
+	    sizeof(struct dn_fs) + sizeof(struct dn_profile);
 
-	base = buf = malloc(lmax, M_DUMMYNET, M_WAITOK|M_ZERO);
+	base = buf = malloc(lmax, M_DUMMYNET, M_WAITOK | M_ZERO);
 	o_next(&buf, sizeof(struct dn_id), DN_CMD_CONFIG);
 	base->id = DN_API_VERSION;
 
@@ -576,7 +576,7 @@ dn_compat_calc_size(void)
 }
 
 int
-dn_c_copy_q (void *_ni, void *arg)
+dn_c_copy_q(void *_ni, void *arg)
 {
 	struct copy_args *a = arg;
 	struct dn_flow_queue7 *fq7 = (struct dn_flow_queue7 *)*a->start;
@@ -638,7 +638,7 @@ dn_c_copy_pipe(struct dn_schk *s, struct copy_args *a, int nq)
 			pipe8->loss_level = pf->loss_level;
 			pipe8->samples_no = pf->samples_no;
 		}
-		pipe8->burst = div64(l->burst , 8 * hz);
+		pipe8->burst = div64(l->burst, 8 * hz);
 	}
 
 	fs->flow_mask = s->sch.sched_mask;
@@ -674,7 +674,7 @@ dn_compat_copy_pipe(struct copy_args *a, void *_o)
 	 * - if there are instances, dn_queue * n_instances
 	 */
 	n_queue = (s->sch.flags & DN_HAVE_MASK ? dn_ht_entries(s->siht) :
-						(s->siht ? 1 : 0));
+						       (s->siht ? 1 : 0));
 	need = pipe_size + queue_size * n_queue;
 	if (have < need) {
 		D("have %d < need %d", have, need);
@@ -727,7 +727,7 @@ dn_compat_copy_queue(struct copy_args *a, void *_o)
 	int n_queue = 0; /* number of queues */
 
 	n_queue = (fs->fs.flags & DN_HAVE_MASK ? dn_ht_entries(fs->qht) :
-						(fs->qht ? 1 : 0));
+						       (fs->qht ? 1 : 0));
 
 	need = fs_size + queue_size * n_queue;
 	if (have < need) {
@@ -755,12 +755,12 @@ copy_data_helper_compat(void *_o, void *_arg)
 	if (a->type == DN_COMPAT_PIPE) {
 		struct dn_schk *s = _o;
 		if (s->sch.oid.subtype != 1 || s->sch.sched_nr <= DN_MAX_ID) {
-			return 0;	/* not old type */
+			return 0; /* not old type */
 		}
 		/* copy pipe parameters, and if instance exists, copy
 		 * other parameters and eventually queues.
 		 */
-		if(dn_compat_copy_pipe(a, _o))
+		if (dn_compat_copy_pipe(a, _o))
 			return DNHT_SCAN_END;
 	} else if (a->type == DN_COMPAT_QUEUE) {
 		struct dn_fsk *fs = _o;
@@ -776,7 +776,7 @@ copy_data_helper_compat(void *_o, void *_arg)
 int
 ip_dummynet_compat(struct sockopt *sopt)
 {
-	int error=0;
+	int error = 0;
 	void *v = NULL;
 	struct dn_id oid;
 
@@ -787,8 +787,7 @@ ip_dummynet_compat(struct sockopt *sopt)
 	if (len == pipesize7) {
 		D("setting compatibility with FreeBSD 7.2");
 		is7 = 1;
-	}
-	else if (len == pipesize8 || len == pipesizemax8) {
+	} else if (len == pipesize8 || len == pipesizemax8) {
 		D("setting compatibility with FreeBSD 8");
 		is7 = 0;
 	}
@@ -830,7 +829,7 @@ ip_dummynet_compat(struct sockopt *sopt)
 
 		ret = dummynet_get(sopt, &buf);
 		if (ret)
-			return 0;//XXX ?
+			return 0; // XXX ?
 		size = sopt->sopt_valsize;
 		sopt->sopt_valsize = original_size;
 		D("size=%d, buf=%p", size, buf);
@@ -839,7 +838,7 @@ ip_dummynet_compat(struct sockopt *sopt)
 			printf("  %s ERROR sooptcopyout\n", __FUNCTION__);
 		if (buf)
 			free(buf, M_DUMMYNET);
-	    }
+	}
 	}
 
 	return error;

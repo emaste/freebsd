@@ -39,8 +39,9 @@ __FBSDID("$FreeBSD$");
 
 #include "clkdev_if.h"
 
-/* #define	dprintf(format, arg...)	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg) */
-#define	dprintf(format, arg...)
+/* #define	dprintf(format, arg...)	printf("%s:(%s)" format, __func__,
+ * clknode_get_name(clk), arg) */
+#define dprintf(format, arg...)
 
 /*
  * clknode for PLL_MIPI :
@@ -51,34 +52,31 @@ __FBSDID("$FreeBSD$");
  */
 
 struct aw_clk_mipi_sc {
-	uint32_t	offset;
+	uint32_t offset;
 
-	struct aw_clk_factor	k;
-	struct aw_clk_factor	m;
-	struct aw_clk_factor	n;
+	struct aw_clk_factor k;
+	struct aw_clk_factor m;
+	struct aw_clk_factor n;
 
-	uint64_t		min_freq;
-	uint64_t		max_freq;
+	uint64_t min_freq;
+	uint64_t max_freq;
 
-	uint32_t	gate_shift;
-	uint32_t	lock_shift;
-	uint32_t	lock_retries;
+	uint32_t gate_shift;
+	uint32_t lock_shift;
+	uint32_t lock_retries;
 
-	uint32_t	flags;
+	uint32_t flags;
 };
 
-#define	WRITE4(_clk, off, val)						\
+#define WRITE4(_clk, off, val) \
 	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
-#define	READ4(_clk, off, val)						\
-	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
-#define	DEVICE_LOCK(_clk)							\
-	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
-#define	DEVICE_UNLOCK(_clk)						\
-	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
+#define READ4(_clk, off, val) CLKDEV_READ_4(clknode_get_device(_clk), off, val)
+#define DEVICE_LOCK(_clk) CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
+#define DEVICE_UNLOCK(_clk) CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
-#define	LDO1_EN_SHIFT	23
-#define	LDO2_EN_SHIFT	22
-#define	VFB_SEL_SHIFT	16
+#define LDO1_EN_SHIFT 23
+#define LDO2_EN_SHIFT 22
+#define VFB_SEL_SHIFT 16
 
 static int
 aw_clk_mipi_init(struct clknode *clk, device_t dev)
@@ -118,8 +116,8 @@ aw_clk_mipi_set_gate(struct clknode *clk, bool enable)
 }
 
 static uint64_t
-aw_clk_mipi_find_best(struct aw_clk_mipi_sc *sc, uint64_t fparent, uint64_t *fout,
-    uint32_t *factor_k, uint32_t *factor_m, uint32_t *factor_n)
+aw_clk_mipi_find_best(struct aw_clk_mipi_sc *sc, uint64_t fparent,
+    uint64_t *fout, uint32_t *factor_k, uint32_t *factor_m, uint32_t *factor_n)
 {
 	uint64_t cur, best;
 	uint32_t n, k, m;
@@ -129,9 +127,12 @@ aw_clk_mipi_find_best(struct aw_clk_mipi_sc *sc, uint64_t fparent, uint64_t *fou
 	*factor_k = 0;
 	*factor_m = 0;
 
-	for (n = aw_clk_factor_get_min(&sc->n); n <= aw_clk_factor_get_max(&sc->n); n++) {
-		for (k = aw_clk_factor_get_min(&sc->k); k <= aw_clk_factor_get_max(&sc->k); k++) {
-			for (m = aw_clk_factor_get_min(&sc->m); m <= aw_clk_factor_get_max(&sc->m); m++) {
+	for (n = aw_clk_factor_get_min(&sc->n);
+	     n <= aw_clk_factor_get_max(&sc->n); n++) {
+		for (k = aw_clk_factor_get_min(&sc->k);
+		     k <= aw_clk_factor_get_max(&sc->k); k++) {
+			for (m = aw_clk_factor_get_min(&sc->m);
+			     m <= aw_clk_factor_get_max(&sc->m); m++) {
 				cur = (fparent * n * k) / m;
 				if ((*fout - cur) < (*fout - best)) {
 					best = cur;
@@ -149,8 +150,8 @@ aw_clk_mipi_find_best(struct aw_clk_mipi_sc *sc, uint64_t fparent, uint64_t *fou
 }
 
 static int
-aw_clk_mipi_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
-    int flags, int *stop)
+aw_clk_mipi_set_freq(
+    struct clknode *clk, uint64_t fparent, uint64_t *fout, int flags, int *stop)
 {
 	struct aw_clk_mipi_sc *sc;
 	uint64_t best = 0;
@@ -161,13 +162,13 @@ aw_clk_mipi_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 
 	sc = clknode_get_softc(clk);
 
-	best = aw_clk_mipi_find_best(sc, fparent, fout, &best_k, &best_m, &best_n);
+	best = aw_clk_mipi_find_best(
+	    sc, fparent, fout, &best_k, &best_m, &best_n);
 
-	if (best < sc->min_freq ||
-	    best > sc->max_freq) {
+	if (best < sc->min_freq || best > sc->max_freq) {
 		printf("%s: Cannot set %ju for %s (min=%ju max=%ju)\n",
-		    __func__, best, clknode_get_name(clk),
-		    sc->min_freq, sc->max_freq);
+		    __func__, best, clknode_get_name(clk), sc->min_freq,
+		    sc->max_freq);
 		return (ERANGE);
 	}
 	if ((flags & CLK_SET_DRYRUN) != 0) {
@@ -236,11 +237,10 @@ aw_clk_mipi_recalc(struct clknode *clk, uint64_t *freq)
 
 static clknode_method_t aw_mipi_clknode_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init,		aw_clk_mipi_init),
-	CLKNODEMETHOD(clknode_set_gate,		aw_clk_mipi_set_gate),
-	CLKNODEMETHOD(clknode_recalc_freq,	aw_clk_mipi_recalc),
-	CLKNODEMETHOD(clknode_set_freq,		aw_clk_mipi_set_freq),
-	CLKNODEMETHOD_END
+	CLKNODEMETHOD(clknode_init, aw_clk_mipi_init),
+	CLKNODEMETHOD(clknode_set_gate, aw_clk_mipi_set_gate),
+	CLKNODEMETHOD(clknode_recalc_freq, aw_clk_mipi_recalc),
+	CLKNODEMETHOD(clknode_set_freq, aw_clk_mipi_set_freq), CLKNODEMETHOD_END
 };
 
 DEFINE_CLASS_1(aw_mipi_clknode, aw_mipi_clknode_class, aw_mipi_clknode_methods,

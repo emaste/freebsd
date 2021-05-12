@@ -32,28 +32,27 @@
  * dynamic array of strings later when the VM subsystem is up.
  *
  * We make these available through the kenv(2) syscall for userland
- * and through kern_getenv()/freeenv() kern_setenv() kern_unsetenv() testenv() for
- * the kernel.
+ * and through kern_getenv()/freeenv() kern_setenv() kern_unsetenv() testenv()
+ * for the kernel.
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/proc.h>
-#include <sys/queue.h>
+#include <sys/systm.h>
+#include <sys/kenv.h>
+#include <sys/kernel.h>
+#include <sys/libkern.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
-#include <sys/kenv.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/libkern.h>
-#include <sys/kenv.h>
-#include <sys/limits.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -65,42 +64,41 @@ static void kenv_release(const char *buf);
 
 static MALLOC_DEFINE(M_KENV, "kenv", "kernel environment");
 
-#define KENV_SIZE	512	/* Maximum number of environment strings */
+#define KENV_SIZE 512 /* Maximum number of environment strings */
 
 static uma_zone_t kenv_zone;
-static int	kenv_mvallen = KENV_MVALLEN;
+static int kenv_mvallen = KENV_MVALLEN;
 
 /* pointer to the config-generated static environment */
-char		*kern_envp;
+char *kern_envp;
 
 /* pointer to the md-static environment */
-char		*md_envp;
-static int	md_env_len;
-static int	md_env_pos;
+char *md_envp;
+static int md_env_len;
+static int md_env_pos;
 
-static char	*kernenv_next(char *);
+static char *kernenv_next(char *);
 
 /* dynamic environment variables */
-char		**kenvp;
-struct mtx	kenv_lock;
+char **kenvp;
+struct mtx kenv_lock;
 
 /*
  * No need to protect this with a mutex since SYSINITS are single threaded.
  */
-bool	dynamic_kenv;
+bool dynamic_kenv;
 
-#define KENV_CHECK	if (!dynamic_kenv) \
-			    panic("%s: called before SI_SUB_KMEM", __func__)
+#define KENV_CHECK         \
+	if (!dynamic_kenv) \
+	panic("%s: called before SI_SUB_KMEM", __func__)
 
-int
-sys_kenv(td, uap)
-	struct thread *td;
-	struct kenv_args /* {
-		int what;
-		const char *name;
-		char *value;
-		int len;
-	} */ *uap;
+int sys_kenv(td, uap) struct thread *td;
+struct kenv_args /* {
+	int what;
+	const char *name;
+	char *value;
+	int len;
+} */ *uap;
 {
 	char *name, *value, *buffer = NULL;
 	size_t len, done, needed, buflen;
@@ -118,10 +116,9 @@ sys_kenv(td, uap)
 		done = needed = 0;
 		buflen = uap->len;
 		if (buflen > KENV_SIZE * (KENV_MNAMELEN + kenv_mvallen + 2))
-			buflen = KENV_SIZE * (KENV_MNAMELEN +
-			    kenv_mvallen + 2);
+			buflen = KENV_SIZE * (KENV_MNAMELEN + kenv_mvallen + 2);
 		if (uap->len > 0 && uap->value != NULL)
-			buffer = malloc(buflen, M_TEMP, M_WAITOK|M_ZERO);
+			buffer = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
 		mtx_lock(&kenv_lock);
 		for (i = 0; kenvp[i] != NULL; i++) {
 			len = strlen(kenvp[i]) + 1;
@@ -332,14 +329,14 @@ init_dynamic_kenv_from(char *init_env, int *curpos)
 			len = strlen(cp) + 1;
 			if (len > KENV_MNAMELEN + 1 + kenv_mvallen + 1) {
 				printf(
-				"WARNING: too long kenv string, ignoring %s\n",
+				    "WARNING: too long kenv string, ignoring %s\n",
 				    cp);
 				goto sanitize;
 			}
 			eqpos = strchr(cp, '=');
 			if (eqpos == NULL) {
 				printf(
-				"WARNING: malformed static env value, ignoring %s\n",
+				    "WARNING: malformed static env value, ignoring %s\n",
 				    cp);
 				goto sanitize;
 			}
@@ -357,14 +354,14 @@ init_dynamic_kenv_from(char *init_env, int *curpos)
 				goto sanitize;
 			if (i > KENV_SIZE) {
 				printf(
-				"WARNING: too many kenv strings, ignoring %s\n",
+				    "WARNING: too many kenv strings, ignoring %s\n",
 				    cp);
 				goto sanitize;
 			}
 
 			kenvp[i] = malloc(len, M_KENV, M_WAITOK);
 			strcpy(kenvp[i++], cp);
-sanitize:
+		sanitize:
 			explicit_bzero(cp, len - 1);
 		}
 		*curpos = i;
@@ -383,11 +380,11 @@ init_dynamic_kenv(void *data __unused)
 	TUNABLE_INT_FETCH("kenv_mvallen", &kenv_mvallen);
 	size = KENV_MNAMELEN + 1 + kenv_mvallen + 1;
 
-	kenv_zone = uma_zcreate("kenv", size, NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
+	kenv_zone = uma_zcreate(
+	    "kenv", size, NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
-	kenvp = malloc((KENV_SIZE + 1) * sizeof(char *), M_KENV,
-		M_WAITOK | M_ZERO);
+	kenvp = malloc(
+	    (KENV_SIZE + 1) * sizeof(char *), M_KENV, M_WAITOK | M_ZERO);
 
 	dynamic_envpos = 0;
 	init_dynamic_kenv_from(md_envp, &dynamic_envpos);
@@ -420,8 +417,7 @@ _getenv_dynamic_locked(const char *name, int *idx)
 
 	len = strlen(name);
 	for (cp = kenvp[0], i = 0; cp != NULL; cp = kenvp[++i]) {
-		if ((strncmp(cp, name, len) == 0) &&
-		    (cp[len] == '=')) {
+		if ((strncmp(cp, name, len) == 0) && (cp[len] == '=')) {
 			if (idx != NULL)
 				*idx = i;
 			return (cp + len + 1);
@@ -534,12 +530,11 @@ setenv_static(const char *name, const char *value)
 	len = strlen(name) + strlen(value);
 	if (len + 3 < md_env_len - md_env_pos) {
 		len = sprintf(&md_envp[md_env_pos], "%s=%s", name, value);
-		md_env_pos += len+1;
+		md_env_pos += len + 1;
 		md_envp[md_env_pos] = '\0';
 		return (0);
 	} else
 		return (-1);
-
 }
 
 /*
@@ -669,8 +664,8 @@ getenv_string(const char *name, char *data, int size)
  * Return an array of integers at the given type size and signedness.
  */
 int
-getenv_array(const char *name, void *pdata, int size, int *psize,
-    int type_size, bool allow_signed)
+getenv_array(const char *name, void *pdata, int size, int *psize, int type_size,
+    bool allow_signed)
 {
 	uint8_t shift;
 	int64_t value;
@@ -681,7 +676,7 @@ getenv_array(const char *name, void *pdata, int size, int *psize,
 	int n;
 	int rc;
 
-	rc = 0;			  /* assume failure */
+	rc = 0; /* assume failure */
 
 	buf = kenv_acquire(name);
 	if (buf == NULL)
@@ -692,7 +687,7 @@ getenv_array(const char *name, void *pdata, int size, int *psize,
 
 	n = 0;
 
-	for (ptr = buf; *ptr != 0; ) {
+	for (ptr = buf; *ptr != 0;) {
 		value = strtoq(ptr, &end, 0);
 
 		/* check if signed numbers are allowed */
@@ -702,7 +697,7 @@ getenv_array(const char *name, void *pdata, int size, int *psize,
 		/* check for invalid value */
 		if (ptr == end)
 			goto error;
-		
+
 		/* check for valid suffix */
 		switch (*end) {
 		case 't':
@@ -798,7 +793,7 @@ getenv_array(const char *name, void *pdata, int size, int *psize,
 	*psize = n * type_size;
 
 	if (n != 0)
-		rc = 1;	/* success */
+		rc = 1; /* success */
 error:
 	kenv_release(buf);
 	return (rc);
@@ -815,7 +810,7 @@ getenv_int(const char *name, int *data)
 
 	rval = getenv_quad(name, &tmp);
 	if (rval)
-		*data = (int) tmp;
+		*data = (int)tmp;
 	return (rval);
 }
 
@@ -830,7 +825,7 @@ getenv_uint(const char *name, unsigned int *data)
 
 	rval = getenv_quad(name, &tmp);
 	if (rval)
-		*data = (unsigned int) tmp;
+		*data = (unsigned int)tmp;
 	return (rval);
 }
 
@@ -845,7 +840,7 @@ getenv_int64(const char *name, int64_t *data)
 
 	rval = getenv_quad(name, &tmp);
 	if (rval)
-		*data = (int64_t) tmp;
+		*data = (int64_t)tmp;
 	return (rval);
 }
 
@@ -860,7 +855,7 @@ getenv_uint64(const char *name, uint64_t *data)
 
 	rval = getenv_quad(name, &tmp);
 	if (rval)
-		*data = (uint64_t) tmp;
+		*data = (uint64_t)tmp;
 	return (rval);
 }
 
@@ -875,7 +870,7 @@ getenv_long(const char *name, long *data)
 
 	rval = getenv_quad(name, &tmp);
 	if (rval)
-		*data = (long) tmp;
+		*data = (long)tmp;
 	return (rval);
 }
 
@@ -890,7 +885,7 @@ getenv_ulong(const char *name, unsigned long *data)
 
 	rval = getenv_quad(name, &tmp);
 	if (rval)
-		*data = (unsigned long) tmp;
+		*data = (unsigned long)tmp;
 	return (rval);
 }
 
@@ -900,9 +895,9 @@ getenv_ulong(const char *name, unsigned long *data)
 int
 getenv_quad(const char *name, quad_t *data)
 {
-	const char	*value;
-	char		suffix, *vtp;
-	quad_t		iv;
+	const char *value;
+	char suffix, *vtp;
+	quad_t iv;
 
 	value = kenv_acquire(name);
 	if (value == NULL) {
@@ -915,16 +910,20 @@ getenv_quad(const char *name, quad_t *data)
 	suffix = vtp[0];
 	kenv_release(value);
 	switch (suffix) {
-	case 't': case 'T':
+	case 't':
+	case 'T':
 		iv *= 1024;
 		/* FALLTHROUGH */
-	case 'g': case 'G':
+	case 'g':
+	case 'G':
 		iv *= 1024;
 		/* FALLTHROUGH */
-	case 'm': case 'M':
+	case 'm':
+	case 'M':
 		iv *= 1024;
 		/* FALLTHROUGH */
-	case 'k': case 'K':
+	case 'k':
+	case 'K':
 		iv *= 1024;
 	case '\0':
 		break;

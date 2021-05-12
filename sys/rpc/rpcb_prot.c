@@ -6,31 +6,31 @@
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
+ * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * - Redistributions of source code must retain the above copyright notice, 
+ * - Redistributions of source code must retain the above copyright notice,
  *   this list of conditions and the following disclaimer.
- * - Redistributions in binary form must reproduce the above copyright notice, 
- *   this list of conditions and the following disclaimer in the documentation 
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
  *   and/or other materials provided with the distribution.
- * - Neither the name of Sun Microsystems, Inc. nor the names of its 
- *   contributors may be used to endorse or promote products derived 
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
+ * Copyright (c) 1986-1991 by Sun Microsystems Inc.
  */
 
 /* #ident	"@(#)rpcb_prot.c	1.13	94/04/24 SMI" */
@@ -62,8 +62,8 @@ xdr_portmap(XDR *xdrs, struct portmap *regs)
 {
 
 	if (xdr_u_long(xdrs, &regs->pm_prog) &&
-		xdr_u_long(xdrs, &regs->pm_vers) &&
-		xdr_u_long(xdrs, &regs->pm_prot))
+	    xdr_u_long(xdrs, &regs->pm_vers) &&
+	    xdr_u_long(xdrs, &regs->pm_prot))
 		return (xdr_u_long(xdrs, &regs->pm_port));
 	return (FALSE);
 }
@@ -128,11 +128,11 @@ xdr_rpcblist_ptr(XDR *xdrs, rpcblist_ptr *rp)
 	next = NULL;
 	for (;;) {
 		more_elements = (bool_t)(*rp != NULL);
-		if (! xdr_bool(xdrs, &more_elements)) {
+		if (!xdr_bool(xdrs, &more_elements)) {
 			return (FALSE);
 		}
-		if (! more_elements) {
-			return (TRUE);  /* we are done */
+		if (!more_elements) {
+			return (TRUE); /* we are done */
 		}
 		/*
 		 * the unfortunate side effect of non-recursion is that in
@@ -141,8 +141,8 @@ xdr_rpcblist_ptr(XDR *xdrs, rpcblist_ptr *rp)
 		 */
 		if (freeing && *rp)
 			next = (*rp)->rpcb_next;
-		if (! xdr_reference(xdrs, (caddr_t *)rp,
-		    (u_int)sizeof (RPCBLIST), (xdrproc_t)xdr_rpcb)) {
+		if (!xdr_reference(xdrs, (caddr_t *)rp, (u_int)sizeof(RPCBLIST),
+			(xdrproc_t)xdr_rpcb)) {
 			return (FALSE);
 		}
 		if (freeing) {
@@ -212,11 +212,11 @@ xdr_rpcb_entry_list_ptr(XDR *xdrs, rpcb_entry_list_ptr *rp)
 	next = NULL;
 	for (;;) {
 		more_elements = (bool_t)(*rp != NULL);
-		if (! xdr_bool(xdrs, &more_elements)) {
+		if (!xdr_bool(xdrs, &more_elements)) {
 			return (FALSE);
 		}
-		if (! more_elements) {
-			return (TRUE);  /* we are done */
+		if (!more_elements) {
+			return (TRUE); /* we are done */
 		}
 		/*
 		 * the unfortunate side effect of non-recursion is that in
@@ -225,9 +225,9 @@ xdr_rpcb_entry_list_ptr(XDR *xdrs, rpcb_entry_list_ptr *rp)
 		 */
 		if (freeing)
 			next = (*rp)->rpcb_entry_next;
-		if (! xdr_reference(xdrs, (caddr_t *)rp,
-		    (u_int)sizeof (rpcb_entry_list),
-				    (xdrproc_t)xdr_rpcb_entry)) {
+		if (!xdr_reference(xdrs, (caddr_t *)rp,
+			(u_int)sizeof(rpcb_entry_list),
+			(xdrproc_t)xdr_rpcb_entry)) {
 			return (FALSE);
 		}
 		if (freeing && *rp) {

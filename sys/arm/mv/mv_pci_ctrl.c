@@ -42,11 +42,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -55,9 +55,10 @@ __FBSDID("$FreeBSD$");
 static int mv_pcib_ctrl_probe(device_t);
 static int mv_pcib_ctrl_attach(device_t);
 static device_t mv_pcib_ctrl_add_child(device_t, u_int, const char *, int);
-static const struct ofw_bus_devinfo * mv_pcib_ctrl_get_devinfo(device_t, device_t);
-static struct resource * mv_pcib_ctrl_alloc_resource(device_t, device_t, int,
-    int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+static const struct ofw_bus_devinfo *mv_pcib_ctrl_get_devinfo(
+    device_t, device_t);
+static struct resource *mv_pcib_ctrl_alloc_resource(
+    device_t, device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 void mv_pcib_ctrl_init(device_t, phandle_t);
 static int mv_pcib_ofw_bus_attach(device_t);
 
@@ -71,15 +72,15 @@ typedef int (*get_rl_t)(device_t dev, phandle_t node, pcell_t acells,
     pcell_t scells, struct resource_list *rl);
 
 struct mv_pcib_ctrl_softc {
-	pcell_t				addr_cells;
-	pcell_t				size_cells;
-	int				nranges;
-	struct mv_pcib_ctrl_range	*ranges;
+	pcell_t addr_cells;
+	pcell_t size_cells;
+	int nranges;
+	struct mv_pcib_ctrl_range *ranges;
 };
 
 struct mv_pcib_ctrl_devinfo {
-	struct ofw_bus_devinfo	di_dinfo;
-	struct resource_list	di_rl;
+	struct ofw_bus_devinfo di_dinfo;
+	struct resource_list di_rl;
 };
 
 static int mv_pcib_ctrl_fill_ranges(phandle_t, struct mv_pcib_ctrl_softc *);
@@ -89,33 +90,33 @@ static int mv_pcib_ctrl_fill_ranges(phandle_t, struct mv_pcib_ctrl_softc *);
  */
 static device_method_t mv_pcib_ctrl_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,			mv_pcib_ctrl_probe),
-	DEVMETHOD(device_attach,		mv_pcib_ctrl_attach),
+	DEVMETHOD(device_probe, mv_pcib_ctrl_probe),
+	DEVMETHOD(device_attach, mv_pcib_ctrl_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_add_child,		mv_pcib_ctrl_add_child),
-	DEVMETHOD(bus_alloc_resource,		mv_pcib_ctrl_alloc_resource),
-	DEVMETHOD(bus_release_resource,		bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
+	DEVMETHOD(bus_add_child, mv_pcib_ctrl_add_child),
+	DEVMETHOD(bus_alloc_resource, mv_pcib_ctrl_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_devinfo,		mv_pcib_ctrl_get_devinfo),
-	DEVMETHOD(ofw_bus_get_compat,		ofw_bus_gen_get_compat),
-	DEVMETHOD(ofw_bus_get_model,		ofw_bus_gen_get_model),
-	DEVMETHOD(ofw_bus_get_name,		ofw_bus_gen_get_name),
-	DEVMETHOD(ofw_bus_get_node,		ofw_bus_gen_get_node),
-	DEVMETHOD(ofw_bus_get_type,		ofw_bus_gen_get_type),
+	DEVMETHOD(ofw_bus_get_devinfo, mv_pcib_ctrl_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat, ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model, ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name, ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node, ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type, ofw_bus_gen_get_type),
 
 	DEVMETHOD_END
 };
 
 static struct ofw_compat_data mv_pcib_ctrl_compat[] = {
-	{"mrvl,pcie-ctrl",		(uintptr_t)&ofw_bus_reg_to_rl},
-	{"marvell,armada-370-pcie",
-	    (uintptr_t)&ofw_bus_assigned_addresses_to_rl},
-	{NULL,				(uintptr_t)NULL},
+	{ "mrvl,pcie-ctrl", (uintptr_t)&ofw_bus_reg_to_rl },
+	{ "marvell,armada-370-pcie",
+	    (uintptr_t)&ofw_bus_assigned_addresses_to_rl },
+	{ NULL, (uintptr_t)NULL },
 };
 
 static driver_t mv_pcib_ctrl_driver = {
@@ -126,7 +127,8 @@ static driver_t mv_pcib_ctrl_driver = {
 
 devclass_t pcib_ctrl_devclass;
 
-DRIVER_MODULE(pcib_ctrl, simplebus, mv_pcib_ctrl_driver, pcib_ctrl_devclass, 0, 0);
+DRIVER_MODULE(
+    pcib_ctrl, simplebus, mv_pcib_ctrl_driver, pcib_ctrl_devclass, 0, 0);
 
 MALLOC_DEFINE(M_PCIB_CTRL, "PCIe Bus Controller",
     "Marvell Integrated PCIe Bus Controller");
@@ -171,16 +173,17 @@ mv_pcib_ofw_bus_attach(device_t dev)
 	if (parent > 0) {
 		sc->addr_cells = 1;
 		if (OF_getencprop(parent, "#address-cells", &(sc->addr_cells),
-		    sizeof(sc->addr_cells)) <= 0)
-			return(ENXIO);
+			sizeof(sc->addr_cells)) <= 0)
+			return (ENXIO);
 
 		sc->size_cells = 1;
 		if (OF_getencprop(parent, "#size-cells", &(sc->size_cells),
-		    sizeof(sc->size_cells)) <= 0)
-			return(ENXIO);
+			sizeof(sc->size_cells)) <= 0)
+			return (ENXIO);
 
 		for (node = OF_child(parent); node > 0; node = OF_peer(node)) {
-			di = malloc(sizeof(*di), M_PCIB_CTRL, M_WAITOK | M_ZERO);
+			di = malloc(
+			    sizeof(*di), M_PCIB_CTRL, M_WAITOK | M_ZERO);
 			if (ofw_bus_gen_setup_devinfo(&di->di_dinfo, node)) {
 				if (bootverbose) {
 					device_printf(dev,
@@ -203,8 +206,9 @@ mv_pcib_ofw_bus_attach(device_t dev)
 			}
 
 			resource_list_init(&di->di_rl);
-			get_rl = (get_rl_t) ofw_bus_search_compatible(dev,
-			    mv_pcib_ctrl_compat)->ocd_data;
+			get_rl = (get_rl_t)ofw_bus_search_compatible(
+			    dev, mv_pcib_ctrl_compat)
+				     ->ocd_data;
 			if (get_rl != NULL)
 				get_rl(child, node, sc->addr_cells,
 				    sc->size_cells, &di->di_rl);
@@ -269,8 +273,8 @@ mv_pcib_ctrl_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (type == SYS_RES_MEMORY) {
 		/* Remap through ranges property */
 		for (i = 0; i < sc->nranges; i++) {
-			if (start >= sc->ranges[i].bus && end <
-			    sc->ranges[i].bus + sc->ranges[i].size) {
+			if (start >= sc->ranges[i].bus &&
+			    end < sc->ranges[i].bus + sc->ranges[i].size) {
 				start -= sc->ranges[i].bus;
 				start += sc->ranges[i].host;
 				end -= sc->ranges[i].bus;
@@ -280,14 +284,16 @@ mv_pcib_ctrl_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		}
 
 		if (i == sc->nranges && sc->nranges != 0) {
-			device_printf(bus, "Could not map resource "
-			    "%#llx-%#llx\n", start, end);
+			device_printf(bus,
+			    "Could not map resource "
+			    "%#llx-%#llx\n",
+			    start, end);
 			return (NULL);
 		}
 	}
 
-	return (bus_generic_alloc_resource(bus, child, type, rid, start, end,
-	    count, flags));
+	return (bus_generic_alloc_resource(
+	    bus, child, type, rid, start, end, count, flags));
 }
 
 static int
@@ -312,8 +318,8 @@ mv_pcib_ctrl_fill_ranges(phandle_t node, struct mv_pcib_ctrl_softc *sc)
 	if (sc->nranges == 0)
 		return (0);
 
-	sc->ranges = malloc(sc->nranges * sizeof(sc->ranges[0]),
-	    M_DEVBUF, M_WAITOK);
+	sc->ranges = malloc(
+	    sc->nranges * sizeof(sc->ranges[0]), M_DEVBUF, M_WAITOK);
 	base_ranges = malloc(nbase_ranges, M_DEVBUF, M_WAITOK);
 	OF_getencprop(node, "ranges", base_ranges, nbase_ranges);
 

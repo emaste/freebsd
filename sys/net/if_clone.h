@@ -32,8 +32,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_NET_IF_CLONE_H_
-#define	_NET_IF_CLONE_H_
+#ifndef _NET_IF_CLONE_H_
+#define _NET_IF_CLONE_H_
 
 #ifdef _KERNEL
 
@@ -44,25 +44,24 @@
 struct if_clone;
 
 /* Methods. */
-typedef int	ifc_match_t(struct if_clone *, const char *);
-typedef int	ifc_create_t(struct if_clone *, char *, size_t, caddr_t);
-typedef int	ifc_destroy_t(struct if_clone *, struct ifnet *);
+typedef int ifc_match_t(struct if_clone *, const char *);
+typedef int ifc_create_t(struct if_clone *, char *, size_t, caddr_t);
+typedef int ifc_destroy_t(struct if_clone *, struct ifnet *);
 
-typedef int	ifcs_create_t(struct if_clone *, int, caddr_t);
-typedef void	ifcs_destroy_t(struct ifnet *);
+typedef int ifcs_create_t(struct if_clone *, int, caddr_t);
+typedef void ifcs_destroy_t(struct ifnet *);
 
 /* Interface cloner (de)allocating functions. */
-struct if_clone *
-	if_clone_advanced(const char *, u_int, ifc_match_t, ifc_create_t,
-		      ifc_destroy_t);
-struct if_clone *
-	if_clone_simple(const char *, ifcs_create_t, ifcs_destroy_t, u_int);
-void	if_clone_detach(struct if_clone *);
+struct if_clone *if_clone_advanced(
+    const char *, u_int, ifc_match_t, ifc_create_t, ifc_destroy_t);
+struct if_clone *if_clone_simple(
+    const char *, ifcs_create_t, ifcs_destroy_t, u_int);
+void if_clone_detach(struct if_clone *);
 
 /* Unit (de)allocating fucntions. */
-int	ifc_name2unit(const char *name, int *unit);
-int	ifc_alloc_unit(struct if_clone *, int *);
-void	ifc_free_unit(struct if_clone *, int);
+int ifc_name2unit(const char *name, int *unit);
+int ifc_alloc_unit(struct if_clone *, int *);
+void ifc_free_unit(struct if_clone *, int);
 const char *ifc_name(struct if_clone *);
 void ifc_flags_set(struct if_clone *, int flags);
 int ifc_flags_get(struct if_clone *);
@@ -72,16 +71,16 @@ typedef void (*if_clone_event_handler_t)(void *, struct if_clone *);
 EVENTHANDLER_DECLARE(if_clone_event, if_clone_event_handler_t);
 
 /* The below interfaces used only by net/if.c. */
-void	vnet_if_clone_init(void);
-int	if_clone_create(char *, size_t, caddr_t);
-int	if_clone_destroy(const char *);
-int	if_clone_list(struct if_clonereq *);
+void vnet_if_clone_init(void);
+int if_clone_create(char *, size_t, caddr_t);
+int if_clone_destroy(const char *);
+int if_clone_list(struct if_clonereq *);
 struct if_clone *if_clone_findifc(struct ifnet *);
-void	if_clone_addgroup(struct ifnet *, struct if_clone *);
+void if_clone_addgroup(struct ifnet *, struct if_clone *);
 
 /* The below interfaces are used only by epair(4). */
-void	if_clone_addif(struct if_clone *, struct ifnet *);
-int	if_clone_destroyif(struct if_clone *, struct ifnet *);
+void if_clone_addif(struct if_clone *, struct ifnet *);
+int if_clone_destroyif(struct if_clone *, struct ifnet *);
 
 #endif /* _KERNEL */
 #endif /* !_NET_IF_CLONE_H_ */

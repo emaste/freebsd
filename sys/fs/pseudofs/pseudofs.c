@@ -34,8 +34,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_pseudofs.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -51,8 +51,7 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_PFSNODES, "pfs_nodes", "pseudofs nodes");
 
-SYSCTL_NODE(_vfs, OID_AUTO, pfs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "pseudofs");
+SYSCTL_NODE(_vfs, OID_AUTO, pfs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "pseudofs");
 
 #ifdef PSEUDOFS_TRACE
 int pfs_trace;
@@ -68,7 +67,8 @@ SYSCTL_INT(_vfs_pfs, OID_AUTO, trace, CTLFLAG_RW, &pfs_trace, 0,
  * Allocate and initialize a node
  */
 static struct pfs_node *
-pfs_alloc_node_flags(struct pfs_info *pi, const char *name, pfs_type_t type, int flags)
+pfs_alloc_node_flags(
+    struct pfs_info *pi, const char *name, pfs_type_t type, int flags)
 {
 	struct pfs_node *pn;
 	int malloc_flags;
@@ -105,15 +105,14 @@ pfs_add_node(struct pfs_node *parent, struct pfs_node *pn)
 	struct pfs_node *iter;
 #endif
 
-	KASSERT(parent != NULL,
-	    ("%s(): parent is NULL", __func__));
+	KASSERT(parent != NULL, ("%s(): parent is NULL", __func__));
 	KASSERT(pn->pn_parent == NULL,
 	    ("%s(): node already has a parent", __func__));
-	KASSERT(parent->pn_info != NULL,
-	    ("%s(): parent has no pn_info", __func__));
+	KASSERT(
+	    parent->pn_info != NULL, ("%s(): parent has no pn_info", __func__));
 	KASSERT(parent->pn_type == pfstype_dir ||
-	    parent->pn_type == pfstype_procdir ||
-	    parent->pn_type == pfstype_root,
+		parent->pn_type == pfstype_procdir ||
+		parent->pn_type == pfstype_root,
 	    ("%s(): parent is not a directory", __func__));
 
 #ifdef INVARIANTS
@@ -171,8 +170,8 @@ pfs_detach_node(struct pfs_node *pn)
 		if (pn == pn->pn_nodes) {
 			parent->pn_last_node = NULL;
 		} else {
-			for (node = parent->pn_nodes;
-			    node->pn_next != pn; node = node->pn_next)
+			for (node = parent->pn_nodes; node->pn_next != pn;
+			     node = node->pn_next)
 				continue;
 			parent->pn_last_node = node;
 		}
@@ -200,7 +199,8 @@ pfs_fixup_dir_flags(struct pfs_node *parent, int flags)
 	dot = pfs_alloc_node_flags(parent->pn_info, ".", pfstype_this, flags);
 	if (dot == NULL)
 		return (ENOMEM);
-	dotdot = pfs_alloc_node_flags(parent->pn_info, "..", pfstype_parent, flags);
+	dotdot = pfs_alloc_node_flags(
+	    parent->pn_info, "..", pfstype_parent, flags);
 	if (dotdot == NULL) {
 		pfs_destroy(dot);
 		return (ENOMEM);
@@ -220,16 +220,15 @@ pfs_fixup_dir(struct pfs_node *parent)
 /*
  * Create a directory
  */
-struct pfs_node	*
-pfs_create_dir(struct pfs_node *parent, const char *name,
-	       pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy,
-	       int flags)
+struct pfs_node *
+pfs_create_dir(struct pfs_node *parent, const char *name, pfs_attr_t attr,
+    pfs_vis_t vis, pfs_destroy_t destroy, int flags)
 {
 	struct pfs_node *pn;
 	int rc;
 
 	pn = pfs_alloc_node_flags(parent->pn_info, name,
-			 (flags & PFS_PROCDEP) ? pfstype_procdir : pfstype_dir, flags);
+	    (flags & PFS_PROCDEP) ? pfstype_procdir : pfstype_dir, flags);
 	if (pn == NULL)
 		return (NULL);
 	pn->pn_attr = attr;
@@ -248,10 +247,9 @@ pfs_create_dir(struct pfs_node *parent, const char *name,
 /*
  * Create a file
  */
-struct pfs_node	*
+struct pfs_node *
 pfs_create_file(struct pfs_node *parent, const char *name, pfs_fill_t fill,
-		pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy,
-		int flags)
+    pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy, int flags)
 {
 	struct pfs_node *pn;
 
@@ -271,14 +269,14 @@ pfs_create_file(struct pfs_node *parent, const char *name, pfs_fill_t fill,
 /*
  * Create a symlink
  */
-struct pfs_node	*
+struct pfs_node *
 pfs_create_link(struct pfs_node *parent, const char *name, pfs_fill_t fill,
-		pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy,
-		int flags)
+    pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy, int flags)
 {
 	struct pfs_node *pn;
 
-	pn = pfs_alloc_node_flags(parent->pn_info, name, pfstype_symlink, flags);
+	pn = pfs_alloc_node_flags(
+	    parent->pn_info, name, pfstype_symlink, flags);
 	if (pn == NULL)
 		return (NULL);
 	pn->pn_fill = fill;
@@ -316,17 +314,14 @@ pfs_destroy(struct pfs_node *pn)
 {
 	struct pfs_node *iter;
 
-	KASSERT(pn != NULL,
-	    ("%s(): node is NULL", __func__));
-	KASSERT(pn->pn_info != NULL,
-	    ("%s(): node has no pn_info", __func__));
+	KASSERT(pn != NULL, ("%s(): node is NULL", __func__));
+	KASSERT(pn->pn_info != NULL, ("%s(): node has no pn_info", __func__));
 
 	if (pn->pn_parent)
 		pfs_detach_node(pn);
 
 	/* destroy children */
-	if (pn->pn_type == pfstype_dir ||
-	    pn->pn_type == pfstype_procdir ||
+	if (pn->pn_type == pfstype_dir || pn->pn_type == pfstype_procdir ||
 	    pn->pn_type == pfstype_root) {
 		pfs_lock(pn);
 		while (pn->pn_nodes != NULL) {
@@ -406,8 +401,8 @@ pfs_unmount(struct mount *mp, int mntflags)
 {
 	int error;
 
-	error = vflush(mp, 0, (mntflags & MNT_FORCE) ?  FORCECLOSE : 0,
-	    curthread);
+	error = vflush(
+	    mp, 0, (mntflags & MNT_FORCE) ? FORCECLOSE : 0, curthread);
 	return (error);
 }
 
@@ -504,10 +499,6 @@ pfs_modevent(module_t mod, int evt, void *arg)
 /*
  * Module declaration
  */
-static moduledata_t pseudofs_data = {
-	"pseudofs",
-	pfs_modevent,
-	NULL
-};
+static moduledata_t pseudofs_data = { "pseudofs", pfs_modevent, NULL };
 DECLARE_MODULE(pseudofs, pseudofs_data, SI_SUB_EXEC, SI_ORDER_FIRST);
 MODULE_VERSION(pseudofs, 1);

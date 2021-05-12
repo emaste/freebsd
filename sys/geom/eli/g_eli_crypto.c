@@ -35,13 +35,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #else
+#include <assert.h>
+#include <errno.h>
+#include <openssl/evp.h>
 #include <stdint.h>
 #include <string.h>
 #include <strings.h>
-#include <errno.h>
-#include <assert.h>
-#include <openssl/evp.h>
-#define	_OpenSSL_
+#define _OpenSSL_
 #endif
 #include <geom/eli/g_eli.h>
 
@@ -105,7 +105,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	crypto_freesession(sid);
 	return (error);
 }
-#else	/* !_KERNEL */
+#else /* !_KERNEL */
 static int
 g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
     const u_char *key, size_t keysize)
@@ -182,7 +182,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	EVP_CIPHER_CTX_free(ctx);
 	return (0);
 }
-#endif	/* !_KERNEL */
+#endif /* !_KERNEL */
 
 int
 g_eli_crypto_encrypt(u_int algo, u_char *data, size_t datasize,

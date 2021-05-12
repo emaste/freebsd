@@ -64,26 +64,26 @@ __FBSDID("$FreeBSD$");
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/capsicum.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
+#include <sys/ktrace.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/syscallsubr.h>
-#include <sys/sysproto.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/ucred.h>
 #include <sys/uio.h>
-#include <sys/ktrace.h>
+
+#include <vm/vm.h>
+#include <vm/uma.h>
 
 #include <security/audit/audit.h>
-
-#include <vm/uma.h>
-#include <vm/vm.h>
 
 bool __read_frequently trap_enotcap;
 SYSCTL_BOOL(_kern, OID_AUTO, trap_enotcap, CTLFLAG_RWTUN, &trap_enotcap, 0,
@@ -91,7 +91,7 @@ SYSCTL_BOOL(_kern, OID_AUTO, trap_enotcap, CTLFLAG_RWTUN, &trap_enotcap, 0,
 
 #ifdef CAPABILITY_MODE
 
-#define        IOCTLS_MAX_COUNT        256     /* XXX: Is 256 sane? */
+#define IOCTLS_MAX_COUNT 256 /* XXX: Is 256 sane? */
 
 FEATURE(security_capability_mode, "Capsicum Capability Mode");
 
@@ -180,7 +180,8 @@ cap_check(const cap_rights_t *havep, const cap_rights_t *needp)
 }
 
 int
-cap_check_failed_notcapable(const cap_rights_t *havep, const cap_rights_t *needp)
+cap_check_failed_notcapable(
+    const cap_rights_t *havep, const cap_rights_t *needp)
 {
 
 #ifdef KTRACE
@@ -365,11 +366,10 @@ cap_ioctl_check(struct filedesc *fdp, int fd, u_long cmd)
 	long i;
 
 	KASSERT(fd >= 0 && fd < fdp->fd_nfiles,
-		("%s: invalid fd=%d", __func__, fd));
+	    ("%s: invalid fd=%d", __func__, fd));
 
 	fdep = fdeget_locked(fdp, fd);
-	KASSERT(fdep != NULL,
-	    ("%s: invalid fd=%d", __func__, fd));
+	KASSERT(fdep != NULL, ("%s: invalid fd=%d", __func__, fd));
 
 	ncmds = fdep->fde_nioctls;
 	if (ncmds == -1)
@@ -388,8 +388,8 @@ cap_ioctl_check(struct filedesc *fdp, int fd, u_long cmd)
  * Check if the current ioctls list can be replaced by the new one.
  */
 static int
-cap_ioctl_limit_check(struct filedescent *fdep, const u_long *cmds,
-    size_t ncmds)
+cap_ioctl_limit_check(
+    struct filedescent *fdep, const u_long *cmds, size_t ncmds)
 {
 	u_long *ocmds;
 	ssize_t oncmds;
@@ -529,8 +529,8 @@ sys_cap_ioctls_get(struct thread *td, struct cap_ioctls_get_args *uap)
 	 */
 	if (count != -1) {
 		if (cmdsp != NULL) {
-			error = copyout(cmdsp, dstcmds,
-			    sizeof(cmdsp[0]) * ncmds);
+			error = copyout(
+			    cmdsp, dstcmds, sizeof(cmdsp[0]) * ncmds);
 			if (error != 0)
 				goto out;
 		}
@@ -554,8 +554,8 @@ cap_fcntl_check_fde(struct filedescent *fdep, int cmd)
 	uint32_t fcntlcap;
 
 	fcntlcap = (1 << cmd);
-	KASSERT((CAP_FCNTL_ALL & fcntlcap) != 0,
-	    ("Unsupported fcntl=%d.", cmd));
+	KASSERT(
+	    (CAP_FCNTL_ALL & fcntlcap) != 0, ("Unsupported fcntl=%d.", cmd));
 
 	if ((fdep->fde_fcntls & fcntlcap) != 0)
 		return (0);

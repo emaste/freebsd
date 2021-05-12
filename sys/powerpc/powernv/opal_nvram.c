@@ -29,69 +29,64 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/uio.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/md_var.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include "opal.h"
 
-#include <sys/rman.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
-#define	NVRAM_BUFSIZE	(65536)	/* 64k blocks */
+#define NVRAM_BUFSIZE (65536) /* 64k blocks */
 
 struct opal_nvram_softc {
-	device_t	 sc_dev;
-	struct mtx	 sc_mtx;
-	uint32_t	 sc_size;
-	uint8_t		*sc_buf;
-	vm_paddr_t	 sc_buf_phys;
+	device_t sc_dev;
+	struct mtx sc_mtx;
+	uint32_t sc_size;
+	uint8_t *sc_buf;
+	vm_paddr_t sc_buf_phys;
 
-	struct cdev 	*sc_cdev;
-	int		 sc_isopen;
+	struct cdev *sc_cdev;
+	int sc_isopen;
 };
 
-#define	NVRAM_LOCK(sc)		mtx_lock(&sc->sc_mtx)
-#define	NVRAM_UNLOCK(sc)	mtx_unlock(&sc->sc_mtx)
+#define NVRAM_LOCK(sc) mtx_lock(&sc->sc_mtx)
+#define NVRAM_UNLOCK(sc) mtx_unlock(&sc->sc_mtx)
 
 /*
  * Device interface.
  */
-static int		opal_nvram_probe(device_t);
-static int		opal_nvram_attach(device_t);
-static int		opal_nvram_detach(device_t);
+static int opal_nvram_probe(device_t);
+static int opal_nvram_attach(device_t);
+static int opal_nvram_detach(device_t);
 
 /*
  * Driver methods.
  */
-static device_method_t	opal_nvram_methods[] = {
+static device_method_t opal_nvram_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		opal_nvram_probe),
-	DEVMETHOD(device_attach,	opal_nvram_attach),
-	DEVMETHOD(device_detach,	opal_nvram_detach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, opal_nvram_probe),
+	DEVMETHOD(device_attach, opal_nvram_attach),
+	DEVMETHOD(device_detach, opal_nvram_detach), { 0, 0 }
 };
 
-static driver_t	opal_nvram_driver = {
-	"opal_nvram",
-	opal_nvram_methods,
-	sizeof(struct opal_nvram_softc)
-};
+static driver_t opal_nvram_driver = { "opal_nvram", opal_nvram_methods,
+	sizeof(struct opal_nvram_softc) };
 
 static devclass_t opal_nvram_devclass;
 
@@ -101,20 +96,20 @@ DRIVER_MODULE(opal_nvram, opal, opal_nvram_driver, opal_nvram_devclass, 0, 0);
  * Cdev methods.
  */
 
-static	d_open_t	opal_nvram_open;
-static	d_close_t	opal_nvram_close;
-static	d_read_t	opal_nvram_read;
-static	d_write_t	opal_nvram_write;
-static	d_ioctl_t	opal_nvram_ioctl;
+static d_open_t opal_nvram_open;
+static d_close_t opal_nvram_close;
+static d_read_t opal_nvram_read;
+static d_write_t opal_nvram_write;
+static d_ioctl_t opal_nvram_ioctl;
 
 static struct cdevsw opal_nvram_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	opal_nvram_open,
-	.d_close =	opal_nvram_close,
-	.d_read =	opal_nvram_read,
-	.d_write =	opal_nvram_write,
-	.d_ioctl =	opal_nvram_ioctl,
-	.d_name =	"nvram",
+	.d_version = D_VERSION,
+	.d_open = opal_nvram_open,
+	.d_close = opal_nvram_close,
+	.d_read = opal_nvram_read,
+	.d_write = opal_nvram_write,
+	.d_ioctl = opal_nvram_ioctl,
+	.d_name = "nvram",
 };
 
 static int
@@ -140,21 +135,19 @@ opal_nvram_attach(device_t dev)
 
 	sc->sc_dev = dev;
 
-	err = OF_getencprop(node, "#bytes", &sc->sc_size,
-	    sizeof(sc->sc_size));
+	err = OF_getencprop(node, "#bytes", &sc->sc_size, sizeof(sc->sc_size));
 
 	if (err < 0)
 		return (ENXIO);
 
-	sc->sc_buf = contigmalloc(NVRAM_BUFSIZE, M_DEVBUF, M_WAITOK,
-	    0, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
+	sc->sc_buf = contigmalloc(NVRAM_BUFSIZE, M_DEVBUF, M_WAITOK, 0,
+	    BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
 	if (sc->sc_buf == NULL) {
 		device_printf(dev, "No memory for buffer.\n");
 		return (ENXIO);
 	}
 	sc->sc_buf_phys = pmap_kextract((vm_offset_t)sc->sc_buf);
-	sc->sc_cdev = make_dev(&opal_nvram_cdevsw, 0, 0, 0, 0600,
-	    "nvram");
+	sc->sc_cdev = make_dev(&opal_nvram_cdevsw, 0, 0, 0, 0600, "nvram");
 	sc->sc_cdev->si_drv1 = sc;
 
 	mtx_init(&sc->sc_mtx, "opal_nvram", 0, MTX_DEF);
@@ -224,8 +217,8 @@ opal_nvram_read(struct cdev *dev, struct uio *uio, int ioflag)
 		if (amnt == 0)
 			break;
 
-		rv = opal_call(OPAL_READ_NVRAM, sc->sc_buf_phys,
-		    amnt, uio->uio_offset);
+		rv = opal_call(
+		    OPAL_READ_NVRAM, sc->sc_buf_phys, amnt, uio->uio_offset);
 		if (rv != OPAL_SUCCESS) {
 			switch (rv) {
 			case OPAL_HARDWARE:
@@ -267,8 +260,7 @@ opal_nvram_write(struct cdev *dev, struct uio *uio, int ioflag)
 		rv = uiomove(sc->sc_buf, amnt, uio);
 		if (rv != 0)
 			break;
-		rv = opal_call(OPAL_WRITE_NVRAM, sc->sc_buf_phys, amnt,
-		    offset);
+		rv = opal_call(OPAL_WRITE_NVRAM, sc->sc_buf_phys, amnt, offset);
 		if (rv != OPAL_SUCCESS) {
 			switch (rv) {
 			case OPAL_HARDWARE:
@@ -288,8 +280,8 @@ opal_nvram_write(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 static int
-opal_nvram_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
-    struct thread *td)
+opal_nvram_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	struct opal_nvram_softc *sc = dev->si_drv1;
 

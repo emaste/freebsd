@@ -31,15 +31,15 @@
  */
 
 #ifndef __NLM_UCORE_LOADER_H__
-#define	__NLM_UCORE_LOADER_H__
+#define __NLM_UCORE_LOADER_H__
 
 /**
-* @file_name ucore_loader.h
-* @author Netlogic Microsystems
-* @brief Ucore loader API header
-*/
+ * @file_name ucore_loader.h
+ * @author Netlogic Microsystems
+ * @brief Ucore loader API header
+ */
 
-#define	CODE_SIZE_PER_UCORE	(4 << 10)
+#define CODE_SIZE_PER_UCORE (4 << 10)
 
 static __inline__ void
 nlm_ucore_load_image(uint64_t nae_base, int ucore)
@@ -49,7 +49,7 @@ nlm_ucore_load_image(uint64_t nae_base, int ucore)
 	uint32_t *p = (uint32_t *)ucore_app_bin;
 	int i, size;
 
-	size = sizeof(ucore_app_bin)/sizeof(uint32_t);
+	size = sizeof(ucore_app_bin) / sizeof(uint32_t);
 	for (i = 0; i < size; i++, addr += 4)
 		nlm_store_word_daddr(addr, htobe32(p[i]));
 
@@ -69,8 +69,8 @@ nlm_ucore_write_sharedmem(uint64_t nae_base, int index, uint32_t data)
 
 	ucore_cfg = nlm_read_nae_reg(nae_base, NAE_RX_UCORE_CFG);
 	/* set iram to zero */
-	nlm_write_nae_reg(nae_base, NAE_RX_UCORE_CFG,
-	    (ucore_cfg & ~(0x1 << 7)));
+	nlm_write_nae_reg(
+	    nae_base, NAE_RX_UCORE_CFG, (ucore_cfg & ~(0x1 << 7)));
 
 	nlm_store_word_daddr(addr + (index * 4), data);
 
@@ -87,8 +87,8 @@ nlm_ucore_read_sharedmem(uint64_t nae_base, int index)
 
 	ucore_cfg = nlm_read_nae_reg(nae_base, NAE_RX_UCORE_CFG);
 	/* set iram to zero */
-	nlm_write_nae_reg(nae_base, NAE_RX_UCORE_CFG,
-	    (ucore_cfg & ~(0x1 << 7)));
+	nlm_write_nae_reg(
+	    nae_base, NAE_RX_UCORE_CFG, (ucore_cfg & ~(0x1 << 7)));
 
 	val = nlm_load_word_daddr(addr + (index * 4));
 
@@ -108,15 +108,16 @@ nlm_ucore_load_all(uint64_t nae_base, uint32_t ucore_mask, int nae_reset_done)
 	mask = ucore_mask & 0xffff;
 
 	/* Stop all ucores */
-	if (nae_reset_done == 0) { /* Skip the Ucore reset if NAE reset is done */
+	if (nae_reset_done ==
+	    0) { /* Skip the Ucore reset if NAE reset is done */
 		ucore_cfg = nlm_read_nae_reg(nae_base, NAE_RX_UCORE_CFG);
-		nlm_write_nae_reg(nae_base, NAE_RX_UCORE_CFG,
-		    ucore_cfg | (1 << 24));
+		nlm_write_nae_reg(
+		    nae_base, NAE_RX_UCORE_CFG, ucore_cfg | (1 << 24));
 
 		/* poll for ucore to get in to a wait state */
 		do {
-			ucore_cfg = nlm_read_nae_reg(nae_base,
-			    NAE_RX_UCORE_CFG);
+			ucore_cfg = nlm_read_nae_reg(
+			    nae_base, NAE_RX_UCORE_CFG);
 		} while ((ucore_cfg & (1 << 25)) == 0);
 	}
 
@@ -131,11 +132,11 @@ nlm_ucore_load_all(uint64_t nae_base, uint32_t ucore_mask, int nae_reset_done)
 	ucore_cfg = nlm_read_nae_reg(nae_base, NAE_RX_UCORE_CFG);
 
 	/* write one to reset bits to put the ucores in reset */
-	ucore_cfg = ucore_cfg | (((mask) & 0xffff) << 8);
+	ucore_cfg = ucore_cfg | (((mask)&0xffff) << 8);
 	nlm_write_nae_reg(nae_base, NAE_RX_UCORE_CFG, ucore_cfg);
 
 	/* write zero to reset bits to pull them out of reset */
-	ucore_cfg = ucore_cfg & (~(((mask) & 0xffff) << 8)) & ~(1 << 24);
+	ucore_cfg = ucore_cfg & (~(((mask)&0xffff) << 8)) & ~(1 << 24);
 	nlm_write_nae_reg(nae_base, NAE_RX_UCORE_CFG, ucore_cfg);
 
 	return (count);

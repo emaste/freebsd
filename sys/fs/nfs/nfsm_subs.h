@@ -35,7 +35,7 @@
  */
 
 #ifndef _NFS_NFSM_SUBS_H_
-#define	_NFS_NFSM_SUBS_H_
+#define _NFS_NFSM_SUBS_H_
 
 /*
  * These macros do strange and peculiar things to mbuf chains for
@@ -47,7 +47,7 @@
 /*
  * First define what the actual subs. return
  */
-#define	NFSM_DATAP(m, s)	(m)->m_data += (s)
+#define NFSM_DATAP(m, s) (m)->m_data += (s)
 
 /*
  * Now for the macros that do the simple stuff and call the functions
@@ -63,8 +63,7 @@ nfsm_build(struct nfsrv_descript *nd, int siz)
 	void *retp;
 	struct mbuf *mb2;
 
-	if ((nd->nd_flag & ND_EXTPG) == 0 &&
-	    siz > M_TRAILINGSPACE(nd->nd_mb)) {
+	if ((nd->nd_flag & ND_EXTPG) == 0 && siz > M_TRAILINGSPACE(nd->nd_mb)) {
 		NFSMCLGET(mb2, M_NOWAIT);
 		if (siz > MLEN)
 			panic("build > MLEN");
@@ -75,8 +74,8 @@ nfsm_build(struct nfsrv_descript *nd, int siz)
 	} else if ((nd->nd_flag & ND_EXTPG) != 0) {
 		if (siz > nd->nd_bextpgsiz) {
 			mb2 = mb_alloc_ext_plus_pages(PAGE_SIZE, M_WAITOK);
-			nd->nd_bpos = (char *)(void *)
-			    PHYS_TO_DMAP(mb2->m_epg_pa[0]);
+			nd->nd_bpos = (char *)(void *)PHYS_TO_DMAP(
+			    mb2->m_epg_pa[0]);
 			nd->nd_bextpg = 0;
 			nd->nd_bextpgsiz = PAGE_SIZE - siz;
 			nd->nd_mb->m_next = mb2;
@@ -91,20 +90,20 @@ nfsm_build(struct nfsrv_descript *nd, int siz)
 	return (retp);
 }
 
-#define	NFSM_BUILD(a, c, s)	((a) = (c)nfsm_build(nd, (s)))
+#define NFSM_BUILD(a, c, s) ((a) = (c)nfsm_build(nd, (s)))
 
 static __inline void *
 nfsm_dissect(struct nfsrv_descript *nd, int siz)
 {
-	int tt1; 
+	int tt1;
 	void *retp;
 
-	tt1 = mtod(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos; 
-	if (tt1 >= siz) { 
-		retp = (void *)nd->nd_dpos; 
-		nd->nd_dpos += siz; 
-	} else { 
-		retp = nfsm_dissct(nd, siz, M_WAITOK); 
+	tt1 = mtod(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos;
+	if (tt1 >= siz) {
+		retp = (void *)nd->nd_dpos;
+		nd->nd_dpos += siz;
+	} else {
+		retp = nfsm_dissct(nd, siz, M_WAITOK);
 	}
 	return (retp);
 }
@@ -112,47 +111,47 @@ nfsm_dissect(struct nfsrv_descript *nd, int siz)
 static __inline void *
 nfsm_dissect_nonblock(struct nfsrv_descript *nd, int siz)
 {
-	int tt1; 
+	int tt1;
 	void *retp;
 
-	tt1 = mtod(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos; 
-	if (tt1 >= siz) { 
-		retp = (void *)nd->nd_dpos; 
-		nd->nd_dpos += siz; 
-	} else { 
-		retp = nfsm_dissct(nd, siz, M_NOWAIT); 
+	tt1 = mtod(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos;
+	if (tt1 >= siz) {
+		retp = (void *)nd->nd_dpos;
+		nd->nd_dpos += siz;
+	} else {
+		retp = nfsm_dissct(nd, siz, M_NOWAIT);
 	}
 	return (retp);
 }
 
-#define	NFSM_DISSECT(a, c, s) 						\
-	do {								\
-		(a) = (c)nfsm_dissect(nd, (s));	 			\
-		if ((a) == NULL) { 					\
-			error = EBADRPC; 				\
-			goto nfsmout; 					\
-		}							\
+#define NFSM_DISSECT(a, c, s)                   \
+	do {                                    \
+		(a) = (c)nfsm_dissect(nd, (s)); \
+		if ((a) == NULL) {              \
+			error = EBADRPC;        \
+			goto nfsmout;           \
+		}                               \
 	} while (0)
 
-#define	NFSM_DISSECT_NONBLOCK(a, c, s) 					\
-	do {								\
-		(a) = (c)nfsm_dissect_nonblock(nd, (s));		\
-		if ((a) == NULL) { 					\
-			error = EBADRPC; 				\
-			goto nfsmout; 					\
-		}							\
+#define NFSM_DISSECT_NONBLOCK(a, c, s)                   \
+	do {                                             \
+		(a) = (c)nfsm_dissect_nonblock(nd, (s)); \
+		if ((a) == NULL) {                       \
+			error = EBADRPC;                 \
+			goto nfsmout;                    \
+		}                                        \
 	} while (0)
-#endif	/* !APPLE */
+#endif /* !APPLE */
 
-#define	NFSM_STRSIZ(s, m)  						\
-	do {								\
-		tl = (u_int32_t *)nfsm_dissect(nd, NFSX_UNSIGNED);	\
+#define NFSM_STRSIZ(s, m)                                               \
+	do {                                                            \
+		tl = (u_int32_t *)nfsm_dissect(nd, NFSX_UNSIGNED);      \
 		if (!tl || ((s) = fxdr_unsigned(int32_t, *tl)) > (m)) { \
-			error = EBADRPC; 				\
-			goto nfsmout; 					\
-		}							\
+			error = EBADRPC;                                \
+			goto nfsmout;                                   \
+		}                                                       \
 	} while (0)
 
-#define	NFSM_RNDUP(a)	(((a)+3)&(~0x3))
+#define NFSM_RNDUP(a) (((a) + 3) & (~0x3))
 
-#endif	/* _NFS_NFSM_SUBS_H_ */
+#endif /* _NFS_NFSM_SUBS_H_ */

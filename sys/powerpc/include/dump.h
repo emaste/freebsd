@@ -28,12 +28,12 @@
  */
 
 #ifndef _MACHINE_DUMP_H_
-#define	_MACHINE_DUMP_H_
+#define _MACHINE_DUMP_H_
 
-#define	KERNELDUMP_ARCH_VERSION	KERNELDUMP_POWERPC_VERSION
-#define	EM_VALUE		ELF_ARCH /* Defined in powerpc/include/elf.h */
-#define	DUMPSYS_MD_PA_NPAIRS	(PHYS_AVAIL_SZ + 1)
-#define	DUMPSYS_NUM_AUX_HDRS	0
+#define KERNELDUMP_ARCH_VERSION KERNELDUMP_POWERPC_VERSION
+#define EM_VALUE ELF_ARCH /* Defined in powerpc/include/elf.h */
+#define DUMPSYS_MD_PA_NPAIRS (PHYS_AVAIL_SZ + 1)
+#define DUMPSYS_NUM_AUX_HDRS 0
 
 void dumpsys_pa_init(void);
 void dumpsys_unmap_chunk(vm_paddr_t, size_t, void *);
@@ -69,4 +69,4 @@ dumpsys(struct dumperinfo *di)
 	return (dumpsys_generic(di));
 }
 
-#endif  /* !_MACHINE_DUMP_H_ */
+#endif /* !_MACHINE_DUMP_H_ */

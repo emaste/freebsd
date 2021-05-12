@@ -35,10 +35,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/condvar.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 
 #include <machine/bus.h>
@@ -49,38 +49,38 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/phy/phy.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usbdi.h>
 
 #include "usbdevs.h"
 
-#define	TEGRA_EHCI_REG_OFF	0x100
-#define	TEGRA_EHCI_REG_SIZE	0x100
+#define TEGRA_EHCI_REG_OFF 0x100
+#define TEGRA_EHCI_REG_SIZE 0x100
 
 /* Compatible devices. */
-#define	TEGRA124_EHCI		1
-#define	TEGRA210_EHCI		2
+#define TEGRA124_EHCI 1
+#define TEGRA210_EHCI 2
 static struct ofw_compat_data compat_data[] = {
-	{"nvidia,tegra124-ehci",	(uintptr_t)TEGRA124_EHCI},
-	{"nvidia,tegra210-ehci",	(uintptr_t)TEGRA210_EHCI},
-	{NULL,		 	0},
+	{ "nvidia,tegra124-ehci", (uintptr_t)TEGRA124_EHCI },
+	{ "nvidia,tegra210-ehci", (uintptr_t)TEGRA210_EHCI },
+	{ NULL, 0 },
 };
 
 struct tegra_ehci_softc {
-	ehci_softc_t	ehci_softc;
-	device_t	dev;
-	struct resource	*ehci_mem_res;	/* EHCI core regs. */
-	struct resource	*ehci_irq_res;	/* EHCI core IRQ. */
-	int		usb_alloc_called;
-	clk_t		clk;
-	phy_t 		phy;
-	hwreset_t 	reset;
+	ehci_softc_t ehci_softc;
+	device_t dev;
+	struct resource *ehci_mem_res; /* EHCI core regs. */
+	struct resource *ehci_irq_res; /* EHCI core IRQ. */
+	int usb_alloc_called;
+	clk_t clk;
+	phy_t phy;
+	hwreset_t reset;
 };
 
 static void
@@ -126,14 +126,11 @@ tegra_ehci_detach(device_t dev)
 	if (esc->sc_flags & EHCI_SCFLG_DONEINIT)
 		ehci_detach(esc);
 	if (esc->sc_intr_hdl != NULL)
-		bus_teardown_intr(dev, esc->sc_irq_res,
-		    esc->sc_intr_hdl);
+		bus_teardown_intr(dev, esc->sc_irq_res, esc->sc_intr_hdl);
 	if (sc->ehci_irq_res != NULL)
-		bus_release_resource(dev, SYS_RES_IRQ, 0,
-		    sc->ehci_irq_res);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ehci_irq_res);
 	if (sc->ehci_mem_res != NULL)
-		bus_release_resource(dev, SYS_RES_MEMORY, 0,
-		    sc->ehci_mem_res);
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->ehci_mem_res);
 	if (sc->usb_alloc_called)
 		usb_bus_mem_free_all(&esc->sc_bus, &ehci_iterate_hw_softc);
 
@@ -159,8 +156,8 @@ tegra_ehci_attach(device_t dev)
 
 	/* Allocate resources. */
 	rid = 0;
-	sc->ehci_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->ehci_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->ehci_mem_res == NULL) {
 		device_printf(dev, "Cannot allocate memory resources\n");
 		rv = ENXIO;
@@ -168,8 +165,8 @@ tegra_ehci_attach(device_t dev)
 	}
 
 	rid = 0;
-	sc->ehci_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->ehci_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->ehci_irq_res == NULL) {
 		device_printf(dev, "Cannot allocate IRQ resources\n");
 		rv = ENXIO;
@@ -232,8 +229,8 @@ tegra_ehci_attach(device_t dev)
 	esc->sc_bus.dma_bits = 32;
 
 	/* Allocate all DMA memory. */
-	rv = usb_bus_mem_alloc_all(&esc->sc_bus, USB_GET_DMA_TAG(dev),
-	    &ehci_iterate_hw_softc);
+	rv = usb_bus_mem_alloc_all(
+	    &esc->sc_bus, USB_GET_DMA_TAG(dev), &ehci_iterate_hw_softc);
 	sc->usb_alloc_called = 1;
 	if (rv != 0) {
 		device_printf(dev, "usb_bus_mem_alloc_all() failed\n");
@@ -246,8 +243,8 @@ tegra_ehci_attach(device_t dev)
 	 * generic EHCI driver.
 	 */
 	rv = bus_space_subregion(esc->sc_io_tag,
-	    rman_get_bushandle(sc->ehci_mem_res),
-	    TEGRA_EHCI_REG_OFF, TEGRA_EHCI_REG_SIZE, &esc->sc_io_hdl);
+	    rman_get_bushandle(sc->ehci_mem_res), TEGRA_EHCI_REG_OFF,
+	    TEGRA_EHCI_REG_SIZE, &esc->sc_io_hdl);
 	if (rv != 0) {
 		device_printf(dev, "Could not create USB memory subregion\n");
 		rv = ENXIO;
@@ -278,8 +275,7 @@ tegra_ehci_attach(device_t dev)
 	esc->sc_flags |= EHCI_SCFLG_NORESTERM;
 	rv = ehci_init(esc);
 	if (rv != 0) {
-		device_printf(dev, "USB init failed: %d\n",
-		    rv);
+		device_printf(dev, "USB init failed: %d\n", rv);
 		goto out;
 	}
 	esc->sc_flags |= EHCI_SCFLG_DONEINIT;
@@ -287,8 +283,7 @@ tegra_ehci_attach(device_t dev)
 	/* Probe the bus. */
 	rv = device_probe_and_attach(esc->sc_bus.bdev);
 	if (rv != 0) {
-		device_printf(dev,
-		    "device_probe_and_attach() failed\n");
+		device_printf(dev, "device_probe_and_attach() failed\n");
 		goto out;
 	}
 	return (0);
@@ -314,7 +309,7 @@ static device_method_t ehci_methods[] = {
 };
 
 static devclass_t ehci_devclass;
-static DEFINE_CLASS_0(ehci, ehci_driver, ehci_methods,
-    sizeof(struct tegra_ehci_softc));
+static DEFINE_CLASS_0(
+    ehci, ehci_driver, ehci_methods, sizeof(struct tegra_ehci_softc));
 DRIVER_MODULE(tegra_ehci, simplebus, ehci_driver, ehci_devclass, NULL, NULL);
 MODULE_DEPEND(tegra_ehci, usb, 1, 1, 1);

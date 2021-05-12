@@ -30,34 +30,34 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/condvar.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/types.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/malloc.h>
-#include <sys/conf.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 
 #include <cam/cam.h>
-#include <cam/scsi/scsi_all.h>
-#include <cam/scsi/scsi_da.h>
-#include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
-#include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_backend.h>
-#include <cam/ctl/ctl_ioctl.h>
-#include <cam/ctl/ctl_ha.h>
-#include <cam/ctl/ctl_private.h>
 #include <cam/ctl/ctl_debug.h>
+#include <cam/ctl/ctl_error.h>
+#include <cam/ctl/ctl_frontend.h>
+#include <cam/ctl/ctl_ha.h>
+#include <cam/ctl/ctl_io.h>
+#include <cam/ctl/ctl_ioctl.h>
+#include <cam/ctl/ctl_private.h>
 #include <cam/ctl/ctl_scsi_all.h>
 #include <cam/ctl/ctl_tpc.h>
-#include <cam/ctl/ctl_error.h>
+#include <cam/ctl/ctl_util.h>
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_da.h>
 
 struct tpcl_softc {
 	struct ctl_port port;
@@ -71,8 +71,7 @@ static int tpcl_shutdown(void);
 static void tpcl_datamove(union ctl_io *io);
 static void tpcl_done(union ctl_io *io);
 
-static struct ctl_frontend tpcl_frontend =
-{
+static struct ctl_frontend tpcl_frontend = {
 	.name = "tpc",
 	.init = tpcl_init,
 	.shutdown = tpcl_shutdown,
@@ -105,8 +104,8 @@ tpcl_init(void)
 	}
 
 	len = sizeof(struct scsi_transportid_spi);
-	port->init_devid = malloc(sizeof(struct ctl_devid) + len,
-	    M_CTL, M_WAITOK | M_ZERO);
+	port->init_devid = malloc(
+	    sizeof(struct ctl_devid) + len, M_CTL, M_WAITOK | M_ZERO);
 	port->init_devid->len = len;
 	tid = (struct scsi_transportid_spi *)port->init_devid->data;
 	tid->format_protocol = SCSI_TRN_SPI_FORMAT_DEFAULT | SCSI_PROTO_SPI;
@@ -168,7 +167,7 @@ tpcl_datamove(union ctl_io *io)
 		len_seen = 0;
 		for (i = 0; i < ext_sg_entries; i++) {
 			if ((len_seen + ext_sglist[i].len) >=
-			     ctsio->ext_data_filled) {
+			    ctsio->ext_data_filled) {
 				ext_sg_start = i;
 				ext_offset = ctsio->ext_data_filled - len_seen;
 				break;
@@ -201,7 +200,7 @@ tpcl_datamove(union ctl_io *io)
 		uint8_t *ext_ptr, *kern_ptr;
 
 		len_to_copy = min(ext_sglist[i].len - ext_watermark,
-				  kern_sglist[j].len - kern_watermark);
+		    kern_sglist[j].len - kern_watermark);
 
 		ext_ptr = (uint8_t *)ext_sglist[i].addr;
 		ext_ptr = ext_ptr + ext_watermark;
@@ -218,17 +217,17 @@ tpcl_datamove(union ctl_io *io)
 		kern_ptr = kern_ptr + kern_watermark;
 
 		if ((ctsio->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
-		     CTL_FLAG_DATA_IN) {
+		    CTL_FLAG_DATA_IN) {
 			CTL_DEBUG_PRINT(("%s: copying %d bytes to user\n",
-					 __func__, len_to_copy));
+			    __func__, len_to_copy));
 			CTL_DEBUG_PRINT(("%s: from %p to %p\n", __func__,
-					 kern_ptr, ext_ptr));
+			    kern_ptr, ext_ptr));
 			memcpy(ext_ptr, kern_ptr, len_to_copy);
 		} else {
 			CTL_DEBUG_PRINT(("%s: copying %d bytes from user\n",
-					 __func__, len_to_copy));
+			    __func__, len_to_copy));
 			CTL_DEBUG_PRINT(("%s: from %p to %p\n", __func__,
-					 ext_ptr, kern_ptr));
+			    ext_ptr, kern_ptr));
 			memcpy(kern_ptr, ext_ptr, len_to_copy);
 		}
 
@@ -249,9 +248,9 @@ tpcl_datamove(union ctl_io *io)
 	}
 
 	CTL_DEBUG_PRINT(("%s: ext_sg_entries: %d, kern_sg_entries: %d\n",
-			 __func__, ext_sg_entries, kern_sg_entries));
+	    __func__, ext_sg_entries, kern_sg_entries));
 	CTL_DEBUG_PRINT(("%s: ext_data_len = %d, kern_data_len = %d\n",
-			 __func__, ctsio->ext_data_len, ctsio->kern_data_len));
+	    __func__, ctsio->ext_data_len, ctsio->kern_data_len));
 
 bailout:
 	ctl_datamove_done(io, true);
@@ -265,8 +264,8 @@ tpcl_done(union ctl_io *io)
 }
 
 uint64_t
-tpcl_resolve(struct ctl_softc *softc, int init_port,
-    struct scsi_ec_cscd *cscd, uint32_t *ss, uint32_t *ps, uint32_t *pso)
+tpcl_resolve(struct ctl_softc *softc, int init_port, struct scsi_ec_cscd *cscd,
+    uint32_t *ss, uint32_t *ps, uint32_t *pso)
 {
 	struct scsi_ec_cscd_id *cscdid;
 	struct ctl_port *port;
@@ -284,21 +283,20 @@ tpcl_resolve(struct ctl_softc *softc, int init_port,
 		port = softc->ctl_ports[init_port];
 	else
 		port = NULL;
-	STAILQ_FOREACH(lun, &softc->lun_list, links) {
+	STAILQ_FOREACH (lun, &softc->lun_list, links) {
 		if (port != NULL &&
 		    ctl_lun_map_to_port(port, lun->lun) == UINT32_MAX)
 			continue;
 		if (lun->lun_devid == NULL)
 			continue;
-		if (scsi_devid_match(lun->lun_devid->data,
-		    lun->lun_devid->len, &cscdid->codeset,
-		    cscdid->length + 4) == 0) {
+		if (scsi_devid_match(lun->lun_devid->data, lun->lun_devid->len,
+			&cscdid->codeset, cscdid->length + 4) == 0) {
 			lunid = lun->lun;
 			if (ss)
 				*ss = lun->be_lun->blocksize;
 			if (ps)
-				*ps = lun->be_lun->blocksize <<
-				    lun->be_lun->pblockexp;
+				*ps = lun->be_lun->blocksize
+				    << lun->be_lun->pblockexp;
 			if (pso)
 				*pso = lun->be_lun->blocksize *
 				    lun->be_lun->pblockoff;

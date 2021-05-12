@@ -3,7 +3,7 @@
  *
  *  Copyright (c) 2007 Lukas Ertl
  *  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -12,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,16 +31,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
+#include <geom/vinum/geom_vinum_var.h>
 
 void
 gv_post_event(struct gv_softc *sc, int event, void *arg1, void *arg2,
@@ -114,8 +114,8 @@ gv_drive_tasted(struct gv_softc *sc, struct g_provider *pp)
 	G_VINUM_DEBUG(2, "tasted drive on '%s'", pp->name);
 	if ((GV_CFG_OFFSET % pp->sectorsize) != 0 ||
 	    (GV_CFG_LEN % pp->sectorsize) != 0) {
-		G_VINUM_DEBUG(0, "provider %s has unsupported sectorsize.",
-		    pp->name);
+		G_VINUM_DEBUG(
+		    0, "provider %s has unsupported sectorsize.", pp->name);
 		return;
 	}
 
@@ -222,15 +222,17 @@ gv_drive_lost(struct gv_softc *sc, struct gv_drive *d)
 	struct gv_sd *s, *s2;
 	struct gv_freelist *fl, *fl2;
 
-	gv_set_drive_state(d, GV_DRIVE_DOWN,
-	    GV_SETSTATE_FORCE | GV_SETSTATE_CONFIG);
+	gv_set_drive_state(
+	    d, GV_DRIVE_DOWN, GV_SETSTATE_FORCE | GV_SETSTATE_CONFIG);
 
 	cp = d->consumer;
 
 	if (cp != NULL) {
 		if (d->active > 0) {
-			G_VINUM_DEBUG(2, "dead drive '%s' has still active "
-			    "requests, unable to detach consumer", d->name);
+			G_VINUM_DEBUG(2,
+			    "dead drive '%s' has still active "
+			    "requests, unable to detach consumer",
+			    d->name);
 			d->flags |= GV_DRIVE_ORPHANED;
 			return;
 		}
@@ -242,7 +244,7 @@ gv_drive_lost(struct gv_softc *sc, struct gv_drive *d)
 		g_topology_unlock();
 	}
 
-	LIST_FOREACH_SAFE(fl, &d->freelist, freelist, fl2) {
+	LIST_FOREACH_SAFE (fl, &d->freelist, freelist, fl2) {
 		LIST_REMOVE(fl, freelist);
 		g_free(fl);
 	}
@@ -258,7 +260,7 @@ gv_drive_lost(struct gv_softc *sc, struct gv_drive *d)
 	d->sdcount = 0;
 
 	/* Put the subdisk in tasted mode, and remove from drive list. */
-	LIST_FOREACH_SAFE(s, &d->subdisks, from_drive, s2) {
+	LIST_FOREACH_SAFE (s, &d->subdisks, from_drive, s2) {
 		LIST_REMOVE(s, from_drive);
 		s->flags |= GV_SD_TASTED;
 	}

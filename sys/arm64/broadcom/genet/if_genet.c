@@ -43,146 +43,136 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
-#include <sys/kernel.h>
 #include <sys/endian.h>
+#include <sys/gpio.h>
+#include <sys/kernel.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/module.h>
 #include <sys/taskqueue.h>
-#include <sys/gpio.h>
-
-#include <net/bpf.h>
-#include <net/if.h>
-#include <net/ethernet.h>
-#include <net/if_dl.h>
-#include <net/if_media.h>
-#include <net/if_types.h>
-#include <net/if_var.h>
 
 #include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#define __BIT(_x)	(1 << (_x))
-#include "if_genetreg.h"
+#include <net/bpf.h>
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_media.h>
+#include <net/if_types.h>
+#include <net/if_var.h>
 
+#define __BIT(_x) (1 << (_x))
 #include <dev/mii/mii.h>
-#include <dev/mii/miivar.h>
 #include <dev/mii/mii_fdt.h>
+#include <dev/mii/miivar.h>
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 
-#include "syscon_if.h"
-#include "miibus_if.h"
 #include "gpio_if.h"
+#include "if_genetreg.h"
+#include "miibus_if.h"
+#include "syscon_if.h"
 
-#define	RD4(sc, reg)		bus_read_4((sc)->res[_RES_MAC], (reg))
-#define	WR4(sc, reg, val)	bus_write_4((sc)->res[_RES_MAC], (reg), (val))
+#define RD4(sc, reg) bus_read_4((sc)->res[_RES_MAC], (reg))
+#define WR4(sc, reg, val) bus_write_4((sc)->res[_RES_MAC], (reg), (val))
 
-#define	GEN_LOCK(sc)		mtx_lock(&(sc)->mtx)
-#define	GEN_UNLOCK(sc)		mtx_unlock(&(sc)->mtx)
-#define	GEN_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->mtx, MA_OWNED)
-#define	GEN_ASSERT_UNLOCKED(sc)	mtx_assert(&(sc)->mtx, MA_NOTOWNED)
+#define GEN_LOCK(sc) mtx_lock(&(sc)->mtx)
+#define GEN_UNLOCK(sc) mtx_unlock(&(sc)->mtx)
+#define GEN_ASSERT_LOCKED(sc) mtx_assert(&(sc)->mtx, MA_OWNED)
+#define GEN_ASSERT_UNLOCKED(sc) mtx_assert(&(sc)->mtx, MA_NOTOWNED)
 
-#define	TX_DESC_COUNT		GENET_DMA_DESC_COUNT
-#define	RX_DESC_COUNT		GENET_DMA_DESC_COUNT
+#define TX_DESC_COUNT GENET_DMA_DESC_COUNT
+#define RX_DESC_COUNT GENET_DMA_DESC_COUNT
 
-#define	TX_NEXT(n, count)		(((n) + 1) & ((count) - 1))
-#define	RX_NEXT(n, count)		(((n) + 1) & ((count) - 1))
+#define TX_NEXT(n, count) (((n) + 1) & ((count)-1))
+#define RX_NEXT(n, count) (((n) + 1) & ((count)-1))
 
-#define	TX_MAX_SEGS		20
+#define TX_MAX_SEGS 20
 
 /* Maximum number of mbufs to send to if_input */
 static int gen_rx_batch = 16 /* RX_BATCH_DEFAULT */;
 TUNABLE_INT("hw.gen.rx_batch", &gen_rx_batch);
 
-static struct ofw_compat_data compat_data[] = {
-	{ "brcm,genet-v1",		1 },
-	{ "brcm,genet-v2",		2 },
-	{ "brcm,genet-v3",		3 },
-	{ "brcm,genet-v4",		4 },
-	{ "brcm,genet-v5",		5 },
-	{ "brcm,bcm2711-genet-v5",	5 },
-	{ NULL,				0 }
-};
+static struct ofw_compat_data compat_data[] = { { "brcm,genet-v1", 1 },
+	{ "brcm,genet-v2", 2 }, { "brcm,genet-v3", 3 }, { "brcm,genet-v4", 4 },
+	{ "brcm,genet-v5", 5 }, { "brcm,bcm2711-genet-v5", 5 }, { NULL, 0 } };
 
 enum {
-	_RES_MAC,		/* what to call this? */
+	_RES_MAC, /* what to call this? */
 	_RES_IRQ1,
 	_RES_IRQ2,
 	_RES_NITEMS
 };
 
-static struct resource_spec gen_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec gen_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { SYS_RES_IRQ, 1, RF_ACTIVE },
+	{ -1, 0 } };
 
 /* structure per ring entry */
 struct gen_ring_ent {
-	bus_dmamap_t		map;
-	struct mbuf		*mbuf;
+	bus_dmamap_t map;
+	struct mbuf *mbuf;
 };
 
 struct tx_queue {
-	int			hwindex;		/* hardware index */
-	int			nentries;
-	u_int			queued;			/* or avail? */
-	u_int			cur;
-	u_int			next;
-	u_int			prod_idx;
-	u_int			cons_idx;
-	struct gen_ring_ent	*entries;
+	int hwindex; /* hardware index */
+	int nentries;
+	u_int queued; /* or avail? */
+	u_int cur;
+	u_int next;
+	u_int prod_idx;
+	u_int cons_idx;
+	struct gen_ring_ent *entries;
 };
 
 struct rx_queue {
-	int			hwindex;		/* hardware index */
-	int			nentries;
-	u_int			cur;
-	u_int			prod_idx;
-	u_int			cons_idx;
-	struct gen_ring_ent	*entries;
+	int hwindex; /* hardware index */
+	int nentries;
+	u_int cur;
+	u_int prod_idx;
+	u_int cons_idx;
+	struct gen_ring_ent *entries;
 };
 
 struct gen_softc {
-	struct resource		*res[_RES_NITEMS];
-	struct mtx		mtx;
-	if_t			ifp;
-	device_t		dev;
-	device_t		miibus;
-	mii_contype_t		phy_mode;
+	struct resource *res[_RES_NITEMS];
+	struct mtx mtx;
+	if_t ifp;
+	device_t dev;
+	device_t miibus;
+	mii_contype_t phy_mode;
 
-	struct callout		stat_ch;
-	struct task		link_task;
-	void			*ih;
-	void			*ih2;
-	int			type;
-	int			if_flags;
-	int			link;
-	bus_dma_tag_t		tx_buf_tag;
+	struct callout stat_ch;
+	struct task link_task;
+	void *ih;
+	void *ih2;
+	int type;
+	int if_flags;
+	int link;
+	bus_dma_tag_t tx_buf_tag;
 	/*
 	 * The genet chip has multiple queues for transmit and receive.
 	 * This driver uses only one (queue 16, the default), but is cast
 	 * with multiple rings.  The additional rings are used for different
 	 * priorities.
 	 */
-#define DEF_TXQUEUE	0
-#define NTXQUEUE	1
-	struct tx_queue		tx_queue[NTXQUEUE];
-	struct gen_ring_ent	tx_ring_ent[TX_DESC_COUNT];  /* ring entries */
+#define DEF_TXQUEUE 0
+#define NTXQUEUE 1
+	struct tx_queue tx_queue[NTXQUEUE];
+	struct gen_ring_ent tx_ring_ent[TX_DESC_COUNT]; /* ring entries */
 
-	bus_dma_tag_t		rx_buf_tag;
-#define DEF_RXQUEUE	0
-#define NRXQUEUE	1
-	struct rx_queue		rx_queue[NRXQUEUE];
-	struct gen_ring_ent	rx_ring_ent[RX_DESC_COUNT];  /* ring entries */
+	bus_dma_tag_t rx_buf_tag;
+#define DEF_RXQUEUE 0
+#define NRXQUEUE 1
+	struct rx_queue rx_queue[NRXQUEUE];
+	struct gen_ring_ent rx_ring_ent[RX_DESC_COUNT]; /* ring entries */
 };
 
 static void gen_init(void *softc);
@@ -208,8 +198,8 @@ static int gen_rxintr(struct gen_softc *sc, struct rx_queue *q);
 static void gen_txintr(struct gen_softc *sc, struct tx_queue *q);
 static void gen_intr2(void *softc);
 static int gen_newbuf_rx(struct gen_softc *sc, struct rx_queue *q, int index);
-static int gen_mapbuf_rx(struct gen_softc *sc, struct rx_queue *q, int index,
-    struct mbuf *m);
+static int gen_mapbuf_rx(
+    struct gen_softc *sc, struct rx_queue *q, int index, struct mbuf *m);
 static void gen_link_task(void *arg, int pending);
 static void gen_media_status(if_t ifp, struct ifmediareq *ifmr);
 static int gen_media_change(if_t ifp);
@@ -254,7 +244,7 @@ gen_attach(device_t dev)
 	}
 	minor = (RD4(sc, GENET_SYS_REV_CTRL) & REV_MINOR) >> REV_MINOR_SHIFT;
 	device_printf(dev, "GENET version 5.%d phy 0x%04x\n", minor,
-		RD4(sc, GENET_SYS_REV_CTRL) & REV_PHY);
+	    RD4(sc, GENET_SYS_REV_CTRL) & REV_PHY);
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK, MTX_DEF);
 	callout_init_mtx(&sc->stat_ch, &sc->mtx, 0);
@@ -304,16 +294,15 @@ gen_attach(device_t dev)
 	if_setinitfn(sc->ifp, gen_init);
 	if_setsendqlen(sc->ifp, TX_DESC_COUNT - 1);
 	if_setsendqready(sc->ifp);
-#define GEN_CSUM_FEATURES	(CSUM_UDP | CSUM_TCP)
+#define GEN_CSUM_FEATURES (CSUM_UDP | CSUM_TCP)
 	if_sethwassist(sc->ifp, GEN_CSUM_FEATURES);
-	if_setcapabilities(sc->ifp, IFCAP_VLAN_MTU | IFCAP_HWCSUM |
-	    IFCAP_HWCSUM_IPV6);
+	if_setcapabilities(
+	    sc->ifp, IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6);
 	if_setcapenable(sc->ifp, if_getcapabilities(sc->ifp));
 
 	/* Attach MII driver */
 	mii_flags = 0;
-	switch (sc->phy_mode)
-	{
+	switch (sc->phy_mode) {
 	case MII_CONTYPE_RGMII_ID:
 		mii_flags |= MIIF_RX_DELAY | MIIF_TX_DELAY;
 		break;
@@ -351,7 +340,7 @@ static void
 gen_destroy(struct gen_softc *sc)
 {
 
-	if (sc->miibus) {	/* can't happen */
+	if (sc->miibus) { /* can't happen */
 		device_delete_child(sc->dev, sc->miibus);
 		sc->miibus = NULL;
 	}
@@ -407,10 +396,10 @@ gen_get_eaddr(device_t dev, struct ether_addr *eaddr)
 	sc = device_get_softc(dev);
 
 	node = ofw_bus_get_node(dev);
-	if (OF_getprop(node, "mac-address", eaddr->octet,
-	    ETHER_ADDR_LEN) != -1 ||
+	if (OF_getprop(node, "mac-address", eaddr->octet, ETHER_ADDR_LEN) !=
+		-1 ||
 	    OF_getprop(node, "local-mac-address", eaddr->octet,
-	    ETHER_ADDR_LEN) != -1 ||
+		ETHER_ADDR_LEN) != -1 ||
 	    OF_getprop(node, "address", eaddr->octet, ETHER_ADDR_LEN) != -1)
 		return (true);
 
@@ -425,8 +414,8 @@ gen_get_eaddr(device_t dev, struct ether_addr *eaddr)
 
 	if (maclo == 0 && machi == 0) {
 		if (bootverbose)
-			device_printf(dev,
-			    "No Ethernet address found in controller\n");
+			device_printf(
+			    dev, "No Ethernet address found in controller\n");
 		return (false);
 	} else {
 		eaddr->octet[0] = maclo & 0xff;
@@ -462,8 +451,9 @@ gen_reset(struct gen_softc *sc)
 	DELAY(10);
 	WR4(sc, GENET_UMAC_CMD, 0);
 
-	WR4(sc, GENET_UMAC_MIB_CTRL, GENET_UMAC_MIB_RESET_RUNT |
-	    GENET_UMAC_MIB_RESET_RX | GENET_UMAC_MIB_RESET_TX);
+	WR4(sc, GENET_UMAC_MIB_CTRL,
+	    GENET_UMAC_MIB_RESET_RUNT | GENET_UMAC_MIB_RESET_RX |
+		GENET_UMAC_MIB_RESET_TX);
 	WR4(sc, GENET_UMAC_MIB_CTRL, 0);
 
 	WR4(sc, GENET_UMAC_MAX_FRAME_LEN, 1536);
@@ -498,7 +488,7 @@ gen_enable_offload(struct gen_softc *sc)
 	uint32_t check_ctrl, buf_ctrl;
 
 	check_ctrl = RD4(sc, GENET_RBUF_CHECK_CTRL);
-	buf_ctrl  = RD4(sc, GENET_RBUF_CTRL);
+	buf_ctrl = RD4(sc, GENET_RBUF_CTRL);
 	if ((if_getcapenable(sc->ifp) & IFCAP_RXCSUM) != 0) {
 		check_ctrl |= GENET_RBUF_CHECK_CTRL_EN;
 		buf_ctrl |= GENET_RBUF_64B_EN;
@@ -509,7 +499,7 @@ gen_enable_offload(struct gen_softc *sc)
 	WR4(sc, GENET_RBUF_CHECK_CTRL, check_ctrl);
 	WR4(sc, GENET_RBUF_CTRL, buf_ctrl);
 
-	buf_ctrl  = RD4(sc, GENET_TBUF_CTRL);
+	buf_ctrl = RD4(sc, GENET_TBUF_CTRL);
 	if ((if_getcapenable(sc->ifp) & (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6)) !=
 	    0)
 		buf_ctrl |= GENET_RBUF_64B_EN;
@@ -541,16 +531,15 @@ gen_bus_dma_init(struct gen_softc *sc)
 	device_t dev = sc->dev;
 	int i, error;
 
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(dev),	/* Parent tag */
-	    4, 0,			/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_40BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    MCLBYTES, TX_MAX_SEGS,	/* maxsize, nsegs */
-	    MCLBYTES,			/* maxsegsize */
-	    0,				/* flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), /* Parent tag */
+	    4, 0,		     /* alignment, boundary */
+	    BUS_SPACE_MAXADDR_40BIT, /* lowaddr */
+	    BUS_SPACE_MAXADDR,	     /* highaddr */
+	    NULL, NULL,		     /* filter, filterarg */
+	    MCLBYTES, TX_MAX_SEGS,   /* maxsize, nsegs */
+	    MCLBYTES,		     /* maxsegsize */
+	    0,			     /* flags */
+	    NULL, NULL,		     /* lockfunc, lockarg */
 	    &sc->tx_buf_tag);
 	if (error != 0) {
 		device_printf(dev, "cannot create TX buffer tag\n");
@@ -558,24 +547,23 @@ gen_bus_dma_init(struct gen_softc *sc)
 	}
 
 	for (i = 0; i < TX_DESC_COUNT; i++) {
-		error = bus_dmamap_create(sc->tx_buf_tag, 0,
-		    &sc->tx_ring_ent[i].map);
+		error = bus_dmamap_create(
+		    sc->tx_buf_tag, 0, &sc->tx_ring_ent[i].map);
 		if (error != 0) {
 			device_printf(dev, "cannot create TX buffer map\n");
 			return (error);
 		}
 	}
 
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(dev),	/* Parent tag */
-	    4, 0,			/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_40BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    MCLBYTES, 1,		/* maxsize, nsegs */
-	    MCLBYTES,			/* maxsegsize */
-	    0,				/* flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), /* Parent tag */
+	    4, 0,		     /* alignment, boundary */
+	    BUS_SPACE_MAXADDR_40BIT, /* lowaddr */
+	    BUS_SPACE_MAXADDR,	     /* highaddr */
+	    NULL, NULL,		     /* filter, filterarg */
+	    MCLBYTES, 1,	     /* maxsize, nsegs */
+	    MCLBYTES,		     /* maxsegsize */
+	    0,			     /* flags */
+	    NULL, NULL,		     /* lockfunc, lockarg */
 	    &sc->rx_buf_tag);
 	if (error != 0) {
 		device_printf(dev, "cannot create RX buffer tag\n");
@@ -583,8 +571,8 @@ gen_bus_dma_init(struct gen_softc *sc)
 	}
 
 	for (i = 0; i < RX_DESC_COUNT; i++) {
-		error = bus_dmamap_create(sc->rx_buf_tag, 0,
-		    &sc->rx_ring_ent[i].map);
+		error = bus_dmamap_create(
+		    sc->rx_buf_tag, 0, &sc->rx_ring_ent[i].map);
 		if (error != 0) {
 			device_printf(dev, "cannot create RX buffer map\n");
 			return (error);
@@ -600,8 +588,8 @@ gen_bus_dma_teardown(struct gen_softc *sc)
 
 	if (sc->tx_buf_tag != NULL) {
 		for (i = 0; i < TX_DESC_COUNT; i++) {
-			error = bus_dmamap_destroy(sc->tx_buf_tag,
-			    sc->tx_ring_ent[i].map);
+			error = bus_dmamap_destroy(
+			    sc->tx_buf_tag, sc->tx_ring_ent[i].map);
 			sc->tx_ring_ent[i].map = NULL;
 			if (error)
 				device_printf(sc->dev,
@@ -618,8 +606,8 @@ gen_bus_dma_teardown(struct gen_softc *sc)
 
 	if (sc->tx_buf_tag != NULL) {
 		for (i = 0; i < RX_DESC_COUNT; i++) {
-			error = bus_dmamap_destroy(sc->rx_buf_tag,
-			    sc->rx_ring_ent[i].map);
+			error = bus_dmamap_destroy(
+			    sc->rx_buf_tag, sc->rx_ring_ent[i].map);
 			sc->rx_ring_ent[i].map = NULL;
 			if (error)
 				device_printf(sc->dev,
@@ -648,8 +636,8 @@ gen_enable_intr(struct gen_softc *sc)
  * (0-16).  "base" is the starting index in the ring array.
  */
 static void
-gen_init_txring(struct gen_softc *sc, int queue, int qid, int base,
-    int nentries)
+gen_init_txring(
+    struct gen_softc *sc, int queue, int qid, int base, int nentries)
 {
 	struct tx_queue *q;
 	uint32_t val;
@@ -672,7 +660,7 @@ gen_init_txring(struct gen_softc *sc, int queue, int qid, int base,
 	WR4(sc, GENET_TX_DMA_PROD_INDEX(qid), 0);
 	WR4(sc, GENET_TX_DMA_RING_BUF_SIZE(qid),
 	    (nentries << GENET_TX_DMA_RING_BUF_SIZE_DESC_SHIFT) |
-	    (MCLBYTES & GENET_TX_DMA_RING_BUF_SIZE_BUF_LEN_MASK));
+		(MCLBYTES & GENET_TX_DMA_RING_BUF_SIZE_BUF_LEN_MASK));
 	WR4(sc, GENET_TX_DMA_START_ADDR_LO(qid), 0);
 	WR4(sc, GENET_TX_DMA_START_ADDR_HI(qid), 0);
 	WR4(sc, GENET_TX_DMA_END_ADDR_LO(qid),
@@ -683,7 +671,7 @@ gen_init_txring(struct gen_softc *sc, int queue, int qid, int base,
 	WR4(sc, GENET_TX_DMA_WRITE_PTR_LO(qid), 0);
 	WR4(sc, GENET_TX_DMA_WRITE_PTR_HI(qid), 0);
 
-	WR4(sc, GENET_TX_DMA_RING_CFG, __BIT(qid));	/* enable */
+	WR4(sc, GENET_TX_DMA_RING_CFG, __BIT(qid)); /* enable */
 
 	/* Enable transmit DMA */
 	val = RD4(sc, GENET_TX_DMA_CTRL);
@@ -697,8 +685,8 @@ gen_init_txring(struct gen_softc *sc, int queue, int qid, int base,
  * (0-16).  "base" is the starting index in the ring array.
  */
 static void
-gen_init_rxring(struct gen_softc *sc, int queue, int qid, int base,
-    int nentries)
+gen_init_rxring(
+    struct gen_softc *sc, int queue, int qid, int base, int nentries)
 {
 	struct rx_queue *q;
 	uint32_t val;
@@ -718,7 +706,7 @@ gen_init_rxring(struct gen_softc *sc, int queue, int qid, int base,
 	WR4(sc, GENET_RX_DMA_CONS_INDEX(qid), 0);
 	WR4(sc, GENET_RX_DMA_RING_BUF_SIZE(qid),
 	    (nentries << GENET_RX_DMA_RING_BUF_SIZE_DESC_SHIFT) |
-	    (MCLBYTES & GENET_RX_DMA_RING_BUF_SIZE_BUF_LEN_MASK));
+		(MCLBYTES & GENET_RX_DMA_RING_BUF_SIZE_BUF_LEN_MASK));
 	WR4(sc, GENET_RX_DMA_START_ADDR_LO(qid), 0);
 	WR4(sc, GENET_RX_DMA_START_ADDR_HI(qid), 0);
 	WR4(sc, GENET_RX_DMA_END_ADDR_LO(qid),
@@ -729,7 +717,7 @@ gen_init_rxring(struct gen_softc *sc, int queue, int qid, int base,
 	WR4(sc, GENET_RX_DMA_READ_PTR_LO(qid), 0);
 	WR4(sc, GENET_RX_DMA_READ_PTR_HI(qid), 0);
 
-	WR4(sc, GENET_RX_DMA_RING_CFG, __BIT(qid));	/* enable */
+	WR4(sc, GENET_RX_DMA_RING_CFG, __BIT(qid)); /* enable */
 
 	/* fill ring */
 	for (i = 0; i < RX_DESC_COUNT; i++)
@@ -760,8 +748,8 @@ gen_init_txrings(struct gen_softc *sc)
 #endif
 
 	/* init GENET_DMA_DEFAULT_QUEUE (16) */
-	gen_init_txring(sc, DEF_TXQUEUE, GENET_DMA_DEFAULT_QUEUE, base,
-	    TX_DESC_COUNT);
+	gen_init_txring(
+	    sc, DEF_TXQUEUE, GENET_DMA_DEFAULT_QUEUE, base, TX_DESC_COUNT);
 	sc->tx_queue[DEF_TXQUEUE].hwindex = GENET_DMA_DEFAULT_QUEUE;
 }
 
@@ -783,10 +771,9 @@ gen_init_rxrings(struct gen_softc *sc)
 #endif
 
 	/* init GENET_DMA_DEFAULT_QUEUE (16) */
-	gen_init_rxring(sc, DEF_RXQUEUE, GENET_DMA_DEFAULT_QUEUE, base,
-	    RX_DESC_COUNT);
+	gen_init_rxring(
+	    sc, DEF_RXQUEUE, GENET_DMA_DEFAULT_QUEUE, base, RX_DESC_COUNT);
 	sc->rx_queue[DEF_RXQUEUE].hwindex = GENET_DMA_DEFAULT_QUEUE;
-
 }
 
 static void
@@ -803,8 +790,7 @@ gen_init_locked(struct gen_softc *sc)
 	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
 
-	switch (sc->phy_mode)
-	{
+	switch (sc->phy_mode) {
 	case MII_CONTYPE_RGMII:
 	case MII_CONTYPE_RGMII_ID:
 	case MII_CONTYPE_RGMII_RXID:
@@ -834,9 +820,9 @@ gen_init_locked(struct gen_softc *sc)
 static void
 gen_init(void *softc)
 {
-        struct gen_softc *sc;
+	struct gen_softc *sc;
 
-        sc = softc;
+	sc = softc;
 	GEN_LOCK(sc);
 	gen_init_locked(sc);
 	GEN_UNLOCK(sc);
@@ -861,7 +847,7 @@ gen_setup_multi(void *arg, struct sockaddr_dl *sdl, u_int count)
 
 	/* "count + 2" to account for unicast and broadcast */
 	gen_setup_rxfilter_mdf(sc, count + 2, LLADDR(sdl));
-	return (1);		/* increment to count */
+	return (1); /* increment to count */
 }
 
 static void
@@ -887,16 +873,16 @@ gen_setup_rxfilter(struct gen_softc *sc)
 	else
 		ifp->if_flags &= ~IFF_ALLMULTI;
 
-	if ((ifp->if_flags & (IFF_PROMISC|IFF_ALLMULTI)) != 0) {
+	if ((ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
 		cmd |= GENET_UMAC_CMD_PROMISC;
 		mdf_ctrl = 0;
 	} else {
 		cmd &= ~GENET_UMAC_CMD_PROMISC;
 		gen_setup_rxfilter_mdf(sc, 0, ether_broadcastaddr);
 		gen_setup_rxfilter_mdf(sc, 1, IF_LLADDR(ifp));
-		(void) if_foreach_llmaddr(ifp, gen_setup_multi, sc);
-		mdf_ctrl = (__BIT(GENET_MAX_MDF_FILTER) - 1)  &~
-		    (__BIT(GENET_MAX_MDF_FILTER - n) - 1);
+		(void)if_foreach_llmaddr(ifp, gen_setup_multi, sc);
+		mdf_ctrl = (__BIT(GENET_MAX_MDF_FILTER) - 1) &
+		    ~(__BIT(GENET_MAX_MDF_FILTER - n) - 1);
 	}
 
 	WR4(sc, GENET_UMAC_CMD, cmd);
@@ -938,11 +924,11 @@ gen_start_locked(struct gen_softc *sc)
 
 	ifp = sc->ifp;
 
-	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
 
-	for (cnt = 0; ; cnt++) {
+	for (cnt = 0;; cnt++) {
 		m = if_dequeue(ifp);
 		if (m == NULL)
 			break;
@@ -974,7 +960,7 @@ gen_start(if_t ifp)
 }
 
 /* Test for any delayed checksum */
-#define CSUM_DELAY_ANY	(CSUM_TCP | CSUM_UDP | CSUM_IP6_TCP | CSUM_IP6_UDP)
+#define CSUM_DELAY_ANY (CSUM_TCP | CSUM_UDP | CSUM_IP6_TCP | CSUM_IP6_UDP)
 
 static int
 gen_encap(struct gen_softc *sc, struct mbuf **mp)
@@ -1004,16 +990,16 @@ gen_encap(struct gen_softc *sc, struct mbuf **mp)
 	 * ether_header + ip6_header + icmp6_hdr seems to work for both
 	 * ICMPv6 and TCP over IPv6.
 	 */
-#define IP6_PULLUP_LEN (sizeof(struct ether_header) + \
-		        sizeof(struct ip6_hdr) + 8)
+#define IP6_PULLUP_LEN \
+	(sizeof(struct ether_header) + sizeof(struct ip6_hdr) + 8)
 	if (m->m_len == sizeof(struct ether_header)) {
 		int ether_type = mtod(m, struct ether_header *)->ether_type;
 		if (ntohs(ether_type) == ETHERTYPE_IPV6) {
 			m = m_pullup(m, MIN(m->m_pkthdr.len, IP6_PULLUP_LEN));
 			if (m == NULL) {
 				if (sc->ifp->if_flags & IFF_DEBUG)
-					device_printf(sc->dev,
-					    "IPV6 pullup fail\n");
+					device_printf(
+					    sc->dev, "IPV6 pullup fail\n");
 				*mp = NULL;
 				return (ENOMEM);
 			}
@@ -1050,28 +1036,28 @@ gen_encap(struct gen_softc *sc, struct mbuf **mp)
 	cur = first = q->cur;
 	ent = &q->entries[cur];
 	map = ent->map;
-	error = bus_dmamap_load_mbuf_sg(sc->tx_buf_tag, map, m, segs,
-	    &nsegs, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(
+	    sc->tx_buf_tag, map, m, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
 		m = m_collapse(m, M_NOWAIT, TX_MAX_SEGS);
 		if (m == NULL) {
-			device_printf(sc->dev,
-			    "gen_encap: m_collapse failed\n");
+			device_printf(
+			    sc->dev, "gen_encap: m_collapse failed\n");
 			m_freem(*mp);
 			*mp = NULL;
 			return (ENOMEM);
 		}
 		*mp = m;
-		error = bus_dmamap_load_mbuf_sg(sc->tx_buf_tag, map, m,
-		    segs, &nsegs, BUS_DMA_NOWAIT);
+		error = bus_dmamap_load_mbuf_sg(
+		    sc->tx_buf_tag, map, m, segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
 			m_freem(*mp);
 			*mp = NULL;
 		}
 	}
 	if (error != 0) {
-		device_printf(sc->dev,
-		    "gen_encap: bus_dmamap_load_mbuf_sg failed\n");
+		device_printf(
+		    sc->dev, "gen_encap: bus_dmamap_load_mbuf_sg failed\n");
 		return (error);
 	}
 	if (nsegs == 0) {
@@ -1106,8 +1092,8 @@ gen_encap(struct gen_softc *sc, struct mbuf **mp)
 		if (i == nsegs - 1)
 			length_status |= GENET_TX_DESC_STATUS_EOP;
 
-		length_status |= segs[i].ds_len <<
-		    GENET_TX_DESC_STATUS_BUFLEN_SHIFT;
+		length_status |= segs[i].ds_len
+		    << GENET_TX_DESC_STATUS_BUFLEN_SHIFT;
 
 		WR4(sc, GENET_TX_DESC_ADDRESS_LO(index),
 		    (uint32_t)segs[i].ds_addr);
@@ -1173,29 +1159,34 @@ gen_parse_tx(struct mbuf *m, int csum_flags)
  * is not at the beginning of that area, shift the status block (which
  * is empty) and following data.
  */
-#define COPY(size) {							\
-	int hsize = size;						\
-	if (copy) {							\
-		if (shift) {						\
-			u_char *p0;					\
-			shift = false;					\
-			p0 = mtodo(m0, sizeof(struct statusblock));	\
-			m0->m_data = m0->m_pktdat;			\
-			bcopy(p0, mtodo(m0, sizeof(struct statusblock)),\
-			    m0->m_len - sizeof(struct statusblock));	\
-			copy_p = mtodo(m0, sizeof(struct statusblock));	\
-		}							\
-		bcopy(p, copy_p, hsize);				\
-		m0->m_len += hsize;					\
-		m0->m_pkthdr.len += hsize;	/* unneeded */		\
-		m->m_len -= hsize;					\
-		m->m_data += hsize;					\
-	}								\
-	copy_p += hsize;						\
-}
+#define COPY(size)                                                           \
+	{                                                                    \
+		int hsize = size;                                            \
+		if (copy) {                                                  \
+			if (shift) {                                         \
+				u_char *p0;                                  \
+				shift = false;                               \
+				p0 = mtodo(m0, sizeof(struct statusblock));  \
+				m0->m_data = m0->m_pktdat;                   \
+				bcopy(p0,                                    \
+				    mtodo(m0, sizeof(struct statusblock)),   \
+				    m0->m_len - sizeof(struct statusblock)); \
+				copy_p = mtodo(                              \
+				    m0, sizeof(struct statusblock));         \
+			}                                                    \
+			bcopy(p, copy_p, hsize);                             \
+			m0->m_len += hsize;                                  \
+			m0->m_pkthdr.len += hsize; /* unneeded */            \
+			m->m_len -= hsize;                                   \
+			m->m_data += hsize;                                  \
+		}                                                            \
+		copy_p += hsize;                                             \
+	}
 
 	KASSERT((sizeof(struct statusblock) + sizeof(struct ether_vlan_header) +
-	    sizeof(struct ip6_hdr) <= MLEN), ("%s: mbuf too small", __func__));
+			sizeof(struct ip6_hdr) <=
+		    MLEN),
+	    ("%s: mbuf too small", __func__));
 
 	if (((struct ether_header *)p)->ether_type == htons(ETHERTYPE_VLAN)) {
 		offset = sizeof(struct ether_vlan_header);
@@ -1301,8 +1292,8 @@ gen_rxintr(struct gen_softc *sc, struct rx_queue *q)
 
 		/* check for errors */
 		if ((status &
-		    (GENET_RX_DESC_STATUS_SOP | GENET_RX_DESC_STATUS_EOP |
-		    GENET_RX_DESC_STATUS_RX_ERROR)) !=
+			(GENET_RX_DESC_STATUS_SOP | GENET_RX_DESC_STATUS_EOP |
+			    GENET_RX_DESC_STATUS_RX_ERROR)) !=
 		    (GENET_RX_DESC_STATUS_SOP | GENET_RX_DESC_STATUS_EOP)) {
 			if (ifp->if_flags & IFF_DEBUG)
 				device_printf(sc->dev,
@@ -1316,10 +1307,10 @@ gen_rxintr(struct gen_softc *sc, struct rx_queue *q)
 		if (error != 0) {
 			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			if (ifp->if_flags & IFF_DEBUG)
-				device_printf(sc->dev, "gen_newbuf_rx %d\n",
-				    error);
+				device_printf(
+				    sc->dev, "gen_newbuf_rx %d\n", error);
 			/* reuse previous mbuf */
-			(void) gen_mapbuf_rx(sc, q, index, m);
+			(void)gen_mapbuf_rx(sc, q, index, m);
 			continue;
 		}
 
@@ -1394,13 +1385,13 @@ gen_txintr(struct gen_softc *sc, struct tx_queue *q)
 
 	prog = 0;
 	for (i = q->next; q->queued > 0 && total > 0;
-	    i = TX_NEXT(i, q->nentries), total--) {
+	     i = TX_NEXT(i, q->nentries), total--) {
 		/* XXX check for errors */
 
 		ent = &q->entries[i];
 		if (ent->mbuf != NULL) {
-			bus_dmamap_sync(sc->tx_buf_tag, ent->map,
-			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_sync(
+			    sc->tx_buf_tag, ent->map, BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(sc->tx_buf_tag, ent->map);
 			m_freem(ent->mbuf);
 			ent->mbuf = NULL;
@@ -1443,16 +1434,16 @@ gen_newbuf_rx(struct gen_softc *sc, struct rx_queue *q, int index)
 }
 
 static int
-gen_mapbuf_rx(struct gen_softc *sc, struct rx_queue *q, int index,
-    struct mbuf *m)
+gen_mapbuf_rx(
+    struct gen_softc *sc, struct rx_queue *q, int index, struct mbuf *m)
 {
 	bus_dma_segment_t seg;
 	bus_dmamap_t map;
 	int nsegs;
 
 	map = q->entries[index].map;
-	if (bus_dmamap_load_mbuf_sg(sc->rx_buf_tag, map, m, &seg, &nsegs,
-	    BUS_DMA_NOWAIT) != 0) {
+	if (bus_dmamap_load_mbuf_sg(
+		sc->rx_buf_tag, map, m, &seg, &nsegs, BUS_DMA_NOWAIT) != 0) {
 		m_freem(m);
 		return (ENOBUFS);
 	}
@@ -1485,7 +1476,7 @@ gen_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		if (if_getflags(ifp) & IFF_UP) {
 			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 				flags = if_getflags(ifp) ^ sc->if_flags;
-				if ((flags & (IFF_PROMISC|IFF_ALLMULTI)) != 0)
+				if ((flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 					gen_setup_rxfilter(sc);
 			} else
 				gen_init_locked(sc);
@@ -1563,7 +1554,7 @@ gen_tick(void *softc)
 	callout_reset(&sc->stat_ch, hz, gen_tick, sc);
 }
 
-#define	MII_BUSY_RETRY		1000
+#define MII_BUSY_RETRY 1000
 
 static int
 gen_miibus_readreg(device_t dev, int phy, int reg)
@@ -1574,15 +1565,16 @@ gen_miibus_readreg(device_t dev, int phy, int reg)
 	sc = device_get_softc(dev);
 	val = 0;
 
-	WR4(sc, GENET_MDIO_CMD, GENET_MDIO_READ |
-	    (phy << GENET_MDIO_ADDR_SHIFT) | (reg << GENET_MDIO_REG_SHIFT));
+	WR4(sc, GENET_MDIO_CMD,
+	    GENET_MDIO_READ | (phy << GENET_MDIO_ADDR_SHIFT) |
+		(reg << GENET_MDIO_REG_SHIFT));
 	val = RD4(sc, GENET_MDIO_CMD);
 	WR4(sc, GENET_MDIO_CMD, val | GENET_MDIO_START_BUSY);
 	for (retry = MII_BUSY_RETRY; retry > 0; retry--) {
-		if (((val = RD4(sc, GENET_MDIO_CMD)) &
-		    GENET_MDIO_START_BUSY) == 0) {
+		if (((val = RD4(sc, GENET_MDIO_CMD)) & GENET_MDIO_START_BUSY) ==
+		    0) {
 			if (val & GENET_MDIO_READ_FAILED)
-				return (0);	/* -1? */
+				return (0); /* -1? */
 			val &= GENET_MDIO_VAL_MASK;
 			break;
 		}
@@ -1590,8 +1582,8 @@ gen_miibus_readreg(device_t dev, int phy, int reg)
 	}
 
 	if (retry == 0)
-		device_printf(dev, "phy read timeout, phy=%d reg=%d\n",
-		    phy, reg);
+		device_printf(
+		    dev, "phy read timeout, phy=%d reg=%d\n", phy, reg);
 
 	return (val);
 }
@@ -1604,9 +1596,9 @@ gen_miibus_writereg(device_t dev, int phy, int reg, int val)
 
 	sc = device_get_softc(dev);
 
-	WR4(sc, GENET_MDIO_CMD, GENET_MDIO_WRITE |
-	    (phy << GENET_MDIO_ADDR_SHIFT) | (reg << GENET_MDIO_REG_SHIFT) |
-	    (val & GENET_MDIO_VAL_MASK));
+	WR4(sc, GENET_MDIO_CMD,
+	    GENET_MDIO_WRITE | (phy << GENET_MDIO_ADDR_SHIFT) |
+		(reg << GENET_MDIO_REG_SHIFT) | (val & GENET_MDIO_VAL_MASK));
 	val = RD4(sc, GENET_MDIO_CMD);
 	WR4(sc, GENET_MDIO_CMD, val | GENET_MDIO_START_BUSY);
 	for (retry = MII_BUSY_RETRY; retry > 0; retry--) {
@@ -1616,8 +1608,8 @@ gen_miibus_writereg(device_t dev, int phy, int reg, int val)
 		DELAY(10);
 	}
 	if (retry == 0)
-		device_printf(dev, "phy write timeout, phy=%d reg=%d\n",
-		    phy, reg);
+		device_printf(
+		    dev, "phy write timeout, phy=%d reg=%d\n", phy, reg);
 
 	return (0);
 }
@@ -1734,13 +1726,13 @@ gen_media_change(if_t ifp)
 
 static device_method_t gen_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		gen_probe),
-	DEVMETHOD(device_attach,	gen_attach),
+	DEVMETHOD(device_probe, gen_probe),
+	DEVMETHOD(device_attach, gen_attach),
 
 	/* MII interface */
-	DEVMETHOD(miibus_readreg,	gen_miibus_readreg),
-	DEVMETHOD(miibus_writereg,	gen_miibus_writereg),
-	DEVMETHOD(miibus_statchg,	gen_miibus_statchg),
+	DEVMETHOD(miibus_readreg, gen_miibus_readreg),
+	DEVMETHOD(miibus_writereg, gen_miibus_writereg),
+	DEVMETHOD(miibus_statchg, gen_miibus_statchg),
 
 	DEVMETHOD_END
 };

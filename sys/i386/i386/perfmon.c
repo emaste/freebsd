@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -50,7 +50,7 @@ static int msr_ctl[NPMC];
 #endif
 static int msr_pmc[NPMC];
 static unsigned int ctl_shadow[NPMC];
-static quad_t pmc_shadow[NPMC];	/* used when ctr is stopped on P5 */
+static quad_t pmc_shadow[NPMC]; /* used when ctr is stopped on P5 */
 static int (*writectl)(int);
 #ifndef SMP
 static int writectl5(int);
@@ -58,11 +58,11 @@ static int writectl6(int);
 #endif
 
 static d_close_t perfmon_close;
-static d_open_t	perfmon_open;
+static d_open_t perfmon_open;
 static d_ioctl_t perfmon_ioctl;
 
 /*
- * XXX perfmon_init_dev(void *) is a split from the perfmon_init() funtion. 
+ * XXX perfmon_init_dev(void *) is a split from the perfmon_init() funtion.
  * This solves a problem for DEVFS users.  It loads the "perfmon" driver after
  * the DEVFS subsystem has been kicked into action.  The SI_ORDER_ANY is to
  * assure that it is the most lowest priority task which, guarantees the
@@ -72,12 +72,12 @@ static void perfmon_init_dev(void *);
 SYSINIT(cpu, SI_SUB_DRIVERS, SI_ORDER_ANY, perfmon_init_dev, NULL);
 
 static struct cdevsw perfmon_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
-	.d_open =	perfmon_open,
-	.d_close =	perfmon_close,
-	.d_ioctl =	perfmon_ioctl,
-	.d_name =	"perfmon",
+	.d_version = D_VERSION,
+	.d_flags = D_NEEDGIANT,
+	.d_open = perfmon_open,
+	.d_close = perfmon_close,
+	.d_ioctl = perfmon_ioctl,
+	.d_name = "perfmon",
 };
 
 /*
@@ -87,7 +87,7 @@ void
 perfmon_init(void)
 {
 #ifndef SMP
-	switch(cpu_class) {
+	switch (cpu_class) {
 	case CPUCLASS_586:
 		perfmon_cpuok = 1;
 		msr_ctl[0] = MSR_P5_CESR;
@@ -112,9 +112,7 @@ perfmon_init(void)
 #endif /* SMP */
 }
 
-static void
-perfmon_init_dev(dummy)
-	void *dummy;
+static void perfmon_init_dev(dummy) void *dummy;
 {
 	make_dev(&perfmon_cdevsw, 32, UID_ROOT, GID_KMEM, 0640, "perfmon");
 }
@@ -128,7 +126,7 @@ perfmon_avail(void)
 int
 perfmon_setup(int pmc, unsigned int control)
 {
-	register_t	saveintr;
+	register_t saveintr;
 
 	if (pmc < 0 || pmc >= NPMC)
 		return EINVAL;
@@ -153,7 +151,7 @@ perfmon_get(int pmc, unsigned int *control)
 		*control = ctl_shadow[pmc];
 		return 0;
 	}
-	return EBUSY;		/* XXX reversed sense */
+	return EBUSY; /* XXX reversed sense */
 }
 
 int
@@ -168,13 +166,13 @@ perfmon_fini(int pmc)
 		perfmon_inuse &= ~(1 << pmc);
 		return 0;
 	}
-	return EBUSY;		/* XXX reversed sense */
+	return EBUSY; /* XXX reversed sense */
 }
 
 int
 perfmon_start(int pmc)
 {
-	register_t	saveintr;
+	register_t saveintr;
 
 	if (pmc < 0 || pmc >= NPMC)
 		return EINVAL;
@@ -193,7 +191,7 @@ perfmon_start(int pmc)
 int
 perfmon_stop(int pmc)
 {
-	register_t	saveintr;
+	register_t saveintr;
 
 	if (pmc < 0 || pmc >= NPMC)
 		return EINVAL;
@@ -258,10 +256,10 @@ writectl6(int pmc)
 	return 0;
 }
 
-#define	P5FLAG_P	0x200
-#define	P5FLAG_E	0x100
-#define	P5FLAG_USR	0x80
-#define	P5FLAG_OS	0x40
+#define P5FLAG_P 0x200
+#define P5FLAG_E 0x100
+#define P5FLAG_USR 0x80
+#define P5FLAG_OS 0x40
 
 int
 writectl5(int pmc)
@@ -288,7 +286,7 @@ writectl5(int pmc)
 	}
 
 	wrmsr(msr_ctl[0], newval);
-	return 0;		/* XXX should check for unimplemented bits */
+	return 0; /* XXX should check for unimplemented bits */
 }
 #endif /* !SMP */
 
@@ -331,7 +329,8 @@ perfmon_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-perfmon_ioctl(struct cdev *dev, u_long cmd, caddr_t param, int flags, struct thread *td)
+perfmon_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t param, int flags, struct thread *td)
 {
 	struct pmc *pmc;
 	struct pmc_data *pmcd;
@@ -340,7 +339,7 @@ perfmon_ioctl(struct cdev *dev, u_long cmd, caddr_t param, int flags, struct thr
 	int *ip;
 	int rv;
 
-	switch(cmd) {
+	switch (cmd) {
 	case PMIOSETUP:
 		if (!(flags & FWRITE))
 			return EPERM;

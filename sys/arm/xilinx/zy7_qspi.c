@@ -38,12 +38,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/sysctl.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #include <machine/bus.h>
@@ -51,163 +51,158 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/flash/mx25lreg.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
 
-#include <dev/flash/mx25lreg.h>
-
 #include "spibus_if.h"
 
-static struct ofw_compat_data compat_data[] = {
-	{"xlnx,zy7_qspi",		1},
-	{"xlnx,zynq-qspi-1.0",		1},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "xlnx,zy7_qspi", 1 },
+	{ "xlnx,zynq-qspi-1.0", 1 }, { NULL, 0 } };
 
 struct zy7_qspi_softc {
-	device_t		dev;
-	device_t		child;
-	struct mtx		sc_mtx;
-	struct resource		*mem_res;
-	struct resource		*irq_res;
-	void			*intrhandle;
+	device_t dev;
+	device_t child;
+	struct mtx sc_mtx;
+	struct resource *mem_res;
+	struct resource *irq_res;
+	void *intrhandle;
 
-	uint32_t		cfg_reg_shadow;
-	uint32_t		lqspi_cfg_shadow;
-	uint32_t		spi_clock;
-	uint32_t		ref_clock;
-	unsigned int		spi_clk_real_freq;
-	unsigned int		rx_overflows;
-	unsigned int		tx_underflows;
-	unsigned int		interrupts;
-	unsigned int		stray_ints;
-	struct spi_command	*cmd;
-	int			tx_bytes;	/* tx_cmd_sz + tx_data_sz */
-	int			tx_bytes_sent;
-	int			rx_bytes;	/* rx_cmd_sz + rx_data_sz */
-	int			rx_bytes_rcvd;
-	int			busy;
-	int			is_dual;
-	int			is_stacked;
-	int			is_dio;
+	uint32_t cfg_reg_shadow;
+	uint32_t lqspi_cfg_shadow;
+	uint32_t spi_clock;
+	uint32_t ref_clock;
+	unsigned int spi_clk_real_freq;
+	unsigned int rx_overflows;
+	unsigned int tx_underflows;
+	unsigned int interrupts;
+	unsigned int stray_ints;
+	struct spi_command *cmd;
+	int tx_bytes; /* tx_cmd_sz + tx_data_sz */
+	int tx_bytes_sent;
+	int rx_bytes; /* rx_cmd_sz + rx_data_sz */
+	int rx_bytes_rcvd;
+	int busy;
+	int is_dual;
+	int is_stacked;
+	int is_dio;
 };
 
-#define ZY7_QSPI_DEFAULT_SPI_CLOCK	50000000
+#define ZY7_QSPI_DEFAULT_SPI_CLOCK 50000000
 
-#define QSPI_SC_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)
-#define	QSPI_SC_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
+#define QSPI_SC_LOCK(sc) mtx_lock(&(sc)->sc_mtx)
+#define QSPI_SC_UNLOCK(sc) mtx_unlock(&(sc)->sc_mtx)
 #define QSPI_SC_LOCK_INIT(sc) \
-	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev),	NULL, MTX_DEF)
-#define QSPI_SC_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->sc_mtx)
-#define QSPI_SC_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev), NULL, MTX_DEF)
+#define QSPI_SC_LOCK_DESTROY(sc) mtx_destroy(&(sc)->sc_mtx)
+#define QSPI_SC_ASSERT_LOCKED(sc) mtx_assert(&(sc)->sc_mtx, MA_OWNED)
 
-#define RD4(sc, off)		(bus_read_4((sc)->mem_res, (off)))
-#define WR4(sc, off, val)	(bus_write_4((sc)->mem_res, (off), (val)))
+#define RD4(sc, off) (bus_read_4((sc)->mem_res, (off)))
+#define WR4(sc, off, val) (bus_write_4((sc)->mem_res, (off), (val)))
 
 /*
  * QSPI device registers.
  * Reference: Zynq-7000 All Programmable SoC Technical Reference Manual.
  * (v1.12.2) July 1, 2018.  Xilinx doc UG585.
  */
-#define ZY7_QSPI_CONFIG_REG		0x0000
-#define   ZY7_QSPI_CONFIG_IFMODE		(1U << 31)
-#define   ZY7_QSPI_CONFIG_ENDIAN		(1 << 26)
-#define   ZY7_QSPI_CONFIG_HOLDB_DR		(1 << 19)
-#define   ZY7_QSPI_CONFIG_RSVD1			(1 << 17) /* must be 1 */
-#define   ZY7_QSPI_CONFIG_MANSTRT		(1 << 16)
-#define   ZY7_QSPI_CONFIG_MANSTRTEN		(1 << 15)
-#define   ZY7_QSPI_CONFIG_SSFORCE		(1 << 14)
-#define   ZY7_QSPI_CONFIG_PCS			(1 << 10)
-#define   ZY7_QSPI_CONFIG_REF_CLK		(1 << 8)
-#define   ZY7_QSPI_CONFIG_FIFO_WIDTH_MASK	(3 << 6)
-#define   ZY7_QSPI_CONFIG_FIFO_WIDTH32		(3 << 6)
-#define   ZY7_QSPI_CONFIG_BAUD_RATE_DIV_MASK	(7 << 3)
-#define   ZY7_QSPI_CONFIG_BAUD_RATE_DIV_SHIFT	3
-#define   ZY7_QSPI_CONFIG_BAUD_RATE_DIV(x)	((x) << 3) /* divide by 2<<x */
-#define   ZY7_QSPI_CONFIG_CLK_PH		(1 << 2)   /* clock phase */
-#define   ZY7_QSPI_CONFIG_CLK_POL		(1 << 1)   /* clock polarity */
-#define   ZY7_QSPI_CONFIG_MODE_SEL		(1 << 0)   /* master enable */
+#define ZY7_QSPI_CONFIG_REG 0x0000
+#define ZY7_QSPI_CONFIG_IFMODE (1U << 31)
+#define ZY7_QSPI_CONFIG_ENDIAN (1 << 26)
+#define ZY7_QSPI_CONFIG_HOLDB_DR (1 << 19)
+#define ZY7_QSPI_CONFIG_RSVD1 (1 << 17) /* must be 1 */
+#define ZY7_QSPI_CONFIG_MANSTRT (1 << 16)
+#define ZY7_QSPI_CONFIG_MANSTRTEN (1 << 15)
+#define ZY7_QSPI_CONFIG_SSFORCE (1 << 14)
+#define ZY7_QSPI_CONFIG_PCS (1 << 10)
+#define ZY7_QSPI_CONFIG_REF_CLK (1 << 8)
+#define ZY7_QSPI_CONFIG_FIFO_WIDTH_MASK (3 << 6)
+#define ZY7_QSPI_CONFIG_FIFO_WIDTH32 (3 << 6)
+#define ZY7_QSPI_CONFIG_BAUD_RATE_DIV_MASK (7 << 3)
+#define ZY7_QSPI_CONFIG_BAUD_RATE_DIV_SHIFT 3
+#define ZY7_QSPI_CONFIG_BAUD_RATE_DIV(x) ((x) << 3) /* divide by 2<<x */
+#define ZY7_QSPI_CONFIG_CLK_PH (1 << 2) /* clock phase */
+#define ZY7_QSPI_CONFIG_CLK_POL (1 << 1) /* clock polarity */
+#define ZY7_QSPI_CONFIG_MODE_SEL (1 << 0) /* master enable */
 
-#define ZY7_QSPI_INTR_STAT_REG		0x0004
-#define ZY7_QSPI_INTR_EN_REG		0x0008
-#define ZY7_QSPI_INTR_DIS_REG		0x000c
-#define ZY7_QSPI_INTR_MASK_REG		0x0010
-#define   ZY7_QSPI_INTR_TX_FIFO_UNDERFLOW	(1 << 6)
-#define   ZY7_QSPI_INTR_RX_FIFO_FULL		(1 << 5)
-#define   ZY7_QSPI_INTR_RX_FIFO_NOT_EMPTY	(1 << 4)
-#define   ZY7_QSPI_INTR_TX_FIFO_FULL		(1 << 3)
-#define   ZY7_QSPI_INTR_TX_FIFO_NOT_FULL	(1 << 2)
-#define   ZY7_QSPI_INTR_RX_OVERFLOW		(1 << 0)
+#define ZY7_QSPI_INTR_STAT_REG 0x0004
+#define ZY7_QSPI_INTR_EN_REG 0x0008
+#define ZY7_QSPI_INTR_DIS_REG 0x000c
+#define ZY7_QSPI_INTR_MASK_REG 0x0010
+#define ZY7_QSPI_INTR_TX_FIFO_UNDERFLOW (1 << 6)
+#define ZY7_QSPI_INTR_RX_FIFO_FULL (1 << 5)
+#define ZY7_QSPI_INTR_RX_FIFO_NOT_EMPTY (1 << 4)
+#define ZY7_QSPI_INTR_TX_FIFO_FULL (1 << 3)
+#define ZY7_QSPI_INTR_TX_FIFO_NOT_FULL (1 << 2)
+#define ZY7_QSPI_INTR_RX_OVERFLOW (1 << 0)
 
-#define ZY7_QSPI_EN_REG			0x0014
-#define   ZY7_SPI_ENABLE			1
+#define ZY7_QSPI_EN_REG 0x0014
+#define ZY7_SPI_ENABLE 1
 
-#define ZY7_QSPI_DELAY_REG		0x0018
-#define   ZY7_QSPI_DELAY_NSS_MASK		(0xffU << 24)
-#define   ZY7_QSPI_DELAY_NSS_SHIFT		24
-#define   ZY7_QSPI_DELAY_NSS(x)			((x) << 24)
-#define   ZY7_QSPI_DELAY_BTWN_MASK		(0xff << 16)
-#define   ZY7_QSPI_DELAY_BTWN_SHIFT		16
-#define   ZY7_QSPI_DELAY_BTWN(x)		((x) << 16)
-#define   ZY7_QSPI_DELAY_AFTER_MASK		(0xff << 8)
-#define   ZY7_QSPI_DELAY_AFTER_SHIFT		8
-#define   ZY7_QSPI_DELAY_AFTER(x)		((x) << 8)
-#define   ZY7_QSPI_DELAY_INIT_MASK		0xff
-#define   ZY7_QSPI_DELAY_INIT_SHIFT		0
-#define   ZY7_QSPI_DELAY_INIT(x)		(x)
+#define ZY7_QSPI_DELAY_REG 0x0018
+#define ZY7_QSPI_DELAY_NSS_MASK (0xffU << 24)
+#define ZY7_QSPI_DELAY_NSS_SHIFT 24
+#define ZY7_QSPI_DELAY_NSS(x) ((x) << 24)
+#define ZY7_QSPI_DELAY_BTWN_MASK (0xff << 16)
+#define ZY7_QSPI_DELAY_BTWN_SHIFT 16
+#define ZY7_QSPI_DELAY_BTWN(x) ((x) << 16)
+#define ZY7_QSPI_DELAY_AFTER_MASK (0xff << 8)
+#define ZY7_QSPI_DELAY_AFTER_SHIFT 8
+#define ZY7_QSPI_DELAY_AFTER(x) ((x) << 8)
+#define ZY7_QSPI_DELAY_INIT_MASK 0xff
+#define ZY7_QSPI_DELAY_INIT_SHIFT 0
+#define ZY7_QSPI_DELAY_INIT(x) (x)
 
-#define ZY7_QSPI_TXD0_REG		0x001c
-#define ZY7_QSPI_RX_DATA_REG		0x0020
+#define ZY7_QSPI_TXD0_REG 0x001c
+#define ZY7_QSPI_RX_DATA_REG 0x0020
 
-#define ZY7_QSPI_SLV_IDLE_CT_REG	0x0024
-#define   ZY7_QSPI_SLV_IDLE_CT_MASK		0xff
+#define ZY7_QSPI_SLV_IDLE_CT_REG 0x0024
+#define ZY7_QSPI_SLV_IDLE_CT_MASK 0xff
 
-#define ZY7_QSPI_TX_THRESH_REG		0x0028
-#define ZY7_QSPI_RX_THRESH_REG		0x002c
+#define ZY7_QSPI_TX_THRESH_REG 0x0028
+#define ZY7_QSPI_RX_THRESH_REG 0x002c
 
-#define ZY7_QSPI_GPIO_REG		0x0030
-#define   ZY7_QSPI_GPIO_WP_N			1
+#define ZY7_QSPI_GPIO_REG 0x0030
+#define ZY7_QSPI_GPIO_WP_N 1
 
-#define ZY7_QSPI_LPBK_DLY_ADJ_REG	0x0038
-#define   ZY7_QSPI_LPBK_DLY_ADJ_LPBK_SEL	(1 << 8)
-#define   ZY7_QSPI_LPBK_DLY_ADJ_LPBK_PH		(1 << 7)
-#define   ZY7_QSPI_LPBK_DLY_ADJ_USE_LPBK	(1 << 5)
-#define   ZY7_QSPI_LPBK_DLY_ADJ_DLY1_MASK	(3 << 3)
-#define   ZY7_QSPI_LPBK_DLY_ADJ_DLY1_SHIFT	3
-#define   ZY7_QSPI_LPBK_DLY_ADJ_DLY1(x)		((x) << 3)
-#define   ZY7_QSPI_LPBK_DLY_ADJ_DLY0_MASK	7
-#define   ZY7_QSPI_LPBK_DLY_ADJ_DLY0_SHIFT	0
-#define   ZY7_QSPI_LPBK_DLY_ADJ_DLY0(x)		(x)
+#define ZY7_QSPI_LPBK_DLY_ADJ_REG 0x0038
+#define ZY7_QSPI_LPBK_DLY_ADJ_LPBK_SEL (1 << 8)
+#define ZY7_QSPI_LPBK_DLY_ADJ_LPBK_PH (1 << 7)
+#define ZY7_QSPI_LPBK_DLY_ADJ_USE_LPBK (1 << 5)
+#define ZY7_QSPI_LPBK_DLY_ADJ_DLY1_MASK (3 << 3)
+#define ZY7_QSPI_LPBK_DLY_ADJ_DLY1_SHIFT 3
+#define ZY7_QSPI_LPBK_DLY_ADJ_DLY1(x) ((x) << 3)
+#define ZY7_QSPI_LPBK_DLY_ADJ_DLY0_MASK 7
+#define ZY7_QSPI_LPBK_DLY_ADJ_DLY0_SHIFT 0
+#define ZY7_QSPI_LPBK_DLY_ADJ_DLY0(x) (x)
 
-#define ZY7_QSPI_TXD1_REG		0x0080
-#define ZY7_QSPI_TXD2_REG		0x0084
-#define ZY7_QSPI_TXD3_REG		0x0088
+#define ZY7_QSPI_TXD1_REG 0x0080
+#define ZY7_QSPI_TXD2_REG 0x0084
+#define ZY7_QSPI_TXD3_REG 0x0088
 
-#define ZY7_QSPI_LQSPI_CFG_REG		0x00a0
-#define   ZY7_QSPI_LQSPI_CFG_LINEAR		(1U << 31)
-#define   ZY7_QSPI_LQSPI_CFG_TWO_MEM		(1 << 30)
-#define   ZY7_QSPI_LQSPI_CFG_SEP_BUS		(1 << 29)
-#define   ZY7_QSPI_LQSPI_CFG_U_PAGE		(1 << 28)
-#define   ZY7_QSPI_LQSPI_CFG_MODE_EN		(1 << 25)
-#define   ZY7_QSPI_LQSPI_CFG_MODE_ON		(1 << 24)
-#define   ZY7_QSPI_LQSPI_CFG_MODE_BITS_MASK	(0xff << 16)
-#define   ZY7_QSPI_LQSPI_CFG_MODE_BITS_SHIFT	16
-#define   ZY7_QSPI_LQSPI_CFG_MODE_BITS(x)	((x) << 16)
-#define   ZY7_QSPI_LQSPI_CFG_DUMMY_BYTES_MASK	(7 << 8)
-#define   ZY7_QSPI_LQSPI_CFG_DUMMY_BYTES_SHIFT	8
-#define   ZY7_QSPI_LQSPI_CFG_DUMMY_BYTES(x)	((x) << 8)
-#define   ZY7_QSPI_LQSPI_CFG_INST_CODE_MASK	0xff
-#define   ZY7_QSPI_LQSPI_CFG_INST_CODE_SHIFT	0
-#define   ZY7_QSPI_LQSPI_CFG_INST_CODE(x)	(x)
+#define ZY7_QSPI_LQSPI_CFG_REG 0x00a0
+#define ZY7_QSPI_LQSPI_CFG_LINEAR (1U << 31)
+#define ZY7_QSPI_LQSPI_CFG_TWO_MEM (1 << 30)
+#define ZY7_QSPI_LQSPI_CFG_SEP_BUS (1 << 29)
+#define ZY7_QSPI_LQSPI_CFG_U_PAGE (1 << 28)
+#define ZY7_QSPI_LQSPI_CFG_MODE_EN (1 << 25)
+#define ZY7_QSPI_LQSPI_CFG_MODE_ON (1 << 24)
+#define ZY7_QSPI_LQSPI_CFG_MODE_BITS_MASK (0xff << 16)
+#define ZY7_QSPI_LQSPI_CFG_MODE_BITS_SHIFT 16
+#define ZY7_QSPI_LQSPI_CFG_MODE_BITS(x) ((x) << 16)
+#define ZY7_QSPI_LQSPI_CFG_DUMMY_BYTES_MASK (7 << 8)
+#define ZY7_QSPI_LQSPI_CFG_DUMMY_BYTES_SHIFT 8
+#define ZY7_QSPI_LQSPI_CFG_DUMMY_BYTES(x) ((x) << 8)
+#define ZY7_QSPI_LQSPI_CFG_INST_CODE_MASK 0xff
+#define ZY7_QSPI_LQSPI_CFG_INST_CODE_SHIFT 0
+#define ZY7_QSPI_LQSPI_CFG_INST_CODE(x) (x)
 
-#define ZY7_QSPI_LQSPI_STS_REG		0x00a4
-#define   ZY7_QSPI_LQSPI_STS_D_FSM_ERR		(1 << 2)
-#define   ZY7_QSPI_LQSPI_STS_WR_RECVD		(1 << 1)
+#define ZY7_QSPI_LQSPI_STS_REG 0x00a4
+#define ZY7_QSPI_LQSPI_STS_D_FSM_ERR (1 << 2)
+#define ZY7_QSPI_LQSPI_STS_WR_RECVD (1 << 1)
 
-#define ZY7_QSPI_MOD_ID_REG		0x00fc
+#define ZY7_QSPI_MOD_ID_REG 0x00fc
 
 static int zy7_qspi_detach(device_t);
 
@@ -227,26 +222,28 @@ zy7_qspi_write_fifo(struct zy7_qspi_softc *sc, int nbytes)
 		 * empty before writing partial words.  We'll come back
 		 * next tx interrupt.
 		 */
-		if (nvalid < 4 && (RD4(sc, ZY7_QSPI_INTR_STAT_REG) &
-		    ZY7_QSPI_INTR_TX_FIFO_NOT_FULL) == 0)
+		if (nvalid < 4 &&
+		    (RD4(sc, ZY7_QSPI_INTR_STAT_REG) &
+			ZY7_QSPI_INTR_TX_FIFO_NOT_FULL) == 0)
 			return;
 
 		if (sc->tx_bytes_sent < sc->cmd->tx_cmd_sz) {
 			/* Writing command. */
-			n = MIN(nvalid, sc->cmd->tx_cmd_sz -
-			    sc->tx_bytes_sent);
-			memcpy(&data, (uint8_t *)sc->cmd->tx_cmd +
-			    sc->tx_bytes_sent, n);
+			n = MIN(nvalid, sc->cmd->tx_cmd_sz - sc->tx_bytes_sent);
+			memcpy(&data,
+			    (uint8_t *)sc->cmd->tx_cmd + sc->tx_bytes_sent, n);
 
 			if (nvalid > n) {
 				/* Writing start of data. */
-				memcpy((uint8_t *)&data + n,
-				    sc->cmd->tx_data, nvalid - n);
+				memcpy((uint8_t *)&data + n, sc->cmd->tx_data,
+				    nvalid - n);
 			}
 		} else
 			/* Writing data. */
-			memcpy(&data, (uint8_t *)sc->cmd->tx_data +
-			    (sc->tx_bytes_sent - sc->cmd->tx_cmd_sz), nvalid);
+			memcpy(&data,
+			    (uint8_t *)sc->cmd->tx_data +
+				(sc->tx_bytes_sent - sc->cmd->tx_cmd_sz),
+			    nvalid);
 
 		switch (nvalid) {
 		case 1:
@@ -288,8 +285,7 @@ zy7_qspi_read_fifo(struct zy7_qspi_softc *sc)
 
 		if (sc->rx_bytes_rcvd < sc->cmd->rx_cmd_sz) {
 			/* Reading command. */
-			n = MIN(nbytes, sc->cmd->rx_cmd_sz -
-			    sc->rx_bytes_rcvd);
+			n = MIN(nbytes, sc->cmd->rx_cmd_sz - sc->rx_bytes_rcvd);
 			memcpy((uint8_t *)sc->cmd->rx_cmd + sc->rx_bytes_rcvd,
 			    &data, n);
 			sc->rx_bytes_rcvd += n;
@@ -300,14 +296,14 @@ zy7_qspi_read_fifo(struct zy7_qspi_softc *sc)
 		if (nbytes > 0) {
 			/* Reading data. */
 			memcpy((uint8_t *)sc->cmd->rx_data +
-			    (sc->rx_bytes_rcvd - sc->cmd->rx_cmd_sz),
+				(sc->rx_bytes_rcvd - sc->cmd->rx_cmd_sz),
 			    &data, nbytes);
 			sc->rx_bytes_rcvd += nbytes;
 		}
 
 	} while (sc->rx_bytes_rcvd < sc->rx_bytes &&
-		 (RD4(sc, ZY7_QSPI_INTR_STAT_REG) &
-		  ZY7_QSPI_INTR_RX_FIFO_NOT_EMPTY) != 0);
+	    (RD4(sc, ZY7_QSPI_INTR_STAT_REG) &
+		ZY7_QSPI_INTR_RX_FIFO_NOT_EMPTY) != 0);
 }
 
 /* End a transfer early by draining rx fifo and disabling interrupts. */
@@ -316,14 +312,13 @@ zy7_qspi_abort_transfer(struct zy7_qspi_softc *sc)
 {
 	/* Drain receive fifo. */
 	while ((RD4(sc, ZY7_QSPI_INTR_STAT_REG) &
-		ZY7_QSPI_INTR_RX_FIFO_NOT_EMPTY) != 0)
+		   ZY7_QSPI_INTR_RX_FIFO_NOT_EMPTY) != 0)
 		(void)RD4(sc, ZY7_QSPI_RX_DATA_REG);
 
 	/* Shut down interrupts. */
 	WR4(sc, ZY7_QSPI_INTR_DIS_REG,
-	    ZY7_QSPI_INTR_RX_OVERFLOW |
-	    ZY7_QSPI_INTR_RX_FIFO_NOT_EMPTY |
-	    ZY7_QSPI_INTR_TX_FIFO_NOT_FULL);
+	    ZY7_QSPI_INTR_RX_OVERFLOW | ZY7_QSPI_INTR_RX_FIFO_NOT_EMPTY |
+		ZY7_QSPI_INTR_TX_FIFO_NOT_FULL);
 }
 
 static void
@@ -350,8 +345,7 @@ zy7_qspi_intr(void *arg)
 		sc->rx_overflows++;
 
 		/* Clear status bit. */
-		WR4(sc, ZY7_QSPI_INTR_STAT_REG,
-		    ZY7_QSPI_INTR_RX_OVERFLOW);
+		WR4(sc, ZY7_QSPI_INTR_STAT_REG, ZY7_QSPI_INTR_RX_OVERFLOW);
 	}
 
 	/* Empty receive fifo before any more transmit data is sent. */
@@ -362,7 +356,7 @@ zy7_qspi_intr(void *arg)
 			/* Disable receive interrupts. */
 			WR4(sc, ZY7_QSPI_INTR_DIS_REG,
 			    ZY7_QSPI_INTR_RX_FIFO_NOT_EMPTY |
-			    ZY7_QSPI_INTR_RX_OVERFLOW);
+				ZY7_QSPI_INTR_RX_OVERFLOW);
 	}
 
 	/*
@@ -381,8 +375,8 @@ zy7_qspi_intr(void *arg)
 	/* Fill transmit fifo. */
 	if (sc->tx_bytes_sent < sc->tx_bytes &&
 	    (istatus & ZY7_QSPI_INTR_TX_FIFO_NOT_FULL) != 0) {
-		zy7_qspi_write_fifo(sc, MIN(240, sc->tx_bytes -
-			sc->tx_bytes_sent));
+		zy7_qspi_write_fifo(
+		    sc, MIN(240, sc->tx_bytes - sc->tx_bytes_sent));
 
 		if (sc->tx_bytes_sent == sc->tx_bytes) {
 			/*
@@ -418,16 +412,15 @@ zy7_qspi_init_hw(struct zy7_qspi_softc *sc)
 	/* Configure LQSPI Config register.  Disable linear mode. */
 	sc->lqspi_cfg_shadow = RD4(sc, ZY7_QSPI_LQSPI_CFG_REG);
 	sc->lqspi_cfg_shadow &= ~(ZY7_QSPI_LQSPI_CFG_LINEAR |
-				  ZY7_QSPI_LQSPI_CFG_TWO_MEM |
-				  ZY7_QSPI_LQSPI_CFG_SEP_BUS);
+	    ZY7_QSPI_LQSPI_CFG_TWO_MEM | ZY7_QSPI_LQSPI_CFG_SEP_BUS);
 	if (sc->is_dual) {
 		sc->lqspi_cfg_shadow |= ZY7_QSPI_LQSPI_CFG_TWO_MEM;
 		if (sc->is_stacked) {
 			sc->lqspi_cfg_shadow &=
 			    ~ZY7_QSPI_LQSPI_CFG_INST_CODE_MASK;
-			sc->lqspi_cfg_shadow |=
-			    ZY7_QSPI_LQSPI_CFG_INST_CODE(sc->is_dio ?
-				CMD_READ_DUAL_IO : CMD_READ_QUAD_OUTPUT);
+			sc->lqspi_cfg_shadow |= ZY7_QSPI_LQSPI_CFG_INST_CODE(
+			    sc->is_dio ? CMD_READ_DUAL_IO :
+					       CMD_READ_QUAD_OUTPUT);
 		} else
 			sc->lqspi_cfg_shadow |= ZY7_QSPI_LQSPI_CFG_SEP_BUS;
 	}
@@ -435,12 +428,14 @@ zy7_qspi_init_hw(struct zy7_qspi_softc *sc)
 
 	/* Find best clock divider. */
 	baud_div = 0;
-	while ((sc->ref_clock >> (baud_div + 1)) > sc->spi_clock &&
-	       baud_div < 8)
+	while (
+	    (sc->ref_clock >> (baud_div + 1)) > sc->spi_clock && baud_div < 8)
 		baud_div++;
 	if (baud_div >= 8) {
-		device_printf(sc->dev, "cannot configure clock divider: ref=%d"
-		    " spi=%d.\n", sc->ref_clock, sc->spi_clock);
+		device_printf(sc->dev,
+		    "cannot configure clock divider: ref=%d"
+		    " spi=%d.\n",
+		    sc->ref_clock, sc->spi_clock);
 		return (EINVAL);
 	}
 	sc->spi_clk_real_freq = sc->ref_clock >> (baud_div + 1);
@@ -452,21 +447,16 @@ zy7_qspi_init_hw(struct zy7_qspi_softc *sc)
 	if (baud_div == 0)
 		WR4(sc, ZY7_QSPI_LPBK_DLY_ADJ_REG,
 		    ZY7_QSPI_LPBK_DLY_ADJ_USE_LPBK |
-		    ZY7_QSPI_LPBK_DLY_ADJ_DLY1(0) |
-		    ZY7_QSPI_LPBK_DLY_ADJ_DLY0(0));
+			ZY7_QSPI_LPBK_DLY_ADJ_DLY1(0) |
+			ZY7_QSPI_LPBK_DLY_ADJ_DLY0(0));
 	else
 		WR4(sc, ZY7_QSPI_LPBK_DLY_ADJ_REG, 0);
 
 	/* Set up configuration register. */
-	sc->cfg_reg_shadow =
-		ZY7_QSPI_CONFIG_IFMODE |
-		ZY7_QSPI_CONFIG_HOLDB_DR |
-		ZY7_QSPI_CONFIG_RSVD1 |
-		ZY7_QSPI_CONFIG_SSFORCE |
-		ZY7_QSPI_CONFIG_PCS |
-		ZY7_QSPI_CONFIG_FIFO_WIDTH32 |
-		ZY7_QSPI_CONFIG_BAUD_RATE_DIV(baud_div) |
-		ZY7_QSPI_CONFIG_MODE_SEL;
+	sc->cfg_reg_shadow = ZY7_QSPI_CONFIG_IFMODE | ZY7_QSPI_CONFIG_HOLDB_DR |
+	    ZY7_QSPI_CONFIG_RSVD1 | ZY7_QSPI_CONFIG_SSFORCE |
+	    ZY7_QSPI_CONFIG_PCS | ZY7_QSPI_CONFIG_FIFO_WIDTH32 |
+	    ZY7_QSPI_CONFIG_BAUD_RATE_DIV(baud_div) | ZY7_QSPI_CONFIG_MODE_SEL;
 	WR4(sc, ZY7_QSPI_CONFIG_REG, sc->cfg_reg_shadow);
 
 	/*
@@ -558,7 +548,7 @@ zy7_qspi_attach(device_t dev)
 		sc->is_dual = 1;
 		sc->is_stacked = 1;
 	} else if (OF_getprop(node, "is-dual", &cell, sizeof(cell)) > 0 &&
-		   fdt32_to_cpu(cell) != 0)
+	    fdt32_to_cpu(cell) != 0)
 		sc->is_dual = 1;
 	if (OF_getprop(node, "is-dio", &cell, sizeof(cell)) > 0 &&
 	    fdt32_to_cpu(cell) != 0)
@@ -566,8 +556,8 @@ zy7_qspi_attach(device_t dev)
 
 	/* Get memory resource. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "could not allocate memory resources.\n");
 		zy7_qspi_detach(dev);
@@ -576,8 +566,7 @@ zy7_qspi_attach(device_t dev)
 
 	/* Allocate IRQ. */
 	rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "could not allocate IRQ resource.\n");
 		zy7_qspi_detach(dev);
@@ -636,8 +625,8 @@ zy7_qspi_detach(device_t dev)
 	if (sc->irq_res != NULL) {
 		if (sc->intrhandle)
 			bus_teardown_intr(dev, sc->irq_res, sc->intrhandle);
-		bus_release_resource(dev, SYS_RES_IRQ,
-		    rman_get_rid(sc->irq_res), sc->irq_res);
+		bus_release_resource(
+		    dev, SYS_RES_IRQ, rman_get_rid(sc->irq_res), sc->irq_res);
 	}
 
 	/* Release memory resource. */
@@ -669,8 +658,10 @@ zy7_qspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	    ("TX/RX data sizes should be equal"));
 
 	if (sc->is_dual && cmd->tx_data_sz % 2 != 0) {
-		device_printf(dev, "driver does not support odd byte data "
-		    "transfers in dual mode. (sz=%d)\n", cmd->tx_data_sz);
+		device_printf(dev,
+		    "driver does not support odd byte data "
+		    "transfers in dual mode. (sz=%d)\n",
+		    cmd->tx_data_sz);
 		return (EINVAL);
 	}
 
@@ -695,10 +686,9 @@ zy7_qspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	/* Enable interrupts.  zy7_qspi_intr() will handle transfer. */
 	WR4(sc, ZY7_QSPI_INTR_EN_REG,
-	    ZY7_QSPI_INTR_TX_FIFO_NOT_FULL |
-	    ZY7_QSPI_INTR_RX_OVERFLOW);
+	    ZY7_QSPI_INTR_TX_FIFO_NOT_FULL | ZY7_QSPI_INTR_RX_OVERFLOW);
 
-#ifdef SPI_XFER_U_PAGE	/* XXX: future support for stacked memories. */
+#ifdef SPI_XFER_U_PAGE /* XXX: future support for stacked memories. */
 	if (sc->is_stacked) {
 		if ((cmd->flags & SPI_XFER_U_PAGE) != 0)
 			sc->lqspi_cfg_shadow |= ZY7_QSPI_LQSPI_CFG_U_PAGE;
@@ -728,15 +718,15 @@ zy7_qspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 static device_method_t zy7_qspi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		zy7_qspi_probe),
-	DEVMETHOD(device_attach,	zy7_qspi_attach),
-	DEVMETHOD(device_detach,	zy7_qspi_detach),
+	DEVMETHOD(device_probe, zy7_qspi_probe),
+	DEVMETHOD(device_attach, zy7_qspi_attach),
+	DEVMETHOD(device_detach, zy7_qspi_detach),
 
 	/* SPI interface */
-	DEVMETHOD(spibus_transfer,	zy7_qspi_transfer),
+	DEVMETHOD(spibus_transfer, zy7_qspi_transfer),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	zy7_qspi_get_node),
+	DEVMETHOD(ofw_bus_get_node, zy7_qspi_get_node),
 
 	DEVMETHOD_END
 };
@@ -749,6 +739,7 @@ static driver_t zy7_qspi_driver = {
 static devclass_t zy7_qspi_devclass;
 
 DRIVER_MODULE(zy7_qspi, simplebus, zy7_qspi_driver, zy7_qspi_devclass, 0, 0);
-DRIVER_MODULE(ofw_spibus, zy7_qspi, ofw_spibus_driver, ofw_spibus_devclass, 0, 0);
+DRIVER_MODULE(
+    ofw_spibus, zy7_qspi, ofw_spibus_driver, ofw_spibus_devclass, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);
 MODULE_DEPEND(zy7_qspi, ofw_spibus, 1, 1, 1);

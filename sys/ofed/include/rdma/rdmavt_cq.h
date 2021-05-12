@@ -60,7 +60,7 @@
  * Define an ib_cq_notify value that is not valid so we know when CQ
  * notifications are armed.
  */
-#define RVT_CQ_NONE      (IB_CQ_NEXT_COMP + 1)
+#define RVT_CQ_NONE (IB_CQ_NEXT_COMP + 1)
 
 /*
  * This structure is used to contain the head pointer, tail pointer,
@@ -68,8 +68,8 @@
  * it can be mmap'ed into user space.
  */
 struct rvt_cq_wc {
-	u32 head;               /* index of next entry to fill */
-	u32 tail;               /* index of next ib_poll_cq() entry */
+	u32 head; /* index of next entry to fill */
+	u32 tail; /* index of next ib_poll_cq() entry */
 	union {
 		/* these are actually size ibcq.cqe + 1 */
 		struct ib_uverbs_wc uqueue[0];
@@ -91,11 +91,12 @@ struct rvt_cq {
 	struct rvt_mmap_info *ip;
 };
 
-static inline struct rvt_cq *ibcq_to_rvtcq(struct ib_cq *ibcq)
+static inline struct rvt_cq *
+ibcq_to_rvtcq(struct ib_cq *ibcq)
 {
 	return container_of(ibcq, struct rvt_cq, ibcq);
 }
 
 void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited);
 
-#endif          /* DEF_RDMAVT_INCCQH */
+#endif /* DEF_RDMAVT_INCCQH */

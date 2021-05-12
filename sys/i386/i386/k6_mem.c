@@ -30,8 +30,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
 
@@ -50,31 +50,25 @@ __FBSDID("$FreeBSD$");
  * There are two of these in the 64-bit UWCCR.
  */
 
-#define	UWCCR 0xc0000085
+#define UWCCR 0xc0000085
 
-#define	K6_REG_GET(reg, addr, mask, wc, uc) do {			\
-		addr = (reg) & 0xfffe0000;				\
-		mask = ((reg) & 0x1fffc) >> 2;				\
-		wc = ((reg) & 0x2) >> 1;				\
-		uc = (reg) & 0x1;					\
+#define K6_REG_GET(reg, addr, mask, wc, uc)  \
+	do {                                 \
+		addr = (reg)&0xfffe0000;     \
+		mask = ((reg)&0x1fffc) >> 2; \
+		wc = ((reg)&0x2) >> 1;       \
+		uc = (reg)&0x1;              \
 	} while (0)
 
-#define	K6_REG_MAKE(addr, mask, wc, uc) 				\
+#define K6_REG_MAKE(addr, mask, wc, uc) \
 	((addr) | ((mask) << 2) | ((wc) << 1) | uc)
 
-static void	k6_mrinit(struct mem_range_softc *sc);
-static int	k6_mrset(struct mem_range_softc *, struct mem_range_desc *,
-		    int *);
+static void k6_mrinit(struct mem_range_softc *sc);
+static int k6_mrset(struct mem_range_softc *, struct mem_range_desc *, int *);
 static __inline int k6_mrmake(struct mem_range_desc *, u_int32_t *);
-static void	k6_mem_drvinit(void *);
+static void k6_mem_drvinit(void *);
 
-static struct mem_range_ops k6_mrops =
-{
-	k6_mrinit,
-	k6_mrset,
-	NULL,
-	NULL
-};
+static struct mem_range_ops k6_mrops = { k6_mrinit, k6_mrset, NULL, NULL };
 
 static __inline int
 k6_mrmake(struct mem_range_desc *desc, u_int32_t *mtrr)
@@ -82,15 +76,15 @@ k6_mrmake(struct mem_range_desc *desc, u_int32_t *mtrr)
 	u_int32_t len = 0, wc, uc;
 	int bit;
 
-	if (desc->mr_base &~ 0xfffe0000)
+	if (desc->mr_base & ~0xfffe0000)
 		return (EINVAL);
 	if (desc->mr_len < 131072 || !powerof2(desc->mr_len))
 		return (EINVAL);
-	if (desc->mr_flags &~ (MDF_WRITECOMBINE|MDF_UNCACHEABLE|MDF_FORCE))
+	if (desc->mr_flags & ~(MDF_WRITECOMBINE | MDF_UNCACHEABLE | MDF_FORCE))
 		return (EOPNOTSUPP);
 
 	for (bit = ffs(desc->mr_len >> 17) - 1; bit < 15; bit++)
-		len |= 1 << bit; 
+		len |= 1 << bit;
 	wc = (desc->mr_flags & MDF_WRITECOMBINE) ? 1 : 0;
 	uc = (desc->mr_flags & MDF_UNCACHEABLE) ? 1 : 0;
 
@@ -162,7 +156,7 @@ k6_mrset(struct mem_range_softc *sc, struct mem_range_desc *desc, int *arg)
 	default:
 		return (EOPNOTSUPP);
 	}
-out:	
+out:
 	disable_intr();
 	wbinvd();
 	reg = rdmsr(UWCCR);

@@ -4,27 +4,27 @@
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
+ * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * - Redistributions of source code must retain the above copyright notice, 
+ * - Redistributions of source code must retain the above copyright notice,
  *   this list of conditions and the following disclaimer.
- * - Redistributions in binary form must reproduce the above copyright notice, 
- *   this list of conditions and the following disclaimer in the documentation 
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
  *   and/or other materials provided with the distribution.
- * - Neither the name of Sun Microsystems, Inc. nor the names of its 
- *   contributors may be used to endorse or promote products derived 
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
@@ -35,7 +35,7 @@ static char sccsid3[] = "@(#)clnt_vc.c 1.19 89/03/16 Copyr 1988 Sun Micro";
 #endif
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
- 
+
 /*
  * clnt_tcp.c, Implements a TCP/IP based, client side RPC.
  *
@@ -81,17 +81,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <net/vnet.h>
-
 #include <netinet/tcp.h>
 
+#include <rpc/krpc.h>
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
-#include <rpc/krpc.h>
 #include <rpc/rpcsec_tls.h>
 
 struct cmessage {
-        struct cmsghdr cmsg;
-        struct cmsgcred cmcred;
+	struct cmsghdr cmsg;
+	struct cmsgcred cmcred;
 };
 
 static void clnt_bck_geterr(CLIENT *, struct rpc_err *);
@@ -101,14 +100,12 @@ static bool_t clnt_bck_control(CLIENT *, u_int, void *);
 static void clnt_bck_close(CLIENT *);
 static void clnt_bck_destroy(CLIENT *);
 
-static struct clnt_ops clnt_bck_ops = {
-	.cl_abort =	clnt_bck_abort,
-	.cl_geterr =	clnt_bck_geterr,
-	.cl_freeres =	clnt_bck_freeres,
-	.cl_close =	clnt_bck_close,
-	.cl_destroy =	clnt_bck_destroy,
-	.cl_control =	clnt_bck_control
-};
+static struct clnt_ops clnt_bck_ops = { .cl_abort = clnt_bck_abort,
+	.cl_geterr = clnt_bck_geterr,
+	.cl_freeres = clnt_bck_freeres,
+	.cl_close = clnt_bck_close,
+	.cl_destroy = clnt_bck_destroy,
+	.cl_control = clnt_bck_control };
 
 /*
  * Create a client handle for a connection.
@@ -118,13 +115,12 @@ static struct clnt_ops clnt_bck_ops = {
  * by a client.
  */
 void *
-clnt_bck_create(
-	struct socket *so,		/* Server transport socket. */
-	const rpcprog_t prog,		/* program number */
-	const rpcvers_t vers)		/* version number */
+clnt_bck_create(struct socket *so, /* Server transport socket. */
+    const rpcprog_t prog,	   /* program number */
+    const rpcvers_t vers)	   /* version number */
 {
-	CLIENT *cl;			/* client handle */
-	struct ct_data *ct = NULL;	/* client handle */
+	CLIENT *cl;		   /* client handle */
+	struct ct_data *ct = NULL; /* client handle */
 	struct timeval now;
 	struct rpc_msg call_msg;
 	static uint32_t disrupt;
@@ -133,8 +129,8 @@ clnt_bck_create(
 	if (disrupt == 0)
 		disrupt = (uint32_t)(long)so;
 
-	cl = (CLIENT *)mem_alloc(sizeof (*cl));
-	ct = (struct ct_data *)mem_alloc(sizeof (*ct));
+	cl = (CLIENT *)mem_alloc(sizeof(*cl));
+	ct = (struct ct_data *)mem_alloc(sizeof(*ct));
 
 	mtx_init(&ct->ct_lock, "ct->ct_lock", NULL, MTX_DEF);
 	ct->ct_threads = 0;
@@ -163,8 +159,7 @@ clnt_bck_create(
 	/*
 	 * pre-serialize the static part of the call msg and stash it away
 	 */
-	xdrmem_create(&xdrs, ct->ct_mcallc, MCALL_MSG_SIZE,
-	    XDR_ENCODE);
+	xdrmem_create(&xdrs, ct->ct_mcallc, MCALL_MSG_SIZE, XDR_ENCODE);
 	if (!xdr_callhdr(&xdrs, &call_msg))
 		goto err;
 	ct->ct_mpos = XDR_GETPOS(&xdrs);
@@ -180,29 +175,27 @@ clnt_bck_create(
 
 err:
 	mtx_destroy(&ct->ct_lock);
-	mem_free(ct, sizeof (struct ct_data));
-	mem_free(cl, sizeof (CLIENT));
+	mem_free(ct, sizeof(struct ct_data));
+	mem_free(cl, sizeof(CLIENT));
 	return (NULL);
 }
 
 enum clnt_stat
-clnt_bck_call(
-	CLIENT		*cl,		/* client handle */
-	struct rpc_callextra *ext,	/* call metadata */
-	rpcproc_t	proc,		/* procedure number */
-	struct mbuf	*args,		/* pointer to args */
-	struct mbuf	**resultsp,	/* pointer to results */
-	struct timeval	utimeout,
-	SVCXPRT		*xprt)
+clnt_bck_call(CLIENT *cl,      /* client handle */
+    struct rpc_callextra *ext, /* call metadata */
+    rpcproc_t proc,	       /* procedure number */
+    struct mbuf *args,	       /* pointer to args */
+    struct mbuf **resultsp,    /* pointer to results */
+    struct timeval utimeout, SVCXPRT *xprt)
 {
-	struct ct_data *ct = (struct ct_data *) cl->cl_private;
+	struct ct_data *ct = (struct ct_data *)cl->cl_private;
 	AUTH *auth;
 	struct rpc_err *errp;
 	enum clnt_stat stat;
 	XDR xdrs;
 	struct rpc_msg reply_msg;
 	bool_t ok;
-	int nrefreshes = 2;		/* number of times to refresh cred */
+	int nrefreshes = 2; /* number of times to refresh cred */
 	struct timeval timeout;
 	uint32_t xid;
 	struct mbuf *mreq = NULL, *results;
@@ -235,9 +228,9 @@ clnt_bck_call(
 	cr->cr_error = 0;
 
 	if (ct->ct_wait.tv_usec == -1)
-		timeout = utimeout;	/* use supplied timeout */
+		timeout = utimeout; /* use supplied timeout */
 	else
-		timeout = ct->ct_wait;	/* use default timeout */
+		timeout = ct->ct_wait; /* use default timeout */
 
 call_again:
 	mtx_assert(&ct->ct_lock, MA_OWNED);
@@ -252,8 +245,8 @@ call_again:
 	 */
 	mreq = m_gethdr(M_WAITOK, MT_DATA);
 	mreq->m_data += sizeof(uint32_t);
-	KASSERT(ct->ct_mpos + sizeof(uint32_t) <= MHLEN,
-	    ("RPC header too big"));
+	KASSERT(
+	    ct->ct_mpos + sizeof(uint32_t) <= MHLEN, ("RPC header too big"));
 	bcopy(ct->ct_mcallc, mreq->m_data, ct->ct_mpos);
 	mreq->m_len = ct->ct_mpos;
 
@@ -267,8 +260,8 @@ call_again:
 	errp->re_status = stat = RPC_SUCCESS;
 
 	if ((!XDR_PUTINT32(&xdrs, &proc)) ||
-	    (!AUTH_MARSHALL(auth, xid, &xdrs,
-	     m_copym(args, 0, M_COPYALL, M_WAITOK)))) {
+	    (!AUTH_MARSHALL(
+		auth, xid, &xdrs, m_copym(args, 0, M_COPYALL, M_WAITOK)))) {
 		errp->re_status = stat = RPC_CANTENCODEARGS;
 		mtx_lock(&ct->ct_lock);
 		goto out;
@@ -279,8 +272,8 @@ call_again:
 	 * Prepend a record marker containing the packet length.
 	 */
 	M_PREPEND(mreq, sizeof(uint32_t), M_WAITOK);
-	*mtod(mreq, uint32_t *) =
-	    htonl(0x80000000 | (mreq->m_pkthdr.len - sizeof(uint32_t)));
+	*mtod(mreq, uint32_t *) = htonl(
+	    0x80000000 | (mreq->m_pkthdr.len - sizeof(uint32_t)));
 
 	cr->cr_xid = xid;
 	mtx_lock(&ct->ct_lock);
@@ -321,10 +314,11 @@ call_again:
 	 */
 	sx_xlock(&xprt->xp_lock);
 	error = sosend(xprt->xp_socket, NULL, NULL, mreq, NULL, 0, curthread);
-if (error != 0) printf("sosend=%d\n", error);
+	if (error != 0)
+		printf("sosend=%d\n", error);
 	mreq = NULL;
 	if (error == EMSGSIZE) {
-printf("emsgsize\n");
+		printf("emsgsize\n");
 		SOCKBUF_LOCK(&xprt->xp_socket->so_snd);
 		sbwait(&xprt->xp_socket->so_snd);
 		SOCKBUF_UNLOCK(&xprt->xp_socket->so_snd);
@@ -436,15 +430,15 @@ got_reply:
 		if (stat == RPC_SUCCESS) {
 			results = xdrmbuf_getall(&xdrs);
 			if (!AUTH_VALIDATE(auth, xid,
-			    &reply_msg.acpted_rply.ar_verf, &results)) {
+				&reply_msg.acpted_rply.ar_verf, &results)) {
 				errp->re_status = stat = RPC_AUTHERROR;
 				errp->re_why = AUTH_INVALIDRESP;
 			} else {
-				KASSERT(results,
-				    ("auth validated but no result"));
+				KASSERT(
+				    results, ("auth validated but no result"));
 				*resultsp = results;
 			}
-		}		/* end successful completion */
+		} /* end successful completion */
 		/*
 		 * If unsuccessful AND error is an authentication error
 		 * then refresh credentials and try again, else break
@@ -457,7 +451,7 @@ got_reply:
 				mtx_lock(&ct->ct_lock);
 				goto call_again;
 			}
-			/* end of unsuccessful completion */
+		/* end of unsuccessful completion */
 		/* end of valid reply message */
 	} else
 		errp->re_status = stat = RPC_CANTDECODERES;
@@ -466,8 +460,8 @@ got_reply:
 out:
 	mtx_assert(&ct->ct_lock, MA_OWNED);
 
-	KASSERT(stat != RPC_SUCCESS || *resultsp,
-	    ("RPC_SUCCESS without reply"));
+	KASSERT(
+	    stat != RPC_SUCCESS || *resultsp, ("RPC_SUCCESS without reply"));
 
 	if (mreq != NULL)
 		m_freem(mreq);
@@ -477,7 +471,7 @@ out:
 	ct->ct_threads--;
 	if (ct->ct_closing)
 		wakeup(ct);
-		
+
 	mtx_unlock(&ct->ct_lock);
 
 	if (auth && stat != RPC_SUCCESS)
@@ -491,7 +485,7 @@ out:
 static void
 clnt_bck_geterr(CLIENT *cl, struct rpc_err *errp)
 {
-	struct ct_data *ct = (struct ct_data *) cl->cl_private;
+	struct ct_data *ct = (struct ct_data *)cl->cl_private;
 
 	*errp = ct->ct_error;
 }
@@ -524,7 +518,7 @@ clnt_bck_control(CLIENT *cl, u_int request, void *info)
 static void
 clnt_bck_close(CLIENT *cl)
 {
-	struct ct_data *ct = (struct ct_data *) cl->cl_private;
+	struct ct_data *ct = (struct ct_data *)cl->cl_private;
 
 	mtx_lock(&ct->ct_lock);
 
@@ -550,16 +544,16 @@ clnt_bck_close(CLIENT *cl)
 static void
 clnt_bck_destroy(CLIENT *cl)
 {
-	struct ct_data *ct = (struct ct_data *) cl->cl_private;
+	struct ct_data *ct = (struct ct_data *)cl->cl_private;
 
 	clnt_bck_close(cl);
 
 	mtx_destroy(&ct->ct_lock);
 	mem_free(ct, sizeof(struct ct_data));
 	if (cl->cl_netid && cl->cl_netid[0])
-		mem_free(cl->cl_netid, strlen(cl->cl_netid) +1);
+		mem_free(cl->cl_netid, strlen(cl->cl_netid) + 1);
 	if (cl->cl_tp && cl->cl_tp[0])
-		mem_free(cl->cl_tp, strlen(cl->cl_tp) +1);
+		mem_free(cl->cl_tp, strlen(cl->cl_tp) + 1);
 	mem_free(cl, sizeof(CLIENT));
 }
 
@@ -580,7 +574,7 @@ clnt_bck_svccall(void *arg, struct mbuf *mrep, uint32_t xid)
 	 * See if we can match this reply to a request.
 	 */
 	foundreq = 0;
-	TAILQ_FOREACH(cr, &ct->ct_pending, cr_link) {
+	TAILQ_FOREACH (cr, &ct->ct_pending, cr_link) {
 		if (cr->cr_xid == xid) {
 			/*
 			 * This one matches. We leave the reply mbuf list in
@@ -605,4 +599,3 @@ clnt_bck_svccall(void *arg, struct mbuf *mrep, uint32_t xid)
 	if (foundreq == 0)
 		m_freem(mrep);
 }
-

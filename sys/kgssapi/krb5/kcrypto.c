@@ -31,8 +31,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/malloc.h>
 #include <sys/kobj.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/sysctl.h>
 
@@ -42,9 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "kcrypto.h"
 
 static struct krb5_encryption_class *krb5_encryption_classes[] = {
-	&krb5_aes128_encryption_class,
-	&krb5_aes256_encryption_class,
-	NULL
+	&krb5_aes128_encryption_class, &krb5_aes256_encryption_class, NULL
 };
 
 struct krb5_encryption_class *
@@ -181,8 +179,8 @@ krb5_n_fold(uint8_t *out, size_t outlen, const uint8_t *in, size_t inlen)
 }
 
 struct krb5_key_state *
-krb5_derive_key(struct krb5_key_state *inkey,
-    void *constant, size_t constantlen)
+krb5_derive_key(
+    struct krb5_key_state *inkey, void *constant, size_t constantlen)
 {
 	struct krb5_key_state *dk;
 	const struct krb5_encryption_class *ec = inkey->ks_class;

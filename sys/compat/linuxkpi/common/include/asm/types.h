@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_ASM_TYPES_H_
-#define	_ASM_TYPES_H_
+#ifndef _ASM_TYPES_H_
+#define _ASM_TYPES_H_
 
 #if defined(_KERNEL) || defined(_STANDALONE)
 
@@ -59,6 +59,6 @@ typedef vm_paddr_t dma64_addr_t;
 
 typedef unsigned short umode_t;
 
-#endif	/* _KERNEL || _STANDALONE */
+#endif /* _KERNEL || _STANDALONE */
 
-#endif	/* _ASM_TYPES_H_ */
+#endif /* _ASM_TYPES_H_ */

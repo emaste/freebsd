@@ -34,57 +34,57 @@
 #ifndef _AMD64_SGX_SGXVAR_H_
 #define _AMD64_SGX_SGXVAR_H_
 
-#define	SGX_CPUID			0x12
-#define	SGX_PAGE_SIZE			4096
-#define	SGX_VA_PAGE_SLOTS		512
-#define	SGX_VA_PAGES_OFFS		512
-#define	SGX_SECS_VM_OBJECT_INDEX	-1
-#define	SGX_SIGSTRUCT_SIZE		1808
-#define	SGX_EINITTOKEN_SIZE		304
-#define	SGX_IOCTL_MAX_DATA_LEN		26
-#define	SGX_ENCL_SIZE_MAX_DEF		0x1000000000ULL
-#define	SGX_EFAULT			99
+#define SGX_CPUID 0x12
+#define SGX_PAGE_SIZE 4096
+#define SGX_VA_PAGE_SLOTS 512
+#define SGX_VA_PAGES_OFFS 512
+#define SGX_SECS_VM_OBJECT_INDEX -1
+#define SGX_SIGSTRUCT_SIZE 1808
+#define SGX_EINITTOKEN_SIZE 304
+#define SGX_IOCTL_MAX_DATA_LEN 26
+#define SGX_ENCL_SIZE_MAX_DEF 0x1000000000ULL
+#define SGX_EFAULT 99
 
 #ifndef LOCORE
 static MALLOC_DEFINE(M_SGX, "sgx", "SGX driver");
 
 struct sgx_vm_handle {
-	struct sgx_softc	*sc;
-	vm_object_t		mem;
-	uint64_t		base;
-	vm_size_t		size;
-	struct sgx_enclave	*enclave;
+	struct sgx_softc *sc;
+	vm_object_t mem;
+	uint64_t base;
+	vm_size_t size;
+	struct sgx_enclave *enclave;
 };
 
 /* EPC (Enclave Page Cache) page. */
 struct epc_page {
-	uint64_t		base;
-	uint64_t		phys;
-	int			index;
+	uint64_t base;
+	uint64_t phys;
+	int index;
 };
 
 struct sgx_enclave {
-	uint64_t			base;
-	uint64_t			size;
-	struct sgx_vm_handle		*vmh;
-	TAILQ_ENTRY(sgx_enclave)	next;
-	vm_object_t			object;
-	struct epc_page			*secs_epc_page;
+	uint64_t base;
+	uint64_t size;
+	struct sgx_vm_handle *vmh;
+	TAILQ_ENTRY(sgx_enclave) next;
+	vm_object_t object;
+	struct epc_page *secs_epc_page;
 };
 
 struct sgx_softc {
-	struct cdev			*sgx_cdev;
-	struct mtx			mtx_encls;
-	struct mtx			mtx;
-	uint64_t			epc_base;
-	uint64_t			epc_size;
-	struct epc_page			*epc_pages;
-	struct vmem			*vmem_epc;
-	uint32_t			npages;
-	TAILQ_HEAD(, sgx_enclave)	enclaves;
-	uint64_t			enclave_size_max;
-	uint8_t				state;
-#define	SGX_STATE_RUNNING		(1 << 0)
+	struct cdev *sgx_cdev;
+	struct mtx mtx_encls;
+	struct mtx mtx;
+	uint64_t epc_base;
+	uint64_t epc_size;
+	struct epc_page *epc_pages;
+	struct vmem *vmem_epc;
+	uint32_t npages;
+	TAILQ_HEAD(, sgx_enclave) enclaves;
+	uint64_t enclave_size_max;
+	uint8_t state;
+#define SGX_STATE_RUNNING (1 << 0)
 };
 #endif /* !LOCORE */
 

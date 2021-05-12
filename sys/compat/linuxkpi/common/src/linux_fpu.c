@@ -1,6 +1,6 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- * 
+ *
  * Copyright (c) 2020 Greg V <greg@unrelenting.technology>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,8 +27,8 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 
 #include <machine/fpu.h>
 
@@ -47,4 +47,5 @@ linux_fpu_uninit(void *arg __unused)
 {
 	fpu_kern_free_ctx(__lkpi_fpu_ctx);
 }
-SYSUNINIT(linux_fpu, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND, linux_fpu_uninit, NULL);
+SYSUNINIT(
+    linux_fpu, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND, linux_fpu_uninit, NULL);

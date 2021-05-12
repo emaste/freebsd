@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <machine/bus.h>
+
 #include <mips/atheros/ar71xx_bus_space_reversed.h>
 
 static bs_r_1_proto(reversed);
@@ -43,11 +44,11 @@ static bs_w_2_proto(reversed);
 
 /*
  * Bus space that handles offsets in word for 1/2 bytes read/write access.
- * Byte order of values is handled by device drivers itself. 
+ * Byte order of values is handled by device drivers itself.
  */
 static struct bus_space bus_space_reversed = {
 	/* cookie */
-	(void *) 0,
+	(void *)0,
 
 	/* mapping/unmapping */
 	generic_bs_map,
@@ -158,26 +159,26 @@ static uint8_t
 reversed_bs_r_1(void *t, bus_space_handle_t h, bus_size_t o)
 {
 
-	return readb(h + (o &~ 3) + (3 - (o & 3)));
+	return readb(h + (o & ~3) + (3 - (o & 3)));
 }
 
 static void
 reversed_bs_w_1(void *t, bus_space_handle_t h, bus_size_t o, u_int8_t v)
 {
 
-	writeb(h + (o &~ 3) + (3 - (o & 3)), v);
+	writeb(h + (o & ~3) + (3 - (o & 3)), v);
 }
 
 static uint16_t
 reversed_bs_r_2(void *t, bus_space_handle_t h, bus_size_t o)
 {
 
-	return readw(h + (o &~ 3) + (2 - (o & 3)));
+	return readw(h + (o & ~3) + (2 - (o & 3)));
 }
 
 static void
 reversed_bs_w_2(void *t, bus_space_handle_t h, bus_size_t o, uint16_t v)
 {
 
-	writew(h + (o &~ 3) + (2 - (o & 3)), v);
+	writew(h + (o & ~3) + (2 - (o & 3)), v);
 }

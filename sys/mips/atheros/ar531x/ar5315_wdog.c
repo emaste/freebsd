@@ -35,15 +35,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/watchdog.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
+#include <sys/watchdog.h>
 
-#include <mips/atheros/ar531x/ar5315reg.h>
 #include <mips/atheros/ar531x/ar5315_cpudef.h>
+#include <mips/atheros/ar531x/ar5315reg.h>
 
 struct ar5315_wdog_softc {
 	device_t dev;
@@ -60,30 +60,31 @@ ar5315_wdog_watchdog_fn(void *private, u_int cmd, int *error)
 
 	cmd &= WD_INTERVAL;
 	if (sc->debug)
-		device_printf(sc->dev, "ar5315_wdog_watchdog_fn: cmd: %x\n", cmd);
+		device_printf(
+		    sc->dev, "ar5315_wdog_watchdog_fn: cmd: %x\n", cmd);
 	if (cmd > 0) {
 		timer_val = (uint64_t)(1ULL << cmd) * ar531x_ahb_freq() /
 		    1000000000;
 		if (sc->debug)
-			device_printf(sc->dev, "ar5315_wdog_watchdog_fn: programming timer: %jx\n", (uintmax_t) timer_val);
+			device_printf(sc->dev,
+			    "ar5315_wdog_watchdog_fn: programming timer: %jx\n",
+			    (uintmax_t)timer_val);
 		/*
 		 * Load timer with large enough value to prevent spurious
 		 * reset
 		 */
-		ATH_WRITE_REG(ar531x_wdog_timer(), 
-		    ar531x_ahb_freq() * 10);
-		ATH_WRITE_REG(ar531x_wdog_ctl(), 
-		    AR5315_WDOG_CTL_RESET);
-		ATH_WRITE_REG(ar531x_wdog_timer(), 
-		    (timer_val & 0xffffffff));
+		ATH_WRITE_REG(ar531x_wdog_timer(), ar531x_ahb_freq() * 10);
+		ATH_WRITE_REG(ar531x_wdog_ctl(), AR5315_WDOG_CTL_RESET);
+		ATH_WRITE_REG(ar531x_wdog_timer(), (timer_val & 0xffffffff));
 		sc->armed = 1;
 		*error = 0;
 	} else {
 		if (sc->debug)
-			device_printf(sc->dev, "ar5315_wdog_watchdog_fn: disarming\n");
+			device_printf(
+			    sc->dev, "ar5315_wdog_watchdog_fn: disarming\n");
 		if (sc->armed) {
-			ATH_WRITE_REG(ar531x_wdog_ctl(),
-			    AR5315_WDOG_CTL_IGNORE);
+			ATH_WRITE_REG(
+			    ar531x_wdog_ctl(), AR5315_WDOG_CTL_IGNORE);
 			sc->armed = 0;
 		}
 	}
@@ -102,18 +103,16 @@ ar5315_wdog_sysctl(device_t dev)
 {
 	struct ar5315_wdog_softc *sc = device_get_softc(dev);
 
-        struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->dev);
-        struct sysctl_oid *tree = device_get_sysctl_tree(sc->dev);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->dev);
 
-        SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-                "debug", CTLFLAG_RW, &sc->debug, 0,
-                "enable watchdog debugging");
-        SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-                "armed", CTLFLAG_RD, &sc->armed, 0,
-                "whether the watchdog is armed");
-        SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-                "reboot_from_watchdog", CTLFLAG_RD, &sc->reboot_from_watchdog, 0,
-                "whether the system rebooted from the watchdog");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "debug",
+	    CTLFLAG_RW, &sc->debug, 0, "enable watchdog debugging");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "armed",
+	    CTLFLAG_RD, &sc->armed, 0, "whether the watchdog is armed");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "reboot_from_watchdog", CTLFLAG_RD, &sc->reboot_from_watchdog, 0,
+	    "whether the system rebooted from the watchdog");
 }
 
 static int
@@ -134,11 +133,9 @@ ar5315_wdog_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t ar5315_wdog_methods[] = {
-	DEVMETHOD(device_probe, ar5315_wdog_probe),
-	DEVMETHOD(device_attach, ar5315_wdog_attach),
-	DEVMETHOD_END
-};
+static device_method_t ar5315_wdog_methods[] = { DEVMETHOD(device_probe,
+						     ar5315_wdog_probe),
+	DEVMETHOD(device_attach, ar5315_wdog_attach), DEVMETHOD_END };
 
 static driver_t ar5315_wdog_driver = {
 	"ar5315_wdog",

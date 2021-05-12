@@ -35,15 +35,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
+
+#include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <machine/bus.h>
 
 #include <arm/freescale/fsl_ocotpreg.h>
 #include <arm/freescale/fsl_ocotpvar.h>
@@ -58,13 +58,15 @@ __FBSDID("$FreeBSD$");
  * happen, this little block of code, and the few lines in fsl_ocotp_read_4()
  * that refer to it can be deleted.
  */
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <dev/fdt/fdt_common.h>
 #include <sys/devmap.h>
 
-static uint32_t   *ocotp_regs;
-static vm_size_t   ocotp_size;
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
+#include <dev/fdt/fdt_common.h>
+
+static uint32_t *ocotp_regs;
+static vm_size_t ocotp_size;
 
 static void
 fsl_ocotp_devmap(void)
@@ -74,7 +76,8 @@ fsl_ocotp_devmap(void)
 
 	if ((root = OF_finddevice("/")) == -1)
 		goto fatal;
-	if ((child = fdt_depth_search_compatible(root, "fsl,imx6q-ocotp", 0)) == 0)
+	if ((child = fdt_depth_search_compatible(root, "fsl,imx6q-ocotp", 0)) ==
+	    0)
 		goto fatal;
 	if (fdt_regsize(child, &base, &size) != 0)
 		goto fatal;
@@ -91,8 +94,8 @@ fatal:
 /* XXX end of temporary code */
 
 struct ocotp_softc {
-	device_t	dev;
-	struct resource	*mem_res;
+	device_t dev;
+	struct resource *mem_res;
 };
 
 static struct ocotp_softc *ocotp_sc;
@@ -123,8 +126,8 @@ ocotp_attach(device_t dev)
 
 	/* Allocate bus_space resources. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Cannot allocate memory resources\n");
 		err = ENXIO;
@@ -156,8 +159,7 @@ ocotp_probe(device_t dev)
 	if (ofw_bus_is_compatible(dev, "fsl,imx6q-ocotp") == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, 
-	    "Freescale On-Chip One-Time-Programmable Memory");
+	device_set_desc(dev, "Freescale On-Chip One-Time-Programmable Memory");
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -187,18 +189,15 @@ fsl_ocotp_read_4(bus_size_t off)
 
 static device_method_t ocotp_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,  ocotp_probe),
+	DEVMETHOD(device_probe, ocotp_probe),
 	DEVMETHOD(device_attach, ocotp_attach),
 	DEVMETHOD(device_detach, ocotp_detach),
 
 	DEVMETHOD_END
 };
 
-static driver_t ocotp_driver = {
-	"ocotp",
-	ocotp_methods,
-	sizeof(struct ocotp_softc)
-};
+static driver_t ocotp_driver = { "ocotp", ocotp_methods,
+	sizeof(struct ocotp_softc) };
 
 static devclass_t ocotp_devclass;
 

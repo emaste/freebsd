@@ -43,7 +43,7 @@
  */
 
 #ifndef _MACHINE_IEEE_H_
-#define	_MACHINE_IEEE_H_
+#define _MACHINE_IEEE_H_
 
 /*
  * ieee.h defines the machine-dependent layout of the machine's IEEE
@@ -79,40 +79,40 @@
  *
  * -149 == -127 - 23 + 1.
  */
-#define	SNG_EXPBITS	8
-#define	SNG_FRACBITS	23
+#define SNG_EXPBITS 8
+#define SNG_FRACBITS 23
 
-#define	DBL_EXPBITS	11
-#define	DBL_FRACBITS	52
+#define DBL_EXPBITS 11
+#define DBL_FRACBITS 52
 
 #ifdef notyet
-#define	E80_EXPBITS	15
-#define	E80_FRACBITS	64
+#define E80_EXPBITS 15
+#define E80_FRACBITS 64
 #endif
 
-#define	EXT_EXPBITS	15
-#define	EXT_FRACBITS	112
+#define EXT_EXPBITS 15
+#define EXT_FRACBITS 112
 
 struct ieee_single {
-	u_int	sng_sign:1;
-	u_int	sng_exp:8;
-	u_int	sng_frac:23;
+	u_int sng_sign : 1;
+	u_int sng_exp : 8;
+	u_int sng_frac : 23;
 };
 
 struct ieee_double {
-	u_int	dbl_sign:1;
-	u_int	dbl_exp:11;
-	u_int	dbl_frach:20;
-	u_int	dbl_fracl;
+	u_int dbl_sign : 1;
+	u_int dbl_exp : 11;
+	u_int dbl_frach : 20;
+	u_int dbl_fracl;
 };
 
 struct ieee_ext {
-	u_int	ext_sign:1;
-	u_int	ext_exp:15;
-	u_int	ext_frach:16;
-	u_int	ext_frachm;
-	u_int	ext_fraclm;
-	u_int	ext_fracl;
+	u_int ext_sign : 1;
+	u_int ext_exp : 15;
+	u_int ext_frach : 16;
+	u_int ext_frachm;
+	u_int ext_fraclm;
+	u_int ext_fracl;
 };
 
 /*
@@ -124,21 +124,21 @@ struct ieee_ext {
  * A NaN is a `signalling NaN' if its QUIETNAN bit is clear in its
  * high fraction; if the bit is set, it is a `quiet NaN'.
  */
-#define	SNG_EXP_INFNAN	255
-#define	DBL_EXP_INFNAN	2047
-#define	EXT_EXP_INFNAN	32767
+#define SNG_EXP_INFNAN 255
+#define DBL_EXP_INFNAN 2047
+#define EXT_EXP_INFNAN 32767
 
 #if 0
-#define	SNG_QUIETNAN	(1 << 22)
-#define	DBL_QUIETNAN	(1 << 19)
-#define	EXT_QUIETNAN	(1 << 15)
+#define SNG_QUIETNAN (1 << 22)
+#define DBL_QUIETNAN (1 << 19)
+#define EXT_QUIETNAN (1 << 15)
 #endif
 
 /*
  * Exponent biases.
  */
-#define	SNG_EXP_BIAS	127
-#define	DBL_EXP_BIAS	1023
-#define	EXT_EXP_BIAS	16383
+#define SNG_EXP_BIAS 127
+#define DBL_EXP_BIAS 1023
+#define EXT_EXP_BIAS 16383
 
 #endif

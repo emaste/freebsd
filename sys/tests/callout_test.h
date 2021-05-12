@@ -2,7 +2,7 @@
 #define __callout_test_h__
 /*-
  * Copyright (c) 2015 Netflix, Inc.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:

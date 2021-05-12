@@ -44,37 +44,37 @@
  * lookup on a 32-bit machine. If you are porting to a 64-bit
  * architecture, you should make doff_t the same as off_t.
  */
-#define doff_t	long
+#define doff_t long
 
-typedef	struct	{
-	struct timespec	iso_atime;	/* time of last access */
-	struct timespec	iso_mtime;	/* time of last modification */
-	struct timespec	iso_ctime;	/* time file changed */
-	u_short		iso_mode;	/* files access mode and type */
-	uid_t		iso_uid;	/* owner user id */
-	gid_t		iso_gid;	/* owner group id */
-	short		iso_links;	/* links of file */
-	dev_t		iso_rdev;	/* Major/Minor number for special */
+typedef struct {
+	struct timespec iso_atime; /* time of last access */
+	struct timespec iso_mtime; /* time of last modification */
+	struct timespec iso_ctime; /* time file changed */
+	u_short iso_mode;	   /* files access mode and type */
+	uid_t iso_uid;		   /* owner user id */
+	gid_t iso_gid;		   /* owner group id */
+	short iso_links;	   /* links of file */
+	dev_t iso_rdev;		   /* Major/Minor number for special */
 } ISO_RRIP_INODE;
 
 struct iso_node {
-	struct	vnode *i_vnode;	/* vnode associated with this inode */
-	cd_ino_t	i_number;	/* the identity of the inode */
-				/* we use the actual starting block of the file */
-	struct	iso_mnt *i_mnt;	/* filesystem associated with this inode */
-	struct	lockf *i_lockf;	/* head of byte-level lock list */
-	doff_t	i_endoff;	/* end of useful stuff in directory */
-	doff_t	i_diroff;	/* offset in dir, where we found last entry */
+	struct vnode *i_vnode; /* vnode associated with this inode */
+	cd_ino_t i_number;     /* the identity of the inode */
+	/* we use the actual starting block of the file */
+	struct iso_mnt *i_mnt; /* filesystem associated with this inode */
+	struct lockf *i_lockf; /* head of byte-level lock list */
+	doff_t i_endoff;       /* end of useful stuff in directory */
+	doff_t i_diroff;       /* offset in dir, where we found last entry */
 
-	long iso_extent;	/* extent of file */
+	long iso_extent; /* extent of file */
 	unsigned long i_size;
-	long iso_start;		/* actual start of data of file (may be different */
-				/* from iso_extent, if file has extended attributes) */
-	ISO_RRIP_INODE	inode;
+	long iso_start; /* actual start of data of file (may be different */
+			/* from iso_extent, if file has extended attributes) */
+	ISO_RRIP_INODE inode;
 };
 
-#define	i_forw		i_chain[0]
-#define	i_back		i_chain[1]
+#define i_forw i_chain[0]
+#define i_back i_chain[1]
 
 #define VTOI(vp) ((struct iso_node *)(vp)->v_data)
 #define ITOV(ip) ((ip)->i_vnode)
@@ -99,12 +99,13 @@ int cd9660_lookup(struct vop_cachedlookup_args *);
 int cd9660_inactive(struct vop_inactive_args *);
 int cd9660_reclaim(struct vop_reclaim_args *);
 int cd9660_bmap(struct vop_bmap_args *);
-int cd9660_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp);
+int cd9660_blkatoff(
+    struct vnode *vp, off_t offset, char **res, struct buf **bpp);
 
-void cd9660_defattr(struct iso_directory_record *,
-			struct iso_node *, struct buf *, enum ISO_FTYPE);
-void cd9660_deftstamp(struct iso_directory_record *,
-			struct iso_node *, struct buf *, enum ISO_FTYPE);
+void cd9660_defattr(struct iso_directory_record *, struct iso_node *,
+    struct buf *, enum ISO_FTYPE);
+void cd9660_deftstamp(struct iso_directory_record *, struct iso_node *,
+    struct buf *, enum ISO_FTYPE);
 int cd9660_tstamp_conv7(u_char *, struct timespec *, enum ISO_FTYPE);
 int cd9660_tstamp_conv17(u_char *, struct timespec *);
 

@@ -42,74 +42,70 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/extres/clk/clk.h>
-
+#include <dev/mmc/bridge.h>
+#include <dev/mmc/mmcbrvar.h>
+#include <dev/mmc/mmcreg.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
-#include <dev/mmc/mmcbrvar.h>
 
 #include <mips/ingenic/jz4780_regs.h>
 
 #undef JZ_MMC_DEBUG
 
-#define	JZ_MSC_MEMRES		0
-#define	JZ_MSC_IRQRES		1
-#define	JZ_MSC_RESSZ		2
-#define	JZ_MSC_DMA_SEGS		128
-#define	JZ_MSC_DMA_MAX_SIZE	maxphys
+#define JZ_MSC_MEMRES 0
+#define JZ_MSC_IRQRES 1
+#define JZ_MSC_RESSZ 2
+#define JZ_MSC_DMA_SEGS 128
+#define JZ_MSC_DMA_MAX_SIZE maxphys
 
-#define JZ_MSC_INT_ERR_BITS	(JZ_INT_CRC_RES_ERR | JZ_INT_CRC_READ_ERR | \
-				JZ_INT_CRC_WRITE_ERR | JZ_INT_TIMEOUT_RES | \
-				JZ_INT_TIMEOUT_READ)
+#define JZ_MSC_INT_ERR_BITS                                                \
+	(JZ_INT_CRC_RES_ERR | JZ_INT_CRC_READ_ERR | JZ_INT_CRC_WRITE_ERR | \
+	    JZ_INT_TIMEOUT_RES | JZ_INT_TIMEOUT_READ)
 static int jz4780_mmc_pio_mode = 0;
 
 TUNABLE_INT("hw.jz.mmc.pio_mode", &jz4780_mmc_pio_mode);
 
 struct jz4780_mmc_dma_desc {
-	uint32_t		dma_next;
-	uint32_t		dma_phys;
-	uint32_t		dma_len;
-	uint32_t		dma_cmd;
+	uint32_t dma_next;
+	uint32_t dma_phys;
+	uint32_t dma_len;
+	uint32_t dma_cmd;
 };
 
 struct jz4780_mmc_softc {
-	bus_space_handle_t	sc_bsh;
-	bus_space_tag_t		sc_bst;
-	device_t		sc_dev;
-	clk_t			sc_clk;
-	int			sc_bus_busy;
-	int			sc_resid;
-	int			sc_timeout;
-	struct callout		sc_timeoutc;
-	struct mmc_host		sc_host;
-	struct mmc_request *	sc_req;
-	struct mtx		sc_mtx;
-	struct resource *	sc_res[JZ_MSC_RESSZ];
-	uint32_t		sc_intr_seen;
-	uint32_t		sc_intr_mask;
-	uint32_t		sc_intr_wait;
-	void *			sc_intrhand;
-	uint32_t		sc_cmdat;
+	bus_space_handle_t sc_bsh;
+	bus_space_tag_t sc_bst;
+	device_t sc_dev;
+	clk_t sc_clk;
+	int sc_bus_busy;
+	int sc_resid;
+	int sc_timeout;
+	struct callout sc_timeoutc;
+	struct mmc_host sc_host;
+	struct mmc_request *sc_req;
+	struct mtx sc_mtx;
+	struct resource *sc_res[JZ_MSC_RESSZ];
+	uint32_t sc_intr_seen;
+	uint32_t sc_intr_mask;
+	uint32_t sc_intr_wait;
+	void *sc_intrhand;
+	uint32_t sc_cmdat;
 
 	/* Fields required for DMA access. */
-	bus_addr_t	  	sc_dma_desc_phys;
-	bus_dmamap_t		sc_dma_map;
-	bus_dma_tag_t 		sc_dma_tag;
-	void * 			sc_dma_desc;
-	bus_dmamap_t		sc_dma_buf_map;
-	bus_dma_tag_t		sc_dma_buf_tag;
-	int			sc_dma_inuse;
-	int			sc_dma_map_err;
-	uint32_t		sc_dma_ctl;
+	bus_addr_t sc_dma_desc_phys;
+	bus_dmamap_t sc_dma_map;
+	bus_dma_tag_t sc_dma_tag;
+	void *sc_dma_desc;
+	bus_dmamap_t sc_dma_buf_map;
+	bus_dma_tag_t sc_dma_buf_tag;
+	int sc_dma_inuse;
+	int sc_dma_map_err;
+	uint32_t sc_dma_ctl;
 };
 
-static struct resource_spec jz4780_mmc_res_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE | RF_SHAREABLE },
-	{ -1,			0,	0 }
-};
+static struct resource_spec jz4780_mmc_res_spec[] = { { SYS_RES_MEMORY, 0,
+							  RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE | RF_SHAREABLE }, { -1, 0, 0 } };
 
 static int jz4780_mmc_probe(device_t);
 static int jz4780_mmc_attach(device_t);
@@ -126,15 +122,15 @@ static int jz4780_mmc_get_ro(device_t, device_t);
 static int jz4780_mmc_acquire_host(device_t, device_t);
 static int jz4780_mmc_release_host(device_t, device_t);
 
-#define	JZ_MMC_LOCK(_sc)	mtx_lock(&(_sc)->sc_mtx)
-#define	JZ_MMC_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
-#define	JZ_MMC_READ_2(_sc, _reg)					\
+#define JZ_MMC_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define JZ_MMC_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
+#define JZ_MMC_READ_2(_sc, _reg) \
 	bus_space_read_2((_sc)->sc_bst, (_sc)->sc_bsh, _reg)
-#define	JZ_MMC_WRITE_2(_sc, _reg, _value)				\
+#define JZ_MMC_WRITE_2(_sc, _reg, _value) \
 	bus_space_write_2((_sc)->sc_bst, (_sc)->sc_bsh, _reg, _value)
-#define	JZ_MMC_READ_4(_sc, _reg)					\
+#define JZ_MMC_READ_4(_sc, _reg) \
 	bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, _reg)
-#define	JZ_MMC_WRITE_4(_sc, _reg, _value)				\
+#define JZ_MMC_WRITE_4(_sc, _reg, _value) \
 	bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, _reg, _value)
 
 static int
@@ -173,8 +169,8 @@ jz4780_mmc_attach(device_t dev)
 	sc->sc_bst = rman_get_bustag(sc->sc_res[JZ_MSC_MEMRES]);
 	sc->sc_bsh = rman_get_bushandle(sc->sc_res[JZ_MSC_MEMRES]);
 	if (bus_setup_intr(dev, sc->sc_res[JZ_MSC_IRQRES],
-	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, jz4780_mmc_intr, sc,
-	    &sc->sc_intrhand)) {
+		INTR_TYPE_MISC | INTR_MPSAFE, NULL, jz4780_mmc_intr, sc,
+		&sc->sc_intrhand)) {
 		bus_release_resources(dev, jz4780_mmc_res_spec, sc->sc_res);
 		device_printf(dev, "cannot setup interrupt handler\n");
 		return (ENXIO);
@@ -304,8 +300,8 @@ jz4780_mmc_setup_dma(struct jz4780_mmc_softc *sc)
 	if (error)
 		return (error);
 
-	error = bus_dmamap_load(sc->sc_dma_tag, sc->sc_dma_map,
-	    sc->sc_dma_desc, dma_desc_size, jz4780_mmc_dma_desc_cb, sc, 0);
+	error = bus_dmamap_load(sc->sc_dma_tag, sc->sc_dma_map, sc->sc_dma_desc,
+	    dma_desc_size, jz4780_mmc_dma_desc_cb, sc, 0);
 	if (error)
 		return (error);
 	if (sc->sc_dma_map_err)
@@ -319,8 +315,7 @@ jz4780_mmc_setup_dma(struct jz4780_mmc_softc *sc)
 	    &sc->sc_dma_buf_tag);
 	if (error)
 		return (error);
-	error = bus_dmamap_create(sc->sc_dma_buf_tag, 0,
-	    &sc->sc_dma_buf_map);
+	error = bus_dmamap_create(sc->sc_dma_buf_tag, 0, &sc->sc_dma_buf_map);
 	if (error)
 		return (error);
 
@@ -343,7 +338,7 @@ jz4780_mmc_dma_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 	/* Note nsegs is guaranteed to be zero if err is non-zero. */
 	for (i = 0; i < nsegs; i++) {
 		dma_desc[i].dma_phys = segs[i].ds_addr;
-		dma_desc[i].dma_len  = segs[i].ds_len;
+		dma_desc[i].dma_len = segs[i].ds_len;
 		if (i < (nsegs - 1)) {
 			dma_desc_phys += sizeof(struct jz4780_mmc_dma_desc);
 			dma_desc[i].dma_next = dma_desc_phys;
@@ -353,12 +348,13 @@ jz4780_mmc_dma_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 			dma_desc[i].dma_cmd = (i << 16) | JZ_DMA_ENDI;
 		}
 #ifdef JZ_MMC_DEBUG
-		device_printf(sc->sc_dev, "%d: desc %#x phys %#x len %d next %#x cmd %#x\n",
-		    i, dma_desc_phys - sizeof(struct jz4780_mmc_dma_desc),
+		device_printf(sc->sc_dev,
+		    "%d: desc %#x phys %#x len %d next %#x cmd %#x\n", i,
+		    dma_desc_phys - sizeof(struct jz4780_mmc_dma_desc),
 		    dma_desc[i].dma_phys, dma_desc[i].dma_len,
 		    dma_desc[i].dma_next, dma_desc[i].dma_cmd);
 #endif
- 	}
+	}
 }
 
 static int
@@ -476,10 +472,10 @@ jz4780_mmc_req_done(struct jz4780_mmc_softc *sc)
 			sync_op = BUS_DMASYNC_POSTWRITE;
 		else
 			sync_op = BUS_DMASYNC_POSTREAD;
-		bus_dmamap_sync(sc->sc_dma_buf_tag, sc->sc_dma_buf_map,
-		    sync_op);
-		bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map,
-		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_sync(
+		    sc->sc_dma_buf_tag, sc->sc_dma_buf_map, sync_op);
+		bus_dmamap_sync(
+		    sc->sc_dma_tag, sc->sc_dma_map, BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->sc_dma_buf_tag, sc->sc_dma_buf_map);
 	}
 	req = sc->sc_req;
@@ -539,13 +535,15 @@ jz4780_mmc_timeout(void *arg)
 
 	sc = (struct jz4780_mmc_softc *)arg;
 	if (sc->sc_req != NULL) {
-		device_printf(sc->sc_dev, "controller timeout, rint %#x stat %#x\n",
-		    JZ_MMC_READ_4(sc, JZ_MSC_IFLG), JZ_MMC_READ_4(sc, JZ_MSC_STAT));
+		device_printf(sc->sc_dev,
+		    "controller timeout, rint %#x stat %#x\n",
+		    JZ_MMC_READ_4(sc, JZ_MSC_IFLG),
+		    JZ_MMC_READ_4(sc, JZ_MSC_STAT));
 		sc->sc_req->cmd->error = MMC_ERR_TIMEOUT;
 		jz4780_mmc_req_done(sc);
 	} else
-		device_printf(sc->sc_dev,
-		    "Spurious timeout - no active request\n");
+		device_printf(
+		    sc->sc_dev, "Spurious timeout - no active request\n");
 }
 
 static int
@@ -583,12 +581,13 @@ jz4780_mmc_intr(void *arg)
 
 	sc = (struct jz4780_mmc_softc *)arg;
 	JZ_MMC_LOCK(sc);
-	rint  = JZ_MMC_READ_4(sc, JZ_MSC_IFLG);
+	rint = JZ_MMC_READ_4(sc, JZ_MSC_IFLG);
 #if defined(JZ_MMC_DEBUG)
-	device_printf(sc->sc_dev, "rint: %#x, stat: %#x\n",
-	    rint, JZ_MMC_READ_4(sc, JZ_MSC_STAT));
+	device_printf(sc->sc_dev, "rint: %#x, stat: %#x\n", rint,
+	    JZ_MMC_READ_4(sc, JZ_MSC_STAT));
 	if (sc->sc_dma_inuse == 1 && (sc->sc_intr_seen & JZ_INT_DMAEND) == 0)
-		device_printf(sc->sc_dev, "\tdmada %#x dmanext %#x dmac %#x"
+		device_printf(sc->sc_dev,
+		    "\tdmada %#x dmanext %#x dmac %#x"
 		    " dmalen %d dmacmd %#x\n",
 		    JZ_MMC_READ_4(sc, JZ_MSC_DMADA),
 		    JZ_MMC_READ_4(sc, JZ_MSC_DMANDA),
@@ -604,8 +603,9 @@ jz4780_mmc_intr(void *arg)
 	}
 	if (rint & JZ_MSC_INT_ERR_BITS) {
 #if defined(JZ_MMC_DEBUG)
-		device_printf(sc->sc_dev, "controller error, rint %#x stat %#x\n",
-		    rint,  JZ_MMC_READ_4(sc, JZ_MSC_STAT));
+		device_printf(sc->sc_dev,
+		    "controller error, rint %#x stat %#x\n", rint,
+		    JZ_MMC_READ_4(sc, JZ_MSC_STAT));
 #endif
 		if (rint & (JZ_INT_TIMEOUT_RES | JZ_INT_TIMEOUT_READ))
 			sc->sc_req->cmd->error = MMC_ERR_TIMEOUT;
@@ -706,7 +706,8 @@ jz4780_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 			iwait |= JZ_INT_DMAEND;
 		} else {
 			iwait |= (cmd->data->flags & MMC_DATA_WRITE) ?
-			    JZ_INT_TXFIFO_WR_REQ : JZ_INT_RXFIFO_RD_REQ;
+				  JZ_INT_TXFIFO_WR_REQ :
+				  JZ_INT_RXFIFO_RD_REQ;
 			JZ_MMC_WRITE_4(sc, JZ_MSC_DMAC, 0);
 		}
 	}
@@ -727,16 +728,15 @@ jz4780_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 
 	JZ_MMC_WRITE_4(sc, JZ_MSC_CTRL, JZ_START_OP | JZ_CLOCK_START);
 
-	callout_reset(&sc->sc_timeoutc, sc->sc_timeout * hz,
-	    jz4780_mmc_timeout, sc);
+	callout_reset(
+	    &sc->sc_timeoutc, sc->sc_timeout * hz, jz4780_mmc_timeout, sc);
 	JZ_MMC_UNLOCK(sc);
 
 	return (0);
 }
 
 static int
-jz4780_mmc_read_ivar(device_t bus, device_t child, int which,
-    uintptr_t *result)
+jz4780_mmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
 	struct jz4780_mmc_softc *sc;
 
@@ -793,7 +793,7 @@ jz4780_mmc_read_ivar(device_t bus, device_t child, int which,
 		*(int *)result = 65535;
 		break;
 	case MMCBR_IVAR_MAX_BUSY_TIMEOUT:
-		*(int *)result = 1000000;	/* 1s max */
+		*(int *)result = 1000000; /* 1s max */
 		break;
 	}
 
@@ -801,8 +801,7 @@ jz4780_mmc_read_ivar(device_t bus, device_t child, int which,
 }
 
 static int
-jz4780_mmc_write_ivar(device_t bus, device_t child, int which,
-    uintptr_t value)
+jz4780_mmc_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 {
 	struct jz4780_mmc_softc *sc;
 
@@ -888,8 +887,7 @@ jz4780_mmc_config_clock(struct jz4780_mmc_softc *sc, uint32_t freq)
 		div = 7;
 #if defined(JZ_MMC_DEBUG)
 	if (div != JZ_MMC_READ_4(sc, JZ_MSC_CLKRT))
-		device_printf(sc->sc_dev,
-		    "UPDATE_IOS: clk -> %u\n", clk_freq);
+		device_printf(sc->sc_dev, "UPDATE_IOS: clk -> %u\n", clk_freq);
 #endif
 	JZ_MMC_WRITE_4(sc, JZ_MSC_CLKRT, div);
 	return (0);
@@ -973,20 +971,20 @@ jz4780_mmc_release_host(device_t bus, device_t child)
 
 static device_method_t jz4780_mmc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		jz4780_mmc_probe),
-	DEVMETHOD(device_attach,	jz4780_mmc_attach),
-	DEVMETHOD(device_detach,	jz4780_mmc_detach),
+	DEVMETHOD(device_probe, jz4780_mmc_probe),
+	DEVMETHOD(device_attach, jz4780_mmc_attach),
+	DEVMETHOD(device_detach, jz4780_mmc_detach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,	jz4780_mmc_read_ivar),
-	DEVMETHOD(bus_write_ivar,	jz4780_mmc_write_ivar),
+	DEVMETHOD(bus_read_ivar, jz4780_mmc_read_ivar),
+	DEVMETHOD(bus_write_ivar, jz4780_mmc_write_ivar),
 
 	/* MMC bridge interface */
-	DEVMETHOD(mmcbr_update_ios,	jz4780_mmc_update_ios),
-	DEVMETHOD(mmcbr_request,	jz4780_mmc_request),
-	DEVMETHOD(mmcbr_get_ro,		jz4780_mmc_get_ro),
-	DEVMETHOD(mmcbr_acquire_host,	jz4780_mmc_acquire_host),
-	DEVMETHOD(mmcbr_release_host,	jz4780_mmc_release_host),
+	DEVMETHOD(mmcbr_update_ios, jz4780_mmc_update_ios),
+	DEVMETHOD(mmcbr_request, jz4780_mmc_request),
+	DEVMETHOD(mmcbr_get_ro, jz4780_mmc_get_ro),
+	DEVMETHOD(mmcbr_acquire_host, jz4780_mmc_acquire_host),
+	DEVMETHOD(mmcbr_release_host, jz4780_mmc_release_host),
 
 	DEVMETHOD_END
 };
@@ -999,6 +997,6 @@ static driver_t jz4780_mmc_driver = {
 	sizeof(struct jz4780_mmc_softc),
 };
 
-DRIVER_MODULE(jzmmc, simplebus, jz4780_mmc_driver, jz4780_mmc_devclass, NULL,
-    NULL);
+DRIVER_MODULE(
+    jzmmc, simplebus, jz4780_mmc_driver, jz4780_mmc_devclass, NULL, NULL);
 MMC_DECLARE_BRIDGE(jzmmc);

@@ -29,7 +29,7 @@
  */
 
 #ifndef _SYS_TIMEEC_H_
-#define	_SYS_TIMEEC_H_
+#define _SYS_TIMEEC_H_
 
 #ifndef _KERNEL
 #error "no user-serviceable parts inside"
@@ -46,60 +46,60 @@
  */
 
 struct eventtimer;
-typedef int et_start_t(struct eventtimer *et,
-    sbintime_t first, sbintime_t period);
+typedef int et_start_t(
+    struct eventtimer *et, sbintime_t first, sbintime_t period);
 typedef int et_stop_t(struct eventtimer *et);
 typedef void et_event_cb_t(struct eventtimer *et, void *arg);
 typedef int et_deregister_cb_t(struct eventtimer *et, void *arg);
 
 struct eventtimer {
-	SLIST_ENTRY(eventtimer)	et_all;
-		/* Pointer to the next event timer. */
-	const char		*et_name;
-		/* Name of the event timer. */
-	int			et_flags;
-		/* Set of capabilities flags: */
-#define ET_FLAGS_PERIODIC	1
-#define ET_FLAGS_ONESHOT	2
-#define ET_FLAGS_PERCPU		4
-#define ET_FLAGS_C3STOP		8
-#define ET_FLAGS_POW2DIV	16
-	int			et_quality;
-		/*
-		 * Used to determine if this timecounter is better than
-		 * another timecounter. Higher means better.
-		 */
-	int			et_active;
-	u_int64_t		et_frequency;
-		/* Base frequency in Hz. */
-	sbintime_t		et_min_period;
-	sbintime_t		et_max_period;
-	et_start_t		*et_start;
-	et_stop_t		*et_stop;
-	et_event_cb_t		*et_event_cb;
-	et_deregister_cb_t	*et_deregister_cb;
-	void 			*et_arg;
-	void			*et_priv;
-	struct sysctl_oid	*et_sysctl;
-		/* Pointer to the event timer's private parts. */
+	SLIST_ENTRY(eventtimer) et_all;
+	/* Pointer to the next event timer. */
+	const char *et_name;
+	/* Name of the event timer. */
+	int et_flags;
+	/* Set of capabilities flags: */
+#define ET_FLAGS_PERIODIC 1
+#define ET_FLAGS_ONESHOT 2
+#define ET_FLAGS_PERCPU 4
+#define ET_FLAGS_C3STOP 8
+#define ET_FLAGS_POW2DIV 16
+	int et_quality;
+	/*
+	 * Used to determine if this timecounter is better than
+	 * another timecounter. Higher means better.
+	 */
+	int et_active;
+	u_int64_t et_frequency;
+	/* Base frequency in Hz. */
+	sbintime_t et_min_period;
+	sbintime_t et_max_period;
+	et_start_t *et_start;
+	et_stop_t *et_stop;
+	et_event_cb_t *et_event_cb;
+	et_deregister_cb_t *et_deregister_cb;
+	void *et_arg;
+	void *et_priv;
+	struct sysctl_oid *et_sysctl;
+	/* Pointer to the event timer's private parts. */
 };
 
-extern struct mtx	et_eventtimers_mtx;
-#define	ET_LOCK()	mtx_lock(&et_eventtimers_mtx)
-#define	ET_UNLOCK()	mtx_unlock(&et_eventtimers_mtx)
+extern struct mtx et_eventtimers_mtx;
+#define ET_LOCK() mtx_lock(&et_eventtimers_mtx)
+#define ET_UNLOCK() mtx_unlock(&et_eventtimers_mtx)
 
 /* Driver API */
-int	et_register(struct eventtimer *et);
-int	et_deregister(struct eventtimer *et);
-void	et_change_frequency(struct eventtimer *et, uint64_t newfreq);
+int et_register(struct eventtimer *et);
+int et_deregister(struct eventtimer *et);
+void et_change_frequency(struct eventtimer *et, uint64_t newfreq);
 /* Consumer API  */
 struct eventtimer *et_find(const char *name, int check, int want);
-int	et_init(struct eventtimer *et, et_event_cb_t *event,
+int et_init(struct eventtimer *et, et_event_cb_t *event,
     et_deregister_cb_t *deregister, void *arg);
-int	et_start(struct eventtimer *et, sbintime_t first, sbintime_t period);
-int	et_stop(struct eventtimer *et);
-int	et_ban(struct eventtimer *et);
-int	et_free(struct eventtimer *et);
+int et_start(struct eventtimer *et, sbintime_t first, sbintime_t period);
+int et_stop(struct eventtimer *et);
+int et_ban(struct eventtimer *et);
+int et_free(struct eventtimer *et);
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_kern_eventtimer);

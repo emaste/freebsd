@@ -38,7 +38,7 @@
  */
 #include "opt_platform.h"
 
-#ifndef	FDT			/* use FDT uart when fdt is enable */
+#ifndef FDT /* use FDT uart when fdt is enable */
 #include "opt_uart.h"
 
 #include <sys/cdefs.h>
@@ -58,12 +58,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
+#include <mips/nlm/board.h>
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
 #include <mips/nlm/hal/mips-extns.h>
 #include <mips/nlm/hal/uart.h>
-
-#include <mips/nlm/board.h>
 
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;

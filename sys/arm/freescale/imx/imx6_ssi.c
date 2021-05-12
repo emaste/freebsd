@@ -38,99 +38,97 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
-
-#include <dev/sound/pcm/sound.h>
-#include <dev/sound/chip.h>
-#include <mixer_if.h>
-
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <arm/freescale/imx/imx6_sdma.h>
-#include <arm/freescale/imx/imx6_anatopvar.h>
-#include <arm/freescale/imx/imx_ccmvar.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/sound/chip.h>
+#include <dev/sound/pcm/sound.h>
 
-#define	READ4(_sc, _reg)	\
-	bus_space_read_4(_sc->bst, _sc->bsh, _reg)
-#define	WRITE4(_sc, _reg, _val)	\
+#include <arm/freescale/imx/imx6_anatopvar.h>
+#include <arm/freescale/imx/imx6_sdma.h>
+#include <arm/freescale/imx/imx_ccmvar.h>
+#include <mixer_if.h>
+
+#define READ4(_sc, _reg) bus_space_read_4(_sc->bst, _sc->bsh, _reg)
+#define WRITE4(_sc, _reg, _val) \
 	bus_space_write_4(_sc->bst, _sc->bsh, _reg, _val)
 
-#define	SSI_NCHANNELS	1
-#define	DMAS_TOTAL	8
+#define SSI_NCHANNELS 1
+#define DMAS_TOTAL 8
 
 /* i.MX6 SSI registers */
 
-#define	SSI_STX0	0x00 /* Transmit Data Register n */
-#define	SSI_STX1	0x04 /* Transmit Data Register n */
-#define	SSI_SRX0	0x08 /* Receive Data Register n */
-#define	SSI_SRX1	0x0C /* Receive Data Register n */
-#define	SSI_SCR		0x10 /* Control Register */
-#define	 SCR_I2S_MODE_S	5    /* I2S Mode Select. */
-#define	 SCR_I2S_MODE_M	0x3
-#define	 SCR_SYN	(1 << 4)
-#define	 SCR_NET       	(1 << 3)  /* Network mode */
-#define	 SCR_RE		(1 << 2)  /* Receive Enable. */
-#define	 SCR_TE		(1 << 1)  /* Transmit Enable. */
-#define	 SCR_SSIEN	(1 << 0)  /* SSI Enable */
-#define	SSI_SISR	0x14      /* Interrupt Status Register */
-#define	SSI_SIER	0x18      /* Interrupt Enable Register */
-#define	 SIER_RDMAE	(1 << 22) /* Receive DMA Enable. */
-#define	 SIER_RIE	(1 << 21) /* Receive Interrupt Enable. */
-#define	 SIER_TDMAE	(1 << 20) /* Transmit DMA Enable. */
-#define	 SIER_TIE	(1 << 19) /* Transmit Interrupt Enable. */
-#define	 SIER_TDE0IE	(1 << 12) /* Transmit Data Register Empty 0. */
-#define	 SIER_TUE0IE	(1 << 8)  /* Transmitter Underrun Error 0. */
-#define	 SIER_TFE0IE	(1 << 0)  /* Transmit FIFO Empty 0 IE. */
-#define	SSI_STCR	0x1C	  /* Transmit Configuration Register */
-#define	 STCR_TXBIT0	(1 << 9)  /* Transmit Bit 0 shift MSB/LSB */
-#define	 STCR_TFEN1	(1 << 8)  /* Transmit FIFO Enable 1. */
-#define	 STCR_TFEN0	(1 << 7)  /* Transmit FIFO Enable 0. */
-#define	 STCR_TFDIR	(1 << 6)  /* Transmit Frame Direction. */
-#define	 STCR_TXDIR	(1 << 5)  /* Transmit Clock Direction. */
-#define	 STCR_TSHFD	(1 << 4)  /* Transmit Shift Direction. */
-#define	 STCR_TSCKP	(1 << 3)  /* Transmit Clock Polarity. */
-#define	 STCR_TFSI	(1 << 2)  /* Transmit Frame Sync Invert. */
-#define	 STCR_TFSL	(1 << 1)  /* Transmit Frame Sync Length. */
-#define	 STCR_TEFS	(1 << 0)  /* Transmit Early Frame Sync. */
-#define	SSI_SRCR	0x20      /* Receive Configuration Register */
-#define	SSI_STCCR	0x24      /* Transmit Clock Control Register */
-#define	 STCCR_DIV2	(1 << 18) /* Divide By 2. */
-#define	 STCCR_PSR	(1 << 17) /* Divide clock by 8. */
-#define	 WL3_WL0_S	13
-#define	 WL3_WL0_M	0xf
-#define	 DC4_DC0_S	8
-#define	 DC4_DC0_M	0x1f
-#define	 PM7_PM0_S	0
-#define	 PM7_PM0_M	0xff
-#define	SSI_SRCCR	0x28	/* Receive Clock Control Register */
-#define	SSI_SFCSR	0x2C	/* FIFO Control/Status Register */
-#define	 SFCSR_RFWM1_S	20	/* Receive FIFO Empty WaterMark 1 */
-#define	 SFCSR_RFWM1_M	0xf
-#define	 SFCSR_TFWM1_S	16	/* Transmit FIFO Empty WaterMark 1 */
-#define	 SFCSR_TFWM1_M	0xf
-#define	 SFCSR_RFWM0_S	4	/* Receive FIFO Empty WaterMark 0 */
-#define	 SFCSR_RFWM0_M	0xf
-#define	 SFCSR_TFWM0_S	0	/* Transmit FIFO Empty WaterMark 0 */
-#define	 SFCSR_TFWM0_M	0xf
-#define	SSI_SACNT	0x38	/* AC97 Control Register */
-#define	SSI_SACADD	0x3C	/* AC97 Command Address Register */
-#define	SSI_SACDAT	0x40	/* AC97 Command Data Register */
-#define	SSI_SATAG	0x44	/* AC97 Tag Register */
-#define	SSI_STMSK	0x48	/* Transmit Time Slot Mask Register */
-#define	SSI_SRMSK	0x4C	/* Receive Time Slot Mask Register */
-#define	SSI_SACCST	0x50	/* AC97 Channel Status Register */
-#define	SSI_SACCEN	0x54	/* AC97 Channel Enable Register */
-#define	SSI_SACCDIS	0x58	/* AC97 Channel Disable Register */
+#define SSI_STX0 0x00 /* Transmit Data Register n */
+#define SSI_STX1 0x04 /* Transmit Data Register n */
+#define SSI_SRX0 0x08 /* Receive Data Register n */
+#define SSI_SRX1 0x0C /* Receive Data Register n */
+#define SSI_SCR 0x10 /* Control Register */
+#define SCR_I2S_MODE_S 5 /* I2S Mode Select. */
+#define SCR_I2S_MODE_M 0x3
+#define SCR_SYN (1 << 4)
+#define SCR_NET (1 << 3) /* Network mode */
+#define SCR_RE (1 << 2) /* Receive Enable. */
+#define SCR_TE (1 << 1) /* Transmit Enable. */
+#define SCR_SSIEN (1 << 0) /* SSI Enable */
+#define SSI_SISR 0x14 /* Interrupt Status Register */
+#define SSI_SIER 0x18 /* Interrupt Enable Register */
+#define SIER_RDMAE (1 << 22) /* Receive DMA Enable. */
+#define SIER_RIE (1 << 21) /* Receive Interrupt Enable. */
+#define SIER_TDMAE (1 << 20) /* Transmit DMA Enable. */
+#define SIER_TIE (1 << 19) /* Transmit Interrupt Enable. */
+#define SIER_TDE0IE (1 << 12) /* Transmit Data Register Empty 0. */
+#define SIER_TUE0IE (1 << 8) /* Transmitter Underrun Error 0. */
+#define SIER_TFE0IE (1 << 0) /* Transmit FIFO Empty 0 IE. */
+#define SSI_STCR 0x1C /* Transmit Configuration Register */
+#define STCR_TXBIT0 (1 << 9) /* Transmit Bit 0 shift MSB/LSB */
+#define STCR_TFEN1 (1 << 8) /* Transmit FIFO Enable 1. */
+#define STCR_TFEN0 (1 << 7) /* Transmit FIFO Enable 0. */
+#define STCR_TFDIR (1 << 6) /* Transmit Frame Direction. */
+#define STCR_TXDIR (1 << 5) /* Transmit Clock Direction. */
+#define STCR_TSHFD (1 << 4) /* Transmit Shift Direction. */
+#define STCR_TSCKP (1 << 3) /* Transmit Clock Polarity. */
+#define STCR_TFSI (1 << 2) /* Transmit Frame Sync Invert. */
+#define STCR_TFSL (1 << 1) /* Transmit Frame Sync Length. */
+#define STCR_TEFS (1 << 0) /* Transmit Early Frame Sync. */
+#define SSI_SRCR 0x20 /* Receive Configuration Register */
+#define SSI_STCCR 0x24 /* Transmit Clock Control Register */
+#define STCCR_DIV2 (1 << 18) /* Divide By 2. */
+#define STCCR_PSR (1 << 17) /* Divide clock by 8. */
+#define WL3_WL0_S 13
+#define WL3_WL0_M 0xf
+#define DC4_DC0_S 8
+#define DC4_DC0_M 0x1f
+#define PM7_PM0_S 0
+#define PM7_PM0_M 0xff
+#define SSI_SRCCR 0x28 /* Receive Clock Control Register */
+#define SSI_SFCSR 0x2C /* FIFO Control/Status Register */
+#define SFCSR_RFWM1_S 20 /* Receive FIFO Empty WaterMark 1 */
+#define SFCSR_RFWM1_M 0xf
+#define SFCSR_TFWM1_S 16 /* Transmit FIFO Empty WaterMark 1 */
+#define SFCSR_TFWM1_M 0xf
+#define SFCSR_RFWM0_S 4 /* Receive FIFO Empty WaterMark 0 */
+#define SFCSR_RFWM0_M 0xf
+#define SFCSR_TFWM0_S 0 /* Transmit FIFO Empty WaterMark 0 */
+#define SFCSR_TFWM0_M 0xf
+#define SSI_SACNT 0x38 /* AC97 Control Register */
+#define SSI_SACADD 0x3C /* AC97 Command Address Register */
+#define SSI_SACDAT 0x40 /* AC97 Command Data Register */
+#define SSI_SATAG 0x44 /* AC97 Tag Register */
+#define SSI_STMSK 0x48 /* Transmit Time Slot Mask Register */
+#define SSI_SRMSK 0x4C /* Receive Time Slot Mask Register */
+#define SSI_SACCST 0x50 /* AC97 Channel Status Register */
+#define SSI_SACCEN 0x54 /* AC97 Channel Enable Register */
+#define SSI_SACCDIS 0x58 /* AC97 Channel Disable Register */
 
 static MALLOC_DEFINE(M_SSI, "ssi", "ssi audio");
 
@@ -141,7 +139,7 @@ struct ssi_rate {
 	uint32_t mfi; /* PLL4 Multiplication Factor Integer */
 	uint32_t mfn; /* PLL4 Multiplication Factor Numerator */
 	uint32_t mfd; /* PLL4 Multiplication Factor Denominator */
-	/* More dividers to configure can be added here */
+		      /* More dividers to configure can be added here */
 };
 
 static struct ssi_rate rate_map[] = {
@@ -153,7 +151,7 @@ static struct ssi_rate rate_map[] = {
 /*
  *  i.MX6 example bit clock formula
  *
- *  BCLK = 2 channels * 192000 hz * 24 bit = 9216000 hz = 
+ *  BCLK = 2 channels * 192000 hz * 24 bit = 9216000 hz =
  *     (24000000 * (49 + 152/1000.0) / 4 / 4 / 2 / 2 / 2 / 1 / 1)
  *             ^     ^     ^      ^    ^   ^   ^   ^   ^   ^   ^
  *             |     |     |      |    |   |   |   |   |   |   |
@@ -173,54 +171,51 @@ static struct ssi_rate rate_map[] = {
  */
 
 struct sc_info {
-	struct resource		*res[2];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	device_t		dev;
-	struct mtx		*lock;
-	void			*ih;
-	int			pos;
-	int			dma_size;
-	bus_dma_tag_t		dma_tag;
-	bus_dmamap_t		dma_map;
-	bus_addr_t		buf_base_phys;
-	uint32_t		*buf_base;
-	struct sdma_conf	*conf;
-	struct ssi_rate		*sr;
-	struct sdma_softc	*sdma_sc;
-	uint32_t		sdma_ev_rx;
-	uint32_t		sdma_ev_tx;
-	int			sdma_channel;
+	struct resource *res[2];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	device_t dev;
+	struct mtx *lock;
+	void *ih;
+	int pos;
+	int dma_size;
+	bus_dma_tag_t dma_tag;
+	bus_dmamap_t dma_map;
+	bus_addr_t buf_base_phys;
+	uint32_t *buf_base;
+	struct sdma_conf *conf;
+	struct ssi_rate *sr;
+	struct sdma_softc *sdma_sc;
+	uint32_t sdma_ev_rx;
+	uint32_t sdma_ev_tx;
+	int sdma_channel;
 };
 
 /* Channel registers */
 struct sc_chinfo {
-	struct snd_dbuf		*buffer;
-	struct pcm_channel	*channel;
-	struct sc_pcminfo	*parent;
+	struct snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct sc_pcminfo *parent;
 
 	/* Channel information */
-	uint32_t	dir;
-	uint32_t	format;
+	uint32_t dir;
+	uint32_t format;
 
 	/* Flags */
-	uint32_t	run;
+	uint32_t run;
 };
 
 /* PCM device private data */
 struct sc_pcminfo {
-	device_t		dev;
-	uint32_t		(*ih)(struct sc_pcminfo *scp);
-	uint32_t		chnum;
-	struct sc_chinfo	chan[SSI_NCHANNELS];
-	struct sc_info		*sc;
+	device_t dev;
+	uint32_t (*ih)(struct sc_pcminfo *scp);
+	uint32_t chnum;
+	struct sc_chinfo chan[SSI_NCHANNELS];
+	struct sc_info *sc;
 };
 
-static struct resource_spec ssi_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec ssi_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
 static int setup_dma(struct sc_pcminfo *scp);
 static void setup_ssi(struct sc_info *);
@@ -255,8 +250,7 @@ ssimixer_init(struct snd_mixer *m)
 }
 
 static int
-ssimixer_set(struct snd_mixer *m, unsigned dev,
-    unsigned left, unsigned right)
+ssimixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct sc_pcminfo *scp;
 
@@ -265,18 +259,15 @@ ssimixer_set(struct snd_mixer *m, unsigned dev,
 	/* Here we can configure hardware volume on our DAC */
 
 #if 1
-	device_printf(scp->dev, "ssimixer_set() %d %d\n",
-	    left, right);
+	device_printf(scp->dev, "ssimixer_set() %d %d\n", left, right);
 #endif
 
 	return (0);
 }
 
-static kobj_method_t ssimixer_methods[] = {
-	KOBJMETHOD(mixer_init,      ssimixer_init),
-	KOBJMETHOD(mixer_set,       ssimixer_set),
-	KOBJMETHOD_END
-};
+static kobj_method_t ssimixer_methods[] = { KOBJMETHOD(
+						mixer_init, ssimixer_init),
+	KOBJMETHOD(mixer_set, ssimixer_set), KOBJMETHOD_END };
 MIXER_DECLARE(ssimixer);
 
 /*
@@ -365,8 +356,10 @@ ssichan_setspeed(kobj_t obj, void *data, uint32_t speed)
 	if (sr == NULL) {
 		for (i = 0; rate_map[i].speed != 0; i++) {
 			sr = &rate_map[i];
-			threshold = sr->speed + ((rate_map[i + 1].speed != 0) ?
-			    ((rate_map[i + 1].speed - sr->speed) >> 1) : 0);
+			threshold = sr->speed +
+			    ((rate_map[i + 1].speed != 0) ?
+					  ((rate_map[i + 1].speed - sr->speed) >> 1) :
+					  0);
 			if (speed < threshold)
 				break;
 		}
@@ -615,12 +608,9 @@ ssichan_getptr(kobj_t obj, void *data)
 	return (sc->pos);
 }
 
-static uint32_t ssi_pfmt[] = {
-	SND_FORMAT(AFMT_S24_LE, 2, 0),
-	0
-};
+static uint32_t ssi_pfmt[] = { SND_FORMAT(AFMT_S24_LE, 2, 0), 0 };
 
-static struct pcmchan_caps ssi_pcaps = {44100, 192000, ssi_pfmt, 0};
+static struct pcmchan_caps ssi_pcaps = { 44100, 192000, ssi_pfmt, 0 };
 
 static struct pcmchan_caps *
 ssichan_getcaps(kobj_t obj, void *data)
@@ -629,17 +619,15 @@ ssichan_getcaps(kobj_t obj, void *data)
 	return (&ssi_pcaps);
 }
 
-static kobj_method_t ssichan_methods[] = {
-	KOBJMETHOD(channel_init,         ssichan_init),
-	KOBJMETHOD(channel_free,         ssichan_free),
-	KOBJMETHOD(channel_setformat,    ssichan_setformat),
-	KOBJMETHOD(channel_setspeed,     ssichan_setspeed),
+static kobj_method_t ssichan_methods[] = { KOBJMETHOD(
+					       channel_init, ssichan_init),
+	KOBJMETHOD(channel_free, ssichan_free),
+	KOBJMETHOD(channel_setformat, ssichan_setformat),
+	KOBJMETHOD(channel_setspeed, ssichan_setspeed),
 	KOBJMETHOD(channel_setblocksize, ssichan_setblocksize),
-	KOBJMETHOD(channel_trigger,      ssichan_trigger),
-	KOBJMETHOD(channel_getptr,       ssichan_getptr),
-	KOBJMETHOD(channel_getcaps,      ssichan_getcaps),
-	KOBJMETHOD_END
-};
+	KOBJMETHOD(channel_trigger, ssichan_trigger),
+	KOBJMETHOD(channel_getptr, ssichan_getptr),
+	KOBJMETHOD(channel_getcaps, ssichan_getcaps), KOBJMETHOD_END };
 CHANNEL_DECLARE(ssichan);
 
 static int
@@ -684,8 +672,8 @@ setup_ssi(struct sc_info *sc)
 	reg |= (0xb << WL3_WL0_S); /* 24 bit */
 	reg &= ~(DC4_DC0_M << DC4_DC0_S);
 	reg |= (1 << DC4_DC0_S); /* 2 words per frame */
-	reg &= ~(STCCR_DIV2); /* Divide by 1 */
-	reg &= ~(STCCR_PSR); /* Divide by 1 */
+	reg &= ~(STCCR_DIV2);	 /* Divide by 1 */
+	reg &= ~(STCCR_PSR);	 /* Divide by 1 */
 	reg &= ~(PM7_PM0_M << PM7_PM0_S);
 	reg |= (1 << PM7_PM0_S); /* Divide by 2 */
 	WRITE4(sc, SSI_STCCR, reg);
@@ -724,7 +712,7 @@ ssi_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
 	if (err)
 		return;
 
-	addr = (bus_addr_t*)arg;
+	addr = (bus_addr_t *)arg;
 	*addr = segs[0].ds_addr;
 }
 
@@ -740,7 +728,8 @@ ssi_attach(device_t dev)
 	sc->dev = dev;
 	sc->sr = &rate_map[0];
 	sc->pos = 0;
-	sc->conf = malloc(sizeof(struct sdma_conf), M_DEVBUF, M_WAITOK | M_ZERO);
+	sc->conf = malloc(
+	    sizeof(struct sdma_conf), M_DEVBUF, M_WAITOK | M_ZERO);
 
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "ssi softc");
 	if (sc->lock == NULL) {
@@ -779,15 +768,14 @@ ssi_attach(device_t dev)
 	 * Modulo feature allows setup circular buffer.
 	 */
 
-	err = bus_dma_tag_create(
-	    bus_get_dma_tag(sc->dev),
-	    4, sc->dma_size,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    sc->dma_size, 1,		/* maxsize, nsegments */
-	    sc->dma_size, 0,		/* maxsegsize, flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	err = bus_dma_tag_create(bus_get_dma_tag(sc->dev), 4,
+	    sc->dma_size,	     /* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
+	    BUS_SPACE_MAXADDR,	     /* highaddr */
+	    NULL, NULL,		     /* filter, filterarg */
+	    sc->dma_size, 1,	     /* maxsize, nsegments */
+	    sc->dma_size, 0,	     /* maxsegsize, flags */
+	    NULL, NULL,		     /* lockfunc, lockarg */
 	    &sc->dma_tag);
 
 	err = bus_dmamem_alloc(sc->dma_tag, (void **)&sc->buf_base,
@@ -807,8 +795,8 @@ ssi_attach(device_t dev)
 	bzero(sc->buf_base, sc->dma_size);
 
 	/* Setup interrupt handler */
-	err = bus_setup_intr(dev, sc->res[1], INTR_MPSAFE | INTR_TYPE_AV,
-	    NULL, ssi_intr, scp, &sc->ih);
+	err = bus_setup_intr(dev, sc->res[1], INTR_MPSAFE | INTR_TYPE_AV, NULL,
+	    ssi_intr, scp, &sc->ih);
 	if (err) {
 		device_printf(dev, "Unable to alloc interrupt resource.\n");
 		return (ENXIO);
@@ -843,11 +831,8 @@ ssi_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t ssi_pcm_methods[] = {
-	DEVMETHOD(device_probe,		ssi_probe),
-	DEVMETHOD(device_attach,	ssi_attach),
-	{ 0, 0 }
-};
+static device_method_t ssi_pcm_methods[] = { DEVMETHOD(device_probe, ssi_probe),
+	DEVMETHOD(device_attach, ssi_attach), { 0, 0 } };
 
 static driver_t ssi_pcm_driver = {
 	"pcm",

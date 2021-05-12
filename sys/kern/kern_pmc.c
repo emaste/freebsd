@@ -36,28 +36,27 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/ctype.h>
 #include <sys/domainset.h>
-#include <sys/param.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 FEATURE(hwpmc_hooks, "Kernel support for HW PMC");
-#define	PMC_KERNEL_VERSION	PMC_VERSION
+#define PMC_KERNEL_VERSION PMC_VERSION
 #else
-#define	PMC_KERNEL_VERSION	0
+#define PMC_KERNEL_VERSION 0
 #endif
 
 MALLOC_DECLARE(M_PMCHOOKS);
@@ -69,7 +68,8 @@ MALLOC_DEFINE(M_PMC, "pmc", "Memory space for the PMC module");
 const int pmc_kernel_version = PMC_KERNEL_VERSION;
 
 /* Hook variable. */
-int __read_mostly (*pmc_hook)(struct thread *td, int function, void *arg) = NULL;
+int __read_mostly (*pmc_hook)(
+    struct thread *td, int function, void *arg) = NULL;
 
 /* Interrupt handler */
 int __read_mostly (*pmc_intr)(struct trapframe *tf) = NULL;
@@ -108,12 +108,12 @@ __read_mostly struct pmc_domain_buffer_header *pmc_dom_hdrs[MAXMEMDOM];
  * PMC Soft use a global table to store registered events.
  */
 
-SYSCTL_NODE(_kern, OID_AUTO, hwpmc, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "HWPMC parameters");
+SYSCTL_NODE(
+    _kern, OID_AUTO, hwpmc, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "HWPMC parameters");
 
 static int pmc_softevents = 16;
-SYSCTL_INT(_kern_hwpmc, OID_AUTO, softevents, CTLFLAG_RDTUN,
-    &pmc_softevents, 0, "maximum number of soft events");
+SYSCTL_INT(_kern_hwpmc, OID_AUTO, softevents, CTLFLAG_RDTUN, &pmc_softevents, 0,
+    "maximum number of soft events");
 
 int pmc_softs_count;
 struct pmc_soft **pmc_softs;
@@ -149,9 +149,8 @@ MTX_SYSINIT(pmc_soft_mtx, &pmc_softs_mtx, "pmc-softs", MTX_SPIN);
 int
 pmc_cpu_is_active(int cpu)
 {
-#ifdef	SMP
-	return (pmc_cpu_is_present(cpu) &&
-	    !CPU_ISSET(cpu, &hlt_cpus_mask));
+#ifdef SMP
+	return (pmc_cpu_is_present(cpu) && !CPU_ISSET(cpu, &hlt_cpus_mask));
 #else
 	return (1);
 #endif
@@ -167,7 +166,7 @@ pmc_cpu_is_disabled(int cpu)
 int
 pmc_cpu_is_present(int cpu)
 {
-#ifdef	SMP
+#ifdef SMP
 	return (!CPU_ABSENT(cpu));
 #else
 	return (1);
@@ -177,7 +176,7 @@ pmc_cpu_is_present(int cpu)
 int
 pmc_cpu_is_primary(int cpu)
 {
-#ifdef	SMP
+#ifdef SMP
 	return (!CPU_ISSET(cpu, &logical_cpus_mask));
 #else
 	return (1);
@@ -192,14 +191,14 @@ pmc_cpu_is_primary(int cpu)
 unsigned int
 pmc_cpu_max(void)
 {
-#ifdef	SMP
-	return (mp_maxid+1);
+#ifdef SMP
+	return (mp_maxid + 1);
 #else
 	return (1);
 #endif
 }
 
-#ifdef	INVARIANTS
+#ifdef INVARIANTS
 
 /*
  * Return the count of CPUs in the `active' state in the system.
@@ -207,7 +206,7 @@ pmc_cpu_max(void)
 int
 pmc_cpu_max_active(void)
 {
-#ifdef	SMP
+#ifdef SMP
 	/*
 	 * When support for CPU hot-plugging is added to the kernel,
 	 * this function would change to return the current number
@@ -233,9 +232,9 @@ pmc_soft_namecleanup(char *name)
 
 	p = q = name;
 
-	for ( ; *p == '_' ; p++)
+	for (; *p == '_'; p++)
 		;
-	for ( ; *p ; p++) {
+	for (; *p; p++) {
 		if (*p == '_' && (*(p + 1) == '_' || *(p + 1) == '\0'))
 			continue;
 		else
@@ -250,7 +249,7 @@ pmc_soft_ev_register(struct pmc_soft *ps)
 	static int warned = 0;
 	int n;
 
-	ps->ps_running  = 0;
+	ps->ps_running = 0;
 	ps->ps_ev.pm_ev_code = 0; /* invalid */
 	pmc_soft_namecleanup(ps->ps_ev.pm_ev_name);
 
@@ -267,7 +266,8 @@ pmc_soft_ev_register(struct pmc_soft *ps)
 		if (n == pmc_softevents) {
 			mtx_unlock_spin(&pmc_softs_mtx);
 			if (!warned) {
-				printf("hwpmc: too many soft events, "
+				printf(
+				    "hwpmc: too many soft events, "
 				    "increase kern.hwpmc.softevents tunable\n");
 				warned = 1;
 			}
@@ -295,7 +295,7 @@ pmc_soft_ev_deregister(struct pmc_soft *ps)
 	if (ps->ps_ev.pm_ev_code != 0 &&
 	    (ps->ps_ev.pm_ev_code - PMC_EV_SOFT_FIRST) < pmc_softevents) {
 		KASSERT((int)ps->ps_ev.pm_ev_code >= PMC_EV_SOFT_FIRST &&
-		    (int)ps->ps_ev.pm_ev_code <= PMC_EV_SOFT_LAST,
+			(int)ps->ps_ev.pm_ev_code <= PMC_EV_SOFT_LAST,
 		    ("pmc_soft_deregister: invalid event value"));
 		pmc_softs[ps->ps_ev.pm_ev_code - PMC_EV_SOFT_FIRST] = NULL;
 	}
@@ -311,8 +311,7 @@ pmc_soft_ev_acquire(enum pmc_event ev)
 	if (ev == 0 || (ev - PMC_EV_SOFT_FIRST) >= pmc_softevents)
 		return NULL;
 
-	KASSERT((int)ev >= PMC_EV_SOFT_FIRST &&
-	    (int)ev <= PMC_EV_SOFT_LAST,
+	KASSERT((int)ev >= PMC_EV_SOFT_FIRST && (int)ev <= PMC_EV_SOFT_LAST,
 	    ("event out of range"));
 
 	mtx_lock_spin(&pmc_softs_mtx);
@@ -339,28 +338,29 @@ init_hwpmc(void *dummy __unused)
 {
 	int domain, cpu;
 
-	if (pmc_softevents <= 0 ||
-	    pmc_softevents > PMC_EV_DYN_COUNT) {
-		(void) printf("hwpmc: tunable \"softevents\"=%d out of "
-		    "range.\n", pmc_softevents);
+	if (pmc_softevents <= 0 || pmc_softevents > PMC_EV_DYN_COUNT) {
+		(void)printf("hwpmc: tunable \"softevents\"=%d out of "
+			     "range.\n",
+		    pmc_softevents);
 		pmc_softevents = PMC_EV_DYN_COUNT;
 	}
-	pmc_softs = malloc(pmc_softevents * sizeof(*pmc_softs), M_PMCHOOKS,
-	    M_WAITOK | M_ZERO);
+	pmc_softs = malloc(
+	    pmc_softevents * sizeof(*pmc_softs), M_PMCHOOKS, M_WAITOK | M_ZERO);
 
 	for (domain = 0; domain < vm_ndomains; domain++) {
 		pmc_dom_hdrs[domain] = malloc_domainset(
 		    sizeof(struct pmc_domain_buffer_header), M_PMC,
 		    DOMAINSET_PREF(domain), M_WAITOK | M_ZERO);
-		mtx_init(&pmc_dom_hdrs[domain]->pdbh_mtx, "pmc_bufferlist_mtx", "pmc-leaf", MTX_SPIN);
+		mtx_init(&pmc_dom_hdrs[domain]->pdbh_mtx, "pmc_bufferlist_mtx",
+		    "pmc-leaf", MTX_SPIN);
 		TAILQ_INIT(&pmc_dom_hdrs[domain]->pdbh_head);
 	}
-	CPU_FOREACH(cpu) {
+	CPU_FOREACH (cpu) {
 		domain = pcpu_find(cpu)->pc_domain;
-		KASSERT(pmc_dom_hdrs[domain] != NULL, ("no mem allocated for domain: %d", domain));
+		KASSERT(pmc_dom_hdrs[domain] != NULL,
+		    ("no mem allocated for domain: %d", domain));
 		pmc_dom_hdrs[domain]->pdbh_ncpus++;
 	}
-
 }
 
 SYSINIT(hwpmc, SI_SUB_KDTRACE, SI_ORDER_FIRST, init_hwpmc, NULL);

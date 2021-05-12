@@ -28,17 +28,14 @@
  * $FreeBSD$
  */
 
-#define	READ4(_sc, _reg)	\
-	bus_space_read_4(_sc->bst, _sc->bsh, _reg)
-#define	WRITE4(_sc, _reg, _val)	\
+#define READ4(_sc, _reg) bus_space_read_4(_sc->bst, _sc->bsh, _reg)
+#define WRITE4(_sc, _reg, _val) \
 	bus_space_write_4(_sc->bst, _sc->bsh, _reg, _val)
-#define	READ2(_sc, _reg)	\
-	bus_space_read_2(_sc->bst, _sc->bsh, _reg)
-#define	WRITE2(_sc, _reg, _val)	\
+#define READ2(_sc, _reg) bus_space_read_2(_sc->bst, _sc->bsh, _reg)
+#define WRITE2(_sc, _reg, _val) \
 	bus_space_write_2(_sc->bst, _sc->bsh, _reg, _val)
-#define	READ1(_sc, _reg)	\
-	bus_space_read_1(_sc->bst, _sc->bsh, _reg)
-#define	WRITE1(_sc, _reg, _val)	\
+#define READ1(_sc, _reg) bus_space_read_1(_sc->bst, _sc->bsh, _reg)
+#define WRITE1(_sc, _reg, _val) \
 	bus_space_write_1(_sc->bst, _sc->bsh, _reg, _val)
 
 uint32_t pll4_configure_output(uint32_t mfi, uint32_t mfn, uint32_t mfd);

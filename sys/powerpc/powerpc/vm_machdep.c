@@ -71,20 +71,27 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/vnode.h>
-#include <sys/vmmeter.h>
-#include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/unistd.h>
+#include <sys/vmmeter.h>
+#include <sys/vnode.h>
+
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
 
 #include <machine/cpu.h>
 #include <machine/fpu.h>
@@ -94,13 +101,6 @@
 
 #include <dev/ofw/openfirm.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_page.h>
-#include <vm/vm_map.h>
-#include <vm/vm_extern.h>
-
 /*
  * Finish a fork operation, with process p2 nearly set up.
  * Copy and update the pcb, set up the stack so that the child
@@ -109,20 +109,22 @@
 void
 cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
-	struct	trapframe *tf;
-	struct	callframe *cf;
-	struct	pcb *pcb;
+	struct trapframe *tf;
+	struct callframe *cf;
+	struct pcb *pcb;
 
 	KASSERT(td1 == curthread || td1 == &thread0,
 	    ("cpu_fork: p1 not curproc and not proc0"));
-	CTR3(KTR_PROC, "cpu_fork: called td1=%p p2=%p flags=%x",
-	    td1, p2, flags);
+	CTR3(
+	    KTR_PROC, "cpu_fork: called td1=%p p2=%p flags=%x", td1, p2, flags);
 
 	if ((flags & RFPROC) == 0)
 		return;
 
 	pcb = (struct pcb *)((td2->td_kstack +
-	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb)) & ~0x2fUL);
+				 td2->td_kstack_pages * PAGE_SIZE -
+				 sizeof(struct pcb)) &
+	    ~0x2fUL);
 	td2->td_pcb = pcb;
 
 	/* Copy the pcb */
@@ -145,32 +147,32 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	cf = (struct callframe *)tf - 1;
 	memset(cf, 0, sizeof(struct callframe));
-	#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
+#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
 	cf->cf_toc = ((register_t *)fork_return)[1];
-	#endif
+#endif
 	cf->cf_func = (register_t)fork_return;
 	cf->cf_arg0 = (register_t)td2;
 	cf->cf_arg1 = (register_t)tf;
 
 	pcb->pcb_sp = (register_t)cf;
 	KASSERT(pcb->pcb_sp % 16 == 0, ("stack misaligned"));
-	#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
+#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
 	pcb->pcb_lr = ((register_t *)fork_trampoline)[0];
 	pcb->pcb_toc = ((register_t *)fork_trampoline)[1];
-	#else
+#else
 	pcb->pcb_lr = (register_t)fork_trampoline;
 	pcb->pcb_context[0] = pcb->pcb_lr;
-	#endif
-	#ifdef AIM
+#endif
+#ifdef AIM
 	pcb->pcb_cpu.aim.usr_vsid = 0;
-	#endif
+#endif
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_msr = psl_kernset;
 
 	/*
- 	 * Now cpu_switch() can schedule the new process.
+	 * Now cpu_switch() can schedule the new process.
 	 */
 }
 
@@ -185,14 +187,14 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 {
 	struct callframe *cf;
 
-	CTR4(KTR_PROC, "%s called with td=%p func=%p arg=%p",
-	    __func__, td, func, arg);
+	CTR4(KTR_PROC, "%s called with td=%p func=%p arg=%p", __func__, td,
+	    func, arg);
 
 	cf = (struct callframe *)td->td_pcb->pcb_sp;
 
-	#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
+#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
 	cf->cf_toc = ((register_t *)func)[1];
-	#endif
+#endif
 	cf->cf_func = (register_t)func;
 	cf->cf_arg0 = (register_t)arg;
 }
@@ -200,7 +202,6 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 void
 cpu_exit(struct thread *td)
 {
-
 }
 
 /*
@@ -240,13 +241,11 @@ is_physical_memory(vm_offset_t addr)
 void
 cpu_thread_swapin(struct thread *td)
 {
-
 }
 
 void
 cpu_thread_swapout(struct thread *td)
 {
-
 }
 
 bool

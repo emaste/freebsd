@@ -43,24 +43,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/lock.h>
-#include <sys/proc.h>
-#include <sys/mutex.h>
 #include <sys/mman.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
+#include <vm/uma.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
 #include <vm/vm_phys.h>
-#include <vm/uma.h>
 
 static void dev_pager_init(void);
-static vm_object_t dev_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
-    vm_ooffset_t, struct ucred *);
+static vm_object_t dev_pager_alloc(
+    void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t, struct ucred *);
 static void dev_pager_dealloc(vm_object_t);
 static int dev_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
 static void dev_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
@@ -75,32 +75,32 @@ static struct pagerlst dev_pager_object_list;
 static struct mtx dev_pager_mtx;
 
 const struct pagerops devicepagerops = {
-	.pgo_init =	dev_pager_init,
-	.pgo_alloc =	dev_pager_alloc,
-	.pgo_dealloc =	dev_pager_dealloc,
-	.pgo_getpages =	dev_pager_getpages,
-	.pgo_putpages =	dev_pager_putpages,
-	.pgo_haspage =	dev_pager_haspage,
+	.pgo_init = dev_pager_init,
+	.pgo_alloc = dev_pager_alloc,
+	.pgo_dealloc = dev_pager_dealloc,
+	.pgo_getpages = dev_pager_getpages,
+	.pgo_putpages = dev_pager_putpages,
+	.pgo_haspage = dev_pager_haspage,
 };
 
 const struct pagerops mgtdevicepagerops = {
-	.pgo_alloc =	dev_pager_alloc,
-	.pgo_dealloc =	dev_pager_dealloc,
-	.pgo_getpages =	dev_pager_getpages,
-	.pgo_putpages =	dev_pager_putpages,
-	.pgo_haspage =	dev_pager_haspage,
-	.pgo_populate =	dev_pager_populate,
+	.pgo_alloc = dev_pager_alloc,
+	.pgo_dealloc = dev_pager_dealloc,
+	.pgo_getpages = dev_pager_getpages,
+	.pgo_putpages = dev_pager_putpages,
+	.pgo_haspage = dev_pager_haspage,
+	.pgo_populate = dev_pager_populate,
 };
 
 static int old_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t foff, struct ucred *cred, u_short *color);
 static void old_dev_pager_dtor(void *handle);
-static int old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
-    int prot, vm_page_t *mres);
+static int old_dev_pager_fault(
+    vm_object_t object, vm_ooffset_t offset, int prot, vm_page_t *mres);
 
 static const struct cdev_pager_ops old_dev_pager_ops = {
-	.cdev_pg_ctor =	old_dev_pager_ctor,
-	.cdev_pg_dtor =	old_dev_pager_dtor,
+	.cdev_pg_ctor = old_dev_pager_ctor,
+	.cdev_pg_dtor = old_dev_pager_dtor,
 	.cdev_pg_fault = old_dev_pager_fault
 };
 
@@ -188,16 +188,16 @@ cdev_pager_allocate(void *handle, enum obj_type tp,
 			if (pindex > object->size)
 				object->size = pindex;
 			KASSERT(object->type == tp,
-			    ("Inconsistent device pager type %p %d",
-			    object, tp));
+			    ("Inconsistent device pager type %p %d", object,
+				tp));
 			KASSERT(object->un_pager.devp.ops == ops,
 			    ("Inconsistent devops %p %p", object, ops));
 		} else {
 			object = object1;
 			object1 = NULL;
 			object->handle = handle;
-			TAILQ_INSERT_TAIL(&dev_pager_object_list, object,
-			    pager_object_list);
+			TAILQ_INSERT_TAIL(
+			    &dev_pager_object_list, object, pager_object_list);
 			if (ops->cdev_pg_populate != NULL)
 				vm_object_set_flag(object, OBJ_POPULATE);
 		}
@@ -211,8 +211,8 @@ cdev_pager_allocate(void *handle, enum obj_type tp,
 	if (object1 != NULL) {
 		object1->handle = object1;
 		mtx_lock(&dev_pager_mtx);
-		TAILQ_INSERT_TAIL(&dev_pager_object_list, object1,
-		    pager_object_list);
+		TAILQ_INSERT_TAIL(
+		    &dev_pager_object_list, object1, pager_object_list);
 		mtx_unlock(&dev_pager_mtx);
 		vm_object_deallocate(object1);
 	}
@@ -224,8 +224,8 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t foff, struct ucred *cred)
 {
 
-	return (cdev_pager_allocate(handle, OBJT_DEVICE, &old_dev_pager_ops,
-	    size, prot, foff, cred));
+	return (cdev_pager_allocate(
+	    handle, OBJT_DEVICE, &old_dev_pager_ops, size, prot, foff, cred));
 }
 
 void
@@ -246,8 +246,8 @@ dev_pager_free_page(vm_object_t object, vm_page_t m)
 {
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	KASSERT((object->type == OBJT_DEVICE &&
-	    (m->oflags & VPO_UNMANAGED) != 0),
+	KASSERT(
+	    (object->type == OBJT_DEVICE && (m->oflags & VPO_UNMANAGED) != 0),
 	    ("Managed device or page obj %p m %p", object, m));
 	TAILQ_REMOVE(&object->un_pager.devp.devp_pglist, m, plinks.q);
 	vm_page_putfake(m);
@@ -270,8 +270,8 @@ dev_pager_dealloc(vm_object_t object)
 		/*
 		 * Free up our fake pages.
 		 */
-		while ((m = TAILQ_FIRST(&object->un_pager.devp.devp_pglist))
-		    != NULL) {
+		while ((m = TAILQ_FIRST(&object->un_pager.devp.devp_pglist)) !=
+		    NULL) {
 			if (vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL) == 0)
 				continue;
 
@@ -283,8 +283,8 @@ dev_pager_dealloc(vm_object_t object)
 }
 
 static int
-dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
-    int *rahead)
+dev_pager_getpages(
+    vm_object_t object, vm_page_t *ma, int count, int *rbehind, int *rahead)
 {
 	int error;
 
@@ -293,16 +293,16 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 	if (object->un_pager.devp.ops->cdev_pg_fault == NULL)
 		return (VM_PAGER_FAIL);
 	VM_OBJECT_WLOCK(object);
-	error = object->un_pager.devp.ops->cdev_pg_fault(object,
-	    IDX_TO_OFF(ma[0]->pindex), PROT_READ, &ma[0]);
+	error = object->un_pager.devp.ops->cdev_pg_fault(
+	    object, IDX_TO_OFF(ma[0]->pindex), PROT_READ, &ma[0]);
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	if (error == VM_PAGER_OK) {
 		KASSERT((object->type == OBJT_DEVICE &&
-		     (ma[0]->oflags & VPO_UNMANAGED) != 0) ||
-		    (object->type == OBJT_MGTDEVICE &&
-		     (ma[0]->oflags & VPO_UNMANAGED) == 0),
+			    (ma[0]->oflags & VPO_UNMANAGED) != 0) ||
+			(object->type == OBJT_MGTDEVICE &&
+			    (ma[0]->oflags & VPO_UNMANAGED) == 0),
 		    ("Wrong page type %p %p", ma[0], object));
 		if (object->type == OBJT_DEVICE) {
 			TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist,
@@ -326,13 +326,13 @@ dev_pager_populate(vm_object_t object, vm_pindex_t pidx, int fault_type,
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	if (object->un_pager.devp.ops->cdev_pg_populate == NULL)
 		return (VM_PAGER_FAIL);
-	return (object->un_pager.devp.ops->cdev_pg_populate(object, pidx,
-	    fault_type, max_prot, first, last));
+	return (object->un_pager.devp.ops->cdev_pg_populate(
+	    object, pidx, fault_type, max_prot, first, last));
 }
 
 static int
-old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
-    vm_page_t *mres)
+old_dev_pager_fault(
+    vm_object_t object, vm_ooffset_t offset, int prot, vm_page_t *mres)
 {
 	vm_paddr_t paddr;
 	vm_page_t m_paddr, page;
@@ -361,7 +361,8 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 	dev_relthread(dev, ref);
 	if (ret != 0) {
 		printf(
-	    "WARNING: dev_pager_getpage: map function returns error %d", ret);
+		    "WARNING: dev_pager_getpage: map function returns error %d",
+		    ret);
 		VM_OBJECT_WLOCK(object);
 		return (VM_PAGER_FAIL);
 	}
@@ -376,7 +377,7 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 		 */
 		if ((csw->d_flags & D_MEM) == 0) {
 			printf("WARNING: Device driver %s has set "
-			    "\"memattr\" inconsistently (drv %u pmap %u).\n",
+			       "\"memattr\" inconsistently (drv %u pmap %u).\n",
 			    csw->d_name, memattr, memattr1);
 		}
 		memattr = memattr1;
@@ -404,16 +405,16 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 }
 
 static void
-dev_pager_putpages(vm_object_t object, vm_page_t *m, int count, int flags,
-    int *rtvals)
+dev_pager_putpages(
+    vm_object_t object, vm_page_t *m, int count, int flags, int *rtvals)
 {
 
 	panic("dev_pager_putpage called");
 }
 
 static boolean_t
-dev_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
-    int *after)
+dev_pager_haspage(
+    vm_object_t object, vm_pindex_t pindex, int *before, int *after)
 {
 
 	if (before != NULL)

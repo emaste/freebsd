@@ -29,23 +29,22 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
+#include <sys/counter.h>
 #include <sys/ctype.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/syslog.h>
-#include <sys/types.h>
-#include <sys/counter.h>
 
 #include <net/ethernet.h>
-
+#include <netgraph/netgraph.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_vlan_rotate.h>
-#include <netgraph/netgraph.h>
 
 /*
  * This section contains the netgraph method declarations for the
@@ -61,76 +60,47 @@ static ng_disconnect_t ng_vlanrotate_disconnect;
 
 /* Parse type for struct ng_vlanrotate_conf */
 static const struct ng_parse_struct_field ng_vlanrotate_conf_fields[] = {
-	{"rot", &ng_parse_int8_type},
-	{"min", &ng_parse_uint8_type},
-	{"max", &ng_parse_uint8_type},
-	{NULL}
+	{ "rot", &ng_parse_int8_type }, { "min", &ng_parse_uint8_type },
+	{ "max", &ng_parse_uint8_type }, { NULL }
 };
 static const struct ng_parse_type ng_vlanrotate_conf_type = {
-	&ng_parse_struct_type,
-	&ng_vlanrotate_conf_fields
+	&ng_parse_struct_type, &ng_vlanrotate_conf_fields
 };
 
 /* Parse type for struct ng_vlanrotate_stat */
 static struct ng_parse_fixedarray_info ng_vlanrotate_stat_hist_info = {
-	&ng_parse_uint64_type,
-	NG_VLANROTATE_MAX_VLANS
+	&ng_parse_uint64_type, NG_VLANROTATE_MAX_VLANS
 };
 static struct ng_parse_type ng_vlanrotate_stat_hist = {
-	&ng_parse_fixedarray_type,
-	&ng_vlanrotate_stat_hist_info
+	&ng_parse_fixedarray_type, &ng_vlanrotate_stat_hist_info
 };
 static const struct ng_parse_struct_field ng_vlanrotate_stat_fields[] = {
-	{"drops", &ng_parse_uint64_type},
-	{"excessive", &ng_parse_uint64_type},
-	{"incomplete", &ng_parse_uint64_type},
-	{"histogram", &ng_vlanrotate_stat_hist},
-	{NULL}
+	{ "drops", &ng_parse_uint64_type },
+	{ "excessive", &ng_parse_uint64_type },
+	{ "incomplete", &ng_parse_uint64_type },
+	{ "histogram", &ng_vlanrotate_stat_hist }, { NULL }
 };
-static struct ng_parse_type ng_vlanrotate_stat_type = {
-	&ng_parse_struct_type,
-	&ng_vlanrotate_stat_fields
-};
-
+static struct ng_parse_type ng_vlanrotate_stat_type = { &ng_parse_struct_type,
+	&ng_vlanrotate_stat_fields };
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_vlanrotate_cmdlist[] = {
 	{
-		NGM_VLANROTATE_COOKIE,
-		NGM_VLANROTATE_GET_CONF,
-		"getconf",
-		NULL,
-		&ng_vlanrotate_conf_type,
+	    NGM_VLANROTATE_COOKIE,
+	    NGM_VLANROTATE_GET_CONF,
+	    "getconf",
+	    NULL,
+	    &ng_vlanrotate_conf_type,
 	},
-	{
-		NGM_VLANROTATE_COOKIE,
-		NGM_VLANROTATE_SET_CONF,
-		"setconf",
-		&ng_vlanrotate_conf_type,
-		NULL
-	},
-	{
-		NGM_VLANROTATE_COOKIE,
-		NGM_VLANROTATE_GET_STAT,
-		"getstat",
-		NULL,
-		&ng_vlanrotate_stat_type
-	},
-	{
-		NGM_VLANROTATE_COOKIE,
-		NGM_VLANROTATE_CLR_STAT,
-		"clrstat",
-		NULL,
-		&ng_vlanrotate_stat_type
-	},
-	{
-		NGM_VLANROTATE_COOKIE,
-		NGM_VLANROTATE_GETCLR_STAT,
-		"getclrstat",
-		NULL,
-		&ng_vlanrotate_stat_type
-	},
-	{0}
+	{ NGM_VLANROTATE_COOKIE, NGM_VLANROTATE_SET_CONF, "setconf",
+	    &ng_vlanrotate_conf_type, NULL },
+	{ NGM_VLANROTATE_COOKIE, NGM_VLANROTATE_GET_STAT, "getstat", NULL,
+	    &ng_vlanrotate_stat_type },
+	{ NGM_VLANROTATE_COOKIE, NGM_VLANROTATE_CLR_STAT, "clrstat", NULL,
+	    &ng_vlanrotate_stat_type },
+	{ NGM_VLANROTATE_COOKIE, NGM_VLANROTATE_GETCLR_STAT, "getclrstat", NULL,
+	    &ng_vlanrotate_stat_type },
+	{ 0 }
 };
 
 /* Netgraph node type descriptor */
@@ -148,16 +118,16 @@ static struct ng_type typestruct = {
 NETGRAPH_INIT(vlanrotate, &typestruct);
 
 struct ng_vlanrotate_kernel_stats {
-	counter_u64_t	drops, excessive, incomplete;
-	counter_u64_t	histogram[NG_VLANROTATE_MAX_VLANS];
+	counter_u64_t drops, excessive, incomplete;
+	counter_u64_t histogram[NG_VLANROTATE_MAX_VLANS];
 };
 
 /* Information we store for each node */
 struct vlanrotate {
-	hook_p		original_hook;
-	hook_p		ordered_hook;
-	hook_p		excessive_hook;
-	hook_p		incomplete_hook;
+	hook_p original_hook;
+	hook_p ordered_hook;
+	hook_p excessive_hook;
+	hook_p incomplete_hook;
 	struct ng_vlanrotate_conf conf;
 	struct ng_vlanrotate_kernel_stats stats;
 };
@@ -203,10 +173,10 @@ ng_vlanrotate_newhook(node_p node, hook_p hook, const char *name)
 	} else if (strcmp(name, NG_VLANROTATE_HOOK_INCOMPLETE) == 0) {
 		dst = &vrp->incomplete_hook;
 	} else
-		return (EINVAL);	/* not a hook we know about */
+		return (EINVAL); /* not a hook we know about */
 
 	if (*dst != NULL)
-		return (EADDRINUSE);	/* don't override */
+		return (EADDRINUSE); /* don't override */
 
 	*dst = hook;
 	return (0);
@@ -246,7 +216,7 @@ ng_vlanrotate_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			pcf = (struct ng_vlanrotate_conf *)msg->data;
 
-			if (pcf->max == 0)	/* keep current value */
+			if (pcf->max == 0) /* keep current value */
 				pcf->max = vrp->conf.max;
 
 			if ((pcf->max > NG_VLANROTATE_MAX_VLANS) ||
@@ -259,8 +229,7 @@ ng_vlanrotate_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			vrp->conf = *pcf;
 			break;
 		case NGM_VLANROTATE_GET_STAT:
-		case NGM_VLANROTATE_GETCLR_STAT:
-		{
+		case NGM_VLANROTATE_GETCLR_STAT: {
 			struct ng_vlanrotate_stat *p;
 			int i;
 
@@ -272,14 +241,15 @@ ng_vlanrotate_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			p = (struct ng_vlanrotate_stat *)resp->data;
 			p->drops = counter_u64_fetch(vrp->stats.drops);
 			p->excessive = counter_u64_fetch(vrp->stats.excessive);
-			p->incomplete = counter_u64_fetch(vrp->stats.incomplete);
+			p->incomplete = counter_u64_fetch(
+			    vrp->stats.incomplete);
 			for (i = 0; i < NG_VLANROTATE_MAX_VLANS; i++)
-				p->histogram[i] = counter_u64_fetch(vrp->stats.histogram[i]);
+				p->histogram[i] = counter_u64_fetch(
+				    vrp->stats.histogram[i]);
 			if (msg->header.cmd != NGM_VLANROTATE_GETCLR_STAT)
 				break;
 		}
-		case NGM_VLANROTATE_CLR_STAT:
-		{
+		case NGM_VLANROTATE_CLR_STAT: {
 			int i;
 
 			counter_u64_zero(vrp->stats.drops);
@@ -290,12 +260,12 @@ ng_vlanrotate_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			break;
 		}
 		default:
-			error = EINVAL;	/* unknown command */
+			error = EINVAL; /* unknown command */
 			break;
 		}
 		break;
 	default:
-		error = EINVAL;	/* unknown cookie type */
+		error = EINVAL; /* unknown cookie type */
 		break;
 	}
 
@@ -324,15 +294,15 @@ ng_vlanrotate_rcvmsg(node_p node, item_p item, hook_p lasthook)
  */
 
 struct ether_vlan_stack_entry {
-	uint16_t	proto;
-	uint16_t	tag;
-}		__packed;
+	uint16_t proto;
+	uint16_t tag;
+} __packed;
 
 struct ether_vlan_stack_header {
-	uint8_t		dst[ETHER_ADDR_LEN];
-	uint8_t		src[ETHER_ADDR_LEN];
+	uint8_t dst[ETHER_ADDR_LEN];
+	uint8_t src[ETHER_ADDR_LEN];
 	struct ether_vlan_stack_entry vlan_stack[1];
-}		__packed;
+} __packed;
 
 static int
 ng_vlanrotate_gcd(int a, int b)
@@ -346,7 +316,7 @@ ng_vlanrotate_gcd(int a, int b)
 static void
 ng_vlanrotate_rotate(struct ether_vlan_stack_entry arr[], int d, int n)
 {
-	int		i, j, k;
+	int i, j, k;
 	struct ether_vlan_stack_entry temp;
 
 	/* for each commensurable slice */
@@ -375,10 +345,10 @@ ng_vlanrotate_rcvdata(hook_p hook, item_p item)
 	const vlanrotate_p vrp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct ether_vlan_stack_header *evsh;
 	struct mbuf *m = NULL;
-	hook_p	dst_hook;
-	int8_t	rotate;
-	int8_t	vlans = 0;
-	int	error = ENOSYS;
+	hook_p dst_hook;
+	int8_t rotate;
+	int8_t vlans = 0;
+	int error = ENOSYS;
 
 	NGI_GET_M(item, m);
 
@@ -390,7 +360,7 @@ ng_vlanrotate_rcvdata(hook_p hook, item_p item)
 		dst_hook = vrp->ordered_hook;
 	} else {
 		dst_hook = vrp->original_hook;
-		goto send;	/* everything else goes out unmodified */
+		goto send; /* everything else goes out unmodified */
 	}
 
 	if (dst_hook == NULL) {
@@ -400,8 +370,8 @@ ng_vlanrotate_rcvdata(hook_p hook, item_p item)
 
 	/* count the vlans */
 	for (vlans = 0; vlans <= NG_VLANROTATE_MAX_VLANS; vlans++) {
-		size_t expected_len = sizeof(struct ether_vlan_stack_header)
-		    + vlans * sizeof(struct ether_vlan_stack_entry);
+		size_t expected_len = sizeof(struct ether_vlan_stack_header) +
+		    vlans * sizeof(struct ether_vlan_stack_entry);
 
 		if (m->m_len < expected_len) {
 			m = m_pullup(m, expected_len);
@@ -467,7 +437,7 @@ fail:
 static int
 ng_vlanrotate_shutdown(node_p node)
 {
-	const		vlanrotate_p vrp = NG_NODE_PRIVATE(node);
+	const vlanrotate_p vrp = NG_NODE_PRIVATE(node);
 	int i;
 
 	NG_NODE_SET_PRIVATE(node, NULL);
@@ -491,7 +461,7 @@ ng_vlanrotate_shutdown(node_p node)
 static int
 ng_vlanrotate_disconnect(hook_p hook)
 {
-	const		vlanrotate_p vrp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	const vlanrotate_p vrp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 	if (vrp->original_hook == hook)
 		vrp->original_hook = NULL;

@@ -56,20 +56,20 @@
  * indicate which interrupts are allowed.
  */
 
-#define _SPL_0		0
-#define _SPL_SOFTCLOCK	1
-#define _SPL_SOFTNET	2
-#define _SPL_BIO	3
-#define _SPL_NET	4
-#define _SPL_SOFTSERIAL	5
-#define _SPL_TTY	6
-#define _SPL_VM		7
-#define _SPL_AUDIO	8
-#define _SPL_CLOCK	9
-#define _SPL_STATCLOCK	10
-#define _SPL_HIGH	11
-#define _SPL_SERIAL	12
-#define _SPL_LEVELS	13
+#define _SPL_0 0
+#define _SPL_SOFTCLOCK 1
+#define _SPL_SOFTNET 2
+#define _SPL_BIO 3
+#define _SPL_NET 4
+#define _SPL_SOFTSERIAL 5
+#define _SPL_TTY 6
+#define _SPL_VM 7
+#define _SPL_AUDIO 8
+#define _SPL_CLOCK 9
+#define _SPL_STATCLOCK 10
+#define _SPL_HIGH 11
+#define _SPL_SERIAL 12
+#define _SPL_LEVELS 13
 
 #ifdef _KERNEL
 #ifndef _LOCORE

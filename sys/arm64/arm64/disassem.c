@@ -29,42 +29,97 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
-
 #include <sys/systm.h>
-#include <machine/disassem.h>
+
 #include <machine/armreg.h>
+#include <machine/disassem.h>
+
 #include <ddb/ddb.h>
 
-#define	ARM64_MAX_TOKEN_LEN	8
-#define	ARM64_MAX_TOKEN_CNT	10
+#define ARM64_MAX_TOKEN_LEN 8
+#define ARM64_MAX_TOKEN_CNT 10
 
-#define	ARM_INSN_SIZE_OFFSET	30
-#define	ARM_INSN_SIZE_MASK	0x3
+#define ARM_INSN_SIZE_OFFSET 30
+#define ARM_INSN_SIZE_MASK 0x3
 
 /* Special options for instruction printing */
-#define	OP_SIGN_EXT	(1UL << 0)	/* Sign-extend immediate value */
-#define	OP_LITERAL	(1UL << 1)	/* Use literal (memory offset) */
-#define	OP_MULT_4	(1UL << 2)	/* Multiply immediate by 4 */
-#define	OP_SF32		(1UL << 3)	/* Force 32-bit access */
-#define	OP_SF_INV	(1UL << 6)	/* SF is inverted (1 means 32 bit access) */
+#define OP_SIGN_EXT (1UL << 0) /* Sign-extend immediate value */
+#define OP_LITERAL (1UL << 1) /* Use literal (memory offset) */
+#define OP_MULT_4 (1UL << 2) /* Multiply immediate by 4 */
+#define OP_SF32 (1UL << 3) /* Force 32-bit access */
+#define OP_SF_INV (1UL << 6) /* SF is inverted (1 means 32 bit access) */
 
 static const char *w_reg[] = {
-	"w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7",
-	"w8", "w9", "w10", "w11", "w12", "w13", "w14", "w15",
-	"w16", "w17", "w18", "w19", "w20", "w21", "w22", "w23",
-	"w24", "w25", "w26", "w27", "w28", "w29", "w30", "wSP",
+	"w0",
+	"w1",
+	"w2",
+	"w3",
+	"w4",
+	"w5",
+	"w6",
+	"w7",
+	"w8",
+	"w9",
+	"w10",
+	"w11",
+	"w12",
+	"w13",
+	"w14",
+	"w15",
+	"w16",
+	"w17",
+	"w18",
+	"w19",
+	"w20",
+	"w21",
+	"w22",
+	"w23",
+	"w24",
+	"w25",
+	"w26",
+	"w27",
+	"w28",
+	"w29",
+	"w30",
+	"wSP",
 };
 
 static const char *x_reg[] = {
-	"x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7",
-	"x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
-	"x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",
-	"x24", "x25", "x26", "x27", "x28", "x29", "LR", "SP",
+	"x0",
+	"x1",
+	"x2",
+	"x3",
+	"x4",
+	"x5",
+	"x6",
+	"x7",
+	"x8",
+	"x9",
+	"x10",
+	"x11",
+	"x12",
+	"x13",
+	"x14",
+	"x15",
+	"x16",
+	"x17",
+	"x18",
+	"x19",
+	"x20",
+	"x21",
+	"x22",
+	"x23",
+	"x24",
+	"x25",
+	"x26",
+	"x27",
+	"x28",
+	"x29",
+	"LR",
+	"SP",
 };
 
-static const char *shift_2[] = {
-	"LSL", "LSR", "ASR", "RSV"
-};
+static const char *shift_2[] = { "LSL", "LSR", "ASR", "RSV" };
 
 /*
  * Structure representing single token (operand) inside instruction.
@@ -82,12 +137,12 @@ struct arm64_insn_token {
  * Define generic types for instruction printing.
  */
 enum arm64_format_type {
-	TYPE_01,	/* OP <RD>, <RN>, <RM>{, <shift [LSL, LSR, ASR]> #<imm>} SF32/64
-			   OP <RD>, <RN>, #<imm>{, <shift [0, 12]>} SF32/64 */
-	TYPE_02,	/* OP <RT>, [<RN>, #<imm>]{!}] SF32/64
-			   OP <RT>, [<RN>], #<imm>{!} SF32/64
-			   OP <RT>, <RN>, <RM> {, EXTEND AMOUNT } */
-	TYPE_03,	/* OP <RT>, #imm SF32/64 */
+	TYPE_01, /* OP <RD>, <RN>, <RM>{, <shift [LSL, LSR, ASR]> #<imm>}
+		    SF32/64 OP <RD>, <RN>, #<imm>{, <shift [0, 12]>} SF32/64 */
+	TYPE_02, /* OP <RT>, [<RN>, #<imm>]{!}] SF32/64
+		    OP <RT>, [<RN>], #<imm>{!} SF32/64
+		    OP <RT>, <RN>, <RM> {, EXTEND AMOUNT } */
+	TYPE_03, /* OP <RT>, #imm SF32/64 */
 };
 
 /*
@@ -101,8 +156,8 @@ enum arm64_format_type {
  * tokens - array of tokens (operands) inside instruction
  */
 struct arm64_insn {
-	char* name;
-	char* format;
+	char *name;
+	char *format;
 	enum arm64_format_type type;
 	uint64_t special_ops;
 	uint32_t mask;
@@ -130,52 +185,50 @@ struct arm64_insn {
  * SCALE  - scaling of immediate value
  */
 static struct arm64_insn arm64_i[] = {
-	{ "add", "SF(1)|0001011|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|RD(5)",
-	    TYPE_01, 0 },
-	{ "mov", "SF(1)|001000100000000000000|RN(5)|RD(5)",
-	    TYPE_01, 0 },
-	{ "add", "SF(1)|0010001|SHIFT(2)|IMM(12)|RN(5)|RD(5)",
-	    TYPE_01, 0 },
-	{ "ldr", "1|SF(1)|111000010|IMM(9)|OPTION(2)|RN(5)|RT(5)",
-	    TYPE_02, OP_SIGN_EXT },		/* ldr immediate post/pre index */
-	{ "ldr", "1|SF(1)|11100101|IMM(12)|RN(5)|RT(5)",
-	    TYPE_02, 0 },			/* ldr immediate unsigned */
+	{ "add", "SF(1)|0001011|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|RD(5)", TYPE_01,
+	    0 },
+	{ "mov", "SF(1)|001000100000000000000|RN(5)|RD(5)", TYPE_01, 0 },
+	{ "add", "SF(1)|0010001|SHIFT(2)|IMM(12)|RN(5)|RD(5)", TYPE_01, 0 },
+	{ "ldr", "1|SF(1)|111000010|IMM(9)|OPTION(2)|RN(5)|RT(5)", TYPE_02,
+	    OP_SIGN_EXT }, /* ldr immediate post/pre index */
+	{ "ldr", "1|SF(1)|11100101|IMM(12)|RN(5)|RT(5)", TYPE_02,
+	    0 }, /* ldr immediate unsigned */
 	{ "ldr", "1|SF(1)|111000011|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-	    TYPE_02, 0 },			/* ldr register */
-	{ "ldr", "0|SF(1)|011000|IMM(19)|RT(5)",
-	    TYPE_03, OP_SIGN_EXT | OP_LITERAL | OP_MULT_4 },	/* ldr literal */
-	{ "ldrb", "00|111000010|IMM(9)|OPTION(2)|RN(5)|RT(5)",
-	    TYPE_02, OP_SIGN_EXT | OP_SF32 },	/* ldrb immediate post/pre index */
-	{ "ldrb", "00|11100101|IMM(12)|RN(5)|RT(5)",
-	    TYPE_02, OP_SF32 },			/* ldrb immediate unsigned */
+	    TYPE_02, 0 }, /* ldr register */
+	{ "ldr", "0|SF(1)|011000|IMM(19)|RT(5)", TYPE_03,
+	    OP_SIGN_EXT | OP_LITERAL | OP_MULT_4 }, /* ldr literal */
+	{ "ldrb", "00|111000010|IMM(9)|OPTION(2)|RN(5)|RT(5)", TYPE_02,
+	    OP_SIGN_EXT | OP_SF32 }, /* ldrb immediate post/pre index */
+	{ "ldrb", "00|11100101|IMM(12)|RN(5)|RT(5)", TYPE_02,
+	    OP_SF32 }, /* ldrb immediate unsigned */
 	{ "ldrb", "00|111000011|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-	    TYPE_02, OP_SF32  },		/* ldrb register */
+	    TYPE_02, OP_SF32 }, /* ldrb register */
 	{ "ldrh", "01|111000010|IMM(9)|OPTION(2)|RN(5)|RT(5)", TYPE_02,
-	    OP_SIGN_EXT | OP_SF32 },		/* ldrh immediate post/pre index */
-	{ "ldrh", "01|11100101|IMM(12)|RN(5)|RT(5)",
-	    TYPE_02, OP_SF32 },			/* ldrh immediate unsigned */
+	    OP_SIGN_EXT | OP_SF32 }, /* ldrh immediate post/pre index */
+	{ "ldrh", "01|11100101|IMM(12)|RN(5)|RT(5)", TYPE_02,
+	    OP_SF32 }, /* ldrh immediate unsigned */
 	{ "ldrh", "01|111000011|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-	    TYPE_02, OP_SF32 },			/* ldrh register */
-	{ "ldrsb", "001110001|SF(1)|0|IMM(9)|OPTION(2)|RN(5)|RT(5)",
-	    TYPE_02, OP_SIGN_EXT | OP_SF_INV },	/* ldrsb immediate post/pre index */
-	{ "ldrsb", "001110011|SF(1)|IMM(12)|RN(5)|RT(5)",\
-	    TYPE_02, OP_SF_INV},		/* ldrsb immediate unsigned */
+	    TYPE_02, OP_SF32 }, /* ldrh register */
+	{ "ldrsb", "001110001|SF(1)|0|IMM(9)|OPTION(2)|RN(5)|RT(5)", TYPE_02,
+	    OP_SIGN_EXT | OP_SF_INV }, /* ldrsb immediate post/pre index */
+	{ "ldrsb", "001110011|SF(1)|IMM(12)|RN(5)|RT(5)", TYPE_02,
+	    OP_SF_INV }, /* ldrsb immediate unsigned */
 	{ "ldrsb", "001110001|SF(1)|1|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-	    TYPE_02,  OP_SF_INV },		/* ldrsb register */
-	{ "ldrsh", "011110001|SF(1)|0|IMM(9)|OPTION(2)|RN(5)|RT(5)",
-	    TYPE_02, OP_SIGN_EXT | OP_SF_INV },	/* ldrsh immediate post/pre index */
-	{ "ldrsh", "011110011|SF(1)|IMM(12)|RN(5)|RT(5)",
-	    TYPE_02, OP_SF_INV},		/* ldrsh immediate unsigned */
+	    TYPE_02, OP_SF_INV }, /* ldrsb register */
+	{ "ldrsh", "011110001|SF(1)|0|IMM(9)|OPTION(2)|RN(5)|RT(5)", TYPE_02,
+	    OP_SIGN_EXT | OP_SF_INV }, /* ldrsh immediate post/pre index */
+	{ "ldrsh", "011110011|SF(1)|IMM(12)|RN(5)|RT(5)", TYPE_02,
+	    OP_SF_INV }, /* ldrsh immediate unsigned */
 	{ "ldrsh", "011110001|SF(1)|1|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-	    TYPE_02, OP_SF_INV },		/* ldrsh register */
-	{ "ldrsw", "10111000100|IMM(9)|OPTION(2)|RN(5)|RT(5)",
-	    TYPE_02, OP_SIGN_EXT },		/* ldrsw immediate post/pre index */
-	{ "ldrsw", "1011100110|IMM(12)|RN(5)|RT(5)",
-	    TYPE_02, 0 },			/* ldrsw immediate unsigned */
+	    TYPE_02, OP_SF_INV }, /* ldrsh register */
+	{ "ldrsw", "10111000100|IMM(9)|OPTION(2)|RN(5)|RT(5)", TYPE_02,
+	    OP_SIGN_EXT }, /* ldrsw immediate post/pre index */
+	{ "ldrsw", "1011100110|IMM(12)|RN(5)|RT(5)", TYPE_02,
+	    0 }, /* ldrsw immediate unsigned */
 	{ "ldrsw", "10111000101|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-	    TYPE_02, 0 },			/* ldrsw register */
-	{ "ldrsw", "10011000|IMM(19)|RT(5)",
-	    TYPE_03, OP_SIGN_EXT | OP_LITERAL | OP_MULT_4 },	/* ldr literal */
+	    TYPE_02, 0 }, /* ldrsw register */
+	{ "ldrsw", "10011000|IMM(19)|RT(5)", TYPE_03,
+	    OP_SIGN_EXT | OP_LITERAL | OP_MULT_4 }, /* ldr literal */
 	{ NULL, NULL }
 };
 
@@ -202,7 +255,7 @@ arm64_disasm_generate_masks(struct arm64_insn *tab)
 		 */
 		a = (INSN_SIZE * NBBY) - 1;
 		while (*format != '\0' && (a >= 0)) {
-			switch(*format) {
+			switch (*format) {
 			case '0':
 				/* Bit is 0, add to mask and pattern */
 				mask |= (1 << a);
@@ -230,7 +283,8 @@ arm64_disasm_generate_masks(struct arm64_insn *tab)
 					i++;
 					format++;
 					if (i >= ARM64_MAX_TOKEN_LEN) {
-						printf("ERROR: token too long in op %s\n",
+						printf(
+						    "ERROR: token too long in op %s\n",
 						    tab->name);
 						error = 1;
 						break;
@@ -243,7 +297,8 @@ arm64_disasm_generate_masks(struct arm64_insn *tab)
 				ret = sscanf(format, "(%d)", &len);
 				if (ret == 1) {
 					if (token >= ARM64_MAX_TOKEN_CNT) {
-						printf("ERROR: to many tokens in op %s\n",
+						printf(
+						    "ERROR: to many tokens in op %s\n",
 						    tab->name);
 						error = 1;
 						break;
@@ -274,8 +329,8 @@ arm64_disasm_generate_masks(struct arm64_insn *tab)
 		if (*format != 0 || (a != -1) || (error != 0)) {
 			tab->mask = 0;
 			tab->pattern = 0xffffffff;
-			printf("ERROR: skipping instruction op %s\n",
-			    tab->name);
+			printf(
+			    "ERROR: skipping instruction op %s\n", tab->name);
 		}
 
 		tab++;
@@ -283,8 +338,8 @@ arm64_disasm_generate_masks(struct arm64_insn *tab)
 }
 
 static int
-arm64_disasm_read_token(struct arm64_insn *insn, u_int opcode,
-    const char *token, int *val)
+arm64_disasm_read_token(
+    struct arm64_insn *insn, u_int opcode, const char *token, int *val)
 {
 	int i;
 
@@ -300,8 +355,8 @@ arm64_disasm_read_token(struct arm64_insn *insn, u_int opcode,
 }
 
 static int
-arm64_disasm_read_token_sign_ext(struct arm64_insn *insn, u_int opcode,
-    const char *token, int *val)
+arm64_disasm_read_token_sign_ext(
+    struct arm64_insn *insn, u_int opcode, const char *token, int *val)
 {
 	int i;
 	int msk;
@@ -357,7 +412,7 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 	while (i_ptr->name) {
 		/* If mask is 0 then the parser was not initialized yet */
 		if ((i_ptr->mask != 0) &&
-		    ((insn & i_ptr->mask) ==  i_ptr->pattern)) {
+		    ((insn & i_ptr->mask) == i_ptr->pattern)) {
 			matchp = 1;
 			break;
 		}
@@ -395,7 +450,8 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 		ret = arm64_disasm_read_token(i_ptr, insn, "RD", &rd);
 		ret |= arm64_disasm_read_token(i_ptr, insn, "RN", &rn);
 		if (ret != 0) {
-			printf("ERROR: Missing mandatory token for op %s type %d\n",
+			printf(
+			    "ERROR: Missing mandatory token for op %s type %d\n",
 			    i_ptr->name, i_ptr->type);
 			goto undefined;
 		}
@@ -428,7 +484,8 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 		ret = arm64_disasm_read_token(i_ptr, insn, "RT", &rt);
 		ret |= arm64_disasm_read_token(i_ptr, insn, "RN", &rn);
 		if (ret != 0) {
-			printf("ERROR: Missing mandatory token for op %s type %d\n",
+			printf(
+			    "ERROR: Missing mandatory token for op %s type %d\n",
 			    i_ptr->name, i_ptr->type);
 			goto undefined;
 		}
@@ -445,7 +502,7 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 			 */
 			if (sign_ext == 0) {
 				imm = imm << ((insn >> ARM_INSN_SIZE_OFFSET) &
-				    ARM_INSN_SIZE_MASK);
+					  ARM_INSN_SIZE_MASK);
 				option = 0;
 			}
 			switch (option) {
@@ -464,7 +521,8 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 				break;
 			}
 
-			di->di_printf("%s\t%s, ", i_ptr->name, arm64_reg(sf, rt));
+			di->di_printf(
+			    "%s\t%s, ", i_ptr->name, arm64_reg(sf, rt));
 			if (inside != 0) {
 				di->di_printf("[%s", arm64_reg(1, rn));
 				if (imm != 0)
@@ -478,7 +536,8 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 			if (pre != 0)
 				di->di_printf("!");
 		} else {
-			/* Last bit of option field determines 32/64 bit offset */
+			/* Last bit of option field determines 32/64 bit offset
+			 */
 			di->di_printf("%s\t%s, [%s, %s", i_ptr->name,
 			    arm64_reg(sf, rt), arm64_reg(1, rn),
 			    arm64_reg(option & 1, rm));
@@ -516,7 +575,8 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 		/* Mandatory tokens */
 		ret = arm64_disasm_read_token(i_ptr, insn, "RT", &rt);
 		if (ret != 0) {
-			printf("ERROR: Missing mandatory token for op %s type %d\n",
+			printf(
+			    "ERROR: Missing mandatory token for op %s type %d\n",
 			    i_ptr->name, i_ptr->type);
 			goto undefined;
 		}
@@ -533,13 +593,13 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 	}
 
 	di->di_printf("\n");
-	return(loc + INSN_SIZE);
+	return (loc + INSN_SIZE);
 
 undefined:
 	di->di_printf("undefined\t%08x\n", insn);
-	return(loc + INSN_SIZE);
+	return (loc + INSN_SIZE);
 }
 
 /* Parse format strings at the very beginning */
-SYSINIT(arm64_disasm_generate_masks, SI_SUB_DDB_SERVICES,
-    SI_ORDER_FIRST, arm64_disasm_generate_masks, arm64_i);
+SYSINIT(arm64_disasm_generate_masks, SI_SUB_DDB_SERVICES, SI_ORDER_FIRST,
+    arm64_disasm_generate_masks, arm64_i);

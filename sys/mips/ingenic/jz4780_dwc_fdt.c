@@ -29,27 +29,22 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
 #include <sys/condvar.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
 
 #include <dev/extres/clk/clk.h>
-
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
-
 #include <dev/usb/controller/dwc_otg.h>
 #include <dev/usb/controller/dwc_otg_fdt.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usbdi.h>
 
 #include <mips/ingenic/jz4780_clock.h>
 #include <mips/ingenic/jz4780_regs.h>
@@ -59,9 +54,9 @@ static device_attach_t jz4780_dwc_otg_attach;
 static device_detach_t jz4780_dwc_otg_detach;
 
 struct jz4780_dwc_otg_softc {
-	struct dwc_otg_fdt_softc base;	/* storage for DWC OTG code */
-	clk_t			phy_clk;
-	clk_t			otg_clk;
+	struct dwc_otg_fdt_softc base; /* storage for DWC OTG code */
+	clk_t phy_clk;
+	clk_t otg_clk;
 };
 
 static int
@@ -80,8 +75,8 @@ jz4780_dwc_otg_clk_enable(device_t dev)
 	}
 	err = clk_set_freq(sc->phy_clk, 48000000, 0);
 	if (err != 0) {
-		device_printf(dev, "unable to set %s clock to 48 kHZ\n",
-		    "otg_phy");
+		device_printf(
+		    dev, "unable to set %s clock to 48 kHZ\n", "otg_phy");
 		return (err);
 	}
 	err = clk_enable(sc->phy_clk);
@@ -197,6 +192,6 @@ static devclass_t jz4780_dwc_otg_devclass;
 
 DEFINE_CLASS_1(jzotg, jz4780_dwc_otg_driver, jz4780_dwc_otg_methods,
     sizeof(struct jz4780_dwc_otg_softc), dwc_otg_driver);
-DRIVER_MODULE(jzotg, simplebus, jz4780_dwc_otg_driver,
-    jz4780_dwc_otg_devclass, 0, 0);
+DRIVER_MODULE(
+    jzotg, simplebus, jz4780_dwc_otg_driver, jz4780_dwc_otg_devclass, 0, 0);
 MODULE_DEPEND(jzotg, usb, 1, 1, 1);

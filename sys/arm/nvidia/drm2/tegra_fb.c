@@ -35,10 +35,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk.h>
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_crtc_helper.h>
 #include <dev/drm2/drm_fb_helper.h>
+#include <dev/extres/clk/clk.h>
 
 #include <arm/nvidia/drm2/tegra_drm.h>
 
@@ -61,8 +61,8 @@ fb_destroy(struct drm_framebuffer *drm_fb)
 }
 
 static int
-fb_create_handle(struct drm_framebuffer *drm_fb, struct drm_file *file,
- unsigned int *handle)
+fb_create_handle(
+    struct drm_framebuffer *drm_fb, struct drm_file *file, unsigned int *handle)
 {
 	struct tegra_fb *fb;
 	int rv;
@@ -74,8 +74,8 @@ fb_create_handle(struct drm_framebuffer *drm_fb, struct drm_file *file,
 
 /* XXX Probably not needed */
 static int
-fb_dirty(struct drm_framebuffer *fb, struct drm_file *file_priv,
-unsigned flags, unsigned color, struct drm_clip_rect *clips, unsigned num_clips)
+fb_dirty(struct drm_framebuffer *fb, struct drm_file *file_priv, unsigned flags,
+    unsigned color, struct drm_clip_rect *clips, unsigned num_clips)
 {
 
 	return (0);
@@ -105,8 +105,8 @@ fb_alloc(struct drm_device *drm, struct drm_mode_fb_cmd2 *mode_cmd,
 		fb->planes[i] = planes[i];
 	rv = drm_framebuffer_init(drm, &fb->drm_fb, &fb_funcs);
 	if (rv < 0) {
-		device_printf(drm->dev,
-		    "Cannot initialize frame buffer %d\n", rv);
+		device_printf(
+		    drm->dev, "Cannot initialize frame buffer %d\n", rv);
 		free(fb->planes, DRM_MEM_DRIVER);
 		return (rv);
 	}
@@ -115,8 +115,8 @@ fb_alloc(struct drm_device *drm, struct drm_mode_fb_cmd2 *mode_cmd,
 }
 
 static int
-tegra_fb_probe(struct drm_fb_helper *helper,
-    struct drm_fb_helper_surface_size *sizes)
+tegra_fb_probe(
+    struct drm_fb_helper *helper, struct drm_fb_helper_surface_size *sizes)
 {
 	u_int bpp, size;
 	struct tegra_drm *drm;
@@ -142,10 +142,10 @@ tegra_fb_probe(struct drm_fb_helper *helper,
 	memset(&mode_cmd, 0, sizeof(mode_cmd));
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
-	mode_cmd.pitches[0] = roundup(sizes->surface_width * bpp,
-	    drm->pitch_align);
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
-	    sizes->surface_depth);
+	mode_cmd.pitches[0] = roundup(
+	    sizes->surface_width * bpp, drm->pitch_align);
+	mode_cmd.pixel_format = drm_mode_legacy_fb_format(
+	    sizes->surface_bpp, sizes->surface_depth);
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 
 	DRM_LOCK(drm_dev);
@@ -156,16 +156,16 @@ tegra_fb_probe(struct drm_fb_helper *helper,
 
 	info = framebuffer_alloc();
 	if (info == NULL) {
-		device_printf(drm_dev->dev,
-		    "Cannot allocate DRM framebuffer info.\n");
+		device_printf(
+		    drm_dev->dev, "Cannot allocate DRM framebuffer info.\n");
 		rv = -ENOMEM;
 		goto err_object;
 	}
 
-	rv = fb_alloc(drm_dev, &mode_cmd,  &bo, 1, &fb);
+	rv = fb_alloc(drm_dev, &mode_cmd, &bo, 1, &fb);
 	if (rv != 0) {
-		device_printf(drm_dev->dev,
-		     "Cannot allocate DRM framebuffer.\n");
+		device_printf(
+		    drm_dev->dev, "Cannot allocate DRM framebuffer.\n");
 		goto err_fb;
 	}
 	helper->fb = &fb->drm_fb;
@@ -177,12 +177,11 @@ tegra_fb_probe(struct drm_fb_helper *helper,
 	info->fb_size = size;
 	info->fb_bpp = sizes->surface_bpp;
 	drm_fb_helper_fill_fix(info, fb->drm_fb.pitches[0], fb->drm_fb.depth);
-	drm_fb_helper_fill_var(info, helper, fb->drm_fb.width,
-	    fb->drm_fb.height);
+	drm_fb_helper_fill_var(
+	    info, helper, fb->drm_fb.width, fb->drm_fb.height);
 
 	DRM_DEBUG_KMS("allocated %dx%d (s %dbits) fb size: %d, bo %p\n",
-		      fb->drm_fb.width, fb->drm_fb.height, fb->drm_fb.depth,
-		      size, bo);
+	    fb->drm_fb.width, fb->drm_fb.height, fb->drm_fb.depth, size, bo);
 	return (1);
 err_fb:
 	drm_gem_object_unreference_unlocked(&bo->gem_obj);
@@ -239,22 +238,22 @@ tegra_drm_fb_init(struct drm_device *drm_dev)
 	rv = drm_fb_helper_init(drm_dev, &fb->fb_helper,
 	    drm_dev->mode_config.num_crtc, drm_dev->mode_config.num_connector);
 	if (rv != 0) {
-		device_printf(drm_dev->dev,
-		    "Cannot initialize frame buffer %d\n", rv);
+		device_printf(
+		    drm_dev->dev, "Cannot initialize frame buffer %d\n", rv);
 		return (rv);
 	}
 
 	rv = drm_fb_helper_single_add_all_connectors(&fb->fb_helper);
 	if (rv != 0) {
-		device_printf(drm_dev->dev, "Cannot add all connectors: %d\n",
-		    rv);
+		device_printf(
+		    drm_dev->dev, "Cannot add all connectors: %d\n", rv);
 		goto err_fini;
 	}
 
 	rv = drm_fb_helper_initial_config(&fb->fb_helper, 32);
 	if (rv != 0) {
-		device_printf(drm_dev->dev,
-		    "Cannot set initial config: %d\n", rv);
+		device_printf(
+		    drm_dev->dev, "Cannot set initial config: %d\n", rv);
 		goto err_fini;
 	}
 	/* XXXX Setup initial mode for FB */
@@ -295,8 +294,8 @@ tegra_drm_fb_create(struct drm_device *drm, struct drm_file *file,
 		}
 
 		bpp = drm_format_plane_cpp(cmd->pixel_format, i);
-		size = (height - 1) * cmd->pitches[i] +
-		    width * bpp + cmd->offsets[i];
+		size = (height - 1) * cmd->pitches[i] + width * bpp +
+		    cmd->offsets[i];
 		if (gem_obj->size < size) {
 			rv = -EINVAL;
 			goto fail;

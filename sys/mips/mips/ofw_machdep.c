@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/fdt.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_subr.h>
+#include <dev/ofw/openfirm.h>
 
 int
 OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
@@ -49,18 +49,20 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	if (res < 0)
 		return (res);
 
-	/*
-	 * Nothing special to do for PCI busses right now.
-	 * This may need to be handled per-platform when it does come up.
-	 */
+		/*
+		 * Nothing special to do for PCI busses right now.
+		 * This may need to be handled per-platform when it does come
+		 * up.
+		 */
 #ifdef notyet
 	if (pci_hi == OFW_PADDR_NOT_PCI) {
 		*tag = fdtbus_bs_tag;
 		flags = 0;
 	} else {
 		*tag = fdtbus_bs_tag;
-		flags = (pci_hi & OFW_PCI_PHYS_HI_PREFETCHABLE) ? 
-		    BUS_SPACE_MAP_PREFETCHABLE: 0;
+		flags = (pci_hi & OFW_PCI_PHYS_HI_PREFETCHABLE) ?
+			  BUS_SPACE_MAP_PREFETCHABLE :
+			  0;
 	}
 #else
 	*tag = fdtbus_bs_tag;

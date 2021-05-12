@@ -47,7 +47,7 @@
  * Later on again, in Windows NT, timestamps were defined relative to GMT.
  *
  * Purists will point out that UTC replaced GMT for such uses around
- * half a century ago, already then.  Ironically "NT" was an abbreviation of 
+ * half a century ago, already then.  Ironically "NT" was an abbreviation of
  * "New Technology".  Anyway...
  *
  * The 'utc' argument determines if the resulting FATTIME timestamp
@@ -72,68 +72,66 @@
  *
  */
 
-#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/time.h>
+#include <sys/param.h>
 #include <sys/clock.h>
+#include <sys/time.h>
 
-#define DAY	(24 * 60 * 60)	/* Length of day in seconds */
-#define YEAR	365		/* Length of normal year */
-#define LYC	(4 * YEAR + 1)	/* Length of 4 year leap-year cycle */
-#define T1980	(10 * 365 + 2)	/* Days from 1970 to 1980 */
+#define DAY (24 * 60 * 60)   /* Length of day in seconds */
+#define YEAR 365	     /* Length of normal year */
+#define LYC (4 * YEAR + 1)   /* Length of 4 year leap-year cycle */
+#define T1980 (10 * 365 + 2) /* Days from 1970 to 1980 */
 
 /* End of month is N days from start of (normal) year */
-#define JAN	31
-#define FEB	(JAN + 28)
-#define MAR	(FEB + 31)
-#define APR	(MAR + 30)
-#define MAY	(APR + 31)
-#define JUN	(MAY + 30)
-#define JUL	(JUN + 31)
-#define AUG	(JUL + 31)
-#define SEP	(AUG + 30)
-#define OCT	(SEP + 31)
-#define NOV	(OCT + 30)
-#define DEC	(NOV + 31)
+#define JAN 31
+#define FEB (JAN + 28)
+#define MAR (FEB + 31)
+#define APR (MAR + 30)
+#define MAY (APR + 31)
+#define JUN (MAY + 30)
+#define JUL (JUN + 31)
+#define AUG (JUL + 31)
+#define SEP (AUG + 30)
+#define OCT (SEP + 31)
+#define NOV (OCT + 30)
+#define DEC (NOV + 31)
 
 /* Table of months in a 4 year leap-year cycle */
 
-#define ENC(y,m)	(((y) << 9) | ((m) << 5))
+#define ENC(y, m) (((y) << 9) | ((m) << 5))
 
 static const struct {
-	uint16_t	days;	/* month start in days relative to cycle */
-	uint16_t	coded;	/* encoded year + month information */
-} mtab[48] = {
-	{   0 + 0 * YEAR,     ENC(0, 1)  },
+	uint16_t days;	/* month start in days relative to cycle */
+	uint16_t coded; /* encoded year + month information */
+} mtab[48] = { { 0 + 0 * YEAR, ENC(0, 1) },
 
-	{ JAN + 0 * YEAR,     ENC(0, 2)  }, { FEB + 0 * YEAR + 1, ENC(0, 3)  },
-	{ MAR + 0 * YEAR + 1, ENC(0, 4)  }, { APR + 0 * YEAR + 1, ENC(0, 5)  },
-	{ MAY + 0 * YEAR + 1, ENC(0, 6)  }, { JUN + 0 * YEAR + 1, ENC(0, 7)  },
-	{ JUL + 0 * YEAR + 1, ENC(0, 8)  }, { AUG + 0 * YEAR + 1, ENC(0, 9)  },
+	{ JAN + 0 * YEAR, ENC(0, 2) }, { FEB + 0 * YEAR + 1, ENC(0, 3) },
+	{ MAR + 0 * YEAR + 1, ENC(0, 4) }, { APR + 0 * YEAR + 1, ENC(0, 5) },
+	{ MAY + 0 * YEAR + 1, ENC(0, 6) }, { JUN + 0 * YEAR + 1, ENC(0, 7) },
+	{ JUL + 0 * YEAR + 1, ENC(0, 8) }, { AUG + 0 * YEAR + 1, ENC(0, 9) },
 	{ SEP + 0 * YEAR + 1, ENC(0, 10) }, { OCT + 0 * YEAR + 1, ENC(0, 11) },
-	{ NOV + 0 * YEAR + 1, ENC(0, 12) }, { DEC + 0 * YEAR + 1, ENC(1, 1)  },
+	{ NOV + 0 * YEAR + 1, ENC(0, 12) }, { DEC + 0 * YEAR + 1, ENC(1, 1) },
 
-	{ JAN + 1 * YEAR + 1, ENC(1, 2)  }, { FEB + 1 * YEAR + 1, ENC(1, 3)  },
-	{ MAR + 1 * YEAR + 1, ENC(1, 4)  }, { APR + 1 * YEAR + 1, ENC(1, 5)  },
-	{ MAY + 1 * YEAR + 1, ENC(1, 6)  }, { JUN + 1 * YEAR + 1, ENC(1, 7)  },
-	{ JUL + 1 * YEAR + 1, ENC(1, 8)  }, { AUG + 1 * YEAR + 1, ENC(1, 9)  },
+	{ JAN + 1 * YEAR + 1, ENC(1, 2) }, { FEB + 1 * YEAR + 1, ENC(1, 3) },
+	{ MAR + 1 * YEAR + 1, ENC(1, 4) }, { APR + 1 * YEAR + 1, ENC(1, 5) },
+	{ MAY + 1 * YEAR + 1, ENC(1, 6) }, { JUN + 1 * YEAR + 1, ENC(1, 7) },
+	{ JUL + 1 * YEAR + 1, ENC(1, 8) }, { AUG + 1 * YEAR + 1, ENC(1, 9) },
 	{ SEP + 1 * YEAR + 1, ENC(1, 10) }, { OCT + 1 * YEAR + 1, ENC(1, 11) },
-	{ NOV + 1 * YEAR + 1, ENC(1, 12) }, { DEC + 1 * YEAR + 1, ENC(2, 1)  },
+	{ NOV + 1 * YEAR + 1, ENC(1, 12) }, { DEC + 1 * YEAR + 1, ENC(2, 1) },
 
-	{ JAN + 2 * YEAR + 1, ENC(2, 2)  }, { FEB + 2 * YEAR + 1, ENC(2, 3)  },
-	{ MAR + 2 * YEAR + 1, ENC(2, 4)  }, { APR + 2 * YEAR + 1, ENC(2, 5)  },
-	{ MAY + 2 * YEAR + 1, ENC(2, 6)  }, { JUN + 2 * YEAR + 1, ENC(2, 7)  },
-	{ JUL + 2 * YEAR + 1, ENC(2, 8)  }, { AUG + 2 * YEAR + 1, ENC(2, 9)  },
+	{ JAN + 2 * YEAR + 1, ENC(2, 2) }, { FEB + 2 * YEAR + 1, ENC(2, 3) },
+	{ MAR + 2 * YEAR + 1, ENC(2, 4) }, { APR + 2 * YEAR + 1, ENC(2, 5) },
+	{ MAY + 2 * YEAR + 1, ENC(2, 6) }, { JUN + 2 * YEAR + 1, ENC(2, 7) },
+	{ JUL + 2 * YEAR + 1, ENC(2, 8) }, { AUG + 2 * YEAR + 1, ENC(2, 9) },
 	{ SEP + 2 * YEAR + 1, ENC(2, 10) }, { OCT + 2 * YEAR + 1, ENC(2, 11) },
-	{ NOV + 2 * YEAR + 1, ENC(2, 12) }, { DEC + 2 * YEAR + 1, ENC(3, 1)  },
+	{ NOV + 2 * YEAR + 1, ENC(2, 12) }, { DEC + 2 * YEAR + 1, ENC(3, 1) },
 
-	{ JAN + 3 * YEAR + 1, ENC(3, 2)  }, { FEB + 3 * YEAR + 1, ENC(3, 3)  },
-	{ MAR + 3 * YEAR + 1, ENC(3, 4)  }, { APR + 3 * YEAR + 1, ENC(3, 5)  },
-	{ MAY + 3 * YEAR + 1, ENC(3, 6)  }, { JUN + 3 * YEAR + 1, ENC(3, 7)  },
-	{ JUL + 3 * YEAR + 1, ENC(3, 8)  }, { AUG + 3 * YEAR + 1, ENC(3, 9)  },
+	{ JAN + 3 * YEAR + 1, ENC(3, 2) }, { FEB + 3 * YEAR + 1, ENC(3, 3) },
+	{ MAR + 3 * YEAR + 1, ENC(3, 4) }, { APR + 3 * YEAR + 1, ENC(3, 5) },
+	{ MAY + 3 * YEAR + 1, ENC(3, 6) }, { JUN + 3 * YEAR + 1, ENC(3, 7) },
+	{ JUL + 3 * YEAR + 1, ENC(3, 8) }, { AUG + 3 * YEAR + 1, ENC(3, 9) },
 	{ SEP + 3 * YEAR + 1, ENC(3, 10) }, { OCT + 3 * YEAR + 1, ENC(3, 11) },
-	{ NOV + 3 * YEAR + 1, ENC(3, 12) }
-};
+	{ NOV + 3 * YEAR + 1, ENC(3, 12) } };
 
 void
 timespec2fattime(const struct timespec *tsp, int utc, uint16_t *ddp,
@@ -196,29 +194,26 @@ timespec2fattime(const struct timespec *tsp, int utc, uint16_t *ddp,
  * leap-year cycle
  */
 
-#define DCOD(m, y, l)	((m) + YEAR * (y) + (l))
-static const uint16_t daytab[64] = {
-	0, 		 DCOD(  0, 0, 0), DCOD(JAN, 0, 0), DCOD(FEB, 0, 1),
-	DCOD(MAR, 0, 1), DCOD(APR, 0, 1), DCOD(MAY, 0, 1), DCOD(JUN, 0, 1),
-	DCOD(JUL, 0, 1), DCOD(AUG, 0, 1), DCOD(SEP, 0, 1), DCOD(OCT, 0, 1),
-	DCOD(NOV, 0, 1), DCOD(DEC, 0, 1), 0,               0,
-	0, 		 DCOD(  0, 1, 1), DCOD(JAN, 1, 1), DCOD(FEB, 1, 1),
-	DCOD(MAR, 1, 1), DCOD(APR, 1, 1), DCOD(MAY, 1, 1), DCOD(JUN, 1, 1),
-	DCOD(JUL, 1, 1), DCOD(AUG, 1, 1), DCOD(SEP, 1, 1), DCOD(OCT, 1, 1),
-	DCOD(NOV, 1, 1), DCOD(DEC, 1, 1), 0,               0,
-	0,		 DCOD(  0, 2, 1), DCOD(JAN, 2, 1), DCOD(FEB, 2, 1),
-	DCOD(MAR, 2, 1), DCOD(APR, 2, 1), DCOD(MAY, 2, 1), DCOD(JUN, 2, 1),
-	DCOD(JUL, 2, 1), DCOD(AUG, 2, 1), DCOD(SEP, 2, 1), DCOD(OCT, 2, 1),
-	DCOD(NOV, 2, 1), DCOD(DEC, 2, 1), 0,               0,
-	0,		 DCOD(  0, 3, 1), DCOD(JAN, 3, 1), DCOD(FEB, 3, 1),
-	DCOD(MAR, 3, 1), DCOD(APR, 3, 1), DCOD(MAY, 3, 1), DCOD(JUN, 3, 1),
-	DCOD(JUL, 3, 1), DCOD(AUG, 3, 1), DCOD(SEP, 3, 1), DCOD(OCT, 3, 1),
-	DCOD(NOV, 3, 1), DCOD(DEC, 3, 1), 0,               0
-};
+#define DCOD(m, y, l) ((m) + YEAR * (y) + (l))
+static const uint16_t daytab[64] = { 0, DCOD(0, 0, 0), DCOD(JAN, 0, 0),
+	DCOD(FEB, 0, 1), DCOD(MAR, 0, 1), DCOD(APR, 0, 1), DCOD(MAY, 0, 1),
+	DCOD(JUN, 0, 1), DCOD(JUL, 0, 1), DCOD(AUG, 0, 1), DCOD(SEP, 0, 1),
+	DCOD(OCT, 0, 1), DCOD(NOV, 0, 1), DCOD(DEC, 0, 1), 0, 0, 0,
+	DCOD(0, 1, 1), DCOD(JAN, 1, 1), DCOD(FEB, 1, 1), DCOD(MAR, 1, 1),
+	DCOD(APR, 1, 1), DCOD(MAY, 1, 1), DCOD(JUN, 1, 1), DCOD(JUL, 1, 1),
+	DCOD(AUG, 1, 1), DCOD(SEP, 1, 1), DCOD(OCT, 1, 1), DCOD(NOV, 1, 1),
+	DCOD(DEC, 1, 1), 0, 0, 0, DCOD(0, 2, 1), DCOD(JAN, 2, 1),
+	DCOD(FEB, 2, 1), DCOD(MAR, 2, 1), DCOD(APR, 2, 1), DCOD(MAY, 2, 1),
+	DCOD(JUN, 2, 1), DCOD(JUL, 2, 1), DCOD(AUG, 2, 1), DCOD(SEP, 2, 1),
+	DCOD(OCT, 2, 1), DCOD(NOV, 2, 1), DCOD(DEC, 2, 1), 0, 0, 0,
+	DCOD(0, 3, 1), DCOD(JAN, 3, 1), DCOD(FEB, 3, 1), DCOD(MAR, 3, 1),
+	DCOD(APR, 3, 1), DCOD(MAY, 3, 1), DCOD(JUN, 3, 1), DCOD(JUL, 3, 1),
+	DCOD(AUG, 3, 1), DCOD(SEP, 3, 1), DCOD(OCT, 3, 1), DCOD(NOV, 3, 1),
+	DCOD(DEC, 3, 1), 0, 0 };
 
 void
-fattime2timespec(unsigned dd, unsigned dt, unsigned dh, int utc,
-    struct timespec *tsp)
+fattime2timespec(
+    unsigned dd, unsigned dt, unsigned dh, int utc, struct timespec *tsp)
 {
 	unsigned day;
 
@@ -256,8 +251,8 @@ fattime2timespec(unsigned dd, unsigned dt, unsigned dh, int utc,
 #ifdef TEST_DRIVER
 
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 int
 main(int argc __unused, char **argv __unused)
@@ -287,12 +282,8 @@ main(int argc __unused, char **argv __unused)
 		timet2fattime(&ts, &d, &t, &p);
 		printf("%04x %04x %02x -- ", d, t, p);
 		printf("%3d %02d %02d %02d %02d %02d -- ",
-		    ((d >> 9)  & 0x7f) + 1980,
-		    (d >> 5)  & 0x0f,
-		    (d >> 0)  & 0x1f,
-		    (t >> 11) & 0x1f,
-		    (t >> 5)  & 0x3f,
-		    ((t >> 0)  & 0x1f) * 2);
+		    ((d >> 9) & 0x7f) + 1980, (d >> 5) & 0x0f, (d >> 0) & 0x1f,
+		    (t >> 11) & 0x1f, (t >> 5) & 0x3f, ((t >> 0) & 0x1f) * 2);
 
 		ts.tv_sec = ts.tv_nsec = 0;
 		fattime2timet(d, t, p, &ts);

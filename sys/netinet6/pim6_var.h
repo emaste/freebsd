@@ -44,18 +44,18 @@
 #define _NETINET6_PIM6_VAR_H_
 
 struct pim6stat {
-	uint64_t pim6s_rcv_total;	/* total PIM messages received	*/
-	uint64_t pim6s_rcv_tooshort;	/* received with too few bytes	*/
-	uint64_t pim6s_rcv_badsum;	/* received with bad checksum	*/
-	uint64_t pim6s_rcv_badversion;	/* received bad PIM version	*/
-	uint64_t pim6s_rcv_registers;	/* received registers		*/
+	uint64_t pim6s_rcv_total;	 /* total PIM messages received	*/
+	uint64_t pim6s_rcv_tooshort;	 /* received with too few bytes	*/
+	uint64_t pim6s_rcv_badsum;	 /* received with bad checksum	*/
+	uint64_t pim6s_rcv_badversion;	 /* received bad PIM version	*/
+	uint64_t pim6s_rcv_registers;	 /* received registers		*/
 	uint64_t pim6s_rcv_badregisters; /* received invalid registers	*/
-	uint64_t pim6s_snd_registers;	/* sent registers		*/
+	uint64_t pim6s_snd_registers;	 /* sent registers		*/
 };
 
 /*
  * Identifiers for PIM sysctl nodes
  */
-#define PIM6CTL_STATS		1	/* statistics (read-only) */
+#define PIM6CTL_STATS 1 /* statistics (read-only) */
 
 #endif /* _NETINET6_PIM6_VAR_H_ */

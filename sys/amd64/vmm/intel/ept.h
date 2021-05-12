@@ -28,14 +28,14 @@
  * $FreeBSD$
  */
 
-#ifndef	_EPT_H_
-#define	_EPT_H_
+#ifndef _EPT_H_
+#define _EPT_H_
 
 struct vmx;
 
-int	ept_init(int ipinum);
-void	ept_invalidate_mappings(u_long eptp);
+int ept_init(int ipinum);
+void ept_invalidate_mappings(u_long eptp);
 struct vmspace *ept_vmspace_alloc(vm_offset_t min, vm_offset_t max);
-void	ept_vmspace_free(struct vmspace *vmspace);
+void ept_vmspace_free(struct vmspace *vmspace);
 uint64_t eptp(uint64_t pml4);
 #endif

@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/reboot.h>
 #include <sys/devmap.h>
+#include <sys/reboot.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -47,15 +47,15 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/imx/imx_machdep.h>
 #include <arm/freescale/imx/imx_wdogreg.h>
 
-SYSCTL_NODE(_hw, OID_AUTO, imx, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
-    "i.MX container");
+SYSCTL_NODE(
+    _hw, OID_AUTO, imx, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, "i.MX container");
 
 static int last_reset_status;
-SYSCTL_UINT(_hw_imx, OID_AUTO, last_reset_status, CTLFLAG_RD, 
+SYSCTL_UINT(_hw_imx, OID_AUTO, last_reset_status, CTLFLAG_RD,
     &last_reset_status, 0, "Last reset status register");
 
-SYSCTL_STRING(_hw_imx, OID_AUTO, last_reset_reason, CTLFLAG_RD, 
-    "unknown", 0, "Last reset reason");
+SYSCTL_STRING(_hw_imx, OID_AUTO, last_reset_reason, CTLFLAG_RD, "unknown", 0,
+    "Last reset reason");
 
 /*
  * This code which manipulates the watchdog hardware is here to implement
@@ -71,7 +71,7 @@ imx_wdog_cpu_reset(vm_offset_t wdcr_physaddr)
 
 	if ((pcr = devmap_ptov(wdcr_physaddr, sizeof(*pcr))) == NULL) {
 		printf("imx_wdog_cpu_reset(): "
-		    "cannot find control register... locking up now.");
+		       "cannot find control register... locking up now.");
 		for (;;)
 			cpu_spinwait();
 	}
@@ -94,7 +94,7 @@ imx_wdog_cpu_reset(vm_offset_t wdcr_physaddr)
 		*pcr = cr;
 		DELAY(1000000);
 		printf("imx_wdog_cpu_reset(): "
-		    "External reset failed, trying internal cpu-reset\n");
+		       "External reset failed, trying internal cpu-reset\n");
 		DELAY(10000); /* Time for printf to appear */
 	}
 
@@ -117,7 +117,7 @@ imx_wdog_cpu_reset(vm_offset_t wdcr_physaddr)
 void
 imx_wdog_init_last_reset(vm_offset_t wdsr_phys)
 {
-	volatile uint16_t * psr;
+	volatile uint16_t *psr;
 
 	if ((psr = devmap_ptov(wdsr_phys, sizeof(*psr))) == NULL)
 		return;

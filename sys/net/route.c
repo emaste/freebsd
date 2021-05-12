@@ -43,28 +43,27 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/sysctl.h>
-#include <sys/syslog.h>
-#include <sys/sysproto.h>
-#include <sys/proc.h>
 #include <sys/domain.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/rmlock.h>
+#include <sys/socket.h>
+#include <sys/sysctl.h>
+#include <sys/syslog.h>
+#include <sys/sysproto.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
+#include <net/if_var.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
-#include <net/route/nhop.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
 #include <netinet/ip_mroute.h>
 
@@ -77,8 +76,8 @@ VNET_PCPUSTAT_SYSUNINIT(rtstat);
 
 EVENTHANDLER_LIST_DEFINE(rt_addrmsg);
 
-static int rt_ifdelroute(const struct rtentry *rt, const struct nhop_object *,
-    void *arg);
+static int rt_ifdelroute(
+    const struct rtentry *rt, const struct nhop_object *, void *arg);
 static int rt_exportinfo(struct rtentry *rt, struct nhop_object *nh,
     struct rt_addrinfo *info, int flags);
 
@@ -138,7 +137,7 @@ rt_table_init(int offset, int family, u_int fibnum)
 static int
 rt_freeentry(struct radix_node *rn, void *arg)
 {
-	struct radix_head * const rnh = arg;
+	struct radix_head *const rnh = arg;
 	struct radix_node *x;
 
 	x = (struct radix_node *)rn_delete(rn + 2, NULL, rnh);
@@ -366,8 +365,8 @@ rt_exportinfo(struct rtentry *rt, struct nhop_object *nh,
 		/* Copy gateway is set && dst is non-zero */
 		src = &nh->gw_sa;
 		dst = info->rti_info[RTAX_GATEWAY];
-		if ((nhop_get_rtflags(nh) & RTF_GATEWAY) &&
-		    src != NULL && dst != NULL) {
+		if ((nhop_get_rtflags(nh) & RTF_GATEWAY) && src != NULL &&
+		    dst != NULL) {
 			if (src->sa_len > dst->sa_len)
 				return (ENOMEM);
 			memcpy(dst, src, src->sa_len);
@@ -478,7 +477,7 @@ rib_free_info(struct rt_addrinfo *info)
 static int
 rt_ifdelroute(const struct rtentry *rt, const struct nhop_object *nh, void *arg)
 {
-	struct ifnet	*ifp = arg;
+	struct ifnet *ifp = arg;
 
 	if (nh->nh_ifp != ifp)
 		return (0);
@@ -524,12 +523,14 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	 */
 	error = 0;
 
-	/* If we have interface specified by the ifindex in the address, use it */
+	/* If we have interface specified by the ifindex in the address, use it
+	 */
 	if (info->rti_ifp == NULL && ifpaddr != NULL &&
 	    ifpaddr->sa_family == AF_LINK) {
-	    const struct sockaddr_dl *sdl = (const struct sockaddr_dl *)ifpaddr;
-	    if (sdl->sdl_index != 0)
-		    info->rti_ifp = ifnet_byindex(sdl->sdl_index);
+		const struct sockaddr_dl *sdl = (const struct sockaddr_dl *)
+		    ifpaddr;
+		if (sdl->sdl_index != 0)
+			info->rti_ifp = ifnet_byindex(sdl->sdl_index);
 	}
 	/*
 	 * If we have source address specified, try to find it
@@ -548,13 +549,12 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 		 * Order of preference:
 		 * 1) IFA address
 		 * 2) gateway address
-		 *   Note: for interface routes link-level gateway address 
+		 *   Note: for interface routes link-level gateway address
 		 *     is specified to indicate the interface index without
 		 *     specifying RTF_GATEWAY. In this case, ignore gateway
-		 *   Note: gateway AF may be different from dst AF. In this case,
-		 *   ignore gateway
-		 * 3) final destination.
-		 * 4) if all of these fails, try to get at least link-level ifa.
+		 *   Note: gateway AF may be different from dst AF. In this
+		 * case, ignore gateway 3) final destination. 4) if all of these
+		 * fails, try to get at least link-level ifa.
 		 * -- else --
 		 * try to lookup gateway or dst in the routing table to get ifa
 		 */
@@ -569,13 +569,13 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 			info->rti_ifa = ifaof_ifpforaddr(sa, info->rti_ifp);
 			/* Case 4 */
 			if (info->rti_ifa == NULL && gateway != NULL)
-				info->rti_ifa = ifaof_ifpforaddr(gateway, info->rti_ifp);
+				info->rti_ifa = ifaof_ifpforaddr(
+				    gateway, info->rti_ifp);
 		} else if (dst != NULL && gateway != NULL)
-			info->rti_ifa = ifa_ifwithroute(flags, dst, gateway,
-							fibnum);
+			info->rti_ifa = ifa_ifwithroute(
+			    flags, dst, gateway, fibnum);
 		else if (sa != NULL)
-			info->rti_ifa = ifa_ifwithroute(flags, sa, sa,
-							fibnum);
+			info->rti_ifa = ifa_ifwithroute(flags, sa, sa, fibnum);
 	}
 	if (info->rti_ifa != NULL) {
 		if (info->rti_ifp == NULL)
@@ -660,7 +660,8 @@ rt_print(char *buf, int buflen, struct rtentry *rt)
 #endif
 
 void
-rt_maskedcopy(struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netmask)
+rt_maskedcopy(
+    struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netmask)
 {
 	u_char *cp1 = (u_char *)src;
 	u_char *cp2 = (u_char *)dst;
@@ -668,7 +669,8 @@ rt_maskedcopy(struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netma
 	u_char *cplim = cp2 + *cp3;
 	u_char *cplim2 = cp2 + *cp1;
 
-	*cp2++ = *cp1++; *cp2++ = *cp1++; /* copies sa_len & sa_family */
+	*cp2++ = *cp1++;
+	*cp2++ = *cp1++; /* copies sa_len & sa_family */
 	cp3 += 2;
 	if (cplim > cplim2)
 		cplim = cplim2;
@@ -686,8 +688,8 @@ int
 rt_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 {
 
-	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
-	    ("unexpected cmd %d", cmd));
+	KASSERT(
+	    cmd == RTM_ADD || cmd == RTM_DELETE, ("unexpected cmd %d", cmd));
 	KASSERT((fibnum >= 0 && fibnum < rt_numfibs),
 	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
@@ -699,8 +701,8 @@ rt_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 }
 
 /*
- * Announce kernel-originated route addition/removal to rtsock based on @rt data.
- * cmd: RTM_ cmd
+ * Announce kernel-originated route addition/removal to rtsock based on @rt
+ * data. cmd: RTM_ cmd
  * @rt: valid rtentry
  * @nh: nhop object to announce
  * @fibnum: fib id or RT_ALL_FIBS
@@ -708,12 +710,11 @@ rt_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
  * Returns 0 on success.
  */
 int
-rt_routemsg(int cmd, struct rtentry *rt, struct nhop_object *nh,
-    int fibnum)
+rt_routemsg(int cmd, struct rtentry *rt, struct nhop_object *nh, int fibnum)
 {
 
-	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
-	    ("unexpected cmd %d", cmd));
+	KASSERT(
+	    cmd == RTM_ADD || cmd == RTM_DELETE, ("unexpected cmd %d", cmd));
 
 	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
 	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
@@ -724,8 +725,8 @@ rt_routemsg(int cmd, struct rtentry *rt, struct nhop_object *nh,
 }
 
 /*
- * Announce kernel-originated route addition/removal to rtsock based on @rt data.
- * cmd: RTM_ cmd
+ * Announce kernel-originated route addition/removal to rtsock based on @rt
+ * data. cmd: RTM_ cmd
  * @info: addrinfo structure with valid data.
  * @fibnum: fib id or RT_ALL_FIBS
  *
@@ -741,7 +742,8 @@ rt_routemsg_info(int cmd, struct rt_addrinfo *info, int fibnum)
 	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
 	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
-	KASSERT(info->rti_info[RTAX_DST] != NULL, (":%s: RTAX_DST must be supplied", __func__));
+	KASSERT(info->rti_info[RTAX_DST] != NULL,
+	    (":%s: RTAX_DST must be supplied", __func__));
 
 	return (rtsock_routemsg_info(cmd, info, fibnum));
 }

@@ -34,9 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/pl310.h>
@@ -59,23 +59,25 @@ mv_a38x_platform_pl310_init(platform_t plat, struct pl310_softc *sc)
 	reg |= POWER_CTRL_ENABLE_GATING;
 	pl310_write4(sc, PL310_POWER_CTRL, reg);
 
-	pl310_write4(sc, PL310_PREFETCH_CTRL, PREFETCH_CTRL_DL |
-	    PREFETCH_CTRL_DATA_PREFETCH | PREFETCH_CTRL_INCR_DL |
-	    PREFETCH_CTRL_DL_ON_WRAP);
+	pl310_write4(sc, PL310_PREFETCH_CTRL,
+	    PREFETCH_CTRL_DL | PREFETCH_CTRL_DATA_PREFETCH |
+		PREFETCH_CTRL_INCR_DL | PREFETCH_CTRL_DL_ON_WRAP);
 
 	/* Disable L2 cache sync for IO coherent operation */
 	sc->sc_io_coherent = true;
 }
 
 void
-mv_a38x_platform_pl310_write_ctrl(platform_t plat, struct pl310_softc *sc, uint32_t val)
+mv_a38x_platform_pl310_write_ctrl(
+    platform_t plat, struct pl310_softc *sc, uint32_t val)
 {
 
 	pl310_write4(sc, PL310_CTRL, val);
 }
 
 void
-mv_a38x_platform_pl310_write_debug(platform_t plat, struct pl310_softc *sc, uint32_t val)
+mv_a38x_platform_pl310_write_debug(
+    platform_t plat, struct pl310_softc *sc, uint32_t val)
 {
 
 	pl310_write4(sc, PL310_DEBUG_CTRL, val);

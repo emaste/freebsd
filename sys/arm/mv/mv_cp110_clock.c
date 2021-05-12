@@ -33,21 +33,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
 
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/clk/clk_gate.h>
 #include <dev/extres/syscon/syscon.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -62,8 +60,8 @@ static struct clk_fixed_def cp110_clk_pll_0 = {
 	.freq = 1000000000,
 };
 
-static const char *clk_parents_0[] = {"cp110-pll0-0"};
-static const char *clk_parents_1[] = {"cp110-pll0-1"};
+static const char *clk_parents_0[] = { "cp110-pll0-0" };
+static const char *clk_parents_1[] = { "cp110-pll0-1" };
 
 static struct clk_fixed_def cp110_clk_ppv2_core = {
 	.clkdef.id = CP110_PPV2_CORE,
@@ -79,8 +77,8 @@ static struct clk_fixed_def cp110_clk_x2core = {
 	.div = 2,
 };
 
-static const char *core_parents_0[] = {"cp110-x2core-0"};
-static const char *core_parents_1[] = {"cp110-x2core-1"};
+static const char *core_parents_0[] = { "cp110-x2core-0" };
+static const char *core_parents_1[] = { "cp110-x2core-1" };
 
 static struct clk_fixed_def cp110_clk_core = {
 	.clkdef.id = CP110_CORE,
@@ -100,44 +98,41 @@ static struct clk_fixed_def cp110_clk_sdio = {
 
 static struct cp110_gate cp110_gates[] = {
 	CCU_GATE(CP110_GATE_AUDIO, "cp110-gate-audio", 0)
-	CCU_GATE(CP110_GATE_COMM_UNIT, "cp110-gate-comm_unit", 1)
+	    CCU_GATE(CP110_GATE_COMM_UNIT, "cp110-gate-comm_unit", 1)
 	/* CCU_GATE(CP110_GATE_NAND, "cp110-gate-nand", 2) */
-	CCU_GATE(CP110_GATE_PPV2, "cp110-gate-ppv2", 3)
-	CCU_GATE(CP110_GATE_SDIO, "cp110-gate-sdio", 4)
-	CCU_GATE(CP110_GATE_MG, "cp110-gate-mg", 5)
-	CCU_GATE(CP110_GATE_MG_CORE, "cp110-gate-mg_core", 6)
-	CCU_GATE(CP110_GATE_XOR1, "cp110-gate-xor1", 7)
-	CCU_GATE(CP110_GATE_XOR0, "cp110-gate-xor0", 8)
-	CCU_GATE(CP110_GATE_GOP_DP, "cp110-gate-gop_dp", 9)
-	CCU_GATE(CP110_GATE_PCIE_X1_0, "cp110-gate-pcie_x10", 11)
-	CCU_GATE(CP110_GATE_PCIE_X1_1, "cp110-gate-pcie_x11", 12)
-	CCU_GATE(CP110_GATE_PCIE_X4, "cp110-gate-pcie_x4", 13)
-	CCU_GATE(CP110_GATE_PCIE_XOR, "cp110-gate-pcie_xor", 14)
-	CCU_GATE(CP110_GATE_SATA, "cp110-gate-sata", 15)
-	CCU_GATE(CP110_GATE_SATA_USB, "cp110-gate-sata_usb", 16)
-	CCU_GATE(CP110_GATE_MAIN, "cp110-gate-main", 17)
-	CCU_GATE(CP110_GATE_SDMMC_GOP, "cp110-gate-sdmmc_gop", 18)
-	CCU_GATE(CP110_GATE_SLOW_IO, "cp110-gate-slow_io", 21)
-	CCU_GATE(CP110_GATE_USB3H0, "cp110-gate-usb3h0", 22)
-	CCU_GATE(CP110_GATE_USB3H1, "cp110-gate-usb3h1", 23)
-	CCU_GATE(CP110_GATE_USB3DEV, "cp110-gate-usb3dev", 24)
-	CCU_GATE(CP110_GATE_EIP150, "cp110-gate-eip150", 25)
-	CCU_GATE(CP110_GATE_EIP197, "cp110-gate-eip197", 26)
+	CCU_GATE(CP110_GATE_PPV2, "cp110-gate-ppv2", 3) CCU_GATE(
+	    CP110_GATE_SDIO, "cp110-gate-sdio", 4) CCU_GATE(CP110_GATE_MG,
+	    "cp110-gate-mg", 5) CCU_GATE(CP110_GATE_MG_CORE,
+	    "cp110-gate-mg_core", 6) CCU_GATE(CP110_GATE_XOR1,
+	    "cp110-gate-xor1", 7) CCU_GATE(CP110_GATE_XOR0, "cp110-gate-xor0",
+	    8) CCU_GATE(CP110_GATE_GOP_DP, "cp110-gate-gop_dp",
+	    9) CCU_GATE(CP110_GATE_PCIE_X1_0, "cp110-gate-pcie_x10",
+	    11) CCU_GATE(CP110_GATE_PCIE_X1_1, "cp110-gate-pcie_x11",
+	    12) CCU_GATE(CP110_GATE_PCIE_X4, "cp110-gate-pcie_x4",
+	    13) CCU_GATE(CP110_GATE_PCIE_XOR, "cp110-gate-pcie_xor",
+	    14) CCU_GATE(CP110_GATE_SATA, "cp110-gate-sata",
+	    15) CCU_GATE(CP110_GATE_SATA_USB, "cp110-gate-sata_usb",
+	    16) CCU_GATE(CP110_GATE_MAIN, "cp110-gate-main", 17)
+	    CCU_GATE(CP110_GATE_SDMMC_GOP, "cp110-gate-sdmmc_gop", 18) CCU_GATE(
+		CP110_GATE_SLOW_IO, "cp110-gate-slow_io", 21)
+		CCU_GATE(CP110_GATE_USB3H0, "cp110-gate-usb3h0", 22) CCU_GATE(
+		    CP110_GATE_USB3H1, "cp110-gate-usb3h1", 23)
+		    CCU_GATE(CP110_GATE_USB3DEV, "cp110-gate-usb3dev", 24)
+			CCU_GATE(CP110_GATE_EIP150, "cp110-gate-eip150", 25)
+			    CCU_GATE(CP110_GATE_EIP197, "cp110-gate-eip197", 26)
 };
 
 struct mv_cp110_clock_softc {
-	device_t		dev;
-	struct syscon		*syscon;
-	struct mtx		mtx;
+	device_t dev;
+	struct syscon *syscon;
+	struct mtx mtx;
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{"marvell,cp110-clock", 1},
-	{NULL,             0}
-};
+static struct ofw_compat_data compat_data[] = { { "marvell,cp110-clock", 1 },
+	{ NULL, 0 } };
 
-#define	RD4(sc, reg)		SYSCON_READ_4((sc)->syscon, (reg))
-#define	WR4(sc, reg, val)	SYSCON_WRITE_4((sc)->syscon, (reg), (val))
+#define RD4(sc, reg) SYSCON_READ_4((sc)->syscon, (reg))
+#define WR4(sc, reg, val) SYSCON_WRITE_4((sc)->syscon, (reg), (val))
 
 static char *
 mv_cp110_clock_name(device_t dev, const char *name)
@@ -166,8 +161,8 @@ mv_cp110_clock_probe(device_t dev)
 }
 
 static int
-cp110_ofw_map(struct clkdom *clkdom, uint32_t ncells,
-    phandle_t *cells, struct clknode **clk)
+cp110_ofw_map(struct clkdom *clkdom, uint32_t ncells, phandle_t *cells,
+    struct clknode **clk)
 {
 	int id = 0;
 
@@ -203,7 +198,8 @@ mv_cp110_clock_attach(device_t dev)
 
 	unit = device_get_unit(dev);
 	if (unit > 1) {
-		device_printf(dev, "Bogus cp110-system-controller unit %d\n", unit);
+		device_printf(
+		    dev, "Bogus cp110-system-controller unit %d\n", unit);
 		return (ENXIO);
 	}
 
@@ -216,22 +212,27 @@ mv_cp110_clock_attach(device_t dev)
 	cp110_clk_pll_0.clkdef.name = pll0_name;
 	clknode_fixed_register(clkdom, &cp110_clk_pll_0);
 
-	cp110_clk_ppv2_core.clkdef.name = mv_cp110_clock_name(dev, "cp110-ppv2");
-	cp110_clk_ppv2_core.clkdef.parent_names = (unit == 0) ? clk_parents_0 : clk_parents_1;
+	cp110_clk_ppv2_core.clkdef.name = mv_cp110_clock_name(
+	    dev, "cp110-ppv2");
+	cp110_clk_ppv2_core.clkdef.parent_names = (unit == 0) ? clk_parents_0 :
+								      clk_parents_1;
 	clknode_fixed_register(clkdom, &cp110_clk_ppv2_core);
 
 	cp110_clk_x2core.clkdef.name = mv_cp110_clock_name(dev, "cp110-x2core");
-	cp110_clk_x2core.clkdef.parent_names = (unit == 0) ? clk_parents_0 : clk_parents_1;
+	cp110_clk_x2core.clkdef.parent_names = (unit == 0) ? clk_parents_0 :
+								   clk_parents_1;
 	clknode_fixed_register(clkdom, &cp110_clk_x2core);
 
 	cp110_clk_core.clkdef.name = mv_cp110_clock_name(dev, "cp110-core");
-	cp110_clk_core.clkdef.parent_names = (unit == 0) ? core_parents_0 : core_parents_1;
+	cp110_clk_core.clkdef.parent_names = (unit == 0) ? core_parents_0 :
+								 core_parents_1;
 	clknode_fixed_register(clkdom, &cp110_clk_core);
 
 	/* NAND missing */
 
 	cp110_clk_sdio.clkdef.name = mv_cp110_clock_name(dev, "cp110-sdio");
-	cp110_clk_sdio.clkdef.parent_names = (unit == 0) ? clk_parents_0 : clk_parents_1;
+	cp110_clk_sdio.clkdef.parent_names = (unit == 0) ? clk_parents_0 :
+								 clk_parents_1;
 	clknode_fixed_register(clkdom, &cp110_clk_sdio);
 
 	for (i = 0; i < nitems(cp110_gates); i++) {
@@ -252,7 +253,8 @@ mv_cp110_clock_attach(device_t dev)
 		case CP110_GATE_MG:
 		case CP110_GATE_GOP_DP:
 		case CP110_GATE_PPV2:
-			def.clkdef.parent_names = &cp110_clk_ppv2_core.clkdef.name;
+			def.clkdef.parent_names =
+			    &cp110_clk_ppv2_core.clkdef.name;
 			break;
 		case CP110_GATE_SDIO:
 			def.clkdef.parent_names = &cp110_clk_sdio.clkdef.name;
@@ -309,7 +311,8 @@ mv_cp110_clock_read_4(device_t dev, bus_addr_t addr, uint32_t *val)
 }
 
 static int
-mv_cp110_clock_modify_4(device_t dev, bus_addr_t addr, uint32_t clr, uint32_t set)
+mv_cp110_clock_modify_4(
+    device_t dev, bus_addr_t addr, uint32_t clr, uint32_t set)
 {
 	struct mv_cp110_clock_softc *sc;
 	uint32_t reg;
@@ -344,16 +347,16 @@ mv_cp110_clock_device_unlock(device_t dev)
 
 static device_method_t mv_cp110_clock_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		mv_cp110_clock_probe),
-	DEVMETHOD(device_attach,	mv_cp110_clock_attach),
-	DEVMETHOD(device_detach,	mv_cp110_clock_detach),
+	DEVMETHOD(device_probe, mv_cp110_clock_probe),
+	DEVMETHOD(device_attach, mv_cp110_clock_attach),
+	DEVMETHOD(device_detach, mv_cp110_clock_detach),
 
 	/* clkdev interface */
-	DEVMETHOD(clkdev_write_4,	mv_cp110_clock_write_4),
-	DEVMETHOD(clkdev_read_4,	mv_cp110_clock_read_4),
-	DEVMETHOD(clkdev_modify_4,	mv_cp110_clock_modify_4),
-	DEVMETHOD(clkdev_device_lock,	mv_cp110_clock_device_lock),
-	DEVMETHOD(clkdev_device_unlock,	mv_cp110_clock_device_unlock),
+	DEVMETHOD(clkdev_write_4, mv_cp110_clock_write_4),
+	DEVMETHOD(clkdev_read_4, mv_cp110_clock_read_4),
+	DEVMETHOD(clkdev_modify_4, mv_cp110_clock_modify_4),
+	DEVMETHOD(clkdev_device_lock, mv_cp110_clock_device_lock),
+	DEVMETHOD(clkdev_device_unlock, mv_cp110_clock_device_unlock),
 
 	DEVMETHOD_END
 };

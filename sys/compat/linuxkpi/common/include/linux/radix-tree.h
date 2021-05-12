@@ -28,45 +28,47 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_RADIX_TREE_H_
-#define	_LINUX_RADIX_TREE_H_
+#ifndef _LINUX_RADIX_TREE_H_
+#define _LINUX_RADIX_TREE_H_
 
 #include <linux/types.h>
 
-#define	RADIX_TREE_MAP_SHIFT	6
-#define	RADIX_TREE_MAP_SIZE	(1UL << RADIX_TREE_MAP_SHIFT)
-#define	RADIX_TREE_MAP_MASK	(RADIX_TREE_MAP_SIZE - 1UL)
-#define	RADIX_TREE_MAX_HEIGHT \
-	howmany(sizeof(long) * NBBY, RADIX_TREE_MAP_SHIFT)
+#define RADIX_TREE_MAP_SHIFT 6
+#define RADIX_TREE_MAP_SIZE (1UL << RADIX_TREE_MAP_SHIFT)
+#define RADIX_TREE_MAP_MASK (RADIX_TREE_MAP_SIZE - 1UL)
+#define RADIX_TREE_MAX_HEIGHT howmany(sizeof(long) * NBBY, RADIX_TREE_MAP_SHIFT)
 
-#define	RADIX_TREE_ENTRY_MASK 3UL
-#define	RADIX_TREE_EXCEPTIONAL_ENTRY 2UL
-#define	RADIX_TREE_EXCEPTIONAL_SHIFT 2
+#define RADIX_TREE_ENTRY_MASK 3UL
+#define RADIX_TREE_EXCEPTIONAL_ENTRY 2UL
+#define RADIX_TREE_EXCEPTIONAL_SHIFT 2
 
 struct radix_tree_node {
-	void		*slots[RADIX_TREE_MAP_SIZE];
-	int		count;
+	void *slots[RADIX_TREE_MAP_SIZE];
+	int count;
 };
 
 struct radix_tree_root {
-	struct radix_tree_node	*rnode;
-	gfp_t			gfp_mask;
-	int			height;
+	struct radix_tree_node *rnode;
+	gfp_t gfp_mask;
+	int height;
 };
 
 struct radix_tree_iter {
 	unsigned long index;
 };
 
-#define	RADIX_TREE_INIT(mask)						\
-	    { .rnode = NULL, .gfp_mask = mask, .height = 0 };
-#define	INIT_RADIX_TREE(root, mask)					\
-	    { (root)->rnode = NULL; (root)->gfp_mask = mask; (root)->height = 0; }
-#define	RADIX_TREE(name, mask)						\
-	    struct radix_tree_root name = RADIX_TREE_INIT(mask)
+#define RADIX_TREE_INIT(mask) { .rnode = NULL, .gfp_mask = mask, .height = 0 };
+#define INIT_RADIX_TREE(root, mask)      \
+	{                                \
+		(root)->rnode = NULL;    \
+		(root)->gfp_mask = mask; \
+		(root)->height = 0;      \
+	}
+#define RADIX_TREE(name, mask) \
+	struct radix_tree_root name = RADIX_TREE_INIT(mask)
 
-#define	radix_tree_for_each_slot(slot, root, iter, start) \
-	for ((iter)->index = (start);			  \
+#define radix_tree_for_each_slot(slot, root, iter, start) \
+	for ((iter)->index = (start);                     \
 	     radix_tree_iter_find(root, iter, &(slot)); (iter)->index++)
 
 static inline int
@@ -75,11 +77,13 @@ radix_tree_exception(void *arg)
 	return ((uintptr_t)arg & RADIX_TREE_ENTRY_MASK);
 }
 
-void	*radix_tree_lookup(struct radix_tree_root *, unsigned long);
-void	*radix_tree_delete(struct radix_tree_root *, unsigned long);
-int	radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
-int	radix_tree_store(struct radix_tree_root *, unsigned long, void **);
-bool	radix_tree_iter_find(struct radix_tree_root *, struct radix_tree_iter *, void ***);
-void	radix_tree_iter_delete(struct radix_tree_root *, struct radix_tree_iter *, void **);
+void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
+void *radix_tree_delete(struct radix_tree_root *, unsigned long);
+int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
+int radix_tree_store(struct radix_tree_root *, unsigned long, void **);
+bool radix_tree_iter_find(
+    struct radix_tree_root *, struct radix_tree_iter *, void ***);
+void radix_tree_iter_delete(
+    struct radix_tree_root *, struct radix_tree_iter *, void **);
 
-#endif	/* _LINUX_RADIX_TREE_H_ */
+#endif /* _LINUX_RADIX_TREE_H_ */

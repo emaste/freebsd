@@ -35,8 +35,8 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/signalvar.h>
-#include <sys/sysctl.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 
 /* check for full DNS request */
 static int sohasdns(struct socket *so, void *arg, int waitflag);
@@ -44,11 +44,11 @@ static int sohasdns(struct socket *so, void *arg, int waitflag);
 ACCEPT_FILTER_DEFINE(accf_dns, "dnsready", sohasdns, NULL, NULL, 1);
 
 struct packet {
-	struct mbuf *m;		/* Current mbuf. */
-	struct mbuf *n;		/* nextpkt mbuf. */
-	unsigned long moff;	/* Offset of the beginning of m. */
-	unsigned long offset;	/* Which offset we are working at. */
-	unsigned long len;	/* The number of bytes we have to play with. */
+	struct mbuf *m;	      /* Current mbuf. */
+	struct mbuf *n;	      /* nextpkt mbuf. */
+	unsigned long moff;   /* Offset of the beginning of m. */
+	unsigned long offset; /* Which offset we are working at. */
+	unsigned long len;    /* The number of bytes we have to play with. */
 };
 
 #define DNS_OK 0
@@ -75,32 +75,35 @@ ready:
 	return (SU_ISCONNECTED);
 }
 
-#define GET8(p, val) do { \
-	if (p->offset < p->moff) \
-		return DNS_RUN; \
-	while (p->offset >= p->moff + p->m->m_len) { \
-		p->moff += p->m->m_len; \
-		p->m = p->m->m_next; \
-		if (p->m == NULL) { \
-			p->m = p->n; \
-			p->n = p->m->m_nextpkt; \
-		} \
-		if (p->m == NULL) \
-			return DNS_WAIT; \
-	} \
-	val = *(mtod(p->m, unsigned char *) + (p->offset - p->moff)); \
-	p->offset++; \
+#define GET8(p, val)                                                          \
+	do {                                                                  \
+		if (p->offset < p->moff)                                      \
+			return DNS_RUN;                                       \
+		while (p->offset >= p->moff + p->m->m_len) {                  \
+			p->moff += p->m->m_len;                               \
+			p->m = p->m->m_next;                                  \
+			if (p->m == NULL) {                                   \
+				p->m = p->n;                                  \
+				p->n = p->m->m_nextpkt;                       \
+			}                                                     \
+			if (p->m == NULL)                                     \
+				return DNS_WAIT;                              \
+		}                                                             \
+		val = *(mtod(p->m, unsigned char *) + (p->offset - p->moff)); \
+		p->offset++;                                                  \
 	} while (0)
 
-#define GET16(p, val) do { \
-	unsigned int v0, v1; \
-	GET8(p, v0); \
-	GET8(p, v1); \
-	val = v0 * 0x100 + v1; \
+#define GET16(p, val)                  \
+	do {                           \
+		unsigned int v0, v1;   \
+		GET8(p, v0);           \
+		GET8(p, v1);           \
+		val = v0 * 0x100 + v1; \
 	} while (0)
 
 static int
-skippacket(struct sockbuf *sb) {
+skippacket(struct sockbuf *sb)
+{
 	unsigned long packlen;
 	struct packet q, *p = &q;
 

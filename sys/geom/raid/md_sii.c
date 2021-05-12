@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
@@ -39,83 +40,84 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
 #include <sys/taskqueue.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include "geom/raid/g_raid.h"
+
 #include "g_raid_md_if.h"
+#include "geom/raid/g_raid.h"
 
 static MALLOC_DEFINE(M_MD_SII, "md_sii_data", "GEOM_RAID SiI metadata");
 
 struct sii_raid_conf {
-	uint16_t	ata_params_00_53[54];
-	uint64_t	total_sectors;		/* 54 - 57 */
-	uint16_t	ata_params_58_81[72];
-	uint16_t	product_id;		/* 130 */
-	uint16_t	vendor_id;		/* 131 */
-	uint16_t	version_minor;		/* 132 */
-	uint16_t	version_major;		/* 133 */
-	uint8_t		timestamp[6];		/* 134 - 136 */
-	uint16_t	strip_sectors;		/* 137 */
-	uint16_t	dummy_2;
-	uint8_t		disk_number;		/* 139 */
-	uint8_t		type;
-#define SII_T_RAID0             0x00
-#define SII_T_RAID1             0x01
-#define SII_T_RAID01            0x02
-#define SII_T_SPARE             0x03
-#define SII_T_CONCAT            0x04
-#define SII_T_RAID5             0x10
-#define SII_T_RESERVED          0xfd
-#define SII_T_JBOD              0xff
+	uint16_t ata_params_00_53[54];
+	uint64_t total_sectors; /* 54 - 57 */
+	uint16_t ata_params_58_81[72];
+	uint16_t product_id;	/* 130 */
+	uint16_t vendor_id;	/* 131 */
+	uint16_t version_minor; /* 132 */
+	uint16_t version_major; /* 133 */
+	uint8_t timestamp[6];	/* 134 - 136 */
+	uint16_t strip_sectors; /* 137 */
+	uint16_t dummy_2;
+	uint8_t disk_number; /* 139 */
+	uint8_t type;
+#define SII_T_RAID0 0x00
+#define SII_T_RAID1 0x01
+#define SII_T_RAID01 0x02
+#define SII_T_SPARE 0x03
+#define SII_T_CONCAT 0x04
+#define SII_T_RAID5 0x10
+#define SII_T_RESERVED 0xfd
+#define SII_T_JBOD 0xff
 
-	uint8_t		raid0_disks;		/* 140 */
-	uint8_t		raid0_ident;
-	uint8_t		raid1_disks;		/* 141 */
-	uint8_t		raid1_ident;
-	uint64_t	rebuild_lba;		/* 142 - 145 */
-	uint32_t	generation;		/* 146 - 147 */
-	uint8_t		disk_status;		/* 148 */
-#define SII_S_CURRENT           0x01
-#define SII_S_REBUILD           0x02
-#define SII_S_DROPPED           0x03
-#define SII_S_REMOVED           0x04
+	uint8_t raid0_disks; /* 140 */
+	uint8_t raid0_ident;
+	uint8_t raid1_disks; /* 141 */
+	uint8_t raid1_ident;
+	uint64_t rebuild_lba; /* 142 - 145 */
+	uint32_t generation;  /* 146 - 147 */
+	uint8_t disk_status;  /* 148 */
+#define SII_S_CURRENT 0x01
+#define SII_S_REBUILD 0x02
+#define SII_S_DROPPED 0x03
+#define SII_S_REMOVED 0x04
 
-	uint8_t		raid_status;
-#define SII_S_ONLINE            0x01
-#define SII_S_AVAILABLE         0x02
+	uint8_t raid_status;
+#define SII_S_ONLINE 0x01
+#define SII_S_AVAILABLE 0x02
 
-	uint8_t		raid_location;		/* 149 */
-	uint8_t		disk_location;
-	uint8_t		auto_rebuild;		/* 150 */
-#define SII_R_REBUILD           0x00
-#define SII_R_NOREBUILD         0xff
+	uint8_t raid_location; /* 149 */
+	uint8_t disk_location;
+	uint8_t auto_rebuild; /* 150 */
+#define SII_R_REBUILD 0x00
+#define SII_R_NOREBUILD 0xff
 
-	uint8_t		dummy_3;
-	uint8_t		name[16];		/* 151 - 158 */
-	uint16_t	checksum;		/* 159 */
-	uint16_t	ata_params_160_255[96];
+	uint8_t dummy_3;
+	uint8_t name[16];  /* 151 - 158 */
+	uint16_t checksum; /* 159 */
+	uint16_t ata_params_160_255[96];
 } __packed;
 
 struct g_raid_md_sii_perdisk {
-	struct sii_raid_conf	*pd_meta;
-	int			 pd_disk_pos;
-	off_t			 pd_disk_size;
+	struct sii_raid_conf *pd_meta;
+	int pd_disk_pos;
+	off_t pd_disk_size;
 };
 
 struct g_raid_md_sii_object {
-	struct g_raid_md_object	 mdio_base;
-	uint8_t			 mdio_timestamp[6];
-	uint8_t			 mdio_location;
-	uint32_t		 mdio_generation;
-	struct sii_raid_conf	*mdio_meta;
-	struct callout		 mdio_start_co;	/* STARTING state timer. */
-	int			 mdio_total_disks;
-	int			 mdio_disks_present;
-	int			 mdio_started;
-	int			 mdio_incomplete;
-	struct root_hold_token	*mdio_rootmount; /* Root mount delay token. */
+	struct g_raid_md_object mdio_base;
+	uint8_t mdio_timestamp[6];
+	uint8_t mdio_location;
+	uint32_t mdio_generation;
+	struct sii_raid_conf *mdio_meta;
+	struct callout mdio_start_co; /* STARTING state timer. */
+	int mdio_total_disks;
+	int mdio_disks_present;
+	int mdio_started;
+	int mdio_incomplete;
+	struct root_hold_token *mdio_rootmount; /* Root mount delay token. */
 };
 
 static g_raid_md_create_t g_raid_md_create_sii;
@@ -127,25 +129,19 @@ static g_raid_md_fail_disk_t g_raid_md_fail_disk_sii;
 static g_raid_md_free_disk_t g_raid_md_free_disk_sii;
 static g_raid_md_free_t g_raid_md_free_sii;
 
-static kobj_method_t g_raid_md_sii_methods[] = {
-	KOBJMETHOD(g_raid_md_create,	g_raid_md_create_sii),
-	KOBJMETHOD(g_raid_md_taste,	g_raid_md_taste_sii),
-	KOBJMETHOD(g_raid_md_event,	g_raid_md_event_sii),
-	KOBJMETHOD(g_raid_md_ctl,	g_raid_md_ctl_sii),
-	KOBJMETHOD(g_raid_md_write,	g_raid_md_write_sii),
-	KOBJMETHOD(g_raid_md_fail_disk,	g_raid_md_fail_disk_sii),
-	KOBJMETHOD(g_raid_md_free_disk,	g_raid_md_free_disk_sii),
-	KOBJMETHOD(g_raid_md_free,	g_raid_md_free_sii),
-	{ 0, 0 }
-};
+static kobj_method_t g_raid_md_sii_methods[] = { KOBJMETHOD(g_raid_md_create,
+						     g_raid_md_create_sii),
+	KOBJMETHOD(g_raid_md_taste, g_raid_md_taste_sii),
+	KOBJMETHOD(g_raid_md_event, g_raid_md_event_sii),
+	KOBJMETHOD(g_raid_md_ctl, g_raid_md_ctl_sii),
+	KOBJMETHOD(g_raid_md_write, g_raid_md_write_sii),
+	KOBJMETHOD(g_raid_md_fail_disk, g_raid_md_fail_disk_sii),
+	KOBJMETHOD(g_raid_md_free_disk, g_raid_md_free_disk_sii),
+	KOBJMETHOD(g_raid_md_free, g_raid_md_free_sii), { 0, 0 } };
 
-static struct g_raid_md_class g_raid_md_sii_class = {
-	"SiI",
-	g_raid_md_sii_methods,
-	sizeof(struct g_raid_md_sii_object),
-	.mdc_enable = 1,
-	.mdc_priority = 100
-};
+static struct g_raid_md_class g_raid_md_sii_class = { "SiI",
+	g_raid_md_sii_methods, sizeof(struct g_raid_md_sii_object),
+	.mdc_enable = 1, .mdc_priority = 100 };
 
 static void
 g_raid_md_sii_print(struct sii_raid_conf *meta)
@@ -273,8 +269,8 @@ sii_meta_read(struct g_consumer *cp)
 	pp = cp->provider;
 
 	/* Read the anchor sector. */
-	buf = g_read_data(cp,
-	    pp->mediasize - pp->sectorsize, pp->sectorsize, &error);
+	buf = g_read_data(
+	    cp, pp->mediasize - pp->sectorsize, pp->sectorsize, &error);
 	if (buf == NULL) {
 		G_RAID_DEBUG(1, "Cannot read metadata from %s (error=%d).",
 		    pp->name, error);
@@ -347,11 +343,12 @@ sii_meta_write(struct g_consumer *cp, struct sii_raid_conf *meta)
 	/* Write 4 copies of metadata. */
 	for (i = 0; i < 4; i++) {
 		error = g_write_data(cp,
-		    pp->mediasize - (pp->sectorsize * (1 + 0x200 * i)),
-		    buf, pp->sectorsize);
+		    pp->mediasize - (pp->sectorsize * (1 + 0x200 * i)), buf,
+		    pp->sectorsize);
 		if (error != 0) {
-			G_RAID_DEBUG(1, "Cannot write metadata to %s (error=%d).",
-			    pp->name, error);
+			G_RAID_DEBUG(1,
+			    "Cannot write metadata to %s (error=%d).", pp->name,
+			    error);
 			break;
 		}
 	}
@@ -372,11 +369,12 @@ sii_meta_erase(struct g_consumer *cp)
 	/* Write 4 copies of metadata. */
 	for (i = 0; i < 4; i++) {
 		error = g_write_data(cp,
-		    pp->mediasize - (pp->sectorsize * (1 + 0x200 * i)),
-		    buf, pp->sectorsize);
+		    pp->mediasize - (pp->sectorsize * (1 + 0x200 * i)), buf,
+		    pp->sectorsize);
 		if (error != 0) {
-			G_RAID_DEBUG(1, "Cannot erase metadata on %s (error=%d).",
-			    pp->name, error);
+			G_RAID_DEBUG(1,
+			    "Cannot erase metadata on %s (error=%d).", pp->name,
+			    error);
 		}
 	}
 	free(buf, M_MD_SII);
@@ -391,7 +389,8 @@ sii_meta_write_spare(struct g_consumer *cp)
 
 	meta = malloc(sizeof(*meta), M_MD_SII, M_WAITOK | M_ZERO);
 	meta->total_sectors = cp->provider->mediasize /
-	    cp->provider->sectorsize - 0x800;
+		cp->provider->sectorsize -
+	    0x800;
 	meta->vendor_id = 0x1095;
 	meta->version_minor = 0;
 	meta->version_major = 2;
@@ -413,10 +412,10 @@ sii_meta_write_spare(struct g_consumer *cp)
 static struct g_raid_disk *
 g_raid_md_sii_get_disk(struct g_raid_softc *sc, int id)
 {
-	struct g_raid_disk	*disk;
+	struct g_raid_disk *disk;
 	struct g_raid_md_sii_perdisk *pd;
 
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_sii_perdisk *)disk->d_md_data;
 		if (pd->pd_disk_pos == id)
 			break;
@@ -506,12 +505,12 @@ g_raid_md_sii_start_disk(struct g_raid_disk *disk)
 		 * If we have already started - try to get use of the disk.
 		 * Try to replace OFFLINE disks first, then FAILED.
 		 */
-		TAILQ_FOREACH(tmpdisk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (tmpdisk, &sc->sc_disks, d_next) {
 			if (tmpdisk->d_state != G_RAID_DISK_S_OFFLINE &&
 			    tmpdisk->d_state != G_RAID_DISK_S_FAILED)
 				continue;
 			/* Make sure this disk is big enough. */
-			TAILQ_FOREACH(sd, &tmpdisk->d_subdisks, sd_next) {
+			TAILQ_FOREACH (sd, &tmpdisk->d_subdisks, sd_next) {
 				if (sd->sd_offset + sd->sd_size + 512 >
 				    pd->pd_disk_size) {
 					G_RAID_DEBUG1(1, sc,
@@ -530,14 +529,14 @@ g_raid_md_sii_start_disk(struct g_raid_disk *disk)
 				olddisk = tmpdisk;
 		}
 		if (olddisk == NULL) {
-nofit:
+		nofit:
 			if (disk_pos == -3 || pd->pd_disk_pos == -3) {
-				g_raid_change_disk_state(disk,
-				    G_RAID_DISK_S_SPARE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_SPARE);
 				return (1);
 			} else {
-				g_raid_change_disk_state(disk,
-				    G_RAID_DISK_S_STALE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_STALE);
 				return (0);
 			}
 		}
@@ -552,8 +551,8 @@ nofit:
 		if (olddisk == NULL)
 			panic("No disk at position %d!", disk_pos);
 		if (olddisk->d_state != G_RAID_DISK_S_OFFLINE) {
-			G_RAID_DEBUG1(1, sc, "More than one disk for pos %d",
-			    disk_pos);
+			G_RAID_DEBUG1(
+			    1, sc, "More than one disk for pos %d", disk_pos);
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE);
 			return (0);
 		}
@@ -561,7 +560,7 @@ nofit:
 	}
 
 	/* Replace failed disk or placeholder with new disk. */
-	TAILQ_FOREACH_SAFE(sd, &olddisk->d_subdisks, sd_next, tmpsd) {
+	TAILQ_FOREACH_SAFE (sd, &olddisk->d_subdisks, sd_next, tmpsd) {
 		TAILQ_REMOVE(&olddisk->d_subdisks, sd, sd_next);
 		TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
 		sd->sd_disk = disk;
@@ -585,7 +584,7 @@ nofit:
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
 	else
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_FAILED);
-	TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
+	TAILQ_FOREACH (sd, &disk->d_subdisks, sd_next) {
 		/*
 		 * Different disks may have different sizes,
 		 * in concat mode. Update from real disk size.
@@ -595,40 +594,40 @@ nofit:
 
 		if (resurrection) {
 			/* New or ex-spare disk. */
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_NEW);
+			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NEW);
 		} else if (pd->pd_meta->disk_status == SII_S_REBUILD) {
 			/* Rebuilding disk. */
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_REBUILD);
+			g_raid_change_subdisk_state(
+			    sd, G_RAID_SUBDISK_S_REBUILD);
 			if (pd->pd_meta->generation == meta->generation)
-				sd->sd_rebuild_pos = pd->pd_meta->rebuild_lba * 512;
+				sd->sd_rebuild_pos = pd->pd_meta->rebuild_lba *
+				    512;
 			else
 				sd->sd_rebuild_pos = 0;
 		} else if (pd->pd_meta->disk_status == SII_S_CURRENT) {
 			if (pd->pd_meta->raid_status == SII_S_ONLINE ||
 			    pd->pd_meta->generation != meta->generation) {
 				/* Dirty or resyncing disk. */
-				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_STALE);
+				g_raid_change_subdisk_state(
+				    sd, G_RAID_SUBDISK_S_STALE);
 			} else {
 				/* Up to date disk. */
-				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_ACTIVE);
+				g_raid_change_subdisk_state(
+				    sd, G_RAID_SUBDISK_S_ACTIVE);
 			}
 		} else {
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_FAILED);
+			g_raid_change_subdisk_state(
+			    sd, G_RAID_SUBDISK_S_FAILED);
 		}
-		g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
-		    G_RAID_EVENT_SUBDISK);
+		g_raid_event_send(
+		    sd, G_RAID_SUBDISK_E_NEW, G_RAID_EVENT_SUBDISK);
 	}
 
 	/* Update status of our need for spare. */
 	if (mdi->mdio_started) {
-		mdi->mdio_incomplete =
-		    (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) <
-		     mdi->mdio_total_disks);
+		mdi->mdio_incomplete = (g_raid_ndisks(
+					    sc, G_RAID_DISK_S_ACTIVE) <
+		    mdi->mdio_total_disks);
 	}
 
 	return (resurrection);
@@ -663,10 +662,11 @@ g_raid_md_sii_refill(struct g_raid_softc *sc)
 
 		G_RAID_DEBUG1(1, md->mdo_softc,
 		    "Array is not complete (%d of %d), "
-		    "trying to refill.", na, mdi->mdio_total_disks);
+		    "trying to refill.",
+		    na, mdi->mdio_total_disks);
 
 		/* Try to get use some of STALE disks. */
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_state == G_RAID_DISK_S_STALE) {
 				update += g_raid_md_sii_start_disk(disk);
 				if (disk->d_state == G_RAID_DISK_S_ACTIVE)
@@ -677,7 +677,7 @@ g_raid_md_sii_refill(struct g_raid_softc *sc)
 			continue;
 
 		/* Try to get use some of SPARE disks. */
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_state == G_RAID_DISK_S_SPARE) {
 				update += g_raid_md_sii_start_disk(disk);
 				if (disk->d_state == G_RAID_DISK_S_ACTIVE)
@@ -696,8 +696,7 @@ g_raid_md_sii_refill(struct g_raid_softc *sc)
 
 	/* Request retaste hoping to find spare. */
 	if (mdi->mdio_incomplete) {
-		task = malloc(sizeof(struct task),
-		    M_MD_SII, M_WAITOK | M_ZERO);
+		task = malloc(sizeof(struct task), M_MD_SII, M_WAITOK | M_ZERO);
 		TASK_INIT(task, 0, g_disk_md_sii_retaste, task);
 		taskqueue_enqueue(taskqueue_swi, task);
 	}
@@ -753,9 +752,9 @@ g_raid_md_sii_start(struct g_raid_softc *sc)
 		vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
 		size = 0;
 	}
-	vol->v_strip_size = meta->strip_sectors * 512; //ZZZ
+	vol->v_strip_size = meta->strip_sectors * 512; // ZZZ
 	vol->v_disks_count = mdi->mdio_total_disks;
-	vol->v_sectorsize = 512; //ZZZ
+	vol->v_sectorsize = 512; // ZZZ
 	for (j = 0; j < vol->v_disks_count; j++) {
 		sd = &vol->v_subdisks[j];
 		sd->sd_offset = 0;
@@ -782,7 +781,7 @@ g_raid_md_sii_start(struct g_raid_softc *sc)
 	do {
 		best = NULL;
 		bestgendiff = 0xffffffff;
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_state != G_RAID_DISK_S_NONE)
 				continue;
 			pd = disk->d_md_data;
@@ -835,7 +834,8 @@ g_raid_md_sii_new_disk(struct g_raid_disk *disk)
 			g_raid_md_write_sii(md, NULL, NULL, NULL);
 	} else {
 		if (mdi->mdio_meta == NULL ||
-		    ((int32_t)(pdmeta->generation - mdi->mdio_generation)) > 0) {
+		    ((int32_t)(pdmeta->generation - mdi->mdio_generation)) >
+			0) {
 			G_RAID_DEBUG1(1, sc, "Newer disk");
 			if (mdi->mdio_meta != NULL)
 				free(mdi->mdio_meta, M_MD_SII);
@@ -846,8 +846,7 @@ g_raid_md_sii_new_disk(struct g_raid_disk *disk)
 		} else if (pdmeta->generation == mdi->mdio_generation) {
 			mdi->mdio_disks_present++;
 			G_RAID_DEBUG1(1, sc, "Matching disk (%d of %d up)",
-			    mdi->mdio_disks_present,
-			    mdi->mdio_total_disks);
+			    mdi->mdio_disks_present, mdi->mdio_total_disks);
 		} else {
 			G_RAID_DEBUG1(1, sc, "Older disk");
 		}
@@ -875,8 +874,8 @@ g_raid_sii_go(void *arg)
 }
 
 static int
-g_raid_md_create_sii(struct g_raid_md_object *md, struct g_class *mp,
-    struct g_geom **gp)
+g_raid_md_create_sii(
+    struct g_raid_md_object *md, struct g_class *mp, struct g_geom **gp)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_md_sii_object *mdi;
@@ -905,7 +904,7 @@ g_raid_md_create_sii(struct g_raid_md_object *md, struct g_class *mp,
 
 static int
 g_raid_md_taste_sii(struct g_raid_md_object *md, struct g_class *mp,
-                              struct g_consumer *cp, struct g_geom **gp)
+    struct g_consumer *cp, struct g_geom **gp)
 {
 	struct g_consumer *rcp;
 	struct g_provider *pp;
@@ -935,8 +934,8 @@ g_raid_md_taste_sii(struct g_raid_md_object *md, struct g_class *mp,
 	if (meta == NULL) {
 		if (g_raid_aggressive_spare) {
 			if (vendor == 0x1095) {
-				G_RAID_DEBUG(1,
-				    "No SiI metadata, forcing spare.");
+				G_RAID_DEBUG(
+				    1, "No SiI metadata, forcing spare.");
 				spare = 2;
 				goto search;
 			} else {
@@ -964,7 +963,7 @@ search:
 	/* Search for matching node. */
 	sc = NULL;
 	mdi1 = NULL;
-	LIST_FOREACH(geom, &mp->geom, geom) {
+	LIST_FOREACH (geom, &mp->geom, geom) {
 		sc = geom->softc;
 		if (sc == NULL)
 			continue;
@@ -978,8 +977,8 @@ search:
 				break;
 		} else {
 			if (mdi1->mdio_location == meta->raid_location &&
-			    memcmp(&mdi1->mdio_timestamp,
-			     &meta->timestamp, 6) == 0)
+			    memcmp(&mdi1->mdio_timestamp, &meta->timestamp,
+				6) == 0)
 				break;
 		}
 	}
@@ -1018,7 +1017,7 @@ search:
 	rcp->flags |= G_CF_DIRECT_RECEIVE;
 	g_attach(rcp, pp);
 	if (g_access(rcp, 1, 1, 1) != 0)
-		; //goto fail1;
+		; // goto fail1;
 
 	g_topology_unlock();
 	sx_xlock(&sc->sc_lock);
@@ -1050,8 +1049,8 @@ fail1:
 }
 
 static int
-g_raid_md_event_sii(struct g_raid_md_object *md,
-    struct g_raid_disk *disk, u_int event)
+g_raid_md_event_sii(
+    struct g_raid_md_object *md, struct g_raid_disk *disk, u_int event)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_subdisk *sd;
@@ -1079,10 +1078,11 @@ g_raid_md_event_sii(struct g_raid_md_object *md,
 				g_raid_kill_consumer(sc, disk->d_consumer);
 				disk->d_consumer = NULL;
 			}
-			TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
-				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_NONE);
-				g_raid_event_send(sd, G_RAID_SUBDISK_E_DISCONNECTED,
+			TAILQ_FOREACH (sd, &disk->d_subdisks, sd_next) {
+				g_raid_change_subdisk_state(
+				    sd, G_RAID_SUBDISK_S_NONE);
+				g_raid_event_send(sd,
+				    G_RAID_SUBDISK_E_DISCONNECTED,
 				    G_RAID_EVENT_SUBDISK);
 			}
 		} else {
@@ -1106,8 +1106,7 @@ g_raid_md_event_sii(struct g_raid_md_object *md,
 }
 
 static int
-g_raid_md_ctl_sii(struct g_raid_md_object *md,
-    struct gctl_req *req)
+g_raid_md_ctl_sii(struct g_raid_md_object *md, struct gctl_req *req)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
@@ -1153,9 +1152,10 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 		}
 		numdisks = *nargs - 3;
 		force = gctl_get_paraml(req, "force", sizeof(*force));
-		if (!g_raid_md_sii_supported(level, qual, numdisks,
-		    force ? *force : 0)) {
-			gctl_error(req, "Unsupported RAID level "
+		if (!g_raid_md_sii_supported(
+			level, qual, numdisks, force ? *force : 0)) {
+			gctl_error(req,
+			    "Unsupported RAID level "
 			    "(0x%02x/0x%02x), or number of disks (%d).",
 			    level, qual, numdisks);
 			return (-5);
@@ -1179,8 +1179,8 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 				g_topology_lock();
 				cp = g_raid_open_consumer(sc, diskname);
 				if (cp == NULL) {
-					gctl_error(req, "Can't open '%s'.",
-					    diskname);
+					gctl_error(
+					    req, "Can't open '%s'.", diskname);
 					g_topology_unlock();
 					error = -7;
 					break;
@@ -1292,7 +1292,7 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 		g_raid_start_volume(vol);
 
 		/* , and subdisks. */
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			pd = (struct g_raid_md_sii_perdisk *)disk->d_md_data;
 			sd = &vol->v_subdisks[pd->pd_disk_pos];
 			sd->sd_disk = disk;
@@ -1300,14 +1300,15 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 			sd->sd_size = size;
 			TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
 			if (sd->sd_disk->d_consumer != NULL) {
-				g_raid_change_disk_state(disk,
-				    G_RAID_DISK_S_ACTIVE);
-				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_ACTIVE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_ACTIVE);
+				g_raid_change_subdisk_state(
+				    sd, G_RAID_SUBDISK_S_ACTIVE);
 				g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
 				    G_RAID_EVENT_SUBDISK);
 			} else {
-				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_OFFLINE);
 			}
 		}
 
@@ -1318,28 +1319,26 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 		/* Pickup any STALE/SPARE disks to refill array if needed. */
 		g_raid_md_sii_refill(sc);
 
-		g_raid_event_send(vol, G_RAID_VOLUME_E_START,
-		    G_RAID_EVENT_VOLUME);
+		g_raid_event_send(
+		    vol, G_RAID_VOLUME_E_START, G_RAID_EVENT_VOLUME);
 		return (0);
 	}
 	if (strcmp(verb, "delete") == 0) {
 		/* Check if some volume is still open. */
 		force = gctl_get_paraml(req, "force", sizeof(*force));
-		if (force != NULL && *force == 0 &&
-		    g_raid_nopens(sc) != 0) {
+		if (force != NULL && *force == 0 && g_raid_nopens(sc) != 0) {
 			gctl_error(req, "Some volume is still open.");
 			return (-4);
 		}
 
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_consumer)
 				sii_meta_erase(disk->d_consumer);
 		}
 		g_raid_destroy_node(sc, 0);
 		return (0);
 	}
-	if (strcmp(verb, "remove") == 0 ||
-	    strcmp(verb, "fail") == 0) {
+	if (strcmp(verb, "remove") == 0 || strcmp(verb, "fail") == 0) {
 		if (*nargs < 2) {
 			gctl_error(req, "Invalid number of arguments.");
 			return (-1);
@@ -1355,16 +1354,16 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 			if (strncmp(diskname, _PATH_DEV, 5) == 0)
 				diskname += 5;
 
-			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-				if (disk->d_consumer != NULL && 
+			TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
+				if (disk->d_consumer != NULL &&
 				    disk->d_consumer->provider != NULL &&
 				    strcmp(disk->d_consumer->provider->name,
-				     diskname) == 0)
+					diskname) == 0)
 					break;
 			}
 			if (disk == NULL) {
-				gctl_error(req, "Disk '%s' not found.",
-				    diskname);
+				gctl_error(
+				    req, "Disk '%s' not found.", diskname);
 				error = -3;
 				break;
 			}
@@ -1381,18 +1380,21 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 
 			/* If disk was assigned, just update statuses. */
 			if (pd->pd_disk_pos >= 0) {
-				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_OFFLINE);
 				g_raid_kill_consumer(sc, disk->d_consumer);
 				disk->d_consumer = NULL;
-				TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
-					g_raid_change_subdisk_state(sd,
-					    G_RAID_SUBDISK_S_NONE);
-					g_raid_event_send(sd, G_RAID_SUBDISK_E_DISCONNECTED,
+				TAILQ_FOREACH (sd, &disk->d_subdisks, sd_next) {
+					g_raid_change_subdisk_state(
+					    sd, G_RAID_SUBDISK_S_NONE);
+					g_raid_event_send(sd,
+					    G_RAID_SUBDISK_E_DISCONNECTED,
 					    G_RAID_EVENT_SUBDISK);
 				}
 			} else {
 				/* Otherwise -- delete. */
-				g_raid_change_disk_state(disk, G_RAID_DISK_S_NONE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_NONE);
 				g_raid_destroy_disk(disk);
 			}
 		}
@@ -1428,8 +1430,8 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 			g_topology_lock();
 			cp = g_raid_open_consumer(sc, diskname);
 			if (cp == NULL) {
-				gctl_error(req, "Can't open disk '%s'.",
-				    diskname);
+				gctl_error(
+				    req, "Can't open disk '%s'.", diskname);
 				g_topology_unlock();
 				error = -4;
 				break;
@@ -1454,8 +1456,8 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 				sii_meta_write_spare(cp);
 				g_raid_destroy_disk(disk);
 			} else if (disk->d_state != G_RAID_DISK_S_ACTIVE) {
-				gctl_error(req, "Disk '%s' doesn't fit.",
-				    diskname);
+				gctl_error(
+				    req, "Disk '%s' doesn't fit.", diskname);
 				g_raid_destroy_disk(disk);
 				error = -8;
 				break;
@@ -1543,7 +1545,7 @@ g_raid_md_write_sii(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	if (mdi->mdio_meta != NULL)
 		free(mdi->mdio_meta, M_MD_SII);
 	mdi->mdio_meta = meta;
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_sii_perdisk *)disk->d_md_data;
 		if (disk->d_state != G_RAID_DISK_S_ACTIVE)
 			continue;
@@ -1557,26 +1559,30 @@ g_raid_md_write_sii(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 				pd->pd_meta->disk_status = SII_S_DROPPED;
 			else if (sd->sd_state < G_RAID_SUBDISK_S_STALE) {
 				pd->pd_meta->disk_status = SII_S_REBUILD;
-				pd->pd_meta->rebuild_lba =
-				    sd->sd_rebuild_pos / vol->v_sectorsize;
+				pd->pd_meta->rebuild_lba = sd->sd_rebuild_pos /
+				    vol->v_sectorsize;
 			} else
 				pd->pd_meta->disk_status = SII_S_CURRENT;
 			if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1) {
 				pd->pd_meta->disk_number = sd->sd_pos;
 				pd->pd_meta->raid0_ident = 0xff;
 				pd->pd_meta->raid1_ident = 0;
-			} else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E) {
-				pd->pd_meta->disk_number = sd->sd_pos / meta->raid1_disks;
-				pd->pd_meta->raid0_ident = sd->sd_pos % meta->raid1_disks;
-				pd->pd_meta->raid1_ident = sd->sd_pos / meta->raid1_disks;
+			} else if (vol->v_raid_level ==
+			    G_RAID_VOLUME_RL_RAID1E) {
+				pd->pd_meta->disk_number = sd->sd_pos /
+				    meta->raid1_disks;
+				pd->pd_meta->raid0_ident = sd->sd_pos %
+				    meta->raid1_disks;
+				pd->pd_meta->raid1_ident = sd->sd_pos /
+				    meta->raid1_disks;
 			} else {
 				pd->pd_meta->disk_number = sd->sd_pos;
 				pd->pd_meta->raid0_ident = 0;
 				pd->pd_meta->raid1_ident = 0xff;
 			}
 		}
-		G_RAID_DEBUG(1, "Writing SiI metadata to %s",
-		    g_raid_get_diskname(disk));
+		G_RAID_DEBUG(
+		    1, "Writing SiI metadata to %s", g_raid_get_diskname(disk));
 		g_raid_md_sii_print(pd->pd_meta);
 		sii_meta_write(disk->d_consumer, pd->pd_meta);
 	}
@@ -1584,8 +1590,8 @@ g_raid_md_write_sii(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 }
 
 static int
-g_raid_md_fail_disk_sii(struct g_raid_md_object *md,
-    struct g_raid_subdisk *tsd, struct g_raid_disk *tdisk)
+g_raid_md_fail_disk_sii(struct g_raid_md_object *md, struct g_raid_subdisk *tsd,
+    struct g_raid_disk *tdisk)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_md_sii_perdisk *pd;
@@ -1612,19 +1618,17 @@ g_raid_md_fail_disk_sii(struct g_raid_md_object *md,
 
 	/* Change states. */
 	g_raid_change_disk_state(tdisk, G_RAID_DISK_S_FAILED);
-	TAILQ_FOREACH(sd, &tdisk->d_subdisks, sd_next) {
-		g_raid_change_subdisk_state(sd,
-		    G_RAID_SUBDISK_S_FAILED);
-		g_raid_event_send(sd, G_RAID_SUBDISK_E_FAILED,
-		    G_RAID_EVENT_SUBDISK);
+	TAILQ_FOREACH (sd, &tdisk->d_subdisks, sd_next) {
+		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_FAILED);
+		g_raid_event_send(
+		    sd, G_RAID_SUBDISK_E_FAILED, G_RAID_EVENT_SUBDISK);
 	}
 
 	/* Write updated metadata to remaining disks. */
 	g_raid_md_write_sii(md, NULL, NULL, tdisk);
 
 	/* Check if anything left except placeholders. */
-	if (g_raid_ndisks(sc, -1) ==
-	    g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
+	if (g_raid_ndisks(sc, -1) == g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
 		g_raid_destroy_node(sc, 0);
 	else
 		g_raid_md_sii_refill(sc);
@@ -1632,8 +1636,7 @@ g_raid_md_fail_disk_sii(struct g_raid_md_object *md,
 }
 
 static int
-g_raid_md_free_disk_sii(struct g_raid_md_object *md,
-    struct g_raid_disk *disk)
+g_raid_md_free_disk_sii(struct g_raid_md_object *md, struct g_raid_disk *disk)
 {
 	struct g_raid_md_sii_perdisk *pd;
 
@@ -1656,8 +1659,8 @@ g_raid_md_free_sii(struct g_raid_md_object *md)
 	if (!mdi->mdio_started) {
 		mdi->mdio_started = 0;
 		callout_stop(&mdi->mdio_start_co);
-		G_RAID_DEBUG1(1, md->mdo_softc,
-		    "root_mount_rel %p", mdi->mdio_rootmount);
+		G_RAID_DEBUG1(
+		    1, md->mdo_softc, "root_mount_rel %p", mdi->mdio_rootmount);
 		root_mount_rel(mdi->mdio_rootmount);
 		mdi->mdio_rootmount = NULL;
 	}

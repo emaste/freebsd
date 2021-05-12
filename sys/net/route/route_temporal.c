@@ -35,12 +35,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/socket.h>
+#include <sys/callout.h>
+#include <sys/ck.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/ck.h>
 #include <sys/rmlock.h>
-#include <sys/callout.h>
+#include <sys/socket.h>
 
 #include <net/if.h>
 #include <net/route.h>

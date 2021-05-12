@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 
-#include <dev/ofw/openfirm.h>
-
 #include <machine/bus.h>
 #include <machine/fdt.h>
+
+#include <dev/ofw/openfirm.h>
 
 #include <arm/altera/socfpga/socfpga_rstmgr.h>

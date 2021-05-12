@@ -39,11 +39,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
 
 #include <vm/vm.h>
@@ -111,8 +111,8 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 			break;
 		}
 		if (__predict_false(mapped)) {
-			pmap_unmap_io_transient(&ma[offset >> PAGE_SHIFT],
-			    &vaddr, 1, TRUE);
+			pmap_unmap_io_transient(
+			    &ma[offset >> PAGE_SHIFT], &vaddr, 1, TRUE);
 			mapped = FALSE;
 		}
 		iov->iov_base = (char *)iov->iov_base + cnt;
@@ -125,8 +125,8 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 out:
 	if (__predict_false(mapped)) {
 		panic("TODO 3");
-		pmap_unmap_io_transient(&ma[offset >> PAGE_SHIFT], &vaddr, 1,
-		    TRUE);
+		pmap_unmap_io_transient(
+		    &ma[offset >> PAGE_SHIFT], &vaddr, 1, TRUE);
 	}
 	if (save == 0)
 		td->td_pflags &= ~TDP_DEADLKTREAT;

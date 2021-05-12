@@ -62,7 +62,7 @@
  * $FreeBSD$
  */
 #ifndef _SYS_BITSTRING_H_
-#define	_SYS_BITSTRING_H_
+#define _SYS_BITSTRING_H_
 
 #ifdef _KERNEL
 #include <sys/libkern.h>
@@ -71,16 +71,17 @@
 
 #include <sys/types.h>
 
-typedef	unsigned long bitstr_t;
+typedef unsigned long bitstr_t;
 
 /*---------------------- Private Implementation Details ----------------------*/
-#define	_BITSTR_MASK (~0UL)
-#define	_BITSTR_BITS (sizeof(bitstr_t) * 8)
+#define _BITSTR_MASK (~0UL)
+#define _BITSTR_BITS (sizeof(bitstr_t) * 8)
 
 #ifdef roundup2
-#define        _bit_roundup2 roundup2
+#define _bit_roundup2 roundup2
 #else
-#define        _bit_roundup2(x, y)        (((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
+#define _bit_roundup2(x, y) \
+	(((x) + ((y)-1)) & (~((y)-1))) /* if y is powers of two */
 #endif
 
 /* bitstr_t in bit string containing the bit. */
@@ -113,7 +114,7 @@ _bit_make_mask(int _start, int _stop)
 
 /*----------------------------- Public Interface -----------------------------*/
 /* Number of bytes allocated for a bit string of nbits bits */
-#define	bitstr_size(_nbits) (_bit_roundup2(_nbits, _BITSTR_BITS) / 8)
+#define bitstr_size(_nbits) (_bit_roundup2(_nbits, _BITSTR_BITS) / 8)
 
 /* Allocate a bit string initialized with no bits set. */
 #ifdef _KERNEL
@@ -131,8 +132,7 @@ bit_alloc(int _nbits)
 #endif
 
 /* Allocate a bit string on the stack */
-#define	bit_decl(name, nbits) \
-	((name)[bitstr_size(nbits) / sizeof(bitstr_t)])
+#define bit_decl(name, nbits) ((name)[bitstr_size(nbits) / sizeof(bitstr_t)])
 
 /* Is bit N of bit string set? */
 static inline int
@@ -169,7 +169,7 @@ bit_nset(bitstr_t *_bitstr, int _start, int _stop)
 	} else {
 		*_bitstr |= _bit_make_mask(_start, _BITSTR_BITS - 1);
 		while (++_bitstr < _stopbitstr)
-	    		*_bitstr = _BITSTR_MASK;
+			*_bitstr = _BITSTR_MASK;
 		*_stopbitstr |= _bit_make_mask(0, _stop);
 	}
 }
@@ -265,20 +265,20 @@ bit_ffc_at(bitstr_t *_bitstr, int _start, int _nbits, int *_result)
 static inline void
 bit_ffs(bitstr_t *_bitstr, int _nbits, int *_result)
 {
-	bit_ffs_at(_bitstr, /*start*/0, _nbits, _result);
+	bit_ffs_at(_bitstr, /*start*/ 0, _nbits, _result);
 }
 
 /* Find the first bit clear in bit string. */
 static inline void
 bit_ffc(bitstr_t *_bitstr, int _nbits, int *_result)
 {
-	bit_ffc_at(_bitstr, /*start*/0, _nbits, _result);
+	bit_ffc_at(_bitstr, /*start*/ 0, _nbits, _result);
 }
 
 /* Find contiguous sequence of at least size set bits at or after start */
 static inline void
-bit_ffs_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
-    int *_result)
+bit_ffs_area_at(
+    bitstr_t *_bitstr, int _start, int _nbits, int _size, int *_result)
 {
 	bitstr_t *_curbitstr;
 	bitstr_t _test;
@@ -307,7 +307,7 @@ bit_ffs_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
 				_test |= _test >> (((_size - 1) >> _b) + 1) / 2;
 			/* Find the start of the first 0-area in _test. */
 			_offset = (~_test == 0) ? (int)_BITSTR_BITS :
-			    ffsl(~_test) - 1;
+							ffsl(~_test) - 1;
 			_value = (_curbitstr - _bitstr) * _BITSTR_BITS +
 			    _offset;
 			/* If there's insufficient space left, give up. */
@@ -324,8 +324,8 @@ bit_ffs_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
 
 /* Find contiguous sequence of at least size cleared bits at or after start */
 static inline void
-bit_ffc_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
-    int *_result)
+bit_ffc_area_at(
+    bitstr_t *_bitstr, int _start, int _nbits, int _size, int *_result)
 {
 	bitstr_t *_curbitstr;
 	bitstr_t _test;
@@ -354,7 +354,7 @@ bit_ffc_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
 				_test |= _test >> (((_size - 1) >> _b) + 1) / 2;
 			/* Find the start of the first 0-area in _test. */
 			_offset = (~_test == 0) ? (int)_BITSTR_BITS :
-			    ffsl(~_test) - 1;
+							ffsl(~_test) - 1;
 			_value = (_curbitstr - _bitstr) * _BITSTR_BITS +
 			    _offset;
 			/* If there's insufficient space left, give up. */
@@ -373,14 +373,14 @@ bit_ffc_area_at(bitstr_t *_bitstr, int _start, int _nbits, int _size,
 static inline void
 bit_ffs_area(bitstr_t *_bitstr, int _nbits, int _size, int *_result)
 {
-	bit_ffs_area_at(_bitstr, /*start*/0, _nbits, _size, _result);
+	bit_ffs_area_at(_bitstr, /*start*/ 0, _nbits, _size, _result);
 }
 
 /* Find contiguous sequence of at least size cleared bits in bit string */
 static inline void
 bit_ffc_area(bitstr_t *_bitstr, int _nbits, int _size, int *_result)
 {
-	bit_ffc_area_at(_bitstr, /*start*/0, _nbits, _size, _result);
+	bit_ffc_area_at(_bitstr, /*start*/ 0, _nbits, _size, _result);
 }
 
 /* Count the number of bits set in a bitstr of size _nbits at or after _start */
@@ -398,8 +398,8 @@ bit_count(bitstr_t *_bitstr, int _start, int _nbits, int *_result)
 	_start -= _BITSTR_BITS * _bit_idx(_start);
 
 	if (_start > 0) {
-		curbitstr_len = (int)_BITSTR_BITS < _nbits ?
-				(int)_BITSTR_BITS : _nbits;
+		curbitstr_len = (int)_BITSTR_BITS < _nbits ? (int)_BITSTR_BITS :
+								   _nbits;
 		mask = _bit_make_mask(_start, _bit_offset(curbitstr_len - 1));
 		_value += __bitcountl(*_curbitstr & mask);
 		_curbitstr++;
@@ -419,4 +419,4 @@ out:
 	*_result = _value;
 }
 
-#endif	/* _SYS_BITSTRING_H_ */
+#endif /* _SYS_BITSTRING_H_ */

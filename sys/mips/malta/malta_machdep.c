@@ -33,32 +33,32 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/imgact.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
-#include <sys/cpu.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/cpu.h>
 #include <sys/exec.h>
-#include <sys/ucontext.h>
-#include <sys/proc.h>
+#include <sys/imgact.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
 #include <sys/signalvar.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/ucontext.h>
 #include <sys/user.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
+#include <vm/vm_dumpset.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 #include <vm/vm_phys.h>
-#include <vm/vm_dumpset.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -73,18 +73,18 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef TICK_USE_MALTA_RTC
-#include <mips/malta/maltareg.h>
 #include <isa/rtc.h>
+#include <mips/malta/maltareg.h>
 #endif
 
 #include <mips/malta/maltareg.h>
 
-extern int	*edata;
-extern int	*end;
+extern int *edata;
+extern int *end;
 
-void	lcd_init(void);
-void	lcd_puts(char *);
-void	malta_reset(void);
+void lcd_init(void);
+void lcd_puts(char *);
+void malta_reset(void);
 
 /*
  * Temporary boot environment used at startup.
@@ -94,16 +94,9 @@ static char boot1_env[4096];
 /*
  * Offsets to MALTA LCD characters.
  */
-static int malta_lcd_offs[] = {
-	MALTA_ASCIIPOS0,
-	MALTA_ASCIIPOS1,
-	MALTA_ASCIIPOS2,
-	MALTA_ASCIIPOS3,
-	MALTA_ASCIIPOS4,
-	MALTA_ASCIIPOS5,
-	MALTA_ASCIIPOS6,
-	MALTA_ASCIIPOS7
-};
+static int malta_lcd_offs[] = { MALTA_ASCIIPOS0, MALTA_ASCIIPOS1,
+	MALTA_ASCIIPOS2, MALTA_ASCIIPOS3, MALTA_ASCIIPOS4, MALTA_ASCIIPOS5,
+	MALTA_ASCIIPOS6, MALTA_ASCIIPOS7 };
 
 void
 platform_cpu_init()
@@ -159,20 +152,20 @@ static __inline uint8_t
 malta_rtcin(uint8_t addr)
 {
 
-	*((volatile uint8_t *)
-	    MIPS_PHYS_TO_KSEG1(MALTA_PCI0_ADDR(MALTA_RTCADR))) = addr;
-	return (*((volatile uint8_t *)
-	    MIPS_PHYS_TO_KSEG1(MALTA_PCI0_ADDR(MALTA_RTCDAT))));
+	*((volatile uint8_t *)MIPS_PHYS_TO_KSEG1(
+	    MALTA_PCI0_ADDR(MALTA_RTCADR))) = addr;
+	return (*((volatile uint8_t *)MIPS_PHYS_TO_KSEG1(
+	    MALTA_PCI0_ADDR(MALTA_RTCDAT))));
 }
 
 static __inline void
 malta_writertc(uint8_t addr, uint8_t val)
 {
 
-	*((volatile uint8_t *)
-	    MIPS_PHYS_TO_KSEG1(MALTA_PCI0_ADDR(MALTA_RTCADR))) = addr;
-	*((volatile uint8_t *)
-	    MIPS_PHYS_TO_KSEG1(MALTA_PCI0_ADDR(MALTA_RTCDAT))) = val;
+	*((volatile uint8_t *)MIPS_PHYS_TO_KSEG1(
+	    MALTA_PCI0_ADDR(MALTA_RTCADR))) = addr;
+	*((volatile uint8_t *)MIPS_PHYS_TO_KSEG1(
+	    MALTA_PCI0_ADDR(MALTA_RTCDAT))) = val;
 }
 #endif
 
@@ -261,14 +254,14 @@ malta_cpu_freq(void)
 	/* Busy-wait for falling edge of RTC update. */
 	while (((malta_rtcin(RTC_STATUSA) & RTCSA_TUP) == 0))
 		;
-	while (((malta_rtcin(RTC_STATUSA)& RTCSA_TUP) != 0))
+	while (((malta_rtcin(RTC_STATUSA) & RTCSA_TUP) != 0))
 		;
 	counterval[0] = mips_rd_count();
 
 	/* Busy-wait for falling edge of RTC update. */
 	while (((malta_rtcin(RTC_STATUSA) & RTCSA_TUP) == 0))
 		;
-	while (((malta_rtcin(RTC_STATUSA)& RTCSA_TUP) != 0))
+	while (((malta_rtcin(RTC_STATUSA) & RTCSA_TUP) != 0))
 		;
 	counterval[1] = mips_rd_count();
 
@@ -282,14 +275,14 @@ malta_cpu_freq(void)
 }
 
 void
-platform_start(__register_t a0, __register_t a1,  __register_t a2, 
-    __register_t a3)
+platform_start(
+    __register_t a0, __register_t a1, __register_t a2, __register_t a3)
 {
 	vm_offset_t kernend;
 	uint64_t platform_counter_freq;
 	int argc = a0;
-	int32_t *argv = (int32_t*)a1;
-	int32_t *envp = (int32_t*)a2;
+	int32_t *argv = (int32_t *)a1;
+	int32_t *envp = (int32_t *)a2;
 	unsigned int memsize = a3;
 	uint64_t ememsize = 0;
 	int i;
@@ -310,7 +303,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 
 	bootverbose = 1;
 
-	/* 
+	/*
 	 * YAMON uses 32bit pointers to strings so
 	 * convert them to proper type manually
 	 */
@@ -318,7 +311,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	if (bootverbose) {
 		printf("cmd line: ");
 		for (i = 0; i < argc; i++)
-			printf("%s ", (char*)(intptr_t)argv[i]);
+			printf("%s ", (char *)(intptr_t)argv[i]);
 		printf("\n");
 	}
 
@@ -332,7 +325,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 		const char *a, *v;
 
 		a = (char *)(intptr_t)envp[i];
-		v = (char *)(intptr_t)envp[i+1];
+		v = (char *)(intptr_t)envp[i + 1];
 
 		if (bootverbose)
 			printf("\t%s = %s\n", a, v);
@@ -343,9 +336,9 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	}
 
 	if (bootverbose) {
-		printf("memsize = %llu (0x%08x)\n",
-		    (unsigned long long) memsize, memsize);
-		printf("ememsize = %llu\n", (unsigned long long) ememsize);
+		printf("memsize = %llu (0x%08x)\n", (unsigned long long)memsize,
+		    memsize);
+		printf("ememsize = %llu\n", (unsigned long long)ememsize);
 
 #ifdef __mips_o32
 		/*

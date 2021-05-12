@@ -25,49 +25,49 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
-#ifndef	_MIPS_BROADCOM_BMIPSREG_H_
-#define	_MIPS_BROADCOM_BMIPSREG_H_
+#ifndef _MIPS_BROADCOM_BMIPSREG_H_
+#define _MIPS_BROADCOM_BMIPSREG_H_
 
 /*
  * Common BMIPS32/BMIPS3300 Registers
  */
-#define	BCM_BMIPS_CORECTL		0x00	/**< core control */
-#define	  BCM_BMIPS_CORECTL_FORCE_RST	0x01	/**< force reset */
-#define	  BCM_BMIPS_CORECTL_NO_FLSH_EXC	0x02	/**< flash exception disable */
-#define	BCM_BMIPS_INTR_STATUS		0x20	/**< interrupt status */
-#define	BCM_BMIPS_INTR_MASK		0x24	/**< interrupt mask */
-#define	  BCM_BMIPS_TIMER_INTMASK	0x01	/**< timer interrupt mask */
-#define	BCM_BMIPS_TIMER_CTRL		0x28	/**< timer interval (?) */
+#define BCM_BMIPS_CORECTL 0x00		   /**< core control */
+#define BCM_BMIPS_CORECTL_FORCE_RST 0x01   /**< force reset */
+#define BCM_BMIPS_CORECTL_NO_FLSH_EXC 0x02 /**< flash exception disable */
+#define BCM_BMIPS_INTR_STATUS 0x20	   /**< interrupt status */
+#define BCM_BMIPS_INTR_MASK 0x24	   /**< interrupt mask */
+#define BCM_BMIPS_TIMER_INTMASK 0x01	   /**< timer interrupt mask */
+#define BCM_BMIPS_TIMER_CTRL 0x28	   /**< timer interval (?) */
 
 /*
  * Broadcom BMIPS32 (BHND_COREID_MIPS)
  */
 
-#define	BCM_BMIPS32_CORECTL		BCM_BMIPS_CORECTL
-#define	BCM_BMIPS32_BIST_STATUS		0x04	/**< built-in self-test status */
-#define	BCM_BMIPS32_INTR_STATUS		BCM_BMIPS_INTR_STATUS
-#define	BCM_BMIPS32_INTR_MASK		BCM_BMIPS_INTR_MASK
-#define	BCM_BMIPS32_TIMER_CTRL		BCM_BMIPS_TIMER_CTRL
+#define BCM_BMIPS32_CORECTL BCM_BMIPS_CORECTL
+#define BCM_BMIPS32_BIST_STATUS 0x04 /**< built-in self-test status */
+#define BCM_BMIPS32_INTR_STATUS BCM_BMIPS_INTR_STATUS
+#define BCM_BMIPS32_INTR_MASK BCM_BMIPS_INTR_MASK
+#define BCM_BMIPS32_TIMER_CTRL BCM_BMIPS_TIMER_CTRL
 
 /*
  * Broadcom BMIPS3300+ (BHND_COREID_MIPS33)
  */
 
-#define	BCM_BMIPS33_CORECTL		BCM_BMIPS_CORECTL
-#define	BCM_BMIPS33_BIST_CTRL		0x04	/**< build-in self-test control */
-#define	  BCM_BMIPS33_BIST_CTRL_DUMP	0x01	/**< BIST dump */
-#define	  BCM_BMIPS33_BIST_CTRL_DEBUG	0x02	/**< BIST debug */
-#define	  BCM_BMIPS33_BIST_CTRL_HOLD	0x04	/**< BIST hold */
-#define	BCM_BMIPS33_BIST_STATUS		0x08	/**< built-in self-test status */
-#define	BCM_BMIPS33_INTR_STATUS		BCM_BMIPS_INTR_STATUS
-#define	BCM_BMIPS33_INTR_MASK		BCM_BMIPS_INTR_MASK
-#define	BCM_BMIPS33_TIMER_CTRL		BCM_BMIPS_TIMER_CTRL
-#define	BCM_BMIPS33_TEST_MUX_SEL	0x30	/**< test multiplexer select (?) */
-#define	BCM_BMIPS33_TEST_MUX_EN		0x34	/**< test multiplexer enable (?) */
-#define	BCM_BMIPS33_EJTAG_GPIO_EN	0x2C	/**< ejtag gpio enable */
+#define BCM_BMIPS33_CORECTL BCM_BMIPS_CORECTL
+#define BCM_BMIPS33_BIST_CTRL 0x04	 /**< build-in self-test control */
+#define BCM_BMIPS33_BIST_CTRL_DUMP 0x01	 /**< BIST dump */
+#define BCM_BMIPS33_BIST_CTRL_DEBUG 0x02 /**< BIST debug */
+#define BCM_BMIPS33_BIST_CTRL_HOLD 0x04	 /**< BIST hold */
+#define BCM_BMIPS33_BIST_STATUS 0x08	 /**< built-in self-test status */
+#define BCM_BMIPS33_INTR_STATUS BCM_BMIPS_INTR_STATUS
+#define BCM_BMIPS33_INTR_MASK BCM_BMIPS_INTR_MASK
+#define BCM_BMIPS33_TIMER_CTRL BCM_BMIPS_TIMER_CTRL
+#define BCM_BMIPS33_TEST_MUX_SEL 0x30  /**< test multiplexer select (?) */
+#define BCM_BMIPS33_TEST_MUX_EN 0x34   /**< test multiplexer enable (?) */
+#define BCM_BMIPS33_EJTAG_GPIO_EN 0x2C /**< ejtag gpio enable */
 
 #endif /* _MIPS_BROADCOM_BMIPSREG_H_ */

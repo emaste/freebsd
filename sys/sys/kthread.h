@@ -29,7 +29,7 @@
  */
 
 #ifndef _SYS_KTHREAD_H_
-#define	_SYS_KTHREAD_H_
+#define _SYS_KTHREAD_H_
 
 #include <sys/cdefs.h>
 
@@ -39,42 +39,39 @@
  * Note: global_procpp may be NULL for no global save area.
  */
 struct kproc_desc {
-	const char	*arg0;			/* arg 0 (for 'ps' listing) */
-	void		(*func)(void);		/* "main" for kernel process */
-	struct proc	**global_procpp;	/* ptr to proc ptr save area */
+	const char *arg0;	     /* arg 0 (for 'ps' listing) */
+	void (*func)(void);	     /* "main" for kernel process */
+	struct proc **global_procpp; /* ptr to proc ptr save area */
 };
 
- /* A kernel thread descriptor; used to start "internal" daemons. */
+/* A kernel thread descriptor; used to start "internal" daemons. */
 struct kthread_desc {
-	const char	*arg0;			/* arg 0 (for 'ps' listing) */
-	void		(*func)(void);		/* "main" for kernel thread */
-	struct thread	**global_threadpp;	/* ptr to thread ptr save area */
+	const char *arg0;		 /* arg 0 (for 'ps' listing) */
+	void (*func)(void);		 /* "main" for kernel thread */
+	struct thread **global_threadpp; /* ptr to thread ptr save area */
 };
 
-int     kproc_create(void (*)(void *), void *, struct proc **,
-	    int flags, int pages, const char *, ...) __printflike(6, 7);
-void    kproc_exit(int) __dead2;
-int	kproc_resume(struct proc *);
-void	kproc_shutdown(void *, int);
-void	kproc_start(const void *);
-int	kproc_suspend(struct proc *, int);
-void	kproc_suspend_check(struct proc *);
+int kproc_create(void (*)(void *), void *, struct proc **, int flags, int pages,
+    const char *, ...) __printflike(6, 7);
+void kproc_exit(int) __dead2;
+int kproc_resume(struct proc *);
+void kproc_shutdown(void *, int);
+void kproc_start(const void *);
+int kproc_suspend(struct proc *, int);
+void kproc_suspend_check(struct proc *);
 
 /* create a thread inthe given process. create the process if needed */
-int     kproc_kthread_add(void (*)(void *), void *,
-	    struct proc **,
-	    struct thread **,
-	    int flags, int pages,
-	    const char *procname, const char *, ...) __printflike(8, 9);
+int kproc_kthread_add(void (*)(void *), void *, struct proc **,
+    struct thread **, int flags, int pages, const char *procname, const char *,
+    ...) __printflike(8, 9);
 
-int     kthread_add(void (*)(void *), void *,
-	    struct proc *, struct thread **,
-	    int flags, int pages, const char *, ...) __printflike(7, 8);
-void    kthread_exit(void) __dead2;
-int	kthread_resume(struct thread *);
-void	kthread_shutdown(void *, int);
-void	kthread_start(const void *);
-int	kthread_suspend(struct thread *, int);
-void	kthread_suspend_check(void);
+int kthread_add(void (*)(void *), void *, struct proc *, struct thread **,
+    int flags, int pages, const char *, ...) __printflike(7, 8);
+void kthread_exit(void) __dead2;
+int kthread_resume(struct thread *);
+void kthread_shutdown(void *, int);
+void kthread_start(const void *);
+int kthread_suspend(struct thread *, int);
+void kthread_suspend_check(void);
 
 #endif /* !_SYS_KTHREAD_H_ */

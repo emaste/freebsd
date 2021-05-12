@@ -41,74 +41,75 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kdb.h>
+
 #include <machine/bus.h>
 
 #include <dev/uart/uart.h>
+#include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_cpu_fdt.h>
-#include <dev/uart/uart_bus.h>
 
 #include "uart_if.h"
 
-#define	UART_BDH	0x00	/* Baud Rate Registers: High */
-#define	UART_BDL	0x01	/* Baud Rate Registers: Low */
-#define	UART_C1		0x02	/* Control Register 1 */
-#define	UART_C2		0x03	/* Control Register 2 */
-#define	UART_S1		0x04	/* Status Register 1 */
-#define	UART_S2		0x05	/* Status Register 2 */
-#define	UART_C3		0x06	/* Control Register 3 */
-#define	UART_D		0x07	/* Data Register */
-#define	UART_MA1	0x08	/* Match Address Registers 1 */
-#define	UART_MA2	0x09	/* Match Address Registers 2 */
-#define	UART_C4		0x0A	/* Control Register 4 */
-#define	UART_C5		0x0B	/* Control Register 5 */
-#define	UART_ED		0x0C	/* Extended Data Register */
-#define	UART_MODEM	0x0D	/* Modem Register */
-#define	UART_IR		0x0E	/* Infrared Register */
-#define	UART_PFIFO	0x10	/* FIFO Parameters */
-#define	UART_CFIFO	0x11	/* FIFO Control Register */
-#define	UART_SFIFO	0x12	/* FIFO Status Register */
-#define	UART_TWFIFO	0x13	/* FIFO Transmit Watermark */
-#define	UART_TCFIFO	0x14	/* FIFO Transmit Count */
-#define	UART_RWFIFO	0x15	/* FIFO Receive Watermark */
-#define	UART_RCFIFO	0x16	/* FIFO Receive Count */
-#define	UART_C7816	0x18	/* 7816 Control Register */
-#define	UART_IE7816	0x19	/* 7816 Interrupt Enable Register */
-#define	UART_IS7816	0x1A	/* 7816 Interrupt Status Register */
-#define	UART_WP7816T0	0x1B	/* 7816 Wait Parameter Register */
-#define	UART_WP7816T1	0x1B	/* 7816 Wait Parameter Register */
-#define	UART_WN7816	0x1C	/* 7816 Wait N Register */
-#define	UART_WF7816	0x1D	/* 7816 Wait FD Register */
-#define	UART_ET7816	0x1E	/* 7816 Error Threshold Register */
-#define	UART_TL7816	0x1F	/* 7816 Transmit Length Register */
-#define	UART_C6		0x21	/* CEA709.1-B Control Register 6 */
-#define	UART_PCTH	0x22	/* CEA709.1-B Packet Cycle Time Counter High */
-#define	UART_PCTL	0x23	/* CEA709.1-B Packet Cycle Time Counter Low */
-#define	UART_B1T	0x24	/* CEA709.1-B Beta1 Timer */
-#define	UART_SDTH	0x25	/* CEA709.1-B Secondary Delay Timer High */
-#define	UART_SDTL	0x26	/* CEA709.1-B Secondary Delay Timer Low */
-#define	UART_PRE	0x27	/* CEA709.1-B Preamble */
-#define	UART_TPL	0x28	/* CEA709.1-B Transmit Packet Length */
-#define	UART_IE		0x29	/* CEA709.1-B Interrupt Enable Register */
-#define	UART_WB		0x2A	/* CEA709.1-B WBASE */
-#define	UART_S3		0x2B	/* CEA709.1-B Status Register */
-#define	UART_S4		0x2C	/* CEA709.1-B Status Register */
-#define	UART_RPL	0x2D	/* CEA709.1-B Received Packet Length */
-#define	UART_RPREL	0x2E	/* CEA709.1-B Received Preamble Length */
-#define	UART_CPW	0x2F	/* CEA709.1-B Collision Pulse Width */
-#define	UART_RIDT	0x30	/* CEA709.1-B Receive Indeterminate Time */
-#define	UART_TIDT	0x31	/* CEA709.1-B Transmit Indeterminate Time */
+#define UART_BDH 0x00 /* Baud Rate Registers: High */
+#define UART_BDL 0x01 /* Baud Rate Registers: Low */
+#define UART_C1 0x02 /* Control Register 1 */
+#define UART_C2 0x03 /* Control Register 2 */
+#define UART_S1 0x04 /* Status Register 1 */
+#define UART_S2 0x05 /* Status Register 2 */
+#define UART_C3 0x06 /* Control Register 3 */
+#define UART_D 0x07 /* Data Register */
+#define UART_MA1 0x08 /* Match Address Registers 1 */
+#define UART_MA2 0x09 /* Match Address Registers 2 */
+#define UART_C4 0x0A /* Control Register 4 */
+#define UART_C5 0x0B /* Control Register 5 */
+#define UART_ED 0x0C /* Extended Data Register */
+#define UART_MODEM 0x0D /* Modem Register */
+#define UART_IR 0x0E /* Infrared Register */
+#define UART_PFIFO 0x10 /* FIFO Parameters */
+#define UART_CFIFO 0x11 /* FIFO Control Register */
+#define UART_SFIFO 0x12 /* FIFO Status Register */
+#define UART_TWFIFO 0x13 /* FIFO Transmit Watermark */
+#define UART_TCFIFO 0x14 /* FIFO Transmit Count */
+#define UART_RWFIFO 0x15 /* FIFO Receive Watermark */
+#define UART_RCFIFO 0x16 /* FIFO Receive Count */
+#define UART_C7816 0x18 /* 7816 Control Register */
+#define UART_IE7816 0x19 /* 7816 Interrupt Enable Register */
+#define UART_IS7816 0x1A /* 7816 Interrupt Status Register */
+#define UART_WP7816T0 0x1B /* 7816 Wait Parameter Register */
+#define UART_WP7816T1 0x1B /* 7816 Wait Parameter Register */
+#define UART_WN7816 0x1C /* 7816 Wait N Register */
+#define UART_WF7816 0x1D /* 7816 Wait FD Register */
+#define UART_ET7816 0x1E /* 7816 Error Threshold Register */
+#define UART_TL7816 0x1F /* 7816 Transmit Length Register */
+#define UART_C6 0x21 /* CEA709.1-B Control Register 6 */
+#define UART_PCTH 0x22 /* CEA709.1-B Packet Cycle Time Counter High */
+#define UART_PCTL 0x23 /* CEA709.1-B Packet Cycle Time Counter Low */
+#define UART_B1T 0x24 /* CEA709.1-B Beta1 Timer */
+#define UART_SDTH 0x25 /* CEA709.1-B Secondary Delay Timer High */
+#define UART_SDTL 0x26 /* CEA709.1-B Secondary Delay Timer Low */
+#define UART_PRE 0x27 /* CEA709.1-B Preamble */
+#define UART_TPL 0x28 /* CEA709.1-B Transmit Packet Length */
+#define UART_IE 0x29 /* CEA709.1-B Interrupt Enable Register */
+#define UART_WB 0x2A /* CEA709.1-B WBASE */
+#define UART_S3 0x2B /* CEA709.1-B Status Register */
+#define UART_S4 0x2C /* CEA709.1-B Status Register */
+#define UART_RPL 0x2D /* CEA709.1-B Received Packet Length */
+#define UART_RPREL 0x2E /* CEA709.1-B Received Preamble Length */
+#define UART_CPW 0x2F /* CEA709.1-B Collision Pulse Width */
+#define UART_RIDT 0x30 /* CEA709.1-B Receive Indeterminate Time */
+#define UART_TIDT 0x31 /* CEA709.1-B Transmit Indeterminate Time */
 
-#define	UART_C2_TE	(1 << 3)	/* Transmitter Enable */
-#define	UART_C2_TIE	(1 << 7)	/* Transmitter Interrupt Enable */
-#define	UART_C2_RE	(1 << 2)	/* Receiver Enable */
-#define	UART_C2_RIE	(1 << 5)	/* Receiver Interrupt Enable */
-#define	UART_S1_TDRE	(1 << 7)	/* Transmit Data Register Empty Flag */
-#define	UART_S1_RDRF	(1 << 5)	/* Receive Data Register Full Flag */
-#define	UART_S2_LBKDIF	(1 << 7)	/* LIN Break Detect Interrupt Flag */
+#define UART_C2_TE (1 << 3) /* Transmitter Enable */
+#define UART_C2_TIE (1 << 7) /* Transmitter Interrupt Enable */
+#define UART_C2_RE (1 << 2) /* Receiver Enable */
+#define UART_C2_RIE (1 << 5) /* Receiver Interrupt Enable */
+#define UART_S1_TDRE (1 << 7) /* Transmit Data Register Empty Flag */
+#define UART_S1_RDRF (1 << 5) /* Receive Data Register Full Flag */
+#define UART_S2_LBKDIF (1 << 7) /* LIN Break Detect Interrupt Flag */
 
-#define	UART_C4_BRFA	0x1f	/* Baud Rate Fine Adjust */
-#define	UART_BDH_SBR	0x1f	/* UART Baud Rate Bits */
+#define UART_C4_BRFA 0x1f /* Baud Rate Fine Adjust */
+#define UART_BDH_SBR 0x1f /* UART Baud Rate Bits */
 
 /*
  * Low-level UART interface.
@@ -120,7 +121,7 @@ static void vf_uart_putc(struct uart_bas *bas, int);
 static int vf_uart_rxready(struct uart_bas *bas);
 static int vf_uart_getc(struct uart_bas *bas, struct mtx *);
 
-void uart_reinit(struct uart_softc *,int,int);
+void uart_reinit(struct uart_softc *, int, int);
 
 static struct uart_ops uart_vybrid_ops = {
 	.probe = vf_uart_probe,
@@ -139,16 +140,14 @@ vf_uart_probe(struct uart_bas *bas)
 }
 
 static void
-vf_uart_init(struct uart_bas *bas, int baudrate, int databits,
-    int stopbits, int parity)
+vf_uart_init(
+    struct uart_bas *bas, int baudrate, int databits, int stopbits, int parity)
 {
-
 }
 
 static void
 vf_uart_term(struct uart_bas *bas)
 {
-
 }
 
 static void
@@ -223,7 +222,7 @@ uart_reinit(struct uart_softc *sc, int clkspeed, int baud)
 
 	uart_setreg(bas, UART_C1, 0x00);
 
-	sbr = (uint16_t) (clkspeed / (baud * 16));
+	sbr = (uint16_t)(clkspeed / (baud * 16));
 	brfa = (clkspeed / baud) - (sbr * 16);
 
 	reg = uart_getreg(bas, UART_BDH);
@@ -242,7 +241,6 @@ uart_reinit(struct uart_softc *sc, int clkspeed, int baud)
 	reg = uart_getreg(bas, UART_C2);
 	reg |= (UART_C2_RE | UART_C2_TE);
 	uart_setreg(bas, UART_C2, reg);
-
 }
 
 static int vf_uart_bus_attach(struct uart_softc *);
@@ -257,34 +255,27 @@ static int vf_uart_bus_receive(struct uart_softc *);
 static int vf_uart_bus_setsig(struct uart_softc *, int);
 static int vf_uart_bus_transmit(struct uart_softc *);
 
-static kobj_method_t vf_uart_methods[] = {
-	KOBJMETHOD(uart_attach,		vf_uart_bus_attach),
-	KOBJMETHOD(uart_detach,		vf_uart_bus_detach),
-	KOBJMETHOD(uart_flush,		vf_uart_bus_flush),
-	KOBJMETHOD(uart_getsig,		vf_uart_bus_getsig),
-	KOBJMETHOD(uart_ioctl,		vf_uart_bus_ioctl),
-	KOBJMETHOD(uart_ipend,		vf_uart_bus_ipend),
-	KOBJMETHOD(uart_param,		vf_uart_bus_param),
-	KOBJMETHOD(uart_probe,		vf_uart_bus_probe),
-	KOBJMETHOD(uart_receive,	vf_uart_bus_receive),
-	KOBJMETHOD(uart_setsig,		vf_uart_bus_setsig),
-	KOBJMETHOD(uart_transmit,	vf_uart_bus_transmit),
-	{ 0, 0 }
-};
+static kobj_method_t vf_uart_methods[] = { KOBJMETHOD(
+					       uart_attach, vf_uart_bus_attach),
+	KOBJMETHOD(uart_detach, vf_uart_bus_detach),
+	KOBJMETHOD(uart_flush, vf_uart_bus_flush),
+	KOBJMETHOD(uart_getsig, vf_uart_bus_getsig),
+	KOBJMETHOD(uart_ioctl, vf_uart_bus_ioctl),
+	KOBJMETHOD(uart_ipend, vf_uart_bus_ipend),
+	KOBJMETHOD(uart_param, vf_uart_bus_param),
+	KOBJMETHOD(uart_probe, vf_uart_bus_probe),
+	KOBJMETHOD(uart_receive, vf_uart_bus_receive),
+	KOBJMETHOD(uart_setsig, vf_uart_bus_setsig),
+	KOBJMETHOD(uart_transmit, vf_uart_bus_transmit), { 0, 0 } };
 
-static struct uart_class uart_vybrid_class = {
-	"vybrid",
-	vf_uart_methods,
-	sizeof(struct vf_uart_softc),
-	.uc_ops = &uart_vybrid_ops,
-	.uc_range = 0x100,
-	.uc_rclk = 24000000, /* TODO: get value from CCM */
-	.uc_rshift = 0
-};
+static struct uart_class uart_vybrid_class = { "vybrid", vf_uart_methods,
+	sizeof(struct vf_uart_softc), .uc_ops = &uart_vybrid_ops,
+	.uc_range = 0x100, .uc_rclk = 24000000, /* TODO: get value from CCM */
+	.uc_rshift = 0 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"fsl,mvf600-uart",	(uintptr_t)&uart_vybrid_class},
-	{NULL,			(uintptr_t)NULL},
+	{ "fsl,mvf600-uart", (uintptr_t)&uart_vybrid_class },
+	{ NULL, (uintptr_t)NULL },
 };
 UART_FDT_CLASS_AND_DEVICE(compat_data);
 
@@ -347,11 +338,11 @@ vf_uart_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 	uart_lock(sc->sc_hwmtx);
 	switch (request) {
 	case UART_IOCTL_BREAK:
-	/* TODO */
+		/* TODO */
 		break;
 	case UART_IOCTL_BAUD:
-	/* TODO */
-		*(int*)data = 115200;
+		/* TODO */
+		*(int *)data = 115200;
 		break;
 	default:
 		error = EINVAL;
@@ -411,8 +402,8 @@ vf_uart_bus_ipend(struct uart_softc *sc)
 }
 
 static int
-vf_uart_bus_param(struct uart_softc *sc, int baudrate, int databits,
-    int stopbits, int parity)
+vf_uart_bus_param(
+    struct uart_softc *sc, int baudrate, int databits, int stopbits, int parity)
 {
 
 	uart_lock(sc->sc_hwmtx);
@@ -451,7 +442,7 @@ vf_uart_bus_receive(struct uart_softc *sc)
 	/* Read FIFO */
 	while (uart_getreg(bas, UART_S1) & UART_S1_RDRF) {
 		if (uart_rx_full(sc)) {
-		/* No space left in input buffer */
+			/* No space left in input buffer */
 			sc->sc_rxbuf[sc->sc_rxput] = UART_STAT_OVERRUN;
 			break;
 		}

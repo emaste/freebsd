@@ -31,63 +31,64 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
-#include <sys/jail.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
+#include <sys/jail.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
-#include <sys/mbuf.h>
-#include <sys/errno.h>
-#include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
 #ifdef INET
 #include <net/ethernet.h>
 #include <netinet/ip.h>
 #endif
+#include <net/if_gre.h>
 #include <netinet/in_pcb.h>
+#include <netinet/ip6.h>
 #include <netinet/ip_encap.h>
 #include <netinet/ip_var.h>
-#include <netinet/ip6.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
-#include <netinet6/ip6_var.h>
 #include <netinet6/in6_var.h>
+#include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
-#include <net/if_gre.h>
 
 VNET_DEFINE(int, ip6_gre_hlim) = IPV6_DEFHLIM;
-#define	V_ip6_gre_hlim		VNET(ip6_gre_hlim)
+#define V_ip6_gre_hlim VNET(ip6_gre_hlim)
 
 SYSCTL_DECL(_net_inet6_ip6);
 SYSCTL_INT(_net_inet6_ip6, OID_AUTO, grehlim, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip6_gre_hlim), 0, "Default hop limit for encapsulated packets");
 
 struct in6_gre_socket {
-	struct gre_socket	base;
-	struct in6_addr		addr; /* scope zone id is embedded */
+	struct gre_socket base;
+	struct in6_addr addr; /* scope zone id is embedded */
 };
 VNET_DEFINE_STATIC(struct gre_sockets *, ipv6_sockets) = NULL;
 VNET_DEFINE_STATIC(struct gre_list *, ipv6_hashtbl) = NULL;
 VNET_DEFINE_STATIC(struct gre_list *, ipv6_srchashtbl) = NULL;
-#define	V_ipv6_sockets		VNET(ipv6_sockets)
-#define	V_ipv6_hashtbl		VNET(ipv6_hashtbl)
-#define	V_ipv6_srchashtbl	VNET(ipv6_srchashtbl)
-#define	GRE_HASH(src, dst)	(V_ipv6_hashtbl[\
-    in6_gre_hashval((src), (dst)) & (GRE_HASH_SIZE - 1)])
-#define	GRE_SRCHASH(src)	(V_ipv6_srchashtbl[\
-    fnv_32_buf((src), sizeof(*src), FNV1_32_INIT) & (GRE_HASH_SIZE - 1)])
-#define	GRE_SOCKHASH(src)	(V_ipv6_sockets[\
-    fnv_32_buf((src), sizeof(*src), FNV1_32_INIT) & (GRE_HASH_SIZE - 1)])
-#define	GRE_HASH_SC(sc)		GRE_HASH(&(sc)->gre_oip6.ip6_src,\
-    &(sc)->gre_oip6.ip6_dst)
+#define V_ipv6_sockets VNET(ipv6_sockets)
+#define V_ipv6_hashtbl VNET(ipv6_hashtbl)
+#define V_ipv6_srchashtbl VNET(ipv6_srchashtbl)
+#define GRE_HASH(src, dst) \
+	(V_ipv6_hashtbl[in6_gre_hashval((src), (dst)) & (GRE_HASH_SIZE - 1)])
+#define GRE_SRCHASH(src)                                                   \
+	(V_ipv6_srchashtbl[fnv_32_buf((src), sizeof(*src), FNV1_32_INIT) & \
+	    (GRE_HASH_SIZE - 1)])
+#define GRE_SOCKHASH(src)                                               \
+	(V_ipv6_sockets[fnv_32_buf((src), sizeof(*src), FNV1_32_INIT) & \
+	    (GRE_HASH_SIZE - 1)])
+#define GRE_HASH_SC(sc) \
+	GRE_HASH(&(sc)->gre_oip6.ip6_src, &(sc)->gre_oip6.ip6_dst)
 
 static uint32_t
 in6_gre_hashval(const struct in6_addr *src, const struct in6_addr *dst)
@@ -98,13 +99,14 @@ in6_gre_hashval(const struct in6_addr *src, const struct in6_addr *dst)
 	return (fnv_32_buf(dst, sizeof(*dst), ret));
 }
 
-static struct gre_socket*
+static struct gre_socket *
 in6_gre_lookup_socket(const struct in6_addr *addr)
 {
 	struct gre_socket *gs;
 	struct in6_gre_socket *s;
 
-	CK_LIST_FOREACH(gs, &GRE_SOCKHASH(addr), chain) {
+	CK_LIST_FOREACH(gs, &GRE_SOCKHASH(addr), chain)
+	{
 		s = __containerof(gs, struct in6_gre_socket, base);
 		if (IN6_ARE_ADDR_EQUAL(&s->addr, addr))
 			break;
@@ -134,7 +136,8 @@ in6_gre_checkdup(const struct gre_softc *sc, const struct in6_addr *src,
 	} else
 		head = &GRE_HASH(src, dst);
 
-	CK_LIST_FOREACH(tmp, head, chain) {
+	CK_LIST_FOREACH(tmp, head, chain)
+	{
 		if (tmp == sc)
 			continue;
 		if (IN6_ARE_ADDR_EQUAL(&tmp->gre_oip6.ip6_src, src) &&
@@ -155,15 +158,14 @@ in6_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
 
 	NET_EPOCH_ASSERT();
 	ip6 = mtod(m, const struct ip6_hdr *);
-	CK_LIST_FOREACH(sc, &GRE_HASH(&ip6->ip6_dst, &ip6->ip6_src), chain) {
+	CK_LIST_FOREACH(sc, &GRE_HASH(&ip6->ip6_dst, &ip6->ip6_src), chain)
+	{
 		/*
 		 * This is an inbound packet, its ip6_dst is source address
 		 * in softc.
 		 */
-		if (IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_src,
-		    &ip6->ip6_dst) &&
-		    IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_dst,
-		    &ip6->ip6_src)) {
+		if (IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_src, &ip6->ip6_dst) &&
+		    IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_dst, &ip6->ip6_src)) {
 			if ((GRE2IFP(sc)->if_flags & IFF_UP) == 0)
 				return (0);
 			*arg = sc;
@@ -192,8 +194,8 @@ in6_gre_set_running(struct gre_softc *sc)
  * source address spoofing.
  */
 static void
-in6_gre_srcaddr(void *arg __unused, const struct sockaddr *sa,
-    int event __unused)
+in6_gre_srcaddr(
+    void *arg __unused, const struct sockaddr *sa, int event __unused)
 {
 	const struct sockaddr_in6 *sin;
 	struct gre_softc *sc;
@@ -204,9 +206,10 @@ in6_gre_srcaddr(void *arg __unused, const struct sockaddr *sa,
 
 	NET_EPOCH_ASSERT();
 	sin = (const struct sockaddr_in6 *)sa;
-	CK_LIST_FOREACH(sc, &GRE_SRCHASH(&sin->sin6_addr), srchash) {
-		if (IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_src,
-		    &sin->sin6_addr) == 0)
+	CK_LIST_FOREACH(sc, &GRE_SRCHASH(&sin->sin6_addr), srchash)
+	{
+		if (IN6_ARE_ADDR_EQUAL(
+			&sc->gre_oip6.ip6_src, &sin->sin6_addr) == 0)
 			continue;
 		in6_gre_set_running(sc);
 	}
@@ -243,11 +246,12 @@ in6_gre_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 		m_freem(m);
 		return;
 	}
-	CK_LIST_FOREACH(sc, &gs->list, chain) {
+	CK_LIST_FOREACH(sc, &gs->list, chain)
+	{
 		if (IN6_ARE_ADDR_EQUAL(&sc->gre_oip6.ip6_dst, &dst.sin6_addr))
 			break;
 	}
-	if (sc != NULL && (GRE2IFP(sc)->if_flags & IFF_UP) != 0){
+	if (sc != NULL && (GRE2IFP(sc)->if_flags & IFF_UP) != 0) {
 		gre_input(m, off + sizeof(struct udphdr), IPPROTO_UDP, sc);
 		NET_EPOCH_EXIT(et);
 		return;
@@ -297,9 +301,8 @@ in6_gre_setup_socket(struct gre_softc *sc)
 			s->addr = sc->gre_oip6.ip6_src;
 			gs = &s->base;
 
-			error = socreate(sc->gre_family, &gs->so,
-			    SOCK_DGRAM, IPPROTO_UDP, curthread->td_ucred,
-			    curthread);
+			error = socreate(sc->gre_family, &gs->so, SOCK_DGRAM,
+			    IPPROTO_UDP, curthread->td_ucred, curthread);
 			if (error != 0) {
 				if_printf(GRE2IFP(sc),
 				    "cannot create socket: %d\n", error);
@@ -307,8 +310,8 @@ in6_gre_setup_socket(struct gre_softc *sc)
 				return (error);
 			}
 
-			error = udp_set_kernel_tunneling(gs->so,
-			    in6_gre_udp_input, NULL, gs);
+			error = udp_set_kernel_tunneling(
+			    gs->so, in6_gre_udp_input, NULL, gs);
 			if (error != 0) {
 				if_printf(GRE2IFP(sc),
 				    "cannot set UDP tunneling: %d\n", error);
@@ -325,8 +328,7 @@ in6_gre_setup_socket(struct gre_softc *sc)
 			error = sosetopt(gs->so, &sopt);
 			if (error != 0) {
 				if_printf(GRE2IFP(sc),
-				    "cannot set IPV6_BINDANY opt: %d\n",
-				    error);
+				    "cannot set IPV6_BINDANY opt: %d\n", error);
 				goto fail;
 			}
 
@@ -342,8 +344,8 @@ in6_gre_setup_socket(struct gre_softc *sc)
 				    error);
 				goto fail;
 			}
-			error = sobind(gs->so, (struct sockaddr *)&sin6,
-			    curthread);
+			error = sobind(
+			    gs->so, (struct sockaddr *)&sin6, curthread);
 			if (error != 0) {
 				if_printf(GRE2IFP(sc),
 				    "cannot bind socket: %d\n", error);
@@ -419,8 +421,8 @@ in6_gre_setopts(struct gre_softc *sc, u_long cmd, uint32_t value)
 	 */
 	if (cmd == GRESOPTS &&
 	    (sc->gre_options & GRE_UDPENCAP) != (value & GRE_UDPENCAP) &&
-	    in6_gre_checkdup(sc, &sc->gre_oip6.ip6_src,
-		&sc->gre_oip6.ip6_dst, value) == EADDRNOTAVAIL)
+	    in6_gre_checkdup(sc, &sc->gre_oip6.ip6_src, &sc->gre_oip6.ip6_dst,
+		value) == EADDRNOTAVAIL)
 		return (EEXIST);
 
 	CK_LIST_REMOVE(sc, chain);
@@ -485,8 +487,8 @@ in6_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
 			V_ipv6_srchashtbl = gre_hashinit();
 			V_ipv6_sockets = (struct gre_sockets *)gre_hashinit();
 		}
-		error = in6_gre_checkdup(sc, &src->sin6_addr,
-		    &dst->sin6_addr, sc->gre_options);
+		error = in6_gre_checkdup(
+		    sc, &src->sin6_addr, &dst->sin6_addr, sc->gre_options);
 		if (error == EADDRNOTAVAIL)
 			break;
 		if (error == EEXIST) {
@@ -527,7 +529,8 @@ in6_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
 		src->sin6_family = AF_INET6;
 		src->sin6_len = sizeof(*src);
 		src->sin6_addr = (cmd == SIOCGIFPSRCADDR_IN6) ?
-		    sc->gre_oip6.ip6_src: sc->gre_oip6.ip6_dst;
+			  sc->gre_oip6.ip6_src :
+			  sc->gre_oip6.ip6_dst;
 		error = prison_if(curthread->td_ucred, (struct sockaddr *)src);
 		if (error == 0)
 			error = sa6_recoverscope(src);
@@ -539,8 +542,8 @@ in6_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
 }
 
 int
-in6_gre_output(struct mbuf *m, int af __unused, int hlen __unused,
-    uint32_t flowid)
+in6_gre_output(
+    struct mbuf *m, int af __unused, int hlen __unused, uint32_t flowid)
 {
 	struct greip6 *gi6;
 
@@ -552,8 +555,7 @@ in6_gre_output(struct mbuf *m, int af __unused, int hlen __unused,
 
 static const struct srcaddrtab *ipv6_srcaddrtab = NULL;
 static const struct encaptab *ecookie = NULL;
-static const struct encap_config ipv6_encap_cfg = {
-	.proto = IPPROTO_GRE,
+static const struct encap_config ipv6_encap_cfg = { .proto = IPPROTO_GRE,
 	.min_length = sizeof(struct greip6) +
 #ifdef INET
 	    sizeof(struct ip),
@@ -562,8 +564,7 @@ static const struct encap_config ipv6_encap_cfg = {
 #endif
 	.exact_match = ENCAP_DRV_LOOKUP,
 	.lookup = in6_gre_lookup,
-	.input = gre_input
-};
+	.input = gre_input };
 
 void
 in6_gre_init(void)
@@ -571,8 +572,8 @@ in6_gre_init(void)
 
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
-	ipv6_srcaddrtab = ip6_encap_register_srcaddr(in6_gre_srcaddr,
-	    NULL, M_WAITOK);
+	ipv6_srcaddrtab = ip6_encap_register_srcaddr(
+	    in6_gre_srcaddr, NULL, M_WAITOK);
 	ecookie = ip6_encap_attach(&ipv6_encap_cfg, NULL, M_WAITOK);
 }
 

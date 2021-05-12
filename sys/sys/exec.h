@@ -54,10 +54,10 @@
  * the pointers.
  */
 struct ps_strings {
-	char	**ps_argvstr;	/* first of 0 or more argument strings */
+	char **ps_argvstr;	  /* first of 0 or more argument strings */
 	unsigned int ps_nargvstr; /* the number of argument strings */
-	char	**ps_envstr;	/* first of 0 or more environment strings */
-	unsigned int ps_nenvstr; /* the number of environment strings */
+	char **ps_envstr;	  /* first of 0 or more environment strings */
+	unsigned int ps_nenvstr;  /* the number of environment strings */
 };
 
 struct image_params;
@@ -76,10 +76,10 @@ struct execsw {
  * Address of ps_strings structure (in user space).
  * Prefer the kern.ps_strings or kern.proc.ps_strings sysctls to this constant.
  */
-#define	PS_STRINGS	(USRSTACK - sizeof(struct ps_strings))
+#define PS_STRINGS (USRSTACK - sizeof(struct ps_strings))
 
-int exec_map_first_page(struct image_params *);        
-void exec_unmap_first_page(struct image_params *);       
+int exec_map_first_page(struct image_params *);
+void exec_unmap_first_page(struct image_params *);
 
 int exec_register(const struct execsw *);
 int exec_unregister(const struct execsw *);
@@ -95,38 +95,36 @@ extern int coredump_pack_vmmapinfo;
 
 #include <sys/module.h>
 
-#define EXEC_SET(name, execsw_arg) \
-	static int __CONCAT(name,_modevent)(module_t mod, int type, \
-	    void *data) \
-	{ \
-		struct execsw *exec = (struct execsw *)data; \
-		int error = 0; \
-		switch (type) { \
-		case MOD_LOAD: \
-			/* printf(#name " module loaded\n"); */ \
-			error = exec_register(exec); \
-			if (error) \
+#define EXEC_SET(name, execsw_arg)                                           \
+	static int __CONCAT(name, _modevent)(                                \
+	    module_t mod, int type, void *data)                              \
+	{                                                                    \
+		struct execsw *exec = (struct execsw *)data;                 \
+		int error = 0;                                               \
+		switch (type) {                                              \
+		case MOD_LOAD:                                               \
+			/* printf(#name " module loaded\n"); */              \
+			error = exec_register(exec);                         \
+			if (error)                                           \
 				printf(__XSTRING(name) "register failed\n"); \
-			break; \
-		case MOD_UNLOAD: \
-			/* printf(#name " module unloaded\n"); */ \
-			error = exec_unregister(exec); \
-			if (error) \
-				printf(__XSTRING(name) " unregister failed\n");\
-			break; \
-		default: \
-			error = EOPNOTSUPP; \
-			break; \
-		} \
-		return error; \
-	} \
-	static moduledata_t __CONCAT(name,_mod) = { \
-		__XSTRING(name), \
-		__CONCAT(name,_modevent), \
-		(void *)& execsw_arg \
-	}; \
-	DECLARE_MODULE_TIED(name, __CONCAT(name,_mod), SI_SUB_EXEC, \
-	    SI_ORDER_ANY)
+			break;                                               \
+		case MOD_UNLOAD:                                             \
+			/* printf(#name " module unloaded\n"); */            \
+			error = exec_unregister(exec);                       \
+			if (error)                                           \
+				printf(                                      \
+				    __XSTRING(name) " unregister failed\n"); \
+			break;                                               \
+		default:                                                     \
+			error = EOPNOTSUPP;                                  \
+			break;                                               \
+		}                                                            \
+		return error;                                                \
+	}                                                                    \
+	static moduledata_t __CONCAT(name, _mod) = { __XSTRING(name),        \
+		__CONCAT(name, _modevent), (void *)&execsw_arg };            \
+	DECLARE_MODULE_TIED(                                                 \
+	    name, __CONCAT(name, _mod), SI_SUB_EXEC, SI_ORDER_ANY)
 #endif
 
 #endif

@@ -27,8 +27,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	__UART_DEV_AR933X__
-#define	__UART_DEV_AR933X__
+#ifndef __UART_DEV_AR933X__
+#define __UART_DEV_AR933X__
 
 extern struct uart_class uart_ar933x_class;
 

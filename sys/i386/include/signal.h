@@ -33,7 +33,7 @@
  */
 
 #ifndef _MACHINE_SIGNAL_H_
-#define	_MACHINE_SIGNAL_H_
+#define _MACHINE_SIGNAL_H_
 
 #include <x86/signal.h>
 
@@ -42,27 +42,27 @@
  * Only the kernel should need these old type definitions.
  */
 struct osigcontext {
-	int	sc_onstack;		/* sigstack state to restore */
-	osigset_t sc_mask;		/* signal mask to restore */
-	int	sc_esp;			/* machine state follows: */
-	int	sc_ebp;
-	int	sc_isp;
-	int	sc_eip;
-	int	sc_efl;
-	int	sc_es;
-	int	sc_ds;
-	int	sc_cs;
-	int	sc_ss;
-	int	sc_edi;
-	int	sc_esi;
-	int	sc_ebx;
-	int	sc_edx;
-	int	sc_ecx;
-	int	sc_eax;
-	int	sc_gs;
-	int	sc_fs;
-	int	sc_trapno;
-	int	sc_err;
+	int sc_onstack;	   /* sigstack state to restore */
+	osigset_t sc_mask; /* signal mask to restore */
+	int sc_esp;	   /* machine state follows: */
+	int sc_ebp;
+	int sc_isp;
+	int sc_eip;
+	int sc_efl;
+	int sc_es;
+	int sc_ds;
+	int sc_cs;
+	int sc_ss;
+	int sc_edi;
+	int sc_esi;
+	int sc_ebx;
+	int sc_edx;
+	int sc_ecx;
+	int sc_eax;
+	int sc_gs;
+	int sc_fs;
+	int sc_trapno;
+	int sc_err;
 };
 #endif
 

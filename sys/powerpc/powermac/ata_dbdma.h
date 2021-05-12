@@ -39,16 +39,16 @@
 #include <machine/dbdma.h>
 
 struct ata_dbdma_channel {
-	struct ata_channel	sc_ch;
+	struct ata_channel sc_ch;
 
-	int			dbdma_rid;
-	struct resource		*dbdma_regs;
-	u_int			dbdma_offset;
+	int dbdma_rid;
+	struct resource *dbdma_regs;
+	u_int dbdma_offset;
 
-	dbdma_channel_t		*dbdma;
-	int			next_dma_slot;
+	dbdma_channel_t *dbdma;
+	int next_dma_slot;
 
-	struct mtx		dbdma_mtx;
+	struct mtx dbdma_mtx;
 };
 
 void ata_dbdma_dmainit(device_t dev);

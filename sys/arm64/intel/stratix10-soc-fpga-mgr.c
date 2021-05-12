@@ -40,41 +40,41 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
+#include <sys/sx.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
-#include <sys/conf.h>
 #include <sys/uio.h>
-#include <sys/sx.h>
-
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <arm64/intel/stratix10-svc.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#define	SVC_BUF_SIZE	(2 * 1024 * 1024)
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
+#include <arm64/intel/stratix10-svc.h>
+
+#define SVC_BUF_SIZE (2 * 1024 * 1024)
 
 struct fpgamgr_s10_softc {
-	struct cdev		*mgr_cdev;
-	struct cdev		*mgr_cdev_partial;
-	device_t		dev;
-	device_t		s10_svc_dev;
-	struct s10_svc_mem	mem;
-	struct sx		sx;
-	int			opened;
+	struct cdev *mgr_cdev;
+	struct cdev *mgr_cdev_partial;
+	device_t dev;
+	device_t s10_svc_dev;
+	struct s10_svc_mem mem;
+	struct sx sx;
+	int opened;
 };
 
 static int
-fpga_open(struct cdev *dev, int flags __unused,
-    int fmt __unused, struct thread *td __unused)
+fpga_open(struct cdev *dev, int flags __unused, int fmt __unused,
+    struct thread *td __unused)
 {
 	struct fpgamgr_s10_softc *sc;
 	struct s10_svc_msg msg;
@@ -89,8 +89,7 @@ fpga_open(struct cdev *dev, int flags __unused,
 		return (EBUSY);
 	}
 
-	err = s10_svc_allocate_memory(sc->s10_svc_dev,
-	    &sc->mem, SVC_BUF_SIZE);
+	err = s10_svc_allocate_memory(sc->s10_svc_dev, &sc->mem, SVC_BUF_SIZE);
 	if (err != 0) {
 		sx_xunlock(&sc->sx);
 		return (ENXIO);
@@ -143,8 +142,8 @@ fpga_write(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 static int
-fpga_close(struct cdev *dev, int flags __unused,
-    int fmt __unused, struct thread *td __unused)
+fpga_close(struct cdev *dev, int flags __unused, int fmt __unused,
+    struct thread *td __unused)
 {
 	struct fpgamgr_s10_softc *sc;
 	struct s10_svc_msg msg;
@@ -186,20 +185,20 @@ fpga_close(struct cdev *dev, int flags __unused,
 }
 
 static int
-fpga_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
-    struct thread *td)
+fpga_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 
 	return (0);
 }
 
 static struct cdevsw fpga_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	fpga_open,
-	.d_close =	fpga_close,
-	.d_write =	fpga_write,
-	.d_ioctl =	fpga_ioctl,
-	.d_name =	"FPGA Manager",
+	.d_version = D_VERSION,
+	.d_open = fpga_open,
+	.d_close = fpga_close,
+	.d_write = fpga_write,
+	.d_ioctl = fpga_ioctl,
+	.d_name = "FPGA Manager",
 };
 
 static int
@@ -234,8 +233,8 @@ fpgamgr_s10_attach(device_t dev)
 	if (sc->s10_svc_dev == NULL)
 		return (ENXIO);
 
-	sc->mgr_cdev = make_dev(&fpga_cdevsw, 0, UID_ROOT, GID_WHEEL,
-	    0600, "fpga%d", device_get_unit(sc->dev));
+	sc->mgr_cdev = make_dev(&fpga_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+	    "fpga%d", device_get_unit(sc->dev));
 	if (sc->mgr_cdev == NULL) {
 		device_printf(dev, "Failed to create character device.\n");
 		return (ENXIO);
@@ -271,12 +270,10 @@ fpgamgr_s10_detach(device_t dev)
 	return (0);
 }
 
-static device_method_t fpgamgr_s10_methods[] = {
-	DEVMETHOD(device_probe,		fpgamgr_s10_probe),
-	DEVMETHOD(device_attach,	fpgamgr_s10_attach),
-	DEVMETHOD(device_detach,	fpgamgr_s10_detach),
-	{ 0, 0 }
-};
+static device_method_t fpgamgr_s10_methods[] = { DEVMETHOD(device_probe,
+						     fpgamgr_s10_probe),
+	DEVMETHOD(device_attach, fpgamgr_s10_attach),
+	DEVMETHOD(device_detach, fpgamgr_s10_detach), { 0, 0 } };
 
 static driver_t fpgamgr_s10_driver = {
 	"fpgamgr_s10",
@@ -286,5 +283,5 @@ static driver_t fpgamgr_s10_driver = {
 
 static devclass_t fpgamgr_s10_devclass;
 
-DRIVER_MODULE(fpgamgr_s10, simplebus, fpgamgr_s10_driver,
-    fpgamgr_s10_devclass, 0, 0);
+DRIVER_MODULE(
+    fpgamgr_s10, simplebus, fpgamgr_s10_driver, fpgamgr_s10_devclass, 0, 0);

@@ -62,16 +62,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/kernel.h>
 #include <sys/pcpu.h>
 #include <sys/sysctl.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/vdso.h>
-
-#include <dev/ofw/openfirm.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -79,40 +77,42 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/smp.h>
 
+#include <dev/ofw/openfirm.h>
+
 /*
  * Initially we assume a processor with a bus frequency of 12.5 MHz.
  */
-static int		initialized = 0;
-static uint64_t		ps_per_tick = 80000;
-static u_long		ticks_per_sec = 12500000;
-static u_long		*decr_counts[MAXCPU];
+static int initialized = 0;
+static uint64_t ps_per_tick = 80000;
+static u_long ticks_per_sec = 12500000;
+static u_long *decr_counts[MAXCPU];
 
-static int		decr_et_start(struct eventtimer *et,
-    sbintime_t first, sbintime_t period);
-static int		decr_et_stop(struct eventtimer *et);
-static timecounter_get_t	decr_get_timecount;
-static uint32_t decr_vdso_timehands(struct vdso_timehands *vdso_th,
-    struct timecounter *tc);
+static int decr_et_start(
+    struct eventtimer *et, sbintime_t first, sbintime_t period);
+static int decr_et_stop(struct eventtimer *et);
+static timecounter_get_t decr_get_timecount;
+static uint32_t decr_vdso_timehands(
+    struct vdso_timehands *vdso_th, struct timecounter *tc);
 #ifdef COMPAT_FREEBSD32
-static uint32_t decr_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
-    struct timecounter *tc);
+static uint32_t decr_vdso_timehands32(
+    struct vdso_timehands32 *vdso_th32, struct timecounter *tc);
 #endif
 
 struct decr_state {
-	int	mode;	/* 0 - off, 1 - periodic, 2 - one-shot. */
-	int32_t	div;	/* Periodic divisor. */
+	int mode;    /* 0 - off, 1 - periodic, 2 - one-shot. */
+	int32_t div; /* Periodic divisor. */
 };
 DPCPU_DEFINE_STATIC(struct decr_state, decr_state);
 
-static struct eventtimer	decr_et;
-static struct timecounter	decr_tc = {
-	.tc_get_timecount = 		decr_get_timecount,
-	.tc_counter_mask = 		~0u,
-	.tc_name = 			"timebase",
-	.tc_quality = 			1000,
-	.tc_fill_vdso_timehands = 	decr_vdso_timehands,
+static struct eventtimer decr_et;
+static struct timecounter decr_tc = {
+	.tc_get_timecount = decr_get_timecount,
+	.tc_counter_mask = ~0u,
+	.tc_name = "timebase",
+	.tc_quality = 1000,
+	.tc_fill_vdso_timehands = decr_vdso_timehands,
 #ifdef COMPAT_FREEBSD32
-	.tc_fill_vdso_timehands32 = 	decr_vdso_timehands32,
+	.tc_fill_vdso_timehands32 = decr_vdso_timehands32,
 #endif
 };
 
@@ -123,8 +123,8 @@ void
 decr_intr(struct trapframe *frame)
 {
 	struct decr_state *s = DPCPU_PTR(decr_state);
-	int		nticks = 0;
-	int32_t		val;
+	int nticks = 0;
+	int32_t val;
 
 	if (!initialized)
 		return;
@@ -144,7 +144,7 @@ decr_intr(struct trapframe *frame)
 		 * Based on the actual time delay since the last decrementer
 		 * reload, we arrange for earlier interrupt next time.
 		 */
-		__asm ("mfdec %0" : "=r"(val));
+		__asm("mfdec %0" : "=r"(val));
 		while (val < 0) {
 			val += s->div;
 			nticks++;
@@ -244,8 +244,8 @@ decr_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
 
 #ifdef COMPAT_FREEBSD32
 uint32_t
-decr_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
-    struct timecounter *tc)
+decr_vdso_timehands32(
+    struct vdso_timehands32 *vdso_th32, struct timecounter *tc)
 {
 	vdso_th32->th_algo = VDSO_TH_ALGO_PPC_TB;
 	bzero(vdso_th32->th_res, sizeof(vdso_th32->th_res));
@@ -332,8 +332,8 @@ decr_get_timecount(struct timecounter *tc)
 void
 DELAY(int n)
 {
-	volatile u_quad_t	tb;
-	u_quad_t		ttb;
+	volatile u_quad_t tb;
+	u_quad_t ttb;
 
 	TSENTER();
 	tb = mftb();

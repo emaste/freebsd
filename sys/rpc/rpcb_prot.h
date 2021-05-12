@@ -4,7 +4,7 @@
  */
 
 #ifndef _RPCB_PROT_H_RPCGEN
-#define	_RPCB_PROT_H_RPCGEN
+#define _RPCB_PROT_H_RPCGEN
 
 #include <rpc/rpc.h>
 
@@ -33,7 +33,7 @@ extern "C" {
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR   
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
@@ -51,7 +51,6 @@ extern "C" {
 /* #pragma ident	"@(#)rpcb_prot.x	1.5	94/04/29 SMI" */
 
 #ifndef _KERNEL
-
 
 /*
  * The following procedures are supported by the protocol in version 3:
@@ -142,7 +141,6 @@ typedef struct rpcb rpcb;
 
 typedef rpcb RPCB;
 
-
 /*
  * A list of mappings
  *
@@ -167,19 +165,18 @@ typedef struct rp__list RPCBLIST;
 
 #ifndef __cplusplus
 struct rpcblist {
- RPCB rpcb_map;
- struct rpcblist *rpcb_next;
+	RPCB rpcb_map;
+	struct rpcblist *rpcb_next;
 };
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-extern bool_t xdr_rpcblist(XDR *, rpcblist**);
+extern bool_t xdr_rpcblist(XDR *, rpcblist **);
 #ifdef __cplusplus
 }
 #endif
-
 
 /*
  * Arguments of remote calls
@@ -208,16 +205,15 @@ typedef struct rpcb_rmtcallargs rpcb_rmtcallargs;
  * includes the args' XDR routine.
  */
 struct r_rpcb_rmtcallargs {
- rpcprog_t prog;
- rpcvers_t vers;
- rpcproc_t proc;
- struct {
- u_int args_len;
- char *args_val;
- } args;
- xdrproc_t xdr_args; /* encodes args */
+	rpcprog_t prog;
+	rpcvers_t vers;
+	rpcproc_t proc;
+	struct {
+		u_int args_len;
+		char *args_val;
+	} args;
+	xdrproc_t xdr_args; /* encodes args */
 };
-
 
 /*
  * Results of the remote call
@@ -236,12 +232,12 @@ typedef struct rpcb_rmtcallres rpcb_rmtcallres;
  * Client-side only representation of rpcb_rmtcallres structure.
  */
 struct r_rpcb_rmtcallres {
- char *addr;
- struct {
- uint32_t results_len;
- char *results_val;
- } results;
- xdrproc_t xdr_res; /* decodes results */
+	char *addr;
+	struct {
+		uint32_t results_len;
+		char *results_val;
+	} results;
+	xdrproc_t xdr_res; /* decodes results */
 };
 
 /*
@@ -276,14 +272,14 @@ typedef rpcb_entry_list *rpcb_entry_list_ptr;
  * rpcbind statistics
  */
 
-#define	rpcb_highproc_2 RPCBPROC_CALLIT
-#define	rpcb_highproc_3 RPCBPROC_TADDR2UADDR
-#define	rpcb_highproc_4 RPCBPROC_GETSTAT
-#define	RPCBSTAT_HIGHPROC 13
-#define	RPCBVERS_STAT 3
-#define	RPCBVERS_4_STAT 2
-#define	RPCBVERS_3_STAT 1
-#define	RPCBVERS_2_STAT 0
+#define rpcb_highproc_2 RPCBPROC_CALLIT
+#define rpcb_highproc_3 RPCBPROC_TADDR2UADDR
+#define rpcb_highproc_4 RPCBPROC_GETSTAT
+#define RPCBSTAT_HIGHPROC 13
+#define RPCBVERS_STAT 3
+#define RPCBVERS_4_STAT 2
+#define RPCBVERS_3_STAT 1
+#define RPCBVERS_2_STAT 0
 
 /* Link list of all the stats about getport and getaddr */
 
@@ -359,11 +355,11 @@ extern "C" {
  * A mapping of (program, version, network ID) to address
  */
 struct rpcb {
- rpcprog_t r_prog; /* program number */
- rpcvers_t r_vers; /* version number */
- char *r_netid; /* network id */
- char *r_addr; /* universal address */
- char *r_owner; /* owner of the mapping */
+	rpcprog_t r_prog; /* program number */
+	rpcvers_t r_vers; /* version number */
+	char *r_netid;	  /* network id */
+	char *r_addr;	  /* universal address */
+	char *r_owner;	  /* owner of the mapping */
 };
 typedef struct rpcb RPCB;
 
@@ -371,8 +367,8 @@ typedef struct rpcb RPCB;
  * A list of mappings
  */
 struct rpcblist {
- RPCB rpcb_map;
- struct rpcblist *rpcb_next;
+	RPCB rpcb_map;
+	struct rpcblist *rpcb_next;
 };
 typedef struct rpcblist RPCBLIST;
 typedef struct rpcblist *rpcblist_ptr;
@@ -381,12 +377,12 @@ typedef struct rpcblist *rpcblist_ptr;
  * Remote calls arguments
  */
 struct rpcb_rmtcallargs {
- rpcprog_t prog; /* program number */
- rpcvers_t vers; /* version number */
- rpcproc_t proc; /* procedure number */
- uint32_t arglen; /* arg len */
- caddr_t args_ptr; /* argument */
- xdrproc_t xdr_args; /* XDR routine for argument */
+	rpcprog_t prog;	    /* program number */
+	rpcvers_t vers;	    /* version number */
+	rpcproc_t proc;	    /* procedure number */
+	uint32_t arglen;    /* arg len */
+	caddr_t args_ptr;   /* argument */
+	xdrproc_t xdr_args; /* XDR routine for argument */
 };
 typedef struct rpcb_rmtcallargs rpcb_rmtcallargs;
 
@@ -394,19 +390,19 @@ typedef struct rpcb_rmtcallargs rpcb_rmtcallargs;
  * Remote calls results
  */
 struct rpcb_rmtcallres {
- char *addr_ptr; /* remote universal address */
- uint32_t resultslen; /* results length */
- caddr_t results_ptr; /* results */
- xdrproc_t xdr_results; /* XDR routine for result */
+	char *addr_ptr;	       /* remote universal address */
+	uint32_t resultslen;   /* results length */
+	caddr_t results_ptr;   /* results */
+	xdrproc_t xdr_results; /* XDR routine for result */
 };
 typedef struct rpcb_rmtcallres rpcb_rmtcallres;
 
 struct rpcb_entry {
- char *r_maddr;
- char *r_nc_netid;
- unsigned int r_nc_semantics;
- char *r_nc_protofmly;
- char *r_nc_proto;
+	char *r_maddr;
+	char *r_nc_netid;
+	unsigned int r_nc_semantics;
+	char *r_nc_protofmly;
+	char *r_nc_proto;
 };
 typedef struct rpcb_entry rpcb_entry;
 
@@ -415,8 +411,8 @@ typedef struct rpcb_entry rpcb_entry;
  */
 
 struct rpcb_entry_list {
- rpcb_entry rpcb_entry_map;
- struct rpcb_entry_list *rpcb_entry_next;
+	rpcb_entry rpcb_entry_map;
+	struct rpcb_entry_list *rpcb_entry_next;
 };
 typedef struct rpcb_entry_list rpcb_entry_list;
 
@@ -438,26 +434,26 @@ typedef rpcb_entry_list *rpcb_entry_list_ptr;
 /* Link list of all the stats about getport and getaddr */
 
 struct rpcbs_addrlist {
- rpcprog_t prog;
- rpcvers_t vers;
- int success;
- int failure;
- char *netid;
- struct rpcbs_addrlist *next;
+	rpcprog_t prog;
+	rpcvers_t vers;
+	int success;
+	int failure;
+	char *netid;
+	struct rpcbs_addrlist *next;
 };
 typedef struct rpcbs_addrlist rpcbs_addrlist;
 
 /* Link list of all the stats about rmtcall */
 
 struct rpcbs_rmtcalllist {
- rpcprog_t prog;
- rpcvers_t vers;
- rpcproc_t proc;
- int success;
- int failure;
- int indirect;
- char *netid;
- struct rpcbs_rmtcalllist *next;
+	rpcprog_t prog;
+	rpcvers_t vers;
+	rpcproc_t proc;
+	int success;
+	int failure;
+	int indirect;
+	char *netid;
+	struct rpcbs_rmtcalllist *next;
 };
 typedef struct rpcbs_rmtcalllist rpcbs_rmtcalllist;
 
@@ -468,11 +464,11 @@ typedef rpcbs_addrlist *rpcbs_addrlist_ptr;
 typedef rpcbs_rmtcalllist *rpcbs_rmtcalllist_ptr;
 
 struct rpcb_stat {
- rpcbs_proc info;
- int setinfo;
- int unsetinfo;
- rpcbs_addrlist_ptr addrinfo;
- rpcbs_rmtcalllist_ptr rmtinfo;
+	rpcbs_proc info;
+	int setinfo;
+	int unsetinfo;
+	rpcbs_addrlist_ptr addrinfo;
+	rpcbs_rmtcalllist_ptr rmtinfo;
 };
 typedef struct rpcb_stat rpcb_stat;
 
@@ -491,87 +487,91 @@ typedef rpcb_stat rpcb_stat_byvers[RPCBVERS_STAT];
 
 #define _PATH_RPCBINDSOCK "/var/run/rpcbind.sock"
 
-#define	RPCBPROG ((unsigned long)(100000))
-#define	RPCBVERS ((unsigned long)(3))
+#define RPCBPROG ((unsigned long)(100000))
+#define RPCBVERS ((unsigned long)(3))
 
-extern  void rpcbprog_3(struct svc_req *rqstp, SVCXPRT *transp);
-#define	RPCBPROC_SET ((unsigned long)(1))
-extern  bool_t * rpcbproc_set_3(RPCB *, CLIENT *);
-extern  bool_t * rpcbproc_set_3_svc(RPCB *, struct svc_req *);
-#define	RPCBPROC_UNSET ((unsigned long)(2))
-extern  bool_t * rpcbproc_unset_3(RPCB *, CLIENT *);
-extern  bool_t * rpcbproc_unset_3_svc(RPCB *, struct svc_req *);
-#define	RPCBPROC_GETADDR ((unsigned long)(3))
-extern  char ** rpcbproc_getaddr_3(RPCB *, CLIENT *);
-extern  char ** rpcbproc_getaddr_3_svc(RPCB *, struct svc_req *);
-#define	RPCBPROC_DUMP ((unsigned long)(4))
-extern  rpcblist_ptr * rpcbproc_dump_3(void *, CLIENT *);
-extern  rpcblist_ptr * rpcbproc_dump_3_svc(void *, struct svc_req *);
-#define	RPCBPROC_CALLIT ((unsigned long)(5))
-extern  rpcb_rmtcallres * rpcbproc_callit_3(rpcb_rmtcallargs *, CLIENT *);
-extern  rpcb_rmtcallres * rpcbproc_callit_3_svc(rpcb_rmtcallargs *, struct svc_req *);
-#define	RPCBPROC_GETTIME ((unsigned long)(6))
-extern  u_int * rpcbproc_gettime_3(void *, CLIENT *);
-extern  u_int * rpcbproc_gettime_3_svc(void *, struct svc_req *);
-#define	RPCBPROC_UADDR2TADDR ((unsigned long)(7))
-extern  struct netbuf * rpcbproc_uaddr2taddr_3(char **, CLIENT *);
-extern  struct netbuf * rpcbproc_uaddr2taddr_3_svc(char **, struct svc_req *);
-#define	RPCBPROC_TADDR2UADDR ((unsigned long)(8))
-extern  char ** rpcbproc_taddr2uaddr_3(struct netbuf *, CLIENT *);
-extern  char ** rpcbproc_taddr2uaddr_3_svc(struct netbuf *, struct svc_req *);
+extern void rpcbprog_3(struct svc_req *rqstp, SVCXPRT *transp);
+#define RPCBPROC_SET ((unsigned long)(1))
+extern bool_t *rpcbproc_set_3(RPCB *, CLIENT *);
+extern bool_t *rpcbproc_set_3_svc(RPCB *, struct svc_req *);
+#define RPCBPROC_UNSET ((unsigned long)(2))
+extern bool_t *rpcbproc_unset_3(RPCB *, CLIENT *);
+extern bool_t *rpcbproc_unset_3_svc(RPCB *, struct svc_req *);
+#define RPCBPROC_GETADDR ((unsigned long)(3))
+extern char **rpcbproc_getaddr_3(RPCB *, CLIENT *);
+extern char **rpcbproc_getaddr_3_svc(RPCB *, struct svc_req *);
+#define RPCBPROC_DUMP ((unsigned long)(4))
+extern rpcblist_ptr *rpcbproc_dump_3(void *, CLIENT *);
+extern rpcblist_ptr *rpcbproc_dump_3_svc(void *, struct svc_req *);
+#define RPCBPROC_CALLIT ((unsigned long)(5))
+extern rpcb_rmtcallres *rpcbproc_callit_3(rpcb_rmtcallargs *, CLIENT *);
+extern rpcb_rmtcallres *rpcbproc_callit_3_svc(
+    rpcb_rmtcallargs *, struct svc_req *);
+#define RPCBPROC_GETTIME ((unsigned long)(6))
+extern u_int *rpcbproc_gettime_3(void *, CLIENT *);
+extern u_int *rpcbproc_gettime_3_svc(void *, struct svc_req *);
+#define RPCBPROC_UADDR2TADDR ((unsigned long)(7))
+extern struct netbuf *rpcbproc_uaddr2taddr_3(char **, CLIENT *);
+extern struct netbuf *rpcbproc_uaddr2taddr_3_svc(char **, struct svc_req *);
+#define RPCBPROC_TADDR2UADDR ((unsigned long)(8))
+extern char **rpcbproc_taddr2uaddr_3(struct netbuf *, CLIENT *);
+extern char **rpcbproc_taddr2uaddr_3_svc(struct netbuf *, struct svc_req *);
 extern int rpcbprog_3_freeresult(SVCXPRT *, xdrproc_t, caddr_t);
-#define	RPCBVERS4 ((unsigned long)(4))
+#define RPCBVERS4 ((unsigned long)(4))
 
-extern  void rpcbprog_4(struct svc_req *rqstp, SVCXPRT *transp);
-extern  bool_t * rpcbproc_set_4(RPCB *, CLIENT *);
-extern  bool_t * rpcbproc_set_4_svc(RPCB *, struct svc_req *);
-extern  bool_t * rpcbproc_unset_4(RPCB *, CLIENT *);
-extern  bool_t * rpcbproc_unset_4_svc(RPCB *, struct svc_req *);
-extern  char ** rpcbproc_getaddr_4(RPCB *, CLIENT *);
-extern  char ** rpcbproc_getaddr_4_svc(RPCB *, struct svc_req *);
-extern  rpcblist_ptr * rpcbproc_dump_4(void *, CLIENT *);
-extern  rpcblist_ptr * rpcbproc_dump_4_svc(void *, struct svc_req *);
-#define	RPCBPROC_BCAST ((unsigned long)(RPCBPROC_CALLIT))
-extern  rpcb_rmtcallres * rpcbproc_bcast_4(rpcb_rmtcallargs *, CLIENT *);
-extern  rpcb_rmtcallres * rpcbproc_bcast_4_svc(rpcb_rmtcallargs *, struct svc_req *);
-extern  u_int * rpcbproc_gettime_4(void *, CLIENT *);
-extern  u_int * rpcbproc_gettime_4_svc(void *, struct svc_req *);
-extern  struct netbuf * rpcbproc_uaddr2taddr_4(char **, CLIENT *);
-extern  struct netbuf * rpcbproc_uaddr2taddr_4_svc(char **, struct svc_req *);
-extern  char ** rpcbproc_taddr2uaddr_4(struct netbuf *, CLIENT *);
-extern  char ** rpcbproc_taddr2uaddr_4_svc(struct netbuf *, struct svc_req *);
-#define	RPCBPROC_GETVERSADDR ((unsigned long)(9))
-extern  char ** rpcbproc_getversaddr_4(RPCB *, CLIENT *);
-extern  char ** rpcbproc_getversaddr_4_svc(RPCB *, struct svc_req *);
-#define	RPCBPROC_INDIRECT ((unsigned long)(10))
-extern  rpcb_rmtcallres * rpcbproc_indirect_4(rpcb_rmtcallargs *, CLIENT *);
-extern  rpcb_rmtcallres * rpcbproc_indirect_4_svc(rpcb_rmtcallargs *, struct svc_req *);
-#define	RPCBPROC_GETADDRLIST ((unsigned long)(11))
-extern  rpcb_entry_list_ptr * rpcbproc_getaddrlist_4(RPCB *, CLIENT *);
-extern  rpcb_entry_list_ptr * rpcbproc_getaddrlist_4_svc(RPCB *, struct svc_req *);
-#define	RPCBPROC_GETSTAT ((unsigned long)(12))
-extern  rpcb_stat * rpcbproc_getstat_4(void *, CLIENT *);
-extern  rpcb_stat * rpcbproc_getstat_4_svc(void *, struct svc_req *);
+extern void rpcbprog_4(struct svc_req *rqstp, SVCXPRT *transp);
+extern bool_t *rpcbproc_set_4(RPCB *, CLIENT *);
+extern bool_t *rpcbproc_set_4_svc(RPCB *, struct svc_req *);
+extern bool_t *rpcbproc_unset_4(RPCB *, CLIENT *);
+extern bool_t *rpcbproc_unset_4_svc(RPCB *, struct svc_req *);
+extern char **rpcbproc_getaddr_4(RPCB *, CLIENT *);
+extern char **rpcbproc_getaddr_4_svc(RPCB *, struct svc_req *);
+extern rpcblist_ptr *rpcbproc_dump_4(void *, CLIENT *);
+extern rpcblist_ptr *rpcbproc_dump_4_svc(void *, struct svc_req *);
+#define RPCBPROC_BCAST ((unsigned long)(RPCBPROC_CALLIT))
+extern rpcb_rmtcallres *rpcbproc_bcast_4(rpcb_rmtcallargs *, CLIENT *);
+extern rpcb_rmtcallres *rpcbproc_bcast_4_svc(
+    rpcb_rmtcallargs *, struct svc_req *);
+extern u_int *rpcbproc_gettime_4(void *, CLIENT *);
+extern u_int *rpcbproc_gettime_4_svc(void *, struct svc_req *);
+extern struct netbuf *rpcbproc_uaddr2taddr_4(char **, CLIENT *);
+extern struct netbuf *rpcbproc_uaddr2taddr_4_svc(char **, struct svc_req *);
+extern char **rpcbproc_taddr2uaddr_4(struct netbuf *, CLIENT *);
+extern char **rpcbproc_taddr2uaddr_4_svc(struct netbuf *, struct svc_req *);
+#define RPCBPROC_GETVERSADDR ((unsigned long)(9))
+extern char **rpcbproc_getversaddr_4(RPCB *, CLIENT *);
+extern char **rpcbproc_getversaddr_4_svc(RPCB *, struct svc_req *);
+#define RPCBPROC_INDIRECT ((unsigned long)(10))
+extern rpcb_rmtcallres *rpcbproc_indirect_4(rpcb_rmtcallargs *, CLIENT *);
+extern rpcb_rmtcallres *rpcbproc_indirect_4_svc(
+    rpcb_rmtcallargs *, struct svc_req *);
+#define RPCBPROC_GETADDRLIST ((unsigned long)(11))
+extern rpcb_entry_list_ptr *rpcbproc_getaddrlist_4(RPCB *, CLIENT *);
+extern rpcb_entry_list_ptr *rpcbproc_getaddrlist_4_svc(
+    RPCB *, struct svc_req *);
+#define RPCBPROC_GETSTAT ((unsigned long)(12))
+extern rpcb_stat *rpcbproc_getstat_4(void *, CLIENT *);
+extern rpcb_stat *rpcbproc_getstat_4_svc(void *, struct svc_req *);
 extern int rpcbprog_4_freeresult(SVCXPRT *, xdrproc_t, caddr_t);
 
 /* the xdr functions */
-extern  bool_t xdr_rpcb(XDR *, RPCB *);
+extern bool_t xdr_rpcb(XDR *, RPCB *);
 #ifndef _KERNEL
-extern  bool_t xdr_rp__list(XDR *, rp__list*);
+extern bool_t xdr_rp__list(XDR *, rp__list *);
 #endif
-extern  bool_t xdr_rpcblist_ptr(XDR *, rpcblist_ptr*);
-extern  bool_t xdr_rpcb_rmtcallargs(XDR *, rpcb_rmtcallargs*);
-extern  bool_t xdr_rpcb_rmtcallres(XDR *, rpcb_rmtcallres*);
-extern  bool_t xdr_rpcb_entry(XDR *, rpcb_entry*);
-extern  bool_t xdr_rpcb_entry_list(XDR *, rpcb_entry_list*);
-extern  bool_t xdr_rpcb_entry_list_ptr(XDR *, rpcb_entry_list_ptr*);
-extern  bool_t xdr_rpcbs_addrlist(XDR *, rpcbs_addrlist*);
-extern  bool_t xdr_rpcbs_rmtcalllist(XDR *, rpcbs_rmtcalllist*);
-extern  bool_t xdr_rpcbs_proc(XDR *, rpcbs_proc);
-extern  bool_t xdr_rpcbs_addrlist_ptr(XDR *, rpcbs_addrlist_ptr*);
-extern  bool_t xdr_rpcbs_rmtcalllist_ptr(XDR *, rpcbs_rmtcalllist_ptr*);
-extern  bool_t xdr_rpcb_stat(XDR *, rpcb_stat*);
-extern  bool_t xdr_rpcb_stat_byvers(XDR *, rpcb_stat_byvers);
+extern bool_t xdr_rpcblist_ptr(XDR *, rpcblist_ptr *);
+extern bool_t xdr_rpcb_rmtcallargs(XDR *, rpcb_rmtcallargs *);
+extern bool_t xdr_rpcb_rmtcallres(XDR *, rpcb_rmtcallres *);
+extern bool_t xdr_rpcb_entry(XDR *, rpcb_entry *);
+extern bool_t xdr_rpcb_entry_list(XDR *, rpcb_entry_list *);
+extern bool_t xdr_rpcb_entry_list_ptr(XDR *, rpcb_entry_list_ptr *);
+extern bool_t xdr_rpcbs_addrlist(XDR *, rpcbs_addrlist *);
+extern bool_t xdr_rpcbs_rmtcalllist(XDR *, rpcbs_rmtcalllist *);
+extern bool_t xdr_rpcbs_proc(XDR *, rpcbs_proc);
+extern bool_t xdr_rpcbs_addrlist_ptr(XDR *, rpcbs_addrlist_ptr *);
+extern bool_t xdr_rpcbs_rmtcalllist_ptr(XDR *, rpcbs_rmtcalllist_ptr *);
+extern bool_t xdr_rpcb_stat(XDR *, rpcb_stat *);
+extern bool_t xdr_rpcb_stat_byvers(XDR *, rpcb_stat_byvers);
 
 #ifdef __cplusplus
 }

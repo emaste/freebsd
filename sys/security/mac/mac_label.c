@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
 #include <vm/uma.h>
 
@@ -52,18 +52,18 @@ __FBSDID("$FreeBSD$");
  * slot on first use, even if the policy is loaded after the label is
  * allocated for an object.
  */
-static uma_zone_t	zone_label;
+static uma_zone_t zone_label;
 
-static int	mac_labelzone_ctor(void *mem, int size, void *arg, int flags);
-static void	mac_labelzone_dtor(void *mem, int size, void *arg);
+static int mac_labelzone_ctor(void *mem, int size, void *arg, int flags);
+static void mac_labelzone_dtor(void *mem, int size, void *arg);
 
 void
 mac_labelzone_init(void)
 {
 
 	zone_label = uma_zcreate("MAC labels", sizeof(struct label),
-	    mac_labelzone_ctor, mac_labelzone_dtor, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
+	    mac_labelzone_ctor, mac_labelzone_dtor, NULL, NULL, UMA_ALIGN_PTR,
+	    0);
 }
 
 /*

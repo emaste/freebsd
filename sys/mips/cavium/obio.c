@@ -49,23 +49,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
-#include <sys/malloc.h>
 
 #include <machine/bus.h>
 
-#include <mips/cavium/octeon_pcmap_regs.h>
-#include <mips/cavium/obiovar.h>
-
 #include <contrib/octeon-sdk/cvmx.h>
+#include <mips/cavium/obiovar.h>
 #include <mips/cavium/octeon_irq.h>
+#include <mips/cavium/octeon_pcmap_regs.h>
 
 extern struct bus_space octeon_uart_tag;
 
-static void	obio_identify(driver_t *, device_t);
-static int	obio_probe(device_t);
-static int	obio_attach(device_t);
+static void obio_identify(driver_t *, device_t);
+static int obio_probe(device_t);
+static int obio_attach(device_t);
 
 static void
 obio_identify(driver_t *drv, device_t parent)
@@ -98,22 +97,24 @@ obio_attach(device_t dev)
 	sc->oba_rman.rm_type = RMAN_ARRAY;
 	sc->oba_rman.rm_descr = "OBIO I/O";
 	if (rman_init(&sc->oba_rman) != 0 ||
-	    rman_manage_region(&sc->oba_rman,
-	    sc->oba_addr, sc->oba_addr + sc->oba_size) != 0)
+	    rman_manage_region(
+		&sc->oba_rman, sc->oba_addr, sc->oba_addr + sc->oba_size) != 0)
 		panic("obio_attach: failed to set up I/O rman");
 	sc->oba_irq_rman.rm_type = RMAN_ARRAY;
 	sc->oba_irq_rman.rm_descr = "OBIO IRQ";
 
-	/* 
+	/*
 	 * This module is intended for UART purposes only and
 	 * manages IRQs for UART0 and UART1.
 	 */
 	if (rman_init(&sc->oba_irq_rman) != 0 ||
-	    rman_manage_region(&sc->oba_irq_rman, OCTEON_IRQ_UART0, OCTEON_IRQ_UART1) != 0)
+	    rman_manage_region(
+		&sc->oba_irq_rman, OCTEON_IRQ_UART0, OCTEON_IRQ_UART1) != 0)
 		panic("obio_attach: failed to set up IRQ rman");
 
-	device_add_child(dev, "uart", 1);  /* Setup Uart-1 first. */
-	device_add_child(dev, "uart", 0);  /* Uart-0 next. So it is first in console list */
+	device_add_child(dev, "uart", 1); /* Setup Uart-1 first. */
+	device_add_child(
+	    dev, "uart", 0); /* Uart-0 next. So it is first in console list */
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 	return (0);
@@ -156,12 +157,12 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == NULL)  {
+	if (rv == NULL) {
 		return (NULL);
-        }
+	}
 	if (type == SYS_RES_IRQ) {
 		return (rv);
-        }
+	}
 	rman_set_rid(rv, *rid);
 	rman_set_bustag(rv, bt);
 	rman_set_bushandle(rv, bh);
@@ -173,30 +174,29 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		}
 	}
 	return (rv);
-
 }
 
 static int
-obio_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+obio_activate_resource(
+    device_t bus, device_t child, int type, int rid, struct resource *r)
 {
 	return (0);
 }
 static device_method_t obio_methods[] = {
 	/* Device methods */
-	DEVMETHOD(device_identify,	obio_identify),
-	DEVMETHOD(device_probe,		obio_probe),
-	DEVMETHOD(device_attach,	obio_attach),
+	DEVMETHOD(device_identify, obio_identify),
+	DEVMETHOD(device_probe, obio_probe),
+	DEVMETHOD(device_attach, obio_attach),
 
 	/* Bus methods */
-	DEVMETHOD(bus_alloc_resource,	obio_alloc_resource),
-	DEVMETHOD(bus_activate_resource,obio_activate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_alloc_resource, obio_alloc_resource),
+	DEVMETHOD(bus_activate_resource, obio_activate_resource),
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
 
-	DEVMETHOD(bus_add_child,	bus_generic_add_child),
+	DEVMETHOD(bus_add_child, bus_generic_add_child),
 
-	{0, 0},
+	{ 0, 0 },
 };
 
 static driver_t obio_driver = {

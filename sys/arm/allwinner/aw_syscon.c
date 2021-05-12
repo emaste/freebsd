@@ -38,23 +38,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
-#include <machine/bus.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
+#include <machine/bus.h>
 
 #include <dev/extres/syscon/syscon.h>
 #include <dev/extres/syscon/syscon_generic.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 static struct ofw_compat_data compat_data[] = {
-	{"allwinner,sun50i-a64-system-controller", 1},
-	{"allwinner,sun50i-a64-system-control", 1},
-	{"allwinner,sun8i-a83t-system-controller", 1},
-	{"allwinner,sun8i-h3-system-controller", 1},
-	{"allwinner,sun8i-h3-system-control", 1},
-	{"allwinner,sun50i-h5-system-control", 1},
-	{NULL,             0}
+	{ "allwinner,sun50i-a64-system-controller", 1 },
+	{ "allwinner,sun50i-a64-system-control", 1 },
+	{ "allwinner,sun8i-a83t-system-controller", 1 },
+	{ "allwinner,sun8i-h3-system-controller", 1 },
+	{ "allwinner,sun8i-h3-system-control", 1 },
+	{ "allwinner,sun50i-h5-system-control", 1 }, { NULL, 0 }
 };
 
 static int
@@ -70,11 +69,10 @@ aw_syscon_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-static device_method_t aw_syscon_methods[] = {
-	DEVMETHOD(device_probe, aw_syscon_probe),
+static device_method_t aw_syscon_methods[] = { DEVMETHOD(device_probe,
+						   aw_syscon_probe),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 DEFINE_CLASS_1(aw_syscon, aw_syscon_driver, aw_syscon_methods,
     sizeof(struct syscon_generic_softc), syscon_generic_driver);

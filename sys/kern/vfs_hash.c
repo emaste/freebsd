@@ -40,9 +40,9 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_VFS_HASH, "vfs_hash", "VFS hash table");
 
-static LIST_HEAD(vfs_hash_head, vnode)	*vfs_hash_tbl;
-static LIST_HEAD(,vnode)		vfs_hash_side;
-static u_long				vfs_hash_mask;
+static LIST_HEAD(vfs_hash_head, vnode) *vfs_hash_tbl;
+static LIST_HEAD(, vnode) vfs_hash_side;
+static u_long vfs_hash_mask;
 static struct rwlock __exclusive_cache_line vfs_hash_lock;
 
 static void
@@ -81,7 +81,7 @@ vfs_hash_get(const struct mount *mp, u_int hash, int flags, struct thread *td,
 
 	while (1) {
 		rw_rlock(&vfs_hash_lock);
-		LIST_FOREACH(vp, vfs_hash_bucket(mp, hash), v_hashlist) {
+		LIST_FOREACH (vp, vfs_hash_bucket(mp, hash), v_hashlist) {
 			if (vp->v_hash != hash)
 				continue;
 			if (vp->v_mount != mp)
@@ -114,7 +114,7 @@ vfs_hash_ref(const struct mount *mp, u_int hash, struct thread *td,
 
 	while (1) {
 		rw_rlock(&vfs_hash_lock);
-		LIST_FOREACH(vp, vfs_hash_bucket(mp, hash), v_hashlist) {
+		LIST_FOREACH (vp, vfs_hash_bucket(mp, hash), v_hashlist) {
 			if (vp->v_hash != hash)
 				continue;
 			if (vp->v_mount != mp)
@@ -156,8 +156,8 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td,
 	*vpp = NULL;
 	while (1) {
 		rw_wlock(&vfs_hash_lock);
-		LIST_FOREACH(vp2,
-		    vfs_hash_bucket(vp->v_mount, hash), v_hashlist) {
+		LIST_FOREACH (
+		    vp2, vfs_hash_bucket(vp->v_mount, hash), v_hashlist) {
 			if (vp2->v_hash != hash)
 				continue;
 			if (vp2->v_mount != vp->v_mount)
@@ -206,8 +206,7 @@ vfs_hash_changesize(u_long newmaxvnodes)
 	struct vnode *vp;
 	int i;
 
-	vfs_hash_newtbl = hashinit(newmaxvnodes, M_VFS_HASH,
-		&vfs_hash_newmask);
+	vfs_hash_newtbl = hashinit(newmaxvnodes, M_VFS_HASH, &vfs_hash_newmask);
 	/* If same hash table size, nothing to do */
 	if (vfs_hash_mask == vfs_hash_newmask) {
 		free(vfs_hash_newtbl, M_VFS_HASH);
@@ -227,8 +226,8 @@ vfs_hash_changesize(u_long newmaxvnodes)
 		while ((vp = LIST_FIRST(&vfs_hash_oldtbl[i])) != NULL) {
 			LIST_REMOVE(vp, v_hashlist);
 			LIST_INSERT_HEAD(
-			    vfs_hash_bucket(vp->v_mount, vp->v_hash),
-			    vp, v_hashlist);
+			    vfs_hash_bucket(vp->v_mount, vp->v_hash), vp,
+			    v_hashlist);
 		}
 	}
 	rw_wunlock(&vfs_hash_lock);

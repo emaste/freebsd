@@ -30,7 +30,7 @@
  *
  */
 
-/* 
+/*
  *
  * This file includes definitions, structures, prototypes, and inlines used
  * when debugging users of the UMA interface.

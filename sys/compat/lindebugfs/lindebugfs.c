@@ -31,8 +31,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/queue.h>
 #include <sys/blist.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/exec.h>
 #include <sys/filedesc.h>
@@ -41,37 +41,36 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/pciio.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/vnode.h>
-#include <sys/bus.h>
-#include <sys/pciio.h>
-
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
-
-#include <net/if.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <vm/vm_param.h>
-#include <vm/vm_object.h>
 #include <vm/swap_pager.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
+#include <vm/vm_param.h>
 
 #include <machine/bus.h>
+
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
+#include <net/if.h>
 
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 #include <fs/pseudofs/pseudofs.h>
-
+#include <linux/compat.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#include <linux/compat.h>
 
 MALLOC_DEFINE(M_DFSINT, "debugfsint", "Linux debugfs internal");
 
@@ -89,8 +88,7 @@ struct dentry_meta {
 	int dm_type;
 };
 
-static int
-debugfs_attr(PFS_ATTR_ARGS)
+static int debugfs_attr(PFS_ATTR_ARGS)
 {
 	struct dentry_meta *dm;
 
@@ -100,8 +98,7 @@ debugfs_attr(PFS_ATTR_ARGS)
 	return (0);
 }
 
-static int
-debugfs_destroy(PFS_DESTROY_ARGS)
+static int debugfs_destroy(PFS_DESTROY_ARGS)
 {
 	struct dentry_meta *dm;
 
@@ -113,8 +110,7 @@ debugfs_destroy(PFS_DESTROY_ARGS)
 	return (0);
 }
 
-static int
-debugfs_fill(PFS_FILL_ARGS)
+static int debugfs_fill(PFS_FILL_ARGS)
 {
 	struct dentry_meta *d;
 	struct linux_file lf;
@@ -137,7 +133,8 @@ debugfs_fill(PFS_FILL_ARGS)
 	rc = d->dm_fops->open(&vn, &lf);
 	if (rc < 0) {
 #ifdef INVARIANTS
-		printf("%s:%d open failed with %d\n", __FUNCTION__, __LINE__, rc);
+		printf(
+		    "%s:%d open failed with %d\n", __FUNCTION__, __LINE__, rc);
 #endif
 		return (-rc);
 	}
@@ -161,15 +158,15 @@ debugfs_fill(PFS_FILL_ARGS)
 
 	if (rc < 0) {
 #ifdef INVARIANTS
-		printf("%s:%d read/write failed with %d\n", __FUNCTION__, __LINE__, rc);
+		printf("%s:%d read/write failed with %d\n", __FUNCTION__,
+		    __LINE__, rc);
 #endif
 		return (-rc);
 	}
 	return (0);
 }
 
-static int
-debugfs_fill_data(PFS_FILL_ARGS)
+static int debugfs_fill_data(PFS_FILL_ARGS)
 {
 	struct dentry_meta *dm;
 
@@ -179,9 +176,8 @@ debugfs_fill_data(PFS_FILL_ARGS)
 }
 
 struct dentry *
-debugfs_create_file(const char *name, umode_t mode,
-		    struct dentry *parent, void *data,
-		    const struct file_operations *fops)
+debugfs_create_file(const char *name, umode_t mode, struct dentry *parent,
+    void *data, const struct file_operations *fops)
 {
 	struct dentry_meta *dm;
 	struct dentry *dnode;
@@ -231,7 +227,8 @@ debugfs_create_dir(const char *name, struct dentry *parent)
 	else
 		pnode = debugfs_root;
 
-	dnode->d_pfs_node = pfs_create_dir(pnode, name, debugfs_attr, NULL, debugfs_destroy, PFS_RD | PFS_NOWAIT);
+	dnode->d_pfs_node = pfs_create_dir(pnode, name, debugfs_attr, NULL,
+	    debugfs_destroy, PFS_RD | PFS_NOWAIT);
 	if (dnode->d_pfs_node == NULL) {
 		free(dm, M_DFSINT);
 		return (NULL);
@@ -241,8 +238,8 @@ debugfs_create_dir(const char *name, struct dentry *parent)
 }
 
 struct dentry *
-debugfs_create_symlink(const char *name, struct dentry *parent,
-	const char *dest)
+debugfs_create_symlink(
+    const char *name, struct dentry *parent, const char *dest)
 {
 	struct dentry_meta *dm;
 	struct dentry *dnode;
@@ -264,14 +261,15 @@ debugfs_create_symlink(const char *name, struct dentry *parent,
 	else
 		pnode = debugfs_root;
 
-	dnode->d_pfs_node = pfs_create_link(pnode, name, &debugfs_fill_data, NULL, NULL, NULL, PFS_NOWAIT);
+	dnode->d_pfs_node = pfs_create_link(
+	    pnode, name, &debugfs_fill_data, NULL, NULL, NULL, PFS_NOWAIT);
 	if (dnode->d_pfs_node == NULL)
 		goto fail;
 	dnode->d_pfs_node->pn_data = dm;
 	return (dnode);
- fail:
+fail:
 	free(dm, M_DFSINT);
- fail1:
+fail1:
 	free(data, M_DFSINT);
 	return (NULL);
 }
@@ -294,8 +292,7 @@ debugfs_remove_recursive(struct dentry *dnode)
 	pfs_destroy(dnode->d_pfs_node);
 }
 
-static int
-debugfs_init(PFS_INIT_ARGS)
+static int debugfs_init(PFS_INIT_ARGS)
 {
 
 	debugfs_root = pi->pi_root;
@@ -305,8 +302,7 @@ debugfs_init(PFS_INIT_ARGS)
 	return (0);
 }
 
-static int
-debugfs_uninit(PFS_INIT_ARGS)
+static int debugfs_uninit(PFS_INIT_ARGS)
 {
 	return (0);
 }

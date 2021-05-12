@@ -27,7 +27,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * from: FreeBSD: //depot/projects/arm/src/sys/arm/xscale/pxa2x0/pxa2x0_icu.c, rev 1
+ * from: FreeBSD: //depot/projects/arm/src/sys/arm/xscale/pxa2x0/pxa2x0_icu.c,
+ * rev 1
  */
 
 #include <sys/cdefs.h>
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/module.h>
 #include <sys/rman.h>
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 
@@ -50,33 +52,31 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvvar.h>
 
 struct mv_ic_softc {
-	struct resource	*	ic_res[1];
-	bus_space_tag_t		ic_bst;
-	bus_space_handle_t	ic_bsh;
-	int			ic_high_regs;
-	int			ic_error_regs;
+	struct resource *ic_res[1];
+	bus_space_tag_t ic_bst;
+	bus_space_handle_t ic_bsh;
+	int ic_high_regs;
+	int ic_error_regs;
 };
 
-static struct resource_spec mv_ic_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec mv_ic_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 static struct mv_ic_softc *mv_ic_sc = NULL;
 
-static int	mv_ic_probe(device_t);
-static int	mv_ic_attach(device_t);
+static int mv_ic_probe(device_t);
+static int mv_ic_attach(device_t);
 
-uint32_t	mv_ic_get_cause(void);
-uint32_t	mv_ic_get_mask(void);
-void		mv_ic_set_mask(uint32_t);
-uint32_t	mv_ic_get_cause_hi(void);
-uint32_t	mv_ic_get_mask_hi(void);
-void		mv_ic_set_mask_hi(uint32_t);
-uint32_t	mv_ic_get_cause_error(void);
-uint32_t	mv_ic_get_mask_error(void);
-void		mv_ic_set_mask_error(uint32_t);
-static void	arm_mask_irq_all(void);
+uint32_t mv_ic_get_cause(void);
+uint32_t mv_ic_get_mask(void);
+void mv_ic_set_mask(uint32_t);
+uint32_t mv_ic_get_cause_hi(void);
+uint32_t mv_ic_get_mask_hi(void);
+void mv_ic_set_mask_hi(uint32_t);
+uint32_t mv_ic_get_cause_error(void);
+uint32_t mv_ic_get_mask_error(void);
+void mv_ic_set_mask_error(uint32_t);
+static void arm_mask_irq_all(void);
 
 static int
 mv_ic_probe(device_t dev)
@@ -110,10 +110,8 @@ mv_ic_attach(device_t dev)
 	sc->ic_high_regs = 0;
 	sc->ic_error_regs = 0;
 
-	if (dev_id == MV_DEV_88F6281 ||
-	    dev_id == MV_DEV_88F6282 ||
-	    dev_id == MV_DEV_MV78100 ||
-	    dev_id == MV_DEV_MV78100_Z0)
+	if (dev_id == MV_DEV_88F6281 || dev_id == MV_DEV_88F6282 ||
+	    dev_id == MV_DEV_MV78100 || dev_id == MV_DEV_MV78100_Z0)
 		sc->ic_high_regs = 1;
 
 	if (dev_id == MV_DEV_MV78100 || dev_id == MV_DEV_MV78100_Z0)
@@ -134,11 +132,8 @@ mv_ic_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t mv_ic_methods[] = {
-	DEVMETHOD(device_probe,		mv_ic_probe),
-	DEVMETHOD(device_attach,	mv_ic_attach),
-	{ 0, 0 }
-};
+static device_method_t mv_ic_methods[] = { DEVMETHOD(device_probe, mv_ic_probe),
+	DEVMETHOD(device_attach, mv_ic_attach), { 0, 0 } };
 
 static driver_t mv_ic_driver = {
 	"ic",
@@ -180,7 +175,7 @@ arm_get_next_irq(int last)
 	}
 	next = -1;
 
- out:
+out:
 	CTR3(KTR_INTR, "%s: last=%d, next=%d", __func__, last, next);
 	return (next);
 }
@@ -201,7 +196,7 @@ arm_mask_irq_all(void)
 void
 arm_mask_irq(uintptr_t nb)
 {
-	uint32_t	mr;
+	uint32_t mr;
 
 	if (nb < 32) {
 		mr = mv_ic_get_mask();
@@ -223,7 +218,7 @@ arm_mask_irq(uintptr_t nb)
 void
 arm_unmask_irq(uintptr_t nb)
 {
-	uint32_t	mr;
+	uint32_t mr;
 
 	if (nb < 32) {
 		mr = mv_ic_get_mask();
@@ -246,70 +241,67 @@ void
 mv_ic_set_mask(uint32_t val)
 {
 
-	bus_space_write_4(mv_ic_sc->ic_bst, mv_ic_sc->ic_bsh,
-	    IRQ_MASK, val);
+	bus_space_write_4(mv_ic_sc->ic_bst, mv_ic_sc->ic_bsh, IRQ_MASK, val);
 }
 
 uint32_t
 mv_ic_get_mask(void)
 {
 
-	return (bus_space_read_4(mv_ic_sc->ic_bst,
-	    mv_ic_sc->ic_bsh, IRQ_MASK));
+	return (bus_space_read_4(mv_ic_sc->ic_bst, mv_ic_sc->ic_bsh, IRQ_MASK));
 }
 
 uint32_t
 mv_ic_get_cause(void)
 {
 
-	return (bus_space_read_4(mv_ic_sc->ic_bst,
-	    mv_ic_sc->ic_bsh, IRQ_CAUSE));
+	return (
+	    bus_space_read_4(mv_ic_sc->ic_bst, mv_ic_sc->ic_bsh, IRQ_CAUSE));
 }
 
 void
 mv_ic_set_mask_hi(uint32_t val)
 {
 
-	bus_space_write_4(mv_ic_sc->ic_bst, mv_ic_sc->ic_bsh,
-	    IRQ_MASK_HI, val);
+	bus_space_write_4(mv_ic_sc->ic_bst, mv_ic_sc->ic_bsh, IRQ_MASK_HI, val);
 }
 
 uint32_t
 mv_ic_get_mask_hi(void)
 {
 
-	return (bus_space_read_4(mv_ic_sc->ic_bst,
-	    mv_ic_sc->ic_bsh, IRQ_MASK_HI));
+	return (
+	    bus_space_read_4(mv_ic_sc->ic_bst, mv_ic_sc->ic_bsh, IRQ_MASK_HI));
 }
 
 uint32_t
 mv_ic_get_cause_hi(void)
 {
 
-	return (bus_space_read_4(mv_ic_sc->ic_bst,
-	    mv_ic_sc->ic_bsh, IRQ_CAUSE_HI));
+	return (
+	    bus_space_read_4(mv_ic_sc->ic_bst, mv_ic_sc->ic_bsh, IRQ_CAUSE_HI));
 }
 
 void
 mv_ic_set_mask_error(uint32_t val)
 {
 
-	bus_space_write_4(mv_ic_sc->ic_bst, mv_ic_sc->ic_bsh,
-	    IRQ_MASK_ERROR, val);
+	bus_space_write_4(
+	    mv_ic_sc->ic_bst, mv_ic_sc->ic_bsh, IRQ_MASK_ERROR, val);
 }
 
 uint32_t
 mv_ic_get_mask_error(void)
 {
 
-	return (bus_space_read_4(mv_ic_sc->ic_bst,
-	    mv_ic_sc->ic_bsh, IRQ_MASK_ERROR));
+	return (bus_space_read_4(
+	    mv_ic_sc->ic_bst, mv_ic_sc->ic_bsh, IRQ_MASK_ERROR));
 }
 
 uint32_t
 mv_ic_get_cause_error(void)
 {
 
-	return (bus_space_read_4(mv_ic_sc->ic_bst,
-	    mv_ic_sc->ic_bsh, IRQ_CAUSE_ERROR));
+	return (bus_space_read_4(
+	    mv_ic_sc->ic_bst, mv_ic_sc->ic_bsh, IRQ_CAUSE_ERROR));
 }

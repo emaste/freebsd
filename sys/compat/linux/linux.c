@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <opt_inet6.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -39,101 +37,101 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/un.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-
-#include <sys/un.h>
+#include <net/if_var.h>
 #include <netinet/in.h>
 
 #include <compat/linux/linux.h>
 #include <compat/linux/linux_common.h>
 #include <compat/linux/linux_util.h>
+#include <opt_inet6.h>
 
 struct futex_list futex_list;
-struct mtx futex_mtx;			/* protects the futex list */
+struct mtx futex_mtx; /* protects the futex list */
 
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
 
 static int bsd_to_linux_sigtbl[LINUX_SIGTBLSZ] = {
-	LINUX_SIGHUP,	/* SIGHUP */
-	LINUX_SIGINT,	/* SIGINT */
-	LINUX_SIGQUIT,	/* SIGQUIT */
-	LINUX_SIGILL,	/* SIGILL */
-	LINUX_SIGTRAP,	/* SIGTRAP */
-	LINUX_SIGABRT,	/* SIGABRT */
-	0,		/* SIGEMT */
-	LINUX_SIGFPE,	/* SIGFPE */
-	LINUX_SIGKILL,	/* SIGKILL */
-	LINUX_SIGBUS,	/* SIGBUS */
-	LINUX_SIGSEGV,	/* SIGSEGV */
-	LINUX_SIGSYS,	/* SIGSYS */
-	LINUX_SIGPIPE,	/* SIGPIPE */
-	LINUX_SIGALRM,	/* SIGALRM */
-	LINUX_SIGTERM,	/* SIGTERM */
-	LINUX_SIGURG,	/* SIGURG */
-	LINUX_SIGSTOP,	/* SIGSTOP */
-	LINUX_SIGTSTP,	/* SIGTSTP */
-	LINUX_SIGCONT,	/* SIGCONT */
-	LINUX_SIGCHLD,	/* SIGCHLD */
-	LINUX_SIGTTIN,	/* SIGTTIN */
-	LINUX_SIGTTOU,	/* SIGTTOU */
-	LINUX_SIGIO,	/* SIGIO */
-	LINUX_SIGXCPU,	/* SIGXCPU */
-	LINUX_SIGXFSZ,	/* SIGXFSZ */
-	LINUX_SIGVTALRM,/* SIGVTALRM */
-	LINUX_SIGPROF,	/* SIGPROF */
-	LINUX_SIGWINCH,	/* SIGWINCH */
-	0,		/* SIGINFO */
-	LINUX_SIGUSR1,	/* SIGUSR1 */
-	LINUX_SIGUSR2	/* SIGUSR2 */
+	LINUX_SIGHUP,	 /* SIGHUP */
+	LINUX_SIGINT,	 /* SIGINT */
+	LINUX_SIGQUIT,	 /* SIGQUIT */
+	LINUX_SIGILL,	 /* SIGILL */
+	LINUX_SIGTRAP,	 /* SIGTRAP */
+	LINUX_SIGABRT,	 /* SIGABRT */
+	0,		 /* SIGEMT */
+	LINUX_SIGFPE,	 /* SIGFPE */
+	LINUX_SIGKILL,	 /* SIGKILL */
+	LINUX_SIGBUS,	 /* SIGBUS */
+	LINUX_SIGSEGV,	 /* SIGSEGV */
+	LINUX_SIGSYS,	 /* SIGSYS */
+	LINUX_SIGPIPE,	 /* SIGPIPE */
+	LINUX_SIGALRM,	 /* SIGALRM */
+	LINUX_SIGTERM,	 /* SIGTERM */
+	LINUX_SIGURG,	 /* SIGURG */
+	LINUX_SIGSTOP,	 /* SIGSTOP */
+	LINUX_SIGTSTP,	 /* SIGTSTP */
+	LINUX_SIGCONT,	 /* SIGCONT */
+	LINUX_SIGCHLD,	 /* SIGCHLD */
+	LINUX_SIGTTIN,	 /* SIGTTIN */
+	LINUX_SIGTTOU,	 /* SIGTTOU */
+	LINUX_SIGIO,	 /* SIGIO */
+	LINUX_SIGXCPU,	 /* SIGXCPU */
+	LINUX_SIGXFSZ,	 /* SIGXFSZ */
+	LINUX_SIGVTALRM, /* SIGVTALRM */
+	LINUX_SIGPROF,	 /* SIGPROF */
+	LINUX_SIGWINCH,	 /* SIGWINCH */
+	0,		 /* SIGINFO */
+	LINUX_SIGUSR1,	 /* SIGUSR1 */
+	LINUX_SIGUSR2	 /* SIGUSR2 */
 };
 
 static int linux_to_bsd_sigtbl[LINUX_SIGTBLSZ] = {
-	SIGHUP,		/* LINUX_SIGHUP */
-	SIGINT,		/* LINUX_SIGINT */
-	SIGQUIT,	/* LINUX_SIGQUIT */
-	SIGILL,		/* LINUX_SIGILL */
-	SIGTRAP,	/* LINUX_SIGTRAP */
-	SIGABRT,	/* LINUX_SIGABRT */
-	SIGBUS,		/* LINUX_SIGBUS */
-	SIGFPE,		/* LINUX_SIGFPE */
-	SIGKILL,	/* LINUX_SIGKILL */
-	SIGUSR1,	/* LINUX_SIGUSR1 */
-	SIGSEGV,	/* LINUX_SIGSEGV */
-	SIGUSR2,	/* LINUX_SIGUSR2 */
-	SIGPIPE,	/* LINUX_SIGPIPE */
-	SIGALRM,	/* LINUX_SIGALRM */
-	SIGTERM,	/* LINUX_SIGTERM */
-	SIGBUS,		/* LINUX_SIGSTKFLT */
-	SIGCHLD,	/* LINUX_SIGCHLD */
-	SIGCONT,	/* LINUX_SIGCONT */
-	SIGSTOP,	/* LINUX_SIGSTOP */
-	SIGTSTP,	/* LINUX_SIGTSTP */
-	SIGTTIN,	/* LINUX_SIGTTIN */
-	SIGTTOU,	/* LINUX_SIGTTOU */
-	SIGURG,		/* LINUX_SIGURG */
-	SIGXCPU,	/* LINUX_SIGXCPU */
-	SIGXFSZ,	/* LINUX_SIGXFSZ */
-	SIGVTALRM,	/* LINUX_SIGVTALARM */
-	SIGPROF,	/* LINUX_SIGPROF */
-	SIGWINCH,	/* LINUX_SIGWINCH */
-	SIGIO,		/* LINUX_SIGIO */
+	SIGHUP,	   /* LINUX_SIGHUP */
+	SIGINT,	   /* LINUX_SIGINT */
+	SIGQUIT,   /* LINUX_SIGQUIT */
+	SIGILL,	   /* LINUX_SIGILL */
+	SIGTRAP,   /* LINUX_SIGTRAP */
+	SIGABRT,   /* LINUX_SIGABRT */
+	SIGBUS,	   /* LINUX_SIGBUS */
+	SIGFPE,	   /* LINUX_SIGFPE */
+	SIGKILL,   /* LINUX_SIGKILL */
+	SIGUSR1,   /* LINUX_SIGUSR1 */
+	SIGSEGV,   /* LINUX_SIGSEGV */
+	SIGUSR2,   /* LINUX_SIGUSR2 */
+	SIGPIPE,   /* LINUX_SIGPIPE */
+	SIGALRM,   /* LINUX_SIGALRM */
+	SIGTERM,   /* LINUX_SIGTERM */
+	SIGBUS,	   /* LINUX_SIGSTKFLT */
+	SIGCHLD,   /* LINUX_SIGCHLD */
+	SIGCONT,   /* LINUX_SIGCONT */
+	SIGSTOP,   /* LINUX_SIGSTOP */
+	SIGTSTP,   /* LINUX_SIGTSTP */
+	SIGTTIN,   /* LINUX_SIGTTIN */
+	SIGTTOU,   /* LINUX_SIGTTOU */
+	SIGURG,	   /* LINUX_SIGURG */
+	SIGXCPU,   /* LINUX_SIGXCPU */
+	SIGXFSZ,   /* LINUX_SIGXFSZ */
+	SIGVTALRM, /* LINUX_SIGVTALARM */
+	SIGPROF,   /* LINUX_SIGPROF */
+	SIGWINCH,  /* LINUX_SIGWINCH */
+	SIGIO,	   /* LINUX_SIGIO */
 	/*
 	 * FreeBSD does not have SIGPWR signal, map Linux SIGPWR signal
 	 * to the first unused FreeBSD signal number. Since Linux supports
 	 * signals from 1 to 64 we are ok here as our SIGRTMIN = 65.
 	 */
-	SIGRTMIN,	/* LINUX_SIGPWR */
-	SIGSYS		/* LINUX_SIGSYS */
+	SIGRTMIN, /* LINUX_SIGPWR */
+	SIGSYS	  /* LINUX_SIGSYS */
 };
 
 static struct cdev *dev_shm_cdev;
 static struct cdevsw dev_shm_cdevsw = {
-     .d_version = D_VERSION,
-     .d_name    = "dev_shm",
+	.d_version = D_VERSION,
+	.d_name = "dev_shm",
 };
 
 /*
@@ -157,7 +155,8 @@ int
 linux_to_bsd_signal(int sig)
 {
 
-	KASSERT(sig > 0 && sig <= LINUX_SIGRTMAX, ("invalid Linux signal %d\n", sig));
+	KASSERT(sig > 0 && sig <= LINUX_SIGRTMAX,
+	    ("invalid Linux signal %d\n", sig));
 
 	if (sig < LINUX_SIGRTMIN)
 		return (linux_to_bsd_sigtbl[_SIG_IDX(sig)]);
@@ -256,7 +255,8 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 	/* Linux loopback interface name is lo (not lo0) */
 	is_lo = (len == 2 && strncmp(lxname, "lo", len) == 0);
 	unit = (int)strtoul(lxname + len, &ep, 10);
-	if ((ep == NULL || ep == lxname + len || ep >= lxname + LINUX_IFNAMSIZ) &&
+	if ((ep == NULL || ep == lxname + len ||
+		ep >= lxname + LINUX_IFNAMSIZ) &&
 	    is_lo == 0)
 		return (NULL);
 	index = 0;
@@ -264,7 +264,8 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 
 	CURVNET_SET(TD_TO_VNET(td));
 	IFNET_RLOCK();
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link)
+	{
 		/*
 		 * Allow Linux programs to use FreeBSD names. Don't presume
 		 * we never have an interface named "eth", so don't make
@@ -328,8 +329,9 @@ linux_ifhwaddr(struct ifnet *ifp, struct l_sockaddr *lsa)
 	if (!IFP_IS_ETH(ifp))
 		return (ENOENT);
 
-	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		sdl = (struct sockaddr_dl*)ifa->ifa_addr;
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+	{
+		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 		if (sdl != NULL && (sdl->sdl_family == AF_LINK) &&
 		    (sdl->sdl_type == IFT_ETHER)) {
 			bzero(lsa, sizeof(*lsa));
@@ -395,8 +397,8 @@ bsd_to_linux_domain(int domain)
  * 2. On Linux sa_family is the first member of all struct sockaddr.
  */
 int
-bsd_to_linux_sockaddr(const struct sockaddr *sa, struct l_sockaddr **lsa,
-    socklen_t len)
+bsd_to_linux_sockaddr(
+    const struct sockaddr *sa, struct l_sockaddr **lsa, socklen_t len)
 {
 	struct l_sockaddr *kosa;
 	int error, bdom;
@@ -424,14 +426,14 @@ out:
 }
 
 int
-linux_to_bsd_sockaddr(const struct l_sockaddr *osa, struct sockaddr **sap,
-    socklen_t *len)
+linux_to_bsd_sockaddr(
+    const struct l_sockaddr *osa, struct sockaddr **sap, socklen_t *len)
 {
 	struct sockaddr *sa;
 	struct l_sockaddr *kosa;
 #ifdef INET6
 	struct sockaddr_in6 *sin6;
-	bool  oldv6size;
+	bool oldv6size;
 #endif
 	char *name;
 	int salen, bdom, error, hdrlen, namelen;
@@ -478,10 +480,10 @@ linux_to_bsd_sockaddr(const struct l_sockaddr *osa, struct sockaddr **sap,
 			sin6 = (struct sockaddr_in6 *)kosa;
 			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr) ||
 			    (!IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) &&
-			     !IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) &&
-			     !IN6_IS_ADDR_V4COMPAT(&sin6->sin6_addr) &&
-			     !IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) &&
-			     !IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))) {
+				!IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) &&
+				!IN6_IS_ADDR_V4COMPAT(&sin6->sin6_addr) &&
+				!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) &&
+				!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))) {
 				sin6->sin6_scope_id = 0;
 			} else {
 				linux_msg(curthread,
@@ -540,8 +542,8 @@ linux_dev_shm_create(void)
 	error = make_dev_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK, &dev_shm_cdev,
 	    &dev_shm_cdevsw, NULL, UID_ROOT, GID_WHEEL, 0, "shm/.mountpoint");
 	if (error != 0) {
-		printf("%s: failed to create device node, error %d\n",
-		    __func__, error);
+		printf("%s: failed to create device node, error %d\n", __func__,
+		    error);
 	}
 }
 
@@ -553,8 +555,8 @@ linux_dev_shm_destroy(void)
 }
 
 int
-bsd_to_linux_bits_(int value, struct bsd_to_linux_bitmap *bitmap,
-    size_t mapcnt, int no_value)
+bsd_to_linux_bits_(
+    int value, struct bsd_to_linux_bitmap *bitmap, size_t mapcnt, int no_value)
 {
 	int bsd_mask, bsd_value, linux_mask, linux_value;
 	int linux_ret;
@@ -591,8 +593,8 @@ bsd_to_linux_bits_(int value, struct bsd_to_linux_bitmap *bitmap,
 }
 
 int
-linux_to_bsd_bits_(int value, struct bsd_to_linux_bitmap *bitmap,
-    size_t mapcnt, int no_value)
+linux_to_bsd_bits_(
+    int value, struct bsd_to_linux_bitmap *bitmap, size_t mapcnt, int no_value)
 {
 	int bsd_mask, bsd_value, linux_mask, linux_value;
 	int bsd_ret;

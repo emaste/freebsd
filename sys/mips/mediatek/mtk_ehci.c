@@ -28,44 +28,40 @@ __FBSDID("$FreeBSD$");
  * SUCH DAMAGE.
  */
 
-#include <sys/stdint.h>
-#include <sys/stddef.h>
-#include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/sysctl.h>
-#include <sys/sx.h>
-#include <sys/unistd.h>
 #include <sys/callout.h>
+#include <sys/condvar.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
+#include <sys/queue.h>
 #include <sys/rman.h>
+#include <sys/stddef.h>
+#include <sys/stdint.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/unistd.h>
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_util.h>
-
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
-
-#include <dev/usb/controller/ehci.h>
-
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/usb/controller/ehci.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_core.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 
-#define EHCI_HC_DEVSTR	"MTK USB 2.0 Controller"
+#define EHCI_HC_DEVSTR "MTK USB 2.0 Controller"
 
 static device_probe_t ehci_fdt_probe;
 static device_attach_t ehci_fdt_attach;
@@ -100,15 +96,15 @@ ehci_fdt_attach(device_t self)
 	sc->sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
-	if (usb_bus_mem_alloc_all(&sc->sc_bus,
-	    USB_GET_DMA_TAG(self), &ehci_iterate_hw_softc)) {
+	if (usb_bus_mem_alloc_all(
+		&sc->sc_bus, USB_GET_DMA_TAG(self), &ehci_iterate_hw_softc)) {
 		printf("No mem\n");
 		return (ENOMEM);
 	}
 
 	rid = 0;
-	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
-				RF_ACTIVE);
+	sc->sc_io_res = bus_alloc_resource_any(
+	    self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_io_res) {
 		device_printf(self, "Could not map memory\n");
 		goto error;
@@ -118,8 +114,8 @@ ehci_fdt_attach(device_t self)
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
-		RF_SHAREABLE | RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    self, SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE);
 	if (sc->sc_irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");
 		goto error;
@@ -136,7 +132,7 @@ ehci_fdt_attach(device_t self)
 	sprintf(sc->sc_vendor, "MediaTek");
 
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-		NULL, (driver_intr_t *)ehci_interrupt, sc, &sc->sc_intr_hdl);
+	    NULL, (driver_intr_t *)ehci_interrupt, sc, &sc->sc_intr_hdl);
 	if (err) {
 		device_printf(self, "Could not setup irq, %d\n", err);
 		sc->sc_intr_hdl = NULL;
@@ -175,18 +171,16 @@ ehci_fdt_detach(device_t self)
 
 		err = bus_teardown_intr(self, sc->sc_irq_res, sc->sc_intr_hdl);
 		if (err)
-			device_printf(self, "Could not tear down irq, %d\n",
-				err);
+			device_printf(
+			    self, "Could not tear down irq, %d\n", err);
 		sc->sc_intr_hdl = NULL;
 	}
 	if (sc->sc_irq_res) {
-		bus_release_resource(self, SYS_RES_IRQ, 0,
-		    sc->sc_irq_res);
+		bus_release_resource(self, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		sc->sc_irq_res = NULL;
 	}
 	if (sc->sc_io_res) {
-		bus_release_resource(self, SYS_RES_MEMORY, 0,
-		    sc->sc_io_res);
+		bus_release_resource(self, SYS_RES_MEMORY, 0, sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
 	usb_bus_mem_free_all(&sc->sc_bus, &ehci_iterate_hw_softc);

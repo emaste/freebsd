@@ -27,15 +27,13 @@
  */
 
 #include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 
 #include <crypto/sha2/sha384.h>
-
 #include <security/mac_veriexec/mac_veriexec.h>
 
 MAC_VERIEXEC_FPMOD(SHA384, SHA384_DIGEST_LENGTH, sizeof(SHA384_CTX),
-    (mac_veriexec_fpop_init_t) SHA384_Init,
-    (mac_veriexec_fpop_update_t) SHA384_Update,
-    (mac_veriexec_fpop_final_t) SHA384_Final, 1);
+    (mac_veriexec_fpop_init_t)SHA384_Init,
+    (mac_veriexec_fpop_update_t)SHA384_Update,
+    (mac_veriexec_fpop_final_t)SHA384_Final, 1);

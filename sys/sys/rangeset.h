@@ -31,10 +31,10 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_RANGESET_H
-#define	_SYS_RANGESET_H
+#ifndef _SYS_RANGESET_H
+#define _SYS_RANGESET_H
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 
 #include <sys/_rangeset.h>
 
@@ -44,44 +44,42 @@ typedef bool (*rs_pred_t)(void *ctx, void *r);
  * This structure must be embedded at the start of the rangeset element.
  */
 struct rs_el {
-	uint64_t	re_start;	/* pctrie key */
-	uint64_t	re_end;
+	uint64_t re_start; /* pctrie key */
+	uint64_t re_end;
 };
 
-void	rangeset_init(struct rangeset *rs, rs_dup_data_t dup_data,
-	    rs_free_data_t free_data, void *rs_data_ctx, u_int alloc_flags);
-void	rangeset_fini(struct rangeset *rs);
+void rangeset_init(struct rangeset *rs, rs_dup_data_t dup_data,
+    rs_free_data_t free_data, void *rs_data_ctx, u_int alloc_flags);
+void rangeset_fini(struct rangeset *rs);
 
-bool	rangeset_check_empty(struct rangeset *rs, uint64_t start,
-	    uint64_t end);
+bool rangeset_check_empty(struct rangeset *rs, uint64_t start, uint64_t end);
 
 /*
  * r point to the app data with struct rs_el at the beginning.
  */
-int	rangeset_insert(struct rangeset *rs, uint64_t start, uint64_t end,
-	    void *r);
+int rangeset_insert(struct rangeset *rs, uint64_t start, uint64_t end, void *r);
 
 /*
  * Guarantees that on error the rangeset is not modified.  Remove
  * might need to split element if its start/end completely cover the
  * removed range, in which case ENOMEM might be returned.
  */
-void	rangeset_remove_all(struct rangeset *rs);
-int	rangeset_remove(struct rangeset *rs, uint64_t start, uint64_t end);
-int	rangeset_remove_pred(struct rangeset *rs, uint64_t start,
-	    uint64_t end, rs_pred_t pred);
+void rangeset_remove_all(struct rangeset *rs);
+int rangeset_remove(struct rangeset *rs, uint64_t start, uint64_t end);
+int rangeset_remove_pred(
+    struct rangeset *rs, uint64_t start, uint64_t end, rs_pred_t pred);
 
 /*
  * Really returns the pointer to the data with struct rs_el embedded
  * at the beginning.
  */
-void	*rangeset_lookup(struct rangeset *rs, uint64_t place);
+void *rangeset_lookup(struct rangeset *rs, uint64_t place);
 
 /*
  * Copies src_rs entries into dst_rs.  dst_rs must be empty.
  * Leaves dst_rs empty on failure.
  */
-int	rangeset_copy(struct rangeset *dst_rs, struct rangeset *src_rs);
+int rangeset_copy(struct rangeset *dst_rs, struct rangeset *src_rs);
 
 #endif
 

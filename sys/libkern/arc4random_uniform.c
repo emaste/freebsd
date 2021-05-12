@@ -1,4 +1,5 @@
-/*	$OpenBSD: arc4random_uniform.c,v 1.3 2019/01/20 02:59:07 bcook Exp $	*/
+/*	$OpenBSD: arc4random_uniform.c,v 1.3 2019/01/20 02:59:07 bcook Exp $
+ */
 
 /*
  * Copyright (c) 2008, Damien Miller <djm@openbsd.org>

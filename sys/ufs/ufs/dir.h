@@ -38,15 +38,15 @@
  */
 
 #ifndef _UFS_UFS_DIR_H_
-#define	_UFS_UFS_DIR_H_
+#define _UFS_UFS_DIR_H_
 
 /*
  * Theoretically, directories can be more than 2Gb in length, however, in
  * practice this seems unlikely. So, we define the type doff_t as a 32-bit
  * quantity to keep down the cost of doing lookup on a 32-bit machine.
  */
-#define	doff_t		int32_t
-#define	MAXDIRSIZE	(0x7fffffff)
+#define doff_t int32_t
+#define MAXDIRSIZE (0x7fffffff)
 
 /*
  * A directory consists of some number of blocks of DIRBLKSIZ
@@ -73,36 +73,36 @@
  * Entries other than the first in a directory do not normally have
  * dp->d_ino set to 0.
  */
-#define	DIRBLKSIZ	DEV_BSIZE
-#define	UFS_MAXNAMLEN	255
+#define DIRBLKSIZ DEV_BSIZE
+#define UFS_MAXNAMLEN 255
 
-struct	direct {
-	u_int32_t d_ino;		/* inode number of entry */
-	u_int16_t d_reclen;		/* length of this record */
-	u_int8_t  d_type; 		/* file type, see below */
-	u_int8_t  d_namlen;		/* length of string in d_name */
-	char	  d_name[UFS_MAXNAMLEN + 1];
-					/* name with length <= UFS_MAXNAMLEN */
+struct direct {
+	u_int32_t d_ino;    /* inode number of entry */
+	u_int16_t d_reclen; /* length of this record */
+	u_int8_t d_type;    /* file type, see below */
+	u_int8_t d_namlen;  /* length of string in d_name */
+	char d_name[UFS_MAXNAMLEN + 1];
+	/* name with length <= UFS_MAXNAMLEN */
 };
 
 /*
  * File types
  */
-#define	DT_UNKNOWN	 0
-#define	DT_FIFO		 1
-#define	DT_CHR		 2
-#define	DT_DIR		 4
-#define	DT_BLK		 6
-#define	DT_REG		 8
-#define	DT_LNK		10
-#define	DT_SOCK		12
-#define	DT_WHT		14
+#define DT_UNKNOWN 0
+#define DT_FIFO 1
+#define DT_CHR 2
+#define DT_DIR 4
+#define DT_BLK 6
+#define DT_REG 8
+#define DT_LNK 10
+#define DT_SOCK 12
+#define DT_WHT 14
 
 /*
  * Convert between stat structure types and directory types.
  */
-#define	IFTODT(mode)	(((mode) & 0170000) >> 12)
-#define	DTTOIF(dirtype)	((dirtype) << 12)
+#define IFTODT(mode) (((mode)&0170000) >> 12)
+#define DTTOIF(dirtype) ((dirtype) << 12)
 
 /*
  * The DIRSIZ macro gives the minimum record length which will hold
@@ -110,47 +110,47 @@ struct	direct {
  * without the d_name field, plus enough space for the name with a terminating
  * null byte (dp->d_namlen + 1), rounded up to a 4 byte boundary.
  */
-#define	DIR_ROUNDUP	4	/* Directory name roundup size */
-#define	DIRECTSIZ(namlen) \
-    (roundup2(__offsetof(struct direct, d_name) + (namlen) + 1, DIR_ROUNDUP))
+#define DIR_ROUNDUP 4 /* Directory name roundup size */
+#define DIRECTSIZ(namlen) \
+	(roundup2(        \
+	    __offsetof(struct direct, d_name) + (namlen) + 1, DIR_ROUNDUP))
 #if (BYTE_ORDER == LITTLE_ENDIAN)
-#define	DIRSIZ(oldfmt, dp) \
-    ((oldfmt) ? DIRECTSIZ((dp)->d_type) : DIRECTSIZ((dp)->d_namlen))
+#define DIRSIZ(oldfmt, dp) \
+	((oldfmt) ? DIRECTSIZ((dp)->d_type) : DIRECTSIZ((dp)->d_namlen))
 #else
-#define	DIRSIZ(oldfmt, dp) \
-    DIRECTSIZ((dp)->d_namlen)
+#define DIRSIZ(oldfmt, dp) DIRECTSIZ((dp)->d_namlen)
 #endif
-#define	OLDDIRFMT	1
-#define	NEWDIRFMT	0
+#define OLDDIRFMT 1
+#define NEWDIRFMT 0
 
 /*
  * Template for manipulating directories.  Should use struct direct's,
  * but the name field is UFS_MAXNAMLEN - 1, and this just won't do.
  */
 struct dirtemplate {
-	u_int32_t	dot_ino;
-	int16_t		dot_reclen;
-	u_int8_t	dot_type;
-	u_int8_t	dot_namlen;
-	char		dot_name[4];	/* must be multiple of 4 */
-	u_int32_t	dotdot_ino;
-	int16_t		dotdot_reclen;
-	u_int8_t	dotdot_type;
-	u_int8_t	dotdot_namlen;
-	char		dotdot_name[4];	/* ditto */
+	u_int32_t dot_ino;
+	int16_t dot_reclen;
+	u_int8_t dot_type;
+	u_int8_t dot_namlen;
+	char dot_name[4]; /* must be multiple of 4 */
+	u_int32_t dotdot_ino;
+	int16_t dotdot_reclen;
+	u_int8_t dotdot_type;
+	u_int8_t dotdot_namlen;
+	char dotdot_name[4]; /* ditto */
 };
 
 /*
  * This is the old format of directories, sanz type element.
  */
 struct odirtemplate {
-	u_int32_t	dot_ino;
-	int16_t		dot_reclen;
-	u_int16_t	dot_namlen;
-	char		dot_name[4];	/* must be multiple of 4 */
-	u_int32_t	dotdot_ino;
-	int16_t		dotdot_reclen;
-	u_int16_t	dotdot_namlen;
-	char		dotdot_name[4];	/* ditto */
+	u_int32_t dot_ino;
+	int16_t dot_reclen;
+	u_int16_t dot_namlen;
+	char dot_name[4]; /* must be multiple of 4 */
+	u_int32_t dotdot_ino;
+	int16_t dotdot_reclen;
+	u_int16_t dotdot_namlen;
+	char dotdot_name[4]; /* ditto */
 };
 #endif /* !_DIR_H_ */

@@ -3,11 +3,11 @@
  *
  * Copyright (c) 2007-2009 Google Inc. and Amit Singh
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  * * Redistributions of source code must retain the above copyright
  *   notice, this list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above
@@ -17,7 +17,7 @@
  * * Neither the name of Google Inc. nor the names of its
  *   contributors may be used to endorse or promote products derived from
  *   this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -29,7 +29,7 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Copyright (C) 2005 Csaba Henk.
  * All rights reserved.
  *
@@ -37,7 +37,7 @@
  *
  * Portions of this software were developed by BFF Storage Systems, LLC under
  * sponsorship from the FreeBSD Foundation.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -46,7 +46,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -68,8 +68,8 @@
 #include <sys/types.h>
 #include <sys/counter.h>
 #include <sys/limits.h>
-#include <sys/uio.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 #include <sys/vnode.h>
 
 #include "fuse_ipc.h"
@@ -159,8 +159,8 @@ fuse_iosize(struct vnode *vp)
  * response
  */
 static inline void
-fuse_validity_2_bintime(uint64_t attr_valid, uint32_t attr_valid_nsec,
-	struct bintime *timeout)
+fuse_validity_2_bintime(
+    uint64_t attr_valid, uint32_t attr_valid_nsec, struct bintime *timeout)
 {
 	struct timespec now, duration, timeout_ts;
 
@@ -182,8 +182,8 @@ fuse_validity_2_bintime(uint64_t attr_valid, uint32_t attr_valid_nsec,
  * response
  */
 static inline void
-fuse_validity_2_timespec(const struct fuse_entry_out *feo,
-	struct timespec *timeout)
+fuse_validity_2_timespec(
+    const struct fuse_entry_out *feo, struct timespec *timeout)
 {
 	struct timespec duration, now;
 
@@ -200,42 +200,41 @@ fuse_validity_2_timespec(const struct fuse_entry_out *feo,
 }
 
 /* VFS ops */
-int
-fuse_internal_get_cached_vnode(struct mount*, ino_t, int, struct vnode**);
+int fuse_internal_get_cached_vnode(struct mount *, ino_t, int, struct vnode **);
 
 /* access */
 static inline int
 fuse_match_cred(struct ucred *basecred, struct ucred *usercred)
 {
-	if (basecred->cr_uid == usercred->cr_uid             &&
-	    basecred->cr_uid == usercred->cr_ruid            &&
-	    basecred->cr_uid == usercred->cr_svuid           &&
+	if (basecred->cr_uid == usercred->cr_uid &&
+	    basecred->cr_uid == usercred->cr_ruid &&
+	    basecred->cr_uid == usercred->cr_svuid &&
 	    basecred->cr_groups[0] == usercred->cr_groups[0] &&
-	    basecred->cr_groups[0] == usercred->cr_rgid      &&
+	    basecred->cr_groups[0] == usercred->cr_rgid &&
 	    basecred->cr_groups[0] == usercred->cr_svgid)
 		return (0);
 
 	return (EPERM);
 }
 
-int fuse_internal_access(struct vnode *vp, accmode_t mode,
-    struct thread *td, struct ucred *cred);
+int fuse_internal_access(
+    struct vnode *vp, accmode_t mode, struct thread *td, struct ucred *cred);
 
 /* attributes */
 void fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
-	uint64_t attr_valid, uint32_t attr_valid_nsec, struct vattr *vap);
+    uint64_t attr_valid, uint32_t attr_valid_nsec, struct vattr *vap);
 
 /* fsync */
 
-int fuse_internal_fsync(struct vnode *vp, struct thread *td, int waitfor,
-	bool datasync);
+int fuse_internal_fsync(
+    struct vnode *vp, struct thread *td, int waitfor, bool datasync);
 int fuse_internal_fsync_callback(struct fuse_ticket *tick, struct uio *uio);
 
 /* getattr */
-int fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
-	struct ucred *cred, struct thread *td);
-int fuse_internal_getattr(struct vnode *vp, struct vattr *vap,
-	struct ucred *cred, struct thread *td);
+int fuse_internal_do_getattr(
+    struct vnode *vp, struct vattr *vap, struct ucred *cred, struct thread *td);
+int fuse_internal_getattr(
+    struct vnode *vp, struct vattr *vap, struct ucred *cred, struct thread *td);
 
 /* asynchronous invalidation */
 int fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio);
@@ -243,7 +242,7 @@ int fuse_internal_invalidate_inode(struct mount *mp, struct uio *uio);
 
 /* mknod */
 int fuse_internal_mknod(struct vnode *dvp, struct vnode **vpp,
-	struct componentname *cnp, struct vattr *vap);
+    struct componentname *cnp, struct vattr *vap);
 
 /* readdir */
 struct pseudo_dirent {
@@ -271,12 +270,12 @@ int fuse_internal_rename(struct vnode *fdvp, struct componentname *fcnp,
 void fuse_internal_vnode_disappear(struct vnode *vp);
 
 /* setattr */
-int fuse_internal_setattr(struct vnode *vp, struct vattr *va,
-	struct thread *td, struct ucred *cred);
+int fuse_internal_setattr(
+    struct vnode *vp, struct vattr *va, struct thread *td, struct ucred *cred);
 
 /* write */
-void fuse_internal_clear_suid_on_write(struct vnode *vp, struct ucred *cred,
-    struct thread *td);
+void fuse_internal_clear_suid_on_write(
+    struct vnode *vp, struct ucred *cred, struct thread *td);
 
 /* strategy */
 

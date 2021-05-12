@@ -59,14 +59,15 @@
  */
 
 #ifndef _MACHINE_CPUFUNC_H_
-#define	_MACHINE_CPUFUNC_H_
+#define _MACHINE_CPUFUNC_H_
 
 #include <sys/types.h>
+
 #include <machine/cpuregs.h>
 
-/* 
+/*
  * These functions are required by user-land atomi ops
- */ 
+ */
 
 static __inline void
 mips_barrier(void)
@@ -74,36 +75,40 @@ mips_barrier(void)
 #if defined(CPU_CNMIPS) || defined(CPU_RMI) || defined(CPU_NLM)
 	__compiler_membar();
 #else
-	__asm __volatile (".set noreorder\n\t"
-			  "nop\n\t"
-			  "nop\n\t"
-			  "nop\n\t"
-			  "nop\n\t"
-			  "nop\n\t"
-			  "nop\n\t"
-			  "nop\n\t"
-			  "nop\n\t"
-			  ".set reorder\n\t"
-			  : : : "memory");
+	__asm __volatile(".set noreorder\n\t"
+			 "nop\n\t"
+			 "nop\n\t"
+			 "nop\n\t"
+			 "nop\n\t"
+			 "nop\n\t"
+			 "nop\n\t"
+			 "nop\n\t"
+			 "nop\n\t"
+			 ".set reorder\n\t"
+			 :
+			 :
+			 : "memory");
 #endif
 }
 
 static __inline void
 mips_cp0_sync(void)
 {
-	__asm __volatile (__XSTRING(COP0_SYNC));
+	__asm __volatile(__XSTRING(COP0_SYNC));
 }
 
 static __inline void
 mips_wbflush(void)
 {
 #if defined(CPU_CNMIPS)
-	__asm __volatile (".set noreorder\n\t"
-			"syncw\n\t"
-			".set reorder\n"
-			: : : "memory");
-#else	
-	__asm __volatile ("sync" : : : "memory");
+	__asm __volatile(".set noreorder\n\t"
+			 "syncw\n\t"
+			 ".set reorder\n"
+			 :
+			 :
+			 : "memory");
+#else
+	__asm __volatile("sync" : : : "memory");
 	mips_barrier();
 #endif
 }
@@ -111,7 +116,7 @@ mips_wbflush(void)
 static __inline void
 breakpoint(void)
 {
-	__asm __volatile ("break");
+	__asm __volatile("break");
 }
 
 #ifdef _KERNEL
@@ -121,47 +126,46 @@ breakpoint(void)
  * ABI checks.
  */
 #if defined(__mips_n32) || defined(__mips_n64)
-#define	MIPS_RW64_COP0(n,r)					\
-static __inline uint64_t					\
-mips_rd_ ## n (void)						\
-{								\
-	uint64_t v0;						\
-	__asm __volatile ("dmfc0 %[v0], $"__XSTRING(r)";"	\
-			  : [v0] "=&r"(v0));			\
-	mips_barrier();						\
-	return (v0);						\
-}								\
-static __inline void						\
-mips_wr_ ## n (uint64_t a0)					\
-{								\
-	__asm __volatile ("dmtc0 %[a0], $"__XSTRING(r)";"	\
-			 __XSTRING(COP0_SYNC)";"		\
-			 "nop;"					\
-			 "nop;"					\
-			 :					\
-			 : [a0] "r"(a0));			\
-	mips_barrier();						\
-} struct __hack
+#define MIPS_RW64_COP0(n, r)                                                 \
+	static __inline uint64_t mips_rd_##n(void)                           \
+	{                                                                    \
+		uint64_t v0;                                                 \
+		__asm __volatile("dmfc0 %[v0], $"__XSTRING(r) ";"            \
+				 : [v0] "=&r"(v0));                          \
+		mips_barrier();                                              \
+		return (v0);                                                 \
+	}                                                                    \
+	static __inline void mips_wr_##n(uint64_t a0)                        \
+	{                                                                    \
+		__asm __volatile("dmtc0 %[a0], $"__XSTRING(r) ";" __XSTRING( \
+		    COP0_SYNC) ";"                                           \
+			       "nop;"                                        \
+			       "nop;"                                        \
+				 :                                           \
+				 : [a0] "r"(a0));                            \
+		mips_barrier();                                              \
+	}                                                                    \
+	struct __hack
 
-#define	MIPS_RW64_COP0_SEL(n,r,s)				\
-static __inline uint64_t					\
-mips_rd_ ## n(void)						\
-{								\
-	uint64_t v0;						\
-	__asm __volatile ("dmfc0 %[v0], $"__XSTRING(r)", "__XSTRING(s)";"	\
-			  : [v0] "=&r"(v0));			\
-	mips_barrier();						\
-	return (v0);						\
-}								\
-static __inline void						\
-mips_wr_ ## n(uint64_t a0)					\
-{								\
-	__asm __volatile ("dmtc0 %[a0], $"__XSTRING(r)", "__XSTRING(s)";"	\
-			 __XSTRING(COP0_SYNC)";"		\
-			 :					\
-			 : [a0] "r"(a0));			\
-	mips_barrier();						\
-} struct __hack
+#define MIPS_RW64_COP0_SEL(n, r, s)                                          \
+	static __inline uint64_t mips_rd_##n(void)                           \
+	{                                                                    \
+		uint64_t v0;                                                 \
+		__asm __volatile(                                            \
+		    "dmfc0 %[v0], $"__XSTRING(r) ", "__XSTRING(s) ";"        \
+		    : [v0] "=&r"(v0));                                       \
+		mips_barrier();                                              \
+		return (v0);                                                 \
+	}                                                                    \
+	static __inline void mips_wr_##n(uint64_t a0)                        \
+	{                                                                    \
+		__asm __volatile("dmtc0 %[a0], $"__XSTRING(r) ", "__XSTRING( \
+		    s) ";" __XSTRING(COP0_SYNC) ";"                          \
+				 :                                           \
+				 : [a0] "r"(a0));                            \
+		mips_barrier();                                              \
+	}                                                                    \
+	struct __hack
 
 #if defined(__mips_n64)
 MIPS_RW64_COP0(excpc, MIPS_COP_0_EXC_PC);
@@ -182,64 +186,64 @@ MIPS_RW64_COP0(entrylo1, MIPS_COP_0_TLB_LO1);
 #endif
 MIPS_RW64_COP0(xcontext, MIPS_COP_0_TLB_XCONTEXT);
 
-#undef	MIPS_RW64_COP0
-#undef	MIPS_RW64_COP0_SEL
+#undef MIPS_RW64_COP0
+#undef MIPS_RW64_COP0_SEL
 #endif
 
-#define	MIPS_RW32_COP0(n,r)					\
-static __inline uint32_t					\
-mips_rd_ ## n (void)						\
-{								\
-	uint32_t v0;						\
-	__asm __volatile ("mfc0 %[v0], $"__XSTRING(r)";"	\
-			  : [v0] "=&r"(v0));			\
-	mips_barrier();						\
-	return (v0);						\
-}								\
-static __inline void						\
-mips_wr_ ## n (uint32_t a0)					\
-{								\
-	__asm __volatile ("mtc0 %[a0], $"__XSTRING(r)";"	\
-			 __XSTRING(COP0_SYNC)";"		\
-			 "nop;"					\
-			 "nop;"					\
-			 :					\
-			 : [a0] "r"(a0));			\
-	mips_barrier();						\
-} struct __hack
+#define MIPS_RW32_COP0(n, r)                                                \
+	static __inline uint32_t mips_rd_##n(void)                          \
+	{                                                                   \
+		uint32_t v0;                                                \
+		__asm __volatile("mfc0 %[v0], $"__XSTRING(r) ";"            \
+				 : [v0] "=&r"(v0));                         \
+		mips_barrier();                                             \
+		return (v0);                                                \
+	}                                                                   \
+	static __inline void mips_wr_##n(uint32_t a0)                       \
+	{                                                                   \
+		__asm __volatile("mtc0 %[a0], $"__XSTRING(r) ";" __XSTRING( \
+		    COP0_SYNC) ";"                                          \
+			       "nop;"                                       \
+			       "nop;"                                       \
+				 :                                          \
+				 : [a0] "r"(a0));                           \
+		mips_barrier();                                             \
+	}                                                                   \
+	struct __hack
 
-#define	MIPS_RW32_COP0_SEL(n,r,s)				\
-static __inline uint32_t					\
-mips_rd_ ## n(void)						\
-{								\
-	uint32_t v0;						\
-	__asm __volatile ("mfc0 %[v0], $"__XSTRING(r)", "__XSTRING(s)";"	\
-			  : [v0] "=&r"(v0));			\
-	mips_barrier();						\
-	return (v0);						\
-}								\
-static __inline void						\
-mips_wr_ ## n(uint32_t a0)					\
-{								\
-	__asm __volatile ("mtc0 %[a0], $"__XSTRING(r)", "__XSTRING(s)";"	\
-			 __XSTRING(COP0_SYNC)";"		\
-			 "nop;"					\
-			 "nop;"					\
-			 :					\
-			 : [a0] "r"(a0));			\
-	mips_barrier();						\
-} struct __hack
+#define MIPS_RW32_COP0_SEL(n, r, s)                                         \
+	static __inline uint32_t mips_rd_##n(void)                          \
+	{                                                                   \
+		uint32_t v0;                                                \
+		__asm __volatile(                                           \
+		    "mfc0 %[v0], $"__XSTRING(r) ", "__XSTRING(s) ";"        \
+		    : [v0] "=&r"(v0));                                      \
+		mips_barrier();                                             \
+		return (v0);                                                \
+	}                                                                   \
+	static __inline void mips_wr_##n(uint32_t a0)                       \
+	{                                                                   \
+		__asm __volatile("mtc0 %[a0], $"__XSTRING(r) ", "__XSTRING( \
+		    s) ";" __XSTRING(COP0_SYNC) ";"                         \
+						"nop;"                      \
+						"nop;"                      \
+				 :                                          \
+				 : [a0] "r"(a0));                           \
+		mips_barrier();                                             \
+	}                                                                   \
+	struct __hack
 
 #ifdef CPU_CNMIPS
-static __inline void mips_sync_icache (void)
+static __inline void
+mips_sync_icache(void)
 {
-	__asm __volatile (
-		".set push\n"
-		".set mips64\n"
-		".word 0x041f0000\n"		/* xxx ICACHE */
-		"nop\n"
-		".set pop\n"
-		: : );
+	__asm __volatile(".set push\n"
+			 ".set mips64\n"
+			 ".word 0x041f0000\n" /* xxx ICACHE */
+			 "nop\n"
+			 ".set pop\n"
+			 :
+			 :);
 }
 #endif
 
@@ -257,7 +261,7 @@ MIPS_RW32_COP0_SEL(config5, MIPS_COP_0_CONFIG, 5);
 #if defined(CPU_NLM) || defined(BERI_LARGE_TLB)
 MIPS_RW32_COP0_SEL(config6, MIPS_COP_0_CONFIG, 6);
 #endif
-#if defined(CPU_NLM) || defined(CPU_MIPS1004K) || defined (CPU_MIPS74K) || \
+#if defined(CPU_NLM) || defined(CPU_MIPS1004K) || defined(CPU_MIPS74K) || \
     defined(CPU_MIPS24K)
 MIPS_RW32_COP0_SEL(config7, MIPS_COP_0_CONFIG, 7);
 #endif
@@ -290,10 +294,9 @@ MIPS_RW32_COP0_SEL(tinfo, MIPS_COP_0_PRID, 7);
 /* XXX 64-bit?  */
 MIPS_RW32_COP0_SEL(ebase, MIPS_COP_0_PRID, 1);
 
-#if defined(CPU_MIPS24K) || defined(CPU_MIPS34K) ||		\
-    defined(CPU_MIPS74K) || defined(CPU_MIPS1004K)  ||	\
-    defined(CPU_MIPS1074K) || defined(CPU_INTERAPTIV) ||	\
-    defined(CPU_PROAPTIV)
+#if defined(CPU_MIPS24K) || defined(CPU_MIPS34K) || defined(CPU_MIPS74K) || \
+    defined(CPU_MIPS1004K) || defined(CPU_MIPS1074K) ||                     \
+    defined(CPU_INTERAPTIV) || defined(CPU_PROAPTIV)
 /* MIPS32/64 r2 intctl */
 MIPS_RW32_COP0_SEL(intctl, MIPS_COP_0_INTCTL, 1);
 #endif
@@ -320,8 +323,8 @@ MIPS_RW32_COP0_SEL(perfcnt2, MIPS_COP_0_PERFCNT, 2);
 MIPS_RW32_COP0_SEL(perfcnt3, MIPS_COP_0_PERFCNT, 3);
 MIPS_RW32_COP0(hwrena, MIPS_COP_0_HWRENA);
 
-#undef	MIPS_RW32_COP0
-#undef	MIPS_RW32_COP0_SEL
+#undef MIPS_RW32_COP0
+#undef MIPS_RW32_COP0_SEL
 
 static __inline register_t
 intr_disable(void)
@@ -373,18 +376,18 @@ get_intr_mask(void)
 
 #endif /* _KERNEL */
 
-#define	readb(va)	(*(volatile uint8_t *) (va))
-#define	readw(va)	(*(volatile uint16_t *) (va))
-#define	readl(va)	(*(volatile uint32_t *) (va))
+#define readb(va) (*(volatile uint8_t *)(va))
+#define readw(va) (*(volatile uint16_t *)(va))
+#define readl(va) (*(volatile uint32_t *)(va))
 #if !defined(__mips_o32)
-#define	readq(a)	(*(volatile uint64_t *)(a))
+#define readq(a) (*(volatile uint64_t *)(a))
 #endif
 
-#define	writeb(va, d)	(*(volatile uint8_t *) (va) = (d))
-#define	writew(va, d)	(*(volatile uint16_t *) (va) = (d))
-#define	writel(va, d)	(*(volatile uint32_t *) (va) = (d))
+#define writeb(va, d) (*(volatile uint8_t *)(va) = (d))
+#define writew(va, d) (*(volatile uint16_t *)(va) = (d))
+#define writel(va, d) (*(volatile uint32_t *)(va) = (d))
 #if !defined(__mips_o32)
-#define	writeq(va, d)	(*(volatile uint64_t *) (va) = (d))
+#define writeq(va, d) (*(volatile uint64_t *)(va) = (d))
 #endif
 
 #endif /* !_MACHINE_CPUFUNC_H_ */

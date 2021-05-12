@@ -30,22 +30,22 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/systm.h>
 #include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/sbuf.h>
-#include <sys/systm.h>
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
+#include <geom/vinum/geom_vinum_var.h>
 
-#define GV_LEGACY_I386	0
+#define GV_LEGACY_I386 0
 #define GV_LEGACY_AMD64 1
 #define GV_LEGACY_SPARC64 2
 #define GV_LEGACY_POWERPC 3
 
-static int	gv_legacy_header_type(uint8_t *, int);
+static int gv_legacy_header_type(uint8_t *, int);
 
 /*
  * Here are the "offset (size)" for the various struct gv_hdr fields,
@@ -118,12 +118,12 @@ gv_read_header(struct g_consumer *cp, struct gv_hdr *m_hdr)
 	uint8_t *d_hdr;
 	int be, off;
 
-#define GV_GET32(endian)					\
-		endian##32toh(*((uint32_t *)&d_hdr[off]));	\
-		off += 4
-#define GV_GET64(endian)					\
-		endian##64toh(*((uint64_t *)&d_hdr[off]));	\
-		off += 8
+#define GV_GET32(endian)                           \
+	endian##32toh(*((uint32_t *)&d_hdr[off])); \
+	off += 4
+#define GV_GET64(endian)                           \
+	endian##64toh(*((uint64_t *)&d_hdr[off])); \
+	off += 8
 
 	KASSERT(m_hdr != NULL, ("gv_read_header: null m_hdr"));
 	KASSERT(cp != NULL, ("gv_read_header: null cp"));
@@ -232,10 +232,10 @@ gv_write_header(struct g_consumer *cp, struct gv_hdr *m_hdr)
 	uint8_t d_hdr[GV_HDR_LEN];
 	int off, ret;
 
-#define GV_SET64BE(field)					\
-	do {							\
-		*((uint64_t *)&d_hdr[off]) = htobe64(field);	\
-		off += 8;					\
+#define GV_SET64BE(field)                                    \
+	do {                                                 \
+		*((uint64_t *)&d_hdr[off]) = htobe64(field); \
+		off += 8;                                    \
 	} while (0)
 
 	KASSERT(m_hdr != NULL, ("gv_write_header: null m_hdr"));
@@ -281,7 +281,7 @@ gv_save_config(struct gv_softc *sc)
 	gv_format_config(sc, sb, 1, NULL);
 	sbuf_finish(sb);
 
-	LIST_FOREACH(d, &sc->drives, drive) {
+	LIST_FOREACH (d, &sc->drives, drive) {
 		/*
 		 * We can't save the config on a drive that isn't up, but
 		 * drives that were just created aren't officially up yet, so
@@ -292,15 +292,14 @@ gv_save_config(struct gv_softc *sc)
 
 		cp = d->consumer;
 		if (cp == NULL) {
-			G_VINUM_DEBUG(0, "drive '%s' has no consumer!",
-			    d->name);
+			G_VINUM_DEBUG(
+			    0, "drive '%s' has no consumer!", d->name);
 			continue;
 		}
 
 		hdr = d->hdr;
 		if (hdr == NULL) {
-			G_VINUM_DEBUG(0, "drive '%s' has no header",
-			    d->name);
+			G_VINUM_DEBUG(0, "drive '%s' has no header", d->name);
 			g_free(vhdr);
 			continue;
 		}
@@ -310,8 +309,10 @@ gv_save_config(struct gv_softc *sc)
 		g_topology_lock();
 		error = g_access(cp, 0, 1, 0);
 		if (error) {
-			G_VINUM_DEBUG(0, "g_access failed on "
-			    "drive %s, errno %d", d->name, error);
+			G_VINUM_DEBUG(0,
+			    "g_access failed on "
+			    "drive %s, errno %d",
+			    d->name, error);
 			g_topology_unlock();
 			continue;
 		}
@@ -319,30 +320,36 @@ gv_save_config(struct gv_softc *sc)
 
 		error = gv_write_header(cp, vhdr);
 		if (error) {
-			G_VINUM_DEBUG(0, "writing vhdr failed on drive %s, "
-			    "errno %d", d->name, error);
+			G_VINUM_DEBUG(0,
+			    "writing vhdr failed on drive %s, "
+			    "errno %d",
+			    d->name, error);
 			g_topology_lock();
 			g_access(cp, 0, -1, 0);
 			g_topology_unlock();
 			continue;
 		}
 		/* First config copy. */
-		error = g_write_data(cp, GV_CFG_OFFSET, sbuf_data(sb),
-		    GV_CFG_LEN);
+		error = g_write_data(
+		    cp, GV_CFG_OFFSET, sbuf_data(sb), GV_CFG_LEN);
 		if (error) {
-			G_VINUM_DEBUG(0, "writing first config copy failed on "
-			    "drive %s, errno %d", d->name, error);
+			G_VINUM_DEBUG(0,
+			    "writing first config copy failed on "
+			    "drive %s, errno %d",
+			    d->name, error);
 			g_topology_lock();
 			g_access(cp, 0, -1, 0);
 			g_topology_unlock();
 			continue;
 		}
 		/* Second config copy. */
-		error = g_write_data(cp, GV_CFG_OFFSET + GV_CFG_LEN,
-		    sbuf_data(sb), GV_CFG_LEN);
+		error = g_write_data(
+		    cp, GV_CFG_OFFSET + GV_CFG_LEN, sbuf_data(sb), GV_CFG_LEN);
 		if (error)
-			G_VINUM_DEBUG(0, "writing second config copy failed on "
-			    "drive %s, errno %d", d->name, error);
+			G_VINUM_DEBUG(0,
+			    "writing second config copy failed on "
+			    "drive %s, errno %d",
+			    d->name, error);
 
 		g_topology_lock();
 		g_access(cp, 0, -1, 0);

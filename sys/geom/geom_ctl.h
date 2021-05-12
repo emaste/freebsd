@@ -39,47 +39,47 @@
 /*
  * Version number.  Used to check consistency between kernel and libgeom.
  */
-#define GCTL_VERSION	2
+#define GCTL_VERSION 2
 
 struct gctl_req_arg {
-	u_int				nlen;
-	char				*name;
-	off_t				offset;
-	int				flag;
-	int				len;
-	void				*value;
+	u_int nlen;
+	char *name;
+	off_t offset;
+	int flag;
+	int len;
+	void *value;
 	/* kernel only fields */
-	void				*kvalue;
+	void *kvalue;
 };
 
-#define GCTL_PARAM_RD		1	/* Must match VM_PROT_READ */
-#define GCTL_PARAM_WR		2	/* Must match VM_PROT_WRITE */
-#define GCTL_PARAM_RW		(GCTL_PARAM_RD | GCTL_PARAM_WR)
-#define GCTL_PARAM_ASCII	4
+#define GCTL_PARAM_RD 1 /* Must match VM_PROT_READ */
+#define GCTL_PARAM_WR 2 /* Must match VM_PROT_WRITE */
+#define GCTL_PARAM_RW (GCTL_PARAM_RD | GCTL_PARAM_WR)
+#define GCTL_PARAM_ASCII 4
 
 /* These are used in the kernel only */
-#define GCTL_PARAM_NAMEKERNEL	8
-#define GCTL_PARAM_VALUEKERNEL	16
-#define GCTL_PARAM_CHANGED	32
+#define GCTL_PARAM_NAMEKERNEL 8
+#define GCTL_PARAM_VALUEKERNEL 16
+#define GCTL_PARAM_CHANGED 32
 
 struct gctl_req {
-	u_int				version;
-	u_int				serial;
-	u_int				narg;
-	struct gctl_req_arg		*arg;
-	u_int				lerror;
-	char				*error;
-	struct gctl_req_table		*reqt;
+	u_int version;
+	u_int serial;
+	u_int narg;
+	struct gctl_req_arg *arg;
+	u_int lerror;
+	char *error;
+	struct gctl_req_table *reqt;
 
 	/* kernel only fields */
-	int				nerror;
-	struct sbuf			*serror;
+	int nerror;
+	struct sbuf *serror;
 };
 
-#define GEOM_CTL	_IOW('G', GCTL_VERSION, struct gctl_req)
+#define GEOM_CTL _IOW('G', GCTL_VERSION, struct gctl_req)
 
-#define GEOM_CTL_ARG_MAX 2048	/* maximum number of parameters */
+#define GEOM_CTL_ARG_MAX 2048 /* maximum number of parameters */
 
-#define PATH_GEOM_CTL	"geom.ctl"
+#define PATH_GEOM_CTL "geom.ctl"
 
 #endif /* _GEOM_GEOM_CTL_H_ */

@@ -29,32 +29,32 @@
  */
 
 #ifndef _NET_IF_PFLOG_H_
-#define	_NET_IF_PFLOG_H_
+#define _NET_IF_PFLOG_H_
 
-#define	PFLOGIFS_MAX	16
+#define PFLOGIFS_MAX 16
 
-#define	PFLOG_RULESET_NAME_SIZE	16
+#define PFLOG_RULESET_NAME_SIZE 16
 
 struct pfloghdr {
-	u_int8_t	length;
-	sa_family_t	af;
-	u_int8_t	action;
-	u_int8_t	reason;
-	char		ifname[IFNAMSIZ];
-	char		ruleset[PFLOG_RULESET_NAME_SIZE];
-	u_int32_t	rulenr;
-	u_int32_t	subrulenr;
-	uid_t		uid;
-	pid_t		pid;
-	uid_t		rule_uid;
-	pid_t		rule_pid;
-	u_int8_t	dir;
-	u_int8_t	pad[3];
+	u_int8_t length;
+	sa_family_t af;
+	u_int8_t action;
+	u_int8_t reason;
+	char ifname[IFNAMSIZ];
+	char ruleset[PFLOG_RULESET_NAME_SIZE];
+	u_int32_t rulenr;
+	u_int32_t subrulenr;
+	uid_t uid;
+	pid_t pid;
+	uid_t rule_uid;
+	pid_t rule_pid;
+	u_int8_t dir;
+	u_int8_t pad[3];
 };
 
-#define	PFLOG_HDRLEN		sizeof(struct pfloghdr)
+#define PFLOG_HDRLEN sizeof(struct pfloghdr)
 /* minus pad, also used as a signature */
-#define	PFLOG_REAL_HDRLEN	offsetof(struct pfloghdr, pad)
+#define PFLOG_REAL_HDRLEN offsetof(struct pfloghdr, pad)
 
 #ifdef _KERNEL
 struct pf_rule;
@@ -62,9 +62,10 @@ struct pf_ruleset;
 struct pfi_kif;
 struct pf_pdesc;
 
-#define	PFLOG_PACKET(i,a,b,c,d,e,f,g,h,di) do {		\
-	if (pflog_packet_ptr != NULL)			\
-		pflog_packet_ptr(i,a,b,c,d,e,f,g,h,di);	\
-} while (0)
+#define PFLOG_PACKET(i, a, b, c, d, e, f, g, h, di)                      \
+	do {                                                             \
+		if (pflog_packet_ptr != NULL)                            \
+			pflog_packet_ptr(i, a, b, c, d, e, f, g, h, di); \
+	} while (0)
 #endif /* _KERNEL */
 #endif /* _NET_IF_PFLOG_H_ */

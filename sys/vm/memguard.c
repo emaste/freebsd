@@ -41,28 +41,28 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_vm.h"
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/types.h>
-#include <sys/queue.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/vmem.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
+#include <vm/memguard.h>
 #include <vm/uma.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
+#include <vm/uma_int.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
-#include <vm/uma_int.h>
-#include <vm/memguard.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
 
 static SYSCTL_NODE(_vm, OID_AUTO, memguard, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "MemGuard data");
@@ -72,8 +72,8 @@ static SYSCTL_NODE(_vm, OID_AUTO, memguard, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
  */
 static u_int vm_memguard_divisor;
 SYSCTL_UINT(_vm_memguard, OID_AUTO, divisor, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
-    &vm_memguard_divisor,
-    0, "(kmem_size/memguard_divisor) == memguard submap size");
+    &vm_memguard_divisor, 0,
+    "(kmem_size/memguard_divisor) == memguard submap size");
 
 /*
  * Short description (ks_shortdesc) of memory type to monitor.
@@ -81,8 +81,7 @@ SYSCTL_UINT(_vm_memguard, OID_AUTO, divisor, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
 static char vm_memguard_desc[128] = "";
 static struct malloc_type *vm_memguard_mtype = NULL;
 TUNABLE_STR("vm.memguard.desc", vm_memguard_desc, sizeof(vm_memguard_desc));
-static int
-memguard_sysctl_desc(SYSCTL_HANDLER_ARGS)
+static int memguard_sysctl_desc(SYSCTL_HANDLER_ARGS)
 {
 	char desc[sizeof(vm_memguard_desc)];
 	int error;
@@ -100,11 +99,10 @@ memguard_sysctl_desc(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_vm_memguard, OID_AUTO, desc,
-    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
-    memguard_sysctl_desc, "A", "Short description of memory type to monitor");
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0, memguard_sysctl_desc,
+    "A", "Short description of memory type to monitor");
 
-static int
-memguard_sysctl_mapused(SYSCTL_HANDLER_ARGS)
+static int memguard_sysctl_mapused(SYSCTL_HANDLER_ARGS)
 {
 	vmem_size_t size;
 
@@ -120,25 +118,24 @@ static u_long memguard_succ;
 static u_long memguard_fail_kva;
 static u_long memguard_fail_pgs;
 
-SYSCTL_ULONG(_vm_memguard, OID_AUTO, mapsize, CTLFLAG_RD,
-    &memguard_mapsize, 0, "MemGuard private arena size");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, mapsize, CTLFLAG_RD, &memguard_mapsize, 0,
+    "MemGuard private arena size");
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, phys_limit, CTLFLAG_RD,
     &memguard_physlimit, 0, "Limit on MemGuard memory consumption");
-SYSCTL_ULONG(_vm_memguard, OID_AUTO, wasted, CTLFLAG_RD,
-    &memguard_wasted, 0, "Excess memory used through page promotion");
-SYSCTL_ULONG(_vm_memguard, OID_AUTO, numalloc, CTLFLAG_RD,
-    &memguard_succ, 0, "Count of successful MemGuard allocations");
-SYSCTL_ULONG(_vm_memguard, OID_AUTO, fail_kva, CTLFLAG_RD,
-    &memguard_fail_kva, 0, "MemGuard failures due to lack of KVA");
-SYSCTL_ULONG(_vm_memguard, OID_AUTO, fail_pgs, CTLFLAG_RD,
-    &memguard_fail_pgs, 0, "MemGuard failures due to lack of pages");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, wasted, CTLFLAG_RD, &memguard_wasted, 0,
+    "Excess memory used through page promotion");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, numalloc, CTLFLAG_RD, &memguard_succ, 0,
+    "Count of successful MemGuard allocations");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, fail_kva, CTLFLAG_RD, &memguard_fail_kva,
+    0, "MemGuard failures due to lack of KVA");
+SYSCTL_ULONG(_vm_memguard, OID_AUTO, fail_pgs, CTLFLAG_RD, &memguard_fail_pgs,
+    0, "MemGuard failures due to lack of pages");
 
-#define MG_GUARD_AROUND		0x001
-#define MG_GUARD_ALLLARGE	0x002
-#define MG_GUARD_NOFREE		0x004
+#define MG_GUARD_AROUND 0x001
+#define MG_GUARD_ALLLARGE 0x002
+#define MG_GUARD_NOFREE 0x004
 static int memguard_options = MG_GUARD_AROUND;
-SYSCTL_INT(_vm_memguard, OID_AUTO, options, CTLFLAG_RWTUN,
-    &memguard_options, 0,
+SYSCTL_INT(_vm_memguard, OID_AUTO, options, CTLFLAG_RWTUN, &memguard_options, 0,
     "MemGuard options:\n"
     "\t0x001 - add guard pages around each allocation\n"
     "\t0x002 - always use MemGuard for allocations over a page\n"
@@ -146,8 +143,8 @@ SYSCTL_INT(_vm_memguard, OID_AUTO, options, CTLFLAG_RWTUN,
 
 static u_int memguard_minsize;
 static u_long memguard_minsize_reject;
-SYSCTL_UINT(_vm_memguard, OID_AUTO, minsize, CTLFLAG_RW,
-    &memguard_minsize, 0, "Minimum size for page promotion");
+SYSCTL_UINT(_vm_memguard, OID_AUTO, minsize, CTLFLAG_RW, &memguard_minsize, 0,
+    "Minimum size for page promotion");
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, minsize_reject, CTLFLAG_RD,
     &memguard_minsize_reject, 0, "# times rejected for size");
 
@@ -230,15 +227,13 @@ memguard_sysinit(void)
 	struct sysctl_oid_list *parent;
 
 	parent = SYSCTL_STATIC_CHILDREN(_vm_memguard);
-	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "mapstart",
-	    CTLFLAG_RD, &memguard_base,
-	    "MemGuard KVA base");
-	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "maplimit",
-	    CTLFLAG_RD, &memguard_mapsize,
-	    "MemGuard KVA size");
+	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "mapstart", CTLFLAG_RD,
+	    &memguard_base, "MemGuard KVA base");
+	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "maplimit", CTLFLAG_RD,
+	    &memguard_mapsize, "MemGuard KVA size");
 	SYSCTL_ADD_PROC(NULL, parent, OID_AUTO, "mapused",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE | CTLTYPE_ULONG, NULL, 0, memguard_sysctl_mapused, "LU",
-	    "MemGuard KVA used");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE | CTLTYPE_ULONG, NULL, 0,
+	    memguard_sysctl_mapused, "LU", "MemGuard KVA used");
 }
 SYSINIT(memguard, SI_SUB_KLD, SI_ORDER_ANY, memguard_sysinit, NULL);
 
@@ -324,8 +319,8 @@ memguard_alloc(unsigned long req_size, int flags)
 	 * Attempt to avoid address reuse for as long as possible, to increase
 	 * the likelihood of catching a use-after-free.
 	 */
-	error = vmem_alloc(memguard_arena, size_v, M_NEXTFIT | M_NOWAIT,
-	    &origaddr);
+	error = vmem_alloc(
+	    memguard_arena, size_v, M_NEXTFIT | M_NOWAIT, &origaddr);
 	if (error != 0) {
 		memguard_fail_kva++;
 		addr = (vm_offset_t)NULL;
@@ -415,8 +410,8 @@ memguard_free(void *ptr)
  * Re-allocate an allocation that was originally guarded.
  */
 void *
-memguard_realloc(void *addr, unsigned long size, struct malloc_type *mtp,
-    int flags)
+memguard_realloc(
+    void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 {
 	void *newaddr;
 	u_long old_size;
@@ -460,7 +455,7 @@ memguard_cmp_mtp(struct malloc_type *mtp, unsigned long size)
 {
 
 	if (memguard_cmp(size))
-		return(1);
+		return (1);
 
 #if 1
 	/*

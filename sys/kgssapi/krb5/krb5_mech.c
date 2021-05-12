@@ -40,31 +40,32 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+
 #include <kgssapi/gssapi.h>
 #include <kgssapi/gssapi_impl.h>
 
-#include "kgss_if.h"
 #include "kcrypto.h"
+#include "kgss_if.h"
 
-#define GSS_TOKEN_SENT_BY_ACCEPTOR	1
-#define GSS_TOKEN_SEALED		2
-#define GSS_TOKEN_ACCEPTOR_SUBKEY	4
+#define GSS_TOKEN_SENT_BY_ACCEPTOR 1
+#define GSS_TOKEN_SEALED 2
+#define GSS_TOKEN_ACCEPTOR_SUBKEY 4
 
-static gss_OID_desc krb5_mech_oid =
-{9, (void *) "\x2a\x86\x48\x86\xf7\x12\x01\x02\x02" };
+static gss_OID_desc krb5_mech_oid = { 9,
+	(void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02" };
 
 struct krb5_data {
-	size_t		kd_length;
-	void		*kd_data;
+	size_t kd_length;
+	void *kd_data;
 };
 
 struct krb5_keyblock {
-	uint16_t	kk_type; /* encryption type */
+	uint16_t kk_type;	 /* encryption type */
 	struct krb5_data kk_key; /* key data */
 };
 
 struct krb5_address {
-	uint16_t	ka_type;
+	uint16_t ka_type;
 	struct krb5_data ka_addr;
 };
 
@@ -73,53 +74,53 @@ struct krb5_address {
  * number is listed first.
  */
 struct krb5_msg_order {
-	uint32_t		km_flags;
-	uint32_t		km_start;
-	uint32_t		km_length;
-	uint32_t		km_jitter_window;
-	uint32_t		km_first_seq;
-	uint32_t		*km_elem;
+	uint32_t km_flags;
+	uint32_t km_start;
+	uint32_t km_length;
+	uint32_t km_jitter_window;
+	uint32_t km_first_seq;
+	uint32_t *km_elem;
 };
 
 struct krb5_context {
-	struct _gss_ctx_id_t	kc_common;
-	struct mtx		kc_lock;
-	uint32_t		kc_ac_flags;
-	uint32_t		kc_ctx_flags;
-	uint32_t		kc_more_flags;
-#define LOCAL			1
-#define OPEN			2
-#define COMPAT_OLD_DES3		4
+	struct _gss_ctx_id_t kc_common;
+	struct mtx kc_lock;
+	uint32_t kc_ac_flags;
+	uint32_t kc_ctx_flags;
+	uint32_t kc_more_flags;
+#define LOCAL 1
+#define OPEN 2
+#define COMPAT_OLD_DES3 4
 #define COMPAT_OLD_DES3_SELECTED 8
-#define ACCEPTOR_SUBKEY		16
-	struct krb5_address	kc_local_address;
-	struct krb5_address	kc_remote_address;
-	uint16_t		kc_local_port;
-	uint16_t		kc_remote_port;
-	struct krb5_keyblock	kc_keyblock;
-	struct krb5_keyblock	kc_local_subkey;
-	struct krb5_keyblock	kc_remote_subkey;
-	volatile uint32_t	kc_local_seqnumber;
-	uint32_t		kc_remote_seqnumber;
-	uint32_t		kc_keytype;
-	uint32_t		kc_cksumtype;
-	struct krb5_data	kc_source_name;
-	struct krb5_data	kc_target_name;
-	uint32_t		kc_lifetime;
-	struct krb5_msg_order	kc_msg_order;
-	struct krb5_key_state	*kc_tokenkey;
-	struct krb5_key_state	*kc_encryptkey;
-	struct krb5_key_state	*kc_checksumkey;
+#define ACCEPTOR_SUBKEY 16
+	struct krb5_address kc_local_address;
+	struct krb5_address kc_remote_address;
+	uint16_t kc_local_port;
+	uint16_t kc_remote_port;
+	struct krb5_keyblock kc_keyblock;
+	struct krb5_keyblock kc_local_subkey;
+	struct krb5_keyblock kc_remote_subkey;
+	volatile uint32_t kc_local_seqnumber;
+	uint32_t kc_remote_seqnumber;
+	uint32_t kc_keytype;
+	uint32_t kc_cksumtype;
+	struct krb5_data kc_source_name;
+	struct krb5_data kc_target_name;
+	uint32_t kc_lifetime;
+	struct krb5_msg_order kc_msg_order;
+	struct krb5_key_state *kc_tokenkey;
+	struct krb5_key_state *kc_encryptkey;
+	struct krb5_key_state *kc_checksumkey;
 
-	struct krb5_key_state	*kc_send_seal_Ke;
-	struct krb5_key_state	*kc_send_seal_Ki;
-	struct krb5_key_state	*kc_send_seal_Kc;
-	struct krb5_key_state	*kc_send_sign_Kc;
+	struct krb5_key_state *kc_send_seal_Ke;
+	struct krb5_key_state *kc_send_seal_Ki;
+	struct krb5_key_state *kc_send_seal_Kc;
+	struct krb5_key_state *kc_send_sign_Kc;
 
-	struct krb5_key_state	*kc_recv_seal_Ke;
-	struct krb5_key_state	*kc_recv_seal_Ki;
-	struct krb5_key_state	*kc_recv_seal_Kc;
-	struct krb5_key_state	*kc_recv_sign_Kc;
+	struct krb5_key_state *kc_recv_seal_Ke;
+	struct krb5_key_state *kc_recv_seal_Ki;
+	struct krb5_key_state *kc_recv_seal_Kc;
+	struct krb5_key_state *kc_recv_sign_Kc;
 };
 
 static uint16_t
@@ -306,7 +307,7 @@ get_keys(struct krb5_context *kc)
 
 	switch (etype) {
 	case ETYPE_DES_CBC_CRC:
-	case ETYPE_ARCFOUR_HMAC_MD5: 
+	case ETYPE_ARCFOUR_HMAC_MD5:
 	case ETYPE_ARCFOUR_HMAC_MD5_56: {
 		/*
 		 * Single DES and ARCFOUR uses a 'derived' key (XOR
@@ -350,44 +351,44 @@ get_keys(struct krb5_context *kc)
 			/*
 			 * We are initiator.
 			 */
-			kc->kc_send_seal_Ke = krb5_get_encryption_key(key,
-			    KG_USAGE_INITIATOR_SEAL);
-			kc->kc_send_seal_Ki = krb5_get_integrity_key(key,
-			    KG_USAGE_INITIATOR_SEAL);
-			kc->kc_send_seal_Kc = krb5_get_checksum_key(key,
-			    KG_USAGE_INITIATOR_SEAL);
-			kc->kc_send_sign_Kc = krb5_get_checksum_key(key,
-			    KG_USAGE_INITIATOR_SIGN);
+			kc->kc_send_seal_Ke = krb5_get_encryption_key(
+			    key, KG_USAGE_INITIATOR_SEAL);
+			kc->kc_send_seal_Ki = krb5_get_integrity_key(
+			    key, KG_USAGE_INITIATOR_SEAL);
+			kc->kc_send_seal_Kc = krb5_get_checksum_key(
+			    key, KG_USAGE_INITIATOR_SEAL);
+			kc->kc_send_sign_Kc = krb5_get_checksum_key(
+			    key, KG_USAGE_INITIATOR_SIGN);
 
-			kc->kc_recv_seal_Ke = krb5_get_encryption_key(key,
-			    KG_USAGE_ACCEPTOR_SEAL);
-			kc->kc_recv_seal_Ki = krb5_get_integrity_key(key,
-			    KG_USAGE_ACCEPTOR_SEAL);
-			kc->kc_recv_seal_Kc = krb5_get_checksum_key(key,
-			    KG_USAGE_ACCEPTOR_SEAL);
-			kc->kc_recv_sign_Kc = krb5_get_checksum_key(key,
-			    KG_USAGE_ACCEPTOR_SIGN);
+			kc->kc_recv_seal_Ke = krb5_get_encryption_key(
+			    key, KG_USAGE_ACCEPTOR_SEAL);
+			kc->kc_recv_seal_Ki = krb5_get_integrity_key(
+			    key, KG_USAGE_ACCEPTOR_SEAL);
+			kc->kc_recv_seal_Kc = krb5_get_checksum_key(
+			    key, KG_USAGE_ACCEPTOR_SEAL);
+			kc->kc_recv_sign_Kc = krb5_get_checksum_key(
+			    key, KG_USAGE_ACCEPTOR_SIGN);
 		} else {
 			/*
 			 * We are acceptor.
 			 */
-			kc->kc_send_seal_Ke = krb5_get_encryption_key(key,
-			    KG_USAGE_ACCEPTOR_SEAL);
-			kc->kc_send_seal_Ki = krb5_get_integrity_key(key,
-			    KG_USAGE_ACCEPTOR_SEAL);
-			kc->kc_send_seal_Kc = krb5_get_checksum_key(key,
-			    KG_USAGE_ACCEPTOR_SEAL);
-			kc->kc_send_sign_Kc = krb5_get_checksum_key(key,
-			    KG_USAGE_ACCEPTOR_SIGN);
+			kc->kc_send_seal_Ke = krb5_get_encryption_key(
+			    key, KG_USAGE_ACCEPTOR_SEAL);
+			kc->kc_send_seal_Ki = krb5_get_integrity_key(
+			    key, KG_USAGE_ACCEPTOR_SEAL);
+			kc->kc_send_seal_Kc = krb5_get_checksum_key(
+			    key, KG_USAGE_ACCEPTOR_SEAL);
+			kc->kc_send_sign_Kc = krb5_get_checksum_key(
+			    key, KG_USAGE_ACCEPTOR_SIGN);
 
-			kc->kc_recv_seal_Ke = krb5_get_encryption_key(key,
-			    KG_USAGE_INITIATOR_SEAL);
-			kc->kc_recv_seal_Ki = krb5_get_integrity_key(key,
-			    KG_USAGE_INITIATOR_SEAL);
-			kc->kc_recv_seal_Kc = krb5_get_checksum_key(key,
-			    KG_USAGE_INITIATOR_SEAL);
-			kc->kc_recv_sign_Kc = krb5_get_checksum_key(key,
-			    KG_USAGE_INITIATOR_SIGN);
+			kc->kc_recv_seal_Ke = krb5_get_encryption_key(
+			    key, KG_USAGE_INITIATOR_SEAL);
+			kc->kc_recv_seal_Ki = krb5_get_integrity_key(
+			    key, KG_USAGE_INITIATOR_SEAL);
+			kc->kc_recv_seal_Kc = krb5_get_checksum_key(
+			    key, KG_USAGE_INITIATOR_SEAL);
+			kc->kc_recv_sign_Kc = krb5_get_checksum_key(
+			    key, KG_USAGE_INITIATOR_SIGN);
 		}
 		break;
 	}
@@ -404,13 +405,12 @@ krb5_init(gss_ctx_id_t ctx)
 }
 
 static OM_uint32
-krb5_import(gss_ctx_id_t ctx,
-    enum sec_context_format format,
+krb5_import(gss_ctx_id_t ctx, enum sec_context_format format,
     const gss_buffer_t context_token)
 {
 	struct krb5_context *kc = (struct krb5_context *)ctx;
 	OM_uint32 res;
-	const uint8_t *p = (const uint8_t *) context_token->value;
+	const uint8_t *p = (const uint8_t *)context_token->value;
 	size_t len = context_token->length;
 	uint32_t flags;
 	int i;
@@ -421,19 +421,18 @@ krb5_import(gss_ctx_id_t ctx,
 	if (format != KGSS_HEIMDAL_0_6 && format != KGSS_HEIMDAL_1_1)
 		return (GSS_S_DEFECTIVE_TOKEN);
 
-#define SC_LOCAL_ADDRESS	1
-#define SC_REMOTE_ADDRESS	2
-#define SC_KEYBLOCK		4
-#define SC_LOCAL_SUBKEY		8
-#define SC_REMOTE_SUBKEY	16
+#define SC_LOCAL_ADDRESS 1
+#define SC_REMOTE_ADDRESS 2
+#define SC_KEYBLOCK 4
+#define SC_LOCAL_SUBKEY 8
+#define SC_REMOTE_SUBKEY 16
 
 	/*
 	 * Ensure that the token starts with krb5 oid.
 	 */
-	if (p[0] != 0x00 || p[1] != krb5_mech_oid.length
-	    || len < krb5_mech_oid.length + 2
-	    || bcmp(krb5_mech_oid.elements, p + 2,
-		krb5_mech_oid.length))
+	if (p[0] != 0x00 || p[1] != krb5_mech_oid.length ||
+	    len < krb5_mech_oid.length + 2 ||
+	    bcmp(krb5_mech_oid.elements, p + 2, krb5_mech_oid.length))
 		return (GSS_S_DEFECTIVE_TOKEN);
 	p += krb5_mech_oid.length + 2;
 	len -= krb5_mech_oid.length + 2;
@@ -470,9 +469,9 @@ krb5_import(gss_ctx_id_t ctx,
 		kc->kc_msg_order.km_length = get_uint32(&p, &len);
 		kc->kc_msg_order.km_jitter_window = get_uint32(&p, &len);
 		kc->kc_msg_order.km_first_seq = get_uint32(&p, &len);
-		kc->kc_msg_order.km_elem =
-			malloc(kc->kc_msg_order.km_jitter_window * sizeof(uint32_t),
-			    M_GSSAPI, M_WAITOK);
+		kc->kc_msg_order.km_elem = malloc(
+		    kc->kc_msg_order.km_jitter_window * sizeof(uint32_t),
+		    M_GSSAPI, M_WAITOK);
 		for (i = 0; i < kc->kc_msg_order.km_jitter_window; i++)
 			kc->kc_msg_order.km_elem[i] = get_uint32(&p, &len);
 	} else {
@@ -550,7 +549,7 @@ krb5_mech_type(gss_ctx_id_t ctx)
  *	0x06 NN <oid data>	OID of mechanism type
  *	TT TT			TOK_ID
  *	<inner token>		data for inner token
- *	
+ *
  * 1:		der encoded length
  */
 static void *
@@ -579,7 +578,7 @@ krb5_make_token(char tok_id[2], size_t hlen, size_t len, struct mbuf **mp)
 	M_ALIGN(m, tlen);
 	m->m_len = tlen;
 
-	p = (uint8_t *) m->m_data;
+	p = (uint8_t *)m->m_data;
 	*p++ = 0x60;
 	switch (len_len) {
 	case 1:
@@ -639,7 +638,7 @@ krb5_make_token(char tok_id[2], size_t hlen, size_t len, struct mbuf **mp)
  *	0x06 NN <oid data>	OID of mechanism type
  *	TT TT			TOK_ID
  *	<inner token>		data for inner token
- *	
+ *
  * 1:		der encoded length
  */
 static void *
@@ -706,8 +705,8 @@ krb5_verify_token(char tok_id[2], size_t len, struct mbuf **mp,
 			break;
 
 		case 0x84:
-			inside_len = (p[0] << 24) | (p[1] << 16)
-				| (p[2] << 8) | p[3];
+			inside_len = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) |
+			    p[3];
 			p += 4;
 			break;
 
@@ -857,8 +856,8 @@ token_length(struct krb5_key_state *key)
 }
 
 static OM_uint32
-krb5_get_mic_old(struct krb5_context *kc, struct mbuf *m,
-    struct mbuf **micp, uint8_t sgn_alg[2])
+krb5_get_mic_old(struct krb5_context *kc, struct mbuf *m, struct mbuf **micp,
+    uint8_t sgn_alg[2])
 {
 	struct mbuf *mlast, *mic, *tm;
 	uint8_t *p, dir;
@@ -870,11 +869,11 @@ krb5_get_mic_old(struct krb5_context *kc, struct mbuf *m,
 
 	tlen = token_length(kc->kc_tokenkey);
 	p = krb5_make_token("\x01\x01", tlen, tlen, &mic);
-	p += 2;			/* TOK_ID */
-	*p++ = sgn_alg[0];	/* SGN_ALG */
+	p += 2;		   /* TOK_ID */
+	*p++ = sgn_alg[0]; /* SGN_ALG */
 	*p++ = sgn_alg[1];
 
-	*p++ = 0xff;		/* filler */
+	*p++ = 0xff; /* filler */
 	*p++ = 0xff;
 	*p++ = 0xff;
 	*p++ = 0xff;
@@ -887,14 +886,14 @@ krb5_get_mic_old(struct krb5_context *kc, struct mbuf *m,
 	 */
 	cklen = kc->kc_checksumkey->ks_class->ec_checksumlen;
 
-	mic->m_len = p - (uint8_t *) mic->m_data;
+	mic->m_len = p - (uint8_t *)mic->m_data;
 	mic->m_next = m;
 	MGET(tm, M_WAITOK, MT_DATA);
 	tm->m_len = cklen;
 	mlast->m_next = tm;
 
-	krb5_checksum(kc->kc_checksumkey, 15, mic, mic->m_len - 8,
-	    8 + mlen, cklen);
+	krb5_checksum(
+	    kc->kc_checksumkey, 15, mic, mic->m_len - 8, 8 + mlen, cklen);
 	bcopy(tm->m_data, p + 8, cklen);
 	mic->m_next = NULL;
 	mlast->m_next = NULL;
@@ -944,8 +943,7 @@ krb5_get_mic_old(struct krb5_context *kc, struct mbuf *m,
 }
 
 static OM_uint32
-krb5_get_mic_new(struct krb5_context *kc,  struct mbuf *m,
-    struct mbuf **micp)
+krb5_get_mic_new(struct krb5_context *kc, struct mbuf *m, struct mbuf **micp)
 {
 	struct krb5_key_state *key = kc->kc_send_sign_Kc;
 	struct mbuf *mlast, *mic;
@@ -1008,8 +1006,8 @@ krb5_get_mic_new(struct krb5_context *kc,  struct mbuf *m,
 }
 
 static OM_uint32
-krb5_get_mic(gss_ctx_id_t ctx, OM_uint32 *minor_status,
-    gss_qop_t qop_req, struct mbuf *m, struct mbuf **micp)
+krb5_get_mic(gss_ctx_id_t ctx, OM_uint32 *minor_status, gss_qop_t qop_req,
+    struct mbuf *m, struct mbuf **micp)
 {
 	struct krb5_context *kc = (struct krb5_context *)ctx;
 
@@ -1083,14 +1081,14 @@ krb5_verify_mic_old(struct krb5_context *kc, struct mbuf *m, struct mbuf *mic,
 	 */
 	cklen = kc->kc_checksumkey->ks_class->ec_checksumlen;
 	miclen = mic->m_len;
-	mic->m_len = p - (uint8_t *) mic->m_data;
+	mic->m_len = p - (uint8_t *)mic->m_data;
 	mic->m_next = m;
 	MGET(tm, M_WAITOK, MT_DATA);
 	tm->m_len = cklen;
 	mlast->m_next = tm;
 
-	krb5_checksum(kc->kc_checksumkey, 15, mic, mic->m_len - 8,
-	    8 + mlen, cklen);
+	krb5_checksum(
+	    kc->kc_checksumkey, 15, mic, mic->m_len - 8, 8 + mlen, cklen);
 	mic->m_next = NULL;
 	mlast->m_next = NULL;
 	if (bcmp(tm->m_data, p + 8, cklen)) {
@@ -1130,7 +1128,7 @@ krb5_verify_mic_old(struct krb5_context *kc, struct mbuf *m, struct mbuf *mic,
 	m_free(tm);
 
 	if (kc->kc_msg_order.km_flags &
-		(GSS_C_REPLAY_FLAG | GSS_C_SEQUENCE_FLAG)) {
+	    (GSS_C_REPLAY_FLAG | GSS_C_SEQUENCE_FLAG)) {
 		return (krb5_sequence_check(kc, seq));
 	}
 
@@ -1185,13 +1183,13 @@ krb5_verify_mic_new(struct krb5_context *kc, struct mbuf *m, struct mbuf *mic)
 
 	/* SND_SEQ */
 	if (kc->kc_msg_order.km_flags &
-		(GSS_C_REPLAY_FLAG | GSS_C_SEQUENCE_FLAG)) {
+	    (GSS_C_REPLAY_FLAG | GSS_C_SEQUENCE_FLAG)) {
 		uint32_t seq;
 		if (p[8] || p[9] || p[10] || p[11]) {
 			res = GSS_S_UNSEQ_TOKEN;
 		} else {
-			seq = (p[12] << 24) | (p[13] << 16)
-				| (p[14] << 8) | p[15];
+			seq = (p[12] << 24) | (p[13] << 16) | (p[14] << 8) |
+			    p[15];
 			res = krb5_sequence_check(kc, seq);
 		}
 		if (GSS_ERROR(res))
@@ -1218,8 +1216,8 @@ krb5_verify_mic_new(struct krb5_context *kc, struct mbuf *m, struct mbuf *mic)
 }
 
 static OM_uint32
-krb5_verify_mic(gss_ctx_id_t ctx, OM_uint32 *minor_status,
-    struct mbuf *m, struct mbuf *mic, gss_qop_t *qop_state)
+krb5_verify_mic(gss_ctx_id_t ctx, OM_uint32 *minor_status, struct mbuf *m,
+    struct mbuf *mic, gss_qop_t *qop_state)
 {
 	struct krb5_context *kc = (struct krb5_context *)ctx;
 
@@ -1249,9 +1247,8 @@ krb5_verify_mic(gss_ctx_id_t ctx, OM_uint32 *minor_status,
 }
 
 static OM_uint32
-krb5_wrap_old(struct krb5_context *kc, int conf_req_flag,
-    struct mbuf **mp, int *conf_state,
-    uint8_t sgn_alg[2], uint8_t seal_alg[2])
+krb5_wrap_old(struct krb5_context *kc, int conf_req_flag, struct mbuf **mp,
+    int *conf_state, uint8_t sgn_alg[2], uint8_t seal_alg[2])
 {
 	struct mbuf *m, *mlast, *tm, *cm, *pm;
 	size_t mlen, tlen, padlen, datalen;
@@ -1278,18 +1275,18 @@ krb5_wrap_old(struct krb5_context *kc, int conf_req_flag,
 	tlen = token_length(kc->kc_tokenkey);
 
 	p = krb5_make_token("\x02\x01", tlen, datalen + tlen, &tm);
-	p += 2;			/* TOK_ID */
-	*p++ = sgn_alg[0];	/* SGN_ALG */
+	p += 2;		   /* TOK_ID */
+	*p++ = sgn_alg[0]; /* SGN_ALG */
 	*p++ = sgn_alg[1];
 	if (conf_req_flag) {
 		*p++ = seal_alg[0]; /* SEAL_ALG */
 		*p++ = seal_alg[1];
 	} else {
-		*p++ = 0xff;	/* SEAL_ALG = none */
+		*p++ = 0xff; /* SEAL_ALG = none */
 		*p++ = 0xff;
 	}
 
-	*p++ = 0xff;		/* filler */
+	*p++ = 0xff; /* filler */
 	*p++ = 0xff;
 
 	/*
@@ -1326,12 +1323,12 @@ krb5_wrap_old(struct krb5_context *kc, int conf_req_flag,
 	 */
 	cklen = kc->kc_checksumkey->ks_class->ec_checksumlen;
 	tlen = tm->m_len;
-	tm->m_len = p - (uint8_t *) tm->m_data;
+	tm->m_len = p - (uint8_t *)tm->m_data;
 	MGET(cm, M_WAITOK, MT_DATA);
 	cm->m_len = cklen;
 	mlast->m_next = cm;
-	krb5_checksum(kc->kc_checksumkey, 13, tm, tm->m_len - 8,
-	    datalen + 8, cklen);
+	krb5_checksum(
+	    kc->kc_checksumkey, 13, tm, tm->m_len - 8, datalen + 8, cklen);
 	tm->m_len = tlen;
 	mlast->m_next = NULL;
 	bcopy(cm->m_data, p + 8, cklen);
@@ -1367,8 +1364,8 @@ krb5_wrap_old(struct krb5_context *kc, int conf_req_flag,
 	p[5] = dir;
 	p[6] = dir;
 	p[7] = dir;
-	krb5_encrypt(kc->kc_tokenkey, tm, p - (uint8_t *) tm->m_data,
-	    8, p + 8, 8);
+	krb5_encrypt(
+	    kc->kc_tokenkey, tm, p - (uint8_t *)tm->m_data, 8, p + 8, 8);
 
 	if (conf_req_flag) {
 		/*
@@ -1381,11 +1378,9 @@ krb5_wrap_old(struct krb5_context *kc, int conf_req_flag,
 			buf[1] = (seq >> 16);
 			buf[2] = (seq >> 8);
 			buf[3] = (seq >> 0);
-			krb5_encrypt(kc->kc_encryptkey, m, 0, datalen,
-			    buf, 4);
+			krb5_encrypt(kc->kc_encryptkey, m, 0, datalen, buf, 4);
 		} else {
-			krb5_encrypt(kc->kc_encryptkey, m, 0, datalen,
-			    NULL, 0);
+			krb5_encrypt(kc->kc_encryptkey, m, 0, datalen, NULL, 0);
 		}
 	}
 
@@ -1397,8 +1392,8 @@ krb5_wrap_old(struct krb5_context *kc, int conf_req_flag,
 }
 
 static OM_uint32
-krb5_wrap_new(struct krb5_context *kc, int conf_req_flag,
-    struct mbuf **mp, int *conf_state)
+krb5_wrap_new(struct krb5_context *kc, int conf_req_flag, struct mbuf **mp,
+    int *conf_state)
 {
 	struct krb5_key_state *Ke = kc->kc_send_seal_Ke;
 	struct krb5_key_state *Ki = kc->kc_send_seal_Ki;
@@ -1544,9 +1539,8 @@ krb5_wrap_new(struct krb5_context *kc, int conf_req_flag,
 }
 
 static OM_uint32
-krb5_wrap(gss_ctx_id_t ctx, OM_uint32 *minor_status,
-    int conf_req_flag, gss_qop_t qop_req,
-    struct mbuf **mp, int *conf_state)
+krb5_wrap(gss_ctx_id_t ctx, OM_uint32 *minor_status, int conf_req_flag,
+    gss_qop_t qop_req, struct mbuf **mp, int *conf_state)
 {
 	struct krb5_context *kc = (struct krb5_context *)ctx;
 
@@ -1562,17 +1556,17 @@ krb5_wrap(gss_ctx_id_t ctx, OM_uint32 *minor_status,
 
 	switch (kc->kc_tokenkey->ks_class->ec_type) {
 	case ETYPE_DES_CBC_CRC:
-		return (krb5_wrap_old(kc, conf_req_flag,
-			mp, conf_state, sgn_alg_des_md5, seal_alg_des));
+		return (krb5_wrap_old(kc, conf_req_flag, mp, conf_state,
+		    sgn_alg_des_md5, seal_alg_des));
 
 	case ETYPE_ARCFOUR_HMAC_MD5:
 	case ETYPE_ARCFOUR_HMAC_MD5_56:
-		return (krb5_wrap_old(kc, conf_req_flag,
-			mp, conf_state, sgn_alg_hmac_md5, seal_alg_rc4));
+		return (krb5_wrap_old(kc, conf_req_flag, mp, conf_state,
+		    sgn_alg_hmac_md5, seal_alg_rc4));
 
 	case ETYPE_DES3_CBC_SHA1:
-		return (krb5_wrap_old(kc, conf_req_flag,
-			mp, conf_state, sgn_alg_des3_sha1, seal_alg_des3));
+		return (krb5_wrap_old(kc, conf_req_flag, mp, conf_state,
+		    sgn_alg_des3_sha1, seal_alg_des3));
 
 	default:
 		return (krb5_wrap_new(kc, conf_req_flag, mp, conf_state));
@@ -1628,7 +1622,7 @@ krb5_unwrap_old(struct krb5_context *kc, struct mbuf **mp, int *conf_state,
 	 * Trim the framing header first to make life a little easier
 	 * later.
 	 */
-	m_adj(m, p - (uint8_t *) m->m_data);
+	m_adj(m, p - (uint8_t *)m->m_data);
 
 	/* TOK_ID */
 	p += 2;
@@ -1694,11 +1688,11 @@ krb5_unwrap_old(struct krb5_context *kc, struct mbuf **mp, int *conf_state,
 		 * sequence number for ARCFOUR.
 		 */
 		if (seal_alg[0] == 0x10) {
-			krb5_decrypt(kc->kc_encryptkey, m, 16 + cklen,
-			    datalen, p, 4);
+			krb5_decrypt(
+			    kc->kc_encryptkey, m, 16 + cklen, datalen, p, 4);
 		} else {
-			krb5_decrypt(kc->kc_encryptkey, m, 16 + cklen,
-			    datalen, NULL, 0);
+			krb5_decrypt(
+			    kc->kc_encryptkey, m, 16 + cklen, datalen, NULL, 0);
 		}
 	}
 	if (conf_state)
@@ -1825,13 +1819,13 @@ krb5_unwrap_new(struct krb5_context *kc, struct mbuf **mp, int *conf_state)
 
 	/* SND_SEQ */
 	if (kc->kc_msg_order.km_flags &
-		(GSS_C_REPLAY_FLAG | GSS_C_SEQUENCE_FLAG)) {
+	    (GSS_C_REPLAY_FLAG | GSS_C_SEQUENCE_FLAG)) {
 		uint32_t seq;
 		if (p[8] || p[9] || p[10] || p[11]) {
 			res = GSS_S_UNSEQ_TOKEN;
 		} else {
-			seq = (p[12] << 24) | (p[13] << 16)
-				| (p[14] << 8) | p[15];
+			seq = (p[12] << 24) | (p[13] << 16) | (p[14] << 8) |
+			    p[15];
 			res = krb5_sequence_check(kc, seq);
 		}
 		if (GSS_ERROR(res))
@@ -1889,7 +1883,7 @@ krb5_unwrap_new(struct krb5_context *kc, struct mbuf **mp, int *conf_state)
 		 * for a blocksize confounder, at least one block of
 		 * cyphertext and a checksum.
 		 */
-		if (mlen < 16 + 2*blen + cklen)
+		if (mlen < 16 + 2 * blen + cklen)
 			return (GSS_S_DEFECTIVE_TOKEN);
 
 		ctlen = mlen - 16 - cklen;
@@ -1973,8 +1967,8 @@ krb5_unwrap_new(struct krb5_context *kc, struct mbuf **mp, int *conf_state)
 }
 
 static OM_uint32
-krb5_unwrap(gss_ctx_id_t ctx, OM_uint32 *minor_status,
-    struct mbuf **mp, int *conf_state, gss_qop_t *qop_state)
+krb5_unwrap(gss_ctx_id_t ctx, OM_uint32 *minor_status, struct mbuf **mp,
+    int *conf_state, gss_qop_t *qop_state)
 {
 	struct krb5_context *kc = (struct krb5_context *)ctx;
 	OM_uint32 maj_stat;
@@ -1990,19 +1984,19 @@ krb5_unwrap(gss_ctx_id_t ctx, OM_uint32 *minor_status,
 
 	switch (kc->kc_tokenkey->ks_class->ec_type) {
 	case ETYPE_DES_CBC_CRC:
-		maj_stat = krb5_unwrap_old(kc, mp, conf_state,
-			sgn_alg_des_md5, seal_alg_des);
+		maj_stat = krb5_unwrap_old(
+		    kc, mp, conf_state, sgn_alg_des_md5, seal_alg_des);
 		break;
 
 	case ETYPE_ARCFOUR_HMAC_MD5:
 	case ETYPE_ARCFOUR_HMAC_MD5_56:
-		maj_stat = krb5_unwrap_old(kc, mp, conf_state,
-			sgn_alg_hmac_md5, seal_alg_rc4);
+		maj_stat = krb5_unwrap_old(
+		    kc, mp, conf_state, sgn_alg_hmac_md5, seal_alg_rc4);
 		break;
 
 	case ETYPE_DES3_CBC_SHA1:
-		maj_stat = krb5_unwrap_old(kc, mp, conf_state,
-			sgn_alg_des3_sha1, seal_alg_des3);
+		maj_stat = krb5_unwrap_old(
+		    kc, mp, conf_state, sgn_alg_des3_sha1, seal_alg_des3);
 		break;
 
 	default:
@@ -2037,7 +2031,7 @@ krb5_wrap_size_limit(gss_ctx_id_t ctx, OM_uint32 *minor_status,
 	switch (ec->ec_type) {
 	case ETYPE_DES_CBC_CRC:
 	case ETYPE_DES3_CBC_SHA1:
-	case ETYPE_ARCFOUR_HMAC_MD5: 
+	case ETYPE_ARCFOUR_HMAC_MD5:
 	case ETYPE_ARCFOUR_HMAC_MD5_56:
 		/*
 		 * up to 5 bytes for [APPLICATION 0] SEQUENCE
@@ -2078,24 +2072,17 @@ krb5_wrap_size_limit(gss_ctx_id_t ctx, OM_uint32 *minor_status,
 	return (GSS_S_COMPLETE);
 }
 
-static kobj_method_t krb5_methods[] = {
-	KOBJMETHOD(kgss_init,		krb5_init),
-	KOBJMETHOD(kgss_import,		krb5_import),
-	KOBJMETHOD(kgss_delete,		krb5_delete),
-	KOBJMETHOD(kgss_mech_type,	krb5_mech_type),
-	KOBJMETHOD(kgss_get_mic,	krb5_get_mic),
-	KOBJMETHOD(kgss_verify_mic,	krb5_verify_mic),
-	KOBJMETHOD(kgss_wrap,		krb5_wrap),
-	KOBJMETHOD(kgss_unwrap,		krb5_unwrap),
-	KOBJMETHOD(kgss_wrap_size_limit, krb5_wrap_size_limit),
-	{ 0, 0 }
-};
+static kobj_method_t krb5_methods[] = { KOBJMETHOD(kgss_init, krb5_init),
+	KOBJMETHOD(kgss_import, krb5_import),
+	KOBJMETHOD(kgss_delete, krb5_delete),
+	KOBJMETHOD(kgss_mech_type, krb5_mech_type),
+	KOBJMETHOD(kgss_get_mic, krb5_get_mic),
+	KOBJMETHOD(kgss_verify_mic, krb5_verify_mic),
+	KOBJMETHOD(kgss_wrap, krb5_wrap), KOBJMETHOD(kgss_unwrap, krb5_unwrap),
+	KOBJMETHOD(kgss_wrap_size_limit, krb5_wrap_size_limit), { 0, 0 } };
 
-static struct kobj_class krb5_class = {
-	"kerberosv5",
-	krb5_methods,
-	sizeof(struct krb5_context)
-};
+static struct kobj_class krb5_class = { "kerberosv5", krb5_methods,
+	sizeof(struct krb5_context) };
 
 /*
  * Kernel module glue

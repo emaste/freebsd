@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -52,24 +52,25 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <netgraph/ng_message.h>
+
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_echo.h>
+#include <netgraph/ng_message.h>
 
 /* Netgraph methods */
-static ng_constructor_t	nge_cons;
-static ng_rcvmsg_t	nge_rcvmsg;
-static ng_rcvdata_t	nge_rcvdata;
-static ng_disconnect_t	nge_disconnect;
+static ng_constructor_t nge_cons;
+static ng_rcvmsg_t nge_rcvmsg;
+static ng_rcvdata_t nge_rcvdata;
+static ng_disconnect_t nge_disconnect;
 
 /* Netgraph type */
 static struct ng_type typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_ECHO_NODE_TYPE,
-	.constructor =	nge_cons,
-	.rcvmsg =	nge_rcvmsg,
-	.rcvdata =	nge_rcvdata,
-	.disconnect =	nge_disconnect,
+	.version = NG_ABI_VERSION,
+	.name = NG_ECHO_NODE_TYPE,
+	.constructor = nge_cons,
+	.rcvmsg = nge_rcvmsg,
+	.rcvdata = nge_rcvdata,
+	.disconnect = nge_disconnect,
 };
 NETGRAPH_INIT(echo, &typestruct);
 
@@ -112,8 +113,8 @@ nge_rcvdata(hook_p hook, item_p item)
 static int
 nge_disconnect(hook_p hook)
 {
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
+	    (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	}
 	return (0);

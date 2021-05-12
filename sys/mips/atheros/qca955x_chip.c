@@ -30,18 +30,16 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/reboot.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
-
-#include <net/ethernet.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -51,16 +49,15 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
+#include <net/ethernet.h>
+
 #include <mips/atheros/ar71xxreg.h>
 //#include <mips/atheros/ar934xreg.h>
-#include <mips/atheros/qca955xreg.h>
-
+#include <mips/atheros/ar71xx_chip.h>
 #include <mips/atheros/ar71xx_cpudef.h>
 #include <mips/atheros/ar71xx_setup.h>
-
-#include <mips/atheros/ar71xx_chip.h>
-
 #include <mips/atheros/qca955x_chip.h>
+#include <mips/atheros/qca955xreg.h>
 
 static void
 qca955x_chip_detect_mem_size(void)
@@ -79,20 +76,20 @@ qca955x_chip_detect_sys_frequency(void)
 	uint32_t bootstrap;
 
 	bootstrap = ATH_READ_REG(QCA955X_RESET_REG_BOOTSTRAP);
-	if (bootstrap &	QCA955X_BOOTSTRAP_REF_CLK_40)
+	if (bootstrap & QCA955X_BOOTSTRAP_REF_CLK_40)
 		ref_rate = 40 * 1000 * 1000;
 	else
 		ref_rate = 25 * 1000 * 1000;
 
 	pll = ATH_READ_REG(QCA955X_PLL_CPU_CONFIG_REG);
 	out_div = (pll >> QCA955X_PLL_CPU_CONFIG_OUTDIV_SHIFT) &
-		  QCA955X_PLL_CPU_CONFIG_OUTDIV_MASK;
+	    QCA955X_PLL_CPU_CONFIG_OUTDIV_MASK;
 	ref_div = (pll >> QCA955X_PLL_CPU_CONFIG_REFDIV_SHIFT) &
-		  QCA955X_PLL_CPU_CONFIG_REFDIV_MASK;
+	    QCA955X_PLL_CPU_CONFIG_REFDIV_MASK;
 	nint = (pll >> QCA955X_PLL_CPU_CONFIG_NINT_SHIFT) &
-	       QCA955X_PLL_CPU_CONFIG_NINT_MASK;
+	    QCA955X_PLL_CPU_CONFIG_NINT_MASK;
 	frac = (pll >> QCA955X_PLL_CPU_CONFIG_NFRAC_SHIFT) &
-	       QCA955X_PLL_CPU_CONFIG_NFRAC_MASK;
+	    QCA955X_PLL_CPU_CONFIG_NFRAC_MASK;
 
 	cpu_pll = nint * ref_rate / ref_div;
 	cpu_pll += frac * ref_rate / (ref_div * (1 << 6));
@@ -100,13 +97,13 @@ qca955x_chip_detect_sys_frequency(void)
 
 	pll = ATH_READ_REG(QCA955X_PLL_DDR_CONFIG_REG);
 	out_div = (pll >> QCA955X_PLL_DDR_CONFIG_OUTDIV_SHIFT) &
-		  QCA955X_PLL_DDR_CONFIG_OUTDIV_MASK;
+	    QCA955X_PLL_DDR_CONFIG_OUTDIV_MASK;
 	ref_div = (pll >> QCA955X_PLL_DDR_CONFIG_REFDIV_SHIFT) &
-		  QCA955X_PLL_DDR_CONFIG_REFDIV_MASK;
+	    QCA955X_PLL_DDR_CONFIG_REFDIV_MASK;
 	nint = (pll >> QCA955X_PLL_DDR_CONFIG_NINT_SHIFT) &
-	       QCA955X_PLL_DDR_CONFIG_NINT_MASK;
+	    QCA955X_PLL_DDR_CONFIG_NINT_MASK;
 	frac = (pll >> QCA955X_PLL_DDR_CONFIG_NFRAC_SHIFT) &
-	       QCA955X_PLL_DDR_CONFIG_NFRAC_MASK;
+	    QCA955X_PLL_DDR_CONFIG_NFRAC_MASK;
 
 	ddr_pll = nint * ref_rate / ref_div;
 	ddr_pll += frac * ref_rate / (ref_div * (1 << 10));
@@ -115,7 +112,7 @@ qca955x_chip_detect_sys_frequency(void)
 	clk_ctrl = ATH_READ_REG(QCA955X_PLL_CLK_CTRL_REG);
 
 	postdiv = (clk_ctrl >> QCA955X_PLL_CLK_CTRL_CPU_POST_DIV_SHIFT) &
-		  QCA955X_PLL_CLK_CTRL_CPU_POST_DIV_MASK;
+	    QCA955X_PLL_CLK_CTRL_CPU_POST_DIV_MASK;
 
 	if (clk_ctrl & QCA955X_PLL_CLK_CTRL_CPU_PLL_BYPASS)
 		cpu_rate = ref_rate;
@@ -125,7 +122,7 @@ qca955x_chip_detect_sys_frequency(void)
 		cpu_rate = cpu_pll / (postdiv + 1);
 
 	postdiv = (clk_ctrl >> QCA955X_PLL_CLK_CTRL_DDR_POST_DIV_SHIFT) &
-		  QCA955X_PLL_CLK_CTRL_DDR_POST_DIV_MASK;
+	    QCA955X_PLL_CLK_CTRL_DDR_POST_DIV_MASK;
 
 	if (clk_ctrl & QCA955X_PLL_CLK_CTRL_DDR_PLL_BYPASS)
 		ddr_rate = ref_rate;
@@ -135,7 +132,7 @@ qca955x_chip_detect_sys_frequency(void)
 		ddr_rate = ddr_pll / (postdiv + 1);
 
 	postdiv = (clk_ctrl >> QCA955X_PLL_CLK_CTRL_AHB_POST_DIV_SHIFT) &
-		  QCA955X_PLL_CLK_CTRL_AHB_POST_DIV_MASK;
+	    QCA955X_PLL_CLK_CTRL_AHB_POST_DIV_MASK;
 
 	if (clk_ctrl & QCA955X_PLL_CLK_CTRL_AHB_PLL_BYPASS)
 		ahb_rate = ref_rate;
@@ -200,8 +197,8 @@ qca955x_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 		ATH_WRITE_REG(QCA955X_PLL_ETH_SGMII_CONTROL_REG, pll);
 		break;
 	default:
-		printf("%s: invalid PLL set for arge unit: %d\n",
-		    __func__, unit);
+		printf(
+		    "%s: invalid PLL set for arge unit: %d\n", __func__, unit);
 		return;
 	}
 }
@@ -316,12 +313,10 @@ qca955x_chip_init_gmac(void)
 {
 	long gmac_cfg;
 
-	if (resource_long_value("qca955x_gmac", 0, "gmac_cfg",
-	    &gmac_cfg) == 0) {
-		printf("%s: gmac_cfg=0x%08lx\n",
-		    __func__,
-		    (long) gmac_cfg);
-		qca955x_configure_gmac((uint32_t) gmac_cfg);
+	if (resource_long_value("qca955x_gmac", 0, "gmac_cfg", &gmac_cfg) ==
+	    0) {
+		printf("%s: gmac_cfg=0x%08lx\n", __func__, (long)gmac_cfg);
+		qca955x_configure_gmac((uint32_t)gmac_cfg);
 	}
 }
 

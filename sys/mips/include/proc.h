@@ -39,9 +39,9 @@
  */
 
 #ifndef _MACHINE_PROC_H_
-#define	_MACHINE_PROC_H_
+#define _MACHINE_PROC_H_
 
-#ifdef	CPU_CNMIPS
+#ifdef CPU_CNMIPS
 #include <machine/octeon_cop2.h>
 #endif
 
@@ -49,39 +49,39 @@
  * Machine-dependent part of the proc structure.
  */
 struct mdthread {
-	int		md_flags;	/* machine-dependent flags */
+	int md_flags;			       /* machine-dependent flags */
 #if defined(__mips_n64) || defined(__mips_n32) /*  PHYSADDR_64_BIT */
-	uint64_t	md_upte[KSTACK_PAGES];	/* ptes for mapping u pcb */
+	uint64_t md_upte[KSTACK_PAGES]; /* ptes for mapping u pcb */
 #else
-	int		md_upte[KSTACK_PAGES];
+	int md_upte[KSTACK_PAGES];
 #endif
-	uintptr_t	md_ss_addr;	/* single step address for ptrace */
-	int		md_ss_instr;	/* single step instruction for ptrace */
-	register_t	md_saved_intr;
-	u_int		md_spinlock_count;
-/* The following is CPU dependent, but kept in for compatibility */
-	int		md_pc_ctrl;	/* performance counter control */
-	int		md_pc_count;	/* performance counter */
-	int		md_pc_spill;	/* performance counter spill */
-	void		*md_tls;
-#ifdef	CPU_CNMIPS
-	struct octeon_cop2_state	*md_cop2; /* kernel context */
-	struct octeon_cop2_state	*md_ucop2; /* userland context */
-#define	COP2_OWNER_USERLAND	0x0000		/* Userland owns COP2 */
-#define	COP2_OWNER_KERNEL	0x0001		/* Kernel owns COP2 */
-	int		md_cop2owner;
+	uintptr_t md_ss_addr; /* single step address for ptrace */
+	int md_ss_instr;      /* single step instruction for ptrace */
+	register_t md_saved_intr;
+	u_int md_spinlock_count;
+	/* The following is CPU dependent, but kept in for compatibility */
+	int md_pc_ctrl;	 /* performance counter control */
+	int md_pc_count; /* performance counter */
+	int md_pc_spill; /* performance counter spill */
+	void *md_tls;
+#ifdef CPU_CNMIPS
+	struct octeon_cop2_state *md_cop2;  /* kernel context */
+	struct octeon_cop2_state *md_ucop2; /* userland context */
+#define COP2_OWNER_USERLAND 0x0000 /* Userland owns COP2 */
+#define COP2_OWNER_KERNEL 0x0001 /* Kernel owns COP2 */
+	int md_cop2owner;
 #endif
 };
 
 /* md_flags */
-#define	MDTD_FPUSED	0x0001		/* Process used the FPU */
-#define	MDTD_COP2USED	0x0002		/* Process used the COP2 */
+#define MDTD_FPUSED 0x0001 /* Process used the FPU */
+#define MDTD_COP2USED 0x0002 /* Process used the COP2 */
 
 struct mdproc {
-	size_t		md_tls_tcb_offset;	/* TCB offset */
+	size_t md_tls_tcb_offset; /* TCB offset */
 };
 
-#define	MAXARGS		8
+#define MAXARGS 8
 struct syscall_args {
 	u_int code;
 	struct sysent *callp;
@@ -89,10 +89,10 @@ struct syscall_args {
 };
 
 #ifdef __mips_n64
-#define	KINFO_PROC_SIZE 1088
-#define	KINFO_PROC32_SIZE 816
+#define KINFO_PROC_SIZE 1088
+#define KINFO_PROC32_SIZE 816
 #else
-#define	KINFO_PROC_SIZE 816
+#define KINFO_PROC_SIZE 816
 #endif
 
-#endif	/* !_MACHINE_PROC_H_ */
+#endif /* !_MACHINE_PROC_H_ */

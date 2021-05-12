@@ -71,8 +71,8 @@ linux_ww_unlock(void)
 
 /* lock a mutex with deadlock avoidance */
 int
-linux_ww_mutex_lock_sub(struct ww_mutex *lock,
-    struct ww_acquire_ctx *ctx, int catch_signal)
+linux_ww_mutex_lock_sub(
+    struct ww_mutex *lock, struct ww_acquire_ctx *ctx, int catch_signal)
 {
 	struct task_struct *task;
 	struct ww_mutex_thread entry;
@@ -88,11 +88,11 @@ linux_ww_mutex_lock_sub(struct ww_mutex *lock,
 		TAILQ_INSERT_TAIL(&ww_mutex_head, &entry, entry);
 
 		do {
-			struct thread *owner = (struct thread *)
-			    SX_OWNER(lock->base.sx.sx_lock);
+			struct thread *owner = (struct thread *)SX_OWNER(
+			    lock->base.sx.sx_lock);
 
 			/* scan for deadlock */
-			TAILQ_FOREACH(other, &ww_mutex_head, entry) {
+			TAILQ_FOREACH (other, &ww_mutex_head, entry) {
 				/* skip own thread */
 				if (other == &entry)
 					continue;
@@ -104,15 +104,18 @@ linux_ww_mutex_lock_sub(struct ww_mutex *lock,
 				 */
 				if (other->thread == owner &&
 				    (struct thread *)SX_OWNER(
-				    other->lock->base.sx.sx_lock) == curthread) {
+					other->lock->base.sx.sx_lock) ==
+					curthread) {
 					retval = -EDEADLK;
 					goto done;
 				}
 			}
 			if (catch_signal) {
-				retval = -cv_wait_sig(&lock->condvar, &ww_mutex_global);
+				retval = -cv_wait_sig(
+				    &lock->condvar, &ww_mutex_global);
 				if (retval != 0) {
-					linux_schedule_save_interrupt_value(task, retval);
+					linux_schedule_save_interrupt_value(
+					    task, retval);
 					retval = -EINTR;
 					goto done;
 				}
@@ -120,7 +123,7 @@ linux_ww_mutex_lock_sub(struct ww_mutex *lock,
 				cv_wait(&lock->condvar, &ww_mutex_global);
 			}
 		} while (sx_try_xlock(&lock->base.sx) == 0);
-done:
+	done:
 		TAILQ_REMOVE(&ww_mutex_head, &entry, entry);
 
 		/* if the lock is free, wakeup next lock waiter, if any */

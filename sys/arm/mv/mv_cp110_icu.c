@@ -33,62 +33,57 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
 
 #include <dev/fdt/simplebus.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dt-bindings/interrupt-controller/irq.h>
+
 #include "pic_if.h"
 
-#define	ICU_GRP_NSR		0x0
-#define	ICU_GRP_SR		0x1
-#define	ICU_GRP_SEI		0x4
-#define	ICU_GRP_REI		0x5
+#define ICU_GRP_NSR 0x0
+#define ICU_GRP_SR 0x1
+#define ICU_GRP_SEI 0x4
+#define ICU_GRP_REI 0x5
 
-#define	ICU_SETSPI_NSR_AL	0x10
-#define	ICU_SETSPI_NSR_AH	0x14
-#define	ICU_CLRSPI_NSR_AL	0x18
-#define	ICU_CLRSPI_NSR_AH	0x1c
-#define	ICU_INT_CFG(x)	(0x100 + (x) * 4)
-#define	 ICU_INT_ENABLE		(1 << 24)
-#define	 ICU_INT_EDGE		(1 << 28)
-#define	 ICU_INT_GROUP_SHIFT	29
-#define	 ICU_INT_MASK		0x3ff
+#define ICU_SETSPI_NSR_AL 0x10
+#define ICU_SETSPI_NSR_AH 0x14
+#define ICU_CLRSPI_NSR_AL 0x18
+#define ICU_CLRSPI_NSR_AH 0x1c
+#define ICU_INT_CFG(x) (0x100 + (x)*4)
+#define ICU_INT_ENABLE (1 << 24)
+#define ICU_INT_EDGE (1 << 28)
+#define ICU_INT_GROUP_SHIFT 29
+#define ICU_INT_MASK 0x3ff
 
-#define	MV_CP110_ICU_MAX_NIRQS	207
+#define MV_CP110_ICU_MAX_NIRQS 207
 
 struct mv_cp110_icu_softc {
-	device_t		dev;
-	device_t		parent;
-	struct resource		*res;
+	device_t dev;
+	device_t parent;
+	struct resource *res;
 	struct intr_map_data_fdt *parent_map_data;
 };
 
 static struct resource_spec mv_cp110_icu_res_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE | RF_SHAREABLE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE | RF_SHAREABLE }, { -1, 0 }
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{"marvell,cp110-icu-nsr",	1},
-	{"marvell,cp110-icu-sei",	2},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "marvell,cp110-icu-nsr", 1 },
+	{ "marvell,cp110-icu-sei", 2 }, { NULL, 0 } };
 
-#define	RD4(sc, reg)		bus_read_4((sc)->res, (reg))
-#define	WR4(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
+#define RD4(sc, reg) bus_read_4((sc)->res, (reg))
+#define WR4(sc, reg, val) bus_write_4((sc)->res, (reg), (val))
 
 static int
 mv_cp110_icu_probe(device_t dev)
@@ -114,8 +109,8 @@ mv_cp110_icu_attach(device_t dev)
 	sc->dev = dev;
 	node = ofw_bus_get_node(dev);
 
-	if (OF_getencprop(node, "msi-parent", &msi_parent,
-	    sizeof(phandle_t)) <= 0) {
+	if (OF_getencprop(node, "msi-parent", &msi_parent, sizeof(phandle_t)) <=
+	    0) {
 		device_printf(dev, "cannot find msi-parent property\n");
 		return (ENXIO);
 	}
@@ -136,8 +131,9 @@ mv_cp110_icu_attach(device_t dev)
 
 	/* Allocate GICP compatible mapping entry (2 cells) */
 	sc->parent_map_data = (struct intr_map_data_fdt *)intr_alloc_map_data(
-	    INTR_MAP_DATA_FDT, sizeof(struct intr_map_data_fdt) +
-	    + 3 * sizeof(phandle_t), M_WAITOK | M_ZERO);
+	    INTR_MAP_DATA_FDT,
+	    sizeof(struct intr_map_data_fdt) + +3 * sizeof(phandle_t),
+	    M_WAITOK | M_ZERO);
 	return (0);
 
 fail:
@@ -146,7 +142,8 @@ fail:
 }
 
 static struct intr_map_data *
-mv_cp110_icu_convert_map_data(struct mv_cp110_icu_softc *sc, struct intr_map_data *data)
+mv_cp110_icu_convert_map_data(
+    struct mv_cp110_icu_softc *sc, struct intr_map_data *data)
 {
 	struct intr_map_data_fdt *daf;
 	uint32_t reg, irq_no, irq_type;
@@ -158,8 +155,7 @@ mv_cp110_icu_convert_map_data(struct mv_cp110_icu_softc *sc, struct intr_map_dat
 	irq_type = daf->cells[1];
 	if (irq_no >= MV_CP110_ICU_MAX_NIRQS)
 		return (NULL);
-	if (irq_type != IRQ_TYPE_LEVEL_HIGH &&
-	    irq_type != IRQ_TYPE_EDGE_RISING)
+	if (irq_type != IRQ_TYPE_LEVEL_HIGH && irq_type != IRQ_TYPE_EDGE_RISING)
 		return (NULL);
 
 	/* We rely on fact that ICU->GIC mapping is preset by bootstrap. */
@@ -213,8 +209,8 @@ mv_cp110_icu_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-mv_cp110_icu_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+mv_cp110_icu_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct mv_cp110_icu_softc *sc;
 	struct intr_map_data_fdt *daf;
@@ -323,21 +319,21 @@ mv_cp110_icu_post_filter(device_t dev, struct intr_irqsrc *isrc)
 
 static device_method_t mv_cp110_icu_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		mv_cp110_icu_probe),
-	DEVMETHOD(device_attach,	mv_cp110_icu_attach),
-	DEVMETHOD(device_detach,	mv_cp110_icu_detach),
+	DEVMETHOD(device_probe, mv_cp110_icu_probe),
+	DEVMETHOD(device_attach, mv_cp110_icu_attach),
+	DEVMETHOD(device_detach, mv_cp110_icu_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_activate_intr,	mv_cp110_icu_activate_intr),
-	DEVMETHOD(pic_disable_intr,	mv_cp110_icu_disable_intr),
-	DEVMETHOD(pic_enable_intr,	mv_cp110_icu_enable_intr),
-	DEVMETHOD(pic_map_intr,		mv_cp110_icu_map_intr),
-	DEVMETHOD(pic_deactivate_intr,	mv_cp110_icu_deactivate_intr),
-	DEVMETHOD(pic_setup_intr,	mv_cp110_icu_setup_intr),
-	DEVMETHOD(pic_teardown_intr,	mv_cp110_icu_teardown_intr),
-	DEVMETHOD(pic_post_filter,	mv_cp110_icu_post_filter),
-	DEVMETHOD(pic_post_ithread,	mv_cp110_icu_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mv_cp110_icu_pre_ithread),
+	DEVMETHOD(pic_activate_intr, mv_cp110_icu_activate_intr),
+	DEVMETHOD(pic_disable_intr, mv_cp110_icu_disable_intr),
+	DEVMETHOD(pic_enable_intr, mv_cp110_icu_enable_intr),
+	DEVMETHOD(pic_map_intr, mv_cp110_icu_map_intr),
+	DEVMETHOD(pic_deactivate_intr, mv_cp110_icu_deactivate_intr),
+	DEVMETHOD(pic_setup_intr, mv_cp110_icu_setup_intr),
+	DEVMETHOD(pic_teardown_intr, mv_cp110_icu_teardown_intr),
+	DEVMETHOD(pic_post_filter, mv_cp110_icu_post_filter),
+	DEVMETHOD(pic_post_ithread, mv_cp110_icu_post_ithread),
+	DEVMETHOD(pic_pre_ithread, mv_cp110_icu_pre_ithread),
 
 	DEVMETHOD_END
 };

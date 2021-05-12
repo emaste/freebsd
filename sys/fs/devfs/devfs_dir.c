@@ -28,29 +28,29 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h>
-#include <sys/conf.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
-#include <sys/systm.h>
 #include <sys/sx.h>
 
 #include <fs/devfs/devfs.h>
 #include <fs/devfs/devfs_int.h>
 
 struct dirlistent {
-	char			*dir;
-	int			refcnt;
-	LIST_ENTRY(dirlistent)	link;
+	char *dir;
+	int refcnt;
+	LIST_ENTRY(dirlistent) link;
 };
 
-static LIST_HEAD(, dirlistent) devfs_dirlist =
-    LIST_HEAD_INITIALIZER(devfs_dirlist);
+static LIST_HEAD(, dirlistent) devfs_dirlist = LIST_HEAD_INITIALIZER(
+    devfs_dirlist);
 
 static MALLOC_DEFINE(M_DEVFS4, "DEVFS4", "DEVFS directory list");
 
@@ -64,7 +64,7 @@ devfs_dir_find(const char *path)
 	struct dirlistent *dle;
 
 	mtx_lock(&dirlist_mtx);
-	LIST_FOREACH(dle, &devfs_dirlist, link) {
+	LIST_FOREACH (dle, &devfs_dirlist, link) {
 		if (devfs_pathpath(dle->dir, path) != 0) {
 			mtx_unlock(&dirlist_mtx);
 			return (1);
@@ -82,7 +82,7 @@ devfs_dir_findent_locked(const char *dir)
 
 	mtx_assert(&dirlist_mtx, MA_OWNED);
 
-	LIST_FOREACH(dle, &devfs_dirlist, link) {
+	LIST_FOREACH (dle, &devfs_dirlist, link) {
 		if (strcmp(dir, dle->dir) == 0)
 			return (dle);
 	}
@@ -164,7 +164,7 @@ int
 devfs_pathpath(const char *p1, const char *p2)
 {
 
-	for (;;p1++, p2++) {
+	for (;; p1++, p2++) {
 		if (*p1 != *p2) {
 			if (*p1 == '/' && *p2 == '\0')
 				return (1);

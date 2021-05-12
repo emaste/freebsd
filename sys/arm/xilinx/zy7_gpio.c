@@ -50,15 +50,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
-#include <sys/gpio.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -70,50 +70,50 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
-#define NUMBANKS	4
-#define MAXPIN		(32*NUMBANKS)
+#define NUMBANKS 4
+#define MAXPIN (32 * NUMBANKS)
 
-#define MIO_PIN		0	/* pins 0-53 go to MIO */
-#define NUM_MIO_PINS	54
-#define EMIO_PIN	64	/* pins 64-127 go to PL */
-#define NUM_EMIO_PINS	64
+#define MIO_PIN 0 /* pins 0-53 go to MIO */
+#define NUM_MIO_PINS 54
+#define EMIO_PIN 64 /* pins 64-127 go to PL */
+#define NUM_EMIO_PINS 64
 
-#define VALID_PIN(u)	(((u) >= MIO_PIN && (u) < MIO_PIN + NUM_MIO_PINS) || \
-			 ((u) >= EMIO_PIN && (u) < EMIO_PIN + NUM_EMIO_PINS))
+#define VALID_PIN(u)                                         \
+	(((u) >= MIO_PIN && (u) < MIO_PIN + NUM_MIO_PINS) || \
+	    ((u) >= EMIO_PIN && (u) < EMIO_PIN + NUM_EMIO_PINS))
 
-#define ZGPIO_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)
-#define	ZGPIO_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
+#define ZGPIO_LOCK(sc) mtx_lock(&(sc)->sc_mtx)
+#define ZGPIO_UNLOCK(sc) mtx_unlock(&(sc)->sc_mtx)
 #define ZGPIO_LOCK_INIT(sc) \
-	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev),	\
-	    "gpio", MTX_DEF)
-#define ZGPIO_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
+	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev), "gpio", MTX_DEF)
+#define ZGPIO_LOCK_DESTROY(_sc) mtx_destroy(&_sc->sc_mtx);
 
 struct zy7_gpio_softc {
-	device_t	dev;
-	device_t	busdev;
-	struct mtx	sc_mtx;
-	struct resource *mem_res;	/* Memory resource */
+	device_t dev;
+	device_t busdev;
+	struct mtx sc_mtx;
+	struct resource *mem_res; /* Memory resource */
 };
 
-#define WR4(sc, off, val)	bus_write_4((sc)->mem_res, (off), (val))
-#define RD4(sc, off)		bus_read_4((sc)->mem_res, (off))
+#define WR4(sc, off, val) bus_write_4((sc)->mem_res, (off), (val))
+#define RD4(sc, off) bus_read_4((sc)->mem_res, (off))
 
 /* Xilinx Zynq-7000 GPIO register definitions:
  */
-#define ZY7_GPIO_MASK_DATA_LSW(b)	(0x0000+8*(b))	/* maskable wr lo */
-#define ZY7_GPIO_MASK_DATA_MSW(b)	(0x0004+8*(b))	/* maskable wr hi */
-#define ZY7_GPIO_DATA(b)		(0x0040+4*(b))	/* in/out data */
-#define ZY7_GPIO_DATA_RO(b)		(0x0060+4*(b))	/* input data */
+#define ZY7_GPIO_MASK_DATA_LSW(b) (0x0000 + 8 * (b)) /* maskable wr lo */
+#define ZY7_GPIO_MASK_DATA_MSW(b) (0x0004 + 8 * (b)) /* maskable wr hi */
+#define ZY7_GPIO_DATA(b) (0x0040 + 4 * (b)) /* in/out data */
+#define ZY7_GPIO_DATA_RO(b) (0x0060 + 4 * (b)) /* input data */
 
-#define ZY7_GPIO_DIRM(b)		(0x0204+0x40*(b)) /* direction mode */
-#define ZY7_GPIO_OEN(b)			(0x0208+0x40*(b)) /* output enable */
-#define ZY7_GPIO_INT_MASK(b)		(0x020c+0x40*(b)) /* int mask */
-#define ZY7_GPIO_INT_EN(b)		(0x0210+0x40*(b)) /* int enable */
-#define ZY7_GPIO_INT_DIS(b)		(0x0214+0x40*(b)) /* int disable */
-#define ZY7_GPIO_INT_STAT(b)		(0x0218+0x40*(b)) /* int status */
-#define ZY7_GPIO_INT_TYPE(b)		(0x021c+0x40*(b)) /* int type */
-#define ZY7_GPIO_INT_POLARITY(b)	(0x0220+0x40*(b)) /* int polarity */
-#define ZY7_GPIO_INT_ANY(b)		(0x0224+0x40*(b)) /* any edge */
+#define ZY7_GPIO_DIRM(b) (0x0204 + 0x40 * (b)) /* direction mode */
+#define ZY7_GPIO_OEN(b) (0x0208 + 0x40 * (b)) /* output enable */
+#define ZY7_GPIO_INT_MASK(b) (0x020c + 0x40 * (b)) /* int mask */
+#define ZY7_GPIO_INT_EN(b) (0x0210 + 0x40 * (b)) /* int enable */
+#define ZY7_GPIO_INT_DIS(b) (0x0214 + 0x40 * (b)) /* int disable */
+#define ZY7_GPIO_INT_STAT(b) (0x0218 + 0x40 * (b)) /* int status */
+#define ZY7_GPIO_INT_TYPE(b) (0x021c + 0x40 * (b)) /* int type */
+#define ZY7_GPIO_INT_POLARITY(b) (0x0220 + 0x40 * (b)) /* int polarity */
+#define ZY7_GPIO_INT_ANY(b) (0x0224 + 0x40 * (b)) /* any edge */
 
 static device_t
 zy7_gpio_get_bus(device_t dev)
@@ -210,11 +210,11 @@ zy7_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		if ((flags & GPIO_PIN_TRISTATE) != 0)
 			WR4(sc, ZY7_GPIO_OEN(pin >> 5),
 			    RD4(sc, ZY7_GPIO_OEN(pin >> 5)) &
-			    ~(1 << (pin & 31)));
+				~(1 << (pin & 31)));
 		else
 			WR4(sc, ZY7_GPIO_OEN(pin >> 5),
 			    RD4(sc, ZY7_GPIO_OEN(pin >> 5)) |
-			    (1 << (pin & 31)));
+				(1 << (pin & 31)));
 	} else {
 		/* Input.  Turn off OEN. */
 		WR4(sc, ZY7_GPIO_DIRM(pin >> 5),
@@ -222,7 +222,7 @@ zy7_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		WR4(sc, ZY7_GPIO_OEN(pin >> 5),
 		    RD4(sc, ZY7_GPIO_OEN(pin >> 5)) & ~(1 << (pin & 31)));
 	}
-		
+
 	ZGPIO_UNLOCK(sc);
 
 	return (0);
@@ -241,11 +241,11 @@ zy7_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	if ((pin & 16) != 0)
 		WR4(sc, ZY7_GPIO_MASK_DATA_MSW(pin >> 5),
 		    (0xffff0000 ^ (0x10000 << (pin & 15))) |
-		    (value << (pin & 15)));
+			(value << (pin & 15)));
 	else
 		WR4(sc, ZY7_GPIO_MASK_DATA_LSW(pin >> 5),
 		    (0xffff0000 ^ (0x10000 << (pin & 15))) |
-		    (value << (pin & 15)));
+			(value << (pin & 15)));
 
 	return (0);
 }
@@ -311,8 +311,8 @@ zy7_gpio_attach(device_t dev)
 
 	/* Allocate memory. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev,
-		     SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Can't allocate memory for device");
 		zy7_gpio_detach(dev);
@@ -338,7 +338,7 @@ zy7_gpio_detach(device_t dev)
 	if (sc->mem_res != NULL) {
 		/* Release memory resource. */
 		bus_release_resource(dev, SYS_RES_MEMORY,
-				     rman_get_rid(sc->mem_res), sc->mem_res);
+		    rman_get_rid(sc->mem_res), sc->mem_res);
 	}
 
 	ZGPIO_LOCK_DESTROY(sc);
@@ -348,20 +348,20 @@ zy7_gpio_detach(device_t dev)
 
 static device_method_t zy7_gpio_methods[] = {
 	/* device_if */
-	DEVMETHOD(device_probe, 	zy7_gpio_probe),
-	DEVMETHOD(device_attach, 	zy7_gpio_attach),
-	DEVMETHOD(device_detach, 	zy7_gpio_detach),
+	DEVMETHOD(device_probe, zy7_gpio_probe),
+	DEVMETHOD(device_attach, zy7_gpio_attach),
+	DEVMETHOD(device_detach, zy7_gpio_detach),
 
 	/* GPIO protocol */
-	DEVMETHOD(gpio_get_bus, 	zy7_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max, 	zy7_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname, 	zy7_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getflags, 	zy7_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_getcaps, 	zy7_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_setflags, 	zy7_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_get, 	zy7_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set, 	zy7_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle, 	zy7_gpio_pin_toggle),
+	DEVMETHOD(gpio_get_bus, zy7_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max, zy7_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname, zy7_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getflags, zy7_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_getcaps, zy7_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_setflags, zy7_gpio_pin_setflags),
+	DEVMETHOD(gpio_pin_get, zy7_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set, zy7_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle, zy7_gpio_pin_toggle),
 
 	DEVMETHOD_END
 };
@@ -373,5 +373,5 @@ static driver_t zy7_gpio_driver = {
 };
 static devclass_t zy7_gpio_devclass;
 
-DRIVER_MODULE(zy7_gpio, simplebus, zy7_gpio_driver, zy7_gpio_devclass, \
-	      NULL, NULL);
+DRIVER_MODULE(
+    zy7_gpio, simplebus, zy7_gpio_driver, zy7_gpio_devclass, NULL, NULL);

@@ -28,17 +28,18 @@
  */
 
 #ifndef _LINUX_MATH64_H
-#define	_LINUX_MATH64_H
+#define _LINUX_MATH64_H
 
 #include <sys/stdint.h>
 
-#define	do_div(n, base) ({			\
-	uint32_t __base = (base);		\
-	uint32_t __rem;				\
-	__rem = ((uint64_t)(n)) % __base;	\
-	(n) = ((uint64_t)(n)) / __base;		\
-	__rem;					\
-})
+#define do_div(n, base)                           \
+	({                                        \
+		uint32_t __base = (base);         \
+		uint32_t __rem;                   \
+		__rem = ((uint64_t)(n)) % __base; \
+		(n) = ((uint64_t)(n)) / __base;   \
+		__rem;                            \
+	})
 
 static inline uint64_t
 div64_u64_rem(uint64_t dividend, uint64_t divisor, uint64_t *remainder)
@@ -97,7 +98,6 @@ div64_u64_round_up(uint64_t dividend, uint64_t divisor)
 	return ((dividend + divisor - 1) / divisor);
 }
 
-#define	DIV64_U64_ROUND_UP(...) \
-	div64_u64_round_up(__VA_ARGS__)
+#define DIV64_U64_ROUND_UP(...) div64_u64_round_up(__VA_ARGS__)
 
 #endif /* _LINUX_MATH64_H */

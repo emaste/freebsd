@@ -35,21 +35,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/smp.h>
 
-#include <x86/specialreg.h>
-#include <x86/apicreg.h>
-
 #include <machine/vmm.h>
+
+#include <x86/apicreg.h>
+#include <x86/specialreg.h>
+
+#include "vlapic.h"
 #include "vmm_ktr.h"
 #include "vmm_lapic.h"
-#include "vlapic.h"
 
 /*
  * Some MSI message definitions
  */
-#define	MSI_X86_ADDR_MASK	0xfff00000
-#define	MSI_X86_ADDR_BASE	0xfee00000
-#define	MSI_X86_ADDR_RH		0x00000008	/* Redirection Hint */
-#define	MSI_X86_ADDR_LOG	0x00000004	/* Destination Mode */
+#define MSI_X86_ADDR_MASK 0xfff00000
+#define MSI_X86_ADDR_BASE 0xfee00000
+#define MSI_X86_ADDR_RH 0x00000008 /* Redirection Hint */
+#define MSI_X86_ADDR_LOG 0x00000004 /* Destination Mode */
 
 int
 lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
@@ -197,8 +198,8 @@ lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t val, bool *retu)
 }
 
 int
-lapic_mmio_write(void *vm, int cpu, uint64_t gpa, uint64_t wval, int size,
-		 void *arg)
+lapic_mmio_write(
+    void *vm, int cpu, uint64_t gpa, uint64_t wval, int size, void *arg)
 {
 	int error;
 	uint64_t off;
@@ -219,8 +220,8 @@ lapic_mmio_write(void *vm, int cpu, uint64_t gpa, uint64_t wval, int size,
 }
 
 int
-lapic_mmio_read(void *vm, int cpu, uint64_t gpa, uint64_t *rval, int size,
-		void *arg)
+lapic_mmio_read(
+    void *vm, int cpu, uint64_t gpa, uint64_t *rval, int size, void *arg)
 {
 	int error;
 	uint64_t off;

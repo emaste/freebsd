@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/ctype.h>
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
@@ -36,61 +37,54 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
 #include <sys/vnode.h>
 
 #include <crypto/sha2/sha256.h>
 #include <crypto/sha2/sha384.h>
 #include <crypto/sha2/sha512.h>
-
 #include <security/mac_veriexec/mac_veriexec.h>
 #include <security/mac_veriexec/mac_veriexec_internal.h>
 
 /* The following are based on sbin/veriexec */
 struct fingerprint_type {
-	const char	*fp_type;
-	int		fp_size;
+	const char *fp_type;
+	int fp_size;
 };
 
 struct fp_flag {
-	const char	*flag_name;
-	int		flag;
+	const char *flag_name;
+	int flag;
 };
 
-static const struct fingerprint_type fp_table[] = {
-	{"sha256=", SHA256_DIGEST_LENGTH},
+static const struct fingerprint_type fp_table[] = { { "sha256=",
+							SHA256_DIGEST_LENGTH },
 #if MAXFINGERPRINTLEN >= SHA384_DIGEST_LENGTH
-	{"sha384=", SHA384_DIGEST_LENGTH},
+	{ "sha384=", SHA384_DIGEST_LENGTH },
 #endif
 #if MAXFINGERPRINTLEN >= SHA512_DIGEST_LENGTH
-	{"sha512=", SHA512_DIGEST_LENGTH},
+	{ "sha512=", SHA512_DIGEST_LENGTH },
 #endif
-	{NULL, 0}
-};
+	{ NULL, 0 } };
 
-static const struct fp_flag flags_table[] = {
-	{"indirect",  VERIEXEC_INDIRECT},
-	{"no_ptrace", VERIEXEC_NOTRACE},
-	{"trusted",   VERIEXEC_TRUSTED},
-	{"no_fips",   VERIEXEC_NOFIPS},
-	{NULL, 0}
-};
+static const struct fp_flag flags_table[] = { { "indirect", VERIEXEC_INDIRECT },
+	{ "no_ptrace", VERIEXEC_NOTRACE }, { "trusted", VERIEXEC_TRUSTED },
+	{ "no_fips", VERIEXEC_NOFIPS }, { NULL, 0 } };
 
 extern struct mtx ve_mutex;
 
-static unsigned char	hexchar_to_byte(unsigned char c);
-static int		hexstring_to_bin(unsigned char *buf);
+static unsigned char hexchar_to_byte(unsigned char c);
+static int hexstring_to_bin(unsigned char *buf);
 
-static int	get_flags(const char *entry);
-static int	get_fp(const char *entry, char **type,
-		    unsigned char **digest, int *flags);
-static int	verify_digest(const char *data, size_t len,
-		    const unsigned char *expected_hash);
+static int get_flags(const char *entry);
+static int get_fp(
+    const char *entry, char **type, unsigned char **digest, int *flags);
+static int verify_digest(
+    const char *data, size_t len, const unsigned char *expected_hash);
 
-static int	open_file(const char *path, struct nameidata *nid);
-static char	*read_manifest(char *path, unsigned char *digest);
-static int	parse_entry(char *entry, char *prefix);
-static int	parse_manifest(char *path, unsigned char *hash, char *prefix);
+static int open_file(const char *path, struct nameidata *nid);
+static char *read_manifest(char *path, unsigned char *digest);
+static int parse_entry(char *entry, char *prefix);
+static int parse_manifest(char *path, unsigned char *hash, char *prefix);
 
 static unsigned char
 hexchar_to_byte(unsigned char c)
@@ -105,8 +99,8 @@ hexchar_to_byte(unsigned char c)
 static int
 hexstring_to_bin(unsigned char *buf)
 {
-	size_t		i, len;
-	unsigned char	byte;
+	size_t i, len;
+	unsigned char byte;
 
 	len = strlen(buf);
 	for (i = 0; i < len / 2; i++) {
@@ -123,8 +117,8 @@ hexstring_to_bin(unsigned char *buf)
 static int
 get_flags(const char *entry)
 {
-	int	i;
-	int	result = 0;
+	int i;
+	int result = 0;
 
 	for (i = 0; flags_table[i].flag_name != NULL; i++)
 		if (strstr(entry, flags_table[i].flag_name) != NULL)
@@ -141,12 +135,12 @@ get_flags(const char *entry)
 static int
 get_fp(const char *entry, char **type, unsigned char **digest, int *flags)
 {
-	char	*delimiter;
-	char	*local_digest;
-	char	*fp_type;
-	char	*prev_fp_type;
-	size_t	min_len;
-	int	i;
+	char *delimiter;
+	char *local_digest;
+	char *fp_type;
+	char *prev_fp_type;
+	size_t min_len;
+	int i;
 
 	delimiter = NULL;
 	fp_type = NULL;
@@ -170,7 +164,7 @@ get_fp(const char *entry, char **type, unsigned char **digest, int *flags)
 			 * fp_type and digest in hexadecimal form.
 			 */
 			min_len = strlen(fp_table[i].fp_type) +
-				2 * fp_table[i].fp_size;
+			    2 * fp_table[i].fp_size;
 
 			if (strnlen(fp_type, min_len) < min_len)
 				return (EINVAL);
@@ -182,8 +176,7 @@ get_fp(const char *entry, char **type, unsigned char **digest, int *flags)
 			 * Make sure that digest is followed by
 			 * some kind of delimiter.
 			 */
-			if (*delimiter != '\n' &&
-			    *delimiter != '\0' &&
+			if (*delimiter != '\n' && *delimiter != '\0' &&
 			    *delimiter != ' ')
 				return (EINVAL);
 
@@ -223,8 +216,8 @@ get_fp(const char *entry, char **type, unsigned char **digest, int *flags)
 static int
 verify_digest(const char *data, size_t len, const unsigned char *expected_hash)
 {
-	SHA256_CTX	ctx;
-	unsigned char	hash[SHA256_DIGEST_LENGTH];
+	SHA256_CTX ctx;
+	unsigned char hash[SHA256_DIGEST_LENGTH];
 
 	SHA256_Init(&ctx);
 	SHA256_Update(&ctx, data, len);
@@ -254,14 +247,14 @@ open_file(const char *path, struct nameidata *nid)
 /*
  * Read the manifest from location specified in path and verify its digest.
  */
-static char*
+static char *
 read_manifest(char *path, unsigned char *digest)
 {
-	struct nameidata	nid;
-	struct vattr		va;
-	char			*data;
-	ssize_t			bytes_read, resid;
-	int			rc;
+	struct nameidata nid;
+	struct vattr va;
+	char *data;
+	ssize_t bytes_read, resid;
+	int rc;
 
 	data = NULL;
 	bytes_read = 0;
@@ -277,10 +270,8 @@ read_manifest(char *path, unsigned char *digest)
 	data = (char *)malloc(va.va_size + 1, M_VERIEXEC, M_WAITOK);
 
 	while (bytes_read < va.va_size) {
-		rc = vn_rdwr(
-		    UIO_READ, nid.ni_vp, data,
-		    va.va_size - bytes_read, bytes_read,
-		    UIO_SYSSPACE, IO_NODELOCKED,
+		rc = vn_rdwr(UIO_READ, nid.ni_vp, data, va.va_size - bytes_read,
+		    bytes_read, UIO_SYSSPACE, IO_NODELOCKED,
 		    curthread->td_ucred, NOCRED, &resid, curthread);
 		if (rc != 0)
 			goto fail;
@@ -316,12 +307,12 @@ fail:
 static int
 parse_entry(char *entry, char *prefix)
 {
-	struct nameidata	nid;
-	struct vattr		va;
-	char			path[MAXPATHLEN];
-	char			*fp_type;
-	unsigned char		*digest;
-	int			rc, is_exec, flags;
+	struct nameidata nid;
+	struct vattr va;
+	char path[MAXPATHLEN];
+	char *fp_type;
+	unsigned char *digest;
+	int rc, is_exec, flags;
 
 	fp_type = NULL;
 	digest = NULL;
@@ -340,8 +331,7 @@ parse_entry(char *entry, char *prefix)
 
 	/* If the path is not absolute prepend it with a prefix */
 	if (prefix != NULL && entry[0] != '/') {
-		rc = snprintf(path, MAXPATHLEN, "%s/%s",
-			    prefix, entry);
+		rc = snprintf(path, MAXPATHLEN, "%s/%s", prefix, entry);
 		if (rc < 0)
 			return (-rc);
 	} else {
@@ -360,12 +350,8 @@ parse_entry(char *entry, char *prefix)
 	is_exec = (va.va_mode & VEXEC);
 
 	mtx_lock(&ve_mutex);
-	rc = mac_veriexec_metadata_add_file(
-	    is_exec == 0,
-	    va.va_fsid, va.va_fileid, va.va_gen,
-	    digest,
-	    NULL, 0,
-	    flags, fp_type, 1);
+	rc = mac_veriexec_metadata_add_file(is_exec == 0, va.va_fsid,
+	    va.va_fileid, va.va_gen, digest, NULL, 0, flags, fp_type, 1);
 	mtx_unlock(&ve_mutex);
 
 out:
@@ -381,10 +367,10 @@ out:
 static int
 parse_manifest(char *path, unsigned char *hash, char *prefix)
 {
-	char	*data;
-	char	*entry;
-	char	*next_entry;
-	int	rc, success_count;
+	char *data;
+	char *entry;
+	char *next_entry;
+	int rc, success_count;
 
 	data = NULL;
 	success_count = 0;
@@ -409,7 +395,8 @@ parse_manifest(char *path, unsigned char *hash, char *prefix)
 		}
 		if ((rc = parse_entry(entry, prefix)))
 			printf("mac_veriexec_parser: Warning: Failed to parse"
-			       " entry with rc:%d, entry:\"%s\"\n", rc, entry);
+			       " entry with rc:%d, entry:\"%s\"\n",
+			    rc, entry);
 		else
 			success_count++;
 
@@ -430,10 +417,10 @@ out:
 static void
 parse_manifest_event(void *dummy)
 {
-	char		*manifest_path;
-	char		*manifest_prefix;
-	unsigned char	*manifest_hash;
-	int		rc;
+	char *manifest_path;
+	char *manifest_prefix;
+	unsigned char *manifest_hash;
+	int rc;
 
 	/* If the envs are not set fail silently */
 	manifest_path = kern_getenv("veriexec.manifest_path");
@@ -454,15 +441,14 @@ parse_manifest_event(void *dummy)
 	rc = hexstring_to_bin(manifest_hash);
 	if (rc != 0)
 		panic("mac_veriexec: veriexec.loader.manifest_hash"
-		    " doesn't contain a hash in hexadecimal form");
+		      " doesn't contain a hash in hexadecimal form");
 
 	rc = parse_manifest(manifest_path, manifest_hash, manifest_prefix);
 	if (rc != 0)
 		panic("mac_veriexec: Failed to parse manifest err=%d", rc);
 
 	mtx_lock(&ve_mutex);
-	mac_veriexec_set_state(
-	    VERIEXEC_STATE_LOADED | VERIEXEC_STATE_ACTIVE |
+	mac_veriexec_set_state(VERIEXEC_STATE_LOADED | VERIEXEC_STATE_ACTIVE |
 	    VERIEXEC_STATE_LOCKED | VERIEXEC_STATE_ENFORCE);
 	mtx_unlock(&ve_mutex);
 

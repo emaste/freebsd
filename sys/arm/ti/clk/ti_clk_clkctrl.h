@@ -33,11 +33,12 @@
 #include <dev/extres/clk/clk.h>
 
 struct ti_clk_clkctrl_def {
-	struct clknode_init_def 	clkdef;
-	bool				gdbclk;
-	uint32_t			register_offset;
+	struct clknode_init_def clkdef;
+	bool gdbclk;
+	uint32_t register_offset;
 };
 
-int ti_clknode_clkctrl_register(struct clkdom *clkdom, struct ti_clk_clkctrl_def *clkdef);
+int ti_clknode_clkctrl_register(
+    struct clkdom *clkdom, struct ti_clk_clkctrl_def *clkdef);
 
 #endif /* _TI_CLK_CLKCTRL_H_ */

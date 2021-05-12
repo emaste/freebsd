@@ -41,36 +41,34 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <arm/ti/ti_sysc.h>
-#include <arm/ti/am335x/am335x_rtcvar.h>
+
 #include <arm/ti/am335x/am335x_rtcreg.h>
+#include <arm/ti/am335x/am335x_rtcvar.h>
+#include <arm/ti/ti_sysc.h>
 
-#define	RTC_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	RTC_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define	RTC_LOCK_INIT(_sc)	mtx_init(&(_sc)->sc_mtx, \
-    device_get_nameunit(_sc->sc_dev), "am335x_rtc", MTX_DEF)
-#define	RTC_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
+#define RTC_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define RTC_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
+#define RTC_LOCK_INIT(_sc)                                         \
+	mtx_init(&(_sc)->sc_mtx, device_get_nameunit(_sc->sc_dev), \
+	    "am335x_rtc", MTX_DEF)
+#define RTC_LOCK_DESTROY(_sc) mtx_destroy(&(_sc)->sc_mtx)
 
-#define	RTC_READ4(_sc, reg)		\
-	bus_read_4((_sc)->sc_mem_res, reg)
-#define	RTC_WRITE4(_sc, reg, value)	\
-	bus_write_4((_sc)->sc_mem_res, reg, value)
+#define RTC_READ4(_sc, reg) bus_read_4((_sc)->sc_mem_res, reg)
+#define RTC_WRITE4(_sc, reg, value) bus_write_4((_sc)->sc_mem_res, reg, value)
 
-#define	RTC_MAXIRQS		2
+#define RTC_MAXIRQS 2
 
 struct am335x_rtc_softc {
-	device_t		sc_dev;
-	struct mtx		sc_mtx;
-	struct resource		*sc_irq_res[RTC_MAXIRQS];
-	struct resource		*sc_mem_res;
+	device_t sc_dev;
+	struct mtx sc_mtx;
+	struct resource *sc_irq_res[RTC_MAXIRQS];
+	struct resource *sc_mem_res;
 };
 
 static struct am335x_rtc_softc *rtc_sc = NULL;
-static struct resource_spec am335x_rtc_irq_spec[] = {
-	{ SYS_RES_IRQ, 0,  RF_ACTIVE },
-	{ SYS_RES_IRQ, 1,  RF_ACTIVE },
-	{ -1, 0,  0 }
-};
+static struct resource_spec am335x_rtc_irq_spec[] = { { SYS_RES_IRQ, 0,
+							  RF_ACTIVE },
+	{ SYS_RES_IRQ, 1, RF_ACTIVE }, { -1, 0, 0 } };
 
 static int
 am335x_rtc_probe(device_t dev)
@@ -97,13 +95,14 @@ am335x_rtc_attach(device_t dev)
 	rtc_sc = sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory resources\n");
 		return (ENXIO);
 	}
-	if (bus_alloc_resources(dev, am335x_rtc_irq_spec, sc->sc_irq_res) != 0) {
+	if (bus_alloc_resources(dev, am335x_rtc_irq_spec, sc->sc_irq_res) !=
+	    0) {
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot allocate irq resources\n");
 		return (ENXIO);
@@ -113,8 +112,8 @@ am335x_rtc_attach(device_t dev)
 	/* Enable the RTC module. */
 	ti_sysc_clock_enable(device_get_parent(dev));
 	rev = RTC_READ4(sc, RTC_REVISION);
-	device_printf(dev, "AM335X RTC v%d.%d.%d\n",
-            (rev >> 8) & 0x7, (rev >> 6) & 0x3, rev & 0x3f);
+	device_printf(dev, "AM335X RTC v%d.%d.%d\n", (rev >> 8) & 0x7,
+	    (rev >> 6) & 0x3, rev & 0x3f);
 	/* Unlock the RTC. */
 	RTC_WRITE4(sc, RTC_KICK0R, RTC_KICK0R_PASS);
 	RTC_WRITE4(sc, RTC_KICK1R, RTC_KICK1R_PASS);
@@ -191,13 +190,12 @@ am335x_rtc_pmic_pwr_toggle(void)
 	RTC_WRITE4(rtc_sc, RTC_CTRL, RTC_CTRL_RUN);
 }
 
-static device_method_t am335x_rtc_methods[] = {
-	DEVMETHOD(device_probe,		am335x_rtc_probe),
-	DEVMETHOD(device_attach,	am335x_rtc_attach),
-	DEVMETHOD(device_detach,	am335x_rtc_detach),
+static device_method_t am335x_rtc_methods[] = { DEVMETHOD(device_probe,
+						    am335x_rtc_probe),
+	DEVMETHOD(device_attach, am335x_rtc_attach),
+	DEVMETHOD(device_detach, am335x_rtc_detach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t am335x_rtc_driver = {
 	"am335x_rtc",
@@ -207,7 +205,8 @@ static driver_t am335x_rtc_driver = {
 
 static devclass_t am335x_rtc_devclass;
 
-DRIVER_MODULE(am335x_rtc, simplebus, am335x_rtc_driver, am335x_rtc_devclass, 0, 0);
+DRIVER_MODULE(
+    am335x_rtc, simplebus, am335x_rtc_driver, am335x_rtc_devclass, 0, 0);
 MODULE_VERSION(am335x_rtc, 1);
 MODULE_DEPEND(am335x_rtc, simplebus, 1, 1, 1);
 MODULE_DEPEND(am335x_rtc, ti_sysc, 1, 1, 1);

@@ -46,29 +46,32 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
 #include <sys/errno.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
-#include <sys/socket.h>
+#include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/socket.h>
 #include <sys/ucontext.h>
-#include <machine/tss.h>
 #include <sys/vmmeter.h>
+
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/proc.h>
-#include <x86/apicreg.h>
+#include <vm/vm_param.h>
+
 #include <machine/cpu.h>
+#include <machine/efi.h>
 #include <machine/pcb.h>
-#include <machine/sigframe.h>
 #include <machine/proc.h>
 #include <machine/segments.h>
-#include <machine/efi.h>
+#include <machine/sigframe.h>
+#include <machine/tss.h>
+
+#include <x86/apicreg.h>
 
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
@@ -239,8 +242,8 @@ ASSYM(PC_MDS_TMP, offsetof(struct pcpu, pc_mds_tmp));
 ASSYM(PC_MDS_BUF, offsetof(struct pcpu, pc_mds_buf));
 ASSYM(PC_MDS_BUF64, offsetof(struct pcpu, pc_mds_buf64));
 
-ASSYM(LA_EOI, LAPIC_EOI * LAPIC_MEM_MUL);
-ASSYM(LA_ISR, LAPIC_ISR0 * LAPIC_MEM_MUL);
+ASSYM(LA_EOI, LAPIC_EOI *LAPIC_MEM_MUL);
+ASSYM(LA_ISR, LAPIC_ISR0 *LAPIC_MEM_MUL);
 
 ASSYM(KCSEL, GSEL(GCODE_SEL, SEL_KPL));
 ASSYM(KDSEL, GSEL(GDATA_SEL, SEL_KPL));
@@ -255,7 +258,7 @@ ASSYM(SEL_RPL_MASK, SEL_RPL_MASK);
 
 ASSYM(__FreeBSD_version, __FreeBSD_version);
 
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);
 #endif
 

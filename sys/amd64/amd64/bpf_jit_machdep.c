@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #include "opt_bpf.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -45,18 +46,19 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #else
+#include <sys/param.h>
+#include <sys/mman.h>
+
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <sys/param.h>
 #endif
 
 #include <sys/types.h>
 
+#include <amd64/amd64/bpf_jit_machdep.h>
+
 #include <net/bpf.h>
 #include <net/bpf_jitter.h>
-
-#include <amd64/amd64/bpf_jit_machdep.h>
 
 /*
  * Emit routine to update the jump table.
@@ -84,8 +86,8 @@ emit_code(bpf_bin_stream *stream, u_int value, u_int len)
 		break;
 
 	case 2:
-		*((u_short *)(void *)(stream->ibuf + stream->cur_ip)) =
-		    (u_short)value;
+		*((u_short *)(void *)(stream->ibuf +
+		    stream->cur_ip)) = (u_short)value;
 		stream->cur_ip += 2;
 		break;
 
@@ -113,34 +115,34 @@ bpf_jit_optimize(struct bpf_insn *prog, u_int nins)
 
 	for (flags = 0, i = 0; i < nins; i++) {
 		switch (prog[i].code) {
-		case BPF_LD|BPF_W|BPF_ABS:
-		case BPF_LD|BPF_H|BPF_ABS:
-		case BPF_LD|BPF_B|BPF_ABS:
-		case BPF_LD|BPF_W|BPF_IND:
-		case BPF_LD|BPF_H|BPF_IND:
-		case BPF_LD|BPF_B|BPF_IND:
-		case BPF_LDX|BPF_MSH|BPF_B:
+		case BPF_LD | BPF_W | BPF_ABS:
+		case BPF_LD | BPF_H | BPF_ABS:
+		case BPF_LD | BPF_B | BPF_ABS:
+		case BPF_LD | BPF_W | BPF_IND:
+		case BPF_LD | BPF_H | BPF_IND:
+		case BPF_LD | BPF_B | BPF_IND:
+		case BPF_LDX | BPF_MSH | BPF_B:
 			flags |= BPF_JIT_FPKT;
 			break;
-		case BPF_LD|BPF_MEM:
-		case BPF_LDX|BPF_MEM:
+		case BPF_LD | BPF_MEM:
+		case BPF_LDX | BPF_MEM:
 		case BPF_ST:
 		case BPF_STX:
 			flags |= BPF_JIT_FMEM;
 			break;
-		case BPF_LD|BPF_W|BPF_LEN:
-		case BPF_LDX|BPF_W|BPF_LEN:
+		case BPF_LD | BPF_W | BPF_LEN:
+		case BPF_LDX | BPF_W | BPF_LEN:
 			flags |= BPF_JIT_FLEN;
 			break;
-		case BPF_JMP|BPF_JA:
-		case BPF_JMP|BPF_JGT|BPF_K:
-		case BPF_JMP|BPF_JGE|BPF_K:
-		case BPF_JMP|BPF_JEQ|BPF_K:
-		case BPF_JMP|BPF_JSET|BPF_K:
-		case BPF_JMP|BPF_JGT|BPF_X:
-		case BPF_JMP|BPF_JGE|BPF_X:
-		case BPF_JMP|BPF_JEQ|BPF_X:
-		case BPF_JMP|BPF_JSET|BPF_X:
+		case BPF_JMP | BPF_JA:
+		case BPF_JMP | BPF_JGT | BPF_K:
+		case BPF_JMP | BPF_JGE | BPF_K:
+		case BPF_JMP | BPF_JEQ | BPF_K:
+		case BPF_JMP | BPF_JSET | BPF_K:
+		case BPF_JMP | BPF_JGT | BPF_X:
+		case BPF_JMP | BPF_JGE | BPF_X:
+		case BPF_JMP | BPF_JEQ | BPF_X:
+		case BPF_JMP | BPF_JSET | BPF_X:
 			flags |= BPF_JIT_FJMP;
 			break;
 		}
@@ -183,8 +185,8 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 	/* Allocate the reference table for the jumps. */
 	if (fjmp) {
 #ifdef _KERNEL
-		stream.refs = malloc((nins + 1) * sizeof(u_int), M_BPFJIT,
-		    M_NOWAIT | M_ZERO);
+		stream.refs = malloc(
+		    (nins + 1) * sizeof(u_int), M_BPFJIT, M_NOWAIT | M_ZERO);
 #else
 		stream.refs = calloc(nins + 1, sizeof(u_int));
 #endif
@@ -225,20 +227,20 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				abort();
 #endif
 
-			case BPF_RET|BPF_K:
+			case BPF_RET | BPF_K:
 				MOVid(ins->k, EAX);
 				if (fmem)
 					LEAVE();
 				RET();
 				break;
 
-			case BPF_RET|BPF_A:
+			case BPF_RET | BPF_A:
 				if (fmem)
 					LEAVE();
 				RET();
 				break;
 
-			case BPF_LD|BPF_W|BPF_ABS:
+			case BPF_LD | BPF_W | BPF_ABS:
 				MOVid(ins->k, ESI);
 				CMPrd(EDI, ESI);
 				JAb(12);
@@ -259,7 +261,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				BSWAP(EAX);
 				break;
 
-			case BPF_LD|BPF_H|BPF_ABS:
+			case BPF_LD | BPF_H | BPF_ABS:
 				ZEROrd(EAX);
 				MOVid(ins->k, ESI);
 				CMPrd(EDI, ESI);
@@ -278,7 +280,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				SWAP_AX();
 				break;
 
-			case BPF_LD|BPF_B|BPF_ABS:
+			case BPF_LD | BPF_B | BPF_ABS:
 				ZEROrd(EAX);
 				MOVid(ins->k, ESI);
 				CMPrd(EDI, ESI);
@@ -292,15 +294,15 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				MOVobb(RCX, RSI, AL);
 				break;
 
-			case BPF_LD|BPF_W|BPF_LEN:
+			case BPF_LD | BPF_W | BPF_LEN:
 				MOVrd3(R9D, EAX);
 				break;
 
-			case BPF_LDX|BPF_W|BPF_LEN:
+			case BPF_LDX | BPF_W | BPF_LEN:
 				MOVrd3(R9D, EDX);
 				break;
 
-			case BPF_LD|BPF_W|BPF_IND:
+			case BPF_LD | BPF_W | BPF_IND:
 				CMPrd(EDI, EDX);
 				JAb(27);
 				MOVid(ins->k, ESI);
@@ -326,7 +328,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				BSWAP(EAX);
 				break;
 
-			case BPF_LD|BPF_H|BPF_IND:
+			case BPF_LD | BPF_H | BPF_IND:
 				ZEROrd(EAX);
 				CMPrd(EDI, EDX);
 				JAb(27);
@@ -350,7 +352,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				SWAP_AX();
 				break;
 
-			case BPF_LD|BPF_B|BPF_IND:
+			case BPF_LD | BPF_B | BPF_IND:
 				ZEROrd(EAX);
 				CMPrd(EDI, EDX);
 				JAEb(13);
@@ -369,7 +371,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				MOVobb(RCX, RSI, AL);
 				break;
 
-			case BPF_LDX|BPF_MSH|BPF_B:
+			case BPF_LDX | BPF_MSH | BPF_B:
 				MOVid(ins->k, ESI);
 				CMPrd(EDI, ESI);
 				if (fmem) {
@@ -388,20 +390,20 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				SHLib(2, EDX);
 				break;
 
-			case BPF_LD|BPF_IMM:
+			case BPF_LD | BPF_IMM:
 				MOVid(ins->k, EAX);
 				break;
 
-			case BPF_LDX|BPF_IMM:
+			case BPF_LDX | BPF_IMM:
 				MOVid(ins->k, EDX);
 				break;
 
-			case BPF_LD|BPF_MEM:
+			case BPF_LD | BPF_MEM:
 				MOVid(ins->k * sizeof(uint32_t), ESI);
 				MOVobd(RSP, RSI, EAX);
 				break;
 
-			case BPF_LDX|BPF_MEM:
+			case BPF_LDX | BPF_MEM:
 				MOVid(ins->k * sizeof(uint32_t), ESI);
 				MOVobd(RSP, RSI, EDX);
 				break;
@@ -421,81 +423,81 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				MOVomd(EDX, RSP, RSI);
 				break;
 
-			case BPF_JMP|BPF_JA:
+			case BPF_JMP | BPF_JA:
 				JUMP(ins->k);
 				break;
 
-			case BPF_JMP|BPF_JGT|BPF_K:
-			case BPF_JMP|BPF_JGE|BPF_K:
-			case BPF_JMP|BPF_JEQ|BPF_K:
-			case BPF_JMP|BPF_JSET|BPF_K:
-			case BPF_JMP|BPF_JGT|BPF_X:
-			case BPF_JMP|BPF_JGE|BPF_X:
-			case BPF_JMP|BPF_JEQ|BPF_X:
-			case BPF_JMP|BPF_JSET|BPF_X:
+			case BPF_JMP | BPF_JGT | BPF_K:
+			case BPF_JMP | BPF_JGE | BPF_K:
+			case BPF_JMP | BPF_JEQ | BPF_K:
+			case BPF_JMP | BPF_JSET | BPF_K:
+			case BPF_JMP | BPF_JGT | BPF_X:
+			case BPF_JMP | BPF_JGE | BPF_X:
+			case BPF_JMP | BPF_JEQ | BPF_X:
+			case BPF_JMP | BPF_JSET | BPF_X:
 				if (ins->jt == ins->jf) {
 					JUMP(ins->jt);
 					break;
 				}
 				switch (ins->code) {
-				case BPF_JMP|BPF_JGT|BPF_K:
+				case BPF_JMP | BPF_JGT | BPF_K:
 					CMPid(ins->k, EAX);
 					JCC(JA, JBE);
 					break;
 
-				case BPF_JMP|BPF_JGE|BPF_K:
+				case BPF_JMP | BPF_JGE | BPF_K:
 					CMPid(ins->k, EAX);
 					JCC(JAE, JB);
 					break;
 
-				case BPF_JMP|BPF_JEQ|BPF_K:
+				case BPF_JMP | BPF_JEQ | BPF_K:
 					CMPid(ins->k, EAX);
 					JCC(JE, JNE);
 					break;
 
-				case BPF_JMP|BPF_JSET|BPF_K:
+				case BPF_JMP | BPF_JSET | BPF_K:
 					TESTid(ins->k, EAX);
 					JCC(JNE, JE);
 					break;
 
-				case BPF_JMP|BPF_JGT|BPF_X:
+				case BPF_JMP | BPF_JGT | BPF_X:
 					CMPrd(EDX, EAX);
 					JCC(JA, JBE);
 					break;
 
-				case BPF_JMP|BPF_JGE|BPF_X:
+				case BPF_JMP | BPF_JGE | BPF_X:
 					CMPrd(EDX, EAX);
 					JCC(JAE, JB);
 					break;
 
-				case BPF_JMP|BPF_JEQ|BPF_X:
+				case BPF_JMP | BPF_JEQ | BPF_X:
 					CMPrd(EDX, EAX);
 					JCC(JE, JNE);
 					break;
 
-				case BPF_JMP|BPF_JSET|BPF_X:
+				case BPF_JMP | BPF_JSET | BPF_X:
 					TESTrd(EDX, EAX);
 					JCC(JNE, JE);
 					break;
 				}
 				break;
 
-			case BPF_ALU|BPF_ADD|BPF_X:
+			case BPF_ALU | BPF_ADD | BPF_X:
 				ADDrd(EDX, EAX);
 				break;
 
-			case BPF_ALU|BPF_SUB|BPF_X:
+			case BPF_ALU | BPF_SUB | BPF_X:
 				SUBrd(EDX, EAX);
 				break;
 
-			case BPF_ALU|BPF_MUL|BPF_X:
+			case BPF_ALU | BPF_MUL | BPF_X:
 				MOVrd(EDX, ECX);
 				MULrd(EDX);
 				MOVrd(ECX, EDX);
 				break;
 
-			case BPF_ALU|BPF_DIV|BPF_X:
-			case BPF_ALU|BPF_MOD|BPF_X:
+			case BPF_ALU | BPF_DIV | BPF_X:
+			case BPF_ALU | BPF_MOD | BPF_X:
 				TESTrd(EDX, EDX);
 				if (fmem) {
 					JNEb(4);
@@ -514,45 +516,45 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				MOVrd(ECX, EDX);
 				break;
 
-			case BPF_ALU|BPF_AND|BPF_X:
+			case BPF_ALU | BPF_AND | BPF_X:
 				ANDrd(EDX, EAX);
 				break;
 
-			case BPF_ALU|BPF_OR|BPF_X:
+			case BPF_ALU | BPF_OR | BPF_X:
 				ORrd(EDX, EAX);
 				break;
 
-			case BPF_ALU|BPF_XOR|BPF_X:
+			case BPF_ALU | BPF_XOR | BPF_X:
 				XORrd(EDX, EAX);
 				break;
 
-			case BPF_ALU|BPF_LSH|BPF_X:
+			case BPF_ALU | BPF_LSH | BPF_X:
 				MOVrd(EDX, ECX);
 				SHL_CLrb(EAX);
 				break;
 
-			case BPF_ALU|BPF_RSH|BPF_X:
+			case BPF_ALU | BPF_RSH | BPF_X:
 				MOVrd(EDX, ECX);
 				SHR_CLrb(EAX);
 				break;
 
-			case BPF_ALU|BPF_ADD|BPF_K:
+			case BPF_ALU | BPF_ADD | BPF_K:
 				ADD_EAXi(ins->k);
 				break;
 
-			case BPF_ALU|BPF_SUB|BPF_K:
+			case BPF_ALU | BPF_SUB | BPF_K:
 				SUB_EAXi(ins->k);
 				break;
 
-			case BPF_ALU|BPF_MUL|BPF_K:
+			case BPF_ALU | BPF_MUL | BPF_K:
 				MOVrd(EDX, ECX);
 				MOVid(ins->k, EDX);
 				MULrd(EDX);
 				MOVrd(ECX, EDX);
 				break;
 
-			case BPF_ALU|BPF_DIV|BPF_K:
-			case BPF_ALU|BPF_MOD|BPF_K:
+			case BPF_ALU | BPF_DIV | BPF_K:
+			case BPF_ALU | BPF_MOD | BPF_K:
 				MOVrd(EDX, ECX);
 				ZEROrd(EDX);
 				MOVid(ins->k, ESI);
@@ -562,35 +564,35 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				MOVrd(ECX, EDX);
 				break;
 
-			case BPF_ALU|BPF_AND|BPF_K:
+			case BPF_ALU | BPF_AND | BPF_K:
 				ANDid(ins->k, EAX);
 				break;
 
-			case BPF_ALU|BPF_OR|BPF_K:
+			case BPF_ALU | BPF_OR | BPF_K:
 				ORid(ins->k, EAX);
 				break;
 
-			case BPF_ALU|BPF_XOR|BPF_K:
+			case BPF_ALU | BPF_XOR | BPF_K:
 				XORid(ins->k, EAX);
 				break;
 
-			case BPF_ALU|BPF_LSH|BPF_K:
+			case BPF_ALU | BPF_LSH | BPF_K:
 				SHLib((ins->k) & 0xff, EAX);
 				break;
 
-			case BPF_ALU|BPF_RSH|BPF_K:
+			case BPF_ALU | BPF_RSH | BPF_K:
 				SHRib((ins->k) & 0xff, EAX);
 				break;
 
-			case BPF_ALU|BPF_NEG:
+			case BPF_ALU | BPF_NEG:
 				NEGd(EAX);
 				break;
 
-			case BPF_MISC|BPF_TAX:
+			case BPF_MISC | BPF_TAX:
 				MOVrd(EAX, EDX);
 				break;
 
-			case BPF_MISC|BPF_TXA:
+			case BPF_MISC | BPF_TXA:
 				MOVrd(EDX, EAX);
 				break;
 			}
@@ -606,8 +608,8 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 		if (stream.ibuf == NULL)
 			break;
 #else
-		stream.ibuf = mmap(NULL, *size, PROT_READ | PROT_WRITE,
-		    MAP_ANON, -1, 0);
+		stream.ibuf = mmap(
+		    NULL, *size, PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
 		if (stream.ibuf == MAP_FAILED) {
 			stream.ibuf = NULL;
 			break;

@@ -40,11 +40,11 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/machdep.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/accommon.h>
-#include <contrib/dev/acpica/include/actables.h>
-
 #include <dev/acpica/acpivar.h>
+
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/actables.h>
 
 extern struct bus_space memmap_bus;
 
@@ -182,8 +182,8 @@ acpi_find_table(const char *sig)
 		if (xsdt == NULL) {
 			if (bootverbose)
 				printf("ACPI: Failed to map XSDT\n");
-			pmap_unmapbios((vm_offset_t)rsdp,
-			    sizeof(ACPI_TABLE_RSDP));
+			pmap_unmapbios(
+			    (vm_offset_t)rsdp, sizeof(ACPI_TABLE_RSDP));
 			return (0);
 		}
 		count = (xsdt->Header.Length - sizeof(ACPI_TABLE_HEADER)) /
@@ -276,6 +276,6 @@ parse_pxm_tables(void *dummy)
 	acpi_pxm_parse_tables();
 	acpi_pxm_set_mem_locality();
 }
-SYSINIT(parse_pxm_tables, SI_SUB_VM - 1, SI_ORDER_FIRST, parse_pxm_tables,
-    NULL);
+SYSINIT(
+    parse_pxm_tables, SI_SUB_VM - 1, SI_ORDER_FIRST, parse_pxm_tables, NULL);
 #endif

@@ -36,27 +36,24 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
-
-#include <machine/bus.h>
 #include <sys/rman.h>
 
+#include <machine/bus.h>
 #include <machine/cpufunc.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
 
-#include <dev/bhnd/bhnd.h>
 #include <dev/bhnd/bcma/bcma_dmp.h>
-
-#include "pic_if.h"
+#include <dev/bhnd/bhnd.h>
 
 #include "bcm_machdep.h"
-
-#include "bcm_mipsvar.h"
 #include "bcm_mips74kreg.h"
+#include "bcm_mipsvar.h"
+#include "pic_if.h"
 
 /*
  * Broadcom MIPS74K Core
@@ -66,38 +63,37 @@ __FBSDID("$FreeBSD$");
 
 struct bcm_mips74k_softc;
 
-static int	bcm_mips74k_pic_intr(void *arg);
-static void	bcm_mips74k_mask_irq(struct bcm_mips74k_softc *sc,
-		    u_int mips_irq, u_int ivec);
-static void	bcm_mips74k_unmask_irq(struct bcm_mips74k_softc *sc,
-		    u_int mips_irq, u_int ivec);
+static int bcm_mips74k_pic_intr(void *arg);
+static void bcm_mips74k_mask_irq(
+    struct bcm_mips74k_softc *sc, u_int mips_irq, u_int ivec);
+static void bcm_mips74k_unmask_irq(
+    struct bcm_mips74k_softc *sc, u_int mips_irq, u_int ivec);
 
 static const struct bhnd_device bcm_mips74k_devs[] = {
-	BHND_DEVICE(MIPS, MIPS74K, NULL, NULL, BHND_DF_SOC),
-	BHND_DEVICE_END
+	BHND_DEVICE(MIPS, MIPS74K, NULL, NULL, BHND_DF_SOC), BHND_DEVICE_END
 };
 
 struct bcm_mips74k_softc {
-	struct bcm_mips_softc	 bcm_mips;	/**< parent softc */
-	device_t		 dev;
-	struct resource		*mem;		/**< cpu core registers */
-	int			 mem_rid;
+	struct bcm_mips_softc bcm_mips; /**< parent softc */
+	device_t dev;
+	struct resource *mem; /**< cpu core registers */
+	int mem_rid;
 };
 
 /* Early routing of the CPU timer interrupt is required */
 static void
 bcm_mips74k_timer_init(void *unused)
 {
-	struct bcm_platform	*bp;
-	u_int			 irq;
-	uint32_t		 mask;
+	struct bcm_platform *bp;
+	u_int irq;
+	uint32_t mask;
 
 	bp = bcm_get_platform();
 
 	/* Must be a MIPS74K core attached to a BCMA interconnect */
-	if (!bhnd_core_matches(&bp->cpu_id, &(struct bhnd_core_match) {
-		BHND_MATCH_CORE(BHND_MFGID_MIPS, BHND_COREID_MIPS74K)
-	})) {
+	if (!bhnd_core_matches(&bp->cpu_id,
+		&(struct bhnd_core_match) {
+		    BHND_MATCH_CORE(BHND_MFGID_MIPS, BHND_COREID_MIPS74K) })) {
 		if (bootverbose) {
 			BCM_ERR("not a MIPS74K core: %s %s\n",
 			    bhnd_vendor_name(bp->cpu_id.vendor),
@@ -124,11 +120,11 @@ bcm_mips74k_timer_init(void *unused)
 static int
 bcm_mips74k_probe(device_t dev)
 {
-	const struct bhnd_device	*id;
-	const struct bhnd_chipid	*cid;
+	const struct bhnd_device *id;
+	const struct bhnd_chipid *cid;
 
-	id = bhnd_device_lookup(dev, bcm_mips74k_devs,
-	    sizeof(bcm_mips74k_devs[0]));
+	id = bhnd_device_lookup(
+	    dev, bcm_mips74k_devs, sizeof(bcm_mips74k_devs[0]));
 	if (id == NULL)
 		return (ENXIO);
 
@@ -146,17 +142,17 @@ bcm_mips74k_probe(device_t dev)
 static int
 bcm_mips74k_attach(device_t dev)
 {
-	struct bcm_mips74k_softc	*sc;
-	u_int				 timer_irq;
-	int				 error;
+	struct bcm_mips74k_softc *sc;
+	u_int timer_irq;
+	int error;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
 	/* Allocate our core's register block */
 	sc->mem_rid = 0;
-	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
-	    RF_ACTIVE);
+	sc->mem = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->mem_rid, RF_ACTIVE);
 	if (sc->mem == NULL) {
 		device_printf(dev, "failed to allocate cpu register block\n");
 		return (ENXIO);
@@ -174,8 +170,8 @@ bcm_mips74k_attach(device_t dev)
 	}
 
 	/* Initialize the generic BHND MIPS driver state */
-	error = bcm_mips_attach(dev, BCM_MIPS74K_NUM_INTR, timer_irq,
-	    bcm_mips74k_pic_intr);
+	error = bcm_mips_attach(
+	    dev, BCM_MIPS74K_NUM_INTR, timer_irq, bcm_mips74k_pic_intr);
 	if (error) {
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
 		return (error);
@@ -187,8 +183,8 @@ bcm_mips74k_attach(device_t dev)
 static int
 bcm_mips74k_detach(device_t dev)
 {
-	struct bcm_mips74k_softc	*sc;
-	int				 error;
+	struct bcm_mips74k_softc *sc;
+	int error;
 
 	sc = device_get_softc(dev);
 
@@ -204,8 +200,8 @@ bcm_mips74k_detach(device_t dev)
 static void
 bcm_mips74k_pic_disable_intr(device_t dev, struct intr_irqsrc *irqsrc)
 {
-	struct bcm_mips74k_softc	*sc;
-	struct bcm_mips_irqsrc		*isrc;
+	struct bcm_mips74k_softc *sc;
+	struct bcm_mips_irqsrc *isrc;
 
 	sc = device_get_softc(dev);
 	isrc = (struct bcm_mips_irqsrc *)irqsrc;
@@ -219,8 +215,8 @@ bcm_mips74k_pic_disable_intr(device_t dev, struct intr_irqsrc *irqsrc)
 static void
 bcm_mips74k_pic_enable_intr(device_t dev, struct intr_irqsrc *irqsrc)
 {
-	struct bcm_mips74k_softc	*sc;
-	struct bcm_mips_irqsrc		*isrc;
+	struct bcm_mips74k_softc *sc;
+	struct bcm_mips_irqsrc *isrc;
 
 	sc = device_get_softc(dev);
 	isrc = (struct bcm_mips_irqsrc *)irqsrc;
@@ -259,10 +255,10 @@ bcm_mips74k_mask_irq(struct bcm_mips74k_softc *sc, u_int mips_irq, u_int ivec)
 {
 	uint32_t oobsel;
 
-	KASSERT(mips_irq < sc->bcm_mips.num_cpuirqs, ("invalid MIPS IRQ %u",
-	    mips_irq));
-	KASSERT(mips_irq < BCM_MIPS74K_NUM_INTR, ("unsupported MIPS IRQ %u",
-	    mips_irq));
+	KASSERT(mips_irq < sc->bcm_mips.num_cpuirqs,
+	    ("invalid MIPS IRQ %u", mips_irq));
+	KASSERT(mips_irq < BCM_MIPS74K_NUM_INTR,
+	    ("unsupported MIPS IRQ %u", mips_irq));
 	KASSERT(ivec < BCMA_OOB_NUM_BUSLINES, ("invalid backplane ivec"));
 
 	oobsel = bus_read_4(sc->mem, BCM_MIPS74K_INTR_SEL(mips_irq));
@@ -278,10 +274,10 @@ bcm_mips74k_unmask_irq(struct bcm_mips74k_softc *sc, u_int mips_irq, u_int ivec)
 {
 	uint32_t oobsel;
 
-	KASSERT(mips_irq < sc->bcm_mips.num_cpuirqs, ("invalid MIPS IRQ %u",
-	    mips_irq));
-	KASSERT(mips_irq < BCM_MIPS74K_NUM_INTR, ("unsupported MIPS IRQ %u",
-	    mips_irq));
+	KASSERT(mips_irq < sc->bcm_mips.num_cpuirqs,
+	    ("invalid MIPS IRQ %u", mips_irq));
+	KASSERT(mips_irq < BCM_MIPS74K_NUM_INTR,
+	    ("unsupported MIPS IRQ %u", mips_irq));
 	KASSERT(ivec < BCMA_OOB_NUM_BUSLINES, ("invalid backplane ivec"));
 
 	oobsel = bus_read_4(sc->mem, BCM_MIPS74K_INTR_SEL(mips_irq));
@@ -293,15 +289,15 @@ bcm_mips74k_unmask_irq(struct bcm_mips74k_softc *sc, u_int mips_irq, u_int ivec)
 static int
 bcm_mips74k_pic_intr(void *arg)
 {
-	struct bcm_mips74k_softc	*sc;
-	struct bcm_mips_cpuirq		*cpuirq;
-	struct bcm_mips_irqsrc		*isrc_solo;
-	uint32_t			 oobsel, intr;
-	u_int				 i;
-	int				 error;
+	struct bcm_mips74k_softc *sc;
+	struct bcm_mips_cpuirq *cpuirq;
+	struct bcm_mips_irqsrc *isrc_solo;
+	uint32_t oobsel, intr;
+	u_int i;
+	int error;
 
 	cpuirq = arg;
-	sc = (struct bcm_mips74k_softc*)cpuirq->sc;
+	sc = (struct bcm_mips74k_softc *)cpuirq->sc;
 
 	/* Fetch current interrupt state */
 	intr = bus_read_4(sc->mem, BCM_MIPS74K_INTR_STATUS);
@@ -319,13 +315,15 @@ bcm_mips74k_pic_intr(void *arg)
 	isrc_solo = cpuirq->isrc_solo;
 	if (isrc_solo != NULL) {
 		if (intr & BCM_MIPS_IVEC_MASK(isrc_solo)) {
-			error = intr_isrc_dispatch(&isrc_solo->isrc,
-			    curthread->td_intr_frame);
+			error = intr_isrc_dispatch(
+			    &isrc_solo->isrc, curthread->td_intr_frame);
 			if (error) {
-				device_printf(sc->dev, "Stray interrupt %u "
-				    "detected\n", isrc_solo->ivec);
-				bcm_mips74k_pic_disable_intr(sc->dev,
-				    &isrc_solo->isrc);
+				device_printf(sc->dev,
+				    "Stray interrupt %u "
+				    "detected\n",
+				    isrc_solo->ivec);
+				bcm_mips74k_pic_disable_intr(
+				    sc->dev, &isrc_solo->isrc);
 			}
 		}
 
@@ -338,8 +336,10 @@ bcm_mips74k_pic_intr(void *arg)
 			i--; /* Get a 0-offset interrupt. */
 			intr &= ~(1 << i);
 
-			device_printf(sc->dev, "Stray interrupt %u "
-				"detected\n", i);
+			device_printf(sc->dev,
+			    "Stray interrupt %u "
+			    "detected\n",
+			    i);
 			bcm_mips74k_mask_irq(sc, cpuirq->mips_irq, i);
 		}
 
@@ -353,11 +353,11 @@ bcm_mips74k_pic_intr(void *arg)
 
 		KASSERT(i < nitems(sc->bcm_mips.isrcs), ("invalid ivec %u", i));
 
-		error = intr_isrc_dispatch(&sc->bcm_mips.isrcs[i].isrc,
-		    curthread->td_intr_frame);
+		error = intr_isrc_dispatch(
+		    &sc->bcm_mips.isrcs[i].isrc, curthread->td_intr_frame);
 		if (error) {
-			device_printf(sc->dev, "Stray interrupt %u detected\n",
-			    i);
+			device_printf(
+			    sc->dev, "Stray interrupt %u detected\n", i);
 			bcm_mips74k_mask_irq(sc, cpuirq->mips_irq, i);
 			continue;
 		}
@@ -368,24 +368,26 @@ bcm_mips74k_pic_intr(void *arg)
 
 static device_method_t bcm_mips74k_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		bcm_mips74k_probe),
-	DEVMETHOD(device_attach,	bcm_mips74k_attach),
-	DEVMETHOD(device_detach,	bcm_mips74k_detach),
+	DEVMETHOD(device_probe, bcm_mips74k_probe),
+	DEVMETHOD(device_attach, bcm_mips74k_attach),
+	DEVMETHOD(device_detach, bcm_mips74k_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_disable_intr,	bcm_mips74k_pic_disable_intr),
-	DEVMETHOD(pic_enable_intr,	bcm_mips74k_pic_enable_intr),
-	DEVMETHOD(pic_pre_ithread,	bcm_mips74k_pic_pre_ithread),
-	DEVMETHOD(pic_post_ithread,	bcm_mips74k_pic_post_ithread),
-	DEVMETHOD(pic_post_filter,	bcm_mips74k_pic_post_filter),
+	DEVMETHOD(pic_disable_intr, bcm_mips74k_pic_disable_intr),
+	DEVMETHOD(pic_enable_intr, bcm_mips74k_pic_enable_intr),
+	DEVMETHOD(pic_pre_ithread, bcm_mips74k_pic_pre_ithread),
+	DEVMETHOD(pic_post_ithread, bcm_mips74k_pic_post_ithread),
+	DEVMETHOD(pic_post_filter, bcm_mips74k_pic_post_filter),
 
 	DEVMETHOD_END
 };
 
 static devclass_t bcm_mips_devclass;
 
-DEFINE_CLASS_1(bcm_mips, bcm_mips74k_driver, bcm_mips74k_methods, sizeof(struct bcm_mips_softc), bcm_mips_driver);
-EARLY_DRIVER_MODULE(bcm_mips74k, bhnd, bcm_mips74k_driver, bcm_mips_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+DEFINE_CLASS_1(bcm_mips, bcm_mips74k_driver, bcm_mips74k_methods,
+    sizeof(struct bcm_mips_softc), bcm_mips_driver);
+EARLY_DRIVER_MODULE(bcm_mips74k, bhnd, bcm_mips74k_driver, bcm_mips_devclass, 0,
+    0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 SYSINIT(cpu_init, SI_SUB_CPU, SI_ORDER_FIRST, bcm_mips74k_timer_init, NULL);
 MODULE_VERSION(bcm_mips74k, 1);
 MODULE_DEPEND(bcm_mips74k, bhnd, 1, 1, 1);

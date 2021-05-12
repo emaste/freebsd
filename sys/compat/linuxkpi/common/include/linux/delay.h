@@ -30,10 +30,11 @@
  * $FreeBSD$
  */
 #ifndef _LINUX_DELAY_H_
-#define	_LINUX_DELAY_H_
+#define _LINUX_DELAY_H_
+
+#include <sys/systm.h>
 
 #include <linux/jiffies.h>
-#include <sys/systm.h>
 
 static inline void
 linux_msleep(unsigned int ms)
@@ -45,12 +46,12 @@ linux_msleep(unsigned int ms)
 }
 
 #undef msleep
-#define	msleep(ms) linux_msleep(ms)
+#define msleep(ms) linux_msleep(ms)
 
 #undef msleep_interruptible
-#define	msleep_interruptible(ms) linux_msleep_interruptible(ms)
+#define msleep_interruptible(ms) linux_msleep_interruptible(ms)
 
-#define	udelay(t)	DELAY(t)
+#define udelay(t) DELAY(t)
 
 static inline void
 mdelay(unsigned long msecs)
@@ -73,4 +74,4 @@ usleep_range(unsigned long min, unsigned long max)
 
 extern unsigned int linux_msleep_interruptible(unsigned int ms);
 
-#endif	/* _LINUX_DELAY_H_ */
+#endif /* _LINUX_DELAY_H_ */

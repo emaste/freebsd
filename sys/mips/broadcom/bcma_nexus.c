@@ -26,7 +26,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -34,32 +34,31 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <sys/rman.h>
 #include <machine/resource.h>
 
+#include <dev/bhnd/bcma/bcma_dmp.h>
+#include <dev/bhnd/bcma/bcmavar.h>
 #include <dev/bhnd/bhnd_ids.h>
 
-#include <dev/bhnd/bcma/bcmavar.h>
-#include <dev/bhnd/bcma/bcma_dmp.h>
-
-#include "bcm_mipsvar.h"
 #include "bcm_machdep.h"
-
+#include "bcm_mipsvar.h"
 #include "bhnd_nexusvar.h"
 
 /*
  * Supports bcma(4) attachment to a MIPS nexus bus.
  */
 
-static int	bcma_nexus_attach(device_t);
-static int	bcma_nexus_probe(device_t);
+static int bcma_nexus_attach(device_t);
+static int bcma_nexus_probe(device_t);
 
-_Static_assert(BCMA_OOB_NUM_BUSLINES == BCM_MIPS_NINTR, "BCMA incompatible "
+_Static_assert(BCMA_OOB_NUM_BUSLINES == BCM_MIPS_NINTR,
+    "BCMA incompatible "
     "with generic NINTR");
 
 static int
@@ -105,12 +104,11 @@ failed:
 	return (error);
 }
 
-static device_method_t bcma_nexus_methods[] = {
-	DEVMETHOD(device_probe,			bcma_nexus_probe),
-	DEVMETHOD(device_attach,		bcma_nexus_attach),
+static device_method_t bcma_nexus_methods[] = { DEVMETHOD(device_probe,
+						    bcma_nexus_probe),
+	DEVMETHOD(device_attach, bcma_nexus_attach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 DEFINE_CLASS_2(bhnd, bcma_nexus_driver, bcma_nexus_methods,
     sizeof(struct bcma_softc), bhnd_nexus_driver, bcma_driver);

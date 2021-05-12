@@ -40,8 +40,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
+#include <sys/systm.h>
 #include <sys/hhook.h>
+#include <sys/kernel.h>
 #include <sys/khelp.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -49,27 +50,27 @@ __FBSDID("$FreeBSD$");
 #include <sys/osd.h>
 #include <sys/queue.h>
 #include <sys/refcount.h>
-#include <sys/systm.h>
 
 #include <net/vnet.h>
 
 struct hhook {
-	hhook_func_t		hhk_func;
-	struct helper		*hhk_helper;
-	void			*hhk_udata;
-	STAILQ_ENTRY(hhook)	hhk_next;
+	hhook_func_t hhk_func;
+	struct helper *hhk_helper;
+	void *hhk_udata;
+	STAILQ_ENTRY(hhook) hhk_next;
 };
 
-static MALLOC_DEFINE(M_HHOOK, "hhook", "Helper hooks are linked off hhook_head lists");
+static MALLOC_DEFINE(
+    M_HHOOK, "hhook", "Helper hooks are linked off hhook_head lists");
 
 LIST_HEAD(hhookheadhead, hhook_head);
 struct hhookheadhead hhook_head_list;
 VNET_DEFINE(struct hhookheadhead, hhook_vhead_list);
-#define	V_hhook_vhead_list VNET(hhook_vhead_list)
+#define V_hhook_vhead_list VNET(hhook_vhead_list)
 
 static struct mtx hhook_head_list_lock;
-MTX_SYSINIT(hhookheadlistlock, &hhook_head_list_lock, "hhook_head list lock",
-    MTX_DEF);
+MTX_SYSINIT(
+    hhookheadlistlock, &hhook_head_list_lock, "hhook_head list lock", MTX_DEF);
 
 /* Protected by hhook_head_list_lock. */
 static uint32_t n_hhookheads;
@@ -78,16 +79,16 @@ static uint32_t n_hhookheads;
 static void hhook_head_destroy(struct hhook_head *hhh);
 void khelp_new_hhook_registered(struct hhook_head *hhh, uint32_t flags);
 
-#define	HHHLIST_LOCK() mtx_lock(&hhook_head_list_lock)
-#define	HHHLIST_UNLOCK() mtx_unlock(&hhook_head_list_lock)
-#define	HHHLIST_LOCK_ASSERT() mtx_assert(&hhook_head_list_lock, MA_OWNED)
+#define HHHLIST_LOCK() mtx_lock(&hhook_head_list_lock)
+#define HHHLIST_UNLOCK() mtx_unlock(&hhook_head_list_lock)
+#define HHHLIST_LOCK_ASSERT() mtx_assert(&hhook_head_list_lock, MA_OWNED)
 
-#define	HHH_LOCK_INIT(hhh) rm_init(&(hhh)->hhh_lock, "hhook_head rm lock")
-#define	HHH_LOCK_DESTROY(hhh) rm_destroy(&(hhh)->hhh_lock)
-#define	HHH_WLOCK(hhh) rm_wlock(&(hhh)->hhh_lock)
-#define	HHH_WUNLOCK(hhh) rm_wunlock(&(hhh)->hhh_lock)
-#define	HHH_RLOCK(hhh, rmpt) rm_rlock(&(hhh)->hhh_lock, (rmpt))
-#define	HHH_RUNLOCK(hhh, rmpt) rm_runlock(&(hhh)->hhh_lock, (rmpt))
+#define HHH_LOCK_INIT(hhh) rm_init(&(hhh)->hhh_lock, "hhook_head rm lock")
+#define HHH_LOCK_DESTROY(hhh) rm_destroy(&(hhh)->hhh_lock)
+#define HHH_WLOCK(hhh) rm_wlock(&(hhh)->hhh_lock)
+#define HHH_WUNLOCK(hhh) rm_wunlock(&(hhh)->hhh_lock)
+#define HHH_RLOCK(hhh, rmpt) rm_rlock(&(hhh)->hhh_lock, (rmpt))
+#define HHH_RUNLOCK(hhh, rmpt) rm_runlock(&(hhh)->hhh_lock, (rmpt))
 
 /*
  * Run all helper hook functions for a given hook point.
@@ -102,7 +103,7 @@ hhook_run_hooks(struct hhook_head *hhh, void *ctx_data, struct osd *hosd)
 	KASSERT(hhh->hhh_refcount > 0, ("hhook_head %p refcount is 0", hhh));
 
 	HHH_RLOCK(hhh, &rmpt);
-	STAILQ_FOREACH(hhk, &hhh->hhh_hooks, hhk_next) {
+	STAILQ_FOREACH (hhk, &hhh->hhh_hooks, hhk_next) {
 		if (hhk->hhk_helper != NULL &&
 		    hhk->hhk_helper->h_flags & HELPER_NEEDS_OSD) {
 			hdata = osd_get(OSD_KHELP, hosd, hhk->hhk_helper->h_id);
@@ -151,7 +152,7 @@ hhook_add_hook(struct hhook_head *hhh, struct hookinfo *hki, uint32_t flags)
 	hhk->hhk_udata = hki->hook_udata;
 
 	HHH_WLOCK(hhh);
-	STAILQ_FOREACH(tmp, &hhh->hhh_hooks, hhk_next) {
+	STAILQ_FOREACH (tmp, &hhh->hhh_hooks, hhk_next) {
 		if (tmp->hhk_func == hki->hook_func &&
 		    tmp->hhk_udata == hki->hook_udata) {
 			/* The helper hook function is already registered. */
@@ -206,12 +207,13 @@ tryagain:
 		return (ENOMEM);
 
 	HHHLIST_LOCK();
-	LIST_FOREACH(hhh, &hhook_head_list, hhh_next) {
+	LIST_FOREACH (hhh, &hhook_head_list, hhh_next) {
 		if (hhh->hhh_type == hki->hook_type &&
 		    hhh->hhh_id == hki->hook_id) {
 			if (i < n_heads_to_hook) {
 				heads_to_hook[i] = hhh;
-				refcount_acquire(&heads_to_hook[i]->hhh_refcount);
+				refcount_acquire(
+				    &heads_to_hook[i]->hhh_refcount);
 				i++;
 			} else {
 				/*
@@ -221,7 +223,8 @@ tryagain:
 				 * and try again.
 				 */
 				for (i--; i >= 0; i--)
-					refcount_release(&heads_to_hook[i]->hhh_refcount);
+					refcount_release(
+					    &heads_to_hook[i]->hhh_refcount);
 				free(heads_to_hook, M_HHOOK);
 				HHHLIST_UNLOCK();
 				goto tryagain;
@@ -253,7 +256,7 @@ hhook_remove_hook(struct hhook_head *hhh, struct hookinfo *hki)
 		return (ENOENT);
 
 	HHH_WLOCK(hhh);
-	STAILQ_FOREACH(tmp, &hhh->hhh_hooks, hhk_next) {
+	STAILQ_FOREACH (tmp, &hhh->hhh_hooks, hhk_next) {
 		if (tmp->hhk_func == hki->hook_func &&
 		    tmp->hhk_udata == hki->hook_udata) {
 			STAILQ_REMOVE(&hhh->hhh_hooks, tmp, hhook, hhk_next);
@@ -277,7 +280,7 @@ hhook_remove_hook_lookup(struct hookinfo *hki)
 	struct hhook_head *hhh;
 
 	HHHLIST_LOCK();
-	LIST_FOREACH(hhh, &hhook_head_list, hhh_next) {
+	LIST_FOREACH (hhh, &hhook_head_list, hhh_next) {
 		if (hhh->hhh_type == hki->hook_type &&
 		    hhh->hhh_id == hki->hook_id)
 			hhook_remove_hook(hhh, hki);
@@ -291,8 +294,8 @@ hhook_remove_hook_lookup(struct hookinfo *hki)
  * Register a new helper hook point.
  */
 int
-hhook_head_register(int32_t hhook_type, int32_t hhook_id, struct hhook_head **hhh,
-    uint32_t flags)
+hhook_head_register(int32_t hhook_type, int32_t hhook_id,
+    struct hhook_head **hhh, uint32_t flags)
 {
 	struct hhook_head *tmphhh;
 
@@ -354,7 +357,7 @@ hhook_head_destroy(struct hhook_head *hhh)
 		LIST_REMOVE(hhh, hhh_vnext);
 #endif
 	HHH_WLOCK(hhh);
-	STAILQ_FOREACH_SAFE(tmp, &hhh->hhh_hooks, hhk_next, tmp2)
+	STAILQ_FOREACH_SAFE (tmp, &hhh->hhh_hooks, hhk_next, tmp2)
 		free(tmp, M_HHOOK);
 	HHH_WUNLOCK(hhh);
 	HHH_LOCK_DESTROY(hhh);
@@ -412,7 +415,7 @@ hhook_head_get(int32_t hhook_type, int32_t hhook_id)
 	struct hhook_head *hhh;
 
 	HHHLIST_LOCK();
-	LIST_FOREACH(hhh, &hhook_head_list, hhh_next) {
+	LIST_FOREACH (hhh, &hhook_head_list, hhh_next) {
 		if (hhh->hhh_type == hhook_type && hhh->hhh_id == hhook_id) {
 #ifdef VIMAGE
 			if (hhook_head_is_virtualised(hhh) ==
@@ -500,7 +503,7 @@ hhook_vnet_uninit(const void *unused __unused)
 	 * subsystem should have already called hhook_head_deregister().
 	 */
 	HHHLIST_LOCK();
-	LIST_FOREACH_SAFE(hhh, &V_hhook_vhead_list, hhh_vnext, tmphhh) {
+	LIST_FOREACH_SAFE (hhh, &V_hhook_vhead_list, hhh_vnext, tmphhh) {
 		printf("%s: hhook_head type=%d, id=%d cleanup required\n",
 		    __func__, hhh->hhh_type, hhh->hhh_id);
 		hhook_head_destroy(hhh);
@@ -511,13 +514,13 @@ hhook_vnet_uninit(const void *unused __unused)
 /*
  * When a vnet is created and being initialised, init the V_hhook_vhead_list.
  */
-VNET_SYSINIT(hhook_vnet_init, SI_SUB_INIT_IF, SI_ORDER_FIRST,
-    hhook_vnet_init, NULL);
+VNET_SYSINIT(
+    hhook_vnet_init, SI_SUB_INIT_IF, SI_ORDER_FIRST, hhook_vnet_init, NULL);
 
 /*
  * The hhook KPI provides a mechanism for subsystems which export helper hook
  * points to clean up on vnet tear down, but in case the KPI is misused,
  * provide a function to clean up and free memory for a vnet being destroyed.
  */
-VNET_SYSUNINIT(hhook_vnet_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST,
-    hhook_vnet_uninit, NULL);
+VNET_SYSUNINIT(
+    hhook_vnet_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST, hhook_vnet_uninit, NULL);

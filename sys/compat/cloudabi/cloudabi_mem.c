@@ -31,9 +31,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/syscallsubr.h>
 
-#include <contrib/cloudabi/cloudabi_types_common.h>
-
 #include <compat/cloudabi/cloudabi_proto.h>
+#include <contrib/cloudabi/cloudabi_types_common.h>
 
 /* Converts CloudABI's memory protection flags to FreeBSD's. */
 static int
@@ -41,8 +40,9 @@ convert_mprot(cloudabi_mprot_t in, int *out)
 {
 
 	/* Unknown protection flags. */
-	if ((in & ~(CLOUDABI_PROT_EXEC | CLOUDABI_PROT_WRITE |
-	    CLOUDABI_PROT_READ)) != 0)
+	if ((in &
+		~(CLOUDABI_PROT_EXEC | CLOUDABI_PROT_WRITE |
+		    CLOUDABI_PROT_READ)) != 0)
 		return (ENOTSUP);
 	/* W^X: Write and exec cannot be enabled at the same time. */
 	if ((in & (CLOUDABI_PROT_EXEC | CLOUDABI_PROT_WRITE)) ==
@@ -60,8 +60,8 @@ convert_mprot(cloudabi_mprot_t in, int *out)
 }
 
 int
-cloudabi_sys_mem_advise(struct thread *td,
-    struct cloudabi_sys_mem_advise_args *uap)
+cloudabi_sys_mem_advise(
+    struct thread *td, struct cloudabi_sys_mem_advise_args *uap)
 {
 	int behav;
 
@@ -85,8 +85,8 @@ cloudabi_sys_mem_advise(struct thread *td,
 		return (EINVAL);
 	}
 
-	return (kern_madvise(td, (uintptr_t)uap->mapping, uap->mapping_len,
-	    behav));
+	return (
+	    kern_madvise(td, (uintptr_t)uap->mapping, uap->mapping_len, behav));
 }
 
 int
@@ -110,7 +110,8 @@ cloudabi_sys_mem_map(struct thread *td, struct cloudabi_sys_mem_map_args *uap)
 	if (error != 0)
 		return (error);
 
-	return (kern_mmap(td, &(struct mmap_req){
+	return (kern_mmap(td,
+	    &(struct mmap_req) {
 		.mr_hint = (uintptr_t)uap->addr,
 		.mr_len = uap->len,
 		.mr_prot = prot,
@@ -121,8 +122,8 @@ cloudabi_sys_mem_map(struct thread *td, struct cloudabi_sys_mem_map_args *uap)
 }
 
 int
-cloudabi_sys_mem_protect(struct thread *td,
-    struct cloudabi_sys_mem_protect_args *uap)
+cloudabi_sys_mem_protect(
+    struct thread *td, struct cloudabi_sys_mem_protect_args *uap)
 {
 	int error, prot;
 
@@ -131,8 +132,8 @@ cloudabi_sys_mem_protect(struct thread *td,
 	if (error != 0)
 		return (error);
 
-	return (kern_mprotect(td, (uintptr_t)uap->mapping, uap->mapping_len,
-	    prot));
+	return (
+	    kern_mprotect(td, (uintptr_t)uap->mapping, uap->mapping_len, prot));
 }
 
 int
@@ -154,13 +155,13 @@ cloudabi_sys_mem_sync(struct thread *td, struct cloudabi_sys_mem_sync_args *uap)
 	if ((uap->flags & CLOUDABI_MS_INVALIDATE) != 0)
 		flags |= MS_INVALIDATE;
 
-	return (kern_msync(td, (uintptr_t)uap->mapping, uap->mapping_len,
-	    flags));
+	return (
+	    kern_msync(td, (uintptr_t)uap->mapping, uap->mapping_len, flags));
 }
 
 int
-cloudabi_sys_mem_unmap(struct thread *td,
-    struct cloudabi_sys_mem_unmap_args *uap)
+cloudabi_sys_mem_unmap(
+    struct thread *td, struct cloudabi_sys_mem_unmap_args *uap)
 {
 
 	return (kern_munmap(td, (uintptr_t)uap->mapping, uap->mapping_len));

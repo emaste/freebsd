@@ -31,31 +31,30 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/condvar.h>
+#include <sys/conf.h>
 #include <sys/cpu.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/sysctl.h>
-#include <sys/selinfo.h>
 #include <sys/poll.h>
+#include <sys/selinfo.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
-#include <sys/conf.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/evdev/input.h>
-#include <dev/evdev/evdev.h>
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
+
+#include <dev/evdev/evdev.h>
+#include <dev/evdev/input.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
@@ -64,66 +63,63 @@ __FBSDID("$FreeBSD$");
 #include "mbox_if.h"
 
 #ifdef DEBUG
-#define DPRINTF(fmt, ...) do {			\
-	printf("%s:%u: ", __func__, __LINE__);	\
-	printf(fmt, ##__VA_ARGS__);		\
-} while (0)
+#define DPRINTF(fmt, ...)                              \
+	do {                                           \
+		printf("%s:%u: ", __func__, __LINE__); \
+		printf(fmt, ##__VA_ARGS__);            \
+	} while (0)
 #else
 #define DPRINTF(fmt, ...)
 #endif
 
-#define	FT5406_LOCK(_sc)		\
-	mtx_lock(&(_sc)->sc_mtx)
-#define	FT5406_UNLOCK(_sc)		\
-	mtx_unlock(&(_sc)->sc_mtx)
-#define	FT5406_LOCK_INIT(_sc)	\
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	    "ft5406", MTX_DEF)
-#define	FT5406_LOCK_DESTROY(_sc)	\
-	mtx_destroy(&_sc->sc_mtx);
-#define	FT5406_LOCK_ASSERT(_sc)	\
-	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
+#define FT5406_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define FT5406_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
+#define FT5406_LOCK_INIT(_sc) \
+	mtx_init(             \
+	    &_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), "ft5406", MTX_DEF)
+#define FT5406_LOCK_DESTROY(_sc) mtx_destroy(&_sc->sc_mtx);
+#define FT5406_LOCK_ASSERT(_sc) mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 
-#define	FT5406_DEVICE_MODE	0
-#define	FT5406_GESTURE_ID	1
-#define	FT5406_NUM_POINTS	2
-#define	FT5406_POINT_XH(n)	(0 + 3 + (n)*6)
-#define	FT5406_POINT_XL(n)	(1 + 3 + (n)*6)
-#define	FT5406_POINT_YH(n)	(2 + 3 + (n)*6)
-#define	FT5406_POINT_YL(n)	(3 + 3 + (n)*6)
-#define	FT5406_WINDOW_SIZE	64
+#define FT5406_DEVICE_MODE 0
+#define FT5406_GESTURE_ID 1
+#define FT5406_NUM_POINTS 2
+#define FT5406_POINT_XH(n) (0 + 3 + (n)*6)
+#define FT5406_POINT_XL(n) (1 + 3 + (n)*6)
+#define FT5406_POINT_YH(n) (2 + 3 + (n)*6)
+#define FT5406_POINT_YL(n) (3 + 3 + (n)*6)
+#define FT5406_WINDOW_SIZE 64
 
-#define	GET_NUM_POINTS(buf)	(buf[FT5406_NUM_POINTS])
-#define	GET_X(buf, n)		(((buf[FT5406_POINT_XH(n)] & 0xf) << 8) | \
-				    (buf[FT5406_POINT_XL(n)]))
-#define	GET_Y(buf, n)		(((buf[FT5406_POINT_YH(n)] & 0xf) << 8) | \
-				    (buf[FT5406_POINT_YL(n)]))
-#define	GET_TOUCH_ID(buf, n)	((buf[FT5406_POINT_YH(n)] >> 4) & 0xf)
+#define GET_NUM_POINTS(buf) (buf[FT5406_NUM_POINTS])
+#define GET_X(buf, n) \
+	(((buf[FT5406_POINT_XH(n)] & 0xf) << 8) | (buf[FT5406_POINT_XL(n)]))
+#define GET_Y(buf, n) \
+	(((buf[FT5406_POINT_YH(n)] & 0xf) << 8) | (buf[FT5406_POINT_YL(n)]))
+#define GET_TOUCH_ID(buf, n) ((buf[FT5406_POINT_YH(n)] >> 4) & 0xf)
 
-#define	NO_POINTS		99
-#define	SCREEN_WIDTH		800
-#define	SCREEN_HEIGHT		480
-#define	SCREEN_WIDTH_MM		155
-#define	SCREEN_HEIGHT_MM	86
-#define	SCREEN_RES_X	(SCREEN_WIDTH / SCREEN_WIDTH_MM)
-#define	SCREEN_RES_Y	(SCREEN_HEIGHT / SCREEN_HEIGHT_MM)
-#define	MAX_TOUCH_ID	(10 - 1)
+#define NO_POINTS 99
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 480
+#define SCREEN_WIDTH_MM 155
+#define SCREEN_HEIGHT_MM 86
+#define SCREEN_RES_X (SCREEN_WIDTH / SCREEN_WIDTH_MM)
+#define SCREEN_RES_Y (SCREEN_HEIGHT / SCREEN_HEIGHT_MM)
+#define MAX_TOUCH_ID (10 - 1)
 
 struct ft5406ts_softc {
-	device_t		sc_dev;
-	struct mtx		sc_mtx;
-	int			sc_tick;
-	struct callout		sc_callout;
+	device_t sc_dev;
+	struct mtx sc_mtx;
+	int sc_tick;
+	struct callout sc_callout;
 
 	/* mbox buffer (mapped to KVA) */
-	uint8_t			*touch_buf;
+	uint8_t *touch_buf;
 
 	/* initial hook for waiting mbox intr */
-	struct intr_config_hook	sc_init_hook;
+	struct intr_config_hook sc_init_hook;
 
-	struct evdev_dev	*sc_evdev;
+	struct evdev_dev *sc_evdev;
 
-	uint8_t			sc_window[FT5406_WINDOW_SIZE];
+	uint8_t sc_window[FT5406_WINDOW_SIZE];
 };
 
 static evdev_open_t ft5406ts_ev_open;
@@ -228,7 +224,7 @@ ft5406ts_init(void *arg)
 	}
 
 	touchbuf = VCBUS_TO_ARMC(msg.body.resp.address);
-	sc->touch_buf = (uint8_t*)pmap_mapdev(touchbuf, FT5406_WINDOW_SIZE);
+	sc->touch_buf = (uint8_t *)pmap_mapdev(touchbuf, FT5406_WINDOW_SIZE);
 
 	/* 60Hz */
 	sc->sc_tick = hz * 17 / 1000;
@@ -246,19 +242,18 @@ ft5406ts_init(void *arg)
 	evdev_support_event(sc->sc_evdev, EV_SYN);
 	evdev_support_event(sc->sc_evdev, EV_ABS);
 
-	evdev_support_abs(sc->sc_evdev, ABS_MT_SLOT, 0,
-	    MAX_TOUCH_ID, 0, 0, 0);
-	evdev_support_abs(sc->sc_evdev, ABS_MT_TRACKING_ID, -1,
-	    MAX_TOUCH_ID, 0, 0, 0);
-	evdev_support_abs(sc->sc_evdev, ABS_MT_POSITION_X, 0,
-	    SCREEN_WIDTH, 0, 0, SCREEN_RES_X);
-	evdev_support_abs(sc->sc_evdev, ABS_MT_POSITION_Y, 0,
-	    SCREEN_HEIGHT, 0, 0, SCREEN_RES_Y);
+	evdev_support_abs(sc->sc_evdev, ABS_MT_SLOT, 0, MAX_TOUCH_ID, 0, 0, 0);
+	evdev_support_abs(
+	    sc->sc_evdev, ABS_MT_TRACKING_ID, -1, MAX_TOUCH_ID, 0, 0, 0);
+	evdev_support_abs(sc->sc_evdev, ABS_MT_POSITION_X, 0, SCREEN_WIDTH, 0,
+	    0, SCREEN_RES_X);
+	evdev_support_abs(sc->sc_evdev, ABS_MT_POSITION_Y, 0, SCREEN_HEIGHT, 0,
+	    0, SCREEN_RES_Y);
 
 	err = evdev_register_mtx(sc->sc_evdev, &sc->sc_mtx);
 	if (err) {
 		evdev_free(sc->sc_evdev);
-		sc->sc_evdev = NULL;	/* Avoid double free */
+		sc->sc_evdev = NULL; /* Avoid double free */
 		return;
 	}
 
@@ -318,9 +313,9 @@ ft5406ts_detach(device_t dev)
 
 static device_method_t ft5406ts_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ft5406ts_probe),
-	DEVMETHOD(device_attach,	ft5406ts_attach),
-	DEVMETHOD(device_detach,	ft5406ts_detach),
+	DEVMETHOD(device_probe, ft5406ts_probe),
+	DEVMETHOD(device_attach, ft5406ts_attach),
+	DEVMETHOD(device_detach, ft5406ts_detach),
 
 	DEVMETHOD_END
 };

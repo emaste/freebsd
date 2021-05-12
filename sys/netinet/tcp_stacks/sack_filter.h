@@ -50,8 +50,8 @@ struct sack_filter {
 };
 #ifdef _KERNEL
 void sack_filter_clear(struct sack_filter *sf, tcp_seq seq);
-int sack_filter_blks(struct sack_filter *sf, struct sackblk *in, int numblks,
-		     tcp_seq th_ack);
+int sack_filter_blks(
+    struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq th_ack);
 void sack_filter_reject(struct sack_filter *sf, struct sackblk *in);
 #endif
 #endif

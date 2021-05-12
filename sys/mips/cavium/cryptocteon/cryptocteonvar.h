@@ -29,34 +29,38 @@
  * $FreeBSD$
  */
 
-#ifndef	_MIPS_CAVIUM_CRYPTOCTEON_CRYPTOCTEONVAR_H_
-#define	_MIPS_CAVIUM_CRYPTOCTEON_CRYPTOCTEONVAR_H_
+#ifndef _MIPS_CAVIUM_CRYPTOCTEON_CRYPTOCTEONVAR_H_
+#define _MIPS_CAVIUM_CRYPTOCTEON_CRYPTOCTEONVAR_H_
 
 struct octo_sess;
 
-typedef	int octo_encrypt_t(struct octo_sess *od, struct iovec *iov, size_t iovcnt, size_t iovlen, int auth_off, int auth_len, int crypt_off, int crypt_len, uint8_t *icv, uint8_t *ivp);
-typedef	int octo_decrypt_t(struct octo_sess *od, struct iovec *iov, size_t iovcnt, size_t iovlen, int auth_off, int auth_len, int crypt_off, int crypt_len, uint8_t *icv, uint8_t *ivp);
+typedef int octo_encrypt_t(struct octo_sess *od, struct iovec *iov,
+    size_t iovcnt, size_t iovlen, int auth_off, int auth_len, int crypt_off,
+    int crypt_len, uint8_t *icv, uint8_t *ivp);
+typedef int octo_decrypt_t(struct octo_sess *od, struct iovec *iov,
+    size_t iovcnt, size_t iovlen, int auth_off, int auth_len, int crypt_off,
+    int crypt_len, uint8_t *icv, uint8_t *ivp);
 
 struct octo_sess {
-	#define MAX_CIPHER_KEYLEN	64
-	char				 octo_enckey[MAX_CIPHER_KEYLEN];
-	int					 octo_encklen;
+#define MAX_CIPHER_KEYLEN 64
+	char octo_enckey[MAX_CIPHER_KEYLEN];
+	int octo_encklen;
 
-	int					 octo_mlen;
+	int octo_mlen;
 
-	octo_encrypt_t				*octo_encrypt;
-	octo_decrypt_t				*octo_decrypt;
+	octo_encrypt_t *octo_encrypt;
+	octo_decrypt_t *octo_decrypt;
 
-	uint64_t			 octo_hminner[3];
-	uint64_t			 octo_hmouter[3];
+	uint64_t octo_hminner[3];
+	uint64_t octo_hmouter[3];
 
-	struct iovec				octo_iov[UIO_MAXIOV];
+	struct iovec octo_iov[UIO_MAXIOV];
 };
 
-#define	dprintf(fmt, ...)						\
-	do {								\
-		if (cryptocteon_debug)					\
-			printf("%s: " fmt, __func__, ## __VA_ARGS__);	\
+#define dprintf(fmt, ...)                                            \
+	do {                                                         \
+		if (cryptocteon_debug)                               \
+			printf("%s: " fmt, __func__, ##__VA_ARGS__); \
 	} while (0)
 
 extern int cryptocteon_debug;

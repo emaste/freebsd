@@ -36,44 +36,40 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/malloc.h>
 #include <sys/endian.h>
+#include <sys/firmware.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
-#include <sys/firmware.h>
 
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/pmap.h>
-
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include <arm/freescale/imx/imx6_sdma.h>
 
-#define	MAX_BD	(PAGE_SIZE / sizeof(struct sdma_buffer_descriptor))
+#define MAX_BD (PAGE_SIZE / sizeof(struct sdma_buffer_descriptor))
 
-#define	READ4(_sc, _reg)	\
-	bus_space_read_4(_sc->bst, _sc->bsh, _reg)
-#define	WRITE4(_sc, _reg, _val)	\
+#define READ4(_sc, _reg) bus_space_read_4(_sc->bst, _sc->bsh, _reg)
+#define WRITE4(_sc, _reg, _val) \
 	bus_space_write_4(_sc->bst, _sc->bsh, _reg, _val)
 
 struct sdma_softc *sdma_sc;
 
-static struct resource_spec sdma_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec sdma_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
 /*
  * This will get set to true if we can't load firmware while attaching, to
@@ -185,8 +181,8 @@ sdma_alloc(void)
 	chn = i;
 
 	/* Allocate area for buffer descriptors */
-	channel->bd = (void *)kmem_alloc_contig(PAGE_SIZE, M_ZERO, 0, ~0,
-	    PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
+	channel->bd = (void *)kmem_alloc_contig(
+	    PAGE_SIZE, M_ZERO, 0, ~0, PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
 
 	return (chn);
 }
@@ -208,8 +204,7 @@ sdma_free(int chn)
 }
 
 static int
-sdma_overrides(struct sdma_softc *sc, int chn,
-		int evt, int host, int dsp)
+sdma_overrides(struct sdma_softc *sc, int chn, int evt, int host, int dsp)
 {
 	int reg;
 
@@ -269,8 +264,9 @@ sdma_configure(int chn, struct sdma_conf *conf)
 	sdma_overrides(sc, chn, 0, 0, 0);
 
 	if (conf->num_bd > MAX_BD) {
-		device_printf(sc->dev, "Error: too much buffer"
-				" descriptors requested\n");
+		device_printf(sc->dev,
+		    "Error: too much buffer"
+		    " descriptors requested\n");
 		return (-1);
 	}
 
@@ -372,7 +368,7 @@ load_firmware(struct sdma_softc *sc)
 
 	sc->fw_header = header;
 	sc->fw_scripts = (const void *)((const char *)header +
-				header->script_addrs_start);
+	    header->script_addrs_start);
 
 	return (0);
 }
@@ -389,18 +385,18 @@ boot_firmware(struct sdma_softc *sc)
 	int i;
 
 	ram_code = (const void *)((const char *)sc->fw_header +
-			sc->fw_header->ram_code_start);
+	    sc->fw_header->ram_code_start);
 
 	/* Make sure SDMA has not started yet */
 	WRITE4(sc, SDMAARM_MC0PTR, 0);
 
-	sz = SDMA_N_CHANNELS * sizeof(struct sdma_channel_control) + \
+	sz = SDMA_N_CHANNELS * sizeof(struct sdma_channel_control) +
 	    sizeof(struct sdma_context_data);
-	sc->ccb = (void *)kmem_alloc_contig(sz, M_ZERO, 0, ~0, PAGE_SIZE, 0,
-	    VM_MEMATTR_UNCACHEABLE);
+	sc->ccb = (void *)kmem_alloc_contig(
+	    sz, M_ZERO, 0, ~0, PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
 	sc->ccb_phys = vtophys(sc->ccb);
 
-	sc->context = (void *)((char *)sc->ccb + \
+	sc->context = (void *)((char *)sc->ccb +
 	    SDMA_N_CHANNELS * sizeof(struct sdma_channel_control));
 	sc->context_phys = vtophys(sc->context);
 
@@ -415,8 +411,8 @@ boot_firmware(struct sdma_softc *sc)
 	/* Channel 0 is used for booting firmware */
 	chn = 0;
 
-	sc->bd0 = (void *)kmem_alloc_contig(PAGE_SIZE, M_ZERO, 0, ~0, PAGE_SIZE,
-	    0, VM_MEMATTR_UNCACHEABLE);
+	sc->bd0 = (void *)kmem_alloc_contig(
+	    PAGE_SIZE, M_ZERO, 0, ~0, PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
 	bd0 = sc->bd0;
 	sc->ccb[chn].base_bd_ptr = vtophys(bd0);
 	sc->ccb[chn].current_bd_ptr = vtophys(bd0);
@@ -506,9 +502,8 @@ sdma_attach(device_t dev)
 
 static device_method_t sdma_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		sdma_probe),
-	DEVMETHOD(device_attach,	sdma_attach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, sdma_probe),
+	DEVMETHOD(device_attach, sdma_attach), { 0, 0 }
 };
 
 static driver_t sdma_driver = {

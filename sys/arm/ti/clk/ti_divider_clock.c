@@ -31,17 +31,17 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/bus.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
 #include <sys/libkern.h>
+#include <sys/module.h>
 
 #include <machine/bus.h>
-#include <dev/fdt/simplebus.h>
 
 #include <dev/extres/clk/clk_div.h>
+#include <dev/fdt/simplebus.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -59,30 +59,30 @@ __FBSDID("$FreeBSD$");
  */
 
 struct ti_divider_softc {
-	device_t		sc_dev;
-	bool			attach_done;
-	struct clk_div_def	div_def;
+	device_t sc_dev;
+	bool attach_done;
+	struct clk_div_def div_def;
 
-	struct clock_cell_info	clock_cell;
-	struct clkdom		*clkdom;
+	struct clock_cell_info clock_cell;
+	struct clkdom *clkdom;
 };
 
 static int ti_divider_probe(device_t dev);
 static int ti_divider_attach(device_t dev);
 static int ti_divider_detach(device_t dev);
 
-#define TI_DIVIDER_CLOCK		2
-#define TI_COMPOSITE_DIVIDER_CLOCK	1
-#define TI_DIVIDER_END			0
+#define TI_DIVIDER_CLOCK 2
+#define TI_COMPOSITE_DIVIDER_CLOCK 1
+#define TI_DIVIDER_END 0
 
-static struct ofw_compat_data compat_data[] = {
-	{ "ti,divider-clock",		TI_DIVIDER_CLOCK },
-	{ "ti,composite-divider-clock",	TI_COMPOSITE_DIVIDER_CLOCK },
-	{ NULL,				TI_DIVIDER_END }
-};
+static struct ofw_compat_data compat_data[] = { { "ti,divider-clock",
+						    TI_DIVIDER_CLOCK },
+	{ "ti,composite-divider-clock", TI_COMPOSITE_DIVIDER_CLOCK },
+	{ NULL, TI_DIVIDER_END } };
 
 static int
-register_clk(struct ti_divider_softc *sc) {
+register_clk(struct ti_divider_softc *sc)
+{
 	int err;
 
 	sc->clkdom = clkdom_create(sc->sc_dev);
@@ -124,10 +124,10 @@ static int
 ti_divider_attach(device_t dev)
 {
 	struct ti_divider_softc *sc;
-	phandle_t	node;
-	int		err;
-	cell_t		value;
-	uint32_t	ti_max_div;
+	phandle_t node;
+	int err;
+	cell_t value;
+	uint32_t ti_max_div;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -148,7 +148,8 @@ ti_divider_attach(device_t dev)
 
 	if (OF_hasprop(node, "ti,index-power-of-two")) {
 		/* FIXME: later */
-		device_printf(sc->sc_dev, "ti,index-power-of-two - Not implemented\n");
+		device_printf(
+		    sc->sc_dev, "ti,index-power-of-two - Not implemented\n");
 		/* remember to update i_width a few lines below */
 	}
 	if (OF_hasprop(node, "ti,max-div")) {
@@ -164,15 +165,17 @@ ti_divider_attach(device_t dev)
 		device_printf(sc->sc_dev, "ti,min-div - Not implemented\n");
 
 	if (OF_hasprop(node, "ti,autoidle-shift"))
-		device_printf(sc->sc_dev, "ti,autoidle-shift - Not implemented\n");
+		device_printf(
+		    sc->sc_dev, "ti,autoidle-shift - Not implemented\n");
 	if (OF_hasprop(node, "ti,set-rate-parent"))
-		device_printf(sc->sc_dev, "ti,set-rate-parent - Not implemented\n");
+		device_printf(
+		    sc->sc_dev, "ti,set-rate-parent - Not implemented\n");
 	if (OF_hasprop(node, "ti,latch-bit"))
 		device_printf(sc->sc_dev, "ti,latch-bit - Not implemented\n");
 
 	/* Figure out the width from ti_max_div */
 	if (sc->div_def.div_flags)
-		sc->div_def.i_width = fls(ti_max_div-1);
+		sc->div_def.i_width = fls(ti_max_div - 1);
 	else
 		sc->div_def.i_width = fls(ti_max_div);
 
@@ -182,7 +185,8 @@ ti_divider_attach(device_t dev)
 
 	create_clkdef(sc->sc_dev, &sc->clock_cell, &sc->div_def.clkdef);
 
-	err = find_parent_clock_names(sc->sc_dev, &sc->clock_cell, &sc->div_def.clkdef);
+	err = find_parent_clock_names(
+	    sc->sc_dev, &sc->clock_cell, &sc->div_def.clkdef);
 
 	if (err) {
 		/* free_clkdef will be called in ti_divider_new_pass */
@@ -223,16 +227,20 @@ ti_divider_new_pass(device_t dev)
 		return;
 	}
 
-	err = find_parent_clock_names(sc->sc_dev, &sc->clock_cell, &sc->div_def.clkdef);
+	err = find_parent_clock_names(
+	    sc->sc_dev, &sc->clock_cell, &sc->div_def.clkdef);
 	if (err) {
-		/* free_clkdef will be called in a later call to ti_divider_new_pass */
-		DPRINTF(sc->sc_dev, "new_pass find_parent_clock_names failed\n");
+		/* free_clkdef will be called in a later call to
+		 * ti_divider_new_pass */
+		DPRINTF(
+		    sc->sc_dev, "new_pass find_parent_clock_names failed\n");
 		return;
 	}
 
 	err = register_clk(sc);
 	if (err) {
-		/* free_clkdef will be called in a later call to ti_divider_new_pass */
+		/* free_clkdef will be called in a later call to
+		 * ti_divider_new_pass */
 		DPRINTF(sc->sc_dev, "new_pass register_clk failed\n");
 		return;
 	}
@@ -244,21 +252,21 @@ ti_divider_new_pass(device_t dev)
 
 static device_method_t ti_divider_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ti_divider_probe),
-	DEVMETHOD(device_attach,	ti_divider_attach),
-	DEVMETHOD(device_detach,	ti_divider_detach),
+	DEVMETHOD(device_probe, ti_divider_probe),
+	DEVMETHOD(device_attach, ti_divider_attach),
+	DEVMETHOD(device_detach, ti_divider_detach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_new_pass,		ti_divider_new_pass),
+	DEVMETHOD(bus_new_pass, ti_divider_new_pass),
 
 	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(ti_divider, ti_divider_driver, ti_divider_methods,
-	sizeof(struct ti_divider_softc));
+    sizeof(struct ti_divider_softc));
 
 static devclass_t ti_divider_devclass;
 
 EARLY_DRIVER_MODULE(ti_divider, simplebus, ti_divider_driver,
-	ti_divider_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    ti_divider_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ti_divider, 1);

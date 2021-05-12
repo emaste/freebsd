@@ -68,6 +68,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -80,25 +81,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/procdesc.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
-#include <sys/sysproto.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/ucred.h>
 #include <sys/user.h>
 
-#include <security/audit/audit.h>
-
 #include <vm/uma.h>
+
+#include <security/audit/audit.h>
 
 FEATURE(process_descriptors, "Process Descriptors");
 
 MALLOC_DEFINE(M_PROCDESC, "procdesc", "process descriptors");
 
-static fo_poll_t	procdesc_poll;
-static fo_kqfilter_t	procdesc_kqfilter;
-static fo_stat_t	procdesc_stat;
-static fo_close_t	procdesc_close;
-static fo_fill_kinfo_t	procdesc_fill_kinfo;
+static fo_poll_t procdesc_poll;
+static fo_kqfilter_t procdesc_kqfilter;
+static fo_stat_t procdesc_stat;
+static fo_close_t procdesc_close;
+static fo_fill_kinfo_t procdesc_fill_kinfo;
 
 static struct fileops procdesc_ops = {
 	.fo_read = invfo_rdwr,
@@ -121,8 +121,7 @@ static struct fileops procdesc_ops = {
  * died.
  */
 int
-procdesc_find(struct thread *td, int fd, cap_rights_t *rightsp,
-    struct proc **p)
+procdesc_find(struct thread *td, int fd, cap_rights_t *rightsp, struct proc **p)
 {
 	struct procdesc *pd;
 	struct file *fp;
@@ -157,8 +156,8 @@ procdesc_pid(struct file *fp_procdesc)
 {
 	struct procdesc *pd;
 
-	KASSERT(fp_procdesc->f_type == DTYPE_PROCDESC,
-	   ("procdesc_pid: !procdesc"));
+	KASSERT(
+	    fp_procdesc->f_type == DTYPE_PROCDESC, ("procdesc_pid: !procdesc"));
 
 	pd = fp_procdesc->f_data;
 	return (pd->pd_pid);
@@ -267,8 +266,8 @@ procdesc_free(struct procdesc *pd)
 	 * closed, as we can't wait synchronously.
 	 */
 	if (refcount_release(&pd->pd_refcount)) {
-		KASSERT(pd->pd_proc == NULL,
-		    ("procdesc_free: pd_proc != NULL"));
+		KASSERT(
+		    pd->pd_proc == NULL, ("procdesc_free: pd_proc != NULL"));
 		KASSERT((pd->pd_flags & PDF_CLOSED),
 		    ("procdesc_free: !PDF_CLOSED"));
 
@@ -421,8 +420,8 @@ procdesc_close(struct file *fp, struct thread *td)
 }
 
 static int
-procdesc_poll(struct file *fp, int events, struct ucred *active_cred,
-    struct thread *td)
+procdesc_poll(
+    struct file *fp, int events, struct ucred *active_cred, struct thread *td)
 {
 	struct procdesc *pd;
 	int revents;
@@ -548,8 +547,8 @@ procdesc_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 }
 
 static int
-procdesc_fill_kinfo(struct file *fp, struct kinfo_file *kif,
-    struct filedesc *fdp)
+procdesc_fill_kinfo(
+    struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 {
 	struct procdesc *pdp;
 

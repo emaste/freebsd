@@ -29,7 +29,7 @@
  */
 
 #ifndef _MACHINE_CPUFUNC_H_
-#define	_MACHINE_CPUFUNC_H_
+#define _MACHINE_CPUFUNC_H_
 
 #ifdef _KERNEL
 
@@ -57,7 +57,7 @@ static __inline void
 mtmsr(register_t value)
 {
 
-	__asm __volatile ("mtmsr %0; isync" :: "r"(value));
+	__asm __volatile("mtmsr %0; isync" ::"r"(value));
 }
 
 #ifdef __powerpc64__
@@ -65,7 +65,7 @@ static __inline void
 mtmsrd(register_t value)
 {
 
-	__asm __volatile ("mtmsrd %0; isync" :: "r"(value));
+	__asm __volatile("mtmsrd %0; isync" ::"r"(value));
 }
 #endif
 
@@ -74,7 +74,7 @@ mfmsr(void)
 {
 	register_t value;
 
-	__asm __volatile ("mfmsr %0" : "=r"(value));
+	__asm __volatile("mfmsr %0" : "=r"(value));
 
 	return (value);
 }
@@ -84,7 +84,7 @@ static __inline void
 mtsrin(vm_offset_t va, register_t value)
 {
 
-	__asm __volatile ("mtsrin %0,%1; isync" :: "r"(value), "r"(va));
+	__asm __volatile("mtsrin %0,%1; isync" ::"r"(value), "r"(va));
 }
 
 static __inline register_t
@@ -92,7 +92,7 @@ mfsrin(vm_offset_t va)
 {
 	register_t value;
 
-	__asm __volatile ("mfsrin %0,%1" : "=r"(value) : "r"(va));
+	__asm __volatile("mfsrin %0,%1" : "=r"(value) : "r"(va));
 
 	return (value);
 }
@@ -103,7 +103,7 @@ mfctrl(void)
 {
 	register_t value;
 
-	__asm __volatile ("mfspr %0,136" : "=r"(value));
+	__asm __volatile("mfspr %0,136" : "=r"(value));
 
 	return (value);
 }
@@ -112,7 +112,7 @@ static __inline void
 mtdec(register_t value)
 {
 
-	__asm __volatile ("mtdec %0" :: "r"(value));
+	__asm __volatile("mtdec %0" ::"r"(value));
 }
 
 static __inline register_t
@@ -120,7 +120,7 @@ mfdec(void)
 {
 	register_t value;
 
-	__asm __volatile ("mfdec %0" : "=r"(value));
+	__asm __volatile("mfdec %0" : "=r"(value));
 
 	return (value);
 }
@@ -130,7 +130,7 @@ mfpvr(void)
 {
 	register_t value;
 
-	__asm __volatile ("mfpvr %0" : "=r"(value));
+	__asm __volatile("mfpvr %0" : "=r"(value));
 
 	return (value);
 }
@@ -139,9 +139,9 @@ static __inline u_quad_t
 mftb(void)
 {
 	u_quad_t tb;
-      #ifdef __powerpc64__
-	__asm __volatile ("mftb %0" : "=r"(tb));
-      #else
+#ifdef __powerpc64__
+	__asm __volatile("mftb %0" : "=r"(tb));
+#else
 	uint32_t *tbup = (uint32_t *)&tb;
 	uint32_t *tblp = tbup + 1;
 
@@ -149,7 +149,7 @@ mftb(void)
 		*tbup = mfspr(TBR_TBU);
 		*tblp = mfspr(TBR_TBL);
 	} while (*tbup != mfspr(TBR_TBU));
-      #endif
+#endif
 
 	return (tb);
 }
@@ -168,8 +168,7 @@ mffs(void)
 {
 	uint64_t value;
 
-	__asm __volatile ("mffs 0; stfd 0,0(%0)"
-			:: "b"(&value));
+	__asm __volatile("mffs 0; stfd 0,0(%0)" ::"b"(&value));
 
 	return ((register_t)value);
 }
@@ -178,29 +177,28 @@ static __inline void
 mtfsf(uint64_t value)
 {
 
-	__asm __volatile ("lfd 0,0(%0); mtfsf 0xff,0"
-			:: "b"(&value));
+	__asm __volatile("lfd 0,0(%0); mtfsf 0xff,0" ::"b"(&value));
 }
 
 static __inline void
 eieio(void)
 {
 
-	__asm __volatile ("eieio" : : : "memory");
+	__asm __volatile("eieio" : : : "memory");
 }
 
 static __inline void
 isync(void)
 {
 
-	__asm __volatile ("isync" : : : "memory");
+	__asm __volatile("isync" : : : "memory");
 }
 
 static __inline void
 powerpc_sync(void)
 {
 
-	__asm __volatile ("sync" : : : "memory");
+	__asm __volatile("sync" : : : "memory");
 }
 
 static __inline int
@@ -208,8 +206,9 @@ cntlzd(uint64_t word)
 {
 	uint64_t result;
 	/* cntlzd %0, %1 */
-	__asm __volatile(".long 0x7c000074 |  (%1 << 21) | (%0 << 16)" :
-	    "=r"(result) : "r"(word));
+	__asm __volatile(".long 0x7c000074 |  (%1 << 21) | (%0 << 16)"
+			 : "=r"(result)
+			 : "r"(word));
 
 	return (int)result;
 }
@@ -219,8 +218,9 @@ cnttzd(uint64_t word)
 {
 	uint64_t result;
 	/* cnttzd %0, %1 */
-	__asm __volatile(".long 0x7c000474 |  (%1 << 21) | (%0 << 16)" :
-	    "=r"(result) : "r"(word));
+	__asm __volatile(".long 0x7c000474 |  (%1 << 21) | (%0 << 16)"
+			 : "=r"(result)
+			 : "r"(word));
 
 	return (int)result;
 }
@@ -258,7 +258,7 @@ get_pcpu(void)
 	return (ret);
 }
 
-#define	HAVE_INLINE_FLS
+#define HAVE_INLINE_FLS
 static __inline __pure2 int
 fls(int mask)
 {

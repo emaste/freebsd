@@ -37,8 +37,9 @@
 #ifdef _KERNEL
 __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+
 #include <netpfil/ipfw/dn_heap.h>
 #ifndef log
 #define log(x, arg...)
@@ -46,19 +47,28 @@ __FBSDID("$FreeBSD$");
 
 #else /* !_KERNEL */
 
-#include <stdio.h>
 #include <dn_test.h>
-#include <strings.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <strings.h>
 
-#include  "dn_heap.h"
-#define log(x, arg...)	fprintf(stderr, ## arg)
-#define panic(x...)	fprintf(stderr, ## x), exit(1)
-#define MALLOC_DEFINE(a, b, c)	volatile int __dummy__ ## a __attribute__((__unused__))
-static void *my_malloc(int s) {	return malloc(s); }
-static void my_free(void *p) {	free(p); }
-#define malloc(s, t, w)	my_malloc(s)
-#define free(p, t)	my_free(p)
+#include "dn_heap.h"
+#define log(x, arg...) fprintf(stderr, ##arg)
+#define panic(x...) fprintf(stderr, ##x), exit(1)
+#define MALLOC_DEFINE(a, b, c) \
+	volatile int __dummy__##a __attribute__((__unused__))
+static void *
+my_malloc(int s)
+{
+	return malloc(s);
+}
+static void
+my_free(void *p)
+{
+	free(p);
+}
+#define malloc(s, t, w) my_malloc(s)
+#define free(p, t) my_free(p)
 #endif /* !_KERNEL */
 
 static MALLOC_DEFINE(M_DN_HEAP, "dummynet", "dummynet heap");
@@ -73,34 +83,39 @@ static MALLOC_DEFINE(M_DN_HEAP, "dummynet", "dummynet heap");
  * Increment size in blocks of 16 entries.
  * Returns 1 on error, 0 on success
  */
-#define HEAP_FATHER(x) ( ( (x) - 1 ) / 2 )
-#define HEAP_LEFT(x) ( (x)+(x) + 1 )
-#define	HEAP_SWAP(a, b, buffer) { buffer = a ; a = b ; b = buffer ; }
-#define HEAP_INCREMENT	15
+#define HEAP_FATHER(x) (((x)-1) / 2)
+#define HEAP_LEFT(x) ((x) + (x) + 1)
+#define HEAP_SWAP(a, b, buffer) \
+	{                       \
+		buffer = a;     \
+		a = b;          \
+		b = buffer;     \
+	}
+#define HEAP_INCREMENT 15
 
 static int
 heap_resize(struct dn_heap *h, unsigned int new_size)
 {
 	struct dn_heap_entry *p;
 
-	if ((unsigned int)h->size >= new_size )	/* have enough room */
+	if ((unsigned int)h->size >= new_size) /* have enough room */
 		return 0;
-#if 1  /* round to the next power of 2 */
+#if 1 /* round to the next power of 2 */
 	new_size |= new_size >> 1;
 	new_size |= new_size >> 2;
 	new_size |= new_size >> 4;
 	new_size |= new_size >> 8;
 	new_size |= new_size >> 16;
 #else
-	new_size = (new_size + HEAP_INCREMENT ) & ~HEAP_INCREMENT;
+	new_size = (new_size + HEAP_INCREMENT) & ~HEAP_INCREMENT;
 #endif
 	p = mallocarray(new_size, sizeof(*p), M_DN_HEAP, M_NOWAIT);
 	if (p == NULL) {
-		printf("--- %s, resize %d failed\n", __func__, new_size );
+		printf("--- %s, resize %d failed\n", __func__, new_size);
 		return 1; /* error */
 	}
 	if (h->size > 0) {
-		bcopy(h->p, p, h->size * sizeof(*p) );
+		bcopy(h->p, p, h->size * sizeof(*p));
 		free(h->p, M_DN_HEAP);
 	}
 	h->p = p;
@@ -128,17 +143,20 @@ heap_init(struct dn_heap *h, int size, int ofs)
  * If ofs > 0 the position (index, int) of the element in the heap is
  * also stored in the element itself at the given offset in bytes.
  */
-#define SET_OFFSET(h, i) do {					\
-	if (h->ofs > 0)						\
-	    *((int32_t *)((char *)(h->p[i].object) + h->ofs)) = i;	\
+#define SET_OFFSET(h, i)                                                       \
+	do {                                                                   \
+		if (h->ofs > 0)                                                \
+			*((int32_t *)((char *)(h->p[i].object) + h->ofs)) = i; \
 	} while (0)
 /*
  * RESET_OFFSET is used for sanity checks. It sets ofs
  * to an invalid value.
  */
-#define RESET_OFFSET(h, i) do {					\
-	if (h->ofs > 0)						\
-	    *((int32_t *)((char *)(h->p[i].object) + h->ofs)) = -16;	\
+#define RESET_OFFSET(h, i)                                       \
+	do {                                                     \
+		if (h->ofs > 0)                                  \
+			*((int32_t *)((char *)(h->p[i].object) + \
+			    h->ofs)) = -16;                      \
 	} while (0)
 
 int
@@ -146,14 +164,14 @@ heap_insert(struct dn_heap *h, uint64_t key1, void *p)
 {
 	int son = h->elements;
 
-	//log("%s key %llu p %p\n", __FUNCTION__, key1, p);
+	// log("%s key %llu p %p\n", __FUNCTION__, key1, p);
 	if (p == NULL) { /* data already there, set starting point */
 		son = key1;
 	} else { /* insert new element at the end, possibly resize */
 		son = h->elements;
 		if (son == h->size) /* need resize... */
 			// XXX expand by 16 or so
-			if (heap_resize(h, h->elements+16) )
+			if (heap_resize(h, h->elements + 16))
 				return 1; /* failure... */
 		h->p[son].object = p;
 		h->p[son].key = key1;
@@ -164,7 +182,7 @@ heap_insert(struct dn_heap *h, uint64_t key1, void *p)
 		int father = HEAP_FATHER(son);
 		struct dn_heap_entry tmp;
 
-		if (DN_KEY_LT( h->p[father].key, h->p[son].key ) )
+		if (DN_KEY_LT(h->p[father].key, h->p[son].key))
 			break; /* found right position */
 		/* son smaller than father, swap and repeat */
 		HEAP_SWAP(h->p[son], h->p[father], tmp);
@@ -189,14 +207,14 @@ heap_extract(struct dn_heap *h, void *obj)
 	}
 	if (obj == NULL)
 		father = 0; /* default: move up smallest child */
-	else { /* extract specific element, index is at offset */
+	else {		    /* extract specific element, index is at offset */
 		if (h->ofs <= 0)
 			panic("%s: extract from middle not set on %p\n",
-				__FUNCTION__, h);
+			    __FUNCTION__, h);
 		father = *((int *)((char *)obj + h->ofs));
 		if (father < 0 || father >= h->elements) {
 			panic("%s: father %d out of bound 0..%d\n",
-				__FUNCTION__, father, h->elements);
+			    __FUNCTION__, father, h->elements);
 		}
 	}
 	/*
@@ -206,9 +224,9 @@ heap_extract(struct dn_heap *h, void *obj)
 	 */
 	// XXX why removing RESET_OFFSET increases runtime by 10% ?
 	RESET_OFFSET(h, father);
-	while ( (child = HEAP_LEFT(father)) <= max ) {
+	while ((child = HEAP_LEFT(father)) <= max) {
 		if (child != max &&
-		    DN_KEY_LT(h->p[child+1].key, h->p[child].key) )
+		    DN_KEY_LT(h->p[child + 1].key, h->p[child].key))
 			child++; /* take right child, otherwise left */
 		h->p[father] = h->p[child];
 		SET_OFFSET(h, father);
@@ -278,24 +296,23 @@ heapify(struct dn_heap *h)
 {
 	int i;
 
-	for (i = 0; i < h->elements; i++ )
-		heap_insert(h, i , NULL);
+	for (i = 0; i < h->elements; i++)
+		heap_insert(h, i, NULL);
 }
 
 int
-heap_scan(struct dn_heap *h, int (*fn)(void *, uintptr_t),
-	uintptr_t arg)
+heap_scan(struct dn_heap *h, int (*fn)(void *, uintptr_t), uintptr_t arg)
 {
 	int i, ret, found;
 
-	for (i = found = 0 ; i < h->elements ;) {
+	for (i = found = 0; i < h->elements;) {
 		ret = fn(h->p[i].object, arg);
 		if (ret & HEAP_SCAN_DEL) {
-			h->elements-- ;
-			h->p[i] = h->p[h->elements] ;
-			found++ ;
+			h->elements--;
+			h->p[i] = h->p[h->elements];
+			found++;
 		} else
-			i++ ;
+			i++;
 		if (ret & HEAP_SCAN_END)
 			break;
 	}
@@ -310,9 +327,9 @@ heap_scan(struct dn_heap *h, int (*fn)(void *, uintptr_t),
 void
 heap_free(struct dn_heap *h)
 {
-	if (h->size >0 )
+	if (h->size > 0)
 		free(h->p, M_DN_HEAP);
-	bzero(h, sizeof(*h) );
+	bzero(h, sizeof(*h));
 }
 
 /*
@@ -320,13 +337,13 @@ heap_free(struct dn_heap *h)
  */
 
 struct dn_ht {
-        int buckets;            /* how many buckets, really buckets - 1*/
-        int entries;            /* how many entries */
-        int ofs;	        /* offset of link field */
-        uint32_t (*hash)(uintptr_t, int, void *arg);
-        int (*match)(void *_el, uintptr_t key, int, void *);
-        void *(*newh)(uintptr_t, int, void *);
-        void **ht;              /* bucket heads */
+	int buckets; /* how many buckets, really buckets - 1*/
+	int entries; /* how many entries */
+	int ofs;     /* offset of link field */
+	uint32_t (*hash)(uintptr_t, int, void *arg);
+	int (*match)(void *_el, uintptr_t key, int, void *);
+	void *(*newh)(uintptr_t, int, void *);
+	void **ht; /* bucket heads */
 };
 /*
  * Initialize, allocating bucket pointers inline.
@@ -336,9 +353,9 @@ struct dn_ht {
  */
 struct dn_ht *
 dn_ht_init(struct dn_ht *ht, int buckets, int ofs,
-        uint32_t (*h)(uintptr_t, int, void *),
-        int (*match)(void *, uintptr_t, int, void *),
-	void *(*newh)(uintptr_t, int, void *))
+    uint32_t (*h)(uintptr_t, int, void *),
+    int (*match)(void *, uintptr_t, int, void *),
+    void *(*newh)(uintptr_t, int, void *))
 {
 	int l;
 
@@ -379,7 +396,7 @@ dn_ht_init(struct dn_ht *ht, int buckets, int ofs,
 	buckets |= buckets >> 8;
 	buckets |= buckets >> 16;
 
-	b_max = buckets; /* Next power */
+	b_max = buckets;      /* Next power */
 	b_min = buckets >> 1; /* Previous power */
 
 	/* Calculate the 'nearest' bucket size */
@@ -388,7 +405,7 @@ dn_ht_init(struct dn_ht *ht, int buckets, int ofs,
 	else
 		buckets = b_min;
 
-	if (ht) {	/* see if we can reuse */
+	if (ht) { /* see if we can reuse */
 		if (buckets <= ht->buckets) {
 			ht->buckets = buckets;
 		} else {
@@ -453,10 +470,9 @@ dn_ht_find(struct dn_ht *ht, uintptr_t key, int flags, void *arg)
 	int i;
 	void **pp, *p;
 
-	if (ht == NULL)	/* easy on an empty hash */
+	if (ht == NULL) /* easy on an empty hash */
 		return NULL;
-	i = (ht->buckets == 1) ? 0 :
-		(ht->hash(key, flags, arg) & ht->buckets);
+	i = (ht->buckets == 1) ? 0 : (ht->hash(key, flags, arg) & ht->buckets);
 
 	for (pp = &ht->ht[i]; (p = *pp); pp = (void **)((char *)p + ht->ofs)) {
 		if (flags & DNHT_MATCH_PTR) {
@@ -500,7 +516,7 @@ dn_ht_scan(struct dn_ht *ht, int (*fn)(void *, void *), void *arg)
 		return 0;
 	for (i = 0; i <= ht->buckets; i++) {
 		curp = &ht->ht[i];
-		while ( (cur = *curp) != NULL) {
+		while ((cur = *curp) != NULL) {
 			next = *(void **)((char *)cur + ht->ofs);
 			ret = fn(cur, arg);
 			if (ret & DNHT_SCAN_DEL) {
@@ -526,8 +542,8 @@ dn_ht_scan(struct dn_ht *ht, int (*fn)(void *, void *), void *arg)
  * by caller is decremented, because usually the caller increment it.
  */
 int
-dn_ht_scan_bucket(struct dn_ht *ht, int *bucket, int (*fn)(void *, void *),
-		 void *arg)
+dn_ht_scan_bucket(
+    struct dn_ht *ht, int *bucket, int (*fn)(void *, void *), void *arg)
 {
 	int i, ret, found = 0;
 	void **curp, *cur, *next;
@@ -539,7 +555,7 @@ dn_ht_scan_bucket(struct dn_ht *ht, int *bucket, int (*fn)(void *, void *),
 	i = *bucket;
 
 	curp = &ht->ht[i];
-	while ( (cur = *curp) != NULL) {
+	while ((cur = *curp) != NULL) {
 		next = *(void **)((char *)cur + ht->ofs);
 		ret = fn(cur, arg);
 		if (ret & DNHT_SCAN_DEL) {

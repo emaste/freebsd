@@ -36,13 +36,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/signal.h>
 
-#include <machine/gdb_machdep.h>
 #include <machine/db_machdep.h>
-#include <machine/vmparam.h>
+#include <machine/endian.h>
+#include <machine/frame.h>
+#include <machine/gdb_machdep.h>
 #include <machine/pcb.h>
 #include <machine/trap.h>
-#include <machine/frame.h>
-#include <machine/endian.h>
+#include <machine/vmparam.h>
 
 #include <gdb/gdb.h>
 
@@ -68,27 +68,37 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 	}
 
 	switch (regnum) {
-	case 4:  return (&kdb_thrctx->pcb_regs.sf_r4);
-	case 5:  return (&kdb_thrctx->pcb_regs.sf_r5);
-	case 6:  return (&kdb_thrctx->pcb_regs.sf_r6);
-	case 7:  return (&kdb_thrctx->pcb_regs.sf_r7);
-	case 8:  return (&kdb_thrctx->pcb_regs.sf_r8);
-	case 9:  return (&kdb_thrctx->pcb_regs.sf_r9);
-	case 10:  return (&kdb_thrctx->pcb_regs.sf_r10);
-	case 11:  return (&kdb_thrctx->pcb_regs.sf_r11);
-	case 12:  return (&kdb_thrctx->pcb_regs.sf_r12);
-	case 13:  stacktest = kdb_thrctx->pcb_regs.sf_sp + 5 * 4;
-		  return (&stacktest);
+	case 4:
+		return (&kdb_thrctx->pcb_regs.sf_r4);
+	case 5:
+		return (&kdb_thrctx->pcb_regs.sf_r5);
+	case 6:
+		return (&kdb_thrctx->pcb_regs.sf_r6);
+	case 7:
+		return (&kdb_thrctx->pcb_regs.sf_r7);
+	case 8:
+		return (&kdb_thrctx->pcb_regs.sf_r8);
+	case 9:
+		return (&kdb_thrctx->pcb_regs.sf_r9);
+	case 10:
+		return (&kdb_thrctx->pcb_regs.sf_r10);
+	case 11:
+		return (&kdb_thrctx->pcb_regs.sf_r11);
+	case 12:
+		return (&kdb_thrctx->pcb_regs.sf_r12);
+	case 13:
+		stacktest = kdb_thrctx->pcb_regs.sf_sp + 5 * 4;
+		return (&stacktest);
 	case 15:
-		  /*
-		   * On context switch, the PC is not put in the PCB, but
-		   * we can retrieve it from the stack.
-		   */
-		  if (kdb_thrctx->pcb_regs.sf_sp > KERNBASE) {
-			  kdb_thrctx->pcb_regs.sf_pc = *(register_t *)
-			      (kdb_thrctx->pcb_regs.sf_sp + 4 * 4);
-			  return (&kdb_thrctx->pcb_regs.sf_pc);
-		  }
+		/*
+		 * On context switch, the PC is not put in the PCB, but
+		 * we can retrieve it from the stack.
+		 */
+		if (kdb_thrctx->pcb_regs.sf_sp > KERNBASE) {
+			kdb_thrctx->pcb_regs.sf_pc = *(
+			    register_t *)(kdb_thrctx->pcb_regs.sf_sp + 4 * 4);
+			return (&kdb_thrctx->pcb_regs.sf_pc);
+		}
 	}
 
 	return (NULL);
@@ -124,7 +134,8 @@ gdb_cpu_signal(int type, int code)
 {
 
 	switch (type) {
-	case T_BREAKPOINT: return (SIGTRAP);
+	case T_BREAKPOINT:
+		return (SIGTRAP);
 	}
 	return (SIGEMT);
 }

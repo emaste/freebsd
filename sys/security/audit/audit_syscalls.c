@@ -39,18 +39,17 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #include <sys/vnode.h>
-#include <sys/jail.h>
 
 #include <bsm/audit.h>
 #include <bsm/audit_kevents.h>
-
 #include <security/audit/audit.h>
 #include <security/audit/audit_private.h>
 #include <security/mac/mac_framework.h>
@@ -71,7 +70,7 @@ int
 sys_audit(struct thread *td, struct audit_args *uap)
 {
 	int error;
-	void * rec;
+	void *rec;
 	struct kaudit_record *ar;
 
 	if (jailed(td->td_ucred))
@@ -135,7 +134,7 @@ sys_audit(struct thread *td, struct audit_args *uap)
 	 * k_ar_commit & AR_COMMIT_USER?
 	 */
 	ar->k_udata = rec;
-	ar->k_ulen  = uap->length;
+	ar->k_ulen = uap->length;
 	ar->k_ar_commit |= AR_COMMIT_USER;
 
 	/*
@@ -250,8 +249,8 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 	case A_OLDSETPOLICY:
 	case A_SETPOLICY:
 		if (uap->length == sizeof(udata.au_policy64)) {
-			if (udata.au_policy & ~(AUDIT_CNT|AUDIT_AHLT|
-			    AUDIT_ARGV|AUDIT_ARGE))
+			if (udata.au_policy &
+			    ~(AUDIT_CNT | AUDIT_AHLT | AUDIT_ARGV | AUDIT_ARGE))
 				return (EINVAL);
 			audit_fail_stop = ((udata.au_policy64 & AUDIT_CNT) ==
 			    0);
@@ -263,8 +262,8 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 		}
 		if (uap->length != sizeof(udata.au_policy))
 			return (EINVAL);
-		if (udata.au_policy & ~(AUDIT_CNT|AUDIT_AHLT|AUDIT_ARGV|
-		    AUDIT_ARGE))
+		if (udata.au_policy &
+		    ~(AUDIT_CNT | AUDIT_AHLT | AUDIT_ARGV | AUDIT_ARGE))
 			return (EINVAL);
 		/*
 		 * XXX - Need to wake up waiters if the policy relaxes?
@@ -294,8 +293,8 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 			    (u_int64_t)audit_qctrl.aq_hiwater;
 			udata.au_qctrl64.aq64_lowater =
 			    (u_int64_t)audit_qctrl.aq_lowater;
-			udata.au_qctrl64.aq64_bufsz =
-			    (u_int64_t)audit_qctrl.aq_bufsz;
+			udata.au_qctrl64.aq64_bufsz = (u_int64_t)
+							  audit_qctrl.aq_bufsz;
 			udata.au_qctrl64.aq64_minfree =
 			    (u_int64_t)audit_qctrl.aq_minfree;
 			break;
@@ -311,7 +310,7 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 			/* NB: aq64_minfree is unsigned unlike aq_minfree. */
 			if ((udata.au_qctrl64.aq64_hiwater > AQ_MAXHIGH) ||
 			    (udata.au_qctrl64.aq64_lowater >=
-			    udata.au_qctrl.aq_hiwater) ||
+				udata.au_qctrl.aq_hiwater) ||
 			    (udata.au_qctrl64.aq64_bufsz > AQ_MAXBUFSZ) ||
 			    (udata.au_qctrl64.aq64_minfree > 100))
 				return (EINVAL);
@@ -319,11 +318,10 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 			    (int)udata.au_qctrl64.aq64_hiwater;
 			audit_qctrl.aq_lowater =
 			    (int)udata.au_qctrl64.aq64_lowater;
-			audit_qctrl.aq_bufsz =
-			    (int)udata.au_qctrl64.aq64_bufsz;
+			audit_qctrl.aq_bufsz = (int)udata.au_qctrl64.aq64_bufsz;
 			audit_qctrl.aq_minfree =
 			    (int)udata.au_qctrl64.aq64_minfree;
-			audit_qctrl.aq_delay = -1;	/* Not used. */
+			audit_qctrl.aq_delay = -1; /* Not used. */
 			break;
 		}
 		if (uap->length != sizeof(udata.au_qctrl))
@@ -418,8 +416,8 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 	case A_GETEVENT:
 		if (uap->length != sizeof(udata.au_evname))
 			return (EINVAL);
-		error = au_event_name(udata.au_evname.en_number,
-		    udata.au_evname.en_name);
+		error = au_event_name(
+		    udata.au_evname.en_number, udata.au_evname.en_name);
 		if (error != 0)
 			return (error);
 		break;
@@ -427,8 +425,8 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 	case A_SETCLASS:
 		if (uap->length != sizeof(udata.au_evclass))
 			return (EINVAL);
-		au_evclassmap_insert(udata.au_evclass.ec_number,
-		    udata.au_evclass.ec_class);
+		au_evclassmap_insert(
+		    udata.au_evclass.ec_number, udata.au_evclass.ec_class);
 		break;
 
 	case A_SETEVENT:
@@ -436,10 +434,10 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 			return (EINVAL);
 
 		/* Ensure nul termination from userspace. */
-		udata.au_evname.en_name[sizeof(udata.au_evname.en_name) - 1]
-		    = 0;
-		au_evnamemap_insert(udata.au_evname.en_number,
-		    udata.au_evname.en_name);
+		udata.au_evname.en_name[sizeof(udata.au_evname.en_name) - 1] =
+		    0;
+		au_evnamemap_insert(
+		    udata.au_evname.en_number, udata.au_evname.en_name);
 		break;
 
 	case A_GETPINFO:
@@ -501,7 +499,7 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 		if (uap->length != sizeof(udata.au_fstat))
 			return (EINVAL);
 		if ((udata.au_fstat.af_filesz != 0) &&
-		   (udata.au_fstat.af_filesz < MIN_AUDIT_FILE_SIZE))
+		    (udata.au_fstat.af_filesz < MIN_AUDIT_FILE_SIZE))
 			return (EINVAL);
 		audit_fstat.af_filesz = udata.au_fstat.af_filesz;
 		break;
@@ -747,7 +745,7 @@ sys_setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 	    aia.ai_termid.at_type != AU_IPv4)
 		return (EINVAL);
 	newcred = crget();
-	PROC_LOCK(td->td_proc);	
+	PROC_LOCK(td->td_proc);
 	oldcred = td->td_proc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
@@ -801,8 +799,8 @@ sys_auditctl(struct thread *td, struct auditctl_args *uap)
 	if (uap->path == NULL)
 		return (EINVAL);
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1,
-	    UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
+	    uap->path, td);
 	flags = AUDIT_OPEN_FLAGS;
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)

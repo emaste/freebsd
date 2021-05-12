@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_mmccam.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -43,52 +45,47 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <dev/mmc/bridge.h>
+#include <dev/mmc/mmc_fdt_helpers.h>
+#include <dev/mmc/mmcreg.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
-#include <dev/mmc/mmc_fdt_helpers.h>
-
 #include <dev/sdhci/sdhci.h>
 
-#include "mmcbr_if.h"
-#include "sdhci_if.h"
-
-#include "opt_mmccam.h"
+#include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 
 #include "bcm2835_dma.h"
-#include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
+#include "mmcbr_if.h"
+#include "sdhci_if.h"
 #ifdef NOTYET
 #include <arm/broadcom/bcm2835/bcm2835_clkman.h>
 #endif
 #include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
 
-#define	BCM2835_DEFAULT_SDHCI_FREQ	50
-#define	BCM2838_DEFAULT_SDHCI_FREQ	100
+#define BCM2835_DEFAULT_SDHCI_FREQ 50
+#define BCM2838_DEFAULT_SDHCI_FREQ 100
 
-#define	BCM_SDHCI_BUFFER_SIZE		512
+#define BCM_SDHCI_BUFFER_SIZE 512
 /*
  * NUM_DMA_SEGS is the number of DMA segments we want to accommodate on average.
  * We add in a number of segments based on how much we may need to spill into
  * another segment due to crossing page boundaries.  e.g. up to PAGE_SIZE, an
  * extra page is needed as we can cross a page boundary exactly once.
  */
-#define	NUM_DMA_SEGS			1
-#define	NUM_DMA_SPILL_SEGS		\
+#define NUM_DMA_SEGS 1
+#define NUM_DMA_SPILL_SEGS \
 	((((NUM_DMA_SEGS * BCM_SDHCI_BUFFER_SIZE) - 1) / PAGE_SIZE) + 1)
-#define	ALLOCATED_DMA_SEGS		(NUM_DMA_SEGS +	NUM_DMA_SPILL_SEGS)
-#define	BCM_DMA_MAXSIZE			(NUM_DMA_SEGS * BCM_SDHCI_BUFFER_SIZE)
+#define ALLOCATED_DMA_SEGS (NUM_DMA_SEGS + NUM_DMA_SPILL_SEGS)
+#define BCM_DMA_MAXSIZE (NUM_DMA_SEGS * BCM_SDHCI_BUFFER_SIZE)
 
-#define	BCM_SDHCI_SLOT_LEFT(slot)	\
-	((slot)->curcmd->data->len - (slot)->offset)
+#define BCM_SDHCI_SLOT_LEFT(slot) ((slot)->curcmd->data->len - (slot)->offset)
 
-#define	BCM_SDHCI_SEGSZ_LEFT(slot)	\
-	min(BCM_DMA_MAXSIZE,		\
+#define BCM_SDHCI_SEGSZ_LEFT(slot) \
+	min(BCM_DMA_MAXSIZE,       \
 	    rounddown(BCM_SDHCI_SLOT_LEFT(slot), BCM_SDHCI_BUFFER_SIZE))
 
-#define	DATA_PENDING_MASK	(SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL)
-#define	DATA_XFER_MASK		(DATA_PENDING_MASK | SDHCI_INT_DATA_END)
+#define DATA_PENDING_MASK (SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL)
+#define DATA_XFER_MASK (DATA_PENDING_MASK | SDHCI_INT_DATA_END)
 
 #ifdef DEBUG
 static int bcm2835_sdhci_debug = 0;
@@ -97,11 +94,11 @@ TUNABLE_INT("hw.bcm2835.sdhci.debug", &bcm2835_sdhci_debug);
 SYSCTL_INT(_hw_sdhci, OID_AUTO, bcm2835_sdhci_debug, CTLFLAG_RWTUN,
     &bcm2835_sdhci_debug, 0, "bcm2835 SDHCI debug level");
 
-#define	dprintf(fmt, args...)					\
-	do {							\
-		if (bcm2835_sdhci_debug)			\
-			printf("%s: " fmt, __func__, ##args);	\
-	}  while (0)
+#define dprintf(fmt, args...)                                 \
+	do {                                                  \
+		if (bcm2835_sdhci_debug)                      \
+			printf("%s: " fmt, __func__, ##args); \
+	} while (0)
 #else
 #define dprintf(fmt, args...)
 #endif
@@ -110,69 +107,68 @@ static int bcm2835_sdhci_hs = 1;
 static int bcm2835_sdhci_pio_mode = 0;
 
 struct bcm_mmc_conf {
-	int	clock_id;
-	int	clock_src;
-	int	default_freq;
-	int	quirks;
-	int	emmc_dreq;
+	int clock_id;
+	int clock_src;
+	int default_freq;
+	int quirks;
+	int emmc_dreq;
 };
 
 struct bcm_mmc_conf bcm2835_sdhci_conf = {
-	.clock_id	= BCM2835_MBOX_CLOCK_ID_EMMC,
-	.clock_src	= -1,
-	.default_freq	= BCM2835_DEFAULT_SDHCI_FREQ,
-	.quirks		= SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
+	.clock_id = BCM2835_MBOX_CLOCK_ID_EMMC,
+	.clock_src = -1,
+	.default_freq = BCM2835_DEFAULT_SDHCI_FREQ,
+	.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
 	    SDHCI_QUIRK_BROKEN_TIMEOUT_VAL | SDHCI_QUIRK_DONT_SET_HISPD_BIT |
 	    SDHCI_QUIRK_MISSING_CAPS,
-	.emmc_dreq	= BCM_DMA_DREQ_EMMC,
+	.emmc_dreq = BCM_DMA_DREQ_EMMC,
 };
 
 struct bcm_mmc_conf bcm2838_emmc2_conf = {
-	.clock_id	= BCM2838_MBOX_CLOCK_ID_EMMC2,
-	.clock_src	= -1,
-	.default_freq	= BCM2838_DEFAULT_SDHCI_FREQ,
-	.quirks		= 0,
-	.emmc_dreq	= BCM_DMA_DREQ_NONE,
+	.clock_id = BCM2838_MBOX_CLOCK_ID_EMMC2,
+	.clock_src = -1,
+	.default_freq = BCM2838_DEFAULT_SDHCI_FREQ,
+	.quirks = 0,
+	.emmc_dreq = BCM_DMA_DREQ_NONE,
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"broadcom,bcm2835-sdhci",	(uintptr_t)&bcm2835_sdhci_conf},
-	{"brcm,bcm2835-sdhci",		(uintptr_t)&bcm2835_sdhci_conf},
-	{"brcm,bcm2835-mmc",		(uintptr_t)&bcm2835_sdhci_conf},
-	{"brcm,bcm2711-emmc2",		(uintptr_t)&bcm2838_emmc2_conf},
-	{"brcm,bcm2838-emmc2",		(uintptr_t)&bcm2838_emmc2_conf},
-	{NULL,				0}
+	{ "broadcom,bcm2835-sdhci", (uintptr_t)&bcm2835_sdhci_conf },
+	{ "brcm,bcm2835-sdhci", (uintptr_t)&bcm2835_sdhci_conf },
+	{ "brcm,bcm2835-mmc", (uintptr_t)&bcm2835_sdhci_conf },
+	{ "brcm,bcm2711-emmc2", (uintptr_t)&bcm2838_emmc2_conf },
+	{ "brcm,bcm2838-emmc2", (uintptr_t)&bcm2838_emmc2_conf }, { NULL, 0 }
 };
 
 TUNABLE_INT("hw.bcm2835.sdhci.hs", &bcm2835_sdhci_hs);
 TUNABLE_INT("hw.bcm2835.sdhci.pio_mode", &bcm2835_sdhci_pio_mode);
 
 struct bcm_sdhci_softc {
-	device_t		sc_dev;
-	struct resource *	sc_mem_res;
-	struct resource *	sc_irq_res;
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
-	void *			sc_intrhand;
-	struct mmc_request *	sc_req;
-	struct sdhci_slot	sc_slot;
-	struct mmc_fdt_helper	sc_mmc_helper;
-	int			sc_dma_ch;
-	bus_dma_tag_t		sc_dma_tag;
-	bus_dmamap_t		sc_dma_map;
-	vm_paddr_t		sc_sdhci_buffer_phys;
-	bus_addr_t		dmamap_seg_addrs[ALLOCATED_DMA_SEGS];
-	bus_size_t		dmamap_seg_sizes[ALLOCATED_DMA_SEGS];
-	int			dmamap_seg_count;
-	int			dmamap_seg_index;
-	int			dmamap_status;
-	uint32_t		blksz_and_count;
-	uint32_t		cmd_and_mode;
-	bool			need_update_blk;
+	device_t sc_dev;
+	struct resource *sc_mem_res;
+	struct resource *sc_irq_res;
+	bus_space_tag_t sc_bst;
+	bus_space_handle_t sc_bsh;
+	void *sc_intrhand;
+	struct mmc_request *sc_req;
+	struct sdhci_slot sc_slot;
+	struct mmc_fdt_helper sc_mmc_helper;
+	int sc_dma_ch;
+	bus_dma_tag_t sc_dma_tag;
+	bus_dmamap_t sc_dma_map;
+	vm_paddr_t sc_sdhci_buffer_phys;
+	bus_addr_t dmamap_seg_addrs[ALLOCATED_DMA_SEGS];
+	bus_size_t dmamap_seg_sizes[ALLOCATED_DMA_SEGS];
+	int dmamap_seg_count;
+	int dmamap_seg_index;
+	int dmamap_status;
+	uint32_t blksz_and_count;
+	uint32_t cmd_and_mode;
+	bool need_update_blk;
 #ifdef NOTYET
-	device_t		clkman;
+	device_t clkman;
 #endif
-	struct bcm_mmc_conf *	conf;
+	struct bcm_mmc_conf *conf;
 };
 
 static int bcm_sdhci_probe(device_t);
@@ -229,10 +225,11 @@ bcm_sdhci_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_req = NULL;
 
-	sc->conf = (struct bcm_mmc_conf *)ofw_bus_search_compatible(dev,
-	    compat_data)->ocd_data;
+	sc->conf = (struct bcm_mmc_conf *)ofw_bus_search_compatible(
+	    dev, compat_data)
+		       ->ocd_data;
 	if (sc->conf == 0)
-	    return (ENXIO);
+		return (ENXIO);
 
 	err = bcm2835_mbox_set_power_state(BCM2835_MBOX_POWER_ID_EMMC, TRUE);
 	if (err != 0) {
@@ -249,8 +246,8 @@ bcm_sdhci_attach(device_t dev)
 	}
 	if (default_freq == 0) {
 		node = ofw_bus_get_node(sc->sc_dev);
-		if ((OF_getencprop(node, "clock-frequency", &cell,
-		    sizeof(cell))) > 0)
+		if ((OF_getencprop(
+			node, "clock-frequency", &cell, sizeof(cell))) > 0)
 			default_freq = cell / 1000000;
 	}
 	if (default_freq == 0)
@@ -268,20 +265,20 @@ bcm_sdhci_attach(device_t dev)
 			return (ENXIO);
 		}
 
-		f = bcm2835_clkman_set_frequency(sc->clkman,
-		    sc->conf->clock_src, default_freq);
+		f = bcm2835_clkman_set_frequency(
+		    sc->clkman, sc->conf->clock_src, default_freq);
 		if (f == 0)
 			return (EINVAL);
 
 		if (bootverbose)
-			device_printf(dev, "Clock source frequency: %dMHz\n",
-			    f);
+			device_printf(
+			    dev, "Clock source frequency: %dMHz\n", f);
 	}
 #endif
 
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
 		err = ENXIO;
@@ -292,8 +289,8 @@ bcm_sdhci_attach(device_t dev)
 	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->sc_irq_res) {
 		device_printf(dev, "cannot allocate interrupt\n");
 		err = ENXIO;
@@ -301,7 +298,7 @@ bcm_sdhci_attach(device_t dev)
 	}
 
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, bcm_sdhci_intr, sc, &sc->sc_intrhand)) {
+		NULL, bcm_sdhci_intr, sc, &sc->sc_intrhand)) {
 		device_printf(dev, "cannot setup interrupt handler\n");
 		err = ENXIO;
 		goto fail;
@@ -325,19 +322,16 @@ bcm_sdhci_attach(device_t dev)
 
 	err = bcm_dma_setup_intr(sc->sc_dma_ch, bcm_sdhci_dma_intr, sc);
 	if (err != 0) {
-		device_printf(dev,
-		    "cannot setup dma interrupt handler\n");
+		device_printf(dev, "cannot setup dma interrupt handler\n");
 		err = ENXIO;
 		goto fail;
 	}
 
 	/* Allocate bus_dma resources. */
-	err = bus_dma_tag_create(bus_get_dma_tag(dev),
-	    1, 0, bcm283x_dmabus_peripheral_lowaddr(),
-	    BUS_SPACE_MAXADDR, NULL, NULL,
+	err = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
+	    bcm283x_dmabus_peripheral_lowaddr(), BUS_SPACE_MAXADDR, NULL, NULL,
 	    BCM_DMA_MAXSIZE, ALLOCATED_DMA_SEGS, BCM_SDHCI_BUFFER_SIZE,
-	    BUS_DMA_ALLOCNOW, NULL, NULL,
-	    &sc->sc_dma_tag);
+	    BUS_DMA_ALLOCNOW, NULL, NULL, &sc->sc_dma_tag);
 
 	if (err) {
 		device_printf(dev, "failed allocate DMA tag");
@@ -462,7 +456,7 @@ bcm_sdhci_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
 	uint32_t val = RD4(sc, off & ~3);
 
-	return ((val >> (off & 3)*8) & 0xff);
+	return ((val >> (off & 3) * 8) & 0xff);
 }
 
 static uint16_t
@@ -483,7 +477,7 @@ bcm_sdhci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 	else
 		val32 = RD4(sc, off & ~3);
 
-	return ((val32 >> (off & 3)*8) & 0xffff);
+	return ((val32 >> (off & 3) * 8) & 0xffff);
 }
 
 static uint32_t
@@ -504,19 +498,19 @@ bcm_sdhci_read_multi_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static void
-bcm_sdhci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
-    uint8_t val)
+bcm_sdhci_write_1(
+    device_t dev, struct sdhci_slot *slot, bus_size_t off, uint8_t val)
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
 	uint32_t val32 = RD4(sc, off & ~3);
-	val32 &= ~(0xff << (off & 3)*8);
-	val32 |= (val << (off & 3)*8);
+	val32 &= ~(0xff << (off & 3) * 8);
+	val32 |= (val << (off & 3) * 8);
 	WR4(sc, off & ~3, val32);
 }
 
 static void
-bcm_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
-    uint16_t val)
+bcm_sdhci_write_2(
+    device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_t val)
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
 	uint32_t val32;
@@ -538,8 +532,8 @@ bcm_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 	else
 		val32 = RD4(sc, off & ~3);
 
-	val32 &= ~(0xffff << (off & 3)*8);
-	val32 |= (val << (off & 3)*8);
+	val32 &= ~(0xffff << (off & 3) * 8);
+	val32 |= (val << (off & 3) * 8);
 
 	if (off == SDHCI_TRANSFER_MODE)
 		sc->cmd_and_mode = val32;
@@ -561,8 +555,8 @@ bcm_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static void
-bcm_sdhci_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
-    uint32_t val)
+bcm_sdhci_write_4(
+    device_t dev, struct sdhci_slot *slot, bus_size_t off, uint32_t val)
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
 	WR4(sc, off, val);
@@ -598,8 +592,8 @@ bcm_sdhci_start_dma_seg(struct bcm_sdhci_softc *sc)
 		 */
 		bcm_dma_setup_src(sc->sc_dma_ch, BCM_DMA_DREQ_NONE,
 		    BCM_DMA_SAME_ADDR, BCM_DMA_32BIT);
-		bcm_dma_setup_dst(sc->sc_dma_ch, BCM_DMA_DREQ_NONE,
-		    BCM_DMA_INC_ADDR, width);
+		bcm_dma_setup_dst(
+		    sc->sc_dma_ch, BCM_DMA_DREQ_NONE, BCM_DMA_INC_ADDR, width);
 		psrc = sc->sc_sdhci_buffer_phys;
 		pdst = sc->dmamap_seg_addrs[idx];
 		sync_op = BUS_DMASYNC_PREREAD;
@@ -608,8 +602,8 @@ bcm_sdhci_start_dma_seg(struct bcm_sdhci_softc *sc)
 		 * The ordering here is important, because the last write to
 		 * dst/src in the dma control block writes the real dreq value.
 		 */
-		bcm_dma_setup_src(sc->sc_dma_ch, BCM_DMA_DREQ_NONE,
-		    BCM_DMA_INC_ADDR, width);
+		bcm_dma_setup_src(
+		    sc->sc_dma_ch, BCM_DMA_DREQ_NONE, BCM_DMA_INC_ADDR, width);
 		bcm_dma_setup_dst(sc->sc_dma_ch, sc->conf->emmc_dreq,
 		    BCM_DMA_SAME_ADDR, BCM_DMA_32BIT);
 		psrc = sc->dmamap_seg_addrs[idx];
@@ -626,8 +620,8 @@ bcm_sdhci_start_dma_seg(struct bcm_sdhci_softc *sc)
 		bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map, sync_op);
 
 		slot->intmask &= ~DATA_XFER_MASK;
-		bcm_sdhci_write_4(sc->sc_dev, slot, SDHCI_SIGNAL_ENABLE,
-		    slot->intmask);
+		bcm_sdhci_write_4(
+		    sc->sc_dev, slot, SDHCI_SIGNAL_ENABLE, slot->intmask);
 	}
 
 	/*
@@ -647,8 +641,7 @@ bcm_sdhci_dma_exit(struct bcm_sdhci_softc *sc)
 
 	/* Re-enable interrupts */
 	slot->intmask |= DATA_XFER_MASK;
-	bcm_sdhci_write_4(slot->bus, slot, SDHCI_SIGNAL_ENABLE,
-	    slot->intmask);
+	bcm_sdhci_write_4(slot->bus, slot, SDHCI_SIGNAL_ENABLE, slot->intmask);
 }
 
 static void
@@ -659,11 +652,11 @@ bcm_sdhci_dma_unload(struct bcm_sdhci_softc *sc)
 	if (sc->dmamap_seg_count == 0)
 		return;
 	if ((slot->curcmd->data->flags & MMC_DATA_READ) != 0)
-		bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map,
-		    BUS_DMASYNC_POSTREAD);
+		bus_dmamap_sync(
+		    sc->sc_dma_tag, sc->sc_dma_map, BUS_DMASYNC_POSTREAD);
 	else
-		bus_dmamap_sync(sc->sc_dma_tag, sc->sc_dma_map,
-		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_sync(
+		    sc->sc_dma_tag, sc->sc_dma_map, BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(sc->sc_dma_tag, sc->sc_dma_map);
 
 	sc->dmamap_seg_count = 0;
@@ -703,8 +696,8 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 	if ((reg & DATA_PENDING_MASK) != 0 &&
 	    BCM_SDHCI_SEGSZ_LEFT(slot) >= BCM_SDHCI_BUFFER_SIZE) {
 		/* ACK any pending interrupts */
-		bcm_sdhci_write_4(slot->bus, slot, SDHCI_INT_STATUS,
-		    DATA_PENDING_MASK);
+		bcm_sdhci_write_4(
+		    slot->bus, slot, SDHCI_INT_STATUS, DATA_PENDING_MASK);
 
 		bcm_sdhci_start_dma(slot);
 		if (slot->curcmd->error != 0) {
@@ -715,8 +708,7 @@ bcm_sdhci_dma_intr(int ch, void *arg)
 		}
 	} else if ((reg & SDHCI_INT_DATA_END) != 0) {
 		bcm_sdhci_dma_exit(sc);
-		bcm_sdhci_write_4(slot->bus, slot, SDHCI_INT_STATUS,
-		    reg);
+		bcm_sdhci_write_4(slot->bus, slot, SDHCI_INT_STATUS, reg);
 		slot->flags &= ~PLATFORM_DATA_STARTED;
 		sdhci_finish_data(slot);
 	} else {
@@ -737,15 +729,15 @@ bcm_sdhci_start_dma(struct sdhci_slot *slot)
 
 	left = BCM_SDHCI_SEGSZ_LEFT(slot);
 	buf = (uint8_t *)slot->curcmd->data->data + slot->offset;
-	KASSERT(left != 0,
-	    ("%s: DMA handling incorrectly indicated", __func__));
+	KASSERT(
+	    left != 0, ("%s: DMA handling incorrectly indicated", __func__));
 
 	/*
 	 * No need to check segment count here; if we've not yet unloaded
 	 * previous segments, we'll catch that in bcm_sdhci_dmacb.
 	 */
 	if (bus_dmamap_load(sc->sc_dma_tag, sc->sc_dma_map, buf, left,
-	    bcm_sdhci_dmacb, sc, BUS_DMA_NOWAIT) != 0 ||
+		bcm_sdhci_dmacb, sc, BUS_DMA_NOWAIT) != 0 ||
 	    sc->dmamap_status != 0) {
 		slot->curcmd->error = MMC_ERR_NO_MEMORY;
 		return;
@@ -783,8 +775,8 @@ bcm_sdhci_will_handle_transfer(device_t dev, struct sdhci_slot *slot)
 }
 
 static void
-bcm_sdhci_start_transfer(device_t dev, struct sdhci_slot *slot,
-    uint32_t *intmask)
+bcm_sdhci_start_transfer(
+    device_t dev, struct sdhci_slot *slot, uint32_t *intmask)
 {
 
 	/* DMA transfer FIFO 1KB */
@@ -817,35 +809,35 @@ bcm_sdhci_finish_transfer(device_t dev, struct sdhci_slot *slot)
 
 static device_method_t bcm_sdhci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		bcm_sdhci_probe),
-	DEVMETHOD(device_attach,	bcm_sdhci_attach),
-	DEVMETHOD(device_detach,	bcm_sdhci_detach),
+	DEVMETHOD(device_probe, bcm_sdhci_probe),
+	DEVMETHOD(device_attach, bcm_sdhci_attach),
+	DEVMETHOD(device_detach, bcm_sdhci_detach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,	sdhci_generic_read_ivar),
-	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
-	DEVMETHOD(bus_add_child,	bus_generic_add_child),
+	DEVMETHOD(bus_read_ivar, sdhci_generic_read_ivar),
+	DEVMETHOD(bus_write_ivar, sdhci_generic_write_ivar),
+	DEVMETHOD(bus_add_child, bus_generic_add_child),
 
 	/* MMC bridge interface */
-	DEVMETHOD(mmcbr_update_ios,	bcm_sdhci_update_ios),
-	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
-	DEVMETHOD(mmcbr_get_ro,		bcm_sdhci_get_ro),
-	DEVMETHOD(mmcbr_acquire_host,	sdhci_generic_acquire_host),
-	DEVMETHOD(mmcbr_release_host,	sdhci_generic_release_host),
+	DEVMETHOD(mmcbr_update_ios, bcm_sdhci_update_ios),
+	DEVMETHOD(mmcbr_request, sdhci_generic_request),
+	DEVMETHOD(mmcbr_get_ro, bcm_sdhci_get_ro),
+	DEVMETHOD(mmcbr_acquire_host, sdhci_generic_acquire_host),
+	DEVMETHOD(mmcbr_release_host, sdhci_generic_release_host),
 
 	/* Platform transfer methods */
-	DEVMETHOD(sdhci_platform_will_handle,		bcm_sdhci_will_handle_transfer),
-	DEVMETHOD(sdhci_platform_start_transfer,	bcm_sdhci_start_transfer),
-	DEVMETHOD(sdhci_platform_finish_transfer,	bcm_sdhci_finish_transfer),
+	DEVMETHOD(sdhci_platform_will_handle, bcm_sdhci_will_handle_transfer),
+	DEVMETHOD(sdhci_platform_start_transfer, bcm_sdhci_start_transfer),
+	DEVMETHOD(sdhci_platform_finish_transfer, bcm_sdhci_finish_transfer),
 	/* SDHCI registers accessors */
-	DEVMETHOD(sdhci_read_1,		bcm_sdhci_read_1),
-	DEVMETHOD(sdhci_read_2,		bcm_sdhci_read_2),
-	DEVMETHOD(sdhci_read_4,		bcm_sdhci_read_4),
-	DEVMETHOD(sdhci_read_multi_4,	bcm_sdhci_read_multi_4),
-	DEVMETHOD(sdhci_write_1,	bcm_sdhci_write_1),
-	DEVMETHOD(sdhci_write_2,	bcm_sdhci_write_2),
-	DEVMETHOD(sdhci_write_4,	bcm_sdhci_write_4),
-	DEVMETHOD(sdhci_write_multi_4,	bcm_sdhci_write_multi_4),
+	DEVMETHOD(sdhci_read_1, bcm_sdhci_read_1),
+	DEVMETHOD(sdhci_read_2, bcm_sdhci_read_2),
+	DEVMETHOD(sdhci_read_4, bcm_sdhci_read_4),
+	DEVMETHOD(sdhci_read_multi_4, bcm_sdhci_read_multi_4),
+	DEVMETHOD(sdhci_write_1, bcm_sdhci_write_1),
+	DEVMETHOD(sdhci_write_2, bcm_sdhci_write_2),
+	DEVMETHOD(sdhci_write_4, bcm_sdhci_write_4),
+	DEVMETHOD(sdhci_write_multi_4, bcm_sdhci_write_multi_4),
 
 	DEVMETHOD_END
 };
@@ -858,8 +850,8 @@ static driver_t bcm_sdhci_driver = {
 	sizeof(struct bcm_sdhci_softc),
 };
 
-DRIVER_MODULE(sdhci_bcm, simplebus, bcm_sdhci_driver, bcm_sdhci_devclass,
-    NULL, NULL);
+DRIVER_MODULE(
+    sdhci_bcm, simplebus, bcm_sdhci_driver, bcm_sdhci_devclass, NULL, NULL);
 #ifdef NOTYET
 MODULE_DEPEND(sdhci_bcm, bcm2835_clkman, 1, 1, 1);
 #endif

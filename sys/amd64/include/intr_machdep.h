@@ -28,7 +28,7 @@
  */
 
 #ifndef __MACHINE_INTR_MACHDEP_H__
-#define	__MACHINE_INTR_MACHDEP_H__
+#define __MACHINE_INTR_MACHDEP_H__
 
 #include <x86/intr_machdep.h>
 
@@ -37,13 +37,13 @@
  * above the top of the space used for the NMI and MC# stacks.
  */
 struct nmi_pcpu {
-	register_t	np_pcpu;
-	register_t	__padding;	/* pad to 16 bytes */
+	register_t np_pcpu;
+	register_t __padding; /* pad to 16 bytes */
 };
 
-#define	DBLFAULT_STACK_SIZE	PAGE_SIZE
-#define	NMI_STACK_SIZE		PAGE_SIZE
-#define	MCE_STACK_SIZE		PAGE_SIZE
-#define	DBG_STACK_SIZE		PAGE_SIZE
+#define DBLFAULT_STACK_SIZE PAGE_SIZE
+#define NMI_STACK_SIZE PAGE_SIZE
+#define MCE_STACK_SIZE PAGE_SIZE
+#define DBG_STACK_SIZE PAGE_SIZE
 
-#endif	/* !__MACHINE_INTR_MACHDEP_H__ */
+#endif /* !__MACHINE_INTR_MACHDEP_H__ */

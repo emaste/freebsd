@@ -34,59 +34,57 @@ __FBSDID("$FreeBSD$");
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/errno.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/mbuf.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/kobj.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
-#include <sys/kobj.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <dev/pci/pcivar.h>
 
+#include <mips/nlm/dev/sec/nlmseclib.h>
+#include <mips/nlm/hal/cop2.h>
+#include <mips/nlm/hal/fmn.h>
+#include <mips/nlm/hal/haldefs.h>
+#include <mips/nlm/hal/iomap.h>
+#include <mips/nlm/hal/mips-extns.h>
+#include <mips/nlm/hal/nlmsaelib.h>
+#include <mips/nlm/hal/sys.h>
+#include <mips/nlm/msgring.h>
+#include <mips/nlm/xlp.h>
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform_auth.h>
 
 #include "cryptodev_if.h"
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
-#include <mips/nlm/hal/haldefs.h>
-#include <mips/nlm/hal/iomap.h>
-#include <mips/nlm/xlp.h>
-#include <mips/nlm/hal/sys.h>
-#include <mips/nlm/hal/fmn.h>
-#include <mips/nlm/hal/nlmsaelib.h>
-#include <mips/nlm/dev/sec/nlmseclib.h>
-#include <mips/nlm/hal/cop2.h>
-#include <mips/nlm/hal/mips-extns.h>
-#include <mips/nlm/msgring.h>
-
 unsigned int creditleft;
 
-static	int xlp_sec_init(struct xlp_sec_softc *sc);
-static	int xlp_sec_probesession(device_t,
-    const struct crypto_session_params *);
-static	int xlp_sec_newsession(device_t , crypto_session_t,
-    const struct crypto_session_params *);
-static	int xlp_sec_process(device_t , struct cryptop *, int);
+static int xlp_sec_init(struct xlp_sec_softc *sc);
+static int xlp_sec_probesession(device_t, const struct crypto_session_params *);
+static int xlp_sec_newsession(
+    device_t, crypto_session_t, const struct crypto_session_params *);
+static int xlp_sec_process(device_t, struct cryptop *, int);
 static void xlp_copyiv(struct xlp_sec_softc *, struct xlp_sec_command *,
     const struct crypto_session_params *);
 static int xlp_get_nsegs(struct cryptop *, unsigned int *);
 static int xlp_alloc_cmd_params(struct xlp_sec_command *, unsigned int);
-static void  xlp_free_cmd_params(struct xlp_sec_command *);
+static void xlp_free_cmd_params(struct xlp_sec_command *);
 
-static	int xlp_sec_probe(device_t);
-static	int xlp_sec_attach(device_t);
-static	int xlp_sec_detach(device_t);
+static int xlp_sec_probe(device_t);
+static int xlp_sec_attach(device_t);
+static int xlp_sec_detach(device_t);
 
 static device_method_t xlp_sec_methods[] = {
 	/* device interface */
@@ -101,34 +99,30 @@ static device_method_t xlp_sec_methods[] = {
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_probesession, xlp_sec_probesession),
 	DEVMETHOD(cryptodev_newsession, xlp_sec_newsession),
-	DEVMETHOD(cryptodev_process,    xlp_sec_process),
+	DEVMETHOD(cryptodev_process, xlp_sec_process),
 
 	DEVMETHOD_END
 };
 
-static driver_t xlp_sec_driver = {
-	"nlmsec",
-	xlp_sec_methods,
-	sizeof(struct xlp_sec_softc)
-};
+static driver_t xlp_sec_driver = { "nlmsec", xlp_sec_methods,
+	sizeof(struct xlp_sec_softc) };
 static devclass_t xlp_sec_devclass;
 
 DRIVER_MODULE(nlmsec, pci, xlp_sec_driver, xlp_sec_devclass, 0, 0);
 MODULE_DEPEND(nlmsec, crypto, 1, 1, 1);
 
-void
-nlm_xlpsec_msgring_handler(int vc, int size, int code, int src_id,
+void nlm_xlpsec_msgring_handler(int vc, int size, int code, int src_id,
     struct nlm_fmn_msg *msg, void *data);
 
 #ifdef NLM_SEC_DEBUG
 
-#define extract_bits(x, bitshift, bitcnt)				\
-    (((unsigned long long)x >> bitshift) & ((1ULL << bitcnt) - 1))
+#define extract_bits(x, bitshift, bitcnt) \
+	(((unsigned long long)x >> bitshift) & ((1ULL << bitcnt) - 1))
 
 void
 print_crypto_params(struct xlp_sec_command *cmd, struct nlm_fmn_msg m)
 {
-	unsigned long long msg0,msg1,msg2,msg3,msg4,msg5,msg6,msg7,msg8;
+	unsigned long long msg0, msg1, msg2, msg3, msg4, msg5, msg6, msg7, msg8;
 
 	msg0 = cmd->ctrlp->desc0;
 	msg1 = cmd->paramp->desc0;
@@ -141,8 +135,8 @@ print_crypto_params(struct xlp_sec_command *cmd, struct nlm_fmn_msg m)
 	msg8 = m.msg[1];
 
 	printf("msg0 %llx msg1 %llx msg2 %llx msg3 %llx msg4 %llx msg5 %llx"
-	    "msg6 %llx msg7 %llx msg8 %llx\n", msg0, msg1, msg2, msg3, msg4,
-	    msg5, msg6, msg7, msg8);
+	       "msg6 %llx msg7 %llx msg8 %llx\n",
+	    msg0, msg1, msg2, msg3, msg4, msg5, msg6, msg7, msg8);
 
 	printf("c0: hmac %d htype %d hmode %d ctype %d cmode %d arc4 %x\n",
 	    (unsigned int)extract_bits(msg0, 61, 1),
@@ -154,30 +148,32 @@ print_crypto_params(struct xlp_sec_command *cmd, struct nlm_fmn_msg m)
 
 	printf("p0: tls %d hsrc %d hl3 %d enc %d ivl %d hd %llx\n",
 	    (unsigned int)extract_bits(msg1, 63, 1),
-	    (unsigned int)extract_bits(msg1,62,1),
-	    (unsigned int)extract_bits(msg1,60,1),
-	    (unsigned int)extract_bits(msg1,59,1),
-	    (unsigned int)extract_bits(msg1,41,16), extract_bits(msg1,0,40));
+	    (unsigned int)extract_bits(msg1, 62, 1),
+	    (unsigned int)extract_bits(msg1, 60, 1),
+	    (unsigned int)extract_bits(msg1, 59, 1),
+	    (unsigned int)extract_bits(msg1, 41, 16),
+	    extract_bits(msg1, 0, 40));
 
-	printf("p1: clen %u hl %u\n",  (unsigned int)extract_bits(msg2, 32, 32),
-	    (unsigned int)extract_bits(msg2,0,32));
+	printf("p1: clen %u hl %u\n", (unsigned int)extract_bits(msg2, 32, 32),
+	    (unsigned int)extract_bits(msg2, 0, 32));
 
 	printf("p2: ivoff %d cbit %d coff %d hbit %d hclb %d hoff %d\n",
 	    (unsigned int)extract_bits(msg3, 45, 17),
-	    (unsigned int)extract_bits(msg3, 42,3),
-	    (unsigned int)extract_bits(msg3, 22,16),
-	    (unsigned int)extract_bits(msg3, 19,3),
-	    (unsigned int)extract_bits(msg3, 18,1),
+	    (unsigned int)extract_bits(msg3, 42, 3),
+	    (unsigned int)extract_bits(msg3, 22, 16),
+	    (unsigned int)extract_bits(msg3, 19, 3),
+	    (unsigned int)extract_bits(msg3, 18, 1),
 	    (unsigned int)extract_bits(msg3, 0, 16));
 
 	printf("p3: desfbid %d tlen %d arc4 %x hmacpad %d\n",
-	    (unsigned int)extract_bits(msg4, 48,16),
-	    (unsigned int)extract_bits(msg4,11,16),
-	    (unsigned int)extract_bits(msg4,6,3),
-	    (unsigned int)extract_bits(msg4,5,1));
+	    (unsigned int)extract_bits(msg4, 48, 16),
+	    (unsigned int)extract_bits(msg4, 11, 16),
+	    (unsigned int)extract_bits(msg4, 6, 3),
+	    (unsigned int)extract_bits(msg4, 5, 1));
 
 	printf("p4: sflen %d sddr %llx \n",
-	    (unsigned int)extract_bits(msg5, 48, 16),extract_bits(msg5, 0, 40));
+	    (unsigned int)extract_bits(msg5, 48, 16),
+	    extract_bits(msg5, 0, 40));
 
 	printf("p5: dflen %d cl3 %d cclob %d cdest %llx \n",
 	    (unsigned int)extract_bits(msg6, 48, 16),
@@ -186,16 +182,16 @@ print_crypto_params(struct xlp_sec_command *cmd, struct nlm_fmn_msg m)
 
 	printf("fmn0: fbid %d dfrlen %d dfrv %d cklen %d cdescaddr %llx\n",
 	    (unsigned int)extract_bits(msg7, 48, 16),
-	    (unsigned int)extract_bits(msg7,46,2),
-	    (unsigned int)extract_bits(msg7,45,1),
-	    (unsigned int)extract_bits(msg7,40,5),
-	    (extract_bits(msg7,0,34)<< 6));
+	    (unsigned int)extract_bits(msg7, 46, 2),
+	    (unsigned int)extract_bits(msg7, 45, 1),
+	    (unsigned int)extract_bits(msg7, 40, 5),
+	    (extract_bits(msg7, 0, 34) << 6));
 
 	printf("fmn1: arc4 %d hklen %d pdesclen %d pktdescad %llx\n",
 	    (unsigned int)extract_bits(msg8, 63, 1),
-	    (unsigned int)extract_bits(msg8,56,5),
-	    (unsigned int)extract_bits(msg8,43,12),
-	    (extract_bits(msg8,0,34) << 6));
+	    (unsigned int)extract_bits(msg8, 56, 5),
+	    (unsigned int)extract_bits(msg8, 43, 12),
+	    (extract_bits(msg8, 0, 34) << 6));
 
 	return;
 }
@@ -203,28 +199,28 @@ print_crypto_params(struct xlp_sec_command *cmd, struct nlm_fmn_msg m)
 void
 print_cmd(struct xlp_sec_command *cmd)
 {
-	printf("session_num		:%d\n",cmd->session_num);
-	printf("crp			:0x%x\n",(uint32_t)cmd->crp);
-	printf("enccrd			:0x%x\n",(uint32_t)cmd->enccrd);
-	printf("maccrd			:0x%x\n",(uint32_t)cmd->maccrd);
-	printf("ses			:%d\n",(uint32_t)cmd->ses);
-	printf("ctrlp			:0x%x\n",(uint32_t)cmd->ctrlp);
-	printf("paramp			:0x%x\n",(uint32_t)cmd->paramp);
-	printf("hashdest		:0x%x\n",(uint32_t)cmd->hashdest);
-	printf("hashsrc			:%d\n",cmd->hashsrc);
-	printf("hmacpad			:%d\n",cmd->hmacpad);
-	printf("hashoff			:%d\n",cmd->hashoff);
-	printf("hashlen			:%d\n",cmd->hashlen);
-	printf("cipheroff		:%d\n",cmd->cipheroff);
-	printf("cipherlen		:%d\n",cmd->cipherlen);
-	printf("ivoff			:%d\n",cmd->ivoff);
-	printf("ivlen			:%d\n",cmd->ivlen);
-	printf("hashalg			:%d\n",cmd->hashalg);
-	printf("hashmode		:%d\n",cmd->hashmode);
-	printf("cipheralg		:%d\n",cmd->cipheralg);
-	printf("ciphermode		:%d\n",cmd->ciphermode);
-	printf("nsegs     		:%d\n",cmd->nsegs);
-	printf("hash_dst_len		:%d\n",cmd->hash_dst_len);
+	printf("session_num		:%d\n", cmd->session_num);
+	printf("crp			:0x%x\n", (uint32_t)cmd->crp);
+	printf("enccrd			:0x%x\n", (uint32_t)cmd->enccrd);
+	printf("maccrd			:0x%x\n", (uint32_t)cmd->maccrd);
+	printf("ses			:%d\n", (uint32_t)cmd->ses);
+	printf("ctrlp			:0x%x\n", (uint32_t)cmd->ctrlp);
+	printf("paramp			:0x%x\n", (uint32_t)cmd->paramp);
+	printf("hashdest		:0x%x\n", (uint32_t)cmd->hashdest);
+	printf("hashsrc			:%d\n", cmd->hashsrc);
+	printf("hmacpad			:%d\n", cmd->hmacpad);
+	printf("hashoff			:%d\n", cmd->hashoff);
+	printf("hashlen			:%d\n", cmd->hashlen);
+	printf("cipheroff		:%d\n", cmd->cipheroff);
+	printf("cipherlen		:%d\n", cmd->cipherlen);
+	printf("ivoff			:%d\n", cmd->ivoff);
+	printf("ivlen			:%d\n", cmd->ivlen);
+	printf("hashalg			:%d\n", cmd->hashalg);
+	printf("hashmode		:%d\n", cmd->hashmode);
+	printf("cipheralg		:%d\n", cmd->cipheralg);
+	printf("ciphermode		:%d\n", cmd->ciphermode);
+	printf("nsegs     		:%d\n", cmd->nsegs);
+	printf("hash_dst_len		:%d\n", cmd->hash_dst_len);
 }
 #endif /* NLM_SEC_DEBUG */
 
@@ -233,8 +229,8 @@ xlp_sec_init(struct xlp_sec_softc *sc)
 {
 
 	/* Register interrupt handler for the SEC CMS messages */
-	if (register_msgring_handler(sc->sec_vc_start,
-	    sc->sec_vc_end, nlm_xlpsec_msgring_handler, sc) != 0) {
+	if (register_msgring_handler(sc->sec_vc_start, sc->sec_vc_end,
+		nlm_xlpsec_msgring_handler, sc) != 0) {
 		printf("Couldn't register sec msgring handler\n");
 		return (-1);
 	}
@@ -247,30 +243,31 @@ xlp_sec_init(struct xlp_sec_softc *sc)
 
 /* This function is called from an interrupt handler */
 void
-nlm_xlpsec_msgring_handler(int vc, int size, int code, int src_id,
-    struct nlm_fmn_msg *msg, void *data)
+nlm_xlpsec_msgring_handler(
+    int vc, int size, int code, int src_id, struct nlm_fmn_msg *msg, void *data)
 {
 	struct xlp_sec_command *cmd = NULL;
 	struct xlp_sec_softc *sc = NULL;
 	uint8_t hash[HASH_MAX_LEN];
 
 	KASSERT(code == FMN_SWCODE_CRYPTO,
-	    ("%s: bad code = %d, expected code = %d\n", __FUNCTION__,
-	    code, FMN_SWCODE_CRYPTO));
+	    ("%s: bad code = %d, expected code = %d\n", __FUNCTION__, code,
+		FMN_SWCODE_CRYPTO));
 
 	sc = (struct xlp_sec_softc *)data;
 	KASSERT(src_id >= sc->sec_vc_start && src_id <= sc->sec_vc_end,
-	    ("%s: bad src_id = %d, expect %d - %d\n", __FUNCTION__,
-	    src_id, sc->sec_vc_start, sc->sec_vc_end));
+	    ("%s: bad src_id = %d, expect %d - %d\n", __FUNCTION__, src_id,
+		sc->sec_vc_start, sc->sec_vc_end));
 
 	cmd = (struct xlp_sec_command *)(uintptr_t)msg->msg[0];
 	KASSERT(cmd != NULL && cmd->crp != NULL,
-		("%s :cmd not received properly\n",__FUNCTION__));
+	    ("%s :cmd not received properly\n", __FUNCTION__));
 
 	KASSERT(CRYPTO_ERROR(msg->msg[1]) == 0,
 	    ("%s: Message rcv msg0 %llx msg1 %llx err %x \n", __FUNCTION__,
-	    (unsigned long long)msg->msg[0], (unsigned long long)msg->msg[1],
-	    (int)CRYPTO_ERROR(msg->msg[1])));
+		(unsigned long long)msg->msg[0],
+		(unsigned long long)msg->msg[1],
+		(int)CRYPTO_ERROR(msg->msg[1])));
 
 	/* If there are not enough credits to send, then send request
 	 * will fail with ERESTART and the driver will be blocked until it is
@@ -288,8 +285,8 @@ nlm_xlpsec_msgring_handler(int vc, int size, int code, int src_id,
 		if (cmd->crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
 			crypto_copydata(cmd->crp, cmd->crp->crp_digest_start,
 			    cmd->hash_dst_len, hash);
-			if (timingsafe_bcmp(cmd->hashdest, hash,
-			    cmd->hash_dst_len) != 0)
+			if (timingsafe_bcmp(
+				cmd->hashdest, hash, cmd->hash_dst_len) != 0)
 				cmd->crp->crp_etype = EBADMSG;
 		} else
 			crypto_copyback(cmd->crp, cmd->crp->crp_digest_start,
@@ -334,13 +331,13 @@ xlp_sec_attach(device_t dev)
 	freq = nlm_set_device_frequency(node, DFS_DEVICE_SAE, 250);
 	if (bootverbose)
 		device_printf(dev, "SAE Freq: %dMHz\n", freq);
-	if(pci_get_device(dev) == PCI_DEVICE_ID_NLM_SAE) {
+	if (pci_get_device(dev) == PCI_DEVICE_ID_NLM_SAE) {
 		device_set_desc(dev, "XLP Security Accelerator");
-		sc->sc_cid = crypto_get_driverid(dev,
-		    sizeof(struct xlp_sec_session), CRYPTOCAP_F_HARDWARE);
+		sc->sc_cid = crypto_get_driverid(
+		    dev, sizeof(struct xlp_sec_session), CRYPTOCAP_F_HARDWARE);
 		if (sc->sc_cid < 0) {
 			printf("xlp_sec - error : could not get the driver"
-			    " id\n");
+			       " id\n");
 			goto error_exit;
 		}
 
@@ -359,7 +356,6 @@ xlp_sec_attach(device_t dev)
 
 error_exit:
 	return (ENXIO);
-
 }
 
 /*
@@ -467,8 +463,7 @@ xlp_get_nsegs(struct cryptop *crp, unsigned int *nsegs)
 {
 
 	switch (crp->crp_buf.cb_type) {
-	case CRYPTO_BUF_MBUF:
-	{
+	case CRYPTO_BUF_MBUF: {
 		struct mbuf *m = NULL;
 
 		m = crp->crp_buf.cb_mbuf;
@@ -478,8 +473,7 @@ xlp_get_nsegs(struct cryptop *crp, unsigned int *nsegs)
 		}
 		break;
 	}
-	case CRYPTO_BUF_UIO:
-	{
+	case CRYPTO_BUF_UIO: {
 		struct uio *uio = NULL;
 		struct iovec *iov = NULL;
 		int iol = 0;
@@ -508,12 +502,12 @@ xlp_alloc_cmd_params(struct xlp_sec_command *cmd, unsigned int nsegs)
 {
 	int err = 0;
 
-	if(cmd == NULL) {
+	if (cmd == NULL) {
 		err = EINVAL;
 		goto error;
 	}
 	if ((cmd->ctrlp = malloc(sizeof(struct nlm_crypto_pkt_ctrl), M_DEVBUF,
-	    M_NOWAIT | M_ZERO)) == NULL) {
+		 M_NOWAIT | M_ZERO)) == NULL) {
 		err = ENOMEM;
 		goto error;
 	}
@@ -522,8 +516,9 @@ xlp_alloc_cmd_params(struct xlp_sec_command *cmd, unsigned int nsegs)
 		goto error;
 	}
 	/* (nsegs - 1) because one seg is part of the structure already */
-	if ((cmd->paramp = malloc(sizeof(struct nlm_crypto_pkt_param) +
-	    (16 * (nsegs - 1)), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
+	if ((cmd->paramp = malloc(
+		 sizeof(struct nlm_crypto_pkt_param) + (16 * (nsegs - 1)),
+		 M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		err = ENOMEM;
 		goto error;
 	}
@@ -531,13 +526,13 @@ xlp_alloc_cmd_params(struct xlp_sec_command *cmd, unsigned int nsegs)
 		err = EINVAL;
 		goto error;
 	}
-	if ((cmd->iv = malloc(EALG_MAX_BLOCK_LEN, M_DEVBUF,
-	    M_NOWAIT | M_ZERO)) == NULL) {
+	if ((cmd->iv = malloc(
+		 EALG_MAX_BLOCK_LEN, M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		err = ENOMEM;
 		goto error;
 	}
-	if ((cmd->hashdest = malloc(HASH_MAX_LEN, M_DEVBUF,
-	    M_NOWAIT | M_ZERO)) == NULL) {
+	if ((cmd->hashdest = malloc(
+		 HASH_MAX_LEN, M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		err = ENOMEM;
 		goto error;
 	}
@@ -578,14 +573,15 @@ xlp_sec_process(device_t dev, struct cryptop *crp, int hint)
 	 * This device only support AAD requests where the AAD is
 	 * adjacent to the payload.
 	 */
-	if (crp->crp_aad_length != 0 && crp->crp_payload_start !=
-	    crp->crp_aad_start + crp->crp_aad_length) {
+	if (crp->crp_aad_length != 0 &&
+	    crp->crp_payload_start !=
+		crp->crp_aad_start + crp->crp_aad_length) {
 		err = EFBIG;
 		goto errout;
 	}
 
 	if ((cmd = malloc(sizeof(struct xlp_sec_command), M_DEVBUF,
-	    M_NOWAIT | M_ZERO)) == NULL) {
+		 M_NOWAIT | M_ZERO)) == NULL) {
 		err = ENOMEM;
 		goto errout;
 	}

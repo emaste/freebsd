@@ -35,31 +35,31 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
+
+#include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <machine/bus.h>
-
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
 #include <arm/freescale/imx/imx6_ccmreg.h>
-#include <arm/freescale/imx/imx_machdep.h>
 #include <arm/freescale/imx/imx_ccmvar.h>
+#include <arm/freescale/imx/imx_machdep.h>
 
 #ifndef CCGR_CLK_MODE_ALWAYS
-#define	CCGR_CLK_MODE_OFF		0
-#define	CCGR_CLK_MODE_RUNMODE		1
-#define	CCGR_CLK_MODE_ALWAYS		3
+#define CCGR_CLK_MODE_OFF 0
+#define CCGR_CLK_MODE_RUNMODE 1
+#define CCGR_CLK_MODE_ALWAYS 3
 #endif
 
 struct ccm_softc {
-	device_t	dev;
-	struct resource	*mem_res;
+	device_t dev;
+	struct resource *mem_res;
 };
 
 static struct ccm_softc *ccm_sc;
@@ -92,7 +92,7 @@ ccm_init_gates(struct ccm_softc *sc)
 {
 	uint32_t reg;
 
- 	/* ahpbdma, aipstz 1 & 2 buses */
+	/* ahpbdma, aipstz 1 & 2 buses */
 	reg = CCGR0_AIPS_TZ1 | CCGR0_AIPS_TZ2 | CCGR0_ABPHDMA;
 	WR4(sc, CCM_CCGR0, reg);
 
@@ -109,23 +109,23 @@ ccm_init_gates(struct ccm_softc *sc)
 	WR4(sc, CCM_CCGR2, reg);
 
 	/* DDR memory controller */
-	reg = CCGR3_OCRAM | CCGR3_MMDC_CORE_IPG |
-	    CCGR3_MMDC_CORE_ACLK_FAST | CCGR3_CG11 | CCGR3_CG13;
+	reg = CCGR3_OCRAM | CCGR3_MMDC_CORE_IPG | CCGR3_MMDC_CORE_ACLK_FAST |
+	    CCGR3_CG11 | CCGR3_CG13;
 	WR4(sc, CCM_CCGR3, reg);
 
 	/* pl301 bus crossbar */
-	reg = CCGR4_PL301_MX6QFAST1_S133 |
-	    CCGR4_PL301_MX6QPER1_BCH | CCGR4_PL301_MX6QPER2_MAIN;
+	reg = CCGR4_PL301_MX6QFAST1_S133 | CCGR4_PL301_MX6QPER1_BCH |
+	    CCGR4_PL301_MX6QPER2_MAIN;
 	WR4(sc, CCM_CCGR4, reg);
 
 	/* uarts, ssi, sdma */
-	reg = CCGR5_SDMA | CCGR5_SSI1 | CCGR5_SSI2 | CCGR5_SSI3 |
-	    CCGR5_UART | CCGR5_UART_SERIAL;
+	reg = CCGR5_SDMA | CCGR5_SSI1 | CCGR5_SSI2 | CCGR5_SSI3 | CCGR5_UART |
+	    CCGR5_UART_SERIAL;
 	WR4(sc, CCM_CCGR5, reg);
 
 	/* usdhc 1-4, usboh3 */
-	reg = CCGR6_USBOH3 | CCGR6_USDHC1 | CCGR6_USDHC2 |
-	    CCGR6_USDHC3 | CCGR6_USDHC4;
+	reg = CCGR6_USBOH3 | CCGR6_USDHC1 | CCGR6_USDHC2 | CCGR6_USDHC3 |
+	    CCGR6_USDHC4;
 	WR4(sc, CCM_CCGR6, reg);
 }
 
@@ -154,8 +154,8 @@ ccm_attach(device_t dev)
 
 	/* Allocate bus_space resources. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Cannot allocate memory resources\n");
 		err = ENXIO;
@@ -202,7 +202,7 @@ ccm_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-        if (ofw_bus_is_compatible(dev, "fsl,imx6q-ccm") == 0)
+	if (ofw_bus_is_compatible(dev, "fsl,imx6q-ccm") == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale i.MX6 Clock Control Module");
@@ -276,12 +276,12 @@ imx_ccm_usb_enable(device_t _usbdev)
 void
 imx_ccm_usbphy_enable(device_t _phydev)
 {
-        /*
-         * XXX Which unit?
-         * Right now it's not clear how to figure from fdt data which phy unit
-         * we're supposed to operate on.  Until this is worked out, just enable
-         * both PHYs.
-         */
+	/*
+	 * XXX Which unit?
+	 * Right now it's not clear how to figure from fdt data which phy unit
+	 * we're supposed to operate on.  Until this is worked out, just enable
+	 * both PHYs.
+	 */
 #if 0
 	int phy_num, regoff;
 
@@ -306,14 +306,12 @@ imx_ccm_usbphy_enable(device_t _phydev)
 	    IMX6_ANALOG_CCM_PLL_USB_EN_USB_CLKS);
 #else
 	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_USB1 + 0,
-	    IMX6_ANALOG_CCM_PLL_USB_ENABLE | 
-	    IMX6_ANALOG_CCM_PLL_USB_POWER |
-	    IMX6_ANALOG_CCM_PLL_USB_EN_USB_CLKS);
+	    IMX6_ANALOG_CCM_PLL_USB_ENABLE | IMX6_ANALOG_CCM_PLL_USB_POWER |
+		IMX6_ANALOG_CCM_PLL_USB_EN_USB_CLKS);
 
-	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_USB1 + 0x10, 
-	    IMX6_ANALOG_CCM_PLL_USB_ENABLE | 
-	    IMX6_ANALOG_CCM_PLL_USB_POWER |
-	    IMX6_ANALOG_CCM_PLL_USB_EN_USB_CLKS);
+	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_USB1 + 0x10,
+	    IMX6_ANALOG_CCM_PLL_USB_ENABLE | IMX6_ANALOG_CCM_PLL_USB_POWER |
+		IMX6_ANALOG_CCM_PLL_USB_EN_USB_CLKS);
 #endif
 }
 
@@ -333,7 +331,7 @@ imx6_ccm_sata_enable(void)
 
 	for (timeout = 100000; timeout > 0; timeout--) {
 		if (RD4(ccm_sc, CCM_ANALOG_PLL_ENET) &
-		   CCM_ANALOG_PLL_ENET_LOCK) {
+		    CCM_ANALOG_PLL_ENET_LOCK) {
 			break;
 		}
 	}
@@ -424,7 +422,7 @@ imx_ccm_pll_video_enable(void)
 
 	for (timeout = 100000; timeout > 0; timeout--) {
 		if (RD4(ccm_sc, CCM_ANALOG_PLL_VIDEO) &
-		   CCM_ANALOG_PLL_VIDEO_LOCK) {
+		    CCM_ANALOG_PLL_VIDEO_LOCK) {
 			break;
 		}
 	}
@@ -501,20 +499,16 @@ imx_ccm_set_cacrr(uint32_t divisor)
 
 static device_method_t ccm_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,  ccm_probe),
+	DEVMETHOD(device_probe, ccm_probe),
 	DEVMETHOD(device_attach, ccm_attach),
 	DEVMETHOD(device_detach, ccm_detach),
 
 	DEVMETHOD_END
 };
 
-static driver_t ccm_driver = {
-	"ccm",
-	ccm_methods,
-	sizeof(struct ccm_softc)
-};
+static driver_t ccm_driver = { "ccm", ccm_methods, sizeof(struct ccm_softc) };
 
 static devclass_t ccm_devclass;
 
-EARLY_DRIVER_MODULE(ccm, simplebus, ccm_driver, ccm_devclass, 0, 0, 
+EARLY_DRIVER_MODULE(ccm, simplebus, ccm_driver, ccm_devclass, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);

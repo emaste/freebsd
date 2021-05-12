@@ -31,28 +31,28 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/cpuset.h>
+#include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/kernel.h>
 #include <sys/pcpu.h>
-#include <sys/smp.h>
+#include <sys/proc.h>
 #include <sys/sched.h>
-#include <sys/bus.h>
+#include <sys/smp.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 
+#include <machine/cache.h>
 #include <machine/clock.h>
-#include <machine/smp.h>
 #include <machine/hwfunc.h>
 #include <machine/intr_machdep.h>
-#include <machine/cache.h>
+#include <machine/smp.h>
 #include <machine/tlb.h>
 
 struct pcb stoppcbs[MAXCPU];
@@ -91,7 +91,7 @@ ipi_selected(cpuset_t cpus, int ipi)
 {
 	struct pcpu *pc;
 
-	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH (pc, &cpuhead, pc_allcpu) {
 		if (CPU_ISSET(pc->pc_cpuid, &cpus)) {
 			CTR3(KTR_SMP, "%s: pc: %p, ipi: %x\n", __func__, pc,
 			    ipi);
@@ -115,12 +115,12 @@ ipi_cpu(int cpu, u_int ipi)
 static int
 mips_ipi_handler(void *arg)
 {
-	u_int	cpu, ipi, ipi_bitmap;
-	int	bit;
+	u_int cpu, ipi, ipi_bitmap;
+	int bit;
 
 	cpu = PCPU_GET(cpuid);
 
-	platform_ipi_clear();	/* quiesce the pending ipi interrupt */
+	platform_ipi_clear(); /* quiesce the pending ipi interrupt */
 
 	ipi_bitmap = atomic_readandclear_int(PCPU_PTR(pending_ipis));
 	if (ipi_bitmap == 0)
@@ -190,16 +190,16 @@ start_ap(int cpuid)
 	mips_sync();
 
 	if (platform_start_ap(cpuid) != 0)
-		return (-1);			/* could not start AP */
+		return (-1); /* could not start AP */
 
 	for (ms = 0; ms < 5000; ++ms) {
 		if (mp_naps > cpus)
-			return (0);		/* success */
+			return (0); /* success */
 		else
 			DELAY(1000);
 	}
 
-	return (-2);				/* timeout initializing AP */
+	return (-2); /* timeout initializing AP */
 }
 
 void
@@ -264,7 +264,8 @@ cpu_mp_start(void)
 
 		if (cpuid != platform_processor_id()) {
 			if ((error = start_ap(cpuid)) != 0) {
-				printf("AP #%d failed to start: %d\n", cpuid, error);
+				printf("AP #%d failed to start: %d\n", cpuid,
+				    error);
 				continue;
 			}
 			if (bootverbose)

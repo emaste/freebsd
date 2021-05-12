@@ -38,131 +38,131 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include <arm/freescale/vybrid/vf_common.h>
 
-#define	CCM_CCR		0x00	/* Control Register */
-#define	CCM_CSR		0x04	/* Status Register */
-#define	CCM_CCSR	0x08	/* Clock Switcher Register */
-#define	CCM_CACRR	0x0C	/* ARM Clock Root Register */
-#define	CCM_CSCMR1	0x10	/* Serial Clock Multiplexer Register 1 */
-#define	CCM_CSCDR1	0x14	/* Serial Clock Divider Register 1 */
-#define	CCM_CSCDR2	0x18	/* Serial Clock Divider Register 2 */
-#define	CCM_CSCDR3	0x1C	/* Serial Clock Divider Register 3 */
-#define	CCM_CSCMR2	0x20	/* Serial Clock Multiplexer Register 2 */
-#define	CCM_CTOR	0x28	/* Testing Observability Register */
-#define	CCM_CLPCR	0x2C	/* Low Power Control Register */
-#define	CCM_CISR	0x30	/* Interrupt Status Register */
-#define	CCM_CIMR	0x34	/* Interrupt Mask Register */
-#define	CCM_CCOSR	0x38	/* Clock Output Source Register */
-#define	CCM_CGPR	0x3C	/* General Purpose Register */
+#define CCM_CCR 0x00 /* Control Register */
+#define CCM_CSR 0x04 /* Status Register */
+#define CCM_CCSR 0x08 /* Clock Switcher Register */
+#define CCM_CACRR 0x0C /* ARM Clock Root Register */
+#define CCM_CSCMR1 0x10 /* Serial Clock Multiplexer Register 1 */
+#define CCM_CSCDR1 0x14 /* Serial Clock Divider Register 1 */
+#define CCM_CSCDR2 0x18 /* Serial Clock Divider Register 2 */
+#define CCM_CSCDR3 0x1C /* Serial Clock Divider Register 3 */
+#define CCM_CSCMR2 0x20 /* Serial Clock Multiplexer Register 2 */
+#define CCM_CTOR 0x28 /* Testing Observability Register */
+#define CCM_CLPCR 0x2C /* Low Power Control Register */
+#define CCM_CISR 0x30 /* Interrupt Status Register */
+#define CCM_CIMR 0x34 /* Interrupt Mask Register */
+#define CCM_CCOSR 0x38 /* Clock Output Source Register */
+#define CCM_CGPR 0x3C /* General Purpose Register */
 
-#define	CCM_CCGRN	12
-#define	CCM_CCGR(n)	(0x40 + (n * 0x04))	/* Clock Gating Register */
-#define	CCM_CMEOR(n)	(0x70 + (n * 0x70))	/* Module Enable Override */
-#define	CCM_CCPGR(n)	(0x90 + (n * 0x04))	/* Platform Clock Gating */
+#define CCM_CCGRN 12
+#define CCM_CCGR(n) (0x40 + (n * 0x04)) /* Clock Gating Register */
+#define CCM_CMEOR(n) (0x70 + (n * 0x70)) /* Module Enable Override */
+#define CCM_CCPGR(n) (0x90 + (n * 0x04)) /* Platform Clock Gating */
 
-#define	CCM_CPPDSR	0x88	/* PLL PFD Disable Status Register */
-#define	CCM_CCOWR	0x8C	/* CORE Wakeup Register */
+#define CCM_CPPDSR 0x88 /* PLL PFD Disable Status Register */
+#define CCM_CCOWR 0x8C /* CORE Wakeup Register */
 
-#define	PLL3_PFD4_EN	(1U << 31)
-#define	PLL3_PFD3_EN	(1 << 30)
-#define	PLL3_PFD2_EN	(1 << 29)
-#define	PLL3_PFD1_EN	(1 << 28)
-#define	PLL2_PFD4_EN	(1 << 15)
-#define	PLL2_PFD3_EN	(1 << 14)
-#define	PLL2_PFD2_EN	(1 << 13)
-#define	PLL2_PFD1_EN	(1 << 12)
-#define	PLL1_PFD4_EN	(1 << 11)
-#define	PLL1_PFD3_EN	(1 << 10)
-#define	PLL1_PFD2_EN	(1 << 9)
-#define	PLL1_PFD1_EN	(1 << 8)
+#define PLL3_PFD4_EN (1U << 31)
+#define PLL3_PFD3_EN (1 << 30)
+#define PLL3_PFD2_EN (1 << 29)
+#define PLL3_PFD1_EN (1 << 28)
+#define PLL2_PFD4_EN (1 << 15)
+#define PLL2_PFD3_EN (1 << 14)
+#define PLL2_PFD2_EN (1 << 13)
+#define PLL2_PFD1_EN (1 << 12)
+#define PLL1_PFD4_EN (1 << 11)
+#define PLL1_PFD3_EN (1 << 10)
+#define PLL1_PFD2_EN (1 << 9)
+#define PLL1_PFD1_EN (1 << 8)
 
 /* CCM_CCR */
-#define	FIRC_EN		(1 << 16)
-#define	FXOSC_EN	(1 << 12)
-#define	FXOSC_RDY	(1 << 5)
+#define FIRC_EN (1 << 16)
+#define FXOSC_EN (1 << 12)
+#define FXOSC_RDY (1 << 5)
 
 /* CCM_CSCDR1 */
-#define	ENET_TS_EN	(1 << 23)
-#define	RMII_CLK_EN	(1 << 24)
-#define	SAI3_EN		(1 << 19)
+#define ENET_TS_EN (1 << 23)
+#define RMII_CLK_EN (1 << 24)
+#define SAI3_EN (1 << 19)
 
 /* CCM_CSCDR2 */
-#define	ESAI_EN		(1 << 30)
-#define	ESDHC1_EN	(1 << 29)
-#define	ESDHC0_EN	(1 << 28)
-#define	NFC_EN		(1 << 9)
-#define	ESDHC1_DIV_S	20
-#define	ESDHC1_DIV_M	0xf
-#define	ESDHC0_DIV_S	16
-#define	ESDHC0_DIV_M	0xf
+#define ESAI_EN (1 << 30)
+#define ESDHC1_EN (1 << 29)
+#define ESDHC0_EN (1 << 28)
+#define NFC_EN (1 << 9)
+#define ESDHC1_DIV_S 20
+#define ESDHC1_DIV_M 0xf
+#define ESDHC0_DIV_S 16
+#define ESDHC0_DIV_M 0xf
 
 /* CCM_CSCDR3 */
-#define	DCU0_EN			(1 << 19)
+#define DCU0_EN (1 << 19)
 
-#define	QSPI1_EN		(1 << 12)
-#define	QSPI1_DIV		(1 << 11)
-#define	QSPI1_X2_DIV		(1 << 10)
-#define	QSPI1_X4_DIV_M		0x3
-#define	QSPI1_X4_DIV_S		8
+#define QSPI1_EN (1 << 12)
+#define QSPI1_DIV (1 << 11)
+#define QSPI1_X2_DIV (1 << 10)
+#define QSPI1_X4_DIV_M 0x3
+#define QSPI1_X4_DIV_S 8
 
-#define	QSPI0_EN		(1 << 4)
-#define	QSPI0_DIV		(1 << 3)
-#define	QSPI0_X2_DIV		(1 << 2)
-#define	QSPI0_X4_DIV_M		0x3
-#define	QSPI0_X4_DIV_S		0
+#define QSPI0_EN (1 << 4)
+#define QSPI0_DIV (1 << 3)
+#define QSPI0_X2_DIV (1 << 2)
+#define QSPI0_X4_DIV_M 0x3
+#define QSPI0_X4_DIV_S 0
 
-#define	SAI3_DIV_SHIFT		12
-#define	SAI3_DIV_MASK		0xf
-#define	ESAI_DIV_SHIFT		24
-#define	ESAI_DIV_MASK		0xf
+#define SAI3_DIV_SHIFT 12
+#define SAI3_DIV_MASK 0xf
+#define ESAI_DIV_SHIFT 24
+#define ESAI_DIV_MASK 0xf
 
-#define	PLL4_CLK_DIV_SHIFT	6
-#define	PLL4_CLK_DIV_MASK	0x7
+#define PLL4_CLK_DIV_SHIFT 6
+#define PLL4_CLK_DIV_MASK 0x7
 
-#define	IPG_CLK_DIV_SHIFT	11
-#define	IPG_CLK_DIV_MASK	0x3
+#define IPG_CLK_DIV_SHIFT 11
+#define IPG_CLK_DIV_MASK 0x3
 
-#define	ESAI_CLK_SEL_SHIFT	20
-#define	ESAI_CLK_SEL_MASK	0x3
+#define ESAI_CLK_SEL_SHIFT 20
+#define ESAI_CLK_SEL_MASK 0x3
 
-#define	SAI3_CLK_SEL_SHIFT	6
-#define	SAI3_CLK_SEL_MASK	0x3
+#define SAI3_CLK_SEL_SHIFT 6
+#define SAI3_CLK_SEL_MASK 0x3
 
-#define	CKO1_EN			(1 << 10)
-#define	CKO1_DIV_MASK		0xf
-#define	CKO1_DIV_SHIFT		6
-#define	CKO1_SEL_MASK		0x3f
-#define	CKO1_SEL_SHIFT		0
-#define	CKO1_PLL4_MAIN		0x6
-#define	CKO1_PLL4_DIVD		0x7
+#define CKO1_EN (1 << 10)
+#define CKO1_DIV_MASK 0xf
+#define CKO1_DIV_SHIFT 6
+#define CKO1_SEL_MASK 0x3f
+#define CKO1_SEL_SHIFT 0
+#define CKO1_PLL4_MAIN 0x6
+#define CKO1_PLL4_DIVD 0x7
 
 struct clk {
-	uint32_t	reg;
-	uint32_t	enable_reg;
-	uint32_t	div_mask;
-	uint32_t	div_shift;
-	uint32_t	div_val;
-	uint32_t	sel_reg;
-	uint32_t	sel_mask;
-	uint32_t	sel_shift;
-	uint32_t	sel_val;
+	uint32_t reg;
+	uint32_t enable_reg;
+	uint32_t div_mask;
+	uint32_t div_shift;
+	uint32_t div_val;
+	uint32_t sel_reg;
+	uint32_t sel_mask;
+	uint32_t sel_shift;
+	uint32_t sel_val;
 };
 
 static struct clk ipg_clk = {
@@ -266,7 +266,7 @@ static struct clk dcu0_clk = {
 	.enable_reg = DCU0_EN,
 	.div_mask = 0x7,
 	.div_shift = 16, /* DCU0_DIV */
-	.div_val = 0, /* divide by 1 */
+	.div_val = 0,	 /* divide by 1 */
 	.sel_reg = 0,
 	.sel_mask = 0,
 	.sel_shift = 0,
@@ -318,36 +318,25 @@ static struct clk esai_clk = {
 };
 
 struct clock_entry {
-	char		*name;
-	struct clk	*clk;
+	char *name;
+	struct clk *clk;
 };
 
-static struct clock_entry clock_map[] = {
-	{"ipg",		&ipg_clk},
-	{"pll4",	&pll4_clk},
-	{"sai3",	&sai3_clk},
-	{"cko1",	&cko1_clk},
-	{"esdhc0",	&esdhc0_clk},
-	{"esdhc1",	&esdhc1_clk},
-	{"qspi0",	&qspi0_clk},
-	{"dcu0",	&dcu0_clk},
-	{"enet",	&enet_clk},
-	{"nand",	&nand_clk},
-	{"esai",	&esai_clk},
-	{NULL,	NULL}
-};
+static struct clock_entry clock_map[] = { { "ipg", &ipg_clk },
+	{ "pll4", &pll4_clk }, { "sai3", &sai3_clk }, { "cko1", &cko1_clk },
+	{ "esdhc0", &esdhc0_clk }, { "esdhc1", &esdhc1_clk },
+	{ "qspi0", &qspi0_clk }, { "dcu0", &dcu0_clk }, { "enet", &enet_clk },
+	{ "nand", &nand_clk }, { "esai", &esai_clk }, { NULL, NULL } };
 
 struct ccm_softc {
-	struct resource		*res[1];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	device_t		dev;
+	struct resource *res[1];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	device_t dev;
 };
 
-static struct resource_spec ccm_spec[] = {
-	{ SYS_RES_MEMORY,       0,      RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec ccm_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 static int
 ccm_probe(device_t dev)
@@ -418,8 +407,8 @@ ccm_fdt_set(struct ccm_softc *sc)
 
 		if ((len = OF_getproplen(child, "clock_names")) > 0) {
 			len = OF_getproplen(child, "clock_names");
-			OF_getprop_alloc(child, "clock_names",
-			    (void **)&fdt_config);
+			OF_getprop_alloc(
+			    child, "clock_names", (void **)&fdt_config);
 
 			while (len > 0) {
 				name = fdt_config;
@@ -466,7 +455,8 @@ ccm_attach(device_t dev)
 	/* Wait 10 times */
 	for (i = 0; i < 10; i++) {
 		if (READ4(sc, CCM_CSR) & FXOSC_RDY) {
-			device_printf(sc->dev, "On board oscillator is ready.\n");
+			device_printf(
+			    sc->dev, "On board oscillator is ready.\n");
 			break;
 		}
 
@@ -484,11 +474,8 @@ ccm_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t ccm_methods[] = {
-	DEVMETHOD(device_probe,		ccm_probe),
-	DEVMETHOD(device_attach,	ccm_attach),
-	{ 0, 0 }
-};
+static device_method_t ccm_methods[] = { DEVMETHOD(device_probe, ccm_probe),
+	DEVMETHOD(device_attach, ccm_attach), { 0, 0 } };
 
 static driver_t ccm_driver = {
 	"ccm",

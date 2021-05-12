@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #else
 #include <sys/resource.h>
+
 #include <stdint.h>
 #include <strings.h>
 #endif
@@ -42,17 +43,14 @@ __FBSDID("$FreeBSD$");
 #include <geom/eli/g_eli.h>
 #include <geom/eli/pkcs5v2.h>
 
-static __inline void
-xor(uint8_t *dst, const uint8_t *src, size_t size)
-{
+static __inline void xor
+    (uint8_t * dst, const uint8_t *src, size_t size) {
+	    for (; size > 0; size--)
+		    *dst++ ^= *src++;
+    }
 
-	for (; size > 0; size--)
-		*dst++ ^= *src++;
-}
-
-void
-pkcs5v2_genkey(uint8_t *key, unsigned keylen, const uint8_t *salt,
-    size_t saltsize, const char *passphrase, u_int iterations)
+    void pkcs5v2_genkey(uint8_t *key, unsigned keylen, const uint8_t *salt,
+	size_t saltsize, const char *passphrase, u_int iterations)
 {
 	uint8_t md[SHA512_MDLEN], saltcount[saltsize + sizeof(uint32_t)];
 	uint8_t *counter, *keyp;
@@ -77,7 +75,7 @@ pkcs5v2_genkey(uint8_t *key, unsigned keylen, const uint8_t *salt,
 		g_eli_crypto_hmac_final(&ctx, md, sizeof(md));
 		xor(keyp, md, bsize);
 
-		for(i = 1; i < iterations; i++) {
+		for (i = 1; i < iterations; i++) {
 			ctx = startpoint;
 			g_eli_crypto_hmac_update(&ctx, md, sizeof(md));
 			g_eli_crypto_hmac_final(&ctx, md, sizeof(md));
@@ -96,14 +94,14 @@ pkcs5v2_genkey(uint8_t *key, unsigned keylen, const uint8_t *salt,
 static int
 pkcs5v2_probe(int iterations)
 {
-	uint8_t	key[G_ELI_USERKEYLEN], salt[G_ELI_SALTLEN];
+	uint8_t key[G_ELI_USERKEYLEN], salt[G_ELI_SALTLEN];
 	const char passphrase[] = "passphrase";
 	struct rusage start, end;
 	int usecs;
 
 	getrusage(RUSAGE_SELF, &start);
-	pkcs5v2_genkey(key, sizeof(key), salt, sizeof(salt), passphrase,
-	    iterations);
+	pkcs5v2_genkey(
+	    key, sizeof(key), salt, sizeof(salt), passphrase, iterations);
 	getrusage(RUSAGE_SELF, &end);
 
 	usecs = end.ru_utime.tv_sec - start.ru_utime.tv_sec;
@@ -120,12 +118,12 @@ pkcs5v2_calculate(int usecs)
 {
 	int iterations, v;
 
-	for (iterations = 1; ; iterations <<= 1) {
+	for (iterations = 1;; iterations <<= 1) {
 		v = pkcs5v2_probe(iterations);
 		if (v > 2000000)
 			break;
 	}
 	return (((intmax_t)iterations * (intmax_t)usecs) / v);
 }
-#endif	/* !_STANDALONE */
-#endif	/* !_KERNEL */
+#endif /* !_STANDALONE */
+#endif /* !_KERNEL */

@@ -38,52 +38,52 @@
 /*
  * General register state
  */
-#define _NGREG		17
-typedef unsigned int	__greg_t;
-typedef __greg_t	__gregset_t[_NGREG];
+#define _NGREG 17
+typedef unsigned int __greg_t;
+typedef __greg_t __gregset_t[_NGREG];
 
-#define _REG_R0		0
-#define _REG_R1		1
-#define _REG_R2		2
-#define _REG_R3		3
-#define _REG_R4		4
-#define _REG_R5		5
-#define _REG_R6		6
-#define _REG_R7		7
-#define _REG_R8		8
-#define _REG_R9		9
-#define _REG_R10	10
-#define _REG_R11	11
-#define _REG_R12	12
-#define _REG_R13	13
-#define _REG_R14	14
-#define _REG_R15	15
-#define _REG_CPSR	16
+#define _REG_R0 0
+#define _REG_R1 1
+#define _REG_R2 2
+#define _REG_R3 3
+#define _REG_R4 4
+#define _REG_R5 5
+#define _REG_R6 6
+#define _REG_R7 7
+#define _REG_R8 8
+#define _REG_R9 9
+#define _REG_R10 10
+#define _REG_R11 11
+#define _REG_R12 12
+#define _REG_R13 13
+#define _REG_R14 14
+#define _REG_R15 15
+#define _REG_CPSR 16
 /* Convenience synonyms */
-#define _REG_FP		_REG_R11
-#define _REG_SP		_REG_R13
-#define _REG_LR		_REG_R14
-#define _REG_PC		_REG_R15
+#define _REG_FP _REG_R11
+#define _REG_SP _REG_R13
+#define _REG_LR _REG_R14
+#define _REG_PC _REG_R15
 
 /*
  * Floating point register state
  */
 typedef struct {
-	__uint64_t	mcv_reg[32];
-	__uint32_t	mcv_fpscr;
+	__uint64_t mcv_reg[32];
+	__uint32_t mcv_fpscr;
 } mcontext_vfp_t;
 
 typedef struct {
-	__gregset_t	__gregs;
+	__gregset_t __gregs;
 
 	/*
 	 * Originally, rest of this structure was named __fpu, 35 * 4 bytes
-	 * long, never accessed from kernel. 
+	 * long, never accessed from kernel.
 	 */
-	__size_t	mc_vfp_size;
-	void 		*mc_vfp_ptr;
-	unsigned int	mc_spare[33];
+	__size_t mc_vfp_size;
+	void *mc_vfp_ptr;
+	unsigned int mc_spare[33];
 } mcontext_t;
 
 #define UC_
-#endif	/* !_MACHINE_MCONTEXT_H_ */
+#endif /* !_MACHINE_MCONTEXT_H_ */

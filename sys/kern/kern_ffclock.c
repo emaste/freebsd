@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ffclock.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -43,10 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/timeffc.h>
 
 #ifdef FFCLOCK
@@ -87,7 +87,8 @@ ffclock_abstime(ffcounter *ffcount, struct bintime *bt,
 	/* Current ffclock estimate, use update_ffcount as generation number. */
 	do {
 		update_ffcount = ffclock_estimate.update_ffcount;
-		bcopy(&ffclock_estimate, &cest, sizeof(struct ffclock_estimate));
+		bcopy(
+		    &ffclock_estimate, &cest, sizeof(struct ffclock_estimate));
 	} while (update_ffcount != ffclock_estimate.update_ffcount);
 
 	/*
@@ -111,11 +112,11 @@ ffclock_abstime(ffcounter *ffcount, struct bintime *bt,
 		ffdelta_error = ffc - cest.update_ffcount;
 		ffclock_convert_diff(ffdelta_error, error_bound);
 		/* 18446744073709 = int(2^64/1e12), err_bound_rate in [ps/s] */
-		bintime_mul(error_bound, cest.errb_rate *
-		    (uint64_t)18446744073709LL);
+		bintime_mul(
+		    error_bound, cest.errb_rate * (uint64_t)18446744073709LL);
 		/* 18446744073 = int(2^64 / 1e9), since err_abs in [ns] */
-		bintime_addx(error_bound, cest.errb_abs *
-		    (uint64_t)18446744073LL);
+		bintime_addx(
+		    error_bound, cest.errb_abs * (uint64_t)18446744073LL);
 	}
 
 	if (ffcount)
@@ -129,8 +130,8 @@ ffclock_abstime(ffcounter *ffcount, struct bintime *bt,
  * in seconds is provided.
  */
 void
-ffclock_difftime(ffcounter ffdelta, struct bintime *bt,
-    struct bintime *error_bound)
+ffclock_difftime(
+    ffcounter ffdelta, struct bintime *bt, struct bintime *error_bound)
 {
 	ffcounter update_ffcount;
 	uint32_t err_rate;
@@ -160,23 +161,22 @@ SYSCTL_NODE(_kern, OID_AUTO, sysclock, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 SYSCTL_NODE(_kern_sysclock, OID_AUTO, ffclock, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Feed-forward clock configuration");
 
-static char *sysclocks[] = {"feedback", "feed-forward"};
-#define	MAX_SYSCLOCK_NAME_LEN 16
-#define	NUM_SYSCLOCKS nitems(sysclocks)
+static char *sysclocks[] = { "feedback", "feed-forward" };
+#define MAX_SYSCLOCK_NAME_LEN 16
+#define NUM_SYSCLOCKS nitems(sysclocks)
 
 static int ffclock_version = 2;
 SYSCTL_INT(_kern_sysclock_ffclock, OID_AUTO, version, CTLFLAG_RD,
     &ffclock_version, 0, "Feed-forward clock kernel version");
 
 /* List available sysclocks. */
-static int
-sysctl_kern_sysclock_available(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_sysclock_available(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf *s;
 	int clk, error;
 
-	s = sbuf_new_for_sysctl(NULL, NULL,
-	    MAX_SYSCLOCK_NAME_LEN * NUM_SYSCLOCKS, req);
+	s = sbuf_new_for_sysctl(
+	    NULL, NULL, MAX_SYSCLOCK_NAME_LEN * NUM_SYSCLOCKS, req);
 	if (s == NULL)
 		return (ENOMEM);
 
@@ -193,8 +193,7 @@ sysctl_kern_sysclock_available(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_kern_sysclock, OID_AUTO, available,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, 0, 0,
-    sysctl_kern_sysclock_available, "A",
-    "List of available system clocks");
+    sysctl_kern_sysclock_available, "A", "List of available system clocks");
 
 /*
  * Return the name of the active system clock if read, or attempt to change
@@ -202,8 +201,7 @@ SYSCTL_PROC(_kern_sysclock, OID_AUTO, available,
  * system clock is read when calling any of the [get]{bin,nano,micro}[up]time()
  * functions.
  */
-static int
-sysctl_kern_sysclock_active(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_sysclock_active(SYSCTL_HANDLER_ARGS)
 {
 	char newclock[MAX_SYSCLOCK_NAME_LEN];
 	int error;
@@ -220,8 +218,8 @@ sysctl_kern_sysclock_active(SYSCTL_HANDLER_ARGS)
 	/* Change the active sysclock to the user specified one: */
 	error = EINVAL;
 	for (clk = 0; clk < NUM_SYSCLOCKS; clk++) {
-		if (strncmp(newclock, sysclocks[clk],
-		    MAX_SYSCLOCK_NAME_LEN - 1)) {
+		if (strncmp(
+			newclock, sysclocks[clk], MAX_SYSCLOCK_NAME_LEN - 1)) {
 			continue;
 		}
 		sysclock_active = clk;
@@ -274,8 +272,8 @@ void
 ffclock_getbintime(struct bintime *bt)
 {
 
-	ffclock_abstime(NULL, bt, NULL,
-	    FFCLOCK_LERP | FFCLOCK_LEAPSEC | FFCLOCK_FAST);
+	ffclock_abstime(
+	    NULL, bt, NULL, FFCLOCK_LERP | FFCLOCK_LEAPSEC | FFCLOCK_FAST);
 }
 
 void
@@ -283,8 +281,8 @@ ffclock_getnanotime(struct timespec *tsp)
 {
 	struct bintime bt;
 
-	ffclock_abstime(NULL, &bt, NULL,
-	    FFCLOCK_LERP | FFCLOCK_LEAPSEC | FFCLOCK_FAST);
+	ffclock_abstime(
+	    NULL, &bt, NULL, FFCLOCK_LERP | FFCLOCK_LEAPSEC | FFCLOCK_FAST);
 	bintime2timespec(&bt, tsp);
 }
 
@@ -293,8 +291,8 @@ ffclock_getmicrotime(struct timeval *tvp)
 {
 	struct bintime bt;
 
-	ffclock_abstime(NULL, &bt, NULL,
-	    FFCLOCK_LERP | FFCLOCK_LEAPSEC | FFCLOCK_FAST);
+	ffclock_abstime(
+	    NULL, &bt, NULL, FFCLOCK_LERP | FFCLOCK_LEAPSEC | FFCLOCK_FAST);
 	bintime2timeval(&bt, tvp);
 }
 
@@ -327,8 +325,8 @@ void
 ffclock_getbinuptime(struct bintime *bt)
 {
 
-	ffclock_abstime(NULL, bt, NULL,
-	    FFCLOCK_LERP | FFCLOCK_UPTIME | FFCLOCK_FAST);
+	ffclock_abstime(
+	    NULL, bt, NULL, FFCLOCK_LERP | FFCLOCK_UPTIME | FFCLOCK_FAST);
 }
 
 void
@@ -336,8 +334,8 @@ ffclock_getnanouptime(struct timespec *tsp)
 {
 	struct bintime bt;
 
-	ffclock_abstime(NULL, &bt, NULL,
-	    FFCLOCK_LERP | FFCLOCK_UPTIME | FFCLOCK_FAST);
+	ffclock_abstime(
+	    NULL, &bt, NULL, FFCLOCK_LERP | FFCLOCK_UPTIME | FFCLOCK_FAST);
 	bintime2timespec(&bt, tsp);
 }
 
@@ -346,8 +344,8 @@ ffclock_getmicrouptime(struct timeval *tvp)
 {
 	struct bintime bt;
 
-	ffclock_abstime(NULL, &bt, NULL,
-	    FFCLOCK_LERP | FFCLOCK_UPTIME | FFCLOCK_FAST);
+	ffclock_abstime(
+	    NULL, &bt, NULL, FFCLOCK_LERP | FFCLOCK_UPTIME | FFCLOCK_FAST);
 	bintime2timeval(&bt, tvp);
 }
 
@@ -425,8 +423,8 @@ sys_ffclock_setestimate(struct thread *td, struct ffclock_setestimate_args *uap)
 	if ((error = priv_check(td, PRIV_CLOCK_SETTIME)) != 0)
 		return (error);
 
-	if ((error = copyin(uap->cest, &cest, sizeof(struct ffclock_estimate)))
-	    != 0)
+	if ((error = copyin(
+		 uap->cest, &cest, sizeof(struct ffclock_estimate))) != 0)
 		return (error);
 
 	mtx_lock(&ffclock_mtx);

@@ -28,26 +28,24 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
 #include "opt_ar531x.h"
+#include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/boot.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/reboot.h>
-#include <sys/boot.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_phys.h>
 #include <vm/vm_dumpset.h>
-
-#include <net/ethernet.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -56,10 +54,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/trap.h>
 
-#include <mips/atheros/ar531x/ar5315reg.h>
+#include <net/ethernet.h>
 
-#include <mips/atheros/ar531x/ar5315_setup.h>
 #include <mips/atheros/ar531x/ar5315_cpudef.h>
+#include <mips/atheros/ar531x/ar5315_setup.h>
+#include <mips/atheros/ar531x/ar5315reg.h>
 
 extern char edata[], end[];
 
@@ -79,7 +78,7 @@ platform_reset(void)
 {
 	ar531x_device_reset();
 	/* Wait for reset */
-	while(1)
+	while (1)
 		;
 }
 
@@ -99,12 +98,10 @@ ar5315_redboot_get_macaddr(void)
 	if ((var = kern_getenv("ethaddr")) != NULL ||
 	    (var = kern_getenv("kmac")) != NULL) {
 		count = sscanf(var, "%x%*c%x%*c%x%*c%x%*c%x%*c%x",
-		    &ar711_base_mac[0], &ar711_base_mac[1],
-		    &ar711_base_mac[2], &ar711_base_mac[3],
-		    &ar711_base_mac[4], &ar711_base_mac[5]);
+		    &ar711_base_mac[0], &ar711_base_mac[1], &ar711_base_mac[2],
+		    &ar711_base_mac[3], &ar711_base_mac[4], &ar711_base_mac[5]);
 		if (count < 6)
-			memset(ar711_base_mac, 0,
-			    sizeof(ar711_base_mac));
+			memset(ar711_base_mac, 0, sizeof(ar711_base_mac));
 		freeenv(var);
 	}
 }
@@ -115,53 +112,53 @@ static SYSCTL_NODE(_hw, OID_AUTO, soc, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 #endif
 #if defined(SOC_VENDOR)
 static char hw_soc_vendor[] = SOC_VENDOR;
-SYSCTL_STRING(_hw_soc, OID_AUTO, vendor, CTLFLAG_RD, hw_soc_vendor, 0,
-	   "SoC vendor");
+SYSCTL_STRING(
+    _hw_soc, OID_AUTO, vendor, CTLFLAG_RD, hw_soc_vendor, 0, "SoC vendor");
 #endif
 #if defined(SOC_MODEL)
 static char hw_soc_model[] = SOC_MODEL;
-SYSCTL_STRING(_hw_soc, OID_AUTO, model, CTLFLAG_RD, hw_soc_model, 0,
-	   "SoC model");
+SYSCTL_STRING(
+    _hw_soc, OID_AUTO, model, CTLFLAG_RD, hw_soc_model, 0, "SoC model");
 #endif
 #if defined(SOC_REV)
 static char hw_soc_revision[] = SOC_REV;
 SYSCTL_STRING(_hw_soc, OID_AUTO, revision, CTLFLAG_RD, hw_soc_revision, 0,
-	   "SoC revision");
+    "SoC revision");
 #endif
 
 #if defined(DEVICE_VENDOR) || defined(DEVICE_MODEL) || defined(DEVICE_REV)
-static SYSCTL_NODE(_hw, OID_AUTO, device, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "Board information");
+static SYSCTL_NODE(
+    _hw, OID_AUTO, device, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Board information");
 #endif
 #if defined(DEVICE_VENDOR)
 static char hw_device_vendor[] = DEVICE_VENDOR;
 SYSCTL_STRING(_hw_device, OID_AUTO, vendor, CTLFLAG_RD, hw_device_vendor, 0,
-	   "Board vendor");
+    "Board vendor");
 #endif
 #if defined(DEVICE_MODEL)
 static char hw_device_model[] = DEVICE_MODEL;
-SYSCTL_STRING(_hw_device, OID_AUTO, model, CTLFLAG_RD, hw_device_model, 0,
-	   "Board model");
+SYSCTL_STRING(
+    _hw_device, OID_AUTO, model, CTLFLAG_RD, hw_device_model, 0, "Board model");
 #endif
 #if defined(DEVICE_REV)
 static char hw_device_revision[] = DEVICE_REV;
 SYSCTL_STRING(_hw_device, OID_AUTO, revision, CTLFLAG_RD, hw_device_revision, 0,
-	   "Board revision");
+    "Board revision");
 #endif
 
 void
-platform_start(__register_t a0 __unused, __register_t a1 __unused, 
+platform_start(__register_t a0 __unused, __register_t a1 __unused,
     __register_t a2 __unused, __register_t a3 __unused)
 {
 	uint64_t platform_counter_freq;
 	int argc = 0, i;
 	char **argv = NULL;
-#ifndef	AR531X_ENV_UBOOT
+#ifndef AR531X_ENV_UBOOT
 	char **envp = NULL;
 #endif
 	vm_offset_t kernend;
 
-	/* 
+	/*
 	 * clear the BSS and SBSS segments, this should be first call in
 	 * the function
 	 */
@@ -180,45 +177,45 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	 * very incorrectly so we should just ignore initialising
 	 * the relevant pointers.
 	 */
-#ifndef	AR531X_ENV_UBOOT
+#ifndef AR531X_ENV_UBOOT
 	argc = a0;
-	argv = (char**)a1;
-	envp = (char**)a2;
+	argv = (char **)a1;
+	envp = (char **)a2;
 #endif
-	/* 
-	 * Protect ourselves from garbage in registers 
+	/*
+	 * Protect ourselves from garbage in registers
 	 */
 	if (MIPS_IS_VALID_PTR(envp)) {
 		for (i = 0; envp[i]; i += 2) {
 			if (strcmp(envp[i], "memsize") == 0)
-				realmem = btoc(strtoul(envp[i+1], NULL, 16));
+				realmem = btoc(strtoul(envp[i + 1], NULL, 16));
 		}
 	}
 
 	ar5315_detect_sys_type();
 
-// RedBoot SDRAM Detect is missing
-//	ar531x_detect_mem_size();
+	// RedBoot SDRAM Detect is missing
+	//	ar531x_detect_mem_size();
 
 	/*
-	 * Just wild guess. RedBoot let us down and didn't reported 
+	 * Just wild guess. RedBoot let us down and didn't reported
 	 * memory size
 	 */
 	if (realmem == 0)
-		realmem = btoc(16*1024*1024);
+		realmem = btoc(16 * 1024 * 1024);
 
-	/*
-	 * Allow build-time override in case Redboot lies
-	 * or in other situations (eg where there's u-boot)
-	 * where there isn't (yet) a convienent method of
-	 * being told how much RAM is available.
-	 *
-	 * This happens on at least the Ubiquiti LS-SR71A
-	 * board, where redboot says there's 16mb of RAM
-	 * but in fact there's 32mb.
-	 */
-#if	defined(AR531X_REALMEM)
-		realmem = btoc(AR531X_REALMEM);
+		/*
+		 * Allow build-time override in case Redboot lies
+		 * or in other situations (eg where there's u-boot)
+		 * where there isn't (yet) a convienent method of
+		 * being told how much RAM is available.
+		 *
+		 * This happens on at least the Ubiquiti LS-SR71A
+		 * board, where redboot says there's 16mb of RAM
+		 * but in fact there's 32mb.
+		 */
+#if defined(AR531X_REALMEM)
+	realmem = btoc(AR531X_REALMEM);
 #endif
 
 	/* phys_avail regions are in bytes */
@@ -231,16 +228,17 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	physmem = realmem;
 
 	/*
-	 * ns8250 uart code uses DELAY so ticker should be inititalized 
-	 * before cninit. And tick_init_params refers to hz, so * init_param1 
+	 * ns8250 uart code uses DELAY so ticker should be inititalized
+	 * before cninit. And tick_init_params refers to hz, so * init_param1
 	 * should be called first.
 	 */
 	init_param1();
 	boothowto |= (RB_SERIAL | RB_MULTIPLE); /* Use multiple consoles */
-//	boothowto |= RB_VERBOSE;
-//	boothowto |= (RB_SINGLE);
+						//	boothowto |= RB_VERBOSE;
+						//	boothowto |= (RB_SINGLE);
 
-	/* Detect the system type - this is needed for subsequent chipset-specific calls */
+	/* Detect the system type - this is needed for subsequent
+	 * chipset-specific calls */
 
 	ar531x_device_soc_init();
 	ar531x_detect_sys_frequency();
@@ -253,7 +251,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	printf("CPU platform: %s\n", ar5315_get_system_type());
 	printf("CPU Frequency=%d MHz\n", ar531x_cpu_freq() / 1000000);
 	printf("CPU DDR Frequency=%d MHz\n", ar531x_ddr_freq() / 1000000);
-	printf("CPU AHB Frequency=%d MHz\n", ar531x_ahb_freq() / 1000000); 
+	printf("CPU AHB Frequency=%d MHz\n", ar531x_ahb_freq() / 1000000);
 
 	printf("platform frequency: %lld\n", platform_counter_freq);
 	printf("arguments: \n");
@@ -273,9 +271,8 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 			printf(" %s", argv[i]);
 			boothowto |= boot_parse_arg(argv[i]);
 		}
-	}
-	else
-		printf ("argv is invalid");
+	} else
+		printf("argv is invalid");
 	printf("\n");
 
 	printf("Environment:\n");
@@ -300,7 +297,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	else 
 		printf ("envp is invalid\n");
 #else
-	printf ("envp skiped\n");
+	printf("envp skiped\n");
 #endif
 
 	/* Redboot if_are MAC address is in the environment */
@@ -319,5 +316,4 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	if (boothowto & RB_KDB)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
-
 }

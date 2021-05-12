@@ -33,28 +33,29 @@ __FBSDID("$FreeBSD$");
 #include "opt_rss.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/domainset.h>
+#include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/ktls.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
-#include <sys/rmlock.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/refcount.h>
+#include <sys/rmlock.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <sys/kthread.h>
 #include <sys/uio.h>
 #include <sys/vmmeter.h>
 #if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
 #include <machine/pcb.h>
 #endif
 #include <machine/vmparam.h>
+
 #include <net/if.h>
 #include <net/if_var.h>
 #ifdef RSS
@@ -71,18 +72,19 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
-#include <opencrypto/xform.h>
-#include <vm/uma_dbg.h>
 #include <vm/vm.h>
-#include <vm/vm_pageout.h>
+#include <vm/uma_dbg.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
+
+#include <opencrypto/xform.h>
 
 struct ktls_wq {
-	struct mtx	mtx;
+	struct mtx mtx;
 	STAILQ_HEAD(, mbuf) m_head;
 	STAILQ_HEAD(, socket) so_head;
-	bool		running;
-	int		lastallocfail;
+	bool running;
+	int lastallocfail;
 } __aligned(CACHE_LINE_SIZE);
 
 struct ktls_domain_info {
@@ -118,23 +120,20 @@ SYSCTL_INT(_kern_ipc_tls, OID_AUTO, bind_threads, CTLFLAG_RDTUN,
     "Bind crypto threads to cores (1) or cores and domains (2) at boot");
 
 static u_int ktls_maxlen = 16384;
-SYSCTL_UINT(_kern_ipc_tls, OID_AUTO, maxlen, CTLFLAG_RDTUN,
-    &ktls_maxlen, 0, "Maximum TLS record size");
+SYSCTL_UINT(_kern_ipc_tls, OID_AUTO, maxlen, CTLFLAG_RDTUN, &ktls_maxlen, 0,
+    "Maximum TLS record size");
 
 static int ktls_number_threads;
 SYSCTL_INT(_kern_ipc_tls_stats, OID_AUTO, threads, CTLFLAG_RD,
-    &ktls_number_threads, 0,
-    "Number of TLS threads in thread-pool");
+    &ktls_number_threads, 0, "Number of TLS threads in thread-pool");
 
 static bool ktls_offload_enable;
 SYSCTL_BOOL(_kern_ipc_tls, OID_AUTO, enable, CTLFLAG_RWTUN,
-    &ktls_offload_enable, 0,
-    "Enable support for kernel TLS offload");
+    &ktls_offload_enable, 0, "Enable support for kernel TLS offload");
 
 static bool ktls_cbc_enable = true;
 SYSCTL_BOOL(_kern_ipc_tls, OID_AUTO, cbc_enable, CTLFLAG_RWTUN,
-    &ktls_cbc_enable, 1,
-    "Enable Support of AES-CBC crypto for kernel TLS");
+    &ktls_cbc_enable, 1, "Enable Support of AES-CBC crypto for kernel TLS");
 
 static bool ktls_sw_buffer_cache = true;
 SYSCTL_BOOL(_kern_ipc_tls, OID_AUTO, sw_buffer_cache, CTLFLAG_RDTUN,
@@ -156,14 +155,12 @@ SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, sw_rx_inqueue, CTLFLAG_RD,
     "Number of TLS sockets in queue to tasks for SW decryption");
 
 static COUNTER_U64_DEFINE_EARLY(ktls_offload_total);
-SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, offload_total,
-    CTLFLAG_RD, &ktls_offload_total,
-    "Total successful TLS setups (parameters set)");
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, offload_total, CTLFLAG_RD,
+    &ktls_offload_total, "Total successful TLS setups (parameters set)");
 
 static COUNTER_U64_DEFINE_EARLY(ktls_offload_enable_calls);
-SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, enable_calls,
-    CTLFLAG_RD, &ktls_offload_enable_calls,
-    "Total number of TLS enable calls made");
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, enable_calls, CTLFLAG_RD,
+    &ktls_offload_enable_calls, "Total number of TLS enable calls made");
 
 static COUNTER_U64_DEFINE_EARLY(ktls_offload_active);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, active, CTLFLAG_RD,
@@ -213,13 +210,11 @@ SYSCTL_COUNTER_U64(_kern_ipc_tls_sw, OID_AUTO, chacha20, CTLFLAG_RD,
 
 static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_cbc);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_ifnet, OID_AUTO, cbc, CTLFLAG_RD,
-    &ktls_ifnet_cbc,
-    "Active number of ifnet TLS sessions using AES-CBC");
+    &ktls_ifnet_cbc, "Active number of ifnet TLS sessions using AES-CBC");
 
 static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_gcm);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_ifnet, OID_AUTO, gcm, CTLFLAG_RD,
-    &ktls_ifnet_gcm,
-    "Active number of ifnet TLS sessions using AES-GCM");
+    &ktls_ifnet_gcm, "Active number of ifnet TLS sessions using AES-GCM");
 
 static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_chacha20);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_ifnet, OID_AUTO, chacha20, CTLFLAG_RD,
@@ -247,13 +242,11 @@ SYSCTL_UINT(_kern_ipc_tls_ifnet, OID_AUTO, permitted, CTLFLAG_RWTUN,
 
 #ifdef TCP_OFFLOAD
 static COUNTER_U64_DEFINE_EARLY(ktls_toe_cbc);
-SYSCTL_COUNTER_U64(_kern_ipc_tls_toe, OID_AUTO, cbc, CTLFLAG_RD,
-    &ktls_toe_cbc,
+SYSCTL_COUNTER_U64(_kern_ipc_tls_toe, OID_AUTO, cbc, CTLFLAG_RD, &ktls_toe_cbc,
     "Active number of TOE TLS sessions using AES-CBC");
 
 static COUNTER_U64_DEFINE_EARLY(ktls_toe_gcm);
-SYSCTL_COUNTER_U64(_kern_ipc_tls_toe, OID_AUTO, gcm, CTLFLAG_RD,
-    &ktls_toe_gcm,
+SYSCTL_COUNTER_U64(_kern_ipc_tls_toe, OID_AUTO, gcm, CTLFLAG_RD, &ktls_toe_gcm,
     "Active number of TOE TLS sessions using AES-GCM");
 
 static COUNTER_U64_DEFINE_EARLY(ktls_toe_chacha20);
@@ -277,18 +270,17 @@ ktls_crypto_backend_register(struct ktls_crypto_backend *be)
 
 	if (be->api_version != KTLS_API_VERSION) {
 		printf("KTLS: API version mismatch (%d vs %d) for %s\n",
-		    be->api_version, KTLS_API_VERSION,
-		    be->name);
+		    be->api_version, KTLS_API_VERSION, be->name);
 		return (EINVAL);
 	}
 
 	rm_wlock(&ktls_backends_lock);
-	printf("KTLS: Registering crypto method %s with prio %d\n",
-	       be->name, be->prio);
+	printf("KTLS: Registering crypto method %s with prio %d\n", be->name,
+	    be->prio);
 	if (LIST_EMPTY(&ktls_backends)) {
 		LIST_INSERT_HEAD(&ktls_backends, be, next);
 	} else {
-		LIST_FOREACH_SAFE(curr_be, &ktls_backends, next, tmp) {
+		LIST_FOREACH_SAFE (curr_be, &ktls_backends, next, tmp) {
 			if (curr_be->prio < be->prio) {
 				LIST_INSERT_BEFORE(curr_be, be, next);
 				break;
@@ -313,7 +305,7 @@ ktls_crypto_backend_deregister(struct ktls_crypto_backend *be)
 	 * MOD_UNLOAD handlers to use this function unconditionally.
 	 */
 	rm_wlock(&ktls_backends_lock);
-	LIST_FOREACH(tmp, &ktls_backends, next) {
+	LIST_FOREACH (tmp, &ktls_backends, next) {
 		if (tmp == be)
 			break;
 	}
@@ -356,19 +348,20 @@ ktls_get_cpu(struct socket *so)
 	if (cpuid != NETISR_CPUID_NONE)
 		return (cpuid);
 #endif
-	/*
-	 * Just use the flowid to shard connections in a repeatable
-	 * fashion.  Note that some crypto backends rely on the
-	 * serialization provided by having the same connection use
-	 * the same queue.
-	 */
+		/*
+		 * Just use the flowid to shard connections in a repeatable
+		 * fashion.  Note that some crypto backends rely on the
+		 * serialization provided by having the same connection use
+		 * the same queue.
+		 */
 #ifdef NUMA
 	if (ktls_bind_threads > 1 && inp->inp_numa_domain != M_NODOM) {
 		di = &ktls_domains[inp->inp_numa_domain];
 		cpuid = di->cpu[inp->inp_flowid % di->count];
 	} else
 #endif
-		cpuid = ktls_cpuid_lookup[inp->inp_flowid % ktls_number_threads];
+		cpuid =
+		    ktls_cpuid_lookup[inp->inp_flowid % ktls_number_threads];
 	return (cpuid);
 }
 #endif
@@ -380,13 +373,13 @@ ktls_buffer_import(void *arg, void **store, int count, int domain, int flags)
 	int i;
 
 	KASSERT((ktls_maxlen & PAGE_MASK) == 0,
-	    ("%s: ktls max length %d is not page size-aligned",
-	    __func__, ktls_maxlen));
+	    ("%s: ktls max length %d is not page size-aligned", __func__,
+		ktls_maxlen));
 
 	for (i = 0; i < count; i++) {
 		m = vm_page_alloc_contig_domain(NULL, 0, domain,
 		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
-		    VM_ALLOC_NODUMP | malloc2vm_flags(flags),
+			VM_ALLOC_NODUMP | malloc2vm_flags(flags),
 		    atop(ktls_maxlen), 0, ~0ul, PAGE_SIZE, 0,
 		    VM_MEMATTR_DEFAULT);
 		if (m == NULL)
@@ -429,12 +422,11 @@ ktls_init(void *dummy __unused)
 	rm_init(&ktls_backends_lock, "ktls backends");
 	LIST_INIT(&ktls_backends);
 
-	ktls_wq = malloc(sizeof(*ktls_wq) * (mp_maxid + 1), M_KTLS,
-	    M_WAITOK | M_ZERO);
+	ktls_wq = malloc(
+	    sizeof(*ktls_wq) * (mp_maxid + 1), M_KTLS, M_WAITOK | M_ZERO);
 
 	ktls_session_zone = uma_zcreate("ktls_session",
-	    sizeof(struct ktls_session),
-	    NULL, NULL, NULL, NULL,
+	    sizeof(struct ktls_session), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_CACHE, 0);
 
 	if (ktls_sw_buffer_cache) {
@@ -448,7 +440,7 @@ ktls_init(void *dummy __unused)
 	 * Initialize the workqueues to run the TLS work.  We create a
 	 * work queue for each CPU.
 	 */
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		STAILQ_INIT(&ktls_wq[i].m_head);
 		STAILQ_INIT(&ktls_wq[i].so_head);
 		mtx_init(&ktls_wq[i].mtx, "ktls work queue", NULL, MTX_DEF);
@@ -475,8 +467,8 @@ ktls_init(void *dummy __unused)
 			error = cpuset_setthread(td->td_tid, &mask);
 			if (error)
 				panic(
-			    "Unable to bind KTLS thread for CPU %d error %d",
-				     i, error);
+				    "Unable to bind KTLS thread for CPU %d error %d",
+				    i, error);
 		}
 		ktls_cpuid_lookup[ktls_number_threads] = i;
 		ktls_number_threads++;
@@ -502,8 +494,8 @@ SYSINIT(ktls, SI_SUB_SMP + 1, SI_ORDER_ANY, ktls_init, NULL);
 
 #if defined(INET) || defined(INET6)
 static int
-ktls_create_session(struct socket *so, struct tls_enable *en,
-    struct ktls_session **tlsp)
+ktls_create_session(
+    struct socket *so, struct tls_enable *en, struct ktls_session **tlsp)
 {
 	struct ktls_session *tls;
 	int error;
@@ -632,8 +624,7 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 			} else {
 				tls->params.tls_hlen += AES_BLOCK_LEN;
 			}
-			tls->params.tls_tlen = AES_BLOCK_LEN +
-			    SHA1_HASH_LEN;
+			tls->params.tls_tlen = AES_BLOCK_LEN + SHA1_HASH_LEN;
 			break;
 		case CRYPTO_SHA2_256_HMAC:
 			tls->params.tls_hlen += AES_BLOCK_LEN;
@@ -676,18 +667,18 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 
 	if (en->auth_key_len != 0) {
 		tls->params.auth_key_len = en->auth_key_len;
-		tls->params.auth_key = malloc(en->auth_key_len, M_KTLS,
-		    M_WAITOK);
-		error = copyin(en->auth_key, tls->params.auth_key,
-		    en->auth_key_len);
+		tls->params.auth_key = malloc(
+		    en->auth_key_len, M_KTLS, M_WAITOK);
+		error = copyin(
+		    en->auth_key, tls->params.auth_key, en->auth_key_len);
 		if (error)
 			goto out;
 	}
 
 	tls->params.cipher_key_len = en->cipher_key_len;
 	tls->params.cipher_key = malloc(en->cipher_key_len, M_KTLS, M_WAITOK);
-	error = copyin(en->cipher_key, tls->params.cipher_key,
-	    en->cipher_key_len);
+	error = copyin(
+	    en->cipher_key, tls->params.cipher_key, en->cipher_key_len);
 	if (error)
 		goto out;
 
@@ -739,14 +730,14 @@ ktls_clone_session(struct ktls_session *tls)
 
 	/* Deep copy keys. */
 	if (tls_new->params.auth_key != NULL) {
-		tls_new->params.auth_key = malloc(tls->params.auth_key_len,
-		    M_KTLS, M_WAITOK);
+		tls_new->params.auth_key = malloc(
+		    tls->params.auth_key_len, M_KTLS, M_WAITOK);
 		memcpy(tls_new->params.auth_key, tls->params.auth_key,
 		    tls->params.auth_key_len);
 	}
 
-	tls_new->params.cipher_key = malloc(tls->params.cipher_key_len, M_KTLS,
-	    M_WAITOK);
+	tls_new->params.cipher_key = malloc(
+	    tls->params.cipher_key_len, M_KTLS, M_WAITOK);
 	memcpy(tls_new->params.cipher_key, tls->params.cipher_key,
 	    tls->params.cipher_key_len);
 
@@ -1008,7 +999,7 @@ ktls_try_sw(struct socket *so, struct ktls_session *tls, int direction)
 	 */
 	if (ktls_allow_unload)
 		rm_rlock(&ktls_backends_lock, &prio);
-	LIST_FOREACH(be, &ktls_backends, next) {
+	LIST_FOREACH (be, &ktls_backends, next) {
 		if (be->try(so, tls, direction) == 0)
 			break;
 		KASSERT(tls->cipher == NULL,
@@ -1077,12 +1068,12 @@ sb_mark_notready(struct sockbuf *sb)
 	sb->sb_mbtail = NULL;
 	sb->sb_lastrecord = NULL;
 	for (; m != NULL; m = m->m_next) {
-		KASSERT(m->m_nextpkt == NULL, ("%s: m_nextpkt != NULL",
-		    __func__));
-		KASSERT((m->m_flags & M_NOTAVAIL) == 0, ("%s: mbuf not avail",
-		    __func__));
-		KASSERT(sb->sb_acc >= m->m_len, ("%s: sb_acc < m->m_len",
-		    __func__));
+		KASSERT(
+		    m->m_nextpkt == NULL, ("%s: m_nextpkt != NULL", __func__));
+		KASSERT((m->m_flags & M_NOTAVAIL) == 0,
+		    ("%s: mbuf not avail", __func__));
+		KASSERT(sb->sb_acc >= m->m_len,
+		    ("%s: sb_acc < m->m_len", __func__));
 		m->m_flags |= M_NOTREADY;
 		sb->sb_acc -= m->m_len;
 		sb->sb_tlscc += m->m_len;
@@ -1090,7 +1081,7 @@ sb_mark_notready(struct sockbuf *sb)
 	}
 	KASSERT(sb->sb_acc == 0 && sb->sb_tlscc == sb->sb_ccc,
 	    ("%s: acc %u tlscc %u ccc %u", __func__, sb->sb_acc, sb->sb_tlscc,
-	    sb->sb_ccc));
+		sb->sb_ccc));
 }
 
 int
@@ -1198,7 +1189,7 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 	if (error)
 		return (error);
 
-	/* Prefer TOE -> ifnet TLS -> software TLS. */
+		/* Prefer TOE -> ifnet TLS -> software TLS. */
 #ifdef TCP_OFFLOAD
 	error = ktls_try_toe(so, tls, KTLS_TX);
 	if (error)
@@ -1481,7 +1472,7 @@ ktls_output_eagain(struct inpcb *inp, struct ktls_session *tls)
 	 */
 	mtx_pool_lock(mtxpool_sleep, tls);
 	if (!tls->reset_pending) {
-		(void) ktls_hold(tls);
+		(void)ktls_hold(tls);
 		in_pcbref(inp);
 		tls->inp = inp;
 		tls->reset_pending = true;
@@ -1590,8 +1581,9 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		 * Empty TLS records are permitted when using CBC.
 		 */
 		KASSERT(m->m_len <= maxlen &&
-		    (tls->params.cipher_algorithm == CRYPTO_AES_CBC ?
-		    m->m_len >= 0 : m->m_len > 0),
+			(tls->params.cipher_algorithm == CRYPTO_AES_CBC ?
+				      m->m_len >= 0 :
+				      m->m_len > 0),
 		    ("ktls_frame: m %p len %d\n", m, m->m_len));
 
 		/*
@@ -1702,8 +1694,8 @@ ktls_check_rx(struct sockbuf *sb)
 	bool running;
 
 	SOCKBUF_LOCK_ASSERT(sb);
-	KASSERT(sb->sb_flags & SB_TLS_RX, ("%s: sockbuf %p isn't TLS RX",
-	    __func__, sb));
+	KASSERT(sb->sb_flags & SB_TLS_RX,
+	    ("%s: sockbuf %p isn't TLS RX", __func__, sb));
 	so = __containerof(sb, struct socket, so_rcv);
 
 	if (sb->sb_flags & SB_TLS_RX_RUNNING)
@@ -1867,9 +1859,9 @@ ktls_decrypt(struct socket *so)
 		if (hdr->tls_vmajor != tls->params.tls_vmajor ||
 		    hdr->tls_vminor != tls->params.tls_vminor)
 			error = EINVAL;
-		else if (tls_len < tls->params.tls_hlen || tls_len >
-		    tls->params.tls_hlen + TLS_MAX_MSG_SIZE_V10_2 +
-		    tls->params.tls_tlen)
+		else if (tls_len < tls->params.tls_hlen ||
+		    tls_len > tls->params.tls_hlen + TLS_MAX_MSG_SIZE_V10_2 +
+			    tls->params.tls_tlen)
 			error = EMSGSIZE;
 		else
 			error = 0;
@@ -1943,10 +1935,10 @@ ktls_decrypt(struct socket *so)
 		tgr.tls_type = hdr->tls_type;
 		tgr.tls_vmajor = hdr->tls_vmajor;
 		tgr.tls_vminor = hdr->tls_vminor;
-		tgr.tls_length = htobe16(tls_len - tls->params.tls_hlen -
-		    trail_len);
-		control = sbcreatecontrol_how(&tgr, sizeof(tgr),
-		    TLS_GET_RECORD, IPPROTO_TCP, M_WAITOK);
+		tgr.tls_length = htobe16(
+		    tls_len - tls->params.tls_hlen - trail_len);
+		control = sbcreatecontrol_how(
+		    &tgr, sizeof(tgr), TLS_GET_RECORD, IPPROTO_TCP, M_WAITOK);
 
 		SOCKBUF_LOCK(sb);
 		if (sb->sb_tlsdcc == 0) {
@@ -2064,8 +2056,8 @@ ktls_enqueue(struct mbuf *m, struct socket *so, int page_count)
 	struct ktls_wq *wq;
 	bool running;
 
-	KASSERT(((m->m_flags & (M_EXTPG | M_NOTREADY)) ==
-	    (M_EXTPG | M_NOTREADY)),
+	KASSERT(
+	    ((m->m_flags & (M_EXTPG | M_NOTREADY)) == (M_EXTPG | M_NOTREADY)),
 	    ("ktls_enqueue: %p not unready & nomap mbuf\n", m));
 	KASSERT(page_count != 0, ("enqueueing TLS mbuf with zero page count"));
 
@@ -2134,16 +2126,16 @@ ktls_encrypt(struct ktls_wq *wq, struct mbuf *top)
 	for (m = top; npages != total_pages; m = m->m_next) {
 		KASSERT(m->m_epg_tls == tls,
 		    ("different TLS sessions in a single mbuf chain: %p vs %p",
-		    tls, m->m_epg_tls));
+			tls, m->m_epg_tls));
 		KASSERT((m->m_flags & (M_EXTPG | M_NOTREADY)) ==
-		    (M_EXTPG | M_NOTREADY),
+			(M_EXTPG | M_NOTREADY),
 		    ("%p not unready & nomap mbuf (top = %p)\n", m, top));
 		KASSERT(npages + m->m_epg_npgs <= total_pages,
 		    ("page count mismatch: top %p, total_pages %d, m %p", top,
-		    total_pages, m));
+			total_pages, m));
 		KASSERT(ptoa(m->m_epg_npgs) <= ktls_maxlen,
 		    ("page count %d larger than maximum frame length %d",
-		    m->m_epg_npgs, ktls_maxlen));
+			m->m_epg_npgs, ktls_maxlen));
 
 		/*
 		 * Generate source and destination ivoecs to pass to
@@ -2159,8 +2151,9 @@ ktls_encrypt(struct ktls_wq *wq, struct mbuf *top)
 		for (i = 0; i < m->m_epg_npgs; i++, off = 0) {
 			len = m_epg_pagelen(m, i, off);
 			src_iov[i].iov_len = len;
-			src_iov[i].iov_base =
-			    (char *)(void *)PHYS_TO_DMAP(m->m_epg_pa[i]) + off;
+			src_iov[i].iov_base = (char *)(void *)PHYS_TO_DMAP(
+						  m->m_epg_pa[i]) +
+			    off;
 		}
 
 		if (is_anon) {
@@ -2178,18 +2171,17 @@ ktls_encrypt(struct ktls_wq *wq, struct mbuf *top)
 			for (i = 0; i < m->m_epg_npgs; i++, off = 0) {
 				do {
 					pg = vm_page_alloc(NULL, 0,
-					    VM_ALLOC_NORMAL |
-					    VM_ALLOC_NOOBJ |
-					    VM_ALLOC_NODUMP |
-					    VM_ALLOC_WIRED |
-					    VM_ALLOC_WAITFAIL);
+					    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
+						VM_ALLOC_NODUMP |
+						VM_ALLOC_WIRED |
+						VM_ALLOC_WAITFAIL);
 				} while (pg == NULL);
 
 				len = m_epg_pagelen(m, i, off);
 				parray[i] = VM_PAGE_TO_PHYS(pg);
 				dst_iov[i].iov_base =
-				    (char *)(void *)PHYS_TO_DMAP(
-				    parray[i]) + off;
+				    (char *)(void *)PHYS_TO_DMAP(parray[i]) +
+				    off;
 				dst_iov[i].iov_len = len;
 			}
 		}
@@ -2272,16 +2264,16 @@ ktls_work_thread(void *ctx)
 	STAILQ_HEAD(, socket) local_so_head;
 
 	if (ktls_bind_threads > 1) {
-		curthread->td_domain.dr_policy =
-			DOMAINSET_PREF(PCPU_GET(domain));
+		curthread->td_domain.dr_policy = DOMAINSET_PREF(
+		    PCPU_GET(domain));
 	}
 #if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
 	fpu_kern_thread(0);
 #endif
 	for (;;) {
 		mtx_lock(&wq->mtx);
-		while (STAILQ_EMPTY(&wq->m_head) &&
-		    STAILQ_EMPTY(&wq->so_head)) {
+		while (
+		    STAILQ_EMPTY(&wq->m_head) && STAILQ_EMPTY(&wq->so_head)) {
 			wq->running = false;
 			mtx_sleep(wq, &wq->mtx, 0, "-", 0);
 			wq->running = true;
@@ -2293,7 +2285,7 @@ ktls_work_thread(void *ctx)
 		STAILQ_CONCAT(&local_so_head, &wq->so_head);
 		mtx_unlock(&wq->mtx);
 
-		STAILQ_FOREACH_SAFE(m, &local_m_head, m_epg_stailq, n) {
+		STAILQ_FOREACH_SAFE (m, &local_m_head, m_epg_stailq, n) {
 			if (m->m_epg_flags & EPG_FLAG_2FREE) {
 				ktls_free(m->m_epg_tls);
 				uma_zfree(zone_mbuf, m);
@@ -2303,7 +2295,7 @@ ktls_work_thread(void *ctx)
 			}
 		}
 
-		STAILQ_FOREACH_SAFE(so, &local_so_head, so_ktls_rx_list, son) {
+		STAILQ_FOREACH_SAFE (so, &local_so_head, so_ktls_rx_list, son) {
 			ktls_decrypt(so);
 			counter_u64_add(ktls_cnt_rx_queued, -1);
 		}

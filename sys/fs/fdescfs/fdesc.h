@@ -40,36 +40,33 @@
 #define _FS_FDESC_H_
 
 /* Private mount flags for fdescfs. */
-#define FMNT_UNMOUNTF	0x01
-#define FMNT_LINRDLNKF	0x02
+#define FMNT_UNMOUNTF 0x01
+#define FMNT_LINRDLNKF 0x02
 
 struct fdescmount {
-	struct vnode	*f_root;	/* Root node */
+	struct vnode *f_root; /* Root node */
 	int flags;
 };
 
-#define FD_ROOT		1
-#define FD_DESC		3
+#define FD_ROOT 1
+#define FD_DESC 3
 
-typedef enum {
-	Froot,
-	Fdesc
-} fdntype;
+typedef enum { Froot, Fdesc } fdntype;
 
 struct fdescnode {
-	LIST_ENTRY(fdescnode) fd_hash;	/* Hash list */
-	struct vnode	*fd_vnode;	/* Back ptr to vnode */
-	fdntype		fd_type;	/* Type of this node */
-	unsigned	fd_fd;		/* Fd to be dup'ed */
-	int		fd_ix;		/* filesystem index */
+	LIST_ENTRY(fdescnode) fd_hash; /* Hash list */
+	struct vnode *fd_vnode;	       /* Back ptr to vnode */
+	fdntype fd_type;	       /* Type of this node */
+	unsigned fd_fd;		       /* Fd to be dup'ed */
+	int fd_ix;		       /* filesystem index */
 };
 
 extern struct mtx fdesc_hashmtx;
-#define VFSTOFDESC(mp)	((struct fdescmount *)((mp)->mnt_data))
-#define	VTOFDESC(vp) ((struct fdescnode *)(vp)->v_data)
+#define VFSTOFDESC(mp) ((struct fdescmount *)((mp)->mnt_data))
+#define VTOFDESC(vp) ((struct fdescnode *)(vp)->v_data)
 
 extern vfs_init_t fdesc_init;
 extern vfs_uninit_t fdesc_uninit;
-extern int fdesc_allocvp(fdntype, unsigned, int, struct mount *,
-    struct vnode **);
+extern int fdesc_allocvp(
+    fdntype, unsigned, int, struct mount *, struct vnode **);
 #endif /* !_FS_FDESC_H_ */

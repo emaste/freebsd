@@ -37,12 +37,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/signal.h>
 
 #include <machine/gdb_machdep.h>
+#include <machine/hid.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
-
-#include <machine/hid.h>
 #include <machine/spr.h>
-
 #include <machine/trap.h>
 
 #include <gdb/gdb.h>

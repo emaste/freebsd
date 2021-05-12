@@ -56,10 +56,10 @@ virt_devmap_init(platform_t plat)
 }
 
 static platform_method_t virt_methods[] = {
-	PLATFORMMETHOD(platform_devmap_init,	virt_devmap_init),
+	PLATFORMMETHOD(platform_devmap_init, virt_devmap_init),
 
 #ifdef SMP
-	PLATFORMMETHOD(platform_mp_start_ap,	virt_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_start_ap, virt_mp_start_ap),
 #endif
 
 	PLATFORMMETHOD_END,
@@ -76,7 +76,7 @@ gem5_devmap_init(platform_t plat)
 }
 
 static platform_method_t gem5_methods[] = {
-	PLATFORMMETHOD(platform_devmap_init,	gem5_devmap_init),
+	PLATFORMMETHOD(platform_devmap_init, gem5_devmap_init),
 
 	PLATFORMMETHOD_END,
 };

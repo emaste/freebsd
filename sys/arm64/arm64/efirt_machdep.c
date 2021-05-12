@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/efi.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
@@ -45,14 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
-#include <sys/systm.h>
 #include <sys/vmmeter.h>
-
-#include <machine/metadata.h>
-#include <machine/pcb.h>
-#include <machine/pte.h>
-#include <machine/vfp.h>
-#include <machine/vmparam.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -60,6 +54,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+
+#include <machine/metadata.h>
+#include <machine/pcb.h>
+#include <machine/pte.h>
+#include <machine/vfp.h>
+#include <machine/vmparam.h>
 
 static vm_object_t obj_1t1_pt;
 static vm_pindex_t efi_1t1_idx;
@@ -73,7 +73,7 @@ efi_destroy_1t1_map(void)
 
 	if (obj_1t1_pt != NULL) {
 		VM_OBJECT_RLOCK(obj_1t1_pt);
-		TAILQ_FOREACH(m, &obj_1t1_pt->memq, listq)
+		TAILQ_FOREACH (m, &obj_1t1_pt->memq, listq)
 			m->ref_count = VPRC_OBJREF;
 		vm_wire_sub(obj_1t1_pt->resident_page_count);
 		VM_OBJECT_RUNLOCK(obj_1t1_pt);
@@ -90,8 +90,8 @@ static vm_page_t
 efi_1t1_page(void)
 {
 
-	return (vm_page_grab(obj_1t1_pt, efi_1t1_idx++, VM_ALLOC_NOBUSY |
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO));
+	return (vm_page_grab(obj_1t1_pt, efi_1t1_idx++,
+	    VM_ALLOC_NOBUSY | VM_ALLOC_WIRED | VM_ALLOC_ZERO));
 }
 
 static pt_entry_t *
@@ -137,8 +137,8 @@ efi_1t1_l3(vm_offset_t va)
 
 	l3 = (pt_entry_t *)PHYS_TO_DMAP(mphys);
 	l3 += pmap_l3_index(va);
-	KASSERT(*l3 == 0, ("%s: Already mapped: va %#jx *pt %#jx", __func__,
-	    va, *l3));
+	KASSERT(*l3 == 0,
+	    ("%s: Already mapped: va %#jx *pt %#jx", __func__, va, *l3));
 
 	return (l3);
 }
@@ -169,9 +169,10 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	uint64_t idx;
 	int i, mode;
 
-	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL, L0_ENTRIES +
-	    L0_ENTRIES * Ln_ENTRIES + L0_ENTRIES * Ln_ENTRIES * Ln_ENTRIES +
-	    L0_ENTRIES * Ln_ENTRIES * Ln_ENTRIES * Ln_ENTRIES,
+	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL,
+	    L0_ENTRIES + L0_ENTRIES * Ln_ENTRIES +
+		L0_ENTRIES * Ln_ENTRIES * Ln_ENTRIES +
+		L0_ENTRIES * Ln_ENTRIES * Ln_ENTRIES * Ln_ENTRIES,
 	    VM_PROT_ALL, 0, NULL);
 	VM_OBJECT_WLOCK(obj_1t1_pt);
 	efi_l0_page = efi_1t1_page();
@@ -180,8 +181,8 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	efi_ttbr0 = ASID_TO_OPERAND(ASID_RESERVED_FOR_EFI) |
 	    VM_PAGE_TO_PHYS(efi_l0_page);
 
-	for (i = 0, p = map; i < ndesc; i++, p = efi_next_descriptor(p,
-	    descsz)) {
+	for (i = 0, p = map; i < ndesc;
+	     i++, p = efi_next_descriptor(p, descsz)) {
 		if ((p->md_attr & EFI_MD_ATTR_RT) == 0)
 			continue;
 		if (p->md_virt != 0 && p->md_virt != p->md_phys) {
@@ -191,17 +192,16 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		}
 		if ((p->md_phys & EFI_PAGE_MASK) != 0) {
 			if (bootverbose)
-				printf("EFI Runtime entry %d is not aligned\n",
-				    i);
+				printf(
+				    "EFI Runtime entry %d is not aligned\n", i);
 			goto fail;
 		}
 		if (p->md_phys + p->md_pages * EFI_PAGE_SIZE < p->md_phys ||
 		    p->md_phys + p->md_pages * EFI_PAGE_SIZE >=
-		    VM_MAXUSER_ADDRESS) {
+			VM_MAXUSER_ADDRESS) {
 			printf("EFI Runtime entry %d is not in mappable for RT:"
-			    "base %#016jx %#jx pages\n",
-			    i, (uintmax_t)p->md_phys,
-			    (uintmax_t)p->md_pages);
+			       "base %#016jx %#jx pages\n",
+			    i, (uintmax_t)p->md_phys, (uintmax_t)p->md_pages);
 			goto fail;
 		}
 		if ((p->md_attr & EFI_MD_ATTR_WB) != 0)
@@ -213,7 +213,8 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		else
 			mode = VM_MEMATTR_DEVICE;
 
-		printf("MAP %lx mode %x pages %lu\n", p->md_phys, mode, p->md_pages);
+		printf("MAP %lx mode %x pages %lu\n", p->md_phys, mode,
+		    p->md_pages);
 
 		l3_attr = ATTR_DEFAULT | ATTR_S1_IDX(mode) |
 		    ATTR_S1_AP(ATTR_S1_AP_RW) | ATTR_S1_nG | L3_PAGE;
@@ -221,8 +222,8 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 			l3_attr |= ATTR_S1_XN;
 
 		VM_OBJECT_WLOCK(obj_1t1_pt);
-		for (va = p->md_phys, idx = 0; idx < p->md_pages; idx++,
-		    va += PAGE_SIZE) {
+		for (va = p->md_phys, idx = 0; idx < p->md_pages;
+		     idx++, va += PAGE_SIZE) {
 			l3 = efi_1t1_l3(va);
 			*l3 = va | l3_attr;
 		}
@@ -264,9 +265,7 @@ efi_arch_leave(void)
 	 * curpmap will access x18 we need to restore it before loading
 	 * the pmap pointer.
 	 */
-	__asm __volatile(
-	    "mrs x18, tpidr_el1	\n"
-	);
+	__asm __volatile("mrs x18, tpidr_el1	\n");
 	set_ttbr0(pmap_to_ttbr0(PCPU_GET(curpmap)));
 	if (PCPU_GET(bcast_tlbi_workaround) != 0)
 		invalidate_local_icache();

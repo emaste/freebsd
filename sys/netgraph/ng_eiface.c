@@ -31,98 +31,83 @@
  */
 
 #include <sys/param.h>
-#include <sys/eventhandler.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/errno.h>
 #include <sys/proc.h>
-#include <sys/sockio.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/syslog.h>
-
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_media.h>
-#include <net/if_types.h>
-#include <net/netisr.h>
-#include <net/route.h>
-#include <net/vnet.h>
-
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
-#include <netgraph/ng_eiface.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
+#include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_media.h>
+#include <net/if_types.h>
+#include <net/if_var.h>
+#include <net/netisr.h>
+#include <net/route.h>
+#include <net/vnet.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_eiface.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
 
 static const struct ng_cmdlist ng_eiface_cmdlist[] = {
-	{
-	  NGM_EIFACE_COOKIE,
-	  NGM_EIFACE_GET_IFNAME,
-	  "getifname",
-	  NULL,
-	  &ng_parse_string_type
-	},
-	{
-	  NGM_EIFACE_COOKIE,
-	  NGM_EIFACE_SET,
-	  "set",
-	  &ng_parse_enaddr_type,
-	  NULL
-	},
+	{ NGM_EIFACE_COOKIE, NGM_EIFACE_GET_IFNAME, "getifname", NULL,
+	    &ng_parse_string_type },
+	{ NGM_EIFACE_COOKIE, NGM_EIFACE_SET, "set", &ng_parse_enaddr_type,
+	    NULL },
 	{ 0 }
 };
 
 /* Node private data */
 struct ng_eiface_private {
-	struct ifnet	*ifp;		/* per-interface network data */
-	struct ifmedia	media;		/* (fake) media information */
-	int		link_status;	/* fake */
-	int		unit;		/* Interface unit number */
-	node_p		node;		/* Our netgraph node */
-	hook_p		ether;		/* Hook for ethernet stream */
+	struct ifnet *ifp;    /* per-interface network data */
+	struct ifmedia media; /* (fake) media information */
+	int link_status;      /* fake */
+	int unit;	      /* Interface unit number */
+	node_p node;	      /* Our netgraph node */
+	hook_p ether;	      /* Hook for ethernet stream */
 };
 typedef struct ng_eiface_private *priv_p;
 
 /* Interface methods */
-static void	ng_eiface_init(void *xsc);
-static void	ng_eiface_start(struct ifnet *ifp);
-static int	ng_eiface_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
+static void ng_eiface_init(void *xsc);
+static void ng_eiface_start(struct ifnet *ifp);
+static int ng_eiface_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 #ifdef DEBUG
-static void	ng_eiface_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
+static void ng_eiface_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 #endif
 
 /* Netgraph methods */
-static int		ng_eiface_mod_event(module_t, int, void *);
-static ng_constructor_t	ng_eiface_constructor;
-static ng_rcvmsg_t	ng_eiface_rcvmsg;
-static ng_shutdown_t	ng_eiface_rmnode;
-static ng_newhook_t	ng_eiface_newhook;
-static ng_rcvdata_t	ng_eiface_rcvdata;
-static ng_disconnect_t	ng_eiface_disconnect;
+static int ng_eiface_mod_event(module_t, int, void *);
+static ng_constructor_t ng_eiface_constructor;
+static ng_rcvmsg_t ng_eiface_rcvmsg;
+static ng_shutdown_t ng_eiface_rmnode;
+static ng_newhook_t ng_eiface_newhook;
+static ng_rcvdata_t ng_eiface_rcvdata;
+static ng_disconnect_t ng_eiface_disconnect;
 
 /* Node type descriptor */
-static struct ng_type typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_EIFACE_NODE_TYPE,
-	.mod_event =	ng_eiface_mod_event,
-	.constructor =	ng_eiface_constructor,
-	.rcvmsg =	ng_eiface_rcvmsg,
-	.shutdown =	ng_eiface_rmnode,
-	.newhook =	ng_eiface_newhook,
-	.rcvdata =	ng_eiface_rcvdata,
-	.disconnect =	ng_eiface_disconnect,
-	.cmdlist =	ng_eiface_cmdlist
-};
+static struct ng_type typestruct = { .version = NG_ABI_VERSION,
+	.name = NG_EIFACE_NODE_TYPE,
+	.mod_event = ng_eiface_mod_event,
+	.constructor = ng_eiface_constructor,
+	.rcvmsg = ng_eiface_rcvmsg,
+	.shutdown = ng_eiface_rmnode,
+	.newhook = ng_eiface_newhook,
+	.rcvdata = ng_eiface_rcvdata,
+	.disconnect = ng_eiface_disconnect,
+	.cmdlist = ng_eiface_cmdlist };
 NETGRAPH_INIT(eiface, &typestruct);
 
 VNET_DEFINE_STATIC(struct unrhdr *, ng_eiface_unit);
-#define	V_ng_eiface_unit		VNET(ng_eiface_unit)
+#define V_ng_eiface_unit VNET(ng_eiface_unit)
 
 /************************************************************************
 			INTERFACE STUFF
@@ -162,8 +147,8 @@ ng_eiface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				ifp->if_drv_flags &= ~(IFF_DRV_RUNNING |
-				    IFF_DRV_OACTIVE);
+				ifp->if_drv_flags &= ~(
+				    IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 		}
 		break;
 
@@ -224,7 +209,7 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 	/* Check interface flags */
 
 	if (!((ifp->if_flags & IFF_UP) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
+		(ifp->if_drv_flags & IFF_DRV_RUNNING)))
 		return;
 
 	for (;;) {
@@ -327,12 +312,8 @@ ng_eiface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
 	default:
 		str = "IO??";
 	}
-	log(LOG_DEBUG, "%s: %s('%c', %d, char[%d])\n",
-	    ifp->if_xname,
-	    str,
-	    IOCGROUP(command),
-	    command & 0xff,
-	    IOCPARM_LEN(command));
+	log(LOG_DEBUG, "%s: %s('%c', %d, char[%d])\n", ifp->if_xname, str,
+	    IOCGROUP(command), command & 0xff, IOCPARM_LEN(command));
 }
 #endif /* DEBUG */
 
@@ -414,8 +395,8 @@ ng_eiface_constructor(node_p node)
 	ifp->if_flags = (IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
 	ifp->if_capabilities = IFCAP_VLAN_MTU | IFCAP_JUMBO_MTU;
 	ifp->if_capenable = IFCAP_VLAN_MTU | IFCAP_JUMBO_MTU;
-	ifmedia_init(&priv->media, 0, ng_eiface_mediachange,
-	    ng_eiface_mediastatus);
+	ifmedia_init(
+	    &priv->media, 0, ng_eiface_mediachange, ng_eiface_mediastatus);
 	ifmedia_add(&priv->media, IFM_ETHER | IFM_10_T, 0, NULL);
 	ifmedia_add(&priv->media, IFM_ETHER | IFM_10_T | IFM_FDX, 0, NULL);
 	ifmedia_add(&priv->media, IFM_ETHER | IFM_100_TX, 0, NULL);
@@ -482,16 +463,15 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	switch (msg->header.typecookie) {
 	case NGM_EIFACE_COOKIE:
 		switch (msg->header.cmd) {
-		case NGM_EIFACE_SET:
-		    {
+		case NGM_EIFACE_SET: {
 			if (msg->header.arglen != ETHER_ADDR_LEN) {
 				error = EINVAL;
 				break;
 			}
-			error = if_setlladdr(priv->ifp,
-			    (u_char *)msg->data, ETHER_ADDR_LEN);
+			error = if_setlladdr(
+			    priv->ifp, (u_char *)msg->data, ETHER_ADDR_LEN);
 			break;
-		    }
+		}
 
 		case NGM_EIFACE_GET_IFNAME:
 			NG_MKRESPONSE(resp, msg, IFNAMSIZ, M_NOWAIT);
@@ -502,8 +482,7 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			strlcpy(resp->data, ifp->if_xname, IFNAMSIZ);
 			break;
 
-		case NGM_EIFACE_GET_IFADDRS:
-		    {
+		case NGM_EIFACE_GET_IFADDRS: {
 			struct epoch_tracker et;
 			struct ifaddr *ifa;
 			caddr_t ptr;
@@ -513,7 +492,7 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			buflen = 0;
 			NET_EPOCH_ENTER(et);
 			CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-				buflen += SA_SIZE(ifa->ifa_addr);
+			buflen += SA_SIZE(ifa->ifa_addr);
 			NG_MKRESPONSE(resp, msg, buflen, M_NOWAIT);
 			if (resp == NULL) {
 				NET_EPOCH_EXIT(et);
@@ -523,7 +502,8 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			/* Add addresses */
 			ptr = resp->data;
-			CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+			{
 				const int len = SA_SIZE(ifa->ifa_addr);
 
 				if (buflen < len) {
@@ -537,7 +517,7 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			NET_EPOCH_EXIT(et);
 			break;
-		    }
+		}
 
 		default:
 			error = EINVAL;
@@ -583,7 +563,7 @@ ng_eiface_rcvdata(hook_p hook, item_p item)
 	NG_FREE_ITEM(item);
 
 	if (!((ifp->if_flags & IFF_UP) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING))) {
+		(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
 		NG_FREE_M(m);
 		return (ENETDOWN);
 	}
@@ -616,7 +596,7 @@ ng_eiface_rmnode(node_p node)
 	struct ifnet *const ifp = priv->ifp;
 
 	/*
-	 * the ifnet may be in a different vnet than the netgraph node, 
+	 * the ifnet may be in a different vnet than the netgraph node,
 	 * hence we have to change the current vnet context here.
 	 */
 	CURVNET_SET_QUIET(ifp->if_vnet);
@@ -682,4 +662,4 @@ vnet_ng_eiface_uninit(const void *unused)
 	delete_unrhdr(V_ng_eiface_unit);
 }
 VNET_SYSUNINIT(vnet_ng_eiface_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
-   vnet_ng_eiface_uninit, NULL);
+    vnet_ng_eiface_uninit, NULL);

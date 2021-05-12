@@ -36,10 +36,10 @@
 #include <sys/proc.h>
 #endif
 
-#define	EARLY_COUNTER	&((struct pcpu *)pcpu_space)->pc_early_dummy_counter
+#define EARLY_COUNTER &((struct pcpu *)pcpu_space)->pc_early_dummy_counter
 
-#define	counter_enter()	critical_enter()
-#define	counter_exit()	critical_exit()
+#define counter_enter() critical_enter()
+#define counter_exit() critical_exit()
 
 #ifdef IN_SUBR_COUNTER_C
 /* XXXKIB non-atomic 64bit read on 32bit */
@@ -68,8 +68,8 @@ static void
 counter_u64_zero_one_cpu(void *arg)
 {
 
-	*((uint64_t *)((char *)arg + UMA_PCPU_ALLOC_SIZE *
-	    PCPU_GET(cpuid))) = 0;
+	*((uint64_t *)((char *)arg +
+	    UMA_PCPU_ALLOC_SIZE * PCPU_GET(cpuid))) = 0;
 }
 
 static inline void
@@ -81,10 +81,11 @@ counter_u64_zero_inline(counter_u64_t c)
 }
 #endif
 
-#define	counter_u64_add_protected(c, inc)	do {	\
-	CRITICAL_ASSERT(curthread);			\
-	*(uint64_t *)zpcpu_get(c) += (inc);		\
-} while (0)
+#define counter_u64_add_protected(c, inc)           \
+	do {                                        \
+		CRITICAL_ASSERT(curthread);         \
+		*(uint64_t *)zpcpu_get(c) += (inc); \
+	} while (0)
 
 static inline void
 counter_u64_add(counter_u64_t c, int64_t inc)
@@ -95,4 +96,4 @@ counter_u64_add(counter_u64_t c, int64_t inc)
 	counter_exit();
 }
 
-#endif	/* ! __MACHINE_COUNTER_H__ */
+#endif /* ! __MACHINE_COUNTER_H__ */

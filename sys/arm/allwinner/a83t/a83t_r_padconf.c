@@ -28,29 +28,41 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/types.h>
 
 #include <arm/allwinner/allwinner_pinctrl.h>
 
 #ifdef SOC_ALLWINNER_A83T
 
 static const struct allwinner_pins a83t_r_pins[] = {
-	{ "PL0",   0, 0,  { "gpio_in", "gpio_out", "s_rsb", "s_i2c", NULL, NULL, "eint" } },
-	{ "PL1",   0, 1,  { "gpio_in", "gpio_out", "s_rsb", "s_i2c", NULL, NULL, "eint" } },
-	{ "PL2",   0, 2,  { "gpio_in", "gpio_out", "s_uart", NULL, NULL, NULL, "eint" } },
-	{ "PL3",   0, 3,  { "gpio_in", "gpio_out", "s_uart", NULL, NULL, NULL, "eint" } },
-	{ "PL4",   0, 4,  { "gpio_in", "gpio_out", "s_jtag", NULL, NULL, NULL, "eint" } },
-	{ "PL5",   0, 5,  { "gpio_in", "gpio_out", "s_jtag", NULL, NULL, NULL, "eint" } },
-	{ "PL6",   0, 6,  { "gpio_in", "gpio_out", "s_jtag", NULL, NULL, NULL, "eint" } },
-	{ "PL7",   0, 7,  { "gpio_in", "gpio_out", "s_jtag", NULL, NULL, NULL, "eint" } },
-	{ "PL8",   0, 8,  { "gpio_in", "gpio_out", "s_i2c", NULL, NULL, NULL, "eint" } },
-	{ "PL9",   0, 9,  { "gpio_in", "gpio_out", "s_i2c", NULL, NULL, NULL, "eint" } },
-	{ "PL10",  0, 10, { "gpio_in", "gpio_out", "s_pwm", NULL, NULL, NULL, "eint" } },
-	{ "PL11",  0, 11, { "gpio_in", "gpio_out", NULL, NULL, NULL, "eint" } },
-	{ "PL12",  0, 12, { "gpio_in", "gpio_out", "s_cir", NULL, NULL, NULL, "eint" } },
+	{ "PL0", 0, 0,
+	    { "gpio_in", "gpio_out", "s_rsb", "s_i2c", NULL, NULL, "eint" } },
+	{ "PL1", 0, 1,
+	    { "gpio_in", "gpio_out", "s_rsb", "s_i2c", NULL, NULL, "eint" } },
+	{ "PL2", 0, 2,
+	    { "gpio_in", "gpio_out", "s_uart", NULL, NULL, NULL, "eint" } },
+	{ "PL3", 0, 3,
+	    { "gpio_in", "gpio_out", "s_uart", NULL, NULL, NULL, "eint" } },
+	{ "PL4", 0, 4,
+	    { "gpio_in", "gpio_out", "s_jtag", NULL, NULL, NULL, "eint" } },
+	{ "PL5", 0, 5,
+	    { "gpio_in", "gpio_out", "s_jtag", NULL, NULL, NULL, "eint" } },
+	{ "PL6", 0, 6,
+	    { "gpio_in", "gpio_out", "s_jtag", NULL, NULL, NULL, "eint" } },
+	{ "PL7", 0, 7,
+	    { "gpio_in", "gpio_out", "s_jtag", NULL, NULL, NULL, "eint" } },
+	{ "PL8", 0, 8,
+	    { "gpio_in", "gpio_out", "s_i2c", NULL, NULL, NULL, "eint" } },
+	{ "PL9", 0, 9,
+	    { "gpio_in", "gpio_out", "s_i2c", NULL, NULL, NULL, "eint" } },
+	{ "PL10", 0, 10,
+	    { "gpio_in", "gpio_out", "s_pwm", NULL, NULL, NULL, "eint" } },
+	{ "PL11", 0, 11, { "gpio_in", "gpio_out", NULL, NULL, NULL, "eint" } },
+	{ "PL12", 0, 12,
+	    { "gpio_in", "gpio_out", "s_cir", NULL, NULL, NULL, "eint" } },
 };
 
 const struct allwinner_padconf a83t_r_padconf = {

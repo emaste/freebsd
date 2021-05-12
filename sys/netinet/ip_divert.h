@@ -35,7 +35,7 @@
  */
 
 #ifndef _NETINET_IP_DIVERT_H_
-#define	_NETINET_IP_DIVERT_H_
+#define _NETINET_IP_DIVERT_H_
 
 /*
  * divert has no custom kernel-userland API.

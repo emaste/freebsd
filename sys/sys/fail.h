@@ -34,25 +34,25 @@
 #ifndef _SYS_FAIL_H_
 #define _SYS_FAIL_H_
 
-#include <sys/param.h>
 #include <sys/cdefs.h>
-#include <sys/linker_set.h>
-#include <sys/queue.h>
-#include <sys/sysctl.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/condvar.h>
 #include <sys/kernel.h>
+#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
+#include <sys/queue.h>
+#include <sys/sysctl.h>
 
 /**
  * Failpoint return codes, used internally.
  * @ingroup failpoint_private
  */
 enum fail_point_return_code {
-	FAIL_POINT_RC_CONTINUE = 0,	/**< Continue with normal execution */
-	FAIL_POINT_RC_RETURN,		/**< FP evaluated to 'return' */
-	FAIL_POINT_RC_QUEUED,		/**< sleep_fn will be called */
+	FAIL_POINT_RC_CONTINUE = 0, /**< Continue with normal execution */
+	FAIL_POINT_RC_RETURN,	    /**< FP evaluated to 'return' */
+	FAIL_POINT_RC_QUEUED,	    /**< sleep_fn will be called */
 };
 
 struct fail_point_entry;
@@ -65,14 +65,14 @@ struct fail_point_setting;
  * @ingroup failpoint_private
  */
 struct fail_point {
-	const char *fp_name;		/* name of fail point */
-	const char *fp_location;	/* file:line of fail point */
-	volatile int fp_ref_cnt;	/**
-	                             * protects fp_setting: while holding
-	                             * a ref, fp_setting points to an
-	                             * unfreed fail_point_setting
-	                             */
-	struct fail_point_setting * volatile fp_setting;
+	const char *fp_name;	 /* name of fail point */
+	const char *fp_location; /* file:line of fail point */
+	volatile int fp_ref_cnt; /**
+				  * protects fp_setting: while holding
+				  * a ref, fp_setting points to an
+				  * unfreed fail_point_setting
+				  */
+	struct fail_point_setting *volatile fp_setting;
 	int fp_flags;
 
 	/**< Function to call before sleep or pause */
@@ -88,21 +88,22 @@ struct fail_point {
 	struct callout *fp_callout;
 };
 
-#define	FAIL_POINT_DYNAMIC_NAME	0x01	/**< Must free name on destroy */
+#define FAIL_POINT_DYNAMIC_NAME 0x01 /**< Must free name on destroy */
 /**< Use timeout path for sleep instead of msleep */
 #define FAIL_POINT_USE_TIMEOUT_PATH 0x02
 /**< If fail point is set to sleep, replace the sleep call with delay */
 #define FAIL_POINT_NONSLEEPABLE 0x04
 
 #define FAIL_POINT_CV_DESC "fp cv no iterators"
-#define FAIL_POINT_IS_OFF(fp) (__predict_true((fp)->fp_setting == NULL) || \
-        __predict_true(fail_point_is_off(fp)))
+#define FAIL_POINT_IS_OFF(fp)                        \
+	(__predict_true((fp)->fp_setting == NULL) || \
+	    __predict_true(fail_point_is_off(fp)))
 
 __BEGIN_DECLS
 
 /* Private failpoint eval function -- use fail_point_eval() instead. */
-enum fail_point_return_code fail_point_eval_nontrivial(struct fail_point *,
-        int *ret);
+enum fail_point_return_code fail_point_eval_nontrivial(
+    struct fail_point *, int *ret);
 
 /**
  * @addtogroup failpoint
@@ -161,12 +162,12 @@ void fail_point_alloc_callout(struct fail_point *);
  * set fp_post_sleep_fn or an error will occur upon waking.
  */
 static inline void
-fail_point_use_timeout_path(struct fail_point *fp, bool use_timeout,
-        void (*post_sleep_fn)(void *))
+fail_point_use_timeout_path(
+    struct fail_point *fp, bool use_timeout, void (*post_sleep_fn)(void *))
 {
 	KASSERT(!use_timeout || post_sleep_fn != NULL ||
-	        (post_sleep_fn == NULL && fp->fp_post_sleep_fn != NULL),
-	        ("Setting fp to use timeout, but not setting post_sleep_fn\n"));
+		(post_sleep_fn == NULL && fp->fp_post_sleep_fn != NULL),
+	    ("Setting fp to use timeout, but not setting post_sleep_fn\n"));
 
 	if (use_timeout) {
 		fail_point_alloc_callout(fp);
@@ -198,43 +199,39 @@ __END_DECLS
 
 /* Declare a fail_point and its sysctl in a function. */
 #define KFAIL_POINT_DECLARE(name) \
-    extern struct fail_point _FAIL_POINT_NAME(name)
+	extern struct fail_point _FAIL_POINT_NAME(name)
 #define _FAIL_POINT_NAME(name) _fail_point_##name
 #define _FAIL_POINT_LOCATION() "(" __FILE__ ":" __XSTRING(__LINE__) ")"
-#define KFAIL_POINT_DEFINE(parent, name, flags) \
-	struct fail_point _FAIL_POINT_NAME(name) = { \
-	        .fp_name = #name, \
-	        .fp_location = _FAIL_POINT_LOCATION(), \
-	        .fp_ref_cnt = 0, \
-	        .fp_setting = NULL, \
-	        .fp_flags = (flags), \
-	        .fp_pre_sleep_fn = NULL, \
-	        .fp_pre_sleep_arg = NULL, \
-	        .fp_post_sleep_fn = NULL, \
-	        .fp_post_sleep_arg = NULL, \
-	}; \
-	SYSCTL_OID(parent, OID_AUTO, name, \
-	        CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, \
-	        &_FAIL_POINT_NAME(name), 0, fail_point_sysctl, \
-	        "A", ""); \
-	SYSCTL_OID(parent, OID_AUTO, status_##name, \
-	        CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, \
-	        &_FAIL_POINT_NAME(name), 0, \
-	        fail_point_sysctl_status, "A", "");
+#define KFAIL_POINT_DEFINE(parent, name, flags)                      \
+	struct fail_point _FAIL_POINT_NAME(name) = {                 \
+		.fp_name = #name,                                    \
+		.fp_location = _FAIL_POINT_LOCATION(),               \
+		.fp_ref_cnt = 0,                                     \
+		.fp_setting = NULL,                                  \
+		.fp_flags = (flags),                                 \
+		.fp_pre_sleep_fn = NULL,                             \
+		.fp_pre_sleep_arg = NULL,                            \
+		.fp_post_sleep_fn = NULL,                            \
+		.fp_post_sleep_arg = NULL,                           \
+	};                                                           \
+	SYSCTL_OID(parent, OID_AUTO, name,                           \
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,            \
+	    &_FAIL_POINT_NAME(name), 0, fail_point_sysctl, "A", ""); \
+	SYSCTL_OID(parent, OID_AUTO, status_##name,                  \
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,            \
+	    &_FAIL_POINT_NAME(name), 0, fail_point_sysctl_status, "A", "");
 
 #define _FAIL_POINT_INIT(parent, name, flags) \
 	static KFAIL_POINT_DEFINE(parent, name, flags)
-#define _FAIL_POINT_EVAL(name, cond, code...) \
-	int RETURN_VALUE; \
- \
-	if (__predict_false(cond && \
-	        fail_point_eval(&_FAIL_POINT_NAME(name), &RETURN_VALUE))) { \
- \
-		code; \
- \
+#define _FAIL_POINT_EVAL(name, cond, code...)                               \
+	int RETURN_VALUE;                                                   \
+                                                                            \
+	if (__predict_false(cond &&                                         \
+		fail_point_eval(&_FAIL_POINT_NAME(name), &RETURN_VALUE))) { \
+                                                                            \
+		code;                                                       \
 	}
-#define KFAIL_POINT_EVAL(name, code...) \
-	_FAIL_POINT_EVAL(name, true, code)
+#define KFAIL_POINT_EVAL(name, code...) _FAIL_POINT_EVAL(name, true, code)
 
 /**
  * Instantiate a failpoint which returns "RETURN_VALUE" from the function
@@ -255,7 +252,7 @@ __END_DECLS
  * @return        Instantly returns void, if triggered in the failpoint.
  */
 #define KFAIL_POINT_RETURN_VOID(parent, name) \
-	KFAIL_POINT_CODE(parent, name, return)
+	KFAIL_POINT_CODE(parent, name, return )
 
 /**
  * Instantiate a failpoint which sets an error when triggered.
@@ -294,10 +291,10 @@ __END_DECLS
  *                   called directly before going to sleep.
  * @param post_arg   Argument to the post-sleep function
  */
-#define KFAIL_POINT_SLEEP_CALLBACKS(parent, name, pre_func, pre_arg, \
-        post_func, post_arg) \
-	KFAIL_POINT_CODE_SLEEP_CALLBACKS(parent, name, pre_func, \
-	    pre_arg, post_func, post_arg, return RETURN_VALUE)
+#define KFAIL_POINT_SLEEP_CALLBACKS(                                      \
+    parent, name, pre_func, pre_arg, post_func, post_arg)                 \
+	KFAIL_POINT_CODE_SLEEP_CALLBACKS(parent, name, pre_func, pre_arg, \
+	    post_func, post_arg, return RETURN_VALUE)
 
 /**
  * Instantiate a failpoint which runs arbitrary code when triggered, and sets
@@ -317,15 +314,15 @@ __END_DECLS
  *                   implemented with a do-while loop so be careful of
  *                   break and continue statements.
  */
-#define KFAIL_POINT_CODE_SLEEP_CALLBACKS(parent, name, pre_func, pre_arg, \
-        post_func, post_arg, code...) \
-	do { \
-		_FAIL_POINT_INIT(parent, name) \
-		_FAIL_POINT_NAME(name).fp_pre_sleep_fn = pre_func; \
-		_FAIL_POINT_NAME(name).fp_pre_sleep_arg = pre_arg; \
+#define KFAIL_POINT_CODE_SLEEP_CALLBACKS(                            \
+    parent, name, pre_func, pre_arg, post_func, post_arg, code...)   \
+	do {                                                         \
+		_FAIL_POINT_INIT(parent, name)                       \
+		_FAIL_POINT_NAME(name).fp_pre_sleep_fn = pre_func;   \
+		_FAIL_POINT_NAME(name).fp_pre_sleep_arg = pre_arg;   \
 		_FAIL_POINT_NAME(name).fp_post_sleep_fn = post_func; \
 		_FAIL_POINT_NAME(name).fp_post_sleep_arg = post_arg; \
-		_FAIL_POINT_EVAL(name, true, code) \
+		_FAIL_POINT_EVAL(name, true, code)                   \
 	} while (0)
 
 /**
@@ -339,22 +336,22 @@ __END_DECLS
  *                   implemented with a do-while loop so be careful of
  *                   break and continue statements.
  */
-#define KFAIL_POINT_CODE(parent, name, code...) \
-	do { \
-		_FAIL_POINT_INIT(parent, name, 0) \
+#define KFAIL_POINT_CODE(parent, name, code...)    \
+	do {                                       \
+		_FAIL_POINT_INIT(parent, name, 0)  \
 		_FAIL_POINT_EVAL(name, true, code) \
 	} while (0)
 
 #define KFAIL_POINT_CODE_FLAGS(parent, name, flags, code...) \
-	do { \
-		_FAIL_POINT_INIT(parent, name, flags) \
-		_FAIL_POINT_EVAL(name, true, code) \
+	do {                                                 \
+		_FAIL_POINT_INIT(parent, name, flags)        \
+		_FAIL_POINT_EVAL(name, true, code)           \
 	} while (0)
 
 #define KFAIL_POINT_CODE_COND(parent, name, cond, flags, code...) \
-	do { \
-		_FAIL_POINT_INIT(parent, name, flags) \
-		_FAIL_POINT_EVAL(name, cond, code) \
+	do {                                                      \
+		_FAIL_POINT_INIT(parent, name, flags)             \
+		_FAIL_POINT_EVAL(name, cond, code)                \
 	} while (0)
 
 /**
@@ -368,7 +365,7 @@ int fail_point_sysctl_status(SYSCTL_HANDLER_ARGS);
 
 /* The fail point sysctl tree. */
 SYSCTL_DECL(_debug_fail_point);
-#define	DEBUG_FP	_debug_fail_point
+#define DEBUG_FP _debug_fail_point
 #endif
 
 #endif /* _SYS_FAIL_H_ */

@@ -30,15 +30,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/endian.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
-#include <sys/jail.h>
 #include <sys/uuid.h>
 
 #include <net/if.h>
@@ -60,30 +60,30 @@ CTASSERT(sizeof(struct uuid) == 16);
 /* We use an alternative, more convenient representation in the generator. */
 struct uuid_private {
 	union {
-		uint64_t	ll;	/* internal, for uuid_last only */
+		uint64_t ll; /* internal, for uuid_last only */
 		struct {
-			uint32_t	low;
-			uint16_t	mid;
-			uint16_t	hi;
+			uint32_t low;
+			uint16_t mid;
+			uint16_t hi;
 		} x;
 	} time;
-	uint16_t	seq;			/* Big-endian. */
-	uint16_t	node[UUID_NODE_LEN>>1];
+	uint16_t seq; /* Big-endian. */
+	uint16_t node[UUID_NODE_LEN >> 1];
 };
 
 CTASSERT(sizeof(struct uuid_private) == 16);
 
 struct uuid_macaddr {
-	uint16_t	state;
-#define	UUID_ETHER_EMPTY	0
-#define	UUID_ETHER_RANDOM	1
-#define	UUID_ETHER_UNIQUE	2
-	uint16_t	node[UUID_NODE_LEN>>1];
+	uint16_t state;
+#define UUID_ETHER_EMPTY 0
+#define UUID_ETHER_RANDOM 1
+#define UUID_ETHER_UNIQUE 2
+	uint16_t node[UUID_NODE_LEN >> 1];
 };
 
 static struct uuid_private uuid_last;
 
-#define UUID_NETHER	4
+#define UUID_NETHER 4
 static struct uuid_macaddr uuid_ether[UUID_NETHER];
 
 static struct mtx uuid_mutex;
@@ -101,12 +101,12 @@ uuid_node(uint16_t *node)
 	int i;
 
 	if (uuid_ether[0].state == UUID_ETHER_EMPTY) {
-		for (i = 0; i < (UUID_NODE_LEN>>1); i++)
+		for (i = 0; i < (UUID_NODE_LEN >> 1); i++)
 			uuid_ether[0].node[i] = (uint16_t)arc4random();
-		*((uint8_t*)uuid_ether[0].node) |= 0x01;
+		*((uint8_t *)uuid_ether[0].node) |= 0x01;
 		uuid_ether[0].state = UUID_ETHER_RANDOM;
 	}
-	for (i = 0; i < (UUID_NODE_LEN>>1); i++)
+	for (i = 0; i < (UUID_NODE_LEN >> 1); i++)
 		node[i] = uuid_ether[0].node[i];
 }
 
@@ -172,7 +172,7 @@ kern_uuidgen(struct uuid *store, size_t count)
 #ifndef _SYS_SYSPROTO_H_
 struct uuidgen_args {
 	struct uuid *store;
-	int	count;
+	int count;
 };
 #endif
 int
@@ -432,12 +432,14 @@ validate_uuid(const char *str, size_t size, struct uuid *uuid, int flags)
 	if ((flags & VUUIDF_CHECKSEMANTICS) == 0)
 		return (0);
 
-	return (((c[3] & 0x80) != 0x00 &&		/* variant 0? */
-	    (c[3] & 0xc0) != 0x80 &&			/* variant 1? */
-	    (c[3] & 0xe0) != 0xc0) ? EINVAL : 0);	/* variant 2? */
+	return (((c[3] & 0x80) != 0x00 &&    /* variant 0? */
+		    (c[3] & 0xc0) != 0x80 && /* variant 1? */
+		    (c[3] & 0xe0) != 0xc0) ?
+		      EINVAL :
+		      0); /* variant 2? */
 }
 
-#define	VUUIDF_PARSEFLAGS	(VUUIDF_EMPTYOK | VUUIDF_CHECKSEMANTICS)
+#define VUUIDF_PARSEFLAGS (VUUIDF_EMPTYOK | VUUIDF_CHECKSEMANTICS)
 
 int
 parse_uuid(const char *str, struct uuid *uuid)

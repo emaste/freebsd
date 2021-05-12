@@ -33,70 +33,67 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
 #include <sys/ctype.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
-
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_ipfw.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
-#include <netinet/ip_var.h>
-#include <netinet/ip_fw.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
+#include <netinet/ip_fw.h>
+#include <netinet/ip_var.h>
 #include <netinet6/ip6_var.h>
-
 #include <netpfil/ipfw/ip_fw_private.h>
 
-#include <netgraph/ng_message.h>
-#include <netgraph/ng_parse.h>
-#include <netgraph/ng_ipfw.h>
-#include <netgraph/netgraph.h>
+static int ng_ipfw_mod_event(module_t mod, int event, void *data);
+static ng_constructor_t ng_ipfw_constructor;
+static ng_shutdown_t ng_ipfw_shutdown;
+static ng_newhook_t ng_ipfw_newhook;
+static ng_connect_t ng_ipfw_connect;
+static ng_findhook_t ng_ipfw_findhook;
+static ng_rcvdata_t ng_ipfw_rcvdata;
+static ng_disconnect_t ng_ipfw_disconnect;
 
-static int		ng_ipfw_mod_event(module_t mod, int event, void *data);
-static ng_constructor_t	ng_ipfw_constructor;
-static ng_shutdown_t	ng_ipfw_shutdown;
-static ng_newhook_t	ng_ipfw_newhook;
-static ng_connect_t	ng_ipfw_connect;
-static ng_findhook_t	ng_ipfw_findhook;
-static ng_rcvdata_t	ng_ipfw_rcvdata;
-static ng_disconnect_t	ng_ipfw_disconnect;
-
-static hook_p		ng_ipfw_findhook1(node_p, u_int16_t );
-static int	ng_ipfw_input(struct mbuf **, struct ip_fw_args *, bool);
+static hook_p ng_ipfw_findhook1(node_p, u_int16_t);
+static int ng_ipfw_input(struct mbuf **, struct ip_fw_args *, bool);
 
 /* We have only one node */
-static node_p	fw_node;
+static node_p fw_node;
 
 /* Netgraph node type descriptor */
 static struct ng_type ng_ipfw_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_IPFW_NODE_TYPE,
-	.mod_event =	ng_ipfw_mod_event,
-	.constructor =	ng_ipfw_constructor,
-	.shutdown =	ng_ipfw_shutdown,
-	.newhook =	ng_ipfw_newhook,
-	.connect =	ng_ipfw_connect,
-	.findhook =	ng_ipfw_findhook,
-	.rcvdata =	ng_ipfw_rcvdata,
-	.disconnect =	ng_ipfw_disconnect,
+	.version = NG_ABI_VERSION,
+	.name = NG_IPFW_NODE_TYPE,
+	.mod_event = ng_ipfw_mod_event,
+	.constructor = ng_ipfw_constructor,
+	.shutdown = ng_ipfw_shutdown,
+	.newhook = ng_ipfw_newhook,
+	.connect = ng_ipfw_connect,
+	.findhook = ng_ipfw_findhook,
+	.rcvdata = ng_ipfw_rcvdata,
+	.disconnect = ng_ipfw_disconnect,
 };
 NETGRAPH_INIT(ipfw, &ng_ipfw_typestruct);
 MODULE_DEPEND(ng_ipfw, ipfw, 3, 3, 3);
 
 /* Information we store for each hook */
 struct ng_ipfw_hook_priv {
-        hook_p		hook;
-	u_int16_t	rulenum;
+	hook_p hook;
+	u_int16_t rulenum;
 };
 typedef struct ng_ipfw_hook_priv *hpriv_p;
 
@@ -114,10 +111,10 @@ ng_ipfw_mod_event(module_t mod, int event, void *data)
 		}
 
 		/* Setup node without any private data */
-		if ((error = ng_make_node_common(&ng_ipfw_typestruct, &fw_node))
-		    != 0) {
+		if ((error = ng_make_node_common(
+			 &ng_ipfw_typestruct, &fw_node)) != 0) {
 			log(LOG_ERR, "%s: can't create ng_ipfw node", __func__);
-                	break;
+			break;
 		}
 
 		/* Try to name node */
@@ -130,10 +127,10 @@ ng_ipfw_mod_event(module_t mod, int event, void *data)
 		break;
 
 	case MOD_UNLOAD:
-		 /*
-		  * This won't happen if a node exists.
-		  * ng_ipfw_input_p is already cleared.
-		  */
+		/*
+		 * This won't happen if a node exists.
+		 * ng_ipfw_input_p is already cleared.
+		 */
 		break;
 
 	default:
@@ -147,13 +144,13 @@ ng_ipfw_mod_event(module_t mod, int event, void *data)
 static int
 ng_ipfw_constructor(node_p node)
 {
-	return (EINVAL);	/* Only one node */
+	return (EINVAL); /* Only one node */
 }
 
 static int
 ng_ipfw_newhook(node_p node, hook_p hook, const char *name)
 {
-	hpriv_p	hpriv;
+	hpriv_p hpriv;
 	u_int16_t rulenum;
 	const char *cp;
 	char *endptr;
@@ -174,7 +171,7 @@ ng_ipfw_newhook(node_p node, hook_p hook, const char *name)
 
 	/* Allocate memory for this hook's private data */
 	hpriv = malloc(sizeof(*hpriv), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (hpriv== NULL)
+	if (hpriv == NULL)
 		return (ENOMEM);
 
 	hpriv->hook = hook;
@@ -182,7 +179,7 @@ ng_ipfw_newhook(node_p node, hook_p hook, const char *name)
 
 	NG_HOOK_SET_PRIVATE(hook, hpriv);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -200,7 +197,7 @@ ng_ipfw_connect(hook_p hook)
 static hook_p
 ng_ipfw_findhook(node_p node, const char *name)
 {
-	u_int16_t n;	/* numeric representation of hook */
+	u_int16_t n; /* numeric representation of hook */
 	char *endptr;
 
 	n = (u_int16_t)strtol(name, &endptr, 10);
@@ -213,13 +210,13 @@ ng_ipfw_findhook(node_p node, const char *name)
 static hook_p
 ng_ipfw_findhook1(node_p node, u_int16_t rulenum)
 {
-	hook_p	hook;
-	hpriv_p	hpriv;
+	hook_p hook;
+	hpriv_p hpriv;
 
-	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
+	LIST_FOREACH (hook, &node->nd_hooks, hk_hooks) {
 		hpriv = NG_HOOK_PRIVATE(hook);
 		if (NG_HOOK_IS_VALID(hook) && (hpriv->rulenum == rulenum))
-                        return (hook);
+			return (hook);
 	}
 
 	return (NULL);
@@ -239,7 +236,7 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 	tag = m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL);
 	if (tag == NULL) {
 		NG_FREE_M(m);
-		return (EINVAL);	/* XXX: find smth better */
+		return (EINVAL); /* XXX: find smth better */
 	}
 
 	if (m->m_len < sizeof(struct ip) &&
@@ -266,13 +263,12 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 		switch (ip->ip_v) {
 #ifdef INET
 		case IPVERSION:
-			return (ip_output(m, NULL, NULL, IP_FORWARDING,
-			    NULL, NULL));
+			return (ip_output(
+			    m, NULL, NULL, IP_FORWARDING, NULL, NULL));
 #endif
 #ifdef INET6
 		case IPV6_VERSION >> 4:
-			return (ip6_output(m, NULL, NULL, 0, NULL,
-			    NULL, NULL));
+			return (ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL));
 #endif
 		}
 	}
@@ -286,15 +282,15 @@ static int
 ng_ipfw_input(struct mbuf **m0, struct ip_fw_args *fwa, bool tee)
 {
 	struct mbuf *m;
-	hook_p	hook;
+	hook_p hook;
 	int error = 0;
 
 	/*
 	 * Node must be loaded and corresponding hook must be present.
 	 */
-	if (fw_node == NULL || 
-	   (hook = ng_ipfw_findhook1(fw_node, fwa->rule.info)) == NULL)
-		return (ESRCH);		/* no hook associated with this rule */
+	if (fw_node == NULL ||
+	    (hook = ng_ipfw_findhook1(fw_node, fwa->rule.info)) == NULL)
+		return (ESRCH); /* no hook associated with this rule */
 
 	/*
 	 * We have two modes: in normal mode we add a tag to packet, which is
@@ -305,24 +301,23 @@ ng_ipfw_input(struct mbuf **m0, struct ip_fw_args *fwa, bool tee)
 		struct m_tag *tag;
 		struct ipfw_rule_ref *r;
 		m = *m0;
-		*m0 = NULL;	/* it belongs now to netgraph */
+		*m0 = NULL; /* it belongs now to netgraph */
 
-		tag = m_tag_alloc(MTAG_IPFW_RULE, 0, sizeof(*r),
-			M_NOWAIT|M_ZERO);
+		tag = m_tag_alloc(
+		    MTAG_IPFW_RULE, 0, sizeof(*r), M_NOWAIT | M_ZERO);
 		if (tag == NULL) {
 			m_freem(m);
 			return (ENOMEM);
 		}
 		r = (struct ipfw_rule_ref *)(tag + 1);
 		*r = fwa->rule;
-		r->info &= IPFW_ONEPASS;  /* keep this info */
-		r->info |= (fwa->flags & IPFW_ARGS_IN) ?
-		    IPFW_INFO_IN : IPFW_INFO_OUT;
+		r->info &= IPFW_ONEPASS; /* keep this info */
+		r->info |= (fwa->flags & IPFW_ARGS_IN) ? IPFW_INFO_IN :
+							       IPFW_INFO_OUT;
 		m_tag_prepend(m, tag);
 
-	} else
-		if ((m = m_dup(*m0, M_NOWAIT)) == NULL)
-			return (ENOMEM);	/* which is ignored */
+	} else if ((m = m_dup(*m0, M_NOWAIT)) == NULL)
+		return (ENOMEM); /* which is ignored */
 
 	if (m->m_len < sizeof(struct ip) &&
 	    (m = m_pullup(m, sizeof(struct ip))) == NULL)

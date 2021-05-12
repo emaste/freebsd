@@ -29,7 +29,7 @@
 
 #ifndef _GEOM_GEOM_FLASHMAP_H_
 
-#define	FLASHMAP_CLASS_NAME "Flashmap"
+#define FLASHMAP_CLASS_NAME "Flashmap"
 
 struct g_flashmap {
 	const char *labels[FLASH_SLICES_MAX_NUM];

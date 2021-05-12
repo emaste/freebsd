@@ -30,200 +30,198 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_syscons.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/clock.h>
-#include <sys/eventhandler.h>
-#include <sys/time.h>
 #include <sys/bus.h>
+#include <sys/clock.h>
+#include <sys/consio.h>
+#include <sys/eventhandler.h>
+#include <sys/fbio.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <sys/fbio.h>
-#include <sys/consio.h>
 
 #include <machine/bus.h>
 
 #include <dev/extres/clk/clk.h>
-
+#include <dev/fb/fbreg.h>
 #include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/videomode/videomode.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/videomode/edidvar.h>
-
-#include <dev/fb/fbreg.h>
+#include <dev/videomode/videomode.h>
 #ifdef DEV_SC
 #include <dev/syscons/syscons.h>
 #else /* VT */
 #include <dev/vt/vt.h>
 #endif
 
-#include <arm/ti/ti_sysc.h>
 #include <arm/ti/ti_scm.h>
+#include <arm/ti/ti_sysc.h>
 
 #include "am335x_lcd.h"
 #include "am335x_pwm.h"
-
 #include "fb_if.h"
 #include "hdmi_if.h"
 
-#define	LCD_PID			0x00
-#define	LCD_CTRL		0x04
-#define		CTRL_DIV_MASK		0xff
-#define		CTRL_DIV_SHIFT		8
-#define		CTRL_AUTO_UFLOW_RESTART	(1 << 1)
-#define		CTRL_RASTER_MODE	1
-#define		CTRL_LIDD_MODE		0
-#define	LCD_LIDD_CTRL		0x0C
-#define	LCD_LIDD_CS0_CONF	0x10
-#define	LCD_LIDD_CS0_ADDR	0x14
-#define	LCD_LIDD_CS0_DATA	0x18
-#define	LCD_LIDD_CS1_CONF	0x1C
-#define	LCD_LIDD_CS1_ADDR	0x20
-#define	LCD_LIDD_CS1_DATA	0x24
-#define	LCD_RASTER_CTRL		0x28
-#define		RASTER_CTRL_TFT24_UNPACKED	(1 << 26)
-#define		RASTER_CTRL_TFT24		(1 << 25)
-#define		RASTER_CTRL_STN565		(1 << 24)
-#define		RASTER_CTRL_TFTPMAP		(1 << 23)
-#define		RASTER_CTRL_NIBMODE		(1 << 22)
-#define		RASTER_CTRL_PALMODE_SHIFT	20
-#define		PALETTE_PALETTE_AND_DATA	0x00
-#define		PALETTE_PALETTE_ONLY		0x01
-#define		PALETTE_DATA_ONLY		0x02
-#define		RASTER_CTRL_REQDLY_SHIFT	12
-#define		RASTER_CTRL_MONO8B		(1 << 9)
-#define		RASTER_CTRL_RBORDER		(1 << 8)
-#define		RASTER_CTRL_LCDTFT		(1 << 7)
-#define		RASTER_CTRL_LCDBW		(1 << 1)
-#define		RASTER_CTRL_LCDEN		(1 << 0)
-#define	LCD_RASTER_TIMING_0	0x2C
-#define		RASTER_TIMING_0_HBP_SHIFT	24
-#define		RASTER_TIMING_0_HFP_SHIFT	16
-#define		RASTER_TIMING_0_HSW_SHIFT	10
-#define		RASTER_TIMING_0_PPLLSB_SHIFT	4
-#define		RASTER_TIMING_0_PPLMSB_SHIFT	3
-#define	LCD_RASTER_TIMING_1	0x30
-#define		RASTER_TIMING_1_VBP_SHIFT	24
-#define		RASTER_TIMING_1_VFP_SHIFT	16
-#define		RASTER_TIMING_1_VSW_SHIFT	10
-#define		RASTER_TIMING_1_LPP_SHIFT	0
-#define	LCD_RASTER_TIMING_2	0x34
-#define		RASTER_TIMING_2_HSWHI_SHIFT	27
-#define		RASTER_TIMING_2_LPP_B10_SHIFT	26
-#define		RASTER_TIMING_2_PHSVS		(1 << 25)
-#define		RASTER_TIMING_2_PHSVS_RISE	(1 << 24)
-#define		RASTER_TIMING_2_PHSVS_FALL	(0 << 24)
-#define		RASTER_TIMING_2_IOE		(1 << 23)
-#define		RASTER_TIMING_2_IPC		(1 << 22)
-#define		RASTER_TIMING_2_IHS		(1 << 21)
-#define		RASTER_TIMING_2_IVS		(1 << 20)
-#define		RASTER_TIMING_2_ACBI_SHIFT	16
-#define		RASTER_TIMING_2_ACB_SHIFT	8
-#define		RASTER_TIMING_2_HBPHI_SHIFT	4
-#define		RASTER_TIMING_2_HFPHI_SHIFT	0
-#define	LCD_RASTER_SUBPANEL	0x38
-#define	LCD_RASTER_SUBPANEL2	0x3C
-#define	LCD_LCDDMA_CTRL		0x40
-#define		LCDDMA_CTRL_DMA_MASTER_PRIO_SHIFT		16
-#define		LCDDMA_CTRL_TH_FIFO_RDY_SHIFT	8
-#define		LCDDMA_CTRL_BURST_SIZE_SHIFT	4
-#define		LCDDMA_CTRL_BYTES_SWAP		(1 << 3)
-#define		LCDDMA_CTRL_BE			(1 << 1)
-#define		LCDDMA_CTRL_FB0_ONLY		0
-#define		LCDDMA_CTRL_FB0_FB1		(1 << 0)
-#define	LCD_LCDDMA_FB0_BASE	0x44
-#define	LCD_LCDDMA_FB0_CEILING	0x48
-#define	LCD_LCDDMA_FB1_BASE	0x4C
-#define	LCD_LCDDMA_FB1_CEILING	0x50
-#define	LCD_SYSCONFIG		0x54
-#define		SYSCONFIG_STANDBY_FORCE		(0 << 4)
-#define		SYSCONFIG_STANDBY_NONE		(1 << 4)
-#define		SYSCONFIG_STANDBY_SMART		(2 << 4)
-#define		SYSCONFIG_IDLE_FORCE		(0 << 2)
-#define		SYSCONFIG_IDLE_NONE		(1 << 2)
-#define		SYSCONFIG_IDLE_SMART		(2 << 2)
-#define	LCD_IRQSTATUS_RAW	0x58
-#define	LCD_IRQSTATUS		0x5C
-#define	LCD_IRQENABLE_SET	0x60
-#define	LCD_IRQENABLE_CLEAR	0x64
-#define		IRQ_EOF1		(1 << 9)
-#define		IRQ_EOF0		(1 << 8)
-#define		IRQ_PL			(1 << 6)
-#define		IRQ_FUF			(1 << 5)
-#define		IRQ_ACB			(1 << 3)
-#define		IRQ_SYNC_LOST		(1 << 2)
-#define		IRQ_RASTER_DONE		(1 << 1)
-#define		IRQ_FRAME_DONE		(1 << 0)
-#define	LCD_END_OF_INT_IND	0x68
-#define	LCD_CLKC_ENABLE		0x6C
-#define		CLKC_ENABLE_DMA		(1 << 2)
-#define		CLKC_ENABLE_LDID	(1 << 1)
-#define		CLKC_ENABLE_CORE	(1 << 0)
-#define	LCD_CLKC_RESET		0x70
-#define		CLKC_RESET_MAIN		(1 << 3)
-#define		CLKC_RESET_DMA		(1 << 2)
-#define		CLKC_RESET_LDID		(1 << 1)
-#define		CLKC_RESET_CORE		(1 << 0)
+#define LCD_PID 0x00
+#define LCD_CTRL 0x04
+#define CTRL_DIV_MASK 0xff
+#define CTRL_DIV_SHIFT 8
+#define CTRL_AUTO_UFLOW_RESTART (1 << 1)
+#define CTRL_RASTER_MODE 1
+#define CTRL_LIDD_MODE 0
+#define LCD_LIDD_CTRL 0x0C
+#define LCD_LIDD_CS0_CONF 0x10
+#define LCD_LIDD_CS0_ADDR 0x14
+#define LCD_LIDD_CS0_DATA 0x18
+#define LCD_LIDD_CS1_CONF 0x1C
+#define LCD_LIDD_CS1_ADDR 0x20
+#define LCD_LIDD_CS1_DATA 0x24
+#define LCD_RASTER_CTRL 0x28
+#define RASTER_CTRL_TFT24_UNPACKED (1 << 26)
+#define RASTER_CTRL_TFT24 (1 << 25)
+#define RASTER_CTRL_STN565 (1 << 24)
+#define RASTER_CTRL_TFTPMAP (1 << 23)
+#define RASTER_CTRL_NIBMODE (1 << 22)
+#define RASTER_CTRL_PALMODE_SHIFT 20
+#define PALETTE_PALETTE_AND_DATA 0x00
+#define PALETTE_PALETTE_ONLY 0x01
+#define PALETTE_DATA_ONLY 0x02
+#define RASTER_CTRL_REQDLY_SHIFT 12
+#define RASTER_CTRL_MONO8B (1 << 9)
+#define RASTER_CTRL_RBORDER (1 << 8)
+#define RASTER_CTRL_LCDTFT (1 << 7)
+#define RASTER_CTRL_LCDBW (1 << 1)
+#define RASTER_CTRL_LCDEN (1 << 0)
+#define LCD_RASTER_TIMING_0 0x2C
+#define RASTER_TIMING_0_HBP_SHIFT 24
+#define RASTER_TIMING_0_HFP_SHIFT 16
+#define RASTER_TIMING_0_HSW_SHIFT 10
+#define RASTER_TIMING_0_PPLLSB_SHIFT 4
+#define RASTER_TIMING_0_PPLMSB_SHIFT 3
+#define LCD_RASTER_TIMING_1 0x30
+#define RASTER_TIMING_1_VBP_SHIFT 24
+#define RASTER_TIMING_1_VFP_SHIFT 16
+#define RASTER_TIMING_1_VSW_SHIFT 10
+#define RASTER_TIMING_1_LPP_SHIFT 0
+#define LCD_RASTER_TIMING_2 0x34
+#define RASTER_TIMING_2_HSWHI_SHIFT 27
+#define RASTER_TIMING_2_LPP_B10_SHIFT 26
+#define RASTER_TIMING_2_PHSVS (1 << 25)
+#define RASTER_TIMING_2_PHSVS_RISE (1 << 24)
+#define RASTER_TIMING_2_PHSVS_FALL (0 << 24)
+#define RASTER_TIMING_2_IOE (1 << 23)
+#define RASTER_TIMING_2_IPC (1 << 22)
+#define RASTER_TIMING_2_IHS (1 << 21)
+#define RASTER_TIMING_2_IVS (1 << 20)
+#define RASTER_TIMING_2_ACBI_SHIFT 16
+#define RASTER_TIMING_2_ACB_SHIFT 8
+#define RASTER_TIMING_2_HBPHI_SHIFT 4
+#define RASTER_TIMING_2_HFPHI_SHIFT 0
+#define LCD_RASTER_SUBPANEL 0x38
+#define LCD_RASTER_SUBPANEL2 0x3C
+#define LCD_LCDDMA_CTRL 0x40
+#define LCDDMA_CTRL_DMA_MASTER_PRIO_SHIFT 16
+#define LCDDMA_CTRL_TH_FIFO_RDY_SHIFT 8
+#define LCDDMA_CTRL_BURST_SIZE_SHIFT 4
+#define LCDDMA_CTRL_BYTES_SWAP (1 << 3)
+#define LCDDMA_CTRL_BE (1 << 1)
+#define LCDDMA_CTRL_FB0_ONLY 0
+#define LCDDMA_CTRL_FB0_FB1 (1 << 0)
+#define LCD_LCDDMA_FB0_BASE 0x44
+#define LCD_LCDDMA_FB0_CEILING 0x48
+#define LCD_LCDDMA_FB1_BASE 0x4C
+#define LCD_LCDDMA_FB1_CEILING 0x50
+#define LCD_SYSCONFIG 0x54
+#define SYSCONFIG_STANDBY_FORCE (0 << 4)
+#define SYSCONFIG_STANDBY_NONE (1 << 4)
+#define SYSCONFIG_STANDBY_SMART (2 << 4)
+#define SYSCONFIG_IDLE_FORCE (0 << 2)
+#define SYSCONFIG_IDLE_NONE (1 << 2)
+#define SYSCONFIG_IDLE_SMART (2 << 2)
+#define LCD_IRQSTATUS_RAW 0x58
+#define LCD_IRQSTATUS 0x5C
+#define LCD_IRQENABLE_SET 0x60
+#define LCD_IRQENABLE_CLEAR 0x64
+#define IRQ_EOF1 (1 << 9)
+#define IRQ_EOF0 (1 << 8)
+#define IRQ_PL (1 << 6)
+#define IRQ_FUF (1 << 5)
+#define IRQ_ACB (1 << 3)
+#define IRQ_SYNC_LOST (1 << 2)
+#define IRQ_RASTER_DONE (1 << 1)
+#define IRQ_FRAME_DONE (1 << 0)
+#define LCD_END_OF_INT_IND 0x68
+#define LCD_CLKC_ENABLE 0x6C
+#define CLKC_ENABLE_DMA (1 << 2)
+#define CLKC_ENABLE_LDID (1 << 1)
+#define CLKC_ENABLE_CORE (1 << 0)
+#define LCD_CLKC_RESET 0x70
+#define CLKC_RESET_MAIN (1 << 3)
+#define CLKC_RESET_DMA (1 << 2)
+#define CLKC_RESET_LDID (1 << 1)
+#define CLKC_RESET_CORE (1 << 0)
 
-#define	LCD_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	LCD_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define	LCD_LOCK_INIT(_sc)	mtx_init(&(_sc)->sc_mtx, \
-    device_get_nameunit(_sc->sc_dev), "am335x_lcd", MTX_DEF)
-#define	LCD_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx);
+#define LCD_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define LCD_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
+#define LCD_LOCK_INIT(_sc)                                         \
+	mtx_init(&(_sc)->sc_mtx, device_get_nameunit(_sc->sc_dev), \
+	    "am335x_lcd", MTX_DEF)
+#define LCD_LOCK_DESTROY(_sc) mtx_destroy(&(_sc)->sc_mtx);
 
-#define	LCD_READ4(_sc, reg)	bus_read_4((_sc)->sc_mem_res, reg);
-#define	LCD_WRITE4(_sc, reg, value)	\
-    bus_write_4((_sc)->sc_mem_res, reg, value);
+#define LCD_READ4(_sc, reg) bus_read_4((_sc)->sc_mem_res, reg);
+#define LCD_WRITE4(_sc, reg, value) bus_write_4((_sc)->sc_mem_res, reg, value);
 
 /* Backlight is controlled by eCAS interface on PWM unit 0 */
-#define	PWM_UNIT	0
-#define	PWM_PERIOD	100
+#define PWM_UNIT 0
+#define PWM_PERIOD 100
 
-#define	MODE_HBP(mode)	((mode)->htotal - (mode)->hsync_end)
-#define	MODE_HFP(mode)	((mode)->hsync_start - (mode)->hdisplay)
-#define	MODE_HSW(mode)	((mode)->hsync_end - (mode)->hsync_start)
-#define	MODE_VBP(mode)	((mode)->vtotal - (mode)->vsync_end)
-#define	MODE_VFP(mode)	((mode)->vsync_start - (mode)->vdisplay)
-#define	MODE_VSW(mode)	((mode)->vsync_end - (mode)->vsync_start)
+#define MODE_HBP(mode) ((mode)->htotal - (mode)->hsync_end)
+#define MODE_HFP(mode) ((mode)->hsync_start - (mode)->hdisplay)
+#define MODE_HSW(mode) ((mode)->hsync_end - (mode)->hsync_start)
+#define MODE_VBP(mode) ((mode)->vtotal - (mode)->vsync_end)
+#define MODE_VFP(mode) ((mode)->vsync_start - (mode)->vdisplay)
+#define MODE_VSW(mode) ((mode)->vsync_end - (mode)->vsync_start)
 
-#define	MAX_PIXEL_CLOCK	126000
-#define	MAX_BANDWIDTH	(1280*1024*60)
+#define MAX_PIXEL_CLOCK 126000
+#define MAX_BANDWIDTH (1280 * 1024 * 60)
 
 struct am335x_lcd_softc {
-	device_t		sc_dev;
-	struct fb_info		sc_fb_info;
-	struct resource		*sc_mem_res;
-	struct resource		*sc_irq_res;
-	void			*sc_intr_hl;
-	struct mtx		sc_mtx;
-	int			sc_backlight;
-	struct sysctl_oid	*sc_oid;
+	device_t sc_dev;
+	struct fb_info sc_fb_info;
+	struct resource *sc_mem_res;
+	struct resource *sc_irq_res;
+	void *sc_intr_hl;
+	struct mtx sc_mtx;
+	int sc_backlight;
+	struct sysctl_oid *sc_oid;
 
-	struct panel_info	sc_panel;
+	struct panel_info sc_panel;
 
 	/* Framebuffer */
-	bus_dma_tag_t		sc_dma_tag;
-	bus_dmamap_t		sc_dma_map;
-	size_t			sc_fb_size;
-	bus_addr_t		sc_fb_phys;
-	uint8_t			*sc_fb_base;
+	bus_dma_tag_t sc_dma_tag;
+	bus_dmamap_t sc_dma_map;
+	size_t sc_fb_size;
+	bus_addr_t sc_fb_phys;
+	uint8_t *sc_fb_base;
 
 	/* HDMI framer */
-	phandle_t		sc_hdmi_framer;
-	eventhandler_tag	sc_hdmi_evh;
+	phandle_t sc_hdmi_framer;
+	eventhandler_tag sc_hdmi_evh;
 
 	/* Clock */
-	clk_t			sc_clk_dpll_disp_ck;
+	clk_t sc_clk_dpll_disp_ck;
 };
 
 static void
@@ -234,7 +232,7 @@ am335x_fb_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
 	if (err)
 		return;
 
-	addr = (bus_addr_t*)arg;
+	addr = (bus_addr_t *)arg;
 	*addr = segs[0].ds_addr;
 }
 
@@ -249,7 +247,7 @@ am335x_lcd_calc_divisor(uint32_t reference, uint32_t freq)
 
 	/* Raster mode case: divisors are in range from 2 to 255 */
 	for (i = 2; i < 255; i++) {
-		delta = abs(reference/i - freq);
+		delta = abs(reference / i - freq);
 		if (delta < min_delta) {
 			div = i;
 			min_delta = delta;
@@ -259,10 +257,9 @@ am335x_lcd_calc_divisor(uint32_t reference, uint32_t freq)
 	return (div);
 }
 
-static int
-am335x_lcd_sysctl_backlight(SYSCTL_HANDLER_ARGS)
+static int am335x_lcd_sysctl_backlight(SYSCTL_HANDLER_ARGS)
 {
-	struct am335x_lcd_softc *sc = (struct am335x_lcd_softc*)arg1;
+	struct am335x_lcd_softc *sc = (struct am335x_lcd_softc *)arg1;
 	int error;
 	int backlight;
 
@@ -278,8 +275,8 @@ am335x_lcd_sysctl_backlight(SYSCTL_HANDLER_ARGS)
 		backlight = 100;
 
 	LCD_LOCK(sc);
-	error = am335x_pwm_config_ecap(PWM_UNIT, PWM_PERIOD,
-	    backlight*PWM_PERIOD/100);
+	error = am335x_pwm_config_ecap(
+	    PWM_UNIT, PWM_PERIOD, backlight * PWM_PERIOD / 100);
 	if (error == 0)
 		sc->sc_backlight = backlight;
 	LCD_UNLOCK(sc);
@@ -293,7 +290,7 @@ am335x_mode_vrefresh(const struct videomode *mode)
 	uint32_t refresh;
 
 	/* Calculate vertical refresh rate */
-        refresh = (mode->dot_clock * 1000 / mode->htotal);
+	refresh = (mode->dot_clock * 1000 / mode->htotal);
 	refresh = (refresh + mode->vtotal / 2) / mode->vtotal;
 
 	if (mode->flags & VID_INTERLACE)
@@ -340,8 +337,8 @@ am335x_mode_is_valid(const struct videomode *mode)
 		return (0);
 	if (vsw > 0x3f)
 		return (0);
-	if (mode->vdisplay*mode->hdisplay*am335x_mode_vrefresh(mode) 
-	    > MAX_BANDWIDTH)
+	if (mode->vdisplay * mode->hdisplay * am335x_mode_vrefresh(mode) >
+	    MAX_BANDWIDTH)
 		return (0);
 
 	return (1);
@@ -379,8 +376,10 @@ am335x_read_hdmi_property(device_t dev)
 	if (node == 0)
 		return;
 
-	for (endpoint = OF_child(node); endpoint != 0; endpoint = OF_peer(endpoint)) {
-		if (OF_getencprop(endpoint, "remote-endpoint", &xref, sizeof(xref)) != -1) {
+	for (endpoint = OF_child(node); endpoint != 0;
+	     endpoint = OF_peer(endpoint)) {
+		if (OF_getencprop(endpoint, "remote-endpoint", &xref,
+			sizeof(xref)) != -1) {
 			/* port/port@0/endpoint@0 */
 			node = OF_node_from_xref(xref);
 			/* port/port@0 */
@@ -396,13 +395,14 @@ am335x_read_hdmi_property(device_t dev)
 }
 
 static int
-am335x_read_property(device_t dev, phandle_t node, const char *name, uint32_t *val)
+am335x_read_property(
+    device_t dev, phandle_t node, const char *name, uint32_t *val)
 {
 	pcell_t cell;
 
 	if ((OF_getencprop(node, name, &cell, sizeof(cell))) <= 0) {
-		device_printf(dev, "missing '%s' attribute in LCD panel info\n",
-		    name);
+		device_printf(
+		    dev, "missing '%s' attribute in LCD panel info\n", name);
 		return (ENXIO);
 	}
 
@@ -423,61 +423,62 @@ am335x_read_timing(device_t dev, phandle_t node, struct panel_info *panel)
 		return (-1);
 	}
 
-	if (OF_searchencprop(timings_node, "native-mode", &native,
-	    sizeof(native)) == -1) {
-		device_printf(dev, "no \"native-mode\" reference in \"timings\" node\n");
+	if (OF_searchencprop(
+		timings_node, "native-mode", &native, sizeof(native)) == -1) {
+		device_printf(
+		    dev, "no \"native-mode\" reference in \"timings\" node\n");
 		return (-1);
 	}
 
 	timing_node = OF_node_from_xref(native);
 
 	error = 0;
-	if ((error = am335x_read_property(dev, timing_node,
-	    "hactive", &panel->panel_width)))
+	if ((error = am335x_read_property(
+		 dev, timing_node, "hactive", &panel->panel_width)))
 		goto out;
 
-	if ((error = am335x_read_property(dev, timing_node,
-	    "vactive", &panel->panel_height)))
+	if ((error = am335x_read_property(
+		 dev, timing_node, "vactive", &panel->panel_height)))
 		goto out;
 
-	if ((error = am335x_read_property(dev, timing_node,
-	    "hfront-porch", &panel->panel_hfp)))
+	if ((error = am335x_read_property(
+		 dev, timing_node, "hfront-porch", &panel->panel_hfp)))
 		goto out;
 
-	if ((error = am335x_read_property(dev, timing_node,
-	    "hback-porch", &panel->panel_hbp)))
+	if ((error = am335x_read_property(
+		 dev, timing_node, "hback-porch", &panel->panel_hbp)))
 		goto out;
 
-	if ((error = am335x_read_property(dev, timing_node,
-	    "hsync-len", &panel->panel_hsw)))
+	if ((error = am335x_read_property(
+		 dev, timing_node, "hsync-len", &panel->panel_hsw)))
 		goto out;
 
-	if ((error = am335x_read_property(dev, timing_node,
-	    "vfront-porch", &panel->panel_vfp)))
+	if ((error = am335x_read_property(
+		 dev, timing_node, "vfront-porch", &panel->panel_vfp)))
 		goto out;
 
-	if ((error = am335x_read_property(dev, timing_node,
-	    "vback-porch", &panel->panel_vbp)))
+	if ((error = am335x_read_property(
+		 dev, timing_node, "vback-porch", &panel->panel_vbp)))
 		goto out;
 
-	if ((error = am335x_read_property(dev, timing_node,
-	    "vsync-len", &panel->panel_vsw)))
+	if ((error = am335x_read_property(
+		 dev, timing_node, "vsync-len", &panel->panel_vsw)))
 		goto out;
 
-	if ((error = am335x_read_property(dev, timing_node,
-	    "clock-frequency", &panel->panel_pxl_clk)))
+	if ((error = am335x_read_property(
+		 dev, timing_node, "clock-frequency", &panel->panel_pxl_clk)))
 		goto out;
 
-	if ((error = am335x_read_property(dev, timing_node,
-	    "pixelclk-active", &panel->pixelclk_active)))
+	if ((error = am335x_read_property(
+		 dev, timing_node, "pixelclk-active", &panel->pixelclk_active)))
 		goto out;
 
-	if ((error = am335x_read_property(dev, timing_node,
-	    "hsync-active", &panel->hsync_active)))
+	if ((error = am335x_read_property(
+		 dev, timing_node, "hsync-active", &panel->hsync_active)))
 		goto out;
 
-	if ((error = am335x_read_property(dev, timing_node,
-	    "vsync-active", &panel->vsync_active)))
+	if ((error = am335x_read_property(
+		 dev, timing_node, "vsync-active", &panel->vsync_active)))
 		goto out;
 
 out:
@@ -493,26 +494,23 @@ am335x_read_panel_info(device_t dev, phandle_t node, struct panel_info *panel)
 	if (panel_info_node == 0)
 		return (-1);
 
-	am335x_read_property(dev, panel_info_node,
-	    "ac-bias", &panel->ac_bias);
+	am335x_read_property(dev, panel_info_node, "ac-bias", &panel->ac_bias);
 
-	am335x_read_property(dev, panel_info_node,
-	    "ac-bias-intrpt", &panel->ac_bias_intrpt);
+	am335x_read_property(
+	    dev, panel_info_node, "ac-bias-intrpt", &panel->ac_bias_intrpt);
 
-	am335x_read_property(dev, panel_info_node,
-	    "dma-burst-sz", &panel->dma_burst_sz);
+	am335x_read_property(
+	    dev, panel_info_node, "dma-burst-sz", &panel->dma_burst_sz);
 
-	am335x_read_property(dev, panel_info_node,
-	    "bpp", &panel->bpp);
+	am335x_read_property(dev, panel_info_node, "bpp", &panel->bpp);
 
-	am335x_read_property(dev, panel_info_node,
-	    "fdd", &panel->fdd);
+	am335x_read_property(dev, panel_info_node, "fdd", &panel->fdd);
 
-	am335x_read_property(dev, panel_info_node,
-	    "sync-edge", &panel->sync_edge);
+	am335x_read_property(
+	    dev, panel_info_node, "sync-edge", &panel->sync_edge);
 
-	am335x_read_property(dev, panel_info_node,
-	    "sync-ctrl", &panel->sync_ctrl);
+	am335x_read_property(
+	    dev, panel_info_node, "sync-ctrl", &panel->sync_ctrl);
 
 	return (0);
 }
@@ -521,7 +519,7 @@ static void
 am335x_lcd_intr(void *arg)
 {
 	struct am335x_lcd_softc *sc = arg;
-	uint32_t reg; 
+	uint32_t reg;
 
 	reg = LCD_READ4(sc, LCD_IRQSTATUS);
 	LCD_WRITE4(sc, LCD_IRQSTATUS, reg);
@@ -531,34 +529,36 @@ am335x_lcd_intr(void *arg)
 	if (reg & IRQ_SYNC_LOST) {
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg &= ~RASTER_CTRL_LCDEN;
-		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
+		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg);
 
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg |= RASTER_CTRL_LCDEN;
-		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
+		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg);
 		goto done;
 	}
 
 	if (reg & IRQ_PL) {
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg &= ~RASTER_CTRL_LCDEN;
-		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
+		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg);
 
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg |= RASTER_CTRL_LCDEN;
-		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
+		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg);
 		goto done;
 	}
 
 	if (reg & IRQ_EOF0) {
-		LCD_WRITE4(sc, LCD_LCDDMA_FB0_BASE, sc->sc_fb_phys); 
-		LCD_WRITE4(sc, LCD_LCDDMA_FB0_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1); 
+		LCD_WRITE4(sc, LCD_LCDDMA_FB0_BASE, sc->sc_fb_phys);
+		LCD_WRITE4(sc, LCD_LCDDMA_FB0_CEILING,
+		    sc->sc_fb_phys + sc->sc_fb_size - 1);
 		reg &= ~IRQ_EOF0;
 	}
 
 	if (reg & IRQ_EOF1) {
-		LCD_WRITE4(sc, LCD_LCDDMA_FB1_BASE, sc->sc_fb_phys); 
-		LCD_WRITE4(sc, LCD_LCDDMA_FB1_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1); 
+		LCD_WRITE4(sc, LCD_LCDDMA_FB1_BASE, sc->sc_fb_phys);
+		LCD_WRITE4(sc, LCD_LCDDMA_FB1_CEILING,
+		    sc->sc_fb_phys + sc->sc_fb_size - 1);
 		reg &= ~IRQ_EOF1;
 	}
 
@@ -597,9 +597,8 @@ am335x_lcd_pick_mode(struct edid_info *ei)
 	if (videomode == NULL) {
 		m = ei->edid_modes;
 
-		sort_modes(ei->edid_modes,
-		    &ei->edid_preferred_mode,
-		    ei->edid_nmodes);
+		sort_modes(
+		    ei->edid_modes, &ei->edid_preferred_mode, ei->edid_nmodes);
 		for (n = 0; n < ei->edid_nmodes; n++)
 			if (am335x_mode_is_valid(&m[n])) {
 				videomode = &m[n];
@@ -628,8 +627,8 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 	 * HDMI/DVI displays are very sensitive to error in frequncy value
 	 */
 
-	err = clk_set_freq(sc->sc_clk_dpll_disp_ck, sc->sc_panel.panel_pxl_clk*2,
-	    CLK_SET_ROUND_ANY);
+	err = clk_set_freq(sc->sc_clk_dpll_disp_ck,
+	    sc->sc_panel.panel_pxl_clk * 2, CLK_SET_ROUND_ANY);
 	if (err != 0) {
 		device_printf(sc->sc_dev, "can't set source frequency\n");
 		return (ENXIO);
@@ -642,20 +641,20 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 	}
 
 	/* Panel initialization */
-	dma_size = round_page(sc->sc_panel.panel_width*sc->sc_panel.panel_height*sc->sc_panel.bpp/8);
+	dma_size = round_page(sc->sc_panel.panel_width *
+	    sc->sc_panel.panel_height * sc->sc_panel.bpp / 8);
 
 	/*
 	 * Now allocate framebuffer memory
 	 */
-	err = bus_dma_tag_create(
-	    bus_get_dma_tag(sc->sc_dev),
-	    4, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    dma_size, 1,			/* maxsize, nsegments */
-	    dma_size, 0,			/* maxsegsize, flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	err = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4,
+	    0,			     /* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
+	    BUS_SPACE_MAXADDR,	     /* highaddr */
+	    NULL, NULL,		     /* filter, filterarg */
+	    dma_size, 1,	     /* maxsize, nsegments */
+	    dma_size, 0,	     /* maxsegsize, flags */
+	    NULL, NULL,		     /* lockfunc, lockarg */
 	    &sc->sc_dma_tag);
 	if (err)
 		goto done;
@@ -680,13 +679,14 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 	memset(sc->sc_fb_base, 0x0, dma_size);
 
 	/* Calculate actual FB Size */
-	sc->sc_fb_size = sc->sc_panel.panel_width*sc->sc_panel.panel_height*sc->sc_panel.bpp/8;
+	sc->sc_fb_size = sc->sc_panel.panel_width * sc->sc_panel.panel_height *
+	    sc->sc_panel.bpp / 8;
 
 	/* Only raster mode is supported */
 	reg = CTRL_RASTER_MODE;
 	div = am335x_lcd_calc_divisor(ref_freq, sc->sc_panel.panel_pxl_clk);
 	reg |= (div << CTRL_DIV_SHIFT);
-	LCD_WRITE4(sc, LCD_CTRL, reg); 
+	LCD_WRITE4(sc, LCD_CTRL, reg);
 
 	/* Set timing */
 	timing0 = timing1 = timing2 = 0;
@@ -718,16 +718,12 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 	timing1 |= (vsw & 0x3f) << RASTER_TIMING_1_VSW_SHIFT;
 
 	/* Pixels per line */
-	timing0 |= ((width >> 10) & 1)
-	    << RASTER_TIMING_0_PPLMSB_SHIFT;
-	timing0 |= ((width >> 4) & 0x3f)
-	    << RASTER_TIMING_0_PPLLSB_SHIFT;
+	timing0 |= ((width >> 10) & 1) << RASTER_TIMING_0_PPLMSB_SHIFT;
+	timing0 |= ((width >> 4) & 0x3f) << RASTER_TIMING_0_PPLLSB_SHIFT;
 
 	/* Lines per panel */
-	timing1 |= (height & 0x3ff) 
-	    << RASTER_TIMING_1_LPP_SHIFT;
-	timing2 |= ((height >> 10 ) & 1) 
-	    << RASTER_TIMING_2_LPP_B10_SHIFT;
+	timing1 |= (height & 0x3ff) << RASTER_TIMING_1_LPP_SHIFT;
+	timing2 |= ((height >> 10) & 1) << RASTER_TIMING_2_LPP_B10_SHIFT;
 
 	/* clock signal settings */
 	if (sc->sc_panel.sync_ctrl)
@@ -747,9 +743,9 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 	timing2 |= (sc->sc_panel.ac_bias << RASTER_TIMING_2_ACB_SHIFT);
 	timing2 |= (sc->sc_panel.ac_bias_intrpt << RASTER_TIMING_2_ACBI_SHIFT);
 
-	LCD_WRITE4(sc, LCD_RASTER_TIMING_0, timing0); 
-	LCD_WRITE4(sc, LCD_RASTER_TIMING_1, timing1); 
-	LCD_WRITE4(sc, LCD_RASTER_TIMING_2, timing2); 
+	LCD_WRITE4(sc, LCD_RASTER_TIMING_0, timing0);
+	LCD_WRITE4(sc, LCD_RASTER_TIMING_1, timing1);
+	LCD_WRITE4(sc, LCD_RASTER_TIMING_2, timing2);
 
 	/* DMA settings */
 	reg = LCDDMA_CTRL_FB0_FB1;
@@ -775,12 +771,14 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 	reg |= (burst_log << LCDDMA_CTRL_BURST_SIZE_SHIFT);
 	/* XXX: FIFO TH */
 	reg |= (0 << LCDDMA_CTRL_TH_FIFO_RDY_SHIFT);
-	LCD_WRITE4(sc, LCD_LCDDMA_CTRL, reg); 
+	LCD_WRITE4(sc, LCD_LCDDMA_CTRL, reg);
 
-	LCD_WRITE4(sc, LCD_LCDDMA_FB0_BASE, sc->sc_fb_phys); 
-	LCD_WRITE4(sc, LCD_LCDDMA_FB0_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1); 
-	LCD_WRITE4(sc, LCD_LCDDMA_FB1_BASE, sc->sc_fb_phys); 
-	LCD_WRITE4(sc, LCD_LCDDMA_FB1_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1); 
+	LCD_WRITE4(sc, LCD_LCDDMA_FB0_BASE, sc->sc_fb_phys);
+	LCD_WRITE4(
+	    sc, LCD_LCDDMA_FB0_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1);
+	LCD_WRITE4(sc, LCD_LCDDMA_FB1_BASE, sc->sc_fb_phys);
+	LCD_WRITE4(
+	    sc, LCD_LCDDMA_FB1_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1);
 
 	/* Enable LCD */
 	reg = RASTER_CTRL_LCDTFT;
@@ -790,7 +788,7 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 		reg |= RASTER_CTRL_TFT24;
 	if (sc->sc_panel.bpp == 32)
 		reg |= RASTER_CTRL_TFT24_UNPACKED;
-	LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
+	LCD_WRITE4(sc, LCD_RASTER_CTRL, reg);
 
 	LCD_WRITE4(sc, LCD_CLKC_ENABLE,
 	    CLKC_ENABLE_DMA | CLKC_ENABLE_LDID | CLKC_ENABLE_CORE);
@@ -799,28 +797,28 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 	DELAY(100);
 	LCD_WRITE4(sc, LCD_CLKC_RESET, 0);
 
-	reg = IRQ_EOF1 | IRQ_EOF0 | IRQ_FUF | IRQ_PL |
-	    IRQ_ACB | IRQ_SYNC_LOST |  IRQ_RASTER_DONE |
-	    IRQ_FRAME_DONE;
+	reg = IRQ_EOF1 | IRQ_EOF0 | IRQ_FUF | IRQ_PL | IRQ_ACB | IRQ_SYNC_LOST |
+	    IRQ_RASTER_DONE | IRQ_FRAME_DONE;
 	LCD_WRITE4(sc, LCD_IRQENABLE_SET, reg);
 
 	reg = LCD_READ4(sc, LCD_RASTER_CTRL);
- 	reg |= RASTER_CTRL_LCDEN;
-	LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
+	reg |= RASTER_CTRL_LCDEN;
+	LCD_WRITE4(sc, LCD_RASTER_CTRL, reg);
 
-	LCD_WRITE4(sc, LCD_SYSCONFIG,
-	    SYSCONFIG_STANDBY_SMART | SYSCONFIG_IDLE_SMART); 
+	LCD_WRITE4(
+	    sc, LCD_SYSCONFIG, SYSCONFIG_STANDBY_SMART | SYSCONFIG_IDLE_SMART);
 
 	sc->sc_fb_info.fb_name = device_get_nameunit(sc->sc_dev);
 	sc->sc_fb_info.fb_vbase = (intptr_t)sc->sc_fb_base;
 	sc->sc_fb_info.fb_pbase = sc->sc_fb_phys;
 	sc->sc_fb_info.fb_size = sc->sc_fb_size;
 	sc->sc_fb_info.fb_bpp = sc->sc_fb_info.fb_depth = sc->sc_panel.bpp;
-	sc->sc_fb_info.fb_stride = sc->sc_panel.panel_width*sc->sc_panel.bpp / 8;
+	sc->sc_fb_info.fb_stride = sc->sc_panel.panel_width * sc->sc_panel.bpp /
+	    8;
 	sc->sc_fb_info.fb_width = sc->sc_panel.panel_width;
 	sc->sc_fb_info.fb_height = sc->sc_panel.panel_height;
 
-#ifdef	DEV_SC
+#ifdef DEV_SC
 	err = (sc_attach_unit(device_get_unit(sc->sc_dev),
 	    device_get_flags(sc->sc_dev) | SC_AUTODETECT_KBD));
 
@@ -829,13 +827,15 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 		goto fail;
 	}
 
-	am335x_lcd_syscons_setup((vm_offset_t)sc->sc_fb_base, sc->sc_fb_phys, &panel);
+	am335x_lcd_syscons_setup(
+	    (vm_offset_t)sc->sc_fb_base, sc->sc_fb_phys, &panel);
 #else /* VT */
-	device_t fbd = device_add_child(sc->sc_dev, "fbd",
-	device_get_unit(sc->sc_dev));
+	device_t fbd = device_add_child(
+	    sc->sc_dev, "fbd", device_get_unit(sc->sc_dev));
 	if (fbd != NULL) {
 		if (device_probe_and_attach(fbd) != 0)
-			device_printf(sc->sc_dev, "failed to attach fbd device\n");
+			device_printf(
+			    sc->sc_dev, "failed to attach fbd device\n");
 	} else
 		device_printf(sc->sc_dev, "failed to add fbd child\n");
 #endif
@@ -859,20 +859,23 @@ am335x_lcd_hdmi_event(void *arg, device_t hdmi, int event)
 
 	/* Nothing to work with */
 	if (!sc->sc_hdmi_framer) {
-		device_printf(sc->sc_dev, "HDMI event without HDMI framer set\n");
+		device_printf(
+		    sc->sc_dev, "HDMI event without HDMI framer set\n");
 		return;
 	}
 
 	hdmi_dev = OF_device_from_xref(sc->sc_hdmi_framer);
 	if (!hdmi_dev) {
-		device_printf(sc->sc_dev, "no actual device for \"hdmi\" property\n");
+		device_printf(
+		    sc->sc_dev, "no actual device for \"hdmi\" property\n");
 		return;
 	}
 
 	edid = NULL;
 	edid_len = 0;
 	if (HDMI_GET_EDID(hdmi_dev, &edid, &edid_len) != 0) {
-		device_printf(sc->sc_dev, "failed to get EDID info from HDMI framer\n");
+		device_printf(
+		    sc->sc_dev, "failed to get EDID info from HDMI framer\n");
 		return;
 	}
 
@@ -893,8 +896,9 @@ am335x_lcd_hdmi_event(void *arg, device_t hdmi, int event)
 		return;
 	}
 
-	device_printf(sc->sc_dev, "detected videomode: %dx%d @ %dKHz\n", videomode->hdisplay,
-		videomode->vdisplay, am335x_mode_vrefresh(videomode));
+	device_printf(sc->sc_dev, "detected videomode: %dx%d @ %dKHz\n",
+	    videomode->hdisplay, videomode->vdisplay,
+	    am335x_mode_vrefresh(videomode));
 
 	sc->sc_panel.panel_width = videomode->hdisplay;
 	sc->sc_panel.panel_height = videomode->vdisplay;
@@ -944,8 +948,8 @@ am335x_lcd_probe(device_t dev)
 	device_set_desc(dev, "AM335x LCD controller");
 
 #ifdef DEV_SC
-	err = sc_probe_unit(device_get_unit(dev), 
-	    device_get_flags(dev) | SC_AUTODETECT_KBD);
+	err = sc_probe_unit(
+	    device_get_unit(dev), device_get_flags(dev) | SC_AUTODETECT_KBD);
 	if (err != 0)
 		return (err);
 #endif
@@ -976,8 +980,10 @@ am335x_lcd_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	/* Fixme: Cant find any reference in DTS for dpll_disp_ck@498 for now. */
-	err = clk_get_by_name(dev, "dpll_disp_ck@498", &sc->sc_clk_dpll_disp_ck);
+	/* Fixme: Cant find any reference in DTS for dpll_disp_ck@498 for now.
+	 */
+	err = clk_get_by_name(
+	    dev, "dpll_disp_ck@498", &sc->sc_clk_dpll_disp_ck);
 	if (err != 0) {
 		device_printf(dev, "Cant get dpll_disp_ck@49\n");
 		return (ENXIO);
@@ -1007,21 +1013,22 @@ am335x_lcd_attach(device_t dev)
 
 	err = ti_sysc_clock_enable(device_get_parent(dev));
 	if (err != 0) {
-		device_printf(dev, "Failed to enable sysc clkctrl, err %d\n", err);
+		device_printf(
+		    dev, "Failed to enable sysc clkctrl, err %d\n", err);
 		return (ENXIO);
 	}
 
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
 		return (ENXIO);
 	}
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!sc->sc_irq_res) {
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot allocate interrupt\n");
@@ -1029,12 +1036,9 @@ am335x_lcd_attach(device_t dev)
 	}
 
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-			NULL, am335x_lcd_intr, sc,
-			&sc->sc_intr_hl) != 0) {
-		bus_release_resource(dev, SYS_RES_IRQ, rid,
-		    sc->sc_irq_res);
-		bus_release_resource(dev, SYS_RES_MEMORY, rid,
-		    sc->sc_mem_res);
+		NULL, am335x_lcd_intr, sc, &sc->sc_intr_hl) != 0) {
+		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->sc_irq_res);
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->sc_mem_res);
 		device_printf(dev, "Unable to setup the irq handler.\n");
 		return (ENXIO);
 	}
@@ -1049,8 +1053,7 @@ am335x_lcd_attach(device_t dev)
 	    am335x_lcd_sysctl_backlight, "I", "LCD backlight");
 	sc->sc_backlight = 0;
 	/* Check if eCAS interface is available at this point */
-	if (am335x_pwm_config_ecap(PWM_UNIT,
-	    PWM_PERIOD, PWM_PERIOD) == 0)
+	if (am335x_pwm_config_ecap(PWM_UNIT, PWM_PERIOD, PWM_PERIOD) == 0)
 		sc->sc_backlight = 100;
 
 	if (panel_node != 0)
@@ -1079,16 +1082,15 @@ am335x_lcd_fb_getinfo(device_t dev)
 	return (&sc->sc_fb_info);
 }
 
-static device_method_t am335x_lcd_methods[] = {
-	DEVMETHOD(device_probe,		am335x_lcd_probe),
-	DEVMETHOD(device_attach,	am335x_lcd_attach),
-	DEVMETHOD(device_detach,	am335x_lcd_detach),
+static device_method_t am335x_lcd_methods[] = { DEVMETHOD(device_probe,
+						    am335x_lcd_probe),
+	DEVMETHOD(device_attach, am335x_lcd_attach),
+	DEVMETHOD(device_detach, am335x_lcd_detach),
 
 	/* Framebuffer service methods */
-	DEVMETHOD(fb_getinfo,		am335x_lcd_fb_getinfo),
+	DEVMETHOD(fb_getinfo, am335x_lcd_fb_getinfo),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t am335x_lcd_driver = {
 	"fb",
@@ -1098,7 +1100,8 @@ static driver_t am335x_lcd_driver = {
 
 static devclass_t am335x_lcd_devclass;
 
-DRIVER_MODULE(am335x_lcd, simplebus, am335x_lcd_driver, am335x_lcd_devclass, 0, 0);
+DRIVER_MODULE(
+    am335x_lcd, simplebus, am335x_lcd_driver, am335x_lcd_devclass, 0, 0);
 MODULE_VERSION(am335x_lcd, 1);
 MODULE_DEPEND(am335x_lcd, simplebus, 1, 1, 1);
 MODULE_DEPEND(am335x_lcd, ti_sysc, 1, 1, 1);

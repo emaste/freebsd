@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_ARM64_CORESIGHT_CORESIGHT_H_
-#define	_ARM64_CORESIGHT_CORESIGHT_H_
+#ifndef _ARM64_CORESIGHT_CORESIGHT_H_
+#define _ARM64_CORESIGHT_CORESIGHT_H_
 
 #include "opt_acpi.h"
 #include "opt_platform.h"
@@ -43,19 +43,20 @@
 #endif
 
 #ifdef DEV_ACPI
-#include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 #endif
 
-#define	CORESIGHT_ITCTRL	0xf00
-#define	CORESIGHT_CLAIMSET	0xfa0
-#define	CORESIGHT_CLAIMCLR	0xfa4
-#define	CORESIGHT_LAR		0xfb0
-#define	 CORESIGHT_UNLOCK	0xc5acce55
-#define	CORESIGHT_LSR		0xfb4
-#define	CORESIGHT_AUTHSTATUS	0xfb8
-#define	CORESIGHT_DEVID		0xfc8
-#define	CORESIGHT_DEVTYPE	0xfcc
+#define CORESIGHT_ITCTRL 0xf00
+#define CORESIGHT_CLAIMSET 0xfa0
+#define CORESIGHT_CLAIMCLR 0xfa4
+#define CORESIGHT_LAR 0xfb0
+#define CORESIGHT_UNLOCK 0xc5acce55
+#define CORESIGHT_LSR 0xfb4
+#define CORESIGHT_AUTHSTATUS 0xfb8
+#define CORESIGHT_DEVID 0xfc8
+#define CORESIGHT_DEVTYPE 0xfcc
 
 enum cs_dev_type {
 	CORESIGHT_ETMV4,
@@ -111,7 +112,7 @@ struct coresight_desc {
 
 TAILQ_HEAD(coresight_device_list, coresight_device);
 
-#define	ETM_N_COMPRATOR		16
+#define ETM_N_COMPRATOR 16
 
 struct etm_state {
 	uint32_t trace_id;
@@ -125,8 +126,8 @@ struct etr_state {
 	uint32_t high;
 	uint32_t bufsize;
 	uint32_t flags;
-#define	ETR_FLAG_ALLOCATE	(1 << 0)
-#define	ETR_FLAG_RELEASE	(1 << 1)
+#define ETR_FLAG_ALLOCATE (1 << 0)
+#define ETR_FLAG_RELEASE (1 << 1)
 };
 
 struct coresight_event {
@@ -152,8 +153,10 @@ static MALLOC_DEFINE(M_CORESIGHT, "coresight", "ARM Coresight");
 
 struct coresight_platform_data *coresight_fdt_get_platform_data(device_t dev);
 struct coresight_platform_data *coresight_acpi_get_platform_data(device_t dev);
-struct endpoint * coresight_get_output_endpoint(struct coresight_platform_data *pdata);
-struct coresight_device * coresight_get_output_device(struct endpoint *endp, struct endpoint **);
+struct endpoint *coresight_get_output_endpoint(
+    struct coresight_platform_data *pdata);
+struct coresight_device *coresight_get_output_device(
+    struct endpoint *endp, struct endpoint **);
 int coresight_register(struct coresight_desc *desc);
 int coresight_init_event(int cpu, struct coresight_event *event);
 void coresight_enable(int cpu, struct coresight_event *event);

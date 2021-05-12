@@ -32,18 +32,16 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/reboot.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
-
-#include <net/ethernet.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -53,14 +51,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
-#include <mips/atheros/ar71xxreg.h>
-#include <mips/atheros/ar933xreg.h>
-
-#include <mips/atheros/ar71xx_cpudef.h>
-#include <mips/atheros/ar71xx_setup.h>
+#include <net/ethernet.h>
 
 #include <mips/atheros/ar71xx_chip.h>
+#include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xx_setup.h>
+#include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar933x_chip.h>
+#include <mips/atheros/ar933xreg.h>
 
 static void
 ar933x_chip_detect_mem_size(void)
@@ -105,15 +103,18 @@ ar933x_chip_detect_sys_frequency(void)
 		freq >>= t;
 
 		t = ((clock_ctrl >> AR933X_PLL_CLOCK_CTRL_CPU_DIV_SHIFT) &
-		     AR933X_PLL_CLOCK_CTRL_CPU_DIV_MASK) + 1;
+			AR933X_PLL_CLOCK_CTRL_CPU_DIV_MASK) +
+		    1;
 		u_ar71xx_cpu_freq = freq / t;
 
 		t = ((clock_ctrl >> AR933X_PLL_CLOCK_CTRL_DDR_DIV_SHIFT) &
-		      AR933X_PLL_CLOCK_CTRL_DDR_DIV_MASK) + 1;
+			AR933X_PLL_CLOCK_CTRL_DDR_DIV_MASK) +
+		    1;
 		u_ar71xx_ddr_freq = freq / t;
 
 		t = ((clock_ctrl >> AR933X_PLL_CLOCK_CTRL_AHB_DIV_SHIFT) &
-		     AR933X_PLL_CLOCK_CTRL_AHB_DIV_MASK) + 1;
+			AR933X_PLL_CLOCK_CTRL_AHB_DIV_MASK) +
+		    1;
 		u_ar71xx_ahb_freq = freq / t;
 	}
 
@@ -186,8 +187,8 @@ ar933x_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 		/* XXX TODO */
 		break;
 	default:
-		printf("%s: invalid PLL set for arge unit: %d\n",
-		    __func__, unit);
+		printf(
+		    "%s: invalid PLL set for arge unit: %d\n", __func__, unit);
 		return;
 	}
 }
@@ -270,13 +271,11 @@ ar933x_configure_gmac(uint32_t gmac_cfg)
 	 */
 	if (bootverbose)
 		printf("%s: GMAC config was 0x%08x\n", __func__, reg);
-        reg &= ~(AR933X_ETH_CFG_SW_PHY_SWAP | AR933X_ETH_CFG_SW_PHY_ADDR_SWAP);
+	reg &= ~(AR933X_ETH_CFG_SW_PHY_SWAP | AR933X_ETH_CFG_SW_PHY_ADDR_SWAP);
 	reg |= gmac_cfg;
 	if (bootverbose)
 		printf("%s: GMAC setting is 0x%08x; register is now 0x%08x\n",
-		    __func__,
-		    gmac_cfg,
-		    reg);
+		    __func__, gmac_cfg, reg);
 	ATH_WRITE_REG(AR933X_GMAC_REG_ETH_CFG, reg);
 }
 
@@ -327,14 +326,15 @@ ar933x_chip_init_gmac(void)
 	 *   between PHY0 and PHY4.  Ie, PHY4 connects to MAc1,
 	 *   PHY0 connects to GE0.
 	 */
-	if ((resource_int_value("ar933x_gmac", 0, "override_phy", &val) == 0)
-	    && (val == 0))
+	if ((resource_int_value("ar933x_gmac", 0, "override_phy", &val) == 0) &&
+	    (val == 0))
 		return;
-	if ((resource_int_value("ar933x_gmac", 0, "swap_phy", &val) == 0)
-	    && (val == 1))
+	if ((resource_int_value("ar933x_gmac", 0, "swap_phy", &val) == 0) &&
+	    (val == 1))
 		gmac_cfg |= AR933X_ETH_CFG_SW_PHY_SWAP;
-	if ((resource_int_value("ar933x_gmac", 0, "swap_phy_addr", &val) == 0)
-	    && (val == 1))
+	if ((resource_int_value("ar933x_gmac", 0, "swap_phy_addr", &val) ==
+		0) &&
+	    (val == 1))
 		gmac_cfg |= AR933X_ETH_CFG_SW_PHY_ADDR_SWAP;
 	ar933x_configure_gmac(gmac_cfg);
 }

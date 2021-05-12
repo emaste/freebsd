@@ -28,45 +28,44 @@
  * $FreeBSD$
  */
 
-#ifndef	_G_LABEL_H_
-#define	_G_LABEL_H_
+#ifndef _G_LABEL_H_
+#define _G_LABEL_H_
 
 #include <sys/endian.h>
 #ifdef _KERNEL
 #include <sys/sysctl.h>
 #endif
 
-#define	G_LABEL_CLASS_NAME	"LABEL"
+#define G_LABEL_CLASS_NAME "LABEL"
 
-#define	G_LABEL_MAGIC		"GEOM::LABEL"
+#define G_LABEL_MAGIC "GEOM::LABEL"
 /*
  * Version history:
  * 1 - Initial version number.
  * 2 - Added md_provsize field to metadata.
  */
-#define	G_LABEL_VERSION		2
+#define G_LABEL_VERSION 2
 
 #ifdef _KERNEL
 extern u_int g_label_debug;
 
 #define G_LABEL_DEBUG(lvl, ...) \
-    _GEOM_DEBUG("GEOM_LABEL", g_label_debug, (lvl), NULL, __VA_ARGS__)
+	_GEOM_DEBUG("GEOM_LABEL", g_label_debug, (lvl), NULL, __VA_ARGS__)
 
 SYSCTL_DECL(_kern_geom_label);
 
-#define	G_LABEL_INIT(kind, label, descr) 				\
-	SYSCTL_NODE(_kern_geom_label, OID_AUTO, kind,			\
-	    CTLFLAG_RD | CTLFLAG_MPSAFE,				\
-	    NULL, "");							\
-	SYSCTL_INT(_kern_geom_label_##kind, OID_AUTO, enable, 		\
-	    CTLFLAG_RWTUN, &label.ld_enabled, 1, descr)
+#define G_LABEL_INIT(kind, label, descr)                                     \
+	SYSCTL_NODE(_kern_geom_label, OID_AUTO, kind,                        \
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");                          \
+	SYSCTL_INT(_kern_geom_label_##kind, OID_AUTO, enable, CTLFLAG_RWTUN, \
+	    &label.ld_enabled, 1, descr)
 
-typedef void g_label_taste_t (struct g_consumer *cp, char *label, size_t size);
+typedef void g_label_taste_t(struct g_consumer *cp, char *label, size_t size);
 
 struct g_label_desc {
-	g_label_taste_t	*ld_taste;
-	char		*ld_dirprefix;
-	int		 ld_enabled;
+	g_label_taste_t *ld_taste;
+	char *ld_dirprefix;
+	int ld_enabled;
 };
 
 /* Supported labels. */
@@ -83,13 +82,13 @@ extern struct g_label_desc g_label_disk_ident;
 extern struct g_label_desc g_label_flashmap;
 
 extern void g_label_rtrim(char *label, size_t size);
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
 struct g_label_metadata {
-	char		md_magic[16];	/* Magic value. */
-	uint32_t	md_version;	/* Version number. */
-	char		md_label[16];	/* Label. */
-	uint64_t	md_provsize;	/* Provider's size. */
+	char md_magic[16];    /* Magic value. */
+	uint32_t md_version;  /* Version number. */
+	char md_label[16];    /* Label. */
+	uint64_t md_provsize; /* Provider's size. */
 };
 static __inline void
 label_metadata_encode(const struct g_label_metadata *md, u_char *data)
@@ -109,4 +108,4 @@ label_metadata_decode(const u_char *data, struct g_label_metadata *md)
 	bcopy(data + 20, md->md_label, sizeof(md->md_label));
 	md->md_provsize = le64dec(data + 36);
 }
-#endif	/* _G_LABEL_H_ */
+#endif /* _G_LABEL_H_ */

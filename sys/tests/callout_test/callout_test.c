@@ -45,9 +45,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
-#include <tests/kern_testfrwk.h>
-#include <tests/callout_test.h>
+
 #include <machine/cpu.h>
+
+#include <tests/callout_test.h>
+#include <tests/kern_testfrwk.h>
 
 MALLOC_DEFINE(M_CALLTMP, "Temp callout Memory", "CalloutTest");
 
@@ -77,18 +79,13 @@ co_saydone(void *arg)
 	struct callout_run *rn;
 
 	rn = (struct callout_run *)arg;
-	printf("The callout test is now complete for thread %d\n",
-	    rn->index);
-	printf("number_callouts:%d\n",
-	    rn->co_number_callouts);
+	printf("The callout test is now complete for thread %d\n", rn->index);
+	printf("number_callouts:%d\n", rn->co_number_callouts);
 	printf("Callouts that bailed (Not PENDING or ACTIVE cleared):%d\n",
 	    rn->co_return_npa);
 	printf("Callouts that completed:%d\n", rn->co_completed);
 	printf("Drain calls:%d\n", rn->drain_calls);
-	printf("Zero returns:%d non-zero:%d\n",
-	    rn->cnt_zero,
-	    rn->cnt_one);
-
+	printf("Zero returns:%d non-zero:%d\n", rn->cnt_zero, rn->cnt_one);
 }
 
 static void
@@ -139,12 +136,12 @@ execute_the_co_test(struct callout_run *rn)
 		if (rn->co_test == 1) {
 			/* start all on spread out cpu's */
 			cpu = i % mp_ncpus;
-			callout_reset_sbt_on(&rn->co_array[i], 3, 0, test_callout, rn,
-			    cpu, 0);
+			callout_reset_sbt_on(
+			    &rn->co_array[i], 3, 0, test_callout, rn, cpu, 0);
 		} else {
 			/* Start all on the same CPU */
-			callout_reset_sbt_on(&rn->co_array[i], 3, 0, test_callout, rn,
-			    rn->index, 0);
+			callout_reset_sbt_on(&rn->co_array[i], 3, 0,
+			    test_callout, rn, rn->index, 0);
 		}
 	}
 	tk_s = ticks;
@@ -180,7 +177,6 @@ execute_the_co_test(struct callout_run *rn)
 	co_saydone((void *)rn);
 }
 
-
 static void
 run_callout_test(struct kern_test *test)
 {
@@ -192,7 +188,8 @@ run_callout_test(struct kern_test *test)
 
 	u = (struct callout_test *)test->test_options;
 	if (comaster[index] == NULL) {
-		rn = comaster[index] = malloc(sizeof(struct callout_run), M_CALLTMP, M_WAITOK);
+		rn = comaster[index] = malloc(
+		    sizeof(struct callout_run), M_CALLTMP, M_WAITOK);
 		memset(comaster[index], 0, sizeof(struct callout_run));
 		mtx_init(&rn->lock, "callouttest", NULL, MTX_DUPOK);
 		rn->index = index;
@@ -242,11 +239,11 @@ callout_test_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		err = kern_testframework_register("callout_test",
-		    run_callout_test);
+		err = kern_testframework_register(
+		    "callout_test", run_callout_test);
 		if (err) {
-			printf("Can't load callout_test err:%d returned\n",
-			    err);
+			printf(
+			    "Can't load callout_test err:%d returned\n", err);
 		} else {
 			memset(comaster, 0, sizeof(comaster));
 			callout_test_is_loaded = 1;
@@ -274,11 +271,9 @@ callout_test_modevent(module_t mod, int type, void *data)
 	return (err);
 }
 
-static moduledata_t callout_test_mod = {
-	.name = "callout_test",
+static moduledata_t callout_test_mod = { .name = "callout_test",
 	.evhand = callout_test_modevent,
-	.priv = 0
-};
+	.priv = 0 };
 
 MODULE_DEPEND(callout_test, kern_testframework, 1, 1, 1);
 DECLARE_MODULE(callout_test, callout_test_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);

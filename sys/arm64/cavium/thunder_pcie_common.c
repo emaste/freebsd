@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
 
 #include <machine/bus.h>
@@ -46,27 +46,30 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #ifdef FDT
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/openfirm.h>
 #endif
 
 #include <sys/pciio.h>
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
+
+#include <dev/pci/pci_host_generic.h>
 #include <dev/pci/pci_private.h>
 #include <dev/pci/pcib_private.h>
-#include <dev/pci/pci_host_generic.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 #ifdef FDT
 #include <dev/pci/pci_host_generic_fdt.h>
 #endif
 
 #include "thunder_pcie_common.h"
 
-MALLOC_DEFINE(M_THUNDER_PCIE, "Thunder PCIe driver", "Thunder PCIe driver memory");
+MALLOC_DEFINE(
+    M_THUNDER_PCIE, "Thunder PCIe driver", "Thunder PCIe driver memory");
 
-#define	THUNDER_CFG_BASE_TO_ECAM(x)	((((x) >> 36UL) & 0x3) | (((x) >> 42UL) & 0x4))
+#define THUNDER_CFG_BASE_TO_ECAM(x) \
+	((((x) >> 36UL) & 0x3) | (((x) >> 42UL) & 0x4))
 
 uint32_t
 range_addr_is_pci(struct pcie_range *ranges, uint64_t addr, uint64_t size)
@@ -76,8 +79,7 @@ range_addr_is_pci(struct pcie_range *ranges, uint64_t addr, uint64_t size)
 
 	for (tuple = 0; tuple < MAX_RANGES_TUPLES; tuple++) {
 		r = &ranges[tuple];
-		if (addr >= r->pci_base &&
-		    addr < (r->pci_base + r->size) &&
+		if (addr >= r->pci_base && addr < (r->pci_base + r->size) &&
 		    size < r->size) {
 			/* Address is within PCI range */
 			return (1);
@@ -96,8 +98,7 @@ range_addr_is_phys(struct pcie_range *ranges, uint64_t addr, uint64_t size)
 
 	for (tuple = 0; tuple < MAX_RANGES_TUPLES; tuple++) {
 		r = &ranges[tuple];
-		if (addr >= r->phys_base &&
-		    addr < (r->phys_base + r->size) &&
+		if (addr >= r->phys_base && addr < (r->phys_base + r->size) &&
 		    size < r->size) {
 			/* Address is within Physical range */
 			return (1);
@@ -158,8 +159,8 @@ thunder_pcie_identify_ecam(device_t dev, int *ecam)
 	rman_res_t start;
 
 	/* Check if we're running on Cavium ThunderX */
-	if (!CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK,
-	    CPU_IMPL_CAVIUM, CPU_PART_THUNDERX, 0, 0))
+	if (!CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK, CPU_IMPL_CAVIUM,
+		CPU_PART_THUNDERX, 0, 0))
 		return (EINVAL);
 
 	start = bus_get_resource_start(dev, SYS_RES_MEMORY, 0);
@@ -203,7 +204,7 @@ thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		end = start + count - 1;
 	}
 
-	return (pci_host_generic_core_alloc_resource(dev, child, type, rid,
-	    start, end, count, flags));
+	return (pci_host_generic_core_alloc_resource(
+	    dev, child, type, rid, start, end, count, flags));
 }
 #endif

@@ -29,8 +29,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 
@@ -73,15 +73,15 @@ mmc_cam_sim_default_action(struct cam_sim *sim, union ccb *ccb)
 		if (rv != 0) {
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 		} else {
-			mmc_path_inq(&ccb->cpi, "Deglitch Networks",
-			    sim, mmc.host_max_data);
+			mmc_path_inq(&ccb->cpi, "Deglitch Networks", sim,
+			    mmc.host_max_data);
 		}
 		break;
-	case XPT_GET_TRAN_SETTINGS:
-	{
+	case XPT_GET_TRAN_SETTINGS: {
 		struct ccb_trans_settings *cts = &ccb->cts;
 
-		rv = MMC_SIM_GET_TRAN_SETTINGS(mmc_sim->dev, &cts->proto_specific.mmc);
+		rv = MMC_SIM_GET_TRAN_SETTINGS(
+		    mmc_sim->dev, &cts->proto_specific.mmc);
 		if (rv != 0)
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 		else {
@@ -94,11 +94,11 @@ mmc_cam_sim_default_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		break;
 	}
-	case XPT_SET_TRAN_SETTINGS:
-	{
+	case XPT_SET_TRAN_SETTINGS: {
 		struct ccb_trans_settings *cts = &ccb->cts;
 
-		rv = MMC_SIM_SET_TRAN_SETTINGS(mmc_sim->dev, &cts->proto_specific.mmc);
+		rv = MMC_SIM_SET_TRAN_SETTINGS(
+		    mmc_sim->dev, &cts->proto_specific.mmc);
 		if (rv != 0)
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 		else
@@ -108,8 +108,7 @@ mmc_cam_sim_default_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_RESET_BUS:
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
-	case XPT_MMC_IO:
-	{
+	case XPT_MMC_IO: {
 		rv = MMC_SIM_CAM_REQUEST(mmc_sim->dev, ccb);
 		if (rv != 0)
 			ccb->ccb_h.status = CAM_REQ_INPROG;
@@ -143,9 +142,8 @@ mmc_cam_sim_alloc(device_t dev, const char *name, struct mmc_sim *mmc_sim)
 
 	mtx_init(&mmc_sim->mtx, sim_name, NULL, MTX_DEF);
 	mmc_sim->sim = cam_sim_alloc_dev(mmc_cam_sim_default_action,
-	    mmc_cam_default_poll,
-	    name, mmc_sim, dev,
-	    &mmc_sim->mtx, 1, 1, mmc_sim->devq);
+	    mmc_cam_default_poll, name, mmc_sim, dev, &mmc_sim->mtx, 1, 1,
+	    mmc_sim->devq);
 
 	if (mmc_sim->sim == NULL) {
 		cam_simq_free(mmc_sim->devq);

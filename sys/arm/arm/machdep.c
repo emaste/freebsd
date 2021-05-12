@@ -1,4 +1,5 @@
-/*	$NetBSD: arm32_machdep.c,v 1.44 2004/03/24 15:34:47 atatat Exp $	*/
+/*	$NetBSD: arm32_machdep.c,v 1.44 2004/03/24 15:34:47 atatat Exp $
+ */
 
 /*-
  * SPDX-License-Identifier: BSD-4-Clause
@@ -90,14 +91,15 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #ifdef FDT
-#include <dev/fdt/fdt_common.h>
 #include <machine/ofw_machdep.h>
+
+#include <dev/fdt/fdt_common.h>
 #endif
 
 #ifdef DEBUG
-#define	debugf(fmt, args...) printf(fmt, ##args)
+#define debugf(fmt, args...) printf(fmt, ##args)
 #else
-#define	debugf(fmt, args...)
+#define debugf(fmt, args...)
 #endif
 
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
@@ -105,7 +107,6 @@ __FBSDID("$FreeBSD$");
     defined(COMPAT_FREEBSD9)
 #error FreeBSD/arm doesn't provide compatibility with releases prior to 10
 #endif
-
 
 #if __ARM_ARCH < 6
 #error FreeBSD requires ARMv6 or later
@@ -157,7 +158,7 @@ extern unsigned int page0[], page0_data[];
 void
 arm_vector_init(vm_offset_t va, int which)
 {
-	unsigned int *vectors = (int *) va;
+	unsigned int *vectors = (int *)va;
 	unsigned int *vectors_data = vectors + (page0_data - page0);
 	int vec;
 
@@ -193,8 +194,7 @@ cpu_startup(void *dummy)
 	/*
 	 * Display the RAM layout.
 	 */
-	printf("real memory  = %ju (%ju MB)\n",
-	    (uintmax_t)arm32_ptob(realmem),
+	printf("real memory  = %ju (%ju MB)\n", (uintmax_t)arm32_ptob(realmem),
 	    (uintmax_t)arm32_ptob(realmem) / mbyte);
 	printf("avail memory = %ju (%ju MB)\n",
 	    (uintmax_t)arm32_ptob(vm_free_count()),
@@ -206,8 +206,7 @@ cpu_startup(void *dummy)
 
 	bufinit();
 	vm_pager_bufferinit();
-	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack +
-	    USPACE_SVC_STACK_TOP;
+	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack + USPACE_SVC_STACK_TOP;
 	pmap_set_pcb_pagedir(kernel_pmap, pcb);
 }
 
@@ -369,8 +368,7 @@ get_vfpcontext(struct thread *td, mcontext_vfp_t *vfp)
 		critical_exit();
 	} else
 		MPASS(TD_IS_SUSPENDED(td));
-	memcpy(vfp->mcv_reg, pcb->pcb_vfpstate.reg,
-	    sizeof(vfp->mcv_reg));
+	memcpy(vfp->mcv_reg, pcb->pcb_vfpstate.reg, sizeof(vfp->mcv_reg));
 	vfp->mcv_fpscr = pcb->pcb_vfpstate.fpscr;
 }
 
@@ -389,8 +387,8 @@ set_vfpcontext(struct thread *td, mcontext_vfp_t *vfp)
 		critical_exit();
 	} else
 		MPASS(TD_IS_SUSPENDED(td));
-	memcpy(pcb->pcb_vfpstate.reg, vfp->mcv_reg,
-	    sizeof(pcb->pcb_vfpstate.reg));
+	memcpy(
+	    pcb->pcb_vfpstate.reg, vfp->mcv_reg, sizeof(pcb->pcb_vfpstate.reg));
 	pcb->pcb_vfpstate.fpscr = vfp->mcv_fpscr;
 }
 #endif
@@ -400,7 +398,7 @@ arm_get_vfpstate(struct thread *td, void *args)
 {
 	int rv;
 	struct arm_get_vfpstate_args ua;
-	mcontext_vfp_t	mcontext_vfp;
+	mcontext_vfp_t mcontext_vfp;
 
 	rv = copyin(args, &ua, sizeof(ua));
 	if (rv != 0)
@@ -413,7 +411,7 @@ arm_get_vfpstate(struct thread *td, void *args)
 	bzero(&mcontext_vfp, sizeof(mcontext_vfp));
 #endif
 
-	rv = copyout(&mcontext_vfp, ua.mc_vfp,  sizeof(mcontext_vfp));
+	rv = copyout(&mcontext_vfp, ua.mc_vfp, sizeof(mcontext_vfp));
 	if (rv != 0)
 		return (rv);
 	return (0);
@@ -432,24 +430,24 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 		gr[_REG_R0] = 0;
 		gr[_REG_CPSR] = tf->tf_spsr & ~PSR_C;
 	} else {
-		gr[_REG_R0]   = tf->tf_r0;
+		gr[_REG_R0] = tf->tf_r0;
 		gr[_REG_CPSR] = tf->tf_spsr;
 	}
-	gr[_REG_R1]   = tf->tf_r1;
-	gr[_REG_R2]   = tf->tf_r2;
-	gr[_REG_R3]   = tf->tf_r3;
-	gr[_REG_R4]   = tf->tf_r4;
-	gr[_REG_R5]   = tf->tf_r5;
-	gr[_REG_R6]   = tf->tf_r6;
-	gr[_REG_R7]   = tf->tf_r7;
-	gr[_REG_R8]   = tf->tf_r8;
-	gr[_REG_R9]   = tf->tf_r9;
-	gr[_REG_R10]  = tf->tf_r10;
-	gr[_REG_R11]  = tf->tf_r11;
-	gr[_REG_R12]  = tf->tf_r12;
-	gr[_REG_SP]   = tf->tf_usr_sp;
-	gr[_REG_LR]   = tf->tf_usr_lr;
-	gr[_REG_PC]   = tf->tf_pc;
+	gr[_REG_R1] = tf->tf_r1;
+	gr[_REG_R2] = tf->tf_r2;
+	gr[_REG_R3] = tf->tf_r3;
+	gr[_REG_R4] = tf->tf_r4;
+	gr[_REG_R5] = tf->tf_r5;
+	gr[_REG_R6] = tf->tf_r6;
+	gr[_REG_R7] = tf->tf_r7;
+	gr[_REG_R8] = tf->tf_r8;
+	gr[_REG_R9] = tf->tf_r9;
+	gr[_REG_R10] = tf->tf_r10;
+	gr[_REG_R11] = tf->tf_r11;
+	gr[_REG_R12] = tf->tf_r12;
+	gr[_REG_SP] = tf->tf_usr_sp;
+	gr[_REG_LR] = tf->tf_usr_lr;
+	gr[_REG_PC] = tf->tf_pc;
 
 	mcp->mc_vfp_size = 0;
 	mcp->mc_vfp_ptr = NULL;
@@ -484,8 +482,8 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 #ifdef WITNESS
 	if (mcp->mc_vfp_size != 0 && mcp->mc_vfp_size != sizeof(mc_vfp)) {
 		printf("%s: %s: Malformed mc_vfp_size: %d (0x%08X)\n",
-		    td->td_proc->p_comm, __func__,
-		    mcp->mc_vfp_size, mcp->mc_vfp_size);
+		    td->td_proc->p_comm, __func__, mcp->mc_vfp_size,
+		    mcp->mc_vfp_size);
 	} else if (mcp->mc_vfp_size != 0 && mcp->mc_vfp_ptr == NULL) {
 		printf("%s: %s: c_vfp_size != 0 but mc_vfp_ptr == NULL\n",
 		    td->td_proc->p_comm, __func__);
@@ -524,11 +522,9 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	return (0);
 }
 
-void
-sendsig(catcher, ksi, mask)
-	sig_t catcher;
-	ksiginfo_t *ksi;
-	sigset_t *mask;
+void sendsig(catcher, ksi, mask) sig_t catcher;
+ksiginfo_t *ksi;
+sigset_t *mask;
 {
 	struct thread *td;
 	struct proc *p;
@@ -584,7 +580,8 @@ sendsig(catcher, ksi, mask)
 	frame.sf_uc.uc_sigmask = *mask;
 	frame.sf_uc.uc_stack = td->td_sigstk;
 	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK) != 0 ?
-	    (onstack ? SS_ONSTACK : 0) : SS_DISABLE;
+		  (onstack ? SS_ONSTACK : 0) :
+		  SS_DISABLE;
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(td->td_proc);
 
@@ -615,9 +612,9 @@ sendsig(catcher, ksi, mask)
 	if (sysent->sv_sigcode_base != 0)
 		tf->tf_usr_lr = (register_t)sysent->sv_sigcode_base;
 	else
-		tf->tf_usr_lr = (register_t)(sysent->sv_psstrings -
-		    *(sysent->sv_szsigcode));
-	/* Set the mode to enter in the signal handler */
+		tf->tf_usr_lr = (register_t)(
+		    sysent->sv_psstrings - *(sysent->sv_szsigcode));
+		/* Set the mode to enter in the signal handler */
 #if __ARM_ARCH >= 7
 	if ((register_t)catcher & 1)
 		tf->tf_spsr |= PSR_T;
@@ -632,12 +629,10 @@ sendsig(catcher, ksi, mask)
 	mtx_lock(&psp->ps_mtx);
 }
 
-int
-sys_sigreturn(td, uap)
-	struct thread *td;
-	struct sigreturn_args /* {
-		const struct __ucontext *sigcntxp;
-	} */ *uap;
+int sys_sigreturn(td, uap) struct thread *td;
+struct sigreturn_args /* {
+	const struct __ucontext *sigcntxp;
+} */ *uap;
 {
 	ucontext_t uc;
 	int error;
@@ -700,7 +695,8 @@ init_proc0(vm_offset_t kstack)
 	thread0.td_kstack = kstack;
 	thread0.td_kstack_pages = kstack_pages;
 	thread0.td_pcb = (struct pcb *)(thread0.td_kstack +
-	    thread0.td_kstack_pages * PAGE_SIZE) - 1;
+			     thread0.td_kstack_pages * PAGE_SIZE) -
+	    1;
 	thread0.td_pcb->pcb_flags = 0;
 	thread0.td_pcb->pcb_vfpcpu = -1;
 	thread0.td_pcb->pcb_vfpstate.fpscr = VFPSCR_DN;
@@ -779,15 +775,16 @@ initarm(struct arm_boot_params *abp)
 #endif
 
 #ifdef EFI
-	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
+	efihdr = (struct efi_map_header *)preload_search_info(
+	    kmdp, MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr != NULL) {
 		arm_add_efi_map_entries(efihdr, mem_regions, &mem_regions_sz);
 	} else
 #endif
 	{
 		/* Grab physical memory regions information from device tree. */
-		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,NULL) != 0)
+		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) !=
+		    0)
 			panic("Cannot get physical memory regions");
 	}
 	physmem_hardware_regions(mem_regions, mem_regions_sz);
@@ -812,8 +809,9 @@ initarm(struct arm_boot_params *abp)
 	 * Early printf does not work between the time pmap_set_tex() does
 	 * cp15_prrr_set() and this code remaps the VA.
 	 */
-#if defined(EARLY_PRINTF) && defined(SOCDEV_PA) && defined(SOCDEV_VA) && SOCDEV_VA < KERNBASE
-	pmap_preboot_map_attr(SOCDEV_PA, SOCDEV_VA, 1024 * 1024, 
+#if defined(EARLY_PRINTF) && defined(SOCDEV_PA) && defined(SOCDEV_VA) && \
+    SOCDEV_VA < KERNBASE
+	pmap_preboot_map_attr(SOCDEV_PA, SOCDEV_VA, 1024 * 1024,
 	    VM_PROT_READ | VM_PROT_WRITE, VM_MEMATTR_DEVICE);
 #endif
 
@@ -838,7 +836,7 @@ initarm(struct arm_boot_params *abp)
 	systempage = pmap_preboot_get_pages(1);
 
 	/* Map the vector page. */
-	pmap_preboot_map_pages(systempage, ARM_VECTORS_HIGH,  1);
+	pmap_preboot_map_pages(systempage, ARM_VECTORS_HIGH, 1);
 	if (virtual_end >= ARM_VECTORS_HIGH)
 		virtual_end = ARM_VECTORS_HIGH - 1;
 
@@ -847,9 +845,9 @@ initarm(struct arm_boot_params *abp)
 	dpcpu_init((void *)dpcpu, 0);
 
 	/* Allocate stacks for all modes */
-	irqstack    = pmap_preboot_get_vpages(IRQ_STACK_SIZE * MAXCPU);
-	abtstack    = pmap_preboot_get_vpages(ABT_STACK_SIZE * MAXCPU);
-	undstack    = pmap_preboot_get_vpages(UND_STACK_SIZE * MAXCPU );
+	irqstack = pmap_preboot_get_vpages(IRQ_STACK_SIZE * MAXCPU);
+	abtstack = pmap_preboot_get_vpages(ABT_STACK_SIZE * MAXCPU);
+	undstack = pmap_preboot_get_vpages(UND_STACK_SIZE * MAXCPU);
 	kernelstack = pmap_preboot_get_vpages(kstack_pages);
 
 	/* Allocate message buffer. */
@@ -884,7 +882,8 @@ initarm(struct arm_boot_params *abp)
 	 * If we made a mapping for EARLY_PRINTF after pmap_bootstrap_prepare(),
 	 * undo it now that the normal console printf works.
 	 */
-#if defined(EARLY_PRINTF) && defined(SOCDEV_PA) && defined(SOCDEV_VA) && SOCDEV_VA < KERNBASE
+#if defined(EARLY_PRINTF) && defined(SOCDEV_PA) && defined(SOCDEV_VA) && \
+    SOCDEV_VA < KERNBASE
 	pmap_kremove(SOCDEV_VA);
 #endif
 
@@ -906,15 +905,16 @@ initarm(struct arm_boot_params *abp)
 	platform_late_init();
 
 	root = OF_finddevice("/");
-	if (OF_getprop(root, "freebsd,dts-version", dts_version, sizeof(dts_version)) > 0) {
+	if (OF_getprop(root, "freebsd,dts-version", dts_version,
+		sizeof(dts_version)) > 0) {
 		if (strcmp(LINUX_DTS_VERSION, dts_version) != 0)
-			printf("WARNING: DTB version is %s while kernel expects %s, "
+			printf(
+			    "WARNING: DTB version is %s while kernel expects %s, "
 			    "please update the DTB in the ESP\n",
-			    dts_version,
-			    LINUX_DTS_VERSION);
+			    dts_version, LINUX_DTS_VERSION);
 	} else {
 		printf("WARNING: Cannot find freebsd,dts-version property, "
-		    "cannot check DTB compliance\n");
+		       "cannot check DTB compliance\n");
 	}
 
 	/*
@@ -942,7 +942,7 @@ initarm(struct arm_boot_params *abp)
 	 * Prepare the list of physical memory available to the vm subsystem.
 	 */
 	physmem_exclude_region(abp->abp_physaddr,
-		pmap_preboot_get_pages(0) - abp->abp_physaddr, EXFLAG_NOALLOC);
+	    pmap_preboot_get_pages(0) - abp->abp_physaddr, EXFLAG_NOALLOC);
 	physmem_init_kernel_globals();
 
 	init_param2(physmem);
@@ -953,6 +953,5 @@ initarm(struct arm_boot_params *abp)
 	/* Apply possible BP hardening. */
 	cpuinfo_init_bp_hardening();
 	return ((void *)STACKALIGN(thread0.td_pcb));
-
 }
 #endif /* FDT */

@@ -32,7 +32,7 @@
  */
 
 #ifndef __NLM_HAL_MMIO_H__
-#define	__NLM_HAL_MMIO_H__
+#define __NLM_HAL_MMIO_H__
 
 /*
  * This file contains platform specific memory mapped IO implementation
@@ -48,7 +48,8 @@
  * registers in  interrupt handling. So if we get hit by an interrupt while
  * using the upper 32 bits of a register, we lose.
  */
-static inline uint32_t nlm_save_flags_kx(void)
+static inline uint32_t
+nlm_save_flags_kx(void)
 {
 	uint32_t sr = mips_rd_status();
 
@@ -56,7 +57,8 @@ static inline uint32_t nlm_save_flags_kx(void)
 	return (sr);
 }
 
-static inline uint32_t nlm_save_flags_cop2(void)
+static inline uint32_t
+nlm_save_flags_cop2(void)
 {
 	uint32_t sr = mips_rd_status();
 
@@ -64,7 +66,8 @@ static inline uint32_t nlm_save_flags_cop2(void)
 	return (sr);
 }
 
-static inline void nlm_restore_flags(uint32_t sr)
+static inline void
+nlm_restore_flags(uint32_t sr)
 {
 	mips_wr_status(sr);
 }
@@ -110,16 +113,15 @@ nlm_load_dword(uint64_t addr)
 	uint32_t valhi, vallo, sr;
 
 	sr = nlm_save_flags_kx();
-	__asm__ __volatile__(
-		".set	push\n\t"
-		".set	mips64\n\t"
-		"ld	$8, 0(%2)\n\t"
-		"dsra32	%0, $8, 0\n\t"
-		"sll	%1, $8, 0\n\t"
-		".set	pop\n"
-		: "=r"(valhi), "=r"(vallo)
-		: "r"(p)
-		: "$8");
+	__asm__ __volatile__(".set	push\n\t"
+			     ".set	mips64\n\t"
+			     "ld	$8, 0(%2)\n\t"
+			     "dsra32	%0, $8, 0\n\t"
+			     "sll	%1, $8, 0\n\t"
+			     ".set	pop\n"
+			     : "=r"(valhi), "=r"(vallo)
+			     : "r"(p)
+			     : "$8");
 	nlm_restore_flags(sr);
 
 	return ((uint64_t)valhi << 32) | vallo;
@@ -135,17 +137,17 @@ nlm_store_dword(uint64_t addr, uint64_t val)
 	vallo = val & 0xffffffff;
 
 	sr = nlm_save_flags_kx();
-	__asm__ __volatile__(
-		".set	push\n\t"
-		".set	mips64\n\t"
-		"dsll32	$8, %1, 0\n\t"
-		"dsll32	$9, %2, 0\n\t"  /* get rid of the */
-		"dsrl32	$9, $9, 0\n\t"  /* sign extend */
-		"or	$9, $9, $8\n\t"
-		"sd	$9, 0(%0)\n\t"
-		".set	pop\n"
-		: : "r"(p), "r"(valhi), "r"(vallo)
-		: "$8", "$9", "memory");
+	__asm__ __volatile__(".set	push\n\t"
+			     ".set	mips64\n\t"
+			     "dsll32	$8, %1, 0\n\t"
+			     "dsll32	$9, %2, 0\n\t" /* get rid of the */
+			     "dsrl32	$9, $9, 0\n\t" /* sign extend */
+			     "or	$9, $9, $8\n\t"
+			     "sd	$9, 0(%0)\n\t"
+			     ".set	pop\n"
+			     :
+			     : "r"(p), "r"(valhi), "r"(vallo)
+			     : "$8", "$9", "memory");
 	nlm_restore_flags(sr);
 }
 #endif
@@ -190,13 +192,12 @@ nlm_load_word_daddr(uint64_t addr)
 {
 	uint32_t val;
 
-	__asm__ __volatile__(
-		".set	push\n\t"
-		".set	mips64\n\t"
-		"lw		%0, 0(%1)\n\t"
-		".set	pop\n"
-		: "=r"(val)
-		: "r"(addr));
+	__asm__ __volatile__(".set	push\n\t"
+			     ".set	mips64\n\t"
+			     "lw		%0, 0(%1)\n\t"
+			     ".set	pop\n"
+			     : "=r"(val)
+			     : "r"(addr));
 
 	return val;
 }
@@ -204,13 +205,13 @@ nlm_load_word_daddr(uint64_t addr)
 static inline void
 nlm_store_word_daddr(uint64_t addr, uint32_t val)
 {
-	__asm__ __volatile__(
-		".set	push\n\t"
-		".set	mips64\n\t"
-		"sw		%0, 0(%1)\n\t"
-		".set	pop\n"
-		: : "r"(val), "r"(addr)
-		: "memory");
+	__asm__ __volatile__(".set	push\n\t"
+			     ".set	mips64\n\t"
+			     "sw		%0, 0(%1)\n\t"
+			     ".set	pop\n"
+			     :
+			     : "r"(val), "r"(addr)
+			     : "memory");
 }
 
 static inline uint64_t
@@ -218,26 +219,25 @@ nlm_load_dword_daddr(uint64_t addr)
 {
 	uint64_t val;
 
-	__asm__ __volatile__(
-		".set	push\n\t"
-		".set	mips64\n\t"
-		"ld		%0, 0(%1)\n\t"
-		".set	pop\n"
-		: "=r"(val)
-		: "r"(addr));
+	__asm__ __volatile__(".set	push\n\t"
+			     ".set	mips64\n\t"
+			     "ld		%0, 0(%1)\n\t"
+			     ".set	pop\n"
+			     : "=r"(val)
+			     : "r"(addr));
 	return val;
 }
 
 static inline void
 nlm_store_dword_daddr(uint64_t addr, uint64_t val)
 {
-	__asm__ __volatile__(
-		".set	push\n\t"
-		".set	mips64\n\t"
-		"sd		%0, 0(%1)\n\t"
-		".set	pop\n"
-		: : "r"(val), "r"(addr)
-		: "memory");
+	__asm__ __volatile__(".set	push\n\t"
+			     ".set	mips64\n\t"
+			     "sd		%0, 0(%1)\n\t"
+			     ".set	pop\n"
+			     :
+			     : "r"(val), "r"(addr)
+			     : "memory");
 }
 
 #else /* o32 */
@@ -250,22 +250,20 @@ nlm_load_word_daddr(uint64_t addr)
 	addrlo = addr & 0xffffffff;
 
 	sr = nlm_save_flags_kx();
-	__asm__ __volatile__(
-		".set	push\n\t"
-		".set	mips64\n\t"
-		"dsll32	$8, %1, 0\n\t"
-		"dsll32	$9, %2, 0\n\t"
-		"dsrl32	$9, $9, 0\n\t"
-		"or	$9, $9, $8\n\t"
-		"lw	%0, 0($9)\n\t"
-		".set	pop\n"
-		:	"=r"(val)
-		:	"r"(addrhi), "r"(addrlo)
-		:	"$8", "$9");
+	__asm__ __volatile__(".set	push\n\t"
+			     ".set	mips64\n\t"
+			     "dsll32	$8, %1, 0\n\t"
+			     "dsll32	$9, %2, 0\n\t"
+			     "dsrl32	$9, $9, 0\n\t"
+			     "or	$9, $9, $8\n\t"
+			     "lw	%0, 0($9)\n\t"
+			     ".set	pop\n"
+			     : "=r"(val)
+			     : "r"(addrhi), "r"(addrlo)
+			     : "$8", "$9");
 	nlm_restore_flags(sr);
 
 	return val;
-
 }
 
 static inline void
@@ -277,17 +275,17 @@ nlm_store_word_daddr(uint64_t addr, uint32_t val)
 	addrlo = addr & 0xffffffff;
 
 	sr = nlm_save_flags_kx();
-	__asm__ __volatile__(
-		".set	push\n\t"
-		".set	mips64\n\t"
-		"dsll32	$8, %1, 0\n\t"
-		"dsll32	$9, %2, 0\n\t"
-		"dsrl32	$9, $9, 0\n\t"
-		"or	$9, $9, $8\n\t"
-		"sw	%0, 0($9)\n\t"
-		".set	pop\n"
-		: : "r"(val), "r"(addrhi), "r"(addrlo)
-		:	"$8", "$9", "memory");
+	__asm__ __volatile__(".set	push\n\t"
+			     ".set	mips64\n\t"
+			     "dsll32	$8, %1, 0\n\t"
+			     "dsll32	$9, %2, 0\n\t"
+			     "dsrl32	$9, $9, 0\n\t"
+			     "or	$9, $9, $8\n\t"
+			     "sw	%0, 0($9)\n\t"
+			     ".set	pop\n"
+			     :
+			     : "r"(val), "r"(addrhi), "r"(addrlo)
+			     : "$8", "$9", "memory");
 	nlm_restore_flags(sr);
 }
 
@@ -301,20 +299,19 @@ nlm_load_dword_daddr(uint64_t addr)
 	addrl = addr & 0xffffffff;
 
 	sr = nlm_save_flags_kx();
-	__asm__ __volatile__(
-		".set	push\n\t"
-		".set	mips64\n\t"
-		"dsll32	$8, %2, 0\n\t"
-		"dsll32	$9, %3, 0\n\t"
-		"dsrl32	$9, $9, 0\n\t"
-		"or	$9, $9, $8\n\t"
-		"ld	$8, 0($9)\n\t"
-		"dsra32	%0, $8, 0\n\t"
-		"sll	%1, $8, 0\n\t"
-		".set	pop\n"
-		: "=r"(valh), "=r"(vall)
-		: "r"(addrh), "r"(addrl)
-		: "$8", "$9");
+	__asm__ __volatile__(".set	push\n\t"
+			     ".set	mips64\n\t"
+			     "dsll32	$8, %2, 0\n\t"
+			     "dsll32	$9, %3, 0\n\t"
+			     "dsrl32	$9, $9, 0\n\t"
+			     "or	$9, $9, $8\n\t"
+			     "ld	$8, 0($9)\n\t"
+			     "dsra32	%0, $8, 0\n\t"
+			     "sll	%1, $8, 0\n\t"
+			     ".set	pop\n"
+			     : "=r"(valh), "=r"(vall)
+			     : "r"(addrh), "r"(addrl)
+			     : "$8", "$9");
 	nlm_restore_flags(sr);
 
 	return ((uint64_t)valh << 32) | vall;
@@ -332,21 +329,21 @@ nlm_store_dword_daddr(uint64_t addr, uint64_t val)
 	vall = val & 0xffffffff;
 
 	sr = nlm_save_flags_kx();
-	__asm__ __volatile__(
-		".set	push\n\t"
-		".set	mips64\n\t"
-		"dsll32	$8, %2, 0\n\t"
-		"dsll32	$9, %3, 0\n\t"
-		"dsrl32	$9, $9, 0\n\t"
-		"or	$9, $9, $8\n\t"
-		"dsll32	$8, %0, 0\n\t"
-		"dsll32	$10, %1, 0\n\t"
-		"dsrl32	$10, $10, 0\n\t"
-		"or	$8, $8, $10\n\t"
-		"sd	$8, 0($9)\n\t"
-		".set	pop\n"
-		: :	"r"(valh), "r"(vall), "r"(addrh), "r"(addrl)
-		:	"$8", "$9", "memory");
+	__asm__ __volatile__(".set	push\n\t"
+			     ".set	mips64\n\t"
+			     "dsll32	$8, %2, 0\n\t"
+			     "dsll32	$9, %3, 0\n\t"
+			     "dsrl32	$9, $9, 0\n\t"
+			     "or	$9, $9, $8\n\t"
+			     "dsll32	$8, %0, 0\n\t"
+			     "dsll32	$10, %1, 0\n\t"
+			     "dsrl32	$10, $10, 0\n\t"
+			     "or	$8, $8, $10\n\t"
+			     "sd	$8, 0($9)\n\t"
+			     ".set	pop\n"
+			     :
+			     : "r"(valh), "r"(vall), "r"(addrh), "r"(addrl)
+			     : "$8", "$9", "memory");
 	nlm_restore_flags(sr);
 }
 #endif /* __mips_n64 */

@@ -42,84 +42,61 @@
 #ifndef _NETGRAPH_H4_PRSE_H_
 #define _NETGRAPH_H4_PRSE_H_
 
-/* 
+/*
  * H4 node command list
  */
 
 /* Stat info */
-static const struct ng_parse_struct_field	ng_h4_stat_type_fields[] =
-{
-	{ "pckts_recv",	&ng_parse_uint32_type, },
-	{ "bytes_recv",	&ng_parse_uint32_type, },
-	{ "pckts_sent",	&ng_parse_uint32_type, },
-	{ "bytes_sent",	&ng_parse_uint32_type, },
-	{ "oerrors",	&ng_parse_uint32_type, },
-	{ "ierrors",	&ng_parse_uint32_type, },
-	{ NULL, }
+static const struct ng_parse_struct_field ng_h4_stat_type_fields[] = {
+	{
+	    "pckts_recv",
+	    &ng_parse_uint32_type,
+	},
+	{
+	    "bytes_recv",
+	    &ng_parse_uint32_type,
+	},
+	{
+	    "pckts_sent",
+	    &ng_parse_uint32_type,
+	},
+	{
+	    "bytes_sent",
+	    &ng_parse_uint32_type,
+	},
+	{
+	    "oerrors",
+	    &ng_parse_uint32_type,
+	},
+	{
+	    "ierrors",
+	    &ng_parse_uint32_type,
+	},
+	{
+	    NULL,
+	}
 };
-static const struct ng_parse_type		ng_h4_stat_type = {
-	&ng_parse_struct_type,
-	&ng_h4_stat_type_fields
-};
+static const struct ng_parse_type ng_h4_stat_type = { &ng_parse_struct_type,
+	&ng_h4_stat_type_fields };
 
-static const struct ng_cmdlist	ng_h4_cmdlist[] = {
+static const struct ng_cmdlist ng_h4_cmdlist[] = {
+	{ NGM_H4_COOKIE, NGM_H4_NODE_RESET, "reset", NULL, NULL },
+	{ NGM_H4_COOKIE, NGM_H4_NODE_GET_STATE, "get_state", NULL,
+	    &ng_parse_uint16_type },
+	{ NGM_H4_COOKIE, NGM_H4_NODE_GET_DEBUG, "get_debug", NULL,
+	    &ng_parse_uint16_type },
+	{ NGM_H4_COOKIE, NGM_H4_NODE_SET_DEBUG, "set_debug",
+	    &ng_parse_uint16_type, NULL },
+	{ NGM_H4_COOKIE, NGM_H4_NODE_GET_QLEN, "get_qlen", NULL,
+	    &ng_parse_int32_type },
+	{ NGM_H4_COOKIE, NGM_H4_NODE_SET_QLEN, "set_qlen", &ng_parse_int32_type,
+	    NULL },
+	{ NGM_H4_COOKIE, NGM_H4_NODE_GET_STAT, "get_stat", NULL,
+	    &ng_h4_stat_type },
+	{ NGM_H4_COOKIE, NGM_H4_NODE_RESET_STAT, "reset_stat", NULL, NULL },
 	{
-		NGM_H4_COOKIE,
-		NGM_H4_NODE_RESET,
-		"reset",
-		NULL,
-		NULL
-	},
-	{
-		NGM_H4_COOKIE,
-		NGM_H4_NODE_GET_STATE,
-		"get_state",
-		NULL,
-		&ng_parse_uint16_type
-	},
-	{
-		NGM_H4_COOKIE,
-		NGM_H4_NODE_GET_DEBUG,
-		"get_debug",
-		NULL,
-		&ng_parse_uint16_type
-	},
-	{
-		NGM_H4_COOKIE,
-		NGM_H4_NODE_SET_DEBUG,
-		"set_debug",
-		&ng_parse_uint16_type,
-		NULL
-	},
-	{
-		NGM_H4_COOKIE,
-		NGM_H4_NODE_GET_QLEN,
-		"get_qlen",
-		NULL,
-		&ng_parse_int32_type
-	},
-	{
-		NGM_H4_COOKIE,
-		NGM_H4_NODE_SET_QLEN,
-		"set_qlen",
-		&ng_parse_int32_type,
-		NULL
-	},
-	{
-		NGM_H4_COOKIE,
-		NGM_H4_NODE_GET_STAT,
-		"get_stat",
-		NULL,
-		&ng_h4_stat_type
-	},
-	{
-		NGM_H4_COOKIE,
-		NGM_H4_NODE_RESET_STAT,
-		"reset_stat",
-		NULL,
-		NULL
-	},
-	{ 0, }
+	    0,
+	}
 };
 
 #endif /* ndef _NETGRAPH_H4_PRSE_H_ */

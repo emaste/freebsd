@@ -29,16 +29,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
-#include <sys/linker.h>
-#include <sys/sysent.h>
 #include <sys/imgact_elf.h>
+#include <sys/kernel.h>
+#include <sys/linker.h>
 #include <sys/proc.h>
-#include <sys/syscall.h>
 #include <sys/signalvar.h>
+#include <sys/syscall.h>
+#include <sys/sysent.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
@@ -52,70 +52,68 @@ __FBSDID("$FreeBSD$");
 #include <machine/vfp.h>
 #endif
 
-#include "opt_ddb.h"            /* for OPT_DDB */
-#include "opt_global.h"         /* for OPT_KDTRACE_HOOKS */
-#include "opt_stack.h"          /* for OPT_STACK */
+#include "opt_ddb.h" /* for OPT_DDB */
+#include "opt_global.h" /* for OPT_KDTRACE_HOOKS */
+#include "opt_stack.h" /* for OPT_STACK */
 
-static boolean_t elf32_arm_abi_supported(struct image_params *, int32_t *,
-    uint32_t *);
+static boolean_t elf32_arm_abi_supported(
+    struct image_params *, int32_t *, uint32_t *);
 
 u_long elf_hwcap;
 u_long elf_hwcap2;
 
 struct sysentvec elf32_freebsd_sysvec = {
-	.sv_size	= SYS_MAXSYSCALL,
-	.sv_table	= sysent,
-	.sv_transtrap	= NULL,
-	.sv_fixup	= __elfN(freebsd_fixup),
-	.sv_sendsig	= sendsig,
-	.sv_sigcode	= sigcode,
-	.sv_szsigcode	= &szsigcode,
-	.sv_name	= "FreeBSD ELF32",
-	.sv_coredump	= __elfN(coredump),
-	.sv_imgact_try	= NULL,
-	.sv_minsigstksz	= MINSIGSTKSZ,
-	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= VM_MAXUSER_ADDRESS,
-	.sv_usrstack	= USRSTACK,
-	.sv_psstrings	= PS_STRINGS,
-	.sv_stackprot	= VM_PROT_ALL,
+	.sv_size = SYS_MAXSYSCALL,
+	.sv_table = sysent,
+	.sv_transtrap = NULL,
+	.sv_fixup = __elfN(freebsd_fixup),
+	.sv_sendsig = sendsig,
+	.sv_sigcode = sigcode,
+	.sv_szsigcode = &szsigcode,
+	.sv_name = "FreeBSD ELF32",
+	.sv_coredump = __elfN(coredump),
+	.sv_imgact_try = NULL,
+	.sv_minsigstksz = MINSIGSTKSZ,
+	.sv_minuser = VM_MIN_ADDRESS,
+	.sv_maxuser = VM_MAXUSER_ADDRESS,
+	.sv_usrstack = USRSTACK,
+	.sv_psstrings = PS_STRINGS,
+	.sv_stackprot = VM_PROT_ALL,
 	.sv_copyout_auxargs = __elfN(freebsd_copyout_auxargs),
 	.sv_copyout_strings = exec_copyout_strings,
-	.sv_setregs	= exec_setregs,
-	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL,
-	.sv_flags	=
-			  SV_ASLR | SV_SHP | SV_TIMEKEEP | SV_RNG_SEED_VER |
-			  SV_ABI_FREEBSD | SV_ILP32,
+	.sv_setregs = exec_setregs,
+	.sv_fixlimit = NULL,
+	.sv_maxssiz = NULL,
+	.sv_flags = SV_ASLR | SV_SHP | SV_TIMEKEEP | SV_RNG_SEED_VER |
+	    SV_ABI_FREEBSD | SV_ILP32,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
 	.sv_shared_page_base = SHAREDPAGE,
 	.sv_shared_page_len = PAGE_SIZE,
-	.sv_schedtail	= NULL,
+	.sv_schedtail = NULL,
 	.sv_thread_detach = NULL,
-	.sv_trap	= NULL,
-	.sv_hwcap	= &elf_hwcap,
-	.sv_hwcap2	= &elf_hwcap2,
+	.sv_trap = NULL,
+	.sv_hwcap = &elf_hwcap,
+	.sv_hwcap2 = &elf_hwcap2,
 };
 INIT_SYSENTVEC(elf32_sysvec, &elf32_freebsd_sysvec);
 
 static Elf32_Brandinfo freebsd_brand_info = {
-	.brand		= ELFOSABI_FREEBSD,
-	.machine	= EM_ARM,
-	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
-	.interp_path	= "/libexec/ld-elf.so.1",
-	.sysvec		= &elf32_freebsd_sysvec,
-	.interp_newpath	= NULL,
-	.brand_note	= &elf32_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
-	.header_supported= elf32_arm_abi_supported,
+	.brand = ELFOSABI_FREEBSD,
+	.machine = EM_ARM,
+	.compat_3_brand = "FreeBSD",
+	.emul_path = NULL,
+	.interp_path = "/libexec/ld-elf.so.1",
+	.sysvec = &elf32_freebsd_sysvec,
+	.interp_newpath = NULL,
+	.brand_note = &elf32_freebsd_brandnote,
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
+	.header_supported = elf32_arm_abi_supported,
 };
 
 SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST,
-	(sysinit_cfunc_t) elf32_insert_brand_entry,
-	&freebsd_brand_info);
+    (sysinit_cfunc_t)elf32_insert_brand_entry, &freebsd_brand_info);
 
 static boolean_t
 elf32_arm_abi_supported(struct image_params *imgp, int32_t *osrel __unused,
@@ -128,8 +126,10 @@ elf32_arm_abi_supported(struct image_params *imgp, int32_t *osrel __unused,
 	 */
 	if (EF_ARM_EABI_VERSION(hdr->e_flags) < EF_ARM_EABI_FREEBSD_MIN) {
 		if (bootverbose)
-			uprintf("Attempting to execute non EABI binary (rev %d) image %s",
-			    EF_ARM_EABI_VERSION(hdr->e_flags), imgp->args->fname);
+			uprintf(
+			    "Attempting to execute non EABI binary (rev %d) image %s",
+			    EF_ARM_EABI_VERSION(hdr->e_flags),
+			    imgp->args->fname);
 		return (FALSE);
 	}
 	return (TRUE);
@@ -143,11 +143,11 @@ elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 
 	if (dst != NULL) {
 		get_vfpcontext(td, &vfp);
-		*off = elf32_populate_note(NT_ARM_VFP, &vfp, dst, sizeof(vfp),
-		    NULL);
+		*off = elf32_populate_note(
+		    NT_ARM_VFP, &vfp, dst, sizeof(vfp), NULL);
 	} else
-		*off = elf32_populate_note(NT_ARM_VFP, NULL, NULL, sizeof(vfp),
-		    NULL);
+		*off = elf32_populate_note(
+		    NT_ARM_VFP, NULL, NULL, sizeof(vfp), NULL);
 #endif
 }
 
@@ -162,8 +162,7 @@ elf_is_ifunc_reloc(Elf_Size r_info __unused)
  * It is possible for the compiler to emit relocations for unaligned data.
  * We handle this situation with these inlines.
  */
-#define	RELOC_ALIGNED_P(x) \
-	(((uintptr_t)(x) & (sizeof(void *) - 1)) == 0)
+#define RELOC_ALIGNED_P(x) (((uintptr_t)(x) & (sizeof(void *) - 1)) == 0)
 
 static __inline Elf_Addr
 load_ptr(Elf_Addr *where)
@@ -202,14 +201,14 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	switch (type) {
 	case ELF_RELOC_REL:
 		rel = (const Elf_Rel *)data;
-		where = (Elf_Addr *) (relocbase + rel->r_offset);
+		where = (Elf_Addr *)(relocbase + rel->r_offset);
 		addend = load_ptr(where);
 		rtype = ELF_R_TYPE(rel->r_info);
 		symidx = ELF_R_SYM(rel->r_info);
 		break;
 	case ELF_RELOC_RELA:
 		rela = (const Elf_Rela *)data;
-		where = (Elf_Addr *) (relocbase + rela->r_offset);
+		where = (Elf_Addr *)(relocbase + rela->r_offset);
 		addend = rela->r_addend;
 		rtype = ELF_R_TYPE(rela->r_info);
 		symidx = ELF_R_SYM(rela->r_info);
@@ -219,7 +218,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	}
 
 	if (local) {
-		if (rtype == R_ARM_RELATIVE) {	/* A + B */
+		if (rtype == R_ARM_RELATIVE) { /* A + B */
 			addr = elf_relocaddr(lf, relocbase + addend);
 			if (load_ptr(where) != addr)
 				store_ptr(where, addr);
@@ -228,42 +227,44 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	}
 
 	switch (rtype) {
-		case R_ARM_NONE:	/* none */
-			break;
+	case R_ARM_NONE: /* none */
+		break;
 
-		case R_ARM_ABS32:
-			error = lookup(lf, symidx, 1, &addr);
-			if (error != 0)
-				return (-1);
-			store_ptr(where, addr + load_ptr(where));
-			break;
-
-		case R_ARM_COPY:	/* none */
-			/*
-			 * There shouldn't be copy relocations in kernel
-			 * objects.
-			 */
-			printf("kldload: unexpected R_COPY relocation, "
-			    "symbol index %d\n", symidx);
+	case R_ARM_ABS32:
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
 			return (-1);
-			break;
+		store_ptr(where, addr + load_ptr(where));
+		break;
 
-		case R_ARM_JUMP_SLOT:
-			error = lookup(lf, symidx, 1, &addr);
-			if (error == 0) {
-				store_ptr(where, addr);
-				return (0);
-			}
-			return (-1);
-		case R_ARM_RELATIVE:
-			break;
+	case R_ARM_COPY: /* none */
+		/*
+		 * There shouldn't be copy relocations in kernel
+		 * objects.
+		 */
+		printf("kldload: unexpected R_COPY relocation, "
+		       "symbol index %d\n",
+		    symidx);
+		return (-1);
+		break;
 
-		default:
-			printf("kldload: unexpected relocation type %d, "
-			    "symbol index %d\n", rtype, symidx);
-			return (-1);
+	case R_ARM_JUMP_SLOT:
+		error = lookup(lf, symidx, 1, &addr);
+		if (error == 0) {
+			store_ptr(where, addr);
+			return (0);
+		}
+		return (-1);
+	case R_ARM_RELATIVE:
+		break;
+
+	default:
+		printf("kldload: unexpected relocation type %d, "
+		       "symbol index %d\n",
+		    rtype, symidx);
+		return (-1);
 	}
-	return(0);
+	return (0);
 }
 
 int

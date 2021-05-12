@@ -28,23 +28,23 @@
  */
 
 /*
- * Watchdog driver for AR71xx 
+ * Watchdog driver for AR71xx
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/eventhandler.h>
 #include <sys/systm.h>
-#include <sys/watchdog.h>
 #include <sys/bus.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
+#include <sys/watchdog.h>
 
-#include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xxreg.h>
 
 struct ar71xx_wdog_softc {
 	device_t dev;
@@ -79,12 +79,13 @@ ar71xx_wdog_watchdog_fn(void *private, u_int cmd, int *error)
 			timer_val = 0xffffffff;
 		if (sc->debug)
 			device_printf(sc->dev, "%s: programming timer: %jx\n",
-			    __func__, (uintmax_t) timer_val);
+			    __func__, (uintmax_t)timer_val);
 		/*
 		 * Make sure the watchdog is set to NOACTION and give it
 		 * time to take.
 		 */
-		ATH_WRITE_REG(AR71XX_RST_WDOG_CONTROL, RST_WDOG_ACTION_NOACTION);
+		ATH_WRITE_REG(
+		    AR71XX_RST_WDOG_CONTROL, RST_WDOG_ACTION_NOACTION);
 		wmb();
 		DELAY(100);
 
@@ -106,8 +107,8 @@ ar71xx_wdog_watchdog_fn(void *private, u_int cmd, int *error)
 		if (sc->debug)
 			device_printf(sc->dev, "%s: disarming\n", __func__);
 		if (sc->armed) {
-			ATH_WRITE_REG(AR71XX_RST_WDOG_CONTROL,
-			    RST_WDOG_ACTION_NOACTION);
+			ATH_WRITE_REG(
+			    AR71XX_RST_WDOG_CONTROL, RST_WDOG_ACTION_NOACTION);
 			sc->armed = 0;
 		}
 	}
@@ -126,21 +127,18 @@ ar71xx_wdog_sysctl(device_t dev)
 {
 	struct ar71xx_wdog_softc *sc = device_get_softc(dev);
 
-        struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->dev);
-        struct sysctl_oid *tree = device_get_sysctl_tree(sc->dev);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->dev);
 
-        SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-                "debug", CTLFLAG_RW, &sc->debug, 0,
-                "enable watchdog debugging");
-        SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-                "nmi", CTLFLAG_RW, &sc->watchdog_nmi, 0,
-                "watchdog triggers NMI instead of reset");
-        SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-                "armed", CTLFLAG_RD, &sc->armed, 0,
-                "whether the watchdog is armed");
-        SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-                "reboot_from_watchdog", CTLFLAG_RD, &sc->reboot_from_watchdog, 0,
-                "whether the system rebooted from the watchdog");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "debug",
+	    CTLFLAG_RW, &sc->debug, 0, "enable watchdog debugging");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "nmi", CTLFLAG_RW,
+	    &sc->watchdog_nmi, 0, "watchdog triggers NMI instead of reset");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "armed",
+	    CTLFLAG_RD, &sc->armed, 0, "whether the watchdog is armed");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "reboot_from_watchdog", CTLFLAG_RD, &sc->reboot_from_watchdog, 0,
+	    "whether the system rebooted from the watchdog");
 }
 
 static int
@@ -154,8 +152,8 @@ ar71xx_wdog_attach(device_t dev)
 	sc->debug = 0;
 
 	if (ATH_READ_REG(AR71XX_RST_WDOG_CONTROL) & RST_WDOG_LAST) {
-		device_printf (dev, 
-		    "Previous reset was due to watchdog timeout\n");
+		device_printf(
+		    dev, "Previous reset was due to watchdog timeout\n");
 		sc->reboot_from_watchdog = 1;
 	}
 
@@ -171,7 +169,7 @@ ar71xx_wdog_attach(device_t dev)
 static device_method_t ar71xx_wdog_methods[] = {
 	DEVMETHOD(device_probe, ar71xx_wdog_probe),
 	DEVMETHOD(device_attach, ar71xx_wdog_attach),
-	{0, 0},
+	{ 0, 0 },
 };
 
 static driver_t ar71xx_wdog_driver = {
@@ -181,4 +179,5 @@ static driver_t ar71xx_wdog_driver = {
 };
 static devclass_t ar71xx_wdog_devclass;
 
-DRIVER_MODULE(ar71xx_wdog, nexus, ar71xx_wdog_driver, ar71xx_wdog_devclass, 0, 0);
+DRIVER_MODULE(
+    ar71xx_wdog, nexus, ar71xx_wdog_driver, ar71xx_wdog_devclass, 0, 0);

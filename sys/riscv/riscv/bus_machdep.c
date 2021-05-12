@@ -43,51 +43,51 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-uint8_t  generic_bs_r_1(void *, bus_space_handle_t, bus_size_t);
+uint8_t generic_bs_r_1(void *, bus_space_handle_t, bus_size_t);
 uint16_t generic_bs_r_2(void *, bus_space_handle_t, bus_size_t);
 uint32_t generic_bs_r_4(void *, bus_space_handle_t, bus_size_t);
 uint64_t generic_bs_r_8(void *, bus_space_handle_t, bus_size_t);
 
-void generic_bs_rm_1(void *, bus_space_handle_t, bus_size_t, uint8_t *,
-    bus_size_t);
-void generic_bs_rm_2(void *, bus_space_handle_t, bus_size_t, uint16_t *,
-    bus_size_t);
-void generic_bs_rm_4(void *, bus_space_handle_t, bus_size_t, uint32_t *,
-    bus_size_t);
-void generic_bs_rm_8(void *, bus_space_handle_t, bus_size_t, uint64_t *,
-    bus_size_t);
+void generic_bs_rm_1(
+    void *, bus_space_handle_t, bus_size_t, uint8_t *, bus_size_t);
+void generic_bs_rm_2(
+    void *, bus_space_handle_t, bus_size_t, uint16_t *, bus_size_t);
+void generic_bs_rm_4(
+    void *, bus_space_handle_t, bus_size_t, uint32_t *, bus_size_t);
+void generic_bs_rm_8(
+    void *, bus_space_handle_t, bus_size_t, uint64_t *, bus_size_t);
 
-void generic_bs_rr_1(void *, bus_space_handle_t, bus_size_t, uint8_t *,
-    bus_size_t);
-void generic_bs_rr_2(void *, bus_space_handle_t, bus_size_t, uint16_t *,
-    bus_size_t);
-void generic_bs_rr_4(void *, bus_space_handle_t, bus_size_t, uint32_t *,
-    bus_size_t);
-void generic_bs_rr_8(void *, bus_space_handle_t, bus_size_t, uint64_t *,
-    bus_size_t);
+void generic_bs_rr_1(
+    void *, bus_space_handle_t, bus_size_t, uint8_t *, bus_size_t);
+void generic_bs_rr_2(
+    void *, bus_space_handle_t, bus_size_t, uint16_t *, bus_size_t);
+void generic_bs_rr_4(
+    void *, bus_space_handle_t, bus_size_t, uint32_t *, bus_size_t);
+void generic_bs_rr_8(
+    void *, bus_space_handle_t, bus_size_t, uint64_t *, bus_size_t);
 
 void generic_bs_w_1(void *, bus_space_handle_t, bus_size_t, uint8_t);
 void generic_bs_w_2(void *, bus_space_handle_t, bus_size_t, uint16_t);
 void generic_bs_w_4(void *, bus_space_handle_t, bus_size_t, uint32_t);
 void generic_bs_w_8(void *, bus_space_handle_t, bus_size_t, uint64_t);
 
-void generic_bs_wm_1(void *, bus_space_handle_t, bus_size_t, const uint8_t *,
-    bus_size_t);
-void generic_bs_wm_2(void *, bus_space_handle_t, bus_size_t, const uint16_t *,
-    bus_size_t);
-void generic_bs_wm_4(void *, bus_space_handle_t, bus_size_t, const uint32_t *,
-    bus_size_t);
-void generic_bs_wm_8(void *, bus_space_handle_t, bus_size_t, const uint64_t *,
-    bus_size_t);
+void generic_bs_wm_1(
+    void *, bus_space_handle_t, bus_size_t, const uint8_t *, bus_size_t);
+void generic_bs_wm_2(
+    void *, bus_space_handle_t, bus_size_t, const uint16_t *, bus_size_t);
+void generic_bs_wm_4(
+    void *, bus_space_handle_t, bus_size_t, const uint32_t *, bus_size_t);
+void generic_bs_wm_8(
+    void *, bus_space_handle_t, bus_size_t, const uint64_t *, bus_size_t);
 
-void generic_bs_wr_1(void *, bus_space_handle_t, bus_size_t, const uint8_t *,
-    bus_size_t);
-void generic_bs_wr_2(void *, bus_space_handle_t, bus_size_t, const uint16_t *,
-    bus_size_t);
-void generic_bs_wr_4(void *, bus_space_handle_t, bus_size_t, const uint32_t *,
-    bus_size_t);
-void generic_bs_wr_8(void *, bus_space_handle_t, bus_size_t, const uint64_t *,
-    bus_size_t);
+void generic_bs_wr_1(
+    void *, bus_space_handle_t, bus_size_t, const uint8_t *, bus_size_t);
+void generic_bs_wr_2(
+    void *, bus_space_handle_t, bus_size_t, const uint16_t *, bus_size_t);
+void generic_bs_wr_4(
+    void *, bus_space_handle_t, bus_size_t, const uint32_t *, bus_size_t);
+void generic_bs_wr_8(
+    void *, bus_space_handle_t, bus_size_t, const uint64_t *, bus_size_t);
 
 static int
 generic_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,

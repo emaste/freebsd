@@ -31,8 +31,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
@@ -76,32 +76,27 @@ static struct cpu_group *ps3_smp_topo(platform_t);
 static void ps3_reset(platform_t);
 static void ps3_cpu_idle(sbintime_t);
 
-static platform_method_t ps3_methods[] = {
-	PLATFORMMETHOD(platform_probe, 		ps3_probe),
-	PLATFORMMETHOD(platform_attach,		ps3_attach),
-	PLATFORMMETHOD(platform_mem_regions,	ps3_mem_regions),
-	PLATFORMMETHOD(platform_real_maxaddr,	ps3_real_maxaddr),
-	PLATFORMMETHOD(platform_timebase_freq,	ps3_timebase_freq),
+static platform_method_t ps3_methods[] = { PLATFORMMETHOD(
+					       platform_probe, ps3_probe),
+	PLATFORMMETHOD(platform_attach, ps3_attach),
+	PLATFORMMETHOD(platform_mem_regions, ps3_mem_regions),
+	PLATFORMMETHOD(platform_real_maxaddr, ps3_real_maxaddr),
+	PLATFORMMETHOD(platform_timebase_freq, ps3_timebase_freq),
 
 #ifdef SMP
-	PLATFORMMETHOD(platform_smp_first_cpu,	ps3_smp_first_cpu),
-	PLATFORMMETHOD(platform_smp_next_cpu,	ps3_smp_next_cpu),
-	PLATFORMMETHOD(platform_smp_get_bsp,	ps3_smp_get_bsp),
-	PLATFORMMETHOD(platform_smp_start_cpu,	ps3_smp_start_cpu),
-	PLATFORMMETHOD(platform_smp_probe_threads,	ps3_smp_probe_threads),
-	PLATFORMMETHOD(platform_smp_topo,	ps3_smp_topo),
+	PLATFORMMETHOD(platform_smp_first_cpu, ps3_smp_first_cpu),
+	PLATFORMMETHOD(platform_smp_next_cpu, ps3_smp_next_cpu),
+	PLATFORMMETHOD(platform_smp_get_bsp, ps3_smp_get_bsp),
+	PLATFORMMETHOD(platform_smp_start_cpu, ps3_smp_start_cpu),
+	PLATFORMMETHOD(platform_smp_probe_threads, ps3_smp_probe_threads),
+	PLATFORMMETHOD(platform_smp_topo, ps3_smp_topo),
 #endif
 
-	PLATFORMMETHOD(platform_reset,		ps3_reset),
+	PLATFORMMETHOD(platform_reset, ps3_reset),
 
-	PLATFORMMETHOD_END
-};
+	PLATFORMMETHOD_END };
 
-static platform_def_t ps3_platform = {
-	"ps3",
-	ps3_methods,
-	0
-};
+static platform_def_t ps3_platform = { "ps3", ps3_methods, 0 };
 
 PLATFORM_DEF(ps3_platform);
 
@@ -115,7 +110,7 @@ ps3_probe(platform_t plat)
 
 	root = OF_finddevice("/");
 	if (OF_getprop(root, "compatible", compatible, sizeof(compatible)) <= 0)
-                return (BUS_PROBE_NOWILDCARD);
+		return (BUS_PROBE_NOWILDCARD);
 
 	if (strncmp(compatible, "sony,ps3", sizeof(compatible)) != 0)
 		return (BUS_PROBE_NOWILDCARD);
@@ -158,17 +153,17 @@ ps3_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
 	lv1_get_logical_partition_id(&lpar_id);
 	lv1_get_repository_node_value(lpar_id,
 	    lv1_repository_string("bi") >> 32,
-	    lv1_repository_string("rgntotal"), 0, 0,
-	    &phys[*physsz].mr_size, &junk);
+	    lv1_repository_string("rgntotal"), 0, 0, &phys[*physsz].mr_size,
+	    &junk);
 	for (i = 0; i < *physsz; i++)
 		phys[*physsz].mr_size -= phys[i].mr_size;
 
 	/* Convert to maximum amount we can allocate in 16 MB pages */
-	phys[*physsz].mr_size -= phys[*physsz].mr_size % (16*1024*1024);
+	phys[*physsz].mr_size -= phys[*physsz].mr_size % (16 * 1024 * 1024);
 
 	/* Allocate extended memory region */
-	lv1_allocate_memory(phys[*physsz].mr_size, 24 /* 16 MB pages */,
-	    0, 0x04 /* any address */, &phys[*physsz].mr_start, &junk);
+	lv1_allocate_memory(phys[*physsz].mr_size, 24 /* 16 MB pages */, 0,
+	    0x04 /* any address */, &phys[*physsz].mr_start, &junk);
 	avail_regions[*availsz] = phys[*physsz];
 	(*physsz)++;
 	(*availsz)++;
@@ -179,7 +174,7 @@ ps3_timebase_freq(platform_t plat, struct cpuref *cpuref)
 {
 	uint64_t ticks, node_id, junk;
 
-	lv1_get_repository_node_value(PS3_LPAR_ID_PME, 
+	lv1_get_repository_node_value(PS3_LPAR_ID_PME,
 	    lv1_repository_string("be") >> 32, 0, 0, 0, &node_id, &junk);
 	lv1_get_repository_node_value(PS3_LPAR_ID_PME,
 	    lv1_repository_string("be") >> 32, node_id,
@@ -226,8 +221,8 @@ static int
 ps3_smp_start_cpu(platform_t plat, struct pcpu *pc)
 {
 	/* kernel is spinning on 0x40 == -1 right now */
-	volatile uint32_t *secondary_spin_sem =
-	    (uint32_t *)PHYS_TO_DMAP((uintptr_t)0x40);
+	volatile uint32_t *secondary_spin_sem = (uint32_t *)PHYS_TO_DMAP(
+	    (uintptr_t)0x40);
 	int remote_pir = pc->pc_hwref;
 	int timeout;
 
@@ -278,9 +273,8 @@ ps3_real_maxaddr(platform_t plat)
 
 		lv1_get_repository_node_value(lpar_id,
 		    lv1_repository_string("bi") >> 32,
-		    lv1_repository_string("pu"),
-		    ppe_id, lv1_repository_string("rm_size"),
-		    &rm_maxaddr, &junk);
+		    lv1_repository_string("pu"), ppe_id,
+		    lv1_repository_string("rm_size"), &rm_maxaddr, &junk);
 	}
 
 	return (rm_maxaddr);

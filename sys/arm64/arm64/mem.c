@@ -35,13 +35,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/memrange.h>
 #include <sys/uio.h>
 
-#include <machine/memdev.h>
-#include <machine/vmparam.h>
-
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
+
+#include <machine/memdev.h>
+#include <machine/vmparam.h>
 
 struct mem_range_softc mem_range_softc;
 
@@ -73,7 +73,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 		if (cnt == 0)
 			continue;
 
-		switch(dev2unit(dev)) {
+		switch (dev2unit(dev)) {
 		case CDEV_MINOR_KMEM:
 			/* If the address is in the DMAP just copy it */
 			if (VIRT_IN_DMAP(v)) {
@@ -81,8 +81,9 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 				break;
 			}
 
-			if (!kernacc((void *)v, cnt, uio->uio_rw == UIO_READ ?
-			    VM_PROT_READ : VM_PROT_WRITE)) {
+			if (!kernacc((void *)v, cnt,
+				uio->uio_rw == UIO_READ ? VM_PROT_READ :
+								VM_PROT_WRITE)) {
 				error = EFAULT;
 				break;
 			}

@@ -44,19 +44,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/cpuset.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
-#include <sys/kthread.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sdt.h>
 #include <sys/smp.h>
-#include <sys/sysctl.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/turnstile.h>
 #include <sys/umtx.h>
+
 #include <machine/pcb.h>
 #include <machine/smp.h>
 
@@ -66,25 +67,27 @@ __FBSDID("$FreeBSD$");
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
-int __read_mostly		dtrace_vtime_active;
-dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
+int __read_mostly dtrace_vtime_active;
+dtrace_vtime_switch_func_t dtrace_vtime_switch_func;
 #endif
 
 /*
  * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
  * the range 100-256 Hz (approximately).
  */
-#define	ESTCPULIM(e) \
-    min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) - \
-    RQ_PPQ) + INVERSE_ESTCPU_WEIGHT - 1)
+#define ESTCPULIM(e)                                            \
+	min((e),                                                \
+	    INVERSE_ESTCPU_WEIGHT *(                            \
+		NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) - RQ_PPQ) + \
+		INVERSE_ESTCPU_WEIGHT - 1)
 #ifdef SMP
-#define	INVERSE_ESTCPU_WEIGHT	(8 * smp_cpus)
+#define INVERSE_ESTCPU_WEIGHT (8 * smp_cpus)
 #else
-#define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
+#define INVERSE_ESTCPU_WEIGHT 8 /* 1 / (priorities per estcpu level). */
 #endif
-#define	NICE_WEIGHT		1	/* Priorities per nice level. */
+#define NICE_WEIGHT 1 /* Priorities per nice level. */
 
-#define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__XSTRING(UINT_MAX)))
+#define TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__XSTRING(UINT_MAX)))
 
 /*
  * The schedulable entity that runs a context.
@@ -93,69 +96,61 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
  * All fields are protected by the scheduler lock.
  */
 struct td_sched {
-	fixpt_t		ts_pctcpu;	/* %cpu during p_swtime. */
-	u_int		ts_estcpu;	/* Estimated cpu utilization. */
-	int		ts_cpticks;	/* Ticks of cpu time. */
-	int		ts_slptime;	/* Seconds !RUNNING. */
-	int		ts_slice;	/* Remaining part of time slice. */
-	int		ts_flags;
-	struct runq	*ts_runq;	/* runq the thread is currently on */
+	fixpt_t ts_pctcpu; /* %cpu during p_swtime. */
+	u_int ts_estcpu;   /* Estimated cpu utilization. */
+	int ts_cpticks;	   /* Ticks of cpu time. */
+	int ts_slptime;	   /* Seconds !RUNNING. */
+	int ts_slice;	   /* Remaining part of time slice. */
+	int ts_flags;
+	struct runq *ts_runq; /* runq the thread is currently on */
 #ifdef KTR
-	char		ts_name[TS_NAME_LEN];
+	char ts_name[TS_NAME_LEN];
 #endif
 };
 
 /* flags kept in td_flags */
-#define TDF_DIDRUN	TDF_SCHED0	/* thread actually ran. */
-#define TDF_BOUND	TDF_SCHED1	/* Bound to one CPU. */
-#define	TDF_SLICEEND	TDF_SCHED2	/* Thread time slice is over. */
+#define TDF_DIDRUN TDF_SCHED0 /* thread actually ran. */
+#define TDF_BOUND TDF_SCHED1 /* Bound to one CPU. */
+#define TDF_SLICEEND TDF_SCHED2 /* Thread time slice is over. */
 
 /* flags kept in ts_flags */
-#define	TSF_AFFINITY	0x0001		/* Has a non-"full" CPU set. */
+#define TSF_AFFINITY 0x0001 /* Has a non-"full" CPU set. */
 
-#define SKE_RUNQ_PCPU(ts)						\
-    ((ts)->ts_runq != 0 && (ts)->ts_runq != &runq)
+#define SKE_RUNQ_PCPU(ts) ((ts)->ts_runq != 0 && (ts)->ts_runq != &runq)
 
-#define	THREAD_CAN_SCHED(td, cpu)	\
-    CPU_ISSET((cpu), &(td)->td_cpuset->cs_mask)
+#define THREAD_CAN_SCHED(td, cpu) CPU_ISSET((cpu), &(td)->td_cpuset->cs_mask)
 
 _Static_assert(sizeof(struct thread) + sizeof(struct td_sched) <=
-    sizeof(struct thread0_storage),
+	sizeof(struct thread0_storage),
     "increase struct thread0_storage.t0st_sched size");
 
 static struct mtx sched_lock;
 
-static int	realstathz = 127; /* stathz is sometimes 0 and run off of hz. */
-static int	sched_tdcnt;	/* Total runnable threads in the system. */
-static int	sched_slice = 12; /* Thread run time before rescheduling. */
+static int realstathz = 127; /* stathz is sometimes 0 and run off of hz. */
+static int sched_tdcnt;	     /* Total runnable threads in the system. */
+static int sched_slice = 12; /* Thread run time before rescheduling. */
 
-static void	setup_runqs(void);
-static void	schedcpu(void);
-static void	schedcpu_thread(void);
-static void	sched_priority(struct thread *td, u_char prio);
-static void	sched_setup(void *dummy);
-static void	maybe_resched(struct thread *td);
-static void	updatepri(struct thread *td);
-static void	resetpriority(struct thread *td);
-static void	resetpriority_thread(struct thread *td);
+static void setup_runqs(void);
+static void schedcpu(void);
+static void schedcpu_thread(void);
+static void sched_priority(struct thread *td, u_char prio);
+static void sched_setup(void *dummy);
+static void maybe_resched(struct thread *td);
+static void updatepri(struct thread *td);
+static void resetpriority(struct thread *td);
+static void resetpriority_thread(struct thread *td);
 #ifdef SMP
-static int	sched_pickcpu(struct thread *td);
-static int	forward_wakeup(int cpunum);
-static void	kick_other_cpu(int pri, int cpuid);
+static int sched_pickcpu(struct thread *td);
+static int forward_wakeup(int cpunum);
+static void kick_other_cpu(int pri, int cpuid);
 #endif
 
-static struct kproc_desc sched_kp = {
-        "schedcpu",
-        schedcpu_thread,
-        NULL
-};
-SYSINIT(schedcpu, SI_SUB_LAST, SI_ORDER_FIRST, kproc_start,
-    &sched_kp);
+static struct kproc_desc sched_kp = { "schedcpu", schedcpu_thread, NULL };
+SYSINIT(schedcpu, SI_SUB_LAST, SI_ORDER_FIRST, kproc_start, &sched_kp);
 SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL);
 
 static void sched_initticks(void *dummy);
-SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks,
-    NULL);
+SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks, NULL);
 
 /*
  * Global run queue.
@@ -191,8 +186,7 @@ setup_runqs(void)
 	runq_init(&runq);
 }
 
-static int
-sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 {
 	int error, new_val, period;
 
@@ -204,55 +198,50 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 	if (new_val <= 0)
 		return (EINVAL);
 	sched_slice = imax(1, (new_val + period / 2) / period);
-	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
-	    realstathz);
+	hogticks = imax(
+	    1, (2 * hz * sched_slice + realstathz / 2) / realstathz);
 	return (0);
 }
 
-SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "Scheduler");
+SYSCTL_NODE(
+    _kern, OID_AUTO, sched, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Scheduler");
 
-SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "4BSD", 0,
-    "Scheduler name");
+SYSCTL_STRING(
+    _kern_sched, OID_AUTO, name, CTLFLAG_RD, "4BSD", 0, "Scheduler name");
 SYSCTL_PROC(_kern_sched, OID_AUTO, quantum,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_kern_quantum, "I",
-    "Quantum for timeshare threads in microseconds");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0, sysctl_kern_quantum,
+    "I", "Quantum for timeshare threads in microseconds");
 SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
     "Quantum for timeshare threads in stathz ticks");
 #ifdef SMP
 /* Enable forwarding of wakeups to all other cpus */
 static SYSCTL_NODE(_kern_sched, OID_AUTO, ipiwakeup,
-    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
-    "Kernel SMP");
+    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Kernel SMP");
 
 static int runq_fuzz = 1;
 SYSCTL_INT(_kern_sched, OID_AUTO, runq_fuzz, CTLFLAG_RW, &runq_fuzz, 0, "");
 
 static int forward_wakeup_enabled = 1;
 SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, enabled, CTLFLAG_RW,
-	   &forward_wakeup_enabled, 0,
-	   "Forwarding of wakeup to idle CPUs");
+    &forward_wakeup_enabled, 0, "Forwarding of wakeup to idle CPUs");
 
 static int forward_wakeups_requested = 0;
 SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, requested, CTLFLAG_RD,
-	   &forward_wakeups_requested, 0,
-	   "Requests for Forwarding of wakeup to idle CPUs");
+    &forward_wakeups_requested, 0,
+    "Requests for Forwarding of wakeup to idle CPUs");
 
 static int forward_wakeups_delivered = 0;
 SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, delivered, CTLFLAG_RD,
-	   &forward_wakeups_delivered, 0,
-	   "Completed Forwarding of wakeup to idle CPUs");
+    &forward_wakeups_delivered, 0,
+    "Completed Forwarding of wakeup to idle CPUs");
 
 static int forward_wakeup_use_mask = 1;
 SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, usemask, CTLFLAG_RW,
-	   &forward_wakeup_use_mask, 0,
-	   "Use the mask of idle cpus");
+    &forward_wakeup_use_mask, 0, "Use the mask of idle cpus");
 
 static int forward_wakeup_use_loop = 0;
 SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, useloop, CTLFLAG_RW,
-	   &forward_wakeup_use_loop, 0,
-	   "Use a loop to find idle cpus");
+    &forward_wakeup_use_loop, 0, "Use a loop to find idle cpus");
 
 #endif
 #if 0
@@ -264,21 +253,19 @@ SYSCTL_INT(_kern_sched, OID_AUTO, followon, CTLFLAG_RW,
 
 SDT_PROVIDER_DEFINE(sched);
 
-SDT_PROBE_DEFINE3(sched, , , change__pri, "struct thread *", 
-    "struct proc *", "uint8_t");
-SDT_PROBE_DEFINE3(sched, , , dequeue, "struct thread *", 
-    "struct proc *", "void *");
-SDT_PROBE_DEFINE4(sched, , , enqueue, "struct thread *", 
-    "struct proc *", "void *", "int");
-SDT_PROBE_DEFINE4(sched, , , lend__pri, "struct thread *", 
-    "struct proc *", "uint8_t", "struct thread *");
+SDT_PROBE_DEFINE3(
+    sched, , , change__pri, "struct thread *", "struct proc *", "uint8_t");
+SDT_PROBE_DEFINE3(
+    sched, , , dequeue, "struct thread *", "struct proc *", "void *");
+SDT_PROBE_DEFINE4(
+    sched, , , enqueue, "struct thread *", "struct proc *", "void *", "int");
+SDT_PROBE_DEFINE4(sched, , , lend__pri, "struct thread *", "struct proc *",
+    "uint8_t", "struct thread *");
 SDT_PROBE_DEFINE2(sched, , , load__change, "int", "int");
-SDT_PROBE_DEFINE2(sched, , , off__cpu, "struct thread *",
-    "struct proc *");
+SDT_PROBE_DEFINE2(sched, , , off__cpu, "struct thread *", "struct proc *");
 SDT_PROBE_DEFINE(sched, , , on__cpu);
 SDT_PROBE_DEFINE(sched, , , remain__cpu);
-SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *",
-    "struct proc *");
+SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *", "struct proc *");
 
 static __inline void
 sched_load_add(void)
@@ -348,7 +335,7 @@ maybe_preempt(struct thread *td)
 	ctd = curthread;
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT((td->td_inhibitors == 0),
-			("maybe_preempt: trying to run inhibited thread"));
+	    ("maybe_preempt: trying to run inhibited thread"));
 	pri = td->td_priority;
 	cpri = ctd->td_priority;
 	if (KERNEL_PANICKED() || pri >= cpri /* || dumping */ ||
@@ -432,11 +419,11 @@ maybe_preempt(struct thread *td)
  */
 
 /* calculations for digital decay to forget 90% of usage in 5*loadav sec */
-#define	loadfactor(loadav)	(2 * (loadav))
-#define	decay_cpu(loadfac, cpu)	(((loadfac) * (cpu)) / ((loadfac) + FSCALE))
+#define loadfactor(loadav) (2 * (loadav))
+#define decay_cpu(loadfac, cpu) (((loadfac) * (cpu)) / ((loadfac) + FSCALE))
 
 /* decay 95% of `ts_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
-static fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
+static fixpt_t ccpu = 0.95122942450071400909 * FSCALE; /* exp(-1/20) */
 SYSCTL_UINT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0,
     "Decay factor used for updating %CPU");
 
@@ -452,7 +439,7 @@ SYSCTL_UINT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0,
  * can set CCPU_SHIFT to (FSHIFT + 1) which will use a slower/less-accurate
  * (more general) method of calculating the %age of CPU used by a process.
  */
-#define	CCPU_SHIFT	11
+#define CCPU_SHIFT 11
 
 /*
  * Recompute process priorities, every hz ticks.
@@ -469,13 +456,13 @@ schedcpu(void)
 	int awake;
 
 	sx_slock(&allproc_lock);
-	FOREACH_PROC_IN_SYSTEM(p) {
+	FOREACH_PROC_IN_SYSTEM (p) {
 		PROC_LOCK(p);
 		if (p->p_state == PRS_NEW) {
 			PROC_UNLOCK(p);
 			continue;
 		}
-		FOREACH_THREAD_IN_PROC(p, td) {
+		FOREACH_THREAD_IN_PROC (p, td) {
 			awake = 0;
 			ts = td_get_sched(td);
 			thread_lock(td);
@@ -509,16 +496,19 @@ schedcpu(void)
 			 * it wakes up.
 			 */
 			if (ts->ts_cpticks != 0) {
-#if	(FSHIFT >= CCPU_SHIFT)
-				ts->ts_pctcpu += (realstathz == 100)
-				    ? ((fixpt_t) ts->ts_cpticks) <<
-				    (FSHIFT - CCPU_SHIFT) :
-				    100 * (((fixpt_t) ts->ts_cpticks)
-				    << (FSHIFT - CCPU_SHIFT)) / realstathz;
+#if (FSHIFT >= CCPU_SHIFT)
+				ts->ts_pctcpu += (realstathz == 100) ?
+					  ((fixpt_t)ts->ts_cpticks)
+					<< (FSHIFT - CCPU_SHIFT) :
+					  100 *
+					(((fixpt_t)ts->ts_cpticks)
+					    << (FSHIFT - CCPU_SHIFT)) /
+					realstathz;
 #else
 				ts->ts_pctcpu += ((FSCALE - ccpu) *
-				    (ts->ts_cpticks *
-				    FSCALE / realstathz)) >> FSHIFT;
+						     (ts->ts_cpticks * FSCALE /
+							 realstathz)) >>
+				    FSHIFT;
 #endif
 				ts->ts_cpticks = 0;
 			}
@@ -548,7 +538,7 @@ schedcpu(void)
 				continue;
 			}
 			ts->ts_estcpu = decay_cpu(loadfac, ts->ts_estcpu);
-		      	resetpriority(td);
+			resetpriority(td);
 			resetpriority_thread(td);
 			thread_unlock(td);
 		}
@@ -588,7 +578,7 @@ updatepri(struct thread *td)
 		ts->ts_estcpu = 0;
 	else {
 		newcpu = ts->ts_estcpu;
-		ts->ts_slptime--;	/* was incremented in schedcpu() */
+		ts->ts_slptime--; /* was incremented in schedcpu() */
 		while (newcpu && --ts->ts_slptime)
 			newcpu = decay_cpu(loadfac, newcpu);
 		ts->ts_estcpu = newcpu;
@@ -610,8 +600,8 @@ resetpriority(struct thread *td)
 	newpriority = PUSER +
 	    td_get_sched(td)->ts_estcpu / INVERSE_ESTCPU_WEIGHT +
 	    NICE_WEIGHT * (td->td_proc->p_nice - PRIO_MIN);
-	newpriority = min(max(newpriority, PRI_MIN_TIMESHARE),
-	    PRI_MAX_TIMESHARE);
+	newpriority = min(
+	    max(newpriority, PRI_MIN_TIMESHARE), PRI_MAX_TIMESHARE);
 	sched_user_prio(td, newpriority);
 }
 
@@ -653,9 +643,9 @@ sched_initticks(void *dummy)
 {
 
 	realstathz = stathz ? stathz : hz;
-	sched_slice = realstathz / 10;	/* ~100ms */
-	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
-	    realstathz);
+	sched_slice = realstathz / 10; /* ~100ms */
+	hogticks = imax(
+	    1, (2 * hz * sched_slice + realstathz / 2) / realstathz);
 }
 
 /* External interfaces start here */
@@ -744,7 +734,7 @@ void
 sched_clock(struct thread *td, int cnt)
 {
 
-	for ( ; cnt > 0; cnt--)
+	for (; cnt > 0; cnt--)
 		sched_clock_tick(td);
 }
 
@@ -766,11 +756,11 @@ void
 sched_exit_thread(struct thread *td, struct thread *child)
 {
 
-	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "exit",
-	    "prio:%d", child->td_priority);
+	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(child), "exit", "prio:%d",
+	    child->td_priority);
 	thread_lock(td);
-	td_get_sched(td)->ts_estcpu = ESTCPULIM(td_get_sched(td)->ts_estcpu +
-	    td_get_sched(child)->ts_estcpu);
+	td_get_sched(td)->ts_estcpu = ESTCPULIM(
+	    td_get_sched(td)->ts_estcpu + td_get_sched(child)->ts_estcpu);
 	thread_unlock(td);
 	thread_lock(child);
 	if ((child->td_flags & TDF_NOLOAD) == 0)
@@ -810,7 +800,7 @@ sched_nice(struct proc *p, int nice)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_nice = nice;
-	FOREACH_THREAD_IN_PROC(p, td) {
+	FOREACH_THREAD_IN_PROC (p, td) {
 		thread_lock(td);
 		resetpriority(td);
 		resetpriority_thread(td);
@@ -840,8 +830,8 @@ sched_priority(struct thread *td, u_char prio)
 		KTR_POINT3(KTR_SCHED, "thread", sched_tdname(curthread),
 		    "lend prio", "prio:%d", td->td_priority, "new prio:%d",
 		    prio, KTR_ATTR_LINKED, sched_tdname(td));
-		SDT_PROBE4(sched, , , lend__pri, td, td->td_proc, prio, 
-		    curthread);
+		SDT_PROBE4(
+		    sched, , , lend__pri, td, td->td_proc, prio, curthread);
 	}
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority == prio)
@@ -1011,13 +1001,15 @@ sched_switch(struct thread *td, int flags)
 	} else {
 		if (TD_IS_RUNNING(td)) {
 			/* Put us back on the run queue. */
-			sched_add(td, preempted ?
-			    SRQ_HOLDTD|SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
-			    SRQ_HOLDTD|SRQ_OURSELF|SRQ_YIELDING);
+			sched_add(td,
+			    preempted ?
+				      SRQ_HOLDTD | SRQ_OURSELF | SRQ_YIELDING |
+				    SRQ_PREEMPTED :
+				      SRQ_HOLDTD | SRQ_OURSELF | SRQ_YIELDING);
 		}
 	}
 
-	/* 
+	/*
 	 * Switch to the sched lock to fix things up and pick
 	 * a new thread.  Block the td_lock in order to avoid
 	 * breaking the critical path.
@@ -1045,14 +1037,14 @@ sched_switch(struct thread *td, int flags)
 #endif
 
 	if (td != newtd) {
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
 
 		SDT_PROBE2(sched, , , off__cpu, newtd, newtd->td_proc);
 
-                /* I feel sleepy */
+		/* I feel sleepy */
 		lock_profile_release_lock(&sched_lock.lock_object);
 #ifdef KDTRACE_HOOKS
 		/*
@@ -1065,8 +1057,8 @@ sched_switch(struct thread *td, int flags)
 #endif
 
 		cpu_switch(td, newtd, tmtx);
-		lock_profile_obtain_lock_success(&sched_lock.lock_object,
-		    0, 0, __FILE__, __LINE__);
+		lock_profile_obtain_lock_success(
+		    &sched_lock.lock_object, 0, 0, __FILE__, __LINE__);
 		/*
 		 * Where am I?  What year is it?
 		 * We are in the same thread that went to sleep above,
@@ -1085,7 +1077,7 @@ sched_switch(struct thread *td, int flags)
 		 */
 
 		SDT_PROBE0(sched, , , on__cpu);
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
 #endif
@@ -1094,8 +1086,8 @@ sched_switch(struct thread *td, int flags)
 		SDT_PROBE0(sched, , , remain__cpu);
 	}
 
-	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "running",
-	    "prio:%d", td->td_priority);
+	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "running", "prio:%d",
+	    td->td_priority);
 
 #ifdef SMP
 	if (td->td_flags & TDF_IDLETD)
@@ -1139,7 +1131,7 @@ forward_wakeup(int cpunum)
 	CTR0(KTR_RUNQ, "forward_wakeup()");
 
 	if ((!forward_wakeup_enabled) ||
-	     (forward_wakeup_use_mask == 0 && forward_wakeup_use_loop == 0))
+	    (forward_wakeup_use_mask == 0 && forward_wakeup_use_loop == 0))
 		return (0);
 	if (!smp_started || KERNEL_PANICKED())
 		return (0);
@@ -1153,8 +1145,7 @@ forward_wakeup(int cpunum)
 	me = PCPU_GET(cpuid);
 
 	/* Don't bother if we should be doing it ourself. */
-	if (CPU_ISSET(me, &idle_cpus_mask) &&
-	    (cpunum == NOCPU || me == cpunum))
+	if (CPU_ISSET(me, &idle_cpus_mask) && (cpunum == NOCPU || me == cpunum))
 		return (0);
 
 	CPU_SETOF(me, &dontuse);
@@ -1162,7 +1153,7 @@ forward_wakeup(int cpunum)
 	CPU_OR(&dontuse, &hlt_cpus_mask);
 	CPU_ZERO(&map2);
 	if (forward_wakeup_use_loop) {
-		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
+		STAILQ_FOREACH (pc, &cpuhead, pc_allcpu) {
 			id = pc->pc_cpuid;
 			if (!CPU_ISSET(id, &dontuse) &&
 			    pc->pc_curthread == pc->pc_idlethread) {
@@ -1188,7 +1179,8 @@ forward_wakeup(int cpunum)
 
 	/* If we only allow a specific CPU, then mask off all the others. */
 	if (cpunum != NOCPU) {
-		KASSERT((cpunum <= mp_maxcpus),("forward_wakeup: bad cpunum."));
+		KASSERT(
+		    (cpunum <= mp_maxcpus), ("forward_wakeup: bad cpunum."));
 		iscpuset = CPU_ISSET(cpunum, &map);
 		if (iscpuset == 0)
 			CPU_ZERO(&map);
@@ -1197,7 +1189,7 @@ forward_wakeup(int cpunum)
 	}
 	if (!CPU_EMPTY(&map)) {
 		forward_wakeups_delivered++;
-		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
+		STAILQ_FOREACH (pc, &cpuhead, pc_allcpu) {
 			id = pc->pc_cpuid;
 			if (!CPU_ISSET(id, &map))
 				continue;
@@ -1259,7 +1251,7 @@ sched_pickcpu(struct thread *td)
 		best = td->td_lastcpu;
 	else
 		best = NOCPU;
-	CPU_FOREACH(cpu) {
+	CPU_FOREACH (cpu) {
 		if (!THREAD_CAN_SCHED(td, cpu))
 			continue;
 
@@ -1290,16 +1282,14 @@ sched_add(struct thread *td, int flags)
 	    ("sched_add: trying to run inhibited thread"));
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
 	    ("sched_add: bad thread state"));
-	KASSERT(td->td_flags & TDF_INMEM,
-	    ("sched_add: thread swapped out"));
+	KASSERT(td->td_flags & TDF_INMEM, ("sched_add: thread swapped out"));
 
-	KTR_STATE2(KTR_SCHED, "thread", sched_tdname(td), "runq add",
-	    "prio:%d", td->td_priority, KTR_ATTR_LINKED,
-	    sched_tdname(curthread));
+	KTR_STATE2(KTR_SCHED, "thread", sched_tdname(td), "runq add", "prio:%d",
+	    td->td_priority, KTR_ATTR_LINKED, sched_tdname(curthread));
 	KTR_POINT1(KTR_SCHED, "thread", sched_tdname(curthread), "wokeup",
 	    KTR_ATTR_LINKED, sched_tdname(td));
-	SDT_PROBE4(sched, , , enqueue, td, td->td_proc, NULL, 
-	    flags & SRQ_PREEMPTED);
+	SDT_PROBE4(
+	    sched, , , enqueue, td, td->td_proc, NULL, flags & SRQ_PREEMPTED);
 
 	/*
 	 * Now that the thread is moving to the run-queue, set the lock
@@ -1323,8 +1313,9 @@ sched_add(struct thread *td, int flags)
 	 * as per-CPU state may not be initialized yet and we may crash if we
 	 * try to access the per-CPU run queues.
 	 */
-	if (smp_started && (td->td_pinned != 0 || td->td_flags & TDF_BOUND ||
-	    ts->ts_flags & TSF_AFFINITY)) {
+	if (smp_started &&
+	    (td->td_pinned != 0 || td->td_flags & TDF_BOUND ||
+		ts->ts_flags & TSF_AFFINITY)) {
 		if (td->td_pinned != 0)
 			cpu = td->td_lastcpu;
 		else if (td->td_flags & TDF_BOUND) {
@@ -1356,7 +1347,7 @@ sched_add(struct thread *td, int flags)
 
 	cpuid = PCPU_GET(cpuid);
 	if (single_cpu && cpu != cpuid) {
-	        kick_other_cpu(td->td_priority, cpu);
+		kick_other_cpu(td->td_priority, cpu);
 	} else {
 		if (!single_cpu) {
 			tidlemsk = idle_cpus_mask;
@@ -1364,8 +1355,7 @@ sched_add(struct thread *td, int flags)
 			CPU_CLR(cpuid, &tidlemsk);
 
 			if (!CPU_ISSET(cpuid, &idle_cpus_mask) &&
-			    ((flags & SRQ_INTR) == 0) &&
-			    !CPU_EMPTY(&tidlemsk))
+			    ((flags & SRQ_INTR) == 0) && !CPU_EMPTY(&tidlemsk))
 				forwarded = forward_wakeup(cpu);
 		}
 
@@ -1387,15 +1377,13 @@ sched_add(struct thread *td, int flags)
 	    ("sched_add: trying to run inhibited thread"));
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
 	    ("sched_add: bad thread state"));
-	KASSERT(td->td_flags & TDF_INMEM,
-	    ("sched_add: thread swapped out"));
-	KTR_STATE2(KTR_SCHED, "thread", sched_tdname(td), "runq add",
-	    "prio:%d", td->td_priority, KTR_ATTR_LINKED,
-	    sched_tdname(curthread));
+	KASSERT(td->td_flags & TDF_INMEM, ("sched_add: thread swapped out"));
+	KTR_STATE2(KTR_SCHED, "thread", sched_tdname(td), "runq add", "prio:%d",
+	    td->td_priority, KTR_ATTR_LINKED, sched_tdname(curthread));
 	KTR_POINT1(KTR_SCHED, "thread", sched_tdname(curthread), "wokeup",
 	    KTR_ATTR_LINKED, sched_tdname(td));
-	SDT_PROBE4(sched, , , enqueue, td, td->td_proc, NULL, 
-	    flags & SRQ_PREEMPTED);
+	SDT_PROBE4(
+	    sched, , , enqueue, td, td->td_proc, NULL, flags & SRQ_PREEMPTED);
 
 	/*
 	 * Now that the thread is moving to the run-queue, set the lock
@@ -1428,14 +1416,11 @@ sched_rem(struct thread *td)
 	struct td_sched *ts;
 
 	ts = td_get_sched(td);
-	KASSERT(td->td_flags & TDF_INMEM,
-	    ("sched_rem: thread swapped out"));
-	KASSERT(TD_ON_RUNQ(td),
-	    ("sched_rem: thread not on run queue"));
+	KASSERT(td->td_flags & TDF_INMEM, ("sched_rem: thread swapped out"));
+	KASSERT(TD_ON_RUNQ(td), ("sched_rem: thread not on run queue"));
 	mtx_assert(&sched_lock, MA_OWNED);
-	KTR_STATE2(KTR_SCHED, "thread", sched_tdname(td), "runq rem",
-	    "prio:%d", td->td_priority, KTR_ATTR_LINKED,
-	    sched_tdname(curthread));
+	KTR_STATE2(KTR_SCHED, "thread", sched_tdname(td), "runq rem", "prio:%d",
+	    td->td_priority, KTR_ATTR_LINKED, sched_tdname(curthread));
 	SDT_PROBE3(sched, , , dequeue, td, td->td_proc, NULL);
 
 	if ((td->td_flags & TDF_NOLOAD) == 0)
@@ -1458,7 +1443,7 @@ sched_choose(void)
 	struct thread *td;
 	struct runq *rq;
 
-	mtx_assert(&sched_lock,  MA_OWNED);
+	mtx_assert(&sched_lock, MA_OWNED);
 #ifdef SMP
 	struct thread *tdcpu;
 
@@ -1467,10 +1452,9 @@ sched_choose(void)
 	tdcpu = runq_choose(&runq_pcpu[PCPU_GET(cpuid)]);
 
 	if (td == NULL ||
-	    (tdcpu != NULL &&
-	     tdcpu->td_priority < td->td_priority)) {
+	    (tdcpu != NULL && tdcpu->td_priority < td->td_priority)) {
 		CTR2(KTR_RUNQ, "choosing td %p from pcpu runq %d", tdcpu,
-		     PCPU_GET(cpuid));
+		    PCPU_GET(cpuid));
 		td = tdcpu;
 		rq = &runq_pcpu[PCPU_GET(cpuid)];
 	} else {
@@ -1525,7 +1509,7 @@ sched_bind(struct thread *td, int cpu)
 {
 	struct td_sched *ts;
 
-	THREAD_LOCK_ASSERT(td, MA_OWNED|MA_NOTRECURSED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED | MA_NOTRECURSED);
 	KASSERT(td == curthread, ("sched_bind: can only bind curthread"));
 
 	ts = td_get_sched(td);
@@ -1542,7 +1526,7 @@ sched_bind(struct thread *td, int cpu)
 }
 
 void
-sched_unbind(struct thread* td)
+sched_unbind(struct thread *td)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT(td == curthread, ("sched_unbind: can only bind curthread"));
@@ -1608,16 +1592,15 @@ sched_pctcpu_delta(struct thread *td)
 	delta = 0;
 	realstathz = stathz ? stathz : hz;
 	if (ts->ts_cpticks != 0) {
-#if	(FSHIFT >= CCPU_SHIFT)
-		delta = (realstathz == 100)
-		    ? ((fixpt_t) ts->ts_cpticks) <<
-		    (FSHIFT - CCPU_SHIFT) :
-		    100 * (((fixpt_t) ts->ts_cpticks)
-		    << (FSHIFT - CCPU_SHIFT)) / realstathz;
+#if (FSHIFT >= CCPU_SHIFT)
+		delta = (realstathz == 100) ?
+			  ((fixpt_t)ts->ts_cpticks) << (FSHIFT - CCPU_SHIFT) :
+			  100 * (((fixpt_t)ts->ts_cpticks) << (FSHIFT - CCPU_SHIFT)) /
+			realstathz;
 #else
 		delta = ((FSCALE - ccpu) *
-		    (ts->ts_cpticks *
-		    FSCALE / realstathz)) >> FSHIFT;
+			    (ts->ts_cpticks * FSCALE / realstathz)) >>
+		    FSHIFT;
 #endif
 	}
 
@@ -1683,7 +1666,7 @@ sched_throw(struct thread *td)
 	}
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
-	cpu_throw(td, choosethread());	/* doesn't return */
+	cpu_throw(td, choosethread()); /* doesn't return */
 }
 
 void
@@ -1696,12 +1679,12 @@ sched_fork_exit(struct thread *td)
 	 */
 	td->td_oncpu = PCPU_GET(cpuid);
 	sched_lock.mtx_lock = (uintptr_t)td;
-	lock_profile_obtain_lock_success(&sched_lock.lock_object,
-	    0, 0, __FILE__, __LINE__);
+	lock_profile_obtain_lock_success(
+	    &sched_lock.lock_object, 0, 0, __FILE__, __LINE__);
 	THREAD_LOCK_ASSERT(td, MA_OWNED | MA_NOTRECURSED);
 
-	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "running",
-	    "prio:%d", td->td_priority);
+	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "running", "prio:%d",
+	    td->td_priority);
 	SDT_PROBE0(sched, , , on__cpu);
 }
 
@@ -1713,10 +1696,10 @@ sched_tdname(struct thread *td)
 
 	ts = td_get_sched(td);
 	if (ts->ts_name[0] == '\0')
-		snprintf(ts->ts_name, sizeof(ts->ts_name),
-		    "%s tid %d", td->td_name, td->td_tid);
+		snprintf(ts->ts_name, sizeof(ts->ts_name), "%s tid %d",
+		    td->td_name, td->td_tid);
 	return (ts->ts_name);
-#else   
+#else
 	return (td->td_name);
 #endif
 }
@@ -1739,7 +1722,7 @@ sched_affinity(struct thread *td)
 	struct td_sched *ts;
 	int cpu;
 
-	THREAD_LOCK_ASSERT(td, MA_OWNED);	
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
 	/*
 	 * Set the TSF_AFFINITY flag if there is at least one CPU this
@@ -1747,7 +1730,7 @@ sched_affinity(struct thread *td)
 	 */
 	ts = td_get_sched(td);
 	ts->ts_flags &= ~TSF_AFFINITY;
-	CPU_FOREACH(cpu) {
+	CPU_FOREACH (cpu) {
 		if (!THREAD_CAN_SCHED(td, cpu)) {
 			ts->ts_flags |= TSF_AFFINITY;
 			break;

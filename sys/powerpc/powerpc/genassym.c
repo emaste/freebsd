@@ -36,6 +36,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/assym.h>
 #include <sys/errno.h>
 #include <sys/ktr.h>
@@ -43,15 +44,13 @@
 #include <sys/queue.h>
 #include <sys/signal.h>
 #include <sys/smp.h>
-#include <sys/systm.h>
-#include <sys/ucontext.h>
 #include <sys/ucontext.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_param.h>
 
 #include <machine/pcb.h>
 #include <machine/psl.h>
@@ -74,36 +73,36 @@ ASSYM(PC_BOOKE_TLB_LEVEL, offsetof(struct pcpu, pc_booke.tlb_level));
 ASSYM(PC_BOOKE_TLB_LOCK, offsetof(struct pcpu, pc_booke.tlb_lock));
 #endif
 
-ASSYM(CPUSAVE_R27, CPUSAVE_R27*sizeof(register_t));
-ASSYM(CPUSAVE_R28, CPUSAVE_R28*sizeof(register_t));
-ASSYM(CPUSAVE_R29, CPUSAVE_R29*sizeof(register_t));
-ASSYM(CPUSAVE_R30, CPUSAVE_R30*sizeof(register_t));
-ASSYM(CPUSAVE_R31, CPUSAVE_R31*sizeof(register_t));
-ASSYM(CPUSAVE_SRR0, CPUSAVE_SRR0*sizeof(register_t));
-ASSYM(CPUSAVE_SRR1, CPUSAVE_SRR1*sizeof(register_t));
-ASSYM(CPUSAVE_AIM_DAR, CPUSAVE_AIM_DAR*sizeof(register_t));
-ASSYM(CPUSAVE_AIM_DSISR, CPUSAVE_AIM_DSISR*sizeof(register_t));
-ASSYM(CPUSAVE_BOOKE_DEAR, CPUSAVE_BOOKE_DEAR*sizeof(register_t));
-ASSYM(CPUSAVE_BOOKE_ESR, CPUSAVE_BOOKE_ESR*sizeof(register_t));
-ASSYM(BOOKE_CRITSAVE_SRR0, BOOKE_CRITSAVE_SRR0*sizeof(register_t));
-ASSYM(BOOKE_CRITSAVE_SRR1, BOOKE_CRITSAVE_SRR1*sizeof(register_t));
+ASSYM(CPUSAVE_R27, CPUSAVE_R27 * sizeof(register_t));
+ASSYM(CPUSAVE_R28, CPUSAVE_R28 * sizeof(register_t));
+ASSYM(CPUSAVE_R29, CPUSAVE_R29 * sizeof(register_t));
+ASSYM(CPUSAVE_R30, CPUSAVE_R30 * sizeof(register_t));
+ASSYM(CPUSAVE_R31, CPUSAVE_R31 * sizeof(register_t));
+ASSYM(CPUSAVE_SRR0, CPUSAVE_SRR0 * sizeof(register_t));
+ASSYM(CPUSAVE_SRR1, CPUSAVE_SRR1 * sizeof(register_t));
+ASSYM(CPUSAVE_AIM_DAR, CPUSAVE_AIM_DAR * sizeof(register_t));
+ASSYM(CPUSAVE_AIM_DSISR, CPUSAVE_AIM_DSISR * sizeof(register_t));
+ASSYM(CPUSAVE_BOOKE_DEAR, CPUSAVE_BOOKE_DEAR * sizeof(register_t));
+ASSYM(CPUSAVE_BOOKE_ESR, CPUSAVE_BOOKE_ESR * sizeof(register_t));
+ASSYM(BOOKE_CRITSAVE_SRR0, BOOKE_CRITSAVE_SRR0 * sizeof(register_t));
+ASSYM(BOOKE_CRITSAVE_SRR1, BOOKE_CRITSAVE_SRR1 * sizeof(register_t));
 
-ASSYM(TLBSAVE_BOOKE_LR, TLBSAVE_BOOKE_LR*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_CR, TLBSAVE_BOOKE_CR*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_SRR0, TLBSAVE_BOOKE_SRR0*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_SRR1, TLBSAVE_BOOKE_SRR1*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_R20, TLBSAVE_BOOKE_R20*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_R21, TLBSAVE_BOOKE_R21*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_R22, TLBSAVE_BOOKE_R22*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_R23, TLBSAVE_BOOKE_R23*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_R24, TLBSAVE_BOOKE_R24*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_R25, TLBSAVE_BOOKE_R25*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_R26, TLBSAVE_BOOKE_R26*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_R27, TLBSAVE_BOOKE_R27*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_R28, TLBSAVE_BOOKE_R28*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_R29, TLBSAVE_BOOKE_R29*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_R30, TLBSAVE_BOOKE_R30*sizeof(register_t));
-ASSYM(TLBSAVE_BOOKE_R31, TLBSAVE_BOOKE_R31*sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_LR, TLBSAVE_BOOKE_LR * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_CR, TLBSAVE_BOOKE_CR * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_SRR0, TLBSAVE_BOOKE_SRR0 * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_SRR1, TLBSAVE_BOOKE_SRR1 * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R20, TLBSAVE_BOOKE_R20 * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R21, TLBSAVE_BOOKE_R21 * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R22, TLBSAVE_BOOKE_R22 * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R23, TLBSAVE_BOOKE_R23 * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R24, TLBSAVE_BOOKE_R24 * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R25, TLBSAVE_BOOKE_R25 * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R26, TLBSAVE_BOOKE_R26 * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R27, TLBSAVE_BOOKE_R27 * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R28, TLBSAVE_BOOKE_R28 * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R29, TLBSAVE_BOOKE_R29 * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R30, TLBSAVE_BOOKE_R30 * sizeof(register_t));
+ASSYM(TLBSAVE_BOOKE_R31, TLBSAVE_BOOKE_R31 * sizeof(register_t));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 

@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -64,13 +64,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
 
+#include <machine/bus.h>
 #include <machine/resource.h>
 
-#include <isa/isavar.h>
 #include <isa/isa_common.h>
+#include <isa/isavar.h>
 
 void
 isa_init(device_t dev)
@@ -87,14 +87,14 @@ isa_init(device_t dev)
  */
 struct resource *
 isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	/*
 	 * Consider adding a resource definition.
 	 */
 	int passthrough = (device_get_parent(child) != bus);
 	int isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
-	struct isa_device* idev = DEVTOISA(child);
+	struct isa_device *idev = DEVTOISA(child);
 	struct resource_list *rl = &idev->id_resources;
 	struct resource_list_entry *rle;
 
@@ -127,15 +127,15 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		}
 	}
 
-	return resource_list_alloc(rl, bus, child, type, rid,
-				   start, end, count, flags);
+	return resource_list_alloc(
+	    rl, bus, child, type, rid, start, end, count, flags);
 }
 
 int
-isa_release_resource(device_t bus, device_t child, int type, int rid,
-		     struct resource *r)
+isa_release_resource(
+    device_t bus, device_t child, int type, int rid, struct resource *r)
 {
-	struct isa_device* idev = DEVTOISA(child);
+	struct isa_device *idev = DEVTOISA(child);
 	struct resource_list *rl = &idev->id_resources;
 
 	return resource_list_release(rl, bus, child, type, rid, r);

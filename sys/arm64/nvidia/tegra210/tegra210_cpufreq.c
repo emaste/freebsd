@@ -50,55 +50,53 @@ __FBSDID("$FreeBSD$");
 
 /* CPU voltage table entry */
 struct speedo_entry {
-	uint64_t		freq; 	/* Frequency point */
-	int			c0; 	/* Coeeficient values for */
-	int			c1;	/* quadratic equation: */
-	int 			c2;	/* c2 * speedo^2 + c1 * speedo + c0 */
+	uint64_t freq; /* Frequency point */
+	int c0;	       /* Coeeficient values for */
+	int c1;	       /* quadratic equation: */
+	int c2;	       /* c2 * speedo^2 + c1 * speedo + c0 */
 };
 
 struct cpu_volt_def {
-	int			min_uvolt;	/* Min allowed CPU voltage */
-	int			max_uvolt;	/* Max allowed CPU voltage */
-	int 			step_uvolt; 	/* Step of CPU voltage */
-	int			speedo_scale;	/* Scaling factor for cvt */
-	int			speedo_nitems;	/* Size of speedo table */
-	struct speedo_entry	*speedo_tbl;	/* CPU voltage table */
+	int min_uvolt;			 /* Min allowed CPU voltage */
+	int max_uvolt;			 /* Max allowed CPU voltage */
+	int step_uvolt;			 /* Step of CPU voltage */
+	int speedo_scale;		 /* Scaling factor for cvt */
+	int speedo_nitems;		 /* Size of speedo table */
+	struct speedo_entry *speedo_tbl; /* CPU voltage table */
 };
 
 struct cpu_speed_point {
-	uint64_t		freq;		/* Frequecy */
-	int			uvolt;		/* Requested voltage */
+	uint64_t freq; /* Frequecy */
+	int uvolt;     /* Requested voltage */
 };
 
-static struct speedo_entry tegra210_speedo_tbl[] =
-{
-	{204000000UL,	1007452, -23865, 370},
-	{306000000UL,	1052709, -24875, 370},
-	{408000000UL,	1099069, -25895, 370},
-	{510000000UL,	1146534, -26905, 370},
-	{612000000UL,	1195102, -27915, 370},
-	{714000000UL,	1244773, -28925, 370},
-	{816000000UL,	1295549, -29935, 370},
-	{918000000UL,	1347428, -30955, 370},
-	{1020000000UL,	1400411, -31965, 370},
-	{1122000000UL,	1454497, -32975, 370},
-	{1224000000UL,	1509687, -33985, 370},
-	{1326000000UL,	1565981, -35005, 370},
-	{1428000000UL,	1623379, -36015, 370},
-	{1530000000UL,	1681880, -37025, 370},
-	{1632000000UL,	1741485, -38035, 370},
-	{1734000000UL,	1802194, -39055, 370},
-	{1836000000UL,	1864006, -40065, 370},
-	{1912500000UL,	1910780, -40815, 370},
-	{2014500000UL,	1227000,      0,   0},
-	{2218500000UL,	1227000,      0,   0},
+static struct speedo_entry tegra210_speedo_tbl[] = {
+	{ 204000000UL, 1007452, -23865, 370 },
+	{ 306000000UL, 1052709, -24875, 370 },
+	{ 408000000UL, 1099069, -25895, 370 },
+	{ 510000000UL, 1146534, -26905, 370 },
+	{ 612000000UL, 1195102, -27915, 370 },
+	{ 714000000UL, 1244773, -28925, 370 },
+	{ 816000000UL, 1295549, -29935, 370 },
+	{ 918000000UL, 1347428, -30955, 370 },
+	{ 1020000000UL, 1400411, -31965, 370 },
+	{ 1122000000UL, 1454497, -32975, 370 },
+	{ 1224000000UL, 1509687, -33985, 370 },
+	{ 1326000000UL, 1565981, -35005, 370 },
+	{ 1428000000UL, 1623379, -36015, 370 },
+	{ 1530000000UL, 1681880, -37025, 370 },
+	{ 1632000000UL, 1741485, -38035, 370 },
+	{ 1734000000UL, 1802194, -39055, 370 },
+	{ 1836000000UL, 1864006, -40065, 370 },
+	{ 1912500000UL, 1910780, -40815, 370 },
+	{ 2014500000UL, 1227000, 0, 0 },
+	{ 2218500000UL, 1227000, 0, 0 },
 };
 
-static struct cpu_volt_def tegra210_cpu_volt_def =
-{
-	.min_uvolt = 900000,		/* 0.9 V */
-	.max_uvolt = 1227000,		/* 1.227 */
-	.step_uvolt =  10000,		/* 10 mV */
+static struct cpu_volt_def tegra210_cpu_volt_def = {
+	.min_uvolt = 900000,  /* 0.9 V */
+	.max_uvolt = 1227000, /* 1.227 */
+	.step_uvolt = 10000,  /* 10 mV */
 	.speedo_scale = 100,
 	.speedo_nitems = nitems(tegra210_speedo_tbl),
 	.speedo_tbl = tegra210_speedo_tbl,
@@ -119,14 +117,14 @@ static uint64_t cpu_max_freq[] = {
 };
 
 static uint64_t cpu_freq_tbl[] = {
-	 204000000UL,
-	 306000000UL,
-	 408000000UL,
-	 510000000UL,
-	 612000000UL,
-	 714000000UL,
-	 816000000UL,
-	 918000000UL,
+	204000000UL,
+	306000000UL,
+	408000000UL,
+	510000000UL,
+	612000000UL,
+	714000000UL,
+	816000000UL,
+	918000000UL,
 	1020000000UL,
 	1122000000UL,
 	1224000000UL,
@@ -142,35 +140,35 @@ static uint64_t cpu_freq_tbl[] = {
 };
 
 struct tegra210_cpufreq_softc {
-	device_t		dev;
-	phandle_t		node;
+	device_t dev;
+	phandle_t node;
 
-	clk_t			clk_cpu_g;
-	clk_t			clk_pll_x;
-	clk_t			clk_pll_p;
-	clk_t			clk_dfll;
+	clk_t clk_cpu_g;
+	clk_t clk_pll_x;
+	clk_t clk_pll_p;
+	clk_t clk_dfll;
 
-	int 			process_id;
-	int 			speedo_id;
-	int 			speedo_value;
+	int process_id;
+	int speedo_id;
+	int speedo_value;
 
-	uint64_t		cpu_max_freq;
-	struct cpu_volt_def	*cpu_def;
-	struct cpu_speed_point	*speed_points;
-	int			nspeed_points;
+	uint64_t cpu_max_freq;
+	struct cpu_volt_def *cpu_def;
+	struct cpu_speed_point *speed_points;
+	int nspeed_points;
 
-	struct cpu_speed_point	*act_speed_point;
+	struct cpu_speed_point *act_speed_point;
 
-	int			latency;
+	int latency;
 };
 
 static int cpufreq_lowest_freq = 1;
 TUNABLE_INT("hw.tegra210.cpufreq.lowest_freq", &cpufreq_lowest_freq);
 
-#define	DIV_ROUND_CLOSEST(val, div)	(((val) + ((div) / 2)) / (div))
+#define DIV_ROUND_CLOSEST(val, div) (((val) + ((div) / 2)) / (div))
 
-#define	ROUND_UP(val, div)	roundup(val, div)
-#define	ROUND_DOWN(val, div)	rounddown(val, div)
+#define ROUND_UP(val, div) roundup(val, div)
+#define ROUND_DOWN(val, div) rounddown(val, div)
 
 /*
  * Compute requesetd voltage for given frequency and SoC process variations,
@@ -197,7 +195,6 @@ freq_to_voltage(struct tegra210_cpufreq_softc *sc, uint64_t freq)
 		ent = &sc->cpu_def->speedo_tbl[sc->cpu_def->speedo_nitems - 1];
 	scale = sc->cpu_def->speedo_scale;
 
-
 	/* uV = (c2 * speedo / scale + c1) * speedo / scale + c0) */
 	uv = DIV_ROUND_CLOSEST(ent->c2 * sc->speedo_value, scale);
 	uv = DIV_ROUND_CLOSEST((uv + ent->c1) * sc->speedo_value, scale) +
@@ -210,24 +207,25 @@ freq_to_voltage(struct tegra210_cpufreq_softc *sc, uint64_t freq)
 	min_uvolt = ROUND_UP(sc->cpu_def->min_uvolt, step_uvolt);
 	max_uvolt = ROUND_DOWN(sc->cpu_def->max_uvolt, step_uvolt);
 	if (uv < min_uvolt)
-		uv =  min_uvolt;
+		uv = min_uvolt;
 	if (uv > max_uvolt)
-		uv =  max_uvolt;
+		uv = max_uvolt;
 	return (uv);
-
 }
 
 static void
-build_speed_points(struct tegra210_cpufreq_softc *sc) {
+build_speed_points(struct tegra210_cpufreq_softc *sc)
+{
 	int i;
 
 	sc->nspeed_points = nitems(cpu_freq_tbl);
-	sc->speed_points = malloc(sizeof(struct cpu_speed_point) *
-	    sc->nspeed_points, M_DEVBUF, M_NOWAIT);
+	sc->speed_points = malloc(
+	    sizeof(struct cpu_speed_point) * sc->nspeed_points, M_DEVBUF,
+	    M_NOWAIT);
 	for (i = 0; i < sc->nspeed_points; i++) {
 		sc->speed_points[i].freq = cpu_freq_tbl[i];
-		sc->speed_points[i].uvolt = freq_to_voltage(sc,
-		    cpu_freq_tbl[i]);
+		sc->speed_points[i].uvolt = freq_to_voltage(
+		    sc, cpu_freq_tbl[i]);
 	}
 }
 
@@ -338,7 +336,6 @@ tegra210_cpufreq_get(device_t dev, struct cf_setting *cf)
 	return (0);
 }
 
-
 static int
 tegra210_cpufreq_type(device_t dev, int *type)
 {
@@ -356,7 +353,7 @@ get_fdt_resources(struct tegra210_cpufreq_softc *sc, phandle_t node)
 	int rv;
 	device_t parent_dev;
 
-	parent_dev =  device_get_parent(sc->dev);
+	parent_dev = device_get_parent(sc->dev);
 
 	rv = clk_get_by_ofw_name(parent_dev, 0, "cpu_g", &sc->clk_cpu_g);
 	if (rv != 0) {
@@ -430,7 +427,7 @@ tegra210_cpufreq_attach(device_t dev)
 	sc->cpu_def = &tegra210_cpu_volt_def;
 
 	rv = get_fdt_resources(sc, sc->node);
-	if (rv !=  0) {
+	if (rv != 0) {
 		return (rv);
 	}
 
@@ -481,16 +478,16 @@ tegra210_cpufreq_detach(device_t dev)
 
 static device_method_t tegra210_cpufreq_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	tegra210_cpufreq_identify),
-	DEVMETHOD(device_probe,		tegra210_cpufreq_probe),
-	DEVMETHOD(device_attach,	tegra210_cpufreq_attach),
-	DEVMETHOD(device_detach,	tegra210_cpufreq_detach),
+	DEVMETHOD(device_identify, tegra210_cpufreq_identify),
+	DEVMETHOD(device_probe, tegra210_cpufreq_probe),
+	DEVMETHOD(device_attach, tegra210_cpufreq_attach),
+	DEVMETHOD(device_detach, tegra210_cpufreq_detach),
 
 	/* cpufreq interface */
-	DEVMETHOD(cpufreq_drv_set,	tegra210_cpufreq_set),
-	DEVMETHOD(cpufreq_drv_get,	tegra210_cpufreq_get),
-	DEVMETHOD(cpufreq_drv_settings,	tegra210_cpufreq_settings),
-	DEVMETHOD(cpufreq_drv_type,	tegra210_cpufreq_type),
+	DEVMETHOD(cpufreq_drv_set, tegra210_cpufreq_set),
+	DEVMETHOD(cpufreq_drv_get, tegra210_cpufreq_get),
+	DEVMETHOD(cpufreq_drv_settings, tegra210_cpufreq_settings),
+	DEVMETHOD(cpufreq_drv_type, tegra210_cpufreq_type),
 
 	DEVMETHOD_END
 };

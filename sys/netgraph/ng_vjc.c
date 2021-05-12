@@ -6,7 +6,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -17,7 +17,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -51,21 +51,18 @@
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
-#include <sys/mbuf.h>
 #include <sys/malloc.h>
-#include <sys/errno.h>
+#include <sys/mbuf.h>
 
-#include <netgraph/ng_message.h>
+#include <net/slcompress.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_vjc.h>
-
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-
-#include <net/slcompress.h>
 
 /* Check agreement with slcompress.c */
 #if MAX_STATES != NG_VJC_MAX_CHANNELS
@@ -73,160 +70,147 @@
 #endif
 
 /* Maximum length of a compressed TCP VJ header */
-#define MAX_VJHEADER		19
+#define MAX_VJHEADER 19
 
 /* Node private data */
 struct ng_vjc_private {
-	struct	ngm_vjc_config conf;
-	struct	slcompress slc;
-	hook_p	ip;
-	hook_p	vjcomp;
-	hook_p	vjuncomp;
-	hook_p	vjip;
+	struct ngm_vjc_config conf;
+	struct slcompress slc;
+	hook_p ip;
+	hook_p vjcomp;
+	hook_p vjuncomp;
+	hook_p vjip;
 };
 typedef struct ng_vjc_private *priv_p;
 
-#define ERROUT(x)	do { error = (x); goto done; } while (0)
+#define ERROUT(x)            \
+	do {                 \
+		error = (x); \
+		goto done;   \
+	} while (0)
 
 /* Netgraph node methods */
-static ng_constructor_t	ng_vjc_constructor;
-static ng_rcvmsg_t	ng_vjc_rcvmsg;
-static ng_shutdown_t	ng_vjc_shutdown;
-static ng_newhook_t	ng_vjc_newhook;
-static ng_rcvdata_t	ng_vjc_rcvdata;
-static ng_disconnect_t	ng_vjc_disconnect;
+static ng_constructor_t ng_vjc_constructor;
+static ng_rcvmsg_t ng_vjc_rcvmsg;
+static ng_shutdown_t ng_vjc_shutdown;
+static ng_newhook_t ng_vjc_newhook;
+static ng_rcvdata_t ng_vjc_rcvdata;
+static ng_disconnect_t ng_vjc_disconnect;
 
 /* Helper stuff */
 static struct mbuf *ng_vjc_pulluphdrs(struct mbuf *m, int knownTCP);
 
 /* Parse type for struct ngm_vjc_config */
-static const struct ng_parse_struct_field ng_vjc_config_type_fields[]
-	= NG_VJC_CONFIG_TYPE_INFO;
-static const struct ng_parse_type ng_vjc_config_type = {
-	&ng_parse_struct_type,
-	&ng_vjc_config_type_fields
-};
+static const struct ng_parse_struct_field ng_vjc_config_type_fields[] =
+    NG_VJC_CONFIG_TYPE_INFO;
+static const struct ng_parse_type ng_vjc_config_type = { &ng_parse_struct_type,
+	&ng_vjc_config_type_fields };
 
 /* Parse type for the 'last_cs' and 'cs_next' fields in struct slcompress,
    which are pointers converted to integer indices, so parse them that way. */
 #ifndef __LP64__
-#define NG_VJC_TSTATE_PTR_TYPE	&ng_parse_uint32_type
+#define NG_VJC_TSTATE_PTR_TYPE &ng_parse_uint32_type
 #else
-#define NG_VJC_TSTATE_PTR_TYPE	&ng_parse_uint64_type
+#define NG_VJC_TSTATE_PTR_TYPE &ng_parse_uint64_type
 #endif
 
 /* Parse type for the 'cs_hdr' field in a struct cstate. Ideally we would
    like to use a 'struct ip' type instead of a simple array of bytes. */
 static const struct ng_parse_fixedarray_info ng_vjc_cs_hdr_type_info = {
-	&ng_parse_hint8_type,
-	MAX_HDR
+	&ng_parse_hint8_type, MAX_HDR
 };
 static const struct ng_parse_type ng_vjc_cs_hdr_type = {
-	&ng_parse_fixedarray_type,
-	&ng_vjc_cs_hdr_type_info
+	&ng_parse_fixedarray_type, &ng_vjc_cs_hdr_type_info
 };
 
 /* Parse type for a struct cstate */
 static const struct ng_parse_struct_field ng_vjc_cstate_type_fields[] = {
-	{ "cs_next",		NG_VJC_TSTATE_PTR_TYPE		},
-	{ "cs_hlen",		&ng_parse_uint16_type		},
-	{ "cs_id",		&ng_parse_uint8_type		},
-	{ "cs_filler",		&ng_parse_uint8_type		},
-	{ "cs_hdr",		&ng_vjc_cs_hdr_type		},
-	{ NULL }
+	{ "cs_next", NG_VJC_TSTATE_PTR_TYPE },
+	{ "cs_hlen", &ng_parse_uint16_type }, { "cs_id", &ng_parse_uint8_type },
+	{ "cs_filler", &ng_parse_uint8_type },
+	{ "cs_hdr", &ng_vjc_cs_hdr_type }, { NULL }
 };
-static const struct ng_parse_type ng_vjc_cstate_type = {
-	&ng_parse_struct_type,
-	&ng_vjc_cstate_type_fields
-};
+static const struct ng_parse_type ng_vjc_cstate_type = { &ng_parse_struct_type,
+	&ng_vjc_cstate_type_fields };
 
 /* Parse type for an array of MAX_STATES struct cstate's, ie, tstate & rstate */
 static const struct ng_parse_fixedarray_info ng_vjc_cstatearray_type_info = {
-	&ng_vjc_cstate_type,
-	MAX_STATES
+	&ng_vjc_cstate_type, MAX_STATES
 };
 static const struct ng_parse_type ng_vjc_cstatearray_type = {
-	&ng_parse_fixedarray_type,
-	&ng_vjc_cstatearray_type_info
+	&ng_parse_fixedarray_type, &ng_vjc_cstatearray_type_info
 };
 
 /* Parse type for struct slcompress. Keep this in sync with the
    definition of struct slcompress defined in <net/slcompress.h> */
 static const struct ng_parse_struct_field ng_vjc_slcompress_type_fields[] = {
-	{ "last_cs",		NG_VJC_TSTATE_PTR_TYPE		},
-	{ "last_recv",		&ng_parse_uint8_type		},
-	{ "last_xmit",		&ng_parse_uint8_type		},
-	{ "flags",		&ng_parse_hint16_type		},
+	{ "last_cs", NG_VJC_TSTATE_PTR_TYPE },
+	{ "last_recv", &ng_parse_uint8_type },
+	{ "last_xmit", &ng_parse_uint8_type },
+	{ "flags", &ng_parse_hint16_type },
 #ifndef SL_NO_STATS
-	{ "sls_packets",	&ng_parse_uint32_type		},
-	{ "sls_compressed",	&ng_parse_uint32_type		},
-	{ "sls_searches",	&ng_parse_uint32_type		},
-	{ "sls_misses",		&ng_parse_uint32_type		},
-	{ "sls_uncompressedin",	&ng_parse_uint32_type		},
-	{ "sls_compressedin",	&ng_parse_uint32_type		},
-	{ "sls_errorin",	&ng_parse_uint32_type		},
-	{ "sls_tossed",		&ng_parse_uint32_type		},
+	{ "sls_packets", &ng_parse_uint32_type },
+	{ "sls_compressed", &ng_parse_uint32_type },
+	{ "sls_searches", &ng_parse_uint32_type },
+	{ "sls_misses", &ng_parse_uint32_type },
+	{ "sls_uncompressedin", &ng_parse_uint32_type },
+	{ "sls_compressedin", &ng_parse_uint32_type },
+	{ "sls_errorin", &ng_parse_uint32_type },
+	{ "sls_tossed", &ng_parse_uint32_type },
 #endif
-	{ "tstate",		&ng_vjc_cstatearray_type	},
-	{ "rstate",		&ng_vjc_cstatearray_type	},
-	{ NULL }
+	{ "tstate", &ng_vjc_cstatearray_type },
+	{ "rstate", &ng_vjc_cstatearray_type }, { NULL }
 };
 static const struct ng_parse_type ng_vjc_slcompress_type = {
-	&ng_parse_struct_type,
-	&ng_vjc_slcompress_type_fields
+	&ng_parse_struct_type, &ng_vjc_slcompress_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_vjc_cmds[] = {
+	{ NGM_VJC_COOKIE, NGM_VJC_SET_CONFIG, "setconfig", &ng_vjc_config_type,
+	    NULL },
 	{
-	  NGM_VJC_COOKIE,
-	  NGM_VJC_SET_CONFIG,
-	  "setconfig",
-	  &ng_vjc_config_type,
-	  NULL
+	    NGM_VJC_COOKIE,
+	    NGM_VJC_GET_CONFIG,
+	    "getconfig",
+	    NULL,
+	    &ng_vjc_config_type,
 	},
 	{
-	  NGM_VJC_COOKIE,
-	  NGM_VJC_GET_CONFIG,
-	  "getconfig",
-	  NULL,
-	  &ng_vjc_config_type,
+	    NGM_VJC_COOKIE,
+	    NGM_VJC_GET_STATE,
+	    "getstate",
+	    NULL,
+	    &ng_vjc_slcompress_type,
 	},
 	{
-	  NGM_VJC_COOKIE,
-	  NGM_VJC_GET_STATE,
-	  "getstate",
-	  NULL,
-	  &ng_vjc_slcompress_type,
+	    NGM_VJC_COOKIE,
+	    NGM_VJC_CLR_STATS,
+	    "clrstats",
+	    NULL,
+	    NULL,
 	},
 	{
-	  NGM_VJC_COOKIE,
-	  NGM_VJC_CLR_STATS,
-	  "clrstats",
-	  NULL,
-	  NULL,
-	},
-	{
-	  NGM_VJC_COOKIE,
-	  NGM_VJC_RECV_ERROR,
-	  "recverror",
-	  NULL,
-	  NULL,
+	    NGM_VJC_COOKIE,
+	    NGM_VJC_RECV_ERROR,
+	    "recverror",
+	    NULL,
+	    NULL,
 	},
 	{ 0 }
 };
 
 /* Node type descriptor */
 static struct ng_type ng_vjc_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_VJC_NODE_TYPE,
-	.constructor =	ng_vjc_constructor,
-	.rcvmsg =	ng_vjc_rcvmsg,
-	.shutdown =	ng_vjc_shutdown,
-	.newhook =	ng_vjc_newhook,
-	.rcvdata =	ng_vjc_rcvdata,
-	.disconnect =	ng_vjc_disconnect,
-	.cmdlist =	ng_vjc_cmds,
+	.version = NG_ABI_VERSION,
+	.name = NG_VJC_NODE_TYPE,
+	.constructor = ng_vjc_constructor,
+	.rcvmsg = ng_vjc_rcvmsg,
+	.shutdown = ng_vjc_shutdown,
+	.newhook = ng_vjc_newhook,
+	.rcvdata = ng_vjc_rcvdata,
+	.disconnect = ng_vjc_disconnect,
+	.cmdlist = ng_vjc_cmds,
 };
 NETGRAPH_INIT(vjc, &ng_vjc_typestruct);
 
@@ -300,19 +284,19 @@ ng_vjc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	switch (msg->header.typecookie) {
 	case NGM_VJC_COOKIE:
 		switch (msg->header.cmd) {
-		case NGM_VJC_SET_CONFIG:
-		    {
+		case NGM_VJC_SET_CONFIG: {
 			struct ngm_vjc_config *const c =
-				(struct ngm_vjc_config *) msg->data;
+			    (struct ngm_vjc_config *)msg->data;
 
 			if (msg->header.arglen != sizeof(*c))
 				ERROUT(EINVAL);
-			if ((priv->conf.enableComp || priv->conf.enableDecomp)
-			    && (c->enableComp || c->enableDecomp))
+			if ((priv->conf.enableComp ||
+				priv->conf.enableDecomp) &&
+			    (c->enableComp || c->enableDecomp))
 				ERROUT(EALREADY);
 			if (c->enableComp) {
-				if (c->maxChannel > NG_VJC_MAX_CHANNELS - 1
-				    || c->maxChannel < NG_VJC_MIN_CHANNELS - 1)
+				if (c->maxChannel > NG_VJC_MAX_CHANNELS - 1 ||
+				    c->maxChannel < NG_VJC_MIN_CHANNELS - 1)
 					ERROUT(EINVAL);
 			} else
 				c->maxChannel = NG_VJC_MAX_CHANNELS - 1;
@@ -322,9 +306,8 @@ ng_vjc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			priv->conf = *c;
 			break;
-		    }
-		case NGM_VJC_GET_CONFIG:
-		    {
+		}
+		case NGM_VJC_GET_CONFIG: {
 			struct ngm_vjc_config *conf;
 
 			NG_MKRESPONSE(resp, msg, sizeof(*conf), M_NOWAIT);
@@ -333,9 +316,8 @@ ng_vjc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			conf = (struct ngm_vjc_config *)resp->data;
 			*conf = priv->conf;
 			break;
-		    }
-		case NGM_VJC_GET_STATE:
-		    {
+		}
+		case NGM_VJC_GET_STATE: {
 			const struct slcompress *const sl0 = &priv->slc;
 			struct slcompress *sl;
 			u_int16_t index;
@@ -362,7 +344,7 @@ ng_vjc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				*((u_int16_t *)&cs->cs_next) = index;
 			}
 			break;
-		    }
+		}
 		case NGM_VJC_CLR_STATS:
 			priv->slc.sls_packets = 0;
 			priv->slc.sls_compressed = 0;
@@ -403,7 +385,7 @@ ng_vjc_rcvdata(hook_p hook, item_p item)
 	struct mbuf *m;
 
 	NGI_GET_M(item, m);
-	if (hook == priv->ip) {			/* outgoing packet */
+	if (hook == priv->ip) { /* outgoing packet */
 		u_int type = TYPE_IP;
 
 		/* Compress packet if enabled and proto is TCP */
@@ -418,8 +400,8 @@ ng_vjc_rcvdata(hook_p hook, item_p item)
 			if (ip->ip_p == IPPROTO_TCP) {
 				const int origLen = m->m_len;
 
-				type = sl_compress_tcp(m, ip,
-				    &priv->slc, priv->conf.compressCID);
+				type = sl_compress_tcp(
+				    m, ip, &priv->slc, priv->conf.compressCID);
 				m->m_pkthdr.len += m->m_len - origLen;
 			}
 		}
@@ -438,7 +420,7 @@ ng_vjc_rcvdata(hook_p hook, item_p item)
 		default:
 			panic("%s: type=%d", __func__, type);
 		}
-	} else if (hook == priv->vjcomp) {	/* incoming compressed packet */
+	} else if (hook == priv->vjcomp) { /* incoming compressed packet */
 		int vjlen, need2pullup;
 		struct mbuf *hm;
 		u_char *hdr;
@@ -455,17 +437,17 @@ ng_vjc_rcvdata(hook_p hook, item_p item)
 		need2pullup = MAX_VJHEADER;
 		if (need2pullup > m->m_pkthdr.len)
 			need2pullup = m->m_pkthdr.len;
-		if (m->m_len < need2pullup
-		    && (m = m_pullup(m, need2pullup)) == NULL) {
+		if (m->m_len < need2pullup &&
+		    (m = m_pullup(m, need2pullup)) == NULL) {
 			priv->slc.sls_errorin++;
 			NG_FREE_ITEM(item);
 			return (ENOBUFS);
 		}
 
 		/* Uncompress packet to reconstruct TCP/IP header */
-		vjlen = sl_uncompress_tcp_core(mtod(m, u_char *),
-		    m->m_len, m->m_pkthdr.len, TYPE_COMPRESSED_TCP,
-		    &priv->slc, &hdr, &hlen);
+		vjlen = sl_uncompress_tcp_core(mtod(m, u_char *), m->m_len,
+		    m->m_pkthdr.len, TYPE_COMPRESSED_TCP, &priv->slc, &hdr,
+		    &hlen);
 		if (vjlen <= 0) {
 			NG_FREE_M(m);
 			NG_FREE_ITEM(item);
@@ -483,7 +465,7 @@ ng_vjc_rcvdata(hook_p hook, item_p item)
 		}
 		hm->m_len = 0;
 		hm->m_pkthdr.rcvif = NULL;
-		if (hlen > MHLEN) {		/* unlikely, but can happen */
+		if (hlen > MHLEN) { /* unlikely, but can happen */
 			if (!(MCLGET(hm, M_NOWAIT))) {
 				m_freem(hm);
 				priv->slc.sls_errorin++;
@@ -500,7 +482,7 @@ ng_vjc_rcvdata(hook_p hook, item_p item)
 		hm->m_pkthdr.len = hlen + m->m_pkthdr.len;
 		m = hm;
 		hook = priv->ip;
-	} else if (hook == priv->vjuncomp) {	/* incoming uncompressed pkt */
+	} else if (hook == priv->vjuncomp) { /* incoming uncompressed pkt */
 		u_char *hdr;
 		u_int hlen;
 
@@ -518,15 +500,15 @@ ng_vjc_rcvdata(hook_p hook, item_p item)
 		}
 
 		/* Run packet through uncompressor */
-		if (sl_uncompress_tcp_core(mtod(m, u_char *),
-		    m->m_len, m->m_pkthdr.len, TYPE_UNCOMPRESSED_TCP,
-		    &priv->slc, &hdr, &hlen) < 0) {
+		if (sl_uncompress_tcp_core(mtod(m, u_char *), m->m_len,
+			m->m_pkthdr.len, TYPE_UNCOMPRESSED_TCP, &priv->slc,
+			&hdr, &hlen) < 0) {
 			NG_FREE_M(m);
 			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
 		hook = priv->ip;
-	} else if (hook == priv->vjip)	/* incoming regular packet (bypass) */
+	} else if (hook == priv->vjip) /* incoming regular packet (bypass) */
 		hook = priv->ip;
 	else
 		panic("%s: unknown hook", __func__);
@@ -573,8 +555,7 @@ ng_vjc_disconnect(hook_p hook)
 		panic("%s: unknown hook", __func__);
 
 	/* Go away if no hooks left */
-	if ((NG_NODE_NUMHOOKS(node) == 0)
-	&& (NG_NODE_IS_VALID(node)))
+	if ((NG_NODE_NUMHOOKS(node) == 0) && (NG_NODE_IS_VALID(node)))
 		ng_rmnode_self(node);
 	return (0);
 }

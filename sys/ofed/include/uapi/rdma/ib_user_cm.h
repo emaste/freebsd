@@ -132,8 +132,8 @@ struct ib_ucm_notify {
 struct ib_ucm_private_data {
 	__u64 data;
 	__u32 id;
-	__u8  len;
-	__u8  reserved[3];
+	__u8 len;
+	__u8 reserved[3];
 };
 
 struct ib_ucm_req {
@@ -145,18 +145,18 @@ struct ib_ucm_req {
 	__u64 data;
 	__u64 primary_path;
 	__u64 alternate_path;
-	__u8  len;
-	__u8  peer_to_peer;
-	__u8  responder_resources;
-	__u8  initiator_depth;
-	__u8  remote_cm_response_timeout;
-	__u8  flow_control;
-	__u8  local_cm_response_timeout;
-	__u8  retry_count;
-	__u8  rnr_retry_count;
-	__u8  max_cm_retries;
-	__u8  srq;
-	__u8  reserved[5];
+	__u8 len;
+	__u8 peer_to_peer;
+	__u8 responder_resources;
+	__u8 initiator_depth;
+	__u8 remote_cm_response_timeout;
+	__u8 flow_control;
+	__u8 local_cm_response_timeout;
+	__u8 retry_count;
+	__u8 rnr_retry_count;
+	__u8 max_cm_retries;
+	__u8 srq;
+	__u8 reserved[5];
 };
 
 struct ib_ucm_rep {
@@ -165,15 +165,15 @@ struct ib_ucm_rep {
 	__u32 id;
 	__u32 qpn;
 	__u32 psn;
-	__u8  len;
-	__u8  responder_resources;
-	__u8  initiator_depth;
-	__u8  target_ack_delay;
-	__u8  failover_accepted;
-	__u8  flow_control;
-	__u8  rnr_retry_count;
-	__u8  srq;
-	__u8  reserved[4];
+	__u8 len;
+	__u8 responder_resources;
+	__u8 initiator_depth;
+	__u8 target_ack_delay;
+	__u8 failover_accepted;
+	__u8 flow_control;
+	__u8 rnr_retry_count;
+	__u8 srq;
+	__u8 reserved[4];
 };
 
 struct ib_ucm_info {
@@ -181,25 +181,25 @@ struct ib_ucm_info {
 	__u32 status;
 	__u64 info;
 	__u64 data;
-	__u8  info_len;
-	__u8  data_len;
-	__u8  reserved[6];
+	__u8 info_len;
+	__u8 data_len;
+	__u8 reserved[6];
 };
 
 struct ib_ucm_mra {
 	__u64 data;
 	__u32 id;
-	__u8  len;
-	__u8  timeout;
-	__u8  reserved[2];
+	__u8 len;
+	__u8 timeout;
+	__u8 reserved[2];
 };
 
 struct ib_ucm_lap {
 	__u64 path;
 	__u64 data;
 	__u32 id;
-	__u8  len;
-	__u8  reserved[3];
+	__u8 len;
+	__u8 reserved[3];
 };
 
 struct ib_ucm_sidr_req {
@@ -209,9 +209,9 @@ struct ib_ucm_sidr_req {
 	__u64 data;
 	__u64 path;
 	__u16 reserved_pkey;
-	__u8  len;
-	__u8  max_cm_retries;
-	__u8  reserved[4];
+	__u8 len;
+	__u8 max_cm_retries;
+	__u8 reserved[4];
 };
 
 struct ib_ucm_sidr_rep {
@@ -221,9 +221,9 @@ struct ib_ucm_sidr_rep {
 	__u32 status;
 	__u64 info;
 	__u64 data;
-	__u8  info_len;
-	__u8  data_len;
-	__u8  reserved[6];
+	__u8 info_len;
+	__u8 data_len;
+	__u8 reserved[6];
 };
 /*
  * event notification ABI structures.
@@ -232,29 +232,29 @@ struct ib_ucm_event_get {
 	__u64 response;
 	__u64 data;
 	__u64 info;
-	__u8  data_len;
-	__u8  info_len;
-	__u8  reserved[6];
+	__u8 data_len;
+	__u8 info_len;
+	__u8 reserved[6];
 };
 
 struct ib_ucm_req_event_resp {
 	struct ib_user_path_rec primary_path;
 	struct ib_user_path_rec alternate_path;
-	__be64                 remote_ca_guid;
-	__u32                  remote_qkey;
-	__u32                  remote_qpn;
-	__u32                  qp_type;
-	__u32                  starting_psn;
-	__u8  responder_resources;
-	__u8  initiator_depth;
-	__u8  local_cm_response_timeout;
-	__u8  flow_control;
-	__u8  remote_cm_response_timeout;
-	__u8  retry_count;
-	__u8  rnr_retry_count;
-	__u8  srq;
-	__u8  port;
-	__u8  reserved[7];
+	__be64 remote_ca_guid;
+	__u32 remote_qkey;
+	__u32 remote_qpn;
+	__u32 qp_type;
+	__u32 starting_psn;
+	__u8 responder_resources;
+	__u8 initiator_depth;
+	__u8 local_cm_response_timeout;
+	__u8 flow_control;
+	__u8 remote_cm_response_timeout;
+	__u8 retry_count;
+	__u8 rnr_retry_count;
+	__u8 srq;
+	__u8 port;
+	__u8 reserved[7];
 };
 
 struct ib_ucm_rep_event_resp {
@@ -262,14 +262,14 @@ struct ib_ucm_rep_event_resp {
 	__u32 remote_qkey;
 	__u32 remote_qpn;
 	__u32 starting_psn;
-	__u8  responder_resources;
-	__u8  initiator_depth;
-	__u8  target_ack_delay;
-	__u8  failover_accepted;
-	__u8  flow_control;
-	__u8  rnr_retry_count;
-	__u8  srq;
-	__u8  reserved[5];
+	__u8 responder_resources;
+	__u8 initiator_depth;
+	__u8 target_ack_delay;
+	__u8 failover_accepted;
+	__u8 flow_control;
+	__u8 rnr_retry_count;
+	__u8 srq;
+	__u8 reserved[5];
 };
 
 struct ib_ucm_rej_event_resp {
@@ -278,8 +278,8 @@ struct ib_ucm_rej_event_resp {
 };
 
 struct ib_ucm_mra_event_resp {
-	__u8  timeout;
-	__u8  reserved[3];
+	__u8 timeout;
+	__u8 reserved[3];
 };
 
 struct ib_ucm_lap_event_resp {
@@ -293,8 +293,8 @@ struct ib_ucm_apr_event_resp {
 
 struct ib_ucm_sidr_req_event_resp {
 	__u16 pkey;
-	__u8  port;
-	__u8  reserved;
+	__u8 port;
+	__u8 reserved;
 };
 
 struct ib_ucm_sidr_rep_event_resp {
@@ -304,9 +304,9 @@ struct ib_ucm_sidr_rep_event_resp {
 	/* info in ib_ucm_event_get info field. */
 };
 
-#define IB_UCM_PRES_DATA      0x01
-#define IB_UCM_PRES_INFO      0x02
-#define IB_UCM_PRES_PRIMARY   0x04
+#define IB_UCM_PRES_DATA 0x01
+#define IB_UCM_PRES_INFO 0x02
+#define IB_UCM_PRES_PRIMARY 0x04
 #define IB_UCM_PRES_ALTERNATE 0x08
 
 struct ib_ucm_event_resp {
@@ -326,7 +326,7 @@ struct ib_ucm_event_resp {
 		struct ib_ucm_sidr_req_event_resp sidr_req_resp;
 		struct ib_ucm_sidr_rep_event_resp sidr_rep_resp;
 
-		__u32                             send_status;
+		__u32 send_status;
 	} u;
 };
 

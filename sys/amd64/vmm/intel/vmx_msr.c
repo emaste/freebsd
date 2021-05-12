@@ -80,7 +80,7 @@ vmx_revision(void)
  */
 int
 vmx_set_ctlreg(int ctl_reg, int true_ctl_reg, uint32_t ones_mask,
-	       uint32_t zeros_mask, uint32_t *retval)
+    uint32_t zeros_mask, uint32_t *retval)
 {
 	int i;
 	uint64_t val, trueval;
@@ -94,42 +94,44 @@ vmx_set_ctlreg(int ctl_reg, int true_ctl_reg, uint32_t ones_mask,
 
 	val = rdmsr(ctl_reg);
 	if (true_ctls_avail)
-		trueval = rdmsr(true_ctl_reg);		/* step c */
+		trueval = rdmsr(true_ctl_reg); /* step c */
 	else
-		trueval = val;				/* step a */
+		trueval = val; /* step a */
 
 	for (i = 0; i < 32; i++) {
 		one_allowed = vmx_ctl_allows_one_setting(trueval, i);
 		zero_allowed = vmx_ctl_allows_zero_setting(trueval, i);
 
 		KASSERT(one_allowed || zero_allowed,
-			("invalid zero/one setting for bit %d of ctl 0x%0x, "
-			 "truectl 0x%0x\n", i, ctl_reg, true_ctl_reg));
+		    ("invalid zero/one setting for bit %d of ctl 0x%0x, "
+		     "truectl 0x%0x\n",
+			i, ctl_reg, true_ctl_reg));
 
-		if (zero_allowed && !one_allowed) {		/* b(i),c(i) */
+		if (zero_allowed && !one_allowed) { /* b(i),c(i) */
 			if (ones_mask & (1 << i))
 				return (EINVAL);
 			*retval &= ~(1 << i);
-		} else if (one_allowed && !zero_allowed) {	/* b(i),c(i) */
+		} else if (one_allowed && !zero_allowed) { /* b(i),c(i) */
 			if (zeros_mask & (1 << i))
 				return (EINVAL);
 			*retval |= 1 << i;
 		} else {
-			if (zeros_mask & (1 << i))	/* b(ii),c(ii) */
+			if (zeros_mask & (1 << i)) /* b(ii),c(ii) */
 				*retval &= ~(1 << i);
 			else if (ones_mask & (1 << i)) /* b(ii), c(ii) */
 				*retval |= 1 << i;
 			else if (!true_ctls_avail)
-				*retval &= ~(1 << i);	/* b(iii) */
-			else if (vmx_ctl_allows_zero_setting(val, i))/* c(iii)*/
+				*retval &= ~(1 << i); /* b(iii) */
+			else if (vmx_ctl_allows_zero_setting(
+				     val, i)) /* c(iii)*/
 				*retval &= ~(1 << i);
 			else if (vmx_ctl_allows_one_setting(val, i)) /* c(iv) */
 				*retval |= 1 << i;
 			else {
 				panic("vmx_set_ctlreg: unable to determine "
 				      "correct value of ctl bit %d for msr "
-				      "0x%0x and true msr 0x%0x", i, ctl_reg,
-				      true_ctl_reg);
+				      "0x%0x and true msr 0x%0x",
+				    i, ctl_reg, true_ctl_reg);
 			}
 		}
 	}
@@ -275,9 +277,9 @@ vmx_msr_init(void)
 	misc_enable &= ~((1 << 18) | (1 << 16));
 
 	if (nehalem_cpu() || westmere_cpu())
-		bus_freq = 133330000;		/* 133Mhz */
+		bus_freq = 133330000; /* 133Mhz */
 	else
-		bus_freq = 100000000;		/* 100Mhz */
+		bus_freq = 100000000; /* 100Mhz */
 
 	/*
 	 * XXXtime
@@ -336,12 +338,9 @@ vmx_msr_guest_init(struct vmx *vmx, int vcpuid)
 	 * Initialize guest IA32_PAT MSR with default value after reset.
 	 */
 	guest_msrs[IDX_MSR_PAT] = PAT_VALUE(0, PAT_WRITE_BACK) |
-	    PAT_VALUE(1, PAT_WRITE_THROUGH)	|
-	    PAT_VALUE(2, PAT_UNCACHED)		|
-	    PAT_VALUE(3, PAT_UNCACHEABLE)	|
-	    PAT_VALUE(4, PAT_WRITE_BACK)	|
-	    PAT_VALUE(5, PAT_WRITE_THROUGH)	|
-	    PAT_VALUE(6, PAT_UNCACHED)		|
+	    PAT_VALUE(1, PAT_WRITE_THROUGH) | PAT_VALUE(2, PAT_UNCACHED) |
+	    PAT_VALUE(3, PAT_UNCACHEABLE) | PAT_VALUE(4, PAT_WRITE_BACK) |
+	    PAT_VALUE(5, PAT_WRITE_THROUGH) | PAT_VALUE(6, PAT_UNCACHED) |
 	    PAT_VALUE(7, PAT_UNCACHEABLE);
 
 	return;
@@ -463,7 +462,7 @@ vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
 	switch (num) {
 	case MSR_MCG_CAP:
 	case MSR_MCG_STATUS:
-		break;		/* ignore writes */
+		break; /* ignore writes */
 	case MSR_MTRRcap:
 		vm_inject_gp(vmx->vm, vcpuid);
 		break;
@@ -471,7 +470,7 @@ vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
 	case MSR_MTRR4kBase ... MSR_MTRR4kBase + 8:
 	case MSR_MTRR16kBase ... MSR_MTRR16kBase + 1:
 	case MSR_MTRR64kBase:
-		break;		/* Ignore writes */
+		break; /* Ignore writes */
 	case MSR_IA32_MISC_ENABLE:
 		changed = val ^ misc_enable;
 		/*

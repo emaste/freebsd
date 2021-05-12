@@ -68,34 +68,34 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
 #include <sys/domainset.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/pipe.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
-#include <sys/malloc.h>
-#include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/selinfo.h>
 #include <sys/smp.h>
-#include <sys/pipe.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
+#include <sys/sysctl.h>
 #include <sys/vmem.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_phys.h>
 #include <vm/vm_pagequeue.h>
-#include <vm/vm_map.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_extern.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
-extern void	uma_startup1(vm_offset_t);
+extern void uma_startup1(vm_offset_t);
 
 long physmem;
 
@@ -178,8 +178,8 @@ again:
 	 * Discount the physical memory larger than the size of kernel_map
 	 * to avoid eating up all of KVA space.
 	 */
-	physmem_est = lmin(physmem, btoc(vm_map_max(kernel_map) -
-	    vm_map_min(kernel_map)));
+	physmem_est = lmin(
+	    physmem, btoc(vm_map_max(kernel_map) - vm_map_min(kernel_map)));
 
 	v = kern_vfs_bio_buffer_alloc(v, physmem_est);
 
@@ -234,19 +234,20 @@ again:
 	 */
 	if (bio_transient_maxcnt != 0) {
 		size = (long)bio_transient_maxcnt * maxphys;
-		vmem_init(transient_arena, "transient arena",
-		    firstaddr, size, PAGE_SIZE, 0, 0);
+		vmem_init(transient_arena, "transient arena", firstaddr, size,
+		    PAGE_SIZE, 0, 0);
 		firstaddr += size;
 	}
 	if (firstaddr != kmi->clean_eva)
 		panic("Clean map calculation incorrect");
 
-	/*
-	 * Allocate the pageable submaps.  We may cache an exec map entry per
-	 * CPU, so we therefore need to reserve space for at least ncpu+1
-	 * entries to avoid deadlock.  The exec map is also used by some image
-	 * activators, so we leave a fixed number of pages for their use.
-	 */
+		/*
+		 * Allocate the pageable submaps.  We may cache an exec map
+		 * entry per CPU, so we therefore need to reserve space for at
+		 * least ncpu+1 entries to avoid deadlock.  The exec map is also
+		 * used by some image activators, so we leave a fixed number of
+		 * pages for their use.
+		 */
 #ifdef __LP64__
 	exec_map_entries = 8 * mp_ncpus;
 #else
@@ -255,6 +256,6 @@ again:
 	exec_map_entry_size = round_page(PATH_MAX + ARG_MAX);
 	kmem_subinit(exec_map, kernel_map, &minaddr, &maxaddr,
 	    exec_map_entries * exec_map_entry_size + 64 * PAGE_SIZE, false);
-	kmem_subinit(pipe_map, kernel_map, &minaddr, &maxaddr, maxpipekva,
-	    false);
+	kmem_subinit(
+	    pipe_map, kernel_map, &minaddr, &maxaddr, maxpipekva, false);
 }

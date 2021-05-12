@@ -32,23 +32,21 @@
 __FBSDID("$FreeBSD$");
 
 __BEGIN_DECLS
-const char *	ctl_scsi_status_string(struct ctl_scsiio *ctsio);
+const char *ctl_scsi_status_string(struct ctl_scsiio *ctsio);
 #ifdef _KERNEL
-void		ctl_scsi_sense_print(struct ctl_scsiio *ctsio,
-				     struct scsi_inquiry_data *inq_data);
+void ctl_scsi_sense_print(
+    struct ctl_scsiio *ctsio, struct scsi_inquiry_data *inq_data);
 #else /* _KERNEL */
-void		ctl_scsi_sense_print(struct ctl_scsiio *ctsio,
-				     struct scsi_inquiry_data *inq_data,
-				     FILE *ofile);
+void ctl_scsi_sense_print(
+    struct ctl_scsiio *ctsio, struct scsi_inquiry_data *inq_data, FILE *ofile);
 #endif /* _KERNEL */
 int ctl_scsi_command_string(struct ctl_scsiio *ctsio,
-			    struct scsi_inquiry_data *inq_data,struct sbuf *sb);
+    struct scsi_inquiry_data *inq_data, struct sbuf *sb);
 int ctl_scsi_sense_sbuf(struct ctl_scsiio *ctsio,
-			struct scsi_inquiry_data *inq_data, struct sbuf *sb,
-			scsi_sense_string_flags flags);
+    struct scsi_inquiry_data *inq_data, struct sbuf *sb,
+    scsi_sense_string_flags flags);
 void ctl_scsi_path_string(union ctl_io *io, char *path_str, int strlen);
 char *ctl_scsi_sense_string(struct ctl_scsiio *ctsio,
-			    struct scsi_inquiry_data *inq_data, char *str,
-			    int str_len);
+    struct scsi_inquiry_data *inq_data, char *str, int str_len);
 
 __END_DECLS

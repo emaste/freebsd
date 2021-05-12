@@ -28,13 +28,13 @@
  * $FreeBSD$
  */
 #ifndef _SYS_REGRESSION_H_
-#define	_SYS_REGRESSION_H_
+#define _SYS_REGRESSION_H_
 
 #ifndef _KERNEL
 /*
  * System calls associated with regression testing functions in kernel.
  */
-int	__setugid(int _flag);
+int __setugid(int _flag);
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_REGRESSION_H_ */

@@ -31,11 +31,11 @@ __FBSDID("$FreeBSD$");
  * Local interrupt controller driver for Tegra SoCs.
  */
 #include <sys/param.h>
-#include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 
 #include <machine/bus.h>
@@ -47,45 +47,38 @@ __FBSDID("$FreeBSD$");
 
 #include "pic_if.h"
 
-#define	LIC_VIRQ_CPU		0x00
-#define	LIC_VIRQ_COP		0x04
-#define	LIC_VFRQ_CPU		0x08
-#define	LIC_VFRQ_COP		0x0c
-#define	LIC_ISR			0x10
-#define	LIC_FIR			0x14
-#define	LIC_FIR_SET		0x18
-#define	LIC_FIR_CLR		0x1c
-#define	LIC_CPU_IER		0x20
-#define	LIC_CPU_IER_SET		0x24
-#define	LIC_CPU_IER_CLR		0x28
-#define	LIC_CPU_IEP_CLASS	0x2C
-#define	LIC_COP_IER		0x30
-#define	LIC_COP_IER_SET		0x34
-#define	LIC_COP_IER_CLR		0x38
-#define	LIC_COP_IEP_CLASS	0x3c
+#define LIC_VIRQ_CPU 0x00
+#define LIC_VIRQ_COP 0x04
+#define LIC_VFRQ_CPU 0x08
+#define LIC_VFRQ_COP 0x0c
+#define LIC_ISR 0x10
+#define LIC_FIR 0x14
+#define LIC_FIR_SET 0x18
+#define LIC_FIR_CLR 0x1c
+#define LIC_CPU_IER 0x20
+#define LIC_CPU_IER_SET 0x24
+#define LIC_CPU_IER_CLR 0x28
+#define LIC_CPU_IEP_CLASS 0x2C
+#define LIC_COP_IER 0x30
+#define LIC_COP_IER_SET 0x34
+#define LIC_COP_IER_CLR 0x38
+#define LIC_COP_IEP_CLASS 0x3c
 
-#define	WR4(_sc, _b, _r, _v)	bus_write_4((_sc)->mem_res[_b], (_r), (_v))
-#define	RD4(_sc, _b, _r)	bus_read_4((_sc)->mem_res[_b], (_r))
+#define WR4(_sc, _b, _r, _v) bus_write_4((_sc)->mem_res[_b], (_r), (_v))
+#define RD4(_sc, _b, _r) bus_read_4((_sc)->mem_res[_b], (_r))
 
-static struct resource_spec lic_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	2,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	3,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	4,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec lic_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_MEMORY, 1, RF_ACTIVE }, { SYS_RES_MEMORY, 2, RF_ACTIVE },
+	{ SYS_RES_MEMORY, 3, RF_ACTIVE }, { SYS_RES_MEMORY, 4, RF_ACTIVE },
+	{ -1, 0 } };
 
-static struct ofw_compat_data compat_data[] = {
-	{"nvidia,tegra124-ictlr", 	1},
-	{"nvidia,tegra210-ictlr", 	1},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "nvidia,tegra124-ictlr", 1 },
+	{ "nvidia,tegra210-ictlr", 1 }, { NULL, 0 } };
 
 struct tegra_lic_sc {
-	device_t		dev;
-	struct resource		*mem_res[nitems(lic_spec)];
-	device_t		parent;
+	device_t dev;
+	struct resource *mem_res[nitems(lic_spec)];
+	device_t parent;
 };
 
 static int
@@ -114,8 +107,8 @@ tegra_lic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-tegra_lic_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+tegra_lic_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct tegra_lic_sc *sc = device_get_softc(dev);
 
@@ -207,8 +200,8 @@ tegra_lic_attach(device_t dev)
 	sc->dev = dev;
 	node = ofw_bus_get_node(dev);
 
-	rv = OF_getencprop(node, "interrupt-parent", &parent_xref,
-	    sizeof(parent_xref));
+	rv = OF_getencprop(
+	    node, "interrupt-parent", &parent_xref, sizeof(parent_xref));
 	if (rv <= 0) {
 		device_printf(dev, "Cannot read parent node property\n");
 		goto fail;
@@ -253,36 +246,34 @@ tegra_lic_detach(device_t dev)
 	for (i = 0; i < nitems(lic_spec); i++) {
 		if (sc->mem_res[i] == NULL)
 			continue;
-		bus_release_resource(dev, SYS_RES_MEMORY, i,
-		    sc->mem_res[i]);
+		bus_release_resource(dev, SYS_RES_MEMORY, i, sc->mem_res[i]);
 	}
 	return (0);
 }
 
-static device_method_t tegra_lic_methods[] = {
-	DEVMETHOD(device_probe,		tegra_lic_probe),
-	DEVMETHOD(device_attach,	tegra_lic_attach),
-	DEVMETHOD(device_detach,	tegra_lic_detach),
+static device_method_t tegra_lic_methods[] = { DEVMETHOD(device_probe,
+						   tegra_lic_probe),
+	DEVMETHOD(device_attach, tegra_lic_attach),
+	DEVMETHOD(device_detach, tegra_lic_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_activate_intr,	tegra_lic_activate_intr),
-	DEVMETHOD(pic_disable_intr,	tegra_lic_disable_intr),
-	DEVMETHOD(pic_enable_intr,	tegra_lic_enable_intr),
-	DEVMETHOD(pic_map_intr,		tegra_lic_map_intr),
-	DEVMETHOD(pic_deactivate_intr,	tegra_lic_deactivate_intr),
-	DEVMETHOD(pic_setup_intr,	tegra_lic_setup_intr),
-	DEVMETHOD(pic_teardown_intr,	tegra_lic_teardown_intr),
-	DEVMETHOD(pic_pre_ithread,	tegra_lic_pre_ithread),
-	DEVMETHOD(pic_post_ithread,	tegra_lic_post_ithread),
-	DEVMETHOD(pic_post_filter,	tegra_lic_post_filter),
+	DEVMETHOD(pic_activate_intr, tegra_lic_activate_intr),
+	DEVMETHOD(pic_disable_intr, tegra_lic_disable_intr),
+	DEVMETHOD(pic_enable_intr, tegra_lic_enable_intr),
+	DEVMETHOD(pic_map_intr, tegra_lic_map_intr),
+	DEVMETHOD(pic_deactivate_intr, tegra_lic_deactivate_intr),
+	DEVMETHOD(pic_setup_intr, tegra_lic_setup_intr),
+	DEVMETHOD(pic_teardown_intr, tegra_lic_teardown_intr),
+	DEVMETHOD(pic_pre_ithread, tegra_lic_pre_ithread),
+	DEVMETHOD(pic_post_ithread, tegra_lic_post_ithread),
+	DEVMETHOD(pic_post_filter, tegra_lic_post_filter),
 #ifdef SMP
-	DEVMETHOD(pic_bind_intr,	tegra_lic_bind_intr),
+	DEVMETHOD(pic_bind_intr, tegra_lic_bind_intr),
 #endif
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 devclass_t tegra_lic_devclass;
-static DEFINE_CLASS_0(lic, tegra_lic_driver, tegra_lic_methods,
-    sizeof(struct tegra_lic_sc));
+static DEFINE_CLASS_0(
+    lic, tegra_lic_driver, tegra_lic_methods, sizeof(struct tegra_lic_sc));
 EARLY_DRIVER_MODULE(tegra_lic, simplebus, tegra_lic_driver, tegra_lic_devclass,
     NULL, NULL, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE + 1);

@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_CAVIUM_OCTE_ETHERNET_MV88E61XX_H_
-#define	_CAVIUM_OCTE_ETHERNET_MV88E61XX_H_
+#ifndef _CAVIUM_OCTE_ETHERNET_MV88E61XX_H_
+#define _CAVIUM_OCTE_ETHERNET_MV88E61XX_H_
 
 int cvm_oct_mv88e61xx_setup_device(struct ifnet *ifp);
 

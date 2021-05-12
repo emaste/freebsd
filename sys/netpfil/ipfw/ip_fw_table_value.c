@@ -40,44 +40,42 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
 #include <sys/hash.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/rwlock.h>
+#include <sys/malloc.h>
+#include <sys/queue.h>
 #include <sys/rmlock.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/queue.h>
-#include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
 
+#include <net/if.h> /* ip_fw.h requires IFNAMSIZ */
 #include <netinet/in.h>
-#include <netinet/ip_var.h>	/* struct ipfw_rule_ref */
 #include <netinet/ip_fw.h>
-
+#include <netinet/ip_var.h> /* struct ipfw_rule_ref */
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/ip_fw_table.h>
 
-static uint32_t hash_table_value(struct namedobj_instance *ni, const void *key,
-    uint32_t kopt);
-static int cmp_table_value(struct named_object *no, const void *key,
-    uint32_t kopt);
+static uint32_t hash_table_value(
+    struct namedobj_instance *ni, const void *key, uint32_t kopt);
+static int cmp_table_value(
+    struct named_object *no, const void *key, uint32_t kopt);
 
-static int list_table_values(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
+static int list_table_values(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op3, struct sockopt_data *sd);
 
-static struct ipfw_sopt_handler	scodes[] = {
-	{ IP_FW_TABLE_VLIST,	0,	HDIR_GET,	list_table_values },
+static struct ipfw_sopt_handler scodes[] = {
+	{ IP_FW_TABLE_VLIST, 0, HDIR_GET, list_table_values },
 };
 
-#define	CHAIN_TO_VI(chain)	(CHAIN_TO_TCFG(chain)->valhash)
+#define CHAIN_TO_VI(chain) (CHAIN_TO_TCFG(chain)->valhash)
 
-struct table_val_link
-{
-	struct named_object	no;
-	struct table_value	*pval;	/* Pointer to real table value */
+struct table_val_link {
+	struct named_object no;
+	struct table_value *pval; /* Pointer to real table value */
 };
-#define	VALDATA_START_SIZE	64	/* Allocate 64-items array by default */
+#define VALDATA_START_SIZE 64 /* Allocate 64-items array by default */
 
 struct vdump_args {
 	struct ip_fw_chain *ch;
@@ -101,10 +99,13 @@ cmp_table_value(struct named_object *no, const void *key, uint32_t kopt)
 }
 
 static void
-mask_table_value(struct table_value *src, struct table_value *dst,
-    uint32_t mask)
+mask_table_value(
+    struct table_value *src, struct table_value *dst, uint32_t mask)
 {
-#define	_MCPY(f, b)	if ((mask & (b)) != 0) { dst->f = src->f; }
+#define _MCPY(f, b)              \
+	if ((mask & (b)) != 0) { \
+		dst->f = src->f; \
+	}
 
 	memset(dst, 0, sizeof(*dst));
 	_MCPY(tag, IPFW_VTYPE_TAG);
@@ -118,7 +119,7 @@ mask_table_value(struct table_value *src, struct table_value *dst,
 	_MCPY(nh4, IPFW_VTYPE_NH4);
 	_MCPY(nh6, IPFW_VTYPE_NH6);
 	_MCPY(zoneid, IPFW_VTYPE_NH6);
-#undef	_MCPY
+#undef _MCPY
 }
 
 static void
@@ -134,7 +135,7 @@ get_value_ptrs(struct ip_fw_chain *ch, struct table_config *tc, int vshared,
 	} else {
 		pval = NULL;
 		vi = NULL;
-		//pval = (struct table_value *)&tc->ti.data;
+		// pval = (struct table_value *)&tc->ti.data;
 	}
 
 	if (ptv != NULL)
@@ -199,10 +200,9 @@ resize_shared_value_storage(struct ip_fw_chain *ch)
 
 	IPFW_UH_WUNLOCK(ch);
 
-	valuestate = malloc(sizeof(struct table_value) * val_size, M_IPFW,
-	    M_WAITOK | M_ZERO);
-	ipfw_objhash_bitmap_alloc(val_size, (void *)&new_idx,
-	    &new_blocks);
+	valuestate = malloc(
+	    sizeof(struct table_value) * val_size, M_IPFW, M_WAITOK | M_ZERO);
+	ipfw_objhash_bitmap_alloc(val_size, (void *)&new_idx, &new_blocks);
 
 	IPFW_UH_WLOCK(ch);
 
@@ -248,8 +248,8 @@ done:
  * @vi. Frees value if it has no references.
  */
 static void
-unref_table_value(struct namedobj_instance *vi, struct table_value *pval,
-    uint32_t kidx)
+unref_table_value(
+    struct namedobj_instance *vi, struct table_value *pval, uint32_t kidx)
 {
 	struct table_val_link *ptvl;
 
@@ -293,8 +293,8 @@ unref_table_value_cb(void *e, void *arg)
 
 	ch = fa->ch;
 
-	unref_table_value(CHAIN_TO_VI(ch),
-	    (struct table_value *)ch->valuestate, tent->v.kidx);
+	unref_table_value(CHAIN_TO_VI(ch), (struct table_value *)ch->valuestate,
+	    tent->v.kidx);
 
 	return (0);
 }
@@ -378,7 +378,8 @@ alloc_table_vidx(struct ip_fw_chain *ch, struct tableop_state *ts,
 		 */
 		ts->opstate.func(ts->tc, &ts->opstate);
 		error = resize_shared_value_storage(ch);
-		return (error); /* ts->modified should be set, we will restart */
+		return (
+		    error); /* ts->modified should be set, we will restart */
 	}
 
 	vlimit = ts->ta->vlimit;
@@ -467,8 +468,8 @@ ipfw_garbage_table_values(struct ip_fw_chain *ch, struct table_config *tc,
  * Success: return 0.
  */
 int
-ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts,
-    uint8_t flags)
+ipfw_link_table_values(
+    struct ip_fw_chain *ch, struct tableop_state *ts, uint8_t flags)
 {
 	int error, i, found;
 	struct namedobj_instance *vi;
@@ -497,8 +498,8 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts,
 		ptei = &tei[i];
 		ptei->value = 0; /* Ensure value is always 0 in the beginning */
 		mask_table_value(ptei->pvalue, &tval, ts->vmask);
-		ptv = (struct table_val_link *)ipfw_objhash_lookup_name(vi, 0,
-		    (char *)&tval);
+		ptv = (struct table_val_link *)ipfw_objhash_lookup_name(
+		    vi, 0, (char *)&tval);
 		if (ptv == NULL)
 			continue;
 		/* Deal with vlimit later */
@@ -534,8 +535,8 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts,
 			continue;
 		if (ptei->ptv != NULL)
 			continue;
-		ptei->ptv = malloc(sizeof(struct table_val_link), M_IPFW,
-		    M_WAITOK | M_ZERO);
+		ptei->ptv = malloc(
+		    sizeof(struct table_val_link), M_IPFW, M_WAITOK | M_ZERO);
 	}
 
 	/*
@@ -562,8 +563,8 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts,
 
 		/* Check if record has appeared */
 		mask_table_value(ptei->pvalue, &tval, ts->vmask);
-		ptv = (struct table_val_link *)ipfw_objhash_lookup_name(vi, 0,
-		    (char *)&tval);
+		ptv = (struct table_val_link *)ipfw_objhash_lookup_name(
+		    vi, 0, (char *)&tval);
 		if (ptv != NULL) {
 			ptv->pval->refcnt++;
 			ptei->value = ptv->no.kidx;
@@ -718,15 +719,16 @@ dump_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
  * Returns 0 on success
  */
 static int
-list_table_values(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+list_table_values(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	struct _ipfw_obj_lheader *olh;
 	struct namedobj_instance *vi;
 	struct vdump_args da;
 	uint32_t count, size;
 
-	olh = (struct _ipfw_obj_lheader *)ipfw_get_sopt_header(sd,sizeof(*olh));
+	olh = (struct _ipfw_obj_lheader *)ipfw_get_sopt_header(
+	    sd, sizeof(*olh));
 	if (olh == NULL)
 		return (EINVAL);
 	if (sd->valsize < olh->size)
@@ -774,15 +776,14 @@ ipfw_table_value_init(struct ip_fw_chain *ch, int first)
 
 	tcfg->val_size = VALDATA_START_SIZE;
 	tcfg->valhash = ipfw_objhash_create(tcfg->val_size);
-	ipfw_objhash_set_funcs(tcfg->valhash, hash_table_value,
-	    cmp_table_value);
+	ipfw_objhash_set_funcs(
+	    tcfg->valhash, hash_table_value, cmp_table_value);
 
 	IPFW_ADD_SOPT_HANDLER(first, scodes);
 }
 
 static int
-destroy_value(struct namedobj_instance *ni, struct named_object *no,
-    void *arg)
+destroy_value(struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
 
 	free(no, M_IPFW);

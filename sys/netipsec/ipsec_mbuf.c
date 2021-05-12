@@ -73,9 +73,8 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 	 * Otherwise insert a new mbuf in the chain, splitting
 	 * the contents of m as needed.
 	 */
-	remain = m->m_len - skip;		/* data to move */
-	if (remain > skip &&
-	    hlen + max_linkhdr < M_LEADINGSPACE(m)) {
+	remain = m->m_len - skip; /* data to move */
+	if (remain > skip && hlen + max_linkhdr < M_LEADINGSPACE(m)) {
 		/*
 		 * mbuf has enough free space at the beginning.
 		 * XXX: which operation is the most heavy - copying of
@@ -101,8 +100,7 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 			if (todo > MHLEN) {
 				n = m_getcl(M_NOWAIT, m->m_type, 0);
 				len = MCLBYTES;
-			}
-			else {
+			} else {
 				n = m_get(M_NOWAIT, m->m_type);
 				len = MHLEN;
 			}
@@ -127,8 +125,7 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 				*np = m->m_next;
 				m->m_next = n0;
 			}
-		}
-		else {
+		} else {
 			n = m_get(M_NOWAIT, m->m_type);
 			if (n == NULL) {
 				m_freem(n0);
@@ -146,8 +143,8 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 			n->m_len = hlen;
 			m->m_len = skip;
 
-			m = n;			/* header is at front ... */
-			*off = 0;		/* ... of new mbuf */
+			m = n;	  /* header is at front ... */
+			*off = 0; /* ... of new mbuf */
 		}
 		IPSECSTAT_INC(ips_mbinserted);
 	} else {
@@ -155,12 +152,12 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 		 * Copy the remainder to the back of the mbuf
 		 * so there's space to write the new header.
 		 */
-		bcopy(mtod(m, caddr_t) + skip,
-		    mtod(m, caddr_t) + skip + hlen, remain);
+		bcopy(mtod(m, caddr_t) + skip, mtod(m, caddr_t) + skip + hlen,
+		    remain);
 		m->m_len += hlen;
 		*off = skip;
 	}
-	m0->m_pkthdr.len += hlen;		/* adjust packet length */
+	m0->m_pkthdr.len += hlen; /* adjust packet length */
 	return m;
 }
 
@@ -176,7 +173,7 @@ m_pad(struct mbuf *m, int n)
 	int len, pad;
 	caddr_t retval;
 
-	if (n <= 0) {  /* No stupid arguments. */
+	if (n <= 0) { /* No stupid arguments. */
 		DPRINTF(("%s: pad length invalid (%d)\n", __func__, n));
 		m_freem(m);
 		return NULL;
@@ -193,8 +190,8 @@ m_pad(struct mbuf *m, int n)
 
 	if (m0->m_len != len) {
 		DPRINTF(("%s: length mismatch (should be %d instead of %d)\n",
-			__func__, m->m_pkthdr.len,
-			m->m_pkthdr.len + m0->m_len - len));
+		    __func__, m->m_pkthdr.len,
+		    m->m_pkthdr.len + m0->m_len - len));
 
 		m_freem(m);
 		return NULL;
@@ -204,9 +201,9 @@ m_pad(struct mbuf *m, int n)
 	for (m1 = m0; m1->m_next; m1 = m1->m_next) {
 		if (m1->m_next->m_len != 0) {
 			DPRINTF(("%s: length mismatch (should be %d instead "
-				"of %d)\n", __func__,
-				m->m_pkthdr.len,
-				m->m_pkthdr.len + m1->m_next->m_len));
+				 "of %d)\n",
+			    __func__, m->m_pkthdr.len,
+			    m->m_pkthdr.len + m1->m_next->m_len));
 
 			m_freem(m);
 			return NULL;
@@ -275,7 +272,8 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 			/* Adjust the next mbuf by the remainder */
 			m_adj(m1->m_next, adjlen);
 
-			/* The second mbuf is guaranteed not to have a pkthdr... */
+			/* The second mbuf is guaranteed not to have a pkthdr...
+			 */
 			m->m_pkthdr.len -= adjlen;
 		}
 
@@ -298,8 +296,7 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 		 */
 		IPSECSTAT_INC(ips_input_middle);
 		bcopy(mtod(m1, u_char *) + roff + hlen,
-		      mtod(m1, u_char *) + roff,
-		      m1->m_len - (roff + hlen));
+		    mtod(m1, u_char *) + roff, m1->m_len - (roff + hlen));
 		m1->m_len -= hlen;
 		m->m_pkthdr.len -= hlen;
 	}
@@ -311,7 +308,7 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
  * crypto device drivers (that use DMA).
  */
 void
-m_checkalignment(const char* where, struct mbuf *m0, int off, int len)
+m_checkalignment(const char *where, struct mbuf *m0, int off, int len)
 {
 	int roff;
 	struct mbuf *m = m_getptr(m0, off, &roff);
@@ -324,7 +321,7 @@ m_checkalignment(const char* where, struct mbuf *m0, int off, int len)
 	do {
 		int mlen;
 
-		if (((uintptr_t) addr) & 3) {
+		if (((uintptr_t)addr) & 3) {
 			printf("addr misaligned %p,", addr);
 			break;
 		}

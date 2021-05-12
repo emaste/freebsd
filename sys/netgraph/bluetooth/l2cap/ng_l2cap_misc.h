@@ -36,74 +36,74 @@
 #ifndef _NETGRAPH_L2CAP_MISC_H_
 #define _NETGRAPH_L2CAP_MISC_H_
 
-void           ng_l2cap_send_hook_info (node_p, hook_p, void *, int);
+void ng_l2cap_send_hook_info(node_p, hook_p, void *, int);
 
 /*
  * ACL Connections
  */
 
-ng_l2cap_con_p ng_l2cap_new_con       (ng_l2cap_p, bdaddr_p, int);
-void           ng_l2cap_con_ref       (ng_l2cap_con_p);
-void           ng_l2cap_con_unref     (ng_l2cap_con_p);
-ng_l2cap_con_p ng_l2cap_con_by_addr   (ng_l2cap_p, bdaddr_p, unsigned int);
-ng_l2cap_con_p ng_l2cap_con_by_handle (ng_l2cap_p, u_int16_t);
-void           ng_l2cap_free_con      (ng_l2cap_con_p);
+ng_l2cap_con_p ng_l2cap_new_con(ng_l2cap_p, bdaddr_p, int);
+void ng_l2cap_con_ref(ng_l2cap_con_p);
+void ng_l2cap_con_unref(ng_l2cap_con_p);
+ng_l2cap_con_p ng_l2cap_con_by_addr(ng_l2cap_p, bdaddr_p, unsigned int);
+ng_l2cap_con_p ng_l2cap_con_by_handle(ng_l2cap_p, u_int16_t);
+void ng_l2cap_free_con(ng_l2cap_con_p);
 
 /*
  * L2CAP channels
  */
 
-ng_l2cap_chan_p ng_l2cap_new_chan     (ng_l2cap_p, ng_l2cap_con_p, u_int16_t, int);
-ng_l2cap_chan_p ng_l2cap_chan_by_scid (ng_l2cap_p, u_int16_t, int);
-ng_l2cap_chan_p ng_l2cap_chan_by_conhandle(ng_l2cap_p , uint16_t , u_int16_t);
+ng_l2cap_chan_p ng_l2cap_new_chan(ng_l2cap_p, ng_l2cap_con_p, u_int16_t, int);
+ng_l2cap_chan_p ng_l2cap_chan_by_scid(ng_l2cap_p, u_int16_t, int);
+ng_l2cap_chan_p ng_l2cap_chan_by_conhandle(ng_l2cap_p, uint16_t, u_int16_t);
 
-void            ng_l2cap_free_chan    (ng_l2cap_chan_p);
+void ng_l2cap_free_chan(ng_l2cap_chan_p);
 
 /*
  * L2CAP command descriptors
  */
 
-#define ng_l2cap_link_cmd(con, cmd) \
-do { \
-	TAILQ_INSERT_TAIL(&(con)->cmd_list, (cmd), next); \
-	ng_l2cap_con_ref((con)); \
-} while (0)
+#define ng_l2cap_link_cmd(con, cmd)                               \
+	do {                                                      \
+		TAILQ_INSERT_TAIL(&(con)->cmd_list, (cmd), next); \
+		ng_l2cap_con_ref((con));                          \
+	} while (0)
 
-#define ng_l2cap_unlink_cmd(cmd) \
-do { \
-	TAILQ_REMOVE(&((cmd)->con->cmd_list), (cmd), next); \
-	ng_l2cap_con_unref((cmd)->con); \
-} while (0)
+#define ng_l2cap_unlink_cmd(cmd)                                    \
+	do {                                                        \
+		TAILQ_REMOVE(&((cmd)->con->cmd_list), (cmd), next); \
+		ng_l2cap_con_unref((cmd)->con);                     \
+	} while (0)
 
-#define ng_l2cap_free_cmd(cmd) \
-do { \
-	KASSERT(!callout_pending(&(cmd)->timo), ("Pending callout!")); \
-	NG_FREE_M((cmd)->aux); \
-	bzero((cmd), sizeof(*(cmd))); \
-	free((cmd), M_NETGRAPH_L2CAP); \
-} while (0)
+#define ng_l2cap_free_cmd(cmd)                                                 \
+	do {                                                                   \
+		KASSERT(!callout_pending(&(cmd)->timo), ("Pending callout!")); \
+		NG_FREE_M((cmd)->aux);                                         \
+		bzero((cmd), sizeof(*(cmd)));                                  \
+		free((cmd), M_NETGRAPH_L2CAP);                                 \
+	} while (0)
 
-ng_l2cap_cmd_p ng_l2cap_new_cmd      (ng_l2cap_con_p, ng_l2cap_chan_p,
-						u_int8_t, u_int8_t, u_int32_t);
-ng_l2cap_cmd_p ng_l2cap_cmd_by_ident (ng_l2cap_con_p, u_int8_t);
-u_int8_t       ng_l2cap_get_ident    (ng_l2cap_con_p);
+ng_l2cap_cmd_p ng_l2cap_new_cmd(
+    ng_l2cap_con_p, ng_l2cap_chan_p, u_int8_t, u_int8_t, u_int32_t);
+ng_l2cap_cmd_p ng_l2cap_cmd_by_ident(ng_l2cap_con_p, u_int8_t);
+u_int8_t ng_l2cap_get_ident(ng_l2cap_con_p);
 
 /*
  * Timeout
  */
 
-int ng_l2cap_discon_timeout    (ng_l2cap_con_p);
-int ng_l2cap_discon_untimeout  (ng_l2cap_con_p);
-int ng_l2cap_lp_timeout        (ng_l2cap_con_p);
-int ng_l2cap_lp_untimeout      (ng_l2cap_con_p);
-int ng_l2cap_command_timeout   (ng_l2cap_cmd_p, int);
-int ng_l2cap_command_untimeout (ng_l2cap_cmd_p);
+int ng_l2cap_discon_timeout(ng_l2cap_con_p);
+int ng_l2cap_discon_untimeout(ng_l2cap_con_p);
+int ng_l2cap_lp_timeout(ng_l2cap_con_p);
+int ng_l2cap_lp_untimeout(ng_l2cap_con_p);
+int ng_l2cap_command_timeout(ng_l2cap_cmd_p, int);
+int ng_l2cap_command_untimeout(ng_l2cap_cmd_p);
 
 /*
  * Other stuff
  */
 
-struct mbuf *   ng_l2cap_prepend      (struct mbuf *, int);
-ng_l2cap_flow_p ng_l2cap_default_flow (void);
+struct mbuf *ng_l2cap_prepend(struct mbuf *, int);
+ng_l2cap_flow_p ng_l2cap_default_flow(void);
 
 #endif /* ndef _NETGRAPH_L2CAP_MISC_H_ */

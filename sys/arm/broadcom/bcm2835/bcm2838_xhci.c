@@ -32,48 +32,45 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/stdint.h>
-#include <sys/stddef.h>
-#include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/sysctl.h>
-#include <sys/sx.h>
-#include <sys/unistd.h>
 #include <sys/callout.h>
+#include <sys/condvar.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
+#include <sys/queue.h>
+#include <sys/stddef.h>
+#include <sys/stdint.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/unistd.h>
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_util.h>
-
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
-#include <dev/usb/usb_pci.h>
-#include <dev/usb/controller/xhci.h>
-
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/usb/controller/xhci.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_core.h>
+#include <dev/usb/usb_pci.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 
-#define	VL805_FIRMWARE_REG	0x50
-#define	PCIE_BUS_SHIFT		20
-#define	PCIE_SLOT_SHIFT		15
-#define	PCIE_FUNC_SHIFT		12
+#define VL805_FIRMWARE_REG 0x50
+#define PCIE_BUS_SHIFT 20
+#define PCIE_SLOT_SHIFT 15
+#define PCIE_FUNC_SHIFT 12
 
 static int
 bcm_xhci_probe(device_t dev)
@@ -105,11 +102,11 @@ bcm_xhci_probe(device_t dev)
 	 * expansion card.
 	 */
 	if (pci_get_bus(dev) != 1 || pci_get_slot(dev) != 0 ||
-	    pci_get_function(dev) != 0 )
+	    pci_get_function(dev) != 0)
 		return (ENXIO);
 
-	device_set_desc(dev,
-	    "VL805 USB 3.0 controller (on the Raspberry Pi 4b)");
+	device_set_desc(
+	    dev, "VL805 USB 3.0 controller (on the Raspberry Pi 4b)");
 
 	return (BUS_PROBE_SPECIFIC);
 }
@@ -130,7 +127,7 @@ bcm_xhci_check_firmware(device_t dev, bool expect_loaded)
 	else if (bootverbose)
 		device_printf(dev,
 		    "note: xhci firmware detected; firmware is revision %x.\n",
-		     revision);
+		    revision);
 
 	if (!loaded)
 		return 0;
@@ -161,9 +158,8 @@ bcm_xhci_install_xhci_firmware(device_t dev)
 	if (bootverbose)
 		device_printf(dev, "note: installing xhci firmware.\n");
 
-	dev_addr =
-	    pci_get_bus(dev)      << PCIE_BUS_SHIFT |
-	    pci_get_slot(dev)     << PCIE_SLOT_SHIFT |
+	dev_addr = pci_get_bus(dev) << PCIE_BUS_SHIFT |
+	    pci_get_slot(dev) << PCIE_SLOT_SHIFT |
 	    pci_get_function(dev) << PCIE_FUNC_SHIFT;
 
 	error = bcm2835_mbox_notify_xhci_reset(dev_addr);
@@ -205,12 +201,13 @@ bcm_xhci_attach(device_t dev)
  */
 static device_method_t bcm_xhci_methods[] = {
 	/* Device interface. */
-	DEVMETHOD(device_probe,			bcm_xhci_probe),
-	DEVMETHOD(device_attach,		bcm_xhci_attach),
+	DEVMETHOD(device_probe, bcm_xhci_probe),
+	DEVMETHOD(device_attach, bcm_xhci_attach),
 };
 
 DEFINE_CLASS_1(bcm_xhci, bcm_xhci_driver, bcm_xhci_methods,
     sizeof(struct xhci_softc), xhci_pci_driver);
 
 static devclass_t xhci_devclass;
-DRIVER_MODULE(bcm_xhci, pci, bcm_xhci_driver, xhci_devclass, 0, 0); MODULE_DEPEND(bcm_xhci, usb, 1, 1, 1);
+DRIVER_MODULE(bcm_xhci, pci, bcm_xhci_driver, xhci_devclass, 0, 0);
+MODULE_DEPEND(bcm_xhci, usb, 1, 1, 1);

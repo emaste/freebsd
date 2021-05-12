@@ -36,19 +36,19 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PCPU_H_
-#define	_MACHINE_PCPU_H_
+#ifndef _MACHINE_PCPU_H_
+#define _MACHINE_PCPU_H_
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 
-#define	ALT_STACK_SIZE	128
+#define ALT_STACK_SIZE 128
 
-#define	PCPU_MD_FIELDS							\
-	struct pmap *pc_curpmap;	/* Currently active pmap */	\
-	uint32_t pc_pending_ipis;	/* IPIs pending to this CPU */	\
-	uint32_t pc_hart;		/* Hart ID */			\
-	char __pad[56]			/* Pad to factor of PAGE_SIZE */
+#define PCPU_MD_FIELDS                                           \
+	struct pmap *pc_curpmap;  /* Currently active pmap */    \
+	uint32_t pc_pending_ipis; /* IPIs pending to this CPU */ \
+	uint32_t pc_hart;	  /* Hart ID */                  \
+	char __pad[56]		  /* Pad to factor of PAGE_SIZE */
 
 #ifdef _KERNEL
 
@@ -75,13 +75,13 @@ get_curthread(void)
 	return (td);
 }
 
-#define	curthread get_curthread()
+#define curthread get_curthread()
 
-#define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
-#define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))
-#define	PCPU_PTR(member)	(&get_pcpu()->pc_ ## member)
-#define	PCPU_SET(member,value)	(get_pcpu()->pc_ ## member = (value))
+#define PCPU_GET(member) (get_pcpu()->pc_##member)
+#define PCPU_ADD(member, value) (get_pcpu()->pc_##member += (value))
+#define PCPU_PTR(member) (&get_pcpu()->pc_##member)
+#define PCPU_SET(member, value) (get_pcpu()->pc_##member = (value))
 
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
-#endif	/* !_MACHINE_PCPU_H_ */
+#endif /* !_MACHINE_PCPU_H_ */

@@ -33,10 +33,10 @@
  */
 
 #ifndef _MACHINE_ENDIAN_H_
-#define	_MACHINE_ENDIAN_H_
+#define _MACHINE_ENDIAN_H_
 
 #include <sys/cdefs.h>
-#ifndef	__ASSEMBLER__
+#ifndef __ASSEMBLER__
 #include <sys/_types.h>
 #endif
 #include <sys/_endian.h>

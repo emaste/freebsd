@@ -44,17 +44,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/vnode.h>
 #include <sys/lock.h>
-#include <sys/mount.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/vnode.h>
 
 #include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufsmount.h>
+#include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufs_extern.h>
+#include <ufs/ufs/ufsmount.h>
 #ifdef UFS_DIRHASH
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/dirhash.h>
@@ -63,9 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/gjournal.h>
 #endif
 
-int
-ufs_need_inactive(ap)
-	struct vop_need_inactive_args *ap;
+int ufs_need_inactive(ap) struct vop_need_inactive_args *ap;
 {
 	struct vnode *vp;
 	struct inode *ip;
@@ -79,12 +77,13 @@ ufs_need_inactive(ap)
 		return (0);
 	if (vn_need_pageq_flush(vp))
 		return (1);
-	if (ip->i_mode == 0 ||  ip->i_nlink <= 0 ||
+	if (ip->i_mode == 0 || ip->i_nlink <= 0 ||
 	    (ip->i_effnlink == 0 && DOINGSOFTDEP(vp)) ||
-	    (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED |
-	    IN_UPDATE)) != 0 ||
-	    (ip->i_effnlink <= 0 && (ip->i_size != 0 || (I_IS_UFS2(ip) &&
-	    ip->i_din2->di_extsize != 0))))
+	    (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) !=
+		0 ||
+	    (ip->i_effnlink <= 0 &&
+		(ip->i_size != 0 ||
+		    (I_IS_UFS2(ip) && ip->i_din2->di_extsize != 0))))
 		return (1);
 #ifdef QUOTA
 	for (i = 0; i < MAXQUOTAS; i++) {
@@ -102,11 +101,10 @@ ufs_need_inactive(ap)
 /*
  * Last reference to an inode.  If necessary, write or delete it.
  */
-int
-ufs_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+int ufs_inactive(ap) struct vop_inactive_args
+    /* {
+struct vnode *a_vp;
+} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
@@ -139,12 +137,12 @@ ufs_inactive(ap)
 			/* Cannot delete file while file system is suspended */
 			if (VN_IS_DOOMED(vp)) {
 				/* Cannot return before file is deleted */
-				(void) vn_start_secondary_write(vp, &mp,
-								V_WAIT);
+				(void)vn_start_secondary_write(vp, &mp, V_WAIT);
 			} else {
 				MNT_ILOCK(mp);
 				if ((mp->mnt_kern_flag &
-				     (MNTK_SUSPEND2 | MNTK_SUSPENDED)) == 0) {
+					(MNTK_SUSPEND2 | MNTK_SUSPENDED)) ==
+				    0) {
 					MNT_IUNLOCK(mp);
 					goto loop;
 				}
@@ -192,14 +190,12 @@ ufs_inactive(ap)
 	}
 	if (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) {
 		if ((ip->i_flag & (IN_CHANGE | IN_UPDATE | IN_MODIFIED)) == 0 &&
-		    mp == NULL &&
-		    vn_start_secondary_write(vp, &mp, V_NOWAIT)) {
+		    mp == NULL && vn_start_secondary_write(vp, &mp, V_NOWAIT)) {
 			mp = NULL;
 			ip->i_flag &= ~IN_ACCESS;
 		} else {
 			if (mp == NULL)
-				(void) vn_start_secondary_write(vp, &mp,
-								V_WAIT);
+				(void)vn_start_secondary_write(vp, &mp, V_WAIT);
 			UFS_UPDATE(vp, 0);
 		}
 	}
@@ -218,11 +214,10 @@ out:
 /*
  * Reclaim an inode so that it can be used for other purposes.
  */
-int
-ufs_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+int ufs_reclaim(ap) struct vop_reclaim_args
+    /* {
+struct vnode *a_vp;
+} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);

@@ -48,32 +48,32 @@
  *   http://caia.swin.edu.au/urp/newtcp/
  */
 
-#ifndef	_SYS_KHELP_H_
-#define	_SYS_KHELP_H_
+#ifndef _SYS_KHELP_H_
+#define _SYS_KHELP_H_
 
 struct helper;
 struct hookinfo;
 struct osd;
 
 /* Helper classes. */
-#define	HELPER_CLASS_TCP	0x00000001
-#define	HELPER_CLASS_SOCKET	0x00000002
+#define HELPER_CLASS_TCP 0x00000001
+#define HELPER_CLASS_SOCKET 0x00000002
 
 /* Public KPI functions. */
-int	khelp_register_helper(struct helper *h);
+int khelp_register_helper(struct helper *h);
 
-int	khelp_deregister_helper(struct helper *h);
+int khelp_deregister_helper(struct helper *h);
 
-int	khelp_init_osd(uint32_t classes, struct osd *hosd);
+int khelp_init_osd(uint32_t classes, struct osd *hosd);
 
-int	khelp_destroy_osd(struct osd *hosd);
+int khelp_destroy_osd(struct osd *hosd);
 
-void *	khelp_get_osd(struct osd *hosd, int32_t id);
+void *khelp_get_osd(struct osd *hosd, int32_t id);
 
-int32_t	khelp_get_id(char *hname);
+int32_t khelp_get_id(char *hname);
 
-int	khelp_add_hhook(struct hookinfo *hki, uint32_t flags);
+int khelp_add_hhook(struct hookinfo *hki, uint32_t flags);
 
-int	khelp_remove_hhook(struct hookinfo *hki);
+int khelp_remove_hhook(struct hookinfo *hki);
 
 #endif /* _SYS_KHELP_H_ */

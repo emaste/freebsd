@@ -43,14 +43,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/devmap.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
@@ -83,9 +83,9 @@ generic_bs_map(bus_space_tag_t t, bus_addr_t bpa, bus_size_t size, int flags,
 }
 
 int
-generic_bs_alloc(bus_space_tag_t t, bus_addr_t rstart, bus_addr_t rend, bus_size_t size,
-    bus_size_t alignment, bus_size_t boundary, int flags, bus_addr_t *bpap,
-    bus_space_handle_t *bshp)
+generic_bs_alloc(bus_space_tag_t t, bus_addr_t rstart, bus_addr_t rend,
+    bus_size_t size, bus_size_t alignment, bus_size_t boundary, int flags,
+    bus_addr_t *bpap, bus_space_handle_t *bshp)
 {
 
 	panic("generic_bs_alloc(): not implemented");
@@ -106,8 +106,8 @@ generic_bs_free(bus_space_tag_t t, bus_space_handle_t bsh, bus_size_t size)
 }
 
 int
-generic_bs_subregion(bus_space_tag_t t, bus_space_handle_t bsh, bus_size_t offset,
-    bus_size_t size, bus_space_handle_t *nbshp)
+generic_bs_subregion(bus_space_tag_t t, bus_space_handle_t bsh,
+    bus_size_t offset, bus_size_t size, bus_space_handle_t *nbshp)
 {
 
 	*nbshp = bsh + offset;

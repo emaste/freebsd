@@ -31,23 +31,30 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
+#include <sys/bus.h>
+#include <sys/bus_dma.h>
+#include <sys/conf.h>
+#include <sys/endian.h>
+#include <sys/eventhandler.h>
+#include <sys/ioccom.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/selinfo.h>
-#include <sys/bus.h>
-#include <sys/conf.h>
-#include <sys/eventhandler.h>
-#include <sys/rman.h>
-#include <sys/bus_dma.h>
-#include <sys/bio.h>
-#include <sys/ioccom.h>
-#include <sys/uio.h>
 #include <sys/proc.h>
+#include <sys/rman.h>
+#include <sys/selinfo.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
-#include <sys/endian.h>
+#include <sys/uio.h>
 #include <sys/vmem.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -58,14 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_xpt_sim.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
-
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <machine/bus.h>
-#include <machine/resource.h>
-
 #include <powerpc/pseries/phyp-hvcall.h>
 
 struct vscsi_softc;
@@ -82,11 +81,11 @@ struct vscsi_crq {
 };
 
 struct vscsi_xfer {
-        TAILQ_ENTRY(vscsi_xfer) queue;
-        struct vscsi_softc *sc;
-        union ccb *ccb;
-        bus_dmamap_t dmamap;
-        uint64_t tag;
+	TAILQ_ENTRY(vscsi_xfer) queue;
+	struct vscsi_softc *sc;
+	union ccb *ccb;
+	bus_dmamap_t dmamap;
+	uint64_t tag;
 
 	vmem_addr_t srp_iu_offset;
 	vmem_size_t srp_iu_size;
@@ -95,32 +94,32 @@ struct vscsi_xfer {
 TAILQ_HEAD(vscsi_xferq, vscsi_xfer);
 
 struct vscsi_softc {
-	device_t	dev;
+	device_t dev;
 	struct cam_devq *devq;
-	struct cam_sim	*sim;
-	struct cam_path	*path;
+	struct cam_sim *sim;
+	struct cam_path *path;
 	struct mtx io_lock;
 
-	cell_t		unit;
-	int		bus_initialized;
-	int		bus_logged_in;
-	int		max_transactions;
+	cell_t unit;
+	int bus_initialized;
+	int bus_logged_in;
+	int max_transactions;
 
-	int		irqid;
-	struct resource	*irq;
-	void		*irq_cookie;
+	int irqid;
+	struct resource *irq;
+	void *irq_cookie;
 
-	bus_dma_tag_t	crq_tag;
+	bus_dma_tag_t crq_tag;
 	struct vscsi_crq *crq_queue;
-	int		n_crqs, cur_crq;
-	bus_dmamap_t	crq_map;
-	bus_addr_t	crq_phys;
+	int n_crqs, cur_crq;
+	bus_dmamap_t crq_map;
+	bus_addr_t crq_phys;
 
-	vmem_t		*srp_iu_arena;
-	void		*srp_iu_queue;
-	bus_addr_t	srp_iu_phys;
+	vmem_t *srp_iu_arena;
+	void *srp_iu_queue;
+	bus_addr_t srp_iu_phys;
 
-	bus_dma_tag_t	data_tag;
+	bus_dma_tag_t data_tag;
 
 	struct vscsi_xfer loginxp;
 	struct vscsi_xfer *xfer;
@@ -198,71 +197,66 @@ struct srp_tsk_mgmt {
 } __packed;
 
 /* Message code type */
-#define SRP_LOGIN_REQ	0x00
-#define SRP_TSK_MGMT	0x01
-#define SRP_CMD		0x02
-#define SRP_I_LOGOUT	0x03
+#define SRP_LOGIN_REQ 0x00
+#define SRP_TSK_MGMT 0x01
+#define SRP_CMD 0x02
+#define SRP_I_LOGOUT 0x03
 
-#define SRP_LOGIN_RSP	0xC0
-#define SRP_RSP		0xC1
-#define SRP_LOGIN_REJ	0xC2
+#define SRP_LOGIN_RSP 0xC0
+#define SRP_RSP 0xC1
+#define SRP_LOGIN_REJ 0xC2
 
-#define SRP_T_LOGOUT	0x80
-#define SRP_CRED_REQ	0x81
-#define SRP_AER_REQ	0x82
+#define SRP_T_LOGOUT 0x80
+#define SRP_CRED_REQ 0x81
+#define SRP_AER_REQ 0x82
 
-#define SRP_CRED_RSP	0x41
-#define SRP_AER_RSP	0x41
+#define SRP_CRED_RSP 0x41
+#define SRP_AER_RSP 0x41
 
 /* Flags for srp_rsp flags field */
-#define SRP_RSPVALID	0x01
-#define SRP_SNSVALID	0x02
-#define SRP_DOOVER	0x04
-#define SRP_DOUNDER	0x08
-#define SRP_DIOVER	0x10
-#define SRP_DIUNDER	0x20
+#define SRP_RSPVALID 0x01
+#define SRP_SNSVALID 0x02
+#define SRP_DOOVER 0x04
+#define SRP_DOUNDER 0x08
+#define SRP_DIOVER 0x10
+#define SRP_DIUNDER 0x20
 
-#define	MAD_SUCESS			0x00
-#define	MAD_NOT_SUPPORTED		0xf1
-#define	MAD_FAILED			0xf7
+#define MAD_SUCESS 0x00
+#define MAD_NOT_SUPPORTED 0xf1
+#define MAD_FAILED 0xf7
 
-#define	MAD_EMPTY_IU			0x01
-#define	MAD_ERROR_LOGGING_REQUEST	0x02
-#define	MAD_ADAPTER_INFO_REQUEST	0x03
-#define	MAD_CAPABILITIES_EXCHANGE	0x05
-#define	MAD_PHYS_ADAP_INFO_REQUEST	0x06
-#define	MAD_TAPE_PASSTHROUGH_REQUEST	0x07
-#define	MAD_ENABLE_FAST_FAIL		0x08
+#define MAD_EMPTY_IU 0x01
+#define MAD_ERROR_LOGGING_REQUEST 0x02
+#define MAD_ADAPTER_INFO_REQUEST 0x03
+#define MAD_CAPABILITIES_EXCHANGE 0x05
+#define MAD_PHYS_ADAP_INFO_REQUEST 0x06
+#define MAD_TAPE_PASSTHROUGH_REQUEST 0x07
+#define MAD_ENABLE_FAST_FAIL 0x08
 
-static int	vscsi_probe(device_t);
-static int	vscsi_attach(device_t);
-static int	vscsi_detach(device_t);
-static void	vscsi_cam_action(struct cam_sim *, union ccb *);
-static void	vscsi_cam_poll(struct cam_sim *);
-static void	vscsi_intr(void *arg);
-static void	vscsi_check_response_queue(struct vscsi_softc *sc);
-static void	vscsi_setup_bus(struct vscsi_softc *sc);
+static int vscsi_probe(device_t);
+static int vscsi_attach(device_t);
+static int vscsi_detach(device_t);
+static void vscsi_cam_action(struct cam_sim *, union ccb *);
+static void vscsi_cam_poll(struct cam_sim *);
+static void vscsi_intr(void *arg);
+static void vscsi_check_response_queue(struct vscsi_softc *sc);
+static void vscsi_setup_bus(struct vscsi_softc *sc);
 
-static void	vscsi_srp_login(struct vscsi_softc *sc);
-static void	vscsi_crq_load_cb(void *, bus_dma_segment_t *, int, int);
-static void	vscsi_scsi_command(void *xxp, bus_dma_segment_t *segs,
-		    int nsegs, int err);
-static void	vscsi_task_management(struct vscsi_softc *sc, union ccb *ccb);
-static void	vscsi_srp_response(struct vscsi_xfer *, struct vscsi_crq *);
+static void vscsi_srp_login(struct vscsi_softc *sc);
+static void vscsi_crq_load_cb(void *, bus_dma_segment_t *, int, int);
+static void vscsi_scsi_command(
+    void *xxp, bus_dma_segment_t *segs, int nsegs, int err);
+static void vscsi_task_management(struct vscsi_softc *sc, union ccb *ccb);
+static void vscsi_srp_response(struct vscsi_xfer *, struct vscsi_crq *);
 
-static devclass_t	vscsi_devclass;
-static device_method_t	vscsi_methods[] = {
-	DEVMETHOD(device_probe,		vscsi_probe),
-	DEVMETHOD(device_attach,	vscsi_attach),
-	DEVMETHOD(device_detach,	vscsi_detach),
+static devclass_t vscsi_devclass;
+static device_method_t vscsi_methods[] = { DEVMETHOD(device_probe, vscsi_probe),
+	DEVMETHOD(device_attach, vscsi_attach),
+	DEVMETHOD(device_detach, vscsi_detach),
 
-	DEVMETHOD_END
-};
-static driver_t vscsi_driver = {
-	"vscsi",
-	vscsi_methods,
-	sizeof(struct vscsi_softc)
-};
+	DEVMETHOD_END };
+static driver_t vscsi_driver = { "vscsi", vscsi_methods,
+	sizeof(struct vscsi_softc) };
 DRIVER_MODULE(vscsi, vdevice, vscsi_driver, vscsi_devclass, 0, 0);
 MALLOC_DEFINE(M_VSCSI, "vscsi", "CAM device queue for VSCSI");
 
@@ -292,13 +286,13 @@ vscsi_attach(device_t dev)
 	mtx_init(&sc->io_lock, "vscsi", NULL, MTX_DEF);
 
 	/* Get properties */
-	OF_getencprop(ofw_bus_get_node(dev), "reg", &sc->unit,
-	    sizeof(sc->unit));
+	OF_getencprop(
+	    ofw_bus_get_node(dev), "reg", &sc->unit, sizeof(sc->unit));
 
 	/* Setup interrupt */
 	sc->irqid = 0;
-	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
-	    RF_ACTIVE);
+	sc->irq = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &sc->irqid, RF_ACTIVE);
 
 	if (!sc->irq) {
 		device_printf(dev, "Could not allocate IRQ\n");
@@ -306,8 +300,8 @@ vscsi_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	bus_setup_intr(dev, sc->irq, INTR_TYPE_CAM | INTR_MPSAFE |
-	    INTR_ENTROPY, NULL, vscsi_intr, sc, &sc->irq_cookie);
+	bus_setup_intr(dev, sc->irq, INTR_TYPE_CAM | INTR_MPSAFE | INTR_ENTROPY,
+	    NULL, vscsi_intr, sc, &sc->irq_cookie);
 
 	/* Data DMA */
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
@@ -322,30 +316,30 @@ vscsi_attach(device_t dev)
 	sc->loginxp.sc = sc;
 	bus_dmamap_create(sc->data_tag, 0, &sc->loginxp.dmamap);
 	TAILQ_INSERT_TAIL(&sc->free_xferq, &sc->loginxp, queue);
-	 
+
 	/* CRQ area */
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), PAGE_SIZE, 0,
-	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, 8*PAGE_SIZE,
-	    1, BUS_SPACE_MAXSIZE, 0, NULL, NULL, &sc->crq_tag);
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, 8 * PAGE_SIZE, 1,
+	    BUS_SPACE_MAXSIZE, 0, NULL, NULL, &sc->crq_tag);
 	error = bus_dmamem_alloc(sc->crq_tag, (void **)&sc->crq_queue,
 	    BUS_DMA_WAITOK | BUS_DMA_ZERO, &sc->crq_map);
 	sc->crq_phys = 0;
 	sc->n_crqs = 0;
 	error = bus_dmamap_load(sc->crq_tag, sc->crq_map, sc->crq_queue,
-	    8*PAGE_SIZE, vscsi_crq_load_cb, sc, 0);
+	    8 * PAGE_SIZE, vscsi_crq_load_cb, sc, 0);
 
 	mtx_lock(&sc->io_lock);
 	vscsi_setup_bus(sc);
-	sc->xfer = malloc(sizeof(sc->xfer[0])*sc->max_transactions, M_VSCSI,
-	    M_NOWAIT);
+	sc->xfer = malloc(
+	    sizeof(sc->xfer[0]) * sc->max_transactions, M_VSCSI, M_NOWAIT);
 	for (i = 0; i < sc->max_transactions; i++) {
 		xp = &sc->xfer[i];
 		xp->sc = sc;
 
 		error = bus_dmamap_create(sc->data_tag, 0, &xp->dmamap);
 		if (error) {
-			device_printf(dev, "Could not create DMA map (%d)\n",
-			    error);
+			device_printf(
+			    dev, "Could not create DMA map (%d)\n", error);
 			break;
 		}
 
@@ -358,9 +352,8 @@ vscsi_attach(device_t dev)
 		return (ENOMEM);
 
 	sc->sim = cam_sim_alloc(vscsi_cam_action, vscsi_cam_poll, "vscsi", sc,
-				device_get_unit(dev), &sc->io_lock,
-				sc->max_transactions, sc->max_transactions,
-				sc->devq);
+	    device_get_unit(dev), &sc->io_lock, sc->max_transactions,
+	    sc->max_transactions, sc->devq);
 	if (sc->sim == NULL) {
 		cam_simq_free(sc->devq);
 		sc->devq = NULL;
@@ -418,8 +411,7 @@ vscsi_cam_action(struct cam_sim *sim, union ccb *ccb)
 	mtx_assert(&sc->io_lock, MA_OWNED);
 
 	switch (ccb->ccb_h.func_code) {
-	case XPT_PATH_INQ:
-	{
+	case XPT_PATH_INQ: {
 		struct ccb_pathinq *cpi = &ccb->cpi;
 
 		cpi->version_num = 1;
@@ -462,8 +454,7 @@ vscsi_cam_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SET_TRAN_SETTINGS:
 		ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 		break;
-	case XPT_SCSI_IO:
-	{
+	case XPT_SCSI_IO: {
 		struct vscsi_xfer *xp;
 
 		ccb->ccb_h.status = CAM_REQ_INPROG;
@@ -474,8 +465,8 @@ vscsi_cam_action(struct cam_sim *sim, union ccb *ccb)
 		xp->ccb = ccb;
 		TAILQ_REMOVE(&sc->free_xferq, xp, queue);
 		TAILQ_INSERT_TAIL(&sc->active_xferq, xp, queue);
-		bus_dmamap_load_ccb(sc->data_tag, xp->dmamap,
-		    ccb, vscsi_scsi_command, xp, 0);
+		bus_dmamap_load_ccb(
+		    sc->data_tag, xp->dmamap, ccb, vscsi_scsi_command, xp, 0);
 
 		return;
 	}
@@ -529,8 +520,7 @@ vscsi_srp_login(struct vscsi_softc *sc)
 	bus_dmamap_sync(sc->crq_tag, sc->crq_map, BUS_DMASYNC_PREWRITE);
 
 	err = phyp_hcall(H_SEND_CRQ, xp->sc->unit,
-	    be64toh(((uint64_t *)(&crq))[0]),
-	    be64toh(((uint64_t *)(&crq))[1]));
+	    be64toh(((uint64_t *)(&crq))[0]), be64toh(((uint64_t *)(&crq))[1]));
 	if (err != 0)
 		panic("CRQ send failure (%d)", err);
 }
@@ -583,8 +573,7 @@ vscsi_task_management(struct vscsi_softc *sc, union ccb *ccb)
 	crq.iu_data = htobe64(xp->sc->srp_iu_phys + xp->srp_iu_offset);
 
 	err = phyp_hcall(H_SEND_CRQ, xp->sc->unit,
-	    be64toh(((uint64_t *)(&crq))[0]),
-	    be64toh(((uint64_t *)(&crq))[1]));
+	    be64toh(((uint64_t *)(&crq))[0]), be64toh(((uint64_t *)(&crq))[1]));
 	if (err != 0)
 		panic("CRQ send failure (%d)", err);
 }
@@ -605,15 +594,15 @@ vscsi_scsi_command(void *xxp, bus_dma_segment_t *segs, int nsegs, int err)
 
 	mtx_assert(&xp->sc->io_lock, MA_OWNED);
 
-	cdb = (ccb->ccb_h.flags & CAM_CDB_POINTER) ?
-	    ccb->csio.cdb_io.cdb_ptr : ccb->csio.cdb_io.cdb_bytes;
+	cdb = (ccb->ccb_h.flags & CAM_CDB_POINTER) ? ccb->csio.cdb_io.cdb_ptr :
+							   ccb->csio.cdb_io.cdb_bytes;
 
 	/* Command format from Table 20, page 37 of SRP spec */
 	xp->srp_iu_size = 48 + ((nsegs > 1) ? 20 : 16) +
 	    ((ccb->csio.cdb_len > 16) ? (ccb->csio.cdb_len - 16) : 0);
 	crq.iu_length = htobe16(xp->srp_iu_size);
 	if (nsegs > 1)
-		xp->srp_iu_size += nsegs*16;
+		xp->srp_iu_size += nsegs * 16;
 	xp->srp_iu_size = roundup(xp->srp_iu_size, 16);
 	err = vmem_alloc(xp->sc->srp_iu_arena, xp->srp_iu_size,
 	    M_BESTFIT | M_NOWAIT, &xp->srp_iu_offset);
@@ -647,26 +636,27 @@ vscsi_scsi_command(void *xxp, bus_dma_segment_t *segs, int nsegs, int err)
 		}
 
 		desc_start = ((ccb->csio.cdb_len > 16) ?
-		    ccb->csio.cdb_len - 16 : 0);
-		chunk_addr = htobe64(xp->sc->srp_iu_phys + xp->srp_iu_offset + 20 +
-		    desc_start + sizeof(*cmd));
-		chunk_size = htobe32(16*nsegs);
+			      ccb->csio.cdb_len - 16 :
+			      0);
+		chunk_addr = htobe64(xp->sc->srp_iu_phys + xp->srp_iu_offset +
+		    20 + desc_start + sizeof(*cmd));
+		chunk_size = htobe32(16 * nsegs);
 		memcpy(&cmd->data_payload[desc_start], &chunk_addr, 8);
-		memcpy(&cmd->data_payload[desc_start+12], &chunk_size, 4);
+		memcpy(&cmd->data_payload[desc_start + 12], &chunk_size, 4);
 		chunk_size = 0;
 		for (i = 0; i < nsegs; i++)
 			chunk_size += segs[i].ds_len;
 		chunk_size = htobe32(chunk_size);
-		memcpy(&cmd->data_payload[desc_start+16], &chunk_size, 4);
+		memcpy(&cmd->data_payload[desc_start + 16], &chunk_size, 4);
 		desc_start += 20;
 		for (i = 0; i < nsegs; i++) {
 			chunk_addr = htobe64(segs[i].ds_addr);
 			chunk_size = htobe32(segs[i].ds_len);
 
-			memcpy(&cmd->data_payload[desc_start + 16*i],
+			memcpy(&cmd->data_payload[desc_start + 16 * i],
 			    &chunk_addr, 8);
 			/* Set handle tag to 0 */
-			memcpy(&cmd->data_payload[desc_start + 16*i + 12],
+			memcpy(&cmd->data_payload[desc_start + 16 * i + 12],
 			    &chunk_size, 4);
 		}
 	} else if (nsegs == 1) {
@@ -693,13 +683,15 @@ vscsi_scsi_command(void *xxp, bus_dma_segment_t *segs, int nsegs, int err)
 		chunk_addr = htobe64(segs[0].ds_addr);
 		chunk_size = htobe32(segs[0].ds_len);
 		desc_start = ((ccb->csio.cdb_len > 16) ?
-		    ccb->csio.cdb_len - 16 : 0);
+			      ccb->csio.cdb_len - 16 :
+			      0);
 
 		memcpy(&cmd->data_payload[desc_start], &chunk_addr, 8);
 		/* Set handle tag to 0 */
-		memcpy(&cmd->data_payload[desc_start+12], &chunk_size, 4);
-		KASSERT(xp->srp_iu_size >= 48 + ((ccb->csio.cdb_len > 16) ?
-		    ccb->csio.cdb_len : 16), ("SRP IU command length"));
+		memcpy(&cmd->data_payload[desc_start + 12], &chunk_size, 4);
+		KASSERT(xp->srp_iu_size >= 48 +
+			    ((ccb->csio.cdb_len > 16) ? ccb->csio.cdb_len : 16),
+		    ("SRP IU command length"));
 	} else {
 		cmd->formats = 0;
 	}
@@ -711,8 +703,7 @@ vscsi_scsi_command(void *xxp, bus_dma_segment_t *segs, int nsegs, int err)
 	crq.iu_data = htobe64(xp->sc->srp_iu_phys + xp->srp_iu_offset);
 
 	err = phyp_hcall(H_SEND_CRQ, xp->sc->unit,
-	    be64toh(((uint64_t *)(&crq))[0]),
-	    be64toh(((uint64_t *)(&crq))[1]));
+	    be64toh(((uint64_t *)(&crq))[0]), be64toh(((uint64_t *)(&crq))[1]));
 	if (err != 0)
 		panic("CRQ send failure (%d)", err);
 }
@@ -723,7 +714,7 @@ vscsi_crq_load_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int err)
 	struct vscsi_softc *sc = xsc;
 
 	sc->crq_phys = segs[0].ds_addr;
-	sc->n_crqs = PAGE_SIZE/sizeof(struct vscsi_crq);
+	sc->n_crqs = PAGE_SIZE / sizeof(struct vscsi_crq);
 
 	sc->srp_iu_queue = (uint8_t *)(sc->crq_queue);
 	sc->srp_iu_phys = segs[0].ds_addr;
@@ -765,18 +756,17 @@ vscsi_setup_bus(struct vscsi_softc *sc)
 	} while (error == H_BUSY);
 
 	/* See initialization sequence page 757 */
-	bzero(sc->crq_queue, sc->n_crqs*sizeof(sc->crq_queue[0]));
+	bzero(sc->crq_queue, sc->n_crqs * sizeof(sc->crq_queue[0]));
 	sc->cur_crq = 0;
 	sc->bus_initialized = 0;
 	sc->bus_logged_in = 0;
 	bus_dmamap_sync(sc->crq_tag, sc->crq_map, BUS_DMASYNC_PREWRITE);
 	error = phyp_hcall(H_REG_CRQ, sc->unit, sc->crq_phys,
-	    sc->n_crqs*sizeof(sc->crq_queue[0]));
+	    sc->n_crqs * sizeof(sc->crq_queue[0]));
 	KASSERT(error == 0, ("CRQ registration success"));
 
 	error = phyp_hcall(H_SEND_CRQ, sc->unit,
-	    be64toh(((uint64_t *)(&crq))[0]),
-	    be64toh(((uint64_t *)(&crq))[1]));
+	    be64toh(((uint64_t *)(&crq))[0]), be64toh(((uint64_t *)(&crq))[1]));
 	if (error != 0)
 		panic("CRQ setup failure (%d)", error);
 
@@ -808,18 +798,18 @@ vscsi_setup_bus(struct vscsi_softc *sc)
 	TAILQ_INSERT_TAIL(&sc->active_xferq, xp, queue);
 	xp->srp_iu_size = sizeof(mad_adapter_info);
 	crq.iu_length = htobe16(xp->srp_iu_size);
-	vmem_alloc(xp->sc->srp_iu_arena, xp->srp_iu_size,
-	    M_BESTFIT | M_NOWAIT, &xp->srp_iu_offset);
-	mad_adapter_info.buffer = htobe64(xp->sc->srp_iu_phys + xp->srp_iu_offset + 24);
+	vmem_alloc(xp->sc->srp_iu_arena, xp->srp_iu_size, M_BESTFIT | M_NOWAIT,
+	    &xp->srp_iu_offset);
+	mad_adapter_info.buffer = htobe64(
+	    xp->sc->srp_iu_phys + xp->srp_iu_offset + 24);
 	mad_adapter_info.tag = (uint64_t)xp;
 	memcpy((uint8_t *)xp->sc->srp_iu_queue + (uintptr_t)xp->srp_iu_offset,
-		&mad_adapter_info, sizeof(mad_adapter_info));
+	    &mad_adapter_info, sizeof(mad_adapter_info));
 	crq.valid = 0x80;
 	crq.format = 0x02;
 	crq.iu_data = htobe64(xp->sc->srp_iu_phys + xp->srp_iu_offset);
 	bus_dmamap_sync(sc->crq_tag, sc->crq_map, BUS_DMASYNC_PREWRITE);
-	phyp_hcall(H_SEND_CRQ, xp->sc->unit,
-	    be64toh(((uint64_t *)(&crq))[0]),
+	phyp_hcall(H_SEND_CRQ, xp->sc->unit, be64toh(((uint64_t *)(&crq))[0]),
 	    be64toh(((uint64_t *)(&crq))[1]));
 
 	while (TAILQ_EMPTY(&sc->free_xferq))
@@ -882,8 +872,8 @@ vscsi_srp_response(struct vscsi_xfer *xp, struct vscsi_crq *crq)
 	if (rsp->flags & SRP_SNSVALID) {
 		bzero(&ccb->csio.sense_data, sizeof(struct scsi_sense_data));
 		ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
-		sense_len = min(be32toh(rsp->sense_data_len),
-		    ccb->csio.sense_len);
+		sense_len = min(
+		    be32toh(rsp->sense_data_len), ccb->csio.sense_len);
 		memcpy(&ccb->csio.sense_data,
 		    &rsp->data_payload[be32toh(rsp->response_data_len)],
 		    sense_len);
@@ -915,12 +905,13 @@ vscsi_login_response(struct vscsi_xfer *xp, struct vscsi_crq *crq)
 	/* SRP response packet in original request */
 	rsp = (struct srp_login_rsp *)((uint8_t *)sc->srp_iu_queue +
 	    (uintptr_t)xp->srp_iu_offset);
-	KASSERT(be16toh(rsp->buffer_formats) & 0x3, ("Both direct and indirect "
-	    "buffers supported"));
+	KASSERT(be16toh(rsp->buffer_formats) & 0x3,
+	    ("Both direct and indirect "
+	     "buffers supported"));
 
 	sc->max_transactions = be32toh(rsp->request_limit_delta);
-	device_printf(sc->dev, "Queue depth %d commands\n",
-	    sc->max_transactions);
+	device_printf(
+	    sc->dev, "Queue depth %d commands\n", sc->max_transactions);
 	sc->bus_logged_in = 1;
 }
 
@@ -960,7 +951,7 @@ vscsi_check_response_queue(struct vscsi_softc *sc)
 			switch (crq->format) {
 			case 0x01:
 				code = *((uint8_t *)sc->srp_iu_queue +
-	    			    (uintptr_t)xp->srp_iu_offset);
+				    (uintptr_t)xp->srp_iu_offset);
 				switch (code) {
 				case SRP_RSP:
 					vscsi_srp_response(xp, crq);
@@ -969,8 +960,10 @@ vscsi_check_response_queue(struct vscsi_softc *sc)
 					vscsi_login_response(xp, crq);
 					break;
 				default:
-					device_printf(sc->dev, "Unknown SRP "
-					    "response code %d\n", code);
+					device_printf(sc->dev,
+					    "Unknown SRP "
+					    "response code %d\n",
+					    code);
 					break;
 				}
 				break;
@@ -987,8 +980,8 @@ vscsi_check_response_queue(struct vscsi_softc *sc)
 			TAILQ_INSERT_TAIL(&sc->free_xferq, xp, queue);
 			break;
 		default:
-			device_printf(sc->dev,
-			    "Unknown CRQ message type %d\n", crq->valid);
+			device_printf(sc->dev, "Unknown CRQ message type %d\n",
+			    crq->valid);
 			break;
 		}
 

@@ -57,24 +57,24 @@
  * SUCH DAMAGE.
  *
  * $KAME: altq_red.c,v 1.18 2003/09/05 22:40:36 itojun Exp $
- * $FreeBSD$	
+ * $FreeBSD$
  */
 
 #include "opt_altq.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#ifdef ALTQ_RED	/* red is enabled by ALTQ_RED option in opt_altq.h */
+#ifdef ALTQ_RED /* red is enabled by ALTQ_RED option in opt_altq.h */
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/systm.h>
-#include <sys/errno.h>
 #if 1 /* ALTQ3_COMPAT */
-#include <sys/sockio.h>
-#include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
+#include <sys/sockio.h>
 #ifdef ALTQ_FLOWVALVE
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -83,7 +83,6 @@
 
 #include <net/if.h>
 #include <net/if_var.h>
-
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -91,11 +90,11 @@
 #include <netinet/ip6.h>
 #endif
 
+#include <net/altq/altq.h>
+#include <net/altq/altq_red.h>
 #include <netpfil/pf/pf.h>
 #include <netpfil/pf/pf_altq.h>
 #include <netpfil/pf/pf_mtag.h>
-#include <net/altq/altq.h>
-#include <net/altq/altq_red.h>
 
 /*
  * ALTQ/RED (Random Early Detection) implementation using 32-bit
@@ -133,27 +132,27 @@
  * see Sally's paper for more details.
  */
 /* normal red parameters */
-#define	W_WEIGHT	512	/* inverse of weight of EWMA (511/512) */
-				/* q_weight = 0.00195 */
+#define W_WEIGHT 512 /* inverse of weight of EWMA (511/512) */
+		     /* q_weight = 0.00195 */
 
 /* red parameters for a slow link */
-#define	W_WEIGHT_1	128	/* inverse of weight of EWMA (127/128) */
-				/* q_weight = 0.0078125 */
+#define W_WEIGHT_1 128 /* inverse of weight of EWMA (127/128) */
+		       /* q_weight = 0.0078125 */
 
 /* red parameters for a very slow link (e.g., dialup) */
-#define	W_WEIGHT_2	64	/* inverse of weight of EWMA (63/64) */
-				/* q_weight = 0.015625 */
+#define W_WEIGHT_2 64 /* inverse of weight of EWMA (63/64) */
+		      /* q_weight = 0.015625 */
 
 /* fixed-point uses 12-bit decimal places */
-#define	FP_SHIFT	12	/* fixed-point shift */
+#define FP_SHIFT 12 /* fixed-point shift */
 
 /* red parameters for drop probability */
-#define	INV_P_MAX	10	/* inverse of max drop probability */
-#define	TH_MIN		5	/* min threshold */
-#define	TH_MAX		15	/* max threshold */
+#define INV_P_MAX 10 /* inverse of max drop probability */
+#define TH_MIN 5     /* min threshold */
+#define TH_MAX 15    /* max threshold */
 
-#define	RED_LIMIT	60	/* default max queue length */
-#define	RED_STATS		/* collect statistics */
+#define RED_LIMIT 60 /* default max queue length */
+#define RED_STATS    /* collect statistics */
 
 /*
  * our default policy for forced-drop is drop-tail.
@@ -171,12 +170,12 @@ static int default_inv_pmax = INV_P_MAX;
  * red support routines
  */
 red_t *
-red_alloc(int weight, int inv_pmax, int th_min, int th_max, int flags,
-   int pkttime)
+red_alloc(
+    int weight, int inv_pmax, int th_min, int th_max, int flags, int pkttime)
 {
-	red_t	*rp;
-	int	 w, i;
-	int	 npkts_per_sec;
+	red_t *rp;
+	int w, i;
+	int npkts_per_sec;
 
 	rp = malloc(sizeof(red_t), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (rp == NULL)
@@ -238,7 +237,7 @@ red_alloc(int weight, int inv_pmax, int th_min, int th_max, int flags,
 	w = 1 << rp->red_wshift;
 	if (w != rp->red_weight) {
 		printf("invalid weight value %d for red! use %d\n",
-		       rp->red_weight, w);
+		    rp->red_weight, w);
 		rp->red_weight = w;
 	}
 
@@ -253,8 +252,8 @@ red_alloc(int weight, int inv_pmax, int th_min, int th_max, int flags,
 	 * precompute probability denominator
 	 *  probd = (2 * (TH_MAX-TH_MIN) / pmax) in fixed-point
 	 */
-	rp->red_probd = (2 * (rp->red_thmax - rp->red_thmin)
-			 * rp->red_inv_pmax) << FP_SHIFT;
+	rp->red_probd = (2 * (rp->red_thmax - rp->red_thmin) * rp->red_inv_pmax)
+	    << FP_SHIFT;
 
 	microtime(&rp->red_last);
 	return (rp);
@@ -270,17 +269,17 @@ red_destroy(red_t *rp)
 void
 red_getstats(red_t *rp, struct redstats *sp)
 {
-	sp->q_avg		= rp->red_avg >> rp->red_wshift;
-	sp->xmit_cnt		= rp->red_stats.xmit_cnt;
-	sp->drop_cnt		= rp->red_stats.drop_cnt;
-	sp->drop_forced		= rp->red_stats.drop_forced;
-	sp->drop_unforced	= rp->red_stats.drop_unforced;
-	sp->marked_packets	= rp->red_stats.marked_packets;
+	sp->q_avg = rp->red_avg >> rp->red_wshift;
+	sp->xmit_cnt = rp->red_stats.xmit_cnt;
+	sp->drop_cnt = rp->red_stats.drop_cnt;
+	sp->drop_forced = rp->red_stats.drop_forced;
+	sp->drop_unforced = rp->red_stats.drop_unforced;
+	sp->marked_packets = rp->red_stats.marked_packets;
 }
 
 int
-red_addq(red_t *rp, class_queue_t *q, struct mbuf *m,
-    struct altq_pktattr *pktattr)
+red_addq(
+    red_t *rp, class_queue_t *q, struct mbuf *m, struct altq_pktattr *pktattr)
 {
 	int avg, droptype;
 	int n;
@@ -317,7 +316,7 @@ red_addq(red_t *rp, class_queue_t *q, struct mbuf *m,
 
 	/* run estimator. (note: avg is scaled by WEIGHT in fixed-point) */
 	avg += (qlen(q) << FP_SHIFT) - (avg >> rp->red_wshift);
-	rp->red_avg = avg;		/* save the new value */
+	rp->red_avg = avg; /* save the new value */
 
 	/*
 	 * red_count keeps a tally of arriving traffic that has not
@@ -336,7 +335,7 @@ red_addq(red_t *rp, class_queue_t *q, struct mbuf *m,
 			rp->red_count = 1;
 			rp->red_old = 1;
 		} else if (drop_early((avg - rp->red_thmin_s) >> rp->red_wshift,
-				      rp->red_probd, rp->red_count)) {
+			       rp->red_probd, rp->red_count)) {
 			/* mark or drop by red */
 			if ((rp->red_flags & REDF_ECN) &&
 			    mark_ecn(m, pktattr, rp->red_flags)) {
@@ -411,7 +410,7 @@ red_addq(red_t *rp, class_queue_t *q, struct mbuf *m,
 int
 drop_early(int fp_len, int fp_probd, int count)
 {
-	int	d;		/* denominator of drop-probability */
+	int d; /* denominator of drop-probability */
 
 	d = fp_probd - count * fp_len;
 	if (d <= 0)
@@ -439,9 +438,9 @@ drop_early(int fp_len, int fp_probd, int count)
 int
 mark_ecn(struct mbuf *m, struct altq_pktattr *pktattr, int flags)
 {
-	struct mbuf	*m0;
-	struct pf_mtag	*at;
-	void		*hdr;
+	struct mbuf *m0;
+	struct pf_mtag *at;
+	void *hdr;
 
 	at = pf_find_mtag(m);
 	if (at != NULL) {
@@ -467,12 +466,12 @@ mark_ecn(struct mbuf *m, struct altq_pktattr *pktattr, int flags)
 			int sum;
 
 			if (ip->ip_v != 4)
-				return (0);	/* version mismatch! */
+				return (0); /* version mismatch! */
 
 			if ((ip->ip_tos & IPTOS_ECN_MASK) == IPTOS_ECN_NOTECT)
-				return (0);	/* not-ECT */
+				return (0); /* not-ECT */
 			if ((ip->ip_tos & IPTOS_ECN_MASK) == IPTOS_ECN_CE)
-				return (1);	/* already marked */
+				return (1); /* already marked */
 
 			/*
 			 * ecn-capable but not marked,
@@ -487,7 +486,7 @@ mark_ecn(struct mbuf *m, struct altq_pktattr *pktattr, int flags)
 			sum = ~ntohs(ip->ip_sum) & 0xffff;
 			sum += (~otos & 0xffff) + ip->ip_tos;
 			sum = (sum >> 16) + (sum & 0xffff);
-			sum += (sum >> 16);  /* add carry */
+			sum += (sum >> 16); /* add carry */
 			ip->ip_sum = htons(~sum & 0xffff);
 			return (1);
 		}
@@ -500,13 +499,13 @@ mark_ecn(struct mbuf *m, struct altq_pktattr *pktattr, int flags)
 
 			flowlabel = ntohl(ip6->ip6_flow);
 			if ((flowlabel >> 28) != 6)
-				return (0);	/* version mismatch! */
+				return (0); /* version mismatch! */
 			if ((flowlabel & (IPTOS_ECN_MASK << 20)) ==
 			    (IPTOS_ECN_NOTECT << 20))
-				return (0);	/* not-ECT */
+				return (0); /* not-ECT */
 			if ((flowlabel & (IPTOS_ECN_MASK << 20)) ==
 			    (IPTOS_ECN_CE << 20))
-				return (1);	/* already marked */
+				return (1); /* already marked */
 			/*
 			 * ecn-capable but not marked,  mark CE
 			 */
@@ -515,17 +514,15 @@ mark_ecn(struct mbuf *m, struct altq_pktattr *pktattr, int flags)
 			return (1);
 		}
 		break;
-#endif  /* INET6 */
+#endif /* INET6 */
 	}
 
 	/* not marked */
 	return (0);
 }
 
-struct mbuf *
-red_getq(rp, q)
-	red_t *rp;
-	class_queue_t *q;
+struct mbuf *red_getq(rp, q) red_t *rp;
+class_queue_t *q;
 {
 	struct mbuf *m;
 
@@ -548,13 +545,13 @@ red_getq(rp, q)
  *
  * w_tab[n] holds ((1 - Wq)^(2^n)) in fixed-point.
  */
-static struct wtab *wtab_list = NULL;	/* pointer to wtab list */
+static struct wtab *wtab_list = NULL; /* pointer to wtab list */
 
 struct wtab *
 wtab_alloc(int weight)
 {
-	struct wtab	*w;
-	int		 i;
+	struct wtab *w;
+	int i;
 
 	for (w = wtab_list; w != NULL; w = w->w_next)
 		if (w->w_weight == weight) {
@@ -573,7 +570,7 @@ wtab_alloc(int weight)
 	/* initialize the weight table */
 	w->w_tab[0] = ((weight - 1) << FP_SHIFT) / weight;
 	for (i = 1; i < 32; i++) {
-		w->w_tab[i] = (w->w_tab[i-1] * w->w_tab[i-1]) >> FP_SHIFT;
+		w->w_tab[i] = (w->w_tab[i - 1] * w->w_tab[i - 1]) >> FP_SHIFT;
 		if (w->w_tab[i] == 0 && w->w_param_max == 0)
 			w->w_param_max = 1 << i;
 	}
@@ -584,18 +581,20 @@ wtab_alloc(int weight)
 int
 wtab_destroy(struct wtab *w)
 {
-	struct wtab	*prev;
+	struct wtab *prev;
 
 	if (--w->w_refcount > 0)
 		return (0);
 
 	if (wtab_list == w)
 		wtab_list = w->w_next;
-	else for (prev = wtab_list; prev->w_next != NULL; prev = prev->w_next)
-		if (prev->w_next == w) {
-			prev->w_next = w->w_next;
-			break;
-		}
+	else
+		for (prev = wtab_list; prev->w_next != NULL;
+		     prev = prev->w_next)
+			if (prev->w_next == w) {
+				prev->w_next = w->w_next;
+				break;
+			}
 
 	free(w, M_DEVBUF);
 	return (0);
@@ -604,8 +603,8 @@ wtab_destroy(struct wtab *w)
 int32_t
 pow_w(struct wtab *w, int n)
 {
-	int	i, bit;
-	int32_t	val;
+	int i, bit;
+	int32_t val;
 
 	if (n >= w->w_param_max)
 		return (0);
@@ -622,7 +621,7 @@ pow_w(struct wtab *w, int n)
 			n &= ~bit;
 		}
 		i++;
-		bit <<=  1;
+		bit <<= 1;
 	}
 	return (val);
 }

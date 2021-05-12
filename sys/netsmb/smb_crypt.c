@@ -38,34 +38,34 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_netsmb.h"
+
 #include <sys/param.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/proc.h>
-#include <sys/fcntl.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/sysctl.h>
 #include <sys/endian.h>
+#include <sys/fcntl.h>
+#include <sys/iconv.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mchain.h>
 #include <sys/md4.h>
 #include <sys/md5.h>
-#include <sys/iconv.h>
+#include <sys/proc.h>
+#include <sys/socket.h>
+#include <sys/socketvar.h>
+#include <sys/sysctl.h>
 
 #include <netsmb/smb.h>
 #include <netsmb/smb_conn.h>
-#include <netsmb/smb_subr.h>
-#include <netsmb/smb_rq.h>
 #include <netsmb/smb_dev.h>
+#include <netsmb/smb_rq.h>
+#include <netsmb/smb_subr.h>
 
 #include <crypto/des/des.h>
 
-#include "opt_netsmb.h"
-
-static u_char N8[] = {0x4b, 0x47, 0x53, 0x21, 0x40, 0x23, 0x24, 0x25};
+static u_char N8[] = { 0x4b, 0x47, 0x53, 0x21, 0x40, 0x23, 0x24, 0x25 };
 
 static void
 smb_E(const u_char *key, u_char *data, u_char *dest)
@@ -126,7 +126,7 @@ smb_ntencrypt(const u_char *apwd, u_char *C8, u_char *RN)
 	smb_strtouni(unipwd, apwd);
 	ctxp = malloc(sizeof(MD4_CTX), M_SMBTEMP, M_WAITOK);
 	MD4Init(ctxp);
-	MD4Update(ctxp, (u_char*)unipwd, len * sizeof(u_int16_t));
+	MD4Update(ctxp, (u_char *)unipwd, len * sizeof(u_int16_t));
 	free(unipwd, M_SMBTEMP);
 	bzero(S21, 21);
 	MD4Final(S21, ctxp);
@@ -235,8 +235,8 @@ smb_rq_sign(struct smb_rq *rqp)
 		 * (At least we hope so.)
 		 */
 		KASSERT(rqp->sr_t2 == NULL ||
-		    (rqp->sr_t2->t2_flags & SMBT2_SECONDARY) == 0 ||
-		    rqp->sr_t2->t2_rq == rqp,
+			(rqp->sr_t2->t2_flags & SMBT2_SECONDARY) == 0 ||
+			rqp->sr_t2->t2_rq == rqp,
 		    ("sec t2 rq not using same smb_rq"));
 	}
 

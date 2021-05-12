@@ -37,54 +37,54 @@
  * Atheros advanced capability information element.
  */
 struct ieee80211_ath_ie {
-	uint8_t		ath_id;			/* IEEE80211_ELEMID_VENDOR */
-	uint8_t		ath_len;		/* length in bytes */
-	uint8_t		ath_oui[3];		/* ATH_OUI */
-	uint8_t		ath_oui_type;		/* ATH_OUI_TYPE */
-	uint8_t		ath_oui_subtype;	/* ATH_OUI_SUBTYPE */
-	uint8_t		ath_version;		/* spec revision */
-	uint8_t		ath_capability;		/* capability info */
-#define	ATHEROS_CAP_TURBO_PRIME		0x01	/* dynamic turbo--aka Turbo' */
-#define	ATHEROS_CAP_COMPRESSION		0x02	/* data compression */
-#define	ATHEROS_CAP_FAST_FRAME		0x04	/* fast (jumbo) frames */
-#define	ATHEROS_CAP_XR			0x08	/* Xtended Range support */
-#define	ATHEROS_CAP_AR			0x10	/* Advanded Radar support */
-#define	ATHEROS_CAP_BURST		0x20	/* Bursting - not negotiated */
-#define	ATHEROS_CAP_WME			0x40	/* CWMin tuning */
-#define	ATHEROS_CAP_BOOST		0x80	/* use turbo/!turbo mode */
-	uint8_t		ath_defkeyix[2];
+	uint8_t ath_id;		     /* IEEE80211_ELEMID_VENDOR */
+	uint8_t ath_len;	     /* length in bytes */
+	uint8_t ath_oui[3];	     /* ATH_OUI */
+	uint8_t ath_oui_type;	     /* ATH_OUI_TYPE */
+	uint8_t ath_oui_subtype;     /* ATH_OUI_SUBTYPE */
+	uint8_t ath_version;	     /* spec revision */
+	uint8_t ath_capability;	     /* capability info */
+#define ATHEROS_CAP_TURBO_PRIME 0x01 /* dynamic turbo--aka Turbo' */
+#define ATHEROS_CAP_COMPRESSION 0x02 /* data compression */
+#define ATHEROS_CAP_FAST_FRAME 0x04 /* fast (jumbo) frames */
+#define ATHEROS_CAP_XR 0x08 /* Xtended Range support */
+#define ATHEROS_CAP_AR 0x10 /* Advanded Radar support */
+#define ATHEROS_CAP_BURST 0x20 /* Bursting - not negotiated */
+#define ATHEROS_CAP_WME 0x40 /* CWMin tuning */
+#define ATHEROS_CAP_BOOST 0x80 /* use turbo/!turbo mode */
+	uint8_t ath_defkeyix[2];
 } __packed;
 
-#define	ATH_OUI_VERSION		0x00
-#define	ATH_OUI_SUBTYPE		0x01
+#define ATH_OUI_VERSION 0x00
+#define ATH_OUI_SUBTYPE 0x01
 
 #ifdef _KERNEL
 struct ieee80211_stageq {
-	struct mbuf		*head;		/* frames linked w/ m_nextpkt */
-	struct mbuf		*tail;		/* last frame in queue */
-	int			depth;		/* # items on head */
+	struct mbuf *head; /* frames linked w/ m_nextpkt */
+	struct mbuf *tail; /* last frame in queue */
+	int depth;	   /* # items on head */
 };
 
 struct ieee80211_superg {
 	/* fast-frames staging q */
-	struct ieee80211_stageq	ff_stageq[WME_NUM_AC];
+	struct ieee80211_stageq ff_stageq[WME_NUM_AC];
 	/* flush queues automatically */
-	struct timeout_task	ff_qtimer;
+	struct timeout_task ff_qtimer;
 };
 
-void	ieee80211_superg_attach(struct ieee80211com *);
-void	ieee80211_superg_detach(struct ieee80211com *);
-void	ieee80211_superg_vattach(struct ieee80211vap *);
-void	ieee80211_superg_vdetach(struct ieee80211vap *);
+void ieee80211_superg_attach(struct ieee80211com *);
+void ieee80211_superg_detach(struct ieee80211com *);
+void ieee80211_superg_vattach(struct ieee80211vap *);
+void ieee80211_superg_vdetach(struct ieee80211vap *);
 
 uint8_t *ieee80211_add_ath(uint8_t *, uint8_t, ieee80211_keyix);
 uint8_t *ieee80211_add_athcaps(uint8_t *, const struct ieee80211_node *);
-void	ieee80211_parse_ath(struct ieee80211_node *, uint8_t *);
-int	ieee80211_parse_athparams(struct ieee80211_node *, uint8_t *,
-	    const struct ieee80211_frame *);
+void ieee80211_parse_ath(struct ieee80211_node *, uint8_t *);
+int ieee80211_parse_athparams(
+    struct ieee80211_node *, uint8_t *, const struct ieee80211_frame *);
 
-void	ieee80211_ff_node_init(struct ieee80211_node *);
-void	ieee80211_ff_node_cleanup(struct ieee80211_node *);
+void ieee80211_ff_node_init(struct ieee80211_node *);
+void ieee80211_ff_node_cleanup(struct ieee80211_node *);
 
 static inline int
 ieee80211_amsdu_tx_ok(struct ieee80211_node *ni)
@@ -106,10 +106,10 @@ ieee80211_amsdu_tx_ok(struct ieee80211_node *ni)
 	return (1);
 }
 
-struct mbuf * ieee80211_amsdu_check(struct ieee80211_node *ni, struct mbuf *m);
+struct mbuf *ieee80211_amsdu_check(struct ieee80211_node *ni, struct mbuf *m);
 struct mbuf *ieee80211_ff_check(struct ieee80211_node *, struct mbuf *);
-void	ieee80211_ff_age(struct ieee80211com *, struct ieee80211_stageq *,
-	     int quanta);
+void ieee80211_ff_age(
+    struct ieee80211com *, struct ieee80211_stageq *, int quanta);
 
 static __inline void
 ieee80211_ff_age_all(struct ieee80211com *ic, int quanta)
@@ -139,19 +139,20 @@ ieee80211_ff_flush_all(struct ieee80211com *ic)
 	ieee80211_ff_age_all(ic, 0x7fffffff);
 }
 
-struct mbuf *ieee80211_ff_encap(struct ieee80211vap *, struct mbuf *,
-	    int, struct ieee80211_key *);
-struct mbuf * ieee80211_amsdu_encap(struct ieee80211vap *vap, struct mbuf *m1,
-	    int hdrspace, struct ieee80211_key *key);
+struct mbuf *ieee80211_ff_encap(
+    struct ieee80211vap *, struct mbuf *, int, struct ieee80211_key *);
+struct mbuf *ieee80211_amsdu_encap(struct ieee80211vap *vap, struct mbuf *m1,
+    int hdrspace, struct ieee80211_key *key);
 
 struct mbuf *ieee80211_ff_decap(struct ieee80211_node *, struct mbuf *);
 
 static __inline struct mbuf *
-ieee80211_decap_fastframe(struct ieee80211vap *vap, struct ieee80211_node *ni,
-    struct mbuf *m)
+ieee80211_decap_fastframe(
+    struct ieee80211vap *vap, struct ieee80211_node *ni, struct mbuf *m)
 {
 	return IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF) ?
-	    ieee80211_ff_decap(ni, m) : m;
+		  ieee80211_ff_decap(ni, m) :
+		  m;
 }
 #endif /* _KERNEL */
 #endif /* _NET80211_IEEE80211_SUPERG_H_ */

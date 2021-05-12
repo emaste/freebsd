@@ -36,13 +36,13 @@
 #ifndef _NETGRAPH_HCI_CMDS_H_
 #define _NETGRAPH_HCI_CMDS_H_
 
-/* 
+/*
  * HCI command return parameters processing routines
  */
 
-int  ng_hci_send_command             (ng_hci_unit_p);
-int  ng_hci_process_command_complete (ng_hci_unit_p, struct mbuf *);
-int  ng_hci_process_command_status   (ng_hci_unit_p, struct mbuf *);
-void ng_hci_process_command_timeout  (node_p, hook_p, void *, int);
+int ng_hci_send_command(ng_hci_unit_p);
+int ng_hci_process_command_complete(ng_hci_unit_p, struct mbuf *);
+int ng_hci_process_command_status(ng_hci_unit_p, struct mbuf *);
+void ng_hci_process_command_timeout(node_p, hook_p, void *, int);
 
 #endif /* ndef _NETGRAPH_HCI_CMDS_H_ */

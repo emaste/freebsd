@@ -52,29 +52,28 @@
 /*                                                                          */
 /****************************************************************************/
 
-#define	pS	CTL_SER_PASS		/* Pass */
-#define	bK	CTL_SER_BLOCK		/* Blocked */
-#define	bO	CTL_SER_BLOCKOPT	/* Optional block */
-#define	xT	CTL_SER_EXTENT		/* Extent check */
-#define	xO	CTL_SER_EXTENTOPT	/* Optional extent check */
-#define	xS	CTL_SER_SEQ		/* Sequential check */
+#define pS CTL_SER_PASS	     /* Pass */
+#define bK CTL_SER_BLOCK     /* Blocked */
+#define bO CTL_SER_BLOCKOPT  /* Optional block */
+#define xT CTL_SER_EXTENT    /* Extent check */
+#define xO CTL_SER_EXTENTOPT /* Optional extent check */
+#define xS CTL_SER_SEQ	     /* Sequential check */
 
-const static uint8_t
-ctl_serialize_table[CTL_SERIDX_COUNT][CTL_SERIDX_COUNT] = {
-/**>IDX_ :: 2nd:TUR RD  WRT UNM SYN MDSN MDSL RQSN INQ RDCP RES LSNS FMT STR*/
-/*TUR     */{   pS, pS, pS, pS, pS, bK,  bK,  pS,  pS, pS,  bK, pS,  pS, bK},
-/*READ    */{   pS, xS, xT, xO, pS, bK,  bK,  pS,  pS, pS,  bK, pS,  bK, bK},
-/*WRITE   */{   pS, xT, xT, xO, pS, bK,  bK,  pS,  pS, pS,  bK, pS,  bK, bK},
-/*UNMAP   */{   pS, bO, bO, pS, pS, bK,  bK,  pS,  pS, pS,  bK, pS,  bK, bK},
-/*SYNC    */{   pS, pS, bO, pS, pS, bK,  bK,  pS,  pS, pS,  bK, pS,  bK, bK},
-/*MD_SNS  */{   bK, bK, bK, bK, bK, pS,  bK,  pS,  pS, pS,  bK, pS,  bK, bK},
-/*MD_SEL  */{   bK, bK, bK, bK, bK, bK,  bK,  pS,  pS, pS,  bK, bK,  bK, bK},
-/*RQ_SNS  */{   bK, bK, bK, bK, bK, bK,  bK,  bK,  bK, bK,  bK, bK,  pS, bK},
-/*INQ     */{   pS, pS, pS, pS, pS, pS,  pS,  pS,  pS, pS,  pS, pS,  pS, pS},
-/*RD_CAP  */{   pS, pS, pS, pS, pS, pS,  pS,  pS,  pS, pS,  bK, pS,  bK, bK},
-/*RES     */{   bK, bK, bK, bK, bK, bK,  bK,  bK,  pS, pS,  bK, bK,  bK, bK},
-/*LOG_SNS */{   pS, pS, pS, pS, pS, pS,  pS,  pS,  pS, pS,  bK, pS,  bK, bK},
-/*FORMAT  */{   bK, bK, bK, bK, bK, bK,  bK,  bK,  bK, bK,  bK, bK,  bK, bK},
-/*START   */{   bK, bK, bK, bK, bK, bK,  bK,  bK,  bK, pS,  bK, bK,  bK, bK},
+const static uint8_t ctl_serialize_table[CTL_SERIDX_COUNT][CTL_SERIDX_COUNT] = {
+	/**>IDX_ :: 2nd:TUR RD  WRT UNM SYN MDSN MDSL RQSN INQ RDCP RES LSNS FMT
+	   STR*/
+	/*TUR     */ { pS, pS, pS, pS, pS, bK, bK, pS, pS, pS, bK, pS, pS, bK },
+	/*READ    */ { pS, xS, xT, xO, pS, bK, bK, pS, pS, pS, bK, pS, bK, bK },
+	/*WRITE   */ { pS, xT, xT, xO, pS, bK, bK, pS, pS, pS, bK, pS, bK, bK },
+	/*UNMAP   */ { pS, bO, bO, pS, pS, bK, bK, pS, pS, pS, bK, pS, bK, bK },
+	/*SYNC    */ { pS, pS, bO, pS, pS, bK, bK, pS, pS, pS, bK, pS, bK, bK },
+	/*MD_SNS  */ { bK, bK, bK, bK, bK, pS, bK, pS, pS, pS, bK, pS, bK, bK },
+	/*MD_SEL  */ { bK, bK, bK, bK, bK, bK, bK, pS, pS, pS, bK, bK, bK, bK },
+	/*RQ_SNS  */ { bK, bK, bK, bK, bK, bK, bK, bK, bK, bK, bK, bK, pS, bK },
+	/*INQ     */ { pS, pS, pS, pS, pS, pS, pS, pS, pS, pS, pS, pS, pS, pS },
+	/*RD_CAP  */ { pS, pS, pS, pS, pS, pS, pS, pS, pS, pS, bK, pS, bK, bK },
+	/*RES     */ { bK, bK, bK, bK, bK, bK, bK, bK, pS, pS, bK, bK, bK, bK },
+	/*LOG_SNS */ { pS, pS, pS, pS, pS, pS, pS, pS, pS, pS, bK, pS, bK, bK },
+	/*FORMAT  */ { bK, bK, bK, bK, bK, bK, bK, bK, bK, bK, bK, bK, bK, bK },
+	/*START   */ { bK, bK, bK, bK, bK, bK, bK, bK, bK, pS, bK, bK, bK, bK },
 };
-

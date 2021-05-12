@@ -38,24 +38,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/assym.h>
-#include <sys/proc.h>
-#include <sys/mbuf.h>
-#include <sys/vmmeter.h>
 #include <sys/bus.h>
+#include <sys/mbuf.h>
+#include <sys/proc.h>
+#include <sys/vmmeter.h>
+
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_param.h>
 
-#include <machine/riscvreg.h>
-#include <machine/frame.h>
-#include <machine/pcb.h>
 #include <machine/cpu.h>
-#include <machine/proc.h>
 #include <machine/cpufunc.h>
-#include <machine/pte.h>
+#include <machine/frame.h>
 #include <machine/intr.h>
 #include <machine/machdep.h>
+#include <machine/pcb.h>
+#include <machine/proc.h>
+#include <machine/pte.h>
+#include <machine/riscvreg.h>
 #include <machine/vmparam.h>
 
 ASSYM(KERNBASE, KERNBASE);
@@ -103,8 +104,8 @@ ASSYM(TF_SSTATUS, offsetof(struct trapframe, tf_sstatus));
 ASSYM(RISCV_BOOTPARAMS_SIZE, sizeof(struct riscv_bootparams));
 ASSYM(RISCV_BOOTPARAMS_KERN_L1PT, offsetof(struct riscv_bootparams, kern_l1pt));
 ASSYM(RISCV_BOOTPARAMS_KERN_PHYS, offsetof(struct riscv_bootparams, kern_phys));
-ASSYM(RISCV_BOOTPARAMS_KERN_STACK, offsetof(struct riscv_bootparams,
-    kern_stack));
+ASSYM(
+    RISCV_BOOTPARAMS_KERN_STACK, offsetof(struct riscv_bootparams, kern_stack));
 ASSYM(RISCV_BOOTPARAMS_DTBP_VIRT, offsetof(struct riscv_bootparams, dtbp_virt));
 ASSYM(RISCV_BOOTPARAMS_DTBP_PHYS, offsetof(struct riscv_bootparams, dtbp_phys));
 ASSYM(RISCV_BOOTPARAMS_MODULEP, offsetof(struct riscv_bootparams, modulep));

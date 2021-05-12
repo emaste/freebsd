@@ -29,8 +29,8 @@
  * $FreeBSD$
  */
 #ifndef _ASM_FCNTL_H_
-#define	_ASM_FCNTL_H_
+#define _ASM_FCNTL_H_
 
 #include <sys/fcntl.h>
 
-#endif	/* _ASM_FCNTL_H_ */
+#endif /* _ASM_FCNTL_H_ */

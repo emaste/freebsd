@@ -29,18 +29,18 @@
  */
 
 #ifndef __LINUX_WAITBIT_H__
-#define	__LINUX_WAITBIT_H__
+#define __LINUX_WAITBIT_H__
 
-#include <linux/wait.h>
 #include <linux/bitops.h>
+#include <linux/wait.h>
 
 extern wait_queue_head_t linux_bit_waitq;
 extern wait_queue_head_t linux_var_waitq;
 
-#define	wait_var_event_killable(var, cond) \
+#define wait_var_event_killable(var, cond) \
 	wait_event_killable(linux_var_waitq, cond)
 
-#define	wait_var_event_interruptible(var, cond) \
+#define wait_var_event_interruptible(var, cond) \
 	wait_event_interruptible(linux_var_waitq, cond)
 
 static inline void
@@ -64,4 +64,4 @@ wake_up_var(void *var)
 	wake_up(&linux_var_waitq);
 }
 
-#endif	/* __LINUX_WAITBIT_H__ */
+#endif /* __LINUX_WAITBIT_H__ */

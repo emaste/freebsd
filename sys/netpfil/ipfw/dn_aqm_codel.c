@@ -2,10 +2,10 @@
  * Codel - The Controlled-Delay Active Queue Management algorithm.
  *
  * $FreeBSD$
- * 
+ *
  * Copyright (C) 2016 Centre for Advanced Internet Architectures,
  *  Swinburne University of Technology, Melbourne, Australia.
- * Portions of this code were made possible in part by a gift from 
+ * Portions of this code were made possible in part by a gift from
  *  The Comcast Innovation Fund.
  * Implemented by Rasool Al-Saadi <ralsaadi@swin.edu.au>
  *
@@ -31,57 +31,55 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet6.h"
 
+#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 
-#include <net/if.h>	/* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
+#include <net/if.h> /* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
 #include <net/netisr.h>
 #include <net/vnet.h>
-
-#include <netinet/in.h>
-#include <netinet/ip.h>		/* ip_len, ip_off */
-#include <netinet/ip_var.h>	/* ip_output(), IP_FORWARDING */
-#include <netinet/ip_fw.h>
-#include <netinet/ip_dummynet.h>
 #include <netinet/if_ether.h> /* various ether_* routines */
-#include <netinet/ip6.h>       /* for ip6_input, ip6_output prototypes */
+#include <netinet/in.h>
+#include <netinet/ip.h>	 /* ip_len, ip_off */
+#include <netinet/ip6.h> /* for ip6_input, ip6_output prototypes */
+#include <netinet/ip_dummynet.h>
+#include <netinet/ip_fw.h>
+#include <netinet/ip_var.h> /* ip_output(), IP_FORWARDING */
 #include <netinet6/ip6_var.h>
 #include <netpfil/ipfw/dn_heap.h>
 
 #ifdef NEW_AQM
-#include <netpfil/ipfw/ip_fw_private.h>
-#include <netpfil/ipfw/ip_dn_private.h>
 #include <netpfil/ipfw/dn_aqm.h>
 #include <netpfil/ipfw/dn_aqm_codel.h>
 #include <netpfil/ipfw/dn_sched.h>
+#include <netpfil/ipfw/ip_dn_private.h>
+#include <netpfil/ipfw/ip_fw_private.h>
 
 #define DN_AQM_CODEL 1
 
 static struct dn_aqm codel_desc;
 
 /* default codel parameters */
-struct dn_aqm_codel_parms codel_sysctl = {5000 * AQM_TIME_1US,
-	100000 * AQM_TIME_1US, 0};
+struct dn_aqm_codel_parms codel_sysctl = { 5000 * AQM_TIME_1US,
+	100000 * AQM_TIME_1US, 0 };
 
-static int
-codel_sysctl_interval_handler(SYSCTL_HANDLER_ARGS)
+static int codel_sysctl_interval_handler(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-	long  value;
+	long value;
 
 	value = codel_sysctl.interval;
 	value /= AQM_TIME_1US;
@@ -90,15 +88,14 @@ codel_sysctl_interval_handler(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (value < 1 || value > 100 * AQM_TIME_1S)
 		return (EINVAL);
-	codel_sysctl.interval = value * AQM_TIME_1US ;
+	codel_sysctl.interval = value * AQM_TIME_1US;
 	return (0);
 }
 
-static int
-codel_sysctl_target_handler(SYSCTL_HANDLER_ARGS)
+static int codel_sysctl_target_handler(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-	long  value;
+	long value;
 
 	value = codel_sysctl.target;
 	value /= AQM_TIME_1US;
@@ -108,7 +105,7 @@ codel_sysctl_target_handler(SYSCTL_HANDLER_ARGS)
 	D("%ld", value);
 	if (value < 1 || value > 5 * AQM_TIME_1S)
 		return (EINVAL);
-	codel_sysctl.target = value * AQM_TIME_1US ;
+	codel_sysctl.target = value * AQM_TIME_1US;
 	return (0);
 }
 
@@ -119,29 +116,26 @@ SYSCTL_DECL(_net_inet);
 SYSCTL_DECL(_net_inet_ip);
 SYSCTL_DECL(_net_inet_ip_dummynet);
 static SYSCTL_NODE(_net_inet_ip_dummynet, OID_AUTO, codel,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "CODEL");
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "CODEL");
 
 #ifdef SYSCTL_NODE
 SYSCTL_PROC(_net_inet_ip_dummynet_codel, OID_AUTO, target,
-    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    NULL, 0,codel_sysctl_target_handler, "L",
-    "CoDel target in microsecond");
+    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    codel_sysctl_target_handler, "L", "CoDel target in microsecond");
 
 SYSCTL_PROC(_net_inet_ip_dummynet_codel, OID_AUTO, interval,
-    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    NULL, 0, codel_sysctl_interval_handler, "L",
-    "CoDel interval in microsecond");
+    CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    codel_sysctl_interval_handler, "L", "CoDel interval in microsecond");
 #endif
 
-/* This function computes codel_interval/sqrt(count) 
+/* This function computes codel_interval/sqrt(count)
  *  Newton's method of approximation is used to compute 1/sqrt(count).
  * http://betterexplained.com/articles/
- * 	understanding-quakes-fast-inverse-square-root/ 
+ * 	understanding-quakes-fast-inverse-square-root/
  */
-aqm_time_t 
-control_law(struct codel_status *cst, struct dn_aqm_codel_parms *cprms,
-	aqm_time_t t)
+aqm_time_t
+control_law(
+    struct codel_status *cst, struct dn_aqm_codel_parms *cprms, aqm_time_t t)
 {
 	uint32_t count;
 	uint64_t temp;
@@ -149,8 +143,9 @@ control_law(struct codel_status *cst, struct dn_aqm_codel_parms *cprms,
 
 	/* we don't calculate isqrt(1) to get more accurate result*/
 	if (count == 1) {
-		/* prepare isqrt (old guess) for the next iteration i.e. 1/sqrt(2)*/
-		cst->isqrt = (1UL<< FIX_POINT_BITS) * 7/10;
+		/* prepare isqrt (old guess) for the next iteration i.e.
+		 * 1/sqrt(2)*/
+		cst->isqrt = (1UL << FIX_POINT_BITS) * 7 / 10;
 		/* return time + isqrt(1)*interval */
 		return t + cprms->interval;
 	}
@@ -159,28 +154,28 @@ control_law(struct codel_status *cst, struct dn_aqm_codel_parms *cprms,
 	 * Multiplying both sides by 2 to make all the constants intergers
 	 * newguess * 2  = g(3 - c*g^2) g=old guess, c=count
 	 * So, newguess = newguess /2
-	 * Fixed point operations are used here.  
+	 * Fixed point operations are used here.
 	 */
 
 	/* Calculate g^2 */
-	temp = (uint32_t) cst->isqrt * cst->isqrt;
+	temp = (uint32_t)cst->isqrt * cst->isqrt;
 	/* Calculate (3 - c*g^2) i.e. (3 - c * temp) */
-	temp = (3ULL<< (FIX_POINT_BITS*2)) - (count * temp);
+	temp = (3ULL << (FIX_POINT_BITS * 2)) - (count * temp);
 
-	/* 
-	 * Divide by 2 because we multiplied the original equation by two 
-	 * Also, we shift the result by 8 bits to prevent overflow. 
+	/*
+	 * Divide by 2 because we multiplied the original equation by two
+	 * Also, we shift the result by 8 bits to prevent overflow.
 	 * */
-	temp >>= (1 + 8); 
+	temp >>= (1 + 8);
 
 	/*  Now, temp = (1.5 - 0.5*c*g^2)
-	 * Calculate g (1.5 - 0.5*c*g^2) i.e. g * temp 
+	 * Calculate g (1.5 - 0.5*c*g^2) i.e. g * temp
 	 */
 	temp = (cst->isqrt * temp) >> (FIX_POINT_BITS + FIX_POINT_BITS - 8);
 	cst->isqrt = temp;
 
-	 /* calculate codel_interval/sqrt(count) */
-	 return t + ((cprms->interval * temp) >> FIX_POINT_BITS);
+	/* calculate codel_interval/sqrt(count) */
+	return t + ((cprms->interval * temp) >> FIX_POINT_BITS);
 }
 
 /*
@@ -202,7 +197,7 @@ codel_extract_head(struct dn_queue *q, aqm_time_t *pkt_ts)
 	update_stats(q, -m->m_pkthdr.len, 0);
 
 	if (q->ni.length == 0) /* queue is now idle */
-			q->q_time = dn_cfg.curr_time;
+		q->q_time = dn_cfg.curr_time;
 
 	/* extract packet TS*/
 	mtag = m_tag_locate(m, MTAG_ABI_COMPAT, DN_AQM_MTAG_TS, NULL);
@@ -211,7 +206,7 @@ codel_extract_head(struct dn_queue *q, aqm_time_t *pkt_ts)
 		*pkt_ts = 0;
 	} else {
 		*pkt_ts = *(aqm_time_t *)(mtag + 1);
-		m_tag_delete(m,mtag); 
+		m_tag_delete(m, mtag);
 	}
 
 	return m;
@@ -225,29 +220,28 @@ aqm_codel_enqueue(struct dn_queue *q, struct mbuf *m)
 {
 	struct dn_fs *f;
 	uint64_t len;
-	struct codel_status *cst;	/*codel status variables */
+	struct codel_status *cst; /*codel status variables */
 	struct m_tag *mtag;
 
 	f = &(q->fs->fs);
 	len = m->m_pkthdr.len;
 	cst = q->aqm_status;
-	if(!cst) {
+	if (!cst) {
 		D("Codel queue is not initialized\n");
 		goto drop;
 	}
 
 	/* Finding maximum packet size */
-	// XXX we can get MTU from driver instead 
+	// XXX we can get MTU from driver instead
 	if (len > cst->maxpkt_size)
 		cst->maxpkt_size = len;
 
 	/* check for queue size and drop the tail if exceed queue limit*/
 	if (f->flags & DN_QSIZE_BYTES) {
-		if ( q->ni.len_bytes > f->qsize)
+		if (q->ni.len_bytes > f->qsize)
 			goto drop;
-	}
-	else {
-		if ( q->ni.length >= f->qsize)
+	} else {
+		if (q->ni.length >= f->qsize)
 			goto drop;
 	}
 
@@ -255,9 +249,9 @@ aqm_codel_enqueue(struct dn_queue *q, struct mbuf *m)
 	mtag = m_tag_locate(m, MTAG_ABI_COMPAT, DN_AQM_MTAG_TS, NULL);
 	if (mtag == NULL)
 		mtag = m_tag_alloc(MTAG_ABI_COMPAT, DN_AQM_MTAG_TS,
-			sizeof(aqm_time_t), M_NOWAIT);
+		    sizeof(aqm_time_t), M_NOWAIT);
 	if (mtag == NULL) {
-		m_freem(m); 
+		m_freem(m);
 		goto drop;
 	}
 
@@ -275,17 +269,17 @@ drop:
 }
 
 /* Dequeue a pcaket from queue q */
-static struct mbuf * 
+static struct mbuf *
 aqm_codel_dequeue(struct dn_queue *q)
 {
 	return codel_dequeue(q);
 }
 
-/* 
- * initialize Codel for queue 'q' 
+/*
+ * initialize Codel for queue 'q'
  * First allocate memory for codel status.
  */
-static int 
+static int
 aqm_codel_init(struct dn_queue *q)
 {
 	struct codel_status *cst;
@@ -295,19 +289,19 @@ aqm_codel_init(struct dn_queue *q)
 		return EINVAL;
 	}
 
-	q->aqm_status = malloc(sizeof(struct codel_status),
-			 M_DUMMYNET, M_NOWAIT | M_ZERO);
+	q->aqm_status = malloc(
+	    sizeof(struct codel_status), M_DUMMYNET, M_NOWAIT | M_ZERO);
 	if (q->aqm_status == NULL) {
 		D("Cannot allocate AQM_codel private data");
-		return ENOMEM ; 
+		return ENOMEM;
 	}
 
 	/* init codel status variables */
 	cst = q->aqm_status;
-	cst->dropping=0;
-	cst->first_above_time=0;
-	cst->drop_next_time=0;
-	cst->count=0;
+	cst->dropping = 0;
+	cst->first_above_time = 0;
+	cst->drop_next_time = 0;
+	cst->count = 0;
 	cst->maxpkt_size = 500;
 
 	/* increase reference counters */
@@ -316,8 +310,8 @@ aqm_codel_init(struct dn_queue *q)
 	return 0;
 }
 
-/* 
- * Clean up Codel status for queue 'q' 
+/*
+ * Clean up Codel status for queue 'q'
  * Destroy memory allocated for codel status.
  */
 static int
@@ -329,18 +323,17 @@ aqm_codel_cleanup(struct dn_queue *q)
 		q->aqm_status = NULL;
 		/* decrease reference counters */
 		codel_desc.ref_count--;
-	}
-	else
+	} else
 		D("Codel already cleaned up");
 	return 0;
 }
 
-/* 
+/*
  * Config codel parameters
  * also allocate memory for codel configurations
  */
 static int
-aqm_codel_config(struct dn_fsk* fs, struct dn_extra_parms *ep, int len)
+aqm_codel_config(struct dn_fsk *fs, struct dn_extra_parms *ep, int len)
 {
 	struct dn_aqm_codel_parms *ccfg;
 
@@ -349,7 +342,7 @@ aqm_codel_config(struct dn_fsk* fs, struct dn_extra_parms *ep, int len)
 		D("invalid sched parms length got %d need %d", len, l);
 		return EINVAL;
 	}
-	/* we free the old cfg because maybe the original allocation 
+	/* we free the old cfg because maybe the original allocation
 	 * not the same size as the new one (different AQM type).
 	 */
 	if (fs->aqmcfg) {
@@ -357,11 +350,11 @@ aqm_codel_config(struct dn_fsk* fs, struct dn_extra_parms *ep, int len)
 		fs->aqmcfg = NULL;
 	}
 
-	fs->aqmcfg = malloc(sizeof(struct dn_aqm_codel_parms),
-			 M_DUMMYNET, M_NOWAIT | M_ZERO);
-	if (fs->aqmcfg== NULL) {
+	fs->aqmcfg = malloc(
+	    sizeof(struct dn_aqm_codel_parms), M_DUMMYNET, M_NOWAIT | M_ZERO);
+	if (fs->aqmcfg == NULL) {
 		D("cannot allocate AQM_codel configuration parameters");
-		return ENOMEM; 
+		return ENOMEM;
 	}
 
 	/* configure codel parameters */
@@ -383,8 +376,8 @@ aqm_codel_config(struct dn_fsk* fs, struct dn_extra_parms *ep, int len)
 		ccfg->flags = ep->par[2];
 
 	/* bound codel configurations */
-	ccfg->target = BOUND_VAR(ccfg->target,1, 5 * AQM_TIME_1S);
-	ccfg->interval = BOUND_VAR(ccfg->interval,1, 5 * AQM_TIME_1S);
+	ccfg->target = BOUND_VAR(ccfg->target, 1, 5 * AQM_TIME_1S);
+	ccfg->interval = BOUND_VAR(ccfg->interval, 1, 5 * AQM_TIME_1S);
 	/* increase config reference counter */
 	codel_desc.cfg_ref_count++;
 
@@ -395,7 +388,7 @@ aqm_codel_config(struct dn_fsk* fs, struct dn_extra_parms *ep, int len)
  * Deconfigure Codel and free memory allocation
  */
 static int
-aqm_codel_deconfig(struct dn_fsk* fs)
+aqm_codel_deconfig(struct dn_fsk *fs)
 {
 
 	if (fs && fs->aqmcfg) {
@@ -409,11 +402,11 @@ aqm_codel_deconfig(struct dn_fsk* fs)
 	return 0;
 }
 
-/* 
+/*
  * Retrieve Codel configuration parameters.
- */ 
+ */
 static int
-aqm_codel_getconfig(struct dn_fsk *fs, struct dn_extra_parms * ep)
+aqm_codel_getconfig(struct dn_fsk *fs, struct dn_extra_parms *ep)
 {
 	struct dn_aqm_codel_parms *ccfg;
 
@@ -429,15 +422,15 @@ aqm_codel_getconfig(struct dn_fsk *fs, struct dn_extra_parms * ep)
 }
 
 static struct dn_aqm codel_desc = {
-	_SI( .type = )  DN_AQM_CODEL,
-	_SI( .name = )  "CODEL",
-	_SI( .enqueue = )  aqm_codel_enqueue,
-	_SI( .dequeue = )  aqm_codel_dequeue,
-	_SI( .config = )  aqm_codel_config,
-	_SI( .getconfig = )  aqm_codel_getconfig,
-	_SI( .deconfig = )  aqm_codel_deconfig,
-	_SI( .init = )  aqm_codel_init,
-	_SI( .cleanup = )  aqm_codel_cleanup,
+	_SI(.type =) DN_AQM_CODEL,
+	_SI(.name =) "CODEL",
+	_SI(.enqueue =) aqm_codel_enqueue,
+	_SI(.dequeue =) aqm_codel_dequeue,
+	_SI(.config =) aqm_codel_config,
+	_SI(.getconfig =) aqm_codel_getconfig,
+	_SI(.deconfig =) aqm_codel_deconfig,
+	_SI(.init =) aqm_codel_init,
+	_SI(.cleanup =) aqm_codel_cleanup,
 };
 
 DECLARE_DNAQM_MODULE(dn_aqm_codel, &codel_desc);

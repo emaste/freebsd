@@ -33,40 +33,36 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/rmlock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/kernel.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <net/vnet.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
-
-#include <netinet/in.h>
-#include <netinet/in_fib.h>
-#include <netinet/ip.h>
-
-#include <netinet6/in6_fib.h>
-
 #include <net/route.h>
+#include <net/route/fib_algo.h>
 #include <net/route/nhop.h>
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
-#include <net/route/fib_algo.h>
+#include <net/vnet.h>
+#include <netinet/in.h>
+#include <netinet/in_fib.h>
+#include <netinet/ip.h>
+#include <netinet6/in6_fib.h>
 
-#define	CHUNK_SIZE	10000
+#define CHUNK_SIZE 10000
 
 VNET_DEFINE_STATIC(struct in_addr *, inet_addr_list);
-#define	V_inet_addr_list	VNET(inet_addr_list)
+#define V_inet_addr_list VNET(inet_addr_list)
 VNET_DEFINE_STATIC(int, inet_list_size);
-#define	V_inet_list_size	VNET(inet_list_size)
+#define V_inet_list_size VNET(inet_list_size)
 
 VNET_DEFINE_STATIC(struct in6_addr *, inet6_addr_list);
-#define	V_inet6_addr_list	VNET(inet6_addr_list)
+#define V_inet6_addr_list VNET(inet6_addr_list)
 VNET_DEFINE_STATIC(int, inet6_list_size);
-#define	V_inet6_list_size	VNET(inet6_list_size)
+#define V_inet6_list_size VNET(inet6_list_size)
 
 SYSCTL_DECL(_net_route);
 SYSCTL_NODE(_net_route, OID_AUTO, test, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -88,7 +84,8 @@ add_addr(int family, char *addr_str)
 		    sizeof(struct in_addr), M_TEMP, M_ZERO | M_WAITOK);
 
 		if (paddr_old != NULL) {
-			memcpy(paddr, paddr_old, size_old * sizeof(struct in_addr));
+			memcpy(paddr, paddr_old,
+			    size_old * sizeof(struct in_addr));
 			free(paddr_old, M_TEMP);
 		}
 		paddr[size_old] = addr;
@@ -108,7 +105,8 @@ add_addr(int family, char *addr_str)
 		    sizeof(struct in6_addr), M_TEMP, M_ZERO | M_WAITOK);
 
 		if (paddr_old != NULL) {
-			memcpy(paddr, paddr_old, size_old * sizeof(struct in6_addr));
+			memcpy(paddr, paddr_old,
+			    size_old * sizeof(struct in6_addr));
 			free(paddr_old, M_TEMP);
 		}
 		paddr[size_old] = addr6;
@@ -122,7 +120,8 @@ add_addr(int family, char *addr_str)
 }
 
 static int
-add_addr_sysctl_handler(struct sysctl_oid *oidp, struct sysctl_req *req, int family)
+add_addr_sysctl_handler(
+    struct sysctl_oid *oidp, struct sysctl_req *req, int family)
 {
 	char addr_str[INET6_ADDRSTRLEN];
 	int error;
@@ -138,8 +137,7 @@ add_addr_sysctl_handler(struct sysctl_oid *oidp, struct sysctl_req *req, int fam
 	return (0);
 }
 
-static int
-add_inet_addr_sysctl_handler(SYSCTL_HANDLER_ARGS)
+static int add_inet_addr_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 
 	return (add_addr_sysctl_handler(oidp, req, AF_INET));
@@ -148,8 +146,7 @@ SYSCTL_PROC(_net_route_test, OID_AUTO, add_inet_addr,
     CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     add_inet_addr_sysctl_handler, "A", "Set");
 
-static int
-add_inet6_addr_sysctl_handler(SYSCTL_HANDLER_ARGS)
+static int add_inet6_addr_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 
 	return (add_addr_sysctl_handler(oidp, req, AF_INET6));
@@ -176,8 +173,7 @@ run_test_inet_one_pass()
 	return (count);
 }
 
-static int
-run_test_inet(SYSCTL_HANDLER_ARGS)
+static int run_test_inet(SYSCTL_HANDLER_ARGS)
 {
 	struct epoch_tracker et;
 
@@ -213,14 +209,14 @@ run_test_inet(SYSCTL_HANDLER_ARGS)
 		total_packets += pass_packets;
 	}
 
-	printf("%zu packets in %zu nanoseconds, %zu pps\n",
-	    total_packets, total_diff, total_packets * 1000000000 / total_diff);
+	printf("%zu packets in %zu nanoseconds, %zu pps\n", total_packets,
+	    total_diff, total_packets * 1000000000 / total_diff);
 
 	return (0);
 }
 SYSCTL_PROC(_net_route_test, OID_AUTO, run_inet,
-    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 0, run_test_inet, "I", "Execute fib4_lookup test");
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
+    run_test_inet, "I", "Execute fib4_lookup test");
 
 static uint64_t
 run_test_inet6_one_pass()
@@ -240,8 +236,7 @@ run_test_inet6_one_pass()
 	return (count);
 }
 
-static int
-run_test_inet6(SYSCTL_HANDLER_ARGS)
+static int run_test_inet6(SYSCTL_HANDLER_ARGS)
 {
 	struct epoch_tracker et;
 
@@ -277,14 +272,14 @@ run_test_inet6(SYSCTL_HANDLER_ARGS)
 		total_packets += pass_packets;
 	}
 
-	printf("%zu packets in %zu nanoseconds, %zu pps\n",
-	    total_packets, total_diff, total_packets * 1000000000 / total_diff);
+	printf("%zu packets in %zu nanoseconds, %zu pps\n", total_packets,
+	    total_diff, total_packets * 1000000000 / total_diff);
 
 	return (0);
 }
 SYSCTL_PROC(_net_route_test, OID_AUTO, run_inet6,
-    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 0, run_test_inet6, "I", "Execute fib6_lookup test");
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
+    run_test_inet6, "I", "Execute fib6_lookup test");
 
 static bool
 cmp_dst(uint32_t fibnum, struct in_addr a)
@@ -343,8 +338,7 @@ run_test_inet_one_pass_random()
 	return (count);
 }
 
-static int
-run_test_inet_random(SYSCTL_HANDLER_ARGS)
+static int run_test_inet_random(SYSCTL_HANDLER_ARGS)
 {
 	struct epoch_tracker et;
 
@@ -383,15 +377,14 @@ run_test_inet_random(SYSCTL_HANDLER_ARGS)
 	if (pass_packets == 0)
 		return (EINVAL);
 
-	printf("%zu packets in %zu nanoseconds, %zu pps\n",
-	    total_packets, total_diff, total_packets * 1000000000 / total_diff);
+	printf("%zu packets in %zu nanoseconds, %zu pps\n", total_packets,
+	    total_diff, total_packets * 1000000000 / total_diff);
 
 	return (0);
 }
 SYSCTL_PROC(_net_route_test, OID_AUTO, run_inet_random,
-    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 0, run_test_inet_random, "I", "Execute fib4_lookup random check tests");
-
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
+    run_test_inet_random, "I", "Execute fib4_lookup random check tests");
 
 struct inet_array {
 	uint32_t alloc_items;
@@ -445,16 +438,15 @@ prepare_list(uint32_t fibnum, struct inet_array *pa)
 	uint32_t num_prefixes = (rh->rnh_prefixes + 10) * 5;
 	bzero(pa, sizeof(struct inet_array));
 	pa->alloc_items = num_prefixes;
-	pa->arr = mallocarray(num_prefixes, sizeof(struct in_addr),
-	    M_TEMP, M_ZERO | M_WAITOK);
+	pa->arr = mallocarray(
+	    num_prefixes, sizeof(struct in_addr), M_TEMP, M_ZERO | M_WAITOK);
 
 	rib_walk(RT_DEFAULT_FIB, AF_INET, false, add_prefix, pa);
 
 	return (pa->error == 0);
 }
 
-static int
-run_test_inet_scan(SYSCTL_HANDLER_ARGS)
+static int run_test_inet_scan(SYSCTL_HANDLER_ARGS)
 {
 	struct epoch_tracker et;
 
@@ -496,17 +488,16 @@ run_test_inet_scan(SYSCTL_HANDLER_ARGS)
 
 	total_diff = (ts_post.tv_sec - ts_pre.tv_sec) * 1000000000 +
 	    (ts_post.tv_nsec - ts_pre.tv_nsec);
-	printf("%zu packets in %zu nanoseconds, %zu pps\n",
-	    total_packets, total_diff, total_packets * 1000000000 / total_diff);
+	printf("%zu packets in %zu nanoseconds, %zu pps\n", total_packets,
+	    total_diff, total_packets * 1000000000 / total_diff);
 
 	return (0);
 }
 SYSCTL_PROC(_net_route_test, OID_AUTO, run_inet_scan,
-    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 0, run_test_inet_scan, "I", "Execute fib4_lookup scan tests");
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
+    run_test_inet_scan, "I", "Execute fib4_lookup scan tests");
 
-static int
-rnd_lps(SYSCTL_HANDLER_ARGS)
+static int rnd_lps(SYSCTL_HANDLER_ARGS)
 {
 	struct epoch_tracker et;
 	struct in_addr key;
@@ -537,14 +528,14 @@ rnd_lps(SYSCTL_HANDLER_ARGS)
 	case 0:
 		for (int i = 0; i < count; i++) {
 			key.s_addr = keys[i] + acc;
-			acc += (uintptr_t) fib4_lookup(RT_DEFAULT_FIB, key, 0,
-			    NHR_NONE, 0);
+			acc += (uintptr_t)fib4_lookup(
+			    RT_DEFAULT_FIB, key, 0, NHR_NONE, 0);
 		}
 	case 1:
 		for (int i = 0; i < count; i++) {
 			key.s_addr = keys[i];
-			acc += (uintptr_t) fib4_lookup(RT_DEFAULT_FIB, key, 0,
-			    NHR_NONE, 0);
+			acc += (uintptr_t)fib4_lookup(
+			    RT_DEFAULT_FIB, key, 0, NHR_NONE, 0);
 		}
 	}
 	nanouptime(&ts_post);
@@ -555,19 +546,19 @@ rnd_lps(SYSCTL_HANDLER_ARGS)
 	total_diff = (ts_post.tv_sec - ts_pre.tv_sec) * 1000000000 +
 	    (ts_post.tv_nsec - ts_pre.tv_nsec) + (acc & 1);
 	lps = 1000000000ULL * count / total_diff;
-	printf("%d lookups in %zu nanoseconds, %lu.%06lu MLPS\n",
-	    count, total_diff, lps / 1000000, lps % 1000000);
+	printf("%d lookups in %zu nanoseconds, %lu.%06lu MLPS\n", count,
+	    total_diff, lps / 1000000, lps % 1000000);
 
 	return (0);
 }
 SYSCTL_PROC(_net_route_test, OID_AUTO, run_lps_seq,
-    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 0, rnd_lps, "I",
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0, rnd_lps,
+    "I",
     "Measure lookups per second, uniformly random keys, "
     "artificial dependencies between lookups");
 SYSCTL_PROC(_net_route_test, OID_AUTO, run_lps_rnd,
-    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 1, rnd_lps, "I",
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 1, rnd_lps,
+    "I",
     "Measure lookups per second, uniformly random keys, independent lookups");
 
 static int
@@ -591,11 +582,8 @@ test_fib_lookup_modevent(module_t mod, int type, void *unused)
 	return (error);
 }
 
-static moduledata_t testfiblookupmod = {
-        "test_fib_lookup",
-        test_fib_lookup_modevent,
-        0
-};
+static moduledata_t testfiblookupmod = { "test_fib_lookup",
+	test_fib_lookup_modevent, 0 };
 
 DECLARE_MODULE(testfiblookupmod, testfiblookupmod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(testfiblookup, 1);

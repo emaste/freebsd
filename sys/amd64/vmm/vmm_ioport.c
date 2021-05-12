@@ -37,12 +37,12 @@ __FBSDID("$FreeBSD$");
 
 #include "vatpic.h"
 #include "vatpit.h"
-#include "vpmtmr.h"
-#include "vrtc.h"
 #include "vmm_ioport.h"
 #include "vmm_ktr.h"
+#include "vpmtmr.h"
+#include "vrtc.h"
 
-#define	MAX_IOPORTS		1280
+#define MAX_IOPORTS 1280
 
 ioport_handler_func_t ioport_handler[MAX_IOPORTS] = {
 	[TIMER_MODE] = vatpit_handler,
@@ -68,10 +68,18 @@ inout_instruction(struct vm_exit *vmexit)
 	int index;
 
 	static const char *iodesc[] = {
-		"outb", "outw", "outl",
-		"inb", "inw", "inl",
-		"outsb", "outsw", "outsd",
-		"insb", "insw", "insd",
+		"outb",
+		"outw",
+		"outl",
+		"inb",
+		"inw",
+		"inl",
+		"outsb",
+		"outsw",
+		"outsd",
+		"insb",
+		"insw",
+		"insd",
 	};
 
 	switch (vmexit->u.inout.bytes) {
@@ -92,16 +100,16 @@ inout_instruction(struct vm_exit *vmexit)
 	if (vmexit->u.inout.string)
 		index += 6;
 
-	KASSERT(index < nitems(iodesc), ("%s: invalid index %d",
-	    __func__, index));
+	KASSERT(
+	    index < nitems(iodesc), ("%s: invalid index %d", __func__, index));
 
 	return (iodesc[index]);
 }
-#endif	/* KTR */
+#endif /* KTR */
 
 static int
-emulate_inout_port(struct vm *vm, int vcpuid, struct vm_exit *vmexit,
-    bool *retu)
+emulate_inout_port(
+    struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 {
 	ioport_handler_func_t handler;
 	uint32_t mask, val;
@@ -122,8 +130,8 @@ emulate_inout_port(struct vm *vm, int vcpuid, struct vm_exit *vmexit,
 		val = vmexit->u.inout.eax & mask;
 	}
 
-	error = (*handler)(vm, vcpuid, vmexit->u.inout.in,
-	    vmexit->u.inout.port, vmexit->u.inout.bytes, &val);
+	error = (*handler)(vm, vcpuid, vmexit->u.inout.in, vmexit->u.inout.port,
+	    vmexit->u.inout.bytes, &val);
 	if (error) {
 		/*
 		 * The value returned by this function is also the return value
@@ -138,10 +146,12 @@ emulate_inout_port(struct vm *vm, int vcpuid, struct vm_exit *vmexit,
 	if (vmexit->u.inout.in) {
 		vmexit->u.inout.eax &= ~mask;
 		vmexit->u.inout.eax |= val & mask;
-		error = vm_set_register(vm, vcpuid, VM_REG_GUEST_RAX,
-		    vmexit->u.inout.eax);
-		KASSERT(error == 0, ("emulate_ioport: error %d setting guest "
-		    "rax register", error));
+		error = vm_set_register(
+		    vm, vcpuid, VM_REG_GUEST_RAX, vmexit->u.inout.eax);
+		KASSERT(error == 0,
+		    ("emulate_ioport: error %d setting guest "
+		     "rax register",
+			error));
 	}
 	*retu = false;
 	return (0);
@@ -151,7 +161,7 @@ static int
 emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 {
 	*retu = true;
-	return (0);	/* Return to userspace to finish emulation */
+	return (0); /* Return to userspace to finish emulation */
 }
 
 int
@@ -169,8 +179,7 @@ vm_handle_inout(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 		error = emulate_inout_port(vm, vcpuid, vmexit, retu);
 
 	VCPU_CTR4(vm, vcpuid, "%s%s 0x%04x: %s",
-	    vmexit->u.inout.rep ? "rep " : "",
-	    inout_instruction(vmexit),
+	    vmexit->u.inout.rep ? "rep " : "", inout_instruction(vmexit),
 	    vmexit->u.inout.port,
 	    error ? "error" : (*retu ? "userspace" : "handled"));
 

@@ -28,45 +28,48 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_SYSFS_H_
-#define	_LINUX_SYSFS_H_
+#ifndef _LINUX_SYSFS_H_
+#define _LINUX_SYSFS_H_
 
 #include <sys/types.h>
-#include <sys/sysctl.h>
 #include <sys/errno.h>
+#include <sys/sysctl.h>
 
 #include <linux/kobject.h>
 
 struct sysfs_ops {
 	ssize_t (*show)(struct kobject *, struct attribute *, char *);
-	ssize_t (*store)(struct kobject *, struct attribute *, const char *,
-	    size_t);
+	ssize_t (*store)(
+	    struct kobject *, struct attribute *, const char *, size_t);
 };
 
 struct attribute_group {
-	const char		*name;
-	mode_t			(*is_visible)(struct kobject *,
-				    struct attribute *, int);
-	struct attribute	**attrs;
+	const char *name;
+	mode_t (*is_visible)(struct kobject *, struct attribute *, int);
+	struct attribute **attrs;
 };
 
-#define	__ATTR(_name, _mode, _show, _store) {				\
-	.attr = { .name = __stringify(_name), .mode = _mode },		\
-	.show = _show, .store  = _store,				\
-}
-#define	__ATTR_RO(_name)	__ATTR(_name, 0444, _name##_show, NULL)
-#define	__ATTR_WO(_name)	__ATTR(_name, 0200, NULL, _name##_store)
-#define	__ATTR_RW(_name)	__ATTR(_name, 0644, _name##_show, _name##_store)
-#define	__ATTR_NULL	{ .attr = { .name = NULL } }
+#define __ATTR(_name, _mode, _show, _store)                            \
+	{                                                              \
+		.attr = { .name = __stringify(_name), .mode = _mode }, \
+		.show = _show, .store = _store,                        \
+	}
+#define __ATTR_RO(_name) __ATTR(_name, 0444, _name##_show, NULL)
+#define __ATTR_WO(_name) __ATTR(_name, 0200, NULL, _name##_store)
+#define __ATTR_RW(_name) __ATTR(_name, 0644, _name##_show, _name##_store)
+#define __ATTR_NULL                     \
+	{                               \
+		.attr = {.name = NULL } \
+	}
 
-#define	ATTRIBUTE_GROUPS(_name)						\
-	static struct attribute_group _name##_group = {			\
-		.name = __stringify(_name),				\
-		.attrs = _name##_attrs,					\
-	};								\
-	static const struct attribute_group *_name##_groups[] = {	\
-		&_name##_group,						\
-		NULL,							\
+#define ATTRIBUTE_GROUPS(_name)                                   \
+	static struct attribute_group _name##_group = {           \
+		.name = __stringify(_name),                       \
+		.attrs = _name##_attrs,                           \
+	};                                                        \
+	static const struct attribute_group *_name##_groups[] = { \
+		&_name##_group,                                   \
+		NULL,                                             \
 	}
 
 /*
@@ -76,8 +79,7 @@ struct attribute_group {
  *      a constant string:  point arg1 at it, arg2 is zero.
  */
 
-static inline int
-sysctl_handle_attr(SYSCTL_HANDLER_ARGS)
+static inline int sysctl_handle_attr(SYSCTL_HANDLER_ARGS)
 {
 	struct kobject *kobj;
 	struct attribute *attr;
@@ -135,7 +137,7 @@ sysfs_create_file(struct kobject *kobj, const struct attribute *attr)
 	struct sysctl_oid *oid;
 
 	oid = SYSCTL_ADD_OID(NULL, SYSCTL_CHILDREN(kobj->oidp), OID_AUTO,
-	    attr->name, CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_MPSAFE, kobj,
+	    attr->name, CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, kobj,
 	    (uintptr_t)attr, sysctl_handle_attr, "A", "");
 	if (!oid) {
 		return (-ENOMEM);
@@ -153,7 +155,7 @@ sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
 }
 
 static inline int
-sysfs_create_files(struct kobject *kobj, const struct attribute * const *attrs)
+sysfs_create_files(struct kobject *kobj, const struct attribute *const *attrs)
 {
 	int error = 0;
 	int i;
@@ -167,7 +169,7 @@ sysfs_create_files(struct kobject *kobj, const struct attribute * const *attrs)
 }
 
 static inline void
-sysfs_remove_files(struct kobject *kobj, const struct attribute * const *attrs)
+sysfs_remove_files(struct kobject *kobj, const struct attribute *const *attrs)
 {
 	int i;
 
@@ -184,12 +186,13 @@ sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp)
 	/* Don't create the group node if grp->name is undefined. */
 	if (grp->name)
 		oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(kobj->oidp),
-		    OID_AUTO, grp->name, CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, grp->name);
+		    OID_AUTO, grp->name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+		    grp->name);
 	else
 		oidp = kobj->oidp;
 	for (attr = grp->attrs; *attr != NULL; attr++) {
 		SYSCTL_ADD_OID(NULL, SYSCTL_CHILDREN(oidp), OID_AUTO,
-		    (*attr)->name, CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_MPSAFE,
+		    (*attr)->name, CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 		    kobj, (uintptr_t)*attr, sysctl_handle_attr, "A", "");
 	}
 
@@ -245,7 +248,7 @@ sysfs_unmerge_group(struct kobject *kobj, const struct attribute_group *grp)
 	struct attribute **attr;
 	struct sysctl_oid *oidp;
 
-	SLIST_FOREACH(oidp, SYSCTL_CHILDREN(kobj->oidp), oid_link) {
+	SLIST_FOREACH (oidp, SYSCTL_CHILDREN(kobj->oidp), oid_link) {
 		if (strcmp(oidp->oid_name, grp->name) != 0)
 			continue;
 		for (attr = grp->attrs; *attr != NULL; attr++) {
@@ -260,7 +263,8 @@ sysfs_create_dir(struct kobject *kobj)
 	struct sysctl_oid *oid;
 
 	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(kobj->parent->oidp),
-	    OID_AUTO, kobj->name, CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, kobj->name);
+	    OID_AUTO, kobj->name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    kobj->name);
 	if (!oid) {
 		return (-ENOMEM);
 	}
@@ -286,14 +290,16 @@ sysfs_streq(const char *s1, const char *s2)
 	l1 = strlen(s1);
 	l2 = strlen(s2);
 
-	if (l1 != 0 && s1[l1-1] == '\n')
+	if (l1 != 0 && s1[l1 - 1] == '\n')
 		l1--;
-	if (l2 != 0 && s2[l2-1] == '\n')
+	if (l2 != 0 && s2[l2 - 1] == '\n')
 		l2--;
 
 	return (l1 == l2 && strncmp(s1, s2, l1) == 0);
 }
 
-#define sysfs_attr_init(attr) do {} while(0)
+#define sysfs_attr_init(attr) \
+	do {                  \
+	} while (0)
 
-#endif	/* _LINUX_SYSFS_H_ */
+#endif /* _LINUX_SYSFS_H_ */

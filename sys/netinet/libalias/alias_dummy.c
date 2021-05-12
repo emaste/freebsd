@@ -40,13 +40,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #else
-#include <errno.h>
 #include <sys/types.h>
+
+#include <errno.h>
 #include <stdio.h>
 #endif
 
-#include <netinet/in_systm.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 
@@ -58,8 +59,8 @@ __FBSDID("$FreeBSD$");
 #include "alias_mod.h"
 #endif
 
-static void
-AliasHandleDummy(struct libalias *la, struct ip *ip, struct alias_data *ah);
+static void AliasHandleDummy(
+    struct libalias *la, struct ip *ip, struct alias_data *ah);
 
 static int
 fingerprint(struct libalias *la, struct alias_data *ah)
@@ -70,16 +71,15 @@ fingerprint(struct libalias *la, struct alias_data *ah)
 	 * is empy/NULL, return a -1 value.
 	 */
 	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL ||
-		ah->maxpktsize == 0)
+	    ah->maxpktsize == 0)
 		return (-1);
 	/*
 	 * Fingerprint the incoming packet, if it matches any conditions
 	 * return an OK value.
 	 */
-	if (ntohs(*ah->dport) == 123
-	    || ntohs(*ah->sport) == 456)
+	if (ntohs(*ah->dport) == 123 || ntohs(*ah->sport) == 456)
 		return (0); /* I know how to handle it. */
-	return (-1); /* I don't recognize this packet. */
+	return (-1);	    /* I don't recognize this packet. */
 }
 
 /*
@@ -103,23 +103,19 @@ protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
  * ITS EXACT NAME: handlers.
  */
 
-struct proto_handler handlers [] = {
-	{
-	  .pri = 666,
-	  .dir = IN|OUT,
-	  .proto = UDP|TCP,
-	  .fingerprint = &fingerprint,
-	  .protohandler = &protohandler
-	},
-	{ EOH }
-};
+struct proto_handler handlers[] = { { .pri = 666,
+					.dir = IN | OUT,
+					.proto = UDP | TCP,
+					.fingerprint = &fingerprint,
+					.protohandler = &protohandler },
+	{ EOH } };
 
 static int
 mod_handler(module_t mod, int type, void *data)
 {
 	int error;
 
-	switch (type) {	
+	switch (type) {
 	case MOD_LOAD:
 		error = 0;
 		LibAliasAttachHandlers(handlers);
@@ -137,11 +133,9 @@ mod_handler(module_t mod, int type, void *data)
 #ifdef _KERNEL
 static
 #endif
-moduledata_t alias_mod = {
-       "alias_dummy", mod_handler, NULL
-};
+    moduledata_t alias_mod = { "alias_dummy", mod_handler, NULL };
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 DECLARE_MODULE(alias_dummy, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
 MODULE_VERSION(alias_dummy, 1);
 MODULE_DEPEND(alias_dummy, libalias, 1, 1, 1);

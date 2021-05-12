@@ -62,18 +62,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+
 #include <machine/bus.h>
 #include <machine/pcpu.h>
 
-#include <dev/uart/uart.h>
-#include <dev/uart/uart_cpu.h>
-#include <dev/uart/uart_bus.h>
-
 #include <dev/ic/ns16550.h>
-
-#include <mips/cavium/octeon_pcmap_regs.h>
+#include <dev/uart/uart.h>
+#include <dev/uart/uart_bus.h>
+#include <dev/uart/uart_cpu.h>
 
 #include <contrib/octeon-sdk/cvmx.h>
+#include <mips/cavium/octeon_pcmap_regs.h>
 
 #include "uart_if.h"
 
@@ -82,7 +81,7 @@ __FBSDID("$FreeBSD$");
  * that may have been received gets lost here.
  */
 static void
-oct16550_clrint (struct uart_bas *bas)
+oct16550_clrint(struct uart_bas *bas)
 {
 	uint8_t iir;
 
@@ -95,8 +94,8 @@ oct16550_clrint (struct uart_bas *bas)
 			(void)uart_getreg(bas, REG_DATA);
 		else if (iir == IIR_MLSC)
 			(void)uart_getreg(bas, REG_MSR);
-                else if (iir == IIR_BUSY)
-                    	(void) uart_getreg(bas, REG_USR);
+		else if (iir == IIR_BUSY)
+			(void)uart_getreg(bas, REG_USR);
 		uart_barrier(bas);
 		iir = uart_getreg(bas, REG_IIR);
 	}
@@ -105,14 +104,15 @@ oct16550_clrint (struct uart_bas *bas)
 static int delay_changed = 1;
 
 static int
-oct16550_delay (struct uart_bas *bas)
+oct16550_delay(struct uart_bas *bas)
 {
 	int divisor;
 	u_char lcr;
-        static int delay = 0;
+	static int delay = 0;
 
-        if (!delay_changed) return delay;
-        delay_changed = 0;
+	if (!delay_changed)
+		return delay;
+	delay_changed = 0;
 	lcr = uart_getreg(bas, REG_LCR);
 	uart_setreg(bas, REG_LCR, lcr | LCR_DLAB);
 	uart_barrier(bas);
@@ -121,18 +121,17 @@ oct16550_delay (struct uart_bas *bas)
 	uart_setreg(bas, REG_LCR, lcr);
 	uart_barrier(bas);
 
-	if(!bas->rclk)
+	if (!bas->rclk)
 		return 10; /* return an approx delay value */
 
 	/* 1/10th the time to transmit 1 character (estimate). */
 	if (divisor <= 134)
 		return (16000000 * divisor / bas->rclk);
 	return (16000 * divisor / (bas->rclk / 1000));
-
 }
 
 static int
-oct16550_divisor (int rclk, int baudrate)
+oct16550_divisor(int rclk, int baudrate)
 {
 	int actual_baud, divisor;
 	int error;
@@ -156,7 +155,7 @@ oct16550_divisor (int rclk, int baudrate)
 }
 
 static int
-oct16550_drain (struct uart_bas *bas, int what)
+oct16550_drain(struct uart_bas *bas, int what)
 {
 	int delay, limit;
 
@@ -168,7 +167,7 @@ oct16550_drain (struct uart_bas *bas, int what)
 		 * an infinite loop when the hardware is broken. Make the
 		 * limit high enough to handle large FIFOs.
 		 */
-		limit = 10*10*10*1024;
+		limit = 10 * 10 * 10 * 1024;
 		while ((uart_getreg(bas, REG_LSR) & LSR_TEMT) == 0 && --limit)
 			DELAY(delay);
 		if (limit == 0) {
@@ -186,7 +185,7 @@ oct16550_drain (struct uart_bas *bas, int what)
 		 * management board that tend to get a lot of data send
 		 * to it when the UART is first activated.
 		 */
-		limit=10*4096;
+		limit = 10 * 4096;
 		while ((uart_getreg(bas, REG_LSR) & LSR_RXRDY) && --limit) {
 			(void)uart_getreg(bas, REG_DATA);
 			uart_barrier(bas);
@@ -206,7 +205,7 @@ oct16550_drain (struct uart_bas *bas, int what)
  * drained. WARNING: this function clobbers the FIFO setting!
  */
 static void
-oct16550_flush (struct uart_bas *bas, int what)
+oct16550_flush(struct uart_bas *bas, int what)
 {
 	uint8_t fcr;
 
@@ -220,8 +219,8 @@ oct16550_flush (struct uart_bas *bas, int what)
 }
 
 static int
-oct16550_param (struct uart_bas *bas, int baudrate, int databits, int stopbits,
-    int parity)
+oct16550_param(
+    struct uart_bas *bas, int baudrate, int databits, int stopbits, int parity)
 {
 	int divisor;
 	uint8_t lcr;
@@ -249,7 +248,7 @@ oct16550_param (struct uart_bas *bas, int baudrate, int databits, int stopbits,
 		uart_setreg(bas, REG_DLL, divisor & 0xff);
 		uart_setreg(bas, REG_DLH, (divisor >> 8) & 0xff);
 		uart_barrier(bas);
-                delay_changed = 1;
+		delay_changed = 1;
 	}
 
 	/* Set LCR and clear DLAB. */
@@ -278,7 +277,7 @@ struct uart_ops uart_oct16550_ops = {
 };
 
 static int
-oct16550_probe (struct uart_bas *bas)
+oct16550_probe(struct uart_bas *bas)
 {
 	u_char val;
 
@@ -290,16 +289,16 @@ oct16550_probe (struct uart_bas *bas)
 	if (val & 0xc0)
 		return (ENXIO);
 	val = uart_getreg(bas, REG_USR);
-        if (val & 0xe0)
-            	return (ENXIO);
+	if (val & 0xe0)
+		return (ENXIO);
 	return (0);
 }
 
 static void
-oct16550_init (struct uart_bas *bas, int baudrate, int databits, int stopbits,
-    int parity)
+oct16550_init(
+    struct uart_bas *bas, int baudrate, int databits, int stopbits, int parity)
 {
-	u_char	ier;
+	u_char ier;
 
 	oct16550_param(bas, baudrate, databits, stopbits, parity);
 
@@ -309,7 +308,7 @@ oct16550_init (struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	uart_barrier(bas);
 
 	/* Disable the FIFO (if present). */
-//	uart_setreg(bas, REG_FCR, 0);
+	//	uart_setreg(bas, REG_FCR, 0);
 	uart_barrier(bas);
 
 	/* Set RTS & DTR. */
@@ -320,7 +319,7 @@ oct16550_init (struct uart_bas *bas, int baudrate, int databits, int stopbits,
 }
 
 static void
-oct16550_term (struct uart_bas *bas)
+oct16550_term(struct uart_bas *bas)
 {
 
 	/* Clear RTS & DTR. */
@@ -328,35 +327,36 @@ oct16550_term (struct uart_bas *bas)
 	uart_barrier(bas);
 }
 
-static inline void oct16550_wait_txhr_empty (struct uart_bas *bas, int limit, int delay)
+static inline void
+oct16550_wait_txhr_empty(struct uart_bas *bas, int limit, int delay)
 {
-    while (((uart_getreg(bas, REG_LSR) & LSR_THRE) == 0) &&
-           ((uart_getreg(bas, REG_USR) & USR_TXFIFO_NOTFULL) == 0))
-        DELAY(delay);
+	while (((uart_getreg(bas, REG_LSR) & LSR_THRE) == 0) &&
+	    ((uart_getreg(bas, REG_USR) & USR_TXFIFO_NOTFULL) == 0))
+		DELAY(delay);
 }
 
 static void
-oct16550_putc (struct uart_bas *bas, int c)
+oct16550_putc(struct uart_bas *bas, int c)
 {
 	int delay;
 
 	/* 1/10th the time to transmit 1 character (estimate). */
 	delay = oct16550_delay(bas);
-        oct16550_wait_txhr_empty(bas, 100, delay);
+	oct16550_wait_txhr_empty(bas, 100, delay);
 	uart_setreg(bas, REG_DATA, c);
 	uart_barrier(bas);
-        oct16550_wait_txhr_empty(bas, 100, delay);
+	oct16550_wait_txhr_empty(bas, 100, delay);
 }
 
 static int
-oct16550_rxready (struct uart_bas *bas)
+oct16550_rxready(struct uart_bas *bas)
 {
 
 	return ((uart_getreg(bas, REG_LSR) & LSR_RXRDY) != 0 ? 1 : 0);
 }
 
 static int
-oct16550_getc (struct uart_bas *bas, struct mtx *hwmtx)
+oct16550_getc(struct uart_bas *bas, struct mtx *hwmtx)
 {
 	int c, delay;
 
@@ -383,9 +383,9 @@ oct16550_getc (struct uart_bas *bas, struct mtx *hwmtx)
  */
 struct oct16550_softc {
 	struct uart_softc base;
-	uint8_t		fcr;
-	uint8_t		ier;
-	uint8_t		mcr;
+	uint8_t fcr;
+	uint8_t ier;
+	uint8_t mcr;
 };
 
 static int oct16550_bus_attach(struct uart_softc *);
@@ -402,56 +402,48 @@ static int oct16550_bus_transmit(struct uart_softc *);
 static void oct16550_bus_grab(struct uart_softc *);
 static void oct16550_bus_ungrab(struct uart_softc *);
 
-static kobj_method_t oct16550_methods[] = {
-	KOBJMETHOD(uart_attach,		oct16550_bus_attach),
-	KOBJMETHOD(uart_detach,		oct16550_bus_detach),
-	KOBJMETHOD(uart_flush,		oct16550_bus_flush),
-	KOBJMETHOD(uart_getsig,		oct16550_bus_getsig),
-	KOBJMETHOD(uart_ioctl,		oct16550_bus_ioctl),
-	KOBJMETHOD(uart_ipend,		oct16550_bus_ipend),
-	KOBJMETHOD(uart_param,		oct16550_bus_param),
-	KOBJMETHOD(uart_probe,		oct16550_bus_probe),
-	KOBJMETHOD(uart_receive,	oct16550_bus_receive),
-	KOBJMETHOD(uart_setsig,		oct16550_bus_setsig),
-	KOBJMETHOD(uart_transmit,	oct16550_bus_transmit),
-	KOBJMETHOD(uart_grab,		oct16550_bus_grab),
-	KOBJMETHOD(uart_ungrab,		oct16550_bus_ungrab),
-	{ 0, 0 }
-};
+static kobj_method_t oct16550_methods[] = { KOBJMETHOD(uart_attach,
+						oct16550_bus_attach),
+	KOBJMETHOD(uart_detach, oct16550_bus_detach),
+	KOBJMETHOD(uart_flush, oct16550_bus_flush),
+	KOBJMETHOD(uart_getsig, oct16550_bus_getsig),
+	KOBJMETHOD(uart_ioctl, oct16550_bus_ioctl),
+	KOBJMETHOD(uart_ipend, oct16550_bus_ipend),
+	KOBJMETHOD(uart_param, oct16550_bus_param),
+	KOBJMETHOD(uart_probe, oct16550_bus_probe),
+	KOBJMETHOD(uart_receive, oct16550_bus_receive),
+	KOBJMETHOD(uart_setsig, oct16550_bus_setsig),
+	KOBJMETHOD(uart_transmit, oct16550_bus_transmit),
+	KOBJMETHOD(uart_grab, oct16550_bus_grab),
+	KOBJMETHOD(uart_ungrab, oct16550_bus_ungrab), { 0, 0 } };
 
-struct uart_class uart_oct16550_class = {
-	"oct16550 class",
-	oct16550_methods,
-	sizeof(struct oct16550_softc),
-	.uc_ops = &uart_oct16550_ops,
-	.uc_range = 8 << 3,
-	.uc_rclk = 0,
-	.uc_rshift = 0
-};
+struct uart_class uart_oct16550_class = { "oct16550 class", oct16550_methods,
+	sizeof(struct oct16550_softc), .uc_ops = &uart_oct16550_ops,
+	.uc_range = 8 << 3, .uc_rclk = 0, .uc_rshift = 0 };
 
-#define	SIGCHG(c, i, s, d)				\
-	if (c) {					\
-		i |= (i & s) ? s : s | d;		\
-	} else {					\
-		i = (i & s) ? (i & ~s) | d : i;		\
+#define SIGCHG(c, i, s, d)                      \
+	if (c) {                                \
+		i |= (i & s) ? s : s | d;       \
+	} else {                                \
+		i = (i & s) ? (i & ~s) | d : i; \
 	}
 
 static int
-oct16550_bus_attach (struct uart_softc *sc)
+oct16550_bus_attach(struct uart_softc *sc)
 {
-	struct oct16550_softc *oct16550 = (struct oct16550_softc*)sc;
+	struct oct16550_softc *oct16550 = (struct oct16550_softc *)sc;
 	struct uart_bas *bas;
-        int unit;
+	int unit;
 
-        unit = device_get_unit(sc->sc_dev);
+	unit = device_get_unit(sc->sc_dev);
 	bas = &sc->sc_bas;
 
-        oct16550_drain(bas, UART_DRAIN_TRANSMITTER);
+	oct16550_drain(bas, UART_DRAIN_TRANSMITTER);
 	oct16550->mcr = uart_getreg(bas, REG_MCR);
 	oct16550->fcr = FCR_ENABLE | FCR_RX_HIGH;
 	uart_setreg(bas, REG_FCR, oct16550->fcr);
 	uart_barrier(bas);
-	oct16550_bus_flush(sc, UART_FLUSH_RECEIVER|UART_FLUSH_TRANSMITTER);
+	oct16550_bus_flush(sc, UART_FLUSH_RECEIVER | UART_FLUSH_TRANSMITTER);
 
 	if (oct16550->mcr & MCR_DTR)
 		sc->sc_hwsig |= SER_DTR;
@@ -469,7 +461,7 @@ oct16550_bus_attach (struct uart_softc *sc)
 }
 
 static int
-oct16550_bus_detach (struct uart_softc *sc)
+oct16550_bus_detach(struct uart_softc *sc)
 {
 	struct uart_bas *bas;
 	u_char ier;
@@ -483,9 +475,9 @@ oct16550_bus_detach (struct uart_softc *sc)
 }
 
 static int
-oct16550_bus_flush (struct uart_softc *sc, int what)
+oct16550_bus_flush(struct uart_softc *sc, int what)
 {
-	struct oct16550_softc *oct16550 = (struct oct16550_softc*)sc;
+	struct oct16550_softc *oct16550 = (struct oct16550_softc *)sc;
 	struct uart_bas *bas;
 	int error;
 
@@ -503,7 +495,7 @@ oct16550_bus_flush (struct uart_softc *sc, int what)
 }
 
 static int
-oct16550_bus_getsig (struct uart_softc *sc)
+oct16550_bus_getsig(struct uart_softc *sc)
 {
 	uint32_t new, old, sig;
 	uint8_t msr;
@@ -517,14 +509,14 @@ oct16550_bus_getsig (struct uart_softc *sc)
 		SIGCHG(msr & MSR_DSR, sig, SER_DSR, SER_DDSR);
 		SIGCHG(msr & MSR_CTS, sig, SER_CTS, SER_DCTS);
 		SIGCHG(msr & MSR_DCD, sig, SER_DCD, SER_DDCD);
-		SIGCHG(msr & MSR_RI,  sig, SER_RI,  SER_DRI);
+		SIGCHG(msr & MSR_RI, sig, SER_RI, SER_DRI);
 		new = sig & ~SER_MASK_DELTA;
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 	return (sig);
 }
 
 static int
-oct16550_bus_ioctl (struct uart_softc *sc, int request, intptr_t data)
+oct16550_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
 	struct uart_bas *bas;
 	int baudrate, divisor, error;
@@ -583,9 +575,9 @@ oct16550_bus_ioctl (struct uart_softc *sc, int request, intptr_t data)
 		uart_setreg(bas, REG_LCR, lcr);
 		uart_barrier(bas);
 		baudrate = (divisor > 0) ? bas->rclk / divisor / 16 : 0;
-                delay_changed = 1;
+		delay_changed = 1;
 		if (baudrate > 0)
-			*(int*)data = baudrate;
+			*(int *)data = baudrate;
 		else
 			error = ENXIO;
 		break;
@@ -609,30 +601,30 @@ oct16550_bus_ipend(struct uart_softc *sc)
 
 	iir = uart_getreg(bas, REG_IIR) & IIR_IMASK;
 	if (iir != IIR_NOPEND) {
-            	if (iir == IIR_RLS) {
-                    	lsr = uart_getreg(bas, REG_LSR);
-                        if (lsr & LSR_OE)
-                            	ipend |= SER_INT_OVERRUN;
-                        if (lsr & LSR_BI)
-                            	ipend |= SER_INT_BREAK;
-                        if (lsr & LSR_RXRDY)
-                    		ipend |= SER_INT_RXREADY;
+		if (iir == IIR_RLS) {
+			lsr = uart_getreg(bas, REG_LSR);
+			if (lsr & LSR_OE)
+				ipend |= SER_INT_OVERRUN;
+			if (lsr & LSR_BI)
+				ipend |= SER_INT_BREAK;
+			if (lsr & LSR_RXRDY)
+				ipend |= SER_INT_RXREADY;
 
-                } else if (iir == IIR_RXRDY) {
-                    	ipend |= SER_INT_RXREADY;
+		} else if (iir == IIR_RXRDY) {
+			ipend |= SER_INT_RXREADY;
 
-                } else if (iir == IIR_RXTOUT) {
-                    	ipend |= SER_INT_RXREADY;
+		} else if (iir == IIR_RXTOUT) {
+			ipend |= SER_INT_RXREADY;
 
-                } else if (iir == IIR_TXRDY) {
-                    	ipend |= SER_INT_TXIDLE;
+		} else if (iir == IIR_TXRDY) {
+			ipend |= SER_INT_TXIDLE;
 
-                } else if (iir == IIR_MLSC) {
-                    	ipend |= SER_INT_SIGCHG;
+		} else if (iir == IIR_MLSC) {
+			ipend |= SER_INT_SIGCHG;
 
-                } else if (iir == IIR_BUSY) {
-                    	(void) uart_getreg(bas, REG_USR);
-                }
+		} else if (iir == IIR_BUSY) {
+			(void)uart_getreg(bas, REG_USR);
+		}
 	}
 	uart_unlock(sc->sc_hwmtx);
 
@@ -640,8 +632,8 @@ oct16550_bus_ipend(struct uart_softc *sc)
 }
 
 static int
-oct16550_bus_param (struct uart_softc *sc, int baudrate, int databits,
-    int stopbits, int parity)
+oct16550_bus_param(
+    struct uart_softc *sc, int baudrate, int databits, int stopbits, int parity)
 {
 	struct uart_bas *bas;
 	int error;
@@ -654,18 +646,19 @@ oct16550_bus_param (struct uart_softc *sc, int baudrate, int databits,
 }
 
 static int
-oct16550_bus_probe (struct uart_softc *sc)
+oct16550_bus_probe(struct uart_softc *sc)
 {
 	struct uart_bas *bas;
 	int error;
 
 	bas = &sc->sc_bas;
-	bas->rclk = uart_oct16550_class.uc_rclk = cvmx_clock_get_rate(CVMX_CLOCK_SCLK);
+	bas->rclk = uart_oct16550_class.uc_rclk = cvmx_clock_get_rate(
+	    CVMX_CLOCK_SCLK);
 
 	error = oct16550_probe(bas);
 	if (error) {
 		return (error);
-        }
+	}
 
 	uart_setreg(bas, REG_MCR, (MCR_DTR | MCR_RTS));
 
@@ -674,20 +667,20 @@ oct16550_bus_probe (struct uart_softc *sc)
 	 * done. Since this is the first time we enable the FIFOs, we reset
 	 * them.
 	 */
-        oct16550_drain(bas, UART_DRAIN_TRANSMITTER);
+	oct16550_drain(bas, UART_DRAIN_TRANSMITTER);
 #define ENABLE_OCTEON_FIFO 1
 #ifdef ENABLE_OCTEON_FIFO
 	uart_setreg(bas, REG_FCR, FCR_ENABLE | FCR_XMT_RST | FCR_RCV_RST);
 #endif
 	uart_barrier(bas);
 
-	oct16550_flush(bas, UART_FLUSH_RECEIVER|UART_FLUSH_TRANSMITTER);
+	oct16550_flush(bas, UART_FLUSH_RECEIVER | UART_FLUSH_TRANSMITTER);
 
-        if (device_get_unit(sc->sc_dev)) {
-            	device_set_desc(sc->sc_dev, "Octeon-16550 channel 1");
-        } else {
-            	device_set_desc(sc->sc_dev, "Octeon-16550 channel 0");
-        }
+	if (device_get_unit(sc->sc_dev)) {
+		device_set_desc(sc->sc_dev, "Octeon-16550 channel 1");
+	} else {
+		device_set_desc(sc->sc_dev, "Octeon-16550 channel 0");
+	}
 #ifdef ENABLE_OCTEON_FIFO
 	sc->sc_rxfifosz = 64;
 	sc->sc_txfifosz = 64;
@@ -714,7 +707,7 @@ oct16550_bus_probe (struct uart_softc *sc)
 }
 
 static int
-oct16550_bus_receive (struct uart_softc *sc)
+oct16550_bus_receive(struct uart_softc *sc)
 {
 	struct uart_bas *bas;
 	int xc;
@@ -738,25 +731,25 @@ oct16550_bus_receive (struct uart_softc *sc)
 		lsr = uart_getreg(bas, REG_LSR);
 	}
 	/* Discard everything left in the Rx FIFO. */
-        /*
-         * First do a dummy read/discard anyway, in case the UART was lying to us.
-         * This problem was seen on board, when IIR said RBR, but LSR said no RXRDY
-         * Results in a stuck ipend loop.
-         */
-        (void)uart_getreg(bas, REG_DATA);
+	/*
+	 * First do a dummy read/discard anyway, in case the UART was lying to
+	 * us. This problem was seen on board, when IIR said RBR, but LSR said
+	 * no RXRDY Results in a stuck ipend loop.
+	 */
+	(void)uart_getreg(bas, REG_DATA);
 	while (lsr & LSR_RXRDY) {
 		(void)uart_getreg(bas, REG_DATA);
 		uart_barrier(bas);
 		lsr = uart_getreg(bas, REG_LSR);
 	}
 	uart_unlock(sc->sc_hwmtx);
- 	return (0);
+	return (0);
 }
 
 static int
-oct16550_bus_setsig (struct uart_softc *sc, int sig)
+oct16550_bus_setsig(struct uart_softc *sc, int sig)
 {
-	struct oct16550_softc *oct16550 = (struct oct16550_softc*)sc;
+	struct oct16550_softc *oct16550 = (struct oct16550_softc *)sc;
 	struct uart_bas *bas;
 	uint32_t new, old;
 
@@ -765,19 +758,17 @@ oct16550_bus_setsig (struct uart_softc *sc, int sig)
 		old = sc->sc_hwsig;
 		new = old;
 		if (sig & SER_DDTR) {
-			SIGCHG(sig & SER_DTR, new, SER_DTR,
-			    SER_DDTR);
+			SIGCHG(sig & SER_DTR, new, SER_DTR, SER_DDTR);
 		}
 		if (sig & SER_DRTS) {
-			SIGCHG(sig & SER_RTS, new, SER_RTS,
-			    SER_DRTS);
+			SIGCHG(sig & SER_RTS, new, SER_RTS, SER_DRTS);
 		}
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 	uart_lock(sc->sc_hwmtx);
-	oct16550->mcr &= ~(MCR_DTR|MCR_RTS);
-	if (new & SER_DTR)
+	oct16550->mcr &= ~(MCR_DTR | MCR_RTS);
+	if (new &SER_DTR)
 		oct16550->mcr |= MCR_DTR;
-	if (new & SER_RTS)
+	if (new &SER_RTS)
 		oct16550->mcr |= MCR_RTS;
 	uart_setreg(bas, REG_MCR, oct16550->mcr);
 	uart_barrier(bas);
@@ -786,21 +777,21 @@ oct16550_bus_setsig (struct uart_softc *sc, int sig)
 }
 
 static int
-oct16550_bus_transmit (struct uart_softc *sc)
+oct16550_bus_transmit(struct uart_softc *sc)
 {
-	struct oct16550_softc *oct16550 = (struct oct16550_softc*)sc;
+	struct oct16550_softc *oct16550 = (struct oct16550_softc *)sc;
 	struct uart_bas *bas;
 	int i;
 
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
 #ifdef NO_UART_INTERRUPTS
-        for (i = 0; i < sc->sc_txdatasz; i++) {
-            oct16550_putc(bas, sc->sc_txbuf[i]);
-        }
+	for (i = 0; i < sc->sc_txdatasz; i++) {
+		oct16550_putc(bas, sc->sc_txbuf[i]);
+	}
 #else
 
-        oct16550_wait_txhr_empty(bas, 100, oct16550_delay(bas));
+	oct16550_wait_txhr_empty(bas, 100, oct16550_delay(bas));
 	uart_setreg(bas, REG_IER, oct16550->ier | IER_ETXRDY);
 	uart_barrier(bas);
 
@@ -833,7 +824,7 @@ oct16550_bus_grab(struct uart_softc *sc)
 static void
 oct16550_bus_ungrab(struct uart_softc *sc)
 {
-	struct oct16550_softc *oct16550 = (struct oct16550_softc*)sc;
+	struct oct16550_softc *oct16550 = (struct oct16550_softc *)sc;
 	struct uart_bas *bas = &sc->sc_bas;
 
 	/*

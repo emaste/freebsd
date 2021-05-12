@@ -48,9 +48,7 @@
 
 #include <security/mac/mac_policy.h>
 
-static struct mac_policy_ops none_ops =
-{
-};
+static struct mac_policy_ops none_ops = {};
 
 MAC_POLICY_SET(&none_ops, mac_none, "TrustedBSD MAC/None",
     MPC_LOADTIME_FLAG_UNLOADOK, NULL);

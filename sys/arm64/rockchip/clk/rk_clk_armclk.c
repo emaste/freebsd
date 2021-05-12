@@ -41,43 +41,40 @@ __FBSDID("$FreeBSD$");
 #include "clkdev_if.h"
 
 struct rk_clk_armclk_sc {
-	uint32_t	muxdiv_offset;
-	uint32_t	mux_shift;
-	uint32_t	mux_width;
-	uint32_t	mux_mask;
+	uint32_t muxdiv_offset;
+	uint32_t mux_shift;
+	uint32_t mux_width;
+	uint32_t mux_mask;
 
-	uint32_t	div_shift;
-	uint32_t	div_width;
-	uint32_t	div_mask;
+	uint32_t div_shift;
+	uint32_t div_width;
+	uint32_t div_mask;
 
-	uint32_t	gate_offset;
-	uint32_t	gate_shift;
+	uint32_t gate_offset;
+	uint32_t gate_shift;
 
-	uint32_t	flags;
+	uint32_t flags;
 
-	uint32_t	main_parent;
-	uint32_t	alt_parent;
+	uint32_t main_parent;
+	uint32_t alt_parent;
 
-	struct rk_clk_armclk_rates	*rates;
-	int		nrates;
+	struct rk_clk_armclk_rates *rates;
+	int nrates;
 };
 
-#define	WRITE4(_clk, off, val)						\
+#define WRITE4(_clk, off, val) \
 	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
-#define	READ4(_clk, off, val)						\
-	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
-#define	DEVICE_LOCK(_clk)						\
-	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
-#define	DEVICE_UNLOCK(_clk)						\
-	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
+#define READ4(_clk, off, val) CLKDEV_READ_4(clknode_get_device(_clk), off, val)
+#define DEVICE_LOCK(_clk) CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
+#define DEVICE_UNLOCK(_clk) CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
-#define	RK_ARMCLK_WRITE_MASK_SHIFT	16
+#define RK_ARMCLK_WRITE_MASK_SHIFT 16
 
 #if 0
-#define	dprintf(format, arg...)						\
+#define dprintf(format, arg...) \
 	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg)
 #else
-#define	dprintf(format, arg...)
+#define dprintf(format, arg...)
 #endif
 
 static int
@@ -143,8 +140,8 @@ rk_clk_armclk_recalc(struct clknode *clk, uint64_t *freq)
 }
 
 static int
-rk_clk_armclk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
-    int flags, int *stop)
+rk_clk_armclk_set_freq(
+    struct clknode *clk, uint64_t fparent, uint64_t *fout, int flags, int *stop)
 {
 	struct rk_clk_armclk_sc *sc;
 	struct clknode *p_main;
@@ -166,9 +163,7 @@ rk_clk_armclk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 			best_p = best * div;
 			rate = i;
 			dprintf("Best parent %s (%d) with best freq at %ju\n",
-			    clknode_get_name(p_main),
-			    sc->main_parent,
-			    best);
+			    clknode_get_name(p_main), sc->main_parent, best);
 			break;
 		}
 	}
@@ -186,9 +181,8 @@ rk_clk_armclk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	    best_p);
 	err = clknode_set_freq(p_main, best_p, 0, 1);
 	if (err != 0)
-		printf("Cannot set %s to %ju\n",
-		    clknode_get_name(p_main),
-		    best_p);
+		printf(
+		    "Cannot set %s to %ju\n", clknode_get_name(p_main), best_p);
 
 	clknode_set_parent_by_idx(clk, sc->main_parent);
 
@@ -209,10 +203,10 @@ rk_clk_armclk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 
 static clknode_method_t rk_clk_armclk_clknode_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init,		rk_clk_armclk_init),
-	CLKNODEMETHOD(clknode_set_mux,		rk_clk_armclk_set_mux),
-	CLKNODEMETHOD(clknode_recalc_freq,	rk_clk_armclk_recalc),
-	CLKNODEMETHOD(clknode_set_freq,		rk_clk_armclk_set_freq),
+	CLKNODEMETHOD(clknode_init, rk_clk_armclk_init),
+	CLKNODEMETHOD(clknode_set_mux, rk_clk_armclk_set_mux),
+	CLKNODEMETHOD(clknode_recalc_freq, rk_clk_armclk_recalc),
+	CLKNODEMETHOD(clknode_set_freq, rk_clk_armclk_set_freq),
 	CLKNODEMETHOD_END
 };
 
@@ -226,8 +220,8 @@ rk_clk_armclk_register(struct clkdom *clkdom, struct rk_clk_armclk_def *clkdef)
 	struct clknode *clk;
 	struct rk_clk_armclk_sc *sc;
 
-	clk = clknode_create(clkdom, &rk_clk_armclk_clknode_class,
-	    &clkdef->clkdef);
+	clk = clknode_create(
+	    clkdom, &rk_clk_armclk_clknode_class, &clkdef->clkdef);
 	if (clk == NULL)
 		return (1);
 

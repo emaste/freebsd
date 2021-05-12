@@ -51,16 +51,22 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 
 	if (kdb_thread == curthread) {
 		switch (regnum) {
-		case GDB_REG_LR:   return (&kdb_frame->tf_lr);
-		case GDB_REG_SP:   return (&kdb_frame->tf_sp);
-		case GDB_REG_PC:   return (&kdb_frame->tf_elr);
-		case GDB_REG_CSPR: return (&kdb_frame->tf_spsr);
+		case GDB_REG_LR:
+			return (&kdb_frame->tf_lr);
+		case GDB_REG_SP:
+			return (&kdb_frame->tf_sp);
+		case GDB_REG_PC:
+			return (&kdb_frame->tf_elr);
+		case GDB_REG_CSPR:
+			return (&kdb_frame->tf_spsr);
 		}
 	}
 	switch (regnum) {
-	case GDB_REG_SP: return (&kdb_thrctx->pcb_sp);
+	case GDB_REG_SP:
+		return (&kdb_thrctx->pcb_sp);
 	case GDB_REG_PC: /* FALLTHROUGH */
-	case GDB_REG_LR: return (&kdb_thrctx->pcb_lr);
+	case GDB_REG_LR:
+		return (&kdb_thrctx->pcb_lr);
 	default:
 		if (regnum >= GDB_REG_X0 && regnum <= GDB_REG_X29)
 			return (&kdb_thrctx->pcb_x[regnum]);
@@ -78,8 +84,12 @@ gdb_cpu_setreg(int regnum, void *val)
 	/* For curthread, keep the pcb and trapframe in sync. */
 	if (kdb_thread == curthread) {
 		switch (regnum) {
-		case GDB_REG_PC: kdb_frame->tf_elr = regval; break;
-		case GDB_REG_SP: kdb_frame->tf_sp  = regval; break;
+		case GDB_REG_PC:
+			kdb_frame->tf_elr = regval;
+			break;
+		case GDB_REG_SP:
+			kdb_frame->tf_sp = regval;
+			break;
 		default:
 			if (regnum >= GDB_REG_X0 && regnum <= GDB_REG_X29) {
 				kdb_frame->tf_x[regnum] = regval;
@@ -89,8 +99,12 @@ gdb_cpu_setreg(int regnum, void *val)
 	}
 	switch (regnum) {
 	case GDB_REG_PC: /* FALLTHROUGH */
-	case GDB_REG_LR: kdb_thrctx->pcb_lr = regval; break;
-	case GDB_REG_SP: kdb_thrctx->pcb_sp = regval; break;
+	case GDB_REG_LR:
+		kdb_thrctx->pcb_lr = regval;
+		break;
+	case GDB_REG_SP:
+		kdb_thrctx->pcb_sp = regval;
+		break;
 	default:
 		if (regnum >= GDB_REG_X0 && regnum <= GDB_REG_X29) {
 			kdb_thrctx->pcb_x[regnum] = regval;

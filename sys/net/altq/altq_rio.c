@@ -62,23 +62,22 @@
 #include "opt_altq.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#ifdef ALTQ_RIO	/* rio is enabled by ALTQ_RIO option in opt_altq.h */
+#ifdef ALTQ_RIO /* rio is enabled by ALTQ_RIO option in opt_altq.h */
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/systm.h>
-#include <sys/errno.h>
 #if 1 /* ALTQ3_COMPAT */
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sockio.h>
-#include <sys/kernel.h>
 #endif
 
 #include <net/if.h>
 #include <net/if_var.h>
-
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -86,12 +85,12 @@
 #include <netinet/ip6.h>
 #endif
 
-#include <netpfil/pf/pf.h>
-#include <netpfil/pf/pf_altq.h>
 #include <net/altq/altq.h>
 #include <net/altq/altq_cdnr.h>
 #include <net/altq/altq_red.h>
 #include <net/altq/altq_rio.h>
+#include <netpfil/pf/pf.h>
+#include <netpfil/pf/pf_altq.h>
 
 /*
  * RIO: RED with IN/OUT bit
@@ -124,53 +123,56 @@
  */
 
 /* normal red parameters */
-#define	W_WEIGHT	512	/* inverse of weight of EWMA (511/512) */
-				/* q_weight = 0.00195 */
+#define W_WEIGHT 512 /* inverse of weight of EWMA (511/512) */
+		     /* q_weight = 0.00195 */
 
 /* red parameters for a slow link */
-#define	W_WEIGHT_1	128	/* inverse of weight of EWMA (127/128) */
-				/* q_weight = 0.0078125 */
+#define W_WEIGHT_1 128 /* inverse of weight of EWMA (127/128) */
+		       /* q_weight = 0.0078125 */
 
 /* red parameters for a very slow link (e.g., dialup) */
-#define	W_WEIGHT_2	64	/* inverse of weight of EWMA (63/64) */
-				/* q_weight = 0.015625 */
+#define W_WEIGHT_2 64 /* inverse of weight of EWMA (63/64) */
+		      /* q_weight = 0.015625 */
 
 /* fixed-point uses 12-bit decimal places */
-#define	FP_SHIFT	12	/* fixed-point shift */
+#define FP_SHIFT 12 /* fixed-point shift */
 
 /* red parameters for drop probability */
-#define	INV_P_MAX	10	/* inverse of max drop probability */
-#define	TH_MIN		 5	/* min threshold */
-#define	TH_MAX		15	/* max threshold */
+#define INV_P_MAX 10 /* inverse of max drop probability */
+#define TH_MIN 5     /* min threshold */
+#define TH_MAX 15    /* max threshold */
 
-#define	RIO_LIMIT	60	/* default max queue length */
-#define	RIO_STATS		/* collect statistics */
+#define RIO_LIMIT 60 /* default max queue length */
+#define RIO_STATS    /* collect statistics */
 
-#define	TV_DELTA(a, b, delta) {					\
-	int	xxs;						\
-								\
-	delta = (a)->tv_usec - (b)->tv_usec; 			\
-	if ((xxs = (a)->tv_sec - (b)->tv_sec) != 0) { 		\
-		if (xxs < 0) { 					\
-			delta = 60000000;			\
-		} else if (xxs > 4)  {				\
-			if (xxs > 60)				\
-				delta = 60000000;		\
-			else					\
-				delta += xxs * 1000000;		\
-		} else while (xxs > 0) {			\
-			delta += 1000000;			\
-			xxs--;					\
-		}						\
-	}							\
-}
+#define TV_DELTA(a, b, delta)                                   \
+	{                                                       \
+		int xxs;                                        \
+                                                                \
+		delta = (a)->tv_usec - (b)->tv_usec;            \
+		if ((xxs = (a)->tv_sec - (b)->tv_sec) != 0) {   \
+			if (xxs < 0) {                          \
+				delta = 60000000;               \
+			} else if (xxs > 4) {                   \
+				if (xxs > 60)                   \
+					delta = 60000000;       \
+				else                            \
+					delta += xxs * 1000000; \
+			} else                                  \
+				while (xxs > 0) {               \
+					delta += 1000000;       \
+					xxs--;                  \
+				}                               \
+		}                                               \
+	}
 
 /* default rio parameter values */
 static struct redparams default_rio_params[RIO_NDROPPREC] = {
-  /* th_min,		 th_max,     inv_pmax */
-  { TH_MAX * 2 + TH_MIN, TH_MAX * 3, INV_P_MAX }, /* low drop precedence */
-  { TH_MAX + TH_MIN,	 TH_MAX * 2, INV_P_MAX }, /* medium drop precedence */
-  { TH_MIN,		 TH_MAX,     INV_P_MAX }  /* high drop precedence */
+	/* th_min,		 th_max,     inv_pmax */
+	{ TH_MAX * 2 + TH_MIN, TH_MAX * 3,
+	    INV_P_MAX },			    /* low drop precedence */
+	{ TH_MAX + TH_MIN, TH_MAX * 2, INV_P_MAX }, /* medium drop precedence */
+	{ TH_MIN, TH_MAX, INV_P_MAX }		    /* high drop precedence */
 };
 
 /* internal function prototypes */
@@ -179,9 +181,9 @@ static int dscp2index(u_int8_t);
 rio_t *
 rio_alloc(int weight, struct redparams *params, int flags, int pkttime)
 {
-	rio_t	*rp;
-	int	 w, i;
-	int	 npkts_per_sec;
+	rio_t *rp;
+	int w, i;
+	int npkts_per_sec;
 
 	rp = malloc(sizeof(rio_t), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (rp == NULL)
@@ -219,7 +221,7 @@ rio_alloc(int weight, struct redparams *params, int flags, int pkttime)
 	w = 1 << rp->rio_wshift;
 	if (w != rp->rio_weight) {
 		printf("invalid weight value %d for red! use %d\n",
-		       rp->rio_weight, w);
+		    rp->rio_weight, w);
 		rp->rio_weight = w;
 	}
 
@@ -256,8 +258,9 @@ rio_alloc(int weight, struct redparams *params, int flags, int pkttime)
 		 * precompute probability denominator
 		 *  probd = (2 * (TH_MAX-TH_MIN) / pmax) in fixed-point
 		 */
-		prec->probd = (2 * (prec->th_max - prec->th_min)
-			       * prec->inv_pmax) << FP_SHIFT;
+		prec->probd =
+		    (2 * (prec->th_max - prec->th_min) * prec->inv_pmax)
+		    << FP_SHIFT;
 
 		microtime(&prec->last);
 	}
@@ -275,7 +278,7 @@ rio_destroy(rio_t *rp)
 void
 rio_getstats(rio_t *rp, struct redstats *sp)
 {
-	int	i;
+	int i;
 
 	for (i = 0; i < RIO_NDROPPREC; i++) {
 		bcopy(&rp->q_stats[i], sp, sizeof(struct redstats));
@@ -292,7 +295,7 @@ rio_getstats(rio_t *rp, struct redstats *sp)
 static int
 dscp2index(u_int8_t dscp)
 {
-	int	dpindex = dscp & AF_DROPPRECMASK;
+	int dpindex = dscp & AF_DROPPRECMASK;
 
 	if (dpindex == 0)
 		return (0);
@@ -306,22 +309,28 @@ dscp2index(u_int8_t dscp)
  * in order to keep the queue length of each drop precedence.
  * use m_pkthdr.rcvif to pass this info.
  */
-#define	RIOM_SET_PRECINDEX(m, idx)	\
-	do { (m)->m_pkthdr.rcvif = (void *)((long)(idx)); } while (0)
-#define	RIOM_GET_PRECINDEX(m)	\
-	({ long idx; idx = (long)((m)->m_pkthdr.rcvif); \
-	(m)->m_pkthdr.rcvif = NULL; idx; })
+#define RIOM_SET_PRECINDEX(m, idx)                           \
+	do {                                                 \
+		(m)->m_pkthdr.rcvif = (void *)((long)(idx)); \
+	} while (0)
+#define RIOM_GET_PRECINDEX(m)                      \
+	({                                         \
+		long idx;                          \
+		idx = (long)((m)->m_pkthdr.rcvif); \
+		(m)->m_pkthdr.rcvif = NULL;        \
+		idx;                               \
+	})
 #endif
 
 int
-rio_addq(rio_t *rp, class_queue_t *q, struct mbuf *m,
-    struct altq_pktattr *pktattr)
+rio_addq(
+    rio_t *rp, class_queue_t *q, struct mbuf *m, struct altq_pktattr *pktattr)
 {
-	int			 avg, droptype;
-	u_int8_t		 dsfield, odsfield;
-	int			 dpindex, i, n, t;
-	struct timeval		 now;
-	struct dropprec_state	*prec;
+	int avg, droptype;
+	u_int8_t dsfield, odsfield;
+	int dpindex, i, n, t;
+	struct timeval now;
+	struct dropprec_state *prec;
 
 	dsfield = odsfield = read_dsfield(m, pktattr);
 	dpindex = dscp2index(dsfield);
@@ -343,18 +352,18 @@ rio_addq(rio_t *rp, class_queue_t *q, struct mbuf *m,
 				avg = 0;
 			else {
 				t = t * 1000000 +
-					(now.tv_usec - prec->last.tv_usec);
+				    (now.tv_usec - prec->last.tv_usec);
 				n = t / rp->rio_pkttime;
 				/* calculate (avg = (1 - Wq)^n * avg) */
 				if (n > 0)
 					avg = (avg >> FP_SHIFT) *
-						pow_w(rp->rio_wtab, n);
+					    pow_w(rp->rio_wtab, n);
 			}
 		}
 
 		/* run estimator. (avg is scaled by WEIGHT in fixed-point) */
 		avg += (prec->qlen << FP_SHIFT) - (avg >> rp->rio_wshift);
-		prec->avg = avg;		/* save the new value */
+		prec->avg = avg; /* save the new value */
 		/*
 		 * count keeps a tally of arriving traffic that has not
 		 * been dropped.
@@ -376,7 +385,7 @@ rio_addq(rio_t *rp, class_queue_t *q, struct mbuf *m,
 			prec->count = 1;
 			prec->old = 1;
 		} else if (drop_early((avg - prec->th_min_s) >> rp->rio_wshift,
-				      prec->probd, prec->count)) {
+			       prec->probd, prec->count)) {
 			/* unforced drop by red */
 			droptype = DTYPE_EARLY;
 		}
@@ -429,8 +438,8 @@ rio_addq(rio_t *rp, class_queue_t *q, struct mbuf *m,
 struct mbuf *
 rio_getq(rio_t *rp, class_queue_t *q)
 {
-	struct mbuf	*m;
-	int		 dpindex, i;
+	struct mbuf *m;
+	int dpindex, i;
 
 	if ((m = _getq(q)) == NULL)
 		return NULL;

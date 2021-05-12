@@ -35,10 +35,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/gfp.h>
 #include <rdma/ib_umem_odp.h>
 
 /*
@@ -49,10 +49,11 @@ __FBSDID("$FreeBSD$");
  * ib_umem_lock protects the list.
  */
 
-static inline u64 node_start(struct umem_odp_node *n)
+static inline u64
+node_start(struct umem_odp_node *n)
 {
-	struct ib_umem_odp *umem_odp =
-			container_of(n, struct ib_umem_odp, interval_tree);
+	struct ib_umem_odp *umem_odp = container_of(
+	    n, struct ib_umem_odp, interval_tree);
 
 	return ib_umem_start(umem_odp->umem);
 }
@@ -62,24 +63,24 @@ static inline u64 node_start(struct umem_odp_node *n)
  * function ib_umem_end returns the first address which is not contained
  * in the umem.
  */
-static inline u64 node_last(struct umem_odp_node *n)
+static inline u64
+node_last(struct umem_odp_node *n)
 {
-	struct ib_umem_odp *umem_odp =
-			container_of(n, struct ib_umem_odp, interval_tree);
+	struct ib_umem_odp *umem_odp = container_of(
+	    n, struct ib_umem_odp, interval_tree);
 
 	return ib_umem_end(umem_odp->umem) - 1;
 }
 
-INTERVAL_TREE_DEFINE(struct umem_odp_node, rb, u64, __subtree_last,
-		     node_start, node_last, , rbt_ib_umem)
+INTERVAL_TREE_DEFINE(struct umem_odp_node, rb, u64, __subtree_last, node_start,
+    node_last, , rbt_ib_umem)
 
 /* @last is not a part of the interval. See comment for function
  * node_last.
  */
-int rbt_ib_umem_for_each_in_range(struct rb_root *root,
-				  u64 start, u64 last,
-				  umem_call_back cb,
-				  void *cookie)
+int
+rbt_ib_umem_for_each_in_range(
+    struct rb_root *root, u64 start, u64 last, umem_call_back cb, void *cookie)
 {
 	int ret_val = 0;
 	struct umem_odp_node *node;
@@ -89,7 +90,7 @@ int rbt_ib_umem_for_each_in_range(struct rb_root *root,
 		return ret_val;
 
 	for (node = rbt_ib_umem_iter_first(root, start, last - 1); node;
-			node = rbt_ib_umem_iter_next(node, start, last - 1)) {
+	     node = rbt_ib_umem_iter_next(node, start, last - 1)) {
 		umem = container_of(node, struct ib_umem_odp, interval_tree);
 		ret_val = cb(umem->umem, start, last, cookie) || ret_val;
 	}

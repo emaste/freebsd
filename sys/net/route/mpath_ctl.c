@@ -33,30 +33,28 @@
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/rmlock.h>
-#include <sys/rwlock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/rmlock.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/kernel.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
+#include <net/if_var.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
+#include <net/route/nhop_utils.h>
+#include <net/route/nhop_var.h>
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
-#include <netinet/in_var.h>
 #include <netinet/in_fib.h>
-
-#include <net/route/nhop_utils.h>
-#include <net/route/nhop.h>
-#include <net/route/nhop_var.h>
+#include <netinet/in_var.h>
 
 /*
  * This file contains the supporting functions for adding/deleting/updating
@@ -71,13 +69,47 @@ SYSCTL_UINT(_net_route, OID_AUTO, hash_outbound, CTLFLAG_RD | CTLFLAG_VNET,
 
 /* Default entropy to add to the hash calculation for the outbound connections*/
 uint8_t mpath_entropy_key[MPATH_ENTROPY_KEY_LEN] = {
-	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
-	0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
-	0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
-	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
-	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa,
+	0x6d,
+	0x5a,
+	0x56,
+	0xda,
+	0x25,
+	0x5b,
+	0x0e,
+	0xc2,
+	0x41,
+	0x67,
+	0x25,
+	0x3d,
+	0x43,
+	0xa3,
+	0x8f,
+	0xb0,
+	0xd0,
+	0xca,
+	0x2b,
+	0xcb,
+	0xae,
+	0x7b,
+	0x30,
+	0xb4,
+	0x77,
+	0xcb,
+	0x2d,
+	0xa3,
+	0x80,
+	0x30,
+	0xf2,
+	0x0c,
+	0x6a,
+	0x42,
+	0xb7,
+	0x3b,
+	0xbe,
+	0xac,
+	0x01,
+	0xfa,
 };
-
 
 /*
  * Tries to add @rnd_add nhop to the existing set of nhops (@nh_orig) for the
@@ -105,8 +137,8 @@ add_route_mpath(struct rib_head *rnh, struct rt_addrinfo *info,
 	 * request by retrying the cycle multiple times.
 	 */
 	for (int i = 0; i < RIB_MAX_RETRIES; i++) {
-		error = nhgrp_get_addition_group(rnh, rnd_orig, rnd_add,
-		    &rnd_new);
+		error = nhgrp_get_addition_group(
+		    rnh, rnd_orig, rnd_add, &rnd_new);
 		if (error != 0) {
 			if (error != EAGAIN)
 				break;
@@ -122,8 +154,8 @@ add_route_mpath(struct rib_head *rnh, struct rt_addrinfo *info,
 			continue;
 		}
 
-		error = change_route_conditional(rnh, rt, info, rnd_orig,
-		    &rnd_new, rc);
+		error = change_route_conditional(
+		    rnh, rt, info, rnd_orig, &rnd_new, rc);
 		if (error != EAGAIN)
 			break;
 		RTSTAT_INC(rts_add_retry);
@@ -136,7 +168,8 @@ add_route_mpath(struct rib_head *rnh, struct rt_addrinfo *info,
 		 * outbound connections hashing.
 		 */
 		if (bootverbose)
-			printf("FIB: enabled flowid calculation for locally-originated packets\n");
+			printf(
+			    "FIB: enabled flowid calculation for locally-originated packets\n");
 		V_fib_hash_outbound = 1;
 	}
 
@@ -162,8 +195,7 @@ gw_filter_func(const struct nhop_object *nh, void *_data)
  */
 int
 del_route_mpath(struct rib_head *rh, struct rt_addrinfo *info,
-    struct rtentry *rt, struct nhgrp_object *nhg,
-    struct rib_cmd_info *rc)
+    struct rtentry *rt, struct nhgrp_object *nhg, struct rib_cmd_info *rc)
 {
 	struct route_nhop_data rnd;
 	struct rt_match_info ri = { .info = info, .rt = rt };
@@ -178,13 +210,16 @@ del_route_mpath(struct rib_head *rh, struct rt_addrinfo *info,
 	 *  allow rib_walk_del() delete routes for any criteria based
 	 *  on provided callback.
 	 */
-	if ((info->rti_info[RTAX_GATEWAY] == NULL) && (info->rti_filter == NULL))
+	if ((info->rti_info[RTAX_GATEWAY] == NULL) &&
+	    (info->rti_filter == NULL))
 		return (ESRCH);
 
-	error = nhgrp_get_filtered_group(rh, nhg, gw_filter_func, (void *)&ri, &rnd);
+	error = nhgrp_get_filtered_group(
+	    rh, nhg, gw_filter_func, (void *)&ri, &rnd);
 	if (error == 0) {
 		if (rnd.rnd_nhgrp == nhg) {
-			/* No gateway match, unreference new group and return. */
+			/* No gateway match, unreference new group and return.
+			 */
 			nhop_free_any(rnd.rnd_nhop);
 			return (ESRCH);
 		}
@@ -192,4 +227,3 @@ del_route_mpath(struct rib_head *rh, struct rt_addrinfo *info,
 	}
 	return (error);
 }
-

@@ -28,63 +28,63 @@
  * $FreeBSD$
  */
 
-#ifndef	_IP_FW_NAT64_TRANSLATE_H_
-#define	_IP_FW_NAT64_TRANSLATE_H_
+#ifndef _IP_FW_NAT64_TRANSLATE_H_
+#define _IP_FW_NAT64_TRANSLATE_H_
 
 struct nat64_stats {
-	uint64_t	opcnt64;	/* 6to4 of packets translated */
-	uint64_t	opcnt46;	/* 4to6 of packets translated */
-	uint64_t	ofrags;		/* number of fragments generated */
-	uint64_t	ifrags;		/* number of fragments received */
-	uint64_t	oerrors;	/* number of output errors */
-	uint64_t	noroute4;
-	uint64_t	noroute6;
-	uint64_t	nomatch4;	/* No addr/port match */
-	uint64_t	noproto;	/* Protocol not supported */
-	uint64_t	nomem;		/* mbufs allocation failed */
-	uint64_t	dropped;	/* number of packets silently
-					 * dropped due to some errors/
-					 * unsupported/etc.
-					 */
+	uint64_t opcnt64; /* 6to4 of packets translated */
+	uint64_t opcnt46; /* 4to6 of packets translated */
+	uint64_t ofrags;  /* number of fragments generated */
+	uint64_t ifrags;  /* number of fragments received */
+	uint64_t oerrors; /* number of output errors */
+	uint64_t noroute4;
+	uint64_t noroute6;
+	uint64_t nomatch4; /* No addr/port match */
+	uint64_t noproto;  /* Protocol not supported */
+	uint64_t nomem;	   /* mbufs allocation failed */
+	uint64_t dropped;  /* number of packets silently
+			    * dropped due to some errors/
+			    * unsupported/etc.
+			    */
 
-	uint64_t	jrequests;	/* jobs requests queued */
-	uint64_t	jcalls;		/* jobs handler calls */
-	uint64_t	jhostsreq;	/* hosts requests */
-	uint64_t	jportreq;	/* PG allocation requests */
-	uint64_t	jhostfails;	/* hosts requests failed */
-	uint64_t	jportfails;	/* PG allocation failed */
-	uint64_t	jmaxlen;
-	uint64_t	jnomem;
-	uint64_t	jreinjected;
+	uint64_t jrequests;  /* jobs requests queued */
+	uint64_t jcalls;     /* jobs handler calls */
+	uint64_t jhostsreq;  /* hosts requests */
+	uint64_t jportreq;   /* PG allocation requests */
+	uint64_t jhostfails; /* hosts requests failed */
+	uint64_t jportfails; /* PG allocation failed */
+	uint64_t jmaxlen;
+	uint64_t jnomem;
+	uint64_t jreinjected;
 
-	uint64_t	screated;
-	uint64_t	sdeleted;
-	uint64_t	spgcreated;
-	uint64_t	spgdeleted;
+	uint64_t screated;
+	uint64_t sdeleted;
+	uint64_t spgcreated;
+	uint64_t spgdeleted;
 };
 
-#define	IPFW_NAT64_VERSION	1
-#define	NAT64STATS	(sizeof(struct nat64_stats) / sizeof(uint64_t))
+#define IPFW_NAT64_VERSION 1
+#define NAT64STATS (sizeof(struct nat64_stats) / sizeof(uint64_t))
 struct nat64_counters {
-	counter_u64_t		cnt[NAT64STATS];
+	counter_u64_t cnt[NAT64STATS];
 };
-#define	NAT64STAT_ADD(s, f, v)		\
-    counter_u64_add((s)->cnt[		\
-	offsetof(struct nat64_stats, f) / sizeof(uint64_t)], (v))
-#define	NAT64STAT_INC(s, f)	NAT64STAT_ADD(s, f, 1)
-#define	NAT64STAT_FETCH(s, f)		\
-    counter_u64_fetch((s)->cnt[	\
-	offsetof(struct nat64_stats, f) / sizeof(uint64_t)])
+#define NAT64STAT_ADD(s, f, v) \
+	counter_u64_add(       \
+	    (s)->cnt[offsetof(struct nat64_stats, f) / sizeof(uint64_t)], (v))
+#define NAT64STAT_INC(s, f) NAT64STAT_ADD(s, f, 1)
+#define NAT64STAT_FETCH(s, f) \
+	counter_u64_fetch(    \
+	    (s)->cnt[offsetof(struct nat64_stats, f) / sizeof(uint64_t)])
 
-#define	L3HDR(_ip, _t)	((_t)((uint32_t *)(_ip) + (_ip)->ip_hl))
-#define	TCP(p)		((struct tcphdr *)(p))
-#define	UDP(p)		((struct udphdr *)(p))
-#define	ICMP(p)		((struct icmphdr *)(p))
-#define	ICMP6(p)	((struct icmp6_hdr *)(p))
+#define L3HDR(_ip, _t) ((_t)((uint32_t *)(_ip) + (_ip)->ip_hl))
+#define TCP(p) ((struct tcphdr *)(p))
+#define UDP(p) ((struct udphdr *)(p))
+#define ICMP(p) ((struct icmphdr *)(p))
+#define ICMP6(p) ((struct icmp6_hdr *)(p))
 
-#define	NAT64SKIP	0
-#define	NAT64RETURN	1
-#define	NAT64MFREE	-1
+#define NAT64SKIP 0
+#define NAT64RETURN 1
+#define NAT64MFREE -1
 
 /*
  * According to RFC6877:
@@ -96,16 +96,16 @@ struct nat64_counters {
  *  and vice versa.
  */
 struct nat64_config {
-	struct in6_addr		clat_prefix;
-	struct in6_addr		plat_prefix;
-	uint32_t		flags;
-#define	NAT64_WKPFX		0x00010000	/* prefix is well-known */
-#define	NAT64_CLATPFX		0x00020000	/* dst prefix is configured */
-#define	NAT64_PLATPFX		0x00040000	/* src prefix is configured */
-	uint8_t			clat_plen;
-	uint8_t			plat_plen;
+	struct in6_addr clat_prefix;
+	struct in6_addr plat_prefix;
+	uint32_t flags;
+#define NAT64_WKPFX 0x00010000 /* prefix is well-known */
+#define NAT64_CLATPFX 0x00020000 /* dst prefix is configured */
+#define NAT64_PLATPFX 0x00040000 /* src prefix is configured */
+	uint8_t clat_plen;
+	uint8_t plat_plen;
 
-	struct nat64_counters	stats;
+	struct nat64_counters stats;
 };
 
 static inline int
@@ -131,10 +131,10 @@ nat64_check_ip4(in_addr_t ia)
 }
 
 /* Well-known prefix 64:ff9b::/96 */
-#define	IPV6_ADDR_INT32_WKPFX	htonl(0x64ff9b)
-#define	IN6_IS_ADDR_WKPFX(a)	\
-    ((a)->s6_addr32[0] == IPV6_ADDR_INT32_WKPFX && \
-	(a)->s6_addr32[1] == 0 && (a)->s6_addr32[2] == 0)
+#define IPV6_ADDR_INT32_WKPFX htonl(0x64ff9b)
+#define IN6_IS_ADDR_WKPFX(a)                           \
+	((a)->s6_addr32[0] == IPV6_ADDR_INT32_WKPFX && \
+	    (a)->s6_addr32[1] == 0 && (a)->s6_addr32[2] == 0)
 
 int nat64_check_private_ip4(const struct nat64_config *cfg, in_addr_t ia);
 int nat64_check_prefixlen(int length);
@@ -145,8 +145,8 @@ int nat64_do_handle_ip4(struct mbuf *m, struct in6_addr *saddr,
     void *logdata);
 int nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
     struct nat64_config *cfg, void *logdata);
-int nat64_handle_icmp6(struct mbuf *m, int hlen, uint32_t aaddr,
-    uint16_t aport, struct nat64_config *cfg, void *logdata);
+int nat64_handle_icmp6(struct mbuf *m, int hlen, uint32_t aaddr, uint16_t aport,
+    struct nat64_config *cfg, void *logdata);
 void nat64_embed_ip4(struct in6_addr *ip6, int plen, in_addr_t ia);
 in_addr_t nat64_extract_ip4(const struct in6_addr *ip6, int plen);
 

@@ -41,70 +41,70 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/proc.h>
-#include <sys/vnode.h>
-#include <sys/filio.h>
-#include <sys/ttycom.h>
-#include <sys/msgbuf.h>
-#include <sys/signalvar.h>
-#include <sys/kernel.h>
-#include <sys/poll.h>
 #include <sys/filedesc.h>
+#include <sys/filio.h>
+#include <sys/kernel.h>
+#include <sys/msgbuf.h>
+#include <sys/poll.h>
+#include <sys/proc.h>
+#include <sys/signalvar.h>
 #include <sys/sysctl.h>
+#include <sys/ttycom.h>
+#include <sys/vnode.h>
 
-#define LOG_RDPRI	(PZERO + 1)
+#define LOG_RDPRI (PZERO + 1)
 
-#define LOG_ASYNC	0x04
+#define LOG_ASYNC 0x04
 
-static	d_open_t	logopen;
-static	d_close_t	logclose;
-static	d_read_t	logread;
-static	d_ioctl_t	logioctl;
-static	d_poll_t	logpoll;
-static	d_kqfilter_t	logkqfilter;
+static d_open_t logopen;
+static d_close_t logclose;
+static d_read_t logread;
+static d_ioctl_t logioctl;
+static d_poll_t logpoll;
+static d_kqfilter_t logkqfilter;
 
-static	void logtimeout(void *arg);
+static void logtimeout(void *arg);
 
 static struct cdevsw log_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	logopen,
-	.d_close =	logclose,
-	.d_read =	logread,
-	.d_ioctl =	logioctl,
-	.d_poll =	logpoll,
-	.d_kqfilter =	logkqfilter,
-	.d_name =	"log",
+	.d_version = D_VERSION,
+	.d_open = logopen,
+	.d_close = logclose,
+	.d_read = logread,
+	.d_ioctl = logioctl,
+	.d_poll = logpoll,
+	.d_kqfilter = logkqfilter,
+	.d_name = "log",
 };
 
-static int	logkqread(struct knote *note, long hint);
-static void	logkqdetach(struct knote *note);
+static int logkqread(struct knote *note, long hint);
+static void logkqdetach(struct knote *note);
 
 static struct filterops log_read_filterops = {
-	.f_isfd =	1,
-	.f_attach =	NULL,
-	.f_detach =	logkqdetach,
-	.f_event =	logkqread,
+	.f_isfd = 1,
+	.f_attach = NULL,
+	.f_detach = logkqdetach,
+	.f_event = logkqread,
 };
 
 static struct logsoftc {
-	int	sc_state;		/* see above for possibilities */
-	struct	selinfo sc_selp;	/* process waiting on select call */
-	struct  sigio *sc_sigio;	/* information for async I/O */
-	struct	callout sc_callout;	/* callout to wakeup syslog  */
+	int sc_state;		   /* see above for possibilities */
+	struct selinfo sc_selp;	   /* process waiting on select call */
+	struct sigio *sc_sigio;	   /* information for async I/O */
+	struct callout sc_callout; /* callout to wakeup syslog  */
 } logsoftc;
 
-int			log_open;	/* also used in log() */
-static struct cv	log_wakeup;
-struct mtx		msgbuf_lock;
+int log_open; /* also used in log() */
+static struct cv log_wakeup;
+struct mtx msgbuf_lock;
 MTX_SYSINIT(msgbuf_lock, &msgbuf_lock, "msgbuf lock", MTX_DEF);
 
 /* Times per second to check for a pending syslog wakeup. */
-static int	log_wakeups_per_second = 5;
+static int log_wakeups_per_second = 5;
 SYSCTL_INT(_kern, OID_AUTO, log_wakeups_per_second, CTLFLAG_RW,
     &log_wakeups_per_second, 0, "");
 
 /*ARGSUSED*/
-static	int
+static int
 logopen(struct cdev *dev, int flags, int mode, struct thread *td)
 {
 
@@ -119,16 +119,17 @@ logopen(struct cdev *dev, int flags, int mode, struct thread *td)
 		return (EBUSY);
 	}
 	log_open = 1;
-	callout_reset_sbt(&logsoftc.sc_callout,
-	    SBT_1S / log_wakeups_per_second, 0, logtimeout, NULL, C_PREL(1));
+	callout_reset_sbt(&logsoftc.sc_callout, SBT_1S / log_wakeups_per_second,
+	    0, logtimeout, NULL, C_PREL(1));
 	mtx_unlock(&msgbuf_lock);
 
-	fsetown(td->td_proc->p_pid, &logsoftc.sc_sigio);	/* signal process only */
+	fsetown(
+	    td->td_proc->p_pid, &logsoftc.sc_sigio); /* signal process only */
 	return (0);
 }
 
 /*ARGSUSED*/
-static	int
+static int
 logclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 
@@ -144,7 +145,7 @@ logclose(struct cdev *dev, int flag, int mode, struct thread *td)
 }
 
 /*ARGSUSED*/
-static	int
+static int
 logread(struct cdev *dev, struct uio *uio, int flag)
 {
 	char buf[128];
@@ -179,7 +180,7 @@ logread(struct cdev *dev, struct uio *uio, int flag)
 }
 
 /*ARGSUSED*/
-static	int
+static int
 logpoll(struct cdev *dev, int events, struct thread *td)
 {
 	int revents = 0;
@@ -248,13 +249,14 @@ done:
 		printf("syslog wakeup is less than one.  Adjusting to 1.\n");
 		log_wakeups_per_second = 1;
 	}
-	callout_reset_sbt(&logsoftc.sc_callout,
-	    SBT_1S / log_wakeups_per_second, 0, logtimeout, NULL, C_PREL(1));
+	callout_reset_sbt(&logsoftc.sc_callout, SBT_1S / log_wakeups_per_second,
+	    0, logtimeout, NULL, C_PREL(1));
 }
 
 /*ARGSUSED*/
-static	int
-logioctl(struct cdev *dev, u_long com, caddr_t data, int flag, struct thread *td)
+static int
+logioctl(
+    struct cdev *dev, u_long com, caddr_t data, int flag, struct thread *td)
 {
 
 	switch (com) {
@@ -308,4 +310,4 @@ log_drvinit(void *unused)
 	    GID_WHEEL, 0600, "klog");
 }
 
-SYSINIT(logdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,log_drvinit,NULL);
+SYSINIT(logdev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, log_drvinit, NULL);

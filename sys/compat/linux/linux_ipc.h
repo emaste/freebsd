@@ -34,64 +34,65 @@
 /*
  * SystemV IPC defines
  */
-#define	LINUX_SEMOP		1
-#define	LINUX_SEMGET		2
-#define	LINUX_SEMCTL		3
-#define	LINUX_MSGSND		11
-#define	LINUX_MSGRCV		12
-#define	LINUX_MSGGET		13
-#define	LINUX_MSGCTL		14
-#define	LINUX_SHMAT		21
-#define	LINUX_SHMDT		22
-#define	LINUX_SHMGET		23
-#define	LINUX_SHMCTL		24
+#define LINUX_SEMOP 1
+#define LINUX_SEMGET 2
+#define LINUX_SEMCTL 3
+#define LINUX_MSGSND 11
+#define LINUX_MSGRCV 12
+#define LINUX_MSGGET 13
+#define LINUX_MSGCTL 14
+#define LINUX_SHMAT 21
+#define LINUX_SHMDT 22
+#define LINUX_SHMGET 23
+#define LINUX_SHMCTL 24
 
-#define	LINUX_IPC_RMID		0
-#define	LINUX_IPC_SET		1
-#define	LINUX_IPC_STAT		2
-#define	LINUX_IPC_INFO		3
+#define LINUX_IPC_RMID 0
+#define LINUX_IPC_SET 1
+#define LINUX_IPC_STAT 2
+#define LINUX_IPC_INFO 3
 
-#define	LINUX_MSG_INFO	12
+#define LINUX_MSG_INFO 12
 
-#define	LINUX_SHM_LOCK		11
-#define	LINUX_SHM_UNLOCK	12
-#define	LINUX_SHM_STAT		13
-#define	LINUX_SHM_INFO		14
+#define LINUX_SHM_LOCK 11
+#define LINUX_SHM_UNLOCK 12
+#define LINUX_SHM_STAT 13
+#define LINUX_SHM_INFO 14
 
-#define	LINUX_SHM_RDONLY	0x1000
-#define	LINUX_SHM_RND		0x2000
-#define	LINUX_SHM_REMAP		0x4000
+#define LINUX_SHM_RDONLY 0x1000
+#define LINUX_SHM_RND 0x2000
+#define LINUX_SHM_REMAP 0x4000
 
 /* semctl commands */
-#define	LINUX_GETPID		11
-#define	LINUX_GETVAL		12
-#define	LINUX_GETALL		13
-#define	LINUX_GETNCNT		14
-#define	LINUX_GETZCNT		15
-#define	LINUX_SETVAL		16
-#define	LINUX_SETALL		17
-#define	LINUX_SEM_STAT		18
-#define	LINUX_SEM_INFO		19
+#define LINUX_GETPID 11
+#define LINUX_GETVAL 12
+#define LINUX_GETALL 13
+#define LINUX_GETNCNT 14
+#define LINUX_GETZCNT 15
+#define LINUX_SETVAL 16
+#define LINUX_SETALL 17
+#define LINUX_SEM_STAT 18
+#define LINUX_SEM_INFO 19
 
 /*
  * Version flags for semctl, msgctl, and shmctl commands
  * These are passed as bitflags or-ed with the actual command
  */
-#define	LINUX_IPC_OLD	0	/* Old version (no 32-bit UID support on many
-				   architectures) */
-#define	LINUX_IPC_64	0x0100	/* New version (support 32-bit UIDs, bigger
-				   message sizes, etc. */
+#define LINUX_IPC_OLD                                   \
+	0 /* Old version (no 32-bit UID support on many \
+	     architectures) */
+#define LINUX_IPC_64                                       \
+	0x0100 /* New version (support 32-bit UIDs, bigger \
+		  message sizes, etc. */
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 
-struct linux_semop_args
-{
-	l_int		semid;
+struct linux_semop_args {
+	l_int semid;
 	struct l_sembuf *tsops;
-	l_uint		nsops;
+	l_uint nsops;
 };
 
 int linux_semop(struct thread *, struct linux_semop_args *);
-#endif	/* __i386__ || (__amd64__ && COMPAT_LINUX32) */
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 #endif /* _LINUX_IPC_H_ */

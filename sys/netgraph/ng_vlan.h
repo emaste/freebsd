@@ -32,18 +32,18 @@
  */
 
 #ifndef _NETGRAPH_NG_VLAN_H_
-#define	_NETGRAPH_NG_VLAN_H_
+#define _NETGRAPH_NG_VLAN_H_
 
 /* Using "vlan" in addfilter and gettable messages. 2012.01 */
-#define	NG_VLAN_USE_OLD_VLAN_NAME 1
+#define NG_VLAN_USE_OLD_VLAN_NAME 1
 
 /* Node type name and magic cookie. */
-#define	NG_VLAN_NODE_TYPE	"vlan"
-#define	NGM_VLAN_COOKIE		1068486472
+#define NG_VLAN_NODE_TYPE "vlan"
+#define NGM_VLAN_COOKIE 1068486472
 
 /* Hook names. */
-#define	NG_VLAN_HOOK_DOWNSTREAM	"downstream"
-#define	NG_VLAN_HOOK_NOMATCH	"nomatch"
+#define NG_VLAN_HOOK_DOWNSTREAM "downstream"
+#define NG_VLAN_HOOK_NOMATCH "nomatch"
 
 /* Netgraph commands. */
 enum {
@@ -59,51 +59,60 @@ enum {
 	NGM_VLAN_SET_ENCAP_PROTO,
 };
 
-#define	VLAN_ENCAP_FROM_FILTER	0x00000001
-#define	VLAN_ENCAP_FROM_NOMATCH	0x00000002
+#define VLAN_ENCAP_FROM_FILTER 0x00000001
+#define VLAN_ENCAP_FROM_NOMATCH 0x00000002
 
 /* For NGM_VLAN_ADD_FILTER control message. */
 struct ng_vlan_filter {
-	char		hook_name[NG_HOOKSIZ];
-#ifdef	NG_VLAN_USE_OLD_VLAN_NAME
-	uint16_t	vlan;	/* VLAN - same as vid, oldname, deprecated. */
+	char hook_name[NG_HOOKSIZ];
+#ifdef NG_VLAN_USE_OLD_VLAN_NAME
+	uint16_t vlan; /* VLAN - same as vid, oldname, deprecated. */
 #endif
-	uint16_t	vid;	/* VID - VLAN Identifier. */
-	uint8_t		pcp;	/* PCP - Priority Code Point. */
-	uint8_t		cfi;	/* CFI - Canonical Format Indicator. */
+	uint16_t vid; /* VID - VLAN Identifier. */
+	uint8_t pcp;  /* PCP - Priority Code Point. */
+	uint8_t cfi;  /* CFI - Canonical Format Indicator. */
 };
 
 /* Keep this in sync with the above structure definition.  */
-#ifdef	NG_VLAN_USE_OLD_VLAN_NAME
-#define	NG_VLAN_FILTER_FIELDS	{				\
-	{ "hook",	&ng_parse_hookbuf_type	},		\
-	{ "vlan",	&ng_parse_uint16_type	},		\
-	{ "vid",	&ng_parse_uint16_type	},		\
-	{ "pcp",	&ng_parse_uint8_type	},		\
-	{ "cfi",	&ng_parse_uint8_type	},		\
-	{ NULL }						\
-}
+#ifdef NG_VLAN_USE_OLD_VLAN_NAME
+#define NG_VLAN_FILTER_FIELDS                          \
+	{                                              \
+		{ "hook", &ng_parse_hookbuf_type },    \
+		    { "vlan", &ng_parse_uint16_type }, \
+		    { "vid", &ng_parse_uint16_type },  \
+		    { "pcp", &ng_parse_uint8_type },   \
+		    { "cfi", &ng_parse_uint8_type },   \
+		{                                      \
+			NULL                           \
+		}                                      \
+	}
 #else
-#define	NG_VLAN_FILTER_FIELDS	{				\
-	{ "hook",	&ng_parse_hookbuf_type	},		\
-	{ "vid",	&ng_parse_uint16_type	},		\
-	{ "pcp",	&ng_parse_uint8_type	},		\
-	{ "cfi",	&ng_parse_uint8_type	},		\
-	{ NULL }						\
-}
+#define NG_VLAN_FILTER_FIELDS                         \
+	{                                             \
+		{ "hook", &ng_parse_hookbuf_type },   \
+		    { "vid", &ng_parse_uint16_type }, \
+		    { "pcp", &ng_parse_uint8_type },  \
+		    { "cfi", &ng_parse_uint8_type },  \
+		{                                     \
+			NULL                          \
+		}                                     \
+	}
 #endif
 
 /* Structure returned by NGM_VLAN_GET_TABLE. */
 struct ng_vlan_table {
-	u_int32_t	n;
+	u_int32_t n;
 	struct ng_vlan_filter filter[];
 };
 
 /* Keep this in sync with the above structure definition. */
-#define	NG_VLAN_TABLE_FIELDS	{				\
-	{ "n",		&ng_parse_uint32_type },		\
-	{ "filter",	&ng_vlan_table_array_type },		\
-	{ NULL }						\
-}
+#define NG_VLAN_TABLE_FIELDS                                 \
+	{                                                    \
+		{ "n", &ng_parse_uint32_type },              \
+		    { "filter", &ng_vlan_table_array_type }, \
+		{                                            \
+			NULL                                 \
+		}                                            \
+	}
 
 #endif /* _NETGRAPH_NG_VLAN_H_ */

@@ -36,7 +36,7 @@
  */
 
 #ifndef _I386_INCLUDE_PARAM_H_
-#define	_I386_INCLUDE_PARAM_H_
+#define _I386_INCLUDE_PARAM_H_
 
 #include <machine/_align.h>
 
@@ -45,77 +45,77 @@
  */
 
 #define __HAVE_ACPI
-#define	__HAVE_PIR
+#define __HAVE_PIR
 #define __PCI_REROUTE_INTERRUPT
 
 #ifndef MACHINE
-#define MACHINE		"i386"
+#define MACHINE "i386"
 #endif
 #ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"i386"
+#define MACHINE_ARCH "i386"
 #endif
-#define MID_MACHINE	MID_I386
+#define MID_MACHINE MID_I386
 
 #ifdef SMP
 #ifndef MAXCPU
-#define MAXCPU		32
+#define MAXCPU 32
 #endif
 #else
-#define MAXCPU		1
+#define MAXCPU 1
 #endif
 
 #ifndef MAXMEMDOM
-#define	MAXMEMDOM	1
+#define MAXMEMDOM 1
 #endif
 
-#define ALIGNBYTES	_ALIGNBYTES
-#define ALIGN(p)	_ALIGN(p)
+#define ALIGNBYTES _ALIGNBYTES
+#define ALIGN(p) _ALIGN(p)
 /*
  * ALIGNED_POINTER is a boolean macro that checks whether an address
  * is valid to fetch data elements of type t from on this architecture.
  * This does not reflect the optimal alignment, just the possibility
- * (within reasonable limits). 
+ * (within reasonable limits).
  */
-#define	ALIGNED_POINTER(p, t)	1
+#define ALIGNED_POINTER(p, t) 1
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
  * architecture.  It should be used with appropriate caution.
  */
-#define	CACHE_LINE_SHIFT	6
-#define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
+#define CACHE_LINE_SHIFT 6
+#define CACHE_LINE_SIZE (1 << CACHE_LINE_SHIFT)
 
-#define PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
-#define PAGE_SIZE	(1 << PAGE_SHIFT)	/* bytes/page */
-#define PAGE_MASK	(PAGE_SIZE - 1)
-#define NPTEPG		(PAGE_SIZE / sizeof(pt_entry_t))
+#define PAGE_SHIFT 12		    /* LOG2(PAGE_SIZE) */
+#define PAGE_SIZE (1 << PAGE_SHIFT) /* bytes/page */
+#define PAGE_MASK (PAGE_SIZE - 1)
+#define NPTEPG (PAGE_SIZE / sizeof(pt_entry_t))
 
 /* Size in bytes of the page directory */
-#define NBPTD		(NPGPTD << PAGE_SHIFT)
+#define NBPTD (NPGPTD << PAGE_SHIFT)
 /* Number of PDEs in page directory, 2048 for PAE, 1024 for non-PAE */
-#define NPDEPTD		(NBPTD / sizeof(pd_entry_t))
+#define NPDEPTD (NBPTD / sizeof(pd_entry_t))
 /* Number of PDEs in one page of the page directory, 512 vs. 1024 */
-#define NPDEPG		(PAGE_SIZE / sizeof(pd_entry_t))
-#define PDRMASK		(NBPDR - 1)
+#define NPDEPG (PAGE_SIZE / sizeof(pd_entry_t))
+#define PDRMASK (NBPDR - 1)
 #ifndef PDRSHIFT
-#define	PDRSHIFT	i386_pmap_PDRSHIFT
+#define PDRSHIFT i386_pmap_PDRSHIFT
 #endif
 #ifndef NBPDR
-#define NBPDR		(1 << PDRSHIFT)	/* bytes/page dir */
+#define NBPDR (1 << PDRSHIFT) /* bytes/page dir */
 #endif
 
-#define	MAXPAGESIZES	2	/* maximum number of supported page sizes */
+#define MAXPAGESIZES 2 /* maximum number of supported page sizes */
 
-#define IOPAGES	2		/* pages of i/o permission bitmap */
+#define IOPAGES 2 /* pages of i/o permission bitmap */
 
 #ifndef KSTACK_PAGES
-#define KSTACK_PAGES 4		/* Includes pcb! */
+#define KSTACK_PAGES 4 /* Includes pcb! */
 #endif
-#define KSTACK_GUARD_PAGES 1	/* pages of kstack guard; 0 disables */
+#define KSTACK_GUARD_PAGES 1 /* pages of kstack guard; 0 disables */
 #if KSTACK_PAGES < 4
-#define	TD0_KSTACK_PAGES 4
+#define TD0_KSTACK_PAGES 4
 #else
-#define	TD0_KSTACK_PAGES KSTACK_PAGES
+#define TD0_KSTACK_PAGES KSTACK_PAGES
 #endif
 
 /*
@@ -129,7 +129,7 @@
  * lower due to fragmentation.
  */
 #ifndef VM_SWZONE_SIZE_MAX
-#define VM_SWZONE_SIZE_MAX	(276 * 128 * 1024)
+#define VM_SWZONE_SIZE_MAX (276 * 128 * 1024)
 #endif
 
 /*
@@ -141,25 +141,25 @@
  * the machine with 4GB of RAM, see vfs_bio.c:kern_vfs_bio_buffer_alloc().
  */
 #ifndef VM_BCACHE_SIZE_MAX
-#define VM_BCACHE_SIZE_MAX	(7224 * 16 * 1024)
+#define VM_BCACHE_SIZE_MAX (7224 * 16 * 1024)
 #endif
 
 /*
  * Mach derived conversion macros
  */
-#define trunc_page(x)		((x) & ~PAGE_MASK)
-#define round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
-#define trunc_4mpage(x)		((x) & ~PDRMASK)
-#define round_4mpage(x)		((((x)) + PDRMASK) & ~PDRMASK)
+#define trunc_page(x) ((x) & ~PAGE_MASK)
+#define round_page(x) (((x) + PAGE_MASK) & ~PAGE_MASK)
+#define trunc_4mpage(x) ((x) & ~PDRMASK)
+#define round_4mpage(x) ((((x)) + PDRMASK) & ~PDRMASK)
 
-#define atop(x)			((x) >> PAGE_SHIFT)
-#define ptoa(x)			((x) << PAGE_SHIFT)
+#define atop(x) ((x) >> PAGE_SHIFT)
+#define ptoa(x) ((x) << PAGE_SHIFT)
 
-#define i386_btop(x)		((x) >> PAGE_SHIFT)
-#define i386_ptob(x)		((x) << PAGE_SHIFT)
+#define i386_btop(x) ((x) >> PAGE_SHIFT)
+#define i386_ptob(x) ((x) << PAGE_SHIFT)
 
-#define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
+#define pgtok(x) ((x) * (PAGE_SIZE / 1024))
 
-#define INKERNEL(va)		(TRUE)
+#define INKERNEL(va) (TRUE)
 
 #endif /* !_I386_INCLUDE_PARAM_H_ */

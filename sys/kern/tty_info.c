@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_stack.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
 #include <sys/lock.h>
@@ -59,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/stack.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/tty.h>
 
 #include <vm/vm.h>
@@ -80,10 +80,10 @@ __FBSDID("$FreeBSD$");
  *	4) Further ties are broken by picking the highest pid.
  */
 
-#define TESTAB(a, b)    ((a)<<1 | (b))
-#define ONLYA   2
-#define ONLYB   1
-#define BOTH    3
+#define TESTAB(a, b) ((a) << 1 | (b))
+#define ONLYA 2
+#define ONLYB 1
+#define BOTH 3
 
 static int
 proc_sum(struct proc *p, fixpt_t *estcpup)
@@ -94,10 +94,9 @@ proc_sum(struct proc *p, fixpt_t *estcpup)
 
 	val = 0;
 	estcpu = 0;
-	FOREACH_THREAD_IN_PROC(p, td) {
+	FOREACH_THREAD_IN_PROC (p, td) {
 		thread_lock(td);
-		if (TD_ON_RUNQ(td) ||
-		    TD_IS_RUNNING(td))
+		if (TD_ON_RUNQ(td) || TD_IS_RUNNING(td))
 			val = 1;
 		estcpu += sched_pctcpu(td);
 		thread_unlock(td);
@@ -214,7 +213,7 @@ proc_compare(struct proc *p1, struct proc *p2)
 		break;
 	}
 
-	return (p2->p_pid > p1->p_pid);		/* tie - return highest pid */
+	return (p2->p_pid > p1->p_pid); /* tie - return highest pid */
 }
 
 static int
@@ -241,8 +240,7 @@ sbuf_tty_drain(void *a, const char *d, int len)
 #ifdef STACK
 static int tty_info_kstacks = STACK_SBUF_FMT_COMPACT;
 
-static int
-sysctl_tty_info_kstacks(SYSCTL_HANDLER_ARGS)
+static int sysctl_tty_info_kstacks(SYSCTL_HANDLER_ARGS)
 {
 	enum stack_sbuf_fmt val;
 	int error;
@@ -329,14 +327,14 @@ tty_info(struct tty *tp)
 	 * thread or proc since we hold the tty locked.
 	 */
 	p = NULL;
-	LIST_FOREACH(ppick, &tp->t_pgrp->pg_members, p_pglist)
+	LIST_FOREACH (ppick, &tp->t_pgrp->pg_members, p_pglist)
 		if (proc_compare(p, ppick))
 			p = ppick;
 
 	PROC_LOCK(p);
 	PGRP_UNLOCK(tp->t_pgrp);
 	td = NULL;
-	FOREACH_THREAD_IN_PROC(p, tdpick)
+	FOREACH_THREAD_IN_PROC (p, tdpick)
 		if (thread_compare(td, tdpick))
 			td = tdpick;
 	stateprefix = "";
@@ -389,11 +387,9 @@ tty_info(struct tty *tp)
 	/* Print command, pid, state, rtime, utime, stime, %cpu, and rss. */
 	sbuf_printf(&sb,
 	    " cmd: %s %d [%s%s] %ld.%02ldr %ld.%02ldu %ld.%02lds %d%% %ldk\n",
-	    comm, pid, stateprefix, state,
-	    (long)rtime.tv_sec, rtime.tv_usec / 10000,
-	    (long)utime.tv_sec, utime.tv_usec / 10000,
-	    (long)stime.tv_sec, stime.tv_usec / 10000,
-	    pctcpu / 100, rss);
+	    comm, pid, stateprefix, state, (long)rtime.tv_sec,
+	    rtime.tv_usec / 10000, (long)utime.tv_sec, utime.tv_usec / 10000,
+	    (long)stime.tv_sec, stime.tv_usec / 10000, pctcpu / 100, rss);
 
 #ifdef STACK
 	if (print_kstacks && sterr == 0)

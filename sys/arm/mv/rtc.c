@@ -34,15 +34,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
-#include <sys/bus.h>
-#include <sys/lock.h>
-#include <sys/time.h>
-#include <sys/clock.h>
-#include <sys/resource.h>
 #include <sys/systm.h>
-#include <sys/rman.h>
+#include <sys/bus.h>
+#include <sys/clock.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/resource.h>
+#include <sys/rman.h>
+#include <sys/time.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -52,19 +52,17 @@ __FBSDID("$FreeBSD$");
 
 #include "clock_if.h"
 
-#define MV_RTC_TIME_REG		0x00
-#define MV_RTC_DATE_REG		0x04
-#define YEAR_BASE		2000
+#define MV_RTC_TIME_REG 0x00
+#define MV_RTC_DATE_REG 0x04
+#define YEAR_BASE 2000
 
 struct mv_rtc_softc {
 	device_t dev;
 	struct resource *res[1];
 };
 
-static struct resource_spec res_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec res_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 static int mv_rtc_probe(device_t dev);
 static int mv_rtc_attach(device_t dev);
@@ -73,15 +71,15 @@ static int mv_rtc_gettime(device_t dev, struct timespec *ts);
 static int mv_rtc_settime(device_t dev, struct timespec *ts);
 
 static uint32_t mv_rtc_reg_read(struct mv_rtc_softc *sc, bus_size_t off);
-static int mv_rtc_reg_write(struct mv_rtc_softc *sc, bus_size_t off,
-    uint32_t val);
+static int mv_rtc_reg_write(
+    struct mv_rtc_softc *sc, bus_size_t off, uint32_t val);
 
 static device_method_t mv_rtc_methods[] = {
-	DEVMETHOD(device_probe,		mv_rtc_probe),
-	DEVMETHOD(device_attach,	mv_rtc_attach),
+	DEVMETHOD(device_probe, mv_rtc_probe),
+	DEVMETHOD(device_attach, mv_rtc_attach),
 
-	DEVMETHOD(clock_gettime,	mv_rtc_gettime),
-	DEVMETHOD(clock_settime,	mv_rtc_settime),
+	DEVMETHOD(clock_gettime, mv_rtc_gettime),
+	DEVMETHOD(clock_settime, mv_rtc_settime),
 
 	{ 0, 0 },
 };
@@ -168,8 +166,8 @@ mv_rtc_settime(device_t dev, struct timespec *ts)
 	ts->tv_nsec = 0;
 	clock_ts_to_ct(ts, &ct);
 
-	val = TOBCD(ct.sec) | (TOBCD(ct.min) << 8) |
-	    (TOBCD(ct.hour) << 16) | (TOBCD( ct.dow + 1) << 24);
+	val = TOBCD(ct.sec) | (TOBCD(ct.min) << 8) | (TOBCD(ct.hour) << 16) |
+	    (TOBCD(ct.dow + 1) << 24);
 	mv_rtc_reg_write(sc, MV_RTC_TIME_REG, val);
 
 	val = TOBCD(ct.day) | (TOBCD(ct.mon) << 8) |

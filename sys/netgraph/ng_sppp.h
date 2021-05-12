@@ -22,18 +22,18 @@
 #define _NETGRAPH_SPPP_H_
 
 /* Node type name and magic cookie */
-#define NG_SPPP_NODE_TYPE		"sppp"
-#define NGM_SPPP_COOKIE			1040804655
+#define NG_SPPP_NODE_TYPE "sppp"
+#define NGM_SPPP_COOKIE 1040804655
 
 /* Interface base name */
-#define NG_SPPP_IFACE_NAME		"sppp"
+#define NG_SPPP_IFACE_NAME "sppp"
 
 /* My hook names */
-#define NG_SPPP_HOOK_DOWNSTREAM		"downstream"
+#define NG_SPPP_HOOK_DOWNSTREAM "downstream"
 
 /* Netgraph commands */
 enum {
-	NGM_SPPP_GET_IFNAME = 1,	/* returns struct ng_sppp_ifname */
+	NGM_SPPP_GET_IFNAME = 1, /* returns struct ng_sppp_ifname */
 };
 
 #endif /* _NETGRAPH_SPPP_H_ */

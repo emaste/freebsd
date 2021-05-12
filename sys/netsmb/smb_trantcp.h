@@ -28,13 +28,13 @@
  * $FreeBSD$
  */
 #ifndef _NETSMB_SMB_TRANTCP_H_
-#define	_NETSMB_SMB_TRANTCP_H_
+#define _NETSMB_SMB_TRANTCP_H_
 
 #ifdef _KERNEL
 
 #ifdef NB_DEBUG
-#define NBDEBUG(format, args...)	 printf("%s(%d): "format,	\
-					    __func__ , __LINE__ ,## args)
+#define NBDEBUG(format, args...) \
+	printf("%s(%d): " format, __func__, __LINE__, ##args)
 #else
 #define NBDEBUG(format, args...)
 #endif
@@ -51,30 +51,30 @@ enum nbstate {
  * socket specific data
  */
 struct nbpcb {
-	struct smb_vc *	nbp_vc;
-	struct socket *	nbp_tso;	/* transport socket */
-	struct sockaddr_nb *nbp_laddr;	/* local address */
-	struct sockaddr_nb *nbp_paddr;	/* peer address */
+	struct smb_vc *nbp_vc;
+	struct socket *nbp_tso;	       /* transport socket */
+	struct sockaddr_nb *nbp_laddr; /* local address */
+	struct sockaddr_nb *nbp_paddr; /* peer address */
 
-	int		nbp_flags;
-#define	NBF_LOCADDR	0x0001		/* has local addr */
-#define	NBF_CONNECTED	0x0002
-#define	NBF_RECVLOCK	0x0004
+	int nbp_flags;
+#define NBF_LOCADDR 0x0001 /* has local addr */
+#define NBF_CONNECTED 0x0002
+#define NBF_RECVLOCK 0x0004
 
-	enum nbstate	nbp_state;
-	struct timespec	nbp_timo;
-	int		nbp_sndbuf;
-	int		nbp_rcvbuf;
-	void *		nbp_selectid;
+	enum nbstate nbp_state;
+	struct timespec nbp_timo;
+	int nbp_sndbuf;
+	int nbp_rcvbuf;
+	void *nbp_selectid;
 
-/*	LIST_ENTRY(nbpcb) nbp_link;*/
+	/*	LIST_ENTRY(nbpcb) nbp_link;*/
 };
 
 /*
  * Nominal space allocated per a NETBIOS socket.
  */
-#define	NB_SNDQ		(64 * 1024)
-#define	NB_RCVQ		(64 * 1024)
+#define NB_SNDQ (64 * 1024)
+#define NB_RCVQ (64 * 1024)
 
 /*
  * TCP slowstart presents a problem in conjunction with large
@@ -82,7 +82,7 @@ struct nbpcb {
  * large transaction sizes, we call soreceive() with a smaller
  * buffer size.  See nbssn_recv().
  */
-#define NB_SORECEIVE_CHUNK	(8 * 1024)
+#define NB_SORECEIVE_CHUNK (8 * 1024)
 
 extern struct smb_tran_desc smb_tran_nbtcp_desc;
 

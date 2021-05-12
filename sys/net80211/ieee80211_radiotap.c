@@ -35,40 +35,37 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>   
-#include <sys/malloc.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
-
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/socket.h>
 
 #include <net/bpf.h>
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_media.h>
 #include <net/ethernet.h>
-
+#include <net/if.h>
+#include <net/if_media.h>
+#include <net/if_var.h>
 #include <net80211/ieee80211_var.h>
 
 static int radiotap_offset(struct ieee80211_radiotap_header *, int, int);
 
 void
 ieee80211_radiotap_attach(struct ieee80211com *ic,
-	struct ieee80211_radiotap_header *th, int tlen, uint32_t tx_radiotap,
-	struct ieee80211_radiotap_header *rh, int rlen, uint32_t rx_radiotap)
+    struct ieee80211_radiotap_header *th, int tlen, uint32_t tx_radiotap,
+    struct ieee80211_radiotap_header *rh, int rlen, uint32_t rx_radiotap)
 {
-	ieee80211_radiotap_attachv(ic, th, tlen, 0, tx_radiotap,
-	    rh, rlen, 0, rx_radiotap);
+	ieee80211_radiotap_attachv(
+	    ic, th, tlen, 0, tx_radiotap, rh, rlen, 0, rx_radiotap);
 }
 
 void
 ieee80211_radiotap_attachv(struct ieee80211com *ic,
-	struct ieee80211_radiotap_header *th,
-	int tlen, int n_tx_v, uint32_t tx_radiotap,
-	struct ieee80211_radiotap_header *rh,
-	int rlen, int n_rx_v, uint32_t rx_radiotap)
+    struct ieee80211_radiotap_header *th, int tlen, int n_tx_v,
+    uint32_t tx_radiotap, struct ieee80211_radiotap_header *rh, int rlen,
+    int n_rx_v, uint32_t rx_radiotap)
 {
-#define	B(_v)	(1<<(_v))
+#define B(_v) (1 << (_v))
 	int off;
 
 	th->it_len = htole16(roundup2(tlen, sizeof(uint32_t)));
@@ -85,7 +82,7 @@ ieee80211_radiotap_attachv(struct ieee80211com *ic,
 		    tx_radiotap);
 		/* NB: we handle this case but data will have no chan spec */
 	} else
-		ic->ic_txchan = ((uint8_t *) th) + off;
+		ic->ic_txchan = ((uint8_t *)th) + off;
 
 	rh->it_len = htole16(roundup2(rlen, sizeof(uint32_t)));
 	rh->it_present = htole32(rx_radiotap);
@@ -101,7 +98,7 @@ ieee80211_radiotap_attachv(struct ieee80211com *ic,
 		    rx_radiotap);
 		/* NB: we handle this case but data will have no chan spec */
 	} else
-		ic->ic_rxchan = ((uint8_t *) rh) + off;
+		ic->ic_rxchan = ((uint8_t *)rh) + off;
 #undef B
 }
 
@@ -134,8 +131,8 @@ static void
 set_channel(void *p, const struct ieee80211_channel *c)
 {
 	struct {
-		uint16_t	freq;
-		uint16_t	flags;
+		uint16_t freq;
+		uint16_t flags;
 	} *rc = p;
 
 	rc->freq = htole16(c->ic_freq);
@@ -146,10 +143,10 @@ static void
 set_xchannel(void *p, const struct ieee80211_channel *c)
 {
 	struct {
-		uint32_t	flags;
-		uint16_t	freq;
-		uint8_t		ieee;
-		uint8_t		maxpow;
+		uint32_t flags;
+		uint16_t freq;
+		uint8_t ieee;
+		uint8_t maxpow;
 	} *rc = p;
 
 	rc->flags = htole32(c->ic_flags);
@@ -167,17 +164,19 @@ ieee80211_radiotap_chan_change(struct ieee80211com *ic)
 	if (ic->ic_rxchan != NULL) {
 		struct ieee80211_radiotap_header *rh = ic->ic_rh;
 
-		if (rh->it_present & htole32(1<<IEEE80211_RADIOTAP_XCHANNEL))
+		if (rh->it_present & htole32(1 << IEEE80211_RADIOTAP_XCHANNEL))
 			set_xchannel(ic->ic_rxchan, ic->ic_curchan);
-		else if (rh->it_present & htole32(1<<IEEE80211_RADIOTAP_CHANNEL))
+		else if (rh->it_present &
+		    htole32(1 << IEEE80211_RADIOTAP_CHANNEL))
 			set_channel(ic->ic_rxchan, ic->ic_curchan);
 	}
 	if (ic->ic_txchan != NULL) {
 		struct ieee80211_radiotap_header *th = ic->ic_th;
 
-		if (th->it_present & htole32(1<<IEEE80211_RADIOTAP_XCHANNEL))
+		if (th->it_present & htole32(1 << IEEE80211_RADIOTAP_XCHANNEL))
 			set_xchannel(ic->ic_txchan, ic->ic_curchan);
-		else if (th->it_present & htole32(1<<IEEE80211_RADIOTAP_CHANNEL))
+		else if (th->it_present &
+		    htole32(1 << IEEE80211_RADIOTAP_CHANNEL))
 			set_channel(ic->ic_txchan, ic->ic_curchan);
 	}
 }
@@ -188,14 +187,13 @@ ieee80211_radiotap_chan_change(struct ieee80211com *ic)
  */
 static void
 spam_vaps(struct ieee80211vap *vap0, struct mbuf *m,
-	struct ieee80211_radiotap_header *rh, int len)
+    struct ieee80211_radiotap_header *rh, int len)
 {
 	struct ieee80211com *ic = vap0->iv_ic;
 	struct ieee80211vap *vap;
 
-	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
-		if (vap != vap0 &&
-		    vap->iv_opmode == IEEE80211_M_MONITOR &&
+	TAILQ_FOREACH (vap, &ic->ic_vaps, iv_next) {
+		if (vap != vap0 && vap->iv_opmode == IEEE80211_M_MONITOR &&
 		    (vap->iv_flags_ext & IEEE80211_FEXT_BPF) &&
 		    vap->iv_state != IEEE80211_S_INIT)
 			bpf_mtap2(vap->iv_rawbpf, rh, len, m);
@@ -261,7 +259,7 @@ ieee80211_radiotap_rx_all(struct ieee80211com *ic, struct mbuf *m)
 	struct ieee80211vap *vap;
 
 	/* XXX locking? */
-	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+	TAILQ_FOREACH (vap, &ic->ic_vaps, iv_next) {
 		if (ieee80211_radiotap_active_vap(vap) &&
 		    vap->iv_state != IEEE80211_S_INIT)
 			bpf_mtap2(vap->iv_rawbpf, rh, len, m);
@@ -274,11 +272,11 @@ ieee80211_radiotap_rx_all(struct ieee80211com *ic, struct mbuf *m)
  * known -1 is returned.
  */
 static int
-radiotap_offset(struct ieee80211_radiotap_header *rh,
-    int n_vendor_attributes, int item)
+radiotap_offset(
+    struct ieee80211_radiotap_header *rh, int n_vendor_attributes, int item)
 {
 	static const struct {
-		size_t	align, width;
+		size_t align, width;
 	} items[] = {
 		[IEEE80211_RADIOTAP_TSFT] = {
 		    .align	= sizeof(uint64_t),
@@ -352,7 +350,7 @@ radiotap_offset(struct ieee80211_radiotap_header *rh,
 	off += n_vendor_attributes * (sizeof(uint32_t));
 
 	for (i = 0; i < IEEE80211_RADIOTAP_EXT; i++) {
-		if ((present & (1<<i)) == 0)
+		if ((present & (1 << i)) == 0)
 			continue;
 		if (items[i].align == 0) {
 			/* NB: unidentified element, don't guess */
@@ -364,8 +362,9 @@ radiotap_offset(struct ieee80211_radiotap_header *rh,
 			if (off + items[i].width > le16toh(rh->it_len)) {
 				/* NB: item does not fit in header data */
 				printf("%s: item %d not in header data, "
-				    "off %d width %zu len %d\n", __func__, i,
-				    off, items[i].width, le16toh(rh->it_len));
+				       "off %d width %zu len %d\n",
+				    __func__, i, off, items[i].width,
+				    le16toh(rh->it_len));
 				return -1;
 			}
 			return off;

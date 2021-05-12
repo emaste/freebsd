@@ -43,73 +43,70 @@ static int pstate_ids[256];
 static int pstate_freqs[256];
 static int npstates;
 
-static void parse_pstates(void)
+static void
+parse_pstates(void)
 {
 	phandle_t node;
 
 	node = OF_finddevice("/ibm,opal/power-mgt");
 
-	/* If this fails, npstates will remain 0, and any attachment will bail. */
+	/* If this fails, npstates will remain 0, and any attachment will bail.
+	 */
 	if (node == -1)
 		return;
 
-	npstates = OF_getencprop(node, "ibm,pstate-ids", pstate_ids,
-	    sizeof(pstate_ids));
+	npstates = OF_getencprop(
+	    node, "ibm,pstate-ids", pstate_ids, sizeof(pstate_ids));
 	if (npstates < 0) {
 		npstates = 0;
 		return;
 	}
 
 	if (OF_getencprop(node, "ibm,pstate-frequencies-mhz", pstate_freqs,
-	    sizeof(pstate_freqs)) != npstates) {
+		sizeof(pstate_freqs)) != npstates) {
 		npstates = 0;
 		return;
 	}
 	npstates /= sizeof(cell_t);
-
 }
 
 /* Make this a sysinit so it runs before the cpufreq driver attaches. */
 SYSINIT(parse_pstates, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, parse_pstates, NULL);
 
-#define	PMCR_UPPERPS_MASK	0xff00000000000000UL
-#define	PMCR_UPPERPS_SHIFT	56
-#define	PMCR_LOWERPS_MASK	0x00ff000000000000UL
-#define	PMCR_LOWERPS_SHIFT	48
-#define	PMCR_VERSION_MASK	0x0000000f
-#define	  PMCR_VERSION_1	  1
+#define PMCR_UPPERPS_MASK 0xff00000000000000UL
+#define PMCR_UPPERPS_SHIFT 56
+#define PMCR_LOWERPS_MASK 0x00ff000000000000UL
+#define PMCR_LOWERPS_SHIFT 48
+#define PMCR_VERSION_MASK 0x0000000f
+#define PMCR_VERSION_1 1
 
 struct pmcr_softc {
 	device_t dev;
 };
 
-static void	pmcr_identify(driver_t *driver, device_t parent);
-static int	pmcr_probe(device_t dev);
-static int	pmcr_attach(device_t dev);
-static int	pmcr_settings(device_t dev, struct cf_setting *sets, int *count);
-static int	pmcr_set(device_t dev, const struct cf_setting *set);
-static int	pmcr_get(device_t dev, struct cf_setting *set);
-static int	pmcr_type(device_t dev, int *type);
+static void pmcr_identify(driver_t *driver, device_t parent);
+static int pmcr_probe(device_t dev);
+static int pmcr_attach(device_t dev);
+static int pmcr_settings(device_t dev, struct cf_setting *sets, int *count);
+static int pmcr_set(device_t dev, const struct cf_setting *set);
+static int pmcr_get(device_t dev, struct cf_setting *set);
+static int pmcr_type(device_t dev, int *type);
 
 static device_method_t pmcr_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	pmcr_identify),
-	DEVMETHOD(device_probe,		pmcr_probe),
-	DEVMETHOD(device_attach,	pmcr_attach),
+	DEVMETHOD(device_identify, pmcr_identify),
+	DEVMETHOD(device_probe, pmcr_probe),
+	DEVMETHOD(device_attach, pmcr_attach),
 
 	/* cpufreq interface */
-	DEVMETHOD(cpufreq_drv_set,	pmcr_set),
-	DEVMETHOD(cpufreq_drv_get,	pmcr_get),
-	DEVMETHOD(cpufreq_drv_type,	pmcr_type),
-	DEVMETHOD(cpufreq_drv_settings,	pmcr_settings),
-	{0, 0}
+	DEVMETHOD(cpufreq_drv_set, pmcr_set),
+	DEVMETHOD(cpufreq_drv_get, pmcr_get),
+	DEVMETHOD(cpufreq_drv_type, pmcr_type),
+	DEVMETHOD(cpufreq_drv_settings, pmcr_settings), { 0, 0 }
 };
 
-static driver_t pmcr_driver = {
-	"pmcr",
-	pmcr_methods,
-	sizeof(struct pmcr_softc)
-};
+static driver_t pmcr_driver = { "pmcr", pmcr_methods,
+	sizeof(struct pmcr_softc) };
 
 static devclass_t pmcr_devclass;
 DRIVER_MODULE(pmcr, cpu, pmcr_driver, pmcr_devclass, 0, 0);
@@ -197,7 +194,8 @@ pmcr_set(device_t dev, const struct cf_setting *set)
 	pmcr |= PMCR_VERSION_1;
 
 	mtspr(SPR_PMCR, pmcr);
-	powerpc_sync(); isync();
+	powerpc_sync();
+	isync();
 
 	return (0);
 }

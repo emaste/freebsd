@@ -36,10 +36,10 @@
 #error "no user-serviceable parts inside"
 #endif
 
+#include <sys/types.h>
 #include <sys/_task.h>
 #include <sys/bus.h>
 #include <sys/taskqueue.h>
-#include <sys/types.h>
 
 struct gtaskqueue;
 
@@ -49,74 +49,71 @@ struct gtaskqueue;
  */
 
 struct grouptask {
-	struct gtask		gt_task;
-	void			*gt_taskqueue;
-	LIST_ENTRY(grouptask)	gt_list;
-	void			*gt_uniq;
-#define	GROUPTASK_NAMELEN	32
-	char			gt_name[GROUPTASK_NAMELEN];
-	device_t		gt_dev;
-	struct resource		*gt_irq;
-	int			gt_cpu;
+	struct gtask gt_task;
+	void *gt_taskqueue;
+	LIST_ENTRY(grouptask) gt_list;
+	void *gt_uniq;
+#define GROUPTASK_NAMELEN 32
+	char gt_name[GROUPTASK_NAMELEN];
+	device_t gt_dev;
+	struct resource *gt_irq;
+	int gt_cpu;
 };
 
-void	gtaskqueue_block(struct gtaskqueue *queue);
-void	gtaskqueue_unblock(struct gtaskqueue *queue);
+void gtaskqueue_block(struct gtaskqueue *queue);
+void gtaskqueue_unblock(struct gtaskqueue *queue);
 
-int	gtaskqueue_cancel(struct gtaskqueue *queue, struct gtask *gtask);
-void	gtaskqueue_drain(struct gtaskqueue *queue, struct gtask *task);
-void	gtaskqueue_drain_all(struct gtaskqueue *queue);
+int gtaskqueue_cancel(struct gtaskqueue *queue, struct gtask *gtask);
+void gtaskqueue_drain(struct gtaskqueue *queue, struct gtask *task);
+void gtaskqueue_drain_all(struct gtaskqueue *queue);
 
-void	grouptask_block(struct grouptask *grouptask);
-void	grouptask_unblock(struct grouptask *grouptask);
-int	grouptaskqueue_enqueue(struct gtaskqueue *queue, struct gtask *task);
+void grouptask_block(struct grouptask *grouptask);
+void grouptask_unblock(struct grouptask *grouptask);
+int grouptaskqueue_enqueue(struct gtaskqueue *queue, struct gtask *task);
 
-void	taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *grptask,
-	    void *uniq, device_t dev, struct resource *irq, const char *name);
-int	taskqgroup_attach_cpu(struct taskqgroup *qgroup,
-	    struct grouptask *grptask, void *uniq, int cpu, device_t dev,
-	    struct resource *irq, const char *name);
-void	taskqgroup_detach(struct taskqgroup *qgroup, struct grouptask *gtask);
+void taskqgroup_attach(struct taskqgroup *qgroup, struct grouptask *grptask,
+    void *uniq, device_t dev, struct resource *irq, const char *name);
+int taskqgroup_attach_cpu(struct taskqgroup *qgroup, struct grouptask *grptask,
+    void *uniq, int cpu, device_t dev, struct resource *irq, const char *name);
+void taskqgroup_detach(struct taskqgroup *qgroup, struct grouptask *gtask);
 struct taskqgroup *taskqgroup_create(const char *name, int cnt, int stride);
-void	taskqgroup_destroy(struct taskqgroup *qgroup);
-void	taskqgroup_bind(struct taskqgroup *qgroup);
-void	taskqgroup_drain_all(struct taskqgroup *qgroup);
+void taskqgroup_destroy(struct taskqgroup *qgroup);
+void taskqgroup_bind(struct taskqgroup *qgroup);
+void taskqgroup_drain_all(struct taskqgroup *qgroup);
 
-#define	GTASK_INIT(gtask, flags, priority, func, context) do {	\
-	(gtask)->ta_flags = flags;				\
-	(gtask)->ta_priority = (priority);			\
-	(gtask)->ta_func = (func);				\
-	(gtask)->ta_context = (context);			\
-} while (0)
+#define GTASK_INIT(gtask, flags, priority, func, context) \
+	do {                                              \
+		(gtask)->ta_flags = flags;                \
+		(gtask)->ta_priority = (priority);        \
+		(gtask)->ta_func = (func);                \
+		(gtask)->ta_context = (context);          \
+	} while (0)
 
-#define	GROUPTASK_INIT(gtask, priority, func, context)	\
+#define GROUPTASK_INIT(gtask, priority, func, context) \
 	GTASK_INIT(&(gtask)->gt_task, 0, priority, func, context)
 
-#define	GROUPTASK_ENQUEUE(gtask)			\
+#define GROUPTASK_ENQUEUE(gtask) \
 	grouptaskqueue_enqueue((gtask)->gt_taskqueue, &(gtask)->gt_task)
 
-#define TASKQGROUP_DECLARE(name)			\
-extern struct taskqgroup *qgroup_##name
+#define TASKQGROUP_DECLARE(name) extern struct taskqgroup *qgroup_##name
 
-#define TASKQGROUP_DEFINE(name, cnt, stride)				\
-									\
-struct taskqgroup *qgroup_##name;					\
-									\
-static void								\
-taskqgroup_define_##name(void *arg)					\
-{									\
-	qgroup_##name = taskqgroup_create(#name, (cnt), (stride));	\
-}									\
-SYSINIT(taskqgroup_##name, SI_SUB_TASKQ, SI_ORDER_FIRST,		\
-    taskqgroup_define_##name, NULL);					\
-									\
-static void								\
-taskqgroup_bind_##name(void *arg)					\
-{									\
-	taskqgroup_bind(qgroup_##name);					\
-}									\
-SYSINIT(taskqgroup_bind_##name, SI_SUB_SMP, SI_ORDER_ANY,		\
-    taskqgroup_bind_##name, NULL)
+#define TASKQGROUP_DEFINE(name, cnt, stride)                               \
+                                                                           \
+	struct taskqgroup *qgroup_##name;                                  \
+                                                                           \
+	static void taskqgroup_define_##name(void *arg)                    \
+	{                                                                  \
+		qgroup_##name = taskqgroup_create(#name, (cnt), (stride)); \
+	}                                                                  \
+	SYSINIT(taskqgroup_##name, SI_SUB_TASKQ, SI_ORDER_FIRST,           \
+	    taskqgroup_define_##name, NULL);                               \
+                                                                           \
+	static void taskqgroup_bind_##name(void *arg)                      \
+	{                                                                  \
+		taskqgroup_bind(qgroup_##name);                            \
+	}                                                                  \
+	SYSINIT(taskqgroup_bind_##name, SI_SUB_SMP, SI_ORDER_ANY,          \
+	    taskqgroup_bind_##name, NULL)
 
 TASKQGROUP_DECLARE(softirq);
 

@@ -38,14 +38,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/sockopt.h>
 #include <sys/syslog.h>
-#include <sys/proc.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
-
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
 #include <netipsec/ipsec_support.h>
@@ -126,8 +125,7 @@ ipsec_setsockaddrs_inpcb(struct inpcb *inp, union sockaddr_union *src,
 }
 
 void
-ipsec_setspidx_inpcb(struct inpcb *inp, struct secpolicyindex *spidx,
-    u_int dir)
+ipsec_setspidx_inpcb(struct inpcb *inp, struct secpolicyindex *spidx, u_int dir)
 {
 
 	ipsec_setsockaddrs_inpcb(inp, &spidx->src, &spidx->dst, dir);
@@ -145,8 +143,8 @@ ipsec_setspidx_inpcb(struct inpcb *inp, struct secpolicyindex *spidx,
 #endif
 	spidx->ul_proto = IPPROTO_TCP; /* XXX: currently only TCP uses this */
 	spidx->dir = dir;
-	KEYDBG(IPSEC_DUMP,
-	    printf("%s: ", __func__); kdebug_secpolicyindex(spidx, NULL));
+	KEYDBG(IPSEC_DUMP, printf("%s: ", __func__);
+	       kdebug_secpolicyindex(spidx, NULL));
 }
 
 /* Initialize PCB policy. */
@@ -157,8 +155,8 @@ ipsec_init_pcbpolicy(struct inpcb *inp)
 	IPSEC_ASSERT(inp != NULL, ("null inp"));
 	IPSEC_ASSERT(inp->inp_sp == NULL, ("inp_sp already initialized"));
 
-	inp->inp_sp = malloc(sizeof(struct inpcbpolicy), M_IPSEC_INPCB,
-	    M_NOWAIT | M_ZERO);
+	inp->inp_sp = malloc(
+	    sizeof(struct inpcbpolicy), M_IPSEC_INPCB, M_NOWAIT | M_ZERO);
 	if (inp->inp_sp == NULL)
 		return (ENOBUFS);
 	return (0);
@@ -216,8 +214,8 @@ ipsec_deepcopy_pcbpolicy(struct secpolicy *src)
 		dst->tcount++;
 	}
 	KEYDBG(IPSEC_DUMP,
-	    printf("%s: copied SP(%p) -> SP(%p)\n", __func__, src, dst);
-	    kdebug_secpolicy(dst));
+	       printf("%s: copied SP(%p) -> SP(%p)\n", __func__, src, dst);
+	       kdebug_secpolicy(dst));
 	return (dst);
 }
 
@@ -239,8 +237,8 @@ ipsec_copy_pcbpolicy(struct inpcb *old, struct inpcb *new)
 		return (0);
 
 	IPSEC_ASSERT(new->inp_sp != NULL, ("new inp_sp is NULL"));
-	IPSEC_ASSERT((new->inp_sp->flags & (
-	    INP_INBOUND_POLICY | INP_OUTBOUND_POLICY)) == 0,
+	IPSEC_ASSERT((new->inp_sp->flags &(
+			 INP_INBOUND_POLICY | INP_OUTBOUND_POLICY)) == 0,
 	    ("new PCB already has configured policies"));
 	INP_WLOCK_ASSERT(new);
 	INP_LOCK_ASSERT(old);
@@ -269,8 +267,8 @@ ipsec_copy_pcbpolicy(struct inpcb *old, struct inpcb *new)
 }
 
 static int
-ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
-    void *request, size_t len)
+ipsec_set_pcbpolicy(
+    struct inpcb *inp, struct ucred *cred, void *request, size_t len)
 {
 	struct sadb_x_policy *xpl;
 	struct secpolicy **spp, *newsp;
@@ -284,7 +282,7 @@ ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
 		break;
 	default:
 		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
-			xpl->sadb_x_policy_dir));
+		    xpl->sadb_x_policy_dir));
 		return (EINVAL);
 	}
 	/*
@@ -309,8 +307,8 @@ ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
 			newsp->spidx.src.sin.sin_family =
 			    newsp->spidx.dst.sin.sin_family = AF_INET;
 			newsp->spidx.src.sin.sin_len =
-			    newsp->spidx.dst.sin.sin_len =
-			    sizeof(struct sockaddr_in);
+			    newsp->spidx.dst.sin.sin_len = sizeof(
+				struct sockaddr_in);
 		}
 #endif
 #ifdef INET6
@@ -318,8 +316,8 @@ ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
 			newsp->spidx.src.sin6.sin6_family =
 			    newsp->spidx.dst.sin6.sin6_family = AF_INET6;
 			newsp->spidx.src.sin6.sin6_len =
-			    newsp->spidx.dst.sin6.sin6_len =
-			    sizeof(struct sockaddr_in6);
+			    newsp->spidx.dst.sin6.sin6_len = sizeof(
+				struct sockaddr_in6);
 		}
 #endif
 		break;
@@ -344,8 +342,7 @@ ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
 	if (*spp != NULL)
 		key_freesp(spp);
 	*spp = newsp;
-	KEYDBG(IPSEC_DUMP,
-	    printf("%s: new SP(%p)\n", __func__, newsp));
+	KEYDBG(IPSEC_DUMP, printf("%s: new SP(%p)\n", __func__, newsp));
 	if (newsp == NULL)
 		inp->inp_sp->flags &= ~flags;
 	else {
@@ -380,7 +377,7 @@ ipsec_get_pcbpolicy(struct inpcb *inp, void *request, size_t *len)
 	default:
 		INP_RUNLOCK(inp);
 		ipseclog((LOG_ERR, "%s: invalid direction=%u\n", __func__,
-			xpl->sadb_x_policy_dir));
+		    xpl->sadb_x_policy_dir));
 		return (EINVAL);
 	}
 
@@ -429,7 +426,7 @@ ipsec_control_pcbpolicy(struct inpcb *inp, struct sockopt *sopt)
 	if (optlen < sizeof(struct sadb_x_policy) || optlen > PAGE_SIZE)
 		return (EINVAL);
 
-	optdata = malloc(optlen, M_TEMP, sopt->sopt_td ? M_WAITOK: M_NOWAIT);
+	optdata = malloc(optlen, M_TEMP, sopt->sopt_td ? M_WAITOK : M_NOWAIT);
 	if (optdata == NULL)
 		return (ENOBUFS);
 	/*
@@ -441,7 +438,7 @@ ipsec_control_pcbpolicy(struct inpcb *inp, struct sockopt *sopt)
 	if (error == 0) {
 		if (sopt->sopt_dir == SOPT_SET)
 			error = ipsec_set_pcbpolicy(inp,
-			    sopt->sopt_td ? sopt->sopt_td->td_ucred: NULL,
+			    sopt->sopt_td ? sopt->sopt_td->td_ucred : NULL,
 			    optdata, optlen);
 		else {
 			error = ipsec_get_pcbpolicy(inp, optdata, &optlen);

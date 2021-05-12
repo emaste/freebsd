@@ -79,29 +79,29 @@ struct turnstile;
 #ifdef _KERNEL
 
 /* Which queue to block on or which queue to wakeup one or more threads from. */
-#define	TS_EXCLUSIVE_QUEUE	0
-#define	TS_SHARED_QUEUE		1
+#define TS_EXCLUSIVE_QUEUE 0
+#define TS_SHARED_QUEUE 1
 
-void	init_turnstiles(void);
-void	turnstile_adjust(struct thread *, u_char);
+void init_turnstiles(void);
+void turnstile_adjust(struct thread *, u_char);
 struct turnstile *turnstile_alloc(void);
-void	turnstile_broadcast(struct turnstile *, int);
-void	turnstile_cancel(struct turnstile *);
-void	turnstile_chain_lock(struct lock_object *);
-void	turnstile_chain_unlock(struct lock_object *);
-void	turnstile_claim(struct turnstile *);
-void	turnstile_disown(struct turnstile *);
-int	turnstile_empty(struct turnstile *ts, int queue);
-void	turnstile_free(struct turnstile *);
+void turnstile_broadcast(struct turnstile *, int);
+void turnstile_cancel(struct turnstile *);
+void turnstile_chain_lock(struct lock_object *);
+void turnstile_chain_unlock(struct lock_object *);
+void turnstile_claim(struct turnstile *);
+void turnstile_disown(struct turnstile *);
+int turnstile_empty(struct turnstile *ts, int queue);
+void turnstile_free(struct turnstile *);
 struct thread *turnstile_head(struct turnstile *, int);
 struct turnstile *turnstile_lookup(struct lock_object *);
-int	turnstile_signal(struct turnstile *, int);
+int turnstile_signal(struct turnstile *, int);
 struct turnstile *turnstile_trywait(struct lock_object *);
-void	turnstile_unpend(struct turnstile *);
-void	turnstile_wait(struct turnstile *, struct thread *, int);
-bool	turnstile_lock(struct turnstile *, struct lock_object **,
-	    struct thread **);
-void	turnstile_unlock(struct turnstile *, struct lock_object *);
-void	turnstile_assert(struct turnstile *);
-#endif	/* _KERNEL */
-#endif	/* _SYS_TURNSTILE_H_ */
+void turnstile_unpend(struct turnstile *);
+void turnstile_wait(struct turnstile *, struct thread *, int);
+bool turnstile_lock(
+    struct turnstile *, struct lock_object **, struct thread **);
+void turnstile_unlock(struct turnstile *, struct lock_object *);
+void turnstile_assert(struct turnstile *);
+#endif /* _KERNEL */
+#endif /* _SYS_TURNSTILE_H_ */

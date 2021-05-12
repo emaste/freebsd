@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
@@ -39,86 +40,88 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
 #include <sys/taskqueue.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include "geom/raid/g_raid.h"
-#include "g_raid_md_if.h"
 
-static MALLOC_DEFINE(M_MD_NVIDIA, "md_nvidia_data", "GEOM_RAID NVIDIA metadata");
+#include "g_raid_md_if.h"
+#include "geom/raid/g_raid.h"
+
+static MALLOC_DEFINE(
+    M_MD_NVIDIA, "md_nvidia_data", "GEOM_RAID NVIDIA metadata");
 
 struct nvidia_raid_conf {
-	uint8_t		nvidia_id[8];
-#define NVIDIA_MAGIC                "NVIDIA  "
+	uint8_t nvidia_id[8];
+#define NVIDIA_MAGIC "NVIDIA  "
 
-	uint32_t	config_size;
-	uint32_t	checksum;
-	uint16_t	version;
-	uint8_t		disk_number;
-	uint8_t		dummy_0;
-	uint32_t	total_sectors;
-	uint32_t	sector_size;
-	uint8_t		name[16];
-	uint8_t		revision[4];
-	uint32_t	disk_status;
+	uint32_t config_size;
+	uint32_t checksum;
+	uint16_t version;
+	uint8_t disk_number;
+	uint8_t dummy_0;
+	uint32_t total_sectors;
+	uint32_t sector_size;
+	uint8_t name[16];
+	uint8_t revision[4];
+	uint32_t disk_status;
 
-	uint32_t	magic_0;
-#define NVIDIA_MAGIC0		0x00640044
+	uint32_t magic_0;
+#define NVIDIA_MAGIC0 0x00640044
 
-	uint64_t	volume_id[2];
-	uint8_t		state;
-#define NVIDIA_S_IDLE		0
-#define NVIDIA_S_INIT		2
-#define NVIDIA_S_REBUILD	3
-#define NVIDIA_S_UPGRADE	4
-#define NVIDIA_S_SYNC		5
-	uint8_t		array_width;
-	uint8_t		total_disks;
-	uint8_t		orig_array_width;
-	uint16_t	type;
-#define NVIDIA_T_RAID0		0x0080
-#define NVIDIA_T_RAID1		0x0081
-#define NVIDIA_T_RAID3		0x0083
-#define NVIDIA_T_RAID5		0x0085	/* RLQ = 00/02? */
-#define NVIDIA_T_RAID5_SYM	0x0095	/* RLQ = 03 */
-#define NVIDIA_T_RAID10		0x008a
-#define NVIDIA_T_RAID01		0x8180
-#define NVIDIA_T_CONCAT		0x00ff
+	uint64_t volume_id[2];
+	uint8_t state;
+#define NVIDIA_S_IDLE 0
+#define NVIDIA_S_INIT 2
+#define NVIDIA_S_REBUILD 3
+#define NVIDIA_S_UPGRADE 4
+#define NVIDIA_S_SYNC 5
+	uint8_t array_width;
+	uint8_t total_disks;
+	uint8_t orig_array_width;
+	uint16_t type;
+#define NVIDIA_T_RAID0 0x0080
+#define NVIDIA_T_RAID1 0x0081
+#define NVIDIA_T_RAID3 0x0083
+#define NVIDIA_T_RAID5 0x0085 /* RLQ = 00/02? */
+#define NVIDIA_T_RAID5_SYM 0x0095 /* RLQ = 03 */
+#define NVIDIA_T_RAID10 0x008a
+#define NVIDIA_T_RAID01 0x8180
+#define NVIDIA_T_CONCAT 0x00ff
 
-	uint16_t	dummy_3;
-	uint32_t	strip_sectors;
-	uint32_t	strip_bytes;
-	uint32_t	strip_shift;
-	uint32_t	strip_mask;
-	uint32_t	stripe_sectors;
-	uint32_t	stripe_bytes;
-	uint32_t	rebuild_lba;
-	uint32_t	orig_type;
-	uint32_t	orig_total_sectors;
-	uint32_t	status;
-#define NVIDIA_S_BOOTABLE	0x00000001
-#define NVIDIA_S_DEGRADED	0x00000002
+	uint16_t dummy_3;
+	uint32_t strip_sectors;
+	uint32_t strip_bytes;
+	uint32_t strip_shift;
+	uint32_t strip_mask;
+	uint32_t stripe_sectors;
+	uint32_t stripe_bytes;
+	uint32_t rebuild_lba;
+	uint32_t orig_type;
+	uint32_t orig_total_sectors;
+	uint32_t status;
+#define NVIDIA_S_BOOTABLE 0x00000001
+#define NVIDIA_S_DEGRADED 0x00000002
 
-	uint32_t	filler[98];
+	uint32_t filler[98];
 } __packed;
 
 struct g_raid_md_nvidia_perdisk {
-	struct nvidia_raid_conf	*pd_meta;
-	int			 pd_disk_pos;
-	off_t			 pd_disk_size;
+	struct nvidia_raid_conf *pd_meta;
+	int pd_disk_pos;
+	off_t pd_disk_size;
 };
 
 struct g_raid_md_nvidia_object {
-	struct g_raid_md_object	 mdio_base;
-	uint64_t		 mdio_volume_id[2];
-	struct nvidia_raid_conf	*mdio_meta;
-	struct callout		 mdio_start_co;	/* STARTING state timer. */
-	int			 mdio_total_disks;
-	int			 mdio_disks_present;
-	int			 mdio_started;
-	int			 mdio_incomplete;
-	struct root_hold_token	*mdio_rootmount; /* Root mount delay token. */
+	struct g_raid_md_object mdio_base;
+	uint64_t mdio_volume_id[2];
+	struct nvidia_raid_conf *mdio_meta;
+	struct callout mdio_start_co; /* STARTING state timer. */
+	int mdio_total_disks;
+	int mdio_disks_present;
+	int mdio_started;
+	int mdio_incomplete;
+	struct root_hold_token *mdio_rootmount; /* Root mount delay token. */
 };
 
 static g_raid_md_create_t g_raid_md_create_nvidia;
@@ -131,24 +134,19 @@ static g_raid_md_free_disk_t g_raid_md_free_disk_nvidia;
 static g_raid_md_free_t g_raid_md_free_nvidia;
 
 static kobj_method_t g_raid_md_nvidia_methods[] = {
-	KOBJMETHOD(g_raid_md_create,	g_raid_md_create_nvidia),
-	KOBJMETHOD(g_raid_md_taste,	g_raid_md_taste_nvidia),
-	KOBJMETHOD(g_raid_md_event,	g_raid_md_event_nvidia),
-	KOBJMETHOD(g_raid_md_ctl,	g_raid_md_ctl_nvidia),
-	KOBJMETHOD(g_raid_md_write,	g_raid_md_write_nvidia),
-	KOBJMETHOD(g_raid_md_fail_disk,	g_raid_md_fail_disk_nvidia),
-	KOBJMETHOD(g_raid_md_free_disk,	g_raid_md_free_disk_nvidia),
-	KOBJMETHOD(g_raid_md_free,	g_raid_md_free_nvidia),
-	{ 0, 0 }
+	KOBJMETHOD(g_raid_md_create, g_raid_md_create_nvidia),
+	KOBJMETHOD(g_raid_md_taste, g_raid_md_taste_nvidia),
+	KOBJMETHOD(g_raid_md_event, g_raid_md_event_nvidia),
+	KOBJMETHOD(g_raid_md_ctl, g_raid_md_ctl_nvidia),
+	KOBJMETHOD(g_raid_md_write, g_raid_md_write_nvidia),
+	KOBJMETHOD(g_raid_md_fail_disk, g_raid_md_fail_disk_nvidia),
+	KOBJMETHOD(g_raid_md_free_disk, g_raid_md_free_disk_nvidia),
+	KOBJMETHOD(g_raid_md_free, g_raid_md_free_nvidia), { 0, 0 }
 };
 
-static struct g_raid_md_class g_raid_md_nvidia_class = {
-	"NVIDIA",
-	g_raid_md_nvidia_methods,
-	sizeof(struct g_raid_md_nvidia_object),
-	.mdc_enable = 1,
-	.mdc_priority = 100
-};
+static struct g_raid_md_class g_raid_md_nvidia_class = { "NVIDIA",
+	g_raid_md_nvidia_methods, sizeof(struct g_raid_md_nvidia_object),
+	.mdc_enable = 1, .mdc_priority = 100 };
 
 static int NVIDIANodeID = 1;
 
@@ -169,13 +167,12 @@ g_raid_md_nvidia_print(struct nvidia_raid_conf *meta)
 	printf("total_sectors       %u\n", meta->total_sectors);
 	printf("sector_size         %u\n", meta->sector_size);
 	printf("name                <%.16s>\n", meta->name);
-	printf("revision            0x%02x%02x%02x%02x\n",
-	    meta->revision[0], meta->revision[1],
-	    meta->revision[2], meta->revision[3]);
+	printf("revision            0x%02x%02x%02x%02x\n", meta->revision[0],
+	    meta->revision[1], meta->revision[2], meta->revision[3]);
 	printf("disk_status         0x%08x\n", meta->disk_status);
 	printf("magic_0             0x%08x\n", meta->magic_0);
-	printf("volume_id           0x%016jx%016jx\n",
-	    meta->volume_id[1], meta->volume_id[0]);
+	printf("volume_id           0x%016jx%016jx\n", meta->volume_id[1],
+	    meta->volume_id[0]);
 	printf("state               0x%02x\n", meta->state);
 	printf("array_width         %u\n", meta->array_width);
 	printf("total_disks         %u\n", meta->total_disks);
@@ -252,8 +249,8 @@ nvidia_meta_read(struct g_consumer *cp)
 	pp = cp->provider;
 
 	/* Read the anchor sector. */
-	buf = g_read_data(cp,
-	    pp->mediasize - 2 * pp->sectorsize, pp->sectorsize, &error);
+	buf = g_read_data(
+	    cp, pp->mediasize - 2 * pp->sectorsize, pp->sectorsize, &error);
 	if (buf == NULL) {
 		G_RAID_DEBUG(1, "Cannot read metadata from %s (error=%d).",
 		    pp->name, error);
@@ -263,12 +260,12 @@ nvidia_meta_read(struct g_consumer *cp)
 
 	/* Check if this is an NVIDIA RAID struct */
 	if (strncmp(meta->nvidia_id, NVIDIA_MAGIC, strlen(NVIDIA_MAGIC))) {
-		G_RAID_DEBUG(1, "NVIDIA signature check failed on %s", pp->name);
+		G_RAID_DEBUG(
+		    1, "NVIDIA signature check failed on %s", pp->name);
 		g_free(buf);
 		return (NULL);
 	}
-	if (meta->config_size > 128 ||
-	    meta->config_size < 30) {
+	if (meta->config_size > 128 || meta->config_size < 30) {
 		G_RAID_DEBUG(1, "NVIDIA metadata size looks wrong: %d",
 		    meta->config_size);
 		g_free(buf);
@@ -279,8 +276,8 @@ nvidia_meta_read(struct g_consumer *cp)
 	g_free(buf);
 
 	/* Check metadata checksum. */
-	for (checksum = 0, ptr = (uint32_t *)meta,
-	    i = 0; i < meta->config_size; i++)
+	for (checksum = 0, ptr = (uint32_t *)meta, i = 0; i < meta->config_size;
+	     i++)
 		checksum += *ptr++;
 	if (checksum != 0) {
 		G_RAID_DEBUG(1, "NVIDIA checksum check failed on %s", pp->name);
@@ -291,8 +288,8 @@ nvidia_meta_read(struct g_consumer *cp)
 	/* Check volume state. */
 	if (meta->state != NVIDIA_S_IDLE && meta->state != NVIDIA_S_INIT &&
 	    meta->state != NVIDIA_S_REBUILD && meta->state != NVIDIA_S_SYNC) {
-		G_RAID_DEBUG(1, "NVIDIA unknown state on %s (0x%02x)",
-		    pp->name, meta->state);
+		G_RAID_DEBUG(1, "NVIDIA unknown state on %s (0x%02x)", pp->name,
+		    meta->state);
 		free(meta, M_MD_NVIDIA);
 		return (NULL);
 	}
@@ -300,8 +297,8 @@ nvidia_meta_read(struct g_consumer *cp)
 	/* Check raid type. */
 	if (meta->type != NVIDIA_T_RAID0 && meta->type != NVIDIA_T_RAID1 &&
 	    meta->type != NVIDIA_T_RAID3 && meta->type != NVIDIA_T_RAID5 &&
-	    meta->type != NVIDIA_T_RAID5_SYM &&
-	    meta->type != NVIDIA_T_RAID01 && meta->type != NVIDIA_T_CONCAT) {
+	    meta->type != NVIDIA_T_RAID5_SYM && meta->type != NVIDIA_T_RAID01 &&
+	    meta->type != NVIDIA_T_CONCAT) {
 		G_RAID_DEBUG(1, "NVIDIA unknown RAID level on %s (0x%02x)",
 		    pp->name, meta->type);
 		free(meta, M_MD_NVIDIA);
@@ -323,8 +320,8 @@ nvidia_meta_write(struct g_consumer *cp, struct nvidia_raid_conf *meta)
 
 	/* Recalculate checksum for case if metadata were changed. */
 	meta->checksum = 0;
-	for (checksum = 0, ptr = (uint32_t *)meta,
-	    i = 0; i < meta->config_size; i++)
+	for (checksum = 0, ptr = (uint32_t *)meta, i = 0; i < meta->config_size;
+	     i++)
 		checksum += *ptr++;
 	meta->checksum -= checksum;
 
@@ -333,8 +330,8 @@ nvidia_meta_write(struct g_consumer *cp, struct nvidia_raid_conf *meta)
 	memcpy(buf, meta, sizeof(*meta));
 
 	/* Write metadata. */
-	error = g_write_data(cp,
-	    pp->mediasize - 2 * pp->sectorsize, buf, pp->sectorsize);
+	error = g_write_data(
+	    cp, pp->mediasize - 2 * pp->sectorsize, buf, pp->sectorsize);
 	if (error != 0) {
 		G_RAID_DEBUG(1, "Cannot write metadata to %s (error=%d).",
 		    pp->name, error);
@@ -353,8 +350,8 @@ nvidia_meta_erase(struct g_consumer *cp)
 
 	pp = cp->provider;
 	buf = malloc(pp->sectorsize, M_MD_NVIDIA, M_WAITOK | M_ZERO);
-	error = g_write_data(cp,
-	    pp->mediasize - 2 * pp->sectorsize, buf, pp->sectorsize);
+	error = g_write_data(
+	    cp, pp->mediasize - 2 * pp->sectorsize, buf, pp->sectorsize);
 	if (error != 0) {
 		G_RAID_DEBUG(1, "Cannot erase metadata on %s (error=%d).",
 		    pp->name, error);
@@ -366,10 +363,10 @@ nvidia_meta_erase(struct g_consumer *cp)
 static struct g_raid_disk *
 g_raid_md_nvidia_get_disk(struct g_raid_softc *sc, int id)
 {
-	struct g_raid_disk	*disk;
+	struct g_raid_disk *disk;
 	struct g_raid_md_nvidia_perdisk *pd;
 
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_nvidia_perdisk *)disk->d_md_data;
 		if (pd->pd_disk_pos == id)
 			break;
@@ -462,12 +459,12 @@ g_raid_md_nvidia_start_disk(struct g_raid_disk *disk)
 		 * If we have already started - try to get use of the disk.
 		 * Try to replace OFFLINE disks first, then FAILED.
 		 */
-		TAILQ_FOREACH(tmpdisk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (tmpdisk, &sc->sc_disks, d_next) {
 			if (tmpdisk->d_state != G_RAID_DISK_S_OFFLINE &&
 			    tmpdisk->d_state != G_RAID_DISK_S_FAILED)
 				continue;
 			/* Make sure this disk is big enough. */
-			TAILQ_FOREACH(sd, &tmpdisk->d_subdisks, sd_next) {
+			TAILQ_FOREACH (sd, &tmpdisk->d_subdisks, sd_next) {
 				if (sd->sd_offset + sd->sd_size + 2 * 512 >
 				    pd->pd_disk_size) {
 					G_RAID_DEBUG1(1, sc,
@@ -486,7 +483,7 @@ g_raid_md_nvidia_start_disk(struct g_raid_disk *disk)
 				olddisk = tmpdisk;
 		}
 		if (olddisk == NULL) {
-nofit:
+		nofit:
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_SPARE);
 			return (1);
 		}
@@ -501,8 +498,8 @@ nofit:
 		if (olddisk == NULL)
 			panic("No disk at position %d!", disk_pos);
 		if (olddisk->d_state != G_RAID_DISK_S_OFFLINE) {
-			G_RAID_DEBUG1(1, sc, "More than one disk for pos %d",
-			    disk_pos);
+			G_RAID_DEBUG1(
+			    1, sc, "More than one disk for pos %d", disk_pos);
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE);
 			return (0);
 		}
@@ -510,7 +507,7 @@ nofit:
 	}
 
 	/* Replace failed disk or placeholder with new disk. */
-	TAILQ_FOREACH_SAFE(sd, &olddisk->d_subdisks, sd_next, tmpsd) {
+	TAILQ_FOREACH_SAFE (sd, &olddisk->d_subdisks, sd_next, tmpsd) {
 		TAILQ_REMOVE(&olddisk->d_subdisks, sd, sd_next);
 		TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
 		sd->sd_disk = disk;
@@ -529,12 +526,12 @@ nofit:
 	/* Welcome the new disk. */
 	if (resurrection)
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
-	else// if (pd->pd_meta->disk_status == NVIDIA_S_CURRENT ||
-	    //pd->pd_meta->disk_status == NVIDIA_S_REBUILD)
+	else // if (pd->pd_meta->disk_status == NVIDIA_S_CURRENT ||
+	     // pd->pd_meta->disk_status == NVIDIA_S_REBUILD)
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
-//	else
-//		g_raid_change_disk_state(disk, G_RAID_DISK_S_FAILED);
-	TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
+	//	else
+	//		g_raid_change_disk_state(disk, G_RAID_DISK_S_FAILED);
+	TAILQ_FOREACH (sd, &disk->d_subdisks, sd_next) {
 		/*
 		 * Different disks may have different sizes,
 		 * in concat mode. Update from real disk size.
@@ -544,35 +541,34 @@ nofit:
 
 		if (resurrection) {
 			/* New or ex-spare disk. */
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_NEW);
+			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NEW);
 		} else if (meta->state == NVIDIA_S_REBUILD &&
 		    (pd->pd_meta->disk_status & 0x100)) {
 			/* Rebuilding disk. */
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_REBUILD);
+			g_raid_change_subdisk_state(
+			    sd, G_RAID_SUBDISK_S_REBUILD);
 			sd->sd_rebuild_pos = (off_t)pd->pd_meta->rebuild_lba /
 			    meta->array_width * pd->pd_meta->sector_size;
 		} else if (meta->state == NVIDIA_S_SYNC) {
 			/* Resyncing/dirty disk. */
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_RESYNC);
+			g_raid_change_subdisk_state(
+			    sd, G_RAID_SUBDISK_S_RESYNC);
 			sd->sd_rebuild_pos = (off_t)pd->pd_meta->rebuild_lba /
 			    meta->array_width * pd->pd_meta->sector_size;
 		} else {
 			/* Up to date disk. */
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_ACTIVE);
+			g_raid_change_subdisk_state(
+			    sd, G_RAID_SUBDISK_S_ACTIVE);
 		}
-		g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
-		    G_RAID_EVENT_SUBDISK);
+		g_raid_event_send(
+		    sd, G_RAID_SUBDISK_E_NEW, G_RAID_EVENT_SUBDISK);
 	}
 
 	/* Update status of our need for spare. */
 	if (mdi->mdio_started) {
-		mdi->mdio_incomplete =
-		    (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) <
-		     mdi->mdio_total_disks);
+		mdi->mdio_incomplete = (g_raid_ndisks(
+					    sc, G_RAID_DISK_S_ACTIVE) <
+		    mdi->mdio_total_disks);
 	}
 
 	return (resurrection);
@@ -607,10 +603,11 @@ g_raid_md_nvidia_refill(struct g_raid_softc *sc)
 
 		G_RAID_DEBUG1(1, md->mdo_softc,
 		    "Array is not complete (%d of %d), "
-		    "trying to refill.", na, mdi->mdio_total_disks);
+		    "trying to refill.",
+		    na, mdi->mdio_total_disks);
 
 		/* Try to get use some of STALE disks. */
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_state == G_RAID_DISK_S_STALE) {
 				update += g_raid_md_nvidia_start_disk(disk);
 				if (disk->d_state == G_RAID_DISK_S_ACTIVE)
@@ -621,7 +618,7 @@ g_raid_md_nvidia_refill(struct g_raid_softc *sc)
 			continue;
 
 		/* Try to get use some of SPARE disks. */
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_state == G_RAID_DISK_S_SPARE) {
 				update += g_raid_md_nvidia_start_disk(disk);
 				if (disk->d_state == G_RAID_DISK_S_ACTIVE)
@@ -640,8 +637,8 @@ g_raid_md_nvidia_refill(struct g_raid_softc *sc)
 
 	/* Request retaste hoping to find spare. */
 	if (mdi->mdio_incomplete) {
-		task = malloc(sizeof(struct task),
-		    M_MD_NVIDIA, M_WAITOK | M_ZERO);
+		task = malloc(
+		    sizeof(struct task), M_MD_NVIDIA, M_WAITOK | M_ZERO);
 		TASK_INIT(task, 0, g_disk_md_nvidia_retaste, task);
 		taskqueue_enqueue(taskqueue_swi, task);
 	}
@@ -697,9 +694,9 @@ g_raid_md_nvidia_start(struct g_raid_softc *sc)
 		vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
 		size = 0;
 	}
-	vol->v_strip_size = meta->strip_sectors * 512; //ZZZ
+	vol->v_strip_size = meta->strip_sectors * 512; // ZZZ
 	vol->v_disks_count = mdi->mdio_total_disks;
-	vol->v_sectorsize = 512; //ZZZ
+	vol->v_sectorsize = 512; // ZZZ
 	for (j = 0; j < vol->v_disks_count; j++) {
 		sd = &vol->v_subdisks[j];
 		sd->sd_offset = 0;
@@ -721,7 +718,7 @@ g_raid_md_nvidia_start(struct g_raid_softc *sc)
 
 	/* Make all disks found till the moment take their places. */
 	do {
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_state == G_RAID_DISK_S_NONE) {
 				g_raid_md_nvidia_start_disk(disk);
 				break;
@@ -764,7 +761,8 @@ g_raid_md_nvidia_new_disk(struct g_raid_disk *disk)
 			g_raid_md_write_nvidia(md, NULL, NULL, NULL);
 	} else {
 		if (mdi->mdio_meta == NULL ||
-		    mdi->mdio_meta->disk_number >= mdi->mdio_meta->total_disks) {
+		    mdi->mdio_meta->disk_number >=
+			mdi->mdio_meta->total_disks) {
 			G_RAID_DEBUG1(1, sc, "Newer disk");
 			if (mdi->mdio_meta != NULL)
 				free(mdi->mdio_meta, M_MD_NVIDIA);
@@ -774,8 +772,7 @@ g_raid_md_nvidia_new_disk(struct g_raid_disk *disk)
 		} else if (pdmeta->disk_number < mdi->mdio_meta->total_disks) {
 			mdi->mdio_disks_present++;
 			G_RAID_DEBUG1(1, sc, "Matching disk (%d of %d up)",
-			    mdi->mdio_disks_present,
-			    mdi->mdio_total_disks);
+			    mdi->mdio_disks_present, mdi->mdio_total_disks);
 		} else
 			G_RAID_DEBUG1(1, sc, "Spare disk");
 
@@ -802,8 +799,8 @@ g_raid_nvidia_go(void *arg)
 }
 
 static int
-g_raid_md_create_nvidia(struct g_raid_md_object *md, struct g_class *mp,
-    struct g_geom **gp)
+g_raid_md_create_nvidia(
+    struct g_raid_md_object *md, struct g_class *mp, struct g_geom **gp)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_md_nvidia_object *mdi;
@@ -823,7 +820,7 @@ g_raid_md_create_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 
 static int
 g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
-                              struct g_consumer *cp, struct g_geom **gp)
+    struct g_consumer *cp, struct g_geom **gp)
 {
 	struct g_consumer *rcp;
 	struct g_provider *pp;
@@ -853,8 +850,8 @@ g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 	if (meta == NULL) {
 		if (g_raid_aggressive_spare) {
 			if (vendor == 0x10de) {
-				G_RAID_DEBUG(1,
-				    "No NVIDIA metadata, forcing spare.");
+				G_RAID_DEBUG(
+				    1, "No NVIDIA metadata, forcing spare.");
 				spare = 2;
 				goto search;
 			} else {
@@ -869,13 +866,13 @@ g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 	/* Metadata valid. Print it. */
 	g_raid_md_nvidia_print(meta);
 	G_RAID_DEBUG(1, "NVIDIA disk position %d", meta->disk_number);
-	spare = 0;//(meta->type == NVIDIA_T_SPARE) ? 1 : 0;
+	spare = 0; //(meta->type == NVIDIA_T_SPARE) ? 1 : 0;
 
 search:
 	/* Search for matching node. */
 	sc = NULL;
 	mdi1 = NULL;
-	LIST_FOREACH(geom, &mp->geom, geom) {
+	LIST_FOREACH (geom, &mp->geom, geom) {
 		sc = geom->softc;
 		if (sc == NULL)
 			continue;
@@ -888,8 +885,8 @@ search:
 			if (mdi1->mdio_incomplete)
 				break;
 		} else {
-			if (memcmp(&mdi1->mdio_volume_id,
-			     &meta->volume_id, 16) == 0)
+			if (memcmp(&mdi1->mdio_volume_id, &meta->volume_id,
+				16) == 0)
 				break;
 		}
 	}
@@ -925,7 +922,7 @@ search:
 	rcp->flags |= G_CF_DIRECT_RECEIVE;
 	g_attach(rcp, pp);
 	if (g_access(rcp, 1, 1, 1) != 0)
-		; //goto fail1;
+		; // goto fail1;
 
 	g_topology_unlock();
 	sx_xlock(&sc->sc_lock);
@@ -957,8 +954,8 @@ fail1:
 }
 
 static int
-g_raid_md_event_nvidia(struct g_raid_md_object *md,
-    struct g_raid_disk *disk, u_int event)
+g_raid_md_event_nvidia(
+    struct g_raid_md_object *md, struct g_raid_disk *disk, u_int event)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_subdisk *sd;
@@ -989,10 +986,11 @@ g_raid_md_event_nvidia(struct g_raid_md_object *md,
 				g_raid_kill_consumer(sc, disk->d_consumer);
 				disk->d_consumer = NULL;
 			}
-			TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
-				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_NONE);
-				g_raid_event_send(sd, G_RAID_SUBDISK_E_DISCONNECTED,
+			TAILQ_FOREACH (sd, &disk->d_subdisks, sd_next) {
+				g_raid_change_subdisk_state(
+				    sd, G_RAID_SUBDISK_S_NONE);
+				g_raid_event_send(sd,
+				    G_RAID_SUBDISK_E_DISCONNECTED,
 				    G_RAID_EVENT_SUBDISK);
 			}
 		} else {
@@ -1022,8 +1020,7 @@ g_raid_md_event_nvidia(struct g_raid_md_object *md,
 }
 
 static int
-g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
-    struct gctl_req *req)
+g_raid_md_ctl_nvidia(struct g_raid_md_object *md, struct gctl_req *req)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
@@ -1069,9 +1066,10 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 		}
 		numdisks = *nargs - 3;
 		force = gctl_get_paraml(req, "force", sizeof(*force));
-		if (!g_raid_md_nvidia_supported(level, qual, numdisks,
-		    force ? *force : 0)) {
-			gctl_error(req, "Unsupported RAID level "
+		if (!g_raid_md_nvidia_supported(
+			level, qual, numdisks, force ? *force : 0)) {
+			gctl_error(req,
+			    "Unsupported RAID level "
 			    "(0x%02x/0x%02x), or number of disks (%d).",
 			    level, qual, numdisks);
 			return (-5);
@@ -1095,15 +1093,16 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 				g_topology_lock();
 				cp = g_raid_open_consumer(sc, diskname);
 				if (cp == NULL) {
-					gctl_error(req, "Can't open '%s'.",
-					    diskname);
+					gctl_error(
+					    req, "Can't open '%s'.", diskname);
 					g_topology_unlock();
 					error = -7;
 					break;
 				}
 				pp = cp->provider;
 			}
-			pd = malloc(sizeof(*pd), M_MD_NVIDIA, M_WAITOK | M_ZERO);
+			pd = malloc(
+			    sizeof(*pd), M_MD_NVIDIA, M_WAITOK | M_ZERO);
 			pd->pd_disk_pos = i;
 			disk = g_raid_create_disk(sc);
 			disk->d_md_data = (void *)pd;
@@ -1188,8 +1187,7 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 		else if (level == G_RAID_VOLUME_RL_RAID5)
 			volsize = size * (numdisks - 1);
 		else { /* RAID1E */
-			volsize = ((size * numdisks) / strip / 2) *
-			    strip;
+			volsize = ((size * numdisks) / strip / 2) * strip;
 		}
 		if (volsize > 0xffffffffllu * sectorsize) {
 			gctl_error(req, "Size too big.");
@@ -1210,7 +1208,7 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 		g_raid_start_volume(vol);
 
 		/* , and subdisks. */
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			pd = (struct g_raid_md_nvidia_perdisk *)disk->d_md_data;
 			sd = &vol->v_subdisks[pd->pd_disk_pos];
 			sd->sd_disk = disk;
@@ -1218,14 +1216,15 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 			sd->sd_size = size;
 			TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
 			if (sd->sd_disk->d_consumer != NULL) {
-				g_raid_change_disk_state(disk,
-				    G_RAID_DISK_S_ACTIVE);
-				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_ACTIVE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_ACTIVE);
+				g_raid_change_subdisk_state(
+				    sd, G_RAID_SUBDISK_S_ACTIVE);
 				g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
 				    G_RAID_EVENT_SUBDISK);
 			} else {
-				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_OFFLINE);
 			}
 		}
 
@@ -1236,28 +1235,26 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 		/* Pickup any STALE/SPARE disks to refill array if needed. */
 		g_raid_md_nvidia_refill(sc);
 
-		g_raid_event_send(vol, G_RAID_VOLUME_E_START,
-		    G_RAID_EVENT_VOLUME);
+		g_raid_event_send(
+		    vol, G_RAID_VOLUME_E_START, G_RAID_EVENT_VOLUME);
 		return (0);
 	}
 	if (strcmp(verb, "delete") == 0) {
 		/* Check if some volume is still open. */
 		force = gctl_get_paraml(req, "force", sizeof(*force));
-		if (force != NULL && *force == 0 &&
-		    g_raid_nopens(sc) != 0) {
+		if (force != NULL && *force == 0 && g_raid_nopens(sc) != 0) {
 			gctl_error(req, "Some volume is still open.");
 			return (-4);
 		}
 
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_consumer)
 				nvidia_meta_erase(disk->d_consumer);
 		}
 		g_raid_destroy_node(sc, 0);
 		return (0);
 	}
-	if (strcmp(verb, "remove") == 0 ||
-	    strcmp(verb, "fail") == 0) {
+	if (strcmp(verb, "remove") == 0 || strcmp(verb, "fail") == 0) {
 		if (*nargs < 2) {
 			gctl_error(req, "Invalid number of arguments.");
 			return (-1);
@@ -1273,16 +1270,16 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 			if (strncmp(diskname, _PATH_DEV, 5) == 0)
 				diskname += 5;
 
-			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-				if (disk->d_consumer != NULL && 
+			TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
+				if (disk->d_consumer != NULL &&
 				    disk->d_consumer->provider != NULL &&
 				    strcmp(disk->d_consumer->provider->name,
-				     diskname) == 0)
+					diskname) == 0)
 					break;
 			}
 			if (disk == NULL) {
-				gctl_error(req, "Disk '%s' not found.",
-				    diskname);
+				gctl_error(
+				    req, "Disk '%s' not found.", diskname);
 				error = -3;
 				break;
 			}
@@ -1299,18 +1296,21 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 
 			/* If disk was assigned, just update statuses. */
 			if (pd->pd_disk_pos >= 0) {
-				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_OFFLINE);
 				g_raid_kill_consumer(sc, disk->d_consumer);
 				disk->d_consumer = NULL;
-				TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
-					g_raid_change_subdisk_state(sd,
-					    G_RAID_SUBDISK_S_NONE);
-					g_raid_event_send(sd, G_RAID_SUBDISK_E_DISCONNECTED,
+				TAILQ_FOREACH (sd, &disk->d_subdisks, sd_next) {
+					g_raid_change_subdisk_state(
+					    sd, G_RAID_SUBDISK_S_NONE);
+					g_raid_event_send(sd,
+					    G_RAID_SUBDISK_E_DISCONNECTED,
 					    G_RAID_EVENT_SUBDISK);
 				}
 			} else {
 				/* Otherwise -- delete. */
-				g_raid_change_disk_state(disk, G_RAID_DISK_S_NONE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_NONE);
 				g_raid_destroy_disk(disk);
 			}
 		}
@@ -1346,15 +1346,16 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 			g_topology_lock();
 			cp = g_raid_open_consumer(sc, diskname);
 			if (cp == NULL) {
-				gctl_error(req, "Can't open disk '%s'.",
-				    diskname);
+				gctl_error(
+				    req, "Can't open disk '%s'.", diskname);
 				g_topology_unlock();
 				error = -4;
 				break;
 			}
 			pp = cp->provider;
 
-			pd = malloc(sizeof(*pd), M_MD_NVIDIA, M_WAITOK | M_ZERO);
+			pd = malloc(
+			    sizeof(*pd), M_MD_NVIDIA, M_WAITOK | M_ZERO);
 			pd->pd_disk_pos = -3;
 			pd->pd_disk_size = pp->mediasize;
 
@@ -1370,8 +1371,8 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 			update += g_raid_md_nvidia_start_disk(disk);
 			if (disk->d_state != G_RAID_DISK_S_SPARE &&
 			    disk->d_state != G_RAID_DISK_S_ACTIVE) {
-				gctl_error(req, "Disk '%s' doesn't fit.",
-				    diskname);
+				gctl_error(
+				    req, "Disk '%s' doesn't fit.", diskname);
 				g_raid_destroy_disk(disk);
 				error = -8;
 				break;
@@ -1459,12 +1460,12 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	for (i = 0; i < vol->v_disks_count; i++) {
 		sd = &vol->v_subdisks[i];
 		if ((sd->sd_state == G_RAID_SUBDISK_S_STALE ||
-		     sd->sd_state == G_RAID_SUBDISK_S_RESYNC ||
-		     vol->v_dirty) &&
-		     meta->state != NVIDIA_S_REBUILD)
+			sd->sd_state == G_RAID_SUBDISK_S_RESYNC ||
+			vol->v_dirty) &&
+		    meta->state != NVIDIA_S_REBUILD)
 			meta->state = NVIDIA_S_SYNC;
 		else if (sd->sd_state == G_RAID_SUBDISK_S_NEW ||
-		     sd->sd_state == G_RAID_SUBDISK_S_REBUILD)
+		    sd->sd_state == G_RAID_SUBDISK_S_REBUILD)
 			meta->state = NVIDIA_S_REBUILD;
 	}
 
@@ -1473,7 +1474,7 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		free(mdi->mdio_meta, M_MD_NVIDIA);
 	mdi->mdio_meta = meta;
 	spares = 0;
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_nvidia_perdisk *)disk->d_md_data;
 		if (disk->d_state != G_RAID_DISK_S_ACTIVE &&
 		    disk->d_state != G_RAID_DISK_S_SPARE)
@@ -1485,13 +1486,12 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		pd->pd_meta = nvidia_meta_copy(meta);
 		if ((sd = TAILQ_FIRST(&disk->d_subdisks)) != NULL) {
 			/* For RAID0+1 we need to translate order. */
-			pd->pd_meta->disk_number =
-			    nvidia_meta_translate_disk(meta, sd->sd_pos);
+			pd->pd_meta->disk_number = nvidia_meta_translate_disk(
+			    meta, sd->sd_pos);
 			if (sd->sd_state != G_RAID_SUBDISK_S_ACTIVE) {
 				pd->pd_meta->disk_status = 0x100;
-				pd->pd_meta->rebuild_lba =
-				    sd->sd_rebuild_pos / vol->v_sectorsize *
-				    meta->array_width;
+				pd->pd_meta->rebuild_lba = sd->sd_rebuild_pos /
+				    vol->v_sectorsize * meta->array_width;
 			}
 		} else
 			pd->pd_meta->disk_number = meta->total_disks + spares++;
@@ -1524,19 +1524,17 @@ g_raid_md_fail_disk_nvidia(struct g_raid_md_object *md,
 
 	/* Change states. */
 	g_raid_change_disk_state(tdisk, G_RAID_DISK_S_FAILED);
-	TAILQ_FOREACH(sd, &tdisk->d_subdisks, sd_next) {
-		g_raid_change_subdisk_state(sd,
-		    G_RAID_SUBDISK_S_FAILED);
-		g_raid_event_send(sd, G_RAID_SUBDISK_E_FAILED,
-		    G_RAID_EVENT_SUBDISK);
+	TAILQ_FOREACH (sd, &tdisk->d_subdisks, sd_next) {
+		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_FAILED);
+		g_raid_event_send(
+		    sd, G_RAID_SUBDISK_E_FAILED, G_RAID_EVENT_SUBDISK);
 	}
 
 	/* Write updated metadata to remaining disks. */
 	g_raid_md_write_nvidia(md, NULL, NULL, tdisk);
 
 	/* Check if anything left except placeholders. */
-	if (g_raid_ndisks(sc, -1) ==
-	    g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
+	if (g_raid_ndisks(sc, -1) == g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
 		g_raid_destroy_node(sc, 0);
 	else
 		g_raid_md_nvidia_refill(sc);
@@ -1544,8 +1542,8 @@ g_raid_md_fail_disk_nvidia(struct g_raid_md_object *md,
 }
 
 static int
-g_raid_md_free_disk_nvidia(struct g_raid_md_object *md,
-    struct g_raid_disk *disk)
+g_raid_md_free_disk_nvidia(
+    struct g_raid_md_object *md, struct g_raid_disk *disk)
 {
 	struct g_raid_md_nvidia_perdisk *pd;
 
@@ -1568,8 +1566,8 @@ g_raid_md_free_nvidia(struct g_raid_md_object *md)
 	if (!mdi->mdio_started) {
 		mdi->mdio_started = 0;
 		callout_stop(&mdi->mdio_start_co);
-		G_RAID_DEBUG1(1, md->mdo_softc,
-		    "root_mount_rel %p", mdi->mdio_rootmount);
+		G_RAID_DEBUG1(
+		    1, md->mdo_softc, "root_mount_rel %p", mdi->mdio_rootmount);
 		root_mount_rel(mdi->mdio_rootmount);
 		mdi->mdio_rootmount = NULL;
 	}

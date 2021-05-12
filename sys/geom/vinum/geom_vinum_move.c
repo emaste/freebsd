@@ -39,8 +39,8 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
+#include <geom/vinum/geom_vinum_var.h>
 
 void
 gv_move(struct g_geom *gp, struct gctl_req *req)
@@ -86,8 +86,10 @@ gv_move(struct g_geom *gp, struct gctl_req *req)
 
 		type = gv_object_type(sc, object);
 		if (type != GV_TYPE_SD) {
-			gctl_error(req, "you can only move subdisks; "
-			    "'%s' is not a subdisk", object);
+			gctl_error(req,
+			    "you can only move subdisks; "
+			    "'%s' is not a subdisk",
+			    object);
 			return;
 		}
 
@@ -102,7 +104,7 @@ gv_move(struct g_geom *gp, struct gctl_req *req)
 
 /* Move a subdisk. */
 int
-gv_move_sd(struct gv_softc *sc, struct gv_sd *cursd, 
+gv_move_sd(struct gv_softc *sc, struct gv_sd *cursd,
     struct gv_drive *destination, int flags)
 {
 	struct gv_drive *d;
@@ -117,15 +119,17 @@ gv_move_sd(struct gv_softc *sc, struct gv_sd *cursd,
 	d = cursd->drive_sc;
 
 	if ((gv_consumer_is_open(d->consumer) ||
-	    gv_consumer_is_open(destination->consumer)) &&
+		gv_consumer_is_open(destination->consumer)) &&
 	    !(flags & GV_FLAG_F)) {
-		G_VINUM_DEBUG(0, "consumers on current and destination drive "
+		G_VINUM_DEBUG(0,
+		    "consumers on current and destination drive "
 		    " still open");
 		return (GV_ERR_ISBUSY);
 	}
 
 	if (!(flags & GV_FLAG_F)) {
-		G_VINUM_DEBUG(1, "-f flag not passed; move would be "
+		G_VINUM_DEBUG(1,
+		    "-f flag not passed; move would be "
 		    "destructive");
 		return (GV_ERR_INVFLAG);
 	}
@@ -139,17 +143,19 @@ gv_move_sd(struct gv_softc *sc, struct gv_sd *cursd,
 	/* XXX: Does it have to be part of a plex? */
 	p = gv_find_plex(sc, cursd->plex);
 	if (p == NULL) {
-		G_VINUM_DEBUG(0, "subdisk '%s' is not part of a plex",
-		    cursd->name);
+		G_VINUM_DEBUG(
+		    0, "subdisk '%s' is not part of a plex", cursd->name);
 		return (GV_ERR_NOTFOUND);
 	}
 
 	/* Stale the old subdisk. */
-	err = gv_set_sd_state(cursd, GV_SD_STALE,
-	    GV_SETSTATE_FORCE | GV_SETSTATE_CONFIG);
+	err = gv_set_sd_state(
+	    cursd, GV_SD_STALE, GV_SETSTATE_FORCE | GV_SETSTATE_CONFIG);
 	if (err) {
-		G_VINUM_DEBUG(0, "unable to set the subdisk '%s' to state "
-		    "'stale'", cursd->name);
+		G_VINUM_DEBUG(0,
+		    "unable to set the subdisk '%s' to state "
+		    "'stale'",
+		    cursd->name);
 		return (err);
 	}
 
@@ -176,7 +182,7 @@ gv_move_sd(struct gv_softc *sc, struct gv_sd *cursd,
 	}
 
 	/* Replace the old sd by the new one. */
-	LIST_FOREACH_SAFE(s, &p->subdisks, in_plex, s2) {
+	LIST_FOREACH_SAFE (s, &p->subdisks, in_plex, s2) {
 		if (s == cursd) {
 			gv_rm_sd(sc, s);
 		}

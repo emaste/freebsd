@@ -40,16 +40,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
 #include <isa/isavar.h>
 #ifdef CPU_ELAN
 #include <machine/md_var.h>
 #endif
-#include <x86/legacyvar.h>
 #include <machine/pci_cfgreg.h>
 #include <machine/resource.h>
+
+#include <x86/legacyvar.h>
 
 #include "pcib_if.h"
 
@@ -62,17 +64,17 @@ legacy_pcib_maxslots(device_t dev)
 /* read configuration space register */
 
 uint32_t
-legacy_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
-			u_int reg, int bytes)
+legacy_pcib_read_config(
+    device_t dev, u_int bus, u_int slot, u_int func, u_int reg, int bytes)
 {
-	return(pci_cfgregread(bus, slot, func, reg, bytes));
+	return (pci_cfgregread(bus, slot, func, reg, bytes));
 }
 
 /* write configuration space register */
 
 void
 legacy_pcib_write_config(device_t dev, u_int bus, u_int slot, u_int func,
-			 u_int reg, uint32_t data, int bytes)
+    u_int reg, uint32_t data, int bytes)
 {
 	pci_cfgregwrite(bus, slot, func, reg, data, bytes);
 }
@@ -84,8 +86,8 @@ legacy_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 {
 
 #ifdef __HAVE_PIR
-	return (pci_pir_route_interrupt(pci_get_bus(dev), pci_get_slot(dev),
-	    pci_get_function(dev), pin));
+	return (pci_pir_route_interrupt(
+	    pci_get_bus(dev), pci_get_slot(dev), pci_get_function(dev), pin));
 #else
 	/* No routing possible */
 	return (PCI_INVALID_IRQ);
@@ -95,14 +97,14 @@ legacy_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 /* Pass MSI requests up to the nexus. */
 
 int
-legacy_pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount,
-    int *irqs)
+legacy_pcib_alloc_msi(
+    device_t pcib, device_t dev, int count, int maxcount, int *irqs)
 {
 	device_t bus;
 
 	bus = device_get_parent(pcib);
-	return (PCIB_ALLOC_MSI(device_get_parent(bus), dev, count, maxcount,
-	    irqs));
+	return (
+	    PCIB_ALLOC_MSI(device_get_parent(bus), dev, count, maxcount, irqs));
 }
 
 int
@@ -115,8 +117,8 @@ legacy_pcib_alloc_msix(device_t pcib, device_t dev, int *irq)
 }
 
 int
-legacy_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
-    uint32_t *data)
+legacy_pcib_map_msi(
+    device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data)
 {
 	device_t bus, hostb;
 	int error, func, slot;
@@ -131,20 +133,19 @@ legacy_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
 	if (slot == -1 || func == -1)
 		return (0);
 	hostb = pci_find_bsf(0, slot, func);
-	KASSERT(hostb != NULL, ("%s: missing hostb for 0:%d:%d", __func__,
-	    slot, func));
+	KASSERT(hostb != NULL,
+	    ("%s: missing hostb for 0:%d:%d", __func__, slot, func));
 	pci_ht_map_msi(hostb, *addr);
 	return (0);
 }
 
 static const char *
-legacy_pcib_is_host_bridge(int bus, int slot, int func,
-			  uint32_t id, uint8_t class, uint8_t subclass,
-			  uint8_t *busnum)
+legacy_pcib_is_host_bridge(int bus, int slot, int func, uint32_t id,
+    uint8_t class, uint8_t subclass, uint8_t *busnum)
 {
 #ifdef __i386__
 	const char *s = NULL;
-	static uint8_t pxb[4];	/* hack for 450nx */
+	static uint8_t pxb[4]; /* hack for 450nx */
 
 	*busnum = 0;
 
@@ -152,7 +153,8 @@ legacy_pcib_is_host_bridge(int bus, int slot, int func,
 	case 0x12258086:
 		s = "Intel 824?? host to PCI bridge";
 		/* XXX This is a guess */
-		/* *busnum = legacy_pcib_read_config(0, bus, slot, func, 0x41, 1); */
+		/* *busnum = legacy_pcib_read_config(0, bus, slot, func, 0x41,
+		 * 1); */
 		*busnum = bus;
 		break;
 	case 0x71208086:
@@ -204,14 +206,14 @@ legacy_pcib_is_host_bridge(int bus, int slot, int func,
 		 * Since the MIOC doesn't have a pci bus attached, we
 		 * pretend it wasn't there.
 		 */
-		pxb[0] = legacy_pcib_read_config(0, bus, slot, func,
-						0xd0, 1); /* BUSNO[0] */
-		pxb[1] = legacy_pcib_read_config(0, bus, slot, func,
-						0xd1, 1) + 1;	/* SUBA[0]+1 */
-		pxb[2] = legacy_pcib_read_config(0, bus, slot, func,
-						0xd3, 1); /* BUSNO[1] */
-		pxb[3] = legacy_pcib_read_config(0, bus, slot, func,
-						0xd4, 1) + 1;	/* SUBA[1]+1 */
+		pxb[0] = legacy_pcib_read_config(
+		    0, bus, slot, func, 0xd0, 1); /* BUSNO[0] */
+		pxb[1] = legacy_pcib_read_config(0, bus, slot, func, 0xd1, 1) +
+		    1; /* SUBA[0]+1 */
+		pxb[2] = legacy_pcib_read_config(
+		    0, bus, slot, func, 0xd3, 1); /* BUSNO[1] */
+		pxb[3] = legacy_pcib_read_config(0, bus, slot, func, 0xd4, 1) +
+		    1; /* SUBA[1]+1 */
 		return NULL;
 	case 0x84cb8086:
 		switch (slot) {
@@ -244,7 +246,7 @@ legacy_pcib_is_host_bridge(int bus, int slot, int func,
 		init_AMD_Elan_sc520();
 #else
 		printf(
-"*** WARNING: missing CPU_ELAN -- timekeeping may be wrong\n");
+		    "*** WARNING: missing CPU_ELAN -- timekeeping may be wrong\n");
 #endif
 		break;
 	case 0x70061022:
@@ -276,16 +278,20 @@ legacy_pcib_is_host_bridge(int bus, int slot, int func,
 		s = "VLSI 82C592 Host to PCI bridge";
 		break;
 
-		/* XXX Here is MVP3, I got the datasheet but NO M/B to test it  */
-		/* totally. Please let me know if anything wrong.            -F */
+		/* XXX Here is MVP3, I got the datasheet but NO M/B to test it
+		 */
+		/* totally. Please let me know if anything wrong.            -F
+		 */
 		/* XXX need info on the MVP3 -- any takers? */
 	case 0x05981106:
 		s = "VIA 82C598MVP (Apollo MVP3) host bridge";
 		break;
 
 		/* AcerLabs -- vendor 0x10b9 */
-		/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
-		/* id is '10b9" but the register always shows "10b9". -Foxfair  */
+		/* Funny : The datasheet told me vendor id is "10b8",sub-vendor
+		 */
+		/* id is '10b9" but the register always shows "10b9". -Foxfair
+		 */
 	case 0x154110b9:
 		s = "AcerLabs M1541 (Aladdin-V) PCI host bridge";
 		break;
@@ -378,7 +384,7 @@ static void
 legacy_pcib_identify(driver_t *driver, device_t parent)
 {
 	int bus, slot, func;
-	uint8_t  hdrtype;
+	uint8_t hdrtype;
 	int found = 0;
 	int pcifunchigh;
 	int found824xx = 0;
@@ -394,15 +400,15 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 	 * we're going to end up duplicating it.
 	 */
 	if ((pci_devclass = devclass_find("pci")) &&
-		devclass_get_device(pci_devclass, 0))
+	    devclass_get_device(pci_devclass, 0))
 		return;
 
 	bus = 0;
- retry:
+retry:
 	for (slot = 0; slot <= PCI_SLOTMAX; slot++) {
 		func = 0;
-		hdrtype = legacy_pcib_read_config(0, bus, slot, func,
-						 PCIR_HDRTYPE, 1);
+		hdrtype = legacy_pcib_read_config(
+		    0, bus, slot, func, PCIR_HDRTYPE, 1);
 		/*
 		 * When enumerating bus devices, the standard says that
 		 * one should check the header type and ignore the slots whose
@@ -411,8 +417,7 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 		 */
 		if ((hdrtype & PCIM_HDRTYPE) > PCI_MAXHDRTYPE)
 			continue;
-		if ((hdrtype & PCIM_MFDEV) &&
-		    (!found_orion || hdrtype != 0xff))
+		if ((hdrtype & PCIM_MFDEV) && (!found_orion || hdrtype != 0xff))
 			pcifunchigh = PCI_FUNCMAX;
 		else
 			pcifunchigh = 0;
@@ -426,18 +431,17 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 			device_t *devs;
 			int ndevs, i;
 
-			id = legacy_pcib_read_config(0, bus, slot, func,
-						    PCIR_DEVVENDOR, 4);
+			id = legacy_pcib_read_config(
+			    0, bus, slot, func, PCIR_DEVVENDOR, 4);
 			if (id == -1)
 				continue;
-			class = legacy_pcib_read_config(0, bus, slot, func,
-						       PCIR_CLASS, 1);
-			subclass = legacy_pcib_read_config(0, bus, slot, func,
-							  PCIR_SUBCLASS, 1);
+			class = legacy_pcib_read_config(
+			    0, bus, slot, func, PCIR_CLASS, 1);
+			subclass = legacy_pcib_read_config(
+			    0, bus, slot, func, PCIR_SUBCLASS, 1);
 
-			s = legacy_pcib_is_host_bridge(bus, slot, func,
-						      id, class, subclass,
-						      &busnum);
+			s = legacy_pcib_is_host_bridge(
+			    bus, slot, func, id, class, subclass, &busnum);
 			if (s == NULL)
 				continue;
 
@@ -449,9 +453,10 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 			if (device_get_children(parent, &devs, &ndevs) == 0) {
 				for (i = 0; s != NULL && i < ndevs; i++) {
 					if (strcmp(device_get_name(devs[i]),
-					    "pcib") != 0)
+						"pcib") != 0)
 						continue;
-					if (legacy_get_pcibus(devs[i]) == busnum)
+					if (legacy_get_pcibus(devs[i]) ==
+					    busnum)
 						s = NULL;
 				}
 				free(devs, M_TEMP);
@@ -463,8 +468,7 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 			 * Add at priority 100 to make sure we
 			 * go after any motherboard resources
 			 */
-			child = BUS_ADD_CHILD(parent, 100,
-					      "pcib", busnum);
+			child = BUS_ADD_CHILD(parent, 100, "pcib", busnum);
 			device_set_desc(child, s);
 			legacy_set_pcibus(child, busnum);
 			legacy_set_pcislot(child, slot);
@@ -490,7 +494,7 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 	if (!found) {
 		if (bootverbose)
 			printf(
-	"legacy_pcib_identify: no bridge found, adding pcib0 anyway\n");
+			    "legacy_pcib_identify: no bridge found, adding pcib0 anyway\n");
 		child = BUS_ADD_CHILD(parent, 100, "pcib", 0);
 		legacy_set_pcibus(child, 0);
 	}
@@ -530,15 +534,15 @@ legacy_pcib_attach(device_t dev)
 }
 
 int
-legacy_pcib_read_ivar(device_t dev, device_t child, int which,
-    uintptr_t *result)
+legacy_pcib_read_ivar(
+    device_t dev, device_t child, int which, uintptr_t *result)
 {
 
 	switch (which) {
-	case  PCIB_IVAR_DOMAIN:
+	case PCIB_IVAR_DOMAIN:
 		*result = 0;
 		return 0;
-	case  PCIB_IVAR_BUS:
+	case PCIB_IVAR_BUS:
 		*result = legacy_get_pcibus(dev);
 		return 0;
 	}
@@ -546,14 +550,13 @@ legacy_pcib_read_ivar(device_t dev, device_t child, int which,
 }
 
 int
-legacy_pcib_write_ivar(device_t dev, device_t child, int which,
-    uintptr_t value)
+legacy_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 {
 
 	switch (which) {
-	case  PCIB_IVAR_DOMAIN:
+	case PCIB_IVAR_DOMAIN:
 		return EINVAL;
-	case  PCIB_IVAR_BUS:
+	case PCIB_IVAR_BUS:
 		legacy_set_pcibus(dev, value);
 		return 0;
 	}
@@ -569,7 +572,7 @@ legacy_pcib_write_ivar(device_t dev, device_t child, int which,
  * use for their memory window.  This is typically only used on older
  * laptops that don't have PCI buses behind a PCI bridge, so assuming
  * > 32MB is likely OK.
- *	
+ *
  * However, this can cause problems for other chipsets, so we make
  * this tunable by hw.pci.host_mem_start.
  */
@@ -599,12 +602,12 @@ legacy_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	if (type == PCI_RES_BUS)
-		return (pci_domain_alloc_bus(0, child, rid, start, end, count,
-		    flags));
+		return (pci_domain_alloc_bus(
+		    0, child, rid, start, end, count, flags));
 #endif
 	start = hostb_alloc_start(type, start, end, count);
-	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
-	    count, flags));
+	return (bus_generic_alloc_resource(
+	    dev, child, type, rid, start, end, count, flags));
 }
 
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
@@ -619,8 +622,8 @@ legacy_pcib_adjust_resource(device_t dev, device_t child, int type,
 }
 
 int
-legacy_pcib_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+legacy_pcib_release_resource(
+    device_t dev, device_t child, int type, int rid, struct resource *r)
 {
 
 	if (type == PCI_RES_BUS)
@@ -631,40 +634,40 @@ legacy_pcib_release_resource(device_t dev, device_t child, int type, int rid,
 
 static device_method_t legacy_pcib_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	legacy_pcib_identify),
-	DEVMETHOD(device_probe,		legacy_pcib_probe),
-	DEVMETHOD(device_attach,	legacy_pcib_attach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_identify, legacy_pcib_identify),
+	DEVMETHOD(device_probe, legacy_pcib_probe),
+	DEVMETHOD(device_attach, legacy_pcib_attach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,	legacy_pcib_read_ivar),
-	DEVMETHOD(bus_write_ivar,	legacy_pcib_write_ivar),
-	DEVMETHOD(bus_alloc_resource,	legacy_pcib_alloc_resource),
+	DEVMETHOD(bus_read_ivar, legacy_pcib_read_ivar),
+	DEVMETHOD(bus_write_ivar, legacy_pcib_write_ivar),
+	DEVMETHOD(bus_alloc_resource, legacy_pcib_alloc_resource),
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	DEVMETHOD(bus_adjust_resource,	legacy_pcib_adjust_resource),
-	DEVMETHOD(bus_release_resource,	legacy_pcib_release_resource),
+	DEVMETHOD(bus_adjust_resource, legacy_pcib_adjust_resource),
+	DEVMETHOD(bus_release_resource, legacy_pcib_release_resource),
 #else
-	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_adjust_resource, bus_generic_adjust_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
 #endif
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_maxslots,	legacy_pcib_maxslots),
-	DEVMETHOD(pcib_read_config,	legacy_pcib_read_config),
-	DEVMETHOD(pcib_write_config,	legacy_pcib_write_config),
-	DEVMETHOD(pcib_route_interrupt,	legacy_pcib_route_interrupt),
-	DEVMETHOD(pcib_alloc_msi,	legacy_pcib_alloc_msi),
-	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
-	DEVMETHOD(pcib_alloc_msix,	legacy_pcib_alloc_msix),
-	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
-	DEVMETHOD(pcib_map_msi,		legacy_pcib_map_msi),
-	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
+	DEVMETHOD(pcib_maxslots, legacy_pcib_maxslots),
+	DEVMETHOD(pcib_read_config, legacy_pcib_read_config),
+	DEVMETHOD(pcib_write_config, legacy_pcib_write_config),
+	DEVMETHOD(pcib_route_interrupt, legacy_pcib_route_interrupt),
+	DEVMETHOD(pcib_alloc_msi, legacy_pcib_alloc_msi),
+	DEVMETHOD(pcib_release_msi, pcib_release_msi),
+	DEVMETHOD(pcib_alloc_msix, legacy_pcib_alloc_msix),
+	DEVMETHOD(pcib_release_msix, pcib_release_msix),
+	DEVMETHOD(pcib_map_msi, legacy_pcib_map_msi),
+	DEVMETHOD(pcib_request_feature, pcib_request_feature_allow),
 
 	DEVMETHOD_END
 };
@@ -683,37 +686,35 @@ DRIVER_MODULE(pcib, legacy, legacy_pcib_driver, hostb_devclass, 0, 0);
  *
  * we silence this probe, as it will generally confuse people.
  */
-static struct isa_pnp_id pcibus_pnp_ids[] = {
-	{ 0x030ad041 /* PNP0A03 */, "PCI Bus" },
-	{ 0x080ad041 /* PNP0A08 */, "PCIe Bus" },
-	{ 0 }
-};
+static struct isa_pnp_id pcibus_pnp_ids[] = { { 0x030ad041 /* PNP0A03 */,
+						  "PCI Bus" },
+	{ 0x080ad041 /* PNP0A08 */, "PCIe Bus" }, { 0 } };
 
 static int
 pcibus_pnp_probe(device_t dev)
 {
 	int result;
 
-	if ((result = ISA_PNP_PROBE(device_get_parent(dev), dev, pcibus_pnp_ids)) <= 0)
+	if ((result = ISA_PNP_PROBE(
+		 device_get_parent(dev), dev, pcibus_pnp_ids)) <= 0)
 		device_quiet(dev);
-	return(result);
+	return (result);
 }
 
 static int
 pcibus_pnp_attach(device_t dev)
 {
-	return(0);
+	return (0);
 }
 
 static device_method_t pcibus_pnp_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pcibus_pnp_probe),
-	DEVMETHOD(device_attach,	pcibus_pnp_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, pcibus_pnp_probe),
+	DEVMETHOD(device_attach, pcibus_pnp_attach),
+	DEVMETHOD(device_detach, bus_generic_detach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume), { 0, 0 }
 };
 
 static devclass_t pcibus_pnp_devclass;
@@ -727,15 +728,14 @@ DRIVER_MODULE(pcibus_pnp, isa, pcibus_pnp_driver, pcibus_pnp_devclass, 0, 0);
  * that appear in the PCIBIOS Interrupt Routing Table to use the routing
  * table for interrupt routing when possible.
  */
-static int	pcibios_pcib_probe(device_t bus);
+static int pcibios_pcib_probe(device_t bus);
 
 static device_method_t pcibios_pcib_pci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pcibios_pcib_probe),
+	DEVMETHOD(device_probe, pcibios_pcib_probe),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_route_interrupt,	legacy_pcib_route_interrupt),
-	{0, 0}
+	DEVMETHOD(pcib_route_interrupt, legacy_pcib_route_interrupt), { 0, 0 }
 };
 
 static devclass_t pcib_devclass;

@@ -41,17 +41,16 @@
  */
 
 #ifndef _OCTEON_OBIOVAR_H_
-#define	_OCTEON_OBIOVAR_H_
+#define _OCTEON_OBIOVAR_H_
 
 #include <sys/rman.h>
 
 struct obio_softc {
-	bus_space_tag_t oba_st;		/* bus space tag */
-	bus_addr_t oba_addr;		/* address of device */
-	bus_size_t oba_size;		/* size of device */
+	bus_space_tag_t oba_st; /* bus space tag */
+	bus_addr_t oba_addr;	/* address of device */
+	bus_size_t oba_size;	/* size of device */
 	struct rman oba_rman;
 	struct rman oba_irq_rman;
-
 };
 
 #endif /* _OCTEON_OBIOVAR_H_ */

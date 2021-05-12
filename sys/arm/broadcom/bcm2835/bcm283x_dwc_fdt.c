@@ -29,34 +29,26 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
 #include <sys/condvar.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
 
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
-
 #include <dev/usb/controller/dwc_otg.h>
 #include <dev/usb/controller/dwc_otg_fdt.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usbdi.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 
-static struct ofw_compat_data compat_data[] = {
-	{"broadcom,bcm2835-usb",	1},
-	{"brcm,bcm2835-usb",		1},
-	{"brcm,bcm2708-usb",		1},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "broadcom,bcm2835-usb", 1 },
+	{ "brcm,bcm2835-usb", 1 }, { "brcm,bcm2708-usb", 1 }, { NULL, 0 } };
 
 static device_probe_t bcm283x_dwc_otg_probe;
 static device_attach_t bcm283x_dwc_otg_attach;

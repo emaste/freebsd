@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
@@ -37,18 +38,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include "geom/raid/g_raid.h"
+
 #include "g_raid_tr_if.h"
+#include "geom/raid/g_raid.h"
 
 static MALLOC_DEFINE(M_TR_RAID0, "tr_raid0_data", "GEOM_RAID RAID0 data");
 
 struct g_raid_tr_raid0_object {
-	struct g_raid_tr_object	 trso_base;
-	int			 trso_starting;
-	int			 trso_stopped;
+	struct g_raid_tr_object trso_base;
+	int trso_starting;
+	int trso_stopped;
 };
 
 static g_raid_tr_taste_t g_raid_tr_taste_raid0;
@@ -60,26 +62,19 @@ static g_raid_tr_iodone_t g_raid_tr_iodone_raid0;
 static g_raid_tr_kerneldump_t g_raid_tr_kerneldump_raid0;
 static g_raid_tr_free_t g_raid_tr_free_raid0;
 
-static kobj_method_t g_raid_tr_raid0_methods[] = {
-	KOBJMETHOD(g_raid_tr_taste,	g_raid_tr_taste_raid0),
-	KOBJMETHOD(g_raid_tr_event,	g_raid_tr_event_raid0),
-	KOBJMETHOD(g_raid_tr_start,	g_raid_tr_start_raid0),
-	KOBJMETHOD(g_raid_tr_stop,	g_raid_tr_stop_raid0),
-	KOBJMETHOD(g_raid_tr_iostart,	g_raid_tr_iostart_raid0),
-	KOBJMETHOD(g_raid_tr_iodone,	g_raid_tr_iodone_raid0),
-	KOBJMETHOD(g_raid_tr_kerneldump,	g_raid_tr_kerneldump_raid0),
-	KOBJMETHOD(g_raid_tr_free,	g_raid_tr_free_raid0),
-	{ 0, 0 }
-};
+static kobj_method_t g_raid_tr_raid0_methods[] = { KOBJMETHOD(g_raid_tr_taste,
+						       g_raid_tr_taste_raid0),
+	KOBJMETHOD(g_raid_tr_event, g_raid_tr_event_raid0),
+	KOBJMETHOD(g_raid_tr_start, g_raid_tr_start_raid0),
+	KOBJMETHOD(g_raid_tr_stop, g_raid_tr_stop_raid0),
+	KOBJMETHOD(g_raid_tr_iostart, g_raid_tr_iostart_raid0),
+	KOBJMETHOD(g_raid_tr_iodone, g_raid_tr_iodone_raid0),
+	KOBJMETHOD(g_raid_tr_kerneldump, g_raid_tr_kerneldump_raid0),
+	KOBJMETHOD(g_raid_tr_free, g_raid_tr_free_raid0), { 0, 0 } };
 
-static struct g_raid_tr_class g_raid_tr_raid0_class = {
-	"RAID0",
-	g_raid_tr_raid0_methods,
-	sizeof(struct g_raid_tr_raid0_object),
-	.trc_enable = 1,
-	.trc_priority = 100,
-	.trc_accept_unmapped = 1
-};
+static struct g_raid_tr_class g_raid_tr_raid0_class = { "RAID0",
+	g_raid_tr_raid0_methods, sizeof(struct g_raid_tr_raid0_object),
+	.trc_enable = 1, .trc_priority = 100, .trc_accept_unmapped = 1 };
 
 static int
 g_raid_tr_taste_raid0(struct g_raid_tr_object *tr, struct g_raid_volume *volume)
@@ -120,8 +115,9 @@ g_raid_tr_update_state_raid0(struct g_raid_volume *vol)
 			s = G_RAID_VOLUME_S_BROKEN;
 	}
 	if (s != vol->v_state) {
-		g_raid_event_send(vol, G_RAID_VOLUME_S_ALIVE(s) ?
-		    G_RAID_VOLUME_E_UP : G_RAID_VOLUME_E_DOWN,
+		g_raid_event_send(vol,
+		    G_RAID_VOLUME_S_ALIVE(s) ? G_RAID_VOLUME_E_UP :
+						     G_RAID_VOLUME_E_DOWN,
 		    G_RAID_EVENT_VOLUME);
 		g_raid_change_volume_state(vol, s);
 		if (!trs->trso_starting && !trs->trso_stopped)
@@ -131,8 +127,8 @@ g_raid_tr_update_state_raid0(struct g_raid_volume *vol)
 }
 
 static int
-g_raid_tr_event_raid0(struct g_raid_tr_object *tr,
-    struct g_raid_subdisk *sd, u_int event)
+g_raid_tr_event_raid0(
+    struct g_raid_tr_object *tr, struct g_raid_subdisk *sd, u_int event)
 {
 	struct g_raid_tr_raid0_object *trs;
 	struct g_raid_softc *sc;
@@ -147,14 +143,12 @@ g_raid_tr_event_raid0(struct g_raid_tr_object *tr,
 	if (state != G_RAID_SUBDISK_S_NONE &&
 	    state != G_RAID_SUBDISK_S_FAILED &&
 	    state != G_RAID_SUBDISK_S_ACTIVE) {
-		G_RAID_DEBUG1(1, sc,
-		    "Promote subdisk %s:%d from %s to ACTIVE.",
+		G_RAID_DEBUG1(1, sc, "Promote subdisk %s:%d from %s to ACTIVE.",
 		    vol->v_name, sd->sd_pos,
 		    g_raid_subdisk_state2str(sd->sd_state));
 		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_ACTIVE);
 	}
-	if (state != sd->sd_state &&
-	    !trs->trso_starting && !trs->trso_stopped)
+	if (state != sd->sd_state && !trs->trso_starting && !trs->trso_stopped)
 		g_raid_write_metadata(sc, vol, sd, NULL);
 	g_raid_tr_update_state_raid0(vol);
 	return (0);
@@ -239,7 +233,8 @@ g_raid_tr_iostart_raid0(struct g_raid_tr_object *tr, struct bio *bp)
 			cbp->bio_ma += cbp->bio_ma_offset / PAGE_SIZE;
 			cbp->bio_ma_offset %= PAGE_SIZE;
 			cbp->bio_ma_n = round_page(cbp->bio_ma_offset +
-			    cbp->bio_length) / PAGE_SIZE;
+					    cbp->bio_length) /
+			    PAGE_SIZE;
 		} else
 			cbp->bio_data = addr;
 		cbp->bio_caller1 = &vol->v_subdisks[no];
@@ -268,8 +263,8 @@ failure:
 }
 
 static int
-g_raid_tr_kerneldump_raid0(struct g_raid_tr_object *tr,
-    void *virtual, vm_offset_t physical, off_t boffset, size_t blength)
+g_raid_tr_kerneldump_raid0(struct g_raid_tr_object *tr, void *virtual,
+    vm_offset_t physical, off_t boffset, size_t blength)
 {
 	struct g_raid_volume *vol;
 	char *addr;
@@ -296,8 +291,8 @@ g_raid_tr_kerneldump_raid0(struct g_raid_tr_object *tr,
 
 	do {
 		length = MIN(strip_size - start, remain);
-		error = g_raid_subdisk_kerneldump(&vol->v_subdisks[no],
-		    addr, 0, offset + start, length);
+		error = g_raid_subdisk_kerneldump(
+		    &vol->v_subdisks[no], addr, 0, offset + start, length);
 		if (error != 0)
 			return (error);
 		if (++no >= vol->v_disks_count) {
@@ -312,8 +307,8 @@ g_raid_tr_kerneldump_raid0(struct g_raid_tr_object *tr,
 }
 
 static void
-g_raid_tr_iodone_raid0(struct g_raid_tr_object *tr,
-    struct g_raid_subdisk *sd,struct bio *bp)
+g_raid_tr_iodone_raid0(
+    struct g_raid_tr_object *tr, struct g_raid_subdisk *sd, struct bio *bp)
 {
 	struct bio *pbp;
 

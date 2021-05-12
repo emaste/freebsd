@@ -41,41 +41,49 @@
  * If you redefine D() you are expected to redefine all.
  */
 #ifndef D
-#define ND(fmt, ...) do {} while (0)
-#define D1(fmt, ...) do {} while (0)
-#define D(fmt, ...) printf("%-10s " fmt "\n",      \
-        __FUNCTION__, ## __VA_ARGS__)
-#define DX(lev, fmt, ...) do {              \
-        if (dn_cfg.debug > lev) D(fmt, ## __VA_ARGS__); } while (0)
+#define ND(fmt, ...) \
+	do {         \
+	} while (0)
+#define D1(fmt, ...) \
+	do {         \
+	} while (0)
+#define D(fmt, ...) printf("%-10s " fmt "\n", __FUNCTION__, ##__VA_ARGS__)
+#define DX(lev, fmt, ...)                      \
+	do {                                   \
+		if (dn_cfg.debug > lev)        \
+			D(fmt, ##__VA_ARGS__); \
+	} while (0)
 #endif
 
 MALLOC_DECLARE(M_DUMMYNET);
 
 #ifndef __linux__
-#define div64(a, b)  ((int64_t)(a) / (int64_t)(b))
+#define div64(a, b) ((int64_t)(a) / (int64_t)(b))
 #endif
 
-#define DN_LOCK_INIT() do {				\
-	mtx_init(&dn_cfg.uh_mtx, "dn_uh", NULL, MTX_DEF);	\
-	mtx_init(&dn_cfg.bh_mtx, "dn_bh", NULL, MTX_DEF);	\
+#define DN_LOCK_INIT()                                            \
+	do {                                                      \
+		mtx_init(&dn_cfg.uh_mtx, "dn_uh", NULL, MTX_DEF); \
+		mtx_init(&dn_cfg.bh_mtx, "dn_bh", NULL, MTX_DEF); \
 	} while (0)
-#define DN_LOCK_DESTROY() do {				\
-	mtx_destroy(&dn_cfg.uh_mtx);			\
-	mtx_destroy(&dn_cfg.bh_mtx);			\
+#define DN_LOCK_DESTROY()                    \
+	do {                                 \
+		mtx_destroy(&dn_cfg.uh_mtx); \
+		mtx_destroy(&dn_cfg.bh_mtx); \
 	} while (0)
 #if 0 /* not used yet */
-#define DN_UH_RLOCK()		mtx_lock(&dn_cfg.uh_mtx)
-#define DN_UH_RUNLOCK()		mtx_unlock(&dn_cfg.uh_mtx)
-#define DN_UH_WLOCK()		mtx_lock(&dn_cfg.uh_mtx)
-#define DN_UH_WUNLOCK()		mtx_unlock(&dn_cfg.uh_mtx)
-#define DN_UH_LOCK_ASSERT()	mtx_assert(&dn_cfg.uh_mtx, MA_OWNED)
+#define DN_UH_RLOCK() mtx_lock(&dn_cfg.uh_mtx)
+#define DN_UH_RUNLOCK() mtx_unlock(&dn_cfg.uh_mtx)
+#define DN_UH_WLOCK() mtx_lock(&dn_cfg.uh_mtx)
+#define DN_UH_WUNLOCK() mtx_unlock(&dn_cfg.uh_mtx)
+#define DN_UH_LOCK_ASSERT() mtx_assert(&dn_cfg.uh_mtx, MA_OWNED)
 #endif
 
-#define DN_BH_RLOCK()		mtx_lock(&dn_cfg.uh_mtx)
-#define DN_BH_RUNLOCK()		mtx_unlock(&dn_cfg.uh_mtx)
-#define DN_BH_WLOCK()		mtx_lock(&dn_cfg.uh_mtx)
-#define DN_BH_WUNLOCK()		mtx_unlock(&dn_cfg.uh_mtx)
-#define DN_BH_LOCK_ASSERT()	mtx_assert(&dn_cfg.uh_mtx, MA_OWNED)
+#define DN_BH_RLOCK() mtx_lock(&dn_cfg.uh_mtx)
+#define DN_BH_RUNLOCK() mtx_unlock(&dn_cfg.uh_mtx)
+#define DN_BH_WLOCK() mtx_lock(&dn_cfg.uh_mtx)
+#define DN_BH_WUNLOCK() mtx_unlock(&dn_cfg.uh_mtx)
+#define DN_BH_LOCK_ASSERT() mtx_assert(&dn_cfg.uh_mtx, MA_OWNED)
 
 SLIST_HEAD(dn_schk_head, dn_schk);
 SLIST_HEAD(dn_sch_inst_head, dn_sch_inst);
@@ -87,17 +95,17 @@ SLIST_HEAD(dn_alg_head, dn_alg);
 SLIST_HEAD(dn_aqm_head, dn_aqm); /* for new AQMs */
 #endif
 
-struct mq {	/* a basic queue of packets*/
-        struct mbuf *head, *tail;
+struct mq { /* a basic queue of packets*/
+	struct mbuf *head, *tail;
 	int count;
 };
 
 static inline void
 set_oid(struct dn_id *o, int type, int len)
 {
-        o->type = type;
-        o->len = len;
-        o->subtype = 0;
+	o->type = type;
+	o->len = len;
+	o->subtype = 0;
 }
 
 /*
@@ -107,56 +115,56 @@ set_oid(struct dn_id *o, int type, int len)
  * so we can use the value to check for stale pointers.
  */
 struct dn_parms {
-	uint32_t	id;		/* configuration version */
+	uint32_t id; /* configuration version */
 
 	/* defaults (sysctl-accessible) */
-	int	red_lookup_depth;
-	int	red_avg_pkt_size;
-	int	red_max_pkt_size;
-	int	hash_size;
-	int	max_hash_size;
-	long	byte_limit;		/* max queue sizes */
-	long	slot_limit;
+	int red_lookup_depth;
+	int red_avg_pkt_size;
+	int red_max_pkt_size;
+	int hash_size;
+	int max_hash_size;
+	long byte_limit; /* max queue sizes */
+	long slot_limit;
 
-	int	io_fast;
-	int	debug;
+	int io_fast;
+	int debug;
 
 	/* timekeeping */
-	struct timeval prev_t;		/* last time dummynet_tick ran */
-	struct dn_heap	evheap;		/* scheduled events */
+	struct timeval prev_t; /* last time dummynet_tick ran */
+	struct dn_heap evheap; /* scheduled events */
 
-	long	tick_last;		/* Last tick duration (usec). */
-	long	tick_delta;		/* Last vs standard tick diff (usec). */
-	long	tick_delta_sum;	/* Accumulated tick difference (usec).*/
-	long	tick_adjustment;	/* Tick adjustments done. */
-	long	tick_lost;		/* Lost(coalesced) ticks number. */
+	long tick_last;	      /* Last tick duration (usec). */
+	long tick_delta;      /* Last vs standard tick diff (usec). */
+	long tick_delta_sum;  /* Accumulated tick difference (usec).*/
+	long tick_adjustment; /* Tick adjustments done. */
+	long tick_lost;	      /* Lost(coalesced) ticks number. */
 	/* Adjusted vs non-adjusted curr_time difference (ticks). */
-	long	tick_diff;
+	long tick_diff;
 
 	/* counters of objects -- used for reporting space */
-	int	schk_count;
-	int	si_count;
-	int	fsk_count;
-	int	queue_count;
+	int schk_count;
+	int si_count;
+	int fsk_count;
+	int queue_count;
 
 	/* packet counters */
-	unsigned long	io_pkt;
-	unsigned long	io_pkt_fast;
-	unsigned long	io_pkt_drop;
+	unsigned long io_pkt;
+	unsigned long io_pkt_fast;
+	unsigned long io_pkt_drop;
 
 	/* ticks and other stuff */
-	uint64_t	curr_time;
+	uint64_t curr_time;
 	/* flowsets and schedulers are in hash tables, with 'hash_size'
 	 * buckets. fshash is looked up at every packet arrival
 	 * so better be generous if we expect many entries.
 	 */
-	struct dn_ht	*fshash;
-	struct dn_ht	*schedhash;
+	struct dn_ht *fshash;
+	struct dn_ht *schedhash;
 	/* list of flowsets without a scheduler -- use sch_chain */
-	struct dn_fsk_head	fsu;	/* list of unlinked flowsets */
-	struct dn_alg_head	schedlist;	/* list of algorithms */
+	struct dn_fsk_head fsu;	      /* list of unlinked flowsets */
+	struct dn_alg_head schedlist; /* list of algorithms */
 #ifdef NEW_AQM
-	struct dn_aqm_head	aqmlist;	/* list of AQMs */
+	struct dn_aqm_head aqmlist; /* list of AQMs */
 #endif
 
 	/* Store the fs/sch to scan when draining. The value is the
@@ -167,7 +175,7 @@ struct dn_parms {
 	int drain_fs;
 	int drain_sch;
 	uint32_t expire;
-	uint32_t expire_cycle;	/* tick count */
+	uint32_t expire_cycle; /* tick count */
 
 	int init_done;
 
@@ -175,8 +183,8 @@ struct dn_parms {
 	 * can set the busy flag and we will enqueue packets in
 	 * a queue for later processing.
 	 */
-	int	busy;
-	struct	mq	pending;
+	int busy;
+	struct mq pending;
 
 #ifdef _KERNEL
 	/*
@@ -188,7 +196,7 @@ struct dn_parms {
 	 * bh_mtx protects all other structures which may be
 	 * modified upon packet arrivals
 	 */
-#if defined( __linux__ ) || defined( _WIN32 )
+#if defined(__linux__) || defined(_WIN32)
 	spinlock_t uh_mtx;
 	spinlock_t bh_mtx;
 #else
@@ -222,16 +230,16 @@ struct delay_line {
  */
 struct dn_fsk { /* kernel side of a flowset */
 	struct dn_fs fs;
-	SLIST_ENTRY(dn_fsk) fsk_next;	/* hash chain for fshash */
+	SLIST_ENTRY(dn_fsk) fsk_next; /* hash chain for fshash */
 
 	struct ipfw_flow_id fsk_mask;
 
 	/* qht is a hash table of queues, or just a single queue
 	 * a bit in fs.flags tells us which one
 	 */
-	struct dn_ht	*qht;
-	struct dn_schk *sched;		/* Sched we are linked to */
-	SLIST_ENTRY(dn_fsk) sch_chain;	/* list of fsk attached to sched */
+	struct dn_ht *qht;
+	struct dn_schk *sched;	       /* Sched we are linked to */
+	SLIST_ENTRY(dn_fsk) sch_chain; /* list of fsk attached to sched */
 
 	/* bucket index used by drain routine to drain queues for this
 	 * flowset
@@ -239,24 +247,24 @@ struct dn_fsk { /* kernel side of a flowset */
 	int drain_bucket;
 	/* Parameter realted to RED / GRED */
 	/* original values are in dn_fs*/
-	int w_q ;		/* queue weight (scaled) */
-	int max_th ;		/* maximum threshold for queue (scaled) */
-	int min_th ;		/* minimum threshold for queue (scaled) */
-	int max_p ;		/* maximum value for p_b (scaled) */
+	int w_q;    /* queue weight (scaled) */
+	int max_th; /* maximum threshold for queue (scaled) */
+	int min_th; /* minimum threshold for queue (scaled) */
+	int max_p;  /* maximum value for p_b (scaled) */
 
-	u_int c_1 ;		/* max_p/(max_th-min_th) (scaled) */
-	u_int c_2 ;		/* max_p*min_th/(max_th-min_th) (scaled) */
-	u_int c_3 ;		/* for GRED, (1-max_p)/max_th (scaled) */
-	u_int c_4 ;		/* for GRED, 1 - 2*max_p (scaled) */
-	u_int * w_q_lookup ;	/* lookup table for computing (1-w_q)^t */
-	u_int lookup_depth ;	/* depth of lookup table */
-	int lookup_step ;	/* granularity inside the lookup table */
-	int lookup_weight ;	/* equal to (1-w_q)^t / (1-w_q)^(t+1) */
-	int avg_pkt_size ;	/* medium packet size */
-	int max_pkt_size ;	/* max packet size */
+	u_int c_1;	    /* max_p/(max_th-min_th) (scaled) */
+	u_int c_2;	    /* max_p*min_th/(max_th-min_th) (scaled) */
+	u_int c_3;	    /* for GRED, (1-max_p)/max_th (scaled) */
+	u_int c_4;	    /* for GRED, 1 - 2*max_p (scaled) */
+	u_int *w_q_lookup;  /* lookup table for computing (1-w_q)^t */
+	u_int lookup_depth; /* depth of lookup table */
+	int lookup_step;    /* granularity inside the lookup table */
+	int lookup_weight;  /* equal to (1-w_q)^t / (1-w_q)^(t+1) */
+	int avg_pkt_size;   /* medium packet size */
+	int max_pkt_size;   /* max packet size */
 #ifdef NEW_AQM
-	struct dn_aqm *aqmfp;	/* Pointer to AQM functions */
-	void *aqmcfg;	/* configuration parameters for AQM */
+	struct dn_aqm *aqmfp; /* Pointer to AQM functions */
+	void *aqmcfg;	      /* configuration parameters for AQM */
 #endif
 };
 
@@ -269,21 +277,20 @@ struct dn_fsk { /* kernel side of a flowset */
  * should not enqueue.
  */
 struct dn_queue {
-	struct dn_flow ni;	/* oid, flow_id, stats */
-	struct mq mq;	/* packets queue */
-	struct dn_sch_inst *_si;	/* owner scheduler instance */
+	struct dn_flow ni;	      /* oid, flow_id, stats */
+	struct mq mq;		      /* packets queue */
+	struct dn_sch_inst *_si;      /* owner scheduler instance */
 	SLIST_ENTRY(dn_queue) q_next; /* hash chain list for qht */
-	struct dn_fsk *fs;		/* parent flowset. */
+	struct dn_fsk *fs;	      /* parent flowset. */
 
 	/* RED parameters */
-	int avg;		/* average queue length est. (scaled) */
-	int count;		/* arrivals since last RED drop */
-	int random;		/* random value (scaled) */
-	uint64_t q_time;	/* start of queue idle time */
+	int avg;	 /* average queue length est. (scaled) */
+	int count;	 /* arrivals since last RED drop */
+	int random;	 /* random value (scaled) */
+	uint64_t q_time; /* start of queue idle time */
 #ifdef NEW_AQM
-	void *aqm_status;	/* per-queue status variables*/
+	void *aqm_status; /* per-queue status variables*/
 #endif
-
 };
 
 /*
@@ -296,15 +303,15 @@ struct dn_queue {
  */
 struct dn_schk {
 	struct dn_sch sch;
-	struct dn_alg *fp;	/* Pointer to scheduler functions */
-	struct dn_link link;	/* The link, embedded */
+	struct dn_alg *fp;	    /* Pointer to scheduler functions */
+	struct dn_link link;	    /* The link, embedded */
 	struct dn_profile *profile; /* delay profile, if any */
-	struct dn_id *cfg;	/* extra config arguments */
+	struct dn_id *cfg;	    /* extra config arguments */
 
-	SLIST_ENTRY(dn_schk) schk_next;  /* hash chain for schedhash */
+	SLIST_ENTRY(dn_schk) schk_next; /* hash chain for schedhash */
 
-	struct dn_fsk_head fsk_list;  /* all fsk linked to me */
-	struct dn_fsk *fs;	/* Flowset for !MULTIQUEUE */
+	struct dn_fsk_head fsk_list; /* all fsk linked to me */
+	struct dn_fsk *fs;	     /* Flowset for !MULTIQUEUE */
 
 	/* bucket index used by the drain routine to drain the scheduler
 	 * instance for this flowset.
@@ -314,7 +321,7 @@ struct dn_schk {
 	/* Hash table of all instances (through sch.sched_mask)
 	 * or single instance if no mask. Always valid.
 	 */
-	struct dn_ht	*siht;
+	struct dn_ht *siht;
 };
 
 /*
@@ -323,15 +330,15 @@ struct dn_schk {
  * This struct is created a runtime.
  */
 struct dn_sch_inst {
-	struct dn_flow	ni;	/* oid, flowid and stats */
+	struct dn_flow ni;		  /* oid, flowid and stats */
 	SLIST_ENTRY(dn_sch_inst) si_next; /* hash chain for siht */
 	struct delay_line dline;
-	struct dn_schk *sched;	/* the template */
-	int		kflags;	/* DN_ACTIVE */
+	struct dn_schk *sched; /* the template */
+	int kflags;	       /* DN_ACTIVE */
 
-	int64_t	credit;		/* bits I can transmit (more or less). */
-	uint64_t sched_time;	/* time link was scheduled in ready_heap */
-	uint64_t idle_time;	/* start of scheduler instance idle time */
+	int64_t credit;	     /* bits I can transmit (more or less). */
+	uint64_t sched_time; /* time link was scheduled in ready_heap */
+	uint64_t idle_time;  /* start of scheduler instance idle time */
 
 	/* q_count is the number of queues that this instance is using.
 	 * The counter is incremented or decremented when
@@ -340,7 +347,6 @@ struct dn_sch_inst {
 	 * deleted by the drain routine. See notes below.
 	 */
 	int q_count;
-
 };
 
 /*
@@ -370,14 +376,14 @@ struct dn_sch_inst {
  */
 enum {
 	/* 1 and 2 are reserved for the SCAN flags */
-	DN_DESTROY	= 0x0004, /* destroy */
-	DN_DELETE_FS	= 0x0008, /* destroy flowset */
-	DN_DETACH	= 0x0010,
-	DN_ACTIVE	= 0x0020, /* object is in evheap */
-	DN_F_DLINE	= 0x0040, /* object is a delay line */
-	DN_DEL_SAFE	= 0x0080, /* delete a queue only if no longer needed
-				   * by scheduler */
-	DN_QHT_IS_Q	= 0x0100, /* in flowset, qht is a single queue */
+	DN_DESTROY = 0x0004,   /* destroy */
+	DN_DELETE_FS = 0x0008, /* destroy flowset */
+	DN_DETACH = 0x0010,
+	DN_ACTIVE = 0x0020,   /* object is in evheap */
+	DN_F_DLINE = 0x0040,  /* object is a delay line */
+	DN_DEL_SAFE = 0x0080, /* delete a queue only if no longer needed
+			       * by scheduler */
+	DN_QHT_IS_Q = 0x0100, /* in flowset, qht is a single queue */
 };
 
 /*
@@ -387,15 +393,15 @@ enum {
  * be at the beginning of the structure.
  */
 struct dn_pkt_tag {
-	struct ipfw_rule_ref rule;	/* matching rule	*/
+	struct ipfw_rule_ref rule; /* matching rule	*/
 
 	/* second part, dummynet specific */
-	int dn_dir;		/* action when packet comes out.*/
-				/* see ip_fw_private.h		*/
-	uint64_t output_time;	/* when the pkt is due for delivery*/
-	struct ifnet *ifp;	/* interface, for ip_output	*/
-	struct _ip6dn_args ip6opt;	/* XXX ipv6 options	*/
-	uint16_t iphdr_off;	/* IP header offset for mtodo()	*/
+	int dn_dir;		   /* action when packet comes out.*/
+				   /* see ip_fw_private.h		*/
+	uint64_t output_time;	   /* when the pkt is due for delivery*/
+	struct ifnet *ifp;	   /* interface, for ip_output	*/
+	struct _ip6dn_args ip6opt; /* XXX ipv6 options	*/
+	uint16_t iphdr_off;	   /* IP header offset for mtodo()	*/
 };
 
 /*
@@ -403,27 +409,27 @@ struct dn_pkt_tag {
  * and converted to same values ip_fw_args.flags use.
  */
 enum {
-	DIR_OUT =	0,
-	DIR_IN =	1,
-	DIR_FWD =	2,
-	DIR_DROP =	3,
-	PROTO_LAYER2 =	0x4, /* set for layer 2 */
-	PROTO_IPV4 =	0x08,
-	PROTO_IPV6 =	0x10,
-	PROTO_IFB =	0x0c, /* layer2 + ifbridge */
+	DIR_OUT = 0,
+	DIR_IN = 1,
+	DIR_FWD = 2,
+	DIR_DROP = 3,
+	PROTO_LAYER2 = 0x4, /* set for layer 2 */
+	PROTO_IPV4 = 0x08,
+	PROTO_IPV6 = 0x10,
+	PROTO_IFB = 0x0c, /* layer2 + ifbridge */
 };
 
 extern struct dn_parms dn_cfg;
-//VNET_DECLARE(struct dn_parms, _base_dn_cfg);
+// VNET_DECLARE(struct dn_parms, _base_dn_cfg);
 //#define dn_cfg	VNET(_base_dn_cfg)
 
 int dummynet_io(struct mbuf **, struct ip_fw_args *);
 void dummynet_task(void *context, int pending);
 void dn_reschedule(void);
-struct dn_pkt_tag * dn_tag_get(struct mbuf *m);
+struct dn_pkt_tag *dn_tag_get(struct mbuf *m);
 
-struct dn_queue *ipdn_q_find(struct dn_fsk *, struct dn_sch_inst *,
-        struct ipfw_flow_id *);
+struct dn_queue *ipdn_q_find(
+    struct dn_fsk *, struct dn_sch_inst *, struct ipfw_flow_id *);
 struct dn_sch_inst *ipdn_si_find(struct dn_schk *, struct ipfw_flow_id *);
 
 /*
@@ -432,10 +438,10 @@ struct dn_sch_inst *ipdn_si_find(struct dn_schk *, struct ipfw_flow_id *);
  * As a default, we use a small number of entries so that the struct
  * fits easily on the stack and is sufficient for most common requests.
  */
-#define DEFAULT_RANGES	5
+#define DEFAULT_RANGES 5
 struct copy_range {
-        struct dn_id o;
-        uint32_t	r[ 2 * DEFAULT_RANGES ];
+	struct dn_id o;
+	uint32_t r[2 * DEFAULT_RANGES];
 };
 
 struct copy_args {
@@ -443,13 +449,13 @@ struct copy_args {
 	char *end;
 	int flags;
 	int type;
-	struct copy_range *extra;	/* extra filtering */
+	struct copy_range *extra; /* extra filtering */
 };
 
 struct sockopt;
 int ip_dummynet_compat(struct sockopt *sopt);
 int dummynet_get(struct sockopt *sopt, void **compat);
-int dn_c_copy_q (void *_ni, void *arg);
+int dn_c_copy_q(void *_ni, void *arg);
 int dn_c_copy_pipe(struct dn_schk *s, struct copy_args *a, int nq);
 int dn_c_copy_fs(struct dn_fsk *f, struct copy_args *a, int nq);
 int dn_compat_copy_queue(struct copy_args *a, void *_o);
@@ -463,7 +469,7 @@ void dn_drain_scheduler(void);
 void dn_drain_queue(void);
 
 #ifdef NEW_AQM
-int ecn_mark(struct mbuf* m);
+int ecn_mark(struct mbuf *m);
 
 /* moved from ip_dn_io.c to here to be available for AQMs modules*/
 static inline void
@@ -481,15 +487,15 @@ mq_append(struct mq *q, struct mbuf *m)
 		ofs = m->m_data - m->__m_extbuf;
 		// XXX allocate
 		MGETHDR(m_new, M_NOWAIT, MT_DATA);
-		ND("*** WARNING, volatile buf %p ext %p %d dofs %d m_new %p",
-			m, m->__m_extbuf, m->__m_extlen, ofs, m_new);
-		p = m_new->__m_extbuf;	/* new pointer */
-		l = m_new->__m_extlen;	/* new len */
+		ND("*** WARNING, volatile buf %p ext %p %d dofs %d m_new %p", m,
+		    m->__m_extbuf, m->__m_extlen, ofs, m_new);
+		p = m_new->__m_extbuf; /* new pointer */
+		l = m_new->__m_extlen; /* new len */
 		if (l <= m->__m_extlen) {
 			panic("extlen too large");
 		}
 
-		*m_new = *m;	// copy
+		*m_new = *m; // copy
 		m_new->m_flags &= ~M_STACK;
 		m_new->__m_extbuf = p; // point to new buffer
 		_pkt_copy(m->__m_extbuf, p, m->__m_extlen);

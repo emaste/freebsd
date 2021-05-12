@@ -27,9 +27,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/linker_set.h>
-#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/linker_set.h>
 
 struct thread;
 
@@ -37,6 +37,7 @@ struct thread;
 #include <vm/pmap.h>
 
 #include <dev/ofw/openfirm.h>
+
 #include <gdb/gdb.h>
 
 #include "opal.h"
@@ -47,9 +48,8 @@ static gdb_term_f uart_opal_dbg_term;
 static gdb_getc_f uart_opal_dbg_getc;
 static gdb_putc_f uart_opal_dbg_putc;
 
-GDB_DBGPORT(uart_opal, uart_opal_dbg_probe,
-    uart_opal_dbg_init, uart_opal_dbg_term,
-    uart_opal_dbg_getc, uart_opal_dbg_putc);
+GDB_DBGPORT(uart_opal, uart_opal_dbg_probe, uart_opal_dbg_init,
+    uart_opal_dbg_term, uart_opal_dbg_getc, uart_opal_dbg_putc);
 
 static int64_t termnum;
 

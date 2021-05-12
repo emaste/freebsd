@@ -26,46 +26,44 @@
  * $FreeBSD$
  */
 
-#ifndef	_TI_SPIVAR_H_
-#define	_TI_SPIVAR_H_
+#ifndef _TI_SPIVAR_H_
+#define _TI_SPIVAR_H_
 
 struct ti_spi_softc {
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
-	device_t		sc_dev;
-	int			sc_numcs;
-	struct mtx		sc_mtx;
-	struct resource		*sc_mem_res;
-	struct resource		*sc_irq_res;
+	bus_space_tag_t sc_bst;
+	bus_space_handle_t sc_bsh;
+	device_t sc_dev;
+	int sc_numcs;
+	struct mtx sc_mtx;
+	struct resource *sc_mem_res;
+	struct resource *sc_irq_res;
 	struct {
-		int		cs;
-		int		fifolvl;
-		struct spi_command	*cmd;
-		uint32_t	len;
-		uint32_t	read;
-		uint32_t	written;
+		int cs;
+		int fifolvl;
+		struct spi_command *cmd;
+		uint32_t len;
+		uint32_t read;
+		uint32_t written;
 	} xfer;
-	uint32_t		sc_flags;
-	void			*sc_intrhand;
-#define	sc_cs			xfer.cs
-#define	sc_fifolvl		xfer.fifolvl
-#define	sc_cmd			xfer.cmd
-#define	sc_len			xfer.len
-#define	sc_read			xfer.read
-#define	sc_written		xfer.written
+	uint32_t sc_flags;
+	void *sc_intrhand;
+#define sc_cs xfer.cs
+#define sc_fifolvl xfer.fifolvl
+#define sc_cmd xfer.cmd
+#define sc_len xfer.len
+#define sc_read xfer.read
+#define sc_written xfer.written
 };
 
-#define	TI_SPI_BUSY		0x1
-#define	TI_SPI_DONE		0x2
+#define TI_SPI_BUSY 0x1
+#define TI_SPI_DONE 0x2
 
-#define TI_SPI_WRITE(_sc, _off, _val)		\
-    bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off), (_val))
-#define TI_SPI_READ(_sc, _off)			\
-    bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off))
+#define TI_SPI_WRITE(_sc, _off, _val) \
+	bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off), (_val))
+#define TI_SPI_READ(_sc, _off) \
+	bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off))
 
-#define TI_SPI_LOCK(_sc)			\
-    mtx_lock(&(_sc)->sc_mtx)
-#define TI_SPI_UNLOCK(_sc)			\
-    mtx_unlock(&(_sc)->sc_mtx)
+#define TI_SPI_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define TI_SPI_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
 
-#endif	/* _TI_SPIVAR_H_ */
+#endif /* _TI_SPIVAR_H_ */

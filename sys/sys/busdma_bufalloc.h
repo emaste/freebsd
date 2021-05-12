@@ -37,16 +37,17 @@
 #ifndef _MACHINE_BUSDMA_BUFALLOC_H_
 #define _MACHINE_BUSDMA_BUFALLOC_H_
 
-#include <machine/bus.h>
 #include <vm/uma.h>
+
+#include <machine/bus.h>
 
 /*
  * Information about a buffer zone, returned by busdma_bufalloc_findzone().
  */
 struct busdma_bufzone {
-	bus_size_t	size;
-	uma_zone_t	umazone;
-	char		name[24];
+	bus_size_t size;
+	uma_zone_t umazone;
+	char name[24];
 };
 
 /*
@@ -81,9 +82,8 @@ typedef struct busdma_bufalloc *busdma_bufalloc_t;
  * buffers provided by the allocation could never lead to the need for a bounce.
  */
 busdma_bufalloc_t busdma_bufalloc_create(const char *name,
-    bus_size_t minimum_alignment,
-    uma_alloc uma_alloc_func, uma_free uma_free_func,
-    u_int32_t uma_zcreate_flags);
+    bus_size_t minimum_alignment, uma_alloc uma_alloc_func,
+    uma_free uma_free_func, u_int32_t uma_zcreate_flags);
 
 /*
  * Destroy an allocator created by busdma_bufalloc_create().
@@ -96,8 +96,8 @@ void busdma_bufalloc_destroy(busdma_bufalloc_t ba);
  * free a buffer of the given size.  Returns NULL if the size is larger than the
  * largest zone handled by the allocator.
  */
-struct busdma_bufzone * busdma_bufalloc_findzone(busdma_bufalloc_t ba,
-    bus_size_t size);
+struct busdma_bufzone *busdma_bufalloc_findzone(
+    busdma_bufalloc_t ba, bus_size_t size);
 
 /*
  * These built-in allocation routines are available for managing a pools of
@@ -112,9 +112,9 @@ struct busdma_bufzone * busdma_bufalloc_findzone(busdma_bufalloc_t ba,
  * routines support pmap_page_set_memattr() and the VM_MEMATTR_UNCACHEABLE flag
  * you can probably use these when you need uncacheable buffers.
  */
-void * busdma_bufalloc_alloc_uncacheable(uma_zone_t zone, vm_size_t size,
-    int domain, uint8_t *pflag, int wait);
-void  busdma_bufalloc_free_uncacheable(void *item, vm_size_t size,
-    uint8_t pflag);
+void *busdma_bufalloc_alloc_uncacheable(
+    uma_zone_t zone, vm_size_t size, int domain, uint8_t *pflag, int wait);
+void busdma_bufalloc_free_uncacheable(
+    void *item, vm_size_t size, uint8_t pflag);
 
-#endif	/* _MACHINE_BUSDMA_BUFALLOC_H_ */
+#endif /* _MACHINE_BUSDMA_BUFALLOC_H_ */

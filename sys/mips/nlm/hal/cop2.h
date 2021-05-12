@@ -32,119 +32,120 @@
  */
 
 #ifndef __NLM_HAL_COP2_H__
-#define	__NLM_HAL_COP2_H__
+#define __NLM_HAL_COP2_H__
 
-#define	COP2_TX_BUF		0
-#define	COP2_RX_BUF		1
-#define	COP2_TXMSGSTATUS	2
-#define	COP2_RXMSGSTATUS	3
-#define	COP2_MSGSTATUS1		4
-#define	COP2_MSGCONFIG		5
-#define	COP2_MSGERROR		6
+#define COP2_TX_BUF 0
+#define COP2_RX_BUF 1
+#define COP2_TXMSGSTATUS 2
+#define COP2_RXMSGSTATUS 3
+#define COP2_MSGSTATUS1 4
+#define COP2_MSGCONFIG 5
+#define COP2_MSGERROR 6
 
-#define	CROSSTHR_POPQ_EN	0x01
-#define	VC0_POPQ_EN		0x02
-#define	VC1_POPQ_EN		0x04
-#define	VC2_POPQ_EN		0x08
-#define	VC3_POPQ_EN		0x10
-#define	ALL_VC_POPQ_EN		0x1E
-#define	ALL_VC_CT_POPQ_EN	0x1F
+#define CROSSTHR_POPQ_EN 0x01
+#define VC0_POPQ_EN 0x02
+#define VC1_POPQ_EN 0x04
+#define VC2_POPQ_EN 0x08
+#define VC3_POPQ_EN 0x10
+#define ALL_VC_POPQ_EN 0x1E
+#define ALL_VC_CT_POPQ_EN 0x1F
 
 struct nlm_fmn_msg {
 	uint64_t msg[4];
 };
 
-#define	NLM_DEFINE_COP2_ACCESSORS32(name, reg, sel)		\
-static inline uint32_t nlm_read_c2_##name(void)			\
-{								\
-	uint32_t __rv;						\
-	__asm__ __volatile__ (					\
-	".set	push\n"						\
-	".set	noreorder\n"					\
-	".set	mips64\n"					\
-	"mfc2	%0, $%1, %2\n"					\
-	".set	pop\n"						\
-	: "=r" (__rv)						\
-	: "i" (reg), "i" (sel));				\
-	return __rv;						\
-}								\
-								\
-static inline void nlm_write_c2_##name(uint32_t val)		\
-{								\
-	__asm__ __volatile__(					\
-	".set	push\n"						\
-	".set	noreorder\n"					\
-	".set	mips64\n"					\
-	"mtc2	%0, $%1, %2\n"					\
-	".set	pop\n"						\
-	: : "r" (val), "i" (reg), "i" (sel));			\
-} struct __hack
+#define NLM_DEFINE_COP2_ACCESSORS32(name, reg, sel)                   \
+	static inline uint32_t nlm_read_c2_##name(void)               \
+	{                                                             \
+		uint32_t __rv;                                        \
+		__asm__ __volatile__(".set	push\n"                    \
+				     ".set	noreorder\n"               \
+				     ".set	mips64\n"                  \
+				     "mfc2	%0, $%1, %2\n"             \
+				     ".set	pop\n"                     \
+				     : "=r"(__rv)                     \
+				     : "i"(reg), "i"(sel));           \
+		return __rv;                                          \
+	}                                                             \
+                                                                      \
+	static inline void nlm_write_c2_##name(uint32_t val)          \
+	{                                                             \
+		__asm__ __volatile__(".set	push\n"                    \
+				     ".set	noreorder\n"               \
+				     ".set	mips64\n"                  \
+				     "mtc2	%0, $%1, %2\n"             \
+				     ".set	pop\n"                     \
+				     :                                \
+				     : "r"(val), "i"(reg), "i"(sel)); \
+	}                                                             \
+	struct __hack
 
 #if (__mips == 64)
-#define	NLM_DEFINE_COP2_ACCESSORS64(name, reg, sel)		\
-static inline uint64_t nlm_read_c2_##name(void)			\
-{								\
-	uint64_t __rv;						\
-	__asm__ __volatile__ (					\
-	".set	push\n"						\
-	".set	noreorder\n"					\
-	".set	mips64\n"					\
-	"dmfc2	%0, $%1, %2\n"					\
-	".set	pop\n"						\
-	: "=r" (__rv)						\
-	: "i" (reg), "i" (sel));				\
-	return __rv;						\
-}								\
-								\
-static inline void nlm_write_c2_##name(uint64_t val)		\
-{								\
-	__asm__ __volatile__ (					\
-	".set	push\n"						\
-	".set	noreorder\n"					\
-	".set	mips64\n"					\
-	"dmtc2	%0, $%1, %2\n"					\
-	".set	pop\n"						\
-	: : "r" (val), "i" (reg), "i" (sel));			\
-} struct __hack
+#define NLM_DEFINE_COP2_ACCESSORS64(name, reg, sel)                   \
+	static inline uint64_t nlm_read_c2_##name(void)               \
+	{                                                             \
+		uint64_t __rv;                                        \
+		__asm__ __volatile__(".set	push\n"                    \
+				     ".set	noreorder\n"               \
+				     ".set	mips64\n"                  \
+				     "dmfc2	%0, $%1, %2\n"            \
+				     ".set	pop\n"                     \
+				     : "=r"(__rv)                     \
+				     : "i"(reg), "i"(sel));           \
+		return __rv;                                          \
+	}                                                             \
+                                                                      \
+	static inline void nlm_write_c2_##name(uint64_t val)          \
+	{                                                             \
+		__asm__ __volatile__(".set	push\n"                    \
+				     ".set	noreorder\n"               \
+				     ".set	mips64\n"                  \
+				     "dmtc2	%0, $%1, %2\n"            \
+				     ".set	pop\n"                     \
+				     :                                \
+				     : "r"(val), "i"(reg), "i"(sel)); \
+	}                                                             \
+	struct __hack
 
 #else
 
-#define	NLM_DEFINE_COP2_ACCESSORS64(name, reg, sel)		\
-static inline uint64_t nlm_read_c2_##name(void)			\
-{								\
-	uint32_t __high, __low;					\
-	__asm__ __volatile__ (					\
-	".set	push\n"						\
-	".set	noreorder\n"					\
-	".set	mips64\n"					\
-	"dmfc2	$8, $%2, %3\n"					\
-	"dsra32	%0, $8, 0\n"					\
-	"sll	%1, $8, 0\n"					\
-	".set	pop\n"						\
-	: "=r"(__high), "=r"(__low)				\
-	: "i"(reg), "i"(sel)					\
-	: "$8");						\
-								\
-	return ((uint64_t)__high << 32) | __low;		\
-}								\
-								\
-static inline void nlm_write_c2_##name(uint64_t val)		\
-{								\
-	uint32_t __high = val >> 32;				\
-	uint32_t __low = val & 0xffffffff;			\
-	__asm__ __volatile__ (					\
-	".set	push\n"						\
-	".set	noreorder\n"					\
-	".set	mips64\n"					\
-	"dsll32	$8, %1, 0\n"					\
-	"dsll32	$9, %0, 0\n"					\
-	"dsrl32	$8, $8, 0\n"					\
-	"or	$8, $8, $9\n"					\
-	"dmtc2	$8, $%2, %3\n"					\
-	".set	pop\n"						\
-	: : "r"(__high), "r"(__low),  "i"(reg), "i"(sel)	\
-	: "$8", "$9");						\
-} struct __hack
+#define NLM_DEFINE_COP2_ACCESSORS64(name, reg, sel)               \
+	static inline uint64_t nlm_read_c2_##name(void)           \
+	{                                                         \
+		uint32_t __high, __low;                           \
+		__asm__ __volatile__(".set	push\n"                \
+				     ".set	noreorder\n"           \
+				     ".set	mips64\n"              \
+				     "dmfc2	$8, $%2, %3\n"        \
+				     "dsra32	%0, $8, 0\n"         \
+				     "sll	%1, $8, 0\n"            \
+				     ".set	pop\n"                 \
+				     : "=r"(__high), "=r"(__low)  \
+				     : "i"(reg), "i"(sel)         \
+				     : "$8");                     \
+                                                                  \
+		return ((uint64_t)__high << 32) | __low;          \
+	}                                                         \
+                                                                  \
+	static inline void nlm_write_c2_##name(uint64_t val)      \
+	{                                                         \
+		uint32_t __high = val >> 32;                      \
+		uint32_t __low = val & 0xffffffff;                \
+		__asm__ __volatile__(                             \
+		    ".set	push\n"                                 \
+		    ".set	noreorder\n"                            \
+		    ".set	mips64\n"                               \
+		    "dsll32	$8, %1, 0\n"                          \
+		    "dsll32	$9, %0, 0\n"                          \
+		    "dsrl32	$8, $8, 0\n"                          \
+		    "or	$8, $8, $9\n"                             \
+		    "dmtc2	$8, $%2, %3\n"                         \
+		    ".set	pop\n"                                  \
+		    :                                             \
+		    : "r"(__high), "r"(__low), "i"(reg), "i"(sel) \
+		    : "$8", "$9");                                \
+	}                                                         \
+	struct __hack
 
 #endif
 
@@ -172,19 +173,18 @@ static inline int
 nlm_msgsend(int val)
 {
 	int result;
-	__asm__ volatile (
-		".set push\n"
-		".set noreorder\n"
-		".set mips64\n"
-		"move	$8, %1\n"
-		"sync\n"
-		"/* msgsnds	$9, $8 */\n"
-		".word	0x4a084801\n"
-		"move	%0, $9\n"
-		".set pop\n"
-		: "=r" (result)
-		: "r" (val)
-		: "$8", "$9");
+	__asm__ volatile(".set push\n"
+			 ".set noreorder\n"
+			 ".set mips64\n"
+			 "move	$8, %1\n"
+			 "sync\n"
+			 "/* msgsnds	$9, $8 */\n"
+			 ".word	0x4a084801\n"
+			 "move	%0, $9\n"
+			 ".set pop\n"
+			 : "=r"(result)
+			 : "r"(val)
+			 : "$8", "$9");
 	return result;
 }
 
@@ -192,34 +192,33 @@ static inline int
 nlm_msgld(int vc)
 {
 	int val;
-	__asm__ volatile (
-		".set push\n"
-		".set noreorder\n"
-		".set mips64\n"
-		"move	$8, %1\n"
-		"/* msgld	$9, $8 */\n"
-		".word 0x4a084802\n"
-		"move	%0, $9\n"
-		".set pop\n"
-		: "=r" (val)
-		: "r" (vc)
-		: "$8", "$9");
+	__asm__ volatile(".set push\n"
+			 ".set noreorder\n"
+			 ".set mips64\n"
+			 "move	$8, %1\n"
+			 "/* msgld	$9, $8 */\n"
+			 ".word 0x4a084802\n"
+			 "move	%0, $9\n"
+			 ".set pop\n"
+			 : "=r"(val)
+			 : "r"(vc)
+			 : "$8", "$9");
 	return val;
 }
 
 static inline void
 nlm_msgwait(int vc)
 {
-	__asm__ volatile (
-		".set push\n"
-		".set noreorder\n"
-		".set mips64\n"
-		"move	$8, %0\n"
-		"/* msgwait	$8 */\n"
-		".word 0x4a080003\n"
-		".set pop\n"
-		: : "r" (vc)
-		: "$8");
+	__asm__ volatile(".set push\n"
+			 ".set noreorder\n"
+			 ".set mips64\n"
+			 "move	$8, %0\n"
+			 "/* msgwait	$8 */\n"
+			 ".word 0x4a080003\n"
+			 ".set pop\n"
+			 :
+			 : "r"(vc)
+			 : "$8");
 }
 
 static inline int
@@ -284,7 +283,8 @@ nlm_fmn_msgrcv(int vc, int *srcid, int *size, int *code, struct nlm_fmn_msg *m)
 }
 
 static inline void
-nlm_fmn_cpu_init(int int_vec, int ecc_en, int v0pe, int v1pe, int v2pe, int v3pe)
+nlm_fmn_cpu_init(
+    int int_vec, int ecc_en, int v0pe, int v1pe, int v2pe, int v3pe)
 {
 	uint32_t val = nlm_read_c2_msgconfig();
 
@@ -292,12 +292,9 @@ nlm_fmn_cpu_init(int int_vec, int ecc_en, int v0pe, int v1pe, int v2pe, int v3pe
 	 * in msgconfig register of cop2.
 	 * As per chip/cpu RTL, [16:20] bits consist of int_vec.
 	 */
-	val |= (((int_vec & 0x1f) << 16) |
-		((ecc_en & 0x1) << 8) |
-		((v3pe & 0x1) << 4) |
-		((v2pe & 0x1) << 3) |
-		((v1pe & 0x1) << 2) |
-		((v0pe & 0x1) << 1));
+	val |= (((int_vec & 0x1f) << 16) | ((ecc_en & 0x1) << 8) |
+	    ((v3pe & 0x1) << 4) | ((v2pe & 0x1) << 3) | ((v1pe & 0x1) << 2) |
+	    ((v0pe & 0x1) << 1));
 
 	nlm_write_c2_msgconfig(val);
 }

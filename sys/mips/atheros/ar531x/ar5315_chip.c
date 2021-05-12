@@ -31,19 +31,17 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/reboot.h>
+#include <sys/socket.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
-
-#include <net/ethernet.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -53,9 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
-#include <mips/atheros/ar531x/ar5315reg.h>
+#include <net/ethernet.h>
+
 #include <mips/atheros/ar531x/ar5315_chip.h>
 #include <mips/atheros/ar531x/ar5315_cpudef.h>
+#include <mips/atheros/ar531x/ar5315reg.h>
 
 /* XXX these shouldn't be in here - this file is a per-chip file */
 /* XXX these should be in the top-level ar5315 type, not ar5315 -chip */
@@ -67,7 +67,7 @@ uint32_t u_ar531x_uart_addr;
 
 uint32_t u_ar531x_gpio_di;
 uint32_t u_ar531x_gpio_do;
-uint32_t u_ar531x_gpio_cr;  
+uint32_t u_ar531x_gpio_cr;
 uint32_t u_ar531x_gpio_pins;
 
 uint32_t u_ar531x_wdog_ctl;
@@ -76,8 +76,8 @@ uint32_t u_ar531x_wdog_timer;
 static void
 ar5315_chip_detect_mem_size(void)
 {
-	uint32_t	memsize = 0;
-	uint32_t	memcfg, cw, rw, dw;
+	uint32_t memsize = 0;
+	uint32_t memcfg, cw, rw, dw;
 
 	/*
 	 * Determine the memory size.  We query the board info.
@@ -91,7 +91,7 @@ ar5315_chip_detect_mem_size(void)
 	/* XXX: according to redboot, this could be wrong if DDR SDRAM */
 	dw = __SHIFTOUT(memcfg, AR5315_MEM_CFG_DATA_WIDTH);
 	dw += 1;
-	dw *= 8;	/* bits */
+	dw *= 8; /* bits */
 
 	/* not too sure about this math, but it _seems_ to add up */
 	memsize = (1 << cw) * (1 << rw) * dw;
@@ -106,24 +106,21 @@ static void
 ar5315_chip_detect_sys_frequency(void)
 {
 	uint32_t freq_ref, freq_pll;
-	static const uint8_t pll_divide_table[] = {
-		2, 3, 4, 6, 3,
+	static const uint8_t pll_divide_table[] = { 2, 3, 4, 6, 3,
 		/*
 		 * these entries are bogus, but it avoids a possible
 		 * bad table dereference
 		 */
-		1, 1, 1
-	};
-	static const uint8_t pre_divide_table[] = {
-		1, 2, 4, 5
-	};
+		1, 1, 1 };
+	static const uint8_t pre_divide_table[] = { 1, 2, 4, 5 };
 
-	const uint32_t pllc = ATH_READ_REG(AR5315_SYSREG_BASE + 
-		AR5315_SYSREG_PLLC_CTL);
+	const uint32_t pllc = ATH_READ_REG(
+	    AR5315_SYSREG_BASE + AR5315_SYSREG_PLLC_CTL);
 
 	const uint32_t refdiv = pre_divide_table[AR5315_PLLC_REF_DIV(pllc)];
 	const uint32_t fbdiv = AR5315_PLLC_FB_DIV(pllc);
-	const uint32_t div2 = (AR5315_PLLC_DIV_2(pllc) + 1) * 2; /* results in 2 or 4 */
+	const uint32_t div2 = (AR5315_PLLC_DIV_2(pllc) + 1) *
+	    2; /* results in 2 or 4 */
 
 	freq_ref = 40000000;
 
@@ -131,25 +128,26 @@ ar5315_chip_detect_sys_frequency(void)
 	freq_pll = (freq_ref / refdiv) * div2 * fbdiv;
 
 	const uint32_t pllout[4] = {
-	    /* CLKM select */
-	    [0] = freq_pll / pll_divide_table[AR5315_PLLC_CLKM(pllc)],
-	    [1] = freq_pll / pll_divide_table[AR5315_PLLC_CLKM(pllc)],
+		/* CLKM select */
+		[0] = freq_pll / pll_divide_table[AR5315_PLLC_CLKM(pllc)],
+		[1] = freq_pll / pll_divide_table[AR5315_PLLC_CLKM(pllc)],
 
-	    /* CLKC select */
-	    [2] = freq_pll / pll_divide_table[AR5315_PLLC_CLKC(pllc)],
+		/* CLKC select */
+		[2] = freq_pll / pll_divide_table[AR5315_PLLC_CLKC(pllc)],
 
-	    /* ref_clk select */
-	    [3] = freq_ref, /* use original reference clock */
+		/* ref_clk select */
+		[3] = freq_ref, /* use original reference clock */
 	};
 
-	const uint32_t amba_clkctl = ATH_READ_REG(AR5315_SYSREG_BASE +
-		AR5315_SYSREG_AMBACLK);
+	const uint32_t amba_clkctl = ATH_READ_REG(
+	    AR5315_SYSREG_BASE + AR5315_SYSREG_AMBACLK);
 	uint32_t ambadiv = AR5315_CLOCKCTL_DIV(amba_clkctl);
 	ambadiv = ambadiv ? (ambadiv * 2) : 1;
-	u_ar531x_ahb_freq = pllout[AR5315_CLOCKCTL_SELECT(amba_clkctl)] / ambadiv;
+	u_ar531x_ahb_freq = pllout[AR5315_CLOCKCTL_SELECT(amba_clkctl)] /
+	    ambadiv;
 
-	const uint32_t cpu_clkctl = ATH_READ_REG(AR5315_SYSREG_BASE +
-		AR5315_SYSREG_CPUCLK);
+	const uint32_t cpu_clkctl = ATH_READ_REG(
+	    AR5315_SYSREG_BASE + AR5315_SYSREG_CPUCLK);
 	uint32_t cpudiv = AR5315_CLOCKCTL_DIV(cpu_clkctl);
 	cpudiv = cpudiv ? (cpudiv * 2) : 1;
 	u_ar531x_cpu_freq = pllout[AR5315_CLOCKCTL_SELECT(cpu_clkctl)] / cpudiv;
@@ -164,37 +162,37 @@ static void
 ar5315_chip_device_reset(void)
 {
 	ATH_WRITE_REG(AR5315_SYSREG_BASE + AR5315_SYSREG_COLDRESET,
-		AR5315_COLD_AHB | AR5315_COLD_APB | AR5315_COLD_CPU);
+	    AR5315_COLD_AHB | AR5315_COLD_APB | AR5315_COLD_CPU);
 }
 
 static void
 ar5315_chip_device_start(void)
 {
-	ATH_WRITE_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_AHB_ERR0,
-		AR5315_AHB_ERROR_DET);
-	ATH_READ_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_AHB_ERR1);
-	ATH_WRITE_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_WDOG_CTL, 
-		AR5315_WDOG_CTL_IGNORE);
+	ATH_WRITE_REG(
+	    AR5315_SYSREG_BASE + AR5315_SYSREG_AHB_ERR0, AR5315_AHB_ERROR_DET);
+	ATH_READ_REG(AR5315_SYSREG_BASE + AR5315_SYSREG_AHB_ERR1);
+	ATH_WRITE_REG(AR5315_SYSREG_BASE + AR5315_SYSREG_WDOG_CTL,
+	    AR5315_WDOG_CTL_IGNORE);
 
 	// set Ethernet AHB master arbitration control
 	// Maybe RedBoot was enabled. But to make sure.
-	ATH_WRITE_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_AHB_ARB_CTL,
-		ATH_READ_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_AHB_ARB_CTL) |
+	ATH_WRITE_REG(AR5315_SYSREG_BASE + AR5315_SYSREG_AHB_ARB_CTL,
+	    ATH_READ_REG(AR5315_SYSREG_BASE + AR5315_SYSREG_AHB_ARB_CTL) |
 		AR5315_ARB_ENET);
 
 	// set Ethernet controller byteswap control
-/*
-	ATH_WRITE_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_ENDIAN,
-		ATH_READ_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_ENDIAN) |
-		AR5315_ENDIAN_ENET);
-*/
+	/*
+		ATH_WRITE_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_ENDIAN,
+			ATH_READ_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_ENDIAN) |
+			AR5315_ENDIAN_ENET);
+	*/
 	/* Disable interrupts for all gpio pins. */
-	ATH_WRITE_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_GPIO_INT, 0);
+	ATH_WRITE_REG(AR5315_SYSREG_BASE + AR5315_SYSREG_GPIO_INT, 0);
 
 	printf("AHB Master Arbitration Control %08x\n",
-		ATH_READ_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_AHB_ARB_CTL));
+	    ATH_READ_REG(AR5315_SYSREG_BASE + AR5315_SYSREG_AHB_ARB_CTL));
 	printf("Byteswap Control %08x\n",
-		ATH_READ_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_ENDIAN));
+	    ATH_READ_REG(AR5315_SYSREG_BASE + AR5315_SYSREG_ENDIAN));
 }
 
 static int

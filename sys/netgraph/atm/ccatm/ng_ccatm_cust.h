@@ -36,21 +36,25 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/queue.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/atm/ngatmbase.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
 
-#define	CCASSERT(E, M) KASSERT(E, M)
+#include <netgraph/atm/ngatmbase.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
+
+#define CCASSERT(E, M) KASSERT(E, M)
 
 MALLOC_DECLARE(M_NG_CCATM);
 
-#define	CCMALLOC(S)	(malloc((S), M_NG_CCATM, M_NOWAIT))
-#define	CCZALLOC(S)	(malloc((S), M_NG_CCATM, M_NOWAIT | M_ZERO))
-#define	CCFREE(P)	do { free((P), M_NG_CCATM); } while (0)
+#define CCMALLOC(S) (malloc((S), M_NG_CCATM, M_NOWAIT))
+#define CCZALLOC(S) (malloc((S), M_NG_CCATM, M_NOWAIT | M_ZERO))
+#define CCFREE(P)                      \
+	do {                           \
+		free((P), M_NG_CCATM); \
+	} while (0)
 
-#define	CCGETERRNO()	(ENOMEM)
+#define CCGETERRNO() (ENOMEM)

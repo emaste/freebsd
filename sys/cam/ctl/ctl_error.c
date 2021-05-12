@@ -42,29 +42,30 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/types.h>
-#include <sys/malloc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/condvar.h>
-#include <sys/stddef.h>
 #include <sys/ctype.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/stddef.h>
 #include <sys/sysctl.h>
+
 #include <machine/stdarg.h>
 
+#include <cam/ctl/ctl.h>
+#include <cam/ctl/ctl_backend.h>
+#include <cam/ctl/ctl_error.h>
+#include <cam/ctl/ctl_frontend.h>
+#include <cam/ctl/ctl_ha.h>
+#include <cam/ctl/ctl_io.h>
+#include <cam/ctl/ctl_ioctl.h>
+#include <cam/ctl/ctl_private.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_da.h>
-#include <cam/ctl/ctl_io.h>
-#include <cam/ctl/ctl.h>
-#include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_backend.h>
-#include <cam/ctl/ctl_ioctl.h>
-#include <cam/ctl/ctl_error.h>
-#include <cam/ctl/ctl_ha.h>
-#include <cam/ctl/ctl_private.h>
 
 void
 ctl_set_sense_data_va(struct scsi_sense_data *sense_data, u_int *sense_len,
@@ -86,12 +87,12 @@ ctl_set_sense_data_va(struct scsi_sense_data *sense_data, u_int *sense_len,
 		if (asc == 0x29 || (asc == 0x2A && ascq == 0x01))
 			sense_format = SSD_TYPE_FIXED;
 		else
-		/*
-		 * If the format isn't specified, we only return descriptor
-		 * sense if the LUN exists and descriptor sense is turned
-		 * on for that LUN.
-		 */
-		if ((lun != NULL) && (lun->MODE_CTRL.rlec & SCP_DSENSE))
+		    /*
+		     * If the format isn't specified, we only return descriptor
+		     * sense if the LUN exists and descriptor sense is turned
+		     * on for that LUN.
+		     */
+		    if ((lun != NULL) && (lun->MODE_CTRL.rlec & SCP_DSENSE))
 			sense_format = SSD_TYPE_DESC;
 		else
 			sense_format = SSD_TYPE_FIXED;
@@ -126,7 +127,7 @@ ctl_set_sense_data(struct scsi_sense_data *sense_data, u_int *sense_len,
 
 void
 ctl_set_sense(struct ctl_scsiio *ctsio, int current_error, int sense_key,
-	      int asc, int ascq, ...)
+    int asc, int ascq, ...)
 {
 	va_list ap;
 	struct ctl_lun *lun;
@@ -141,14 +142,8 @@ ctl_set_sense(struct ctl_scsiio *ctsio, int current_error, int sense_key,
 
 	va_start(ap, ascq);
 	sense_len = 0;
-	ctl_set_sense_data_va(&ctsio->sense_data, &sense_len,
-			      lun,
-			      SSD_TYPE_NONE,
-			      current_error,
-			      sense_key,
-			      asc,
-			      ascq,
-			      ap);
+	ctl_set_sense_data_va(&ctsio->sense_data, &sense_len, lun,
+	    SSD_TYPE_NONE, current_error, sense_key, asc, ascq, ap);
 	va_end(ap);
 
 	ctsio->scsi_status = SCSI_STATUS_CHECK_COND;
@@ -158,13 +153,13 @@ ctl_set_sense(struct ctl_scsiio *ctsio, int current_error, int sense_key,
 
 /*
  * Transform fixed sense data into descriptor sense data.
- * 
+ *
  * For simplicity's sake, we assume that both sense structures are
  * SSD_FULL_SIZE.  Otherwise, the logic gets more complicated.
  */
 void
 ctl_sense_to_desc(struct scsi_sense_data_fixed *sense_src,
-		  struct scsi_sense_data_desc *sense_dest)
+    struct scsi_sense_data_desc *sense_dest)
 {
 	struct scsi_sense_stream stream_sense;
 	int current_error;
@@ -184,7 +179,7 @@ ctl_sense_to_desc(struct scsi_sense_data_fixed *sense_src,
 	 * Check to see whether any of the tape-specific bits are set.  If
 	 * so, we'll need a stream sense descriptor.
 	 */
-	if (sense_src->flags & (SSD_ILI|SSD_EOM|SSD_FILEMARK))
+	if (sense_src->flags & (SSD_ILI | SSD_EOM | SSD_FILEMARK))
 		stream_bits = sense_src->flags & ~SSD_KEY;
 	else
 		stream_bits = 0;
@@ -196,44 +191,36 @@ ctl_sense_to_desc(struct scsi_sense_data_fixed *sense_src,
 	 */
 	sense_len = SSD_FULL_SIZE;
 	ctl_set_sense_data((struct scsi_sense_data *)sense_dest, &sense_len,
-			   /*lun*/ NULL,
-			   /*sense_format*/ SSD_TYPE_DESC,
-			   current_error,
-			   /*sense_key*/ sense_src->flags & SSD_KEY,
-			   /*asc*/ sense_src->add_sense_code,
-			   /*ascq*/ sense_src->add_sense_code_qual,
+	    /*lun*/ NULL,
+	    /*sense_format*/ SSD_TYPE_DESC, current_error,
+	    /*sense_key*/ sense_src->flags & SSD_KEY,
+	    /*asc*/ sense_src->add_sense_code,
+	    /*ascq*/ sense_src->add_sense_code_qual,
 
-			   /* Information Bytes */
-			   (sense_src->error_code & SSD_ERRCODE_VALID) ?
-			   SSD_ELEM_INFO : SSD_ELEM_SKIP,
-			   sizeof(sense_src->info),
-			   sense_src->info,
+	    /* Information Bytes */
+	    (sense_src->error_code & SSD_ERRCODE_VALID) ? SSD_ELEM_INFO :
+								SSD_ELEM_SKIP,
+	    sizeof(sense_src->info), sense_src->info,
 
-			   /* Command specific bytes */
-			   (scsi_4btoul(sense_src->cmd_spec_info) != 0) ?
-			   SSD_ELEM_COMMAND : SSD_ELEM_SKIP,
-			   sizeof(sense_src->cmd_spec_info),
-			   sense_src->cmd_spec_info,
+	    /* Command specific bytes */
+	    (scsi_4btoul(sense_src->cmd_spec_info) != 0) ? SSD_ELEM_COMMAND :
+								 SSD_ELEM_SKIP,
+	    sizeof(sense_src->cmd_spec_info), sense_src->cmd_spec_info,
 
-			   /* FRU */
-			   (sense_src->fru != 0) ?
-			   SSD_ELEM_FRU : SSD_ELEM_SKIP,
-			   sizeof(sense_src->fru),
-			   &sense_src->fru,
+	    /* FRU */
+	    (sense_src->fru != 0) ? SSD_ELEM_FRU : SSD_ELEM_SKIP,
+	    sizeof(sense_src->fru), &sense_src->fru,
 
-			   /* Sense Key Specific */
-			   (sense_src->sense_key_spec[0] & SSD_SCS_VALID) ?
-			   SSD_ELEM_SKS : SSD_ELEM_SKIP,
-			   sizeof(sense_src->sense_key_spec),
-			   sense_src->sense_key_spec,
+	    /* Sense Key Specific */
+	    (sense_src->sense_key_spec[0] & SSD_SCS_VALID) ? SSD_ELEM_SKS :
+								   SSD_ELEM_SKIP,
+	    sizeof(sense_src->sense_key_spec), sense_src->sense_key_spec,
 
-			   /* Tape bits */
-			   (stream_bits != 0) ?
-			   SSD_ELEM_STREAM : SSD_ELEM_SKIP,
-			   sizeof(stream_bits),
-			   &stream_bits,
+	    /* Tape bits */
+	    (stream_bits != 0) ? SSD_ELEM_STREAM : SSD_ELEM_SKIP,
+	    sizeof(stream_bits), &stream_bits,
 
-			   SSD_ELEM_NONE);
+	    SSD_ELEM_NONE);
 }
 
 /*
@@ -247,7 +234,7 @@ ctl_sense_to_desc(struct scsi_sense_data_fixed *sense_src,
  */
 void
 ctl_sense_to_fixed(struct scsi_sense_data_desc *sense_src,
-		   struct scsi_sense_data_fixed *sense_dest)
+    struct scsi_sense_data_fixed *sense_dest)
 {
 	int current_error;
 	uint8_t *info_ptr = NULL, *cmd_ptr = NULL, *fru_ptr = NULL;
@@ -265,15 +252,15 @@ ctl_sense_to_fixed(struct scsi_sense_data_desc *sense_src,
 	for (pos = 0; pos < (int)(sense_src->extra_len - 1);) {
 		struct scsi_sense_desc_header *header;
 
-		header = (struct scsi_sense_desc_header *)
-		    &sense_src->sense_desc[pos];
+		header = (struct scsi_sense_desc_header *)&sense_src
+			     ->sense_desc[pos];
 
 		/*
 		 * See if this record goes past the end of the sense data.
 		 * It shouldn't, but check just in case.
 		 */
 		if ((pos + header->length + sizeof(*header)) >
-		     sense_src->extra_len)
+		    sense_src->extra_len)
 			break;
 
 		switch (sense_src->sense_desc[pos]) {
@@ -296,7 +283,7 @@ ctl_sense_to_fixed(struct scsi_sense_data_desc *sense_src,
 			cmd_ptr = cmd->command_info;
 			cmd_size = sizeof(cmd->command_info);
 
-			pos += cmd->length + 
+			pos += cmd->length +
 			    sizeof(struct scsi_sense_desc_header);
 			break;
 		}
@@ -343,50 +330,39 @@ ctl_sense_to_fixed(struct scsi_sense_data_desc *sense_src,
 
 	sense_len = SSD_FULL_SIZE;
 	ctl_set_sense_data((struct scsi_sense_data *)sense_dest, &sense_len,
-			   /*lun*/ NULL,
-			   /*sense_format*/ SSD_TYPE_FIXED,
-			   current_error,
-			   /*sense_key*/ sense_src->sense_key & SSD_KEY,
-			   /*asc*/ sense_src->add_sense_code,
-			   /*ascq*/ sense_src->add_sense_code_qual,
+	    /*lun*/ NULL,
+	    /*sense_format*/ SSD_TYPE_FIXED, current_error,
+	    /*sense_key*/ sense_src->sense_key & SSD_KEY,
+	    /*asc*/ sense_src->add_sense_code,
+	    /*ascq*/ sense_src->add_sense_code_qual,
 
-			   /* Information Bytes */ 
-			   (info_ptr != NULL) ? SSD_ELEM_INFO : SSD_ELEM_SKIP,
-			   info_size,
-			   info_ptr,
+	    /* Information Bytes */
+	    (info_ptr != NULL) ? SSD_ELEM_INFO : SSD_ELEM_SKIP, info_size,
+	    info_ptr,
 
-			   /* Command specific bytes */
-			   (cmd_ptr != NULL) ? SSD_ELEM_COMMAND : SSD_ELEM_SKIP,
-			   cmd_size,
-			   cmd_ptr,
+	    /* Command specific bytes */
+	    (cmd_ptr != NULL) ? SSD_ELEM_COMMAND : SSD_ELEM_SKIP, cmd_size,
+	    cmd_ptr,
 
-			   /* FRU */
-			   (fru_ptr != NULL) ? SSD_ELEM_FRU : SSD_ELEM_SKIP,
-			   fru_size,
-			   fru_ptr,
+	    /* FRU */
+	    (fru_ptr != NULL) ? SSD_ELEM_FRU : SSD_ELEM_SKIP, fru_size, fru_ptr,
 
-			   /* Sense Key Specific */
-			   (sks_ptr != NULL) ? SSD_ELEM_SKS : SSD_ELEM_SKIP,
-			   sks_size,
-			   sks_ptr,
+	    /* Sense Key Specific */
+	    (sks_ptr != NULL) ? SSD_ELEM_SKS : SSD_ELEM_SKIP, sks_size, sks_ptr,
 
-			   /* Tape bits */
-			   (stream_ptr != NULL) ? SSD_ELEM_STREAM : SSD_ELEM_SKIP,
-			   stream_size,
-			   stream_ptr,
+	    /* Tape bits */
+	    (stream_ptr != NULL) ? SSD_ELEM_STREAM : SSD_ELEM_SKIP, stream_size,
+	    stream_ptr,
 
-			   SSD_ELEM_NONE);
+	    SSD_ELEM_NONE);
 }
 
 void
 ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq)
 {
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_UNIT_ATTENTION,
-		      asc,
-		      ascq,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_UNIT_ATTENTION, asc, ascq, SSD_ELEM_NONE);
 }
 
 static void
@@ -480,7 +456,8 @@ ctl_ua_to_ascq(struct ctl_lun *lun, ctl_ua_type ua_to_build, int *asc,
 		*info = lun->ua_tpt_info;
 		break;
 	case CTL_UA_MEDIUM_CHANGE:
-		/* 28h/00h  NOT READY TO READY CHANGE, MEDIUM MAY HAVE CHANGED */
+		/* 28h/00h  NOT READY TO READY CHANGE, MEDIUM MAY HAVE CHANGED
+		 */
 		*asc = 0x28;
 		*ascq = 0x00;
 		break;
@@ -544,8 +521,8 @@ ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 	p = initidx / CTL_MAX_INIT_PER_PORT;
 	if ((ua = lun->pending_ua[p]) == NULL) {
 		mtx_unlock(&lun->lun_lock);
-		ua = malloc(sizeof(ctl_ua_type) * CTL_MAX_INIT_PER_PORT,
-		    M_CTL, M_WAITOK);
+		ua = malloc(sizeof(ctl_ua_type) * CTL_MAX_INIT_PER_PORT, M_CTL,
+		    M_WAITOK);
 		mtx_lock(&lun->lun_lock);
 		if (lun->pending_ua[p] == NULL) {
 			lun->pending_ua[p] = ua;
@@ -592,11 +569,10 @@ ctl_set_overlapped_cmd(struct ctl_scsiio *ctsio)
 {
 	/* OVERLAPPED COMMANDS ATTEMPTED */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
-		      /*asc*/ 0x4E,
-		      /*ascq*/ 0x00,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+	    /*asc*/ 0x4E,
+	    /*ascq*/ 0x00, SSD_ELEM_NONE);
 }
 
 void
@@ -604,11 +580,10 @@ ctl_set_overlapped_tag(struct ctl_scsiio *ctsio, uint8_t tag)
 {
 	/* TAGGED OVERLAPPED COMMANDS (NN = QUEUE TAG) */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
-		      /*asc*/ 0x4D,
-		      /*ascq*/ tag,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+	    /*asc*/ 0x4D,
+	    /*ascq*/ tag, SSD_ELEM_NONE);
 }
 
 /*
@@ -616,7 +591,7 @@ ctl_set_overlapped_tag(struct ctl_scsiio *ctsio, uint8_t tag)
  */
 void
 ctl_set_invalid_field(struct ctl_scsiio *ctsio, int sks_valid, int command,
-		      int field, int bit_valid, int bit)
+    int field, int bit_valid, int bit)
 {
 	uint8_t sks[3];
 	int asc;
@@ -640,14 +615,12 @@ ctl_set_invalid_field(struct ctl_scsiio *ctsio, int sks_valid, int command,
 	}
 
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
-		      asc,
-		      /*ascq*/ 0x00,
-		      /*type*/ (sks_valid != 0) ? SSD_ELEM_SKS : SSD_ELEM_SKIP,
-		      /*size*/ sizeof(sks),
-		      /*data*/ sks,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST, asc,
+	    /*ascq*/ 0x00,
+	    /*type*/ (sks_valid != 0) ? SSD_ELEM_SKS : SSD_ELEM_SKIP,
+	    /*size*/ sizeof(sks),
+	    /*data*/ sks, SSD_ELEM_NONE);
 }
 void
 ctl_set_invalid_field_ciu(struct ctl_scsiio *ctsio)
@@ -655,11 +628,10 @@ ctl_set_invalid_field_ciu(struct ctl_scsiio *ctsio)
 
 	/* "Invalid field in command information unit" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_ABORTED_COMMAND,
-		      /*ascq*/ 0x0E,
-		      /*ascq*/ 0x03,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_ABORTED_COMMAND,
+	    /*ascq*/ 0x0E,
+	    /*ascq*/ 0x03, SSD_ELEM_NONE);
 }
 
 void
@@ -672,14 +644,13 @@ ctl_set_invalid_opcode(struct ctl_scsiio *ctsio)
 
 	/* "Invalid command operation code" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
-		      /*asc*/ 0x20,
-		      /*ascq*/ 0x00,
-		      /*type*/ SSD_ELEM_SKS,
-		      /*size*/ sizeof(sks),
-		      /*data*/ sks,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+	    /*asc*/ 0x20,
+	    /*ascq*/ 0x00,
+	    /*type*/ SSD_ELEM_SKS,
+	    /*size*/ sizeof(sks),
+	    /*data*/ sks, SSD_ELEM_NONE);
 }
 
 void
@@ -687,11 +658,10 @@ ctl_set_param_len_error(struct ctl_scsiio *ctsio)
 {
 	/* "Parameter list length error" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
-		      /*asc*/ 0x1a,
-		      /*ascq*/ 0x00,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+	    /*asc*/ 0x1a,
+	    /*ascq*/ 0x00, SSD_ELEM_NONE);
 }
 
 void
@@ -699,11 +669,10 @@ ctl_set_already_locked(struct ctl_scsiio *ctsio)
 {
 	/* Vendor unique "Somebody already is locked" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
-		      /*asc*/ 0x81,
-		      /*ascq*/ 0x00,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+	    /*asc*/ 0x81,
+	    /*ascq*/ 0x00, SSD_ELEM_NONE);
 }
 
 void
@@ -711,16 +680,15 @@ ctl_set_unsupported_lun(struct ctl_scsiio *ctsio)
 {
 	/* "Logical unit not supported" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
-		      /*asc*/ 0x25,
-		      /*ascq*/ 0x00,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+	    /*asc*/ 0x25,
+	    /*ascq*/ 0x00, SSD_ELEM_NONE);
 }
 
 void
-ctl_set_internal_failure(struct ctl_scsiio *ctsio, int sks_valid,
-			 uint16_t retry_count)
+ctl_set_internal_failure(
+    struct ctl_scsiio *ctsio, int sks_valid, uint16_t retry_count)
 {
 	uint8_t sks[3];
 
@@ -732,14 +700,13 @@ ctl_set_internal_failure(struct ctl_scsiio *ctsio, int sks_valid,
 
 	/* "Internal target failure" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_HARDWARE_ERROR,
-		      /*asc*/ 0x44,
-		      /*ascq*/ 0x00,
-		      /*type*/ (sks_valid != 0) ? SSD_ELEM_SKS : SSD_ELEM_SKIP,
-		      /*size*/ sizeof(sks),
-		      /*data*/ sks,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_HARDWARE_ERROR,
+	    /*asc*/ 0x44,
+	    /*ascq*/ 0x00,
+	    /*type*/ (sks_valid != 0) ? SSD_ELEM_SKS : SSD_ELEM_SKIP,
+	    /*size*/ sizeof(sks),
+	    /*data*/ sks, SSD_ELEM_NONE);
 }
 
 void
@@ -748,19 +715,17 @@ ctl_set_medium_error(struct ctl_scsiio *ctsio, int read)
 	if (read) {
 		/* "Unrecovered read error" */
 		ctl_set_sense(ctsio,
-			      /*current_error*/ 1,
-			      /*sense_key*/ SSD_KEY_MEDIUM_ERROR,
-			      /*asc*/ 0x11,
-			      /*ascq*/ 0x00,
-			      SSD_ELEM_NONE);
+		    /*current_error*/ 1,
+		    /*sense_key*/ SSD_KEY_MEDIUM_ERROR,
+		    /*asc*/ 0x11,
+		    /*ascq*/ 0x00, SSD_ELEM_NONE);
 	} else {
 		/* "Write error - auto reallocation failed" */
 		ctl_set_sense(ctsio,
-			      /*current_error*/ 1,
-			      /*sense_key*/ SSD_KEY_MEDIUM_ERROR,
-			      /*asc*/ 0x0C,
-			      /*ascq*/ 0x02,
-			      SSD_ELEM_NONE);
+		    /*current_error*/ 1,
+		    /*sense_key*/ SSD_KEY_MEDIUM_ERROR,
+		    /*asc*/ 0x0C,
+		    /*ascq*/ 0x02, SSD_ELEM_NONE);
 	}
 }
 
@@ -768,29 +733,27 @@ void
 ctl_set_aborted(struct ctl_scsiio *ctsio)
 {
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_ABORTED_COMMAND,
-		      /*asc*/ 0x45,
-		      /*ascq*/ 0x00,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_ABORTED_COMMAND,
+	    /*asc*/ 0x45,
+	    /*ascq*/ 0x00, SSD_ELEM_NONE);
 }
 
 void
 ctl_set_lba_out_of_range(struct ctl_scsiio *ctsio, uint64_t lba)
 {
-	uint8_t	info[8];
+	uint8_t info[8];
 
 	scsi_u64to8b(lba, info);
 
 	/* "Logical block address out of range" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
-		      /*asc*/ 0x21,
-		      /*ascq*/ 0x00,
-		      /*type*/ (lba != 0) ? SSD_ELEM_INFO : SSD_ELEM_SKIP,
-		      /*size*/ sizeof(info), /*data*/ &info,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+	    /*asc*/ 0x21,
+	    /*ascq*/ 0x00,
+	    /*type*/ (lba != 0) ? SSD_ELEM_INFO : SSD_ELEM_SKIP,
+	    /*size*/ sizeof(info), /*data*/ &info, SSD_ELEM_NONE);
 }
 
 void
@@ -798,11 +761,10 @@ ctl_set_lun_stopped(struct ctl_scsiio *ctsio)
 {
 	/* "Logical unit not ready, initializing cmd. required" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_NOT_READY,
-		      /*asc*/ 0x04,
-		      /*ascq*/ 0x02,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_NOT_READY,
+	    /*asc*/ 0x04,
+	    /*ascq*/ 0x02, SSD_ELEM_NONE);
 }
 
 void
@@ -810,11 +772,10 @@ ctl_set_lun_int_reqd(struct ctl_scsiio *ctsio)
 {
 	/* "Logical unit not ready, manual intervention required" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_NOT_READY,
-		      /*asc*/ 0x04,
-		      /*ascq*/ 0x03,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_NOT_READY,
+	    /*asc*/ 0x04,
+	    /*ascq*/ 0x03, SSD_ELEM_NONE);
 }
 
 void
@@ -822,11 +783,10 @@ ctl_set_lun_ejected(struct ctl_scsiio *ctsio)
 {
 	/* "Medium not present - tray open" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_NOT_READY,
-		      /*asc*/ 0x3A,
-		      /*ascq*/ 0x02,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_NOT_READY,
+	    /*asc*/ 0x3A,
+	    /*ascq*/ 0x02, SSD_ELEM_NONE);
 }
 
 void
@@ -834,11 +794,10 @@ ctl_set_lun_no_media(struct ctl_scsiio *ctsio)
 {
 	/* "Medium not present - tray closed" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_NOT_READY,
-		      /*asc*/ 0x3A,
-		      /*ascq*/ 0x01,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_NOT_READY,
+	    /*asc*/ 0x3A,
+	    /*ascq*/ 0x01, SSD_ELEM_NONE);
 }
 
 void
@@ -846,11 +805,10 @@ ctl_set_illegal_pr_release(struct ctl_scsiio *ctsio)
 {
 	/* "Invalid release of persistent reservation" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
-		      /*asc*/ 0x26,
-		      /*ascq*/ 0x04,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+	    /*asc*/ 0x26,
+	    /*ascq*/ 0x04, SSD_ELEM_NONE);
 }
 
 void
@@ -858,11 +816,10 @@ ctl_set_lun_transit(struct ctl_scsiio *ctsio)
 {
 	/* "Logical unit not ready, asymmetric access state transition" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_NOT_READY,
-		      /*asc*/ 0x04,
-		      /*ascq*/ 0x0a,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_NOT_READY,
+	    /*asc*/ 0x04,
+	    /*ascq*/ 0x0a, SSD_ELEM_NONE);
 }
 
 void
@@ -870,11 +827,10 @@ ctl_set_lun_standby(struct ctl_scsiio *ctsio)
 {
 	/* "Logical unit not ready, target port in standby state" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_NOT_READY,
-		      /*asc*/ 0x04,
-		      /*ascq*/ 0x0b,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_NOT_READY,
+	    /*asc*/ 0x04,
+	    /*ascq*/ 0x0b, SSD_ELEM_NONE);
 }
 
 void
@@ -882,11 +838,10 @@ ctl_set_lun_unavail(struct ctl_scsiio *ctsio)
 {
 	/* "Logical unit not ready, target port in unavailable state" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_NOT_READY,
-		      /*asc*/ 0x04,
-		      /*ascq*/ 0x0c,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_NOT_READY,
+	    /*asc*/ 0x04,
+	    /*ascq*/ 0x0c, SSD_ELEM_NONE);
 }
 
 void
@@ -894,11 +849,10 @@ ctl_set_medium_format_corrupted(struct ctl_scsiio *ctsio)
 {
 	/* "Medium format corrupted" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_MEDIUM_ERROR,
-		      /*asc*/ 0x31,
-		      /*ascq*/ 0x00,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_MEDIUM_ERROR,
+	    /*asc*/ 0x31,
+	    /*ascq*/ 0x00, SSD_ELEM_NONE);
 }
 
 void
@@ -906,11 +860,10 @@ ctl_set_medium_magazine_inaccessible(struct ctl_scsiio *ctsio)
 {
 	/* "Medium magazine not accessible" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_NOT_READY,
-		      /*asc*/ 0x3b,
-		      /*ascq*/ 0x11,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_NOT_READY,
+	    /*asc*/ 0x3b,
+	    /*ascq*/ 0x11, SSD_ELEM_NONE);
 }
 
 void
@@ -918,11 +871,10 @@ ctl_set_data_phase_error(struct ctl_scsiio *ctsio)
 {
 	/* "Data phase error" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_NOT_READY,
-		      /*asc*/ 0x4b,
-		      /*ascq*/ 0x00,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_NOT_READY,
+	    /*asc*/ 0x4b,
+	    /*ascq*/ 0x00, SSD_ELEM_NONE);
 }
 
 void
@@ -966,11 +918,10 @@ ctl_set_hw_write_protected(struct ctl_scsiio *ctsio)
 {
 	/* "Hardware write protected" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_DATA_PROTECT,
-		      /*asc*/ 0x27,
-		      /*ascq*/ 0x01,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_DATA_PROTECT,
+	    /*asc*/ 0x27,
+	    /*ascq*/ 0x01, SSD_ELEM_NONE);
 }
 
 void
@@ -978,11 +929,10 @@ ctl_set_space_alloc_fail(struct ctl_scsiio *ctsio)
 {
 	/* "Space allocation failed write protect" */
 	ctl_set_sense(ctsio,
-		      /*current_error*/ 1,
-		      /*sense_key*/ SSD_KEY_DATA_PROTECT,
-		      /*asc*/ 0x27,
-		      /*ascq*/ 0x07,
-		      SSD_ELEM_NONE);
+	    /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_DATA_PROTECT,
+	    /*asc*/ 0x27,
+	    /*ascq*/ 0x07, SSD_ELEM_NONE);
 }
 
 void

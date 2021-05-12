@@ -45,83 +45,85 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_AS3722_GPIO, "AS3722 gpio", "AS3722 GPIO");
 
 /* AS3722_GPIOx_CONTROL	 MODE and IOSF definition. */
-#define	AS3722_IOSF_GPIO				0x00
-#define	AS3722_IOSF_INTERRUPT_OUT			0x01
-#define	AS3722_IOSF_VSUP_VBAT_LOW_UNDEBOUNCE_OUT	0x02
-#define	AS3722_IOSF_GPIO_IN_INTERRUPT			0x03
-#define	AS3722_IOSF_PWM_IN				0x04
-#define	AS3722_IOSF_VOLTAGE_IN_STANDBY			0x05
-#define	AS3722_IOSF_OC_PG_SD0				0x06
-#define	AS3722_IOSF_POWERGOOD_OUT			0x07
-#define	AS3722_IOSF_CLK32K_OUT				0x08
-#define	AS3722_IOSF_WATCHDOG_IN				0x09
-#define	AS3722_IOSF_SOFT_RESET_IN			0x0b
-#define	AS3722_IOSF_PWM_OUT				0x0c
-#define	AS3722_IOSF_VSUP_VBAT_LOW_DEBOUNCE_OUT		0x0d
-#define	AS3722_IOSF_OC_PG_SD6				0x0e
+#define AS3722_IOSF_GPIO 0x00
+#define AS3722_IOSF_INTERRUPT_OUT 0x01
+#define AS3722_IOSF_VSUP_VBAT_LOW_UNDEBOUNCE_OUT 0x02
+#define AS3722_IOSF_GPIO_IN_INTERRUPT 0x03
+#define AS3722_IOSF_PWM_IN 0x04
+#define AS3722_IOSF_VOLTAGE_IN_STANDBY 0x05
+#define AS3722_IOSF_OC_PG_SD0 0x06
+#define AS3722_IOSF_POWERGOOD_OUT 0x07
+#define AS3722_IOSF_CLK32K_OUT 0x08
+#define AS3722_IOSF_WATCHDOG_IN 0x09
+#define AS3722_IOSF_SOFT_RESET_IN 0x0b
+#define AS3722_IOSF_PWM_OUT 0x0c
+#define AS3722_IOSF_VSUP_VBAT_LOW_DEBOUNCE_OUT 0x0d
+#define AS3722_IOSF_OC_PG_SD6 0x0e
 
-#define	AS3722_MODE_INPUT				0
-#define	AS3722_MODE_PUSH_PULL				1
-#define	AS3722_MODE_OPEN_DRAIN				2
-#define	AS3722_MODE_TRISTATE				3
-#define	AS3722_MODE_INPUT_PULL_UP_LV			4
-#define	AS3722_MODE_INPUT_PULL_DOWN			5
-#define	AS3722_MODE_OPEN_DRAIN_LV			6
-#define	AS3722_MODE_PUSH_PULL_LV			7
+#define AS3722_MODE_INPUT 0
+#define AS3722_MODE_PUSH_PULL 1
+#define AS3722_MODE_OPEN_DRAIN 2
+#define AS3722_MODE_TRISTATE 3
+#define AS3722_MODE_INPUT_PULL_UP_LV 4
+#define AS3722_MODE_INPUT_PULL_DOWN 5
+#define AS3722_MODE_OPEN_DRAIN_LV 6
+#define AS3722_MODE_PUSH_PULL_LV 7
 
-#define	NGPIO		8
+#define NGPIO 8
 
-#define	GPIO_LOCK(_sc)	sx_slock(&(_sc)->gpio_lock)
-#define	GPIO_UNLOCK(_sc)	sx_unlock(&(_sc)->gpio_lock)
-#define	GPIO_ASSERT(_sc)	sx_assert(&(_sc)->gpio_lock, SA_LOCKED)
+#define GPIO_LOCK(_sc) sx_slock(&(_sc)->gpio_lock)
+#define GPIO_UNLOCK(_sc) sx_unlock(&(_sc)->gpio_lock)
+#define GPIO_ASSERT(_sc) sx_assert(&(_sc)->gpio_lock, SA_LOCKED)
 
-#define	AS3722_CFG_BIAS_DISABLE		0x0001
-#define	AS3722_CFG_BIAS_PULL_UP		0x0002
-#define	AS3722_CFG_BIAS_PULL_DOWN	0x0004
-#define	AS3722_CFG_BIAS_HIGH_IMPEDANCE	0x0008
-#define	AS3722_CFG_OPEN_DRAIN		0x0010
+#define AS3722_CFG_BIAS_DISABLE 0x0001
+#define AS3722_CFG_BIAS_PULL_UP 0x0002
+#define AS3722_CFG_BIAS_PULL_DOWN 0x0004
+#define AS3722_CFG_BIAS_HIGH_IMPEDANCE 0x0008
+#define AS3722_CFG_OPEN_DRAIN 0x0010
 
 static const struct {
-	const char	*name;
-	int  		config;		/* AS3722_CFG_  */
+	const char *name;
+	int config; /* AS3722_CFG_  */
 } as3722_cfg_names[] = {
-	{"bias-disable",	AS3722_CFG_BIAS_DISABLE},
-	{"bias-pull-up",	AS3722_CFG_BIAS_PULL_UP},
-	{"bias-pull-down",	AS3722_CFG_BIAS_PULL_DOWN},
-	{"bias-high-impedance",	AS3722_CFG_BIAS_HIGH_IMPEDANCE},
-	{"drive-open-drain",	AS3722_CFG_OPEN_DRAIN},
+	{ "bias-disable", AS3722_CFG_BIAS_DISABLE },
+	{ "bias-pull-up", AS3722_CFG_BIAS_PULL_UP },
+	{ "bias-pull-down", AS3722_CFG_BIAS_PULL_DOWN },
+	{ "bias-high-impedance", AS3722_CFG_BIAS_HIGH_IMPEDANCE },
+	{ "drive-open-drain", AS3722_CFG_OPEN_DRAIN },
 };
 
 static struct {
 	const char *name;
 	int fnc_val;
 } as3722_fnc_table[] = {
-	{"gpio",			AS3722_IOSF_GPIO},
-	{"interrupt-out",		AS3722_IOSF_INTERRUPT_OUT},
-	{"vsup-vbat-low-undebounce-out", AS3722_IOSF_VSUP_VBAT_LOW_UNDEBOUNCE_OUT},
-	{"gpio-in-interrupt",		AS3722_IOSF_GPIO_IN_INTERRUPT},
-	{"pwm-in",			AS3722_IOSF_PWM_IN},
-	{"voltage-in-standby",		AS3722_IOSF_VOLTAGE_IN_STANDBY},
-	{"oc-pg-sd0",			AS3722_IOSF_OC_PG_SD0},
-	{"powergood-out",		AS3722_IOSF_POWERGOOD_OUT},
-	{"clk32k-out",			AS3722_IOSF_CLK32K_OUT},
-	{"watchdog-in",			AS3722_IOSF_WATCHDOG_IN},
-	{"soft-reset-in",		AS3722_IOSF_SOFT_RESET_IN},
-	{"pwm-out",			AS3722_IOSF_PWM_OUT},
-	{"vsup-vbat-low-debounce-out",	AS3722_IOSF_VSUP_VBAT_LOW_DEBOUNCE_OUT},
-	{"oc-pg-sd6",			AS3722_IOSF_OC_PG_SD6},
+	{ "gpio", AS3722_IOSF_GPIO },
+	{ "interrupt-out", AS3722_IOSF_INTERRUPT_OUT },
+	{ "vsup-vbat-low-undebounce-out",
+	    AS3722_IOSF_VSUP_VBAT_LOW_UNDEBOUNCE_OUT },
+	{ "gpio-in-interrupt", AS3722_IOSF_GPIO_IN_INTERRUPT },
+	{ "pwm-in", AS3722_IOSF_PWM_IN },
+	{ "voltage-in-standby", AS3722_IOSF_VOLTAGE_IN_STANDBY },
+	{ "oc-pg-sd0", AS3722_IOSF_OC_PG_SD0 },
+	{ "powergood-out", AS3722_IOSF_POWERGOOD_OUT },
+	{ "clk32k-out", AS3722_IOSF_CLK32K_OUT },
+	{ "watchdog-in", AS3722_IOSF_WATCHDOG_IN },
+	{ "soft-reset-in", AS3722_IOSF_SOFT_RESET_IN },
+	{ "pwm-out", AS3722_IOSF_PWM_OUT },
+	{ "vsup-vbat-low-debounce-out",
+	    AS3722_IOSF_VSUP_VBAT_LOW_DEBOUNCE_OUT },
+	{ "oc-pg-sd6", AS3722_IOSF_OC_PG_SD6 },
 };
 
 struct as3722_pincfg {
-	char	*function;
-	int	flags;
+	char *function;
+	int flags;
 };
 
 struct as3722_gpio_pin {
-	int	pin_caps;
-	uint8_t	pin_ctrl_reg;
-	char	pin_name[GPIOMAXNAME];
-	int	pin_cfg_flags;
+	int pin_caps;
+	uint8_t pin_ctrl_reg;
+	char pin_name[GPIOMAXNAME];
+	int pin_cfg_flags;
 };
 
 /* --------------------------------------------------------------------------
@@ -135,21 +137,21 @@ as3722_pinmux_get_function(struct as3722_softc *sc, char *name)
 
 	for (i = 0; i < nitems(as3722_fnc_table); i++) {
 		if (strcmp(as3722_fnc_table[i].name, name) == 0)
-			 return (as3722_fnc_table[i].fnc_val);
+			return (as3722_fnc_table[i].fnc_val);
 	}
 	return (-1);
 }
 
 static int
-as3722_pinmux_config_node(struct as3722_softc *sc, char *pin_name,
-    struct as3722_pincfg *cfg)
+as3722_pinmux_config_node(
+    struct as3722_softc *sc, char *pin_name, struct as3722_pincfg *cfg)
 {
 	uint8_t ctrl;
 	int rv, fnc, pin;
 
 	for (pin = 0; pin < sc->gpio_npins; pin++) {
 		if (strcmp(sc->gpio_pins[pin]->pin_name, pin_name) == 0)
-			 break;
+			break;
 	}
 	if (pin >= sc->gpio_npins) {
 		device_printf(sc->dev, "Unknown pin: %s\n", pin_name);
@@ -174,8 +176,8 @@ as3722_pinmux_config_node(struct as3722_softc *sc, char *pin_name,
 		case AS3722_IOSF_CLK32K_OUT:
 		case AS3722_IOSF_PWM_OUT:
 		case AS3722_IOSF_OC_PG_SD6:
-			ctrl &= ~(AS3722_GPIO_MODE_MASK <<
-			    AS3722_GPIO_MODE_SHIFT);
+			ctrl &= ~(
+			    AS3722_GPIO_MODE_MASK << AS3722_GPIO_MODE_SHIFT);
 			ctrl |= AS3722_MODE_PUSH_PULL << AS3722_GPIO_MODE_SHIFT;
 			/* XXX Handle flags (OC + pullup) */
 			break;
@@ -184,8 +186,8 @@ as3722_pinmux_config_node(struct as3722_softc *sc, char *pin_name,
 		case AS3722_IOSF_VOLTAGE_IN_STANDBY:
 		case AS3722_IOSF_WATCHDOG_IN:
 		case AS3722_IOSF_SOFT_RESET_IN:
-			ctrl &= ~(AS3722_GPIO_MODE_MASK <<
-			    AS3722_GPIO_MODE_SHIFT);
+			ctrl &= ~(
+			    AS3722_GPIO_MODE_MASK << AS3722_GPIO_MODE_SHIFT);
 			ctrl |= AS3722_MODE_INPUT << AS3722_GPIO_MODE_SHIFT;
 			/* XXX Handle flags (pulldown + pullup) */
 
@@ -205,7 +207,7 @@ as3722_pinmux_config_node(struct as3722_softc *sc, char *pin_name,
 
 static int
 as3722_pinmux_read_node(struct as3722_softc *sc, phandle_t node,
-     struct as3722_pincfg *cfg, char **pins, int *lpins)
+    struct as3722_pincfg *cfg, char **pins, int *lpins)
 {
 	int rv, i;
 
@@ -243,8 +245,8 @@ as3722_pinmux_process_node(struct as3722_softc *sc, phandle_t node)
 		i = strlen(pname) + 1;
 		rv = as3722_pinmux_config_node(sc, pname, &cfg);
 		if (rv != 0) {
-			device_printf(sc->dev,
-			    "Cannot configure pin: %s: %d\n", pname, rv);
+			device_printf(sc->dev, "Cannot configure pin: %s: %d\n",
+			    pname, rv);
 		}
 		len += i;
 		pname += i;
@@ -258,7 +260,8 @@ as3722_pinmux_process_node(struct as3722_softc *sc, phandle_t node)
 	return (rv);
 }
 
-int as3722_pinmux_configure(device_t dev, phandle_t cfgxref)
+int
+as3722_pinmux_configure(device_t dev, phandle_t cfgxref)
 {
 	struct as3722_softc *sc;
 	phandle_t node, cfgnode;
@@ -385,7 +388,7 @@ as3722_gpio_get_mode(struct as3722_softc *sc, uint32_t pin, uint32_t gpio_flags)
 	int flags;
 
 	ctrl = sc->gpio_pins[pin]->pin_ctrl_reg;
-	flags =  sc->gpio_pins[pin]->pin_cfg_flags;
+	flags = sc->gpio_pins[pin]->pin_cfg_flags;
 
 	/* Tristate mode. */
 	if (flags & AS3722_CFG_BIAS_HIGH_IMPEDANCE ||
@@ -416,8 +419,7 @@ as3722_gpio_get_mode(struct as3722_softc *sc, uint32_t pin, uint32_t gpio_flags)
 	 * Output modes.
 	 * Pull down is used as indicator of low voltage output.
 	 */
-	if (flags & AS3722_CFG_BIAS_PULL_DOWN ||
-		    gpio_flags & GPIO_PIN_PULLDOWN)
+	if (flags & AS3722_CFG_BIAS_PULL_DOWN || gpio_flags & GPIO_PIN_PULLDOWN)
 		return (AS3722_MODE_PUSH_PULL_LV);
 	return (AS3722_MODE_PUSH_PULL);
 }
@@ -464,7 +466,7 @@ as3722_gpio_pin_set(device_t dev, uint32_t pin, uint32_t val)
 	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-	tmp =  (val != 0) ? 1 : 0;
+	tmp = (val != 0) ? 1 : 0;
 	if (sc->gpio_pins[pin]->pin_ctrl_reg & AS3722_GPIO_INVERT)
 		tmp ^= 1;
 
@@ -520,7 +522,7 @@ as3722_gpio_pin_toggle(device_t dev, uint32_t pin)
 		GPIO_UNLOCK(sc);
 		return (rv);
 	}
-	tmp ^= (1 <<pin);
+	tmp ^= (1 << pin);
 	rv = RM1(sc, AS3722_GPIO_SIGNAL_OUT, (1 << pin), tmp);
 	GPIO_UNLOCK(sc);
 	return (0);
@@ -534,7 +536,7 @@ as3722_gpio_map_gpios(device_t dev, phandle_t pdev, phandle_t gparent,
 	if (gcells != 2)
 		return (ERANGE);
 	*pin = gpios[0];
-	*flags= gpios[1];
+	*flags = gpios[1];
 	return (0);
 }
 
@@ -546,8 +548,9 @@ as3722_gpio_attach(struct as3722_softc *sc, phandle_t node)
 
 	sx_init(&sc->gpio_lock, "AS3722 GPIO lock");
 	sc->gpio_npins = NGPIO;
-	sc->gpio_pins = malloc(sizeof(struct as3722_gpio_pin *) *
-	    sc->gpio_npins, M_AS3722_GPIO, M_WAITOK | M_ZERO);
+	sc->gpio_pins = malloc(
+	    sizeof(struct as3722_gpio_pin *) * sc->gpio_npins, M_AS3722_GPIO,
+	    M_WAITOK | M_ZERO);
 
 	sc->gpio_busdev = gpiobus_attach_bus(sc->dev);
 	if (sc->gpio_busdev == NULL)
@@ -557,7 +560,7 @@ as3722_gpio_attach(struct as3722_softc *sc, phandle_t node)
 		    M_AS3722_GPIO, M_WAITOK | M_ZERO);
 		pin = sc->gpio_pins[i];
 		sprintf(pin->pin_name, "gpio%d", i);
-		pin->pin_caps = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT  |
+		pin->pin_caps = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |
 		    GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL | GPIO_PIN_TRISTATE |
 		    GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN | GPIO_PIN_INVIN |
 		    GPIO_PIN_INVOUT;

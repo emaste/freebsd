@@ -37,25 +37,28 @@
  * Definitions for the TrustedBSD Biba integrity policy module.
  */
 #ifndef _SYS_SECURITY_MAC_BIBA_H
-#define	_SYS_SECURITY_MAC_BIBA_H
+#define _SYS_SECURITY_MAC_BIBA_H
 
-#define	MAC_BIBA_EXTATTR_NAMESPACE	EXTATTR_NAMESPACE_SYSTEM
-#define	MAC_BIBA_EXTATTR_NAME		"mac_biba"
+#define MAC_BIBA_EXTATTR_NAMESPACE EXTATTR_NAMESPACE_SYSTEM
+#define MAC_BIBA_EXTATTR_NAME "mac_biba"
 
-#define	MAC_BIBA_LABEL_NAME		"biba"
+#define MAC_BIBA_LABEL_NAME "biba"
 
-#define	MAC_BIBA_FLAG_EFFECTIVE	0x00000001	/* mb_effective initialized */
-#define	MAC_BIBA_FLAG_RANGE	0x00000002	/* mb_range* initialized */
-#define	MAC_BIBA_FLAGS_BOTH	(MAC_BIBA_FLAG_EFFECTIVE | MAC_BIBA_FLAG_RANGE)
+#define MAC_BIBA_FLAG_EFFECTIVE 0x00000001 /* mb_effective initialized */
+#define MAC_BIBA_FLAG_RANGE 0x00000002	   /* mb_range* initialized */
+#define MAC_BIBA_FLAGS_BOTH (MAC_BIBA_FLAG_EFFECTIVE | MAC_BIBA_FLAG_RANGE)
 
-#define	MAC_BIBA_TYPE_UNDEF	0	/* Undefined */
-#define	MAC_BIBA_TYPE_GRADE	1	/* Hierarchal grade with mb_grade. */
-#define	MAC_BIBA_TYPE_LOW	2	/* Dominated by any
-					 * MAC_BIBA_TYPE_LABEL. */
-#define	MAC_BIBA_TYPE_HIGH	3	/* Dominates any
-					 * MAC_BIBA_TYPE_LABEL. */
-#define	MAC_BIBA_TYPE_EQUAL	4	/* Equivalent to any
-					 * MAC_BIBA_TYPE_LABEL. */
+#define MAC_BIBA_TYPE_UNDEF 0 /* Undefined */
+#define MAC_BIBA_TYPE_GRADE 1 /* Hierarchal grade with mb_grade. */
+#define MAC_BIBA_TYPE_LOW     \
+	2 /* Dominated by any \
+	   * MAC_BIBA_TYPE_LABEL. */
+#define MAC_BIBA_TYPE_HIGH \
+	3 /* Dominates any \
+	   * MAC_BIBA_TYPE_LABEL. */
+#define MAC_BIBA_TYPE_EQUAL    \
+	4 /* Equivalent to any \
+	   * MAC_BIBA_TYPE_LABEL. */
 
 /*
  * Structures and constants associated with a Biba Integrity policy.
@@ -64,12 +67,12 @@
  * mb_type.
  */
 
-#define	MAC_BIBA_MAX_COMPARTMENTS	256
+#define MAC_BIBA_MAX_COMPARTMENTS 256
 
 struct mac_biba_element {
-	u_short	mbe_type;
-	u_short	mbe_grade;
-	u_char	mbe_compartments[MAC_BIBA_MAX_COMPARTMENTS >> 3];
+	u_short mbe_type;
+	u_short mbe_grade;
+	u_char mbe_compartments[MAC_BIBA_MAX_COMPARTMENTS >> 3];
 };
 
 /*
@@ -79,19 +82,17 @@ struct mac_biba_element {
  * use.
  */
 struct mac_biba {
-	int			mb_flags;
-	struct mac_biba_element	mb_effective;
-	struct mac_biba_element	mb_rangelow, mb_rangehigh;
+	int mb_flags;
+	struct mac_biba_element mb_effective;
+	struct mac_biba_element mb_rangelow, mb_rangehigh;
 };
 
 /*
  * Biba compartments bit test/set macros.
  * The range is 1 to MAC_BIBA_MAX_COMPARTMENTS.
  */
-#define	MAC_BIBA_BIT_TEST(b, w) \
-	((w)[(((b) - 1) >> 3)] & (1 << (((b) - 1) & 7)))
-#define	MAC_BIBA_BIT_SET(b, w) \
-	((w)[(((b) - 1) >> 3)] |= (1 << (((b) - 1) & 7)))
-#define	MAC_BIBA_BIT_SET_EMPTY(set)	biba_bit_set_empty(set)
+#define MAC_BIBA_BIT_TEST(b, w) ((w)[(((b)-1) >> 3)] & (1 << (((b)-1) & 7)))
+#define MAC_BIBA_BIT_SET(b, w) ((w)[(((b)-1) >> 3)] |= (1 << (((b)-1) & 7)))
+#define MAC_BIBA_BIT_SET_EMPTY(set) biba_bit_set_empty(set)
 
 #endif /* !_SYS_SECURITY_MAC_BIBA_H */

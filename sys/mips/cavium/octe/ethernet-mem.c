@@ -21,10 +21,21 @@ met:
       derived from this software without specific prior written
       permission.
 
-This Software, including technical data, may be subject to U.S. export  control laws, including the U.S. Export Administration Act and its  associated regulations, and may be subject to export or import  regulations in other countries.
+This Software, including technical data, may be subject to U.S. export  control
+laws, including the U.S. Export Administration Act and its  associated
+regulations, and may be subject to export or import  regulations in other
+countries.
 
 TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
-AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
+AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
 
 *************************************************************************/
 
@@ -43,8 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 
-#include "wrapper-cvmx-includes.h"
 #include "ethernet-headers.h"
+#include "wrapper-cvmx-includes.h"
 
 /**
  * Fill the supplied hardware pool with mbufs
@@ -53,21 +64,24 @@ __FBSDID("$FreeBSD$");
  * @param size     Size of the buffer needed for the pool
  * @param elements Number of buffers to allocate
  */
-int cvm_oct_mem_fill_fpa(int pool, int size, int elements)
+int
+cvm_oct_mem_fill_fpa(int pool, int size, int elements)
 {
 	int freed = elements;
 	while (freed) {
-		KASSERT(size <= MCLBYTES - 128, ("mbuf clusters are too small"));
+		KASSERT(
+		    size <= MCLBYTES - 128, ("mbuf clusters are too small"));
 
 		struct mbuf *m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (__predict_false(m == NULL)) {
-			printf("Failed to allocate mbuf for hardware pool %d\n", pool);
+			printf("Failed to allocate mbuf for hardware pool %d\n",
+			    pool);
 			break;
 		}
 
 		m->m_data += 128 - (((uintptr_t)m->m_data) & 0x7f);
 		*(struct mbuf **)(m->m_data - sizeof(void *)) = m;
-		cvmx_fpa_free(m->m_data, pool, DONT_WRITEBACK(size/128));
+		cvmx_fpa_free(m->m_data, pool, DONT_WRITEBACK(size / 128));
 		freed--;
 	}
 	return (elements - freed);
@@ -80,21 +94,25 @@ int cvm_oct_mem_fill_fpa(int pool, int size, int elements)
  * @param size     Size of the buffer needed for the pool
  * @param elements Number of buffers to allocate
  */
-void cvm_oct_mem_empty_fpa(int pool, int size, int elements)
+void
+cvm_oct_mem_empty_fpa(int pool, int size, int elements)
 {
 	char *memory;
 
 	do {
 		memory = cvmx_fpa_alloc(pool);
 		if (memory) {
-			struct mbuf *m = *(struct mbuf **)(memory - sizeof(void *));
+			struct mbuf *m = *(
+			    struct mbuf **)(memory - sizeof(void *));
 			elements--;
 			m_freem(m);
 		}
 	} while (memory);
 
 	if (elements < 0)
-		printf("Warning: Freeing of pool %u had too many mbufs (%d)\n", pool, elements);
+		printf("Warning: Freeing of pool %u had too many mbufs (%d)\n",
+		    pool, elements);
 	else if (elements > 0)
-		printf("Warning: Freeing of pool %u is missing %d mbufs\n", pool, elements);
+		printf("Warning: Freeing of pool %u is missing %d mbufs\n",
+		    pool, elements);
 }

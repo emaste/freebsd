@@ -31,12 +31,12 @@
 #ifndef _SVM_SOFTC_H_
 #define _SVM_SOFTC_H_
 
-#define SVM_IO_BITMAP_SIZE	(3 * PAGE_SIZE)
-#define SVM_MSR_BITMAP_SIZE	(2 * PAGE_SIZE)
+#define SVM_IO_BITMAP_SIZE (3 * PAGE_SIZE)
+#define SVM_MSR_BITMAP_SIZE (2 * PAGE_SIZE)
 
 struct asid {
-	uint64_t	gen;	/* range is [1, ~0UL] */
-	uint32_t	num;	/* range is [1, nasid - 1] */
+	uint64_t gen; /* range is [1, ~0UL] */
+	uint32_t num; /* range is [1, nasid - 1] */
 };
 
 /*
@@ -44,14 +44,14 @@ struct asid {
  * due to VMCB alignment requirements.
  */
 struct svm_vcpu {
-	struct vmcb	vmcb;	 /* hardware saved vcpu context */
+	struct vmcb vmcb;	 /* hardware saved vcpu context */
 	struct svm_regctx swctx; /* software saved vcpu context */
-	uint64_t	vmcb_pa; /* VMCB physical address */
-	uint64_t	nextrip; /* next instruction to be executed by guest */
-        int		lastcpu; /* host cpu that the vcpu last ran on */
-	uint32_t	dirty;	 /* state cache bits that must be cleared */
-	long		eptgen;	 /* pmap->pm_eptgen when the vcpu last ran */
-	struct asid	asid;
+	uint64_t vmcb_pa;	 /* VMCB physical address */
+	uint64_t nextrip;	 /* next instruction to be executed by guest */
+	int lastcpu;		 /* host cpu that the vcpu last ran on */
+	uint32_t dirty;		 /* state cache bits that must be cleared */
+	long eptgen;		 /* pmap->pm_eptgen when the vcpu last ran */
+	struct asid asid;
 } __aligned(PAGE_SIZE);
 
 /*
@@ -60,10 +60,10 @@ struct svm_vcpu {
 struct svm_softc {
 	uint8_t apic_page[VM_MAXCPU][PAGE_SIZE];
 	struct svm_vcpu vcpu[VM_MAXCPU];
-	vm_offset_t 	nptp;			    /* nested page table */
-	uint8_t		*iopm_bitmap;    /* shared by all vcpus */
-	uint8_t		*msr_bitmap;    /* shared by all vcpus */
-	struct vm	*vm;
+	vm_offset_t nptp;     /* nested page table */
+	uint8_t *iopm_bitmap; /* shared by all vcpus */
+	uint8_t *msr_bitmap;  /* shared by all vcpus */
+	struct vm *vm;
 };
 
 CTASSERT((offsetof(struct svm_softc, nptp) & PAGE_MASK) == 0);
@@ -106,11 +106,11 @@ svm_get_guest_regctx(struct svm_softc *sc, int vcpu)
 static __inline void
 svm_set_dirty(struct svm_softc *sc, int vcpu, uint32_t dirtybits)
 {
-        struct svm_vcpu *vcpustate;
+	struct svm_vcpu *vcpustate;
 
-        vcpustate = svm_get_vcpu(sc, vcpu);
+	vcpustate = svm_get_vcpu(sc, vcpu);
 
-        vcpustate->dirty |= dirtybits;
+	vcpustate->dirty |= dirtybits;
 }
 
 #endif /* _SVM_SOFTC_H_ */

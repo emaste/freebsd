@@ -18,7 +18,7 @@
  * N66001-04-C-6019 ("SEFOS").
  *
  * This software was developed at the University of Cambridge Computer
- * Laboratory with support from a grant from Google, Inc. 
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,22 +48,22 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/condvar.h>
 #include <sys/extattr.h>
+#include <sys/file.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
-#include <sys/systm.h>
-#include <sys/vnode.h>
-#include <sys/mount.h>
-#include <sys/file.h>
-#include <sys/namei.h>
 #include <sys/sdt.h>
 #include <sys/sysctl.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -71,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 
 #include <fs/devfs/devfs.h>
-
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 #include <security/mac/mac_policy.h>
@@ -80,10 +79,10 @@ __FBSDID("$FreeBSD$");
  * Warn about EA transactions only the first time they happen.  No locking on
  * this variable.
  */
-static int	ea_warn_once = 0;
+static int ea_warn_once = 0;
 
-static int	mac_vnode_setlabel_extattr(struct ucred *cred,
-		    struct vnode *vp, struct label *intlabel);
+static int mac_vnode_setlabel_extattr(
+    struct ucred *cred, struct vnode *vp, struct label *intlabel);
 
 static struct label *
 mac_devfs_label_alloc(void)
@@ -207,8 +206,8 @@ mac_vnode_copy_label(struct label *src, struct label *dest)
 }
 
 int
-mac_vnode_externalize_label(struct label *label, char *elements,
-    char *outbuf, size_t outbuflen)
+mac_vnode_externalize_label(
+    struct label *label, char *elements, char *outbuf, size_t outbuflen)
 {
 	int error;
 
@@ -231,17 +230,17 @@ void
 mac_devfs_update(struct mount *mp, struct devfs_dirent *de, struct vnode *vp)
 {
 
-	MAC_POLICY_PERFORM_NOSLEEP(devfs_update, mp, de, de->de_label, vp,
-	    vp->v_label);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    devfs_update, mp, de, de->de_label, vp, vp->v_label);
 }
 
 void
-mac_devfs_vnode_associate(struct mount *mp, struct devfs_dirent *de,
-    struct vnode *vp)
+mac_devfs_vnode_associate(
+    struct mount *mp, struct devfs_dirent *de, struct vnode *vp)
 {
 
-	MAC_POLICY_PERFORM_NOSLEEP(devfs_vnode_associate, mp, mp->mnt_label,
-	    de, de->de_label, vp, vp->v_label);
+	MAC_POLICY_PERFORM_NOSLEEP(devfs_vnode_associate, mp, mp->mnt_label, de,
+	    de->de_label, vp, vp->v_label);
 }
 
 int
@@ -251,8 +250,8 @@ mac_vnode_associate_extattr(struct mount *mp, struct vnode *vp)
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_associate_extattr");
 
-	MAC_POLICY_CHECK(vnode_associate_extattr, mp, mp->mnt_label, vp,
-	    vp->v_label);
+	MAC_POLICY_CHECK(
+	    vnode_associate_extattr, mp, mp->mnt_label, vp, vp->v_label);
 
 	return (error);
 }
@@ -261,8 +260,8 @@ void
 mac_vnode_associate_singlelabel(struct mount *mp, struct vnode *vp)
 {
 
-	MAC_POLICY_PERFORM_NOSLEEP(vnode_associate_singlelabel, mp,
-	    mp->mnt_label, vp, vp->v_label);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    vnode_associate_singlelabel, mp, mp->mnt_label, vp, vp->v_label);
 }
 
 /*
@@ -287,7 +286,7 @@ mac_vnode_create_extattr(struct ucred *cred, struct mount *mp,
 	if (error == EOPNOTSUPP) {
 		if (ea_warn_once == 0) {
 			printf("Warning: transactions not supported "
-			    "in EA write.\n");
+			       "in EA write.\n");
 			ea_warn_once = 1;
 		}
 	} else if (error)
@@ -309,8 +308,8 @@ mac_vnode_create_extattr(struct ucred *cred, struct mount *mp,
 }
 
 static int
-mac_vnode_setlabel_extattr(struct ucred *cred, struct vnode *vp,
-    struct label *intlabel)
+mac_vnode_setlabel_extattr(
+    struct ucred *cred, struct vnode *vp, struct label *intlabel)
 {
 	int error;
 
@@ -320,14 +319,14 @@ mac_vnode_setlabel_extattr(struct ucred *cred, struct vnode *vp,
 	if (error == EOPNOTSUPP) {
 		if (ea_warn_once == 0) {
 			printf("Warning: transactions not supported "
-			    "in EA write.\n");
+			       "in EA write.\n");
 			ea_warn_once = 1;
 		}
 	} else if (error)
 		return (error);
 
-	MAC_POLICY_CHECK(vnode_setlabel_extattr, cred, vp, vp->v_label,
-	    intlabel);
+	MAC_POLICY_CHECK(
+	    vnode_setlabel_extattr, cred, vp, vp->v_label, intlabel);
 
 	if (error) {
 		VOP_CLOSEEXTATTR(vp, 0, NOCRED, curthread);
@@ -348,8 +347,8 @@ mac_vnode_execve_transition(struct ucred *old, struct ucred *new,
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_execve_transition");
 
-	MAC_POLICY_PERFORM(vnode_execve_transition, old, new, vp,
-	    vp->v_label, interpvplabel, imgp, imgp->execlabel);
+	MAC_POLICY_PERFORM(vnode_execve_transition, old, new, vp, vp->v_label,
+	    interpvplabel, imgp, imgp->execlabel);
 }
 
 int
@@ -368,11 +367,12 @@ mac_vnode_execve_will_transition(struct ucred *old, struct vnode *vp,
 	return (result);
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_access, "struct ucred *",
-    "struct vnode *", "accmode_t");
+MAC_CHECK_PROBE_DEFINE3(
+    vnode_check_access, "struct ucred *", "struct vnode *", "accmode_t");
 
 int
-mac_vnode_check_access_impl(struct ucred *cred, struct vnode *vp, accmode_t accmode)
+mac_vnode_check_access_impl(
+    struct ucred *cred, struct vnode *vp, accmode_t accmode)
 {
 	int error;
 
@@ -384,8 +384,7 @@ mac_vnode_check_access_impl(struct ucred *cred, struct vnode *vp, accmode_t accm
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(vnode_check_chdir, "struct ucred *",
-    "struct vnode *");
+MAC_CHECK_PROBE_DEFINE2(vnode_check_chdir, "struct ucred *", "struct vnode *");
 
 int
 mac_vnode_check_chdir(struct ucred *cred, struct vnode *dvp)
@@ -400,8 +399,7 @@ mac_vnode_check_chdir(struct ucred *cred, struct vnode *dvp)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(vnode_check_chroot, "struct ucred *",
-    "struct vnode *");
+MAC_CHECK_PROBE_DEFINE2(vnode_check_chroot, "struct ucred *", "struct vnode *");
 
 int
 mac_vnode_check_chroot(struct ucred *cred, struct vnode *dvp)
@@ -416,8 +414,8 @@ mac_vnode_check_chroot(struct ucred *cred, struct vnode *dvp)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE4(vnode_check_create, "struct ucred *",
-    "struct vnode *", "struct componentname *", "struct vattr *");
+MAC_CHECK_PROBE_DEFINE4(vnode_check_create, "struct ucred *", "struct vnode *",
+    "struct componentname *", "struct vattr *");
 
 int
 mac_vnode_check_create(struct ucred *cred, struct vnode *dvp,
@@ -427,19 +425,17 @@ mac_vnode_check_create(struct ucred *cred, struct vnode *dvp,
 
 	ASSERT_VOP_LOCKED(dvp, "mac_vnode_check_create");
 
-	MAC_POLICY_CHECK(vnode_check_create, cred, dvp, dvp->v_label, cnp,
-	    vap);
+	MAC_POLICY_CHECK(vnode_check_create, cred, dvp, dvp->v_label, cnp, vap);
 	MAC_CHECK_PROBE4(vnode_check_create, error, cred, dvp, cnp, vap);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_deleteacl, "struct ucred *",
-    "struct vnode *", "acl_type_t");
+MAC_CHECK_PROBE_DEFINE3(
+    vnode_check_deleteacl, "struct ucred *", "struct vnode *", "acl_type_t");
 
 int
-mac_vnode_check_deleteacl(struct ucred *cred, struct vnode *vp,
-    acl_type_t type)
+mac_vnode_check_deleteacl(struct ucred *cred, struct vnode *vp, acl_type_t type)
 {
 	int error;
 
@@ -455,8 +451,8 @@ MAC_CHECK_PROBE_DEFINE4(vnode_check_deleteextattr, "struct ucred *",
     "struct vnode *", "int", "const char *");
 
 int
-mac_vnode_check_deleteextattr(struct ucred *cred, struct vnode *vp,
-    int attrnamespace, const char *name)
+mac_vnode_check_deleteextattr(
+    struct ucred *cred, struct vnode *vp, int attrnamespace, const char *name)
 {
 	int error;
 
@@ -464,8 +460,8 @@ mac_vnode_check_deleteextattr(struct ucred *cred, struct vnode *vp,
 
 	MAC_POLICY_CHECK(vnode_check_deleteextattr, cred, vp, vp->v_label,
 	    attrnamespace, name);
-	MAC_CHECK_PROBE4(vnode_check_deleteextattr, error, cred, vp,
-	    attrnamespace, name);
+	MAC_CHECK_PROBE4(
+	    vnode_check_deleteextattr, error, cred, vp, attrnamespace, name);
 
 	return (error);
 }
@@ -474,22 +470,22 @@ MAC_CHECK_PROBE_DEFINE3(vnode_check_exec, "struct ucred *", "struct vnode *",
     "struct image_params *");
 
 int
-mac_vnode_check_exec(struct ucred *cred, struct vnode *vp,
-    struct image_params *imgp)
+mac_vnode_check_exec(
+    struct ucred *cred, struct vnode *vp, struct image_params *imgp)
 {
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_exec");
 
-	MAC_POLICY_CHECK(vnode_check_exec, cred, vp, vp->v_label, imgp,
-	    imgp->execlabel);
+	MAC_POLICY_CHECK(
+	    vnode_check_exec, cred, vp, vp->v_label, imgp, imgp->execlabel);
 	MAC_CHECK_PROBE3(vnode_check_exec, error, cred, vp, imgp);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_getacl, "struct ucred *",
-    "struct vnode *", "acl_type_t");
+MAC_CHECK_PROBE_DEFINE3(
+    vnode_check_getacl, "struct ucred *", "struct vnode *", "acl_type_t");
 
 int
 mac_vnode_check_getacl(struct ucred *cred, struct vnode *vp, acl_type_t type)
@@ -508,17 +504,17 @@ MAC_CHECK_PROBE_DEFINE4(vnode_check_getextattr, "struct ucred *",
     "struct vnode *", "int", "const char *");
 
 int
-mac_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
-    int attrnamespace, const char *name)
+mac_vnode_check_getextattr(
+    struct ucred *cred, struct vnode *vp, int attrnamespace, const char *name)
 {
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_getextattr");
 
-	MAC_POLICY_CHECK(vnode_check_getextattr, cred, vp, vp->v_label,
-	    attrnamespace, name);
-	MAC_CHECK_PROBE4(vnode_check_getextattr, error, cred, vp,
-	    attrnamespace, name);
+	MAC_POLICY_CHECK(
+	    vnode_check_getextattr, cred, vp, vp->v_label, attrnamespace, name);
+	MAC_CHECK_PROBE4(
+	    vnode_check_getextattr, error, cred, vp, attrnamespace, name);
 
 	return (error);
 }
@@ -527,46 +523,46 @@ MAC_CHECK_PROBE_DEFINE4(vnode_check_link, "struct ucred *", "struct vnode *",
     "struct vnode *", "struct componentname *");
 
 int
-mac_vnode_check_link(struct ucred *cred, struct vnode *dvp,
-    struct vnode *vp, struct componentname *cnp)
+mac_vnode_check_link(struct ucred *cred, struct vnode *dvp, struct vnode *vp,
+    struct componentname *cnp)
 {
 	int error;
 
 	ASSERT_VOP_LOCKED(dvp, "mac_vnode_check_link");
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_link");
 
-	MAC_POLICY_CHECK(vnode_check_link, cred, dvp, dvp->v_label, vp,
-	    vp->v_label, cnp);
+	MAC_POLICY_CHECK(
+	    vnode_check_link, cred, dvp, dvp->v_label, vp, vp->v_label, cnp);
 	MAC_CHECK_PROBE4(vnode_check_link, error, cred, dvp, vp, cnp);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_listextattr, "struct ucred *",
-    "struct vnode *", "int");
+MAC_CHECK_PROBE_DEFINE3(
+    vnode_check_listextattr, "struct ucred *", "struct vnode *", "int");
 
 int
-mac_vnode_check_listextattr(struct ucred *cred, struct vnode *vp,
-    int attrnamespace)
+mac_vnode_check_listextattr(
+    struct ucred *cred, struct vnode *vp, int attrnamespace)
 {
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_listextattr");
 
-	MAC_POLICY_CHECK(vnode_check_listextattr, cred, vp, vp->v_label,
-	    attrnamespace);
-	MAC_CHECK_PROBE3(vnode_check_listextattr, error, cred, vp,
-	    attrnamespace);
+	MAC_POLICY_CHECK(
+	    vnode_check_listextattr, cred, vp, vp->v_label, attrnamespace);
+	MAC_CHECK_PROBE3(
+	    vnode_check_listextattr, error, cred, vp, attrnamespace);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_lookup, "struct ucred *",
-    "struct vnode *", "struct componentname *");
+MAC_CHECK_PROBE_DEFINE3(vnode_check_lookup, "struct ucred *", "struct vnode *",
+    "struct componentname *");
 
 int
-mac_vnode_check_lookup_impl(struct ucred *cred, struct vnode *dvp,
-    struct componentname *cnp)
+mac_vnode_check_lookup_impl(
+    struct ucred *cred, struct vnode *dvp, struct componentname *cnp)
 {
 	int error;
 
@@ -580,12 +576,12 @@ mac_vnode_check_lookup_impl(struct ucred *cred, struct vnode *dvp,
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE4(vnode_check_mmap, "struct ucred *", "struct vnode *",
-    "int", "int");
+MAC_CHECK_PROBE_DEFINE4(
+    vnode_check_mmap, "struct ucred *", "struct vnode *", "int", "int");
 
 int
-mac_vnode_check_mmap_impl(struct ucred *cred, struct vnode *vp, int prot,
-    int flags)
+mac_vnode_check_mmap_impl(
+    struct ucred *cred, struct vnode *vp, int prot, int flags)
 {
 	int error;
 
@@ -598,21 +594,20 @@ mac_vnode_check_mmap_impl(struct ucred *cred, struct vnode *vp, int prot,
 }
 
 void
-mac_vnode_check_mmap_downgrade(struct ucred *cred, struct vnode *vp,
-    int *prot)
+mac_vnode_check_mmap_downgrade(struct ucred *cred, struct vnode *vp, int *prot)
 {
 	int result = *prot;
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_mmap_downgrade");
 
-	MAC_POLICY_PERFORM(vnode_check_mmap_downgrade, cred, vp, vp->v_label,
-	    &result);
+	MAC_POLICY_PERFORM(
+	    vnode_check_mmap_downgrade, cred, vp, vp->v_label, &result);
 
 	*prot = result;
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_mprotect, "struct ucred *",
-    "struct vnode *", "int");
+MAC_CHECK_PROBE_DEFINE3(
+    vnode_check_mprotect, "struct ucred *", "struct vnode *", "int");
 
 int
 mac_vnode_check_mprotect(struct ucred *cred, struct vnode *vp, int prot)
@@ -627,11 +622,12 @@ mac_vnode_check_mprotect(struct ucred *cred, struct vnode *vp, int prot)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_open, "struct ucred *", "struct vnode *",
-    "accmode_t");
+MAC_CHECK_PROBE_DEFINE3(
+    vnode_check_open, "struct ucred *", "struct vnode *", "accmode_t");
 
 int
-mac_vnode_check_open_impl(struct ucred *cred, struct vnode *vp, accmode_t accmode)
+mac_vnode_check_open_impl(
+    struct ucred *cred, struct vnode *vp, accmode_t accmode)
 {
 	int error;
 
@@ -643,46 +639,44 @@ mac_vnode_check_open_impl(struct ucred *cred, struct vnode *vp, accmode_t accmod
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_poll, "struct ucred *", "struct ucred *",
-    "struct vnode *");
+MAC_CHECK_PROBE_DEFINE3(
+    vnode_check_poll, "struct ucred *", "struct ucred *", "struct vnode *");
 
 int
-mac_vnode_check_poll(struct ucred *active_cred, struct ucred *file_cred,
-    struct vnode *vp)
+mac_vnode_check_poll(
+    struct ucred *active_cred, struct ucred *file_cred, struct vnode *vp)
 {
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_poll");
 
-	MAC_POLICY_CHECK(vnode_check_poll, active_cred, file_cred, vp,
-	    vp->v_label);
-	MAC_CHECK_PROBE3(vnode_check_poll, error, active_cred, file_cred,
-	    vp);
+	MAC_POLICY_CHECK(
+	    vnode_check_poll, active_cred, file_cred, vp, vp->v_label);
+	MAC_CHECK_PROBE3(vnode_check_poll, error, active_cred, file_cred, vp);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_read, "struct ucred *", "struct ucred *",
-    "struct vnode *");
+MAC_CHECK_PROBE_DEFINE3(
+    vnode_check_read, "struct ucred *", "struct ucred *", "struct vnode *");
 
 int
-mac_vnode_check_read_impl(struct ucred *active_cred, struct ucred *file_cred,
-    struct vnode *vp)
+mac_vnode_check_read_impl(
+    struct ucred *active_cred, struct ucred *file_cred, struct vnode *vp)
 {
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_read");
 
-	MAC_POLICY_CHECK(vnode_check_read, active_cred, file_cred, vp,
-	    vp->v_label);
-	MAC_CHECK_PROBE3(vnode_check_read, error, active_cred, file_cred,
-	    vp);
+	MAC_POLICY_CHECK(
+	    vnode_check_read, active_cred, file_cred, vp, vp->v_label);
+	MAC_CHECK_PROBE3(vnode_check_read, error, active_cred, file_cred, vp);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(vnode_check_readdir, "struct ucred *",
-    "struct vnode *");
+MAC_CHECK_PROBE_DEFINE2(
+    vnode_check_readdir, "struct ucred *", "struct vnode *");
 
 int
 mac_vnode_check_readdir(struct ucred *cred, struct vnode *dvp)
@@ -697,8 +691,8 @@ mac_vnode_check_readdir(struct ucred *cred, struct vnode *dvp)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(vnode_check_readlink, "struct ucred *",
-    "struct vnode *");
+MAC_CHECK_PROBE_DEFINE2(
+    vnode_check_readlink, "struct ucred *", "struct vnode *");
 
 int
 mac_vnode_check_readlink_impl(struct ucred *cred, struct vnode *vp)
@@ -713,12 +707,12 @@ mac_vnode_check_readlink_impl(struct ucred *cred, struct vnode *vp)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_relabel, "struct ucred *",
-    "struct vnode *", "struct label *");
+MAC_CHECK_PROBE_DEFINE3(
+    vnode_check_relabel, "struct ucred *", "struct vnode *", "struct label *");
 
 static int
-mac_vnode_check_relabel(struct ucred *cred, struct vnode *vp,
-    struct label *newlabel)
+mac_vnode_check_relabel(
+    struct ucred *cred, struct vnode *vp, struct label *newlabel)
 {
 	int error;
 
@@ -767,8 +761,7 @@ mac_vnode_check_rename_to(struct ucred *cred, struct vnode *dvp,
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(vnode_check_revoke, "struct ucred *",
-    "struct vnode *");
+MAC_CHECK_PROBE_DEFINE2(vnode_check_revoke, "struct ucred *", "struct vnode *");
 
 int
 mac_vnode_check_revoke(struct ucred *cred, struct vnode *vp)
@@ -783,12 +776,12 @@ mac_vnode_check_revoke(struct ucred *cred, struct vnode *vp)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE4(vnode_check_setacl, "struct ucred *",
-    "struct vnode *", "acl_type_t", "struct acl *");
+MAC_CHECK_PROBE_DEFINE4(vnode_check_setacl, "struct ucred *", "struct vnode *",
+    "acl_type_t", "struct acl *");
 
 int
-mac_vnode_check_setacl(struct ucred *cred, struct vnode *vp, acl_type_t type,
-    struct acl *acl)
+mac_vnode_check_setacl(
+    struct ucred *cred, struct vnode *vp, acl_type_t type, struct acl *acl)
 {
 	int error;
 
@@ -804,23 +797,23 @@ MAC_CHECK_PROBE_DEFINE4(vnode_check_setextattr, "struct ucred *",
     "struct vnode *", "int", "const char *");
 
 int
-mac_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
-    int attrnamespace, const char *name)
+mac_vnode_check_setextattr(
+    struct ucred *cred, struct vnode *vp, int attrnamespace, const char *name)
 {
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_setextattr");
 
-	MAC_POLICY_CHECK(vnode_check_setextattr, cred, vp, vp->v_label,
-	    attrnamespace, name);
-	MAC_CHECK_PROBE4(vnode_check_setextattr, error, cred, vp,
-	    attrnamespace, name);
+	MAC_POLICY_CHECK(
+	    vnode_check_setextattr, cred, vp, vp->v_label, attrnamespace, name);
+	MAC_CHECK_PROBE4(
+	    vnode_check_setextattr, error, cred, vp, attrnamespace, name);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_setflags, "struct ucred *",
-    "struct vnode *", "u_long");
+MAC_CHECK_PROBE_DEFINE3(
+    vnode_check_setflags, "struct ucred *", "struct vnode *", "u_long");
 
 int
 mac_vnode_check_setflags(struct ucred *cred, struct vnode *vp, u_long flags)
@@ -835,8 +828,8 @@ mac_vnode_check_setflags(struct ucred *cred, struct vnode *vp, u_long flags)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_setmode, "struct ucred *",
-    "struct vnode *", "mode_t");
+MAC_CHECK_PROBE_DEFINE3(
+    vnode_check_setmode, "struct ucred *", "struct vnode *", "mode_t");
 
 int
 mac_vnode_check_setmode(struct ucred *cred, struct vnode *vp, mode_t mode)
@@ -851,12 +844,12 @@ mac_vnode_check_setmode(struct ucred *cred, struct vnode *vp, mode_t mode)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE4(vnode_check_setowner, "struct ucred *",
-    "struct vnode *", "uid_t", "gid_t");
+MAC_CHECK_PROBE_DEFINE4(
+    vnode_check_setowner, "struct ucred *", "struct vnode *", "uid_t", "gid_t");
 
 int
-mac_vnode_check_setowner(struct ucred *cred, struct vnode *vp, uid_t uid,
-    gid_t gid)
+mac_vnode_check_setowner(
+    struct ucred *cred, struct vnode *vp, uid_t uid, gid_t gid)
 {
 	int error;
 
@@ -879,74 +872,71 @@ mac_vnode_check_setutimes(struct ucred *cred, struct vnode *vp,
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_setutimes");
 
-	MAC_POLICY_CHECK(vnode_check_setutimes, cred, vp, vp->v_label, atime,
-	    mtime);
-	MAC_CHECK_PROBE4(vnode_check_setutimes, error, cred, vp, &atime,
-	    &mtime);
+	MAC_POLICY_CHECK(
+	    vnode_check_setutimes, cred, vp, vp->v_label, atime, mtime);
+	MAC_CHECK_PROBE4(
+	    vnode_check_setutimes, error, cred, vp, &atime, &mtime);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_stat, "struct ucred *", "struct ucred *",
-    "struct vnode *");
+MAC_CHECK_PROBE_DEFINE3(
+    vnode_check_stat, "struct ucred *", "struct ucred *", "struct vnode *");
 
 int
-mac_vnode_check_stat_impl(struct ucred *active_cred, struct ucred *file_cred,
-    struct vnode *vp)
+mac_vnode_check_stat_impl(
+    struct ucred *active_cred, struct ucred *file_cred, struct vnode *vp)
 {
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_stat");
 
-	MAC_POLICY_CHECK(vnode_check_stat, active_cred, file_cred, vp,
-	    vp->v_label);
-	MAC_CHECK_PROBE3(vnode_check_stat, error, active_cred, file_cred,
-	    vp);
+	MAC_POLICY_CHECK(
+	    vnode_check_stat, active_cred, file_cred, vp, vp->v_label);
+	MAC_CHECK_PROBE3(vnode_check_stat, error, active_cred, file_cred, vp);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE4(vnode_check_unlink, "struct ucred *",
-    "struct vnode *", "struct vnode *", "struct componentname *");
+MAC_CHECK_PROBE_DEFINE4(vnode_check_unlink, "struct ucred *", "struct vnode *",
+    "struct vnode *", "struct componentname *");
 
 int
-mac_vnode_check_unlink(struct ucred *cred, struct vnode *dvp,
-    struct vnode *vp, struct componentname *cnp)
+mac_vnode_check_unlink(struct ucred *cred, struct vnode *dvp, struct vnode *vp,
+    struct componentname *cnp)
 {
 	int error;
 
 	ASSERT_VOP_LOCKED(dvp, "mac_vnode_check_unlink");
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_unlink");
 
-	MAC_POLICY_CHECK(vnode_check_unlink, cred, dvp, dvp->v_label, vp,
-	    vp->v_label, cnp);
+	MAC_POLICY_CHECK(
+	    vnode_check_unlink, cred, dvp, dvp->v_label, vp, vp->v_label, cnp);
 	MAC_CHECK_PROBE4(vnode_check_unlink, error, cred, dvp, vp, cnp);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(vnode_check_write, "struct ucred *",
-    "struct ucred *", "struct vnode *");
+MAC_CHECK_PROBE_DEFINE3(
+    vnode_check_write, "struct ucred *", "struct ucred *", "struct vnode *");
 
 int
-mac_vnode_check_write_impl(struct ucred *active_cred, struct ucred *file_cred,
-    struct vnode *vp)
+mac_vnode_check_write_impl(
+    struct ucred *active_cred, struct ucred *file_cred, struct vnode *vp)
 {
 	int error;
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_write");
 
-	MAC_POLICY_CHECK(vnode_check_write, active_cred, file_cred, vp,
-	    vp->v_label);
-	MAC_CHECK_PROBE3(vnode_check_write, error, active_cred, file_cred,
-	    vp);
+	MAC_POLICY_CHECK(
+	    vnode_check_write, active_cred, file_cred, vp, vp->v_label);
+	MAC_CHECK_PROBE3(vnode_check_write, error, active_cred, file_cred, vp);
 
 	return (error);
 }
 
 void
-mac_vnode_relabel(struct ucred *cred, struct vnode *vp,
-    struct label *newlabel)
+mac_vnode_relabel(struct ucred *cred, struct vnode *vp, struct label *newlabel)
 {
 
 	MAC_POLICY_PERFORM(vnode_relabel, cred, vp, vp->v_label, newlabel);
@@ -959,27 +949,27 @@ mac_mount_create(struct ucred *cred, struct mount *mp)
 	MAC_POLICY_PERFORM(mount_create, cred, mp, mp->mnt_label);
 }
 
-MAC_CHECK_PROBE_DEFINE2(mount_check_stat, "struct ucred *",
-    "struct mount *");
+MAC_CHECK_PROBE_DEFINE2(mount_check_stat, "struct ucred *", "struct mount *");
 
 int
 mac_mount_check_stat(struct ucred *cred, struct mount *mount)
 {
 	int error;
 
-	MAC_POLICY_CHECK_NOSLEEP(mount_check_stat, cred, mount, mount->mnt_label);
+	MAC_POLICY_CHECK_NOSLEEP(
+	    mount_check_stat, cred, mount, mount->mnt_label);
 	MAC_CHECK_PROBE2(mount_check_stat, error, cred, mount);
 
 	return (error);
 }
 
 void
-mac_devfs_create_device(struct ucred *cred, struct mount *mp,
-    struct cdev *dev, struct devfs_dirent *de)
+mac_devfs_create_device(struct ucred *cred, struct mount *mp, struct cdev *dev,
+    struct devfs_dirent *de)
 {
 
-	MAC_POLICY_PERFORM_NOSLEEP(devfs_create_device, cred, mp, dev, de,
-	    de->de_label);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    devfs_create_device, cred, mp, dev, de, de->de_label);
 }
 
 void
@@ -987,17 +977,17 @@ mac_devfs_create_symlink(struct ucred *cred, struct mount *mp,
     struct devfs_dirent *dd, struct devfs_dirent *de)
 {
 
-	MAC_POLICY_PERFORM_NOSLEEP(devfs_create_symlink, cred, mp, dd,
-	    dd->de_label, de, de->de_label);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    devfs_create_symlink, cred, mp, dd, dd->de_label, de, de->de_label);
 }
 
 void
-mac_devfs_create_directory(struct mount *mp, char *dirname, int dirnamelen,
-    struct devfs_dirent *de)
+mac_devfs_create_directory(
+    struct mount *mp, char *dirname, int dirnamelen, struct devfs_dirent *de)
 {
 
-	MAC_POLICY_PERFORM_NOSLEEP(devfs_create_directory, mp, dirname,
-	    dirnamelen, de, de->de_label);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    devfs_create_directory, mp, dirname, dirnamelen, de, de->de_label);
 }
 
 /*

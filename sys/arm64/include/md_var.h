@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_MD_VAR_H_
-#define	_MACHINE_MD_VAR_H_
+#ifndef _MACHINE_MD_VAR_H_
+#define _MACHINE_MD_VAR_H_
 
 extern long Maxmem;
 extern char sigcode[];

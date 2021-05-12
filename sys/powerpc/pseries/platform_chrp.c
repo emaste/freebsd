@@ -30,21 +30,23 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/endian.h>
+#include <sys/kernel.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/hid.h>
+#include <machine/ofw_machdep.h>
 #include <machine/platformvar.h>
 #include <machine/rtas.h>
 #include <machine/smp.h>
@@ -52,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 
 #include <dev/ofw/openfirm.h>
-#include <machine/ofw_machdep.h>
 
 #include "platform_if.h"
 
@@ -92,32 +93,26 @@ static struct cpuref platform_cpuref[MAXCPU];
 static int platform_cpuref_cnt;
 static int platform_cpuref_valid;
 
-static platform_method_t chrp_methods[] = {
-	PLATFORMMETHOD(platform_probe, 		chrp_probe),
-	PLATFORMMETHOD(platform_attach,		chrp_attach),
-	PLATFORMMETHOD(platform_mem_regions,	chrp_mem_regions),
-	PLATFORMMETHOD(platform_real_maxaddr,	chrp_real_maxaddr),
-	PLATFORMMETHOD(platform_timebase_freq,	chrp_timebase_freq),
+static platform_method_t chrp_methods[] = { PLATFORMMETHOD(
+						platform_probe, chrp_probe),
+	PLATFORMMETHOD(platform_attach, chrp_attach),
+	PLATFORMMETHOD(platform_mem_regions, chrp_mem_regions),
+	PLATFORMMETHOD(platform_real_maxaddr, chrp_real_maxaddr),
+	PLATFORMMETHOD(platform_timebase_freq, chrp_timebase_freq),
 
-	PLATFORMMETHOD(platform_smp_ap_init,	chrp_smp_ap_init),
-	PLATFORMMETHOD(platform_smp_first_cpu,	chrp_smp_first_cpu),
-	PLATFORMMETHOD(platform_smp_next_cpu,	chrp_smp_next_cpu),
-	PLATFORMMETHOD(platform_smp_get_bsp,	chrp_smp_get_bsp),
+	PLATFORMMETHOD(platform_smp_ap_init, chrp_smp_ap_init),
+	PLATFORMMETHOD(platform_smp_first_cpu, chrp_smp_first_cpu),
+	PLATFORMMETHOD(platform_smp_next_cpu, chrp_smp_next_cpu),
+	PLATFORMMETHOD(platform_smp_get_bsp, chrp_smp_get_bsp),
 #ifdef SMP
-	PLATFORMMETHOD(platform_smp_start_cpu,	chrp_smp_start_cpu),
-	PLATFORMMETHOD(platform_smp_probe_threads,	chrp_smp_probe_threads),
-	PLATFORMMETHOD(platform_smp_topo,	chrp_smp_topo),
+	PLATFORMMETHOD(platform_smp_start_cpu, chrp_smp_start_cpu),
+	PLATFORMMETHOD(platform_smp_probe_threads, chrp_smp_probe_threads),
+	PLATFORMMETHOD(platform_smp_topo, chrp_smp_topo),
 #endif
 
-	PLATFORMMETHOD(platform_reset,		chrp_reset),
-	{ 0, 0 }
-};
+	PLATFORMMETHOD(platform_reset, chrp_reset), { 0, 0 } };
 
-static platform_def_t chrp_platform = {
-	"chrp",
-	chrp_methods,
-	0
-};
+static platform_def_t chrp_platform = { "chrp", chrp_methods, 0 };
 
 PLATFORM_DEF(chrp_platform);
 
@@ -160,15 +155,15 @@ chrp_attach(platform_t plat)
 		/* Set up important VPA fields */
 		for (i = 0; i < MAXCPU; i++) {
 			/* First two: VPA size */
-			splpar_vpa[i][4] =
-			    (uint8_t)((sizeof(splpar_vpa[i]) >> 8) & 0xff);
-			splpar_vpa[i][5] =
-			    (uint8_t)(sizeof(splpar_vpa[i]) & 0xff);
-			splpar_vpa[i][0xba] = 1;	/* Maintain FPRs */
-			splpar_vpa[i][0xbb] = 1;	/* Maintain PMCs */
-			splpar_vpa[i][0xfc] = 0xff;	/* Maintain full SLB */
+			splpar_vpa[i][4] = (uint8_t)(
+			    (sizeof(splpar_vpa[i]) >> 8) & 0xff);
+			splpar_vpa[i][5] = (uint8_t)(
+			    sizeof(splpar_vpa[i]) & 0xff);
+			splpar_vpa[i][0xba] = 1;    /* Maintain FPRs */
+			splpar_vpa[i][0xbb] = 1;    /* Maintain PMCs */
+			splpar_vpa[i][0xfc] = 0xff; /* Maintain full SLB */
 			splpar_vpa[i][0xfd] = 0xff;
-			splpar_vpa[i][0xff] = 1;	/* Maintain Altivec */
+			splpar_vpa[i][0xff] = 1; /* Maintain Altivec */
 		}
 		mb();
 
@@ -183,15 +178,14 @@ chrp_attach(platform_t plat)
 		 * so the change appears simultaneously in all processors.
 		 * This can take a long time.
 		 */
-		for(;;) {
-			result = phyp_hcall(H_SET_MODE, 1UL,
-			    H_SET_MODE_RSRC_ILE, 0, 0);
+		for (;;) {
+			result = phyp_hcall(
+			    H_SET_MODE, 1UL, H_SET_MODE_RSRC_ILE, 0, 0);
 			if (result == H_SUCCESS)
 				break;
 			DELAY(1000);
 		}
 #endif
-
 	}
 #endif
 	chrp_cpuref_init();
@@ -206,8 +200,8 @@ chrp_attach(platform_t plat)
 }
 
 static int
-parse_drconf_memory(struct mem_region *ofmem, int *msz,
-		    struct mem_region *ofavail, int *asz)
+parse_drconf_memory(
+    struct mem_region *ofmem, int *msz, struct mem_region *ofavail, int *asz)
 {
 	phandle_t phandle;
 	vm_offset_t base;
@@ -223,18 +217,18 @@ parse_drconf_memory(struct mem_region *ofmem, int *msz,
 		/* No drconf node, return. */
 		return (0);
 
-	res = OF_getencprop(phandle, "ibm,lmb-size", lmb_size,
-	    sizeof(lmb_size));
+	res = OF_getencprop(
+	    phandle, "ibm,lmb-size", lmb_size, sizeof(lmb_size));
 	if (res == -1)
 		return (0);
 	printf("Logical Memory Block size: %d MB\n", lmb_size[1] >> 20);
 
 	/* Parse the /ibm,dynamic-memory.
 	   The first position gives the # of entries. The next two words
- 	   reflect the address of the memory block. The next four words are
+	   reflect the address of the memory block. The next four words are
 	   the DRC index, reserved, list index and flags.
 	   (see PAPR C.6.6.2 ibm,dynamic-reconfiguration-memory)
-	   
+
 	    #el  Addr   DRC-idx  res   list-idx  flags
 	   -------------------------------------------------
 	   | 4 |   8   |   4   |   4   |   4   |   4   |....
@@ -246,10 +240,10 @@ parse_drconf_memory(struct mem_region *ofmem, int *msz,
 		/* We have to use a variable length array on the stack
 		   since we have very limited stack space.
 		*/
-		cell_t arr[len/sizeof(cell_t)];
+		cell_t arr[len / sizeof(cell_t)];
 
-		res = OF_getencprop(phandle, "ibm,dynamic-memory", arr,
-		    sizeof(arr));
+		res = OF_getencprop(
+		    phandle, "ibm,dynamic-memory", arr, sizeof(arr));
 		if (res == -1)
 			return (0);
 
@@ -326,7 +320,8 @@ chrp_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	if (cpus == -1)
 		panic("CPU tree not found on Open Firmware\n");
 
-	for (cpunode = OF_child(cpus); cpunode != 0; cpunode = OF_peer(cpunode)) {
+	for (cpunode = OF_child(cpus); cpunode != 0;
+	     cpunode = OF_peer(cpunode)) {
 		res = OF_getprop(cpunode, "device_type", buf, sizeof(buf));
 		if (res > 0 && strcmp(buf, "cpu") == 0)
 			break;
@@ -389,7 +384,8 @@ get_cpu_reg(phandle_t cpu, cell_t *reg)
 
 	res = OF_getproplen(cpu, "reg");
 	if (res != sizeof(cell_t))
-		panic("Unexpected length for CPU property reg on Open Firmware\n");
+		panic(
+		    "Unexpected length for CPU property reg on Open Firmware\n");
 	OF_getencprop(cpu, "reg", reg, res);
 }
 
@@ -415,15 +411,18 @@ chrp_cpuref_init(void)
 		dev = OF_peer(dev);
 	}
 
-	/* Make sure that cpus reg property have 1 address cell and 0 size cells */
+	/* Make sure that cpus reg property have 1 address cell and 0 size cells
+	 */
 	res = OF_getproplen(dev, "#address-cells");
 	res2 = OF_getproplen(dev, "#size-cells");
 	if (res != res2 || res != sizeof(cell_t))
-		panic("CPU properties #address-cells and #size-cells not found on Open Firmware\n");
+		panic(
+		    "CPU properties #address-cells and #size-cells not found on Open Firmware\n");
 	OF_getencprop(dev, "#address-cells", &addr_cells, sizeof(addr_cells));
 	OF_getencprop(dev, "#size-cells", &size_cells, sizeof(size_cells));
 	if (addr_cells != 1 || size_cells != 0)
-		panic("Unexpected values for CPU properties #address-cells and #size-cells on Open Firmware\n");
+		panic(
+		    "Unexpected values for CPU properties #address-cells and #size-cells on Open Firmware\n");
 
 	/* Look for boot CPU in /chosen/cpu and /chosen/fdtbootcpu */
 
@@ -444,7 +443,8 @@ chrp_cpuref_init(void)
 	/* /chosen/fdtbootcpu */
 	if (bsp_reg == -1) {
 		if (OF_getproplen(chosen, "fdtbootcpu") == sizeof(cell_t))
-			OF_getprop(chosen, "fdtbootcpu", &bsp_reg, sizeof(bsp_reg));
+			OF_getprop(
+			    chosen, "fdtbootcpu", &bsp_reg, sizeof(bsp_reg));
 	}
 
 	if (bsp_reg == -1)
@@ -464,9 +464,11 @@ chrp_cpuref_init(void)
 				if (reg == bsp_reg)
 					bsp = tmp_cpuref_cnt;
 
-				for (a = 0; a < res/sizeof(cell_t); a++) {
-					tmp_cpuref[tmp_cpuref_cnt].cr_hwref = interrupt_servers[a];
-					tmp_cpuref[tmp_cpuref_cnt].cr_cpuid = tmp_cpuref_cnt;
+				for (a = 0; a < res / sizeof(cell_t); a++) {
+					tmp_cpuref[tmp_cpuref_cnt].cr_hwref =
+					    interrupt_servers[a];
+					tmp_cpuref[tmp_cpuref_cnt].cr_cpuid =
+					    tmp_cpuref_cnt;
 					tmp_cpuref_cnt++;
 				}
 			}
@@ -478,13 +480,17 @@ chrp_cpuref_init(void)
 
 	/* Map IDs, so BSP has CPUID 0 regardless of hwref */
 	for (a = bsp; a < tmp_cpuref_cnt; a++) {
-		platform_cpuref[platform_cpuref_cnt].cr_hwref = tmp_cpuref[a].cr_hwref;
-		platform_cpuref[platform_cpuref_cnt].cr_cpuid = platform_cpuref_cnt;
+		platform_cpuref[platform_cpuref_cnt].cr_hwref =
+		    tmp_cpuref[a].cr_hwref;
+		platform_cpuref[platform_cpuref_cnt].cr_cpuid =
+		    platform_cpuref_cnt;
 		platform_cpuref_cnt++;
 	}
 	for (a = 0; a < bsp; a++) {
-		platform_cpuref[platform_cpuref_cnt].cr_hwref = tmp_cpuref[a].cr_hwref;
-		platform_cpuref[platform_cpuref_cnt].cr_cpuid = platform_cpuref_cnt;
+		platform_cpuref[platform_cpuref_cnt].cr_hwref =
+		    tmp_cpuref[a].cr_hwref;
+		platform_cpuref[platform_cpuref_cnt].cr_cpuid =
+		    platform_cpuref_cnt;
 		platform_cpuref_cnt++;
 	}
 
@@ -516,11 +522,11 @@ chrp_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	ap_pcpu = pc;
 	powerpc_sync();
 
-	result = rtas_call_method(start_cpu, 3, 1, pc->pc_hwref, EXC_RST, pc,
-	    &err);
+	result = rtas_call_method(
+	    start_cpu, 3, 1, pc->pc_hwref, EXC_RST, pc, &err);
 	if (result < 0 || err != 0) {
-		printf("RTAS error (%d/%d): unable to start AP %d\n",
-		    result, err, pc->pc_cpuid);
+		printf("RTAS error (%d/%d): unable to start AP %d\n", result,
+		    err, pc->pc_cpuid);
 		return (ENXIO);
 	}
 
@@ -559,7 +565,8 @@ chrp_smp_topo(platform_t plat)
 
 	if (mp_ncpus % mp_ncores != 0) {
 		printf("WARNING: Irregular SMP topology. Performance may be "
-		     "suboptimal (%d CPUS, %d cores)\n", mp_ncpus, mp_ncores);
+		       "suboptimal (%d CPUS, %d cores)\n",
+		    mp_ncpus, mp_ncores);
 		return (smp_topo_none());
 	}
 
@@ -567,8 +574,8 @@ chrp_smp_topo(platform_t plat)
 	if (mp_ncpus == mp_ncores)
 		return (smp_topo_none());
 
-	return (smp_topo_1level(CG_SHARE_L1, smp_threads_per_core,
-	    CG_FLAG_SMT));
+	return (
+	    smp_topo_1level(CG_SHARE_L1, smp_threads_per_core, CG_FLAG_SMT));
 }
 #endif
 

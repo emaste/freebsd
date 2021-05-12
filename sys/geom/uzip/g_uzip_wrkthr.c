@@ -29,13 +29,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/bio.h>
+#include <sys/kthread.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
-#include <sys/kthread.h>
-#include <sys/malloc.h>
 
 #include <geom/uzip/g_uzip.h>
 #include <geom/uzip/g_uzip_softc.h>
@@ -61,8 +61,8 @@ g_uzip_wrkthr(void *arg)
 		}
 		bp = bioq_takefirst(&sc->bio_queue);
 		if (!bp) {
-			msleep(sc, &sc->queue_mtx, PRIBIO | PDROP,
-			    "wrkwait", 0);
+			msleep(
+			    sc, &sc->queue_mtx, PRIBIO | PDROP, "wrkwait", 0);
 			continue;
 		}
 		mtx_unlock(&sc->queue_mtx);

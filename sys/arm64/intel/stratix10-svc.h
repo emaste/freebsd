@@ -33,15 +33,15 @@
  */
 
 #ifndef _ARM64_INTEL_STRATIX10_SVC_H_
-#define	_ARM64_INTEL_STRATIX10_SVC_H_
+#define _ARM64_INTEL_STRATIX10_SVC_H_
 
 struct s10_svc_msg {
 	int command;
-#define	COMMAND_RECONFIG		(1 << 0)
-#define	COMMAND_RECONFIG_DATA_SUBMIT	(1 << 1)
-#define	COMMAND_RECONFIG_DATA_CLAIM	(1 << 2)
+#define COMMAND_RECONFIG (1 << 0)
+#define COMMAND_RECONFIG_DATA_SUBMIT (1 << 1)
+#define COMMAND_RECONFIG_DATA_CLAIM (1 << 2)
 	int flags;
-#define	COMMAND_RECONFIG_FLAG_PARTIAL	(1 << 0)
+#define COMMAND_RECONFIG_FLAG_PARTIAL (1 << 0)
 	void *payload;
 	int payload_length;
 };
@@ -57,4 +57,4 @@ int s10_svc_send(device_t dev, struct s10_svc_msg *msg);
 int s10_svc_allocate_memory(device_t dev, struct s10_svc_mem *mem, int size);
 void s10_svc_free_memory(device_t dev, struct s10_svc_mem *mem);
 
-#endif	/* !_ARM64_INTEL_STRATIX10_SVC_H_ */
+#endif /* !_ARM64_INTEL_STRATIX10_SVC_H_ */

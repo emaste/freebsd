@@ -31,7 +31,9 @@
 #include <machine/platformvar.h>
 
 void mv_a38x_platform_pl310_init(platform_t plat, struct pl310_softc *sc);
-void mv_a38x_platform_pl310_write_ctrl(platform_t plat, struct pl310_softc *sc, uint32_t val);
-void mv_a38x_platform_pl310_write_debug(platform_t plat, struct pl310_softc *sc, uint32_t val);
+void mv_a38x_platform_pl310_write_ctrl(
+    platform_t plat, struct pl310_softc *sc, uint32_t val);
+void mv_a38x_platform_pl310_write_debug(
+    platform_t plat, struct pl310_softc *sc, uint32_t val);
 
 #endif

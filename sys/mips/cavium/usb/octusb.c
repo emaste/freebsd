@@ -35,58 +35,56 @@ __FBSDID("$FreeBSD$");
 
 /* TODO: The root HUB port callback is not yet implemented. */
 
-#include <sys/stdint.h>
-#include <sys/stddef.h>
-#include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/sysctl.h>
-#include <sys/sx.h>
-#include <sys/unistd.h>
 #include <sys/callout.h>
+#include <sys/condvar.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
+#include <sys/queue.h>
+#include <sys/stddef.h>
+#include <sys/stdint.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/unistd.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 
-#define	USB_DEBUG_VAR octusbdebug
+#define USB_DEBUG_VAR octusbdebug
 
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_transfer.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_hub.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usb_transfer.h>
 #include <dev/usb/usb_util.h>
 
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
-
-#include <contrib/octeon-sdk/cvmx.h>
 #include <contrib/octeon-sdk/cvmx-usb.h>
-
+#include <contrib/octeon-sdk/cvmx.h>
 #include <mips/cavium/usb/octusb.h>
 
-#define	OCTUSB_BUS2SC(bus) \
-   ((struct octusb_softc *)(((uint8_t *)(bus)) - \
-    ((uint8_t *)&(((struct octusb_softc *)0)->sc_bus))))
+#define OCTUSB_BUS2SC(bus)                            \
+	((struct octusb_softc *)(((uint8_t *)(bus)) - \
+	    ((uint8_t *)&(((struct octusb_softc *)0)->sc_bus))))
 
 #ifdef USB_DEBUG
 static int octusbdebug = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, octusb, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "OCTUSB");
-SYSCTL_INT(_hw_usb_octusb, OID_AUTO, debug, CTLFLAG_RWTUN,
-    &octusbdebug, 0, "OCTUSB debug level");
+static SYSCTL_NODE(
+    _hw_usb, OID_AUTO, octusb, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "OCTUSB");
+SYSCTL_INT(_hw_usb_octusb, OID_AUTO, debug, CTLFLAG_RWTUN, &octusbdebug, 0,
+    "OCTUSB debug level");
 #endif
 
 struct octusb_std_temp {
@@ -96,8 +94,8 @@ struct octusb_std_temp {
 	struct usb_page_cache *pc;
 	uint32_t offset;
 	uint32_t len;
-	uint8_t	short_pkt;
-	uint8_t	setup_alt_next;
+	uint8_t short_pkt;
+	uint8_t setup_alt_next;
 };
 
 extern struct usb_bus_methods octusb_bus_methods;
@@ -114,7 +112,7 @@ static void octusb_do_poll(struct usb_bus *);
 static cvmx_usb_speed_t
 octusb_convert_speed(enum usb_dev_speed speed)
 {
-	;				/* indent fix */
+	; /* indent fix */
 	switch (speed) {
 	case USB_SPEED_HIGH:
 		return (CVMX_USB_SPEED_HIGH);
@@ -128,7 +126,7 @@ octusb_convert_speed(enum usb_dev_speed speed)
 static cvmx_usb_transfer_t
 octusb_convert_ep_type(uint8_t ep_type)
 {
-	;				/* indent fix */
+	; /* indent fix */
 	switch (ep_type & UE_XFERTYPE) {
 	case UE_CONTROL:
 		return (CVMX_USB_TRANSFER_CONTROL);
@@ -139,7 +137,7 @@ octusb_convert_ep_type(uint8_t ep_type)
 	case UE_BULK:
 		return (CVMX_USB_TRANSFER_BULK);
 	default:
-		return (0);		/* should not happen */
+		return (0); /* should not happen */
 	}
 }
 
@@ -150,36 +148,30 @@ octusb_host_alloc_endpoint(struct octusb_td *td)
 	int ep_handle;
 
 	if (td->qh->fixup_pending)
-		return (1);		/* busy */
+		return (1); /* busy */
 
 	if (td->qh->ep_allocated)
-		return (0);		/* success */
+		return (0); /* success */
 
 	/* get softc */
 	sc = td->qh->sc;
 
 	ep_handle = cvmx_usb_open_pipe(
-	    &sc->sc_port[td->qh->root_port_index].state,
-	    0,
-	    td->qh->dev_addr,
-	    td->qh->ep_num & UE_ADDR,
-	    octusb_convert_speed(td->qh->dev_speed),
-	    td->qh->max_packet_size,
-	    octusb_convert_ep_type(td->qh->ep_type),
+	    &sc->sc_port[td->qh->root_port_index].state, 0, td->qh->dev_addr,
+	    td->qh->ep_num & UE_ADDR, octusb_convert_speed(td->qh->dev_speed),
+	    td->qh->max_packet_size, octusb_convert_ep_type(td->qh->ep_type),
 	    (td->qh->ep_num & UE_DIR_IN) ? CVMX_USB_DIRECTION_IN :
-	    CVMX_USB_DIRECTION_OUT,
+						 CVMX_USB_DIRECTION_OUT,
 	    td->qh->ep_interval,
 	    (td->qh->dev_speed == USB_SPEED_HIGH) ? td->qh->ep_mult : 0,
-	    td->qh->hs_hub_addr,
-	    td->qh->hs_hub_port);
+	    td->qh->hs_hub_addr, td->qh->hs_hub_port);
 
 	if (ep_handle < 0) {
 		DPRINTFN(1, "cvmx_usb_open_pipe failed: %d\n", ep_handle);
-		return (1);		/* busy */
+		return (1); /* busy */
 	}
 
-	cvmx_usb_set_toggle(
-	    &sc->sc_port[td->qh->root_port_index].state,
+	cvmx_usb_set_toggle(&sc->sc_port[td->qh->root_port_index].state,
 	    ep_handle, td->qh->ep_toggle_next);
 
 	td->qh->fixup_handle = -1;
@@ -192,7 +184,7 @@ octusb_host_alloc_endpoint(struct octusb_td *td)
 	td->qh->ep_handle = ep_handle;
 	td->qh->ep_allocated = 1;
 
-	return (0);			/* success */
+	return (0); /* success */
 }
 
 static void
@@ -211,16 +203,15 @@ octusb_host_free_endpoint(struct octusb_td *td)
 		cvmx_usb_cancel(&sc->sc_port[td->qh->root_port_index].state,
 		    td->qh->ep_handle, td->qh->fixup_handle);
 	}
-	cvmx_usb_close_pipe(&sc->sc_port[td->qh->root_port_index].state, td->qh->ep_handle);
+	cvmx_usb_close_pipe(
+	    &sc->sc_port[td->qh->root_port_index].state, td->qh->ep_handle);
 
 	td->qh->ep_allocated = 0;
 }
 
 static void
-octusb_complete_cb(cvmx_usb_state_t *state,
-    cvmx_usb_callback_t reason,
-    cvmx_usb_complete_t status,
-    int pipe_handle, int submit_handle,
+octusb_complete_cb(cvmx_usb_state_t *state, cvmx_usb_callback_t reason,
+    cvmx_usb_complete_t status, int pipe_handle, int submit_handle,
     int bytes_transferred, void *user_data)
 {
 	struct octusb_td *td;
@@ -258,11 +249,11 @@ octusb_host_control_header_tx(struct octusb_td *td)
 
 	/* allocate endpoint and check pending */
 	if (octusb_host_alloc_endpoint(td))
-		return (1);		/* busy */
+		return (1); /* busy */
 
 	/* check error */
 	if (td->error_any)
-		return (0);		/* done */
+		return (0); /* done */
 
 	if (td->qh->fixup_complete != 0) {
 		/* clear complete flag */
@@ -270,12 +261,12 @@ octusb_host_control_header_tx(struct octusb_td *td)
 
 		/* flush data */
 		usb_pc_cpu_invalidate(td->qh->fixup_pc);
-		return (0);		/* done */
+		return (0); /* done */
 	}
 	/* verify length */
 	if (td->remainder != 8) {
 		td->error_any = 1;
-		return (0);		/* done */
+		return (0); /* done */
 	}
 	usbd_copy_out(td->pc, td->offset, td->qh->fixup_buf, 8);
 
@@ -289,7 +280,7 @@ octusb_host_control_header_tx(struct octusb_td *td)
 
 	if (td->qh->fixup_len > (OCTUSB_MAX_FIXUP - 8)) {
 		td->error_any = 1;
-		return (0);		/* done */
+		return (0); /* done */
 	}
 	/* do control IN request */
 	if (td->qh->fixup_buf[0] & UE_DIR_IN) {
@@ -309,15 +300,15 @@ octusb_host_control_header_tx(struct octusb_td *td)
 		/* check status */
 		if (status < 0) {
 			td->error_any = 1;
-			return (0);	/* done */
+			return (0); /* done */
 		}
 		td->qh->fixup_handle = status;
 		td->qh->fixup_pending = 1;
 		td->qh->fixup_complete = 0;
 
-		return (1);		/* busy */
+		return (1); /* busy */
 	}
-	return (0);			/* done */
+	return (0); /* done */
 }
 
 static uint8_t
@@ -327,27 +318,27 @@ octusb_host_control_data_tx(struct octusb_td *td)
 
 	/* allocate endpoint and check pending */
 	if (octusb_host_alloc_endpoint(td))
-		return (1);		/* busy */
+		return (1); /* busy */
 
 	/* check error */
 	if (td->error_any)
-		return (0);		/* done */
+		return (0); /* done */
 
 	rem = td->qh->fixup_len - td->qh->fixup_off;
 
 	if (td->remainder > rem) {
 		td->error_any = 1;
 		DPRINTFN(1, "Excess setup transmit data\n");
-		return (0);		/* done */
+		return (0); /* done */
 	}
-	usbd_copy_out(td->pc, td->offset, td->qh->fixup_buf +
-	    td->qh->fixup_off + 8, td->remainder);
+	usbd_copy_out(td->pc, td->offset,
+	    td->qh->fixup_buf + td->qh->fixup_off + 8, td->remainder);
 
 	td->offset += td->remainder;
 	td->qh->fixup_off += td->remainder;
 	td->remainder = 0;
 
-	return (0);			/* done */
+	return (0); /* done */
 }
 
 static uint8_t
@@ -357,11 +348,11 @@ octusb_host_control_data_rx(struct octusb_td *td)
 
 	/* allocate endpoint and check pending */
 	if (octusb_host_alloc_endpoint(td))
-		return (1);		/* busy */
+		return (1); /* busy */
 
 	/* check error */
 	if (td->error_any)
-		return (0);		/* done */
+		return (0); /* done */
 
 	/* copy data from buffer */
 	rem = td->qh->fixup_actlen - td->qh->fixup_off;
@@ -369,14 +360,14 @@ octusb_host_control_data_rx(struct octusb_td *td)
 	if (rem > td->remainder)
 		rem = td->remainder;
 
-	usbd_copy_in(td->pc, td->offset, td->qh->fixup_buf +
-	    td->qh->fixup_off + 8, rem);
+	usbd_copy_in(
+	    td->pc, td->offset, td->qh->fixup_buf + td->qh->fixup_off + 8, rem);
 
 	td->offset += rem;
 	td->remainder -= rem;
 	td->qh->fixup_off += rem;
 
-	return (0);			/* done */
+	return (0); /* done */
 }
 
 static uint8_t
@@ -386,11 +377,11 @@ octusb_host_control_status_tx(struct octusb_td *td)
 
 	/* allocate endpoint and check pending */
 	if (octusb_host_alloc_endpoint(td))
-		return (1);		/* busy */
+		return (1); /* busy */
 
 	/* check error */
 	if (td->error_any)
-		return (0);		/* done */
+		return (0); /* done */
 
 	if (td->qh->fixup_complete != 0) {
 		/* clear complete flag */
@@ -418,15 +409,15 @@ octusb_host_control_status_tx(struct octusb_td *td)
 		/* check status */
 		if (status < 0) {
 			td->error_any = 1;
-			return (0);	/* done */
+			return (0); /* done */
 		}
 		td->qh->fixup_handle = status;
 		td->qh->fixup_pending = 1;
 		td->qh->fixup_complete = 0;
 
-		return (1);		/* busy */
+		return (1); /* busy */
 	}
-	return (0);			/* done */
+	return (0); /* done */
 }
 
 static uint8_t
@@ -438,21 +429,21 @@ octusb_non_control_data_tx(struct octusb_td *td)
 
 	/* allocate endpoint and check pending */
 	if (octusb_host_alloc_endpoint(td))
-		return (1);		/* busy */
+		return (1); /* busy */
 
 	/* check error */
 	if (td->error_any)
-		return (0);		/* done */
+		return (0); /* done */
 
 	if ((td->qh->fixup_complete != 0) &&
 	    ((td->qh->ep_type & UE_XFERTYPE) == UE_ISOCHRONOUS)) {
 		td->qh->fixup_complete = 0;
-		return (0);		/* done */
+		return (0); /* done */
 	}
 	/* check complete */
 	if (td->remainder == 0) {
 		if (td->short_pkt)
-			return (0);	/* complete */
+			return (0); /* complete */
 		/* else need to send a zero length packet */
 		rem = 0;
 		td->short_pkt = 1;
@@ -465,7 +456,7 @@ octusb_non_control_data_tx(struct octusb_td *td)
 			/* should not happen */
 			DPRINTFN(1, "Fixup buffer is too small\n");
 			td->error_any = 1;
-			return (0);	/* done */
+			return (0); /* done */
 		}
 		/* get minimum length */
 		if (rem > td->remainder) {
@@ -493,20 +484,27 @@ octusb_non_control_data_tx(struct octusb_td *td)
 		td->qh->iso_pkt.length = rem;
 		td->qh->iso_pkt.status = 0;
 		/* start USB transfer */
-		status = cvmx_usb_submit_isochronous(&sc->sc_port[td->qh->root_port_index].state,
-		    td->qh->ep_handle, 1, CVMX_USB_ISOCHRONOUS_FLAGS_ALLOW_SHORT |
-		    CVMX_USB_ISOCHRONOUS_FLAGS_ASAP, 1, &td->qh->iso_pkt,
-		    td->qh->fixup_phys, rem, &octusb_complete_cb, td);
+		status = cvmx_usb_submit_isochronous(
+		    &sc->sc_port[td->qh->root_port_index].state,
+		    td->qh->ep_handle, 1,
+		    CVMX_USB_ISOCHRONOUS_FLAGS_ALLOW_SHORT |
+			CVMX_USB_ISOCHRONOUS_FLAGS_ASAP,
+		    1, &td->qh->iso_pkt, td->qh->fixup_phys, rem,
+		    &octusb_complete_cb, td);
 		break;
 	case UE_BULK:
 		/* start USB transfer */
-		status = cvmx_usb_submit_bulk(&sc->sc_port[td->qh->root_port_index].state,
-		    td->qh->ep_handle, td->qh->fixup_phys, rem, &octusb_complete_cb, td);
+		status = cvmx_usb_submit_bulk(
+		    &sc->sc_port[td->qh->root_port_index].state,
+		    td->qh->ep_handle, td->qh->fixup_phys, rem,
+		    &octusb_complete_cb, td);
 		break;
 	case UE_INTERRUPT:
 		/* start USB transfer (interrupt or interrupt) */
-		status = cvmx_usb_submit_interrupt(&sc->sc_port[td->qh->root_port_index].state,
-		    td->qh->ep_handle, td->qh->fixup_phys, rem, &octusb_complete_cb, td);
+		status = cvmx_usb_submit_interrupt(
+		    &sc->sc_port[td->qh->root_port_index].state,
+		    td->qh->ep_handle, td->qh->fixup_phys, rem,
+		    &octusb_complete_cb, td);
 		break;
 	default:
 		status = -1;
@@ -516,14 +514,14 @@ octusb_non_control_data_tx(struct octusb_td *td)
 	/* check status */
 	if (status < 0) {
 		td->error_any = 1;
-		return (0);		/* done */
+		return (0); /* done */
 	}
 	td->qh->fixup_handle = status;
 	td->qh->fixup_len = rem;
 	td->qh->fixup_pending = 1;
 	td->qh->fixup_complete = 0;
 
-	return (1);			/* busy */
+	return (1); /* busy */
 }
 
 static uint8_t
@@ -536,11 +534,11 @@ octusb_non_control_data_rx(struct octusb_td *td)
 
 	/* allocate endpoint and check pending */
 	if (octusb_host_alloc_endpoint(td))
-		return (1);		/* busy */
+		return (1); /* busy */
 
 	/* check error */
 	if (td->error_any)
-		return (0);		/* done */
+		return (0); /* done */
 
 	got_short = 0;
 
@@ -559,7 +557,7 @@ octusb_non_control_data_rx(struct octusb_td *td)
 			} else {
 				/* invalid USB packet */
 				td->error_any = 1;
-				return (0);	/* we are complete */
+				return (0); /* we are complete */
 			}
 		}
 		/* copy data into fixup buffer */
@@ -572,7 +570,7 @@ octusb_non_control_data_rx(struct octusb_td *td)
 		td->qh->fixup_complete = 0;
 
 		if ((td->qh->ep_type & UE_XFERTYPE) == UE_ISOCHRONOUS)
-			return (0);	/* done */
+			return (0); /* done */
 	}
 	/* check if we are complete */
 	if ((td->remainder == 0) || got_short) {
@@ -592,7 +590,7 @@ octusb_non_control_data_rx(struct octusb_td *td)
 			/* should not happen */
 			DPRINTFN(1, "Fixup buffer is too small\n");
 			td->error_any = 1;
-			return (0);	/* done */
+			return (0); /* done */
 		}
 		/* get minimum length */
 		if (rem > td->remainder)
@@ -611,20 +609,27 @@ octusb_non_control_data_rx(struct octusb_td *td)
 		td->qh->iso_pkt.length = rem;
 		td->qh->iso_pkt.status = 0;
 		/* start USB transfer */
-		status = cvmx_usb_submit_isochronous(&sc->sc_port[td->qh->root_port_index].state,
-		    td->qh->ep_handle, 1, CVMX_USB_ISOCHRONOUS_FLAGS_ALLOW_SHORT |
-		    CVMX_USB_ISOCHRONOUS_FLAGS_ASAP, 1, &td->qh->iso_pkt,
-		    td->qh->fixup_phys, rem, &octusb_complete_cb, td);
+		status = cvmx_usb_submit_isochronous(
+		    &sc->sc_port[td->qh->root_port_index].state,
+		    td->qh->ep_handle, 1,
+		    CVMX_USB_ISOCHRONOUS_FLAGS_ALLOW_SHORT |
+			CVMX_USB_ISOCHRONOUS_FLAGS_ASAP,
+		    1, &td->qh->iso_pkt, td->qh->fixup_phys, rem,
+		    &octusb_complete_cb, td);
 		break;
 	case UE_BULK:
 		/* start USB transfer */
-		status = cvmx_usb_submit_bulk(&sc->sc_port[td->qh->root_port_index].state,
-		    td->qh->ep_handle, td->qh->fixup_phys, rem, &octusb_complete_cb, td);
+		status = cvmx_usb_submit_bulk(
+		    &sc->sc_port[td->qh->root_port_index].state,
+		    td->qh->ep_handle, td->qh->fixup_phys, rem,
+		    &octusb_complete_cb, td);
 		break;
 	case UE_INTERRUPT:
 		/* start USB transfer */
-		status = cvmx_usb_submit_interrupt(&sc->sc_port[td->qh->root_port_index].state,
-		    td->qh->ep_handle, td->qh->fixup_phys, rem, &octusb_complete_cb, td);
+		status = cvmx_usb_submit_interrupt(
+		    &sc->sc_port[td->qh->root_port_index].state,
+		    td->qh->ep_handle, td->qh->fixup_phys, rem,
+		    &octusb_complete_cb, td);
 		break;
 	default:
 		status = -1;
@@ -634,14 +639,14 @@ octusb_non_control_data_rx(struct octusb_td *td)
 	/* check status */
 	if (status < 0) {
 		td->error_any = 1;
-		return (0);		/* done */
+		return (0); /* done */
 	}
 	td->qh->fixup_handle = status;
 	td->qh->fixup_len = rem;
 	td->qh->fixup_pending = 1;
 	td->qh->fixup_complete = 0;
 
-	return (1);			/* busy */
+	return (1); /* busy */
 }
 
 static uint8_t
@@ -654,7 +659,7 @@ octusb_xfer_do_fifo(struct usb_xfer *xfer)
 	td = xfer->td_transfer_cache;
 
 	while (1) {
-		if ((td->func) (td)) {
+		if ((td->func)(td)) {
 			/* operation in progress */
 			break;
 		}
@@ -678,14 +683,14 @@ octusb_xfer_do_fifo(struct usb_xfer *xfer)
 		td = td->obj_next;
 		xfer->td_transfer_cache = td;
 	}
-	return (1);			/* not complete */
+	return (1); /* not complete */
 
 done:
 	/* compute all actual lengths */
 
 	octusb_standard_done(xfer);
 
-	return (0);			/* complete */
+	return (0); /* complete */
 }
 
 static usb_error_t
@@ -704,9 +709,9 @@ octusb_standard_done_sub(struct usb_xfer *xfer)
 
 		if (xfer->aframes != xfer->nframes) {
 			/*
-		         * Verify the length and subtract
-		         * the remainder from "frlengths[]":
-		         */
+			 * Verify the length and subtract
+			 * the remainder from "frlengths[]":
+			 */
 			if (len > xfer->frlengths[xfer->aframes]) {
 				td->error_any = 1;
 			} else {
@@ -716,7 +721,8 @@ octusb_standard_done_sub(struct usb_xfer *xfer)
 		/* Check for transfer error */
 		if (td->error_any) {
 			/* the transfer is finished */
-			error = td->error_stall ? USB_ERR_STALLED : USB_ERR_IOERROR;
+			error = td->error_stall ? USB_ERR_STALLED :
+							USB_ERR_IOERROR;
 			td = NULL;
 			break;
 		}
@@ -758,8 +764,8 @@ octusb_standard_done(struct usb_xfer *xfer)
 	struct octusb_qh *qh;
 	usb_error_t error = 0;
 
-	DPRINTFN(12, "xfer=%p endpoint=%p transfer done\n",
-	    xfer, xfer->endpoint);
+	DPRINTFN(
+	    12, "xfer=%p endpoint=%p transfer done\n", xfer, xfer->endpoint);
 
 	/* reset scanner */
 
@@ -783,8 +789,7 @@ octusb_standard_done(struct usb_xfer *xfer)
 			goto done;
 	}
 
-	if (xfer->flags_int.control_xfr &&
-	    !xfer->flags_int.control_act)
+	if (xfer->flags_int.control_xfr && !xfer->flags_int.control_act)
 		error = octusb_standard_done_sub(xfer);
 
 done:
@@ -795,8 +800,9 @@ done:
 
 	xfer->endpoint->toggle_next =
 	    cvmx_usb_get_toggle(
-	    &sc->sc_port[qh->root_port_index].state,
-	    qh->ep_handle) ? 1 : 0;
+		&sc->sc_port[qh->root_port_index].state, qh->ep_handle) ?
+		  1 :
+		  0;
 
 	octusb_device_done(xfer, error);
 }
@@ -812,7 +818,7 @@ octusb_interrupt_poll(struct octusb_softc *sc)
 		cvmx_usb_poll(&sc->sc_port[x].state);
 
 repeat:
-	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
+	TAILQ_FOREACH (xfer, &sc->sc_bus.intr_q.head, wait_entry) {
 		if (!octusb_xfer_do_fifo(xfer)) {
 			/* queue has been modified */
 			goto repeat;
@@ -832,8 +838,8 @@ octusb_start_standard_chain(struct usb_xfer *xfer)
 
 		/* start timeout, if any */
 		if (xfer->timeout != 0) {
-			usbd_transfer_timeout_ms(xfer,
-			    &octusb_timeout, xfer->timeout);
+			usbd_transfer_timeout_ms(
+			    xfer, &octusb_timeout, xfer->timeout);
 		}
 	}
 }
@@ -841,7 +847,6 @@ octusb_start_standard_chain(struct usb_xfer *xfer)
 void
 octusb_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
 {
-
 }
 
 usb_error_t
@@ -906,7 +911,6 @@ octusb_uninit(struct octusb_softc *sc)
 	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return (0);
-
 }
 
 static void
@@ -996,9 +1000,9 @@ octusb_setup_standard_chain(struct usb_xfer *xfer)
 	struct octusb_td *td;
 	uint32_t x;
 
-	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n",
-	    xfer->address, UE_GET_ADDR(xfer->endpointno),
-	    xfer->sumlen, usbd_get_speed(xfer->xroot->udev));
+	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n", xfer->address,
+	    UE_GET_ADDR(xfer->endpointno), xfer->sumlen,
+	    usbd_get_speed(xfer->xroot->udev));
 
 	/* setup starting point */
 	td = xfer->td_start[0];
@@ -1091,8 +1095,7 @@ octusb_setup_standard_chain(struct usb_xfer *xfer)
 
 	/* check if we should append a status stage */
 
-	if (xfer->flags_int.control_xfr &&
-	    !xfer->flags_int.control_act) {
+	if (xfer->flags_int.control_xfr && !xfer->flags_int.control_act) {
 		temp.func = &octusb_host_control_status_tx;
 		temp.len = 0;
 		temp.pc = NULL;
@@ -1121,8 +1124,8 @@ octusb_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
-	DPRINTFN(2, "xfer=%p, endpoint=%p, error=%d\n",
-	    xfer, xfer->endpoint, error);
+	DPRINTFN(
+	    2, "xfer=%p, endpoint=%p, error=%d\n", xfer, xfer->endpoint, error);
 
 	/*
 	 * 1) Free any endpoints.
@@ -1169,8 +1172,7 @@ octusb_device_bulk_start(struct usb_xfer *xfer)
 	octusb_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods octusb_device_bulk_methods =
-{
+struct usb_pipe_methods octusb_device_bulk_methods = {
 	.open = octusb_device_bulk_open,
 	.close = octusb_device_bulk_close,
 	.enter = octusb_device_bulk_enter,
@@ -1206,8 +1208,7 @@ octusb_device_ctrl_start(struct usb_xfer *xfer)
 	octusb_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods octusb_device_ctrl_methods =
-{
+struct usb_pipe_methods octusb_device_ctrl_methods = {
 	.open = octusb_device_ctrl_open,
 	.close = octusb_device_ctrl_close,
 	.enter = octusb_device_ctrl_enter,
@@ -1243,8 +1244,7 @@ octusb_device_intr_start(struct usb_xfer *xfer)
 	octusb_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods octusb_device_intr_methods =
-{
+struct usb_pipe_methods octusb_device_intr_methods = {
 	.open = octusb_device_intr_open,
 	.close = octusb_device_intr_close,
 	.enter = octusb_device_intr_enter,
@@ -1274,8 +1274,8 @@ octusb_device_isoc_enter(struct usb_xfer *xfer)
 	uint32_t frame_count;
 	uint32_t fs_frames;
 
-	DPRINTFN(5, "xfer=%p next=%d nframes=%d\n",
-	    xfer, xfer->endpoint->isoc_next, xfer->nframes);
+	DPRINTFN(5, "xfer=%p next=%d nframes=%d\n", xfer,
+	    xfer->endpoint->isoc_next, xfer->nframes);
 
 	/* get the current frame index */
 
@@ -1314,9 +1314,9 @@ octusb_device_isoc_enter(struct usb_xfer *xfer)
 	/*
 	 * pre-compute when the isochronous transfer will be finished:
 	 */
-	xfer->isoc_time_complete =
-	    usb_isoc_time_expand(&sc->sc_bus, frame_count) + temp +
-	    fs_frames;
+	xfer->isoc_time_complete = usb_isoc_time_expand(
+				       &sc->sc_bus, frame_count) +
+	    temp + fs_frames;
 
 	/* compute frame number for next insertion */
 	xfer->endpoint->isoc_next += fs_frames;
@@ -1330,8 +1330,7 @@ octusb_device_isoc_start(struct usb_xfer *xfer)
 	octusb_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods octusb_device_isoc_methods =
-{
+struct usb_pipe_methods octusb_device_isoc_methods = {
 	.open = octusb_device_isoc_open,
 	.close = octusb_device_isoc_close,
 	.enter = octusb_device_isoc_enter,
@@ -1343,29 +1342,27 @@ struct usb_pipe_methods octusb_device_isoc_methods =
  *------------------------------------------------------------------------*
  * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
-static const
-struct usb_device_descriptor octusb_devd = {
+static const struct usb_device_descriptor octusb_devd = {
 	.bLength = sizeof(octusb_devd),
 	.bDescriptorType = UDESC_DEVICE,
-	.bcdUSB = {0x00, 0x02},
+	.bcdUSB = { 0x00, 0x02 },
 	.bDeviceClass = UDCLASS_HUB,
 	.bDeviceSubClass = UDSUBCLASS_HUB,
 	.bDeviceProtocol = UDPROTO_FSHUB,
 	.bMaxPacketSize = 64,
-	.idVendor = {0},
-	.idProduct = {0},
-	.bcdDevice = {0x00, 0x01},
+	.idVendor = { 0 },
+	.idProduct = { 0 },
+	.bcdDevice = { 0x00, 0x01 },
 	.iManufacturer = 1,
 	.iProduct = 2,
 	.iSerialNumber = 0,
 	.bNumConfigurations = 1,
 };
 
-static const
-struct usb_device_qualifier octusb_odevd = {
+static const struct usb_device_qualifier octusb_odevd = {
 	.bLength = sizeof(octusb_odevd),
 	.bDescriptorType = UDESC_DEVICE_QUALIFIER,
-	.bcdUSB = {0x00, 0x02},
+	.bcdUSB = { 0x00, 0x02 },
 	.bDeviceClass = UDCLASS_HUB,
 	.bDeviceSubClass = UDSUBCLASS_HUB,
 	.bDeviceProtocol = UDPROTO_FSHUB,
@@ -1404,21 +1401,19 @@ struct octusb_config_desc octusb_confd = {
 	},
 };
 
-static const
-struct usb_hub_descriptor_min octusb_hubd =
-{
+static const struct usb_hub_descriptor_min octusb_hubd = {
 	.bDescLength = sizeof(octusb_hubd),
 	.bDescriptorType = UDESC_HUB,
 	.bNbrPorts = 2,
-	.wHubCharacteristics = {UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL, 0},
+	.wHubCharacteristics = { UHD_PWR_NO_SWITCH | UHD_OC_INDIVIDUAL, 0 },
 	.bPwrOn2PwrGood = 50,
 	.bHubContrCurrent = 0,
-	.DeviceRemovable = {0x00},	/* all ports are removable */
+	.DeviceRemovable = { 0x00 }, /* all ports are removable */
 };
 
 static usb_error_t
-octusb_roothub_exec(struct usb_device *udev,
-    struct usb_device_request *req, const void **pptr, uint16_t *plength)
+octusb_roothub_exec(struct usb_device *udev, struct usb_device_request *req,
+    const void **pptr, uint16_t *plength)
 {
 	struct octusb_softc *sc = OCTUSB_BUS2SC(udev->bus);
 	const void *ptr;
@@ -1444,12 +1439,13 @@ octusb_roothub_exec(struct usb_device *udev,
 	value = UGETW(req->wValue);
 	index = UGETW(req->wIndex);
 
-	DPRINTFN(3, "type=0x%02x request=0x%02x wLen=0x%04x "
+	DPRINTFN(3,
+	    "type=0x%02x request=0x%02x wLen=0x%04x "
 	    "wValue=0x%04x wIndex=0x%04x\n",
-	    req->bmRequestType, req->bRequest,
-	    UGETW(req->wLength), value, index);
+	    req->bmRequestType, req->bRequest, UGETW(req->wLength), value,
+	    index);
 
-#define	C(x,y) ((x) | ((y) << 8))
+#define C(x, y) ((x) | ((y) << 8))
 	switch (C(req->bRequest, req->bmRequestType)) {
 	case C(UR_CLEAR_FEATURE, UT_WRITE_DEVICE):
 	case C(UR_CLEAR_FEATURE, UT_WRITE_INTERFACE):
@@ -1491,15 +1487,15 @@ octusb_roothub_exec(struct usb_device *udev,
 
 		case UDESC_STRING:
 			switch (value & 0xff) {
-			case 0:	/* Language table */
+			case 0: /* Language table */
 				str_ptr = "\001";
 				break;
 
-			case 1:	/* Vendor */
+			case 1: /* Vendor */
 				str_ptr = "Cavium Networks";
 				break;
 
-			case 2:	/* Product */
+			case 2: /* Product */
 				str_ptr = "OCTUSB Root HUB";
 				break;
 
@@ -1559,11 +1555,11 @@ octusb_roothub_exec(struct usb_device *udev,
 	case C(UR_CLEAR_FEATURE, UT_WRITE_CLASS_DEVICE):
 		break;
 	case C(UR_CLEAR_FEATURE, UT_WRITE_CLASS_OTHER):
-		DPRINTFN(4, "UR_CLEAR_PORT_FEATURE "
+		DPRINTFN(4,
+		    "UR_CLEAR_PORT_FEATURE "
 		    "port=%d feature=%d\n",
 		    index, value);
-		if ((index < 1) ||
-		    (index > sc->sc_noport) ||
+		if ((index < 1) || (index > sc->sc_noport) ||
 		    sc->sc_port[index - 1].disabled) {
 			err = USB_ERR_IOERROR;
 			goto done;
@@ -1618,15 +1614,15 @@ octusb_roothub_exec(struct usb_device *udev,
 		memset(sc->sc_hub_desc.temp, 0, 16);
 		break;
 	case C(UR_GET_STATUS, UT_READ_CLASS_OTHER):
-		if ((index < 1) ||
-		    (index > sc->sc_noport) ||
+		if ((index < 1) || (index > sc->sc_noport) ||
 		    sc->sc_port[index - 1].disabled) {
 			err = USB_ERR_IOERROR;
 			goto done;
 		}
 		index--;
 
-		usb_port_status = cvmx_usb_get_status(&sc->sc_port[index].state);
+		usb_port_status = cvmx_usb_get_status(
+		    &sc->sc_port[index].state);
 
 		status = change = 0;
 		if (usb_port_status.connected)
@@ -1665,8 +1661,7 @@ octusb_roothub_exec(struct usb_device *udev,
 	case C(UR_SET_FEATURE, UT_WRITE_CLASS_DEVICE):
 		break;
 	case C(UR_SET_FEATURE, UT_WRITE_CLASS_OTHER):
-		if ((index < 1) ||
-		    (index > sc->sc_noport) ||
+		if ((index < 1) || (index > sc->sc_noport) ||
 		    sc->sc_port[index - 1].disabled) {
 			err = USB_ERR_IOERROR;
 			goto done;
@@ -1746,8 +1741,7 @@ octusb_xfer_setup(struct usb_setup_params *parm)
 	/* Allocate a queue head */
 
 	if (usbd_transfer_setup_sub_malloc(
-	    parm, &pc, sizeof(struct octusb_qh),
-	    USB_HOST_ALIGN, 1)) {
+		parm, &pc, sizeof(struct octusb_qh), USB_HOST_ALIGN, 1)) {
 		parm->err = USB_ERR_NOMEM;
 		return;
 	}
@@ -1768,7 +1762,7 @@ octusb_xfer_setup(struct usb_setup_params *parm)
 		qh->root_port_index = xfer->xroot->udev->port_index;
 		/* We need Octeon USB HUB's port index, not the local port */
 		hub = xfer->xroot->udev->parent_hub;
-		while(hub && hub->parent_hub) {
+		while (hub && hub->parent_hub) {
 			qh->root_port_index = hub->port_index;
 			hub = hub->parent_hub;
 		}
@@ -1797,8 +1791,7 @@ octusb_xfer_setup(struct usb_setup_params *parm)
 	/* Allocate a fixup buffer */
 
 	if (usbd_transfer_setup_sub_malloc(
-	    parm, &pc, OCTUSB_MAX_FIXUP,
-	    OCTUSB_MAX_FIXUP, 1)) {
+		parm, &pc, OCTUSB_MAX_FIXUP, OCTUSB_MAX_FIXUP, 1)) {
 		parm->err = USB_ERR_NOMEM;
 		return;
 	}
@@ -1813,11 +1806,10 @@ octusb_xfer_setup(struct usb_setup_params *parm)
 
 	last_obj = NULL;
 
-	ntd = xfer->nframes + 1 /* STATUS */ + 1 /* SYNC */ ;
+	ntd = xfer->nframes + 1 /* STATUS */ + 1 /* SYNC */;
 
 	if (usbd_transfer_setup_sub_malloc(
-	    parm, &pc, sizeof(struct octusb_td),
-	    USB_HOST_ALIGN, ntd)) {
+		parm, &pc, sizeof(struct octusb_td), USB_HOST_ALIGN, ntd)) {
 		parm->err = USB_ERR_NOMEM;
 		return;
 	}
@@ -1844,9 +1836,9 @@ octusb_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 {
 	struct octusb_softc *sc = OCTUSB_BUS2SC(udev->bus);
 
-	DPRINTFN(2, "endpoint=%p, addr=%d, endpt=%d, mode=%d (%d)\n",
-	    ep, udev->address, edesc->bEndpointAddress,
-	    udev->flags.usb_mode, sc->sc_addr);
+	DPRINTFN(2, "endpoint=%p, addr=%d, endpt=%d, mode=%d (%d)\n", ep,
+	    udev->address, edesc->bEndpointAddress, udev->flags.usb_mode,
+	    sc->sc_addr);
 
 	if (udev->device_index != sc->sc_addr) {
 		switch (edesc->bmAttributes & UE_XFERTYPE) {
@@ -1880,7 +1872,7 @@ static void
 octusb_get_dma_delay(struct usb_device *udev, uint32_t *pus)
 {
 	/* DMA delay - wait until any use of memory is finished */
-	*pus = (2125);			/* microseconds */
+	*pus = (2125); /* microseconds */
 }
 
 static void

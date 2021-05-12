@@ -66,8 +66,8 @@ booke_enable_l1_cache(void)
 
 	csr = mfspr(SPR_L1CSR0);
 	if ((boothowto & RB_VERBOSE) != 0 || (csr & L1CSR0_DCE) == 0)
-		printf("L1 D-cache %sabled\n",
-		    (csr & L1CSR0_DCE) ? "en" : "dis");
+		printf(
+		    "L1 D-cache %sabled\n", (csr & L1CSR0_DCE) ? "en" : "dis");
 
 	/* Enable L1 I-cache if applicable. */
 	csr = mfspr(SPR_L1CSR1);
@@ -78,8 +78,8 @@ booke_enable_l1_cache(void)
 
 	csr = mfspr(SPR_L1CSR1);
 	if ((boothowto & RB_VERBOSE) != 0 || (csr & L1CSR1_ICE) == 0)
-		printf("L1 I-cache %sabled\n",
-		    (csr & L1CSR1_ICE) ? "en" : "dis");
+		printf(
+		    "L1 I-cache %sabled\n", (csr & L1CSR1_ICE) ? "en" : "dis");
 }
 
 void

@@ -38,11 +38,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
+
 #include <machine/bus.h>
 
 #ifdef FDT
@@ -50,28 +51,26 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 
-struct powernv_centaur_softc
-{
-
+struct powernv_centaur_softc {
 };
 
 static int powernv_centaur_attach(device_t);
 static int powernv_centaur_probe(device_t);
-static const struct ofw_bus_devinfo *
-    powernv_centaur_get_devinfo(device_t, device_t);
+static const struct ofw_bus_devinfo *powernv_centaur_get_devinfo(
+    device_t, device_t);
 
 static device_method_t powernv_centaur_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		powernv_centaur_probe),
-	DEVMETHOD(device_attach,	powernv_centaur_attach),
+	DEVMETHOD(device_probe, powernv_centaur_probe),
+	DEVMETHOD(device_attach, powernv_centaur_attach),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_devinfo,	powernv_centaur_get_devinfo),
-	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
-	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
-	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
-	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
-	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+	DEVMETHOD(ofw_bus_get_devinfo, powernv_centaur_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat, ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model, ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name, ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node, ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type, ofw_bus_gen_get_type),
 
 	DEVMETHOD_END
 };
@@ -97,7 +96,7 @@ powernv_centaur_attach(device_t dev)
 	struct ofw_bus_devinfo *dinfo;
 
 	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
-	    child = OF_peer(child)) {
+	     child = OF_peer(child)) {
 		dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
 		if (ofw_bus_gen_setup_devinfo(dinfo, child) != 0) {
 			free(dinfo, M_DEVBUF);
@@ -120,10 +119,10 @@ powernv_centaur_attach(device_t dev)
 static const struct ofw_bus_devinfo *
 powernv_centaur_get_devinfo(device_t dev, device_t child)
 {
-        return (device_get_ivars(child));
+	return (device_get_ivars(child));
 }
 
 DEFINE_CLASS_0(powernv_centaur, powernv_centaur_driver, powernv_centaur_methods,
     sizeof(struct powernv_centaur_softc));
-DRIVER_MODULE(powernv_centaur, ofwbus, powernv_centaur_driver, powernv_centaur_devclass, NULL,
-    NULL);
+DRIVER_MODULE(powernv_centaur, ofwbus, powernv_centaur_driver,
+    powernv_centaur_devclass, NULL, NULL);

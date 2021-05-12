@@ -1,4 +1,5 @@
-/*	$OpenBSD: ipsec_input.c,v 1.63 2003/02/20 18:35:43 deraadt Exp $	*/
+/*	$OpenBSD: ipsec_input.c,v 1.63 2003/02/20 18:35:43 deraadt Exp $
+ */
 /*-
  * The authors of this code are John Ioannidis (ji@tla.org),
  * Angelos D. Keromytis (kermit@csd.uch.gr) and
@@ -49,28 +50,26 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/domain.h>
-#include <sys/protosw.h>
-#include <sys/socket.h>
 #include <sys/errno.h>
 #include <sys/hhook.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/protosw.h>
+#include <sys/socket.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_enc.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
 #include <netinet/in_var.h>
-
+#include <netinet/ip.h>
 #include <netinet/ip6.h>
+#include <netinet/ip_var.h>
 #ifdef INET6
 #include <netinet6/ip6_var.h>
 #endif
@@ -83,29 +82,28 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netipsec/ipsec6.h>
 #endif
+#include <machine/in_cksum.h>
+#include <machine/stdarg.h>
+
+#include <netinet6/ip6protosw.h>
 #include <netipsec/ah_var.h>
 #include <netipsec/esp.h>
 #include <netipsec/esp_var.h>
 #include <netipsec/ipcomp_var.h>
-
 #include <netipsec/key.h>
-#include <netipsec/keydb.h>
 #include <netipsec/key_debug.h>
-
+#include <netipsec/keydb.h>
 #include <netipsec/xform.h>
-#include <netinet6/ip6protosw.h>
 
-#include <machine/in_cksum.h>
-#include <machine/stdarg.h>
-
-#define	IPSEC_ISTAT(proto, name)	do {	\
-	if ((proto) == IPPROTO_ESP)		\
-		ESPSTAT_INC(esps_##name);	\
-	else if ((proto) == IPPROTO_AH)		\
-		AHSTAT_INC(ahs_##name);		\
-	else					\
-		IPCOMPSTAT_INC(ipcomps_##name);	\
-} while (0)
+#define IPSEC_ISTAT(proto, name)                        \
+	do {                                            \
+		if ((proto) == IPPROTO_ESP)             \
+			ESPSTAT_INC(esps_##name);       \
+		else if ((proto) == IPPROTO_AH)         \
+			AHSTAT_INC(ahs_##name);         \
+		else                                    \
+			IPCOMPSTAT_INC(ipcomps_##name); \
+	} while (0)
 
 /*
  * ipsec_common_input gets called when an IPsec-protected packet
@@ -128,7 +126,7 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 
 	IPSEC_ASSERT(sproto == IPPROTO_ESP || sproto == IPPROTO_AH ||
 		sproto == IPPROTO_IPCOMP,
-		("unexpected security protocol %u", sproto));
+	    ("unexpected security protocol %u", sproto));
 
 	if ((sproto == IPPROTO_ESP && !V_esp_enable) ||
 	    (sproto == IPPROTO_AH && !V_ah_enable) ||
@@ -138,7 +136,7 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 		return EOPNOTSUPP;
 	}
 
-	if (m->m_pkthdr.len - skip < 2 * sizeof (u_int32_t)) {
+	if (m->m_pkthdr.len - skip < 2 * sizeof(u_int32_t)) {
 		m_freem(m);
 		IPSEC_ISTAT(sproto, hdrops);
 		DPRINTF(("%s: packet too small\n", __func__));
@@ -147,14 +145,14 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 
 	/* Retrieve the SPI from the relevant IPsec header */
 	if (sproto == IPPROTO_ESP)
-		m_copydata(m, skip, sizeof(u_int32_t), (caddr_t) &spi);
+		m_copydata(m, skip, sizeof(u_int32_t), (caddr_t)&spi);
 	else if (sproto == IPPROTO_AH)
 		m_copydata(m, skip + sizeof(u_int32_t), sizeof(u_int32_t),
-		    (caddr_t) &spi);
+		    (caddr_t)&spi);
 	else if (sproto == IPPROTO_IPCOMP) {
 		u_int16_t cpi;
 		m_copydata(m, skip + sizeof(u_int16_t), sizeof(u_int16_t),
-		    (caddr_t) &cpi);
+		    (caddr_t)&cpi);
 		spi = ntohl(htons(cpi));
 	}
 
@@ -163,15 +161,14 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 	 * kernel crypto routine. The resulting mbuf chain is a valid
 	 * IP packet ready to go through input processing.
 	 */
-	bzero(&dst_address, sizeof (dst_address));
+	bzero(&dst_address, sizeof(dst_address));
 	dst_address.sa.sa_family = af;
 	switch (af) {
 #ifdef INET
 	case AF_INET:
 		dst_address.sin.sin_len = sizeof(struct sockaddr_in);
 		m_copydata(m, offsetof(struct ip, ip_dst),
-		    sizeof(struct in_addr),
-		    (caddr_t) &dst_address.sin.sin_addr);
+		    sizeof(struct in_addr), (caddr_t)&dst_address.sin.sin_addr);
 		break;
 #endif /* INET */
 #ifdef INET6
@@ -179,12 +176,12 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 		dst_address.sin6.sin6_len = sizeof(struct sockaddr_in6);
 		m_copydata(m, offsetof(struct ip6_hdr, ip6_dst),
 		    sizeof(struct in6_addr),
-		    (caddr_t) &dst_address.sin6.sin6_addr);
+		    (caddr_t)&dst_address.sin6.sin6_addr);
 		/* We keep addresses in SADB without embedded scope id */
 		if (IN6_IS_SCOPE_LINKLOCAL(&dst_address.sin6.sin6_addr)) {
 			/* XXX: sa6_recoverscope() */
-			dst_address.sin6.sin6_scope_id =
-			    ntohs(dst_address.sin6.sin6_addr.s6_addr16[1]);
+			dst_address.sin6.sin6_scope_id = ntohs(
+			    dst_address.sin6.sin6_addr.s6_addr16[1]);
 			dst_address.sin6.sin6_addr.s6_addr16[1] = 0;
 		}
 		break;
@@ -201,7 +198,7 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 	if (sav == NULL) {
 		DPRINTF(("%s: no key association found for SA %s/%08lx/%u\n",
 		    __func__, ipsec_address(&dst_address, buf, sizeof(buf)),
-		    (u_long) ntohl(spi), sproto));
+		    (u_long)ntohl(spi), sproto));
 		IPSEC_ISTAT(sproto, notdb);
 		m_freem(m);
 		return ENOENT;
@@ -210,7 +207,7 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 	if (sav->tdb_xform == NULL) {
 		DPRINTF(("%s: attempted to use uninitialized SA %s/%08lx/%u\n",
 		    __func__, ipsec_address(&dst_address, buf, sizeof(buf)),
-		    (u_long) ntohl(spi), sproto));
+		    (u_long)ntohl(spi), sproto));
 		IPSEC_ISTAT(sproto, noxform);
 		key_freesav(&sav);
 		m_freem(m);
@@ -243,8 +240,8 @@ ipsec4_input(struct mbuf *m, int offset, int proto)
 	case IPPROTO_ESP:
 	case IPPROTO_IPCOMP:
 		/* Do inbound IPsec processing for AH/ESP/IPCOMP */
-		ipsec_common_input(m, offset,
-		    offsetof(struct ip, ip_p), AF_INET, proto);
+		ipsec_common_input(
+		    m, offset, offsetof(struct ip, ip_p), AF_INET, proto);
 		return (EINPROGRESS); /* mbuf consumed by IPsec */
 	default:
 		/*
@@ -273,8 +270,8 @@ ipsec4_input(struct mbuf *m, int offset, int proto)
  * the processed packet.
  */
 int
-ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
-    int protoff)
+ipsec4_common_input_cb(
+    struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
 	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
 	struct epoch_tracker et;
@@ -293,7 +290,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	sproto = saidx->proto;
 	IPSEC_ASSERT(sproto == IPPROTO_ESP || sproto == IPPROTO_AH ||
 		sproto == IPPROTO_IPCOMP,
-		("unexpected security protocol %u", sproto));
+	    ("unexpected security protocol %u", sproto));
 
 	if (skip != 0) {
 		/*
@@ -301,8 +298,10 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		 */
 		if (m->m_len < skip && (m = m_pullup(m, skip)) == NULL) {
 			DPRINTF(("%s: processing failed for SA %s/%08lx\n",
-			    __func__, ipsec_address(&sav->sah->saidx.dst,
-			    buf, sizeof(buf)), (u_long) ntohl(sav->spi)));
+			    __func__,
+			    ipsec_address(
+				&sav->sah->saidx.dst, buf, sizeof(buf)),
+			    (u_long)ntohl(sav->spi)));
 			IPSEC_ISTAT(sproto, hdrops);
 			error = ENOBUFS;
 			goto bad;
@@ -321,18 +320,16 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	 * decapsulation NAT procedure (RFC3948).
 	 * Do this before invoking into the PFIL.
 	 */
-	if (sav->natt != NULL &&
-	    (prot == IPPROTO_UDP || prot == IPPROTO_TCP))
+	if (sav->natt != NULL && (prot == IPPROTO_UDP || prot == IPPROTO_TCP))
 		udp_ipsec_adjust_cksum(m, sav, prot, skip);
 
 	IPSEC_INIT_CTX(&ctx, &m, NULL, sav, AF_INET, IPSEC_ENC_BEFORE);
 	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_IN)) != 0)
 		goto bad;
-	ip = mtod(m, struct ip *);	/* update pointer */
+	ip = mtod(m, struct ip *); /* update pointer */
 
 	/* IP-in-IP encapsulation */
-	if (prot == IPPROTO_IPIP &&
-	    saidx->mode != IPSEC_MODE_TRANSPORT) {
+	if (prot == IPPROTO_IPIP && saidx->mode != IPSEC_MODE_TRANSPORT) {
 		if (m->m_pkthdr.len - skip < sizeof(struct ip)) {
 			IPSEC_ISTAT(sproto, hdrops);
 			error = EINVAL;
@@ -343,8 +340,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	}
 #ifdef INET6
 	/* IPv6-in-IP encapsulation. */
-	else if (prot == IPPROTO_IPV6 &&
-	    saidx->mode != IPSEC_MODE_TRANSPORT) {
+	else if (prot == IPPROTO_IPV6 && saidx->mode != IPSEC_MODE_TRANSPORT) {
 		if (m->m_pkthdr.len - skip < sizeof(struct ip6_hdr)) {
 			IPSEC_ISTAT(sproto, hdrops);
 			error = EINVAL;
@@ -386,7 +382,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		m_tag_prepend(m, mtag);
 	}
 
-	key_sa_recordxfer(sav, m);		/* record data transfer */
+	key_sa_recordxfer(sav, m); /* record data transfer */
 
 	/*
 	 * In transport mode requeue decrypted mbuf back to IPv4 protocol
@@ -409,8 +405,8 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		break;
 #endif
 	default:
-		DPRINTF(("%s: cannot handle inner ip proto %d\n",
-			    __func__, prot));
+		DPRINTF(
+		    ("%s: cannot handle inner ip proto %d\n", __func__, prot));
 		IPSEC_ISTAT(sproto, nopf);
 		error = EPFNOSUPPORT;
 		goto bad;
@@ -459,8 +455,8 @@ ipsec6_input(struct mbuf *m, int offset, int proto)
 	case IPPROTO_ESP:
 	case IPPROTO_IPCOMP:
 		/* Do inbound IPsec processing for AH/ESP/IPCOMP */
-		ipsec_common_input(m, offset,
-		    offsetof(struct ip6_hdr, ip6_nxt), AF_INET6, proto);
+		ipsec_common_input(m, offset, offsetof(struct ip6_hdr, ip6_nxt),
+		    AF_INET6, proto);
 		return (EINPROGRESS); /* mbuf consumed by IPsec */
 	default:
 		/*
@@ -487,8 +483,8 @@ ipsec6_input(struct mbuf *m, int offset, int proto)
  * filtering and other sanity checks on the processed packet.
  */
 int
-ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
-    int protoff)
+ipsec6_common_input_cb(
+    struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
 	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
 	struct epoch_tracker et;
@@ -510,14 +506,14 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	sproto = saidx->proto;
 	IPSEC_ASSERT(sproto == IPPROTO_ESP || sproto == IPPROTO_AH ||
 		sproto == IPPROTO_IPCOMP,
-		("unexpected security protocol %u", sproto));
+	    ("unexpected security protocol %u", sproto));
 
 	/* Fix IPv6 header */
 	if (m->m_len < sizeof(struct ip6_hdr) &&
 	    (m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
-		DPRINTF(("%s: processing failed for SA %s/%08lx\n",
-		    __func__, ipsec_address(&sav->sah->saidx.dst, buf,
-		    sizeof(buf)), (u_long) ntohl(sav->spi)));
+		DPRINTF(("%s: processing failed for SA %s/%08lx\n", __func__,
+		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
+		    (u_long)ntohl(sav->spi)));
 
 		IPSEC_ISTAT(sproto, hdrops);
 		error = EACCES;
@@ -536,8 +532,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	prot = nxt8;
 
 	/* IPv6-in-IP encapsulation */
-	if (prot == IPPROTO_IPV6 &&
-	    saidx->mode != IPSEC_MODE_TRANSPORT) {
+	if (prot == IPPROTO_IPV6 && saidx->mode != IPSEC_MODE_TRANSPORT) {
 		if (m->m_pkthdr.len - skip < sizeof(struct ip6_hdr)) {
 			IPSEC_ISTAT(sproto, hdrops);
 			error = EINVAL;
@@ -549,8 +544,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	}
 #ifdef INET
 	/* IP-in-IP encapsulation */
-	else if (prot == IPPROTO_IPIP &&
-	    saidx->mode != IPSEC_MODE_TRANSPORT) {
+	else if (prot == IPPROTO_IPIP && saidx->mode != IPSEC_MODE_TRANSPORT) {
 		if (m->m_pkthdr.len - skip < sizeof(struct ip)) {
 			IPSEC_ISTAT(sproto, hdrops);
 			error = EINVAL;
@@ -624,13 +618,14 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 			error = ipsec_if_input(m, sav, af);
 		if (error == 0) {
 			NET_EPOCH_ENTER(et);
-			error = netisr_queue_src(isr_prot,
-			    (uintptr_t)sav->spi, m);
+			error = netisr_queue_src(
+			    isr_prot, (uintptr_t)sav->spi, m);
 			NET_EPOCH_EXIT(et);
 			if (error) {
 				IPSEC_ISTAT(sproto, qfull);
 				DPRINTF(("%s: queue full; proto %u packet"
-				    " dropped\n", __func__, sproto));
+					 " dropped\n",
+				    __func__, sproto));
 			}
 		}
 		key_freesav(&sav);

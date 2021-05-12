@@ -35,33 +35,29 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/nfs/nfsport.h>
 #include <fs/nfsserver/nfs_fha_new.h>
-
 #include <rpc/rpc.h>
 
 static MALLOC_DEFINE(M_NFS_FHA, "NFS FHA", "NFS FHA");
 
-static void		fhanew_init(void *foo);
-static void		fhanew_uninit(void *foo);
-static rpcproc_t	fhanew_get_procnum(rpcproc_t procnum);
-static int		fhanew_get_fh(uint64_t *fh, int v3, struct mbuf **md,
-			    caddr_t *dpos);
-static int		fhanew_is_read(rpcproc_t procnum);
-static int		fhanew_is_write(rpcproc_t procnum);
-static int		fhanew_get_offset(struct mbuf **md, caddr_t *dpos,
-			    int v3, struct fha_info *info);
-static int		fhanew_no_offset(rpcproc_t procnum);
-static void		fhanew_set_locktype(rpcproc_t procnum,
-			    struct fha_info *info);
-static int		fhenew_stats_sysctl(SYSCTL_HANDLER_ARGS);
-static void		fha_extract_info(struct svc_req *req,
-			    struct fha_info *i);
+static void fhanew_init(void *foo);
+static void fhanew_uninit(void *foo);
+static rpcproc_t fhanew_get_procnum(rpcproc_t procnum);
+static int fhanew_get_fh(uint64_t *fh, int v3, struct mbuf **md, caddr_t *dpos);
+static int fhanew_is_read(rpcproc_t procnum);
+static int fhanew_is_write(rpcproc_t procnum);
+static int fhanew_get_offset(
+    struct mbuf **md, caddr_t *dpos, int v3, struct fha_info *info);
+static int fhanew_no_offset(rpcproc_t procnum);
+static void fhanew_set_locktype(rpcproc_t procnum, struct fha_info *info);
+static int fhenew_stats_sysctl(SYSCTL_HANDLER_ARGS);
+static void fha_extract_info(struct svc_req *req, struct fha_info *i);
 
 static struct fha_params fhanew_softc;
 
 SYSCTL_DECL(_vfs_nfsd);
 
 extern int newnfs_nfsv3_procid[];
-extern SVCPOOL	*nfsrvd_pool;
+extern SVCPOOL *nfsrvd_pool;
 
 SYSINIT(nfs_fhanew, SI_SUB_ROOT_CONF, SI_ORDER_ANY, fhanew_init, NULL);
 SYSUNINIT(nfs_fhanew, SI_SUB_ROOT_CONF, SI_ORDER_ANY, fhanew_uninit, NULL);
@@ -76,8 +72,8 @@ fhanew_init(void *foo)
 
 	bzero(softc, sizeof(*softc));
 
-	snprintf(softc->server_name, sizeof(softc->server_name),
-	    FHANEW_SERVER_NAME);
+	snprintf(
+	    softc->server_name, sizeof(softc->server_name), FHANEW_SERVER_NAME);
 
 	softc->pool = &nfsrvd_pool;
 
@@ -110,30 +106,31 @@ fhanew_init(void *foo)
 	 * Add sysctls so the user can change the tuning parameters.
 	 */
 	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "enable", CTLFLAG_RWTUN,
-	    &softc->ctls.enable, 0, "Enable NFS File Handle Affinity (FHA)");
+	    OID_AUTO, "enable", CTLFLAG_RWTUN, &softc->ctls.enable, 0,
+	    "Enable NFS File Handle Affinity (FHA)");
 
 	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "read", CTLFLAG_RWTUN,
-	    &softc->ctls.read, 0, "Enable NFS FHA read locality");
+	    OID_AUTO, "read", CTLFLAG_RWTUN, &softc->ctls.read, 0,
+	    "Enable NFS FHA read locality");
 
 	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "write", CTLFLAG_RWTUN,
-	    &softc->ctls.write, 0, "Enable NFS FHA write locality");
+	    OID_AUTO, "write", CTLFLAG_RWTUN, &softc->ctls.write, 0,
+	    "Enable NFS FHA write locality");
 
 	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "bin_shift", CTLFLAG_RWTUN,
-	    &softc->ctls.bin_shift, 0,
+	    OID_AUTO, "bin_shift", CTLFLAG_RWTUN, &softc->ctls.bin_shift, 0,
 	    "Maximum locality distance 2^(bin_shift) bytes");
 
 	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "max_nfsds_per_fh", CTLFLAG_RWTUN,
-	    &softc->ctls.max_nfsds_per_fh, 0, "Maximum nfsd threads that "
+	    &softc->ctls.max_nfsds_per_fh, 0,
+	    "Maximum nfsd threads that "
 	    "should be working on requests for the same file handle");
 
 	SYSCTL_ADD_UINT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "max_reqs_per_nfsd", CTLFLAG_RWTUN,
-	    &softc->ctls.max_reqs_per_nfsd, 0, "Maximum requests that "
+	    &softc->ctls.max_reqs_per_nfsd, 0,
+	    "Maximum requests that "
 	    "single nfsd thread should be working on at any time");
 
 	SYSCTL_ADD_OID(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
@@ -223,8 +220,8 @@ fhanew_is_write(rpcproc_t procnum)
 }
 
 static int
-fhanew_get_offset(struct mbuf **md, caddr_t *dpos, int v3,
-    struct fha_info *info)
+fhanew_get_offset(
+    struct mbuf **md, caddr_t *dpos, int v3, struct fha_info *info)
 {
 	struct nfsrv_descript lnd, *nd;
 	uint32_t *tl;
@@ -254,10 +251,8 @@ nfsmout:
 static int
 fhanew_no_offset(rpcproc_t procnum)
 {
-	if (procnum == NFSPROC_FSSTAT ||
-	    procnum == NFSPROC_FSINFO ||
-	    procnum == NFSPROC_PATHCONF ||
-	    procnum == NFSPROC_NOOP ||
+	if (procnum == NFSPROC_FSSTAT || procnum == NFSPROC_FSINFO ||
+	    procnum == NFSPROC_PATHCONF || procnum == NFSPROC_NOOP ||
 	    procnum == NFSPROC_NULL)
 		return (1);
 	else
@@ -388,8 +383,7 @@ fha_hash_entry_destroy(struct fha_hash_entry *e)
 {
 
 	mtx_assert(e->mtx, MA_OWNED);
-	KASSERT(e->num_rw == 0,
-	    ("%d reqs on destroyed fhe %p", e->num_rw, e));
+	KASSERT(e->num_rw == 0, ("%d reqs on destroyed fhe %p", e->num_rw, e));
 	KASSERT(e->num_exclusive == 0,
 	    ("%d exclusive reqs on destroyed fhe %p", e->num_exclusive, e));
 	KASSERT(e->num_threads == 0,
@@ -416,7 +410,7 @@ fha_hash_entry_lookup(struct fha_params *softc, u_int64_t fh)
 	new_fhe = fha_hash_entry_new(fh);
 	new_fhe->mtx = &fhs->mtx;
 	mtx_lock(&fhs->mtx);
-	LIST_FOREACH(fhe, &fhs->list, link)
+	LIST_FOREACH (fhe, &fhs->list, link)
 		if (fhe->fh == fh)
 			break;
 	if (!fhe) {
@@ -474,7 +468,7 @@ fha_hash_entry_choose_thread(struct fha_params *softc,
 	int req_count, min_count = 0;
 	off_t offset1, offset2;
 
-	LIST_FOREACH(thread, &fhe->threads, st_alink) {
+	LIST_FOREACH (thread, &fhe->threads, st_alink) {
 		req_count = thread->st_p2;
 
 		/* If there are any writes in progress, use the first thread. */
@@ -498,10 +492,10 @@ fha_hash_entry_choose_thread(struct fha_params *softc,
 		offset1 = i->offset;
 		offset2 = thread->st_p3;
 
-		if (((offset1 >= offset2)
-		  && ((offset1 - offset2) < (1 << softc->ctls.bin_shift)))
-		 || ((offset2 > offset1)
-		  && ((offset2 - offset1) < (1 << softc->ctls.bin_shift)))) {
+		if (((offset1 >= offset2) &&
+			((offset1 - offset2) < (1 << softc->ctls.bin_shift))) ||
+		    ((offset2 > offset1) &&
+			((offset2 - offset1) < (1 << softc->ctls.bin_shift)))) {
 			if ((softc->ctls.max_reqs_per_nfsd == 0) ||
 			    (req_count < softc->ctls.max_reqs_per_nfsd)) {
 #if 0
@@ -512,7 +506,7 @@ fha_hash_entry_choose_thread(struct fha_params *softc,
 			}
 		}
 
-noloc:
+	noloc:
 		/*
 		 * We don't have a locality match, so skip this thread,
 		 * but keep track of the most attractive thread in case
@@ -633,8 +627,8 @@ fhanew_nd_complete(SVCTHREAD *thread, struct svc_req *req)
 	mtx_lock(mtx);
 	fha_hash_entry_add_op(fhe, req->rq_p2, -1);
 	thread->st_p2--;
-	KASSERT(thread->st_p2 >= 0, ("Negative request count %d on %p",
-	    thread->st_p2, thread));
+	KASSERT(thread->st_p2 >= 0,
+	    ("Negative request count %d on %p", thread->st_p2, thread));
 	if (thread->st_p2 == 0) {
 		fha_hash_entry_remove_thread(fhe, thread);
 		if (0 == fhe->num_rw + fhe->num_exclusive)
@@ -643,8 +637,7 @@ fhanew_nd_complete(SVCTHREAD *thread, struct svc_req *req)
 	mtx_unlock(mtx);
 }
 
-static int
-fhenew_stats_sysctl(SYSCTL_HANDLER_ARGS)
+static int fhenew_stats_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct fha_params *softc = &fhanew_softc;
 	int error, i;
@@ -678,19 +671,20 @@ fhenew_stats_sysctl(SYSCTL_HANDLER_ARGS)
 		}
 		sbuf_printf(&sb, "%shash %d: {\n", hfirst ? "" : ", ", i);
 		first = TRUE;
-		LIST_FOREACH(fhe, &softc->fha_hash[i].list, link) {
-			sbuf_printf(&sb, "%sfhe %p: {\n", first ? "  " : ", ",
-			    fhe);
-			sbuf_printf(&sb, "    fh: %ju\n", (uintmax_t) fhe->fh);
+		LIST_FOREACH (fhe, &softc->fha_hash[i].list, link) {
+			sbuf_printf(
+			    &sb, "%sfhe %p: {\n", first ? "  " : ", ", fhe);
+			sbuf_printf(&sb, "    fh: %ju\n", (uintmax_t)fhe->fh);
 			sbuf_printf(&sb, "    num_rw/exclusive: %d/%d\n",
 			    fhe->num_rw, fhe->num_exclusive);
-			sbuf_printf(&sb, "    num_threads: %d\n",
-			    fhe->num_threads);
+			sbuf_printf(
+			    &sb, "    num_threads: %d\n", fhe->num_threads);
 
-			LIST_FOREACH(thread, &fhe->threads, st_alink) {
-				sbuf_printf(&sb, "      thread %p offset %ju "
-				    "reqs %d\n", thread,
-				    thread->st_p3, thread->st_p2);
+			LIST_FOREACH (thread, &fhe->threads, st_alink) {
+				sbuf_printf(&sb,
+				    "      thread %p offset %ju "
+				    "reqs %d\n",
+				    thread, thread->st_p3, thread->st_p2);
 			}
 
 			sbuf_printf(&sb, "  }");
@@ -701,7 +695,7 @@ fhenew_stats_sysctl(SYSCTL_HANDLER_ARGS)
 		hfirst = FALSE;
 	}
 
- out:
+out:
 	sbuf_trim(&sb);
 	sbuf_finish(&sb);
 	error = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);

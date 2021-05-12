@@ -6,7 +6,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -17,7 +17,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -57,91 +57,73 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <netgraph/ng_message.h>
+
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_tee.h>
 
 /* Per hook info */
 struct hookinfo {
-	hook_p			hook;
-	struct hookinfo		*dest, *dup;
-	struct ng_tee_hookstat	stats;
+	hook_p hook;
+	struct hookinfo *dest, *dup;
+	struct ng_tee_hookstat stats;
 };
 typedef struct hookinfo *hi_p;
 
 /* Per node info */
 struct privdata {
-	struct hookinfo		left;
-	struct hookinfo		right;
-	struct hookinfo		left2right;
-	struct hookinfo		right2left;
+	struct hookinfo left;
+	struct hookinfo right;
+	struct hookinfo left2right;
+	struct hookinfo right2left;
 };
 typedef struct privdata *sc_p;
 
 /* Netgraph methods */
-static ng_constructor_t	ng_tee_constructor;
-static ng_rcvmsg_t	ng_tee_rcvmsg;
-static ng_close_t	ng_tee_close;
-static ng_shutdown_t	ng_tee_shutdown;
-static ng_newhook_t	ng_tee_newhook;
-static ng_rcvdata_t	ng_tee_rcvdata;
-static ng_disconnect_t	ng_tee_disconnect;
+static ng_constructor_t ng_tee_constructor;
+static ng_rcvmsg_t ng_tee_rcvmsg;
+static ng_close_t ng_tee_close;
+static ng_shutdown_t ng_tee_shutdown;
+static ng_newhook_t ng_tee_newhook;
+static ng_rcvdata_t ng_tee_rcvdata;
+static ng_disconnect_t ng_tee_disconnect;
 
 /* Parse type for struct ng_tee_hookstat */
-static const struct ng_parse_struct_field ng_tee_hookstat_type_fields[]
-	= NG_TEE_HOOKSTAT_INFO;
+static const struct ng_parse_struct_field ng_tee_hookstat_type_fields[] =
+    NG_TEE_HOOKSTAT_INFO;
 static const struct ng_parse_type ng_tee_hookstat_type = {
-	&ng_parse_struct_type,
-	&ng_tee_hookstat_type_fields
+	&ng_parse_struct_type, &ng_tee_hookstat_type_fields
 };
 
 /* Parse type for struct ng_tee_stats */
-static const struct ng_parse_struct_field ng_tee_stats_type_fields[]
-	= NG_TEE_STATS_INFO(&ng_tee_hookstat_type);
-static const struct ng_parse_type ng_tee_stats_type = {
-	&ng_parse_struct_type,
-	&ng_tee_stats_type_fields
-};
+static const struct ng_parse_struct_field ng_tee_stats_type_fields[] =
+    NG_TEE_STATS_INFO(&ng_tee_hookstat_type);
+static const struct ng_parse_type ng_tee_stats_type = { &ng_parse_struct_type,
+	&ng_tee_stats_type_fields };
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_tee_cmds[] = {
-	{
-	  NGM_TEE_COOKIE,
-	  NGM_TEE_GET_STATS,
-	  "getstats",
-	  NULL,
-	  &ng_tee_stats_type
-	},
-	{
-	  NGM_TEE_COOKIE,
-	  NGM_TEE_CLR_STATS,
-	  "clrstats",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_TEE_COOKIE,
-	  NGM_TEE_GETCLR_STATS,
-	  "getclrstats",
-	  NULL,
-	  &ng_tee_stats_type
-	},
+	{ NGM_TEE_COOKIE, NGM_TEE_GET_STATS, "getstats", NULL,
+	    &ng_tee_stats_type },
+	{ NGM_TEE_COOKIE, NGM_TEE_CLR_STATS, "clrstats", NULL, NULL },
+	{ NGM_TEE_COOKIE, NGM_TEE_GETCLR_STATS, "getclrstats", NULL,
+	    &ng_tee_stats_type },
 	{ 0 }
 };
 
 /* Netgraph type descriptor */
 static struct ng_type ng_tee_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_TEE_NODE_TYPE,
-	.constructor =  ng_tee_constructor,
-	.rcvmsg =	ng_tee_rcvmsg,
-	.close =	ng_tee_close,
-	.shutdown =	ng_tee_shutdown,
-	.newhook =	ng_tee_newhook,
-	.rcvdata =	ng_tee_rcvdata,
-	.disconnect =	ng_tee_disconnect,
-	.cmdlist =	ng_tee_cmds,
+	.version = NG_ABI_VERSION,
+	.name = NG_TEE_NODE_TYPE,
+	.constructor = ng_tee_constructor,
+	.rcvmsg = ng_tee_rcvmsg,
+	.close = ng_tee_close,
+	.shutdown = ng_tee_shutdown,
+	.newhook = ng_tee_newhook,
+	.rcvdata = ng_tee_rcvdata,
+	.disconnect = ng_tee_disconnect,
+	.cmdlist = ng_tee_cmds,
 };
 NETGRAPH_INIT(tee, &ng_tee_typestruct);
 
@@ -165,8 +147,8 @@ ng_tee_constructor(node_p node)
 static int
 ng_tee_newhook(node_p node, hook_p hook, const char *name)
 {
-	sc_p	privdata = NG_NODE_PRIVATE(node);
-	hi_p	hinfo;
+	sc_p privdata = NG_NODE_PRIVATE(node);
+	hi_p hinfo;
 
 	/* Precalculate internal paths. */
 	if (strcmp(name, NG_TEE_HOOK_RIGHT) == 0) {
@@ -185,7 +167,7 @@ ng_tee_newhook(node_p node, hook_p hook, const char *name)
 		hinfo = &privdata->right2left;
 		if (privdata->right.dest)
 			privdata->right.dup = hinfo;
-		else    
+		else
 			privdata->right.dest = hinfo;
 	} else if (strcmp(name, NG_TEE_HOOK_LEFT2RIGHT) == 0) {
 		hinfo = &privdata->left2right;
@@ -218,13 +200,12 @@ ng_tee_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		switch (msg->header.cmd) {
 		case NGM_TEE_GET_STATS:
 		case NGM_TEE_CLR_STATS:
-		case NGM_TEE_GETCLR_STATS:
-                    {
+		case NGM_TEE_GETCLR_STATS: {
 			struct ng_tee_stats *stats;
 
-                        if (msg->header.cmd != NGM_TEE_CLR_STATS) {
-                                NG_MKRESPONSE(resp, msg,
-                                    sizeof(*stats), M_NOWAIT);
+			if (msg->header.cmd != NGM_TEE_CLR_STATS) {
+				NG_MKRESPONSE(
+				    resp, msg, sizeof(*stats), M_NOWAIT);
 				if (resp == NULL) {
 					error = ENOMEM;
 					goto done;
@@ -238,30 +219,30 @@ ng_tee_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				    sizeof(stats->right2left));
 				bcopy(&sc->left2right.stats, &stats->left2right,
 				    sizeof(stats->left2right));
-                        }
-                        if (msg->header.cmd != NGM_TEE_GET_STATS) {
-				bzero(&sc->right.stats,
-				    sizeof(sc->right.stats));
-				bzero(&sc->left.stats,
-				    sizeof(sc->left.stats));
+			}
+			if (msg->header.cmd != NGM_TEE_GET_STATS) {
+				bzero(
+				    &sc->right.stats, sizeof(sc->right.stats));
+				bzero(&sc->left.stats, sizeof(sc->left.stats));
 				bzero(&sc->right2left.stats,
 				    sizeof(sc->right2left.stats));
 				bzero(&sc->left2right.stats,
 				    sizeof(sc->left2right.stats));
 			}
-                        break;
-		    }
+			break;
+		}
 		default:
 			error = EINVAL;
 			break;
 		}
 		break;
 	case NGM_FLOW_COOKIE:
-		if (lasthook == sc->left.hook || lasthook == sc->right.hook)  {
+		if (lasthook == sc->left.hook || lasthook == sc->right.hook) {
 			hi_p const hinfo = NG_HOOK_PRIVATE(lasthook);
 			if (hinfo && hinfo->dest) {
 				NGI_MSG(item) = msg;
-				NG_FWD_ITEM_HOOK(error, item, hinfo->dest->hook);
+				NG_FWD_ITEM_HOOK(
+				    error, item, hinfo->dest->hook);
 				return (error);
 			}
 		}
@@ -290,8 +271,8 @@ static int
 ng_tee_rcvdata(hook_p hook, item_p item)
 {
 	const hi_p hinfo = NG_HOOK_PRIVATE(hook);
-	hi_p	h;
-	int	error = 0;
+	hi_p h;
+	int error = 0;
 	struct mbuf *m;
 
 	m = NGI_M(item);
@@ -365,7 +346,7 @@ ng_tee_shutdown(node_p node)
 static int
 ng_tee_disconnect(hook_p hook)
 {
-	sc_p	sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	hi_p const hinfo = NG_HOOK_PRIVATE(hook);
 
 	KASSERT(hinfo != NULL, ("%s: null info", __func__));

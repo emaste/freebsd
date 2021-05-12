@@ -4,10 +4,10 @@
  * Codel/FQ_Codel and PIE/FQ-PIE Code:
  * Copyright (C) 2016 Centre for Advanced Internet Architectures,
  *  Swinburne University of Technology, Melbourne, Australia.
- * Portions of this code were made possible in part by a gift from 
+ * Portions of this code were made possible in part by a gift from
  *  The Comcast Innovation Fund.
  * Implemented by Rasool Al-Saadi <ralsaadi@swin.edu.au>
- * 
+ *
  * Copyright (c) 1998-2002,2010 Luigi Rizzo, Universita` di Pisa
  * Portions Copyright (c) 2000 Akamba Corp.
  * All rights reserved
@@ -45,10 +45,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
@@ -56,28 +56,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/time.h>
 #include <sys/taskqueue.h>
-#include <net/if.h>	/* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
-#include <netinet/in.h>
-#include <netinet/ip_var.h>	/* ip_output(), IP_FORWARDING */
-#include <netinet/ip_fw.h>
-#include <netinet/ip_dummynet.h>
+#include <sys/time.h>
 
-#include <netpfil/ipfw/ip_fw_private.h>
+#include <net/if.h> /* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
+#include <netinet/in.h>
+#include <netinet/ip_dummynet.h>
+#include <netinet/ip_fw.h>
+#include <netinet/ip_var.h> /* ip_output(), IP_FORWARDING */
 #include <netpfil/ipfw/dn_heap.h>
 #include <netpfil/ipfw/ip_dn_private.h>
+#include <netpfil/ipfw/ip_fw_private.h>
 #ifdef NEW_AQM
 #include <netpfil/ipfw/dn_aqm.h>
 #endif
 #include <netpfil/ipfw/dn_sched.h>
 
 /* which objects to copy */
-#define DN_C_LINK 	0x01
-#define DN_C_SCH	0x02
-#define DN_C_FLOW	0x04
-#define DN_C_FS		0x08
-#define DN_C_QUEUE	0x10
+#define DN_C_LINK 0x01
+#define DN_C_SCH 0x02
+#define DN_C_FLOW 0x04
+#define DN_C_FS 0x08
+#define DN_C_QUEUE 0x10
 
 /* we use this argument in case of a schk_new */
 struct schk_new_arg {
@@ -88,14 +88,14 @@ struct schk_new_arg {
 /*---- callout hooks. ----*/
 static struct callout dn_timeout;
 static int dn_gone;
-static struct task	dn_task;
-static struct taskqueue	*dn_tq = NULL;
+static struct task dn_task;
+static struct taskqueue *dn_tq = NULL;
 
 static void
 dummynet(void *arg)
 {
 
-	(void)arg;	/* UNUSED */
+	(void)arg; /* UNUSED */
 	taskqueue_enqueue(dn_tq, &dn_task);
 }
 
@@ -117,7 +117,7 @@ find_aqm_type(int type, char *name)
 {
 	struct dn_aqm *d;
 
-	SLIST_FOREACH(d, &dn_cfg.aqmlist, next) {
+	SLIST_FOREACH (d, &dn_cfg.aqmlist, next) {
 		if (d->type == type || (name && !strcasecmp(d->name, name)))
 			return d;
 	}
@@ -131,7 +131,7 @@ find_sched_type(int type, char *name)
 {
 	struct dn_alg *d;
 
-	SLIST_FOREACH(d, &dn_cfg.schedlist, next) {
+	SLIST_FOREACH (d, &dn_cfg.schedlist, next) {
 		if (d->type == type || (name && !strcasecmp(d->name, name)))
 			return d;
 	}
@@ -198,11 +198,11 @@ flow_id_or(struct ipfw_flow_id *src, struct ipfw_flow_id *dst)
 	dst->proto |= src->proto;
 	dst->extra |= src->extra;
 	if (is_v6) {
-#define OR_MASK(_d, _s)                          \
-    (_d)->__u6_addr.__u6_addr32[0] |= (_s)->__u6_addr.__u6_addr32[0]; \
-    (_d)->__u6_addr.__u6_addr32[1] |= (_s)->__u6_addr.__u6_addr32[1]; \
-    (_d)->__u6_addr.__u6_addr32[2] |= (_s)->__u6_addr.__u6_addr32[2]; \
-    (_d)->__u6_addr.__u6_addr32[3] |= (_s)->__u6_addr.__u6_addr32[3];
+#define OR_MASK(_d, _s)                                                   \
+	(_d)->__u6_addr.__u6_addr32[0] |= (_s)->__u6_addr.__u6_addr32[0]; \
+	(_d)->__u6_addr.__u6_addr32[1] |= (_s)->__u6_addr.__u6_addr32[1]; \
+	(_d)->__u6_addr.__u6_addr32[2] |= (_s)->__u6_addr.__u6_addr32[2]; \
+	(_d)->__u6_addr.__u6_addr32[3] |= (_s)->__u6_addr.__u6_addr32[3];
 		OR_MASK(&dst->dst_ip6, &src->dst_ip6);
 		OR_MASK(&dst->src_ip6, &src->src_ip6);
 #undef OR_MASK
@@ -220,16 +220,14 @@ nonzero_mask(struct ipfw_flow_id *m)
 	if (m->dst_port || m->src_port || m->proto || m->extra)
 		return 1;
 	if (IS_IP6_FLOW_ID(m)) {
-		return
-			m->dst_ip6.__u6_addr.__u6_addr32[0] ||
-			m->dst_ip6.__u6_addr.__u6_addr32[1] ||
-			m->dst_ip6.__u6_addr.__u6_addr32[2] ||
-			m->dst_ip6.__u6_addr.__u6_addr32[3] ||
-			m->src_ip6.__u6_addr.__u6_addr32[0] ||
-			m->src_ip6.__u6_addr.__u6_addr32[1] ||
-			m->src_ip6.__u6_addr.__u6_addr32[2] ||
-			m->src_ip6.__u6_addr.__u6_addr32[3] ||
-			m->flow_id6;
+		return m->dst_ip6.__u6_addr.__u6_addr32[0] ||
+		    m->dst_ip6.__u6_addr.__u6_addr32[1] ||
+		    m->dst_ip6.__u6_addr.__u6_addr32[2] ||
+		    m->dst_ip6.__u6_addr.__u6_addr32[3] ||
+		    m->src_ip6.__u6_addr.__u6_addr32[0] ||
+		    m->src_ip6.__u6_addr.__u6_addr32[1] ||
+		    m->src_ip6.__u6_addr.__u6_addr32[2] ||
+		    m->src_ip6.__u6_addr.__u6_addr32[3] || m->flow_id6;
 	} else {
 		return m->dst_ip || m->src_ip;
 	}
@@ -239,29 +237,23 @@ nonzero_mask(struct ipfw_flow_id *m)
 static uint32_t
 flow_id_hash(struct ipfw_flow_id *id)
 {
-    uint32_t i;
+	uint32_t i;
 
-    if (IS_IP6_FLOW_ID(id)) {
-	uint32_t *d = (uint32_t *)&id->dst_ip6;
-	uint32_t *s = (uint32_t *)&id->src_ip6;
-        i = (d[0]      ) ^ (d[1])       ^
-            (d[2]      ) ^ (d[3])       ^
-            (d[0] >> 15) ^ (d[1] >> 15) ^
-            (d[2] >> 15) ^ (d[3] >> 15) ^
-            (s[0] <<  1) ^ (s[1] <<  1) ^
-            (s[2] <<  1) ^ (s[3] <<  1) ^
-            (s[0] << 16) ^ (s[1] << 16) ^
-            (s[2] << 16) ^ (s[3] << 16) ^
-            (id->dst_port << 1) ^ (id->src_port) ^
-	    (id->extra) ^
-            (id->proto ) ^ (id->flow_id6);
-    } else {
-        i = (id->dst_ip)        ^ (id->dst_ip >> 15) ^
-            (id->src_ip << 1)   ^ (id->src_ip >> 16) ^
-	    (id->extra) ^
-            (id->dst_port << 1) ^ (id->src_port)     ^ (id->proto);
-    }
-    return i;
+	if (IS_IP6_FLOW_ID(id)) {
+		uint32_t *d = (uint32_t *)&id->dst_ip6;
+		uint32_t *s = (uint32_t *)&id->src_ip6;
+		i = (d[0]) ^ (d[1]) ^ (d[2]) ^ (d[3]) ^ (d[0] >> 15) ^
+		    (d[1] >> 15) ^ (d[2] >> 15) ^ (d[3] >> 15) ^ (s[0] << 1) ^
+		    (s[1] << 1) ^ (s[2] << 1) ^ (s[3] << 1) ^ (s[0] << 16) ^
+		    (s[1] << 16) ^ (s[2] << 16) ^ (s[3] << 16) ^
+		    (id->dst_port << 1) ^ (id->src_port) ^ (id->extra) ^
+		    (id->proto) ^ (id->flow_id6);
+	} else {
+		i = (id->dst_ip) ^ (id->dst_ip >> 15) ^ (id->src_ip << 1) ^
+		    (id->src_ip >> 16) ^ (id->extra) ^ (id->dst_port << 1) ^
+		    (id->src_port) ^ (id->proto);
+	}
+	return i;
 }
 
 /* Like bcmp, returns 0 if ids match, 1 otherwise. */
@@ -271,25 +263,26 @@ flow_id_cmp(struct ipfw_flow_id *id1, struct ipfw_flow_id *id2)
 	int is_v6 = IS_IP6_FLOW_ID(id1);
 
 	if (!is_v6) {
-	    if (IS_IP6_FLOW_ID(id2))
-		return 1; /* different address families */
+		if (IS_IP6_FLOW_ID(id2))
+			return 1; /* different address families */
 
-	    return (id1->dst_ip == id2->dst_ip &&
-		    id1->src_ip == id2->src_ip &&
-		    id1->dst_port == id2->dst_port &&
-		    id1->src_port == id2->src_port &&
-		    id1->proto == id2->proto &&
-		    id1->extra == id2->extra) ? 0 : 1;
+		return (id1->dst_ip == id2->dst_ip &&
+			   id1->src_ip == id2->src_ip &&
+			   id1->dst_port == id2->dst_port &&
+			   id1->src_port == id2->src_port &&
+			   id1->proto == id2->proto &&
+			   id1->extra == id2->extra) ?
+			  0 :
+			  1;
 	}
 	/* the ipv6 case */
-	return (
-	    !bcmp(&id1->dst_ip6,&id2->dst_ip6, sizeof(id1->dst_ip6)) &&
-	    !bcmp(&id1->src_ip6,&id2->src_ip6, sizeof(id1->src_ip6)) &&
-	    id1->dst_port == id2->dst_port &&
-	    id1->src_port == id2->src_port &&
-	    id1->proto == id2->proto &&
-	    id1->extra == id2->extra &&
-	    id1->flow_id6 == id2->flow_id6) ? 0 : 1;
+	return (!bcmp(&id1->dst_ip6, &id2->dst_ip6, sizeof(id1->dst_ip6)) &&
+		   !bcmp(&id1->src_ip6, &id2->src_ip6, sizeof(id1->src_ip6)) &&
+		   id1->dst_port == id2->dst_port &&
+		   id1->src_port == id2->src_port && id1->proto == id2->proto &&
+		   id1->extra == id2->extra && id1->flow_id6 == id2->flow_id6) ?
+		  0 :
+		  1;
 }
 /*--------- end of flow-id mask, hash and compare ---------*/
 
@@ -301,8 +294,8 @@ q_hash(uintptr_t key, int flags, void *arg)
 {
 	/* compute the hash slot from the flow id */
 	struct ipfw_flow_id *id = (flags & DNHT_KEY_IS_OBJ) ?
-		&((struct dn_queue *)key)->ni.fid :
-		(struct ipfw_flow_id *)key;
+		  &((struct dn_queue *)key)->ni.fid :
+		  (struct ipfw_flow_id *)key;
 
 	return flow_id_hash(id);
 }
@@ -319,7 +312,7 @@ q_match(void *obj, uintptr_t key, int flags, void *arg)
 	} else {
 		id2 = (struct ipfw_flow_id *)key;
 	}
-	return (0 == flow_id_cmp(&o->ni.fid,  id2));
+	return (0 == flow_id_cmp(&o->ni.fid, id2));
 }
 
 /*
@@ -327,7 +320,7 @@ q_match(void *obj, uintptr_t key, int flags, void *arg)
  */
 static void *
 q_new(uintptr_t key, int flags, void *arg)
-{   
+{
 	struct dn_queue *q, *template = arg;
 	struct dn_fsk *fs = template->fs;
 	int size = sizeof(*q) + fs->sched->fp->q_datalen;
@@ -351,7 +344,7 @@ q_new(uintptr_t key, int flags, void *arg)
 #ifdef NEW_AQM
 	/* call AQM init function after creating a queue*/
 	if (fs->aqmfp && fs->aqmfp->init)
-		if(fs->aqmfp->init(q))
+		if (fs->aqmfp->init(q))
 			D("unable to init AQM for fs %d", fs->fs.fs_nr);
 #endif
 	dn_cfg.queue_count++;
@@ -385,7 +378,7 @@ dn_delete_queue(struct dn_queue *q, int flags)
 	if (flags & DN_DESTROY) {
 		if (q->mq.head)
 			dn_free_pkts(q->mq.head);
-		bzero(q, sizeof(*q));	// safety
+		bzero(q, sizeof(*q)); // safety
 		free(q, M_DUMMYNET);
 		dn_cfg.queue_count--;
 	}
@@ -407,8 +400,7 @@ q_delete_cb(void *q, void *arg)
 static void
 qht_delete(struct dn_fsk *fs, int flags)
 {
-	ND("fs %d start flags %d qht %p",
-		fs->fs.fs_nr, flags, fs->qht);
+	ND("fs %d start flags %d qht %p", fs->fs.fs_nr, flags, fs->qht);
 	if (!fs->qht)
 		return;
 	if (fs->fs.flags & DN_QHT_HASH) {
@@ -429,8 +421,7 @@ qht_delete(struct dn_fsk *fs, int flags)
  * We never call it for !MULTIQUEUE (the queue is in the sch_inst).
  */
 struct dn_queue *
-ipdn_q_find(struct dn_fsk *fs, struct dn_sch_inst *si,
-	struct ipfw_flow_id *id)
+ipdn_q_find(struct dn_fsk *fs, struct dn_sch_inst *si, struct ipfw_flow_id *id)
 {
 	struct dn_queue template;
 
@@ -441,15 +432,15 @@ ipdn_q_find(struct dn_fsk *fs, struct dn_sch_inst *si,
 		struct ipfw_flow_id masked_id;
 		if (fs->qht == NULL) {
 			fs->qht = dn_ht_init(NULL, fs->fs.buckets,
-				offsetof(struct dn_queue, q_next),
-				q_hash, q_match, q_new);
+			    offsetof(struct dn_queue, q_next), q_hash, q_match,
+			    q_new);
 			if (fs->qht == NULL)
 				return NULL;
 		}
 		masked_id = *id;
 		flow_id_mask(&fs->fsk_mask, &masked_id);
-		return dn_ht_find(fs->qht, (uintptr_t)&masked_id,
-			DNHT_INSERT, &template);
+		return dn_ht_find(
+		    fs->qht, (uintptr_t)&masked_id, DNHT_INSERT, &template);
 	} else {
 		if (fs->qht == NULL)
 			fs->qht = q_new(0, 0, &template);
@@ -467,8 +458,8 @@ si_hash(uintptr_t key, int flags, void *arg)
 {
 	/* compute the hash slot from the flow id */
 	struct ipfw_flow_id *id = (flags & DNHT_KEY_IS_OBJ) ?
-		&((struct dn_sch_inst *)key)->ni.fid :
-		(struct ipfw_flow_id *)key;
+		  &((struct dn_sch_inst *)key)->ni.fid :
+		  (struct ipfw_flow_id *)key;
 
 	return flow_id_hash(id);
 }
@@ -479,10 +470,9 @@ si_match(void *obj, uintptr_t key, int flags, void *arg)
 	struct dn_sch_inst *o = obj;
 	struct ipfw_flow_id *id2;
 
-	id2 = (flags & DNHT_KEY_IS_OBJ) ?
-		&((struct dn_sch_inst *)key)->ni.fid :
-		(struct ipfw_flow_id *)key;
-	return flow_id_cmp(&o->ni.fid,  id2) == 0;
+	id2 = (flags & DNHT_KEY_IS_OBJ) ? &((struct dn_sch_inst *)key)->ni.fid :
+						(struct ipfw_flow_id *)key;
+	return flow_id_cmp(&o->ni.fid, id2) == 0;
 }
 
 /*
@@ -502,8 +492,7 @@ si_new(uintptr_t key, int flags, void *arg)
 
 	/* Set length only for the part passed up to userland. */
 	set_oid(&si->ni.oid, DN_SCH_I, sizeof(struct dn_flow));
-	set_oid(&(si->dline.oid), DN_DELAY_LINE,
-		sizeof(struct delay_line));
+	set_oid(&(si->dline.oid), DN_DELAY_LINE, sizeof(struct delay_line));
 	/* mark si and dline as outside the event queue */
 	si->ni.oid.id = si->dline.oid.id = -1;
 
@@ -521,8 +510,9 @@ si_new(uintptr_t key, int flags, void *arg)
 	/* init AQM status for !DN_MULTIQUEUE sched*/
 	if (!(s->fp->flags & DN_MULTIQUEUE))
 		if (s->fs->aqmfp && s->fs->aqmfp->init)
-			if(s->fs->aqmfp->init((struct dn_queue *)(si + 1))) {
-				D("unable to init AQM for fs %d", s->fs->fs.fs_nr);
+			if (s->fs->aqmfp->init((struct dn_queue *)(si + 1))) {
+				D("unable to init AQM for fs %d",
+				    s->fs->fs.fs_nr);
 				goto error;
 			}
 #endif
@@ -535,7 +525,7 @@ error:
 		bzero(si, sizeof(*si)); // safety
 		free(si, M_DUMMYNET);
 	}
-        return NULL;
+	return NULL;
 }
 
 /*
@@ -553,14 +543,14 @@ si_destroy(void *_si, void *arg)
 
 	if (dl->oid.subtype) /* remove delay line from event heap */
 		heap_extract(&dn_cfg.evheap, dl);
-	dn_free_pkts(dl->mq.head);	/* drain delay line */
+	dn_free_pkts(dl->mq.head);  /* drain delay line */
 	if (si->kflags & DN_ACTIVE) /* remove si from event heap */
 		heap_extract(&dn_cfg.evheap, si);
 
 #ifdef NEW_AQM
 	/* clean up AQM status for !DN_MULTIQUEUE sched
 	 * Note that all queues belong to fs were cleaned up in fsk_detach.
-	 * When drain_scheduler is called s->fs and q->fs are pointing 
+	 * When drain_scheduler is called s->fs and q->fs are pointing
 	 * to a correct fs, so we can use fs in this case.
 	 */
 	if (!(s->fp->flags & DN_MULTIQUEUE)) {
@@ -572,7 +562,7 @@ si_destroy(void *_si, void *arg)
 #endif
 	if (s->fp->free_sched)
 		s->fp->free_sched(si);
-	bzero(si, sizeof(*si));	/* safety */
+	bzero(si, sizeof(*si)); /* safety */
 	free(si, M_DUMMYNET);
 	dn_cfg.si_count--;
 	return DNHT_SCAN_DEL;
@@ -590,8 +580,7 @@ ipdn_si_find(struct dn_schk *s, struct ipfw_flow_id *id)
 	if (s->sch.flags & DN_HAVE_MASK) {
 		struct ipfw_flow_id id_t = *id;
 		flow_id_mask(&s->sch.sched_mask, &id_t);
-		return dn_ht_find(s->siht, (uintptr_t)&id_t,
-			DNHT_INSERT, s);
+		return dn_ht_find(s->siht, (uintptr_t)&id_t, DNHT_INSERT, s);
 	}
 	if (!s->siht)
 		s->siht = si_new(0, 0, s);
@@ -605,7 +594,7 @@ si_reset_credit(void *_si, void *arg)
 	struct dn_sch_inst *si = _si;
 	struct dn_link *p = &si->sched->link;
 
-	si->credit = p->burst + (dn_cfg.io_fast ?  p->bandwidth : 0);
+	si->credit = p->burst + (dn_cfg.io_fast ? p->bandwidth : 0);
 	return 0;
 }
 
@@ -627,10 +616,11 @@ schk_reset_credit(struct dn_schk *s)
 static uint32_t
 fsk_hash(uintptr_t key, int flags, void *arg)
 {
-	uint32_t i = !(flags & DNHT_KEY_IS_OBJ) ? key :
-		((struct dn_fsk *)key)->fs.fs_nr;
+	uint32_t i = !(flags & DNHT_KEY_IS_OBJ) ?
+		  key :
+		  ((struct dn_fsk *)key)->fs.fs_nr;
 
-	return ( (i>>8)^(i>>4)^i );
+	return ((i >> 8) ^ (i >> 4) ^ i);
 }
 
 static int
@@ -638,7 +628,7 @@ fsk_match(void *obj, uintptr_t key, int flags, void *arg)
 {
 	struct dn_fsk *fs = obj;
 	int i = !(flags & DNHT_KEY_IS_OBJ) ? key :
-		((struct dn_fsk *)key)->fs.fs_nr;
+						   ((struct dn_fsk *)key)->fs.fs_nr;
 
 	return (fs->fs.fs_nr == i);
 }
@@ -669,7 +659,8 @@ si_cleanup_q(void *_si, void *arg)
 
 	if (!(si->sched->fp->flags & DN_MULTIQUEUE)) {
 		if (si->sched->fs->aqmfp && si->sched->fs->aqmfp->cleanup)
-			si->sched->fs->aqmfp->cleanup((struct dn_queue *) (si+1));
+			si->sched->fs->aqmfp->cleanup(
+			    (struct dn_queue *)(si + 1));
 	}
 	return 0;
 }
@@ -686,7 +677,7 @@ q_cleanup_q(void *_q, void *arg)
 /* Clean up all AQM queues status belongs to flowset 'fs' and then
  * deconfig AQM for flowset 'fs'
  */
-static void 
+static void
 aqm_cleanup_deconfig_fs(struct dn_fsk *fs)
 {
 	struct dn_sch_inst *si;
@@ -697,24 +688,25 @@ aqm_cleanup_deconfig_fs(struct dn_fsk *fs)
 			if (fs->sched->sch.flags & DN_HAVE_MASK)
 				dn_ht_scan(fs->sched->siht, si_cleanup_q, NULL);
 			else {
-					/* single si i.e. no sched mask */
-					si = (struct dn_sch_inst *) fs->sched->siht;
-					if (si && fs->aqmfp && fs->aqmfp->cleanup)
-						fs->aqmfp->cleanup((struct dn_queue *) (si+1));
+				/* single si i.e. no sched mask */
+				si = (struct dn_sch_inst *)fs->sched->siht;
+				if (si && fs->aqmfp && fs->aqmfp->cleanup)
+					fs->aqmfp->cleanup(
+					    (struct dn_queue *)(si + 1));
 			}
-		} 
+		}
 	}
 
 	/* clean up AQM status for all queues for DN_MULTIQUEUE sched*/
 	if (fs->sched && fs->sched->fp->flags & DN_MULTIQUEUE && fs->qht) {
-			if (fs->fs.flags & DN_QHT_HASH)
-				dn_ht_scan(fs->qht, q_cleanup_q, NULL);
-			else
-				fs->aqmfp->cleanup((struct dn_queue *)(fs->qht));
+		if (fs->fs.flags & DN_QHT_HASH)
+			dn_ht_scan(fs->qht, q_cleanup_q, NULL);
+		else
+			fs->aqmfp->cleanup((struct dn_queue *)(fs->qht));
 	}
 
 	/* deconfig AQM */
-	if(fs->aqmcfg && fs->aqmfp && fs->aqmfp->deconfig)
+	if (fs->aqmcfg && fs->aqmfp && fs->aqmfp->deconfig)
 		fs->aqmfp->deconfig(fs);
 }
 #endif
@@ -730,11 +722,10 @@ fsk_detach(struct dn_fsk *fs, int flags)
 {
 	if (flags & DN_DELETE_FS)
 		flags |= DN_DESTROY;
-	ND("fs %d from sched %d flags %s %s %s",
-		fs->fs.fs_nr, fs->fs.sched_nr,
-		(flags & DN_DELETE_FS) ? "DEL_FS":"",
-		(flags & DN_DESTROY) ? "DEL":"",
-		(flags & DN_DETACH) ? "DET":"");
+	ND("fs %d from sched %d flags %s %s %s", fs->fs.fs_nr, fs->fs.sched_nr,
+	    (flags & DN_DELETE_FS) ? "DEL_FS" : "",
+	    (flags & DN_DESTROY) ? "DEL" : "",
+	    (flags & DN_DETACH) ? "DET" : "");
 	if (flags & DN_DETACH) { /* detach from the list */
 		struct dn_fsk_head *h;
 		h = fs->sched ? &fs->sched->fsk_list : &dn_cfg.fsu;
@@ -755,7 +746,7 @@ fsk_detach(struct dn_fsk *fs, int flags)
 		fs->sched->fp->free_fsk(fs);
 	fs->sched = NULL;
 	if (flags & DN_DELETE_FS) {
-		bzero(fs, sizeof(*fs));	/* safety */
+		bzero(fs, sizeof(*fs)); /* safety */
 		free(fs, M_DUMMYNET);
 		dn_cfg.fsk_count--;
 	} else {
@@ -820,17 +811,19 @@ delete_fs(int i, int locked)
 static uint32_t
 schk_hash(uintptr_t key, int flags, void *_arg)
 {
-	uint32_t i = !(flags & DNHT_KEY_IS_OBJ) ? key :
-		((struct dn_schk *)key)->sch.sched_nr;
-	return ( (i>>8)^(i>>4)^i );
+	uint32_t i = !(flags & DNHT_KEY_IS_OBJ) ?
+		  key :
+		  ((struct dn_schk *)key)->sch.sched_nr;
+	return ((i >> 8) ^ (i >> 4) ^ i);
 }
 
 static int
 schk_match(void *obj, uintptr_t key, int flags, void *_arg)
 {
 	struct dn_schk *s = (struct dn_schk *)obj;
-	int i = !(flags & DNHT_KEY_IS_OBJ) ? key :
-		((struct dn_schk *)key)->sch.sched_nr;
+	int i = !(flags & DNHT_KEY_IS_OBJ) ?
+		  key :
+		  ((struct dn_schk *)key)->sch.sched_nr;
 	return (s->sch.sched_nr == i);
 }
 
@@ -844,7 +837,7 @@ schk_new(uintptr_t key, int flags, void *arg)
 {
 	struct schk_new_arg *a = arg;
 	struct dn_schk *s;
-	int l = sizeof(*s) +a->fp->schk_datalen;
+	int l = sizeof(*s) + a->fp->schk_datalen;
 
 	s = malloc(l, M_DUMMYNET, M_NOWAIT | M_ZERO);
 	if (s == NULL)
@@ -854,18 +847,18 @@ schk_new(uintptr_t key, int flags, void *arg)
 	s->link.link_nr = s->sch.sched_nr;
 	SLIST_INIT(&s->fsk_list);
 	/* initialize the hash table or create the single instance */
-	s->fp = a->fp;	/* si_new needs this */
+	s->fp = a->fp; /* si_new needs this */
 	s->drain_bucket = 0;
 	if (s->sch.flags & DN_HAVE_MASK) {
 		s->siht = dn_ht_init(NULL, s->sch.buckets,
-			offsetof(struct dn_sch_inst, si_next),
-			si_hash, si_match, si_new);
+		    offsetof(struct dn_sch_inst, si_next), si_hash, si_match,
+		    si_new);
 		if (s->siht == NULL) {
 			free(s, M_DUMMYNET);
 			return NULL;
 		}
 	}
-	s->fp = NULL;	/* mark as a new scheduler */
+	s->fp = NULL; /* mark as a new scheduler */
 	dn_cfg.schk_count++;
 	return s;
 }
@@ -903,7 +896,7 @@ schk_delete_cb(void *obj, void *arg)
 	s->siht = NULL;
 	if (s->fp->destroy)
 		s->fp->destroy(s);
-	bzero(s, sizeof(*s));	// safety
+	bzero(s, sizeof(*s)); // safety
 	free(obj, M_DUMMYNET);
 	dn_cfg.schk_count--;
 	return DNHT_SCAN_DEL;
@@ -925,7 +918,7 @@ delete_schk(int i)
 		return EINVAL;
 	delete_fs(i + DN_MAX_ID, 1); /* first delete internal fs */
 	/* then detach flowsets, delete traffic */
-	schk_delete_cb(s, (void*)(uintptr_t)DN_DESTROY);
+	schk_delete_cb(s, (void *)(uintptr_t)DN_DESTROY);
 	return 0;
 }
 /*--- end of schk hashtable support ---*/
@@ -942,8 +935,8 @@ copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 
 	memcpy(&o, _o, sizeof(o));
 	if (have < o.len || o.len == 0 || o.type == 0) {
-		D("(WARN) type %d %s %d have %d need %d",
-		    o.type, msg, i, have, o.len);
+		D("(WARN) type %d %s %d have %d need %d", o.type, msg, i, have,
+		    o.len);
 		return 1;
 	}
 	ND("type %d %s %d len %d", o.type, msg, i, o.len);
@@ -957,7 +950,8 @@ copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 		/* Set dn.s.sch.oid.id to the number of instances */
 		memcpy(&dn.s, _o, sizeof(dn.s));
 		dn.s.sch.oid.id = (dn.s.sch.flags & DN_HAVE_MASK) ?
-		    dn_ht_entries(dn.s.siht) : (dn.s.siht ? 1 : 0);
+			  dn_ht_entries(dn.s.siht) :
+			  (dn.s.siht ? 1 : 0);
 		memcpy(*start, &dn.s, sizeof(dn.s));
 	} else
 		memcpy(*start, _o, o.len);
@@ -977,13 +971,13 @@ copy_obj_q(char **start, char *end, void *_o, const char *msg, int i)
 	int len = sizeof(struct dn_flow); /* see above comment */
 
 	if (have < len || o->len == 0 || o->type != DN_QUEUE) {
-		D("ERROR type %d %s %d have %d need %d",
-			o->type, msg, i, have, len);
+		D("ERROR type %d %s %d have %d need %d", o->type, msg, i, have,
+		    len);
 		return 1;
 	}
 	ND("type %d %s %d len %d", o->type, msg, i, len);
 	memcpy(*start, _o, len);
-	((struct dn_id*)(*start))->len = len;
+	((struct dn_id *)(*start))->len = len;
 	*start += len;
 	return 0;
 }
@@ -994,11 +988,11 @@ copy_q_cb(void *obj, void *arg)
 	struct dn_queue *q = obj;
 	struct copy_args *a = arg;
 	struct dn_flow *ni = (struct dn_flow *)(*a->start);
-        if (copy_obj_q(a->start, a->end, &q->ni, "queue", -1))
-                return DNHT_SCAN_END;
-        ni->oid.type = DN_FLOW; /* override the DN_QUEUE */
-        ni->oid.id = si_hash((uintptr_t)&ni->fid, 0, NULL);
-        return 0;
+	if (copy_obj_q(a->start, a->end, &q->ni, "queue", -1))
+		return DNHT_SCAN_END;
+	ni->oid.type = DN_FLOW; /* override the DN_QUEUE */
+	ni->oid.id = si_hash((uintptr_t)&ni->fid, 0, NULL);
+	return 0;
 }
 
 static int
@@ -1021,8 +1015,8 @@ copy_profile(struct copy_args *a, struct dn_profile *p)
 {
 	int have = a->end - *a->start;
 	/* XXX here we check for max length */
-	int profile_len = sizeof(struct dn_profile) - 
-		ED_MAX_SAMPLES_NO*sizeof(int);
+	int profile_len = sizeof(struct dn_profile) -
+	    ED_MAX_SAMPLES_NO * sizeof(int);
 
 	if (p == NULL)
 		return 0;
@@ -1045,9 +1039,9 @@ copy_flowset(struct copy_args *a, struct dn_fsk *fs, int flags)
 	ND("flowset %d", fs->fs.fs_nr);
 	if (copy_obj(a->start, a->end, &fs->fs, "flowset", fs->fs.fs_nr))
 		return DNHT_SCAN_END;
-	ufs->oid.id = (fs->fs.flags & DN_QHT_HASH) ?
-		dn_ht_entries(fs->qht) : (fs->qht ? 1 : 0);
-	if (flags) {	/* copy queues */
+	ufs->oid.id = (fs->fs.flags & DN_QHT_HASH) ? dn_ht_entries(fs->qht) :
+							   (fs->qht ? 1 : 0);
+	if (flags) { /* copy queues */
 		copy_q(a, fs, 0);
 	}
 	return 0;
@@ -1059,8 +1053,8 @@ copy_si_cb(void *obj, void *arg)
 	struct dn_sch_inst *si = obj;
 	struct copy_args *a = arg;
 	struct dn_flow *ni = (struct dn_flow *)(*a->start);
-	if (copy_obj(a->start, a->end, &si->ni, "inst",
-			si->sched->sch.sched_nr))
+	if (copy_obj(
+		a->start, a->end, &si->ni, "inst", si->sched->sch.sched_nr))
 		return DNHT_SCAN_END;
 	ni->oid.type = DN_FLOW; /* override the DN_SCH_I */
 	ni->oid.id = si_hash((uintptr_t)si, DNHT_KEY_IS_OBJ, NULL);
@@ -1088,7 +1082,7 @@ copy_fsk_list(struct copy_args *a, struct dn_schk *s, int flags)
 	uint32_t *p;
 
 	int n = 0, space = sizeof(*o);
-	SLIST_FOREACH(fs, &s->fsk_list, sch_chain) {
+	SLIST_FOREACH (fs, &s->fsk_list, sch_chain) {
 		if (fs->fs.fs_nr < DN_MAX_ID)
 			n++;
 	}
@@ -1100,8 +1094,8 @@ copy_fsk_list(struct copy_args *a, struct dn_schk *s, int flags)
 	o->len = space;
 	*a->start += o->len;
 	o->type = DN_TEXT;
-	p = (uint32_t *)(o+1);
-	SLIST_FOREACH(fs, &s->fsk_list, sch_chain)
+	p = (uint32_t *)(o + 1);
+	SLIST_FOREACH (fs, &s->fsk_list, sch_chain)
 		if (fs->fs.fs_nr < DN_MAX_ID)
 			*p++ = fs->fs.fs_nr;
 	return 0;
@@ -1112,7 +1106,7 @@ copy_data_helper(void *_o, void *_arg)
 {
 	struct copy_args *a = _arg;
 	uint32_t *r = a->extra->r; /* start of first range */
-	uint32_t *lim;	/* first invalid pointer */
+	uint32_t *lim;		   /* first invalid pointer */
 	int n;
 
 	lim = (uint32_t *)((char *)(a->extra) + a->extra->o.len);
@@ -1123,18 +1117,18 @@ copy_data_helper(void *_o, void *_arg)
 
 		n = s->sch.sched_nr;
 		if (a->type == DN_SCH && n >= DN_MAX_ID)
-			return 0;	/* not a scheduler */
+			return 0; /* not a scheduler */
 		if (a->type == DN_LINK && n <= DN_MAX_ID)
-		    return 0;	/* not a pipe */
+			return 0; /* not a pipe */
 
 		/* see if the object is within one of our ranges */
-		for (;r < lim; r += 2) {
+		for (; r < lim; r += 2) {
 			if (n < r[0] || n > r[1])
 				continue;
 			/* Found a valid entry, copy and we are done */
 			if (a->flags & DN_C_LINK) {
-				if (copy_obj(a->start, a->end,
-				    &s->link, "link", n))
+				if (copy_obj(
+					a->start, a->end, &s->link, "link", n))
 					return DNHT_SCAN_END;
 				if (copy_profile(a, s->profile))
 					return DNHT_SCAN_END;
@@ -1142,8 +1136,8 @@ copy_data_helper(void *_o, void *_arg)
 					return DNHT_SCAN_END;
 			}
 			if (a->flags & DN_C_SCH) {
-				if (copy_obj(a->start, a->end,
-				    &s->sch, "sched", n))
+				if (copy_obj(
+					a->start, a->end, &s->sch, "sched", n))
 					return DNHT_SCAN_END;
 				/* list all attached flowsets */
 				if (copy_fsk_list(a, s, 0))
@@ -1161,7 +1155,7 @@ copy_data_helper(void *_o, void *_arg)
 		if (n >= DN_MAX_ID)
 			return 0;
 		/* see if the object is within one of our ranges */
-		for (;r < lim; r += 2) {
+		for (; r < lim; r += 2) {
 			if (n < r[0] || n > r[1])
 				continue;
 			if (copy_flowset(a, fs, 0))
@@ -1193,15 +1187,14 @@ config_red(struct dn_fsk *fs)
 	ND("called");
 	/* Doing stuff that was in userland */
 	i = fs->sched->link.bandwidth;
-	s = (i <= 0) ? 0 :
-		hz * dn_cfg.red_avg_pkt_size * 8 * SCALE(1) / i;
+	s = (i <= 0) ? 0 : hz * dn_cfg.red_avg_pkt_size * 8 * SCALE(1) / i;
 
-	idle = div64((s * 3) , fs->w_q); /* s, fs->w_q scaled; idle not scaled */
-	fs->lookup_step = div64(idle , dn_cfg.red_lookup_depth);
+	idle = div64((s * 3), fs->w_q); /* s, fs->w_q scaled; idle not scaled */
+	fs->lookup_step = div64(idle, dn_cfg.red_lookup_depth);
 	/* fs->lookup_step not scaled, */
 	if (!fs->lookup_step)
 		fs->lookup_step = 1;
-	w0 = weight = SCALE(1) - fs->w_q; //fs->w_q scaled
+	w0 = weight = SCALE(1) - fs->w_q; // fs->w_q scaled
 
 	for (t = fs->lookup_step; t > 1; --t)
 		weight = SCALE_MUL(weight, w0);
@@ -1214,7 +1207,8 @@ config_red(struct dn_fsk *fs)
 	if (fs->fs.max_th == fs->fs.min_th)
 		fs->c_1 = fs->max_p;
 	else
-		fs->c_1 = SCALE((int64_t)(fs->max_p)) / (fs->fs.max_th - fs->fs.min_th);
+		fs->c_1 = SCALE((int64_t)(fs->max_p)) /
+		    (fs->fs.max_th - fs->fs.min_th);
 	fs->c_2 = SCALE_MUL(fs->c_1, SCALE(fs->fs.min_th));
 
 	if (fs->fs.flags & DN_IS_GENTLE_RED) {
@@ -1229,27 +1223,27 @@ config_red(struct dn_fsk *fs)
 	}
 	if (dn_cfg.red_lookup_depth == 0) {
 		printf("\ndummynet: net.inet.ip.dummynet.red_lookup_depth"
-		    "must be > 0\n");
+		       "must be > 0\n");
 		fs->fs.flags &= ~DN_IS_RED;
 		fs->fs.flags &= ~DN_IS_GENTLE_RED;
 		return (EINVAL);
 	}
 	fs->lookup_depth = dn_cfg.red_lookup_depth;
-	fs->w_q_lookup = (u_int *)malloc(fs->lookup_depth * sizeof(int),
-	    M_DUMMYNET, M_NOWAIT);
+	fs->w_q_lookup = (u_int *)malloc(
+	    fs->lookup_depth * sizeof(int), M_DUMMYNET, M_NOWAIT);
 	if (fs->w_q_lookup == NULL) {
 		printf("dummynet: sorry, cannot allocate red lookup table\n");
 		fs->fs.flags &= ~DN_IS_RED;
 		fs->fs.flags &= ~DN_IS_GENTLE_RED;
-		return(ENOSPC);
+		return (ENOSPC);
 	}
 
 	/* Fill the lookup table with (1 - w_q)^x */
 	fs->w_q_lookup[0] = SCALE(1) - fs->w_q;
 
 	for (i = 1; i < fs->lookup_depth; i++)
-		fs->w_q_lookup[i] =
-		    SCALE_MUL(fs->w_q_lookup[i - 1], fs->lookup_weight);
+		fs->w_q_lookup[i] = SCALE_MUL(
+		    fs->w_q_lookup[i - 1], fs->lookup_weight);
 
 	if (dn_cfg.red_avg_pkt_size < 1)
 		dn_cfg.red_avg_pkt_size = 512;
@@ -1266,7 +1260,7 @@ static void
 update_red(struct dn_schk *s)
 {
 	struct dn_fsk *fs;
-	SLIST_FOREACH(fs, &s->fsk_list, sch_chain) {
+	SLIST_FOREACH (fs, &s->fsk_list, sch_chain) {
 		if (fs && (fs->fs.flags & DN_IS_RED))
 			config_red(fs);
 	}
@@ -1276,8 +1270,8 @@ update_red(struct dn_schk *s)
 static void
 fsk_attach(struct dn_fsk *fs, struct dn_schk *s)
 {
-	ND("remove fs %d from fsunlinked, link to sched %d",
-		fs->fs.fs_nr, s->sch.sched_nr);
+	ND("remove fs %d from fsunlinked, link to sched %d", fs->fs.fs_nr,
+	    s->sch.sched_nr);
 	SLIST_REMOVE(&dn_cfg.fsu, fs, dn_fsk, sch_chain);
 	fs->sched = s;
 	SLIST_INSERT_HEAD(&s->fsk_list, fs, sch_chain);
@@ -1296,8 +1290,8 @@ fsk_attach(struct dn_fsk *fs, struct dn_schk *s)
 		 * For the time being, let's hope qht is never set
 		 * when we reach this point.
 		 */
-		D("XXX TODO requeue from fs %d to sch %d",
-			fs->fs.fs_nr, s->sch.sched_nr);
+		D("XXX TODO requeue from fs %d to sch %d", fs->fs.fs_nr,
+		    s->sch.sched_nr);
 		fs->qht = NULL;
 	}
 	/* set the new type for qht */
@@ -1317,11 +1311,10 @@ update_fs(struct dn_schk *s)
 {
 	struct dn_fsk *fs, *tmp;
 
-	SLIST_FOREACH_SAFE(fs, &dn_cfg.fsu, sch_chain, tmp) {
+	SLIST_FOREACH_SAFE (fs, &dn_cfg.fsu, sch_chain, tmp) {
 		if (s->sch.sched_nr != fs->fs.sched_nr) {
 			D("fs %d for sch %d not %d still unlinked",
-				fs->fs.fs_nr, fs->fs.sched_nr,
-				s->sch.sched_nr);
+			    fs->fs.fs_nr, fs->fs.sched_nr, s->sch.sched_nr);
 			continue;
 		}
 		fsk_attach(fs, s);
@@ -1329,12 +1322,12 @@ update_fs(struct dn_schk *s)
 }
 
 #ifdef NEW_AQM
-/* Retrieve AQM configurations to ipfw userland 
+/* Retrieve AQM configurations to ipfw userland
  */
 static int
 get_aqm_parms(struct sockopt *sopt)
 {
-	struct dn_extra_parms  *ep;
+	struct dn_extra_parms *ep;
 	struct dn_fsk *fs;
 	size_t sopt_valsize;
 	int l, err = 0;
@@ -1343,18 +1336,18 @@ get_aqm_parms(struct sockopt *sopt)
 	l = sizeof(*ep);
 	if (sopt->sopt_valsize < l) {
 		D("bad len sopt->sopt_valsize %d len %d",
-			(int) sopt->sopt_valsize , l);
+		    (int)sopt->sopt_valsize, l);
 		err = EINVAL;
 		return err;
 	}
 	ep = malloc(l, M_DUMMYNET, M_WAITOK);
-	if(!ep) {
-		err = ENOMEM ;
+	if (!ep) {
+		err = ENOMEM;
 		return err;
 	}
 	do {
 		err = sooptcopyin(sopt, ep, l, l);
-		if(err)
+		if (err)
 			break;
 		sopt->sopt_valsize = sopt_valsize;
 		if (ep->oid.len < l) {
@@ -1370,7 +1363,7 @@ get_aqm_parms(struct sockopt *sopt)
 		}
 
 		if (fs->aqmfp && fs->aqmfp->getconfig) {
-			if(fs->aqmfp->getconfig(fs, ep)) {
+			if (fs->aqmfp->getconfig(fs, ep)) {
 				D("Error while trying to get AQM params");
 				err = EINVAL;
 				break;
@@ -1378,7 +1371,7 @@ get_aqm_parms(struct sockopt *sopt)
 			ep->oid.len = l;
 			err = sooptcopyout(sopt, ep, l);
 		}
-	}while(0);
+	} while (0);
 
 	free(ep, M_DUMMYNET);
 	return err;
@@ -1389,7 +1382,7 @@ get_aqm_parms(struct sockopt *sopt)
 static int
 get_sched_parms(struct sockopt *sopt)
 {
-	struct dn_extra_parms  *ep;
+	struct dn_extra_parms *ep;
 	struct dn_schk *schk;
 	size_t sopt_valsize;
 	int l, err = 0;
@@ -1398,18 +1391,18 @@ get_sched_parms(struct sockopt *sopt)
 	l = sizeof(*ep);
 	if (sopt->sopt_valsize < l) {
 		D("bad len sopt->sopt_valsize %d len %d",
-			(int) sopt->sopt_valsize , l);
+		    (int)sopt->sopt_valsize, l);
 		err = EINVAL;
 		return err;
 	}
 	ep = malloc(l, M_DUMMYNET, M_WAITOK);
-	if(!ep) {
-		err = ENOMEM ;
+	if (!ep) {
+		err = ENOMEM;
 		return err;
 	}
 	do {
 		err = sooptcopyin(sopt, ep, l, l);
-		if(err)
+		if (err)
 			break;
 		sopt->sopt_valsize = sopt_valsize;
 		if (ep->oid.len < l) {
@@ -1423,9 +1416,9 @@ get_sched_parms(struct sockopt *sopt)
 			err = EINVAL;
 			break;
 		}
-		
+
 		if (schk->fp && schk->fp->getconfig) {
-			if(schk->fp->getconfig(schk, ep)) {
+			if (schk->fp->getconfig(schk, ep)) {
 				D("Error while trying to get sched params");
 				err = EINVAL;
 				break;
@@ -1433,7 +1426,7 @@ get_sched_parms(struct sockopt *sopt)
 			ep->oid.len = l;
 			err = sooptcopyout(sopt, ep, l);
 		}
-	}while(0);
+	} while (0);
 	free(ep, M_DUMMYNET);
 
 	return err;
@@ -1443,7 +1436,7 @@ get_sched_parms(struct sockopt *sopt)
  * extra parameters are passed from userland.
  */
 static int
-config_aqm(struct dn_fsk *fs, struct  dn_extra_parms *ep, int busy)
+config_aqm(struct dn_fsk *fs, struct dn_extra_parms *ep, int busy)
 {
 	int err = 0;
 
@@ -1455,14 +1448,14 @@ config_aqm(struct dn_fsk *fs, struct  dn_extra_parms *ep, int busy)
 		}
 
 		/* no AQM for this flowset*/
-		if (!strcmp(ep->name,"")) {
+		if (!strcmp(ep->name, "")) {
 			err = 0;
 			break;
 		}
 		if (ep->oid.len < sizeof(*ep)) {
 			D("short aqm len %d", ep->oid.len);
-				err = EINVAL;
-				break;
+			err = EINVAL;
+			break;
 		}
 
 		if (busy) {
@@ -1485,21 +1478,22 @@ config_aqm(struct dn_fsk *fs, struct  dn_extra_parms *ep, int busy)
 			fs->fs.flags |= DN_IS_AQM;
 
 		if (ep->oid.subtype != DN_AQM_PARAMS) {
-				D("Wrong subtype");
-				err = EINVAL;
-				break;
+			D("Wrong subtype");
+			err = EINVAL;
+			break;
 		}
 
 		if (fs->aqmfp->config) {
 			err = fs->aqmfp->config(fs, ep, ep->oid.len);
 			if (err) {
-					D("Unable to configure AQM for FS %d", fs->fs.fs_nr );
-					fs->fs.flags &= ~DN_IS_AQM;
-					fs->aqmfp = NULL;
-					break;
+				D("Unable to configure AQM for FS %d",
+				    fs->fs.fs_nr);
+				fs->fs.flags &= ~DN_IS_AQM;
+				fs->aqmfp = NULL;
+				break;
 			}
 		}
-	} while(0);
+	} while (0);
 
 	return err;
 }
@@ -1555,29 +1549,29 @@ config_link(struct dn_link *p, struct dn_id *arg)
 
 	DN_BH_WLOCK();
 	/* do it twice, base link and FIFO link */
-	for (; i < 2*DN_MAX_ID; i += DN_MAX_ID) {
-	    struct dn_schk *s = locate_scheduler(i);
-	    if (s == NULL) {
-		DN_BH_WUNLOCK();
-		D("sched %d not found", i);
-		return EINVAL;
-	    }
-	    /* remove profile if exists */
-	    if (s->profile) {
-		free(s->profile, M_DUMMYNET);
-		s->profile = NULL;
-	    }
-	    /* copy all parameters */
-	    s->link.oid = p->oid;
-	    s->link.link_nr = i;
-	    s->link.delay = p->delay;
-	    if (s->link.bandwidth != p->bandwidth) {
-		/* XXX bandwidth changes, need to update red params */
-	    s->link.bandwidth = p->bandwidth;
-		update_red(s);
-	    }
-	    s->link.burst = p->burst;
-	    schk_reset_credit(s);
+	for (; i < 2 * DN_MAX_ID; i += DN_MAX_ID) {
+		struct dn_schk *s = locate_scheduler(i);
+		if (s == NULL) {
+			DN_BH_WUNLOCK();
+			D("sched %d not found", i);
+			return EINVAL;
+		}
+		/* remove profile if exists */
+		if (s->profile) {
+			free(s->profile, M_DUMMYNET);
+			s->profile = NULL;
+		}
+		/* copy all parameters */
+		s->link.oid = p->oid;
+		s->link.link_nr = i;
+		s->link.delay = p->delay;
+		if (s->link.bandwidth != p->bandwidth) {
+			/* XXX bandwidth changes, need to update red params */
+			s->link.bandwidth = p->bandwidth;
+			update_red(s);
+		}
+		s->link.burst = p->burst;
+		schk_reset_credit(s);
 	}
 	dn_cfg.id++;
 	DN_BH_WUNLOCK();
@@ -1601,7 +1595,7 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 		return NULL;
 	}
 	i = nfs->fs_nr;
-	if (i <= 0 || i >= 3*DN_MAX_ID)
+	if (i <= 0 || i >= 3 * DN_MAX_ID)
 		return NULL;
 #ifdef NEW_AQM
 	ep = NULL;
@@ -1614,78 +1608,77 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 #endif
 	ND("flowset %d", i);
 	/* XXX other sanity checks */
-        if (nfs->flags & DN_QSIZE_BYTES) {
-		ipdn_bound_var(&nfs->qsize, 16384,
-		    1500, dn_cfg.byte_limit, NULL); // "queue byte size");
-        } else {
-		ipdn_bound_var(&nfs->qsize, 50,
-		    1, dn_cfg.slot_limit, NULL); // "queue slot size");
-        }
+	if (nfs->flags & DN_QSIZE_BYTES) {
+		ipdn_bound_var(&nfs->qsize, 16384, 1500, dn_cfg.byte_limit,
+		    NULL); // "queue byte size");
+	} else {
+		ipdn_bound_var(&nfs->qsize, 50, 1, dn_cfg.slot_limit,
+		    NULL); // "queue slot size");
+	}
 	if (nfs->flags & DN_HAVE_MASK) {
 		/* make sure we have some buckets */
-		ipdn_bound_var((int *)&nfs->buckets, dn_cfg.hash_size,
-			1, dn_cfg.max_hash_size, "flowset buckets");
+		ipdn_bound_var((int *)&nfs->buckets, dn_cfg.hash_size, 1,
+		    dn_cfg.max_hash_size, "flowset buckets");
 	} else {
-		nfs->buckets = 1;	/* we only need 1 */
+		nfs->buckets = 1; /* we only need 1 */
 	}
 	if (!locked)
 		DN_BH_WLOCK();
 	do { /* exit with break when done */
-	    struct dn_schk *s;
-	    int flags = nfs->sched_nr ? DNHT_INSERT : 0;
-	    int j;
-	    int oldc = dn_cfg.fsk_count;
-	    fs = dn_ht_find(dn_cfg.fshash, i, flags, NULL);
-	    if (fs == NULL) {
-		D("missing sched for flowset %d", i);
-	        break;
-	    }
-	    /* grab some defaults from the existing one */
-	    if (nfs->sched_nr == 0) /* reuse */
-		nfs->sched_nr = fs->fs.sched_nr;
-	    for (j = 0; j < sizeof(nfs->par)/sizeof(nfs->par[0]); j++) {
-		if (nfs->par[j] == -1) /* reuse */
-		    nfs->par[j] = fs->fs.par[j];
-	    }
-	    if (bcmp(&fs->fs, nfs, sizeof(*nfs)) == 0) {
-		ND("flowset %d unchanged", i);
-#ifdef NEW_AQM
-		if (ep != NULL) {
-			/*
-			 * Reconfigure AQM as the parameters can be changed.
-			 * We consider the flowset as busy if it has scheduler
-			 * instance(s).
-			 */ 
-			s = locate_scheduler(nfs->sched_nr);
-			config_aqm(fs, ep, s != NULL && s->siht != NULL);
+		struct dn_schk *s;
+		int flags = nfs->sched_nr ? DNHT_INSERT : 0;
+		int j;
+		int oldc = dn_cfg.fsk_count;
+		fs = dn_ht_find(dn_cfg.fshash, i, flags, NULL);
+		if (fs == NULL) {
+			D("missing sched for flowset %d", i);
+			break;
 		}
-#endif
-		break; /* no change, nothing to do */
-	    }
-	    if (oldc != dn_cfg.fsk_count)	/* new item */
-		dn_cfg.id++;
-	    s = locate_scheduler(nfs->sched_nr);
-	    /* detach from old scheduler if needed, preserving
-	     * queues if we need to reattach. Then update the
-	     * configuration, and possibly attach to the new sched.
-	     */
-	    DX(2, "fs %d changed sched %d@%p to %d@%p",
-		fs->fs.fs_nr,
-		fs->fs.sched_nr, fs->sched, nfs->sched_nr, s);
-	    if (fs->sched) {
-		int flags = s ? DN_DETACH : (DN_DETACH | DN_DESTROY);
-		flags |= DN_DESTROY; /* XXX temporary */
-		fsk_detach(fs, flags);
-	    }
-	    fs->fs = *nfs; /* copy configuration */
+		/* grab some defaults from the existing one */
+		if (nfs->sched_nr == 0) /* reuse */
+			nfs->sched_nr = fs->fs.sched_nr;
+		for (j = 0; j < sizeof(nfs->par) / sizeof(nfs->par[0]); j++) {
+			if (nfs->par[j] == -1) /* reuse */
+				nfs->par[j] = fs->fs.par[j];
+		}
+		if (bcmp(&fs->fs, nfs, sizeof(*nfs)) == 0) {
+			ND("flowset %d unchanged", i);
 #ifdef NEW_AQM
-			fs->aqmfp = NULL;
-			if (ep != NULL)
-				config_aqm(fs, ep, s != NULL &&
-				    s->siht != NULL);
+			if (ep != NULL) {
+				/*
+				 * Reconfigure AQM as the parameters can be
+				 * changed. We consider the flowset as busy if
+				 * it has scheduler instance(s).
+				 */
+				s = locate_scheduler(nfs->sched_nr);
+				config_aqm(
+				    fs, ep, s != NULL && s->siht != NULL);
+			}
 #endif
-	    if (s != NULL)
-		fsk_attach(fs, s);
+			break; /* no change, nothing to do */
+		}
+		if (oldc != dn_cfg.fsk_count) /* new item */
+			dn_cfg.id++;
+		s = locate_scheduler(nfs->sched_nr);
+		/* detach from old scheduler if needed, preserving
+		 * queues if we need to reattach. Then update the
+		 * configuration, and possibly attach to the new sched.
+		 */
+		DX(2, "fs %d changed sched %d@%p to %d@%p", fs->fs.fs_nr,
+		    fs->fs.sched_nr, fs->sched, nfs->sched_nr, s);
+		if (fs->sched) {
+			int flags = s ? DN_DETACH : (DN_DETACH | DN_DESTROY);
+			flags |= DN_DESTROY; /* XXX temporary */
+			fsk_detach(fs, flags);
+		}
+		fs->fs = *nfs; /* copy configuration */
+#ifdef NEW_AQM
+		fs->aqmfp = NULL;
+		if (ep != NULL)
+			config_aqm(fs, ep, s != NULL && s->siht != NULL);
+#endif
+		if (s != NULL)
+			fsk_attach(fs, s);
 	} while (0);
 	if (!locked)
 		DN_BH_WUNLOCK();
@@ -1710,8 +1703,8 @@ config_sched(struct dn_sch *_nsch, struct dn_id *arg)
 	struct dn_schk *s;
 	struct schk_new_arg a; /* argument for schk_new */
 	int i;
-	struct dn_link p;	/* copy of oldlink */
-	struct dn_profile *pf = NULL;	/* copy of old link profile */
+	struct dn_link p;	      /* copy of oldlink */
+	struct dn_profile *pf = NULL; /* copy of old link profile */
 	/* Used to preserv mask parameter */
 	struct ipfw_flow_id new_mask;
 	int new_buckets = 0;
@@ -1729,13 +1722,13 @@ config_sched(struct dn_sch *_nsch, struct dn_id *arg)
 		return EINVAL;
 	/* make sure we have some buckets */
 	if (a.sch->flags & DN_HAVE_MASK)
-		ipdn_bound_var((int *)&a.sch->buckets, dn_cfg.hash_size,
-			1, dn_cfg.max_hash_size, "sched buckets");
+		ipdn_bound_var((int *)&a.sch->buckets, dn_cfg.hash_size, 1,
+		    dn_cfg.max_hash_size, "sched buckets");
 	/* XXX other sanity checks */
 	bzero(&p, sizeof(p));
 
 	pipe_cmd = a.sch->flags & DN_PIPE_CMD;
-	a.sch->flags &= ~DN_PIPE_CMD; //XXX do it even if is not set?
+	a.sch->flags &= ~DN_PIPE_CMD; // XXX do it even if is not set?
 	if (pipe_cmd) {
 		/* Copy mask parameter */
 		new_mask = a.sch->sched_mask;
@@ -1758,7 +1751,7 @@ again: /* run twice, for wfq and fifo */
 		s = dn_ht_find(dn_cfg.schedhash, i, 0, &a);
 		if (s != NULL) {
 			a.fp = s->fp;
-			/* Scheduler exists, skip to FIFO scheduler 
+			/* Scheduler exists, skip to FIFO scheduler
 			 * if command was pipe config...
 			 */
 			if (pipe_cmd)
@@ -1777,8 +1770,8 @@ again: /* run twice, for wfq and fifo */
 			goto again;
 		}
 	} else {
-		D("invalid scheduler type %d %s",
-			a.sch->oid.subtype, a.sch->name);
+		D("invalid scheduler type %d %s", a.sch->oid.subtype,
+		    a.sch->name);
 		err = EINVAL;
 		goto error;
 	}
@@ -1797,10 +1790,10 @@ again: /* run twice, for wfq and fifo */
 			s->profile = NULL; /* XXX maybe not needed */
 		} else {
 			s->profile = malloc(sizeof(struct dn_profile),
-					     M_DUMMYNET, M_NOWAIT | M_ZERO);
+			    M_DUMMYNET, M_NOWAIT | M_ZERO);
 			if (s->profile == NULL) {
 				D("cannot allocate profile");
-				goto error; //XXX
+				goto error; // XXX
 			}
 			memcpy(s->profile, pf, sizeof(*pf));
 		}
@@ -1808,22 +1801,20 @@ again: /* run twice, for wfq and fifo */
 	p.link_nr = 0;
 	if (s->fp == NULL) {
 		DX(2, "sched %d new type %s", i, a.fp->name);
-	} else if (s->fp != a.fp ||
-			bcmp(a.sch, &s->sch, sizeof(*a.sch)) ) {
+	} else if (s->fp != a.fp || bcmp(a.sch, &s->sch, sizeof(*a.sch))) {
 		/* already existing. */
-		DX(2, "sched %d type changed from %s to %s",
-			i, s->fp->name, a.fp->name);
-		DX(4, "   type/sub %d/%d -> %d/%d",
-			s->sch.oid.type, s->sch.oid.subtype, 
-			a.sch->oid.type, a.sch->oid.subtype);
+		DX(2, "sched %d type changed from %s to %s", i, s->fp->name,
+		    a.fp->name);
+		DX(4, "   type/sub %d/%d -> %d/%d", s->sch.oid.type,
+		    s->sch.oid.subtype, a.sch->oid.type, a.sch->oid.subtype);
 		if (s->link.link_nr == 0)
 			D("XXX WARNING link 0 for sched %d", i);
-		p = s->link;	/* preserve link */
-		if (s->profile) {/* preserve profile */
+		p = s->link;	  /* preserve link */
+		if (s->profile) { /* preserve profile */
 			if (!pf)
-				pf = malloc(sizeof(*pf),
-				    M_DUMMYNET, M_NOWAIT | M_ZERO);
-			if (pf)	/* XXX should issue a warning otherwise */
+				pf = malloc(
+				    sizeof(*pf), M_DUMMYNET, M_NOWAIT | M_ZERO);
+			if (pf) /* XXX should issue a warning otherwise */
 				memcpy(pf, s->profile, sizeof(*pf));
 		}
 		/* remove from the hash */
@@ -1845,7 +1836,7 @@ again: /* run twice, for wfq and fifo */
 	 * trying to reuse existing ones if available
 	 */
 	if (!(s->fp->flags & DN_MULTIQUEUE) && !s->fs) {
-	        s->fs = dn_ht_find(dn_cfg.fshash, i, 0, NULL);
+		s->fs = dn_ht_find(dn_cfg.fshash, i, 0, NULL);
 		if (!s->fs) {
 			struct dn_fs fs;
 			bzero(&fs, sizeof(fs));
@@ -1911,7 +1902,7 @@ config_profile(struct dn_profile *pf, struct dn_id *arg)
 		return EINVAL;
 	/* XXX other sanity checks */
 	DN_BH_WLOCK();
-	for (; i < 2*DN_MAX_ID; i += DN_MAX_ID) {
+	for (; i < 2 * DN_MAX_ID; i += DN_MAX_ID) {
 		s = locate_scheduler(i);
 
 		if (s == NULL) {
@@ -1923,8 +1914,9 @@ config_profile(struct dn_profile *pf, struct dn_id *arg)
 		 * If we had a profile and the new one does not fit,
 		 * or it is deleted, then we need to free memory.
 		 */
-		if (s->profile && (pf->samples_no == 0 ||
-		    s->profile->oid.len < pf->oid.len)) {
+		if (s->profile &&
+		    (pf->samples_no == 0 ||
+			s->profile->oid.len < pf->oid.len)) {
 			free(s->profile, M_DUMMYNET);
 			s->profile = NULL;
 		}
@@ -1935,8 +1927,8 @@ config_profile(struct dn_profile *pf, struct dn_id *arg)
 		 * and copy data.
 		 */
 		if (s->profile == NULL)
-			s->profile = malloc(pf->oid.len,
-				    M_DUMMYNET, M_NOWAIT | M_ZERO);
+			s->profile = malloc(
+			    pf->oid.len, M_DUMMYNET, M_NOWAIT | M_ZERO);
 		if (s->profile == NULL) {
 			D("no memory for profile %d", i);
 			err = ENOMEM;
@@ -1961,8 +1953,8 @@ dummynet_flush(void)
 {
 
 	/* delete all schedulers and related links/queues/flowsets */
-	dn_ht_scan(dn_cfg.schedhash, schk_delete_cb,
-		(void *)(uintptr_t)DN_DELETE_FS);
+	dn_ht_scan(
+	    dn_cfg.schedhash, schk_delete_cb, (void *)(uintptr_t)DN_DELETE_FS);
 	/* delete all remaining (unlinked) flowsets */
 	DX(4, "still %d unlinked fs", dn_cfg.fsk_count);
 	dn_ht_free(dn_cfg.fshash, DNHT_REMOVE);
@@ -1988,7 +1980,7 @@ do_config(void *p, int l)
 		struct dn_fs fs;
 		struct dn_link link;
 		struct dn_sch sched;
-	} *dn;
+	} * dn;
 	struct dn_id *arg;
 	uintptr_t a;
 	int err, err2, off;
@@ -2051,7 +2043,8 @@ do_config(void *p, int l)
 
 			case DN_FS:
 				err = (a < 1 || a >= DN_MAX_ID) ?
-				    EINVAL : delete_fs(a, 0) ;
+					  EINVAL :
+					  delete_fs(a, 0);
 				break;
 			}
 			break;
@@ -2061,7 +2054,7 @@ do_config(void *p, int l)
 			dummynet_flush();
 			DN_BH_WUNLOCK();
 			break;
-		case DN_TEXT:	/* store argument of next block */
+		case DN_TEXT: /* store argument of next block */
 			if (arg != NULL)
 				free(arg, M_TEMP);
 			arg = malloc(o.len, M_TEMP, M_WAITOK);
@@ -2076,15 +2069,14 @@ do_config(void *p, int l)
 		case DN_PROFILE:
 			if (dn == NULL)
 				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
-			memcpy(&dn->profile, (char *)p + off,
-			    sizeof(dn->profile));
+			memcpy(
+			    &dn->profile, (char *)p + off, sizeof(dn->profile));
 			err = config_profile(&dn->profile, arg);
 			break;
 		case DN_SCH:
 			if (dn == NULL)
 				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
-			memcpy(&dn->sched, (char *)p + off,
-			    sizeof(dn->sched));
+			memcpy(&dn->sched, (char *)p + off, sizeof(dn->sched));
 			err = config_sched(&dn->sched, arg);
 			break;
 		case DN_FS:
@@ -2109,8 +2101,8 @@ static int
 compute_space(struct dn_id *cmd, struct copy_args *a)
 {
 	int x = 0, need = 0;
-	int profile_size = sizeof(struct dn_profile) - 
-		ED_MAX_SAMPLES_NO*sizeof(int);
+	int profile_size = sizeof(struct dn_profile) -
+	    ED_MAX_SAMPLES_NO * sizeof(int);
 
 	/* NOTE about compute space:
 	 * NP 	= dn_cfg.schk_count
@@ -2143,23 +2135,23 @@ compute_space(struct dn_id *cmd, struct copy_args *a)
 	/* 'ipfw sched show' could list all queues associated to
 	 * a scheduler. This feature for now is disabled
 	 */
-	case DN_LINK:	/* pipe show */
+	case DN_LINK: /* pipe show */
 		x = DN_C_LINK | DN_C_SCH | DN_C_FLOW;
 		need += dn_cfg.schk_count *
-			(sizeof(struct dn_fs) + profile_size) / 2;
+		    (sizeof(struct dn_fs) + profile_size) / 2;
 		need += dn_cfg.fsk_count * sizeof(uint32_t);
 		break;
-	case DN_SCH:	/* sched show */
+	case DN_SCH: /* sched show */
 		need += dn_cfg.schk_count *
-			(sizeof(struct dn_fs) + profile_size) / 2;
+		    (sizeof(struct dn_fs) + profile_size) / 2;
 		need += dn_cfg.fsk_count * sizeof(uint32_t);
 		x = DN_C_SCH | DN_C_LINK | DN_C_FLOW;
 		break;
-	case DN_FS:	/* queue show */
+	case DN_FS: /* queue show */
 		x = DN_C_FS | DN_C_QUEUE;
 		break;
-	case DN_GET_COMPAT:	/* compatibility mode */
-		need =  dn_compat_calc_size(); 
+	case DN_GET_COMPAT: /* compatibility mode */
+		need = dn_compat_calc_size();
 		break;
 	}
 	a->flags = x;
@@ -2222,7 +2214,7 @@ dummynet_get(struct sockopt *sopt, void **compat)
 #endif
 		if (l > sizeof(r)) {
 			/* request larger than default, allocate buffer */
-			cmd = malloc(l,  M_DUMMYNET, M_WAITOK);
+			cmd = malloc(l, M_DUMMYNET, M_WAITOK);
 			error = sooptcopyin(sopt, cmd, l, l);
 			sopt->sopt_valsize = sopt_valsize;
 			if (error)
@@ -2239,10 +2231,10 @@ dummynet_get(struct sockopt *sopt, void **compat)
 
 #ifdef NEW_AQM
 	/* get AQM params */
-	if(cmd->subtype == DN_AQM_PARAMS) {
+	if (cmd->subtype == DN_AQM_PARAMS) {
 		error = get_aqm_parms(sopt);
 		goto done;
-	/* get Scheduler params */
+		/* get Scheduler params */
 	} else if (cmd->subtype == DN_SCH_PARAMS) {
 		error = get_sched_parms(sopt);
 		goto done;
@@ -2252,7 +2244,7 @@ dummynet_get(struct sockopt *sopt, void **compat)
 	a.extra = (struct copy_range *)cmd;
 	if (cmd->len == sizeof(*cmd)) { /* no range, create a default */
 		uint32_t *rp = (uint32_t *)(cmd + 1);
-		cmd->len += 2* sizeof(uint32_t);
+		cmd->len += 2 * sizeof(uint32_t);
 		rp[0] = 1;
 		rp[1] = DN_MAX_ID - 1;
 		if (cmd->subtype == DN_LINK) {
@@ -2296,25 +2288,25 @@ dummynet_get(struct sockopt *sopt, void **compat)
 	if (start == NULL) {
 		if (compat) {
 			*compat = NULL;
-			error =  1; // XXX
+			error = 1; // XXX
 		} else {
 			error = sooptcopyout(sopt, cmd, sizeof(*cmd));
 		}
 		goto done;
 	}
 	ND("have %d:%d sched %d, %d:%d links %d, %d:%d flowsets %d, "
-		"%d:%d si %d, %d:%d queues %d",
-		dn_cfg.schk_count, sizeof(struct dn_sch), DN_SCH,
-		dn_cfg.schk_count, sizeof(struct dn_link), DN_LINK,
-		dn_cfg.fsk_count, sizeof(struct dn_fs), DN_FS,
-		dn_cfg.si_count, sizeof(struct dn_flow), DN_SCH_I,
-		dn_cfg.queue_count, sizeof(struct dn_queue), DN_QUEUE);
+	   "%d:%d si %d, %d:%d queues %d",
+	    dn_cfg.schk_count, sizeof(struct dn_sch), DN_SCH, dn_cfg.schk_count,
+	    sizeof(struct dn_link), DN_LINK, dn_cfg.fsk_count,
+	    sizeof(struct dn_fs), DN_FS, dn_cfg.si_count,
+	    sizeof(struct dn_flow), DN_SCH_I, dn_cfg.queue_count,
+	    sizeof(struct dn_queue), DN_QUEUE);
 	sopt->sopt_valsize = sopt_valsize;
 	a.type = cmd->subtype;
 
 	if (compat == NULL) {
 		memcpy(start, cmd, sizeof(*cmd));
-		((struct dn_id*)(start))->len = sizeof(struct dn_id);
+		((struct dn_id *)(start))->len = sizeof(struct dn_id);
 		buf = start + sizeof(*cmd);
 	} else
 		buf = start;
@@ -2337,7 +2329,7 @@ dummynet_get(struct sockopt *sopt, void **compat)
 		*compat = start;
 		sopt->sopt_valsize = buf - start;
 		/* free() is done by ip_dummynet_compat() */
-		start = NULL; //XXX hack
+		start = NULL; // XXX hack
 	} else {
 		error = sooptcopyout(sopt, start, buf - start);
 	}
@@ -2364,7 +2356,7 @@ drain_scheduler_cb(void *_si, void *arg)
 		else
 			return 0;
 	} else { /* !DN_MULTIQUEUE */
-		if ((si+1)->ni.length == 0)
+		if ((si + 1)->ni.length == 0)
 			return si_destroy(si, NULL);
 		else
 			return 0;
@@ -2379,8 +2371,8 @@ drain_scheduler_sch_cb(void *_s, void *arg)
 	struct dn_schk *s = _s;
 
 	if (s->sch.flags & DN_HAVE_MASK) {
-		dn_ht_scan_bucket(s->siht, &s->drain_bucket,
-				drain_scheduler_cb, NULL);
+		dn_ht_scan_bucket(
+		    s->siht, &s->drain_bucket, drain_scheduler_cb, NULL);
 		s->drain_bucket++;
 	} else {
 		if (s->siht) {
@@ -2395,8 +2387,8 @@ drain_scheduler_sch_cb(void *_s, void *arg)
 void
 dn_drain_scheduler(void)
 {
-	dn_ht_scan_bucket(dn_cfg.schedhash, &dn_cfg.drain_sch,
-			   drain_scheduler_sch_cb, NULL);
+	dn_ht_scan_bucket(
+	    dn_cfg.schedhash, &dn_cfg.drain_sch, drain_scheduler_sch_cb, NULL);
 	dn_cfg.drain_sch++;
 }
 
@@ -2422,11 +2414,11 @@ drain_queue_fs_cb(void *_fs, void *arg)
 
 	if (fs->fs.flags & DN_QHT_HASH) {
 		/* Flowset has a hash table for queues */
-		dn_ht_scan_bucket(fs->qht, &fs->drain_bucket,
-				drain_queue_cb, NULL);
+		dn_ht_scan_bucket(
+		    fs->qht, &fs->drain_bucket, drain_queue_cb, NULL);
 		fs->drain_bucket++;
 	} else {
-		/* No hash table for this flowset, null the pointer 
+		/* No hash table for this flowset, null the pointer
 		 * if the queue is deleted
 		 */
 		if (fs->qht) {
@@ -2442,8 +2434,8 @@ void
 dn_drain_queue(void)
 {
 	/* scan a bucket of flowset */
-	dn_ht_scan_bucket(dn_cfg.fshash, &dn_cfg.drain_fs,
-                               drain_queue_fs_cb, NULL);
+	dn_ht_scan_bucket(
+	    dn_cfg.fshash, &dn_cfg.drain_fs, drain_queue_fs_cb, NULL);
 	dn_cfg.drain_fs++;
 }
 
@@ -2462,26 +2454,26 @@ ip_dn_ctl(struct sockopt *sopt)
 
 	/* Disallow sets in really-really secure mode. */
 	if (sopt->sopt_dir == SOPT_SET) {
-		error =  securelevel_ge(sopt->sopt_td->td_ucred, 3);
+		error = securelevel_ge(sopt->sopt_td->td_ucred, 3);
 		if (error)
 			return (error);
 	}
 
 	switch (sopt->sopt_name) {
-	default :
+	default:
 		D("dummynet: unknown option %d", sopt->sopt_name);
 		error = EINVAL;
 		break;
 
 	case IP_DUMMYNET_FLUSH:
 	case IP_DUMMYNET_CONFIGURE:
-	case IP_DUMMYNET_DEL:	/* remove a pipe or queue */
+	case IP_DUMMYNET_DEL: /* remove a pipe or queue */
 	case IP_DUMMYNET_GET:
 		D("dummynet: compat option %d", sopt->sopt_name);
 		error = ip_dummynet_compat(sopt);
 		break;
 
-	case IP_DUMMYNET3 :
+	case IP_DUMMYNET3:
 		if (sopt->sopt_dir == SOPT_GET) {
 			error = dummynet_get(sopt, NULL);
 			break;
@@ -2494,7 +2486,7 @@ ip_dn_ctl(struct sockopt *sopt)
 		p = malloc(l, M_TEMP, M_WAITOK); // XXX can it fail ?
 		error = sooptcopyin(sopt, p, l, l);
 		if (error)
-			break ;
+			break;
 		error = do_config(p, l);
 		break;
 	}
@@ -2502,7 +2494,7 @@ ip_dn_ctl(struct sockopt *sopt)
 	if (p != NULL)
 		free(p, M_TEMP);
 
-	return error ;
+	return error;
 }
 
 static void
@@ -2522,21 +2514,20 @@ ip_dn_init(void)
 	/* RED parameters */
 	dn_cfg.red_lookup_depth = 256;	/* default lookup table depth */
 	dn_cfg.red_avg_pkt_size = 512;	/* default medium packet size */
-	dn_cfg.red_max_pkt_size = 1500;	/* default max packet size */
+	dn_cfg.red_max_pkt_size = 1500; /* default max packet size */
 
 	/* hash tables */
-	dn_cfg.max_hash_size = 65536;	/* max in the hash tables */
-	dn_cfg.hash_size = 64;		/* default hash size */
+	dn_cfg.max_hash_size = 65536; /* max in the hash tables */
+	dn_cfg.hash_size = 64;	      /* default hash size */
 
 	/* create hash tables for schedulers and flowsets.
 	 * In both we search by key and by pointer.
 	 */
 	dn_cfg.schedhash = dn_ht_init(NULL, dn_cfg.hash_size,
-		offsetof(struct dn_schk, schk_next),
-		schk_hash, schk_match, schk_new);
+	    offsetof(struct dn_schk, schk_next), schk_hash, schk_match,
+	    schk_new);
 	dn_cfg.fshash = dn_ht_init(NULL, dn_cfg.hash_size,
-		offsetof(struct dn_fsk, fsk_next),
-		fsk_hash, fsk_match, fsk_new);
+	    offsetof(struct dn_fsk, fsk_next), fsk_hash, fsk_match, fsk_new);
 
 	/* bucket index to drain object */
 	dn_cfg.drain_fs = 0;
@@ -2549,8 +2540,8 @@ ip_dn_init(void)
 	DN_LOCK_INIT();
 
 	NET_TASK_INIT(&dn_task, 0, dummynet_task, curvnet);
-	dn_tq = taskqueue_create_fast("dummynet", M_WAITOK,
-	    taskqueue_thread_enqueue, &dn_tq);
+	dn_tq = taskqueue_create_fast(
+	    "dummynet", M_WAITOK, taskqueue_thread_enqueue, &dn_tq);
 	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
 
 	callout_init(&dn_timeout, 1);
@@ -2595,7 +2586,7 @@ dummynet_modevent(module_t mod, int type, void *data)
 	if (type == MOD_LOAD) {
 		if (ip_dn_io_ptr) {
 			printf("DUMMYNET already loaded\n");
-			return EEXIST ;
+			return EEXIST;
 		}
 		ip_dn_init();
 		ip_dn_ctl_ptr = ip_dn_ctl;
@@ -2616,7 +2607,7 @@ load_dn_sched(struct dn_alg *d)
 
 	if (d == NULL)
 		return 1; /* error */
-	ip_dn_init();	/* just in case, we need the lock */
+	ip_dn_init();	  /* just in case, we need the lock */
 
 	/* Check that mandatory funcs exists */
 	if (d->enqueue == NULL || d->dequeue == NULL) {
@@ -2626,7 +2617,7 @@ load_dn_sched(struct dn_alg *d)
 
 	/* Search if scheduler already exists */
 	DN_BH_WLOCK();
-	SLIST_FOREACH(s, &dn_cfg.schedlist, next) {
+	SLIST_FOREACH (s, &dn_cfg.schedlist, next) {
 		if (strcmp(s->name, d->name) == 0) {
 			D("%s already loaded", d->name);
 			break; /* scheduler already exists */
@@ -2635,7 +2626,7 @@ load_dn_sched(struct dn_alg *d)
 	if (s == NULL)
 		SLIST_INSERT_HEAD(&dn_cfg.schedlist, d, next);
 	DN_BH_WUNLOCK();
-	D("dn_sched %s %sloaded", d->name, s ? "not ":"");
+	D("dn_sched %s %sloaded", d->name, s ? "not " : "");
 	return s ? 1 : 0;
 }
 
@@ -2648,7 +2639,7 @@ unload_dn_sched(struct dn_alg *s)
 	ND("called for %s", s->name);
 
 	DN_BH_WLOCK();
-	SLIST_FOREACH_SAFE(r, &dn_cfg.schedlist, next, tmp) {
+	SLIST_FOREACH_SAFE (r, &dn_cfg.schedlist, next, tmp) {
 		if (strcmp(s->name, r->name) != 0)
 			continue;
 		ND("ref_count = %d", r->ref_count);
@@ -2658,7 +2649,7 @@ unload_dn_sched(struct dn_alg *s)
 		break;
 	}
 	DN_BH_WUNLOCK();
-	D("dn_sched %s %sunloaded", s->name, err ? "not ":"");
+	D("dn_sched %s %sunloaded", s->name, err ? "not " : "");
 	return err;
 }
 
@@ -2675,12 +2666,10 @@ dn_sched_modevent(module_t mod, int cmd, void *arg)
 		return EINVAL;
 }
 
-static moduledata_t dummynet_mod = {
-	"dummynet", dummynet_modevent, NULL
-};
+static moduledata_t dummynet_mod = { "dummynet", dummynet_modevent, NULL };
 
-#define	DN_SI_SUB	SI_SUB_PROTO_FIREWALL
-#define	DN_MODEV_ORD	(SI_ORDER_ANY - 128) /* after ipfw */
+#define DN_SI_SUB SI_SUB_PROTO_FIREWALL
+#define DN_MODEV_ORD (SI_ORDER_ANY - 128) /* after ipfw */
 DECLARE_MODULE(dummynet, dummynet_mod, DN_SI_SUB, DN_MODEV_ORD);
 MODULE_DEPEND(dummynet, ipfw, 3, 3, 3);
 MODULE_VERSION(dummynet, 3);
@@ -2689,7 +2678,7 @@ MODULE_VERSION(dummynet, 3);
  * Starting up. Done in order after dummynet_modevent() has been called.
  * VNET_SYSINIT is also called for each existing vnet and each new vnet.
  */
-//VNET_SYSINIT(vnet_dn_init, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_init, NULL);
+// VNET_SYSINIT(vnet_dn_init, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_init, NULL);
 
 /*
  * Shutdown handlers up shop. These are done in REVERSE ORDER, but still
@@ -2697,7 +2686,8 @@ MODULE_VERSION(dummynet, 3);
  * VNET_SYSUNINIT is also called for each exiting vnet as it exits.
  * or when the module is unloaded.
  */
-//VNET_SYSUNINIT(vnet_dn_uninit, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_destroy, NULL);
+// VNET_SYSUNINIT(vnet_dn_uninit, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_destroy,
+// NULL);
 
 #ifdef NEW_AQM
 
@@ -2705,11 +2695,11 @@ MODULE_VERSION(dummynet, 3);
 static int
 load_dn_aqm(struct dn_aqm *d)
 {
-	struct dn_aqm *aqm=NULL;
+	struct dn_aqm *aqm = NULL;
 
 	if (d == NULL)
 		return 1; /* error */
-	ip_dn_init();	/* just in case, we need the lock */
+	ip_dn_init();	  /* just in case, we need the lock */
 
 	/* Check that mandatory funcs exists */
 	if (d->enqueue == NULL || d->dequeue == NULL) {
@@ -2719,7 +2709,7 @@ load_dn_aqm(struct dn_aqm *d)
 
 	/* Search if AQM already exists */
 	DN_BH_WLOCK();
-	SLIST_FOREACH(aqm, &dn_cfg.aqmlist, next) {
+	SLIST_FOREACH (aqm, &dn_cfg.aqmlist, next) {
 		if (strcmp(aqm->name, d->name) == 0) {
 			D("%s already loaded", d->name);
 			break; /* AQM already exists */
@@ -2728,7 +2718,7 @@ load_dn_aqm(struct dn_aqm *d)
 	if (aqm == NULL)
 		SLIST_INSERT_HEAD(&dn_cfg.aqmlist, d, next);
 	DN_BH_WUNLOCK();
-	D("dn_aqm %s %sloaded", d->name, aqm ? "not ":"");
+	D("dn_aqm %s %sloaded", d->name, aqm ? "not " : "");
 	return aqm ? 1 : 0;
 }
 
@@ -2761,7 +2751,7 @@ unload_dn_aqm(struct dn_aqm *aqm)
 	/* clean up AQM status and deconfig flowset */
 	dn_ht_scan(dn_cfg.fshash, fs_cleanup, &aqm->type);
 
-	SLIST_FOREACH_SAFE(r, &dn_cfg.aqmlist, next, tmp) {
+	SLIST_FOREACH_SAFE (r, &dn_cfg.aqmlist, next, tmp) {
 		if (strcmp(aqm->name, r->name) != 0)
 			continue;
 		ND("ref_count = %d", r->ref_count);
@@ -2771,9 +2761,10 @@ unload_dn_aqm(struct dn_aqm *aqm)
 		break;
 	}
 	DN_BH_WUNLOCK();
-	D("%s %sunloaded", aqm->name, err ? "not ":"");
+	D("%s %sunloaded", aqm->name, err ? "not " : "");
 	if (err)
-		D("ref_count=%d, cfg_ref_count=%d", r->ref_count, r->cfg_ref_count);
+		D("ref_count=%d, cfg_ref_count=%d", r->ref_count,
+		    r->cfg_ref_count);
 	return err;
 }
 

@@ -21,10 +21,21 @@ met:
       derived from this software without specific prior written
       permission.
 
-This Software, including technical data, may be subject to U.S. export  control laws, including the U.S. Export Administration Act and its  associated regulations, and may be subject to export or import  regulations in other countries.
+This Software, including technical data, may be subject to U.S. export  control
+laws, including the U.S. Export Administration Act and its  associated
+regulations, and may be subject to export or import  regulations in other
+countries.
 
 TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
-AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
+AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
 
 *************************************************************************/
 
@@ -37,18 +48,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
-#include <sys/socket.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/socket.h>
 #include <sys/taskqueue.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 
-#include "wrapper-cvmx-includes.h"
 #include "ethernet-headers.h"
+#include "wrapper-cvmx-includes.h"
 
 extern int pow_receive_group;
 extern struct ifnet *cvm_oct_device[];
@@ -65,13 +76,14 @@ static struct taskqueue *cvm_oct_taskq;
  * @param regs
  * @return
  */
-int cvm_oct_do_interrupt(void *dev_id)
+int
+cvm_oct_do_interrupt(void *dev_id)
 {
 	/* Acknowledge the interrupt */
 	if (INTERRUPT_LIMIT)
-		cvmx_write_csr(CVMX_POW_WQ_INT, 1<<pow_receive_group);
+		cvmx_write_csr(CVMX_POW_WQ_INT, 1 << pow_receive_group);
 	else
-		cvmx_write_csr(CVMX_POW_WQ_INT, 0x10001<<pow_receive_group);
+		cvmx_write_csr(CVMX_POW_WQ_INT, 0x10001 << pow_receive_group);
 
 	/*
 	 * Schedule task.
@@ -88,28 +100,34 @@ int cvm_oct_do_interrupt(void *dev_id)
  * @param work Work queue entry pointing to the packet.
  * @return Non-zero if the packet can be dropped, zero otherwise.
  */
-static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
+static inline int
+cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 {
 	if ((work->word2.snoip.err_code == 10) && (work->word1.s.len <= 64)) {
 		/* Ignore length errors on min size packets. Some equipment
 		   incorrectly pads packets to 64+4FCS instead of 60+4FCS.
 		   Note these packets still get counted as frame errors. */
-	} else
-	if (USE_10MBPS_PREAMBLE_WORKAROUND && ((work->word2.snoip.err_code == 5) || (work->word2.snoip.err_code == 7))) {
+	} else if (USE_10MBPS_PREAMBLE_WORKAROUND &&
+	    ((work->word2.snoip.err_code == 5) ||
+		(work->word2.snoip.err_code == 7))) {
 		/* We received a packet with either an alignment error or a
 		   FCS error. This may be signalling that we are running
 		   10Mbps with GMXX_RXX_FRM_CTL[PRE_CHK} off. If this is the
 		   case we need to parse the packet to determine if we can
 		   remove a non spec preamble and generate a correct packet */
-		int interface = cvmx_helper_get_interface_num(work->word1.cn38xx.ipprt);
-		int index = cvmx_helper_get_interface_index_num(work->word1.cn38xx.ipprt);
+		int interface = cvmx_helper_get_interface_num(
+		    work->word1.cn38xx.ipprt);
+		int index = cvmx_helper_get_interface_index_num(
+		    work->word1.cn38xx.ipprt);
 		cvmx_gmxx_rxx_frm_ctl_t gmxx_rxx_frm_ctl;
-		gmxx_rxx_frm_ctl.u64 = cvmx_read_csr(CVMX_GMXX_RXX_FRM_CTL(index, interface));
+		gmxx_rxx_frm_ctl.u64 = cvmx_read_csr(
+		    CVMX_GMXX_RXX_FRM_CTL(index, interface));
 		if (gmxx_rxx_frm_ctl.s.pre_chk == 0) {
-			uint8_t *ptr = cvmx_phys_to_ptr(work->packet_ptr.s.addr);
+			uint8_t *ptr = cvmx_phys_to_ptr(
+			    work->packet_ptr.s.addr);
 			int i = 0;
 
-			while (i < work->word1.s.len-1) {
+			while (i < work->word1.s.len - 1) {
 				if (*ptr != 0x55)
 					break;
 				ptr++;
@@ -118,23 +136,27 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 
 			if (*ptr == 0xd5) {
 				/*
-				DEBUGPRINT("Port %d received 0xd5 preamble\n", work->word1.cn38xx.ipprt);
+				DEBUGPRINT("Port %d received 0xd5 preamble\n",
+				work->word1.cn38xx.ipprt);
 				*/
-				work->packet_ptr.s.addr += i+1;
-				work->word1.s.len -= i+5;
-			} else
-			if ((*ptr & 0xf) == 0xd) {
+				work->packet_ptr.s.addr += i + 1;
+				work->word1.s.len -= i + 5;
+			} else if ((*ptr & 0xf) == 0xd) {
 				/*
-				DEBUGPRINT("Port %d received 0x?d preamble\n", work->word1.cn38xx.ipprt);
+				DEBUGPRINT("Port %d received 0x?d preamble\n",
+				work->word1.cn38xx.ipprt);
 				*/
 				work->packet_ptr.s.addr += i;
-				work->word1.s.len -= i+4;
+				work->word1.s.len -= i + 4;
 				for (i = 0; i < work->word1.s.len; i++) {
-					*ptr = ((*ptr&0xf0)>>4) | ((*(ptr+1)&0xf)<<4);
+					*ptr = ((*ptr & 0xf0) >> 4) |
+					    ((*(ptr + 1) & 0xf) << 4);
 					ptr++;
 				}
 			} else {
-				DEBUGPRINT("Port %d unknown preamble, packet dropped\n", work->word1.cn38xx.ipprt);
+				DEBUGPRINT(
+				    "Port %d unknown preamble, packet dropped\n",
+				    work->word1.cn38xx.ipprt);
 				/*
 				cvmx_helper_dump_packet(work);
 				*/
@@ -143,7 +165,8 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 			}
 		}
 	} else {
-		DEBUGPRINT("Port %d receive error code %d, packet dropped\n", work->word1.cn38xx.ipprt, work->word2.snoip.err_code);
+		DEBUGPRINT("Port %d receive error code %d, packet dropped\n",
+		    work->word1.cn38xx.ipprt, work->word2.snoip.err_code);
 		cvm_oct_free_work(work);
 		return 1;
 	}
@@ -156,14 +179,15 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
  *
  * @param unused
  */
-void cvm_oct_tasklet_rx(void *context, int pending)
+void
+cvm_oct_tasklet_rx(void *context, int pending)
 {
-	int                 coreid;
-	uint64_t            old_group_mask;
-	int                 rx_count = 0;
-	int                 number_to_free;
-	int                 num_freed;
-	int                 packet_not_copied;
+	int coreid;
+	uint64_t old_group_mask;
+	int rx_count = 0;
+	int number_to_free;
+	int num_freed;
+	int packet_not_copied;
 
 	coreid = cvmx_get_core_num();
 
@@ -173,7 +197,7 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 	/* Only allow work for our group (and preserve priorities) */
 	old_group_mask = cvmx_read_csr(CVMX_POW_PP_GRP_MSKX(coreid));
 	cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(coreid),
-		       (old_group_mask & ~0xFFFFull) | 1<<pow_receive_group);
+	    (old_group_mask & ~0xFFFFull) | 1 << pow_receive_group);
 
 	while (1) {
 		struct mbuf *m = NULL;
@@ -190,12 +214,14 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 
 		mbuf_in_hw = work->word2.s.bufs == 1;
 		if ((mbuf_in_hw)) {
-			m = *(struct mbuf **)(cvm_oct_get_buffer_ptr(work->packet_ptr) - sizeof(void *));
+			m = *(struct mbuf **)(cvm_oct_get_buffer_ptr(
+						  work->packet_ptr) -
+			    sizeof(void *));
 			CVMX_PREFETCH(m, offsetof(struct mbuf, m_data));
 			CVMX_PREFETCH(m, offsetof(struct mbuf, m_pkthdr));
 		}
 		CVMX_PREFETCH(cvm_oct_device[work->word1.cn38xx.ipprt], 0);
-		//CVMX_PREFETCH(m, 0);
+		// CVMX_PREFETCH(m, 0);
 
 		rx_count++;
 		/* Immediately throw away all packets with receive errors */
@@ -204,8 +230,8 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 				continue;
 		}
 
-		/* We can only use the zero copy path if mbufs are in the FPA pool
-		   and the packet fits in a single buffer */
+		/* We can only use the zero copy path if mbufs are in the FPA
+		   pool and the packet fits in a single buffer */
 		if ((mbuf_in_hw)) {
 			CVMX_PREFETCH(m->m_data, 0);
 
@@ -217,13 +243,16 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 			 * Adjust the data pointer based on the offset
 			 * of the packet within the buffer.
 			 */
-			m->m_data += (work->packet_ptr.s.back << 7) + (work->packet_ptr.s.addr & 0x7f);
+			m->m_data += (work->packet_ptr.s.back << 7) +
+			    (work->packet_ptr.s.addr & 0x7f);
 		} else {
 			/* We have to copy the packet. First allocate an
 			   mbuf for it */
 			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m == NULL) {
-				DEBUGPRINT("Port %d failed to allocate mbuf, packet dropped\n", work->word1.cn38xx.ipprt);
+				DEBUGPRINT(
+				    "Port %d failed to allocate mbuf, packet dropped\n",
+				    work->word1.cn38xx.ipprt);
 				cvm_oct_free_work(work);
 				continue;
 			}
@@ -241,7 +270,9 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 					else
 						ptr += 6;
 				}
-				panic("%s: not yet implemented; copy in small packet.", __func__);
+				panic(
+				    "%s: not yet implemented; copy in small packet.",
+				    __func__);
 				/* No packet buffers to free */
 			} else {
 				int segments = work->word2.s.bufs;
@@ -249,21 +280,31 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 				int len = work->word1.s.len;
 
 				while (segments--) {
-					cvmx_buf_ptr_t next_ptr = *(cvmx_buf_ptr_t *)cvmx_phys_to_ptr(segment_ptr.s.addr-8);
+					cvmx_buf_ptr_t next_ptr =
+					    *(cvmx_buf_ptr_t *)cvmx_phys_to_ptr(
+						segment_ptr.s.addr - 8);
 					/* Octeon Errata PKI-100: The segment
 					   size is wrong. Until it is fixed,
 					   calculate the segment size based on
 					   the packet pool buffer size. When
 					   it is fixed, the following line
 					   should be replaced with this one:
-					int segment_size = segment_ptr.s.size; */
-					int segment_size = CVMX_FPA_PACKET_POOL_SIZE - (segment_ptr.s.addr - (((segment_ptr.s.addr >> 7) - segment_ptr.s.back) << 7));
+					int segment_size = segment_ptr.s.size;
+				      */
+					int segment_size =
+					    CVMX_FPA_PACKET_POOL_SIZE -
+					    (segment_ptr.s.addr -
+						(((segment_ptr.s.addr >> 7) -
+						     segment_ptr.s.back)
+						    << 7));
 					/* Don't copy more than what is left
 					   in the packet */
 					if (segment_size > len)
 						segment_size = len;
 					/* Copy the data into the packet */
-					panic("%s: not yet implemented; copy in packet segments.", __func__);
+					panic(
+					    "%s: not yet implemented; copy in packet segments.",
+					    __func__);
 #if 0
 					memcpy(m_put(m, segment_size), cvmx_phys_to_ptr(segment_ptr.s.addr), segment_size);
 #endif
@@ -277,8 +318,9 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 		}
 
 		if (((work->word1.cn38xx.ipprt < TOTAL_NUMBER_OF_PORTS) &&
-		    cvm_oct_device[work->word1.cn38xx.ipprt])) {
-			struct ifnet *ifp = cvm_oct_device[work->word1.cn38xx.ipprt];
+			cvm_oct_device[work->word1.cn38xx.ipprt])) {
+			struct ifnet *ifp =
+			    cvm_oct_device[work->word1.cn38xx.ipprt];
 
 			/* Only accept packets for devices
 			   that are currently up */
@@ -286,10 +328,17 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 				m->m_pkthdr.rcvif = ifp;
 
 				if ((ifp->if_capenable & IFCAP_RXCSUM) != 0) {
-					if ((work->word2.s.not_IP || work->word2.s.IP_exc || work->word2.s.L4_error))
-						m->m_pkthdr.csum_flags = 0; /* XXX */
+					if ((work->word2.s.not_IP ||
+						work->word2.s.IP_exc ||
+						work->word2.s.L4_error))
+						m->m_pkthdr.csum_flags =
+						    0; /* XXX */
 					else {
-						m->m_pkthdr.csum_flags = CSUM_IP_CHECKED | CSUM_IP_VALID | CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+						m->m_pkthdr.csum_flags =
+						    CSUM_IP_CHECKED |
+						    CSUM_IP_VALID |
+						    CSUM_DATA_VALID |
+						    CSUM_PSEUDO_HDR;
 						m->m_pkthdr.csum_data = 0xffff;
 					}
 				} else {
@@ -300,17 +349,20 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 
 				(*ifp->if_input)(ifp, m);
 			} else {
-				/* Drop any packet received for a device that isn't up */
+				/* Drop any packet received for a device that
+				 * isn't up */
 				/*
-				DEBUGPRINT("%s: Device not up, packet dropped\n",
-					   if_name(ifp));
+				DEBUGPRINT("%s: Device not up, packet
+				dropped\n", if_name(ifp));
 				*/
 				m_freem(m);
 			}
 		} else {
 			/* Drop any packet received for a device that
 			   doesn't exist */
-			DEBUGPRINT("Port %d not controlled by FreeBSD, packet dropped\n", work->word1.cn38xx.ipprt);
+			DEBUGPRINT(
+			    "Port %d not controlled by FreeBSD, packet dropped\n",
+			    work->word1.cn38xx.ipprt);
 			m_freem(m);
 		}
 
@@ -320,10 +372,10 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 			/* This buffer needs to be replaced, increment
 			the number of buffers we need to free by one */
 			cvmx_fau_atomic_add32(
-				FAU_NUM_PACKET_BUFFERS_TO_FREE, 1);
+			    FAU_NUM_PACKET_BUFFERS_TO_FREE, 1);
 
-			cvmx_fpa_free(work, CVMX_FPA_WQE_POOL,
-				      DONT_WRITEBACK(1));
+			cvmx_fpa_free(
+			    work, CVMX_FPA_WQE_POOL, DONT_WRITEBACK(1));
 		} else
 			cvm_oct_free_work(work);
 	}
@@ -339,41 +391,40 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 	cvmx_write_csr(CVMX_POW_PP_GRP_MSKX(coreid), old_group_mask);
 
 	/* Refill the packet buffer pool */
-	number_to_free =
-	  cvmx_fau_fetch_and_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
+	number_to_free = cvmx_fau_fetch_and_add32(
+	    FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
 
 	if (number_to_free > 0) {
-		cvmx_fau_atomic_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE,
-				      -number_to_free);
-		num_freed =
-			cvm_oct_mem_fill_fpa(CVMX_FPA_PACKET_POOL,
-					     CVMX_FPA_PACKET_POOL_SIZE,
-					     number_to_free);
+		cvmx_fau_atomic_add32(
+		    FAU_NUM_PACKET_BUFFERS_TO_FREE, -number_to_free);
+		num_freed = cvm_oct_mem_fill_fpa(CVMX_FPA_PACKET_POOL,
+		    CVMX_FPA_PACKET_POOL_SIZE, number_to_free);
 		if (num_freed != number_to_free) {
 			cvmx_fau_atomic_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE,
-					      number_to_free - num_freed);
+			    number_to_free - num_freed);
 		}
 	}
 }
 
-void cvm_oct_rx_initialize(void)
+void
+cvm_oct_rx_initialize(void)
 {
 	int cpu;
 	TASK_INIT(&cvm_oct_task, 0, cvm_oct_tasklet_rx, NULL);
 
-	cvm_oct_taskq = taskqueue_create_fast("oct_rx", M_NOWAIT,
-					      taskqueue_thread_enqueue,
-					      &cvm_oct_taskq);
+	cvm_oct_taskq = taskqueue_create_fast(
+	    "oct_rx", M_NOWAIT, taskqueue_thread_enqueue, &cvm_oct_taskq);
 
-	CPU_FOREACH(cpu) {
+	CPU_FOREACH (cpu) {
 		cpuset_t cpu_mask;
 		CPU_SETOF(cpu, &cpu_mask);
-		taskqueue_start_threads_cpuset(&cvm_oct_taskq, 1, PI_NET,
-		    &cpu_mask, "octe taskq");
+		taskqueue_start_threads_cpuset(
+		    &cvm_oct_taskq, 1, PI_NET, &cpu_mask, "octe taskq");
 	}
 }
 
-void cvm_oct_rx_shutdown(void)
+void
+cvm_oct_rx_shutdown(void)
 {
 	panic("%s: not yet implemented.", __func__);
 }

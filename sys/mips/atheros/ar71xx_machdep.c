@@ -29,28 +29,26 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
 #include "opt_ar71xx.h"
+#include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/boot.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/boot.h>
 #include <sys/reboot.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_phys.h>
 #include <vm/vm_dumpset.h>
-
-#include <net/ethernet.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -59,11 +57,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/trap.h>
 
-#include <mips/atheros/ar71xxreg.h>
+#include <net/ethernet.h>
 
-#include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_cpudef.h>
 #include <mips/atheros/ar71xx_macaddr.h>
+#include <mips/atheros/ar71xx_setup.h>
+#include <mips/atheros/ar71xxreg.h>
 
 extern char edata[], end[];
 
@@ -82,7 +81,7 @@ platform_reset(void)
 {
 	ar71xx_device_stop(RST_RESET_FULL_CHIP);
 	/* Wait for reset */
-	while(1)
+	while (1)
 		;
 }
 
@@ -103,21 +102,18 @@ ar71xx_redboot_get_macaddr(void)
 	 */
 	if ((var = kern_getenv("ethaddr")) != NULL ||
 	    (var = kern_getenv("kmac")) != NULL) {
-		count = sscanf(var, "%x%*c%x%*c%x%*c%x%*c%x%*c%x",
-		    &macaddr[0], &macaddr[1],
-		    &macaddr[2], &macaddr[3],
-		    &macaddr[4], &macaddr[5]);
+		count = sscanf(var, "%x%*c%x%*c%x%*c%x%*c%x%*c%x", &macaddr[0],
+		    &macaddr[1], &macaddr[2], &macaddr[3], &macaddr[4],
+		    &macaddr[5]);
 
 		if (count < 6) {
-			memset(macaddr, 0,
-			    sizeof(macaddr));
+			memset(macaddr, 0, sizeof(macaddr));
 		} else {
 			for (i = 0; i < ETHER_ADDR_LEN; i++)
 				tmpmac[i] = macaddr[i] & 0xff;
-			(void) ar71xx_mac_addr_init(ar71xx_board_mac_addr,
-			    tmpmac,
-			    0, /* offset */
-			    0); /* is_local */
+			(void)ar71xx_mac_addr_init(ar71xx_board_mac_addr,
+			    tmpmac, 0, /* offset */
+			    0);	       /* is_local */
 		}
 		freeenv(var);
 		return (0);
@@ -125,7 +121,7 @@ ar71xx_redboot_get_macaddr(void)
 	return (-1);
 }
 
-#ifdef	AR71XX_ENV_ROUTERBOOT
+#ifdef AR71XX_ENV_ROUTERBOOT
 /*
  * RouterBoot gives us the board memory in a command line argument.
  */
@@ -170,20 +166,21 @@ ar71xx_platform_read_eeprom_mac(void)
 	int i, readascii = 0;
 	uint8_t macaddr[ETHER_ADDR_LEN];
 
-	if (resource_long_value("ar71xx", 0, "eeprom_mac_addr",
-	    &eeprom_mac_addr) != 0)
+	if (resource_long_value(
+		"ar71xx", 0, "eeprom_mac_addr", &eeprom_mac_addr) != 0)
 		return (-1);
 
 	/* get a pointer to the EEPROM MAC address */
 
-	mac = (const char *) MIPS_PHYS_TO_KSEG1(eeprom_mac_addr);
+	mac = (const char *)MIPS_PHYS_TO_KSEG1(eeprom_mac_addr);
 
 	/* Check if it's ASCII or not */
-	if (resource_int_value("ar71xx", 0, "eeprom_mac_isascii",
-	    &readascii) == 0 && readascii == 1) {
+	if (resource_int_value("ar71xx", 0, "eeprom_mac_isascii", &readascii) ==
+		0 &&
+	    readascii == 1) {
 		printf("ar71xx: Overriding MAC from EEPROM (ascii)\n");
 		for (i = 0; i < 6; i++) {
-			macaddr[i] = strtol(&(mac[i*3]), NULL, 16);
+			macaddr[i] = strtol(&(mac[i * 3]), NULL, 16);
 		}
 	} else {
 		printf("ar71xx: Overriding MAC from EEPROM\n");
@@ -193,9 +190,8 @@ ar71xx_platform_read_eeprom_mac(void)
 	}
 
 	/* Set the default board MAC */
-	(void) ar71xx_mac_addr_init(ar71xx_board_mac_addr,
-	    macaddr,
-	    0, /* offset */
+	(void)ar71xx_mac_addr_init(ar71xx_board_mac_addr, macaddr,
+	    0,	/* offset */
 	    0); /* is_local */
 	printf("ar71xx: Board MAC: %6D\n", ar71xx_board_mac_addr, ":");
 	return (0);
@@ -208,8 +204,8 @@ ar71xx_platform_read_eeprom_mac(void)
  * Returns 0 if ok, < 0 on error.
  */
 static int
-ar71xx_platform_set_mac_hint(const char *dev, int unit,
-    const uint8_t *macaddr, int offset, int islocal)
+ar71xx_platform_set_mac_hint(
+    const char *dev, int unit, const uint8_t *macaddr, int offset, int islocal)
 {
 	char macstr[32];
 	uint8_t lclmac[ETHER_ADDR_LEN];
@@ -228,9 +224,7 @@ ar71xx_platform_set_mac_hint(const char *dev, int unit,
 
 	/* Call setenv */
 	if (kern_setenv(devstr, macstr) != 0) {
-		printf("%s: failed to set hint (%s => %s)\n",
-		    __func__,
-		    devstr,
+		printf("%s: failed to set hint (%s => %s)\n", __func__, devstr,
 		    macstr);
 		return (-1);
 	}
@@ -255,29 +249,29 @@ ar71xx_platform_check_mac_hints(void)
 	int offset, is_local, unitid;
 
 	for (i = 0; i < 8; i++) {
-		if (resource_string_value("ar71xx_mac_map", i, "devid",
-		    &devid) != 0)
+		if (resource_string_value(
+			"ar71xx_mac_map", i, "devid", &devid) != 0)
 			break;
-		if (resource_int_value("ar71xx_mac_map", i, "unitid",
-		    &unitid) != 0)
+		if (resource_int_value(
+			"ar71xx_mac_map", i, "unitid", &unitid) != 0)
 			break;
-		if (resource_int_value("ar71xx_mac_map", i, "offset",
-		    &offset) != 0)
+		if (resource_int_value(
+			"ar71xx_mac_map", i, "offset", &offset) != 0)
 			break;
-		if (resource_int_value("ar71xx_mac_map", i, "is_local",
-		    &is_local) != 0)
+		if (resource_int_value(
+			"ar71xx_mac_map", i, "is_local", &is_local) != 0)
 			break;
-		printf("ar71xx: devid '%s.%d', MAC offset '%d'\n",
-		    devid, unitid, offset);
-		(void) ar71xx_platform_set_mac_hint(devid, unitid,
-		    ar71xx_board_mac_addr, offset, is_local);
+		printf("ar71xx: devid '%s.%d', MAC offset '%d'\n", devid,
+		    unitid, offset);
+		(void)ar71xx_platform_set_mac_hint(
+		    devid, unitid, ar71xx_board_mac_addr, offset, is_local);
 	}
 
 	return (0);
 }
 
 void
-platform_start(__register_t a0 __unused, __register_t a1 __unused, 
+platform_start(__register_t a0 __unused, __register_t a1 __unused,
     __register_t a2 __unused, __register_t a3 __unused)
 {
 	uint64_t platform_counter_freq;
@@ -285,7 +279,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	char **argv = NULL, **envp = NULL;
 	vm_offset_t kernend;
 
-	/* 
+	/*
 	 * clear the BSS and SBSS segments, this should be first call in
 	 * the function
 	 */
@@ -304,25 +298,26 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	 * very incorrectly so we should just ignore initialising
 	 * the relevant pointers.
 	 */
-#ifndef	AR71XX_ENV_UBOOT
+#ifndef AR71XX_ENV_UBOOT
 	argc = a0;
-	argv = (char**)a1;
-	envp = (char**)a2;
+	argv = (char **)a1;
+	envp = (char **)a2;
 #endif
-	/* 
-	 * Protect ourselves from garbage in registers 
+	/*
+	 * Protect ourselves from garbage in registers
 	 */
 	if (MIPS_IS_VALID_PTR(envp)) {
 		for (i = 0; envp[i]; i += 2) {
 			if (strcmp(envp[i], "memsize") == 0)
-				realmem = btoc(strtoul(envp[i+1], NULL, 16));
+				realmem = btoc(strtoul(envp[i + 1], NULL, 16));
 			else if (strcmp(envp[i], "bootverbose") == 0)
-				bootverbose = btoc(strtoul(envp[i+1], NULL, 10));
+				bootverbose = btoc(
+				    strtoul(envp[i + 1], NULL, 10));
 		}
 	}
 	bootverbose = 1;
 
-#ifdef	AR71XX_ENV_ROUTERBOOT
+#ifdef AR71XX_ENV_ROUTERBOOT
 	/*
 	 * RouterBoot informs the board memory as a command line argument.
 	 */
@@ -331,24 +326,24 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 #endif
 
 	/*
-	 * Just wild guess. RedBoot let us down and didn't reported 
+	 * Just wild guess. RedBoot let us down and didn't reported
 	 * memory size
 	 */
 	if (realmem == 0)
-		realmem = btoc(32*1024*1024);
+		realmem = btoc(32 * 1024 * 1024);
 
-	/*
-	 * Allow build-time override in case Redboot lies
-	 * or in other situations (eg where there's u-boot)
-	 * where there isn't (yet) a convienent method of
-	 * being told how much RAM is available.
-	 *
-	 * This happens on at least the Ubiquiti LS-SR71A
-	 * board, where redboot says there's 16mb of RAM
-	 * but in fact there's 32mb.
-	 */
-#if	defined(AR71XX_REALMEM)
-		realmem = btoc(AR71XX_REALMEM);
+		/*
+		 * Allow build-time override in case Redboot lies
+		 * or in other situations (eg where there's u-boot)
+		 * where there isn't (yet) a convienent method of
+		 * being told how much RAM is available.
+		 *
+		 * This happens on at least the Ubiquiti LS-SR71A
+		 * board, where redboot says there's 16mb of RAM
+		 * but in fact there's 32mb.
+		 */
+#if defined(AR71XX_REALMEM)
+	realmem = btoc(AR71XX_REALMEM);
 #endif
 
 	/* phys_avail regions are in bytes */
@@ -361,13 +356,14 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	physmem = realmem;
 
 	/*
-	 * ns8250 uart code uses DELAY so ticker should be inititalized 
-	 * before cninit. And tick_init_params refers to hz, so * init_param1 
+	 * ns8250 uart code uses DELAY so ticker should be inititalized
+	 * before cninit. And tick_init_params refers to hz, so * init_param1
 	 * should be called first.
 	 */
 	init_param1();
 
-	/* Detect the system type - this is needed for subsequent chipset-specific calls */
+	/* Detect the system type - this is needed for subsequent
+	 * chipset-specific calls */
 	ar71xx_detect_sys_type();
 	ar71xx_detect_sys_frequency();
 
@@ -380,7 +376,8 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	printf("CPU Frequency=%d MHz\n", u_ar71xx_cpu_freq / 1000000);
 	printf("CPU DDR Frequency=%d MHz\n", u_ar71xx_ddr_freq / 1000000);
 	printf("CPU AHB Frequency=%d MHz\n", u_ar71xx_ahb_freq / 1000000);
-	printf("platform frequency: %lld MHz\n", platform_counter_freq / 1000000);
+	printf(
+	    "platform frequency: %lld MHz\n", platform_counter_freq / 1000000);
 	printf("CPU reference clock: %d MHz\n", u_ar71xx_refclk / 1000000);
 	printf("CPU MDIO clock: %d MHz\n", u_ar71xx_mdio_freq / 1000000);
 	printf("arguments: \n");
@@ -400,20 +397,18 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 			printf(" %s", argv[i]);
 			boothowto |= boot_parse_arg(argv[i]);
 		}
-	}
-	else
-		printf ("argv is invalid");
+	} else
+		printf("argv is invalid");
 	printf("\n");
 
 	printf("Environment:\n");
 	if (MIPS_IS_VALID_PTR(envp)) {
-		for (i = 0; envp[i]; i+=2) {
-			printf("  %s = %s\n", envp[i], envp[i+1]);
-			kern_setenv(envp[i], envp[i+1]);
+		for (i = 0; envp[i]; i += 2) {
+			printf("  %s = %s\n", envp[i], envp[i + 1]);
+			kern_setenv(envp[i], envp[i + 1]);
 		}
-	}
-	else 
-		printf ("envp is invalid\n");
+	} else
+		printf("envp is invalid\n");
 
 	/* Platform setup */
 	init_param2(physmem);
@@ -423,7 +418,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	mutex_init();
 
 	/*
-	 * Reset USB devices 
+	 * Reset USB devices
 	 */
 	ar71xx_init_usb_peripheral();
 
@@ -438,10 +433,10 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	ar71xx_init_gmac();
 
 	/* Redboot if_arge MAC address is in the environment */
-	(void) ar71xx_redboot_get_macaddr();
+	(void)ar71xx_redboot_get_macaddr();
 
 	/* Various other boards need things to come out of EEPROM */
-	(void) ar71xx_platform_read_eeprom_mac();
+	(void)ar71xx_platform_read_eeprom_mac();
 
 	/* Initialise the MAC address hint map */
 	ar71xx_platform_check_mac_hints();

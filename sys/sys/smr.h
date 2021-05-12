@@ -29,7 +29,7 @@
  */
 
 #ifndef _SYS_SMR_H_
-#define	_SYS_SMR_H_
+#define _SYS_SMR_H_
 
 #include <sys/_smr.h>
 
@@ -46,42 +46,42 @@
  * Modular arithmetic for comparing sequence numbers that have
  * potentially wrapped.  Copied from tcp_seq.h.
  */
-#define	SMR_SEQ_LT(a, b)	((smr_delta_t)((a)-(b)) < 0)
-#define	SMR_SEQ_LEQ(a, b)	((smr_delta_t)((a)-(b)) <= 0)
-#define	SMR_SEQ_GT(a, b)	((smr_delta_t)((a)-(b)) > 0)
-#define	SMR_SEQ_GEQ(a, b)	((smr_delta_t)((a)-(b)) >= 0)
-#define	SMR_SEQ_DELTA(a, b)	((smr_delta_t)((a)-(b)))
-#define	SMR_SEQ_MIN(a, b)	(SMR_SEQ_LT((a), (b)) ? (a) : (b))
-#define	SMR_SEQ_MAX(a, b)	(SMR_SEQ_GT((a), (b)) ? (a) : (b))
+#define SMR_SEQ_LT(a, b) ((smr_delta_t)((a) - (b)) < 0)
+#define SMR_SEQ_LEQ(a, b) ((smr_delta_t)((a) - (b)) <= 0)
+#define SMR_SEQ_GT(a, b) ((smr_delta_t)((a) - (b)) > 0)
+#define SMR_SEQ_GEQ(a, b) ((smr_delta_t)((a) - (b)) >= 0)
+#define SMR_SEQ_DELTA(a, b) ((smr_delta_t)((a) - (b)))
+#define SMR_SEQ_MIN(a, b) (SMR_SEQ_LT((a), (b)) ? (a) : (b))
+#define SMR_SEQ_MAX(a, b) (SMR_SEQ_GT((a), (b)) ? (a) : (b))
 
-#define	SMR_SEQ_INVALID		0
+#define SMR_SEQ_INVALID 0
 
 /* Shared SMR state. */
 union s_wr {
 	struct {
-		smr_seq_t	seq;	/* Current write sequence #. */
-		int		ticks;	/* tick of last update (LAZY) */
+		smr_seq_t seq; /* Current write sequence #. */
+		int ticks;     /* tick of last update (LAZY) */
 	};
-	uint64_t	_pair;
+	uint64_t _pair;
 };
 struct smr_shared {
-	const char	*s_name;	/* Name for debugging/reporting. */
-	union s_wr	s_wr;		/* Write sequence */
-	smr_seq_t	s_rd_seq;	/* Minimum observed read sequence. */
+	const char *s_name; /* Name for debugging/reporting. */
+	union s_wr s_wr;    /* Write sequence */
+	smr_seq_t s_rd_seq; /* Minimum observed read sequence. */
 };
 typedef struct smr_shared *smr_shared_t;
 
 /* Per-cpu SMR state. */
 struct smr {
-	smr_seq_t	c_seq;		/* Current observed sequence. */
-	smr_shared_t	c_shared;	/* Shared SMR state. */
-	int		c_deferred;	/* Deferred advance counter. */
-	int		c_limit;	/* Deferred advance limit. */
-	int		c_flags;	/* SMR Configuration */
+	smr_seq_t c_seq;       /* Current observed sequence. */
+	smr_shared_t c_shared; /* Shared SMR state. */
+	int c_deferred;	       /* Deferred advance counter. */
+	int c_limit;	       /* Deferred advance limit. */
+	int c_flags;	       /* SMR Configuration */
 };
 
-#define	SMR_LAZY	0x0001		/* Higher latency write, fast read. */
-#define	SMR_DEFERRED	0x0002		/* Aggregate updates to wr_seq. */
+#define SMR_LAZY 0x0001 /* Higher latency write, fast read. */
+#define SMR_DEFERRED 0x0002 /* Aggregate updates to wr_seq. */
 
 /*
  * Return the current write sequence number.  This is not the same as the
@@ -114,7 +114,7 @@ smr_enter(smr_t smr)
 	    ("smr_enter(%s) lazy smr.", smr->c_shared->s_name));
 	KASSERT(smr->c_seq == 0,
 	    ("smr_enter(%s) does not support recursion.",
-	    smr->c_shared->s_name));
+		smr->c_shared->s_name));
 
 	/*
 	 * Store the current observed write sequence number in our
@@ -175,7 +175,7 @@ smr_lazy_enter(smr_t smr)
 	    ("smr_lazy_enter(%s) non-lazy smr.", smr->c_shared->s_name));
 	KASSERT(smr->c_seq == 0,
 	    ("smr_lazy_enter(%s) does not support recursion.",
-	    smr->c_shared->s_name));
+		smr->c_shared->s_name));
 
 	/*
 	 * This needs no serialization.  If an interrupt occurs before we
@@ -242,7 +242,7 @@ smr_wait(smr_t smr, smr_seq_t goal)
 
 /*
  * Synchronize advances the write sequence and returns when all
- * readers have observed it. 
+ * readers have observed it.
  *
  * If your application can cache a sequence number returned from
  * smr_advance() and poll or wait at a later time there will
@@ -252,10 +252,10 @@ static inline void
 smr_synchronize(smr_t smr)
 {
 
-        smr_wait(smr, smr_advance(smr));
+	smr_wait(smr, smr_advance(smr));
 }
 
 /* Only at startup. */
 void smr_init(void);
 
-#endif	/* _SYS_SMR_H_ */
+#endif /* _SYS_SMR_H_ */

@@ -29,7 +29,7 @@
  */
 
 #ifndef _POSIX4_KSEM_H_
-#define	_POSIX4_KSEM_H_
+#define _POSIX4_KSEM_H_
 
 #if !defined(_KERNEL) && !defined(_WANT_FILE)
 #error "no user-serviceable parts inside"
@@ -38,14 +38,14 @@
 #include <sys/condvar.h>
 
 struct ksem {
-	int		ks_ref;		/* number of references */
-	mode_t		ks_mode;	/* protection bits */
-	uid_t		ks_uid;		/* creator uid */
-	gid_t		ks_gid;		/* creator gid */
-	unsigned int	ks_value;	/* current value */
-	struct cv	ks_cv;		/* waiters sleep here */
-	int		ks_waiters;	/* number of waiters */
-	int		ks_flags;
+	int ks_ref;	       /* number of references */
+	mode_t ks_mode;	       /* protection bits */
+	uid_t ks_uid;	       /* creator uid */
+	gid_t ks_gid;	       /* creator gid */
+	unsigned int ks_value; /* current value */
+	struct cv ks_cv;       /* waiters sleep here */
+	int ks_waiters;	       /* number of waiters */
+	int ks_flags;
 
 	/*
 	 * Values maintained solely to make this a better-behaved file
@@ -53,16 +53,16 @@ struct ksem {
 	 *
 	 * XXX: dubious
 	 */
-	struct timespec	ks_atime;
-	struct timespec	ks_mtime;
-	struct timespec	ks_ctime;
-	struct timespec	ks_birthtime;
+	struct timespec ks_atime;
+	struct timespec ks_mtime;
+	struct timespec ks_ctime;
+	struct timespec ks_birthtime;
 
-	struct label	*ks_label;	/* MAC label */
-	const char	*ks_path;
+	struct label *ks_label; /* MAC label */
+	const char *ks_path;
 };
 
-#define	KS_ANONYMOUS	0x0001		/* Anonymous (unnamed) semaphore. */
-#define	KS_DEAD		0x0002		/* No new waiters allowed. */
+#define KS_ANONYMOUS 0x0001 /* Anonymous (unnamed) semaphore. */
+#define KS_DEAD 0x0002 /* No new waiters allowed. */
 
 #endif /* !_POSIX4_KSEM_H_ */

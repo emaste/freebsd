@@ -28,32 +28,32 @@
  * $FreeBSD$
  */
 
-#ifndef	_BCM2835_DMA_H_
-#define	_BCM2835_DMA_H_
+#ifndef _BCM2835_DMA_H_
+#define _BCM2835_DMA_H_
 
-#define	BCM_DMA_BLOCK_SIZE	512
+#define BCM_DMA_BLOCK_SIZE 512
 
 /* DMA0-DMA15 but DMA15 is special */
-#define	BCM_DMA_CH_MAX		12
+#define BCM_DMA_CH_MAX 12
 
 /* request CH for any nubmer */
-#define	BCM_DMA_CH_INVALID	(-1)
-#define	BCM_DMA_CH_ANY		(-1)
+#define BCM_DMA_CH_INVALID (-1)
+#define BCM_DMA_CH_ANY (-1)
 
 /* Peripheral DREQ Signals (4.2.1.3) */
-#define	BCM_DMA_DREQ_NONE	0
+#define BCM_DMA_DREQ_NONE 0
 /*
  * XXX This doesn't seem to work for the Raspberry Pi 4, but the peripheral
  * documentation still lists it at 11.
  */
-#define	BCM_DMA_DREQ_EMMC	11
-#define	BCM_DMA_DREQ_SDHOST	13
+#define BCM_DMA_DREQ_EMMC 11
+#define BCM_DMA_DREQ_SDHOST 13
 
-#define	BCM_DMA_SAME_ADDR	0
-#define	BCM_DMA_INC_ADDR	1
+#define BCM_DMA_SAME_ADDR 0
+#define BCM_DMA_INC_ADDR 1
 
-#define	BCM_DMA_32BIT		0
-#define	BCM_DMA_128BIT		1
+#define BCM_DMA_32BIT 0
+#define BCM_DMA_128BIT 1
 
 int bcm_dma_allocate(int req_ch);
 int bcm_dma_free(int ch);
@@ -63,4 +63,4 @@ int bcm_dma_setup_dst(int ch, int dreq, int inc_addr, int width);
 int bcm_dma_start(int ch, vm_paddr_t src, vm_paddr_t dst, int len);
 uint32_t bcm_dma_length(int ch);
 
-#endif	/* _BCM2835_DMA_H_ */
+#endif /* _BCM2835_DMA_H_ */

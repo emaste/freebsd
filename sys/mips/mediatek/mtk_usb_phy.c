@@ -26,71 +26,70 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/stddef.h>
-#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/kernel.h>
+#include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/stddef.h>
 
 #include <machine/bus.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/fdt/fdt_clock.h>
-#include <mips/mediatek/fdt_reset.h>
+#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <mips/mediatek/mtk_sysctl.h>
+#include <mips/mediatek/fdt_reset.h>
 #include <mips/mediatek/mtk_soc.h>
+#include <mips/mediatek/mtk_sysctl.h>
 #include <mips/mediatek/mtk_usb_phy.h>
 
-#define RESET_ASSERT_DELAY	1000
-#define RESET_DEASSERT_DELAY	10000
+#define RESET_ASSERT_DELAY 1000
+#define RESET_DEASSERT_DELAY 10000
 
 struct mtk_usb_phy_softc {
-	device_t		dev;
-	struct resource *	res;
-	uint32_t		fm_base;
-	uint32_t		u2_base;
-	uint32_t		sr_coef;
-	uint32_t		socid;
+	device_t dev;
+	struct resource *res;
+	uint32_t fm_base;
+	uint32_t u2_base;
+	uint32_t sr_coef;
+	uint32_t socid;
 };
 
-#define USB_PHY_READ(_sc, _off)		bus_read_4((_sc)->res, (_off))
-#define USB_PHY_WRITE(_sc, _off, _val)	bus_write_4((_sc)->res, (_off), (_val))
-#define USB_PHY_CLR_SET(_sc, _off, _clr, _set)	\
+#define USB_PHY_READ(_sc, _off) bus_read_4((_sc)->res, (_off))
+#define USB_PHY_WRITE(_sc, _off, _val) bus_write_4((_sc)->res, (_off), (_val))
+#define USB_PHY_CLR_SET(_sc, _off, _clr, _set) \
 	USB_PHY_WRITE(_sc, _off, ((USB_PHY_READ(_sc, _off) & ~(_clr)) | (_set)))
 
-#define USB_PHY_READ_U2(_sc, _off)			\
+#define USB_PHY_READ_U2(_sc, _off) \
 	USB_PHY_READ((_sc), ((_sc)->u2_base + (_off)))
-#define USB_PHY_WRITE_U2(_sc, _off, _val)		\
+#define USB_PHY_WRITE_U2(_sc, _off, _val) \
 	USB_PHY_WRITE((_sc), ((_sc)->u2_base + (_off)), (_val))
-#define USB_PHY_CLR_SET_U2(_sc, _off, _clr, _set)	\
-	USB_PHY_WRITE_U2((_sc), (_off), ((USB_PHY_READ_U2((_sc), (_off)) & \
-	    ~(_clr)) | (_set)))
-#define USB_PHY_BARRIER(_sc)	bus_barrier((_sc)->res, 0, 0, \
-			BUS_SPACE_BARRIER_WRITE | BUS_SPACE_BARRIER_READ)
+#define USB_PHY_CLR_SET_U2(_sc, _off, _clr, _set) \
+	USB_PHY_WRITE_U2((_sc), (_off),           \
+	    ((USB_PHY_READ_U2((_sc), (_off)) & ~(_clr)) | (_set)))
+#define USB_PHY_BARRIER(_sc)          \
+	bus_barrier((_sc)->res, 0, 0, \
+	    BUS_SPACE_BARRIER_WRITE | BUS_SPACE_BARRIER_READ)
 
-#define USB_PHY_READ_FM(_sc, _off)			\
+#define USB_PHY_READ_FM(_sc, _off) \
 	USB_PHY_READ((_sc), ((_sc)->fm_base + (_off)))
-#define USB_PHY_WRITE_FM(_sc, _off)			\
+#define USB_PHY_WRITE_FM(_sc, _off) \
 	USB_PHY_WRITE((_sc), ((_sc)->fm_base + (_off)), (_val))
-#define USB_PHY_CLR_SET_FM(_sc, _off, _clr, _set)	\
-	USB_PHY_WRITE_U2((_sc), (_off), ((USB_PHY_READ_U2((_sc), (_off)) & \
-	    ~(_clr)) | (_set)))
+#define USB_PHY_CLR_SET_FM(_sc, _off, _clr, _set) \
+	USB_PHY_WRITE_U2((_sc), (_off),           \
+	    ((USB_PHY_READ_U2((_sc), (_off)) & ~(_clr)) | (_set)))
 
 static void mtk_usb_phy_mt7621_init(device_t);
 static void mtk_usb_phy_mt7628_init(device_t);
 
-static struct ofw_compat_data compat_data[] = {
-	{ "ralink,mt7620-usbphy",	MTK_SOC_MT7620A },
-	{ "mediatek,mt7620-usbphy",	MTK_SOC_MT7620A },
-	{ "ralink,mt7628an-usbphy",	MTK_SOC_MT7628 },
-	{ "ralink,rt3352-usbphy",	MTK_SOC_RT3352 },
-	{ "ralink,rt3050-usbphy",	MTK_SOC_RT3050 },
-	{ NULL,				MTK_SOC_UNKNOWN }
-};
+static struct ofw_compat_data compat_data[] = { { "ralink,mt7620-usbphy",
+						    MTK_SOC_MT7620A },
+	{ "mediatek,mt7620-usbphy", MTK_SOC_MT7620A },
+	{ "ralink,mt7628an-usbphy", MTK_SOC_MT7628 },
+	{ "ralink,rt3352-usbphy", MTK_SOC_RT3352 },
+	{ "ralink,rt3050-usbphy", MTK_SOC_RT3050 }, { NULL, MTK_SOC_UNKNOWN } };
 
 static int
 mtk_usb_phy_probe(device_t dev)
@@ -99,9 +98,8 @@ mtk_usb_phy_probe(device_t dev)
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-	if ((sc->socid =
-	    ofw_bus_search_compatible(dev, compat_data)->ocd_data) ==
-	    MTK_SOC_UNKNOWN)
+	if ((sc->socid = ofw_bus_search_compatible(dev, compat_data)
+			     ->ocd_data) == MTK_SOC_UNKNOWN)
 		return (ENXIO);
 
 	device_set_desc(dev, "MTK USB PHY");
@@ -112,7 +110,7 @@ mtk_usb_phy_probe(device_t dev)
 static int
 mtk_usb_phy_attach(device_t dev)
 {
-	struct mtk_usb_phy_softc * sc = device_get_softc(dev);
+	struct mtk_usb_phy_softc *sc = device_get_softc(dev);
 	phandle_t node;
 	uint32_t val;
 	int rid;
@@ -146,8 +144,8 @@ mtk_usb_phy_attach(device_t dev)
 	/* Careful, some devices actually require resources */
 	if (OF_hasprop(node, "reg")) {
 		rid = 0;
-		sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-		    RF_ACTIVE);
+		sc->res = bus_alloc_resource_any(
+		    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 		if (sc->res == NULL) {
 			device_printf(dev, "could not map memory\n");
 			return (ENXIO);
@@ -287,9 +285,9 @@ mtk_usb_phy_mt7628_init(device_t dev)
 	USB_PHY_BARRIER(sc);
 	USB_PHY_WRITE_U2(sc, U2_PHY_DCR0, 0x00000402);
 	USB_PHY_BARRIER(sc);
-	USB_PHY_WRITE_U2(sc,  U2_PHY_AC0, 0x0048086a);
+	USB_PHY_WRITE_U2(sc, U2_PHY_AC0, 0x0048086a);
 	USB_PHY_BARRIER(sc);
-	USB_PHY_WRITE_U2(sc,  U2_PHY_AC1, 0x4400001c);
+	USB_PHY_WRITE_U2(sc, U2_PHY_AC1, 0x4400001c);
 	USB_PHY_BARRIER(sc);
 	USB_PHY_WRITE_U2(sc, U2_PHY_ACR3, 0xc0200000);
 	USB_PHY_BARRIER(sc);
@@ -304,12 +302,12 @@ mtk_usb_phy_mt7628_init(device_t dev)
 
 static device_method_t mtk_usb_phy_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		mtk_usb_phy_probe),
-	DEVMETHOD(device_attach,	mtk_usb_phy_attach),
-	DEVMETHOD(device_detach,	mtk_usb_phy_detach),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_probe, mtk_usb_phy_probe),
+	DEVMETHOD(device_attach, mtk_usb_phy_attach),
+	DEVMETHOD(device_detach, mtk_usb_phy_detach),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	DEVMETHOD_END
 };
@@ -322,5 +320,5 @@ static driver_t mtk_usb_phy_driver = {
 
 static devclass_t mtk_usb_phy_devclass;
 
-DRIVER_MODULE(usbphy, simplebus, mtk_usb_phy_driver, mtk_usb_phy_devclass, 0,
-    0);
+DRIVER_MODULE(
+    usbphy, simplebus, mtk_usb_phy_driver, mtk_usb_phy_devclass, 0, 0);

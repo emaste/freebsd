@@ -36,24 +36,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/link_elf.h>
+#include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/linker.h>
-#include <sys/mutex.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/vnode.h>
 
-#include <machine/elf.h>
-
-#include <net/vnet.h>
-
-#include <security/mac/mac_framework.h>
-
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -61,8 +55,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
 
-#include <sys/link_elf.h>
+#include <machine/elf.h>
+
+#include <net/vnet.h>
+
+#include <security/mac/mac_framework.h>
 
 #ifdef DDB_CTF
 #include <contrib/zlib/zlib.h>
@@ -71,102 +70,100 @@ __FBSDID("$FreeBSD$");
 #include "linker_if.h"
 
 typedef struct {
-	void		*addr;
-	Elf_Off		size;
-	int		flags;	/* Section flags. */
-	int		sec;	/* Original section number. */
-	char		*name;
+	void *addr;
+	Elf_Off size;
+	int flags; /* Section flags. */
+	int sec;   /* Original section number. */
+	char *name;
 } Elf_progent;
 
 typedef struct {
-	Elf_Rel		*rel;
-	int		nrel;
-	int		sec;
+	Elf_Rel *rel;
+	int nrel;
+	int sec;
 } Elf_relent;
 
 typedef struct {
-	Elf_Rela	*rela;
-	int		nrela;
-	int		sec;
+	Elf_Rela *rela;
+	int nrela;
+	int sec;
 } Elf_relaent;
 
 typedef struct elf_file {
-	struct linker_file lf;		/* Common fields */
+	struct linker_file lf; /* Common fields */
 
-	int		preloaded;
-	caddr_t		address;	/* Relocation address */
-	vm_object_t	object;		/* VM object to hold file pages */
-	Elf_Shdr	*e_shdr;
+	int preloaded;
+	caddr_t address;    /* Relocation address */
+	vm_object_t object; /* VM object to hold file pages */
+	Elf_Shdr *e_shdr;
 
-	Elf_progent	*progtab;
-	u_int		nprogtab;
+	Elf_progent *progtab;
+	u_int nprogtab;
 
-	Elf_relaent	*relatab;
-	u_int		nrelatab;
+	Elf_relaent *relatab;
+	u_int nrelatab;
 
-	Elf_relent	*reltab;
-	int		nreltab;
+	Elf_relent *reltab;
+	int nreltab;
 
-	Elf_Sym		*ddbsymtab;	/* The symbol table we are using */
-	long		ddbsymcnt;	/* Number of symbols */
-	caddr_t		ddbstrtab;	/* String table */
-	long		ddbstrcnt;	/* number of bytes in string table */
+	Elf_Sym *ddbsymtab; /* The symbol table we are using */
+	long ddbsymcnt;	    /* Number of symbols */
+	caddr_t ddbstrtab;  /* String table */
+	long ddbstrcnt;	    /* number of bytes in string table */
 
-	caddr_t		shstrtab;	/* Section name string table */
-	long		shstrcnt;	/* number of bytes in string table */
+	caddr_t shstrtab; /* Section name string table */
+	long shstrcnt;	  /* number of bytes in string table */
 
-	caddr_t		ctftab;		/* CTF table */
-	long		ctfcnt;		/* number of bytes in CTF table */
-	caddr_t		ctfoff;		/* CTF offset table */
-	caddr_t		typoff;		/* Type offset table */
-	long		typlen;		/* Number of type entries. */
+	caddr_t ctftab; /* CTF table */
+	long ctfcnt;	/* number of bytes in CTF table */
+	caddr_t ctfoff; /* CTF offset table */
+	caddr_t typoff; /* Type offset table */
+	long typlen;	/* Number of type entries. */
 
-} *elf_file_t;
+} * elf_file_t;
 
 #include <kern/kern_ctf.c>
 
-static int	link_elf_link_preload(linker_class_t cls,
-		    const char *, linker_file_t *);
-static int	link_elf_link_preload_finish(linker_file_t);
-static int	link_elf_load_file(linker_class_t, const char *, linker_file_t *);
-static int	link_elf_lookup_symbol(linker_file_t, const char *,
-		    c_linker_sym_t *);
-static int	link_elf_symbol_values(linker_file_t, c_linker_sym_t,
-		    linker_symval_t *);
-static int	link_elf_search_symbol(linker_file_t, caddr_t value,
-		    c_linker_sym_t *sym, long *diffp);
+static int link_elf_link_preload(
+    linker_class_t cls, const char *, linker_file_t *);
+static int link_elf_link_preload_finish(linker_file_t);
+static int link_elf_load_file(linker_class_t, const char *, linker_file_t *);
+static int link_elf_lookup_symbol(
+    linker_file_t, const char *, c_linker_sym_t *);
+static int link_elf_symbol_values(
+    linker_file_t, c_linker_sym_t, linker_symval_t *);
+static int link_elf_search_symbol(
+    linker_file_t, caddr_t value, c_linker_sym_t *sym, long *diffp);
 
-static void	link_elf_unload_file(linker_file_t);
-static int	link_elf_lookup_set(linker_file_t, const char *,
-		    void ***, void ***, int *);
-static int	link_elf_each_function_name(linker_file_t,
-		    int (*)(const char *, void *), void *);
-static int	link_elf_each_function_nameval(linker_file_t,
-				linker_function_nameval_callback_t,
-				void *);
-static int	link_elf_reloc_local(linker_file_t, bool);
-static long	link_elf_symtab_get(linker_file_t, const Elf_Sym **);
-static long	link_elf_strtab_get(linker_file_t, caddr_t *);
+static void link_elf_unload_file(linker_file_t);
+static int link_elf_lookup_set(
+    linker_file_t, const char *, void ***, void ***, int *);
+static int link_elf_each_function_name(
+    linker_file_t, int (*)(const char *, void *), void *);
+static int link_elf_each_function_nameval(
+    linker_file_t, linker_function_nameval_callback_t, void *);
+static int link_elf_reloc_local(linker_file_t, bool);
+static long link_elf_symtab_get(linker_file_t, const Elf_Sym **);
+static long link_elf_strtab_get(linker_file_t, caddr_t *);
 
-static int	elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps,
-		    Elf_Addr *);
+static int elf_obj_lookup(
+    linker_file_t lf, Elf_Size symidx, int deps, Elf_Addr *);
 
-static kobj_method_t link_elf_methods[] = {
-	KOBJMETHOD(linker_lookup_symbol,	link_elf_lookup_symbol),
-	KOBJMETHOD(linker_symbol_values,	link_elf_symbol_values),
-	KOBJMETHOD(linker_search_symbol,	link_elf_search_symbol),
-	KOBJMETHOD(linker_unload,		link_elf_unload_file),
-	KOBJMETHOD(linker_load_file,		link_elf_load_file),
-	KOBJMETHOD(linker_link_preload,		link_elf_link_preload),
-	KOBJMETHOD(linker_link_preload_finish,	link_elf_link_preload_finish),
-	KOBJMETHOD(linker_lookup_set,		link_elf_lookup_set),
-	KOBJMETHOD(linker_each_function_name,	link_elf_each_function_name),
-	KOBJMETHOD(linker_each_function_nameval, link_elf_each_function_nameval),
-	KOBJMETHOD(linker_ctf_get,		link_elf_ctf_get),
-	KOBJMETHOD(linker_symtab_get, 		link_elf_symtab_get),
-	KOBJMETHOD(linker_strtab_get, 		link_elf_strtab_get),
-	KOBJMETHOD_END
-};
+static kobj_method_t link_elf_methods[] = { KOBJMETHOD(linker_lookup_symbol,
+						link_elf_lookup_symbol),
+	KOBJMETHOD(linker_symbol_values, link_elf_symbol_values),
+	KOBJMETHOD(linker_search_symbol, link_elf_search_symbol),
+	KOBJMETHOD(linker_unload, link_elf_unload_file),
+	KOBJMETHOD(linker_load_file, link_elf_load_file),
+	KOBJMETHOD(linker_link_preload, link_elf_link_preload),
+	KOBJMETHOD(linker_link_preload_finish, link_elf_link_preload_finish),
+	KOBJMETHOD(linker_lookup_set, link_elf_lookup_set),
+	KOBJMETHOD(linker_each_function_name, link_elf_each_function_name),
+	KOBJMETHOD(
+	    linker_each_function_nameval, link_elf_each_function_nameval),
+	KOBJMETHOD(linker_ctf_get, link_elf_ctf_get),
+	KOBJMETHOD(linker_symtab_get, link_elf_symtab_get),
+	KOBJMETHOD(linker_strtab_get, link_elf_strtab_get), KOBJMETHOD_END };
 
 static struct linker_class link_elf_class = {
 #if ELF_TARG_CLASS == ELFCLASS32
@@ -177,8 +174,8 @@ static struct linker_class link_elf_class = {
 	link_elf_methods, sizeof(struct elf_file)
 };
 
-static int	relocate_file(elf_file_t ef);
-static void	elf_obj_cleanup_globals_cache(elf_file_t);
+static int relocate_file(elf_file_t ef);
+static void elf_obj_cleanup_globals_cache(elf_file_t);
 
 static void
 link_elf_error(const char *filename, const char *s)
@@ -198,15 +195,15 @@ link_elf_init(void *arg)
 SYSINIT(link_elf_obj, SI_SUB_KLD, SI_ORDER_SECOND, link_elf_init, NULL);
 
 static void
-link_elf_protect_range(elf_file_t ef, vm_offset_t start, vm_offset_t end,
-    vm_prot_t prot)
+link_elf_protect_range(
+    elf_file_t ef, vm_offset_t start, vm_offset_t end, vm_prot_t prot)
 {
 	int error __unused;
 
 	KASSERT(start <= end && start >= (vm_offset_t)ef->address &&
-	    end <= round_page((vm_offset_t)ef->address + ef->lf.size),
+		end <= round_page((vm_offset_t)ef->address + ef->lf.size),
 	    ("link_elf_protect_range: invalid range %#jx-%#jx",
-	    (uintmax_t)start, (uintmax_t)end));
+		(uintmax_t)start, (uintmax_t)end));
 
 	if (start == end)
 		return;
@@ -215,12 +212,12 @@ link_elf_protect_range(elf_file_t ef, vm_offset_t start, vm_offset_t end,
 		error = pmap_change_prot(start, end - start, prot);
 		KASSERT(error == 0,
 		    ("link_elf_protect_range: pmap_change_prot() returned %d",
-		    error));
+			error));
 #endif
 		return;
 	}
-	error = vm_map_protect(kernel_map, start, end, prot, 0,
-	    VM_MAP_PROTECT_SET_PROT);
+	error = vm_map_protect(
+	    kernel_map, start, end, prot, 0, VM_MAP_PROTECT_SET_PROT);
 	KASSERT(error == KERN_SUCCESS,
 	    ("link_elf_protect_range: vm_map_protect() returned %d", error));
 }
@@ -251,16 +248,17 @@ link_elf_protect(elf_file_t ef)
 		 * VNET and DPCPU sections have their memory allocated by their
 		 * respective subsystems.
 		 */
-		if (ef->progtab[i].name != NULL && (
+		if (ef->progtab[i].name != NULL &&
+		    (
 #ifdef VIMAGE
-		    strcmp(ef->progtab[i].name, VNET_SETNAME) == 0 ||
+			strcmp(ef->progtab[i].name, VNET_SETNAME) == 0 ||
 #endif
-		    strcmp(ef->progtab[i].name, DPCPU_SETNAME) == 0))
+			strcmp(ef->progtab[i].name, DPCPU_SETNAME) == 0))
 			continue;
 
 		segstart = trunc_page((vm_offset_t)ef->progtab[i].addr);
-		segend = round_page((vm_offset_t)ef->progtab[i].addr +
-		    ef->progtab[i].size);
+		segend = round_page(
+		    (vm_offset_t)ef->progtab[i].addr + ef->progtab[i].size);
 		segprot = VM_PROT_READ;
 		if ((ef->progtab[i].flags & SHF_WRITE) != 0)
 			segprot |= VM_PROT_WRITE;
@@ -299,8 +297,8 @@ link_elf_protect(elf_file_t ef)
 			 * segments' protections.
 			 */
 			link_elf_protect_range(ef, start, segstart, prot);
-			link_elf_protect_range(ef, segstart, end,
-			    prot | segprot);
+			link_elf_protect_range(
+			    ef, segstart, end, prot | segprot);
 			start = end;
 			end = segend;
 			prot = segprot;
@@ -321,8 +319,8 @@ link_elf_protect(elf_file_t ef)
 }
 
 static int
-link_elf_link_preload(linker_class_t cls, const char *filename,
-    linker_file_t *result)
+link_elf_link_preload(
+    linker_class_t cls, const char *filename, linker_file_t *result)
 {
 	Elf_Ehdr *hdr;
 	Elf_Shdr *shdr;
@@ -342,17 +340,17 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 	type = (char *)preload_search_info(modptr, MODINFO_TYPE);
 	baseptr = preload_search_info(modptr, MODINFO_ADDR);
 	sizeptr = preload_search_info(modptr, MODINFO_SIZE);
-	hdr = (Elf_Ehdr *)preload_search_info(modptr, MODINFO_METADATA |
-	    MODINFOMD_ELFHDR);
-	shdr = (Elf_Shdr *)preload_search_info(modptr, MODINFO_METADATA |
-	    MODINFOMD_SHDR);
-	if (type == NULL || (strcmp(type, "elf" __XSTRING(__ELF_WORD_SIZE)
-	    " obj module") != 0 &&
-	    strcmp(type, "elf obj module") != 0)) {
+	hdr = (Elf_Ehdr *)preload_search_info(
+	    modptr, MODINFO_METADATA | MODINFOMD_ELFHDR);
+	shdr = (Elf_Shdr *)preload_search_info(
+	    modptr, MODINFO_METADATA | MODINFOMD_SHDR);
+	if (type == NULL ||
+	    (strcmp(type, "elf" __XSTRING(__ELF_WORD_SIZE) " obj module") !=
+		    0 &&
+		strcmp(type, "elf obj module") != 0)) {
 		return (EFTYPE);
 	}
-	if (baseptr == NULL || sizeptr == NULL || hdr == NULL ||
-	    shdr == NULL)
+	if (baseptr == NULL || sizeptr == NULL || hdr == NULL || shdr == NULL)
 		return (EINVAL);
 
 	lf = linker_make_file(filename, &link_elf_class);
@@ -368,8 +366,7 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 	if (hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
 	    hdr->e_ident[EI_DATA] != ELF_TARG_DATA ||
 	    hdr->e_ident[EI_VERSION] != EV_CURRENT ||
-	    hdr->e_version != EV_CURRENT ||
-	    hdr->e_type != ET_REL ||
+	    hdr->e_version != EV_CURRENT || hdr->e_type != ET_REL ||
 	    hdr->e_machine != ELF_TARG_MACH) {
 		error = EFTYPE;
 		goto out;
@@ -430,8 +427,8 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 		ef->progtab = malloc(ef->nprogtab * sizeof(*ef->progtab),
 		    M_LINKER, M_WAITOK | M_ZERO);
 	if (ef->nreltab != 0)
-		ef->reltab = malloc(ef->nreltab * sizeof(*ef->reltab),
-		    M_LINKER, M_WAITOK | M_ZERO);
+		ef->reltab = malloc(ef->nreltab * sizeof(*ef->reltab), M_LINKER,
+		    M_WAITOK | M_ZERO);
 	if (ef->nrelatab != 0)
 		ef->relatab = malloc(ef->nrelatab * sizeof(*ef->relatab),
 		    M_LINKER, M_WAITOK | M_ZERO);
@@ -493,17 +490,18 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 			ef->progtab[pb].flags = shdr[i].sh_flags;
 			ef->progtab[pb].sec = i;
 			if (ef->shstrtab && shdr[i].sh_name != 0)
-				ef->progtab[pb].name =
-				    ef->shstrtab + shdr[i].sh_name;
-			if (ef->progtab[pb].name != NULL && 
+				ef->progtab[pb].name = ef->shstrtab +
+				    shdr[i].sh_name;
+			if (ef->progtab[pb].name != NULL &&
 			    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME)) {
 				void *dpcpu;
 
 				dpcpu = dpcpu_alloc(shdr[i].sh_size);
 				if (dpcpu == NULL) {
 					printf("%s: pcpu module space is out "
-					    "of space; cannot allocate %#jx "
-					    "for %s\n", __func__,
+					       "of space; cannot allocate %#jx "
+					       "for %s\n",
+					    __func__,
 					    (uintmax_t)shdr[i].sh_size,
 					    filename);
 					error = ENOSPC;
@@ -521,8 +519,9 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 				vnet_data = vnet_data_alloc(shdr[i].sh_size);
 				if (vnet_data == NULL) {
 					printf("%s: vnet module space is out "
-					    "of space; cannot allocate %#jx "
-					    "for %s\n", __func__,
+					       "of space; cannot allocate %#jx "
+					       "for %s\n",
+					    __func__,
 					    (uintmax_t)shdr[i].sh_size,
 					    filename);
 					error = ENOSPC;
@@ -534,11 +533,12 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 				ef->progtab[pb].addr = vnet_data;
 #endif
 			} else if ((ef->progtab[pb].name != NULL &&
-			    strcmp(ef->progtab[pb].name, ".ctors") == 0) ||
+				       strcmp(ef->progtab[pb].name, ".ctors") ==
+					   0) ||
 			    shdr[i].sh_type == SHT_INIT_ARRAY) {
 				if (lf->ctors_addr != 0) {
 					printf(
-				    "%s: multiple ctor sections in %s\n",
+					    "%s: multiple ctor sections in %s\n",
 					    __func__, filename);
 				} else {
 					lf->ctors_addr = ef->progtab[pb].addr;
@@ -567,8 +567,8 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 			if (shdr[shdr[i].sh_info].sh_addr == 0)
 				break;
 			ef->relatab[ra].rela = (Elf_Rela *)shdr[i].sh_addr;
-			ef->relatab[ra].nrela =
-			    shdr[i].sh_size / sizeof(Elf_Rela);
+			ef->relatab[ra].nrela = shdr[i].sh_size /
+			    sizeof(Elf_Rela);
 			ef->relatab[ra].sec = shdr[i].sh_info;
 			ra++;
 			break;
@@ -658,11 +658,11 @@ link_elf_link_preload_finish(linker_file_t lf)
 }
 
 static int
-link_elf_load_file(linker_class_t cls, const char *filename,
-    linker_file_t *result)
+link_elf_load_file(
+    linker_class_t cls, const char *filename, linker_file_t *result)
 {
 	struct nameidata *nd;
-	struct thread *td = curthread;	/* XXX */
+	struct thread *td = curthread; /* XXX */
 	Elf_Ehdr *hdr;
 	Elf_Shdr *shdr;
 	Elf_Sym *es;
@@ -709,11 +709,10 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	/* Read the elf header from the file. */
 	hdr = malloc(sizeof(*hdr), M_LINKER, M_WAITOK);
 	error = vn_rdwr(UIO_READ, nd->ni_vp, (void *)hdr, sizeof(*hdr), 0,
-	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
-	    &resid, td);
+	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, &resid, td);
 	if (error)
 		goto out;
-	if (resid != 0){
+	if (resid != 0) {
 		error = ENOEXEC;
 		goto out;
 	}
@@ -723,14 +722,14 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		goto out;
 	}
 
-	if (hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS
-	    || hdr->e_ident[EI_DATA] != ELF_TARG_DATA) {
+	if (hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
+	    hdr->e_ident[EI_DATA] != ELF_TARG_DATA) {
 		link_elf_error(filename, "Unsupported file layout");
 		error = ENOEXEC;
 		goto out;
 	}
-	if (hdr->e_ident[EI_VERSION] != EV_CURRENT
-	    || hdr->e_version != EV_CURRENT) {
+	if (hdr->e_ident[EI_VERSION] != EV_CURRENT ||
+	    hdr->e_version != EV_CURRENT) {
 		link_elf_error(filename, "Unsupported file version");
 		error = ENOEXEC;
 		goto out;
@@ -750,7 +749,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		error = ENOMEM;
 		goto out;
 	}
-	ef = (elf_file_t) lf;
+	ef = (elf_file_t)lf;
 	ef->nprogtab = 0;
 	ef->e_shdr = 0;
 	ef->nreltab = 0;
@@ -766,8 +765,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	shdr = malloc(nbytes, M_LINKER, M_WAITOK);
 	ef->e_shdr = shdr;
 	error = vn_rdwr(UIO_READ, nd->ni_vp, (caddr_t)shdr, nbytes,
-	    hdr->e_shoff, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,
-	    NOCRED, &resid, td);
+	    hdr->e_shoff, UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
+	    &resid, td);
 	if (error)
 		goto out;
 	if (resid) {
@@ -824,8 +823,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	}
 	if (nsym != 1) {
 		/* Only allow one symbol table for now */
-		link_elf_error(filename,
-		    "file must have exactly one symbol table");
+		link_elf_error(
+		    filename, "file must have exactly one symbol table");
 		error = ENOEXEC;
 		goto out;
 	}
@@ -841,8 +840,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		ef->progtab = malloc(ef->nprogtab * sizeof(*ef->progtab),
 		    M_LINKER, M_WAITOK | M_ZERO);
 	if (ef->nreltab != 0)
-		ef->reltab = malloc(ef->nreltab * sizeof(*ef->reltab),
-		    M_LINKER, M_WAITOK | M_ZERO);
+		ef->reltab = malloc(ef->nreltab * sizeof(*ef->reltab), M_LINKER,
+		    M_WAITOK | M_ZERO);
 	if (ef->nrelatab != 0)
 		ef->relatab = malloc(ef->nrelatab * sizeof(*ef->relatab),
 		    M_LINKER, M_WAITOK | M_ZERO);
@@ -857,11 +856,10 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	ef->ddbsymtab = malloc(shdr[symtabindex].sh_size, M_LINKER, M_WAITOK);
 	error = vn_rdwr(UIO_READ, nd->ni_vp, (void *)ef->ddbsymtab,
 	    shdr[symtabindex].sh_size, shdr[symtabindex].sh_offset,
-	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
-	    &resid, td);
+	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, &resid, td);
 	if (error)
 		goto out;
-	if (resid != 0){
+	if (resid != 0) {
 		error = EINVAL;
 		goto out;
 	}
@@ -871,11 +869,10 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	ef->ddbstrtab = malloc(shdr[symstrindex].sh_size, M_LINKER, M_WAITOK);
 	error = vn_rdwr(UIO_READ, nd->ni_vp, ef->ddbstrtab,
 	    shdr[symstrindex].sh_size, shdr[symstrindex].sh_offset,
-	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
-	    &resid, td);
+	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, &resid, td);
 	if (error)
 		goto out;
-	if (resid != 0){
+	if (resid != 0) {
 		error = EINVAL;
 		goto out;
 	}
@@ -886,15 +883,15 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	    shdr[hdr->e_shstrndx].sh_type == SHT_STRTAB) {
 		shstrindex = hdr->e_shstrndx;
 		ef->shstrcnt = shdr[shstrindex].sh_size;
-		ef->shstrtab = malloc(shdr[shstrindex].sh_size, M_LINKER,
-		    M_WAITOK);
+		ef->shstrtab = malloc(
+		    shdr[shstrindex].sh_size, M_LINKER, M_WAITOK);
 		error = vn_rdwr(UIO_READ, nd->ni_vp, ef->shstrtab,
 		    shdr[shstrindex].sh_size, shdr[shstrindex].sh_offset,
-		    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
-		    &resid, td);
+		    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED, &resid,
+		    td);
 		if (error)
 			goto out;
-		if (resid != 0){
+		if (resid != 0) {
 			error = EINVAL;
 			goto out;
 		}
@@ -961,9 +958,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	}
 
 	/* Wire the pages */
-	error = vm_map_wire(kernel_map, mapbase,
-	    mapbase + round_page(mapsize),
-	    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
+	error = vm_map_wire(kernel_map, mapbase, mapbase + round_page(mapsize),
+	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
 	if (error != KERN_SUCCESS) {
 		error = ENOMEM;
 		goto out;
@@ -998,17 +994,17 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			mapbase += alignmask;
 			mapbase &= ~alignmask;
 			if (ef->shstrtab != NULL && shdr[i].sh_name != 0) {
-				ef->progtab[pb].name =
-				    ef->shstrtab + shdr[i].sh_name;
+				ef->progtab[pb].name = ef->shstrtab +
+				    shdr[i].sh_name;
 				if (!strcmp(ef->progtab[pb].name, ".ctors") ||
 				    shdr[i].sh_type == SHT_INIT_ARRAY) {
 					if (lf->ctors_addr != 0) {
 						printf(
-				    "%s: multiple ctor sections in %s\n",
+						    "%s: multiple ctor sections in %s\n",
 						    __func__, filename);
 					} else {
-						lf->ctors_addr =
-						    (caddr_t)mapbase;
+						lf->ctors_addr = (caddr_t)
+						    mapbase;
 						lf->ctors_size =
 						    shdr[i].sh_size;
 					}
@@ -1021,14 +1017,15 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 #endif
 			else
 				ef->progtab[pb].name = "<<NOBITS>>";
-			if (ef->progtab[pb].name != NULL && 
+			if (ef->progtab[pb].name != NULL &&
 			    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME)) {
-				ef->progtab[pb].addr =
-				    dpcpu_alloc(shdr[i].sh_size);
+				ef->progtab[pb].addr = dpcpu_alloc(
+				    shdr[i].sh_size);
 				if (ef->progtab[pb].addr == NULL) {
 					printf("%s: pcpu module space is out "
-					    "of space; cannot allocate %#jx "
-					    "for %s\n", __func__,
+					       "of space; cannot allocate %#jx "
+					       "for %s\n",
+					    __func__,
 					    (uintmax_t)shdr[i].sh_size,
 					    filename);
 				}
@@ -1036,20 +1033,21 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 #ifdef VIMAGE
 			else if (ef->progtab[pb].name != NULL &&
 			    !strcmp(ef->progtab[pb].name, VNET_SETNAME)) {
-				ef->progtab[pb].addr =
-				    vnet_data_alloc(shdr[i].sh_size);
+				ef->progtab[pb].addr = vnet_data_alloc(
+				    shdr[i].sh_size);
 				if (ef->progtab[pb].addr == NULL) {
 					printf("%s: vnet module space is out "
-					    "of space; cannot allocate %#jx "
-					    "for %s\n", __func__,
+					       "of space; cannot allocate %#jx "
+					       "for %s\n",
+					    __func__,
 					    (uintmax_t)shdr[i].sh_size,
 					    filename);
 				}
 			}
 #endif
 			else
-				ef->progtab[pb].addr =
-				    (void *)(uintptr_t)mapbase;
+				ef->progtab[pb].addr = (void *)(uintptr_t)
+				    mapbase;
 			if (ef->progtab[pb].addr == NULL) {
 				error = ENOSPC;
 				goto out;
@@ -1061,26 +1059,27 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 #ifdef __amd64__
 			    || shdr[i].sh_type == SHT_X86_64_UNWIND
 #endif
-			    ) {
+			) {
 				error = vn_rdwr(UIO_READ, nd->ni_vp,
-				    ef->progtab[pb].addr,
-				    shdr[i].sh_size, shdr[i].sh_offset,
-				    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,
-				    NOCRED, &resid, td);
+				    ef->progtab[pb].addr, shdr[i].sh_size,
+				    shdr[i].sh_offset, UIO_SYSSPACE,
+				    IO_NODELOCKED, td->td_ucred, NOCRED, &resid,
+				    td);
 				if (error)
 					goto out;
-				if (resid != 0){
+				if (resid != 0) {
 					error = EINVAL;
 					goto out;
 				}
 				/* Initialize the per-cpu or vnet area. */
 				if (ef->progtab[pb].addr != (void *)mapbase &&
-				    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME))
+				    !strcmp(
+					ef->progtab[pb].name, DPCPU_SETNAME))
 					dpcpu_copy(ef->progtab[pb].addr,
 					    shdr[i].sh_size);
 #ifdef VIMAGE
 				else if (ef->progtab[pb].addr !=
-				    (void *)mapbase &&
+					(void *)mapbase &&
 				    !strcmp(ef->progtab[pb].name, VNET_SETNAME))
 					vnet_data_copy(ef->progtab[pb].addr,
 					    shdr[i].sh_size);
@@ -1101,18 +1100,17 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		case SHT_REL:
 			if ((shdr[shdr[i].sh_info].sh_flags & SHF_ALLOC) == 0)
 				break;
-			ef->reltab[rl].rel = malloc(shdr[i].sh_size, M_LINKER,
-			    M_WAITOK);
+			ef->reltab[rl].rel = malloc(
+			    shdr[i].sh_size, M_LINKER, M_WAITOK);
 			ef->reltab[rl].nrel = shdr[i].sh_size / sizeof(Elf_Rel);
 			ef->reltab[rl].sec = shdr[i].sh_info;
 			error = vn_rdwr(UIO_READ, nd->ni_vp,
-			    (void *)ef->reltab[rl].rel,
-			    shdr[i].sh_size, shdr[i].sh_offset,
-			    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
-			    &resid, td);
+			    (void *)ef->reltab[rl].rel, shdr[i].sh_size,
+			    shdr[i].sh_offset, UIO_SYSSPACE, IO_NODELOCKED,
+			    td->td_ucred, NOCRED, &resid, td);
 			if (error)
 				goto out;
-			if (resid != 0){
+			if (resid != 0) {
 				error = EINVAL;
 				goto out;
 			}
@@ -1121,19 +1119,18 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		case SHT_RELA:
 			if ((shdr[shdr[i].sh_info].sh_flags & SHF_ALLOC) == 0)
 				break;
-			ef->relatab[ra].rela = malloc(shdr[i].sh_size, M_LINKER,
-			    M_WAITOK);
-			ef->relatab[ra].nrela =
-			    shdr[i].sh_size / sizeof(Elf_Rela);
+			ef->relatab[ra].rela = malloc(
+			    shdr[i].sh_size, M_LINKER, M_WAITOK);
+			ef->relatab[ra].nrela = shdr[i].sh_size /
+			    sizeof(Elf_Rela);
 			ef->relatab[ra].sec = shdr[i].sh_info;
 			error = vn_rdwr(UIO_READ, nd->ni_vp,
-			    (void *)ef->relatab[ra].rela,
-			    shdr[i].sh_size, shdr[i].sh_offset,
-			    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
-			    &resid, td);
+			    (void *)ef->relatab[ra].rela, shdr[i].sh_size,
+			    shdr[i].sh_offset, UIO_SYSSPACE, IO_NODELOCKED,
+			    td->td_ucred, NOCRED, &resid, td);
 			if (error)
 				goto out;
-			if (resid != 0){
+			if (resid != 0) {
 				error = EINVAL;
 				goto out;
 			}
@@ -1159,8 +1156,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	if (mapbase != (vm_offset_t)ef->address + mapsize) {
 		printf(
 		    "%s: mapbase 0x%lx != address %p + mapsize 0x%lx (0x%lx)\n",
-		    filename != NULL ? filename : "<none>",
-		    (u_long)mapbase, ef->address, (u_long)mapsize,
+		    filename != NULL ? filename : "<none>", (u_long)mapbase,
+		    ef->address, (u_long)mapsize,
 		    (u_long)(vm_offset_t)ef->address + mapsize);
 		error = ENOMEM;
 		goto out;
@@ -1213,7 +1210,7 @@ out:
 static void
 link_elf_unload_file(linker_file_t file)
 {
-	elf_file_t ef = (elf_file_t) file;
+	elf_file_t ef = (elf_file_t)file;
 	u_int i;
 
 	/* Notify MD code that a module is being unloaded. */
@@ -1226,12 +1223,12 @@ link_elf_unload_file(linker_file_t file)
 			if (ef->progtab[i].name == NULL)
 				continue;
 			if (!strcmp(ef->progtab[i].name, DPCPU_SETNAME))
-				dpcpu_free(ef->progtab[i].addr,
-				    ef->progtab[i].size);
+				dpcpu_free(
+				    ef->progtab[i].addr, ef->progtab[i].size);
 #ifdef VIMAGE
 			else if (!strcmp(ef->progtab[i].name, VNET_SETNAME))
-				vnet_data_free(ef->progtab[i].addr,
-				    ef->progtab[i].size);
+				vnet_data_free(
+				    ef->progtab[i].addr, ef->progtab[i].size);
 #endif
 		}
 	}
@@ -1320,7 +1317,7 @@ relocate_file(elf_file_t ef)
 			link_elf_error(ef->lf.filename, "lost base for reltab");
 			return (ENOEXEC);
 		}
-		for ( ; rel < rellim; rel++) {
+		for (; rel < rellim; rel++) {
 			symidx = ELF_R_SYM(rel->r_info);
 			if (symidx >= ef->ddbsymcnt)
 				continue;
@@ -1329,7 +1326,7 @@ relocate_file(elf_file_t ef)
 			if (ELF_ST_BIND(sym->st_info) == STB_LOCAL)
 				continue;
 			if (elf_reloc(&ef->lf, base, rel, ELF_RELOC_REL,
-			    elf_obj_lookup)) {
+				elf_obj_lookup)) {
 				symname = symbol_name(ef, rel->r_info);
 				printf("link_elf_obj: symbol %s undefined\n",
 				    symname);
@@ -1348,11 +1345,11 @@ relocate_file(elf_file_t ef)
 		relalim = rela + ef->relatab[i].nrela;
 		base = findbase(ef, ef->relatab[i].sec);
 		if (base == 0) {
-			link_elf_error(ef->lf.filename,
-			    "lost base for relatab");
+			link_elf_error(
+			    ef->lf.filename, "lost base for relatab");
 			return (ENOEXEC);
 		}
-		for ( ; rela < relalim; rela++) {
+		for (; rela < relalim; rela++) {
 			symidx = ELF_R_SYM(rela->r_info);
 			if (symidx >= ef->ddbsymcnt)
 				continue;
@@ -1361,7 +1358,7 @@ relocate_file(elf_file_t ef)
 			if (ELF_ST_BIND(sym->st_info) == STB_LOCAL)
 				continue;
 			if (elf_reloc(&ef->lf, base, rela, ELF_RELOC_RELA,
-			    elf_obj_lookup)) {
+				elf_obj_lookup)) {
 				symname = symbol_name(ef, rela->r_info);
 				printf("link_elf_obj: symbol %s undefined\n",
 				    symname);
@@ -1383,7 +1380,7 @@ relocate_file(elf_file_t ef)
 static int
 link_elf_lookup_symbol(linker_file_t lf, const char *name, c_linker_sym_t *sym)
 {
-	elf_file_t ef = (elf_file_t) lf;
+	elf_file_t ef = (elf_file_t)lf;
 	const Elf_Sym *symp;
 	const char *strp;
 	int i;
@@ -1391,7 +1388,7 @@ link_elf_lookup_symbol(linker_file_t lf, const char *name, c_linker_sym_t *sym)
 	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
 		strp = ef->ddbstrtab + symp->st_name;
 		if (symp->st_shndx != SHN_UNDEF && strcmp(name, strp) == 0) {
-			*sym = (c_linker_sym_t) symp;
+			*sym = (c_linker_sym_t)symp;
 			return 0;
 		}
 	}
@@ -1399,21 +1396,21 @@ link_elf_lookup_symbol(linker_file_t lf, const char *name, c_linker_sym_t *sym)
 }
 
 static int
-link_elf_symbol_values(linker_file_t lf, c_linker_sym_t sym,
-    linker_symval_t *symval)
+link_elf_symbol_values(
+    linker_file_t lf, c_linker_sym_t sym, linker_symval_t *symval)
 {
 	elf_file_t ef;
 	const Elf_Sym *es;
 	caddr_t val;
 
-	ef = (elf_file_t) lf;
-	es = (const Elf_Sym*) sym;
+	ef = (elf_file_t)lf;
+	es = (const Elf_Sym *)sym;
 	val = (caddr_t)es->st_value;
 	if (es >= ef->ddbsymtab && es < (ef->ddbsymtab + ef->ddbsymcnt)) {
 		symval->name = ef->ddbstrtab + es->st_name;
 		val = (caddr_t)es->st_value;
 		if (ELF_ST_TYPE(es->st_info) == STT_GNU_IFUNC)
-			val = ((caddr_t (*)(void))val)();
+			val = ((caddr_t(*)(void))val)();
 		symval->value = val;
 		symval->size = es->st_size;
 		return 0;
@@ -1422,11 +1419,11 @@ link_elf_symbol_values(linker_file_t lf, c_linker_sym_t sym,
 }
 
 static int
-link_elf_search_symbol(linker_file_t lf, caddr_t value,
-    c_linker_sym_t *sym, long *diffp)
+link_elf_search_symbol(
+    linker_file_t lf, caddr_t value, c_linker_sym_t *sym, long *diffp)
 {
-	elf_file_t ef = (elf_file_t) lf;
-	u_long off = (uintptr_t) (void *) value;
+	elf_file_t ef = (elf_file_t)lf;
+	u_long off = (uintptr_t)(void *)value;
 	u_long diff = off;
 	u_long st_value;
 	const Elf_Sym *es;
@@ -1452,7 +1449,7 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 		*diffp = off;
 	else
 		*diffp = diff;
-	*sym = (c_linker_sym_t) best;
+	*sym = (c_linker_sym_t)best;
 
 	return 0;
 }
@@ -1461,8 +1458,8 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
  * Look up a linker set on an ELF system.
  */
 static int
-link_elf_lookup_set(linker_file_t lf, const char *name,
-    void ***startp, void ***stopp, int *countp)
+link_elf_lookup_set(linker_file_t lf, const char *name, void ***startp,
+    void ***stopp, int *countp)
 {
 	elf_file_t ef = (elf_file_t)lf;
 	void **start, **stop;
@@ -1472,7 +1469,7 @@ link_elf_lookup_set(linker_file_t lf, const char *name,
 	for (i = 0; i < ef->nprogtab; i++) {
 		if ((strncmp(ef->progtab[i].name, "set_", 4) == 0) &&
 		    strcmp(ef->progtab[i].name + 4, name) == 0) {
-			start  = (void **)ef->progtab[i].addr;
+			start = (void **)ef->progtab[i].addr;
 			stop = (void **)((char *)ef->progtab[i].addr +
 			    ef->progtab[i].size);
 			count = stop - start;
@@ -1489,8 +1486,8 @@ link_elf_lookup_set(linker_file_t lf, const char *name,
 }
 
 static int
-link_elf_each_function_name(linker_file_t file,
-    int (*callback)(const char *, void *), void *opaque)
+link_elf_each_function_name(
+    linker_file_t file, int (*callback)(const char *, void *), void *opaque)
 {
 	elf_file_t ef = (elf_file_t)file;
 	const Elf_Sym *symp;
@@ -1500,7 +1497,7 @@ link_elf_each_function_name(linker_file_t file,
 	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
 		if (symp->st_value != 0 &&
 		    (ELF_ST_TYPE(symp->st_info) == STT_FUNC ||
-		    ELF_ST_TYPE(symp->st_info) == STT_GNU_IFUNC)) {
+			ELF_ST_TYPE(symp->st_info) == STT_GNU_IFUNC)) {
 			error = callback(ef->ddbstrtab + symp->st_name, opaque);
 			if (error)
 				return (error);
@@ -1515,16 +1512,16 @@ link_elf_each_function_nameval(linker_file_t file,
 {
 	linker_symval_t symval;
 	elf_file_t ef = (elf_file_t)file;
-	const Elf_Sym* symp;
+	const Elf_Sym *symp;
 	int i, error;
 
 	/* Exhaustive search */
 	for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
 		if (symp->st_value != 0 &&
 		    (ELF_ST_TYPE(symp->st_info) == STT_FUNC ||
-		    ELF_ST_TYPE(symp->st_info) == STT_GNU_IFUNC)) {
-			error = link_elf_symbol_values(file,
-			    (c_linker_sym_t)symp, &symval);
+			ELF_ST_TYPE(symp->st_info) == STT_GNU_IFUNC)) {
+			error = link_elf_symbol_values(
+			    file, (c_linker_sym_t)symp, &symval);
 			if (error)
 				return (error);
 			error = callback(file, i, &symval, opaque);
@@ -1577,7 +1574,7 @@ elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps, Elf_Addr *res)
 	if (sym->st_shndx != SHN_UNDEF) {
 		res1 = (Elf_Addr)sym->st_value;
 		if (ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC)
-			res1 = ((Elf_Addr (*)(void))res1)();
+			res1 = ((Elf_Addr(*)(void))res1)();
 		*res = res1;
 		return (0);
 	}
@@ -1640,8 +1637,8 @@ link_elf_fix_link_set(elf_file_t ef)
 	int start, i;
 
 	startp = stopp = 0;
-	for (symidx = 1 /* zero entry is special */;
-		symidx < ef->ddbsymcnt; symidx++) {
+	for (symidx = 1 /* zero entry is special */; symidx < ef->ddbsymcnt;
+	     symidx++) {
 		sym = ef->ddbsymtab + symidx;
 		if (sym->st_shndx != SHN_UNDEF)
 			continue;
@@ -1650,18 +1647,17 @@ link_elf_fix_link_set(elf_file_t ef)
 		if (strncmp(sym_name, startn, sizeof(startn) - 1) == 0) {
 			start = 1;
 			linkset_name = sym_name + sizeof(startn) - 1;
-		}
-		else if (strncmp(sym_name, stopn, sizeof(stopn) - 1) == 0) {
+		} else if (strncmp(sym_name, stopn, sizeof(stopn) - 1) == 0) {
 			start = 0;
 			linkset_name = sym_name + sizeof(stopn) - 1;
-		}
-		else
+		} else
 			continue;
 
 		for (i = 0; i < ef->nprogtab; i++) {
 			if (strcmp(ef->progtab[i].name, linkset_name) == 0) {
 				startp = (Elf_Addr)ef->progtab[i].addr;
-				stopp = (Elf_Addr)(startp + ef->progtab[i].size);
+				stopp = (Elf_Addr)(
+				    startp + ef->progtab[i].size);
 				break;
 			}
 		}
@@ -1701,7 +1697,7 @@ link_elf_reloc_local(linker_file_t lf, bool ifuncs)
 			link_elf_error(ef->lf.filename, "lost base for reltab");
 			return (ENOEXEC);
 		}
-		for ( ; rel < rellim; rel++) {
+		for (; rel < rellim; rel++) {
 			symidx = ELF_R_SYM(rel->r_info);
 			if (symidx >= ef->ddbsymcnt)
 				continue;
@@ -1710,10 +1706,10 @@ link_elf_reloc_local(linker_file_t lf, bool ifuncs)
 			if (ELF_ST_BIND(sym->st_info) != STB_LOCAL)
 				continue;
 			if ((ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC ||
-			    elf_is_ifunc_reloc(rel->r_info)) != ifuncs)
+				elf_is_ifunc_reloc(rel->r_info)) != ifuncs)
 				continue;
 			if (elf_reloc_local(lf, base, rel, ELF_RELOC_REL,
-			    elf_obj_lookup) != 0)
+				elf_obj_lookup) != 0)
 				return (ENOEXEC);
 		}
 	}
@@ -1731,7 +1727,7 @@ link_elf_reloc_local(linker_file_t lf, bool ifuncs)
 			link_elf_error(ef->lf.filename, "lost base for reltab");
 			return (ENOEXEC);
 		}
-		for ( ; rela < relalim; rela++) {
+		for (; rela < relalim; rela++) {
 			symidx = ELF_R_SYM(rela->r_info);
 			if (symidx >= ef->ddbsymcnt)
 				continue;
@@ -1740,10 +1736,10 @@ link_elf_reloc_local(linker_file_t lf, bool ifuncs)
 			if (ELF_ST_BIND(sym->st_info) != STB_LOCAL)
 				continue;
 			if ((ELF_ST_TYPE(sym->st_info) == STT_GNU_IFUNC ||
-			    elf_is_ifunc_reloc(rela->r_info)) != ifuncs)
+				elf_is_ifunc_reloc(rela->r_info)) != ifuncs)
 				continue;
 			if (elf_reloc_local(lf, base, rela, ELF_RELOC_RELA,
-			    elf_obj_lookup) != 0)
+				elf_obj_lookup) != 0)
 				return (ENOEXEC);
 		}
 	}
@@ -1753,25 +1749,25 @@ link_elf_reloc_local(linker_file_t lf, bool ifuncs)
 static long
 link_elf_symtab_get(linker_file_t lf, const Elf_Sym **symtab)
 {
-    elf_file_t ef = (elf_file_t)lf;
-    
-    *symtab = ef->ddbsymtab;
-    
-    if (*symtab == NULL)
-        return (0);
+	elf_file_t ef = (elf_file_t)lf;
 
-    return (ef->ddbsymcnt);
+	*symtab = ef->ddbsymtab;
+
+	if (*symtab == NULL)
+		return (0);
+
+	return (ef->ddbsymcnt);
 }
-    
+
 static long
 link_elf_strtab_get(linker_file_t lf, caddr_t *strtab)
 {
-    elf_file_t ef = (elf_file_t)lf;
+	elf_file_t ef = (elf_file_t)lf;
 
-    *strtab = ef->ddbstrtab;
+	*strtab = ef->ddbstrtab;
 
-    if (*strtab == NULL)
-        return (0);
+	if (*strtab == NULL)
+		return (0);
 
-    return (ef->ddbstrcnt);
+	return (ef->ddbstrcnt);
 }

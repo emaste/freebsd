@@ -37,7 +37,7 @@
  * Radix tree root.
  */
 struct pctrie {
-	uintptr_t	pt_root;
+	uintptr_t pt_root;
 };
 
 #endif /* !__SYS_PCTRIE_H_ */

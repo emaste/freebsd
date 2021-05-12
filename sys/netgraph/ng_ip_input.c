@@ -33,7 +33,7 @@
  *
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -44,7 +44,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -78,39 +78,40 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/socket.h>
 #include <sys/proc.h>
+#include <sys/socket.h>
+
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
-#include <netinet/in.h>
-#include <netinet/in_var.h>
 #include <net/netisr.h>
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_ip_input.h>
+#include <netgraph/ng_message.h>
+#include <netinet/in.h>
+#include <netinet/in_var.h>
 
 /* Netgraph methods */
-static ng_constructor_t	ngipi_cons;
-static ng_rcvdata_t	ngipi_rcvdata;
-static ng_disconnect_t	ngipi_disconnect;
+static ng_constructor_t ngipi_cons;
+static ng_rcvdata_t ngipi_rcvdata;
+static ng_disconnect_t ngipi_disconnect;
 
 static struct ng_type typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_IP_INPUT_NODE_TYPE,
-	.constructor =	ngipi_cons,
-	.rcvdata =	ngipi_rcvdata,
-	.disconnect =	ngipi_disconnect,
+	.version = NG_ABI_VERSION,
+	.name = NG_IP_INPUT_NODE_TYPE,
+	.constructor = ngipi_cons,
+	.rcvdata = ngipi_rcvdata,
+	.disconnect = ngipi_disconnect,
 };
 NETGRAPH_INIT(ip_input, &typestruct);
 
-/* 
+/*
  * Be obliging. but no work to do.
  */
 static int
 ngipi_cons(node_p node)
 {
-	return(0);
+	return (0);
 }
 
 /*

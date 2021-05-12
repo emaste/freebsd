@@ -28,36 +28,36 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_MODULE_H_
-#define	_LINUX_MODULE_H_
+#ifndef _LINUX_MODULE_H_
+#define _LINUX_MODULE_H_
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/module.h>
 
-#include <linux/list.h>
 #include <linux/compiler.h>
+#include <linux/export.h>
 #include <linux/kmod.h>
 #include <linux/kobject.h>
-#include <linux/sysfs.h>
+#include <linux/list.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
-#include <linux/export.h>
+#include <linux/sysfs.h>
 
 #define MODULE_AUTHOR(name)
 #define MODULE_DESCRIPTION(name)
 #define MODULE_LICENSE(name)
-#define	MODULE_INFO(tag, info)
-#define	MODULE_FIRMWARE(firmware)
+#define MODULE_INFO(tag, info)
+#define MODULE_FIRMWARE(firmware)
 
-#define	THIS_MODULE	((struct module *)0)
+#define THIS_MODULE ((struct module *)0)
 
-#define	__MODULE_STRING(x) __stringify(x)
+#define __MODULE_STRING(x) __stringify(x)
 
 /* OFED pre-module initialization */
-#define	SI_SUB_OFED_PREINIT	(SI_SUB_ROOT_CONF - 2)
+#define SI_SUB_OFED_PREINIT (SI_SUB_ROOT_CONF - 2)
 /* OFED default module initialization */
-#define	SI_SUB_OFED_MODINIT	(SI_SUB_ROOT_CONF - 1)
+#define SI_SUB_OFED_MODINIT (SI_SUB_ROOT_CONF - 1)
 
 #include <sys/linker.h>
 
@@ -80,26 +80,26 @@ _module_run(void *arg)
 	fn();
 }
 
-#define	module_init(fn)							\
+#define module_init(fn) \
 	SYSINIT(fn, SI_SUB_OFED_MODINIT, SI_ORDER_FIRST, _module_run, (fn))
 
-#define	module_exit(fn)						\
+#define module_exit(fn) \
 	SYSUNINIT(fn, SI_SUB_OFED_MODINIT, SI_ORDER_SECOND, _module_run, (fn))
 
 /*
  * The following two macros are a workaround for not having a module
  * load and unload order resolver:
  */
-#define	module_init_order(fn, order)					\
+#define module_init_order(fn, order) \
 	SYSINIT(fn, SI_SUB_OFED_MODINIT, (order), _module_run, (fn))
 
-#define	module_exit_order(fn, order)				\
+#define module_exit_order(fn, order) \
 	SYSUNINIT(fn, SI_SUB_OFED_MODINIT, (order), _module_run, (fn))
 
-#define	module_get(module)
-#define	module_put(module)
-#define	try_module_get(module)	1
+#define module_get(module)
+#define module_put(module)
+#define try_module_get(module) 1
 
-#define	postcore_initcall(fn)	module_init(fn)
+#define postcore_initcall(fn) module_init(fn)
 
-#endif	/* _LINUX_MODULE_H_ */
+#endif /* _LINUX_MODULE_H_ */

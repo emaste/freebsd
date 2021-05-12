@@ -30,11 +30,10 @@
  * $FreeBSD$
  */
 
-#ifndef	_SCSI_SCSI_PT_H
+#ifndef _SCSI_SCSI_PT_H
 #define _SCSI_SCSI_PT_H 1
 
-struct scsi_send_receive
-{
+struct scsi_send_receive {
 	u_int8_t opcode;
 	u_int8_t byte2;
 	u_int8_t xfer_len[3];
@@ -44,7 +43,7 @@ struct scsi_send_receive
 /*
  * Opcodes
  */
-#define RECEIVE			0x08
-#define SEND			0x0A
+#define RECEIVE 0x08
+#define SEND 0x0A
 
 #endif /* _SCSI_SCSI_PT_H */

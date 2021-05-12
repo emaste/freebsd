@@ -21,9 +21,9 @@
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
@@ -35,17 +35,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <netinet/sctp.h>
+#include <netinet/sctp_auth.h>
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_pcb.h>
-#include <netinet/sctputil.h>
-#include <netinet/sctp_var.h>
-#include <netinet/sctp_var.h>
-#include <netinet/sctp_sysctl.h>
-#include <netinet/sctp.h>
-#include <netinet/sctp_uio.h>
 #include <netinet/sctp_peeloff.h>
+#include <netinet/sctp_sysctl.h>
+#include <netinet/sctp_uio.h>
+#include <netinet/sctp_var.h>
 #include <netinet/sctputil.h>
-#include <netinet/sctp_auth.h>
 
 int
 sctp_can_peel_off(struct socket *head, sctp_assoc_t assoc_id)
@@ -55,29 +53,33 @@ sctp_can_peel_off(struct socket *head, sctp_assoc_t assoc_id)
 	uint32_t state;
 
 	if (head == NULL) {
-		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EBADF);
+		SCTP_LTRACE_ERR_RET(
+		    NULL, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EBADF);
 		return (EBADF);
 	}
 	inp = (struct sctp_inpcb *)head->so_pcb;
 	if (inp == NULL) {
-		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EFAULT);
+		SCTP_LTRACE_ERR_RET(
+		    NULL, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EFAULT);
 		return (EFAULT);
 	}
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EOPNOTSUPP);
+		SCTP_LTRACE_ERR_RET(
+		    inp, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EOPNOTSUPP);
 		return (EOPNOTSUPP);
 	}
 	stcb = sctp_findassociation_ep_asocid(inp, assoc_id, 1);
 	if (stcb == NULL) {
-		SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_PEELOFF, ENOENT);
+		SCTP_LTRACE_ERR_RET(
+		    inp, stcb, NULL, SCTP_FROM_SCTP_PEELOFF, ENOENT);
 		return (ENOENT);
 	}
 	state = SCTP_GET_STATE(stcb);
-	if ((state == SCTP_STATE_EMPTY) ||
-	    (state == SCTP_STATE_INUSE)) {
+	if ((state == SCTP_STATE_EMPTY) || (state == SCTP_STATE_INUSE)) {
 		SCTP_TCB_UNLOCK(stcb);
-		SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_PEELOFF, ENOTCONN);
+		SCTP_LTRACE_ERR_RET(
+		    inp, stcb, NULL, SCTP_FROM_SCTP_PEELOFF, ENOTCONN);
 		return (ENOTCONN);
 	}
 	SCTP_TCB_UNLOCK(stcb);
@@ -94,27 +96,28 @@ sctp_do_peeloff(struct socket *head, struct socket *so, sctp_assoc_t assoc_id)
 
 	inp = (struct sctp_inpcb *)head->so_pcb;
 	if (inp == NULL) {
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EFAULT);
+		SCTP_LTRACE_ERR_RET(
+		    inp, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EFAULT);
 		return (EFAULT);
 	}
 	stcb = sctp_findassociation_ep_asocid(inp, assoc_id, 1);
 	if (stcb == NULL) {
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, ENOTCONN);
+		SCTP_LTRACE_ERR_RET(
+		    inp, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, ENOTCONN);
 		return (ENOTCONN);
 	}
 
 	state = SCTP_GET_STATE(stcb);
-	if ((state == SCTP_STATE_EMPTY) ||
-	    (state == SCTP_STATE_INUSE)) {
+	if ((state == SCTP_STATE_EMPTY) || (state == SCTP_STATE_INUSE)) {
 		SCTP_TCB_UNLOCK(stcb);
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, ENOTCONN);
+		SCTP_LTRACE_ERR_RET(
+		    inp, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, ENOTCONN);
 		return (ENOTCONN);
 	}
 
 	n_inp = (struct sctp_inpcb *)so->so_pcb;
-	n_inp->sctp_flags = (SCTP_PCB_FLAGS_UDPTYPE |
-	    SCTP_PCB_FLAGS_CONNECTED |
-	    SCTP_PCB_FLAGS_IN_TCPPOOL |	/* Turn on Blocking IO */
+	n_inp->sctp_flags = (SCTP_PCB_FLAGS_UDPTYPE | SCTP_PCB_FLAGS_CONNECTED |
+	    SCTP_PCB_FLAGS_IN_TCPPOOL | /* Turn on Blocking IO */
 	    (SCTP_PCB_COPY_FLAGS & inp->sctp_flags));
 	n_inp->sctp_socket = so;
 	n_inp->sctp_features = inp->sctp_features;
@@ -136,14 +139,14 @@ sctp_do_peeloff(struct socket *head, struct socket *so, sctp_assoc_t assoc_id)
 	/* copy in the authentication parameters from the original endpoint */
 	if (n_inp->sctp_ep.local_hmacs)
 		sctp_free_hmaclist(n_inp->sctp_ep.local_hmacs);
-	n_inp->sctp_ep.local_hmacs =
-	    sctp_copy_hmaclist(inp->sctp_ep.local_hmacs);
+	n_inp->sctp_ep.local_hmacs = sctp_copy_hmaclist(
+	    inp->sctp_ep.local_hmacs);
 	if (n_inp->sctp_ep.local_auth_chunks)
 		sctp_free_chunklist(n_inp->sctp_ep.local_auth_chunks);
-	n_inp->sctp_ep.local_auth_chunks =
-	    sctp_copy_chunklist(inp->sctp_ep.local_auth_chunks);
-	(void)sctp_copy_skeylist(&inp->sctp_ep.shared_keys,
-	    &n_inp->sctp_ep.shared_keys);
+	n_inp->sctp_ep.local_auth_chunks = sctp_copy_chunklist(
+	    inp->sctp_ep.local_auth_chunks);
+	(void)sctp_copy_skeylist(
+	    &inp->sctp_ep.shared_keys, &n_inp->sctp_ep.shared_keys);
 	/*
 	 * Now we must move it from one hash table to another and get the
 	 * stcb in the right place.

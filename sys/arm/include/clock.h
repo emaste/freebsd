@@ -28,7 +28,7 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_CLOCK_H_
-#define	_MACHINE_CLOCK_H_
+#ifndef _MACHINE_CLOCK_H_
+#define _MACHINE_CLOCK_H_
 
 #endif /* !_MACHINE_CLOCK_H_ */

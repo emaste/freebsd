@@ -31,7 +31,7 @@
  */
 
 #ifndef _MACHINE_SETJMP_H_
-#define	_MACHINE_SETJMP_H_
+#define _MACHINE_SETJMP_H_
 
 #include <sys/cdefs.h>
 
@@ -48,13 +48,13 @@
  *
  * The registers to save are: r19 to r29, and d8 to d15.
  */
-#define	_JBLEN		31
-#define	_JB_SIGMASK	22
+#define _JBLEN 31
+#define _JB_SIGMASK 22
 
 /* This should only be needed in libc and may change */
 #ifdef __ASSEMBLER__
-#define	_JB_MAGIC__SETJMP	0xfb5d25837d7ff700
-#define	_JB_MAGIC_SETJMP	0xfb5d25837d7ff701
+#define _JB_MAGIC__SETJMP 0xfb5d25837d7ff700
+#define _JB_MAGIC_SETJMP 0xfb5d25837d7ff701
 #endif
 
 #ifndef __ASSEMBLER__
@@ -64,10 +64,14 @@
  * internally to avoid some run-time errors for mismatches.
  */
 #if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
-typedef struct _sigjmp_buf { __int128_t _sjb[_JBLEN + 1]; } sigjmp_buf[1];
+typedef struct _sigjmp_buf {
+	__int128_t _sjb[_JBLEN + 1];
+} sigjmp_buf[1];
 #endif
 
-typedef struct _jmp_buf { __int128_t _jb[_JBLEN + 1]; } jmp_buf[1];
+typedef struct _jmp_buf {
+	__int128_t _jb[_JBLEN + 1];
+} jmp_buf[1];
 #endif /* __ASSEMBLER__ */
 
 #endif /* !_MACHINE_SETJMP_H_ */

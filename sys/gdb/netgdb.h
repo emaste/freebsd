@@ -38,7 +38,7 @@
  * choose a different remote port to connect back to the NetGDB client on by
  * sending the HERALD ACK from that other port.
  */
-#define	NETGDB_HERALDPORT	20025
-#define	NETGDB_CLIENTPORT	20026
+#define NETGDB_HERALDPORT 20025
+#define NETGDB_CLIENTPORT 20026
 
-#define	NETGDB_PROTO_V1		0x2515f095	/* Rolled a 2^32 sided die. */
+#define NETGDB_PROTO_V1 0x2515f095 /* Rolled a 2^32 sided die. */

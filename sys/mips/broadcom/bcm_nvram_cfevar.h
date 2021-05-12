@@ -25,12 +25,12 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
-#ifndef	_MIPS_BROADCOM_BCM_NVRAM_CFE_H_
-#define	_MIPS_BROADCOM_BCM_NVRAM_CFE_H_
+#ifndef _MIPS_BROADCOM_BCM_NVRAM_CFE_H_
+#define _MIPS_BROADCOM_BCM_NVRAM_CFE_H_
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -41,27 +41,27 @@
 
 struct bcm_nvram_iocfe;
 
-int		bcm_nvram_find_cfedev(struct bcm_nvram_iocfe *iocfe,
-		    bhnd_nvram_data_class **cls);
+int bcm_nvram_find_cfedev(
+    struct bcm_nvram_iocfe *iocfe, bhnd_nvram_data_class **cls);
 
 /**
  * CFE-backed bhnd_nvram_io implementation.
  */
 struct bcm_nvram_iocfe {
-	struct bhnd_nvram_io	 io;		/**< common I/O instance state */
+	struct bhnd_nvram_io io; /**< common I/O instance state */
 
-	char			*dname;		/**< CFE device name (borrowed) */
-	int			 fd;		/**< CFE file descriptor */
-	size_t			 offset;	/**< base offset */
-	size_t			 size;		/**< device size */
-	bool			 req_blk_erase;	/**< flash blocks must be erased
-						     before writing */
+	char *dname;	    /**< CFE device name (borrowed) */
+	int fd;		    /**< CFE file descriptor */
+	size_t offset;	    /**< base offset */
+	size_t size;	    /**< device size */
+	bool req_blk_erase; /**< flash blocks must be erased
+				 before writing */
 };
 
 /** bhnd_nvram_cfe driver instance state. */
 struct bhnd_nvram_cfe_softc {
-	device_t		 	 dev;
-	struct bhnd_nvram_store		*store;	/**< nvram store */
+	device_t dev;
+	struct bhnd_nvram_store *store; /**< nvram store */
 };
 
 #endif /* _MIPS_BROADCOM_BCM_NVRAM_CFE_H_ */

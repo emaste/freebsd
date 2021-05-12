@@ -30,23 +30,22 @@
  * $FreeBSD$
  */
 
-#ifndef	_LINUXKPI_LINUX_PM_H
-#define	_LINUXKPI_LINUX_PM_H
+#ifndef _LINUXKPI_LINUX_PM_H
+#define _LINUXKPI_LINUX_PM_H
 
 #ifdef CONFIG_PM_SLEEP
-#define	SIMPLE_DEV_PM_OPS(_name, _suspendfunc, _resumefunc)	\
-const struct dev_pm_ops _name = {				\
-        .suspend	= _suspendfunc,				\
-        .resume		= _resumefunc,				\
-        .freeze		= _suspendfunc,				\
-        .thaw		= _resumefunc,				\
-        .poweroff	= _suspendfunc,				\
-        .restore	= _resumefunc,				\
-}
+#define SIMPLE_DEV_PM_OPS(_name, _suspendfunc, _resumefunc) \
+	const struct dev_pm_ops _name = {                   \
+		.suspend = _suspendfunc,                    \
+		.resume = _resumefunc,                      \
+		.freeze = _suspendfunc,                     \
+		.thaw = _resumefunc,                        \
+		.poweroff = _suspendfunc,                   \
+		.restore = _resumefunc,                     \
+	}
 #else
-#define	SIMPLE_DEV_PM_OPS(_name, _suspendfunc, _resumefunc)	\
-const struct dev_pm_ops _name = {				\
-}
+#define SIMPLE_DEV_PM_OPS(_name, _suspendfunc, _resumefunc) \
+	const struct dev_pm_ops _name = {}
 #endif
 
-#endif	/* _LINUXKPI_LINUX_PM_H */
+#endif /* _LINUXKPI_LINUX_PM_H */

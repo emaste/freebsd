@@ -61,9 +61,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/sx.h>
@@ -87,8 +87,8 @@ SYSCTL_PROC(_debug, OID_AUTO, clock_do_io,
 
 /* XXX: should be kern. now, it's no longer machdep.  */
 static int disable_rtc_set;
-SYSCTL_INT(_machdep, OID_AUTO, disable_rtc_set, CTLFLAG_RW, &disable_rtc_set,
-    0, "Disallow adjusting time-of-day clock");
+SYSCTL_INT(_machdep, OID_AUTO, disable_rtc_set, CTLFLAG_RW, &disable_rtc_set, 0,
+    "Disallow adjusting time-of-day clock");
 
 /*
  * An instance of a realtime clock.  A list of these tracks all the registered
@@ -103,15 +103,14 @@ SYSCTL_INT(_machdep, OID_AUTO, disable_rtc_set, CTLFLAG_RW, &disable_rtc_set,
  * should be about .5.
  */
 struct rtc_instance {
-	device_t	clockdev;
-	int		resolution;
-	int		flags;
-	u_int		schedns;
+	device_t clockdev;
+	int resolution;
+	int flags;
+	u_int schedns;
 	struct timespec resadj;
-	struct timeout_task
-			stask;
+	struct timeout_task stask;
 	LIST_ENTRY(rtc_instance)
-			rtc_entries;
+	rtc_entries;
 };
 
 /*
@@ -148,7 +147,7 @@ settime_task_func(void *arg, int pending)
 			timespecadd(&ts, &rtc->resadj, &ts);
 		}
 	} else {
-		ts.tv_sec  = 0;
+		ts.tv_sec = 0;
 		ts.tv_nsec = 0;
 	}
 	error = CLOCK_SETTIME(rtc->clockdev, &ts);
@@ -220,16 +219,16 @@ clock_register_flags(device_t clockdev, long resolution, int flags)
 	newrtc->resolution = (int)resolution;
 	newrtc->flags = flags;
 	newrtc->schedns = 0;
-	newrtc->resadj.tv_sec  = newrtc->resolution / 2 / 1000000;
+	newrtc->resadj.tv_sec = newrtc->resolution / 2 / 1000000;
 	newrtc->resadj.tv_nsec = newrtc->resolution / 2 % 1000000 * 1000;
-	TIMEOUT_TASK_INIT(taskqueue_thread, &newrtc->stask, 0,
-		    settime_task_func, newrtc);
+	TIMEOUT_TASK_INIT(
+	    taskqueue_thread, &newrtc->stask, 0, settime_task_func, newrtc);
 
 	sx_xlock(&rtc_list_lock);
 	if (LIST_EMPTY(&rtc_list)) {
 		LIST_INSERT_HEAD(&rtc_list, newrtc, rtc_entries);
 	} else {
-		LIST_FOREACH(rtc, &rtc_list, rtc_entries) {
+		LIST_FOREACH (rtc, &rtc_list, rtc_entries) {
 			if (rtc->resolution > newrtc->resolution) {
 				LIST_INSERT_BEFORE(rtc, newrtc, rtc_entries);
 				break;
@@ -259,7 +258,7 @@ clock_unregister(device_t clockdev)
 	struct rtc_instance *rtc, *tmp;
 
 	sx_xlock(&rtc_list_lock);
-	LIST_FOREACH_SAFE(rtc, &rtc_list, rtc_entries, tmp) {
+	LIST_FOREACH_SAFE (rtc, &rtc_list, rtc_entries, tmp) {
 		if (rtc->clockdev == clockdev) {
 			LIST_REMOVE(rtc, rtc_entries);
 			break;
@@ -279,7 +278,7 @@ clock_schedule(device_t clockdev, u_int offsetns)
 	struct rtc_instance *rtc;
 
 	sx_xlock(&rtc_list_lock);
-	LIST_FOREACH(rtc, &rtc_list, rtc_entries) {
+	LIST_FOREACH (rtc, &rtc_list, rtc_entries) {
 		if (rtc->clockdev == clockdev) {
 			rtc->schedns = offsetns;
 			break;
@@ -296,7 +295,7 @@ read_clocks(struct timespec *ts, bool debug_read)
 
 	error = ENXIO;
 	sx_xlock(&rtc_list_lock);
-	LIST_FOREACH(rtc, &rtc_list, rtc_entries) {
+	LIST_FOREACH (rtc, &rtc_list, rtc_entries) {
 		if ((error = CLOCK_GETTIME(rtc->clockdev, ts)) != 0)
 			continue;
 		if (ts->tv_sec < 0 || ts->tv_nsec < 0) {
@@ -356,7 +355,7 @@ inittodr(time_t base)
 			break;
 		}
 		printf("system time will not be set accurately\n");
-		ts.tv_sec  = (base > 0) ? base : -1;
+		ts.tv_sec = (base > 0) ? base : -1;
 		ts.tv_nsec = 0;
 	}
 
@@ -385,7 +384,7 @@ resettodr(void)
 		return;
 
 	sx_xlock(&rtc_list_lock);
-	LIST_FOREACH(rtc, &rtc_list, rtc_entries) {
+	LIST_FOREACH (rtc, &rtc_list, rtc_entries) {
 		if (rtc->schedns != 0) {
 			getnanotime(&now);
 			waitns = rtc->schedns - now.tv_nsec;
@@ -394,14 +393,13 @@ resettodr(void)
 			sbt = nstosbt(waitns);
 		} else
 			sbt = 0;
-		taskqueue_enqueue_timeout_sbt(taskqueue_thread,
-		    &rtc->stask, -sbt, 0, C_PREL(31));
+		taskqueue_enqueue_timeout_sbt(
+		    taskqueue_thread, &rtc->stask, -sbt, 0, C_PREL(31));
 	}
 	sx_xunlock(&rtc_list_lock);
 }
 
-static int
-sysctl_clock_do_io(SYSCTL_HANDLER_ARGS)
+static int sysctl_clock_do_io(SYSCTL_HANDLER_ARGS)
 {
 	struct timespec ts_discard;
 	int error, value;
@@ -420,7 +418,7 @@ sysctl_clock_do_io(SYSCTL_HANDLER_ARGS)
 		resettodr();
 		break;
 	default:
-                return (EINVAL);
+		return (EINVAL);
 	}
 
 	return (0);

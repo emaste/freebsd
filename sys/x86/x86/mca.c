@@ -35,12 +35,13 @@
 __FBSDID("$FreeBSD$");
 
 #ifdef __amd64__
-#define	DEV_APIC
+#define DEV_APIC
 #else
 #include "opt_apic.h"
 #endif
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
@@ -51,15 +52,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/taskqueue.h>
-#include <machine/intr_machdep.h>
-#include <x86/apicvar.h>
+
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
-#include <x86/mca.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+
+#include <x86/apicvar.h>
+#include <x86/mca.h>
 
 /* Modes for mca_scan() */
 enum scan_mode {
@@ -74,13 +76,13 @@ enum scan_mode {
  * corrected machine check interrupt threshold.
  */
 struct cmc_state {
-	int	max_threshold;
-	time_t	last_intr;
+	int max_threshold;
+	time_t last_intr;
 };
 
 struct amd_et_state {
-	int	cur_threshold;
-	time_t	last_intr;
+	int cur_threshold;
+	time_t last_intr;
 };
 #endif
 
@@ -90,17 +92,17 @@ struct mca_internal {
 };
 
 struct mca_enumerator_ops {
-        unsigned int (*ctl)(int);
-        unsigned int (*status)(int);
-        unsigned int (*addr)(int);
-        unsigned int (*misc)(int);
+	unsigned int (*ctl)(int);
+	unsigned int (*status)(int);
+	unsigned int (*addr)(int);
+	unsigned int (*misc)(int);
 };
 
 static MALLOC_DEFINE(M_MCA, "MCA", "Machine Check Architecture");
 
-static volatile int mca_count;	/* Number of records stored. */
-static int mca_banks;		/* Number of per-CPU register banks. */
-static int mca_maxcount = -1;	/* Limit on records stored. (-1 = unlimited) */
+static volatile int mca_count; /* Number of records stored. */
+static int mca_banks;	       /* Number of per-CPU register banks. */
+static int mca_maxcount = -1;  /* Limit on records stored. (-1 = unlimited) */
 
 static SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Machine Check Architecture");
@@ -118,8 +120,8 @@ SYSCTL_INT(_hw_mca, OID_AUTO, intel6h_HSD131, CTLFLAG_RDTUN, &intel6h_HSD131, 0,
     "Administrative toggle for logging of spurious corrected errors");
 
 int workaround_erratum383;
-SYSCTL_INT(_hw_mca, OID_AUTO, erratum383, CTLFLAG_RDTUN,
-    &workaround_erratum383, 0,
+SYSCTL_INT(_hw_mca, OID_AUTO, erratum383, CTLFLAG_RDTUN, &workaround_erratum383,
+    0,
     "Is the workaround for Erratum 383 on AMD Family 10h processors enabled?");
 
 static STAILQ_HEAD(, mca_internal) mca_freelist;
@@ -127,7 +129,7 @@ static int mca_freecount;
 static STAILQ_HEAD(, mca_internal) mca_records;
 static STAILQ_HEAD(, mca_internal) mca_pending;
 static struct callout mca_timer;
-static int mca_ticks = 3600;	/* Check hourly by default. */
+static int mca_ticks = 3600; /* Check hourly by default. */
 static struct taskqueue *mca_tq;
 static struct task mca_resize_task, mca_scan_task;
 static struct mtx mca_lock;
@@ -159,38 +161,36 @@ mca_ia32_misc_reg(int bank)
 static unsigned int
 mca_smca_ctl_reg(int bank)
 {
-        return (MSR_SMCA_MC_CTL(bank));
+	return (MSR_SMCA_MC_CTL(bank));
 }
 
 static unsigned int
 mca_smca_status_reg(int bank)
 {
-        return (MSR_SMCA_MC_STATUS(bank));
+	return (MSR_SMCA_MC_STATUS(bank));
 }
 
 static unsigned int
 mca_smca_addr_reg(int bank)
 {
-        return (MSR_SMCA_MC_ADDR(bank));
+	return (MSR_SMCA_MC_ADDR(bank));
 }
 
 static unsigned int
 mca_smca_misc_reg(int bank)
 {
-        return (MSR_SMCA_MC_MISC(bank));
+	return (MSR_SMCA_MC_MISC(bank));
 }
 
-static struct mca_enumerator_ops mca_msr_ops = {
-        .ctl    = mca_ia32_ctl_reg,
-        .status = mca_ia32_status_reg,
-        .addr   = mca_ia32_addr_reg,
-        .misc   = mca_ia32_misc_reg
-};
+static struct mca_enumerator_ops mca_msr_ops = { .ctl = mca_ia32_ctl_reg,
+	.status = mca_ia32_status_reg,
+	.addr = mca_ia32_addr_reg,
+	.misc = mca_ia32_misc_reg };
 
 #ifdef DEV_APIC
-static struct cmc_state **cmc_state;		/* Indexed by cpuid, bank. */
-static struct amd_et_state **amd_et_state;	/* Indexed by cpuid, bank. */
-static int cmc_throttle = 60;	/* Time in seconds to throttle CMCI. */
+static struct cmc_state **cmc_state;	   /* Indexed by cpuid, bank. */
+static struct amd_et_state **amd_et_state; /* Indexed by cpuid, bank. */
+static int cmc_throttle = 60; /* Time in seconds to throttle CMCI. */
 
 static int amd_elvt = -1;
 
@@ -201,7 +201,8 @@ amd_thresholding_supported(void)
 	    cpu_vendor_id != CPU_VENDOR_HYGON)
 		return (false);
 	/*
-	 * The RASCap register is wholly reserved in families 0x10-0x15 (through model 1F).
+	 * The RASCap register is wholly reserved in families 0x10-0x15 (through
+	 * model 1F).
 	 *
 	 * It begins to be documented in family 0x15 model 30 and family 0x16,
 	 * but neither of these families documents the ScalableMca bit, which
@@ -227,8 +228,7 @@ cmci_supported(uint64_t mcg_cap)
 	return ((mcg_cap & MCG_CAP_CMCI_P) != 0);
 }
 
-static int
-sysctl_positive_int(SYSCTL_HANDLER_ARGS)
+static int sysctl_positive_int(SYSCTL_HANDLER_ARGS)
 {
 	int error, value;
 
@@ -242,8 +242,7 @@ sysctl_positive_int(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-sysctl_mca_records(SYSCTL_HANDLER_ARGS)
+static int sysctl_mca_records(SYSCTL_HANDLER_ARGS)
 {
 	int *name = (int *)arg1;
 	u_int namelen = arg2;
@@ -263,7 +262,7 @@ sysctl_mca_records(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	}
 	i = 0;
-	STAILQ_FOREACH(rec, &mca_records, link) {
+	STAILQ_FOREACH (rec, &mca_records, link) {
 		if (i == name[0]) {
 			record = rec->rec;
 			break;
@@ -368,14 +367,14 @@ mca_mute(const struct mca_record *rec)
 	 */
 	if (cpu_vendor_id == CPU_VENDOR_INTEL &&
 	    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-	    (CPUID_TO_MODEL(cpu_id) == 0x3c ||	/* HSD131, HSM142, HSW131 */
-	    CPUID_TO_MODEL(cpu_id) == 0x3d ||	/* BDM48 */
-	    CPUID_TO_MODEL(cpu_id) == 0x45 ||
-	    CPUID_TO_MODEL(cpu_id) == 0x46) &&	/* HSM142 */
+	    (CPUID_TO_MODEL(cpu_id) == 0x3c ||	  /* HSD131, HSM142, HSW131 */
+		CPUID_TO_MODEL(cpu_id) == 0x3d || /* BDM48 */
+		CPUID_TO_MODEL(cpu_id) == 0x45 ||
+		CPUID_TO_MODEL(cpu_id) == 0x46) && /* HSM142 */
 	    rec->mr_bank == 0 &&
 	    (rec->mr_status & 0xa0000000ffffffff) == 0x80000000000f0005 &&
 	    !intel6h_HSD131)
-	    	return (1);
+		return (1);
 
 	return (0);
 }
@@ -387,7 +386,7 @@ mca_log(const struct mca_record *rec)
 	uint16_t mca_error;
 
 	if (mca_mute(rec))
-	    	return;
+		return;
 
 	printf("MCA: Bank %d, Status 0x%016llx\n", rec->mr_bank,
 	    (long long)rec->mr_status);
@@ -401,8 +400,9 @@ mca_log(const struct mca_record *rec)
 	else {
 		printf("COR ");
 		if (cmci_supported(rec->mr_mcg_cap))
-			printf("(%lld) ", ((long long)rec->mr_status &
-			    MC_STATUS_COR_COUNT) >> 38);
+			printf("(%lld) ",
+			    ((long long)rec->mr_status & MC_STATUS_COR_COUNT) >>
+				38);
 	}
 	if (rec->mr_status & MC_STATUS_PCC)
 		printf("PCC ");
@@ -463,7 +463,7 @@ mca_log(const struct mca_record *rec)
 			printf(" memory error");
 			break;
 		}
-		
+
 		/* Cache error. */
 		if ((mca_error & 0xef00) == 0x0100) {
 			printf("%sCACHE %s %s error",
@@ -474,7 +474,7 @@ mca_log(const struct mca_record *rec)
 		}
 
 		/* Bus and/or Interconnect error. */
-		if ((mca_error & 0xe800) == 0x0800) {			
+		if ((mca_error & 0xe800) == 0x0800) {
 			printf("BUS%s ", mca_error_level(mca_error));
 			switch ((mca_error & 0x0600) >> 9) {
 			case 0:
@@ -575,8 +575,8 @@ mca_resize_freelist(void)
 	mtx_lock_spin(&mca_lock);
 	while (mca_freecount > desired_max) {
 		rec = STAILQ_FIRST(&mca_freelist);
-		KASSERT(rec != NULL, ("mca_freecount is %d, but list is empty",
-		    mca_freecount));
+		KASSERT(rec != NULL,
+		    ("mca_freecount is %d, but list is empty", mca_freecount));
 		STAILQ_REMOVE_HEAD(&mca_freelist, link);
 		mca_freecount--;
 		STAILQ_INSERT_TAIL(&tmplist, rec, link);
@@ -593,7 +593,7 @@ mca_resize_freelist(void)
 		mca_freecount += count;
 	}
 	mtx_unlock_spin(&mca_lock);
-	STAILQ_FOREACH_SAFE(rec, &tmplist, link, next)
+	STAILQ_FOREACH_SAFE (rec, &tmplist, link, next)
 		free(rec, M_MCA);
 }
 
@@ -880,7 +880,7 @@ mca_scan_cpus(void *context, int pending)
 	td = curthread;
 	count = 0;
 	thread_lock(td);
-	CPU_FOREACH(cpu) {
+	CPU_FOREACH (cpu) {
 		sched_bind(td, cpu);
 		thread_unlock(td);
 		count += mca_scan(POLLED, NULL);
@@ -900,8 +900,7 @@ mca_periodic_scan(void *arg)
 	callout_reset(&mca_timer, mca_ticks * hz, mca_periodic_scan, NULL);
 }
 
-static int
-sysctl_mca_scan(SYSCTL_HANDLER_ARGS)
+static int sysctl_mca_scan(SYSCTL_HANDLER_ARGS)
 {
 	int error, i;
 
@@ -914,8 +913,7 @@ sysctl_mca_scan(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-sysctl_mca_maxcount(SYSCTL_HANDLER_ARGS)
+static int sysctl_mca_maxcount(SYSCTL_HANDLER_ARGS)
 {
 	struct mca_internal *mca;
 	int error, i;
@@ -949,8 +947,8 @@ mca_createtq(void *dummy)
 	if (mca_banks <= 0)
 		return;
 
-	mca_tq = taskqueue_create_fast("mca", M_WAITOK,
-	    taskqueue_thread_enqueue, &mca_tq);
+	mca_tq = taskqueue_create_fast(
+	    "mca", M_WAITOK, taskqueue_thread_enqueue, &mca_tq);
 	taskqueue_start_threads(&mca_tq, 1, PI_SWI(SWI_TQ), "mca taskq");
 
 	/* CMCIs during boot may have claimed items from the freelist. */
@@ -979,8 +977,8 @@ cmci_setup(void)
 {
 	int i;
 
-	cmc_state = malloc((mp_maxid + 1) * sizeof(struct cmc_state *), M_MCA,
-	    M_WAITOK);
+	cmc_state = malloc(
+	    (mp_maxid + 1) * sizeof(struct cmc_state *), M_MCA, M_WAITOK);
 	for (i = 0; i <= mp_maxid; i++)
 		cmc_state[i] = malloc(sizeof(struct cmc_state) * mca_banks,
 		    M_MCA, M_WAITOK | M_ZERO);
@@ -995,11 +993,12 @@ amd_thresholding_setup(void)
 {
 	u_int i;
 
-	amd_et_state = malloc((mp_maxid + 1) * sizeof(struct amd_et_state *),
-	    M_MCA, M_WAITOK);
+	amd_et_state = malloc(
+	    (mp_maxid + 1) * sizeof(struct amd_et_state *), M_MCA, M_WAITOK);
 	for (i = 0; i <= mp_maxid; i++)
-		amd_et_state[i] = malloc(sizeof(struct amd_et_state) *
-		    mca_banks, M_MCA, M_WAITOK | M_ZERO);
+		amd_et_state[i] = malloc(
+		    sizeof(struct amd_et_state) * mca_banks, M_MCA,
+		    M_WAITOK | M_ZERO);
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "cmc_throttle", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    &cmc_throttle, 0, sysctl_positive_int, "I",
@@ -1029,9 +1028,8 @@ mca_setup(uint64_t mcg_cap)
 	STAILQ_INIT(&mca_freelist);
 	TASK_INIT(&mca_resize_task, 0, mca_resize, NULL);
 	mca_resize_freelist();
-	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
-	    "count", CTLFLAG_RD, (int *)(uintptr_t)&mca_count, 0,
-	    "Record count");
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO, "count",
+	    CTLFLAG_RD, (int *)(uintptr_t)&mca_count, 0, "Record count");
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "maxcount", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    &mca_maxcount, 0, sysctl_mca_maxcount, "I",
@@ -1077,7 +1075,7 @@ cmci_monitor(int i)
 	if (cmc_state == NULL) {
 		if (bootverbose) {
 			printf(
-		    "AP %d (%d,%d) reports CMCI support but the BSP does not\n",
+			    "AP %d (%d,%d) reports CMCI support but the BSP does not\n",
 			    PCPU_GET(cpuid), PCPU_GET(apic_id),
 			    PCPU_GET(acpi_id));
 		}
@@ -1225,8 +1223,8 @@ amd_thresholding_monitor(int i)
 
 	/* Re-use Intel CMC support infrastructure. */
 	if (bootverbose)
-		printf("%s: Starting AMD thresholding on bank %d\n", __func__,
-		    i);
+		printf(
+		    "%s: Starting AMD thresholding on bank %d\n", __func__, i);
 
 	cc = &amd_et_state[PCPU_GET(cpuid)][i];
 	cc->cur_threshold = 1;
@@ -1319,8 +1317,8 @@ _mca_init(int boot)
 				 * For P6 models before Nehalem MC0_CTL is
 				 * always enabled and reserved.
 				 */
-				if (i == 0 && family == 0x6
-				    && CPUID_TO_MODEL(cpu_id) < 0x1a)
+				if (i == 0 && family == 0x6 &&
+				    CPUID_TO_MODEL(cpu_id) < 0x1a)
 					skip = 1;
 			} else if (cpu_vendor_id == CPU_VENDOR_AMD) {
 				/* BKDG for Family 10h: unset GartTblWkEn. */
@@ -1353,8 +1351,8 @@ _mca_init(int boot)
 			mtx_unlock_spin(&mca_lock);
 
 #ifdef DEV_APIC
-		if (!amd_thresholding_supported() &&
-		    PCPU_GET(cmci_mask) != 0 && boot)
+		if (!amd_thresholding_supported() && PCPU_GET(cmci_mask) != 0 &&
+		    boot)
 			lapic_enable_cmc();
 #endif
 	}

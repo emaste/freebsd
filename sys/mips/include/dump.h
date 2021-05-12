@@ -28,13 +28,13 @@
  */
 
 #ifndef _MACHINE_DUMP_H_
-#define	_MACHINE_DUMP_H_
+#define _MACHINE_DUMP_H_
 
-#define	KERNELDUMP_ARCH_VERSION	KERNELDUMP_MIPS_VERSION
-#define	EM_VALUE		EM_MIPS
+#define KERNELDUMP_ARCH_VERSION KERNELDUMP_MIPS_VERSION
+#define EM_VALUE EM_MIPS
 /* XXX: I suppose 20 should be enough. */
-#define	DUMPSYS_MD_PA_NPAIRS	20
-#define	DUMPSYS_NUM_AUX_HDRS	0
+#define DUMPSYS_MD_PA_NPAIRS 20
+#define DUMPSYS_NUM_AUX_HDRS 0
 
 void dumpsys_wbinv_all(void);
 
@@ -73,4 +73,4 @@ dumpsys(struct dumperinfo *di)
 	return (dumpsys_generic(di));
 }
 
-#endif  /* !_MACHINE_DUMP_H_ */
+#endif /* !_MACHINE_DUMP_H_ */

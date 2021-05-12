@@ -38,75 +38,72 @@ __FBSDID("$FreeBSD$");
 #include "opt_tdma.h"
 #include "opt_wlan.h"
 
-#ifdef	IEEE80211_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_TDMA
 
 #include <sys/param.h>
-#include <sys/systm.h> 
-#include <sys/mbuf.h>   
-#include <sys/malloc.h>
-#include <sys/kernel.h>
-
-#include <sys/socket.h>
-#include <sys/sockio.h>
+#include <sys/systm.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/proc.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 
-#include <net/if.h>
-#include <net/if_media.h>
-#include <net/if_llc.h>
-#include <net/ethernet.h>
-
 #include <net/bpf.h>
-
-#include <net80211/ieee80211_var.h>
-#include <net80211/ieee80211_tdma.h>
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_llc.h>
+#include <net/if_media.h>
 #include <net80211/ieee80211_input.h>
+#include <net80211/ieee80211_tdma.h>
+#include <net80211/ieee80211_var.h>
 
 #ifndef TDMA_SLOTLEN_DEFAULT
-#define	TDMA_SLOTLEN_DEFAULT	10*1000		/* 10ms */
+#define TDMA_SLOTLEN_DEFAULT 10 * 1000 /* 10ms */
 #endif
 #ifndef TDMA_SLOTCNT_DEFAULT
-#define	TDMA_SLOTCNT_DEFAULT	2		/* 2x (pt-to-pt) */
+#define TDMA_SLOTCNT_DEFAULT 2 /* 2x (pt-to-pt) */
 #endif
 #ifndef TDMA_BINTVAL_DEFAULT
-#define	TDMA_BINTVAL_DEFAULT	5		/* 5x ~= 100TU beacon intvl */
+#define TDMA_BINTVAL_DEFAULT 5 /* 5x ~= 100TU beacon intvl */
 #endif
 #ifndef TDMA_TXRATE_11B_DEFAULT
-#define	TDMA_TXRATE_11B_DEFAULT	2*11
+#define TDMA_TXRATE_11B_DEFAULT 2 * 11
 #endif
 #ifndef TDMA_TXRATE_11G_DEFAULT
-#define	TDMA_TXRATE_11G_DEFAULT	2*24
+#define TDMA_TXRATE_11G_DEFAULT 2 * 24
 #endif
 #ifndef TDMA_TXRATE_11A_DEFAULT
-#define	TDMA_TXRATE_11A_DEFAULT	2*24
+#define TDMA_TXRATE_11A_DEFAULT 2 * 24
 #endif
 #ifndef TDMA_TXRATE_TURBO_DEFAULT
-#define	TDMA_TXRATE_TURBO_DEFAULT	2*24
+#define TDMA_TXRATE_TURBO_DEFAULT 2 * 24
 #endif
 #ifndef TDMA_TXRATE_HALF_DEFAULT
-#define	TDMA_TXRATE_HALF_DEFAULT	2*12
+#define TDMA_TXRATE_HALF_DEFAULT 2 * 12
 #endif
 #ifndef TDMA_TXRATE_QUARTER_DEFAULT
-#define	TDMA_TXRATE_QUARTER_DEFAULT	2*6
+#define TDMA_TXRATE_QUARTER_DEFAULT 2 * 6
 #endif
 #ifndef TDMA_TXRATE_11NA_DEFAULT
-#define	TDMA_TXRATE_11NA_DEFAULT	(4 | IEEE80211_RATE_MCS)
+#define TDMA_TXRATE_11NA_DEFAULT (4 | IEEE80211_RATE_MCS)
 #endif
 #ifndef TDMA_TXRATE_11NG_DEFAULT
-#define	TDMA_TXRATE_11NG_DEFAULT	(4 | IEEE80211_RATE_MCS)
+#define TDMA_TXRATE_11NG_DEFAULT (4 | IEEE80211_RATE_MCS)
 #endif
 
-#define	TDMA_VERSION_VALID(_version) \
+#define TDMA_VERSION_VALID(_version) \
 	(TDMA_VERSION_V2 <= (_version) && (_version) <= TDMA_VERSION)
-#define	TDMA_SLOTCNT_VALID(_slotcnt) \
+#define TDMA_SLOTCNT_VALID(_slotcnt) \
 	(2 <= (_slotcnt) && (_slotcnt) <= TDMA_MAXSLOTS)
 /* XXX magic constants */
-#define	TDMA_SLOTLEN_VALID(_slotlen) \
-	(2*100 <= (_slotlen) && (unsigned)(_slotlen) <= 0xfffff)
+#define TDMA_SLOTLEN_VALID(_slotlen) \
+	(2 * 100 <= (_slotlen) && (unsigned)(_slotlen) <= 0xfffff)
 /* XXX probably should set a max */
-#define	TDMA_BINTVAL_VALID(_bintval)	(1 <= (_bintval))
+#define TDMA_BINTVAL_VALID(_bintval) (1 <= (_bintval))
 
 /*
  * This code is not prepared to handle more than 2 slots.
@@ -116,13 +113,13 @@ CTASSERT(TDMA_MAXSLOTS == 2);
 static void tdma_vdetach(struct ieee80211vap *vap);
 static int tdma_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void tdma_beacon_miss(struct ieee80211vap *vap);
-static void tdma_recv_mgmt(struct ieee80211_node *, struct mbuf *,
-	int subtype, const struct ieee80211_rx_stats *rxs, int rssi, int nf);
+static void tdma_recv_mgmt(struct ieee80211_node *, struct mbuf *, int subtype,
+    const struct ieee80211_rx_stats *rxs, int rssi, int nf);
 static int tdma_update(struct ieee80211vap *vap,
-	const struct ieee80211_tdma_param *tdma, struct ieee80211_node *ni,
-	int pickslot);
-static int tdma_process_params(struct ieee80211_node *ni,
-	const u_int8_t *ie, int rssi, int nf, const struct ieee80211_frame *wh);
+    const struct ieee80211_tdma_param *tdma, struct ieee80211_node *ni,
+    int pickslot);
+static int tdma_process_params(struct ieee80211_node *ni, const u_int8_t *ie,
+    int rssi, int nf, const struct ieee80211_frame *wh);
 
 static void
 settxparms(struct ieee80211vap *vap, enum ieee80211_phymode mode, int rate)
@@ -142,7 +139,8 @@ setackpolicy(struct ieee80211com *ic, int noack)
 
 	for (ac = 0; ac < WME_NUM_AC; ac++) {
 		wme->wme_chanParams.cap_wmeParams[ac].wmep_noackPolicy = noack;
-		wme->wme_wmeChanParams.cap_wmeParams[ac].wmep_noackPolicy = noack;
+		wme->wme_wmeChanParams.cap_wmeParams[ac].wmep_noackPolicy =
+		    noack;
 	}
 }
 
@@ -152,11 +150,11 @@ ieee80211_tdma_vattach(struct ieee80211vap *vap)
 	struct ieee80211_tdma_state *ts;
 
 	KASSERT(vap->iv_caps & IEEE80211_C_TDMA,
-	     ("not a tdma vap, caps 0x%x", vap->iv_caps));
+	    ("not a tdma vap, caps 0x%x", vap->iv_caps));
 
-	ts = (struct ieee80211_tdma_state *) IEEE80211_MALLOC(
-	     sizeof(struct ieee80211_tdma_state), M_80211_VAP,
-	     IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
+	ts = (struct ieee80211_tdma_state *)IEEE80211_MALLOC(
+	    sizeof(struct ieee80211_tdma_state), M_80211_VAP,
+	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (ts == NULL) {
 		printf("%s: cannot allocate TDMA state block\n", __func__);
 		/* NB: fall back to adhdemo mode */
@@ -168,7 +166,7 @@ ieee80211_tdma_vattach(struct ieee80211vap *vap)
 	ts->tdma_slotlen = TDMA_SLOTLEN_DEFAULT;
 	ts->tdma_slotcnt = TDMA_SLOTCNT_DEFAULT;
 	ts->tdma_bintval = TDMA_BINTVAL_DEFAULT;
-	ts->tdma_slot = 1;			/* passive operation */
+	ts->tdma_slot = 1; /* passive operation */
 
 	/* setup default fixed rates */
 	settxparms(vap, IEEE80211_MODE_11A, TDMA_TXRATE_11A_DEFAULT);
@@ -184,7 +182,7 @@ ieee80211_tdma_vattach(struct ieee80211vap *vap)
 	settxparms(vap, IEEE80211_MODE_VHT_2GHZ, TDMA_TXRATE_11NG_DEFAULT);
 	settxparms(vap, IEEE80211_MODE_VHT_5GHZ, TDMA_TXRATE_11NA_DEFAULT);
 
-	setackpolicy(vap->iv_ic, 1);	/* disable ACK's */
+	setackpolicy(vap->iv_ic, 1); /* disable ACK's */
 
 	ts->tdma_opdetach = vap->iv_opdetach;
 	vap->iv_opdetach = tdma_vdetach;
@@ -210,7 +208,7 @@ tdma_vdetach(struct ieee80211vap *vap)
 	IEEE80211_FREE(vap->iv_tdma, M_80211_VAP);
 	vap->iv_tdma = NULL;
 
-	setackpolicy(vap->iv_ic, 0);	/* enable ACK's */
+	setackpolicy(vap->iv_ic, 0); /* enable ACK's */
 }
 
 static void
@@ -249,20 +247,18 @@ tdma_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 * Override adhoc behaviour when operating as a slave;
 		 * we need to scan even if the channel is locked.
 		 */
-		vap->iv_state = nstate;			/* state transition */
-		ieee80211_cancel_scan(vap);		/* background scan */
+		vap->iv_state = nstate;	    /* state transition */
+		ieee80211_cancel_scan(vap); /* background scan */
 		if (ostate == IEEE80211_S_RUN) {
 			/* purge station table; entries are stale */
-			ieee80211_iterate_nodes_vap(&ic->ic_sta, vap,
-			    sta_leave, NULL);
+			ieee80211_iterate_nodes_vap(
+			    &ic->ic_sta, vap, sta_leave, NULL);
 		}
 		if (vap->iv_flags_ext & IEEE80211_FEXT_SCANREQ) {
-			ieee80211_check_scan(vap,
-			    vap->iv_scanreq_flags,
-			    vap->iv_scanreq_duration,
-			    vap->iv_scanreq_mindwell,
-			    vap->iv_scanreq_maxdwell,
-			    vap->iv_scanreq_nssid, vap->iv_scanreq_ssid);
+			ieee80211_check_scan(vap, vap->iv_scanreq_flags,
+			    vap->iv_scanreq_duration, vap->iv_scanreq_mindwell,
+			    vap->iv_scanreq_maxdwell, vap->iv_scanreq_nssid,
+			    vap->iv_scanreq_ssid);
 			vap->iv_flags_ext &= ~IEEE80211_FEXT_SCANREQ;
 		} else
 			ieee80211_check_scan_current(vap);
@@ -270,11 +266,10 @@ tdma_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	} else {
 		status = ts->tdma_newstate(vap, nstate, arg);
 	}
-	if (status == 0 && 
-	    nstate == IEEE80211_S_RUN && ostate != IEEE80211_S_RUN &&
+	if (status == 0 && nstate == IEEE80211_S_RUN &&
+	    ostate != IEEE80211_S_RUN &&
 	    (vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS) &&
-	    ts->tdma_slot != 0 &&
-	    vap->iv_des_chan == IEEE80211_CHAN_ANYC) {
+	    ts->tdma_slot != 0 && vap->iv_des_chan == IEEE80211_CHAN_ANYC) {
 		/*
 		 * Start s/w beacon miss timer for slave devices w/o
 		 * hardware support.  Note we do this only if we're
@@ -282,12 +277,12 @@ tdma_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 * master). The 2x is a fudge for our doing this in
 		 * software.
 		 */
-		vap->iv_swbmiss_period = IEEE80211_TU_TO_TICKS(
-		    2 * vap->iv_bmissthreshold * ts->tdma_bintval *
+		vap->iv_swbmiss_period = IEEE80211_TU_TO_TICKS(2 *
+		    vap->iv_bmissthreshold * ts->tdma_bintval *
 		    ((ts->tdma_slotcnt * ts->tdma_slotlen) / 1024));
 		vap->iv_swbmiss_count = 0;
 		callout_reset(&vap->iv_swbmiss, vap->iv_swbmiss_period,
-			ieee80211_swbmiss, vap);
+		    ieee80211_swbmiss, vap);
 	}
 	return status;
 }
@@ -304,13 +299,13 @@ tdma_beacon_miss(struct ieee80211vap *vap)
 	    ("wrong state %d", vap->iv_state));
 
 	IEEE80211_DPRINTF(vap,
-		IEEE80211_MSG_STATE | IEEE80211_MSG_TDMA | IEEE80211_MSG_DEBUG,
-		"beacon miss, mode %u state %s\n",
-		vap->iv_opmode, ieee80211_state_name[vap->iv_state]);
+	    IEEE80211_MSG_STATE | IEEE80211_MSG_TDMA | IEEE80211_MSG_DEBUG,
+	    "beacon miss, mode %u state %s\n", vap->iv_opmode,
+	    ieee80211_state_name[vap->iv_state]);
 
 	callout_stop(&vap->iv_swbmiss);
 
-	if (ts->tdma_peer != NULL) {	/* XXX? can this be null? */
+	if (ts->tdma_peer != NULL) { /* XXX? can this be null? */
 		ieee80211_notify_node_leave(vap->iv_bss);
 		ts->tdma_peer = NULL;
 		/*
@@ -318,8 +313,8 @@ tdma_beacon_miss(struct ieee80211vap *vap)
 		 * scan policy; this forces the entry in the scan cache
 		 * to be ignored after several tries.
 		 */
-		ieee80211_scan_assoc_fail(vap, vap->iv_bss->ni_macaddr,
-		    IEEE80211_STATUS_TIMEOUT);
+		ieee80211_scan_assoc_fail(
+		    vap, vap->iv_bss->ni_macaddr, IEEE80211_STATUS_TIMEOUT);
 	}
 #if 0
 	ts->tdma_inuse = 0;		/* clear slot usage */
@@ -328,8 +323,8 @@ tdma_beacon_miss(struct ieee80211vap *vap)
 }
 
 static void
-tdma_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
-	int subtype, const struct ieee80211_rx_stats *rxs, int rssi, int nf)
+tdma_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
+    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
@@ -350,9 +345,9 @@ tdma_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			 * XXX detect overlapping bss and change channel
 			 */
 			IEEE80211_DISCARD(vap,
-			    IEEE80211_MSG_ELEMID | IEEE80211_MSG_INPUT,
-			    wh, ieee80211_mgt_subtype_name(subtype),
-			    "%s", "no TDMA ie");
+			    IEEE80211_MSG_ELEMID | IEEE80211_MSG_INPUT, wh,
+			    ieee80211_mgt_subtype_name(subtype), "%s",
+			    "no TDMA ie");
 			vap->iv_stats.is_rx_mgtdiscard++;
 			return;
 		}
@@ -383,7 +378,7 @@ tdma_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			 * as deeper routines reference it.
 			 */
 			memcpy(&ni->ni_tstamp.data, scan.tstamp,
-				sizeof(ni->ni_tstamp.data));
+			    sizeof(ni->ni_tstamp.data));
 			/*
 			 * Count beacon frame for s/w bmiss handling.
 			 */
@@ -392,7 +387,7 @@ tdma_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			 * Process tdma ie.  The contents are used to sync
 			 * the slot timing, reconfigure the bss, etc.
 			 */
-			(void) tdma_process_params(ni, scan.tdma, rssi, nf, wh);
+			(void)tdma_process_params(ni, scan.tdma, rssi, nf, wh);
 			return;
 		}
 		/*
@@ -412,55 +407,57 @@ tdma_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
  */
 static int
 tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
-	struct ieee80211_node *ni, int pickslot)
+    struct ieee80211_node *ni, int pickslot)
 {
 	struct ieee80211_tdma_state *ts = vap->iv_tdma;
 	int slot, slotlen, update;
 
 	KASSERT(vap->iv_caps & IEEE80211_C_TDMA,
-	     ("not a tdma vap, caps 0x%x", vap->iv_caps));
+	    ("not a tdma vap, caps 0x%x", vap->iv_caps));
 
 	update = 0;
 	if (tdma->tdma_slotcnt != ts->tdma_slotcnt) {
 		if (!TDMA_SLOTCNT_VALID(tdma->tdma_slotcnt)) {
-			if (ppsratecheck(&ts->tdma_lastprint, &ts->tdma_fails, 1))
-				printf("%s: bad slot cnt %u\n",
-				    __func__, tdma->tdma_slotcnt);
+			if (ppsratecheck(
+				&ts->tdma_lastprint, &ts->tdma_fails, 1))
+				printf("%s: bad slot cnt %u\n", __func__,
+				    tdma->tdma_slotcnt);
 			return 0;
 		}
 		update |= TDMA_UPDATE_SLOTCNT;
- 	}
+	}
 	slotlen = le16toh(tdma->tdma_slotlen) * 100;
 	if (slotlen != ts->tdma_slotlen) {
 		if (!TDMA_SLOTLEN_VALID(slotlen)) {
-			if (ppsratecheck(&ts->tdma_lastprint, &ts->tdma_fails, 1))
-				printf("%s: bad slot len %u\n",
-				    __func__, slotlen);
+			if (ppsratecheck(
+				&ts->tdma_lastprint, &ts->tdma_fails, 1))
+				printf(
+				    "%s: bad slot len %u\n", __func__, slotlen);
 			return 0;
 		}
 		update |= TDMA_UPDATE_SLOTLEN;
- 	}
+	}
 	if (tdma->tdma_bintval != ts->tdma_bintval) {
 		if (!TDMA_BINTVAL_VALID(tdma->tdma_bintval)) {
-			if (ppsratecheck(&ts->tdma_lastprint, &ts->tdma_fails, 1))
-				printf("%s: bad beacon interval %u\n",
-				    __func__, tdma->tdma_bintval);
+			if (ppsratecheck(
+				&ts->tdma_lastprint, &ts->tdma_fails, 1))
+				printf("%s: bad beacon interval %u\n", __func__,
+				    tdma->tdma_bintval);
 			return 0;
 		}
 		update |= TDMA_UPDATE_BINTVAL;
- 	}
+	}
 	slot = ts->tdma_slot;
 	if (pickslot) {
 		/*
 		 * Pick unoccupied slot.  Note we never choose slot 0.
 		 */
-		for (slot = tdma->tdma_slotcnt-1; slot > 0; slot--)
+		for (slot = tdma->tdma_slotcnt - 1; slot > 0; slot--)
 			if (isclr(tdma->tdma_inuse, slot))
 				break;
 		if (slot <= 0) {
 			printf("%s: no free slot, slotcnt %u inuse: 0x%x\n",
-				__func__, tdma->tdma_slotcnt,
-				tdma->tdma_inuse[0]);
+			    __func__, tdma->tdma_slotcnt, tdma->tdma_inuse[0]);
 			/* XXX need to do something better */
 			return 0;
 		}
@@ -469,10 +466,8 @@ tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
 	}
 	if (ni != ts->tdma_peer) {
 		/* update everything */
-		update = TDMA_UPDATE_SLOT
-		       | TDMA_UPDATE_SLOTCNT
-		       | TDMA_UPDATE_SLOTLEN
-		       | TDMA_UPDATE_BINTVAL;
+		update = TDMA_UPDATE_SLOT | TDMA_UPDATE_SLOTCNT |
+		    TDMA_UPDATE_SLOTLEN | TDMA_UPDATE_BINTVAL;
 	}
 
 	if (update) {
@@ -493,8 +488,8 @@ tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
 
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_TDMA,
 		    "%s: slot %u slotcnt %u slotlen %u us bintval %u\n",
-		    __func__, ts->tdma_slot, ts->tdma_slotcnt,
-		    ts->tdma_slotlen, ts->tdma_bintval);
+		    __func__, ts->tdma_slot, ts->tdma_slotcnt, ts->tdma_slotlen,
+		    ts->tdma_bintval);
 	}
 	/*
 	 * Notify driver.  Note we can be called before
@@ -522,32 +517,32 @@ tdma_update(struct ieee80211vap *vap, const struct ieee80211_tdma_param *tdma,
  * Process received TDMA parameters.
  */
 static int
-tdma_process_params(struct ieee80211_node *ni, const u_int8_t *ie,
-	int rssi, int nf, const struct ieee80211_frame *wh)
+tdma_process_params(struct ieee80211_node *ni, const u_int8_t *ie, int rssi,
+    int nf, const struct ieee80211_frame *wh)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_tdma_state *ts = vap->iv_tdma;
-	const struct ieee80211_tdma_param *tdma = 
-		(const struct ieee80211_tdma_param *) ie;
+	const struct ieee80211_tdma_param *tdma =
+	    (const struct ieee80211_tdma_param *)ie;
 	u_int len = ie[1];
 
 	KASSERT(vap->iv_caps & IEEE80211_C_TDMA,
-	     ("not a tdma vap, caps 0x%x", vap->iv_caps));
+	    ("not a tdma vap, caps 0x%x", vap->iv_caps));
 
 	if (len < sizeof(*tdma) - 2) {
 		IEEE80211_DISCARD_IE(vap,
-		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_TDMA,
-		    wh, "tdma", "too short, len %u", len);
+		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_TDMA, wh, "tdma",
+		    "too short, len %u", len);
 		return IEEE80211_REASON_IE_INVALID;
 	}
 	if (tdma->tdma_version != ts->tdma_version) {
 		IEEE80211_DISCARD_IE(vap,
-		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_TDMA,
-		    wh, "tdma", "bad version %u (ours %u)",
-		    tdma->tdma_version, ts->tdma_version);
+		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_TDMA, wh, "tdma",
+		    "bad version %u (ours %u)", tdma->tdma_version,
+		    ts->tdma_version);
 		return IEEE80211_REASON_IE_INVALID;
 	}
- 	/*
+	/*
 	 * NB: ideally we'd check against tdma_slotcnt, but that
 	 * would require extra effort so do this easy check that
 	 * covers the work below; more stringent checks are done
@@ -555,8 +550,8 @@ tdma_process_params(struct ieee80211_node *ni, const u_int8_t *ie,
 	 */
 	if (tdma->tdma_slot >= TDMA_MAXSLOTS) {
 		IEEE80211_DISCARD_IE(vap,
-		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_TDMA,
-		    wh, "tdma", "invalid slot %u", tdma->tdma_slot);
+		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_TDMA, wh, "tdma",
+		    "invalid slot %u", tdma->tdma_slot);
 		return IEEE80211_REASON_IE_INVALID;
 	}
 	/*
@@ -574,7 +569,7 @@ tdma_process_params(struct ieee80211_node *ni, const u_int8_t *ie,
 				ieee80211_notify_node_join(ni, 1);
 		}
 		setbit(ts->tdma_active, tdma->tdma_slot);
-		if (tdma->tdma_slot == ts->tdma_slot-1) {
+		if (tdma->tdma_slot == ts->tdma_slot - 1) {
 			/*
 			 * Slave tsf synchronization to station
 			 * just before us in the schedule. The driver
@@ -584,9 +579,9 @@ tdma_process_params(struct ieee80211_node *ni, const u_int8_t *ie,
 			 * trip time.  We cannot do that here because
 			 * we don't know how to update our beacon frame.
 			 */
-			(void) tdma_update(vap, tdma, ni, 0);
+			(void)tdma_update(vap, tdma, ni, 0);
 			/* XXX reschedule swbmiss timer on parameter change */
-		} else if (tdma->tdma_slot == ts->tdma_slot+1) {
+		} else if (tdma->tdma_slot == ts->tdma_slot + 1) {
 			uint64_t tstamp;
 #if 0
 			uint32_t rstamp = (uint32_t) le64toh(rs->tsf);
@@ -619,11 +614,11 @@ tdma_process_params(struct ieee80211_node *ni, const u_int8_t *ie,
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_TDMA,
 			    "slot %u collision rxtsf %llu tsf %llu\n",
 			    tdma->tdma_slot,
-			    (unsigned long long) le64toh(ni->ni_tstamp.tsf),
+			    (unsigned long long)le64toh(ni->ni_tstamp.tsf),
 			    vap->iv_bss->ni_tstamp.tsf);
 			setbit(ts->tdma_inuse, tdma->tdma_slot);
 
-			(void) tdma_update(vap, tdma, ni, 1);
+			(void)tdma_update(vap, tdma, ni, 1);
 		}
 	}
 	return 0;
@@ -635,7 +630,7 @@ ieee80211_tdma_getslot(struct ieee80211vap *vap)
 	struct ieee80211_tdma_state *ts = vap->iv_tdma;
 
 	KASSERT(vap->iv_caps & IEEE80211_C_TDMA,
-	     ("not a tdma vap, caps 0x%x", vap->iv_caps));
+	    ("not a tdma vap, caps 0x%x", vap->iv_caps));
 	return ts->tdma_slot;
 }
 
@@ -656,7 +651,7 @@ ieee80211_parse_tdma(struct ieee80211_node *ni, const uint8_t *ie)
 		 * existing network.
 		 */
 		setbit(ts->tdma_inuse, tdma->tdma_slot);
-		(void) tdma_update(vap, tdma, ni, 1);
+		(void)tdma_update(vap, tdma, ni, 1);
 		/*
 		 * Propagate capabilities based on the local
 		 * configuration and the remote station's advertised
@@ -669,43 +664,44 @@ ieee80211_parse_tdma(struct ieee80211_node *ni, const uint8_t *ie)
 	}
 }
 
-#define	TDMA_OUI_BYTES		0x00, 0x03, 0x7f
+#define TDMA_OUI_BYTES 0x00, 0x03, 0x7f
 /*
  * Add a TDMA parameters element to a frame.
  */
 uint8_t *
 ieee80211_add_tdma(uint8_t *frm, struct ieee80211vap *vap)
 {
-#define	ADDSHORT(frm, v) do {			\
-	frm[0] = (v) & 0xff;			\
-	frm[1] = (v) >> 8;			\
-	frm += 2;				\
-} while (0)
+#define ADDSHORT(frm, v)           \
+	do {                       \
+		frm[0] = (v)&0xff; \
+		frm[1] = (v) >> 8; \
+		frm += 2;          \
+	} while (0)
 	static const struct ieee80211_tdma_param param = {
-		.tdma_id	= IEEE80211_ELEMID_VENDOR,
-		.tdma_len	= sizeof(struct ieee80211_tdma_param) - 2,
-		.tdma_oui	= { TDMA_OUI_BYTES },
-		.tdma_type	= TDMA_OUI_TYPE,
-		.tdma_subtype	= TDMA_SUBTYPE_PARAM,
-		.tdma_version	= TDMA_VERSION,
+		.tdma_id = IEEE80211_ELEMID_VENDOR,
+		.tdma_len = sizeof(struct ieee80211_tdma_param) - 2,
+		.tdma_oui = { TDMA_OUI_BYTES },
+		.tdma_type = TDMA_OUI_TYPE,
+		.tdma_subtype = TDMA_SUBTYPE_PARAM,
+		.tdma_version = TDMA_VERSION,
 	};
 	const struct ieee80211_tdma_state *ts = vap->iv_tdma;
 	uint16_t slotlen;
 
 	KASSERT(vap->iv_caps & IEEE80211_C_TDMA,
-	     ("not a tdma vap, caps 0x%x", vap->iv_caps));
+	    ("not a tdma vap, caps 0x%x", vap->iv_caps));
 
 	memcpy(frm, &param, sizeof(param));
 	frm += __offsetof(struct ieee80211_tdma_param, tdma_slot);
 	*frm++ = ts->tdma_slot;
 	*frm++ = ts->tdma_slotcnt;
 	/* NB: convert units to fit in 16-bits */
-	slotlen = ts->tdma_slotlen / 100;	/* 100us units */
+	slotlen = ts->tdma_slotlen / 100; /* 100us units */
 	ADDSHORT(frm, slotlen);
 	*frm++ = ts->tdma_bintval;
 	*frm++ = ts->tdma_inuse[0];
-	frm += 10;				/* pad+timestamp */
-	return frm; 
+	frm += 10; /* pad+timestamp */
+	return frm;
 #undef ADDSHORT
 }
 #undef TDMA_OUI_BYTES
@@ -714,19 +710,19 @@ ieee80211_add_tdma(uint8_t *frm, struct ieee80211vap *vap)
  * Update TDMA state at TBTT.
  */
 void
-ieee80211_tdma_update_beacon(struct ieee80211vap *vap,
-	struct ieee80211_beacon_offsets *bo)
+ieee80211_tdma_update_beacon(
+    struct ieee80211vap *vap, struct ieee80211_beacon_offsets *bo)
 {
 	struct ieee80211_tdma_state *ts = vap->iv_tdma;
 
 	KASSERT(vap->iv_caps & IEEE80211_C_TDMA,
-	     ("not a tdma vap, caps 0x%x", vap->iv_caps));
+	    ("not a tdma vap, caps 0x%x", vap->iv_caps));
 
-	if (isset(bo->bo_flags,  IEEE80211_BEACON_TDMA)) {
-		(void) ieee80211_add_tdma(bo->bo_tdma, vap);
+	if (isset(bo->bo_flags, IEEE80211_BEACON_TDMA)) {
+		(void)ieee80211_add_tdma(bo->bo_tdma, vap);
 		clrbit(bo->bo_flags, IEEE80211_BEACON_TDMA);
 	}
-	if (ts->tdma_slot != 0)		/* only on master */
+	if (ts->tdma_slot != 0) /* only on master */
 		return;
 	if (ts->tdma_count <= 0) {
 		/*
@@ -742,7 +738,7 @@ ieee80211_tdma_update_beacon(struct ieee80211vap *vap,
 		/* XXX use notify framework */
 		setbit(bo->bo_flags, IEEE80211_BEACON_TDMA);
 		/* NB: use s/w beacon miss threshold; may be too high */
-		ts->tdma_count = vap->iv_bmissthreshold-1;
+		ts->tdma_count = vap->iv_bmissthreshold - 1;
 	} else
 		ts->tdma_count--;
 }
@@ -832,4 +828,4 @@ restart:
 }
 IEEE80211_IOCTL_SET(tdma, tdma_ioctl_set80211);
 
-#endif	/* IEEE80211_SUPPORT_TDMA */
+#endif /* IEEE80211_SUPPORT_TDMA */

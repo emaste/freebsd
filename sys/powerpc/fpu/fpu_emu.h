@@ -79,20 +79,21 @@
  * extra work where possible.
  */
 struct fpn {
-	int	fp_class;		/* see below */
-	int	fp_sign;		/* 0 => positive, 1 => negative */
-	int	fp_exp;			/* exponent (unbiased) */
-	int	fp_sticky;		/* nonzero bits lost at right end */
-	u_int	fp_mant[4];		/* 115-bit mantissa */
+	int fp_class;	  /* see below */
+	int fp_sign;	  /* 0 => positive, 1 => negative */
+	int fp_exp;	  /* exponent (unbiased) */
+	int fp_sticky;	  /* nonzero bits lost at right end */
+	u_int fp_mant[4]; /* 115-bit mantissa */
 };
 
-#define	FP_NMANT	115		/* total bits in mantissa (incl g,r) */
-#define	FP_NG		2		/* number of low-order guard bits */
-#define	FP_LG		((FP_NMANT - 1) & 31)	/* log2(1.0) for fp_mant[0] */
-#define	FP_LG2		((FP_NMANT - 1) & 63)	/* log2(1.0) for fp_mant[0] and fp_mant[1] */
-#define	FP_QUIETBIT	(1 << (FP_LG - 1))	/* Quiet bit in NaNs (0.5) */
-#define	FP_1		(1 << FP_LG)		/* 1.0 in fp_mant[0] */
-#define	FP_2		(1 << (FP_LG + 1))	/* 2.0 in fp_mant[0] */
+#define FP_NMANT 115 /* total bits in mantissa (incl g,r) */
+#define FP_NG 2 /* number of low-order guard bits */
+#define FP_LG ((FP_NMANT - 1) & 31) /* log2(1.0) for fp_mant[0] */
+#define FP_LG2 \
+	((FP_NMANT - 1) & 63) /* log2(1.0) for fp_mant[0] and fp_mant[1] */
+#define FP_QUIETBIT (1 << (FP_LG - 1)) /* Quiet bit in NaNs (0.5) */
+#define FP_1 (1 << FP_LG) /* 1.0 in fp_mant[0] */
+#define FP_2 (1 << (FP_LG + 1)) /* 2.0 in fp_mant[0] */
 
 /*
  * Number classes.  Since zero, Inf, and NaN cannot be represented using
@@ -100,17 +101,17 @@ struct fpn {
  * In addition, to make computation easier and to follow Appendix N of
  * the SPARC Version 8 standard, we give each kind of NaN a separate class.
  */
-#define	FPC_SNAN	-2		/* signalling NaN (sign irrelevant) */
-#define	FPC_QNAN	-1		/* quiet NaN (sign irrelevant) */
-#define	FPC_ZERO	0		/* zero (sign matters) */
-#define	FPC_NUM		1		/* number (sign matters) */
-#define	FPC_INF		2		/* infinity (sign matters) */
+#define FPC_SNAN -2 /* signalling NaN (sign irrelevant) */
+#define FPC_QNAN -1 /* quiet NaN (sign irrelevant) */
+#define FPC_ZERO 0 /* zero (sign matters) */
+#define FPC_NUM 1 /* number (sign matters) */
+#define FPC_INF 2 /* infinity (sign matters) */
 
-#define	ISSNAN(fp)	((fp)->fp_class == FPC_SNAN)
-#define	ISQNAN(fp)	((fp)->fp_class == FPC_QNAN)
-#define	ISNAN(fp)	((fp)->fp_class < 0)
-#define	ISZERO(fp)	((fp)->fp_class == 0)
-#define	ISINF(fp)	((fp)->fp_class == FPC_INF)
+#define ISSNAN(fp) ((fp)->fp_class == FPC_SNAN)
+#define ISQNAN(fp) ((fp)->fp_class == FPC_QNAN)
+#define ISNAN(fp) ((fp)->fp_class < 0)
+#define ISZERO(fp) ((fp)->fp_class == 0)
+#define ISINF(fp) ((fp)->fp_class == FPC_INF)
 
 /*
  * ORDER(x,y) `sorts' a pair of `fpn *'s so that the right operand (y) points
@@ -127,25 +128,27 @@ struct fpn {
  *	(unsigned)class(op1) > (unsigned)class(op2)
  * then op1 is the one we want; otherwise op2 is the one we want.
  */
-#define	ORDER(x, y) { \
-	if ((u_int)(x)->fp_class > (u_int)(y)->fp_class) \
-		SWAP(x, y); \
-}
-#define	SWAP(x, y) { \
-	struct fpn *swap; \
-	swap = (x), (x) = (y), (y) = swap; \
-}
+#define ORDER(x, y)                                              \
+	{                                                        \
+		if ((u_int)(x)->fp_class > (u_int)(y)->fp_class) \
+			SWAP(x, y);                              \
+	}
+#define SWAP(x, y)                                 \
+	{                                          \
+		struct fpn *swap;                  \
+		swap = (x), (x) = (y), (y) = swap; \
+	}
 
 /*
  * Emulator state.
  */
 struct fpemu {
-	struct	fpu *fe_fpstate;	/* registers, etc */
-	int	fe_fpscr;		/* fpscr copy (modified during op) */
-	int	fe_cx;			/* keep track of exceptions */
-	struct	fpn fe_f1;		/* operand 1 */
-	struct	fpn fe_f2;		/* operand 2, if required */
-	struct	fpn fe_f3;		/* available storage for result */
+	struct fpu *fe_fpstate; /* registers, etc */
+	int fe_fpscr;		/* fpscr copy (modified during op) */
+	int fe_cx;		/* keep track of exceptions */
+	struct fpn fe_f1;	/* operand 1 */
+	struct fpn fe_f2;	/* operand 2, if required */
+	struct fpn fe_f3;	/* available storage for result */
 };
 
 /*
@@ -153,44 +156,48 @@ struct fpemu {
  * Each of these may modify its inputs (f1,f2) and/or the temporary.
  * Each returns a pointer to the result and/or sets exceptions.
  */
-struct	fpn *fpu_add(struct fpemu *);
-#define	fpu_sub(fe) ((fe)->fe_f2.fp_sign ^= 1, fpu_add(fe))
-struct	fpn *fpu_mul(struct fpemu *);
-struct	fpn *fpu_div(struct fpemu *);
-struct	fpn *fpu_sqrt(struct fpemu *);
+struct fpn *fpu_add(struct fpemu *);
+#define fpu_sub(fe) ((fe)->fe_f2.fp_sign ^= 1, fpu_add(fe))
+struct fpn *fpu_mul(struct fpemu *);
+struct fpn *fpu_div(struct fpemu *);
+struct fpn *fpu_sqrt(struct fpemu *);
 
 /*
  * Other functions.
  */
 
 /* Perform a compare instruction (with or without unordered exception). */
-void	fpu_compare(struct fpemu *, int);
+void fpu_compare(struct fpemu *, int);
 
 /* Build a new Quiet NaN (sign=0, frac=all 1's). */
-struct	fpn *fpu_newnan(struct fpemu *);
+struct fpn *fpu_newnan(struct fpemu *);
 
-void	fpu_norm(struct fpn *);
+void fpu_norm(struct fpn *);
 
 /*
  * Shift a number right some number of bits, taking care of round/sticky.
  * Note that the result is probably not a well-formed number (it will lack
  * the normal 1-bit mant[0]&FP_1).
  */
-int	fpu_shr(struct fpn *, int);
+int fpu_shr(struct fpn *, int);
 
-void	fpu_explode(struct fpemu *, struct fpn *, int, int);
-void	fpu_implode(struct fpemu *, struct fpn *, int, u_int *);
+void fpu_explode(struct fpemu *, struct fpn *, int, int);
+void fpu_implode(struct fpemu *, struct fpn *, int, u_int *);
 
 #ifdef DEBUG
-#define	FPE_EX		0x1
-#define	FPE_INSN	0x2
-#define	FPE_OP		0x4
-#define	FPE_REG		0x8
+#define FPE_EX 0x1
+#define FPE_INSN 0x2
+#define FPE_OP 0x4
+#define FPE_REG 0x8
 extern int fpe_debug;
-void	fpu_dumpfpn(struct fpn *);
-#define	DPRINTF(x, y)	if (fpe_debug & (x)) printf y
-#define DUMPFPN(x, f)	if (fpe_debug & (x)) fpu_dumpfpn((f))
+void fpu_dumpfpn(struct fpn *);
+#define DPRINTF(x, y)        \
+	if (fpe_debug & (x)) \
+	printf y
+#define DUMPFPN(x, f)        \
+	if (fpe_debug & (x)) \
+	fpu_dumpfpn((f))
 #else
-#define	DPRINTF(x, y)
+#define DPRINTF(x, y)
 #define DUMPFPN(x, f)
 #endif

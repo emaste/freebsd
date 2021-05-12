@@ -39,26 +39,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/gpio.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
 
 #include <dev/gpio/gpiobusvar.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #if defined(EXT_RESOURCES) && defined(__aarch64__)
-#define	IMX_ENABLE_CLOCKS
+#define IMX_ENABLE_CLOCKS
 #endif
 
 #ifdef IMX_ENABLE_CLOCKS
@@ -71,89 +70,81 @@ __FBSDID("$FreeBSD$");
 #include "pic_if.h"
 #endif
 
-#define	WRITE4(_sc, _r, _v)						\
-	    bus_space_write_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r), (_v))
-#define	READ4(_sc, _r)							\
-	    bus_space_read_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r))
-#define	SET4(_sc, _r, _m)						\
-	    WRITE4((_sc), (_r), READ4((_sc), (_r)) | (_m))
-#define	CLEAR4(_sc, _r, _m)						\
-	    WRITE4((_sc), (_r), READ4((_sc), (_r)) & ~(_m))
+#define WRITE4(_sc, _r, _v) \
+	bus_space_write_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r), (_v))
+#define READ4(_sc, _r) bus_space_read_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r))
+#define SET4(_sc, _r, _m) WRITE4((_sc), (_r), READ4((_sc), (_r)) | (_m))
+#define CLEAR4(_sc, _r, _m) WRITE4((_sc), (_r), READ4((_sc), (_r)) & ~(_m))
 
 /* Registers definition for Freescale i.MX515 GPIO controller */
 
-#define	IMX_GPIO_DR_REG		0x000 /* Pin Data */
-#define	IMX_GPIO_OE_REG		0x004 /* Set Pin Output */
-#define	IMX_GPIO_PSR_REG	0x008 /* Pad Status */
-#define	IMX_GPIO_ICR1_REG	0x00C /* Interrupt Configuration */
-#define	IMX_GPIO_ICR2_REG	0x010 /* Interrupt Configuration */
-#define		GPIO_ICR_COND_LOW	0
-#define		GPIO_ICR_COND_HIGH	1
-#define		GPIO_ICR_COND_RISE	2
-#define		GPIO_ICR_COND_FALL	3
-#define		GPIO_ICR_COND_MASK	0x3
-#define	IMX_GPIO_IMR_REG	0x014 /* Interrupt Mask Register */
-#define	IMX_GPIO_ISR_REG	0x018 /* Interrupt Status Register */
-#define	IMX_GPIO_EDGE_REG	0x01C /* Edge Detect Register */
+#define IMX_GPIO_DR_REG 0x000 /* Pin Data */
+#define IMX_GPIO_OE_REG 0x004 /* Set Pin Output */
+#define IMX_GPIO_PSR_REG 0x008 /* Pad Status */
+#define IMX_GPIO_ICR1_REG 0x00C /* Interrupt Configuration */
+#define IMX_GPIO_ICR2_REG 0x010 /* Interrupt Configuration */
+#define GPIO_ICR_COND_LOW 0
+#define GPIO_ICR_COND_HIGH 1
+#define GPIO_ICR_COND_RISE 2
+#define GPIO_ICR_COND_FALL 3
+#define GPIO_ICR_COND_MASK 0x3
+#define IMX_GPIO_IMR_REG 0x014 /* Interrupt Mask Register */
+#define IMX_GPIO_ISR_REG 0x018 /* Interrupt Status Register */
+#define IMX_GPIO_EDGE_REG 0x01C /* Edge Detect Register */
 
 #ifdef INTRNG
-#define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT | \
-    GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH | GPIO_INTR_EDGE_RISING | \
-    GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH)
+#define DEFAULT_CAPS                                              \
+	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT | GPIO_INTR_LEVEL_LOW | \
+	    GPIO_INTR_LEVEL_HIGH | GPIO_INTR_EDGE_RISING |        \
+	    GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH)
 #else
-#define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
+#define DEFAULT_CAPS (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
 #endif
 
-#define	NGPIO		32
+#define NGPIO 32
 
 #ifdef INTRNG
 struct gpio_irqsrc {
-	struct intr_irqsrc	gi_isrc;
-	u_int			gi_irq;
-	uint32_t		gi_mode;
+	struct intr_irqsrc gi_isrc;
+	u_int gi_irq;
+	uint32_t gi_mode;
 };
 #endif
 
 struct imx51_gpio_softc {
-	device_t		dev;
-	device_t		sc_busdev;
-	struct mtx		sc_mtx;
-	struct resource		*sc_res[3]; /* 1 x mem, 2 x IRQ */
-	void			*gpio_ih[2];
-	bus_space_tag_t		sc_iot;
-	bus_space_handle_t	sc_ioh;
-	int			gpio_npins;
-	struct gpio_pin		gpio_pins[NGPIO];
+	device_t dev;
+	device_t sc_busdev;
+	struct mtx sc_mtx;
+	struct resource *sc_res[3]; /* 1 x mem, 2 x IRQ */
+	void *gpio_ih[2];
+	bus_space_tag_t sc_iot;
+	bus_space_handle_t sc_ioh;
+	int gpio_npins;
+	struct gpio_pin gpio_pins[NGPIO];
 #ifdef INTRNG
-	struct gpio_irqsrc 	gpio_pic_irqsrc[NGPIO];
+	struct gpio_irqsrc gpio_pic_irqsrc[NGPIO];
 #endif
 #ifdef IMX_ENABLE_CLOCKS
-	clk_t			clk;
+	clk_t clk;
 #endif
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{"fsl,imx8mq-gpio",	1},
-	{"fsl,imx6q-gpio",	1},
-	{"fsl,imx53-gpio",	1},
-	{"fsl,imx51-gpio",	1},
-	{NULL,			0}
-};
+static struct ofw_compat_data compat_data[] = { { "fsl,imx8mq-gpio", 1 },
+	{ "fsl,imx6q-gpio", 1 }, { "fsl,imx53-gpio", 1 },
+	{ "fsl,imx51-gpio", 1 }, { NULL, 0 } };
 
 static struct resource_spec imx_gpio_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, { SYS_RES_IRQ, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 1, RF_ACTIVE }, { -1, 0 }
 };
-#define	FIRST_IRQRES	1
-#define	NUM_IRQRES	2
+#define FIRST_IRQRES 1
+#define NUM_IRQRES 2
 
 /*
  * Helpers
  */
-static void imx51_gpio_pin_configure(struct imx51_gpio_softc *,
-    struct gpio_pin *, uint32_t);
+static void imx51_gpio_pin_configure(
+    struct imx51_gpio_softc *, struct gpio_pin *, uint32_t);
 
 /*
  * Driver stuff
@@ -270,19 +261,19 @@ gpio_pic_map(struct imx51_gpio_softc *sc, struct intr_map_data *data,
 
 	switch (data->type) {
 	case INTR_MAP_DATA_FDT:
-		return (gpio_pic_map_fdt(sc, (struct intr_map_data_fdt *)data,
-		    irqp, modep));
+		return (gpio_pic_map_fdt(
+		    sc, (struct intr_map_data_fdt *)data, irqp, modep));
 	case INTR_MAP_DATA_GPIO:
-		return (gpio_pic_map_gpio(sc, (struct intr_map_data_gpio *)data,
-		    irqp, modep));
+		return (gpio_pic_map_gpio(
+		    sc, (struct intr_map_data_gpio *)data, irqp, modep));
 	default:
 		return (ENOTSUP);
 	}
 }
 
 static int
-gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+gpio_pic_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	int error;
 	u_int irq;
@@ -356,7 +347,7 @@ gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	} else {
 		CLEAR4(sc, IMX_GPIO_EDGE_REG, (1u << irq));
 		switch (mode) {
-		default: 
+		default:
 			/* silence warnings; default can't actually happen. */
 			/* FALLTHROUGH */
 		case GPIO_INTR_LEVEL_LOW:
@@ -435,7 +426,7 @@ gpio_pic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 	irq = ((struct gpio_irqsrc *)isrc)->gi_irq;
 
 	arm_irq_memory_barrier(0);
-        /* EOI.  W1C reg so no r-m-w, no locking needed. */
+	/* EOI.  W1C reg so no r-m-w, no locking needed. */
 	WRITE4(sc, IMX_GPIO_ISR_REG, (1U << irq));
 }
 
@@ -517,8 +508,8 @@ gpio_pic_register_isrcs(struct imx51_gpio_softc *sc)
  *
  */
 static void
-imx51_gpio_pin_configure(struct imx51_gpio_softc *sc, struct gpio_pin *pin,
-    unsigned int flags)
+imx51_gpio_pin_configure(
+    struct imx51_gpio_softc *sc, struct gpio_pin *pin, unsigned int flags)
 {
 	u_int newflags, pad;
 
@@ -707,8 +698,7 @@ imx51_gpio_pin_toggle(device_t dev, uint32_t pin)
 		return (EINVAL);
 
 	mtx_lock_spin(&sc->sc_mtx);
-	WRITE4(sc, IMX_GPIO_DR_REG,
-	    (READ4(sc, IMX_GPIO_DR_REG) ^ (1U << pin)));
+	WRITE4(sc, IMX_GPIO_DR_REG, (READ4(sc, IMX_GPIO_DR_REG) ^ (1U << pin)));
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
@@ -739,8 +729,8 @@ imx51_gpio_pin_access_32(device_t dev, uint32_t first_pin, uint32_t clear_pins,
 }
 
 static int
-imx51_gpio_pin_config_32(device_t dev, uint32_t first_pin, uint32_t num_pins,
-    uint32_t *pin_flags)
+imx51_gpio_pin_config_32(
+    device_t dev, uint32_t first_pin, uint32_t num_pins, uint32_t *pin_flags)
 {
 	struct imx51_gpio_softc *sc;
 	u_int i;
@@ -771,10 +761,10 @@ imx51_gpio_pin_config_32(device_t dev, uint32_t first_pin, uint32_t num_pins,
 	}
 
 	mtx_lock_spin(&sc->sc_mtx);
-	WRITE4(sc, IMX_GPIO_DR_REG,
-	    (READ4(sc, IMX_GPIO_DR_REG) & ~drclr) | drset);
-	WRITE4(sc, IMX_GPIO_OE_REG,
-	    (READ4(sc, IMX_GPIO_OE_REG) & ~oeclr) | oeset);
+	WRITE4(
+	    sc, IMX_GPIO_DR_REG, (READ4(sc, IMX_GPIO_DR_REG) & ~drclr) | drset);
+	WRITE4(
+	    sc, IMX_GPIO_OE_REG, (READ4(sc, IMX_GPIO_OE_REG) & ~oeclr) | oeset);
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (0);
@@ -839,24 +829,25 @@ imx51_gpio_attach(device_t dev)
 	for (irq = 0; irq < 2; irq++) {
 #ifdef INTRNG
 		if ((bus_setup_intr(dev, sc->sc_res[1 + irq], INTR_TYPE_CLK,
-		    gpio_pic_filter, NULL, sc, &sc->gpio_ih[irq]))) {
+			gpio_pic_filter, NULL, sc, &sc->gpio_ih[irq]))) {
 			device_printf(dev,
 			    "WARNING: unable to register interrupt handler\n");
 			imx51_gpio_detach(dev);
 			return (ENXIO);
 		}
-#endif		
+#endif
 	}
 
 	unit = device_get_unit(dev);
 	for (i = 0; i < sc->gpio_npins; i++) {
- 		sc->gpio_pins[i].gp_pin = i;
- 		sc->gpio_pins[i].gp_caps = DEFAULT_CAPS;
- 		sc->gpio_pins[i].gp_flags =
- 		    (READ4(sc, IMX_GPIO_OE_REG) & (1U << i)) ? GPIO_PIN_OUTPUT :
- 		    GPIO_PIN_INPUT;
- 		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
- 		    "GPIO%d_IO%02d", unit + 1, i);
+		sc->gpio_pins[i].gp_pin = i;
+		sc->gpio_pins[i].gp_caps = DEFAULT_CAPS;
+		sc->gpio_pins[i].gp_flags = (READ4(sc, IMX_GPIO_OE_REG) &
+						(1U << i)) ?
+			  GPIO_PIN_OUTPUT :
+			  GPIO_PIN_INPUT;
+		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME, "GPIO%d_IO%02d",
+		    unit + 1, i);
 	}
 
 #ifdef INTRNG
@@ -901,7 +892,7 @@ imx51_gpio_detach(device_t dev)
 	bus_release_resources(dev, imx_gpio_spec, sc->sc_res);
 	mtx_destroy(&sc->sc_mtx);
 
-	return(0);
+	return (0);
 }
 
 static phandle_t
@@ -914,38 +905,38 @@ imx51_gpio_get_node(device_t bus, device_t dev)
 }
 
 static device_method_t imx51_gpio_methods[] = {
-	DEVMETHOD(device_probe,		imx51_gpio_probe),
-	DEVMETHOD(device_attach,	imx51_gpio_attach),
-	DEVMETHOD(device_detach,	imx51_gpio_detach),
+	DEVMETHOD(device_probe, imx51_gpio_probe),
+	DEVMETHOD(device_attach, imx51_gpio_attach),
+	DEVMETHOD(device_detach, imx51_gpio_detach),
 
 #ifdef INTRNG
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_disable_intr,	gpio_pic_disable_intr),
-	DEVMETHOD(pic_enable_intr,	gpio_pic_enable_intr),
-	DEVMETHOD(pic_map_intr,		gpio_pic_map_intr),
-	DEVMETHOD(pic_setup_intr,	gpio_pic_setup_intr),
-	DEVMETHOD(pic_teardown_intr,	gpio_pic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	gpio_pic_pre_ithread),
+	DEVMETHOD(pic_disable_intr, gpio_pic_disable_intr),
+	DEVMETHOD(pic_enable_intr, gpio_pic_enable_intr),
+	DEVMETHOD(pic_map_intr, gpio_pic_map_intr),
+	DEVMETHOD(pic_setup_intr, gpio_pic_setup_intr),
+	DEVMETHOD(pic_teardown_intr, gpio_pic_teardown_intr),
+	DEVMETHOD(pic_post_filter, gpio_pic_post_filter),
+	DEVMETHOD(pic_post_ithread, gpio_pic_post_ithread),
+	DEVMETHOD(pic_pre_ithread, gpio_pic_pre_ithread),
 #endif
 
 	/* OFW methods */
-	DEVMETHOD(ofw_bus_get_node,	imx51_gpio_get_node),
+	DEVMETHOD(ofw_bus_get_node, imx51_gpio_get_node),
 
 	/* GPIO protocol */
-	DEVMETHOD(gpio_get_bus,		imx51_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max,		imx51_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname,	imx51_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getflags,	imx51_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_getcaps,	imx51_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_setflags,	imx51_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_get,		imx51_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set,		imx51_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle,	imx51_gpio_pin_toggle),
-	DEVMETHOD(gpio_pin_access_32,	imx51_gpio_pin_access_32),
-	DEVMETHOD(gpio_pin_config_32,	imx51_gpio_pin_config_32),
-	{0, 0},
+	DEVMETHOD(gpio_get_bus, imx51_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max, imx51_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname, imx51_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getflags, imx51_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_getcaps, imx51_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_setflags, imx51_gpio_pin_setflags),
+	DEVMETHOD(gpio_pin_get, imx51_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set, imx51_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle, imx51_gpio_pin_toggle),
+	DEVMETHOD(gpio_pin_access_32, imx51_gpio_pin_access_32),
+	DEVMETHOD(gpio_pin_config_32, imx51_gpio_pin_config_32),
+	{ 0, 0 },
 };
 
 static driver_t imx51_gpio_driver = {

@@ -38,20 +38,21 @@
 #define RDMA_USER_CM_H
 
 #ifdef _KERNEL
-#include <linux/types.h>
-#include <linux/socket.h>
 #include <linux/in6.h>
+#include <linux/socket.h>
+#include <linux/types.h>
 #else
-#include <infiniband/types.h>
 #include <netinet/in.h>
+
+#include <infiniband/types.h>
 #endif
 
-#include <rdma/ib_user_verbs.h>
 #include <rdma/ib_user_sa.h>
+#include <rdma/ib_user_verbs.h>
 
-#define RDMA_USER_CM_ABI_VERSION	4
+#define RDMA_USER_CM_ABI_VERSION 4
 
-#define RDMA_MAX_PRIVATE_DATA		256
+#define RDMA_MAX_PRIVATE_DATA 256
 
 enum {
 	RDMA_USER_CM_CMD_CREATE_ID,
@@ -92,8 +93,8 @@ struct rdma_ucm_create_id {
 	__u64 uid;
 	__u64 response;
 	__u16 ps;
-	__u8  qp_type;
-	__u8  reserved[5];
+	__u8 qp_type;
+	__u8 reserved[5];
 };
 
 struct rdma_ucm_create_id_resp {
@@ -169,8 +170,8 @@ struct rdma_ucm_query_route_resp {
 
 struct rdma_ucm_query_addr_resp {
 	__u64 node_guid;
-	__u8  port_num;
-	__u8  reserved;
+	__u8 port_num;
+	__u8 reserved;
 	__u16 pkey;
 	__u16 src_size;
 	__u16 dst_size;
@@ -187,24 +188,24 @@ struct rdma_ucm_query_path_resp {
 struct rdma_ucm_conn_param {
 	__u32 qp_num;
 	__u32 qkey;
-	__u8  private_data[RDMA_MAX_PRIVATE_DATA];
-	__u8  private_data_len;
-	__u8  srq;
-	__u8  responder_resources;
-	__u8  initiator_depth;
-	__u8  flow_control;
-	__u8  retry_count;
-	__u8  rnr_retry_count;
-	__u8  valid;
+	__u8 private_data[RDMA_MAX_PRIVATE_DATA];
+	__u8 private_data_len;
+	__u8 srq;
+	__u8 responder_resources;
+	__u8 initiator_depth;
+	__u8 flow_control;
+	__u8 retry_count;
+	__u8 rnr_retry_count;
+	__u8 valid;
 };
 
 struct rdma_ucm_ud_param {
 	__u32 qp_num;
 	__u32 qkey;
 	struct ib_uverbs_ah_attr ah_attr;
-	__u8  private_data[RDMA_MAX_PRIVATE_DATA];
-	__u8  private_data_len;
-	__u8  reserved[7];
+	__u8 private_data[RDMA_MAX_PRIVATE_DATA];
+	__u8 private_data_len;
+	__u8 reserved[7];
 };
 
 struct rdma_ucm_connect {
@@ -227,9 +228,9 @@ struct rdma_ucm_accept {
 
 struct rdma_ucm_reject {
 	__u32 id;
-	__u8  private_data_len;
-	__u8  reserved[3];
-	__u8  private_data[RDMA_MAX_PRIVATE_DATA];
+	__u8 private_data_len;
+	__u8 reserved[3];
+	__u8 private_data[RDMA_MAX_PRIVATE_DATA];
 };
 
 struct rdma_ucm_disconnect {
@@ -248,7 +249,7 @@ struct rdma_ucm_notify {
 };
 
 struct rdma_ucm_join_ip_mcast {
-	__u64 response;		/* rdma_ucm_create_id_resp */
+	__u64 response; /* rdma_ucm_create_id_resp */
 	__u64 uid;
 	struct sockaddr_in6 addr;
 	__u32 id;
@@ -262,7 +263,7 @@ enum {
 };
 
 struct rdma_ucm_join_mcast {
-	__u64 response;		/* rdma_ucma_create_id_resp */
+	__u64 response; /* rdma_ucma_create_id_resp */
 	__u64 uid;
 	__u32 id;
 	__u16 addr_size;
@@ -281,22 +282,19 @@ struct rdma_ucm_event_resp {
 	__u32 status;
 	union {
 		struct rdma_ucm_conn_param conn;
-		struct rdma_ucm_ud_param   ud;
+		struct rdma_ucm_ud_param ud;
 	} param;
 };
 
 /* Option levels */
-enum {
-	RDMA_OPTION_ID		= 0,
-	RDMA_OPTION_IB		= 1
-};
+enum { RDMA_OPTION_ID = 0, RDMA_OPTION_IB = 1 };
 
 /* Option details */
 enum {
-	RDMA_OPTION_ID_TOS	 = 0,
+	RDMA_OPTION_ID_TOS = 0,
 	RDMA_OPTION_ID_REUSEADDR = 1,
-	RDMA_OPTION_ID_AFONLY	 = 2,
-	RDMA_OPTION_IB_PATH	 = 1
+	RDMA_OPTION_ID_AFONLY = 2,
+	RDMA_OPTION_IB_PATH = 1
 };
 
 struct rdma_ucm_set_option {

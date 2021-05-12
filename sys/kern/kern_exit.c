@@ -44,56 +44,56 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
+#include <sys/acct.h> /* for acct_process() function prototype */
 #include <sys/capsicum.h>
 #include <sys/eventhandler.h>
+#include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/malloc.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/procdesc.h>
-#include <sys/jail.h>
-#include <sys/tty.h>
-#include <sys/wait.h>
-#include <sys/vmmeter.h>
-#include <sys/vnode.h>
+#include <sys/ptrace.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
-#include <sys/signalvar.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
+#include <sys/signalvar.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
-#include <sys/syslog.h>
-#include <sys/ptrace.h>
-#include <sys/acct.h>		/* for acct_process() function prototype */
-#include <sys/filedesc.h>
-#include <sys/sdt.h>
-#include <sys/shm.h>
-#include <sys/sem.h>
 #include <sys/sysent.h>
+#include <sys/syslog.h>
+#include <sys/sysproto.h>
 #include <sys/timers.h>
+#include <sys/tty.h>
 #include <sys/umtx.h>
+#include <sys/vmmeter.h>
+#include <sys/vnode.h>
+#include <sys/wait.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/uma.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_map.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <vm/vm_page.h>
-#include <vm/uma.h>
-
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
-dtrace_execexit_func_t	dtrace_fasttrap_exit;
+dtrace_execexit_func_t dtrace_fasttrap_exit;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
@@ -107,16 +107,17 @@ proc_realparent(struct proc *child)
 	sx_assert(&proctree_lock, SX_LOCKED);
 	if ((child->p_treeflag & P_TREE_ORPHANED) == 0)
 		return (child->p_pptr->p_pid == child->p_oppid ?
-		    child->p_pptr : child->p_reaper);
+			      child->p_pptr :
+			      child->p_reaper);
 	for (p = child; (p->p_treeflag & P_TREE_FIRST_ORPHAN) == 0;) {
 		/* Cannot use LIST_PREV(), since the list head is not known. */
-		p = __containerof(p->p_orphan.le_prev, struct proc,
-		    p_orphan.le_next);
+		p = __containerof(
+		    p->p_orphan.le_prev, struct proc, p_orphan.le_next);
 		KASSERT((p->p_treeflag & P_TREE_ORPHANED) != 0,
 		    ("missing P_ORPHAN %p", p));
 	}
-	parent = __containerof(p->p_orphan.le_prev, struct proc,
-	    p_orphans.lh_first);
+	parent = __containerof(
+	    p->p_orphan.le_prev, struct proc, p_orphans.lh_first);
 	return (parent);
 }
 
@@ -130,7 +131,7 @@ reaper_abandon_children(struct proc *p, bool exiting)
 	if ((p->p_treeflag & P_TREE_REAPER) == 0)
 		return;
 	p1 = p->p_reaper;
-	LIST_FOREACH_SAFE(p2, &p->p_reaplist, p_reapsibling, ptmp) {
+	LIST_FOREACH_SAFE (p2, &p->p_reaplist, p_reapsibling, ptmp) {
 		LIST_REMOVE(p2, p_reapsibling);
 		p2->p_reaper = p1;
 		p2->p_reapsubtree = p->p_reapsubtree;
@@ -156,7 +157,7 @@ reaper_clear(struct proc *p)
 	if (p->p_reapsubtree == 1)
 		return;
 	clear = true;
-	LIST_FOREACH(p1, &p->p_reaper->p_reaplist, p_reapsibling) {
+	LIST_FOREACH (p1, &p->p_reaper->p_reaplist, p_reapsibling) {
 		if (p1->p_reapsubtree == p->p_reapsubtree) {
 			clear = false;
 			break;
@@ -464,7 +465,7 @@ exit1(struct thread *td, int rval, int signo)
 	 * - the rest to init
 	 */
 	q = LIST_FIRST(&p->p_children);
-	if (q != NULL)		/* only need this if any child is S_ZOMB */
+	if (q != NULL) /* only need this if any child is S_ZOMB */
 		wakeup(q->p_reaper);
 	for (; q != NULL; q = nq) {
 		nq = LIST_NEXT(q, p_sibling);
@@ -525,9 +526,9 @@ exit1(struct thread *td, int rval, int signo)
 			q->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
 			q->p_flag2 &= ~P2_PTRACE_FSTP;
 			q->p_ptevents = 0;
-			FOREACH_THREAD_IN_PROC(q, tdt) {
-				tdt->td_dbgflags &= ~(TDB_SUSPEND | TDB_XSIG |
-				    TDB_FSTP);
+			FOREACH_THREAD_IN_PROC (q, tdt) {
+				tdt->td_dbgflags &= ~(
+				    TDB_SUSPEND | TDB_XSIG | TDB_FSTP);
 			}
 			kern_psignal(q, SIGKILL);
 		}
@@ -543,7 +544,7 @@ exit1(struct thread *td, int rval, int signo)
 		PROC_LOCK(q);
 		KASSERT(q->p_oppid == p->p_pid,
 		    ("orphan %p of %p has unexpected oppid %d", q, p,
-		    q->p_oppid));
+			q->p_oppid));
 		q->p_oppid = q->p_reaper->p_pid;
 
 		/*
@@ -712,8 +713,8 @@ sys_abort2(struct thread *td, struct abort2_args *uap)
 	 */
 	sb = sbuf_new(NULL, NULL, 512, SBUF_FIXEDLEN);
 	sbuf_clear(sb);
-	sbuf_printf(sb, "%s(pid %d uid %d) aborted: ",
-	    p->p_comm, p->p_pid, td->td_ucred->cr_uid);
+	sbuf_printf(sb, "%s(pid %d uid %d) aborted: ", p->p_comm, p->p_pid,
+	    td->td_ucred->cr_uid);
 	/*
 	 * Since we can't return from abort2(), send SIGKILL in cases, where
 	 * abort2() was called improperly
@@ -742,7 +743,7 @@ sys_abort2(struct thread *td, struct abort2_args *uap)
 	}
 	if (uap->nargs > 0) {
 		sbuf_printf(sb, "(");
-		for (i = 0;i < uap->nargs; i++)
+		for (i = 0; i < uap->nargs; i++)
 			sbuf_printf(sb, "%s%p", i == 0 ? "" : ", ", uargs[i]);
 		sbuf_printf(sb, ")");
 	}
@@ -928,7 +929,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	 * nothing can reach this process anymore. As such further locking
 	 * is unnecessary.
 	 */
-	p->p_xexit = p->p_xsig = 0;		/* XXX: why? */
+	p->p_xexit = p->p_xsig = 0; /* XXX: why? */
 
 	PROC_LOCK(q);
 	ruadd(&q->p_stats->p_cru, &q->p_crux, &p->p_ru, &p->p_rux);
@@ -974,8 +975,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	mac_proc_destroy(p);
 #endif
 
-	KASSERT(FIRST_THREAD_IN_PROC(p),
-	    ("proc_reap: no residual thread!"));
+	KASSERT(FIRST_THREAD_IN_PROC(p), ("proc_reap: no residual thread!"));
 	uma_zfree(proc_zone, p);
 	atomic_add_int(&nprocs, -1);
 }
@@ -994,8 +994,7 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 	switch (idtype) {
 	case P_ALL:
 		if (p->p_procdesc == NULL ||
-		   (p->p_pptr == td->td_proc &&
-		   (p->p_flag & P_TRACED) != 0)) {
+		    (p->p_pptr == td->td_proc && (p->p_flag & P_TRACED) != 0)) {
 			break;
 		}
 
@@ -1065,8 +1064,7 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 	 * p_sigparent is not SIGCHLD, and the WLINUXCLONE option
 	 * signifies we want to wait for threads and not processes.
 	 */
-	if ((p->p_sigparent != SIGCHLD) ^
-	    ((options & WLINUXCLONE) != 0)) {
+	if ((p->p_sigparent != SIGCHLD) ^ ((options & WLINUXCLONE) != 0)) {
 		PROC_UNLOCK(p);
 		return (0);
 	}
@@ -1215,8 +1213,8 @@ kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
 	int error, nfound, ret;
 	bool report;
 
-	AUDIT_ARG_VALUE((int)idtype);	/* XXX - This is likely wrong! */
-	AUDIT_ARG_PID((pid_t)id);	/* XXX - This may be wrong! */
+	AUDIT_ARG_VALUE((int)idtype); /* XXX - This is likely wrong! */
+	AUDIT_ARG_PID((pid_t)id);     /* XXX - This may be wrong! */
 	AUDIT_ARG_VALUE(options);
 
 	q = td->td_proc;
@@ -1229,8 +1227,9 @@ kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
 	}
 
 	/* If we don't know the option, just return. */
-	if ((options & ~(WUNTRACED | WNOHANG | WCONTINUED | WNOWAIT |
-	    WEXITED | WTRAPPED | WLINUXCLONE)) != 0)
+	if ((options &
+		~(WUNTRACED | WNOHANG | WCONTINUED | WNOWAIT | WEXITED |
+		    WTRAPPED | WLINUXCLONE)) != 0)
 		return (EINVAL);
 	if ((options & (WEXITED | WUNTRACED | WCONTINUED | WTRAPPED)) == 0) {
 		/*
@@ -1251,10 +1250,10 @@ loop:
 	sx_xlock(&proctree_lock);
 loop_locked:
 	nfound = 0;
-	LIST_FOREACH(p, &q->p_children, p_sibling) {
+	LIST_FOREACH (p, &q->p_children, p_sibling) {
 		pid = p->p_pid;
-		ret = proc_to_reap(td, p, idtype, id, status, options,
-		    wrusage, siginfo, 0);
+		ret = proc_to_reap(
+		    td, p, idtype, id, status, options, wrusage, siginfo, 0);
 		if (ret == 0)
 			continue;
 		else if (ret != 1) {
@@ -1265,21 +1264,21 @@ loop_locked:
 		nfound++;
 		PROC_LOCK_ASSERT(p, MA_OWNED);
 
-		if ((options & WTRAPPED) != 0 &&
-		    (p->p_flag & P_TRACED) != 0) {
+		if ((options & WTRAPPED) != 0 && (p->p_flag & P_TRACED) != 0) {
 			PROC_SLOCK(p);
-			report =
-			    ((p->p_flag & (P_STOPPED_TRACE | P_STOPPED_SIG)) &&
+			report = ((p->p_flag &
+				      (P_STOPPED_TRACE | P_STOPPED_SIG)) &&
 			    p->p_suspcount == p->p_numthreads &&
 			    (p->p_flag & P_WAITED) == 0);
 			PROC_SUNLOCK(p);
 			if (report) {
-			CTR4(KTR_PTRACE,
-			    "wait: returning trapped pid %d status %#x "
-			    "(xstat %d) xthread %d",
-			    p->p_pid, W_STOPCODE(p->p_xsig), p->p_xsig,
-			    p->p_xthread != NULL ?
-			    p->p_xthread->td_tid : -1);
+				CTR4(KTR_PTRACE,
+				    "wait: returning trapped pid %d status %#x "
+				    "(xstat %d) xthread %d",
+				    p->p_pid, W_STOPCODE(p->p_xsig), p->p_xsig,
+				    p->p_xthread != NULL ?
+					      p->p_xthread->td_tid :
+					      -1);
 				report_alive_proc(td, p, siginfo, status,
 				    options, CLD_TRAPPED);
 				return (0);
@@ -1299,8 +1298,8 @@ loop_locked:
 		}
 		if ((options & WCONTINUED) != 0 &&
 		    (p->p_flag & P_CONTINUED) != 0) {
-			report_alive_proc(td, p, siginfo, status, options,
-			    CLD_CONTINUED);
+			report_alive_proc(
+			    td, p, siginfo, status, options, CLD_CONTINUED);
 			return (0);
 		}
 		PROC_UNLOCK(p);
@@ -1319,12 +1318,13 @@ loop_locked:
 	 * to successfully wait until the child becomes a zombie.
 	 */
 	if (nfound == 0) {
-		LIST_FOREACH(p, &q->p_orphans, p_orphan) {
-			ret = proc_to_reap(td, p, idtype, id, NULL, options,
-			    NULL, NULL, 1);
+		LIST_FOREACH (p, &q->p_orphans, p_orphan) {
+			ret = proc_to_reap(
+			    td, p, idtype, id, NULL, options, NULL, NULL, 1);
 			if (ret != 0) {
-				KASSERT(ret != -1, ("reaped an orphan (pid %d)",
-				    (int)td->td_retval[0]));
+				KASSERT(ret != -1,
+				    ("reaped an orphan (pid %d)",
+					(int)td->td_retval[0]));
 				PROC_UNLOCK(p);
 				nfound++;
 				break;
@@ -1358,15 +1358,15 @@ proc_add_orphan(struct proc *child, struct proc *parent)
 {
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
-	KASSERT((child->p_flag & P_TRACED) != 0,
-	    ("proc_add_orphan: not traced"));
+	KASSERT(
+	    (child->p_flag & P_TRACED) != 0, ("proc_add_orphan: not traced"));
 
 	if (LIST_EMPTY(&parent->p_orphans)) {
 		child->p_treeflag |= P_TREE_FIRST_ORPHAN;
 		LIST_INSERT_HEAD(&parent->p_orphans, child, p_orphan);
 	} else {
-		LIST_INSERT_AFTER(LIST_FIRST(&parent->p_orphans),
-		    child, p_orphan);
+		LIST_INSERT_AFTER(
+		    LIST_FIRST(&parent->p_orphans), child, p_orphan);
 	}
 	child->p_treeflag |= P_TREE_ORPHANED;
 }

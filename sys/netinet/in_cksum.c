@@ -44,8 +44,13 @@ __FBSDID("$FreeBSD$");
  * code and should be modified for each CPU to be as fast as possible.
  */
 
-#define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
-#define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);}
+#define ADDCARRY(x) (x > 65535 ? x -= 65535 : x)
+#define REDUCE                                   \
+	{                                        \
+		l_util.l = sum;                  \
+		sum = l_util.s[0] + l_util.s[1]; \
+		ADDCARRY(sum);                   \
+	}
 
 int
 in_cksum(struct mbuf *m, int len)
@@ -56,15 +61,15 @@ in_cksum(struct mbuf *m, int len)
 	int byte_swapped = 0;
 
 	union {
-		char	c[2];
-		u_short	s;
+		char c[2];
+		u_short s;
 	} s_util;
 	union {
 		u_short s[2];
-		long	l;
+		long l;
 	} l_util;
 
-	for (;m && len; m = m->m_next) {
+	for (; m && len; m = m->m_next) {
 		if (m->m_len == 0)
 			continue;
 		w = mtod(m, u_short *);
@@ -90,7 +95,7 @@ in_cksum(struct mbuf *m, int len)
 		/*
 		 * Force to even boundary.
 		 */
-		if ((1 & (uintptr_t) w) && (mlen > 0)) {
+		if ((1 & (uintptr_t)w) && (mlen > 0)) {
 			REDUCE;
 			sum <<= 8;
 			s_util.c[0] = *(u_char *)w;
@@ -103,15 +108,30 @@ in_cksum(struct mbuf *m, int len)
 		 * branches &c small.
 		 */
 		while ((mlen -= 32) >= 0) {
-			sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
-			sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
-			sum += w[8]; sum += w[9]; sum += w[10]; sum += w[11];
-			sum += w[12]; sum += w[13]; sum += w[14]; sum += w[15];
+			sum += w[0];
+			sum += w[1];
+			sum += w[2];
+			sum += w[3];
+			sum += w[4];
+			sum += w[5];
+			sum += w[6];
+			sum += w[7];
+			sum += w[8];
+			sum += w[9];
+			sum += w[10];
+			sum += w[11];
+			sum += w[12];
+			sum += w[13];
+			sum += w[14];
+			sum += w[15];
 			w += 16;
 		}
 		mlen += 32;
 		while ((mlen -= 8) >= 0) {
-			sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
+			sum += w[0];
+			sum += w[1];
+			sum += w[2];
+			sum += w[3];
 			w += 4;
 		}
 		mlen += 8;

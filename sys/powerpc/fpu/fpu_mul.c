@@ -144,7 +144,7 @@ fpu_mul(struct fpemu *fe)
 			return (fpu_newnan(fe));
 		}
 		y->fp_sign ^= x->fp_sign;
-			DUMPFPN(FPE_REG, y);
+		DUMPFPN(FPE_REG, y);
 		return (y);
 	}
 	if (ISZERO(x)) {
@@ -164,21 +164,26 @@ fpu_mul(struct fpemu *fe)
 	x0 = x->fp_mant[0];
 	sticky = a3 = a2 = a1 = a0 = 0;
 
-#define	ADD	/* A += X */ \
-	FPU_ADDS(a3, a3, x3); \
+#define ADD /* A += X */       \
+	FPU_ADDS(a3, a3, x3);  \
 	FPU_ADDCS(a2, a2, x2); \
 	FPU_ADDCS(a1, a1, x1); \
 	FPU_ADDC(a0, a0, x0)
 
-#define	SHR1	/* A >>= 1, with sticky */ \
+#define SHR1 /* A >>= 1, with sticky */                \
 	sticky |= a3 & 1, a3 = (a3 >> 1) | (a2 << 31), \
-	a2 = (a2 >> 1) | (a1 << 31), a1 = (a1 >> 1) | (a0 << 31), a0 >>= 1
+			  a2 = (a2 >> 1) | (a1 << 31), \
+			  a1 = (a1 >> 1) | (a0 << 31), a0 >>= 1
 
-#define	SHR32	/* A >>= 32, with sticky */ \
+#define SHR32 /* A >>= 32, with sticky */ \
 	sticky |= a3, a3 = a2, a2 = a1, a1 = a0, a0 = 0
 
-#define	STEP	/* each 1-bit step of the multiplication */ \
-	SHR1; if (bit & m) { ADD; }; bit <<= 1
+#define STEP /* each 1-bit step of the multiplication */ \
+	SHR1;                                            \
+	if (bit & m) {                                   \
+		ADD;                                     \
+	};                                               \
+	bit <<= 1
 
 	/*
 	 * We are ready to begin.  The multiply loop runs once for each
@@ -189,7 +194,7 @@ fpu_mul(struct fpemu *fe)
 	 * so we stop the loop when we move past that bit.
 	 */
 	if ((m = y->fp_mant[3]) == 0) {
-		/* SHR32; */			/* unneeded since A==0 */
+		/* SHR32; */ /* unneeded since A==0 */
 	} else {
 		bit = 1 << FP_NG;
 		do {
@@ -212,7 +217,7 @@ fpu_mul(struct fpemu *fe)
 			STEP;
 		} while (bit != 0);
 	}
-	m = y->fp_mant[0];		/* definitely != 0 */
+	m = y->fp_mant[0]; /* definitely != 0 */
 	bit = 1;
 	do {
 		STEP;

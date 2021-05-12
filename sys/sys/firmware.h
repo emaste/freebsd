@@ -51,21 +51,21 @@
  * the same name as the module it is embedded into.
  */
 struct firmware {
-	const char	*name;		/* system-wide name */
-	const void	*data;		/* location of image */
-	size_t		 datasize;	/* size of image in bytes */
-	unsigned int	 version;	/* version of the image */
+	const char *name;     /* system-wide name */
+	const void *data;     /* location of image */
+	size_t datasize;      /* size of image in bytes */
+	unsigned int version; /* version of the image */
 };
 
-const struct firmware	*firmware_register(const char *,
-	const void *, size_t, unsigned int, const struct firmware *);
-int	 firmware_unregister(const char *);
+const struct firmware *firmware_register(
+    const char *, const void *, size_t, unsigned int, const struct firmware *);
+int firmware_unregister(const char *);
 
-#define	FIRMWARE_GET_NOWARN	0x0001	/* Do not warn if firmware not found. */
+#define FIRMWARE_GET_NOWARN 0x0001 /* Do not warn if firmware not found. */
 const struct firmware *firmware_get_flags(const char *, uint32_t flags);
 const struct firmware *firmware_get(const char *);
 
-#define	FIRMWARE_UNLOAD		0x0001	/* unload if unreferenced */
-void		 firmware_put(const struct firmware *, int);
+#define FIRMWARE_UNLOAD 0x0001 /* unload if unreferenced */
+void firmware_put(const struct firmware *, int);
 
 #endif /* _SYS_FIRMWARE_H_ */

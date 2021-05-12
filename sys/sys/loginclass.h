@@ -31,7 +31,7 @@
  */
 
 #ifndef _SYS_LOGINCLASS_H_
-#define	_SYS_LOGINCLASS_H_
+#define _SYS_LOGINCLASS_H_
 
 struct racct;
 
@@ -39,17 +39,17 @@ struct racct;
  * Exactly one of these structures exists per login class.
  */
 struct loginclass {
-	LIST_ENTRY(loginclass)	lc_next;
-	char			lc_name[MAXLOGNAME];
-	u_int			lc_refcount;
-	struct racct		*lc_racct;
+	LIST_ENTRY(loginclass) lc_next;
+	char lc_name[MAXLOGNAME];
+	u_int lc_refcount;
+	struct racct *lc_racct;
 };
 
-void	loginclass_hold(struct loginclass *lc);
-void	loginclass_free(struct loginclass *lc);
-struct loginclass	*loginclass_find(const char *name);
-void	loginclass_racct_foreach(void (*callback)(struct racct *racct,
-	    void *arg2, void *arg3), void (*pre)(void), void (*post)(void),
-	    void *arg2, void *arg3);
+void loginclass_hold(struct loginclass *lc);
+void loginclass_free(struct loginclass *lc);
+struct loginclass *loginclass_find(const char *name);
+void loginclass_racct_foreach(
+    void (*callback)(struct racct *racct, void *arg2, void *arg3),
+    void (*pre)(void), void (*post)(void), void *arg2, void *arg3);
 
 #endif /* !_SYS_LOGINCLASS_H_ */

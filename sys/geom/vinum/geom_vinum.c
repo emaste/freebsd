@@ -4,7 +4,7 @@
  *  Copyright (c) 2004, 2007 Lukas Ertl
  *  Copyright (c) 2007, 2009 Ulf Lilleengen
  *  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -41,13 +42,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
 #include <geom/vinum/geom_vinum_raid5.h>
+#include <geom/vinum/geom_vinum_var.h>
 
 SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, vinum, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -56,10 +56,10 @@ u_int g_vinum_debug = 0;
 SYSCTL_UINT(_kern_geom_vinum, OID_AUTO, debug, CTLFLAG_RWTUN, &g_vinum_debug, 0,
     "Debug level");
 
-static int	gv_create(struct g_geom *, struct gctl_req *);
-static void	gv_attach(struct gv_softc *, struct gctl_req *);
-static void	gv_detach(struct gv_softc *, struct gctl_req *);
-static void	gv_parityop(struct gv_softc *, struct gctl_req *);
+static int gv_create(struct g_geom *, struct gctl_req *);
+static void gv_attach(struct gv_softc *, struct gctl_req *);
+static void gv_detach(struct gv_softc *, struct gctl_req *);
+static void gv_parityop(struct gv_softc *, struct gctl_req *);
 
 static void
 gv_orphan(struct g_consumer *cp)
@@ -141,18 +141,18 @@ gv_access(struct g_provider *pp, int dr, int dw, int de)
 	 */
 	dr += dw;
 
-	LIST_FOREACH(d, &sc->drives, drive) {
+	LIST_FOREACH (d, &sc->drives, drive) {
 		if (d->consumer == NULL)
 			continue;
 		error = g_access(d->consumer, dr, dw, de);
 		if (error) {
-			LIST_FOREACH(d2, &sc->drives, drive) {
+			LIST_FOREACH (d2, &sc->drives, drive) {
 				if (d == d2)
 					break;
 				g_access(d2->consumer, -dr, -dw, -de);
 			}
-			G_VINUM_DEBUG(0, "g_access '%s' failed: %d", d->name,
-			    error);
+			G_VINUM_DEBUG(
+			    0, "g_access '%s' failed: %d", d->name, error);
 			return (error);
 		}
 	}
@@ -175,10 +175,10 @@ gv_init(struct g_class *mp)
 	gp->softc = g_malloc(sizeof(struct gv_softc), M_WAITOK | M_ZERO);
 	sc = gp->softc;
 	sc->geom = gp;
-	sc->bqueue_down = g_malloc(sizeof(struct bio_queue_head),
-	    M_WAITOK | M_ZERO);
-	sc->bqueue_up = g_malloc(sizeof(struct bio_queue_head),
-	    M_WAITOK | M_ZERO);
+	sc->bqueue_down = g_malloc(
+	    sizeof(struct bio_queue_head), M_WAITOK | M_ZERO);
+	sc->bqueue_up = g_malloc(
+	    sizeof(struct bio_queue_head), M_WAITOK | M_ZERO);
 	bioq_init(sc->bqueue_down);
 	bioq_init(sc->bqueue_up);
 	LIST_INIT(&sc->drives);
@@ -361,8 +361,10 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 			goto error;
 		}
 		if (gv_find_drive_device(sc, d2->device) != NULL) {
-			gctl_error(req, "device '%s' already configured in "
-			    "gvinum", d2->device);
+			gctl_error(req,
+			    "device '%s' already configured in "
+			    "gvinum",
+			    d2->device);
 			goto error;
 		}
 
@@ -473,11 +475,11 @@ gv_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 	} else if (!strcmp(verb, "list")) {
 		gv_list(gp, req);
 
-	/* Save our configuration back to disk. */
+		/* Save our configuration back to disk. */
 	} else if (!strcmp(verb, "saveconfig")) {
 		gv_post_event(sc, GV_EVENT_SAVE_CONFIG, sc, NULL, 0, 0);
 
-	/* Return configuration in string form. */
+		/* Return configuration in string form. */
 	} else if (!strcmp(verb, "getconfig")) {
 		comment = gctl_get_param(req, "comment", NULL);
 		if (comment == NULL) {
@@ -560,8 +562,8 @@ gv_parityop(struct gv_softc *sc, struct gctl_req *req)
 	p = gv_find_plex(sc, plex);
 
 	if (p->state != GV_PLEX_UP) {
-		gctl_error(req, "plex %s is not completely accessible",
-		    p->name);
+		gctl_error(
+		    req, "plex %s is not completely accessible", p->name);
 		return;
 	}
 
@@ -588,7 +590,7 @@ gv_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	struct gv_hdr vhdr;
 	int error;
 
- 	g_topology_assert();
+	g_topology_assert();
 	g_trace(G_T_TOPOLOGY, "gv_taste(%s, %s)", mp->name, pp->name);
 
 	gp = LIST_FIRST(&mp->geom);
@@ -725,8 +727,10 @@ gv_worker(void *arg)
 				flags = ev->arg4;
 				err = gv_set_sd_state(s, newstate, flags);
 				if (err)
-					G_VINUM_DEBUG(0, "error setting subdisk"
-					    " state: error code %d", err);
+					G_VINUM_DEBUG(0,
+					    "error setting subdisk"
+					    " state: error code %d",
+					    err);
 				break;
 
 			case GV_EVENT_SET_DRIVE_STATE:
@@ -736,8 +740,10 @@ gv_worker(void *arg)
 				flags = ev->arg4;
 				err = gv_set_drive_state(d, newstate, flags);
 				if (err)
-					G_VINUM_DEBUG(0, "error setting drive "
-					    "state: error code %d", err);
+					G_VINUM_DEBUG(0,
+					    "error setting drive "
+					    "state: error code %d",
+					    err);
 				break;
 
 			case GV_EVENT_SET_VOL_STATE:
@@ -747,8 +753,10 @@ gv_worker(void *arg)
 				flags = ev->arg4;
 				err = gv_set_vol_state(v, newstate, flags);
 				if (err)
-					G_VINUM_DEBUG(0, "error setting volume "
-					    "state: error code %d", err);
+					G_VINUM_DEBUG(0,
+					    "error setting volume "
+					    "state: error code %d",
+					    err);
 				break;
 
 			case GV_EVENT_SET_PLEX_STATE:
@@ -758,8 +766,10 @@ gv_worker(void *arg)
 				flags = ev->arg4;
 				err = gv_set_plex_state(p, newstate, flags);
 				if (err)
-					G_VINUM_DEBUG(0, "error setting plex "
-					    "state: error code %d", err);
+					G_VINUM_DEBUG(0,
+					    "error setting plex "
+					    "state: error code %d",
+					    err);
 				break;
 
 			case GV_EVENT_SETUP_OBJECTS:
@@ -771,28 +781,34 @@ gv_worker(void *arg)
 				G_VINUM_DEBUG(2, "event 'resetconfig'");
 				err = gv_resetconfig(sc);
 				if (err)
-					G_VINUM_DEBUG(0, "error resetting "
-					    "config: error code %d", err);
+					G_VINUM_DEBUG(0,
+					    "error resetting "
+					    "config: error code %d",
+					    err);
 				break;
 
 			case GV_EVENT_PARITY_REBUILD:
 				/*
 				 * Start the rebuild. The gv_plex_done will
 				 * handle issuing of the remaining rebuild bio's
-				 * until it's finished. 
+				 * until it's finished.
 				 */
 				G_VINUM_DEBUG(2, "event 'rebuild'");
 				p = ev->arg1;
 				if (p->state != GV_PLEX_UP) {
-					G_VINUM_DEBUG(0, "plex %s is not "
-					    "completely accessible", p->name);
+					G_VINUM_DEBUG(0,
+					    "plex %s is not "
+					    "completely accessible",
+					    p->name);
 					break;
 				}
 				if (p->flags & GV_PLEX_SYNCING ||
 				    p->flags & GV_PLEX_REBUILDING ||
 				    p->flags & GV_PLEX_GROWING) {
-					G_VINUM_DEBUG(0, "plex %s is busy with "
-					    "syncing or parity build", p->name);
+					G_VINUM_DEBUG(0,
+					    "plex %s is busy with "
+					    "syncing or parity build",
+					    p->name);
 					break;
 				}
 				p->synced = 0;
@@ -801,13 +817,14 @@ gv_worker(void *arg)
 				g_topology_lock();
 				err = gv_access(p->vol_sc->provider, 1, 1, 0);
 				if (err) {
-					G_VINUM_DEBUG(0, "unable to access "
+					G_VINUM_DEBUG(0,
+					    "unable to access "
 					    "provider");
 					break;
 				}
 				g_topology_unlock();
-				gv_parity_request(p, GV_BIO_CHECK |
-				    GV_BIO_PARITY, 0);
+				gv_parity_request(
+				    p, GV_BIO_CHECK | GV_BIO_PARITY, 0);
 				break;
 
 			case GV_EVENT_PARITY_CHECK:
@@ -815,15 +832,19 @@ gv_worker(void *arg)
 				G_VINUM_DEBUG(2, "event 'check'");
 				p = ev->arg1;
 				if (p->state != GV_PLEX_UP) {
-					G_VINUM_DEBUG(0, "plex %s is not "
-					    "completely accessible", p->name);
+					G_VINUM_DEBUG(0,
+					    "plex %s is not "
+					    "completely accessible",
+					    p->name);
 					break;
 				}
 				if (p->flags & GV_PLEX_SYNCING ||
 				    p->flags & GV_PLEX_REBUILDING ||
 				    p->flags & GV_PLEX_GROWING) {
-					G_VINUM_DEBUG(0, "plex %s is busy with "
-					    "syncing or parity build", p->name);
+					G_VINUM_DEBUG(0,
+					    "plex %s is busy with "
+					    "syncing or parity build",
+					    p->name);
 					break;
 				}
 				p->synced = 0;
@@ -831,7 +852,8 @@ gv_worker(void *arg)
 				g_topology_lock();
 				err = gv_access(p->vol_sc->provider, 1, 1, 0);
 				if (err) {
-					G_VINUM_DEBUG(0, "unable to access "
+					G_VINUM_DEBUG(0,
+					    "unable to access "
 					    "provider");
 					break;
 				}
@@ -858,9 +880,10 @@ gv_worker(void *arg)
 				rename = ev->arg4;
 				err = gv_attach_plex(p, v, rename);
 				if (err)
-					G_VINUM_DEBUG(0, "error attaching %s to"
-					    " %s: error code %d", p->name,
-					    v->name, err);
+					G_VINUM_DEBUG(0,
+					    "error attaching %s to"
+					    " %s: error code %d",
+					    p->name, v->name, err);
 				break;
 
 			case GV_EVENT_ATTACH_SD:
@@ -871,9 +894,10 @@ gv_worker(void *arg)
 				rename = ev->arg4;
 				err = gv_attach_sd(s, p, offset, rename);
 				if (err)
-					G_VINUM_DEBUG(0, "error attaching %s to"
-					    " %s: error code %d", s->name,
-					    p->name, err);
+					G_VINUM_DEBUG(0,
+					    "error attaching %s to"
+					    " %s: error code %d",
+					    s->name, p->name, err);
 				break;
 
 			case GV_EVENT_DETACH_PLEX:
@@ -882,8 +906,10 @@ gv_worker(void *arg)
 				flags = ev->arg3;
 				err = gv_detach_plex(p, flags);
 				if (err)
-					G_VINUM_DEBUG(0, "error detaching %s: "
-					    "error code %d", p->name, err);
+					G_VINUM_DEBUG(0,
+					    "error detaching %s: "
+					    "error code %d",
+					    p->name, err);
 				break;
 
 			case GV_EVENT_DETACH_SD:
@@ -892,8 +918,10 @@ gv_worker(void *arg)
 				flags = ev->arg3;
 				err = gv_detach_sd(s, flags);
 				if (err)
-					G_VINUM_DEBUG(0, "error detaching %s: "
-					    "error code %d", s->name, err);
+					G_VINUM_DEBUG(0,
+					    "error detaching %s: "
+					    "error code %d",
+					    s->name, err);
 				break;
 
 			case GV_EVENT_RENAME_VOL:
@@ -903,13 +931,16 @@ gv_worker(void *arg)
 				flags = ev->arg3;
 				err = gv_rename_vol(sc, v, newname, flags);
 				if (err)
-					G_VINUM_DEBUG(0, "error renaming %s to "
-					    "%s: error code %d", v->name,
-					    newname, err);
+					G_VINUM_DEBUG(0,
+					    "error renaming %s to "
+					    "%s: error code %d",
+					    v->name, newname, err);
 				g_free(newname);
-				/* Destroy and recreate the provider if we can. */
+				/* Destroy and recreate the provider if we can.
+				 */
 				if (gv_provider_is_open(v->provider)) {
-					G_VINUM_DEBUG(0, "unable to rename "
+					G_VINUM_DEBUG(0,
+					    "unable to rename "
 					    "provider to %s: provider in use",
 					    v->name);
 					break;
@@ -918,8 +949,8 @@ gv_worker(void *arg)
 				g_wither_provider(v->provider, ENOENT);
 				g_topology_unlock();
 				v->provider = NULL;
-				gv_post_event(sc, GV_EVENT_SETUP_OBJECTS, sc,
-				    NULL, 0, 0);
+				gv_post_event(
+				    sc, GV_EVENT_SETUP_OBJECTS, sc, NULL, 0, 0);
 				break;
 
 			case GV_EVENT_RENAME_PLEX:
@@ -929,9 +960,10 @@ gv_worker(void *arg)
 				flags = ev->arg3;
 				err = gv_rename_plex(sc, p, newname, flags);
 				if (err)
-					G_VINUM_DEBUG(0, "error renaming %s to "
-					    "%s: error code %d", p->name,
-					    newname, err);
+					G_VINUM_DEBUG(0,
+					    "error renaming %s to "
+					    "%s: error code %d",
+					    p->name, newname, err);
 				g_free(newname);
 				break;
 
@@ -942,9 +974,10 @@ gv_worker(void *arg)
 				flags = ev->arg3;
 				err = gv_rename_sd(sc, s, newname, flags);
 				if (err)
-					G_VINUM_DEBUG(0, "error renaming %s to "
-					    "%s: error code %d", s->name,
-					    newname, err);
+					G_VINUM_DEBUG(0,
+					    "error renaming %s to "
+					    "%s: error code %d",
+					    s->name, newname, err);
 				g_free(newname);
 				break;
 
@@ -955,9 +988,10 @@ gv_worker(void *arg)
 				flags = ev->arg3;
 				err = gv_rename_drive(sc, d, newname, flags);
 				if (err)
-					G_VINUM_DEBUG(0, "error renaming %s to "
-					    "%s: error code %d", d->name,
-					    newname, err);
+					G_VINUM_DEBUG(0,
+					    "error renaming %s to "
+					    "%s: error code %d",
+					    d->name, newname, err);
 				g_free(newname);
 				break;
 
@@ -968,9 +1002,10 @@ gv_worker(void *arg)
 				flags = ev->arg3;
 				err = gv_move_sd(sc, s, d, flags);
 				if (err)
-					G_VINUM_DEBUG(0, "error moving %s to "
-					    "%s: error code %d", s->name,
-					    d->name, err);
+					G_VINUM_DEBUG(0,
+					    "error moving %s to "
+					    "%s: error code %d",
+					    s->name, d->name, err);
 				break;
 
 			case GV_EVENT_THREAD_EXIT:
@@ -1013,7 +1048,8 @@ gv_worker(void *arg)
 					bp->bio_pflags &= ~GV_BIO_ONHOLD;
 					g_io_request(bp, s->drive_sc->consumer);
 				}
-			/* A special request requireing special handling. */
+				/* A special request requireing special
+				 * handling. */
 			} else if (bp->bio_pflags & GV_BIO_INTERNAL) {
 				p = bp->bio_caller1;
 				gv_plex_start(p, bp);
@@ -1025,7 +1061,7 @@ gv_worker(void *arg)
 		/* Then do completed requests. */
 		bp = bioq_takefirst(sc->bqueue_up);
 		if (bp == NULL) {
-			msleep(sc, &sc->bqueue_mtx, PRIBIO, "-", hz/10);
+			msleep(sc, &sc->bqueue_mtx, PRIBIO, "-", hz / 10);
 			mtx_unlock(&sc->bqueue_mtx);
 			continue;
 		}
@@ -1034,9 +1070,9 @@ gv_worker(void *arg)
 	}
 }
 
-#define	VINUM_CLASS_NAME "VINUM"
+#define VINUM_CLASS_NAME "VINUM"
 
-static struct g_class g_vinum_class	= {
+static struct g_class g_vinum_class = {
 	.name = VINUM_CLASS_NAME,
 	.version = G_VERSION,
 	.init = gv_init,

@@ -41,23 +41,23 @@
  * Structure prepended to gmon.out profiling data file.
  */
 struct gmonhdr {
-	u_long	lpc;		/* base pc address of sample buffer */
-	u_long	hpc;		/* max pc address of sampled buffer */
-	int	ncnt;		/* size of sample buffer (plus this header) */
-	int	version;	/* version number */
-	int	profrate;	/* profiling clock rate */
-	int	histcounter_type; /* size (in bits) and sign of HISTCOUNTER */
-	int	spare[2];	/* reserved */
+	u_long lpc;	      /* base pc address of sample buffer */
+	u_long hpc;	      /* max pc address of sampled buffer */
+	int ncnt;	      /* size of sample buffer (plus this header) */
+	int version;	      /* version number */
+	int profrate;	      /* profiling clock rate */
+	int histcounter_type; /* size (in bits) and sign of HISTCOUNTER */
+	int spare[2];	      /* reserved */
 };
-#define GMONVERSION	0x00051879
+#define GMONVERSION 0x00051879
 
 /*
  * Type of histogram counters used in the kernel.
  */
 #ifdef GPROF4
-#define	HISTCOUNTER	int64_t
+#define HISTCOUNTER int64_t
 #else
-#define	HISTCOUNTER	unsigned short
+#define HISTCOUNTER unsigned short
 #endif
 
 /*
@@ -67,8 +67,10 @@ struct gmonhdr {
  * A lower density of counters would give less resolution but a
  * higher density would be wasted.
  */
-#define	HISTFRACTION	(FUNCTION_ALIGNMENT / sizeof(HISTCOUNTER) == 0 \
-			 ? 1 : FUNCTION_ALIGNMENT / sizeof(HISTCOUNTER))
+#define HISTFRACTION                                     \
+	(FUNCTION_ALIGNMENT / sizeof(HISTCOUNTER) == 0 ? \
+		      1 :                                      \
+		      FUNCTION_ALIGNMENT / sizeof(HISTCOUNTER))
 
 /*
  * Fraction of text space to allocate for from hash buckets.
@@ -113,25 +115,27 @@ struct gmonhdr {
  * handled like collisions for calls to different addresses from the
  * same address through a function pointer.
  */
-#define	HASHFRACTION	(FUNCTION_ALIGNMENT / sizeof(unsigned short) == 0 \
-			 ? 1 : FUNCTION_ALIGNMENT / sizeof(unsigned short))
+#define HASHFRACTION                                        \
+	(FUNCTION_ALIGNMENT / sizeof(unsigned short) == 0 ? \
+		      1 :                                         \
+		      FUNCTION_ALIGNMENT / sizeof(unsigned short))
 
 /*
  * percent of text space to allocate for tostructs with a minimum.
  */
-#define ARCDENSITY	2
-#define MINARCS		50
+#define ARCDENSITY 2
+#define MINARCS 50
 
 /*
  * Limit on the number of arcs to so that arc numbers can be stored in
  * `*froms' and stored and incremented without overflow in links.
  */
-#define MAXARCS		(((u_long)1 << (8 * sizeof(u_short))) - 2)
+#define MAXARCS (((u_long)1 << (8 * sizeof(u_short))) - 2)
 
 struct tostruct {
-	u_long	selfpc;
-	long	count;
-	u_short	link;
+	u_long selfpc;
+	long count;
+	u_short link;
 	u_short pad;
 };
 
@@ -140,104 +144,104 @@ struct tostruct {
  * the called site and a count.
  */
 struct rawarc {
-	u_long	raw_frompc;
-	u_long	raw_selfpc;
-	long	raw_count;
+	u_long raw_frompc;
+	u_long raw_selfpc;
+	long raw_count;
 };
 
 /*
  * general rounding functions.
  */
-#define ROUNDDOWN(x,y)	rounddown(x,y)
-#define ROUNDUP(x,y)	roundup(x,y)
+#define ROUNDDOWN(x, y) rounddown(x, y)
+#define ROUNDUP(x, y) roundup(x, y)
 
 /*
  * The profiling data structures are housed in this structure.
  */
 struct gmonparam {
-	int		state;
-	HISTCOUNTER	*kcount;
-	u_long		kcountsize;
-	u_short		*froms;
-	u_long		fromssize;
-	struct tostruct	*tos;
-	u_long		tossize;
-	long		tolimit;
-	uintfptr_t	lowpc;
-	uintfptr_t	highpc;
-	u_long		textsize;
-	u_long		hashfraction;
-	int		profrate;	/* XXX wrong type to match gmonhdr */
-	HISTCOUNTER	*cputime_count;
-	int		cputime_overhead;
-	HISTCOUNTER	*mcount_count;
-	int		mcount_overhead;
-	int		mcount_post_overhead;
-	int		mcount_pre_overhead;
-	HISTCOUNTER	*mexitcount_count;
-	int		mexitcount_overhead;
-	int		mexitcount_post_overhead;
-	int		mexitcount_pre_overhead;
-	int		histcounter_type;
+	int state;
+	HISTCOUNTER *kcount;
+	u_long kcountsize;
+	u_short *froms;
+	u_long fromssize;
+	struct tostruct *tos;
+	u_long tossize;
+	long tolimit;
+	uintfptr_t lowpc;
+	uintfptr_t highpc;
+	u_long textsize;
+	u_long hashfraction;
+	int profrate; /* XXX wrong type to match gmonhdr */
+	HISTCOUNTER *cputime_count;
+	int cputime_overhead;
+	HISTCOUNTER *mcount_count;
+	int mcount_overhead;
+	int mcount_post_overhead;
+	int mcount_pre_overhead;
+	HISTCOUNTER *mexitcount_count;
+	int mexitcount_overhead;
+	int mexitcount_post_overhead;
+	int mexitcount_pre_overhead;
+	int histcounter_type;
 };
 extern struct gmonparam _gmonparam;
 
 /*
  * Possible states of profiling.
  */
-#define	GMON_PROF_ON	0
-#define	GMON_PROF_BUSY	1
-#define	GMON_PROF_ERROR	2
-#define	GMON_PROF_OFF	3
-#define	GMON_PROF_HIRES	4
+#define GMON_PROF_ON 0
+#define GMON_PROF_BUSY 1
+#define GMON_PROF_ERROR 2
+#define GMON_PROF_OFF 3
+#define GMON_PROF_HIRES 4
 
 /*
  * Sysctl definitions for extracting profiling information from the kernel.
  */
-#define	GPROF_STATE	0	/* int: profiling enabling variable */
-#define	GPROF_COUNT	1	/* struct: profile tick count buffer */
-#define	GPROF_FROMS	2	/* struct: from location hash bucket */
-#define	GPROF_TOS	3	/* struct: destination/count structure */
-#define	GPROF_GMONPARAM	4	/* struct: profiling parameters (see above) */
+#define GPROF_STATE 0 /* int: profiling enabling variable */
+#define GPROF_COUNT 1 /* struct: profile tick count buffer */
+#define GPROF_FROMS 2 /* struct: from location hash bucket */
+#define GPROF_TOS 3 /* struct: destination/count structure */
+#define GPROF_GMONPARAM 4 /* struct: profiling parameters (see above) */
 
 #ifdef _KERNEL
 
-#define	KCOUNT(p,index) \
+#define KCOUNT(p, index) \
 	((p)->kcount[(index) / (HISTFRACTION * sizeof(HISTCOUNTER))])
-#define	PC_TO_I(p, pc)	((uintfptr_t)(pc) - (uintfptr_t)(p)->lowpc)
+#define PC_TO_I(p, pc) ((uintfptr_t)(pc) - (uintfptr_t)(p)->lowpc)
 
 #ifdef GUPROF
 
-#define	CALIB_SCALE	1000
+#define CALIB_SCALE 1000
 
-extern int	cputime_bias;
+extern int cputime_bias;
 
-int	cputime(void);
-void	nullfunc_loop_profiled(void);
-void	nullfunc_profiled(void);
-void	startguprof(struct gmonparam *p);
-void	stopguprof(struct gmonparam *p);
+int cputime(void);
+void nullfunc_loop_profiled(void);
+void nullfunc_profiled(void);
+void startguprof(struct gmonparam *p);
+void stopguprof(struct gmonparam *p);
 
 #else /* !GUPROF */
 
-#define	startguprof(p)
-#define	stopguprof(p)
+#define startguprof(p)
+#define stopguprof(p)
 
 #endif /* GUPROF */
 
-void	empty_loop(void);
-void	kmupetext(uintfptr_t nhighpc);
-void	mexitcount(uintfptr_t selfpc);
-void	nullfunc(void);
-void	nullfunc_loop(void);
+void empty_loop(void);
+void kmupetext(uintfptr_t nhighpc);
+void mexitcount(uintfptr_t selfpc);
+void nullfunc(void);
+void nullfunc_loop(void);
 
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-void	moncontrol(int);
-void	monstartup(u_long, u_long);
+void moncontrol(int);
+void monstartup(u_long, u_long);
 __END_DECLS
 
 #endif /* _KERNEL */

@@ -32,98 +32,97 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
-#include <dev/extres/regulator/regulator.h>
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_crtc.h>
 #include <dev/drm2/drm_crtc_helper.h>
 #include <dev/drm2/drm_fb_helper.h>
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
+#include <dev/extres/regulator/regulator.h>
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/nvidia/drm2/hdmi.h>
+#include <arm/nvidia/drm2/tegra_dc_reg.h>
 #include <arm/nvidia/drm2/tegra_drm.h>
 #include <arm/nvidia/drm2/tegra_hdmi_reg.h>
-#include <arm/nvidia/drm2/tegra_dc_reg.h>
-#include <arm/nvidia/drm2/hdmi.h>
 
 #include "tegra_dc_if.h"
 #include "tegra_drm_if.h"
 
-#define	WR4(_sc, _r, _v)	bus_write_4((_sc)->mem_res, 4 * (_r), (_v))
-#define	RD4(_sc, _r)		bus_read_4((_sc)->mem_res, 4 * (_r))
+#define WR4(_sc, _r, _v) bus_write_4((_sc)->mem_res, 4 * (_r), (_v))
+#define RD4(_sc, _r) bus_read_4((_sc)->mem_res, 4 * (_r))
 
 /* HDA stream format verb. */
-#define AC_FMT_CHAN_GET(x)		(((x) >>  0) & 0xf)
-#define AC_FMT_CHAN_BITS_GET(x)		(((x) >>  4) & 0x7)
-#define AC_FMT_DIV_GET(x)		(((x) >>  8) & 0x7)
-#define AC_FMT_MUL_GET(x)		(((x) >> 11) & 0x7)
-#define AC_FMT_BASE_44K			(1 << 14)
-#define AC_FMT_TYPE_NON_PCM		(1 << 15)
+#define AC_FMT_CHAN_GET(x) (((x) >> 0) & 0xf)
+#define AC_FMT_CHAN_BITS_GET(x) (((x) >> 4) & 0x7)
+#define AC_FMT_DIV_GET(x) (((x) >> 8) & 0x7)
+#define AC_FMT_MUL_GET(x) (((x) >> 11) & 0x7)
+#define AC_FMT_BASE_44K (1 << 14)
+#define AC_FMT_TYPE_NON_PCM (1 << 15)
 
-#define	HDMI_REKEY_DEFAULT		56
-#define HDMI_ELD_BUFFER_SIZE		96
+#define HDMI_REKEY_DEFAULT 56
+#define HDMI_ELD_BUFFER_SIZE 96
 
-#define	HDMI_DC_CLOCK_MULTIPIER		2
+#define HDMI_DC_CLOCK_MULTIPIER 2
 
 struct audio_reg {
-	uint32_t	audio_clk;
-	bus_size_t	acr_reg;
-	bus_size_t	nval_reg;
-	bus_size_t	aval_reg;
+	uint32_t audio_clk;
+	bus_size_t acr_reg;
+	bus_size_t nval_reg;
+	bus_size_t aval_reg;
 };
 
-static const struct audio_reg audio_regs[] =
-{
+static const struct audio_reg audio_regs[] = {
 	{
-		.audio_clk = 32000,
-		.acr_reg = HDMI_NV_PDISP_HDMI_ACR_0320_SUBPACK_LOW,
-		.nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_0320,
-		.aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_0320,
+	    .audio_clk = 32000,
+	    .acr_reg = HDMI_NV_PDISP_HDMI_ACR_0320_SUBPACK_LOW,
+	    .nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_0320,
+	    .aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_0320,
 	},
 	{
-		.audio_clk = 44100,
-		.acr_reg = HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_LOW,
-		.nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_0441,
-		.aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_0441,
+	    .audio_clk = 44100,
+	    .acr_reg = HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_LOW,
+	    .nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_0441,
+	    .aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_0441,
 	},
 	{
-		.audio_clk = 88200,
-		.acr_reg = HDMI_NV_PDISP_HDMI_ACR_0882_SUBPACK_LOW,
-		.nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_0882,
-		.aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_0882,
+	    .audio_clk = 88200,
+	    .acr_reg = HDMI_NV_PDISP_HDMI_ACR_0882_SUBPACK_LOW,
+	    .nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_0882,
+	    .aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_0882,
 	},
 	{
-		.audio_clk = 176400,
-		.acr_reg = HDMI_NV_PDISP_HDMI_ACR_1764_SUBPACK_LOW,
-		.nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_1764,
-		.aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_1764,
+	    .audio_clk = 176400,
+	    .acr_reg = HDMI_NV_PDISP_HDMI_ACR_1764_SUBPACK_LOW,
+	    .nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_1764,
+	    .aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_1764,
 	},
 	{
-		.audio_clk = 48000,
-		.acr_reg = HDMI_NV_PDISP_HDMI_ACR_0480_SUBPACK_LOW,
-		.nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_0480,
-		.aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_0480,
+	    .audio_clk = 48000,
+	    .acr_reg = HDMI_NV_PDISP_HDMI_ACR_0480_SUBPACK_LOW,
+	    .nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_0480,
+	    .aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_0480,
 	},
 	{
-		.audio_clk = 96000,
-		.acr_reg = HDMI_NV_PDISP_HDMI_ACR_0960_SUBPACK_LOW,
-		.nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_0960,
-		.aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_0960,
+	    .audio_clk = 96000,
+	    .acr_reg = HDMI_NV_PDISP_HDMI_ACR_0960_SUBPACK_LOW,
+	    .nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_0960,
+	    .aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_0960,
 	},
 	{
-		.audio_clk = 192000,
-		.acr_reg = HDMI_NV_PDISP_HDMI_ACR_1920_SUBPACK_LOW,
-		.nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_1920,
-		.aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_1920,
+	    .audio_clk = 192000,
+	    .acr_reg = HDMI_NV_PDISP_HDMI_ACR_1920_SUBPACK_LOW,
+	    .nval_reg = HDMI_NV_PDISP_SOR_AUDIO_NVAL_1920,
+	    .aval_reg = HDMI_NV_PDISP_SOR_AUDIO_AVAL_1920,
 	},
 };
 
@@ -137,90 +136,94 @@ struct tmds_config {
 	uint32_t pad_ctls;
 };
 
-static const struct tmds_config tegra124_tmds_config[] =
-{
-	{	/* 480p/576p / 25.2MHz/27MHz */
-		.pclk = 27000000,
-		.pll0 = 0x01003010,
-		.pll1 = 0x00301B00,
-		.drive_c = 0x1F1F1F1F,
-		.pe_c = 0x00000000,
-		.peak_c = 0x03030303,
-		.pad_ctls = 0x800034BB,
+static const struct tmds_config tegra124_tmds_config[] = {
+	{
+	    /* 480p/576p / 25.2MHz/27MHz */
+	    .pclk = 27000000,
+	    .pll0 = 0x01003010,
+	    .pll1 = 0x00301B00,
+	    .drive_c = 0x1F1F1F1F,
+	    .pe_c = 0x00000000,
+	    .peak_c = 0x03030303,
+	    .pad_ctls = 0x800034BB,
 	},
-	{	/* 720p/1080i / 74.25MHz  */
-		.pclk = 74250000,
-		.pll0 = 0x01003110,
-		.pll1 = 0x00301500,
-		.drive_c = 0x2C2C2C2C,
-		.pe_c = 0x00000000,
-		.peak_c = 0x07070707,
-		.pad_ctls = 0x800034BB,
+	{
+	    /* 720p/1080i / 74.25MHz  */
+	    .pclk = 74250000,
+	    .pll0 = 0x01003110,
+	    .pll1 = 0x00301500,
+	    .drive_c = 0x2C2C2C2C,
+	    .pe_c = 0x00000000,
+	    .peak_c = 0x07070707,
+	    .pad_ctls = 0x800034BB,
 	},
-	{	 /* 1080p / 148.5MHz */
-		.pclk = 148500000,
-		.pll0 = 0x01003310,
-		.pll1 = 0x00301500,
-		.drive_c = 0x33333333,
-		.pe_c = 0x00000000,
-		.peak_c = 0x0C0C0C0C,
-		.pad_ctls = 0x800034BB,
+	{
+	    /* 1080p / 148.5MHz */
+	    .pclk = 148500000,
+	    .pll0 = 0x01003310,
+	    .pll1 = 0x00301500,
+	    .drive_c = 0x33333333,
+	    .pe_c = 0x00000000,
+	    .peak_c = 0x0C0C0C0C,
+	    .pad_ctls = 0x800034BB,
 	},
-	{	/* 2216p / 297MHz  */
-		.pclk = UINT_MAX,
-		.pll0 = 0x01003F10,
-		.pll1 = 0x00300F00,
-		.drive_c = 0x37373737,
-		.pe_c = 0x00000000,
-		.peak_c = 0x17171717,
-		.pad_ctls = 0x800036BB,
+	{
+	    /* 2216p / 297MHz  */
+	    .pclk = UINT_MAX,
+	    .pll0 = 0x01003F10,
+	    .pll1 = 0x00300F00,
+	    .drive_c = 0x37373737,
+	    .pe_c = 0x00000000,
+	    .peak_c = 0x17171717,
+	    .pad_ctls = 0x800036BB,
 	},
 };
 
 struct hdmi_softc {
-	device_t		dev;
-	struct resource		*mem_res;
-	struct resource		*irq_res;
-	void			*irq_ih;
+	device_t dev;
+	struct resource *mem_res;
+	struct resource *irq_res;
+	void *irq_ih;
 
-	clk_t			clk_parent;
-	clk_t			clk_hdmi;
-	hwreset_t		hwreset_hdmi;
-	regulator_t		supply_hdmi;
-	regulator_t		supply_pll;
-	regulator_t		supply_vdd;
+	clk_t clk_parent;
+	clk_t clk_hdmi;
+	hwreset_t hwreset_hdmi;
+	regulator_t supply_hdmi;
+	regulator_t supply_pll;
+	regulator_t supply_vdd;
 
-	uint64_t		pclk;
-	boolean_t 		hdmi_mode;
+	uint64_t pclk;
+	boolean_t hdmi_mode;
 
-	int			audio_src_type;
-	int			audio_freq;
-	int			audio_chans;
+	int audio_src_type;
+	int audio_freq;
+	int audio_chans;
 
-	struct tegra_drm 	*drm;
+	struct tegra_drm *drm;
 	struct tegra_drm_encoder output;
 
 	const struct tmds_config *tmds_config;
-	int			n_tmds_configs;
+	int n_tmds_configs;
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"nvidia,tegra124-hdmi",	1},
-	{NULL,				0},
+	{ "nvidia,tegra124-hdmi", 1 },
+	{ NULL, 0 },
 };
 
 /* These functions have been copied from newer version of drm_edid.c */
 /* ELD Header Block */
-#define DRM_ELD_HEADER_BLOCK_SIZE	4
-#define DRM_ELD_BASELINE_ELD_LEN	2       /* in dwords! */
-static int drm_eld_size(const uint8_t *eld)
+#define DRM_ELD_HEADER_BLOCK_SIZE 4
+#define DRM_ELD_BASELINE_ELD_LEN 2 /* in dwords! */
+static int
+drm_eld_size(const uint8_t *eld)
 {
 	return DRM_ELD_HEADER_BLOCK_SIZE + eld[DRM_ELD_BASELINE_ELD_LEN] * 4;
 }
 
 static int
-drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
-    struct drm_display_mode *mode)
+drm_hdmi_avi_infoframe_from_display_mode(
+    struct hdmi_avi_infoframe *frame, struct drm_display_mode *mode)
 {
 	int rv;
 
@@ -241,7 +244,7 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 	/*
 	 * Populate picture aspect ratio from either
 	 * user input (if specified) or from the CEA mode list.
-	*/
+	 */
 	if (mode->picture_aspect_ratio == HDMI_PICTURE_ASPECT_4_3 ||
 	    mode->picture_aspect_ratio == HDMI_PICTURE_ASPECT_16_9)
 		frame->picture_aspect = mode->picture_aspect_ratio;
@@ -282,8 +285,8 @@ hdmi_setup_clock(struct tegra_drm_encoder *output, clk_t clk, uint64_t pclk)
 	freq = HDMI_DC_CLOCK_MULTIPIER * pclk;
 	rv = clk_set_freq(sc->clk_parent, freq, 0);
 	if (rv != 0) {
-		device_printf(output->dev,
-		    "Cannot set display pixel frequency\n");
+		device_printf(
+		    output->dev, "Cannot set display pixel frequency\n");
 		return (rv);
 	}
 
@@ -295,14 +298,14 @@ hdmi_setup_clock(struct tegra_drm_encoder *output, clk_t clk, uint64_t pclk)
 	}
 	rv = clk_set_freq(clk, freq, 0);
 	if (rv != 0) {
-		device_printf(output->dev,
-		    "Cannot set display controller frequency\n");
+		device_printf(
+		    output->dev, "Cannot set display controller frequency\n");
 		return (rv);
 	}
 	rv = clk_set_freq(sc->clk_hdmi, pclk, 0);
 	if (rv != 0) {
-		device_printf(output->dev,
-		    "Cannot set display controller frequency\n");
+		device_printf(
+		    output->dev, "Cannot set display controller frequency\n");
 		return (rv);
 	}
 
@@ -320,8 +323,8 @@ hdmi_setup_clock(struct tegra_drm_encoder *output, clk_t clk, uint64_t pclk)
 
 	rv = clk_get_freq(clk, &freq);
 	if (rv != 0) {
-		device_printf(output->dev,
-		    "Cannot get display controller frequency\n");
+		device_printf(
+		    output->dev, "Cannot get display controller frequency\n");
 		return (rv);
 	}
 
@@ -357,16 +360,16 @@ avi_setup_infoframe(struct hdmi_softc *sc, struct drm_display_mode *mode)
 	WR4(sc, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_HEADER,
 	    (hdr[2] << 16) | (hdr[1] << 8) | (hdr[0] << 0));
 	WR4(sc, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK0_LOW,
-	    (pb[3] << 24) |(pb[2] << 16) | (pb[1] << 8) | (pb[0] << 0));
+	    (pb[3] << 24) | (pb[2] << 16) | (pb[1] << 8) | (pb[0] << 0));
 	WR4(sc, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK0_HIGH,
 	    (pb[6] << 16) | (pb[5] << 8) | (pb[4] << 0));
 	WR4(sc, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK1_LOW,
-	    (pb[10] << 24) |(pb[9] << 16) | (pb[8] << 8) | (pb[7] << 0));
+	    (pb[10] << 24) | (pb[9] << 16) | (pb[8] << 8) | (pb[7] << 0));
 	WR4(sc, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK1_HIGH,
 	    (pb[13] << 16) | (pb[12] << 8) | (pb[11] << 0));
 
 	WR4(sc, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_CTRL,
-	   AVI_INFOFRAME_CTRL_ENABLE);
+	    AVI_INFOFRAME_CTRL_ENABLE);
 }
 
 static void
@@ -388,12 +391,12 @@ audio_setup_infoframe(struct hdmi_softc *sc)
 	WR4(sc, HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_HEADER,
 	    (hdr[2] << 16) | (hdr[1] << 8) | (hdr[0] << 0));
 	WR4(sc, HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_SUBPACK0_LOW,
-	    (pb[3] << 24) |(pb[2] << 16) | (pb[1] << 8) | (pb[0] << 0));
+	    (pb[3] << 24) | (pb[2] << 16) | (pb[1] << 8) | (pb[0] << 0));
 	WR4(sc, HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_SUBPACK0_HIGH,
 	    (pb[5] << 8) | (pb[4] << 0));
 
 	WR4(sc, HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL,
-	   AUDIO_INFOFRAME_CTRL_ENABLE);
+	    AUDIO_INFOFRAME_CTRL_ENABLE);
 }
 
 /* -------------------------------------------------------------------
@@ -405,7 +408,7 @@ static void
 init_hda_eld(struct hdmi_softc *sc)
 {
 	size_t size;
-	int i ;
+	int i;
 	uint32_t val;
 
 	size = drm_eld_size(sc->output.connector.eld);
@@ -415,18 +418,18 @@ init_hda_eld(struct hdmi_softc *sc)
 			val |= sc->output.connector.eld[i];
 		WR4(sc, HDMI_NV_PDISP_SOR_AUDIO_HDA_ELD_BUFWR, val);
 	}
-	WR4(sc,HDMI_NV_PDISP_SOR_AUDIO_HDA_PRESENSE,
+	WR4(sc, HDMI_NV_PDISP_SOR_AUDIO_HDA_PRESENSE,
 	    SOR_AUDIO_HDA_PRESENSE_VALID | SOR_AUDIO_HDA_PRESENSE_PRESENT);
 }
 
 static int
-get_audio_regs(int freq, bus_size_t *acr_reg, bus_size_t *nval_reg,
-    bus_size_t *aval_reg)
+get_audio_regs(
+    int freq, bus_size_t *acr_reg, bus_size_t *nval_reg, bus_size_t *aval_reg)
 {
 	int i;
 	const struct audio_reg *reg;
 
-	for (i = 0; i < nitems(audio_regs) ; i++) {
+	for (i = 0; i < nitems(audio_regs); i++) {
 		reg = audio_regs + i;
 		if (reg->audio_clk == freq) {
 			if (acr_reg != NULL)
@@ -458,7 +461,7 @@ get_hda_cts_n(uint32_t audio_freq_hz, uint32_t pixclk_freq_hz,
 	int64_t min_err_f;
 	int64_t cts_f;
 	int64_t aval_f;
-	int64_t half_f;		/* constant 0.5 */
+	int64_t half_f; /* constant 0.5 */
 	bool better_n;
 
 	/*
@@ -481,14 +484,14 @@ get_hda_cts_n(uint32_t audio_freq_hz, uint32_t pixclk_freq_hz,
 		cts_f = TO_FFP(pixclk_freq_hz);
 		cts_f *= n;
 		cts_f /= 128 * audio_freq_hz;
-		cts = TO_INT(cts_f + half_f);		/* round */
+		cts = TO_INT(cts_f + half_f); /* round */
 		err_f = cts_f - TO_FFP(cts);
 		if (err_f < 0)
 			err_f = -err_f;
 		aval_f = TO_FFP(24000000);
 		aval_f *= n;
 		aval_f /= 128 * audio_freq_hz;
-		aval = TO_INT(aval_f);			/* truncate */
+		aval = TO_INT(aval_f); /* truncate */
 
 		better_n = abs(n - ideal_n) < abs((int)(*best_n) - ideal_n);
 		if (TO_FFP(aval) == aval_f &&
@@ -521,7 +524,7 @@ audio_setup(struct hdmi_softc *sc)
 
 	if (!sc->hdmi_mode)
 		return (ENOTSUP);
-	rv  = get_audio_regs(sc->audio_freq, NULL, NULL, &aval_reg);
+	rv = get_audio_regs(sc->audio_freq, NULL, NULL, &aval_reg);
 	if (rv != 0) {
 		device_printf(sc->dev, "Unsupported audio frequency.\n");
 		return (rv);
@@ -533,8 +536,8 @@ audio_setup(struct hdmi_softc *sc)
 		return (rv);
 	}
 
-	rv = get_hda_cts_n(sc->audio_freq, hdmi_freq, &audio_cts, &audio_n,
-	    &audio_aval);
+	rv = get_hda_cts_n(
+	    sc->audio_freq, hdmi_freq, &audio_cts, &audio_n, &audio_aval);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot compute audio coefs: %d\n", rv);
 		return (rv);
@@ -545,7 +548,7 @@ audio_setup(struct hdmi_softc *sc)
 	/* Setup audio source */
 	WR4(sc, HDMI_NV_PDISP_SOR_AUDIO_CNTRL0,
 	    SOR_AUDIO_CNTRL0_SOURCE_SELECT(sc->audio_src_type) |
-	    SOR_AUDIO_CNTRL0_INJECT_NULLSMPL);
+		SOR_AUDIO_CNTRL0_INJECT_NULLSMPL);
 
 	val = RD4(sc, HDMI_NV_PDISP_SOR_AUDIO_SPARE0);
 	val |= SOR_AUDIO_SPARE0_HBR_ENABLE;
@@ -554,9 +557,8 @@ audio_setup(struct hdmi_softc *sc)
 	WR4(sc, HDMI_NV_PDISP_HDMI_ACR_CTRL, 0);
 
 	WR4(sc, HDMI_NV_PDISP_AUDIO_N,
-	    AUDIO_N_RESETF |
-	    AUDIO_N_GENERATE_ALTERNATE |
-	    AUDIO_N_VALUE(audio_n - 1));
+	    AUDIO_N_RESETF | AUDIO_N_GENERATE_ALTERNATE |
+		AUDIO_N_VALUE(audio_n - 1));
 
 	WR4(sc, HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_HIGH,
 	    ACR_SUBPACK_N(audio_n) | ACR_ENABLE);
@@ -577,34 +579,36 @@ audio_setup(struct hdmi_softc *sc)
 }
 
 static void
-audio_disable(struct hdmi_softc *sc) {
+audio_disable(struct hdmi_softc *sc)
+{
 	uint32_t val;
 
 	/* Disable audio */
-	val = RD4(sc,  HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
+	val = RD4(sc, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
 	val &= ~GENERIC_CTRL_AUDIO;
 	WR4(sc, HDMI_NV_PDISP_HDMI_GENERIC_CTRL, val);
 
 	/* Disable audio infoframes */
-	val = RD4(sc,  HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL);
+	val = RD4(sc, HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL);
 	val &= ~AUDIO_INFOFRAME_CTRL_ENABLE;
 	WR4(sc, HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL, val);
 }
 
 static void
-audio_enable(struct hdmi_softc *sc) {
+audio_enable(struct hdmi_softc *sc)
+{
 	uint32_t val;
 
 	if (!sc->hdmi_mode)
 		audio_disable(sc);
 
 	/* Enable audio infoframes */
-	val = RD4(sc,  HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL);
+	val = RD4(sc, HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL);
 	val |= AUDIO_INFOFRAME_CTRL_ENABLE;
 	WR4(sc, HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL, val);
 
 	/* Enable audio */
-	val = RD4(sc,  HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
+	val = RD4(sc, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
 	val |= GENERIC_CTRL_AUDIO;
 	WR4(sc, HDMI_NV_PDISP_HDMI_GENERIC_CTRL, val);
 }
@@ -614,7 +618,7 @@ audio_enable(struct hdmi_softc *sc) {
  *    HDMI.
  *
  */
- /* Process format change notification from HDA */
+/* Process format change notification from HDA */
 static void
 hda_intr(struct hdmi_softc *sc)
 {
@@ -632,10 +636,10 @@ hda_intr(struct hdmi_softc *sc)
 
 	/* XXX Move this to any header */
 	/* Keep in sync with HDA */
-	sc->audio_freq =  val & 0x00FFFFFF;
+	sc->audio_freq = val & 0x00FFFFFF;
 	sc->audio_chans = (val >> 24) & 0x0f;
-	DRM_DEBUG_KMS("%d channel(s) at %dHz\n", sc->audio_chans,
-	    sc->audio_freq);
+	DRM_DEBUG_KMS(
+	    "%d channel(s) at %dHz\n", sc->audio_chans, sc->audio_freq);
 
 	rv = audio_setup(sc);
 	if (rv != 0) {
@@ -701,8 +705,9 @@ hdmi_sor_start(struct hdmi_softc *sc, struct drm_display_mode *mode)
 		val |= SOR_STATE2_ASY_VSYNCPOL_NEG;
 	WR4(sc, HDMI_NV_PDISP_SOR_STATE2, val);
 
-	WR4(sc, HDMI_NV_PDISP_SOR_STATE1, SOR_STATE1_ASY_ORMODE_NORMAL |
-	    SOR_STATE1_ASY_HEAD_OPMODE(ASY_HEAD_OPMODE_AWAKE));
+	WR4(sc, HDMI_NV_PDISP_SOR_STATE1,
+	    SOR_STATE1_ASY_ORMODE_NORMAL |
+		SOR_STATE1_ASY_HEAD_OPMODE(ASY_HEAD_OPMODE_AWAKE));
 
 	WR4(sc, HDMI_NV_PDISP_SOR_STATE0, 0);
 	WR4(sc, HDMI_NV_PDISP_SOR_STATE0, SOR_STATE0_UPDATE);
@@ -725,8 +730,8 @@ hdmi_disable(struct hdmi_softc *sc)
 
 	dc = NULL;
 	if (sc->output.encoder.crtc != NULL) {
-		crtc = container_of(sc->output.encoder.crtc, struct tegra_crtc,
-		     drm_crtc);
+		crtc = container_of(
+		    sc->output.encoder.crtc, struct tegra_crtc, drm_crtc);
 		dc = crtc->dev;
 	}
 
@@ -735,7 +740,7 @@ hdmi_disable(struct hdmi_softc *sc)
 		TEGRA_DC_DISPLAY_ENABLE(dc, false);
 	}
 	audio_disable(sc);
-	val = RD4(sc,  HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_CTRL);
+	val = RD4(sc, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_CTRL);
 	val &= ~AVI_INFOFRAME_CTRL_ENABLE;
 	WR4(sc, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_CTRL, val);
 
@@ -758,8 +763,8 @@ hdmi_enable(struct hdmi_softc *sc)
 	int i, rv;
 
 	mode = &sc->output.encoder.crtc->mode;
-	crtc = container_of(sc->output.encoder.crtc, struct tegra_crtc,
-	    drm_crtc);
+	crtc = container_of(
+	    sc->output.encoder.crtc, struct tegra_crtc, drm_crtc);
 	dc = crtc->dev;
 
 	/* Compute all timings first. */
@@ -769,7 +774,8 @@ hdmi_enable(struct hdmi_softc *sc)
 	h_front_porch = mode->hsync_start - mode->hdisplay;
 	h_pulse_start = 1 + h_sync_width + h_back_porch - 10;
 	h_max_ac_packet = (h_sync_width + h_back_porch + h_front_porch -
-	    HDMI_REKEY_DEFAULT - 18) / 32;
+			      HDMI_REKEY_DEFAULT - 18) /
+	    32;
 
 	/* Check if HDMI device is connected and detected. */
 	if (sc->output.connector.edid_blob_ptr == NULL) {
@@ -782,9 +788,8 @@ hdmi_enable(struct hdmi_softc *sc)
 	/* Get exact HDMI pixel frequency. */
 	rv = clk_get_freq(sc->clk_hdmi, &freq);
 	if (rv != 0) {
-		device_printf(sc->dev,
-		    "Cannot get 'hdmi' clock frequency\n");
-		    return (rv);
+		device_printf(sc->dev, "Cannot get 'hdmi' clock frequency\n");
+		return (rv);
 	}
 	DRM_DEBUG_KMS("HDMI frequency: %llu Hz\n", freq);
 
@@ -802,11 +807,11 @@ hdmi_enable(struct hdmi_softc *sc)
 	TEGRA_DC_SETUP_TIMING(dc, h_pulse_start);
 	WR4(sc, HDMI_NV_PDISP_HDMI_VSYNC_WINDOW,
 	    VSYNC_WINDOW_START(0x200) | VSYNC_WINDOW_END(0x210) |
-	    VSYNC_WINDOW_ENABLE);
+		VSYNC_WINDOW_ENABLE);
 
 	/* Setup video source and adjust video range */
 	val = 0;
-	if  (crtc->nvidia_head != 0)
+	if (crtc->nvidia_head != 0)
 		HDMI_SRC_DISPLAYB;
 	if ((mode->hdisplay != 640) || (mode->vdisplay != 480))
 		val |= ARM_VIDEO_RANGE_LIMITED;
@@ -842,17 +847,16 @@ hdmi_enable(struct hdmi_softc *sc)
 
 	/* Program sequencer. */
 	WR4(sc, HDMI_NV_PDISP_SOR_SEQ_CTL,
-	    SOR_SEQ_PU_PC(0) | SOR_SEQ_PU_PC_ALT(0) |
-	    SOR_SEQ_PD_PC(8) | SOR_SEQ_PD_PC_ALT(8));
+	    SOR_SEQ_PU_PC(0) | SOR_SEQ_PU_PC_ALT(0) | SOR_SEQ_PD_PC(8) |
+		SOR_SEQ_PD_PC_ALT(8));
 
 	val = SOR_SEQ_INST_WAIT_TIME(1) |
-	    SOR_SEQ_INST_WAIT_UNITS(WAIT_UNITS_VSYNC) |
-	    SOR_SEQ_INST_HALT |
+	    SOR_SEQ_INST_WAIT_UNITS(WAIT_UNITS_VSYNC) | SOR_SEQ_INST_HALT |
 	    SOR_SEQ_INST_DRIVE_PWM_OUT_LO;
 	WR4(sc, HDMI_NV_PDISP_SOR_SEQ_INST(0), val);
 	WR4(sc, HDMI_NV_PDISP_SOR_SEQ_INST(8), val);
 
-	val = RD4(sc,HDMI_NV_PDISP_SOR_CSTM);
+	val = RD4(sc, HDMI_NV_PDISP_SOR_CSTM);
 	val &= ~SOR_CSTM_LVDS_ENABLE;
 	val &= ~SOR_CSTM_ROTCLK(~0);
 	val |= SOR_CSTM_ROTCLK(2);
@@ -888,16 +892,15 @@ hdmi_enable(struct hdmi_softc *sc)
  *
  */
 static enum drm_mode_status
-hdmi_connector_mode_valid(struct drm_connector *connector,
-    struct drm_display_mode *mode)
+hdmi_connector_mode_valid(
+    struct drm_connector *connector, struct drm_display_mode *mode)
 {
 	struct tegra_drm_encoder *output;
 	struct hdmi_softc *sc;
 	int rv;
 	uint64_t freq;
 
-	output = container_of(connector, struct tegra_drm_encoder,
-	     connector);
+	output = container_of(connector, struct tegra_drm_encoder, connector);
 	sc = device_get_softc(output->dev);
 
 	freq = HDMI_DC_CLOCK_MULTIPIER * mode->clock * 1000;
@@ -935,8 +938,7 @@ hdmi_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 static bool
 hdmi_encoder_mode_fixup(struct drm_encoder *encoder,
-    const struct drm_display_mode *mode,
-    struct drm_display_mode *adjusted)
+    const struct drm_display_mode *mode, struct drm_display_mode *adjusted)
 {
 
 	return (true);
@@ -969,7 +971,6 @@ hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	rv = hdmi_enable(sc);
 	if (rv != 0)
 		device_printf(sc->dev, "Cannot enable HDMI port\n");
-
 }
 
 static void
@@ -1017,15 +1018,15 @@ hdmi_init_client(device_t dev, device_t host1x, struct tegra_drm *drm)
 	rv = tegra_drm_encoder_attach(&sc->output, node);
 	if (rv != 0) {
 		device_printf(dev, "Cannot attach output connector\n");
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	/* Connect this encoder + connector  to DRM. */
 	drm_connector_init(&drm->drm_dev, &sc->output.connector,
-	   &hdmi_connector_funcs, DRM_MODE_CONNECTOR_HDMIA);
+	    &hdmi_connector_funcs, DRM_MODE_CONNECTOR_HDMIA);
 
-	drm_connector_helper_add(&sc->output.connector,
-	    &hdmi_connector_helper_funcs);
+	drm_connector_helper_add(
+	    &sc->output.connector, &hdmi_connector_helper_funcs);
 
 	sc->output.connector.dpms = DRM_MODE_DPMS_OFF;
 
@@ -1034,8 +1035,8 @@ hdmi_init_client(device_t dev, device_t host1x, struct tegra_drm *drm)
 
 	drm_encoder_helper_add(&sc->output.encoder, &hdmi_encoder_helper_funcs);
 
-	drm_mode_connector_attach_encoder(&sc->output.connector,
-	  &sc->output.encoder);
+	drm_mode_connector_attach_encoder(
+	    &sc->output.connector, &sc->output.encoder);
 
 	rv = tegra_drm_encoder_init(&sc->output, drm);
 	if (rv < 0) {
@@ -1061,20 +1062,20 @@ get_fdt_resources(struct hdmi_softc *sc, phandle_t node)
 {
 	int rv;
 
-	rv = regulator_get_by_ofw_property(sc->dev, 0, "hdmi-supply",
-	    &sc->supply_hdmi);
+	rv = regulator_get_by_ofw_property(
+	    sc->dev, 0, "hdmi-supply", &sc->supply_hdmi);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'hdmi' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev,0,  "pll-supply",
-	    &sc->supply_pll);
+	rv = regulator_get_by_ofw_property(
+	    sc->dev, 0, "pll-supply", &sc->supply_pll);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'pll' regulator\n");
 		return (ENXIO);
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, 0, "vdd-supply",
-	    &sc->supply_vdd);
+	rv = regulator_get_by_ofw_property(
+	    sc->dev, 0, "vdd-supply", &sc->supply_vdd);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'vdd' regulator\n");
 		return (ENXIO);
@@ -1106,22 +1107,21 @@ enable_fdt_resources(struct hdmi_softc *sc)
 
 	rv = clk_set_parent_by_clk(sc->clk_hdmi, sc->clk_parent);
 	if (rv != 0) {
-		device_printf(sc->dev,
-		    "Cannot set parent for 'hdmi' clock\n");
+		device_printf(sc->dev, "Cannot set parent for 'hdmi' clock\n");
 		return (rv);
 	}
 
 	/* 594 MHz is arbitrarily selected value */
 	rv = clk_set_freq(sc->clk_parent, 594000000, 0);
 	if (rv != 0) {
-		device_printf(sc->dev,
-		    "Cannot set frequency for 'hdmi' parent clock\n");
+		device_printf(
+		    sc->dev, "Cannot set frequency for 'hdmi' parent clock\n");
 		return (rv);
 	}
 	rv = clk_set_freq(sc->clk_hdmi, 594000000 / 4, 0);
 	if (rv != 0) {
-		device_printf(sc->dev,
-		    "Cannot set frequency for 'hdmi' parent clock\n");
+		device_printf(
+		    sc->dev, "Cannot set frequency for 'hdmi' parent clock\n");
 		return (rv);
 	}
 
@@ -1207,8 +1207,8 @@ hdmi_attach(device_t dev)
 	sc->n_tmds_configs = nitems(tegra124_tmds_config);
 
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Cannot allocate memory resources\n");
 		goto fail;
@@ -1224,8 +1224,8 @@ hdmi_attach(device_t dev)
 	rv = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
 	    NULL, hdmi_intr, sc, &sc->irq_ih);
 	if (rv != 0) {
-		device_printf(dev,
-		    "WARNING: unable to register interrupt handler\n");
+		device_printf(
+		    dev, "WARNING: unable to register interrupt handler\n");
 		goto fail;
 	}
 
@@ -1302,13 +1302,13 @@ hdmi_detach(device_t dev)
 
 static device_method_t tegra_hdmi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,			hdmi_probe),
-	DEVMETHOD(device_attach,		hdmi_attach),
-	DEVMETHOD(device_detach,		hdmi_detach),
+	DEVMETHOD(device_probe, hdmi_probe),
+	DEVMETHOD(device_attach, hdmi_attach),
+	DEVMETHOD(device_detach, hdmi_detach),
 
 	/* tegra drm interface */
-	DEVMETHOD(tegra_drm_init_client,	hdmi_init_client),
-	DEVMETHOD(tegra_drm_exit_client,	hdmi_exit_client),
+	DEVMETHOD(tegra_drm_init_client, hdmi_init_client),
+	DEVMETHOD(tegra_drm_exit_client, hdmi_exit_client),
 
 	DEVMETHOD_END
 };
@@ -1316,5 +1316,4 @@ static device_method_t tegra_hdmi_methods[] = {
 static devclass_t tegra_hdmi_devclass;
 DEFINE_CLASS_0(tegra_hdmi, tegra_hdmi_driver, tegra_hdmi_methods,
     sizeof(struct hdmi_softc));
-DRIVER_MODULE(tegra_hdmi, host1x, tegra_hdmi_driver,
-tegra_hdmi_devclass, 0, 0);
+DRIVER_MODULE(tegra_hdmi, host1x, tegra_hdmi_driver, tegra_hdmi_devclass, 0, 0);

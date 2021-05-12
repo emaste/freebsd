@@ -3,11 +3,11 @@
  *
  * Copyright (c) 2007-2009 Google Inc. and Amit Singh
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  * * Redistributions of source code must retain the above copyright
  *   notice, this list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above
@@ -17,7 +17,7 @@
  * * Neither the name of Google Inc. nor the names of its
  *   contributors may be used to endorse or promote products derived from
  *   this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -29,7 +29,7 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Copyright (C) 2005 Csaba Henk.
  * All rights reserved.
  *
@@ -37,7 +37,7 @@
  *
  * Portions of this software were developed by BFF Storage Systems, LLC under
  * sponsorship from the FreeBSD Foundation.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -46,7 +46,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -75,10 +75,10 @@ enum fuse_data_cache_mode {
 };
 
 struct fuse_iov {
-	void   *base;
-	size_t  len;
-	size_t  allocated_size;
-	int     credit;
+	void *base;
+	size_t len;
+	size_t allocated_size;
+	int credit;
 };
 
 void fiov_init(struct fuse_iov *fiov, size_t size);
@@ -86,21 +86,22 @@ void fiov_teardown(struct fuse_iov *fiov);
 void fiov_refresh(struct fuse_iov *fiov);
 void fiov_adjust(struct fuse_iov *fiov, size_t size);
 
-#define FUSE_DIMALLOC(fiov, spc1, spc2, amnt) do {		\
-	fiov_adjust(fiov, (sizeof(*(spc1)) + (amnt)));		\
-	(spc1) = (fiov)->base;					\
-	(spc2) = (char *)(fiov)->base + (sizeof(*(spc1)));	\
-} while (0)
+#define FUSE_DIMALLOC(fiov, spc1, spc2, amnt)                      \
+	do {                                                       \
+		fiov_adjust(fiov, (sizeof(*(spc1)) + (amnt)));     \
+		(spc1) = (fiov)->base;                             \
+		(spc2) = (char *)(fiov)->base + (sizeof(*(spc1))); \
+	} while (0)
 
 #define FU_AT_LEAST(siz) max((siz), 160)
 
-#define FUSE_ASSERT_AW_DONE(ftick)					\
-	KASSERT((ftick)->tk_aw_link.tqe_next == NULL &&			\
-	    (ftick)->tk_aw_link.tqe_prev == NULL,			\
+#define FUSE_ASSERT_AW_DONE(ftick)                      \
+	KASSERT((ftick)->tk_aw_link.tqe_next == NULL && \
+		(ftick)->tk_aw_link.tqe_prev == NULL,   \
 	    ("FUSE: ticket still on answer delivery list %p", (ftick)))
 
-#define FUSE_ASSERT_MS_DONE(ftick)				\
-	KASSERT((ftick)->tk_ms_link.stqe_next == NULL,		\
+#define FUSE_ASSERT_MS_DONE(ftick)                     \
+	KASSERT((ftick)->tk_ms_link.stqe_next == NULL, \
 	    ("FUSE: ticket still on message list %p", (ftick)))
 
 struct fuse_ticket;
@@ -110,32 +111,32 @@ typedef int fuse_handler_t(struct fuse_ticket *ftick, struct uio *uio);
 
 struct fuse_ticket {
 	/* fields giving the identity of the ticket */
-	uint64_t			tk_unique;
-	struct fuse_data		*tk_data;
-	int				tk_flag;
-	u_int				tk_refcount;
-	/* 
+	uint64_t tk_unique;
+	struct fuse_data *tk_data;
+	int tk_flag;
+	u_int tk_refcount;
+	/*
 	 * If this ticket's operation has been interrupted, this will hold the
 	 * unique value of the FUSE_INTERRUPT operation.  Otherwise, it will be
 	 * 0.
 	 */
-	uint64_t			irq_unique;
+	uint64_t irq_unique;
 
 	/* fields for initiating an upgoing message */
-	struct fuse_iov			tk_ms_fiov;
-	STAILQ_ENTRY(fuse_ticket)	tk_ms_link;
+	struct fuse_iov tk_ms_fiov;
+	STAILQ_ENTRY(fuse_ticket) tk_ms_link;
 
 	/* fields for handling answers coming from userspace */
-	struct fuse_iov			tk_aw_fiov;
-	struct fuse_out_header		tk_aw_ohead;
-	int				tk_aw_errno;
-	struct mtx			tk_aw_mtx;
-	fuse_handler_t			*tk_aw_handler;
-	TAILQ_ENTRY(fuse_ticket)	tk_aw_link;
+	struct fuse_iov tk_aw_fiov;
+	struct fuse_out_header tk_aw_ohead;
+	int tk_aw_errno;
+	struct mtx tk_aw_mtx;
+	fuse_handler_t *tk_aw_handler;
+	TAILQ_ENTRY(fuse_ticket) tk_aw_link;
 };
 
-#define FT_ANSW  0x01  /* request of ticket has already been answered */
-#define FT_DIRTY 0x04  /* ticket has been used */
+#define FT_ANSW 0x01 /* request of ticket has already been answered */
+#define FT_DIRTY 0x04 /* ticket has been used */
 
 static inline struct fuse_iov *
 fticket_resp(struct fuse_ticket *ftick)
@@ -157,7 +158,7 @@ fticket_set_answered(struct fuse_ticket *ftick)
 	ftick->tk_flag |= FT_ANSW;
 }
 
-static inline struct fuse_in_header*
+static inline struct fuse_in_header *
 fticket_in_header(struct fuse_ticket *ftick)
 {
 	return (struct fuse_in_header *)(ftick->tk_ms_fiov.base);
@@ -175,69 +176,69 @@ int fticket_pull(struct fuse_ticket *ftick, struct uio *uio);
  * The data representing a FUSE session.
  */
 struct fuse_data {
-	struct cdev			*fdev;
-	struct mount			*mp;
-	struct vnode			*vroot;
-	struct ucred			*daemoncred;
-	int				dataflags;
-	int				ref;
+	struct cdev *fdev;
+	struct mount *mp;
+	struct vnode *vroot;
+	struct ucred *daemoncred;
+	int dataflags;
+	int ref;
 
-	struct mtx			ms_mtx;
-	STAILQ_HEAD(, fuse_ticket)	ms_head;
-	int				ms_count;
+	struct mtx ms_mtx;
+	STAILQ_HEAD(, fuse_ticket) ms_head;
+	int ms_count;
 
-	struct mtx			aw_mtx;
-	TAILQ_HEAD(, fuse_ticket)	aw_head;
+	struct mtx aw_mtx;
+	TAILQ_HEAD(, fuse_ticket) aw_head;
 
-	/* 
+	/*
 	 * Holds the next value of the FUSE operation unique value.
 	 * Also, serves as a wakeup channel to prevent any operations from
 	 * being created before INIT completes.
 	 */
-	u_long				ticketer;
+	u_long ticketer;
 
-	struct sx			rename_lock;
+	struct sx rename_lock;
 
-	uint32_t			fuse_libabi_major;
-	uint32_t			fuse_libabi_minor;
+	uint32_t fuse_libabi_major;
+	uint32_t fuse_libabi_minor;
 
-	uint32_t			max_readahead_blocks;
-	uint32_t			max_write;
-	uint32_t			max_read;
-	uint32_t			subtype;
-	char				volname[MAXPATHLEN];
+	uint32_t max_readahead_blocks;
+	uint32_t max_write;
+	uint32_t max_read;
+	uint32_t subtype;
+	char volname[MAXPATHLEN];
 
-	struct selinfo			ks_rsel;
+	struct selinfo ks_rsel;
 
-	int				daemon_timeout;
-	int				linux_errnos;
-	unsigned			time_gran;
+	int daemon_timeout;
+	int linux_errnos;
+	unsigned time_gran;
 	/* A bitmask of FUSE RPCs that are not implemented by the server */
-	uint64_t			notimpl;
+	uint64_t notimpl;
 	/*
 	 * A bitmask of FUSE RPCs that are implemented by the server.
 	 * If an operation is not present in either notimpl or isimpl, then it
 	 * may be implemented by the server, but the kernel doesn't know for
 	 * sure.
 	 */
-	uint64_t			isimpl;
-	uint64_t			mnt_flag;
-	enum fuse_data_cache_mode	cache_mode;
+	uint64_t isimpl;
+	uint64_t mnt_flag;
+	enum fuse_data_cache_mode cache_mode;
 };
 
-#define FSESS_DEAD                0x0001 /* session is to be closed */
-#define FSESS_INITED              0x0004 /* session has been inited */
-#define FSESS_DAEMON_CAN_SPY      0x0010 /* let non-owners access this fs */
-                                         /* (and being observed by the daemon) */
-#define FSESS_PUSH_SYMLINKS_IN    0x0020 /* prefix absolute symlinks with mp */
+#define FSESS_DEAD 0x0001 /* session is to be closed */
+#define FSESS_INITED 0x0004 /* session has been inited */
+#define FSESS_DAEMON_CAN_SPY 0x0010 /* let non-owners access this fs */
+/* (and being observed by the daemon) */
+#define FSESS_PUSH_SYMLINKS_IN 0x0020 /* prefix absolute symlinks with mp */
 #define FSESS_DEFAULT_PERMISSIONS 0x0040 /* kernel does permission checking */
-#define FSESS_ASYNC_READ          0x1000 /* allow multiple reads of some file */
-#define FSESS_POSIX_LOCKS         0x2000 /* daemon supports POSIX locks */
-#define FSESS_EXPORT_SUPPORT      0x10000 /* daemon supports NFS-style lookups */
-#define FSESS_INTR                0x20000 /* interruptible mounts */
-#define FSESS_MNTOPTS_MASK	( \
-	FSESS_DAEMON_CAN_SPY | FSESS_PUSH_SYMLINKS_IN | \
-	FSESS_DEFAULT_PERMISSIONS | FSESS_INTR)
+#define FSESS_ASYNC_READ 0x1000 /* allow multiple reads of some file */
+#define FSESS_POSIX_LOCKS 0x2000 /* daemon supports POSIX locks */
+#define FSESS_EXPORT_SUPPORT 0x10000 /* daemon supports NFS-style lookups */
+#define FSESS_INTR 0x20000 /* interruptible mounts */
+#define FSESS_MNTOPTS_MASK                               \
+	(FSESS_DAEMON_CAN_SPY | FSESS_PUSH_SYMLINKS_IN | \
+	    FSESS_DEFAULT_PERMISSIONS | FSESS_INTR)
 
 extern int fuse_data_cache_mode;
 
@@ -253,7 +254,6 @@ fsess_is_impl(struct mount *mp, int opcode)
 	struct fuse_data *data = fuse_get_mpdata(mp);
 
 	return ((data->isimpl & (1ULL << opcode)) != 0);
-
 }
 
 static inline bool
@@ -262,7 +262,6 @@ fsess_maybe_impl(struct mount *mp, int opcode)
 	struct fuse_data *data = fuse_get_mpdata(mp);
 
 	return ((data->notimpl & (1ULL << opcode)) == 0);
-
 }
 
 static inline bool
@@ -271,7 +270,6 @@ fsess_not_impl(struct mount *mp, int opcode)
 	struct fuse_data *data = fuse_get_mpdata(mp);
 
 	return ((data->notimpl & (1ULL << opcode)) != 0);
-
 }
 
 static inline void
@@ -393,7 +391,7 @@ fuse_libabi_geq(struct fuse_data *data, uint32_t abi_maj, uint32_t abi_min)
 {
 	return (data->fuse_libabi_major > abi_maj ||
 	    (data->fuse_libabi_major == abi_maj &&
-	     data->fuse_libabi_minor >= abi_min));
+		data->fuse_libabi_minor >= abi_min));
 }
 
 struct fuse_data *fdata_alloc(struct cdev *dev, struct ucred *cred);
@@ -407,14 +405,14 @@ fdata_get_dead(struct fuse_data *data)
 }
 
 struct fuse_dispatcher {
-	struct fuse_ticket    *tick;
+	struct fuse_ticket *tick;
 	struct fuse_in_header *finh;
 
-	void    *indata;
-	size_t   iosize;
+	void *indata;
+	size_t iosize;
 	uint64_t nodeid;
-	int      answ_stat;
-	void    *answ;
+	int answ_stat;
+	void *answ;
 };
 
 static inline void

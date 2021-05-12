@@ -39,19 +39,20 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/queue.h>
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
+
 #include <netgraph/bluetooth/include/ng_bluetooth.h>
 #include <netgraph/bluetooth/include/ng_hci.h>
 #include <netgraph/bluetooth/include/ng_l2cap.h>
-#include <netgraph/bluetooth/l2cap/ng_l2cap_var.h>
 #include <netgraph/bluetooth/l2cap/ng_l2cap_cmds.h>
 #include <netgraph/bluetooth/l2cap/ng_l2cap_evnt.h>
 #include <netgraph/bluetooth/l2cap/ng_l2cap_llpi.h>
-#include <netgraph/bluetooth/l2cap/ng_l2cap_ulpi.h>
 #include <netgraph/bluetooth/l2cap/ng_l2cap_misc.h>
+#include <netgraph/bluetooth/l2cap/ng_l2cap_ulpi.h>
+#include <netgraph/bluetooth/l2cap/ng_l2cap_var.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
 
-static u_int16_t	ng_l2cap_get_cid	(ng_l2cap_p, int);
+static u_int16_t ng_l2cap_get_cid(ng_l2cap_p, int);
 
 /******************************************************************************
  ******************************************************************************
@@ -66,25 +67,25 @@ static u_int16_t	ng_l2cap_get_cid	(ng_l2cap_p, int);
 void
 ng_l2cap_send_hook_info(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	ng_l2cap_p	 l2cap = NULL;
-	struct ng_mesg	*msg = NULL;
-	int		 error = 0;
-	ng_l2cap_node_hook_info_ep *ep ;
+	ng_l2cap_p l2cap = NULL;
+	struct ng_mesg *msg = NULL;
+	int error = 0;
+	ng_l2cap_node_hook_info_ep *ep;
 
-	if (node == NULL || NG_NODE_NOT_VALID(node) ||
-	    hook == NULL || NG_HOOK_NOT_VALID(hook))
+	if (node == NULL || NG_NODE_NOT_VALID(node) || hook == NULL ||
+	    NG_HOOK_NOT_VALID(hook))
 		return;
 
-	l2cap = (ng_l2cap_p) NG_NODE_PRIVATE(node);
+	l2cap = (ng_l2cap_p)NG_NODE_PRIVATE(node);
 	if (l2cap->hci == NULL || NG_HOOK_NOT_VALID(l2cap->hci) ||
 	    bcmp(&l2cap->bdaddr, NG_HCI_BDADDR_ANY, sizeof(l2cap->bdaddr)) == 0)
 		return;
 
 	NG_MKMESSAGE(msg, NGM_L2CAP_COOKIE, NGM_L2CAP_NODE_HOOK_INFO,
-		     sizeof(*ep), M_NOWAIT);
+	    sizeof(*ep), M_NOWAIT);
 
 	if (msg != NULL) {
-		ep = (ng_l2cap_node_hook_info_ep *) &msg->data;
+		ep = (ng_l2cap_node_hook_info_ep *)&msg->data;
 		bcopy(&l2cap->bdaddr, &ep->addr, sizeof(bdaddr_t));
 		NG_SEND_MSG_HOOK(error, node, msg, hook, 0);
 	} else
@@ -92,25 +93,24 @@ ng_l2cap_send_hook_info(node_p node, hook_p hook, void *arg1, int arg2)
 
 	if (error != 0)
 		NG_L2CAP_INFO(
-"%s: %s - failed to send HOOK_INFO message to hook \"%s\", error=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), NG_HOOK_NAME(hook),
-			error);
+		    "%s: %s - failed to send HOOK_INFO message to hook \"%s\", error=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), NG_HOOK_NAME(hook),
+		    error);
 } /* ng_l2cap_send_hook_info */
 
 /*
- * Create new connection descriptor for the "remote" unit. 
+ * Create new connection descriptor for the "remote" unit.
  * Will link connection descriptor to the l2cap node.
  */
 
 ng_l2cap_con_p
 ng_l2cap_new_con(ng_l2cap_p l2cap, bdaddr_p bdaddr, int type)
 {
-	static int	fake_con_handle = 0x0f00;
-	ng_l2cap_con_p	con = NULL;
+	static int fake_con_handle = 0x0f00;
+	ng_l2cap_con_p con = NULL;
 
 	/* Create new connection descriptor */
-	con = malloc(sizeof(*con), M_NETGRAPH_L2CAP,
-		M_NOWAIT|M_ZERO);
+	con = malloc(sizeof(*con), M_NETGRAPH_L2CAP, M_NOWAIT | M_ZERO);
 	if (con == NULL)
 		return (NULL);
 
@@ -121,8 +121,8 @@ ng_l2cap_new_con(ng_l2cap_p l2cap, bdaddr_p bdaddr, int type)
 	 * XXX
 	 *
 	 * Assign fake connection handle to the connection descriptor.
-	 * Bluetooth specification marks 0x0f00 - 0x0fff connection 
-	 * handles as reserved. We need this fake connection handles 
+	 * Bluetooth specification marks 0x0f00 - 0x0fff connection
+	 * handles as reserved. We need this fake connection handles
 	 * for timeouts. Connection handle will be passed as argument
 	 * to timeout so when timeout happens we can find the right
 	 * connection descriptor. We can not pass pointers, because
@@ -131,7 +131,7 @@ ng_l2cap_new_con(ng_l2cap_p l2cap, bdaddr_p bdaddr, int type)
 	 * went into node's queue
 	 */
 
-	con->con_handle = fake_con_handle ++;
+	con->con_handle = fake_con_handle++;
 	if (fake_con_handle > 0x0fff)
 		fake_con_handle = 0x0f00;
 
@@ -143,7 +143,7 @@ ng_l2cap_new_con(ng_l2cap_p l2cap, bdaddr_p bdaddr, int type)
 	TAILQ_INIT(&con->cmd_list);
 
 	/* Link connection */
-	LIST_INSERT_HEAD(&l2cap->con_list, con, next); 
+	LIST_INSERT_HEAD(&l2cap->con_list, con, next);
 
 	return (con);
 } /* ng_l2cap_new_con */
@@ -155,15 +155,15 @@ ng_l2cap_new_con(ng_l2cap_p l2cap, bdaddr_p bdaddr, int type)
 void
 ng_l2cap_con_ref(ng_l2cap_con_p con)
 {
-	con->refcnt ++;
+	con->refcnt++;
 
 	if (con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO) {
 		if ((con->state != NG_L2CAP_CON_OPEN) ||
 		    (con->flags & NG_L2CAP_CON_OUTGOING) == 0)
 			panic(
-"%s: %s - bad auto disconnect timeout, state=%d, flags=%#x\n",
-				__func__, NG_NODE_NAME(con->l2cap->node),
-				con->state, con->flags);
+			    "%s: %s - bad auto disconnect timeout, state=%d, flags=%#x\n",
+			    __func__, NG_NODE_NAME(con->l2cap->node),
+			    con->state, con->flags);
 
 		ng_l2cap_discon_untimeout(con);
 	}
@@ -176,11 +176,11 @@ ng_l2cap_con_ref(ng_l2cap_con_p con)
 void
 ng_l2cap_con_unref(ng_l2cap_con_p con)
 {
-	con->refcnt --;
+	con->refcnt--;
 
 	if (con->refcnt < 0)
-		panic(
-"%s: %s - con->refcnt < 0\n", __func__, NG_NODE_NAME(con->l2cap->node));
+		panic("%s: %s - con->refcnt < 0\n", __func__,
+		    NG_NODE_NAME(con->l2cap->node));
 
 	/*
 	 * Set auto disconnect timer only if the following conditions are met:
@@ -191,9 +191,8 @@ ng_l2cap_con_unref(ng_l2cap_con_p con)
 	 * 5) connection is not dying
 	 */
 
-	if ((con->refcnt == 0) &&
-	    (con->state == NG_L2CAP_CON_OPEN) &&
-	    (con->flags & NG_L2CAP_CON_OUTGOING) && 
+	if ((con->refcnt == 0) && (con->state == NG_L2CAP_CON_OPEN) &&
+	    (con->flags & NG_L2CAP_CON_OUTGOING) &&
 	    (con->l2cap->discon_timo > 0) &&
 	    ((con->flags & NG_L2CAP_CON_DYING) == 0))
 		ng_l2cap_discon_timeout(con);
@@ -207,17 +206,15 @@ ng_l2cap_con_unref(ng_l2cap_con_p con)
 int
 ng_l2cap_discon_timeout(ng_l2cap_con_p con)
 {
-	if (con->flags & (NG_L2CAP_CON_LP_TIMO|NG_L2CAP_CON_AUTO_DISCON_TIMO))
-		panic(
-"%s: %s - invalid timeout, state=%d, flags=%#x\n",
-			__func__, NG_NODE_NAME(con->l2cap->node),
-			con->state, con->flags);
+	if (con->flags & (NG_L2CAP_CON_LP_TIMO | NG_L2CAP_CON_AUTO_DISCON_TIMO))
+		panic("%s: %s - invalid timeout, state=%d, flags=%#x\n",
+		    __func__, NG_NODE_NAME(con->l2cap->node), con->state,
+		    con->flags);
 
 	con->flags |= NG_L2CAP_CON_AUTO_DISCON_TIMO;
 	ng_callout(&con->con_timo, con->l2cap->node, NULL,
-				con->l2cap->discon_timo * hz,
-				ng_l2cap_process_discon_timeout, NULL,
-				con->con_handle);
+	    con->l2cap->discon_timo * hz, ng_l2cap_process_discon_timeout, NULL,
+	    con->con_handle);
 
 	return (0);
 } /* ng_l2cap_discon_timeout */
@@ -230,10 +227,9 @@ int
 ng_l2cap_discon_untimeout(ng_l2cap_con_p con)
 {
 	if (!(con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO))
-		panic(
-"%s: %s - no disconnect timeout, state=%d, flags=%#x\n",
-			__func__,  NG_NODE_NAME(con->l2cap->node),
-			con->state, con->flags);
+		panic("%s: %s - no disconnect timeout, state=%d, flags=%#x\n",
+		    __func__, NG_NODE_NAME(con->l2cap->node), con->state,
+		    con->flags);
 
 	if (ng_uncallout(&con->con_timo, con->l2cap->node) == 0)
 		return (ETIMEDOUT);
@@ -255,7 +251,7 @@ ng_l2cap_free_con(ng_l2cap_con_p con)
 	con->state = NG_L2CAP_CON_CLOSED;
 
 	while (con->tx_pkt != NULL) {
-		struct mbuf	*m = con->tx_pkt->m_nextpkt;
+		struct mbuf *m = con->tx_pkt->m_nextpkt;
 
 		m_freem(con->tx_pkt);
 		con->tx_pkt = m;
@@ -263,7 +259,7 @@ ng_l2cap_free_con(ng_l2cap_con_p con)
 
 	NG_FREE_M(con->rx_pkt);
 
-	for (f = LIST_FIRST(&con->l2cap->chan_list); f != NULL; ) {
+	for (f = LIST_FIRST(&con->l2cap->chan_list); f != NULL;) {
 		n = LIST_NEXT(f, next);
 
 		if (f->con == con)
@@ -273,7 +269,7 @@ ng_l2cap_free_con(ng_l2cap_con_p con)
 	}
 
 	while (!TAILQ_EMPTY(&con->cmd_list)) {
-		ng_l2cap_cmd_p	cmd = TAILQ_FIRST(&con->cmd_list);
+		ng_l2cap_cmd_p cmd = TAILQ_FIRST(&con->cmd_list);
 
 		ng_l2cap_unlink_cmd(cmd);
 		if (cmd->flags & NG_L2CAP_CMD_PENDING)
@@ -281,11 +277,10 @@ ng_l2cap_free_con(ng_l2cap_con_p con)
 		ng_l2cap_free_cmd(cmd);
 	}
 
-	if (con->flags & (NG_L2CAP_CON_AUTO_DISCON_TIMO|NG_L2CAP_CON_LP_TIMO))
-		panic(
-"%s: %s - timeout pending! state=%d, flags=%#x\n",
-			__func__,  NG_NODE_NAME(con->l2cap->node),
-			con->state, con->flags);
+	if (con->flags & (NG_L2CAP_CON_AUTO_DISCON_TIMO | NG_L2CAP_CON_LP_TIMO))
+		panic("%s: %s - timeout pending! state=%d, flags=%#x\n",
+		    __func__, NG_NODE_NAME(con->l2cap->node), con->state,
+		    con->flags);
 
 	LIST_REMOVE(con, next);
 
@@ -300,10 +295,10 @@ ng_l2cap_free_con(ng_l2cap_con_p con)
 ng_l2cap_con_p
 ng_l2cap_con_by_addr(ng_l2cap_p l2cap, bdaddr_p bdaddr, unsigned int type)
 {
-	ng_l2cap_con_p	con = NULL;
+	ng_l2cap_con_p con = NULL;
 
-	LIST_FOREACH(con, &l2cap->con_list, next)
-		if ((bcmp(bdaddr, &con->remote, sizeof(con->remote)) == 0)&&
+	LIST_FOREACH (con, &l2cap->con_list, next)
+		if ((bcmp(bdaddr, &con->remote, sizeof(con->remote)) == 0) &&
 		    (con->linktype == type))
 			break;
 
@@ -311,15 +306,15 @@ ng_l2cap_con_by_addr(ng_l2cap_p l2cap, bdaddr_p bdaddr, unsigned int type)
 } /* ng_l2cap_con_by_addr */
 
 /*
- * Get connection by "handle" 
+ * Get connection by "handle"
  */
 
 ng_l2cap_con_p
 ng_l2cap_con_by_handle(ng_l2cap_p l2cap, u_int16_t con_handle)
 {
-	ng_l2cap_con_p	con = NULL;
+	ng_l2cap_con_p con = NULL;
 
-	LIST_FOREACH(con, &l2cap->con_list, next)
+	LIST_FOREACH (con, &l2cap->con_list, next)
 		if (con->con_handle == con_handle)
 			break;
 
@@ -332,21 +327,21 @@ ng_l2cap_con_by_handle(ng_l2cap_p l2cap, u_int16_t con_handle)
  */
 
 ng_l2cap_chan_p
-ng_l2cap_new_chan(ng_l2cap_p l2cap, ng_l2cap_con_p con, u_int16_t psm, int idtype)
+ng_l2cap_new_chan(
+    ng_l2cap_p l2cap, ng_l2cap_con_p con, u_int16_t psm, int idtype)
 {
-	ng_l2cap_chan_p	ch = NULL;
+	ng_l2cap_chan_p ch = NULL;
 
-	ch = malloc(sizeof(*ch), M_NETGRAPH_L2CAP,
-		M_NOWAIT|M_ZERO);
+	ch = malloc(sizeof(*ch), M_NETGRAPH_L2CAP, M_NOWAIT | M_ZERO);
 	if (ch == NULL)
 		return (NULL);
-	if(idtype == NG_L2CAP_L2CA_IDTYPE_ATT){
+	if (idtype == NG_L2CAP_L2CA_IDTYPE_ATT) {
 		ch->scid = ch->dcid = NG_L2CAP_ATT_CID;
-	}else if(idtype == NG_L2CAP_L2CA_IDTYPE_SMP){
+	} else if (idtype == NG_L2CAP_L2CA_IDTYPE_SMP) {
 		ch->scid = ch->dcid = NG_L2CAP_SMP_CID;
-	}else{
-		ch->scid = ng_l2cap_get_cid(l2cap,
-					    (con->linktype!= NG_HCI_LINK_ACL));
+	} else {
+		ch->scid = ng_l2cap_get_cid(
+		    l2cap, (con->linktype != NG_HCI_LINK_ACL));
 	}
 
 	ch->idtype = idtype;
@@ -381,19 +376,19 @@ ng_l2cap_new_chan(ng_l2cap_p l2cap, ng_l2cap_con_p con, u_int16_t psm, int idtyp
 ng_l2cap_chan_p
 ng_l2cap_chan_by_scid(ng_l2cap_p l2cap, u_int16_t scid, int idtype)
 {
-	ng_l2cap_chan_p	ch = NULL;
+	ng_l2cap_chan_p ch = NULL;
 
-	if((idtype == NG_L2CAP_L2CA_IDTYPE_ATT)||
-	   (idtype == NG_L2CAP_L2CA_IDTYPE_SMP)){
+	if ((idtype == NG_L2CAP_L2CA_IDTYPE_ATT) ||
+	    (idtype == NG_L2CAP_L2CA_IDTYPE_SMP)) {
 		return NULL;
 	}
 
-	LIST_FOREACH(ch, &l2cap->chan_list, next){
-		if((idtype != NG_L2CAP_L2CA_IDTYPE_BREDR)&&
-		   (ch->con->linktype == NG_HCI_LINK_ACL ))
+	LIST_FOREACH (ch, &l2cap->chan_list, next) {
+		if ((idtype != NG_L2CAP_L2CA_IDTYPE_BREDR) &&
+		    (ch->con->linktype == NG_HCI_LINK_ACL))
 			continue;
-		if((idtype != NG_L2CAP_L2CA_IDTYPE_LE)&&
-		   (ch->con->linktype != NG_HCI_LINK_ACL ))
+		if ((idtype != NG_L2CAP_L2CA_IDTYPE_LE) &&
+		    (ch->con->linktype != NG_HCI_LINK_ACL))
 			continue;
 		if (ch->scid == scid)
 			break;
@@ -402,14 +397,13 @@ ng_l2cap_chan_by_scid(ng_l2cap_p l2cap, u_int16_t scid, int idtype)
 } /* ng_l2cap_chan_by_scid */
 
 ng_l2cap_chan_p
-ng_l2cap_chan_by_conhandle(ng_l2cap_p l2cap, uint16_t scid,
-			   u_int16_t con_handle)
+ng_l2cap_chan_by_conhandle(
+    ng_l2cap_p l2cap, uint16_t scid, u_int16_t con_handle)
 {
-	ng_l2cap_chan_p	ch = NULL;
+	ng_l2cap_chan_p ch = NULL;
 
-	LIST_FOREACH(ch, &l2cap->chan_list, next){
-		if ((ch->scid == scid) &&
-		    (ch->con->con_handle == con_handle))
+	LIST_FOREACH (ch, &l2cap->chan_list, next) {
+		if ((ch->scid == scid) && (ch->con->con_handle == con_handle))
 			break;
 	}
 	return (ch);
@@ -422,7 +416,7 @@ ng_l2cap_chan_by_conhandle(ng_l2cap_p l2cap, uint16_t scid,
 void
 ng_l2cap_free_chan(ng_l2cap_chan_p ch)
 {
-	ng_l2cap_cmd_p	f = NULL, n = NULL;
+	ng_l2cap_cmd_p f = NULL, n = NULL;
 
 	f = TAILQ_FIRST(&ch->con->cmd_list);
 
@@ -453,16 +447,15 @@ ng_l2cap_free_chan(ng_l2cap_chan_p ch)
 
 ng_l2cap_cmd_p
 ng_l2cap_new_cmd(ng_l2cap_con_p con, ng_l2cap_chan_p ch, u_int8_t ident,
-		u_int8_t code, u_int32_t token)
+    u_int8_t code, u_int32_t token)
 {
-	ng_l2cap_cmd_p	cmd = NULL;
+	ng_l2cap_cmd_p cmd = NULL;
 
 	KASSERT((ch == NULL || ch->con == con),
-("%s: %s - invalid channel pointer!\n",
-		__func__, NG_NODE_NAME(con->l2cap->node)));
+	    ("%s: %s - invalid channel pointer!\n", __func__,
+		NG_NODE_NAME(con->l2cap->node)));
 
-	cmd = malloc(sizeof(*cmd), M_NETGRAPH_L2CAP,
-		M_NOWAIT|M_ZERO);
+	cmd = malloc(sizeof(*cmd), M_NETGRAPH_L2CAP, M_NOWAIT | M_ZERO);
 	if (cmd == NULL)
 		return (NULL);
 
@@ -483,13 +476,14 @@ ng_l2cap_new_cmd(ng_l2cap_con_p con, ng_l2cap_chan_p ch, u_int8_t ident,
 ng_l2cap_cmd_p
 ng_l2cap_cmd_by_ident(ng_l2cap_con_p con, u_int8_t ident)
 {
-	ng_l2cap_cmd_p	cmd = NULL;
+	ng_l2cap_cmd_p cmd = NULL;
 
-	TAILQ_FOREACH(cmd, &con->cmd_list, next) {
-		if ((cmd->flags & NG_L2CAP_CMD_PENDING) && cmd->ident == ident) {
+	TAILQ_FOREACH (cmd, &con->cmd_list, next) {
+		if ((cmd->flags & NG_L2CAP_CMD_PENDING) &&
+		    cmd->ident == ident) {
 			KASSERT((cmd->con == con),
-("%s: %s - invalid connection pointer!\n",
-				__func__, NG_NODE_NAME(con->l2cap->node)));
+			    ("%s: %s - invalid connection pointer!\n", __func__,
+				NG_NODE_NAME(con->l2cap->node)));
 
 			break;
 		}
@@ -506,17 +500,15 @@ ng_l2cap_cmd_by_ident(ng_l2cap_con_p con, u_int8_t ident)
 int
 ng_l2cap_lp_timeout(ng_l2cap_con_p con)
 {
-	if (con->flags & (NG_L2CAP_CON_LP_TIMO|NG_L2CAP_CON_AUTO_DISCON_TIMO))
-		panic(
-"%s: %s - invalid timeout, state=%d, flags=%#x\n",
-			__func__, NG_NODE_NAME(con->l2cap->node),
-			con->state, con->flags);
+	if (con->flags & (NG_L2CAP_CON_LP_TIMO | NG_L2CAP_CON_AUTO_DISCON_TIMO))
+		panic("%s: %s - invalid timeout, state=%d, flags=%#x\n",
+		    __func__, NG_NODE_NAME(con->l2cap->node), con->state,
+		    con->flags);
 
 	con->flags |= NG_L2CAP_CON_LP_TIMO;
 	ng_callout(&con->con_timo, con->l2cap->node, NULL,
-				bluetooth_hci_connect_timeout(),
-				ng_l2cap_process_lp_timeout, NULL,
-				con->con_handle);
+	    bluetooth_hci_connect_timeout(), ng_l2cap_process_lp_timeout, NULL,
+	    con->con_handle);
 
 	return (0);
 } /* ng_l2cap_lp_timeout */
@@ -530,9 +522,9 @@ ng_l2cap_lp_untimeout(ng_l2cap_con_p con)
 {
 	if (!(con->flags & NG_L2CAP_CON_LP_TIMO))
 		panic(
-"%s: %s - no LP connection timeout, state=%d, flags=%#x\n",
-			__func__,  NG_NODE_NAME(con->l2cap->node),
-			con->state, con->flags);
+		    "%s: %s - no LP connection timeout, state=%d, flags=%#x\n",
+		    __func__, NG_NODE_NAME(con->l2cap->node), con->state,
+		    con->flags);
 
 	if (ng_uncallout(&con->con_timo, con->l2cap->node) == 0)
 		return (ETIMEDOUT);
@@ -550,18 +542,18 @@ ng_l2cap_lp_untimeout(ng_l2cap_con_p con)
 int
 ng_l2cap_command_timeout(ng_l2cap_cmd_p cmd, int timo)
 {
-	int	arg;
+	int arg;
 
 	if (cmd->flags & NG_L2CAP_CMD_PENDING)
 		panic(
-"%s: %s - duplicated command timeout, code=%#x, flags=%#x\n",
-			__func__, NG_NODE_NAME(cmd->con->l2cap->node),
-			cmd->code, cmd->flags);
+		    "%s: %s - duplicated command timeout, code=%#x, flags=%#x\n",
+		    __func__, NG_NODE_NAME(cmd->con->l2cap->node), cmd->code,
+		    cmd->flags);
 
 	arg = ((cmd->ident << 16) | cmd->con->con_handle);
 	cmd->flags |= NG_L2CAP_CMD_PENDING;
 	ng_callout(&cmd->timo, cmd->con->l2cap->node, NULL, timo,
-				ng_l2cap_process_command_timeout, NULL, arg);
+	    ng_l2cap_process_command_timeout, NULL, arg);
 
 	return (0);
 } /* ng_l2cap_command_timeout */
@@ -574,10 +566,9 @@ int
 ng_l2cap_command_untimeout(ng_l2cap_cmd_p cmd)
 {
 	if (!(cmd->flags & NG_L2CAP_CMD_PENDING))
-		panic(
-"%s: %s - no command timeout, code=%#x, flags=%#x\n",
-			__func__, NG_NODE_NAME(cmd->con->l2cap->node),
-			cmd->code, cmd->flags);
+		panic("%s: %s - no command timeout, code=%#x, flags=%#x\n",
+		    __func__, NG_NODE_NAME(cmd->con->l2cap->node), cmd->code,
+		    cmd->flags);
 
 	if (ng_uncallout(&cmd->timo, cmd->con->l2cap->node) == 0)
 		return (ETIMEDOUT);
@@ -608,14 +599,14 @@ ng_l2cap_prepend(struct mbuf *m, int size)
 ng_l2cap_flow_p
 ng_l2cap_default_flow(void)
 {
-	static ng_l2cap_flow_t	default_flow = {
-		/* flags */		0x0,
-		/* service_type */	NG_HCI_SERVICE_TYPE_BEST_EFFORT,
-		/* token_rate */	0xffffffff, /* maximum */
-		/* token_bucket_size */	0xffffffff, /* maximum */
-		/* peak_bandwidth */	0x00000000, /* maximum */
-		/* latency */		0xffffffff, /* don't care */
-		/* delay_variation */	0xffffffff  /* don't care */
+	static ng_l2cap_flow_t default_flow = {
+		/* flags */ 0x0,
+		/* service_type */ NG_HCI_SERVICE_TYPE_BEST_EFFORT,
+		/* token_rate */ 0xffffffff,	    /* maximum */
+		/* token_bucket_size */ 0xffffffff, /* maximum */
+		/* peak_bandwidth */ 0x00000000,    /* maximum */
+		/* latency */ 0xffffffff,	    /* don't care */
+		/* delay_variation */ 0xffffffff    /* don't care */
 	};
 
 	return (&default_flow);
@@ -627,44 +618,44 @@ ng_l2cap_default_flow(void)
  */
 
 static u_int16_t
-ng_l2cap_get_cid(ng_l2cap_p l2cap,int isle)
+ng_l2cap_get_cid(ng_l2cap_p l2cap, int isle)
 {
-	u_int16_t	cid ;
-	u_int16_t 	endcid;
-	uint16_t	 mask;
+	u_int16_t cid;
+	u_int16_t endcid;
+	uint16_t mask;
 	int idtype;
-	if(isle){
+	if (isle) {
 		endcid = l2cap->lecid;
 		/*Assume Last CID is 2^n-1 */
 		mask = NG_L2CAP_LELAST_CID;
 		idtype = NG_L2CAP_L2CA_IDTYPE_LE;
-	}else{
+	} else {
 		endcid = l2cap->cid;
-		/*Assume Last CID is 2^n-1 */		
+		/*Assume Last CID is 2^n-1 */
 		mask = NG_L2CAP_LAST_CID;
 		idtype = NG_L2CAP_L2CA_IDTYPE_BREDR;
 	}
-	cid = (endcid+1) & mask;
-	     
+	cid = (endcid + 1) & mask;
+
 	if (cid < NG_L2CAP_FIRST_CID)
 		cid = NG_L2CAP_FIRST_CID;
 
 	while (cid != endcid) {
 		if (ng_l2cap_chan_by_scid(l2cap, cid, idtype) == NULL) {
-			if(!isle){
+			if (!isle) {
 				l2cap->cid = cid;
-			}else{
+			} else {
 				l2cap->lecid = cid;
 			}
 			return (cid);
 		}
 
-		cid ++;
+		cid++;
 		cid &= mask;
 		if (cid < NG_L2CAP_FIRST_CID)
 			cid = NG_L2CAP_FIRST_CID;
 	}
-		
+
 	return (NG_L2CAP_NULL_CID);
 } /* ng_l2cap_get_cid */
 
@@ -676,7 +667,7 @@ ng_l2cap_get_cid(ng_l2cap_p l2cap,int isle)
 u_int8_t
 ng_l2cap_get_ident(ng_l2cap_con_p con)
 {
-	u_int8_t	ident = con->ident + 1;
+	u_int8_t ident = con->ident + 1;
 
 	if (ident < NG_L2CAP_FIRST_IDENT)
 		ident = NG_L2CAP_FIRST_IDENT;
@@ -688,7 +679,7 @@ ng_l2cap_get_ident(ng_l2cap_con_p con)
 			return (ident);
 		}
 
-		ident ++;
+		ident++;
 		if (ident < NG_L2CAP_FIRST_IDENT)
 			ident = NG_L2CAP_FIRST_IDENT;
 	}

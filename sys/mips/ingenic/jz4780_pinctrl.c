@@ -33,12 +33,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/resource.h>
@@ -46,24 +46,23 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <dev/fdt/fdt_common.h>
 #include <dev/fdt/fdt_pinctrl.h>
 #include <dev/fdt/simplebus.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <mips/ingenic/jz4780_regs.h>
 
 #include "jz4780_gpio_if.h"
 
 struct jz4780_pinctrl_softc {
-	struct simplebus_softc          ssc;
-	device_t			dev;
+	struct simplebus_softc ssc;
+	device_t dev;
 };
 
-#define CHIP_REG_STRIDE			256
-#define CHIP_REG_OFFSET(base, chip)	((base) + (chip) * CHIP_REG_STRIDE)
+#define CHIP_REG_STRIDE 256
+#define CHIP_REG_OFFSET(base, chip) ((base) + (chip)*CHIP_REG_STRIDE)
 
 static int
 jz4780_pinctrl_probe(device_t dev)
@@ -108,7 +107,7 @@ jz4780_pinctrl_attach(device_t dev)
 	dt_parent = ofw_bus_get_node(dev);
 	i = 0;
 	for (dt_child = OF_child(dt_parent); dt_child != 0;
-	    dt_child = OF_peer(dt_child)) {
+	     dt_child = OF_peer(dt_child)) {
 		struct simplebus_devinfo *ndi;
 		device_t child;
 		bus_addr_t phys;
@@ -117,7 +116,7 @@ jz4780_pinctrl_attach(device_t dev)
 		/* Add gpio controller child */
 		if (!OF_hasprop(dt_child, "gpio-controller"))
 			continue;
-		child = simplebus_add_device(dev, dt_child, 0,  NULL, -1, NULL);
+		child = simplebus_add_device(dev, dt_child, 0, NULL, -1, NULL);
 		if (child == NULL)
 			break;
 		/* Setup child resources */
@@ -125,16 +124,16 @@ jz4780_pinctrl_attach(device_t dev)
 		size = CHIP_REG_STRIDE;
 		if (phys + size - 1 <= re->end) {
 			ndi = device_get_ivars(child);
-			resource_list_add(&ndi->rl, SYS_RES_MEMORY, 0,
-			    phys, phys + size - 1, size);
+			resource_list_add(&ndi->rl, SYS_RES_MEMORY, 0, phys,
+			    phys + size - 1, size);
 		}
 		i++;
 	}
 
 	ret = bus_generic_attach(dev);
 	if (ret == 0) {
-	    fdt_pinctrl_register(dev, "ingenic,pins");
-	    fdt_pinctrl_configure_tree(dev);
+		fdt_pinctrl_register(dev, "ingenic,pins");
+		fdt_pinctrl_configure_tree(dev);
 	}
 	return (ret);
 }
@@ -149,7 +148,7 @@ jz4780_pinctrl_detach(device_t dev)
 
 struct jx4780_bias_prop {
 	const char *name;
-	uint32_t    bias;
+	uint32_t bias;
 };
 
 static struct jx4780_bias_prop jx4780_bias_table[] = {
@@ -188,7 +187,7 @@ static int
 jz4780_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 {
 	struct jz4780_pinctrl_softc *sc = device_get_softc(dev);
-	device_t  chip;
+	device_t chip;
 	phandle_t node;
 	ssize_t i, len;
 	uint32_t *value, *pconf;
@@ -196,11 +195,10 @@ jz4780_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 
 	node = OF_node_from_xref(cfgxref);
 
-	len = OF_getencprop_alloc_multi(node, "ingenic,pins",
-	    sizeof(uint32_t) * 4, (void **)&value);
+	len = OF_getencprop_alloc_multi(
+	    node, "ingenic,pins", sizeof(uint32_t) * 4, (void **)&value);
 	if (len < 0) {
-		device_printf(dev,
-		    "missing ingenic,pins attribute in FDT\n");
+		device_printf(dev, "missing ingenic,pins attribute in FDT\n");
 		return (ENXIO);
 	}
 
@@ -212,8 +210,8 @@ jz4780_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 		/* Lookup the chip that handles this configuration */
 		chip = jz4780_pinctrl_chip_lookup(sc, pconf[0]);
 		if (chip == NULL) {
-			device_printf(dev,
-			    "invalid gpio controller reference in FDT\n");
+			device_printf(
+			    dev, "invalid gpio controller reference in FDT\n");
 			goto done;
 		}
 
@@ -224,12 +222,11 @@ jz4780_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 			goto done;
 		}
 
-		result = JZ4780_GPIO_CONFIGURE_PIN(chip, pconf[1], pconf[2],
-		    bias);
+		result = JZ4780_GPIO_CONFIGURE_PIN(
+		    chip, pconf[1], pconf[2], bias);
 		if (result != 0) {
-			device_printf(dev,
-			    "failed to configure pin %u on %s\n", pconf[1],
-			    ofw_bus_get_name(chip));
+			device_printf(dev, "failed to configure pin %u on %s\n",
+			    pconf[1], ofw_bus_get_name(chip));
 			goto done;
 		}
 	}
@@ -242,9 +239,9 @@ done:
 
 static device_method_t jz4780_pinctrl_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		jz4780_pinctrl_probe),
-	DEVMETHOD(device_attach,	jz4780_pinctrl_attach),
-	DEVMETHOD(device_detach,	jz4780_pinctrl_detach),
+	DEVMETHOD(device_probe, jz4780_pinctrl_probe),
+	DEVMETHOD(device_attach, jz4780_pinctrl_attach),
+	DEVMETHOD(device_detach, jz4780_pinctrl_detach),
 
 	/* fdt_pinctrl interface */
 	DEVMETHOD(fdt_pinctrl_configure, jz4780_pinctrl_configure_pins),
@@ -254,6 +251,6 @@ static device_method_t jz4780_pinctrl_methods[] = {
 
 static devclass_t jz4780_pinctrl_devclass;
 DEFINE_CLASS_1(pinctrl, jz4780_pinctrl_driver, jz4780_pinctrl_methods,
-            sizeof(struct jz4780_pinctrl_softc), simplebus_driver);
+    sizeof(struct jz4780_pinctrl_softc), simplebus_driver);
 EARLY_DRIVER_MODULE(pinctrl, simplebus, jz4780_pinctrl_driver,
     jz4780_pinctrl_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

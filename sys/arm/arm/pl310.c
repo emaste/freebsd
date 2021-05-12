@@ -36,21 +36,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/rman.h>
-#include <sys/module.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
-#include <machine/intr.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
+#include <machine/intr.h>
 #include <machine/pl310.h>
 #ifdef PLATFORM
 #include <machine/platformvar.h>
 #endif
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #ifdef PLATFORM
 #include "platform_pl310_if.h"
@@ -66,17 +66,19 @@ __FBSDID("$FreeBSD$");
  * Hardcode errata for now
  * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0246b/pr01s02s02.html
  */
-#define	PL310_ERRATA_588369
-#define	PL310_ERRATA_753970
-#define	PL310_ERRATA_727915
+#define PL310_ERRATA_588369
+#define PL310_ERRATA_753970
+#define PL310_ERRATA_727915
 
-#define	PL310_LOCK(sc) do {		\
-	mtx_lock_spin(&(sc)->sc_mtx);	\
-} while(0);
+#define PL310_LOCK(sc)                        \
+	do {                                  \
+		mtx_lock_spin(&(sc)->sc_mtx); \
+	} while (0);
 
-#define	PL310_UNLOCK(sc) do {		\
-	mtx_unlock_spin(&(sc)->sc_mtx);	\
-} while(0);
+#define PL310_UNLOCK(sc)                        \
+	do {                                    \
+		mtx_unlock_spin(&(sc)->sc_mtx); \
+	} while (0);
 
 static int pl310_enabled = 1;
 TUNABLE_INT("hw.pl310.enabled", &pl310_enabled);
@@ -93,9 +95,8 @@ static uint32_t g_ways_assoc;
 static struct pl310_softc *pl310_softc;
 
 static struct ofw_compat_data compat_data[] = {
-	{"arm,pl310",		true}, /* Non-standard, FreeBSD. */
-	{"arm,pl310-cache",	true},
-	{NULL,			false}
+	{ "arm,pl310", true }, /* Non-standard, FreeBSD. */
+	{ "arm,pl310-cache", true }, { NULL, false }
 };
 
 #ifdef PLATFORM
@@ -132,44 +133,44 @@ pl310_print_config(struct pl310_softc *sc)
 	prefetch = pl310_read4(sc, PL310_PREFETCH_CTRL);
 
 	device_printf(sc->sc_dev, "Early BRESP response: %s\n",
-		(aux & AUX_CTRL_EARLY_BRESP) ? ena : dis);
+	    (aux & AUX_CTRL_EARLY_BRESP) ? ena : dis);
 	device_printf(sc->sc_dev, "Instruction prefetch: %s\n",
-		(aux & AUX_CTRL_INSTR_PREFETCH) ? ena : dis);
+	    (aux & AUX_CTRL_INSTR_PREFETCH) ? ena : dis);
 	device_printf(sc->sc_dev, "Data prefetch: %s\n",
-		(aux & AUX_CTRL_DATA_PREFETCH) ? ena : dis);
+	    (aux & AUX_CTRL_DATA_PREFETCH) ? ena : dis);
 	device_printf(sc->sc_dev, "Non-secure interrupt control: %s\n",
-		(aux & AUX_CTRL_NS_INT_CTRL) ? ena : dis);
+	    (aux & AUX_CTRL_NS_INT_CTRL) ? ena : dis);
 	device_printf(sc->sc_dev, "Non-secure lockdown: %s\n",
-		(aux & AUX_CTRL_NS_LOCKDOWN) ? ena : dis);
+	    (aux & AUX_CTRL_NS_LOCKDOWN) ? ena : dis);
 	device_printf(sc->sc_dev, "Share override: %s\n",
-		(aux & AUX_CTRL_SHARE_OVERRIDE) ? ena : dis);
+	    (aux & AUX_CTRL_SHARE_OVERRIDE) ? ena : dis);
 
 	device_printf(sc->sc_dev, "Double linefill: %s\n",
-		(prefetch & PREFETCH_CTRL_DL) ? ena : dis);
+	    (prefetch & PREFETCH_CTRL_DL) ? ena : dis);
 	device_printf(sc->sc_dev, "Instruction prefetch: %s\n",
-		(prefetch & PREFETCH_CTRL_INSTR_PREFETCH) ? ena : dis);
+	    (prefetch & PREFETCH_CTRL_INSTR_PREFETCH) ? ena : dis);
 	device_printf(sc->sc_dev, "Data prefetch: %s\n",
-		(prefetch & PREFETCH_CTRL_DATA_PREFETCH) ? ena : dis);
+	    (prefetch & PREFETCH_CTRL_DATA_PREFETCH) ? ena : dis);
 	device_printf(sc->sc_dev, "Double linefill on WRAP request: %s\n",
-		(prefetch & PREFETCH_CTRL_DL_ON_WRAP) ? ena : dis);
+	    (prefetch & PREFETCH_CTRL_DL_ON_WRAP) ? ena : dis);
 	device_printf(sc->sc_dev, "Prefetch drop: %s\n",
-		(prefetch & PREFETCH_CTRL_PREFETCH_DROP) ? ena : dis);
+	    (prefetch & PREFETCH_CTRL_PREFETCH_DROP) ? ena : dis);
 	device_printf(sc->sc_dev, "Incr double Linefill: %s\n",
-		(prefetch & PREFETCH_CTRL_INCR_DL) ? ena : dis);
+	    (prefetch & PREFETCH_CTRL_INCR_DL) ? ena : dis);
 	device_printf(sc->sc_dev, "Not same ID on exclusive sequence: %s\n",
-		(prefetch & PREFETCH_CTRL_NOTSAMEID) ? ena : dis);
+	    (prefetch & PREFETCH_CTRL_NOTSAMEID) ? ena : dis);
 	device_printf(sc->sc_dev, "Prefetch offset: %d\n",
-		(prefetch & PREFETCH_CTRL_OFFSET_MASK));
+	    (prefetch & PREFETCH_CTRL_OFFSET_MASK));
 }
 
 void
-pl310_set_ram_latency(struct pl310_softc *sc, uint32_t which_reg,
-   uint32_t read, uint32_t write, uint32_t setup)
+pl310_set_ram_latency(struct pl310_softc *sc, uint32_t which_reg, uint32_t read,
+    uint32_t write, uint32_t setup)
 {
 	uint32_t v;
 
-	KASSERT(which_reg == PL310_TAG_RAM_CTRL ||
-	    which_reg == PL310_DATA_RAM_CTRL,
+	KASSERT(
+	    which_reg == PL310_TAG_RAM_CTRL || which_reg == PL310_DATA_RAM_CTRL,
 	    ("bad pl310 ram latency register address"));
 
 	v = pl310_read4(sc, which_reg);
@@ -300,7 +301,7 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 	}
 	if (size & g_l2cache_align_mask) {
 		size &= ~g_l2cache_align_mask;
-	   	size += g_l2cache_line_size;
+		size += g_l2cache_line_size;
 	}
 
 #ifdef PL310_ERRATA_727915
@@ -321,8 +322,8 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 			pl310_write4(pl310_softc, PL310_INV_LINE_PA, start);
 		} else
 #endif
-			pl310_write4(pl310_softc, PL310_CLEAN_INV_LINE_PA,
-			    start);
+			pl310_write4(
+			    pl310_softc, PL310_CLEAN_INV_LINE_PA, start);
 		start += g_l2cache_line_size;
 		size -= g_l2cache_line_size;
 	}
@@ -428,7 +429,7 @@ pl310_set_way_sizes(struct pl310_softc *sc)
 static void
 pl310_config_intr(void *arg)
 {
-	struct pl310_softc * sc;
+	struct pl310_softc *sc;
 
 	sc = arg;
 
@@ -449,9 +450,8 @@ pl310_config_intr(void *arg)
 
 	/* Enable counters and reset C0 and C1 */
 	pl310_write4(sc, PL310_EVENT_COUNTER_CTRL,
-	    EVENT_COUNTER_CTRL_ENABLED |
-	    EVENT_COUNTER_CTRL_C0_RESET |
-	    EVENT_COUNTER_CTRL_C1_RESET);
+	    EVENT_COUNTER_CTRL_ENABLED | EVENT_COUNTER_CTRL_C0_RESET |
+		EVENT_COUNTER_CTRL_C1_RESET);
 
 	config_intrhook_disestablish(sc->sc_ich);
 	free(sc->sc_ich, M_DEVBUF);
@@ -480,17 +480,18 @@ pl310_attach(device_t dev)
 
 	sc->sc_dev = dev;
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->sc_mem_res == NULL)
 		panic("%s: Cannot map registers", device_get_name(dev));
 
 	/* Allocate an IRQ resource */
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	                                        RF_ACTIVE | RF_SHAREABLE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_irq_res == NULL) {
-		device_printf(dev, "cannot allocate IRQ, not using interrupt\n");
+		device_printf(
+		    dev, "cannot allocate IRQ, not using interrupt\n");
 	}
 
 	pl310_softc = sc;
@@ -527,12 +528,14 @@ pl310_attach(device_t dev)
 	 *  - Restore the original debug settings.
 	 */
 	if (pl310_read4(sc, PL310_CTRL) & CTRL_ENABLED) {
-		device_printf(dev, "Warning: L2 Cache should not already be "
+		device_printf(dev,
+		    "Warning: L2 Cache should not already be "
 		    "active; trying to de-activate and re-initialize...\n");
 		sc->sc_enabled = 1;
 		debug_ctrl = pl310_read4(sc, PL310_DEBUG_CTRL);
-		platform_pl310_write_debug(sc, debug_ctrl |
-		    DEBUG_CTRL_DISABLE_WRITEBACK | DEBUG_CTRL_DISABLE_LINEFILL);
+		platform_pl310_write_debug(sc,
+		    debug_ctrl | DEBUG_CTRL_DISABLE_WRITEBACK |
+			DEBUG_CTRL_DISABLE_LINEFILL);
 		pl310_set_way_sizes(sc);
 		pl310_wbinv_all();
 		platform_pl310_write_ctrl(sc, CTRL_DISABLED);
@@ -552,14 +555,15 @@ pl310_attach(device_t dev)
 			pl310_print_config(sc);
 	} else {
 		if (sc->sc_irq_res != NULL) {
-			sc->sc_ich = malloc(sizeof(*sc->sc_ich), M_DEVBUF, M_WAITOK);
+			sc->sc_ich = malloc(
+			    sizeof(*sc->sc_ich), M_DEVBUF, M_WAITOK);
 			sc->sc_ich->ich_func = pl310_config_intr;
 			sc->sc_ich->ich_arg = sc;
 			if (config_intrhook_establish(sc->sc_ich) != 0) {
-				device_printf(dev,
-				    "config_intrhook_establish failed\n");
+				device_printf(
+				    dev, "config_intrhook_establish failed\n");
 				free(sc->sc_ich, M_DEVBUF);
-				return(ENXIO);
+				return (ENXIO);
 			}
 		}
 
@@ -576,16 +580,13 @@ pl310_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t pl310_methods[] = {
-	DEVMETHOD(device_probe, pl310_probe),
-	DEVMETHOD(device_attach, pl310_attach),
-	DEVMETHOD_END
-};
+static device_method_t pl310_methods[] = { DEVMETHOD(device_probe, pl310_probe),
+	DEVMETHOD(device_attach, pl310_attach), DEVMETHOD_END };
 
 static driver_t pl310_driver = {
-        "l2cache",
-        pl310_methods,
-        sizeof(struct pl310_softc),
+	"l2cache",
+	pl310_methods,
+	sizeof(struct pl310_softc),
 };
 static devclass_t pl310_devclass;
 

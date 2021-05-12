@@ -34,9 +34,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_pseudofs.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -59,29 +59,25 @@ static SYSCTL_NODE(_vfs_pfs, OID_AUTO, vncache, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 
 static int pfs_vncache_entries;
 SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, entries, CTLFLAG_RD,
-    &pfs_vncache_entries, 0,
-    "number of entries in the vnode cache");
+    &pfs_vncache_entries, 0, "number of entries in the vnode cache");
 
 static int pfs_vncache_maxentries;
 SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, maxentries, CTLFLAG_RD,
-    &pfs_vncache_maxentries, 0,
-    "highest number of entries in the vnode cache");
+    &pfs_vncache_maxentries, 0, "highest number of entries in the vnode cache");
 
 static int pfs_vncache_hits;
-SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, hits, CTLFLAG_RD,
-    &pfs_vncache_hits, 0,
+SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, hits, CTLFLAG_RD, &pfs_vncache_hits, 0,
     "number of cache hits since initialization");
 
 static int pfs_vncache_misses;
-SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, misses, CTLFLAG_RD,
-    &pfs_vncache_misses, 0,
-    "number of cache misses since initialization");
+SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, misses, CTLFLAG_RD, &pfs_vncache_misses,
+    0, "number of cache misses since initialization");
 
-extern struct vop_vector pfs_vnodeops;	/* XXX -> .h file */
+extern struct vop_vector pfs_vnodeops; /* XXX -> .h file */
 
 static SLIST_HEAD(pfs_vncache_head, pfs_vdata) *pfs_vncache_hashtbl;
 static u_long pfs_vncache_hash;
-#define PFS_VNCACHE_HASH(pid)	(&pfs_vncache_hashtbl[(pid) & pfs_vncache_hash])
+#define PFS_VNCACHE_HASH(pid) (&pfs_vncache_hashtbl[(pid)&pfs_vncache_hash])
 
 /*
  * Initialize vnode cache
@@ -91,9 +87,10 @@ pfs_vncache_load(void)
 {
 
 	mtx_init(&pfs_vncache_mutex, "pfs_vncache", NULL, MTX_DEF);
-	pfs_vncache_hashtbl = hashinit(maxproc / 4, M_PFSVNCACHE, &pfs_vncache_hash);
-	pfs_exit_tag = EVENTHANDLER_REGISTER(process_exit, pfs_exit, NULL,
-	    EVENTHANDLER_PRI_ANY);
+	pfs_vncache_hashtbl = hashinit(
+	    maxproc / 4, M_PFSVNCACHE, &pfs_vncache_hash);
+	pfs_exit_tag = EVENTHANDLER_REGISTER(
+	    process_exit, pfs_exit, NULL, EVENTHANDLER_PRI_ANY);
 }
 
 /*
@@ -114,8 +111,8 @@ pfs_vncache_unload(void)
  * Allocate a vnode
  */
 int
-pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
-		  struct pfs_node *pn, pid_t pid)
+pfs_vncache_alloc(
+    struct mount *mp, struct vnode **vpp, struct pfs_node *pn, pid_t pid)
 {
 	struct pfs_vncache_head *hash;
 	struct pfs_vdata *pvd, *pvd2;
@@ -130,7 +127,7 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 		goto alloc;
 retry:
 	mtx_lock(&pfs_vncache_mutex);
-	SLIST_FOREACH(pvd, hash, pvd_hash) {
+	SLIST_FOREACH (pvd, hash, pvd_hash) {
 		if (pvd->pvd_pn == pn && pvd->pvd_pid == pid &&
 		    pvd->pvd_vnode->v_mount == mp) {
 			vp = pvd->pvd_vnode;
@@ -212,7 +209,7 @@ retry2:
 	 * going to insert into the cache. Recheck after
 	 * pfs_vncache_mutex is reacquired.
 	 */
-	SLIST_FOREACH(pvd2, hash, pvd_hash) {
+	SLIST_FOREACH (pvd2, hash, pvd_hash) {
 		if (pvd2->pvd_pn == pn && pvd2->pvd_pid == pid &&
 		    pvd2->pvd_vnode->v_mount == mp) {
 			vp = pvd2->pvd_vnode;
@@ -248,10 +245,11 @@ pfs_vncache_free(struct vnode *vp)
 	mtx_lock(&pfs_vncache_mutex);
 	pvd = (struct pfs_vdata *)vp->v_data;
 	KASSERT(pvd != NULL, ("pfs_vncache_free(): no vnode data\n"));
-	SLIST_FOREACH(pvd2, PFS_VNCACHE_HASH(pvd->pvd_pid), pvd_hash) {
+	SLIST_FOREACH (pvd2, PFS_VNCACHE_HASH(pvd->pvd_pid), pvd_hash) {
 		if (pvd2 != pvd)
 			continue;
-		SLIST_REMOVE(PFS_VNCACHE_HASH(pvd->pvd_pid), pvd, pfs_vdata, pvd_hash);
+		SLIST_REMOVE(
+		    PFS_VNCACHE_HASH(pvd->pvd_pid), pvd, pfs_vdata, pvd_hash);
 		--pfs_vncache_entries;
 		break;
 	}
@@ -306,8 +304,8 @@ pfs_purge(struct pfs_node *pn)
 restart:
 	removed = 0;
 	for (i = 0; i < pfs_vncache_hash; i++) {
-restart_chain:
-		SLIST_FOREACH(pvd, &pfs_vncache_hashtbl[i], pvd_hash) {
+	restart_chain:
+		SLIST_FOREACH (pvd, &pfs_vncache_hashtbl[i], pvd_hash) {
 			if (pn != NULL && pvd->pvd_pn != pn)
 				continue;
 			vnp = pvd->pvd_vnode;
@@ -348,7 +346,7 @@ pfs_exit(void *arg, struct proc *p)
 		return;
 restart:
 	mtx_lock(&pfs_vncache_mutex);
-	SLIST_FOREACH(pvd, hash, pvd_hash) {
+	SLIST_FOREACH (pvd, hash, pvd_hash) {
 		if (pvd->pvd_pid != pid)
 			continue;
 		vnp = pvd->pvd_vnode;

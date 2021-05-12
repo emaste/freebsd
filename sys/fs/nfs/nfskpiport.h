@@ -29,16 +29,16 @@
  */
 
 #ifndef _NFS_NFSKPIPORT_H_
-#define	_NFS_NFSKPIPORT_H_
+#define _NFS_NFSKPIPORT_H_
 /*
  * These definitions are needed since the generic code is now using Darwin8
  * KPI stuff. (I know, seems a bit silly, but I want the code to build on
  * Darwin8 and hopefully subsequent releases from Apple.)
  */
-typedef	struct mount *		mount_t;
-#define	vfs_flags(m)		((m)->mnt_flag)
+typedef struct mount *mount_t;
+#define vfs_flags(m) ((m)->mnt_flag)
 
-typedef struct vnode *		vnode_t;
-#define	vnode_vtype(v)		((v)->v_type)
+typedef struct vnode *vnode_t;
+#define vnode_vtype(v) ((v)->v_type)
 
-#endif	/* _NFS_NFSKPIPORT_H */
+#endif /* _NFS_NFSKPIPORT_H */

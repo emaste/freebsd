@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+
 #include <x86/ifunc.h>
 
 int fubyte_nosmap(volatile const void *base);
@@ -44,8 +45,8 @@ int fubyte_smap(volatile const void *base);
 DEFINE_IFUNC(, int, fubyte, (volatile const void *))
 {
 
-	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    fubyte_smap : fubyte_nosmap);
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ? fubyte_smap :
+								      fubyte_nosmap);
 }
 
 int fuword16_nosmap(volatile const void *base);
@@ -54,7 +55,8 @@ DEFINE_IFUNC(, int, fuword16, (volatile const void *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    fuword16_smap : fuword16_nosmap);
+		      fuword16_smap :
+		      fuword16_nosmap);
 }
 
 int fueword_nosmap(volatile const void *base, long *val);
@@ -62,109 +64,115 @@ int fueword_smap(volatile const void *base, long *val);
 DEFINE_IFUNC(, int, fueword, (volatile const void *, long *))
 {
 
-	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    fueword_smap : fueword_nosmap);
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ? fueword_smap :
+								      fueword_nosmap);
 }
 DEFINE_IFUNC(, int, fueword64, (volatile const void *, int64_t *))
 {
 
-	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    fueword_smap : fueword_nosmap);
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ? fueword_smap :
+								      fueword_nosmap);
 }
 
-int	fueword32_nosmap(volatile const void *base, int32_t *val);
-int	fueword32_smap(volatile const void *base, int32_t *val);
+int fueword32_nosmap(volatile const void *base, int32_t *val);
+int fueword32_smap(volatile const void *base, int32_t *val);
 DEFINE_IFUNC(, int, fueword32, (volatile const void *, int32_t *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    fueword32_smap : fueword32_nosmap);
+		      fueword32_smap :
+		      fueword32_nosmap);
 }
 
-int	subyte_nosmap(volatile void *base, int byte);
-int	subyte_smap(volatile void *base, int byte);
+int subyte_nosmap(volatile void *base, int byte);
+int subyte_smap(volatile void *base, int byte);
 DEFINE_IFUNC(, int, subyte, (volatile void *, int))
 {
 
-	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    subyte_smap : subyte_nosmap);
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ? subyte_smap :
+								      subyte_nosmap);
 }
 
-int	suword16_nosmap(volatile void *base, int word);
-int	suword16_smap(volatile void *base, int word);
+int suword16_nosmap(volatile void *base, int word);
+int suword16_smap(volatile void *base, int word);
 DEFINE_IFUNC(, int, suword16, (volatile void *, int))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    suword16_smap : suword16_nosmap);
+		      suword16_smap :
+		      suword16_nosmap);
 }
 
-int	suword32_nosmap(volatile void *base, int32_t word);
-int	suword32_smap(volatile void *base, int32_t word);
+int suword32_nosmap(volatile void *base, int32_t word);
+int suword32_smap(volatile void *base, int32_t word);
 DEFINE_IFUNC(, int, suword32, (volatile void *, int32_t))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    suword32_smap : suword32_nosmap);
+		      suword32_smap :
+		      suword32_nosmap);
 }
 
-int	suword_nosmap(volatile void *base, long word);
-int	suword_smap(volatile void *base, long word);
+int suword_nosmap(volatile void *base, long word);
+int suword_smap(volatile void *base, long word);
 DEFINE_IFUNC(, int, suword, (volatile void *, long))
 {
 
-	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    suword_smap : suword_nosmap);
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ? suword_smap :
+								      suword_nosmap);
 }
 DEFINE_IFUNC(, int, suword64, (volatile void *, int64_t))
 {
 
-	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    suword_smap : suword_nosmap);
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ? suword_smap :
+								      suword_nosmap);
 }
 
-int	casueword32_nosmap(volatile uint32_t *base, uint32_t oldval,
-	    uint32_t *oldvalp, uint32_t newval);
-int	casueword32_smap(volatile uint32_t *base, uint32_t oldval,
-	    uint32_t *oldvalp, uint32_t newval);
-DEFINE_IFUNC(, int, casueword32, (volatile uint32_t *, uint32_t, uint32_t *,
-    uint32_t))
+int casueword32_nosmap(volatile uint32_t *base, uint32_t oldval,
+    uint32_t *oldvalp, uint32_t newval);
+int casueword32_smap(volatile uint32_t *base, uint32_t oldval,
+    uint32_t *oldvalp, uint32_t newval);
+DEFINE_IFUNC(
+    , int, casueword32, (volatile uint32_t *, uint32_t, uint32_t *, uint32_t))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    casueword32_smap : casueword32_nosmap);
+		      casueword32_smap :
+		      casueword32_nosmap);
 }
 
-int	casueword_nosmap(volatile u_long *p, u_long oldval, u_long *oldvalp,
-	    u_long newval);
-int	casueword_smap(volatile u_long *p, u_long oldval, u_long *oldvalp,
-	    u_long newval);
+int casueword_nosmap(
+    volatile u_long *p, u_long oldval, u_long *oldvalp, u_long newval);
+int casueword_smap(
+    volatile u_long *p, u_long oldval, u_long *oldvalp, u_long newval);
 DEFINE_IFUNC(, int, casueword, (volatile u_long *, u_long, u_long *, u_long))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    casueword_smap : casueword_nosmap);
+		      casueword_smap :
+		      casueword_nosmap);
 }
 
 #undef copyinstr
 #undef copyin
 #undef copyout
 
-int	copyinstr_nosmap(const void *udaddr, void *kaddr, size_t len,
-	    size_t *lencopied);
-int	copyinstr_smap(const void *udaddr, void *kaddr, size_t len,
-	    size_t *lencopied);
+int copyinstr_nosmap(
+    const void *udaddr, void *kaddr, size_t len, size_t *lencopied);
+int copyinstr_smap(
+    const void *udaddr, void *kaddr, size_t len, size_t *lencopied);
 DEFINE_IFUNC(, int, copyinstr, (const void *, void *, size_t, size_t *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    copyinstr_smap : copyinstr_nosmap);
+		      copyinstr_smap :
+		      copyinstr_nosmap);
 }
 
-int	copyin_nosmap_std(const void *udaddr, void *kaddr, size_t len);
-int	copyin_smap_std(const void *udaddr, void *kaddr, size_t len);
-int	copyin_nosmap_erms(const void *udaddr, void *kaddr, size_t len);
-int	copyin_smap_erms(const void *udaddr, void *kaddr, size_t len);
+int copyin_nosmap_std(const void *udaddr, void *kaddr, size_t len);
+int copyin_smap_std(const void *udaddr, void *kaddr, size_t len);
+int copyin_nosmap_erms(const void *udaddr, void *kaddr, size_t len);
+int copyin_smap_erms(const void *udaddr, void *kaddr, size_t len);
 DEFINE_IFUNC(, int, copyin, (const void *, void *, size_t))
 {
 
@@ -180,10 +188,10 @@ DEFINE_IFUNC(, int, copyin, (const void *, void *, size_t))
 	}
 }
 
-int	copyout_nosmap_std(const void *kaddr, void *udaddr, size_t len);
-int	copyout_smap_std(const void *kaddr, void *udaddr, size_t len);
-int	copyout_nosmap_erms(const void *kaddr, void *udaddr, size_t len);
-int	copyout_smap_erms(const void *kaddr, void *udaddr, size_t len);
+int copyout_nosmap_std(const void *kaddr, void *udaddr, size_t len);
+int copyout_smap_std(const void *kaddr, void *udaddr, size_t len);
+int copyout_nosmap_erms(const void *kaddr, void *udaddr, size_t len);
+int copyout_smap_erms(const void *kaddr, void *udaddr, size_t len);
 DEFINE_IFUNC(, int, copyout, (const void *, void *, size_t))
 {
 

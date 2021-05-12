@@ -32,11 +32,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
 #include <sys/bus.h>
 #include <sys/interrupt.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
 
@@ -49,9 +48,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
-#include "spibus_if.h"
 
 #include <mips/atheros/ar71xxreg.h>
+
+#include "spibus_if.h"
 
 #undef AR71XX_SPI_DEBUG
 #ifdef AR71XX_SPI_DEBUG
@@ -64,29 +64,31 @@ __FBSDID("$FreeBSD$");
  * register space access macros
  */
 
-#define	SPI_BARRIER_WRITE(sc)		bus_barrier((sc)->sc_mem_res, 0, 0, 	\
-					    BUS_SPACE_BARRIER_WRITE)
-#define	SPI_BARRIER_READ(sc)	bus_barrier((sc)->sc_mem_res, 0, 0, 	\
-					    BUS_SPACE_BARRIER_READ)
-#define	SPI_BARRIER_RW(sc)		bus_barrier((sc)->sc_mem_res, 0, 0, 	\
-					    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE)
+#define SPI_BARRIER_WRITE(sc) \
+	bus_barrier((sc)->sc_mem_res, 0, 0, BUS_SPACE_BARRIER_WRITE)
+#define SPI_BARRIER_READ(sc) \
+	bus_barrier((sc)->sc_mem_res, 0, 0, BUS_SPACE_BARRIER_READ)
+#define SPI_BARRIER_RW(sc)                  \
+	bus_barrier((sc)->sc_mem_res, 0, 0, \
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE)
 
-#define SPI_WRITE(sc, reg, val)	do {				\
-		bus_write_4(sc->sc_mem_res, (reg), (val));	\
+#define SPI_WRITE(sc, reg, val)                            \
+	do {                                               \
+		bus_write_4(sc->sc_mem_res, (reg), (val)); \
 	} while (0)
 
-#define SPI_READ(sc, reg)	 bus_read_4(sc->sc_mem_res, (reg))
+#define SPI_READ(sc, reg) bus_read_4(sc->sc_mem_res, (reg))
 
-#define SPI_SET_BITS(sc, reg, bits)	\
+#define SPI_SET_BITS(sc, reg, bits) \
 	SPI_WRITE(sc, reg, SPI_READ(sc, (reg)) | (bits))
 
-#define SPI_CLEAR_BITS(sc, reg, bits)	\
+#define SPI_CLEAR_BITS(sc, reg, bits) \
 	SPI_WRITE(sc, reg, SPI_READ(sc, (reg)) & ~(bits))
 
 struct ar71xx_spi_softc {
-	device_t		sc_dev;
-	struct resource		*sc_mem_res;
-	uint32_t		sc_reg_ctrl;
+	device_t sc_dev;
+	struct resource *sc_mem_res;
+	uint32_t sc_reg_ctrl;
 };
 
 static int
@@ -103,9 +105,9 @@ ar71xx_spi_attach(device_t dev)
 	int rid;
 
 	sc->sc_dev = dev;
-        rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
-	    RF_ACTIVE);
+	rid = 0;
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "Could not map memory\n");
 		return (ENXIO);
@@ -116,7 +118,7 @@ ar71xx_spi_attach(device_t dev)
 	/* Flush out read before reading the control register */
 	SPI_BARRIER_WRITE(sc);
 
-	sc->sc_reg_ctrl  = SPI_READ(sc, AR71XX_SPI_CTRL);
+	sc->sc_reg_ctrl = SPI_READ(sc, AR71XX_SPI_CTRL);
 
 	/*
 	 * XXX TODO: document what the SPI control register does.
@@ -180,7 +182,7 @@ ar71xx_spi_txrx(struct ar71xx_spi_softc *sc, int cs, uint8_t data)
 	ioctrl &= ~(SPI_IO_CTRL_CS0 << cs);
 
 	uint32_t iod, rds;
-	for (bit = 7; bit >=0; bit--) {
+	for (bit = 7; bit >= 0; bit--) {
 		if (data & (1 << bit))
 			iod = ioctrl | SPI_IO_CTRL_DO;
 		else
@@ -218,9 +220,9 @@ ar71xx_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	ar71xx_spi_chip_activate(sc, cs);
 
-	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz, 
+	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz,
 	    ("TX/RX command sizes should be equal"));
-	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz, 
+	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz,
 	    ("TX/RX data sizes should be equal"));
 
 	/*
@@ -277,12 +279,11 @@ ar71xx_spi_detach(device_t dev)
 
 static device_method_t ar71xx_spi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ar71xx_spi_probe),
-	DEVMETHOD(device_attach,	ar71xx_spi_attach),
-	DEVMETHOD(device_detach,	ar71xx_spi_detach),
+	DEVMETHOD(device_probe, ar71xx_spi_probe),
+	DEVMETHOD(device_attach, ar71xx_spi_attach),
+	DEVMETHOD(device_detach, ar71xx_spi_detach),
 
-	DEVMETHOD(spibus_transfer,	ar71xx_spi_transfer),
-	{0, 0}
+	DEVMETHOD(spibus_transfer, ar71xx_spi_transfer), { 0, 0 }
 };
 
 static driver_t ar71xx_spi_driver = {

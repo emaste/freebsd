@@ -121,45 +121,45 @@ fpu_xtof(struct fpn *fp, u_int64_t i)
 	 * fpu_norm()'s handling of `supernormals'; see fpu_subr.c.
 	 */
 	fp->fp_exp = FP_LG2;
-	*((int64_t*)fp->fp_mant) = (int64_t)i < 0 ? -i : i;
+	*((int64_t *)fp->fp_mant) = (int64_t)i < 0 ? -i : i;
 	fp->fp_mant[2] = 0;
 	fp->fp_mant[3] = 0;
 	fpu_norm(fp);
 	return (FPC_NUM);
 }
 
-#define	mask(nbits) ((1L << (nbits)) - 1)
+#define mask(nbits) ((1L << (nbits)) - 1)
 
 /*
  * All external floating formats convert to internal in the same manner,
  * as defined here.  Note that only normals get an implied 1.0 inserted.
  */
-#define	FP_TOF(exp, expbias, allfrac, f0, f1, f2, f3) \
-	if (exp == 0) { \
-		if (allfrac == 0) \
-			return (FPC_ZERO); \
-		fp->fp_exp = 1 - expbias; \
-		fp->fp_mant[0] = f0; \
-		fp->fp_mant[1] = f1; \
-		fp->fp_mant[2] = f2; \
-		fp->fp_mant[3] = f3; \
-		fpu_norm(fp); \
-		return (FPC_NUM); \
-	} \
-	if (exp == (2 * expbias + 1)) { \
-		if (allfrac == 0) \
-			return (FPC_INF); \
-		fp->fp_mant[0] = f0; \
-		fp->fp_mant[1] = f1; \
-		fp->fp_mant[2] = f2; \
-		fp->fp_mant[3] = f3; \
-		return (FPC_QNAN); \
-	} \
-	fp->fp_exp = exp - expbias; \
-	fp->fp_mant[0] = FP_1 | f0; \
-	fp->fp_mant[1] = f1; \
-	fp->fp_mant[2] = f2; \
-	fp->fp_mant[3] = f3; \
+#define FP_TOF(exp, expbias, allfrac, f0, f1, f2, f3) \
+	if (exp == 0) {                               \
+		if (allfrac == 0)                     \
+			return (FPC_ZERO);            \
+		fp->fp_exp = 1 - expbias;             \
+		fp->fp_mant[0] = f0;                  \
+		fp->fp_mant[1] = f1;                  \
+		fp->fp_mant[2] = f2;                  \
+		fp->fp_mant[3] = f3;                  \
+		fpu_norm(fp);                         \
+		return (FPC_NUM);                     \
+	}                                             \
+	if (exp == (2 * expbias + 1)) {               \
+		if (allfrac == 0)                     \
+			return (FPC_INF);             \
+		fp->fp_mant[0] = f0;                  \
+		fp->fp_mant[1] = f1;                  \
+		fp->fp_mant[2] = f2;                  \
+		fp->fp_mant[3] = f3;                  \
+		return (FPC_QNAN);                    \
+	}                                             \
+	fp->fp_exp = exp - expbias;                   \
+	fp->fp_mant[0] = FP_1 | f0;                   \
+	fp->fp_mant[1] = f1;                          \
+	fp->fp_mant[2] = f2;                          \
+	fp->fp_mant[3] = f3;                          \
 	return (FPC_NUM)
 
 /*
@@ -250,14 +250,19 @@ fpu_explode(struct fpemu *fe, struct fpn *fp, int type, int reg)
 		 * (we can tell signalling ones by their class).
 		 */
 		fp->fp_mant[0] |= FP_QUIETBIT;
-		fe->fe_cx = FPSCR_VXSNAN;	/* assert invalid operand */
+		fe->fe_cx = FPSCR_VXSNAN; /* assert invalid operand */
 		s = FPC_SNAN;
 	}
 	fp->fp_class = s;
-	DPRINTF(FPE_REG, ("fpu_explode: %%%c%d => ", (type == FTYPE_LNG) ? 'x' :
-		((type == FTYPE_INT) ? 'i' : 
-			((type == FTYPE_SNG) ? 's' :
-				((type == FTYPE_DBL) ? 'd' : '?'))),
+	DPRINTF(FPE_REG,
+	    ("fpu_explode: %%%c%d => ",
+		(type == FTYPE_LNG) ?
+			  'x' :
+			  ((type == FTYPE_INT) ?
+				  'i' :
+				  ((type == FTYPE_SNG) ?
+					  's' :
+					  ((type == FTYPE_DBL) ? 'd' : '?'))),
 		reg));
 	DUMPFPN(FPE_REG, fp);
 	DPRINTF(FPE_REG, ("\n"));

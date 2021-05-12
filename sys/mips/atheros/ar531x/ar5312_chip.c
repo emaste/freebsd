@@ -31,19 +31,17 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/reboot.h>
+#include <sys/socket.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
-
-#include <net/ethernet.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -53,10 +51,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
+#include <net/ethernet.h>
+
 #include <mips/atheros/ar531x/ar5312reg.h>
-#include <mips/atheros/ar531x/ar5315reg.h>
 #include <mips/atheros/ar531x/ar5315_cpudef.h>
 #include <mips/atheros/ar531x/ar5315_setup.h>
+#include <mips/atheros/ar531x/ar5315reg.h>
 
 static void
 ar5312_chip_detect_mem_size(void)
@@ -84,11 +84,12 @@ ar5312_chip_detect_mem_size(void)
 static void
 ar5312_chip_detect_sys_frequency(void)
 {
-	uint32_t	predivisor;
-	uint32_t	multiplier;
+	uint32_t predivisor;
+	uint32_t multiplier;
 
-	const uint32_t clockctl = ATH_READ_REG(AR5312_SYSREG_BASE + AR5312_SYSREG_CLOCKCTL);
-	if(ar531x_soc == AR531X_SOC_AR5313) {
+	const uint32_t clockctl = ATH_READ_REG(
+	    AR5312_SYSREG_BASE + AR5312_SYSREG_CLOCKCTL);
+	if (ar531x_soc == AR531X_SOC_AR5313) {
 		predivisor = __SHIFTOUT(clockctl, AR2313_CLOCKCTL_PREDIVIDE);
 		multiplier = __SHIFTOUT(clockctl, AR2313_CLOCKCTL_MULTIPLIER);
 	} else {
@@ -111,8 +112,8 @@ ar5312_chip_detect_sys_frequency(void)
 static void
 ar5312_chip_device_reset(void)
 {
-	ATH_WRITE_REG(AR5312_SYSREG_BASE + AR5312_SYSREG_RESETCTL,
-		AR5312_RESET_SYSTEM);
+	ATH_WRITE_REG(
+	    AR5312_SYSREG_BASE + AR5312_SYSREG_RESETCTL, AR5312_RESET_SYSTEM);
 }
 
 static void
@@ -138,13 +139,12 @@ ar5312_chip_device_start(void)
 
 	ATH_READ_REG(AR5312_SYSREG_BASE + AR5312_SYSREG_AHBPERR);
 	ATH_READ_REG(AR5312_SYSREG_BASE + AR5312_SYSREG_AHBDMAE);
-//	ATH_WRITE_REG(AR5312_SYSREG_BASE + AR5312_SYSREG_WDOG_CTL, 0);
+	//	ATH_WRITE_REG(AR5312_SYSREG_BASE + AR5312_SYSREG_WDOG_CTL, 0);
 	ATH_WRITE_REG(AR5312_SYSREG_BASE + AR5312_SYSREG_ENABLE, 0);
 
-	ATH_WRITE_REG(AR5312_SYSREG_BASE+AR5312_SYSREG_ENABLE,
-		ATH_READ_REG(AR5312_SYSREG_BASE+AR5312_SYSREG_ENABLE) |
+	ATH_WRITE_REG(AR5312_SYSREG_BASE + AR5312_SYSREG_ENABLE,
+	    ATH_READ_REG(AR5312_SYSREG_BASE + AR5312_SYSREG_ENABLE) |
 		AR5312_ENABLE_ENET0 | AR5312_ENABLE_ENET1);
-
 }
 
 static int
@@ -185,7 +185,6 @@ ar5312_chip_soc_init(void)
 
 	u_ar531x_wdog_ctl = AR5312_SYSREG_WDOG_CTL;
 	u_ar531x_wdog_timer = AR5312_SYSREG_WDOG_TIMER;
-
 }
 
 static uint32_t

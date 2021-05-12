@@ -57,29 +57,49 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 
 	if (kdb_thread == curthread) {
 		switch (regnum) {
-		case 0:	return (&kdb_frame->tf_eax);
-		case 1:	return (&kdb_frame->tf_ecx);
-		case 2:	return (&kdb_frame->tf_edx);
-		case 9: return (&kdb_frame->tf_eflags);
-		case 10: return (&kdb_frame->tf_cs);
-		case 12: return (&kdb_frame->tf_ds);
-		case 13: return (&kdb_frame->tf_es);
-		case 14: return (&kdb_frame->tf_fs);
+		case 0:
+			return (&kdb_frame->tf_eax);
+		case 1:
+			return (&kdb_frame->tf_ecx);
+		case 2:
+			return (&kdb_frame->tf_edx);
+		case 9:
+			return (&kdb_frame->tf_eflags);
+		case 10:
+			return (&kdb_frame->tf_cs);
+		case 12:
+			return (&kdb_frame->tf_ds);
+		case 13:
+			return (&kdb_frame->tf_es);
+		case 14:
+			return (&kdb_frame->tf_fs);
 		}
 	}
 	switch (regnum) {
-	case 3:  return (&kdb_thrctx->pcb_ebx);
-	case 4:  return (&kdb_thrctx->pcb_esp);
-	case 5:  return (&kdb_thrctx->pcb_ebp);
-	case 6:  return (&kdb_thrctx->pcb_esi);
-	case 7:  return (&kdb_thrctx->pcb_edi);
-	case 8:  return (&kdb_thrctx->pcb_eip);
-	case 10: return (&_kcodesel);
-	case 11: return (&_kdatasel);
-	case 12: return (&_kdatasel);
-	case 13: return (&_kdatasel);
-	case 14: return (&_kprivsel);
-	case 15: return (&kdb_thrctx->pcb_gs);
+	case 3:
+		return (&kdb_thrctx->pcb_ebx);
+	case 4:
+		return (&kdb_thrctx->pcb_esp);
+	case 5:
+		return (&kdb_thrctx->pcb_ebp);
+	case 6:
+		return (&kdb_thrctx->pcb_esi);
+	case 7:
+		return (&kdb_thrctx->pcb_edi);
+	case 8:
+		return (&kdb_thrctx->pcb_eip);
+	case 10:
+		return (&_kcodesel);
+	case 11:
+		return (&_kdatasel);
+	case 12:
+		return (&_kdatasel);
+	case 13:
+		return (&_kdatasel);
+	case 14:
+		return (&_kprivsel);
+	case 15:
+		return (&kdb_thrctx->pcb_gs);
 	}
 	return (NULL);
 }
@@ -91,7 +111,7 @@ gdb_cpu_setreg(int regnum, void *val)
 	switch (regnum) {
 	case GDB_REG_PC:
 		kdb_thrctx->pcb_eip = *(register_t *)val;
-		if (kdb_thread  == curthread)
+		if (kdb_thread == curthread)
 			kdb_frame->tf_eip = *(register_t *)val;
 	}
 }
@@ -101,18 +121,30 @@ gdb_cpu_signal(int type, int code)
 {
 
 	switch (type & ~T_USER) {
-	case T_BPTFLT: return (SIGTRAP);
-	case T_ARITHTRAP: return (SIGFPE);
-	case T_PROTFLT: return (SIGSEGV);
-	case T_TRCTRAP: return (SIGTRAP);
-	case T_PAGEFLT: return (SIGSEGV);
-	case T_DIVIDE: return (SIGFPE);
-	case T_NMI: return (SIGTRAP);
-	case T_FPOPFLT: return (SIGILL);
-	case T_TSSFLT: return (SIGSEGV);
-	case T_SEGNPFLT: return (SIGSEGV);
-	case T_STKFLT: return (SIGSEGV);
-	case T_XMMFLT: return (SIGFPE);
+	case T_BPTFLT:
+		return (SIGTRAP);
+	case T_ARITHTRAP:
+		return (SIGFPE);
+	case T_PROTFLT:
+		return (SIGSEGV);
+	case T_TRCTRAP:
+		return (SIGTRAP);
+	case T_PAGEFLT:
+		return (SIGSEGV);
+	case T_DIVIDE:
+		return (SIGFPE);
+	case T_NMI:
+		return (SIGTRAP);
+	case T_FPOPFLT:
+		return (SIGILL);
+	case T_TSSFLT:
+		return (SIGSEGV);
+	case T_SEGNPFLT:
+		return (SIGSEGV);
+	case T_STKFLT:
+		return (SIGSEGV);
+	case T_XMMFLT:
+		return (SIGFPE);
 	}
 	return (SIGEMT);
 }

@@ -30,7 +30,7 @@
  */
 
 #ifndef _LINUX_EMUL_H_
-#define	_LINUX_EMUL_H_
+#define _LINUX_EMUL_H_
 
 struct image_params;
 
@@ -39,44 +39,45 @@ struct image_params;
  * this will be extended as we need more functionality
  */
 struct linux_emuldata {
-	int    *child_set_tid;	/* in clone(): Child's TID to set on clone */
-	int    *child_clear_tid;/* in clone(): Child's TID to clear on exit */
+	int *child_set_tid;   /* in clone(): Child's TID to set on clone */
+	int *child_clear_tid; /* in clone(): Child's TID to clear on exit */
 
-	int	flags;			/* thread emuldata flags */
-	int	em_tid;			/* thread id */
+	int flags;  /* thread emuldata flags */
+	int em_tid; /* thread id */
 
-	struct	linux_robust_list_head	*robust_futexes;
+	struct linux_robust_list_head *robust_futexes;
 };
 
-struct linux_emuldata	*em_find(struct thread *);
+struct linux_emuldata *em_find(struct thread *);
 
-int	linux_exec_imgact_try(struct image_params *);
-void	linux_proc_init(struct thread *, struct thread *, int);
-void	linux_on_exit(struct proc *);
-void	linux_schedtail(struct thread *);
-void	linux_on_exec(struct proc *, struct image_params *);
-void	linux_thread_dtor(struct thread *);
-void	linux_thread_detach(struct thread *);
-int	linux_common_execve(struct thread *, struct image_args *);
+int linux_exec_imgact_try(struct image_params *);
+void linux_proc_init(struct thread *, struct thread *, int);
+void linux_on_exit(struct proc *);
+void linux_schedtail(struct thread *);
+void linux_on_exec(struct proc *, struct image_params *);
+void linux_thread_dtor(struct thread *);
+void linux_thread_detach(struct thread *);
+int linux_common_execve(struct thread *, struct image_args *);
 
 /* process emuldata flags */
-#define	LINUX_XDEPR_REQUEUEOP	0x00000001	/* uses deprecated
-						   futex REQUEUE op*/
-#define	LINUX_XUNSUP_EPOLL	0x00000002	/* unsupported epoll events */
-#define	LINUX_XUNSUP_FUTEXPIOP	0x00000004	/* uses unsupported pi futex */
+#define LINUX_XDEPR_REQUEUEOP         \
+	0x00000001 /* uses deprecated \
+		      futex REQUEUE op*/
+#define LINUX_XUNSUP_EPOLL 0x00000002 /* unsupported epoll events */
+#define LINUX_XUNSUP_FUTEXPIOP 0x00000004 /* uses unsupported pi futex */
 
 struct linux_pemuldata {
-	uint32_t	flags;		/* process emuldata flags */
-	struct sx	pem_sx;		/* lock for this struct */
-	uint32_t	persona;	/* process execution domain */
-	uint32_t	ptrace_flags;	/* used by ptrace(2) */
+	uint32_t flags;	       /* process emuldata flags */
+	struct sx pem_sx;      /* lock for this struct */
+	uint32_t persona;      /* process execution domain */
+	uint32_t ptrace_flags; /* used by ptrace(2) */
 };
 
-#define	LINUX_PEM_XLOCK(p)	sx_xlock(&(p)->pem_sx)
-#define	LINUX_PEM_XUNLOCK(p)	sx_xunlock(&(p)->pem_sx)
-#define	LINUX_PEM_SLOCK(p)	sx_slock(&(p)->pem_sx)
-#define	LINUX_PEM_SUNLOCK(p)	sx_sunlock(&(p)->pem_sx)
+#define LINUX_PEM_XLOCK(p) sx_xlock(&(p)->pem_sx)
+#define LINUX_PEM_XUNLOCK(p) sx_xunlock(&(p)->pem_sx)
+#define LINUX_PEM_SLOCK(p) sx_slock(&(p)->pem_sx)
+#define LINUX_PEM_SUNLOCK(p) sx_sunlock(&(p)->pem_sx)
 
-struct linux_pemuldata	*pem_find(struct proc *);
+struct linux_pemuldata *pem_find(struct proc *);
 
-#endif	/* !_LINUX_EMUL_H_ */
+#endif /* !_LINUX_EMUL_H_ */

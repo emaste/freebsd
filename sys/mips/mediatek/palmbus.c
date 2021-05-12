@@ -28,17 +28,16 @@
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 
-#include <dev/ofw/openfirm.h>
+#include <dev/fdt/simplebus.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/fdt/simplebus.h>
+#include <dev/ofw/openfirm.h>
 
 /*
  * Driver for Mediatek/Ralink Palmbus
@@ -57,9 +56,9 @@ palmbus_probe(device_t dev)
 		return (ENXIO);
 
 	if (!(ofw_bus_is_compatible(dev, "palmbus") &&
-	    ofw_bus_has_prop(dev, "ranges")) &&
-	    (ofw_bus_get_type(dev) == NULL || strcmp(ofw_bus_get_type(dev),
-	    "soc") != 0))
+		ofw_bus_has_prop(dev, "ranges")) &&
+	    (ofw_bus_get_type(dev) == NULL ||
+		strcmp(ofw_bus_get_type(dev), "soc") != 0))
 		return (ENXIO);
 
 	device_set_desc(dev, "MTK Palmbus");
@@ -67,11 +66,10 @@ palmbus_probe(device_t dev)
 	return (0);
 }
 
-static device_method_t palmbus_methods[] = {
-	DEVMETHOD(device_probe,		palmbus_probe),
+static device_method_t palmbus_methods[] = { DEVMETHOD(
+						 device_probe, palmbus_probe),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 DEFINE_CLASS_1(palmbus, palmbus_driver, palmbus_methods,
     sizeof(struct simplebus_softc), simplebus_driver);

@@ -56,9 +56,9 @@
  * rdmavt layer.
  */
 
-#include <linux/spinlock.h>
-#include <linux/list.h>
 #include <linux/hash.h>
+#include <linux/list.h>
+#include <linux/spinlock.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdmavt_mr.h>
 #include <rdma/rdmavt_qp.h>
@@ -67,14 +67,14 @@
 
 struct rvt_ibport {
 	struct rvt_qp __rcu *qp[2];
-	struct ib_mad_agent *send_agent;	/* agent for SMI (traps) */
+	struct ib_mad_agent *send_agent; /* agent for SMI (traps) */
 	struct rb_root mcast_tree;
-	spinlock_t lock;		/* protect changes in this struct */
+	spinlock_t lock; /* protect changes in this struct */
 
 	/* non-zero when timer is set */
 	unsigned long mkey_lease_timeout;
 	unsigned long trap_timeout;
-	__be64 gid_prefix;      /* in network order */
+	__be64 gid_prefix; /* in network order */
 	__be64 mkey;
 	u64 tid;
 	u32 port_cap_flags;
@@ -167,7 +167,7 @@ struct rvt_driver_params {
 /* Protection domain */
 struct rvt_pd {
 	struct ib_pd ibpd;
-	int user;               /* non-zero if created from user space */
+	int user; /* non-zero if created from user space */
 };
 
 /* Address handle */
@@ -196,14 +196,14 @@ struct rvt_driver_provided {
 	 * registered. This is primarily used for error and debug messages on
 	 * the console.
 	 */
-	const char * (*get_card_name)(struct rvt_dev_info *rdi);
+	const char *(*get_card_name)(struct rvt_dev_info *rdi);
 
 	/*
 	 * Returns a pointer to the undelying hardware's PCI device. This is
 	 * used to display information as to what hardware is being referenced
 	 * in an output message
 	 */
-	struct pci_dev * (*get_pci_dev)(struct rvt_dev_info *rdi);
+	struct pci_dev *(*get_pci_dev)(struct rvt_dev_info *rdi);
 
 	/*
 	 * Allocate a private queue pair data structure for driver specific
@@ -211,8 +211,8 @@ struct rvt_driver_provided {
 	 * ERR_PTR(err).  The driver is free to return NULL or a valid
 	 * pointer.
 	 */
-	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-				gfp_t gfp);
+	void *(*qp_priv_alloc)(
+	    struct rvt_dev_info *rdi, struct rvt_qp *qp, gfp_t gfp);
 
 	/*
 	 * Free the driver's private qp structure.
@@ -245,7 +245,7 @@ struct rvt_driver_provided {
 	 * Get a path mtu from the driver based on qp attributes.
 	 */
 	int (*get_pmtu_from_attr)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-				  struct ib_qp_attr *attr);
+	    struct ib_qp_attr *attr);
 
 	/*
 	 * Notify driver that it needs to flush any outstanding IO requests that
@@ -272,8 +272,8 @@ struct rvt_driver_provided {
 	/*
 	 * Get an MTU for a qp.
 	 */
-	u32 (*mtu_from_qp)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-			   u32 pmtu);
+	u32 (*mtu_from_qp)(
+	    struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu);
 	/*
 	 * Convert an mtu to a path mtu
 	 */
@@ -283,13 +283,13 @@ struct rvt_driver_provided {
 	 * Get the guid of a port in big endian byte order
 	 */
 	int (*get_guid_be)(struct rvt_dev_info *rdi, struct rvt_ibport *rvp,
-			   int guid_index, __be64 *guid);
+	    int guid_index, __be64 *guid);
 
 	/*
 	 * Query driver for the state of the port.
 	 */
-	int (*query_port_state)(struct rvt_dev_info *rdi, u8 port_num,
-				struct ib_port_attr *props);
+	int (*query_port_state)(
+	    struct rvt_dev_info *rdi, u8 port_num, struct ib_port_attr *props);
 
 	/*
 	 * Tell driver to shutdown a port
@@ -312,20 +312,20 @@ struct rvt_driver_provided {
 	int (*check_ah)(struct ib_device *, struct ib_ah_attr *);
 
 	/* Inform the driver a new AH has been created */
-	void (*notify_new_ah)(struct ib_device *, struct ib_ah_attr *,
-			      struct rvt_ah *);
+	void (*notify_new_ah)(
+	    struct ib_device *, struct ib_ah_attr *, struct rvt_ah *);
 
 	/* Let the driver pick the next queue pair number*/
 	int (*alloc_qpn)(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-			 enum ib_qp_type type, u8 port_num, gfp_t gfp);
+	    enum ib_qp_type type, u8 port_num, gfp_t gfp);
 
 	/* Determine if its safe or allowed to modify the qp */
 	int (*check_modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
-			       int attr_mask, struct ib_udata *udata);
+	    int attr_mask, struct ib_udata *udata);
 
 	/* Driver specific QP modification/notification-of */
 	void (*modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
-			  int attr_mask, struct ib_udata *udata);
+	    int attr_mask, struct ib_udata *udata);
 
 	/* Driver specific work request checking */
 	int (*check_send_wqe)(struct rvt_qp *qp, struct rvt_swqe *wqe);
@@ -335,7 +335,6 @@ struct rvt_driver_provided {
 
 	/* Notify driver a mad agent has been removed */
 	void (*notify_free_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
-
 };
 
 struct rvt_dev_info {
@@ -379,10 +378,10 @@ struct rvt_dev_info {
 
 	/* QP */
 	struct rvt_qp_ibdev *qp_dev;
-	u32 n_qps_allocated;    /* number of QPs allocated for device */
-	u32 n_rc_qps;		/* number of RC QPs allocated for device */
-	u32 busy_jiffies;	/* timeout scaling based on RC QP count */
-	spinlock_t n_qps_lock;	/* protect qps, rc qps and busy jiffy counts */
+	u32 n_qps_allocated;   /* number of QPs allocated for device */
+	u32 n_rc_qps;	       /* number of RC QPs allocated for device */
+	u32 busy_jiffies;      /* timeout scaling based on RC QP count */
+	spinlock_t n_qps_lock; /* protect qps, rc qps and busy jiffy counts */
 
 	/* memory maps */
 	struct list_head pending_mmaps;
@@ -392,41 +391,46 @@ struct rvt_dev_info {
 
 	/* CQ */
 	struct kthread_worker *worker; /* per device cq worker */
-	u32 n_cqs_allocated;    /* number of CQs allocated for device */
-	spinlock_t n_cqs_lock; /* protect count of in use cqs */
+	u32 n_cqs_allocated;	       /* number of CQs allocated for device */
+	spinlock_t n_cqs_lock;	       /* protect count of in use cqs */
 
 	/* Multicast */
 	u32 n_mcast_grps_allocated; /* number of mcast groups allocated */
 	spinlock_t n_mcast_grps_lock;
-
 };
 
-static inline struct rvt_pd *ibpd_to_rvtpd(struct ib_pd *ibpd)
+static inline struct rvt_pd *
+ibpd_to_rvtpd(struct ib_pd *ibpd)
 {
 	return container_of(ibpd, struct rvt_pd, ibpd);
 }
 
-static inline struct rvt_ah *ibah_to_rvtah(struct ib_ah *ibah)
+static inline struct rvt_ah *
+ibah_to_rvtah(struct ib_ah *ibah)
 {
 	return container_of(ibah, struct rvt_ah, ibah);
 }
 
-static inline struct rvt_dev_info *ib_to_rvt(struct ib_device *ibdev)
+static inline struct rvt_dev_info *
+ib_to_rvt(struct ib_device *ibdev)
 {
-	return  container_of(ibdev, struct rvt_dev_info, ibdev);
+	return container_of(ibdev, struct rvt_dev_info, ibdev);
 }
 
-static inline struct rvt_srq *ibsrq_to_rvtsrq(struct ib_srq *ibsrq)
+static inline struct rvt_srq *
+ibsrq_to_rvtsrq(struct ib_srq *ibsrq)
 {
 	return container_of(ibsrq, struct rvt_srq, ibsrq);
 }
 
-static inline struct rvt_qp *ibqp_to_rvtqp(struct ib_qp *ibqp)
+static inline struct rvt_qp *
+ibqp_to_rvtqp(struct ib_qp *ibqp)
 {
 	return container_of(ibqp, struct rvt_qp, ibqp);
 }
 
-static inline unsigned rvt_get_npkeys(struct rvt_dev_info *rdi)
+static inline unsigned
+rvt_get_npkeys(struct rvt_dev_info *rdi)
 {
 	/*
 	 * All ports have same number of pkeys.
@@ -438,7 +442,8 @@ static inline unsigned rvt_get_npkeys(struct rvt_dev_info *rdi)
  * Return the max atomic suitable for determining
  * the size of the ack ring buffer in a QP.
  */
-static inline unsigned int rvt_max_atomic(struct rvt_dev_info *rdi)
+static inline unsigned int
+rvt_max_atomic(struct rvt_dev_info *rdi)
 {
 	return rdi->dparms.max_rdma_atomic + 1;
 }
@@ -446,9 +451,8 @@ static inline unsigned int rvt_max_atomic(struct rvt_dev_info *rdi)
 /*
  * Return the indexed PKEY from the port PKEY table.
  */
-static inline u16 rvt_get_pkey(struct rvt_dev_info *rdi,
-			       int port_index,
-			       unsigned index)
+static inline u16
+rvt_get_pkey(struct rvt_dev_info *rdi, int port_index, unsigned index)
 {
 	if (index >= rvt_get_npkeys(rdi))
 		return 0;
@@ -465,9 +469,9 @@ static inline u16 rvt_get_pkey(struct rvt_dev_info *rdi,
  * the returned qp is no longer in use.
  */
 /* TODO: Remove this and put in rdmavt/qp.h when no longer needed by drivers */
-static inline struct rvt_qp *rvt_lookup_qpn(struct rvt_dev_info *rdi,
-					    struct rvt_ibport *rvp,
-					    u32 qpn) __must_hold(RCU)
+static inline struct rvt_qp *
+rvt_lookup_qpn(struct rvt_dev_info *rdi, struct rvt_ibport *rvp, u32 qpn)
+    __must_hold(RCU)
 {
 	struct rvt_qp *qp = NULL;
 
@@ -477,7 +481,7 @@ static inline struct rvt_qp *rvt_lookup_qpn(struct rvt_dev_info *rdi,
 		u32 n = hash_32(qpn, rdi->qp_dev->qp_table_bits);
 
 		for (qp = rcu_dereference(rdi->qp_dev->qp_table[n]); qp;
-			qp = rcu_dereference(qp->next))
+		     qp = rcu_dereference(qp->next))
 			if (qp->ibqp.qp_num == qpn)
 				break;
 	}
@@ -490,14 +494,13 @@ int rvt_register_device(struct rvt_dev_info *rvd);
 void rvt_unregister_device(struct rvt_dev_info *rvd);
 int rvt_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
 int rvt_init_port(struct rvt_dev_info *rdi, struct rvt_ibport *port,
-		  int port_index, u16 *pkey_table);
-int rvt_fast_reg_mr(struct rvt_qp *qp, struct ib_mr *ibmr, u32 key,
-		    int access);
+    int port_index, u16 *pkey_table);
+int rvt_fast_reg_mr(struct rvt_qp *qp, struct ib_mr *ibmr, u32 key, int access);
 int rvt_invalidate_rkey(struct rvt_qp *qp, u32 rkey);
-int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
-		u32 len, u64 vaddr, u32 rkey, int acc);
+int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge, u32 len, u64 vaddr,
+    u32 rkey, int acc);
 int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
-		struct rvt_sge *isge, struct ib_sge *sge, int acc);
+    struct rvt_sge *isge, struct ib_sge *sge, int acc);
 struct rvt_mcast *rvt_mcast_find(struct rvt_ibport *ibp, union ib_gid *mgid);
 
-#endif          /* DEF_RDMA_VT_H */
+#endif /* DEF_RDMA_VT_H */

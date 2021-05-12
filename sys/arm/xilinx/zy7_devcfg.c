@@ -28,7 +28,7 @@
  * $FreeBSD$
  */
 
-/* 
+/*
  * Zynq-7000 Devcfg driver.  This allows programming the PL (FPGA) section
  * of Zynq.
  *
@@ -44,12 +44,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/sysctl.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #include <machine/bus.h>
@@ -62,17 +62,17 @@ __FBSDID("$FreeBSD$");
 #include <arm/xilinx/zy7_slcr.h>
 
 struct zy7_devcfg_softc {
-	device_t	dev;
-	struct mtx	sc_mtx;
-	struct resource	*mem_res;
+	device_t dev;
+	struct mtx sc_mtx;
+	struct resource *mem_res;
 	struct resource *irq_res;
-	struct cdev	*sc_ctl_dev;
-	void		*intrhandle;
+	struct cdev *sc_ctl_dev;
+	void *intrhandle;
 
-	bus_dma_tag_t	dma_tag;
-	bus_dmamap_t	dma_map;
+	bus_dma_tag_t dma_tag;
+	bus_dmamap_t dma_map;
 
-	int		is_open;
+	int is_open;
 
 	struct sysctl_ctx_list sysctl_tree;
 	struct sysctl_oid *sysctl_tree_top;
@@ -80,26 +80,26 @@ struct zy7_devcfg_softc {
 
 static struct zy7_devcfg_softc *zy7_devcfg_softc_p;
 
-#define	FCLK_NUM	4
+#define FCLK_NUM 4
 
 struct zy7_fclk_config {
-	int		source;
-	int		frequency;
-	int		actual_frequency;
+	int source;
+	int frequency;
+	int actual_frequency;
 };
 
 static struct zy7_fclk_config fclk_configs[FCLK_NUM];
 
-#define DEVCFG_SC_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)
-#define	DEVCFG_SC_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
-#define DEVCFG_SC_LOCK_INIT(sc) \
-	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev),	\
-	    "zy7_devcfg", MTX_DEF)
-#define DEVCFG_SC_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->sc_mtx);
-#define DEVCFG_SC_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED);
+#define DEVCFG_SC_LOCK(sc) mtx_lock(&(sc)->sc_mtx)
+#define DEVCFG_SC_UNLOCK(sc) mtx_unlock(&(sc)->sc_mtx)
+#define DEVCFG_SC_LOCK_INIT(sc)                                               \
+	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev), "zy7_devcfg", \
+	    MTX_DEF)
+#define DEVCFG_SC_LOCK_DESTROY(sc) mtx_destroy(&(sc)->sc_mtx);
+#define DEVCFG_SC_ASSERT_LOCKED(sc) mtx_assert(&(sc)->sc_mtx, MA_OWNED);
 
-#define RD4(sc, off) 		(bus_read_4((sc)->mem_res, (off)))
-#define WR4(sc, off, val) 	(bus_write_4((sc)->mem_res, (off), (val)))
+#define RD4(sc, off) (bus_read_4((sc)->mem_res, (off)))
+#define WR4(sc, off, val) (bus_write_4((sc)->mem_res, (off), (val)))
 
 SYSCTL_NODE(_hw, OID_AUTO, fpga, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Xilinx Zynq-7000 PL (FPGA) section");
@@ -107,20 +107,19 @@ SYSCTL_NODE(_hw, OID_AUTO, fpga, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 static int zy7_devcfg_sysctl_pl_done(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_hw_fpga, OID_AUTO, pl_done,
     CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, NULL, 0,
-    zy7_devcfg_sysctl_pl_done, "I",
-    "PL section config DONE signal");
+    zy7_devcfg_sysctl_pl_done, "I", "PL section config DONE signal");
 
 static int zy7_en_level_shifters = 1;
 SYSCTL_INT(_hw_fpga, OID_AUTO, en_level_shifters, CTLFLAG_RW,
-	   &zy7_en_level_shifters, 0,
-	   "Enable PS-PL level shifters after device config");
+    &zy7_en_level_shifters, 0,
+    "Enable PS-PL level shifters after device config");
 
 static int zy7_ps_vers = 0;
 SYSCTL_INT(_hw, OID_AUTO, ps_vers, CTLFLAG_RD, &zy7_ps_vers, 0,
-	   "Zynq-7000 PS version");
+    "Zynq-7000 PS version");
 
 static int zy7_devcfg_fclk_sysctl_level_shifters(SYSCTL_HANDLER_ARGS);
-SYSCTL_PROC(_hw_fpga, OID_AUTO, level_shifters, 
+SYSCTL_PROC(_hw_fpga, OID_AUTO, level_shifters,
     CTLFLAG_RW | CTLTYPE_INT | CTLFLAG_NEEDGIANT, NULL, 0,
     zy7_devcfg_fclk_sysctl_level_shifters, "I",
     "Enable/disable level shifters");
@@ -131,127 +130,126 @@ static int zy7_devcfg_write(struct cdev *, struct uio *, int);
 static int zy7_devcfg_close(struct cdev *, int, int, struct thread *);
 
 struct cdevsw zy7_devcfg_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	zy7_devcfg_open,
-	.d_write =	zy7_devcfg_write,
-	.d_close =	zy7_devcfg_close,
-	.d_name =	"devcfg",
+	.d_version = D_VERSION,
+	.d_open = zy7_devcfg_open,
+	.d_write = zy7_devcfg_write,
+	.d_close = zy7_devcfg_close,
+	.d_name = "devcfg",
 };
 
 /* Devcfg block registers. */
-#define ZY7_DEVCFG_CTRL			0x0000
-#define   ZY7_DEVCFG_CTRL_FORCE_RST		(1<<31)
-#define   ZY7_DEVCFG_CTRL_PCFG_PROG_B		(1<<30)
-#define   ZY7_DEVCFG_CTRL_PCFG_POR_CNT_4K	(1<<29)
-#define   ZY7_DEVCFG_CTRL_PCAP_PR		(1<<27)
-#define   ZY7_DEVCFG_CTRL_PCAP_MODE		(1<<26)
-#define   ZY7_DEVCFG_CTRL_QTR_PCAP_RATE_EN	(1<<25)
-#define   ZY7_DEVCFG_CTRL_MULTIBOOT_EN		(1<<24)
-#define   ZY7_DEVCFG_CTRL_JTAG_CHAIN_DIS	(1<<23)
-#define   ZY7_DEVCFG_CTRL_USER_MODE		(1<<15)
-#define   ZY7_DEVCFG_CTRL_RESVD_WR11		(3<<13)	/* always write 11 */
-#define   ZY7_DEVCFG_CTRL_PCFG_AES_FUSE		(1<<12)
-#define   ZY7_DEVCFG_CTRL_PCFG_AES_EN_MASK	(7<<9)	/* all 1's or 0's */
-#define   ZY7_DEVCFG_CTRL_SEU_EN		(1<<8)
-#define   ZY7_DEVCFG_CTRL_SEC_EN		(1<<7)
-#define   ZY7_DEVCFG_CTRL_SPNIDEN		(1<<6)
-#define   ZY7_DEVCFG_CTRL_SPIDEN		(1<<5)
-#define   ZY7_DEVCFG_CTRL_NIDEN			(1<<4)
-#define   ZY7_DEVCFG_CTRL_DBGEN			(1<<3)
-#define   ZY7_DEVCFG_CTRL_DAP_EN_MASK		(7<<0)	/* all 1's to enable */
+#define ZY7_DEVCFG_CTRL 0x0000
+#define ZY7_DEVCFG_CTRL_FORCE_RST (1 << 31)
+#define ZY7_DEVCFG_CTRL_PCFG_PROG_B (1 << 30)
+#define ZY7_DEVCFG_CTRL_PCFG_POR_CNT_4K (1 << 29)
+#define ZY7_DEVCFG_CTRL_PCAP_PR (1 << 27)
+#define ZY7_DEVCFG_CTRL_PCAP_MODE (1 << 26)
+#define ZY7_DEVCFG_CTRL_QTR_PCAP_RATE_EN (1 << 25)
+#define ZY7_DEVCFG_CTRL_MULTIBOOT_EN (1 << 24)
+#define ZY7_DEVCFG_CTRL_JTAG_CHAIN_DIS (1 << 23)
+#define ZY7_DEVCFG_CTRL_USER_MODE (1 << 15)
+#define ZY7_DEVCFG_CTRL_RESVD_WR11 (3 << 13) /* always write 11 */
+#define ZY7_DEVCFG_CTRL_PCFG_AES_FUSE (1 << 12)
+#define ZY7_DEVCFG_CTRL_PCFG_AES_EN_MASK (7 << 9) /* all 1's or 0's */
+#define ZY7_DEVCFG_CTRL_SEU_EN (1 << 8)
+#define ZY7_DEVCFG_CTRL_SEC_EN (1 << 7)
+#define ZY7_DEVCFG_CTRL_SPNIDEN (1 << 6)
+#define ZY7_DEVCFG_CTRL_SPIDEN (1 << 5)
+#define ZY7_DEVCFG_CTRL_NIDEN (1 << 4)
+#define ZY7_DEVCFG_CTRL_DBGEN (1 << 3)
+#define ZY7_DEVCFG_CTRL_DAP_EN_MASK (7 << 0) /* all 1's to enable */
 
-#define ZY7_DEVCFG_LOCK			0x004
-#define   ZY7_DEVCFG_LOCK_AES_FUSE_LOCK		(1<<4)
-#define   ZY7_DEVCFG_LOCK_AES_EN		(1<<3)
-#define   ZY7_DEVCFG_LOCK_SEU_LOCK		(1<<2)
-#define   ZY7_DEVCFG_LOCK_SEC_LOCK		(1<<1)
-#define   ZY7_DEVCFG_LOCK_DBG_LOCK		(1<<0)
+#define ZY7_DEVCFG_LOCK 0x004
+#define ZY7_DEVCFG_LOCK_AES_FUSE_LOCK (1 << 4)
+#define ZY7_DEVCFG_LOCK_AES_EN (1 << 3)
+#define ZY7_DEVCFG_LOCK_SEU_LOCK (1 << 2)
+#define ZY7_DEVCFG_LOCK_SEC_LOCK (1 << 1)
+#define ZY7_DEVCFG_LOCK_DBG_LOCK (1 << 0)
 
-#define ZY7_DEVCFG_CFG			0x008
-#define   ZY7_DEVCFG_CFG_RFIFO_TH_MASK		(3<<10)
-#define   ZY7_DEVCFG_CFG_WFIFO_TH_MASK		(3<<8)
-#define   ZY7_DEVCFG_CFG_RCLK_EDGE		(1<<7)
-#define   ZY7_DEVCFG_CFG_WCLK_EDGE		(1<<6)
-#define   ZY7_DEVCFG_CFG_DIS_SRC_INC		(1<<5)
-#define   ZY7_DEVCFG_CFG_DIS_DST_INC		(1<<4)
+#define ZY7_DEVCFG_CFG 0x008
+#define ZY7_DEVCFG_CFG_RFIFO_TH_MASK (3 << 10)
+#define ZY7_DEVCFG_CFG_WFIFO_TH_MASK (3 << 8)
+#define ZY7_DEVCFG_CFG_RCLK_EDGE (1 << 7)
+#define ZY7_DEVCFG_CFG_WCLK_EDGE (1 << 6)
+#define ZY7_DEVCFG_CFG_DIS_SRC_INC (1 << 5)
+#define ZY7_DEVCFG_CFG_DIS_DST_INC (1 << 4)
 
-#define ZY7_DEVCFG_INT_STATUS		0x00C
-#define ZY7_DEVCFG_INT_MASK		0x010
-#define   ZY7_DEVCFG_INT_PSS_GTS_USR_B		(1<<31)
-#define   ZY7_DEVCFG_INT_PSS_FST_CFG_B		(1<<30)
-#define   ZY7_DEVCFG_INT_PSS_GPWRDWN_B		(1<<29)
-#define   ZY7_DEVCFG_INT_PSS_GTS_CFG_B		(1<<28)
-#define   ZY7_DEVCFG_INT_CFG_RESET_B		(1<<27)
-#define   ZY7_DEVCFG_INT_AXI_WTO		(1<<23)	/* axi write timeout */
-#define   ZY7_DEVCFG_INT_AXI_WERR		(1<<22)	/* axi write err */
-#define   ZY7_DEVCFG_INT_AXI_RTO		(1<<21)	/* axi read timeout */
-#define   ZY7_DEVCFG_INT_AXI_RERR		(1<<20)	/* axi read err */
-#define   ZY7_DEVCFG_INT_RX_FIFO_OV		(1<<18)	/* rx fifo overflow */
-#define   ZY7_DEVCFG_INT_WR_FIFO_LVL		(1<<17)	/* wr fifo < level */
-#define   ZY7_DEVCFG_INT_RD_FIFO_LVL		(1<<16)	/* rd fifo >= level */
-#define   ZY7_DEVCFG_INT_DMA_CMD_ERR		(1<<15)
-#define   ZY7_DEVCFG_INT_DMA_Q_OV		(1<<14)
-#define   ZY7_DEVCFG_INT_DMA_DONE		(1<<13)
-#define   ZY7_DEVCFG_INT_DMA_PCAP_DONE		(1<<12)
-#define   ZY7_DEVCFG_INT_P2D_LEN_ERR		(1<<11)
-#define   ZY7_DEVCFG_INT_PCFG_HMAC_ERR		(1<<6)
-#define   ZY7_DEVCFG_INT_PCFG_SEU_ERR		(1<<5)
-#define   ZY7_DEVCFG_INT_PCFG_POR_B		(1<<4)
-#define   ZY7_DEVCFG_INT_PCFG_CFG_RST		(1<<3)
-#define   ZY7_DEVCFG_INT_PCFG_DONE		(1<<2)
-#define   ZY7_DEVCFG_INT_PCFG_INIT_PE		(1<<1)
-#define   ZY7_DEVCFG_INT_PCFG_INIT_NE		(1<<0)
-#define   ZY7_DEVCFG_INT_ERRORS			0x00f0f860
-#define   ZY7_DEVCFG_INT_ALL			0xf8f7f87f
+#define ZY7_DEVCFG_INT_STATUS 0x00C
+#define ZY7_DEVCFG_INT_MASK 0x010
+#define ZY7_DEVCFG_INT_PSS_GTS_USR_B (1 << 31)
+#define ZY7_DEVCFG_INT_PSS_FST_CFG_B (1 << 30)
+#define ZY7_DEVCFG_INT_PSS_GPWRDWN_B (1 << 29)
+#define ZY7_DEVCFG_INT_PSS_GTS_CFG_B (1 << 28)
+#define ZY7_DEVCFG_INT_CFG_RESET_B (1 << 27)
+#define ZY7_DEVCFG_INT_AXI_WTO (1 << 23) /* axi write timeout */
+#define ZY7_DEVCFG_INT_AXI_WERR (1 << 22) /* axi write err */
+#define ZY7_DEVCFG_INT_AXI_RTO (1 << 21) /* axi read timeout */
+#define ZY7_DEVCFG_INT_AXI_RERR (1 << 20) /* axi read err */
+#define ZY7_DEVCFG_INT_RX_FIFO_OV (1 << 18) /* rx fifo overflow */
+#define ZY7_DEVCFG_INT_WR_FIFO_LVL (1 << 17) /* wr fifo < level */
+#define ZY7_DEVCFG_INT_RD_FIFO_LVL (1 << 16) /* rd fifo >= level */
+#define ZY7_DEVCFG_INT_DMA_CMD_ERR (1 << 15)
+#define ZY7_DEVCFG_INT_DMA_Q_OV (1 << 14)
+#define ZY7_DEVCFG_INT_DMA_DONE (1 << 13)
+#define ZY7_DEVCFG_INT_DMA_PCAP_DONE (1 << 12)
+#define ZY7_DEVCFG_INT_P2D_LEN_ERR (1 << 11)
+#define ZY7_DEVCFG_INT_PCFG_HMAC_ERR (1 << 6)
+#define ZY7_DEVCFG_INT_PCFG_SEU_ERR (1 << 5)
+#define ZY7_DEVCFG_INT_PCFG_POR_B (1 << 4)
+#define ZY7_DEVCFG_INT_PCFG_CFG_RST (1 << 3)
+#define ZY7_DEVCFG_INT_PCFG_DONE (1 << 2)
+#define ZY7_DEVCFG_INT_PCFG_INIT_PE (1 << 1)
+#define ZY7_DEVCFG_INT_PCFG_INIT_NE (1 << 0)
+#define ZY7_DEVCFG_INT_ERRORS 0x00f0f860
+#define ZY7_DEVCFG_INT_ALL 0xf8f7f87f
 
-#define ZY7_DEVCFG_STATUS		0x014
-#define   ZY7_DEVCFG_STATUS_DMA_CMD_Q_F		(1<<31)	/* cmd queue full */
-#define   ZY7_DEVCFG_STATUS_DMA_CMD_Q_E		(1<<30) /* cmd queue empty */
-#define   ZY7_DEVCFG_STATUS_DONE_COUNT_MASK	(3<<28)
-#define   ZY7_DEVCFG_STATUS_DONE_COUNT_SHIFT	28
-#define   ZY7_DEVCFG_STATUS_RX_FIFO_LVL_MASK	(0x1f<<20)
-#define   ZY7_DEVCFG_STATUS_RX_FIFO_LVL_SHIFT	20
-#define   ZY7_DEVCFG_STATUS_TX_FIFO_LVL_MASK	(0x7f<<12)
-#define   ZY7_DEVCFG_STATUS_TX_FIFO_LVL_SHIFT	12
-#define   ZY7_DEVCFG_STATUS_PSS_GTS_USR_B	(1<<11)
-#define   ZY7_DEVCFG_STATUS_PSS_FST_CFG_B	(1<<10)
-#define   ZY7_DEVCFG_STATUS_PSS_GPWRDWN_B	(1<<9)
-#define   ZY7_DEVCFG_STATUS_PSS_GTS_CFG_B	(1<<8)
-#define   ZY7_DEVCFG_STATUS_ILL_APB_ACCE	(1<<6)
-#define   ZY7_DEVCFG_STATUS_PSS_CFG_RESET_B	(1<<5)
-#define   ZY7_DEVCFG_STATUS_PCFG_INIT		(1<<4)
-#define   ZY7_DEVCFG_STATUS_EFUSE_BBRAM_KEY_DIS	(1<<3)
-#define   ZY7_DEVCFG_STATUS_EFUSE_SEC_EN	(1<<2)
-#define   ZY7_DEVCFG_STATUS_EFUSE_JTAG_DIS	(1<<1)
+#define ZY7_DEVCFG_STATUS 0x014
+#define ZY7_DEVCFG_STATUS_DMA_CMD_Q_F (1 << 31) /* cmd queue full */
+#define ZY7_DEVCFG_STATUS_DMA_CMD_Q_E (1 << 30) /* cmd queue empty */
+#define ZY7_DEVCFG_STATUS_DONE_COUNT_MASK (3 << 28)
+#define ZY7_DEVCFG_STATUS_DONE_COUNT_SHIFT 28
+#define ZY7_DEVCFG_STATUS_RX_FIFO_LVL_MASK (0x1f << 20)
+#define ZY7_DEVCFG_STATUS_RX_FIFO_LVL_SHIFT 20
+#define ZY7_DEVCFG_STATUS_TX_FIFO_LVL_MASK (0x7f << 12)
+#define ZY7_DEVCFG_STATUS_TX_FIFO_LVL_SHIFT 12
+#define ZY7_DEVCFG_STATUS_PSS_GTS_USR_B (1 << 11)
+#define ZY7_DEVCFG_STATUS_PSS_FST_CFG_B (1 << 10)
+#define ZY7_DEVCFG_STATUS_PSS_GPWRDWN_B (1 << 9)
+#define ZY7_DEVCFG_STATUS_PSS_GTS_CFG_B (1 << 8)
+#define ZY7_DEVCFG_STATUS_ILL_APB_ACCE (1 << 6)
+#define ZY7_DEVCFG_STATUS_PSS_CFG_RESET_B (1 << 5)
+#define ZY7_DEVCFG_STATUS_PCFG_INIT (1 << 4)
+#define ZY7_DEVCFG_STATUS_EFUSE_BBRAM_KEY_DIS (1 << 3)
+#define ZY7_DEVCFG_STATUS_EFUSE_SEC_EN (1 << 2)
+#define ZY7_DEVCFG_STATUS_EFUSE_JTAG_DIS (1 << 1)
 
-#define ZY7_DEVCFG_DMA_SRC_ADDR		0x018
-#define ZY7_DEVCFG_DMA_DST_ADDR		0x01c
-#define   ZY7_DEVCFG_DMA_ADDR_WAIT_PCAP	1
-#define   ZY7_DEVCFG_DMA_ADDR_ILLEGAL		0xffffffff
+#define ZY7_DEVCFG_DMA_SRC_ADDR 0x018
+#define ZY7_DEVCFG_DMA_DST_ADDR 0x01c
+#define ZY7_DEVCFG_DMA_ADDR_WAIT_PCAP 1
+#define ZY7_DEVCFG_DMA_ADDR_ILLEGAL 0xffffffff
 
-#define ZY7_DEVCFG_DMA_SRC_LEN		0x020	/* in 4-byte words. */
-#define ZY7_DEVCFG_DMA_SRC_LEN_MAX		0x7ffffff
-#define ZY7_DEVCFG_DMA_DST_LEN		0x024
-#define ZY7_DEVCFG_ROM_SHADOW		0x028
-#define ZY7_DEVCFG_MULTIBOOT_ADDR	0x02c
-#define ZY7_DEVCFG_SW_ID		0x030
-#define ZY7_DEVCFG_UNLOCK		0x034
-#define ZY7_DEVCFG_UNLOCK_MAGIC			0x757bdf0d
-#define ZY7_DEVCFG_MCTRL		0x080
-#define   ZY7_DEVCFG_MCTRL_PS_VERS_MASK		(0xf<<28)
-#define   ZY7_DEVCFG_MCTRL_PS_VERS_SHIFT	28
-#define   ZY7_DEVCFG_MCTRL_PCFG_POR_B		(1<<8)
-#define   ZY7_DEVCFG_MCTRL_INT_PCAP_LPBK	(1<<4)
-#define ZY7_DEVCFG_XADCIF_CFG		0x100
-#define ZY7_DEVCFG_XADCIF_INT_STAT	0x104
-#define ZY7_DEVCFG_XADCIF_INT_MASK	0x108
-#define ZY7_DEVCFG_XADCIF_MSTS		0x10c
-#define ZY7_DEVCFG_XADCIF_CMD_FIFO	0x110
-#define ZY7_DEVCFG_XADCIF_RD_FIFO	0x114
-#define ZY7_DEVCFG_XADCIF_MCTL		0x118
+#define ZY7_DEVCFG_DMA_SRC_LEN 0x020 /* in 4-byte words. */
+#define ZY7_DEVCFG_DMA_SRC_LEN_MAX 0x7ffffff
+#define ZY7_DEVCFG_DMA_DST_LEN 0x024
+#define ZY7_DEVCFG_ROM_SHADOW 0x028
+#define ZY7_DEVCFG_MULTIBOOT_ADDR 0x02c
+#define ZY7_DEVCFG_SW_ID 0x030
+#define ZY7_DEVCFG_UNLOCK 0x034
+#define ZY7_DEVCFG_UNLOCK_MAGIC 0x757bdf0d
+#define ZY7_DEVCFG_MCTRL 0x080
+#define ZY7_DEVCFG_MCTRL_PS_VERS_MASK (0xf << 28)
+#define ZY7_DEVCFG_MCTRL_PS_VERS_SHIFT 28
+#define ZY7_DEVCFG_MCTRL_PCFG_POR_B (1 << 8)
+#define ZY7_DEVCFG_MCTRL_INT_PCAP_LPBK (1 << 4)
+#define ZY7_DEVCFG_XADCIF_CFG 0x100
+#define ZY7_DEVCFG_XADCIF_INT_STAT 0x104
+#define ZY7_DEVCFG_XADCIF_INT_MASK 0x108
+#define ZY7_DEVCFG_XADCIF_MSTS 0x10c
+#define ZY7_DEVCFG_XADCIF_CMD_FIFO 0x110
+#define ZY7_DEVCFG_XADCIF_RD_FIFO 0x114
+#define ZY7_DEVCFG_XADCIF_MCTL 0x118
 
-static int
-zy7_devcfg_fclk_sysctl_source(SYSCTL_HANDLER_ARGS)
+static int zy7_devcfg_fclk_sysctl_source(SYSCTL_HANDLER_ARGS)
 {
 	char buf[4];
 	struct zy7_fclk_config *cfg;
@@ -262,19 +260,19 @@ zy7_devcfg_fclk_sysctl_source(SYSCTL_HANDLER_ARGS)
 	unit = arg2;
 
 	switch (cfg->source) {
-		case ZY7_PL_FCLK_SRC_IO:
-		case ZY7_PL_FCLK_SRC_IO_ALT:
-			strncpy(buf, "IO", sizeof(buf));
-			break;
-		case ZY7_PL_FCLK_SRC_DDR:
-			strncpy(buf, "DDR", sizeof(buf));
-			break;
-		case ZY7_PL_FCLK_SRC_ARM:
-			strncpy(buf, "ARM", sizeof(buf));
-			break;
-		default:
-			strncpy(buf, "???", sizeof(buf));
-			break;
+	case ZY7_PL_FCLK_SRC_IO:
+	case ZY7_PL_FCLK_SRC_IO_ALT:
+		strncpy(buf, "IO", sizeof(buf));
+		break;
+	case ZY7_PL_FCLK_SRC_DDR:
+		strncpy(buf, "DDR", sizeof(buf));
+		break;
+	case ZY7_PL_FCLK_SRC_ARM:
+		strncpy(buf, "ARM", sizeof(buf));
+		break;
+	default:
+		strncpy(buf, "???", sizeof(buf));
+		break;
 	}
 
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
@@ -297,8 +295,7 @@ zy7_devcfg_fclk_sysctl_source(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-zy7_devcfg_fclk_sysctl_freq(SYSCTL_HANDLER_ARGS)
+static int zy7_devcfg_fclk_sysctl_freq(SYSCTL_HANDLER_ARGS)
 {
 	struct zy7_fclk_config *cfg;
 	int unit;
@@ -321,8 +318,7 @@ zy7_devcfg_fclk_sysctl_freq(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);
 		if (!zy7_pl_fclk_enabled(unit))
 			zy7_pl_fclk_enable(unit);
-	}
-	else {
+	} else {
 		zy7_pl_fclk_disable(unit);
 		new_actual_freq = 0;
 	}
@@ -333,8 +329,7 @@ zy7_devcfg_fclk_sysctl_freq(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-zy7_devcfg_fclk_sysctl_level_shifters(SYSCTL_HANDLER_ARGS)
+static int zy7_devcfg_fclk_sysctl_level_shifters(SYSCTL_HANDLER_ARGS)
 {
 	int error, enabled;
 
@@ -374,23 +369,19 @@ zy7_devcfg_init_fclk_sysctl(struct zy7_devcfg_softc *sc)
 		    SYSCTL_CHILDREN(sc->sysctl_tree_top), OID_AUTO, fclk_num,
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
-		SYSCTL_ADD_INT(&sc->sysctl_tree,
-		    SYSCTL_CHILDREN(fclk_node), OID_AUTO,
-		    "actual_freq", CTLFLAG_RD, 
-		    &fclk_configs[i].actual_frequency, i,
-		    "Actual frequency");
-		SYSCTL_ADD_PROC(&sc->sysctl_tree,
-		    SYSCTL_CHILDREN(fclk_node), OID_AUTO,
-		    "freq", CTLFLAG_RW | CTLTYPE_INT | CTLFLAG_NEEDGIANT, 
-		    &fclk_configs[i], i,
-		    zy7_devcfg_fclk_sysctl_freq,
-		    "I", "Configured frequency");
-		SYSCTL_ADD_PROC(&sc->sysctl_tree,
-		    SYSCTL_CHILDREN(fclk_node), OID_AUTO,
-		    "source", CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_NEEDGIANT, 
-		    &fclk_configs[i], i, 
-		    zy7_devcfg_fclk_sysctl_source,
-		    "A", "Clock source");
+		SYSCTL_ADD_INT(&sc->sysctl_tree, SYSCTL_CHILDREN(fclk_node),
+		    OID_AUTO, "actual_freq", CTLFLAG_RD,
+		    &fclk_configs[i].actual_frequency, i, "Actual frequency");
+		SYSCTL_ADD_PROC(&sc->sysctl_tree, SYSCTL_CHILDREN(fclk_node),
+		    OID_AUTO, "freq",
+		    CTLFLAG_RW | CTLTYPE_INT | CTLFLAG_NEEDGIANT,
+		    &fclk_configs[i], i, zy7_devcfg_fclk_sysctl_freq, "I",
+		    "Configured frequency");
+		SYSCTL_ADD_PROC(&sc->sysctl_tree, SYSCTL_CHILDREN(fclk_node),
+		    OID_AUTO, "source",
+		    CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_NEEDGIANT,
+		    &fclk_configs[i], i, zy7_devcfg_fclk_sysctl_source, "A",
+		    "Clock source");
 	}
 
 	return (0);
@@ -405,20 +396,15 @@ zy7_devcfg_init_hw(struct zy7_devcfg_softc *sc)
 
 	/* Set devcfg control register. */
 	WR4(sc, ZY7_DEVCFG_CTRL,
-	    ZY7_DEVCFG_CTRL_PCFG_PROG_B |
-	    ZY7_DEVCFG_CTRL_PCAP_PR |
-	    ZY7_DEVCFG_CTRL_PCAP_MODE |
-	    ZY7_DEVCFG_CTRL_USER_MODE |
-	    ZY7_DEVCFG_CTRL_RESVD_WR11 |
-	    ZY7_DEVCFG_CTRL_SPNIDEN |
-	    ZY7_DEVCFG_CTRL_SPIDEN |
-	    ZY7_DEVCFG_CTRL_NIDEN |
-	    ZY7_DEVCFG_CTRL_DBGEN |
-	    ZY7_DEVCFG_CTRL_DAP_EN_MASK);
+	    ZY7_DEVCFG_CTRL_PCFG_PROG_B | ZY7_DEVCFG_CTRL_PCAP_PR |
+		ZY7_DEVCFG_CTRL_PCAP_MODE | ZY7_DEVCFG_CTRL_USER_MODE |
+		ZY7_DEVCFG_CTRL_RESVD_WR11 | ZY7_DEVCFG_CTRL_SPNIDEN |
+		ZY7_DEVCFG_CTRL_SPIDEN | ZY7_DEVCFG_CTRL_NIDEN |
+		ZY7_DEVCFG_CTRL_DBGEN | ZY7_DEVCFG_CTRL_DAP_EN_MASK);
 
 	/* Turn off internal PCAP loopback. */
-	WR4(sc, ZY7_DEVCFG_MCTRL, RD4(sc, ZY7_DEVCFG_MCTRL) &
-	    ~ZY7_DEVCFG_MCTRL_INT_PCAP_LPBK);
+	WR4(sc, ZY7_DEVCFG_MCTRL,
+	    RD4(sc, ZY7_DEVCFG_MCTRL) & ~ZY7_DEVCFG_MCTRL_INT_PCAP_LPBK);
 }
 
 /* Clear previous configuration of the PL by asserting PROG_B. */
@@ -444,12 +430,10 @@ zy7_devcfg_reset_pl(struct zy7_devcfg_softc *sc)
 	 * Wait for INIT to assert.  If it is already asserted, we may not get
 	 * an edge interrupt so cancel it and continue.
 	 */
-	if ((RD4(sc, ZY7_DEVCFG_STATUS) &
-	     ZY7_DEVCFG_STATUS_PCFG_INIT) != 0) {
+	if ((RD4(sc, ZY7_DEVCFG_STATUS) & ZY7_DEVCFG_STATUS_PCFG_INIT) != 0) {
 		/* Already asserted.  Cancel interrupt. */
 		WR4(sc, ZY7_DEVCFG_INT_MASK, ~0);
-	}
-	else {
+	} else {
 		/* Wait for positive edge interrupt. */
 		err = mtx_sleep(sc, &sc->sc_mtx, PCATCH, "zy7i1", hz);
 		if (err != 0)
@@ -462,8 +446,8 @@ zy7_devcfg_reset_pl(struct zy7_devcfg_softc *sc)
 
 	/* Wait for INIT deasserted.  This happens almost instantly. */
 	tries = 0;
-	while ((RD4(sc, ZY7_DEVCFG_STATUS) &
-		ZY7_DEVCFG_STATUS_PCFG_INIT) != 0) {
+	while (
+	    (RD4(sc, ZY7_DEVCFG_STATUS) & ZY7_DEVCFG_STATUS_PCFG_INIT) != 0) {
 		if (++tries >= 100)
 			return (EIO);
 		DELAY(5);
@@ -513,16 +497,8 @@ zy7_devcfg_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	sc->dma_map = NULL;
 	err = bus_dma_tag_create(bus_get_dma_tag(sc->dev), 4, 0,
-				 BUS_SPACE_MAXADDR_32BIT,
-				 BUS_SPACE_MAXADDR,
-				 NULL, NULL,
-				 PAGE_SIZE,
-				 1,
-				 PAGE_SIZE,
-				 0,
-				 busdma_lock_mutex,
-				 &sc->sc_mtx,
-				 &sc->dma_tag);
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, PAGE_SIZE,
+	    1, PAGE_SIZE, 0, busdma_lock_mutex, &sc->sc_mtx, &sc->dma_tag);
 	if (err) {
 		DEVCFG_SC_UNLOCK(sc);
 		return (err);
@@ -544,7 +520,7 @@ zy7_devcfg_write(struct cdev *dev, struct uio *uio, int ioflag)
 	DEVCFG_SC_LOCK(sc);
 
 	/* First write?  Reset PL. */
-	if (uio->uio_offset == 0 && uio->uio_resid > 0)	{
+	if (uio->uio_offset == 0 && uio->uio_resid > 0) {
 		zy7_devcfg_init_hw(sc);
 		zy7_slcr_preload_pl();
 		err = zy7_devcfg_reset_pl(sc);
@@ -555,14 +531,14 @@ zy7_devcfg_write(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 
 	/* Allocate dma memory and load. */
-	err = bus_dmamem_alloc(sc->dma_tag, &dma_mem, BUS_DMA_NOWAIT,
-			       &sc->dma_map);
+	err = bus_dmamem_alloc(
+	    sc->dma_tag, &dma_mem, BUS_DMA_NOWAIT, &sc->dma_map);
 	if (err != 0) {
 		DEVCFG_SC_UNLOCK(sc);
 		return (err);
 	}
 	err = bus_dmamap_load(sc->dma_tag, sc->dma_map, dma_mem, PAGE_SIZE,
-			      zy7_dma_cb2, &dma_physaddr, 0);
+	    zy7_dma_cb2, &dma_physaddr, 0);
 	if (err != 0) {
 		bus_dmamem_free(sc->dma_tag, dma_mem, sc->dma_map);
 		DEVCFG_SC_UNLOCK(sc);
@@ -572,7 +548,7 @@ zy7_devcfg_write(struct cdev *dev, struct uio *uio, int ioflag)
 	while (uio->uio_resid > 0) {
 		/* If DONE signal has been set, we shouldn't write anymore. */
 		if ((RD4(sc, ZY7_DEVCFG_INT_STATUS) &
-		     ZY7_DEVCFG_INT_PCFG_DONE) != 0) {
+			ZY7_DEVCFG_INT_PCFG_DONE) != 0) {
 			err = EIO;
 			break;
 		}
@@ -586,21 +562,20 @@ zy7_devcfg_write(struct cdev *dev, struct uio *uio, int ioflag)
 			break;
 
 		/* Flush the cache to memory. */
-		bus_dmamap_sync(sc->dma_tag, sc->dma_map,
-				BUS_DMASYNC_PREWRITE);
+		bus_dmamap_sync(sc->dma_tag, sc->dma_map, BUS_DMASYNC_PREWRITE);
 
 		/* Program devcfg's DMA engine.  The ordering of these
 		 * register writes is critical.
 		 */
 		if (uio->uio_resid > segsz)
 			WR4(sc, ZY7_DEVCFG_DMA_SRC_ADDR,
-			    (uint32_t) dma_physaddr);
+			    (uint32_t)dma_physaddr);
 		else
 			WR4(sc, ZY7_DEVCFG_DMA_SRC_ADDR,
-			    (uint32_t) dma_physaddr |
-			    ZY7_DEVCFG_DMA_ADDR_WAIT_PCAP);
+			    (uint32_t)dma_physaddr |
+				ZY7_DEVCFG_DMA_ADDR_WAIT_PCAP);
 		WR4(sc, ZY7_DEVCFG_DMA_DST_ADDR, ZY7_DEVCFG_DMA_ADDR_ILLEGAL);
-		WR4(sc, ZY7_DEVCFG_DMA_SRC_LEN, (segsz+3)/4);
+		WR4(sc, ZY7_DEVCFG_DMA_SRC_LEN, (segsz + 3) / 4);
 		WR4(sc, ZY7_DEVCFG_DMA_DST_LEN, 0);
 
 		/* Now clear done bit and set up DMA done interrupt. */
@@ -608,17 +583,16 @@ zy7_devcfg_write(struct cdev *dev, struct uio *uio, int ioflag)
 		WR4(sc, ZY7_DEVCFG_INT_MASK, ~ZY7_DEVCFG_INT_DMA_DONE);
 
 		/* Wait for DMA done interrupt. */
-		err = mtx_sleep(sc->dma_map, &sc->sc_mtx, PCATCH,
-				"zy7dma", hz);
+		err = mtx_sleep(sc->dma_map, &sc->sc_mtx, PCATCH, "zy7dma", hz);
 		if (err != 0)
 			break;
 
-		bus_dmamap_sync(sc->dma_tag, sc->dma_map,
-				BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_sync(
+		    sc->dma_tag, sc->dma_map, BUS_DMASYNC_POSTWRITE);
 
 		/* Check DONE signal. */
 		if ((RD4(sc, ZY7_DEVCFG_INT_STATUS) &
-		     ZY7_DEVCFG_INT_PCFG_DONE) != 0)
+			ZY7_DEVCFG_INT_PCFG_DONE) != 0)
 			zy7_slcr_postload_pl(zy7_en_level_shifters);
 	}
 
@@ -675,8 +649,7 @@ zy7_devcfg_intr(void *arg)
 
 /* zy7_devcfg_sysctl_pl_done() returns status of the PL_DONE signal.
  */
-static int
-zy7_devcfg_sysctl_pl_done(SYSCTL_HANDLER_ARGS)
+static int zy7_devcfg_sysctl_pl_done(SYSCTL_HANDLER_ARGS)
 {
 	struct zy7_devcfg_softc *sc = zy7_devcfg_softc_p;
 	int pl_done = 0;
@@ -687,7 +660,7 @@ zy7_devcfg_sysctl_pl_done(SYSCTL_HANDLER_ARGS)
 		/* PCFG_DONE bit is sticky.  Clear it before checking it. */
 		WR4(sc, ZY7_DEVCFG_INT_STATUS, ZY7_DEVCFG_INT_PCFG_DONE);
 		pl_done = ((RD4(sc, ZY7_DEVCFG_INT_STATUS) &
-			    ZY7_DEVCFG_INT_PCFG_DONE) != 0);
+			       ZY7_DEVCFG_INT_PCFG_DONE) != 0);
 
 		DEVCFG_SC_UNLOCK(sc);
 	}
@@ -727,8 +700,8 @@ zy7_devcfg_attach(device_t dev)
 
 	/* Get memory resource. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-					     RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "could not allocate memory resources.\n");
 		zy7_devcfg_detach(dev);
@@ -737,8 +710,7 @@ zy7_devcfg_attach(device_t dev)
 
 	/* Allocate IRQ. */
 	rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-					     RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "cannot allocate IRQ\n");
 		zy7_devcfg_detach(dev);
@@ -747,7 +719,7 @@ zy7_devcfg_attach(device_t dev)
 
 	/* Activate the interrupt. */
 	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-			     NULL, zy7_devcfg_intr, sc, &sc->intrhandle);
+	    NULL, zy7_devcfg_intr, sc, &sc->intrhandle);
 	if (err) {
 		device_printf(dev, "cannot setup IRQ\n");
 		zy7_devcfg_detach(dev);
@@ -755,8 +727,8 @@ zy7_devcfg_attach(device_t dev)
 	}
 
 	/* Create /dev/devcfg */
-	sc->sc_ctl_dev = make_dev(&zy7_devcfg_cdevsw, 0,
-			  UID_ROOT, GID_WHEEL, 0600, "devcfg");
+	sc->sc_ctl_dev = make_dev(
+	    &zy7_devcfg_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "devcfg");
 	if (sc->sc_ctl_dev == NULL) {
 		device_printf(dev, "failed to create /dev/devcfg");
 		zy7_devcfg_detach(dev);
@@ -775,13 +747,14 @@ zy7_devcfg_attach(device_t dev)
 
 	/* Get PS_VERS for SYSCTL. */
 	zy7_ps_vers = (RD4(sc, ZY7_DEVCFG_MCTRL) &
-		       ZY7_DEVCFG_MCTRL_PS_VERS_MASK) >>
-		ZY7_DEVCFG_MCTRL_PS_VERS_SHIFT;
+			  ZY7_DEVCFG_MCTRL_PS_VERS_MASK) >>
+	    ZY7_DEVCFG_MCTRL_PS_VERS_SHIFT;
 
 	for (i = 0; i < FCLK_NUM; i++) {
 		fclk_configs[i].source = zy7_pl_fclk_get_source(i);
-		fclk_configs[i].actual_frequency = 
-			zy7_pl_fclk_enabled(i) ? zy7_pl_fclk_get_freq(i) : 0;
+		fclk_configs[i].actual_frequency = zy7_pl_fclk_enabled(i) ?
+			  zy7_pl_fclk_get_freq(i) :
+			  0;
 		/* Initially assume actual frequency is the configure one */
 		fclk_configs[i].frequency = fclk_configs[i].actual_frequency;
 	}
@@ -813,14 +786,14 @@ zy7_devcfg_detach(device_t dev)
 	if (sc->irq_res != NULL) {
 		if (sc->intrhandle)
 			bus_teardown_intr(dev, sc->irq_res, sc->intrhandle);
-		bus_release_resource(dev, SYS_RES_IRQ,
-			     rman_get_rid(sc->irq_res), sc->irq_res);
+		bus_release_resource(
+		    dev, SYS_RES_IRQ, rman_get_rid(sc->irq_res), sc->irq_res);
 	}
 
 	/* Release memory resource. */
 	if (sc->mem_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-			     rman_get_rid(sc->mem_res), sc->mem_res);
+		    rman_get_rid(sc->mem_res), sc->mem_res);
 
 	zy7_devcfg_softc_p = NULL;
 
@@ -831,9 +804,9 @@ zy7_devcfg_detach(device_t dev)
 
 static device_method_t zy7_devcfg_methods[] = {
 	/* device_if */
-	DEVMETHOD(device_probe, 	zy7_devcfg_probe),
-	DEVMETHOD(device_attach, 	zy7_devcfg_attach),
-	DEVMETHOD(device_detach, 	zy7_devcfg_detach),
+	DEVMETHOD(device_probe, zy7_devcfg_probe),
+	DEVMETHOD(device_attach, zy7_devcfg_attach),
+	DEVMETHOD(device_detach, zy7_devcfg_detach),
 
 	DEVMETHOD_END
 };
@@ -845,6 +818,6 @@ static driver_t zy7_devcfg_driver = {
 };
 static devclass_t zy7_devcfg_devclass;
 
-DRIVER_MODULE(zy7_devcfg, simplebus, zy7_devcfg_driver, zy7_devcfg_devclass, \
-	      0, 0);
+DRIVER_MODULE(
+    zy7_devcfg, simplebus, zy7_devcfg_driver, zy7_devcfg_devclass, 0, 0);
 MODULE_DEPEND(zy7_devcfg, zy7_slcr, 1, 1, 1);

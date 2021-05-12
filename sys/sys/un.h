@@ -39,8 +39,8 @@
 #include <sys/_types.h>
 
 #ifndef _SA_FAMILY_T_DECLARED
-typedef	__sa_family_t	sa_family_t;
-#define	_SA_FAMILY_T_DECLARED
+typedef __sa_family_t sa_family_t;
+#define _SA_FAMILY_T_DECLARED
 #endif
 
 /*
@@ -49,29 +49,29 @@ typedef	__sa_family_t	sa_family_t;
  * 104 bytes. While this limit is no longer necessary, it is kept for
  * binary compatibility reasons.
  */
-#define	SUNPATHLEN	104
+#define SUNPATHLEN 104
 
 /*
  * Definitions for UNIX IPC domain.
  */
 struct sockaddr_un {
-	unsigned char	sun_len;	/* sockaddr len including null */
-	sa_family_t	sun_family;	/* AF_UNIX */
-	char	sun_path[SUNPATHLEN];	/* path name (gag) */
+	unsigned char sun_len;	   /* sockaddr len including null */
+	sa_family_t sun_family;	   /* AF_UNIX */
+	char sun_path[SUNPATHLEN]; /* path name (gag) */
 };
 
 #if __BSD_VISIBLE
 
-#define	SOL_LOCAL		0	/* Options for local socket */
+#define SOL_LOCAL 0 /* Options for local socket */
 
 /* Socket options. */
-#define	LOCAL_PEERCRED		1	/* retrieve peer credentials */
-#define	LOCAL_CREDS		2	/* pass credentials to receiver */
-#define	LOCAL_CREDS_PERSISTENT	3	/* pass credentials to receiver */
-#define	LOCAL_CONNWAIT		4	/* connects block until accepted */
+#define LOCAL_PEERCRED 1 /* retrieve peer credentials */
+#define LOCAL_CREDS 2 /* pass credentials to receiver */
+#define LOCAL_CREDS_PERSISTENT 3 /* pass credentials to receiver */
+#define LOCAL_CONNWAIT 4 /* connects block until accepted */
 
 /* Start of reserved space for third-party socket options. */
-#define	LOCAL_VENDOR		SO_VENDOR
+#define LOCAL_VENDOR SO_VENDOR
 
 #ifndef _KERNEL
 

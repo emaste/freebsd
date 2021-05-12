@@ -40,47 +40,44 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
 #include <sys/jail.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/mbuf.h>
-#include <sys/errno.h>
-#include <sys/kernel.h>
-#include <sys/syslog.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
+#include <sys/syslog.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #ifdef INET
 #include <netinet/ip.h>
 #include <netinet/ip_ecn.h>
 #endif
-#include <netinet/ip_encap.h>
-#include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
-#include <netinet6/in6_var.h>
-#include <netinet6/scope6_var.h>
-#include <netinet6/ip6_ecn.h>
-#include <netinet6/in6_fib.h>
-
 #include <net/if_gif.h>
+#include <netinet/ip6.h>
+#include <netinet/ip_encap.h>
+#include <netinet6/in6_fib.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/ip6_ecn.h>
+#include <netinet6/ip6_var.h>
+#include <netinet6/scope6_var.h>
 
-#define GIF_HLIM	30
+#define GIF_HLIM 30
 VNET_DEFINE_STATIC(int, ip6_gif_hlim) = GIF_HLIM;
-#define	V_ip6_gif_hlim			VNET(ip6_gif_hlim)
+#define V_ip6_gif_hlim VNET(ip6_gif_hlim)
 
 SYSCTL_DECL(_net_inet6_ip6);
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim,
-    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_gif_hlim), 0,
-    "Default hop limit for encapsulated packets");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(ip6_gif_hlim), 0, "Default hop limit for encapsulated packets");
 
 /*
  * We keep interfaces in a hash table using src+dst as key.
@@ -89,16 +86,17 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim,
 VNET_DEFINE_STATIC(struct gif_list *, ipv6_hashtbl) = NULL;
 VNET_DEFINE_STATIC(struct gif_list *, ipv6_srchashtbl) = NULL;
 VNET_DEFINE_STATIC(struct gif_list, ipv6_list) = CK_LIST_HEAD_INITIALIZER();
-#define	V_ipv6_hashtbl		VNET(ipv6_hashtbl)
-#define	V_ipv6_srchashtbl	VNET(ipv6_srchashtbl)
-#define	V_ipv6_list		VNET(ipv6_list)
+#define V_ipv6_hashtbl VNET(ipv6_hashtbl)
+#define V_ipv6_srchashtbl VNET(ipv6_srchashtbl)
+#define V_ipv6_list VNET(ipv6_list)
 
-#define	GIF_HASH(src, dst)	(V_ipv6_hashtbl[\
-    in6_gif_hashval((src), (dst)) & (GIF_HASH_SIZE - 1)])
-#define	GIF_SRCHASH(src)	(V_ipv6_srchashtbl[\
-    fnv_32_buf((src), sizeof(*src), FNV1_32_INIT) & (GIF_HASH_SIZE - 1)])
-#define	GIF_HASH_SC(sc)		GIF_HASH(&(sc)->gif_ip6hdr->ip6_src,\
-    &(sc)->gif_ip6hdr->ip6_dst)
+#define GIF_HASH(src, dst) \
+	(V_ipv6_hashtbl[in6_gif_hashval((src), (dst)) & (GIF_HASH_SIZE - 1)])
+#define GIF_SRCHASH(src)                                                   \
+	(V_ipv6_srchashtbl[fnv_32_buf((src), sizeof(*src), FNV1_32_INIT) & \
+	    (GIF_HASH_SIZE - 1)])
+#define GIF_HASH_SC(sc) \
+	GIF_HASH(&(sc)->gif_ip6hdr->ip6_src, &(sc)->gif_ip6hdr->ip6_dst)
 static uint32_t
 in6_gif_hashval(const struct in6_addr *src, const struct in6_addr *dst)
 {
@@ -119,7 +117,8 @@ in6_gif_checkdup(const struct gif_softc *sc, const struct in6_addr *src,
 	    IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_dst, dst))
 		return (EEXIST);
 
-	CK_LIST_FOREACH(tmp, &GIF_HASH(src, dst), chain) {
+	CK_LIST_FOREACH(tmp, &GIF_HASH(src, dst), chain)
+	{
 		if (tmp == sc)
 			continue;
 		if (IN6_ARE_ADDR_EQUAL(&tmp->gif_ip6hdr->ip6_src, src) &&
@@ -159,9 +158,10 @@ in6_gif_srcaddr(void *arg __unused, const struct sockaddr *sa, int event)
 
 	NET_EPOCH_ASSERT();
 	sin = (const struct sockaddr_in6 *)sa;
-	CK_LIST_FOREACH(sc, &GIF_SRCHASH(&sin->sin6_addr), srchash) {
-		if (IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_src,
-		    &sin->sin6_addr) == 0)
+	CK_LIST_FOREACH(sc, &GIF_SRCHASH(&sin->sin6_addr), srchash)
+	{
+		if (IN6_ARE_ADDR_EQUAL(
+			&sc->gif_ip6hdr->ip6_src, &sin->sin6_addr) == 0)
 			continue;
 		in6_gif_set_running(sc);
 	}
@@ -176,8 +176,8 @@ in6_gif_attach(struct gif_softc *sc)
 	else
 		CK_LIST_INSERT_HEAD(&GIF_HASH_SC(sc), sc, chain);
 
-	CK_LIST_INSERT_HEAD(&GIF_SRCHASH(&sc->gif_ip6hdr->ip6_src),
-	    sc, srchash);
+	CK_LIST_INSERT_HEAD(
+	    &GIF_SRCHASH(&sc->gif_ip6hdr->ip6_src), sc, srchash);
 }
 
 int
@@ -237,8 +237,7 @@ in6_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 			V_ipv6_hashtbl = gif_hashinit();
 			V_ipv6_srchashtbl = gif_hashinit();
 		}
-		error = in6_gif_checkdup(sc, &src->sin6_addr,
-		    &dst->sin6_addr);
+		error = in6_gif_checkdup(sc, &src->sin6_addr, &dst->sin6_addr);
 		if (error == EADDRNOTAVAIL)
 			break;
 		if (error == EEXIST) {
@@ -274,7 +273,8 @@ in6_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 		src->sin6_family = AF_INET6;
 		src->sin6_len = sizeof(*src);
 		src->sin6_addr = (cmd == SIOCGIFPSRCADDR_IN6) ?
-		    sc->gif_ip6hdr->ip6_src: sc->gif_ip6hdr->ip6_dst;
+			  sc->gif_ip6hdr->ip6_src :
+			  sc->gif_ip6hdr->ip6_dst;
 		error = prison_if(curthread->td_ucred, (struct sockaddr *)src);
 		if (error == 0)
 			error = sa6_recoverscope(src);
@@ -316,9 +316,9 @@ in6_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 	MPASS(sc->gif_family == AF_INET6);
 	bcopy(sc->gif_ip6hdr, ip6, sizeof(struct ip6_hdr));
 
-	ip6->ip6_flow  |= htonl((uint32_t)ecn << 20);
-	ip6->ip6_nxt	= proto;
-	ip6->ip6_hlim	= V_ip6_gif_hlim;
+	ip6->ip6_flow |= htonl((uint32_t)ecn << 20);
+	ip6->ip6_nxt = proto;
+	ip6->ip6_hlim = V_ip6_gif_hlim;
 	/*
 	 * force fragmentation to minimum MTU, to avoid path MTU discovery.
 	 * it is too painful to ask for resend of inner packet, to achieve
@@ -372,15 +372,16 @@ in6_gif_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	 */
 	ip6 = mtod(m, const struct ip6_hdr *);
 	ret = 0;
-	CK_LIST_FOREACH(sc, &GIF_HASH(&ip6->ip6_dst, &ip6->ip6_src), chain) {
+	CK_LIST_FOREACH(sc, &GIF_HASH(&ip6->ip6_dst, &ip6->ip6_src), chain)
+	{
 		/*
 		 * This is an inbound packet, its ip6_dst is source address
 		 * in softc.
 		 */
-		if (IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_src,
-		    &ip6->ip6_dst) &&
-		    IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_dst,
-		    &ip6->ip6_src)) {
+		if (IN6_ARE_ADDR_EQUAL(
+			&sc->gif_ip6hdr->ip6_src, &ip6->ip6_dst) &&
+		    IN6_ARE_ADDR_EQUAL(
+			&sc->gif_ip6hdr->ip6_dst, &ip6->ip6_src)) {
 			ret = ENCAP_DRV_LOOKUP;
 			goto done;
 		}
@@ -389,9 +390,10 @@ in6_gif_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	 * No exact match.
 	 * Check the list of interfaces with GIF_IGNORE_SOURCE flag.
 	 */
-	CK_LIST_FOREACH(sc, &V_ipv6_list, chain) {
-		if (IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_src,
-		    &ip6->ip6_dst)) {
+	CK_LIST_FOREACH(sc, &V_ipv6_list, chain)
+	{
+		if (IN6_ARE_ADDR_EQUAL(
+			&sc->gif_ip6hdr->ip6_src, &ip6->ip6_dst)) {
 			ret = 128 + 8; /* src + proto */
 			goto done;
 		}
@@ -403,8 +405,8 @@ done:
 	/* ingress filters on outer source */
 	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0) {
 		if (fib6_check_urpf(sc->gif_fibnum, &ip6->ip6_src,
-		    ntohs(in6_getscope(&ip6->ip6_src)), NHR_NONE,
-		    m->m_pkthdr.rcvif) == 0)
+			ntohs(in6_getscope(&ip6->ip6_src)), NHR_NONE,
+			m->m_pkthdr.rcvif) == 0)
 			return (0);
 	}
 	*arg = sc;
@@ -418,35 +420,27 @@ static struct {
 } ipv6_encap_cfg[] = {
 #ifdef INET
 	{
-		.encap = {
-			.proto = IPPROTO_IPV4,
-			.min_length = sizeof(struct ip6_hdr) +
-			    sizeof(struct ip),
-			.exact_match = ENCAP_DRV_LOOKUP,
-			.lookup = in6_gif_lookup,
-			.input = in6_gif_input
-		},
+	    .encap = { .proto = IPPROTO_IPV4,
+		.min_length = sizeof(struct ip6_hdr) + sizeof(struct ip),
+		.exact_match = ENCAP_DRV_LOOKUP,
+		.lookup = in6_gif_lookup,
+		.input = in6_gif_input },
 	},
 #endif
 	{
-		.encap = {
-			.proto = IPPROTO_IPV6,
-			.min_length = 2 * sizeof(struct ip6_hdr),
-			.exact_match = ENCAP_DRV_LOOKUP,
-			.lookup = in6_gif_lookup,
-			.input = in6_gif_input
-		},
+	    .encap = { .proto = IPPROTO_IPV6,
+		.min_length = 2 * sizeof(struct ip6_hdr),
+		.exact_match = ENCAP_DRV_LOOKUP,
+		.lookup = in6_gif_lookup,
+		.input = in6_gif_input },
 	},
 	{
-		.encap = {
-			.proto = IPPROTO_ETHERIP,
-			.min_length = sizeof(struct ip6_hdr) +
-			    sizeof(struct etherip_header) +
-			    sizeof(struct ether_header),
-			.exact_match = ENCAP_DRV_LOOKUP,
-			.lookup = in6_gif_lookup,
-			.input = in6_gif_input
-		},
+	    .encap = { .proto = IPPROTO_ETHERIP,
+		.min_length = sizeof(struct ip6_hdr) +
+		    sizeof(struct etherip_header) + sizeof(struct ether_header),
+		.exact_match = ENCAP_DRV_LOOKUP,
+		.lookup = in6_gif_lookup,
+		.input = in6_gif_input },
 	}
 };
 
@@ -458,8 +452,8 @@ in6_gif_init(void)
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 
-	ipv6_srcaddrtab = ip6_encap_register_srcaddr(in6_gif_srcaddr,
-	    NULL, M_WAITOK);
+	ipv6_srcaddrtab = ip6_encap_register_srcaddr(
+	    in6_gif_srcaddr, NULL, M_WAITOK);
 	for (i = 0; i < nitems(ipv6_encap_cfg); i++)
 		ipv6_encap_cfg[i].cookie = ip6_encap_attach(
 		    &ipv6_encap_cfg[i].encap, NULL, M_WAITOK);

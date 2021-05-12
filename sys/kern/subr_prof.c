@@ -36,13 +36,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sysctl.h>
+#include <sys/sysproto.h>
 
 #include <machine/cpu.h>
 
@@ -54,10 +54,10 @@ __FBSDID("$FreeBSD$");
  */
 #ifndef _SYS_SYSPROTO_H_
 struct profil_args {
-	caddr_t	samples;
-	size_t	size;
-	size_t	offset;
-	u_int	scale;
+	caddr_t samples;
+	size_t size;
+	size_t offset;
+	u_int scale;
 };
 #endif
 /* ARGSUSED */
@@ -96,9 +96,11 @@ sys_profil(struct thread *td, struct profil_args *uap)
  * into the value, and is <= 1.0.  pc is at most 32 bits, so the
  * intermediate result is at most 48 bits.
  */
-#define	PC_TO_INDEX(pc, prof) \
+#define PC_TO_INDEX(pc, prof)                       \
 	((int)(((u_quad_t)((pc) - (prof)->pr_off) * \
-	    (u_quad_t)((prof)->pr_scale)) >> 16) & ~1)
+		   (u_quad_t)((prof)->pr_scale)) >> \
+	     16) &                                  \
+	    ~1)
 
 /*
  * Collect user-level profiling statistics; called on a profiling tick,
@@ -123,7 +125,7 @@ addupc_intr(struct thread *td, uintfptr_t pc, u_int ticks)
 	PROC_PROFLOCK(td->td_proc);
 	if (pc < prof->pr_off || PC_TO_INDEX(pc, prof) >= prof->pr_size) {
 		PROC_PROFUNLOCK(td->td_proc);
-		return;			/* out of range; ignore */
+		return; /* out of range; ignore */
 	}
 
 	PROC_PROFUNLOCK(td->td_proc);
@@ -142,7 +144,7 @@ addupc_intr(struct thread *td, uintfptr_t pc, u_int ticks)
 void
 addupc_task(struct thread *td, uintfptr_t pc, u_int ticks)
 {
-	struct proc *p = td->td_proc; 
+	struct proc *p = td->td_proc;
 	struct uprof *prof;
 	caddr_t addr;
 	u_int i;
@@ -160,8 +162,7 @@ addupc_task(struct thread *td, uintfptr_t pc, u_int ticks)
 	p->p_profthreads++;
 	prof = &p->p_stats->p_prof;
 	PROC_PROFLOCK(p);
-	if (pc < prof->pr_off ||
-	    (i = PC_TO_INDEX(pc, prof)) >= prof->pr_size) {
+	if (pc < prof->pr_off || (i = PC_TO_INDEX(pc, prof)) >= prof->pr_size) {
 		PROC_PROFUNLOCK(p);
 		goto out;
 	}

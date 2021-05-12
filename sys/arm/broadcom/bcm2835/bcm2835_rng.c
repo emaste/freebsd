@@ -29,140 +29,135 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/random.h>
-#include <sys/sbuf.h>
-#include <sys/sysctl.h>
-#include <sys/selinfo.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
+#include <sys/sbuf.h>
+#include <sys/selinfo.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/random/randomdev.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/random/random_harvestq.h>
+#include <dev/random/randomdev.h>
 
 static device_attach_t bcm2835_rng_attach;
 static device_detach_t bcm2835_rng_detach;
 static device_probe_t bcm2835_rng_probe;
 
-#define	RNG_CTRL		0x00		/* RNG Control Register */
-#define	RNG_COMBLK1_OSC		0x003f0000	/*  Combiner Blk 1 Oscillator */
-#define	RNG_COMBLK1_OSC_SHIFT	16
-#define	RNG_COMBLK2_OSC		0x0fc00000	/*  Combiner Blk 2 Oscillator */
-#define	RNG_COMBLK2_OSC_SHIFT	22
-#define	RNG_JCLK_BYP_DIV_CNT	0x0000ff00	/*  Jitter clk bypass divider
-						    count */
-#define	RNG_JCLK_BYP_DIV_CNT_SHIFT 8
-#define	RNG_JCLK_BYP_SRC	0x00000020	/*  Jitter clk bypass source */
-#define	RNG_JCLK_BYP_SEL	0x00000010	/*  Jitter clk bypass select */
-#define	RNG_RBG2X		0x00000002	/*  RBG 2X SPEED */
-#define	RNG_RBGEN_BIT		0x00000001	/*  Enable RNG bit */
+#define RNG_CTRL 0x00 /* RNG Control Register */
+#define RNG_COMBLK1_OSC 0x003f0000 /*  Combiner Blk 1 Oscillator */
+#define RNG_COMBLK1_OSC_SHIFT 16
+#define RNG_COMBLK2_OSC 0x0fc00000 /*  Combiner Blk 2 Oscillator */
+#define RNG_COMBLK2_OSC_SHIFT 22
+#define RNG_JCLK_BYP_DIV_CNT                     \
+	0x0000ff00 /*  Jitter clk bypass divider \
+		       count */
+#define RNG_JCLK_BYP_DIV_CNT_SHIFT 8
+#define RNG_JCLK_BYP_SRC 0x00000020 /*  Jitter clk bypass source */
+#define RNG_JCLK_BYP_SEL 0x00000010 /*  Jitter clk bypass select */
+#define RNG_RBG2X 0x00000002 /*  RBG 2X SPEED */
+#define RNG_RBGEN_BIT 0x00000001 /*  Enable RNG bit */
 
-#define	BCM2835_RNG_STATUS	0x04		/* BCM2835 RNG status register */
-#define	BCM2838_RNG_STATUS	0x18		/* BCM2838 RNG status register */
+#define BCM2835_RNG_STATUS 0x04 /* BCM2835 RNG status register */
+#define BCM2838_RNG_STATUS 0x18 /* BCM2838 RNG status register */
 
-#define	BCM2838_RNG_COUNT	0x24		/* How many values available */
-#define	BCM2838_COUNT_VAL_MASK	0x000000ff
+#define BCM2838_RNG_COUNT 0x24 /* How many values available */
+#define BCM2838_COUNT_VAL_MASK 0x000000ff
 
-#define	BCM2835_RND_VAL_SHIFT	24		/*  Shift for valid words */
-#define	BCM2835_RND_VAL_MASK	0x000000ff	/*  Number valid words mask */
-#define	BCM2835_RND_VAL_WARM_CNT	0x40000		/*  RNG Warm Up count */
-#define	BCM2835_RND_WARM_CNT	0xfffff		/*  RNG Warm Up Count mask */
+#define BCM2835_RND_VAL_SHIFT 24 /*  Shift for valid words */
+#define BCM2835_RND_VAL_MASK 0x000000ff /*  Number valid words mask */
+#define BCM2835_RND_VAL_WARM_CNT 0x40000 /*  RNG Warm Up count */
+#define BCM2835_RND_WARM_CNT 0xfffff /*  RNG Warm Up Count mask */
 
-#define	BCM2835_RNG_DATA	0x08		/* RNG Data Register */
-#define	BCM2838_RNG_DATA	0x20
-#define	RNG_FF_THRES		0x0c
-#define	RNG_FF_THRES_MASK	0x0000001f
+#define BCM2835_RNG_DATA 0x08 /* RNG Data Register */
+#define BCM2838_RNG_DATA 0x20
+#define RNG_FF_THRES 0x0c
+#define RNG_FF_THRES_MASK 0x0000001f
 
-#define	BCM2835_RNG_INT_MASK		0x10
-#define	BCM2835_RNG_INT_OFF_BIT		0x00000001
+#define BCM2835_RNG_INT_MASK 0x10
+#define BCM2835_RNG_INT_OFF_BIT 0x00000001
 
-#define	RNG_FF_DEFAULT		0x10		/* FIFO threshold default */
-#define	RNG_FIFO_WORDS		(RNG_FF_DEFAULT / sizeof(uint32_t))
+#define RNG_FF_DEFAULT 0x10 /* FIFO threshold default */
+#define RNG_FIFO_WORDS (RNG_FF_DEFAULT / sizeof(uint32_t))
 
-#define	RNG_NUM_OSCILLATORS	6
-#define	RNG_STALL_COUNT_DEFAULT	10
+#define RNG_NUM_OSCILLATORS 6
+#define RNG_STALL_COUNT_DEFAULT 10
 
-#define	RNG_CALLOUT_TICKS	(hz * 4)
+#define RNG_CALLOUT_TICKS (hz * 4)
 
 struct bcm_rng_conf {
-	bus_size_t		control_reg;
-	bus_size_t		status_reg;
-	bus_size_t		count_reg;
-	bus_size_t		data_reg;
-	bus_size_t		intr_mask_reg;
-	uint32_t		intr_disable_bit;
-	uint32_t		count_value_shift;
-	uint32_t		count_value_mask;
-	uint32_t		warmup_count;
-	bool			allow_2x_mode;
-	bool			can_diagnose;
+	bus_size_t control_reg;
+	bus_size_t status_reg;
+	bus_size_t count_reg;
+	bus_size_t data_reg;
+	bus_size_t intr_mask_reg;
+	uint32_t intr_disable_bit;
+	uint32_t count_value_shift;
+	uint32_t count_value_mask;
+	uint32_t warmup_count;
+	bool allow_2x_mode;
+	bool can_diagnose;
 	/* XXX diag regs */
 };
 
-static const struct bcm_rng_conf bcm2835_rng_conf = {
-	.control_reg		= RNG_CTRL,
-	.status_reg		= BCM2835_RNG_STATUS,
-	.count_reg		= BCM2835_RNG_STATUS,	/* Same register */
-	.data_reg		= BCM2835_RNG_DATA,
-	.intr_mask_reg		= BCM2835_RNG_INT_MASK,
-	.intr_disable_bit	= BCM2835_RNG_INT_OFF_BIT,
-	.count_value_shift	= BCM2835_RND_VAL_SHIFT,
-	.count_value_mask	= BCM2835_RND_VAL_MASK,
-	.warmup_count		= BCM2835_RND_VAL_WARM_CNT,
-	.allow_2x_mode		= true,
-	.can_diagnose		= true
-};
+static const struct bcm_rng_conf bcm2835_rng_conf = { .control_reg = RNG_CTRL,
+	.status_reg = BCM2835_RNG_STATUS,
+	.count_reg = BCM2835_RNG_STATUS, /* Same register */
+	.data_reg = BCM2835_RNG_DATA,
+	.intr_mask_reg = BCM2835_RNG_INT_MASK,
+	.intr_disable_bit = BCM2835_RNG_INT_OFF_BIT,
+	.count_value_shift = BCM2835_RND_VAL_SHIFT,
+	.count_value_mask = BCM2835_RND_VAL_MASK,
+	.warmup_count = BCM2835_RND_VAL_WARM_CNT,
+	.allow_2x_mode = true,
+	.can_diagnose = true };
 
-static const struct bcm_rng_conf bcm2838_rng_conf = {
-	.control_reg		= RNG_CTRL,
-	.status_reg		= BCM2838_RNG_STATUS,
-	.count_reg		= BCM2838_RNG_COUNT,
-	.data_reg		= BCM2838_RNG_DATA,
-	.intr_mask_reg		= 0,
-	.intr_disable_bit	= 0,
-	.count_value_shift	= 0,
-	.count_value_mask	= BCM2838_COUNT_VAL_MASK,
-	.warmup_count		= 0,
-	.allow_2x_mode		= false,
-	.can_diagnose		= false
-};
+static const struct bcm_rng_conf bcm2838_rng_conf = { .control_reg = RNG_CTRL,
+	.status_reg = BCM2838_RNG_STATUS,
+	.count_reg = BCM2838_RNG_COUNT,
+	.data_reg = BCM2838_RNG_DATA,
+	.intr_mask_reg = 0,
+	.intr_disable_bit = 0,
+	.count_value_shift = 0,
+	.count_value_mask = BCM2838_COUNT_VAL_MASK,
+	.warmup_count = 0,
+	.allow_2x_mode = false,
+	.can_diagnose = false };
 
 struct bcm2835_rng_softc {
-	device_t		sc_dev;
-	struct resource *	sc_mem_res;
-	struct resource *	sc_irq_res;
-	void *			sc_intr_hdl;
-	struct bcm_rng_conf const*	conf;
-	uint32_t		sc_buf[RNG_FIFO_WORDS];
-	struct callout		sc_rngto;
-	int			sc_stall_count;
-	int			sc_rbg2x;
-	long			sc_underrun;
+	device_t sc_dev;
+	struct resource *sc_mem_res;
+	struct resource *sc_irq_res;
+	void *sc_intr_hdl;
+	struct bcm_rng_conf const *conf;
+	uint32_t sc_buf[RNG_FIFO_WORDS];
+	struct callout sc_rngto;
+	int sc_stall_count;
+	int sc_rbg2x;
+	long sc_underrun;
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"broadcom,bcm2835-rng",	(uintptr_t)&bcm2835_rng_conf},
-	{"brcm,bcm2835-rng",		(uintptr_t)&bcm2835_rng_conf},
+	{ "broadcom,bcm2835-rng", (uintptr_t)&bcm2835_rng_conf },
+	{ "brcm,bcm2835-rng", (uintptr_t)&bcm2835_rng_conf },
 
-	{"brcm,bcm2711-rng200",		(uintptr_t)&bcm2838_rng_conf},
-	{"brcm,bcm2838-rng",		(uintptr_t)&bcm2838_rng_conf},
-	{"brcm,bcm2838-rng200",		(uintptr_t)&bcm2838_rng_conf},
-	{"brcm,bcm7211-rng",		(uintptr_t)&bcm2838_rng_conf},
-	{"brcm,bcm7278-rng",		(uintptr_t)&bcm2838_rng_conf},
-	{"brcm,iproc-rng200",		(uintptr_t)&bcm2838_rng_conf},
-	{NULL,				0}
+	{ "brcm,bcm2711-rng200", (uintptr_t)&bcm2838_rng_conf },
+	{ "brcm,bcm2838-rng", (uintptr_t)&bcm2838_rng_conf },
+	{ "brcm,bcm2838-rng200", (uintptr_t)&bcm2838_rng_conf },
+	{ "brcm,bcm7211-rng", (uintptr_t)&bcm2838_rng_conf },
+	{ "brcm,bcm7278-rng", (uintptr_t)&bcm2838_rng_conf },
+	{ "brcm,iproc-rng200", (uintptr_t)&bcm2838_rng_conf }, { NULL, 0 }
 };
 
 static __inline void
@@ -201,8 +196,8 @@ bcm2835_rng_dump_registers(struct bcm2835_rng_softc *sc, struct sbuf *sbp)
 	int i;
 
 	if (!sc->conf->can_diagnose)
-	    /* Not implemented. */
-	    return;
+		/* Not implemented. */
+		return;
 
 	/* Display RNG control register contents */
 	val = bcm2835_rng_read4(sc, sc->conf->control_reg);
@@ -228,11 +223,11 @@ bcm2835_rng_dump_registers(struct bcm2835_rng_softc *sc, struct sbuf *sbp)
 
 	sbuf_printf(sbp, "  RNG_JCLK_BYP_SRC:\n    %s\n",
 	    (val & RNG_JCLK_BYP_SRC) ? "Use divided down APB clock" :
-	    "Use RNG clock (APB clock)");
+					     "Use RNG clock (APB clock)");
 
 	sbuf_printf(sbp, "  RNG_JCLK_BYP_SEL:\n    %s\n",
 	    (val & RNG_JCLK_BYP_SEL) ? "Bypass internal jitter clock" :
-	    "Use internal jitter clock");
+					     "Use internal jitter clock");
 
 	if ((val & RNG_RBG2X) != 0)
 		sbuf_cat(sbp, "  RNG_RBG2X: RNG 2X SPEED enabled\n");
@@ -245,7 +240,8 @@ bcm2835_rng_dump_registers(struct bcm2835_rng_softc *sc, struct sbuf *sbp)
 	sbuf_printf(sbp, "RNG_CTRL (%08x)\n", val);
 	sbuf_printf(sbp, "  RND_VAL: %02x\n",
 	    (val >> sc->conf->count_value_shift) & sc->conf->count_value_mask);
-	sbuf_printf(sbp, "  RND_WARM_CNT: %05x\n", val & sc->conf->warmup_count);
+	sbuf_printf(
+	    sbp, "  RND_WARM_CNT: %05x\n", val & sc->conf->warmup_count);
 
 	/* Display FIFO threshold register contents */
 	val = bcm2835_rng_read4(sc, RNG_FF_THRES);
@@ -254,7 +250,7 @@ bcm2835_rng_dump_registers(struct bcm2835_rng_softc *sc, struct sbuf *sbp)
 	/* Display interrupt mask register contents */
 	val = bcm2835_rng_read4(sc, sc->conf->intr_mask_reg);
 	sbuf_printf(sbp, "RNG_INT_MASK: interrupt %s\n",
-	     ((val & sc->conf->intr_disable_bit) != 0) ? "disabled" : "enabled");
+	    ((val & sc->conf->intr_disable_bit) != 0) ? "disabled" : "enabled");
 }
 
 static void
@@ -275,12 +271,12 @@ bcm2835_rng_start(struct bcm2835_rng_softc *sc)
 
 	/* Disable the interrupt */
 	if (sc->conf->intr_mask_reg)
-	    bcm2835_rng_disable_intr(sc);
+		bcm2835_rng_disable_intr(sc);
 
 	/* Set the warmup count */
 	if (sc->conf->warmup_count > 0)
-	    bcm2835_rng_write4(sc, sc->conf->status_reg,
-		    sc->conf->warmup_count);
+		bcm2835_rng_write4(
+		    sc, sc->conf->status_reg, sc->conf->warmup_count);
 
 	/* Enable the RNG */
 	ctrl = bcm2835_rng_read4(sc, sc->conf->control_reg);
@@ -310,7 +306,7 @@ bcm2835_rng_enqueue_harvest(struct bcm2835_rng_softc *sc, uint32_t nread)
 
 	chunk_size = sizeof(((struct harvest_event *)0)->he_entropy);
 	cnt = nread * sizeof(uint32_t);
-	sc_buf_chunk = (void*)sc->sc_buf;
+	sc_buf_chunk = (void *)sc->sc_buf;
 
 	while (cnt > 0) {
 		uint32_t size;
@@ -338,7 +334,7 @@ bcm2835_rng_harvest(void *arg)
 	seen_underrun = num_stalls = 0;
 
 	for (cnt = sizeof(sc->sc_buf) / sizeof(uint32_t); cnt > 0;
-	    cnt -= num_words) {
+	     cnt -= num_words) {
 		/* Read count register to find out how many words available */
 		hwcount = bcm2835_rng_read4(sc, sc->conf->count_reg);
 		num_avail = (hwcount >> sc->conf->count_value_shift) &
@@ -370,19 +366,19 @@ bcm2835_rng_harvest(void *arg)
 
 		/* Pull MIN(num_avail, cnt) words from the FIFO */
 		num_words = (num_avail > cnt) ? cnt : num_avail;
-		bcm2835_rng_read_multi4(sc, sc->conf->data_reg, dest,
-		    num_words);
+		bcm2835_rng_read_multi4(
+		    sc, sc->conf->data_reg, dest, num_words);
 		dest += num_words;
 		nread += num_words;
 	}
 
 	bcm2835_rng_enqueue_harvest(sc, nread);
 
-	callout_reset(&sc->sc_rngto, RNG_CALLOUT_TICKS, bcm2835_rng_harvest, sc);
+	callout_reset(
+	    &sc->sc_rngto, RNG_CALLOUT_TICKS, bcm2835_rng_harvest, sc);
 }
 
-static int
-sysctl_bcm2835_rng_2xspeed(SYSCTL_HANDLER_ARGS)
+static int sysctl_bcm2835_rng_2xspeed(SYSCTL_HANDLER_ARGS)
 {
 	struct bcm2835_rng_softc *sc = arg1;
 	int error, rbg2x;
@@ -405,8 +401,7 @@ sysctl_bcm2835_rng_2xspeed(SYSCTL_HANDLER_ARGS)
 }
 
 #ifdef BCM2835_RNG_DEBUG_REGISTERS
-static int
-sysctl_bcm2835_rng_dump(SYSCTL_HANDLER_ARGS)
+static int sysctl_bcm2835_rng_dump(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sb;
 	struct bcm2835_rng_softc *sc = arg1;
@@ -417,9 +412,9 @@ sysctl_bcm2835_rng_dump(SYSCTL_HANDLER_ARGS)
 		return (error);
 	sbuf_new_for_sysctl(&sb, NULL, 128, req);
 	bcm2835_rng_dump_registers(sc, &sb);
-        error = sbuf_finish(&sb);
-        sbuf_delete(&sb);
-        return (error);
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	return (error);
 }
 #endif
 
@@ -450,7 +445,8 @@ bcm2835_rng_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
-	sc->conf = (void const*)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	sc->conf =
+	    (void const *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	KASSERT(sc->conf != NULL, ("bcm2835_rng_attach: sc->conf == NULL"));
 
 	sc->sc_stall_count = RNG_STALL_COUNT_DEFAULT;
@@ -460,12 +456,12 @@ bcm2835_rng_attach(device_t dev)
 
 	TUNABLE_INT_FETCH("bcmrng.stall_count", &sc->sc_stall_count);
 	if (sc->conf->allow_2x_mode)
-	    TUNABLE_INT_FETCH("bcmrng.2xspeed", &sc->sc_rbg2x);
+		TUNABLE_INT_FETCH("bcmrng.2xspeed", &sc->sc_rbg2x);
 
 	/* Allocate memory resources */
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {
 		bcm2835_rng_detach(dev);
 		return (ENXIO);
@@ -478,8 +474,8 @@ bcm2835_rng_attach(device_t dev)
 	if (bootverbose) {
 		struct sbuf sb;
 
-		(void) sbuf_new(&sb, NULL, 256,
-		    SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
+		(void)sbuf_new(
+		    &sb, NULL, 256, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
 		bcm2835_rng_dump_registers(sc, &sb);
 		sbuf_trim(&sb);
 		error = sbuf_finish(&sb);
@@ -494,9 +490,10 @@ bcm2835_rng_attach(device_t dev)
 	    "underrun", CTLFLAG_RD, &sc->sc_underrun,
 	    "Number of FIFO underruns");
 	if (sc->conf->allow_2x_mode)
-		SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
-			"2xspeed", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
-			sysctl_bcm2835_rng_2xspeed, "I", "Enable RBG 2X SPEED");
+		SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+		    OID_AUTO, "2xspeed",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+		    sysctl_bcm2835_rng_2xspeed, "I", "Enable RBG 2X SPEED");
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
 	    "stall_count", CTLFLAG_RW, &sc->sc_stall_count,
 	    RNG_STALL_COUNT_DEFAULT, "Number of underruns to assume RNG stall");
@@ -507,8 +504,9 @@ bcm2835_rng_attach(device_t dev)
 #endif
 
 	/*
-	 * Schedule the initial harvesting one second from now, which should give the
-	 * hardware RNG plenty of time to generate the first random bytes.
+	 * Schedule the initial harvesting one second from now, which should
+	 * give the hardware RNG plenty of time to generate the first random
+	 * bytes.
 	 */
 	callout_reset(&sc->sc_rngto, hz, bcm2835_rng_harvest, sc);
 
@@ -537,23 +535,20 @@ bcm2835_rng_detach(device_t dev)
 
 static device_method_t bcm2835_rng_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		bcm2835_rng_probe),
-	DEVMETHOD(device_attach,	bcm2835_rng_attach),
-	DEVMETHOD(device_detach,	bcm2835_rng_detach),
+	DEVMETHOD(device_probe, bcm2835_rng_probe),
+	DEVMETHOD(device_attach, bcm2835_rng_attach),
+	DEVMETHOD(device_detach, bcm2835_rng_detach),
 
 	DEVMETHOD_END
 };
 
-static driver_t bcm2835_rng_driver = {
-	"bcmrng",
-	bcm2835_rng_methods,
-	sizeof(struct bcm2835_rng_softc)
-};
+static driver_t bcm2835_rng_driver = { "bcmrng", bcm2835_rng_methods,
+	sizeof(struct bcm2835_rng_softc) };
 static devclass_t bcm2835_rng_devclass;
 
-DRIVER_MODULE(bcm2835_rng, simplebus, bcm2835_rng_driver,
-    bcm2835_rng_devclass, 0, 0);
-DRIVER_MODULE(bcm2835_rng, ofwbus, bcm2835_rng_driver, bcm2835_rng_devclass, 0,
-    0);
+DRIVER_MODULE(
+    bcm2835_rng, simplebus, bcm2835_rng_driver, bcm2835_rng_devclass, 0, 0);
+DRIVER_MODULE(
+    bcm2835_rng, ofwbus, bcm2835_rng_driver, bcm2835_rng_devclass, 0, 0);
 MODULE_VERSION(bcm2835_rng, 1);
 MODULE_DEPEND(bcm2835_rng, randomdev, 1, 1, 1);

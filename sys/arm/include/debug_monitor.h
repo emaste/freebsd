@@ -30,17 +30,17 @@
  */
 
 #ifndef _MACHINE_DEBUG_MONITOR_H_
-#define	_MACHINE_DEBUG_MONITOR_H_
+#define _MACHINE_DEBUG_MONITOR_H_
 
 #ifdef DDB
 
 #include <machine/db_machdep.h>
 
 enum dbg_access_t {
-	HW_BREAKPOINT_X		= 0,
-	HW_WATCHPOINT_R		= 1,
-	HW_WATCHPOINT_W		= 2,
-	HW_WATCHPOINT_RW	= HW_WATCHPOINT_R | HW_WATCHPOINT_W,
+	HW_BREAKPOINT_X = 0,
+	HW_WATCHPOINT_R = 1,
+	HW_WATCHPOINT_W = 2,
+	HW_WATCHPOINT_RW = HW_WATCHPOINT_R | HW_WATCHPOINT_W,
 };
 
 void dbg_monitor_init(void);

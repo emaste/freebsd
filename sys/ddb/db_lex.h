@@ -29,7 +29,7 @@
  */
 
 #ifndef _DDB_DB_LEX_H_
-#define	_DDB_DB_LEX_H_
+#define _DDB_DB_LEX_H_
 
 /*
  *	Author: David B. Golub, Carnegie Mellon University
@@ -54,7 +54,7 @@ enum {
 	DRT_DECIMAL,
 	DRT_HEXADECIMAL,
 };
-#define	DRT_RADIX_MASK	0x3
+#define DRT_RADIX_MASK 0x3
 /*
  * Flag bit powers of two for db_read_token_flags.
  * The low 2 bits are reserved for radix selection.
@@ -69,22 +69,20 @@ enum {
 	_DRT_HEX,
 };
 #ifndef BIT
-#define	BIT(n)	(1ull << (n))
+#define BIT(n) (1ull << (n))
 #endif
 enum {
 	DRT_WSPACE = BIT(_DRT_WSPACE),
 	DRT_HEX = BIT(_DRT_HEX),
 };
-#define	DRT_VALID_FLAGS_MASK	((int)DRT_RADIX_MASK | \
-    DRT_WSPACE | \
-    DRT_HEX)
+#define DRT_VALID_FLAGS_MASK ((int)DRT_RADIX_MASK | DRT_WSPACE | DRT_HEX)
 
-void	 db_flush_lex(void);
-char	*db_get_line(void);
-void	 db_inject_line(const char *command);
-int	 db_read_line(void);
-int	 db_read_token_flags(int);
-void	 db_unread_token(int t);
+void db_flush_lex(void);
+char *db_get_line(void);
+void db_inject_line(const char *command);
+int db_read_line(void);
+int db_read_token_flags(int);
+void db_unread_token(int t);
 
 static inline int
 db_read_token(void)
@@ -92,47 +90,47 @@ db_read_token(void)
 	return (db_read_token_flags(0));
 }
 
-extern db_expr_t	db_tok_number;
-#define	TOK_STRING_SIZE		120
-extern char	db_tok_string[TOK_STRING_SIZE];
+extern db_expr_t db_tok_number;
+#define TOK_STRING_SIZE 120
+extern char db_tok_string[TOK_STRING_SIZE];
 
-#define	tEOF		(-1)
-#define	tEOL		1
-#define	tNUMBER		2
-#define	tIDENT		3
-#define	tPLUS		4
-#define	tMINUS		5
-#define	tDOT		6
-#define	tSTAR		7
-#define	tSLASH		8
-#define	tEQ		9
-#define	tLPAREN		10
-#define	tRPAREN		11
-#define	tPCT		12
-#define	tHASH		13
-#define	tCOMMA		14
-#define	tDITTO		15
-#define	tDOLLAR		16
-#define	tEXCL		17
-#define	tSHIFT_L	18
-#define	tSHIFT_R	19
-#define	tDOTDOT		20
-#define	tSEMI		21
-#define	tLOG_EQ		22
-#define	tLOG_NOT_EQ	23
-#define	tLESS		24
-#define	tLESS_EQ	25
-#define	tGREATER	26
-#define	tGREATER_EQ	27
-#define	tBIT_AND	28
-#define	tBIT_OR		29
-#define	tLOG_AND	30
-#define	tLOG_OR		31
-#define	tSTRING		32
-#define	tQUESTION	33
-#define	tBIT_NOT	34
-#define	tWSPACE		35
-#define	tCOLON		36
-#define	tCOLONCOLON	37
+#define tEOF (-1)
+#define tEOL 1
+#define tNUMBER 2
+#define tIDENT 3
+#define tPLUS 4
+#define tMINUS 5
+#define tDOT 6
+#define tSTAR 7
+#define tSLASH 8
+#define tEQ 9
+#define tLPAREN 10
+#define tRPAREN 11
+#define tPCT 12
+#define tHASH 13
+#define tCOMMA 14
+#define tDITTO 15
+#define tDOLLAR 16
+#define tEXCL 17
+#define tSHIFT_L 18
+#define tSHIFT_R 19
+#define tDOTDOT 20
+#define tSEMI 21
+#define tLOG_EQ 22
+#define tLOG_NOT_EQ 23
+#define tLESS 24
+#define tLESS_EQ 25
+#define tGREATER 26
+#define tGREATER_EQ 27
+#define tBIT_AND 28
+#define tBIT_OR 29
+#define tLOG_AND 30
+#define tLOG_OR 31
+#define tSTRING 32
+#define tQUESTION 33
+#define tBIT_NOT 34
+#define tWSPACE 35
+#define tCOLON 36
+#define tCOLONCOLON 37
 
 #endif /* !_DDB_DB_LEX_H_ */

@@ -32,18 +32,18 @@
  */
 
 #ifndef _SYS__CPUSET_H_
-#define	_SYS__CPUSET_H_
+#define _SYS__CPUSET_H_
 
 #include <sys/_bitset.h>
 
 #ifdef _KERNEL
-#define	CPU_SETSIZE	MAXCPU
+#define CPU_SETSIZE MAXCPU
 #endif
 
-#define	CPU_MAXSIZE	256
+#define CPU_MAXSIZE 256
 
-#ifndef	CPU_SETSIZE
-#define	CPU_SETSIZE	CPU_MAXSIZE
+#ifndef CPU_SETSIZE
+#define CPU_SETSIZE CPU_MAXSIZE
 #endif
 
 BITSET_DEFINE(_cpuset, CPU_SETSIZE);

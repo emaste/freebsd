@@ -5,7 +5,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2001, FreeBSD Incorporated 
+ * Copyright (c) 2001, FreeBSD Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,20 +37,19 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
 #include <sys/ctype.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/queue.h>
 #include <sys/syslog.h>
 
 #include <net/ethernet.h>
-
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_etf.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
-#include <netgraph/ng_etf.h>
-#include <netgraph/netgraph.h>
 
 /* If you do complicated mallocs you may want to do this */
 /* and use it for your mallocs */
@@ -65,91 +64,75 @@ static MALLOC_DEFINE(M_NETGRAPH_ETF, "netgraph_etf", "netgraph etf node ");
  * etf node. These methods define the netgraph 'type'.
  */
 
-static ng_constructor_t	ng_etf_constructor;
-static ng_rcvmsg_t	ng_etf_rcvmsg;
-static ng_shutdown_t	ng_etf_shutdown;
-static ng_newhook_t	ng_etf_newhook;
-static ng_rcvdata_t	ng_etf_rcvdata;	 /* note these are both ng_rcvdata_t */
-static ng_disconnect_t	ng_etf_disconnect;
+static ng_constructor_t ng_etf_constructor;
+static ng_rcvmsg_t ng_etf_rcvmsg;
+static ng_shutdown_t ng_etf_shutdown;
+static ng_newhook_t ng_etf_newhook;
+static ng_rcvdata_t ng_etf_rcvdata; /* note these are both ng_rcvdata_t */
+static ng_disconnect_t ng_etf_disconnect;
 
 /* Parse type for struct ng_etfstat */
-static const struct ng_parse_struct_field ng_etf_stat_type_fields[]
-	= NG_ETF_STATS_TYPE_INFO;
-static const struct ng_parse_type ng_etf_stat_type = {
-	&ng_parse_struct_type,
-	&ng_etf_stat_type_fields
-};
+static const struct ng_parse_struct_field ng_etf_stat_type_fields[] =
+    NG_ETF_STATS_TYPE_INFO;
+static const struct ng_parse_type ng_etf_stat_type = { &ng_parse_struct_type,
+	&ng_etf_stat_type_fields };
 /* Parse type for struct ng_setfilter */
-static const struct ng_parse_struct_field ng_etf_filter_type_fields[]
-	= NG_ETF_FILTER_TYPE_INFO;
-static const struct ng_parse_type ng_etf_filter_type = {
-	&ng_parse_struct_type,
-	&ng_etf_filter_type_fields
-};
+static const struct ng_parse_struct_field ng_etf_filter_type_fields[] =
+    NG_ETF_FILTER_TYPE_INFO;
+static const struct ng_parse_type ng_etf_filter_type = { &ng_parse_struct_type,
+	&ng_etf_filter_type_fields };
 
 /* List of commands and how to convert arguments to/from ASCII */
-static const struct ng_cmdlist ng_etf_cmdlist[] = {
-	{
-	  NGM_ETF_COOKIE,
-	  NGM_ETF_GET_STATUS,
-	  "getstatus",
-	  NULL,
-	  &ng_etf_stat_type,
-	},
-	{
-	  NGM_ETF_COOKIE,
-	  NGM_ETF_SET_FLAG,
-	  "setflag",
-	  &ng_parse_int32_type,
-	  NULL
-	},
-	{
-	  NGM_ETF_COOKIE,
-	  NGM_ETF_SET_FILTER,
-	  "setfilter",
-	  &ng_etf_filter_type,
-	  NULL
-	},
-	{ 0 }
-};
+static const struct ng_cmdlist ng_etf_cmdlist[] = { {
+							NGM_ETF_COOKIE,
+							NGM_ETF_GET_STATUS,
+							"getstatus",
+							NULL,
+							&ng_etf_stat_type,
+						    },
+	{ NGM_ETF_COOKIE, NGM_ETF_SET_FLAG, "setflag", &ng_parse_int32_type,
+	    NULL },
+	{ NGM_ETF_COOKIE, NGM_ETF_SET_FILTER, "setfilter", &ng_etf_filter_type,
+	    NULL },
+	{ 0 } };
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_ETF_NODE_TYPE,
-	.constructor =	ng_etf_constructor,
-	.rcvmsg =	ng_etf_rcvmsg,
-	.shutdown =	ng_etf_shutdown,
-	.newhook =	ng_etf_newhook,
-	.rcvdata =	ng_etf_rcvdata,
-	.disconnect =	ng_etf_disconnect,
-	.cmdlist =	ng_etf_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_ETF_NODE_TYPE,
+	.constructor = ng_etf_constructor,
+	.rcvmsg = ng_etf_rcvmsg,
+	.shutdown = ng_etf_shutdown,
+	.newhook = ng_etf_newhook,
+	.rcvdata = ng_etf_rcvdata,
+	.disconnect = ng_etf_disconnect,
+	.cmdlist = ng_etf_cmdlist,
 };
 NETGRAPH_INIT(etf, &typestruct);
 
 /* Information we store for each hook on each node */
 struct ETF_hookinfo {
-	hook_p  hook;
+	hook_p hook;
 };
 
 struct filter {
 	LIST_ENTRY(filter) next;
-	u_int16_t	ethertype;	/* network order ethertype */
-	hook_p		match_hook;	/* Hook to use on a match */
+	u_int16_t ethertype; /* network order ethertype */
+	hook_p match_hook;   /* Hook to use on a match */
 };
 
 #define HASHSIZE 16 /* Dont change this without changing HASH() */
-#define HASH(et) ((((et)>>12)+((et)>>8)+((et)>>4)+(et)) & 0x0f)
+#define HASH(et) ((((et) >> 12) + ((et) >> 8) + ((et) >> 4) + (et)) & 0x0f)
 LIST_HEAD(filterhead, filter);
 
 /* Information we store for each node */
 struct ETF {
 	struct ETF_hookinfo downstream_hook;
 	struct ETF_hookinfo nomatch_hook;
-	node_p		node;		/* back pointer to node */
-	u_int   	packets_in;	/* packets in from downstream */
-	u_int   	packets_out;	/* packets out towards downstream */
-	u_int32_t	flags;
+	node_p node;	   /* back pointer to node */
+	u_int packets_in;  /* packets in from downstream */
+	u_int packets_out; /* packets out towards downstream */
+	u_int32_t flags;
 	struct filterhead hashtable[HASHSIZE];
 };
 typedef struct ETF *etf_p;
@@ -160,7 +143,7 @@ ng_etf_findentry(etf_p etfp, u_int16_t ethertype)
 	struct filterhead *chain = etfp->hashtable + HASH(ethertype);
 	struct filter *fil;
 
-	LIST_FOREACH(fil, chain, next) {
+	LIST_FOREACH (fil, chain, next) {
 		if (fil->ethertype == ethertype) {
 			return (fil);
 		}
@@ -214,8 +197,8 @@ ng_etf_newhook(node_p node, hook_p hook, const char *name)
 		 * Any other hook name is valid and can
 		 * later be associated with a filter rule.
 		 */
-		hpriv = malloc(sizeof(*hpriv),
-			M_NETGRAPH_ETF, M_NOWAIT | M_ZERO);
+		hpriv = malloc(
+		    sizeof(*hpriv), M_NETGRAPH_ETF, M_NOWAIT | M_ZERO);
 		if (hpriv == NULL) {
 			return (ENOMEM);
 		}
@@ -223,7 +206,7 @@ ng_etf_newhook(node_p node, hook_p hook, const char *name)
 		NG_HOOK_SET_PRIVATE(hook, hpriv);
 		hpriv->hook = hook;
 	}
-	return(0);
+	return (0);
 }
 
 /*
@@ -254,10 +237,9 @@ ng_etf_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	NGI_GET_MSG(item, msg);
 	/* Deal with message according to cookie and command */
 	switch (msg->header.typecookie) {
-	case NGM_ETF_COOKIE: 
+	case NGM_ETF_COOKIE:
 		switch (msg->header.cmd) {
-		case NGM_ETF_GET_STATUS:
-		    {
+		case NGM_ETF_GET_STATUS: {
 			struct ng_etfstat *stats;
 
 			NG_MKRESPONSE(resp, msg, sizeof(*stats), M_NOWAIT);
@@ -265,76 +247,72 @@ ng_etf_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 				break;
 			}
-			stats = (struct ng_etfstat *) resp->data;
+			stats = (struct ng_etfstat *)resp->data;
 			stats->packets_in = etfp->packets_in;
 			stats->packets_out = etfp->packets_out;
 			break;
-		    }
+		}
 		case NGM_ETF_SET_FLAG:
 			if (msg->header.arglen != sizeof(u_int32_t)) {
 				error = EINVAL;
 				break;
 			}
-			etfp->flags = *((u_int32_t *) msg->data);
+			etfp->flags = *((u_int32_t *)msg->data);
 			break;
-		case NGM_ETF_SET_FILTER:
-			{
-				struct ng_etffilter *f;
-				struct filter *fil;
-				hook_p  hook;
+		case NGM_ETF_SET_FILTER: {
+			struct ng_etffilter *f;
+			struct filter *fil;
+			hook_p hook;
 
-				/* Check message long enough for this command */
-				if (msg->header.arglen != sizeof(*f)) {
-					error = EINVAL;
-					break;
-				}
-
-				/* Make sure hook referenced exists */
-				f = (struct ng_etffilter *)msg->data;
-				hook = ng_findhook(node, f->matchhook);
-				if (hook == NULL) {
-					error = ENOENT;
-					break;
-				}
-
-				/* and is not the downstream hook */
-				if (hook == etfp->downstream_hook.hook) {
-					error = EINVAL;
-					break;
-				}
-
-				/* Check we don't already trap this ethertype */
-				if (ng_etf_findentry(etfp,
-						htons(f->ethertype))) {
-					error = EEXIST;
-					break;
-				}
-
-				/*
-				 * Ok, make the filter and put it in the 
-				 * hashtable ready for matching.
-				 */
-				fil = malloc(sizeof(*fil),
-					M_NETGRAPH_ETF, M_NOWAIT | M_ZERO);
-				if (fil == NULL) {
-					error = ENOMEM;
-					break;
-				}
-
-				fil->match_hook = hook;
-				fil->ethertype = htons(f->ethertype);
-				LIST_INSERT_HEAD( etfp->hashtable
-					+ HASH(fil->ethertype),
-						fil, next);
+			/* Check message long enough for this command */
+			if (msg->header.arglen != sizeof(*f)) {
+				error = EINVAL;
+				break;
 			}
-			break;
+
+			/* Make sure hook referenced exists */
+			f = (struct ng_etffilter *)msg->data;
+			hook = ng_findhook(node, f->matchhook);
+			if (hook == NULL) {
+				error = ENOENT;
+				break;
+			}
+
+			/* and is not the downstream hook */
+			if (hook == etfp->downstream_hook.hook) {
+				error = EINVAL;
+				break;
+			}
+
+			/* Check we don't already trap this ethertype */
+			if (ng_etf_findentry(etfp, htons(f->ethertype))) {
+				error = EEXIST;
+				break;
+			}
+
+			/*
+			 * Ok, make the filter and put it in the
+			 * hashtable ready for matching.
+			 */
+			fil = malloc(
+			    sizeof(*fil), M_NETGRAPH_ETF, M_NOWAIT | M_ZERO);
+			if (fil == NULL) {
+				error = ENOMEM;
+				break;
+			}
+
+			fil->match_hook = hook;
+			fil->ethertype = htons(f->ethertype);
+			LIST_INSERT_HEAD(
+			    etfp->hashtable + HASH(fil->ethertype), fil, next);
+		} break;
 		default:
-			error = EINVAL;		/* unknown command */
+			error = EINVAL; /* unknown command */
 			break;
 		}
 		break;
 	default:
-		error = EINVAL;			/* unknown cookie type */
+		error = EINVAL; /* unknown cookie type */
 		break;
 	}
 
@@ -342,7 +320,7 @@ ng_etf_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	NG_RESPOND_MSG(error, node, item, resp);
 	/* Free the message and return */
 	NG_FREE_MSG(msg);
-	return(error);
+	return (error);
 }
 
 /*
@@ -358,10 +336,10 @@ ng_etf_rcvmsg(node_p node, item_p item, hook_p lasthook)
  * If we want, we may decide to force this data to be queued and reprocessed
  * at the netgraph NETISR time.
  * We would do that by setting the HK_QUEUE flag on our hook. We would do that
- * in the connect() method. 
+ * in the connect() method.
  */
 static int
-ng_etf_rcvdata(hook_p hook, item_p item )
+ng_etf_rcvdata(hook_p hook, item_p item)
 {
 	const etf_p etfp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct ether_header *eh;
@@ -374,7 +352,7 @@ ng_etf_rcvdata(hook_p hook, item_p item )
 		NG_FREE_ITEM(item);
 	}
 
-	/* 
+	/*
 	 * Everything not from the downstream hook goes to the
 	 * downstream hook. But only if it matches the ethertype
 	 * of the source hook. Un matching must go to/from 'nomatch'.
@@ -382,11 +360,11 @@ ng_etf_rcvdata(hook_p hook, item_p item )
 
 	/* Make sure we have an entire header */
 	NGI_GET_M(item, m);
-	if (m->m_len < sizeof(*eh) ) {
+	if (m->m_len < sizeof(*eh)) {
 		m = m_pullup(m, sizeof(*eh));
 		if (m == NULL) {
 			NG_FREE_ITEM(item);
-			return(EINVAL);
+			return (EINVAL);
 		}
 	}
 
@@ -403,22 +381,23 @@ ng_etf_rcvdata(hook_p hook, item_p item )
 		if (fil && fil->match_hook) {
 			NG_FWD_NEW_DATA(error, item, fil->match_hook, m);
 		} else {
-			NG_FWD_NEW_DATA(error, item,etfp->nomatch_hook.hook, m);
+			NG_FWD_NEW_DATA(
+			    error, item, etfp->nomatch_hook.hook, m);
 		}
 	} else {
-		/* 
+		/*
 		 * It must be heading towards the downstream.
-		 * Check that it's ethertype matches 
+		 * Check that it's ethertype matches
 		 * the filters for it's input hook.
 		 * If it doesn't have one, check it's from nomatch.
 		 */
-		if ((fil && (fil->match_hook != hook))
-		|| ((fil == NULL) && (hook != etfp->nomatch_hook.hook))) {
+		if ((fil && (fil->match_hook != hook)) ||
+		    ((fil == NULL) && (hook != etfp->nomatch_hook.hook))) {
 			NG_FREE_ITEM(item);
 			NG_FREE_M(m);
 			return (EPROTOTYPE);
 		}
-		NG_FWD_NEW_DATA( error, item, etfp->downstream_hook.hook, m);
+		NG_FWD_NEW_DATA(error, item, etfp->downstream_hook.hook, m);
 		if (error == 0) {
 			etfp->packets_out++;
 		}
@@ -465,7 +444,7 @@ ng_etf_disconnect(hook_p hook)
 			fil1 = fil2;
 		}
 	}
-		
+
 	/* If it's not one of the special hooks, then free it */
 	if (hook == etfp->downstream_hook.hook) {
 		etfp->downstream_hook.hook = NULL;
@@ -478,8 +457,8 @@ ng_etf_disconnect(hook_p hook)
 
 	NG_HOOK_SET_PRIVATE(hook, NULL);
 
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) /* already shutting down? */
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
+	    (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) /* already shutting down? */
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }

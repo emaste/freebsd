@@ -32,19 +32,17 @@
 
 #include <linux/fs.h>
 #include <linux/seq_file.h>
-
 #include <linux/types.h>
 
 void debugfs_remove(struct dentry *dentry);
 
 struct dentry *debugfs_create_file(const char *name, umode_t mode,
-				   struct dentry *parent, void *data,
-				   const struct file_operations *fops);
+    struct dentry *parent, void *data, const struct file_operations *fops);
 
 struct dentry *debugfs_create_dir(const char *name, struct dentry *parent);
 
-struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
-				      const char *dest);
+struct dentry *debugfs_create_symlink(
+    const char *name, struct dentry *parent, const char *dest);
 
 void debugfs_remove_recursive(struct dentry *dentry);
 

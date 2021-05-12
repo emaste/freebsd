@@ -54,8 +54,8 @@ hash_mflags(int flags)
  * General routine to allocate a hash table with control of memory flags.
  */
 void *
-hashinit_flags(int elements, struct malloc_type *type, u_long *hashmask,
-    int flags)
+hashinit_flags(
+    int elements, struct malloc_type *type, u_long *hashmask, int flags)
 {
 	long hashsize, i;
 	LIST_HEAD(generic, generic) *hashtbl;
@@ -69,8 +69,8 @@ hashinit_flags(int elements, struct malloc_type *type, u_long *hashmask,
 		continue;
 	hashsize >>= 1;
 
-	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), type,
-	    hash_mflags(flags));
+	hashtbl = malloc(
+	    (u_long)hashsize * sizeof(*hashtbl), type, hash_mflags(flags));
 	if (hashtbl != NULL) {
 		for (i = 0; i < hashsize; i++)
 			LIST_INIT(&hashtbl[i]);
@@ -96,22 +96,25 @@ hashdestroy(void *vhashtbl, struct malloc_type *type, u_long hashmask)
 
 	hashtbl = vhashtbl;
 	for (hp = hashtbl; hp <= &hashtbl[hashmask]; hp++)
-		KASSERT(LIST_EMPTY(hp), ("%s: hashtbl %p not empty "
-		    "(malloc type %s)", __func__, hashtbl, type->ks_shortdesc));
+		KASSERT(LIST_EMPTY(hp),
+		    ("%s: hashtbl %p not empty "
+		     "(malloc type %s)",
+			__func__, hashtbl, type->ks_shortdesc));
 	free(hashtbl, type);
 }
 
 static const int primes[] = { 1, 13, 31, 61, 127, 251, 509, 761, 1021, 1531,
-			2039, 2557, 3067, 3583, 4093, 4603, 5119, 5623, 6143,
-			6653, 7159, 7673, 8191, 12281, 16381, 24571, 32749 };
-#define	NPRIMES nitems(primes)
+	2039, 2557, 3067, 3583, 4093, 4603, 5119, 5623, 6143, 6653, 7159, 7673,
+	8191, 12281, 16381, 24571, 32749 };
+#define NPRIMES nitems(primes)
 
 /*
  * General routine to allocate a prime number sized hash table with control of
  * memory flags.
  */
 void *
-phashinit_flags(int elements, struct malloc_type *type, u_long *nentries, int flags)
+phashinit_flags(
+    int elements, struct malloc_type *type, u_long *nentries, int flags)
 {
 	long hashsize, i;
 	LIST_HEAD(generic, generic) *hashtbl;
@@ -129,8 +132,8 @@ phashinit_flags(int elements, struct malloc_type *type, u_long *nentries, int fl
 	}
 	hashsize = primes[i - 1];
 
-	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), type,
-	    hash_mflags(flags));
+	hashtbl = malloc(
+	    (u_long)hashsize * sizeof(*hashtbl), type, hash_mflags(flags));
 	if (hashtbl == NULL)
 		return (NULL);
 

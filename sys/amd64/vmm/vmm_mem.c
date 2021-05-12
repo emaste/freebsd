@@ -33,18 +33,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/sglist.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/rwlock.h>
+#include <sys/sglist.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
 
 #include <machine/md_var.h>
 
@@ -58,8 +58,8 @@ vmm_mem_init(void)
 }
 
 vm_object_t
-vmm_mmio_alloc(struct vmspace *vmspace, vm_paddr_t gpa, size_t len,
-	       vm_paddr_t hpa)
+vmm_mmio_alloc(
+    struct vmspace *vmspace, vm_paddr_t gpa, size_t len, vm_paddr_t hpa)
 {
 	int error;
 	vm_object_t obj;
@@ -83,10 +83,10 @@ vmm_mmio_alloc(struct vmspace *vmspace, vm_paddr_t gpa, size_t len,
 		VM_OBJECT_WUNLOCK(obj);
 		if (error != KERN_SUCCESS) {
 			panic("vmm_mmio_alloc: vm_object_set_memattr error %d",
-				error);
+			    error);
 		}
 		error = vm_map_find(&vmspace->vm_map, obj, 0, &gpa, len, 0,
-				    VMFS_NO_SPACE, VM_PROT_RW, VM_PROT_RW, 0);
+		    VMFS_NO_SPACE, VM_PROT_RW, VM_PROT_RW, 0);
 		if (error != KERN_SUCCESS) {
 			vm_object_deallocate(obj);
 			obj = NULL;
@@ -100,7 +100,7 @@ vmm_mmio_alloc(struct vmspace *vmspace, vm_paddr_t gpa, size_t len,
 	 * has incremented the reference count on the sglist. Dropping the
 	 * initial reference count ensures that the sglist will be freed
 	 * when the object is deallocated.
-	 * 
+	 *
 	 * If the object could not be allocated then we end up freeing the
 	 * sglist.
 	 */

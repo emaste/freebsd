@@ -38,16 +38,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mbuf.h>
 #include <sys/md5.h>
+#include <sys/module.h>
+#include <sys/protosw.h>
 #include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/sockopt.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/protosw.h>
 
+#include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
@@ -55,9 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
-
-#include <net/vnet.h>
-
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec_support.h>
 #include <netipsec/xform.h>
@@ -70,9 +68,9 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/key.h>
 #include <netipsec/key_debug.h>
 
-#define	TCP_SIGLEN	16	/* length of computed digest in bytes */
-#define	TCP_KEYLEN_MIN	1	/* minimum length of TCP-MD5 key */
-#define	TCP_KEYLEN_MAX	80	/* maximum length of TCP-MD5 key */
+#define TCP_SIGLEN 16 /* length of computed digest in bytes */
+#define TCP_KEYLEN_MIN 1 /* minimum length of TCP-MD5 key */
+#define TCP_KEYLEN_MAX 80 /* maximum length of TCP-MD5 key */
 
 static int
 tcp_ipsec_pcbctl(struct inpcb *inp, struct sockopt *sopt)
@@ -170,15 +168,15 @@ ip6_pseudo_compute(struct mbuf *m, MD5_CTX *ctx)
 #endif
 
 static int
-tcp_signature_compute(struct mbuf *m, struct tcphdr *th,
-    struct secasvar *sav, u_char *buf)
+tcp_signature_compute(
+    struct mbuf *m, struct tcphdr *th, struct secasvar *sav, u_char *buf)
 {
 	MD5_CTX ctx;
 	int len;
 	u_short csum;
 
 	MD5Init(&ctx);
-	 /* Step 1: Update MD5 hash with IP(v6) pseudo-header. */
+	/* Step 1: Update MD5 hash with IP(v6) pseudo-header. */
 	switch (sav->sah->saidx.dst.sa.sa_family) {
 #ifdef INET
 	case AF_INET:
@@ -207,8 +205,8 @@ tcp_signature_compute(struct mbuf *m, struct tcphdr *th,
 	 */
 	len += (th->th_off << 2);
 	if (m->m_pkthdr.len - len > 0)
-		m_apply(m, len, m->m_pkthdr.len - len,
-		    tcp_signature_apply, &ctx);
+		m_apply(
+		    m, len, m->m_pkthdr.len - len, tcp_signature_apply, &ctx);
 	/*
 	 * Step 4: Update MD5 hash with shared secret.
 	 */
@@ -219,8 +217,8 @@ tcp_signature_compute(struct mbuf *m, struct tcphdr *th,
 }
 
 static void
-setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
-    union sockaddr_union *dst)
+setsockaddrs(
+    const struct mbuf *m, union sockaddr_union *src, union sockaddr_union *dst)
 {
 	struct ip *ip;
 
@@ -367,10 +365,10 @@ tcpsignature_cleanup(struct secasvar *sav)
 }
 
 static struct xformsw tcpsignature_xformsw = {
-	.xf_type =	XF_TCPSIGNATURE,
-	.xf_name =	"TCP-MD5",
-	.xf_init =	tcpsignature_init,
-	.xf_cleanup =	tcpsignature_cleanup,
+	.xf_type = XF_TCPSIGNATURE,
+	.xf_name = "TCP-MD5",
+	.xf_init = tcpsignature_init,
+	.xf_cleanup = tcpsignature_cleanup,
 };
 
 static const struct tcpmd5_methods tcpmd5_methods = {
@@ -385,7 +383,7 @@ static const struct tcpmd5_support tcpmd5_ipsec = {
 	.enabled = IPSEC_MODULE_ENABLED,
 	.methods = &tcpmd5_methods
 };
-const struct tcpmd5_support * const tcp_ipsec_support = &tcpmd5_ipsec;
+const struct tcpmd5_support *const tcp_ipsec_support = &tcpmd5_ipsec;
 #endif /* !KLD_MODULE */
 
 static int
@@ -411,11 +409,7 @@ tcpmd5_modevent(module_t mod, int type, void *data)
 	return (0);
 }
 
-static moduledata_t tcpmd5_mod = {
-	"tcpmd5",
-	tcpmd5_modevent,
-	0
-};
+static moduledata_t tcpmd5_mod = { "tcpmd5", tcpmd5_modevent, 0 };
 
 DECLARE_MODULE(tcpmd5, tcpmd5_mod, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);
 MODULE_VERSION(tcpmd5, 1);

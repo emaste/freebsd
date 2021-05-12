@@ -46,13 +46,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/loginclass.h>
 #include <sys/malloc.h>
-#include <sys/types.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
@@ -61,11 +62,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/refcount.h>
 #include <sys/rwlock.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 
 static MALLOC_DEFINE(M_LOGINCLASS, "loginclass", "loginclass structures");
 
-LIST_HEAD(, loginclass)	loginclasses;
+LIST_HEAD(, loginclass) loginclasses;
 
 /*
  * Lock protecting loginclasses list.
@@ -111,7 +111,7 @@ loginclass_lookup(const char *name)
 	struct loginclass *lc;
 
 	rw_assert(&loginclasses_lock, RA_LOCKED);
-	LIST_FOREACH(lc, &loginclasses, lc_next)
+	LIST_FOREACH (lc, &loginclasses, lc_next)
 		if (strcmp(name, lc->lc_name) == 0) {
 			loginclass_hold(lc);
 			break;
@@ -176,8 +176,8 @@ loginclass_find(const char *name)
  */
 #ifndef _SYS_SYSPROTO_H_
 struct getloginclass_args {
-	char	*namebuf;
-	size_t	namelen;
+	char *namebuf;
+	size_t namelen;
 };
 #endif
 /* ARGSUSED */
@@ -199,7 +199,7 @@ sys_getloginclass(struct thread *td, struct getloginclass_args *uap)
  */
 #ifndef _SYS_SYSPROTO_H_
 struct setloginclass_args {
-	const char	*namebuf;
+	const char *namebuf;
 };
 #endif
 /* ARGSUSED */
@@ -244,16 +244,16 @@ sys_setloginclass(struct thread *td, struct setloginclass_args *uap)
 }
 
 void
-loginclass_racct_foreach(void (*callback)(struct racct *racct,
-    void *arg2, void *arg3), void (*pre)(void), void (*post)(void),
-    void *arg2, void *arg3)
+loginclass_racct_foreach(
+    void (*callback)(struct racct *racct, void *arg2, void *arg3),
+    void (*pre)(void), void (*post)(void), void *arg2, void *arg3)
 {
 	struct loginclass *lc;
 
 	rw_rlock(&loginclasses_lock);
 	if (pre != NULL)
 		(pre)();
-	LIST_FOREACH(lc, &loginclasses, lc_next)
+	LIST_FOREACH (lc, &loginclasses, lc_next)
 		(callback)(lc->lc_racct, arg2, arg3);
 	if (post != NULL)
 		(post)();

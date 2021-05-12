@@ -44,55 +44,56 @@ __FBSDID("$FreeBSD$");
 
 #include <amd64/linux/linux.h>
 #include <amd64/linux/linux_proto.h>
+
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 
-#define	LINUX_PTRACE_TRACEME		0
-#define	LINUX_PTRACE_PEEKTEXT		1
-#define	LINUX_PTRACE_PEEKDATA		2
-#define	LINUX_PTRACE_PEEKUSER		3
-#define	LINUX_PTRACE_POKETEXT		4
-#define	LINUX_PTRACE_POKEDATA		5
-#define	LINUX_PTRACE_POKEUSER		6
-#define	LINUX_PTRACE_CONT		7
-#define	LINUX_PTRACE_KILL		8
-#define	LINUX_PTRACE_SINGLESTEP		9
-#define	LINUX_PTRACE_GETREGS		12
-#define	LINUX_PTRACE_SETREGS		13
-#define	LINUX_PTRACE_GETFPREGS		14
-#define	LINUX_PTRACE_SETFPREGS		15
-#define	LINUX_PTRACE_ATTACH		16
-#define	LINUX_PTRACE_DETACH		17
-#define	LINUX_PTRACE_SYSCALL		24
-#define	LINUX_PTRACE_SETOPTIONS		0x4200
-#define	LINUX_PTRACE_GETSIGINFO		0x4202
-#define	LINUX_PTRACE_GETREGSET		0x4204
-#define	LINUX_PTRACE_SEIZE		0x4206
-#define	LINUX_PTRACE_GET_SYSCALL_INFO	0x420e
+#define LINUX_PTRACE_TRACEME 0
+#define LINUX_PTRACE_PEEKTEXT 1
+#define LINUX_PTRACE_PEEKDATA 2
+#define LINUX_PTRACE_PEEKUSER 3
+#define LINUX_PTRACE_POKETEXT 4
+#define LINUX_PTRACE_POKEDATA 5
+#define LINUX_PTRACE_POKEUSER 6
+#define LINUX_PTRACE_CONT 7
+#define LINUX_PTRACE_KILL 8
+#define LINUX_PTRACE_SINGLESTEP 9
+#define LINUX_PTRACE_GETREGS 12
+#define LINUX_PTRACE_SETREGS 13
+#define LINUX_PTRACE_GETFPREGS 14
+#define LINUX_PTRACE_SETFPREGS 15
+#define LINUX_PTRACE_ATTACH 16
+#define LINUX_PTRACE_DETACH 17
+#define LINUX_PTRACE_SYSCALL 24
+#define LINUX_PTRACE_SETOPTIONS 0x4200
+#define LINUX_PTRACE_GETSIGINFO 0x4202
+#define LINUX_PTRACE_GETREGSET 0x4204
+#define LINUX_PTRACE_SEIZE 0x4206
+#define LINUX_PTRACE_GET_SYSCALL_INFO 0x420e
 
-#define	LINUX_PTRACE_EVENT_EXIT		6
+#define LINUX_PTRACE_EVENT_EXIT 6
 
-#define	LINUX_PTRACE_O_TRACESYSGOOD	1
-#define	LINUX_PTRACE_O_TRACEFORK	2
-#define	LINUX_PTRACE_O_TRACEVFORK	4
-#define	LINUX_PTRACE_O_TRACECLONE	8
-#define	LINUX_PTRACE_O_TRACEEXEC	16
-#define	LINUX_PTRACE_O_TRACEVFORKDONE	32
-#define	LINUX_PTRACE_O_TRACEEXIT	64
-#define	LINUX_PTRACE_O_TRACESECCOMP	128
-#define	LINUX_PTRACE_O_EXITKILL		1048576
-#define	LINUX_PTRACE_O_SUSPEND_SECCOMP	2097152
+#define LINUX_PTRACE_O_TRACESYSGOOD 1
+#define LINUX_PTRACE_O_TRACEFORK 2
+#define LINUX_PTRACE_O_TRACEVFORK 4
+#define LINUX_PTRACE_O_TRACECLONE 8
+#define LINUX_PTRACE_O_TRACEEXEC 16
+#define LINUX_PTRACE_O_TRACEVFORKDONE 32
+#define LINUX_PTRACE_O_TRACEEXIT 64
+#define LINUX_PTRACE_O_TRACESECCOMP 128
+#define LINUX_PTRACE_O_EXITKILL 1048576
+#define LINUX_PTRACE_O_SUSPEND_SECCOMP 2097152
 
-#define	LINUX_NT_PRSTATUS		1
+#define LINUX_NT_PRSTATUS 1
 
-#define	LINUX_PTRACE_O_MASK	(LINUX_PTRACE_O_TRACESYSGOOD |	\
-    LINUX_PTRACE_O_TRACEFORK | LINUX_PTRACE_O_TRACEVFORK |	\
-    LINUX_PTRACE_O_TRACECLONE | LINUX_PTRACE_O_TRACEEXEC |	\
-    LINUX_PTRACE_O_TRACEVFORKDONE | LINUX_PTRACE_O_TRACEEXIT |	\
-    LINUX_PTRACE_O_TRACESECCOMP | LINUX_PTRACE_O_EXITKILL |	\
-    LINUX_PTRACE_O_SUSPEND_SECCOMP)
+#define LINUX_PTRACE_O_MASK                                            \
+	(LINUX_PTRACE_O_TRACESYSGOOD | LINUX_PTRACE_O_TRACEFORK |      \
+	    LINUX_PTRACE_O_TRACEVFORK | LINUX_PTRACE_O_TRACECLONE |    \
+	    LINUX_PTRACE_O_TRACEEXEC | LINUX_PTRACE_O_TRACEVFORKDONE | \
+	    LINUX_PTRACE_O_TRACEEXIT | LINUX_PTRACE_O_TRACESECCOMP |   \
+	    LINUX_PTRACE_O_EXITKILL | LINUX_PTRACE_O_SUSPEND_SECCOMP)
 
 static int
 map_signum(int lsig, int *bsigp)
@@ -150,51 +151,51 @@ linux_ptrace_status(struct thread *td, pid_t pid, int status)
 }
 
 struct linux_pt_reg {
-	l_ulong	r15;
-	l_ulong	r14;
-	l_ulong	r13;
-	l_ulong	r12;
-	l_ulong	rbp;
-	l_ulong	rbx;
-	l_ulong	r11;
-	l_ulong	r10;
-	l_ulong	r9;
-	l_ulong	r8;
-	l_ulong	rax;
-	l_ulong	rcx;
-	l_ulong	rdx;
-	l_ulong	rsi;
-	l_ulong	rdi;
-	l_ulong	orig_rax;
-	l_ulong	rip;
-	l_ulong	cs;
-	l_ulong	eflags;
-	l_ulong	rsp;
-	l_ulong	ss;
+	l_ulong r15;
+	l_ulong r14;
+	l_ulong r13;
+	l_ulong r12;
+	l_ulong rbp;
+	l_ulong rbx;
+	l_ulong r11;
+	l_ulong r10;
+	l_ulong r9;
+	l_ulong r8;
+	l_ulong rax;
+	l_ulong rcx;
+	l_ulong rdx;
+	l_ulong rsi;
+	l_ulong rdi;
+	l_ulong orig_rax;
+	l_ulong rip;
+	l_ulong cs;
+	l_ulong eflags;
+	l_ulong rsp;
+	l_ulong ss;
 };
 
 struct linux_pt_regset {
-	l_ulong	r15;
-	l_ulong	r14;
-	l_ulong	r13;
-	l_ulong	r12;
-	l_ulong	rbp;
-	l_ulong	rbx;
-	l_ulong	r11;
-	l_ulong	r10;
-	l_ulong	r9;
-	l_ulong	r8;
-	l_ulong	rax;
-	l_ulong	rcx;
-	l_ulong	rdx;
-	l_ulong	rsi;
-	l_ulong	rdi;
-	l_ulong	orig_rax;
-	l_ulong	rip;
-	l_ulong	cs;
-	l_ulong	eflags;
-	l_ulong	rsp;
-	l_ulong	ss;
+	l_ulong r15;
+	l_ulong r14;
+	l_ulong r13;
+	l_ulong r12;
+	l_ulong rbp;
+	l_ulong rbx;
+	l_ulong r11;
+	l_ulong r10;
+	l_ulong r9;
+	l_ulong r8;
+	l_ulong rax;
+	l_ulong rcx;
+	l_ulong rdx;
+	l_ulong rsi;
+	l_ulong rdi;
+	l_ulong orig_rax;
+	l_ulong rip;
+	l_ulong cs;
+	l_ulong eflags;
+	l_ulong rsp;
+	l_ulong ss;
 	l_ulong fs_base;
 	l_ulong gs_base;
 	l_ulong ds;
@@ -345,7 +346,8 @@ linux_ptrace_setoptions(struct thread *td, pid_t pid, l_ulong data)
 	mask = 0;
 
 	if (data & ~LINUX_PTRACE_O_MASK) {
-		linux_msg(td, "unknown ptrace option %lx set; "
+		linux_msg(td,
+		    "unknown ptrace option %lx set; "
 		    "returning EINVAL",
 		    data & ~LINUX_PTRACE_O_MASK);
 		return (EINVAL);
@@ -545,8 +547,10 @@ linux_ptrace_getregset(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 	case LINUX_NT_PRSTATUS:
 		return (linux_ptrace_getregset_prstatus(td, pid, data));
 	default:
-		linux_msg(td, "PTRACE_GETREGSET request %ld not implemented; "
-		    "returning EINVAL", addr);
+		linux_msg(td,
+		    "PTRACE_GETREGSET request %ld not implemented; "
+		    "returning EINVAL",
+		    addr);
 		return (EINVAL);
 	}
 }
@@ -560,10 +564,12 @@ linux_ptrace_seize(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 }
 
 static int
-linux_ptrace_get_syscall_info(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
+linux_ptrace_get_syscall_info(
+    struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 {
 
-	linux_msg(td, "PTRACE_GET_SYSCALL_INFO not implemented; returning EINVAL");
+	linux_msg(
+	    td, "PTRACE_GET_SYSCALL_INFO not implemented; returning EINVAL");
 	return (EINVAL);
 }
 
@@ -574,7 +580,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 	pid_t pid;
 	int error, sig;
 
-	pid  = (pid_t)uap->pid;
+	pid = (pid_t)uap->pid;
 	addr = (void *)uap->addr;
 
 	switch (uap->req) {
@@ -589,8 +595,8 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		/*
 		 * Linux expects this syscall to read 64 bits, not 32.
 		 */
-		error = linux_ptrace_peek(td, pid,
-		    (void *)(uap->addr + 4), (void *)(uap->data + 4));
+		error = linux_ptrace_peek(
+		    td, pid, (void *)(uap->addr + 4), (void *)(uap->data + 4));
 		break;
 	case LINUX_PTRACE_PEEKUSER:
 		error = linux_ptrace_peekuser(td, pid, addr, (void *)uap->data);
@@ -658,11 +664,14 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		error = linux_ptrace_seize(td, pid, uap->addr, uap->data);
 		break;
 	case LINUX_PTRACE_GET_SYSCALL_INFO:
-		error = linux_ptrace_get_syscall_info(td, pid, uap->addr, uap->data);
+		error = linux_ptrace_get_syscall_info(
+		    td, pid, uap->addr, uap->data);
 		break;
 	default:
-		linux_msg(td, "ptrace(%ld, ...) not implemented; "
-		    "returning EINVAL", uap->req);
+		linux_msg(td,
+		    "ptrace(%ld, ...) not implemented; "
+		    "returning EINVAL",
+		    uap->req);
 		error = EINVAL;
 		break;
 	}

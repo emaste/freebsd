@@ -36,11 +36,11 @@
 #include <sys/systm.h>
 #else
 #include <stdbool.h>
-#define	KASSERT(exp, msg)	/* */
+#define KASSERT(exp, msg) /* */
 #endif
 
-#define	REFCOUNT_SATURATED(val)		(((val) & (1U << 31)) != 0)
-#define	REFCOUNT_SATURATION_VALUE	(3U << 30)
+#define REFCOUNT_SATURATED(val) (((val) & (1U << 31)) != 0)
+#define REFCOUNT_SATURATION_VALUE (3U << 30)
 
 /*
  * Attempt to handle reference count overflow and underflow.  Force the counter
@@ -107,8 +107,8 @@ refcount_acquire_checked(volatile u_int *count)
 	for (;;) {
 		if (__predict_false(REFCOUNT_SATURATED(old + 1)))
 			return (false);
-		if (__predict_true(atomic_fcmpset_int(count, &old,
-		    old + 1) == 1))
+		if (__predict_true(
+			atomic_fcmpset_int(count, &old, old + 1) == 1))
 			return (true);
 	}
 }
@@ -174,28 +174,27 @@ refcount_release(volatile u_int *count)
 	return (refcount_releasen(count, 1));
 }
 
-#define	_refcount_release_if_cond(cond, name)				\
-static __inline __result_use_check bool					\
-_refcount_release_if_##name(volatile u_int *count, u_int n)		\
-{									\
-	u_int old;							\
-									\
-	KASSERT(n > 0, ("%s: zero increment", __func__));		\
-	old = atomic_load_int(count);					\
-	for (;;) {							\
-		if (!(cond))						\
-			return (false);					\
-		if (__predict_false(REFCOUNT_SATURATED(old)))		\
-			return (false);					\
-		if (atomic_fcmpset_rel_int(count, &old, old - 1))	\
-			return (true);					\
-	}								\
-}
-_refcount_release_if_cond(old > n, gt)
-_refcount_release_if_cond(old == n, eq)
+#define _refcount_release_if_cond(cond, name)                                \
+	static __inline __result_use_check bool _refcount_release_if_##name( \
+	    volatile u_int *count, u_int n)                                  \
+	{                                                                    \
+		u_int old;                                                   \
+                                                                             \
+		KASSERT(n > 0, ("%s: zero increment", __func__));            \
+		old = atomic_load_int(count);                                \
+		for (;;) {                                                   \
+			if (!(cond))                                         \
+				return (false);                              \
+			if (__predict_false(REFCOUNT_SATURATED(old)))        \
+				return (false);                              \
+			if (atomic_fcmpset_rel_int(count, &old, old - 1))    \
+				return (true);                               \
+		}                                                            \
+	}
+_refcount_release_if_cond(old > n, gt) _refcount_release_if_cond(old == n, eq)
 
-static __inline __result_use_check bool
-refcount_release_if_gt(volatile u_int *count, u_int n)
+    static __inline __result_use_check
+    bool refcount_release_if_gt(volatile u_int *count, u_int n)
 {
 
 	return (_refcount_release_if_gt(count, n));

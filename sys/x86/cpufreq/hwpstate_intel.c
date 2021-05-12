@@ -29,76 +29,76 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/sbuf.h>
-#include <sys/module.h>
-#include <sys/systm.h>
-#include <sys/errno.h>
 #include <sys/param.h>
-#include <sys/kernel.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>
-#include <sys/smp.h>
+#include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
 
 #include <machine/cpu.h>
-#include <machine/md_var.h>
 #include <machine/cputypes.h>
+#include <machine/md_var.h>
 #include <machine/specialreg.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
+#include <x86/cpufreq/hwpstate_intel_internal.h>
 
 #include <dev/acpica/acpivar.h>
 
-#include <x86/cpufreq/hwpstate_intel_internal.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
 #include "acpi_if.h"
 #include "cpufreq_if.h"
 
-extern uint64_t	tsc_freq;
+extern uint64_t tsc_freq;
 
-static int	intel_hwpstate_probe(device_t dev);
-static int	intel_hwpstate_attach(device_t dev);
-static int	intel_hwpstate_detach(device_t dev);
-static int	intel_hwpstate_suspend(device_t dev);
-static int	intel_hwpstate_resume(device_t dev);
+static int intel_hwpstate_probe(device_t dev);
+static int intel_hwpstate_attach(device_t dev);
+static int intel_hwpstate_detach(device_t dev);
+static int intel_hwpstate_suspend(device_t dev);
+static int intel_hwpstate_resume(device_t dev);
 
-static int      intel_hwpstate_get(device_t dev, struct cf_setting *cf);
-static int      intel_hwpstate_type(device_t dev, int *type);
+static int intel_hwpstate_get(device_t dev, struct cf_setting *cf);
+static int intel_hwpstate_type(device_t dev, int *type);
 
 static device_method_t intel_hwpstate_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	intel_hwpstate_identify),
-	DEVMETHOD(device_probe,		intel_hwpstate_probe),
-	DEVMETHOD(device_attach,	intel_hwpstate_attach),
-	DEVMETHOD(device_detach,	intel_hwpstate_detach),
-	DEVMETHOD(device_suspend,	intel_hwpstate_suspend),
-	DEVMETHOD(device_resume,	intel_hwpstate_resume),
+	DEVMETHOD(device_identify, intel_hwpstate_identify),
+	DEVMETHOD(device_probe, intel_hwpstate_probe),
+	DEVMETHOD(device_attach, intel_hwpstate_attach),
+	DEVMETHOD(device_detach, intel_hwpstate_detach),
+	DEVMETHOD(device_suspend, intel_hwpstate_suspend),
+	DEVMETHOD(device_resume, intel_hwpstate_resume),
 
 	/* cpufreq interface */
-	DEVMETHOD(cpufreq_drv_get,      intel_hwpstate_get),
-	DEVMETHOD(cpufreq_drv_type,     intel_hwpstate_type),
+	DEVMETHOD(cpufreq_drv_get, intel_hwpstate_get),
+	DEVMETHOD(cpufreq_drv_type, intel_hwpstate_type),
 
 	DEVMETHOD_END
 };
 
 struct hwp_softc {
-	device_t		dev;
-	bool 			hwp_notifications;
-	bool			hwp_activity_window;
-	bool			hwp_pref_ctrl;
-	bool			hwp_pkg_ctrl;
-	bool			hwp_pkg_ctrl_en;
-	bool			hwp_perf_bias;
-	bool			hwp_perf_bias_cached;
+	device_t dev;
+	bool hwp_notifications;
+	bool hwp_activity_window;
+	bool hwp_pref_ctrl;
+	bool hwp_pkg_ctrl;
+	bool hwp_pkg_ctrl_en;
+	bool hwp_perf_bias;
+	bool hwp_perf_bias_cached;
 
-	uint64_t		req; /* Cached copy of HWP_REQUEST */
-	uint64_t		hwp_energy_perf_bias;	/* Cache PERF_BIAS */
+	uint64_t req;		       /* Cached copy of HWP_REQUEST */
+	uint64_t hwp_energy_perf_bias; /* Cache PERF_BIAS */
 
-	uint8_t			high;
-	uint8_t			guaranteed;
-	uint8_t			efficient;
-	uint8_t			low;
+	uint8_t high;
+	uint8_t guaranteed;
+	uint8_t efficient;
+	uint8_t low;
 };
 
 static devclass_t hwpstate_intel_devclass;
@@ -117,8 +117,7 @@ SYSCTL_BOOL(_machdep, OID_AUTO, hwpstate_pkg_ctrl, CTLFLAG_RDTUN,
     &hwpstate_pkg_ctrl_enable, 0,
     "Set 1 (default) to enable package-level control, 0 to disable");
 
-static int
-intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
+static int intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev;
 	struct pcpu *pc;
@@ -151,8 +150,10 @@ intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 
 	rdmsr_safe(MSR_IA32_HWP_CAPABILITIES, &data);
 	sbuf_printf(sb, "\tHighest Performance: %03ju\n", data & 0xff);
-	sbuf_printf(sb, "\tGuaranteed Performance: %03ju\n", (data >> 8) & 0xff);
-	sbuf_printf(sb, "\tEfficient Performance: %03ju\n", (data >> 16) & 0xff);
+	sbuf_printf(
+	    sb, "\tGuaranteed Performance: %03ju\n", (data >> 8) & 0xff);
+	sbuf_printf(
+	    sb, "\tEfficient Performance: %03ju\n", (data >> 16) & 0xff);
 	sbuf_printf(sb, "\tLowest Performance: %03ju\n", (data >> 24) & 0xff);
 
 	rdmsr_safe(MSR_IA32_HWP_REQUEST, &data);
@@ -162,23 +163,24 @@ intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 
 	sbuf_putc(sb, '\n');
 
-#define pkg_print(x, name, offset) do {					\
-	if (!sc->hwp_pkg_ctrl || (data & x) != 0) 			\
-		sbuf_printf(sb, "\t%s: %03u\n", name,			\
-		    (unsigned)(data >> offset) & 0xff);			\
-	else								\
-		sbuf_printf(sb, "\t%s: %03u\n", name,			\
-		    (unsigned)(data2 >> offset) & 0xff);		\
-} while (0)
+#define pkg_print(x, name, offset)                               \
+	do {                                                     \
+		if (!sc->hwp_pkg_ctrl || (data & x) != 0)        \
+			sbuf_printf(sb, "\t%s: %03u\n", name,    \
+			    (unsigned)(data >> offset) & 0xff);  \
+		else                                             \
+			sbuf_printf(sb, "\t%s: %03u\n", name,    \
+			    (unsigned)(data2 >> offset) & 0xff); \
+	} while (0)
 
 	pkg_print(IA32_HWP_REQUEST_EPP_VALID,
 	    "Requested Efficiency Performance Preference", 24);
 	pkg_print(IA32_HWP_REQUEST_DESIRED_VALID,
 	    "Requested Desired Performance", 16);
-	pkg_print(IA32_HWP_REQUEST_MAXIMUM_VALID,
-	    "Requested Maximum Performance", 8);
-	pkg_print(IA32_HWP_REQUEST_MINIMUM_VALID,
-	    "Requested Minimum Performance", 0);
+	pkg_print(
+	    IA32_HWP_REQUEST_MAXIMUM_VALID, "Requested Maximum Performance", 8);
+	pkg_print(
+	    IA32_HWP_REQUEST_MINIMUM_VALID, "Requested Minimum Performance", 0);
 #undef pkg_print
 
 	sbuf_putc(sb, '\n');
@@ -244,8 +246,7 @@ raw_to_percent_perf_bias(int x)
 	return (((x * 20) / 0xf) * 5);
 }
 
-static int
-sysctl_epp_select(SYSCTL_HANDLER_ARGS)
+static int sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 {
 	struct hwp_softc *sc;
 	device_t dev;
@@ -268,7 +269,9 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	thread_unlock(curthread);
 
 	if (sc->hwp_pref_ctrl) {
-		val = (sc->req & IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) >> 24;
+		val = (sc->req &
+			  IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) >>
+		    24;
 		val = raw_to_percent(val);
 	} else {
 		/*
@@ -303,8 +306,9 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 		val = percent_to_raw(val);
 
 		sc->req =
-		    ((sc->req & ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE)
-		    | (val << 24u));
+		    ((sc->req &
+			 ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) |
+			(val << 24u));
 
 		if (sc->hwp_pkg_ctrl_en)
 			ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
@@ -316,9 +320,10 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 
 		sc->hwp_energy_perf_bias =
 		    ((sc->hwp_energy_perf_bias &
-		    ~IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK) | val);
-		ret = wrmsr_safe(MSR_IA32_ENERGY_PERF_BIAS,
-		    sc->hwp_energy_perf_bias);
+			 ~IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK) |
+			val);
+		ret = wrmsr_safe(
+		    MSR_IA32_ENERGY_PERF_BIAS, sc->hwp_energy_perf_bias);
 	}
 
 out:
@@ -431,18 +436,20 @@ set_autonomous_hwp(struct hwp_softc *sc)
 	/* enable HW dynamic selection of window size */
 	sc->req &= ~IA32_HWP_ACTIVITY_WINDOW;
 
-	/* IA32_HWP_REQUEST.Minimum_Performance = IA32_HWP_CAPABILITIES.Lowest_Performance */
+	/* IA32_HWP_REQUEST.Minimum_Performance =
+	 * IA32_HWP_CAPABILITIES.Lowest_Performance */
 	sc->req &= ~IA32_HWP_MINIMUM_PERFORMANCE;
 	sc->req |= sc->low;
 
-	/* IA32_HWP_REQUEST.Maximum_Performance = IA32_HWP_CAPABILITIES.Highest_Performance. */
+	/* IA32_HWP_REQUEST.Maximum_Performance =
+	 * IA32_HWP_CAPABILITIES.Highest_Performance. */
 	sc->req &= ~IA32_HWP_REQUEST_MAXIMUM_PERFORMANCE;
 	sc->req |= sc->high << 8;
 
 	/* If supported, request package-level control for this CPU. */
 	if (sc->hwp_pkg_ctrl_en)
-		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req |
-		    IA32_HWP_REQUEST_PACKAGE_CONTROL);
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST,
+		    sc->req | IA32_HWP_REQUEST_PACKAGE_CONTROL);
 	else
 		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
 	if (ret) {
@@ -462,8 +469,8 @@ set_autonomous_hwp(struct hwp_softc *sc)
 		 */
 		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
 		if (ret) {
-			device_printf(dev,
-			    "Failed to set autonomous HWP for package\n");
+			device_printf(
+			    dev, "Failed to set autonomous HWP for package\n");
 		}
 	}
 
@@ -507,12 +514,12 @@ intel_hwpstate_attach(device_t dev)
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_STATIC_CHILDREN(_debug), OID_AUTO, device_get_nameunit(dev),
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_NEEDGIANT,
-	    sc, 0, intel_hwp_dump_sysctl_handler, "A", "");
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_NEEDGIANT, sc,
+	    0, intel_hwp_dump_sysctl_handler, "A", "");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "epp", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, dev, 0,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "epp",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, dev, 0,
 	    sysctl_epp_select, "I",
 	    "Efficiency/Performance Preference "
 	    "(range from 0, most performant, through 100, most efficient)");
@@ -560,7 +567,8 @@ intel_hwpstate_type(device_t dev, int *type)
 {
 	if (type == NULL)
 		return (EINVAL);
-	*type = CPUFREQ_TYPE_ABSOLUTE | CPUFREQ_FLAG_INFO_ONLY | CPUFREQ_FLAG_UNCACHED;
+	*type = CPUFREQ_TYPE_ABSOLUTE | CPUFREQ_FLAG_INFO_ONLY |
+	    CPUFREQ_FLAG_UNCACHED;
 
 	return (0);
 }
@@ -601,8 +609,8 @@ intel_hwpstate_resume(device_t dev)
 	}
 
 	if (sc->hwp_pkg_ctrl_en)
-		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req |
-		    IA32_HWP_REQUEST_PACKAGE_CONTROL);
+		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST,
+		    sc->req | IA32_HWP_REQUEST_PACKAGE_CONTROL);
 	else
 		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST, sc->req);
 	if (ret) {
@@ -621,12 +629,13 @@ intel_hwpstate_resume(device_t dev)
 		}
 	}
 	if (!sc->hwp_pref_ctrl && sc->hwp_perf_bias_cached) {
-		ret = wrmsr_safe(MSR_IA32_ENERGY_PERF_BIAS,
-		    sc->hwp_energy_perf_bias);
+		ret = wrmsr_safe(
+		    MSR_IA32_ENERGY_PERF_BIAS, sc->hwp_energy_perf_bias);
 		if (ret) {
 			device_printf(dev,
 			    "Failed to set energy perf bias for cpu%d after "
-			    "suspend\n", pc->pc_cpuid);
+			    "suspend\n",
+			    pc->pc_cpuid);
 		}
 	}
 

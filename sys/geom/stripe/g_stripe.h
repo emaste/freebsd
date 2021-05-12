@@ -28,14 +28,14 @@
  * $FreeBSD$
  */
 
-#ifndef	_G_STRIPE_H_
-#define	_G_STRIPE_H_
+#ifndef _G_STRIPE_H_
+#define _G_STRIPE_H_
 
 #include <sys/endian.h>
 
-#define	G_STRIPE_CLASS_NAME	"STRIPE"
+#define G_STRIPE_CLASS_NAME "STRIPE"
 
-#define	G_STRIPE_MAGIC		"GEOM::STRIPE"
+#define G_STRIPE_MAGIC "GEOM::STRIPE"
 /*
  * Version history:
  * 0 - Initial version number.
@@ -43,41 +43,41 @@
  * 2 - Added md_provider field to metadata and '-h' option for gstripe(8).
  * 3 - Added md_provsize field to metadata.
  */
-#define	G_STRIPE_VERSION	3
+#define G_STRIPE_VERSION 3
 
 #ifdef _KERNEL
-#define	G_STRIPE_TYPE_MANUAL	0
-#define	G_STRIPE_TYPE_AUTOMATIC	1
+#define G_STRIPE_TYPE_MANUAL 0
+#define G_STRIPE_TYPE_AUTOMATIC 1
 
-#define	G_STRIPE_DEBUG(lvl, ...) \
-    _GEOM_DEBUG("GEOM_STRIPE", g_stripe_debug, (lvl), NULL, __VA_ARGS__)
-#define	G_STRIPE_LOGREQ(bp, ...) \
-    _GEOM_DEBUG("GEOM_STRIPE", g_stripe_debug, 2, (bp), __VA_ARGS__)
+#define G_STRIPE_DEBUG(lvl, ...) \
+	_GEOM_DEBUG("GEOM_STRIPE", g_stripe_debug, (lvl), NULL, __VA_ARGS__)
+#define G_STRIPE_LOGREQ(bp, ...) \
+	_GEOM_DEBUG("GEOM_STRIPE", g_stripe_debug, 2, (bp), __VA_ARGS__)
 
 struct g_stripe_softc {
-	u_int		 sc_type;	/* provider type */
-	struct g_geom	*sc_geom;
+	u_int sc_type; /* provider type */
+	struct g_geom *sc_geom;
 	struct g_provider *sc_provider;
-	uint32_t	 sc_id;		/* stripe unique ID */
+	uint32_t sc_id; /* stripe unique ID */
 	struct g_consumer **sc_disks;
-	uint16_t	 sc_ndisks;
-	off_t		 sc_stripesize;
-	uint32_t	 sc_stripebits;
-	struct mtx	 sc_lock;
+	uint16_t sc_ndisks;
+	off_t sc_stripesize;
+	uint32_t sc_stripebits;
+	struct mtx sc_lock;
 };
-#define	sc_name	sc_geom->name
-#endif	/* _KERNEL */
+#define sc_name sc_geom->name
+#endif /* _KERNEL */
 
 struct g_stripe_metadata {
-	char		md_magic[16];	/* Magic value. */
-	uint32_t	md_version;	/* Version number. */
-	char		md_name[16];	/* Stripe name. */
-	uint32_t	md_id;		/* Unique ID. */
-	uint16_t	md_no;		/* Disk number. */
-	uint16_t	md_all;		/* Number of all disks. */
-	uint32_t	md_stripesize;	/* Stripe size. */
-	char		md_provider[16]; /* Hardcoded provider. */
-	uint64_t	md_provsize;	/* Provider's size. */
+	char md_magic[16];	/* Magic value. */
+	uint32_t md_version;	/* Version number. */
+	char md_name[16];	/* Stripe name. */
+	uint32_t md_id;		/* Unique ID. */
+	uint16_t md_no;		/* Disk number. */
+	uint16_t md_all;	/* Number of all disks. */
+	uint32_t md_stripesize; /* Stripe size. */
+	char md_provider[16];	/* Hardcoded provider. */
+	uint64_t md_provsize;	/* Provider's size. */
 };
 static __inline void
 stripe_metadata_encode(const struct g_stripe_metadata *md, u_char *data)
@@ -108,4 +108,4 @@ stripe_metadata_decode(const u_char *data, struct g_stripe_metadata *md)
 	md->md_provsize = le64dec(data + 64);
 }
 
-#endif	/* _G_STRIPE_H_ */
+#endif /* _G_STRIPE_H_ */

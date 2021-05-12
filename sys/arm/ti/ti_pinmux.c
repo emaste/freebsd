@@ -38,25 +38,26 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#include <dev/ofw/openfirm.h>
+#include <dev/fdt/fdt_pinctrl.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/fdt/fdt_pinctrl.h>
+#include <dev/ofw/openfirm.h>
 
-#include <arm/ti/omap4/omap4_scm_padconf.h>
 #include <arm/ti/am335x/am335x_scm_padconf.h>
+#include <arm/ti/omap4/omap4_scm_padconf.h>
 #include <arm/ti/ti_cpuid.h>
+
 #include "ti_pinmux.h"
 
 struct pincfg {
@@ -65,20 +66,20 @@ struct pincfg {
 };
 
 static struct resource_spec ti_pinmux_res_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Control memory window */
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, /* Control memory window */
 	{ -1, 0 }
 };
 
 static struct ti_pinmux_softc *ti_pinmux_sc;
 
-#define	ti_pinmux_read_2(sc, reg)		\
-    bus_space_read_2((sc)->sc_bst, (sc)->sc_bsh, (reg))
-#define	ti_pinmux_write_2(sc, reg, val)		\
-    bus_space_write_2((sc)->sc_bst, (sc)->sc_bsh, (reg), (val))
-#define	ti_pinmux_read_4(sc, reg)		\
-    bus_space_read_4((sc)->sc_bst, (sc)->sc_bsh, (reg))
-#define	ti_pinmux_write_4(sc, reg, val)		\
-    bus_space_write_4((sc)->sc_bst, (sc)->sc_bsh, (reg), (val))
+#define ti_pinmux_read_2(sc, reg) \
+	bus_space_read_2((sc)->sc_bst, (sc)->sc_bsh, (reg))
+#define ti_pinmux_write_2(sc, reg, val) \
+	bus_space_write_2((sc)->sc_bst, (sc)->sc_bsh, (reg), (val))
+#define ti_pinmux_read_4(sc, reg) \
+	bus_space_read_4((sc)->sc_bst, (sc)->sc_bsh, (reg))
+#define ti_pinmux_write_4(sc, reg, val) \
+	bus_space_write_4((sc)->sc_bst, (sc)->sc_bsh, (reg), (val))
 
 /**
  *	ti_padconf_devmap - Array of pins, should be defined one per SoC
@@ -90,14 +91,14 @@ static struct ti_pinmux_softc *ti_pinmux_sc;
 static const struct ti_pinmux_device *ti_pinmux_dev;
 
 /**
- *	ti_pinmux_padconf_from_name - searches the list of pads and returns entry
- *	                             with matching ball name.
+ *	ti_pinmux_padconf_from_name - searches the list of pads and returns
+ *entry with matching ball name.
  *	@ballname: the name of the ball
  *
  *	RETURNS:
  *	A pointer to the matching padconf or NULL if the ball wasn't found.
  */
-static const struct ti_pinmux_padconf*
+static const struct ti_pinmux_padconf *
 ti_pinmux_padconf_from_name(const char *ballname)
 {
 	const struct ti_pinmux_padconf *padconf;
@@ -105,7 +106,7 @@ ti_pinmux_padconf_from_name(const char *ballname)
 	padconf = ti_pinmux_dev->padconf;
 	while (padconf->ballname != NULL) {
 		if (strcmp(ballname, padconf->ballname) == 0)
-			return(padconf);
+			return (padconf);
 		padconf++;
 	}
 
@@ -113,7 +114,8 @@ ti_pinmux_padconf_from_name(const char *ballname)
 }
 
 /**
- *	ti_pinmux_padconf_set_internal - sets the muxmode and state for a pad/pin
+ *	ti_pinmux_padconf_set_internal - sets the muxmode and state for a
+ *pad/pin
  *	@padconf: pointer to the pad structure
  *	@muxmode: the name of the mode to use for the pin, i.e. "uart1_rx"
  *	@state: the state to put the pad/pin in, i.e. PADCONF_PIN_???
@@ -128,8 +130,8 @@ ti_pinmux_padconf_from_name(const char *ballname)
  */
 static int
 ti_pinmux_padconf_set_internal(struct ti_pinmux_softc *sc,
-    const struct ti_pinmux_padconf *padconf,
-    const char *muxmode, unsigned int state)
+    const struct ti_pinmux_padconf *padconf, const char *muxmode,
+    unsigned int state)
 {
 	unsigned int mode;
 	uint16_t reg_val;
@@ -178,7 +180,8 @@ ti_pinmux_padconf_set_internal(struct ti_pinmux_softc *sc,
  *	EINVAL if pin requested is outside valid range or already in use.
  */
 int
-ti_pinmux_padconf_set(const char *padname, const char *muxmode, unsigned int state)
+ti_pinmux_padconf_set(
+    const char *padname, const char *muxmode, unsigned int state)
 {
 	const struct ti_pinmux_padconf *padconf;
 
@@ -190,7 +193,8 @@ ti_pinmux_padconf_set(const char *padname, const char *muxmode, unsigned int sta
 	if (padconf == NULL)
 		return (EINVAL);
 
-	return (ti_pinmux_padconf_set_internal(ti_pinmux_sc, padconf, muxmode, state));
+	return (ti_pinmux_padconf_set_internal(
+	    ti_pinmux_sc, padconf, muxmode, state));
 }
 
 /**
@@ -208,8 +212,8 @@ ti_pinmux_padconf_set(const char *padname, const char *muxmode, unsigned int sta
  *	EINVAL if pin requested is outside valid range or already in use.
  */
 int
-ti_pinmux_padconf_get(const char *padname, const char **muxmode,
-    unsigned int *state)
+ti_pinmux_padconf_get(
+    const char *padname, const char **muxmode, unsigned int *state)
 {
 	const struct ti_pinmux_padconf *padconf;
 	uint16_t reg_val;
@@ -231,7 +235,8 @@ ti_pinmux_padconf_get(const char *padname, const char **muxmode,
 
 	/* save the mode */
 	if (muxmode)
-		*muxmode = padconf->muxmodes[(reg_val & ti_pinmux_dev->padconf_muxmode_mask)];
+		*muxmode = padconf->muxmodes[(
+		    reg_val & ti_pinmux_dev->padconf_muxmode_mask)];
 
 	return (0);
 }
@@ -273,7 +278,8 @@ ti_pinmux_padconf_set_gpiomode(uint32_t gpio, unsigned int state)
 	reg_val = (uint16_t)(state & ti_pinmux_dev->padconf_sate_mask);
 
 	/* set the mux mode */
-	reg_val |= (uint16_t)(padconf->gpio_mode & ti_pinmux_dev->padconf_muxmode_mask);
+	reg_val |= (uint16_t)(
+	    padconf->gpio_mode & ti_pinmux_dev->padconf_muxmode_mask);
 
 	/* write the register value (16-bit writes) */
 	ti_pinmux_write_2(ti_pinmux_sc, padconf->reg_off, reg_val);
@@ -293,7 +299,8 @@ ti_pinmux_padconf_set_gpiomode(uint32_t gpio, unsigned int state)
  *
  *	RETURNS:
  *	0 on success.
- *	EINVAL if pin requested is outside valid range or not configured as GPIO.
+ *	EINVAL if pin requested is outside valid range or not configured as
+ *GPIO.
  */
 int
 ti_pinmux_padconf_get_gpiomode(uint32_t gpio, unsigned int *state)
@@ -317,11 +324,14 @@ ti_pinmux_padconf_get_gpiomode(uint32_t gpio, unsigned int *state)
 	/* read the current register settings */
 	reg_val = ti_pinmux_read_2(ti_pinmux_sc, padconf->reg_off);
 
-	/* check to make sure the pins is configured as GPIO in the first state */
-	if ((reg_val & ti_pinmux_dev->padconf_muxmode_mask) != padconf->gpio_mode)
+	/* check to make sure the pins is configured as GPIO in the first state
+	 */
+	if ((reg_val & ti_pinmux_dev->padconf_muxmode_mask) !=
+	    padconf->gpio_mode)
 		return (EINVAL);
 
-	/* read and store the reset of the state, i.e. pull-up, pull-down, etc */
+	/* read and store the reset of the state, i.e. pull-up, pull-down, etc
+	 */
 	if (state)
 		*state = (reg_val & ti_pinmux_dev->padconf_sate_mask);
 
@@ -351,8 +361,8 @@ ti_pinmux_configure_pins(device_t dev, phandle_t cfgxref)
 		if (bootverbose) {
 			char name[32];
 			OF_getprop(cfgnode, "name", &name, sizeof(name));
-			printf("%16s: muxreg 0x%04x muxval 0x%02x\n",
-			    name, cfg->reg, cfg->conf);
+			printf("%16s: muxreg 0x%04x muxval 0x%02x\n", name,
+			    cfg->reg, cfg->conf);
 		}
 
 		/* write the register value (16-bit writes) */
@@ -378,7 +388,8 @@ ti_pinmux_probe(device_t dev)
 		return (ENXIO);
 
 	if (ti_pinmux_sc) {
-		printf("%s: multiple pinctrl modules in device tree data, ignoring\n",
+		printf(
+		    "%s: multiple pinctrl modules in device tree data, ignoring\n",
 		    __func__);
 		return (EEXIST);
 	}
@@ -438,14 +449,12 @@ ti_pinmux_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t ti_pinmux_methods[] = {
-	DEVMETHOD(device_probe,		ti_pinmux_probe),
-	DEVMETHOD(device_attach,	ti_pinmux_attach),
+static device_method_t ti_pinmux_methods[] = { DEVMETHOD(device_probe,
+						   ti_pinmux_probe),
+	DEVMETHOD(device_attach, ti_pinmux_attach),
 
-        /* fdt_pinctrl interface */
-	DEVMETHOD(fdt_pinctrl_configure, ti_pinmux_configure_pins),
-	{ 0, 0 }
-};
+	/* fdt_pinctrl interface */
+	DEVMETHOD(fdt_pinctrl_configure, ti_pinmux_configure_pins), { 0, 0 } };
 
 static driver_t ti_pinmux_driver = {
 	"ti_pinmux",

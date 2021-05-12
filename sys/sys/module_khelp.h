@@ -45,54 +45,50 @@
 #include <vm/uma.h>
 
 /* Helper flags. */
-#define	HELPER_NEEDS_OSD	0x0001
+#define HELPER_NEEDS_OSD 0x0001
 
 struct helper {
-	int (*mod_init) (void);
-	int (*mod_destroy) (void);
-#define	HELPER_NAME_MAXLEN 16
-	char			h_name[HELPER_NAME_MAXLEN];
-	uma_zone_t		h_zone;
-	struct hookinfo		*h_hooks;
-	uint32_t		h_nhooks;
-	uint32_t		h_classes;
-	int32_t			h_id;
-	volatile uint32_t	h_refcount;
-	uint16_t		h_flags;
-	TAILQ_ENTRY(helper)	h_next;
+	int (*mod_init)(void);
+	int (*mod_destroy)(void);
+#define HELPER_NAME_MAXLEN 16
+	char h_name[HELPER_NAME_MAXLEN];
+	uma_zone_t h_zone;
+	struct hookinfo *h_hooks;
+	uint32_t h_nhooks;
+	uint32_t h_classes;
+	int32_t h_id;
+	volatile uint32_t h_refcount;
+	uint16_t h_flags;
+	TAILQ_ENTRY(helper) h_next;
 };
 
 struct khelp_modevent_data {
-	char			name[HELPER_NAME_MAXLEN];
-	struct helper		*helper;
-	struct hookinfo		*hooks;
-	int			nhooks;
-	int			uma_zsize;
-	uma_ctor		umactor;
-	uma_dtor		umadtor;
+	char name[HELPER_NAME_MAXLEN];
+	struct helper *helper;
+	struct hookinfo *hooks;
+	int nhooks;
+	int uma_zsize;
+	uma_ctor umactor;
+	uma_dtor umadtor;
 };
 
-#define	KHELP_DECLARE_MOD_UMA(hname, hdata, hhooks, version, size, ctor, dtor) \
-	static struct khelp_modevent_data kmd_##hname = {		\
-		.name = #hname,						\
-		.helper = hdata,					\
-		.hooks = hhooks,					\
-		.nhooks = sizeof(hhooks) / sizeof(hhooks[0]),		\
-		.uma_zsize = size,					\
-		.umactor = ctor,					\
-		.umadtor = dtor						\
-	};								\
-	static moduledata_t h_##hname = {				\
-		.name = #hname,						\
-		.evhand = khelp_modevent,				\
-		.priv = &kmd_##hname					\
-	};								\
-	DECLARE_MODULE(hname, h_##hname, SI_SUB_KLD, SI_ORDER_ANY);	\
+#define KHELP_DECLARE_MOD_UMA(hname, hdata, hhooks, version, size, ctor, dtor) \
+	static struct khelp_modevent_data kmd_##hname = { .name = #hname,      \
+		.helper = hdata,                                               \
+		.hooks = hhooks,                                               \
+		.nhooks = sizeof(hhooks) / sizeof(hhooks[0]),                  \
+		.uma_zsize = size,                                             \
+		.umactor = ctor,                                               \
+		.umadtor = dtor };                                             \
+	static moduledata_t h_##hname = { .name = #hname,                      \
+		.evhand = khelp_modevent,                                      \
+		.priv = &kmd_##hname };                                        \
+	DECLARE_MODULE(hname, h_##hname, SI_SUB_KLD, SI_ORDER_ANY);            \
 	MODULE_VERSION(hname, version)
 
-#define	KHELP_DECLARE_MOD(hname, hdata, hhooks, version)		\
+#define KHELP_DECLARE_MOD(hname, hdata, hhooks, version) \
 	KHELP_DECLARE_MOD_UMA(hname, hdata, hhooks, version, 0, NULL, NULL)
 
-int	khelp_modevent(module_t mod, int type, void *data);
+int khelp_modevent(module_t mod, int type, void *data);
 
 #endif /* _SYS_MODULE_KHELP_H_ */

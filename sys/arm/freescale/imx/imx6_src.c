@@ -33,24 +33,24 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
+
+#include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <machine/bus.h>
-
 #include <arm/freescale/imx/imx6_src.h>
 
-#define	SRC_SCR		0
-#define		SW_IPU1_RST	(1 << 3)
+#define SRC_SCR 0
+#define SW_IPU1_RST (1 << 3)
 
 struct src_softc {
-	device_t	dev;
-	struct resource	*mem_res;
+	device_t dev;
+	struct resource *mem_res;
 };
 
 static struct src_softc *src_sc;
@@ -120,8 +120,8 @@ src_attach(device_t dev)
 
 	/* Allocate bus_space resources. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Cannot allocate memory resources\n");
 		err = ENXIO;
@@ -144,8 +144,8 @@ static int
 src_probe(device_t dev)
 {
 
-        if ((ofw_bus_is_compatible(dev, "fsl,imx6q-src") == 0) &&
-            (ofw_bus_is_compatible(dev, "fsl,imx6-src") == 0))
+	if ((ofw_bus_is_compatible(dev, "fsl,imx6q-src") == 0) &&
+	    (ofw_bus_is_compatible(dev, "fsl,imx6-src") == 0))
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale i.MX6 System Reset Controller");
@@ -155,18 +155,14 @@ src_probe(device_t dev)
 
 static device_method_t src_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,  src_probe),
+	DEVMETHOD(device_probe, src_probe),
 	DEVMETHOD(device_attach, src_attach),
 	DEVMETHOD(device_detach, src_detach),
 
 	DEVMETHOD_END
 };
 
-static driver_t src_driver = {
-	"src",
-	src_methods,
-	sizeof(struct src_softc)
-};
+static driver_t src_driver = { "src", src_methods, sizeof(struct src_softc) };
 
 static devclass_t src_devclass;
 

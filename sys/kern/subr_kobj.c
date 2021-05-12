@@ -51,10 +51,9 @@ static MALLOC_DEFINE(M_KOBJ, "kobj", "Kernel object structures");
 u_int kobj_lookup_hits;
 u_int kobj_lookup_misses;
 
-SYSCTL_UINT(_kern, OID_AUTO, kobj_hits, CTLFLAG_RD,
-	   &kobj_lookup_hits, 0, "");
-SYSCTL_UINT(_kern, OID_AUTO, kobj_misses, CTLFLAG_RD,
-	   &kobj_lookup_misses, 0, "");
+SYSCTL_UINT(_kern, OID_AUTO, kobj_hits, CTLFLAG_RD, &kobj_lookup_hits, 0, "");
+SYSCTL_UINT(
+    _kern, OID_AUTO, kobj_misses, CTLFLAG_RD, &kobj_lookup_misses, 0, "");
 
 #endif
 
@@ -62,12 +61,11 @@ static struct mtx kobj_mtx;
 static int kobj_mutex_inited;
 static int kobj_next_id = 1;
 
-#define	KOBJ_LOCK()		mtx_lock(&kobj_mtx)
-#define	KOBJ_UNLOCK()		mtx_unlock(&kobj_mtx)
-#define	KOBJ_ASSERT(what)	mtx_assert(&kobj_mtx, what);
+#define KOBJ_LOCK() mtx_lock(&kobj_mtx)
+#define KOBJ_UNLOCK() mtx_unlock(&kobj_mtx)
+#define KOBJ_ASSERT(what) mtx_assert(&kobj_mtx, what);
 
-SYSCTL_INT(_kern, OID_AUTO, kobj_methodcount, CTLFLAG_RD,
-    &kobj_next_id, 0,
+SYSCTL_INT(_kern, OID_AUTO, kobj_methodcount, CTLFLAG_RD, &kobj_next_id, 0,
     "Number of kernel object methods registered");
 
 static void
@@ -87,7 +85,8 @@ SYSINIT(kobj, SI_SUB_LOCK, SI_ORDER_ANY, kobj_init_mutex, NULL);
  * descriptors.
  */
 static const struct kobj_method null_method = {
-	0, 0,
+	0,
+	0,
 };
 
 int
@@ -176,7 +175,7 @@ kobj_class_compile_static(kobj_class_t cls, kobj_ops_t ops)
 	kobj_class_compile_common(cls, ops);
 }
 
-static kobj_method_t*
+static kobj_method_t *
 kobj_lookup_method_class(kobj_class_t cls, kobjop_desc_t desc)
 {
 	kobj_method_t *methods = cls->methods;
@@ -191,9 +190,8 @@ kobj_lookup_method_class(kobj_class_t cls, kobjop_desc_t desc)
 	return NULL;
 }
 
-static kobj_method_t*
-kobj_lookup_method_mi(kobj_class_t cls,
-		      kobjop_desc_t desc)
+static kobj_method_t *
+kobj_lookup_method_mi(kobj_class_t cls, kobjop_desc_t desc)
 {
 	kobj_method_t *ce;
 	kobj_class_t *basep;
@@ -214,10 +212,8 @@ kobj_lookup_method_mi(kobj_class_t cls,
 	return NULL;
 }
 
-kobj_method_t*
-kobj_lookup_method(kobj_class_t cls,
-		   kobj_method_t **cep,
-		   kobjop_desc_t desc)
+kobj_method_t *
+kobj_lookup_method(kobj_class_t cls, kobj_method_t **cep, kobjop_desc_t desc)
 {
 	kobj_method_t *ce;
 
@@ -232,7 +228,7 @@ kobj_lookup_method(kobj_class_t cls,
 void
 kobj_class_free(kobj_class_t cls)
 {
-	void* ops = NULL;
+	void *ops = NULL;
 
 	KOBJ_ASSERT(MA_NOTOWNED);
 	KOBJ_LOCK();

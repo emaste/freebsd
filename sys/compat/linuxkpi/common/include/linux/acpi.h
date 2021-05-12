@@ -38,8 +38,8 @@
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 
-#define	ACPI_HANDLE(dev)	\
-    ((dev)->bsddev != NULL ? bsd_acpi_get_handle((dev)->bsddev) : NULL)
+#define ACPI_HANDLE(dev) \
+	((dev)->bsddev != NULL ? bsd_acpi_get_handle((dev)->bsddev) : NULL)
 
 #endif
 

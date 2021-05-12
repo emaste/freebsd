@@ -35,32 +35,32 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/bus.h>
-#include <sys/errno.h>
-#include <sys/endian.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/fcntl.h>
-#include <sys/malloc.h>
 #include <sys/bio.h>
+#include <sys/bus.h>
+#include <sys/endian.h>
+#include <sys/errno.h>
+#include <sys/fcntl.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
 
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 
-#define	MAP_CLASS_NAME	"MAP"
-#define	MAP_MAXSLICE	64
-#define	MAP_MAX_MARKER_LEN	64
+#define MAP_CLASS_NAME "MAP"
+#define MAP_MAXSLICE 64
+#define MAP_MAX_MARKER_LEN 64
 
 struct g_map_softc {
-	off_t		 offset[MAP_MAXSLICE];	/* offset in flash */
-	off_t		 size[MAP_MAXSLICE];	/* image size in bytes */
-	off_t		 entry[MAP_MAXSLICE];
-	off_t		 dsize[MAP_MAXSLICE];
-	uint8_t		 readonly[MAP_MAXSLICE];
-	g_access_t	*parent_access;
+	off_t offset[MAP_MAXSLICE]; /* offset in flash */
+	off_t size[MAP_MAXSLICE];   /* image size in bytes */
+	off_t entry[MAP_MAXSLICE];
+	off_t dsize[MAP_MAXSLICE];
+	uint8_t readonly[MAP_MAXSLICE];
+	g_access_t *parent_access;
 };
 
 static int
@@ -77,7 +77,7 @@ g_map_access(struct g_provider *pp, int dread, int dwrite, int dexcl)
 	if (dwrite > 0 && sc->readonly[pp->index])
 		return (EPERM);
 
-	return (sc->parent_access(pp, dread, dwrite, dexcl)); 
+	return (sc->parent_access(pp, dread, dwrite, dexcl));
 }
 
 static int
@@ -96,12 +96,12 @@ g_map_start(struct bio *bp)
 	sc = gsp->softc;
 
 	if (bp->bio_cmd == BIO_GETATTR) {
-		if (g_handleattr_int(bp, MAP_CLASS_NAME "::entry",
-		    sc->entry[idx])) {
+		if (g_handleattr_int(
+			bp, MAP_CLASS_NAME "::entry", sc->entry[idx])) {
 			return (1);
 		}
-		if (g_handleattr_int(bp, MAP_CLASS_NAME "::dsize",
-		    sc->dsize[idx])) {
+		if (g_handleattr_int(
+			bp, MAP_CLASS_NAME "::dsize", sc->dsize[idx])) {
 			return (1);
 		}
 	}
@@ -121,8 +121,10 @@ g_map_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	g_slice_dumpconf(sb, indent, gp, cp, pp);
 	if (pp != NULL) {
 		if (indent == NULL) {
-			sbuf_printf(sb, " entry %jd", (intmax_t)sc->entry[pp->index]);
-			sbuf_printf(sb, " dsize %jd", (intmax_t)sc->dsize[pp->index]);
+			sbuf_printf(
+			    sb, " entry %jd", (intmax_t)sc->entry[pp->index]);
+			sbuf_printf(
+			    sb, " dsize %jd", (intmax_t)sc->dsize[pp->index]);
 		} else {
 			sbuf_printf(sb, "%s<entry>%jd</entry>\n", indent,
 			    (intmax_t)sc->entry[pp->index]);
@@ -143,25 +145,26 @@ find_marker(struct g_consumer *cp, const char *line, off_t *offset)
 
 	/* Try convert to numeric first */
 	*offset = strtouq(line, &op, 0);
-	if (*op == '\0') 
+	if (*op == '\0')
 		return (0);
 
 	bzero(search_key, MAP_MAX_MARKER_LEN);
 	sectorsize = cp->provider->sectorsize;
 
 #ifdef __LP64__
-	ret = sscanf(line, "search:%li:%li:%63c",
-	    &search_start, &search_step, search_key);
+	ret = sscanf(line, "search:%li:%li:%63c", &search_start, &search_step,
+	    search_key);
 #else
-	ret = sscanf(line, "search:%qi:%qi:%63c",
-	    &search_start, &search_step, search_key);
+	ret = sscanf(line, "search:%qi:%qi:%63c", &search_start, &search_step,
+	    search_key);
 #endif
 	if (ret < 3)
 		return (1);
 
 	if (bootverbose) {
 		printf("MAP: search %s for key \"%s\" from 0x%jx, step 0x%jx\n",
-		    cp->geom->name, search_key, (intmax_t)search_start, (intmax_t)search_step);
+		    cp->geom->name, search_key, (intmax_t)search_start,
+		    (intmax_t)search_step);
 	}
 
 	/* error if search_key is empty */
@@ -191,14 +194,14 @@ find_marker(struct g_consumer *cp, const char *line, off_t *offset)
 
 		for (c = 0; c < MAP_MAX_MARKER_LEN && key[c]; c++) {
 			if (key[c] == '.') {
-				key[c] = ((char *)(buf + 
+				key[c] = ((char *)(buf +
 				    (search_offset % sectorsize)))[c];
 			}
 		}
 
 		/* Assume buf != NULL here */
-		if (memcmp(buf + search_offset % sectorsize,
-		    key, strlen(search_key)) == 0) {
+		if (memcmp(buf + search_offset % sectorsize, key,
+			strlen(search_key)) == 0) {
 			g_free(buf);
 			/* Marker found, so return their offset */
 			*offset = search_offset;
@@ -243,7 +246,7 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 	 * or hint.map.0.start="search:0x00010000:0x200:marker text" -
 	 * search for text "marker text", begin at 0x10000, step 0x200
 	 * until we found marker or end of media reached
-	 */ 
+	 */
 	if (resource_string_value("map", i, "start", &value) != 0) {
 		if (bootverbose)
 			printf("MAP: \"%s\" has no start value\n", name);
@@ -251,8 +254,8 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 	}
 	if (find_marker(cp, value, &start) != 0) {
 		if (bootverbose) {
-			printf("MAP: \"%s\" can't parse/use start value\n",
-			    name);
+			printf(
+			    "MAP: \"%s\" can't parse/use start value\n", name);
 		}
 		return (1);
 	}
@@ -265,8 +268,7 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 	}
 	if (find_marker(cp, value, &end) != 0) {
 		if (bootverbose) {
-			printf("MAP: \"%s\" can't parse/use end value\n",
-			    name);
+			printf("MAP: \"%s\" can't parse/use end value\n", name);
 		}
 		return (1);
 	}
@@ -280,8 +282,8 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 		offset = strtouq(value, &op, 0);
 		if (*op != '\0') {
 			if (bootverbose) {
-				printf("MAP: \"%s\" can't parse offset\n",
-				    name);
+				printf(
+				    "MAP: \"%s\" can't parse offset\n", name);
 			}
 			return (1);
 		}
@@ -294,8 +296,7 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 		dsize = strtouq(value, &op, 0);
 		if (*op != '\0') {
 			if (bootverbose) {
-				printf("MAP: \"%s\" can't parse dsize\n", 
-				    name);
+				printf("MAP: \"%s\" can't parse dsize\n", name);
 			}
 			return (1);
 		}
@@ -311,7 +312,8 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 	if (end < start) {
 		if (bootverbose) {
 			printf("MAP: \"%s\", \"end\" less than "
-			    "\"start\"\n", name);
+			       "\"start\"\n",
+			    name);
 		}
 		return (1);
 	}
@@ -319,16 +321,17 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 	if (offset + dsize > size) {
 		if (bootverbose) {
 			printf("MAP: \"%s\", \"dsize\" bigger than "
-			    "partition - offset\n", name);
+			       "partition - offset\n",
+			    name);
 		}
 		return (1);
 	}
 
-	ret = g_slice_config(gp, i, G_SLICE_CONFIG_SET, start + offset,
-	    dsize, cp->provider->sectorsize, "map/%s", name);
+	ret = g_slice_config(gp, i, G_SLICE_CONFIG_SET, start + offset, dsize,
+	    cp->provider->sectorsize, "map/%s", name);
 	if (ret != 0) {
 		if (bootverbose) {
-			printf("MAP: g_slice_config returns %d for \"%s\"\n", 
+			printf("MAP: g_slice_config returns %d for \"%s\"\n",
 			    ret, name);
 		}
 		return (1);
@@ -336,9 +339,9 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 
 	if (bootverbose) {
 		printf("MAP: %s: %jxx%jx, data=%jxx%jx "
-		    "\"/dev/map/%s\"\n",
-		    cp->geom->name, (intmax_t)start, (intmax_t)size, (intmax_t)offset,
-		    (intmax_t)dsize, name);
+		       "\"/dev/map/%s\"\n",
+		    cp->geom->name, (intmax_t)start, (intmax_t)size,
+		    (intmax_t)offset, (intmax_t)dsize, name);
 	}
 
 	sc->offset[i] = start;
@@ -363,8 +366,8 @@ g_map_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	if (strcmp(pp->geom->class->name, MAP_CLASS_NAME) == 0)
 		return (NULL);
 
-	gp = g_slice_new(mp, MAP_MAXSLICE, pp, &cp, &sc, sizeof(*sc),
-	    g_map_start);
+	gp = g_slice_new(
+	    mp, MAP_MAXSLICE, pp, &cp, &sc, sizeof(*sc), g_map_start);
 	if (gp == NULL)
 		return (NULL);
 
@@ -378,7 +381,8 @@ g_map_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	g_access(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
 		if (bootverbose)
-			printf("MAP: No valid partition found at %s\n", pp->name);
+			printf(
+			    "MAP: No valid partition found at %s\n", pp->name);
 		g_slice_spoiled(cp);
 		return (NULL);
 	}

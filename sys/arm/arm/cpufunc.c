@@ -48,23 +48,23 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/bus.h>
-#include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/disassem.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/uma.h>
 
+#include <machine/bus.h>
+#include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/disassem.h>
 
 /* PRIMARY CACHE VARIABLES */
 
-int	arm_dcache_align;
-int	arm_dcache_align_mask;
+int arm_dcache_align;
+int arm_dcache_align_mask;
 
 #ifdef CPU_MV_PJ4B
 static void pj4bv7_setup(void);
@@ -103,7 +103,7 @@ struct cpu_functions arm1176_cpufuncs = {
 	.cf_l2cache_drain_writebuf = (void *)cpufunc_nullop,
 
 	/* Other functions */
-	.cf_sleep = arm11x6_sleep, 
+	.cf_sleep = arm11x6_sleep,
 
 	/* Soft functions */
 	.cf_setup = arm11x6_setup
@@ -162,27 +162,28 @@ get_cachetype_cp15(void)
 		goto out;
 
 	if (CPU_CT_FORMAT(ctype) == CPU_CT_ARMV7) {
-		__asm __volatile("mrc p15, 1, %0, c0, c0, 1"
-		    : "=r" (clevel));
+		__asm __volatile("mrc p15, 1, %0, c0, c0, 1" : "=r"(clevel));
 		i = 0;
 		while ((type = (clevel & 0x7)) && i < 7) {
 			if (type == CACHE_DCACHE || type == CACHE_UNI_CACHE ||
 			    type == CACHE_SEP_CACHE) {
 				sel = i << 1;
 				__asm __volatile("mcr p15, 2, %0, c0, c0, 0"
-				    : : "r" (sel));
+						 :
+						 : "r"(sel));
 				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
-				    : "=r" (csize));
-				arm_dcache_align = 1 <<
-				    (CPUV7_CT_xSIZE_LEN(csize) + 4);
+						 : "=r"(csize));
+				arm_dcache_align = 1
+				    << (CPUV7_CT_xSIZE_LEN(csize) + 4);
 				arm_dcache_align_mask = arm_dcache_align - 1;
 			}
 			if (type == CACHE_ICACHE || type == CACHE_SEP_CACHE) {
 				sel = (i << 1) | 1;
 				__asm __volatile("mcr p15, 2, %0, c0, c0, 0"
-				    : : "r" (sel));
+						 :
+						 : "r"(sel));
 				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
-				    : "=r" (csize));
+						 : "=r"(csize));
 			}
 			i++;
 			clevel >>= 3;
@@ -223,7 +224,7 @@ set_cpufuncs(void)
 	}
 #endif /* CPU_ARM1176 */
 #if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
-	switch(cputype & CPU_ID_SCHEME_MASK) {
+	switch (cputype & CPU_ID_SCHEME_MASK) {
 	case CPU_ID_CORTEXA5:
 	case CPU_ID_CORTEXA7:
 	case CPU_ID_CORTEXA8:
@@ -256,7 +257,7 @@ set_cpufuncs(void)
 	 * Bzzzz. And the answer was ...
 	 */
 	panic("No support for this CPU type (%08x) in kernel", cputype);
-	return(ARCHITECTURE_NOT_PRESENT);
+	return (ARCHITECTURE_NOT_PRESENT);
 out:
 	uma_set_align(arm_dcache_align_mask);
 	return (0);
@@ -266,10 +267,8 @@ out:
  * CPU Setup code
  */
 
-
-#if defined(CPU_ARM1176) \
- || defined(CPU_MV_PJ4B) \
- || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+#if defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA) || \
+    defined(CPU_KRAIT)
 static __inline void
 cpu_scc_setup_ccnt(void)
 {
@@ -327,7 +326,7 @@ arm11x6_setup(void)
 
 	cpu_scc_setup_ccnt();
 }
-#endif  /* CPU_ARM1176 */
+#endif /* CPU_ARM1176 */
 
 #ifdef CPU_MV_PJ4B
 static void
@@ -346,4 +345,4 @@ cortexa_setup(void)
 
 	cpu_scc_setup_ccnt();
 }
-#endif  /* CPU_CORTEXA || CPU_KRAIT */
+#endif /* CPU_CORTEXA || CPU_KRAIT */

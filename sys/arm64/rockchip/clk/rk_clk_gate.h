@@ -34,15 +34,15 @@
 
 struct rk_clk_gate_def {
 	struct clknode_init_def clkdef;
-	uint32_t		offset;
-	uint32_t		shift;
-	uint32_t		mask;
-	uint32_t		on_value;
-	uint32_t		off_value;
-	int			gate_flags;
+	uint32_t offset;
+	uint32_t shift;
+	uint32_t mask;
+	uint32_t on_value;
+	uint32_t off_value;
+	int gate_flags;
 };
 
-#define	RK_CLK_GATE_MASK	0xFFFF0000
+#define RK_CLK_GATE_MASK 0xFFFF0000
 
 int rk_clk_gate_register(struct clkdom *clkdom, struct rk_clk_gate_def *clkdef);
 

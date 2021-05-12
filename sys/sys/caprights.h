@@ -32,7 +32,7 @@
  */
 
 #ifndef _SYS_CAPRIGHTS_H_
-#define	_SYS_CAPRIGHTS_H_
+#define _SYS_CAPRIGHTS_H_
 
 /*
  * The top two bits in the first element of the cr_rights[] array contain
@@ -43,21 +43,21 @@
  * in this five-bits range defines array index. This means there can be at most
  * five array elements.
  */
-#define	CAP_RIGHTS_VERSION_00	0
+#define CAP_RIGHTS_VERSION_00 0
 /*
 #define	CAP_RIGHTS_VERSION_01	1
 #define	CAP_RIGHTS_VERSION_02	2
 #define	CAP_RIGHTS_VERSION_03	3
 */
-#define	CAP_RIGHTS_VERSION	CAP_RIGHTS_VERSION_00
+#define CAP_RIGHTS_VERSION CAP_RIGHTS_VERSION_00
 
 struct cap_rights {
-	uint64_t	cr_rights[CAP_RIGHTS_VERSION + 2];
+	uint64_t cr_rights[CAP_RIGHTS_VERSION + 2];
 };
 
-#ifndef	_CAP_RIGHTS_T_DECLARED
-#define	_CAP_RIGHTS_T_DECLARED
-typedef	struct cap_rights	cap_rights_t;
+#ifndef _CAP_RIGHTS_T_DECLARED
+#define _CAP_RIGHTS_T_DECLARED
+typedef struct cap_rights cap_rights_t;
 #endif
 
 #ifdef _KERNEL

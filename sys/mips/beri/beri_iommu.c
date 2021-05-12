@@ -36,43 +36,41 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
-#include <sys/conf.h>
 #include <sys/uio.h>
-#include <sys/endian.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <machine/cache.h>
 #include <machine/bus.h>
+#include <machine/cache.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/xdma/xdma.h>
 
 #include "xdma_if.h"
 
-#define	IOMMU_INVALIDATE	0x00
-#define	IOMMU_SET_BASE		0x08
+#define IOMMU_INVALIDATE 0x00
+#define IOMMU_SET_BASE 0x08
 
 struct beri_iommu_softc {
-	struct resource		*res[1];
-	device_t		dev;
-	bus_space_tag_t		bst_data;
-	bus_space_handle_t	bsh_data;
-	uint32_t		offs;
+	struct resource *res[1];
+	device_t dev;
+	bus_space_tag_t bst_data;
+	bus_space_handle_t bsh_data;
+	uint32_t offs;
 };
 
 static struct resource_spec beri_iommu_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, { -1, 0 }
 };
 
 static void
@@ -126,8 +124,8 @@ beri_iommu_remove(device_t dev, struct xdma_iommu *xio, vm_offset_t va)
 }
 
 static int
-beri_iommu_enter(device_t dev, struct xdma_iommu *xio, vm_offset_t va,
-    vm_paddr_t pa)
+beri_iommu_enter(
+    device_t dev, struct xdma_iommu *xio, vm_offset_t va, vm_paddr_t pa)
 {
 	struct beri_iommu_softc *sc;
 	pt_entry_t opte, npte;
@@ -211,16 +209,15 @@ beri_iommu_detach(device_t dev)
 
 static device_method_t beri_iommu_methods[] = {
 	/* xDMA IOMMU interface */
-	DEVMETHOD(xdma_iommu_init,	beri_iommu_init),
-	DEVMETHOD(xdma_iommu_release,	beri_iommu_release),
-	DEVMETHOD(xdma_iommu_enter,	beri_iommu_enter),
-	DEVMETHOD(xdma_iommu_remove,	beri_iommu_remove),
+	DEVMETHOD(xdma_iommu_init, beri_iommu_init),
+	DEVMETHOD(xdma_iommu_release, beri_iommu_release),
+	DEVMETHOD(xdma_iommu_enter, beri_iommu_enter),
+	DEVMETHOD(xdma_iommu_remove, beri_iommu_remove),
 
 	/* Device interface */
-	DEVMETHOD(device_probe,		beri_iommu_probe),
-	DEVMETHOD(device_attach,	beri_iommu_attach),
-	DEVMETHOD(device_detach,	beri_iommu_detach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, beri_iommu_probe),
+	DEVMETHOD(device_attach, beri_iommu_attach),
+	DEVMETHOD(device_detach, beri_iommu_detach), { 0, 0 }
 };
 
 static driver_t beri_iommu_driver = {
@@ -231,5 +228,5 @@ static driver_t beri_iommu_driver = {
 
 static devclass_t beri_iommu_devclass;
 
-DRIVER_MODULE(beri_iommu, simplebus, beri_iommu_driver,
-    beri_iommu_devclass, 0, 0);
+DRIVER_MODULE(
+    beri_iommu, simplebus, beri_iommu_driver, beri_iommu_devclass, 0, 0);

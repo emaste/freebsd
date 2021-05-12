@@ -89,64 +89,64 @@ __FBSDID("$FreeBSD$");
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
-#include <sys/time.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/exec.h>
+#include <sys/imgact.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/rwlock.h>
-#include <sys/sysctl.h>
-#include <sys/exec.h>
 #include <sys/ktr.h>
-#include <sys/syscallsubr.h>
-#include <sys/sysproto.h>
-#include <sys/signalvar.h>
-#include <sys/sysent.h>
-#include <sys/imgact.h>
+#include <sys/linker.h>
+#include <sys/lock.h>
 #include <sys/msgbuf.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/ptrace.h>
+#include <sys/reboot.h>
+#include <sys/rwlock.h>
+#include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <sys/time.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_page.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
 #include <machine/cpu.h>
-#include <machine/kdb.h>
-#include <machine/reg.h>
-#include <machine/vmparam.h>
-#include <machine/spr.h>
 #include <machine/hid.h>
-#include <machine/psl.h>
-#include <machine/trap.h>
-#include <machine/md_var.h>
-#include <machine/mmuvar.h>
-#include <machine/sigframe.h>
+#include <machine/kdb.h>
 #include <machine/machdep.h>
+#include <machine/md_var.h>
 #include <machine/metadata.h>
+#include <machine/mmuvar.h>
 #include <machine/platform.h>
+#include <machine/psl.h>
+#include <machine/reg.h>
+#include <machine/sigframe.h>
+#include <machine/spr.h>
+#include <machine/trap.h>
+#include <machine/vmparam.h>
 
-#include <sys/linker.h>
-#include <sys/reboot.h>
-
-#include <contrib/libfdt/libfdt.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
+
+#include <contrib/libfdt/libfdt.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
 
-#ifdef  DEBUG
+#ifdef DEBUG
 #define debugf(fmt, args...) printf(fmt, ##args)
 #else
 #define debugf(fmt, args...)
@@ -199,14 +199,14 @@ extern void *int_spe_fpround;
 extern void *int_performance_counter;
 #endif
 
-#define SET_TRAP(ivor, handler) \
-	KASSERT(((uintptr_t)(&handler) & ~0xffffUL) == \
-	    ((uintptr_t)(&interrupt_vector_base) & ~0xffffUL), \
+#define SET_TRAP(ivor, handler)                                           \
+	KASSERT(((uintptr_t)(&handler) & ~0xffffUL) ==                    \
+		((uintptr_t)(&interrupt_vector_base) & ~0xffffUL),        \
 	    ("Handler " #handler " too far from interrupt vector base")); \
 	mtspr(ivor, (uintptr_t)(&handler) & 0xffffUL);
 
-uintptr_t powerpc_init(vm_offset_t fdt, vm_offset_t, vm_offset_t, void *mdp,
-    uint32_t mdp_cookie);
+uintptr_t powerpc_init(
+    vm_offset_t fdt, vm_offset_t, vm_offset_t, void *mdp, uint32_t mdp_cookie);
 void booke_cpu_init(void);
 
 void
@@ -315,12 +315,12 @@ booke_check_for_fdt(uint32_t arg1, vm_offset_t *dtbp)
 	 */
 	fdt_size = fdt_totalsize((void *)ptr);
 
-	/* 
+	/*
 	 * Ok, arg1 points to FDT, so we need to map it in.
 	 * First, unmap this page and then map FDT again with full size
 	 */
 	pmap_early_io_unmap((vm_offset_t)ptr, PAGE_SIZE);
-	ptr = (void *)pmap_early_io_map(arg1, fdt_size); 
+	ptr = (void *)pmap_early_io_map(arg1, fdt_size);
 	*dtbp = (vm_offset_t)ptr;
 
 	return (0);
@@ -361,7 +361,7 @@ booke_init(u_long arg1, u_long arg2)
 	 *      r4 (arg2) is supposed to be set to zero, but is not always.
 	 */
 
-	if (arg1 == 0)				/* Juniper loader */
+	if (arg1 == 0) /* Juniper loader */
 		mdp = (void *)arg2;
 	else if (booke_check_for_fdt(arg1, &dtbp) == 0) { /* ePAPR */
 		end = roundup(end, 8);
@@ -370,9 +370,9 @@ booke_init(u_long arg1, u_long arg2)
 		end += fdt_totalsize((void *)dtbp);
 		__endkernel = end;
 		mdp = NULL;
-	} else if (arg1 > (uintptr_t)kernload)	/* FreeBSD loader */
+	} else if (arg1 > (uintptr_t)kernload) /* FreeBSD loader */
 		mdp = (void *)arg1;
-	else					/* U-Boot */
+	else /* U-Boot */
 		mdp = NULL;
 
 	/* Default to 32 byte cache line size. */
@@ -416,7 +416,7 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 	ptr = &tlb0_miss_locks[cpuid * words_per_gran];
 	pcpu->pc_booke.tlb_lock = ptr;
 	*ptr = TLB_UNLOCKED;
-	*(ptr + 1) = 0;		/* recurse counter */
+	*(ptr + 1) = 0; /* recurse counter */
 #endif
 }
 

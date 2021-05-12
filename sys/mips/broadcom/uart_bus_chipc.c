@@ -45,16 +45,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
-#include "uart_if.h"
-#include "bhnd_chipc_if.h"
-
 #include "bcm_machdep.h"
+#include "bhnd_chipc_if.h"
+#include "uart_if.h"
 
 static int
 uart_chipc_probe(device_t dev)
 {
-	struct uart_softc 	*sc;
-	u_int			 rclk;
+	struct uart_softc *sc;
+	u_int rclk;
 
 	sc = device_get_softc(dev);
 	sc->sc_class = &uart_ns8250_class;
@@ -65,10 +64,9 @@ uart_chipc_probe(device_t dev)
 
 static device_method_t uart_chipc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		uart_chipc_probe),
-	DEVMETHOD(device_attach,	uart_bus_attach),
-	DEVMETHOD(device_detach,	uart_bus_detach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, uart_chipc_probe),
+	DEVMETHOD(device_attach, uart_bus_attach),
+	DEVMETHOD(device_detach, uart_bus_detach), { 0, 0 }
 };
 
 static driver_t uart_chipc_driver = {

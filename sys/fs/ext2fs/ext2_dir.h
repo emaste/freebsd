@@ -29,32 +29,29 @@
  */
 
 #ifndef _FS_EXT2FS_EXT2_DIR_H_
-#define	_FS_EXT2FS_EXT2_DIR_H_
+#define _FS_EXT2FS_EXT2_DIR_H_
 
 /*
  * Structure of a directory entry
  */
-#define	EXT2FS_MAXNAMLEN	255
+#define EXT2FS_MAXNAMLEN 255
 
 struct ext2fs_direct {
-	uint32_t e2d_ino;		/* inode number of entry */
-	uint16_t e2d_reclen;		/* length of this record */
-	uint16_t e2d_namlen;		/* length of string in e2d_name */
-	char e2d_name[EXT2FS_MAXNAMLEN];/* name with length<=EXT2FS_MAXNAMLEN */
+	uint32_t e2d_ino;    /* inode number of entry */
+	uint16_t e2d_reclen; /* length of this record */
+	uint16_t e2d_namlen; /* length of string in e2d_name */
+	char
+	    e2d_name[EXT2FS_MAXNAMLEN]; /* name with length<=EXT2FS_MAXNAMLEN */
 };
 
-enum slotstatus {
-	NONE,
-	COMPACT,
-	FOUND
-};
+enum slotstatus { NONE, COMPACT, FOUND };
 
 struct ext2fs_searchslot {
 	enum slotstatus slotstatus;
-	doff_t	slotoffset;		/* offset of area with free space */
-	int	slotsize;		/* size of area at slotoffset */
-	int	slotfreespace;		/* amount of space free in slot */
-	int	slotneeded;		/* sizeof the entry we are seeking */
+	doff_t slotoffset; /* offset of area with free space */
+	int slotsize;	   /* size of area at slotoffset */
+	int slotfreespace; /* amount of space free in slot */
+	int slotneeded;	   /* sizeof the entry we are seeking */
 };
 
 /*
@@ -64,54 +61,54 @@ struct ext2fs_searchslot {
  * file_type field.
  */
 struct ext2fs_direct_2 {
-	uint32_t e2d_ino;		/* inode number of entry */
-	uint16_t e2d_reclen;		/* length of this record */
-	uint8_t	e2d_namlen;		/* length of string in e2d_name */
-	uint8_t	e2d_type;		/* file type */
-	char	e2d_name[EXT2FS_MAXNAMLEN];	/* name with
-						 * length<=EXT2FS_MAXNAMLEN */
+	uint32_t e2d_ino;		 /* inode number of entry */
+	uint16_t e2d_reclen;		 /* length of this record */
+	uint8_t e2d_namlen;		 /* length of string in e2d_name */
+	uint8_t e2d_type;		 /* file type */
+	char e2d_name[EXT2FS_MAXNAMLEN]; /* name with
+					  * length<=EXT2FS_MAXNAMLEN */
 };
 
 struct ext2fs_direct_tail {
-	uint32_t e2dt_reserved_zero1;	/* pretend to be unused */
-	uint16_t e2dt_rec_len;		/* 12 */
-	uint8_t	e2dt_reserved_zero2;	/* zero name length */
-	uint8_t	e2dt_reserved_ft;	/* 0xDE, fake file type */
-	uint32_t e2dt_checksum;		/* crc32c(uuid+inum+dirblock) */
+	uint32_t e2dt_reserved_zero1; /* pretend to be unused */
+	uint16_t e2dt_rec_len;	      /* 12 */
+	uint8_t e2dt_reserved_zero2;  /* zero name length */
+	uint8_t e2dt_reserved_ft;     /* 0xDE, fake file type */
+	uint32_t e2dt_checksum;	      /* crc32c(uuid+inum+dirblock) */
 };
 
-#define EXT2_FT_DIR_CSUM	0xDE
+#define EXT2_FT_DIR_CSUM 0xDE
 
-#define EXT2_DIRENT_TAIL(data, blocksize) \
-	((struct ext2fs_direct_tail *)(((char *)(data)) + \
-	(blocksize) - sizeof(struct ext2fs_direct_tail)))
+#define EXT2_DIRENT_TAIL(data, blocksize)                               \
+	((struct ext2fs_direct_tail *)(((char *)(data)) + (blocksize) - \
+	    sizeof(struct ext2fs_direct_tail)))
 
 /*
  * Maximal count of links to a file
  */
-#define	EXT4_LINK_MAX	65000
+#define EXT4_LINK_MAX 65000
 
 /*
  * Ext2 directory file types.  Only the low 3 bits are used.  The
  * other bits are reserved for now.
  */
-#define	EXT2_FT_UNKNOWN		0
-#define	EXT2_FT_REG_FILE	1
-#define	EXT2_FT_DIR		2
-#define	EXT2_FT_CHRDEV		3
-#define	EXT2_FT_BLKDEV 		4
-#define	EXT2_FT_FIFO		5
-#define	EXT2_FT_SOCK		6
-#define	EXT2_FT_SYMLINK		7
-#define	EXT2_FT_MAX		8
+#define EXT2_FT_UNKNOWN 0
+#define EXT2_FT_REG_FILE 1
+#define EXT2_FT_DIR 2
+#define EXT2_FT_CHRDEV 3
+#define EXT2_FT_BLKDEV 4
+#define EXT2_FT_FIFO 5
+#define EXT2_FT_SOCK 6
+#define EXT2_FT_SYMLINK 7
+#define EXT2_FT_MAX 8
 
 /*
  * EXT2_DIR_PAD defines the directory entries boundaries
  *
  * NOTE: It must be a multiple of 4
  */
-#define	EXT2_DIR_PAD		 	4
-#define	EXT2_DIR_ROUND			(EXT2_DIR_PAD - 1)
-#define	EXT2_DIR_REC_LEN(name_len)	(((name_len) + 8 + EXT2_DIR_ROUND) & \
-					 ~EXT2_DIR_ROUND)
-#endif	/* !_FS_EXT2FS_EXT2_DIR_H_ */
+#define EXT2_DIR_PAD 4
+#define EXT2_DIR_ROUND (EXT2_DIR_PAD - 1)
+#define EXT2_DIR_REC_LEN(name_len) \
+	(((name_len) + 8 + EXT2_DIR_ROUND) & ~EXT2_DIR_ROUND)
+#endif /* !_FS_EXT2FS_EXT2_DIR_H_ */

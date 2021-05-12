@@ -40,10 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <mips/atheros/ar71xxreg.h>
-#include <mips/atheros/ar71xx_cpudef.h>
 #include <mips/atheros/ar71xx_bus_space_reversed.h>
-
+#include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/uart_dev_ar933x.h>
 
 bus_space_tag_t uart_bus_space_io;
@@ -65,7 +64,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->ops = uart_getops(&uart_ar933x_class);
 	di->bas.chan = 0;
 	di->bas.bst = ar71xx_bus_space_reversed;
-	di->bas.regshft = 0;	/* We'll do "correct" dword addressing here */
+	di->bas.regshft = 0; /* We'll do "correct" dword addressing here */
 	di->bas.rclk = freq;
 	di->baudrate = 115200;
 	di->databits = 8;

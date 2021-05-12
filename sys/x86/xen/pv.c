@@ -36,48 +36,46 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
-#include <sys/bus.h>
-#include <sys/kernel.h>
-#include <sys/reboot.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
+#include <sys/boot.h>
+#include <sys/bus.h>
+#include <sys/ctype.h>
+#include <sys/efi.h>
+#include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
-#include <sys/rwlock.h>
-#include <sys/boot.h>
-#include <sys/ctype.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/reboot.h>
+#include <sys/rwlock.h>
 #include <sys/smp.h>
-#include <sys/efi.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
 #include <machine/_inttypes.h>
 #include <machine/intr_machdep.h>
-#include <x86/apicvar.h>
-#include <x86/init.h>
-#include <machine/pc/bios.h>
-#include <machine/smp.h>
-#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
+#include <machine/pc/bios.h>
+#include <machine/smp.h>
 
-#include <xen/xen-os.h>
+#include <x86/apicvar.h>
+#include <x86/init.h>
 #include <xen/hvm.h>
 #include <xen/hypervisor.h>
-#include <xen/xenstore/xenstorevar.h>
-#include <xen/xen_pv.h>
-#include <xen/xen_msi.h>
-
 #include <xen/interface/arch-x86/hvm/start_info.h>
 #include <xen/interface/vcpu.h>
+#include <xen/xen-os.h>
+#include <xen/xen_msi.h>
+#include <xen/xen_pv.h>
+#include <xen/xenstore/xenstorevar.h>
 
 #include <dev/xen/timer/timer.h>
 
@@ -91,7 +89,7 @@ extern u_int64_t hammer_time(u_int64_t, u_int64_t);
 uint64_t hammer_time_xen_legacy(start_info_t *, uint64_t);
 uint64_t hammer_time_xen(vm_paddr_t);
 
-#define MAX_E820_ENTRIES	128
+#define MAX_E820_ENTRIES 128
 
 /*--------------------------- Forward Declarations ---------------------------*/
 static caddr_t xen_legacy_pvh_parse_preload_data(uint64_t);
@@ -120,26 +118,26 @@ extern uint32_t end;
 /*-------------------------------- Global Data -------------------------------*/
 /* Xen init_ops implementation. */
 struct init_ops xen_legacy_init_ops = {
-	.parse_preload_data		= xen_legacy_pvh_parse_preload_data,
-	.early_clock_source_init	= xen_clock_init,
-	.early_delay			= xen_delay,
-	.parse_memmap			= xen_pvh_parse_memmap,
+	.parse_preload_data = xen_legacy_pvh_parse_preload_data,
+	.early_clock_source_init = xen_clock_init,
+	.early_delay = xen_delay,
+	.parse_memmap = xen_pvh_parse_memmap,
 #ifdef SMP
-	.start_all_aps			= xen_pv_start_all_aps,
+	.start_all_aps = xen_pv_start_all_aps,
 #endif
-	.msi_init			= xen_msi_init,
+	.msi_init = xen_msi_init,
 };
 
 struct init_ops xen_pvh_init_ops = {
-	.parse_preload_data		= xen_pvh_parse_preload_data,
-	.early_clock_source_init	= xen_clock_init,
-	.early_delay			= xen_delay,
-	.parse_memmap			= xen_pvh_parse_memmap,
+	.parse_preload_data = xen_pvh_parse_preload_data,
+	.early_clock_source_init = xen_clock_init,
+	.early_delay = xen_delay,
+	.parse_memmap = xen_pvh_parse_memmap,
 #ifdef SMP
-	.mp_bootaddress			= mp_bootaddress,
-	.start_all_aps			= native_start_all_aps,
+	.mp_bootaddress = mp_bootaddress,
+	.start_all_aps = native_start_all_aps,
 #endif
-	.msi_init			= msi_init,
+	.msi_init = msi_init,
 };
 
 static struct bios_smap xen_smap[MAX_E820_ENTRIES];
@@ -184,11 +182,11 @@ legacy_get_start_flags(void)
 }
 
 struct hypervisor_info legacy_info = {
-	.get_xenstore_mfn		= legacy_get_xenstore_mfn,
-	.get_xenstore_evtchn		= legacy_get_xenstore_evtchn,
-	.get_console_mfn		= legacy_get_console_mfn,
-	.get_console_evtchn		= legacy_get_console_evtchn,
-	.get_start_flags		= legacy_get_start_flags,
+	.get_xenstore_mfn = legacy_get_xenstore_mfn,
+	.get_xenstore_evtchn = legacy_get_xenstore_evtchn,
+	.get_console_mfn = legacy_get_console_mfn,
+	.get_console_evtchn = legacy_get_console_evtchn,
+	.get_start_flags = legacy_get_start_flags,
 };
 
 /*-------------------------------- Xen PV init -------------------------------*/
@@ -223,8 +221,7 @@ hammer_time_xen_legacy(start_info_t *si, uint64_t xenstack)
 
 	/* Setup Xen global variables */
 	legacy_start_info = si;
-	HYPERVISOR_shared_info =
-	    (shared_info_t *)(si->shared_info + KERNBASE);
+	HYPERVISOR_shared_info = (shared_info_t *)(si->shared_info + KERNBASE);
 
 	/*
 	 * Use the stack Xen gives us to build the page tables
@@ -287,8 +284,8 @@ hammer_time_xen(vm_paddr_t start_info_paddr)
 
 	rc = xen_hvm_init_hypercall_stubs(XEN_HVM_INIT_EARLY);
 	if (rc) {
-		xc_printf("ERROR: failed to initialize hypercall page: %d\n",
-		    rc);
+		xc_printf(
+		    "ERROR: failed to initialize hypercall page: %d\n", rc);
 		HYPERVISOR_shutdown(SHUTDOWN_crash);
 	}
 
@@ -336,8 +333,9 @@ hammer_time_xen(vm_paddr_t start_info_paddr)
 			    "ERROR: modlist_paddr != 0 but nr_modules == 0\n");
 			HYPERVISOR_shutdown(SHUTDOWN_crash);
 		}
-		mod = (struct hvm_modlist_entry *)
-		    (vm_paddr_t)start_info->modlist_paddr + KERNBASE;
+		mod = (struct hvm_modlist_entry *)(vm_paddr_t)
+			  start_info->modlist_paddr +
+		    KERNBASE;
 		if (mod[0].paddr >= physfree) {
 			xc_printf("ERROR: unexpected module memory address\n");
 			HYPERVISOR_shutdown(SHUTDOWN_crash);
@@ -375,8 +373,8 @@ start_xen_ap(int cpu)
 	ctxt = malloc(sizeof(*ctxt), M_TEMP, M_WAITOK | M_ZERO);
 
 	ctxt->flags = VGCF_IN_KERNEL;
-	ctxt->user_regs.rip = (unsigned long) init_secondary;
-	ctxt->user_regs.rsp = (unsigned long) bootSTK;
+	ctxt->user_regs.rip = (unsigned long)init_secondary;
+	ctxt->user_regs.rsp = (unsigned long)bootSTK;
 
 	/* Set the AP to use the same page tables */
 	ctxt->ctrlreg[3] = KPML4phys;
@@ -412,7 +410,7 @@ xen_pv_start_all_aps(void)
 		if (!start_xen_ap(cpu))
 			panic("AP #%d failed to start!", cpu);
 
-		CPU_SET(cpu, &all_cpus);	/* record AP in CPU map */
+		CPU_SET(cpu, &all_cpus); /* record AP in CPU map */
 	}
 
 	return (mp_naps);
@@ -426,7 +424,8 @@ xen_pv_start_all_aps(void)
  * removed from kenv if present, and a new acpi.rsdp is added to kenv that
  * points to the address of the Xen crafted RSDP.
  */
-static bool reject_option(const char *option)
+static bool
+reject_option(const char *option)
 {
 	static const char *reject[] = {
 		"acpi.rsdp",
@@ -484,8 +483,7 @@ xen_pvh_parse_symtab(void)
 
 	ehdr = (Elf_Ehdr *)(&end + 1);
 	if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG) ||
-	    ehdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
-	    ehdr->e_version > 1) {
+	    ehdr->e_ident[EI_CLASS] != ELF_TARG_CLASS || ehdr->e_version > 1) {
 		xc_printf("Unable to load ELF symtab: invalid symbol table\n");
 		return;
 	}
@@ -508,17 +506,17 @@ xen_pvh_parse_symtab(void)
 
 	if (ksymtab == 0 || kstrtab == 0)
 		xc_printf(
-    "Unable to load ELF symtab: could not find symtab or strtab\n");
+		    "Unable to load ELF symtab: could not find symtab or strtab\n");
 }
 #endif
 
 static caddr_t
 xen_legacy_pvh_parse_preload_data(uint64_t modulep)
 {
-	caddr_t		 kmdp;
-	vm_ooffset_t	 off;
-	vm_paddr_t	 metadata;
-	char             *envp;
+	caddr_t kmdp;
+	vm_ooffset_t off;
+	vm_paddr_t metadata;
+	char *envp;
 
 	if (legacy_start_info->mod_start != 0) {
 		preload_metadata = (caddr_t)legacy_start_info->mod_start;
@@ -572,10 +570,11 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 		struct hvm_modlist_entry *mod;
 		const char *cmdline;
 
-		mod = (struct hvm_modlist_entry *)
-		    (start_info->modlist_paddr + KERNBASE);
+		mod = (struct hvm_modlist_entry *)(start_info->modlist_paddr +
+		    KERNBASE);
 		cmdline = mod[0].cmdline_paddr ?
-		    (const char *)(mod[0].cmdline_paddr + KERNBASE) : NULL;
+			  (const char *)(mod[0].cmdline_paddr + KERNBASE) :
+			  NULL;
 
 		if (strcmp(cmdline, "header") == 0) {
 			struct xen_header *header;
@@ -588,8 +587,8 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 				HYPERVISOR_shutdown(SHUTDOWN_crash);
 			}
 
-			preload_metadata = (caddr_t)(mod[0].paddr +
-			    header->modulep_offset + KERNBASE);
+			preload_metadata = (caddr_t)(
+			    mod[0].paddr + header->modulep_offset + KERNBASE);
 
 			kmdp = preload_search_by_type("elf kernel");
 			if (kmdp == NULL)
@@ -606,8 +605,8 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 			 * calculating the offset from the real modulep
 			 * position.
 			 */
-			metadata = MD_FETCH(kmdp, MODINFOMD_MODULEP,
-			    vm_paddr_t);
+			metadata = MD_FETCH(
+			    kmdp, MODINFOMD_MODULEP, vm_paddr_t);
 			off = mod[0].paddr + header->modulep_offset - metadata +
 			    KERNBASE;
 		} else {
@@ -621,7 +620,8 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 				HYPERVISOR_shutdown(SHUTDOWN_crash);
 			}
 
-			metadata = MD_FETCH(kmdp, MODINFOMD_MODULEP, vm_paddr_t);
+			metadata = MD_FETCH(
+			    kmdp, MODINFOMD_MODULEP, vm_paddr_t);
 			off = mod[0].paddr + KERNBASE - metadata;
 		}
 
@@ -634,9 +634,9 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 		xen_pvh_set_env(envp, reject_option);
 
 		if (MD_FETCH(kmdp, MODINFOMD_EFI_MAP, void *) != NULL)
-		    strlcpy(bootmethod, "UEFI", sizeof(bootmethod));
+			strlcpy(bootmethod, "UEFI", sizeof(bootmethod));
 		else
-		    strlcpy(bootmethod, "BIOS", sizeof(bootmethod));
+			strlcpy(bootmethod, "BIOS", sizeof(bootmethod));
 	} else {
 		/* Parse the extra boot information given by Xen */
 		if (start_info->cmdline_paddr != 0)
@@ -649,8 +649,8 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 
 	boothowto |= boot_env_to_howto();
 
-	snprintf(acpi_rsdp, sizeof(acpi_rsdp), "%#" PRIx64,
-	    start_info->rsdp_paddr);
+	snprintf(
+	    acpi_rsdp, sizeof(acpi_rsdp), "%#" PRIx64, start_info->rsdp_paddr);
 	kern_setenv("acpi.rsdp", acpi_rsdp);
 
 #ifdef DDB
@@ -671,8 +671,8 @@ xen_pvh_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 	set_xen_guest_handle(memmap.buffer, xen_smap);
 	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
 	if (rc) {
-		xc_printf("ERROR: unable to fetch Xen E820 memory map: %d\n",
-		    rc);
+		xc_printf(
+		    "ERROR: unable to fetch Xen E820 memory map: %d\n", rc);
 		HYPERVISOR_shutdown(SHUTDOWN_crash);
 	}
 

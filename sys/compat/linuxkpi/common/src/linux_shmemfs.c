@@ -35,8 +35,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_object.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
@@ -54,8 +54,8 @@ linux_shmem_read_mapping_page_gfp(vm_object_t obj, int pindex, gfp_t gfp)
 		panic("GFP_NOWAIT is unimplemented");
 
 	VM_OBJECT_WLOCK(obj);
-	rv = vm_page_grab_valid(&page, obj, pindex, VM_ALLOC_NORMAL |
-	    VM_ALLOC_NOBUSY | VM_ALLOC_WIRED);
+	rv = vm_page_grab_valid(&page, obj, pindex,
+	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_WIRED);
 	VM_OBJECT_WUNLOCK(obj);
 	if (rv != VM_PAGER_OK)
 		return (ERR_PTR(-EINVAL));
@@ -98,8 +98,8 @@ err_0:
 }
 
 static vm_ooffset_t
-linux_invalidate_mapping_pages_sub(vm_object_t obj, vm_pindex_t start,
-    vm_pindex_t end, int flags)
+linux_invalidate_mapping_pages_sub(
+    vm_object_t obj, vm_pindex_t start, vm_pindex_t end, int flags)
 {
 	int start_count, end_count;
 
@@ -115,7 +115,8 @@ unsigned long
 linux_invalidate_mapping_pages(vm_object_t obj, pgoff_t start, pgoff_t end)
 {
 
-	return (linux_invalidate_mapping_pages_sub(obj, start, end, OBJPR_CLEANONLY));
+	return (linux_invalidate_mapping_pages_sub(
+	    obj, start, end, OBJPR_CLEANONLY));
 }
 
 void
@@ -124,5 +125,5 @@ linux_shmem_truncate_range(vm_object_t obj, loff_t lstart, loff_t lend)
 	vm_pindex_t start = OFF_TO_IDX(lstart + PAGE_SIZE - 1);
 	vm_pindex_t end = OFF_TO_IDX(lend + 1);
 
-	(void) linux_invalidate_mapping_pages_sub(obj, start, end, 0);
+	(void)linux_invalidate_mapping_pages_sub(obj, start, end, 0);
 }

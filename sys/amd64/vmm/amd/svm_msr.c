@@ -32,20 +32,20 @@ __FBSDID("$FreeBSD$");
 #include "opt_bhyve_snapshot.h"
 
 #include <sys/param.h>
-#include <sys/errno.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
 
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
 
 #include "svm.h"
-#include "vmcb.h"
-#include "svm_softc.h"
 #include "svm_msr.h"
+#include "svm_softc.h"
+#include "vmcb.h"
 
 #ifndef MSR_AMDK8_IPM
-#define	MSR_AMDK8_IPM	0xc0010055
+#define MSR_AMDK8_IPM 0xc0010055
 #endif
 
 enum {
@@ -53,7 +53,7 @@ enum {
 	IDX_MSR_CSTAR,
 	IDX_MSR_STAR,
 	IDX_MSR_SF_MASK,
-	HOST_MSR_NUM		/* must be the last enumeration */
+	HOST_MSR_NUM /* must be the last enumeration */
 };
 
 static uint64_t host_msrs[HOST_MSR_NUM];
@@ -61,7 +61,7 @@ static uint64_t host_msrs[HOST_MSR_NUM];
 void
 svm_msr_init(void)
 {
-	/* 
+	/*
 	 * It is safe to cache the values of the following MSRs because they
 	 * don't change based on curcpu, curproc or curthread.
 	 */
@@ -108,8 +108,8 @@ svm_msr_guest_exit(struct svm_softc *sc, int vcpu)
 }
 
 int
-svm_rdmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t *result,
-    bool *retu)
+svm_rdmsr(
+    struct svm_softc *sc, int vcpu, u_int num, uint64_t *result, bool *retu)
 {
 	int error = 0;
 
@@ -144,7 +144,7 @@ svm_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val, bool *retu)
 	switch (num) {
 	case MSR_MCG_CAP:
 	case MSR_MCG_STATUS:
-		break;		/* ignore writes */
+		break; /* ignore writes */
 	case MSR_MTRRcap:
 		vm_inject_gp(sc->vm, vcpu);
 		break;
@@ -153,7 +153,7 @@ svm_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val, bool *retu)
 	case MSR_MTRR16kBase ... MSR_MTRR16kBase + 1:
 	case MSR_MTRR64kBase:
 	case MSR_SYSCFG:
-		break;		/* Ignore writes */
+		break; /* Ignore writes */
 	case MSR_AMDK8_IPM:
 		/*
 		 * Ignore writes to the "Interrupt Pending Message" MSR.

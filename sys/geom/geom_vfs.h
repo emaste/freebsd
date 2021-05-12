@@ -38,7 +38,8 @@ struct buf;
 extern struct buf_ops *g_vfs_bufops;
 
 void g_vfs_strategy(struct bufobj *bo, struct buf *bp);
-int g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr);
+int g_vfs_open(
+    struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr);
 void g_vfs_close(struct g_consumer *cp);
 
 #endif /* _GEOM_GEOM_VFS_H_ */

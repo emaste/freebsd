@@ -29,29 +29,29 @@
  */
 
 #ifndef _FS_EXT2FS_EXT2_ACL_H_
-#define	_FS_EXT2FS_EXT2_ACL_H_
+#define _FS_EXT2FS_EXT2_ACL_H_
 
-#define	EXT4_ACL_VERSION	0x0001
+#define EXT4_ACL_VERSION 0x0001
 
 struct ext2_acl_entry {
-	int16_t		ae_tag;
-	int16_t		ae_perm;
-	int32_t		ae_id;
+	int16_t ae_tag;
+	int16_t ae_perm;
+	int32_t ae_id;
 };
 
 struct ext2_acl_entry_short {
-	int16_t		ae_tag;
-	int16_t		ae_perm;
+	int16_t ae_tag;
+	int16_t ae_perm;
 };
 
 struct ext2_acl_header {
-	int32_t		a_version;
+	int32_t a_version;
 };
 
 void ext2_sync_acl_from_inode(struct inode *ip, struct acl *acl);
 
-int	ext2_getacl(struct vop_getacl_args *);
-int	ext2_setacl(struct vop_setacl_args *);
-int	ext2_aclcheck(struct vop_aclcheck_args *);
+int ext2_getacl(struct vop_getacl_args *);
+int ext2_setacl(struct vop_setacl_args *);
+int ext2_aclcheck(struct vop_aclcheck_args *);
 
 #endif /* !_FS_EXT2FS_EXT2_ACL_H_ */

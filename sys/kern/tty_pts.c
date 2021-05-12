@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #define PTS_LINUX
 
 #include <sys/param.h>
-#include <sys/lock.h>
+#include <sys/systm.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
@@ -62,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #include <sys/tty.h>
 #include <sys/ttycom.h>
 #include <sys/uio.h>
@@ -88,22 +88,22 @@ static MALLOC_DEFINE(M_PTS, "pts", "pseudo tty device");
  * (c)	const until freeing
  */
 struct pts_softc {
-	int		pts_unit;	/* (c) Device unit number. */
-	unsigned int	pts_flags;	/* (t) Device flags. */
-#define	PTS_PKT		0x1	/* Packet mode. */
-#define	PTS_FINISHED	0x2	/* Return errors on read()/write(). */
-	char		pts_pkt;	/* (t) Unread packet mode data. */
+	int pts_unit;		/* (c) Device unit number. */
+	unsigned int pts_flags; /* (t) Device flags. */
+#define PTS_PKT 0x1		/* Packet mode. */
+#define PTS_FINISHED 0x2 /* Return errors on read()/write(). */
+	char pts_pkt; /* (t) Unread packet mode data. */
 
-	struct cv	pts_inwait;	/* (t) Blocking write() on master. */
-	struct selinfo	pts_inpoll;	/* (t) Select queue for write(). */
-	struct cv	pts_outwait;	/* (t) Blocking read() on master. */
-	struct selinfo	pts_outpoll;	/* (t) Select queue for read(). */
+	struct cv pts_inwait;	    /* (t) Blocking write() on master. */
+	struct selinfo pts_inpoll;  /* (t) Select queue for write(). */
+	struct cv pts_outwait;	    /* (t) Blocking read() on master. */
+	struct selinfo pts_outpoll; /* (t) Select queue for read(). */
 
 #ifdef PTS_EXTERNAL
-	struct cdev	*pts_cdev;	/* (c) Master device node. */
-#endif /* PTS_EXTERNAL */
+	struct cdev *pts_cdev; /* (c) Master device node. */
+#endif			       /* PTS_EXTERNAL */
 
-	struct ucred	*pts_cred;	/* (c) Resource limit. */
+	struct ucred *pts_cred; /* (c) Resource limit. */
 };
 
 /*
@@ -246,7 +246,8 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		tty_unlock(tp);
 	}
 
-done:	ttydisc_rint_done(tp);
+done:
+	ttydisc_rint_done(tp);
 	tty_unlock(tp);
 
 	/*
@@ -258,8 +259,8 @@ done:	ttydisc_rint_done(tp);
 }
 
 static int
-ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
-    struct ucred *active_cred, struct thread *td)
+ptsdev_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct tty *tp = fp->f_data;
 	struct pts_softc *psc = tty_softc(tp);
@@ -313,7 +314,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 	case TIOCGETA:
 		/* Obtain terminal flags through tcgetattr(). */
 		tty_lock(tp);
-		*(struct termios*)data = tp->t_termios;
+		*(struct termios *)data = tp->t_termios;
 		tty_unlock(tp);
 		return (0);
 #endif /* PTS_LINUX */
@@ -390,8 +391,8 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 }
 
 static int
-ptsdev_poll(struct file *fp, int events, struct ucred *active_cred,
-    struct thread *td)
+ptsdev_poll(
+    struct file *fp, int events, struct ucred *active_cred, struct thread *td)
 {
 	struct tty *tp = fp->f_data;
 	struct pts_softc *psc = tty_softc(tp);
@@ -402,19 +403,19 @@ ptsdev_poll(struct file *fp, int events, struct ucred *active_cred,
 	if (psc->pts_flags & PTS_FINISHED) {
 		/* Slave device is not opened. */
 		tty_unlock(tp);
-		return ((events & (POLLIN|POLLRDNORM)) | POLLHUP);
+		return ((events & (POLLIN | POLLRDNORM)) | POLLHUP);
 	}
 
-	if (events & (POLLIN|POLLRDNORM)) {
+	if (events & (POLLIN | POLLRDNORM)) {
 		/* See if we can getc something. */
 		if (ttydisc_getc_poll(tp) ||
 		    (psc->pts_flags & PTS_PKT && psc->pts_pkt))
-			revents |= events & (POLLIN|POLLRDNORM);
+			revents |= events & (POLLIN | POLLRDNORM);
 	}
-	if (events & (POLLOUT|POLLWRNORM)) {
+	if (events & (POLLOUT | POLLWRNORM)) {
 		/* See if we can rint something. */
 		if (ttydisc_rint_poll(tp))
-			revents |= events & (POLLOUT|POLLWRNORM);
+			revents |= events & (POLLOUT | POLLWRNORM);
 	}
 
 	/*
@@ -429,9 +430,9 @@ ptsdev_poll(struct file *fp, int events, struct ucred *active_cred,
 		 * poll events on this side is the opposite of the slave
 		 * device.
 		 */
-		if (events & (POLLIN|POLLRDNORM))
+		if (events & (POLLIN | POLLRDNORM))
 			selrecord(td, &psc->pts_outpoll);
-		if (events & (POLLOUT|POLLWRNORM))
+		if (events & (POLLOUT | POLLWRNORM))
 			selrecord(td, &psc->pts_inpoll);
 	}
 
@@ -607,19 +608,19 @@ ptsdev_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 }
 
 static struct fileops ptsdev_ops = {
-	.fo_read	= ptsdev_read,
-	.fo_write	= ptsdev_write,
-	.fo_truncate	= invfo_truncate,
-	.fo_ioctl	= ptsdev_ioctl,
-	.fo_poll	= ptsdev_poll,
-	.fo_kqfilter	= ptsdev_kqfilter,
-	.fo_stat	= ptsdev_stat,
-	.fo_close	= ptsdev_close,
-	.fo_chmod	= invfo_chmod,
-	.fo_chown	= invfo_chown,
-	.fo_sendfile	= invfo_sendfile,
-	.fo_fill_kinfo	= ptsdev_fill_kinfo,
-	.fo_flags	= DFLAG_PASSABLE,
+	.fo_read = ptsdev_read,
+	.fo_write = ptsdev_write,
+	.fo_truncate = invfo_truncate,
+	.fo_ioctl = ptsdev_ioctl,
+	.fo_poll = ptsdev_poll,
+	.fo_kqfilter = ptsdev_kqfilter,
+	.fo_stat = ptsdev_stat,
+	.fo_close = ptsdev_close,
+	.fo_chmod = invfo_chmod,
+	.fo_chown = invfo_chown,
+	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = ptsdev_fill_kinfo,
+	.fo_flags = DFLAG_PASSABLE,
 };
 
 /*
@@ -723,20 +724,20 @@ ptsdrv_free(void *softc)
 }
 
 static struct ttydevsw pts_class = {
-	.tsw_flags	= TF_NOPREFIX,
-	.tsw_outwakeup	= ptsdrv_outwakeup,
-	.tsw_inwakeup	= ptsdrv_inwakeup,
-	.tsw_open	= ptsdrv_open,
-	.tsw_close	= ptsdrv_close,
-	.tsw_pktnotify	= ptsdrv_pktnotify,
-	.tsw_free	= ptsdrv_free,
+	.tsw_flags = TF_NOPREFIX,
+	.tsw_outwakeup = ptsdrv_outwakeup,
+	.tsw_inwakeup = ptsdrv_inwakeup,
+	.tsw_open = ptsdrv_open,
+	.tsw_close = ptsdrv_close,
+	.tsw_pktnotify = ptsdrv_pktnotify,
+	.tsw_free = ptsdrv_free,
 };
 
 #ifndef PTS_EXTERNAL
 static
 #endif /* !PTS_EXTERNAL */
-int
-pts_alloc(int fflags, struct thread *td, struct file *fp)
+    int
+    pts_alloc(int fflags, struct thread *td, struct file *fp)
 {
 	int unit, ok, error;
 	struct tty *tp;
@@ -768,7 +769,7 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 	}
 
 	/* Allocate TTY and softc. */
-	psc = malloc(sizeof(struct pts_softc), M_PTS, M_WAITOK|M_ZERO);
+	psc = malloc(sizeof(struct pts_softc), M_PTS, M_WAITOK | M_ZERO);
 	cv_init(&psc->pts_inwait, "ptsin");
 	cv_init(&psc->pts_outwait, "ptsout");
 
@@ -814,7 +815,7 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 	PROC_UNLOCK(p);
 
 	/* Allocate TTY and softc. */
-	psc = malloc(sizeof(struct pts_softc), M_PTS, M_WAITOK|M_ZERO);
+	psc = malloc(sizeof(struct pts_softc), M_PTS, M_WAITOK | M_ZERO);
 	cv_init(&psc->pts_inwait, "ptsin");
 	cv_init(&psc->pts_outwait, "ptsout");
 
@@ -845,7 +846,7 @@ sys_posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 	 * POSIX states it's unspecified when other flags are passed. We
 	 * don't allow this.
 	 */
-	if (uap->flags & ~(O_RDWR|O_NOCTTY|O_CLOEXEC))
+	if (uap->flags & ~(O_RDWR | O_NOCTTY | O_CLOEXEC))
 		return (EINVAL);
 
 	error = falloc(td, &fp, &fd, uap->flags);

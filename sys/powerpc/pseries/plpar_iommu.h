@@ -38,7 +38,7 @@ int phyp_iommu_set_dma_tag(device_t dev, device_t child, bus_dma_tag_t tag);
 int phyp_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,
     bus_addr_t min, bus_addr_t max, bus_size_t alignment, bus_addr_t boundary,
     void *cookie);
-int phyp_iommu_unmap(device_t dev, bus_dma_segment_t *segs, int nsegs,
-    void *cookie);
+int phyp_iommu_unmap(
+    device_t dev, bus_dma_segment_t *segs, int nsegs, void *cookie);
 
 #endif

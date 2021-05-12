@@ -34,11 +34,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/extres/clk/clk.h>
-
 #include <dev/fdt/fdt_common.h>
 #include <dev/fdt/simplebus.h>
 #include <dev/ofw/ofw_bus.h>
@@ -56,25 +55,24 @@ __FBSDID("$FreeBSD$");
 
 struct jz4780_nemc_devinfo {
 	struct simplebus_devinfo sinfo;
-	uint32_t                 bank;
+	uint32_t bank;
 };
 
 struct jz4780_nemc_softc {
-	struct simplebus_softc	simplebus_sc;
-	device_t		dev;
-	struct resource		*res[1];
-	uint32_t		banks;
-	uint32_t		clock_tick_psecs;
-	clk_t			clk;
+	struct simplebus_softc simplebus_sc;
+	device_t dev;
+	struct resource *res[1];
+	uint32_t banks;
+	uint32_t clock_tick_psecs;
+	clk_t clk;
 };
 
 static struct resource_spec jz4780_nemc_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, { -1, 0 }
 };
 
-#define	CSR_WRITE_4(sc, reg, val)	bus_write_4((sc)->res[0], reg, (val))
-#define	CSR_READ_4(sc, reg)		bus_read_4((sc)->res[0], reg)
+#define CSR_WRITE_4(sc, reg, val) bus_write_4((sc)->res[0], reg, (val))
+#define CSR_READ_4(sc, reg) bus_read_4((sc)->res[0], reg)
 
 static int jz4780_nemc_probe(device_t dev);
 static int jz4780_nemc_attach(device_t dev);
@@ -95,25 +93,27 @@ jz4780_nemc_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-#define JZ4780_NEMC_NS_TO_TICKS(sc, val) howmany((val) * 1000,  (sc)->clock_tick_psecs)
+#define JZ4780_NEMC_NS_TO_TICKS(sc, val) \
+	howmany((val)*1000, (sc)->clock_tick_psecs)
 
-/* Use table from JZ4780 programmers manual to convert ticks to tBP/tAW register values */
+/* Use table from JZ4780 programmers manual to convert ticks to tBP/tAW register
+ * values */
 static const uint8_t ticks_to_tBP_tAW[32] = {
-	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,  /* 1:1 mapping */
-	11, 11,                            /* 12 cycles */
-	12, 12, 12,                        /* 15 cycles */
-	13, 13, 13, 13, 13,                /* 20 cycles */
-	14, 14, 14, 14, 14,                /* 25 cycles */
-	15, 15, 15, 15, 15, 15             /* 31 cycles */
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, /* 1:1 mapping */
+	11, 11,				  /* 12 cycles */
+	12, 12, 12,			  /* 15 cycles */
+	13, 13, 13, 13, 13,		  /* 20 cycles */
+	14, 14, 14, 14, 14,		  /* 25 cycles */
+	15, 15, 15, 15, 15, 15		  /* 31 cycles */
 };
 
 static int
-jz4780_nemc_configure_bank(struct jz4780_nemc_softc *sc,
-        device_t dev, u_int bank)
+jz4780_nemc_configure_bank(
+    struct jz4780_nemc_softc *sc, device_t dev, u_int bank)
 {
 	uint32_t smcr, cycles;
 	phandle_t node;
-	pcell_t   val;
+	pcell_t val;
 
 	/* Check if bank is configured already */
 	if (sc->banks & (1 << bank))
@@ -212,8 +212,8 @@ jz4780_nemc_fill_ranges(phandle_t node, struct simplebus_softc *sc)
 	if (sc->nranges == 0)
 		return (0);
 
-	sc->ranges = malloc(sc->nranges * sizeof(sc->ranges[0]),
-	    M_DEVBUF, M_WAITOK);
+	sc->ranges = malloc(
+	    sc->nranges * sizeof(sc->ranges[0]), M_DEVBUF, M_WAITOK);
 	base_ranges = malloc(nbase_ranges, M_DEVBUF, M_WAITOK);
 	OF_getencprop(node, "ranges", base_ranges, nbase_ranges);
 
@@ -308,8 +308,8 @@ jz4780_nemc_detach(device_t dev)
 }
 
 static int
-jz4780_nemc_decode_bank(struct simplebus_softc *sc, struct resource *r,
-    u_int *bank)
+jz4780_nemc_decode_bank(
+    struct simplebus_softc *sc, struct resource *r, u_int *bank)
 {
 	rman_res_t start, end;
 	int i;
@@ -319,8 +319,8 @@ jz4780_nemc_decode_bank(struct simplebus_softc *sc, struct resource *r,
 
 	/* Remap through ranges property */
 	for (i = 0; i < sc->nranges; i++) {
-		if (start >= sc->ranges[i].host && end <
-		    sc->ranges[i].host + sc->ranges[i].size) {
+		if (start >= sc->ranges[i].host &&
+		    end < sc->ranges[i].host + sc->ranges[i].size) {
 			*bank = (sc->ranges[i].bus >> 32);
 			return (0);
 		}
@@ -329,8 +329,8 @@ jz4780_nemc_decode_bank(struct simplebus_softc *sc, struct resource *r,
 }
 
 static int
-jz4780_nemc_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+jz4780_nemc_activate_resource(
+    device_t bus, device_t child, int type, int rid, struct resource *r)
 {
 	struct jz4780_nemc_softc *sc;
 	u_int bank;
@@ -350,15 +350,14 @@ jz4780_nemc_activate_resource(device_t bus, device_t child, int type, int rid,
 	}
 
 	/* Call default implementation to finish the work */
-	return (bus_generic_activate_resource(bus, child,
-		type, rid, r));
+	return (bus_generic_activate_resource(bus, child, type, rid, r));
 }
 
 static device_method_t jz4780_nemc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		jz4780_nemc_probe),
-	DEVMETHOD(device_attach,	jz4780_nemc_attach),
-	DEVMETHOD(device_detach,	jz4780_nemc_detach),
+	DEVMETHOD(device_probe, jz4780_nemc_probe),
+	DEVMETHOD(device_attach, jz4780_nemc_attach),
+	DEVMETHOD(device_detach, jz4780_nemc_detach),
 
 	/* Overrides to configure bank on resource activation */
 	DEVMETHOD(bus_activate_resource, jz4780_nemc_activate_resource),
@@ -368,6 +367,6 @@ static device_method_t jz4780_nemc_methods[] = {
 
 static devclass_t jz4780_nemc_devclass;
 DEFINE_CLASS_1(nemc, jz4780_nemc_driver, jz4780_nemc_methods,
-        sizeof(struct jz4780_nemc_softc), simplebus_driver);
-DRIVER_MODULE(jz4780_nemc, simplebus, jz4780_nemc_driver,
-    jz4780_nemc_devclass, 0, 0);
+    sizeof(struct jz4780_nemc_softc), simplebus_driver);
+DRIVER_MODULE(
+    jz4780_nemc, simplebus, jz4780_nemc_driver, jz4780_nemc_devclass, 0, 0);

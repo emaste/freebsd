@@ -35,27 +35,28 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/cons.h>
 #include <sys/jail.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
-#include <sys/systm.h>
+
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_param.h>
 
 #include <ddb/ddb.h>
 
-#define PRINT_NONE	0
-#define PRINT_ARGS	1
+#define PRINT_NONE 0
+#define PRINT_ARGS 1
 
-static void	dumpthread(volatile struct proc *p, volatile struct thread *td,
-		    int all);
-static void	db_ps_proc(struct proc *p);
-static int	ps_mode;
+static void dumpthread(
+    volatile struct proc *p, volatile struct thread *td, int all);
+static void db_ps_proc(struct proc *p);
+static int ps_mode;
 
 /*
  * At least one non-optional show-command must be implemented using
@@ -112,7 +113,8 @@ db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 	ps_mode = modif[0] == 'a' ? PRINT_ARGS : PRINT_NONE;
 
 #ifdef __LP64__
-	db_printf("  pid  ppid  pgrp   uid  state   wmesg   wchan               cmd\n");
+	db_printf(
+	    "  pid  ppid  pgrp   uid  state   wmesg   wchan               cmd\n");
 #else
 	db_printf("  pid  ppid  pgrp   uid  state   wmesg   wchan       cmd\n");
 #endif
@@ -128,7 +130,7 @@ db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 	 * Processes such as zombies not in allproc.
 	 */
 	for (i = 0; i <= pidhash && !db_pager_quit; i++) {
-		LIST_FOREACH(p, &pidhashtbl[i], p_hash) {
+		LIST_FOREACH (p, &pidhashtbl[i], p_hash) {
 			if (p->p_list.le_prev == NULL)
 				db_ps_proc(p);
 		}
@@ -152,8 +154,7 @@ db_ps_proc(struct proc *p)
 	cred = p->p_ucred;
 	pgrp = p->p_pgrp;
 	db_printf("%5d %5d %5d %5d ", p->p_pid, pp->p_pid,
-	    pgrp != NULL ? pgrp->pg_id : 0,
-	    cred != NULL ? cred->cr_ruid : 0);
+	    pgrp != NULL ? pgrp->pg_id : 0, cred != NULL ? cred->cr_ruid : 0);
 
 	/* Determine our primary process state. */
 	switch (p->p_state) {
@@ -172,7 +173,7 @@ db_ps_proc(struct proc *p)
 			 * primary state.
 			 */
 			rflag = sflag = dflag = lflag = wflag = 0;
-			FOREACH_THREAD_IN_PROC(p, td) {
+			FOREACH_THREAD_IN_PROC (p, td) {
 				if (TD_GET_STATE(td) == TDS_RUNNING ||
 				    TD_GET_STATE(td) == TDS_RUNQ ||
 				    TD_GET_STATE(td) == TDS_CAN_RUN)
@@ -225,8 +226,7 @@ db_ps_proc(struct proc *p)
 		strlcat(state, "V", sizeof(state));
 	if (p->p_flag & P_SYSTEM || p->p_lock > 0)
 		strlcat(state, "L", sizeof(state));
-	if (p->p_pgrp != NULL && p->p_session != NULL &&
-	    SESS_LEADER(p))
+	if (p->p_pgrp != NULL && p->p_session != NULL && SESS_LEADER(p))
 		strlcat(state, "s", sizeof(state));
 	/* Cheated here and didn't compare pgid's. */
 	if (p->p_flag & P_CONTROLT)
@@ -251,7 +251,7 @@ db_ps_proc(struct proc *p)
 		}
 		db_printf("\n");
 	}
-	FOREACH_THREAD_IN_PROC(p, td) {
+	FOREACH_THREAD_IN_PROC (p, td) {
 		dumpthread(p, td, p->p_flag & P_HADTHREADS);
 		if (db_pager_quit)
 			break;
@@ -300,7 +300,7 @@ dumpthread(volatile struct proc *p, volatile struct thread *td, int all)
 				break;
 		default:
 			snprintf(state, sizeof(state), "???");
-		}			
+		}
 		db_printf(" %-6.6s ", state);
 	}
 	wprefix = ' ';
@@ -421,7 +421,7 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 		    td->td_blocked);
 	if (TD_ON_SLEEPQ(td))
 		db_printf(
-	    " wmesg: %s  wchan: %p sleeptimo %lx. %jx (curr %lx. %jx)\n",
+		    " wmesg: %s  wchan: %p sleeptimo %lx. %jx (curr %lx. %jx)\n",
 		    td->td_wmesg, td->td_wchan,
 		    (long)sbttobt(td->td_sleeptimo).sec,
 		    (uintmax_t)sbttobt(td->td_sleeptimo).frac,
@@ -431,8 +431,8 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 	db_printf(" container lock: %s (%p)\n", lock->lo_name, lock);
 	if (td->td_swvoltick != 0) {
 		delta = ticks - td->td_swvoltick;
-		db_printf(" last voluntary switch: %u.%03u s ago\n",
-		    delta / hz, (delta % hz) * 1000 / hz);
+		db_printf(" last voluntary switch: %u.%03u s ago\n", delta / hz,
+		    (delta % hz) * 1000 / hz);
 	}
 	if (td->td_swinvoltick != 0) {
 		delta = ticks - td->td_swinvoltick;
@@ -478,11 +478,11 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 		db_printf("\n");
 	}
 	if (p->p_pptr != NULL)
-		db_printf(" parent: pid %d at %p\n", p->p_pptr->p_pid,
-		    p->p_pptr);
+		db_printf(
+		    " parent: pid %d at %p\n", p->p_pptr->p_pid, p->p_pptr);
 	if (p->p_leader != NULL && p->p_leader != p)
-		db_printf(" leader: pid %d at %p\n", p->p_leader->p_pid,
-		    p->p_leader);
+		db_printf(
+		    " leader: pid %d at %p\n", p->p_leader->p_pid, p->p_leader);
 	if (p->p_sysent != NULL)
 		db_printf(" ABI: %s\n", p->p_sysent->sv_name);
 	db_printf(" flag: %#x ", p->p_flag);
@@ -492,8 +492,8 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 		dump_args(p);
 		db_printf("\n");
 	}
-	db_printf(" reaper: %p reapsubtree: %d\n",
-	    p->p_reaper, p->p_reapsubtree);
+	db_printf(
+	    " reaper: %p reapsubtree: %d\n", p->p_reaper, p->p_reapsubtree);
 	db_printf(" sigparent: %d\n", p->p_sigparent);
 	db_printf(" vmspace: %p\n", p->p_vmspace);
 	db_printf("   (map %p)\n",
@@ -503,7 +503,7 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 	db_printf("   (pmap %p)\n",
 	    (p->p_vmspace != NULL) ? &p->p_vmspace->vm_pmap : 0);
 	db_printf(" threads: %d\n", p->p_numthreads);
-	FOREACH_THREAD_IN_PROC(p, td) {
+	FOREACH_THREAD_IN_PROC (p, td) {
 		dumpthread(p, td, 1);
 		if (db_pager_quit)
 			break;

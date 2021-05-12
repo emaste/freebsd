@@ -44,7 +44,7 @@
  * their lifetime.
  *
  * The exact relationship to the vmobject is not determined at this point,
- * it may in fact be that we find them to be two sides of the same object 
+ * it may in fact be that we find them to be two sides of the same object
  * once things starts to crystalize.
  */
 
@@ -53,10 +53,10 @@
 
 #if defined(_KERNEL) || defined(_KVM_VNODE)
 
-#include <sys/queue.h>
 #include <sys/_lock.h>
-#include <sys/_rwlock.h>
 #include <sys/_pctrie.h>
+#include <sys/_rwlock.h>
+#include <sys/queue.h>
 
 struct bufobj;
 struct buf_ops;
@@ -67,9 +67,9 @@ TAILQ_HEAD(buflists, buf);
 
 /* A Buffer list & trie */
 struct bufv {
-	struct buflists	bv_hd;		/* Sorted blocklist */
-	struct pctrie	bv_root;	/* Buf trie */
-	int		bv_cnt;		/* Number of buffers */
+	struct buflists bv_hd; /* Sorted blocklist */
+	struct pctrie bv_root; /* Buf trie */
+	int bv_cnt;	       /* Number of buffers */
 };
 
 typedef void b_strategy_t(struct bufobj *, struct buf *);
@@ -78,17 +78,17 @@ typedef int b_sync_t(struct bufobj *, int waitfor);
 typedef void b_bdflush_t(struct bufobj *, struct buf *);
 
 struct buf_ops {
-	const char	*bop_name;
-	b_write_t	*bop_write;
-	b_strategy_t	*bop_strategy;
-	b_sync_t	*bop_sync;
-	b_bdflush_t	*bop_bdflush;
+	const char *bop_name;
+	b_write_t *bop_write;
+	b_strategy_t *bop_strategy;
+	b_sync_t *bop_sync;
+	b_bdflush_t *bop_bdflush;
 };
 
-#define BO_STRATEGY(bo, bp)	((bo)->bo_ops->bop_strategy((bo), (bp)))
-#define BO_SYNC(bo, w)		((bo)->bo_ops->bop_sync((bo), (w)))
-#define BO_WRITE(bo, bp)	((bo)->bo_ops->bop_write((bp)))
-#define BO_BDFLUSH(bo, bp)	((bo)->bo_ops->bop_bdflush((bo), (bp)))
+#define BO_STRATEGY(bo, bp) ((bo)->bo_ops->bop_strategy((bo), (bp)))
+#define BO_SYNC(bo, w) ((bo)->bo_ops->bop_sync((bo), (w)))
+#define BO_WRITE(bo, bp) ((bo)->bo_ops->bop_write((bp)))
+#define BO_BDFLUSH(bo, bp) ((bo)->bo_ops->bop_bdflush((bo), (bp)))
 
 /*
  * Locking notes:
@@ -97,36 +97,36 @@ struct buf_ops {
  * '-' Constant and unchanging after initialization.
  */
 struct bufobj {
-	struct rwlock	bo_lock;	/* Lock which protects "i" things */
-	struct buf_ops	*bo_ops;	/* - Buffer operations */
+	struct rwlock bo_lock;		/* Lock which protects "i" things */
+	struct buf_ops *bo_ops;		/* - Buffer operations */
 	struct vm_object *bo_object;	/* v Place to store VM object */
-	LIST_ENTRY(bufobj) bo_synclist;	/* S dirty vnode list */
-	void		*bo_private;	/* private pointer */
-	struct bufv	bo_clean;	/* i Clean buffers */
-	struct bufv	bo_dirty;	/* i Dirty buffers */
-	int		bo_numoutput;	/* i Writes in progress */
-	u_int		bo_flag;	/* i Flags */
-	int		bo_domain;	/* - Clean queue affinity */
-	int		bo_bsize;	/* - Block size for i/o */
+	LIST_ENTRY(bufobj) bo_synclist; /* S dirty vnode list */
+	void *bo_private;		/* private pointer */
+	struct bufv bo_clean;		/* i Clean buffers */
+	struct bufv bo_dirty;		/* i Dirty buffers */
+	int bo_numoutput;		/* i Writes in progress */
+	u_int bo_flag;			/* i Flags */
+	int bo_domain;			/* - Clean queue affinity */
+	int bo_bsize;			/* - Block size for i/o */
 };
 
 /*
  * XXX BO_ONWORKLST could be replaced with a check for NULL list elements
  * in v_synclist.
  */
-#define	BO_ONWORKLST	(1 << 0)	/* On syncer work-list */
-#define	BO_WWAIT	(1 << 1)	/* Wait for output to complete */
-#define	BO_DEAD		(1 << 2)	/* Dead; only with INVARIANTS */
-#define	BO_NOBUFS	(1 << 3)	/* No bufs allowed */
+#define BO_ONWORKLST (1 << 0) /* On syncer work-list */
+#define BO_WWAIT (1 << 1) /* Wait for output to complete */
+#define BO_DEAD (1 << 2) /* Dead; only with INVARIANTS */
+#define BO_NOBUFS (1 << 3) /* No bufs allowed */
 
-#define	BO_LOCKPTR(bo)		(&(bo)->bo_lock)
-#define	BO_LOCK(bo)		rw_wlock(BO_LOCKPTR((bo)))
-#define	BO_UNLOCK(bo)		rw_wunlock(BO_LOCKPTR((bo)))
-#define	BO_RLOCK(bo)		rw_rlock(BO_LOCKPTR((bo)))
-#define	BO_RUNLOCK(bo)		rw_runlock(BO_LOCKPTR((bo)))
-#define	ASSERT_BO_WLOCKED(bo)	rw_assert(BO_LOCKPTR((bo)), RA_WLOCKED)
-#define	ASSERT_BO_LOCKED(bo)	rw_assert(BO_LOCKPTR((bo)), RA_LOCKED)
-#define	ASSERT_BO_UNLOCKED(bo)	rw_assert(BO_LOCKPTR((bo)), RA_UNLOCKED)
+#define BO_LOCKPTR(bo) (&(bo)->bo_lock)
+#define BO_LOCK(bo) rw_wlock(BO_LOCKPTR((bo)))
+#define BO_UNLOCK(bo) rw_wunlock(BO_LOCKPTR((bo)))
+#define BO_RLOCK(bo) rw_rlock(BO_LOCKPTR((bo)))
+#define BO_RUNLOCK(bo) rw_runlock(BO_LOCKPTR((bo)))
+#define ASSERT_BO_WLOCKED(bo) rw_assert(BO_LOCKPTR((bo)), RA_WLOCKED)
+#define ASSERT_BO_LOCKED(bo) rw_assert(BO_LOCKPTR((bo)), RA_LOCKED)
+#define ASSERT_BO_UNLOCKED(bo) rw_assert(BO_LOCKPTR((bo)), RA_UNLOCKED)
 
 void bufobj_init(struct bufobj *bo, void *priv);
 void bufobj_wdrop(struct bufobj *bo);

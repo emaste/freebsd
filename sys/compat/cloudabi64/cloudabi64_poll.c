@@ -30,44 +30,42 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/syscallsubr.h>
 
-#include <contrib/cloudabi/cloudabi64_types.h>
-
 #include <compat/cloudabi/cloudabi_util.h>
-
 #include <compat/cloudabi64/cloudabi64_proto.h>
 #include <compat/cloudabi64/cloudabi64_util.h>
+#include <contrib/cloudabi/cloudabi64_types.h>
 
 /* Converts a FreeBSD signal number to a CloudABI signal number. */
 static cloudabi_signal_t
 convert_signal(int sig)
 {
 	static const cloudabi_signal_t signals[] = {
-		[SIGABRT]	= CLOUDABI_SIGABRT,
-		[SIGALRM]	= CLOUDABI_SIGALRM,
-		[SIGBUS]	= CLOUDABI_SIGBUS,
-		[SIGCHLD]	= CLOUDABI_SIGCHLD,
-		[SIGCONT]	= CLOUDABI_SIGCONT,
-		[SIGFPE]	= CLOUDABI_SIGFPE,
-		[SIGHUP]	= CLOUDABI_SIGHUP,
-		[SIGILL]	= CLOUDABI_SIGILL,
-		[SIGINT]	= CLOUDABI_SIGINT,
-		[SIGKILL]	= CLOUDABI_SIGKILL,
-		[SIGPIPE]	= CLOUDABI_SIGPIPE,
-		[SIGQUIT]	= CLOUDABI_SIGQUIT,
-		[SIGSEGV]	= CLOUDABI_SIGSEGV,
-		[SIGSTOP]	= CLOUDABI_SIGSTOP,
-		[SIGSYS]	= CLOUDABI_SIGSYS,
-		[SIGTERM]	= CLOUDABI_SIGTERM,
-		[SIGTRAP]	= CLOUDABI_SIGTRAP,
-		[SIGTSTP]	= CLOUDABI_SIGTSTP,
-		[SIGTTIN]	= CLOUDABI_SIGTTIN,
-		[SIGTTOU]	= CLOUDABI_SIGTTOU,
-		[SIGURG]	= CLOUDABI_SIGURG,
-		[SIGUSR1]	= CLOUDABI_SIGUSR1,
-		[SIGUSR2]	= CLOUDABI_SIGUSR2,
-		[SIGVTALRM]	= CLOUDABI_SIGVTALRM,
-		[SIGXCPU]	= CLOUDABI_SIGXCPU,
-		[SIGXFSZ]	= CLOUDABI_SIGXFSZ,
+		[SIGABRT] = CLOUDABI_SIGABRT,
+		[SIGALRM] = CLOUDABI_SIGALRM,
+		[SIGBUS] = CLOUDABI_SIGBUS,
+		[SIGCHLD] = CLOUDABI_SIGCHLD,
+		[SIGCONT] = CLOUDABI_SIGCONT,
+		[SIGFPE] = CLOUDABI_SIGFPE,
+		[SIGHUP] = CLOUDABI_SIGHUP,
+		[SIGILL] = CLOUDABI_SIGILL,
+		[SIGINT] = CLOUDABI_SIGINT,
+		[SIGKILL] = CLOUDABI_SIGKILL,
+		[SIGPIPE] = CLOUDABI_SIGPIPE,
+		[SIGQUIT] = CLOUDABI_SIGQUIT,
+		[SIGSEGV] = CLOUDABI_SIGSEGV,
+		[SIGSTOP] = CLOUDABI_SIGSTOP,
+		[SIGSYS] = CLOUDABI_SIGSYS,
+		[SIGTERM] = CLOUDABI_SIGTERM,
+		[SIGTRAP] = CLOUDABI_SIGTRAP,
+		[SIGTSTP] = CLOUDABI_SIGTSTP,
+		[SIGTTIN] = CLOUDABI_SIGTTIN,
+		[SIGTTOU] = CLOUDABI_SIGTTOU,
+		[SIGURG] = CLOUDABI_SIGURG,
+		[SIGUSR1] = CLOUDABI_SIGUSR1,
+		[SIGUSR2] = CLOUDABI_SIGUSR2,
+		[SIGVTALRM] = CLOUDABI_SIGVTALRM,
+		[SIGXCPU] = CLOUDABI_SIGXCPU,
+		[SIGXFSZ] = CLOUDABI_SIGXFSZ,
 	};
 
 	/* Convert unknown signals to SIGABRT. */
@@ -105,15 +103,16 @@ cloudabi64_kevent_copyin(void *arg, struct kevent *kevp, int count)
 			kevp->ident = sub.clock.identifier;
 			kevp->fflags = NOTE_NSECONDS;
 			if ((sub.clock.flags &
-			    CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) != 0 &&
+				CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) != 0 &&
 			    sub.clock.timeout > 0) {
 				/* Convert absolute timestamp to a relative. */
-				error = cloudabi_clock_time_get(curthread,
-				    sub.clock.clock_id, &ts);
+				error = cloudabi_clock_time_get(
+				    curthread, sub.clock.clock_id, &ts);
 				if (error != 0)
 					return (error);
-				ts = ts > sub.clock.timeout ? 0 :
-				    sub.clock.timeout - ts;
+				ts = ts > sub.clock.timeout ?
+					  0 :
+					  sub.clock.timeout - ts;
 			} else {
 				/* Relative timestamp. */
 				ts = sub.clock.timeout;
@@ -184,7 +183,8 @@ cloudabi64_kevent_copyout(void *arg, struct kevent *kevp, int count)
 				if (WIFSIGNALED(kevp->data)) {
 					/* Process got signalled. */
 					ev.proc_terminate.signal =
-					   convert_signal(WTERMSIG(kevp->data));
+					    convert_signal(
+						WTERMSIG(kevp->data));
 					ev.proc_terminate.exitcode = 0;
 				} else {
 					/* Process exited. */
@@ -212,13 +212,13 @@ int
 cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 {
 	struct cloudabi64_kevent_args args = {
-		.in	= uap->in,
-		.out	= uap->out,
+		.in = uap->in,
+		.out = uap->out,
 	};
 	struct kevent_copyops copyops = {
-		.k_copyin	= cloudabi64_kevent_copyin,
-		.k_copyout	= cloudabi64_kevent_copyout,
-		.arg		= &args,
+		.k_copyin = cloudabi64_kevent_copyin,
+		.k_copyout = cloudabi64_kevent_copyout,
+		.arg = &args,
 	};
 
 	/*
@@ -238,30 +238,28 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 		if (sub.type == CLOUDABI_EVENTTYPE_CONDVAR) {
 			/* Wait on a condition variable. */
 			ev.error = cloudabi_convert_errno(
-			    cloudabi_futex_condvar_wait(
-			        td, TO_PTR(sub.condvar.condvar),
-			        sub.condvar.condvar_scope,
-			        TO_PTR(sub.condvar.lock),
-			        sub.condvar.lock_scope,
-			        CLOUDABI_CLOCK_MONOTONIC, UINT64_MAX, 0, true));
+			    cloudabi_futex_condvar_wait(td,
+				TO_PTR(sub.condvar.condvar),
+				sub.condvar.condvar_scope,
+				TO_PTR(sub.condvar.lock),
+				sub.condvar.lock_scope,
+				CLOUDABI_CLOCK_MONOTONIC, UINT64_MAX, 0, true));
 			td->td_retval[0] = 1;
 			return (copyout(&ev, uap->out, sizeof(ev)));
 		} else if (sub.type == CLOUDABI_EVENTTYPE_LOCK_RDLOCK) {
 			/* Acquire a read lock. */
 			ev.error = cloudabi_convert_errno(
-			    cloudabi_futex_lock_rdlock(
-			        td, TO_PTR(sub.lock.lock),
-			        sub.lock.lock_scope, CLOUDABI_CLOCK_MONOTONIC,
-			        UINT64_MAX, 0, true));
+			    cloudabi_futex_lock_rdlock(td,
+				TO_PTR(sub.lock.lock), sub.lock.lock_scope,
+				CLOUDABI_CLOCK_MONOTONIC, UINT64_MAX, 0, true));
 			td->td_retval[0] = 1;
 			return (copyout(&ev, uap->out, sizeof(ev)));
 		} else if (sub.type == CLOUDABI_EVENTTYPE_LOCK_WRLOCK) {
 			/* Acquire a write lock. */
 			ev.error = cloudabi_convert_errno(
-			    cloudabi_futex_lock_wrlock(
-			        td, TO_PTR(sub.lock.lock),
-			        sub.lock.lock_scope, CLOUDABI_CLOCK_MONOTONIC,
-			        UINT64_MAX, 0, true));
+			    cloudabi_futex_lock_wrlock(td,
+				TO_PTR(sub.lock.lock), sub.lock.lock_scope,
+				CLOUDABI_CLOCK_MONOTONIC, UINT64_MAX, 0, true));
 			td->td_retval[0] = 1;
 			return (copyout(&ev, uap->out, sizeof(ev)));
 		}
@@ -280,18 +278,18 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 		if (sub[0].type == CLOUDABI_EVENTTYPE_CONDVAR &&
 		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK) {
 			/* Wait for a condition variable with timeout. */
-			error = cloudabi_futex_condvar_wait(
-			    td, TO_PTR(sub[0].condvar.condvar),
+			error = cloudabi_futex_condvar_wait(td,
+			    TO_PTR(sub[0].condvar.condvar),
 			    sub[0].condvar.condvar_scope,
 			    TO_PTR(sub[0].condvar.lock),
 			    sub[0].condvar.lock_scope, sub[1].clock.clock_id,
 			    sub[1].clock.timeout, sub[1].clock.precision,
 			    (sub[1].clock.flags &
-			    CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) != 0);
+				CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) != 0);
 			if (error == ETIMEDOUT) {
 				td->td_retval[0] = 1;
-				return (copyout(&ev[1], uap->out,
-				    sizeof(ev[1])));
+				return (
+				    copyout(&ev[1], uap->out, sizeof(ev[1])));
 			}
 
 			ev[0].error = cloudabi_convert_errno(error);
@@ -300,16 +298,16 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 		} else if (sub[0].type == CLOUDABI_EVENTTYPE_LOCK_RDLOCK &&
 		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK) {
 			/* Acquire a read lock with a timeout. */
-			error = cloudabi_futex_lock_rdlock(
-			    td, TO_PTR(sub[0].lock.lock),
-			    sub[0].lock.lock_scope, sub[1].clock.clock_id,
-			    sub[1].clock.timeout, sub[1].clock.precision,
+			error = cloudabi_futex_lock_rdlock(td,
+			    TO_PTR(sub[0].lock.lock), sub[0].lock.lock_scope,
+			    sub[1].clock.clock_id, sub[1].clock.timeout,
+			    sub[1].clock.precision,
 			    (sub[1].clock.flags &
-			    CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) != 0);
+				CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) != 0);
 			if (error == ETIMEDOUT) {
 				td->td_retval[0] = 1;
-				return (copyout(&ev[1], uap->out,
-				    sizeof(ev[1])));
+				return (
+				    copyout(&ev[1], uap->out, sizeof(ev[1])));
 			}
 
 			ev[0].error = cloudabi_convert_errno(error);
@@ -318,16 +316,16 @@ cloudabi64_sys_poll(struct thread *td, struct cloudabi64_sys_poll_args *uap)
 		} else if (sub[0].type == CLOUDABI_EVENTTYPE_LOCK_WRLOCK &&
 		    sub[1].type == CLOUDABI_EVENTTYPE_CLOCK) {
 			/* Acquire a write lock with a timeout. */
-			error = cloudabi_futex_lock_wrlock(
-			    td, TO_PTR(sub[0].lock.lock),
-			    sub[0].lock.lock_scope, sub[1].clock.clock_id,
-			    sub[1].clock.timeout, sub[1].clock.precision,
+			error = cloudabi_futex_lock_wrlock(td,
+			    TO_PTR(sub[0].lock.lock), sub[0].lock.lock_scope,
+			    sub[1].clock.clock_id, sub[1].clock.timeout,
+			    sub[1].clock.precision,
 			    (sub[1].clock.flags &
-			    CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) != 0);
+				CLOUDABI_SUBSCRIPTION_CLOCK_ABSTIME) != 0);
 			if (error == ETIMEDOUT) {
 				td->td_retval[0] = 1;
-				return (copyout(&ev[1], uap->out,
-				    sizeof(ev[1])));
+				return (
+				    copyout(&ev[1], uap->out, sizeof(ev[1])));
 			}
 
 			ev[0].error = cloudabi_convert_errno(error);

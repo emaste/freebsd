@@ -28,18 +28,18 @@
  */
 
 #ifndef _OCTUSB_H_
-#define	_OCTUSB_H_
+#define _OCTUSB_H_
 
-#define	OCTUSB_MAX_DEVICES MIN(USB_MAX_DEVICES, 64)
-#define	OCTUSB_MAX_PORTS	2	/* hardcoded */
-#define	OCTUSB_MAX_FIXUP	4096	/* bytes */
-#define	OCTUSB_INTR_ENDPT	0x01
+#define OCTUSB_MAX_DEVICES MIN(USB_MAX_DEVICES, 64)
+#define OCTUSB_MAX_PORTS 2    /* hardcoded */
+#define OCTUSB_MAX_FIXUP 4096 /* bytes */
+#define OCTUSB_INTR_ENDPT 0x01
 
 struct octusb_qh;
 struct octusb_td;
 struct octusb_softc;
 
-typedef uint8_t (octusb_cmd_t)(struct octusb_td *td);
+typedef uint8_t(octusb_cmd_t)(struct octusb_td *td);
 
 struct octusb_td {
 	struct octusb_qh *qh;
@@ -50,11 +50,11 @@ struct octusb_td {
 	uint32_t remainder;
 	uint32_t offset;
 
-	uint8_t	error_any:1;
-	uint8_t	error_stall:1;
-	uint8_t	short_pkt:1;
-	uint8_t	alt_next:1;
-	uint8_t	reserved:4;
+	uint8_t error_any : 1;
+	uint8_t error_stall : 1;
+	uint8_t short_pkt : 1;
+	uint8_t alt_next : 1;
+	uint8_t reserved : 4;
 };
 
 struct octusb_qh {
@@ -74,21 +74,21 @@ struct octusb_qh {
 	uint16_t fixup_len;
 	uint16_t ep_interval;
 
-	uint8_t	dev_addr;
-	uint8_t	dev_speed;
-	uint8_t	ep_allocated;
-	uint8_t	ep_mult;
-	uint8_t	ep_num;
-	uint8_t	ep_type;
-	uint8_t	ep_toggle_next;
-	uint8_t	root_port_index;
-	uint8_t	fixup_complete;
-	uint8_t	fixup_pending;
-	uint8_t	hs_hub_addr;
-	uint8_t	hs_hub_port;
+	uint8_t dev_addr;
+	uint8_t dev_speed;
+	uint8_t ep_allocated;
+	uint8_t ep_mult;
+	uint8_t ep_num;
+	uint8_t ep_type;
+	uint8_t ep_toggle_next;
+	uint8_t root_port_index;
+	uint8_t fixup_complete;
+	uint8_t fixup_pending;
+	uint8_t hs_hub_addr;
+	uint8_t hs_hub_port;
 
-	int	fixup_handle;
-	int	ep_handle;
+	int fixup_handle;
+	int ep_handle;
 };
 
 struct octusb_config_desc {
@@ -100,39 +100,39 @@ struct octusb_config_desc {
 union octusb_hub_desc {
 	struct usb_status stat;
 	struct usb_port_status ps;
-	uint8_t	temp[128];
+	uint8_t temp[128];
 };
 
 struct octusb_port {
 	cvmx_usb_state_t state;
-	uint8_t	disabled;
+	uint8_t disabled;
 };
 
 struct octusb_softc {
-	struct usb_bus sc_bus;		/* base device */
+	struct usb_bus sc_bus; /* base device */
 	union octusb_hub_desc sc_hub_desc;
 
 	struct usb_device *sc_devices[OCTUSB_MAX_DEVICES];
 
 	struct resource *sc_irq_res[OCTUSB_MAX_PORTS];
-	void   *sc_intr_hdl[OCTUSB_MAX_PORTS];
+	void *sc_intr_hdl[OCTUSB_MAX_PORTS];
 
 	struct octusb_port sc_port[OCTUSB_MAX_PORTS];
 	device_t sc_dev;
 
 	struct usb_hub_descriptor_min sc_hubd;
 
-	uint8_t	sc_noport;		/* number of ports */
-	uint8_t	sc_addr;		/* device address */
-	uint8_t	sc_conf;		/* device configuration */
-	uint8_t	sc_isreset;		/* set if current port is reset */
+	uint8_t sc_noport;  /* number of ports */
+	uint8_t sc_addr;    /* device address */
+	uint8_t sc_conf;    /* device configuration */
+	uint8_t sc_isreset; /* set if current port is reset */
 
-	uint8_t	sc_hub_idata[1];
+	uint8_t sc_hub_idata[1];
 };
 
 usb_bus_mem_cb_t octusb_iterate_hw_softc;
 usb_error_t octusb_init(struct octusb_softc *);
 usb_error_t octusb_uninit(struct octusb_softc *);
-void	octusb_interrupt(struct octusb_softc *);
+void octusb_interrupt(struct octusb_softc *);
 
-#endif					/* _OCTUSB_H_ */
+#endif /* _OCTUSB_H_ */

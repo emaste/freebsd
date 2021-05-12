@@ -7,7 +7,7 @@
 #ifndef __RISCV_INCLUDE_EFI_H_
 #define __RISCV_INCLUDE_EFI_H_
 
-#define	EFIABI_ATTR
+#define EFIABI_ATTR
 
 /* Note: we don't actually support this on riscv */
 

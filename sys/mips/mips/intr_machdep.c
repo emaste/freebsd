@@ -51,8 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 
 #ifndef INTRNG
-#define INTRCNT_COUNT	256
-#define	INTRNAME_LEN	(2*MAXCOMLEN + 1)
+#define INTRCNT_COUNT 256
+#define INTRNAME_LEN (2 * MAXCOMLEN + 1)
 
 MALLOC_DECLARE(M_MIPSINTR);
 MALLOC_DEFINE(M_MIPSINTR, "mipsintr", "MIPS interrupt handling");
@@ -69,11 +69,11 @@ static mips_intrcnt_t mips_intr_counters[NSOFT_IRQS + NHARD_IRQS];
 
 static int intrcnt_index;
 
-static cpu_intr_mask_t		hardintr_mask_func;
-static cpu_intr_unmask_t	hardintr_unmask_func;
+static cpu_intr_mask_t hardintr_mask_func;
+static cpu_intr_unmask_t hardintr_unmask_func;
 
 mips_intrcnt_t
-mips_intrcnt_create(const char* name)
+mips_intrcnt_create(const char *name)
 {
 	mips_intrcnt_t counter = &intrcnt[intrcnt_index++];
 
@@ -88,8 +88,8 @@ mips_intrcnt_setname(mips_intrcnt_t counter, const char *name)
 
 	KASSERT(counter != NULL, ("mips_intrcnt_setname: NULL counter"));
 
-	snprintf(intrnames + (MAXCOMLEN + 1) * idx,
-	    MAXCOMLEN + 1, "%-*s", MAXCOMLEN, name);
+	snprintf(intrnames + (MAXCOMLEN + 1) * idx, MAXCOMLEN + 1, "%-*s",
+	    MAXCOMLEN, name);
 }
 
 static void
@@ -125,7 +125,7 @@ mips_unmask_soft_irq(void *source)
 }
 
 /*
- * Perform initialization of interrupts prior to setting 
+ * Perform initialization of interrupts prior to setting
  * handlings
  */
 void
@@ -135,17 +135,17 @@ cpu_init_interrupts()
 	char name[MAXCOMLEN + 1];
 
 #ifndef INTRNG
-	intrcnt = mallocarray(INTRCNT_COUNT, sizeof(u_long), M_MIPSINTR,
-	    M_WAITOK | M_ZERO);
-	intrnames = mallocarray(INTRCNT_COUNT, INTRNAME_LEN, M_MIPSINTR,
-	    M_WAITOK | M_ZERO);
+	intrcnt = mallocarray(
+	    INTRCNT_COUNT, sizeof(u_long), M_MIPSINTR, M_WAITOK | M_ZERO);
+	intrnames = mallocarray(
+	    INTRCNT_COUNT, INTRNAME_LEN, M_MIPSINTR, M_WAITOK | M_ZERO);
 	sintrcnt = INTRCNT_COUNT * sizeof(u_long);
 	sintrnames = INTRCNT_COUNT * INTRNAME_LEN;
 #endif
 
 	/*
 	 * Initialize all available vectors so spare IRQ
-	 * would show up in systat output 
+	 * would show up in systat output
 	 */
 	for (i = 0; i < NSOFT_IRQS; i++) {
 		snprintf(name, MAXCOMLEN + 1, "sint%d:", i);
@@ -174,7 +174,7 @@ cpu_set_hardintr_unmask_func(cpu_intr_unmask_t func)
 
 void
 cpu_establish_hardintr(const char *name, driver_filter_t *filt,
-    void (*handler)(void*), void *arg, int irq, int flags, void **cookiep)
+    void (*handler)(void *), void *arg, int irq, int flags, void **cookiep)
 {
 	struct intr_event *event;
 	int error;
@@ -194,25 +194,24 @@ cpu_establish_hardintr(const char *name, driver_filter_t *filt,
 	event = hardintr_events[irq];
 	if (event == NULL) {
 		error = intr_event_create(&event, (void *)(uintptr_t)irq, 0,
-		    irq, hardintr_mask_func, hardintr_unmask_func,
-		    NULL, NULL, "int%d", irq);
+		    irq, hardintr_mask_func, hardintr_unmask_func, NULL, NULL,
+		    "int%d", irq);
 		if (error)
 			return;
 		hardintr_events[irq] = event;
-		mips_unmask_hard_irq((void*)(uintptr_t)irq);
+		mips_unmask_hard_irq((void *)(uintptr_t)irq);
 	}
 
 	intr_event_add_handler(event, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 
-	mips_intrcnt_setname(mips_intr_counters[NSOFT_IRQS + irq],
-			     event->ie_fullname);
+	mips_intrcnt_setname(
+	    mips_intr_counters[NSOFT_IRQS + irq], event->ie_fullname);
 }
 
 void
 cpu_establish_softintr(const char *name, driver_filter_t *filt,
-    void (*handler)(void*), void *arg, int irq, int flags,
-    void **cookiep)
+    void (*handler)(void *), void *arg, int irq, int flags, void **cookiep)
 {
 	struct intr_event *event;
 	int error;
@@ -227,12 +226,12 @@ cpu_establish_softintr(const char *name, driver_filter_t *filt,
 	event = softintr_events[irq];
 	if (event == NULL) {
 		error = intr_event_create(&event, (void *)(uintptr_t)irq, 0,
-		    irq, mips_mask_soft_irq, mips_unmask_soft_irq,
-		    NULL, NULL, "sint%d:", irq);
+		    irq, mips_mask_soft_irq, mips_unmask_soft_irq, NULL, NULL,
+		    "sint%d:", irq);
 		if (error)
 			return;
 		softintr_events[irq] = event;
-		mips_unmask_soft_irq((void*)(uintptr_t)irq);
+		mips_unmask_soft_irq((void *)(uintptr_t)irq);
 	}
 
 	intr_event_add_handler(event, name, filt, handler, arg,
@@ -254,15 +253,16 @@ cpu_intr(struct trapframe *tf)
 	status = mips_rd_status();
 	intr = (cause & MIPS_INT_MASK) >> 8;
 	/*
-	 * Do not handle masked interrupts. They were masked by 
-	 * pre_ithread function (mips_mask_XXX_intr) and will be 
+	 * Do not handle masked interrupts. They were masked by
+	 * pre_ithread function (mips_mask_XXX_intr) and will be
 	 * unmasked once ithread is through with handler
 	 */
 	intr &= (status & MIPS_INT_MASK) >> 8;
 	while ((i = fls(intr)) != 0) {
 		intr &= ~(1 << (i - 1));
 		switch (i) {
-		case 1: case 2:
+		case 1:
+		case 2:
 			/* Software interrupt. */
 			i--; /* Get a 0-offset interrupt. */
 			hard = 0;
@@ -272,7 +272,7 @@ cpu_intr(struct trapframe *tf)
 		default:
 			/* Hardware interrupt. */
 			i -= 2; /* Trim software interrupt bits. */
-			i--; /* Get a 0-offset interrupt. */
+			i--;	/* Get a 0-offset interrupt. */
 			hard = 1;
 			event = hardintr_events[i];
 			mips_intrcnt_inc(mips_intr_counters[NSOFT_IRQS + i]);
@@ -286,7 +286,7 @@ cpu_intr(struct trapframe *tf)
 		}
 
 		if (intr_event_handle(event, tf) != 0) {
-			printf("stray %s interrupt %d\n", 
+			printf("stray %s interrupt %d\n",
 			    hard ? "hard" : "soft", i);
 		}
 	}

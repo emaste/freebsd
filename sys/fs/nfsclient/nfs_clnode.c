@@ -53,11 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <fs/nfs/nfsport.h>
-#include <fs/nfsclient/nfsnode.h>
-#include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfs.h>
 #include <fs/nfsclient/nfs_kdtrace.h>
-
+#include <fs/nfsclient/nfsmount.h>
+#include <fs/nfsclient/nfsnode.h>
 #include <nfs/nfs_lock.h>
 
 extern struct vop_vector newnfs_vnodeops;
@@ -68,7 +67,7 @@ uma_zone_t newnfsnode_zone;
 
 const char nfs_vnode_tag[] = "nfs";
 
-static void	nfs_freesillyrename(void *arg, __unused int pending);
+static void nfs_freesillyrename(void *arg, __unused int pending);
 
 void
 ncl_nhinit(void)
@@ -97,7 +96,7 @@ int
 ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
     int lkflags)
 {
-	struct thread *td = curthread;	/* XXX */
+	struct thread *td = curthread; /* XXX */
 	struct nfsnode *np;
 	struct vnode *vp;
 	struct vnode *nvp;
@@ -111,12 +110,11 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 
 	hash = fnv_32_buf(fhp, fhsize, FNV1_32_INIT);
 
-	nfhp = malloc(sizeof (struct nfsfh) + fhsize,
-	    M_NFSFH, M_WAITOK);
+	nfhp = malloc(sizeof(struct nfsfh) + fhsize, M_NFSFH, M_WAITOK);
 	bcopy(fhp, &nfhp->nfh_fh[0], fhsize);
 	nfhp->nfh_len = fhsize;
-	error = vfs_hash_get(mntp, hash, lkflags,
-	    td, &nvp, newnfs_vncmpf, nfhp);
+	error = vfs_hash_get(
+	    mntp, hash, lkflags, td, &nvp, newnfs_vncmpf, nfhp);
 	free(nfhp, M_NFSFH);
 	if (error)
 		return (error);
@@ -136,15 +134,15 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 	vp->v_bufobj.bo_ops = &buf_ops_newnfs;
 	vp->v_data = np;
 	np->n_vnode = vp;
-	/* 
+	/*
 	 * Initialize the mutex even if the vnode is going to be a loser.
 	 * This simplifies the logic in reclaim, which can then unconditionally
 	 * destroy the mutex (in the case of the loser, or if hash_insert
 	 * happened to return an error no special casing is needed).
 	 */
 	mtx_init(&np->n_mtx, "NEWNFSnode lock", NULL, MTX_DEF | MTX_DUPOK);
-	lockinit(&np->n_excl, PVFS, "nfsupg", VLKTIMEOUT, LK_NOSHARE |
-	    LK_CANRECURSE);
+	lockinit(&np->n_excl, PVFS, "nfsupg", VLKTIMEOUT,
+	    LK_NOSHARE | LK_CANRECURSE);
 
 	/*
 	 * NFS supports recursive and shared locking.
@@ -152,12 +150,11 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_NOWITNESS, NULL);
 	VN_LOCK_AREC(vp);
 	VN_LOCK_ASHARE(vp);
-	/* 
+	/*
 	 * Are we getting the root? If so, make sure the vnode flags
-	 * are correct 
+	 * are correct
 	 */
-	if ((fhsize == nmp->nm_fhsize) &&
-	    !bcmp(fhp, nmp->nm_fh, fhsize)) {
+	if ((fhsize == nmp->nm_fhsize) && !bcmp(fhp, nmp->nm_fh, fhsize)) {
 		if (vp->v_type == VNON)
 			vp->v_type = VDIR;
 		vp->v_vflag |= VV_ROOT;
@@ -165,8 +162,7 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 
 	vp->v_vflag |= VV_VMSIZEVNLOCK;
 
-	np->n_fhp = malloc(sizeof (struct nfsfh) + fhsize,
-	    M_NFSFH, M_WAITOK);
+	np->n_fhp = malloc(sizeof(struct nfsfh) + fhsize, M_NFSFH, M_WAITOK);
 	bcopy(fhp, np->n_fhp->nfh_fh, fhsize);
 	np->n_fhp->nfh_len = fhsize;
 	error = insmntque(vp, mntp);
@@ -178,8 +174,8 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 		uma_zfree(newnfsnode_zone, np);
 		return (error);
 	}
-	error = vfs_hash_insert(vp, hash, lkflags, 
-	    td, &nvp, newnfs_vncmpf, np->n_fhp);
+	error = vfs_hash_insert(
+	    vp, hash, lkflags, td, &nvp, newnfs_vncmpf, np->n_fhp);
 	if (error)
 		return (error);
 	if (nvp != NULL) {
@@ -222,7 +218,7 @@ ncl_releasesillyrename(struct vnode *vp, struct thread *td)
 		sp = NULL;
 	if (sp != NULL) {
 		NFSUNLOCKNODE(np);
-		(void) ncl_vinvalbuf(vp, 0, td, 1);
+		(void)ncl_vinvalbuf(vp, 0, td, 1);
 		/*
 		 * Remove the silly file that was rename'd earlier
 		 */
@@ -252,8 +248,8 @@ ncl_inactive(struct vop_inactive_args *ap)
 		 */
 		if (vp->v_object != NULL) {
 			VM_OBJECT_WLOCK(vp->v_object);
-			retv = vm_object_page_clean(vp->v_object, 0, 0,
-			    OBJPC_SYNC);
+			retv = vm_object_page_clean(
+			    vp->v_object, 0, 0, OBJPC_SYNC);
 			VM_OBJECT_WUNLOCK(vp->v_object);
 		} else
 			retv = TRUE;
@@ -312,7 +308,7 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 		 * ncl_inactive(), but there are cases where it is not
 		 * called, so we need to do it again here.
 		 */
-		(void) nfsrpc_close(vp, 1, td);
+		(void)nfsrpc_close(vp, 1, td);
 		/*
 		 * It it unlikely a delegation will still exist, but
 		 * if one does, it must be returned before calling

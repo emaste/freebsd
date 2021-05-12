@@ -37,23 +37,23 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_vm.h"
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bitset.h>
 #include <sys/kernel.h>
-#include <sys/types.h>
-#include <sys/queue.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
 
 #include <vm/vm.h>
+#include <vm/memguard.h>
+#include <vm/uma.h>
+#include <vm/uma_dbg.h>
+#include <vm/uma_int.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/uma.h>
-#include <vm/uma_int.h>
-#include <vm/uma_dbg.h>
-#include <vm/memguard.h>
 
 static const uint32_t uma_junk = 0xdeadc0de;
 
@@ -82,7 +82,8 @@ trash_ctor(void *mem, int size, void *arg, int flags)
 			panic("Memory modified after free %p(%d) val=%x @ %p\n",
 			    mem, size, *p, p);
 #else
-			printf("Memory modified after free %p(%d) val=%x @ %p\n",
+			printf(
+			    "Memory modified after free %p(%d) val=%x @ %p\n",
 			    mem, size, *p, p);
 #endif
 			return (0);
@@ -157,10 +158,11 @@ mtrash_ctor(void *mem, int size, void *arg, int flags)
 
 	for (p = mem; cnt > 0; cnt--, p++)
 		if (*p != uma_junk) {
-			printf("Memory modified after free %p(%d) val=%x @ %p\n",
+			printf(
+			    "Memory modified after free %p(%d) val=%x @ %p\n",
 			    mem, size, *p, p);
-			panic("Most recently used by %s\n", (*ksp == NULL)?
-			    "none" : (*ksp)->ks_shortdesc);
+			panic("Most recently used by %s\n",
+			    (*ksp == NULL) ? "none" : (*ksp)->ks_shortdesc);
 		}
 	return (0);
 }

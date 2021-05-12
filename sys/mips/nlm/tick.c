@@ -39,22 +39,22 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/power.h>
+#include <sys/rman.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 
-#include <machine/hwfunc.h>
 #include <machine/clock.h>
+#include <machine/hwfunc.h>
+#include <machine/intr_machdep.h>
 #include <machine/locore.h>
 #include <machine/md_var.h>
-#include <machine/intr_machdep.h>
 
 #include <mips/nlm/interrupt.h>
 
@@ -161,8 +161,7 @@ mips_timer_init_params(uint64_t platform_counter_freq, int double_count)
 	set_cputicker(tick_ticker, counter_freq, 1);
 }
 
-static int
-sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
+static int sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	uint64_t freq;
@@ -181,8 +180,7 @@ sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_machdep, OID_AUTO, counter_freq,
     CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
-    sysctl_machdep_counter_freq, "QU",
-    "Timecounter frequency in Hz");
+    sysctl_machdep_counter_freq, "QU", "Timecounter frequency in Hz");
 
 static unsigned
 counter_get_timecount(struct timecounter *tc)
@@ -275,7 +273,7 @@ clock_intr(void *arg)
 		compare_next = count + cycles_per_tick;
 		DPCPU_SET(compare_ticks, compare_next);
 		mips_wr_compare(compare_next);
-	} else	/* In one-shot mode timer should be stopped after the event. */
+	} else /* In one-shot mode timer should be stopped after the event. */
 		mips_wr_compare(0xffffffff);
 
 	/* COUNT register wrapped around */
@@ -323,7 +321,7 @@ clock_probe(device_t dev)
 }
 
 static void
-clock_identify(driver_t * drv, device_t parent)
+clock_identify(driver_t *drv, device_t parent)
 {
 
 	BUS_ADD_CHILD(parent, 0, "clock", 0);
@@ -338,8 +336,8 @@ clock_attach(device_t dev)
 		panic("can't attach more clocks");
 
 	softc = sc = device_get_softc(dev);
-	cpu_establish_hardintr("compare", clock_intr, NULL,
-	    sc, IRQ_TIMER, INTR_TYPE_CLK, &sc->intr_handler);
+	cpu_establish_hardintr("compare", clock_intr, NULL, sc, IRQ_TIMER,
+	    INTR_TYPE_CLK, &sc->intr_handler);
 
 	sc->tc.tc_get_timecount = counter_get_timecount;
 	sc->tc.tc_counter_mask = 0xffffffff;
@@ -371,8 +369,7 @@ static device_method_t clock_methods[] = {
 	DEVMETHOD(device_identify, clock_identify),
 	DEVMETHOD(device_attach, clock_attach),
 	DEVMETHOD(device_detach, bus_generic_detach),
-	DEVMETHOD(device_shutdown, bus_generic_shutdown),
-	{0, 0}
+	DEVMETHOD(device_shutdown, bus_generic_shutdown), { 0, 0 }
 };
 
 static driver_t clock_driver = {

@@ -32,6 +32,7 @@
 #define _SYS_PROCFS_H_
 
 #include <sys/param.h>
+
 #include <machine/reg.h>
 
 typedef struct reg gregset_t;
@@ -57,64 +58,64 @@ typedef struct fpreg fpregset_t;
  * (1b), etc. to indicate the groupings of additions.
  */
 
-#define PRSTATUS_VERSION	1	/* Current version of prstatus_t */
+#define PRSTATUS_VERSION 1 /* Current version of prstatus_t */
 
 typedef struct prstatus {
-    int		pr_version;	/* Version number of struct (1) */
-    size_t	pr_statussz;	/* sizeof(prstatus_t) (1) */
-    size_t	pr_gregsetsz;	/* sizeof(gregset_t) (1) */
-    size_t	pr_fpregsetsz;	/* sizeof(fpregset_t) (1) */
-    int		pr_osreldate;	/* Kernel version (1) */
-    int		pr_cursig;	/* Current signal (1) */
-    pid_t	pr_pid;		/* LWP (Thread) ID (1) */
-    gregset_t	pr_reg;		/* General purpose registers (1) */
+	int pr_version;	      /* Version number of struct (1) */
+	size_t pr_statussz;   /* sizeof(prstatus_t) (1) */
+	size_t pr_gregsetsz;  /* sizeof(gregset_t) (1) */
+	size_t pr_fpregsetsz; /* sizeof(fpregset_t) (1) */
+	int pr_osreldate;     /* Kernel version (1) */
+	int pr_cursig;	      /* Current signal (1) */
+	pid_t pr_pid;	      /* LWP (Thread) ID (1) */
+	gregset_t pr_reg;     /* General purpose registers (1) */
 } prstatus_t;
 
 typedef gregset_t prgregset_t[1];
 typedef fpregset_t prfpregset_t;
 
-#define PRFNAMESZ	16	/* Maximum command length saved */
-#define PRARGSZ		80	/* Maximum argument bytes saved */
+#define PRFNAMESZ 16 /* Maximum command length saved */
+#define PRARGSZ 80 /* Maximum argument bytes saved */
 
-#define PRPSINFO_VERSION	1	/* Current version of prpsinfo_t */
+#define PRPSINFO_VERSION 1 /* Current version of prpsinfo_t */
 
 typedef struct prpsinfo {
-    int		pr_version;	/* Version number of struct (1) */
-    size_t	pr_psinfosz;	/* sizeof(prpsinfo_t) (1) */
-    char	pr_fname[PRFNAMESZ+1];	/* Command name, null terminated (1) */
-    char	pr_psargs[PRARGSZ+1];	/* Arguments, null terminated (1) */
-    pid_t	pr_pid;		/* Process ID (1a) */
+	int pr_version;		      /* Version number of struct (1) */
+	size_t pr_psinfosz;	      /* sizeof(prpsinfo_t) (1) */
+	char pr_fname[PRFNAMESZ + 1]; /* Command name, null terminated (1) */
+	char pr_psargs[PRARGSZ + 1];  /* Arguments, null terminated (1) */
+	pid_t pr_pid;		      /* Process ID (1a) */
 } prpsinfo_t;
 
 typedef struct thrmisc {
-    char	pr_tname[MAXCOMLEN+1];	/* Thread name, null terminated (1) */
-    u_int	_pad;			/* Convenience pad, 0-filled (1) */
+	char pr_tname[MAXCOMLEN + 1]; /* Thread name, null terminated (1) */
+	u_int _pad;		      /* Convenience pad, 0-filled (1) */
 } thrmisc_t;
 
-typedef uint64_t psaddr_t;	/* An address in the target process. */
+typedef uint64_t psaddr_t; /* An address in the target process. */
 
 #ifdef __HAVE_REG32
 typedef struct prstatus32 {
-	int32_t	pr_version;
+	int32_t pr_version;
 	uint32_t pr_statussz;
 	uint32_t pr_gregsetsz;
 	uint32_t pr_fpregsetsz;
-	int32_t	pr_osreldate;
-	int32_t	pr_cursig;
-	int32_t	pr_pid;
+	int32_t pr_osreldate;
+	int32_t pr_cursig;
+	int32_t pr_pid;
 	struct reg32 pr_reg;
 } prstatus32_t;
 
 typedef struct prpsinfo32 {
-	int32_t	pr_version;
+	int32_t pr_version;
 	uint32_t pr_psinfosz;
-	char	pr_fname[PRFNAMESZ+1];
-	char	pr_psargs[PRARGSZ+1];
-	int32_t	pr_pid;
+	char pr_fname[PRFNAMESZ + 1];
+	char pr_psargs[PRARGSZ + 1];
+	int32_t pr_pid;
 } prpsinfo32_t;
 
 struct thrmisc32 {
-	char	pr_tname[MAXCOMLEN+1];
+	char pr_tname[MAXCOMLEN + 1];
 	uint32_t _pad;
 };
 #endif /* __HAVE_REG32 */

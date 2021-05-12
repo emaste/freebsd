@@ -45,19 +45,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
+
+#include <machine/bus.h>
 #include <machine/resource.h>
 
 #include <dev/pci/pcivar.h>
-
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <mips/cavium/octeon_pcmap_regs.h>
-
 #include <contrib/octeon-sdk/cvmx.h>
+#include <mips/cavium/octeon_pcmap_regs.h>
 
 #include "uart_if.h"
 
@@ -69,8 +68,7 @@ static device_method_t uart_octeon_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, uart_octeon_probe),
 	DEVMETHOD(device_attach, uart_bus_attach),
-	DEVMETHOD(device_detach, uart_bus_detach),
-	{0, 0}
+	DEVMETHOD(device_detach, uart_bus_detach), { 0, 0 }
 };
 
 static driver_t uart_octeon_driver = {
@@ -79,8 +77,7 @@ static driver_t uart_octeon_driver = {
 	sizeof(struct uart_softc),
 };
 
-extern 
-SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
+extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 
 static int
 uart_octeon_probe(device_t dev)
@@ -105,7 +102,7 @@ uart_octeon_probe(device_t dev)
 	 * RBR isn't really a great base address.
 	 */
 	if (bus_space_map(sc->sc_bas.bst, CVMX_MIO_UARTX_RBR(0),
-	    uart_getrange(sc->sc_class), 0, &sc->sc_bas.bsh) != 0)
+		uart_getrange(sc->sc_class), 0, &sc->sc_bas.bsh) != 0)
 		return (ENXIO);
 	return (uart_bus_probe(dev, sc->sc_bas.regshft, 0, 0, 0, unit, 0));
 }

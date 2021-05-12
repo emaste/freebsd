@@ -31,20 +31,20 @@
  */
 
 #include <sys/types.h>
-#include <sys/malloc.h>
 #include <sys/firmware.h>
+#include <sys/malloc.h>
 
-#include <linux/types.h>
 #include <linux/device.h>
-
 #include <linux/firmware.h>
+#include <linux/types.h>
 #undef firmware
 
 MALLOC_DEFINE(M_LKPI_FW, "lkpifw", "LinuxKPI firmware");
 
 static int
-_linuxkpi_request_firmware(const char *fw_name, const struct linuxkpi_firmware **fw,
-    struct device *dev, gfp_t gfp __unused, bool enoentok, bool warn)
+_linuxkpi_request_firmware(const char *fw_name,
+    const struct linuxkpi_firmware **fw, struct device *dev, gfp_t gfp __unused,
+    bool enoentok, bool warn)
 {
 	const struct firmware *fbdfw;
 	struct linuxkpi_firmware *lfw;
@@ -88,7 +88,7 @@ _linuxkpi_request_firmware(const char *fw_name, const struct linuxkpi_firmware *
 	/* (3) Flatten '/', '.' and '-' to '_' and try with adjusted name. */
 	if (fbdfw == NULL &&
 	    (strchr(fw_name, '/') != NULL || strchr(fw_name, '.') != NULL ||
-	    strchr(fw_name, '-'))) {
+		strchr(fw_name, '-'))) {
 		fwimg = strdup(fw_name, M_LKPI_FW);
 		if (fwimg != NULL) {
 			while ((p = strchr(fwimg, '/')) != NULL)
@@ -115,13 +115,15 @@ _linuxkpi_request_firmware(const char *fw_name, const struct linuxkpi_firmware *
 			*fw = NULL;
 		}
 		if (warn)
-			device_printf(dev->bsddev, "could not load firmware "
-			    "image '%s'\n", fw_name);
+			device_printf(dev->bsddev,
+			    "could not load firmware "
+			    "image '%s'\n",
+			    fw_name);
 		return (-ENOENT);
 	}
 
-	device_printf(dev->bsddev,"successfully loaded firmware image '%s'\n",
-	    fw_name);
+	device_printf(
+	    dev->bsddev, "successfully loaded firmware image '%s'\n", fw_name);
 	lfw->fbdfw = fbdfw;
 	lfw->data = (const uint8_t *)fbdfw->data;
 	lfw->size = fbdfw->datasize;
@@ -132,7 +134,7 @@ _linuxkpi_request_firmware(const char *fw_name, const struct linuxkpi_firmware *
 int
 linuxkpi_request_firmware_nowait(struct module *mod __unused, bool _t __unused,
     const char *fw_name, struct device *dev, gfp_t gfp, void *drv,
-    void(*cont)(const struct linuxkpi_firmware *, void *))
+    void (*cont)(const struct linuxkpi_firmware *, void *))
 {
 	const struct linuxkpi_firmware *lfw;
 	int error;
@@ -158,8 +160,8 @@ linuxkpi_request_firmware(const struct linuxkpi_firmware **fw,
     const char *fw_name, struct device *dev)
 {
 
-	return (_linuxkpi_request_firmware(fw_name, fw, dev, GFP_KERNEL, false,
-	    true));
+	return (_linuxkpi_request_firmware(
+	    fw_name, fw, dev, GFP_KERNEL, false, true));
 }
 
 int
@@ -167,8 +169,8 @@ linuxkpi_firmware_request_nowarn(const struct linuxkpi_firmware **fw,
     const char *fw_name, struct device *dev)
 {
 
-	return (_linuxkpi_request_firmware(fw_name, fw, dev, GFP_KERNEL, false,
-	    false));
+	return (_linuxkpi_request_firmware(
+	    fw_name, fw, dev, GFP_KERNEL, false, false));
 }
 
 void

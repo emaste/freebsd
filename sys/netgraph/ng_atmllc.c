@@ -36,62 +36,62 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 
-#include <netgraph/ng_message.h>
+#include <net/ethernet.h> /* for M_HASFCS and ETHER_HDR_LEN */
+#include <net/if.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_atmllc.h>
+#include <netgraph/ng_message.h>
 
-#include <net/if.h>
-#include <net/ethernet.h>	/* for M_HASFCS and ETHER_HDR_LEN */
-
-#define	NG_ATMLLC_HEADER		"\252\252\3\0\200\302"
-#define	NG_ATMLLC_HEADER_LEN		(sizeof(struct atmllc))
-#define	NG_ATMLLC_TYPE_ETHERNET_FCS	0x0001
-#define	NG_ATMLLC_TYPE_FDDI_FCS		0x0004
-#define	NG_ATMLLC_TYPE_ETHERNET_NOFCS	0x0007
-#define	NG_ATMLLC_TYPE_FDDI_NOFCS	0x000A
+#define NG_ATMLLC_HEADER "\252\252\3\0\200\302"
+#define NG_ATMLLC_HEADER_LEN (sizeof(struct atmllc))
+#define NG_ATMLLC_TYPE_ETHERNET_FCS 0x0001
+#define NG_ATMLLC_TYPE_FDDI_FCS 0x0004
+#define NG_ATMLLC_TYPE_ETHERNET_NOFCS 0x0007
+#define NG_ATMLLC_TYPE_FDDI_NOFCS 0x000A
 
 struct ng_atmllc_priv {
-	hook_p		atm;
-	hook_p		ether;
-	hook_p		fddi;
+	hook_p atm;
+	hook_p ether;
+	hook_p fddi;
 };
 
 struct atmllc {
-	uint8_t		llchdr[6];	/* aa.aa.03.00.00.00 */
-	uint8_t		type[2];	/* "ethernet" type */
+	uint8_t llchdr[6]; /* aa.aa.03.00.00.00 */
+	uint8_t type[2];   /* "ethernet" type */
 };
 
 /* ATM_LLC macros: note type code in host byte order */
-#define	ATM_LLC_TYPE(X) (((X)->type[0] << 8) | ((X)->type[1]))
-#define	ATM_LLC_SETTYPE(X, V) do {		\
-	(X)->type[0] = ((V) >> 8) & 0xff;	\
-	(X)->type[1] = ((V) & 0xff);		\
-    } while (0)
+#define ATM_LLC_TYPE(X) (((X)->type[0] << 8) | ((X)->type[1]))
+#define ATM_LLC_SETTYPE(X, V)                     \
+	do {                                      \
+		(X)->type[0] = ((V) >> 8) & 0xff; \
+		(X)->type[1] = ((V)&0xff);        \
+	} while (0)
 
 /* Netgraph methods. */
-static ng_constructor_t		ng_atmllc_constructor;
-static ng_shutdown_t		ng_atmllc_shutdown;
-static ng_rcvmsg_t		ng_atmllc_rcvmsg;
-static ng_newhook_t		ng_atmllc_newhook;
-static ng_rcvdata_t		ng_atmllc_rcvdata;
-static ng_disconnect_t		ng_atmllc_disconnect;
+static ng_constructor_t ng_atmllc_constructor;
+static ng_shutdown_t ng_atmllc_shutdown;
+static ng_rcvmsg_t ng_atmllc_rcvmsg;
+static ng_newhook_t ng_atmllc_newhook;
+static ng_rcvdata_t ng_atmllc_rcvdata;
+static ng_disconnect_t ng_atmllc_disconnect;
 
 static struct ng_type ng_atmllc_typestruct = {
-	.version =	NG_ABI_VERSION,	
-	.name =		NG_ATMLLC_NODE_TYPE,
-	.constructor =	ng_atmllc_constructor,
-	.rcvmsg =	ng_atmllc_rcvmsg,
-	.shutdown =	ng_atmllc_shutdown,
-	.newhook =	ng_atmllc_newhook,
-	.rcvdata =	ng_atmllc_rcvdata,
-	.disconnect =	ng_atmllc_disconnect,
+	.version = NG_ABI_VERSION,
+	.name = NG_ATMLLC_NODE_TYPE,
+	.constructor = ng_atmllc_constructor,
+	.rcvmsg = ng_atmllc_rcvmsg,
+	.shutdown = ng_atmllc_shutdown,
+	.newhook = ng_atmllc_newhook,
+	.rcvdata = ng_atmllc_rcvdata,
+	.disconnect = ng_atmllc_disconnect,
 };
 NETGRAPH_INIT(atmllc, &ng_atmllc_typestruct);
 
 static int
 ng_atmllc_constructor(node_p node)
 {
-	struct	ng_atmllc_priv *priv;
+	struct ng_atmllc_priv *priv;
 
 	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 	NG_NODE_SET_PRIVATE(node, priv);
@@ -102,8 +102,8 @@ ng_atmllc_constructor(node_p node)
 static int
 ng_atmllc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	struct	ng_mesg *msg;
-	int	error;
+	struct ng_mesg *msg;
+	int error;
 
 	error = 0;
 	NGI_GET_MSG(item, msg);
@@ -115,7 +115,7 @@ ng_atmllc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static int
 ng_atmllc_shutdown(node_p node)
 {
-	struct	ng_atmllc_priv *priv;
+	struct ng_atmllc_priv *priv;
 
 	priv = NG_NODE_PRIVATE(node);
 
@@ -129,7 +129,7 @@ ng_atmllc_shutdown(node_p node)
 static int
 ng_atmllc_newhook(node_p node, hook_p hook, const char *name)
 {
-	struct	ng_atmllc_priv *priv;
+	struct ng_atmllc_priv *priv;
 
 	priv = NG_NODE_PRIVATE(node);
 
@@ -158,12 +158,12 @@ ng_atmllc_newhook(node_p node, hook_p hook, const char *name)
 static int
 ng_atmllc_rcvdata(hook_p hook, item_p item)
 {
-	struct	ng_atmllc_priv *priv;
-	struct	mbuf *m;
-	struct	atmllc *hdr;
-	hook_p	outhook;
-	u_int	padding;
-	int	error;
+	struct ng_atmllc_priv *priv;
+	struct mbuf *m;
+	struct atmllc *hdr;
+	hook_p outhook;
+	u_int padding;
+	int error;
 
 	priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	NGI_GET_M(item, m);
@@ -207,8 +207,8 @@ ng_atmllc_rcvdata(hook_p hook, item_p item)
 			outhook = priv->fddi;
 			padding = 3;
 		} else {
-			printf("ng_atmllc: unknown type: %x\n",
-			    ATM_LLC_TYPE(hdr));
+			printf(
+			    "ng_atmllc: unknown type: %x\n", ATM_LLC_TYPE(hdr));
 		}
 
 		/* Remove the LLC header and any padding*/
@@ -262,8 +262,8 @@ ng_atmllc_rcvdata(hook_p hook, item_p item)
 static int
 ng_atmllc_disconnect(hook_p hook)
 {
-	node_p	node;
-	struct	ng_atmllc_priv *priv;
+	node_p node;
+	struct ng_atmllc_priv *priv;
 
 	node = NG_HOOK_NODE(hook);
 	priv = NG_NODE_PRIVATE(node);

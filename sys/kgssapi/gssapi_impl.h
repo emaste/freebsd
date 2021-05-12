@@ -35,21 +35,21 @@ MALLOC_DECLARE(M_GSSAPI);
 
 struct _gss_ctx_id_t {
 	KOBJ_FIELDS;
-	gssd_ctx_id_t	handle;
+	gssd_ctx_id_t handle;
 };
 
 struct _gss_cred_id_t {
-	gssd_cred_id_t	handle;
+	gssd_cred_id_t handle;
 };
 
 struct _gss_name_t {
-	gssd_name_t	handle;
+	gssd_name_t handle;
 };
 
 struct kgss_mech {
 	LIST_ENTRY(kgss_mech) km_link;
-	gss_OID		km_mech_type;
-	const char	*km_mech_name;
+	gss_OID km_mech_type;
+	const char *km_mech_name;
 	struct kobj_class *km_class;
 };
 LIST_HEAD(kgss_mech_list, kgss_mech);
@@ -60,8 +60,8 @@ extern struct kgss_mech_list kgss_mechs;
 
 CLIENT *kgss_gssd_client(void);
 int kgss_oid_equal(const gss_OID oid1, const gss_OID oid2);
-extern void kgss_install_mech(gss_OID mech_type, const char *name,
-    struct kobj_class *cls);
+extern void kgss_install_mech(
+    gss_OID mech_type, const char *name, struct kobj_class *cls);
 extern void kgss_uninstall_mech(gss_OID mech_type);
 extern gss_OID kgss_find_mech_by_name(const char *name);
 extern const char *kgss_find_mech_by_oid(const gss_OID oid);

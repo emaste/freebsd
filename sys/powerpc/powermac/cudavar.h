@@ -33,36 +33,36 @@
  *
  */
 
-#ifndef	_POWERPC_CUDAVAR_H_
-#define	_POWERPC_CUDAVAR_H_
+#ifndef _POWERPC_CUDAVAR_H_
+#define _POWERPC_CUDAVAR_H_
 
-#define CUDA_DEVSTR	"Apple CUDA I/O Controller"
-#define	CUDA_MAXPACKETS	10
+#define CUDA_DEVSTR "Apple CUDA I/O Controller"
+#define CUDA_MAXPACKETS 10
 
 /* Cuda addresses */
-#define CUDA_ADB	0
-#define CUDA_PSEUDO	1
-#define CUDA_ERROR	2	/* error codes? */
-#define CUDA_TIMER	3
-#define CUDA_POWER	4
-#define CUDA_IIC	5	/* XXX ??? */
-#define CUDA_PMU	6
-#define CUDA_ADB_QUERY	7
+#define CUDA_ADB 0
+#define CUDA_PSEUDO 1
+#define CUDA_ERROR 2 /* error codes? */
+#define CUDA_TIMER 3
+#define CUDA_POWER 4
+#define CUDA_IIC 5 /* XXX ??? */
+#define CUDA_PMU 6
+#define CUDA_ADB_QUERY 7
 
 /* Cuda commands */
-#define CMD_AUTOPOLL	1
-#define CMD_READ_RTC	3
-#define CMD_WRITE_RTC	9
-#define CMD_POWEROFF	10
-#define CMD_RESET	17
-#define CMD_IIC		34
+#define CMD_AUTOPOLL 1
+#define CMD_READ_RTC 3
+#define CMD_WRITE_RTC 9
+#define CMD_POWEROFF 10
+#define CMD_RESET 17
+#define CMD_IIC 34
 
 /* Cuda state codes */
-#define CUDA_NOTREADY	0x1	/* has not been initialized yet */
-#define CUDA_IDLE	0x2	/* the bus is currently idle */
-#define CUDA_OUT	0x3	/* sending out a command */
-#define CUDA_IN		0x4	/* receiving data */
-#define CUDA_POLLING	0x5	/* polling - II only */
+#define CUDA_NOTREADY 0x1 /* has not been initialized yet */
+#define CUDA_IDLE 0x2	  /* the bus is currently idle */
+#define CUDA_OUT 0x3	  /* sending out a command */
+#define CUDA_IN 0x4	  /* receiving data */
+#define CUDA_POLLING 0x5  /* polling - II only */
 
 struct cuda_packet {
 	uint8_t len;
@@ -75,33 +75,33 @@ struct cuda_packet {
 STAILQ_HEAD(cuda_pktq, cuda_packet);
 
 struct cuda_softc {
-	device_t	sc_dev;
-	int		sc_memrid;
-	struct resource	*sc_memr;
-	int     	sc_irqrid;
-        struct resource *sc_irq;
-        void    	*sc_ih;
+	device_t sc_dev;
+	int sc_memrid;
+	struct resource *sc_memr;
+	int sc_irqrid;
+	struct resource *sc_irq;
+	void *sc_ih;
 
-	struct mtx	sc_mutex;
+	struct mtx sc_mutex;
 
-	device_t	adb_bus;
+	device_t adb_bus;
 
-	int		sc_node;
-	volatile int	sc_state;
-	int		sc_waiting;
-	int		sc_polling;
-	int		sc_iic_done;
-	volatile int	sc_autopoll;
-	uint32_t	sc_rtc;
+	int sc_node;
+	volatile int sc_state;
+	int sc_waiting;
+	int sc_polling;
+	int sc_iic_done;
+	volatile int sc_autopoll;
+	uint32_t sc_rtc;
 
 	int sc_i2c_read_len;
 
 	/* internal buffers */
-	uint8_t		sc_in[256];
-	uint8_t		sc_out[256];
-	int		sc_sent;
-	int		sc_out_length;
-	int		sc_received;
+	uint8_t sc_in[256];
+	uint8_t sc_out[256];
+	int sc_sent;
+	int sc_out_length;
+	int sc_received;
 
 	struct cuda_packet sc_pkts[CUDA_MAXPACKETS];
 	struct cuda_pktq sc_inq;

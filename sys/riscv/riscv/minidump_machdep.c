@@ -38,15 +38,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <sys/msgbuf.h>
-#include <sys/watchdog.h>
 #include <sys/vmmeter.h>
+#include <sys/watchdog.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_phys.h>
-#include <vm/vm_dumpset.h>
 #include <vm/pmap.h>
+#include <vm/vm_dumpset.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #include <machine/atomic.h>
 #include <machine/elf.h>
@@ -68,18 +68,9 @@ static struct {
 	int min_per;
 	int max_per;
 	int visited;
-} progress_track[10] = {
-	{  0,  10, 0},
-	{ 10,  20, 0},
-	{ 20,  30, 0},
-	{ 30,  40, 0},
-	{ 40,  50, 0},
-	{ 50,  60, 0},
-	{ 60,  70, 0},
-	{ 70,  80, 0},
-	{ 80,  90, 0},
-	{ 90, 100, 0}
-};
+} progress_track[10] = { { 0, 10, 0 }, { 10, 20, 0 }, { 20, 30, 0 },
+	{ 30, 40, 0 }, { 40, 50, 0 }, { 50, 60, 0 }, { 60, 70, 0 },
+	{ 70, 80, 0 }, { 80, 90, 0 }, { 90, 100, 0 } };
 
 static void
 report_progress(size_t progress, size_t dumpsize)
@@ -144,7 +135,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 	u_int maxdumpsz;
 
 	maxdumpsz = min(di->maxiosize, MAXDUMPPGS * PAGE_SIZE);
-	if (maxdumpsz == 0)	/* seatbelt */
+	if (maxdumpsz == 0) /* seatbelt */
 		maxdumpsz = PAGE_SIZE;
 	error = 0;
 	if ((sz % PAGE_SIZE) != 0) {
@@ -260,7 +251,7 @@ retry:
 	dumpsize += round_page(msgbufp->msg_size);
 	dumpsize += round_page(sizeof(dump_avail));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH (pa) {
 		/* Clear out undumpable pages now if needed */
 		if (is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
@@ -284,8 +275,8 @@ retry:
 	mdhdr.dmapend = DMAP_MAX_ADDRESS;
 	mdhdr.dumpavailsize = round_page(sizeof(dump_avail));
 
-	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_RISCV_VERSION,
-	    dumpsize);
+	dump_init_header(
+	    di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_RISCV_VERSION, dumpsize);
 
 	error = dump_start(di, &kdh);
 	if (error != 0)
@@ -302,8 +293,8 @@ retry:
 		goto fail;
 
 	/* Dump msgbuf up front */
-	error = blk_write(di, (char *)msgbufp->msg_ptr, 0,
-	    round_page(msgbufp->msg_size));
+	error = blk_write(
+	    di, (char *)msgbufp->msg_ptr, 0, round_page(msgbufp->msg_size));
 	if (error)
 		goto fail;
 
@@ -330,7 +321,8 @@ retry:
 			error = blk_write(di, (char *)&tmpbuffer, 0, PAGE_SIZE);
 			if (error)
 				goto fail;
-			/* Flush, in case we reuse tmpbuffer in the same block */
+			/* Flush, in case we reuse tmpbuffer in the same block
+			 */
 			error = blk_flush(di);
 			if (error)
 				goto fail;
@@ -343,7 +335,8 @@ retry:
 			error = blk_write(di, (char *)&tmpbuffer, 0, PAGE_SIZE);
 			if (error)
 				goto fail;
-			/* Flush, in case we reuse tmpbuffer in the same block */
+			/* Flush, in case we reuse tmpbuffer in the same block
+			 */
 			error = blk_flush(di);
 			if (error)
 				goto fail;
@@ -360,7 +353,7 @@ retry:
 
 	/* Dump memory chunks */
 	/* XXX cluster it up and use blk_dump() */
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH (pa) {
 		error = blk_write(di, 0, pa, PAGE_SIZE);
 		if (error)
 			goto fail;
@@ -389,12 +382,12 @@ fail:
 			goto retry;
 		}
 		printf("Dump failed.\n");
-	}
-	else if (error == ECANCELED)
+	} else if (error == ECANCELED)
 		printf("Dump aborted\n");
 	else if (error == E2BIG) {
 		printf("Dump failed. Partition too small (about %lluMB were "
-		    "needed this time).\n", (long long)dumpsize >> 20);
+		       "needed this time).\n",
+		    (long long)dumpsize >> 20);
 	} else
 		printf("** DUMP FAILED (ERROR %d) **\n", error);
 	return (error);

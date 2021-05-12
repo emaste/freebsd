@@ -34,55 +34,56 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/gpio.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
 
-#include <dev/gpio/gpiobusvar.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-#include <dev/fdt/fdt_pinctrl.h>
-
-#include <arm/allwinner/aw_machdep.h>
-#include <arm/allwinner/allwinner_pinctrl.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/regulator/regulator.h>
+#include <dev/fdt/fdt_pinctrl.h>
+#include <dev/gpio/gpiobusvar.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
+#include <arm/allwinner/allwinner_pinctrl.h>
+#include <arm/allwinner/aw_machdep.h>
 
 #if defined(__aarch64__)
 #include "opt_soc.h"
 #endif
 
-#include "pic_if.h"
 #include "gpio_if.h"
+#include "pic_if.h"
 
-#define	AW_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |	\
-	  GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN);
+#define AW_GPIO_DEFAULT_CAPS                                  \
+	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT | GPIO_PIN_PULLUP | \
+	    GPIO_PIN_PULLDOWN);
 
-#define	AW_GPIO_INTR_CAPS	(GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH |	\
-	  GPIO_INTR_EDGE_RISING | GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH)
+#define AW_GPIO_INTR_CAPS                                                     \
+	(GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH | GPIO_INTR_EDGE_RISING | \
+	    GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH)
 
-#define	AW_GPIO_NONE		0
-#define	AW_GPIO_PULLUP		1
-#define	AW_GPIO_PULLDOWN	2
+#define AW_GPIO_NONE 0
+#define AW_GPIO_PULLUP 1
+#define AW_GPIO_PULLDOWN 2
 
-#define	AW_GPIO_INPUT		0
-#define	AW_GPIO_OUTPUT		1
+#define AW_GPIO_INPUT 0
+#define AW_GPIO_OUTPUT 1
 
-#define	AW_GPIO_DRV_MASK	0x3
-#define	AW_GPIO_PUD_MASK	0x3
+#define AW_GPIO_DRV_MASK 0x3
+#define AW_GPIO_PUD_MASK 0x3
 
-#define	AW_PINCTRL	1
-#define	AW_R_PINCTRL	2
+#define AW_PINCTRL 1
+#define AW_R_PINCTRL 2
 
 struct aw_gpio_conf {
 	struct allwinner_padconf *padconf;
@@ -169,10 +170,8 @@ struct aw_gpio_conf h3_r_gpio_conf = {
 #ifdef SOC_ALLWINNER_A83T
 extern struct allwinner_padconf a83t_padconf;
 extern struct allwinner_padconf a83t_r_padconf;
-struct aw_gpio_conf a83t_gpio_conf = {
-	.padconf = &a83t_padconf,
-	.banks = "bcdefgh"
-};
+struct aw_gpio_conf a83t_gpio_conf = { .padconf = &a83t_padconf,
+	.banks = "bcdefgh" };
 struct aw_gpio_conf a83t_r_gpio_conf = {
 	.padconf = &a83t_r_padconf,
 	.banks = "l",
@@ -209,109 +208,108 @@ struct aw_gpio_conf h6_r_gpio_conf = {
 
 static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_ALLWINNER_A10
-	{"allwinner,sun4i-a10-pinctrl",		(uintptr_t)&a10_gpio_conf},
+	{ "allwinner,sun4i-a10-pinctrl", (uintptr_t)&a10_gpio_conf },
 #endif
 #ifdef SOC_ALLWINNER_A13
-	{"allwinner,sun5i-a13-pinctrl",		(uintptr_t)&a13_gpio_conf},
+	{ "allwinner,sun5i-a13-pinctrl", (uintptr_t)&a13_gpio_conf },
 #endif
 #ifdef SOC_ALLWINNER_A20
-	{"allwinner,sun7i-a20-pinctrl",		(uintptr_t)&a20_gpio_conf},
+	{ "allwinner,sun7i-a20-pinctrl", (uintptr_t)&a20_gpio_conf },
 #endif
 #ifdef SOC_ALLWINNER_A31
-	{"allwinner,sun6i-a31-pinctrl",		(uintptr_t)&a31_gpio_conf},
+	{ "allwinner,sun6i-a31-pinctrl", (uintptr_t)&a31_gpio_conf },
 #endif
 #ifdef SOC_ALLWINNER_A31S
-	{"allwinner,sun6i-a31s-pinctrl",	(uintptr_t)&a31s_gpio_conf},
+	{ "allwinner,sun6i-a31s-pinctrl", (uintptr_t)&a31s_gpio_conf },
 #endif
 #if defined(SOC_ALLWINNER_A31) || defined(SOC_ALLWINNER_A31S)
-	{"allwinner,sun6i-a31-r-pinctrl",	(uintptr_t)&a31_r_gpio_conf},
+	{ "allwinner,sun6i-a31-r-pinctrl", (uintptr_t)&a31_r_gpio_conf },
 #endif
 #ifdef SOC_ALLWINNER_A33
-	{"allwinner,sun6i-a33-pinctrl",		(uintptr_t)&a33_gpio_conf},
+	{ "allwinner,sun6i-a33-pinctrl", (uintptr_t)&a33_gpio_conf },
 #endif
 #ifdef SOC_ALLWINNER_A83T
-	{"allwinner,sun8i-a83t-pinctrl",	(uintptr_t)&a83t_gpio_conf},
-	{"allwinner,sun8i-a83t-r-pinctrl",	(uintptr_t)&a83t_r_gpio_conf},
+	{ "allwinner,sun8i-a83t-pinctrl", (uintptr_t)&a83t_gpio_conf },
+	{ "allwinner,sun8i-a83t-r-pinctrl", (uintptr_t)&a83t_r_gpio_conf },
 #endif
 #if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
-	{"allwinner,sun8i-h3-pinctrl",		(uintptr_t)&h3_gpio_conf},
-	{"allwinner,sun50i-h5-pinctrl",		(uintptr_t)&h3_gpio_conf},
-	{"allwinner,sun8i-h3-r-pinctrl",	(uintptr_t)&h3_r_gpio_conf},
+	{ "allwinner,sun8i-h3-pinctrl", (uintptr_t)&h3_gpio_conf },
+	{ "allwinner,sun50i-h5-pinctrl", (uintptr_t)&h3_gpio_conf },
+	{ "allwinner,sun8i-h3-r-pinctrl", (uintptr_t)&h3_r_gpio_conf },
 #endif
 #ifdef SOC_ALLWINNER_A64
-	{"allwinner,sun50i-a64-pinctrl",	(uintptr_t)&a64_gpio_conf},
-	{"allwinner,sun50i-a64-r-pinctrl",	(uintptr_t)&a64_r_gpio_conf},
+	{ "allwinner,sun50i-a64-pinctrl", (uintptr_t)&a64_gpio_conf },
+	{ "allwinner,sun50i-a64-r-pinctrl", (uintptr_t)&a64_r_gpio_conf },
 #endif
 #ifdef SOC_ALLWINNER_H6
-	{"allwinner,sun50i-h6-pinctrl",	(uintptr_t)&h6_gpio_conf},
-	{"allwinner,sun50i-h6-r-pinctrl",	(uintptr_t)&h6_r_gpio_conf},
+	{ "allwinner,sun50i-h6-pinctrl", (uintptr_t)&h6_gpio_conf },
+	{ "allwinner,sun50i-h6-r-pinctrl", (uintptr_t)&h6_r_gpio_conf },
 #endif
-	{NULL,	0}
+	{ NULL, 0 }
 };
 
 struct clk_list {
-	TAILQ_ENTRY(clk_list)	next;
-	clk_t			clk;
+	TAILQ_ENTRY(clk_list) next;
+	clk_t clk;
 };
 
 struct gpio_irqsrc {
-	struct intr_irqsrc	isrc;
-	u_int			irq;
-	uint32_t		mode;
-	uint32_t		pin;
-	uint32_t		bank;
-	uint32_t		intnum;
-	uint32_t		intfunc;
-	uint32_t		oldfunc;
-	bool			enabled;
+	struct intr_irqsrc isrc;
+	u_int irq;
+	uint32_t mode;
+	uint32_t pin;
+	uint32_t bank;
+	uint32_t intnum;
+	uint32_t intfunc;
+	uint32_t oldfunc;
+	bool enabled;
 };
 
-#define	AW_GPIO_MEMRES		0
-#define	AW_GPIO_IRQRES		1
-#define	AW_GPIO_RESSZ		2
+#define AW_GPIO_MEMRES 0
+#define AW_GPIO_IRQRES 1
+#define AW_GPIO_RESSZ 2
 
 struct aw_gpio_softc {
-	device_t		sc_dev;
-	device_t		sc_busdev;
-	struct resource *	sc_res[AW_GPIO_RESSZ];
-	struct mtx		sc_mtx;
-	struct resource *	sc_mem_res;
-	struct resource *	sc_irq_res;
-	void *			sc_intrhand;
-	struct aw_gpio_conf	*conf;
-	TAILQ_HEAD(, clk_list)		clk_list;
+	device_t sc_dev;
+	device_t sc_busdev;
+	struct resource *sc_res[AW_GPIO_RESSZ];
+	struct mtx sc_mtx;
+	struct resource *sc_mem_res;
+	struct resource *sc_irq_res;
+	void *sc_intrhand;
+	struct aw_gpio_conf *conf;
+	TAILQ_HEAD(, clk_list) clk_list;
 
-	struct gpio_irqsrc 	*gpio_pic_irqsrc;
-	int			nirqs;
+	struct gpio_irqsrc *gpio_pic_irqsrc;
+	int nirqs;
 };
 
-static struct resource_spec aw_gpio_res_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE | RF_SHAREABLE },
-	{ -1,			0,	0 }
-};
+static struct resource_spec aw_gpio_res_spec[] = { { SYS_RES_MEMORY, 0,
+						       RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE | RF_SHAREABLE }, { -1, 0, 0 } };
 
-#define	AW_GPIO_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
-#define	AW_GPIO_UNLOCK(_sc)		mtx_unlock_spin(&(_sc)->sc_mtx)
-#define	AW_GPIO_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
+#define AW_GPIO_LOCK(_sc) mtx_lock_spin(&(_sc)->sc_mtx)
+#define AW_GPIO_UNLOCK(_sc) mtx_unlock_spin(&(_sc)->sc_mtx)
+#define AW_GPIO_LOCK_ASSERT(_sc) mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 
-#define	AW_GPIO_GP_CFG(_bank, _idx)	0x00 + ((_bank) * 0x24) + ((_idx) << 2)
-#define	AW_GPIO_GP_DAT(_bank)		0x10 + ((_bank) * 0x24)
-#define	AW_GPIO_GP_DRV(_bank, _idx)	0x14 + ((_bank) * 0x24) + ((_idx) << 2)
-#define	AW_GPIO_GP_PUL(_bank, _idx)	0x1c + ((_bank) * 0x24) + ((_idx) << 2)
+#define AW_GPIO_GP_CFG(_bank, _idx) 0x00 + ((_bank)*0x24) + ((_idx) << 2)
+#define AW_GPIO_GP_DAT(_bank) 0x10 + ((_bank)*0x24)
+#define AW_GPIO_GP_DRV(_bank, _idx) 0x14 + ((_bank)*0x24) + ((_idx) << 2)
+#define AW_GPIO_GP_PUL(_bank, _idx) 0x1c + ((_bank)*0x24) + ((_idx) << 2)
 
-#define	AW_GPIO_GP_INT_BASE(_bank)	(0x200 + 0x20 * _bank)
+#define AW_GPIO_GP_INT_BASE(_bank) (0x200 + 0x20 * _bank)
 
-#define	AW_GPIO_GP_INT_CFG(_bank, _pin)	(AW_GPIO_GP_INT_BASE(_bank) + (0x4 * ((_pin) / 8)))
-#define	AW_GPIO_GP_INT_CTL(_bank)	(AW_GPIO_GP_INT_BASE(_bank) + 0x10)
-#define	AW_GPIO_GP_INT_STA(_bank)	(AW_GPIO_GP_INT_BASE(_bank) + 0x14)
-#define	AW_GPIO_GP_INT_DEB(_bank)	(AW_GPIO_GP_INT_BASE(_bank) + 0x18)
+#define AW_GPIO_GP_INT_CFG(_bank, _pin) \
+	(AW_GPIO_GP_INT_BASE(_bank) + (0x4 * ((_pin) / 8)))
+#define AW_GPIO_GP_INT_CTL(_bank) (AW_GPIO_GP_INT_BASE(_bank) + 0x10)
+#define AW_GPIO_GP_INT_STA(_bank) (AW_GPIO_GP_INT_BASE(_bank) + 0x14)
+#define AW_GPIO_GP_INT_DEB(_bank) (AW_GPIO_GP_INT_BASE(_bank) + 0x18)
 
-#define	AW_GPIO_INT_EDGE_POSITIVE	0x0
-#define	AW_GPIO_INT_EDGE_NEGATIVE	0x1
-#define	AW_GPIO_INT_LEVEL_HIGH		0x2
-#define	AW_GPIO_INT_LEVEL_LOW		0x3
-#define	AW_GPIO_INT_EDGE_BOTH		0x4
+#define AW_GPIO_INT_EDGE_POSITIVE 0x0
+#define AW_GPIO_INT_EDGE_NEGATIVE 0x1
+#define AW_GPIO_INT_LEVEL_HIGH 0x2
+#define AW_GPIO_INT_LEVEL_LOW 0x3
+#define AW_GPIO_INT_EDGE_BOTH 0x4
 
 static char *aw_gpio_parse_function(phandle_t node);
 static const char **aw_gpio_parse_pins(phandle_t node, int *pins_nb);
@@ -320,19 +318,21 @@ static int aw_gpio_parse_drive_strength(phandle_t node, uint32_t *drive);
 
 static int aw_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value);
 static int aw_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value);
-static int aw_gpio_pin_get_locked(struct aw_gpio_softc *sc, uint32_t pin, unsigned int *value);
-static int aw_gpio_pin_set_locked(struct aw_gpio_softc *sc, uint32_t pin, unsigned int value);
+static int aw_gpio_pin_get_locked(
+    struct aw_gpio_softc *sc, uint32_t pin, unsigned int *value);
+static int aw_gpio_pin_set_locked(
+    struct aw_gpio_softc *sc, uint32_t pin, unsigned int value);
 
 static void aw_gpio_intr(void *arg);
 static void aw_gpio_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc);
-static void aw_gpio_pic_disable_intr_locked(struct aw_gpio_softc *sc, struct intr_irqsrc *isrc);
+static void aw_gpio_pic_disable_intr_locked(
+    struct aw_gpio_softc *sc, struct intr_irqsrc *isrc);
 static void aw_gpio_pic_post_filter(device_t dev, struct intr_irqsrc *isrc);
 static int aw_gpio_register_isrcs(struct aw_gpio_softc *sc);
 
-#define	AW_GPIO_WRITE(_sc, _off, _val)		\
+#define AW_GPIO_WRITE(_sc, _off, _val) \
 	bus_write_4((_sc)->sc_res[AW_GPIO_MEMRES], _off, _val)
-#define	AW_GPIO_READ(_sc, _off)		\
-	bus_read_4((_sc)->sc_res[AW_GPIO_MEMRES], _off)
+#define AW_GPIO_READ(_sc, _off) bus_read_4((_sc)->sc_res[AW_GPIO_MEMRES], _off)
 
 static uint32_t
 aw_gpio_get_function(struct aw_gpio_softc *sc, uint32_t pin)
@@ -588,8 +588,8 @@ aw_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 	if (pin >= sc->conf->padconf->npins)
 		return (EINVAL);
 
-	snprintf(name, GPIOMAXNAME - 1, "%s",
-	    sc->conf->padconf->pins[pin].name);
+	snprintf(
+	    name, GPIOMAXNAME - 1, "%s", sc->conf->padconf->pins[pin].name);
 	name[GPIOMAXNAME - 1] = '\0';
 
 	return (0);
@@ -613,8 +613,8 @@ aw_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 }
 
 static int
-aw_gpio_pin_set_locked(struct aw_gpio_softc *sc, uint32_t pin,
-    unsigned int value)
+aw_gpio_pin_set_locked(
+    struct aw_gpio_softc *sc, uint32_t pin, unsigned int value)
 {
 	uint32_t bank, data;
 
@@ -652,8 +652,8 @@ aw_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 }
 
 static int
-aw_gpio_pin_get_locked(struct aw_gpio_softc *sc,uint32_t pin,
-    unsigned int *val)
+aw_gpio_pin_get_locked(
+    struct aw_gpio_softc *sc, uint32_t pin, unsigned int *val)
 {
 	uint32_t bank, reg_data;
 
@@ -676,11 +676,10 @@ aw_gpio_parse_function(phandle_t node)
 {
 	char *function;
 
-	if (OF_getprop_alloc(node, "function",
-	    (void **)&function) != -1)
+	if (OF_getprop_alloc(node, "function", (void **)&function) != -1)
 		return (function);
-	if (OF_getprop_alloc(node, "allwinner,function",
-	    (void **)&function) != -1)
+	if (OF_getprop_alloc(node, "allwinner,function", (void **)&function) !=
+	    -1)
 		return (function);
 
 	return (NULL);
@@ -695,8 +694,8 @@ aw_gpio_parse_pins(phandle_t node, int *pins_nb)
 	if (*pins_nb > 0)
 		return (pinlist);
 
-	*pins_nb = ofw_bus_string_list_to_array(node, "allwinner,pins",
-	    &pinlist);
+	*pins_nb = ofw_bus_string_list_to_array(
+	    node, "allwinner,pins", &pinlist);
 	if (*pins_nb > 0)
 		return (pinlist);
 
@@ -731,8 +730,8 @@ aw_gpio_parse_drive_strength(phandle_t node, uint32_t *drive)
 		return (0);
 	if (OF_getencprop(node, "allwinner,drive", drive, sizeof(*drive)) != -1)
 		return (0);
-	if (OF_getencprop(node, "drive-strength", &drive_str,
-	    sizeof(drive_str)) != -1) {
+	if (OF_getencprop(
+		node, "drive-strength", &drive_str, sizeof(drive_str)) != -1) {
 		*drive = (drive_str / 10) - 1;
 		return (0);
 	}
@@ -804,7 +803,7 @@ aw_gpio_pin_access_32(device_t dev, uint32_t first_pin, uint32_t clear_pins,
 
 	AW_GPIO_LOCK(sc);
 	data = AW_GPIO_READ(sc, AW_GPIO_GP_DAT(bank));
-	if ((clear_pins | change_pins) != 0) 
+	if ((clear_pins | change_pins) != 0)
 		AW_GPIO_WRITE(sc, AW_GPIO_GP_DAT(bank),
 		    (data & ~clear_pins) ^ change_pins);
 	AW_GPIO_UNLOCK(sc);
@@ -816,8 +815,8 @@ aw_gpio_pin_access_32(device_t dev, uint32_t first_pin, uint32_t clear_pins,
 }
 
 static int
-aw_gpio_pin_config_32(device_t dev, uint32_t first_pin, uint32_t num_pins,
-    uint32_t *pin_flags)
+aw_gpio_pin_config_32(
+    device_t dev, uint32_t first_pin, uint32_t num_pins, uint32_t *pin_flags)
 {
 	struct aw_gpio_softc *sc;
 	uint32_t bank, pin;
@@ -950,7 +949,7 @@ aw_fdt_configure_pins(device_t dev, phandle_t cfgxref)
 		AW_GPIO_UNLOCK(sc);
 	}
 
- out:
+out:
 	OF_prop_free(pinlist);
 	OF_prop_free(pin_function);
 	return (ret);
@@ -969,7 +968,8 @@ aw_gpio_enable_bank_supply(void *arg)
 		snprintf(bank_reg_name, sizeof(bank_reg_name), "vcc-p%c-supply",
 		    sc->conf->banks[i]);
 
-		if (regulator_get_by_ofw_property(sc->sc_dev, 0, bank_reg_name, &vcc_supply) == 0) {
+		if (regulator_get_by_ofw_property(
+			sc->sc_dev, 0, bank_reg_name, &vcc_supply) == 0) {
 			if (bootverbose)
 				device_printf(sc->sc_dev,
 				    "Enabling regulator for gpio bank %c\n",
@@ -1019,8 +1019,8 @@ aw_gpio_attach(device_t dev)
 	}
 
 	if (bus_setup_intr(dev, sc->sc_res[AW_GPIO_IRQRES],
-	    INTR_TYPE_CLK | INTR_MPSAFE, NULL, aw_gpio_intr, sc,
-	    &sc->sc_intrhand)) {
+		INTR_TYPE_CLK | INTR_MPSAFE, NULL, aw_gpio_intr, sc,
+		&sc->sc_intrhand)) {
 		device_printf(dev, "cannot setup interrupt handler\n");
 		goto fail;
 	}
@@ -1032,8 +1032,9 @@ aw_gpio_attach(device_t dev)
 		goto fail;
 
 	/* Use the right pin data for the current SoC */
-	sc->conf = (struct aw_gpio_conf *)ofw_bus_search_compatible(dev,
-	    compat_data)->ocd_data;
+	sc->conf = (struct aw_gpio_conf *)ofw_bus_search_compatible(
+	    dev, compat_data)
+		       ->ocd_data;
 
 	if (hwreset_get_by_ofw_idx(dev, 0, 0, &rst) == 0) {
 		error = hwreset_deassert(rst);
@@ -1091,7 +1092,7 @@ fail:
 	mtx_destroy(&sc->sc_mtx);
 
 	/* Disable clock */
-	TAILQ_FOREACH_SAFE(clkp, &sc->clk_list, next, clkp_tmp) {
+	TAILQ_FOREACH_SAFE (clkp, &sc->clk_list, next, clkp_tmp) {
 		err = clk_disable(clkp->clk);
 		if (err != 0)
 			device_printf(dev, "Could not disable clock %s\n",
@@ -1135,7 +1136,8 @@ aw_gpio_intr(void *arg)
 		if (!sc->gpio_pic_irqsrc[irq].enabled)
 			continue;
 
-		reg = AW_GPIO_READ(sc, AW_GPIO_GP_INT_STA(sc->gpio_pic_irqsrc[irq].bank));
+		reg = AW_GPIO_READ(
+		    sc, AW_GPIO_GP_INT_STA(sc->gpio_pic_irqsrc[irq].bank));
 		if (!(reg & (1 << sc->gpio_pic_irqsrc[irq].intnum)))
 			continue;
 
@@ -1143,7 +1145,8 @@ aw_gpio_intr(void *arg)
 		if (intr_isrc_dispatch(isrc, curthread->td_intr_frame) != 0) {
 			aw_gpio_pic_disable_intr_locked(sc, isrc);
 			aw_gpio_pic_post_filter(sc->sc_dev, isrc);
-			device_printf(sc->sc_dev, "Stray irq %u disabled\n", irq);
+			device_printf(
+			    sc->sc_dev, "Stray irq %u disabled\n", irq);
 		}
 	}
 	AW_GPIO_UNLOCK(sc);
@@ -1170,24 +1173,29 @@ aw_gpio_register_isrcs(struct aw_gpio_softc *sc)
 		nirqs++;
 	}
 
-	sc->gpio_pic_irqsrc = malloc(sizeof(*sc->gpio_pic_irqsrc) * nirqs,
-	    M_DEVBUF, M_WAITOK | M_ZERO);
+	sc->gpio_pic_irqsrc = malloc(
+	    sizeof(*sc->gpio_pic_irqsrc) * nirqs, M_DEVBUF, M_WAITOK | M_ZERO);
 	for (nirqs = 0, pin = 0; pin < sc->conf->padconf->npins; pin++) {
 		if (sc->conf->padconf->pins[pin].eint_func == 0)
 			continue;
 
 		sc->gpio_pic_irqsrc[nirqs].pin = pin;
-		sc->gpio_pic_irqsrc[nirqs].bank = sc->conf->padconf->pins[pin].eint_bank;
-		sc->gpio_pic_irqsrc[nirqs].intnum = sc->conf->padconf->pins[pin].eint_num;
-		sc->gpio_pic_irqsrc[nirqs].intfunc = sc->conf->padconf->pins[pin].eint_func;
+		sc->gpio_pic_irqsrc[nirqs].bank =
+		    sc->conf->padconf->pins[pin].eint_bank;
+		sc->gpio_pic_irqsrc[nirqs].intnum =
+		    sc->conf->padconf->pins[pin].eint_num;
+		sc->gpio_pic_irqsrc[nirqs].intfunc =
+		    sc->conf->padconf->pins[pin].eint_func;
 		sc->gpio_pic_irqsrc[nirqs].irq = nirqs;
 		sc->gpio_pic_irqsrc[nirqs].mode = GPIO_INTR_CONFORM;
 
 		err = intr_isrc_register(&sc->gpio_pic_irqsrc[nirqs].isrc,
 		    sc->sc_dev, 0, "%s,%s", name,
-		    sc->conf->padconf->pins[pin].functions[sc->conf->padconf->pins[pin].eint_func]);
+		    sc->conf->padconf->pins[pin]
+			.functions[sc->conf->padconf->pins[pin].eint_func]);
 		if (err) {
-			device_printf(sc->sc_dev, "intr_isrs_register failed for irq %d\n", nirqs);
+			device_printf(sc->sc_dev,
+			    "intr_isrs_register failed for irq %d\n", nirqs);
 		}
 
 		nirqs++;
@@ -1199,16 +1207,19 @@ aw_gpio_register_isrcs(struct aw_gpio_softc *sc)
 }
 
 static void
-aw_gpio_pic_disable_intr_locked(struct aw_gpio_softc *sc, struct intr_irqsrc *isrc)
+aw_gpio_pic_disable_intr_locked(
+    struct aw_gpio_softc *sc, struct intr_irqsrc *isrc)
 {
 	u_int irq;
 	uint32_t reg;
 
 	AW_GPIO_LOCK_ASSERT(sc);
 	irq = ((struct gpio_irqsrc *)isrc)->irq;
-	reg = AW_GPIO_READ(sc, AW_GPIO_GP_INT_CTL(sc->gpio_pic_irqsrc[irq].bank));
+	reg = AW_GPIO_READ(
+	    sc, AW_GPIO_GP_INT_CTL(sc->gpio_pic_irqsrc[irq].bank));
 	reg &= ~(1 << sc->gpio_pic_irqsrc[irq].intnum);
-	AW_GPIO_WRITE(sc, AW_GPIO_GP_INT_CTL(sc->gpio_pic_irqsrc[irq].bank), reg);
+	AW_GPIO_WRITE(
+	    sc, AW_GPIO_GP_INT_CTL(sc->gpio_pic_irqsrc[irq].bank), reg);
 
 	sc->gpio_pic_irqsrc[irq].enabled = false;
 }
@@ -1235,9 +1246,11 @@ aw_gpio_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 	sc = device_get_softc(dev);
 	irq = ((struct gpio_irqsrc *)isrc)->irq;
 	AW_GPIO_LOCK(sc);
-	reg = AW_GPIO_READ(sc, AW_GPIO_GP_INT_CTL(sc->gpio_pic_irqsrc[irq].bank));
+	reg = AW_GPIO_READ(
+	    sc, AW_GPIO_GP_INT_CTL(sc->gpio_pic_irqsrc[irq].bank));
 	reg |= 1 << sc->gpio_pic_irqsrc[irq].intnum;
-	AW_GPIO_WRITE(sc, AW_GPIO_GP_INT_CTL(sc->gpio_pic_irqsrc[irq].bank), reg);
+	AW_GPIO_WRITE(
+	    sc, AW_GPIO_GP_INT_CTL(sc->gpio_pic_irqsrc[irq].bank), reg);
 	AW_GPIO_UNLOCK(sc);
 
 	sc->gpio_pic_irqsrc[irq].enabled = true;
@@ -1281,8 +1294,8 @@ aw_gpio_pic_map_gpio(struct aw_gpio_softc *sc, struct intr_map_data_gpio *dag,
 }
 
 static int
-aw_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+aw_gpio_pic_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct aw_gpio_softc *sc;
 	u_int irq;
@@ -1291,9 +1304,8 @@ aw_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 	sc = device_get_softc(dev);
 	switch (data->type) {
 	case INTR_MAP_DATA_GPIO:
-		err = aw_gpio_pic_map_gpio(sc,
-		    (struct intr_map_data_gpio *)data,
-		  &irq, NULL);
+		err = aw_gpio_pic_map_gpio(
+		    sc, (struct intr_map_data_gpio *)data, &irq, NULL);
 		break;
 	default:
 		return (ENOTSUP);
@@ -1320,9 +1332,8 @@ aw_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 	switch (data->type) {
 	case INTR_MAP_DATA_GPIO:
-		err = aw_gpio_pic_map_gpio(sc,
-		    (struct intr_map_data_gpio *)data,
-		  &irq, &mode);
+		err = aw_gpio_pic_map_gpio(
+		    sc, (struct intr_map_data_gpio *)data, &irq, &mode);
 		break;
 	default:
 		return (ENOTSUP);
@@ -1350,20 +1361,20 @@ aw_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	}
 
 	/* Switch the pin to interrupt mode */
-	sc->gpio_pic_irqsrc[irq].oldfunc = aw_gpio_get_function(sc,
-	    sc->gpio_pic_irqsrc[irq].pin);
-	aw_gpio_set_function(sc, sc->gpio_pic_irqsrc[irq].pin,
-	    sc->gpio_pic_irqsrc[irq].intfunc);
+	sc->gpio_pic_irqsrc[irq].oldfunc = aw_gpio_get_function(
+	    sc, sc->gpio_pic_irqsrc[irq].pin);
+	aw_gpio_set_function(
+	    sc, sc->gpio_pic_irqsrc[irq].pin, sc->gpio_pic_irqsrc[irq].intfunc);
 
 	/* Write interrupt mode */
-	reg = AW_GPIO_READ(sc, 
+	reg = AW_GPIO_READ(sc,
 	    AW_GPIO_GP_INT_CFG(sc->gpio_pic_irqsrc[irq].bank,
-	    sc->gpio_pic_irqsrc[irq].intnum));
+		sc->gpio_pic_irqsrc[irq].intnum));
 	reg &= ~(0xF << pinidx);
 	reg |= irqcfg;
 	AW_GPIO_WRITE(sc,
-	    AW_GPIO_GP_INT_CFG(sc->gpio_pic_irqsrc[irq].bank,
-	    sc->gpio_pic_irqsrc[irq].intnum),
+	    AW_GPIO_GP_INT_CFG(
+		sc->gpio_pic_irqsrc[irq].bank, sc->gpio_pic_irqsrc[irq].intnum),
 	    reg);
 
 	AW_GPIO_UNLOCK(sc);
@@ -1438,39 +1449,39 @@ aw_gpio_get_node(device_t dev, device_t bus)
 
 static device_method_t aw_gpio_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		aw_gpio_probe),
-	DEVMETHOD(device_attach,	aw_gpio_attach),
-	DEVMETHOD(device_detach,	aw_gpio_detach),
+	DEVMETHOD(device_probe, aw_gpio_probe),
+	DEVMETHOD(device_attach, aw_gpio_attach),
+	DEVMETHOD(device_detach, aw_gpio_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_disable_intr,	aw_gpio_pic_disable_intr),
-	DEVMETHOD(pic_enable_intr,	aw_gpio_pic_enable_intr),
-	DEVMETHOD(pic_map_intr,		aw_gpio_pic_map_intr),
-	DEVMETHOD(pic_setup_intr,	aw_gpio_pic_setup_intr),
-	DEVMETHOD(pic_teardown_intr,	aw_gpio_pic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	aw_gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	aw_gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	aw_gpio_pic_pre_ithread),
+	DEVMETHOD(pic_disable_intr, aw_gpio_pic_disable_intr),
+	DEVMETHOD(pic_enable_intr, aw_gpio_pic_enable_intr),
+	DEVMETHOD(pic_map_intr, aw_gpio_pic_map_intr),
+	DEVMETHOD(pic_setup_intr, aw_gpio_pic_setup_intr),
+	DEVMETHOD(pic_teardown_intr, aw_gpio_pic_teardown_intr),
+	DEVMETHOD(pic_post_filter, aw_gpio_pic_post_filter),
+	DEVMETHOD(pic_post_ithread, aw_gpio_pic_post_ithread),
+	DEVMETHOD(pic_pre_ithread, aw_gpio_pic_pre_ithread),
 
 	/* GPIO protocol */
-	DEVMETHOD(gpio_get_bus,		aw_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max,		aw_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname,	aw_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getflags,	aw_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_getcaps,	aw_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_setflags,	aw_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_get,		aw_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set,		aw_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle,	aw_gpio_pin_toggle),
-	DEVMETHOD(gpio_pin_access_32,	aw_gpio_pin_access_32),
-	DEVMETHOD(gpio_pin_config_32,	aw_gpio_pin_config_32),
-	DEVMETHOD(gpio_map_gpios,	aw_gpio_map_gpios),
+	DEVMETHOD(gpio_get_bus, aw_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max, aw_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname, aw_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getflags, aw_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_getcaps, aw_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_setflags, aw_gpio_pin_setflags),
+	DEVMETHOD(gpio_pin_get, aw_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set, aw_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle, aw_gpio_pin_toggle),
+	DEVMETHOD(gpio_pin_access_32, aw_gpio_pin_access_32),
+	DEVMETHOD(gpio_pin_config_32, aw_gpio_pin_config_32),
+	DEVMETHOD(gpio_map_gpios, aw_gpio_map_gpios),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	aw_gpio_get_node),
+	DEVMETHOD(ofw_bus_get_node, aw_gpio_get_node),
 
-        /* fdt_pinctrl interface */
-	DEVMETHOD(fdt_pinctrl_configure,aw_fdt_configure_pins),
+	/* fdt_pinctrl interface */
+	DEVMETHOD(fdt_pinctrl_configure, aw_fdt_configure_pins),
 
 	DEVMETHOD_END
 };

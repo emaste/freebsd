@@ -25,32 +25,37 @@
  *
  * $FreeBSD$
  */
-#ifndef	_ASM_ATOMIC64_H_
-#define	_ASM_ATOMIC64_H_
+#ifndef _ASM_ATOMIC64_H_
+#define _ASM_ATOMIC64_H_
+
+#include <sys/types.h>
+
+#include <machine/atomic.h>
 
 #include <linux/compiler.h>
-#include <sys/types.h>
-#include <machine/atomic.h>
 
 typedef struct {
 	volatile int64_t counter;
 } atomic64_t;
-#define	ATOMIC64_INIT(x)	{ .counter = (x) }
+#define ATOMIC64_INIT(x)       \
+	{                      \
+		.counter = (x) \
+	}
 
 /*------------------------------------------------------------------------*
  *	64-bit atomic operations
  *------------------------------------------------------------------------*/
 
-#define	atomic64_add(i, v)		atomic64_add_return((i), (v))
-#define	atomic64_sub(i, v)		atomic64_sub_return((i), (v))
-#define	atomic64_inc_return(v)		atomic64_add_return(1, (v))
-#define	atomic64_add_negative(i, v)	(atomic64_add_return((i), (v)) < 0)
-#define	atomic64_add_and_test(i, v)	(atomic64_add_return((i), (v)) == 0)
-#define	atomic64_sub_and_test(i, v)	(atomic64_sub_return((i), (v)) == 0)
-#define	atomic64_dec_and_test(v)	(atomic64_sub_return(1, (v)) == 0)
-#define	atomic64_inc_and_test(v)	(atomic64_add_return(1, (v)) == 0)
-#define	atomic64_dec_return(v)		atomic64_sub_return(1, (v))
-#define	atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1, 0)
+#define atomic64_add(i, v) atomic64_add_return((i), (v))
+#define atomic64_sub(i, v) atomic64_sub_return((i), (v))
+#define atomic64_inc_return(v) atomic64_add_return(1, (v))
+#define atomic64_add_negative(i, v) (atomic64_add_return((i), (v)) < 0)
+#define atomic64_add_and_test(i, v) (atomic64_add_return((i), (v)) == 0)
+#define atomic64_sub_and_test(i, v) (atomic64_sub_return((i), (v)) == 0)
+#define atomic64_dec_and_test(v) (atomic64_sub_return(1, (v)) == 0)
+#define atomic64_inc_and_test(v) (atomic64_add_return(1, (v)) == 0)
+#define atomic64_dec_return(v) atomic64_sub_return(1, (v))
+#define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)
 
 static inline int64_t
 atomic64_add_return(int64_t i, atomic64_t *v)
@@ -145,4 +150,4 @@ atomic64_cmpxchg(atomic64_t *v, int64_t old, int64_t new)
 	return (ret);
 }
 
-#endif					/* _ASM_ATOMIC64_H_ */
+#endif /* _ASM_ATOMIC64_H_ */

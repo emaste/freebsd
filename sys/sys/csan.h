@@ -39,7 +39,7 @@
 #ifdef KCSAN
 void kcsan_cpu_init(u_int);
 #else
-#define kcsan_cpu_init(ci)	((void)0)
+#define kcsan_cpu_init(ci) ((void)0)
 #endif
 
 #endif /* !_SYS_CSAN_H_ */

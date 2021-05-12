@@ -64,27 +64,27 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/module.h>
-#include <sys/systm.h>
-#include <sys/errno.h>
 #include <sys/param.h>
-#include <sys/kernel.h>
+#include <sys/systm.h>
+#include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/errno.h>
+#include <sys/file.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
-#include <sys/mount.h>
-#include <sys/vnode.h>
-#include <sys/stat.h>
-#include <sys/file.h>
-#include <sys/buf.h>
 #include <sys/sdt.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/vnode.h>
 
 #include "fuse.h"
 #include "fuse_file.h"
-#include "fuse_ipc.h"
 #include "fuse_internal.h"
+#include "fuse_ipc.h"
 #include "fuse_node.h"
 
 static void fuse_bringdown(eventhandler_tag eh_tag);
@@ -97,22 +97,21 @@ extern struct cdevsw fuse_cdevsw;
 extern struct vop_vector fuse_fifonops;
 extern uma_zone_t fuse_pbuf_zone;
 
-static struct vfsconf fuse_vfsconf = {
-	.vfc_version = VFS_VERSION,
+static struct vfsconf fuse_vfsconf = { .vfc_version = VFS_VERSION,
 	.vfc_name = "fusefs",
 	.vfc_vfsops = &fuse_vfsops,
 	.vfc_typenum = -1,
-	.vfc_flags = VFCF_JAIL | VFCF_SYNTHETIC
-};
+	.vfc_flags = VFCF_JAIL | VFCF_SYNTHETIC };
 
-SYSCTL_NODE(_vfs, OID_AUTO, fusefs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "FUSE tunables");
+SYSCTL_NODE(
+    _vfs, OID_AUTO, fusefs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "FUSE tunables");
 SYSCTL_NODE(_vfs_fusefs, OID_AUTO, stats, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "FUSE statistics");
 SYSCTL_INT(_vfs_fusefs, OID_AUTO, kernelabi_major, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, FUSE_KERNEL_VERSION, "FUSE kernel abi major version");
 SYSCTL_INT(_vfs_fusefs, OID_AUTO, kernelabi_minor, CTLFLAG_RD,
-    SYSCTL_NULL_INT_PTR, FUSE_KERNEL_MINOR_VERSION, "FUSE kernel abi minor version");
+    SYSCTL_NULL_INT_PTR, FUSE_KERNEL_MINOR_VERSION,
+    "FUSE kernel abi minor version");
 SDT_PROVIDER_DEFINE(fusefs);
 
 /******************************
@@ -139,7 +138,7 @@ fuse_loader(struct module *m, int what, void *arg)
 	int err = 0;
 
 	switch (what) {
-	case MOD_LOAD:			/* kldload */
+	case MOD_LOAD: /* kldload */
 		mtx_init(&fuse_mtx, "fuse_mtx", NULL, MTX_DEF);
 		err = fuse_device_init();
 		if (err) {
@@ -171,11 +170,7 @@ fuse_loader(struct module *m, int what, void *arg)
 
 /* Registering the module */
 
-static moduledata_t fuse_moddata = {
-	"fusefs",
-	fuse_loader,
-	&fuse_vfsconf
-};
+static moduledata_t fuse_moddata = { "fusefs", fuse_loader, &fuse_vfsconf };
 
 DECLARE_MODULE(fusefs, fuse_moddata, SI_SUB_VFS, SI_ORDER_MIDDLE);
 MODULE_VERSION(fusefs, 1);

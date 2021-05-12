@@ -40,14 +40,14 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 
-#include <dev/ofw/openfirm.h>
-
 #include <machine/armreg.h>
 #include <machine/bus.h>
 #include <machine/fdt.h>
 #include <machine/machdep.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
+
+#include <dev/ofw/openfirm.h>
 
 #include <arm/altera/socfpga/socfpga_mp.h>
 #include <arm/altera/socfpga/socfpga_rstmgr.h>
@@ -122,13 +122,14 @@ _socfpga_cpu_reset(bus_size_t reg)
 
 	if ((OF_getencprop(node, "reg", &paddr, sizeof(paddr))) > 0) {
 		if (bus_space_map(fdtbus_bs_tag, paddr, 0x8, 0, &vaddr) == 0) {
-			bus_space_write_4(fdtbus_bs_tag, vaddr,
-			    reg, CTRL_SWWARMRSTREQ);
+			bus_space_write_4(
+			    fdtbus_bs_tag, vaddr, reg, CTRL_SWWARMRSTREQ);
 		}
 	}
 
 end:
-	while (1);
+	while (1)
+		;
 }
 
 #if defined(SOC_ALTERA_CYCLONE5)
@@ -151,11 +152,11 @@ socfpga_a10_cpu_reset(platform_t plat)
 
 #if defined(SOC_ALTERA_CYCLONE5)
 static platform_method_t socfpga_methods[] = {
-	PLATFORMMETHOD(platform_devmap_init,	socfpga_devmap_init),
-	PLATFORMMETHOD(platform_cpu_reset,	socfpga_cpu_reset),
+	PLATFORMMETHOD(platform_devmap_init, socfpga_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset, socfpga_cpu_reset),
 #ifdef SMP
-	PLATFORMMETHOD(platform_mp_setmaxid,	socfpga_mp_setmaxid),
-	PLATFORMMETHOD(platform_mp_start_ap,	socfpga_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid, socfpga_mp_setmaxid),
+	PLATFORMMETHOD(platform_mp_start_ap, socfpga_mp_start_ap),
 #endif
 	PLATFORMMETHOD_END,
 };
@@ -164,11 +165,11 @@ FDT_PLATFORM_DEF(socfpga, "socfpga", 0, "altr,socfpga-cyclone5", 200);
 
 #if defined(SOC_ALTERA_ARRIA10)
 static platform_method_t socfpga_a10_methods[] = {
-	PLATFORMMETHOD(platform_devmap_init,	socfpga_a10_devmap_init),
-	PLATFORMMETHOD(platform_cpu_reset,	socfpga_a10_cpu_reset),
+	PLATFORMMETHOD(platform_devmap_init, socfpga_a10_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset, socfpga_a10_cpu_reset),
 #ifdef SMP
-	PLATFORMMETHOD(platform_mp_setmaxid,	socfpga_mp_setmaxid),
-	PLATFORMMETHOD(platform_mp_start_ap,	socfpga_a10_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid, socfpga_mp_setmaxid),
+	PLATFORMMETHOD(platform_mp_start_ap, socfpga_a10_mp_start_ap),
 #endif
 	PLATFORMMETHOD_END,
 };

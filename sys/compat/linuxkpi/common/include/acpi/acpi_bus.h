@@ -39,14 +39,13 @@ struct acpi_bus_event {
 	uint32_t data;
 };
 
-ACPI_HANDLE	bsd_acpi_get_handle(device_t bsddev);
-bool		acpi_check_dsm(ACPI_HANDLE handle, const char *uuid, int rev,
-		    uint64_t funcs);
-ACPI_OBJECT *	acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const char *uuid,
-		    int rev, int func, ACPI_OBJECT *argv4,
-		    ACPI_OBJECT_TYPE type);
-int		register_acpi_notifier(struct notifier_block *nb);
-int		unregister_acpi_notifier(struct notifier_block *nb);
-uint32_t	acpi_target_system_state(void);
+ACPI_HANDLE bsd_acpi_get_handle(device_t bsddev);
+bool acpi_check_dsm(
+    ACPI_HANDLE handle, const char *uuid, int rev, uint64_t funcs);
+ACPI_OBJECT *acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const char *uuid,
+    int rev, int func, ACPI_OBJECT *argv4, ACPI_OBJECT_TYPE type);
+int register_acpi_notifier(struct notifier_block *nb);
+int unregister_acpi_notifier(struct notifier_block *nb);
+uint32_t acpi_target_system_state(void);
 
 #endif /* !_ACPI_ACPI_BUS_H_ */

@@ -29,7 +29,7 @@
  */
 
 #ifndef _GDB_GDB_H_
-#define	_GDB_GDB_H_
+#define _GDB_GDB_H_
 
 typedef int gdb_checkc_f(void);
 typedef int gdb_getc_f(void);
@@ -39,35 +39,37 @@ typedef void gdb_putc_f(int);
 typedef void gdb_term_f(void);
 
 struct gdb_dbgport {
-	const char	*gdb_name;
-	gdb_getc_f	*gdb_getc;
-	gdb_init_f	*gdb_init;
-	gdb_probe_f	*gdb_probe;
-	gdb_putc_f	*gdb_putc;
-	gdb_term_f	*gdb_term;
-	int		gdb_active;
-	void		(*gdb_sendpacket)(const void *, size_t);
-	int		gdb_dbfeatures;
+	const char *gdb_name;
+	gdb_getc_f *gdb_getc;
+	gdb_init_f *gdb_init;
+	gdb_probe_f *gdb_probe;
+	gdb_putc_f *gdb_putc;
+	gdb_term_f *gdb_term;
+	int gdb_active;
+	void (*gdb_sendpacket)(const void *, size_t);
+	int gdb_dbfeatures;
 };
 
-#define	GDB_DBGP_FEAT_WANTTERM	0x1	/* Want gdb_term() invocation when
-					   leaving GDB.  gdb_term has been
-					   deadcode and never invoked for so
-					   long I don't want to just blindly
-					   start invoking it without opt-in. */
-#define	GDB_DBGP_FEAT_RELIABLE	0x2	/* The debugport promises it is a
-					   reliable transport, which allows GDB
-					   acks to be turned off. */
+#define GDB_DBGP_FEAT_WANTTERM                   \
+	0x1 /* Want gdb_term() invocation when   \
+	       leaving GDB.  gdb_term has been   \
+	       deadcode and never invoked for so \
+	       long I don't want to just blindly \
+	       start invoking it without opt-in. */
+#define GDB_DBGP_FEAT_RELIABLE                      \
+	0x2 /* The debugport promises it is a       \
+	       reliable transport, which allows GDB \
+	       acks to be turned off. */
 
-#define	GDB_DBGPORT(name, probe, init, term, getc, putc)		\
-	static struct gdb_dbgport name##_gdb_dbgport = {		\
-		.gdb_name = #name,					\
-		.gdb_probe = probe,					\
-		.gdb_init = init,					\
-		.gdb_term = term,					\
-		.gdb_getc = getc,					\
-		.gdb_putc = putc,					\
-	};								\
+#define GDB_DBGPORT(name, probe, init, term, getc, putc) \
+	static struct gdb_dbgport name##_gdb_dbgport = { \
+		.gdb_name = #name,                       \
+		.gdb_probe = probe,                      \
+		.gdb_init = init,                        \
+		.gdb_term = term,                        \
+		.gdb_getc = getc,                        \
+		.gdb_putc = putc,                        \
+	};                                               \
 	DATA_SET(gdb_dbgport_set, name##_gdb_dbgport)
 
 #endif /* !_GDB_GDB_H_ */

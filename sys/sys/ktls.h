@@ -27,28 +27,28 @@
  * $FreeBSD$
  */
 #ifndef _SYS_KTLS_H_
-#define	_SYS_KTLS_H_
+#define _SYS_KTLS_H_
 
-#include <sys/refcount.h>
 #include <sys/_task.h>
+#include <sys/refcount.h>
 
 struct tls_record_layer {
-	uint8_t  tls_type;
-	uint8_t  tls_vmajor;
-	uint8_t  tls_vminor;
+	uint8_t tls_type;
+	uint8_t tls_vmajor;
+	uint8_t tls_vminor;
 	uint16_t tls_length;
-	uint8_t  tls_data[0];
-} __attribute__ ((packed));
+	uint8_t tls_data[0];
+} __attribute__((packed));
 
-#define	TLS_MAX_MSG_SIZE_V10_2	16384
-#define	TLS_MAX_PARAM_SIZE	1024	/* Max key/mac/iv in sockopt */
-#define	TLS_AEAD_GCM_LEN	4
-#define	TLS_1_3_GCM_IV_LEN	12
-#define	TLS_CHACHA20_IV_LEN	12
-#define	TLS_CBC_IMPLICIT_IV_LEN	16
+#define TLS_MAX_MSG_SIZE_V10_2 16384
+#define TLS_MAX_PARAM_SIZE 1024 /* Max key/mac/iv in sockopt */
+#define TLS_AEAD_GCM_LEN 4
+#define TLS_1_3_GCM_IV_LEN 12
+#define TLS_CHACHA20_IV_LEN 12
+#define TLS_CBC_IMPLICIT_IV_LEN 16
 
 /* Type values for the record layer */
-#define	TLS_RLTYPE_APP		23
+#define TLS_RLTYPE_APP 23
 
 /*
  * Nonce for GCM for TLS 1.2 per RFC 5288.
@@ -56,24 +56,24 @@ struct tls_record_layer {
 struct tls_nonce_data {
 	uint8_t fixed[TLS_AEAD_GCM_LEN];
 	uint64_t seq;
-} __packed; 
+} __packed;
 
 /*
  * AEAD additional data format for TLS 1.2 per RFC 5246.
  */
 struct tls_aead_data {
-	uint64_t seq;	/* In network order */
-	uint8_t	type;
+	uint64_t seq; /* In network order */
+	uint8_t type;
 	uint8_t tls_vmajor;
 	uint8_t tls_vminor;
-	uint16_t tls_length;	
+	uint16_t tls_length;
 } __packed;
 
 /*
  * AEAD additional data format for TLS 1.3 per RFC 8446.
  */
 struct tls_aead_data_13 {
-	uint8_t	type;
+	uint8_t type;
 	uint8_t tls_vmajor;
 	uint8_t tls_vminor;
 	uint16_t tls_length;
@@ -90,27 +90,27 @@ struct tls_mac_data {
 	uint8_t type;
 	uint8_t tls_vmajor;
 	uint8_t tls_vminor;
-	uint16_t tls_length;	
+	uint16_t tls_length;
 } __packed;
 
-#define	TLS_MAJOR_VER_ONE	3
-#define	TLS_MINOR_VER_ZERO	1	/* 3, 1 */
-#define	TLS_MINOR_VER_ONE	2	/* 3, 2 */
-#define	TLS_MINOR_VER_TWO	3	/* 3, 3 */
-#define	TLS_MINOR_VER_THREE	4	/* 3, 4 */
+#define TLS_MAJOR_VER_ONE 3
+#define TLS_MINOR_VER_ZERO 1 /* 3, 1 */
+#define TLS_MINOR_VER_ONE 2 /* 3, 2 */
+#define TLS_MINOR_VER_TWO 3 /* 3, 3 */
+#define TLS_MINOR_VER_THREE 4 /* 3, 4 */
 
 /* For TCP_TXTLS_ENABLE and TCP_RXTLS_ENABLE. */
 #ifdef _KERNEL
 struct tls_enable_v0 {
 	const uint8_t *cipher_key;
-	const uint8_t *iv;		/* Implicit IV. */
+	const uint8_t *iv; /* Implicit IV. */
 	const uint8_t *auth_key;
-	int	cipher_algorithm;	/* e.g. CRYPTO_AES_CBC */
-	int	cipher_key_len;
-	int	iv_len;
-	int	auth_algorithm;		/* e.g. CRYPTO_SHA2_256_HMAC */
-	int	auth_key_len;
-	int	flags;
+	int cipher_algorithm; /* e.g. CRYPTO_AES_CBC */
+	int cipher_key_len;
+	int iv_len;
+	int auth_algorithm; /* e.g. CRYPTO_SHA2_256_HMAC */
+	int auth_key_len;
+	int flags;
 	uint8_t tls_vmajor;
 	uint8_t tls_vminor;
 };
@@ -118,14 +118,14 @@ struct tls_enable_v0 {
 
 struct tls_enable {
 	const uint8_t *cipher_key;
-	const uint8_t *iv;		/* Implicit IV. */
+	const uint8_t *iv; /* Implicit IV. */
 	const uint8_t *auth_key;
-	int	cipher_algorithm;	/* e.g. CRYPTO_AES_CBC */
-	int	cipher_key_len;
-	int	iv_len;
-	int	auth_algorithm;		/* e.g. CRYPTO_SHA2_256_HMAC */
-	int	auth_key_len;
-	int	flags;
+	int cipher_algorithm; /* e.g. CRYPTO_AES_CBC */
+	int cipher_key_len;
+	int iv_len;
+	int auth_algorithm; /* e.g. CRYPTO_SHA2_256_HMAC */
+	int auth_key_len;
+	int flags;
 	uint8_t tls_vmajor;
 	uint8_t tls_vminor;
 	uint8_t rec_seq[8];
@@ -134,9 +134,9 @@ struct tls_enable {
 /* Structure for TLS_GET_RECORD. */
 struct tls_get_record {
 	/* TLS record header. */
-	uint8_t  tls_type;
-	uint8_t  tls_vmajor;
-	uint8_t  tls_vminor;
+	uint8_t tls_type;
+	uint8_t tls_vmajor;
+	uint8_t tls_vminor;
 	uint16_t tls_length;
 };
 
@@ -146,8 +146,8 @@ struct tls_session_params {
 	uint8_t *cipher_key;
 	uint8_t *auth_key;
 	uint8_t iv[TLS_CBC_IMPLICIT_IV_LEN];
-	int	cipher_algorithm;
-	int	auth_algorithm;
+	int cipher_algorithm;
+	int auth_algorithm;
 	uint16_t cipher_key_len;
 	uint16_t iv_len;
 	uint16_t auth_key_len;
@@ -161,10 +161,10 @@ struct tls_session_params {
 };
 
 /* Used in APIs to request RX vs TX sessions. */
-#define	KTLS_TX		1
-#define	KTLS_RX		2
+#define KTLS_TX 1
+#define KTLS_RX 2
 
-#define	KTLS_API_VERSION 8
+#define KTLS_API_VERSION 8
 
 struct iovec;
 struct ktls_session;
@@ -184,11 +184,11 @@ struct ktls_crypto_backend {
 
 struct ktls_session {
 	union {
-		int	(*sw_encrypt)(struct ktls_session *tls,
+		int (*sw_encrypt)(struct ktls_session *tls,
 		    const struct tls_record_layer *hdr, uint8_t *trailer,
 		    struct iovec *src, struct iovec *dst, int srciovcnt,
 		    int dstiovcnt, uint64_t seqno, uint8_t record_type);
-		int	(*sw_decrypt)(struct ktls_session *tls,
+		int (*sw_decrypt)(struct ktls_session *tls,
 		    const struct tls_record_layer *hdr, struct mbuf *m,
 		    uint64_t seqno, int *trailer_len);
 	};
@@ -199,7 +199,7 @@ struct ktls_session {
 	struct ktls_crypto_backend *be;
 	void (*free)(struct ktls_session *tls);
 	struct tls_session_params params;
-	u_int	wq_index;
+	u_int wq_index;
 	volatile u_int refcount;
 	int mode;
 

@@ -38,58 +38,58 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/cpu.h>
 #include <machine/cpu-v6.h>
-#include <machine/smp.h>
+#include <machine/cpu.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
 #include <machine/platformvar.h>
+#include <machine/smp.h>
 
-#include <arm/allwinner/aw_mp.h>
 #include <arm/allwinner/aw_machdep.h>
+#include <arm/allwinner/aw_mp.h>
 
 /* Register for all dual-core SoC */
-#define	A20_CPUCFG_BASE		0x01c25c00
+#define A20_CPUCFG_BASE 0x01c25c00
 /* Register for all quad-core SoC */
-#define	CPUCFG_BASE		0x01f01c00
-#define	CPUCFG_SIZE		0x400
-#define	PRCM_BASE		0x01f01400
-#define	PRCM_SIZE		0x800
+#define CPUCFG_BASE 0x01f01c00
+#define CPUCFG_SIZE 0x400
+#define PRCM_BASE 0x01f01400
+#define PRCM_SIZE 0x800
 /* Register for multi-cluster SoC */
-#define	CPUXCFG_BASE		0x01700000
-#define	CPUXCFG_SIZE		0x400
+#define CPUXCFG_BASE 0x01700000
+#define CPUXCFG_SIZE 0x400
 
-#define	CPU_OFFSET		0x40
-#define	CPU_OFFSET_CTL		0x04
-#define	CPU_OFFSET_STATUS	0x08
-#define	CPU_RST_CTL(cpuid)	((cpuid + 1) * CPU_OFFSET)
-#define	CPU_CTL(cpuid)		(((cpuid + 1) * CPU_OFFSET) + CPU_OFFSET_CTL)
-#define	CPU_STATUS(cpuid)	(((cpuid + 1) * CPU_OFFSET) + CPU_OFFSET_STATUS)
+#define CPU_OFFSET 0x40
+#define CPU_OFFSET_CTL 0x04
+#define CPU_OFFSET_STATUS 0x08
+#define CPU_RST_CTL(cpuid) ((cpuid + 1) * CPU_OFFSET)
+#define CPU_CTL(cpuid) (((cpuid + 1) * CPU_OFFSET) + CPU_OFFSET_CTL)
+#define CPU_STATUS(cpuid) (((cpuid + 1) * CPU_OFFSET) + CPU_OFFSET_STATUS)
 
-#define	CPU_RESET		(1 << 0)
-#define	CPU_CORE_RESET		(1 << 1)
+#define CPU_RESET (1 << 0)
+#define CPU_CORE_RESET (1 << 1)
 
-#define	CPUCFG_GENCTL		0x184
-#define	CPUCFG_P_REG0		0x1a4
+#define CPUCFG_GENCTL 0x184
+#define CPUCFG_P_REG0 0x1a4
 
-#define	A20_CPU1_PWR_CLAMP	0x1b0
-#define	CPU_PWR_CLAMP_REG	0x140
-#define	CPU_PWR_CLAMP(cpu)	((cpu * 4) + CPU_PWR_CLAMP_REG)
-#define	CPU_PWR_CLAMP_STEPS	8
+#define A20_CPU1_PWR_CLAMP 0x1b0
+#define CPU_PWR_CLAMP_REG 0x140
+#define CPU_PWR_CLAMP(cpu) ((cpu * 4) + CPU_PWR_CLAMP_REG)
+#define CPU_PWR_CLAMP_STEPS 8
 
-#define	A20_CPU1_PWROFF_REG	0x1b4
-#define	CPU_PWROFF		0x100
+#define A20_CPU1_PWROFF_REG 0x1b4
+#define CPU_PWROFF 0x100
 
-#define	CPUCFG_DBGCTL0		0x1e0
-#define	CPUCFG_DBGCTL1		0x1e4
+#define CPUCFG_DBGCTL0 0x1e0
+#define CPUCFG_DBGCTL1 0x1e4
 
-#define	CPUS_CL_RST(cl)		(0x30 + (cl) * 0x4)
-#define	CPUX_CL_CTRL0(cl)	(0x0 + (cl) * 0x10)
-#define	CPUX_CL_CTRL1(cl)	(0x4 + (cl) * 0x10)
-#define	CPUX_CL_CPU_STATUS(cl)	(0x30 + (cl) * 0x4)
-#define	CPUX_CL_RST(cl)		(0x80 + (cl) * 0x4)
-#define	PRCM_CL_PWROFF(cl)	(0x100 + (cl) * 0x4)
-#define	PRCM_CL_PWR_CLAMP(cl, cpu)	(0x140 + (cl) * 0x4 + (cpu) * 0x4)
+#define CPUS_CL_RST(cl) (0x30 + (cl)*0x4)
+#define CPUX_CL_CTRL0(cl) (0x0 + (cl)*0x10)
+#define CPUX_CL_CTRL1(cl) (0x4 + (cl)*0x10)
+#define CPUX_CL_CPU_STATUS(cl) (0x30 + (cl)*0x4)
+#define CPUX_CL_RST(cl) (0x80 + (cl)*0x4)
+#define PRCM_CL_PWROFF(cl) (0x100 + (cl)*0x4)
+#define PRCM_CL_PWR_CLAMP(cl, cpu) (0x140 + (cl)*0x4 + (cpu)*0x4)
 
 void
 aw_mp_setmaxid(platform_t plat)
@@ -118,14 +118,14 @@ aw_mp_start_ap(platform_t plat)
 	soc_family = allwinner_soc_family();
 	if (soc_family == ALLWINNERSOC_SUN7I) {
 		if (bus_space_map(fdtbus_bs_tag, A20_CPUCFG_BASE, CPUCFG_SIZE,
-		    0, &cpucfg) != 0)
+			0, &cpucfg) != 0)
 			panic("Couldn't map the CPUCFG\n");
 	} else {
-		if (bus_space_map(fdtbus_bs_tag, CPUCFG_BASE, CPUCFG_SIZE,
-		    0, &cpucfg) != 0)
+		if (bus_space_map(fdtbus_bs_tag, CPUCFG_BASE, CPUCFG_SIZE, 0,
+			&cpucfg) != 0)
 			panic("Couldn't map the CPUCFG\n");
-		if (bus_space_map(fdtbus_bs_tag, PRCM_BASE, PRCM_SIZE, 0,
-		    &prcm) != 0)
+		if (bus_space_map(
+			fdtbus_bs_tag, PRCM_BASE, PRCM_SIZE, 0, &prcm) != 0)
 			panic("Couldn't map the PRCM\n");
 	}
 
@@ -161,8 +161,8 @@ aw_mp_start_ap(platform_t plat)
 				bus_space_write_4(fdtbus_bs_tag, prcm,
 				    CPU_PWR_CLAMP(i), 0xff >> j);
 			} else {
-				bus_space_write_4(fdtbus_bs_tag,
-				    cpucfg, A20_CPU1_PWR_CLAMP, 0xff >> j);
+				bus_space_write_4(fdtbus_bs_tag, cpucfg,
+				    A20_CPU1_PWR_CLAMP, 0xff >> j);
 			}
 		}
 	DELAY(10000);
@@ -174,11 +174,11 @@ aw_mp_start_ap(platform_t plat)
 			val &= ~(1 << i);
 		bus_space_write_4(fdtbus_bs_tag, prcm, CPU_PWROFF, val);
 	} else {
-		val = bus_space_read_4(fdtbus_bs_tag,
-		    cpucfg, A20_CPU1_PWROFF_REG);
+		val = bus_space_read_4(
+		    fdtbus_bs_tag, cpucfg, A20_CPU1_PWROFF_REG);
 		val &= ~(1 << 0);
-		bus_space_write_4(fdtbus_bs_tag, cpucfg,
-		    A20_CPU1_PWROFF_REG, val);
+		bus_space_write_4(
+		    fdtbus_bs_tag, cpucfg, A20_CPU1_PWROFF_REG, val);
 	}
 	DELAY(1000);
 
@@ -226,8 +226,8 @@ aw_mc_mp_start_cpu(bus_space_handle_t cpuscfg, bus_space_handle_t cpuxcfg,
 	for (i = 0; i <= CPU_PWR_CLAMP_STEPS; i++)
 		bus_space_write_4(fdtbus_bs_tag, prcm,
 		    PRCM_CL_PWR_CLAMP(cluster, cpu), 0xff >> i);
-	while (bus_space_read_4(fdtbus_bs_tag, prcm,
-	    PRCM_CL_PWR_CLAMP(cluster, cpu)) != 0)
+	while (bus_space_read_4(
+		   fdtbus_bs_tag, prcm, PRCM_CL_PWR_CLAMP(cluster, cpu)) != 0)
 		;
 
 	/* Clear power-off gating */
@@ -269,14 +269,13 @@ a83t_mp_start_ap(platform_t plat)
 {
 	bus_space_handle_t cpuscfg, cpuxcfg, prcm;
 
-	if (bus_space_map(fdtbus_bs_tag, CPUCFG_BASE, CPUCFG_SIZE,
-	    0, &cpuscfg) != 0)
+	if (bus_space_map(
+		fdtbus_bs_tag, CPUCFG_BASE, CPUCFG_SIZE, 0, &cpuscfg) != 0)
 		panic("Couldn't map the CPUCFG\n");
-	if (bus_space_map(fdtbus_bs_tag, CPUXCFG_BASE, CPUXCFG_SIZE,
-	    0, &cpuxcfg) != 0)
+	if (bus_space_map(
+		fdtbus_bs_tag, CPUXCFG_BASE, CPUXCFG_SIZE, 0, &cpuxcfg) != 0)
 		panic("Couldn't map the CPUXCFG\n");
-	if (bus_space_map(fdtbus_bs_tag, PRCM_BASE, PRCM_SIZE, 0,
-	    &prcm) != 0)
+	if (bus_space_map(fdtbus_bs_tag, PRCM_BASE, PRCM_SIZE, 0, &prcm) != 0)
 		panic("Couldn't map the PRCM\n");
 
 	aw_mc_mp_start_ap(cpuscfg, cpuxcfg, prcm);

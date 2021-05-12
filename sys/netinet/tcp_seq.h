@@ -39,36 +39,35 @@
  * on with modular arithmetic.  These macros can be
  * used to compare such integers.
  */
-#define	SEQ_LT(a,b)	((int)((a)-(b)) < 0)
-#define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
-#define	SEQ_GT(a,b)	((int)((a)-(b)) > 0)
-#define	SEQ_GEQ(a,b)	((int)((a)-(b)) >= 0)
+#define SEQ_LT(a, b) ((int)((a) - (b)) < 0)
+#define SEQ_LEQ(a, b) ((int)((a) - (b)) <= 0)
+#define SEQ_GT(a, b) ((int)((a) - (b)) > 0)
+#define SEQ_GEQ(a, b) ((int)((a) - (b)) >= 0)
 
-#define	SEQ_MIN(a, b)	((SEQ_LT(a, b)) ? (a) : (b))
-#define	SEQ_MAX(a, b)	((SEQ_GT(a, b)) ? (a) : (b))
+#define SEQ_MIN(a, b) ((SEQ_LT(a, b)) ? (a) : (b))
+#define SEQ_MAX(a, b) ((SEQ_GT(a, b)) ? (a) : (b))
 
-#define	WIN_LT(a,b)	(ntohs(a) < ntohs(b))
-#define	WIN_LEQ(a,b)	(ntohs(a) <= ntohs(b))
-#define	WIN_GT(a,b)	(ntohs(a) > ntohs(b))
-#define	WIN_GEQ(a,b)	(ntohs(a) >= ntohs(b))
+#define WIN_LT(a, b) (ntohs(a) < ntohs(b))
+#define WIN_LEQ(a, b) (ntohs(a) <= ntohs(b))
+#define WIN_GT(a, b) (ntohs(a) > ntohs(b))
+#define WIN_GEQ(a, b) (ntohs(a) >= ntohs(b))
 
-#define	WIN_MIN(a, b)	((WIN_LT(a, b)) ? (a) : (b))
-#define	WIN_MAX(a, b)	((WIN_GT(a, b)) ? (a) : (b))
+#define WIN_MIN(a, b) ((WIN_LT(a, b)) ? (a) : (b))
+#define WIN_MAX(a, b) ((WIN_GT(a, b)) ? (a) : (b))
 
 /* for modulo comparisons of timestamps */
-#define TSTMP_LT(a,b)	((int)((a)-(b)) < 0)
-#define TSTMP_GT(a,b)	((int)((a)-(b)) > 0)
-#define TSTMP_GEQ(a,b)	((int)((a)-(b)) >= 0)
+#define TSTMP_LT(a, b) ((int)((a) - (b)) < 0)
+#define TSTMP_GT(a, b) ((int)((a) - (b)) > 0)
+#define TSTMP_GEQ(a, b) ((int)((a) - (b)) >= 0)
 
 /*
  * Macros to initialize tcp sequence numbers for
  * send and receive from initial send and receive
  * sequence numbers.
  */
-#define	tcp_rcvseqinit(tp) \
-	(tp)->rcv_adv = (tp)->rcv_nxt = (tp)->irs + 1
+#define tcp_rcvseqinit(tp) (tp)->rcv_adv = (tp)->rcv_nxt = (tp)->irs + 1
 
-#define	tcp_sendseqinit(tp) \
+#define tcp_sendseqinit(tp)                                            \
 	(tp)->snd_una = (tp)->snd_nxt = (tp)->snd_max = (tp)->snd_up = \
 	    (tp)->snd_recover = (tp)->iss
 
@@ -76,10 +75,10 @@
 /*
  * Clock macros for RFC 1323 timestamps.
  */
-#define	TCP_TS_TO_TICKS(_t)	((_t) * hz / 1000)
+#define TCP_TS_TO_TICKS(_t) ((_t)*hz / 1000)
 
 /* Timestamp wrap-around time, 24 days. */
-#define TCP_PAWS_IDLE	(24 * 24 * 60 * 60 * 1000)
+#define TCP_PAWS_IDLE (24 * 24 * 60 * 60 * 1000)
 
 /*
  * tcp_ts_getticks() in ms, should be 1ms < x < 1000ms according to RFC 1323.

@@ -29,7 +29,7 @@
  */
 
 #ifndef _MACHINE_SMAPI_H_
-#define	_MACHINE_SMAPI_H_
+#define _MACHINE_SMAPI_H_
 
 #ifndef _KERNEL
 #include <sys/types.h>
@@ -37,27 +37,27 @@
 #include <sys/ioccom.h>
 
 struct smapi_bios_header {
-	u_int8_t	signature[4];	/* '$SMB' */
-	u_int8_t	version_major;
-	u_int8_t	version_minor;
-	u_int8_t	length;
-	u_int8_t	checksum;
-	u_int16_t	information;
-#define	SMAPI_REAL_VM86		0x0001
-#define	SMAPI_PROT_16BIT	0x0002
-#define	SMAPI_PROT_32BIT	0x0004
-	u_int16_t	reserved1;
+	u_int8_t signature[4]; /* '$SMB' */
+	u_int8_t version_major;
+	u_int8_t version_minor;
+	u_int8_t length;
+	u_int8_t checksum;
+	u_int16_t information;
+#define SMAPI_REAL_VM86 0x0001
+#define SMAPI_PROT_16BIT 0x0002
+#define SMAPI_PROT_32BIT 0x0004
+	u_int16_t reserved1;
 
-	u_int16_t	real16_offset;
-	u_int16_t	real16_segment;
+	u_int16_t real16_offset;
+	u_int16_t real16_segment;
 
-	u_int16_t	reserved2;
+	u_int16_t reserved2;
 
-	u_int16_t	prot16_offset;
-	u_int32_t	prot16_segment;
+	u_int16_t prot16_offset;
+	u_int32_t prot16_segment;
 
-	u_int32_t	prot32_offset;
-	u_int32_t	prot32_segment;
+	u_int32_t prot32_offset;
+	u_int32_t prot32_segment;
 
 } __packed;
 
@@ -73,21 +73,21 @@ struct smapi_bios_parameter {
 		} out;
 	} type;
 
-	u_int16_t	param1;
-	u_int16_t	param2;
-	u_int16_t	param3;
+	u_int16_t param1;
+	u_int16_t param2;
+	u_int16_t param3;
 
-	u_int32_t	param4;
-	u_int32_t	param5;
+	u_int32_t param4;
+	u_int32_t param5;
 
 } __packed;
 
-#define	cmd_func	type.in.func
-#define	cmd_sub_func	type.in.sub_func
-#define	rsp_rc		type.out.rc
-#define	rsp_sub_rc	type.out.sub_rc
+#define cmd_func type.in.func
+#define cmd_sub_func type.in.sub_func
+#define rsp_rc type.out.rc
+#define rsp_sub_rc type.out.sub_rc
 
-#define	SMAPIOGHEADER		_IOR('$', 0, struct smapi_bios_header)
-#define SMAPIOCGFUNCTION	_IOWR('$', 1, struct smapi_bios_parameter)
+#define SMAPIOGHEADER _IOR('$', 0, struct smapi_bios_header)
+#define SMAPIOCGFUNCTION _IOWR('$', 1, struct smapi_bios_parameter)
 
-#endif	/* _MACHINE_SMAPI_H_ */
+#endif /* _MACHINE_SMAPI_H_ */

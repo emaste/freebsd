@@ -49,22 +49,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
-#include <sys/malloc.h>
 
 #include <machine/bus.h>
 
 #include <mips/malta/maltareg.h>
 #include <mips/malta/obiovar.h>
 
-int	obio_probe(device_t);
-int	obio_attach(device_t);
+int obio_probe(device_t);
+int obio_attach(device_t);
 
 /*
  * A bit tricky and hackish. Since we need OBIO to rely
- * on PCI we make it pseudo-pci device. But there should 
- * be only one such device, so we use this static flag 
+ * on PCI we make it pseudo-pci device. But there should
+ * be only one such device, so we use this static flag
  * to prevent false positives on every real PCI device probe.
  */
 static int have_one = 0;
@@ -90,13 +90,13 @@ obio_attach(device_t dev)
 	sc->oba_rman.rm_type = RMAN_ARRAY;
 	sc->oba_rman.rm_descr = "OBIO I/O";
 	if (rman_init(&sc->oba_rman) != 0 ||
-	    rman_manage_region(&sc->oba_rman,
-	    sc->oba_addr, sc->oba_addr + sc->oba_size) != 0)
+	    rman_manage_region(
+		&sc->oba_rman, sc->oba_addr, sc->oba_addr + sc->oba_size) != 0)
 		panic("obio_attach: failed to set up I/O rman");
 	sc->oba_irq_rman.rm_type = RMAN_ARRAY;
 	sc->oba_irq_rman.rm_descr = "OBIO IRQ";
 
-	/* 
+	/*
 	 * This module is intended for UART purposes only and
 	 * it's IRQ is 4
 	 */
@@ -138,7 +138,7 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == NULL) 
+	if (rv == NULL)
 		return (NULL);
 	if (type == SYS_RES_IRQ)
 		return (rv);
@@ -153,12 +153,11 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		}
 	}
 	return (rv);
-
 }
 
 static int
-obio_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+obio_activate_resource(
+    device_t bus, device_t child, int type, int rid, struct resource *r)
 {
 	return (0);
 }
@@ -168,10 +167,10 @@ static device_method_t obio_methods[] = {
 
 	DEVMETHOD(bus_alloc_resource, obio_alloc_resource),
 	DEVMETHOD(bus_activate_resource, obio_activate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
 
-	{0, 0},
+	{ 0, 0 },
 };
 
 static driver_t obio_driver = {

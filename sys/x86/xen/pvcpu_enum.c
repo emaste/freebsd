@@ -34,29 +34,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/smp.h>
 #include <sys/pcpu.h>
+#include <sys/smp.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/intr_machdep.h>
-#include <x86/apicvar.h>
-
 #include <machine/cpu.h>
-#include <machine/smp.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/smp.h>
 
+#include <x86/apicvar.h>
+#include <xen/hypervisor.h>
+#include <xen/interface/vcpu.h>
 #include <xen/xen-os.h>
 #include <xen/xen_intr.h>
-#include <xen/hypervisor.h>
-
-#include <xen/interface/vcpu.h>
-
-#include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/aclocal.h>
-#include <contrib/dev/acpica/include/actables.h>
 
 #include <dev/acpica/acpivar.h>
+
+#include <contrib/dev/acpica/include/aclocal.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/actables.h>
 
 static int xenpv_probe(void);
 static int xenpv_probe_cpus(void);
@@ -67,13 +66,11 @@ static ACPI_TABLE_MADT *madt;
 static vm_paddr_t madt_physaddr;
 static vm_offset_t madt_length;
 
-static struct apic_enumerator xenpv_enumerator = {
-	.apic_name = "Xen PV",
+static struct apic_enumerator xenpv_enumerator = { .apic_name = "Xen PV",
 	.apic_probe = xenpv_probe,
 	.apic_probe_cpus = xenpv_probe_cpus,
 	.apic_setup_local = xenpv_setup_local,
-	.apic_setup_io = xenpv_setup_io
-};
+	.apic_setup_io = xenpv_setup_io };
 
 /*--------------------- Helper functions to parse MADT -----------------------*/
 
@@ -118,8 +115,8 @@ static void
 madt_walk_table(acpi_subtable_handler *handler, void *arg)
 {
 
-	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
-	    handler, arg);
+	acpi_walk_subtables(
+	    madt + 1, (char *)madt + madt->Header.Length, handler, arg);
 }
 
 /*
@@ -235,7 +232,7 @@ xenpv_register_pirqs(struct pic *pic __unused)
 	 */
 	if (!madt_found_sci_override) {
 		printf(
-"MADT: Forcing active-low polarity and level trigger for SCI\n");
+		    "MADT: Forcing active-low polarity and level trigger for SCI\n");
 		ret = xen_register_pirq(AcpiGbl_FADT.SciInterrupt,
 		    INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
 		if (ret != 0)
@@ -246,11 +243,11 @@ xenpv_register_pirqs(struct pic *pic __unused)
 	for (i = 1; i < 16; i++) {
 		if (intr_lookup_source(i) != NULL)
 			continue;
-		ret = xen_register_pirq(i, INTR_TRIGGER_EDGE,
-		    INTR_POLARITY_LOW);
+		ret = xen_register_pirq(
+		    i, INTR_TRIGGER_EDGE, INTR_POLARITY_LOW);
 		if (ret != 0 && bootverbose)
-			printf("Unable to register legacy IRQ#%u: %d\n", i,
-			    ret);
+			printf(
+			    "Unable to register legacy IRQ#%u: %d\n", i, ret);
 	}
 }
 
@@ -261,4 +258,5 @@ xenpv_register(void *dummy __unused)
 		apic_register_enumerator(&xenpv_enumerator);
 	}
 }
-SYSINIT(xenpv_register, SI_SUB_TUNABLES - 1, SI_ORDER_FIRST, xenpv_register, NULL);
+SYSINIT(
+    xenpv_register, SI_SUB_TUNABLES - 1, SI_ORDER_FIRST, xenpv_register, NULL);

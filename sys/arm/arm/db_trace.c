@@ -34,9 +34,8 @@
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
-
-#include <sys/proc.h>
 #include <sys/kdb.h>
+#include <sys/proc.h>
 #include <sys/stack.h>
 
 #include <machine/armreg.h>
@@ -48,10 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/stack.h>
 #include <machine/vmparam.h>
 
-#include <ddb/ddb.h>
 #include <ddb/db_access.h>
-#include <ddb/db_sym.h>
 #include <ddb/db_output.h>
+#include <ddb/db_sym.h>
+#include <ddb/ddb.h>
 
 static void
 db_stack_trace_cmd(struct unwind_state *state)
@@ -83,8 +82,8 @@ db_stack_trace_cmd(struct unwind_state *state)
 		    state->registers[LR]);
 		db_printsym(state->registers[LR], DB_STGY_PROC);
 		db_printf(")\n");
-		db_printf("\t sp = 0x%08x  fp = 0x%08x",
-		    state->registers[SP], state->registers[FP]);
+		db_printf("\t sp = 0x%08x  fp = 0x%08x", state->registers[SP],
+		    state->registers[FP]);
 
 		/* Don't print the registers we have already printed */
 		upd_mask = state->update_mask &
@@ -161,7 +160,7 @@ db_trace_self(void)
 	uint32_t sp;
 
 	/* Read the stack pointer */
-	__asm __volatile("mov %0, sp" : "=&r" (sp));
+	__asm __volatile("mov %0, sp" : "=&r"(sp));
 
 	state.registers[FP] = (uint32_t)__builtin_frame_address(0);
 	state.registers[SP] = sp;

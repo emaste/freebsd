@@ -30,36 +30,35 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/resource.h>
-#include <sys/rman.h>
+#include <sys/gpio.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/resource.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <machine/intr.h>
-#include <sys/gpio.h>
+#include <machine/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/ti/am335x/am335x_scm_padconf.h>
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_gpio.h>
 #include <arm/ti/ti_pinmux.h>
 
-#include <arm/ti/am335x/am335x_scm_padconf.h>
-
 #include "ti_gpio_if.h"
 
 static struct ofw_compat_data compat_data[] = {
-	{"ti,am335x-gpio",	1},
+	{ "ti,am335x-gpio", 1 },
 	/* Linux uses ti,omap4-gpio on am335x so we need to support it */
-	{"ti,omap4-gpio",	1},
-	{"ti,gpio",		1},
-	{NULL,			0},
+	{ "ti,omap4-gpio", 1 },
+	{ "ti,gpio", 1 },
+	{ NULL, 0 },
 };
 
 static int
@@ -99,7 +98,7 @@ am335x_gpio_set_flags(device_t dev, uint32_t gpio, uint32_t flags)
 		else
 			state = PADCONF_INPUT;
 	}
-	return ti_pinmux_padconf_set_gpiomode(sc->sc_bank*32 + gpio, state);
+	return ti_pinmux_padconf_set_gpiomode(sc->sc_bank * 32 + gpio, state);
 }
 
 static int
@@ -108,29 +107,30 @@ am335x_gpio_get_flags(device_t dev, uint32_t gpio, uint32_t *flags)
 	unsigned int state;
 	struct ti_gpio_softc *sc = device_get_softc(dev);
 
-	if (ti_pinmux_padconf_get_gpiomode(sc->sc_bank*32 + gpio, &state) != 0) {
+	if (ti_pinmux_padconf_get_gpiomode(sc->sc_bank * 32 + gpio, &state) !=
+	    0) {
 		*flags = 0;
 		return (EINVAL);
 	} else {
 		switch (state) {
-			case PADCONF_OUTPUT:
-				*flags = GPIO_PIN_OUTPUT;
-				break;
-			case PADCONF_OUTPUT_PULLUP:
-				*flags = GPIO_PIN_OUTPUT | GPIO_PIN_PULLUP;
-				break;
-			case PADCONF_INPUT:
-				*flags = GPIO_PIN_INPUT;
-				break;
-			case PADCONF_INPUT_PULLUP:
-				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLUP;
-				break;
-			case PADCONF_INPUT_PULLDOWN:
-				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLDOWN;
-				break;
-			default:
-				*flags = 0;
-				break;
+		case PADCONF_OUTPUT:
+			*flags = GPIO_PIN_OUTPUT;
+			break;
+		case PADCONF_OUTPUT_PULLUP:
+			*flags = GPIO_PIN_OUTPUT | GPIO_PIN_PULLUP;
+			break;
+		case PADCONF_INPUT:
+			*flags = GPIO_PIN_INPUT;
+			break;
+		case PADCONF_INPUT_PULLUP:
+			*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLUP;
+			break;
+		case PADCONF_INPUT_PULLDOWN:
+			*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLDOWN;
+			break;
+		default:
+			*flags = 0;
+			break;
 		}
 	}
 
@@ -153,6 +153,6 @@ static devclass_t am335x_gpio_devclass;
 
 DEFINE_CLASS_1(gpio, am335x_gpio_driver, am335x_gpio_methods,
     sizeof(struct ti_gpio_softc), ti_gpio_driver);
-DRIVER_MODULE(am335x_gpio, simplebus, am335x_gpio_driver, am335x_gpio_devclass,
-    0, 0);
+DRIVER_MODULE(
+    am335x_gpio, simplebus, am335x_gpio_driver, am335x_gpio_devclass, 0, 0);
 MODULE_DEPEND(am335x_gpio, ti_sysc, 1, 1, 1);

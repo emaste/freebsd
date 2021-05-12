@@ -35,18 +35,18 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_BOOTINFO_H_
-#define	_MACHINE_BOOTINFO_H_
+#ifndef _MACHINE_BOOTINFO_H_
+#define _MACHINE_BOOTINFO_H_
 
 /* Only change the version number if you break compatibility. */
-#define	BOOTINFO_VERSION	2
+#define BOOTINFO_VERSION 2
 
-#define	MIPS_BOOTINFO_MAGIC	0xCDEACDEA
+#define MIPS_BOOTINFO_MAGIC 0xCDEACDEA
 
 #if defined(__mips_n32) || defined(__mips_n64)
-typedef	uint64_t	bi_ptr_t;
+typedef uint64_t bi_ptr_t;
 #else
-typedef	uint32_t	bi_ptr_t;
+typedef uint32_t bi_ptr_t;
 #endif
 
 /*
@@ -56,18 +56,18 @@ typedef	uint32_t	bi_ptr_t;
  */
 struct bootinfo {
 	/* bootinfo meta-data. */
-	uint32_t	bi_version;
-	uint32_t	bi_size;
+	uint32_t bi_version;
+	uint32_t bi_size;
 
 	/* bootinfo contents. */
-	uint64_t	bi_boot2opts;	/* boot2 flags to loader. */
-	bi_ptr_t	bi_kernelname;	/* Pointer to name. */
-	bi_ptr_t	bi_nfs_diskless;/* Pointer to NFS data. */
-	bi_ptr_t	bi_dtb;		/* Pointer to dtb. */
-	bi_ptr_t	bi_memsize;	/* Physical memory size in bytes. */
-	bi_ptr_t	bi_modulep;	/* Preloaded modules. */
-	bi_ptr_t	bi_boot_dev_type;	/* Boot-device type. */
-	bi_ptr_t	bi_boot_dev_unitptr;	/* Boot-device unit/pointer. */
+	uint64_t bi_boot2opts;	      /* boot2 flags to loader. */
+	bi_ptr_t bi_kernelname;	      /* Pointer to name. */
+	bi_ptr_t bi_nfs_diskless;     /* Pointer to NFS data. */
+	bi_ptr_t bi_dtb;	      /* Pointer to dtb. */
+	bi_ptr_t bi_memsize;	      /* Physical memory size in bytes. */
+	bi_ptr_t bi_modulep;	      /* Preloaded modules. */
+	bi_ptr_t bi_boot_dev_type;    /* Boot-device type. */
+	bi_ptr_t bi_boot_dev_unitptr; /* Boot-device unit/pointer. */
 };
 
 /*
@@ -76,12 +76,12 @@ struct bootinfo {
  * is BOOTINFO_DEV_TYPE_DRAM, which points to a pre-loaded object (e.g.,
  * loader, kernel).
  */
-#define	BOOTINFO_DEV_TYPE_DRAM		0	/* DRAM loader/kernel (ptr). */
-#define	BOOTINFO_DEV_TYPE_CFI		1	/* CFI flash (unit). */
-#define	BOOTINFO_DEV_TYPE_SDCARD	2	/* SD card (unit). */
+#define BOOTINFO_DEV_TYPE_DRAM 0 /* DRAM loader/kernel (ptr). */
+#define BOOTINFO_DEV_TYPE_CFI 1 /* CFI flash (unit). */
+#define BOOTINFO_DEV_TYPE_SDCARD 2 /* SD card (unit). */
 
 #ifdef _KERNEL
-extern struct bootinfo	bootinfo;
+extern struct bootinfo bootinfo;
 #endif
 
-#endif	/* !_MACHINE_BOOTINFO_H_ */
+#endif /* !_MACHINE_BOOTINFO_H_ */

@@ -2,21 +2,21 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) KATO Takenori, 1997, 1998.
- * 
+ *
  * All rights reserved.  Unpublished rights reserved under the copyright
  * laws of Japan.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer as
  *    the first lines of this file unmodified.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
@@ -35,33 +35,33 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/pcpu.h>
-#include <sys/systm.h>
 #include <sys/sysctl.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
 #include <machine/specialreg.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
-static int	hw_instruction_sse;
-SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
-    &hw_instruction_sse, 0, "SIMD/MMX2 instructions available in CPU");
-static int	lower_sharedpage_init;
-int		hw_lower_amd64_sharedpage;
+static int hw_instruction_sse;
+SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD, &hw_instruction_sse, 0,
+    "SIMD/MMX2 instructions available in CPU");
+static int lower_sharedpage_init;
+int hw_lower_amd64_sharedpage;
 SYSCTL_INT(_hw, OID_AUTO, lower_amd64_sharedpage, CTLFLAG_RDTUN,
     &hw_lower_amd64_sharedpage, 0,
-   "Lower sharedpage to work around Ryzen issue with executing code near the top of user memory");
+    "Lower sharedpage to work around Ryzen issue with executing code near the top of user memory");
 /*
  * -1: automatic (default)
  *  0: keep enable CLFLUSH
  *  1: force disable CLFLUSH
  */
-static int	hw_clflush_disable = -1;
+static int hw_clflush_disable = -1;
 
 static void
 init_amd(void)
@@ -74,15 +74,16 @@ init_amd(void)
 	 * both C1eOnCmpHalt (bit 28) and SmiOnCmpHalt (bit 27).
 	 *
 	 * Reference:
-	 *   "BIOS and Kernel Developer's Guide for AMD NPT Family 0Fh Processors"
-	 *   #32559 revision 3.00+
+	 *   "BIOS and Kernel Developer's Guide for AMD NPT Family 0Fh
+	 * Processors" #32559 revision 3.00+
 	 *
 	 * Detect the presence of C1E capability mostly on latest
 	 * dual-cores (or future) k8 family.  Affected models range is
 	 * taken from Linux sources.
 	 */
 	if ((CPUID_TO_FAMILY(cpu_id) == 0xf ||
-	    CPUID_TO_FAMILY(cpu_id) == 0x10) && (cpu_feature2 & CPUID2_HV) == 0)
+		CPUID_TO_FAMILY(cpu_id) == 0x10) &&
+	    (cpu_feature2 & CPUID2_HV) == 0)
 		cpu_amdc1e_bug = 1;
 
 	/*
@@ -281,8 +282,8 @@ initializecpu(void)
 	if (IS_BSP()) {
 		if (cpu_stdext_feature & CPUID_STDEXT_SMEP &&
 		    !TUNABLE_INT_FETCH(
-		    "machdep.mitigations.cpu_flush_rsb_ctxsw",
-		    &cpu_flush_rsb_ctxsw) &&
+			"machdep.mitigations.cpu_flush_rsb_ctxsw",
+			&cpu_flush_rsb_ctxsw) &&
 		    hw_ibrs_disable)
 			cpu_flush_rsb_ctxsw = 1;
 	} else {

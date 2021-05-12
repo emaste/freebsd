@@ -35,59 +35,56 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/gpio.h>
-#include <machine/bus.h>
+#include <sys/rman.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/ofw_subr.h>
+#include <machine/bus.h>
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/phy/phy_usb.h>
 #include <dev/extres/regulator/regulator.h>
 #include <dev/extres/syscon/syscon.h>
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_subr.h>
 
 #include "clkdev_if.h"
 #include "syscon_if.h"
 
-#define	RK3399_GRF_USB20_PHY0_CON0	0x0
-#define	RK3399_GRF_USB20_PHY0_CON1	0x4
-#define	RK3399_GRF_USB20_PHY0_CON2	0x8
-#define	RK3399_GRF_USB20_PHY0_CON3	0xC
+#define RK3399_GRF_USB20_PHY0_CON0 0x0
+#define RK3399_GRF_USB20_PHY0_CON1 0x4
+#define RK3399_GRF_USB20_PHY0_CON2 0x8
+#define RK3399_GRF_USB20_PHY0_CON3 0xC
 
 struct rk_usb2phy_reg {
-	uint32_t	offset;
-	uint32_t	enable_mask;
-	uint32_t	disable_mask;
+	uint32_t offset;
+	uint32_t enable_mask;
+	uint32_t disable_mask;
 };
 
 struct rk_usb2phy_regs {
-	struct rk_usb2phy_reg	clk_ctl;
+	struct rk_usb2phy_reg clk_ctl;
 };
 
-struct rk_usb2phy_regs rk3399_regs = {
-	.clk_ctl = {
-		/* bit 4 put pll in suspend */
-		.enable_mask = 0x100000,
-		.disable_mask = 0x100010,
-	}
-};
+struct rk_usb2phy_regs rk3399_regs = { .clk_ctl = {
+					   /* bit 4 put pll in suspend */
+					   .enable_mask = 0x100000,
+					   .disable_mask = 0x100010,
+				       } };
 
 static struct ofw_compat_data compat_data[] = {
-	{ "rockchip,rk3399-usb2phy",	(uintptr_t)&rk3399_regs },
-	{ NULL,				0 }
+	{ "rockchip,rk3399-usb2phy", (uintptr_t)&rk3399_regs }, { NULL, 0 }
 };
 
 struct rk_usb2phy_softc {
-	device_t		dev;
-	struct syscon		*grf;
-	regulator_t		phy_supply;
-	clk_t			clk;
-	int			mode;
+	device_t dev;
+	struct syscon *grf;
+	regulator_t phy_supply;
+	clk_t clk;
+	int mode;
 };
 
 /* Phy class and methods. */
@@ -95,16 +92,16 @@ static int rk_usb2phy_enable(struct phynode *phynode, bool enable);
 static int rk_usb2phy_get_mode(struct phynode *phy, int *mode);
 static int rk_usb2phy_set_mode(struct phynode *phy, int mode);
 static phynode_method_t rk_usb2phy_phynode_methods[] = {
-	PHYNODEMETHOD(phynode_enable,		rk_usb2phy_enable),
-	PHYNODEMETHOD(phynode_usb_get_mode,	rk_usb2phy_get_mode),
-	PHYNODEMETHOD(phynode_usb_set_mode,	rk_usb2phy_set_mode),
+	PHYNODEMETHOD(phynode_enable, rk_usb2phy_enable),
+	PHYNODEMETHOD(phynode_usb_get_mode, rk_usb2phy_get_mode),
+	PHYNODEMETHOD(phynode_usb_set_mode, rk_usb2phy_set_mode),
 
 	PHYNODEMETHOD_END
 };
 
 DEFINE_CLASS_1(rk_usb2phy_phynode, rk_usb2phy_phynode_class,
-    rk_usb2phy_phynode_methods,
-    sizeof(struct phynode_usb_sc), phynode_usb_class);
+    rk_usb2phy_phynode_methods, sizeof(struct phynode_usb_sc),
+    phynode_usb_class);
 
 enum RK3399_USBPHY {
 	RK3399_USBPHY_HOST = 0,
@@ -183,9 +180,9 @@ rk_usb2phy_set_mode(struct phynode *phynode, int mode)
 
 /* Clock class and method */
 struct rk_usb2phy_clk_sc {
-	device_t	clkdev;
-	struct syscon	*grf;
-	struct rk_usb2phy_regs	*regs;
+	device_t clkdev;
+	struct syscon *grf;
+	struct rk_usb2phy_regs *regs;
 };
 
 static int
@@ -224,9 +221,9 @@ rk_usb2phy_clk_recalc(struct clknode *clk, uint64_t *freq)
 static clknode_method_t rk_usb2phy_clk_clknode_methods[] = {
 	/* Device interface */
 
-	CLKNODEMETHOD(clknode_init,		rk_usb2phy_clk_init),
-	CLKNODEMETHOD(clknode_set_gate,		rk_usb2phy_clk_set_gate),
-	CLKNODEMETHOD(clknode_recalc_freq,	rk_usb2phy_clk_recalc),
+	CLKNODEMETHOD(clknode_init, rk_usb2phy_clk_init),
+	CLKNODEMETHOD(clknode_set_gate, rk_usb2phy_clk_set_gate),
+	CLKNODEMETHOD(clknode_recalc_freq, rk_usb2phy_clk_recalc),
 	CLKNODEMETHOD_END
 };
 
@@ -235,8 +232,8 @@ DEFINE_CLASS_1(rk_usb2phy_clk_clknode, rk_usb2phy_clk_clknode_class,
     clknode_class);
 
 static int
-rk_usb2phy_clk_ofw_map(struct clkdom *clkdom, uint32_t ncells,
-    phandle_t *cells, struct clknode **clk)
+rk_usb2phy_clk_ofw_map(struct clkdom *clkdom, uint32_t ncells, phandle_t *cells,
+    struct clknode **clk)
 {
 
 	if (ncells != 0)
@@ -264,15 +261,15 @@ rk_usb2phy_export_clock(struct rk_usb2phy_softc *devsc)
 
 	node = ofw_bus_get_node(devsc->dev);
 
-	error = ofw_bus_parse_xref_list_get_length(node, "clocks",
-	    "#clock-cells", &ncells);
+	error = ofw_bus_parse_xref_list_get_length(
+	    node, "clocks", "#clock-cells", &ncells);
 	if (error != 0 || ncells != 1) {
 		device_printf(devsc->dev, "couldn't find parent clock\n");
 		return (ENXIO);
 	}
 
-	nclocks = ofw_bus_string_list_to_array(node, "clock-output-names",
-	    &clknames);
+	nclocks = ofw_bus_string_list_to_array(
+	    node, "clock-output-names", &clknames);
 	if (nclocks != 1)
 		return (ENXIO);
 
@@ -286,7 +283,8 @@ rk_usb2phy_export_clock(struct rk_usb2phy_softc *devsc)
 	for (i = 0; i < ncells; i++) {
 		error = clk_get_by_ofw_index(devsc->dev, 0, i, &clk_parent);
 		if (error != 0) {
-			device_printf(devsc->dev, "cannot get clock %d\n", error);
+			device_printf(
+			    devsc->dev, "cannot get clock %d\n", error);
 			return (ENXIO);
 		}
 		def.parent_names[i] = clk_get_name(clk_parent);
@@ -303,13 +301,16 @@ rk_usb2phy_export_clock(struct rk_usb2phy_softc *devsc)
 	sc = clknode_get_softc(clk);
 	sc->clkdev = device_get_parent(devsc->dev);
 	sc->grf = devsc->grf;
-	sc->regs = (struct rk_usb2phy_regs *)ofw_bus_search_compatible(devsc->dev, compat_data)->ocd_data;
+	sc->regs = (struct rk_usb2phy_regs *)ofw_bus_search_compatible(
+	    devsc->dev, compat_data)
+		       ->ocd_data;
 	OF_getencprop(node, "reg", regs, sizeof(regs));
 	sc->regs->clk_ctl.offset = regs[0];
 	clknode_register(clkdom, clk);
 
 	if (clkdom_finit(clkdom) != 0) {
-		device_printf(devsc->dev, "cannot finalize clkdom initialization\n");
+		device_printf(
+		    devsc->dev, "cannot finalize clkdom initialization\n");
 		return (ENXIO);
 	}
 
@@ -357,8 +358,8 @@ rk_usb2phy_attach(device_t dev)
 	}
 	err = clk_enable(sc->clk);
 	if (err != 0) {
-		device_printf(dev, "Could not enable clock %s\n",
-		    clk_get_name(sc->clk));
+		device_printf(
+		    dev, "Could not enable clock %s\n", clk_get_name(sc->clk));
 		return (ENXIO);
 	}
 
@@ -399,17 +400,14 @@ rk_usb2phy_attach(device_t dev)
 
 static device_method_t rk_usb2phy_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		rk_usb2phy_probe),
-	DEVMETHOD(device_attach,	rk_usb2phy_attach),
+	DEVMETHOD(device_probe, rk_usb2phy_probe),
+	DEVMETHOD(device_attach, rk_usb2phy_attach),
 
 	DEVMETHOD_END
 };
 
-static driver_t rk_usb2phy_driver = {
-	"rk_usb2phy",
-	rk_usb2phy_methods,
-	sizeof(struct rk_usb2phy_softc)
-};
+static driver_t rk_usb2phy_driver = { "rk_usb2phy", rk_usb2phy_methods,
+	sizeof(struct rk_usb2phy_softc) };
 
 static devclass_t rk_usb2phy_devclass;
 EARLY_DRIVER_MODULE(rk_usb2phy, simplebus, rk_usb2phy_driver,

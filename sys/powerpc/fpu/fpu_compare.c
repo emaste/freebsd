@@ -110,13 +110,13 @@ fpu_compare(struct fpemu *fe, int ordered)
 		cc = FPSCR_FE;
 		goto done;
 	}
-	if (a->fp_sign) {		/* a < 0 (or -0) */
-		if (!b->fp_sign) {	/* b >= 0 (or if a = -0, b > 0) */
+	if (a->fp_sign) {	   /* a < 0 (or -0) */
+		if (!b->fp_sign) { /* b >= 0 (or if a = -0, b > 0) */
 			cc = FPSCR_FL;
 			goto done;
 		}
-	} else {			/* a > 0 (or +0) */
-		if (b->fp_sign) {	/* b <= -0 (or if a = +0, b < 0) */
+	} else {		  /* a > 0 (or +0) */
+		if (b->fp_sign) { /* b <= -0 (or if a = +0, b < 0) */
 			cc = FPSCR_FG;
 			goto done;
 		}
@@ -138,17 +138,17 @@ fpu_compare(struct fpemu *fe, int ordered)
 	 *	|a| > |b|, a,b < 0:  a < b => FSR_CC_LT
 	 */
 #define opposite_cc(cc) ((cc) == FPSCR_FL ? FPSCR_FG : FPSCR_FL)
-#define	diff(magnitude) (a->fp_sign ? opposite_cc(magnitude) :  (magnitude))
-	if (a->fp_class < b->fp_class) {	/* |a| < |b| */
+#define diff(magnitude) (a->fp_sign ? opposite_cc(magnitude) : (magnitude))
+	if (a->fp_class < b->fp_class) { /* |a| < |b| */
 		cc = diff(FPSCR_FL);
 		goto done;
 	}
-	if (a->fp_class > b->fp_class) {	/* |a| > |b| */
+	if (a->fp_class > b->fp_class) { /* |a| > |b| */
 		cc = diff(FPSCR_FG);
 		goto done;
 	}
 	/* now none can be 0: only Inf and numbers remain */
-	if (ISINF(a)) {				/* |Inf| = |Inf| */
+	if (ISINF(a)) { /* |Inf| = |Inf| */
 		cc = FPSCR_FE;
 		goto done;
 	}

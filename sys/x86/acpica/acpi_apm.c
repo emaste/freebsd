@@ -39,79 +39,77 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/uio.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
-
-#include <dev/acpica/acpivar.h>
-#include <dev/acpica/acpiio.h>
-
 #include <machine/apm_bios.h>
 
+#include <dev/acpica/acpiio.h>
+#include <dev/acpica/acpivar.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
+
 /*
- * APM driver emulation 
+ * APM driver emulation
  */
 
-#define	APM_UNKNOWN	0xff
+#define APM_UNKNOWN 0xff
 
 static int apm_active;
 
 static MALLOC_DEFINE(M_APMDEV, "apmdev", "APM device emulation");
 
-static d_open_t		apmopen;
-static d_write_t	apmwrite;
-static d_ioctl_t	apmioctl;
-static d_poll_t		apmpoll;
-static d_kqfilter_t	apmkqfilter;
-static void		apmreadfiltdetach(struct knote *kn);
-static int		apmreadfilt(struct knote *kn, long hint);
-static struct filterops	apm_readfiltops = {
+static d_open_t apmopen;
+static d_write_t apmwrite;
+static d_ioctl_t apmioctl;
+static d_poll_t apmpoll;
+static d_kqfilter_t apmkqfilter;
+static void apmreadfiltdetach(struct knote *kn);
+static int apmreadfilt(struct knote *kn, long hint);
+static struct filterops apm_readfiltops = {
 	.f_isfd = 1,
 	.f_detach = apmreadfiltdetach,
 	.f_event = apmreadfilt,
 };
 
-static struct cdevsw apm_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	apmopen,
-	.d_write =	apmwrite,
-	.d_ioctl =	apmioctl,
-	.d_poll =	apmpoll,
-	.d_name =	"apm",
-	.d_kqfilter =	apmkqfilter
-};
+static struct cdevsw apm_cdevsw = { .d_version = D_VERSION,
+	.d_open = apmopen,
+	.d_write = apmwrite,
+	.d_ioctl = apmioctl,
+	.d_poll = apmpoll,
+	.d_name = "apm",
+	.d_kqfilter = apmkqfilter };
 
 static int
-acpi_capm_convert_battstate(struct  acpi_battinfo *battp)
+acpi_capm_convert_battstate(struct acpi_battinfo *battp)
 {
-	int	state;
+	int state;
 
 	state = APM_UNKNOWN;
 
 	if (battp->state & ACPI_BATT_STAT_DISCHARG) {
 		if (battp->cap >= 50)
-			state = 0;	/* high */
+			state = 0; /* high */
 		else
-			state = 1;	/* low */
+			state = 1; /* low */
 	}
 	if (battp->state & ACPI_BATT_STAT_CRITICAL)
-		state = 2;		/* critical */
+		state = 2; /* critical */
 	if (battp->state & ACPI_BATT_STAT_CHARGING)
-		state = 3;		/* charging */
+		state = 3; /* charging */
 
 	/* If still unknown, determine it based on the battery capacity. */
 	if (state == APM_UNKNOWN) {
 		if (battp->cap >= 50)
-			state = 0;	/* high */
+			state = 0; /* high */
 		else
-			state = 1;	/* low */
+			state = 1; /* low */
 	}
 
 	return (state);
 }
 
 static int
-acpi_capm_convert_battflags(struct  acpi_battinfo *battp)
+acpi_capm_convert_battflags(struct acpi_battinfo *battp)
 {
-	int	flags;
+	int flags;
 
 	flags = 0;
 
@@ -134,25 +132,25 @@ acpi_capm_convert_battflags(struct  acpi_battinfo *battp)
 static int
 acpi_capm_get_info(apm_info_t aip)
 {
-	int	acline;
-	struct	acpi_battinfo batt;
+	int acline;
+	struct acpi_battinfo batt;
 
 	aip->ai_infoversion = 1;
-	aip->ai_major       = 1;
-	aip->ai_minor       = 2;
-	aip->ai_status      = apm_active;
-	aip->ai_capabilities= 0xff00;	/* unknown */
+	aip->ai_major = 1;
+	aip->ai_minor = 2;
+	aip->ai_status = apm_active;
+	aip->ai_capabilities = 0xff00; /* unknown */
 
 	if (acpi_acad_get_acline(&acline))
-		aip->ai_acline = APM_UNKNOWN;	/* unknown */
+		aip->ai_acline = APM_UNKNOWN; /* unknown */
 	else
-		aip->ai_acline = acline;	/* on/off */
+		aip->ai_acline = acline; /* on/off */
 
 	if (acpi_battery_get_battinfo(NULL, &batt) != 0) {
 		aip->ai_batt_stat = APM_UNKNOWN;
 		aip->ai_batt_life = APM_UNKNOWN;
-		aip->ai_batt_time = -1;		 /* unknown */
-		aip->ai_batteries = ~0U;	 /* unknown */
+		aip->ai_batt_time = -1;	 /* unknown */
+		aip->ai_batteries = ~0U; /* unknown */
 	} else {
 		aip->ai_batt_stat = acpi_capm_convert_battstate(&batt);
 		aip->ai_batt_life = batt.cap;
@@ -167,8 +165,8 @@ static int
 acpi_capm_get_pwstatus(apm_pwstatus_t app)
 {
 	device_t dev;
-	int	acline, unit, error;
-	struct	acpi_battinfo batt;
+	int acline, unit, error;
+	struct acpi_battinfo batt;
 
 	if (app->ap_device != PMDV_ALLDEV &&
 	    (app->ap_device < PMDV_BATT0 || app->ap_device > PMDV_BATT_ALL))
@@ -195,7 +193,7 @@ acpi_capm_get_pwstatus(apm_pwstatus_t app)
 	if (acpi_acad_get_acline(&acline))
 		app->ap_acline = APM_UNKNOWN;
 	else
-		app->ap_acline = acline;	/* on/off */
+		app->ap_acline = acline; /* on/off */
 
 	return (0);
 }
@@ -231,8 +229,8 @@ apm_create_clone(struct cdev *dev, struct acpi_softc *acpi_sc)
 static void
 apmdtor(void *data)
 {
-	struct	apm_clone_data *clone;
-	struct	acpi_softc *acpi_sc;
+	struct apm_clone_data *clone;
+	struct acpi_softc *acpi_sc;
 
 	clone = data;
 	acpi_sc = clone->acpi_sc;
@@ -254,8 +252,8 @@ apmdtor(void *data)
 static int
 apmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	struct	acpi_softc *acpi_sc;
-	struct 	apm_clone_data *clone;
+	struct acpi_softc *acpi_sc;
+	struct apm_clone_data *clone;
 
 	acpi_sc = devclass_get_softc(devclass_find("acpi"), 0);
 	clone = apm_create_clone(dev, acpi_sc);
@@ -269,13 +267,14 @@ apmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 }
 
 static int
-apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+apmioctl(
+    struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
-	int	error;
-	struct	apm_clone_data *clone;
-	struct	acpi_softc *acpi_sc;
-	struct	apm_info info;
-	struct 	apm_event_info *ev_info;
+	int error;
+	struct apm_clone_data *clone;
+	struct acpi_softc *acpi_sc;
+	struct apm_info info;
+	struct apm_event_info *ev_info;
 	apm_info_old_t aiop;
 
 	error = 0;
@@ -288,11 +287,11 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			return (EPERM);
 		if (acpi_sc->acpi_next_sstate == 0) {
 			if (acpi_sc->acpi_suspend_sx != ACPI_STATE_S5) {
-				error = acpi_ReqSleepState(acpi_sc,
-				    acpi_sc->acpi_suspend_sx);
+				error = acpi_ReqSleepState(
+				    acpi_sc, acpi_sc->acpi_suspend_sx);
 			} else {
 				printf(
-			"power off via apm suspend not supported\n");
+				    "power off via apm suspend not supported\n");
 				error = ENXIO;
 			}
 		} else
@@ -303,11 +302,11 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			return (EPERM);
 		if (acpi_sc->acpi_next_sstate == 0) {
 			if (acpi_sc->acpi_standby_sx != ACPI_STATE_S5) {
-				error = acpi_ReqSleepState(acpi_sc,
-				    acpi_sc->acpi_standby_sx);
+				error = acpi_ReqSleepState(
+				    acpi_sc, acpi_sc->acpi_standby_sx);
 			} else {
 				printf(
-			"power off via apm standby not supported\n");
+				    "power off via apm standby not supported\n");
 				error = ENXIO;
 			}
 		} else
@@ -316,8 +315,8 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	case APMIO_NEXTEVENT:
 		printf("apm nextevent start\n");
 		ACPI_LOCK(acpi);
-		if (acpi_sc->acpi_next_sstate != 0 && clone->notify_status ==
-		    APM_EV_NONE) {
+		if (acpi_sc->acpi_next_sstate != 0 &&
+		    clone->notify_status == APM_EV_NONE) {
 			ev_info = (struct apm_event_info *)addr;
 			if (acpi_sc->acpi_next_sstate <= ACPI_STATE_S3)
 				ev_info->type = PMEV_STANDBYREQ;
@@ -389,7 +388,7 @@ apmwrite(struct cdev *dev, struct uio *uio, int ioflag)
 static int
 apmpoll(struct cdev *dev, int events, struct thread *td)
 {
-	struct	apm_clone_data *clone;
+	struct apm_clone_data *clone;
 	int revents;
 
 	revents = 0;
@@ -406,7 +405,7 @@ apmpoll(struct cdev *dev, int events, struct thread *td)
 static int
 apmkqfilter(struct cdev *dev, struct knote *kn)
 {
-	struct	apm_clone_data *clone;
+	struct apm_clone_data *clone;
 
 	devfs_get_cdevpriv((void **)&clone);
 	ACPI_LOCK(acpi);
@@ -420,7 +419,7 @@ apmkqfilter(struct cdev *dev, struct knote *kn)
 static void
 apmreadfiltdetach(struct knote *kn)
 {
-	struct	apm_clone_data *clone;
+	struct apm_clone_data *clone;
 
 	ACPI_LOCK(acpi);
 	clone = kn->kn_hook;
@@ -431,8 +430,8 @@ apmreadfiltdetach(struct knote *kn)
 static int
 apmreadfilt(struct knote *kn, long hint)
 {
-	struct	apm_clone_data *clone;
-	int	sleeping;
+	struct apm_clone_data *clone;
+	int sleeping;
 
 	ACPI_LOCK(acpi);
 	clone = kn->kn_hook;

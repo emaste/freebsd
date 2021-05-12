@@ -52,7 +52,7 @@ cpu_initclocks(void)
 
 	td = curthread;
 	cpu_initclocks_bsp();
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		if (i == 0)
 			continue;
 		thread_lock(td);

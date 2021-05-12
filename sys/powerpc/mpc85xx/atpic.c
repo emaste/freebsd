@@ -40,40 +40,39 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/pio.h>
 
-#include <powerpc/mpc85xx/mpc85xx.h>
-
 #include <dev/ic/i8259.h>
 
 #include <isa/isareg.h>
 #include <isa/isavar.h>
+#include <powerpc/mpc85xx/mpc85xx.h>
 
 #include "pic_if.h"
 
-#define	ATPIC_MASTER	0
-#define	ATPIC_SLAVE	1
+#define ATPIC_MASTER 0
+#define ATPIC_SLAVE 1
 
 struct atpic_softc {
-	device_t	sc_dev;
+	device_t sc_dev;
 
 	/* I/O port resources for master & slave. */
-	struct resource	*sc_res[2];
-	int		sc_rid[2];
+	struct resource *sc_res[2];
+	int sc_rid[2];
 
 	/* Our "routing" interrupt */
 	struct resource *sc_ires;
-	void		*sc_icookie;
-	int		sc_irid;
+	void *sc_icookie;
+	int sc_irid;
 
-	int		sc_vector[16];
-	uint8_t		sc_mask[2];
+	int sc_vector[16];
+	uint8_t sc_mask[2];
 };
 
-static int	atpic_isa_attach(device_t);
-static void	atpic_isa_identify(driver_t *, device_t);
-static int	atpic_isa_probe(device_t);
+static int atpic_isa_attach(device_t);
+static void atpic_isa_identify(driver_t *, device_t);
+static int atpic_isa_probe(device_t);
 
-static void atpic_config(device_t, u_int, enum intr_trigger,
-    enum intr_polarity);
+static void atpic_config(
+    device_t, u_int, enum intr_trigger, enum intr_polarity);
 static void atpic_dispatch(device_t, struct trapframe *);
 static void atpic_enable(device_t, u_int, u_int);
 static void atpic_eoi(device_t, u_int);
@@ -86,35 +85,31 @@ static void atpic_ofw_translate_code(device_t, u_int irq, int code,
 
 static device_method_t atpic_isa_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify, 	atpic_isa_identify),
-	DEVMETHOD(device_probe,		atpic_isa_probe),
-	DEVMETHOD(device_attach,	atpic_isa_attach),
+	DEVMETHOD(device_identify, atpic_isa_identify),
+	DEVMETHOD(device_probe, atpic_isa_probe),
+	DEVMETHOD(device_attach, atpic_isa_attach),
 
 	/* PIC interface */
-	DEVMETHOD(pic_config,		atpic_config),
-	DEVMETHOD(pic_dispatch,		atpic_dispatch),
-	DEVMETHOD(pic_enable,		atpic_enable),
-	DEVMETHOD(pic_eoi,		atpic_eoi),
-	DEVMETHOD(pic_ipi,		atpic_ipi),
-	DEVMETHOD(pic_mask,		atpic_mask),
-	DEVMETHOD(pic_unmask,		atpic_unmask),
+	DEVMETHOD(pic_config, atpic_config),
+	DEVMETHOD(pic_dispatch, atpic_dispatch),
+	DEVMETHOD(pic_enable, atpic_enable),
+	DEVMETHOD(pic_eoi, atpic_eoi),
+	DEVMETHOD(pic_ipi, atpic_ipi),
+	DEVMETHOD(pic_mask, atpic_mask),
+	DEVMETHOD(pic_unmask, atpic_unmask),
 
-	DEVMETHOD(pic_translate_code,	atpic_ofw_translate_code),
+	DEVMETHOD(pic_translate_code, atpic_ofw_translate_code),
 
 	{ 0, 0 },
 };
 
-static driver_t atpic_isa_driver = {
-	"atpic",
-	atpic_isa_methods,
-	sizeof(struct atpic_softc)
-};
+static driver_t atpic_isa_driver = { "atpic", atpic_isa_methods,
+	sizeof(struct atpic_softc) };
 
 static devclass_t atpic_devclass;
 
 static struct isa_pnp_id atpic_ids[] = {
-	{ 0x0000d041 /* PNP0000 */, "AT interrupt controller" },
-	{ 0 }
+	{ 0x0000d041 /* PNP0000 */, "AT interrupt controller" }, { 0 }
 };
 
 DRIVER_MODULE(atpic, isa, atpic_isa_driver, atpic_devclass, 0, 0);
@@ -135,7 +130,7 @@ atpic_write(struct atpic_softc *sc, int icu, int ofs, uint8_t val)
 
 	bus_write_1(sc->sc_res[icu], ofs, val);
 	bus_barrier(sc->sc_res[icu], ofs, 2 - ofs,
-	    BUS_SPACE_BARRIER_READ|BUS_SPACE_BARRIER_WRITE);
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 static void
@@ -201,20 +196,20 @@ atpic_isa_attach(device_t dev)
 	error = ENXIO;
 
 	sc->sc_rid[ATPIC_MASTER] = 0;
-	sc->sc_res[ATPIC_MASTER] = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
-	    &sc->sc_rid[ATPIC_MASTER], RF_ACTIVE);
+	sc->sc_res[ATPIC_MASTER] = bus_alloc_resource_any(
+	    dev, SYS_RES_IOPORT, &sc->sc_rid[ATPIC_MASTER], RF_ACTIVE);
 	if (sc->sc_res[ATPIC_MASTER] == NULL)
 		goto fail;
 
 	sc->sc_rid[ATPIC_SLAVE] = 1;
-	sc->sc_res[ATPIC_SLAVE] = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
-	    &sc->sc_rid[ATPIC_SLAVE], RF_ACTIVE);
+	sc->sc_res[ATPIC_SLAVE] = bus_alloc_resource_any(
+	    dev, SYS_RES_IOPORT, &sc->sc_rid[ATPIC_SLAVE], RF_ACTIVE);
 	if (sc->sc_res[ATPIC_SLAVE] == NULL)
 		goto fail;
 
 	sc->sc_irid = 0;
-	sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_irid,
-	    RF_ACTIVE);
+	sc->sc_ires = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &sc->sc_irid, RF_ACTIVE);
 	if (sc->sc_ires == NULL)
 		goto fail;
 
@@ -229,10 +224,10 @@ atpic_isa_attach(device_t dev)
 	powerpc_register_pic(dev, 0, 16, 0, TRUE);
 	return (0);
 
- fail:
+fail:
 	if (sc->sc_ires != NULL)
-		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irid,
-		    sc->sc_ires);
+		bus_release_resource(
+		    dev, SYS_RES_IRQ, sc->sc_irid, sc->sc_ires);
 	if (sc->sc_res[ATPIC_SLAVE] != NULL)
 		bus_release_resource(dev, SYS_RES_IOPORT,
 		    sc->sc_rid[ATPIC_SLAVE], sc->sc_res[ATPIC_SLAVE]);
@@ -247,8 +242,8 @@ atpic_isa_attach(device_t dev)
  */
 
 static void
-atpic_config(device_t dev, u_int irq, enum intr_trigger trig,
-    enum intr_polarity pol)
+atpic_config(
+    device_t dev, u_int irq, enum intr_trigger trig, enum intr_polarity pol)
 {
 }
 

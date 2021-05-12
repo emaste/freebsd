@@ -30,30 +30,29 @@
 #define X86_PVCLOCK
 
 struct pvclock_vcpu_time_info {
-	uint32_t	version;
-	uint32_t	pad0;
-	uint64_t	tsc_timestamp;
-	uint64_t	system_time;
-	uint32_t	tsc_to_system_mul;
-	int8_t		tsc_shift;
-	uint8_t		flags;
-	uint8_t		pad[2];
+	uint32_t version;
+	uint32_t pad0;
+	uint64_t tsc_timestamp;
+	uint64_t system_time;
+	uint32_t tsc_to_system_mul;
+	int8_t tsc_shift;
+	uint8_t flags;
+	uint8_t pad[2];
 };
 
-#define PVCLOCK_FLAG_TSC_STABLE		0x01
-#define PVCLOCK_FLAG_GUEST_PASUED	0x02
+#define PVCLOCK_FLAG_TSC_STABLE 0x01
+#define PVCLOCK_FLAG_GUEST_PASUED 0x02
 
 struct pvclock_wall_clock {
-	uint32_t	version;
-	uint32_t	sec;
-	uint32_t	nsec;
+	uint32_t version;
+	uint32_t sec;
+	uint32_t nsec;
 };
 
-void		pvclock_resume(void);
-uint64_t	pvclock_get_last_cycles(void);
-uint64_t	pvclock_tsc_freq(struct pvclock_vcpu_time_info *ti);
-uint64_t	pvclock_get_timecount(struct pvclock_vcpu_time_info *ti);
-void		pvclock_get_wallclock(struct pvclock_wall_clock *wc,
-		    struct timespec *ts);
+void pvclock_resume(void);
+uint64_t pvclock_get_last_cycles(void);
+uint64_t pvclock_tsc_freq(struct pvclock_vcpu_time_info *ti);
+uint64_t pvclock_get_timecount(struct pvclock_vcpu_time_info *ti);
+void pvclock_get_wallclock(struct pvclock_wall_clock *wc, struct timespec *ts);
 
 #endif

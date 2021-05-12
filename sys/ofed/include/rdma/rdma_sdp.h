@@ -31,6 +31,7 @@
 #define _SYS_OFED_INCLUDE_RDMA_RDMA_SDP_H_
 
 #include <sys/cdefs.h>
+
 #include <netinet/in.h>
 
 #include <rdma/ib_cm.h>

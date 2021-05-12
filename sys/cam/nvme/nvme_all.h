@@ -34,14 +34,15 @@
 
 struct ccb_nvmeio;
 
-void	nvme_ns_cmd(struct ccb_nvmeio *nvmeio, uint8_t cmd, uint32_t nsid,
+void nvme_ns_cmd(struct ccb_nvmeio *nvmeio, uint8_t cmd, uint32_t nsid,
     uint32_t cdw10, uint32_t cdw11, uint32_t cdw12, uint32_t cdw13,
     uint32_t cdw14, uint32_t cdw15);
 
-int	nvme_identify_match(caddr_t identbuffer, caddr_t table_entry);
+int nvme_identify_match(caddr_t identbuffer, caddr_t table_entry);
 
 struct sbuf;
-void	nvme_print_ident(const struct nvme_controller_data *, const struct nvme_namespace_data *, struct sbuf *);
+void nvme_print_ident(const struct nvme_controller_data *,
+    const struct nvme_namespace_data *, struct sbuf *);
 const char *nvme_op_string(const struct nvme_command *, int admin);
 const char *nvme_cmd_string(const struct nvme_command *, char *, size_t);
 void nvme_cmd_sbuf(const struct nvme_command *, struct sbuf *sb);

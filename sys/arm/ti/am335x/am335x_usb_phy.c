@@ -35,29 +35,29 @@ __FBSDID("$FreeBSD$");
 #include <sys/fbio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/resource.h>
-#include <machine/bus.h>
+#include <sys/rman.h>
+
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/pmap.h>
+
+#include <machine/bus.h>
 
 #include <dev/fdt/simplebus.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#define TI_AM335X_USB_PHY		1
-#define TI_AM335X_USB_PHY_END		0
+#define TI_AM335X_USB_PHY 1
+#define TI_AM335X_USB_PHY_END 0
 
-static struct ofw_compat_data compat_data[] = {
-	{ "ti,am335x-usb-phy",	TI_AM335X_USB_PHY },
-	{ NULL,			TI_AM335X_USB_PHY_END }
-};
+static struct ofw_compat_data compat_data[] = { { "ti,am335x-usb-phy",
+						    TI_AM335X_USB_PHY },
+	{ NULL, TI_AM335X_USB_PHY_END } };
 
 struct ti_usb_phy_softc {
-	device_t		dev;
+	device_t dev;
 };
 
 static int ti_usb_phy_probe(device_t dev);
@@ -103,9 +103,9 @@ ti_usb_phy_detach(device_t dev)
 
 static device_method_t ti_usb_phy_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ti_usb_phy_probe),
-	DEVMETHOD(device_attach,	ti_usb_phy_attach),
-	DEVMETHOD(device_detach,	ti_usb_phy_detach),
+	DEVMETHOD(device_probe, ti_usb_phy_probe),
+	DEVMETHOD(device_attach, ti_usb_phy_attach),
+	DEVMETHOD(device_detach, ti_usb_phy_detach),
 
 	DEVMETHOD_END
 };

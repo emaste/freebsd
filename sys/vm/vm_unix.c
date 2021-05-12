@@ -46,6 +46,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -54,15 +55,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #if defined(__amd64__) || defined(__i386__) /* for i386_read_exec */
 #include <machine/md_var.h>
 #endif
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_param.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct break_args {
@@ -103,14 +103,14 @@ kern_break(struct thread *td, uintptr_t *addr)
 	new = round_page(*addr);
 	vm_map_lock(map);
 
-	base = round_page((vm_offset_t) vm->vm_daddr);
+	base = round_page((vm_offset_t)vm->vm_daddr);
 	old = base + ctob(vm->vm_dsize);
 	if (new > base) {
 		/*
 		 * Check the resource limit, but allow a process to reduce
 		 * its usage, even if it remains over the limit.
 		 */
-		if (new - base > datalim && new > old) {
+		if (new - base > datalim &&new > old) {
 			error = ENOMEM;
 			goto done;
 		}
@@ -132,8 +132,8 @@ kern_break(struct thread *td, uintptr_t *addr)
 
 	if (new > old) {
 		if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-			if (ptoa(pmap_wired_count(map->pmap)) +
-			    (new - old) > lmemlim) {
+			if (ptoa(pmap_wired_count(map->pmap)) + (new - old) >
+			    lmemlim) {
 				error = ENOMEM;
 				goto done;
 			}
@@ -151,11 +151,11 @@ kern_break(struct thread *td, uintptr_t *addr)
 				error = ENOMEM;
 				goto done;
 			}
-			error = racct_set(td->td_proc, RACCT_VMEM,
-			    map->size + (new - old));
+			error = racct_set(
+			    td->td_proc, RACCT_VMEM, map->size + (new - old));
 			if (error != 0) {
-				racct_set_force(td->td_proc, RACCT_DATA,
-				    old - base);
+				racct_set_force(
+				    td->td_proc, RACCT_DATA, old - base);
 				PROC_UNLOCK(td->td_proc);
 				error = ENOMEM;
 				goto done;
@@ -163,12 +163,12 @@ kern_break(struct thread *td, uintptr_t *addr)
 			if (!old_mlock && map->flags & MAP_WIREFUTURE) {
 				error = racct_set(td->td_proc, RACCT_MEMLOCK,
 				    ptoa(pmap_wired_count(map->pmap)) +
-				    (new - old));
+					(new - old));
 				if (error != 0) {
 					racct_set_force(td->td_proc, RACCT_DATA,
 					    old - base);
-					racct_set_force(td->td_proc, RACCT_VMEM,
-					    map->size);
+					racct_set_force(
+					    td->td_proc, RACCT_VMEM, map->size);
 					PROC_UNLOCK(td->td_proc);
 					error = ENOMEM;
 					goto done;
@@ -182,8 +182,8 @@ kern_break(struct thread *td, uintptr_t *addr)
 		if (i386_read_exec && SV_PROC_FLAG(td->td_proc, SV_ILP32))
 			prot |= VM_PROT_EXECUTE;
 #endif
-		rv = vm_map_insert(map, NULL, 0, old, new, prot, VM_PROT_ALL,
-		    0);
+		rv = vm_map_insert(
+		    map, NULL, 0, old, new, prot, VM_PROT_ALL, 0);
 		if (rv == KERN_SUCCESS && (map->flags & MAP_WIREFUTURE) != 0) {
 			rv = vm_map_wire_locked(map, old, new,
 			    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
@@ -194,10 +194,10 @@ kern_break(struct thread *td, uintptr_t *addr)
 #ifdef RACCT
 			if (racct_enable) {
 				PROC_LOCK(td->td_proc);
-				racct_set_force(td->td_proc,
-				    RACCT_DATA, old - base);
-				racct_set_force(td->td_proc,
-				    RACCT_VMEM, map->size);
+				racct_set_force(
+				    td->td_proc, RACCT_DATA, old - base);
+				racct_set_force(
+				    td->td_proc, RACCT_VMEM, map->size);
 				if (!old_mlock && map->flags & MAP_WIREFUTURE) {
 					racct_set_force(td->td_proc,
 					    RACCT_MEMLOCK,

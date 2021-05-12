@@ -42,36 +42,39 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysent.h>
-#include <sys/proc.h>
-#include <sys/signalvar.h>
 #include <sys/exec.h>
-#include <sys/ktr.h>
 #include <sys/imgact.h>
-#include <sys/ucontext.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
-#include <sys/syscallsubr.h>
-#include <sys/sysproto.h>
+#include <sys/proc.h>
 #include <sys/ptrace.h>
+#include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
+#include <sys/sysent.h>
 #include <sys/syslog.h>
+#include <sys/sysproto.h>
+#include <sys/ucontext.h>
+#include <sys/uio.h>
+#include <sys/user.h>
+#include <sys/vnode.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_map.h>
 #include <vm/vm_extern.h>
-#include <sys/user.h>
-#include <sys/uio.h>
+#include <vm/vm_map.h>
+
 #include <machine/abi.h>
 #include <machine/cpuinfo.h>
-#include <machine/reg.h>
 #include <machine/md_var.h>
+#include <machine/reg.h>
 #include <machine/sigframe.h>
 #include <machine/tls.h>
 #include <machine/vmparam.h>
-#include <sys/vnode.h>
-#include <fs/pseudofs/pseudofs.h>
-#include <fs/procfs/procfs.h>
 
-#define	UCONTEXT_MAGIC	0xACEDBADE
+#include <fs/procfs/procfs.h>
+#include <fs/pseudofs/pseudofs.h>
+
+#define UCONTEXT_MAGIC 0xACEDBADE
 
 /*
  * Send an interrupt to process.
@@ -113,7 +116,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mullo = regs->mullo;
 	sf.sf_uc.uc_mcontext.mulhi = regs->mulhi;
 	sf.sf_uc.uc_mcontext.mc_tls = td->td_md.md_tls;
-	sf.sf_uc.uc_mcontext.mc_regs[0] = UCONTEXT_MAGIC;  /* magic number */
+	sf.sf_uc.uc_mcontext.mc_regs[0] = UCONTEXT_MAGIC; /* magic number */
 	bcopy((void *)&regs->ast, (void *)&sf.sf_uc.uc_mcontext.mc_regs[1],
 	    sizeof(sf.sf_uc.uc_mcontext.mc_regs) - sizeof(register_t));
 	sf.sf_uc.uc_mcontext.mc_fpused = td->td_md.md_flags & MDTD_FPUSED;
@@ -130,11 +133,13 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sfp = (struct sigframe *)(((uintptr_t)td->td_sigstk.ss_sp +
-		    td->td_sigstk.ss_size - sizeof(struct sigframe))
-		    & ~(STACK_ALIGN - 1));
+					      td->td_sigstk.ss_size -
+					      sizeof(struct sigframe)) &
+		    ~(STACK_ALIGN - 1));
 	} else
-		sfp = (struct sigframe *)((vm_offset_t)(regs->sp - 
-		    sizeof(struct sigframe)) & ~(STACK_ALIGN - 1));
+		sfp = (struct sigframe *)((vm_offset_t)(regs->sp -
+					      sizeof(struct sigframe)) &
+		    ~(STACK_ALIGN - 1));
 
 	/* Build the argument list for the signal handler. */
 	regs->a0 = sig;
@@ -175,7 +180,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Signal trampoline code is at base of user stack.
 	 */
-	regs->ra = (register_t)(intptr_t)PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->ra = (register_t)(intptr_t)PS_STRINGS -
+	    *(p->p_sysent->sv_szsigcode);
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -195,7 +201,7 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0)
-	    return (error);
+		return (error);
 
 	error = set_mcontext(td, &uc.uc_mcontext);
 	if (error != 0)
@@ -209,7 +215,7 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 int
 ptrace_set_pc(struct thread *td, unsigned long addr)
 {
-	td->td_frame->pc = (register_t) addr;
+	td->td_frame->pc = (register_t)addr;
 	return 0;
 }
 
@@ -256,8 +262,8 @@ ptrace_single_step(struct thread *td)
 
 	/* compute next address after current location */
 	if (locr0->cause & MIPS_CR_BR_DELAY) {
-		va = MipsEmulateBranch(locr0, locr0->pc, locr0->fsr,
-		    (uintptr_t)&curinstr);
+		va = MipsEmulateBranch(
+		    locr0, locr0->pc, locr0->fsr, (uintptr_t)&curinstr);
 	} else {
 		va = locr0->pc + 4;
 	}
@@ -291,7 +297,7 @@ out:
 	if (error == 0)
 		CTR3(KTR_PTRACE,
 		    "ptrace_single_step: tid %d, break set at %#lx: (%#08x)",
-		    td->td_tid, va, td->td_md.md_ss_instr); 
+		    td->td_tid, va, td->td_md.md_ss_instr);
 	return (error);
 }
 
@@ -317,7 +323,7 @@ set_regs(struct thread *td, struct reg *regs)
 	struct trapframe *f;
 	register_t sr;
 
-	f = (struct trapframe *) td->td_frame;
+	f = (struct trapframe *)td->td_frame;
 	/*
 	 * Don't allow the user to change SR
 	 */
@@ -461,14 +467,14 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	 *	a2	rtld object (filled in by dynamic loader)
 	 *	a3	ps_strings
 	 */
-	td->td_frame->a0 = (register_t) stack;
+	td->td_frame->a0 = (register_t)stack;
 	td->td_frame->a1 = 0;
 	td->td_frame->a2 = 0;
 	td->td_frame->a3 = (register_t)imgp->ps_strings;
 
 	td->td_md.md_flags &= ~MDTD_FPUSED;
 	if (PCPU_GET(fpcurthread) == td)
-	    PCPU_SET(fpcurthread, (struct thread *)0);
+		PCPU_SET(fpcurthread, (struct thread *)0);
 	td->td_md.md_ss_addr = 0;
 
 	td->td_md.md_tls = NULL;
@@ -500,15 +506,14 @@ ptrace_clear_single_step(struct thread *td)
 	CTR3(KTR_PTRACE,
 	    "ptrace_clear_single_step: tid %d, restore instr at %#lx: %#08x",
 	    td->td_tid, td->td_md.md_ss_addr, td->td_md.md_ss_instr);
-	error = ptrace_write_int(td, td->td_md.md_ss_addr,
-	    td->td_md.md_ss_instr);
+	error = ptrace_write_int(
+	    td, td->td_md.md_ss_addr, td->td_md.md_ss_instr);
 	PROC_LOCK(p);
 
 	/* The sync'ing of I & D caches is done by proc_rwmem(). */
 
 	if (error != 0) {
-		log(LOG_ERR,
-		    "SS %s %d: can't restore instruction at %p: %x\n",
+		log(LOG_ERR, "SS %s %d: can't restore instruction at %p: %x\n",
 		    p->p_comm, p->p_pid, (void *)td->td_md.md_ss_addr,
 		    td->td_md.md_ss_instr);
 	}

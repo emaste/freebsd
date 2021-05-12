@@ -30,14 +30,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/systm.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/sbuf.h>
 #include <sys/syslog.h>
 #include <sys/vnode.h>
 
-#include <linux/seq_file.h>
 #include <linux/file.h>
+#include <linux/seq_file.h>
 
 #undef file
 MALLOC_DEFINE(M_LSEQ, "seq_file", "seq_file");
@@ -104,7 +104,7 @@ seq_open(struct linux_file *f, const struct seq_operations *op)
 	if (f->private_data != NULL)
 		log(LOG_WARNING, "%s private_data not NULL", __func__);
 
-	if ((p = malloc(sizeof(*p), M_LSEQ, M_NOWAIT|M_ZERO)) == NULL)
+	if ((p = malloc(sizeof(*p), M_LSEQ, M_NOWAIT | M_ZERO)) == NULL)
 		return (-ENOMEM);
 
 	f->private_data = p;
@@ -114,7 +114,8 @@ seq_open(struct linux_file *f, const struct seq_operations *op)
 }
 
 int
-single_open(struct linux_file *f, int (*show)(struct seq_file *, void *), void *d)
+single_open(
+    struct linux_file *f, int (*show)(struct seq_file *, void *), void *d)
 {
 	struct seq_operations *op;
 	int rc = -ENOMEM;
@@ -147,7 +148,8 @@ seq_release(struct inode *inode __unused, struct linux_file *file)
 int
 single_release(struct vnode *v, struct linux_file *f)
 {
-	const struct seq_operations *op = ((struct seq_file *)f->private_data)->op;
+	const struct seq_operations *op =
+	    ((struct seq_file *)f->private_data)->op;
 	int rc;
 
 	rc = seq_release(v, f);

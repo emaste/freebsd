@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
 #ifdef VFP
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/limits.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
@@ -47,15 +47,15 @@ __FBSDID("$FreeBSD$");
 /* Sanity check we can store all the VFP registers */
 CTASSERT(sizeof(((struct pcb *)0)->pcb_fpustate.vfp_regs) == 16 * 32);
 
-static MALLOC_DEFINE(M_FPUKERN_CTX, "fpukern_ctx",
-    "Kernel contexts for VFP state");
+static MALLOC_DEFINE(
+    M_FPUKERN_CTX, "fpukern_ctx", "Kernel contexts for VFP state");
 
 struct fpu_kern_ctx {
-	struct vfpstate	*prev;
-#define	FPU_KERN_CTX_DUMMY	0x01	/* avoided save for the kern thread */
-#define	FPU_KERN_CTX_INUSE	0x02
-	uint32_t	 flags;
-	struct vfpstate	 state;
+	struct vfpstate *prev;
+#define FPU_KERN_CTX_DUMMY 0x01 /* avoided save for the kern thread */
+#define FPU_KERN_CTX_INUSE 0x02
+	uint32_t flags;
+	struct vfpstate state;
 };
 
 static void
@@ -107,26 +107,26 @@ vfp_store(struct vfpstate *state)
 	uint64_t fpcr, fpsr;
 
 	vfp_state = state->vfp_regs;
-	__asm __volatile(
-	    "mrs	%0, fpcr		\n"
-	    "mrs	%1, fpsr		\n"
-	    "stp	q0,  q1,  [%2, #16 *  0]\n"
-	    "stp	q2,  q3,  [%2, #16 *  2]\n"
-	    "stp	q4,  q5,  [%2, #16 *  4]\n"
-	    "stp	q6,  q7,  [%2, #16 *  6]\n"
-	    "stp	q8,  q9,  [%2, #16 *  8]\n"
-	    "stp	q10, q11, [%2, #16 * 10]\n"
-	    "stp	q12, q13, [%2, #16 * 12]\n"
-	    "stp	q14, q15, [%2, #16 * 14]\n"
-	    "stp	q16, q17, [%2, #16 * 16]\n"
-	    "stp	q18, q19, [%2, #16 * 18]\n"
-	    "stp	q20, q21, [%2, #16 * 20]\n"
-	    "stp	q22, q23, [%2, #16 * 22]\n"
-	    "stp	q24, q25, [%2, #16 * 24]\n"
-	    "stp	q26, q27, [%2, #16 * 26]\n"
-	    "stp	q28, q29, [%2, #16 * 28]\n"
-	    "stp	q30, q31, [%2, #16 * 30]\n"
-	    : "=&r"(fpcr), "=&r"(fpsr) : "r"(vfp_state));
+	__asm __volatile("mrs	%0, fpcr		\n"
+			 "mrs	%1, fpsr		\n"
+			 "stp	q0,  q1,  [%2, #16 *  0]\n"
+			 "stp	q2,  q3,  [%2, #16 *  2]\n"
+			 "stp	q4,  q5,  [%2, #16 *  4]\n"
+			 "stp	q6,  q7,  [%2, #16 *  6]\n"
+			 "stp	q8,  q9,  [%2, #16 *  8]\n"
+			 "stp	q10, q11, [%2, #16 * 10]\n"
+			 "stp	q12, q13, [%2, #16 * 12]\n"
+			 "stp	q14, q15, [%2, #16 * 14]\n"
+			 "stp	q16, q17, [%2, #16 * 16]\n"
+			 "stp	q18, q19, [%2, #16 * 18]\n"
+			 "stp	q20, q21, [%2, #16 * 20]\n"
+			 "stp	q22, q23, [%2, #16 * 22]\n"
+			 "stp	q24, q25, [%2, #16 * 24]\n"
+			 "stp	q26, q27, [%2, #16 * 26]\n"
+			 "stp	q28, q29, [%2, #16 * 28]\n"
+			 "stp	q30, q31, [%2, #16 * 30]\n"
+			 : "=&r"(fpcr), "=&r"(fpsr)
+			 : "r"(vfp_state));
 
 	state->vfp_fpcr = fpcr;
 	state->vfp_fpsr = fpsr;
@@ -142,26 +142,26 @@ vfp_restore(struct vfpstate *state)
 	fpcr = state->vfp_fpcr;
 	fpsr = state->vfp_fpsr;
 
-	__asm __volatile(
-	    "ldp	q0,  q1,  [%2, #16 *  0]\n"
-	    "ldp	q2,  q3,  [%2, #16 *  2]\n"
-	    "ldp	q4,  q5,  [%2, #16 *  4]\n"
-	    "ldp	q6,  q7,  [%2, #16 *  6]\n"
-	    "ldp	q8,  q9,  [%2, #16 *  8]\n"
-	    "ldp	q10, q11, [%2, #16 * 10]\n"
-	    "ldp	q12, q13, [%2, #16 * 12]\n"
-	    "ldp	q14, q15, [%2, #16 * 14]\n"
-	    "ldp	q16, q17, [%2, #16 * 16]\n"
-	    "ldp	q18, q19, [%2, #16 * 18]\n"
-	    "ldp	q20, q21, [%2, #16 * 20]\n"
-	    "ldp	q22, q23, [%2, #16 * 22]\n"
-	    "ldp	q24, q25, [%2, #16 * 24]\n"
-	    "ldp	q26, q27, [%2, #16 * 26]\n"
-	    "ldp	q28, q29, [%2, #16 * 28]\n"
-	    "ldp	q30, q31, [%2, #16 * 30]\n"
-	    "msr	fpcr, %0		\n"
-	    "msr	fpsr, %1		\n"
-	    : : "r"(fpcr), "r"(fpsr), "r"(vfp_state));
+	__asm __volatile("ldp	q0,  q1,  [%2, #16 *  0]\n"
+			 "ldp	q2,  q3,  [%2, #16 *  2]\n"
+			 "ldp	q4,  q5,  [%2, #16 *  4]\n"
+			 "ldp	q6,  q7,  [%2, #16 *  6]\n"
+			 "ldp	q8,  q9,  [%2, #16 *  8]\n"
+			 "ldp	q10, q11, [%2, #16 * 10]\n"
+			 "ldp	q12, q13, [%2, #16 * 12]\n"
+			 "ldp	q14, q15, [%2, #16 * 14]\n"
+			 "ldp	q16, q17, [%2, #16 * 16]\n"
+			 "ldp	q18, q19, [%2, #16 * 18]\n"
+			 "ldp	q20, q21, [%2, #16 * 20]\n"
+			 "ldp	q22, q23, [%2, #16 * 22]\n"
+			 "ldp	q24, q25, [%2, #16 * 24]\n"
+			 "ldp	q26, q27, [%2, #16 * 26]\n"
+			 "ldp	q28, q29, [%2, #16 * 28]\n"
+			 "ldp	q30, q31, [%2, #16 * 30]\n"
+			 "msr	fpcr, %0		\n"
+			 "msr	fpsr, %1		\n"
+			 :
+			 : "r"(fpcr), "r"(fpsr), "r"(vfp_state));
 }
 
 void
@@ -172,7 +172,7 @@ vfp_save_state(struct thread *td, struct pcb *pcb)
 	KASSERT(pcb != NULL, ("NULL vfp pcb"));
 	KASSERT(td == NULL || td->td_pcb == pcb, ("Invalid vfp pcb"));
 
-	/* 
+	/*
 	 * savectx() will be called on panic with dumppcb as an argument,
 	 * dumppcb doesn't have pcb_fpusaved set, so set it to save
 	 * the VFP registers.
@@ -280,8 +280,8 @@ fpu_kern_alloc_ctx(u_int flags)
 	size_t sz;
 
 	sz = sizeof(struct fpu_kern_ctx);
-	res = malloc(sz, M_FPUKERN_CTX, ((flags & FPU_KERN_NOWAIT) ?
-	    M_NOWAIT : M_WAITOK) | M_ZERO);
+	res = malloc(sz, M_FPUKERN_CTX,
+	    ((flags & FPU_KERN_NOWAIT) ? M_NOWAIT : M_WAITOK) | M_ZERO);
 	return (res);
 }
 
@@ -329,8 +329,9 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 	 * the the saved state points to the default user space.
 	 */
 	KASSERT((pcb->pcb_fpflags & PCB_FP_KERN) != 0 ||
-	    pcb->pcb_fpusaved == &pcb->pcb_fpustate,
-	    ("Mangled pcb_fpusaved %x %p %p", pcb->pcb_fpflags, pcb->pcb_fpusaved, &pcb->pcb_fpustate));
+		pcb->pcb_fpusaved == &pcb->pcb_fpustate,
+	    ("Mangled pcb_fpusaved %x %p %p", pcb->pcb_fpflags,
+		pcb->pcb_fpusaved, &pcb->pcb_fpustate));
 	ctx->flags = FPU_KERN_CTX_INUSE;
 	vfp_save_state(curthread, pcb);
 	ctx->prev = pcb->pcb_fpusaved;
@@ -390,8 +391,8 @@ fpu_kern_thread(u_int flags __unused)
 
 	KASSERT((curthread->td_pflags & TDP_KTHREAD) != 0,
 	    ("Only kthread may use fpu_kern_thread"));
-	KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
-	    ("Mangled pcb_fpusaved"));
+	KASSERT(
+	    pcb->pcb_fpusaved == &pcb->pcb_fpustate, ("Mangled pcb_fpusaved"));
 	KASSERT((pcb->pcb_fpflags & PCB_FP_KERN) == 0,
 	    ("Thread already setup for the VFP"));
 	pcb->pcb_fpflags |= PCB_FP_KERN;

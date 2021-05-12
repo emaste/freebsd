@@ -27,15 +27,13 @@
  */
 
 #include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 
 #include <crypto/sha2/sha512.h>
-
 #include <security/mac_veriexec/mac_veriexec.h>
 
 MAC_VERIEXEC_FPMOD(SHA512, SHA512_DIGEST_LENGTH, sizeof(SHA512_CTX),
-    (mac_veriexec_fpop_init_t) SHA512_Init,
-    (mac_veriexec_fpop_update_t) SHA512_Update,
-    (mac_veriexec_fpop_final_t) SHA512_Final, 1);
+    (mac_veriexec_fpop_init_t)SHA512_Init,
+    (mac_veriexec_fpop_update_t)SHA512_Update,
+    (mac_veriexec_fpop_final_t)SHA512_Final, 1);

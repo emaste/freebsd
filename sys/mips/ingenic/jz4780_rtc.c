@@ -34,9 +34,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
-#include <sys/clock.h>
 #include <sys/bus.h>
+#include <sys/clock.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/resource.h>
@@ -48,29 +48,27 @@ __FBSDID("$FreeBSD$");
 
 #include "clock_if.h"
 
-#define	JZ_RTC_TIMEOUT	5000
+#define JZ_RTC_TIMEOUT 5000
 
-#define JZ_RTCCR	0x00
-# define JZ_RTCCR_WRDY	(1u << 7)
-#define JZ_RTSR		0x04
-#define JZ_HSPR		0x34
-#define JZ_WENR		0x3C
-# define JZ_WENR_PAT	0xa55a
-# define JZ_WENR_WEN	(1u <<31)
+#define JZ_RTCCR 0x00
+#define JZ_RTCCR_WRDY (1u << 7)
+#define JZ_RTSR 0x04
+#define JZ_HSPR 0x34
+#define JZ_WENR 0x3C
+#define JZ_WENR_PAT 0xa55a
+#define JZ_WENR_WEN (1u << 31)
 
 struct jz4780_rtc_softc {
-	device_t		dev;
-	struct resource		*res[2];
+	device_t dev;
+	struct resource *res[2];
 };
 
-static struct resource_spec jz4780_rtc_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
-	{ SYS_RES_IRQ,    0, RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec jz4780_rtc_spec[] = { { SYS_RES_MEMORY, 0,
+						      RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
-#define	CSR_READ(sc, reg)	bus_read_4((sc)->res[0], (reg))
-#define	CSR_WRITE(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
+#define CSR_READ(sc, reg) bus_read_4((sc)->res[0], (reg))
+#define CSR_WRITE(sc, reg, val) bus_write_4((sc)->res[0], (reg), (val))
 
 static int jz4780_rtc_probe(device_t dev);
 static int jz4780_rtc_attach(device_t dev);
@@ -212,12 +210,12 @@ jz4780_rtc_settime(device_t dev, struct timespec *ts)
 
 static device_method_t jz4780_rtc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		jz4780_rtc_probe),
-	DEVMETHOD(device_attach,	jz4780_rtc_attach),
-	DEVMETHOD(device_detach,	jz4780_rtc_detach),
+	DEVMETHOD(device_probe, jz4780_rtc_probe),
+	DEVMETHOD(device_attach, jz4780_rtc_attach),
+	DEVMETHOD(device_detach, jz4780_rtc_detach),
 
-	DEVMETHOD(clock_gettime,        jz4780_rtc_gettime),
-	DEVMETHOD(clock_settime,        jz4780_rtc_settime),
+	DEVMETHOD(clock_gettime, jz4780_rtc_gettime),
+	DEVMETHOD(clock_settime, jz4780_rtc_settime),
 
 	DEVMETHOD_END
 };

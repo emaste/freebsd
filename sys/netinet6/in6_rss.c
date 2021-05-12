@@ -39,29 +39,28 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/param.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/priv.h>
 #include <sys/kernel.h>
-#include <sys/smp.h>
-#include <sys/sysctl.h>
+#include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/sbuf.h>
+#include <sys/smp.h>
+#include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/rss_config.h>
-
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
-#include <netinet6/in6_rss.h>
 #include <netinet/in_var.h>
+#include <netinet6/in6_rss.h>
 
 /* for software rss hash support */
 #include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+#include <netinet6/ip6_var.h>
 
 /*
  * Hash an IPv6 2-tuple.
@@ -118,8 +117,7 @@ rss_hash_ip6_4tuple(const struct in6_addr *src, u_short srcport,
  */
 int
 rss_proto_software_hash_v6(const struct in6_addr *s, const struct in6_addr *d,
-    u_short sp, u_short dp, int proto,
-    uint32_t *hashval, uint32_t *hashtype)
+    u_short sp, u_short dp, int proto, uint32_t *hashval, uint32_t *hashtype)
 {
 	uint32_t hash;
 
@@ -195,7 +193,6 @@ xps_proto_software_hash_v6(const struct in6_addr *s, const struct in6_addr *d,
 	return (0);
 }
 
-
 /*
  * Do a software calculation of the RSS for the given mbuf.
  *
@@ -212,8 +209,8 @@ xps_proto_software_hash_v6(const struct in6_addr *s, const struct in6_addr *d,
  * assign flowid/flowtype as appropriate.
  */
 int
-rss_mbuf_software_hash_v6(const struct mbuf *m, int dir, uint32_t *hashval,
-    uint32_t *hashtype)
+rss_mbuf_software_hash_v6(
+    const struct mbuf *m, int dir, uint32_t *hashval, uint32_t *hashtype)
 {
 	const struct ip6_hdr *ip6;
 	const struct ip6_frag *ip6f;
@@ -311,7 +308,8 @@ rss_mbuf_software_hash_v6(const struct mbuf *m, int dir, uint32_t *hashval,
 			 * support 4-tuple for UDP.
 			 */
 			if ((rss_gethashconfig() & RSS_HASHTYPE_RSS_IPV6) &&
-			    ((rss_gethashconfig() & RSS_HASHTYPE_RSS_UDP_IPV6) == 0) &&
+			    ((rss_gethashconfig() &
+				 RSS_HASHTYPE_RSS_UDP_IPV6) == 0) &&
 			    flowtype == M_HASHTYPE_RSS_IPV6) {
 				return (1);
 			}
@@ -326,7 +324,8 @@ rss_mbuf_software_hash_v6(const struct mbuf *m, int dir, uint32_t *hashval,
 			 * support 4-tuple for TCP.
 			 */
 			if ((rss_gethashconfig() & RSS_HASHTYPE_RSS_IPV6) &&
-			    ((rss_gethashconfig() & RSS_HASHTYPE_RSS_TCP_IPV6) == 0) &&
+			    ((rss_gethashconfig() &
+				 RSS_HASHTYPE_RSS_TCP_IPV6) == 0) &&
 			    flowtype == M_HASHTYPE_RSS_IPV6) {
 				return (1);
 			}
@@ -351,11 +350,7 @@ rss_mbuf_software_hash_v6(const struct mbuf *m, int dir, uint32_t *hashval,
 		}
 		th = (const struct tcphdr *)((c_caddr_t)ip6 + off);
 		return rss_proto_software_hash_v6(&ip6->ip6_src, &ip6->ip6_dst,
-		    th->th_sport,
-		    th->th_dport,
-		    proto,
-		    hashval,
-		    hashtype);
+		    th->th_sport, th->th_dport, proto, hashval, hashtype);
 	} else if ((rss_gethashconfig() & RSS_HASHTYPE_RSS_UDP_IPV6) &&
 	    (proto == IPPROTO_UDP)) {
 		if (m->m_len < off + sizeof(struct udphdr)) {
@@ -364,19 +359,14 @@ rss_mbuf_software_hash_v6(const struct mbuf *m, int dir, uint32_t *hashval,
 		}
 		uh = (const struct udphdr *)((c_caddr_t)ip6 + off);
 		return rss_proto_software_hash_v6(&ip6->ip6_src, &ip6->ip6_dst,
-		    uh->uh_sport,
-		    uh->uh_dport,
-		    proto,
-		    hashval,
-		    hashtype);
+		    uh->uh_sport, uh->uh_dport, proto, hashval, hashtype);
 	} else if (rss_gethashconfig() & RSS_HASHTYPE_RSS_IPV6) {
 		/* Default to 2-tuple hash */
 		return rss_proto_software_hash_v6(&ip6->ip6_src, &ip6->ip6_dst,
-		    0,	/* source port */
-		    0,	/* destination port */
-		    0,	/* IPPROTO_IP */
-		    hashval,
-		    hashtype);
+		    0, /* source port */
+		    0, /* destination port */
+		    0, /* IPPROTO_IP */
+		    hashval, hashtype);
 	} else {
 		RSS_DEBUG("no available hashtypes!\n");
 		return (-1);
@@ -404,8 +394,8 @@ rss_soft_m2cpuid_v6(struct mbuf *m, uintptr_t source, u_int *cpuid)
 
 	M_ASSERTPKTHDR(m);
 
-	ret = rss_mbuf_software_hash_v6(m, RSS_HASH_PKT_INGRESS,
-	    &hash_val, &hash_type);
+	ret = rss_mbuf_software_hash_v6(
+	    m, RSS_HASH_PKT_INGRESS, &hash_val, &hash_type);
 	if (ret > 0) {
 		/* mbuf has a valid hash already; don't need to modify it */
 		*cpuid = rss_hash2cpuid(m->m_pkthdr.flowid, M_HASHTYPE_GET(m));

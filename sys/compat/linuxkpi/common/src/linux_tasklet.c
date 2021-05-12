@@ -28,28 +28,27 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/malloc.h>
 #include <sys/gtaskqueue.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
 
+#include <linux/compat.h>
 #include <linux/compiler.h>
 #include <linux/interrupt.h>
-#include <linux/compat.h>
 
-#define	TASKLET_ST_IDLE 0
-#define	TASKLET_ST_BUSY 1
-#define	TASKLET_ST_EXEC 2
-#define	TASKLET_ST_LOOP 3
+#define TASKLET_ST_IDLE 0
+#define TASKLET_ST_BUSY 1
+#define TASKLET_ST_EXEC 2
+#define TASKLET_ST_LOOP 3
 
-#define	TASKLET_ST_CMPSET(ts, old, new)	\
+#define TASKLET_ST_CMPSET(ts, old, new) \
 	atomic_cmpset_int((volatile u_int *)&(ts)->tasklet_state, old, new)
 
-#define	TASKLET_ST_SET(ts, new)	\
+#define TASKLET_ST_SET(ts, new) \
 	WRITE_ONCE(*(volatile u_int *)&(ts)->tasklet_state, new)
 
-#define	TASKLET_ST_GET(ts) \
-	READ_ONCE(*(volatile u_int *)&(ts)->tasklet_state)
+#define TASKLET_ST_GET(ts) READ_ONCE(*(volatile u_int *)&(ts)->tasklet_state)
 
 struct tasklet_worker {
 	struct mtx mtx;
@@ -57,8 +56,8 @@ struct tasklet_worker {
 	struct grouptask gtask;
 } __aligned(CACHE_LINE_SIZE);
 
-#define	TASKLET_WORKER_LOCK(tw) mtx_lock(&(tw)->mtx)
-#define	TASKLET_WORKER_UNLOCK(tw) mtx_unlock(&(tw)->mtx)
+#define TASKLET_WORKER_LOCK(tw) mtx_lock(&(tw)->mtx)
+#define TASKLET_WORKER_UNLOCK(tw) mtx_unlock(&(tw)->mtx)
 
 DPCPU_DEFINE_STATIC(struct tasklet_worker, tasklet_worker);
 
@@ -88,7 +87,7 @@ tasklet_handler(void *arg)
 				ts->func(ts->data);
 
 			} while (TASKLET_ST_CMPSET(ts, TASKLET_ST_EXEC,
-			        TASKLET_ST_IDLE) == 0);
+				     TASKLET_ST_IDLE) == 0);
 			TASKLET_WORKER_LOCK(tw);
 		} else {
 			TAILQ_INSERT_TAIL(&tw->head, ts, entry);
@@ -106,7 +105,7 @@ tasklet_subsystem_init(void *arg __unused)
 	char buf[32];
 	int i;
 
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		if (CPU_ABSENT(i))
 			continue;
 
@@ -116,11 +115,12 @@ tasklet_subsystem_init(void *arg __unused)
 		TAILQ_INIT(&tw->head);
 		GROUPTASK_INIT(&tw->gtask, 0, tasklet_handler, tw);
 		snprintf(buf, sizeof(buf), "softirq%d", i);
-		taskqgroup_attach_cpu(qgroup_softirq, &tw->gtask,
-		    "tasklet", i, NULL, NULL, buf);
-       }
+		taskqgroup_attach_cpu(
+		    qgroup_softirq, &tw->gtask, "tasklet", i, NULL, NULL, buf);
+	}
 }
-SYSINIT(linux_tasklet, SI_SUB_TASKQ, SI_ORDER_THIRD, tasklet_subsystem_init, NULL);
+SYSINIT(
+    linux_tasklet, SI_SUB_TASKQ, SI_ORDER_THIRD, tasklet_subsystem_init, NULL);
 
 static void
 tasklet_subsystem_uninit(void *arg __unused)
@@ -128,7 +128,7 @@ tasklet_subsystem_uninit(void *arg __unused)
 	struct tasklet_worker *tw;
 	int i;
 
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		if (CPU_ABSENT(i))
 			continue;
 
@@ -138,11 +138,12 @@ tasklet_subsystem_uninit(void *arg __unused)
 		mtx_destroy(&tw->mtx);
 	}
 }
-SYSUNINIT(linux_tasklet, SI_SUB_TASKQ, SI_ORDER_THIRD, tasklet_subsystem_uninit, NULL);
+SYSUNINIT(linux_tasklet, SI_SUB_TASKQ, SI_ORDER_THIRD, tasklet_subsystem_uninit,
+    NULL);
 
 void
-tasklet_init(struct tasklet_struct *ts,
-    tasklet_func_t *func, unsigned long data)
+tasklet_init(
+    struct tasklet_struct *ts, tasklet_func_t *func, unsigned long data)
 {
 	ts->entry.tqe_prev = NULL;
 	ts->entry.tqe_next = NULL;
@@ -205,7 +206,8 @@ void
 tasklet_kill(struct tasklet_struct *ts)
 {
 
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "tasklet_kill() can sleep");
+	WITNESS_WARN(
+	    WARN_GIANTOK | WARN_SLEEPOK, NULL, "tasklet_kill() can sleep");
 
 	/* wait until tasklet is no longer busy */
 	while (TASKLET_ST_GET(ts) != TASKLET_ST_IDLE)
@@ -252,7 +254,8 @@ void
 tasklet_unlock_wait(struct tasklet_struct *ts)
 {
 
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "tasklet_kill() can sleep");
+	WITNESS_WARN(
+	    WARN_GIANTOK | WARN_SLEEPOK, NULL, "tasklet_kill() can sleep");
 
 	/* wait until tasklet is no longer busy */
 	while (TASKLET_ST_GET(ts) != TASKLET_ST_IDLE)

@@ -29,7 +29,7 @@
  * $FreeBSD$
  */
 #ifndef _RDMA_IB_ADDR_FREEBSD_H
-#define	_RDMA_IB_ADDR_FREEBSD_H
+#define _RDMA_IB_ADDR_FREEBSD_H
 
 #ifdef INET
 static inline struct ifnet *
@@ -92,4 +92,4 @@ ip6_ifp_find(struct vnet *vnet, struct in6_addr addr, uint16_t scope_id)
 }
 #endif
 
-#endif	/* _RDMA_IB_ADDR_FREEBSD_H */
+#endif /* _RDMA_IB_ADDR_FREEBSD_H */

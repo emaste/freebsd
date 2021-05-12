@@ -36,12 +36,16 @@
 #include <sys/proc.h>
 #endif
 
-#define	EARLY_COUNTER	&__pcpu[0].pc_early_dummy_counter
+#define EARLY_COUNTER &__pcpu[0].pc_early_dummy_counter
 
 #ifdef __powerpc64__
 
-#define	counter_enter()	do {} while (0)
-#define	counter_exit()	do {} while (0)
+#define counter_enter() \
+	do {            \
+	} while (0)
+#define counter_exit() \
+	do {           \
+	} while (0)
 
 #ifdef IN_SUBR_COUNTER_C
 static inline uint64_t
@@ -58,7 +62,7 @@ counter_u64_fetch_inline(uint64_t *p)
 	int i;
 
 	r = 0;
-	CPU_FOREACH(i)
+	CPU_FOREACH (i)
 		r += counter_u64_read_one((uint64_t *)p, i);
 
 	return (r);
@@ -68,8 +72,8 @@ static void
 counter_u64_zero_one_cpu(void *arg)
 {
 
-	*((uint64_t *)((char *)arg + UMA_PCPU_ALLOC_SIZE *
-	    PCPU_GET(cpuid))) = 0;
+	*((uint64_t *)((char *)arg +
+	    UMA_PCPU_ALLOC_SIZE * PCPU_GET(cpuid))) = 0;
 }
 
 static inline void
@@ -81,7 +85,7 @@ counter_u64_zero_inline(counter_u64_t c)
 }
 #endif
 
-#define	counter_u64_add_protected(c, i)	counter_u64_add(c, i)
+#define counter_u64_add_protected(c, i) counter_u64_add(c, i)
 
 static inline void
 counter_u64_add(counter_u64_t c, int64_t inc)
@@ -89,21 +93,21 @@ counter_u64_add(counter_u64_t c, int64_t inc)
 	uint64_t ccpu, old;
 
 	__asm __volatile("\n"
-      "1:\n\t"
-	    "mfsprg	%0, 0\n\t"
-	    "ldarx	%1, %0, %2\n\t"
-	    "add	%1, %1, %3\n\t"
-	    "stdcx.	%1, %0, %2\n\t"
-	    "bne-	1b"
-	    : "=&b" (ccpu), "=&r" (old)
-	    : "r" ((char *)c - (char *)&__pcpu[0]), "r" (inc)
-	    : "cr0", "memory");
+			 "1:\n\t"
+			 "mfsprg	%0, 0\n\t"
+			 "ldarx	%1, %0, %2\n\t"
+			 "add	%1, %1, %3\n\t"
+			 "stdcx.	%1, %0, %2\n\t"
+			 "bne-	1b"
+			 : "=&b"(ccpu), "=&r"(old)
+			 : "r"((char *)c - (char *)&__pcpu[0]), "r"(inc)
+			 : "cr0", "memory");
 }
 
-#else	/* !64bit */
+#else /* !64bit */
 
-#define	counter_enter()	critical_enter()
-#define	counter_exit()	critical_exit()
+#define counter_enter() critical_enter()
+#define counter_exit() critical_exit()
 
 #ifdef IN_SUBR_COUNTER_C
 /* XXXKIB non-atomic 64bit read */
@@ -132,8 +136,8 @@ static void
 counter_u64_zero_one_cpu(void *arg)
 {
 
-	*((uint64_t *)((char *)arg + UMA_PCPU_ALLOC_SIZE *
-	    PCPU_GET(cpuid))) = 0;
+	*((uint64_t *)((char *)arg +
+	    UMA_PCPU_ALLOC_SIZE * PCPU_GET(cpuid))) = 0;
 }
 
 static inline void
@@ -145,10 +149,11 @@ counter_u64_zero_inline(counter_u64_t c)
 }
 #endif
 
-#define	counter_u64_add_protected(c, inc)	do {	\
-	CRITICAL_ASSERT(curthread);			\
-	*(uint64_t *)zpcpu_get(c) += (inc);		\
-} while (0)
+#define counter_u64_add_protected(c, inc)           \
+	do {                                        \
+		CRITICAL_ASSERT(curthread);         \
+		*(uint64_t *)zpcpu_get(c) += (inc); \
+	} while (0)
 
 static inline void
 counter_u64_add(counter_u64_t c, int64_t inc)
@@ -159,6 +164,6 @@ counter_u64_add(counter_u64_t c, int64_t inc)
 	counter_exit();
 }
 
-#endif	/* 64bit */
+#endif /* 64bit */
 
-#endif	/* ! __MACHINE_COUNTER_H__ */
+#endif /* ! __MACHINE_COUNTER_H__ */

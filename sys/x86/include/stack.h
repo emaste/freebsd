@@ -27,7 +27,7 @@
  */
 
 #ifndef _X86_STACK_H
-#define	_X86_STACK_H
+#define _X86_STACK_H
 
 /*
  * Stack trace.
@@ -35,27 +35,27 @@
 
 #ifdef __i386__
 struct i386_frame {
-	struct i386_frame	*f_frame;
-	u_int			f_retaddr;
-	u_int			f_arg0;
+	struct i386_frame *f_frame;
+	u_int f_retaddr;
+	u_int f_arg0;
 };
 #endif
 
 #ifdef __amd64__
 struct amd64_frame {
-	struct amd64_frame	*f_frame;
-	u_long			f_retaddr;
+	struct amd64_frame *f_frame;
+	u_long f_retaddr;
 };
 
 struct i386_frame {
-	uint32_t		f_frame;
-	uint32_t		f_retaddr;
-	uint32_t		f_arg0;
+	uint32_t f_frame;
+	uint32_t f_retaddr;
+	uint32_t f_arg0;
 };
 #endif /* __amd64__ */
 
 #ifdef _KERNEL
-void	stack_capture_intr(void);
+void stack_capture_intr(void);
 #endif
 
 #endif /* !_X86_STACK_H */

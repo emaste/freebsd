@@ -44,7 +44,7 @@
  * and where lockd reads these requests.
  *
  */
-#define	_PATH_NFSLCKDEV	"nfslock"
+#define _PATH_NFSLCKDEV "nfslock"
 
 /*
  * This structure is used to uniquely identify the process which originated
@@ -53,42 +53,42 @@
  * detect the unlikely, but possible, event of the recycling of a pid.
  */
 struct lockd_msg_ident {
-	pid_t		pid;            /* The process ID. */
-	struct timeval	pid_start;	/* Start time of process id */
-	int		msg_seq;	/* Sequence number of message */
+	pid_t pid;		  /* The process ID. */
+	struct timeval pid_start; /* Start time of process id */
+	int msg_seq;		  /* Sequence number of message */
 };
 
-#define LOCKD_MSG_VERSION	3
+#define LOCKD_MSG_VERSION 3
 
 /*
  * The structure that the kernel hands us for each lock request.
  */
 typedef struct __lock_msg {
-	TAILQ_ENTRY(__lock_msg)	lm_link;	/* internal linkage */
-	int			lm_version;	/* which version is this */
-	struct lockd_msg_ident	lm_msg_ident;	/* originator of the message */
-	struct flock		lm_fl;             /* The lock request. */
-	int			lm_wait;           /* The F_WAIT flag. */
-	int			lm_getlk;		/* is this a F_GETLK request */
-	struct sockaddr_storage lm_addr;		/* The address. */
-	int			lm_nfsv3;		/* If NFS version 3. */
-	size_t			lm_fh_len;		/* The file handle length. */
-	struct xucred		lm_cred;		/* user cred for lock req */
-	u_int8_t		lm_fh[NFSX_V3FHMAX];/* The file handle. */
+	TAILQ_ENTRY(__lock_msg) lm_link;     /* internal linkage */
+	int lm_version;			     /* which version is this */
+	struct lockd_msg_ident lm_msg_ident; /* originator of the message */
+	struct flock lm_fl;		     /* The lock request. */
+	int lm_wait;			     /* The F_WAIT flag. */
+	int lm_getlk;			     /* is this a F_GETLK request */
+	struct sockaddr_storage lm_addr;     /* The address. */
+	int lm_nfsv3;			     /* If NFS version 3. */
+	size_t lm_fh_len;		     /* The file handle length. */
+	struct xucred lm_cred;		     /* user cred for lock req */
+	u_int8_t lm_fh[NFSX_V3FHMAX];	     /* The file handle. */
 } LOCKD_MSG;
 
-#define LOCKD_ANS_VERSION	1
+#define LOCKD_ANS_VERSION 1
 
 struct lockd_ans {
-	int		la_vers;
-	struct lockd_msg_ident	la_msg_ident;	/* originator of the message */
-	int		la_errno;
-	int		la_set_getlk_pid;		/* use returned pid */
-	int		la_getlk_pid;		/* returned pid for F_GETLK */
+	int la_vers;
+	struct lockd_msg_ident la_msg_ident; /* originator of the message */
+	int la_errno;
+	int la_set_getlk_pid; /* use returned pid */
+	int la_getlk_pid;     /* returned pid for F_GETLK */
 };
 
 #ifdef _KERNEL
-int	nfs_dolock(struct vop_advlock_args *ap);
-extern	vop_advlock_t *nfs_advlock_p;
-extern	vop_reclaim_t *nfs_reclaim_p;
+int nfs_dolock(struct vop_advlock_args *ap);
+extern vop_advlock_t *nfs_advlock_p;
+extern vop_reclaim_t *nfs_reclaim_p;
 #endif

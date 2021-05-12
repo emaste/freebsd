@@ -31,8 +31,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/iconv.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/sx.h>
@@ -58,7 +58,7 @@ static struct sx iconv_lock;
  */
 struct iconv_converter {
 	KOBJ_FIELDS;
-	void *			c_data;
+	void *c_data;
 };
 #endif
 
@@ -73,11 +73,12 @@ static TAILQ_HEAD(iconv_converter_list, iconv_converter_class)
 /*
  * List of supported/loaded charsets pairs
  */
-static TAILQ_HEAD(, iconv_cspair)
-    iconv_cslist = TAILQ_HEAD_INITIALIZER(iconv_cslist);
+static TAILQ_HEAD(, iconv_cspair) iconv_cslist = TAILQ_HEAD_INITIALIZER(
+    iconv_cslist);
 static int iconv_csid = 1;
 
-static char iconv_unicode_string[] = "unicode";	/* save eight bytes when possible */
+static char iconv_unicode_string[] =
+    "unicode"; /* save eight bytes when possible */
 
 static void iconv_unregister_cspair(struct iconv_cspair *csp);
 
@@ -87,7 +88,7 @@ iconv_mod_unload(void)
 	struct iconv_cspair *csp;
 
 	sx_xlock(&iconv_lock);
-	TAILQ_FOREACH(csp, &iconv_cslist, cp_link) {
+	TAILQ_FOREACH (csp, &iconv_cslist, cp_link) {
 		if (csp->cp_refcount) {
 			sx_xunlock(&iconv_lock);
 			return EBUSY;
@@ -107,29 +108,27 @@ iconv_mod_handler(module_t mod, int type, void *data)
 	int error;
 
 	switch (type) {
-	    case MOD_LOAD:
+	case MOD_LOAD:
 		error = 0;
 		sx_init(&iconv_lock, "iconv");
 		break;
-	    case MOD_UNLOAD:
+	case MOD_UNLOAD:
 		error = iconv_mod_unload();
 		break;
-	    default:
+	default:
 		error = EINVAL;
 	}
 	return error;
 }
 
-static moduledata_t iconv_mod = {
-	"iconv", iconv_mod_handler, NULL
-};
+static moduledata_t iconv_mod = { "iconv", iconv_mod_handler, NULL };
 
 DECLARE_MODULE(iconv, iconv_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
 
 static int
 iconv_register_converter(struct iconv_converter_class *dcp)
 {
-	kobj_class_compile((struct kobj_class*)dcp);
+	kobj_class_compile((struct kobj_class *)dcp);
 	dcp->refs++;
 	TAILQ_INSERT_TAIL(&iconv_converters, dcp, cc_link);
 	return 0;
@@ -144,7 +143,7 @@ iconv_unregister_converter(struct iconv_converter_class *dcp)
 		return EBUSY;
 	}
 	TAILQ_REMOVE(&iconv_converters, dcp, cc_link);
-	kobj_class_free((struct kobj_class*)dcp);
+	kobj_class_free((struct kobj_class *)dcp);
 	return 0;
 }
 
@@ -153,7 +152,7 @@ iconv_lookupconv(const char *name, struct iconv_converter_class **dcpp)
 {
 	struct iconv_converter_class *dcp;
 
-	TAILQ_FOREACH(dcp, &iconv_converters, cc_link) {
+	TAILQ_FOREACH (dcp, &iconv_converters, cc_link) {
 		if (name == NULL)
 			continue;
 		if (strcmp(name, ICONV_CONVERTER_NAME(dcp)) == 0) {
@@ -170,7 +169,7 @@ iconv_lookupcs(const char *to, const char *from, struct iconv_cspair **cspp)
 {
 	struct iconv_cspair *csp;
 
-	TAILQ_FOREACH(csp, &iconv_cslist, cp_link) {
+	TAILQ_FOREACH (csp, &iconv_cslist, cp_link) {
 		if (strcasecmp(csp->cp_to, to) == 0 &&
 		    strcasecmp(csp->cp_from, from) == 0) {
 			if (cspp)
@@ -183,8 +182,7 @@ iconv_lookupcs(const char *to, const char *from, struct iconv_cspair **cspp)
 
 static int
 iconv_register_cspair(const char *to, const char *from,
-	struct iconv_converter_class *dcp, void *data,
-	struct iconv_cspair **cspp)
+    struct iconv_converter_class *dcp, void *data, struct iconv_cspair **cspp)
 {
 	struct iconv_cspair *csp;
 	char *cp;
@@ -203,7 +201,7 @@ iconv_register_cspair(const char *to, const char *from,
 	bzero(csp, csize);
 	csp->cp_id = iconv_csid++;
 	csp->cp_dcp = dcp;
-	cp = (char*)(csp + 1);
+	cp = (char *)(csp + 1);
 	if (!ucsto) {
 		strcpy(cp, to);
 		csp->cp_to = cp;
@@ -255,7 +253,7 @@ iconv_open(const char *to, const char *from, void **handle)
 	 * Well, nothing found. Now try to construct a composite conversion
 	 * ToDo: add a 'capability' field to converter
 	 */
-	TAILQ_FOREACH(dcp, &iconv_converters, cc_link) {
+	TAILQ_FOREACH (dcp, &iconv_converters, cc_link) {
 		cnvname = ICONV_CONVERTER_NAME(dcp);
 		if (cnvname == NULL)
 			continue;
@@ -280,31 +278,35 @@ iconv_close(void *handle)
 }
 
 int
-iconv_conv(void *handle, const char **inbuf,
-	size_t *inbytesleft, char **outbuf, size_t *outbytesleft)
+iconv_conv(void *handle, const char **inbuf, size_t *inbytesleft, char **outbuf,
+    size_t *outbytesleft)
 {
-	return ICONV_CONVERTER_CONV(handle, inbuf, inbytesleft, outbuf, outbytesleft, 0, 0);
+	return ICONV_CONVERTER_CONV(
+	    handle, inbuf, inbytesleft, outbuf, outbytesleft, 0, 0);
 }
 
 int
-iconv_conv_case(void *handle, const char **inbuf,
-	size_t *inbytesleft, char **outbuf, size_t *outbytesleft, int casetype)
+iconv_conv_case(void *handle, const char **inbuf, size_t *inbytesleft,
+    char **outbuf, size_t *outbytesleft, int casetype)
 {
-	return ICONV_CONVERTER_CONV(handle, inbuf, inbytesleft, outbuf, outbytesleft, 0, casetype);
+	return ICONV_CONVERTER_CONV(
+	    handle, inbuf, inbytesleft, outbuf, outbytesleft, 0, casetype);
 }
 
 int
-iconv_convchr(void *handle, const char **inbuf,
-	size_t *inbytesleft, char **outbuf, size_t *outbytesleft)
+iconv_convchr(void *handle, const char **inbuf, size_t *inbytesleft,
+    char **outbuf, size_t *outbytesleft)
 {
-	return ICONV_CONVERTER_CONV(handle, inbuf, inbytesleft, outbuf, outbytesleft, 1, 0);
+	return ICONV_CONVERTER_CONV(
+	    handle, inbuf, inbytesleft, outbuf, outbytesleft, 1, 0);
 }
 
 int
-iconv_convchr_case(void *handle, const char **inbuf,
-	size_t *inbytesleft, char **outbuf, size_t *outbytesleft, int casetype)
+iconv_convchr_case(void *handle, const char **inbuf, size_t *inbytesleft,
+    char **outbuf, size_t *outbytesleft, int casetype)
 {
-	return ICONV_CONVERTER_CONV(handle, inbuf, inbytesleft, outbuf, outbytesleft, 1, casetype);
+	return ICONV_CONVERTER_CONV(
+	    handle, inbuf, inbytesleft, outbuf, outbytesleft, 1, casetype);
 }
 
 int
@@ -323,8 +325,7 @@ towupper(int c, void *handle)
  * Give a list of loaded converters. Each name terminated with 0.
  * An empty string terminates the list.
  */
-static int
-iconv_sysctl_drvlist(SYSCTL_HANDLER_ARGS)
+static int iconv_sysctl_drvlist(SYSCTL_HANDLER_ARGS)
 {
 	struct iconv_converter_class *dcp;
 	const char *name;
@@ -333,7 +334,7 @@ iconv_sysctl_drvlist(SYSCTL_HANDLER_ARGS)
 
 	error = 0;
 	sx_slock(&iconv_lock);
-	TAILQ_FOREACH(dcp, &iconv_converters, cc_link) {
+	TAILQ_FOREACH (dcp, &iconv_converters, cc_link) {
 		name = ICONV_CONVERTER_NAME(dcp);
 		if (name == NULL)
 			continue;
@@ -350,15 +351,13 @@ iconv_sysctl_drvlist(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern_iconv, OID_AUTO, drvlist,
-    CTLFLAG_RD | CTLTYPE_OPAQUE | CTLFLAG_MPSAFE, NULL, 0,
-    iconv_sysctl_drvlist, "S,xlat",
-    "registered converters");
+    CTLFLAG_RD | CTLTYPE_OPAQUE | CTLFLAG_MPSAFE, NULL, 0, iconv_sysctl_drvlist,
+    "S,xlat", "registered converters");
 
 /*
  * List all available charset pairs.
  */
-static int
-iconv_sysctl_cslist(SYSCTL_HANDLER_ARGS)
+static int iconv_sysctl_cslist(SYSCTL_HANDLER_ARGS)
 {
 	struct iconv_cspair *csp;
 	struct iconv_cspair_info csi;
@@ -368,7 +367,7 @@ iconv_sysctl_cslist(SYSCTL_HANDLER_ARGS)
 	bzero(&csi, sizeof(csi));
 	csi.cs_version = ICONV_CSPAIR_INFO_VER;
 	sx_slock(&iconv_lock);
-	TAILQ_FOREACH(csp, &iconv_cslist, cp_link) {
+	TAILQ_FOREACH (csp, &iconv_cslist, cp_link) {
 		csi.cs_id = csp->cp_id;
 		csi.cs_refcount = csp->cp_refcount;
 		csi.cs_base = csp->cp_base ? csp->cp_base->cp_id : 0;
@@ -383,9 +382,8 @@ iconv_sysctl_cslist(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern_iconv, OID_AUTO, cslist,
-    CTLFLAG_RD | CTLTYPE_OPAQUE | CTLFLAG_MPSAFE, NULL, 0,
-    iconv_sysctl_cslist, "S,xlat",
-    "registered charset pairs");
+    CTLFLAG_RD | CTLTYPE_OPAQUE | CTLFLAG_MPSAFE, NULL, 0, iconv_sysctl_cslist,
+    "S,xlat", "registered charset pairs");
 
 int
 iconv_add(const char *converter, const char *to, const char *from)
@@ -402,8 +400,7 @@ iconv_add(const char *converter, const char *to, const char *from)
 /*
  * Add new charset pair
  */
-static int
-iconv_sysctl_add(SYSCTL_HANDLER_ARGS)
+static int iconv_sysctl_add(SYSCTL_HANDLER_ARGS)
 {
 	struct iconv_converter_class *dcp;
 	struct iconv_cspair *csp;
@@ -422,7 +419,8 @@ iconv_sysctl_add(SYSCTL_HANDLER_ARGS)
 		return EINVAL;
 	if (strnlen(din.ia_to, sizeof(din.ia_to)) >= ICONV_CSNMAXLEN)
 		return EINVAL;
-	if (strnlen(din.ia_converter, sizeof(din.ia_converter)) >= ICONV_CNVNMAXLEN)
+	if (strnlen(din.ia_converter, sizeof(din.ia_converter)) >=
+	    ICONV_CNVNMAXLEN)
 		return EINVAL;
 	if (iconv_lookupconv(din.ia_converter, &dcp) != 0)
 		return EINVAL;
@@ -443,7 +441,7 @@ iconv_sysctl_add(SYSCTL_HANDLER_ARGS)
 	if (error)
 		goto bad;
 	sx_xunlock(&iconv_lock);
-	ICDEBUG("%s => %s, %d bytes\n",din.ia_from, din.ia_to, din.ia_datalen);
+	ICDEBUG("%s => %s, %d bytes\n", din.ia_from, din.ia_to, din.ia_datalen);
 	return 0;
 bad:
 	iconv_unregister_cspair(csp);
@@ -452,9 +450,8 @@ bad:
 }
 
 SYSCTL_PROC(_kern_iconv, OID_AUTO, add,
-    CTLFLAG_RW | CTLTYPE_OPAQUE | CTLFLAG_MPSAFE, NULL, 0,
-    iconv_sysctl_add, "S,xlat",
-    "register charset pair");
+    CTLFLAG_RW | CTLTYPE_OPAQUE | CTLFLAG_MPSAFE, NULL, 0, iconv_sysctl_add,
+    "S,xlat", "register charset pair");
 
 /*
  * Default stubs for converters
@@ -484,7 +481,7 @@ iconv_converter_handler(module_t mod, int type, void *data)
 	int error;
 
 	switch (type) {
-	    case MOD_LOAD:
+	case MOD_LOAD:
 		sx_xlock(&iconv_lock);
 		error = iconv_register_converter(dcp);
 		if (error) {
@@ -496,13 +493,13 @@ iconv_converter_handler(module_t mod, int type, void *data)
 			iconv_unregister_converter(dcp);
 		sx_xunlock(&iconv_lock);
 		break;
-	    case MOD_UNLOAD:
+	case MOD_UNLOAD:
 		sx_xlock(&iconv_lock);
 		ICONV_CONVERTER_DONE(dcp);
 		error = iconv_unregister_converter(dcp);
 		sx_xunlock(&iconv_lock);
 		break;
-	    default:
+	default:
 		error = EINVAL;
 	}
 	return error;

@@ -39,12 +39,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
+#include <sys/domain.h>
 #include <sys/eventhandler.h>
+#include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/fcntl.h>
 #include <sys/ipc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -54,36 +56,33 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/protosw.h>
-#include <sys/domain.h>
 #include <sys/sysctl.h>
-#include <sys/sysproto.h>
 #include <sys/sysent.h>
-#include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/ucred.h>
 #include <sys/uio.h>
 #include <sys/un.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
-#include <bsm/audit.h>
-#include <bsm/audit_internal.h>
-#include <bsm/audit_kevents.h>
+#include <vm/uma.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 
+#include <bsm/audit.h>
+#include <bsm/audit_internal.h>
+#include <bsm/audit_kevents.h>
 #include <security/audit/audit.h>
 #include <security/audit/audit_private.h>
 
-#include <vm/uma.h>
-
 FEATURE(audit, "BSM audit support");
 
-static uma_zone_t	audit_record_zone;
+static uma_zone_t audit_record_zone;
 static MALLOC_DEFINE(M_AUDITCRED, "audit_cred", "Audit cred storage");
 MALLOC_DEFINE(M_AUDITDATA, "audit_data", "Audit data storage");
 MALLOC_DEFINE(M_AUDITPATH, "audit_path", "Audit path storage");
@@ -99,42 +98,42 @@ static SYSCTL_NODE(_security, OID_AUTO, audit, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
  *
  * Define the audit control flags.
  */
-int			audit_trail_enabled;
-int			audit_trail_suspended;
+int audit_trail_enabled;
+int audit_trail_suspended;
 #ifdef KDTRACE_HOOKS
-u_int			audit_dtrace_enabled;
+u_int audit_dtrace_enabled;
 #endif
-bool __read_frequently	audit_syscalls_enabled;
+bool __read_frequently audit_syscalls_enabled;
 
 /*
  * Flags controlling behavior in low storage situations.  Should we panic if
  * a write fails?  Should we fail stop if we're out of disk space?
  */
-int			audit_panic_on_write_fail;
-int			audit_fail_stop;
-int			audit_argv;
-int			audit_arge;
+int audit_panic_on_write_fail;
+int audit_fail_stop;
+int audit_argv;
+int audit_arge;
 
 /*
  * Are we currently "failing stop" due to out of disk space?
  */
-int			audit_in_failure;
+int audit_in_failure;
 
 /*
  * Global audit statistics.
  */
-struct audit_fstat	audit_fstat;
+struct audit_fstat audit_fstat;
 
 /*
  * Preselection mask for non-attributable events.
  */
-struct au_mask		audit_nae_mask;
+struct au_mask audit_nae_mask;
 
 /*
  * Mutex to protect global variables shared between various threads and
  * processes.
  */
-struct mtx		audit_mtx;
+struct mtx audit_mtx;
 
 /*
  * Queue of audit records ready for delivery to disk.  We insert new records
@@ -144,47 +143,47 @@ struct mtx		audit_mtx;
  * needed to estimate the total size of the combined set of records
  * outstanding in the system.
  */
-struct kaudit_queue	audit_q;
-int			audit_q_len;
-int			audit_pre_q_len;
+struct kaudit_queue audit_q;
+int audit_q_len;
+int audit_pre_q_len;
 
 /*
  * Audit queue control settings (minimum free, low/high water marks, etc.)
  */
-struct au_qctrl		audit_qctrl;
+struct au_qctrl audit_qctrl;
 
 /*
  * Condition variable to signal to the worker that it has work to do: either
  * new records are in the queue, or a log replacement is taking place.
  */
-struct cv		audit_worker_cv;
+struct cv audit_worker_cv;
 
 /*
  * Condition variable to flag when crossing the low watermark, meaning that
  * threads blocked due to hitting the high watermark can wake up and continue
  * to commit records.
  */
-struct cv		audit_watermark_cv;
+struct cv audit_watermark_cv;
 
 /*
  * Condition variable for  auditing threads wait on when in fail-stop mode.
  * Threads wait on this CV forever (and ever), never seeing the light of day
  * again.
  */
-static struct cv	audit_fail_cv;
+static struct cv audit_fail_cv;
 
 /*
  * Optional DTrace audit provider support: function pointers for preselection
  * and commit events.
  */
 #ifdef KDTRACE_HOOKS
-void	*(*dtaudit_hook_preselect)(au_id_t auid, au_event_t event,
-	    au_class_t class);
-int	(*dtaudit_hook_commit)(struct kaudit_record *kar, au_id_t auid,
-	    au_event_t event, au_class_t class, int sorf);
-void	(*dtaudit_hook_bsm)(struct kaudit_record *kar, au_id_t auid,
-	    au_event_t event, au_class_t class, int sorf,
-	    void *bsm_data, size_t bsm_lenlen);
+void *(*dtaudit_hook_preselect)(
+    au_id_t auid, au_event_t event, au_class_t class);
+int (*dtaudit_hook_commit)(struct kaudit_record *kar, au_id_t auid,
+    au_event_t event, au_class_t class, int sorf);
+void (*dtaudit_hook_bsm)(struct kaudit_record *kar, au_id_t auid,
+    au_event_t event, au_class_t class, int sorf, void *bsm_data,
+    size_t bsm_lenlen);
 #endif
 
 /*
@@ -193,15 +192,14 @@ void	(*dtaudit_hook_bsm)(struct kaudit_record *kar, au_id_t auid,
  * audit records.  This data is modified by the A_GET{SET}KAUDIT auditon(2)
  * command.
  */
-static struct auditinfo_addr	audit_kinfo;
-static struct rwlock		audit_kinfo_lock;
+static struct auditinfo_addr audit_kinfo;
+static struct rwlock audit_kinfo_lock;
 
-#define	KINFO_LOCK_INIT()	rw_init(&audit_kinfo_lock, \
-				    "audit_kinfo_lock")
-#define	KINFO_RLOCK()		rw_rlock(&audit_kinfo_lock)
-#define	KINFO_WLOCK()		rw_wlock(&audit_kinfo_lock)
-#define	KINFO_RUNLOCK()		rw_runlock(&audit_kinfo_lock)
-#define	KINFO_WUNLOCK()		rw_wunlock(&audit_kinfo_lock)
+#define KINFO_LOCK_INIT() rw_init(&audit_kinfo_lock, "audit_kinfo_lock")
+#define KINFO_RLOCK() rw_rlock(&audit_kinfo_lock)
+#define KINFO_WLOCK() rw_wlock(&audit_kinfo_lock)
+#define KINFO_RUNLOCK() rw_runlock(&audit_kinfo_lock)
+#define KINFO_WUNLOCK() rw_wunlock(&audit_kinfo_lock)
 
 /*
  * Check various policies to see if we should enable system-call audit hooks.
@@ -235,7 +233,7 @@ audit_set_kinfo(struct auditinfo_addr *ak)
 {
 
 	KASSERT(ak->ai_termid.at_type == AU_IPv4 ||
-	    ak->ai_termid.at_type == AU_IPv6,
+		ak->ai_termid.at_type == AU_IPv6,
 	    ("audit_set_kinfo: invalid address type"));
 
 	KINFO_WLOCK();
@@ -248,7 +246,7 @@ audit_get_kinfo(struct auditinfo_addr *ak)
 {
 
 	KASSERT(audit_kinfo.ai_termid.at_type == AU_IPv4 ||
-	    audit_kinfo.ai_termid.at_type == AU_IPv6,
+		audit_kinfo.ai_termid.at_type == AU_IPv6,
 	    ("audit_set_kinfo: invalid address type"));
 
 	KINFO_RLOCK();
@@ -295,7 +293,7 @@ audit_record_ctor(void *mem, int size, void *arg, int flags)
 	 */
 	if (jailed(cred)) {
 		pr = cred->cr_prison;
-		(void) strlcpy(ar->k_ar.ar_jailname, pr->pr_name,
+		(void)strlcpy(ar->k_ar.ar_jailname, pr->pr_name,
 		    sizeof(ar->k_ar.ar_jailname));
 	} else
 		ar->k_ar.ar_jailname[0] = '\0';
@@ -344,7 +342,7 @@ audit_init(void)
 	audit_argv = 0;
 	audit_arge = 0;
 
-	audit_fstat.af_filesz = 0;	/* '0' means unset, unbounded. */
+	audit_fstat.af_filesz = 0; /* '0' means unset, unbounded. */
 	audit_fstat.af_currsz = 0;
 	audit_nae_mask.am_success = 0;
 	audit_nae_mask.am_failure = 0;
@@ -367,8 +365,8 @@ audit_init(void)
 	cv_init(&audit_fail_cv, "audit_fail_cv");
 
 	audit_record_zone = uma_zcreate("audit_record",
-	    sizeof(struct kaudit_record), audit_record_ctor,
-	    audit_record_dtor, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    sizeof(struct kaudit_record), audit_record_ctor, audit_record_dtor,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
 
 	/* First initialisation of audit_syscalls_enabled. */
 	audit_syscalls_enabled_update();
@@ -379,8 +377,8 @@ audit_init(void)
 	audit_trigger_init();
 
 	/* Register shutdown handler. */
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, audit_shutdown, NULL,
-	    SHUTDOWN_PRI_FIRST);
+	EVENTHANDLER_REGISTER(
+	    shutdown_pre_sync, audit_shutdown, NULL, SHUTDOWN_PRI_FIRST);
 
 	/* Start audit worker thread. */
 	audit_worker_init();
@@ -479,7 +477,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	 * we will transform into a more specific event number now that we
 	 * have more complete information gathered during the system call.
 	 */
-	switch(ar->k_ar.ar_event) {
+	switch (ar->k_ar.ar_event) {
 	case AUE_OPEN_RWTC:
 		ar->k_ar.ar_event = audit_flags_and_error_to_openevent(
 		    ar->k_ar.ar_arg_fflags, error);
@@ -502,20 +500,20 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 
 	case AUE_MSGSYS:
 		if (ARG_IS_VALID(ar, ARG_SVIPC_WHICH))
-			ar->k_ar.ar_event =
-			    audit_msgsys_to_event(ar->k_ar.ar_arg_svipc_which);
+			ar->k_ar.ar_event = audit_msgsys_to_event(
+			    ar->k_ar.ar_arg_svipc_which);
 		break;
 
 	case AUE_SEMSYS:
 		if (ARG_IS_VALID(ar, ARG_SVIPC_WHICH))
-			ar->k_ar.ar_event =
-			    audit_semsys_to_event(ar->k_ar.ar_arg_svipc_which);
+			ar->k_ar.ar_event = audit_semsys_to_event(
+			    ar->k_ar.ar_arg_svipc_which);
 		break;
 
 	case AUE_SHMSYS:
 		if (ARG_IS_VALID(ar, ARG_SVIPC_WHICH))
-			ar->k_ar.ar_event =
-			    audit_shmsys_to_event(ar->k_ar.ar_arg_svipc_which);
+			ar->k_ar.ar_event = audit_shmsys_to_event(
+			    ar->k_ar.ar_arg_svipc_which);
 		break;
 	}
 
@@ -527,7 +525,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	if (au_preselect(event, class, aumask, sorf) != 0)
 		ar->k_ar_commit |= AR_PRESELECT_TRAIL;
 	if (audit_pipe_preselect(auid, event, class, sorf,
-	    ar->k_ar_commit & AR_PRESELECT_TRAIL) != 0)
+		ar->k_ar_commit & AR_PRESELECT_TRAIL) != 0)
 		ar->k_ar_commit |= AR_PRESELECT_PIPE;
 #ifdef KDTRACE_HOOKS
 	/*
@@ -541,9 +539,10 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	}
 #endif
 
-	if ((ar->k_ar_commit & (AR_PRESELECT_TRAIL | AR_PRESELECT_PIPE |
-	    AR_PRESELECT_USER_TRAIL | AR_PRESELECT_USER_PIPE |
-	    AR_PRESELECT_DTRACE)) == 0) {
+	if ((ar->k_ar_commit &
+		(AR_PRESELECT_TRAIL | AR_PRESELECT_PIPE |
+		    AR_PRESELECT_USER_TRAIL | AR_PRESELECT_USER_PIPE |
+		    AR_PRESELECT_DTRACE)) == 0) {
 		mtx_lock(&audit_mtx);
 		audit_pre_q_len--;
 		mtx_unlock(&audit_mtx);
@@ -676,7 +675,7 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 	 */
 #ifdef KDTRACE_HOOKS
 	dtaudit_state = NULL;
-        if (dtaudit_hook_preselect != NULL) {
+	if (dtaudit_hook_preselect != NULL) {
 		dtaudit_state = dtaudit_hook_preselect(auid, event, class);
 		if (dtaudit_state != NULL)
 			record_needed = 1;
@@ -741,7 +740,6 @@ audit_cred_copy(struct ucred *src, struct ucred *dest)
 void
 audit_cred_destroy(struct ucred *cred)
 {
-
 }
 
 void

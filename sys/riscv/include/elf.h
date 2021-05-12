@@ -26,63 +26,63 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_ELF_H_
-#define	_MACHINE_ELF_H_
+#ifndef _MACHINE_ELF_H_
+#define _MACHINE_ELF_H_
 
 /*
  * ELF definitions for the RISC-V architecture.
  */
 
-#include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
-#include <sys/elf64.h>	/* Definitions common to all 64 bit architectures. */
+#include <sys/elf32.h> /* Definitions common to all 32 bit architectures. */
+#include <sys/elf64.h> /* Definitions common to all 64 bit architectures. */
 
-#define	__ELF_WORD_SIZE	64	/* Used by <sys/elf_generic.h> */
+#define __ELF_WORD_SIZE 64 /* Used by <sys/elf_generic.h> */
 #include <sys/elf_generic.h>
 
 /*
  * Auxiliary vector entries for passing information to the interpreter.
  */
 
-typedef struct {	/* Auxiliary vector entry on initial stack */
-	int	a_type;			/* Entry type. */
+typedef struct {    /* Auxiliary vector entry on initial stack */
+	int a_type; /* Entry type. */
 	union {
-		int	a_val;		/* Integer value. */
+		int a_val; /* Integer value. */
 	} a_un;
 } Elf32_Auxinfo;
 
-typedef struct {	/* Auxiliary vector entry on initial stack */
-	long	a_type;			/* Entry type. */
+typedef struct {     /* Auxiliary vector entry on initial stack */
+	long a_type; /* Entry type. */
 	union {
-		long	a_val;		/* Integer value. */
-		void	*a_ptr;		/* Address. */
-		void	(*a_fcn)(void);	/* Function pointer (not used). */
+		long a_val;	     /* Integer value. */
+		void *a_ptr;	     /* Address. */
+		void (*a_fcn)(void); /* Function pointer (not used). */
 	} a_un;
 } Elf64_Auxinfo;
 
 __ElfType(Auxinfo);
 
-#define	ELF_ARCH	EM_RISCV
+#define ELF_ARCH EM_RISCV
 
-#define	ELF_MACHINE_OK(x) ((x) == (ELF_ARCH))
+#define ELF_MACHINE_OK(x) ((x) == (ELF_ARCH))
 
 /* Define "machine" characteristics */
-#define	ELF_TARG_CLASS	ELFCLASS64
-#define	ELF_TARG_DATA	ELFDATA2LSB
-#define	ELF_TARG_MACH	EM_RISCV
-#define	ELF_TARG_VER	1
+#define ELF_TARG_CLASS ELFCLASS64
+#define ELF_TARG_DATA ELFDATA2LSB
+#define ELF_TARG_MACH EM_RISCV
+#define ELF_TARG_VER 1
 
 /* TODO: set correct value */
-#define	ET_DYN_LOAD_ADDR 0x100000
+#define ET_DYN_LOAD_ADDR 0x100000
 
 /* Flags passed in AT_HWCAP */
-#define	HWCAP_ISA_BIT(c)	(1 << ((c) - 'A'))
-#define	HWCAP_ISA_I		HWCAP_ISA_BIT('I')
-#define	HWCAP_ISA_M		HWCAP_ISA_BIT('M')
-#define	HWCAP_ISA_A		HWCAP_ISA_BIT('A')
-#define	HWCAP_ISA_F		HWCAP_ISA_BIT('F')
-#define	HWCAP_ISA_D		HWCAP_ISA_BIT('D')
-#define	HWCAP_ISA_C		HWCAP_ISA_BIT('C')
-#define	HWCAP_ISA_G		\
-    (HWCAP_ISA_I | HWCAP_ISA_M | HWCAP_ISA_A | HWCAP_ISA_F | HWCAP_ISA_D)
+#define HWCAP_ISA_BIT(c) (1 << ((c) - 'A'))
+#define HWCAP_ISA_I HWCAP_ISA_BIT('I')
+#define HWCAP_ISA_M HWCAP_ISA_BIT('M')
+#define HWCAP_ISA_A HWCAP_ISA_BIT('A')
+#define HWCAP_ISA_F HWCAP_ISA_BIT('F')
+#define HWCAP_ISA_D HWCAP_ISA_BIT('D')
+#define HWCAP_ISA_C HWCAP_ISA_BIT('C')
+#define HWCAP_ISA_G \
+	(HWCAP_ISA_I | HWCAP_ISA_M | HWCAP_ISA_A | HWCAP_ISA_F | HWCAP_ISA_D)
 
 #endif /* !_MACHINE_ELF_H_ */

@@ -49,19 +49,19 @@ __FBSDID("$FreeBSD$");
 FEATURE(geom_uzip_zstd, "g_uzip Zstd support");
 
 struct g_uzip_zstd {
-	struct g_uzip_dapi	guz_pub;
-	uint32_t		guz_blksz;
-	ZSTD_DCtx		*guz_dctx;
+	struct g_uzip_dapi guz_pub;
+	uint32_t guz_blksz;
+	ZSTD_DCtx *guz_dctx;
 };
 
 #ifndef container_of
-#define container_of(ptr, type, member)				\
-({								\
-	const __typeof(((type *)0)->member) *__p = (ptr);	\
-	(type *)((uintptr_t)__p - offsetof(type, member));	\
-})
+#define container_of(ptr, type, member)                            \
+	({                                                         \
+		const __typeof(((type *)0)->member) *__p = (ptr);  \
+		(type *)((uintptr_t)__p - offsetof(type, member)); \
+	})
 #endif
-#define	to_zstd_softc(zpp)	container_of(zpp, struct g_uzip_zstd, guz_pub)
+#define to_zstd_softc(zpp) container_of(zpp, struct g_uzip_zstd, guz_pub)
 
 static int
 guz_zstd_decompress(struct g_uzip_dapi *zpp, const char *gp_name, void *input,
@@ -71,15 +71,15 @@ guz_zstd_decompress(struct g_uzip_dapi *zpp, const char *gp_name, void *input,
 	size_t rc;
 
 	sc = to_zstd_softc(zpp);
-	rc = ZSTD_decompressDCtx(sc->guz_dctx, outputbuf, sc->guz_blksz, input,
-	    ilen);
+	rc = ZSTD_decompressDCtx(
+	    sc->guz_dctx, outputbuf, sc->guz_blksz, input, ilen);
 	if (ZSTD_isError(rc)) {
 		printf("%s: UZIP(zstd) decompress failed: %s\n", gp_name,
 		    ZSTD_getErrorName(rc));
 		return (EIO);
 	}
-	KASSERT(rc == sc->guz_blksz, ("%s: Expected %u bytes, got %zu",
-	    __func__, sc->guz_blksz, rc));
+	KASSERT(rc == sc->guz_blksz,
+	    ("%s: Expected %u bytes, got %zu", __func__, sc->guz_blksz, rc));
 	return (0);
 }
 

@@ -43,12 +43,14 @@
 
 #include <sys/types.h>
 #include <sys/queue.h>
+
 #include <netinet/in.h>
+
 #include <opencrypto/xform.h>
 
-#define	AH_HMAC_HASHLEN		12	/* 96 bits of authenticator */
-#define	AH_HMAC_MAXHASHLEN	(SHA2_512_HASH_LEN/2)	/* Keep this updated */
-#define	AH_HMAC_INITIAL_RPL	1	/* replay counter initial value */
+#define AH_HMAC_HASHLEN 12 /* 96 bits of authenticator */
+#define AH_HMAC_MAXHASHLEN (SHA2_512_HASH_LEN / 2) /* Keep this updated */
+#define AH_HMAC_INITIAL_RPL 1 /* replay counter initial value */
 
 #ifdef _KERNEL
 struct secpolicy;
@@ -59,49 +61,49 @@ struct secasvar;
  * to speedup security policy checking for INBOUND packets.
  */
 struct xform_history {
-	union sockaddr_union	dst;		/* destination address */
-	uint32_t		spi;		/* Security Parameters Index */
-	uint8_t			proto;		/* IPPROTO_ESP or IPPROTO_AH */
-	uint8_t			mode;		/* transport or tunnel */
+	union sockaddr_union dst; /* destination address */
+	uint32_t spi;		  /* Security Parameters Index */
+	uint8_t proto;		  /* IPPROTO_ESP or IPPROTO_AH */
+	uint8_t mode;		  /* transport or tunnel */
 };
 
 /*
  * Opaque data structure hung off a crypto operation descriptor.
  */
 struct xform_data {
-	struct secpolicy	*sp;		/* security policy */
-	struct secasvar		*sav;		/* related SA */
-	crypto_session_t	cryptoid;	/* used crypto session */
-	u_int			idx;		/* IPsec request index */
-	int			protoff;	/* current protocol offset */
-	int			skip;		/* data offset */
-	uint8_t			nxt;		/* next protocol, e.g. IPV4 */
-	struct vnet		*vnet;
+	struct secpolicy *sp;	   /* security policy */
+	struct secasvar *sav;	   /* related SA */
+	crypto_session_t cryptoid; /* used crypto session */
+	u_int idx;		   /* IPsec request index */
+	int protoff;		   /* current protocol offset */
+	int skip;		   /* data offset */
+	uint8_t nxt;		   /* next protocol, e.g. IPV4 */
+	struct vnet *vnet;
 };
 
-#define	XF_IP4		1	/* unused */
-#define	XF_AH		2	/* AH */
-#define	XF_ESP		3	/* ESP */
-#define	XF_TCPSIGNATURE	5	/* TCP MD5 Signature option, RFC 2358 */
-#define	XF_IPCOMP	6	/* IPCOMP */
+#define XF_IP4 1 /* unused */
+#define XF_AH 2 /* AH */
+#define XF_ESP 3 /* ESP */
+#define XF_TCPSIGNATURE 5 /* TCP MD5 Signature option, RFC 2358 */
+#define XF_IPCOMP 6 /* IPCOMP */
 
 struct xformsw {
-	u_short			xf_type;	/* xform ID */
-	const char		*xf_name;	/* human-readable name */
-	int	(*xf_init)(struct secasvar*, struct xformsw*);	/* setup */
-	void	(*xf_cleanup)(struct secasvar*);		/* cleanup */
-	int	(*xf_input)(struct mbuf*, struct secasvar*,	/* input */
-			int, int);
-	int	(*xf_output)(struct mbuf*,			/* output */
+	u_short xf_type;     /* xform ID */
+	const char *xf_name; /* human-readable name */
+	int (*xf_init)(struct secasvar *, struct xformsw *); /* setup */
+	void (*xf_cleanup)(struct secasvar *);		     /* cleanup */
+	int (*xf_input)(struct mbuf *, struct secasvar *,    /* input */
+	    int, int);
+	int (*xf_output)(struct mbuf *, /* output */
 	    struct secpolicy *, struct secasvar *, u_int, int, int);
 
-	volatile u_int		xf_cntr;
-	LIST_ENTRY(xformsw)	chain;
+	volatile u_int xf_cntr;
+	LIST_ENTRY(xformsw) chain;
 };
 
-const struct enc_xform * enc_algorithm_lookup(int);
-const struct auth_hash * auth_algorithm_lookup(int);
-const struct comp_algo * comp_algorithm_lookup(int);
+const struct enc_xform *enc_algorithm_lookup(int);
+const struct auth_hash *auth_algorithm_lookup(int);
+const struct comp_algo *comp_algorithm_lookup(int);
 
 void xform_attach(void *);
 void xform_detach(void *);
@@ -110,8 +112,8 @@ int xform_init(struct secasvar *, u_short);
 struct crypto_session_params;
 /* XF_AH */
 int xform_ah_authsize(const struct auth_hash *);
-int ah_init0(struct secasvar *, struct xformsw *,
-    struct crypto_session_params *);
+int ah_init0(
+    struct secasvar *, struct xformsw *, struct crypto_session_params *);
 extern size_t ah_hdrsiz(struct secasvar *);
 
 /* XF_ESP */

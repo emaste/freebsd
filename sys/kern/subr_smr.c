@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
  * a global write clock that is used to mark memory on free.
  *
  * The write and read sequence numbers can be thought of as a two
- * handed clock with readers always advancing towards writers.  GUS 
+ * handed clock with readers always advancing towards writers.  GUS
  * maintains the invariant that all readers can safely access memory
  * that was visible at the time they loaded their copy of the sequence
  * number.  Periodically the read sequence or hand is polled and
@@ -130,7 +130,7 @@ __FBSDID("$FreeBSD$");
  *                ^cpuA  ^cpuC
  * | -- free -- | --------- deferred frees -------- | ---- free ---- |
  *
- * 
+ *
  * In this example cpuA has the lowest sequence number and poll can
  * advance rd seq.  cpuB is not running and is considered to observe
  * wr seq.
@@ -147,8 +147,8 @@ static uma_zone_t smr_shared_zone;
 static uma_zone_t smr_zone;
 
 #ifndef INVARIANTS
-#define	SMR_SEQ_INIT	1		/* All valid sequence numbers are odd. */
-#define	SMR_SEQ_INCR	2
+#define SMR_SEQ_INIT 1 /* All valid sequence numbers are odd. */
+#define SMR_SEQ_INCR 2
 
 /*
  * SMR_SEQ_MAX_DELTA is the maximum distance allowed between rd_seq and
@@ -159,15 +159,15 @@ static uma_zone_t smr_zone;
  * We will block until SMR_SEQ_MAX_ADVANCE sequence numbers have progressed
  * to prevent integer wrapping.  See smr_advance() for more details.
  */
-#define	SMR_SEQ_MAX_DELTA	(UINT_MAX / 4)
-#define	SMR_SEQ_MAX_ADVANCE	(SMR_SEQ_MAX_DELTA - 1024)
+#define SMR_SEQ_MAX_DELTA (UINT_MAX / 4)
+#define SMR_SEQ_MAX_ADVANCE (SMR_SEQ_MAX_DELTA - 1024)
 #else
 /* We want to test the wrapping feature in invariants kernels. */
-#define	SMR_SEQ_INCR	(UINT_MAX / 10000)
-#define	SMR_SEQ_INIT	(UINT_MAX - 100000)
+#define SMR_SEQ_INCR (UINT_MAX / 10000)
+#define SMR_SEQ_INIT (UINT_MAX - 100000)
 /* Force extra polls to test the integer overflow detection. */
-#define	SMR_SEQ_MAX_DELTA	(SMR_SEQ_INCR * 32)
-#define	SMR_SEQ_MAX_ADVANCE	SMR_SEQ_MAX_DELTA / 2
+#define SMR_SEQ_MAX_DELTA (SMR_SEQ_INCR * 32)
+#define SMR_SEQ_MAX_ADVANCE SMR_SEQ_MAX_DELTA / 2
 #endif
 
 /*
@@ -185,8 +185,8 @@ static uma_zone_t smr_zone;
  * data.  For example, an idle processor, or an system management interrupt,
  * or a vm exit.
  */
-#define	SMR_LAZY_GRACE		2
-#define	SMR_LAZY_INCR		(SMR_LAZY_GRACE * SMR_SEQ_INCR)
+#define SMR_LAZY_GRACE 2
+#define SMR_LAZY_INCR (SMR_LAZY_GRACE * SMR_SEQ_INCR)
 
 /*
  * The maximum sequence number ahead of wr_seq that may still be valid.  The
@@ -194,14 +194,15 @@ static uma_zone_t smr_zone;
  * case poll needs to attempt to forward the sequence number if the goal is
  * within wr_seq + SMR_SEQ_ADVANCE.
  */
-#define	SMR_SEQ_ADVANCE		SMR_LAZY_INCR
+#define SMR_SEQ_ADVANCE SMR_LAZY_INCR
 
-static SYSCTL_NODE(_debug, OID_AUTO, smr, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
-    "SMR Stats");
+static SYSCTL_NODE(
+    _debug, OID_AUTO, smr, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, "SMR Stats");
 static COUNTER_U64_DEFINE_EARLY(advance);
 SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, advance, CTLFLAG_RW, &advance, "");
 static COUNTER_U64_DEFINE_EARLY(advance_wait);
-SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, advance_wait, CTLFLAG_RW, &advance_wait, "");
+SYSCTL_COUNTER_U64(
+    _debug_smr, OID_AUTO, advance_wait, CTLFLAG_RW, &advance_wait, "");
 static COUNTER_U64_DEFINE_EARLY(poll);
 SYSCTL_COUNTER_U64(_debug_smr, OID_AUTO, poll, CTLFLAG_RW, &poll, "");
 static COUNTER_U64_DEFINE_EARLY(poll_scan);
@@ -418,8 +419,8 @@ smr_poll_cpu(smr_t c, smr_seq_t s_rd_seq, smr_seq_t goal, bool wait)
  * been obtained and validated by smr_poll().
  */
 static smr_seq_t
-smr_poll_scan(smr_t smr, smr_shared_t s, smr_seq_t s_rd_seq,
-    smr_seq_t s_wr_seq, smr_seq_t goal, bool wait)
+smr_poll_scan(smr_t smr, smr_shared_t s, smr_seq_t s_rd_seq, smr_seq_t s_wr_seq,
+    smr_seq_t goal, bool wait)
 {
 	smr_seq_t rd_seq, c_seq;
 	int i;
@@ -432,15 +433,15 @@ smr_poll_scan(smr_t smr, smr_shared_t s, smr_seq_t s_rd_seq,
 	 * the start of the poll.
 	 */
 	rd_seq = s_wr_seq;
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		/*
 		 * Query the active sequence on this cpu.  If we're not
 		 * waiting and we don't meet the goal we will still scan
 		 * the rest of the cpus to update s_rd_seq before returning
 		 * failure.
 		 */
-		c_seq = smr_poll_cpu(zpcpu_get_cpu(smr, i), s_rd_seq, goal,
-		    wait);
+		c_seq = smr_poll_cpu(
+		    zpcpu_get_cpu(smr, i), s_rd_seq, goal, wait);
 
 		/*
 		 * Limit the minimum observed rd_seq whether we met the goal
@@ -628,6 +629,6 @@ smr_init(void)
 
 	smr_shared_zone = uma_zcreate("SMR SHARED", sizeof(struct smr_shared),
 	    NULL, NULL, NULL, NULL, (CACHE_LINE_SIZE * 2) - 1, 0);
-	smr_zone = uma_zcreate("SMR CPU", sizeof(struct smr),
-	    NULL, NULL, NULL, NULL, (CACHE_LINE_SIZE * 2) - 1, UMA_ZONE_PCPU);
+	smr_zone = uma_zcreate("SMR CPU", sizeof(struct smr), NULL, NULL, NULL,
+	    NULL, (CACHE_LINE_SIZE * 2) - 1, UMA_ZONE_PCPU);
 }

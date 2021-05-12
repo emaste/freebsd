@@ -37,14 +37,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/cpu.h>
-#include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
 #include <machine/platformvar.h>
+#include <machine/smp.h>
 
-#include <arm/ti/ti_smc.h>
 #include <arm/ti/omap4/omap4_machdep.h>
 #include <arm/ti/omap4/omap4_smc.h>
+#include <arm/ti/ti_smc.h>
 
 void
 omap4_mp_setmaxid(platform_t plat)
@@ -56,7 +56,7 @@ omap4_mp_setmaxid(platform_t plat)
 	mp_ncpus = 2;
 }
 
-void    
+void
 omap4_mp_start_ap(platform_t plat)
 {
 	bus_addr_t scu_addr;

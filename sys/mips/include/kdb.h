@@ -30,11 +30,11 @@
  */
 
 #ifndef _MACHINE_KDB_H_
-#define	_MACHINE_KDB_H_
+#define _MACHINE_KDB_H_
 
 #include <machine/frame.h>
 
-#define	KDB_STOPPEDPCB(pc)	&stoppcbs[pc->pc_cpuid]
+#define KDB_STOPPEDPCB(pc) &stoppcbs[pc->pc_cpuid]
 
 static __inline void
 kdb_cpu_clear_singlestep(void)

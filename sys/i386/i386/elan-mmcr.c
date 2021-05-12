@@ -44,30 +44,31 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_cpu.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/eventhandler.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/timetc.h>
-#include <sys/proc.h>
-#include <sys/uio.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/malloc.h>
-#include <sys/sysctl.h>
 #include <sys/timepps.h>
+#include <sys/timetc.h>
+#include <sys/uio.h>
 #include <sys/watchdog.h>
-
-#include <dev/led/led.h>
-#include <machine/md_var.h>
-#include <machine/elan_mmcr.h>
-#include <machine/pc/bios.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+
+#include <machine/elan_mmcr.h>
+#include <machine/md_var.h>
+#include <machine/pc/bios.h>
+
+#include <dev/led/led.h>
 
 static char gpio_config[33];
 
@@ -77,25 +78,23 @@ volatile struct elan_mmcr *elan_mmcr;
 #ifdef CPU_ELAN_PPS
 static struct pps_state elan_pps;
 static volatile uint16_t *pps_ap[3];
-static u_int	pps_a, pps_d;
-static u_int	echo_a, echo_d;
+static u_int pps_a, pps_d;
+static u_int echo_a, echo_d;
 #endif /* CPU_ELAN_PPS */
 
 #ifdef CPU_SOEKRIS
 
-static struct bios_oem bios_soekris = {
-	{ 0xf0000, 0xf1000 },
+static struct bios_oem bios_soekris = { { 0xf0000, 0xf1000 },
 	{
-		{ "Soekris", 0, 8 },	/* Soekris Engineering. */
-		{ "net4", 0, 8 },	/* net45xx */
-		{ "comBIOS", 0, 54 },	/* comBIOS ver. 1.26a  20040819 ... */
-		{ NULL, 0, 0 },
-	}
-};
+	    { "Soekris", 0, 8 },  /* Soekris Engineering. */
+	    { "net4", 0, 8 },	  /* net45xx */
+	    { "comBIOS", 0, 54 }, /* comBIOS ver. 1.26a  20040819 ... */
+	    { NULL, 0, 0 },
+	} };
 
 #endif
 
-static u_int	led_cookie[32];
+static u_int led_cookie[32];
 static struct cdev *led_dev[32];
 
 static void
@@ -111,8 +110,7 @@ gpio_led(void *cookie, int state)
 	mmcrptr[v / 2] = u;
 }
 
-static int
-sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
+static int sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 {
 	u_int u, v;
 	int i, np, ne;
@@ -169,8 +167,8 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 			;
 		else
 #endif
-		if (buf[i] != 'l' && buf[i] != 'L' && led_dev[i] != NULL) {
-			led_destroy(led_dev[i]);	
+		    if (buf[i] != 'l' && buf[i] != 'L' && led_dev[i] != NULL) {
+			led_destroy(led_dev[i]);
 			led_dev[i] = NULL;
 			mmcrptr[(0xc2a + v) / 2] &= ~u;
 		}
@@ -207,8 +205,7 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 			sprintf(tmp, "gpio%d", i);
 			mmcrptr[(0xc2a + v) / 2] |= u;
 			gpio_config[i] = buf[i];
-			led_dev[i] =
-			    led_create(gpio_led, &led_cookie[i], tmp);
+			led_dev[i] = led_create(gpio_led, &led_cookie[i], tmp);
 			break;
 		case '.':
 			gpio_config[i] = buf[i];
@@ -223,8 +220,7 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_OID(_machdep, OID_AUTO, elan_gpio_config,
     CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
-    sysctl_machdep_elan_gpio_config, "A",
-    "Elan CPU GPIO pin config");
+    sysctl_machdep_elan_gpio_config, "A", "Elan CPU GPIO pin config");
 
 #ifdef CPU_ELAN_PPS
 static void
@@ -241,7 +237,7 @@ elan_poll_pps(struct timecounter *tc)
 	 * hw with quality clock sources.
 	 */
 	saveintr = intr_disable();
-	x = *pps_ap[0];	/* state, must be first, see below */
+	x = *pps_ap[0]; /* state, must be first, see below */
 	y = *pps_ap[1]; /* timer2 */
 	z = *pps_ap[2]; /* timer1 */
 	intr_restore(saveintr);
@@ -301,32 +297,24 @@ elan_get_timecount(struct timecounter *tc)
 #define CPU_ELAN_XTAL 33333333
 #endif
 
-static struct timecounter elan_timecounter = {
-	elan_get_timecount,
-	NULL,
-	0xffff,
-	CPU_ELAN_XTAL / 4,
-	"ELAN",
-	1000
-};
+static struct timecounter elan_timecounter = { elan_get_timecount, NULL, 0xffff,
+	CPU_ELAN_XTAL / 4, "ELAN", 1000 };
 
-static int
-sysctl_machdep_elan_freq(SYSCTL_HANDLER_ARGS)
+static int sysctl_machdep_elan_freq(SYSCTL_HANDLER_ARGS)
 {
 	u_int f;
 	int error;
 
 	f = elan_timecounter.tc_frequency * 4;
 	error = sysctl_handle_int(oidp, &f, 0, req);
-	if (error == 0 && req->newptr != NULL) 
+	if (error == 0 && req->newptr != NULL)
 		elan_timecounter.tc_frequency = (f + 3) / 4;
 	return (error);
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, elan_freq,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof (u_int),
-    sysctl_machdep_elan_freq, "IU",
-    "");
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(u_int),
+    sysctl_machdep_elan_freq, "IU", "");
 
 /*
  * Positively identifying the Elan can only be done through the PCI id of
@@ -349,8 +337,8 @@ init_AMD_Elan_sc520(void)
 	 */
 
 	new = 1189161;
-	i = kernel_sysctlbyname(&thread0, "machdep.i8254_freq", 
-	    NULL, 0, &new, sizeof new, NULL, 0);
+	i = kernel_sysctlbyname(
+	    &thread0, "machdep.i8254_freq", NULL, 0, &new, sizeof new, NULL, 0);
 	if (bootverbose || 1)
 		printf("sysctl machdep.i8254_freq=%d returns %d\n", new, i);
 
@@ -415,24 +403,25 @@ elan_watchdog(void *foo __unused, u_int spec, int *error)
 		elan_mmcr->WDTMRCTL = 0x3333;
 		elan_mmcr->WDTMRCTL = 0xcccc;
 		elan_mmcr->WDTMRCTL = 0x4080;
-		elan_mmcr->WDTMRCTL = w;		/* XXX What does this statement do? */
+		elan_mmcr->WDTMRCTL = w; /* XXX What does this statement do? */
 		elan_mmcr->GPECHO = w;
 		cur = 0;
 	}
 }
 
 static int
-elan_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
-    int nprot, vm_memattr_t *memattr)
+elan_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr, int nprot,
+    vm_memattr_t *memattr)
 {
 
-	if (offset >= 0x1000) 
+	if (offset >= 0x1000)
 		return (-1);
 	*paddr = 0xfffef000;
 	return (0);
 }
 static int
-elan_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct  thread *tdr)
+elan_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *tdr)
 {
 	int error;
 
@@ -454,15 +443,15 @@ elan_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct  thread *
 		return (error);
 #endif
 
-	return(error);
+	return (error);
 }
 
 static struct cdevsw elan_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
-	.d_ioctl =	elan_ioctl,
-	.d_mmap =	elan_mmap,
-	.d_name =	"elan",
+	.d_version = D_VERSION,
+	.d_flags = D_NEEDGIANT,
+	.d_ioctl = elan_ioctl,
+	.d_mmap = elan_mmap,
+	.d_name = "elan",
 };
 
 static void
@@ -471,27 +460,25 @@ elan_drvinit(void)
 
 #ifdef CPU_SOEKRIS
 #define BIOS_OEM_MAXLEN 72
-        static u_char bios_oem[BIOS_OEM_MAXLEN] = "\0";
+	static u_char bios_oem[BIOS_OEM_MAXLEN] = "\0";
 #endif /* CPU_SOEKRIS */
 
 	/* If no elan found, just return */
 	if (mmcrptr == NULL)
 		return;
 
-	printf("Elan-mmcr driver: MMCR at %p.%s\n", 
-	    mmcrptr,
+	printf("Elan-mmcr driver: MMCR at %p.%s\n", mmcrptr,
 #ifdef CPU_ELAN_PPS
 	    " PPS support."
 #else
 	    ""
 #endif
-	    );
+	);
 
-	make_dev(&elan_cdevsw, 0,
-	    UID_ROOT, GID_WHEEL, 0600, "elan-mmcr");
+	make_dev(&elan_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "elan-mmcr");
 
 #ifdef CPU_SOEKRIS
-	if ( bios_oem_strings(&bios_soekris, bios_oem, BIOS_OEM_MAXLEN) > 0 )
+	if (bios_oem_strings(&bios_soekris, bios_oem, BIOS_OEM_MAXLEN) > 0)
 		printf("Elan-mmcr %s\n", bios_oem);
 
 	/* Create the error LED on GPIO9 */

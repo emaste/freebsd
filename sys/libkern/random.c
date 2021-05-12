@@ -35,9 +35,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/systm.h>
 #include <sys/libkern.h>
 #include <sys/prng.h>
-#include <sys/systm.h>
 
 /*
  * Pseudo-random number generator.  The result is uniform in [0, 2^31 - 1].

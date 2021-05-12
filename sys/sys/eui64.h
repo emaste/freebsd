@@ -35,25 +35,25 @@
 /*
  * Size of the ASCII representation of an EUI-64.
  */
-#define EUI64_SIZ	24
+#define EUI64_SIZ 24
 
 /*
  * The number of bytes in an EUI-64.
  */
-#define EUI64_LEN	8
+#define EUI64_LEN 8
 
 /*
  * Structure of an IEEE EUI-64.
  */
-struct	eui64 {
+struct eui64 {
 	u_char octet[EUI64_LEN];
 };
 
 #ifndef _KERNEL
-int	eui64_aton(const char *, struct eui64 *);
-int	eui64_ntoa(const struct eui64 *, char *, size_t);
-int	eui64_ntohost(char *, size_t, const struct eui64 *);
-int	eui64_hostton(const char *, struct eui64 *);
+int eui64_aton(const char *, struct eui64 *);
+int eui64_ntoa(const struct eui64 *, char *, size_t);
+int eui64_ntohost(char *, size_t, const struct eui64 *);
+int eui64_hostton(const char *, struct eui64 *);
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_EUI64_H */

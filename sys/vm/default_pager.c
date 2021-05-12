@@ -42,20 +42,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 
 #include <vm/vm.h>
+#include <vm/swap_pager.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/swap_pager.h>
 
-static vm_object_t	default_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
-			    vm_ooffset_t, struct ucred *);
-static void		default_pager_dealloc(vm_object_t);
-static int		default_pager_getpages(vm_object_t, vm_page_t *, int,
-			    int *, int *);
-static void		default_pager_putpages(vm_object_t, vm_page_t *, int, 
-			    boolean_t, int *);
-static boolean_t	default_pager_haspage(vm_object_t, vm_pindex_t, int *, 
-			    int *);
+static vm_object_t default_pager_alloc(
+    void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t, struct ucred *);
+static void default_pager_dealloc(vm_object_t);
+static int default_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
+static void default_pager_putpages(
+    vm_object_t, vm_page_t *, int, boolean_t, int *);
+static boolean_t default_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 
 /*
  * pagerops for OBJT_DEFAULT - "default pager".
@@ -71,11 +69,11 @@ static boolean_t	default_pager_haspage(vm_object_t, vm_pindex_t, int *,
  * object is converted to swap pager type.
  */
 const struct pagerops defaultpagerops = {
-	.pgo_alloc =	default_pager_alloc,
-	.pgo_dealloc =	default_pager_dealloc,
-	.pgo_getpages =	default_pager_getpages,
-	.pgo_putpages =	default_pager_putpages,
-	.pgo_haspage =	default_pager_haspage,
+	.pgo_alloc = default_pager_alloc,
+	.pgo_dealloc = default_pager_dealloc,
+	.pgo_getpages = default_pager_getpages,
+	.pgo_putpages = default_pager_putpages,
+	.pgo_haspage = default_pager_haspage,
 };
 
 /*
@@ -94,8 +92,8 @@ default_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			return (NULL);
 		crhold(cred);
 	}
-	object = vm_object_allocate(OBJT_DEFAULT,
-	    OFF_TO_IDX(round_page(offset + size)));
+	object = vm_object_allocate(
+	    OBJT_DEFAULT, OFF_TO_IDX(round_page(offset + size)));
 	if (cred != NULL) {
 		object->cred = cred;
 		object->charge = size;
@@ -118,8 +116,8 @@ default_pager_dealloc(vm_object_t object)
  * Load pages from backing store.
  */
 static int
-default_pager_getpages(vm_object_t object, vm_page_t *m, int count,
-    int *rbehind, int *rahead)
+default_pager_getpages(
+    vm_object_t object, vm_page_t *m, int count, int *rbehind, int *rahead)
 {
 
 	/*
@@ -134,8 +132,8 @@ default_pager_getpages(vm_object_t object, vm_page_t *m, int count,
  * Store pages to backing store.
  */
 static void
-default_pager_putpages(vm_object_t object, vm_page_t *m, int count,
-    int flags, int *rtvals)
+default_pager_putpages(
+    vm_object_t object, vm_page_t *m, int count, int flags, int *rtvals)
 {
 
 	/* The swap pager will convert the object to OBJT_SWAP. */
@@ -147,8 +145,8 @@ default_pager_putpages(vm_object_t object, vm_page_t *m, int count,
  * backing store.
  */
 static boolean_t
-default_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
-    int *after)
+default_pager_haspage(
+    vm_object_t object, vm_pindex_t pindex, int *before, int *after)
 {
 
 	/* An OBJT_DEFAULT object has no backing store. */

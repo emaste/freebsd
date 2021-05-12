@@ -33,7 +33,7 @@ enum aw_sid_fuse_id {
 	AW_SID_FUSE_THSSENSOR,
 };
 
-int	aw_sid_read_tscalib(uint32_t *, uint32_t *);
-int	aw_sid_get_fuse(enum aw_sid_fuse_id id, uint8_t *out, uint32_t *size);
+int aw_sid_read_tscalib(uint32_t *, uint32_t *);
+int aw_sid_get_fuse(enum aw_sid_fuse_id id, uint8_t *out, uint32_t *size);
 
 #endif /* !__AW_SID_H__ */

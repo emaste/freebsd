@@ -28,20 +28,20 @@
  * $FreeBSD$
  */
 
-#ifndef	_NETGRAPH_ATMLLC_H_
-#define	_NETGRAPH_ATMLLC_H_
+#ifndef _NETGRAPH_ATMLLC_H_
+#define _NETGRAPH_ATMLLC_H_
 
 /* Node type name and magic cookie. */
-#define	NG_ATMLLC_NODE_TYPE	"atmllc"
-#define	NGM_ATMLLC_COOKIE	1065246274
+#define NG_ATMLLC_NODE_TYPE "atmllc"
+#define NGM_ATMLLC_COOKIE 1065246274
 
 /* Hook names. */
-#define	NG_ATMLLC_HOOK_ATM	"atm"
-#define	NG_ATMLLC_HOOK_ETHER	"ether"
-#define	NG_ATMLLC_HOOK_802_4	"ieee8024"
-#define	NG_ATMLLC_HOOK_802_5	"ieee8025"
-#define	NG_ATMLLC_HOOK_802_6	"ieee8026"
-#define	NG_ATMLLC_HOOK_FDDI	"fddi"
-#define	NG_ATMLLC_HOOK_BPDU	"bpdu"
+#define NG_ATMLLC_HOOK_ATM "atm"
+#define NG_ATMLLC_HOOK_ETHER "ether"
+#define NG_ATMLLC_HOOK_802_4 "ieee8024"
+#define NG_ATMLLC_HOOK_802_5 "ieee8025"
+#define NG_ATMLLC_HOOK_802_6 "ieee8026"
+#define NG_ATMLLC_HOOK_FDDI "fddi"
+#define NG_ATMLLC_HOOK_BPDU "bpdu"
 
 #endif /* _NETGRAPH_ATMLLC_H_ */

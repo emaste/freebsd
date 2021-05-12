@@ -26,17 +26,17 @@
  * SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <string.h>
-#include <err.h>
-
 #include <sys/sysctl.h>
 
-#include "../kern_testfrwk.h"
+#include <err.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "../callout_test.h"
+#include "../kern_testfrwk.h"
 
 static struct kern_test kern_test = {
 	.num_threads = 1,
@@ -51,7 +51,8 @@ static struct callout_test callout_test = {
 static void
 usage()
 {
-	fprintf(stderr, "Usage: runtest -n <testname> -j <numthreads> [ -c <numcallouts> -t <testnumber> ]\n");
+	fprintf(stderr,
+	    "Usage: runtest -n <testname> -j <numthreads> [ -c <numcallouts> -t <testnumber> ]\n");
 	exit(0);
 }
 
@@ -67,8 +68,8 @@ main(int argc, char **argv)
 			strlcpy(kern_test.name, optarg, sizeof(kern_test.name));
 			break;
 		case 'j':
-			kern_test.num_threads =
-			    kern_test.tot_threads_running = atoi(optarg);
+			kern_test.num_threads = kern_test.tot_threads_running =
+			    atoi(optarg);
 			break;
 		case 'c':
 			callout_test.number_of_callouts = atoi(optarg);
@@ -85,9 +86,11 @@ main(int argc, char **argv)
 	if (kern_test.name[0] == 0)
 		usage();
 	if (strcmp(kern_test.name, "callout_test") == 0)
-		memcpy(kern_test.test_options, &callout_test, sizeof(callout_test));
+		memcpy(kern_test.test_options, &callout_test,
+		    sizeof(callout_test));
 
-	if (sysctlbyname("kern.testfrwk.runtest", NULL, NULL, &kern_test, sizeof(kern_test)) != 0)
+	if (sysctlbyname("kern.testfrwk.runtest", NULL, NULL, &kern_test,
+		sizeof(kern_test)) != 0)
 		errx(1, "Test '%s' could not be started", kern_test.name);
 	return (0);
 }

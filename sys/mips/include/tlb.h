@@ -28,26 +28,26 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_TLB_H_
-#define	_MACHINE_TLB_H_
+#ifndef _MACHINE_TLB_H_
+#define _MACHINE_TLB_H_
 
 /*
  * The first TLB entry that write random hits.
  * TLB entry 0 maps the kernel stack of the currently running thread
  * TLB entry 1 maps the pcpu area of processor (only for SMP builds)
  */
-#define	KSTACK_TLB_ENTRY	0
+#define KSTACK_TLB_ENTRY 0
 #ifdef SMP
-#define	PCPU_TLB_ENTRY		1
-#define	VMWIRED_ENTRIES		2
+#define PCPU_TLB_ENTRY 1
+#define VMWIRED_ENTRIES 2
 #else
-#define	VMWIRED_ENTRIES		1
-#endif	/* SMP */
+#define VMWIRED_ENTRIES 1
+#endif /* SMP */
 
 /*
  * The number of process id entries.
  */
-#define	VMNUM_PIDS		256
+#define VMNUM_PIDS 256
 
 extern int num_tlbentries;
 

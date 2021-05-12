@@ -75,21 +75,21 @@
  * I/O device!
  */
 
-#define	xAPIC_MAX_APIC_ID	0xfe
-#define	xAPIC_ID_ALL		0xff
-#define	MAX_APIC_ID		0x200
-#define	APIC_ID_ALL		0xffffffff
+#define xAPIC_MAX_APIC_ID 0xfe
+#define xAPIC_ID_ALL 0xff
+#define MAX_APIC_ID 0x200
+#define APIC_ID_ALL 0xffffffff
 
-#define	IOAPIC_MAX_ID		xAPIC_MAX_APIC_ID
+#define IOAPIC_MAX_ID xAPIC_MAX_APIC_ID
 
 /* I/O Interrupts are used for external devices such as ISA, PCI, etc. */
-#define	APIC_IO_INTS	(IDT_IO_INTS + 16)
-#define	APIC_NUM_IOINTS	191
+#define APIC_IO_INTS (IDT_IO_INTS + 16)
+#define APIC_NUM_IOINTS 191
 
 /* The timer interrupt is used for clock handling and drives hardclock, etc. */
-#define	APIC_TIMER_INT	(APIC_IO_INTS + APIC_NUM_IOINTS)
+#define APIC_TIMER_INT (APIC_IO_INTS + APIC_NUM_IOINTS)
 
-/*  
+/*
  ********************* !!! WARNING !!! ******************************
  * Each local apic has an interrupt receive fifo that is two entries deep
  * for each interrupt priority class (higher 4 bits of interrupt vector).
@@ -97,72 +97,72 @@
  * class and sending IPIs from other CPUs will be blocked.
  * To avoid deadlocks there should be no more than two IPI interrupts
  * pending at the same time.
- * Currently this is guaranteed by dividing the IPIs in two groups that have 
+ * Currently this is guaranteed by dividing the IPIs in two groups that have
  * each at most one IPI interrupt pending. The first group is protected by the
- * smp_ipi_mtx and waits for the completion of the IPI (Only one IPI user 
+ * smp_ipi_mtx and waits for the completion of the IPI (Only one IPI user
  * at a time) The second group uses a single interrupt and a bitmap to avoid
  * redundant IPI interrupts.
- */ 
+ */
 
 /* Interrupts for local APIC LVT entries other than the timer. */
-#define	APIC_LOCAL_INTS	240
-#define	APIC_ERROR_INT	APIC_LOCAL_INTS
-#define	APIC_THERMAL_INT (APIC_LOCAL_INTS + 1)
-#define	APIC_CMC_INT	(APIC_LOCAL_INTS + 2)
-#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 3)
+#define APIC_LOCAL_INTS 240
+#define APIC_ERROR_INT APIC_LOCAL_INTS
+#define APIC_THERMAL_INT (APIC_LOCAL_INTS + 1)
+#define APIC_CMC_INT (APIC_LOCAL_INTS + 2)
+#define APIC_IPI_INTS (APIC_LOCAL_INTS + 3)
 
-#define	IPI_RENDEZVOUS	(APIC_IPI_INTS)		/* Inter-CPU rendezvous. */
-#define	IPI_INVLOP	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs, amd64 */
-#define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs, i386 */
-#define	IPI_INVLPG	(APIC_IPI_INTS + 2)
-#define	IPI_INVLRNG	(APIC_IPI_INTS + 3)
-#define	IPI_INVLCACHE	(APIC_IPI_INTS + 4)
+#define IPI_RENDEZVOUS (APIC_IPI_INTS)	/* Inter-CPU rendezvous. */
+#define IPI_INVLOP (APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs, amd64 */
+#define IPI_INVLTLB (APIC_IPI_INTS + 1) /* TLB Shootdown IPIs, i386 */
+#define IPI_INVLPG (APIC_IPI_INTS + 2)
+#define IPI_INVLRNG (APIC_IPI_INTS + 3)
+#define IPI_INVLCACHE (APIC_IPI_INTS + 4)
 /* Vector to handle bitmap based IPIs */
-#define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 5) 
+#define IPI_BITMAP_VECTOR (APIC_IPI_INTS + 5)
 
 /* IPIs handled by IPI_BITMAP_VECTOR */
-#define	IPI_AST		0 	/* Generate software trap. */
-#define IPI_PREEMPT     1
-#define IPI_HARDCLOCK   2
-#define	IPI_TRACE	3	/* Collect stack trace. */
-#define	IPI_BITMAP_LAST IPI_TRACE
+#define IPI_AST 0 /* Generate software trap. */
+#define IPI_PREEMPT 1
+#define IPI_HARDCLOCK 2
+#define IPI_TRACE 3 /* Collect stack trace. */
+#define IPI_BITMAP_LAST IPI_TRACE
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
-#define	IPI_STOP	(APIC_IPI_INTS + 6)	/* Stop CPU until restarted. */
-#define	IPI_SUSPEND	(APIC_IPI_INTS + 7)	/* Suspend CPU until restarted. */
-#define	IPI_SWI		(APIC_IPI_INTS + 8)	/* Run clk_intr_event. */
-#define	IPI_DYN_FIRST	(APIC_IPI_INTS + 9)
-#define	IPI_DYN_LAST	(254)			/* IPIs allocated at runtime */
+#define IPI_STOP (APIC_IPI_INTS + 6)	/* Stop CPU until restarted. */
+#define IPI_SUSPEND (APIC_IPI_INTS + 7) /* Suspend CPU until restarted. */
+#define IPI_SWI (APIC_IPI_INTS + 8)	/* Run clk_intr_event. */
+#define IPI_DYN_FIRST (APIC_IPI_INTS + 9)
+#define IPI_DYN_LAST (254) /* IPIs allocated at runtime */
 
 /*
  * IPI_STOP_HARD does not need to occupy a slot in the IPI vector space since
  * it is delivered using an NMI anyways.
  */
-#define	IPI_NMI_FIRST	255
-#define	IPI_STOP_HARD	255			/* Stop CPU with a NMI. */
+#define IPI_NMI_FIRST 255
+#define IPI_STOP_HARD 255 /* Stop CPU with a NMI. */
 
 /*
  * The spurious interrupt can share the priority class with the IPIs since
  * it is not a normal interrupt. (Does not use the APIC's interrupt fifo)
  */
-#define	APIC_SPURIOUS_INT 255
+#define APIC_SPURIOUS_INT 255
 
 #ifndef LOCORE
 
-#define	APIC_IPI_DEST_SELF	-1
-#define	APIC_IPI_DEST_ALL	-2
-#define	APIC_IPI_DEST_OTHERS	-3
+#define APIC_IPI_DEST_SELF -1
+#define APIC_IPI_DEST_ALL -2
+#define APIC_IPI_DEST_OTHERS -3
 
-#define	APIC_BUS_UNKNOWN	-1
-#define	APIC_BUS_ISA		0
-#define	APIC_BUS_EISA		1
-#define	APIC_BUS_PCI		2
-#define	APIC_BUS_MAX		APIC_BUS_PCI
+#define APIC_BUS_UNKNOWN -1
+#define APIC_BUS_ISA 0
+#define APIC_BUS_EISA 1
+#define APIC_BUS_PCI 2
+#define APIC_BUS_MAX APIC_BUS_PCI
 
-#define	IRQ_EXTINT		-1
-#define	IRQ_NMI			-2
-#define	IRQ_SMI			-3
-#define	IRQ_DISABLED		-4
+#define IRQ_EXTINT -1
+#define IRQ_NMI -2
+#define IRQ_SMI -3
+#define IRQ_DISABLED -4
 
 /*
  * An APIC enumerator is a pseudo bus driver that enumerates APIC's including
@@ -177,81 +177,78 @@ struct apic_enumerator {
 	SLIST_ENTRY(apic_enumerator) apic_next;
 };
 
-inthand_t
-	IDTVEC(apic_isr1), IDTVEC(apic_isr2), IDTVEC(apic_isr3),
-	IDTVEC(apic_isr4), IDTVEC(apic_isr5), IDTVEC(apic_isr6),
-	IDTVEC(apic_isr7), IDTVEC(cmcint), IDTVEC(errorint),
-	IDTVEC(spuriousint), IDTVEC(timerint),
-	IDTVEC(apic_isr1_pti), IDTVEC(apic_isr2_pti), IDTVEC(apic_isr3_pti),
-	IDTVEC(apic_isr4_pti), IDTVEC(apic_isr5_pti), IDTVEC(apic_isr6_pti),
-	IDTVEC(apic_isr7_pti), IDTVEC(cmcint_pti), IDTVEC(errorint_pti),
-	IDTVEC(spuriousint_pti), IDTVEC(timerint_pti);
+inthand_t IDTVEC(apic_isr1), IDTVEC(apic_isr2), IDTVEC(apic_isr3),
+    IDTVEC(apic_isr4), IDTVEC(apic_isr5), IDTVEC(apic_isr6), IDTVEC(apic_isr7),
+    IDTVEC(cmcint), IDTVEC(errorint), IDTVEC(spuriousint), IDTVEC(timerint),
+    IDTVEC(apic_isr1_pti), IDTVEC(apic_isr2_pti), IDTVEC(apic_isr3_pti),
+    IDTVEC(apic_isr4_pti), IDTVEC(apic_isr5_pti), IDTVEC(apic_isr6_pti),
+    IDTVEC(apic_isr7_pti), IDTVEC(cmcint_pti), IDTVEC(errorint_pti),
+    IDTVEC(spuriousint_pti), IDTVEC(timerint_pti);
 
 extern vm_paddr_t lapic_paddr;
 extern int *apic_cpuids;
 
-void	apic_register_enumerator(struct apic_enumerator *enumerator);
-void	*ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase);
-int	ioapic_disable_pin(void *cookie, u_int pin);
-int	ioapic_get_vector(void *cookie, u_int pin);
-void	ioapic_register(void *cookie);
-int	ioapic_remap_vector(void *cookie, u_int pin, int vector);
-int	ioapic_set_bus(void *cookie, u_int pin, int bus_type);
-int	ioapic_set_extint(void *cookie, u_int pin);
-int	ioapic_set_nmi(void *cookie, u_int pin);
-int	ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol);
-int	ioapic_set_triggermode(void *cookie, u_int pin,
-	    enum intr_trigger trigger);
-int	ioapic_set_smi(void *cookie, u_int pin);
+void apic_register_enumerator(struct apic_enumerator *enumerator);
+void *ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase);
+int ioapic_disable_pin(void *cookie, u_int pin);
+int ioapic_get_vector(void *cookie, u_int pin);
+void ioapic_register(void *cookie);
+int ioapic_remap_vector(void *cookie, u_int pin, int vector);
+int ioapic_set_bus(void *cookie, u_int pin, int bus_type);
+int ioapic_set_extint(void *cookie, u_int pin);
+int ioapic_set_nmi(void *cookie, u_int pin);
+int ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol);
+int ioapic_set_triggermode(void *cookie, u_int pin, enum intr_trigger trigger);
+int ioapic_set_smi(void *cookie, u_int pin);
 
 /*
  * Struct containing pointers to APIC functions whose
  * implementation is run time selectable.
  */
 struct apic_ops {
-	void	(*create)(u_int, int);
-	void	(*init)(vm_paddr_t);
-	void	(*xapic_mode)(void);
-	bool	(*is_x2apic)(void);
-	void	(*setup)(int);
-	void	(*dump)(const char *);
-	void	(*disable)(void);
-	void	(*eoi)(void);
-	int	(*id)(void);
-	int	(*intr_pending)(u_int);
-	void	(*set_logical_id)(u_int, u_int, u_int);
-	u_int	(*cpuid)(u_int);
+	void (*create)(u_int, int);
+	void (*init)(vm_paddr_t);
+	void (*xapic_mode)(void);
+	bool (*is_x2apic)(void);
+	void (*setup)(int);
+	void (*dump)(const char *);
+	void (*disable)(void);
+	void (*eoi)(void);
+	int (*id)(void);
+	int (*intr_pending)(u_int);
+	void (*set_logical_id)(u_int, u_int, u_int);
+	u_int (*cpuid)(u_int);
 
 	/* Vectors */
-	u_int	(*alloc_vector)(u_int, u_int);
-	u_int	(*alloc_vectors)(u_int, u_int *, u_int, u_int);
-	void	(*enable_vector)(u_int, u_int);
-	void	(*disable_vector)(u_int, u_int);
-	void	(*free_vector)(u_int, u_int, u_int);
+	u_int (*alloc_vector)(u_int, u_int);
+	u_int (*alloc_vectors)(u_int, u_int *, u_int, u_int);
+	void (*enable_vector)(u_int, u_int);
+	void (*disable_vector)(u_int, u_int);
+	void (*free_vector)(u_int, u_int, u_int);
 
 	/* PMC */
-	int	(*enable_pmc)(void);
-	void	(*disable_pmc)(void);
-	void	(*reenable_pmc)(void);
+	int (*enable_pmc)(void);
+	void (*disable_pmc)(void);
+	void (*reenable_pmc)(void);
 
 	/* CMC */
-	void	(*enable_cmc)(void);
+	void (*enable_cmc)(void);
 
 	/* AMD ELVT */
-	int	(*enable_mca_elvt)(void);
+	int (*enable_mca_elvt)(void);
 
 	/* IPI */
-	void	(*ipi_raw)(register_t, u_int);
-	void	(*ipi_vectored)(u_int, int);
-	int	(*ipi_wait)(int);
-	int	(*ipi_alloc)(inthand_t *ipifunc);
-	void	(*ipi_free)(int vector);
+	void (*ipi_raw)(register_t, u_int);
+	void (*ipi_vectored)(u_int, int);
+	int (*ipi_wait)(int);
+	int (*ipi_alloc)(inthand_t *ipifunc);
+	void (*ipi_free)(int vector);
 
 	/* LVT */
-	int	(*set_lvt_mask)(u_int, u_int, u_char);
-	int	(*set_lvt_mode)(u_int, u_int, u_int32_t);
-	int	(*set_lvt_polarity)(u_int, u_int, enum intr_polarity);
-	int	(*set_lvt_triggermode)(u_int, u_int, enum intr_trigger);
+	int (*set_lvt_mask)(u_int, u_int, u_char);
+	int (*set_lvt_mode)(u_int, u_int, u_int32_t);
+	int (*set_lvt_polarity)(u_int, u_int, enum intr_polarity);
+	int (*set_lvt_triggermode)(u_int, u_int, enum intr_trigger);
 };
 
 extern struct apic_ops apic_ops;
@@ -474,12 +471,12 @@ lapic_set_lvt_triggermode(u_int apic_id, u_int lvt, enum intr_trigger trigger)
 	return (apic_ops.set_lvt_triggermode(apic_id, lvt, trigger));
 }
 
-void	lapic_handle_cmc(void);
-void	lapic_handle_error(void);
-void	lapic_handle_intr(int vector, struct trapframe *frame);
-void	lapic_handle_timer(struct trapframe *frame);
+void lapic_handle_cmc(void);
+void lapic_handle_error(void);
+void lapic_handle_intr(int vector, struct trapframe *frame);
+void lapic_handle_timer(struct trapframe *frame);
 
-int	ioapic_get_rid(u_int apic_id, uint16_t *ridp);
+int ioapic_get_rid(u_int apic_id, uint16_t *ridp);
 
 extern int x2apic_mode;
 extern int lapic_eoi_suppression;

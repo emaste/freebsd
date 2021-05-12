@@ -34,144 +34,144 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/eventhandler.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
-#include <sys/reboot.h>
-#include <sys/module.h>
 #include <sys/cpu.h>
+#include <sys/eventhandler.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/reboot.h>
+#include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <machine/bus.h>
 
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
+#include <machine/bus.h>
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/nvmem/nvmem.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/allwinner/aw_sid.h>
 
 #include "cpufreq_if.h"
 #include "nvmem_if.h"
 
-#define	THS_CTRL0		0x00
-#define	THS_CTRL1		0x04
-#define	 ADC_CALI_EN		(1 << 17)
-#define	THS_CTRL2		0x40
-#define	 SENSOR_ACQ1_SHIFT	16
-#define	 SENSOR2_EN		(1 << 2)
-#define	 SENSOR1_EN		(1 << 1)
-#define	 SENSOR0_EN		(1 << 0)
-#define	THS_INTC		0x44
-#define	 THS_THERMAL_PER_SHIFT	12
-#define	THS_INTS		0x48
-#define	 THS2_DATA_IRQ_STS	(1 << 10)
-#define	 THS1_DATA_IRQ_STS	(1 << 9)
-#define	 THS0_DATA_IRQ_STS	(1 << 8)
-#define	 SHUT_INT2_STS		(1 << 6)
-#define	 SHUT_INT1_STS		(1 << 5)
-#define	 SHUT_INT0_STS		(1 << 4)
-#define	 ALARM_INT2_STS		(1 << 2)
-#define	 ALARM_INT1_STS		(1 << 1)
-#define	 ALARM_INT0_STS		(1 << 0)
-#define	THS_ALARM0_CTRL		0x50
-#define	 ALARM_T_HOT_MASK	0xfff
-#define	 ALARM_T_HOT_SHIFT	16
-#define	 ALARM_T_HYST_MASK	0xfff
-#define	 ALARM_T_HYST_SHIFT	0
-#define	THS_SHUTDOWN0_CTRL	0x60
-#define	 SHUT_T_HOT_MASK	0xfff
-#define	 SHUT_T_HOT_SHIFT	16
-#define	THS_FILTER		0x70
-#define	THS_CALIB0		0x74
-#define	THS_CALIB1		0x78
-#define	THS_DATA0		0x80
-#define	THS_DATA1		0x84
-#define	THS_DATA2		0x88
-#define	 DATA_MASK		0xfff
+#define THS_CTRL0 0x00
+#define THS_CTRL1 0x04
+#define ADC_CALI_EN (1 << 17)
+#define THS_CTRL2 0x40
+#define SENSOR_ACQ1_SHIFT 16
+#define SENSOR2_EN (1 << 2)
+#define SENSOR1_EN (1 << 1)
+#define SENSOR0_EN (1 << 0)
+#define THS_INTC 0x44
+#define THS_THERMAL_PER_SHIFT 12
+#define THS_INTS 0x48
+#define THS2_DATA_IRQ_STS (1 << 10)
+#define THS1_DATA_IRQ_STS (1 << 9)
+#define THS0_DATA_IRQ_STS (1 << 8)
+#define SHUT_INT2_STS (1 << 6)
+#define SHUT_INT1_STS (1 << 5)
+#define SHUT_INT0_STS (1 << 4)
+#define ALARM_INT2_STS (1 << 2)
+#define ALARM_INT1_STS (1 << 1)
+#define ALARM_INT0_STS (1 << 0)
+#define THS_ALARM0_CTRL 0x50
+#define ALARM_T_HOT_MASK 0xfff
+#define ALARM_T_HOT_SHIFT 16
+#define ALARM_T_HYST_MASK 0xfff
+#define ALARM_T_HYST_SHIFT 0
+#define THS_SHUTDOWN0_CTRL 0x60
+#define SHUT_T_HOT_MASK 0xfff
+#define SHUT_T_HOT_SHIFT 16
+#define THS_FILTER 0x70
+#define THS_CALIB0 0x74
+#define THS_CALIB1 0x78
+#define THS_DATA0 0x80
+#define THS_DATA1 0x84
+#define THS_DATA2 0x88
+#define DATA_MASK 0xfff
 
-#define	A83T_CLK_RATE		24000000
-#define	A83T_ADC_ACQUIRE_TIME	23	/* 24Mhz/(23 + 1) = 1us */
-#define	A83T_THERMAL_PER	1	/* 4096 * (1 + 1) / 24Mhz = 341 us */
-#define	A83T_FILTER		0x5	/* Filter enabled, avg of 4 */
-#define	A83T_TEMP_BASE		2719000
-#define	A83T_TEMP_MUL		1000
-#define	A83T_TEMP_DIV		14186
+#define A83T_CLK_RATE 24000000
+#define A83T_ADC_ACQUIRE_TIME 23 /* 24Mhz/(23 + 1) = 1us */
+#define A83T_THERMAL_PER 1 /* 4096 * (1 + 1) / 24Mhz = 341 us */
+#define A83T_FILTER 0x5 /* Filter enabled, avg of 4 */
+#define A83T_TEMP_BASE 2719000
+#define A83T_TEMP_MUL 1000
+#define A83T_TEMP_DIV 14186
 
-#define	A64_CLK_RATE		4000000
-#define	A64_ADC_ACQUIRE_TIME	400	/* 4Mhz/(400 + 1) = 100 us */
-#define	A64_THERMAL_PER		24	/* 4096 * (24 + 1) / 4Mhz = 25.6 ms */
-#define	A64_FILTER		0x6	/* Filter enabled, avg of 8 */
-#define	A64_TEMP_BASE		2170000
-#define	A64_TEMP_MUL		1000
-#define	A64_TEMP_DIV		8560
+#define A64_CLK_RATE 4000000
+#define A64_ADC_ACQUIRE_TIME 400 /* 4Mhz/(400 + 1) = 100 us */
+#define A64_THERMAL_PER 24 /* 4096 * (24 + 1) / 4Mhz = 25.6 ms */
+#define A64_FILTER 0x6 /* Filter enabled, avg of 8 */
+#define A64_TEMP_BASE 2170000
+#define A64_TEMP_MUL 1000
+#define A64_TEMP_DIV 8560
 
-#define	H3_CLK_RATE		4000000
-#define	H3_ADC_ACQUIRE_TIME	0x3f
-#define	H3_THERMAL_PER		401
-#define	H3_FILTER		0x6	/* Filter enabled, avg of 8 */
-#define	H3_TEMP_BASE		217
-#define	H3_TEMP_MUL		1000
-#define	H3_TEMP_DIV		8253
-#define	H3_TEMP_MINUS		1794000
-#define	H3_INIT_ALARM		90	/* degC */
-#define	H3_INIT_SHUT		105	/* degC */
+#define H3_CLK_RATE 4000000
+#define H3_ADC_ACQUIRE_TIME 0x3f
+#define H3_THERMAL_PER 401
+#define H3_FILTER 0x6 /* Filter enabled, avg of 8 */
+#define H3_TEMP_BASE 217
+#define H3_TEMP_MUL 1000
+#define H3_TEMP_DIV 8253
+#define H3_TEMP_MINUS 1794000
+#define H3_INIT_ALARM 90 /* degC */
+#define H3_INIT_SHUT 105 /* degC */
 
-#define	H5_CLK_RATE		24000000
-#define	H5_ADC_ACQUIRE_TIME	479	/* 24Mhz/479 = 20us */
-#define	H5_THERMAL_PER		58	/* 4096 * (58 + 1) / 24Mhz = 10ms */
-#define	H5_FILTER		0x6	/* Filter enabled, avg of 8 */
-#define	H5_TEMP_BASE		233832448
-#define	H5_TEMP_MUL		124885
-#define	H5_TEMP_DIV		20
-#define	H5_TEMP_BASE_CPU	271581184
-#define	H5_TEMP_MUL_CPU		152253
-#define	H5_TEMP_BASE_GPU	289406976
-#define	H5_TEMP_MUL_GPU		166724
-#define	H5_INIT_CPU_ALARM	80	/* degC */
-#define	H5_INIT_CPU_SHUT	96	/* degC */
-#define	H5_INIT_GPU_ALARM	84	/* degC */
-#define	H5_INIT_GPU_SHUT	100	/* degC */
+#define H5_CLK_RATE 24000000
+#define H5_ADC_ACQUIRE_TIME 479 /* 24Mhz/479 = 20us */
+#define H5_THERMAL_PER 58 /* 4096 * (58 + 1) / 24Mhz = 10ms */
+#define H5_FILTER 0x6 /* Filter enabled, avg of 8 */
+#define H5_TEMP_BASE 233832448
+#define H5_TEMP_MUL 124885
+#define H5_TEMP_DIV 20
+#define H5_TEMP_BASE_CPU 271581184
+#define H5_TEMP_MUL_CPU 152253
+#define H5_TEMP_BASE_GPU 289406976
+#define H5_TEMP_MUL_GPU 166724
+#define H5_INIT_CPU_ALARM 80 /* degC */
+#define H5_INIT_CPU_SHUT 96 /* degC */
+#define H5_INIT_GPU_ALARM 84 /* degC */
+#define H5_INIT_GPU_SHUT 100 /* degC */
 
-#define	TEMP_C_TO_K		273
-#define	SENSOR_ENABLE_ALL	(SENSOR0_EN|SENSOR1_EN|SENSOR2_EN)
-#define	SHUT_INT_ALL		(SHUT_INT0_STS|SHUT_INT1_STS|SHUT_INT2_STS)
-#define	ALARM_INT_ALL		(ALARM_INT0_STS)
+#define TEMP_C_TO_K 273
+#define SENSOR_ENABLE_ALL (SENSOR0_EN | SENSOR1_EN | SENSOR2_EN)
+#define SHUT_INT_ALL (SHUT_INT0_STS | SHUT_INT1_STS | SHUT_INT2_STS)
+#define ALARM_INT_ALL (ALARM_INT0_STS)
 
-#define	MAX_SENSORS	3
-#define	MAX_CF_LEVELS	64
+#define MAX_SENSORS 3
+#define MAX_CF_LEVELS 64
 
-#define	THROTTLE_ENABLE_DEFAULT	1
+#define THROTTLE_ENABLE_DEFAULT 1
 
 /* Enable thermal throttling */
 static int aw_thermal_throttle_enable = THROTTLE_ENABLE_DEFAULT;
 TUNABLE_INT("hw.aw_thermal.throttle_enable", &aw_thermal_throttle_enable);
 
 struct aw_thermal_sensor {
-	const char		*name;
-	const char		*desc;
-	int			init_alarm;
-	int			init_shut;
+	const char *name;
+	const char *desc;
+	int init_alarm;
+	int init_shut;
 };
 
 struct aw_thermal_config {
-	struct aw_thermal_sensor	sensors[MAX_SENSORS];
-	int				nsensors;
-	uint64_t			clk_rate;
-	uint32_t			adc_acquire_time;
-	int				adc_cali_en;
-	uint32_t			filter;
-	uint32_t			thermal_per;
-	int				(*to_temp)(uint32_t, int);
-	uint32_t			(*to_reg)(int, int);
-	int				temp_base;
-	int				temp_mul;
-	int				temp_div;
-	int				calib0, calib1;
-	uint32_t			calib0_mask, calib1_mask;
+	struct aw_thermal_sensor sensors[MAX_SENSORS];
+	int nsensors;
+	uint64_t clk_rate;
+	uint32_t adc_acquire_time;
+	int adc_cali_en;
+	uint32_t filter;
+	uint32_t thermal_per;
+	int (*to_temp)(uint32_t, int);
+	uint32_t (*to_reg)(int, int);
+	int temp_base;
+	int temp_mul;
+	int temp_div;
+	int calib0, calib1;
+	uint32_t calib0_mask, calib1_mask;
 };
 
 static int
@@ -344,40 +344,37 @@ static const struct aw_thermal_config h5_config = {
 	.calib0_mask = 0xffffffff,
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun8i-a83t-ths",	(uintptr_t)&a83t_config },
-	{ "allwinner,sun8i-h3-ths",	(uintptr_t)&h3_config },
-	{ "allwinner,sun50i-a64-ths",	(uintptr_t)&a64_config },
-	{ "allwinner,sun50i-h5-ths",	(uintptr_t)&h5_config },
-	{ NULL,				(uintptr_t)NULL }
-};
+static struct ofw_compat_data compat_data[] = { { "allwinner,sun8i-a83t-ths",
+						    (uintptr_t)&a83t_config },
+	{ "allwinner,sun8i-h3-ths", (uintptr_t)&h3_config },
+	{ "allwinner,sun50i-a64-ths", (uintptr_t)&a64_config },
+	{ "allwinner,sun50i-h5-ths", (uintptr_t)&h5_config },
+	{ NULL, (uintptr_t)NULL } };
 
-#define	THS_CONF(d)		\
+#define THS_CONF(d) \
 	(void *)ofw_bus_search_compatible((d), compat_data)->ocd_data
 
 struct aw_thermal_softc {
-	device_t			dev;
-	struct resource			*res[2];
-	struct aw_thermal_config	*conf;
+	device_t dev;
+	struct resource *res[2];
+	struct aw_thermal_config *conf;
 
-	struct task			cf_task;
-	int				throttle;
-	int				min_freq;
-	struct cf_level			levels[MAX_CF_LEVELS];
-	eventhandler_tag		cf_pre_tag;
+	struct task cf_task;
+	int throttle;
+	int min_freq;
+	struct cf_level levels[MAX_CF_LEVELS];
+	eventhandler_tag cf_pre_tag;
 
-	clk_t				clk_apb;
-	clk_t				clk_ths;
+	clk_t clk_apb;
+	clk_t clk_ths;
 };
 
-static struct resource_spec aw_thermal_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec aw_thermal_spec[] = { { SYS_RES_MEMORY, 0,
+						      RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
-#define	RD4(sc, reg)		bus_read_4((sc)->res[0], (reg))
-#define	WR4(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
+#define RD4(sc, reg) bus_read_4((sc)->res[0], (reg))
+#define WR4(sc, reg, val) bus_write_4((sc)->res[0], (reg), (val))
 
 static int
 aw_thermal_init(struct aw_thermal_softc *sc)
@@ -391,8 +388,8 @@ aw_thermal_init(struct aw_thermal_softc *sc)
 		device_printf(sc->dev, "calibration nvmem cell is too large\n");
 		return (ENXIO);
 	}
-	error = nvmem_read_cell_by_name(node, "calibration",
-	    (void *)&calib, nvmem_get_cell_len(node, "calibration"));
+	error = nvmem_read_cell_by_name(node, "calibration", (void *)&calib,
+	    nvmem_get_cell_len(node, "calibration"));
 	/* Read calibration settings from EFUSE */
 	if (error != 0) {
 		device_printf(sc->dev, "Cannot read THS efuse\n");
@@ -494,8 +491,7 @@ aw_thermal_setalarm(struct aw_thermal_softc *sc, int sensor, int temp)
 	WR4(sc, THS_ALARM0_CTRL + (sensor * 4), val);
 }
 
-static int
-aw_thermal_sysctl(SYSCTL_HANDLER_ARGS)
+static int aw_thermal_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct aw_thermal_softc *sc;
 	int sensor, val;
@@ -527,8 +523,8 @@ aw_thermal_throttle(struct aw_thermal_softc *sc, int enable)
 		if (error != 0 || count == 0)
 			return;
 		sc->min_freq = sc->levels[count - 1].total_set.freq;
-		error = CPUFREQ_SET(cf_dev, &sc->levels[count - 1],
-		    CPUFREQ_PRIO_USER);
+		error = CPUFREQ_SET(
+		    cf_dev, &sc->levels[count - 1], CPUFREQ_PRIO_USER);
 		if (error != 0)
 			return;
 	}
@@ -581,8 +577,8 @@ aw_thermal_intr(void *arg)
 	WR4(sc, THS_INTS, ints);
 
 	if ((ints & SHUT_INT_ALL) != 0) {
-		device_printf(dev,
-		    "WARNING - current temperature exceeds safe limits\n");
+		device_printf(
+		    dev, "WARNING - current temperature exceeds safe limits\n");
 		shutdown_nice(RB_POWEROFF);
 	}
 
@@ -662,11 +658,11 @@ aw_thermal_attach(device_t dev)
 
 	for (i = 0; i < sc->conf->nsensors; i++) {
 		if (sc->conf->sensors[i].init_alarm > 0)
-			aw_thermal_setalarm(sc, i,
-			    sc->conf->sensors[i].init_alarm);
+			aw_thermal_setalarm(
+			    sc, i, sc->conf->sensors[i].init_alarm);
 		if (sc->conf->sensors[i].init_shut > 0)
-			aw_thermal_setshut(sc, i,
-			    sc->conf->sensors[i].init_shut);
+			aw_thermal_setshut(
+			    sc, i, sc->conf->sensors[i].init_shut);
 	}
 
 	if (aw_thermal_init(sc) != 0)
@@ -674,16 +670,14 @@ aw_thermal_attach(device_t dev)
 
 	for (i = 0; i < sc->conf->nsensors; i++)
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    OID_AUTO, sc->conf->sensors[i].name,
-		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
-		    sc, i, aw_thermal_sysctl, "IK0",
-		    sc->conf->sensors[i].desc);
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    sc->conf->sensors[i].name,
+		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, i,
+		    aw_thermal_sysctl, "IK0", sc->conf->sensors[i].desc);
 
 	if (bootverbose)
 		for (i = 0; i < sc->conf->nsensors; i++) {
-			device_printf(dev,
-			    "%s: alarm %dC hyst %dC shut %dC\n",
+			device_printf(dev, "%s: alarm %dC hyst %dC shut %dC\n",
 			    sc->conf->sensors[i].name,
 			    aw_thermal_getalarm(sc, i),
 			    aw_thermal_gethyst(sc, i),
@@ -711,8 +705,8 @@ fail:
 
 static device_method_t aw_thermal_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		aw_thermal_probe),
-	DEVMETHOD(device_attach,	aw_thermal_attach),
+	DEVMETHOD(device_probe, aw_thermal_probe),
+	DEVMETHOD(device_attach, aw_thermal_attach),
 
 	DEVMETHOD_END
 };
@@ -725,8 +719,8 @@ static driver_t aw_thermal_driver = {
 
 static devclass_t aw_thermal_devclass;
 
-DRIVER_MODULE(aw_thermal, simplebus, aw_thermal_driver, aw_thermal_devclass,
-    0, 0);
+DRIVER_MODULE(
+    aw_thermal, simplebus, aw_thermal_driver, aw_thermal_devclass, 0, 0);
 MODULE_VERSION(aw_thermal, 1);
 MODULE_DEPEND(aw_thermal, aw_sid, 1, 1, 1);
 SIMPLEBUS_PNP_INFO(compat_data);

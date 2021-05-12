@@ -58,16 +58,16 @@ SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, mirror, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_MIRROR stuff");
 int g_mirror_debug = 0;
-SYSCTL_INT(_kern_geom_mirror, OID_AUTO, debug, CTLFLAG_RWTUN, &g_mirror_debug, 0,
-    "Debug level");
+SYSCTL_INT(_kern_geom_mirror, OID_AUTO, debug, CTLFLAG_RWTUN, &g_mirror_debug,
+    0, "Debug level");
 bool g_launch_mirror_before_timeout = true;
 SYSCTL_BOOL(_kern_geom_mirror, OID_AUTO, launch_mirror_before_timeout,
     CTLFLAG_RWTUN, &g_launch_mirror_before_timeout, 0,
     "If false, force gmirror to wait out the full kern.geom.mirror.timeout "
     "before launching mirrors");
 static u_int g_mirror_timeout = 4;
-SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, timeout, CTLFLAG_RWTUN, &g_mirror_timeout,
-    0, "Time to wait on all mirror components");
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, timeout, CTLFLAG_RWTUN,
+    &g_mirror_timeout, 0, "Time to wait on all mirror components");
 static u_int g_mirror_idletime = 5;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, idletime, CTLFLAG_RWTUN,
     &g_mirror_idletime, 0, "Mark components as clean when idling");
@@ -82,11 +82,12 @@ SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_update_period, CTLFLAG_RWTUN,
     &g_mirror_sync_period, 0,
     "Metadata update period during synchronization, in seconds");
 
-#define	MSLEEP(ident, mtx, priority, wmesg, timeout)	do {		\
-	G_MIRROR_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));	\
-	msleep((ident), (mtx), (priority), (wmesg), (timeout));		\
-	G_MIRROR_DEBUG(4, "%s: Woken up %p.", __func__, (ident));	\
-} while (0)
+#define MSLEEP(ident, mtx, priority, wmesg, timeout)                      \
+	do {                                                              \
+		G_MIRROR_DEBUG(4, "%s: Sleeping %p.", __func__, (ident)); \
+		msleep((ident), (mtx), (priority), (wmesg), (timeout));   \
+		G_MIRROR_DEBUG(4, "%s: Woken up %p.", __func__, (ident)); \
+	} while (0)
 
 static eventhandler_tag g_mirror_post_sync = NULL;
 static int g_mirror_shutdown = 0;
@@ -98,8 +99,7 @@ static g_fini_t g_mirror_fini;
 static g_provgone_t g_mirror_providergone;
 static g_resize_t g_mirror_resize;
 
-struct g_class g_mirror_class = {
-	.name = G_MIRROR_CLASS_NAME,
+struct g_class g_mirror_class = { .name = G_MIRROR_CLASS_NAME,
 	.version = G_VERSION,
 	.ctlreq = g_mirror_config,
 	.taste = g_mirror_taste,
@@ -107,8 +107,7 @@ struct g_class g_mirror_class = {
 	.init = g_mirror_init,
 	.fini = g_mirror_fini,
 	.providergone = g_mirror_providergone,
-	.resize = g_mirror_resize
-};
+	.resize = g_mirror_resize };
 
 static void g_mirror_destroy_provider(struct g_mirror_softc *sc);
 static int g_mirror_update_disk(struct g_mirror_disk *disk, u_int state);
@@ -118,11 +117,11 @@ static void g_mirror_dumpconf(struct sbuf *sb, const char *indent,
 static void g_mirror_timeout_drain(struct g_mirror_softc *sc);
 static int g_mirror_refresh_device(struct g_mirror_softc *sc,
     const struct g_provider *pp, const struct g_mirror_metadata *md);
-static void g_mirror_sync_reinit(const struct g_mirror_disk *disk,
-    struct bio *bp, off_t offset);
+static void g_mirror_sync_reinit(
+    const struct g_mirror_disk *disk, struct bio *bp, off_t offset);
 static void g_mirror_sync_stop(struct g_mirror_disk *disk, int type);
-static void g_mirror_register_request(struct g_mirror_softc *sc,
-    struct bio *bp);
+static void g_mirror_register_request(
+    struct g_mirror_softc *sc, struct bio *bp);
 static void g_mirror_sync_release(struct g_mirror_softc *sc);
 
 static const char *
@@ -185,8 +184,8 @@ g_mirror_event_free(struct g_mirror_event *ep)
 }
 
 static int
-g_mirror_event_dispatch(struct g_mirror_event *ep, void *arg, int state,
-    int flags)
+g_mirror_event_dispatch(
+    struct g_mirror_event *ep, void *arg, int state, int flags)
 {
 	struct g_mirror_softc *sc;
 	struct g_mirror_disk *disk;
@@ -217,8 +216,8 @@ g_mirror_event_dispatch(struct g_mirror_event *ep, void *arg, int state,
 	sx_xunlock(&sc->sc_lock);
 	while ((ep->e_flags & G_MIRROR_EVENT_DONE) == 0) {
 		mtx_lock(&sc->sc_events_mtx);
-		MSLEEP(ep, &sc->sc_events_mtx, PRIBIO | PDROP, "m:event",
-		    hz * 5);
+		MSLEEP(
+		    ep, &sc->sc_events_mtx, PRIBIO | PDROP, "m:event", hz * 5);
 	}
 	error = ep->e_error;
 	g_mirror_event_free(ep);
@@ -265,7 +264,7 @@ g_mirror_event_cancel(struct g_mirror_disk *disk)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 	mtx_lock(&sc->sc_events_mtx);
-	TAILQ_FOREACH_SAFE(ep, &sc->sc_events, e_next, tmpep) {
+	TAILQ_FOREACH_SAFE (ep, &sc->sc_events, e_next, tmpep) {
 		if ((ep->e_flags & G_MIRROR_EVENT_DEVICE) != 0)
 			continue;
 		if (ep->e_disk != disk)
@@ -291,7 +290,7 @@ g_mirror_ndisks(struct g_mirror_softc *sc, int state)
 	struct g_mirror_disk *disk;
 	u_int n = 0;
 
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 		if (state == -1 || disk->d_state == state)
 			n++;
 	}
@@ -308,7 +307,7 @@ g_mirror_id2disk(struct g_mirror_softc *sc, uint32_t id)
 
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 		if (disk->d_id == id)
 			return (disk);
 	}
@@ -322,7 +321,7 @@ g_mirror_nrequests(struct g_mirror_softc *sc, struct g_consumer *cp)
 	u_int nreqs = 0;
 
 	mtx_lock(&sc->sc_queue_mtx);
-	TAILQ_FOREACH(bp, &sc->sc_queue, bio_queue) {
+	TAILQ_FOREACH (bp, &sc->sc_queue, bio_queue) {
 		if (bp->bio_from == cp)
 			nreqs++;
 	}
@@ -425,8 +424,8 @@ g_mirror_connect_disk(struct g_mirror_disk *disk, struct g_provider *pp)
 		g_detach(cp);
 		g_destroy_consumer(cp);
 		g_topology_unlock();
-		G_MIRROR_DEBUG(0, "Cannot open consumer %s (error=%d).",
-		    pp->name, error);
+		G_MIRROR_DEBUG(
+		    0, "Cannot open consumer %s (error=%d).", pp->name, error);
 		return (error);
 	}
 	g_topology_unlock();
@@ -530,9 +529,9 @@ g_mirror_destroy_disk(struct g_mirror_disk *disk)
 		free(disk, M_MIRROR);
 		break;
 	default:
-		KASSERT(0 == 1, ("Wrong disk state (%s, %s).",
-		    g_mirror_get_diskname(disk),
-		    g_mirror_disk_state2str(disk->d_state)));
+		KASSERT(0 == 1,
+		    ("Wrong disk state (%s, %s).", g_mirror_get_diskname(disk),
+			g_mirror_disk_state2str(disk->d_state)));
 	}
 }
 
@@ -573,7 +572,7 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 	if (sc->sc_provider != NULL)
 		g_mirror_destroy_provider(sc);
 	for (disk = LIST_FIRST(&sc->sc_disks); disk != NULL;
-	    disk = LIST_FIRST(&sc->sc_disks)) {
+	     disk = LIST_FIRST(&sc->sc_disks)) {
 		disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
 		g_mirror_update_metadata(disk);
 		g_mirror_destroy_disk(disk);
@@ -594,7 +593,8 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 	g_mirror_timeout_drain(sc);
 
 	g_topology_lock();
-	LIST_FOREACH_SAFE(cp, &sc->sc_sync.ds_geom->consumer, consumer, tmpcp) {
+	LIST_FOREACH_SAFE (
+	    cp, &sc->sc_sync.ds_geom->consumer, consumer, tmpcp) {
 		g_mirror_disconnect_consumer(sc, cp);
 	}
 	g_wither_geom(sc->sc_sync.ds_geom, ENXIO);
@@ -617,8 +617,8 @@ g_mirror_orphan(struct g_consumer *cp)
 	if (disk == NULL)
 		return;
 	disk->d_softc->sc_bump_id |= G_MIRROR_BUMP_SYNCID;
-	g_mirror_event_send(disk, G_MIRROR_DISK_STATE_DISCONNECTED,
-	    G_MIRROR_EVENT_DONTWAIT);
+	g_mirror_event_send(
+	    disk, G_MIRROR_DISK_STATE_DISCONNECTED, G_MIRROR_EVENT_DONTWAIT);
 }
 
 /*
@@ -632,7 +632,7 @@ g_mirror_find_next(struct g_mirror_softc *sc, struct g_mirror_disk *disk)
 	struct g_mirror_disk *dp;
 
 	for (dp = LIST_NEXT(disk, d_next); dp != disk;
-	    dp = LIST_NEXT(dp, d_next)) {
+	     dp = LIST_NEXT(dp, d_next)) {
 		if (dp == NULL)
 			dp = LIST_FIRST(&sc->sc_disks);
 		if (dp->d_state == G_MIRROR_DISK_STATE_ACTIVE)
@@ -664,8 +664,8 @@ g_mirror_get_disk(struct g_mirror_softc *sc)
 }
 
 static int
-g_mirror_write_metadata(struct g_mirror_disk *disk,
-    struct g_mirror_metadata *md)
+g_mirror_write_metadata(
+    struct g_mirror_disk *disk, struct g_mirror_metadata *md)
 {
 	struct g_mirror_softc *sc;
 	struct g_consumer *cp;
@@ -682,12 +682,11 @@ g_mirror_write_metadata(struct g_mirror_disk *disk,
 	KASSERT(cp->provider != NULL, ("NULL provider (%s).", sc->sc_name));
 	KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 	    ("Consumer %s closed? (r%dw%de%d).", cp->provider->name, cp->acr,
-	    cp->acw, cp->ace));
+		cp->acw, cp->ace));
 	length = cp->provider->sectorsize;
 	offset = cp->provider->mediasize - length;
 	sector = malloc((size_t)length, M_MIRROR, M_WAITOK | M_ZERO);
-	if (md != NULL &&
-	    (sc->sc_flags & G_MIRROR_DEVICE_FLAG_WIPE) == 0) {
+	if (md != NULL && (sc->sc_flags & G_MIRROR_DEVICE_FLAG_WIPE) == 0) {
 		/*
 		 * Handle the case, when the size of parent provider reduced.
 		 */
@@ -703,11 +702,13 @@ g_mirror_write_metadata(struct g_mirror_disk *disk,
 	if (error != 0) {
 		if ((disk->d_flags & G_MIRROR_DISK_FLAG_BROKEN) == 0) {
 			disk->d_flags |= G_MIRROR_DISK_FLAG_BROKEN;
-			G_MIRROR_DEBUG(0, "Cannot write metadata on %s "
+			G_MIRROR_DEBUG(0,
+			    "Cannot write metadata on %s "
 			    "(device=%s, error=%d).",
 			    g_mirror_get_diskname(disk), sc->sc_name, error);
 		} else {
-			G_MIRROR_DEBUG(1, "Cannot write metadata on %s "
+			G_MIRROR_DEBUG(1,
+			    "Cannot write metadata on %s "
 			    "(device=%s, error=%d).",
 			    g_mirror_get_diskname(disk), sc->sc_name, error);
 		}
@@ -734,8 +735,8 @@ g_mirror_clear_metadata(struct g_mirror_disk *disk)
 		return (0);
 	error = g_mirror_write_metadata(disk, NULL);
 	if (error == 0) {
-		G_MIRROR_DEBUG(2, "Metadata on %s cleared.",
-		    g_mirror_get_diskname(disk));
+		G_MIRROR_DEBUG(
+		    2, "Metadata on %s cleared.", g_mirror_get_diskname(disk));
 	} else {
 		G_MIRROR_DEBUG(0,
 		    "Cannot clear metadata on disk %s (error=%d).",
@@ -803,8 +804,8 @@ g_mirror_update_metadata(struct g_mirror_disk *disk)
 		g_mirror_fill_metadata(sc, disk, &md);
 	error = g_mirror_write_metadata(disk, &md);
 	if (error == 0) {
-		G_MIRROR_DEBUG(2, "Metadata on %s updated.",
-		    g_mirror_get_diskname(disk));
+		G_MIRROR_DEBUG(
+		    2, "Metadata on %s updated.", g_mirror_get_diskname(disk));
 	} else {
 		G_MIRROR_DEBUG(0,
 		    "Cannot update metadata on disk %s (error=%d).",
@@ -821,12 +822,12 @@ g_mirror_bump_syncid(struct g_mirror_softc *sc)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 	KASSERT(g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) > 0,
 	    ("%s called with no active disks (device=%s).", __func__,
-	    sc->sc_name));
+		sc->sc_name));
 
 	sc->sc_syncid++;
-	G_MIRROR_DEBUG(1, "Device %s: syncid bumped to %u.", sc->sc_name,
-	    sc->sc_syncid);
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	G_MIRROR_DEBUG(
+	    1, "Device %s: syncid bumped to %u.", sc->sc_name, sc->sc_syncid);
+	LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 		if (disk->d_state == G_MIRROR_DISK_STATE_ACTIVE ||
 		    disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING) {
 			disk->d_sync.ds_syncid = sc->sc_syncid;
@@ -844,12 +845,12 @@ g_mirror_bump_genid(struct g_mirror_softc *sc)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 	KASSERT(g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) > 0,
 	    ("%s called with no active disks (device=%s).", __func__,
-	    sc->sc_name));
+		sc->sc_name));
 
 	sc->sc_genid++;
-	G_MIRROR_DEBUG(1, "Device %s: genid bumped to %u.", sc->sc_name,
-	    sc->sc_genid);
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	G_MIRROR_DEBUG(
+	    1, "Device %s: genid bumped to %u.", sc->sc_name, sc->sc_genid);
+	LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 		if (disk->d_state == G_MIRROR_DISK_STATE_ACTIVE ||
 		    disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING) {
 			disk->d_genid = sc->sc_genid;
@@ -881,7 +882,7 @@ g_mirror_idle(struct g_mirror_softc *sc, int acw)
 			return (timeout);
 	}
 	sc->sc_idle = 1;
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
 			continue;
 		G_MIRROR_DEBUG(2, "Disk %s (device %s) marked as clean.",
@@ -904,7 +905,7 @@ g_mirror_unidle(struct g_mirror_softc *sc)
 		return;
 	sc->sc_idle = 0;
 	sc->sc_last_write = time_uptime;
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
 			continue;
 		G_MIRROR_DEBUG(2, "Disk %s (device %s) marked as dirty.",
@@ -928,8 +929,8 @@ g_mirror_done(struct bio *bp)
 }
 
 static void
-g_mirror_regular_request_error(struct g_mirror_softc *sc,
-    struct g_mirror_disk *disk, struct bio *bp)
+g_mirror_regular_request_error(
+    struct g_mirror_softc *sc, struct g_mirror_disk *disk, struct bio *bp)
 {
 
 	if ((bp->bio_cmd == BIO_FLUSH || bp->bio_cmd == BIO_SPEEDUP) &&
@@ -938,16 +939,15 @@ g_mirror_regular_request_error(struct g_mirror_softc *sc,
 
 	if ((disk->d_flags & G_MIRROR_DISK_FLAG_BROKEN) == 0) {
 		disk->d_flags |= G_MIRROR_DISK_FLAG_BROKEN;
-		G_MIRROR_LOGREQ(0, bp, "Request failed (error=%d).",
-		    bp->bio_error);
+		G_MIRROR_LOGREQ(
+		    0, bp, "Request failed (error=%d).", bp->bio_error);
 	} else {
-		G_MIRROR_LOGREQ(1, bp, "Request failed (error=%d).",
-		    bp->bio_error);
+		G_MIRROR_LOGREQ(
+		    1, bp, "Request failed (error=%d).", bp->bio_error);
 	}
 	if (g_mirror_disconnect_on_failure &&
 	    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) > 1) {
-		if (bp->bio_error == ENXIO &&
-		    bp->bio_cmd == BIO_READ)
+		if (bp->bio_error == ENXIO && bp->bio_cmd == BIO_READ)
 			sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID;
 		else if (bp->bio_error == ENXIO)
 			sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID_NOW;
@@ -981,31 +981,31 @@ g_mirror_regular_request(struct g_mirror_softc *sc, struct bio *bp)
 
 	switch (bp->bio_cmd) {
 	case BIO_READ:
-		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_regular_request_read,
-		    bp->bio_error);
+		KFAIL_POINT_ERROR(
+		    DEBUG_FP, g_mirror_regular_request_read, bp->bio_error);
 		break;
 	case BIO_WRITE:
-		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_regular_request_write,
-		    bp->bio_error);
+		KFAIL_POINT_ERROR(
+		    DEBUG_FP, g_mirror_regular_request_write, bp->bio_error);
 		break;
 	case BIO_DELETE:
-		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_regular_request_delete,
-		    bp->bio_error);
+		KFAIL_POINT_ERROR(
+		    DEBUG_FP, g_mirror_regular_request_delete, bp->bio_error);
 		break;
 	case BIO_FLUSH:
-		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_regular_request_flush,
-		    bp->bio_error);
+		KFAIL_POINT_ERROR(
+		    DEBUG_FP, g_mirror_regular_request_flush, bp->bio_error);
 		break;
 	case BIO_SPEEDUP:
-		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_regular_request_speedup,
-		    bp->bio_error);
+		KFAIL_POINT_ERROR(
+		    DEBUG_FP, g_mirror_regular_request_speedup, bp->bio_error);
 		break;
 	}
 
 	pbp->bio_inbed++;
 	KASSERT(pbp->bio_inbed <= pbp->bio_children,
 	    ("bio_inbed (%u) is bigger than bio_children (%u).", pbp->bio_inbed,
-	    pbp->bio_children));
+		pbp->bio_children));
 	if (bp->bio_error == 0 && pbp->bio_error == 0) {
 		G_MIRROR_LOGREQ(3, bp, "Request delivered.");
 		g_destroy_bio(bp);
@@ -1104,7 +1104,7 @@ g_mirror_candelete(struct bio *bp)
 	int val;
 
 	sc = bp->bio_to->private;
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 		if (disk->d_flags & G_MIRROR_DISK_FLAG_CANDELETE)
 			break;
 	}
@@ -1140,8 +1140,8 @@ g_mirror_kernel_dump(struct bio *bp)
 	}
 	cbp->bio_done = g_std_done;
 	g_io_request(cbp, disk->d_consumer);
-	G_MIRROR_DEBUG(1, "Kernel dump will go to %s.",
-	    g_mirror_get_diskname(disk));
+	G_MIRROR_DEBUG(
+	    1, "Kernel dump will go to %s.", g_mirror_get_diskname(disk));
 }
 
 static void
@@ -1156,7 +1156,7 @@ g_mirror_start(struct bio *bp)
 	 */
 	KASSERT(sc != NULL && sc->sc_state == G_MIRROR_DEVICE_STATE_RUNNING,
 	    ("Provider's error should be set (error=%d)(mirror=%s).",
-	    bp->bio_to->error, bp->bio_to->name));
+		bp->bio_to->error, bp->bio_to->name));
 	G_MIRROR_LOGREQ(3, bp, "Request received.");
 
 	switch (bp->bio_cmd) {
@@ -1207,7 +1207,7 @@ g_mirror_sync_collision(struct g_mirror_softc *sc, struct bio *bp)
 		return (false);
 	rstart = bp->bio_offset;
 	rend = bp->bio_offset + bp->bio_length;
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_MIRROR_DISK_STATE_SYNCHRONIZING)
 			continue;
 		for (i = 0; i < g_mirror_syncreqs; i++) {
@@ -1237,7 +1237,7 @@ g_mirror_regular_collision(struct g_mirror_softc *sc, struct bio *sbp)
 		return (false);
 	sstart = sbp->bio_offset;
 	send = sbp->bio_offset + sbp->bio_length;
-	TAILQ_FOREACH(bp, &sc->sc_inflight, bio_queue) {
+	TAILQ_FOREACH (bp, &sc->sc_inflight, bio_queue) {
 		rstart = bp->bio_offset;
 		rend = bp->bio_offset + bp->bio_length;
 		if (rend > sstart && rstart < send)
@@ -1297,12 +1297,12 @@ g_mirror_sync_release(struct g_mirror_softc *sc)
 {
 	struct bio *bp, *bp2;
 
-	TAILQ_FOREACH_SAFE(bp, &sc->sc_sync_delayed, bio_queue, bp2) {
+	TAILQ_FOREACH_SAFE (bp, &sc->sc_sync_delayed, bio_queue, bp2) {
 		if (g_mirror_regular_collision(sc, bp))
 			continue;
 		TAILQ_REMOVE(&sc->sc_sync_delayed, bp, bio_queue);
-		G_MIRROR_LOGREQ(2, bp,
-		    "Releasing delayed synchronization request.");
+		G_MIRROR_LOGREQ(
+		    2, bp, "Releasing delayed synchronization request.");
 		g_io_request(bp, bp->bio_from);
 	}
 }
@@ -1340,8 +1340,8 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 	struct g_mirror_disk_sync *sync;
 
 	KASSERT((bp->bio_cmd == BIO_READ &&
-	    bp->bio_from->geom == sc->sc_sync.ds_geom) ||
-	    (bp->bio_cmd == BIO_WRITE && bp->bio_from->geom == sc->sc_geom),
+		    bp->bio_from->geom == sc->sc_sync.ds_geom) ||
+		(bp->bio_cmd == BIO_WRITE && bp->bio_from->geom == sc->sc_geom),
 	    ("Sync BIO %p with unexpected origin", bp));
 
 	bp->bio_from->index--;
@@ -1365,8 +1365,8 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 	case BIO_READ: {
 		struct g_consumer *cp;
 
-		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_sync_request_read,
-		    bp->bio_error);
+		KFAIL_POINT_ERROR(
+		    DEBUG_FP, g_mirror_sync_request_read, bp->bio_error);
 
 		if (bp->bio_error != 0) {
 			G_MIRROR_LOGREQ(0, bp,
@@ -1387,14 +1387,14 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 			    G_MIRROR_EVENT_DONTWAIT);
 			return;
 		}
-		G_MIRROR_LOGREQ(3, bp,
-		    "Synchronization request half-finished.");
+		G_MIRROR_LOGREQ(
+		    3, bp, "Synchronization request half-finished.");
 		bp->bio_cmd = BIO_WRITE;
 		bp->bio_cflags = 0;
 		cp = disk->d_consumer;
 		KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
-		    cp->acr, cp->acw, cp->ace));
+			cp->acr, cp->acw, cp->ace));
 		cp->index++;
 		g_io_request(bp, cp);
 		return;
@@ -1403,8 +1403,8 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 		off_t offset;
 		int i;
 
-		KFAIL_POINT_ERROR(DEBUG_FP, g_mirror_sync_request_write,
-		    bp->bio_error);
+		KFAIL_POINT_ERROR(
+		    DEBUG_FP, g_mirror_sync_request_write, bp->bio_error);
 
 		if (bp->bio_error != 0) {
 			G_MIRROR_LOGREQ(0, bp,
@@ -1427,7 +1427,8 @@ g_mirror_sync_request(struct g_mirror_softc *sc, struct bio *bp)
 			if (sync->ds_inflight > 0)
 				return;
 			if (sync->ds_consumer == NULL ||
-			    (sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
+			    (sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) !=
+				0) {
 				return;
 			}
 			/* Disk up-to-date, activate it. */
@@ -1481,7 +1482,7 @@ g_mirror_request_prefer(struct g_mirror_softc *sc, struct bio *bp)
 	struct g_consumer *cp;
 	struct bio *cbp;
 
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 		if (disk->d_state == G_MIRROR_DISK_STATE_ACTIVE)
 			break;
 	}
@@ -1507,7 +1508,7 @@ g_mirror_request_prefer(struct g_mirror_softc *sc, struct bio *bp)
 	G_MIRROR_LOGREQ(3, cbp, "Sending request.");
 	KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 	    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name, cp->acr,
-	    cp->acw, cp->ace));
+		cp->acw, cp->ace));
 	cp->index++;
 	g_io_request(cbp, cp);
 }
@@ -1542,14 +1543,14 @@ g_mirror_request_round_robin(struct g_mirror_softc *sc, struct bio *bp)
 	G_MIRROR_LOGREQ(3, cbp, "Sending request.");
 	KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 	    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name, cp->acr,
-	    cp->acw, cp->ace));
+		cp->acw, cp->ace));
 	cp->index++;
 	g_io_request(cbp, cp);
 }
 
-#define TRACK_SIZE  (1 * 1024 * 1024)
-#define LOAD_SCALE	256
-#define ABS(x)		(((x) >= 0) ? (x) : (-(x)))
+#define TRACK_SIZE (1 * 1024 * 1024)
+#define LOAD_SCALE 256
+#define ABS(x) (((x) >= 0) ? (x) : (-(x)))
 
 static void
 g_mirror_request_load(struct g_mirror_softc *sc, struct bio *bp)
@@ -1562,7 +1563,7 @@ g_mirror_request_load(struct g_mirror_softc *sc, struct bio *bp)
 	/* Find a disk with the smallest load. */
 	disk = NULL;
 	best = INT_MAX;
-	LIST_FOREACH(dp, &sc->sc_disks, d_next) {
+	LIST_FOREACH (dp, &sc->sc_disks, d_next) {
 		if (dp->d_state != G_MIRROR_DISK_STATE_ACTIVE)
 			continue;
 		prio = dp->load;
@@ -1570,8 +1571,8 @@ g_mirror_request_load(struct g_mirror_softc *sc, struct bio *bp)
 		if (dp->d_last_offset == bp->bio_offset)
 			prio -= 2 * LOAD_SCALE;
 		else
-		/* If disk head is close to position - prefer it. */
-		if (ABS(dp->d_last_offset - bp->bio_offset) < TRACK_SIZE)
+		    /* If disk head is close to position - prefer it. */
+		    if (ABS(dp->d_last_offset - bp->bio_offset) < TRACK_SIZE)
 			prio -= 1 * LOAD_SCALE;
 		if (prio <= best) {
 			disk = dp;
@@ -1595,14 +1596,14 @@ g_mirror_request_load(struct g_mirror_softc *sc, struct bio *bp)
 	G_MIRROR_LOGREQ(3, cbp, "Sending request.");
 	KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 	    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name, cp->acr,
-	    cp->acw, cp->ace));
+		cp->acw, cp->ace));
 	cp->index++;
 	/* Remember last head position */
 	disk->d_last_offset = bp->bio_offset + bp->bio_length;
 	/* Update loads. */
-	LIST_FOREACH(dp, &sc->sc_disks, d_next) {
-		dp->load = (dp->d_consumer->index * LOAD_SCALE +
-		    dp->load * 7) / 8;
+	LIST_FOREACH (dp, &sc->sc_disks, d_next) {
+		dp->load = (dp->d_consumer->index * LOAD_SCALE + dp->load * 7) /
+		    8;
 	}
 	g_io_request(cbp, cp);
 }
@@ -1635,7 +1636,7 @@ g_mirror_request_split(struct g_mirror_softc *sc, struct bio *bp)
 	offset = bp->bio_offset;
 	data = bp->bio_data;
 	TAILQ_INIT(&queue);
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 		if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
 			continue;
 		cbp = g_clone_bio(bp);
@@ -1670,7 +1671,7 @@ g_mirror_request_split(struct g_mirror_softc *sc, struct bio *bp)
 		cp = disk->d_consumer;
 		KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
-		    cp->acr, cp->acw, cp->ace));
+			cp->acr, cp->acw, cp->ace));
 		disk->d_consumer->index++;
 		g_io_request(cbp, disk->d_consumer);
 	}
@@ -1743,7 +1744,7 @@ g_mirror_register_request(struct g_mirror_softc *sc, struct bio *bp)
 		 * return ENOMEM in nice and clean way.
 		 */
 		TAILQ_INIT(&queue);
-		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 			switch (disk->d_state) {
 			case G_MIRROR_DISK_STATE_ACTIVE:
 				break;
@@ -1775,7 +1776,7 @@ g_mirror_register_request(struct g_mirror_softc *sc, struct bio *bp)
 			cbp->bio_to = cp->provider;
 			KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 			    ("Consumer %s not opened (r%dw%de%d).",
-			    cp->provider->name, cp->acr, cp->acw, cp->ace));
+				cp->provider->name, cp->acr, cp->acw, cp->ace));
 		}
 		if (TAILQ_EMPTY(&queue)) {
 			KASSERT(bp->bio_cmd == BIO_DELETE,
@@ -1801,7 +1802,7 @@ g_mirror_register_request(struct g_mirror_softc *sc, struct bio *bp)
 	case BIO_SPEEDUP:
 	case BIO_FLUSH:
 		TAILQ_INIT(&queue);
-		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_state != G_MIRROR_DISK_STATE_ACTIVE)
 				continue;
 			cbp = g_clone_bio(bp);
@@ -1829,15 +1830,16 @@ g_mirror_register_request(struct g_mirror_softc *sc, struct bio *bp)
 			cbp->bio_caller1 = NULL;
 			cp = disk->d_consumer;
 			KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
-			    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
-			    cp->acr, cp->acw, cp->ace));
+			    ("Consumer %s not opened (r%dw%de%d).",
+				cp->provider->name, cp->acr, cp->acw, cp->ace));
 			cp->index++;
 			g_io_request(cbp, cp);
 		}
 		break;
 	default:
-		KASSERT(1 == 0, ("Invalid command here: %u (device=%s)",
-		    bp->bio_cmd, sc->sc_name));
+		KASSERT(1 == 0,
+		    ("Invalid command here: %u (device=%s)", bp->bio_cmd,
+			sc->sc_name));
 		break;
 	}
 }
@@ -1854,17 +1856,17 @@ g_mirror_can_destroy(struct g_mirror_softc *sc)
 		return (1);
 	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_TASTING) != 0)
 		return (0);
-	LIST_FOREACH(cp, &gp->consumer, consumer) {
+	LIST_FOREACH (cp, &gp->consumer, consumer) {
 		if (g_mirror_is_busy(sc, cp))
 			return (0);
 	}
 	gp = sc->sc_sync.ds_geom;
-	LIST_FOREACH(cp, &gp->consumer, consumer) {
+	LIST_FOREACH (cp, &gp->consumer, consumer) {
 		if (g_mirror_is_busy(sc, cp))
 			return (0);
 	}
-	G_MIRROR_DEBUG(2, "No I/O requests for %s, it can be destroyed.",
-	    sc->sc_name);
+	G_MIRROR_DEBUG(
+	    2, "No I/O requests for %s, it can be destroyed.", sc->sc_name);
 	return (1);
 }
 
@@ -1873,8 +1875,8 @@ g_mirror_try_destroy(struct g_mirror_softc *sc)
 {
 
 	if (sc->sc_rootmount != NULL) {
-		G_MIRROR_DEBUG(1, "root_mount_rel[%u] %p", __LINE__,
-		    sc->sc_rootmount);
+		G_MIRROR_DEBUG(
+		    1, "root_mount_rel[%u] %p", __LINE__, sc->sc_rootmount);
 		root_mount_rel(sc->sc_rootmount);
 		sc->sc_rootmount = NULL;
 	}
@@ -1887,8 +1889,8 @@ g_mirror_try_destroy(struct g_mirror_softc *sc)
 	sc->sc_sync.ds_geom->softc = NULL;
 	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DRAIN) != 0) {
 		g_topology_unlock();
-		G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__,
-		    &sc->sc_worker);
+		G_MIRROR_DEBUG(
+		    4, "%s: Waking up %p.", __func__, &sc->sc_worker);
 		/* Unlock sc_lock here, as it can be destroyed after wakeup. */
 		sx_xunlock(&sc->sc_lock);
 		wakeup(&sc->sc_worker);
@@ -1936,9 +1938,9 @@ g_mirror_worker(void *arg)
 			} else {
 				/* Update disk status. */
 				G_MIRROR_DEBUG(3, "Running event for disk %s.",
-				     g_mirror_get_diskname(ep->e_disk));
-				ep->e_error = g_mirror_update_disk(ep->e_disk,
-				    ep->e_state);
+				    g_mirror_get_diskname(ep->e_disk));
+				ep->e_error = g_mirror_update_disk(
+				    ep->e_disk, ep->e_state);
 				if (ep->e_error == 0)
 					g_mirror_update_device(sc, false);
 			}
@@ -1948,14 +1950,14 @@ g_mirror_worker(void *arg)
 				g_mirror_event_free(ep);
 			} else {
 				ep->e_flags |= G_MIRROR_EVENT_DONE;
-				G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__,
-				    ep);
+				G_MIRROR_DEBUG(
+				    4, "%s: Waking up %p.", __func__, ep);
 				mtx_lock(&sc->sc_events_mtx);
 				wakeup(ep);
 				mtx_unlock(&sc->sc_events_mtx);
 			}
-			if ((sc->sc_flags &
-			    G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
+			if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) !=
+			    0) {
 				if (g_mirror_try_destroy(sc)) {
 					curthread->td_pflags &= ~TDP_GEOM;
 					G_MIRROR_DEBUG(1, "Thread exiting.");
@@ -1980,8 +1982,8 @@ g_mirror_worker(void *arg)
 		if (bp != NULL)
 			TAILQ_REMOVE(&sc->sc_queue, bp, bio_queue);
 		else {
-			if ((sc->sc_flags &
-			    G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
+			if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) !=
+			    0) {
 				mtx_unlock(&sc->sc_queue_mtx);
 				if (g_mirror_try_destroy(sc)) {
 					curthread->td_pflags &= ~TDP_GEOM;
@@ -2029,7 +2031,7 @@ g_mirror_worker(void *arg)
 			else {
 				KASSERT(0,
 				    ("Invalid request cflags=0x%hx to=%s.",
-				    bp->bio_cflags, bp->bio_to->name));
+					bp->bio_cflags, bp->bio_to->name));
 			}
 		} else {
 			/*
@@ -2062,8 +2064,8 @@ g_mirror_update_idle(struct g_mirror_softc *sc, struct g_mirror_disk *disk)
 }
 
 static void
-g_mirror_sync_reinit(const struct g_mirror_disk *disk, struct bio *bp,
-    off_t offset)
+g_mirror_sync_reinit(
+    const struct g_mirror_disk *disk, struct bio *bp, off_t offset)
 {
 	void *data;
 	int idx;
@@ -2079,8 +2081,8 @@ g_mirror_sync_reinit(const struct g_mirror_disk *disk, struct bio *bp,
 	bp->bio_to = disk->d_softc->sc_provider;
 	bp->bio_caller1 = (void *)(uintptr_t)idx;
 	bp->bio_offset = offset;
-	bp->bio_length = MIN(maxphys,
-	    disk->d_softc->sc_mediasize - bp->bio_offset);
+	bp->bio_length = MIN(
+	    maxphys, disk->d_softc->sc_mediasize - bp->bio_offset);
 }
 
 static void
@@ -2099,10 +2101,10 @@ g_mirror_sync_start(struct g_mirror_disk *disk)
 
 	KASSERT(disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING,
 	    ("Disk %s is not marked for synchronization.",
-	    g_mirror_get_diskname(disk)));
+		g_mirror_get_diskname(disk)));
 	KASSERT(sc->sc_state == G_MIRROR_DEVICE_STATE_RUNNING,
 	    ("Device not in RUNNING state (%s, %u).", sc->sc_name,
-	    sc->sc_state));
+		sc->sc_state));
 
 	sx_xunlock(&sc->sc_lock);
 	g_topology_lock();
@@ -2121,8 +2123,8 @@ g_mirror_sync_start(struct g_mirror_disk *disk)
 	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_NOFAILSYNC) == 0)
 		disk->d_flags |= G_MIRROR_DISK_FLAG_DIRTY;
 	KASSERT(sync->ds_consumer == NULL,
-	    ("Sync consumer already exists (device=%s, disk=%s).",
-	    sc->sc_name, g_mirror_get_diskname(disk)));
+	    ("Sync consumer already exists (device=%s, disk=%s).", sc->sc_name,
+		g_mirror_get_diskname(disk)));
 
 	sync->ds_consumer = cp;
 	sync->ds_consumer->private = disk;
@@ -2131,8 +2133,8 @@ g_mirror_sync_start(struct g_mirror_disk *disk)
 	/*
 	 * Allocate memory for synchronization bios and initialize them.
 	 */
-	sync->ds_bios = malloc(sizeof(struct bio *) * g_mirror_syncreqs,
-	    M_MIRROR, M_WAITOK);
+	sync->ds_bios = malloc(
+	    sizeof(struct bio *) * g_mirror_syncreqs, M_MIRROR, M_WAITOK);
 	for (i = 0; i < g_mirror_syncreqs; i++) {
 		bp = g_alloc_bio();
 		sync->ds_bios[i] = bp;
@@ -2182,7 +2184,7 @@ g_mirror_sync_stop(struct g_mirror_disk *disk, int type)
 
 	KASSERT(disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING,
 	    ("Wrong disk state (%s, %s).", g_mirror_get_diskname(disk),
-	    g_mirror_disk_state2str(disk->d_state)));
+		g_mirror_disk_state2str(disk->d_state)));
 	if (disk->d_sync.ds_consumer == NULL)
 		return;
 
@@ -2227,7 +2229,7 @@ g_mirror_launch_provider(struct g_mirror_softc *sc)
 	if (sc->sc_balance != G_MIRROR_BALANCE_SPLIT)
 		pp->flags |= G_PF_ACCEPT_UNMAPPED;
 
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 		if (disk->d_consumer && disk->d_consumer->provider) {
 			dp = disk->d_consumer->provider;
 			if (dp->stripesize > pp->stripesize) {
@@ -2236,8 +2238,10 @@ g_mirror_launch_provider(struct g_mirror_softc *sc)
 			}
 			/* A provider underneath us doesn't support unmapped */
 			if ((dp->flags & G_PF_ACCEPT_UNMAPPED) == 0) {
-				G_MIRROR_DEBUG(0, "Cancelling unmapped "
-				    "because of %s.", dp->name);
+				G_MIRROR_DEBUG(0,
+				    "Cancelling unmapped "
+				    "because of %s.",
+				    dp->name);
 				pp->flags &= ~G_PF_ACCEPT_UNMAPPED;
 			}
 		}
@@ -2249,7 +2253,7 @@ g_mirror_launch_provider(struct g_mirror_softc *sc)
 	g_topology_unlock();
 	G_MIRROR_DEBUG(0, "Device %s launched (%u/%u).", pp->name,
 	    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE), sc->sc_ndisks);
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 		if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING)
 			g_mirror_sync_start(disk);
 	}
@@ -2262,10 +2266,10 @@ g_mirror_destroy_provider(struct g_mirror_softc *sc)
 	struct bio *bp;
 
 	g_topology_assert_not();
-	KASSERT(sc->sc_provider != NULL, ("NULL provider (device=%s).",
-	    sc->sc_name));
+	KASSERT(sc->sc_provider != NULL,
+	    ("NULL provider (device=%s).", sc->sc_name));
 
-	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+	LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 		if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING)
 			g_mirror_sync_stop(disk, 1);
 	}
@@ -2306,8 +2310,8 @@ g_mirror_go(void *arg)
 	G_MIRROR_DEBUG(0, "Force device %s start due to timeout.", sc->sc_name);
 	ep = sc->sc_timeout_event;
 	sc->sc_timeout_event = NULL;
-	g_mirror_event_dispatch(ep, sc, 0,
-	    G_MIRROR_EVENT_DONTWAIT | G_MIRROR_EVENT_DEVICE);
+	g_mirror_event_dispatch(
+	    ep, sc, 0, G_MIRROR_EVENT_DONTWAIT | G_MIRROR_EVENT_DEVICE);
 }
 
 static void
@@ -2328,17 +2332,16 @@ g_mirror_determine_state(struct g_mirror_disk *disk)
 
 	sc = disk->d_softc;
 	if (sc->sc_syncid == disk->d_sync.ds_syncid) {
-		if ((disk->d_flags &
-		    G_MIRROR_DISK_FLAG_SYNCHRONIZING) == 0 &&
+		if ((disk->d_flags & G_MIRROR_DISK_FLAG_SYNCHRONIZING) == 0 &&
 		    (g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) == 0 ||
-		     (disk->d_flags & G_MIRROR_DISK_FLAG_DIRTY) == 0)) {
+			(disk->d_flags & G_MIRROR_DISK_FLAG_DIRTY) == 0)) {
 			/* Disk does not need synchronization. */
 			state = G_MIRROR_DISK_STATE_ACTIVE;
 		} else {
-			if ((sc->sc_flags &
-			     G_MIRROR_DEVICE_FLAG_NOAUTOSYNC) == 0 ||
-			    (disk->d_flags &
-			     G_MIRROR_DISK_FLAG_FORCE_SYNC) != 0) {
+			if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_NOAUTOSYNC) ==
+				0 ||
+			    (disk->d_flags & G_MIRROR_DISK_FLAG_FORCE_SYNC) !=
+				0) {
 				/*
 				 * We can start synchronization from
 				 * the stored offset.
@@ -2373,17 +2376,18 @@ g_mirror_determine_state(struct g_mirror_disk *disk)
 		 * I think the best choice here is don't touch
 		 * this disk and inform the user loudly.
 		 */
-		G_MIRROR_DEBUG(0, "Device %s was started before the freshest "
+		G_MIRROR_DEBUG(0,
+		    "Device %s was started before the freshest "
 		    "disk (%s) arrives!! It will not be connected to the "
-		    "running device.", sc->sc_name,
-		    g_mirror_get_diskname(disk));
+		    "running device.",
+		    sc->sc_name, g_mirror_get_diskname(disk));
 		g_mirror_destroy_disk(disk);
 		state = G_MIRROR_DISK_STATE_NONE;
 		/* Return immediately, because disk was destroyed. */
 		return (state);
 	}
-	G_MIRROR_DEBUG(3, "State for %s disk: %s.",
-	    g_mirror_get_diskname(disk), g_mirror_disk_state2str(state));
+	G_MIRROR_DEBUG(3, "State for %s disk: %s.", g_mirror_get_diskname(disk),
+	    g_mirror_disk_state2str(state));
 	return (state);
 }
 
@@ -2399,25 +2403,25 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 	switch (sc->sc_state) {
-	case G_MIRROR_DEVICE_STATE_STARTING:
-	    {
+	case G_MIRROR_DEVICE_STATE_STARTING: {
 		struct g_mirror_disk *pdisk, *tdisk;
 		const char *mismatch;
 		uintmax_t found, newest;
 		u_int dirty, ndisks;
 
 		/* Pre-flight checks */
-		LIST_FOREACH_SAFE(disk, &sc->sc_disks, d_next, tdisk) {
+		LIST_FOREACH_SAFE (disk, &sc->sc_disks, d_next, tdisk) {
 			/*
 			 * Confirm we already detected the newest genid.
 			 */
 			KASSERT(sc->sc_genid >= disk->d_genid,
-			    ("%s: found newer genid %u (sc:%p had %u).", __func__,
-			    disk->d_genid, sc, sc->sc_genid));
+			    ("%s: found newer genid %u (sc:%p had %u).",
+				__func__, disk->d_genid, sc, sc->sc_genid));
 
 			/* Kick out any previously tasted stale components. */
 			if (disk->d_genid < sc->sc_genid) {
-				G_MIRROR_DEBUG(0, "Stale 'genid' field on %s "
+				G_MIRROR_DEBUG(0,
+				    "Stale 'genid' field on %s "
 				    "(device %s) (component=%u latest=%u), skipping.",
 				    g_mirror_get_diskname(disk), sc->sc_name,
 				    disk->d_genid, sc->sc_genid);
@@ -2431,16 +2435,15 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 			 */
 			KASSERT(sc->sc_syncid >= disk->d_sync.ds_syncid,
 			    ("%s: found newer syncid %u (sc:%p had %u).",
-			     __func__, disk->d_sync.ds_syncid, sc,
-			     sc->sc_syncid));
+				__func__, disk->d_sync.ds_syncid, sc,
+				sc->sc_syncid));
 
-#define DETECT_MISMATCH(field, name) \
-			if (mismatch == NULL &&					\
-			    disk->d_init_ ## field != sc->sc_ ## field) {	\
-				mismatch = name;				\
-				found = (intmax_t)disk->d_init_ ## field;	\
-				newest = (intmax_t)sc->sc_ ## field;		\
-			}
+#define DETECT_MISMATCH(field, name)                                      \
+	if (mismatch == NULL && disk->d_init_##field != sc->sc_##field) { \
+		mismatch = name;                                          \
+		found = (intmax_t)disk->d_init_##field;                   \
+		newest = (intmax_t)sc->sc_##field;                        \
+	}
 			mismatch = NULL;
 			DETECT_MISMATCH(ndisks, "md_all");
 			DETECT_MISMATCH(balance, "md_balance");
@@ -2448,11 +2451,12 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 			DETECT_MISMATCH(mediasize, "md_mediasize");
 #undef DETECT_MISMATCH
 			if (mismatch != NULL) {
-				G_MIRROR_DEBUG(0, "Found a mismatching '%s' "
+				G_MIRROR_DEBUG(0,
+				    "Found a mismatching '%s' "
 				    "field on %s (device %s) (found=%ju "
-				    "newest=%ju).", mismatch,
-				    g_mirror_get_diskname(disk), sc->sc_name,
-				    found, newest);
+				    "newest=%ju).",
+				    mismatch, g_mirror_get_diskname(disk),
+				    sc->sc_name, found, newest);
 				g_mirror_destroy_disk(disk);
 				sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID;
 				continue;
@@ -2469,7 +2473,8 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 		 */
 		ndisks = g_mirror_ndisks(sc, -1);
 		if ((force && ndisks > 0) ||
-		    (g_launch_mirror_before_timeout && ndisks == sc->sc_ndisks)) {
+		    (g_launch_mirror_before_timeout &&
+			ndisks == sc->sc_ndisks)) {
 			;
 		} else if (ndisks == 0) {
 			/*
@@ -2496,9 +2501,10 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 			 * timeout, so don't bother canceling timeout.
 			 */
 			ndisks = 0;
-			LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+			LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 				if ((disk->d_flags &
-				    G_MIRROR_DISK_FLAG_SYNCHRONIZING) == 0) {
+					G_MIRROR_DISK_FLAG_SYNCHRONIZING) ==
+				    0) {
 					ndisks++;
 				}
 			}
@@ -2528,11 +2534,11 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 		 */
 		dirty = ndisks = 0;
 		pdisk = NULL;
-		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_sync.ds_syncid != sc->sc_syncid)
 				continue;
 			if ((disk->d_flags &
-			    G_MIRROR_DISK_FLAG_SYNCHRONIZING) != 0) {
+				G_MIRROR_DISK_FLAG_SYNCHRONIZING) != 0) {
 				continue;
 			}
 			ndisks++;
@@ -2552,20 +2558,22 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 			 * with the biggest priority.
 			 */
 			KASSERT(pdisk != NULL, ("pdisk == NULL"));
-			G_MIRROR_DEBUG(1, "Using disk %s (device %s) as a "
+			G_MIRROR_DEBUG(1,
+			    "Using disk %s (device %s) as a "
 			    "master disk for synchronization.",
 			    g_mirror_get_diskname(pdisk), sc->sc_name);
-			LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+			LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 				if (disk->d_sync.ds_syncid != sc->sc_syncid)
 					continue;
 				if ((disk->d_flags &
-				    G_MIRROR_DISK_FLAG_SYNCHRONIZING) != 0) {
+					G_MIRROR_DISK_FLAG_SYNCHRONIZING) !=
+				    0) {
 					continue;
 				}
 				KASSERT((disk->d_flags &
-				    G_MIRROR_DISK_FLAG_DIRTY) != 0,
+					    G_MIRROR_DISK_FLAG_DIRTY) != 0,
 				    ("Disk %s isn't marked as dirty.",
-				    g_mirror_get_diskname(disk)));
+					g_mirror_get_diskname(disk)));
 				/* Skip the disk with the biggest priority. */
 				if (disk == pdisk)
 					continue;
@@ -2576,15 +2584,16 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 			 * Force synchronization for all dirty disks.
 			 * We have some non-dirty disks.
 			 */
-			LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+			LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 				if (disk->d_sync.ds_syncid != sc->sc_syncid)
 					continue;
 				if ((disk->d_flags &
-				    G_MIRROR_DISK_FLAG_SYNCHRONIZING) != 0) {
+					G_MIRROR_DISK_FLAG_SYNCHRONIZING) !=
+				    0) {
 					continue;
 				}
 				if ((disk->d_flags &
-				    G_MIRROR_DISK_FLAG_DIRTY) == 0) {
+					G_MIRROR_DISK_FLAG_DIRTY) == 0) {
 					continue;
 				}
 				disk->d_sync.ds_syncid = 0;
@@ -2602,15 +2611,15 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 		    sc->sc_name, g_mirror_device_state2str(sc->sc_state),
 		    g_mirror_device_state2str(state));
 		sc->sc_state = state;
-		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 			state = g_mirror_determine_state(disk);
-			g_mirror_event_send(disk, state,
-			    G_MIRROR_EVENT_DONTWAIT);
+			g_mirror_event_send(
+			    disk, state, G_MIRROR_EVENT_DONTWAIT);
 			if (state == G_MIRROR_DISK_STATE_STALE)
 				sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID;
 		}
 		break;
-	    }
+	}
 	case G_MIRROR_DEVICE_STATE_RUNNING:
 		if (g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) == 0 &&
 		    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_NEW) == 0) {
@@ -2619,8 +2628,8 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 			 */
 			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
 			break;
-		} else if (g_mirror_ndisks(sc,
-		    G_MIRROR_DISK_STATE_ACTIVE) > 0 &&
+		} else if (g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) >
+			0 &&
 		    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_NEW) == 0) {
 			/*
 			 * We have active disks, launch provider if it doesn't
@@ -2648,8 +2657,9 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 		}
 		break;
 	default:
-		KASSERT(1 == 0, ("Wrong device state (%s, %s).",
-		    sc->sc_name, g_mirror_device_state2str(sc->sc_state)));
+		KASSERT(1 == 0,
+		    ("Wrong device state (%s, %s).", sc->sc_name,
+			g_mirror_device_state2str(sc->sc_state)));
 		break;
 	}
 }
@@ -2657,11 +2667,11 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 /*
  * Update disk state and device state if needed.
  */
-#define	DISK_STATE_CHANGED()	G_MIRROR_DEBUG(1,			\
-	"Disk %s state changed from %s to %s (device %s).",		\
-	g_mirror_get_diskname(disk),					\
-	g_mirror_disk_state2str(disk->d_state),				\
-	g_mirror_disk_state2str(state), sc->sc_name)
+#define DISK_STATE_CHANGED()                                                  \
+	G_MIRROR_DEBUG(1, "Disk %s state changed from %s to %s (device %s).", \
+	    g_mirror_get_diskname(disk),                                      \
+	    g_mirror_disk_state2str(disk->d_state),                           \
+	    g_mirror_disk_state2str(state), sc->sc_name)
 static int
 g_mirror_update_disk(struct g_mirror_disk *disk, u_int state)
 {
@@ -2683,7 +2693,7 @@ again:
 		/* Previous state should be NONE. */
 		KASSERT(disk->d_state == G_MIRROR_DISK_STATE_NONE,
 		    ("Wrong disk state (%s, %s).", g_mirror_get_diskname(disk),
-		    g_mirror_disk_state2str(disk->d_state)));
+			g_mirror_disk_state2str(disk->d_state)));
 		DISK_STATE_CHANGED();
 
 		disk->d_state = state;
@@ -2693,7 +2703,7 @@ again:
 		else {
 			struct g_mirror_disk *dp;
 
-			LIST_FOREACH(dp, &sc->sc_disks, d_next) {
+			LIST_FOREACH (dp, &sc->sc_disks, d_next) {
 				if (disk->d_priority >= dp->d_priority) {
 					LIST_INSERT_BEFORE(dp, disk, d_next);
 					dp = NULL;
@@ -2712,9 +2722,9 @@ again:
 			break;
 		KASSERT(sc->sc_state == G_MIRROR_DEVICE_STATE_RUNNING,
 		    ("Wrong device state (%s, %s, %s, %s).", sc->sc_name,
-		    g_mirror_device_state2str(sc->sc_state),
-		    g_mirror_get_diskname(disk),
-		    g_mirror_disk_state2str(disk->d_state)));
+			g_mirror_device_state2str(sc->sc_state),
+			g_mirror_get_diskname(disk),
+			g_mirror_disk_state2str(disk->d_state)));
 		state = g_mirror_determine_state(disk);
 		if (state != G_MIRROR_DISK_STATE_NONE)
 			goto again;
@@ -2727,14 +2737,14 @@ again:
 		 */
 		KASSERT(sc->sc_state == G_MIRROR_DEVICE_STATE_RUNNING,
 		    ("Wrong device state (%s, %s, %s, %s).", sc->sc_name,
-		    g_mirror_device_state2str(sc->sc_state),
-		    g_mirror_get_diskname(disk),
-		    g_mirror_disk_state2str(disk->d_state)));
+			g_mirror_device_state2str(sc->sc_state),
+			g_mirror_get_diskname(disk),
+			g_mirror_disk_state2str(disk->d_state)));
 		/* Previous state should be NEW or SYNCHRONIZING. */
 		KASSERT(disk->d_state == G_MIRROR_DISK_STATE_NEW ||
-		    disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING,
+			disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING,
 		    ("Wrong disk state (%s, %s).", g_mirror_get_diskname(disk),
-		    g_mirror_disk_state2str(disk->d_state)));
+			g_mirror_disk_state2str(disk->d_state)));
 		DISK_STATE_CHANGED();
 
 		if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING) {
@@ -2758,21 +2768,21 @@ again:
 		/* Previous state should be NEW. */
 		KASSERT(disk->d_state == G_MIRROR_DISK_STATE_NEW,
 		    ("Wrong disk state (%s, %s).", g_mirror_get_diskname(disk),
-		    g_mirror_disk_state2str(disk->d_state)));
+			g_mirror_disk_state2str(disk->d_state)));
 		KASSERT(sc->sc_state == G_MIRROR_DEVICE_STATE_RUNNING,
 		    ("Wrong device state (%s, %s, %s, %s).", sc->sc_name,
-		    g_mirror_device_state2str(sc->sc_state),
-		    g_mirror_get_diskname(disk),
-		    g_mirror_disk_state2str(disk->d_state)));
+			g_mirror_device_state2str(sc->sc_state),
+			g_mirror_get_diskname(disk),
+			g_mirror_disk_state2str(disk->d_state)));
 		/*
 		 * STALE state is only possible if device is marked
 		 * NOAUTOSYNC.
 		 */
 		KASSERT((sc->sc_flags & G_MIRROR_DEVICE_FLAG_NOAUTOSYNC) != 0,
 		    ("Wrong device state (%s, %s, %s, %s).", sc->sc_name,
-		    g_mirror_device_state2str(sc->sc_state),
-		    g_mirror_get_diskname(disk),
-		    g_mirror_disk_state2str(disk->d_state)));
+			g_mirror_device_state2str(sc->sc_state),
+			g_mirror_get_diskname(disk),
+			g_mirror_disk_state2str(disk->d_state)));
 		DISK_STATE_CHANGED();
 
 		disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
@@ -2789,12 +2799,12 @@ again:
 		/* Previous state should be NEW. */
 		KASSERT(disk->d_state == G_MIRROR_DISK_STATE_NEW,
 		    ("Wrong disk state (%s, %s).", g_mirror_get_diskname(disk),
-		    g_mirror_disk_state2str(disk->d_state)));
+			g_mirror_disk_state2str(disk->d_state)));
 		KASSERT(sc->sc_state == G_MIRROR_DEVICE_STATE_RUNNING,
 		    ("Wrong device state (%s, %s, %s, %s).", sc->sc_name,
-		    g_mirror_device_state2str(sc->sc_state),
-		    g_mirror_get_diskname(disk),
-		    g_mirror_disk_state2str(disk->d_state)));
+			g_mirror_device_state2str(sc->sc_state),
+			g_mirror_get_diskname(disk),
+			g_mirror_disk_state2str(disk->d_state)));
 		DISK_STATE_CHANGED();
 
 		if (disk->d_state == G_MIRROR_DISK_STATE_NEW)
@@ -2818,30 +2828,32 @@ again:
 			 * SYNCHRONIZING.
 			 */
 			KASSERT(disk->d_state == G_MIRROR_DISK_STATE_ACTIVE ||
-			    disk->d_state == G_MIRROR_DISK_STATE_STALE ||
-			    disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING,
+				disk->d_state == G_MIRROR_DISK_STATE_STALE ||
+				disk->d_state ==
+				    G_MIRROR_DISK_STATE_SYNCHRONIZING,
 			    ("Wrong disk state (%s, %s).",
-			    g_mirror_get_diskname(disk),
-			    g_mirror_disk_state2str(disk->d_state)));
+				g_mirror_get_diskname(disk),
+				g_mirror_disk_state2str(disk->d_state)));
 		} else if (sc->sc_state == G_MIRROR_DEVICE_STATE_STARTING) {
 			/* Previous state should be NEW. */
 			KASSERT(disk->d_state == G_MIRROR_DISK_STATE_NEW,
 			    ("Wrong disk state (%s, %s).",
-			    g_mirror_get_diskname(disk),
-			    g_mirror_disk_state2str(disk->d_state)));
+				g_mirror_get_diskname(disk),
+				g_mirror_disk_state2str(disk->d_state)));
 			/*
 			 * Reset bumping syncid if disk disappeared in STARTING
 			 * state.
 			 */
 			if ((sc->sc_bump_id & G_MIRROR_BUMP_SYNCID) != 0)
 				sc->sc_bump_id &= ~G_MIRROR_BUMP_SYNCID;
-#ifdef	INVARIANTS
+#ifdef INVARIANTS
 		} else {
-			KASSERT(1 == 0, ("Wrong device state (%s, %s, %s, %s).",
-			    sc->sc_name,
-			    g_mirror_device_state2str(sc->sc_state),
-			    g_mirror_get_diskname(disk),
-			    g_mirror_disk_state2str(disk->d_state)));
+			KASSERT(1 == 0,
+			    ("Wrong device state (%s, %s, %s, %s).",
+				sc->sc_name,
+				g_mirror_device_state2str(sc->sc_state),
+				g_mirror_get_diskname(disk),
+				g_mirror_disk_state2str(disk->d_state)));
 #endif
 		}
 		DISK_STATE_CHANGED();
@@ -2850,8 +2862,7 @@ again:
 
 		g_mirror_destroy_disk(disk);
 		break;
-	case G_MIRROR_DISK_STATE_DESTROY:
-	    {
+	case G_MIRROR_DISK_STATE_DESTROY: {
 		int error;
 
 		error = g_mirror_clear_metadata(disk);
@@ -2867,18 +2878,18 @@ again:
 
 		g_mirror_destroy_disk(disk);
 		sc->sc_ndisks--;
-		LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 			g_mirror_update_metadata(disk);
 		}
 		break;
-	    }
+	}
 	default:
 		KASSERT(1 == 0, ("Unknown state (%u).", state));
 		break;
 	}
 	return (0);
 }
-#undef	DISK_STATE_CHANGED
+#undef DISK_STATE_CHANGED
 
 int
 g_mirror_read_metadata(struct g_consumer *cp, struct g_mirror_metadata *md)
@@ -2895,8 +2906,8 @@ g_mirror_read_metadata(struct g_consumer *cp, struct g_mirror_metadata *md)
 	pp = cp->provider;
 	g_topology_unlock();
 	/* Metadata are stored on last sector. */
-	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
-	    &error);
+	buf = g_read_data(
+	    cp, pp->mediasize - pp->sectorsize, pp->sectorsize, &error);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 	if (buf == NULL) {
@@ -2930,7 +2941,8 @@ g_mirror_check_metadata(struct g_mirror_softc *sc, struct g_provider *pp,
     struct g_mirror_metadata *md)
 {
 
-	G_MIRROR_DEBUG(2, "%s: md_did 0x%u disk %s device %s md_all 0x%x "
+	G_MIRROR_DEBUG(2,
+	    "%s: md_did 0x%u disk %s device %s md_all 0x%x "
 	    "sc_ndisks 0x%x md_slice 0x%x sc_slice 0x%x md_balance 0x%x "
 	    "sc_balance 0x%x sc_mediasize 0x%jx pp_mediasize 0x%jx "
 	    "md_sectorsize 0x%x sc_sectorsize 0x%x md_mflags 0x%jx "
@@ -3012,8 +3024,8 @@ g_mirror_add_disk(struct g_mirror_softc *sc, struct g_provider *pp,
 	disk = g_mirror_init_disk(sc, pp, md, &error);
 	if (disk == NULL)
 		return (error);
-	error = g_mirror_event_send(disk, G_MIRROR_DISK_STATE_NEW,
-	    G_MIRROR_EVENT_WAIT);
+	error = g_mirror_event_send(
+	    disk, G_MIRROR_DISK_STATE_NEW, G_MIRROR_EVENT_WAIT);
 	if (error != 0)
 		return (error);
 	if (md->md_version < G_MIRROR_VERSION) {
@@ -3044,8 +3056,8 @@ g_mirror_destroy_delayed(void *arg, int flag)
 	G_MIRROR_DEBUG(1, "Destroying %s (delayed).", sc->sc_name);
 	error = g_mirror_destroy(sc, G_MIRROR_DESTROY_SOFT);
 	if (error != 0) {
-		G_MIRROR_DEBUG(0, "Cannot destroy %s (error=%d).",
-		    sc->sc_name, error);
+		G_MIRROR_DEBUG(
+		    0, "Cannot destroy %s (error=%d).", sc->sc_name, error);
 		sx_xunlock(&sc->sc_lock);
 	}
 	g_topology_lock();
@@ -3058,8 +3070,8 @@ g_mirror_access(struct g_provider *pp, int acr, int acw, int ace)
 	int error = 0;
 
 	g_topology_assert();
-	G_MIRROR_DEBUG(2, "Access request for %s: r%dw%de%d.", pp->name, acr,
-	    acw, ace);
+	G_MIRROR_DEBUG(
+	    2, "Access request for %s: r%dw%de%d.", pp->name, acr, acw, ace);
 
 	sc = pp->private;
 	KASSERT(sc != NULL, ("NULL softc (provider=%s).", pp->name));
@@ -3086,8 +3098,8 @@ end:
 }
 
 static void
-g_mirror_reinit_from_metadata(struct g_mirror_softc *sc,
-    const struct g_mirror_metadata *md)
+g_mirror_reinit_from_metadata(
+    struct g_mirror_softc *sc, const struct g_mirror_metadata *md)
 {
 
 	sc->sc_genid = md->md_genid;
@@ -3102,16 +3114,16 @@ g_mirror_reinit_from_metadata(struct g_mirror_softc *sc,
 }
 
 struct g_geom *
-g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md,
-    u_int type)
+g_mirror_create(
+    struct g_class *mp, const struct g_mirror_metadata *md, u_int type)
 {
 	struct g_mirror_softc *sc;
 	struct g_geom *gp;
 	int error, timeout;
 
 	g_topology_assert();
-	G_MIRROR_DEBUG(1, "Creating device %s (id=%u).", md->md_name,
-	    md->md_mid);
+	G_MIRROR_DEBUG(
+	    1, "Creating device %s (id=%u).", md->md_name, md->md_mid);
 
 	/* One disk is minimum. */
 	if (md->md_all < 1)
@@ -3162,8 +3174,8 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md,
 	error = kproc_create(g_mirror_worker, sc, &sc->sc_worker, 0, 0,
 	    "g_mirror %s", md->md_name);
 	if (error != 0) {
-		G_MIRROR_DEBUG(1, "Cannot create kernel thread for %s.",
-		    sc->sc_name);
+		G_MIRROR_DEBUG(
+		    1, "Cannot create kernel thread for %s.", sc->sc_name);
 		g_destroy_geom(sc->sc_sync.ds_geom);
 		g_destroy_geom(sc->sc_geom);
 		g_mirror_free_device(sc);
@@ -3180,8 +3192,8 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md,
 	 * Schedule startup timeout.
 	 */
 	timeout = g_mirror_timeout * hz;
-	sc->sc_timeout_event = malloc(sizeof(struct g_mirror_event), M_MIRROR,
-	    M_WAITOK);
+	sc->sc_timeout_event = malloc(
+	    sizeof(struct g_mirror_event), M_MIRROR, M_WAITOK);
 	callout_reset(&sc->sc_callout, timeout, g_mirror_go, sc);
 	return (sc->sc_geom);
 }
@@ -3197,15 +3209,14 @@ g_mirror_destroy(struct g_mirror_softc *sc, int how)
 	if (sc->sc_provider_open != 0) {
 		switch (how) {
 		case G_MIRROR_DESTROY_SOFT:
-			G_MIRROR_DEBUG(1,
-			    "Device %s is still open (%d).", sc->sc_name,
-			    sc->sc_provider_open);
+			G_MIRROR_DEBUG(1, "Device %s is still open (%d).",
+			    sc->sc_name, sc->sc_provider_open);
 			return (EBUSY);
 		case G_MIRROR_DESTROY_DELAYED:
 			G_MIRROR_DEBUG(1,
 			    "Device %s will be destroyed on last close.",
 			    sc->sc_name);
-			LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+			LIST_FOREACH (disk, &sc->sc_disks, d_next) {
 				if (disk->d_state ==
 				    G_MIRROR_DISK_STATE_SYNCHRONIZING) {
 					g_mirror_sync_stop(disk, 1);
@@ -3214,8 +3225,10 @@ g_mirror_destroy(struct g_mirror_softc *sc, int how)
 			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_CLOSEWAIT;
 			return (EBUSY);
 		case G_MIRROR_DESTROY_HARD:
-			G_MIRROR_DEBUG(1, "Device %s is still open, so it "
-			    "can't be definitely removed.", sc->sc_name);
+			G_MIRROR_DEBUG(1,
+			    "Device %s is still open, so it "
+			    "can't be definitely removed.",
+			    sc->sc_name);
 		}
 	}
 
@@ -3243,8 +3256,8 @@ static void
 g_mirror_taste_orphan(struct g_consumer *cp)
 {
 
-	KASSERT(1 == 0, ("%s called while tasting %s.", __func__,
-	    cp->provider->name));
+	KASSERT(1 == 0,
+	    ("%s called while tasting %s.", __func__, cp->provider->name));
 }
 
 static struct g_geom *
@@ -3295,7 +3308,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	 * Let's check if device already exists.
 	 */
 	sc = NULL;
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
@@ -3306,8 +3319,8 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		if (strcmp(md.md_name, sc->sc_name) != 0)
 			continue;
 		if (md.md_mid != sc->sc_id) {
-			G_MIRROR_DEBUG(0, "Device %s already configured.",
-			    sc->sc_name);
+			G_MIRROR_DEBUG(
+			    0, "Device %s already configured.", sc->sc_name);
 			return (NULL);
 		}
 		break;
@@ -3315,8 +3328,8 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (gp == NULL) {
 		gp = g_mirror_create(mp, &md, G_MIRROR_TYPE_AUTOMATIC);
 		if (gp == NULL) {
-			G_MIRROR_DEBUG(0, "Cannot create device %s.",
-			    md.md_name);
+			G_MIRROR_DEBUG(
+			    0, "Cannot create device %s.", md.md_name);
 			return (NULL);
 		}
 		sc = gp->softc;
@@ -3412,40 +3425,41 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			else
 				sbuf_printf(sb, "%u%%",
 				    (u_int)((disk->d_sync.ds_offset * 100) /
-				    sc->sc_mediasize));
+					sc->sc_mediasize));
 			sbuf_cat(sb, "</Synchronized>\n");
 			if (disk->d_sync.ds_offset > 0)
-				sbuf_printf(sb, "%s<BytesSynced>%jd"
-				    "</BytesSynced>\n", indent,
-				    (intmax_t)disk->d_sync.ds_offset);
+				sbuf_printf(sb,
+				    "%s<BytesSynced>%jd"
+				    "</BytesSynced>\n",
+				    indent, (intmax_t)disk->d_sync.ds_offset);
 		}
 		sbuf_printf(sb, "%s<SyncID>%u</SyncID>\n", indent,
 		    disk->d_sync.ds_syncid);
-		sbuf_printf(sb, "%s<GenID>%u</GenID>\n", indent,
-		    disk->d_genid);
+		sbuf_printf(sb, "%s<GenID>%u</GenID>\n", indent, disk->d_genid);
 		sbuf_printf(sb, "%s<Flags>", indent);
 		if (disk->d_flags == 0)
 			sbuf_cat(sb, "NONE");
 		else {
 			int first = 1;
 
-#define	ADD_FLAG(flag, name)	do {					\
-	if ((disk->d_flags & (flag)) != 0) {				\
-		if (!first)						\
-			sbuf_cat(sb, ", ");				\
-		else							\
-			first = 0;					\
-		sbuf_cat(sb, name);					\
-	}								\
-} while (0)
+#define ADD_FLAG(flag, name)                         \
+	do {                                         \
+		if ((disk->d_flags & (flag)) != 0) { \
+			if (!first)                  \
+				sbuf_cat(sb, ", ");  \
+			else                         \
+				first = 0;           \
+			sbuf_cat(sb, name);          \
+		}                                    \
+	} while (0)
 			ADD_FLAG(G_MIRROR_DISK_FLAG_DIRTY, "DIRTY");
 			ADD_FLAG(G_MIRROR_DISK_FLAG_HARDCODED, "HARDCODED");
 			ADD_FLAG(G_MIRROR_DISK_FLAG_INACTIVE, "INACTIVE");
-			ADD_FLAG(G_MIRROR_DISK_FLAG_SYNCHRONIZING,
-			    "SYNCHRONIZING");
+			ADD_FLAG(
+			    G_MIRROR_DISK_FLAG_SYNCHRONIZING, "SYNCHRONIZING");
 			ADD_FLAG(G_MIRROR_DISK_FLAG_FORCE_SYNC, "FORCE_SYNC");
 			ADD_FLAG(G_MIRROR_DISK_FLAG_BROKEN, "BROKEN");
-#undef	ADD_FLAG
+#undef ADD_FLAG
 		}
 		sbuf_cat(sb, "</Flags>\n");
 		sbuf_printf(sb, "%s<Priority>%u</Priority>\n", indent,
@@ -3467,7 +3481,8 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		}
 		sbuf_cat(sb, "</Type>\n");
 		sbuf_printf(sb, "%s<ID>%u</ID>\n", indent, (u_int)sc->sc_id);
-		sbuf_printf(sb, "%s<SyncID>%u</SyncID>\n", indent, sc->sc_syncid);
+		sbuf_printf(
+		    sb, "%s<SyncID>%u</SyncID>\n", indent, sc->sc_syncid);
 		sbuf_printf(sb, "%s<GenID>%u</GenID>\n", indent, sc->sc_genid);
 		sbuf_printf(sb, "%s<Flags>", indent);
 		if (sc->sc_flags == 0)
@@ -3475,22 +3490,23 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		else {
 			int first = 1;
 
-#define	ADD_FLAG(flag, name)	do {					\
-	if ((sc->sc_flags & (flag)) != 0) {				\
-		if (!first)						\
-			sbuf_cat(sb, ", ");				\
-		else							\
-			first = 0;					\
-		sbuf_cat(sb, name);					\
-	}								\
-} while (0)
+#define ADD_FLAG(flag, name)                        \
+	do {                                        \
+		if ((sc->sc_flags & (flag)) != 0) { \
+			if (!first)                 \
+				sbuf_cat(sb, ", "); \
+			else                        \
+				first = 0;          \
+			sbuf_cat(sb, name);         \
+		}                                   \
+	} while (0)
 			ADD_FLAG(G_MIRROR_DEVICE_FLAG_NOFAILSYNC, "NOFAILSYNC");
 			ADD_FLAG(G_MIRROR_DEVICE_FLAG_NOAUTOSYNC, "NOAUTOSYNC");
-#undef	ADD_FLAG
+#undef ADD_FLAG
 		}
 		sbuf_cat(sb, "</Flags>\n");
-		sbuf_printf(sb, "%s<Slice>%u</Slice>\n", indent,
-		    (u_int)sc->sc_slice);
+		sbuf_printf(
+		    sb, "%s<Slice>%u</Slice>\n", indent, (u_int)sc->sc_slice);
 		sbuf_printf(sb, "%s<Balance>%s</Balance>\n", indent,
 		    balance_name(sc->sc_balance));
 		sbuf_printf(sb, "%s<Components>%u</Components>\n", indent,
@@ -3521,7 +3537,7 @@ g_mirror_shutdown_post_sync(void *arg, int howto)
 	mp = arg;
 	g_topology_lock();
 	g_mirror_shutdown = 1;
-	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
+	LIST_FOREACH_SAFE (gp, &mp->geom, geom, gp2) {
 		if ((sc = gp->softc) == NULL)
 			continue;
 		/* Skip synchronization geom. */
@@ -3571,21 +3587,24 @@ g_mirror_refresh_device(struct g_mirror_softc *sc, const struct g_provider *pp,
 
 	KASSERT(sc->sc_genid <= md->md_genid,
 	    ("%s: attempted to refresh from stale component %s (device %s) "
-	    "(%u < %u).", __func__, pp->name, sc->sc_name, md->md_genid,
-	    sc->sc_genid));
+	     "(%u < %u).",
+		__func__, pp->name, sc->sc_name, md->md_genid, sc->sc_genid));
 
-	if (sc->sc_genid > md->md_genid || (sc->sc_genid == md->md_genid &&
-	    sc->sc_syncid >= md->md_syncid))
+	if (sc->sc_genid > md->md_genid ||
+	    (sc->sc_genid == md->md_genid && sc->sc_syncid >= md->md_syncid))
 		return (0);
 
-	G_MIRROR_DEBUG(0, "Found newer version for device %s (genid: curr=%u "
+	G_MIRROR_DEBUG(0,
+	    "Found newer version for device %s (genid: curr=%u "
 	    "new=%u; syncid: curr=%u new=%u; ndisks: curr=%u new=%u; "
-	    "provider=%s).", sc->sc_name, sc->sc_genid, md->md_genid,
-	    sc->sc_syncid, md->md_syncid, sc->sc_ndisks, md->md_all, pp->name);
+	    "provider=%s).",
+	    sc->sc_name, sc->sc_genid, md->md_genid, sc->sc_syncid,
+	    md->md_syncid, sc->sc_ndisks, md->md_all, pp->name);
 
 	if (sc->sc_state != G_MIRROR_DEVICE_STATE_STARTING) {
 		/* Probable data corruption detected */
-		G_MIRROR_DEBUG(0, "Cannot refresh metadata in %s state "
+		G_MIRROR_DEBUG(0,
+		    "Cannot refresh metadata in %s state "
 		    "(device=%s genid=%u). A stale mirror device was launched.",
 		    g_mirror_device_state2str(sc->sc_state), sc->sc_name,
 		    sc->sc_genid);
@@ -3595,10 +3614,11 @@ g_mirror_refresh_device(struct g_mirror_softc *sc, const struct g_provider *pp,
 	/* Update softc */
 	g_mirror_reinit_from_metadata(sc, md);
 
-	G_MIRROR_DEBUG(1, "Refresh device %s (id=%u, state=%s) from disk %s "
-	    "(genid=%u syncid=%u md_all=%u).", sc->sc_name, md->md_mid,
-	    g_mirror_device_state2str(sc->sc_state), pp->name, md->md_genid,
-	    md->md_syncid, (unsigned)md->md_all);
+	G_MIRROR_DEBUG(1,
+	    "Refresh device %s (id=%u, state=%s) from disk %s "
+	    "(genid=%u syncid=%u md_all=%u).",
+	    sc->sc_name, md->md_mid, g_mirror_device_state2str(sc->sc_state),
+	    pp->name, md->md_genid, md->md_syncid, (unsigned)md->md_all);
 
 	return (0);
 }

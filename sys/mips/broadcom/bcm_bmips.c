@@ -35,24 +35,22 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
-
-#include <machine/bus.h>
 #include <sys/rman.h>
 
+#include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
 
 #include <dev/bhnd/bhnd.h>
 #include <dev/bhnd/siba/sibareg.h>
 
-#include "pic_if.h"
-
-#include "bcm_mipsvar.h"
 #include "bcm_bmipsreg.h"
+#include "bcm_mipsvar.h"
+#include "pic_if.h"
 
 /*
  * BMIPS32 and BMIPS3300 core driver.
@@ -63,28 +61,28 @@ __FBSDID("$FreeBSD$");
 
 struct bcm_bmips_softc;
 
-static int	bcm_bmips_pic_intr(void *arg);
-static void	bcm_bmips_mask_irq(struct bcm_bmips_softc *sc, u_int mips_irq,
-		    u_int ivec);
-static void	bcm_bmips_unmask_irq(struct bcm_bmips_softc *sc, u_int mips_irq,
-		    u_int ivec);
+static int bcm_bmips_pic_intr(void *arg);
+static void bcm_bmips_mask_irq(
+    struct bcm_bmips_softc *sc, u_int mips_irq, u_int ivec);
+static void bcm_bmips_unmask_irq(
+    struct bcm_bmips_softc *sc, u_int mips_irq, u_int ivec);
 
 static const struct bhnd_device bcm_bmips_devs[] = {
-	BHND_DEVICE(BCM, MIPS33, NULL, NULL, BHND_DF_SOC),
-	BHND_DEVICE_END
+	BHND_DEVICE(BCM, MIPS33, NULL, NULL, BHND_DF_SOC), BHND_DEVICE_END
 };
 
 struct bcm_bmips_softc {
-	struct bcm_mips_softc	 bcm_mips;	/**< parent softc */
-	device_t		 dev;
-	struct resource		*mem;		/**< cpu core registers */
-	int			 mem_rid;
-	struct resource		*cfg;		/**< cpu core's cfg0 register block */
-	int			 cfg_rid;
+	struct bcm_mips_softc bcm_mips; /**< parent softc */
+	device_t dev;
+	struct resource *mem; /**< cpu core registers */
+	int mem_rid;
+	struct resource *cfg; /**< cpu core's cfg0 register block */
+	int cfg_rid;
 };
 
-#define	BCM_BMIPS_NCPU_IRQS	5	/**< MIPS HW IRQs 0-4 are assignable */
-#define	BCM_BMIPS_TIMER_IRQ	5	/**< MIPS HW IRQ5 is always assigned to the timer */
+#define BCM_BMIPS_NCPU_IRQS 5 /**< MIPS HW IRQs 0-4 are assignable */
+#define BCM_BMIPS_TIMER_IRQ \
+	5 /**< MIPS HW IRQ5 is always assigned to the timer */
 
 static int
 bcm_bmips_probe(device_t dev)
@@ -106,16 +104,16 @@ bcm_bmips_probe(device_t dev)
 static int
 bcm_bmips_attach(device_t dev)
 {
-	struct bcm_bmips_softc	*sc;
-	int			 error;
+	struct bcm_bmips_softc *sc;
+	int error;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
 	/* Allocate our core's register block */
 	sc->mem_rid = 0;
-	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
-	    RF_ACTIVE);
+	sc->mem = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->mem_rid, RF_ACTIVE);
 	if (sc->mem == NULL) {
 		device_printf(dev, "failed to allocate cpu register block\n");
 		error = ENXIO;
@@ -131,8 +129,8 @@ bcm_bmips_attach(device_t dev)
 	}
 
 	/* Allocate our CFG0 register block */
-	sc->cfg = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->cfg_rid,
-	    RF_ACTIVE|RF_SHAREABLE);
+	sc->cfg = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->cfg_rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->cfg == NULL) {
 		device_printf(dev, "failed to allocate cfg0 register block\n");
 		error = ENXIO;
@@ -140,12 +138,12 @@ bcm_bmips_attach(device_t dev)
 	}
 
 	/* Clear interrupt map */
-	bus_write_4(sc->cfg, SIBA_CFG0_INTVEC, 0x0);	/* MIPS IRQ0 */
-	bus_write_4(sc->cfg, SIBA_CFG0_IPSFLAG, 0x0);	/* MIPS IRQ1-4 */
+	bus_write_4(sc->cfg, SIBA_CFG0_INTVEC, 0x0);  /* MIPS IRQ0 */
+	bus_write_4(sc->cfg, SIBA_CFG0_IPSFLAG, 0x0); /* MIPS IRQ1-4 */
 
 	/* Initialize the generic BHND MIPS driver state */
-	error = bcm_mips_attach(dev, BCM_BMIPS_NCPU_IRQS, BCM_BMIPS_TIMER_IRQ,
-	    bcm_bmips_pic_intr);
+	error = bcm_mips_attach(
+	    dev, BCM_BMIPS_NCPU_IRQS, BCM_BMIPS_TIMER_IRQ, bcm_bmips_pic_intr);
 	if (error)
 		goto failed;
 
@@ -164,8 +162,8 @@ failed:
 static int
 bcm_bmips_detach(device_t dev)
 {
-	struct bcm_bmips_softc	*sc;
-	int			 error;
+	struct bcm_bmips_softc *sc;
+	int error;
 
 	sc = device_get_softc(dev);
 
@@ -182,8 +180,8 @@ bcm_bmips_detach(device_t dev)
 static void
 bcm_bmips_pic_disable_intr(device_t dev, struct intr_irqsrc *irqsrc)
 {
-	struct bcm_bmips_softc	*sc;
-	struct bcm_mips_irqsrc	*isrc;
+	struct bcm_bmips_softc *sc;
+	struct bcm_mips_irqsrc *isrc;
 
 	sc = device_get_softc(dev);
 	isrc = (struct bcm_mips_irqsrc *)irqsrc;
@@ -197,8 +195,8 @@ bcm_bmips_pic_disable_intr(device_t dev, struct intr_irqsrc *irqsrc)
 static void
 bcm_bmips_pic_enable_intr(device_t dev, struct intr_irqsrc *irqsrc)
 {
-	struct bcm_bmips_softc	*sc;
-	struct bcm_mips_irqsrc	*isrc;
+	struct bcm_bmips_softc *sc;
+	struct bcm_mips_irqsrc *isrc;
 
 	sc = device_get_softc(dev);
 	isrc = (struct bcm_mips_irqsrc *)irqsrc;
@@ -236,8 +234,8 @@ static void
 bcm_bmips_mask_irq(struct bcm_bmips_softc *sc, u_int mips_irq, u_int ivec)
 {
 	KASSERT(ivec < SIBA_MAX_INTR, ("invalid sbflag# ivec"));
-	KASSERT(mips_irq < sc->bcm_mips.num_cpuirqs, ("invalid MIPS IRQ %u",
-	    mips_irq));
+	KASSERT(mips_irq < sc->bcm_mips.num_cpuirqs,
+	    ("invalid MIPS IRQ %u", mips_irq));
 
 	if (mips_irq == 0) {
 		uint32_t sbintvec;
@@ -253,12 +251,10 @@ bcm_bmips_mask_irq(struct bcm_bmips_softc *sc, u_int mips_irq, u_int ivec)
 		    ("cannot route high sbflag# ivec %u", ivec));
 
 		ipsflag = bus_read_4(sc->cfg, SIBA_CFG0_IPSFLAG);
-		ipsflag &= ~(
-		    ((1 << ivec) << SIBA_IPS_INT_SHIFT(mips_irq)) &
+		ipsflag &= ~(((1 << ivec) << SIBA_IPS_INT_SHIFT(mips_irq)) &
 		    SIBA_IPS_INT_MASK(mips_irq));
 		bus_write_4(sc->cfg, SIBA_CFG0_IPSFLAG, ipsflag);
 	}
-
 }
 
 /**
@@ -268,8 +264,8 @@ static void
 bcm_bmips_unmask_irq(struct bcm_bmips_softc *sc, u_int mips_irq, u_int ivec)
 {
 	KASSERT(ivec < SIBA_MAX_INTR, ("invalid sbflag# ivec"));
-	KASSERT(mips_irq < sc->bcm_mips.num_cpuirqs, ("invalid MIPS IRQ %u",
-	    mips_irq));
+	KASSERT(mips_irq < sc->bcm_mips.num_cpuirqs,
+	    ("invalid MIPS IRQ %u", mips_irq));
 
 	if (mips_irq == 0) {
 		uint32_t sbintvec;
@@ -295,15 +291,15 @@ bcm_bmips_unmask_irq(struct bcm_bmips_softc *sc, u_int mips_irq, u_int ivec)
 static int
 bcm_bmips_pic_intr(void *arg)
 {
-	struct bcm_bmips_softc	*sc;
-	struct bcm_mips_cpuirq	*cpuirq;
-	struct bcm_mips_irqsrc	*isrc_solo;
-	uint32_t		 sbintvec, sbstatus;
-	u_int			 mips_irq, i;
-	int			 error;
+	struct bcm_bmips_softc *sc;
+	struct bcm_mips_cpuirq *cpuirq;
+	struct bcm_mips_irqsrc *isrc_solo;
+	uint32_t sbintvec, sbstatus;
+	u_int mips_irq, i;
+	int error;
 
 	cpuirq = arg;
-	sc = (struct bcm_bmips_softc*)cpuirq->sc;
+	sc = (struct bcm_bmips_softc *)cpuirq->sc;
 
 	/* Fetch current interrupt state */
 	sbstatus = bus_read_4(sc->cfg, SIBA_CFG0_FLAGST);
@@ -331,7 +327,7 @@ bcm_bmips_pic_intr(void *arg)
 			sbintvec = (ipsflag & SIBA_IPS_INT3_MASK) >>
 			    SIBA_IPS_INT3_SHIFT;
 			break;
-		case 4: 
+		case 4:
 			sbintvec = (ipsflag & SIBA_IPS_INT4_MASK) >>
 			    SIBA_IPS_INT4_SHIFT;
 			break;
@@ -347,13 +343,15 @@ bcm_bmips_pic_intr(void *arg)
 	isrc_solo = cpuirq->isrc_solo;
 	if (isrc_solo != NULL) {
 		if (sbstatus & BCM_MIPS_IVEC_MASK(isrc_solo)) {
-			error = intr_isrc_dispatch(&isrc_solo->isrc,
-			    curthread->td_intr_frame);
+			error = intr_isrc_dispatch(
+			    &isrc_solo->isrc, curthread->td_intr_frame);
 			if (error) {
-				device_printf(sc->dev, "Stray interrupt %u "
-				    "detected\n", isrc_solo->ivec);
-				bcm_bmips_pic_disable_intr(sc->dev,
-				    &isrc_solo->isrc);
+				device_printf(sc->dev,
+				    "Stray interrupt %u "
+				    "detected\n",
+				    isrc_solo->ivec);
+				bcm_bmips_pic_disable_intr(
+				    sc->dev, &isrc_solo->isrc);
 			}
 		}
 
@@ -366,8 +364,10 @@ bcm_bmips_pic_intr(void *arg)
 			i--; /* Get a 0-offset interrupt. */
 			sbstatus &= ~(1 << i);
 
-			device_printf(sc->dev, "Stray interrupt %u "
-				"detected\n", i);
+			device_printf(sc->dev,
+			    "Stray interrupt %u "
+			    "detected\n",
+			    i);
 			bcm_bmips_mask_irq(sc, mips_irq, i);
 		}
 
@@ -381,11 +381,11 @@ bcm_bmips_pic_intr(void *arg)
 
 		KASSERT(i < nitems(sc->bcm_mips.isrcs), ("invalid ivec %u", i));
 
-		error = intr_isrc_dispatch(&sc->bcm_mips.isrcs[i].isrc,
-		    curthread->td_intr_frame);
+		error = intr_isrc_dispatch(
+		    &sc->bcm_mips.isrcs[i].isrc, curthread->td_intr_frame);
 		if (error) {
-			device_printf(sc->dev, "Stray interrupt %u detected\n",
-			    i);
+			device_printf(
+			    sc->dev, "Stray interrupt %u detected\n", i);
 			bcm_bmips_mask_irq(sc, mips_irq, i);
 			continue;
 		}
@@ -396,24 +396,26 @@ bcm_bmips_pic_intr(void *arg)
 
 static device_method_t bcm_bmips_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		bcm_bmips_probe),
-	DEVMETHOD(device_attach,	bcm_bmips_attach),
-	DEVMETHOD(device_detach,	bcm_bmips_detach),
+	DEVMETHOD(device_probe, bcm_bmips_probe),
+	DEVMETHOD(device_attach, bcm_bmips_attach),
+	DEVMETHOD(device_detach, bcm_bmips_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_disable_intr,	bcm_bmips_pic_disable_intr),
-	DEVMETHOD(pic_enable_intr,	bcm_bmips_pic_enable_intr),
-	DEVMETHOD(pic_pre_ithread,	bcm_bmips_pic_pre_ithread),
-	DEVMETHOD(pic_post_ithread,	bcm_bmips_pic_post_ithread),
-	DEVMETHOD(pic_post_filter,	bcm_bmips_pic_post_filter),
+	DEVMETHOD(pic_disable_intr, bcm_bmips_pic_disable_intr),
+	DEVMETHOD(pic_enable_intr, bcm_bmips_pic_enable_intr),
+	DEVMETHOD(pic_pre_ithread, bcm_bmips_pic_pre_ithread),
+	DEVMETHOD(pic_post_ithread, bcm_bmips_pic_post_ithread),
+	DEVMETHOD(pic_post_filter, bcm_bmips_pic_post_filter),
 
 	DEVMETHOD_END
 };
 
 static devclass_t bcm_mips_devclass;
 
-DEFINE_CLASS_1(bcm_mips, bcm_bmips_driver, bcm_bmips_methods, sizeof(struct bcm_bmips_softc), bcm_mips_driver);
-EARLY_DRIVER_MODULE(bcm_bmips, bhnd, bcm_bmips_driver, bcm_mips_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+DEFINE_CLASS_1(bcm_mips, bcm_bmips_driver, bcm_bmips_methods,
+    sizeof(struct bcm_bmips_softc), bcm_mips_driver);
+EARLY_DRIVER_MODULE(bcm_bmips, bhnd, bcm_bmips_driver, bcm_mips_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 MODULE_VERSION(bcm_bmips, 1);
 MODULE_DEPEND(bcm_bmips, bhnd, 1, 1, 1);

@@ -29,15 +29,15 @@
  * $FreeBSD$
  */
 #ifndef _ASM_PGTABLE_H_
-#define	_ASM_PGTABLE_H_
+#define _ASM_PGTABLE_H_
 
 #include <linux/page.h>
 
-typedef unsigned long	pteval_t;
-typedef unsigned long	pmdval_t;
-typedef unsigned long	pudval_t;
-typedef unsigned long	pgdval_t;
-typedef unsigned long	pgprotval_t;
+typedef unsigned long pteval_t;
+typedef unsigned long pmdval_t;
+typedef unsigned long pudval_t;
+typedef unsigned long pgdval_t;
+typedef unsigned long pgprotval_t;
 typedef struct page *pgtable_t;
 
-#endif	/* _ASM_PGTABLE_H_ */
+#endif /* _ASM_PGTABLE_H_ */

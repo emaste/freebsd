@@ -1,11 +1,11 @@
 /*
   rpcsec_gss.h
-  
+
   SPDX-License-Identifier: BSD-3-Clause
 
   Copyright (c) 2000 The Regents of the University of Michigan.
   All rights reserved.
-  
+
   Copyright (c) 2000 Dug Song <dugsong@UMICH.EDU>.
   All rights reserved, all wrongs reversed.
 
@@ -51,45 +51,44 @@ typedef enum {
 	RPCSEC_GSS_DESTROY = 3
 } rpc_gss_proc_t;
 
-#define RPCSEC_GSS_VERSION	1
+#define RPCSEC_GSS_VERSION 1
 
 /* Credentials. */
 struct rpc_gss_cred {
-	u_int		gc_version;	/* version */
-	rpc_gss_proc_t	gc_proc;	/* control procedure */
-	u_int		gc_seq;		/* sequence number */
-	rpc_gss_service_t gc_svc;	/* service */
-	gss_buffer_desc	gc_handle;	/* handle to server-side context */
+	u_int gc_version;	   /* version */
+	rpc_gss_proc_t gc_proc;	   /* control procedure */
+	u_int gc_seq;		   /* sequence number */
+	rpc_gss_service_t gc_svc;  /* service */
+	gss_buffer_desc gc_handle; /* handle to server-side context */
 };
 
 /* Context creation response. */
 struct rpc_gss_init_res {
-	gss_buffer_desc	gr_handle;	/* handle to server-side context */
-	u_int		gr_major;	/* major status */
-	u_int		gr_minor;	/* minor status */
-	u_int		gr_win;		/* sequence window */
-	gss_buffer_desc	gr_token;	/* token */
+	gss_buffer_desc gr_handle; /* handle to server-side context */
+	u_int gr_major;		   /* major status */
+	u_int gr_minor;		   /* minor status */
+	u_int gr_win;		   /* sequence window */
+	gss_buffer_desc gr_token;  /* token */
 };
 
 /* Maximum sequence number value. */
-#define MAXSEQ		0x80000000
+#define MAXSEQ 0x80000000
 
 /* Prototypes. */
 __BEGIN_DECLS
 
-bool_t	xdr_rpc_gss_cred(XDR *xdrs, struct rpc_gss_cred *p);
-bool_t	xdr_rpc_gss_init_res(XDR *xdrs, struct rpc_gss_init_res *p);
-bool_t xdr_rpc_gss_wrap_data(struct mbuf **argsp,
-    gss_ctx_id_t ctx, gss_qop_t qop, rpc_gss_service_t svc,
-    u_int seq);
-bool_t xdr_rpc_gss_unwrap_data(struct mbuf **resultsp,
-    gss_ctx_id_t ctx, gss_qop_t qop, rpc_gss_service_t svc, u_int seq);
+bool_t xdr_rpc_gss_cred(XDR *xdrs, struct rpc_gss_cred *p);
+bool_t xdr_rpc_gss_init_res(XDR *xdrs, struct rpc_gss_init_res *p);
+bool_t xdr_rpc_gss_wrap_data(struct mbuf **argsp, gss_ctx_id_t ctx,
+    gss_qop_t qop, rpc_gss_service_t svc, u_int seq);
+bool_t xdr_rpc_gss_unwrap_data(struct mbuf **resultsp, gss_ctx_id_t ctx,
+    gss_qop_t qop, rpc_gss_service_t svc, u_int seq);
 const char *_rpc_gss_num_to_qop(const char *mech, u_int num);
-void	_rpc_gss_set_error(int rpc_gss_error, int system_error);
+void _rpc_gss_set_error(int rpc_gss_error, int system_error);
 
-void	rpc_gss_log_debug(const char *fmt, ...);
-void	rpc_gss_log_status(const char *m, gss_OID mech, OM_uint32 major,
-    OM_uint32 minor);
+void rpc_gss_log_debug(const char *fmt, ...);
+void rpc_gss_log_status(
+    const char *m, gss_OID mech, OM_uint32 major, OM_uint32 minor);
 
 __END_DECLS
 

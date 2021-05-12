@@ -39,8 +39,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_CACHE_H_
-#define	_MACHINE_CACHE_H_
+#ifndef _MACHINE_CACHE_H_
+#define _MACHINE_CACHE_H_
 
 /*
  * Cache operations.
@@ -131,31 +131,31 @@
  */
 
 struct mips_cache_ops {
-	void	(*mco_icache_sync_all)(void);
-	void	(*mco_icache_sync_range)(vm_offset_t, vm_size_t);
-	void	(*mco_icache_sync_range_index)(vm_offset_t, vm_size_t);
+	void (*mco_icache_sync_all)(void);
+	void (*mco_icache_sync_range)(vm_offset_t, vm_size_t);
+	void (*mco_icache_sync_range_index)(vm_offset_t, vm_size_t);
 
-	void	(*mco_pdcache_wbinv_all)(void);
-	void	(*mco_pdcache_wbinv_range)(vm_offset_t, vm_size_t);
-	void	(*mco_pdcache_wbinv_range_index)(vm_offset_t, vm_size_t);
-	void	(*mco_pdcache_inv_range)(vm_offset_t, vm_size_t);
-	void	(*mco_pdcache_wb_range)(vm_offset_t, vm_size_t);
-
-	/* These are called only by the (mipsNN) icache functions. */
-	void    (*mco_intern_pdcache_wbinv_all)(void);
-	void    (*mco_intern_pdcache_wbinv_range_index)(vm_offset_t, vm_size_t);
-	void    (*mco_intern_pdcache_wb_range)(vm_offset_t, vm_size_t);
-
-	void	(*mco_sdcache_wbinv_all)(void);
-	void	(*mco_sdcache_wbinv_range)(vm_offset_t, vm_size_t);
-	void	(*mco_sdcache_wbinv_range_index)(vm_offset_t, vm_size_t);
-	void	(*mco_sdcache_inv_range)(vm_offset_t, vm_size_t);
-	void	(*mco_sdcache_wb_range)(vm_offset_t, vm_size_t);
+	void (*mco_pdcache_wbinv_all)(void);
+	void (*mco_pdcache_wbinv_range)(vm_offset_t, vm_size_t);
+	void (*mco_pdcache_wbinv_range_index)(vm_offset_t, vm_size_t);
+	void (*mco_pdcache_inv_range)(vm_offset_t, vm_size_t);
+	void (*mco_pdcache_wb_range)(vm_offset_t, vm_size_t);
 
 	/* These are called only by the (mipsNN) icache functions. */
-	void    (*mco_intern_sdcache_wbinv_all)(void);
-	void    (*mco_intern_sdcache_wbinv_range_index)(vm_offset_t, vm_size_t);
-	void    (*mco_intern_sdcache_wb_range)(vm_offset_t, vm_size_t);
+	void (*mco_intern_pdcache_wbinv_all)(void);
+	void (*mco_intern_pdcache_wbinv_range_index)(vm_offset_t, vm_size_t);
+	void (*mco_intern_pdcache_wb_range)(vm_offset_t, vm_size_t);
+
+	void (*mco_sdcache_wbinv_all)(void);
+	void (*mco_sdcache_wbinv_range)(vm_offset_t, vm_size_t);
+	void (*mco_sdcache_wbinv_range_index)(vm_offset_t, vm_size_t);
+	void (*mco_sdcache_inv_range)(vm_offset_t, vm_size_t);
+	void (*mco_sdcache_wb_range)(vm_offset_t, vm_size_t);
+
+	/* These are called only by the (mipsNN) icache functions. */
+	void (*mco_intern_sdcache_wbinv_all)(void);
+	void (*mco_intern_sdcache_wbinv_range_index)(vm_offset_t, vm_size_t);
+	void (*mco_intern_sdcache_wb_range)(vm_offset_t, vm_size_t);
 };
 
 extern struct mips_cache_ops mips_cache_ops;
@@ -166,61 +166,56 @@ extern int mips_pdcache_linesize;
 extern int mips_sdcache_linesize;
 extern int mips_dcache_max_linesize;
 
-#define	__mco_noargs(prefix, x)						\
-do {									\
-	(*mips_cache_ops.mco_ ## prefix ## p ## x )();			\
-	if (*mips_cache_ops.mco_ ## prefix ## s ## x )			\
-		(*mips_cache_ops.mco_ ## prefix ## s ## x )();		\
-} while (/*CONSTCOND*/0)
+#define __mco_noargs(prefix, x)                                 \
+	do {                                                    \
+		(*mips_cache_ops.mco_##prefix##p##x)();         \
+		if (*mips_cache_ops.mco_##prefix##s##x)         \
+			(*mips_cache_ops.mco_##prefix##s##x)(); \
+	} while (/*CONSTCOND*/ 0)
 
-#define	__mco_2args(prefix, x, a, b)					\
-do {									\
-	(*mips_cache_ops.mco_ ## prefix ## p ## x )((a), (b));		\
-	if (*mips_cache_ops.mco_ ## prefix ## s ## x )			\
-		(*mips_cache_ops.mco_ ## prefix ## s ## x )((a), (b));	\
-} while (/*CONSTCOND*/0)
+#define __mco_2args(prefix, x, a, b)                                    \
+	do {                                                            \
+		(*mips_cache_ops.mco_##prefix##p##x)((a), (b));         \
+		if (*mips_cache_ops.mco_##prefix##s##x)                 \
+			(*mips_cache_ops.mco_##prefix##s##x)((a), (b)); \
+	} while (/*CONSTCOND*/ 0)
 
-#define	mips_icache_sync_all()						\
-	(*mips_cache_ops.mco_icache_sync_all)()
+#define mips_icache_sync_all() (*mips_cache_ops.mco_icache_sync_all)()
 
-#define	mips_icache_sync_range(v, s)					\
+#define mips_icache_sync_range(v, s) \
 	(*mips_cache_ops.mco_icache_sync_range)((v), (s))
 
-#define	mips_icache_sync_range_index(v, s)				\
+#define mips_icache_sync_range_index(v, s) \
 	(*mips_cache_ops.mco_icache_sync_range_index)((v), (s))
 
-#define	mips_dcache_wbinv_all()						\
-	__mco_noargs(, dcache_wbinv_all)
+#define mips_dcache_wbinv_all() __mco_noargs(, dcache_wbinv_all)
 
-#define	mips_dcache_wbinv_range(v, s)					\
+#define mips_dcache_wbinv_range(v, s) \
 	__mco_2args(, dcache_wbinv_range, (v), (s))
 
-#define	mips_dcache_wbinv_range_index(v, s)				\
+#define mips_dcache_wbinv_range_index(v, s) \
 	__mco_2args(, dcache_wbinv_range_index, (v), (s))
 
-#define	mips_dcache_inv_range(v, s)					\
-	__mco_2args(, dcache_inv_range, (v), (s))
+#define mips_dcache_inv_range(v, s) __mco_2args(, dcache_inv_range, (v), (s))
 
-#define	mips_dcache_wb_range(v, s)					\
-	__mco_2args(, dcache_wb_range, (v), (s))
+#define mips_dcache_wb_range(v, s) __mco_2args(, dcache_wb_range, (v), (s))
 
 /*
  * Private D-cache functions only called from (currently only the
  * mipsNN) I-cache functions.
  */
-#define mips_intern_dcache_wbinv_all()					\
-	__mco_noargs(intern_, dcache_wbinv_all)
+#define mips_intern_dcache_wbinv_all() __mco_noargs(intern_, dcache_wbinv_all)
 
-#define mips_intern_dcache_wbinv_range_index(v, s)			\
+#define mips_intern_dcache_wbinv_range_index(v, s) \
 	__mco_2args(intern_, dcache_wbinv_range_index, (v), (s))
 
-#define mips_intern_dcache_wb_range(v, s)				\
+#define mips_intern_dcache_wb_range(v, s) \
 	__mco_2args(intern_, dcache_wb_range, (v), (s))
 
 /* forward declaration */
 struct mips_cpuinfo;
 
-void    mips_config_cache(struct mips_cpuinfo *);
+void mips_config_cache(struct mips_cpuinfo *);
 
 #include <machine/cache_mipsNN.h>
-#endif	/* _MACHINE_CACHE_H_ */
+#endif /* _MACHINE_CACHE_H_ */

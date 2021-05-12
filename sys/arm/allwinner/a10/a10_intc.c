@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_platform.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpuset.h>
 #include <sys/kernel.h>
@@ -38,19 +39,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/param.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
-#include <sys/smp.h>
-#include <sys/systm.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "pic_if.h"
 
@@ -58,58 +58,58 @@ __FBSDID("$FreeBSD$");
  * Interrupt controller registers
  *
  */
-#define	SW_INT_VECTOR_REG		0x00
-#define	SW_INT_BASE_ADR_REG		0x04
-#define	SW_INT_PROTECTION_REG		0x08
-#define	SW_INT_NMI_CTRL_REG		0x0c
+#define SW_INT_VECTOR_REG 0x00
+#define SW_INT_BASE_ADR_REG 0x04
+#define SW_INT_PROTECTION_REG 0x08
+#define SW_INT_NMI_CTRL_REG 0x0c
 
-#define	SW_INT_IRQ_PENDING_REG0		0x10
-#define	SW_INT_IRQ_PENDING_REG1		0x14
-#define	SW_INT_IRQ_PENDING_REG2		0x18
+#define SW_INT_IRQ_PENDING_REG0 0x10
+#define SW_INT_IRQ_PENDING_REG1 0x14
+#define SW_INT_IRQ_PENDING_REG2 0x18
 
-#define	SW_INT_FIQ_PENDING_REG0		0x20
-#define	SW_INT_FIQ_PENDING_REG1		0x24
-#define	SW_INT_FIQ_PENDING_REG2		0x28
+#define SW_INT_FIQ_PENDING_REG0 0x20
+#define SW_INT_FIQ_PENDING_REG1 0x24
+#define SW_INT_FIQ_PENDING_REG2 0x28
 
-#define	SW_INT_SELECT_REG0		0x30
-#define	SW_INT_SELECT_REG1		0x34
-#define	SW_INT_SELECT_REG2		0x38
+#define SW_INT_SELECT_REG0 0x30
+#define SW_INT_SELECT_REG1 0x34
+#define SW_INT_SELECT_REG2 0x38
 
-#define	SW_INT_ENABLE_REG0		0x40
-#define	SW_INT_ENABLE_REG1		0x44
-#define	SW_INT_ENABLE_REG2		0x48
+#define SW_INT_ENABLE_REG0 0x40
+#define SW_INT_ENABLE_REG1 0x44
+#define SW_INT_ENABLE_REG2 0x48
 
-#define	SW_INT_MASK_REG0		0x50
-#define	SW_INT_MASK_REG1		0x54
-#define	SW_INT_MASK_REG2		0x58
+#define SW_INT_MASK_REG0 0x50
+#define SW_INT_MASK_REG1 0x54
+#define SW_INT_MASK_REG2 0x58
 
-#define	SW_INT_IRQNO_ENMI		0
+#define SW_INT_IRQNO_ENMI 0
 
-#define	A10_INTR_MAX_NIRQS		81
+#define A10_INTR_MAX_NIRQS 81
 
-#define	SW_INT_IRQ_PENDING_REG(_b)	(0x10 + ((_b) * 4))
-#define	SW_INT_FIQ_PENDING_REG(_b)	(0x20 + ((_b) * 4))
-#define	SW_INT_SELECT_REG(_b)		(0x30 + ((_b) * 4))
-#define	SW_INT_ENABLE_REG(_b)		(0x40 + ((_b) * 4))
-#define	SW_INT_MASK_REG(_b)		(0x50 + ((_b) * 4))
+#define SW_INT_IRQ_PENDING_REG(_b) (0x10 + ((_b)*4))
+#define SW_INT_FIQ_PENDING_REG(_b) (0x20 + ((_b)*4))
+#define SW_INT_SELECT_REG(_b) (0x30 + ((_b)*4))
+#define SW_INT_ENABLE_REG(_b) (0x40 + ((_b)*4))
+#define SW_INT_MASK_REG(_b) (0x50 + ((_b)*4))
 
 struct a10_intr_irqsrc {
-	struct intr_irqsrc	isrc;
-	u_int			irq;
+	struct intr_irqsrc isrc;
+	u_int irq;
 };
 
 struct a10_aintc_softc {
-	device_t		sc_dev;
-	struct resource *	aintc_res;
-	bus_space_tag_t		aintc_bst;
-	bus_space_handle_t	aintc_bsh;
-	struct mtx		mtx;
-	struct a10_intr_irqsrc	isrcs[A10_INTR_MAX_NIRQS];
+	device_t sc_dev;
+	struct resource *aintc_res;
+	bus_space_tag_t aintc_bst;
+	bus_space_handle_t aintc_bsh;
+	struct mtx mtx;
+	struct a10_intr_irqsrc isrcs[A10_INTR_MAX_NIRQS];
 };
 
-#define	aintc_read_4(sc, reg)						\
+#define aintc_read_4(sc, reg) \
 	bus_space_read_4(sc->aintc_bst, sc->aintc_bsh, reg)
-#define	aintc_write_4(sc, reg, val)					\
+#define aintc_write_4(sc, reg, val) \
 	bus_space_write_4(sc->aintc_bst, sc->aintc_bsh, reg, val)
 
 static __inline void
@@ -119,8 +119,7 @@ a10_intr_eoi(struct a10_aintc_softc *sc, u_int irq)
 	if (irq != SW_INT_IRQNO_ENMI)
 		return;
 	mtx_lock_spin(&sc->mtx);
-	aintc_write_4(sc, SW_INT_IRQ_PENDING_REG(0),
-	    (1 << SW_INT_IRQNO_ENMI));
+	aintc_write_4(sc, SW_INT_IRQ_PENDING_REG(0), (1 << SW_INT_IRQNO_ENMI));
 	mtx_unlock_spin(&sc->mtx);
 }
 
@@ -195,16 +194,16 @@ a10_intr(void *arg)
 
 	while (irq != -1) {
 		if (irq > A10_INTR_MAX_NIRQS) {
-			device_printf(sc->sc_dev, "Spurious interrupt %d\n",
-			    irq);
+			device_printf(
+			    sc->sc_dev, "Spurious interrupt %d\n", irq);
 			return (FILTER_HANDLED);
 		}
-		if (intr_isrc_dispatch(&sc->isrcs[irq].isrc,
-		    curthread->td_intr_frame) != 0) {
+		if (intr_isrc_dispatch(
+			&sc->isrcs[irq].isrc, curthread->td_intr_frame) != 0) {
 			a10_intr_mask(sc, irq);
 			a10_intr_eoi(sc, irq);
-			device_printf(sc->sc_dev,
-			    "Stray interrupt %d disabled\n", irq);
+			device_printf(
+			    sc->sc_dev, "Stray interrupt %d disabled\n", irq);
 		}
 
 		arm_irq_memory_barrier(irq);
@@ -227,8 +226,8 @@ a10_intr_pic_attach(struct a10_aintc_softc *sc)
 	for (irq = 0; irq < A10_INTR_MAX_NIRQS; irq++) {
 		sc->isrcs[irq].irq = irq;
 
-		error = intr_isrc_register(&sc->isrcs[irq].isrc,
-		    sc->sc_dev, 0, "%s,%u", name, irq);
+		error = intr_isrc_register(
+		    &sc->isrcs[irq].isrc, sc->sc_dev, 0, "%s,%u", name, irq);
 		if (error != 0)
 			return (error);
 	}
@@ -263,8 +262,8 @@ a10_intr_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-a10_intr_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+a10_intr_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct intr_map_data_fdt *daf;
 	struct a10_aintc_softc *sc;
@@ -328,8 +327,8 @@ a10_aintc_attach(device_t dev)
 	int i;
 	sc->sc_dev = dev;
 
-	sc->aintc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE);
+	sc->aintc_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->aintc_res) {
 		device_printf(dev, "could not allocate resource\n");
 		goto error;
@@ -359,24 +358,21 @@ a10_aintc_attach(device_t dev)
 	return (0);
 
 error:
-	bus_release_resource(dev, SYS_RES_MEMORY, rid,
-	    sc->aintc_res);
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->aintc_res);
 	return (ENXIO);
 }
 
-static device_method_t a10_aintc_methods[] = {
-	DEVMETHOD(device_probe,		a10_aintc_probe),
-	DEVMETHOD(device_attach,	a10_aintc_attach),
+static device_method_t a10_aintc_methods[] = { DEVMETHOD(device_probe,
+						   a10_aintc_probe),
+	DEVMETHOD(device_attach, a10_aintc_attach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_disable_intr,	a10_intr_disable_intr),
-	DEVMETHOD(pic_enable_intr,	a10_intr_enable_intr),
-	DEVMETHOD(pic_map_intr,		a10_intr_map_intr),
-	DEVMETHOD(pic_post_filter,	a10_intr_post_filter),
-	DEVMETHOD(pic_post_ithread,	a10_intr_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	a10_intr_pre_ithread),
-	{ 0, 0 }
-};
+	DEVMETHOD(pic_disable_intr, a10_intr_disable_intr),
+	DEVMETHOD(pic_enable_intr, a10_intr_enable_intr),
+	DEVMETHOD(pic_map_intr, a10_intr_map_intr),
+	DEVMETHOD(pic_post_filter, a10_intr_post_filter),
+	DEVMETHOD(pic_post_ithread, a10_intr_post_ithread),
+	DEVMETHOD(pic_pre_ithread, a10_intr_pre_ithread), { 0, 0 } };
 
 static driver_t a10_aintc_driver = {
 	"aintc",
@@ -386,5 +382,5 @@ static driver_t a10_aintc_driver = {
 
 static devclass_t a10_aintc_devclass;
 
-EARLY_DRIVER_MODULE(aintc, simplebus, a10_aintc_driver, a10_aintc_devclass, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_FIRST);
+EARLY_DRIVER_MODULE(aintc, simplebus, a10_aintc_driver, a10_aintc_devclass, 0,
+    0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_FIRST);

@@ -34,9 +34,9 @@
 #ifndef _SYS_LOCK_H_
 #define _SYS_LOCK_H_
 
-#include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/ktr_class.h>
+#include <sys/queue.h>
 
 struct lock_list_entry;
 struct thread;
@@ -59,64 +59,64 @@ struct thread;
  */
 
 struct lock_class {
-	const		char *lc_name;
-	u_int		lc_flags;
-	void		(*lc_assert)(const struct lock_object *lock, int what);
-	void		(*lc_ddb_show)(const struct lock_object *lock);
-	void		(*lc_lock)(struct lock_object *lock, uintptr_t how);
-	int		(*lc_owner)(const struct lock_object *lock,
-			    struct thread **owner);
-	uintptr_t	(*lc_unlock)(struct lock_object *lock);
+	const char *lc_name;
+	u_int lc_flags;
+	void (*lc_assert)(const struct lock_object *lock, int what);
+	void (*lc_ddb_show)(const struct lock_object *lock);
+	void (*lc_lock)(struct lock_object *lock, uintptr_t how);
+	int (*lc_owner)(const struct lock_object *lock, struct thread **owner);
+	uintptr_t (*lc_unlock)(struct lock_object *lock);
 };
 
-#define	LC_SLEEPLOCK	0x00000001	/* Sleep lock. */
-#define	LC_SPINLOCK	0x00000002	/* Spin lock. */
-#define	LC_SLEEPABLE	0x00000004	/* Sleeping allowed with this lock. */
-#define	LC_RECURSABLE	0x00000008	/* Locks of this type may recurse. */
-#define	LC_UPGRADABLE	0x00000010	/* Upgrades and downgrades permitted. */
+#define LC_SLEEPLOCK 0x00000001 /* Sleep lock. */
+#define LC_SPINLOCK 0x00000002 /* Spin lock. */
+#define LC_SLEEPABLE 0x00000004 /* Sleeping allowed with this lock. */
+#define LC_RECURSABLE 0x00000008 /* Locks of this type may recurse. */
+#define LC_UPGRADABLE 0x00000010 /* Upgrades and downgrades permitted. */
 
-#define	LO_CLASSFLAGS	0x0000ffff	/* Class specific flags. */
-#define	LO_INITIALIZED	0x00010000	/* Lock has been initialized. */
-#define	LO_WITNESS	0x00020000	/* Should witness monitor this lock. */
-#define	LO_QUIET	0x00040000	/* Don't log locking operations. */
-#define	LO_RECURSABLE	0x00080000	/* Lock may recurse. */
-#define	LO_SLEEPABLE	0x00100000	/* Lock may be held while sleeping. */
-#define	LO_UPGRADABLE	0x00200000	/* Lock may be upgraded/downgraded. */
-#define	LO_DUPOK	0x00400000	/* Don't check for duplicate acquires */
-#define	LO_IS_VNODE	0x00800000	/* Tell WITNESS about a VNODE lock */
-#define	LO_CLASSMASK	0x0f000000	/* Class index bitmask. */
-#define LO_NOPROFILE    0x10000000      /* Don't profile this lock */
-#define	LO_NEW		0x20000000	/* Don't check for double-init */
+#define LO_CLASSFLAGS 0x0000ffff /* Class specific flags. */
+#define LO_INITIALIZED 0x00010000 /* Lock has been initialized. */
+#define LO_WITNESS 0x00020000 /* Should witness monitor this lock. */
+#define LO_QUIET 0x00040000 /* Don't log locking operations. */
+#define LO_RECURSABLE 0x00080000 /* Lock may recurse. */
+#define LO_SLEEPABLE 0x00100000 /* Lock may be held while sleeping. */
+#define LO_UPGRADABLE 0x00200000 /* Lock may be upgraded/downgraded. */
+#define LO_DUPOK 0x00400000 /* Don't check for duplicate acquires */
+#define LO_IS_VNODE 0x00800000 /* Tell WITNESS about a VNODE lock */
+#define LO_CLASSMASK 0x0f000000 /* Class index bitmask. */
+#define LO_NOPROFILE 0x10000000 /* Don't profile this lock */
+#define LO_NEW 0x20000000 /* Don't check for double-init */
 
 /*
  * Lock classes are statically assigned an index into the gobal lock_classes
  * array.  Debugging code looks up the lock class for a given lock object
  * by indexing the array.
  */
-#define	LO_CLASSSHIFT		24
-#define	LO_CLASSINDEX(lock)	((((lock)->lo_flags) & LO_CLASSMASK) >> LO_CLASSSHIFT)
-#define	LOCK_CLASS(lock)	(lock_classes[LO_CLASSINDEX((lock))])
-#define	LOCK_CLASS_MAX		(LO_CLASSMASK >> LO_CLASSSHIFT)
+#define LO_CLASSSHIFT 24
+#define LO_CLASSINDEX(lock) \
+	((((lock)->lo_flags) & LO_CLASSMASK) >> LO_CLASSSHIFT)
+#define LOCK_CLASS(lock) (lock_classes[LO_CLASSINDEX((lock))])
+#define LOCK_CLASS_MAX (LO_CLASSMASK >> LO_CLASSSHIFT)
 
 /*
  * Option flags passed to lock operations that witness also needs to know
  * about or that are generic across all locks.
  */
-#define	LOP_NEWORDER	0x00000001	/* Define a new lock order. */
-#define	LOP_QUIET	0x00000002	/* Don't log locking operations. */
-#define	LOP_TRYLOCK	0x00000004	/* Don't check lock order. */
-#define	LOP_EXCLUSIVE	0x00000008	/* Exclusive lock. */
-#define	LOP_DUPOK	0x00000010	/* Don't check for duplicate acquires */
-#define	LOP_NOSLEEP	0x00000020	/* Non-sleepable despite LO_SLEEPABLE */
+#define LOP_NEWORDER 0x00000001 /* Define a new lock order. */
+#define LOP_QUIET 0x00000002 /* Don't log locking operations. */
+#define LOP_TRYLOCK 0x00000004 /* Don't check lock order. */
+#define LOP_EXCLUSIVE 0x00000008 /* Exclusive lock. */
+#define LOP_DUPOK 0x00000010 /* Don't check for duplicate acquires */
+#define LOP_NOSLEEP 0x00000020 /* Non-sleepable despite LO_SLEEPABLE */
 
 /* Flags passed to witness_assert. */
-#define	LA_MASKASSERT	0x000000ff	/* Mask for witness defined asserts. */
-#define	LA_UNLOCKED	0x00000000	/* Lock is unlocked. */
-#define	LA_LOCKED	0x00000001	/* Lock is at least share locked. */
-#define	LA_SLOCKED	0x00000002	/* Lock is exactly share locked. */
-#define	LA_XLOCKED	0x00000004	/* Lock is exclusively locked. */
-#define	LA_RECURSED	0x00000008	/* Lock is recursed. */
-#define	LA_NOTRECURSED	0x00000010	/* Lock is not recursed. */
+#define LA_MASKASSERT 0x000000ff /* Mask for witness defined asserts. */
+#define LA_UNLOCKED 0x00000000 /* Lock is unlocked. */
+#define LA_LOCKED 0x00000001 /* Lock is at least share locked. */
+#define LA_SLOCKED 0x00000002 /* Lock is exactly share locked. */
+#define LA_XLOCKED 0x00000004 /* Lock is exclusively locked. */
+#define LA_RECURSED 0x00000008 /* Lock is recursed. */
+#define LA_NOTRECURSED 0x00000010 /* Lock is not recursed. */
 
 #ifdef _KERNEL
 /*
@@ -131,35 +131,39 @@ struct lock_class {
  * line    - line number
  */
 #if LOCK_DEBUG > 0
-#define	LOCK_LOG_TEST(lo, flags)					\
-	(((flags) & LOP_QUIET) == 0 && ((lo)->lo_flags & LO_QUIET) == 0)
+#define LOCK_LOG_TEST(lo, flags) \
+	(((flags)&LOP_QUIET) == 0 && ((lo)->lo_flags & LO_QUIET) == 0)
 #else
-#define	LOCK_LOG_TEST(lo, flags)	0
+#define LOCK_LOG_TEST(lo, flags) 0
 #endif
 
-#define	LOCK_LOG_LOCK(opname, lo, flags, recurse, file, line) do {	\
-	if (LOCK_LOG_TEST((lo), (flags)))				\
-		CTR6(KTR_LOCK, opname " (%s) %s %p r = %d at %s:%d",	\
-		    LOCK_CLASS(lo)->lc_name, (lo)->lo_name,		\
-		    (lo), (u_int)(recurse), (file), (line));		\
-} while (0)
+#define LOCK_LOG_LOCK(opname, lo, flags, recurse, file, line)                \
+	do {                                                                 \
+		if (LOCK_LOG_TEST((lo), (flags)))                            \
+			CTR6(KTR_LOCK, opname " (%s) %s %p r = %d at %s:%d", \
+			    LOCK_CLASS(lo)->lc_name, (lo)->lo_name, (lo),    \
+			    (u_int)(recurse), (file), (line));               \
+	} while (0)
 
-#define	LOCK_LOG_TRY(opname, lo, flags, result, file, line) do {	\
-	if (LOCK_LOG_TEST((lo), (flags)))				\
-		CTR6(KTR_LOCK, "TRY_" opname " (%s) %s %p result=%d at %s:%d",\
-		    LOCK_CLASS(lo)->lc_name, (lo)->lo_name,		\
-		    (lo), (u_int)(result), (file), (line));		\
-} while (0)
+#define LOCK_LOG_TRY(opname, lo, flags, result, file, line)                 \
+	do {                                                                \
+		if (LOCK_LOG_TEST((lo), (flags)))                           \
+			CTR6(KTR_LOCK,                                      \
+			    "TRY_" opname " (%s) %s %p result=%d at %s:%d", \
+			    LOCK_CLASS(lo)->lc_name, (lo)->lo_name, (lo),   \
+			    (u_int)(result), (file), (line));               \
+	} while (0)
 
-#define	LOCK_LOG_INIT(lo, flags) do {					\
-	if (LOCK_LOG_TEST((lo), (flags)))				\
-		CTR4(KTR_LOCK, "%s: %p (%s) %s", __func__, (lo),	\
- 		    LOCK_CLASS(lo)->lc_name, (lo)->lo_name);		\
-} while (0)
+#define LOCK_LOG_INIT(lo, flags)                                         \
+	do {                                                             \
+		if (LOCK_LOG_TEST((lo), (flags)))                        \
+			CTR4(KTR_LOCK, "%s: %p (%s) %s", __func__, (lo), \
+			    LOCK_CLASS(lo)->lc_name, (lo)->lo_name);     \
+	} while (0)
 
-#define	LOCK_LOG_DESTROY(lo, flags)	LOCK_LOG_INIT(lo, flags)
+#define LOCK_LOG_DESTROY(lo, flags) LOCK_LOG_INIT(lo, flags)
 
-#define	lock_initialized(lo)	((lo)->lo_flags & LO_INITIALIZED)
+#define lock_initialized(lo) ((lo)->lo_flags & LO_INITIALIZED)
 
 extern struct lock_class lock_class_mtx_sleep;
 extern struct lock_class lock_class_mtx_spin;
@@ -201,131 +205,125 @@ lock_delay_arg_init_noadapt(struct lock_delay_arg *la)
 	la->spin_cnt = 0;
 }
 
-#define lock_delay_spin(n)	do {	\
-	u_int _i;			\
-					\
-	for (_i = (n); _i > 0; _i--)	\
-		cpu_spinwait();		\
-} while (0)
+#define lock_delay_spin(n)                   \
+	do {                                 \
+		u_int _i;                    \
+                                             \
+		for (_i = (n); _i > 0; _i--) \
+			cpu_spinwait();      \
+	} while (0)
 
-#define	LOCK_DELAY_SYSINIT(func) \
+#define LOCK_DELAY_SYSINIT(func) \
 	SYSINIT(func##_ld, SI_SUB_LOCK, SI_ORDER_ANY, func, NULL)
 
-#define	LOCK_DELAY_SYSINIT_DEFAULT(lc) \
+#define LOCK_DELAY_SYSINIT_DEFAULT(lc)                           \
 	SYSINIT(lock_delay_##lc##_ld, SI_SUB_LOCK, SI_ORDER_ANY, \
 	    lock_delay_default_init, &lc)
 
-void	lock_init(struct lock_object *, struct lock_class *,
-	    const char *, const char *, int);
-void	lock_destroy(struct lock_object *);
-void	lock_delay(struct lock_delay_arg *);
-void	lock_delay_default_init(struct lock_delay_config *);
-void	spinlock_enter(void);
-void	spinlock_exit(void);
-void	witness_init(struct lock_object *, const char *);
-void	witness_destroy(struct lock_object *);
-int	witness_defineorder(struct lock_object *, struct lock_object *);
-void	witness_checkorder(struct lock_object *, int, const char *, int,
-	    struct lock_object *);
-void	witness_lock(struct lock_object *, int, const char *, int);
-void	witness_upgrade(struct lock_object *, int, const char *, int);
-void	witness_downgrade(struct lock_object *, int, const char *, int);
-void	witness_unlock(struct lock_object *, int, const char *, int);
-void	witness_save(struct lock_object *, const char **, int *);
-void	witness_restore(struct lock_object *, const char *, int);
-int	witness_list_locks(struct lock_list_entry **,
-	    int (*)(const char *, ...));
-int	witness_warn(int, struct lock_object *, const char *, ...);
-void	witness_assert(const struct lock_object *, int, const char *, int);
-void	witness_display_spinlock(struct lock_object *, struct thread *,
-	    int (*)(const char *, ...));
-int	witness_line(struct lock_object *);
-void	witness_norelease(struct lock_object *);
-void	witness_releaseok(struct lock_object *);
+void lock_init(
+    struct lock_object *, struct lock_class *, const char *, const char *, int);
+void lock_destroy(struct lock_object *);
+void lock_delay(struct lock_delay_arg *);
+void lock_delay_default_init(struct lock_delay_config *);
+void spinlock_enter(void);
+void spinlock_exit(void);
+void witness_init(struct lock_object *, const char *);
+void witness_destroy(struct lock_object *);
+int witness_defineorder(struct lock_object *, struct lock_object *);
+void witness_checkorder(
+    struct lock_object *, int, const char *, int, struct lock_object *);
+void witness_lock(struct lock_object *, int, const char *, int);
+void witness_upgrade(struct lock_object *, int, const char *, int);
+void witness_downgrade(struct lock_object *, int, const char *, int);
+void witness_unlock(struct lock_object *, int, const char *, int);
+void witness_save(struct lock_object *, const char **, int *);
+void witness_restore(struct lock_object *, const char *, int);
+int witness_list_locks(struct lock_list_entry **, int (*)(const char *, ...));
+int witness_warn(int, struct lock_object *, const char *, ...);
+void witness_assert(const struct lock_object *, int, const char *, int);
+void witness_display_spinlock(
+    struct lock_object *, struct thread *, int (*)(const char *, ...));
+int witness_line(struct lock_object *);
+void witness_norelease(struct lock_object *);
+void witness_releaseok(struct lock_object *);
 const char *witness_file(struct lock_object *);
-void	witness_thread_exit(struct thread *);
+void witness_thread_exit(struct thread *);
 
-#ifdef	WITNESS
-int	witness_startup_count(void);
-void	witness_startup(void *);
+#ifdef WITNESS
+int witness_startup_count(void);
+void witness_startup(void *);
 
 /* Flags for witness_warn(). */
-#define	WARN_GIANTOK	0x01	/* Giant is exempt from this check. */
-#define	WARN_PANIC	0x02	/* Panic if check fails. */
-#define	WARN_SLEEPOK	0x04	/* Sleepable locks are exempt from check. */
+#define WARN_GIANTOK 0x01 /* Giant is exempt from this check. */
+#define WARN_PANIC 0x02 /* Panic if check fails. */
+#define WARN_SLEEPOK 0x04 /* Sleepable locks are exempt from check. */
 
-#define	WITNESS_INIT(lock, type)					\
-	witness_init((lock), (type))
+#define WITNESS_INIT(lock, type) witness_init((lock), (type))
 
-#define WITNESS_DESTROY(lock)						\
-	witness_destroy(lock)
+#define WITNESS_DESTROY(lock) witness_destroy(lock)
 
-#define	WITNESS_CHECKORDER(lock, flags, file, line, interlock)		\
+#define WITNESS_CHECKORDER(lock, flags, file, line, interlock) \
 	witness_checkorder((lock), (flags), (file), (line), (interlock))
 
-#define	WITNESS_DEFINEORDER(lock1, lock2)				\
-	witness_defineorder((struct lock_object *)(lock1),		\
-	    (struct lock_object *)(lock2))
+#define WITNESS_DEFINEORDER(lock1, lock2) \
+	witness_defineorder(              \
+	    (struct lock_object *)(lock1), (struct lock_object *)(lock2))
 
-#define	WITNESS_LOCK(lock, flags, file, line)				\
+#define WITNESS_LOCK(lock, flags, file, line) \
 	witness_lock((lock), (flags), (file), (line))
 
-#define	WITNESS_UPGRADE(lock, flags, file, line)			\
+#define WITNESS_UPGRADE(lock, flags, file, line) \
 	witness_upgrade((lock), (flags), (file), (line))
 
-#define	WITNESS_DOWNGRADE(lock, flags, file, line)			\
+#define WITNESS_DOWNGRADE(lock, flags, file, line) \
 	witness_downgrade((lock), (flags), (file), (line))
 
-#define	WITNESS_UNLOCK(lock, flags, file, line)				\
+#define WITNESS_UNLOCK(lock, flags, file, line) \
 	witness_unlock((lock), (flags), (file), (line))
 
-#define	WITNESS_CHECK(flags, lock, fmt, ...)				\
-	witness_warn((flags), (lock), (fmt), ## __VA_ARGS__)
+#define WITNESS_CHECK(flags, lock, fmt, ...) \
+	witness_warn((flags), (lock), (fmt), ##__VA_ARGS__)
 
-#define	WITNESS_WARN(flags, lock, fmt, ...)				\
-	witness_warn((flags), (lock), (fmt), ## __VA_ARGS__)
+#define WITNESS_WARN(flags, lock, fmt, ...) \
+	witness_warn((flags), (lock), (fmt), ##__VA_ARGS__)
 
-#define	WITNESS_SAVE_DECL(n)						\
-	const char * __CONCAT(n, __wf);					\
+#define WITNESS_SAVE_DECL(n)           \
+	const char *__CONCAT(n, __wf); \
 	int __CONCAT(n, __wl)
 
-#define	WITNESS_SAVE(lock, n) 						\
+#define WITNESS_SAVE(lock, n) \
 	witness_save((lock), &__CONCAT(n, __wf), &__CONCAT(n, __wl))
 
-#define	WITNESS_RESTORE(lock, n) 					\
+#define WITNESS_RESTORE(lock, n) \
 	witness_restore((lock), __CONCAT(n, __wf), __CONCAT(n, __wl))
 
-#define	WITNESS_NORELEASE(lock)						\
-	witness_norelease(&(lock)->lock_object)
+#define WITNESS_NORELEASE(lock) witness_norelease(&(lock)->lock_object)
 
-#define	WITNESS_RELEASEOK(lock)						\
-	witness_releaseok(&(lock)->lock_object)
+#define WITNESS_RELEASEOK(lock) witness_releaseok(&(lock)->lock_object)
 
-#define	WITNESS_FILE(lock) 						\
-	witness_file(lock)
+#define WITNESS_FILE(lock) witness_file(lock)
 
-#define	WITNESS_LINE(lock) 						\
-	witness_line(lock)
+#define WITNESS_LINE(lock) witness_line(lock)
 
-#else	/* WITNESS */
-#define	WITNESS_INIT(lock, type)				(void)0
-#define	WITNESS_DESTROY(lock)					(void)0
-#define	WITNESS_DEFINEORDER(lock1, lock2)	0
-#define	WITNESS_CHECKORDER(lock, flags, file, line, interlock)	(void)0
-#define	WITNESS_LOCK(lock, flags, file, line)			(void)0
-#define	WITNESS_UPGRADE(lock, flags, file, line)		(void)0
-#define	WITNESS_DOWNGRADE(lock, flags, file, line)		(void)0
-#define	WITNESS_UNLOCK(lock, flags, file, line)			(void)0
-#define	WITNESS_CHECK(flags, lock, fmt, ...)	0
-#define	WITNESS_WARN(flags, lock, fmt, ...)			(void)0
-#define	WITNESS_SAVE_DECL(n)					(void)0
-#define	WITNESS_SAVE(lock, n)					(void)0
-#define	WITNESS_RESTORE(lock, n)				(void)0
-#define	WITNESS_NORELEASE(lock)					(void)0
-#define	WITNESS_RELEASEOK(lock)					(void)0
-#define	WITNESS_FILE(lock) ("?")
-#define	WITNESS_LINE(lock) (0)
-#endif	/* WITNESS */
+#else /* WITNESS */
+#define WITNESS_INIT(lock, type) (void)0
+#define WITNESS_DESTROY(lock) (void)0
+#define WITNESS_DEFINEORDER(lock1, lock2) 0
+#define WITNESS_CHECKORDER(lock, flags, file, line, interlock) (void)0
+#define WITNESS_LOCK(lock, flags, file, line) (void)0
+#define WITNESS_UPGRADE(lock, flags, file, line) (void)0
+#define WITNESS_DOWNGRADE(lock, flags, file, line) (void)0
+#define WITNESS_UNLOCK(lock, flags, file, line) (void)0
+#define WITNESS_CHECK(flags, lock, fmt, ...) 0
+#define WITNESS_WARN(flags, lock, fmt, ...) (void)0
+#define WITNESS_SAVE_DECL(n) (void)0
+#define WITNESS_SAVE(lock, n) (void)0
+#define WITNESS_RESTORE(lock, n) (void)0
+#define WITNESS_NORELEASE(lock) (void)0
+#define WITNESS_RELEASEOK(lock) (void)0
+#define WITNESS_FILE(lock) ("?")
+#define WITNESS_LINE(lock) (0)
+#endif /* WITNESS */
 
-#endif	/* _KERNEL */
-#endif	/* _SYS_LOCK_H_ */
+#endif /* _KERNEL */
+#endif /* _SYS_LOCK_H_ */

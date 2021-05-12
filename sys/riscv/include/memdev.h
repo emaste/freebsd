@@ -27,14 +27,14 @@
  */
 
 #ifndef _MACHINE_MEMDEV_H_
-#define	_MACHINE_MEMDEV_H_
+#define _MACHINE_MEMDEV_H_
 
-#define	CDEV_MINOR_MEM	0
-#define	CDEV_MINOR_KMEM	1
+#define CDEV_MINOR_MEM 0
+#define CDEV_MINOR_KMEM 1
 
-d_open_t	memopen;
-d_read_t	memrw;
-d_ioctl_t	memioctl_md;
-d_mmap_t	memmmap;
+d_open_t memopen;
+d_read_t memrw;
+d_ioctl_t memioctl_md;
+d_mmap_t memmmap;
 
 #endif /* _MACHINE_MEMDEV_H_ */

@@ -35,10 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/smp.h>
 
+#include <machine/cpu.h>
+
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <machine/cpu.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
 
@@ -49,76 +49,67 @@ __FBSDID("$FreeBSD$");
  * 2GHz.
  */
 
-#define	GUTS_PORPLLSR		(CCSRBAR_VA + 0xe0000)
-#define	GUTS_PMJCR		(CCSRBAR_VA + 0xe007c)
-#define	  PMJCR_RATIO_M		  0x3f
-#define	  PMJCR_CORE_MULT(x,y)	  ((x) << (16 + ((y) * 8)))
-#define	  PMJCR_GET_CORE_MULT(x,y)	  (((x) >> (16 + ((y) * 8))) & 0x3f)
-#define	GUTS_POWMGTCSR		(CCSRBAR_VA + 0xe0080)
-#define	  POWMGTCSR_JOG		  0x00200000
-#define	  POWMGTCSR_INT_MASK	  0x00000f00
+#define GUTS_PORPLLSR (CCSRBAR_VA + 0xe0000)
+#define GUTS_PMJCR (CCSRBAR_VA + 0xe007c)
+#define PMJCR_RATIO_M 0x3f
+#define PMJCR_CORE_MULT(x, y) ((x) << (16 + ((y)*8)))
+#define PMJCR_GET_CORE_MULT(x, y) (((x) >> (16 + ((y)*8))) & 0x3f)
+#define GUTS_POWMGTCSR (CCSRBAR_VA + 0xe0080)
+#define POWMGTCSR_JOG 0x00200000
+#define POWMGTCSR_INT_MASK 0x00000f00
 
-#define	MHZ	1000000
+#define MHZ 1000000
 
 struct mpc85xx_jog_softc {
 	device_t dev;
-	int	cpu;
-	int	low;
-	int	high;
-	int	min_freq;
+	int cpu;
+	int low;
+	int high;
+	int min_freq;
 };
 
 static struct ofw_compat_data *mpc85xx_jog_devcompat(void);
-static void	mpc85xx_jog_identify(driver_t *driver, device_t parent);
-static int	mpc85xx_jog_probe(device_t dev);
-static int	mpc85xx_jog_attach(device_t dev);
-static int	mpc85xx_jog_settings(device_t dev, struct cf_setting *sets, int *count);
-static int	mpc85xx_jog_set(device_t dev, const struct cf_setting *set);
-static int	mpc85xx_jog_get(device_t dev, struct cf_setting *set);
-static int	mpc85xx_jog_type(device_t dev, int *type);
+static void mpc85xx_jog_identify(driver_t *driver, device_t parent);
+static int mpc85xx_jog_probe(device_t dev);
+static int mpc85xx_jog_attach(device_t dev);
+static int mpc85xx_jog_settings(
+    device_t dev, struct cf_setting *sets, int *count);
+static int mpc85xx_jog_set(device_t dev, const struct cf_setting *set);
+static int mpc85xx_jog_get(device_t dev, struct cf_setting *set);
+static int mpc85xx_jog_type(device_t dev, int *type);
 
 static device_method_t mpc85xx_jog_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	mpc85xx_jog_identify),
-	DEVMETHOD(device_probe,		mpc85xx_jog_probe),
-	DEVMETHOD(device_attach,	mpc85xx_jog_attach),
+	DEVMETHOD(device_identify, mpc85xx_jog_identify),
+	DEVMETHOD(device_probe, mpc85xx_jog_probe),
+	DEVMETHOD(device_attach, mpc85xx_jog_attach),
 
 	/* cpufreq interface */
-	DEVMETHOD(cpufreq_drv_set,	mpc85xx_jog_set),
-	DEVMETHOD(cpufreq_drv_get,	mpc85xx_jog_get),
-	DEVMETHOD(cpufreq_drv_type,	mpc85xx_jog_type),
-	DEVMETHOD(cpufreq_drv_settings,	mpc85xx_jog_settings),
-	{0, 0}
+	DEVMETHOD(cpufreq_drv_set, mpc85xx_jog_set),
+	DEVMETHOD(cpufreq_drv_get, mpc85xx_jog_get),
+	DEVMETHOD(cpufreq_drv_type, mpc85xx_jog_type),
+	DEVMETHOD(cpufreq_drv_settings, mpc85xx_jog_settings), { 0, 0 }
 };
 
-static driver_t mpc85xx_jog_driver = {
-	"jog",
-	mpc85xx_jog_methods,
-	sizeof(struct mpc85xx_jog_softc)
-};
+static driver_t mpc85xx_jog_driver = { "jog", mpc85xx_jog_methods,
+	sizeof(struct mpc85xx_jog_softc) };
 
 static devclass_t mpc85xx_jog_devclass;
 DRIVER_MODULE(mpc85xx_jog, cpu, mpc85xx_jog_driver, mpc85xx_jog_devclass, 0, 0);
 
 struct mpc85xx_constraints {
-	int threshold; /* Threshold frequency, in MHz, for setting CORE_SPD bit. */
+	int threshold; /* Threshold frequency, in MHz, for setting CORE_SPD bit.
+			*/
 	int min_mult;  /* Minimum PLL multiplier. */
 };
 
-static struct mpc85xx_constraints mpc8536_constraints = {
-	800,
-	3
-};
+static struct mpc85xx_constraints mpc8536_constraints = { 800, 3 };
 
-static struct mpc85xx_constraints p1022_constraints = {
-	500,
-	2
-};
+static struct mpc85xx_constraints p1022_constraints = { 500, 2 };
 
 static struct ofw_compat_data jog_compat[] = {
-    {"fsl,mpc8536-guts", (uintptr_t)&mpc8536_constraints},
-    {"fsl,p1022-guts", (uintptr_t)&p1022_constraints},
-    {NULL, 0}
+	{ "fsl,mpc8536-guts", (uintptr_t)&mpc8536_constraints },
+	{ "fsl,p1022-guts", (uintptr_t)&p1022_constraints }, { NULL, 0 }
 };
 
 static struct ofw_compat_data *
@@ -192,7 +183,7 @@ mpc85xx_jog_attach(device_t dev)
 	cpu = ofw_bus_get_node(device_get_parent(dev));
 
 	if (cpu <= 0) {
-		device_printf(dev,"No CPU device tree node!\n");
+		device_printf(dev, "No CPU device tree node!\n");
 		return (ENXIO);
 	}
 

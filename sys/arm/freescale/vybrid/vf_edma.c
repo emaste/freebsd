@@ -38,43 +38,41 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <arm/freescale/vybrid/vf_edma.h>
-#include <arm/freescale/vybrid/vf_dmamux.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include <arm/freescale/vybrid/vf_common.h>
+#include <arm/freescale/vybrid/vf_dmamux.h>
+#include <arm/freescale/vybrid/vf_edma.h>
 
 struct edma_channel {
-	uint32_t	enabled;
-	uint32_t	mux_num;
-	uint32_t	mux_src;
-	uint32_t	mux_chn;
-	uint32_t	(*ih) (void *, int);
-	void		*ih_user;
+	uint32_t enabled;
+	uint32_t mux_num;
+	uint32_t mux_src;
+	uint32_t mux_chn;
+	uint32_t (*ih)(void *, int);
+	void *ih_user;
 };
 
 static struct edma_channel edma_map[EDMA_NUM_CHANNELS];
 
-static struct resource_spec edma_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE }, /* TCD */
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE }, /* Transfer complete */
-	{ SYS_RES_IRQ,		1,	RF_ACTIVE }, /* Error Interrupt */
-	{ -1, 0 }
-};
+static struct resource_spec edma_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_MEMORY, 1, RF_ACTIVE }, /* TCD */
+	{ SYS_RES_IRQ, 0, RF_ACTIVE },	  /* Transfer complete */
+	{ SYS_RES_IRQ, 1, RF_ACTIVE },	  /* Error Interrupt */
+	{ -1, 0 } };
 
 static int
 edma_probe(device_t dev)
@@ -155,7 +153,7 @@ channel_configure(struct edma_softc *sc, int mux_grp, int mux_src)
 	int chnum;
 	int i;
 
-	if ((sc->device_id == 0 && mux_grp == 1) ||	\
+	if ((sc->device_id == 0 && mux_grp == 1) ||
 	    (sc->device_id == 1 && mux_grp == 0)) {
 		channel_first = NCHAN_PER_MUX;
 		mux_num = (sc->device_id * 2) + 1;
@@ -184,7 +182,7 @@ channel_configure(struct edma_softc *sc, int mux_grp, int mux_src)
 	ch->enabled = 1;
 	ch->mux_num = mux_num;
 	ch->mux_src = mux_src;
-	ch->mux_chn = (chnum - channel_first);	/* 0 to 15 */
+	ch->mux_chn = (chnum - channel_first); /* 0 to 15 */
 
 	dmamux_configure(ch->mux_num, ch->mux_src, ch->mux_chn, 1);
 
@@ -236,7 +234,7 @@ dma_setup(struct edma_softc *sc, struct tcd_conf *tcd)
 	TCD_WRITE2(sc, DMA_TCDn_BITER_ELINKNO(chnum), reg);
 
 	reg = (TCD_CSR_INTMAJOR);
-	if(tcd->majorelink == 1) {
+	if (tcd->majorelink == 1) {
 		reg |= TCD_CSR_MAJORELINK;
 		reg |= (tcd->majorelinkch << TCD_CSR_MAJORELINKCH_SHIFT);
 	}
@@ -306,14 +304,14 @@ edma_attach(device_t dev)
 	sc->bsh_tcd = rman_get_bushandle(sc->res[1]);
 
 	/* Setup interrupt handlers */
-	if (bus_setup_intr(dev, sc->res[2], INTR_TYPE_BIO | INTR_MPSAFE,
-		NULL, edma_transfer_complete_intr, sc, &sc->tc_ih)) {
+	if (bus_setup_intr(dev, sc->res[2], INTR_TYPE_BIO | INTR_MPSAFE, NULL,
+		edma_transfer_complete_intr, sc, &sc->tc_ih)) {
 		device_printf(dev, "Unable to alloc DMA intr resource.\n");
 		return (ENXIO);
 	}
 
-	if (bus_setup_intr(dev, sc->res[3], INTR_TYPE_BIO | INTR_MPSAFE,
-		NULL, edma_err_intr, sc, &sc->err_ih)) {
+	if (bus_setup_intr(dev, sc->res[3], INTR_TYPE_BIO | INTR_MPSAFE, NULL,
+		edma_err_intr, sc, &sc->err_ih)) {
 		device_printf(dev, "Unable to alloc DMA Err intr resource.\n");
 		return (ENXIO);
 	}
@@ -321,11 +319,8 @@ edma_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t edma_methods[] = {
-	DEVMETHOD(device_probe,		edma_probe),
-	DEVMETHOD(device_attach,	edma_attach),
-	{ 0, 0 }
-};
+static device_method_t edma_methods[] = { DEVMETHOD(device_probe, edma_probe),
+	DEVMETHOD(device_attach, edma_attach), { 0, 0 } };
 
 static driver_t edma_driver = {
 	"edma",

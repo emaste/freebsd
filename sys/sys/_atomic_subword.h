@@ -27,7 +27,7 @@
  * $FreeBSD$
  */
 #ifndef _SYS__ATOMIC_SUBWORD_H_
-#define	_SYS__ATOMIC_SUBWORD_H_
+#define _SYS__ATOMIC_SUBWORD_H_
 
 /*
  * This header is specifically for platforms that either do not have ways to or
@@ -46,27 +46,23 @@
 #endif
 
 #ifndef NBBY
-#define	NBBY	8
+#define NBBY 8
 #endif
 
-#define	_ATOMIC_WORD_ALIGNED(p)		\
-    (uint32_t *)((__uintptr_t)(p) - ((__uintptr_t)(p) % 4))
+#define _ATOMIC_WORD_ALIGNED(p) \
+	(uint32_t *)((__uintptr_t)(p) - ((__uintptr_t)(p) % 4))
 
 #if _BYTE_ORDER == _BIG_ENDIAN
-#define	_ATOMIC_BYTE_SHIFT(p)		\
-    ((3 - ((__uintptr_t)(p) % 4)) * NBBY)
+#define _ATOMIC_BYTE_SHIFT(p) ((3 - ((__uintptr_t)(p) % 4)) * NBBY)
 
-#define	_ATOMIC_HWORD_SHIFT(p)		\
-    ((2 - ((__uintptr_t)(p) % 4)) * NBBY)
+#define _ATOMIC_HWORD_SHIFT(p) ((2 - ((__uintptr_t)(p) % 4)) * NBBY)
 #else
-#define	_ATOMIC_BYTE_SHIFT(p)		\
-    ((((__uintptr_t)(p) % 4)) * NBBY)
+#define _ATOMIC_BYTE_SHIFT(p) ((((__uintptr_t)(p) % 4)) * NBBY)
 
-#define	_ATOMIC_HWORD_SHIFT(p)		\
-    ((((__uintptr_t)(p) % 4)) * NBBY)
+#define _ATOMIC_HWORD_SHIFT(p) ((((__uintptr_t)(p) % 4)) * NBBY)
 #endif
 
-#ifndef	_atomic_cmpset_masked_word
+#ifndef _atomic_cmpset_masked_word
 /*
  * Pass these bad boys a couple words and a mask of the bits you care about,
  * they'll loop until we either succeed or fail because of those bits rather
@@ -74,8 +70,8 @@
  * the proper position.
  */
 static __inline int
-_atomic_cmpset_masked_word(uint32_t *addr, uint32_t old, uint32_t val,
-    uint32_t mask)
+_atomic_cmpset_masked_word(
+    uint32_t *addr, uint32_t old, uint32_t val, uint32_t mask)
 {
 	int ret;
 	uint32_t wcomp;
@@ -98,10 +94,10 @@ _atomic_cmpset_masked_word(uint32_t *addr, uint32_t old, uint32_t val,
 }
 #endif
 
-#ifndef	_atomic_fcmpset_masked_word
+#ifndef _atomic_fcmpset_masked_word
 static __inline int
-_atomic_fcmpset_masked_word(uint32_t *addr, uint32_t *old, uint32_t val,
-    uint32_t mask)
+_atomic_fcmpset_masked_word(
+    uint32_t *addr, uint32_t *old, uint32_t val, uint32_t mask)
 {
 
 	/*
@@ -138,8 +134,8 @@ atomic_fcmpset_8(__volatile uint8_t *addr, uint8_t *old, uint8_t val)
 
 	shift = _ATOMIC_BYTE_SHIFT(addr);
 	wold = *old << shift;
-	ret = _atomic_fcmpset_masked_word(_ATOMIC_WORD_ALIGNED(addr),
-	    &wold, val << shift, 0xff << shift);
+	ret = _atomic_fcmpset_masked_word(
+	    _ATOMIC_WORD_ALIGNED(addr), &wold, val << shift, 0xff << shift);
 	if (ret == 0)
 		*old = (wold >> shift) & 0xff;
 	return (ret);
@@ -168,8 +164,8 @@ atomic_fcmpset_16(__volatile uint16_t *addr, uint16_t *old, uint16_t val)
 
 	shift = _ATOMIC_HWORD_SHIFT(addr);
 	wold = *old << shift;
-	ret = _atomic_fcmpset_masked_word(_ATOMIC_WORD_ALIGNED(addr),
-	    &wold, val << shift, 0xffff << shift);
+	ret = _atomic_fcmpset_masked_word(
+	    _ATOMIC_WORD_ALIGNED(addr), &wold, val << shift, 0xffff << shift);
 	if (ret == 0)
 		*old = (wold >> shift) & 0xffff;
 	return (ret);
@@ -197,8 +193,7 @@ atomic_load_acq_16(volatile uint16_t *p)
 	uint16_t ret;
 
 	shift = _ATOMIC_HWORD_SHIFT(p);
-	ret = (atomic_load_acq_32(_ATOMIC_WORD_ALIGNED(p)) >> shift) &
-	    0xffff;
+	ret = (atomic_load_acq_32(_ATOMIC_WORD_ALIGNED(p)) >> shift) & 0xffff;
 	return (ret);
 }
 #endif
@@ -271,4 +266,4 @@ atomic_testandclear_long(volatile u_long *p, u_int v)
 }
 #endif
 
-#endif	/* _SYS__ATOMIC_SUBWORD_H_ */
+#endif /* _SYS__ATOMIC_SUBWORD_H_ */

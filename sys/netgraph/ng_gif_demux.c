@@ -34,7 +34,7 @@
  *
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -45,7 +45,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -78,85 +78,83 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ctype.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/ctype.h>
 #include <sys/mbuf.h>
-#include <sys/errno.h>
 #include <sys/socket.h>
 
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
 #include <netgraph/ng_gif_demux.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
 
 #ifdef NG_SEPARATE_MALLOC
-static MALLOC_DEFINE(M_NETGRAPH_GIF_DEMUX, "netgraph_gif_demux",
-    "netgraph gif demux node");
+static MALLOC_DEFINE(
+    M_NETGRAPH_GIF_DEMUX, "netgraph_gif_demux", "netgraph gif demux node");
 #else
 #define M_NETGRAPH_GIF_DEMUX M_NETGRAPH
 #endif
 
 /* This struct describes one address family */
 struct iffam {
-	sa_family_t	family;		/* Address family */
-	const char	*hookname;	/* Name for hook */
+	sa_family_t family;   /* Address family */
+	const char *hookname; /* Name for hook */
 };
 typedef const struct iffam *iffam_p;
 
 /* List of address families supported by our interface */
 const static struct iffam gFamilies[] = {
-	{ AF_INET,	NG_GIF_DEMUX_HOOK_INET	},
-	{ AF_INET6,	NG_GIF_DEMUX_HOOK_INET6	},
-	{ AF_APPLETALK,	NG_GIF_DEMUX_HOOK_ATALK	},
-	{ AF_IPX,	NG_GIF_DEMUX_HOOK_IPX	},
-	{ AF_ATM,	NG_GIF_DEMUX_HOOK_ATM	},
-	{ AF_NATM,	NG_GIF_DEMUX_HOOK_NATM	},
+	{ AF_INET, NG_GIF_DEMUX_HOOK_INET },
+	{ AF_INET6, NG_GIF_DEMUX_HOOK_INET6 },
+	{ AF_APPLETALK, NG_GIF_DEMUX_HOOK_ATALK },
+	{ AF_IPX, NG_GIF_DEMUX_HOOK_IPX },
+	{ AF_ATM, NG_GIF_DEMUX_HOOK_ATM },
+	{ AF_NATM, NG_GIF_DEMUX_HOOK_NATM },
 };
-#define	NUM_FAMILIES		nitems(gFamilies)
+#define NUM_FAMILIES nitems(gFamilies)
 
 /* Per-node private data */
 struct ng_gif_demux_private {
-	node_p	node;			/* Our netgraph node */
-	hook_p	gif;			/* The gif hook */
-	hook_p	hooks[NUM_FAMILIES];	/* The protocol hooks */
+	node_p node;		    /* Our netgraph node */
+	hook_p gif;		    /* The gif hook */
+	hook_p hooks[NUM_FAMILIES]; /* The protocol hooks */
 };
 typedef struct ng_gif_demux_private *priv_p;
 
 /* Netgraph node methods */
-static ng_constructor_t	ng_gif_demux_constructor;
-static ng_rcvmsg_t	ng_gif_demux_rcvmsg;
-static ng_shutdown_t	ng_gif_demux_shutdown;
-static ng_newhook_t	ng_gif_demux_newhook;
-static ng_rcvdata_t	ng_gif_demux_rcvdata;
-static ng_disconnect_t	ng_gif_demux_disconnect;
+static ng_constructor_t ng_gif_demux_constructor;
+static ng_rcvmsg_t ng_gif_demux_rcvmsg;
+static ng_shutdown_t ng_gif_demux_shutdown;
+static ng_newhook_t ng_gif_demux_newhook;
+static ng_rcvdata_t ng_gif_demux_rcvdata;
+static ng_disconnect_t ng_gif_demux_disconnect;
 
 /* Helper stuff */
-static iffam_p	get_iffam_from_af(sa_family_t family);
-static iffam_p	get_iffam_from_hook(priv_p priv, hook_p hook);
-static iffam_p	get_iffam_from_name(const char *name);
-static hook_p	*get_hook_from_iffam(priv_p priv, iffam_p iffam);
+static iffam_p get_iffam_from_af(sa_family_t family);
+static iffam_p get_iffam_from_hook(priv_p priv, hook_p hook);
+static iffam_p get_iffam_from_name(const char *name);
+static hook_p *get_hook_from_iffam(priv_p priv, iffam_p iffam);
 
 /******************************************************************
 		    NETGRAPH PARSE TYPES
 ******************************************************************/
 
 /* List of commands and how to convert arguments to/from ASCII */
-static const struct ng_cmdlist ng_gif_demux_cmdlist[] = {
-	{ 0 }
-};
+static const struct ng_cmdlist ng_gif_demux_cmdlist[] = { { 0 } };
 
 /* Node type descriptor */
 static struct ng_type ng_gif_demux_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_GIF_DEMUX_NODE_TYPE,
-	.constructor =	ng_gif_demux_constructor,
-	.rcvmsg =	ng_gif_demux_rcvmsg,
-	.shutdown =	ng_gif_demux_shutdown,
-	.newhook =	ng_gif_demux_newhook,
-	.rcvdata =	ng_gif_demux_rcvdata,
-	.disconnect =	ng_gif_demux_disconnect,
-	.cmdlist =	ng_gif_demux_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_GIF_DEMUX_NODE_TYPE,
+	.constructor = ng_gif_demux_constructor,
+	.rcvmsg = ng_gif_demux_rcvmsg,
+	.shutdown = ng_gif_demux_shutdown,
+	.newhook = ng_gif_demux_newhook,
+	.rcvdata = ng_gif_demux_rcvdata,
+	.disconnect = ng_gif_demux_disconnect,
+	.cmdlist = ng_gif_demux_cmdlist,
 };
 NETGRAPH_INIT(gif_demux, &ng_gif_demux_typestruct);
 
@@ -247,7 +245,7 @@ ng_gif_demux_constructor(node_p node)
 /*
  * Method for attaching a new hook
  */
-static	int
+static int
 ng_gif_demux_newhook(node_p node, hook_p hook, const char *name)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
@@ -325,8 +323,8 @@ ng_gif_demux_rcvdata(hook_p hook, item_p item)
 			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
-		if (m->m_len < sizeof(sa_family_t)
-		    && (m = m_pullup(m, sizeof(sa_family_t))) == NULL) {
+		if (m->m_len < sizeof(sa_family_t) &&
+		    (m = m_pullup(m, sizeof(sa_family_t))) == NULL) {
 			NG_FREE_ITEM(item);
 			return (ENOBUFS);
 		}
@@ -343,7 +341,7 @@ ng_gif_demux_rcvdata(hook_p hook, item_p item)
 		 * Add address family header and set the output hook.
 		 */
 		iffam = get_iffam_from_hook(priv, hook);
-		M_PREPEND(m, sizeof (iffam->family), M_NOWAIT);
+		M_PREPEND(m, sizeof(iffam->family), M_NOWAIT);
 		if (m == NULL) {
 			NG_FREE_M(m);
 			NG_FREE_ITEM(item);

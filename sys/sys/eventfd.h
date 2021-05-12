@@ -32,14 +32,14 @@
 
 typedef uint64_t eventfd_t;
 
-#define	EFD_SEMAPHORE	0x00000001
-#define	EFD_NONBLOCK	0x00000004
-#define	EFD_CLOEXEC	0x00100000
+#define EFD_SEMAPHORE 0x00000001
+#define EFD_NONBLOCK 0x00000004
+#define EFD_CLOEXEC 0x00100000
 
 #ifdef _KERNEL
 
-int eventfd_create_file(struct thread *td, struct file *fp, uint32_t initval,
-    int flags);
+int eventfd_create_file(
+    struct thread *td, struct file *fp, uint32_t initval, int flags);
 
 #else
 

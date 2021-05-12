@@ -67,8 +67,8 @@
  *	section.  [For machine-dependent section, see "machine/pmap.h".]
  */
 
-#ifndef	_PMAP_VM_
-#define	_PMAP_VM_
+#ifndef _PMAP_VM_
+#define _PMAP_VM_
 /*
  * Each machine dependent implementation is expected to
  * keep certain statistics.  They may do this anyway they
@@ -76,8 +76,8 @@
  * in the following structure.
  */
 struct pmap_statistics {
-	long resident_count;	/* # of pages mapped (total) */
-	long wired_count;	/* # of pages wired */
+	long resident_count; /* # of pages mapped (total) */
+	long wired_count;    /* # of pages wired */
 };
 typedef struct pmap_statistics *pmap_statistics_t;
 
@@ -104,10 +104,10 @@ extern vm_offset_t kernel_vm_end;
  * for the protection code (vm_prot_t) that describes the fault type.
  * Bits 24 through 31 are reserved for the pmap's internal use.
  */
-#define	PMAP_ENTER_NOSLEEP	0x00000100
-#define	PMAP_ENTER_WIRED	0x00000200
-#define	PMAP_ENTER_LARGEPAGE	0x00000400
-#define	PMAP_ENTER_RESERVED	0xFF000000
+#define PMAP_ENTER_NOSLEEP 0x00000100
+#define PMAP_ENTER_WIRED 0x00000200
+#define PMAP_ENTER_LARGEPAGE 0x00000400
+#define PMAP_ENTER_RESERVED 0xFF000000
 
 /*
  * Define the maximum number of machine-dependent reference bits that are
@@ -117,60 +117,56 @@ extern vm_offset_t kernel_vm_end;
  * widely shared page's "act_count" field.  An overflow could result in the
  * premature deactivation of the page.
  */
-#define	PMAP_TS_REFERENCED_MAX	5
+#define PMAP_TS_REFERENCED_MAX 5
 
-void		 pmap_activate(struct thread *td);
-void		 pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
-		    int advice);
-void		 pmap_align_superpage(vm_object_t, vm_ooffset_t, vm_offset_t *,
-		    vm_size_t);
-void		 pmap_clear_modify(vm_page_t m);
-void		 pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
-void		 pmap_copy_page(vm_page_t, vm_page_t);
-void		 pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset,
-		    vm_page_t mb[], vm_offset_t b_offset, int xfersize);
-int		 pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m,
-		    vm_prot_t prot, u_int flags, int8_t psind);
-void		 pmap_enter_object(pmap_t pmap, vm_offset_t start,
-		    vm_offset_t end, vm_page_t m_start, vm_prot_t prot);
-void		 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m,
-		    vm_prot_t prot);
-vm_paddr_t	 pmap_extract(pmap_t pmap, vm_offset_t va);
-vm_page_t	 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va,
-		    vm_prot_t prot);
-void		 pmap_growkernel(vm_offset_t);
-void		 pmap_init(void);
-boolean_t	 pmap_is_modified(vm_page_t m);
-boolean_t	 pmap_is_prefaultable(pmap_t pmap, vm_offset_t va);
-boolean_t	 pmap_is_referenced(vm_page_t m);
-boolean_t	 pmap_is_valid_memattr(pmap_t, vm_memattr_t);
-vm_offset_t	 pmap_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
-int		 pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap);
-void		 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
-		    vm_object_t object, vm_pindex_t pindex, vm_size_t size);
-boolean_t	 pmap_page_exists_quick(pmap_t pmap, vm_page_t m);
-void		 pmap_page_init(vm_page_t m);
-int		 pmap_page_wired_mappings(vm_page_t m);
-int		 pmap_pinit(pmap_t);
-void		 pmap_pinit0(pmap_t);
-void		 pmap_protect(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
-void		 pmap_qenter(vm_offset_t, vm_page_t *, int);
-void		 pmap_qremove(vm_offset_t, int);
-vm_offset_t	 pmap_quick_enter_page(vm_page_t);
-void		 pmap_quick_remove_page(vm_offset_t);
-void		 pmap_release(pmap_t);
-void		 pmap_remove(pmap_t, vm_offset_t, vm_offset_t);
-void		 pmap_remove_all(vm_page_t m);
-void		 pmap_remove_pages(pmap_t);
-void		 pmap_remove_write(vm_page_t m);
-void		 pmap_sync_icache(pmap_t, vm_offset_t, vm_size_t);
-int		 pmap_ts_referenced(vm_page_t m);
-void		 pmap_unwire(pmap_t pmap, vm_offset_t start, vm_offset_t end);
-void		 pmap_zero_page(vm_page_t);
-void		 pmap_zero_page_area(vm_page_t, int off, int size);
+void pmap_activate(struct thread *td);
+void pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice);
+void pmap_align_superpage(vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t);
+void pmap_clear_modify(vm_page_t m);
+void pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
+void pmap_copy_page(vm_page_t, vm_page_t);
+void pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize);
+int pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags, int8_t psind);
+void pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
+    vm_page_t m_start, vm_prot_t prot);
+void pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot);
+vm_paddr_t pmap_extract(pmap_t pmap, vm_offset_t va);
+vm_page_t pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot);
+void pmap_growkernel(vm_offset_t);
+void pmap_init(void);
+boolean_t pmap_is_modified(vm_page_t m);
+boolean_t pmap_is_prefaultable(pmap_t pmap, vm_offset_t va);
+boolean_t pmap_is_referenced(vm_page_t m);
+boolean_t pmap_is_valid_memattr(pmap_t, vm_memattr_t);
+vm_offset_t pmap_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
+int pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap);
+void pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
+    vm_pindex_t pindex, vm_size_t size);
+boolean_t pmap_page_exists_quick(pmap_t pmap, vm_page_t m);
+void pmap_page_init(vm_page_t m);
+int pmap_page_wired_mappings(vm_page_t m);
+int pmap_pinit(pmap_t);
+void pmap_pinit0(pmap_t);
+void pmap_protect(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
+void pmap_qenter(vm_offset_t, vm_page_t *, int);
+void pmap_qremove(vm_offset_t, int);
+vm_offset_t pmap_quick_enter_page(vm_page_t);
+void pmap_quick_remove_page(vm_offset_t);
+void pmap_release(pmap_t);
+void pmap_remove(pmap_t, vm_offset_t, vm_offset_t);
+void pmap_remove_all(vm_page_t m);
+void pmap_remove_pages(pmap_t);
+void pmap_remove_write(vm_page_t m);
+void pmap_sync_icache(pmap_t, vm_offset_t, vm_size_t);
+int pmap_ts_referenced(vm_page_t m);
+void pmap_unwire(pmap_t pmap, vm_offset_t start, vm_offset_t end);
+void pmap_zero_page(vm_page_t);
+void pmap_zero_page_area(vm_page_t, int off, int size);
 
-#define	pmap_resident_count(pm)	((pm)->pm_stats.resident_count)
-#define	pmap_wired_count(pm)	((pm)->pm_stats.wired_count)
+#define pmap_resident_count(pm) ((pm)->pm_stats.resident_count)
+#define pmap_wired_count(pm) ((pm)->pm_stats.wired_count)
 
 #endif /* _KERNEL */
 #endif /* _PMAP_VM_ */

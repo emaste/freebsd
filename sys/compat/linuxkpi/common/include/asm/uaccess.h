@@ -40,7 +40,7 @@ copy_to_user(void *to, const void *from, unsigned long n)
 		return n;
 	return 0;
 }
-#define	__copy_to_user(...)	copy_to_user(__VA_ARGS__)
+#define __copy_to_user(...) copy_to_user(__VA_ARGS__)
 
 static inline long
 copy_from_user(void *to, const void *from, unsigned long n)
@@ -49,20 +49,24 @@ copy_from_user(void *to, const void *from, unsigned long n)
 		return n;
 	return 0;
 }
-#define	__copy_from_user(...)	copy_from_user(__VA_ARGS__)
-#define	__copy_in_user(...)	copy_from_user(__VA_ARGS__)
+#define __copy_from_user(...) copy_from_user(__VA_ARGS__)
+#define __copy_in_user(...) copy_from_user(__VA_ARGS__)
 
-#define	user_access_begin(ptr, len) access_ok(ptr, len)
-#define	user_access_end() do { } while (0)
+#define user_access_begin(ptr, len) access_ok(ptr, len)
+#define user_access_end() \
+	do {              \
+	} while (0)
 
-#define	unsafe_get_user(x, ptr, err) do { \
-	if (unlikely(__get_user(x, ptr))) \
-		goto err; \
-} while (0)
+#define unsafe_get_user(x, ptr, err)              \
+	do {                                      \
+		if (unlikely(__get_user(x, ptr))) \
+			goto err;                 \
+	} while (0)
 
-#define	unsafe_put_user(x, ptr, err) do { \
-	if (unlikely(__put_user(x, ptr))) \
-		goto err; \
-} while (0)
+#define unsafe_put_user(x, ptr, err)              \
+	do {                                      \
+		if (unlikely(__put_user(x, ptr))) \
+			goto err;                 \
+	} while (0)
 
-#endif	/* _ASM_UACCESS_H_ */
+#endif /* _ASM_UACCESS_H_ */

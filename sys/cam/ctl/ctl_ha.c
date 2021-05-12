@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
 #include <sys/eventhandler.h>
@@ -46,55 +47,56 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
+
 #include <vm/uma.h>
 
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+
 #include <cam/cam.h>
-#include <cam/scsi/scsi_all.h>
-#include <cam/scsi/scsi_da.h>
-#include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
-#include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_backend.h>
-#include <cam/ctl/ctl_ioctl.h>
-#include <cam/ctl/ctl_ha.h>
-#include <cam/ctl/ctl_private.h>
 #include <cam/ctl/ctl_debug.h>
 #include <cam/ctl/ctl_error.h>
+#include <cam/ctl/ctl_frontend.h>
+#include <cam/ctl/ctl_ha.h>
+#include <cam/ctl/ctl_io.h>
+#include <cam/ctl/ctl_ioctl.h>
+#include <cam/ctl/ctl_private.h>
+#include <cam/ctl/ctl_util.h>
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_da.h>
 
 struct ha_msg_wire {
-	uint32_t	 channel;
-	uint32_t	 length;
+	uint32_t channel;
+	uint32_t length;
 };
 
 struct ha_dt_msg_wire {
-	ctl_ha_dt_cmd	command;
-	uint32_t	size;
-	uint8_t		*local;
-	uint8_t		*remote;
+	ctl_ha_dt_cmd command;
+	uint32_t size;
+	uint8_t *local;
+	uint8_t *remote;
 };
 
 struct ha_softc {
 	struct ctl_softc *ha_ctl_softc;
-	ctl_evt_handler	 ha_handler[CTL_HA_CHAN_MAX];
-	char		 ha_peer[128];
-	struct sockaddr_in  ha_peer_in;
-	struct socket	*ha_lso;
-	struct socket	*ha_so;
-	struct mbufq	 ha_sendq;
-	struct mbuf	*ha_sending;
-	struct mtx	 ha_lock;
-	int		 ha_connect;
-	int		 ha_listen;
-	int		 ha_connected;
-	int		 ha_receiving;
-	int		 ha_wakeup;
-	int		 ha_disconnect;
-	int		 ha_shutdown;
+	ctl_evt_handler ha_handler[CTL_HA_CHAN_MAX];
+	char ha_peer[128];
+	struct sockaddr_in ha_peer_in;
+	struct socket *ha_lso;
+	struct socket *ha_so;
+	struct mbufq ha_sendq;
+	struct mbuf *ha_sending;
+	struct mtx ha_lock;
+	int ha_connect;
+	int ha_listen;
+	int ha_connected;
+	int ha_receiving;
+	int ha_wakeup;
+	int ha_disconnect;
+	int ha_shutdown;
 	eventhandler_tag ha_shutdown_eh;
 	TAILQ_HEAD(, ctl_ha_dt_req) ha_dts;
 } ha_softc;
@@ -137,8 +139,8 @@ ctl_ha_supcall(struct socket *so, void *arg, int waitflag)
 }
 
 static void
-ctl_ha_evt(struct ha_softc *softc, ctl_ha_channel ch, ctl_ha_event evt,
-    int param)
+ctl_ha_evt(
+    struct ha_softc *softc, ctl_ha_channel ch, ctl_ha_event evt, int param)
 {
 	int i;
 
@@ -186,7 +188,8 @@ ctl_ha_close(struct ha_softc *softc)
 	if (report) {
 		ctl_ha_evt(softc, CTL_HA_CHAN_MAX, CTL_HA_EVT_LINK_CHANGE,
 		    (softc->ha_connect || softc->ha_listen) ?
-		    CTL_HA_LINK_UNKNOWN : CTL_HA_LINK_OFFLINE);
+			      CTL_HA_LINK_UNKNOWN :
+			      CTL_HA_LINK_OFFLINE);
 	}
 }
 
@@ -244,8 +247,8 @@ ctl_ha_rx_thread(void *arg)
 			uio.uio_td = curthread;
 			uio.uio_resid = sizeof(wire_hdr);
 			flags = MSG_DONTWAIT;
-			error = soreceive(softc->ha_so, NULL, &uio, NULL,
-			    NULL, &flags);
+			error = soreceive(
+			    softc->ha_so, NULL, &uio, NULL, NULL, &flags);
 			if (error != 0) {
 				printf("%s: header receive error %d\n",
 				    __func__, error);
@@ -253,8 +256,8 @@ ctl_ha_rx_thread(void *arg)
 				goto errout;
 			}
 		} else {
-			ctl_ha_evt(softc, wire_hdr.channel,
-			    CTL_HA_EVT_MSG_RECV, wire_hdr.length);
+			ctl_ha_evt(softc, wire_hdr.channel, CTL_HA_EVT_MSG_RECV,
+			    wire_hdr.length);
 			wire_hdr.length = 0;
 		}
 	}
@@ -373,8 +376,8 @@ ctl_ha_connect(struct ha_softc *softc)
 	int error;
 
 	/* Create the socket */
-	error = socreate(PF_INET, &so, SOCK_STREAM,
-	    IPPROTO_TCP, td->td_ucred, td);
+	error = socreate(
+	    PF_INET, &so, SOCK_STREAM, IPPROTO_TCP, td->td_ucred, td);
 	if (error != 0) {
 		printf("%s: socreate() error %d\n", __func__, error);
 		return (error);
@@ -457,8 +460,8 @@ ctl_ha_listen(struct ha_softc *softc)
 		val = 1;
 		error = sosetopt(softc->ha_lso, &opt);
 		if (error) {
-			printf("%s: REUSEADDR setting failed %d\n",
-			    __func__, error);
+			printf("%s: REUSEADDR setting failed %d\n", __func__,
+			    error);
 		}
 		bzero(&opt, sizeof(struct sockopt));
 		opt.sopt_dir = SOPT_SET;
@@ -469,8 +472,8 @@ ctl_ha_listen(struct ha_softc *softc)
 		val = 1;
 		error = sosetopt(softc->ha_lso, &opt);
 		if (error) {
-			printf("%s: REUSEPORT setting failed %d\n",
-			    __func__, error);
+			printf("%s: REUSEPORT setting failed %d\n", __func__,
+			    error);
 		}
 	}
 
@@ -512,7 +515,7 @@ ctl_ha_conn_thread(void *arg)
 				break;
 		} else if (softc->ha_so != NULL &&
 		    (softc->ha_so->so_error ||
-		     softc->ha_so->so_rcv.sb_state & SBS_CANTRCVMORE))
+			softc->ha_so->so_rcv.sb_state & SBS_CANTRCVMORE))
 			ctl_ha_close(softc);
 		if (softc->ha_so == NULL) {
 			if (softc->ha_lso != NULL)
@@ -528,14 +531,14 @@ ctl_ha_conn_thread(void *arg)
 			    (softc->ha_so->so_state & SS_ISCONNECTING) == 0) {
 				softc->ha_connected = 1;
 				ctl_ha_evt(softc, CTL_HA_CHAN_MAX,
-				    CTL_HA_EVT_LINK_CHANGE,
-				    CTL_HA_LINK_ONLINE);
+				    CTL_HA_EVT_LINK_CHANGE, CTL_HA_LINK_ONLINE);
 				softc->ha_receiving = 1;
 				error = kproc_kthread_add(ctl_ha_rx_thread,
-				    softc, &softc->ha_ctl_softc->ctl_proc,
-				    NULL, 0, 0, "ctl", "ha_rx");
+				    softc, &softc->ha_ctl_softc->ctl_proc, NULL,
+				    0, 0, "ctl", "ha_rx");
 				if (error != 0) {
-					printf("Error creating CTL HA rx thread!\n");
+					printf(
+					    "Error creating CTL HA rx thread!\n");
 					softc->ha_receiving = 0;
 					softc->ha_disconnect = 1;
 				}
@@ -545,7 +548,7 @@ ctl_ha_conn_thread(void *arg)
 		mtx_lock(&softc->ha_lock);
 		if (softc->ha_so != NULL &&
 		    (softc->ha_so->so_error ||
-		     softc->ha_so->so_rcv.sb_state & SBS_CANTRCVMORE))
+			softc->ha_so->so_rcv.sb_state & SBS_CANTRCVMORE))
 			;
 		else if (!softc->ha_wakeup)
 			msleep(&softc->ha_wakeup, &softc->ha_lock, 0, "-", hz);
@@ -559,8 +562,7 @@ ctl_ha_conn_thread(void *arg)
 	kthread_exit();
 }
 
-static int
-ctl_ha_peer_sysctl(SYSCTL_HANDLER_ARGS)
+static int ctl_ha_peer_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct ha_softc *softc = (struct ha_softc *)arg1;
 	struct sockaddr_in *sa;
@@ -575,12 +577,12 @@ ctl_ha_peer_sysctl(SYSCTL_HANDLER_ARGS)
 
 	sa = &softc->ha_peer_in;
 	mtx_lock(&softc->ha_lock);
-	if ((num = sscanf(buf, "connect %d.%d.%d.%d:%d",
-	    &b1, &b2, &b3, &b4, &p)) >= 4) {
+	if ((num = sscanf(
+		 buf, "connect %d.%d.%d.%d:%d", &b1, &b2, &b3, &b4, &p)) >= 4) {
 		softc->ha_connect = 1;
 		softc->ha_listen = 0;
-	} else if ((num = sscanf(buf, "listen %d.%d.%d.%d:%d",
-	    &b1, &b2, &b3, &b4, &p)) >= 4) {
+	} else if ((num = sscanf(buf, "listen %d.%d.%d.%d:%d", &b1, &b2, &b3,
+			&b4, &p)) >= 4) {
 		softc->ha_connect = 0;
 		softc->ha_listen = 1;
 	} else {
@@ -597,8 +599,8 @@ ctl_ha_peer_sysctl(SYSCTL_HANDLER_ARGS)
 		sa->sin_len = sizeof(struct sockaddr_in);
 		sa->sin_family = AF_INET;
 		sa->sin_port = htons((num >= 5) ? p : 999);
-		sa->sin_addr.s_addr =
-		    htonl((b1 << 24) + (b2 << 16) + (b3 << 8) + b4);
+		sa->sin_addr.s_addr = htonl(
+		    (b1 << 24) + (b2 << 16) + (b3 << 8) + b4);
 	}
 	softc->ha_disconnect = 2;
 	softc->ha_wakeup = 1;
@@ -612,8 +614,8 @@ ctl_ha_msg_register(ctl_ha_channel channel, ctl_evt_handler handler)
 {
 	struct ha_softc *softc = &ha_softc;
 
-	KASSERT(channel < CTL_HA_CHAN_MAX,
-	    ("Wrong CTL HA channel %d", channel));
+	KASSERT(
+	    channel < CTL_HA_CHAN_MAX, ("Wrong CTL HA channel %d", channel));
 	softc->ha_handler[channel] = handler;
 	return (CTL_HA_STATUS_SUCCESS);
 }
@@ -623,8 +625,8 @@ ctl_ha_msg_deregister(ctl_ha_channel channel)
 {
 	struct ha_softc *softc = &ha_softc;
 
-	KASSERT(channel < CTL_HA_CHAN_MAX,
-	    ("Wrong CTL HA channel %d", channel));
+	KASSERT(
+	    channel < CTL_HA_CHAN_MAX, ("Wrong CTL HA channel %d", channel));
 	softc->ha_handler[channel] = NULL;
 	return (CTL_HA_STATUS_SUCCESS);
 }
@@ -633,8 +635,7 @@ ctl_ha_msg_deregister(ctl_ha_channel channel)
  * Receive a message of the specified size.
  */
 ctl_ha_status
-ctl_ha_msg_recv(ctl_ha_channel channel, void *addr, size_t len,
-		int wait)
+ctl_ha_msg_recv(ctl_ha_channel channel, void *addr, size_t len, int wait)
 {
 	struct ha_softc *softc = &ha_softc;
 	struct uio uio;
@@ -683,8 +684,8 @@ ctl_ha_msg_send2(ctl_ha_channel channel, const void *addr, size_t len,
 	if (!softc->ha_connected)
 		return (CTL_HA_STATUS_DISCONNECT);
 
-	newmb = m_getm2(NULL, sizeof(hdr) + len + len2, wait, MT_DATA,
-	    M_PKTHDR);
+	newmb = m_getm2(
+	    NULL, sizeof(hdr) + len + len2, wait, MT_DATA, M_PKTHDR);
 	if (newmb == NULL) {
 		/* Consider all errors fatal for HA sanity. */
 		mtx_lock(&softc->ha_lock);
@@ -711,17 +712,17 @@ ctl_ha_msg_send2(ctl_ha_channel channel, const void *addr, size_t len,
 		if (off == len)
 			break;
 	}
-	KASSERT(off == len, ("%s: off (%zu) != len (%zu)", __func__,
-	    off, len));
+	KASSERT(off == len, ("%s: off (%zu) != len (%zu)", __func__, off, len));
 	off = 0;
 	for (; mb != NULL && off < len2; mb = mb->m_next) {
 		copylen = min(M_TRAILINGSPACE(mb), len2 - off);
-		memcpy(mtodo(mb, mb->m_len), (const char *)addr2 + off, copylen);
+		memcpy(
+		    mtodo(mb, mb->m_len), (const char *)addr2 + off, copylen);
 		mb->m_len += copylen;
 		off += copylen;
 	}
-	KASSERT(off == len2, ("%s: off (%zu) != len2 (%zu)", __func__,
-	    off, len2));
+	KASSERT(
+	    off == len2, ("%s: off (%zu) != len2 (%zu)", __func__, off, len2));
 	newmb->m_pkthdr.len = sizeof(hdr) + len + len2;
 
 	mtx_lock(&softc->ha_lock);
@@ -738,8 +739,7 @@ ctl_ha_msg_send2(ctl_ha_channel channel, const void *addr, size_t len,
 }
 
 ctl_ha_status
-ctl_ha_msg_send(ctl_ha_channel channel, const void *addr, size_t len,
-    int wait)
+ctl_ha_msg_send(ctl_ha_channel channel, const void *addr, size_t len, int wait)
 {
 
 	return (ctl_ha_msg_send2(channel, addr, len, NULL, 0, wait));
@@ -796,13 +796,13 @@ ctl_dt_single(struct ctl_ha_dt_req *req)
 		mtx_lock(&softc->ha_lock);
 		TAILQ_INSERT_TAIL(&softc->ha_dts, req, links);
 		mtx_unlock(&softc->ha_lock);
-		ctl_ha_msg_send(CTL_HA_CHAN_DATA, &wire_dt, sizeof(wire_dt),
-		    M_WAITOK);
+		ctl_ha_msg_send(
+		    CTL_HA_CHAN_DATA, &wire_dt, sizeof(wire_dt), M_WAITOK);
 		return (CTL_HA_STATUS_WAIT);
 	}
 	if (req->command == CTL_HA_DT_CMD_READ) {
-		status = ctl_ha_msg_send(CTL_HA_CHAN_DATA, &wire_dt,
-		    sizeof(wire_dt), M_WAITOK);
+		status = ctl_ha_msg_send(
+		    CTL_HA_CHAN_DATA, &wire_dt, sizeof(wire_dt), M_WAITOK);
 	} else {
 		status = ctl_ha_msg_send2(CTL_HA_CHAN_DATA, &wire_dt,
 		    sizeof(wire_dt), req->local, req->size, M_WAITOK);
@@ -823,11 +823,11 @@ ctl_dt_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 		int size;
 
 		size = min(sizeof(wire_dt), param);
-		isc_status = ctl_ha_msg_recv(CTL_HA_CHAN_DATA, &wire_dt,
-					     size, M_WAITOK);
+		isc_status = ctl_ha_msg_recv(
+		    CTL_HA_CHAN_DATA, &wire_dt, size, M_WAITOK);
 		if (isc_status != CTL_HA_STATUS_SUCCESS) {
-			printf("%s: Error receiving message: %d\n",
-			    __func__, isc_status);
+			printf("%s: Error receiving message: %d\n", __func__,
+			    isc_status);
 			return;
 		}
 
@@ -843,9 +843,10 @@ ctl_dt_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			isc_status = ctl_ha_msg_recv(CTL_HA_CHAN_DATA,
 			    wire_dt.remote, wire_dt.size, M_WAITOK);
 			mtx_lock(&softc->ha_lock);
-			TAILQ_FOREACH(req, &softc->ha_dts, links) {
+			TAILQ_FOREACH (req, &softc->ha_dts, links) {
 				if (req->local == wire_dt.remote) {
-					TAILQ_REMOVE(&softc->ha_dts, req, links);
+					TAILQ_REMOVE(
+					    &softc->ha_dts, req, links);
 					break;
 				}
 			}
@@ -856,8 +857,8 @@ ctl_dt_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			}
 		}
 	} else if (event == CTL_HA_EVT_LINK_CHANGE) {
-		CTL_DEBUG_PRINT(("%s: Link state change to %d\n", __func__,
-		    param));
+		CTL_DEBUG_PRINT(
+		    ("%s: Link state change to %d\n", __func__, param));
 		if (param != CTL_HA_LINK_ONLINE) {
 			mtx_lock(&softc->ha_lock);
 			while ((req = TAILQ_FIRST(&softc->ha_dts)) != NULL) {
@@ -894,13 +895,12 @@ ctl_ha_msg_init(struct ctl_softc *ctl_softc)
 	softc->ha_shutdown_eh = EVENTHANDLER_REGISTER(shutdown_pre_sync,
 	    ctl_ha_msg_shutdown, ctl_softc, SHUTDOWN_PRI_FIRST);
 	SYSCTL_ADD_PROC(&ctl_softc->sysctl_ctx,
-	    SYSCTL_CHILDREN(ctl_softc->sysctl_tree),
-	    OID_AUTO, "ha_peer",
-	    CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
-	    softc, 0, ctl_ha_peer_sysctl, "A", "HA peer connection method");
+	    SYSCTL_CHILDREN(ctl_softc->sysctl_tree), OID_AUTO, "ha_peer",
+	    CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, softc, 0,
+	    ctl_ha_peer_sysctl, "A", "HA peer connection method");
 
-	if (ctl_ha_msg_register(CTL_HA_CHAN_DATA, ctl_dt_event_handler)
-	    != CTL_HA_STATUS_SUCCESS) {
+	if (ctl_ha_msg_register(CTL_HA_CHAN_DATA, ctl_dt_event_handler) !=
+	    CTL_HA_STATUS_SUCCESS) {
 		printf("%s: ctl_ha_msg_register failed.\n", __func__);
 	}
 
@@ -932,12 +932,12 @@ ctl_ha_msg_destroy(struct ctl_softc *ctl_softc)
 	struct ha_softc *softc = &ha_softc;
 
 	if (softc->ha_shutdown_eh != NULL) {
-		EVENTHANDLER_DEREGISTER(shutdown_pre_sync,
-		    softc->ha_shutdown_eh);
+		EVENTHANDLER_DEREGISTER(
+		    shutdown_pre_sync, softc->ha_shutdown_eh);
 		softc->ha_shutdown_eh = NULL;
 	}
 
-	ctl_ha_msg_shutdown(ctl_softc);	/* Just in case. */
+	ctl_ha_msg_shutdown(ctl_softc); /* Just in case. */
 
 	if (ctl_ha_msg_deregister(CTL_HA_CHAN_DATA) != CTL_HA_STATUS_SUCCESS)
 		printf("%s: ctl_ha_msg_deregister failed.\n", __func__);

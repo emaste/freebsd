@@ -27,22 +27,20 @@
  */
 
 #include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 
 #include <crypto/sha1.h>
-
 #include <security/mac_veriexec/mac_veriexec.h>
 
-#define	SHA1_Init	(mac_veriexec_fpop_init_t) sha1_init
-#define	SHA1_Update	(mac_veriexec_fpop_update_t) sha1_loop
+#define SHA1_Init (mac_veriexec_fpop_init_t) sha1_init
+#define SHA1_Update (mac_veriexec_fpop_update_t) sha1_loop
 
 static void
 SHA1_Final(unsigned char *buf, void *ctx)
 {
 
-	sha1_result((SHA1_CTX *) ctx, (caddr_t) buf);
+	sha1_result((SHA1_CTX *)ctx, (caddr_t)buf);
 }
 
 MAC_VERIEXEC_FPMOD(SHA1, SHA1_RESULTLEN, sizeof(SHA1_CTX), SHA1_Init,

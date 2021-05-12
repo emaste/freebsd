@@ -33,9 +33,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/counter.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
+
 #include <machine/cpu.h>
+
 #include <net/mp_ring.h>
 
 union ring_state {
@@ -49,11 +51,11 @@ union ring_state {
 };
 
 enum {
-	IDLE = 0,	/* consumer ran to completion, nothing more to do. */
-	BUSY,		/* consumer is running already, or will be shortly. */
-	STALLED,	/* consumer stopped due to lack of resources. */
-	ABDICATED,	/* consumer stopped even though there was work to be
-			   done because it wants another thread to take over. */
+	IDLE = 0,  /* consumer ran to completion, nothing more to do. */
+	BUSY,	   /* consumer is running already, or will be shortly. */
+	STALLED,   /* consumer stopped due to lack of resources. */
+	ABDICATED, /* consumer stopped even though there was work to be
+		      done because it wants another thread to take over. */
 };
 
 static inline uint16_t
@@ -93,7 +95,8 @@ state_to_flags(union ring_state s, int abdicate)
 
 #ifdef MP_RING_NO_64BIT_ATOMICS
 static void
-drain_ring_locked(struct ifmp_ring *r, union ring_state os, uint16_t prev, int budget)
+drain_ring_locked(
+    struct ifmp_ring *r, union ring_state os, uint16_t prev, int budget)
 {
 	union ring_state ns;
 	int n, pending, total;
@@ -167,7 +170,8 @@ drain_ring_locked(struct ifmp_ring *r, union ring_state os, uint16_t prev, int b
  * all items up to the pidx_tail in the state are visible.
  */
 static void
-drain_ring_lockless(struct ifmp_ring *r, union ring_state os, uint16_t prev, int budget)
+drain_ring_lockless(
+    struct ifmp_ring *r, union ring_state os, uint16_t prev, int budget)
 {
 	union ring_state ns;
 	int n, pending, total;
@@ -192,8 +196,8 @@ drain_ring_lockless(struct ifmp_ring *r, union ring_state os, uint16_t prev, int
 				ns.state = os.state;
 				ns.cidx = cidx;
 				ns.flags = STALLED;
-			} while (atomic_fcmpset_64(&r->state, &os.state,
-			    ns.state) == 0);
+			} while (atomic_fcmpset_64(
+				     &r->state, &os.state, ns.state) == 0);
 			critical_exit();
 			if (prev != STALLED)
 				counter_u64_add(r->stalls, 1);
@@ -220,8 +224,8 @@ drain_ring_lockless(struct ifmp_ring *r, union ring_state os, uint16_t prev, int
 			ns.state = os.state;
 			ns.cidx = cidx;
 			ns.flags = state_to_flags(ns, total >= budget);
-		} while (atomic_fcmpset_acq_64(&r->state, &os.state,
-		    ns.state) == 0);
+		} while (
+		    atomic_fcmpset_acq_64(&r->state, &os.state, ns.state) == 0);
 		critical_exit();
 
 		if (ns.flags == ABDICATED)
@@ -247,8 +251,9 @@ drain_ring_lockless(struct ifmp_ring *r, union ring_state os, uint16_t prev, int
 #endif
 
 int
-ifmp_ring_alloc(struct ifmp_ring **pr, int size, void *cookie, mp_ring_drain_t drain,
-    mp_ring_can_drain_t can_drain, struct malloc_type *mt, int flags)
+ifmp_ring_alloc(struct ifmp_ring **pr, int size, void *cookie,
+    mp_ring_drain_t drain, mp_ring_can_drain_t can_drain,
+    struct malloc_type *mt, int flags)
 {
 	struct ifmp_ring *r;
 
@@ -260,7 +265,8 @@ ifmp_ring_alloc(struct ifmp_ring **pr, int size, void *cookie, mp_ring_drain_t d
 	flags &= M_NOWAIT | M_WAITOK;
 	MPASS(flags != 0);
 
-	r = malloc(__offsetof(struct ifmp_ring, items[size]), mt, flags | M_ZERO);
+	r = malloc(
+	    __offsetof(struct ifmp_ring, items[size]), mt, flags | M_ZERO);
 	if (r == NULL)
 		return (ENOMEM);
 	r->size = size;
@@ -318,7 +324,8 @@ ifmp_ring_free(struct ifmp_ring *r)
  */
 #ifdef MP_RING_NO_64BIT_ATOMICS
 int
-ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget, int abdicate)
+ifmp_ring_enqueue(
+    struct ifmp_ring *r, void **items, int n, int budget, int abdicate)
 {
 	union ring_state os, ns;
 	uint16_t pidx_start, pidx_stop;
@@ -381,8 +388,8 @@ ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget, int abdi
 
 	if (!abdicate) {
 		/*
-		 * Turn into a consumer if some other thread isn't active as a consumer
-		 * already.
+		 * Turn into a consumer if some other thread isn't active as a
+		 * consumer already.
 		 */
 		if (os.flags != BUSY)
 			drain_ring_locked(r, ns, os.flags, budget);
@@ -393,7 +400,8 @@ ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget, int abdi
 }
 #else
 int
-ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget, int abdicate)
+ifmp_ring_enqueue(
+    struct ifmp_ring *r, void **items, int n, int budget, int abdicate)
 {
 	union ring_state os, ns;
 	uint16_t pidx_start, pidx_stop;
@@ -463,8 +471,8 @@ ifmp_ring_enqueue(struct ifmp_ring *r, void **items, int n, int budget, int abdi
 
 	if (!abdicate) {
 		/*
-		 * Turn into a consumer if some other thread isn't active as a consumer
-		 * already.
+		 * Turn into a consumer if some other thread isn't active as a
+		 * consumer already.
 		 */
 		if (os.flags != BUSY)
 			drain_ring_lockless(r, ns, os.flags, budget);
@@ -480,12 +488,15 @@ ifmp_ring_check_drainage(struct ifmp_ring *r, int budget)
 	union ring_state os, ns;
 
 	os.state = r->state;
-	if ((os.flags != STALLED && os.flags != ABDICATED) ||	// Only continue in STALLED and ABDICATED
-	    os.pidx_head != os.pidx_tail ||			// Require work to be available
-	    (os.flags != ABDICATED && r->can_drain(r) == 0))	// Can either drain, or everyone left
+	if ((os.flags != STALLED &&
+		os.flags !=
+		    ABDICATED) || // Only continue in STALLED and ABDICATED
+	    os.pidx_head != os.pidx_tail || // Require work to be available
+	    (os.flags != ABDICATED &&
+		r->can_drain(r) == 0)) // Can either drain, or everyone left
 		return;
 
-	MPASS(os.cidx != os.pidx_tail);	/* implied by STALLED */
+	MPASS(os.cidx != os.pidx_tail); /* implied by STALLED */
 	ns.state = os.state;
 	ns.flags = BUSY;
 

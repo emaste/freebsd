@@ -28,164 +28,155 @@
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/exec.h>
-#include <sys/imgact.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/namei.h>
 #include <sys/fcntl.h>
-#include <sys/sysent.h>
+#include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/jail.h>
+#include <sys/kernel.h>
+#include <sys/linker.h>
+#include <sys/malloc.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <sys/syscall.h>
-#include <sys/signalvar.h>
+#include <sys/sysent.h>
 #include <sys/vnode.h>
-#include <sys/linker.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 
 #include <machine/altivec.h>
 #include <machine/cpu.h>
-#include <machine/fpu.h>
 #include <machine/elf.h>
+#include <machine/fpu.h>
 #include <machine/md_var.h>
 
 #include <powerpc/powerpc/elf_common.c>
 
-static void exec_setregs_funcdesc(struct thread *td, struct image_params *imgp,
-    uintptr_t stack);
+static void exec_setregs_funcdesc(
+    struct thread *td, struct image_params *imgp, uintptr_t stack);
 
 struct sysentvec elf64_freebsd_sysvec_v1 = {
-	.sv_size	= SYS_MAXSYSCALL,
-	.sv_table	= sysent,
-	.sv_transtrap	= NULL,
-	.sv_fixup	= __elfN(freebsd_fixup),
-	.sv_sendsig	= sendsig,
-	.sv_sigcode	= sigcode64,
-	.sv_szsigcode	= &szsigcode64,
-	.sv_name	= "FreeBSD ELF64",
-	.sv_coredump	= __elfN(coredump),
-	.sv_imgact_try	= NULL,
-	.sv_minsigstksz	= MINSIGSTKSZ,
-	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= VM_MAXUSER_ADDRESS,
-	.sv_usrstack	= USRSTACK,
-	.sv_psstrings	= PS_STRINGS,
-	.sv_stackprot	= VM_PROT_ALL,
+	.sv_size = SYS_MAXSYSCALL,
+	.sv_table = sysent,
+	.sv_transtrap = NULL,
+	.sv_fixup = __elfN(freebsd_fixup),
+	.sv_sendsig = sendsig,
+	.sv_sigcode = sigcode64,
+	.sv_szsigcode = &szsigcode64,
+	.sv_name = "FreeBSD ELF64",
+	.sv_coredump = __elfN(coredump),
+	.sv_imgact_try = NULL,
+	.sv_minsigstksz = MINSIGSTKSZ,
+	.sv_minuser = VM_MIN_ADDRESS,
+	.sv_maxuser = VM_MAXUSER_ADDRESS,
+	.sv_usrstack = USRSTACK,
+	.sv_psstrings = PS_STRINGS,
+	.sv_stackprot = VM_PROT_ALL,
 	.sv_copyout_auxargs = __elfN(powerpc_copyout_auxargs),
 	.sv_copyout_strings = exec_copyout_strings,
-	.sv_setregs	= exec_setregs_funcdesc,
-	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_LP64 | SV_SHP | SV_ASLR |
-			    SV_TIMEKEEP | SV_RNG_SEED_VER,
+	.sv_setregs = exec_setregs_funcdesc,
+	.sv_fixlimit = NULL,
+	.sv_maxssiz = NULL,
+	.sv_flags = SV_ABI_FREEBSD | SV_LP64 | SV_SHP | SV_ASLR | SV_TIMEKEEP |
+	    SV_RNG_SEED_VER,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
 	.sv_shared_page_base = SHAREDPAGE,
 	.sv_shared_page_len = PAGE_SIZE,
-	.sv_schedtail	= NULL,
+	.sv_schedtail = NULL,
 	.sv_thread_detach = NULL,
-	.sv_trap	= NULL,
-	.sv_hwcap	= &cpu_features,
-	.sv_hwcap2	= &cpu_features2,
+	.sv_trap = NULL,
+	.sv_hwcap = &cpu_features,
+	.sv_hwcap2 = &cpu_features2,
 };
 
 struct sysentvec elf64_freebsd_sysvec_v2 = {
-	.sv_size	= SYS_MAXSYSCALL,
-	.sv_table	= sysent,
-	.sv_transtrap	= NULL,
-	.sv_fixup	= __elfN(freebsd_fixup),
-	.sv_sendsig	= sendsig,
-	.sv_sigcode	= sigcode64, /* Fixed up in ppc64_init_sysvecs(). */
-	.sv_szsigcode	= &szsigcode64,
-	.sv_name	= "FreeBSD ELF64 V2",
-	.sv_coredump	= __elfN(coredump),
-	.sv_imgact_try	= NULL,
-	.sv_minsigstksz	= MINSIGSTKSZ,
-	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= VM_MAXUSER_ADDRESS,
-	.sv_usrstack	= USRSTACK,
-	.sv_psstrings	= PS_STRINGS,
-	.sv_stackprot	= VM_PROT_ALL,
+	.sv_size = SYS_MAXSYSCALL,
+	.sv_table = sysent,
+	.sv_transtrap = NULL,
+	.sv_fixup = __elfN(freebsd_fixup),
+	.sv_sendsig = sendsig,
+	.sv_sigcode = sigcode64, /* Fixed up in ppc64_init_sysvecs(). */
+	.sv_szsigcode = &szsigcode64,
+	.sv_name = "FreeBSD ELF64 V2",
+	.sv_coredump = __elfN(coredump),
+	.sv_imgact_try = NULL,
+	.sv_minsigstksz = MINSIGSTKSZ,
+	.sv_minuser = VM_MIN_ADDRESS,
+	.sv_maxuser = VM_MAXUSER_ADDRESS,
+	.sv_usrstack = USRSTACK,
+	.sv_psstrings = PS_STRINGS,
+	.sv_stackprot = VM_PROT_ALL,
 	.sv_copyout_auxargs = __elfN(powerpc_copyout_auxargs),
 	.sv_copyout_strings = exec_copyout_strings,
-	.sv_setregs	= exec_setregs,
-	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_LP64 | SV_SHP |
-			    SV_TIMEKEEP | SV_RNG_SEED_VER,
+	.sv_setregs = exec_setregs,
+	.sv_fixlimit = NULL,
+	.sv_maxssiz = NULL,
+	.sv_flags = SV_ABI_FREEBSD | SV_LP64 | SV_SHP | SV_TIMEKEEP |
+	    SV_RNG_SEED_VER,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
 	.sv_shared_page_base = SHAREDPAGE,
 	.sv_shared_page_len = PAGE_SIZE,
-	.sv_schedtail	= NULL,
+	.sv_schedtail = NULL,
 	.sv_thread_detach = NULL,
-	.sv_trap	= NULL,
-	.sv_hwcap	= &cpu_features,
-	.sv_hwcap2	= &cpu_features2,
+	.sv_trap = NULL,
+	.sv_hwcap = &cpu_features,
+	.sv_hwcap2 = &cpu_features2,
 };
 
-static boolean_t ppc64_elfv1_header_match(struct image_params *params,
-    int32_t *, uint32_t *);
-static boolean_t ppc64_elfv2_header_match(struct image_params *params,
-    int32_t *, uint32_t *);
+static boolean_t ppc64_elfv1_header_match(
+    struct image_params *params, int32_t *, uint32_t *);
+static boolean_t ppc64_elfv2_header_match(
+    struct image_params *params, int32_t *, uint32_t *);
 
-static Elf64_Brandinfo freebsd_brand_info_elfv1 = {
-	.brand		= ELFOSABI_FREEBSD,
-	.machine	= EM_PPC64,
-	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
-	.interp_path	= "/libexec/ld-elf.so.1",
-	.sysvec		= &elf64_freebsd_sysvec_v1,
-	.interp_newpath	= NULL,
-	.brand_note	= &elf64_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
-	.header_supported = &ppc64_elfv1_header_match
-};
+static Elf64_Brandinfo freebsd_brand_info_elfv1 = { .brand = ELFOSABI_FREEBSD,
+	.machine = EM_PPC64,
+	.compat_3_brand = "FreeBSD",
+	.emul_path = NULL,
+	.interp_path = "/libexec/ld-elf.so.1",
+	.sysvec = &elf64_freebsd_sysvec_v1,
+	.interp_newpath = NULL,
+	.brand_note = &elf64_freebsd_brandnote,
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
+	.header_supported = &ppc64_elfv1_header_match };
 
 SYSINIT(elf64v1, SI_SUB_EXEC, SI_ORDER_ANY,
-    (sysinit_cfunc_t) elf64_insert_brand_entry,
-    &freebsd_brand_info_elfv1);
+    (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_info_elfv1);
 
-static Elf64_Brandinfo freebsd_brand_info_elfv2 = {
-	.brand		= ELFOSABI_FREEBSD,
-	.machine	= EM_PPC64,
-	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
-	.interp_path	= "/libexec/ld-elf.so.1",
-	.sysvec		= &elf64_freebsd_sysvec_v2,
-	.interp_newpath	= NULL,
-	.brand_note	= &elf64_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
-	.header_supported = &ppc64_elfv2_header_match
-};
+static Elf64_Brandinfo freebsd_brand_info_elfv2 = { .brand = ELFOSABI_FREEBSD,
+	.machine = EM_PPC64,
+	.compat_3_brand = "FreeBSD",
+	.emul_path = NULL,
+	.interp_path = "/libexec/ld-elf.so.1",
+	.sysvec = &elf64_freebsd_sysvec_v2,
+	.interp_newpath = NULL,
+	.brand_note = &elf64_freebsd_brandnote,
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
+	.header_supported = &ppc64_elfv2_header_match };
 
 SYSINIT(elf64v2, SI_SUB_EXEC, SI_ORDER_ANY,
-    (sysinit_cfunc_t) elf64_insert_brand_entry,
-    &freebsd_brand_info_elfv2);
+    (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_info_elfv2);
 
-static Elf64_Brandinfo freebsd_brand_oinfo = {
-	.brand		= ELFOSABI_FREEBSD,
-	.machine	= EM_PPC64,
-	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
-	.interp_path	= "/usr/libexec/ld-elf.so.1",
-	.sysvec		= &elf64_freebsd_sysvec_v1,
-	.interp_newpath	= NULL,
-	.brand_note	= &elf64_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
-	.header_supported = &ppc64_elfv1_header_match
-};
+static Elf64_Brandinfo freebsd_brand_oinfo = { .brand = ELFOSABI_FREEBSD,
+	.machine = EM_PPC64,
+	.compat_3_brand = "FreeBSD",
+	.emul_path = NULL,
+	.interp_path = "/usr/libexec/ld-elf.so.1",
+	.sysvec = &elf64_freebsd_sysvec_v1,
+	.interp_newpath = NULL,
+	.brand_note = &elf64_freebsd_brandnote,
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
+	.header_supported = &ppc64_elfv1_header_match };
 
 SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
-	(sysinit_cfunc_t) elf64_insert_brand_entry,
-	&freebsd_brand_oinfo);
+    (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_oinfo);
 
 void elf_reloc_self(Elf_Dyn *dynp, Elf_Addr relocbase);
 
@@ -193,8 +184,8 @@ static void
 ppc64_init_sysvecs(void *arg)
 {
 	exec_sysvec_init(&elf64_freebsd_sysvec_v2);
-	exec_sysvec_init_secondary(&elf64_freebsd_sysvec_v2,
-	    &elf64_freebsd_sysvec_v1);
+	exec_sysvec_init_secondary(
+	    &elf64_freebsd_sysvec_v2, &elf64_freebsd_sysvec_v1);
 	/*
 	 * Adjust elfv2 sigcode after elfv1 sysvec is initialized.
 	 * exec_sysvec_init_secondary() assumes secondary sysvecs use
@@ -203,8 +194,8 @@ ppc64_init_sysvecs(void *arg)
 	 * we can work around this by adjusting the base address. This also
 	 * avoids two copies of the trampoline code being allocated!
 	 */
-	elf64_freebsd_sysvec_v2.sv_sigcode_base +=
-	    (uintptr_t)sigcode64_elfv2 - (uintptr_t)&sigcode64;
+	elf64_freebsd_sysvec_v2.sv_sigcode_base += (uintptr_t)sigcode64_elfv2 -
+	    (uintptr_t)&sigcode64;
 	elf64_freebsd_sysvec_v2.sv_szsigcode = &szsigcode64_elfv2;
 }
 SYSINIT(elf64_sysvec, SI_SUB_EXEC, SI_ORDER_ANY, ppc64_init_sysvecs, NULL);
@@ -229,9 +220,9 @@ ppc64_elfv2_header_match(struct image_params *params, int32_t *osrel __unused,
 	return (abi == 2);
 }
 
-static void  
-exec_setregs_funcdesc(struct thread *td, struct image_params *imgp,
-    uintptr_t stack)
+static void
+exec_setregs_funcdesc(
+    struct thread *td, struct image_params *imgp, uintptr_t stack)
 {
 	struct trapframe *tf;
 	register_t entry_desc[3];
@@ -248,8 +239,7 @@ exec_setregs_funcdesc(struct thread *td, struct image_params *imgp,
 	 * 2. Environment pointer (r11)
 	 */
 
-	(void)copyin((void *)imgp->entry_addr, entry_desc,
-	    sizeof(entry_desc));
+	(void)copyin((void *)imgp->entry_addr, entry_desc, sizeof(entry_desc));
 	tf->srr0 = entry_desc[0] + imgp->reloc_base;
 	tf->fixreg[2] = entry_desc[1] + imgp->reloc_base;
 	tf->fixreg[11] = entry_desc[2] + imgp->reloc_base;
@@ -270,32 +260,32 @@ elf64_dump_thread(struct thread *td, void *dst, size_t *off)
 	if (pcb->pcb_flags & PCB_VEC) {
 		save_vec_nodrop(td);
 		if (dst != NULL) {
-			len += elf64_populate_note(NT_PPC_VMX,
-			    &pcb->pcb_vec, (char *)dst + len,
-			    sizeof(pcb->pcb_vec), NULL);
+			len += elf64_populate_note(NT_PPC_VMX, &pcb->pcb_vec,
+			    (char *)dst + len, sizeof(pcb->pcb_vec), NULL);
 		} else
-			len += elf64_populate_note(NT_PPC_VMX, NULL, NULL,
-			    sizeof(pcb->pcb_vec), NULL);
+			len += elf64_populate_note(
+			    NT_PPC_VMX, NULL, NULL, sizeof(pcb->pcb_vec), NULL);
 	}
 
 	if (pcb->pcb_flags & PCB_VSX) {
 		save_fpu_nodrop(td);
 		if (dst != NULL) {
 			/*
-			 * Doubleword 0 of VSR0-VSR31 overlap with FPR0-FPR31 and
-			 * VSR32-VSR63 overlap with VR0-VR31, so we only copy
-			 * the non-overlapping data, which is doubleword 1 of VSR0-VSR31.
+			 * Doubleword 0 of VSR0-VSR31 overlap with FPR0-FPR31
+			 * and VSR32-VSR63 overlap with VR0-VR31, so we only
+			 * copy the non-overlapping data, which is doubleword 1
+			 * of VSR0-VSR31.
 			 */
 			for (vsr_idx = 0; vsr_idx < nitems(vshr); vsr_idx++) {
-				vsr_dw1 = (uint64_t *)&pcb->pcb_fpu.fpr[vsr_idx].vsr[2];
+				vsr_dw1 = (uint64_t *)&pcb->pcb_fpu.fpr[vsr_idx]
+					      .vsr[2];
 				vshr[vsr_idx] = *vsr_dw1;
 			}
-			len += elf64_populate_note(NT_PPC_VSX,
-			    vshr, (char *)dst + len,
-			    sizeof(vshr), NULL);
+			len += elf64_populate_note(NT_PPC_VSX, vshr,
+			    (char *)dst + len, sizeof(vshr), NULL);
 		} else
-			len += elf64_populate_note(NT_PPC_VSX, NULL, NULL,
-			    sizeof(vshr), NULL);
+			len += elf64_populate_note(
+			    NT_PPC_VSX, NULL, NULL, sizeof(vshr), NULL);
 	}
 
 	*off = len;
@@ -326,7 +316,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 	case ELF_RELOC_RELA:
 		rela = (const Elf_Rela *)data;
-		where = (Elf_Addr *) (relocbase + rela->r_offset);
+		where = (Elf_Addr *)(relocbase + rela->r_offset);
 		addend = rela->r_addend;
 		rtype = ELF_R_TYPE(rela->r_info);
 		symidx = ELF_R_SYM(rela->r_info);
@@ -339,7 +329,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	case R_PPC_NONE:
 		break;
 
-	case R_PPC64_ADDR64:	/* doubleword64 S + A */
+	case R_PPC64_ADDR64: /* doubleword64 S + A */
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
 			return (-1);
@@ -347,30 +337,31 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		*where = addr;
 		break;
 
-	case R_PPC_RELATIVE:	/* doubleword64 B + A */
+	case R_PPC_RELATIVE: /* doubleword64 B + A */
 		*where = elf_relocaddr(lf, relocbase + addend);
 		break;
 
-	case R_PPC_JMP_SLOT:	/* function descriptor copy */
+	case R_PPC_JMP_SLOT: /* function descriptor copy */
 		lookup(lf, symidx, 1, &addr);
 #if !defined(_CALL_ELF) || _CALL_ELF == 1
-		memcpy(where, (Elf_Addr *)addr, 3*sizeof(Elf_Addr));
+		memcpy(where, (Elf_Addr *)addr, 3 * sizeof(Elf_Addr));
 #else
 		*where = addr;
 #endif
-		__asm __volatile("dcbst 0,%0; sync" :: "r"(where) : "memory");
+		__asm __volatile("dcbst 0,%0; sync" ::"r"(where) : "memory");
 		break;
 
 	case R_PPC_IRELATIVE:
 		addr = relocbase + addend;
-		val = ((Elf64_Addr (*)(void))addr)();
+		val = ((Elf64_Addr(*)(void))addr)();
 		if (*where != val)
 			*where = val;
 		break;
 
 	default:
 		printf("kldload: unexpected relocation type %d, "
-		    "symbol index %d\n", (int)rtype, symidx);
+		       "symbol index %d\n",
+		    (int)rtype, symidx);
 		return (-1);
 	}
 	return (0);
@@ -389,7 +380,7 @@ elf_reloc_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 	for (; dynp->d_tag != DT_NULL; dynp++) {
 		switch (dynp->d_tag) {
 		case DT_RELA:
-			rela = (Elf_Rela *)(relocbase+dynp->d_un.d_ptr);
+			rela = (Elf_Rela *)(relocbase + dynp->d_un.d_ptr);
 			break;
 		case DT_RELASZ:
 			relasz = dynp->d_un.d_val;

@@ -27,23 +27,21 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
 
-#include <contrib/cloudabi/cloudabi64_types.h>
-
 #include <compat/cloudabi/cloudabi_util.h>
-
 #include <compat/cloudabi64/cloudabi64_proto.h>
 #include <compat/cloudabi64/cloudabi64_util.h>
+#include <contrib/cloudabi/cloudabi64_types.h>
 
 static MALLOC_DEFINE(M_SOCKET, "socket", "CloudABI socket");
 
 int
-cloudabi64_sys_sock_recv(struct thread *td,
-    struct cloudabi64_sys_sock_recv_args *uap)
+cloudabi64_sys_sock_recv(
+    struct thread *td, struct cloudabi64_sys_sock_recv_args *uap)
 {
 	cloudabi64_recv_in_t ri;
 	cloudabi64_recv_out_t ro = {};
@@ -60,8 +58,8 @@ cloudabi64_sys_sock_recv(struct thread *td,
 	/* Convert iovecs to native format. */
 	if (ri.ri_data_len > UIO_MAXIOV)
 		return (EINVAL);
-	iov = mallocarray(ri.ri_data_len, sizeof(struct iovec),
-	    M_SOCKET, M_WAITOK);
+	iov = mallocarray(
+	    ri.ri_data_len, sizeof(struct iovec), M_SOCKET, M_WAITOK);
 	user_iov = TO_PTR(ri.ri_data);
 	for (i = 0; i < ri.ri_data_len; i++) {
 		error = copyin(&user_iov[i], &iovobj, sizeof(iovobj));
@@ -74,8 +72,8 @@ cloudabi64_sys_sock_recv(struct thread *td,
 	}
 
 	error = cloudabi_sock_recv(td, uap->sock, iov, ri.ri_data_len,
-	    TO_PTR(ri.ri_fds), ri.ri_fds_len, ri.ri_flags, &rdatalen,
-	    &rfdslen, &ro.ro_flags);
+	    TO_PTR(ri.ri_fds), ri.ri_fds_len, ri.ri_flags, &rdatalen, &rfdslen,
+	    &ro.ro_flags);
 	free(iov, M_SOCKET);
 	if (error != 0)
 		return (error);
@@ -86,8 +84,8 @@ cloudabi64_sys_sock_recv(struct thread *td,
 }
 
 int
-cloudabi64_sys_sock_send(struct thread *td,
-    struct cloudabi64_sys_sock_send_args *uap)
+cloudabi64_sys_sock_send(
+    struct thread *td, struct cloudabi64_sys_sock_send_args *uap)
 {
 	cloudabi64_send_in_t si;
 	cloudabi64_send_out_t so = {};
@@ -104,8 +102,8 @@ cloudabi64_sys_sock_send(struct thread *td,
 	/* Convert iovecs to native format. */
 	if (si.si_data_len > UIO_MAXIOV)
 		return (EINVAL);
-	iov = mallocarray(si.si_data_len, sizeof(struct iovec),
-	    M_SOCKET, M_WAITOK);
+	iov = mallocarray(
+	    si.si_data_len, sizeof(struct iovec), M_SOCKET, M_WAITOK);
 	user_iov = TO_PTR(si.si_data);
 	for (i = 0; i < si.si_data_len; i++) {
 		error = copyin(&user_iov[i], &iovobj, sizeof(iovobj));

@@ -42,18 +42,19 @@
 #include <sys/sched.h>
 
 /* Generate syscall stubs for when something is optionally
- * loadable as a module.  References "syscall_not_present". 
+ * loadable as a module.  References "syscall_not_present".
  * XXX Good candidate for sys/syscall.h
  */
 struct proc;
 struct nosys_args;
-extern int syscall_not_present(struct thread *, const char *, struct nosys_args *);
+extern int syscall_not_present(
+    struct thread *, const char *, struct nosys_args *);
 
-#define SYSCALL_NOT_PRESENT_GEN(SC) \
-int sys_ ## SC (struct thread *td, struct SC##_args *uap) \
-{ \
-	return syscall_not_present(td, #SC , (struct nosys_args *)uap); \
-}
+#define SYSCALL_NOT_PRESENT_GEN(SC)                                            \
+	int sys_##SC(struct thread *td, struct SC##_args *uap)                 \
+	{                                                                      \
+		return syscall_not_present(td, #SC, (struct nosys_args *)uap); \
+	}
 
 MALLOC_DECLARE(M_P31B);
 
@@ -66,7 +67,7 @@ void p31b_unsetcfg(int);
 
 #ifdef _KPOSIX_PRIORITY_SCHEDULING
 
-/* 
+/*
  * KSCHED_OP_RW is a vector of read/write flags for each entry indexed
  * by the enum ksched_op.
  *
@@ -74,7 +75,10 @@ void p31b_unsetcfg(int);
  */
 
 enum ksched_op {
-#define KSCHED_OP_RW { 1, 0, 1, 0, 0, 0, 0, 0 }
+#define KSCHED_OP_RW                   \
+	{                              \
+		1, 0, 1, 0, 0, 0, 0, 0 \
+	}
 
 	SCHED_SETPARAM,
 	SCHED_GETPARAM,
@@ -92,13 +96,12 @@ struct ksched;
 int ksched_attach(struct ksched **);
 int ksched_detach(struct ksched *);
 
-int ksched_setparam(struct ksched *,
-	struct thread *, const struct sched_param *);
-int ksched_getparam(struct ksched *,
-	struct thread *, struct sched_param *);
+int ksched_setparam(
+    struct ksched *, struct thread *, const struct sched_param *);
+int ksched_getparam(struct ksched *, struct thread *, struct sched_param *);
 
-int ksched_setscheduler(struct ksched *,
-	struct thread *, int, const struct sched_param *);
+int ksched_setscheduler(
+    struct ksched *, struct thread *, int, const struct sched_param *);
 int ksched_getscheduler(struct ksched *, struct thread *, int *);
 
 int ksched_yield(struct ksched *);
@@ -106,8 +109,7 @@ int ksched_yield(struct ksched *);
 int ksched_get_priority_max(struct ksched *, int, int *);
 int ksched_get_priority_min(struct ksched *, int, int *);
 
-int ksched_rr_get_interval(struct ksched *,
-	struct thread *, struct timespec *);
+int ksched_rr_get_interval(struct ksched *, struct thread *, struct timespec *);
 
 #endif /* _KPOSIX_PRIORITY_SCHEDULING */
 

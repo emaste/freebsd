@@ -33,8 +33,8 @@
 #include <sys/mbuf.h>
 
 /* ABI cookie */
-#define M_QOS_COOKIE		1571268051
-#define MTAG_SIZE(X)	( sizeof(struct X) - sizeof(struct m_tag) )
+#define M_QOS_COOKIE 1571268051
+#define MTAG_SIZE(X) (sizeof(struct X) - sizeof(struct m_tag))
 
 /*
  * Definition of types within this ABI:
@@ -51,33 +51,29 @@
  *    or
  *      p = (void *)m_tag_alloc(
  *          M_QOS_COOKIE, M_QOS_FOO, MTAG_SIZE(foo), ...);
-        m_tag_prepend(m, &p->tag);
+	m_tag_prepend(m, &p->tag);
  */
 
 /* Color marking type */
-#define M_QOS_COLOR		23568
+#define M_QOS_COLOR 23568
 /* Keep colors ordered semantically in order to allow use of "<=" or ">="  */
-enum qos_color {
-	QOS_COLOR_GREEN,
-	QOS_COLOR_YELLOW,
-	QOS_COLOR_RED
-};
+enum qos_color { QOS_COLOR_GREEN, QOS_COLOR_YELLOW, QOS_COLOR_RED };
 struct m_qos_color {
-	struct m_tag	tag;
-	enum qos_color	color;
+	struct m_tag tag;
+	enum qos_color color;
 };
 
 /*
  * Priority class
- * 
+ *
  * Processing per priority requires an overhead, which should
  * be static (i.e. for alloctating queues) and small (for memory)
  * So keep your chosen range limited.
  */
-#define M_QOS_PRIORITY		28858
+#define M_QOS_PRIORITY 28858
 struct m_qos_priority {
-	struct m_tag	tag;
-	uint8_t		priority;	/* 0 - lowest */
+	struct m_tag tag;
+	uint8_t priority; /* 0 - lowest */
 };
 
 #endif /* _NETGRAPH_QOS_H_ */

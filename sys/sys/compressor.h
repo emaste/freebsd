@@ -34,21 +34,20 @@
 #ifdef _KERNEL
 
 /* Supported formats. */
-#define	COMPRESS_GZIP	1
-#define	COMPRESS_ZSTD	2
+#define COMPRESS_GZIP 1
+#define COMPRESS_ZSTD 2
 
 typedef int (*compressor_cb_t)(void *, size_t, off_t, void *);
 
 struct compressor;
 
-bool		compressor_avail(int format);
-struct compressor *compressor_init(compressor_cb_t cb, int format,
-		    size_t maxiosize, int level, void *arg);
-void		compressor_reset(struct compressor *stream);
-int		compressor_write(struct compressor *stream, void *data,
-		    size_t len);
-int		compressor_flush(struct compressor *stream);
-void		compressor_fini(struct compressor *stream);
+bool compressor_avail(int format);
+struct compressor *compressor_init(
+    compressor_cb_t cb, int format, size_t maxiosize, int level, void *arg);
+void compressor_reset(struct compressor *stream);
+int compressor_write(struct compressor *stream, void *data, size_t len);
+int compressor_flush(struct compressor *stream);
+void compressor_fini(struct compressor *stream);
 
 #endif /* _KERNEL */
 #endif /* _SYS__COMPRESSOR_H_ */

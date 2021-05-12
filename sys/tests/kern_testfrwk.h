@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2015 Netflix, Inc.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -32,11 +32,10 @@
 
 struct kern_test {
 	char name[TEST_NAME_LEN];
-	int num_threads;	       	/* Fill in how many threads you want */
-	int tot_threads_running;	/* For framework */
+	int num_threads;	 /* Fill in how many threads you want */
+	int tot_threads_running; /* For framework */
 	uint8_t test_options[TEST_OPTION_SPACE];
 };
-
 
 typedef void (*kerntfunc)(struct kern_test *);
 

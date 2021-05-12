@@ -37,27 +37,30 @@
  * Definitions for the TrustedBSD LOMAC integrity policy module.
  */
 #ifndef _SYS_SECURITY_MAC_LOMAC_H
-#define	_SYS_SECURITY_MAC_LOMAC_H
+#define _SYS_SECURITY_MAC_LOMAC_H
 
-#define	MAC_LOMAC_EXTATTR_NAMESPACE	EXTATTR_NAMESPACE_SYSTEM
-#define	MAC_LOMAC_EXTATTR_NAME		"mac_lomac"
+#define MAC_LOMAC_EXTATTR_NAMESPACE EXTATTR_NAMESPACE_SYSTEM
+#define MAC_LOMAC_EXTATTR_NAME "mac_lomac"
 
-#define	MAC_LOMAC_LABEL_NAME		"lomac"
+#define MAC_LOMAC_LABEL_NAME "lomac"
 
-#define	MAC_LOMAC_FLAG_SINGLE	0x00000001	/* ml_single initialized */
-#define	MAC_LOMAC_FLAG_RANGE	0x00000002	/* ml_range* initialized */
-#define	MAC_LOMAC_FLAG_AUX	0x00000004	/* ml_auxsingle initialized */
-#define	MAC_LOMAC_FLAGS_BOTH	(MAC_LOMAC_FLAG_SINGLE | MAC_LOMAC_FLAG_RANGE)
-#define	MAC_LOMAC_FLAG_UPDATE	0x00000008	/* must demote this process */
+#define MAC_LOMAC_FLAG_SINGLE 0x00000001 /* ml_single initialized */
+#define MAC_LOMAC_FLAG_RANGE 0x00000002	 /* ml_range* initialized */
+#define MAC_LOMAC_FLAG_AUX 0x00000004	 /* ml_auxsingle initialized */
+#define MAC_LOMAC_FLAGS_BOTH (MAC_LOMAC_FLAG_SINGLE | MAC_LOMAC_FLAG_RANGE)
+#define MAC_LOMAC_FLAG_UPDATE 0x00000008 /* must demote this process */
 
-#define	MAC_LOMAC_TYPE_UNDEF	0	/* Undefined */
-#define	MAC_LOMAC_TYPE_GRADE	1	/* Hierarchal grade with mb_grade. */
-#define	MAC_LOMAC_TYPE_LOW	2	/* Dominated by any
-					 * MAC_LOMAC_TYPE_LABEL. */
-#define	MAC_LOMAC_TYPE_HIGH	3	/* Dominates any
-					 * MAC_LOMAC_TYPE_LABEL. */
-#define	MAC_LOMAC_TYPE_EQUAL	4	/* Equivalent to any
-					 * MAC_LOMAC_TYPE_LABEL. */
+#define MAC_LOMAC_TYPE_UNDEF 0 /* Undefined */
+#define MAC_LOMAC_TYPE_GRADE 1 /* Hierarchal grade with mb_grade. */
+#define MAC_LOMAC_TYPE_LOW    \
+	2 /* Dominated by any \
+	   * MAC_LOMAC_TYPE_LABEL. */
+#define MAC_LOMAC_TYPE_HIGH \
+	3 /* Dominates any  \
+	   * MAC_LOMAC_TYPE_LABEL. */
+#define MAC_LOMAC_TYPE_EQUAL   \
+	4 /* Equivalent to any \
+	   * MAC_LOMAC_TYPE_LABEL. */
 
 /*
  * Structures and constants associated with a LOMAC Integrity policy.
@@ -67,8 +70,8 @@
  */
 
 struct mac_lomac_element {
-	u_short	mle_type;
-	u_short	mle_grade;
+	u_short mle_type;
+	u_short mle_grade;
 };
 
 /*
@@ -80,10 +83,10 @@ struct mac_lomac_element {
  * and "non-demoting" execution on executable files.
  */
 struct mac_lomac {
-	int				ml_flags;
-	struct mac_lomac_element	ml_single;
-	struct mac_lomac_element	ml_rangelow, ml_rangehigh;
-	struct mac_lomac_element	ml_auxsingle;
+	int ml_flags;
+	struct mac_lomac_element ml_single;
+	struct mac_lomac_element ml_rangelow, ml_rangehigh;
+	struct mac_lomac_element ml_auxsingle;
 };
 
 #endif /* !_SYS_SECURITY_MAC_LOMAC_H */

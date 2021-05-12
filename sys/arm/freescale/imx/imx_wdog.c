@@ -33,6 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
@@ -41,51 +42,40 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
-#include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/watchdog.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/freescale/imx/imx_machdep.h>
 #include <arm/freescale/imx/imx_wdogreg.h>
 
 struct imx_wdog_softc {
-	struct mtx		sc_mtx;
-	device_t		sc_dev;
-	struct resource		*sc_res[2];
-	void 			*sc_ih;
-	uint32_t		sc_timeout;
-	bool			sc_pde_enabled;
+	struct mtx sc_mtx;
+	device_t sc_dev;
+	struct resource *sc_res[2];
+	void *sc_ih;
+	uint32_t sc_timeout;
+	bool sc_pde_enabled;
 };
 
-static struct resource_spec imx_wdog_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	RESOURCE_SPEC_END
-};
+static struct resource_spec imx_wdog_spec[] = { { SYS_RES_MEMORY, 0,
+						    RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, RESOURCE_SPEC_END };
 
-#define	MEMRES	0
-#define	IRQRES	1
+#define MEMRES 0
+#define IRQRES 1
 
-static struct ofw_compat_data compat_data[] = {
-	{"fsl,imx6sx-wdt", 1},
-	{"fsl,imx6sl-wdt", 1},
-	{"fsl,imx6q-wdt",  1},
-	{"fsl,imx53-wdt",  1},
-	{"fsl,imx51-wdt",  1},
-	{"fsl,imx50-wdt",  1},
-	{"fsl,imx35-wdt",  1},
-	{"fsl,imx27-wdt",  1},
-	{"fsl,imx25-wdt",  1},
-	{"fsl,imx21-wdt",  1},
-	{NULL,             0}
-};
+static struct ofw_compat_data compat_data[] = { { "fsl,imx6sx-wdt", 1 },
+	{ "fsl,imx6sl-wdt", 1 }, { "fsl,imx6q-wdt", 1 }, { "fsl,imx53-wdt", 1 },
+	{ "fsl,imx51-wdt", 1 }, { "fsl,imx50-wdt", 1 }, { "fsl,imx35-wdt", 1 },
+	{ "fsl,imx27-wdt", 1 }, { "fsl,imx25-wdt", 1 }, { "fsl,imx21-wdt", 1 },
+	{ NULL, 0 } };
 
 static inline uint16_t
 RD2(struct imx_wdog_softc *sc, bus_size_t offs)
@@ -224,16 +214,20 @@ imx_wdog_attach(device_t dev)
 	EVENTHANDLER_REGISTER(watchdog_list, imx_watchdog, sc, 0);
 
 	/* If there is a timeout-sec property, activate the watchdog. */
-	if (OF_getencprop(ofw_bus_get_node(sc->sc_dev), "timeout-sec",
-	    &timeout, sizeof(timeout)) == sizeof(timeout)) {
+	if (OF_getencprop(ofw_bus_get_node(sc->sc_dev), "timeout-sec", &timeout,
+		sizeof(timeout)) == sizeof(timeout)) {
 		if (timeout < 1 || timeout > 128) {
-			device_printf(sc->sc_dev, "ERROR: bad timeout-sec "
-			    "property value %u, using 128\n", timeout);
+			device_printf(sc->sc_dev,
+			    "ERROR: bad timeout-sec "
+			    "property value %u, using 128\n",
+			    timeout);
 			timeout = 128;
 		}
 		imx_wdog_enable(sc, timeout);
-		device_printf(sc->sc_dev, "watchdog enabled using "
-		    "timeout-sec property value %u\n", timeout);
+		device_printf(sc->sc_dev,
+		    "watchdog enabled using "
+		    "timeout-sec property value %u\n",
+		    timeout);
 	}
 
 	/*
@@ -245,11 +239,9 @@ imx_wdog_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t imx_wdog_methods[] = {
-	DEVMETHOD(device_probe,		imx_wdog_probe),
-	DEVMETHOD(device_attach,	imx_wdog_attach),
-	DEVMETHOD_END
-};
+static device_method_t imx_wdog_methods[] = { DEVMETHOD(
+						  device_probe, imx_wdog_probe),
+	DEVMETHOD(device_attach, imx_wdog_attach), DEVMETHOD_END };
 
 static driver_t imx_wdog_driver = {
 	"imx_wdog",
@@ -259,6 +251,6 @@ static driver_t imx_wdog_driver = {
 
 static devclass_t imx_wdog_devclass;
 
-EARLY_DRIVER_MODULE(imx_wdog, simplebus, imx_wdog_driver,
-    imx_wdog_devclass, 0, 0, BUS_PASS_TIMER);
+EARLY_DRIVER_MODULE(imx_wdog, simplebus, imx_wdog_driver, imx_wdog_devclass, 0,
+    0, BUS_PASS_TIMER);
 SIMPLEBUS_PNP_INFO(compat_data);

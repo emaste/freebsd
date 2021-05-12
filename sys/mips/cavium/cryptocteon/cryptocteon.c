@@ -34,21 +34,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/uio.h>
 
-#include <opencrypto/cryptodev.h>
-
 #include <contrib/octeon-sdk/cvmx.h>
-
 #include <mips/cavium/cryptocteon/cryptocteonvar.h>
+#include <opencrypto/cryptodev.h>
 
 #include "cryptodev_if.h"
 
 struct cryptocteon_softc {
-	int32_t			sc_cid;		/* opencrypto id */
+	int32_t sc_cid; /* opencrypto id */
 };
 
 int cryptocteon_debug = 0;
@@ -59,10 +57,10 @@ static int cryptocteon_probe(device_t);
 static int cryptocteon_attach(device_t);
 
 static int cryptocteon_process(device_t, struct cryptop *, int);
-static int cryptocteon_probesession(device_t,
-    const struct crypto_session_params *);
-static int cryptocteon_newsession(device_t, crypto_session_t,
-    const struct crypto_session_params *);
+static int cryptocteon_probesession(
+    device_t, const struct crypto_session_params *);
+static int cryptocteon_newsession(
+    device_t, crypto_session_t, const struct crypto_session_params *);
 
 static void
 cryptocteon_identify(driver_t *drv, device_t parent)
@@ -87,7 +85,7 @@ cryptocteon_attach(device_t dev)
 
 	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct octo_sess),
 	    CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_SYNC |
-	    CRYPTOCAP_F_ACCEL_SOFTWARE);
+		CRYPTOCAP_F_ACCEL_SOFTWARE);
 	if (sc->sc_cid < 0) {
 		device_printf(dev, "crypto_get_driverid ret %d\n", sc->sc_cid);
 		return (ENXIO);
@@ -122,8 +120,7 @@ cryptocteon_cipher_supported(const struct crypto_session_params *csp)
 	case CRYPTO_AES_CBC:
 		if (csp->csp_ivlen != 16)
 			return (false);
-		if (csp->csp_cipher_klen != 16 &&
-		    csp->csp_cipher_klen != 24 &&
+		if (csp->csp_cipher_klen != 16 && csp->csp_cipher_klen != 24 &&
 		    csp->csp_cipher_klen != 32)
 			return (false);
 		break;
@@ -186,8 +183,8 @@ cryptocteon_newsession(device_t dev, crypto_session_t cses,
 
 	ocd->octo_encklen = csp->csp_cipher_klen;
 	if (csp->csp_cipher_key != NULL)
-		memcpy(ocd->octo_enckey, csp->csp_cipher_key,
-		    ocd->octo_encklen);
+		memcpy(
+		    ocd->octo_enckey, csp->csp_cipher_key, ocd->octo_encklen);
 
 	if (csp->csp_auth_key != NULL)
 		cryptocteon_calc_hash(csp, csp->csp_auth_key, ocd);
@@ -276,8 +273,9 @@ cryptocteon_process(device_t dev, struct cryptop *crp, int hint)
 	 * As currently written, the crypto routines assume the AAD and
 	 * payload are adjacent.
 	 */
-	if (crp->crp_aad_length != 0 && crp->crp_payload_start !=
-	    crp->crp_aad_start + crp->crp_aad_length) {
+	if (crp->crp_aad_length != 0 &&
+	    crp->crp_payload_start !=
+		crp->crp_aad_start + crp->crp_aad_length) {
 		crp->crp_etype = EFBIG;
 		goto done;
 	}
@@ -297,8 +295,7 @@ cryptocteon_process(device_t dev, struct cryptop *crp, int hint)
 	 * this leaves us with valid m or uiop pointers for later
 	 */
 	switch (crp->crp_buf.cb_type) {
-	case CRYPTO_BUF_MBUF:
-	{
+	case CRYPTO_BUF_MBUF: {
 		unsigned frags;
 
 		m = crp->crp_buf.cb_mbuf;
@@ -306,7 +303,8 @@ cryptocteon_process(device_t dev, struct cryptop *crp, int hint)
 			m = m->m_next;
 
 		if (frags >= UIO_MAXIOV) {
-			printf("%s,%d: %d frags > UIO_MAXIOV", __FILE__, __LINE__, frags);
+			printf("%s,%d: %d frags > UIO_MAXIOV", __FILE__,
+			    __LINE__, frags);
 			crp->crp_etype = EFBIG;
 			goto done;
 		}
@@ -317,8 +315,8 @@ cryptocteon_process(device_t dev, struct cryptop *crp, int hint)
 	case CRYPTO_BUF_UIO:
 		uiop = crp->crp_buf.cb_uio;
 		if (uiop->uio_iovcnt > UIO_MAXIOV) {
-			printf("%s,%d: %d uio_iovcnt > UIO_MAXIOV", __FILE__, __LINE__,
-			       uiop->uio_iovcnt);
+			printf("%s,%d: %d uio_iovcnt > UIO_MAXIOV", __FILE__,
+			    __LINE__, uiop->uio_iovcnt);
 			crp->crp_etype = EFBIG;
 			goto done;
 		}
@@ -331,8 +329,8 @@ cryptocteon_process(device_t dev, struct cryptop *crp, int hint)
 		if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
 			ivp = crp->crp_iv;
 		else {
-			crypto_copydata(crp, crp->crp_iv_start, csp->csp_ivlen,
-			    iv_data);
+			crypto_copydata(
+			    crp, crp->crp_iv_start, csp->csp_ivlen, iv_data);
 			ivp = iv_data;
 		}
 	}
@@ -356,8 +354,10 @@ cryptocteon_process(device_t dev, struct cryptop *crp, int hint)
 	case CRYPTO_BUF_UIO:
 		iovlen = 0;
 		for (iovcnt = 0; iovcnt < uiop->uio_iovcnt; iovcnt++) {
-			od->octo_iov[iovcnt].iov_base = uiop->uio_iov[iovcnt].iov_base;
-			od->octo_iov[iovcnt].iov_len = uiop->uio_iov[iovcnt].iov_len;
+			od->octo_iov[iovcnt].iov_base =
+			    uiop->uio_iov[iovcnt].iov_base;
+			od->octo_iov[iovcnt].iov_len =
+			    uiop->uio_iov[iovcnt].iov_len;
 
 			iovlen += od->octo_iov[iovcnt].iov_len;
 		}
@@ -381,21 +381,21 @@ cryptocteon_process(device_t dev, struct cryptop *crp, int hint)
 		cryptocteon_calc_hash(csp, crp->crp_auth_key, od);
 
 	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
-		(*od->octo_encrypt)(od, od->octo_iov, iovcnt, iovlen,
-		    auth_off, auth_len, crypt_off, crypt_len, icv, ivp);
+		(*od->octo_encrypt)(od, od->octo_iov, iovcnt, iovlen, auth_off,
+		    auth_len, crypt_off, crypt_len, icv, ivp);
 	else
-		(*od->octo_decrypt)(od, od->octo_iov, iovcnt, iovlen,
-		    auth_off, auth_len, crypt_off, crypt_len, icv, ivp);
+		(*od->octo_decrypt)(od, od->octo_iov, iovcnt, iovlen, auth_off,
+		    auth_len, crypt_off, crypt_len, icv, ivp);
 
 	if (csp->csp_auth_alg != 0) {
 		if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
-			crypto_copydata(crp, crp->crp_digest_start,
-			    od->octo_mlen, icv2);
+			crypto_copydata(
+			    crp, crp->crp_digest_start, od->octo_mlen, icv2);
 			if (timingsafe_bcmp(icv, icv2, od->octo_mlen) != 0)
 				crp->crp_etype = EBADMSG;
 		} else
-			crypto_copyback(crp, crp->crp_digest_start,
-			    od->octo_mlen, icv);
+			crypto_copyback(
+			    crp, crp->crp_digest_start, od->octo_mlen, icv);
 	}
 done:
 	crypto_done(crp);
@@ -404,21 +404,21 @@ done:
 
 static device_method_t cryptocteon_methods[] = {
 	/* device methods */
-	DEVMETHOD(device_identify,	cryptocteon_identify),
-	DEVMETHOD(device_probe,		cryptocteon_probe),
-	DEVMETHOD(device_attach,	cryptocteon_attach),
+	DEVMETHOD(device_identify, cryptocteon_identify),
+	DEVMETHOD(device_probe, cryptocteon_probe),
+	DEVMETHOD(device_attach, cryptocteon_attach),
 
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_probesession, cryptocteon_probesession),
-	DEVMETHOD(cryptodev_newsession,	cryptocteon_newsession),
-	DEVMETHOD(cryptodev_process,	cryptocteon_process),
-	{ 0, 0 }
+	DEVMETHOD(cryptodev_newsession, cryptocteon_newsession),
+	DEVMETHOD(cryptodev_process, cryptocteon_process), { 0, 0 }
 };
 
 static driver_t cryptocteon_driver = {
 	"cryptocteon",
 	cryptocteon_methods,
-	sizeof (struct cryptocteon_softc),
+	sizeof(struct cryptocteon_softc),
 };
 static devclass_t cryptocteon_devclass;
-DRIVER_MODULE(cryptocteon, nexus, cryptocteon_driver, cryptocteon_devclass, 0, 0);
+DRIVER_MODULE(
+    cryptocteon, nexus, cryptocteon_driver, cryptocteon_devclass, 0, 0);

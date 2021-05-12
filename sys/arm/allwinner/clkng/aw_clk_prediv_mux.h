@@ -25,24 +25,25 @@
  * $FreeBSD$
  */
 
-#ifndef	__AW_CLK_PREDIV_MUX_H__
+#ifndef __AW_CLK_PREDIV_MUX_H__
 #define __AW_CLK_PREDIV_MUX_H__
 
 #include <arm/allwinner/clkng/aw_clk.h>
 
 struct aw_clk_prediv_mux_def {
 	struct clknode_init_def clkdef;
-	uint32_t		offset;
+	uint32_t offset;
 
-	uint32_t		mux_shift;
-	uint32_t		mux_width;
+	uint32_t mux_shift;
+	uint32_t mux_width;
 
-	struct aw_clk_factor	div;
-	struct aw_clk_factor	prediv;
+	struct aw_clk_factor div;
+	struct aw_clk_factor prediv;
 
-	uint32_t		flags;
+	uint32_t flags;
 };
 
-int	aw_clk_prediv_mux_register(struct clkdom *clkdom, struct aw_clk_prediv_mux_def *clkdef);
+int aw_clk_prediv_mux_register(
+    struct clkdom *clkdom, struct aw_clk_prediv_mux_def *clkdef);
 
 #endif /* __AW_CLK_PREDIV_MUX_H__ */

@@ -35,8 +35,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/libkern.h>
 #include <sys/param.h>
+#include <sys/libkern.h>
 
 void *
 memchr(const void *s, int c, size_t n)

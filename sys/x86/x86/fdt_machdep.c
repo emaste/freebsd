@@ -32,11 +32,12 @@ __FBSDID("$FreeBSD$");
 #include "opt_platform.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/linker.h>
 
 #include <machine/metadata.h>
+
 #include <x86/fdt.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -74,6 +75,6 @@ x86_init_fdt(void)
 
 	error = OF_init(dtbp) ? ENXIO : 0;
 
- out:
+out:
 	return (error);
 }

@@ -31,12 +31,12 @@
  */
 
 #ifndef _MACHINE__UNDEFINED_H_
-#define	_MACHINE__UNDEFINED_H_
+#define _MACHINE__UNDEFINED_H_
 
 #ifdef _KERNEL
 
-typedef int (*undef_handler_t)(vm_offset_t, uint32_t, struct trapframe *,
-    uint32_t);
+typedef int (*undef_handler_t)(
+    vm_offset_t, uint32_t, struct trapframe *, uint32_t);
 
 static inline int
 mrs_Op0(uint32_t insn)
@@ -46,13 +46,12 @@ mrs_Op0(uint32_t insn)
 	return (2 | ((insn & MRS_Op0_MASK) >> MRS_Op0_SHIFT));
 }
 
-#define	MRS_GET(op)						\
-static inline int						\
-mrs_##op(uint32_t insn)						\
-{								\
-								\
-	return ((insn & MRS_##op##_MASK) >> MRS_##op##_SHIFT);	\
-}
+#define MRS_GET(op)                                                    \
+	static inline int mrs_##op(uint32_t insn)                      \
+	{                                                              \
+                                                                       \
+		return ((insn & MRS_##op##_MASK) >> MRS_##op##_SHIFT); \
+	}
 MRS_GET(Op1)
 MRS_GET(CRn)
 MRS_GET(CRm)

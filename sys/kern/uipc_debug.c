@@ -462,8 +462,8 @@ db_print_socket(struct socket *so, const char *socketname, int indent)
 
 	db_print_indent(indent);
 	if (so->so_options & SO_ACCEPTCONN) {
-		db_printf("sol_incomp first: %p   ",
-		    TAILQ_FIRST(&so->sol_incomp));
+		db_printf(
+		    "sol_incomp first: %p   ", TAILQ_FIRST(&so->sol_incomp));
 		db_printf("sol_comp first: %p\n", TAILQ_FIRST(&so->sol_comp));
 		db_printf("sol_qlen: %d   ", so->sol_qlen);
 		db_printf("sol_incqlen: %d   ", so->sol_incqlen);

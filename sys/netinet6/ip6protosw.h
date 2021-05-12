@@ -107,7 +107,7 @@ struct ip6ctlparam {
 	int ip6c_off;			/* offset of the target proto header */
 	struct sockaddr_in6 *ip6c_src;	/* srcaddr w/ additional info */
 	struct sockaddr_in6 *ip6c_dst;	/* (final) dstaddr w/ additional info */
-	struct in6_addr *ip6c_finaldst;	/* final destination address */
+	struct in6_addr *ip6c_finaldst; /* final destination address */
 	void *ip6c_cmdarg;		/* control command dependent data */
 	u_int8_t ip6c_nxt;		/* final next header field */
 };

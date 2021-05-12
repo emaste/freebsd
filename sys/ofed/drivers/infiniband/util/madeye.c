@@ -35,15 +35,14 @@
  * $Id$
  */
 
-#define	LINUXKPI_PARAM_PREFIX ib_madeye_
+#define LINUXKPI_PARAM_PREFIX ib_madeye_
 
-#include <linux/module.h>
 #include <linux/device.h>
 #include <linux/err.h>
-
+#include <linux/module.h>
 #include <rdma/ib_mad.h>
-#include <rdma/ib_smi.h>
 #include <rdma/ib_sa.h>
+#include <rdma/ib_smi.h>
 
 MODULE_AUTHOR("Sean Hefty");
 MODULE_DESCRIPTION("InfiniBand MAD viewer");
@@ -52,11 +51,9 @@ MODULE_LICENSE("Dual BSD/GPL");
 static void madeye_remove_one(struct ib_device *device);
 static void madeye_add_one(struct ib_device *device);
 
-static struct ib_client madeye_client = {
-	.name   = "madeye",
-	.add    = madeye_add_one,
-	.remove = madeye_remove_one
-};
+static struct ib_client madeye_client = { .name = "madeye",
+	.add = madeye_add_one,
+	.remove = madeye_remove_one };
 
 struct madeye_port {
 	struct ib_mad_agent *smi_agent;
@@ -78,12 +75,14 @@ module_param(data, int, 0444);
 MODULE_PARM_DESC(smp, "Display all SMPs (default=1)");
 MODULE_PARM_DESC(gmp, "Display all GMPs (default=1)");
 MODULE_PARM_DESC(mgmt_class, "Display all MADs of specified class (default=0)");
-MODULE_PARM_DESC(attr_id, "Display add MADs of specified attribute ID (default=0)");
+MODULE_PARM_DESC(
+    attr_id, "Display add MADs of specified attribute ID (default=0)");
 MODULE_PARM_DESC(data, "Display data area of MADs (default=0)");
 
-static char * get_class_name(u8 mgmt_class)
+static char *
+get_class_name(u8 mgmt_class)
 {
-	switch(mgmt_class) {
+	switch (mgmt_class) {
 	case IB_MGMT_CLASS_SUBN_LID_ROUTED:
 		return "LID routed SMP";
 	case IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE:
@@ -105,9 +104,10 @@ static char * get_class_name(u8 mgmt_class)
 	}
 }
 
-static char * get_method_name(u8 mgmt_class, u8 method)
+static char *
+get_method_name(u8 mgmt_class, u8 method)
 {
-	switch(method) {
+	switch (method) {
 	case IB_MGMT_METHOD_GET:
 		return "Get";
 	case IB_MGMT_METHOD_SET:
@@ -157,13 +157,14 @@ static char * get_method_name(u8 mgmt_class, u8 method)
 	return "Unknown";
 }
 
-static void print_status_details(u16 status)
+static void
+print_status_details(u16 status)
 {
 	if (status & 0x0001)
 		printk("               busy\n");
 	if (status & 0x0002)
 		printk("               redirection required\n");
-	switch((status & 0x001C) >> 2) {
+	switch ((status & 0x001C) >> 2) {
 	case 1:
 		printk("               bad version\n");
 		break;
@@ -179,9 +180,10 @@ static void print_status_details(u16 status)
 	}
 }
 
-static char * get_sa_attr(__be16 attr)
+static char *
+get_sa_attr(__be16 attr)
 {
-	switch(attr) {
+	switch (attr) {
 	case IB_SA_ATTR_CLASS_PORTINFO:
 		return "Class Port Info";
 	case IB_SA_ATTR_NOTICE:
@@ -231,31 +233,33 @@ static char * get_sa_attr(__be16 attr)
 	}
 }
 
-static void print_mad_hdr(struct ib_mad_hdr *mad_hdr)
+static void
+print_mad_hdr(struct ib_mad_hdr *mad_hdr)
 {
 	printk("MAD version....0x%01x\n", mad_hdr->base_version);
 	printk("Class..........0x%01x (%s)\n", mad_hdr->mgmt_class,
-	       get_class_name(mad_hdr->mgmt_class));
+	    get_class_name(mad_hdr->mgmt_class));
 	printk("Class version..0x%01x\n", mad_hdr->class_version);
 	printk("Method.........0x%01x (%s)\n", mad_hdr->method,
-	       get_method_name(mad_hdr->mgmt_class, mad_hdr->method));
+	    get_method_name(mad_hdr->mgmt_class, mad_hdr->method));
 	printk("Status.........0x%02x\n", be16_to_cpu(mad_hdr->status));
 	if (mad_hdr->status)
 		print_status_details(be16_to_cpu(mad_hdr->status));
 	printk("Class specific.0x%02x\n", be16_to_cpu(mad_hdr->class_specific));
-	printk("Trans ID.......0x%llx\n", 
-		(unsigned long long)be64_to_cpu(mad_hdr->tid));
+	printk("Trans ID.......0x%llx\n",
+	    (unsigned long long)be64_to_cpu(mad_hdr->tid));
 	if (mad_hdr->mgmt_class == IB_MGMT_CLASS_SUBN_ADM)
 		printk("Attr ID........0x%02x (%s)\n",
-		       be16_to_cpu(mad_hdr->attr_id),
-		       get_sa_attr(be16_to_cpu(mad_hdr->attr_id)));
+		    be16_to_cpu(mad_hdr->attr_id),
+		    get_sa_attr(be16_to_cpu(mad_hdr->attr_id)));
 	else
-		printk("Attr ID........0x%02x\n",
-		       be16_to_cpu(mad_hdr->attr_id));
+		printk(
+		    "Attr ID........0x%02x\n", be16_to_cpu(mad_hdr->attr_id));
 	printk("Attr modifier..0x%04x\n", be32_to_cpu(mad_hdr->attr_mod));
 }
 
-static char * get_rmpp_type(u8 rmpp_type)
+static char *
+get_rmpp_type(u8 rmpp_type)
 {
 	switch (rmpp_type) {
 	case IB_MGMT_RMPP_TYPE_DATA:
@@ -271,7 +275,8 @@ static char * get_rmpp_type(u8 rmpp_type)
 	}
 }
 
-static char * get_rmpp_flags(u8 rmpp_flags)
+static char *
+get_rmpp_flags(u8 rmpp_flags)
 {
 	if (rmpp_flags & IB_MGMT_RMPP_FLAG_ACTIVE)
 		if (rmpp_flags & IB_MGMT_RMPP_FLAG_FIRST)
@@ -279,42 +284,43 @@ static char * get_rmpp_flags(u8 rmpp_flags)
 				return "Active - First & Last";
 			else
 				return "Active - First";
+		else if (rmpp_flags & IB_MGMT_RMPP_FLAG_LAST)
+			return "Active - Last";
 		else
-			if (rmpp_flags & IB_MGMT_RMPP_FLAG_LAST)
-				return "Active - Last";
-			else
-				return "Active";
+			return "Active";
 	else
 		return "Inactive";
 }
 
-static void print_rmpp_hdr(struct ib_rmpp_hdr *rmpp_hdr)
+static void
+print_rmpp_hdr(struct ib_rmpp_hdr *rmpp_hdr)
 {
 	printk("RMPP version...0x%01x\n", rmpp_hdr->rmpp_version);
 	printk("RMPP type......0x%01x (%s)\n", rmpp_hdr->rmpp_type,
-	       get_rmpp_type(rmpp_hdr->rmpp_type));
+	    get_rmpp_type(rmpp_hdr->rmpp_type));
 	printk("RMPP RRespTime.0x%01x\n", ib_get_rmpp_resptime(rmpp_hdr));
 	printk("RMPP flags.....0x%01x (%s)\n", ib_get_rmpp_flags(rmpp_hdr),
-	       get_rmpp_flags(ib_get_rmpp_flags(rmpp_hdr)));
+	    get_rmpp_flags(ib_get_rmpp_flags(rmpp_hdr)));
 	printk("RMPP status....0x%01x\n", rmpp_hdr->rmpp_status);
 	printk("Seg number.....0x%04x\n", be32_to_cpu(rmpp_hdr->seg_num));
 	switch (rmpp_hdr->rmpp_type) {
 	case IB_MGMT_RMPP_TYPE_DATA:
 		printk("Payload len....0x%04x\n",
-		       be32_to_cpu(rmpp_hdr->paylen_newwin));
+		    be32_to_cpu(rmpp_hdr->paylen_newwin));
 		break;
 	case IB_MGMT_RMPP_TYPE_ACK:
 		printk("New window.....0x%04x\n",
-		       be32_to_cpu(rmpp_hdr->paylen_newwin));
+		    be32_to_cpu(rmpp_hdr->paylen_newwin));
 		break;
 	default:
 		printk("Data 2.........0x%04x\n",
-		       be32_to_cpu(rmpp_hdr->paylen_newwin));
+		    be32_to_cpu(rmpp_hdr->paylen_newwin));
 		break;
 	}
 }
 
-static char * get_smp_attr(__be16 attr)
+static char *
+get_smp_attr(__be16 attr)
 {
 	switch (attr) {
 	case IB_SMP_ATTR_NOTICE:
@@ -352,29 +358,30 @@ static char * get_smp_attr(__be16 attr)
 	}
 }
 
-static void print_smp(struct ib_smp *smp)
+static void
+print_smp(struct ib_smp *smp)
 {
 	int i;
 
 	printk("MAD version....0x%01x\n", smp->base_version);
 	printk("Class..........0x%01x (%s)\n", smp->mgmt_class,
-	       get_class_name(smp->mgmt_class));
+	    get_class_name(smp->mgmt_class));
 	printk("Class version..0x%01x\n", smp->class_version);
 	printk("Method.........0x%01x (%s)\n", smp->method,
-	       get_method_name(smp->mgmt_class, smp->method));
+	    get_method_name(smp->mgmt_class, smp->method));
 	printk("Status.........0x%02x\n", be16_to_cpu(smp->status));
 	if (smp->status)
 		print_status_details(be16_to_cpu(smp->status));
 	printk("Hop pointer....0x%01x\n", smp->hop_ptr);
 	printk("Hop counter....0x%01x\n", smp->hop_cnt);
-	printk("Trans ID.......0x%llx\n", 
-		(unsigned long long)be64_to_cpu(smp->tid));
+	printk("Trans ID.......0x%llx\n",
+	    (unsigned long long)be64_to_cpu(smp->tid));
 	printk("Attr ID........0x%02x (%s)\n", be16_to_cpu(smp->attr_id),
-		get_smp_attr(smp->attr_id));
+	    get_smp_attr(smp->attr_id));
 	printk("Attr modifier..0x%04x\n", be32_to_cpu(smp->attr_mod));
 
 	printk("Mkey...........0x%llx\n",
-		(unsigned long long)be64_to_cpu(smp->mkey));
+	    (unsigned long long)be64_to_cpu(smp->mkey));
 	printk("DR SLID........0x%02x\n", be16_to_cpu(smp->dr_slid));
 	printk("DR DLID........0x%02x", be16_to_cpu(smp->dr_dlid));
 
@@ -398,9 +405,9 @@ static void print_smp(struct ib_smp *smp)
 	printk("\n");
 }
 
-static void snoop_smi_handler(struct ib_mad_agent *mad_agent,
-			      struct ib_mad_send_buf *send_buf,
-			      struct ib_mad_send_wc *mad_send_wc)
+static void
+snoop_smi_handler(struct ib_mad_agent *mad_agent,
+    struct ib_mad_send_buf *send_buf, struct ib_mad_send_wc *mad_send_wc)
 {
 	struct ib_mad_hdr *hdr = send_buf->mad;
 
@@ -413,19 +420,22 @@ static void snoop_smi_handler(struct ib_mad_agent *mad_agent,
 	print_smp(send_buf->mad);
 }
 
-static void recv_smi_handler(struct ib_mad_agent *mad_agent,
-			     struct ib_mad_recv_wc *mad_recv_wc)
+static void
+recv_smi_handler(
+    struct ib_mad_agent *mad_agent, struct ib_mad_recv_wc *mad_recv_wc)
 {
 	if (!smp && mad_recv_wc->recv_buf.mad->mad_hdr.mgmt_class != mgmt_class)
 		return;
-	if (attr_id && be16_to_cpu(mad_recv_wc->recv_buf.mad->mad_hdr.attr_id) != attr_id)
+	if (attr_id &&
+	    be16_to_cpu(mad_recv_wc->recv_buf.mad->mad_hdr.attr_id) != attr_id)
 		return;
 
 	printk("Madeye:recv SMP\n");
 	print_smp((struct ib_smp *)&mad_recv_wc->recv_buf.mad->mad_hdr);
 }
 
-static int is_rmpp_mad(struct ib_mad_hdr *mad_hdr)
+static int
+is_rmpp_mad(struct ib_mad_hdr *mad_hdr)
 {
 	if (mad_hdr->mgmt_class == IB_MGMT_CLASS_SUBN_ADM) {
 		switch (mad_hdr->method) {
@@ -437,15 +447,15 @@ static int is_rmpp_mad(struct ib_mad_hdr *mad_hdr)
 			break;
 		}
 	} else if ((mad_hdr->mgmt_class >= IB_MGMT_CLASS_VENDOR_RANGE2_START) &&
-		   (mad_hdr->mgmt_class <= IB_MGMT_CLASS_VENDOR_RANGE2_END))
+	    (mad_hdr->mgmt_class <= IB_MGMT_CLASS_VENDOR_RANGE2_END))
 		return 1;
 
 	return 0;
 }
 
-static void snoop_gsi_handler(struct ib_mad_agent *mad_agent,
-			      struct ib_mad_send_buf *send_buf,
-			      struct ib_mad_send_wc *mad_send_wc)
+static void
+snoop_gsi_handler(struct ib_mad_agent *mad_agent,
+    struct ib_mad_send_buf *send_buf, struct ib_mad_send_wc *mad_send_wc)
 {
 	struct ib_mad_hdr *hdr = send_buf->mad;
 
@@ -458,11 +468,12 @@ static void snoop_gsi_handler(struct ib_mad_agent *mad_agent,
 	print_mad_hdr(hdr);
 
 	if (is_rmpp_mad(hdr))
-		print_rmpp_hdr(&((struct ib_rmpp_mad *) hdr)->rmpp_hdr);
+		print_rmpp_hdr(&((struct ib_rmpp_mad *)hdr)->rmpp_hdr);
 }
 
-static void recv_gsi_handler(struct ib_mad_agent *mad_agent,
-			     struct ib_mad_recv_wc *mad_recv_wc)
+static void
+recv_gsi_handler(
+    struct ib_mad_agent *mad_agent, struct ib_mad_recv_wc *mad_recv_wc)
 {
 	struct ib_mad_hdr *hdr = &mad_recv_wc->recv_buf.mad->mad_hdr;
 	struct ib_rmpp_mad *mad = NULL;
@@ -473,14 +484,15 @@ static void recv_gsi_handler(struct ib_mad_agent *mad_agent,
 
 	if (!gmp && hdr->mgmt_class != mgmt_class)
 		return;
-	if (attr_id && be16_to_cpu(mad_recv_wc->recv_buf.mad->mad_hdr.attr_id) != attr_id)
+	if (attr_id &&
+	    be16_to_cpu(mad_recv_wc->recv_buf.mad->mad_hdr.attr_id) != attr_id)
 		return;
 
 	printk("Madeye:recv GMP\n");
 	print_mad_hdr(hdr);
 
 	if (is_rmpp_mad(hdr)) {
-		mad = (struct ib_rmpp_mad *) hdr;
+		mad = (struct ib_rmpp_mad *)hdr;
 		print_rmpp_hdr(&mad->rmpp_hdr);
 	}
 
@@ -491,19 +503,17 @@ static void recv_gsi_handler(struct ib_mad_agent *mad_agent,
 			if (is_rmpp_mad(hdr) &&
 			    mad->rmpp_hdr.rmpp_type != IB_MGMT_RMPP_TYPE_DATA)
 				return;
-			sa_mad = (struct ib_sa_mad *)
-				 &mad_recv_wc->recv_buf.mad;
+			sa_mad = (struct ib_sa_mad *)&mad_recv_wc->recv_buf.mad;
 			mad_data = sa_mad->data;
 		} else {
 			if (is_rmpp_mad(hdr)) {
 				j = IB_MGMT_VENDOR_DATA;
 				/* Display OUI */
-				vendor_mad = (struct ib_vendor_mad *)
-					     &mad_recv_wc->recv_buf.mad;
+				vendor_mad = (struct ib_vendor_mad
+					*)&mad_recv_wc->recv_buf.mad;
 				printk("Vendor OUI......%01x %01x %01x\n",
-					vendor_mad->oui[0],
-					vendor_mad->oui[1],
-					vendor_mad->oui[2]);
+				    vendor_mad->oui[0], vendor_mad->oui[1],
+				    vendor_mad->oui[2]);
 				mad_data = vendor_mad->data;
 			} else {
 				j = IB_MGMT_MAD_DATA;
@@ -519,7 +529,8 @@ static void recv_gsi_handler(struct ib_mad_agent *mad_agent,
 	}
 }
 
-static void madeye_add_one(struct ib_device *device)
+static void
+madeye_add_one(struct ib_device *device)
 {
 	struct madeye_port *port;
 	int reg_flags;
@@ -540,30 +551,24 @@ static void madeye_add_one(struct ib_device *device)
 	reg_flags = IB_MAD_SNOOP_SEND_COMPLETIONS | IB_MAD_SNOOP_RECVS;
 	for (i = 0; i <= e - s; i++) {
 		port[i].smi_agent = ib_register_mad_snoop(device, i + s,
-							  IB_QPT_SMI,
-							  reg_flags,
-							  snoop_smi_handler,
-							  recv_smi_handler,
-							  &port[i]);
+		    IB_QPT_SMI, reg_flags, snoop_smi_handler, recv_smi_handler,
+		    &port[i]);
 		port[i].gsi_agent = ib_register_mad_snoop(device, i + s,
-							  IB_QPT_GSI,
-							  reg_flags,
-							  snoop_gsi_handler,
-							  recv_gsi_handler,
-							  &port[i]);
+		    IB_QPT_GSI, reg_flags, snoop_gsi_handler, recv_gsi_handler,
+		    &port[i]);
 	}
 
 out:
 	ib_set_client_data(device, &madeye_client, port);
 }
 
-static void madeye_remove_one(struct ib_device *device)
+static void
+madeye_remove_one(struct ib_device *device)
 {
 	struct madeye_port *port;
 	int i, s, e;
 
-	port = (struct madeye_port *)
-		ib_get_client_data(device, &madeye_client);
+	port = (struct madeye_port *)ib_get_client_data(device, &madeye_client);
 	if (!port)
 		return;
 
@@ -584,12 +589,14 @@ static void madeye_remove_one(struct ib_device *device)
 	kfree(port);
 }
 
-static int __init ib_madeye_init(void)
+static int __init
+ib_madeye_init(void)
 {
 	return ib_register_client(&madeye_client);
 }
 
-static void __exit ib_madeye_cleanup(void)
+static void __exit
+ib_madeye_cleanup(void)
 {
 	ib_unregister_client(&madeye_client);
 }

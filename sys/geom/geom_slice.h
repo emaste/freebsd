@@ -41,51 +41,56 @@
 #define _GEOM_GEOM_SLICE_H_
 
 struct g_slice {
-	off_t	offset;
-	off_t	length;
-	u_int	sectorsize;
-	struct	g_provider *provider;
+	off_t offset;
+	off_t length;
+	u_int sectorsize;
+	struct g_provider *provider;
 };
 
 struct g_slice_hot {
-	off_t	offset;
-	off_t	length;
-	int	ract;
-	int	dact;
-	int	wact;
+	off_t offset;
+	off_t length;
+	int ract;
+	int dact;
+	int wact;
 };
 
-typedef int g_slice_start_t (struct bio *bp);
+typedef int g_slice_start_t(struct bio *bp);
 
 struct g_slicer {
-	u_int			nslice;
-	u_int			nprovider;
-	struct g_slice		*slices;
+	u_int nslice;
+	u_int nprovider;
+	struct g_slice *slices;
 
-	u_int			nhotspot;
-	struct g_slice_hot	*hotspot;
+	u_int nhotspot;
+	struct g_slice_hot *hotspot;
 
-	void			*softc;
-	g_slice_start_t		*start;
-	g_event_t		*hot;
+	void *softc;
+	g_slice_start_t *start;
+	g_event_t *hot;
 };
 
 g_dumpconf_t g_slice_dumpconf;
-int g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length, u_int sectorsize, const char *fmt, ...) __printflike(7, 8);
+int g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset,
+    off_t length, u_int sectorsize, const char *fmt, ...) __printflike(7, 8);
 void g_slice_spoiled(struct g_consumer *cp);
 void g_slice_orphan(struct g_consumer *cp);
-#define G_SLICE_CONFIG_CHECK	0
-#define G_SLICE_CONFIG_SET	1
-#define G_SLICE_CONFIG_FORCE	2
-struct g_geom * g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_consumer **cpp, void *extrap, int extra, g_slice_start_t *start);
+#define G_SLICE_CONFIG_CHECK 0
+#define G_SLICE_CONFIG_SET 1
+#define G_SLICE_CONFIG_FORCE 2
+struct g_geom *g_slice_new(struct g_class *mp, u_int slices,
+    struct g_provider *pp, struct g_consumer **cpp, void *extrap, int extra,
+    g_slice_start_t *start);
 
-int g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length, int ract, int dact, int wact);
-#define G_SLICE_HOT_ALLOW	1
-#define G_SLICE_HOT_DENY	2
-#define G_SLICE_HOT_START	4
-#define G_SLICE_HOT_CALL	8
+int g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length,
+    int ract, int dact, int wact);
+#define G_SLICE_HOT_ALLOW 1
+#define G_SLICE_HOT_DENY 2
+#define G_SLICE_HOT_START 4
+#define G_SLICE_HOT_CALL 8
 
-int g_slice_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp);
+int g_slice_destroy_geom(
+    struct gctl_req *req, struct g_class *mp, struct g_geom *gp);
 
 void g_slice_finish_hot(struct bio *bp);
 

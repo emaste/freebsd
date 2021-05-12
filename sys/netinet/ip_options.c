@@ -38,54 +38,53 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/domain.h>
+#include <sys/kernel.h>
+#include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
-#include <sys/syslog.h>
+#include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
+#include <sys/time.h>
+
+#include <machine/in_cksum.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
-#include <net/if_dl.h>
+#include <net/netisr.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
-#include <net/netisr.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
 #include <netinet/in_fib.h>
+#include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
-#include <netinet/in_pcb.h>
-#include <netinet/ip_var.h>
-#include <netinet/ip_options.h>
 #include <netinet/ip_icmp.h>
-#include <machine/in_cksum.h>
-
-#include <sys/socketvar.h>
+#include <netinet/ip_options.h>
+#include <netinet/ip_var.h>
 
 VNET_DEFINE_STATIC(int, ip_dosourceroute);
 SYSCTL_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_dosourceroute), 0,
     "Enable forwarding source routed IP packets");
-#define	V_ip_dosourceroute	VNET(ip_dosourceroute)
+#define V_ip_dosourceroute VNET(ip_dosourceroute)
 
-VNET_DEFINE_STATIC(int,	ip_acceptsourceroute);
+VNET_DEFINE_STATIC(int, ip_acceptsourceroute);
 SYSCTL_INT(_net_inet_ip, IPCTL_ACCEPTSOURCEROUTE, accept_sourceroute,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_acceptsourceroute), 0,
     "Enable accepting source routed IP packets");
-#define	V_ip_acceptsourceroute	VNET(ip_acceptsourceroute)
+#define V_ip_acceptsourceroute VNET(ip_acceptsourceroute)
 
 VNET_DEFINE(int, ip_doopts) = 1; /* 0 = ignore, 1 = process, 2 = reject */
 SYSCTL_INT(_net_inet_ip, OID_AUTO, process_options, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_doopts), 0, "Enable IP options processing ([LS]SRR, RR, TS)");
 
-static void	save_rte(struct mbuf *m, u_char *, struct in_addr);
+static void save_rte(struct mbuf *m, u_char *, struct in_addr);
 
 /*
  * Do option processing on a datagram, possibly discarding it if bad options
@@ -109,7 +108,7 @@ ip_dooptions(struct mbuf *m, int pass)
 	struct in_addr *sin, dst;
 	uint32_t ntime;
 	struct nhop_object *nh;
-	struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
+	struct sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
 
 	NET_EPOCH_ASSERT();
 
@@ -124,7 +123,7 @@ ip_dooptions(struct mbuf *m, int pass)
 
 	dst = ip->ip_dst;
 	cp = (u_char *)(ip + 1);
-	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
+	cnt = (ip->ip_hl << 2) - sizeof(struct ip);
 	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		opt = cp[IPOPT_OPTVAL];
 		if (opt == IPOPT_EOL)
@@ -169,8 +168,8 @@ ip_dooptions(struct mbuf *m, int pass)
 				goto bad;
 			}
 			ipaddr.sin_addr = ip->ip_dst;
-			if (ifa_ifwithaddr_check((struct sockaddr *)&ipaddr)
-			    == 0) {
+			if (ifa_ifwithaddr_check((struct sockaddr *)&ipaddr) ==
+			    0) {
 				if (opt == IPOPT_SSRR) {
 					type = ICMP_UNREACH;
 					code = ICMP_UNREACH_SRCFAIL;
@@ -184,7 +183,7 @@ ip_dooptions(struct mbuf *m, int pass)
 				 */
 				break;
 			}
-			off--;			/* 0 origin */
+			off--; /* 0 origin */
 			if (off > optlen - (int)sizeof(struct in_addr)) {
 				/*
 				 * End of source route.  Should be for us.
@@ -207,7 +206,7 @@ ip_dooptions(struct mbuf *m, int pass)
 					 * Acting as a router, so generate
 					 * ICMP
 					 */
-nosourcerouting:
+				nosourcerouting:
 					log(LOG_WARNING,
 					    "attempted source route from %s "
 					    "to %s\n",
@@ -222,7 +221,7 @@ nosourcerouting:
 					 * silently drop.
 					 */
 #ifdef IPSTEALTH
-dropit:
+				dropit:
 #endif
 					IPSTAT_INC(ips_cantforward);
 					m_freem(m);
@@ -240,13 +239,13 @@ dropit:
 			code = ICMP_UNREACH_SRCFAIL;
 
 			if (opt == IPOPT_SSRR) {
-#define	INA	struct in_ifaddr *
-#define	SA	struct sockaddr *
-			    ia = (INA)ifa_ifwithdstaddr((SA)&ipaddr,
-					    RT_ALL_FIBS);
-			    if (ia == NULL)
-				    ia = (INA)ifa_ifwithnet((SA)&ipaddr, 0,
-						    RT_ALL_FIBS);
+#define INA struct in_ifaddr *
+#define SA struct sockaddr *
+				ia = (INA)ifa_ifwithdstaddr(
+				    (SA)&ipaddr, RT_ALL_FIBS);
+				if (ia == NULL)
+					ia = (INA)ifa_ifwithnet(
+					    (SA)&ipaddr, 0, RT_ALL_FIBS);
 				if (ia == NULL)
 					goto bad;
 
@@ -255,11 +254,12 @@ dropit:
 			} else {
 				/* XXX MRT 0 for routing */
 				nh = fib4_lookup(M_GETFIB(m), ipaddr.sin_addr,
-				     0, NHR_NONE, 0);
+				    0, NHR_NONE, 0);
 				if (nh == NULL)
 					goto bad;
 
-				memcpy(cp + off, &(IA_SIN(nh->nh_ifa)->sin_addr),
+				memcpy(cp + off,
+				    &(IA_SIN(nh->nh_ifa)->sin_addr),
 				    sizeof(struct in_addr));
 			}
 
@@ -287,7 +287,7 @@ dropit:
 			/*
 			 * If no space remains, ignore.
 			 */
-			off--;			/* 0 origin */
+			off--; /* 0 origin */
 			if (off > optlen - (int)sizeof(struct in_addr))
 				break;
 			(void)memcpy(&ipaddr.sin_addr, &ip->ip_dst,
@@ -301,8 +301,10 @@ dropit:
 				memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
 				    sizeof(struct in_addr));
 			} else if ((nh = fib4_lookup(M_GETFIB(m),
-			    ipaddr.sin_addr, 0, NHR_NONE, 0)) != NULL) {
-				memcpy(cp + off, &(IA_SIN(nh->nh_ifa)->sin_addr),
+					ipaddr.sin_addr, 0, NHR_NONE, 0)) !=
+			    NULL) {
+				memcpy(cp + off,
+				    &(IA_SIN(nh->nh_ifa)->sin_addr),
 				    sizeof(struct in_addr));
 			} else {
 				type = ICMP_UNREACH;
@@ -334,7 +336,7 @@ dropit:
 				}
 				break;
 			}
-			off--;				/* 0 origin */
+			off--; /* 0 origin */
 			sin = (struct in_addr *)(cp + off);
 			switch (cp[IPOPT_OFFSET + 1] & 0x0f) {
 			case IPOPT_TS_TSONLY:
@@ -342,13 +344,14 @@ dropit:
 
 			case IPOPT_TS_TSANDADDR:
 				if (off + sizeof(uint32_t) +
-				    sizeof(struct in_addr) > optlen) {
+					sizeof(struct in_addr) >
+				    optlen) {
 					code = &cp[IPOPT_OFFSET] - (u_char *)ip;
 					goto bad;
 				}
 				ipaddr.sin_addr = dst;
-				ia = (INA)ifaof_ifpforaddr((SA)&ipaddr,
-							    m->m_pkthdr.rcvif);
+				ia = (INA)ifaof_ifpforaddr(
+				    (SA)&ipaddr, m->m_pkthdr.rcvif);
 				if (ia == NULL)
 					continue;
 				(void)memcpy(sin, &IA_SIN(ia)->sin_addr,
@@ -359,7 +362,8 @@ dropit:
 
 			case IPOPT_TS_PRESPEC:
 				if (off + sizeof(uint32_t) +
-				    sizeof(struct in_addr) > optlen) {
+					sizeof(struct in_addr) >
+				    optlen) {
 					code = &cp[IPOPT_OFFSET] - (u_char *)ip;
 					goto bad;
 				}
@@ -401,8 +405,8 @@ save_rte(struct mbuf *m, u_char *option, struct in_addr dst)
 	unsigned olen;
 	struct ipopt_tag *opts;
 
-	opts = (struct ipopt_tag *)m_tag_get(PACKET_TAG_IPOPTIONS,
-	    sizeof(struct ipopt_tag), M_NOWAIT);
+	opts = (struct ipopt_tag *)m_tag_get(
+	    PACKET_TAG_IPOPTIONS, sizeof(struct ipopt_tag), M_NOWAIT);
 	if (opts == NULL)
 		return;
 
@@ -439,7 +443,7 @@ ip_srcroute(struct mbuf *m0)
 	if (m == NULL)
 		return (NULL);
 
-#define OPTSIZ	(sizeof(opts->ip_srcrt.nop) + sizeof(opts->ip_srcrt.srcopt))
+#define OPTSIZ (sizeof(opts->ip_srcrt.nop) + sizeof(opts->ip_srcrt.srcopt))
 
 	/* length is (nhops+1)*sizeof(addr) + sizeof(nop + srcrt header) */
 	m->m_len = opts->ip_nhops * sizeof(struct in_addr) +
@@ -458,8 +462,8 @@ ip_srcroute(struct mbuf *m0)
 	opts->ip_srcrt.srcopt[IPOPT_OFFSET] = IPOPT_MINOFF;
 	(void)memcpy(mtod(m, caddr_t) + sizeof(struct in_addr),
 	    &(opts->ip_srcrt.nop), OPTSIZ);
-	q = (struct in_addr *)(mtod(m, caddr_t) +
-	    sizeof(struct in_addr) + OPTSIZ);
+	q = (struct in_addr *)(mtod(m, caddr_t) + sizeof(struct in_addr) +
+	    OPTSIZ);
 #undef OPTSIZ
 	/*
 	 * Record return path as an IP source route, reversing the path
@@ -493,7 +497,7 @@ ip_stripoptions(struct mbuf *m)
 	ip->ip_hl = sizeof(struct ip) >> 2;
 
 	bcopy((char *)ip + sizeof(struct ip) + olen, (ip + 1),
-	    (size_t )(m->m_len - sizeof(struct ip)));
+	    (size_t)(m->m_len - sizeof(struct ip)));
 }
 
 /*
@@ -514,7 +518,7 @@ ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 	optlen = opt->m_len - sizeof(p->ipopt_dst);
 	if (optlen + ntohs(ip->ip_len) > IP_MAXPACKET) {
 		*phlen = 0;
-		return (m);		/* XXX should fail */
+		return (m); /* XXX should fail */
 	}
 	if (p->ipopt_dst.s_addr)
 		ip->ip_dst = p->ipopt_dst;
@@ -561,7 +565,7 @@ ip_optcopy(struct ip *ip, struct ip *jp)
 
 	cp = (u_char *)(ip + 1);
 	dp = (u_char *)(jp + 1);
-	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
+	cnt = (ip->ip_hl << 2) - sizeof(struct ip);
 	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		opt = cp[0];
 		if (opt == IPOPT_EOL)
@@ -587,7 +591,7 @@ ip_optcopy(struct ip *ip, struct ip *jp)
 			dp += optlen;
 		}
 	}
-	for (optlen = dp - (u_char *)(jp+1); optlen & 0x3; optlen++)
+	for (optlen = dp - (u_char *)(jp + 1); optlen & 0x3; optlen++)
 		*dp++ = IPOPT_EOL;
 	return (optlen);
 }
@@ -676,14 +680,14 @@ ip_pcbopts(struct inpcb *inp, int optname, struct mbuf *m)
 			/*
 			 * Move first hop before start of options.
 			 */
-			bcopy((caddr_t)&cp[IPOPT_OFFSET+1], mtod(m, caddr_t),
+			bcopy((caddr_t)&cp[IPOPT_OFFSET + 1], mtod(m, caddr_t),
 			    sizeof(struct in_addr));
 			/*
 			 * Then copy rest of options back
 			 * to close up the deleted entry.
 			 */
-			bcopy((&cp[IPOPT_OFFSET+1] + sizeof(struct in_addr)),
-			    &cp[IPOPT_OFFSET+1],
+			bcopy((&cp[IPOPT_OFFSET + 1] + sizeof(struct in_addr)),
+			    &cp[IPOPT_OFFSET + 1],
 			    (unsigned)cnt - (IPOPT_MINOFF - 1));
 			break;
 		}
@@ -723,7 +727,7 @@ ip_checkrouteralert(struct mbuf *m)
 
 	found_ra = 0;
 	cp = (u_char *)(ip + 1);
-	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
+	cnt = (ip->ip_hl << 2) - sizeof(struct ip);
 	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		opt = cp[IPOPT_OPTVAL];
 		if (opt == IPOPT_EOL)
@@ -746,10 +750,10 @@ ip_checkrouteralert(struct mbuf *m)
 #ifdef INVARIANTS
 			if (optlen != IPOPT_OFFSET + sizeof(uint16_t) ||
 			    (*((uint16_t *)&cp[IPOPT_OFFSET]) != 0))
-			    break;
+				break;
 			else
 #endif
-			found_ra = 1;
+				found_ra = 1;
 			break;
 		default:
 			break;

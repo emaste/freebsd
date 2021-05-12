@@ -63,12 +63,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 
 #include <machine/intr.h>
-#include <machine/smp.h>
 #include <machine/sbi.h>
+#include <machine/smp.h>
 
 #ifdef FDT
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_cpu.h>
+#include <dev/ofw/openfirm.h>
 #endif
 
 boolean_t ofw_cpu_reg(phandle_t node, u_int, cell_t *);
@@ -118,19 +118,15 @@ void *dpcpu[MAXCPU - 1];
 
 static device_method_t riscv64_cpu_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	riscv64_cpu_identify),
-	DEVMETHOD(device_probe,		riscv64_cpu_probe),
-	DEVMETHOD(device_attach,	riscv64_cpu_attach),
+	DEVMETHOD(device_identify, riscv64_cpu_identify),
+	DEVMETHOD(device_probe, riscv64_cpu_probe),
+	DEVMETHOD(device_attach, riscv64_cpu_attach),
 
 	DEVMETHOD_END
 };
 
 static devclass_t riscv64_cpu_devclass;
-static driver_t riscv64_cpu_driver = {
-	"riscv64_cpu",
-	riscv64_cpu_methods,
-	0
-};
+static driver_t riscv64_cpu_driver = { "riscv64_cpu", riscv64_cpu_methods, 0 };
 
 DRIVER_MODULE(riscv64_cpu, cpu, riscv64_cpu_driver, riscv64_cpu_devclass, 0, 0);
 
@@ -234,7 +230,7 @@ init_secondary(uint64_t hart)
 
 	/* Setup the pcpu pointer */
 	pcpup = &__pcpu[cpuid];
-	__asm __volatile("mv tp, %0" :: "r"(pcpup));
+	__asm __volatile("mv tp, %0" ::"r"(pcpup));
 
 	/* Workaround: make sure wfi doesn't halt the hart */
 	csr_set(sie, SIE_SSIE);
@@ -352,7 +348,8 @@ ipi_handler(void *arg)
 			break;
 		case IPI_STOP:
 		case IPI_STOP_HARD:
-			CTR0(KTR_SMP, (ipi == IPI_STOP) ? "IPI_STOP" : "IPI_STOP_HARD");
+			CTR0(KTR_SMP,
+			    (ipi == IPI_STOP) ? "IPI_STOP" : "IPI_STOP_HARD");
 			savectx(&stoppcbs[cpu]);
 
 			/* Indicate we are stopped */
@@ -501,7 +498,7 @@ cpu_mp_start(void)
 	CPU_SET(0, &all_cpus);
 	CPU_SET(boot_hart, &all_harts);
 
-	switch(cpu_enum_method) {
+	switch (cpu_enum_method) {
 #ifdef FDT
 	case CPUS_FDT:
 		ofw_cpu_early_foreach(cpu_init_fdt, true);

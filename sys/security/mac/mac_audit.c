@@ -16,7 +16,7 @@
  * N66001-04-C-6019 ("SEFOS").
  *
  * This software was developed at the University of Cambridge Computer
- * Laboratory with support from a grant from Google, Inc. 
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,13 +51,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <security/audit/audit.h>
-
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 #include <security/mac/mac_policy.h>
 
-MAC_CHECK_PROBE_DEFINE2(cred_check_setaudit, "struct ucred *",
-    "struct auditinfo *");
+MAC_CHECK_PROBE_DEFINE2(
+    cred_check_setaudit, "struct ucred *", "struct auditinfo *");
 
 int
 mac_cred_check_setaudit(struct ucred *cred, struct auditinfo *ai)
@@ -70,8 +69,8 @@ mac_cred_check_setaudit(struct ucred *cred, struct auditinfo *ai)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(cred_check_setaudit_addr, "struct ucred *",
-    "struct auditinfo_addr *");
+MAC_CHECK_PROBE_DEFINE2(
+    cred_check_setaudit_addr, "struct ucred *", "struct auditinfo_addr *");
 
 int
 mac_cred_check_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
@@ -97,8 +96,7 @@ mac_cred_check_setauid(struct ucred *cred, uid_t auid)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(system_check_audit, "struct ucred *", "void *",
-    "int");
+MAC_CHECK_PROBE_DEFINE3(system_check_audit, "struct ucred *", "void *", "int");
 
 int
 mac_system_check_audit(struct ucred *cred, void *record, int length)
@@ -111,8 +109,8 @@ mac_system_check_audit(struct ucred *cred, void *record, int length)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(system_check_auditctl, "struct ucred *",
-    "struct vnode *");
+MAC_CHECK_PROBE_DEFINE2(
+    system_check_auditctl, "struct ucred *", "struct vnode *");
 
 int
 mac_system_check_auditctl(struct ucred *cred, struct vnode *vp)

@@ -31,28 +31,25 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/types.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
-#include <cam/cam_queue.h>
 #include <cam/cam_debug.h>
+#include <cam/cam_queue.h>
 
 static MALLOC_DEFINE(M_CAMQ, "CAM queue", "CAM queue buffers");
 static MALLOC_DEFINE(M_CAMDEVQ, "CAM dev queue", "CAM dev queue buffers");
 static MALLOC_DEFINE(M_CAMCCBQ, "CAM ccb queue", "CAM ccb queue buffers");
 
-static __inline int
-		queue_cmp(cam_pinfo **queue_array, int i, int j);
-static __inline void
-		swap(cam_pinfo **queue_array, int i, int j);
-static void	heap_up(cam_pinfo **queue_array, int new_index);
-static void	heap_down(cam_pinfo **queue_array, int index,
-			  int last_index);
+static __inline int queue_cmp(cam_pinfo **queue_array, int i, int j);
+static __inline void swap(cam_pinfo **queue_array, int i, int j);
+static void heap_up(cam_pinfo **queue_array, int new_index);
+static void heap_down(cam_pinfo **queue_array, int index, int last_index);
 
 int
 camq_init(struct camq *camq, int size)
@@ -60,8 +57,8 @@ camq_init(struct camq *camq, int size)
 	bzero(camq, sizeof(*camq));
 	camq->array_size = size;
 	if (camq->array_size != 0) {
-		camq->queue_array = (cam_pinfo**)malloc(size*sizeof(cam_pinfo*),
-							M_CAMQ, M_NOWAIT);
+		camq->queue_array = (cam_pinfo **)malloc(
+		    size * sizeof(cam_pinfo *), M_CAMQ, M_NOWAIT);
 		if (camq->queue_array == NULL) {
 			printf("camq_init: - cannot malloc array!\n");
 			return (1);
@@ -99,11 +96,12 @@ camq_resize(struct camq *queue, int new_size)
 {
 	cam_pinfo **new_array;
 
-	KASSERT(new_size >= queue->entries, ("camq_resize: "
-	    "New queue size can't accommodate queued entries (%d < %d).",
-	    new_size, queue->entries));
-	new_array = (cam_pinfo **)malloc(new_size * sizeof(cam_pinfo *),
-					 M_CAMQ, M_NOWAIT);
+	KASSERT(new_size >= queue->entries,
+	    ("camq_resize: "
+	     "New queue size can't accommodate queued entries (%d < %d).",
+		new_size, queue->entries));
+	new_array = (cam_pinfo **)malloc(
+	    new_size * sizeof(cam_pinfo *), M_CAMQ, M_NOWAIT);
 	if (new_array == NULL) {
 		/* Couldn't satisfy request */
 		return (CAM_RESRC_UNAVAIL);
@@ -116,10 +114,10 @@ camq_resize(struct camq *queue, int new_size)
 	if (queue->queue_array != NULL) {
 		queue->queue_array++;
 		bcopy(queue->queue_array, new_array,
-		      queue->entries * sizeof(cam_pinfo *));
+		    queue->entries * sizeof(cam_pinfo *));
 		free(queue->queue_array, M_CAMQ);
 	}
-	queue->queue_array = new_array-1;
+	queue->queue_array = new_array - 1;
 	queue->array_size = new_size;
 	return (CAM_REQ_CMP);
 }
@@ -135,7 +133,7 @@ camq_insert(struct camq *queue, cam_pinfo *new_entry)
 
 	KASSERT(queue->entries < queue->array_size,
 	    ("camq_insert: Attempt to insert into a full queue (%d >= %d)",
-	    queue->entries, queue->array_size));
+		queue->entries, queue->array_size));
 	queue->entries++;
 	queue->queue_array[queue->entries] = new_entry;
 	new_entry->index = queue->entries;
@@ -156,8 +154,8 @@ camq_remove(struct camq *queue, int index)
 
 	if (index <= 0 || index > queue->entries)
 		panic("%s: Attempt to remove out-of-bounds index %d "
-		    "from queue %p of size %d", __func__, index, queue,
-		    queue->entries);
+		      "from queue %p of size %d",
+		    __func__, index, queue, queue->entries);
 
 	removed_entry = queue->queue_array[index];
 	if (queue->entries != index) {
@@ -249,7 +247,7 @@ cam_ccbq_alloc(int openings)
 	}
 	if (cam_ccbq_init(ccbq, openings) != 0) {
 		free(ccbq, M_CAMCCBQ);
-		return (NULL);		
+		return (NULL);
 	}
 
 	return (ccbq);
@@ -284,8 +282,8 @@ int
 cam_ccbq_init(struct cam_ccbq *ccbq, int openings)
 {
 	bzero(ccbq, sizeof(*ccbq));
-	if (camq_init(&ccbq->queue,
-	    imax(64, 1 << fls(openings + openings / 2))) != 0)
+	if (camq_init(
+		&ccbq->queue, imax(64, 1 << fls(openings + openings / 2))) != 0)
 		return (1);
 	ccbq->total_openings = openings;
 	ccbq->dev_openings = openings;
@@ -311,11 +309,10 @@ static __inline int
 queue_cmp(cam_pinfo **queue_array, int i, int j)
 {
 	if (queue_array[i]->priority == queue_array[j]->priority)
-		return (  queue_array[i]->generation
-			- queue_array[j]->generation );
+		return (
+		    queue_array[i]->generation - queue_array[j]->generation);
 	else
-		return (  queue_array[i]->priority
-			- queue_array[j]->priority );
+		return (queue_array[i]->priority - queue_array[j]->priority);
 }
 
 /*

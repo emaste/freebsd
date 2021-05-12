@@ -29,7 +29,7 @@
  */
 
 #ifndef _NFS_NFSV4ERRSTR_H_
-#define	_NFS_NFSV4ERRSTR_H_
+#define _NFS_NFSV4ERRSTR_H_
 
 /*
  * Defines static storage in the C file, but I can't be bothered creating
@@ -148,4 +148,4 @@ nfsv4_geterrstr(int errval)
 	return (nfsv4_errstr[errval - NFSERR_BADHANDLE]);
 }
 
-#endif	/* _NFS_NFSV4ERRSTR_H_ */
+#endif /* _NFS_NFSV4ERRSTR_H_ */

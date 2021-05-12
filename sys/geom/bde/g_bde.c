@@ -36,19 +36,19 @@
  */
 
 #include <sys/param.h>
-#include <sys/bio.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 
 #include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/sha2/sha512.h>
-#include <geom/geom.h>
 #include <geom/bde/g_bde.h>
+#include <geom/geom.h>
 #define BDE_CLASS_NAME "BDE"
 
 FEATURE(geom_bde, "GEOM-based Disk Encryption");
@@ -86,9 +86,9 @@ g_bde_orphan(struct g_consumer *cp)
 	gp = cp->geom;
 	sc = gp->softc;
 	gp->flags |= G_GEOM_WITHER;
-	LIST_FOREACH(pp, &gp->provider, provider)
+	LIST_FOREACH (pp, &gp->provider, provider)
 		g_wither_provider(pp, ENXIO);
-	explicit_bzero(sc, sizeof(struct g_bde_softc));	/* destroy evidence */
+	explicit_bzero(sc, sizeof(struct g_bde_softc)); /* destroy evidence */
 	return;
 }
 
@@ -113,7 +113,8 @@ g_bde_access(struct g_provider *pp, int dr, int dw, int de)
 }
 
 static void
-g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *pp)
+g_bde_create_geom(
+    struct gctl_req *req, struct g_class *mp, struct g_provider *pp)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -166,8 +167,8 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		sc->geom = gp;
 		sc->consumer = cp;
 
-		error = g_bde_decrypt_lock(sc, pass, key,
-		    mediasize, sectorsize, NULL);
+		error = g_bde_decrypt_lock(
+		    sc, pass, key, mediasize, sectorsize, NULL);
 		explicit_bzero(sc->sha2, sizeof sc->sha2);
 		if (error)
 			break;
@@ -189,8 +190,8 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		TAILQ_INIT(&sc->worklist);
 		mtx_init(&sc->worklist_mutex, "g_bde_worklist", NULL, MTX_DEF);
 		/* XXX: error check */
-		kproc_create(g_bde_worker, gp, &sc->thread, 0, 0,
-			"g_bde %s", gp->name);
+		kproc_create(
+		    g_bde_worker, gp, &sc->thread, 0, 0, "g_bde %s", gp->name);
 		pp = g_new_providerf(gp, "%s", gp->name);
 		pp->stripesize = kp->zone_cont;
 		pp->stripeoffset = 0;
@@ -284,7 +285,7 @@ g_bde_ctlreq(struct gctl_req *req, struct g_class *mp, char const *verb)
 	}
 }
 
-static struct g_class g_bde_class	= {
+static struct g_class g_bde_class = {
 	.name = BDE_CLASS_NAME,
 	.version = G_VERSION,
 	.destroy_geom = g_bde_destroy_geom,

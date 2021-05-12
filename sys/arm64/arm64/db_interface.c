@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/proc.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
@@ -39,13 +40,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #endif
 
-#include <ddb/ddb.h>
-#include <ddb/db_variables.h>
-
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/stack.h>
 #include <machine/vmparam.h>
+
+#include <ddb/db_variables.h>
+#include <ddb/ddb.h>
 
 static int
 db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
@@ -63,41 +64,41 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 	return (1);
 }
 
-#define DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
+#define DB_OFFSET(x) (db_expr_t *)offsetof(struct trapframe, x)
 struct db_variable db_regs[] = {
-	{ "spsr", DB_OFFSET(tf_spsr),	db_frame },
-	{ "x0", DB_OFFSET(tf_x[0]),	db_frame },
-	{ "x1", DB_OFFSET(tf_x[1]),	db_frame },
-	{ "x2", DB_OFFSET(tf_x[2]),	db_frame },
-	{ "x3", DB_OFFSET(tf_x[3]),	db_frame },
-	{ "x4", DB_OFFSET(tf_x[4]),	db_frame },
-	{ "x5", DB_OFFSET(tf_x[5]),	db_frame },
-	{ "x6", DB_OFFSET(tf_x[6]),	db_frame },
-	{ "x7", DB_OFFSET(tf_x[7]),	db_frame },
-	{ "x8", DB_OFFSET(tf_x[8]),	db_frame },
-	{ "x9", DB_OFFSET(tf_x[9]),	db_frame },
-	{ "x10", DB_OFFSET(tf_x[10]),	db_frame },
-	{ "x11", DB_OFFSET(tf_x[11]),	db_frame },
-	{ "x12", DB_OFFSET(tf_x[12]),	db_frame },
-	{ "x13", DB_OFFSET(tf_x[13]),	db_frame },
-	{ "x14", DB_OFFSET(tf_x[14]),	db_frame },
-	{ "x15", DB_OFFSET(tf_x[15]),	db_frame },
-	{ "x16", DB_OFFSET(tf_x[16]),	db_frame },
-	{ "x17", DB_OFFSET(tf_x[17]),	db_frame },
-	{ "x18", DB_OFFSET(tf_x[18]),	db_frame },
-	{ "x19", DB_OFFSET(tf_x[19]),	db_frame },
-	{ "x20", DB_OFFSET(tf_x[20]),	db_frame },
-	{ "x21", DB_OFFSET(tf_x[21]),	db_frame },
-	{ "x22", DB_OFFSET(tf_x[22]),	db_frame },
-	{ "x23", DB_OFFSET(tf_x[23]),	db_frame },
-	{ "x24", DB_OFFSET(tf_x[24]),	db_frame },
-	{ "x25", DB_OFFSET(tf_x[25]),	db_frame },
-	{ "x26", DB_OFFSET(tf_x[26]),	db_frame },
-	{ "x27", DB_OFFSET(tf_x[27]),	db_frame },
-	{ "x28", DB_OFFSET(tf_x[28]),	db_frame },
-	{ "x29", DB_OFFSET(tf_x[29]),	db_frame },
-	{ "lr", DB_OFFSET(tf_lr),	db_frame },
-	{ "elr", DB_OFFSET(tf_elr),	db_frame },
+	{ "spsr", DB_OFFSET(tf_spsr), db_frame },
+	{ "x0", DB_OFFSET(tf_x[0]), db_frame },
+	{ "x1", DB_OFFSET(tf_x[1]), db_frame },
+	{ "x2", DB_OFFSET(tf_x[2]), db_frame },
+	{ "x3", DB_OFFSET(tf_x[3]), db_frame },
+	{ "x4", DB_OFFSET(tf_x[4]), db_frame },
+	{ "x5", DB_OFFSET(tf_x[5]), db_frame },
+	{ "x6", DB_OFFSET(tf_x[6]), db_frame },
+	{ "x7", DB_OFFSET(tf_x[7]), db_frame },
+	{ "x8", DB_OFFSET(tf_x[8]), db_frame },
+	{ "x9", DB_OFFSET(tf_x[9]), db_frame },
+	{ "x10", DB_OFFSET(tf_x[10]), db_frame },
+	{ "x11", DB_OFFSET(tf_x[11]), db_frame },
+	{ "x12", DB_OFFSET(tf_x[12]), db_frame },
+	{ "x13", DB_OFFSET(tf_x[13]), db_frame },
+	{ "x14", DB_OFFSET(tf_x[14]), db_frame },
+	{ "x15", DB_OFFSET(tf_x[15]), db_frame },
+	{ "x16", DB_OFFSET(tf_x[16]), db_frame },
+	{ "x17", DB_OFFSET(tf_x[17]), db_frame },
+	{ "x18", DB_OFFSET(tf_x[18]), db_frame },
+	{ "x19", DB_OFFSET(tf_x[19]), db_frame },
+	{ "x20", DB_OFFSET(tf_x[20]), db_frame },
+	{ "x21", DB_OFFSET(tf_x[21]), db_frame },
+	{ "x22", DB_OFFSET(tf_x[22]), db_frame },
+	{ "x23", DB_OFFSET(tf_x[23]), db_frame },
+	{ "x24", DB_OFFSET(tf_x[24]), db_frame },
+	{ "x25", DB_OFFSET(tf_x[25]), db_frame },
+	{ "x26", DB_OFFSET(tf_x[26]), db_frame },
+	{ "x27", DB_OFFSET(tf_x[27]), db_frame },
+	{ "x28", DB_OFFSET(tf_x[28]), db_frame },
+	{ "x29", DB_OFFSET(tf_x[29]), db_frame },
+	{ "lr", DB_OFFSET(tf_lr), db_frame },
+	{ "elr", DB_OFFSET(tf_elr), db_frame },
 	{ "sp", DB_OFFSET(tf_sp), db_frame },
 };
 

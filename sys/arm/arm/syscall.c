@@ -84,13 +84,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/ptrace.h>
+#include <sys/signalvar.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
-#include <sys/signalvar.h>
-#include <sys/ptrace.h>
 
 #include <machine/frame.h>
 
@@ -125,8 +125,8 @@ cpu_fetch_syscall_args(struct thread *td)
 	error = 0;
 	memcpy(sa->args, ap, nap * sizeof(register_t));
 	if (sa->callp->sy_narg > nap) {
-		error = copyin((void *)td->td_frame->tf_usr_sp, sa->args +
-		    nap, (sa->callp->sy_narg - nap) * sizeof(register_t));
+		error = copyin((void *)td->td_frame->tf_usr_sp, sa->args + nap,
+		    (sa->callp->sy_narg - nap) * sizeof(register_t));
 	}
 	if (error == 0) {
 		td->td_retval[0] = 0;

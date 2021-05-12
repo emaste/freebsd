@@ -41,19 +41,19 @@
  * System wide defaults for terminal state.
  */
 #ifndef _SYS_TTYDEFAULTS_H_
-#define	_SYS_TTYDEFAULTS_H_
+#define _SYS_TTYDEFAULTS_H_
 
 /*
  * Defaults on "first" open.
  */
-#define	TTYDEF_IFLAG	(BRKINT	| ICRNL	| IMAXBEL | IXON | IXANY)
-#define	TTYDEF_OFLAG	(OPOST | ONLCR)
-#define	TTYDEF_LFLAG_NOECHO (ICANON | ISIG | IEXTEN)
-#define	TTYDEF_LFLAG_ECHO (TTYDEF_LFLAG_NOECHO \
-	| ECHO | ECHOE | ECHOKE | ECHOCTL)
-#define	TTYDEF_LFLAG TTYDEF_LFLAG_ECHO
-#define	TTYDEF_CFLAG	(CREAD | CS8 | HUPCL)
-#define	TTYDEF_SPEED	(B9600)
+#define TTYDEF_IFLAG (BRKINT | ICRNL | IMAXBEL | IXON | IXANY)
+#define TTYDEF_OFLAG (OPOST | ONLCR)
+#define TTYDEF_LFLAG_NOECHO (ICANON | ISIG | IEXTEN)
+#define TTYDEF_LFLAG_ECHO \
+	(TTYDEF_LFLAG_NOECHO | ECHO | ECHOE | ECHOKE | ECHOCTL)
+#define TTYDEF_LFLAG TTYDEF_LFLAG_ECHO
+#define TTYDEF_CFLAG (CREAD | CS8 | HUPCL)
+#define TTYDEF_SPEED (B9600)
 
 /*
  * Control Character Defaults
@@ -64,31 +64,31 @@
  * characters. We just treat lowercase characters as if they were
  * inserted as uppercase.
  */
-#define	CTRL(x) ((x) >= 'a' && (x) <= 'z' ? \
-	((x) - 'a' + 1) : (((x) - 'A' + 1) & 0x7f))
-#define	CEOF		CTRL('D')
-#define	CEOL		0xff		/* XXX avoid _POSIX_VDISABLE */
-#define	CERASE		CTRL('?')
-#define	CERASE2		CTRL('H')
-#define	CINTR		CTRL('C')
-#define	CSTATUS		CTRL('T')
-#define	CKILL		CTRL('U')
-#define	CMIN		1
-#define	CQUIT		CTRL('\\')
-#define	CSUSP		CTRL('Z')
-#define	CTIME		0
-#define	CDSUSP		CTRL('Y')
-#define	CSTART		CTRL('Q')
-#define	CSTOP		CTRL('S')
-#define	CLNEXT		CTRL('V')
-#define	CDISCARD	CTRL('O')
-#define	CWERASE		CTRL('W')
-#define	CREPRINT	CTRL('R')
-#define	CEOT		CEOF
+#define CTRL(x) \
+	((x) >= 'a' && (x) <= 'z' ? ((x) - 'a' + 1) : (((x) - 'A' + 1) & 0x7f))
+#define CEOF CTRL('D')
+#define CEOL 0xff /* XXX avoid _POSIX_VDISABLE */
+#define CERASE CTRL('?')
+#define CERASE2 CTRL('H')
+#define CINTR CTRL('C')
+#define CSTATUS CTRL('T')
+#define CKILL CTRL('U')
+#define CMIN 1
+#define CQUIT CTRL('\\')
+#define CSUSP CTRL('Z')
+#define CTIME 0
+#define CDSUSP CTRL('Y')
+#define CSTART CTRL('Q')
+#define CSTOP CTRL('S')
+#define CLNEXT CTRL('V')
+#define CDISCARD CTRL('O')
+#define CWERASE CTRL('W')
+#define CREPRINT CTRL('R')
+#define CEOT CEOF
 /* compat */
-#define	CBRK		CEOL
-#define	CRPRNT		CREPRINT
-#define	CFLUSH		CDISCARD
+#define CBRK CEOL
+#define CRPRNT CREPRINT
+#define CFLUSH CDISCARD
 
 /* PROTECTED INCLUSION ENDS HERE */
 #endif /* !_SYS_TTYDEFAULTS_H_ */
@@ -101,11 +101,9 @@
 #include <sys/cdefs.h>
 #include <sys/_termios.h>
 
-static const cc_t ttydefchars[] = {
-	CEOF, CEOL, CEOL, CERASE, CWERASE, CKILL, CREPRINT, CERASE2, CINTR,
-	CQUIT, CSUSP, CDSUSP, CSTART, CSTOP, CLNEXT, CDISCARD, CMIN, CTIME,
-	CSTATUS, _POSIX_VDISABLE
-};
+static const cc_t ttydefchars[] = { CEOF, CEOL, CEOL, CERASE, CWERASE, CKILL,
+	CREPRINT, CERASE2, CINTR, CQUIT, CSUSP, CDSUSP, CSTART, CSTOP, CLNEXT,
+	CDISCARD, CMIN, CTIME, CSTATUS, _POSIX_VDISABLE };
 _Static_assert(sizeof(ttydefchars) / sizeof(cc_t) == NCCS,
     "Size of ttydefchars does not match NCCS");
 

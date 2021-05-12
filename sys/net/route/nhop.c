@@ -32,20 +32,20 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/rwlock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h>
-#include <sys/kernel.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
-#include <net/route/route_var.h>
-#include <net/route/nhop_utils.h>
 #include <net/route/nhop.h>
+#include <net/route/nhop_utils.h>
 #include <net/route/nhop_var.h>
+#include <net/route/route_var.h>
 #include <net/vnet.h>
 
 /*
@@ -55,8 +55,8 @@ __FBSDID("$FreeBSD$");
  * Nexthops in the original sense are the objects containing all the necessary
  * information to forward the packet to the selected destination.
  * In particular, nexthop is defined by a combination of
- *  ifp, ifa, aifp, mtu, gw addr(if set), nh_type, nh_family, mask of rt_flags and
- *    NHF_DEFAULT
+ *  ifp, ifa, aifp, mtu, gw addr(if set), nh_type, nh_family, mask of rt_flags
+ * and NHF_DEFAULT
  *
  * All nexthops are stored in the resizable hash table.
  * Additionally, each nexthop gets assigned its unique index (nexthop index)
@@ -153,10 +153,12 @@ nhops_destroy_rib(struct rib_head *rh)
 	 */
 
 	NHOPS_WLOCK(ctl);
-	CHT_SLIST_FOREACH(&ctl->nh_head, nhops, nh_priv) {
+	CHT_SLIST_FOREACH(&ctl->nh_head, nhops, nh_priv)
+	{
 		DPRINTF("Marking nhop %u unlinked", nh_priv->nh_idx);
 		refcount_release(&nh_priv->nh_linked);
-	} CHT_SLIST_FOREACH_END;
+	}
+	CHT_SLIST_FOREACH_END;
 #ifdef ROUTE_MPATH
 	nhgrp_ctl_unlink_all(ctl);
 #endif
@@ -166,8 +168,7 @@ nhops_destroy_rib(struct rib_head *rh)
 	 * Postpone destruction till the end of current epoch
 	 * so nhop_free() can safely use nh_control pointer.
 	 */
-	epoch_call(net_epoch_preempt, destroy_ctl_epoch,
-	    &ctl->ctl_epoch_ctx);
+	epoch_call(net_epoch_preempt, destroy_ctl_epoch, &ctl->ctl_epoch_ctx);
 }
 
 /*
@@ -189,10 +190,10 @@ nhops_destroy_rib(struct rib_head *rh)
  *  neighbors.
  */
 struct _hash_data {
-	uint16_t	ifindex;
-	uint8_t		family;
-	uint8_t		nh_type;
-	uint32_t	gw_addr;
+	uint16_t ifindex;
+	uint8_t family;
+	uint8_t nh_type;
+	uint32_t gw_addr;
 };
 
 static unsigned
@@ -234,7 +235,8 @@ hash_priv(const struct nhop_priv *priv)
  *
  */
 static void
-consider_resize(struct nh_control *ctl, uint32_t new_nh_buckets, uint32_t new_idx_items)
+consider_resize(
+    struct nh_control *ctl, uint32_t new_nh_buckets, uint32_t new_idx_items)
 {
 	void *nh_ptr, *nh_idx_ptr;
 	void *old_idx_ptr;
@@ -267,8 +269,10 @@ consider_resize(struct nh_control *ctl, uint32_t new_nh_buckets, uint32_t new_id
 		CHT_SLIST_RESIZE(&ctl->nh_head, nhops, nh_ptr, new_nh_buckets);
 	}
 	if (nh_idx_ptr != NULL) {
-		if (bitmask_copy(&ctl->nh_idx_head, nh_idx_ptr, new_idx_items) == 0)
-			bitmask_swap(&ctl->nh_idx_head, nh_idx_ptr, new_idx_items, &old_idx_ptr);
+		if (bitmask_copy(
+			&ctl->nh_idx_head, nh_idx_ptr, new_idx_items) == 0)
+			bitmask_swap(&ctl->nh_idx_head, nh_idx_ptr,
+			    new_idx_items, &old_idx_ptr);
 	}
 	NHOPS_WUNLOCK(ctl);
 
@@ -358,7 +362,8 @@ unlink_nhop(struct nh_control *ctl, struct nhop_priv *nh_priv_del)
 	NHOPS_WUNLOCK(ctl);
 
 	if (priv_ret == NULL)
-		DPRINTF("Unable to unlink nhop priv %p from hash, hash %u ctl %p",
+		DPRINTF(
+		    "Unable to unlink nhop priv %p from hash, hash %u ctl %p",
 		    nh_priv_del, hash_priv(nh_priv_del), ctl);
 	else
 		DPRINTF("Unlinked nhop %p priv idx %d", priv_ret, idx);
@@ -380,7 +385,8 @@ find_nhop(struct nh_control *ctl, const struct nhop_priv *nh_priv)
 	NHOPS_RLOCK(ctl);
 	CHT_SLIST_FIND_BYOBJ(&ctl->nh_head, nhops, nh_priv, nh_priv_ret);
 	if (nh_priv_ret != NULL) {
-		if (refcount_acquire_if_not_zero(&nh_priv_ret->nh_refcnt) == 0){
+		if (refcount_acquire_if_not_zero(&nh_priv_ret->nh_refcnt) ==
+		    0) {
 			/* refcount was 0 -> nhop is being deleted */
 			nh_priv_ret = NULL;
 		}

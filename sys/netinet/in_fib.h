@@ -30,17 +30,17 @@
  */
 
 #ifndef _NETINET_IN_FIB_H_
-#define	_NETINET_IN_FIB_H_
+#define _NETINET_IN_FIB_H_
 
 struct route_in {
 	/* common fields shared among all 'struct route' */
 	struct nhop_object *ro_nh;
-	struct	llentry *ro_lle;
-	char		*ro_prepend;
-	uint16_t	ro_plen;
-	uint16_t	ro_flags;
-	uint16_t	ro_mtu;	/* saved ro_rt mtu */
-	uint16_t	spare;
+	struct llentry *ro_lle;
+	char *ro_prepend;
+	uint16_t ro_plen;
+	uint16_t ro_flags;
+	uint16_t ro_mtu; /* saved ro_rt mtu */
+	uint16_t spare;
 	/* custom sockaddr */
 	struct sockaddr_in ro_dst4;
 };
@@ -52,10 +52,10 @@ struct nhop_object *fib4_lookup(uint32_t fibnum, struct in_addr dst,
     uint32_t scopeid, uint32_t flags, uint32_t flowid);
 int fib4_check_urpf(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
     uint32_t flags, const struct ifnet *src_if);
-struct rtentry *fib4_lookup_rt(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
-    uint32_t flags, struct route_nhop_data *nrd);
-struct nhop_object *fib4_lookup_debugnet(uint32_t fibnum, struct in_addr dst,
-    uint32_t scopeid, uint32_t flags);
+struct rtentry *fib4_lookup_rt(uint32_t fibnum, struct in_addr dst,
+    uint32_t scopeid, uint32_t flags, struct route_nhop_data *nrd);
+struct nhop_object *fib4_lookup_debugnet(
+    uint32_t fibnum, struct in_addr dst, uint32_t scopeid, uint32_t flags);
 uint32_t fib4_calc_software_hash(struct in_addr src, struct in_addr dst,
     unsigned short src_port, unsigned short dst_port, char proto,
     uint32_t *phashtype);

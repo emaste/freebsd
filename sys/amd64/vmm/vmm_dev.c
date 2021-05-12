@@ -34,57 +34,58 @@ __FBSDID("$FreeBSD$");
 #include "opt_bhyve_snapshot.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/jail.h>
-#include <sys/queue.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/malloc.h>
 #include <sys/conf.h>
-#include <sys/sysctl.h>
-#include <sys/libkern.h>
 #include <sys/ioccom.h>
+#include <sys/jail.h>
+#include <sys/kernel.h>
+#include <sys/libkern.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mman.h>
-#include <sys/uio.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/sysctl.h>
+#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 
-#include <machine/vmparam.h>
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_snapshot.h>
+#include <machine/vmparam.h>
+
 #include <x86/apicreg.h>
 
-#include "vmm_lapic.h"
-#include "vmm_stat.h"
-#include "vmm_mem.h"
 #include "io/ppt.h"
 #include "io/vatpic.h"
-#include "io/vioapic.h"
 #include "io/vhpet.h"
+#include "io/vioapic.h"
 #include "io/vrtc.h"
+#include "vmm_lapic.h"
+#include "vmm_mem.h"
+#include "vmm_stat.h"
 
 struct devmem_softc {
-	int	segid;
-	char	*name;
+	int segid;
+	char *name;
 	struct cdev *cdev;
 	struct vmmdev_softc *sc;
 	SLIST_ENTRY(devmem_softc) link;
 };
 
 struct vmmdev_softc {
-	struct vm	*vm;		/* vm instance cookie */
-	struct cdev	*cdev;
+	struct vm *vm; /* vm instance cookie */
+	struct cdev *cdev;
 	SLIST_ENTRY(vmmdev_softc) link;
 	SLIST_HEAD(, devmem_softc) devmem;
-	int		flags;
+	int flags;
 };
-#define	VSC_LINKED		0x01
+#define VSC_LINKED 0x01
 
 static SLIST_HEAD(, vmmdev_softc) head;
 
@@ -103,8 +104,7 @@ static int
 vmm_priv_check(struct ucred *ucred)
 {
 
-	if (jailed(ucred) &&
-	    !(ucred->cr_prison->pr_allow & pr_allow_flag))
+	if (jailed(ucred) && !(ucred->cr_prison->pr_allow & pr_allow_flag))
 		return (EPERM);
 
 	return (0);
@@ -129,8 +129,8 @@ vcpu_unlock_one(struct vmmdev_softc *sc, int vcpu)
 
 	state = vcpu_get_state(sc->vm, vcpu, NULL);
 	if (state != VCPU_FROZEN) {
-		panic("vcpu %s(%d) has invalid state %d", vm_name(sc->vm),
-		    vcpu, state);
+		panic("vcpu %s(%d) has invalid state %d", vm_name(sc->vm), vcpu,
+		    state);
 	}
 
 	vcpu_set_state(sc->vm, vcpu, VCPU_IDLE, false);
@@ -173,11 +173,11 @@ vmmdev_lookup(const char *name)
 {
 	struct vmmdev_softc *sc;
 
-#ifdef notyet	/* XXX kernel is not compiled with invariants */
+#ifdef notyet /* XXX kernel is not compiled with invariants */
 	mtx_assert(&vmmdev_mtx, MA_OWNED);
 #endif
 
-	SLIST_FOREACH(sc, &head, link) {
+	SLIST_FOREACH (sc, &head, link) {
 		if (strcmp(name, vm_name(sc->vm)) == 0)
 			break;
 	}
@@ -232,12 +232,11 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 		 * Since this device does not support lseek(2), dd(1) will
 		 * read(2) blocks of data to simulate the lseek(2).
 		 */
-		hpa = vm_gpa_hold(sc->vm, lastcpu, gpa, c,
-		    prot, &cookie);
+		hpa = vm_gpa_hold(sc->vm, lastcpu, gpa, c, prot, &cookie);
 		if (hpa == NULL) {
 			if (uio->uio_rw == UIO_READ && gpa < maxaddr)
-				error = uiomove(__DECONST(void *, zero_region),
-				    c, uio);
+				error = uiomove(
+				    __DECONST(void *, zero_region), c, uio);
 			else
 				error = EFAULT;
 		} else {
@@ -263,12 +262,12 @@ get_memseg(struct vmmdev_softc *sc, struct vm_memseg *mseg, size_t len)
 		return (error);
 
 	if (!sysmem) {
-		SLIST_FOREACH(dsc, &sc->devmem, link) {
+		SLIST_FOREACH (dsc, &sc->devmem, link) {
 			if (dsc->segid == mseg->segid)
 				break;
 		}
-		KASSERT(dsc != NULL, ("%s: devmem segment %d not found",
-		    __func__, mseg->segid));
+		KASSERT(dsc != NULL,
+		    ("%s: devmem segment %d not found", __func__, mseg->segid));
 		error = copystr(dsc->name, mseg->name, len, NULL);
 	} else {
 		bzero(mseg->name, len);
@@ -309,7 +308,7 @@ alloc_memseg(struct vmmdev_softc *sc, struct vm_memseg *mseg, size_t len)
 		if (error)
 			vm_free_memseg(sc->vm, mseg->segid);
 		else
-			name = NULL;	/* freed when 'cdev' is destroyed */
+			name = NULL; /* freed when 'cdev' is destroyed */
 	}
 done:
 	free(name, M_VMMDEV);
@@ -317,8 +316,8 @@ done:
 }
 
 static int
-vm_get_register_set(struct vm *vm, int vcpu, unsigned int count, int *regnum,
-    uint64_t *regval)
+vm_get_register_set(
+    struct vm *vm, int vcpu, unsigned int count, int *regnum, uint64_t *regval)
 {
 	int error, i;
 
@@ -332,8 +331,8 @@ vm_get_register_set(struct vm *vm, int vcpu, unsigned int count, int *regnum,
 }
 
 static int
-vm_set_register_set(struct vm *vm, int vcpu, unsigned int count, int *regnum,
-    uint64_t *regval)
+vm_set_register_set(
+    struct vm *vm, int vcpu, unsigned int count, int *regnum, uint64_t *regval)
 {
 	int error, i;
 
@@ -347,8 +346,8 @@ vm_set_register_set(struct vm *vm, int vcpu, unsigned int count, int *regnum,
 }
 
 static int
-vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
-	     struct thread *td)
+vmmdev_ioctl(
+    struct cdev *cdev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	int error, vcpu, state_changed, size;
 	cpuset_t *cpuset;
@@ -476,7 +475,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	}
 
-	switch(cmd) {
+	switch (cmd) {
 	case VM_RUN:
 		vmrun = (struct vm_run *)data;
 		error = vm_run(sc->vm, vmrun);
@@ -490,8 +489,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_STAT_DESC: {
 		statdesc = (struct vm_stat_desc *)data;
-		error = vmm_stat_desc_copy(statdesc->index,
-					statdesc->desc, sizeof(statdesc->desc));
+		error = vmm_stat_desc_copy(
+		    statdesc->index, statdesc->desc, sizeof(statdesc->desc));
 		break;
 	}
 	case VM_STATS: {
@@ -499,54 +498,50 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		vmstats = (struct vm_stats *)data;
 		getmicrotime(&vmstats->tv);
 		error = vmm_stat_copy(sc->vm, vmstats->cpuid,
-				      &vmstats->num_entries, vmstats->statbuf);
+		    &vmstats->num_entries, vmstats->statbuf);
 		break;
 	}
 	case VM_PPTDEV_MSI:
 		pptmsi = (struct vm_pptdev_msi *)data;
-		error = ppt_setup_msi(sc->vm, pptmsi->vcpu,
-				      pptmsi->bus, pptmsi->slot, pptmsi->func,
-				      pptmsi->addr, pptmsi->msg,
-				      pptmsi->numvec);
+		error = ppt_setup_msi(sc->vm, pptmsi->vcpu, pptmsi->bus,
+		    pptmsi->slot, pptmsi->func, pptmsi->addr, pptmsi->msg,
+		    pptmsi->numvec);
 		break;
 	case VM_PPTDEV_MSIX:
 		pptmsix = (struct vm_pptdev_msix *)data;
-		error = ppt_setup_msix(sc->vm, pptmsix->vcpu,
-				       pptmsix->bus, pptmsix->slot, 
-				       pptmsix->func, pptmsix->idx,
-				       pptmsix->addr, pptmsix->msg,
-				       pptmsix->vector_control);
+		error = ppt_setup_msix(sc->vm, pptmsix->vcpu, pptmsix->bus,
+		    pptmsix->slot, pptmsix->func, pptmsix->idx, pptmsix->addr,
+		    pptmsix->msg, pptmsix->vector_control);
 		break;
 	case VM_PPTDEV_DISABLE_MSIX:
 		pptdev = (struct vm_pptdev *)data;
-		error = ppt_disable_msix(sc->vm, pptdev->bus, pptdev->slot,
-					 pptdev->func);
+		error = ppt_disable_msix(
+		    sc->vm, pptdev->bus, pptdev->slot, pptdev->func);
 		break;
 	case VM_MAP_PPTDEV_MMIO:
 		pptmmio = (struct vm_pptdev_mmio *)data;
 		error = ppt_map_mmio(sc->vm, pptmmio->bus, pptmmio->slot,
-				     pptmmio->func, pptmmio->gpa, pptmmio->len,
-				     pptmmio->hpa);
+		    pptmmio->func, pptmmio->gpa, pptmmio->len, pptmmio->hpa);
 		break;
 	case VM_UNMAP_PPTDEV_MMIO:
 		pptmmio = (struct vm_pptdev_mmio *)data;
 		error = ppt_unmap_mmio(sc->vm, pptmmio->bus, pptmmio->slot,
-				       pptmmio->func, pptmmio->gpa, pptmmio->len);
+		    pptmmio->func, pptmmio->gpa, pptmmio->len);
 		break;
 	case VM_BIND_PPTDEV:
 		pptdev = (struct vm_pptdev *)data;
-		error = vm_assign_pptdev(sc->vm, pptdev->bus, pptdev->slot,
-					 pptdev->func);
+		error = vm_assign_pptdev(
+		    sc->vm, pptdev->bus, pptdev->slot, pptdev->func);
 		break;
 	case VM_UNBIND_PPTDEV:
 		pptdev = (struct vm_pptdev *)data;
-		error = vm_unassign_pptdev(sc->vm, pptdev->bus, pptdev->slot,
-					   pptdev->func);
+		error = vm_unassign_pptdev(
+		    sc->vm, pptdev->bus, pptdev->slot, pptdev->func);
 		break;
 	case VM_INJECT_EXCEPTION:
 		vmexc = (struct vm_exception *)data;
-		error = vm_inject_exception(sc->vm, vmexc->cpuid,
-		    vmexc->vector, vmexc->error_code_valid, vmexc->error_code,
+		error = vm_inject_exception(sc->vm, vmexc->cpuid, vmexc->vector,
+		    vmexc->error_code_valid, vmexc->error_code,
 		    vmexc->restart_instruction);
 		break;
 	case VM_INJECT_NMI:
@@ -559,8 +554,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_LAPIC_LOCAL_IRQ:
 		vmirq = (struct vm_lapic_irq *)data;
-		error = lapic_set_local_intr(sc->vm, vmirq->cpuid,
-		    vmirq->vector);
+		error = lapic_set_local_intr(
+		    sc->vm, vmirq->cpuid, vmirq->vector);
 		break;
 	case VM_LAPIC_MSI:
 		vmmsi = (struct vm_lapic_msi *)data;
@@ -594,13 +589,16 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		else
 			size = 1;
 
-		if (kernemu->gpa >= DEFAULT_APIC_BASE && kernemu->gpa < DEFAULT_APIC_BASE + PAGE_SIZE) {
+		if (kernemu->gpa >= DEFAULT_APIC_BASE &&
+		    kernemu->gpa < DEFAULT_APIC_BASE + PAGE_SIZE) {
 			mread = lapic_mmio_read;
 			mwrite = lapic_mmio_write;
-		} else if (kernemu->gpa >= VIOAPIC_BASE && kernemu->gpa < VIOAPIC_BASE + VIOAPIC_SIZE) {
+		} else if (kernemu->gpa >= VIOAPIC_BASE &&
+		    kernemu->gpa < VIOAPIC_BASE + VIOAPIC_SIZE) {
 			mread = vioapic_mmio_read;
 			mwrite = vioapic_mmio_write;
-		} else if (kernemu->gpa >= VHPET_BASE && kernemu->gpa < VHPET_BASE + VHPET_SIZE) {
+		} else if (kernemu->gpa >= VHPET_BASE &&
+		    kernemu->gpa < VHPET_BASE + VHPET_SIZE) {
 			mread = vhpet_mmio_read;
 			mwrite = vhpet_mmio_write;
 		} else {
@@ -615,20 +613,19 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			error = mread(sc->vm, kernemu->vcpuid, kernemu->gpa,
 			    &kernemu->value, size, &arg);
 		break;
-		}
+	}
 	case VM_ISA_ASSERT_IRQ:
 		isa_irq = (struct vm_isa_irq *)data;
 		error = vatpic_assert_irq(sc->vm, isa_irq->atpic_irq);
 		if (error == 0 && isa_irq->ioapic_irq != -1)
-			error = vioapic_assert_irq(sc->vm,
-			    isa_irq->ioapic_irq);
+			error = vioapic_assert_irq(sc->vm, isa_irq->ioapic_irq);
 		break;
 	case VM_ISA_DEASSERT_IRQ:
 		isa_irq = (struct vm_isa_irq *)data;
 		error = vatpic_deassert_irq(sc->vm, isa_irq->atpic_irq);
 		if (error == 0 && isa_irq->ioapic_irq != -1)
-			error = vioapic_deassert_irq(sc->vm,
-			    isa_irq->ioapic_irq);
+			error = vioapic_deassert_irq(
+			    sc->vm, isa_irq->ioapic_irq);
 		break;
 	case VM_ISA_PULSE_IRQ:
 		isa_irq = (struct vm_isa_irq *)data;
@@ -677,25 +674,23 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_GET_REGISTER:
 		vmreg = (struct vm_register *)data;
-		error = vm_get_register(sc->vm, vmreg->cpuid, vmreg->regnum,
-					&vmreg->regval);
+		error = vm_get_register(
+		    sc->vm, vmreg->cpuid, vmreg->regnum, &vmreg->regval);
 		break;
 	case VM_SET_REGISTER:
 		vmreg = (struct vm_register *)data;
-		error = vm_set_register(sc->vm, vmreg->cpuid, vmreg->regnum,
-					vmreg->regval);
+		error = vm_set_register(
+		    sc->vm, vmreg->cpuid, vmreg->regnum, vmreg->regval);
 		break;
 	case VM_SET_SEGMENT_DESCRIPTOR:
 		vmsegdesc = (struct vm_seg_desc *)data;
 		error = vm_set_seg_desc(sc->vm, vmsegdesc->cpuid,
-					vmsegdesc->regnum,
-					&vmsegdesc->desc);
+		    vmsegdesc->regnum, &vmsegdesc->desc);
 		break;
 	case VM_GET_SEGMENT_DESCRIPTOR:
 		vmsegdesc = (struct vm_seg_desc *)data;
 		error = vm_get_seg_desc(sc->vm, vmsegdesc->cpuid,
-					vmsegdesc->regnum,
-					&vmsegdesc->desc);
+		    vmsegdesc->regnum, &vmsegdesc->desc);
 		break;
 	case VM_GET_REGISTER_SET:
 		vmregset = (struct vm_register_set *)data;
@@ -703,12 +698,12 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			error = EINVAL;
 			break;
 		}
-		regvals = malloc(sizeof(regvals[0]) * vmregset->count, M_VMMDEV,
-		    M_WAITOK);
-		regnums = malloc(sizeof(regnums[0]) * vmregset->count, M_VMMDEV,
-		    M_WAITOK);
-		error = copyin(vmregset->regnums, regnums, sizeof(regnums[0]) *
-		    vmregset->count);
+		regvals = malloc(
+		    sizeof(regvals[0]) * vmregset->count, M_VMMDEV, M_WAITOK);
+		regnums = malloc(
+		    sizeof(regnums[0]) * vmregset->count, M_VMMDEV, M_WAITOK);
+		error = copyin(vmregset->regnums, regnums,
+		    sizeof(regnums[0]) * vmregset->count);
 		if (error == 0)
 			error = vm_get_register_set(sc->vm, vmregset->cpuid,
 			    vmregset->count, regnums, regvals);
@@ -724,12 +719,12 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			error = EINVAL;
 			break;
 		}
-		regvals = malloc(sizeof(regvals[0]) * vmregset->count, M_VMMDEV,
-		    M_WAITOK);
-		regnums = malloc(sizeof(regnums[0]) * vmregset->count, M_VMMDEV,
-		    M_WAITOK);
-		error = copyin(vmregset->regnums, regnums, sizeof(regnums[0]) *
-		    vmregset->count);
+		regvals = malloc(
+		    sizeof(regvals[0]) * vmregset->count, M_VMMDEV, M_WAITOK);
+		regnums = malloc(
+		    sizeof(regnums[0]) * vmregset->count, M_VMMDEV, M_WAITOK);
+		error = copyin(vmregset->regnums, regnums,
+		    sizeof(regnums[0]) * vmregset->count);
 		if (error == 0)
 			error = copyin(vmregset->regvals, regvals,
 			    sizeof(regvals[0]) * vmregset->count);
@@ -741,30 +736,28 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_GET_CAPABILITY:
 		vmcap = (struct vm_capability *)data;
-		error = vm_get_capability(sc->vm, vmcap->cpuid,
-					  vmcap->captype,
-					  &vmcap->capval);
+		error = vm_get_capability(
+		    sc->vm, vmcap->cpuid, vmcap->captype, &vmcap->capval);
 		break;
 	case VM_SET_CAPABILITY:
 		vmcap = (struct vm_capability *)data;
-		error = vm_set_capability(sc->vm, vmcap->cpuid,
-					  vmcap->captype,
-					  vmcap->capval);
+		error = vm_set_capability(
+		    sc->vm, vmcap->cpuid, vmcap->captype, vmcap->capval);
 		break;
 	case VM_SET_X2APIC_STATE:
 		x2apic = (struct vm_x2apic *)data;
-		error = vm_set_x2apic_state(sc->vm,
-					    x2apic->cpuid, x2apic->state);
+		error = vm_set_x2apic_state(
+		    sc->vm, x2apic->cpuid, x2apic->state);
 		break;
 	case VM_GET_X2APIC_STATE:
 		x2apic = (struct vm_x2apic *)data;
-		error = vm_get_x2apic_state(sc->vm,
-					    x2apic->cpuid, &x2apic->state);
+		error = vm_get_x2apic_state(
+		    sc->vm, x2apic->cpuid, &x2apic->state);
 		break;
 	case VM_GET_GPA_PMAP:
 		gpapte = (struct vm_gpa_pte *)data;
 		pmap_get_mapping(vmspace_pmap(vm_get_vmspace(sc->vm)),
-				 gpapte->gpa, gpapte->pte, &gpapte->ptenum);
+		    gpapte->gpa, gpapte->pte, &gpapte->ptenum);
 		error = 0;
 		break;
 	case VM_GET_HPET_CAPABILITIES:
@@ -827,18 +820,18 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_GET_INTINFO:
 		vmii = (struct vm_intinfo *)data;
-		error = vm_get_intinfo(sc->vm, vmii->vcpuid, &vmii->info1,
-		    &vmii->info2);
+		error = vm_get_intinfo(
+		    sc->vm, vmii->vcpuid, &vmii->info1, &vmii->info2);
 		break;
 	case VM_RTC_WRITE:
 		rtcdata = (struct vm_rtc_data *)data;
-		error = vrtc_nvram_write(sc->vm, rtcdata->offset,
-		    rtcdata->value);
+		error = vrtc_nvram_write(
+		    sc->vm, rtcdata->offset, rtcdata->value);
 		break;
 	case VM_RTC_READ:
 		rtcdata = (struct vm_rtc_data *)data;
-		error = vrtc_nvram_read(sc->vm, rtcdata->offset,
-		    &rtcdata->value);
+		error = vrtc_nvram_read(
+		    sc->vm, rtcdata->offset, &rtcdata->value);
 		break;
 	case VM_RTC_SETTIME:
 		rtctime = (struct vm_rtc_time *)data;
@@ -930,8 +923,8 @@ vmmdev_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t mapsize,
 	gpa = 0;
 	found = 0;
 	while (!found) {
-		error = vm_mmap_getnext(sc->vm, &gpa, &segid, &segoff, &len,
-		    NULL, NULL);
+		error = vm_mmap_getnext(
+		    sc->vm, &gpa, &segid, &segoff, &len, NULL, NULL);
 		if (error)
 			break;
 
@@ -988,8 +981,7 @@ vmmdev_destroy(void *arg)
 	free(sc, M_VMMDEV);
 }
 
-static int
-sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
+static int sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 {
 	struct devmem_softc *dsc;
 	struct vmmdev_softc *sc;
@@ -1024,7 +1016,7 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 	 * is scheduled for destruction.
 	 */
 	cdev = sc->cdev;
-	sc->cdev = NULL;		
+	sc->cdev = NULL;
 	mtx_unlock(&vmmdev_mtx);
 
 	/*
@@ -1038,7 +1030,7 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 	 *
 	 * - the 'devmem' cdevs are destroyed before the virtual machine 'cdev'
 	 */
-	SLIST_FOREACH(dsc, &sc->devmem, link) {
+	SLIST_FOREACH (dsc, &sc->devmem, link) {
 		KASSERT(dsc->cdev != NULL, ("devmem cdev already destroyed"));
 		destroy_dev_sched_cb(dsc->cdev, devmem_destroy, dsc);
 	}
@@ -1050,21 +1042,19 @@ out:
 	return (error);
 }
 SYSCTL_PROC(_hw_vmm, OID_AUTO, destroy,
-    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
-    NULL, 0, sysctl_vmm_destroy, "A",
-    NULL);
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_vmm_destroy, "A", NULL);
 
 static struct cdevsw vmmdevsw = {
-	.d_name		= "vmmdev",
-	.d_version	= D_VERSION,
-	.d_ioctl	= vmmdev_ioctl,
-	.d_mmap_single	= vmmdev_mmap_single,
-	.d_read		= vmmdev_rw,
-	.d_write	= vmmdev_rw,
+	.d_name = "vmmdev",
+	.d_version = D_VERSION,
+	.d_ioctl = vmmdev_ioctl,
+	.d_mmap_single = vmmdev_mmap_single,
+	.d_read = vmmdev_rw,
+	.d_write = vmmdev_rw,
 };
 
-static int
-sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
+static int sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 {
 	struct vm *vm;
 	struct cdev *cdev;
@@ -1117,8 +1107,8 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 		goto out;
 	}
 
-	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &vmmdevsw, NULL,
-			   UID_ROOT, GID_WHEEL, 0600, "vmm/%s", buf);
+	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &vmmdevsw, NULL, UID_ROOT,
+	    GID_WHEEL, 0600, "vmm/%s", buf);
 	if (error != 0) {
 		vmmdev_destroy(sc);
 		goto out;
@@ -1134,16 +1124,15 @@ out:
 	return (error);
 }
 SYSCTL_PROC(_hw_vmm, OID_AUTO, create,
-    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
-    NULL, 0, sysctl_vmm_create, "A",
-    NULL);
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_vmm_create, "A", NULL);
 
 void
 vmmdev_init(void)
 {
 	mtx_init(&vmmdev_mtx, "vmm device mutex", NULL, MTX_DEF);
-	pr_allow_flag = prison_add_allow(NULL, "vmm", NULL,
-	    "Allow use of vmm in a jail.");
+	pr_allow_flag = prison_add_allow(
+	    NULL, "vmm", NULL, "Allow use of vmm in a jail.");
 }
 
 int
@@ -1201,9 +1190,9 @@ devmem_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t len,
 }
 
 static struct cdevsw devmemsw = {
-	.d_name		= "devmem",
-	.d_version	= D_VERSION,
-	.d_mmap_single	= devmem_mmap_single,
+	.d_name = "devmem",
+	.d_version = D_VERSION,
+	.d_mmap_single = devmem_mmap_single,
 };
 
 static int
@@ -1214,8 +1203,8 @@ devmem_create_cdev(const char *vmname, int segid, char *devname)
 	struct cdev *cdev;
 	int error;
 
-	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &devmemsw, NULL,
-	    UID_ROOT, GID_WHEEL, 0600, "vmm.io/%s.%s", vmname, devname);
+	error = make_dev_p(MAKEDEV_CHECKNAME, &cdev, &devmemsw, NULL, UID_ROOT,
+	    GID_WHEEL, 0600, "vmm.io/%s.%s", vmname, devname);
 	if (error)
 		return (error);
 

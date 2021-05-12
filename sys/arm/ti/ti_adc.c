@@ -32,45 +32,44 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
+#include <sys/condvar.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/condvar.h>
+#include <sys/poll.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
-#include <sys/sysctl.h>
 #include <sys/selinfo.h>
-#include <sys/poll.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #include <machine/bus.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #ifdef EVDEV_SUPPORT
-#include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
+#include <dev/evdev/input.h>
 #endif
 
-#include <arm/ti/ti_sysc.h>
 #include <arm/ti/ti_adcreg.h>
 #include <arm/ti/ti_adcvar.h>
+#include <arm/ti/ti_sysc.h>
 
-#undef	DEBUG_TSC
+#undef DEBUG_TSC
 
-#define	DEFAULT_CHARGE_DELAY	0x400
-#define	STEPDLY_OPEN		0x98
+#define DEFAULT_CHARGE_DELAY 0x400
+#define STEPDLY_OPEN 0x98
 
-#define	ORDER_XP	0
-#define	ORDER_XN	1
-#define	ORDER_YP	2
-#define	ORDER_YN	3
+#define ORDER_XP 0
+#define ORDER_XN 1
+#define ORDER_YP 2
+#define ORDER_YN 3
 
 /* Define our 8 steps, one for each input channel. */
 static struct ti_adc_input ti_adc_inputs[TI_ADC_NPINS] = {
@@ -255,8 +254,7 @@ ti_adc_reset(struct ti_adc_softc *sc)
 	}
 }
 
-static int
-ti_adc_clockdiv_proc(SYSCTL_HANDLER_ARGS)
+static int ti_adc_clockdiv_proc(SYSCTL_HANDLER_ARGS)
 {
 	int error, reg;
 	struct ti_adc_softc *sc;
@@ -294,8 +292,7 @@ ti_adc_clockdiv_proc(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-ti_adc_enable_proc(SYSCTL_HANDLER_ARGS)
+static int ti_adc_enable_proc(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	int32_t enable;
@@ -306,8 +303,7 @@ ti_adc_enable_proc(SYSCTL_HANDLER_ARGS)
 	sc = input->sc;
 
 	enable = input->enable;
-	error = sysctl_handle_int(oidp, &enable, sizeof(enable),
-	    req);
+	error = sysctl_handle_int(oidp, &enable, sizeof(enable), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
@@ -327,8 +323,7 @@ ti_adc_enable_proc(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-ti_adc_open_delay_proc(SYSCTL_HANDLER_ARGS)
+static int ti_adc_open_delay_proc(SYSCTL_HANDLER_ARGS)
 {
 	int error, reg;
 	struct ti_adc_softc *sc;
@@ -355,8 +350,7 @@ ti_adc_open_delay_proc(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-ti_adc_samples_avg_proc(SYSCTL_HANDLER_ARGS)
+static int ti_adc_samples_avg_proc(SYSCTL_HANDLER_ARGS)
 {
 	int error, samples, i;
 	struct ti_adc_softc *sc;
@@ -447,13 +441,11 @@ ti_adc_tsc_read_data(struct ti_adc_softc *sc)
 	if (sc->sc_coord_readouts > 3) {
 		start = 1;
 		end = sc->sc_coord_readouts - 1;
-		qsort(data, sc->sc_coord_readouts,
-			sizeof(data[0]), &cmp_values);
-		qsort(&data[sc->sc_coord_readouts + 2],
-			sc->sc_coord_readouts,
-			sizeof(data[0]), &cmp_values);
-	}
-	else {
+		qsort(
+		    data, sc->sc_coord_readouts, sizeof(data[0]), &cmp_values);
+		qsort(&data[sc->sc_coord_readouts + 2], sc->sc_coord_readouts,
+		    sizeof(data[0]), &cmp_values);
+	} else {
 		start = 0;
 		end = sc->sc_coord_readouts;
 	}
@@ -463,7 +455,8 @@ ti_adc_tsc_read_data(struct ti_adc_softc *sc)
 		y += data[i];
 	y /= (end - start);
 
-	for (i = sc->sc_coord_readouts + 2 + start; i < sc->sc_coord_readouts + 2 + end; i++)
+	for (i = sc->sc_coord_readouts + 2 + start;
+	     i < sc->sc_coord_readouts + 2 + end; i++)
 		x += data[i];
 	x /= (end - start);
 
@@ -494,7 +487,6 @@ ti_adc_tsc_intr_locked(struct ti_adc_softc *sc, uint32_t status)
 	/* Read the available data. */
 	if (status & ADC_IRQ_FIFO1_THRES)
 		ti_adc_tsc_read_data(sc);
-
 }
 
 static void
@@ -513,8 +505,7 @@ ti_adc_intr(void *arg)
 	if (rawstatus & ADC_IRQ_HW_PEN_ASYNC) {
 		sc->sc_pen_down = 1;
 		status |= ADC_IRQ_HW_PEN_ASYNC;
-		ADC_WRITE4(sc, ADC_IRQENABLE_CLR,
-			ADC_IRQ_HW_PEN_ASYNC);
+		ADC_WRITE4(sc, ADC_IRQENABLE_CLR, ADC_IRQ_HW_PEN_ASYNC);
 #ifdef EVDEV_SUPPORT
 		ti_adc_ev_report(sc);
 #endif
@@ -562,7 +553,7 @@ ti_adc_sysctl_init(struct ti_adc_softc *sc)
 	tree_node = device_get_sysctl_tree(sc->sc_dev);
 	tree = SYSCTL_CHILDREN(tree_node);
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "clockdiv",
-	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,  sc, 0,
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, sc, 0,
 	    ti_adc_clockdiv_proc, "IU", "ADC clock prescaler");
 	inp_node = SYSCTL_ADD_NODE(ctx, tree, OID_AUTO, "ain",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "ADC inputs");
@@ -578,18 +569,18 @@ ti_adc_sysctl_init(struct ti_adc_softc *sc)
 
 		SYSCTL_ADD_PROC(ctx, inpN_tree, OID_AUTO, "enable",
 		    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
-		    &ti_adc_inputs[ain], 0,
-		    ti_adc_enable_proc, "IU", "Enable ADC input");
+		    &ti_adc_inputs[ain], 0, ti_adc_enable_proc, "IU",
+		    "Enable ADC input");
 		SYSCTL_ADD_PROC(ctx, inpN_tree, OID_AUTO, "open_delay",
 		    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
-		    &ti_adc_inputs[ain], 0,
-		    ti_adc_open_delay_proc, "IU", "ADC open delay");
+		    &ti_adc_inputs[ain], 0, ti_adc_open_delay_proc, "IU",
+		    "ADC open delay");
 		SYSCTL_ADD_PROC(ctx, inpN_tree, OID_AUTO, "samples_avg",
 		    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
-		    &ti_adc_inputs[ain], 0,
-		    ti_adc_samples_avg_proc, "IU", "ADC samples average");
-		SYSCTL_ADD_INT(ctx, inpN_tree, OID_AUTO, "input",
-		    CTLFLAG_RD, &ti_adc_inputs[ain].value, 0,
+		    &ti_adc_inputs[ain], 0, ti_adc_samples_avg_proc, "IU",
+		    "ADC samples average");
+		SYSCTL_ADD_INT(ctx, inpN_tree, OID_AUTO, "input", CTLFLAG_RD,
+		    &ti_adc_inputs[ain].value, 0,
 		    "Converted raw value for the ADC input");
 	}
 }
@@ -628,8 +619,8 @@ ti_adc_tsc_init(struct ti_adc_softc *sc)
 	if (sc->sc_tsc_wires == 4)
 		stepconfig |= ADC_STEP_INP(sc->sc_yp_inp) | sc->sc_xn_bit;
 	else if (sc->sc_tsc_wires == 5)
-		stepconfig |= ADC_STEP_INP(4) |
-			sc->sc_xn_bit | sc->sc_yn_bit | sc->sc_yp_bit;
+		stepconfig |= ADC_STEP_INP(4) | sc->sc_xn_bit | sc->sc_yn_bit |
+		    sc->sc_yp_bit;
 	else if (sc->sc_tsc_wires == 8)
 		stepconfig |= ADC_STEP_INP(sc->sc_yp_inp) | sc->sc_xn_bit;
 
@@ -642,17 +633,16 @@ ti_adc_tsc_init(struct ti_adc_softc *sc)
 
 	/* Y coordinates */
 	stepconfig = ADC_STEP_FIFO1 | (4 << ADC_STEP_AVG_SHIFT) |
-	    ADC_STEP_MODE_HW_ONESHOT | sc->sc_yn_bit |
-	    ADC_STEP_INM(8);
+	    ADC_STEP_MODE_HW_ONESHOT | sc->sc_yn_bit | ADC_STEP_INM(8);
 	if (sc->sc_tsc_wires == 4)
 		stepconfig |= ADC_STEP_INP(sc->sc_xp_inp) | sc->sc_yp_bit;
 	else if (sc->sc_tsc_wires == 5)
-		stepconfig |= ADC_STEP_INP(4) |
-			sc->sc_xp_bit | sc->sc_xn_bit | sc->sc_yp_bit;
+		stepconfig |= ADC_STEP_INP(4) | sc->sc_xp_bit | sc->sc_xn_bit |
+		    sc->sc_yp_bit;
 	else if (sc->sc_tsc_wires == 8)
 		stepconfig |= ADC_STEP_INP(sc->sc_xp_inp) | sc->sc_yp_bit;
 
-	start_step = ADC_STEPS - (sc->sc_coord_readouts*2 + 2) + 1;
+	start_step = ADC_STEPS - (sc->sc_coord_readouts * 2 + 2) + 1;
 	end_step = start_step + sc->sc_coord_readouts - 1;
 	for (i = start_step; i <= end_step; i++) {
 		ADC_WRITE4(sc, ADC_STEPCFG(i), stepconfig);
@@ -667,9 +657,8 @@ ti_adc_tsc_init(struct ti_adc_softc *sc)
 	/* 2 steps for Z */
 	start_step = ADC_STEPS - (sc->sc_coord_readouts + 2) + 1;
 	stepconfig = ADC_STEP_FIFO1 | (4 << ADC_STEP_AVG_SHIFT) |
-	    ADC_STEP_MODE_HW_ONESHOT | sc->sc_yp_bit |
-	    sc->sc_xn_bit | ADC_STEP_INP(sc->sc_xp_inp) |
-	    ADC_STEP_INM(8);
+	    ADC_STEP_MODE_HW_ONESHOT | sc->sc_yp_bit | sc->sc_xn_bit |
+	    ADC_STEP_INP(sc->sc_xp_inp) | ADC_STEP_INM(8);
 	ADC_WRITE4(sc, ADC_STEPCFG(start_step), stepconfig);
 	ADC_WRITE4(sc, ADC_STEPDLY(start_step), STEPDLY_OPEN);
 	start_step++;
@@ -677,10 +666,10 @@ ti_adc_tsc_init(struct ti_adc_softc *sc)
 	ADC_WRITE4(sc, ADC_STEPCFG(start_step), stepconfig);
 	ADC_WRITE4(sc, ADC_STEPDLY(start_step), STEPDLY_OPEN);
 
-	ADC_WRITE4(sc, ADC_FIFO1THRESHOLD, (sc->sc_coord_readouts*2 + 2) - 1);
+	ADC_WRITE4(sc, ADC_FIFO1THRESHOLD, (sc->sc_coord_readouts * 2 + 2) - 1);
 
 	sc->sc_tsc_enabled = 1;
-	start_step = ADC_STEPS - (sc->sc_coord_readouts*2 + 2) + 1;
+	start_step = ADC_STEPS - (sc->sc_coord_readouts * 2 + 2) + 1;
 	end_step = ADC_STEPS;
 	for (i = start_step; i <= end_step; i++) {
 		sc->sc_tsc_enabled |= (1 << i);
@@ -694,13 +683,15 @@ ti_adc_idlestep_init(struct ti_adc_softc *sc)
 {
 	uint32_t val;
 
-	val = ADC_STEP_YNN_SW | ADC_STEP_INM(8) | ADC_STEP_INP(8) | ADC_STEP_YPN_SW;
+	val = ADC_STEP_YNN_SW | ADC_STEP_INM(8) | ADC_STEP_INP(8) |
+	    ADC_STEP_YPN_SW;
 
 	ADC_WRITE4(sc, ADC_IDLECONFIG, val);
 }
 
 static int
-ti_adc_config_wires(struct ti_adc_softc *sc, int *wire_configs, int nwire_configs)
+ti_adc_config_wires(
+    struct ti_adc_softc *sc, int *wire_configs, int nwire_configs)
 {
 	int i;
 	int wire, ai;
@@ -771,13 +762,13 @@ ti_adc_attach(device_t dev)
 		if ((OF_getencprop(child, "ti,wires", &cell, sizeof(cell))) > 0)
 			sc->sc_tsc_wires = cell;
 		if ((OF_getencprop(child, "ti,coordinate-readouts", &cell,
-		    sizeof(cell))) > 0)
+			sizeof(cell))) > 0)
 			sc->sc_coord_readouts = cell;
 		if ((OF_getencprop(child, "ti,x-plate-resistance", &cell,
-		    sizeof(cell))) > 0)
+			sizeof(cell))) > 0)
 			sc->sc_x_plate_resistance = cell;
-		if ((OF_getencprop(child, "ti,charge-delay", &cell,
-		    sizeof(cell))) > 0)
+		if ((OF_getencprop(
+			child, "ti,charge-delay", &cell, sizeof(cell))) > 0)
 			sc->sc_charge_delay = cell;
 		nwire_configs = OF_getencprop_alloc_multi(child,
 		    "ti,wire-config", sizeof(*wire_configs),
@@ -809,14 +800,15 @@ ti_adc_attach(device_t dev)
 
 	/* Sanity check FDT data */
 	if (sc->sc_tsc_wires + sc->sc_adc_nchannels > TI_ADC_NPINS) {
-		device_printf(dev, "total number of chanels (%d) is larger than %d\n",
+		device_printf(dev,
+		    "total number of chanels (%d) is larger than %d\n",
 		    sc->sc_tsc_wires + sc->sc_adc_nchannels, TI_ADC_NPINS);
 		return (ENXIO);
 	}
 
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
 		return (ENXIO);
@@ -828,8 +820,8 @@ ti_adc_attach(device_t dev)
 		return (err);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!sc->sc_irq_res) {
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot allocate interrupt\n");
@@ -837,7 +829,7 @@ ti_adc_attach(device_t dev)
 	}
 
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, ti_adc_intr, sc, &sc->sc_intrhand) != 0) {
+		NULL, ti_adc_intr, sc, &sc->sc_intrhand) != 0) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "Unable to setup the irq handler.\n");
@@ -845,7 +837,8 @@ ti_adc_attach(device_t dev)
 	}
 
 	/* Check the ADC revision. */
-	rev = ADC_READ4(sc, ti_sysc_get_rev_address_offset_host(device_get_parent(dev)));
+	rev = ADC_READ4(
+	    sc, ti_sysc_get_rev_address_offset_host(device_get_parent(dev)));
 	device_printf(dev,
 	    "scheme: %#x func: %#x rtl: %d rev: %d.%d custom rev: %d\n",
 	    (rev & ADC_REV_SCHEME_MSK) >> ADC_REV_SCHEME_SHIFT,
@@ -890,17 +883,17 @@ ti_adc_attach(device_t dev)
 		evdev_support_event(sc->sc_evdev, EV_ABS);
 		evdev_support_event(sc->sc_evdev, EV_KEY);
 
-		evdev_support_abs(sc->sc_evdev, ABS_X, 0,
-		    ADC_MAX_VALUE, 0, 0, 0);
-		evdev_support_abs(sc->sc_evdev, ABS_Y, 0,
-		    ADC_MAX_VALUE, 0, 0, 0);
+		evdev_support_abs(
+		    sc->sc_evdev, ABS_X, 0, ADC_MAX_VALUE, 0, 0, 0);
+		evdev_support_abs(
+		    sc->sc_evdev, ABS_Y, 0, ADC_MAX_VALUE, 0, 0, 0);
 
 		evdev_support_key(sc->sc_evdev, BTN_TOUCH);
 
 		err = evdev_register(sc->sc_evdev);
 		if (err) {
-			device_printf(dev,
-			    "failed to register evdev: error=%d\n", err);
+			device_printf(
+			    dev, "failed to register evdev: error=%d\n", err);
 			ti_adc_detach(dev);
 			return (err);
 		}
@@ -944,13 +937,12 @@ ti_adc_detach(device_t dev)
 	return (bus_generic_detach(dev));
 }
 
-static device_method_t ti_adc_methods[] = {
-	DEVMETHOD(device_probe,		ti_adc_probe),
-	DEVMETHOD(device_attach,	ti_adc_attach),
-	DEVMETHOD(device_detach,	ti_adc_detach),
+static device_method_t ti_adc_methods[] = { DEVMETHOD(
+						device_probe, ti_adc_probe),
+	DEVMETHOD(device_attach, ti_adc_attach),
+	DEVMETHOD(device_detach, ti_adc_detach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t ti_adc_driver = {
 	"ti_adc",

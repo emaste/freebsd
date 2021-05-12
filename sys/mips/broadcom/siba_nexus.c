@@ -29,31 +29,30 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <sys/rman.h>
 #include <machine/resource.h>
 
 #include <dev/bhnd/bhnd_ids.h>
-
 #include <dev/bhnd/siba/sibareg.h>
 #include <dev/bhnd/siba/sibavar.h>
 
 #include "bcm_machdep.h"
 #include "bcm_mipsvar.h"
-
 #include "bhnd_nexusvar.h"
 
 /*
  * Supports siba(4) attachment to a MIPS nexus bus.
- * 
+ *
  * Derived from Bruce M. Simpson' original siba(4) driver.
  */
 
-_Static_assert(SIBA_MAX_INTR == BCM_MIPS_NINTR, "SIBA incompatible with "
+_Static_assert(SIBA_MAX_INTR == BCM_MIPS_NINTR,
+    "SIBA incompatible with "
     "generic NINTR");
 
 static int
@@ -95,8 +94,8 @@ failed:
 
 static device_method_t siba_nexus_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,			siba_nexus_probe),
-	DEVMETHOD(device_attach,		siba_nexus_attach),
+	DEVMETHOD(device_probe, siba_nexus_probe),
+	DEVMETHOD(device_attach, siba_nexus_attach),
 
 	DEVMETHOD_END
 };

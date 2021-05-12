@@ -33,6 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/capsicum.h>
 #include <sys/clock.h>
 #include <sys/dirent.h>
@@ -54,16 +55,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
 
-#include <security/mac/mac_framework.h>
-
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/ufsmount.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 
 #include <machine/frame.h>
 #include <machine/md_var.h>
@@ -72,19 +72,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/segments.h>
 #include <machine/specialreg.h>
 
-#include <vm/pmap.h>
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_map.h>
-
+#include <amd64/linux/linux.h>
+#include <amd64/linux/linux_proto.h>
 #include <x86/ifunc.h>
 #include <x86/sysarch.h>
 
-#include <security/audit/audit.h>
-
-#include <amd64/linux/linux.h>
-#include <amd64/linux/linux_proto.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_ipc.h>
@@ -92,6 +84,11 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_mmap.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
+#include <security/audit/audit.h>
+#include <security/mac/mac_framework.h>
+#include <ufs/ufs/extattr.h>
+#include <ufs/ufs/quota.h>
+#include <ufs/ufs/ufsmount.h>
 
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
@@ -103,12 +100,12 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	LINUX_CTR(execve);
 
 	if (!LUSECONVPATH(td)) {
-		error = exec_copyin_args(&eargs, args->path, UIO_USERSPACE,
-		    args->argp, args->envp);
+		error = exec_copyin_args(
+		    &eargs, args->path, UIO_USERSPACE, args->argp, args->envp);
 	} else {
 		LCONVPATHEXIST(td, args->path, &path);
-		error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, args->argp,
-		    args->envp);
+		error = exec_copyin_args(
+		    &eargs, path, UIO_SYSSPACE, args->argp, args->envp);
 		LFREEPATH(path);
 	}
 	if (error == 0)
@@ -137,7 +134,7 @@ linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 {
 
 	return (linux_mmap_common(td, args->addr, args->len, args->prot,
-		args->flags, args->fd, args->pgoff));
+	    args->flags, args->fd, args->pgoff));
 }
 
 int
@@ -180,8 +177,7 @@ linux_rt_sigsuspend(struct thread *td, struct linux_rt_sigsuspend_args *uap)
 	sigset_t sigmask;
 	int error;
 
-	LINUX_CTR2(rt_sigsuspend, "%p, %ld",
-	    uap->newset, uap->sigsetsize);
+	LINUX_CTR2(rt_sigsuspend, "%p, %ld", uap->newset, uap->sigsetsize);
 
 	if (uap->sigsetsize != sizeof(l_sigset_t))
 		return (EINVAL);
@@ -269,12 +265,12 @@ linux_arch_prctl(struct thread *td, struct linux_arch_prctl_args *args)
 			error = EPERM;
 		break;
 	case LINUX_ARCH_GET_FS:
-		error = copyout(&pcb->pcb_fsbase, PTRIN(args->addr),
-		    sizeof(args->addr));
+		error = copyout(
+		    &pcb->pcb_fsbase, PTRIN(args->addr), sizeof(args->addr));
 		break;
 	case LINUX_ARCH_GET_GS:
-		error = copyout(&pcb->pcb_gsbase, PTRIN(args->addr),
-		    sizeof(args->addr));
+		error = copyout(
+		    &pcb->pcb_gsbase, PTRIN(args->addr), sizeof(args->addr));
 		break;
 	case LINUX_ARCH_CET_STATUS:
 		memset(cet, 0, sizeof(cet));
@@ -309,7 +305,8 @@ DEFINE_IFUNC(, int, futex_xchgl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    futex_xchgl_smap : futex_xchgl_nosmap);
+		      futex_xchgl_smap :
+		      futex_xchgl_nosmap);
 }
 
 int futex_addl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
@@ -318,7 +315,8 @@ DEFINE_IFUNC(, int, futex_addl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    futex_addl_smap : futex_addl_nosmap);
+		      futex_addl_smap :
+		      futex_addl_nosmap);
 }
 
 int futex_orl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
@@ -327,7 +325,8 @@ DEFINE_IFUNC(, int, futex_orl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    futex_orl_smap : futex_orl_nosmap);
+		      futex_orl_smap :
+		      futex_orl_nosmap);
 }
 
 int futex_andl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
@@ -336,7 +335,8 @@ DEFINE_IFUNC(, int, futex_andl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    futex_andl_smap : futex_andl_nosmap);
+		      futex_andl_smap :
+		      futex_andl_nosmap);
 }
 
 int futex_xorl_nosmap(int oparg, uint32_t *uaddr, int *oldval);
@@ -345,5 +345,6 @@ DEFINE_IFUNC(, int, futex_xorl, (int, uint32_t *, int *))
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    futex_xorl_smap : futex_xorl_nosmap);
+		      futex_xorl_smap :
+		      futex_xorl_nosmap);
 }

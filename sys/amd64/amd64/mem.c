@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
@@ -57,18 +58,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
-
-#include <machine/md_var.h>
-#include <machine/specialreg.h>
-#include <machine/vmparam.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
+#include <machine/md_var.h>
 #include <machine/memdev.h>
+#include <machine/specialreg.h>
+#include <machine/vmparam.h>
 
 /*
  * Used in /dev/mem drivers and elsewhere
@@ -113,8 +112,9 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 				break;
 			}
 
-			if (!kernacc((void *)v, c, uio->uio_rw == UIO_READ ?
-			    VM_PROT_READ : VM_PROT_WRITE)) {
+			if (!kernacc((void *)v, c,
+				uio->uio_rw == UIO_READ ? VM_PROT_READ :
+								VM_PROT_WRITE)) {
 				error = EFAULT;
 				break;
 			}
@@ -185,7 +185,7 @@ memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
  * This is basically just an ioctl shim for mem_range_attr_get
  * and mem_range_attr_set.
  */
-int 
+int
 memioctl_md(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
     struct thread *td)
 {
@@ -194,8 +194,7 @@ memioctl_md(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
 	struct mem_range_desc *md;
 
 	/* is this for us? */
-	if ((cmd != MEMRANGE_GET) &&
-	    (cmd != MEMRANGE_SET))
+	if ((cmd != MEMRANGE_GET) && (cmd != MEMRANGE_SET))
 		return (ENOTTY);
 
 	/* any chance we can handle this? */
@@ -210,23 +209,22 @@ memioctl_md(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
 	case MEMRANGE_GET:
 		nd = imin(mo->mo_arg[0], mem_range_softc.mr_ndesc);
 		if (nd > 0) {
-			md = (struct mem_range_desc *)
-				malloc(nd * sizeof(struct mem_range_desc),
-				       M_MEMDESC, M_WAITOK);
+			md = (struct mem_range_desc *)malloc(
+			    nd * sizeof(struct mem_range_desc), M_MEMDESC,
+			    M_WAITOK);
 			error = mem_range_attr_get(md, &nd);
 			if (!error)
-				error = copyout(md, mo->mo_desc, 
-					nd * sizeof(struct mem_range_desc));
+				error = copyout(md, mo->mo_desc,
+				    nd * sizeof(struct mem_range_desc));
 			free(md, M_MEMDESC);
-		}
-		else
+		} else
 			nd = mem_range_softc.mr_ndesc;
 		mo->mo_arg[0] = nd;
 		break;
-		
+
 	case MEMRANGE_SET:
-		md = (struct mem_range_desc *)malloc(sizeof(struct mem_range_desc),
-						    M_MEMDESC, M_WAITOK);
+		md = (struct mem_range_desc *)malloc(
+		    sizeof(struct mem_range_desc), M_MEMDESC, M_WAITOK);
 		error = copyin(mo->mo_desc, md, sizeof(struct mem_range_desc));
 		/* clamp description string */
 		md->mr_owner[sizeof(md->mr_owner) - 1] = 0;

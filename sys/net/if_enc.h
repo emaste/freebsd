@@ -33,13 +33,13 @@
 #define _NET_IF_ENC_H
 
 struct ipsec_ctx_data {
-	struct mbuf	**mp;
-	struct secasvar	*sav;
-	struct inpcb	*inp;
-	uint8_t		af;
-#define	IPSEC_ENC_BEFORE	0x01
-#define	IPSEC_ENC_AFTER		0x02
-	uint8_t		enc;
+	struct mbuf **mp;
+	struct secasvar *sav;
+	struct inpcb *inp;
+	uint8_t af;
+#define IPSEC_ENC_BEFORE 0x01
+#define IPSEC_ENC_AFTER 0x02
+	uint8_t enc;
 };
 
 #endif /* _NET_IF_ENC_H */

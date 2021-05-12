@@ -33,133 +33,109 @@
  * Deflate PPP compression netgraph node type.
  */
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
-#include <sys/endian.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
-#include <contrib/zlib/zlib.h>
-
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
-#include <netgraph/ng_deflate.h>
-
 #include "opt_netgraph.h"
 
-static MALLOC_DEFINE(M_NETGRAPH_DEFLATE, "netgraph_deflate",
-    "netgraph deflate node");
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/endian.h>
+#include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/syslog.h>
+
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_deflate.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
+
+#include <contrib/zlib/zlib.h>
+
+static MALLOC_DEFINE(
+    M_NETGRAPH_DEFLATE, "netgraph_deflate", "netgraph deflate node");
 
 /* DEFLATE header length */
-#define DEFLATE_HDRLEN		2
+#define DEFLATE_HDRLEN 2
 
-#define PROT_COMPD		0x00fd
+#define PROT_COMPD 0x00fd
 
-#define DEFLATE_BUF_SIZE	4096
+#define DEFLATE_BUF_SIZE 4096
 
 /* Node private data */
 struct ng_deflate_private {
-	struct ng_deflate_config cfg;		/* configuration */
-	u_char		inbuf[DEFLATE_BUF_SIZE];	/* input buffer */
-	u_char		outbuf[DEFLATE_BUF_SIZE];	/* output buffer */
-	z_stream 	cx;			/* compression context */
-	struct ng_deflate_stats stats;		/* statistics */
-	ng_ID_t		ctrlnode;		/* path to controlling node */
-	uint16_t	seqnum;			/* sequence number */
-	u_char		compress;		/* compress/decompress flag */
+	struct ng_deflate_config cfg;	 /* configuration */
+	u_char inbuf[DEFLATE_BUF_SIZE];	 /* input buffer */
+	u_char outbuf[DEFLATE_BUF_SIZE]; /* output buffer */
+	z_stream cx;			 /* compression context */
+	struct ng_deflate_stats stats;	 /* statistics */
+	ng_ID_t ctrlnode;		 /* path to controlling node */
+	uint16_t seqnum;		 /* sequence number */
+	u_char compress;		 /* compress/decompress flag */
 };
 typedef struct ng_deflate_private *priv_p;
 
 /* Netgraph node methods */
-static ng_constructor_t	ng_deflate_constructor;
-static ng_rcvmsg_t	ng_deflate_rcvmsg;
-static ng_shutdown_t	ng_deflate_shutdown;
-static ng_newhook_t	ng_deflate_newhook;
-static ng_rcvdata_t	ng_deflate_rcvdata;
-static ng_disconnect_t	ng_deflate_disconnect;
+static ng_constructor_t ng_deflate_constructor;
+static ng_rcvmsg_t ng_deflate_rcvmsg;
+static ng_shutdown_t ng_deflate_shutdown;
+static ng_newhook_t ng_deflate_newhook;
+static ng_rcvdata_t ng_deflate_rcvdata;
+static ng_disconnect_t ng_deflate_disconnect;
 
 /* Helper functions */
-static int	ng_deflate_compress(node_p, struct mbuf *, struct mbuf **);
-static int	ng_deflate_decompress(node_p, struct mbuf *, struct mbuf **);
-static void	ng_deflate_reset_req(node_p);
+static int ng_deflate_compress(node_p, struct mbuf *, struct mbuf **);
+static int ng_deflate_decompress(node_p, struct mbuf *, struct mbuf **);
+static void ng_deflate_reset_req(node_p);
 
 /* Parse type for struct ng_deflate_config. */
-static const struct ng_parse_struct_field ng_deflate_config_type_fields[]
-	= NG_DEFLATE_CONFIG_INFO;
+static const struct ng_parse_struct_field ng_deflate_config_type_fields[] =
+    NG_DEFLATE_CONFIG_INFO;
 static const struct ng_parse_type ng_deflate_config_type = {
-	&ng_parse_struct_type,
-	ng_deflate_config_type_fields
+	&ng_parse_struct_type, ng_deflate_config_type_fields
 };
 
 /* Parse type for struct ng_deflate_stat. */
-static const struct ng_parse_struct_field ng_deflate_stats_type_fields[]
-	= NG_DEFLATE_STATS_INFO;
+static const struct ng_parse_struct_field ng_deflate_stats_type_fields[] =
+    NG_DEFLATE_STATS_INFO;
 static const struct ng_parse_type ng_deflate_stat_type = {
-	&ng_parse_struct_type,
-	ng_deflate_stats_type_fields
+	&ng_parse_struct_type, ng_deflate_stats_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII. */
 static const struct ng_cmdlist ng_deflate_cmds[] = {
-	{
-	  NGM_DEFLATE_COOKIE,
-	  NGM_DEFLATE_CONFIG,
-	  "config",
-	  &ng_deflate_config_type,
-	  NULL
-	},
-	{
-	  NGM_DEFLATE_COOKIE,
-	  NGM_DEFLATE_RESETREQ,
-	  "resetreq",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_DEFLATE_COOKIE,
-	  NGM_DEFLATE_GET_STATS,
-	  "getstats",
-	  NULL,
-	  &ng_deflate_stat_type
-	},
-	{
-	  NGM_DEFLATE_COOKIE,
-	  NGM_DEFLATE_CLR_STATS,
-	  "clrstats",
-	  NULL,
-	  NULL
-	},
-	{
-	  NGM_DEFLATE_COOKIE,
-	  NGM_DEFLATE_GETCLR_STATS,
-	  "getclrstats",
-	  NULL,
-	  &ng_deflate_stat_type
-	},
+	{ NGM_DEFLATE_COOKIE, NGM_DEFLATE_CONFIG, "config",
+	    &ng_deflate_config_type, NULL },
+	{ NGM_DEFLATE_COOKIE, NGM_DEFLATE_RESETREQ, "resetreq", NULL, NULL },
+	{ NGM_DEFLATE_COOKIE, NGM_DEFLATE_GET_STATS, "getstats", NULL,
+	    &ng_deflate_stat_type },
+	{ NGM_DEFLATE_COOKIE, NGM_DEFLATE_CLR_STATS, "clrstats", NULL, NULL },
+	{ NGM_DEFLATE_COOKIE, NGM_DEFLATE_GETCLR_STATS, "getclrstats", NULL,
+	    &ng_deflate_stat_type },
 	{ 0 }
 };
 
 /* Node type descriptor */
 static struct ng_type ng_deflate_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_DEFLATE_NODE_TYPE,
-	.constructor =	ng_deflate_constructor,
-	.rcvmsg =	ng_deflate_rcvmsg,
-	.shutdown =	ng_deflate_shutdown,
-	.newhook =	ng_deflate_newhook,
-	.rcvdata =	ng_deflate_rcvdata,
-	.disconnect =	ng_deflate_disconnect,
-	.cmdlist =	ng_deflate_cmds,
+	.version = NG_ABI_VERSION,
+	.name = NG_DEFLATE_NODE_TYPE,
+	.constructor = ng_deflate_constructor,
+	.rcvmsg = ng_deflate_rcvmsg,
+	.shutdown = ng_deflate_shutdown,
+	.newhook = ng_deflate_newhook,
+	.rcvdata = ng_deflate_rcvdata,
+	.disconnect = ng_deflate_disconnect,
+	.cmdlist = ng_deflate_cmds,
 };
 NETGRAPH_INIT(deflate, &ng_deflate_typestruct);
 
 /* Depend on separate zlib module. */
 MODULE_DEPEND(ng_deflate, zlib, 1, 1, 1);
 
-#define ERROUT(x)	do { error = (x); goto done; } while (0)
+#define ERROUT(x)            \
+	do {                 \
+		error = (x); \
+		goto done;   \
+	} while (0)
 
 /************************************************************************
 			NETGRAPH NODE STUFF
@@ -223,19 +199,18 @@ ng_deflate_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		ERROUT(EINVAL);
 
 	switch (msg->header.cmd) {
-	case NGM_DEFLATE_CONFIG:
-	    {
-		struct ng_deflate_config *const cfg
-		    = (struct ng_deflate_config *)msg->data;
+	case NGM_DEFLATE_CONFIG: {
+		struct ng_deflate_config *const cfg =
+		    (struct ng_deflate_config *)msg->data;
 
 		/* Check configuration. */
 		if (msg->header.arglen != sizeof(*cfg))
 			ERROUT(EINVAL);
 		if (cfg->enable) {
-		    if (cfg->windowBits < 8 || cfg->windowBits > 15)
-			ERROUT(EINVAL);
+			if (cfg->windowBits < 8 || cfg->windowBits > 15)
+				ERROUT(EINVAL);
 		} else
-		    cfg->windowBits = 0;
+			cfg->windowBits = 0;
 
 		/* Clear previous state. */
 		if (priv->cfg.enable) {
@@ -254,21 +229,21 @@ ng_deflate_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			int res;
 			if (priv->compress) {
 				if ((res = deflateInit2(&priv->cx,
-				    Z_DEFAULT_COMPRESSION, Z_DEFLATED,
-				    -cfg->windowBits, 8,
-				    Z_DEFAULT_STRATEGY)) != Z_OK) {
+					 Z_DEFAULT_COMPRESSION, Z_DEFLATED,
+					 -cfg->windowBits, 8,
+					 Z_DEFAULT_STRATEGY)) != Z_OK) {
 					log(LOG_NOTICE,
-					    "deflateInit2: error %d, %s\n",
-					    res, priv->cx.msg);
+					    "deflateInit2: error %d, %s\n", res,
+					    priv->cx.msg);
 					priv->cfg.enable = 0;
 					ERROUT(ENOMEM);
 				}
 			} else {
 				if ((res = inflateInit2(&priv->cx,
-				    -cfg->windowBits)) != Z_OK) {
+					 -cfg->windowBits)) != Z_OK) {
 					log(LOG_NOTICE,
-					    "inflateInit2: error %d, %s\n",
-					    res, priv->cx.msg);
+					    "inflateInit2: error %d, %s\n", res,
+					    priv->cx.msg);
 					priv->cfg.enable = 0;
 					ERROUT(ENOMEM);
 				}
@@ -281,7 +256,7 @@ ng_deflate_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		/* Save return address so we can send reset-req's */
 		priv->ctrlnode = NGI_RETADDR(item);
 		break;
-	    }
+	}
 
 	case NGM_DEFLATE_RESETREQ:
 		ng_deflate_reset_req(node);
@@ -302,8 +277,7 @@ ng_deflate_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 		/* Clear stats if requested. */
 		if (msg->header.cmd != NGM_DEFLATE_GET_STATS)
-			bzero(&priv->stats,
-			    sizeof(struct ng_deflate_stats));
+			bzero(&priv->stats, sizeof(struct ng_deflate_stats));
 		break;
 
 	default:
@@ -352,8 +326,8 @@ ng_deflate_rcvdata(hook_p hook, item_p item)
 				    NGM_DEFLATE_RESETREQ, 0, M_NOWAIT);
 				if (msg == NULL)
 					return (error);
-				NG_SEND_MSG_ID(error, node, msg,
-					priv->ctrlnode, 0);
+				NG_SEND_MSG_ID(
+				    error, node, msg, priv->ctrlnode, 0);
 			}
 			return (error);
 		}
@@ -373,15 +347,15 @@ ng_deflate_shutdown(node_p node)
 
 	/* Take down netgraph node. */
 	if (priv->cfg.enable) {
-	    if (priv->compress)
-		deflateEnd(&priv->cx);
-	    else
-		inflateEnd(&priv->cx);
+		if (priv->compress)
+			deflateEnd(&priv->cx);
+		else
+			inflateEnd(&priv->cx);
 	}
 
 	free(priv, M_NETGRAPH_DEFLATE);
 	NG_NODE_SET_PRIVATE(node, NULL);
-	NG_NODE_UNREF(node);		/* let the node escape */
+	NG_NODE_UNREF(node); /* let the node escape */
 	return (0);
 }
 
@@ -395,11 +369,11 @@ ng_deflate_disconnect(hook_p hook)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	if (priv->cfg.enable) {
-	    if (priv->compress)
-		deflateEnd(&priv->cx);
-	    else
-		inflateEnd(&priv->cx);
-	    priv->cfg.enable = 0;
+		if (priv->compress)
+			deflateEnd(&priv->cx);
+		else
+			inflateEnd(&priv->cx);
+		priv->cfg.enable = 0;
 	}
 
 	/* Go away if no longer connected. */
@@ -419,9 +393,9 @@ ng_deflate_disconnect(hook_p hook)
 static int
 ng_deflate_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 {
-	const priv_p 	priv = NG_NODE_PRIVATE(node);
-	int 		outlen, inlen;
-	int 		rtn;
+	const priv_p priv = NG_NODE_PRIVATE(node);
+	int outlen, inlen;
+	int rtn;
 
 	/* Initialize. */
 	*resultp = NULL;
@@ -429,7 +403,7 @@ ng_deflate_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	inlen = m->m_pkthdr.len;
 
 	priv->stats.FramesPlain++;
-	priv->stats.InOctets+=inlen;
+	priv->stats.InOctets += inlen;
 
 	if (inlen > DEFLATE_BUF_SIZE) {
 		priv->stats.Errors++;
@@ -466,8 +440,8 @@ ng_deflate_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	/* Check return value. */
 	if (rtn != Z_OK) {
 		priv->stats.Errors++;
-		log(LOG_NOTICE, "ng_deflate: compression error: %d (%s)\n",
-		    rtn, priv->cx.msg);
+		log(LOG_NOTICE, "ng_deflate: compression error: %d (%s)\n", rtn,
+		    priv->cx.msg);
 		NG_FREE_M(m);
 		return (EINVAL);
 	}
@@ -493,7 +467,7 @@ ng_deflate_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		/* Return original packet uncompressed. */
 		*resultp = m;
 		priv->stats.FramesUncomp++;
-		priv->stats.OutOctets+=inlen;
+		priv->stats.OutOctets += inlen;
 	} else {
 		/* Install header. */
 		be16enc(priv->outbuf, PROT_COMPD);
@@ -509,7 +483,7 @@ ng_deflate_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 			m_adj(m, outlen - m->m_pkthdr.len);
 		*resultp = m;
 		priv->stats.FramesComp++;
-		priv->stats.OutOctets+=outlen;
+		priv->stats.OutOctets += outlen;
 	}
 
 	/* Update sequence number. */
@@ -525,14 +499,14 @@ ng_deflate_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 static int
 ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 {
-	const priv_p 	priv = NG_NODE_PRIVATE(node);
-	int 		outlen, inlen, datalen;
-	int 		rtn;
-	uint16_t	proto;
-	int		offset;
-	uint16_t	rseqnum;
-	u_char		headbuf[5];
-	static u_char	EMPTY_BLOCK[4] = { 0x00, 0x00, 0xff, 0xff };
+	const priv_p priv = NG_NODE_PRIVATE(node);
+	int outlen, inlen, datalen;
+	int rtn;
+	uint16_t proto;
+	int offset;
+	uint16_t rseqnum;
+	u_char headbuf[5];
+	static u_char EMPTY_BLOCK[4] = { 0x00, 0x00, 0xff, 0xff };
 
 	/* Initialize. */
 	*resultp = NULL;
@@ -576,8 +550,10 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		offset += 2;
 		if (rseqnum != priv->seqnum) {
 			priv->stats.Errors++;
-			log(LOG_NOTICE, "ng_deflate: wrong sequence: %u "
-			    "instead of %u\n", rseqnum, priv->seqnum);
+			log(LOG_NOTICE,
+			    "ng_deflate: wrong sequence: %u "
+			    "instead of %u\n",
+			    rseqnum, priv->seqnum);
 			NG_FREE_M(m);
 			priv->seqnum = 0;
 			return (EPIPE);
@@ -585,7 +561,7 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 
 		outlen = DEFLATE_BUF_SIZE;
 
-    		/* Decompress "inbuf" into "outbuf". */
+		/* Decompress "inbuf" into "outbuf". */
 		/* Prepare to decompress. */
 		priv->cx.next_in = priv->inbuf + offset;
 		priv->cx.avail_in = inlen - offset;
@@ -643,7 +619,7 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 			m_adj(m, outlen - m->m_pkthdr.len);
 		*resultp = m;
 		priv->stats.FramesPlain++;
-		priv->stats.OutOctets+=outlen;
+		priv->stats.OutOctets += outlen;
 
 	} else {
 		/* Packet is not compressed, just update dictionary. */
@@ -667,8 +643,8 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		rtn = inflate(&priv->cx, Z_NO_FLUSH);
 
 		if (priv->inbuf[0] == 0) {
-			priv->cx.next_in =
-			    priv->inbuf + 1; /* compress protocol */
+			priv->cx.next_in = priv->inbuf +
+			    1; /* compress protocol */
 			priv->cx.avail_in = inlen - 1;
 		} else {
 			priv->cx.next_in = priv->inbuf;
@@ -710,9 +686,9 @@ ng_deflate_reset_req(node_p node)
 
 	priv->seqnum = 0;
 	if (priv->cfg.enable) {
-	    if (priv->compress)
-		deflateReset(&priv->cx);
-	    else
-		inflateReset(&priv->cx);
+		if (priv->compress)
+			deflateReset(&priv->cx);
+		else
+			inflateReset(&priv->cx);
 	}
 }

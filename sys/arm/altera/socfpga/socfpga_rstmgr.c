@@ -40,39 +40,37 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
-#include <sys/sysctl.h>
-
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
+#include <machine/fdt.h>
 #include <machine/intr.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include <arm/altera/socfpga/socfpga_common.h>
-#include <arm/altera/socfpga/socfpga_rstmgr.h>
 #include <arm/altera/socfpga/socfpga_l3regs.h>
+#include <arm/altera/socfpga/socfpga_rstmgr.h>
 
 struct rstmgr_softc {
-	struct resource		*res[1];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	device_t		dev;
+	struct resource *res[1];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	device_t dev;
 };
 
 struct rstmgr_softc *rstmgr_sc;
 
-static struct resource_spec rstmgr_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec rstmgr_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 enum {
 	RSTMGR_SYSCTL_FPGA2HPS,
@@ -107,8 +105,8 @@ l3remap(struct rstmgr_softc *sc, int remap, int enable)
 
 	if ((OF_getencprop(node, "reg", &paddr, sizeof(paddr))) > 0) {
 		if (bus_space_map(fdtbus_bs_tag, paddr, 0x4, 0, &vaddr) == 0) {
-			bus_space_write_4(fdtbus_bs_tag, vaddr,
-			    L3REGS_REMAP, reg);
+			bus_space_write_4(
+			    fdtbus_bs_tag, vaddr, L3REGS_REMAP, reg);
 			return (0);
 		}
 	}
@@ -116,8 +114,7 @@ l3remap(struct rstmgr_softc *sc, int remap, int enable)
 	return (1);
 }
 
-static int
-rstmgr_sysctl(SYSCTL_HANDLER_ARGS)
+static int rstmgr_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct rstmgr_softc *sc;
 	int enable;
@@ -190,17 +187,17 @@ rstmgr_add_sysctl(struct rstmgr_softc *sc)
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "fpga2hps",
-	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-	    sc, RSTMGR_SYSCTL_FPGA2HPS,
-	    rstmgr_sysctl, "I", "Enable fpga2hps bridge");
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+	    RSTMGR_SYSCTL_FPGA2HPS, rstmgr_sysctl, "I",
+	    "Enable fpga2hps bridge");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "lwhps2fpga",
-	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-	    sc, RSTMGR_SYSCTL_LWHPS2FPGA,
-	    rstmgr_sysctl, "I", "Enable lwhps2fpga bridge");
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+	    RSTMGR_SYSCTL_LWHPS2FPGA, rstmgr_sysctl, "I",
+	    "Enable lwhps2fpga bridge");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "hps2fpga",
-	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-	    sc, RSTMGR_SYSCTL_HPS2FPGA,
-	    rstmgr_sysctl, "I", "Enable hps2fpga bridge");
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
+	    RSTMGR_SYSCTL_HPS2FPGA, rstmgr_sysctl, "I",
+	    "Enable hps2fpga bridge");
 
 	return (0);
 }
@@ -243,11 +240,9 @@ rstmgr_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t rstmgr_methods[] = {
-	DEVMETHOD(device_probe,		rstmgr_probe),
-	DEVMETHOD(device_attach,	rstmgr_attach),
-	{ 0, 0 }
-};
+static device_method_t rstmgr_methods[] = { DEVMETHOD(
+						device_probe, rstmgr_probe),
+	DEVMETHOD(device_attach, rstmgr_attach), { 0, 0 } };
 
 static driver_t rstmgr_driver = {
 	"rstmgr",

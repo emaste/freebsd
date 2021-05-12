@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -35,19 +36,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
-#include <sys/systm.h>
-#include <x86/apicreg.h>
+
 #include <machine/cputypes.h>
-#include <machine/md_var.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <x86/apicvar.h>
+#include <machine/md_var.h>
 #include <machine/specialreg.h>
-#include <dev/pci/pcivar.h>
 
+#include <x86/apicreg.h>
+#include <x86/apicvar.h>
 #include <xen/xen-os.h>
 #include <xen/xen_intr.h>
 #include <xen/xen_msi.h>
+
+#include <dev/pci/pcivar.h>
 
 static struct mtx msi_lock;
 static u_int msi_last_irq;

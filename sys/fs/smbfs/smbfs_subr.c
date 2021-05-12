@@ -29,19 +29,19 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/clock.h>
+#include <sys/iconv.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
-#include <sys/sysctl.h>
-#include <sys/iconv.h>
 
 #include <netsmb/smb.h>
 #include <netsmb/smb_conn.h>
-#include <netsmb/smb_subr.h>
-#include <netsmb/smb_rq.h>
 #include <netsmb/smb_dev.h>
+#include <netsmb/smb_rq.h>
+#include <netsmb/smb_subr.h>
 
 #include <fs/smbfs/smbfs.h>
 #include <fs/smbfs/smbfs_node.h>
@@ -54,7 +54,8 @@ void
 smb_time_local2server(struct timespec *tsp, int tzoff, u_long *seconds)
 {
 	*seconds = tsp->tv_sec - tzoff * 60 /*- tz_minuteswest * 60 -
-	    (wall_cmos_clock ? adjkerntz : 0)*/;
+	    (wall_cmos_clock ? adjkerntz : 0)*/
+	    ;
 }
 
 void
@@ -83,12 +84,13 @@ smb_time_local2NT(struct timespec *tsp, int tzoff, int64_t *nsec)
 	u_long seconds;
 
 	smb_time_local2server(tsp, 0, &seconds);
-	*nsec = (((int64_t)(seconds) & ~1) + DIFF1970TO1601) * (int64_t)10000000;
+	*nsec = (((int64_t)(seconds) & ~1) + DIFF1970TO1601) *
+	    (int64_t)10000000;
 }
 
 void
-smb_time_unix2dos(struct timespec *tsp, int tzoff, u_int16_t *ddp, 
-	u_int16_t *dtp,	u_int8_t *dhp)
+smb_time_unix2dos(struct timespec *tsp, int tzoff, u_int16_t *ddp,
+    u_int16_t *dtp, u_int8_t *dhp)
 {
 	struct timespec tt;
 	u_long t;
@@ -100,8 +102,7 @@ smb_time_unix2dos(struct timespec *tsp, int tzoff, u_int16_t *ddp,
 }
 
 void
-smb_dos2unixtime(u_int dd, u_int dt, u_int dh, int tzoff,
-	struct timespec *tsp)
+smb_dos2unixtime(u_int dd, u_int dt, u_int dh, int tzoff, struct timespec *tsp)
 {
 
 	fattime2timespec(dd, dt, dh, 1, tsp);
@@ -110,7 +111,7 @@ smb_dos2unixtime(u_int dd, u_int dt, u_int dh, int tzoff,
 
 int
 smbfs_fullpath(struct mbchain *mbp, struct smb_vc *vcp, struct smbnode *dnp,
-	const char *name, int nmlen)
+    const char *name, int nmlen)
 {
 	int caseopt = SMB_CS_NONE;
 	int error;
@@ -123,8 +124,8 @@ smbfs_fullpath(struct mbchain *mbp, struct smb_vc *vcp, struct smbnode *dnp,
 	if (SMB_DIALECT(vcp) < SMB_DIALECT_LANMAN1_0)
 		caseopt |= SMB_CS_UPPER;
 	if (dnp != NULL) {
-		error = smb_put_dmem(mbp, vcp, dnp->n_rpath, dnp->n_rplen, 
-		    caseopt);
+		error = smb_put_dmem(
+		    mbp, vcp, dnp->n_rpath, dnp->n_rplen, caseopt);
 		if (error)
 			return error;
 		if (name) {
@@ -152,8 +153,9 @@ smbfs_fullpath(struct mbchain *mbp, struct smb_vc *vcp, struct smbnode *dnp,
 int
 smbfs_fname_tolocal(struct smb_vc *vcp, char *name, int *nmlen, int caseopt)
 {
-	int copt = (caseopt == SMB_CS_LOWER ? KICONV_FROM_LOWER : 
-		    (caseopt == SMB_CS_UPPER ? KICONV_FROM_UPPER : 0));
+	int copt = (caseopt == SMB_CS_LOWER ?
+		      KICONV_FROM_LOWER :
+		      (caseopt == SMB_CS_UPPER ? KICONV_FROM_UPPER : 0));
 	int error = 0;
 	size_t ilen = *nmlen;
 	size_t olen;
@@ -176,9 +178,9 @@ smbfs_fname_tolocal(struct smb_vc *vcp, char *name, int *nmlen, int caseopt)
 		if (error && SMB_UNICODE_STRINGS(vcp)) {
 			/*
 			 * If using unicode, leaving a file name as it was when
-			 * convert fails will cause a problem because the file name
-			 * will contain NULL.
-			 * Here, put '?' and give converted file name.
+			 * convert fails will cause a problem because the file
+			 * name will contain NULL. Here, put '?' and give
+			 * converted file name.
 			 */
 			*obuf = '?';
 			olen--;

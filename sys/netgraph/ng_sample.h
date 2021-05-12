@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -45,21 +45,21 @@
 #define _NETGRAPH_NG_SAMPLE_H_
 
 /* Node type name. This should be unique among all netgraph node types */
-#define NG_XXX_NODE_TYPE	"sample"
+#define NG_XXX_NODE_TYPE "sample"
 
 /* Node type cookie. Should also be unique. This value MUST change whenever
    an incompatible change is made to this header file, to insure consistency.
    The de facto method for generating cookies is to take the output of the
    date command: date -u +'%s' */
-#define NGM_XXX_COOKIE		915491374
+#define NGM_XXX_COOKIE 915491374
 
 /* Number of active DLCI's we can handle */
-#define	XXX_NUM_DLCIS		16
+#define XXX_NUM_DLCIS 16
 
 /* Hook names */
-#define NG_XXX_HOOK_DLCI_LEADIN	"dlci"
-#define NG_XXX_HOOK_DOWNSTREAM	"downstream"
-#define NG_XXX_HOOK_DEBUG	"debug"
+#define NG_XXX_HOOK_DLCI_LEADIN "dlci"
+#define NG_XXX_HOOK_DOWNSTREAM "downstream"
+#define NG_XXX_HOOK_DEBUG "debug"
 
 /* Netgraph commands understood by this node type */
 enum {
@@ -69,8 +69,8 @@ enum {
 
 /* This structure is returned by the NGM_XXX_GET_STATUS command */
 struct ngxxxstat {
-	u_int32_t   packets_in;		/* packets in from downstream */
-	u_int32_t   packets_out;	/* packets out towards downstream */
+	u_int32_t packets_in;  /* packets in from downstream */
+	u_int32_t packets_out; /* packets out towards downstream */
 };
 
 /*
@@ -80,10 +80,13 @@ struct ngxxxstat {
  *
  * This needs to be kept in sync with the above structure definition
  */
-#define NG_XXX_STATS_TYPE_INFO	{				\
-	  { "packets_in",	&ng_parse_uint32_type	},	\
-	  { "packets_out",	&ng_parse_uint32_type	},	\
-	  { NULL }						\
-}
+#define NG_XXX_STATS_TYPE_INFO                                \
+	{                                                     \
+		{ "packets_in", &ng_parse_uint32_type },      \
+		    { "packets_out", &ng_parse_uint32_type }, \
+		{                                             \
+			NULL                                  \
+		}                                             \
+	}
 
 #endif /* _NETGRAPH_NG_SAMPLE_H_ */

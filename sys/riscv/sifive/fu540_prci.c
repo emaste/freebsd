@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/clk/clk_fixed.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
@@ -54,69 +53,64 @@ __FBSDID("$FreeBSD$");
 #include <dt-bindings/clock/sifive-fu540-prci.h>
 
 static struct ofw_compat_data compat_data[] = {
-	{ "sifive,aloeprci0",		1 },
-	{ "sifive,ux00prci0",		1 },
-	{ "sifive,fu540-c000-prci",	1 },
-	{ NULL,				0 },
+	{ "sifive,aloeprci0", 1 },
+	{ "sifive,ux00prci0", 1 },
+	{ "sifive,fu540-c000-prci", 1 },
+	{ NULL, 0 },
 };
 
-static struct resource_spec prci_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
-	RESOURCE_SPEC_END
-};
+static struct resource_spec prci_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	RESOURCE_SPEC_END };
 
 struct prci_softc {
-	device_t		dev;
+	device_t dev;
 
-	struct mtx		mtx;
+	struct mtx mtx;
 
-	struct clkdom		*clkdom;
-	struct resource		*res;
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
+	struct clkdom *clkdom;
+	struct resource *res;
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
 };
 
 struct prci_clk_pll_sc {
-	struct prci_softc	*parent_sc;
-	uint32_t		reg;
+	struct prci_softc *parent_sc;
+	uint32_t reg;
 };
 
-#define	PRCI_LOCK(sc)			mtx_lock(&(sc)->mtx)
-#define	PRCI_UNLOCK(sc)			mtx_unlock(&(sc)->mtx)
-#define	PRCI_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->mtx, MA_OWNED);
-#define	PRCI_ASSERT_UNLOCKED(sc)	mtx_assert(&(sc)->mtx, MA_NOTOWNED);
+#define PRCI_LOCK(sc) mtx_lock(&(sc)->mtx)
+#define PRCI_UNLOCK(sc) mtx_unlock(&(sc)->mtx)
+#define PRCI_ASSERT_LOCKED(sc) mtx_assert(&(sc)->mtx, MA_OWNED);
+#define PRCI_ASSERT_UNLOCKED(sc) mtx_assert(&(sc)->mtx, MA_NOTOWNED);
 
-#define	PRCI_COREPLL_CFG0		0x4
-#define	PRCI_DDRPLL_CFG0		0xC
-#define	PRCI_GEMGXLPLL_CFG0		0x1C
+#define PRCI_COREPLL_CFG0 0x4
+#define PRCI_DDRPLL_CFG0 0xC
+#define PRCI_GEMGXLPLL_CFG0 0x1C
 
-#define	PRCI_PLL_DIVR_MASK		0x3f
-#define	PRCI_PLL_DIVR_SHIFT		0
-#define	PRCI_PLL_DIVF_MASK		0x7fc0
-#define	PRCI_PLL_DIVF_SHIFT		6
-#define	PRCI_PLL_DIVQ_MASK		0x38000
-#define	PRCI_PLL_DIVQ_SHIFT		15
+#define PRCI_PLL_DIVR_MASK 0x3f
+#define PRCI_PLL_DIVR_SHIFT 0
+#define PRCI_PLL_DIVF_MASK 0x7fc0
+#define PRCI_PLL_DIVF_SHIFT 6
+#define PRCI_PLL_DIVQ_MASK 0x38000
+#define PRCI_PLL_DIVQ_SHIFT 15
 
-#define	PRCI_READ(_sc, _reg)		\
-    bus_space_read_4((_sc)->bst, (_sc)->bsh, (_reg))
+#define PRCI_READ(_sc, _reg) bus_space_read_4((_sc)->bst, (_sc)->bsh, (_reg))
 
 struct prci_pll_def {
-	uint32_t	id;
-	const char	*name;
-	uint32_t	reg;
+	uint32_t id;
+	const char *name;
+	uint32_t reg;
 };
 
-#define PLL(_id, _name, _base)					\
-{								\
-	.id = (_id),						\
-	.name = (_name),					\
-	.reg = (_base),						\
-}
+#define PLL(_id, _name, _base)                                \
+	{                                                     \
+		.id = (_id), .name = (_name), .reg = (_base), \
+	}
 
 /* PLL Clocks */
 struct prci_pll_def pll_clks[] = {
-	PLL(PRCI_CLK_COREPLL, "coreclk",  PRCI_COREPLL_CFG0),
-	PLL(PRCI_CLK_DDRPLL, "ddrclk",   PRCI_DDRPLL_CFG0),
+	PLL(PRCI_CLK_COREPLL, "coreclk", PRCI_COREPLL_CFG0),
+	PLL(PRCI_CLK_DDRPLL, "ddrclk", PRCI_DDRPLL_CFG0),
 	PLL(PRCI_CLK_GEMGXLPLL, "gemgxclk", PRCI_GEMGXLPLL_CFG0),
 };
 
@@ -124,7 +118,7 @@ struct prci_pll_def pll_clks[] = {
 struct clk_fixed_def tlclk_def = {
 	.clkdef.id = PRCI_CLK_TLCLK,
 	.clkdef.name = "prci_tlclk",
-	.clkdef.parent_names = (const char *[]){"coreclk"},
+	.clkdef.parent_names = (const char *[]) { "coreclk" },
 	.clkdef.parent_cnt = 1,
 	.clkdef.flags = CLK_NODE_STATIC_STRINGS,
 	.mult = 1,
@@ -159,8 +153,8 @@ prci_clk_pll_recalc(struct clknode *clk, uint64_t *freq)
 	parent_clk = clknode_get_parent(clk);
 	err = clknode_get_freq(parent_clk, &refclk);
 	if (err) {
-		device_printf(sc->parent_sc->dev,
-		    "Failed to get refclk frequency\n");
+		device_printf(
+		    sc->parent_sc->dev, "Failed to get refclk frequency\n");
 		PRCI_UNLOCK(sc->parent_sc);
 		return (err);
 	}
@@ -180,8 +174,8 @@ prci_clk_pll_recalc(struct clknode *clk, uint64_t *freq)
 }
 
 static clknode_method_t prci_clk_pll_clknode_methods[] = {
-	CLKNODEMETHOD(clknode_init,		prci_clk_pll_init),
-	CLKNODEMETHOD(clknode_recalc_freq,	prci_clk_pll_recalc),
+	CLKNODEMETHOD(clknode_init, prci_clk_pll_init),
+	CLKNODEMETHOD(clknode_recalc_freq, prci_clk_pll_recalc),
 	CLKNODEMETHOD_END
 };
 
@@ -205,14 +199,14 @@ prci_probe(device_t dev)
 }
 
 static void
-prci_pll_register(struct prci_softc *parent_sc, struct clknode_init_def *clkdef,
-	uint32_t reg)
+prci_pll_register(
+    struct prci_softc *parent_sc, struct clknode_init_def *clkdef, uint32_t reg)
 {
 	struct clknode *clk;
 	struct prci_clk_pll_sc *sc;
 
-	clk = clknode_create(parent_sc->clkdom, &prci_clk_pll_clknode_class,
-	    clkdef);
+	clk = clknode_create(
+	    parent_sc->clkdom, &prci_clk_pll_clknode_class, clkdef);
 	if (clk == NULL)
 		panic("Failed to create clknode");
 
@@ -246,16 +240,16 @@ prci_attach(device_t dev)
 	sc->bsh = rman_get_bushandle(sc->res);
 
 	node = ofw_bus_get_node(dev);
-	error = ofw_bus_parse_xref_list_get_length(node, "clocks",
-	    "#clock-cells", &ncells);
+	error = ofw_bus_parse_xref_list_get_length(
+	    node, "clocks", "#clock-cells", &ncells);
 	if (error != 0 || ncells < 1) {
 		device_printf(dev, "couldn't find parent clock\n");
 		goto fail;
 	}
 
 	bzero(&clkdef, sizeof(clkdef));
-	clkdef.parent_names = mallocarray(ncells, sizeof(char *), M_OFWPROP,
-	    M_WAITOK);
+	clkdef.parent_names = mallocarray(
+	    ncells, sizeof(char *), M_OFWPROP, M_WAITOK);
 	for (i = 0; i < ncells; i++) {
 		error = clk_get_by_ofw_index(dev, 0, i, &clk_parent);
 		if (error != 0) {
@@ -264,8 +258,8 @@ prci_attach(device_t dev)
 		}
 		clkdef.parent_names[i] = clk_get_name(clk_parent);
 		if (bootverbose)
-			device_printf(dev, "clk parent: %s\n",
-			    clkdef.parent_names[i]);
+			device_printf(
+			    dev, "clk parent: %s\n", clkdef.parent_names[i]);
 		clk_release(clk_parent);
 	}
 	clkdef.parent_cnt = ncells;
@@ -308,20 +302,15 @@ fail:
 	return (error);
 }
 
-static device_method_t prci_methods[] = {
-	DEVMETHOD(device_probe,		prci_probe),
-	DEVMETHOD(device_attach,	prci_attach),
+static device_method_t prci_methods[] = { DEVMETHOD(device_probe, prci_probe),
+	DEVMETHOD(device_attach, prci_attach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
-static driver_t prci_driver = {
-	"fu540prci",
-	prci_methods,
-	sizeof(struct prci_softc)
-};
+static driver_t prci_driver = { "fu540prci", prci_methods,
+	sizeof(struct prci_softc) };
 
 static devclass_t prci_devclass;
 
-EARLY_DRIVER_MODULE(fu540prci, simplebus, prci_driver, prci_devclass, 0, 0,
-    BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(
+    fu540prci, simplebus, prci_driver, prci_devclass, 0, 0, BUS_PASS_BUS);

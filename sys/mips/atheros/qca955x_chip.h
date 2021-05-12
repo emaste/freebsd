@@ -26,8 +26,8 @@
 
 /* $FreeBSD$ */
 
-#ifndef	__QCA955X_CHIP_H__
-#define	__QCA955X_CHIP_H__
+#ifndef __QCA955X_CHIP_H__
+#define __QCA955X_CHIP_H__
 
 extern struct ar71xx_cpu_def qca955x_chip_def;
 

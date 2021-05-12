@@ -37,8 +37,9 @@
 
 #define SDP_MAJV_MINV 0x22
 
-SDP_MODPARAM_SINT(sdp_link_layer_ib_only, 1, "Support only link layer of "
-		"type Infiniband");
+SDP_MODPARAM_SINT(sdp_link_layer_ib_only, 1,
+    "Support only link layer of "
+    "type Infiniband");
 
 enum {
 	SDP_HH_SIZE = 76,
@@ -50,8 +51,8 @@ sdp_qp_event_handler(struct ib_event *event, void *data)
 {
 	struct socket *sk = data;
 
-	sdp_dbg(sk, "QP Event: %s (%d)", ib_event_msg(event->event),
-	    event->event);
+	sdp_dbg(
+	    sk, "QP Event: %s (%d)", ib_event_msg(event->event), event->event);
 }
 
 static int
@@ -78,8 +79,8 @@ sdp_init_qp(struct socket *sk, struct rdma_cm_id *id)
 		.qp_context = sk,
 		.cap.max_send_wr = SDP_TX_SIZE,
 		.cap.max_recv_wr = SDP_RX_SIZE,
-        	.sq_sig_type = IB_SIGNAL_REQ_WR,
-        	.qp_type = IB_QPT_RC,
+		.sq_sig_type = IB_SIGNAL_REQ_WR,
+		.qp_type = IB_QPT_RC,
 	};
 	struct ib_device *device = id->device;
 	struct sdp_sock *ssk;
@@ -92,13 +93,13 @@ sdp_init_qp(struct socket *sk, struct rdma_cm_id *id)
 	sdp_dbg(sk, "Max sges: %d\n", ssk->max_sge);
 
 	qp_init_attr.cap.max_send_sge = MIN(ssk->max_sge, SDP_MAX_SEND_SGES);
-	sdp_dbg(sk, "Setting max send sge to: %d\n",
-	    qp_init_attr.cap.max_send_sge);
-		
+	sdp_dbg(
+	    sk, "Setting max send sge to: %d\n", qp_init_attr.cap.max_send_sge);
+
 	qp_init_attr.cap.max_recv_sge = MIN(ssk->max_sge, SDP_MAX_RECV_SGES);
-	sdp_dbg(sk, "Setting max recv sge to: %d\n",
-	    qp_init_attr.cap.max_recv_sge);
-		
+	sdp_dbg(
+	    sk, "Setting max recv sge to: %d\n", qp_init_attr.cap.max_recv_sge);
+
 	ssk->sdp_dev = ib_get_client_data(device, &sdp_client);
 	if (!ssk->sdp_dev) {
 		sdp_warn(sk, "SDP not available on device %s\n", device->name);
@@ -139,8 +140,8 @@ err_rx:
 }
 
 static int
-sdp_connect_handler(struct socket *sk, struct rdma_cm_id *id,
-    struct rdma_cm_event *event)
+sdp_connect_handler(
+    struct socket *sk, struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
 	struct sockaddr_in *src_addr;
 	struct sockaddr_in *dst_addr;
@@ -187,8 +188,8 @@ sdp_connect_handler(struct socket *sk, struct rdma_cm_id *id,
 }
 
 static int
-sdp_response_handler(struct socket *sk, struct rdma_cm_id *id,
-    struct rdma_cm_event *event)
+sdp_response_handler(
+    struct socket *sk, struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
 	const struct sdp_hah *h;
 	struct sockaddr_in *dst_addr;
@@ -210,8 +211,7 @@ sdp_response_handler(struct socket *sk, struct rdma_cm_id *id,
 	ssk->max_bufs = ntohs(h->bsdh.bufs);
 	atomic_set(&ssk->tx_ring.credits, ssk->max_bufs);
 	ssk->min_bufs = tx_credits(ssk) / 4;
-	ssk->xmit_size_goal =
-		ntohl(h->actrcvsz) - sizeof(struct sdp_bsdh);
+	ssk->xmit_size_goal = ntohl(h->actrcvsz) - sizeof(struct sdp_bsdh);
 	ssk->poll_cq = 1;
 
 	dst_addr = (struct sockaddr_in *)&id->route.addr.dst_addr;
@@ -282,9 +282,9 @@ sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	if (!ssk || !sk || !ssk->id) {
 		sdp_dbg(sk,
 		    "cm_id is being torn down, event %d, ssk %p, sk %p, id %p\n",
-		       	event->event, ssk, sk, id);
-		return event->event == RDMA_CM_EVENT_CONNECT_REQUEST ?
-			-EINVAL : 0;
+		    event->event, ssk, sk, id);
+		return event->event == RDMA_CM_EVENT_CONNECT_REQUEST ? -EINVAL :
+									     0;
 	}
 
 	sdp_dbg(sk, "%s event %d id %p\n", __func__, event->event, id);
@@ -293,13 +293,14 @@ sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		sdp_dbg(sk, "RDMA_CM_EVENT_ADDR_RESOLVED\n");
 
 		if (sdp_link_layer_ib_only &&
-			rdma_node_get_transport(id->device->node_type) == 
-				RDMA_TRANSPORT_IB &&
-			rdma_port_get_link_layer(id->device, id->port_num) !=
-				IB_LINK_LAYER_INFINIBAND) {
-			sdp_dbg(sk, "Link layer is: %d. Only IB link layer "
-				"is allowed\n",
-				rdma_port_get_link_layer(id->device, id->port_num));
+		    rdma_node_get_transport(id->device->node_type) ==
+			RDMA_TRANSPORT_IB &&
+		    rdma_port_get_link_layer(id->device, id->port_num) !=
+			IB_LINK_LAYER_INFINIBAND) {
+			sdp_dbg(sk,
+			    "Link layer is: %d. Only IB link layer "
+			    "is allowed\n",
+			    rdma_port_get_link_layer(id->device, id->port_num));
 			rc = -ENETUNREACH;
 			break;
 		}
@@ -315,8 +316,8 @@ sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		rc = sdp_init_qp(sk, id);
 		if (rc)
 			break;
-		atomic_set(&sdp_sk(sk)->remote_credits,
-				rx_ring_posted(sdp_sk(sk)));
+		atomic_set(
+		    &sdp_sk(sk)->remote_credits, rx_ring_posted(sdp_sk(sk)));
 		memset(&hh, 0, sizeof hh);
 		hh.bsdh.mid = SDP_MID_HELLO;
 		hh.bsdh.len = htonl(sizeof(struct sdp_hh));
@@ -327,8 +328,9 @@ sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		hh.bsdh.bufs = htons(rx_ring_posted(sdp_sk(sk)));
 		hh.localrcvsz = hh.desremrcvsz = htonl(sdp_sk(sk)->recv_bytes);
 		hh.max_adverts = 0x1;
-		sdp_sk(sk)->laddr = 
-			((struct sockaddr_in *)&id->route.addr.src_addr)->sin_addr.s_addr;
+		sdp_sk(sk)->laddr =
+		    ((struct sockaddr_in *)&id->route.addr.src_addr)
+			->sin_addr.s_addr;
 		memset(&conn_param, 0, sizeof conn_param);
 		conn_param.private_data_len = sizeof hh;
 		conn_param.private_data = &hh;
@@ -397,8 +399,9 @@ sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		break;
 	case RDMA_CM_EVENT_ESTABLISHED:
 		sdp_dbg(sk, "RDMA_CM_EVENT_ESTABLISHED\n");
-		sdp_sk(sk)->laddr = 
-			((struct sockaddr_in *)&id->route.addr.src_addr)->sin_addr.s_addr;
+		sdp_sk(sk)->laddr =
+		    ((struct sockaddr_in *)&id->route.addr.src_addr)
+			->sin_addr.s_addr;
 		rc = sdp_connected_handler(sk, event);
 		break;
 	case RDMA_CM_EVENT_DISCONNECTED: /* This means DREQ/DREP received */
@@ -409,7 +412,7 @@ sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 			sdp_cancel_dreq_wait_timeout(ssk);
 
 			sdp_dbg(sk, "%s: waiting for Infiniband tear down\n",
-				__func__);
+			    __func__);
 		}
 		ssk->qp_active = 0;
 		SDP_WUNLOCK(ssk);
@@ -417,9 +420,10 @@ sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		SDP_WLOCK(ssk);
 		if (ssk->state != TCPS_TIME_WAIT) {
 			if (ssk->state == TCPS_CLOSE_WAIT) {
-				sdp_dbg(sk, "IB teardown while in "
-					"TCPS_CLOSE_WAIT taking reference to "
-					"let close() finish the work\n");
+				sdp_dbg(sk,
+				    "IB teardown while in "
+				    "TCPS_CLOSE_WAIT taking reference to "
+				    "let close() finish the work\n");
 			}
 			rc = sdp_disconnected_handler(sk);
 			if (rc)
@@ -438,8 +442,8 @@ sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		rc = -ENETRESET;
 		break;
 	default:
-		printk(KERN_ERR "SDP: Unexpected CMA event: %d\n",
-		       event->event);
+		printk(
+		    KERN_ERR "SDP: Unexpected CMA event: %d\n", event->event);
 		rc = -ECONNABORTED;
 		break;
 	}

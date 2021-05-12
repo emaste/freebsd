@@ -48,8 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/socketvar.h>
 #include <sys/syscall.h>
@@ -57,25 +59,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/unistd.h>
 
-#include <machine/cpu.h>
-#include <machine/frame.h>
-#include <machine/pcb.h>
-#include <machine/sysarch.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_page.h>
-#include <vm/vm_map.h>
-#include <vm/vm_param.h>
-#include <vm/vm_pageout.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
+#include <vm/vm_param.h>
 
+#include <machine/cpu.h>
+#include <machine/frame.h>
 #include <machine/md_var.h>
+#include <machine/pcb.h>
+#include <machine/sysarch.h>
 #include <machine/vfp.h>
 
 /*
@@ -103,8 +102,9 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		return;
 
 	/* Point the pcb to the top of the stack */
-	pcb2 = (struct pcb *)
-	    (td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
+	pcb2 = (struct pcb *)(td2->td_kstack +
+		   td2->td_kstack_pages * PAGE_SIZE) -
+	    1;
 #ifdef VFP
 	/* Store actual state of VFP */
 	if (curthread == td1) {
@@ -171,7 +171,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	case 0:
 		frame->tf_r0 = td->td_retval[0];
 		frame->tf_r1 = td->td_retval[1];
-		frame->tf_spsr &= ~PSR_C;   /* carry bit */
+		frame->tf_spsr &= ~PSR_C; /* carry bit */
 		break;
 	case ERESTART:
 		/*
@@ -189,7 +189,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		break;
 	default:
 		frame->tf_r0 = error;
-		frame->tf_spsr |= PSR_C;    /* carry bit */
+		frame->tf_spsr |= PSR_C; /* carry bit */
 		break;
 	}
 }
@@ -226,8 +226,8 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
  * the entry function with the given argument.
  */
 void
-cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
-	stack_t *stack)
+cpu_set_upcall(
+    struct thread *td, void (*entry)(void *), void *arg, stack_t *stack)
 {
 	struct trapframe *tf = td->td_frame;
 
@@ -255,8 +255,9 @@ cpu_thread_exit(struct thread *td)
 void
 cpu_thread_alloc(struct thread *td)
 {
-	td->td_pcb = (struct pcb *)(td->td_kstack + td->td_kstack_pages *
-	    PAGE_SIZE) - 1;
+	td->td_pcb = (struct pcb *)(td->td_kstack +
+			 td->td_kstack_pages * PAGE_SIZE) -
+	    1;
 	/*
 	 * Ensure td_frame is aligned to an 8 byte boundary as it will be
 	 * placed into the stack pointer which must be 8 byte aligned in
@@ -284,8 +285,8 @@ cpu_thread_clean(struct thread *td)
 void
 cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 {
-	td->td_pcb->pcb_regs.sf_r4 = (register_t)func;	/* function */
-	td->td_pcb->pcb_regs.sf_r5 = (register_t)arg;	/* first arg */
+	td->td_pcb->pcb_regs.sf_r4 = (register_t)func; /* function */
+	td->td_pcb->pcb_regs.sf_r5 = (register_t)arg;  /* first arg */
 }
 
 /*

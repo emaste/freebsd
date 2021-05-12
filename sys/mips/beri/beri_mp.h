@@ -77,7 +77,7 @@ static inline int
 beri_get_ncpus(void)
 {
 
-	return(beri_get_ncores() * beri_get_nthreads());
+	return (beri_get_ncores() * beri_get_nthreads());
 }
 
 void beripic_setup_ipi(device_t dev, u_int tid, u_int ipi_irq);

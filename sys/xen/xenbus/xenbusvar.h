@@ -1,20 +1,20 @@
 /******************************************************************************
  * Copyright (C) 2005 Rusty Russell, IBM Corporation
  * Copyright (C) 2005 XenSource Ltd.
- * 
+ *
  * This file may be distributed separately from the Linux kernel, or
  * incorporated into other software packages, subject to the following license:
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this source file (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use, copy, modify,
  * merge, publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -36,19 +36,18 @@
 #ifndef _XEN_XENBUS_XENBUSVAR_H
 #define _XEN_XENBUS_XENBUSVAR_H
 
-#include <sys/queue.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
+#include <sys/queue.h>
 #include <sys/sbuf.h>
 
 #include <machine/stdarg.h>
 
-#include <xen/xen-os.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/xenbus.h>
 #include <xen/interface/io/xs_wire.h>
-
+#include <xen/xen-os.h>
 #include <xen/xenstore/xenstorevar.h>
 
 /* XenBus allocations including XenStore data returned to clients. */
@@ -90,14 +89,14 @@ enum {
  * xenbus_get_otherend_id
  * xenbus_get_otherend_path
  */
-#define	XENBUS_ACCESSOR(var, ivar, type) \
+#define XENBUS_ACCESSOR(var, ivar, type) \
 	__BUS_ACCESSOR(xenbus, var, XENBUS, ivar, type)
 
-XENBUS_ACCESSOR(node,		NODE,			const char *)
-XENBUS_ACCESSOR(type,		TYPE,			const char *)
-XENBUS_ACCESSOR(state,		STATE,			enum xenbus_state)
-XENBUS_ACCESSOR(otherend_id,	OTHEREND_ID,		int)
-XENBUS_ACCESSOR(otherend_path,	OTHEREND_PATH,		const char *)
+XENBUS_ACCESSOR(node, NODE, const char *)
+XENBUS_ACCESSOR(type, TYPE, const char *)
+XENBUS_ACCESSOR(state, STATE, enum xenbus_state)
+XENBUS_ACCESSOR(otherend_id, OTHEREND_ID, int)
+XENBUS_ACCESSOR(otherend_path, OTHEREND_PATH, const char *)
 
 /**
  * Return the state of a XenBus device.
@@ -137,7 +136,7 @@ xenbus_get_otherend_state(device_t dev)
  * A successful call to xenbus_grant_ring should be paired with a call
  * to gnttab_end_foreign_access() when foregn access to this page is no
  * longer requried.
- * 
+ *
  * \note  On error, \a dev will be switched to the XenbusStateClosing
  *        state and the returned error is saved in the per-device error node
  *        for \a dev in the XenStore.
@@ -154,7 +153,7 @@ int xenbus_grant_ring(device_t dev, unsigned long ring_mfn, grant_ref_t *refp);
  *             printf arguments.
  */
 void xenbus_dev_error(device_t dev, int err, const char *fmt, ...)
-	__attribute__((format(printf, 3, 4)));
+    __attribute__((format(printf, 3, 4)));
 
 /**
  * va_list version of xenbus_dev_error().
@@ -165,7 +164,7 @@ void xenbus_dev_error(device_t dev, int err, const char *fmt, ...)
  * \param ap   Va_list of printf arguments.
  */
 void xenbus_dev_verror(device_t dev, int err, const char *fmt, va_list ap)
-	__attribute__((format(printf, 3, 0)));
+    __attribute__((format(printf, 3, 0)));
 
 /**
  * Equivalent to xenbus_dev_error(), followed by
@@ -177,7 +176,7 @@ void xenbus_dev_verror(device_t dev, int err, const char *fmt, va_list ap)
  *             printf arguments.
  */
 void xenbus_dev_fatal(device_t dev, int err, const char *fmt, ...)
-	__attribute__((format(printf, 3, 4)));
+    __attribute__((format(printf, 3, 4)));
 
 /**
  * va_list version of xenbus_dev_fatal().
@@ -188,7 +187,7 @@ void xenbus_dev_fatal(device_t dev, int err, const char *fmt, ...)
  * \param ap   Va_list of printf arguments.
  */
 void xenbus_dev_vfatal(device_t dev, int err, const char *fmt, va_list)
-	__attribute__((format(printf, 3, 0)));
+    __attribute__((format(printf, 3, 0)));
 
 /**
  * Convert a member of the xenbus_state enum into an ASCII string.
@@ -213,7 +212,7 @@ int xenbus_dev_is_online(device_t dev);
 /**
  * Default callback invoked when a change to the local XenStore sub-tree
  * for a device is modified.
- * 
+ *
  * \param dev   The XenBus device whose tree was modified.
  * \param path  The tree relative sub-path to the modified node.  The empty
  *              string indicates the root of the tree was destroyed.

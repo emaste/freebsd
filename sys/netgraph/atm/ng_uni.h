@@ -36,86 +36,91 @@
 #define _NETGRAPH_ATM_NG_UNI_H_
 
 #define NG_UNI_NODE_TYPE "uni"
-#define NGM_UNI_COOKIE	981112392
+#define NGM_UNI_COOKIE 981112392
 
 enum {
-	NGM_UNI_GETDEBUG,	/* get debug flags */
-	NGM_UNI_SETDEBUG,	/* set debug flags */
-	NGM_UNI_GET_CONFIG,	/* get configuration */
-	NGM_UNI_SET_CONFIG,	/* set configuration */
-	NGM_UNI_ENABLE,		/* enable processing */
-	NGM_UNI_DISABLE,	/* free resources and disable */
-	NGM_UNI_GETSTATE,	/* retrieve coord state */
+	NGM_UNI_GETDEBUG,   /* get debug flags */
+	NGM_UNI_SETDEBUG,   /* set debug flags */
+	NGM_UNI_GET_CONFIG, /* get configuration */
+	NGM_UNI_SET_CONFIG, /* set configuration */
+	NGM_UNI_ENABLE,	    /* enable processing */
+	NGM_UNI_DISABLE,    /* free resources and disable */
+	NGM_UNI_GETSTATE,   /* retrieve coord state */
 };
 
 struct ngm_uni_debug {
-	uint32_t	level[UNI_MAXFACILITY];
+	uint32_t level[UNI_MAXFACILITY];
 };
-#define NGM_UNI_DEBUGLEVEL_INFO {				\
-	&ng_parse_uint32_type,					\
-	UNI_MAXFACILITY						\
-}
-#define NGM_UNI_DEBUG_INFO 					\
-	{							\
-	  { "level",	&ng_uni_debuglevel_type },		\
-	  { NULL }						\
+#define NGM_UNI_DEBUGLEVEL_INFO                        \
+	{                                              \
+		&ng_parse_uint32_type, UNI_MAXFACILITY \
+	}
+#define NGM_UNI_DEBUG_INFO                                     \
+	{                                                      \
+		{ "level", &ng_uni_debuglevel_type }, { NULL } \
 	}
 
-#define NGM_UNI_CONFIG_INFO 					\
-	{							\
-	  { "proto",	&ng_parse_uint32_type },		\
-	  { "popt",	&ng_parse_uint32_type },		\
-	  { "option",	&ng_parse_uint32_type },		\
-	  { "timer301",	&ng_parse_uint32_type },		\
-	  { "timer303",	&ng_parse_uint32_type },		\
-	  { "init303",	&ng_parse_uint32_type },		\
-	  { "timer308",	&ng_parse_uint32_type },		\
-	  { "init308",	&ng_parse_uint32_type },		\
-	  { "timer309",	&ng_parse_uint32_type },		\
-	  { "timer310",	&ng_parse_uint32_type },		\
-	  { "timer313",	&ng_parse_uint32_type },		\
-	  { "timer316",	&ng_parse_uint32_type },		\
-	  { "init316",	&ng_parse_uint32_type },		\
-	  { "timer317",	&ng_parse_uint32_type },		\
-	  { "timer322",	&ng_parse_uint32_type },		\
-	  { "init322",	&ng_parse_uint32_type },		\
-	  { "timer397",	&ng_parse_uint32_type },		\
-	  { "timer398",	&ng_parse_uint32_type },		\
-	  { "timer399",	&ng_parse_uint32_type },		\
-	  { NULL }						\
+#define NGM_UNI_CONFIG_INFO                                \
+	{                                                  \
+		{ "proto", &ng_parse_uint32_type },        \
+		    { "popt", &ng_parse_uint32_type },     \
+		    { "option", &ng_parse_uint32_type },   \
+		    { "timer301", &ng_parse_uint32_type }, \
+		    { "timer303", &ng_parse_uint32_type }, \
+		    { "init303", &ng_parse_uint32_type },  \
+		    { "timer308", &ng_parse_uint32_type }, \
+		    { "init308", &ng_parse_uint32_type },  \
+		    { "timer309", &ng_parse_uint32_type }, \
+		    { "timer310", &ng_parse_uint32_type }, \
+		    { "timer313", &ng_parse_uint32_type }, \
+		    { "timer316", &ng_parse_uint32_type }, \
+		    { "init316", &ng_parse_uint32_type },  \
+		    { "timer317", &ng_parse_uint32_type }, \
+		    { "timer322", &ng_parse_uint32_type }, \
+		    { "init322", &ng_parse_uint32_type },  \
+		    { "timer397", &ng_parse_uint32_type }, \
+		    { "timer398", &ng_parse_uint32_type }, \
+		    { "timer399", &ng_parse_uint32_type }, \
+		{                                          \
+			NULL                               \
+		}                                          \
 	}
 
 struct ngm_uni_config_mask {
-	uint32_t		mask;
-	uint32_t		popt_mask;
-	uint32_t		option_mask;
+	uint32_t mask;
+	uint32_t popt_mask;
+	uint32_t option_mask;
 };
-#define NGM_UNI_CONFIG_MASK_INFO 				\
-	{							\
-	  { "mask",		&ng_parse_hint32_type },	\
-	  { "popt_mask",	&ng_parse_hint32_type },	\
-	  { "option_mask",	&ng_parse_hint32_type },	\
-	  { NULL }						\
+#define NGM_UNI_CONFIG_MASK_INFO                              \
+	{                                                     \
+		{ "mask", &ng_parse_hint32_type },            \
+		    { "popt_mask", &ng_parse_hint32_type },   \
+		    { "option_mask", &ng_parse_hint32_type }, \
+		{                                             \
+			NULL                                  \
+		}                                             \
 	}
 
 struct ngm_uni_set_config {
-	struct uni_config		config;
-	struct ngm_uni_config_mask	mask;
+	struct uni_config config;
+	struct ngm_uni_config_mask mask;
 };
-#define NGM_UNI_SET_CONFIG_INFO 				\
-	{							\
-	  { "config",		&ng_uni_config_type },		\
-	  { "mask",		&ng_uni_config_mask_type },	\
-	  { NULL }						\
+#define NGM_UNI_SET_CONFIG_INFO                           \
+	{                                                 \
+		{ "config", &ng_uni_config_type },        \
+		    { "mask", &ng_uni_config_mask_type }, \
+		{                                         \
+			NULL                              \
+		}                                         \
 	}
 
 /*
  * API message
  */
 struct uni_arg {
-	uint32_t	sig;
-	uint32_t	cookie;
-	u_char		data[];
+	uint32_t sig;
+	uint32_t cookie;
+	u_char data[];
 };
 
 #endif

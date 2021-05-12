@@ -28,14 +28,15 @@
 #ifndef __XEN_PUBLIC_GCOV_H__
 #define __XEN_PUBLIC_GCOV_H__ __XEN_PUBLIC_GCOV_H__
 
-#define XENCOV_COUNTERS         5
-#define XENCOV_TAG_BASE         0x58544300u
-#define XENCOV_TAG_FILE         (XENCOV_TAG_BASE+0x46u)
-#define XENCOV_TAG_FUNC         (XENCOV_TAG_BASE+0x66u)
-#define XENCOV_TAG_COUNTER(n)   (XENCOV_TAG_BASE+0x30u+((n)&0xfu))
-#define XENCOV_TAG_END          (XENCOV_TAG_BASE+0x2eu)
-#define XENCOV_IS_TAG_COUNTER(n) \
-    ((n) >= XENCOV_TAG_COUNTER(0) && (n) < XENCOV_TAG_COUNTER(XENCOV_COUNTERS))
+#define XENCOV_COUNTERS 5
+#define XENCOV_TAG_BASE 0x58544300u
+#define XENCOV_TAG_FILE (XENCOV_TAG_BASE + 0x46u)
+#define XENCOV_TAG_FUNC (XENCOV_TAG_BASE + 0x66u)
+#define XENCOV_TAG_COUNTER(n) (XENCOV_TAG_BASE + 0x30u + ((n)&0xfu))
+#define XENCOV_TAG_END (XENCOV_TAG_BASE + 0x2eu)
+#define XENCOV_IS_TAG_COUNTER(n)         \
+	((n) >= XENCOV_TAG_COUNTER(0) && \
+	    (n) < XENCOV_TAG_COUNTER(XENCOV_COUNTERS))
 #define XENCOV_COUNTER_NUM(n) ((n)-XENCOV_TAG_COUNTER(0))
 
 /*
@@ -59,13 +60,12 @@
  * Prefixed with XENCOV_TAG_FILE and a string with filename
  * Aligned to 8 bytes
  */
-struct xencov_file
-{
-    uint32_t tag; /* XENCOV_TAG_FILE */
-    uint32_t version;
-    uint32_t stamp;
-    uint32_t fn_len;
-    char filename[1];
+struct xencov_file {
+	uint32_t tag; /* XENCOV_TAG_FILE */
+	uint32_t version;
+	uint32_t stamp;
+	uint32_t fn_len;
+	char filename[1];
 };
 
 /**
@@ -73,41 +73,37 @@ struct xencov_file
  * Prefixed with XENCOV_TAG_COUNTER(n) where n is 0..(XENCOV_COUNTERS-1)
  * Aligned to 8 bytes
  */
-struct xencov_counter
-{
-    uint32_t tag; /* XENCOV_TAG_COUNTER(n) */
-    uint32_t num;
-    uint64_t values[1];
+struct xencov_counter {
+	uint32_t tag; /* XENCOV_TAG_COUNTER(n) */
+	uint32_t num;
+	uint64_t values[1];
 };
 
 /**
  * Information for each function
  * Number of counter is equal to the number of counter structures got before
  */
-struct xencov_function
-{
-    uint32_t ident;
-    uint32_t checksum;
-    uint32_t num_counters[1];
+struct xencov_function {
+	uint32_t ident;
+	uint32_t checksum;
+	uint32_t num_counters[1];
 };
 
 /**
  * Information for all functions
  * Aligned to 8 bytes
  */
-struct xencov_functions
-{
-    uint32_t tag; /* XENCOV_TAG_FUNC */
-    uint32_t num;
-    struct xencov_function xencov_function[1];
+struct xencov_functions {
+	uint32_t tag; /* XENCOV_TAG_FUNC */
+	uint32_t num;
+	struct xencov_function xencov_function[1];
 };
 
 /**
  * Terminator
  */
-struct xencov_end
-{
-    uint32_t tag; /* XENCOV_TAG_END */
+struct xencov_end {
+	uint32_t tag; /* XENCOV_TAG_END */
 };
 
 #endif /* __XEN_PUBLIC_GCOV_H__ */

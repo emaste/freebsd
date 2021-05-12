@@ -30,8 +30,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -41,14 +41,12 @@ __FBSDID("$FreeBSD$");
 #include "npt.h"
 
 SYSCTL_DECL(_hw_vmm);
-SYSCTL_NODE(_hw_vmm, OID_AUTO, npt, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
-    NULL);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, npt, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, NULL);
 
 static int npt_flags;
-SYSCTL_INT(_hw_vmm_npt, OID_AUTO, pmap_flags, CTLFLAG_RD,
-	&npt_flags, 0, NULL);
+SYSCTL_INT(_hw_vmm_npt, OID_AUTO, pmap_flags, CTLFLAG_RD, &npt_flags, 0, NULL);
 
-#define NPT_IPIMASK	0xFF
+#define NPT_IPIMASK 0xFF
 
 /*
  * AMD nested page table init.
@@ -61,7 +59,7 @@ svm_npt_init(int ipinum)
 	npt_flags = ipinum & NPT_IPIMASK;
 	TUNABLE_INT_FETCH("hw.vmm.npt.enable_superpage", &enable_superpage);
 	if (enable_superpage)
-		npt_flags |= PMAP_PDE_SUPERPAGE; 
+		npt_flags |= PMAP_PDE_SUPERPAGE;
 
 	return (0);
 }

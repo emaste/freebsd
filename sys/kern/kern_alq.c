@@ -39,54 +39,54 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/alq.h>
+#include <sys/eventhandler.h>
+#include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
-#include <sys/alq.h>
-#include <sys/malloc.h>
 #include <sys/unistd.h>
-#include <sys/fcntl.h>
-#include <sys/eventhandler.h>
+#include <sys/vnode.h>
 
 #include <security/mac/mac_framework.h>
 
 /* Async. Logging Queue */
 struct alq {
-	char	*aq_entbuf;		/* Buffer for stored entries */
-	int	aq_entmax;		/* Max entries */
-	int	aq_entlen;		/* Entry length */
-	int	aq_freebytes;		/* Bytes available in buffer */
-	int	aq_buflen;		/* Total length of our buffer */
-	int	aq_writehead;		/* Location for next write */
-	int	aq_writetail;		/* Flush starts at this location */
-	int	aq_wrapearly;		/* # bytes left blank at end of buf */
-	int	aq_flags;		/* Queue flags */
-	int	aq_waiters;		/* Num threads waiting for resources
-					 * NB: Used as a wait channel so must
-					 * not be first field in the alq struct
-					 */
-	struct	ale	aq_getpost;	/* ALE for use by get/post */
-	struct mtx	aq_mtx;		/* Queue lock */
-	struct vnode	*aq_vp;		/* Open vnode handle */
-	struct ucred	*aq_cred;	/* Credentials of the opening thread */
-	LIST_ENTRY(alq)	aq_act;		/* List of active queues */
-	LIST_ENTRY(alq)	aq_link;	/* List of all queues */
+	char *aq_entbuf;	 /* Buffer for stored entries */
+	int aq_entmax;		 /* Max entries */
+	int aq_entlen;		 /* Entry length */
+	int aq_freebytes;	 /* Bytes available in buffer */
+	int aq_buflen;		 /* Total length of our buffer */
+	int aq_writehead;	 /* Location for next write */
+	int aq_writetail;	 /* Flush starts at this location */
+	int aq_wrapearly;	 /* # bytes left blank at end of buf */
+	int aq_flags;		 /* Queue flags */
+	int aq_waiters;		 /* Num threads waiting for resources
+				  * NB: Used as a wait channel so must
+				  * not be first field in the alq struct
+				  */
+	struct ale aq_getpost;	 /* ALE for use by get/post */
+	struct mtx aq_mtx;	 /* Queue lock */
+	struct vnode *aq_vp;	 /* Open vnode handle */
+	struct ucred *aq_cred;	 /* Credentials of the opening thread */
+	LIST_ENTRY(alq) aq_act;	 /* List of active queues */
+	LIST_ENTRY(alq) aq_link; /* List of all queues */
 };
 
-#define	AQ_WANTED	0x0001		/* Wakeup sleeper when io is done */
-#define	AQ_ACTIVE	0x0002		/* on the active list */
-#define	AQ_FLUSHING	0x0004		/* doing IO */
-#define	AQ_SHUTDOWN	0x0008		/* Queue no longer valid */
-#define	AQ_ORDERED	0x0010		/* Queue enforces ordered writes */
-#define	AQ_LEGACY	0x0020		/* Legacy queue (fixed length writes) */
+#define AQ_WANTED 0x0001 /* Wakeup sleeper when io is done */
+#define AQ_ACTIVE 0x0002 /* on the active list */
+#define AQ_FLUSHING 0x0004 /* doing IO */
+#define AQ_SHUTDOWN 0x0008 /* Queue no longer valid */
+#define AQ_ORDERED 0x0010 /* Queue enforces ordered writes */
+#define AQ_LEGACY 0x0020 /* Legacy queue (fixed length writes) */
 
-#define	ALQ_LOCK(alq)	mtx_lock_spin(&(alq)->aq_mtx)
-#define	ALQ_UNLOCK(alq)	mtx_unlock_spin(&(alq)->aq_mtx)
+#define ALQ_LOCK(alq) mtx_lock_spin(&(alq)->aq_mtx)
+#define ALQ_UNLOCK(alq) mtx_unlock_spin(&(alq)->aq_mtx)
 
 #define HAS_PENDING_DATA(alq) ((alq)->aq_freebytes != (alq)->aq_buflen)
 
@@ -103,8 +103,8 @@ struct thread *ald_thread;
 static struct proc *ald_proc;
 static eventhandler_tag alq_eventhandler_tag = NULL;
 
-#define	ALD_LOCK()	mtx_lock(&ald_mtx)
-#define	ALD_UNLOCK()	mtx_unlock(&ald_mtx)
+#define ALD_LOCK() mtx_lock(&ald_mtx)
+#define ALD_UNLOCK() mtx_unlock(&ald_mtx)
 
 /* Daemon functions */
 static int ald_add(struct alq *);
@@ -183,7 +183,7 @@ ald_deactivate(struct alq *alq)
 static void
 ald_startup(void *unused)
 {
-	mtx_init(&ald_mtx, "ALDmtx", NULL, MTX_DEF|MTX_QUIET);
+	mtx_init(&ald_mtx, "ALDmtx", NULL, MTX_DEF | MTX_QUIET);
 	LIST_INIT(&ald_queues);
 	LIST_INIT(&ald_active);
 }
@@ -196,14 +196,14 @@ ald_daemon(void)
 
 	ald_thread = FIRST_THREAD_IN_PROC(ald_proc);
 
-	alq_eventhandler_tag = EVENTHANDLER_REGISTER(shutdown_pre_sync,
-	    ald_shutdown, NULL, SHUTDOWN_PRI_FIRST);
+	alq_eventhandler_tag = EVENTHANDLER_REGISTER(
+	    shutdown_pre_sync, ald_shutdown, NULL, SHUTDOWN_PRI_FIRST);
 
 	ALD_LOCK();
 
 	for (;;) {
-		while ((alq = LIST_FIRST(&ald_active)) == NULL &&
-		    !ald_shutingdown)
+		while (
+		    (alq = LIST_FIRST(&ald_active)) == NULL && !ald_shutingdown)
 			mtx_sleep(&ald_active, &ald_mtx, PWAIT, "aldslp", 0);
 
 		/* Don't shutdown until all active ALQs are flushed. */
@@ -286,8 +286,7 @@ alq_shutdown(struct alq *alq)
 	}
 	ALQ_UNLOCK(alq);
 
-	vn_close(alq->aq_vp, FWRITE, alq->aq_cred,
-	    curthread);
+	vn_close(alq->aq_vp, FWRITE, alq->aq_cred, curthread);
 	crfree(alq->aq_cred);
 }
 
@@ -333,7 +332,8 @@ alq_doio(struct alq *alq)
 
 	if (alq->aq_writetail < alq->aq_writehead) {
 		/* Buffer not wrapped. */
-		totlen = aiov[0].iov_len = alq->aq_writehead - alq->aq_writetail;
+		totlen = aiov[0].iov_len = alq->aq_writehead -
+		    alq->aq_writetail;
 	} else if (alq->aq_writehead == 0) {
 		/* Buffer not wrapped (special case to avoid an empty iov). */
 		totlen = aiov[0].iov_len = alq->aq_buflen - alq->aq_writetail -
@@ -348,7 +348,7 @@ alq_doio(struct alq *alq)
 		    wrapearly;
 		iov++;
 		aiov[1].iov_base = alq->aq_entbuf;
-		aiov[1].iov_len =  alq->aq_writehead;
+		aiov[1].iov_len = alq->aq_writehead;
 		totlen = aiov[0].iov_len + aiov[1].iov_len;
 	}
 
@@ -409,14 +409,10 @@ alq_doio(struct alq *alq)
 		return (1);
 	}
 
-	return(0);
+	return (0);
 }
 
-static struct kproc_desc ald_kp = {
-        "ALQ Daemon",
-        ald_daemon,
-        &ald_proc
-};
+static struct kproc_desc ald_kp = { "ALQ Daemon", ald_daemon, &ald_proc };
 
 SYSINIT(aldthread, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start, &ald_kp);
 SYSINIT(ald, SI_SUB_LOCK, SI_ORDER_ANY, ald_startup, NULL);
@@ -428,8 +424,8 @@ SYSINIT(ald, SI_SUB_LOCK, SI_ORDER_ANY, ald_startup, NULL);
  */
 
 int
-alq_open_flags(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
-    int size, int flags)
+alq_open_flags(struct alq **alqp, const char *file, struct ucred *cred,
+    int cmode, int size, int flags)
 {
 	struct thread *td;
 	struct nameidata nd;
@@ -453,18 +449,18 @@ alq_open_flags(struct alq **alqp, const char *file, struct ucred *cred, int cmod
 	/* We just unlock so we hold a reference */
 	VOP_UNLOCK(nd.ni_vp);
 
-	alq = malloc(sizeof(*alq), M_ALD, M_WAITOK|M_ZERO);
+	alq = malloc(sizeof(*alq), M_ALD, M_WAITOK | M_ZERO);
 	alq->aq_vp = nd.ni_vp;
 	alq->aq_cred = crhold(cred);
 
-	mtx_init(&alq->aq_mtx, "ALD Queue", NULL, MTX_SPIN|MTX_QUIET);
+	mtx_init(&alq->aq_mtx, "ALD Queue", NULL, MTX_SPIN | MTX_QUIET);
 
 	alq->aq_buflen = size;
 	alq->aq_entmax = 0;
 	alq->aq_entlen = 0;
 
 	alq->aq_freebytes = alq->aq_buflen;
-	alq->aq_entbuf = malloc(alq->aq_buflen, M_ALD, M_WAITOK|M_ZERO);
+	alq->aq_entbuf = malloc(alq->aq_buflen, M_ALD, M_WAITOK | M_ZERO);
 	alq->aq_writehead = alq->aq_writetail = 0;
 	if (flags & ALQ_ORDERED)
 		alq->aq_flags |= AQ_ORDERED;
@@ -488,8 +484,8 @@ alq_open(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
 	KASSERT((count >= 0), ("%s: count < 0", __func__));
 
 	if (count > 0) {
-		if ((ret = alq_open_flags(alqp, file, cred, cmode,
-		    size*count, 0)) == 0) {
+		if ((ret = alq_open_flags(
+			 alqp, file, cred, cmode, size * count, 0)) == 0) {
 			(*alqp)->aq_flags |= AQ_LEGACY;
 			(*alqp)->aq_entmax = count;
 			(*alqp)->aq_entlen = size;
@@ -529,10 +525,10 @@ alq_writen(struct alq *alq, void *data, int len, int flags)
 	 *   to accept the message and the alq is inactive due to prior
 	 *   use of the ALQ_NOACTIVATE flag (which would lead to deadlock).
 	 */
-	if (len > alq->aq_buflen ||
-	    alq->aq_flags & AQ_SHUTDOWN ||
-	    (((flags & ALQ_NOWAIT) || (!(alq->aq_flags & AQ_ACTIVE) &&
-	    HAS_PENDING_DATA(alq))) && alq->aq_freebytes < len)) {
+	if (len > alq->aq_buflen || alq->aq_flags & AQ_SHUTDOWN ||
+	    (((flags & ALQ_NOWAIT) ||
+		 (!(alq->aq_flags & AQ_ACTIVE) && HAS_PENDING_DATA(alq))) &&
+		alq->aq_freebytes < len)) {
 		ALQ_UNLOCK(alq);
 		return (EWOULDBLOCK);
 	}
@@ -615,9 +611,7 @@ alq_writen(struct alq *alq, void *data, int len, int flags)
 	if (alq->aq_writehead >= alq->aq_buflen) {
 		KASSERT((alq->aq_writehead == alq->aq_buflen),
 		    ("%s: alq->aq_writehead (%d) > alq->aq_buflen (%d)",
-		    __func__,
-		    alq->aq_writehead,
-		    alq->aq_buflen));
+			__func__, alq->aq_writehead, alq->aq_buflen));
 		alq->aq_writehead = 0;
 	}
 
@@ -626,7 +620,7 @@ alq_writen(struct alq *alq, void *data, int len, int flags)
 		 * Wrap the buffer by copying the remainder of our message
 		 * to the start of the buffer and resetting aq_writehead.
 		 */
-		bcopy(((uint8_t *)data)+copy, alq->aq_entbuf, len - copy);
+		bcopy(((uint8_t *)data) + copy, alq->aq_entbuf, len - copy);
 		alq->aq_writehead = len - copy;
 	}
 
@@ -725,10 +719,10 @@ alq_getn(struct alq *alq, int len, int flags)
 	 *   to accept the message and the alq is inactive due to prior
 	 *   use of the ALQ_NOACTIVATE flag (which would lead to deadlock).
 	 */
-	if (len > alq->aq_buflen ||
-	    alq->aq_flags & AQ_SHUTDOWN ||
-	    (((flags & ALQ_NOWAIT) || (!(alq->aq_flags & AQ_ACTIVE) &&
-	    HAS_PENDING_DATA(alq))) && contigbytes < len)) {
+	if (len > alq->aq_buflen || alq->aq_flags & AQ_SHUTDOWN ||
+	    (((flags & ALQ_NOWAIT) ||
+		 (!(alq->aq_flags & AQ_ACTIVE) && HAS_PENDING_DATA(alq))) &&
+		contigbytes < len)) {
 		ALQ_UNLOCK(alq);
 		return (NULL);
 	}
@@ -832,8 +826,7 @@ alq_post_flags(struct alq *alq, struct ale *ale, int flags)
 	activate = 0;
 
 	if (ale->ae_bytesused > 0) {
-		if (!(alq->aq_flags & AQ_ACTIVE) &&
-		    !(flags & ALQ_NOACTIVATE)) {
+		if (!(alq->aq_flags & AQ_ACTIVE) && !(flags & ALQ_NOACTIVATE)) {
 			alq->aq_flags |= AQ_ACTIVE;
 			activate = 1;
 		}
@@ -846,11 +839,12 @@ alq_post_flags(struct alq *alq, struct ale *ale, int flags)
 			alq->aq_writehead = 0;
 
 		KASSERT((alq->aq_writehead >= 0 &&
-		    alq->aq_writehead < alq->aq_buflen),
+			    alq->aq_writehead < alq->aq_buflen),
 		    ("%s: aq_writehead < 0 || aq_writehead >= aq_buflen",
-		    __func__));
+			__func__));
 
-		KASSERT((HAS_PENDING_DATA(alq)), ("%s: queue empty!", __func__));
+		KASSERT(
+		    (HAS_PENDING_DATA(alq)), ("%s: queue empty!", __func__));
 	}
 
 	/*
@@ -858,7 +852,8 @@ alq_post_flags(struct alq *alq, struct ale *ale, int flags)
 	 * complete our work. The alq ptr is used as a wait channel for threads
 	 * requiring resources to be freed up. In the AQ_ORDERED case, threads
 	 * are not allowed to concurrently compete for resources in the
-	 * alq_getn() while loop, so we use a different wait channel in this case.
+	 * alq_getn() while loop, so we use a different wait channel in this
+	 * case.
 	 */
 	if (alq->aq_waiters > 0) {
 		if (alq->aq_flags & AQ_ORDERED)
@@ -937,8 +932,8 @@ alq_load_handler(module_t mod, int what, void *arg)
 		if (LIST_FIRST(&ald_queues) == NULL) {
 			ald_shutingdown = 1;
 			ALD_UNLOCK();
-			EVENTHANDLER_DEREGISTER(shutdown_pre_sync,
-			    alq_eventhandler_tag);
+			EVENTHANDLER_DEREGISTER(
+			    shutdown_pre_sync, alq_eventhandler_tag);
 			ald_shutdown(NULL, 0);
 			mtx_destroy(&ald_mtx);
 		} else {
@@ -961,12 +956,7 @@ alq_load_handler(module_t mod, int what, void *arg)
 	return (ret);
 }
 
-static moduledata_t alq_mod =
-{
-	"alq",
-	alq_load_handler,
-	NULL
-};
+static moduledata_t alq_mod = { "alq", alq_load_handler, NULL };
 
 DECLARE_MODULE(alq, alq_mod, SI_SUB_LAST, SI_ORDER_ANY);
 MODULE_VERSION(alq, 1);

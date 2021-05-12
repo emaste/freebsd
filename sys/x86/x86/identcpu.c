@@ -44,14 +44,14 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
-#include <sys/limits.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
+#include <sys/limits.h>
 #include <sys/power.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -70,9 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <x86/vmware.h>
 
 #ifdef __i386__
-#define	IDENTBLUE_CYRIX486	0
-#define	IDENTBLUE_IBMCPU	1
-#define	IDENTBLUE_CYRIXM2	2
+#define IDENTBLUE_CYRIX486 0
+#define IDENTBLUE_IBMCPU 1
+#define IDENTBLUE_CYRIXM2 2
 
 static void identifycyrix(void);
 static void print_transmeta_info(void);
@@ -87,57 +87,54 @@ static void print_via_padlock_info(void);
 static void print_vmx_info(void);
 
 #ifdef __i386__
-int	cpu;			/* Are we 386, 386sx, 486, etc? */
-int	cpu_class;
+int cpu; /* Are we 386, 386sx, 486, etc? */
+int cpu_class;
 #endif
-u_int	cpu_feature;		/* Feature flags */
-u_int	cpu_feature2;		/* Feature flags */
-u_int	amd_feature;		/* AMD feature flags */
-u_int	amd_feature2;		/* AMD feature flags */
-u_int	amd_rascap;		/* AMD RAS capabilities */
-u_int	amd_pminfo;		/* AMD advanced power management info */
-u_int	amd_extended_feature_extensions;
-u_int	via_feature_rng;	/* VIA RNG features */
-u_int	via_feature_xcrypt;	/* VIA ACE features */
-u_int	cpu_high;		/* Highest arg to CPUID */
-u_int	cpu_exthigh;		/* Highest arg to extended CPUID */
-u_int	cpu_id;			/* Stepping ID */
-u_int	cpu_procinfo;		/* HyperThreading Info / Brand Index / CLFUSH */
-u_int	cpu_procinfo2;		/* Multicore info */
-char	cpu_vendor[20];		/* CPU Origin code */
-u_int	cpu_vendor_id;		/* CPU vendor ID */
-u_int	cpu_fxsr;		/* SSE enabled */
-u_int	cpu_mxcsr_mask;		/* Valid bits in mxcsr */
-u_int	cpu_clflush_line_size = 32;
-u_int	cpu_stdext_feature;	/* %ebx */
-u_int	cpu_stdext_feature2;	/* %ecx */
-u_int	cpu_stdext_feature3;	/* %edx */
+u_int cpu_feature;  /* Feature flags */
+u_int cpu_feature2; /* Feature flags */
+u_int amd_feature;  /* AMD feature flags */
+u_int amd_feature2; /* AMD feature flags */
+u_int amd_rascap;   /* AMD RAS capabilities */
+u_int amd_pminfo;   /* AMD advanced power management info */
+u_int amd_extended_feature_extensions;
+u_int via_feature_rng;	  /* VIA RNG features */
+u_int via_feature_xcrypt; /* VIA ACE features */
+u_int cpu_high;		  /* Highest arg to CPUID */
+u_int cpu_exthigh;	  /* Highest arg to extended CPUID */
+u_int cpu_id;		  /* Stepping ID */
+u_int cpu_procinfo;	  /* HyperThreading Info / Brand Index / CLFUSH */
+u_int cpu_procinfo2;	  /* Multicore info */
+char cpu_vendor[20];	  /* CPU Origin code */
+u_int cpu_vendor_id;	  /* CPU vendor ID */
+u_int cpu_fxsr;		  /* SSE enabled */
+u_int cpu_mxcsr_mask;	  /* Valid bits in mxcsr */
+u_int cpu_clflush_line_size = 32;
+u_int cpu_stdext_feature;  /* %ebx */
+u_int cpu_stdext_feature2; /* %ecx */
+u_int cpu_stdext_feature3; /* %edx */
 uint64_t cpu_ia32_arch_caps;
-u_int	cpu_max_ext_state_size;
-u_int	cpu_mon_mwait_flags;	/* MONITOR/MWAIT flags (CPUID.05H.ECX) */
-u_int	cpu_mon_min_size;	/* MONITOR minimum range size, bytes */
-u_int	cpu_mon_max_size;	/* MONITOR minimum range size, bytes */
-u_int	cpu_maxphyaddr;		/* Max phys addr width in bits */
-u_int	cpu_power_eax;		/* 06H: Power management leaf, %eax */
-u_int	cpu_power_ebx;		/* 06H: Power management leaf, %ebx */
-u_int	cpu_power_ecx;		/* 06H: Power management leaf, %ecx */
-u_int	cpu_power_edx;		/* 06H: Power management leaf, %edx */
+u_int cpu_max_ext_state_size;
+u_int cpu_mon_mwait_flags; /* MONITOR/MWAIT flags (CPUID.05H.ECX) */
+u_int cpu_mon_min_size;	   /* MONITOR minimum range size, bytes */
+u_int cpu_mon_max_size;	   /* MONITOR minimum range size, bytes */
+u_int cpu_maxphyaddr;	   /* Max phys addr width in bits */
+u_int cpu_power_eax;	   /* 06H: Power management leaf, %eax */
+u_int cpu_power_ebx;	   /* 06H: Power management leaf, %ebx */
+u_int cpu_power_ecx;	   /* 06H: Power management leaf, %ecx */
+u_int cpu_power_edx;	   /* 06H: Power management leaf, %edx */
 char machine[] = MACHINE;
 
-SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
-    &via_feature_rng, 0,
+SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD, &via_feature_rng, 0,
     "VIA RNG feature available in CPU");
-SYSCTL_UINT(_hw, OID_AUTO, via_feature_xcrypt, CTLFLAG_RD,
-    &via_feature_xcrypt, 0,
-    "VIA xcrypt feature available in CPU");
+SYSCTL_UINT(_hw, OID_AUTO, via_feature_xcrypt, CTLFLAG_RD, &via_feature_xcrypt,
+    0, "VIA xcrypt feature available in CPU");
 
 #ifdef __amd64__
 #ifdef SCTL_MASK32
 extern int adaptive_machine_arch;
 #endif
 
-static int
-sysctl_hw_machine(SYSCTL_HANDLER_ARGS)
+static int sysctl_hw_machine(SYSCTL_HANDLER_ARGS)
 {
 #ifdef SCTL_MASK32
 	static const char machine32[] = "i386";
@@ -151,22 +148,22 @@ sysctl_hw_machine(SYSCTL_HANDLER_ARGS)
 #endif
 		error = SYSCTL_OUT(req, machine, sizeof(machine));
 	return (error);
-
 }
-SYSCTL_PROC(_hw, HW_MACHINE, machine, CTLTYPE_STRING | CTLFLAG_RD |
-    CTLFLAG_MPSAFE, NULL, 0, sysctl_hw_machine, "A", "Machine class");
+SYSCTL_PROC(_hw, HW_MACHINE, machine,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0, sysctl_hw_machine,
+    "A", "Machine class");
 #else
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
-    machine, 0, "Machine class");
+SYSCTL_STRING(
+    _hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "Machine class");
 #endif
 
 static char cpu_model[128];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD | CTLFLAG_MPSAFE,
-    cpu_model, 0, "Machine model");
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD | CTLFLAG_MPSAFE, cpu_model, 0,
+    "Machine model");
 
 static int hw_clockrate;
-SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD,
-    &hw_clockrate, 0, "CPU instruction clock rate");
+SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, &hw_clockrate, 0,
+    "CPU instruction clock rate");
 
 u_int hv_base;
 u_int hv_high;
@@ -179,60 +176,52 @@ static eventhandler_tag tsc_post_tag;
 static char cpu_brand[48];
 
 #ifdef __i386__
-#define	MAX_BRAND_INDEX	8
+#define MAX_BRAND_INDEX 8
 
-static const char *cpu_brandtable[MAX_BRAND_INDEX + 1] = {
-	NULL,			/* No brand */
-	"Intel Celeron",
-	"Intel Pentium III",
-	"Intel Pentium III Xeon",
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	"Intel Pentium 4"
-};
+static const char *cpu_brandtable[MAX_BRAND_INDEX + 1] = { NULL, /* No brand */
+	"Intel Celeron", "Intel Pentium III", "Intel Pentium III Xeon", NULL,
+	NULL, NULL, NULL, "Intel Pentium 4" };
 
 static struct {
-	char	*cpu_name;
-	int	cpu_class;
+	char *cpu_name;
+	int cpu_class;
 } cpus[] = {
-	{ "Intel 80286",	CPUCLASS_286 },		/* CPU_286   */
-	{ "i386SX",		CPUCLASS_386 },		/* CPU_386SX */
-	{ "i386DX",		CPUCLASS_386 },		/* CPU_386   */
-	{ "i486SX",		CPUCLASS_486 },		/* CPU_486SX */
-	{ "i486DX",		CPUCLASS_486 },		/* CPU_486   */
-	{ "Pentium",		CPUCLASS_586 },		/* CPU_586   */
-	{ "Cyrix 486",		CPUCLASS_486 },		/* CPU_486DLC */
-	{ "Pentium Pro",	CPUCLASS_686 },		/* CPU_686 */
-	{ "Cyrix 5x86",		CPUCLASS_486 },		/* CPU_M1SC */
-	{ "Cyrix 6x86",		CPUCLASS_486 },		/* CPU_M1 */
-	{ "Blue Lightning",	CPUCLASS_486 },		/* CPU_BLUE */
-	{ "Cyrix 6x86MX",	CPUCLASS_686 },		/* CPU_M2 */
-	{ "NexGen 586",		CPUCLASS_386 },		/* CPU_NX586 (XXX) */
-	{ "Cyrix 486S/DX",	CPUCLASS_486 },		/* CPU_CY486DX */
-	{ "Pentium II",		CPUCLASS_686 },		/* CPU_PII */
-	{ "Pentium III",	CPUCLASS_686 },		/* CPU_PIII */
-	{ "Pentium 4",		CPUCLASS_686 },		/* CPU_P4 */
+	{ "Intel 80286", CPUCLASS_286 },    /* CPU_286   */
+	{ "i386SX", CPUCLASS_386 },	    /* CPU_386SX */
+	{ "i386DX", CPUCLASS_386 },	    /* CPU_386   */
+	{ "i486SX", CPUCLASS_486 },	    /* CPU_486SX */
+	{ "i486DX", CPUCLASS_486 },	    /* CPU_486   */
+	{ "Pentium", CPUCLASS_586 },	    /* CPU_586   */
+	{ "Cyrix 486", CPUCLASS_486 },	    /* CPU_486DLC */
+	{ "Pentium Pro", CPUCLASS_686 },    /* CPU_686 */
+	{ "Cyrix 5x86", CPUCLASS_486 },	    /* CPU_M1SC */
+	{ "Cyrix 6x86", CPUCLASS_486 },	    /* CPU_M1 */
+	{ "Blue Lightning", CPUCLASS_486 }, /* CPU_BLUE */
+	{ "Cyrix 6x86MX", CPUCLASS_686 },   /* CPU_M2 */
+	{ "NexGen 586", CPUCLASS_386 },	    /* CPU_NX586 (XXX) */
+	{ "Cyrix 486S/DX", CPUCLASS_486 },  /* CPU_CY486DX */
+	{ "Pentium II", CPUCLASS_686 },	    /* CPU_PII */
+	{ "Pentium III", CPUCLASS_686 },    /* CPU_PIII */
+	{ "Pentium 4", CPUCLASS_686 },	    /* CPU_P4 */
 };
 #endif
 
 static struct {
-	char	*vendor;
-	u_int	vendor_id;
+	char *vendor;
+	u_int vendor_id;
 } cpu_vendors[] = {
-	{ INTEL_VENDOR_ID,	CPU_VENDOR_INTEL },	/* GenuineIntel */
-	{ AMD_VENDOR_ID,	CPU_VENDOR_AMD },	/* AuthenticAMD */
-	{ HYGON_VENDOR_ID,	CPU_VENDOR_HYGON },	/* HygonGenuine */
-	{ CENTAUR_VENDOR_ID,	CPU_VENDOR_CENTAUR },	/* CentaurHauls */
+	{ INTEL_VENDOR_ID, CPU_VENDOR_INTEL },	   /* GenuineIntel */
+	{ AMD_VENDOR_ID, CPU_VENDOR_AMD },	   /* AuthenticAMD */
+	{ HYGON_VENDOR_ID, CPU_VENDOR_HYGON },	   /* HygonGenuine */
+	{ CENTAUR_VENDOR_ID, CPU_VENDOR_CENTAUR }, /* CentaurHauls */
 #ifdef __i386__
-	{ NSC_VENDOR_ID,	CPU_VENDOR_NSC },	/* Geode by NSC */
-	{ CYRIX_VENDOR_ID,	CPU_VENDOR_CYRIX },	/* CyrixInstead */
-	{ TRANSMETA_VENDOR_ID,	CPU_VENDOR_TRANSMETA },	/* GenuineTMx86 */
-	{ SIS_VENDOR_ID,	CPU_VENDOR_SIS },	/* SiS SiS SiS  */
-	{ UMC_VENDOR_ID,	CPU_VENDOR_UMC },	/* UMC UMC UMC  */
-	{ NEXGEN_VENDOR_ID,	CPU_VENDOR_NEXGEN },	/* NexGenDriven */
-	{ RISE_VENDOR_ID,	CPU_VENDOR_RISE },	/* RiseRiseRise */
+	{ NSC_VENDOR_ID, CPU_VENDOR_NSC },	       /* Geode by NSC */
+	{ CYRIX_VENDOR_ID, CPU_VENDOR_CYRIX },	       /* CyrixInstead */
+	{ TRANSMETA_VENDOR_ID, CPU_VENDOR_TRANSMETA }, /* GenuineTMx86 */
+	{ SIS_VENDOR_ID, CPU_VENDOR_SIS },	       /* SiS SiS SiS  */
+	{ UMC_VENDOR_ID, CPU_VENDOR_UMC },	       /* UMC UMC UMC  */
+	{ NEXGEN_VENDOR_ID, CPU_VENDOR_NEXGEN },       /* NexGenDriven */
+	{ RISE_VENDOR_ID, CPU_VENDOR_RISE },	       /* RiseRiseRise */
 #if 0
 	/* XXX CPUID 8000_0000h and 8086_0000h, not 0000_0000h */
 	{ "TransmetaCPU",	CPU_VENDOR_TRANSMETA },
@@ -249,9 +238,9 @@ printcpuinfo(void)
 	printf("CPU: ");
 #ifdef __i386__
 	cpu_class = cpus[cpu].cpu_class;
-	strncpy(cpu_model, cpus[cpu].cpu_name, sizeof (cpu_model));
+	strncpy(cpu_model, cpus[cpu].cpu_name, sizeof(cpu_model));
 #else
-	strncpy(cpu_model, "Hammer", sizeof (cpu_model));
+	strncpy(cpu_model, "Hammer", sizeof(cpu_model));
 #endif
 
 	/* Check for extended CPUID information and a processor name. */
@@ -334,7 +323,8 @@ printcpuinfo(void)
 					strcat(cpu_model, "/P54C");
 					break;
 				case 0x80:
-					strcat(cpu_model, "/P55C (quarter-micron)");
+					strcat(cpu_model,
+					    "/P55C (quarter-micron)");
 					break;
 				default:
 					/* nothing */
@@ -362,7 +352,7 @@ printcpuinfo(void)
 				case 0x50:
 				case 0x60:
 					strcat(cpu_model,
-				"Pentium II/Pentium II Xeon/Celeron");
+					    "Pentium II/Pentium II Xeon/Celeron");
 					cpu = CPU_PII;
 					break;
 				case 0x70:
@@ -370,7 +360,7 @@ printcpuinfo(void)
 				case 0xa0:
 				case 0xb0:
 					strcat(cpu_model,
-					"Pentium III/Pentium III Xeon/Celeron");
+					    "Pentium III/Pentium III Xeon/Celeron");
 					cpu = CPU_PIII;
 					break;
 				default:
@@ -423,10 +413,12 @@ printcpuinfo(void)
 			strcat(cpu_model, "Enhanced Am486DX2 Write-Back");
 			break;
 		case 0x480:
-			strcat(cpu_model, "Enhanced Am486DX4/Am5x86 Write-Through");
+			strcat(cpu_model,
+			    "Enhanced Am486DX4/Am5x86 Write-Through");
 			break;
 		case 0x490:
-			strcat(cpu_model, "Enhanced Am486DX4/Am5x86 Write-Back");
+			strcat(
+			    cpu_model, "Enhanced Am486DX4/Am5x86 Write-Back");
 			break;
 		case 0x4E0:
 			strcat(cpu_model, "Am5x86 Write-Through");
@@ -570,7 +562,8 @@ printcpuinfo(void)
 				break;
 			case 0x20:
 				if ((cyrix_did & 0x0f) < 8)
-					strcat(cpu_model, "6x86");	/* Where did you get it? */
+					strcat(cpu_model,
+					    "6x86"); /* Where did you get it? */
 				else
 					strcat(cpu_model, "5x86");
 				break;
@@ -593,7 +586,8 @@ printcpuinfo(void)
 					strcat(cpu_model, "Overdrive CPU");
 					break;
 				case 0x0e:
-					strcpy(cpu_model, "Texas Instruments 486SXL");
+					strcpy(cpu_model,
+					    "Texas Instruments 486SXL");
 					break;
 				case 0x0f:
 					strcat(cpu_model, "486SLC/DLC");
@@ -613,8 +607,8 @@ printcpuinfo(void)
 	case CPU_VENDOR_RISE:
 		strcpy(cpu_model, "Rise ");
 		switch (cpu_id & 0xff0) {
-		case 0x500:	/* 6401 and 6441 (Kirin) */
-		case 0x520:	/* 6510 (Lynx) */
+		case 0x500: /* 6401 and 6441 (Kirin) */
+		case 0x520: /* 6510 (Lynx) */
 			strcat(cpu_model, "mP6");
 			break;
 		default:
@@ -713,12 +707,11 @@ printcpuinfo(void)
 	printf("%s (", cpu_model);
 	if (tsc_freq != 0) {
 		hw_clockrate = (tsc_freq + 5000) / 1000000;
-		printf("%jd.%02d-MHz ",
-		    (intmax_t)(tsc_freq + 4999) / 1000000,
+		printf("%jd.%02d-MHz ", (intmax_t)(tsc_freq + 4999) / 1000000,
 		    (u_int)((tsc_freq + 4999) / 10000) % 100);
 	}
 #ifdef __i386__
-	switch(cpu_class) {
+	switch (cpu_class) {
 	case CPUCLASS_286:
 		printf("286");
 		break;
@@ -741,7 +734,7 @@ printcpuinfo(void)
 		break;
 #endif
 	default:
-		printf("Unknown");	/* will panic below... */
+		printf("Unknown"); /* will panic below... */
 	}
 #else
 	printf("K8");
@@ -788,257 +781,257 @@ printcpuinfo(void)
 			 * MSRs.
 			 */
 			printf("\n  Features=0x%b", cpu_feature,
-			"\020"
-			"\001FPU"	/* Integral FPU */
-			"\002VME"	/* Extended VM86 mode support */
-			"\003DE"	/* Debugging Extensions (CR4.DE) */
-			"\004PSE"	/* 4MByte page tables */
-			"\005TSC"	/* Timestamp counter */
-			"\006MSR"	/* Machine specific registers */
-			"\007PAE"	/* Physical address extension */
-			"\010MCE"	/* Machine Check support */
-			"\011CX8"	/* CMPEXCH8 instruction */
-			"\012APIC"	/* SMP local APIC */
-			"\013oldMTRR"	/* Previous implementation of MTRR */
-			"\014SEP"	/* Fast System Call */
-			"\015MTRR"	/* Memory Type Range Registers */
-			"\016PGE"	/* PG_G (global bit) support */
-			"\017MCA"	/* Machine Check Architecture */
-			"\020CMOV"	/* CMOV instruction */
-			"\021PAT"	/* Page attributes table */
-			"\022PSE36"	/* 36 bit address space support */
-			"\023PN"	/* Processor Serial number */
-			"\024CLFLUSH"	/* Has the CLFLUSH instruction */
-			"\025<b20>"
-			"\026DTS"	/* Debug Trace Store */
-			"\027ACPI"	/* ACPI support */
-			"\030MMX"	/* MMX instructions */
-			"\031FXSR"	/* FXSAVE/FXRSTOR */
-			"\032SSE"	/* Streaming SIMD Extensions */
-			"\033SSE2"	/* Streaming SIMD Extensions #2 */
-			"\034SS"	/* Self snoop */
-			"\035HTT"	/* Hyperthreading (see EBX bit 16-23) */
-			"\036TM"	/* Thermal Monitor clock slowdown */
-			"\037IA64"	/* CPU can execute IA64 instructions */
-			"\040PBE"	/* Pending Break Enable */
+			    "\020"
+			    "\001FPU"	  /* Integral FPU */
+			    "\002VME"	  /* Extended VM86 mode support */
+			    "\003DE"	  /* Debugging Extensions (CR4.DE) */
+			    "\004PSE"	  /* 4MByte page tables */
+			    "\005TSC"	  /* Timestamp counter */
+			    "\006MSR"	  /* Machine specific registers */
+			    "\007PAE"	  /* Physical address extension */
+			    "\010MCE"	  /* Machine Check support */
+			    "\011CX8"	  /* CMPEXCH8 instruction */
+			    "\012APIC"	  /* SMP local APIC */
+			    "\013oldMTRR" /* Previous implementation of MTRR */
+			    "\014SEP"	  /* Fast System Call */
+			    "\015MTRR"	  /* Memory Type Range Registers */
+			    "\016PGE"	  /* PG_G (global bit) support */
+			    "\017MCA"	  /* Machine Check Architecture */
+			    "\020CMOV"	  /* CMOV instruction */
+			    "\021PAT"	  /* Page attributes table */
+			    "\022PSE36"	  /* 36 bit address space support */
+			    "\023PN"	  /* Processor Serial number */
+			    "\024CLFLUSH" /* Has the CLFLUSH instruction */
+			    "\025<b20>"
+			    "\026DTS"  /* Debug Trace Store */
+			    "\027ACPI" /* ACPI support */
+			    "\030MMX"  /* MMX instructions */
+			    "\031FXSR" /* FXSAVE/FXRSTOR */
+			    "\032SSE"  /* Streaming SIMD Extensions */
+			    "\033SSE2" /* Streaming SIMD Extensions #2 */
+			    "\034SS"   /* Self snoop */
+			    "\035HTT"  /* Hyperthreading (see EBX bit 16-23) */
+			    "\036TM"   /* Thermal Monitor clock slowdown */
+			    "\037IA64" /* CPU can execute IA64 instructions */
+			    "\040PBE"  /* Pending Break Enable */
 			);
 
 			if (cpu_feature2 != 0) {
 				printf("\n  Features2=0x%b", cpu_feature2,
-				"\020"
-				"\001SSE3"	/* SSE3 */
-				"\002PCLMULQDQ"	/* Carry-Less Mul Quadword */
-				"\003DTES64"	/* 64-bit Debug Trace */
-				"\004MON"	/* MONITOR/MWAIT Instructions */
-				"\005DS_CPL"	/* CPL Qualified Debug Store */
-				"\006VMX"	/* Virtual Machine Extensions */
-				"\007SMX"	/* Safer Mode Extensions */
-				"\010EST"	/* Enhanced SpeedStep */
-				"\011TM2"	/* Thermal Monitor 2 */
-				"\012SSSE3"	/* SSSE3 */
-				"\013CNXT-ID"	/* L1 context ID available */
-				"\014SDBG"	/* IA32 silicon debug */
-				"\015FMA"	/* Fused Multiply Add */
-				"\016CX16"	/* CMPXCHG16B Instruction */
-				"\017xTPR"	/* Send Task Priority Messages*/
-				"\020PDCM"	/* Perf/Debug Capability MSR */
-				"\021<b16>"
-				"\022PCID"	/* Process-context Identifiers*/
-				"\023DCA"	/* Direct Cache Access */
-				"\024SSE4.1"	/* SSE 4.1 */
-				"\025SSE4.2"	/* SSE 4.2 */
-				"\026x2APIC"	/* xAPIC Extensions */
-				"\027MOVBE"	/* MOVBE Instruction */
-				"\030POPCNT"	/* POPCNT Instruction */
-				"\031TSCDLT"	/* TSC-Deadline Timer */
-				"\032AESNI"	/* AES Crypto */
-				"\033XSAVE"	/* XSAVE/XRSTOR States */
-				"\034OSXSAVE"	/* OS-Enabled State Management*/
-				"\035AVX"	/* Advanced Vector Extensions */
-				"\036F16C"	/* Half-precision conversions */
-				"\037RDRAND"	/* RDRAND Instruction */
-				"\040HV"	/* Hypervisor */
+				    "\020"
+				    "\001SSE3"	    /* SSE3 */
+				    "\002PCLMULQDQ" /* Carry-Less Mul Quadword
+						     */
+				    "\003DTES64"    /* 64-bit Debug Trace */
+				    "\004MON" /* MONITOR/MWAIT Instructions */
+				    "\005DS_CPL" /* CPL Qualified Debug Store */
+				    "\006VMX"	/* Virtual Machine Extensions */
+				    "\007SMX"	/* Safer Mode Extensions */
+				    "\010EST"	/* Enhanced SpeedStep */
+				    "\011TM2"	/* Thermal Monitor 2 */
+				    "\012SSSE3" /* SSSE3 */
+				    "\013CNXT-ID" /* L1 context ID available */
+				    "\014SDBG"	  /* IA32 silicon debug */
+				    "\015FMA"	  /* Fused Multiply Add */
+				    "\016CX16"	  /* CMPXCHG16B Instruction */
+				    "\017xTPR" /* Send Task Priority Messages*/
+				    "\020PDCM" /* Perf/Debug Capability MSR */
+				    "\021<b16>"
+				    "\022PCID" /* Process-context Identifiers*/
+				    "\023DCA"  /* Direct Cache Access */
+				    "\024SSE4.1"  /* SSE 4.1 */
+				    "\025SSE4.2"  /* SSE 4.2 */
+				    "\026x2APIC"  /* xAPIC Extensions */
+				    "\027MOVBE"	  /* MOVBE Instruction */
+				    "\030POPCNT"  /* POPCNT Instruction */
+				    "\031TSCDLT"  /* TSC-Deadline Timer */
+				    "\032AESNI"	  /* AES Crypto */
+				    "\033XSAVE"	  /* XSAVE/XRSTOR States */
+				    "\034OSXSAVE" /* OS-Enabled State
+						     Management*/
+				    "\035AVX"  /* Advanced Vector Extensions */
+				    "\036F16C" /* Half-precision conversions */
+				    "\037RDRAND" /* RDRAND Instruction */
+				    "\040HV"	 /* Hypervisor */
 				);
 			}
 
 			if (amd_feature != 0) {
 				printf("\n  AMD Features=0x%b", amd_feature,
-				"\020"		/* in hex */
-				"\001<s0>"	/* Same */
-				"\002<s1>"	/* Same */
-				"\003<s2>"	/* Same */
-				"\004<s3>"	/* Same */
-				"\005<s4>"	/* Same */
-				"\006<s5>"	/* Same */
-				"\007<s6>"	/* Same */
-				"\010<s7>"	/* Same */
-				"\011<s8>"	/* Same */
-				"\012<s9>"	/* Same */
-				"\013<b10>"	/* Undefined */
-				"\014SYSCALL"	/* Have SYSCALL/SYSRET */
-				"\015<s12>"	/* Same */
-				"\016<s13>"	/* Same */
-				"\017<s14>"	/* Same */
-				"\020<s15>"	/* Same */
-				"\021<s16>"	/* Same */
-				"\022<s17>"	/* Same */
-				"\023<b18>"	/* Reserved, unknown */
-				"\024MP"	/* Multiprocessor Capable */
-				"\025NX"	/* Has EFER.NXE, NX */
-				"\026<b21>"	/* Undefined */
-				"\027MMX+"	/* AMD MMX Extensions */
-				"\030<s23>"	/* Same */
-				"\031<s24>"	/* Same */
-				"\032FFXSR"	/* Fast FXSAVE/FXRSTOR */
-				"\033Page1GB"	/* 1-GB large page support */
-				"\034RDTSCP"	/* RDTSCP */
-				"\035<b28>"	/* Undefined */
-				"\036LM"	/* 64 bit long mode */
-				"\0373DNow!+"	/* AMD 3DNow! Extensions */
-				"\0403DNow!"	/* AMD 3DNow! */
+				    "\020"	  /* in hex */
+				    "\001<s0>"	  /* Same */
+				    "\002<s1>"	  /* Same */
+				    "\003<s2>"	  /* Same */
+				    "\004<s3>"	  /* Same */
+				    "\005<s4>"	  /* Same */
+				    "\006<s5>"	  /* Same */
+				    "\007<s6>"	  /* Same */
+				    "\010<s7>"	  /* Same */
+				    "\011<s8>"	  /* Same */
+				    "\012<s9>"	  /* Same */
+				    "\013<b10>"	  /* Undefined */
+				    "\014SYSCALL" /* Have SYSCALL/SYSRET */
+				    "\015<s12>"	  /* Same */
+				    "\016<s13>"	  /* Same */
+				    "\017<s14>"	  /* Same */
+				    "\020<s15>"	  /* Same */
+				    "\021<s16>"	  /* Same */
+				    "\022<s17>"	  /* Same */
+				    "\023<b18>"	  /* Reserved, unknown */
+				    "\024MP"	  /* Multiprocessor Capable */
+				    "\025NX"	  /* Has EFER.NXE, NX */
+				    "\026<b21>"	  /* Undefined */
+				    "\027MMX+"	  /* AMD MMX Extensions */
+				    "\030<s23>"	  /* Same */
+				    "\031<s24>"	  /* Same */
+				    "\032FFXSR"	  /* Fast FXSAVE/FXRSTOR */
+				    "\033Page1GB" /* 1-GB large page support */
+				    "\034RDTSCP"  /* RDTSCP */
+				    "\035<b28>"	  /* Undefined */
+				    "\036LM"	  /* 64 bit long mode */
+				    "\0373DNow!+" /* AMD 3DNow! Extensions */
+				    "\0403DNow!"  /* AMD 3DNow! */
 				);
 			}
 
 			if (amd_feature2 != 0) {
 				printf("\n  AMD Features2=0x%b", amd_feature2,
-				"\020"
-				"\001LAHF"	/* LAHF/SAHF in long mode */
-				"\002CMP"	/* CMP legacy */
-				"\003SVM"	/* Secure Virtual Mode */
-				"\004ExtAPIC"	/* Extended APIC register */
-				"\005CR8"	/* CR8 in legacy mode */
-				"\006ABM"	/* LZCNT instruction */
-				"\007SSE4A"	/* SSE4A */
-				"\010MAS"	/* Misaligned SSE mode */
-				"\011Prefetch"	/* 3DNow! Prefetch/PrefetchW */
-				"\012OSVW"	/* OS visible workaround */
-				"\013IBS"	/* Instruction based sampling */
-				"\014XOP"	/* XOP extended instructions */
-				"\015SKINIT"	/* SKINIT/STGI */
-				"\016WDT"	/* Watchdog timer */
-				"\017<b14>"
-				"\020LWP"	/* Lightweight Profiling */
-				"\021FMA4"	/* 4-operand FMA instructions */
-				"\022TCE"	/* Translation Cache Extension */
-				"\023<b18>"
-				"\024NodeId"	/* NodeId MSR support */
-				"\025<b20>"
-				"\026TBM"	/* Trailing Bit Manipulation */
-				"\027Topology"	/* Topology Extensions */
-				"\030PCXC"	/* Core perf count */
-				"\031PNXC"	/* NB perf count */
-				"\032<b25>"
-				"\033DBE"	/* Data Breakpoint extension */
-				"\034PTSC"	/* Performance TSC */
-				"\035PL2I"	/* L2I perf count */
-				"\036MWAITX"	/* MONITORX/MWAITX instructions */
-				"\037ADMSKX"	/* Address mask extension */
-				"\040<b31>"
-				);
+				    "\020"
+				    "\001LAHF"	   /* LAHF/SAHF in long mode */
+				    "\002CMP"	   /* CMP legacy */
+				    "\003SVM"	   /* Secure Virtual Mode */
+				    "\004ExtAPIC"  /* Extended APIC register */
+				    "\005CR8"	   /* CR8 in legacy mode */
+				    "\006ABM"	   /* LZCNT instruction */
+				    "\007SSE4A"	   /* SSE4A */
+				    "\010MAS"	   /* Misaligned SSE mode */
+				    "\011Prefetch" /* 3DNow! Prefetch/PrefetchW
+						    */
+				    "\012OSVW"	   /* OS visible workaround */
+				    "\013IBS" /* Instruction based sampling */
+				    "\014XOP" /* XOP extended instructions */
+				    "\015SKINIT" /* SKINIT/STGI */
+				    "\016WDT"	 /* Watchdog timer */
+				    "\017<b14>"
+				    "\020LWP"  /* Lightweight Profiling */
+				    "\021FMA4" /* 4-operand FMA instructions */
+				    "\022TCE"  /* Translation Cache Extension */
+				    "\023<b18>"
+				    "\024NodeId" /* NodeId MSR support */
+				    "\025<b20>"
+				    "\026TBM" /* Trailing Bit Manipulation */
+				    "\027Topology" /* Topology Extensions */
+				    "\030PCXC"	   /* Core perf count */
+				    "\031PNXC"	   /* NB perf count */
+				    "\032<b25>"
+				    "\033DBE"	 /* Data Breakpoint extension */
+				    "\034PTSC"	 /* Performance TSC */
+				    "\035PL2I"	 /* L2I perf count */
+				    "\036MWAITX" /* MONITORX/MWAITX instructions
+						  */
+				    "\037ADMSKX" /* Address mask extension */
+				    "\040<b31>");
 			}
 
 			if (cpu_stdext_feature != 0) {
 				printf("\n  Structured Extended Features=0x%b",
 				    cpu_stdext_feature,
-				       "\020"
-				       /* RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE */
-				       "\001FSGSBASE"
-				       "\002TSCADJ"
-				       "\003SGX"
-				       /* Bit Manipulation Instructions */
-				       "\004BMI1"
-				       /* Hardware Lock Elision */
-				       "\005HLE"
-				       /* Advanced Vector Instructions 2 */
-				       "\006AVX2"
-				       /* FDP_EXCPTN_ONLY */
-				       "\007FDPEXC"
-				       /* Supervisor Mode Execution Prot. */
-				       "\010SMEP"
-				       /* Bit Manipulation Instructions */
-				       "\011BMI2"
-				       "\012ERMS"
-				       /* Invalidate Processor Context ID */
-				       "\013INVPCID"
-				       /* Restricted Transactional Memory */
-				       "\014RTM"
-				       "\015PQM"
-				       "\016NFPUSG"
-				       /* Intel Memory Protection Extensions */
-				       "\017MPX"
-				       "\020PQE"
-				       /* AVX512 Foundation */
-				       "\021AVX512F"
-				       "\022AVX512DQ"
-				       /* Enhanced NRBG */
-				       "\023RDSEED"
-				       /* ADCX + ADOX */
-				       "\024ADX"
-				       /* Supervisor Mode Access Prevention */
-				       "\025SMAP"
-				       "\026AVX512IFMA"
-				       /* Formerly PCOMMIT */
-				       "\027<b22>"
-				       "\030CLFLUSHOPT"
-				       "\031CLWB"
-				       "\032PROCTRACE"
-				       "\033AVX512PF"
-				       "\034AVX512ER"
-				       "\035AVX512CD"
-				       "\036SHA"
-				       "\037AVX512BW"
-				       "\040AVX512VL"
-				       );
+				    "\020"
+				    /* RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE */
+				    "\001FSGSBASE"
+				    "\002TSCADJ"
+				    "\003SGX"
+				    /* Bit Manipulation Instructions */
+				    "\004BMI1"
+				    /* Hardware Lock Elision */
+				    "\005HLE"
+				    /* Advanced Vector Instructions 2 */
+				    "\006AVX2"
+				    /* FDP_EXCPTN_ONLY */
+				    "\007FDPEXC"
+				    /* Supervisor Mode Execution Prot. */
+				    "\010SMEP"
+				    /* Bit Manipulation Instructions */
+				    "\011BMI2"
+				    "\012ERMS"
+				    /* Invalidate Processor Context ID */
+				    "\013INVPCID"
+				    /* Restricted Transactional Memory */
+				    "\014RTM"
+				    "\015PQM"
+				    "\016NFPUSG"
+				    /* Intel Memory Protection Extensions */
+				    "\017MPX"
+				    "\020PQE"
+				    /* AVX512 Foundation */
+				    "\021AVX512F"
+				    "\022AVX512DQ"
+				    /* Enhanced NRBG */
+				    "\023RDSEED"
+				    /* ADCX + ADOX */
+				    "\024ADX"
+				    /* Supervisor Mode Access Prevention */
+				    "\025SMAP"
+				    "\026AVX512IFMA"
+				    /* Formerly PCOMMIT */
+				    "\027<b22>"
+				    "\030CLFLUSHOPT"
+				    "\031CLWB"
+				    "\032PROCTRACE"
+				    "\033AVX512PF"
+				    "\034AVX512ER"
+				    "\035AVX512CD"
+				    "\036SHA"
+				    "\037AVX512BW"
+				    "\040AVX512VL");
 			}
 
 			if (cpu_stdext_feature2 != 0) {
 				printf("\n  Structured Extended Features2=0x%b",
 				    cpu_stdext_feature2,
-				       "\020"
-				       "\001PREFETCHWT1"
-				       "\002AVX512VBMI"
-				       "\003UMIP"
-				       "\004PKU"
-				       "\005OSPKE"
-				       "\006WAITPKG"
-				       "\007AVX512VBMI2"
-				       "\011GFNI"
-				       "\012VAES"
-				       "\013VPCLMULQDQ"
-				       "\014AVX512VNNI"
-				       "\015AVX512BITALG"
-				       "\016TME"
-				       "\017AVX512VPOPCNTDQ"
-				       "\021LA57"
-				       "\027RDPID"
-				       "\032CLDEMOTE"
-				       "\034MOVDIRI"
-				       "\035MOVDIR64B"
-				       "\036ENQCMD"
-				       "\037SGXLC"
-				       );
+				    "\020"
+				    "\001PREFETCHWT1"
+				    "\002AVX512VBMI"
+				    "\003UMIP"
+				    "\004PKU"
+				    "\005OSPKE"
+				    "\006WAITPKG"
+				    "\007AVX512VBMI2"
+				    "\011GFNI"
+				    "\012VAES"
+				    "\013VPCLMULQDQ"
+				    "\014AVX512VNNI"
+				    "\015AVX512BITALG"
+				    "\016TME"
+				    "\017AVX512VPOPCNTDQ"
+				    "\021LA57"
+				    "\027RDPID"
+				    "\032CLDEMOTE"
+				    "\034MOVDIRI"
+				    "\035MOVDIR64B"
+				    "\036ENQCMD"
+				    "\037SGXLC");
 			}
 
 			if (cpu_stdext_feature3 != 0) {
 				printf("\n  Structured Extended Features3=0x%b",
 				    cpu_stdext_feature3,
-				       "\020"
-				       "\003AVX512_4VNNIW"
-				       "\004AVX512_4FMAPS"
-				       "\005FSRM"
-				       "\011AVX512VP2INTERSECT"
-				       "\012MCUOPT"
-				       "\013MD_CLEAR"
-				       "\016TSXFA"
-				       "\023PCONFIG"
-				       "\025IBT"
-				       "\033IBPB"
-				       "\034STIBP"
-				       "\035L1DFL"
-				       "\036ARCH_CAP"
-				       "\037CORE_CAP"
-				       "\040SSBD"
-				       );
+				    "\020"
+				    "\003AVX512_4VNNIW"
+				    "\004AVX512_4FMAPS"
+				    "\005FSRM"
+				    "\011AVX512VP2INTERSECT"
+				    "\012MCUOPT"
+				    "\013MD_CLEAR"
+				    "\016TSXFA"
+				    "\023PCONFIG"
+				    "\025IBT"
+				    "\033IBPB"
+				    "\034STIBP"
+				    "\035L1DFL"
+				    "\036ARCH_CAP"
+				    "\037CORE_CAP"
+				    "\040SSBD");
 			}
 
 			if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
@@ -1057,16 +1050,15 @@ printcpuinfo(void)
 			if (cpu_ia32_arch_caps != 0) {
 				printf("\n  IA32_ARCH_CAPS=0x%b",
 				    (u_int)cpu_ia32_arch_caps,
-				       "\020"
-				       "\001RDCL_NO"
-				       "\002IBRS_ALL"
-				       "\003RSBA"
-				       "\004SKIP_L1DFL_VME"
-				       "\005SSB_NO"
-				       "\006MDS_NO"
-				       "\010TSX_CTRL"
-				       "\011TAA_NO"
-				       );
+				    "\020"
+				    "\001RDCL_NO"
+				    "\002IBRS_ALL"
+				    "\003RSBA"
+				    "\004SKIP_L1DFL_VME"
+				    "\005SSB_NO"
+				    "\006MDS_NO"
+				    "\010TSX_CTRL"
+				    "\011TAA_NO");
 			}
 
 			if (amd_extended_feature_extensions != 0) {
@@ -1074,16 +1066,17 @@ printcpuinfo(void)
 
 				amd_fe_masked = amd_extended_feature_extensions;
 				if ((amd_fe_masked & AMDFEID_IBRS) == 0)
-					amd_fe_masked &=
-					    ~(AMDFEID_IBRS_ALWAYSON |
-						AMDFEID_PREFER_IBRS);
+					amd_fe_masked &= ~(
+					    AMDFEID_IBRS_ALWAYSON |
+					    AMDFEID_PREFER_IBRS);
 				if ((amd_fe_masked & AMDFEID_STIBP) == 0)
 					amd_fe_masked &=
 					    ~AMDFEID_STIBP_ALWAYSON;
 
 				printf("\n  "
-				    "AMD Extended Feature Extensions ID EBX="
-				    "0x%b", amd_fe_masked,
+				       "AMD Extended Feature Extensions ID EBX="
+				       "0x%b",
+				    amd_fe_masked,
 				    "\020"
 				    "\001CLZERO"
 				    "\002IRPerf"
@@ -1100,8 +1093,7 @@ printcpuinfo(void)
 				    "\030PPIN"
 				    "\031SSBD"
 				    "\032VIRT_SSBD"
-				    "\033SSB_NO"
-				    );
+				    "\033SSB_NO");
 			}
 
 			if (via_feature_rng != 0 || via_feature_xcrypt != 0)
@@ -1115,7 +1107,7 @@ printcpuinfo(void)
 
 			if ((cpu_feature & CPUID_HTT) &&
 			    (cpu_vendor_id == CPU_VENDOR_AMD ||
-			     cpu_vendor_id == CPU_VENDOR_HYGON))
+				cpu_vendor_id == CPU_VENDOR_HYGON))
 				cpu_feature &= ~CPUID_HTT;
 
 			/*
@@ -1175,7 +1167,7 @@ panicifcpuunsupported(void)
 	 * let them know if that machine type isn't configured.
 	 */
 	switch (cpu_class) {
-	case CPUCLASS_286:	/* a 286 should not make it this far, anyway */
+	case CPUCLASS_286: /* a 286 should not make it this far, anyway */
 	case CPUCLASS_386:
 #if !defined(I486_CPU)
 	case CPUCLASS_486:
@@ -1192,7 +1184,7 @@ panicifcpuunsupported(void)
 	}
 }
 
-static	volatile u_int trap_by_rdmsr;
+static volatile u_int trap_by_rdmsr;
 
 /*
  * Special exception 6 handler.
@@ -1201,10 +1193,9 @@ static	volatile u_int trap_by_rdmsr;
  * function identblue() when this handler is called.  Stacked eip should
  * be advanced.
  */
-inthand_t	bluetrap6;
+inthand_t bluetrap6;
 #ifdef __GNUCLIKE_ASM
-__asm
-("									\n\
+__asm("									\n\
 	.text								\n\
 	.p2align 2,0x90							\n\
 	.type	" __XSTRING(CNAME(bluetrap6)) ",@function		\n\
@@ -1220,10 +1211,9 @@ __asm
  * Special exception 13 handler.
  * Accessing non-existent MSR generates general protection fault.
  */
-inthand_t	bluetrap13;
+inthand_t bluetrap13;
 #ifdef __GNUCLIKE_ASM
-__asm
-("									\n\
+__asm("									\n\
 	.text								\n\
 	.p2align 2,0x90							\n\
 	.type	" __XSTRING(CNAME(bluetrap13)) ",@function		\n\
@@ -1267,7 +1257,7 @@ identblue(void)
 	setidt(IDT_GP, bluetrap13, SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 
-	rdmsr(0x1002);		/* Cyrix CPU generates fault. */
+	rdmsr(0x1002); /* Cyrix CPU generates fault. */
 
 	if (trap_by_rdmsr == 0xa8c1d)
 		return IDENTBLUE_CYRIX486;
@@ -1289,8 +1279,8 @@ static void
 identifycyrix(void)
 {
 	register_t saveintr;
-	int	ccr2_test = 0, dir_test = 0;
-	u_char	ccr2, ccr3;
+	int ccr2_test = 0, dir_test = 0;
+	u_char ccr2, ccr3;
 
 	saveintr = intr_disable();
 
@@ -1305,7 +1295,7 @@ identifycyrix(void)
 	write_cyrix_reg(CCR3, ccr3 ^ CCR3_MAPEN3);
 	read_cyrix_reg(CCR3);
 	if (read_cyrix_reg(CCR3) != ccr3)
-		dir_test = 1;					/* CPU supports DIRs. */
+		dir_test = 1; /* CPU supports DIRs. */
 	write_cyrix_reg(CCR3, ccr3);
 
 	if (dir_test) {
@@ -1313,9 +1303,9 @@ identifycyrix(void)
 		cyrix_did = read_cyrix_reg(DIR1) << 8;
 		cyrix_did += read_cyrix_reg(DIR0);
 	} else if (ccr2_test)
-		cyrix_did = 0x0010;		/* 486S A-step */
+		cyrix_did = 0x0010; /* 486S A-step */
 	else
-		cyrix_did = 0x00ff;		/* Old 486SLC/DLC and TI486SXLC/SXL */
+		cyrix_did = 0x00ff; /* Old 486SLC/DLC and TI486SXLC/SXL */
 
 	intr_restore(saveintr);
 }
@@ -1341,45 +1331,45 @@ hook_tsc_freq(void *arg __unused)
 	if (tsc_is_invariant)
 		return;
 
-	tsc_post_tag = EVENTHANDLER_REGISTER(cpufreq_post_change,
-	    tsc_freq_changed, NULL, EVENTHANDLER_PRI_ANY);
+	tsc_post_tag = EVENTHANDLER_REGISTER(
+	    cpufreq_post_change, tsc_freq_changed, NULL, EVENTHANDLER_PRI_ANY);
 }
 
 SYSINIT(hook_tsc_freq, SI_SUB_CONFIGURE, SI_ORDER_ANY, hook_tsc_freq, NULL);
 
 static const struct {
-	const char *	vm_bname;
-	int		vm_guest;
+	const char *vm_bname;
+	int vm_guest;
 } vm_bnames[] = {
-	{ "QEMU",	VM_GUEST_VM },		/* QEMU */
-	{ "Plex86",	VM_GUEST_VM },		/* Plex86 */
-	{ "Bochs",	VM_GUEST_VM },		/* Bochs */
-	{ "Xen",	VM_GUEST_XEN },		/* Xen */
-	{ "BHYVE",	VM_GUEST_BHYVE },	/* bhyve */
-	{ "Seabios",	VM_GUEST_KVM },		/* KVM */
+	{ "QEMU", VM_GUEST_VM },     /* QEMU */
+	{ "Plex86", VM_GUEST_VM },   /* Plex86 */
+	{ "Bochs", VM_GUEST_VM },    /* Bochs */
+	{ "Xen", VM_GUEST_XEN },     /* Xen */
+	{ "BHYVE", VM_GUEST_BHYVE }, /* bhyve */
+	{ "Seabios", VM_GUEST_KVM }, /* KVM */
 };
 
 static const struct {
-	const char *	vm_pname;
-	int		vm_guest;
+	const char *vm_pname;
+	int vm_guest;
 } vm_pnames[] = {
-	{ "VMware Virtual Platform",	VM_GUEST_VMWARE },
-	{ "Virtual Machine",		VM_GUEST_VM }, /* Microsoft VirtualPC */
-	{ "VirtualBox",			VM_GUEST_VBOX },
-	{ "Parallels Virtual Platform",	VM_GUEST_PARALLELS },
-	{ "KVM",			VM_GUEST_KVM },
+	{ "VMware Virtual Platform", VM_GUEST_VMWARE },
+	{ "Virtual Machine", VM_GUEST_VM }, /* Microsoft VirtualPC */
+	{ "VirtualBox", VM_GUEST_VBOX },
+	{ "Parallels Virtual Platform", VM_GUEST_PARALLELS },
+	{ "KVM", VM_GUEST_KVM },
 };
 
 static struct {
-	const char	*vm_cpuid;
-	int		vm_guest;
+	const char *vm_cpuid;
+	int vm_guest;
 } vm_cpuids[] = {
-	{ "XENXENXEN",		VM_GUEST_XEN },		/* XEN */
-	{ "Microsoft Hv",	VM_GUEST_HV },		/* Microsoft Hyper-V */
-	{ "VMwareVMware",	VM_GUEST_VMWARE },	/* VMware VM */
-	{ "KVMKVMKVM",		VM_GUEST_KVM },		/* KVM */
-	{ "bhyve bhyve ",	VM_GUEST_BHYVE },	/* bhyve */
-	{ "VBoxVBoxVBox",	VM_GUEST_VBOX },	/* VirtualBox */
+	{ "XENXENXEN", VM_GUEST_XEN },	     /* XEN */
+	{ "Microsoft Hv", VM_GUEST_HV },     /* Microsoft Hyper-V */
+	{ "VMwareVMware", VM_GUEST_VMWARE }, /* VMware VM */
+	{ "KVMKVMKVM", VM_GUEST_KVM },	     /* KVM */
+	{ "bhyve bhyve ", VM_GUEST_BHYVE },  /* bhyve */
+	{ "VBoxVBoxVBox", VM_GUEST_VBOX },   /* VirtualBox */
 };
 
 static void
@@ -1417,7 +1407,7 @@ identify_hypervisor_cpuid_base(void)
 		if (regs[0] >= leaf) {
 			for (i = 0; i < nitems(vm_cpuids); i++)
 				if (strncmp((const char *)&regs[1],
-				    vm_cpuids[i].vm_cpuid, 12) == 0) {
+					vm_cpuids[i].vm_cpuid, 12) == 0) {
 					vm_guest = vm_cpuids[i].vm_guest;
 					break;
 				}
@@ -1470,7 +1460,8 @@ identify_hypervisor(void)
 	 */
 	p = kern_getenv("smbios.system.serial");
 	if (p != NULL) {
-		if (strncmp(p, "VMware-", 7) == 0 || strncmp(p, "VMW", 3) == 0) {
+		if (strncmp(p, "VMware-", 7) == 0 ||
+		    strncmp(p, "VMW", 3) == 0) {
 			vmware_hvcall(VMW_HVCMD_GETVERSION, regs);
 			if (regs[1] == VMW_HVMAGIC) {
 				vm_guest = VM_GUEST_VMWARE;
@@ -1528,9 +1519,9 @@ fix_cpuid(void)
 	 */
 	if (cpu_vendor_id == CPU_VENDOR_INTEL &&
 	    ((CPUID_TO_FAMILY(cpu_id) == 0xf &&
-	    CPUID_TO_MODEL(cpu_id) >= 0x3) ||
-	    (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-	    CPUID_TO_MODEL(cpu_id) >= 0xe))) {
+		 CPUID_TO_MODEL(cpu_id) >= 0x3) ||
+		(CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		    CPUID_TO_MODEL(cpu_id) >= 0xe))) {
 		msr = rdmsr(MSR_IA32_MISC_ENABLE);
 		if ((msr & IA32_MISC_EN_LIMCPUID) != 0) {
 			msr &= ~IA32_MISC_EN_LIMCPUID;
@@ -1641,8 +1632,8 @@ finishidentcpu(void)
 	if (cpu_high >= 5 && (cpu_feature2 & CPUID2_MON) != 0) {
 		do_cpuid(5, regs);
 		cpu_mon_mwait_flags = regs[2];
-		cpu_mon_min_size = regs[0] &  CPUID5_MON_MIN_SIZE;
-		cpu_mon_max_size = regs[1] &  CPUID5_MON_MAX_SIZE;
+		cpu_mon_min_size = regs[0] & CPUID5_MON_MIN_SIZE;
+		cpu_mon_max_size = regs[1] & CPUID5_MON_MAX_SIZE;
 	}
 
 	identify_cpu2();
@@ -1650,11 +1641,11 @@ finishidentcpu(void)
 #ifdef __i386__
 	if (cpu_high > 0 &&
 	    (cpu_vendor_id == CPU_VENDOR_INTEL ||
-	     cpu_vendor_id == CPU_VENDOR_AMD ||
-	     cpu_vendor_id == CPU_VENDOR_HYGON ||
-	     cpu_vendor_id == CPU_VENDOR_TRANSMETA ||
-	     cpu_vendor_id == CPU_VENDOR_CENTAUR ||
-	     cpu_vendor_id == CPU_VENDOR_NSC)) {
+		cpu_vendor_id == CPU_VENDOR_AMD ||
+		cpu_vendor_id == CPU_VENDOR_HYGON ||
+		cpu_vendor_id == CPU_VENDOR_TRANSMETA ||
+		cpu_vendor_id == CPU_VENDOR_CENTAUR ||
+		cpu_vendor_id == CPU_VENDOR_NSC)) {
 		do_cpuid(0x80000000, regs);
 		if (regs[0] >= 0x80000000)
 			cpu_exthigh = regs[0];
@@ -1717,7 +1708,8 @@ finishidentcpu(void)
 			identifycyrix();
 			/*
 			 * This routine contains a trick.
-			 * Don't check (cpu_id & 0x00f0) == 0x50 to detect M2, now.
+			 * Don't check (cpu_id & 0x00f0) == 0x50 to detect M2,
+			 * now.
 			 */
 			switch (cyrix_did & 0x00f0) {
 			case 0x00:
@@ -1749,14 +1741,15 @@ finishidentcpu(void)
 				 */
 				ccr3 = read_cyrix_reg(CCR3);
 				write_cyrix_reg(CCR3, CCR3_MAPEN0);
-				write_cyrix_reg(CCR4, read_cyrix_reg(CCR4) | CCR4_CPUID);
+				write_cyrix_reg(
+				    CCR4, read_cyrix_reg(CCR4) | CCR4_CPUID);
 				write_cyrix_reg(CCR3, ccr3);
 
 				do_cpuid(0, regs);
-				cpu_high = regs[0];	/* eax */
+				cpu_high = regs[0]; /* eax */
 				do_cpuid(1, regs);
-				cpu_id = regs[0];	/* eax */
-				cpu_feature = regs[3];	/* edx */
+				cpu_id = regs[0];      /* eax */
+				cpu_feature = regs[3]; /* edx */
 				break;
 			}
 		}
@@ -1793,7 +1786,7 @@ pti_get_default(void)
 static u_int
 find_cpu_vendor_id(void)
 {
-	int	i;
+	int i;
 
 	for (i = 0; i < nitems(cpu_vendors); i++)
 		if (strcmp(cpu_vendor, cpu_vendors[i].vendor) == 0)
@@ -1814,14 +1807,30 @@ static void
 print_AMD_l2_assoc(int i)
 {
 	switch (i & 0x0f) {
-	case 0: printf(", disabled/not present\n"); break;
-	case 1: printf(", direct mapped\n"); break;
-	case 2: printf(", 2-way associative\n"); break;
-	case 4: printf(", 4-way associative\n"); break;
-	case 6: printf(", 8-way associative\n"); break;
-	case 8: printf(", 16-way associative\n"); break;
-	case 15: printf(", fully associative\n"); break;
-	default: printf(", reserved configuration\n"); break;
+	case 0:
+		printf(", disabled/not present\n");
+		break;
+	case 1:
+		printf(", direct mapped\n");
+		break;
+	case 2:
+		printf(", 2-way associative\n");
+		break;
+	case 4:
+		printf(", 4-way associative\n");
+		break;
+	case 6:
+		printf(", 8-way associative\n");
+		break;
+	case 8:
+		printf(", 16-way associative\n");
+		break;
+	case 15:
+		printf(", fully associative\n");
+		break;
+	default:
+		printf(", reserved configuration\n");
+		break;
 	}
 }
 
@@ -1868,8 +1877,8 @@ print_AMD_info(void)
 			    regs[0] & 0xfff);
 			print_AMD_l2_assoc((regs[0] >> 28) & 0xf);
 		} else {
-			printf("L2 2MB unified TLB: %d entries",
-			    regs[0] & 0xfff);
+			printf(
+			    "L2 2MB unified TLB: %d entries", regs[0] & 0xfff);
 			print_AMD_l2_assoc((regs[0] >> 28) & 0xf);
 		}
 		if ((regs[1] >> 16) != 0) {
@@ -1892,10 +1901,9 @@ print_AMD_info(void)
 	}
 
 #ifdef __i386__
-	if (((cpu_id & 0xf00) == 0x500)
-	    && (((cpu_id & 0x0f0) > 0x80)
-		|| (((cpu_id & 0x0f0) == 0x80)
-		    && (cpu_id & 0x00f) > 0x07))) {
+	if (((cpu_id & 0xf00) == 0x500) &&
+	    (((cpu_id & 0x0f0) > 0x80) ||
+		(((cpu_id & 0x0f0) == 0x80) && (cpu_id & 0x00f) > 0x07))) {
 		/* K6-2(new core [Stepping 8-F]), K6-III or later */
 		amd_whcr = rdmsr(0xc0000082);
 		if (!(amd_whcr & (0x3ff << 22))) {
@@ -1906,8 +1914,7 @@ print_AMD_info(void)
 			printf("Write Allocate 15-16M bytes: %s\n",
 			    (amd_whcr & (1 << 16)) ? "Enable" : "Disable");
 		}
-	} else if (((cpu_id & 0xf00) == 0x500)
-		   && ((cpu_id & 0x0f0) > 0x50)) {
+	} else if (((cpu_id & 0xf00) == 0x500) && ((cpu_id & 0x0f0) > 0x50)) {
 		/* K6, K6-2(old core) */
 		amd_whcr = rdmsr(0xc0000082);
 		if (!(amd_whcr & (0x7f << 1))) {
@@ -1935,7 +1942,7 @@ print_AMD_info(void)
 	if (CPUID_TO_FAMILY(cpu_id) == 0xf && CPUID_TO_MODEL(cpu_id) >= 0x20 &&
 	    CPUID_TO_MODEL(cpu_id) <= 0x3f)
 		printf("WARNING: This architecture revision has known SMP "
-		    "hardware bugs which may cause random instability\n");
+		       "hardware bugs which may cause random instability\n");
 }
 
 static void
@@ -1950,10 +1957,10 @@ print_INTEL_info(void)
 		do {
 			do_cpuid(0x2, regs);
 			if (rounds == 0 && (rounds = (regs[0] & 0xff)) == 0)
-				break;	/* we have a buggy CPU */
+				break; /* we have a buggy CPU */
 
 			for (regnum = 0; regnum <= 3; ++regnum) {
-				if (regs[regnum] & (1<<31))
+				if (regs[regnum] & (1 << 31))
 					continue;
 				if (regnum != 0)
 					print_INTEL_TLB(regs[regnum] & 0xff);
@@ -1971,7 +1978,8 @@ print_INTEL_info(void)
 			nway = 1 << (nwaycode / 2);
 		else
 			nway = 0;
-		printf("L2 cache: %u kbytes, %u-way associative, %u bytes/line\n",
+		printf(
+		    "L2 cache: %u kbytes, %u-way associative, %u bytes/line\n",
 		    (regs[2] >> 16) & 0xffff, nway, regs[2] & 0xff);
 	}
 }
@@ -1985,188 +1993,248 @@ print_INTEL_TLB(u_int data)
 	default:
 		break;
 	case 0x1:
-		printf("Instruction TLB: 4 KB pages, 4-way set associative, 32 entries\n");
+		printf(
+		    "Instruction TLB: 4 KB pages, 4-way set associative, 32 entries\n");
 		break;
 	case 0x2:
-		printf("Instruction TLB: 4 MB pages, fully associative, 2 entries\n");
+		printf(
+		    "Instruction TLB: 4 MB pages, fully associative, 2 entries\n");
 		break;
 	case 0x3:
-		printf("Data TLB: 4 KB pages, 4-way set associative, 64 entries\n");
+		printf(
+		    "Data TLB: 4 KB pages, 4-way set associative, 64 entries\n");
 		break;
 	case 0x4:
-		printf("Data TLB: 4 MB Pages, 4-way set associative, 8 entries\n");
+		printf(
+		    "Data TLB: 4 MB Pages, 4-way set associative, 8 entries\n");
 		break;
 	case 0x6:
-		printf("1st-level instruction cache: 8 KB, 4-way set associative, 32 byte line size\n");
+		printf(
+		    "1st-level instruction cache: 8 KB, 4-way set associative, 32 byte line size\n");
 		break;
 	case 0x8:
-		printf("1st-level instruction cache: 16 KB, 4-way set associative, 32 byte line size\n");
+		printf(
+		    "1st-level instruction cache: 16 KB, 4-way set associative, 32 byte line size\n");
 		break;
 	case 0x9:
-		printf("1st-level instruction cache: 32 KB, 4-way set associative, 64 byte line size\n");
+		printf(
+		    "1st-level instruction cache: 32 KB, 4-way set associative, 64 byte line size\n");
 		break;
 	case 0xa:
-		printf("1st-level data cache: 8 KB, 2-way set associative, 32 byte line size\n");
+		printf(
+		    "1st-level data cache: 8 KB, 2-way set associative, 32 byte line size\n");
 		break;
 	case 0xb:
-		printf("Instruction TLB: 4 MByte pages, 4-way set associative, 4 entries\n");
+		printf(
+		    "Instruction TLB: 4 MByte pages, 4-way set associative, 4 entries\n");
 		break;
 	case 0xc:
-		printf("1st-level data cache: 16 KB, 4-way set associative, 32 byte line size\n");
+		printf(
+		    "1st-level data cache: 16 KB, 4-way set associative, 32 byte line size\n");
 		break;
 	case 0xd:
-		printf("1st-level data cache: 16 KBytes, 4-way set associative, 64 byte line size");
+		printf(
+		    "1st-level data cache: 16 KBytes, 4-way set associative, 64 byte line size");
 		break;
 	case 0xe:
-		printf("1st-level data cache: 24 KBytes, 6-way set associative, 64 byte line size\n");
+		printf(
+		    "1st-level data cache: 24 KBytes, 6-way set associative, 64 byte line size\n");
 		break;
 	case 0x1d:
-		printf("2nd-level cache: 128 KBytes, 2-way set associative, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 128 KBytes, 2-way set associative, 64 byte line size\n");
 		break;
 	case 0x21:
-		printf("2nd-level cache: 256 KBytes, 8-way set associative, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 256 KBytes, 8-way set associative, 64 byte line size\n");
 		break;
 	case 0x22:
-		printf("3rd-level cache: 512 KB, 4-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 512 KB, 4-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x23:
-		printf("3rd-level cache: 1 MB, 8-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 1 MB, 8-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x24:
-		printf("2nd-level cache: 1 MBytes, 16-way set associative, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 1 MBytes, 16-way set associative, 64 byte line size\n");
 		break;
 	case 0x25:
-		printf("3rd-level cache: 2 MB, 8-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 2 MB, 8-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x29:
-		printf("3rd-level cache: 4 MB, 8-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 4 MB, 8-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x2c:
-		printf("1st-level data cache: 32 KB, 8-way set associative, 64 byte line size\n");
+		printf(
+		    "1st-level data cache: 32 KB, 8-way set associative, 64 byte line size\n");
 		break;
 	case 0x30:
-		printf("1st-level instruction cache: 32 KB, 8-way set associative, 64 byte line size\n");
+		printf(
+		    "1st-level instruction cache: 32 KB, 8-way set associative, 64 byte line size\n");
 		break;
 	case 0x39: /* De-listed in SDM rev. 54 */
-		printf("2nd-level cache: 128 KB, 4-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 128 KB, 4-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x3b: /* De-listed in SDM rev. 54 */
-		printf("2nd-level cache: 128 KB, 2-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 128 KB, 2-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x3c: /* De-listed in SDM rev. 54 */
-		printf("2nd-level cache: 256 KB, 4-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 256 KB, 4-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x41:
-		printf("2nd-level cache: 128 KB, 4-way set associative, 32 byte line size\n");
+		printf(
+		    "2nd-level cache: 128 KB, 4-way set associative, 32 byte line size\n");
 		break;
 	case 0x42:
-		printf("2nd-level cache: 256 KB, 4-way set associative, 32 byte line size\n");
+		printf(
+		    "2nd-level cache: 256 KB, 4-way set associative, 32 byte line size\n");
 		break;
 	case 0x43:
-		printf("2nd-level cache: 512 KB, 4-way set associative, 32 byte line size\n");
+		printf(
+		    "2nd-level cache: 512 KB, 4-way set associative, 32 byte line size\n");
 		break;
 	case 0x44:
-		printf("2nd-level cache: 1 MB, 4-way set associative, 32 byte line size\n");
+		printf(
+		    "2nd-level cache: 1 MB, 4-way set associative, 32 byte line size\n");
 		break;
 	case 0x45:
-		printf("2nd-level cache: 2 MB, 4-way set associative, 32 byte line size\n");
+		printf(
+		    "2nd-level cache: 2 MB, 4-way set associative, 32 byte line size\n");
 		break;
 	case 0x46:
-		printf("3rd-level cache: 4 MB, 4-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 4 MB, 4-way set associative, 64 byte line size\n");
 		break;
 	case 0x47:
-		printf("3rd-level cache: 8 MB, 8-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 8 MB, 8-way set associative, 64 byte line size\n");
 		break;
 	case 0x48:
-		printf("2nd-level cache: 3MByte, 12-way set associative, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 3MByte, 12-way set associative, 64 byte line size\n");
 		break;
 	case 0x49:
 		if (CPUID_TO_FAMILY(cpu_id) == 0xf &&
 		    CPUID_TO_MODEL(cpu_id) == 0x6)
-			printf("3rd-level cache: 4MB, 16-way set associative, 64-byte line size\n");
+			printf(
+			    "3rd-level cache: 4MB, 16-way set associative, 64-byte line size\n");
 		else
-			printf("2nd-level cache: 4 MByte, 16-way set associative, 64 byte line size");
+			printf(
+			    "2nd-level cache: 4 MByte, 16-way set associative, 64 byte line size");
 		break;
 	case 0x4a:
-		printf("3rd-level cache: 6MByte, 12-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 6MByte, 12-way set associative, 64 byte line size\n");
 		break;
 	case 0x4b:
-		printf("3rd-level cache: 8MByte, 16-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 8MByte, 16-way set associative, 64 byte line size\n");
 		break;
 	case 0x4c:
-		printf("3rd-level cache: 12MByte, 12-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 12MByte, 12-way set associative, 64 byte line size\n");
 		break;
 	case 0x4d:
-		printf("3rd-level cache: 16MByte, 16-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 16MByte, 16-way set associative, 64 byte line size\n");
 		break;
 	case 0x4e:
-		printf("2nd-level cache: 6MByte, 24-way set associative, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 6MByte, 24-way set associative, 64 byte line size\n");
 		break;
 	case 0x4f:
 		printf("Instruction TLB: 4 KByte pages, 32 entries\n");
 		break;
 	case 0x50:
-		printf("Instruction TLB: 4 KB, 2 MB or 4 MB pages, fully associative, 64 entries\n");
+		printf(
+		    "Instruction TLB: 4 KB, 2 MB or 4 MB pages, fully associative, 64 entries\n");
 		break;
 	case 0x51:
-		printf("Instruction TLB: 4 KB, 2 MB or 4 MB pages, fully associative, 128 entries\n");
+		printf(
+		    "Instruction TLB: 4 KB, 2 MB or 4 MB pages, fully associative, 128 entries\n");
 		break;
 	case 0x52:
-		printf("Instruction TLB: 4 KB, 2 MB or 4 MB pages, fully associative, 256 entries\n");
+		printf(
+		    "Instruction TLB: 4 KB, 2 MB or 4 MB pages, fully associative, 256 entries\n");
 		break;
 	case 0x55:
-		printf("Instruction TLB: 2-MByte or 4-MByte pages, fully associative, 7 entries\n");
+		printf(
+		    "Instruction TLB: 2-MByte or 4-MByte pages, fully associative, 7 entries\n");
 		break;
 	case 0x56:
-		printf("Data TLB0: 4 MByte pages, 4-way set associative, 16 entries\n");
+		printf(
+		    "Data TLB0: 4 MByte pages, 4-way set associative, 16 entries\n");
 		break;
 	case 0x57:
-		printf("Data TLB0: 4 KByte pages, 4-way associative, 16 entries\n");
+		printf(
+		    "Data TLB0: 4 KByte pages, 4-way associative, 16 entries\n");
 		break;
 	case 0x59:
-		printf("Data TLB0: 4 KByte pages, fully associative, 16 entries\n");
+		printf(
+		    "Data TLB0: 4 KByte pages, fully associative, 16 entries\n");
 		break;
 	case 0x5a:
-		printf("Data TLB0: 2-MByte or 4 MByte pages, 4-way set associative, 32 entries\n");
+		printf(
+		    "Data TLB0: 2-MByte or 4 MByte pages, 4-way set associative, 32 entries\n");
 		break;
 	case 0x5b:
-		printf("Data TLB: 4 KB or 4 MB pages, fully associative, 64 entries\n");
+		printf(
+		    "Data TLB: 4 KB or 4 MB pages, fully associative, 64 entries\n");
 		break;
 	case 0x5c:
-		printf("Data TLB: 4 KB or 4 MB pages, fully associative, 128 entries\n");
+		printf(
+		    "Data TLB: 4 KB or 4 MB pages, fully associative, 128 entries\n");
 		break;
 	case 0x5d:
-		printf("Data TLB: 4 KB or 4 MB pages, fully associative, 256 entries\n");
+		printf(
+		    "Data TLB: 4 KB or 4 MB pages, fully associative, 256 entries\n");
 		break;
 	case 0x60:
-		printf("1st-level data cache: 16 KB, 8-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "1st-level data cache: 16 KB, 8-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x61:
-		printf("Instruction TLB: 4 KByte pages, fully associative, 48 entries\n");
+		printf(
+		    "Instruction TLB: 4 KByte pages, fully associative, 48 entries\n");
 		break;
 	case 0x63:
-		printf("Data TLB: 2 MByte or 4 MByte pages, 4-way set associative, 32 entries and a separate array with 1 GByte pages, 4-way set associative, 4 entries\n");
+		printf(
+		    "Data TLB: 2 MByte or 4 MByte pages, 4-way set associative, 32 entries and a separate array with 1 GByte pages, 4-way set associative, 4 entries\n");
 		break;
 	case 0x64:
-		printf("Data TLB: 4 KBytes pages, 4-way set associative, 512 entries\n");
+		printf(
+		    "Data TLB: 4 KBytes pages, 4-way set associative, 512 entries\n");
 		break;
 	case 0x66:
-		printf("1st-level data cache: 8 KB, 4-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "1st-level data cache: 8 KB, 4-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x67:
-		printf("1st-level data cache: 16 KB, 4-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "1st-level data cache: 16 KB, 4-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x68:
-		printf("1st-level data cache: 32 KB, 4 way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "1st-level data cache: 32 KB, 4 way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x6a:
-		printf("uTLB: 4KByte pages, 8-way set associative, 64 entries\n");
+		printf(
+		    "uTLB: 4KByte pages, 8-way set associative, 64 entries\n");
 		break;
 	case 0x6b:
-		printf("DTLB: 4KByte pages, 8-way set associative, 256 entries\n");
+		printf(
+		    "DTLB: 4KByte pages, 8-way set associative, 256 entries\n");
 		break;
 	case 0x6c:
-		printf("DTLB: 2M/4M pages, 8-way set associative, 128 entries\n");
+		printf(
+		    "DTLB: 2M/4M pages, 8-way set associative, 128 entries\n");
 		break;
 	case 0x6d:
 		printf("DTLB: 1 GByte pages, fully associative, 16 entries\n");
@@ -2181,139 +2249,183 @@ print_INTEL_TLB(u_int data)
 		printf("Trace cache: 32K-uops, 8-way set associative\n");
 		break;
 	case 0x76:
-		printf("Instruction TLB: 2M/4M pages, fully associative, 8 entries\n");
+		printf(
+		    "Instruction TLB: 2M/4M pages, fully associative, 8 entries\n");
 		break;
 	case 0x78:
-		printf("2nd-level cache: 1 MB, 4-way set associative, 64-byte line size\n");
+		printf(
+		    "2nd-level cache: 1 MB, 4-way set associative, 64-byte line size\n");
 		break;
 	case 0x79:
-		printf("2nd-level cache: 128 KB, 8-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 128 KB, 8-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x7a:
-		printf("2nd-level cache: 256 KB, 8-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 256 KB, 8-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x7b:
-		printf("2nd-level cache: 512 KB, 8-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 512 KB, 8-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x7c:
-		printf("2nd-level cache: 1 MB, 8-way set associative, sectored cache, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 1 MB, 8-way set associative, sectored cache, 64 byte line size\n");
 		break;
 	case 0x7d:
-		printf("2nd-level cache: 2-MB, 8-way set associative, 64-byte line size\n");
+		printf(
+		    "2nd-level cache: 2-MB, 8-way set associative, 64-byte line size\n");
 		break;
 	case 0x7f:
-		printf("2nd-level cache: 512-KB, 2-way set associative, 64-byte line size\n");
+		printf(
+		    "2nd-level cache: 512-KB, 2-way set associative, 64-byte line size\n");
 		break;
 	case 0x80:
-		printf("2nd-level cache: 512 KByte, 8-way set associative, 64-byte line size\n");
+		printf(
+		    "2nd-level cache: 512 KByte, 8-way set associative, 64-byte line size\n");
 		break;
 	case 0x82:
-		printf("2nd-level cache: 256 KB, 8-way set associative, 32 byte line size\n");
+		printf(
+		    "2nd-level cache: 256 KB, 8-way set associative, 32 byte line size\n");
 		break;
 	case 0x83:
-		printf("2nd-level cache: 512 KB, 8-way set associative, 32 byte line size\n");
+		printf(
+		    "2nd-level cache: 512 KB, 8-way set associative, 32 byte line size\n");
 		break;
 	case 0x84:
-		printf("2nd-level cache: 1 MB, 8-way set associative, 32 byte line size\n");
+		printf(
+		    "2nd-level cache: 1 MB, 8-way set associative, 32 byte line size\n");
 		break;
 	case 0x85:
-		printf("2nd-level cache: 2 MB, 8-way set associative, 32 byte line size\n");
+		printf(
+		    "2nd-level cache: 2 MB, 8-way set associative, 32 byte line size\n");
 		break;
 	case 0x86:
-		printf("2nd-level cache: 512 KB, 4-way set associative, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 512 KB, 4-way set associative, 64 byte line size\n");
 		break;
 	case 0x87:
-		printf("2nd-level cache: 1 MB, 8-way set associative, 64 byte line size\n");
+		printf(
+		    "2nd-level cache: 1 MB, 8-way set associative, 64 byte line size\n");
 		break;
 	case 0xa0:
 		printf("DTLB: 4k pages, fully associative, 32 entries\n");
 		break;
 	case 0xb0:
-		printf("Instruction TLB: 4 KB Pages, 4-way set associative, 128 entries\n");
+		printf(
+		    "Instruction TLB: 4 KB Pages, 4-way set associative, 128 entries\n");
 		break;
 	case 0xb1:
-		printf("Instruction TLB: 2M pages, 4-way, 8 entries or 4M pages, 4-way, 4 entries\n");
+		printf(
+		    "Instruction TLB: 2M pages, 4-way, 8 entries or 4M pages, 4-way, 4 entries\n");
 		break;
 	case 0xb2:
-		printf("Instruction TLB: 4KByte pages, 4-way set associative, 64 entries\n");
+		printf(
+		    "Instruction TLB: 4KByte pages, 4-way set associative, 64 entries\n");
 		break;
 	case 0xb3:
-		printf("Data TLB: 4 KB Pages, 4-way set associative, 128 entries\n");
+		printf(
+		    "Data TLB: 4 KB Pages, 4-way set associative, 128 entries\n");
 		break;
 	case 0xb4:
-		printf("Data TLB1: 4 KByte pages, 4-way associative, 256 entries\n");
+		printf(
+		    "Data TLB1: 4 KByte pages, 4-way associative, 256 entries\n");
 		break;
 	case 0xb5:
-		printf("Instruction TLB: 4KByte pages, 8-way set associative, 64 entries\n");
+		printf(
+		    "Instruction TLB: 4KByte pages, 8-way set associative, 64 entries\n");
 		break;
 	case 0xb6:
-		printf("Instruction TLB: 4KByte pages, 8-way set associative, 128 entries\n");
+		printf(
+		    "Instruction TLB: 4KByte pages, 8-way set associative, 128 entries\n");
 		break;
 	case 0xba:
-		printf("Data TLB1: 4 KByte pages, 4-way associative, 64 entries\n");
+		printf(
+		    "Data TLB1: 4 KByte pages, 4-way associative, 64 entries\n");
 		break;
 	case 0xc0:
-		printf("Data TLB: 4 KByte and 4 MByte pages, 4-way associative, 8 entries\n");
+		printf(
+		    "Data TLB: 4 KByte and 4 MByte pages, 4-way associative, 8 entries\n");
 		break;
 	case 0xc1:
-		printf("Shared 2nd-Level TLB: 4 KByte/2MByte pages, 8-way associative, 1024 entries\n");
+		printf(
+		    "Shared 2nd-Level TLB: 4 KByte/2MByte pages, 8-way associative, 1024 entries\n");
 		break;
 	case 0xc2:
-		printf("DTLB: 4 KByte/2 MByte pages, 4-way associative, 16 entries\n");
+		printf(
+		    "DTLB: 4 KByte/2 MByte pages, 4-way associative, 16 entries\n");
 		break;
 	case 0xc3:
-		printf("Shared 2nd-Level TLB: 4 KByte /2 MByte pages, 6-way associative, 1536 entries. Also 1GBbyte pages, 4-way, 16 entries\n");
+		printf(
+		    "Shared 2nd-Level TLB: 4 KByte /2 MByte pages, 6-way associative, 1536 entries. Also 1GBbyte pages, 4-way, 16 entries\n");
 		break;
 	case 0xc4:
-		printf("DTLB: 2M/4M Byte pages, 4-way associative, 32 entries\n");
+		printf(
+		    "DTLB: 2M/4M Byte pages, 4-way associative, 32 entries\n");
 		break;
 	case 0xca:
-		printf("Shared 2nd-Level TLB: 4 KByte pages, 4-way associative, 512 entries\n");
+		printf(
+		    "Shared 2nd-Level TLB: 4 KByte pages, 4-way associative, 512 entries\n");
 		break;
 	case 0xd0:
-		printf("3rd-level cache: 512 KByte, 4-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 512 KByte, 4-way set associative, 64 byte line size\n");
 		break;
 	case 0xd1:
-		printf("3rd-level cache: 1 MByte, 4-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 1 MByte, 4-way set associative, 64 byte line size\n");
 		break;
 	case 0xd2:
-		printf("3rd-level cache: 2 MByte, 4-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 2 MByte, 4-way set associative, 64 byte line size\n");
 		break;
 	case 0xd6:
-		printf("3rd-level cache: 1 MByte, 8-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 1 MByte, 8-way set associative, 64 byte line size\n");
 		break;
 	case 0xd7:
-		printf("3rd-level cache: 2 MByte, 8-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 2 MByte, 8-way set associative, 64 byte line size\n");
 		break;
 	case 0xd8:
-		printf("3rd-level cache: 4 MByte, 8-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 4 MByte, 8-way set associative, 64 byte line size\n");
 		break;
 	case 0xdc:
-		printf("3rd-level cache: 1.5 MByte, 12-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 1.5 MByte, 12-way set associative, 64 byte line size\n");
 		break;
 	case 0xdd:
-		printf("3rd-level cache: 3 MByte, 12-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 3 MByte, 12-way set associative, 64 byte line size\n");
 		break;
 	case 0xde:
-		printf("3rd-level cache: 6 MByte, 12-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 6 MByte, 12-way set associative, 64 byte line size\n");
 		break;
 	case 0xe2:
-		printf("3rd-level cache: 2 MByte, 16-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 2 MByte, 16-way set associative, 64 byte line size\n");
 		break;
 	case 0xe3:
-		printf("3rd-level cache: 4 MByte, 16-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 4 MByte, 16-way set associative, 64 byte line size\n");
 		break;
 	case 0xe4:
-		printf("3rd-level cache: 8 MByte, 16-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 8 MByte, 16-way set associative, 64 byte line size\n");
 		break;
 	case 0xea:
-		printf("3rd-level cache: 12MByte, 24-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 12MByte, 24-way set associative, 64 byte line size\n");
 		break;
 	case 0xeb:
-		printf("3rd-level cache: 18MByte, 24-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 18MByte, 24-way set associative, 64 byte line size\n");
 		break;
 	case 0xec:
-		printf("3rd-level cache: 24MByte, 24-way set associative, 64 byte line size\n");
+		printf(
+		    "3rd-level cache: 24MByte, 24-way set associative, 64 byte line size\n");
 		break;
 	case 0xf0:
 		printf("64-Byte prefetching\n");
@@ -2366,40 +2478,39 @@ print_svm_info(void)
 	}
 
 	printf("Features=0x%b", features,
-	       "\020"
-	       "\001NP"			/* Nested paging */
-	       "\002LbrVirt"		/* LBR virtualization */
-	       "\003SVML"		/* SVM lock */
-	       "\004NRIPS"		/* NRIP save */
-	       "\005TscRateMsr"		/* MSR based TSC rate control */
-	       "\006VmcbClean"		/* VMCB clean bits */
-	       "\007FlushByAsid"	/* Flush by ASID */
-	       "\010DecodeAssist"	/* Decode assist */
-	       "\011<b8>"
-	       "\012<b9>"
-	       "\013PauseFilter"	/* PAUSE intercept filter */
-	       "\014EncryptedMcodePatch"
-	       "\015PauseFilterThreshold" /* PAUSE filter threshold */
-	       "\016AVIC"		/* virtual interrupt controller */
-	       "\017<b14>"
-	       "\020V_VMSAVE_VMLOAD"
-	       "\021vGIF"
-	       "\022GMET"		/* Guest Mode Execute Trap */
-	       "\023<b18>"
-	       "\024<b19>"
-	       "\025GuesSpecCtl"	/* Guest Spec_ctl */
-	       "\026<b21>"
-	       "\027<b22>"
-	       "\030<b23>"
-	       "\031<b24>"
-	       "\032<b25>"
-	       "\033<b26>"
-	       "\034<b27>"
-	       "\035<b28>"
-	       "\036<b29>"
-	       "\037<b30>"
-	       "\040<b31>"
-	       );
+	    "\020"
+	    "\001NP"	       /* Nested paging */
+	    "\002LbrVirt"      /* LBR virtualization */
+	    "\003SVML"	       /* SVM lock */
+	    "\004NRIPS"	       /* NRIP save */
+	    "\005TscRateMsr"   /* MSR based TSC rate control */
+	    "\006VmcbClean"    /* VMCB clean bits */
+	    "\007FlushByAsid"  /* Flush by ASID */
+	    "\010DecodeAssist" /* Decode assist */
+	    "\011<b8>"
+	    "\012<b9>"
+	    "\013PauseFilter" /* PAUSE intercept filter */
+	    "\014EncryptedMcodePatch"
+	    "\015PauseFilterThreshold" /* PAUSE filter threshold */
+	    "\016AVIC"		       /* virtual interrupt controller */
+	    "\017<b14>"
+	    "\020V_VMSAVE_VMLOAD"
+	    "\021vGIF"
+	    "\022GMET" /* Guest Mode Execute Trap */
+	    "\023<b18>"
+	    "\024<b19>"
+	    "\025GuesSpecCtl" /* Guest Spec_ctl */
+	    "\026<b21>"
+	    "\027<b22>"
+	    "\030<b23>"
+	    "\031<b24>"
+	    "\032<b25>"
+	    "\033<b26>"
+	    "\034<b27>"
+	    "\035<b28>"
+	    "\036<b29>"
+	    "\037<b30>"
+	    "\040<b31>");
 	printf("\nRevision=%d, ASIDs=%d", regs[0] & 0xff, regs[1]);
 }
 
@@ -2414,26 +2525,21 @@ print_transmeta_info(void)
 	if (nreg >= 0x80860001) {
 		do_cpuid(0x80860001, regs);
 		printf("  Processor revision %u.%u.%u.%u\n",
-		       (regs[1] >> 24) & 0xff,
-		       (regs[1] >> 16) & 0xff,
-		       (regs[1] >> 8) & 0xff,
-		       regs[1] & 0xff);
+		    (regs[1] >> 24) & 0xff, (regs[1] >> 16) & 0xff,
+		    (regs[1] >> 8) & 0xff, regs[1] & 0xff);
 	}
 	if (nreg >= 0x80860002) {
 		do_cpuid(0x80860002, regs);
 		printf("  Code Morphing Software revision %u.%u.%u-%u-%u\n",
-		       (regs[1] >> 24) & 0xff,
-		       (regs[1] >> 16) & 0xff,
-		       (regs[1] >> 8) & 0xff,
-		       regs[1] & 0xff,
-		       regs[2]);
+		    (regs[1] >> 24) & 0xff, (regs[1] >> 16) & 0xff,
+		    (regs[1] >> 8) & 0xff, regs[1] & 0xff, regs[2]);
 	}
 	if (nreg >= 0x80860006) {
 		char info[65];
-		do_cpuid(0x80860003, (u_int*) &info[0]);
-		do_cpuid(0x80860004, (u_int*) &info[16]);
-		do_cpuid(0x80860005, (u_int*) &info[32]);
-		do_cpuid(0x80860006, (u_int*) &info[48]);
+		do_cpuid(0x80860003, (u_int *)&info[0]);
+		do_cpuid(0x80860004, (u_int *)&info[16]);
+		do_cpuid(0x80860005, (u_int *)&info[32]);
+		do_cpuid(0x80860006, (u_int *)&info[48]);
 		info[64] = 0;
 		printf("  %s\n", info);
 	}
@@ -2447,12 +2553,12 @@ print_via_padlock_info(void)
 
 	do_cpuid(0xc0000001, regs);
 	printf("\n  VIA Padlock Features=0x%b", regs[3],
-	"\020"
-	"\003RNG"		/* RNG */
-	"\007AES"		/* ACE */
-	"\011AES-CTR"		/* ACE2 */
-	"\013SHA1,SHA256"	/* PHE */
-	"\015RSA"		/* PMM */
+	    "\020"
+	    "\003RNG"	      /* RNG */
+	    "\007AES"	      /* ACE */
+	    "\011AES-CTR"     /* ACE2 */
+	    "\013SHA1,SHA256" /* PHE */
+	    "\015RSA"	      /* PMM */
 	);
 }
 
@@ -2482,17 +2588,18 @@ print_vmx_info(void)
 	if (!(msr & IA32_FEATURE_CONTROL_VMX_EN))
 		printf("(disabled in BIOS) ");
 	basic = rdmsr(MSR_VMX_BASIC);
-	pin = vmx_settable(basic, MSR_VMX_PINBASED_CTLS,
-	    MSR_VMX_TRUE_PINBASED_CTLS);
-	proc = vmx_settable(basic, MSR_VMX_PROCBASED_CTLS,
-	    MSR_VMX_TRUE_PROCBASED_CTLS);
+	pin = vmx_settable(
+	    basic, MSR_VMX_PINBASED_CTLS, MSR_VMX_TRUE_PINBASED_CTLS);
+	proc = vmx_settable(
+	    basic, MSR_VMX_PROCBASED_CTLS, MSR_VMX_TRUE_PROCBASED_CTLS);
 	if (proc & PROCBASED_SECONDARY_CONTROLS)
-		proc2 = vmx_settable(basic, MSR_VMX_PROCBASED_CTLS2,
-		    MSR_VMX_PROCBASED_CTLS2);
+		proc2 = vmx_settable(
+		    basic, MSR_VMX_PROCBASED_CTLS2, MSR_VMX_PROCBASED_CTLS2);
 	else
 		proc2 = 0;
 	exit = vmx_settable(basic, MSR_VMX_EXIT_CTLS, MSR_VMX_TRUE_EXIT_CTLS);
-	entry = vmx_settable(basic, MSR_VMX_ENTRY_CTLS, MSR_VMX_TRUE_ENTRY_CTLS);
+	entry = vmx_settable(
+	    basic, MSR_VMX_ENTRY_CTLS, MSR_VMX_TRUE_ENTRY_CTLS);
 
 	if (!bootverbose) {
 		comma = 0;
@@ -2540,113 +2647,112 @@ print_vmx_info(void)
 
 	mask = basic >> 32;
 	printf("Basic Features=0x%b", mask,
-	"\020"
-	"\02132PA"		/* 32-bit physical addresses */
-	"\022SMM"		/* SMM dual-monitor */
-	"\027INS/OUTS"		/* VM-exit info for INS and OUTS */
-	"\030TRUE"		/* TRUE_CTLS MSRs */
+	    "\020"
+	    "\02132PA"	   /* 32-bit physical addresses */
+	    "\022SMM"	   /* SMM dual-monitor */
+	    "\027INS/OUTS" /* VM-exit info for INS and OUTS */
+	    "\030TRUE"	   /* TRUE_CTLS MSRs */
 	);
 	printf("\n        Pin-Based Controls=0x%b", pin,
-	"\020"
-	"\001ExtINT"		/* External-interrupt exiting */
-	"\004NMI"		/* NMI exiting */
-	"\006VNMI"		/* Virtual NMIs */
-	"\007PreTmr"		/* Activate VMX-preemption timer */
-	"\010PostIntr"		/* Process posted interrupts */
+	    "\020"
+	    "\001ExtINT"   /* External-interrupt exiting */
+	    "\004NMI"	   /* NMI exiting */
+	    "\006VNMI"	   /* Virtual NMIs */
+	    "\007PreTmr"   /* Activate VMX-preemption timer */
+	    "\010PostIntr" /* Process posted interrupts */
 	);
 	printf("\n        Primary Processor Controls=0x%b", proc,
-	"\020"
-	"\003INTWIN"		/* Interrupt-window exiting */
-	"\004TSCOff"		/* Use TSC offsetting */
-	"\010HLT"		/* HLT exiting */
-	"\012INVLPG"		/* INVLPG exiting */
-	"\013MWAIT"		/* MWAIT exiting */
-	"\014RDPMC"		/* RDPMC exiting */
-	"\015RDTSC"		/* RDTSC exiting */
-	"\020CR3-LD"		/* CR3-load exiting */
-	"\021CR3-ST"		/* CR3-store exiting */
-	"\024CR8-LD"		/* CR8-load exiting */
-	"\025CR8-ST"		/* CR8-store exiting */
-	"\026TPR"		/* Use TPR shadow */
-	"\027NMIWIN"		/* NMI-window exiting */
-	"\030MOV-DR"		/* MOV-DR exiting */
-	"\031IO"		/* Unconditional I/O exiting */
-	"\032IOmap"		/* Use I/O bitmaps */
-	"\034MTF"		/* Monitor trap flag */
-	"\035MSRmap"		/* Use MSR bitmaps */
-	"\036MONITOR"		/* MONITOR exiting */
-	"\037PAUSE"		/* PAUSE exiting */
+	    "\020"
+	    "\003INTWIN"  /* Interrupt-window exiting */
+	    "\004TSCOff"  /* Use TSC offsetting */
+	    "\010HLT"	  /* HLT exiting */
+	    "\012INVLPG"  /* INVLPG exiting */
+	    "\013MWAIT"	  /* MWAIT exiting */
+	    "\014RDPMC"	  /* RDPMC exiting */
+	    "\015RDTSC"	  /* RDTSC exiting */
+	    "\020CR3-LD"  /* CR3-load exiting */
+	    "\021CR3-ST"  /* CR3-store exiting */
+	    "\024CR8-LD"  /* CR8-load exiting */
+	    "\025CR8-ST"  /* CR8-store exiting */
+	    "\026TPR"	  /* Use TPR shadow */
+	    "\027NMIWIN"  /* NMI-window exiting */
+	    "\030MOV-DR"  /* MOV-DR exiting */
+	    "\031IO"	  /* Unconditional I/O exiting */
+	    "\032IOmap"	  /* Use I/O bitmaps */
+	    "\034MTF"	  /* Monitor trap flag */
+	    "\035MSRmap"  /* Use MSR bitmaps */
+	    "\036MONITOR" /* MONITOR exiting */
+	    "\037PAUSE"	  /* PAUSE exiting */
 	);
 	if (proc & PROCBASED_SECONDARY_CONTROLS)
 		printf("\n        Secondary Processor Controls=0x%b", proc2,
-		"\020"
-		"\001APIC"		/* Virtualize APIC accesses */
-		"\002EPT"		/* Enable EPT */
-		"\003DT"		/* Descriptor-table exiting */
-		"\004RDTSCP"		/* Enable RDTSCP */
-		"\005x2APIC"		/* Virtualize x2APIC mode */
-		"\006VPID"		/* Enable VPID */
-		"\007WBINVD"		/* WBINVD exiting */
-		"\010UG"		/* Unrestricted guest */
-		"\011APIC-reg"		/* APIC-register virtualization */
-		"\012VID"		/* Virtual-interrupt delivery */
-		"\013PAUSE-loop"	/* PAUSE-loop exiting */
-		"\014RDRAND"		/* RDRAND exiting */
-		"\015INVPCID"		/* Enable INVPCID */
-		"\016VMFUNC"		/* Enable VM functions */
-		"\017VMCS"		/* VMCS shadowing */
-		"\020EPT#VE"		/* EPT-violation #VE */
-		"\021XSAVES"		/* Enable XSAVES/XRSTORS */
+		    "\020"
+		    "\001APIC"	     /* Virtualize APIC accesses */
+		    "\002EPT"	     /* Enable EPT */
+		    "\003DT"	     /* Descriptor-table exiting */
+		    "\004RDTSCP"     /* Enable RDTSCP */
+		    "\005x2APIC"     /* Virtualize x2APIC mode */
+		    "\006VPID"	     /* Enable VPID */
+		    "\007WBINVD"     /* WBINVD exiting */
+		    "\010UG"	     /* Unrestricted guest */
+		    "\011APIC-reg"   /* APIC-register virtualization */
+		    "\012VID"	     /* Virtual-interrupt delivery */
+		    "\013PAUSE-loop" /* PAUSE-loop exiting */
+		    "\014RDRAND"     /* RDRAND exiting */
+		    "\015INVPCID"    /* Enable INVPCID */
+		    "\016VMFUNC"     /* Enable VM functions */
+		    "\017VMCS"	     /* VMCS shadowing */
+		    "\020EPT#VE"     /* EPT-violation #VE */
+		    "\021XSAVES"     /* Enable XSAVES/XRSTORS */
 		);
 	printf("\n        Exit Controls=0x%b", mask,
-	"\020"
-	"\003DR"		/* Save debug controls */
-				/* Ignore Host address-space size */
-	"\015PERF"		/* Load MSR_PERF_GLOBAL_CTRL */
-	"\020AckInt"		/* Acknowledge interrupt on exit */
-	"\023PAT-SV"		/* Save MSR_PAT */
-	"\024PAT-LD"		/* Load MSR_PAT */
-	"\025EFER-SV"		/* Save MSR_EFER */
-	"\026EFER-LD"		/* Load MSR_EFER */
-	"\027PTMR-SV"		/* Save VMX-preemption timer value */
+	    "\020"
+	    "\003DR"	  /* Save debug controls */
+			  /* Ignore Host address-space size */
+	    "\015PERF"	  /* Load MSR_PERF_GLOBAL_CTRL */
+	    "\020AckInt"  /* Acknowledge interrupt on exit */
+	    "\023PAT-SV"  /* Save MSR_PAT */
+	    "\024PAT-LD"  /* Load MSR_PAT */
+	    "\025EFER-SV" /* Save MSR_EFER */
+	    "\026EFER-LD" /* Load MSR_EFER */
+	    "\027PTMR-SV" /* Save VMX-preemption timer value */
 	);
 	printf("\n        Entry Controls=0x%b", mask,
-	"\020"
-	"\003DR"		/* Save debug controls */
-				/* Ignore IA-32e mode guest */
-				/* Ignore Entry to SMM */
-				/* Ignore Deactivate dual-monitor treatment */
-	"\016PERF"		/* Load MSR_PERF_GLOBAL_CTRL */
-	"\017PAT"		/* Load MSR_PAT */
-	"\020EFER"		/* Load MSR_EFER */
+	    "\020"
+	    "\003DR"   /* Save debug controls */
+		       /* Ignore IA-32e mode guest */
+		       /* Ignore Entry to SMM */
+		       /* Ignore Deactivate dual-monitor treatment */
+	    "\016PERF" /* Load MSR_PERF_GLOBAL_CTRL */
+	    "\017PAT"  /* Load MSR_PAT */
+	    "\020EFER" /* Load MSR_EFER */
 	);
 	if (proc & PROCBASED_SECONDARY_CONTROLS &&
 	    (proc2 & (PROCBASED2_ENABLE_EPT | PROCBASED2_ENABLE_VPID)) != 0) {
 		msr = rdmsr(MSR_VMX_EPT_VPID_CAP);
 		mask = msr;
 		printf("\n        EPT Features=0x%b", mask,
-		"\020"
-		"\001XO"		/* Execute-only translations */
-		"\007PW4"		/* Page-walk length of 4 */
-		"\011UC"		/* EPT paging-structure mem can be UC */
-		"\017WB"		/* EPT paging-structure mem can be WB */
-		"\0212M"		/* EPT PDE can map a 2-Mbyte page */
-		"\0221G"		/* EPT PDPTE can map a 1-Gbyte page */
-		"\025INVEPT"		/* INVEPT is supported */
-		"\026AD"		/* Accessed and dirty flags for EPT */
-		"\032single"		/* INVEPT single-context type */
-		"\033all"		/* INVEPT all-context type */
+		    "\020"
+		    "\001XO"	 /* Execute-only translations */
+		    "\007PW4"	 /* Page-walk length of 4 */
+		    "\011UC"	 /* EPT paging-structure mem can be UC */
+		    "\017WB"	 /* EPT paging-structure mem can be WB */
+		    "\0212M"	 /* EPT PDE can map a 2-Mbyte page */
+		    "\0221G"	 /* EPT PDPTE can map a 1-Gbyte page */
+		    "\025INVEPT" /* INVEPT is supported */
+		    "\026AD"	 /* Accessed and dirty flags for EPT */
+		    "\032single" /* INVEPT single-context type */
+		    "\033all"	 /* INVEPT all-context type */
 		);
 		mask = msr >> 32;
 		printf("\n        VPID Features=0x%b", mask,
-		"\020"
-		"\001INVVPID"		/* INVVPID is supported */
-		"\011individual"	/* INVVPID individual-address type */
-		"\012single"		/* INVVPID single-context type */
-		"\013all"		/* INVVPID all-context type */
-		 /* INVVPID single-context-retaining-globals type */
-		"\014single-globals"
-		);
+		    "\020"
+		    "\001INVVPID"    /* INVVPID is supported */
+		    "\011individual" /* INVVPID individual-address type */
+		    "\012single"     /* INVVPID single-context type */
+		    "\013all"	     /* INVVPID all-context type */
+		    /* INVVPID single-context-retaining-globals type */
+		    "\014single-globals");
 	}
 }
 

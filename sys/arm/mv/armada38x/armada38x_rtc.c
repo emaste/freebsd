@@ -28,20 +28,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/bus.h>
-#include <sys/lock.h>
-#include <sys/time.h>
-#include <sys/proc.h>
-#include <sys/conf.h>
-#include <sys/rman.h>
-#include <sys/clock.h>
-#include <sys/systm.h>
-#include <sys/mutex.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/clock.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/resource.h>
+#include <sys/rman.h>
+#include <sys/time.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -51,61 +51,58 @@ __FBSDID("$FreeBSD$");
 
 #include "clock_if.h"
 
-#define	RTC_RES_US		1000000
-#define	HALF_OF_SEC_NS		500000000
+#define RTC_RES_US 1000000
+#define HALF_OF_SEC_NS 500000000
 
-#define	RTC_STATUS		0x0
-#define	RTC_TIME		0xC
-#define	RTC_TEST_CONFIG		0x1C
-#define	RTC_IRQ_1_CONFIG	0x4
-#define	RTC_IRQ_2_CONFIG	0x8
-#define	RTC_ALARM_1		0x10
-#define	RTC_ALARM_2		0x14
-#define	RTC_CLOCK_CORR		0x18
+#define RTC_STATUS 0x0
+#define RTC_TIME 0xC
+#define RTC_TEST_CONFIG 0x1C
+#define RTC_IRQ_1_CONFIG 0x4
+#define RTC_IRQ_2_CONFIG 0x8
+#define RTC_ALARM_1 0x10
+#define RTC_ALARM_2 0x14
+#define RTC_CLOCK_CORR 0x18
 
-#define	RTC_NOMINAL_TIMING	0x2000
-#define	RTC_NOMINAL_TIMING_MASK	0x7fff
+#define RTC_NOMINAL_TIMING 0x2000
+#define RTC_NOMINAL_TIMING_MASK 0x7fff
 
-#define	RTC_STATUS_ALARM1_MASK	0x1
-#define	RTC_STATUS_ALARM2_MASK	0x2
+#define RTC_STATUS_ALARM1_MASK 0x1
+#define RTC_STATUS_ALARM2_MASK 0x2
 
-#define	MV_RTC_LOCK(sc)		mtx_lock_spin(&(sc)->mutex)
-#define	MV_RTC_UNLOCK(sc)	mtx_unlock_spin(&(sc)->mutex)
+#define MV_RTC_LOCK(sc) mtx_lock_spin(&(sc)->mutex)
+#define MV_RTC_UNLOCK(sc) mtx_unlock_spin(&(sc)->mutex)
 
-#define	A38X_RTC_BRIDGE_TIMING_CTRL		0x0
-#define	A38X_RTC_WRCLK_PERIOD_SHIFT		0
-#define	A38X_RTC_WRCLK_PERIOD_MASK		0x00000003FF
-#define	A38X_RTC_WRCLK_PERIOD_MAX		0x3FF
-#define	A38X_RTC_READ_OUTPUT_DELAY_SHIFT	26
-#define	A38X_RTC_READ_OUTPUT_DELAY_MASK		0x007C000000
-#define	A38X_RTC_READ_OUTPUT_DELAY_MAX		0x1F
+#define A38X_RTC_BRIDGE_TIMING_CTRL 0x0
+#define A38X_RTC_WRCLK_PERIOD_SHIFT 0
+#define A38X_RTC_WRCLK_PERIOD_MASK 0x00000003FF
+#define A38X_RTC_WRCLK_PERIOD_MAX 0x3FF
+#define A38X_RTC_READ_OUTPUT_DELAY_SHIFT 26
+#define A38X_RTC_READ_OUTPUT_DELAY_MASK 0x007C000000
+#define A38X_RTC_READ_OUTPUT_DELAY_MAX 0x1F
 
-#define	A8K_RTC_BRIDGE_TIMING_CTRL0		0x0
-#define	A8K_RTC_WRCLK_PERIOD_SHIFT		0
-#define	A8K_RTC_WRCLK_PERIOD_MASK		0x000000FFFF
-#define	A8K_RTC_WRCLK_PERIOD_VAL		0x3FF
-#define	A8K_RTC_WRCLK_SETUP_SHIFT		16
-#define	A8K_RTC_WRCLK_SETUP_MASK		0x00FFFF0000
-#define	A8K_RTC_WRCLK_SETUP_VAL			29
-#define	A8K_RTC_BRIDGE_TIMING_CTRL1		0x4
-#define	A8K_RTC_READ_OUTPUT_DELAY_SHIFT		0
-#define	A8K_RTC_READ_OUTPUT_DELAY_MASK		0x000000FFFF
-#define	A8K_RTC_READ_OUTPUT_DELAY_VAL		0x3F
+#define A8K_RTC_BRIDGE_TIMING_CTRL0 0x0
+#define A8K_RTC_WRCLK_PERIOD_SHIFT 0
+#define A8K_RTC_WRCLK_PERIOD_MASK 0x000000FFFF
+#define A8K_RTC_WRCLK_PERIOD_VAL 0x3FF
+#define A8K_RTC_WRCLK_SETUP_SHIFT 16
+#define A8K_RTC_WRCLK_SETUP_MASK 0x00FFFF0000
+#define A8K_RTC_WRCLK_SETUP_VAL 29
+#define A8K_RTC_BRIDGE_TIMING_CTRL1 0x4
+#define A8K_RTC_READ_OUTPUT_DELAY_SHIFT 0
+#define A8K_RTC_READ_OUTPUT_DELAY_MASK 0x000000FFFF
+#define A8K_RTC_READ_OUTPUT_DELAY_VAL 0x3F
 
-#define	RTC_RES		0
-#define	RTC_SOC_RES	1
+#define RTC_RES 0
+#define RTC_SOC_RES 1
 
-static struct resource_spec res_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec res_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_MEMORY, 1, RF_ACTIVE }, { -1, 0 } };
 
 struct mv_rtc_softc {
-	device_t	dev;
-	struct resource	*res[2];
-	struct mtx	mutex;
-	int		rtc_type;
+	device_t dev;
+	struct resource *res[2];
+	struct mtx mutex;
+	int rtc_type;
 };
 
 static int mv_rtc_probe(device_t dev);
@@ -115,20 +112,19 @@ static int mv_rtc_detach(device_t dev);
 static int mv_rtc_gettime(device_t dev, struct timespec *ts);
 static int mv_rtc_settime(device_t dev, struct timespec *ts);
 
-static inline uint32_t mv_rtc_reg_read(struct mv_rtc_softc *sc,
-    bus_size_t off);
-static inline int mv_rtc_reg_write(struct mv_rtc_softc *sc, bus_size_t off,
-    uint32_t val);
+static inline uint32_t mv_rtc_reg_read(struct mv_rtc_softc *sc, bus_size_t off);
+static inline int mv_rtc_reg_write(
+    struct mv_rtc_softc *sc, bus_size_t off, uint32_t val);
 static inline void mv_rtc_configure_bus_a38x(struct mv_rtc_softc *sc);
 static inline void mv_rtc_configure_bus_a8k(struct mv_rtc_softc *sc);
 
 static device_method_t mv_rtc_methods[] = {
-	DEVMETHOD(device_probe,		mv_rtc_probe),
-	DEVMETHOD(device_attach,	mv_rtc_attach),
-	DEVMETHOD(device_detach,	mv_rtc_detach),
+	DEVMETHOD(device_probe, mv_rtc_probe),
+	DEVMETHOD(device_attach, mv_rtc_attach),
+	DEVMETHOD(device_detach, mv_rtc_detach),
 
-	DEVMETHOD(clock_gettime,	mv_rtc_gettime),
-	DEVMETHOD(clock_settime,	mv_rtc_settime),
+	DEVMETHOD(clock_gettime, mv_rtc_gettime),
+	DEVMETHOD(clock_settime, mv_rtc_settime),
 
 	{ 0, 0 },
 };
@@ -139,13 +135,13 @@ static driver_t mv_rtc_driver = {
 	sizeof(struct mv_rtc_softc),
 };
 
-#define  RTC_A38X	1
-#define  RTC_A8K	2
+#define RTC_A38X 1
+#define RTC_A8K 2
 
 static struct ofw_compat_data mv_rtc_compat[] = {
-	{"marvell,armada-380-rtc",	RTC_A38X},
-	{"marvell,armada-8k-rtc",	RTC_A8K},
-	{NULL,				0},
+	{ "marvell,armada-380-rtc", RTC_A38X },
+	{ "marvell,armada-8k-rtc", RTC_A8K },
+	{ NULL, 0 },
 };
 
 static devclass_t mv_rtc_devclass;
@@ -168,7 +164,8 @@ mv_rtc_reset(device_t dev)
 	DELAY(62);
 
 	/* Reset Status register */
-	mv_rtc_reg_write(sc, RTC_STATUS, (RTC_STATUS_ALARM1_MASK | RTC_STATUS_ALARM2_MASK));
+	mv_rtc_reg_write(
+	    sc, RTC_STATUS, (RTC_STATUS_ALARM1_MASK | RTC_STATUS_ALARM2_MASK));
 	DELAY(62);
 
 	/* Turn off Int1 and Int2 sources & clear the Alarm count */
@@ -185,7 +182,8 @@ mv_rtc_reset(device_t dev)
 	DELAY(10);
 
 	/* Reset Status register */
-	mv_rtc_reg_write(sc, RTC_STATUS, (RTC_STATUS_ALARM1_MASK | RTC_STATUS_ALARM2_MASK));
+	mv_rtc_reg_write(
+	    sc, RTC_STATUS, (RTC_STATUS_ALARM1_MASK | RTC_STATUS_ALARM2_MASK));
 	DELAY(50);
 }
 
@@ -346,7 +344,8 @@ mv_rtc_configure_bus_a38x(struct mv_rtc_softc *sc)
 	val = bus_read_4(sc->res[RTC_SOC_RES], A38X_RTC_BRIDGE_TIMING_CTRL);
 	val &= ~(A38X_RTC_WRCLK_PERIOD_MASK | A38X_RTC_READ_OUTPUT_DELAY_MASK);
 	val |= A38X_RTC_WRCLK_PERIOD_MAX << A38X_RTC_WRCLK_PERIOD_SHIFT;
-	val |= A38X_RTC_READ_OUTPUT_DELAY_MAX << A38X_RTC_READ_OUTPUT_DELAY_SHIFT;
+	val |= A38X_RTC_READ_OUTPUT_DELAY_MAX
+	    << A38X_RTC_READ_OUTPUT_DELAY_SHIFT;
 	bus_write_4(sc->res[RTC_SOC_RES], A38X_RTC_BRIDGE_TIMING_CTRL, val);
 }
 

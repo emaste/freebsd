@@ -39,11 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
@@ -54,12 +54,15 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 #endif
 #include <machine/intr_machdep.h>
+
 #include "clock_if.h"
 #ifdef DEV_ACPI
-#include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/accommon.h>
-#include <dev/acpica/acpivar.h>
 #include <machine/md_var.h>
+
+#include <dev/acpica/acpivar.h>
+
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acpi.h>
 #endif
 
 /*
@@ -77,14 +80,14 @@ TUNABLE_INT("hw.atrtc.enabled", &atrtc_enabled);
 struct mtx atrtc_time_lock;
 MTX_SYSINIT(atrtc_time_lock_init, &atrtc_time_lock, "atrtc_time", MTX_DEF);
 
-int	atrtcclock_disable = 0;
+int atrtcclock_disable = 0;
 
-static	int	rtc_reg = -1;
-static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
-static	u_char	rtc_statusb = RTCSB_24HR;
+static int rtc_reg = -1;
+static u_char rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
+static u_char rtc_statusb = RTCSB_24HR;
 
 #ifdef DEV_ACPI
-#define	_COMPONENT	ACPI_TIMER
+#define _COMPONENT ACPI_TIMER
 ACPI_MODULE_NAME("ATRTC")
 #endif
 
@@ -185,7 +188,7 @@ atrtc_restore(void)
 
 	/* Restore all of the RTC's "status" (actually, control) registers. */
 	mtx_lock_spin(&atrtc_lock);
-	rtcin_locked(RTC_STATUSA);	/* dummy to get rtc_reg set */
+	rtcin_locked(RTC_STATUSA); /* dummy to get rtc_reg set */
 	rtcout_locked(RTC_STATUSB, RTCSB_24HR);
 	rtcout_locked(RTC_STATUSA, rtc_statusa);
 	rtcout_locked(RTC_STATUSB, rtc_statusb);
@@ -257,14 +260,14 @@ rtc_intr(void *arg)
 		if (sc->et.et_active)
 			sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 	}
-	return(flag ? FILTER_HANDLED : FILTER_STRAY);
+	return (flag ? FILTER_HANDLED : FILTER_STRAY);
 }
 
 #ifdef DEV_ACPI
 /*
  *  ACPI RTC CMOS address space handler
  */
-#define	ATRTC_LAST_REG	0x40
+#define ATRTC_LAST_REG 0x40
 
 static void
 rtcin_region(int reg, void *buf, int len)
@@ -302,10 +305,10 @@ atrtc_check_cmos_access(bool is_read, ACPI_PHYSICAL_ADDRESS addr, UINT32 len)
 		 * Allow single-byte writes to alarm registers and
 		 * multi-byte writes to addr >= 0x30, else deny.
 		 */
-		if (!((len == 1 && (addr == RTC_SECALRM ||
-				    addr == RTC_MINALRM ||
-				    addr == RTC_HRSALRM)) ||
-		      addr >= 0x30))
+		if (!((len == 1 &&
+			  (addr == RTC_SECALRM || addr == RTC_MINALRM ||
+			      addr == RTC_HRSALRM)) ||
+			addr >= 0x30))
 			return (false);
 	}
 	return (true);
@@ -320,10 +323,10 @@ atrtc_acpi_cmos_handler(UINT32 func, ACPI_PHYSICAL_ADDRESS addr,
 	bool is_read = func == ACPI_READ;
 
 	/* ACPICA is very verbose on CMOS handler failures, so we, too */
-#define	CMOS_HANDLER_ERR(fmt, ...) \
+#define CMOS_HANDLER_ERR(fmt, ...) \
 	device_printf(dev, "ACPI [SystemCMOS] handler: " fmt, ##__VA_ARGS__)
 
-	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
 	if (value == NULL) {
 		CMOS_HANDLER_ERR("NULL parameter\n");
@@ -353,8 +356,8 @@ atrtc_acpi_cmos_handler(UINT32 func, ACPI_PHYSICAL_ADDRESS addr,
 
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 	    "ACPI RTC CMOS %s access: addr=%#04x, len=%u, val=%*D\n",
-	    is_read ? "read" : "write", (unsigned)addr, bytewidth,
-	    bytewidth, value, " ");
+	    is_read ? "read" : "write", (unsigned)addr, bytewidth, bytewidth,
+	    value, " ");
 
 	return (AE_OK);
 }
@@ -373,14 +376,14 @@ atrtc_reg_acpi_cmos_handler(device_t dev)
 	sc->acpi_handle = acpi_get_handle(dev);
 	if (sc->acpi_handle == NULL ||
 	    ACPI_FAILURE(AcpiInstallAddressSpaceHandler(sc->acpi_handle,
-	      ACPI_ADR_SPACE_CMOS, atrtc_acpi_cmos_handler, NULL, dev))) {
+		ACPI_ADR_SPACE_CMOS, atrtc_acpi_cmos_handler, NULL, dev))) {
 		sc->acpi_handle = NULL;
-		device_printf(dev,
-		    "Can't register ACPI CMOS address space handler\n");
+		device_printf(
+		    dev, "Can't register ACPI CMOS address space handler\n");
 		return (ENXIO);
-        }
+	}
 
-        return (0);
+	return (0);
 }
 
 static int
@@ -396,14 +399,13 @@ atrtc_unreg_acpi_cmos_handler(device_t dev)
 
 	return (0);
 }
-#endif	/* DEV_ACPI */
+#endif /* DEV_ACPI */
 
 /*
  * Attach to the ISA PnP descriptors for the timer and realtime clock.
  */
 static struct isa_pnp_id atrtc_ids[] = {
-	{ 0x000bd041 /* PNP0B00 */, "AT realtime clock" },
-	{ 0 }
+	{ 0x000bd041 /* PNP0B00 */, "AT realtime clock" }, { 0 }
 };
 
 static bool
@@ -455,21 +457,23 @@ atrtc_attach(device_t dev)
 	bzero(&sc->et, sizeof(struct eventtimer));
 	if (!atrtcclock_disable &&
 	    (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	     "clock", &i) != 0 || i != 0)) {
+		 "clock", &i) != 0 ||
+		i != 0)) {
 		sc->intr_rid = 0;
-		while (bus_get_resource(dev, SYS_RES_IRQ, sc->intr_rid,
-		    &s, NULL) == 0 && s != 8)
+		while (bus_get_resource(
+			   dev, SYS_RES_IRQ, sc->intr_rid, &s, NULL) == 0 &&
+		    s != 8)
 			sc->intr_rid++;
-		sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
-		    &sc->intr_rid, 8, 8, 1, RF_ACTIVE);
+		sc->intr_res = bus_alloc_resource(
+		    dev, SYS_RES_IRQ, &sc->intr_rid, 8, 8, 1, RF_ACTIVE);
 		if (sc->intr_res == NULL) {
 			device_printf(dev, "Can't map interrupt.\n");
 			return (0);
 		} else if ((bus_setup_intr(dev, sc->intr_res, INTR_TYPE_CLK,
-		    rtc_intr, NULL, sc, &sc->intr_handler))) {
+			       rtc_intr, NULL, sc, &sc->intr_handler))) {
 			device_printf(dev, "Can't setup interrupt.\n");
 			return (0);
-		} else { 
+		} else {
 			/* Bind IRQ to BSP to avoid live migration. */
 			bus_bind_intr(dev, sc->intr_res, 0);
 		}
@@ -484,7 +488,7 @@ atrtc_attach(device_t dev)
 		sc->et.et_priv = dev;
 		et_register(&sc->et);
 	}
-	return(0);
+	return (0);
 }
 
 static int
@@ -516,14 +520,14 @@ atrtc_acpi_detach(device_t dev)
 	(void)atrtc_unreg_acpi_cmos_handler(dev);
 	return (0);
 }
-#endif	/* DEV_ACPI */
+#endif /* DEV_ACPI */
 
 static int
 atrtc_resume(device_t dev)
 {
 
 	atrtc_restore();
-	return(0);
+	return (0);
 }
 
 static int
@@ -541,13 +545,13 @@ atrtc_settime(device_t dev __unused, struct timespec *ts)
 	rtcout_locked(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
 
 	/* Write all the time registers. */
-	rtcout_locked(RTC_SEC,   bct.sec);
-	rtcout_locked(RTC_MIN,   bct.min);
-	rtcout_locked(RTC_HRS,   bct.hour);
-	rtcout_locked(RTC_WDAY,  bct.dow + 1);
-	rtcout_locked(RTC_DAY,   bct.day);
+	rtcout_locked(RTC_SEC, bct.sec);
+	rtcout_locked(RTC_MIN, bct.min);
+	rtcout_locked(RTC_HRS, bct.hour);
+	rtcout_locked(RTC_WDAY, bct.dow + 1);
+	rtcout_locked(RTC_DAY, bct.day);
 	rtcout_locked(RTC_MONTH, bct.mon);
-	rtcout_locked(RTC_YEAR,  bct.year & 0xff);
+	rtcout_locked(RTC_YEAR, bct.year & 0xff);
 #ifdef USE_RTC_CENTURY
 	rtcout_locked(RTC_CENTURY, bct.year >> 8);
 #endif
@@ -586,11 +590,11 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	while (rtcin(RTC_STATUSA) & RTCSA_TUP)
 		continue;
 	mtx_lock_spin(&atrtc_lock);
-	bct.sec  = rtcin_locked(RTC_SEC);
-	bct.min  = rtcin_locked(RTC_MIN);
+	bct.sec = rtcin_locked(RTC_SEC);
+	bct.min = rtcin_locked(RTC_MIN);
 	bct.hour = rtcin_locked(RTC_HRS);
-	bct.day  = rtcin_locked(RTC_DAY);
-	bct.mon  = rtcin_locked(RTC_MONTH);
+	bct.day = rtcin_locked(RTC_DAY);
+	bct.mon = rtcin_locked(RTC_MONTH);
 	bct.year = rtcin_locked(RTC_YEAR);
 #ifdef USE_RTC_CENTURY
 	bct.year |= rtcin_locked(RTC_CENTURY) << 8;
@@ -598,7 +602,7 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 	mtx_unlock_spin(&atrtc_lock);
 	mtx_unlock(&atrtc_time_lock);
 	/* dow is unused in timespec conversion and we have no nsec info. */
-	bct.dow  = 0;
+	bct.dow = 0;
 	bct.nsec = 0;
 	clock_dbgprint_bcd(dev, CLOCK_DBG_READ, &bct);
 	return (clock_bcd_to_ts(&bct, ts, false));
@@ -606,18 +610,17 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 
 static device_method_t atrtc_isa_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		atrtc_probe),
-	DEVMETHOD(device_attach,	atrtc_isa_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-		/* XXX stop statclock? */
-	DEVMETHOD(device_resume,	atrtc_resume),
+	DEVMETHOD(device_probe, atrtc_probe),
+	DEVMETHOD(device_attach, atrtc_isa_attach),
+	DEVMETHOD(device_detach, bus_generic_detach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	/* XXX stop statclock? */
+	DEVMETHOD(device_resume, atrtc_resume),
 
 	/* clock interface */
-	DEVMETHOD(clock_gettime,	atrtc_gettime),
-	DEVMETHOD(clock_settime,	atrtc_settime),
-	{ 0, 0 }
+	DEVMETHOD(clock_gettime, atrtc_gettime),
+	DEVMETHOD(clock_settime, atrtc_settime), { 0, 0 }
 };
 
 static driver_t atrtc_isa_driver = {
@@ -629,16 +632,15 @@ static driver_t atrtc_isa_driver = {
 #ifdef DEV_ACPI
 static device_method_t atrtc_acpi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		atrtc_probe),
-	DEVMETHOD(device_attach,	atrtc_acpi_attach),
-	DEVMETHOD(device_detach,	atrtc_acpi_detach),
-		/* XXX stop statclock? */
-	DEVMETHOD(device_resume,	atrtc_resume),
+	DEVMETHOD(device_probe, atrtc_probe),
+	DEVMETHOD(device_attach, atrtc_acpi_attach),
+	DEVMETHOD(device_detach, atrtc_acpi_detach),
+	/* XXX stop statclock? */
+	DEVMETHOD(device_resume, atrtc_resume),
 
 	/* clock interface */
-	DEVMETHOD(clock_gettime,	atrtc_gettime),
-	DEVMETHOD(clock_settime,	atrtc_settime),
-	{ 0, 0 }
+	DEVMETHOD(clock_gettime, atrtc_gettime),
+	DEVMETHOD(clock_settime, atrtc_settime), { 0, 0 }
 };
 
 static driver_t atrtc_acpi_driver = {
@@ -646,7 +648,7 @@ static driver_t atrtc_acpi_driver = {
 	atrtc_acpi_methods,
 	sizeof(struct atrtc_softc),
 };
-#endif	/* DEV_ACPI */
+#endif /* DEV_ACPI */
 
 static devclass_t atrtc_devclass;
 

@@ -44,8 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/string.h>
 
 #include "agent.h"
-#include "smi.h"
 #include "mad_priv.h"
+#include "smi.h"
 
 #define SPFX "ib_agent: "
 
@@ -62,7 +62,8 @@ __ib_get_agent_port(const struct ib_device *device, int port_num)
 {
 	struct ib_agent_port_private *entry;
 
-	list_for_each_entry(entry, &ib_agent_port_list, port_list) {
+	list_for_each_entry(entry, &ib_agent_port_list, port_list)
+	{
 		if (entry->agent[1]->device == device &&
 		    entry->agent[1]->port_num == port_num)
 			return entry;
@@ -82,9 +83,10 @@ ib_get_agent_port(const struct ib_device *device, int port_num)
 	return entry;
 }
 
-void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *grh,
-			 const struct ib_wc *wc, const struct ib_device *device,
-			 int port_num, int qpn, size_t resp_mad_len, bool opa)
+void
+agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *grh,
+    const struct ib_wc *wc, const struct ib_device *device, int port_num,
+    int qpn, size_t resp_mad_len, bool opa)
 {
 	struct ib_agent_port_private *port_priv;
 	struct ib_mad_agent *agent;
@@ -106,7 +108,7 @@ void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *
 	ah = ib_create_ah_from_wc(agent->qp->pd, wc, grh, port_num);
 	if (IS_ERR(ah)) {
 		dev_err(&device->dev, "ib_create_ah_from_wc error %ld\n",
-			PTR_ERR(ah));
+		    PTR_ERR(ah));
 		return;
 	}
 
@@ -114,10 +116,8 @@ void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *
 		resp_mad_len = IB_MGMT_MAD_SIZE;
 
 	send_buf = ib_create_send_mad(agent, wc->src_qp, wc->pkey_index, 0,
-				      IB_MGMT_MAD_HDR,
-				      resp_mad_len - IB_MGMT_MAD_HDR,
-				      GFP_KERNEL,
-				      mad_hdr->base_version);
+	    IB_MGMT_MAD_HDR, resp_mad_len - IB_MGMT_MAD_HDR, GFP_KERNEL,
+	    mad_hdr->base_version);
 	if (IS_ERR(send_buf)) {
 		dev_err(&device->dev, "ib_create_send_mad error\n");
 		goto err1;
@@ -127,9 +127,8 @@ void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *
 	send_buf->ah = ah;
 
 	if (rdma_cap_ib_switch(device)) {
-		mad_send_wr = container_of(send_buf,
-					   struct ib_mad_send_wr_private,
-					   send_buf);
+		mad_send_wr = container_of(
+		    send_buf, struct ib_mad_send_wr_private, send_buf);
 		mad_send_wr->send_wr.port_num = port_num;
 	}
 
@@ -144,14 +143,16 @@ err1:
 	ib_destroy_ah(ah);
 }
 
-static void agent_send_handler(struct ib_mad_agent *mad_agent,
-			       struct ib_mad_send_wc *mad_send_wc)
+static void
+agent_send_handler(
+    struct ib_mad_agent *mad_agent, struct ib_mad_send_wc *mad_send_wc)
 {
 	ib_destroy_ah(mad_send_wc->send_buf->ah);
 	ib_free_send_mad(mad_send_wc->send_buf);
 }
 
-int ib_agent_port_open(struct ib_device *device, int port_num)
+int
+ib_agent_port_open(struct ib_device *device, int port_num)
 {
 	struct ib_agent_port_private *port_priv;
 	unsigned long flags;
@@ -168,9 +169,7 @@ int ib_agent_port_open(struct ib_device *device, int port_num)
 	if (rdma_cap_ib_smi(device, port_num)) {
 		/* Obtain send only MAD agent for SMI QP */
 		port_priv->agent[0] = ib_register_mad_agent(device, port_num,
-							    IB_QPT_SMI, NULL, 0,
-							    &agent_send_handler,
-							    NULL, NULL, 0);
+		    IB_QPT_SMI, NULL, 0, &agent_send_handler, NULL, NULL, 0);
 		if (IS_ERR(port_priv->agent[0])) {
 			ret = PTR_ERR(port_priv->agent[0]);
 			goto error2;
@@ -179,9 +178,7 @@ int ib_agent_port_open(struct ib_device *device, int port_num)
 
 	/* Obtain send only MAD agent for GSI QP */
 	port_priv->agent[1] = ib_register_mad_agent(device, port_num,
-						    IB_QPT_GSI, NULL, 0,
-						    &agent_send_handler,
-						    NULL, NULL, 0);
+	    IB_QPT_GSI, NULL, 0, &agent_send_handler, NULL, NULL, 0);
 	if (IS_ERR(port_priv->agent[1])) {
 		ret = PTR_ERR(port_priv->agent[1]);
 		goto error3;
@@ -202,7 +199,8 @@ error1:
 	return ret;
 }
 
-int ib_agent_port_close(struct ib_device *device, int port_num)
+int
+ib_agent_port_close(struct ib_device *device, int port_num)
 {
 	struct ib_agent_port_private *port_priv;
 	unsigned long flags;

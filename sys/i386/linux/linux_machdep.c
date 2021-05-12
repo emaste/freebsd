@@ -29,7 +29,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_posix.h"
+
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -45,57 +48,54 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
+#include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
-#include <sys/sx.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <machine/frame.h>
 #include <machine/psl.h>
 #include <machine/segments.h>
 #include <machine/sysarch.h>
 
-#include <vm/pmap.h>
-#include <vm/vm.h>
-#include <vm/vm_map.h>
-
-#include <security/audit/audit.h>
-
+#include <i386/include/pcb.h> /* needed for pcb definition in linux_set_thread_area */
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_ipc.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_mmap.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
+#include <security/audit/audit.h>
 
-#include <i386/include/pcb.h>			/* needed for pcb definition in linux_set_thread_area */
-
-#include "opt_posix.h"
-
-extern struct sysentvec elf32_freebsd_sysvec;	/* defined in i386/i386/elf_machdep.c */
+extern struct sysentvec
+    elf32_freebsd_sysvec; /* defined in i386/i386/elf_machdep.c */
 
 struct l_descriptor {
-	l_uint		entry_number;
-	l_ulong		base_addr;
-	l_uint		limit;
-	l_uint		seg_32bit:1;
-	l_uint		contents:2;
-	l_uint		read_exec_only:1;
-	l_uint		limit_in_pages:1;
-	l_uint		seg_not_present:1;
-	l_uint		useable:1;
+	l_uint entry_number;
+	l_ulong base_addr;
+	l_uint limit;
+	l_uint seg_32bit : 1;
+	l_uint contents : 2;
+	l_uint read_exec_only : 1;
+	l_uint limit_in_pages : 1;
+	l_uint seg_not_present : 1;
+	l_uint useable : 1;
 };
 
 struct l_old_select_argv {
-	l_int		nfds;
-	l_fd_set	*readfds;
-	l_fd_set	*writefds;
-	l_fd_set	*exceptfds;
-	struct l_timeval	*timeout;
+	l_int nfds;
+	l_fd_set *readfds;
+	l_fd_set *writefds;
+	l_fd_set *exceptfds;
+	struct l_timeval *timeout;
 };
 
 int
@@ -106,12 +106,12 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	int error;
 
 	if (!LUSECONVPATH(td)) {
-		error = exec_copyin_args(&eargs, args->path, UIO_USERSPACE,
-		    args->argp, args->envp);
+		error = exec_copyin_args(
+		    &eargs, args->path, UIO_USERSPACE, args->argp, args->envp);
 	} else {
 		LCONVPATHEXIST(td, args->path, &newpath);
-		error = exec_copyin_args(&eargs, newpath, UIO_SYSSPACE,
-		    args->argp, args->envp);
+		error = exec_copyin_args(
+		    &eargs, newpath, UIO_SYSSPACE, args->argp, args->envp);
 		LFREEPATH(newpath);
 	}
 	if (error == 0)
@@ -296,7 +296,8 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 		if (idx == 6) {
 			/* we might copy out the entry_number as 3 */
 			info.entry_number = 3;
-			error = copyout(&info, desc, sizeof(struct l_user_desc));
+			error = copyout(
+			    &info, desc, sizeof(struct l_user_desc));
 			if (error)
 				linux_msg(td, "set_cloned_tls copyout failed!");
 		}
@@ -333,8 +334,8 @@ linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 {
 
 	return (linux_mmap_common(td, args->addr, args->len, args->prot,
-		args->flags, args->fd, (uint64_t)(uint32_t)args->pgoff *
-		PAGE_SIZE));
+	    args->flags, args->fd,
+	    (uint64_t)(uint32_t)args->pgoff * PAGE_SIZE));
 }
 
 int
@@ -356,14 +357,16 @@ int
 linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
 {
 
-	return (linux_mprotect_common(td, PTROUT(uap->addr), uap->len, uap->prot));
+	return (
+	    linux_mprotect_common(td, PTROUT(uap->addr), uap->len, uap->prot));
 }
 
 int
 linux_madvise(struct thread *td, struct linux_madvise_args *uap)
 {
 
-	return (linux_madvise_common(td, PTROUT(uap->addr), uap->len, uap->behav));
+	return (
+	    linux_madvise_common(td, PTROUT(uap->addr), uap->len, uap->behav));
 }
 
 int
@@ -413,10 +416,11 @@ linux_modify_ldt(struct thread *td, struct linux_modify_ldt_args *uap)
 		td->td_retval[0] *= sizeof(union descriptor);
 		break;
 	case 0x02: /* read_default_ldt = 0 */
-		size = 5*sizeof(struct l_desc_struct);
+		size = 5 * sizeof(struct l_desc_struct);
 		if (size > uap->bytecount)
 			size = uap->bytecount;
-		for (written = error = 0; written < size && error == 0; written++)
+		for (written = error = 0; written < size && error == 0;
+		     written++)
 			error = subyte((char *)uap->ptr + written, 0);
 		td->td_retval[0] = written;
 		break;
@@ -437,7 +441,7 @@ linux_modify_ldt(struct thread *td, struct linux_modify_ldt_args *uap)
 		desc.sd.sd_lobase = (ld.base_addr & 0x00ffffff);
 		desc.sd.sd_hibase = (ld.base_addr & 0xff000000) >> 24;
 		desc.sd.sd_type = SDT_MEMRO | ((ld.read_exec_only ^ 1) << 1) |
-			(ld.contents << 2);
+		    (ld.contents << 2);
 		desc.sd.sd_dpl = 3;
 		desc.sd.sd_p = (ld.seg_not_present ^ 1);
 		desc.sd.sd_xx = 0;
@@ -476,8 +480,8 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 		act.lsa_mask.__mask = osa.lsa_mask;
 	}
 
-	error = linux_do_sigaction(td, args->sig, args->nsa ? &act : NULL,
-	    args->osa ? &oact : NULL);
+	error = linux_do_sigaction(
+	    td, args->sig, args->nsa ? &act : NULL, args->osa ? &oact : NULL);
 
 	if (args->osa != NULL && !error) {
 		osa.lsa_handler = oact.lsa_handler;
@@ -566,7 +570,8 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 }
 
 int
-linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args)
+linux_set_thread_area(
+    struct thread *td, struct linux_set_thread_area_args *args)
 {
 	struct l_user_desc info;
 	int error;
@@ -638,7 +643,8 @@ linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args
 }
 
 int
-linux_get_thread_area(struct thread *td, struct linux_get_thread_area_args *args)
+linux_get_thread_area(
+    struct thread *td, struct linux_get_thread_area_args *args)
 {
 
 	struct l_user_desc info;
@@ -713,7 +719,8 @@ linux_mq_timedsend(struct thread *td, struct linux_mq_timedsend_args *args)
 }
 
 int
-linux_mq_timedreceive(struct thread *td, struct linux_mq_timedreceive_args *args)
+linux_mq_timedreceive(
+    struct thread *td, struct linux_mq_timedreceive_args *args)
 {
 #ifdef P1003_1B_MQUEUE
 	return (sys_kmq_timedreceive(td, (struct kmq_timedreceive_args *)args));

@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_CAVIUM_OCTE_OCTEBUSVAR_H_
-#define	_CAVIUM_OCTE_OCTEBUSVAR_H_
+#ifndef _CAVIUM_OCTE_OCTEBUSVAR_H_
+#define _CAVIUM_OCTE_OCTEBUSVAR_H_
 
 struct octebus_softc {
 	device_t sc_dev;

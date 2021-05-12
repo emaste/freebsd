@@ -31,19 +31,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/smp.h>
-#include <sys/systm.h>
 
 #include <machine/hwfunc.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 
-#include <mips/cavium/octeon_pcmap_regs.h>
-
 #include <contrib/octeon-sdk/cvmx.h>
 #include <mips/cavium/octeon_irq.h>
+#include <mips/cavium/octeon_pcmap_regs.h>
 
 unsigned octeon_ap_boot = ~0;
 
@@ -116,7 +115,7 @@ platform_cpu_mask(cpuset_t *mask)
 	uint64_t i, m;
 
 	CPU_ZERO(mask);
-	for (i = 0, m = 1 ; i < MAXCPU; i++, m <<= 1)
+	for (i = 0, m = 1; i < MAXCPU; i++, m <<= 1)
 		if (core_mask & m)
 			CPU_SET(i, mask);
 }
@@ -132,17 +131,17 @@ platform_start_ap(int cpuid)
 {
 	uint64_t cores_in_reset;
 
-	/* 
+	/*
 	 * Release the core if it is in reset, and let it rev up a bit.
 	 * The real synchronization happens below via octeon_ap_boot.
 	 */
 	cores_in_reset = cvmx_read_csr(CVMX_CIU_PP_RST);
 	if (cores_in_reset & (1ULL << cpuid)) {
-	    if (bootverbose)
-		printf ("AP #%d still in reset\n", cpuid);
-	    cores_in_reset &= ~(1ULL << cpuid);
-	    cvmx_write_csr(CVMX_CIU_PP_RST, (uint64_t)(cores_in_reset));
-	    DELAY(2000);    /* Give it a moment to start */
+		if (bootverbose)
+			printf("AP #%d still in reset\n", cpuid);
+		cores_in_reset &= ~(1ULL << cpuid);
+		cvmx_write_csr(CVMX_CIU_PP_RST, (uint64_t)(cores_in_reset));
+		DELAY(2000); /* Give it a moment to start */
 	}
 
 	if (atomic_cmpset_32(&octeon_ap_boot, ~0, cpuid) == 0)

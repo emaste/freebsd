@@ -38,23 +38,23 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <net/netevent.h>
+#include <net/route.h>
+#include <net/route/nhop.h>
+#include <netinet/if_ether.h>
+#include <netinet/in_fib.h>
+#include <netinet/ip_var.h>
+#include <netinet6/in6_fib.h>
+#include <netinet6/in6_pcb.h>
+#include <netinet6/scope6_var.h>
+
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <linux/module.h>
-#include <net/route.h>
-#include <net/route/nhop.h>
-#include <net/netevent.h>
+#include <rdma/ib.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_addr_freebsd.h>
-#include <rdma/ib.h>
-
-#include <netinet/in_fib.h>
-#include <netinet/if_ether.h>
-#include <netinet/ip_var.h>
-#include <netinet6/scope6_var.h>
-#include <netinet6/in6_pcb.h>
-#include <netinet6/in6_fib.h>
 
 #include "core_priv.h"
 
@@ -66,7 +66,7 @@ struct addr_req {
 	struct rdma_addr_client *client;
 	void *context;
 	void (*callback)(int status, struct sockaddr *src_addr,
-			 struct rdma_dev_addr *addr, void *context);
+	    struct rdma_dev_addr *addr, void *context);
 	int timeout;
 	int status;
 };
@@ -78,7 +78,8 @@ static LIST_HEAD(req_list);
 static DECLARE_DELAYED_WORK(work, process_req);
 static struct workqueue_struct *addr_wq;
 
-int rdma_addr_size(struct sockaddr *addr)
+int
+rdma_addr_size(struct sockaddr *addr)
 {
 	switch (addr->sa_family) {
 	case AF_INET:
@@ -93,17 +94,19 @@ int rdma_addr_size(struct sockaddr *addr)
 }
 EXPORT_SYMBOL(rdma_addr_size);
 
-int rdma_addr_size_in6(struct sockaddr_in6 *addr)
+int
+rdma_addr_size_in6(struct sockaddr_in6 *addr)
 {
-	int ret = rdma_addr_size((struct sockaddr *) addr);
+	int ret = rdma_addr_size((struct sockaddr *)addr);
 
 	return ret <= sizeof(*addr) ? ret : 0;
 }
 EXPORT_SYMBOL(rdma_addr_size_in6);
 
-int rdma_addr_size_kss(struct sockaddr_storage *addr)
+int
+rdma_addr_size_kss(struct sockaddr_storage *addr)
 {
-	int ret = rdma_addr_size((struct sockaddr *) addr);
+	int ret = rdma_addr_size((struct sockaddr *)addr);
 
 	return ret <= sizeof(*addr) ? ret : 0;
 }
@@ -111,20 +114,23 @@ EXPORT_SYMBOL(rdma_addr_size_kss);
 
 static struct rdma_addr_client self;
 
-void rdma_addr_register_client(struct rdma_addr_client *client)
+void
+rdma_addr_register_client(struct rdma_addr_client *client)
 {
 	atomic_set(&client->refcount, 1);
 	init_completion(&client->comp);
 }
 EXPORT_SYMBOL(rdma_addr_register_client);
 
-static inline void put_client(struct rdma_addr_client *client)
+static inline void
+put_client(struct rdma_addr_client *client)
 {
 	if (atomic_dec_and_test(&client->refcount))
 		complete(&client->comp);
 }
 
-void rdma_addr_unregister_client(struct rdma_addr_client *client)
+void
+rdma_addr_unregister_client(struct rdma_addr_client *client)
 {
 	put_client(client);
 	wait_for_completion(&client->comp);
@@ -140,8 +146,9 @@ rdma_copy_addr_sub(u8 *dst, const u8 *src, unsigned min, unsigned max)
 	memset(dst + min, 0, max - min);
 }
 
-int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
-		     const unsigned char *dst_dev_addr)
+int
+rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
+    const unsigned char *dst_dev_addr)
 {
 	/* check for loopback device */
 	if (dev->if_flags & IFF_LOOPBACK) {
@@ -158,43 +165,45 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 	else
 		dev_addr->dev_type = 0;
 	rdma_copy_addr_sub(dev_addr->src_dev_addr, IF_LLADDR(dev),
-			   dev->if_addrlen, MAX_ADDR_LEN);
+	    dev->if_addrlen, MAX_ADDR_LEN);
 	rdma_copy_addr_sub(dev_addr->broadcast, dev->if_broadcastaddr,
-			   dev->if_addrlen, MAX_ADDR_LEN);
+	    dev->if_addrlen, MAX_ADDR_LEN);
 	if (dst_dev_addr != NULL) {
 		rdma_copy_addr_sub(dev_addr->dst_dev_addr, dst_dev_addr,
-				   dev->if_addrlen, MAX_ADDR_LEN);
+		    dev->if_addrlen, MAX_ADDR_LEN);
 	}
 	dev_addr->bound_dev_if = dev->if_index;
 	return 0;
 }
 EXPORT_SYMBOL(rdma_copy_addr);
 
-int rdma_translate_ip(const struct sockaddr *addr,
-		      struct rdma_dev_addr *dev_addr)
+int
+rdma_translate_ip(const struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 {
 	struct net_device *dev;
 	int ret;
 
 	if (dev_addr->bound_dev_if) {
 		dev = dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
-	} else switch (addr->sa_family) {
+	} else
+		switch (addr->sa_family) {
 #ifdef INET
-	case AF_INET:
-		dev = ip_ifp_find(dev_addr->net,
-			((const struct sockaddr_in *)addr)->sin_addr.s_addr);
-		break;
+		case AF_INET:
+			dev = ip_ifp_find(dev_addr->net,
+			    ((const struct sockaddr_in *)addr)
+				->sin_addr.s_addr);
+			break;
 #endif
 #ifdef INET6
-	case AF_INET6:
-		dev = ip6_ifp_find(dev_addr->net,
-			((const struct sockaddr_in6 *)addr)->sin6_addr, 0);
-		break;
+		case AF_INET6:
+			dev = ip6_ifp_find(dev_addr->net,
+			    ((const struct sockaddr_in6 *)addr)->sin6_addr, 0);
+			break;
 #endif
-	default:
-		dev = NULL;
-		break;
-	}
+		default:
+			dev = NULL;
+			break;
+		}
 
 	if (dev != NULL) {
 		/* disallow connections through 127.0.0.1 itself */
@@ -210,9 +219,10 @@ int rdma_translate_ip(const struct sockaddr *addr,
 }
 EXPORT_SYMBOL(rdma_translate_ip);
 
-static void set_timeout(int time)
+static void
+set_timeout(int time)
 {
-	int delay;	/* under FreeBSD ticks are 32-bit */
+	int delay; /* under FreeBSD ticks are 32-bit */
 
 	delay = time - jiffies;
 	if (delay <= 0)
@@ -223,12 +233,14 @@ static void set_timeout(int time)
 	mod_delayed_work(addr_wq, &work, delay);
 }
 
-static void queue_req(struct addr_req *req)
+static void
+queue_req(struct addr_req *req)
 {
 	struct addr_req *temp_req;
 
 	mutex_lock(&lock);
-	list_for_each_entry_reverse(temp_req, &req_list, list) {
+	list_for_each_entry_reverse(temp_req, &req_list, list)
+	{
 		if (time_after_eq(req->timeout, temp_req->timeout))
 			break;
 	}
@@ -241,7 +253,8 @@ static void queue_req(struct addr_req *req)
 }
 
 #if defined(INET) || defined(INET6)
-static int addr_resolve_multi(u8 *edst, struct ifnet *ifp, struct sockaddr *dst_in)
+static int
+addr_resolve_multi(u8 *edst, struct ifnet *ifp, struct sockaddr *dst_in)
 {
 	struct sockaddr *llsa;
 	struct sockaddr_dl sdl;
@@ -255,8 +268,9 @@ static int addr_resolve_multi(u8 *edst, struct ifnet *ifp, struct sockaddr *dst_
 	} else {
 		error = ifp->if_resolvemulti(ifp, &llsa, dst_in);
 		if (error == 0) {
-			rdma_copy_addr_sub(edst, LLADDR((struct sockaddr_dl *)llsa),
-			    ifp->if_addrlen, MAX_ADDR_LEN);
+			rdma_copy_addr_sub(edst,
+			    LLADDR((struct sockaddr_dl *)llsa), ifp->if_addrlen,
+			    MAX_ADDR_LEN);
 		}
 	}
 	return (error);
@@ -264,11 +278,9 @@ static int addr_resolve_multi(u8 *edst, struct ifnet *ifp, struct sockaddr *dst_
 #endif
 
 #ifdef INET
-static int addr4_resolve(struct sockaddr_in *src_in,
-			 const struct sockaddr_in *dst_in,
-			 struct rdma_dev_addr *addr,
-			 u8 *edst,
-			 struct ifnet **ifpp)
+static int
+addr4_resolve(struct sockaddr_in *src_in, const struct sockaddr_in *dst_in,
+    struct rdma_dev_addr *addr, u8 *edst, struct ifnet **ifpp)
 {
 	enum {
 		ADDR_VALID = 0,
@@ -307,7 +319,8 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	case ADDR_VALID:
 	case ADDR_SRC_ANY:
 		/* regular destination route lookup */
-		nh = fib4_lookup(RT_DEFAULT_FIB, dst_tmp.sin_addr,0,NHR_NONE,0);
+		nh = fib4_lookup(
+		    RT_DEFAULT_FIB, dst_tmp.sin_addr, 0, NHR_NONE, 0);
 		if (nh == NULL) {
 			error = EHOSTUNREACH;
 			goto done;
@@ -340,7 +353,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 			goto error_put_ifp;
 		} else if (nh->nh_ifp->if_flags & IFF_LOOPBACK) {
 			if (memcmp(&src_in->sin_addr, &dst_in->sin_addr,
-			    sizeof(src_in->sin_addr))) {
+				sizeof(src_in->sin_addr))) {
 				/*
 				 * Destination is loopback, but source
 				 * and destination address is not the
@@ -381,12 +394,13 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	 * Step 3 - resolve destination MAC address
 	 */
 	if (dst_tmp.sin_addr.s_addr == INADDR_BROADCAST) {
-		rdma_copy_addr_sub(edst, ifp->if_broadcastaddr,
-		    ifp->if_addrlen, MAX_ADDR_LEN);
+		rdma_copy_addr_sub(
+		    edst, ifp->if_broadcastaddr, ifp->if_addrlen, MAX_ADDR_LEN);
 		error = 0;
 	} else if (IN_MULTICAST(ntohl(dst_tmp.sin_addr.s_addr))) {
 		bool is_gw = (nh->nh_flags & NHF_GATEWAY) != 0;
-		error = addr_resolve_multi(edst, ifp, (struct sockaddr *)&dst_tmp);
+		error = addr_resolve_multi(
+		    edst, ifp, (struct sockaddr *)&dst_tmp);
 		if (error != 0)
 			goto error_put_ifp;
 		else if (is_gw)
@@ -397,8 +411,8 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	} else {
 		bool is_gw = (nh->nh_flags & NHF_GATEWAY) != 0;
 		memset(edst, 0, MAX_ADDR_LEN);
-		error = arpresolve(ifp, is_gw, NULL, is_gw ?
-		    &nh->gw_sa : (const struct sockaddr *)&dst_tmp,
+		error = arpresolve(ifp, is_gw, NULL,
+		    is_gw ? &nh->gw_sa : (const struct sockaddr *)&dst_tmp,
 		    edst, NULL, NULL);
 		if (error != 0)
 			goto error_put_ifp;
@@ -412,7 +426,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	if (saddr != NULL) {
 		src_port = src_in->sin_port;
 		memcpy(src_in, saddr, rdma_addr_size(saddr));
-		src_in->sin_port = src_port;	/* preserve port number */
+		src_in->sin_port = src_port; /* preserve port number */
 	}
 
 	*ifpp = ifp;
@@ -429,22 +443,18 @@ done:
 	return (-error);
 }
 #else
-static int addr4_resolve(struct sockaddr_in *src_in,
-			 const struct sockaddr_in *dst_in,
-			 struct rdma_dev_addr *addr,
-			 u8 *edst,
-			 struct ifnet **ifpp)
+static int
+addr4_resolve(struct sockaddr_in *src_in, const struct sockaddr_in *dst_in,
+    struct rdma_dev_addr *addr, u8 *edst, struct ifnet **ifpp)
 {
 	return -EADDRNOTAVAIL;
 }
 #endif
 
 #ifdef INET6
-static int addr6_resolve(struct sockaddr_in6 *src_in,
-			 const struct sockaddr_in6 *dst_in,
-			 struct rdma_dev_addr *addr,
-			 u8 *edst,
-			 struct ifnet **ifpp)
+static int
+addr6_resolve(struct sockaddr_in6 *src_in, const struct sockaddr_in6 *dst_in,
+    struct rdma_dev_addr *addr, u8 *edst, struct ifnet **ifpp)
 {
 	enum {
 		ADDR_VALID = 0,
@@ -531,7 +541,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 			goto error_put_ifp;
 		} else if (nh->nh_ifp->if_flags & IFF_LOOPBACK) {
 			if (memcmp(&src_in->sin6_addr, &dst_in->sin6_addr,
-			    sizeof(src_in->sin6_addr))) {
+				sizeof(src_in->sin6_addr))) {
 				/*
 				 * Destination is loopback, but source
 				 * and destination address is not the
@@ -573,8 +583,8 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	 */
 	if (IN6_IS_ADDR_MULTICAST(&dst_tmp.sin6_addr)) {
 		bool is_gw = (nh->nh_flags & NHF_GATEWAY) != 0;
-		error = addr_resolve_multi(edst, ifp,
-		    (struct sockaddr *)&dst_tmp);
+		error = addr_resolve_multi(
+		    edst, ifp, (struct sockaddr *)&dst_tmp);
 		if (error != 0)
 			goto error_put_ifp;
 		else if (is_gw)
@@ -585,8 +595,8 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	} else {
 		bool is_gw = (nh->nh_flags & NHF_GATEWAY) != 0;
 		memset(edst, 0, MAX_ADDR_LEN);
-		error = nd6_resolve(ifp, is_gw, NULL, is_gw ?
-		    &nh->gw_sa : (const struct sockaddr *)&dst_tmp,
+		error = nd6_resolve(ifp, is_gw, NULL,
+		    is_gw ? &nh->gw_sa : (const struct sockaddr *)&dst_tmp,
 		    edst, NULL, NULL);
 		if (error != 0)
 			goto error_put_ifp;
@@ -600,7 +610,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	if (saddr != NULL) {
 		src_port = src_in->sin6_port;
 		memcpy(src_in, saddr, rdma_addr_size(saddr));
-		src_in->sin6_port = src_port;	/* preserve port number */
+		src_in->sin6_port = src_port; /* preserve port number */
 	}
 
 	*ifpp = ifp;
@@ -617,20 +627,17 @@ done:
 	return (-error);
 }
 #else
-static int addr6_resolve(struct sockaddr_in6 *src_in,
-			 const struct sockaddr_in6 *dst_in,
-			 struct rdma_dev_addr *addr,
-			 u8 *edst,
-			 struct ifnet **ifpp)
+static int
+addr6_resolve(struct sockaddr_in6 *src_in, const struct sockaddr_in6 *dst_in,
+    struct rdma_dev_addr *addr, u8 *edst, struct ifnet **ifpp)
 {
 	return -EADDRNOTAVAIL;
 }
 #endif
 
-static int addr_resolve_neigh(struct ifnet *dev,
-			      const struct sockaddr *dst_in,
-			      u8 *edst,
-			      struct rdma_dev_addr *addr)
+static int
+addr_resolve_neigh(struct ifnet *dev, const struct sockaddr *dst_in, u8 *edst,
+    struct rdma_dev_addr *addr)
 {
 	if (dev->if_flags & IFF_LOOPBACK) {
 		int ret;
@@ -646,7 +653,7 @@ static int addr_resolve_neigh(struct ifnet *dev,
 		ret = rdma_translate_ip(dst_in, addr);
 		if (ret == 0) {
 			memcpy(addr->dst_dev_addr, addr->src_dev_addr,
-			       MAX_ADDR_LEN);
+			    MAX_ADDR_LEN);
 		}
 		return ret;
 	}
@@ -658,9 +665,9 @@ static int addr_resolve_neigh(struct ifnet *dev,
 	return rdma_copy_addr(addr, dev, NULL);
 }
 
-static int addr_resolve(struct sockaddr *src_in,
-			const struct sockaddr *dst_in,
-			struct rdma_dev_addr *addr)
+static int
+addr_resolve(struct sockaddr *src_in, const struct sockaddr *dst_in,
+    struct rdma_dev_addr *addr)
 {
 	struct epoch_tracker et;
 	struct net_device *ndev = NULL;
@@ -674,13 +681,11 @@ static int addr_resolve(struct sockaddr *src_in,
 	switch (src_in->sa_family) {
 	case AF_INET:
 		ret = addr4_resolve((struct sockaddr_in *)src_in,
-				    (const struct sockaddr_in *)dst_in,
-				    addr, edst, &ndev);
+		    (const struct sockaddr_in *)dst_in, addr, edst, &ndev);
 		break;
 	case AF_INET6:
 		ret = addr6_resolve((struct sockaddr_in6 *)src_in,
-				    (const struct sockaddr_in6 *)dst_in, addr,
-				    edst, &ndev);
+		    (const struct sockaddr_in6 *)dst_in, addr, edst, &ndev);
 		break;
 	default:
 		ret = -EADDRNOTAVAIL;
@@ -702,7 +707,8 @@ static int addr_resolve(struct sockaddr *src_in,
 	return ret;
 }
 
-static void process_req(struct work_struct *work)
+static void
+process_req(struct work_struct *work)
 {
 	struct addr_req *req, *temp_req;
 	struct sockaddr *src_in, *dst_in;
@@ -711,10 +717,11 @@ static void process_req(struct work_struct *work)
 	INIT_LIST_HEAD(&done_list);
 
 	mutex_lock(&lock);
-	list_for_each_entry_safe(req, temp_req, &req_list, list) {
+	list_for_each_entry_safe(req, temp_req, &req_list, list)
+	{
 		if (req->status == -ENODATA) {
-			src_in = (struct sockaddr *) &req->src_addr;
-			dst_in = (struct sockaddr *) &req->dst_addr;
+			src_in = (struct sockaddr *)&req->src_addr;
+			dst_in = (struct sockaddr *)&req->dst_addr;
 			req->status = addr_resolve(src_in, dst_in, req->addr);
 			if (req->status && time_after_eq(jiffies, req->timeout))
 				req->status = -ETIMEDOUT;
@@ -730,21 +737,22 @@ static void process_req(struct work_struct *work)
 	}
 	mutex_unlock(&lock);
 
-	list_for_each_entry_safe(req, temp_req, &done_list, list) {
+	list_for_each_entry_safe(req, temp_req, &done_list, list)
+	{
 		list_del(&req->list);
-		req->callback(req->status, (struct sockaddr *) &req->src_addr,
-			req->addr, req->context);
+		req->callback(req->status, (struct sockaddr *)&req->src_addr,
+		    req->addr, req->context);
 		put_client(req->client);
 		kfree(req);
 	}
 }
 
-int rdma_resolve_ip(struct rdma_addr_client *client,
-		    struct sockaddr *src_addr, struct sockaddr *dst_addr,
-		    struct rdma_dev_addr *addr, int timeout_ms,
-		    void (*callback)(int status, struct sockaddr *src_addr,
-				     struct rdma_dev_addr *addr, void *context),
-		    void *context)
+int
+rdma_resolve_ip(struct rdma_addr_client *client, struct sockaddr *src_addr,
+    struct sockaddr *dst_addr, struct rdma_dev_addr *addr, int timeout_ms,
+    void (*callback)(int status, struct sockaddr *src_addr,
+	struct rdma_dev_addr *addr, void *context),
+    void *context)
 {
 	struct sockaddr *src_in, *dst_in;
 	struct addr_req *req;
@@ -754,8 +762,8 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 	if (!req)
 		return -ENOMEM;
 
-	src_in = (struct sockaddr *) &req->src_addr;
-	dst_in = (struct sockaddr *) &req->dst_addr;
+	src_in = (struct sockaddr *)&req->src_addr;
+	dst_in = (struct sockaddr *)&req->dst_addr;
 
 	if (src_addr) {
 		if (src_addr->sa_family != dst_addr->sa_family) {
@@ -797,9 +805,9 @@ err:
 }
 EXPORT_SYMBOL(rdma_resolve_ip);
 
-int rdma_resolve_ip_route(struct sockaddr *src_addr,
-			  const struct sockaddr *dst_addr,
-			  struct rdma_dev_addr *addr)
+int
+rdma_resolve_ip_route(struct sockaddr *src_addr,
+    const struct sockaddr *dst_addr, struct rdma_dev_addr *addr)
 {
 	struct sockaddr_storage ssrc_addr = {};
 	struct sockaddr *src_in = (struct sockaddr *)&ssrc_addr;
@@ -817,12 +825,14 @@ int rdma_resolve_ip_route(struct sockaddr *src_addr,
 }
 EXPORT_SYMBOL(rdma_resolve_ip_route);
 
-void rdma_addr_cancel(struct rdma_dev_addr *addr)
+void
+rdma_addr_cancel(struct rdma_dev_addr *addr)
 {
 	struct addr_req *req, *temp_req;
 
 	mutex_lock(&lock);
-	list_for_each_entry_safe(req, temp_req, &req_list, list) {
+	list_for_each_entry_safe(req, temp_req, &req_list, list)
+	{
 		if (req->addr == addr) {
 			req->status = -ECANCELED;
 			req->timeout = jiffies;
@@ -841,20 +851,20 @@ struct resolve_cb_context {
 	int status;
 };
 
-static void resolve_cb(int status, struct sockaddr *src_addr,
-	     struct rdma_dev_addr *addr, void *context)
+static void
+resolve_cb(int status, struct sockaddr *src_addr, struct rdma_dev_addr *addr,
+    void *context)
 {
 	if (!status)
-		memcpy(((struct resolve_cb_context *)context)->addr,
-		       addr, sizeof(struct rdma_dev_addr));
+		memcpy(((struct resolve_cb_context *)context)->addr, addr,
+		    sizeof(struct rdma_dev_addr));
 	((struct resolve_cb_context *)context)->status = status;
 	complete(&((struct resolve_cb_context *)context)->comp);
 }
 
-int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
-				 const union ib_gid *dgid,
-				 u8 *dmac, struct net_device *dev,
-				 int *hoplimit)
+int
+rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid, const union ib_gid *dgid,
+    u8 *dmac, struct net_device *dev, int *hoplimit)
 {
 	int ret = 0;
 	struct rdma_dev_addr dev_addr;
@@ -873,7 +883,7 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 	ctx.addr = &dev_addr;
 	init_completion(&ctx.comp);
 	ret = rdma_resolve_ip(&self, &sgid_addr._sockaddr, &dgid_addr._sockaddr,
-			&dev_addr, 1000, resolve_cb, &ctx);
+	    &dev_addr, 1000, resolve_cb, &ctx);
 	if (ret)
 		return ret;
 
@@ -890,7 +900,8 @@ int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 }
 EXPORT_SYMBOL(rdma_addr_find_l2_eth_by_grh);
 
-int addr_init(void)
+int
+addr_init(void)
 {
 	addr_wq = alloc_workqueue("ib_addr", WQ_MEM_RECLAIM, 0);
 	if (!addr_wq)
@@ -901,7 +912,8 @@ int addr_init(void)
 	return 0;
 }
 
-void addr_cleanup(void)
+void
+addr_cleanup(void)
 {
 	rdma_addr_unregister_client(&self);
 	destroy_workqueue(addr_wq);

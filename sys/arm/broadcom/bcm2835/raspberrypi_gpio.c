@@ -39,8 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
-#include <sys/sx.h>
 #include <sys/proc.h>
+#include <sys/sx.h>
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
@@ -49,29 +49,28 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
-#define	RPI_FW_GPIO_PINS		8
-#define	RPI_FW_GPIO_BASE		128
-#define	RPI_FW_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
+#define RPI_FW_GPIO_PINS 8
+#define RPI_FW_GPIO_BASE 128
+#define RPI_FW_GPIO_DEFAULT_CAPS (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
 
 struct rpi_fw_gpio_softc {
-	device_t		sc_busdev;
-	device_t		sc_firmware;
-	struct sx		sc_sx;
-	struct gpio_pin		sc_gpio_pins[RPI_FW_GPIO_PINS];
-	uint8_t			sc_gpio_state;
+	device_t sc_busdev;
+	device_t sc_firmware;
+	struct sx sc_sx;
+	struct gpio_pin sc_gpio_pins[RPI_FW_GPIO_PINS];
+	uint8_t sc_gpio_state;
 };
 
-#define	RPI_FW_GPIO_LOCK(_sc)	sx_xlock(&(_sc)->sc_sx)
-#define	RPI_FW_GPIO_UNLOCK(_sc)	sx_xunlock(&(_sc)->sc_sx)
+#define RPI_FW_GPIO_LOCK(_sc) sx_xlock(&(_sc)->sc_sx)
+#define RPI_FW_GPIO_UNLOCK(_sc) sx_xunlock(&(_sc)->sc_sx)
 
 static struct ofw_compat_data compat_data[] = {
-	{"raspberrypi,firmware-gpio",	1},
-	{NULL,				0}
+	{ "raspberrypi,firmware-gpio", 1 }, { NULL, 0 }
 };
 
 static int
-rpi_fw_gpio_pin_configure(struct rpi_fw_gpio_softc *sc, struct gpio_pin *pin,
-    unsigned int flags)
+rpi_fw_gpio_pin_configure(
+    struct rpi_fw_gpio_softc *sc, struct gpio_pin *pin, unsigned int flags)
 {
 	union msg_get_gpio_config old_cfg;
 	union msg_set_gpio_config new_cfg;
@@ -256,8 +255,8 @@ rpi_fw_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	if (rv == 0 && state.resp.gpio != 0)
 		rv = EINVAL;
 	if (rv == 0) {
-		sc->sc_gpio_pins[i].gp_flags &= ~(GPIO_PIN_PRESET_HIGH |
-		    GPIO_PIN_PRESET_LOW);
+		sc->sc_gpio_pins[i].gp_flags &= ~(
+		    GPIO_PIN_PRESET_HIGH | GPIO_PIN_PRESET_LOW);
 		if (value)
 			sc->sc_gpio_state |= (1 << i);
 		else
@@ -380,8 +379,8 @@ rpi_fw_gpio_attach(device_t dev)
 		/* Set the current pin name */
 		if (names != NULL && elm_pos < nelems &&
 		    names[elm_pos] != '\0') {
-			snprintf(sc->sc_gpio_pins[i].gp_name, GPIOMAXNAME,
-			    "%s", names + elm_pos);
+			snprintf(sc->sc_gpio_pins[i].gp_name, GPIOMAXNAME, "%s",
+			    names + elm_pos);
 			/* Find the next pin name */
 			elm_pos += strlen(names + elm_pos) + 1;
 		} else {
@@ -427,20 +426,20 @@ rpi_fw_gpio_detach(device_t dev)
 
 static device_method_t rpi_fw_gpio_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		rpi_fw_gpio_probe),
-	DEVMETHOD(device_attach,	rpi_fw_gpio_attach),
-	DEVMETHOD(device_detach,	rpi_fw_gpio_detach),
+	DEVMETHOD(device_probe, rpi_fw_gpio_probe),
+	DEVMETHOD(device_attach, rpi_fw_gpio_attach),
+	DEVMETHOD(device_detach, rpi_fw_gpio_detach),
 
 	/* GPIO protocol */
-	DEVMETHOD(gpio_get_bus,		rpi_fw_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max,		rpi_fw_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname,	rpi_fw_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getflags,	rpi_fw_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_getcaps,	rpi_fw_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_setflags,	rpi_fw_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_get,		rpi_fw_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set,		rpi_fw_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle,	rpi_fw_gpio_pin_toggle),
+	DEVMETHOD(gpio_get_bus, rpi_fw_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max, rpi_fw_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname, rpi_fw_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getflags, rpi_fw_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_getcaps, rpi_fw_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_setflags, rpi_fw_gpio_pin_setflags),
+	DEVMETHOD(gpio_pin_get, rpi_fw_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set, rpi_fw_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle, rpi_fw_gpio_pin_toggle),
 
 	DEVMETHOD_END
 };

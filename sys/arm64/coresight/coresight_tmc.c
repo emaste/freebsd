@@ -34,9 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 
 #include <arm64/coresight/coresight.h>
@@ -44,19 +45,17 @@ __FBSDID("$FreeBSD$");
 
 #include "coresight_if.h"
 
-#define	TMC_DEBUG
+#define TMC_DEBUG
 #undef TMC_DEBUG
-        
+
 #ifdef TMC_DEBUG
-#define	dprintf(fmt, ...)	printf(fmt, ##__VA_ARGS__)
+#define dprintf(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #else
-#define	dprintf(fmt, ...)
+#define dprintf(fmt, ...)
 #endif
 
-static struct resource_spec tmc_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec tmc_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 static int
 tmc_start(device_t dev)
@@ -121,12 +120,10 @@ tmc_configure_etf(device_t dev)
 	tmc_start(dev);
 
 	dprintf("%s: STS %x, CTL %x, RSZ %x, RRP %x, RWP %x, "
-	    "LBUFLEVEL %x, CBUFLEVEL %x\n", __func__,
-	    bus_read_4(sc->res, TMC_STS),
-	    bus_read_4(sc->res, TMC_CTL),
-	    bus_read_4(sc->res, TMC_RSZ),
-	    bus_read_4(sc->res, TMC_RRP),
-	    bus_read_4(sc->res, TMC_RWP),
+		"LBUFLEVEL %x, CBUFLEVEL %x\n",
+	    __func__, bus_read_4(sc->res, TMC_STS),
+	    bus_read_4(sc->res, TMC_CTL), bus_read_4(sc->res, TMC_RSZ),
+	    bus_read_4(sc->res, TMC_RRP), bus_read_4(sc->res, TMC_RWP),
 	    bus_read_4(sc->res, TMC_CBUFLEVEL),
 	    bus_read_4(sc->res, TMC_LBUFLEVEL));
 
@@ -134,8 +131,8 @@ tmc_configure_etf(device_t dev)
 }
 
 static int
-tmc_configure_etr(device_t dev, struct endpoint *endp,
-    struct coresight_event *event)
+tmc_configure_etr(
+    device_t dev, struct endpoint *endp, struct coresight_event *event)
 {
 	struct tmc_softc *sc;
 	uint32_t reg;
@@ -162,8 +159,8 @@ tmc_configure_etr(device_t dev, struct endpoint *endp,
 	reg |= AXICTL_AXCACHE_OS;
 	bus_write_4(sc->res, TMC_AXICTL, reg);
 
-	reg = FFCR_EN_FMT | FFCR_EN_TI | FFCR_FON_FLIN |
-	    FFCR_FON_TRIG_EVT | FFCR_TRIGON_TRIGIN;
+	reg = FFCR_EN_FMT | FFCR_EN_TI | FFCR_FON_FLIN | FFCR_FON_TRIG_EVT |
+	    FFCR_TRIGON_TRIGIN;
 	bus_write_4(sc->res, TMC_FFCR, reg);
 
 	bus_write_4(sc->res, TMC_TRG, 8);
@@ -222,8 +219,7 @@ tmc_init(device_t dev)
 }
 
 static int
-tmc_enable(device_t dev, struct endpoint *endp,
-    struct coresight_event *event)
+tmc_enable(device_t dev, struct endpoint *endp, struct coresight_event *event)
 {
 	struct tmc_softc *sc;
 	uint32_t nev;
@@ -233,8 +229,7 @@ tmc_enable(device_t dev, struct endpoint *endp,
 	if (sc->dev_type == CORESIGHT_ETF)
 		return (0);
 
-	KASSERT(sc->dev_type == CORESIGHT_ETR,
-	    ("Wrong dev_type"));
+	KASSERT(sc->dev_type == CORESIGHT_ETR, ("Wrong dev_type"));
 
 	/*
 	 * Multiple CPUs can call this same time.
@@ -256,8 +251,7 @@ tmc_enable(device_t dev, struct endpoint *endp,
 }
 
 static void
-tmc_disable(device_t dev, struct endpoint *endp,
-    struct coresight_event *event)
+tmc_disable(device_t dev, struct endpoint *endp, struct coresight_event *event)
 {
 	struct tmc_softc *sc;
 	uint32_t nev;
@@ -281,8 +275,7 @@ tmc_disable(device_t dev, struct endpoint *endp,
 }
 
 static int
-tmc_read(device_t dev, struct endpoint *endp,
-    struct coresight_event *event)
+tmc_read(device_t dev, struct endpoint *endp, struct coresight_event *event)
 {
 	struct tmc_softc *sc;
 	uint32_t cur_ptr;
@@ -336,14 +329,13 @@ tmc_attach(device_t dev)
 
 static device_method_t tmc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_attach,	tmc_attach),
+	DEVMETHOD(device_attach, tmc_attach),
 
 	/* Coresight interface */
-	DEVMETHOD(coresight_init,	tmc_init),
-	DEVMETHOD(coresight_enable,	tmc_enable),
-	DEVMETHOD(coresight_disable,	tmc_disable),
-	DEVMETHOD(coresight_read,	tmc_read),
-	DEVMETHOD_END
+	DEVMETHOD(coresight_init, tmc_init),
+	DEVMETHOD(coresight_enable, tmc_enable),
+	DEVMETHOD(coresight_disable, tmc_disable),
+	DEVMETHOD(coresight_read, tmc_read), DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(tmc, tmc_driver, tmc_methods, sizeof(struct tmc_softc));

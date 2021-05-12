@@ -56,6 +56,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/khelp.h>
 #include <sys/limits.h>
@@ -65,34 +66,31 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
 #include <net/vnet.h>
-
+#include <netinet/cc/cc.h>
+#include <netinet/cc/cc_module.h>
+#include <netinet/khelp/h_ertt.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-#include <netinet/cc/cc.h>
-#include <netinet/cc/cc_module.h>
-
-#include <netinet/khelp/h_ertt.h>
 
 /*
  * Private signal type for rate based congestion signal.
  * See <netinet/cc.h> for appropriate bit-range to use for private signals.
  */
-#define	CC_CHD_DELAY	0x02000000
+#define CC_CHD_DELAY 0x02000000
 
 /* Largest possible number returned by random(). */
-#define	RANDOM_MAX	INT_MAX
+#define RANDOM_MAX INT_MAX
 
-static void	chd_ack_received(struct cc_var *ccv, uint16_t ack_type);
-static void	chd_cb_destroy(struct cc_var *ccv);
-static int	chd_cb_init(struct cc_var *ccv);
-static void	chd_cong_signal(struct cc_var *ccv, uint32_t signal_type);
-static void	chd_conn_init(struct cc_var *ccv);
-static int	chd_mod_init(void);
+static void chd_ack_received(struct cc_var *ccv, uint16_t ack_type);
+static void chd_cb_destroy(struct cc_var *ccv);
+static int chd_cb_init(struct cc_var *ccv);
+static void chd_cong_signal(struct cc_var *ccv, uint32_t signal_type);
+static void chd_conn_init(struct cc_var *ccv);
+static int chd_mod_init(void);
 
 struct chd {
 	/*
@@ -107,7 +105,7 @@ struct chd {
 	 * window functionality.
 	 */
 	int loss_compete;
-	 /* The maximum round trip time seen within a measured rtt period. */
+	/* The maximum round trip time seen within a measured rtt period. */
 	int maxrtt_in_rtt;
 	/* The previous qdly that caused cwnd to backoff. */
 	int prev_backoff_qdly;
@@ -120,24 +118,22 @@ VNET_DEFINE_STATIC(uint32_t, chd_pmax) = 50;
 VNET_DEFINE_STATIC(uint32_t, chd_loss_fair) = 1;
 VNET_DEFINE_STATIC(uint32_t, chd_use_max) = 1;
 VNET_DEFINE_STATIC(uint32_t, chd_qthresh) = 20;
-#define	V_chd_qthresh	VNET(chd_qthresh)
-#define	V_chd_qmin	VNET(chd_qmin)
-#define	V_chd_pmax	VNET(chd_pmax)
-#define	V_chd_loss_fair	VNET(chd_loss_fair)
-#define	V_chd_use_max	VNET(chd_use_max)
+#define V_chd_qthresh VNET(chd_qthresh)
+#define V_chd_qmin VNET(chd_qmin)
+#define V_chd_pmax VNET(chd_pmax)
+#define V_chd_loss_fair VNET(chd_loss_fair)
+#define V_chd_use_max VNET(chd_use_max)
 
 static MALLOC_DEFINE(M_CHD, "chd data",
     "Per connection data required for the CHD congestion control algorithm");
 
-struct cc_algo chd_cc_algo = {
-	.name = "chd",
+struct cc_algo chd_cc_algo = { .name = "chd",
 	.ack_received = chd_ack_received,
 	.cb_destroy = chd_cb_destroy,
 	.cb_init = chd_cb_init,
 	.cong_signal = chd_cong_signal,
 	.conn_init = chd_conn_init,
-	.mod_init = chd_mod_init
-};
+	.mod_init = chd_mod_init };
 
 static __inline void
 chd_window_decrease(struct cc_var *ccv)
@@ -163,12 +159,12 @@ should_backoff(int qdly, int maxqdly, struct chd *chd_data)
 	if (qdly < V_chd_qthresh) {
 		chd_data->loss_compete = 0;
 		p = (((RANDOM_MAX / 100) * V_chd_pmax) /
-		    (V_chd_qthresh - V_chd_qmin)) *
+			(V_chd_qthresh - V_chd_qmin)) *
 		    (qdly - V_chd_qmin);
 	} else {
 		if (qdly > V_chd_qthresh) {
 			p = (((RANDOM_MAX / 100) * V_chd_pmax) /
-			    (maxqdly - V_chd_qthresh)) *
+				(maxqdly - V_chd_qthresh)) *
 			    (maxqdly - qdly);
 			if (V_chd_loss_fair && rand < p)
 				chd_data->loss_compete = 1;
@@ -200,8 +196,8 @@ chd_window_increase(struct cc_var *ccv, int new_measurement)
 				    V_tcp_abc_l_var * CCV(ccv, t_maxseg));
 			} else {
 				/* Due to RTO. */
-				incr = min(ccv->bytes_this_ack,
-				    CCV(ccv, t_maxseg));
+				incr = min(
+				    ccv->bytes_this_ack, CCV(ccv, t_maxseg));
 			}
 		} else
 			incr = CCV(ccv, t_maxseg);
@@ -222,8 +218,8 @@ chd_window_increase(struct cc_var *ccv, int new_measurement)
 		    TCP_MAXWIN << CCV(ccv, snd_scale));
 	}
 
-	CCV(ccv,snd_cwnd) = min(CCV(ccv, snd_cwnd) + incr,
-	    TCP_MAXWIN << CCV(ccv, snd_scale));
+	CCV(ccv, snd_cwnd) = min(
+	    CCV(ccv, snd_cwnd) + incr, TCP_MAXWIN << CCV(ccv, snd_scale));
 }
 
 /*
@@ -260,8 +256,8 @@ chd_ack_received(struct cc_var *ccv, uint16_t ack_type)
 				 * Probabilistic delay based congestion
 				 * indication.
 				 */
-				backoff = should_backoff(qdly,
-				    e_t->maxrtt - e_t->minrtt, chd_data);
+				backoff = should_backoff(
+				    qdly, e_t->maxrtt - e_t->minrtt, chd_data);
 			} else
 				chd_data->loss_compete = 0;
 		}
@@ -280,8 +276,8 @@ chd_ack_received(struct cc_var *ccv, uint16_t ack_type)
 			 * so it is possible that this flow is competing with
 			 * loss based flows.
 			 */
-			chd_data->shadow_w = max(CCV(ccv, snd_cwnd),
-			    chd_data->shadow_w);
+			chd_data->shadow_w = max(
+			    CCV(ccv, snd_cwnd), chd_data->shadow_w);
 		} else {
 			/*
 			 * Reset shadow_w, as it is probable that this flow is
@@ -334,7 +330,7 @@ chd_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 	chd_data = ccv->cc_data;
 	qdly = imax(e_t->rtt, chd_data->maxrtt_in_rtt) - e_t->minrtt;
 
-	switch(signal_type) {
+	switch (signal_type) {
 	case CC_CHD_DELAY:
 		chd_window_decrease(ccv); /* Set new ssthresh. */
 		CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
@@ -353,22 +349,24 @@ chd_cong_signal(struct cc_var *ccv, uint32_t signal_type)
 		 */
 		if (!IN_RECOVERY(CCV(ccv, t_flags)) && qdly > V_chd_qthresh) {
 			if (chd_data->loss_compete) {
-				CCV(ccv, snd_cwnd) = max(CCV(ccv, snd_cwnd),
-				    chd_data->shadow_w);
+				CCV(ccv, snd_cwnd) = max(
+				    CCV(ccv, snd_cwnd), chd_data->shadow_w);
 			}
 			chd_window_decrease(ccv);
 		} else {
-			 /*
-			  * This loss isn't congestion related, or already
-			  * recovering from congestion.
-			  */
+			/*
+			 * This loss isn't congestion related, or already
+			 * recovering from congestion.
+			 */
 			CCV(ccv, snd_ssthresh) = CCV(ccv, snd_cwnd);
 			CCV(ccv, snd_recover) = CCV(ccv, snd_max);
 		}
 
 		if (chd_data->shadow_w > 0) {
 			chd_data->shadow_w = max(chd_data->shadow_w /
-			    CCV(ccv, t_maxseg) / 2, 2) * CCV(ccv, t_maxseg);
+						     CCV(ccv, t_maxseg) / 2,
+						 2) *
+			    CCV(ccv, t_maxseg);
 		}
 		ENTER_FASTRECOVERY(CCV(ccv, t_flags));
 		break;
@@ -410,8 +408,7 @@ chd_mod_init(void)
 	return (0);
 }
 
-static int
-chd_loss_fair_handler(SYSCTL_HANDLER_ARGS)
+static int chd_loss_fair_handler(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	uint32_t new;
@@ -428,8 +425,7 @@ chd_loss_fair_handler(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static int
-chd_pmax_handler(SYSCTL_HANDLER_ARGS)
+static int chd_pmax_handler(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	uint32_t new;
@@ -446,8 +442,7 @@ chd_pmax_handler(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static int
-chd_qthresh_handler(SYSCTL_HANDLER_ARGS)
+static int chd_qthresh_handler(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	uint32_t new;
@@ -470,25 +465,25 @@ SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, chd, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
 
 SYSCTL_PROC(_net_inet_tcp_cc_chd, OID_AUTO, loss_fair,
     CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    &VNET_NAME(chd_loss_fair), 1, &chd_loss_fair_handler,
-    "IU", "Flag to enable shadow window functionality.");
+    &VNET_NAME(chd_loss_fair), 1, &chd_loss_fair_handler, "IU",
+    "Flag to enable shadow window functionality.");
 
 SYSCTL_PROC(_net_inet_tcp_cc_chd, OID_AUTO, pmax,
     CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    &VNET_NAME(chd_pmax), 5, &chd_pmax_handler,
-    "IU", "Per RTT maximum backoff probability as a percentage");
+    &VNET_NAME(chd_pmax), 5, &chd_pmax_handler, "IU",
+    "Per RTT maximum backoff probability as a percentage");
 
 SYSCTL_PROC(_net_inet_tcp_cc_chd, OID_AUTO, queue_threshold,
     CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    &VNET_NAME(chd_qthresh), 20, &chd_qthresh_handler,
-    "IU", "Queueing congestion threshold in ticks");
+    &VNET_NAME(chd_qthresh), 20, &chd_qthresh_handler, "IU",
+    "Queueing congestion threshold in ticks");
 
 SYSCTL_UINT(_net_inet_tcp_cc_chd, OID_AUTO, queue_min,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(chd_qmin), 5,
     "Minimum queueing delay threshold in ticks");
 
-SYSCTL_UINT(_net_inet_tcp_cc_chd,  OID_AUTO, use_max,
-    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(chd_use_max), 1,
+SYSCTL_UINT(_net_inet_tcp_cc_chd, OID_AUTO, use_max, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(chd_use_max), 1,
     "Use the maximum RTT seen within the measurement period (RTT) "
     "as the basic delay measurement for the algorithm.");
 

@@ -27,38 +27,39 @@
  * $FreeBSD$
  */
 
-#ifndef	_IP_FW_NPTV6_H_
-#define	_IP_FW_NPTV6_H_
+#ifndef _IP_FW_NPTV6_H_
+#define _IP_FW_NPTV6_H_
 
 #include <netinet6/ip_fw_nptv6.h>
 
 #ifdef _KERNEL
-#define	NPTV6STATS	(sizeof(struct ipfw_nptv6_stats) / sizeof(uint64_t))
-#define	NPTV6STAT_ADD(c, f, v)		\
-    counter_u64_add((c)->stats[		\
-	offsetof(struct ipfw_nptv6_stats, f) / sizeof(uint64_t)], (v))
-#define	NPTV6STAT_INC(c, f)	NPTV6STAT_ADD(c, f, 1)
-#define	NPTV6STAT_FETCH(c, f)		\
-    counter_u64_fetch((c)->stats[	\
-	offsetof(struct ipfw_nptv6_stats, f) / sizeof(uint64_t)])
+#define NPTV6STATS (sizeof(struct ipfw_nptv6_stats) / sizeof(uint64_t))
+#define NPTV6STAT_ADD(c, f, v)                                            \
+	counter_u64_add((c)->stats[offsetof(struct ipfw_nptv6_stats, f) / \
+			    sizeof(uint64_t)],                            \
+	    (v))
+#define NPTV6STAT_INC(c, f) NPTV6STAT_ADD(c, f, 1)
+#define NPTV6STAT_FETCH(c, f)                                               \
+	counter_u64_fetch((c)->stats[offsetof(struct ipfw_nptv6_stats, f) / \
+	    sizeof(uint64_t)])
 
 struct nptv6_cfg {
-	struct named_object	no;
+	struct named_object no;
 
-	struct in6_addr		internal;   /* Internal IPv6 prefix */
-	struct in6_addr		external;   /* External IPv6 prefix */
-	struct in6_addr		mask;	    /* IPv6 prefix mask */
-	uint16_t		adjustment; /* Checksum adjustment value */
-	uint8_t			plen;	    /* Prefix length */
-	uint8_t			flags;	    /* Flags for internal use */
-#define	NPTV6_READY		0x80
-#define	NPTV6_48PLEN		0x40
+	struct in6_addr internal; /* Internal IPv6 prefix */
+	struct in6_addr external; /* External IPv6 prefix */
+	struct in6_addr mask;	  /* IPv6 prefix mask */
+	uint16_t adjustment;	  /* Checksum adjustment value */
+	uint8_t plen;		  /* Prefix length */
+	uint8_t flags;		  /* Flags for internal use */
+#define NPTV6_READY 0x80
+#define NPTV6_48PLEN 0x40
 
-	char			if_name[IF_NAMESIZE];
-	char			name[64];   /* Instance name */
-	counter_u64_t		stats[NPTV6STATS]; /* Statistics counters */
+	char if_name[IF_NAMESIZE];
+	char name[64];			 /* Instance name */
+	counter_u64_t stats[NPTV6STATS]; /* Statistics counters */
 };
-#define	NPTV6_FLAGSMASK		(NPTV6_DYNAMIC_PREFIX)
+#define NPTV6_FLAGSMASK (NPTV6_DYNAMIC_PREFIX)
 
 int nptv6_init(struct ip_fw_chain *ch, int first);
 void nptv6_uninit(struct ip_fw_chain *ch, int last);

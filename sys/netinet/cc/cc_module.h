@@ -56,17 +56,15 @@
 					&(ccv)->ccvc.sctp->what		\
 ))
  */
-#define	CCV(ccv, what) (ccv)->ccvc.tcp->what
+#define CCV(ccv, what) (ccv)->ccvc.tcp->what
 
-#define	DECLARE_CC_MODULE(ccname, ccalgo) 				\
-	static moduledata_t cc_##ccname = {				\
-		.name = #ccname,					\
-		.evhand = cc_modevent,					\
-		.priv = ccalgo						\
-	};								\
-	DECLARE_MODULE(ccname, cc_##ccname,				\
-	    SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY)
+#define DECLARE_CC_MODULE(ccname, ccalgo)                    \
+	static moduledata_t cc_##ccname = { .name = #ccname, \
+		.evhand = cc_modevent,                       \
+		.priv = ccalgo };                            \
+	DECLARE_MODULE(                                      \
+	    ccname, cc_##ccname, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY)
 
-int	cc_modevent(module_t mod, int type, void *data);
+int cc_modevent(module_t mod, int type, void *data);
 
 #endif /* _NETINET_CC_MODULE_H_ */

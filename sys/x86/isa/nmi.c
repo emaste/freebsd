@@ -38,8 +38,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/syslog.h>
 #include <sys/systm.h>
+#include <sys/syslog.h>
 
 #include <machine/md_var.h>
 
@@ -78,10 +78,11 @@ isa_nmi(int cd)
 	 * error handling (very rare).  Save them from a meaningless panic.
 	 */
 	if (eisa_port == 0xff)
-		return(retval);
+		return (retval);
 
 	if (eisa_port & ENMI_WATCHDOG) {
-		log(LOG_CRIT, "EISA watchdog timer expired, likely hardware failure.");
+		log(LOG_CRIT,
+		    "EISA watchdog timer expired, likely hardware failure.");
 		retval = 1;
 	}
 
@@ -95,5 +96,5 @@ isa_nmi(int cd)
 		retval = 1;
 	}
 
-	return(retval);
+	return (retval);
 }

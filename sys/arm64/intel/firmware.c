@@ -38,13 +38,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 
-#include <dev/fdt/simplebus.h>
 #include <dev/fdt/fdt_common.h>
+#include <dev/fdt/simplebus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 struct firmware_softc {
-	struct simplebus_softc	simplebus_sc;
-	device_t		dev;
+	struct simplebus_softc simplebus_sc;
+	device_t dev;
 };
 
 static int
@@ -105,18 +105,16 @@ firmware_detach(device_t dev)
 	return (0);
 }
 
-static device_method_t firmware_methods[] = {
-	DEVMETHOD(device_probe,		firmware_probe),
-	DEVMETHOD(device_attach,	firmware_attach),
-	DEVMETHOD(device_detach,	firmware_detach),
-	DEVMETHOD_END
-};
+static device_method_t firmware_methods[] = { DEVMETHOD(
+						  device_probe, firmware_probe),
+	DEVMETHOD(device_attach, firmware_attach),
+	DEVMETHOD(device_detach, firmware_detach), DEVMETHOD_END };
 
 DEFINE_CLASS_1(firmware, firmware_driver, firmware_methods,
     sizeof(struct firmware_softc), simplebus_driver);
 
 static devclass_t firmware_devclass;
 
-EARLY_DRIVER_MODULE(firmware, simplebus, firmware_driver, firmware_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(firmware, simplebus, firmware_driver, firmware_devclass, 0,
+    0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(firmware, 1);

@@ -28,24 +28,24 @@
  * $FreeBSD$
  */
 
-#ifndef	_IF_CPSWVAR_H
-#define	_IF_CPSWVAR_H
+#ifndef _IF_CPSWVAR_H
+#define _IF_CPSWVAR_H
 
-#define	CPSW_PORTS		2
-#define	CPSW_INTR_COUNT		4
+#define CPSW_PORTS 2
+#define CPSW_INTR_COUNT 4
 
 /* MII BUS  */
-#define	CPSW_MIIBUS_RETRIES	20
-#define	CPSW_MIIBUS_DELAY	100
+#define CPSW_MIIBUS_RETRIES 20
+#define CPSW_MIIBUS_DELAY 100
 
-#define	CPSW_MAX_ALE_ENTRIES	1024
+#define CPSW_MAX_ALE_ENTRIES 1024
 
-#define	CPSW_SYSCTL_COUNT	34
+#define CPSW_SYSCTL_COUNT 34
 
 #ifdef CPSW_ETHERSWITCH
-#define	CPSW_CPU_PORT		0
-#define	CPSW_PORTS_MASK		0x7
-#define	CPSW_VLANS		128	/* Arbitrary number. */
+#define CPSW_CPU_PORT 0
+#define CPSW_PORTS_MASK 0x7
+#define CPSW_VLANS 128 /* Arbitrary number. */
 
 struct cpsw_vlangroups {
 	int vid;
@@ -53,7 +53,7 @@ struct cpsw_vlangroups {
 #endif
 
 struct cpsw_slot {
-	uint32_t bd_offset;  /* Offset of corresponding BD within CPPI RAM. */
+	uint32_t bd_offset; /* Offset of corresponding BD within CPPI RAM. */
 	bus_dmamap_t dmamap;
 	struct ifnet *ifp;
 	struct mbuf *mbuf;
@@ -62,58 +62,58 @@ struct cpsw_slot {
 STAILQ_HEAD(cpsw_slots, cpsw_slot);
 
 struct cpsw_queue {
-	struct mtx	lock;
-	int		running;
-	int		teardown;
+	struct mtx lock;
+	int running;
+	int teardown;
 	struct cpsw_slots active;
 	struct cpsw_slots avail;
-	uint32_t	queue_adds; /* total bufs added */
-	uint32_t	queue_removes; /* total bufs removed */
-	uint32_t	queue_removes_at_last_tick; /* Used by watchdog */
-	uint32_t	queue_restart;
-	int		queue_slots;
-	int		active_queue_len;
-	int		max_active_queue_len;
-	int		avail_queue_len;
-	int		max_avail_queue_len;
-	int		longest_chain; /* Largest # segments in a single packet. */
-	int		hdp_offset;
+	uint32_t queue_adds;		     /* total bufs added */
+	uint32_t queue_removes;		     /* total bufs removed */
+	uint32_t queue_removes_at_last_tick; /* Used by watchdog */
+	uint32_t queue_restart;
+	int queue_slots;
+	int active_queue_len;
+	int max_active_queue_len;
+	int avail_queue_len;
+	int max_avail_queue_len;
+	int longest_chain; /* Largest # segments in a single packet. */
+	int hdp_offset;
 };
 
 struct cpsw_port {
-	device_t	dev;
-	int		phy;
-	int		vlan;
+	device_t dev;
+	int phy;
+	int vlan;
 };
 
 struct cpsw_softc {
-	device_t	dev;
-	int		active_slave;
-	int		debug;
-	int		dualemac;
-	phandle_t	node;
-	struct bintime	attach_uptime; /* system uptime when attach happened. */
+	device_t dev;
+	int active_slave;
+	int debug;
+	int dualemac;
+	phandle_t node;
+	struct bintime attach_uptime; /* system uptime when attach happened. */
 	struct cpsw_port port[2];
-	unsigned	coal_us;
+	unsigned coal_us;
 
 	/* RX and TX buffer tracking */
 	struct cpsw_queue rx, tx;
 
 	/* We expect 1 memory resource and 4 interrupts from the device tree. */
-	int		mem_rid;
-	struct resource	*mem_res;
-	struct resource	*irq_res[CPSW_INTR_COUNT];
-	void		*ih_cookie[CPSW_INTR_COUNT];
+	int mem_rid;
+	struct resource *mem_res;
+	struct resource *irq_res[CPSW_INTR_COUNT];
+	void *ih_cookie[CPSW_INTR_COUNT];
 
 	/* A buffer full of nulls for TX padding. */
-	void		*nullpad;
+	void *nullpad;
 
-	bus_dma_tag_t	mbuf_dtag;
+	bus_dma_tag_t mbuf_dtag;
 
 	struct {
 		int resets;
 		int timer;
-		struct callout  callout;
+		struct callout callout;
 	} watchdog;
 
 	/* 64-bit versions of 32-bit hardware statistics counters */
@@ -125,27 +125,28 @@ struct cpsw_softc {
 	   way to adjust this.  One option is to have a separate
 	   Device Tree parameter for number slots; another option
 	   is to calculate it from the memory size in the device tree. */
-	struct cpsw_slot _slots[CPSW_CPPI_RAM_SIZE / sizeof(struct cpsw_cpdma_bd)];
+	struct cpsw_slot
+	    _slots[CPSW_CPPI_RAM_SIZE / sizeof(struct cpsw_cpdma_bd)];
 	struct cpsw_slots avail;
 };
 
 struct cpswp_softc {
-	device_t	dev;
-	device_t	miibus;
-	device_t	pdev;
-	int		media_status;
-	int		unit;
-	int		vlan;
-	struct bintime	init_uptime; /* system uptime when init happened. */
-	struct callout	mii_callout;
+	device_t dev;
+	device_t miibus;
+	device_t pdev;
+	int media_status;
+	int unit;
+	int vlan;
+	struct bintime init_uptime; /* system uptime when init happened. */
+	struct callout mii_callout;
 	struct cpsw_softc *swsc;
-	struct ifnet	*ifp;
-	struct mii_data	*mii;
-	struct mtx	lock;
-	uint32_t	if_flags;
-	uint32_t	phy;
-	uint32_t	phyaccess;
-	uint32_t	physel;
+	struct ifnet *ifp;
+	struct mii_data *mii;
+	struct mtx lock;
+	uint32_t if_flags;
+	uint32_t phy;
+	uint32_t phyaccess;
+	uint32_t physel;
 };
 
 #endif /*_IF_CPSWVAR_H */

@@ -57,8 +57,7 @@ MALLOC_DEFINE(M_GSSAPI, "GSS-API", "GSS-API");
  * Syscall hooks
  */
 static struct syscall_helper_data gssd_syscalls[] = {
-	SYSCALL_INIT_HELPER(gssd_syscall),
-	SYSCALL_INIT_LAST
+	SYSCALL_INIT_HELPER(gssd_syscall), SYSCALL_INIT_LAST
 };
 
 struct kgss_mech_list kgss_mechs;
@@ -87,12 +86,12 @@ kgss_unload(void)
 int
 sys_gssd_syscall(struct thread *td, struct gssd_syscall_args *uap)
 {
-        struct sockaddr_un sun;
-        struct netconfig *nconf;
+	struct sockaddr_un sun;
+	struct netconfig *nconf;
 	char path[MAXPATHLEN];
 	int error;
 	CLIENT *cl, *oldcl;
-        
+
 	error = priv_check(td, PRIV_NFS_DAEMON);
 	if (error)
 		return (error);
@@ -107,11 +106,10 @@ sys_gssd_syscall(struct thread *td, struct gssd_syscall_args *uap)
 		sun.sun_family = AF_LOCAL;
 		strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
 		sun.sun_len = SUN_LEN(&sun);
-		
+
 		nconf = getnetconfigent("local");
-		cl = clnt_reconnect_create(nconf,
-		    (struct sockaddr *) &sun, GSSD, GSSDVERS,
-		    RPC_MAXDATASIZE, RPC_MAXDATASIZE);
+		cl = clnt_reconnect_create(nconf, (struct sockaddr *)&sun, GSSD,
+		    GSSDVERS, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
 		/*
 		 * The number of retries defaults to INT_MAX, which effectively
 		 * means an infinite, uninterruptable loop.  Limiting it to
@@ -169,7 +167,7 @@ kgss_uninstall_mech(gss_OID mech_type)
 {
 	struct kgss_mech *km;
 
-	LIST_FOREACH(km, &kgss_mechs, km_link) {
+	LIST_FOREACH (km, &kgss_mechs, km_link) {
 		if (kgss_oid_equal(km->km_mech_type, mech_type)) {
 			LIST_REMOVE(km, km_link);
 			free(km, M_GSSAPI);
@@ -183,7 +181,7 @@ kgss_find_mech_by_name(const char *name)
 {
 	struct kgss_mech *km;
 
-	LIST_FOREACH(km, &kgss_mechs, km_link) {
+	LIST_FOREACH (km, &kgss_mechs, km_link) {
 		if (!strcmp(km->km_mech_name, name)) {
 			return (km->km_mech_type);
 		}
@@ -196,7 +194,7 @@ kgss_find_mech_by_oid(const gss_OID oid)
 {
 	struct kgss_mech *km;
 
-	LIST_FOREACH(km, &kgss_mechs, km_link) {
+	LIST_FOREACH (km, &kgss_mechs, km_link) {
 		if (kgss_oid_equal(km->km_mech_type, oid)) {
 			return (km->km_mech_name);
 		}
@@ -210,14 +208,14 @@ kgss_create_context(gss_OID mech_type)
 	struct kgss_mech *km;
 	gss_ctx_id_t ctx;
 
-	LIST_FOREACH(km, &kgss_mechs, km_link) {
+	LIST_FOREACH (km, &kgss_mechs, km_link) {
 		if (kgss_oid_equal(km->km_mech_type, mech_type))
 			break;
 	}
 	if (!km)
 		return (NULL);
 
-	ctx = (gss_ctx_id_t) kobj_create(km->km_class, M_GSSAPI, M_WAITOK);
+	ctx = (gss_ctx_id_t)kobj_create(km->km_class, M_GSSAPI, M_WAITOK);
 	KGSS_INIT(ctx);
 
 	return (ctx);
@@ -228,7 +226,7 @@ kgss_delete_context(gss_ctx_id_t ctx, gss_buffer_t output_token)
 {
 
 	KGSS_DELETE(ctx, output_token);
-	kobj_delete((kobj_t) ctx, M_GSSAPI);
+	kobj_delete((kobj_t)ctx, M_GSSAPI);
 }
 
 OM_uint32
@@ -252,7 +250,7 @@ kgss_transfer_context(gss_ctx_id_t ctx)
 	maj_stat = KGSS_IMPORT(ctx, res.format, &res.interprocess_token);
 	ctx->handle = 0;
 
-	xdr_free((xdrproc_t) xdr_export_sec_context_res, &res);
+	xdr_free((xdrproc_t)xdr_export_sec_context_res, &res);
 
 	return (maj_stat);
 }

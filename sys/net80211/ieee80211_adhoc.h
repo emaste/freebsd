@@ -32,6 +32,6 @@
 /*
  * Adhoc-mode (ibss+ahdemo) implementation definitions.
  */
-void	ieee80211_adhoc_attach(struct ieee80211com *);
-void	ieee80211_adhoc_detach(struct ieee80211com *);
+void ieee80211_adhoc_attach(struct ieee80211com *);
+void ieee80211_adhoc_detach(struct ieee80211com *);
 #endif /* !_NET80211_IEEE80211_STA_H_ */

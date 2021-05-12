@@ -35,69 +35,64 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-
-#include <dev/sound/pcm/sound.h>
-#include <dev/sound/chip.h>
+#include <sys/rman.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/sound/chip.h>
+#include <dev/sound/pcm/sound.h>
 
-#include "sunxi_dma_if.h"
 #include "mixer_if.h"
+#include "sunxi_dma_if.h"
 
-#define	DRQTYPE_HDMIAUDIO	24
-#define	DRQTYPE_SDRAM		1
+#define DRQTYPE_HDMIAUDIO 24
+#define DRQTYPE_SDRAM 1
 
-#define	DMA_WIDTH		32
-#define	DMA_BURST_LEN		8
-#define	DDMA_BLKSIZE		32
-#define	DDMA_WAIT_CYC		8
+#define DMA_WIDTH 32
+#define DMA_BURST_LEN 8
+#define DDMA_BLKSIZE 32
+#define DDMA_WAIT_CYC 8
 
-#define	DMABUF_MIN		4096
-#define	DMABUF_DEFAULT		65536
-#define	DMABUF_MAX		131072
+#define DMABUF_MIN 4096
+#define DMABUF_DEFAULT 65536
+#define DMABUF_MAX 131072
 
-#define	HDMI_SAMPLERATE		48000
+#define HDMI_SAMPLERATE 48000
 
-#define	TX_FIFO			0x01c16400
+#define TX_FIFO 0x01c16400
 
-static uint32_t a10hdmiaudio_fmt[] = {
-	SND_FORMAT(AFMT_S16_LE, 2, 0),
-	0
-};
+static uint32_t a10hdmiaudio_fmt[] = { SND_FORMAT(AFMT_S16_LE, 2, 0), 0 };
 
-static struct pcmchan_caps a10hdmiaudio_pcaps = {
-    HDMI_SAMPLERATE, HDMI_SAMPLERATE, a10hdmiaudio_fmt, 0
-};
+static struct pcmchan_caps a10hdmiaudio_pcaps = { HDMI_SAMPLERATE,
+	HDMI_SAMPLERATE, a10hdmiaudio_fmt, 0 };
 
 struct a10hdmiaudio_info;
 
 struct a10hdmiaudio_chinfo {
-	struct snd_dbuf		*buffer;
-	struct pcm_channel	*channel;	
-	struct a10hdmiaudio_info	*parent;
-	bus_dmamap_t		dmamap;
-	void			*dmaaddr;
-	bus_addr_t		physaddr;
-	device_t		dmac;
-	void			*dmachan;
+	struct snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct a10hdmiaudio_info *parent;
+	bus_dmamap_t dmamap;
+	void *dmaaddr;
+	bus_addr_t physaddr;
+	device_t dmac;
+	void *dmachan;
 
-	int			run;
-	uint32_t		pos;
-	uint32_t		blocksize;
+	int run;
+	uint32_t pos;
+	uint32_t blocksize;
 };
 
 struct a10hdmiaudio_info {
-	device_t		dev;
-	struct mtx		*lock;
-	bus_dma_tag_t		dmat;
-	unsigned		dmasize;
+	device_t dev;
+	struct mtx *lock;
+	bus_dma_tag_t dmat;
+	unsigned dmasize;
 
-	struct a10hdmiaudio_chinfo	play;
+	struct a10hdmiaudio_chinfo play;
 };
 
 /*
@@ -113,16 +108,15 @@ a10hdmiaudio_mixer_init(struct snd_mixer *m)
 }
 
 static int
-a10hdmiaudio_mixer_set(struct snd_mixer *m, unsigned dev, unsigned left,
-    unsigned right)
+a10hdmiaudio_mixer_set(
+    struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	return (-1);
 }
 
 static kobj_method_t a10hdmiaudio_mixer_methods[] = {
-	KOBJMETHOD(mixer_init,		a10hdmiaudio_mixer_init),
-	KOBJMETHOD(mixer_set,		a10hdmiaudio_mixer_set),
-	KOBJMETHOD_END
+	KOBJMETHOD(mixer_init, a10hdmiaudio_mixer_init),
+	KOBJMETHOD(mixer_set, a10hdmiaudio_mixer_set), KOBJMETHOD_END
 };
 MIXER_DECLARE(a10hdmiaudio_mixer);
 
@@ -150,8 +144,8 @@ a10hdmiaudio_transfer(struct a10hdmiaudio_chinfo *ch)
 	    ch->physaddr + ch->pos, TX_FIFO, ch->blocksize);
 	if (error) {
 		ch->run = 0;
-		device_printf(ch->parent->dev, "DMA transfer failed: %d\n",
-		    error);
+		device_printf(
+		    ch->parent->dev, "DMA transfer failed: %d\n", error);
 	}
 }
 
@@ -238,8 +232,8 @@ a10hdmiaudio_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 		device_printf(sc->dev, "cannot allocate channel buffer\n");
 		return (NULL);
 	}
-	error = bus_dmamap_load(sc->dmat, ch->dmamap, ch->dmaaddr,
-	    sc->dmasize, a10hdmiaudio_dmamap_cb, ch, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load(sc->dmat, ch->dmamap, ch->dmaaddr, sc->dmasize,
+	    a10hdmiaudio_dmamap_cb, ch, BUS_DMA_NOWAIT);
 	if (error != 0) {
 		device_printf(sc->dev, "cannot load DMA map\n");
 		return (NULL);
@@ -332,15 +326,14 @@ a10hdmiaudio_chan_getcaps(kobj_t obj, void *data)
 }
 
 static kobj_method_t a10hdmiaudio_chan_methods[] = {
-	KOBJMETHOD(channel_init,		a10hdmiaudio_chan_init),
-	KOBJMETHOD(channel_free,		a10hdmiaudio_chan_free),
-	KOBJMETHOD(channel_setformat,		a10hdmiaudio_chan_setformat),
-	KOBJMETHOD(channel_setspeed,		a10hdmiaudio_chan_setspeed),
-	KOBJMETHOD(channel_setblocksize,	a10hdmiaudio_chan_setblocksize),
-	KOBJMETHOD(channel_trigger,		a10hdmiaudio_chan_trigger),
-	KOBJMETHOD(channel_getptr,		a10hdmiaudio_chan_getptr),
-	KOBJMETHOD(channel_getcaps,		a10hdmiaudio_chan_getcaps),
-	KOBJMETHOD_END
+	KOBJMETHOD(channel_init, a10hdmiaudio_chan_init),
+	KOBJMETHOD(channel_free, a10hdmiaudio_chan_free),
+	KOBJMETHOD(channel_setformat, a10hdmiaudio_chan_setformat),
+	KOBJMETHOD(channel_setspeed, a10hdmiaudio_chan_setspeed),
+	KOBJMETHOD(channel_setblocksize, a10hdmiaudio_chan_setblocksize),
+	KOBJMETHOD(channel_trigger, a10hdmiaudio_chan_trigger),
+	KOBJMETHOD(channel_getptr, a10hdmiaudio_chan_getptr),
+	KOBJMETHOD(channel_getcaps, a10hdmiaudio_chan_getcaps), KOBJMETHOD_END
 };
 CHANNEL_DECLARE(a10hdmiaudio_chan);
 
@@ -370,19 +363,19 @@ a10hdmiaudio_attach(device_t dev)
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->dev = dev;
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "a10hdmiaudio softc");
+	sc->lock = snd_mtxcreate(
+	    device_get_nameunit(dev), "a10hdmiaudio softc");
 
-	sc->dmasize = pcm_getbuffersize(dev, DMABUF_MIN,
-	    DMABUF_DEFAULT, DMABUF_MAX);
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(dev),
-	    4, sc->dmasize,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    sc->dmasize, 1,		/* maxsize, nsegs */
-	    sc->dmasize, 0,		/* maxsegsize, flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	sc->dmasize = pcm_getbuffersize(
+	    dev, DMABUF_MIN, DMABUF_DEFAULT, DMABUF_MAX);
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 4,
+	    sc->dmasize,	     /* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
+	    BUS_SPACE_MAXADDR,	     /* highaddr */
+	    NULL, NULL,		     /* filter, filterarg */
+	    sc->dmasize, 1,	     /* maxsize, nsegs */
+	    sc->dmasize, 0,	     /* maxsegsize, flags */
+	    NULL, NULL,		     /* lockfunc, lockarg */
 	    &sc->dmat);
 	if (error != 0) {
 		device_printf(dev, "cannot create DMA tag\n");
@@ -418,8 +411,8 @@ fail:
 
 static device_method_t a10hdmiaudio_pcm_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		a10hdmiaudio_probe),
-	DEVMETHOD(device_attach,	a10hdmiaudio_attach),
+	DEVMETHOD(device_probe, a10hdmiaudio_probe),
+	DEVMETHOD(device_attach, a10hdmiaudio_attach),
 
 	DEVMETHOD_END
 };
@@ -430,6 +423,7 @@ static driver_t a10hdmiaudio_pcm_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(a10hdmiaudio, simplebus, a10hdmiaudio_pcm_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(
+    a10hdmiaudio, simplebus, a10hdmiaudio_pcm_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(a10hdmiaudio, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(a10hdmiaudio, 1);

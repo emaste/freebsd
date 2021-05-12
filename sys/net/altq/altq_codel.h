@@ -41,20 +41,20 @@
  */
 
 #ifndef _ALTQ_ALTQ_CODEL_H_
-#define	_ALTQ_ALTQ_CODEL_H_
+#define _ALTQ_ALTQ_CODEL_H_
 
 struct codel_stats {
-	u_int32_t	maxpacket;
-	struct pktcntr	drop_cnt;
-	u_int		marked_packets;
+	u_int32_t maxpacket;
+	struct pktcntr drop_cnt;
+	u_int marked_packets;
 };
 
 struct codel_ifstats {
-	u_int			qlength;
-	u_int			qlimit;
-	struct codel_stats	stats;
-	struct pktcntr	cl_xmitcnt;	/* transmitted packet counter */
-	struct pktcntr	cl_dropcnt;	/* dropped packet counter */
+	u_int qlength;
+	u_int qlimit;
+	struct codel_stats stats;
+	struct pktcntr cl_xmitcnt; /* transmitted packet counter */
+	struct pktcntr cl_dropcnt; /* dropped packet counter */
 };
 
 /*
@@ -73,9 +73,9 @@ struct codel_ifstats {
  *  <at> ecn:	is Explicit Congestion Notification enabled
  */
 struct codel_params {
-	u_int64_t	target;
-	u_int64_t	interval;
-	int		ecn;
+	u_int64_t target;
+	u_int64_t interval;
+	int ecn;
 };
 
 /**
@@ -91,44 +91,44 @@ struct codel_params {
  *  <at> ldelay:	sojourn time of last dequeued packet
  */
 struct codel_vars {
-	u_int32_t	count;
-	u_int32_t	lastcount;
-	int		dropping;
-	u_int16_t	rec_inv_sqrt;
-	u_int64_t	first_above_time;
-	u_int64_t	drop_next;
-	u_int64_t	ldelay;
+	u_int32_t count;
+	u_int32_t lastcount;
+	int dropping;
+	u_int16_t rec_inv_sqrt;
+	u_int64_t first_above_time;
+	u_int64_t drop_next;
+	u_int64_t ldelay;
 };
-        
+
 struct codel {
-	int			last_pps;
-	struct codel_params	params;
-	struct codel_vars	vars;
-	struct codel_stats	stats;
-	struct timeval		last_log;
-	u_int32_t		drop_overlimit;
+	int last_pps;
+	struct codel_params params;
+	struct codel_vars vars;
+	struct codel_stats stats;
+	struct timeval last_log;
+	u_int32_t drop_overlimit;
 };
 
 /*
  * codel interface state
  */
 struct codel_if {
-	struct codel_if		*cif_next;	/* interface state list */
-	struct ifaltq		*cif_ifq;	/* backpointer to ifaltq */
-	u_int			cif_bandwidth;	/* link bandwidth in bps */
+	struct codel_if *cif_next; /* interface state list */
+	struct ifaltq *cif_ifq;	   /* backpointer to ifaltq */
+	u_int cif_bandwidth;	   /* link bandwidth in bps */
 
-	class_queue_t	*cl_q;		/* class queue structure */
-	struct codel	codel;
+	class_queue_t *cl_q; /* class queue structure */
+	struct codel codel;
 
 	/* statistics */
 	struct codel_ifstats cl_stats;
 };
 
-struct codel	*codel_alloc(int, int, int);
-void		 codel_destroy(struct codel *);
-int		 codel_addq(struct codel *, class_queue_t *, struct mbuf *);
-struct mbuf	*codel_getq(struct codel *, class_queue_t *);
-void		 codel_getstats(struct codel *, struct codel_stats *);
+struct codel *codel_alloc(int, int, int);
+void codel_destroy(struct codel *);
+int codel_addq(struct codel *, class_queue_t *, struct mbuf *);
+struct mbuf *codel_getq(struct codel *, class_queue_t *);
+void codel_getstats(struct codel *, struct codel_stats *);
 
 #endif /* _KERNEL */
 

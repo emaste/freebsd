@@ -31,17 +31,17 @@
  */
 
 #ifndef __SYS__BLOCKCOUNT_H__
-#define	__SYS__BLOCKCOUNT_H__
+#define __SYS__BLOCKCOUNT_H__
 
 #include <machine/atomic.h>
 
 typedef struct _blockcount {
-	unsigned int	__count;
+	unsigned int __count;
 } blockcount_t;
 
-#define	_BLOCKCOUNT_WAITERS_FLAG	(1U << 31)
-#define	_BLOCKCOUNT_COUNT(c)		((c) & ~_BLOCKCOUNT_WAITERS_FLAG)
-#define	_BLOCKCOUNT_WAITERS(c)		(((c) & _BLOCKCOUNT_WAITERS_FLAG) != 0)
+#define _BLOCKCOUNT_WAITERS_FLAG (1U << 31)
+#define _BLOCKCOUNT_COUNT(c) ((c) & ~_BLOCKCOUNT_WAITERS_FLAG)
+#define _BLOCKCOUNT_WAITERS(c) (((c)&_BLOCKCOUNT_WAITERS_FLAG) != 0)
 
 static inline unsigned int
 blockcount_read(blockcount_t *count)

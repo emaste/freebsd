@@ -27,25 +27,26 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/endian.h>
-#include <sys/param.h>
-#include <sys/kdb.h>
-#include <sys/kernel.h>
-#include <sys/priv.h>
-#include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/endian.h>
+#include <sys/kdb.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/priv.h>
 #include <sys/tty.h>
+
 #include <machine/bus.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/uart/uart.h>
-#include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_bus.h>
+#include <dev/uart/uart_cpu.h>
 
 #include "phyp-hvcall.h"
 #include "uart_if.h"
@@ -73,24 +74,22 @@ struct uart_phyp_softc {
 	uint8_t outseqno;
 };
 
-static struct uart_phyp_softc	*console_sc = NULL;
+static struct uart_phyp_softc *console_sc = NULL;
 #if defined(KDB)
-static int			alt_break_state;
+static int alt_break_state;
 #endif
 
-enum {
-	HVTERM1, HVTERMPROT
-};
+enum { HVTERM1, HVTERMPROT };
 
-#define VS_DATA_PACKET_HEADER		0xff
-#define VS_CONTROL_PACKET_HEADER	0xfe
-#define  VSV_SET_MODEM_CTL		0x01
-#define  VSV_MODEM_CTL_UPDATE		0x02
-#define  VSV_RENEGOTIATE_CONNECTION	0x03
-#define VS_QUERY_PACKET_HEADER		0xfd
-#define  VSV_SEND_VERSION_NUMBER	0x01
-#define  VSV_SEND_MODEM_CTL_STATUS	0x02
-#define VS_QUERY_RESPONSE_PACKET_HEADER	0xfc
+#define VS_DATA_PACKET_HEADER 0xff
+#define VS_CONTROL_PACKET_HEADER 0xfe
+#define VSV_SET_MODEM_CTL 0x01
+#define VSV_MODEM_CTL_UPDATE 0x02
+#define VSV_RENEGOTIATE_CONNECTION 0x03
+#define VS_QUERY_PACKET_HEADER 0xfd
+#define VSV_SEND_VERSION_NUMBER 0x01
+#define VSV_SEND_MODEM_CTL_STATUS 0x02
+#define VS_QUERY_RESPONSE_PACKET_HEADER 0xfc
 
 static int uart_phyp_probe(device_t dev);
 static int uart_phyp_attach(device_t dev);
@@ -98,8 +97,8 @@ static void uart_phyp_intr(void *v);
 
 static device_method_t uart_phyp_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		uart_phyp_probe),
-	DEVMETHOD(device_attach,	uart_phyp_attach),
+	DEVMETHOD(device_probe, uart_phyp_probe),
+	DEVMETHOD(device_attach, uart_phyp_attach),
 
 	DEVMETHOD_END
 };
@@ -125,8 +124,8 @@ CONSOLE_DRIVER(uart_phyp);
 static void uart_phyp_ttyoutwakeup(struct tty *tp);
 
 static struct ttydevsw uart_phyp_tty_class = {
-	.tsw_flags	= TF_INITLOCK|TF_CALLOUT,
-	.tsw_outwakeup	= uart_phyp_ttyoutwakeup,
+	.tsw_flags = TF_INITLOCK | TF_CALLOUT,
+	.tsw_outwakeup = uart_phyp_ttyoutwakeup,
 };
 
 static int
@@ -203,8 +202,9 @@ uart_phyp_cnprobe(struct consdev *cp)
 
 	/* Check if OF has an active stdin/stdout */
 	input = -1;
-	if (OF_getencprop(chosen, "stdout", &stdout,
-	    sizeof(stdout)) == sizeof(stdout) && stdout != 0)
+	if (OF_getencprop(chosen, "stdout", &stdout, sizeof(stdout)) ==
+		sizeof(stdout) &&
+	    stdout != 0)
 		input = OF_instance_to_package(stdout);
 	if (input == -1)
 		goto fail;
@@ -217,8 +217,8 @@ uart_phyp_cnprobe(struct consdev *cp)
 	sc.node = input;
 	if (uart_phyp_probe_node(&sc) != 0)
 		goto fail;
-	mtx_init(&sc.sc_mtx, "uart_phyp", NULL, MTX_SPIN | MTX_QUIET |
-	    MTX_NOWITNESS);
+	mtx_init(&sc.sc_mtx, "uart_phyp", NULL,
+	    MTX_SPIN | MTX_QUIET | MTX_NOWITNESS);
 
 	cp->cn_pri = CN_NORMAL;
 	console_sc = &sc;
@@ -253,8 +253,8 @@ uart_phyp_attach(device_t dev)
 	}
 
 	sc->irqrid = 0;
-	sc->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqrid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->irqres = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &sc->irqrid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->irqres != NULL) {
 		bus_setup_intr(dev, sc->irqres, INTR_TYPE_TTY | INTR_MPSAFE,
 		    NULL, uart_phyp_intr, sc, &sc->sc_icookie);
@@ -292,8 +292,8 @@ uart_phyp_get(struct uart_phyp_softc *sc, void *buffer, size_t bufsize)
 
 	uart_lock(&sc->sc_mtx);
 	if (sc->inbuflen == 0) {
-		err = phyp_pft_hcall(H_GET_TERM_CHAR, sc->vtermid,
-		    0, 0, 0, &sc->inbuflen, &sc->phyp_inbuf.u64[0],
+		err = phyp_pft_hcall(H_GET_TERM_CHAR, sc->vtermid, 0, 0, 0,
+		    &sc->inbuflen, &sc->phyp_inbuf.u64[0],
 		    &sc->phyp_inbuf.u64[1]);
 #if BYTE_ORDER == LITTLE_ENDIAN
 		sc->phyp_inbuf.u64[0] = be64toh(sc->phyp_inbuf.u64[0]);
@@ -356,7 +356,7 @@ uart_phyp_put(struct uart_phyp_softc *sc, void *buffer, size_t bufsize)
 {
 	uint16_t seqno;
 	uint64_t len = 0;
-	int	err;
+	int err;
 
 	union {
 		uint64_t u64[2];
@@ -385,8 +385,8 @@ uart_phyp_put(struct uart_phyp_softc *sc, void *buffer, size_t bufsize)
 	}
 
 	do {
-	    err = phyp_hcall(H_PUT_TERM_CHAR, sc->vtermid, len, htobe64(cbuf.u64[0]),
-			    htobe64(cbuf.u64[1]));
+		err = phyp_hcall(H_PUT_TERM_CHAR, sc->vtermid, len,
+		    htobe64(cbuf.u64[0]), htobe64(cbuf.u64[1]));
 		DELAY(100);
 	} while (err == H_BUSY);
 

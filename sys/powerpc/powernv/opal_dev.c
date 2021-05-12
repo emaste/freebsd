@@ -29,17 +29,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
 #include <sys/clock.h>
+#include <sys/conf.h>
 #include <sys/cpu.h>
+#include <sys/endian.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/module.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
-#include <sys/endian.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -51,63 +51,55 @@ __FBSDID("$FreeBSD$");
 #include "clock_if.h"
 #include "opal.h"
 
-static int	opaldev_probe(device_t);
-static int	opaldev_attach(device_t);
+static int opaldev_probe(device_t);
+static int opaldev_attach(device_t);
 /* clock interface */
-static int	opal_gettime(device_t dev, struct timespec *ts);
-static int	opal_settime(device_t dev, struct timespec *ts);
+static int opal_gettime(device_t dev, struct timespec *ts);
+static int opal_settime(device_t dev, struct timespec *ts);
 /* ofw bus interface */
-static const struct ofw_bus_devinfo *opaldev_get_devinfo(device_t dev,
-    device_t child);
+static const struct ofw_bus_devinfo *opaldev_get_devinfo(
+    device_t dev, device_t child);
 
-static void	opal_shutdown(void *arg, int howto);
-static void	opal_handle_shutdown_message(void *unused,
-    struct opal_msg *msg);
-static void	opal_intr(void *);
+static void opal_shutdown(void *arg, int howto);
+static void opal_handle_shutdown_message(void *unused, struct opal_msg *msg);
+static void opal_intr(void *);
 
-static device_method_t  opaldev_methods[] = {
+static device_method_t opaldev_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		opaldev_probe),
-	DEVMETHOD(device_attach,	opaldev_attach),
+	DEVMETHOD(device_probe, opaldev_probe),
+	DEVMETHOD(device_attach, opaldev_attach),
 
 	/* clock interface */
-	DEVMETHOD(clock_gettime,	opal_gettime),
-	DEVMETHOD(clock_settime,	opal_settime),
+	DEVMETHOD(clock_gettime, opal_gettime),
+	DEVMETHOD(clock_settime, opal_settime),
 
 	/* Bus interface */
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
 
-        /* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_devinfo,	opaldev_get_devinfo),
-	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
-	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
-	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
-	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
-	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_devinfo, opaldev_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat, ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model, ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name, ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node, ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type, ofw_bus_gen_get_type),
 
 	DEVMETHOD_END
 };
 
-static driver_t opaldev_driver = {
-	"opal",
-	opaldev_methods,
-	0
-};
+static driver_t opaldev_driver = { "opal", opaldev_methods, 0 };
 
 static devclass_t opaldev_devclass;
 
-EARLY_DRIVER_MODULE(opaldev, ofwbus, opaldev_driver, opaldev_devclass, 0, 0,
-    BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(
+    opaldev, ofwbus, opaldev_driver, opaldev_devclass, 0, 0, BUS_PASS_BUS);
 
 static void opal_heartbeat(void);
 static void opal_handle_messages(void);
 
 static struct proc *opal_hb_proc;
-static struct kproc_desc opal_heartbeat_kp = {
-	"opal_heartbeat",
-	opal_heartbeat,
-	&opal_hb_proc
-};
+static struct kproc_desc opal_heartbeat_kp = { "opal_heartbeat", opal_heartbeat,
+	&opal_hb_proc };
 
 SYSINIT(opal_heartbeat_setup, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start,
     &opal_heartbeat_kp);
@@ -120,8 +112,8 @@ EVENTHANDLER_LIST_DEFINE(OPAL_HMI_EVT);
 EVENTHANDLER_LIST_DEFINE(OPAL_DPO);
 EVENTHANDLER_LIST_DEFINE(OPAL_OCC);
 
-#define	OPAL_SOFT_OFF		0
-#define	OPAL_SOFT_REBOOT	1
+#define OPAL_SOFT_OFF 0
+#define OPAL_SOFT_REBOOT 1
 
 static void
 opal_heartbeat(void)
@@ -137,8 +129,8 @@ opal_heartbeat(void)
 		opal_call(OPAL_POLL_EVENTS, vtophys(&events));
 		if (be64toh(events) & OPAL_EVENT_MSG_PENDING)
 			opal_handle_messages();
-		tsleep(opal_hb_proc, 0, "opal",
-		    MSEC_2_TICKS(opal_heartbeat_ms));
+		tsleep(
+		    opal_hb_proc, 0, "opal", MSEC_2_TICKS(opal_heartbeat_ms));
 	}
 }
 
@@ -161,8 +153,9 @@ opaldev_probe(device_t dev)
 		iparent = OF_finddevice("/interrupt-controller@0");
 		iparent = OF_xref_from_node(iparent);
 
-		n_irqs = OF_getproplen(ofw_bus_get_node(dev),
-                    "opal-interrupts") / sizeof(*irqs);
+		n_irqs = OF_getproplen(
+			     ofw_bus_get_node(dev), "opal-interrupts") /
+		    sizeof(*irqs);
 		irqs = malloc(n_irqs * sizeof(*irqs), M_DEVBUF, M_WAITOK);
 		OF_getencprop(ofw_bus_get_node(dev), "opal-interrupts", irqs,
 		    n_irqs * sizeof(*irqs));
@@ -197,26 +190,27 @@ opaldev_attach(device_t dev)
 	if (rv == OPAL_SUCCESS)
 		clock_register(dev, 2000);
 
-	EVENTHANDLER_REGISTER(OPAL_SHUTDOWN, opal_handle_shutdown_message,
-	    NULL, EVENTHANDLER_PRI_ANY);
-	EVENTHANDLER_REGISTER(shutdown_final, opal_shutdown, NULL,
-	    SHUTDOWN_PRI_LAST);
+	EVENTHANDLER_REGISTER(OPAL_SHUTDOWN, opal_handle_shutdown_message, NULL,
+	    EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(
+	    shutdown_final, opal_shutdown, NULL, SHUTDOWN_PRI_LAST);
 
 	OF_getencprop(ofw_bus_get_node(dev), "ibm,heartbeat-ms",
 	    &opal_heartbeat_ms, sizeof(opal_heartbeat_ms));
 	/* Bind to interrupts */
-	for (i = 0; (irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i,
-	    RF_ACTIVE)) != NULL; i++)
-		bus_setup_intr(dev, irq, INTR_TYPE_TTY | INTR_MPSAFE |
-		    INTR_ENTROPY, NULL, opal_intr, (void *)rman_get_start(irq),
-		    NULL);
+	for (i = 0; (irq = bus_alloc_resource_any(
+			 dev, SYS_RES_IRQ, &i, RF_ACTIVE)) != NULL;
+	     i++)
+		bus_setup_intr(dev, irq,
+		    INTR_TYPE_TTY | INTR_MPSAFE | INTR_ENTROPY, NULL, opal_intr,
+		    (void *)rman_get_start(irq), NULL);
 
-	OF_getencprop(ofw_bus_get_node(dev), "opal-msg-async-num",
-	    &async_count, sizeof(async_count));
+	OF_getencprop(ofw_bus_get_node(dev), "opal-msg-async-num", &async_count,
+	    sizeof(async_count));
 	opal_init_async_tokens(async_count);
 
 	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
-	    child = OF_peer(child)) {
+	     child = OF_peer(child)) {
 		dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
 		if (ofw_bus_gen_setup_devinfo(dinfo, child) != 0) {
 			free(dinfo, M_DEVBUF);
@@ -242,9 +236,9 @@ bcd2bin32(int bcd)
 	int out = 0;
 
 	out += bcd2bin(bcd & 0xff);
-	out += 100*bcd2bin((bcd & 0x0000ff00) >> 8);
-	out += 10000*bcd2bin((bcd & 0x00ff0000) >> 16);
-	out += 1000000*bcd2bin((bcd & 0xffff0000) >> 24);
+	out += 100 * bcd2bin((bcd & 0x0000ff00) >> 8);
+	out += 10000 * bcd2bin((bcd & 0x00ff0000) >> 16);
+	out += 1000000 * bcd2bin((bcd & 0xffff0000) >> 24);
 
 	return (out);
 }
@@ -278,7 +272,7 @@ opal_gettime(device_t dev, struct timespec *ts)
 	uint64_t hmsm;
 
 	rv = opal_call(OPAL_RTC_READ, vtophys(&ymd), vtophys(&hmsm));
-	while (rv == OPAL_BUSY_EVENT)  {
+	while (rv == OPAL_BUSY_EVENT) {
 		opal_call(OPAL_POLL_EVENTS, 0);
 		pause("opalrtc", 1);
 		rv = opal_call(OPAL_RTC_READ, vtophys(&ymd), vtophys(&hmsm));
@@ -290,13 +284,13 @@ opal_gettime(device_t dev, struct timespec *ts)
 	hmsm = be64toh(hmsm);
 	ymd = be32toh(ymd);
 
-	ct.nsec	= bcd2bin32((hmsm & 0x000000ffffff0000) >> 16) * 1000;
-	ct.sec	= bcd2bin((hmsm & 0x0000ff0000000000) >> 40);
-	ct.min	= bcd2bin((hmsm & 0x00ff000000000000) >> 48);
-	ct.hour	= bcd2bin((hmsm & 0xff00000000000000) >> 56);
+	ct.nsec = bcd2bin32((hmsm & 0x000000ffffff0000) >> 16) * 1000;
+	ct.sec = bcd2bin((hmsm & 0x0000ff0000000000) >> 40);
+	ct.min = bcd2bin((hmsm & 0x00ff000000000000) >> 48);
+	ct.hour = bcd2bin((hmsm & 0xff00000000000000) >> 56);
 
-	ct.day	= bcd2bin((ymd & 0x000000ff) >> 0);
-	ct.mon	= bcd2bin((ymd & 0x0000ff00) >> 8);
+	ct.day = bcd2bin((ymd & 0x000000ff) >> 0);
+	ct.mon = bcd2bin((ymd & 0x0000ff00) >> 8);
 	ct.year = bcd2bin32((ymd & 0xffff0000) >> 16);
 
 	return (clock_ct_to_ts(&ct, ts));
@@ -316,7 +310,7 @@ opal_settime(device_t dev, struct timespec *ts)
 	ymd |= ((uint32_t)bin2bcd(ct.mon) << 8);
 	ymd |= ((uint32_t)bin2bcd32(ct.year) << 16);
 
-	hmsm |= ((uint64_t)bin2bcd32(ct.nsec/1000) << 16);
+	hmsm |= ((uint64_t)bin2bcd32(ct.nsec / 1000) << 16);
 	hmsm |= ((uint64_t)bin2bcd(ct.sec) << 40);
 	hmsm |= ((uint64_t)bin2bcd(ct.min) << 48);
 	hmsm |= ((uint64_t)bin2bcd(ct.hour) << 56);
@@ -389,13 +383,17 @@ opal_handle_messages(void)
 		/* no available messages - return */
 		return;
 	case OPAL_PARAMETER:
-		printf("%s error: invalid buffer. Please file a bug report.\n", __func__);
+		printf("%s error: invalid buffer. Please file a bug report.\n",
+		    __func__);
 		return;
 	case OPAL_PARTIAL:
-		printf("%s error: buffer is too small and messages was discarded. Please file a bug report.\n", __func__);
+		printf(
+		    "%s error: buffer is too small and messages was discarded. Please file a bug report.\n",
+		    __func__);
 		return;
 	default:
-		printf("%s opal_call returned unknown result <%lu>\n", __func__, rv);
+		printf("%s opal_call returned unknown result <%lu>\n", __func__,
+		    rv);
 		return;
 	}
 
@@ -429,10 +427,9 @@ opal_intr(void *xintr)
 {
 	uint64_t events = 0;
 
-	opal_call(OPAL_HANDLE_INTERRUPT, (uint32_t)(uint64_t)xintr,
-	    vtophys(&events));
+	opal_call(
+	    OPAL_HANDLE_INTERRUPT, (uint32_t)(uint64_t)xintr, vtophys(&events));
 	/* Wake up the heartbeat, if it's been setup. */
 	if (be64toh(events) != 0 && opal_hb_proc != NULL)
 		wakeup(opal_hb_proc);
-
 }

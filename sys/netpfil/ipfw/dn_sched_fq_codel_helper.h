@@ -2,15 +2,15 @@
  * Codel - The Controlled-Delay Active Queue Management algorithm.
  *
  * $FreeBSD$
- * 
+ *
  * Copyright (C) 2016 Centre for Advanced Internet Architectures,
  *  Swinburne University of Technology, Melbourne, Australia.
- * Portions of this code were made possible in part by a gift from 
+ * Portions of this code were made possible in part by a gift from
  *  The Comcast Innovation Fund.
  * Implemented by Rasool Al-Saadi <ralsaadi@swin.edu.au>
  *
  * Copyright (C) 2011-2014 Kathleen Nichols <nichols@pollere.com>.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -23,7 +23,7 @@
  *  notice, this list of conditions and the following disclaimer in
  *  the documentation and/or other materials provided with the
  *  distribution.
- * 
+ *
  * o  The names of the authors may not be used to endorse or promote
  *  products derived from this software without specific prior written
  *  permission.
@@ -51,18 +51,19 @@
 
 __inline static struct mbuf *
 fqc_dodequeue(struct fq_codel_flow *q, aqm_time_t now, uint16_t *ok_to_drop,
-	struct fq_codel_si *si)
+    struct fq_codel_si *si)
 {
-	struct mbuf * m;
-	struct fq_codel_schk *schk = (struct fq_codel_schk *)(si->_si.sched+1);
-	aqm_time_t  pkt_ts, sojourn_time;
+	struct mbuf *m;
+	struct fq_codel_schk *schk = (struct fq_codel_schk *)(si->_si.sched +
+	    1);
+	aqm_time_t pkt_ts, sojourn_time;
 
 	*ok_to_drop = 0;
 	m = fq_codel_extract_head(q, &pkt_ts, si);
 
 	if (m == NULL) {
 		/*queue is empty - we can't be above target*/
-		q->cst.first_above_time= 0;
+		q->cst.first_above_time = 0;
 		return m;
 	}
 
@@ -72,15 +73,16 @@ fqc_dodequeue(struct fq_codel_flow *q, aqm_time_t now, uint16_t *ok_to_drop,
 	 * packet is less than target.  The 1st term of the "if"
 	 * below does this.  The other is backlog-based and takes
 	 * effect when the time to send an MTU-sized packet is >=
-	* target. The goal here is to keep the output link
-	* utilization high by never allowing the queue to get
-	* smaller than the amount that arrives in a typical
+	 * target. The goal here is to keep the output link
+	 * utilization high by never allowing the queue to get
+	 * smaller than the amount that arrives in a typical
 	 * interarrival time (MTU-sized packets arriving spaced
 	 * by the amount of time it takes to send such a packet on
 	 * the bottleneck). The 2nd term of the "if" does this.
 	 */
 	sojourn_time = now - pkt_ts;
-	if (sojourn_time < schk->cfg.ccfg.target || q->stats.len_bytes <= q->cst.maxpkt_size) {
+	if (sojourn_time < schk->cfg.ccfg.target ||
+	    q->stats.len_bytes <= q->cst.maxpkt_size) {
 		/* went below - stay below for at least interval */
 		q->cst.first_above_time = 0;
 	} else {
@@ -96,7 +98,7 @@ fqc_dodequeue(struct fq_codel_flow *q, aqm_time_t now, uint16_t *ok_to_drop,
 }
 
 /* Codel dequeue function */
-__inline static struct mbuf * 
+__inline static struct mbuf *
 fqc_codel_dequeue(struct fq_codel_flow *q, struct fq_codel_si *si)
 {
 	struct mbuf *m;
@@ -104,7 +106,8 @@ fqc_codel_dequeue(struct fq_codel_flow *q, struct fq_codel_si *si)
 	struct codel_status *cst;
 	aqm_time_t now;
 	uint16_t ok_to_drop;
-	struct fq_codel_schk *schk = (struct fq_codel_schk *)(si->_si.sched+1);
+	struct fq_codel_schk *schk = (struct fq_codel_schk *)(si->_si.sched +
+	    1);
 
 	cst = &q->cst;
 	cprms = &schk->cfg.ccfg;
@@ -129,7 +132,8 @@ fqc_codel_dequeue(struct fq_codel_flow *q, struct fq_codel_si *si)
 			if (cprms->flags & CODEL_ECN_ENABLED && ecn_mark(m)) {
 				cst->count++;
 				/* schedule the next mark. */
-				cst->drop_next_time = control_law(cst, cprms, cst->drop_next_time);
+				cst->drop_next_time = control_law(
+				    cst, cprms, cst->drop_next_time);
 				return m;
 			}
 
@@ -144,13 +148,14 @@ fqc_codel_dequeue(struct fq_codel_flow *q, struct fq_codel_si *si)
 			} else {
 				cst->count++;
 				/* schedule the next drop. */
-				cst->drop_next_time = control_law(cst, cprms, cst->drop_next_time);
+				cst->drop_next_time = control_law(
+				    cst, cprms, cst->drop_next_time);
 			}
 		}
-	/* If we get here we're not in dropping state. The 'ok_to_drop'
-	 * return from dodequeue means that the sojourn time has been
-	 * above 'target' for 'interval' so enter dropping state.
-	 */
+		/* If we get here we're not in dropping state. The 'ok_to_drop'
+		 * return from dodequeue means that the sojourn time has been
+		 * above 'target' for 'interval' so enter dropping state.
+		 */
 	} else if (ok_to_drop) {
 		/* if ECN option is disabled or the packet cannot be marked,
 		 * drop the packet and extract another.
@@ -158,7 +163,7 @@ fqc_codel_dequeue(struct fq_codel_flow *q, struct fq_codel_si *si)
 		if (!(cprms->flags & CODEL_ECN_ENABLED) || !ecn_mark(m)) {
 			fq_update_stats(q, si, 0, 1);
 			m_freem(m);
-			m = fqc_dodequeue(q, now, &ok_to_drop,si);
+			m = fqc_dodequeue(q, now, &ok_to_drop, si);
 		}
 
 		cst->dropping = true;
@@ -171,11 +176,17 @@ fqc_codel_dequeue(struct fq_codel_flow *q, struct fq_codel_si *si)
 		 * is a good approximation of the time from the last drop
 		 * until now.)
 		 */
-		cst->count = (cst->count > 2 && ((aqm_stime_t)now - 
-			(aqm_stime_t)cst->drop_next_time) < 8* cprms->interval)? cst->count - 2 : 1;
+		cst->count = (cst->count > 2 &&
+				 ((aqm_stime_t)now -
+				     (aqm_stime_t)cst->drop_next_time) <
+				     8 * cprms->interval) ?
+			  cst->count - 2 :
+			  1;
 
-		/* we don't have to set initial guess for Newton's method isqrt as
-		 * we initilaize  isqrt in control_law function when count == 1 */
+		/* we don't have to set initial guess for Newton's method isqrt
+		 * as
+		 * we initilaize  isqrt in control_law function when count == 1
+		 */
 		cst->drop_next_time = control_law(cst, cprms, now);
 	}
 

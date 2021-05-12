@@ -42,9 +42,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/vnode.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
+#include <sys/vnode.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>

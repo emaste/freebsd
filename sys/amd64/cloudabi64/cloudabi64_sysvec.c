@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #include <compat/cloudabi/cloudabi_util.h>
-
 #include <compat/cloudabi64/cloudabi64_syscall.h>
 #include <compat/cloudabi64/cloudabi64_util.h>
 
@@ -69,8 +68,8 @@ cloudabi64_fixup_tcb(uintptr_t *stack_base, struct image_params *imgp)
 }
 
 static void
-cloudabi64_proc_setregs(struct thread *td, struct image_params *imgp,
-    uintptr_t stack)
+cloudabi64_proc_setregs(
+    struct thread *td, struct image_params *imgp, uintptr_t stack)
 {
 	struct trapframe *regs;
 
@@ -155,8 +154,8 @@ cloudabi64_schedtail(struct thread *td)
 }
 
 int
-cloudabi64_thread_setregs(struct thread *td,
-    const cloudabi64_threadattr_t *attr, uint64_t tcb)
+cloudabi64_thread_setregs(
+    struct thread *td, const cloudabi64_threadattr_t *attr, uint64_t tcb)
 {
 	struct trapframe *frame;
 	stack_t stack;
@@ -168,8 +167,8 @@ cloudabi64_thread_setregs(struct thread *td,
 	 * from the top of the stack to store a single element array,
 	 * containing a pointer to the TCB. %fs base will point to this.
 	 */
-	tcbptr = rounddown(attr->stack + attr->stack_len - sizeof(tcbptr),
-	    _Alignof(tcbptr));
+	tcbptr = rounddown(
+	    attr->stack + attr->stack_len - sizeof(tcbptr), _Alignof(tcbptr));
 	error = copyout(&tcb, (void *)tcbptr, sizeof(tcb));
 	if (error != 0)
 		return (error);
@@ -192,29 +191,29 @@ cloudabi64_thread_setregs(struct thread *td,
 }
 
 static struct sysentvec cloudabi64_elf_sysvec = {
-	.sv_size		= CLOUDABI64_SYS_MAXSYSCALL,
-	.sv_table		= cloudabi64_sysent,
-	.sv_fixup		= cloudabi64_fixup_tcb,
-	.sv_name		= "CloudABI ELF64",
-	.sv_coredump		= elf64_coredump,
-	.sv_minuser		= VM_MIN_ADDRESS,
+	.sv_size = CLOUDABI64_SYS_MAXSYSCALL,
+	.sv_table = cloudabi64_sysent,
+	.sv_fixup = cloudabi64_fixup_tcb,
+	.sv_name = "CloudABI ELF64",
+	.sv_coredump = elf64_coredump,
+	.sv_minuser = VM_MIN_ADDRESS,
 	/* Keep top page reserved to work around AMD Ryzen stability issues. */
-	.sv_maxuser		= VM_MAXUSER_ADDRESS - PAGE_SIZE,
-	.sv_stackprot		= VM_PROT_READ | VM_PROT_WRITE,
-	.sv_copyout_strings	= cloudabi64_copyout_strings,
-	.sv_setregs		= cloudabi64_proc_setregs,
-	.sv_flags		= SV_ABI_CLOUDABI | SV_CAPSICUM | SV_LP64,
-	.sv_set_syscall_retval	= cloudabi64_set_syscall_retval,
-	.sv_fetch_syscall_args	= cloudabi64_fetch_syscall_args,
-	.sv_syscallnames	= cloudabi64_syscallnames,
-	.sv_schedtail		= cloudabi64_schedtail,
+	.sv_maxuser = VM_MAXUSER_ADDRESS - PAGE_SIZE,
+	.sv_stackprot = VM_PROT_READ | VM_PROT_WRITE,
+	.sv_copyout_strings = cloudabi64_copyout_strings,
+	.sv_setregs = cloudabi64_proc_setregs,
+	.sv_flags = SV_ABI_CLOUDABI | SV_CAPSICUM | SV_LP64,
+	.sv_set_syscall_retval = cloudabi64_set_syscall_retval,
+	.sv_fetch_syscall_args = cloudabi64_fetch_syscall_args,
+	.sv_syscallnames = cloudabi64_syscallnames,
+	.sv_schedtail = cloudabi64_schedtail,
 };
 
 INIT_SYSENTVEC(elf_sysvec, &cloudabi64_elf_sysvec);
 
 Elf64_Brandinfo cloudabi64_brand = {
-	.brand		= ELFOSABI_CLOUDABI,
-	.machine	= EM_X86_64,
-	.sysvec		= &cloudabi64_elf_sysvec,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_ONLY_STATIC,
+	.brand = ELFOSABI_CLOUDABI,
+	.machine = EM_X86_64,
+	.sysvec = &cloudabi64_elf_sysvec,
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_ONLY_STATIC,
 };

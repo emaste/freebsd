@@ -29,24 +29,24 @@
  *
  */
 
-#ifndef	_QORIQ_CLK_PLL_H_
-#define	_QORIQ_CLK_PLL_H_
+#ifndef _QORIQ_CLK_PLL_H_
+#define _QORIQ_CLK_PLL_H_
 
 #include <dev/extres/clk/clk.h>
 
-#define	QORIQ_CLK_PLL_HAS_KILL_BIT	0x01
+#define QORIQ_CLK_PLL_HAS_KILL_BIT 0x01
 
 struct qoriq_clk_pll_def {
-	struct clknode_init_def	clkdef;
+	struct clknode_init_def clkdef;
 
-	bus_addr_t		offset;
-	uint32_t		mask;
-	uint8_t			shift;
-	const uint8_t		*dividers;
-	uint8_t			flags;
+	bus_addr_t offset;
+	uint32_t mask;
+	uint8_t shift;
+	const uint8_t *dividers;
+	uint8_t flags;
 };
 
-int qoriq_clk_pll_register(struct clkdom *clkdom,
-    const struct qoriq_clk_pll_def *clkdef);
+int qoriq_clk_pll_register(
+    struct clkdom *clkdom, const struct qoriq_clk_pll_def *clkdef);
 
-#endif	/* _QORIQ_CLK_PLL_H_ */
+#endif /* _QORIQ_CLK_PLL_H_ */

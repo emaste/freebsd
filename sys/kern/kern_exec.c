@@ -77,16 +77,16 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <vm/vm_page.h>
-#include <vm/vm_map.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
 
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
 
@@ -97,7 +97,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
-dtrace_execexit_func_t	dtrace_fasttrap_exec;
+dtrace_execexit_func_t dtrace_fasttrap_exec;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
@@ -124,23 +124,22 @@ static int do_execve(struct thread *td, struct image_args *args,
     struct mac *mac_p, struct vmspace *oldvmspace);
 
 /* XXX This should be vm_size_t. */
-SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD|
-    CTLFLAG_CAPRD|CTLFLAG_MPSAFE, NULL, 0, sysctl_kern_ps_strings, "LU",
-    "Location of process' ps_strings structure");
+SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings,
+    CTLTYPE_ULONG | CTLFLAG_RD | CTLFLAG_CAPRD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_kern_ps_strings, "LU", "Location of process' ps_strings structure");
 
 /* XXX This should be vm_size_t. */
-SYSCTL_PROC(_kern, KERN_USRSTACK, usrstack, CTLTYPE_ULONG|CTLFLAG_RD|
-    CTLFLAG_CAPRD|CTLFLAG_MPSAFE, NULL, 0, sysctl_kern_usrstack, "LU",
-    "Top of process stack");
+SYSCTL_PROC(_kern, KERN_USRSTACK, usrstack,
+    CTLTYPE_ULONG | CTLFLAG_RD | CTLFLAG_CAPRD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_kern_usrstack, "LU", "Top of process stack");
 
-SYSCTL_PROC(_kern, OID_AUTO, stackprot, CTLTYPE_INT|CTLFLAG_RD|CTLFLAG_MPSAFE,
-    NULL, 0, sysctl_kern_stackprot, "I",
-    "Stack memory permissions");
+SYSCTL_PROC(_kern, OID_AUTO, stackprot,
+    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0, sysctl_kern_stackprot,
+    "I", "Stack memory permissions");
 
 u_long ps_arg_cache_limit = PAGE_SIZE / 16;
-SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
-    &ps_arg_cache_limit, 0,
-    "Process' command line characters cache limit");
+SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW,
+    &ps_arg_cache_limit, 0, "Process' command line characters cache limit");
 
 static int disallow_high_osrel;
 SYSCTL_INT(_kern, OID_AUTO, disallow_high_osrel, CTLFLAG_RW,
@@ -151,8 +150,7 @@ static int map_at_zero = 0;
 SYSCTL_INT(_security_bsd, OID_AUTO, map_at_zero, CTLFLAG_RWTUN, &map_at_zero, 0,
     "Permit processes to map an object at virtual address 0.");
 
-static int
-sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
 {
 	struct proc *p;
 	int error;
@@ -166,12 +164,11 @@ sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
 	} else
 #endif
 		error = SYSCTL_OUT(req, &p->p_sysent->sv_psstrings,
-		   sizeof(p->p_sysent->sv_psstrings));
+		    sizeof(p->p_sysent->sv_psstrings));
 	return error;
 }
 
-static int
-sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS)
 {
 	struct proc *p;
 	int error;
@@ -189,8 +186,7 @@ sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-static int
-sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS)
 {
 	struct proc *p;
 
@@ -207,9 +203,9 @@ static const struct execsw **execsw;
 
 #ifndef _SYS_SYSPROTO_H_
 struct execve_args {
-	char    *fname; 
-	char    **argv;
-	char    **envv; 
+	char *fname;
+	char **argv;
+	char **envv;
 };
 #endif
 
@@ -223,8 +219,8 @@ sys_execve(struct thread *td, struct execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
-	    uap->argv, uap->envv);
+	error = exec_copyin_args(
+	    &args, uap->fname, UIO_USERSPACE, uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &args, NULL, oldvmspace);
 	post_execve(td, error, oldvmspace);
@@ -234,9 +230,9 @@ sys_execve(struct thread *td, struct execve_args *uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct fexecve_args {
-	int	fd;
-	char	**argv;
-	char	**envv;
+	int fd;
+	char **argv;
+	char **envv;
 };
 #endif
 int
@@ -249,8 +245,8 @@ sys_fexecve(struct thread *td, struct fexecve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_args(&args, NULL, UIO_SYSSPACE,
-	    uap->argv, uap->envv);
+	error = exec_copyin_args(
+	    &args, NULL, UIO_SYSSPACE, uap->argv, uap->envv);
 	if (error == 0) {
 		args.fd = uap->fd;
 		error = kern_execve(td, &args, NULL, oldvmspace);
@@ -262,10 +258,10 @@ sys_fexecve(struct thread *td, struct fexecve_args *uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct __mac_execve_args {
-	char	*fname;
-	char	**argv;
-	char	**envv;
-	struct mac	*mac_p;
+	char *fname;
+	char **argv;
+	char **envv;
+	struct mac *mac_p;
 };
 #endif
 
@@ -280,8 +276,8 @@ sys___mac_execve(struct thread *td, struct __mac_execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
-	    uap->argv, uap->envv);
+	error = exec_copyin_args(
+	    &args, uap->fname, UIO_USERSPACE, uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &args, uap->mac_p, oldvmspace);
 	post_execve(td, error, oldvmspace);
@@ -429,8 +425,10 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	 * interpreter if this is an interpreted binary.
 	 */
 	if (args->fname != NULL) {
-		NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | LOCKSHARED | FOLLOW |
-		    SAVENAME | AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
+		NDINIT(&nd, LOOKUP,
+		    ISOPEN | LOCKLEAF | LOCKSHARED | FOLLOW | SAVENAME |
+			AUDITVNODE1,
+		    UIO_SYSSPACE, args->fname, td);
 	}
 
 	SDT_PROBE1(proc, , , exec, args->fname);
@@ -460,7 +458,8 @@ interpret:
 		/*
 		 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
 		 */
-		error = fgetvp_exec(td, args->fd, &cap_fexecve_rights, &newtextvp);
+		error = fgetvp_exec(
+		    td, args->fd, &cap_fexecve_rights, &newtextvp);
 		if (error)
 			goto exec_fail;
 		vn_lock(newtextvp, LK_SHARED | LK_RETRY);
@@ -513,8 +512,8 @@ interpret:
 	credential_changing |= (attr.va_mode & S_ISGID) &&
 	    oldcred->cr_gid != attr.va_gid;
 #ifdef MAC
-	will_transition = mac_vnode_execve_will_transition(oldcred, imgp->vp,
-	    interpvplabel, imgp);
+	will_transition = mac_vnode_execve_will_transition(
+	    oldcred, imgp->vp, interpvplabel, imgp);
 	credential_changing |= will_transition;
 #endif
 
@@ -578,7 +577,8 @@ interpret:
 		imgp->execpath = args->fname;
 	else {
 		VOP_UNLOCK(imgp->vp);
-		if (vn_fullpath(imgp->vp, &imgp->execpath, &imgp->freepath) != 0)
+		if (vn_fullpath(imgp->vp, &imgp->execpath, &imgp->freepath) !=
+		    0)
 			imgp->execpath = args->fname;
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 	}
@@ -649,8 +649,9 @@ interpret:
 		free(imgp->freepath, M_TEMP);
 		imgp->freepath = NULL;
 		/* set new name to that of the interpreter */
-		NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | LOCKSHARED | FOLLOW |
-		    SAVENAME, UIO_SYSSPACE, imgp->interpreter_name, td);
+		NDINIT(&nd, LOOKUP,
+		    ISOPEN | LOCKLEAF | LOCKSHARED | FOLLOW | SAVENAME,
+		    UIO_SYSSPACE, imgp->interpreter_name, td);
 		args->fname = imgp->interpreter_name;
 		goto interpret;
 	}
@@ -856,7 +857,7 @@ interpret:
 
 	PROC_UNLOCK(p);
 
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 	/*
 	 * Check if system-wide sampling is in effect or if the
 	 * current process is using PMCs.  If so, do exec() time
@@ -868,7 +869,7 @@ interpret:
 		pe.pm_credentialschanged = credential_changing;
 		pe.pm_entryaddr = imgp->entry_addr;
 
-		PMC_CALL_HOOK_X(td, PMC_FN_PROCESS_EXEC, (void *) &pe);
+		PMC_CALL_HOOK_X(td, PMC_FN_PROCESS_EXEC, (void *)&pe);
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 	}
 #endif
@@ -915,7 +916,7 @@ exec_fail_dealloc:
 			PROC_UNLOCK(p);
 		}
 	} else {
-exec_fail:
+	exec_fail:
 		/* we're done here, clear P_INEXEC */
 		PROC_LOCK(p);
 		p->p_flag &= ~P_INEXEC;
@@ -1004,8 +1005,8 @@ exec_map_first_page(struct image_params *imgp)
 	}
 #endif
 	error = vm_page_grab_valid_unlocked(&m, object, 0,
-	    VM_ALLOC_COUNT(VM_INITIAL_PAGEIN) |
-            VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_WIRED);
+	    VM_ALLOC_COUNT(VM_INITIAL_PAGEIN) | VM_ALLOC_NORMAL |
+		VM_ALLOC_NOBUSY | VM_ALLOC_WIRED);
 
 	if (error != VM_PAGER_OK)
 		return (EIO);
@@ -1080,8 +1081,8 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 		 * ASLR and W^X states must be re-evaluated.
 		 */
 		vm_map_lock(map);
-		vm_map_modflags(map, 0, MAP_WIREFUTURE | MAP_ASLR |
-		    MAP_ASLR_IGNSTART | MAP_WXORX);
+		vm_map_modflags(map, 0,
+		    MAP_WIREFUTURE | MAP_ASLR | MAP_ASLR_IGNSTART | MAP_WXORX);
 		vm_map_unlock(map);
 	} else {
 		error = vmspace_exec(p, sv_minuser, sv->sv_maxuser);
@@ -1096,9 +1097,8 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	obj = sv->sv_shared_page_obj;
 	if (obj != NULL) {
 		vm_object_reference(obj);
-		error = vm_map_fixed(map, obj, 0,
-		    sv->sv_shared_page_base, sv->sv_shared_page_len,
-		    VM_PROT_READ | VM_PROT_EXECUTE,
+		error = vm_map_fixed(map, obj, 0, sv->sv_shared_page_base,
+		    sv->sv_shared_page_len, VM_PROT_READ | VM_PROT_EXECUTE,
 		    VM_PROT_READ | VM_PROT_EXECUTE,
 		    MAP_INHERIT_SHARE | MAP_ACC_NO_CHARGE);
 		if (error != KERN_SUCCESS) {
@@ -1128,14 +1128,15 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	if (ssiz < imgp->eff_stack_sz)
 		imgp->eff_stack_sz = ssiz;
 	stack_addr = sv->sv_usrstack - ssiz;
-	stack_prot = obj != NULL && imgp->stack_prot != 0 ?
-	    imgp->stack_prot : sv->sv_stackprot;
+	stack_prot = obj != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
+								  sv->sv_stackprot;
 	error = vm_map_stack(map, stack_addr, (vm_size_t)ssiz, stack_prot,
 	    VM_PROT_ALL, MAP_STACK_GROWS_DOWN);
 	if (error != KERN_SUCCESS) {
 		uprintf("exec_new_vmspace: mapping stack size %#jx prot %#x "
-		    "failed mach error %d errno %d\n", (uintmax_t)ssiz,
-		    stack_prot, error, vm_mmap_to_errno(error));
+			"failed mach error %d errno %d\n",
+		    (uintmax_t)ssiz, stack_prot, error,
+		    vm_mmap_to_errno(error));
 		return (vm_mmap_to_errno(error));
 	}
 
@@ -1190,8 +1191,8 @@ exec_copyin_args(struct image_args *args, const char *fname,
 		}
 		if (arg == 0)
 			break;
-		error = exec_args_add_arg(args, (char *)(uintptr_t)arg,
-		    UIO_USERSPACE);
+		error = exec_args_add_arg(
+		    args, (char *)(uintptr_t)arg, UIO_USERSPACE);
 		if (error != 0)
 			goto err_exit;
 	}
@@ -1208,8 +1209,8 @@ exec_copyin_args(struct image_args *args, const char *fname,
 			}
 			if (env == 0)
 				break;
-			error = exec_args_add_env(args,
-			    (char *)(uintptr_t)env, UIO_USERSPACE);
+			error = exec_args_add_env(
+			    args, (char *)(uintptr_t)env, UIO_USERSPACE);
 			if (error != 0)
 				goto err_exit;
 		}
@@ -1329,8 +1330,8 @@ exec_alloc_args_kva(void **cookie)
 		SLIST_REMOVE_HEAD(&exec_args_kva_freelist, next);
 		mtx_unlock(&exec_args_kva_mtx);
 	}
-	kasan_mark((void *)argkva->addr, exec_map_entry_size,
-	    exec_map_entry_size, 0);
+	kasan_mark(
+	    (void *)argkva->addr, exec_map_entry_size, exec_map_entry_size, 0);
 	*(struct exec_args_kva **)cookie = argkva;
 	return (argkva->addr);
 }
@@ -1344,12 +1345,12 @@ exec_release_args_kva(struct exec_args_kva *argkva, u_int gen)
 	kasan_mark((void *)argkva->addr, 0, exec_map_entry_size,
 	    KASAN_EXEC_ARGS_FREED);
 	if (argkva->gen != gen) {
-		(void)vm_map_madvise(exec_map, base, base + exec_map_entry_size,
-		    MADV_FREE);
+		(void)vm_map_madvise(
+		    exec_map, base, base + exec_map_entry_size, MADV_FREE);
 		argkva->gen = gen;
 	}
 	if (!atomic_cmpset_ptr((uintptr_t *)DPCPU_PTR(exec_args_kva),
-	    (uintptr_t)NULL, (uintptr_t)argkva)) {
+		(uintptr_t)NULL, (uintptr_t)argkva)) {
 		mtx_lock(&exec_args_kva_mtx);
 		SLIST_INSERT_HEAD(&exec_args_kva_freelist, argkva, next);
 		wakeup_one(&exec_args_kva_freelist);
@@ -1387,15 +1388,15 @@ exec_args_kva_lowmem(void *arg __unused)
 		exec_release_args_kva(argkva, gen);
 	}
 
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		argkva = (void *)atomic_readandclear_ptr(
 		    (uintptr_t *)DPCPU_ID_PTR(i, exec_args_kva));
 		if (argkva != NULL)
 			exec_release_args_kva(argkva, gen);
 	}
 }
-EVENTHANDLER_DEFINE(vm_lowmem, exec_args_kva_lowmem, NULL,
-    EVENTHANDLER_PRI_ANY);
+EVENTHANDLER_DEFINE(
+    vm_lowmem, exec_args_kva_lowmem, NULL, EVENTHANDLER_PRI_ANY);
 
 /*
  * Allocate temporary demand-paged, zero-filled memory for the file name,
@@ -1440,8 +1441,8 @@ exec_free_args(struct image_args *args)
  *                           allow new arguments to be prepended
  */
 int
-exec_args_add_fname(struct image_args *args, const char *fname,
-    enum uio_seg segflg)
+exec_args_add_fname(
+    struct image_args *args, const char *fname, enum uio_seg segflg)
 {
 	int error;
 	size_t length;
@@ -1452,8 +1453,8 @@ exec_args_add_fname(struct image_args *args, const char *fname,
 	if (fname != NULL) {
 		args->fname = args->buf;
 		error = segflg == UIO_SYSSPACE ?
-		    copystr(fname, args->fname, PATH_MAX, &length) :
-		    copyinstr(fname, args->fname, PATH_MAX, &length);
+			  copystr(fname, args->fname, PATH_MAX, &length) :
+			  copyinstr(fname, args->fname, PATH_MAX, &length);
 		if (error != 0)
 			return (error == ENAMETOOLONG ? E2BIG : error);
 	} else
@@ -1465,15 +1466,15 @@ exec_args_add_fname(struct image_args *args, const char *fname,
 	args->begin_argv = args->endp;
 	KASSERT(exec_map_entry_size - length >= ARG_MAX,
 	    ("too little space remaining for arguments %zu < %zu",
-	    exec_map_entry_size - length, (size_t)ARG_MAX));
+		exec_map_entry_size - length, (size_t)ARG_MAX));
 	args->stringspace = ARG_MAX;
 
 	return (0);
 }
 
 static int
-exec_args_add_str(struct image_args *args, const char *str,
-    enum uio_seg segflg, int *countp)
+exec_args_add_str(
+    struct image_args *args, const char *str, enum uio_seg segflg, int *countp)
 {
 	int error;
 	size_t length;
@@ -1482,8 +1483,8 @@ exec_args_add_str(struct image_args *args, const char *str,
 	KASSERT(args->begin_argv != NULL, ("begin_argp not initialized"));
 
 	error = (segflg == UIO_SYSSPACE) ?
-	    copystr(str, args->endp, args->stringspace, &length) :
-	    copyinstr(str, args->endp, args->stringspace, &length);
+		  copystr(str, args->endp, args->stringspace, &length) :
+		  copyinstr(str, args->endp, args->stringspace, &length);
 	if (error != 0)
 		return (error == ENAMETOOLONG ? E2BIG : error);
 	args->stringspace -= length;
@@ -1494,8 +1495,8 @@ exec_args_add_str(struct image_args *args, const char *str,
 }
 
 int
-exec_args_add_arg(struct image_args *args, const char *argp,
-    enum uio_seg segflg)
+exec_args_add_arg(
+    struct image_args *args, const char *argp, enum uio_seg segflg)
 {
 
 	KASSERT(args->envc == 0, ("appending args after env"));
@@ -1504,8 +1505,8 @@ exec_args_add_arg(struct image_args *args, const char *argp,
 }
 
 int
-exec_args_add_env(struct image_args *args, const char *envp,
-    enum uio_seg segflg)
+exec_args_add_env(
+    struct image_args *args, const char *envp, enum uio_seg segflg)
 {
 
 	if (args->envc == 0)
@@ -1549,8 +1550,9 @@ void
 exec_stackgap(struct image_params *imgp, uintptr_t *dp)
 {
 	if (imgp->sysent->sv_stackgap == NULL ||
-	    (imgp->proc->p_fctl0 & (NT_FREEBSD_FCTL_ASLR_DISABLE |
-	    NT_FREEBSD_FCTL_ASG_DISABLE)) != 0 ||
+	    (imgp->proc->p_fctl0 &
+		(NT_FREEBSD_FCTL_ASLR_DISABLE | NT_FREEBSD_FCTL_ASG_DISABLE)) !=
+		0 ||
 	    (imgp->map_flags & MAP_ASLR) == 0)
 		return;
 	imgp->sysent->sv_stackgap(imgp, dp);
@@ -1591,7 +1593,7 @@ exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 		if (p->p_sysent->sv_szsigcode != NULL)
 			szsigcode = *(p->p_sysent->sv_szsigcode);
 	}
-	destp =	(uintptr_t)arginfo;
+	destp = (uintptr_t)arginfo;
 
 	/*
 	 * install sigcode
@@ -1599,8 +1601,8 @@ exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	if (szsigcode != 0) {
 		destp -= szsigcode;
 		destp = rounddown2(destp, sizeof(void *));
-		error = copyout(p->p_sysent->sv_sigcode, (void *)destp,
-		    szsigcode);
+		error = copyout(
+		    p->p_sysent->sv_sigcode, (void *)destp, szsigcode);
 		if (error != 0)
 			return (error);
 	}
@@ -1677,8 +1679,8 @@ exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	/*
 	 * Copy out strings - arguments and environment.
 	 */
-	error = copyout(stringp, (void *)ustringp,
-	    ARG_MAX - imgp->args->stringspace);
+	error = copyout(
+	    stringp, (void *)ustringp, ARG_MAX - imgp->args->stringspace);
 	if (error != 0)
 		return (error);
 
@@ -1727,8 +1729,8 @@ exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 
 	if (imgp->auxargs) {
 		vectp++;
-		error = imgp->sysent->sv_copyout_auxargs(imgp,
-		    (uintptr_t)vectp);
+		error = imgp->sysent->sv_copyout_auxargs(
+		    imgp, (uintptr_t)vectp);
 		if (error != 0)
 			return (error);
 	}
@@ -1820,7 +1822,7 @@ int
 exec_register(const struct execsw *execsw_arg)
 {
 	const struct execsw **es, **xs, **newexecsw;
-	u_int count = 2;	/* New slot and trailing NULL */
+	u_int count = 2; /* New slot and trailing NULL */
 
 	if (execsw)
 		for (es = execsw; *es; es++)

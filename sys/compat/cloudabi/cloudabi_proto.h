@@ -31,6 +31,5 @@
  * those, so rely on the system call table from COMPAT_CLOUDABI64.
  */
 
-#include <contrib/cloudabi/cloudabi64_types.h>
-
 #include <compat/cloudabi64/cloudabi64_proto.h>
+#include <contrib/cloudabi/cloudabi64_types.h>

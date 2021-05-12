@@ -26,19 +26,17 @@
  * $FreeBSD$
  */
 
-#ifndef	_LINUX_SRCU_H_
-#define	_LINUX_SRCU_H_
+#ifndef _LINUX_SRCU_H_
+#define _LINUX_SRCU_H_
 
 #include <linux/compiler.h>
 
 struct srcu_struct {
 };
 
-#define	srcu_dereference(p, srcu) \
-	((__typeof(*(p)) *)READ_ONCE(p))
+#define srcu_dereference(p, srcu) ((__typeof(*(p)) *)READ_ONCE(p))
 
-#define	DEFINE_STATIC_SRCU(name) \
-	static struct srcu_struct name
+#define DEFINE_STATIC_SRCU(name) static struct srcu_struct name
 
 /* prototypes */
 
@@ -49,8 +47,9 @@ extern void srcu_barrier(struct srcu_struct *);
 extern int init_srcu_struct(struct srcu_struct *);
 extern void cleanup_srcu_struct(struct srcu_struct *);
 
-#define	synchronize_srcu_expedited(srcu) do {	\
-	synchronize_srcu(srcu);			\
-} while (0)
+#define synchronize_srcu_expedited(srcu) \
+	do {                             \
+		synchronize_srcu(srcu);  \
+	} while (0)
 
-#endif					/* _LINUX_SRCU_H_ */
+#endif /* _LINUX_SRCU_H_ */

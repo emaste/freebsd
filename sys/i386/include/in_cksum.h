@@ -35,7 +35,7 @@
  */
 
 #ifndef _MACHINE_IN_CKSUM_H_
-#define	_MACHINE_IN_CKSUM_H_	1
+#define _MACHINE_IN_CKSUM_H_ 1
 
 #ifndef _SYS_CDEFS_H_
 #error this file needs sys/cdefs.h as a prerequisite
@@ -47,7 +47,7 @@
 
 #include <sys/cdefs.h>
 
-#define in_cksum(m, len)	in_cksum_skip(m, len, 0)
+#define in_cksum(m, len) in_cksum_skip(m, len, 0)
 
 /*
  * It it useful to have an Internet checksum routine which is inlineable
@@ -62,21 +62,17 @@ in_cksum_hdr(const struct ip *ip)
 {
 	u_int sum = 0;
 
-	__asm(
-		"addl %1, %0\n"
-		"adcl %2, %0\n"
-		"adcl %3, %0\n"
-		"adcl %4, %0\n"
-		"adcl %5, %0\n"
-		"adcl $0, %0"
-		: "+r" (sum)
-		: "g" (((const u_int32_t *)ip)[0]),
-		  "g" (((const u_int32_t *)ip)[1]),
-		  "g" (((const u_int32_t *)ip)[2]),
-		  "g" (((const u_int32_t *)ip)[3]),
-		  "g" (((const u_int32_t *)ip)[4])
-		: "cc"
-	);
+	__asm("addl %1, %0\n"
+	      "adcl %2, %0\n"
+	      "adcl %3, %0\n"
+	      "adcl %4, %0\n"
+	      "adcl %5, %0\n"
+	      "adcl $0, %0"
+	      : "+r"(sum)
+	      : "g"(((const u_int32_t *)ip)[0]),
+	      "g"(((const u_int32_t *)ip)[1]), "g"(((const u_int32_t *)ip)[2]),
+	      "g"(((const u_int32_t *)ip)[3]), "g"(((const u_int32_t *)ip)[4])
+	      : "cc");
 	sum = (sum & 0xffff) + (sum >> 16);
 	if (sum > 0xffff)
 		sum -= 0xffff;
@@ -96,28 +92,23 @@ in_cksum_update(struct ip *ip)
 static __inline u_short
 in_addword(u_short sum, u_short b)
 {
-	__asm(
-		"addw %1, %0\n"
-		"adcw $0, %0"
-		: "+r" (sum)
-		: "g" (b)
-		: "cc"
-	);
+	__asm("addw %1, %0\n"
+	      "adcw $0, %0"
+	      : "+r"(sum)
+	      : "g"(b)
+	      : "cc");
 	return (sum);
 }
 
 static __inline u_short
 in_pseudo(u_int sum, u_int b, u_int c)
 {
-	__asm(
-		"addl %1, %0\n"
-		"adcl %2, %0\n"
-		"adcl $0, %0"
-		: "+r" (sum)
-		: "g" (b),
-		  "g" (c)
-		: "cc"
-	);
+	__asm("addl %1, %0\n"
+	      "adcl %2, %0\n"
+	      "adcl $0, %0"
+	      : "+r"(sum)
+	      : "g"(b), "g"(c)
+	      : "cc");
 	sum = (sum & 0xffff) + (sum >> 16);
 	if (sum > 0xffff)
 		sum -= 0xffff;
@@ -126,12 +117,12 @@ in_pseudo(u_int sum, u_int b, u_int c)
 
 #else
 #if defined(IPVERSION) && (IPVERSION == 4)
-#define	in_cksum_update(ip) \
-	do { \
-		int __tmpsum; \
-		__tmpsum = (int)ntohs(ip->ip_sum) + 256; \
+#define in_cksum_update(ip)                                      \
+	do {                                                     \
+		int __tmpsum;                                    \
+		__tmpsum = (int)ntohs(ip->ip_sum) + 256;         \
 		ip->ip_sum = htons(__tmpsum + (__tmpsum >> 16)); \
-	} while(0)
+	} while (0)
 
 #endif
 #endif

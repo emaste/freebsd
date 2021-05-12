@@ -29,19 +29,19 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 
 #include <security/audit/audit.h>
-
-#include "opt_compat.h"
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -50,14 +50,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #endif
-#include <compat/linux/linux_signal.h>
-#include <compat/linux/linux_util.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_misc.h>
+#include <compat/linux/linux_signal.h>
+#include <compat/linux/linux_util.h>
 
-static int	linux_do_tkill(struct thread *td, struct thread *tdt,
-		    ksiginfo_t *ksi);
-static void	sicode_to_lsicode(int si_code, int *lsi_code);
+static int linux_do_tkill(
+    struct thread *td, struct thread *tdt, ksiginfo_t *ksi);
+static void sicode_to_lsicode(int si_code, int *lsi_code);
 
 static void
 linux_to_bsd_sigaction(l_sigaction_t *lsa, struct sigaction *bsa)
@@ -128,7 +128,7 @@ bsd_to_linux_sigaction(struct sigaction *bsa, l_sigaction_t *lsa)
 #else
 	lsa->lsa_handler = bsa->sa_handler;
 #endif
-	lsa->lsa_restorer = 0;		/* unsupported */
+	lsa->lsa_restorer = 0; /* unsupported */
 	lsa->lsa_flags = 0;
 	if (bsa->sa_flags & SA_NOCLDSTOP)
 		lsa->lsa_flags |= LINUX_SA_NOCLDSTOP;
@@ -148,7 +148,7 @@ bsd_to_linux_sigaction(struct sigaction *bsa, l_sigaction_t *lsa)
 
 int
 linux_do_sigaction(struct thread *td, int linux_sig, l_sigaction_t *linux_nsa,
-		   l_sigaction_t *linux_osa)
+    l_sigaction_t *linux_osa)
 {
 	struct sigaction act, oact, *nsa, *osa;
 	int error, sig;
@@ -207,9 +207,8 @@ linux_rt_sigaction(struct thread *td, struct linux_rt_sigaction_args *args)
 			return (error);
 	}
 
-	error = linux_do_sigaction(td, args->sig,
-				   args->act ? &nsa : NULL,
-				   args->oact ? &osa : NULL);
+	error = linux_do_sigaction(
+	    td, args->sig, args->act ? &nsa : NULL, args->oact ? &osa : NULL);
 
 	if (args->oact != NULL && !error) {
 		error = copyout(&osa, args->oact, sizeof(l_sigaction_t));
@@ -219,8 +218,8 @@ linux_rt_sigaction(struct thread *td, struct linux_rt_sigaction_args *args)
 }
 
 static int
-linux_do_sigprocmask(struct thread *td, int how, l_sigset_t *new,
-		     l_sigset_t *old)
+linux_do_sigprocmask(
+    struct thread *td, int how, l_sigset_t *new, l_sigset_t *old)
 {
 	sigset_t omask, nmask;
 	sigset_t *nmaskp;
@@ -269,9 +268,8 @@ linux_sigprocmask(struct thread *td, struct linux_sigprocmask_args *args)
 		set.__mask = mask;
 	}
 
-	error = linux_do_sigprocmask(td, args->how,
-				     args->mask ? &set : NULL,
-				     args->omask ? &oset : NULL);
+	error = linux_do_sigprocmask(td, args->how, args->mask ? &set : NULL,
+	    args->omask ? &oset : NULL);
 
 	if (args->omask != NULL && !error) {
 		mask = oset.__mask;
@@ -297,9 +295,8 @@ linux_rt_sigprocmask(struct thread *td, struct linux_rt_sigprocmask_args *args)
 			return (error);
 	}
 
-	error = linux_do_sigprocmask(td, args->how,
-				     args->mask ? &set : NULL,
-				     args->omask ? &oset : NULL);
+	error = linux_do_sigprocmask(td, args->how, args->mask ? &set : NULL,
+	    args->omask ? &oset : NULL);
 
 	if (args->omask != NULL && !error) {
 		error = copyout(&oset, args->omask, sizeof(l_sigset_t));
@@ -373,7 +370,7 @@ linux_rt_sigpending(struct thread *td, struct linux_rt_sigpending_args *args)
 
 	if (args->sigsetsize > sizeof(lset))
 		return (EINVAL);
-		/* NOT REACHED */
+	/* NOT REACHED */
 
 	PROC_LOCK(p);
 	bset = p->p_siglist;
@@ -388,8 +385,8 @@ linux_rt_sigpending(struct thread *td, struct linux_rt_sigpending_args *args)
  * MPSAFE
  */
 int
-linux_rt_sigtimedwait(struct thread *td,
-	struct linux_rt_sigtimedwait_args *args)
+linux_rt_sigtimedwait(
+    struct thread *td, struct linux_rt_sigtimedwait_args *args)
 {
 	int error, sig;
 	l_timeval ltv;
@@ -495,7 +492,7 @@ linux_tgkill(struct thread *td, struct linux_tgkill_args *args)
 	ksiginfo_t ksi;
 	int sig;
 
-	if (args->pid <= 0 || args->tgid <=0)
+	if (args->pid <= 0 || args->tgid <= 0)
 		return (EINVAL);
 
 	/*
@@ -636,7 +633,8 @@ siginfo_to_lsiginfo(const siginfo_t *si, l_siginfo_t *lsi, l_int sig)
 			lsi->lsi_uid = si->si_uid;
 
 			if (si->si_code == CLD_STOPPED)
-				lsi->lsi_status = bsd_to_linux_signal(si->si_status);
+				lsi->lsi_status = bsd_to_linux_signal(
+				    si->si_status);
 			else if (si->si_code == CLD_CONTINUED)
 				lsi->lsi_status = bsd_to_linux_signal(SIGCONT);
 			else
@@ -668,7 +666,7 @@ lsiginfo_to_ksiginfo(const l_siginfo_t *lsi, ksiginfo_t *ksi, int sig)
 {
 
 	ksi->ksi_signo = sig;
-	ksi->ksi_code = lsi->lsi_code;	/* XXX. Convert. */
+	ksi->ksi_code = lsi->lsi_code; /* XXX. Convert. */
 	ksi->ksi_pid = lsi->lsi_pid;
 	ksi->ksi_uid = lsi->lsi_uid;
 	ksi->ksi_status = lsi->lsi_status;
@@ -677,7 +675,8 @@ lsiginfo_to_ksiginfo(const l_siginfo_t *lsi, ksiginfo_t *ksi, int sig)
 }
 
 int
-linux_rt_sigqueueinfo(struct thread *td, struct linux_rt_sigqueueinfo_args *args)
+linux_rt_sigqueueinfo(
+    struct thread *td, struct linux_rt_sigqueueinfo_args *args)
 {
 	l_siginfo_t linfo;
 	struct proc *p;
@@ -715,7 +714,8 @@ linux_rt_sigqueueinfo(struct thread *td, struct linux_rt_sigqueueinfo_args *args
 }
 
 int
-linux_rt_tgsigqueueinfo(struct thread *td, struct linux_rt_tgsigqueueinfo_args *args)
+linux_rt_tgsigqueueinfo(
+    struct thread *td, struct linux_rt_tgsigqueueinfo_args *args)
 {
 	l_siginfo_t linfo;
 	struct thread *tds;

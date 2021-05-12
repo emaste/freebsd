@@ -8,7 +8,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -31,32 +31,32 @@
  */
 
 #ifndef _MACHINE_UCONTEXT_H_
-#define	_MACHINE_UCONTEXT_H_
+#define _MACHINE_UCONTEXT_H_
 
 #if defined(_KERNEL) && defined(COMPAT_FREEBSD4)
 struct mcontext4 {
-	__register_t	mc_onstack;	/* XXX - sigcontext compat. */
-	__register_t	mc_gs;		/* machine state (struct trapframe) */
-	__register_t	mc_fs;
-	__register_t	mc_es;
-	__register_t	mc_ds;
-	__register_t	mc_edi;
-	__register_t	mc_esi;
-	__register_t	mc_ebp;
-	__register_t	mc_isp;
-	__register_t	mc_ebx;
-	__register_t	mc_edx;
-	__register_t	mc_ecx;
-	__register_t	mc_eax;
-	__register_t	mc_trapno;
-	__register_t	mc_err;
-	__register_t	mc_eip;
-	__register_t	mc_cs;
-	__register_t	mc_eflags;
-	__register_t	mc_esp;		/* machine state */
-	__register_t	mc_ss;
-	__register_t	mc_fpregs[28];	/* env87 + fpacc87 + u_long */
-	__register_t	__spare__[17];
+	__register_t mc_onstack; /* XXX - sigcontext compat. */
+	__register_t mc_gs;	 /* machine state (struct trapframe) */
+	__register_t mc_fs;
+	__register_t mc_es;
+	__register_t mc_ds;
+	__register_t mc_edi;
+	__register_t mc_esi;
+	__register_t mc_ebp;
+	__register_t mc_isp;
+	__register_t mc_ebx;
+	__register_t mc_edx;
+	__register_t mc_ecx;
+	__register_t mc_eax;
+	__register_t mc_trapno;
+	__register_t mc_err;
+	__register_t mc_eip;
+	__register_t mc_cs;
+	__register_t mc_eflags;
+	__register_t mc_esp; /* machine state */
+	__register_t mc_ss;
+	__register_t mc_fpregs[28]; /* env87 + fpacc87 + u_long */
+	__register_t __spare__[17];
 };
 #endif
 

@@ -34,63 +34,50 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/types.h>
 #include <sys/bio.h>
-#include <sys/malloc.h>
+#include <sys/conf.h>
+#include <sys/devicestat.h>
+#include <sys/errno.h>
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
-#include <sys/conf.h>
-#include <sys/errno.h>
-#include <sys/devicestat.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
+#include <cam/cam_debug.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_queue.h>
-#include <cam/cam_xpt_periph.h>
-#include <cam/cam_debug.h>
 #include <cam/cam_sim.h>
-
+#include <cam/cam_xpt_periph.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_sg.h>
-
 #include <compat/linux/linux_ioctl.h>
 
-typedef enum {
-	SG_FLAG_LOCKED		= 0x01,
-	SG_FLAG_INVALID		= 0x02
-} sg_flags;
+typedef enum { SG_FLAG_LOCKED = 0x01, SG_FLAG_INVALID = 0x02 } sg_flags;
 
-typedef enum {
-	SG_STATE_NORMAL
-} sg_state;
+typedef enum { SG_STATE_NORMAL } sg_state;
 
-typedef enum {
-	SG_RDWR_FREE,
-	SG_RDWR_INPROG,
-	SG_RDWR_DONE
-} sg_rdwr_state;
+typedef enum { SG_RDWR_FREE, SG_RDWR_INPROG, SG_RDWR_DONE } sg_rdwr_state;
 
-typedef enum {
-	SG_CCB_RDWR_IO
-} sg_ccb_types;
+typedef enum { SG_CCB_RDWR_IO } sg_ccb_types;
 
-#define ccb_type	ppriv_field0
-#define ccb_rdwr	ppriv_ptr1
+#define ccb_type ppriv_field0
+#define ccb_rdwr ppriv_ptr1
 
 struct sg_rdwr {
-	TAILQ_ENTRY(sg_rdwr)	rdwr_link;
-	int			tag;
-	int			state;
-	int			buf_len;
-	char			*buf;
-	union ccb		*ccb;
+	TAILQ_ENTRY(sg_rdwr) rdwr_link;
+	int tag;
+	int state;
+	int buf_len;
+	char *buf;
+	union ccb *ccb;
 	union {
 		struct sg_header hdr;
 		struct sg_io_hdr io_hdr;
@@ -98,57 +85,53 @@ struct sg_rdwr {
 };
 
 struct sg_softc {
-	sg_state		state;
-	sg_flags		flags;
-	int			open_count;
-	u_int			maxio;
-	struct devstat		*device_stats;
-	TAILQ_HEAD(, sg_rdwr)	rdwr_done;
-	struct cdev		*dev;
-	int			sg_timeout;
-	int			sg_user_timeout;
-	uint8_t			pd_type;
-	union ccb		saved_ccb;
+	sg_state state;
+	sg_flags flags;
+	int open_count;
+	u_int maxio;
+	struct devstat *device_stats;
+	TAILQ_HEAD(, sg_rdwr) rdwr_done;
+	struct cdev *dev;
+	int sg_timeout;
+	int sg_user_timeout;
+	uint8_t pd_type;
+	union ccb saved_ccb;
 };
 
-static d_open_t		sgopen;
-static d_close_t	sgclose;
-static d_ioctl_t	sgioctl;
-static d_write_t	sgwrite;
-static d_read_t		sgread;
+static d_open_t sgopen;
+static d_close_t sgclose;
+static d_ioctl_t sgioctl;
+static d_write_t sgwrite;
+static d_read_t sgread;
 
-static periph_init_t	sginit;
-static periph_ctor_t	sgregister;
-static periph_oninv_t	sgoninvalidate;
-static periph_dtor_t	sgcleanup;
-static void		sgasync(void *callback_arg, uint32_t code,
-				struct cam_path *path, void *arg);
-static void		sgdone(struct cam_periph *periph, union ccb *done_ccb);
-static int		sgsendccb(struct cam_periph *periph, union ccb *ccb);
-static int		sgsendrdwr(struct cam_periph *periph, union ccb *ccb);
-static int		sgerror(union ccb *ccb, uint32_t cam_flags,
-				uint32_t sense_flags);
-static void		sg_scsiio_status(struct ccb_scsiio *csio,
-					 u_short *hoststat, u_short *drvstat);
+static periph_init_t sginit;
+static periph_ctor_t sgregister;
+static periph_oninv_t sgoninvalidate;
+static periph_dtor_t sgcleanup;
+static void sgasync(
+    void *callback_arg, uint32_t code, struct cam_path *path, void *arg);
+static void sgdone(struct cam_periph *periph, union ccb *done_ccb);
+static int sgsendccb(struct cam_periph *periph, union ccb *ccb);
+static int sgsendrdwr(struct cam_periph *periph, union ccb *ccb);
+static int sgerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags);
+static void sg_scsiio_status(
+    struct ccb_scsiio *csio, u_short *hoststat, u_short *drvstat);
 
-static int		scsi_group_len(u_char cmd);
+static int scsi_group_len(u_char cmd);
 
-static struct periph_driver sgdriver =
-{
-	sginit, "sg",
-	TAILQ_HEAD_INITIALIZER(sgdriver.units), /* gen */ 0
-};
+static struct periph_driver sgdriver = { sginit, "sg",
+	TAILQ_HEAD_INITIALIZER(sgdriver.units), /* gen */ 0 };
 PERIPHDRIVER_DECLARE(sg, sgdriver);
 
 static struct cdevsw sg_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_TRACKCLOSE,
-	.d_open =	sgopen,
-	.d_close =	sgclose,
-	.d_ioctl =	sgioctl,
-	.d_write =	sgwrite,
-	.d_read =	sgread,
-	.d_name =	"sg",
+	.d_version = D_VERSION,
+	.d_flags = D_TRACKCLOSE,
+	.d_open = sgopen,
+	.d_close = sgclose,
+	.d_ioctl = sgioctl,
+	.d_write = sgwrite,
+	.d_read = sgread,
+	.d_name = "sg",
 };
 
 static int sg_version = 30125;
@@ -166,7 +149,8 @@ sginit(void)
 
 	if (status != CAM_REQ_CMP) {
 		printf("sg: Failed to attach master async callbac "
-			"due to status 0x%x!\n", status);
+		       "due to status 0x%x!\n",
+		    status);
 	}
 }
 
@@ -183,8 +167,8 @@ sgdevgonecb(void *arg)
 	mtx_lock(mtx);
 
 	softc = (struct sg_softc *)periph->softc;
-	KASSERT(softc->open_count >= 0, ("Negative open count %d",
-		softc->open_count));
+	KASSERT(softc->open_count >= 0,
+	    ("Negative open count %d", softc->open_count));
 
 	/*
 	 * When we get this callback, we will get no more close calls from
@@ -236,7 +220,6 @@ sgoninvalidate(struct cam_periph *periph)
 	 * XXX Handle any transactions queued to the card
 	 *     with XPT_ABORT_CCB.
 	 */
-
 }
 
 static void
@@ -259,8 +242,7 @@ sgasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 	periph = (struct cam_periph *)callback_arg;
 
 	switch (code) {
-	case AC_FOUND_DEVICE:
-	{
+	case AC_FOUND_DEVICE: {
 		struct ccb_getdev *cgd;
 		cam_status status;
 
@@ -275,17 +257,16 @@ sgasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		 * Allocate a peripheral instance for this device and
 		 * start the probe process.
 		 */
-		status = cam_periph_alloc(sgregister, sgoninvalidate,
-					  sgcleanup, NULL, "sg",
-					  CAM_PERIPH_BIO, path,
-					  sgasync, AC_FOUND_DEVICE, cgd);
+		status = cam_periph_alloc(sgregister, sgoninvalidate, sgcleanup,
+		    NULL, "sg", CAM_PERIPH_BIO, path, sgasync, AC_FOUND_DEVICE,
+		    cgd);
 		if ((status != CAM_REQ_CMP) && (status != CAM_REQ_INPROG)) {
 			const struct cam_status_entry *entry;
 
 			entry = cam_fetch_status_entry(status);
 			printf("sgasync: Unable to attach new device "
-				"due to status %#x: %s\n", status, entry ?
-				entry->status_text : "Unknown");
+			       "due to status %#x: %s\n",
+			    status, entry ? entry->status_text : "Unknown");
 		}
 		break;
 	}
@@ -326,11 +307,11 @@ sgregister(struct cam_periph *periph, void *arg)
 	xpt_path_inq(&cpi, periph->path);
 
 	if (cpi.maxio == 0)
-		softc->maxio = DFLTPHYS;	/* traditional default */
+		softc->maxio = DFLTPHYS; /* traditional default */
 	else if (cpi.maxio > maxphys)
-		softc->maxio = maxphys;		/* for safety */
+		softc->maxio = maxphys; /* for safety */
 	else
-		softc->maxio = cpi.maxio;	/* real value */
+		softc->maxio = cpi.maxio; /* real value */
 
 	/*
 	 * We pass in 0 for all blocksize, since we don't know what the
@@ -338,14 +319,11 @@ sgregister(struct cam_periph *periph, void *arg)
 	 */
 	cam_periph_unlock(periph);
 	no_tags = (cgd->inq_data.flags & SID_CmdQue) == 0;
-	softc->device_stats = devstat_new_entry("sg",
-			periph->unit_number, 0,
-			DEVSTAT_NO_BLOCKSIZE
-			| (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
-			softc->pd_type |
-			XPORT_DEVSTAT_TYPE(cpi.transport) |
-			DEVSTAT_TYPE_PASS,
-			DEVSTAT_PRIORITY_PASS);
+	softc->device_stats = devstat_new_entry("sg", periph->unit_number, 0,
+	    DEVSTAT_NO_BLOCKSIZE | (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
+	    softc->pd_type | XPORT_DEVSTAT_TYPE(cpi.transport) |
+		DEVSTAT_TYPE_PASS,
+	    DEVSTAT_PRIORITY_PASS);
 
 	/*
 	 * Acquire a reference to the periph before we create the devfs
@@ -353,8 +331,10 @@ sgregister(struct cam_periph *periph, void *arg)
 	 * instance has been freed.
 	 */
 	if (cam_periph_acquire(periph) != 0) {
-		xpt_print(periph->path, "%s: lost periph during "
-			  "registration!\n", __func__);
+		xpt_print(periph->path,
+		    "%s: lost periph during "
+		    "registration!\n",
+		    __func__);
 		cam_periph_lock(periph);
 		return (CAM_REQ_CMP_ERR);
 	}
@@ -367,16 +347,16 @@ sgregister(struct cam_periph *periph, void *arg)
 	args.mda_gid = GID_OPERATOR;
 	args.mda_mode = 0600;
 	args.mda_si_drv1 = periph;
-	error = make_dev_s(&args, &softc->dev, "%s%d",
-	    periph->periph_name, periph->unit_number);
+	error = make_dev_s(&args, &softc->dev, "%s%d", periph->periph_name,
+	    periph->unit_number);
 	if (error != 0) {
 		cam_periph_lock(periph);
 		cam_periph_release_locked(periph);
 		return (CAM_REQ_CMP_ERR);
 	}
 	if (periph->unit_number < 26) {
-		(void)make_dev_alias(softc->dev, "sg%c",
-		    periph->unit_number + 'a');
+		(void)make_dev_alias(
+		    softc->dev, "sg%c", periph->unit_number + 'a');
 	} else {
 		(void)make_dev_alias(softc->dev, "sg%c%c",
 		    ((periph->unit_number / 26) - 1) + 'a',
@@ -405,19 +385,17 @@ sgdone(struct cam_periph *periph, union ccb *done_ccb)
 	softc = (struct sg_softc *)periph->softc;
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_type) {
-	case SG_CCB_RDWR_IO:
-	{
+	case SG_CCB_RDWR_IO: {
 		struct sg_rdwr *rdwr;
 		int state;
 
-		devstat_end_transaction(softc->device_stats,
-					csio->dxfer_len,
-					csio->tag_action & 0xf,
-					((csio->ccb_h.flags & CAM_DIR_MASK) ==
-					CAM_DIR_NONE) ? DEVSTAT_NO_DATA :
-					(csio->ccb_h.flags & CAM_DIR_OUT) ?
-					DEVSTAT_WRITE : DEVSTAT_READ,
-					NULL, NULL);
+		devstat_end_transaction(softc->device_stats, csio->dxfer_len,
+		    csio->tag_action & 0xf,
+		    ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE) ?
+								  DEVSTAT_NO_DATA :
+			(csio->ccb_h.flags & CAM_DIR_OUT) ? DEVSTAT_WRITE :
+								  DEVSTAT_READ,
+		    NULL, NULL);
 
 		rdwr = done_ccb->ccb_h.ccb_rdwr;
 		state = rdwr->state;
@@ -470,7 +448,7 @@ static int
 sgclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
-	struct sg_softc   *softc;
+	struct sg_softc *softc;
 	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
@@ -516,15 +494,13 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	error = 0;
 
 	switch (cmd) {
-	case SG_GET_VERSION_NUM:
-	{
+	case SG_GET_VERSION_NUM: {
 		int *version = (int *)arg;
 
 		*version = sg_version;
 		break;
 	}
-	case SG_SET_TIMEOUT:
-	{
+	case SG_SET_TIMEOUT: {
 		u_int user_timeout = *(u_int *)arg;
 
 		softc->sg_user_timeout = user_timeout;
@@ -554,14 +530,14 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		csio = &ccb->csio;
 
-		error = copyin(req->cmdp, &csio->cdb_io.cdb_bytes,
-		    req->cmd_len);
+		error = copyin(
+		    req->cmdp, &csio->cdb_io.cdb_bytes, req->cmd_len);
 		if (error) {
 			xpt_release_ccb(ccb);
 			break;
 		}
 
-		switch(req->dxfer_direction) {
+		switch (req->dxfer_direction) {
 		case SG_DXFER_TO_DEV:
 			dir = CAM_DIR_OUT;
 			break;
@@ -578,15 +554,10 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		}
 
 		cam_fill_csio(csio,
-			      /*retries*/1,
-			      /*cbfcnp*/NULL,
-			      dir|CAM_DEV_QFRZDIS,
-			      MSG_SIMPLE_Q_TAG,
-			      req->dxferp,
-			      req->dxfer_len,
-			      req->mx_sb_len,
-			      req->cmd_len,
-			      req->timeout);
+		    /*retries*/ 1,
+		    /*cbfcnp*/ NULL, dir | CAM_DEV_QFRZDIS, MSG_SIMPLE_Q_TAG,
+		    req->dxferp, req->dxfer_len, req->mx_sb_len, req->cmd_len,
+		    req->timeout);
 
 		error = sgsendccb(periph, ccb);
 		if (error) {
@@ -603,25 +574,23 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		req->duration = csio->ccb_h.timeout;
 		req->info = 0;
 
-		if ((csio->ccb_h.status & CAM_AUTOSNS_VALID)
-		    && (req->sbp != NULL)) {
+		if ((csio->ccb_h.status & CAM_AUTOSNS_VALID) &&
+		    (req->sbp != NULL)) {
 			req->sb_len_wr = req->mx_sb_len - csio->sense_resid;
-			error = copyout(&csio->sense_data, req->sbp,
-					req->sb_len_wr);
+			error = copyout(
+			    &csio->sense_data, req->sbp, req->sb_len_wr);
 		}
 
 		xpt_release_ccb(ccb);
 		break;
-		
-	case SG_GET_RESERVED_SIZE:
-	{
+
+	case SG_GET_RESERVED_SIZE: {
 		int *size = (int *)arg;
 		*size = DFLTPHYS;
 		break;
 	}
 
-	case SG_GET_SCSI_ID:
-	{
+	case SG_GET_SCSI_ID: {
 		struct sg_scsi_id *id = (struct sg_scsi_id *)arg;
 
 		id->host_no = cam_sim_path(xpt_path_sim(periph->path));
@@ -636,8 +605,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		break;
 	}
 
-	case SG_GET_SG_TABLESIZE:
-	{
+	case SG_GET_SG_TABLESIZE: {
 		int *size = (int *)arg;
 		*size = 0;
 		break;
@@ -760,15 +728,8 @@ sgwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	sc = periph->softc;
 	xpt_setup_ccb(&ccb->ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	cam_fill_csio(csio,
-		      /*retries*/1,
-		      sgdone,
-		      dir|CAM_DEV_QFRZDIS,
-		      MSG_SIMPLE_Q_TAG,
-		      buf,
-		      buf_len,
-		      SG_MAX_SENSE,
-		      cdb_len,
-		      sc->sg_timeout);
+	    /*retries*/ 1, sgdone, dir | CAM_DEV_QFRZDIS, MSG_SIMPLE_Q_TAG, buf,
+	    buf_len, SG_MAX_SENSE, cdb_len, sc->sg_timeout);
 
 	/*
 	 * Send off the command and hope that it works. This path does not
@@ -823,12 +784,13 @@ sgread(struct cdev *dev, struct uio *uio, int ioflag)
 	cam_periph_lock(periph);
 	sc = periph->softc;
 search:
-	TAILQ_FOREACH(rdwr, &sc->rdwr_done, rdwr_link) {
+	TAILQ_FOREACH (rdwr, &sc->rdwr_done, rdwr_link) {
 		if (rdwr->tag == pack_id)
 			break;
 	}
 	if ((rdwr == NULL) || (rdwr->state != SG_RDWR_DONE)) {
-		if (cam_periph_sleep(periph, rdwr, PCATCH, "sgread", 0) == ERESTART)
+		if (cam_periph_sleep(periph, rdwr, PCATCH, "sgread", 0) ==
+		    ERESTART)
 			return (EAGAIN);
 		goto search;
 	}
@@ -866,14 +828,14 @@ search:
 
 	if (dstat == DRIVER_SENSE) {
 		bcopy(&csio->sense_data, hdr->sense_buffer,
-		      min(csio->sense_len, SG_MAX_SENSE));
+		    min(csio->sense_len, SG_MAX_SENSE));
 #ifdef CAMDEBUG
 		scsi_sense_print(csio);
 #endif
 	}
 
-	error = uiomove(&hdr->result, sizeof(*hdr) -
-			offsetof(struct sg_header, result), uio);
+	error = uiomove(&hdr->result,
+	    sizeof(*hdr) - offsetof(struct sg_header, result), uio);
 	if ((error == 0) && (hdr->result == 0))
 		error = uiomove(rdwr->buf, rdwr->buf_len, uio);
 
@@ -908,11 +870,8 @@ sgsendccb(struct cam_periph *periph, union ccb *ccb)
 	if (error)
 		return (error);
 
-	error = cam_periph_runccb(ccb,
-				  sgerror,
-				  CAM_RETRY_SELTO,
-				  SF_RETRY_UA,
-				  softc->device_stats);
+	error = cam_periph_runccb(
+	    ccb, sgerror, CAM_RETRY_SELTO, SF_RETRY_UA, softc->device_stats);
 
 	cam_periph_unlock(periph);
 	cam_periph_unmapmem(ccb, &mapinfo);
@@ -1008,7 +967,7 @@ sg_scsiio_status(struct ccb_scsiio *csio, u_short *hoststat, u_short *drvstat)
 static int
 scsi_group_len(u_char cmd)
 {
-	int len[] = {6, 10, 10, 12, 12, 12, 10, 10};
+	int len[] = { 6, 10, 10, 12, 12, 12, 10, 10 };
 	int group;
 
 	group = (cmd >> 5) & 0x7;

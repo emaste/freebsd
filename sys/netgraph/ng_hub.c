@@ -29,14 +29,14 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
-#include <sys/systm.h>
 
-#include <netgraph/ng_message.h>
-#include <netgraph/ng_hub.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_hub.h>
+#include <netgraph/ng_message.h>
 
 #ifdef NG_SEPARATE_MALLOC
 static MALLOC_DEFINE(M_NETGRAPH_HUB, "netgraph_hub", "netgraph hub node");
@@ -46,38 +46,32 @@ static MALLOC_DEFINE(M_NETGRAPH_HUB, "netgraph_hub", "netgraph hub node");
 
 /* Per-node private data */
 struct ng_hub_private {
-	int		persistent;	/* can exist w/o hooks */
+	int persistent; /* can exist w/o hooks */
 };
 typedef struct ng_hub_private *priv_p;
 
 /* Netgraph node methods */
-static ng_constructor_t	ng_hub_constructor;
-static ng_rcvmsg_t	ng_hub_rcvmsg;
-static ng_shutdown_t	ng_hub_shutdown;
-static ng_rcvdata_t	ng_hub_rcvdata;
-static ng_disconnect_t	ng_hub_disconnect;
+static ng_constructor_t ng_hub_constructor;
+static ng_rcvmsg_t ng_hub_rcvmsg;
+static ng_shutdown_t ng_hub_shutdown;
+static ng_rcvdata_t ng_hub_rcvdata;
+static ng_disconnect_t ng_hub_disconnect;
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_hub_cmdlist[] = {
-	{
-		NGM_HUB_COOKIE,
-		NGM_HUB_SET_PERSISTENT,
-		"setpersistent",
-		NULL,
-		NULL
-	},
+	{ NGM_HUB_COOKIE, NGM_HUB_SET_PERSISTENT, "setpersistent", NULL, NULL },
 	{ 0 }
 };
 
 static struct ng_type ng_hub_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_HUB_NODE_TYPE,
-	.constructor =	ng_hub_constructor,
-	.rcvmsg =	ng_hub_rcvmsg,
-	.shutdown =	ng_hub_shutdown,
-	.rcvdata =	ng_hub_rcvdata,
-	.disconnect =	ng_hub_disconnect,
-	.cmdlist =	ng_hub_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_HUB_NODE_TYPE,
+	.constructor = ng_hub_constructor,
+	.rcvmsg = ng_hub_rcvmsg,
+	.shutdown = ng_hub_shutdown,
+	.rcvdata = ng_hub_rcvdata,
+	.disconnect = ng_hub_disconnect,
+	.cmdlist = ng_hub_cmdlist,
 };
 NETGRAPH_INIT(hub, &ng_hub_typestruct);
 
@@ -121,14 +115,14 @@ ng_hub_rcvdata(hook_p hook, item_p item)
 	const node_p node = NG_HOOK_NODE(hook);
 	int error = 0;
 	hook_p hook2;
-	struct mbuf * const m = NGI_M(item), *m2;
+	struct mbuf *const m = NGI_M(item), *m2;
 	int nhooks;
 
 	if ((nhooks = NG_NODE_NUMHOOKS(node)) == 1) {
 		NG_FREE_ITEM(item);
 		return (0);
 	}
-	LIST_FOREACH(hook2, &node->nd_hooks, hk_hooks) {
+	LIST_FOREACH (hook2, &node->nd_hooks, hk_hooks) {
 		if (hook2 == hook)
 			continue;
 		if (--nhooks == 1)
@@ -140,7 +134,7 @@ ng_hub_rcvdata(hook_p hook, item_p item)
 			}
 			NG_SEND_DATA_ONLY(error, hook2, m2);
 			if (error)
-				continue;	/* don't give up */
+				continue; /* don't give up */
 		}
 	}
 

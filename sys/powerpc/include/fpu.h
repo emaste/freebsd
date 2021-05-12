@@ -34,50 +34,50 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_FPU_H_
-#define	_MACHINE_FPU_H_
+#ifndef _MACHINE_FPU_H_
+#define _MACHINE_FPU_H_
 
-#define	FPSCR_FX	0x80000000
-#define	FPSCR_FEX	0x40000000
-#define	FPSCR_VX	0x20000000
-#define	FPSCR_OX	0x10000000
-#define	FPSCR_UX	0x08000000
-#define	FPSCR_ZX	0x04000000
-#define	FPSCR_XX	0x02000000
-#define	FPSCR_VXSNAN	0x01000000
-#define	FPSCR_VXISI	0x00800000
-#define	FPSCR_VXIDI	0x00400000
-#define	FPSCR_VXZDZ	0x00200000
-#define	FPSCR_VXIMZ	0x00100000
-#define	FPSCR_VXVC	0x00080000
-#define	FPSCR_FR	0x00040000
-#define	FPSCR_FI	0x00020000
-#define	FPSCR_FPRF	0x0001f000
-#define	FPSCR_C		0x00010000
-#define	FPSCR_FPCC	0x0000f000
-#define	FPSCR_FL	0x00008000
-#define	FPSCR_FG	0x00004000
-#define	FPSCR_FE	0x00002000
-#define	FPSCR_FU	0x00001000
-#define	FPSCR_VXSOFT	0x00000400
-#define	FPSCR_VXSQRT	0x00000200
-#define	FPSCR_VXCVI	0x00000100
-#define	FPSCR_VE	0x00000080
-#define	FPSCR_OE	0x00000040
-#define	FPSCR_UE	0x00000020
-#define	FPSCR_ZE	0x00000010
-#define	FPSCR_XE	0x00000008
-#define	FPSCR_NI	0x00000004
-#define	FPSCR_RN	0x00000003
+#define FPSCR_FX 0x80000000
+#define FPSCR_FEX 0x40000000
+#define FPSCR_VX 0x20000000
+#define FPSCR_OX 0x10000000
+#define FPSCR_UX 0x08000000
+#define FPSCR_ZX 0x04000000
+#define FPSCR_XX 0x02000000
+#define FPSCR_VXSNAN 0x01000000
+#define FPSCR_VXISI 0x00800000
+#define FPSCR_VXIDI 0x00400000
+#define FPSCR_VXZDZ 0x00200000
+#define FPSCR_VXIMZ 0x00100000
+#define FPSCR_VXVC 0x00080000
+#define FPSCR_FR 0x00040000
+#define FPSCR_FI 0x00020000
+#define FPSCR_FPRF 0x0001f000
+#define FPSCR_C 0x00010000
+#define FPSCR_FPCC 0x0000f000
+#define FPSCR_FL 0x00008000
+#define FPSCR_FG 0x00004000
+#define FPSCR_FE 0x00002000
+#define FPSCR_FU 0x00001000
+#define FPSCR_VXSOFT 0x00000400
+#define FPSCR_VXSQRT 0x00000200
+#define FPSCR_VXCVI 0x00000100
+#define FPSCR_VE 0x00000080
+#define FPSCR_OE 0x00000040
+#define FPSCR_UE 0x00000020
+#define FPSCR_ZE 0x00000010
+#define FPSCR_XE 0x00000008
+#define FPSCR_NI 0x00000004
+#define FPSCR_RN 0x00000003
 
 #ifdef _KERNEL
 
-void    enable_fpu(struct thread *);
-void    save_fpu(struct thread *);
-void    save_fpu_nodrop(struct thread *);
-void    cleanup_fpscr(void);
-u_int   get_fpu_exception(struct thread *);
+void enable_fpu(struct thread *);
+void save_fpu(struct thread *);
+void save_fpu_nodrop(struct thread *);
+void cleanup_fpscr(void);
+u_int get_fpu_exception(struct thread *);
 
 #endif /* _KERNEL */
 
-#endif	/* _MACHINE_FPU_H_ */
+#endif /* _MACHINE_FPU_H_ */

@@ -28,34 +28,33 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_NETDEVICE_H_
-#define	_LINUX_NETDEVICE_H_
-
-#include <linux/types.h>
+#ifndef _LINUX_NETDEVICE_H_
+#define _LINUX_NETDEVICE_H_
 
 #include <sys/socket.h>
 
-#include <net/if_types.h>
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
+#include <net/if_types.h>
+#include <net/if_var.h>
 
-#include <linux/list.h>
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/workqueue.h>
+#include <linux/list.h>
 #include <linux/net.h>
 #include <linux/notifier.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
 
 #ifdef VIMAGE
-#define	init_net *vnet0
+#define init_net *vnet0
 #else
-#define	init_net *((struct vnet *)0)
+#define init_net *((struct vnet *)0)
 #endif
 
-#define	MAX_ADDR_LEN		20
+#define MAX_ADDR_LEN 20
 
-#define	net_device	ifnet
+#define net_device ifnet
 
 static inline struct ifnet *
 dev_get_by_index(struct vnet *vnet, int if_index)
@@ -72,15 +71,15 @@ dev_get_by_index(struct vnet *vnet, int if_index)
 	return (retval);
 }
 
-#define	dev_hold(d)	if_ref(d)
-#define	dev_put(d)	if_rele(d)
-#define	dev_net(d)	((d)->if_vnet)
+#define dev_hold(d) if_ref(d)
+#define dev_put(d) if_rele(d)
+#define dev_net(d) ((d)->if_vnet)
 
-#define	net_eq(a,b)	((a) == (b))
+#define net_eq(a, b) ((a) == (b))
 
-#define	netif_running(dev)	!!((dev)->if_drv_flags & IFF_DRV_RUNNING)
-#define	netif_oper_up(dev)	!!((dev)->if_flags & IFF_UP)
-#define	netif_carrier_ok(dev)	((dev)->if_link_state == LINK_STATE_UP)
+#define netif_running(dev) !!((dev)->if_drv_flags & IFF_DRV_RUNNING)
+#define netif_oper_up(dev) !!((dev)->if_flags & IFF_UP)
+#define netif_carrier_ok(dev) ((dev)->if_link_state == LINK_STATE_UP)
 
 static inline void *
 netdev_priv(const struct net_device *dev)
@@ -88,8 +87,8 @@ netdev_priv(const struct net_device *dev)
 	return (dev->if_softc);
 }
 
-#define	rtnl_lock()
-#define	rtnl_unlock()
+#define rtnl_lock()
+#define rtnl_unlock()
 
 static inline int
 dev_mc_delete(struct net_device *dev, void *addr, int alen, int all)
@@ -131,7 +130,7 @@ dev_mc_add(struct net_device *dev, void *addr, int alen, int newonly)
 
 /* According to linux::ipoib_main.c. */
 struct netdev_notifier_info {
-	struct net_device	*dev;
+	struct net_device *dev;
 };
 
 static inline struct net_device *
@@ -140,9 +139,9 @@ netdev_notifier_info_to_dev(struct netdev_notifier_info *ni)
 	return (ni->dev);
 }
 
-int	register_netdevice_notifier(struct notifier_block *);
-int	register_inetaddr_notifier(struct notifier_block *);
-int	unregister_netdevice_notifier(struct notifier_block *);
-int	unregister_inetaddr_notifier(struct notifier_block *);
+int register_netdevice_notifier(struct notifier_block *);
+int register_inetaddr_notifier(struct notifier_block *);
+int unregister_netdevice_notifier(struct notifier_block *);
+int unregister_inetaddr_notifier(struct notifier_block *);
 
-#endif	/* _LINUX_NETDEVICE_H_ */
+#endif /* _LINUX_NETDEVICE_H_ */

@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
-
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 
@@ -50,17 +49,15 @@ static void
 in_show_sockaddr_in(struct sockaddr_in *sin)
 {
 
-#define	SIN_DB_RPINTF(f, e)	db_printf("\t   %s = " f "\n", #e, sin->e);
+#define SIN_DB_RPINTF(f, e) db_printf("\t   %s = " f "\n", #e, sin->e);
 	db_printf("\tsockaddr_in = %p\n", sin);
 	SIN_DB_RPINTF("%u", sin_len);
 	SIN_DB_RPINTF("%u", sin_family);
 	SIN_DB_RPINTF("%u", sin_port);
 	SIN_DB_RPINTF("0x%08x", sin_addr.s_addr);
-	db_printf("\t   %s = %02x%02x%02x%02x%02x%02x%02x%02x\n",
-	    "sin_zero[8]",
-	    sin->sin_zero[0], sin->sin_zero[1],
-	    sin->sin_zero[2], sin->sin_zero[3],
-	    sin->sin_zero[4], sin->sin_zero[5],
+	db_printf("\t   %s = %02x%02x%02x%02x%02x%02x%02x%02x\n", "sin_zero[8]",
+	    sin->sin_zero[0], sin->sin_zero[1], sin->sin_zero[2],
+	    sin->sin_zero[3], sin->sin_zero[4], sin->sin_zero[5],
 	    sin->sin_zero[6], sin->sin_zero[7]);
 #undef SIN_DB_RPINTF
 }
@@ -83,9 +80,9 @@ static void
 in_show_in_ifaddr(struct in_ifaddr *ia)
 {
 
-#define	IA_DB_RPINTF(f, e)	db_printf("\t   %s = " f "\n", #e, ia->e);
-#define	IA_DB_RPINTF_PTR(f, e)	db_printf("\t   %s = " f "\n", #e, &ia->e);
-#define	IA_DB_RPINTF_DPTR(f, e)	db_printf("\t  *%s = " f "\n", #e, *ia->e);
+#define IA_DB_RPINTF(f, e) db_printf("\t   %s = " f "\n", #e, ia->e);
+#define IA_DB_RPINTF_PTR(f, e) db_printf("\t   %s = " f "\n", #e, &ia->e);
+#define IA_DB_RPINTF_DPTR(f, e) db_printf("\t  *%s = " f "\n", #e, *ia->e);
 	db_printf("\tin_ifaddr = %p\n", ia);
 	IA_DB_RPINTF_PTR("%p", ia_ifa);
 	IA_DB_RPINTF("0x%08lx", ia_subnet);

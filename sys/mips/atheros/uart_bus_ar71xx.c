@@ -39,11 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/uart/uart.h>
-#include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_bus.h>
+#include <dev/uart/uart_cpu.h>
 
-#include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xxreg.h>
 
 #include "uart_if.h"
 
@@ -52,10 +52,9 @@ extern struct uart_class uart_ar71xx_uart_class;
 
 static device_method_t uart_ar71xx_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		uart_ar71xx_probe),
-	DEVMETHOD(device_attach,	uart_bus_attach),
-	DEVMETHOD(device_detach,	uart_bus_detach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, uart_ar71xx_probe),
+	DEVMETHOD(device_attach, uart_bus_attach),
+	DEVMETHOD(device_detach, uart_bus_detach), { 0, 0 }
 };
 
 static driver_t uart_ar71xx_driver = {
@@ -88,15 +87,15 @@ uart_ar71xx_probe(device_t dev)
 	return (uart_bus_probe(dev, 2, 0, freq, 0, 0, 0));
 }
 
-#ifdef	EARLY_PRINTF
+#ifdef EARLY_PRINTF
 static void
 ar71xx_early_putc(int c)
 {
 	int i;
 
 	for (i = 0; i < 1000; i++) {
-		if (ATH_READ_REG(AR71XX_UART_ADDR + AR71XX_UART_LSR)
-		    & AR71XX_UART_LSR_THRE)
+		if (ATH_READ_REG(AR71XX_UART_ADDR + AR71XX_UART_LSR) &
+		    AR71XX_UART_LSR_THRE)
 			break;
 	}
 

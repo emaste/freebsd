@@ -36,34 +36,33 @@
 #include <sys/smp.h>
 
 #include <vm/vm.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+
+#include <machine/armreg.h>
+#include <machine/cpu.h>
+#include <machine/fdt.h>
+#include <machine/platformvar.h>
+#include <machine/smp.h>
 
 #include <dev/fdt/fdt_common.h>
 
-#include <machine/cpu.h>
-#include <machine/smp.h>
-#include <machine/fdt.h>
-#include <machine/armreg.h>
-
 #include <arm/mv/mvwin.h>
 
-#include <machine/platformvar.h>
+#define MV_AXP_CPU_DIVCLK_BASE (MV_BASE + 0x18700)
+#define CPU_DIVCLK_CTRL0 0x00
+#define CPU_DIVCLK_CTRL2_RATIO_FULL0 0x08
+#define CPU_DIVCLK_CTRL2_RATIO_FULL1 0x0c
+#define CPU_DIVCLK_MASK(x) (~(0xff << (8 * (x))))
 
-#define MV_AXP_CPU_DIVCLK_BASE		(MV_BASE + 0x18700)
-#define CPU_DIVCLK_CTRL0		0x00
-#define CPU_DIVCLK_CTRL2_RATIO_FULL0	0x08
-#define CPU_DIVCLK_CTRL2_RATIO_FULL1	0x0c
-#define CPU_DIVCLK_MASK(x)		(~(0xff << (8 * (x))))
+#define CPU_PMU(x) (MV_BASE + 0x22100 + (0x100 * (x)))
+#define CPU_PMU_BOOT 0x24
 
-#define CPU_PMU(x)			(MV_BASE + 0x22100 + (0x100 * (x)))
-#define CPU_PMU_BOOT			0x24
+#define MP (MV_BASE + 0x20800)
+#define MP_SW_RESET(x) ((x)*8)
 
-#define MP				(MV_BASE + 0x20800)
-#define MP_SW_RESET(x)			((x) * 8)
-
-#define CPU_RESUME_CONTROL		(0x20988)
+#define CPU_RESUME_CONTROL (0x20988)
 
 void armadaxp_init_coher_fabric(void);
 int platform_get_ncpus(void);
@@ -118,7 +117,7 @@ mv_axp_platform_mp_start_ap(platform_t plat)
 	mptramp_pmu_boot = fdt_immr_pa + pmu_boot_off;
 	dst = pmap_mapdev(0xffff0000, PAGE_SIZE);
 	for (src = (uint32_t *)mptramp; src < (uint32_t *)mptramp_end;
-	    src++, dst++) {
+	     src++, dst++) {
 		*dst = *src;
 	}
 	pmap_unmapdev((vm_offset_t)dst, PAGE_SIZE);
@@ -127,7 +126,7 @@ mv_axp_platform_mp_start_ap(platform_t plat)
 		div_val = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);
 		div_val &= 0x3f;
 
-		for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++ ) {
+		for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++) {
 			reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);
 			reg &= CPU_DIVCLK_MASK(cpu_num);
 			reg |= div_val << (cpu_num * 8);
@@ -144,7 +143,7 @@ mv_axp_platform_mp_start_ap(platform_t plat)
 			write_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL0, reg);
 		}
 
-		for (cpu_num = 2; cpu_num < mp_ncpus; cpu_num++ ) {
+		for (cpu_num = 2; cpu_num < mp_ncpus; cpu_num++) {
 			reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);
 			reg &= CPU_DIVCLK_MASK(cpu_num);
 			reg |= div_val << (cpu_num * 8);
@@ -166,13 +165,13 @@ mv_axp_platform_mp_start_ap(platform_t plat)
 
 	bus_space_write_4(fdtbus_bs_tag, MV_BASE, CPU_RESUME_CONTROL, 0);
 
-	for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++ )
+	for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++)
 		bus_space_write_4(fdtbus_bs_tag, CPU_PMU(cpu_num), CPU_PMU_BOOT,
 		    pmap_kextract((vm_offset_t)mpentry));
 
 	dcache_wbinv_poc_all();
 
-	for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++ )
+	for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++)
 		bus_space_write_4(fdtbus_bs_tag, MP, MP_SW_RESET(cpu_num), 0);
 
 	/* XXX: Temporary workaround for hangup after releasing AP's */

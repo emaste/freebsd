@@ -30,10 +30,10 @@
 #ifndef _NET_IF_IPSEC_H_
 #define _NET_IF_IPSEC_H_
 
-#define	IPSEC_MTU		1400
-#define	IPSEC_MTU_MIN		1280
-#define	IPSEC_MTU_MAX		8192
-#define	IPSECGREQID		_IOWR('i', 160, struct ifreq)
-#define	IPSECSREQID		_IOW('i', 161, struct ifreq)
+#define IPSEC_MTU 1400
+#define IPSEC_MTU_MIN 1280
+#define IPSEC_MTU_MAX 8192
+#define IPSECGREQID _IOWR('i', 160, struct ifreq)
+#define IPSECSREQID _IOW('i', 161, struct ifreq)
 
 #endif /* _NET_IF_IPSEC_H_ */

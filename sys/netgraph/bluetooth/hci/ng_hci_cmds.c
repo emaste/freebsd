@@ -35,20 +35,21 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/endian.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/queue.h>
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/bluetooth/include/ng_bluetooth.h>
-#include <netgraph/bluetooth/include/ng_hci.h>
-#include <netgraph/bluetooth/hci/ng_hci_var.h>
+
 #include <netgraph/bluetooth/hci/ng_hci_cmds.h>
 #include <netgraph/bluetooth/hci/ng_hci_evnt.h>
-#include <netgraph/bluetooth/hci/ng_hci_ulpi.h>
 #include <netgraph/bluetooth/hci/ng_hci_misc.h>
+#include <netgraph/bluetooth/hci/ng_hci_ulpi.h>
+#include <netgraph/bluetooth/hci/ng_hci_var.h>
+#include <netgraph/bluetooth/include/ng_bluetooth.h>
+#include <netgraph/bluetooth/include/ng_hci.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
 
 /******************************************************************************
  ******************************************************************************
@@ -56,32 +57,32 @@
  ******************************************************************************
  ******************************************************************************/
 
-#undef	min
-#define	min(a, b)	((a) < (b))? (a) : (b)
+#undef min
+#define min(a, b) ((a) < (b)) ? (a) : (b)
 
-static int  complete_command (ng_hci_unit_p, int, struct mbuf **);
+static int complete_command(ng_hci_unit_p, int, struct mbuf **);
 
-static int process_link_control_params
-	(ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
-static int process_link_policy_params
-	(ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
-static int process_hc_baseband_params
-	(ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
-static int process_info_params
-	(ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
-static int process_status_params
-	(ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
-static int process_testing_params
-	(ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
-static int process_le_params
-	(ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
+static int process_link_control_params(
+    ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
+static int process_link_policy_params(
+    ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
+static int process_hc_baseband_params(
+    ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
+static int process_info_params(
+    ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
+static int process_status_params(
+    ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
+static int process_testing_params(
+    ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
+static int process_le_params(
+    ng_hci_unit_p, u_int16_t, struct mbuf *, struct mbuf *);
 
-static int process_link_control_status
-	(ng_hci_unit_p, ng_hci_command_status_ep *, struct mbuf *);
-static int process_link_policy_status
-	(ng_hci_unit_p, ng_hci_command_status_ep *, struct mbuf *);
-static int process_le_status
-	(ng_hci_unit_p, ng_hci_command_status_ep *, struct mbuf *);
+static int process_link_control_status(
+    ng_hci_unit_p, ng_hci_command_status_ep *, struct mbuf *);
+static int process_link_policy_status(
+    ng_hci_unit_p, ng_hci_command_status_ep *, struct mbuf *);
+static int process_le_status(
+    ng_hci_unit_p, ng_hci_command_status_ep *, struct mbuf *);
 
 /*
  * Send HCI command to the driver.
@@ -90,8 +91,8 @@ static int process_le_status
 int
 ng_hci_send_command(ng_hci_unit_p unit)
 {
-	struct mbuf	*m0 = NULL, *m = NULL;
-	int		 free, error = 0;
+	struct mbuf *m0 = NULL, *m = NULL;
+	int free, error = 0;
 
 	/* Check if other command is pending */
 	if (unit->state & NG_HCI_UNIT_COMMAND_PENDING)
@@ -104,17 +105,16 @@ ng_hci_send_command(ng_hci_unit_p unit)
 
 	/* Check if driver hook is still ok */
 	if (unit->drv == NULL || NG_HOOK_NOT_VALID(unit->drv)) {
-		NG_HCI_WARN(
-"%s: %s - hook \"%s\" is not connected or valid\n",
-			__func__, NG_NODE_NAME(unit->node), NG_HCI_HOOK_DRV);
+		NG_HCI_WARN("%s: %s - hook \"%s\" is not connected or valid\n",
+		    __func__, NG_NODE_NAME(unit->node), NG_HCI_HOOK_DRV);
 
 		NG_BT_MBUFQ_DRAIN(&unit->cmdq);
 
 		return (ENOTCONN);
 	}
 
-	/* 
-	 * Get first command from queue, give it to RAW hook then 
+	/*
+	 * Get first command from queue, give it to RAW hook then
 	 * make copy of it and send it to the driver
 	 */
 
@@ -131,9 +131,8 @@ ng_hci_send_command(ng_hci_unit_p unit)
 		error = ENOBUFS;
 
 	if (error != 0)
-		NG_HCI_ERR(
-"%s: %s - could not send HCI command, error=%d\n",
-			__func__, NG_NODE_NAME(unit->node), error);
+		NG_HCI_ERR("%s: %s - could not send HCI command, error=%d\n",
+		    __func__, NG_NODE_NAME(unit->node), error);
 
 	/*
 	 * Even if we were not able to send command we still pretend
@@ -145,7 +144,7 @@ ng_hci_send_command(ng_hci_unit_p unit)
 	NG_HCI_STAT_BYTES_SENT(unit->stat, m0->m_pkthdr.len);
 
 	/*
-	 * Note: ng_hci_command_timeout() will set 
+	 * Note: ng_hci_command_timeout() will set
 	 * NG_HCI_UNIT_COMMAND_PENDING flag
 	 */
 
@@ -155,7 +154,7 @@ ng_hci_send_command(ng_hci_unit_p unit)
 } /* ng_hci_send_command */
 
 /*
- * Process HCI Command_Compete event. Complete HCI command, and do post 
+ * Process HCI Command_Compete event. Complete HCI command, and do post
  * processing on the command parameters (cp) and command return parameters
  * (e) if required (for example adjust state).
  */
@@ -163,9 +162,9 @@ ng_hci_send_command(ng_hci_unit_p unit)
 int
 ng_hci_process_command_complete(ng_hci_unit_p unit, struct mbuf *e)
 {
-	ng_hci_command_compl_ep		*ep = NULL;
-	struct mbuf			*cp = NULL;
-	int				 error = 0;
+	ng_hci_command_compl_ep *ep = NULL;
+	struct mbuf *cp = NULL;
+	int error = 0;
 
 	/* Get event packet and update command buffer info */
 	NG_HCI_M_PULLUP(e, sizeof(*ep));
@@ -173,7 +172,7 @@ ng_hci_process_command_complete(ng_hci_unit_p unit, struct mbuf *e)
 		return (ENOBUFS); /* XXX this is bad */
 
 	ep = mtod(e, ng_hci_command_compl_ep *);
-        NG_HCI_BUFF_CMD_SET(unit->buffer, ep->num_cmd_pkts);
+	NG_HCI_BUFF_CMD_SET(unit->buffer, ep->num_cmd_pkts);
 
 	/* Check for special NOOP command */
 	if (ep->opcode == 0x0000) {
@@ -188,7 +187,7 @@ ng_hci_process_command_complete(ng_hci_unit_p unit, struct mbuf *e)
 		goto out;
 	}
 
-	/* 
+	/*
 	 * Perform post processing on command parameters and return parameters
 	 * do it only if status is OK (status == 0). Status is the first byte
 	 * of any command return parameters.
@@ -200,37 +199,37 @@ ng_hci_process_command_complete(ng_hci_unit_p unit, struct mbuf *e)
 	if (*mtod(e, u_int8_t *) == 0) { /* XXX m_pullup here? */
 		switch (NG_HCI_OGF(ep->opcode)) {
 		case NG_HCI_OGF_LINK_CONTROL:
-			error = process_link_control_params(unit,
-					NG_HCI_OCF(ep->opcode), cp, e);
+			error = process_link_control_params(
+			    unit, NG_HCI_OCF(ep->opcode), cp, e);
 			break;
 
 		case NG_HCI_OGF_LINK_POLICY:
-			error = process_link_policy_params(unit,
-					NG_HCI_OCF(ep->opcode), cp, e);
+			error = process_link_policy_params(
+			    unit, NG_HCI_OCF(ep->opcode), cp, e);
 			break;
 
 		case NG_HCI_OGF_HC_BASEBAND:
-			error = process_hc_baseband_params(unit,
-					NG_HCI_OCF(ep->opcode), cp, e);
+			error = process_hc_baseband_params(
+			    unit, NG_HCI_OCF(ep->opcode), cp, e);
 			break;
 
 		case NG_HCI_OGF_INFO:
-			error = process_info_params(unit,
-					NG_HCI_OCF(ep->opcode), cp, e);
+			error = process_info_params(
+			    unit, NG_HCI_OCF(ep->opcode), cp, e);
 			break;
 
 		case NG_HCI_OGF_STATUS:
-			error = process_status_params(unit,
-					NG_HCI_OCF(ep->opcode), cp, e);
+			error = process_status_params(
+			    unit, NG_HCI_OCF(ep->opcode), cp, e);
 			break;
 
 		case NG_HCI_OGF_TESTING:
-			error = process_testing_params(unit,
-					NG_HCI_OCF(ep->opcode), cp, e);
+			error = process_testing_params(
+			    unit, NG_HCI_OCF(ep->opcode), cp, e);
 			break;
 		case NG_HCI_OGF_LE:
-			error = process_le_params(unit,
-					  NG_HCI_OCF(ep->opcode), cp, e);
+			error = process_le_params(
+			    unit, NG_HCI_OCF(ep->opcode), cp, e);
 			break;
 		case NG_HCI_OGF_BT_LOGO:
 		case NG_HCI_OGF_VENDOR:
@@ -246,10 +245,9 @@ ng_hci_process_command_complete(ng_hci_unit_p unit, struct mbuf *e)
 		}
 	} else {
 		NG_HCI_ERR(
-"%s: %s - HCI command failed, OGF=%#x, OCF=%#x, status=%#x\n",
-			__func__, NG_NODE_NAME(unit->node),
-			NG_HCI_OGF(ep->opcode), NG_HCI_OCF(ep->opcode), 
-			*mtod(e, u_int8_t *));
+		    "%s: %s - HCI command failed, OGF=%#x, OCF=%#x, status=%#x\n",
+		    __func__, NG_NODE_NAME(unit->node), NG_HCI_OGF(ep->opcode),
+		    NG_HCI_OCF(ep->opcode), *mtod(e, u_int8_t *));
 
 		NG_FREE_M(cp);
 		NG_FREE_M(e);
@@ -261,16 +259,16 @@ out:
 } /* ng_hci_process_command_complete */
 
 /*
- * Process HCI Command_Status event. Check the status (mst) and do post 
+ * Process HCI Command_Status event. Check the status (mst) and do post
  * processing (if required).
  */
 
 int
 ng_hci_process_command_status(ng_hci_unit_p unit, struct mbuf *e)
 {
-	ng_hci_command_status_ep	*ep = NULL;
-	struct mbuf			*cp = NULL;
-	int				 error = 0;
+	ng_hci_command_status_ep *ep = NULL;
+	struct mbuf *cp = NULL;
+	int error = 0;
 
 	/* Update command buffer info */
 	NG_HCI_M_PULLUP(e, sizeof(*ep));
@@ -286,10 +284,10 @@ ng_hci_process_command_status(ng_hci_unit_p unit, struct mbuf *e)
 
 	/* Try to match first command item in the queue */
 	error = complete_command(unit, ep->opcode, &cp);
-        if (error != 0)
+	if (error != 0)
 		goto out;
 
-	/* 
+	/*
 	 * Perform post processing on HCI Command_Status event
 	 */
 
@@ -328,19 +326,18 @@ out:
 } /* ng_hci_process_command_status */
 
 /*
- * Complete queued HCI command. 
+ * Complete queued HCI command.
  */
 
 static int
 complete_command(ng_hci_unit_p unit, int opcode, struct mbuf **cp)
 {
-	struct mbuf	*m = NULL;
+	struct mbuf *m = NULL;
 
 	/* Check unit state */
 	if (!(unit->state & NG_HCI_UNIT_COMMAND_PENDING)) {
-		NG_HCI_ALERT(
-"%s: %s - no pending command, state=%#x\n",
-			__func__, NG_NODE_NAME(unit->node), unit->state);
+		NG_HCI_ALERT("%s: %s - no pending command, state=%#x\n",
+		    __func__, NG_NODE_NAME(unit->node), unit->state);
 
 		return (EINVAL);
 	}
@@ -348,25 +345,25 @@ complete_command(ng_hci_unit_p unit, int opcode, struct mbuf **cp)
 	/* Get first command in the queue */
 	m = NG_BT_MBUFQ_FIRST(&unit->cmdq);
 	if (m == NULL) {
-		NG_HCI_ALERT(
-"%s: %s - empty command queue?!\n", __func__, NG_NODE_NAME(unit->node));
+		NG_HCI_ALERT("%s: %s - empty command queue?!\n", __func__,
+		    NG_NODE_NAME(unit->node));
 
 		return (EINVAL);
 	}
 
 	/*
-	 * Match command opcode, if does not match - do nothing and 
+	 * Match command opcode, if does not match - do nothing and
 	 * let timeout handle that.
 	 */
 
 	if (mtod(m, ng_hci_cmd_pkt_t *)->opcode != opcode) {
-		NG_HCI_ALERT(
-"%s: %s - command queue is out of sync\n", __func__, NG_NODE_NAME(unit->node));
+		NG_HCI_ALERT("%s: %s - command queue is out of sync\n",
+		    __func__, NG_NODE_NAME(unit->node));
 
 		return (EINVAL);
 	}
 
-	/* 
+	/*
 	 * Now we can remove command timeout, dequeue completed command
 	 * and return command parameters. ng_hci_command_untimeout will
 	 * drop NG_HCI_UNIT_COMMAND_PENDING flag.
@@ -392,24 +389,24 @@ complete_command(ng_hci_unit_p unit, int opcode, struct mbuf **cp)
 void
 ng_hci_process_command_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	ng_hci_unit_p	 unit = NULL;
-	struct mbuf	*m = NULL;
-	u_int16_t	 opcode;
+	ng_hci_unit_p unit = NULL;
+	struct mbuf *m = NULL;
+	u_int16_t opcode;
 
 	if (NG_NODE_NOT_VALID(node)) {
 		printf("%s: Netgraph node is not valid\n", __func__);
 		return;
 	}
 
-	unit = (ng_hci_unit_p) NG_NODE_PRIVATE(node);
+	unit = (ng_hci_unit_p)NG_NODE_PRIVATE(node);
 
 	if (unit->state & NG_HCI_UNIT_COMMAND_PENDING) {
 		unit->state &= ~NG_HCI_UNIT_COMMAND_PENDING;
 
 		NG_BT_MBUFQ_DEQUEUE(&unit->cmdq, m);
 		if (m == NULL) {
-			NG_HCI_ALERT(
-"%s: %s - command queue is out of sync!\n", __func__, NG_NODE_NAME(unit->node));
+			NG_HCI_ALERT("%s: %s - command queue is out of sync!\n",
+			    __func__, NG_NODE_NAME(unit->node));
 
 			return;
 		}
@@ -418,34 +415,34 @@ ng_hci_process_command_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 		NG_FREE_M(m);
 
 		NG_HCI_ERR(
-"%s: %s - unable to complete HCI command OGF=%#x, OCF=%#x. Timeout\n",
-			__func__, NG_NODE_NAME(unit->node), NG_HCI_OGF(opcode),
-			NG_HCI_OCF(opcode));
+		    "%s: %s - unable to complete HCI command OGF=%#x, OCF=%#x. Timeout\n",
+		    __func__, NG_NODE_NAME(unit->node), NG_HCI_OGF(opcode),
+		    NG_HCI_OCF(opcode));
 
 		/* Try to send more commands */
- 		NG_HCI_BUFF_CMD_SET(unit->buffer, 1);
+		NG_HCI_BUFF_CMD_SET(unit->buffer, 1);
 		ng_hci_send_command(unit);
 	} else
-		NG_HCI_ALERT(
-"%s: %s - no pending command\n", __func__, NG_NODE_NAME(unit->node));
+		NG_HCI_ALERT("%s: %s - no pending command\n", __func__,
+		    NG_NODE_NAME(unit->node));
 } /* ng_hci_process_command_timeout */
 
-/* 
+/*
  * Process link command return parameters
  */
 
 static int
-process_link_control_params(ng_hci_unit_p unit, u_int16_t ocf, 
-		struct mbuf *mcp, struct mbuf *mrp)
+process_link_control_params(
+    ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp, struct mbuf *mrp)
 {
-	int	error  = 0;
+	int error = 0;
 
 	switch (ocf) {
 	case NG_HCI_OCF_INQUIRY_CANCEL:
 	case NG_HCI_OCF_PERIODIC_INQUIRY:
 	case NG_HCI_OCF_EXIT_PERIODIC_INQUIRY:
 	case NG_HCI_OCF_LINK_KEY_REP:
-	case NG_HCI_OCF_LINK_KEY_NEG_REP: 
+	case NG_HCI_OCF_LINK_KEY_NEG_REP:
 	case NG_HCI_OCF_PIN_CODE_REP:
 	case NG_HCI_OCF_PIN_CODE_NEG_REP:
 		/* These do not need post processing */
@@ -469,9 +466,9 @@ process_link_control_params(ng_hci_unit_p unit, u_int16_t ocf,
 	default:
 
 		/*
-		 * None of these command was supposed to generate 
-		 * Command_Complete event. Instead Command_Status event 
-		 * should have been generated and then appropriate event 
+		 * None of these command was supposed to generate
+		 * Command_Complete event. Instead Command_Status event
+		 * should have been generated and then appropriate event
 		 * should have been sent to indicate the final result.
 		 */
 
@@ -485,21 +482,21 @@ process_link_control_params(ng_hci_unit_p unit, u_int16_t ocf,
 	return (error);
 } /* process_link_control_params */
 
-/* 
+/*
  * Process link policy command return parameters
  */
 
 static int
-process_link_policy_params(ng_hci_unit_p unit, u_int16_t ocf,
-		struct mbuf *mcp, struct mbuf *mrp)
+process_link_policy_params(
+    ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp, struct mbuf *mrp)
 {
-	int	error = 0;
+	int error = 0;
 
-	switch (ocf){
+	switch (ocf) {
 	case NG_HCI_OCF_ROLE_DISCOVERY: {
-		ng_hci_role_discovery_rp	*rp = NULL;
-		ng_hci_unit_con_t		*con = NULL;
-		u_int16_t			 h;
+		ng_hci_role_discovery_rp *rp = NULL;
+		ng_hci_unit_con_t *con = NULL;
+		u_int16_t h;
 
 		NG_HCI_M_PULLUP(mrp, sizeof(*rp));
 		if (mrp != NULL) {
@@ -509,19 +506,19 @@ process_link_policy_params(ng_hci_unit_p unit, u_int16_t ocf,
 			con = ng_hci_con_by_handle(unit, h);
 			if (con == NULL) {
 				NG_HCI_ALERT(
-"%s: %s - invalid connection handle=%d\n",
-					__func__, NG_NODE_NAME(unit->node), h); 
+				    "%s: %s - invalid connection handle=%d\n",
+				    __func__, NG_NODE_NAME(unit->node), h);
 				error = ENOENT;
 			} else if (con->link_type != NG_HCI_LINK_ACL) {
-				NG_HCI_ALERT(
-"%s: %s - invalid link type=%d\n", __func__, NG_NODE_NAME(unit->node),
-					con->link_type);
+				NG_HCI_ALERT("%s: %s - invalid link type=%d\n",
+				    __func__, NG_NODE_NAME(unit->node),
+				    con->link_type);
 				error = EINVAL;
 			} else
 				con->role = rp->role;
 		} else
 			error = ENOBUFS;
-		} break;
+	} break;
 
 	case NG_HCI_OCF_READ_LINK_POLICY_SETTINGS:
 	case NG_HCI_OCF_WRITE_LINK_POLICY_SETTINGS:
@@ -538,15 +535,15 @@ process_link_policy_params(ng_hci_unit_p unit, u_int16_t ocf,
 	default:
 
 		/*
-		 * None of these command was supposed to generate 
-		 * Command_Complete event. Instead Command_Status event 
+		 * None of these command was supposed to generate
+		 * Command_Complete event. Instead Command_Status event
 		 * should have been generated and then appropriate event
 		 * should have been sent to indicate the final result.
 		 */
 
 		error = EINVAL;
 		break;
-	} 
+	}
 
 	NG_FREE_M(mcp);
 	NG_FREE_M(mrp);
@@ -554,20 +551,20 @@ process_link_policy_params(ng_hci_unit_p unit, u_int16_t ocf,
 	return (error);
 } /* process_link_policy_params */
 
-/* 
+/*
  * Process HC and baseband command return parameters
  */
 
 int
-process_hc_baseband_params(ng_hci_unit_p unit, u_int16_t ocf, 
-		struct mbuf *mcp, struct mbuf *mrp)
+process_hc_baseband_params(
+    ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp, struct mbuf *mrp)
 {
-	int	error = 0;
+	int error = 0;
 
 	switch (ocf) {
 	case NG_HCI_OCF_SET_EVENT_MASK:
 	case NG_HCI_OCF_SET_EVENT_FILTER:
-	case NG_HCI_OCF_FLUSH:	/* XXX Do we need to handle that? */
+	case NG_HCI_OCF_FLUSH: /* XXX Do we need to handle that? */
 	case NG_HCI_OCF_READ_PIN_TYPE:
 	case NG_HCI_OCF_WRITE_PIN_TYPE:
 	case NG_HCI_OCF_CREATE_NEW_UNIT_KEY:
@@ -610,7 +607,7 @@ process_hc_baseband_params(ng_hci_unit_p unit, u_int16_t ocf,
 	case NG_HCI_OCF_READ_AUTO_FLUSH_TIMO:
 	case NG_HCI_OCF_WRITE_AUTO_FLUSH_TIMO:
 	case NG_HCI_OCF_READ_XMIT_LEVEL:
-	case NG_HCI_OCF_HOST_NUM_COMPL_PKTS:	/* XXX Can get here? */
+	case NG_HCI_OCF_HOST_NUM_COMPL_PKTS: /* XXX Can get here? */
 	case NG_HCI_OCF_CHANGE_LOCAL_NAME:
 	case NG_HCI_OCF_READ_LOCAL_NAME:
 	case NG_HCI_OCF_READ_UNIT_CLASS:
@@ -621,16 +618,16 @@ process_hc_baseband_params(ng_hci_unit_p unit, u_int16_t ocf,
 		break;
 
 	case NG_HCI_OCF_RESET: {
-		ng_hci_unit_con_p	con = NULL;
-		int			size;
+		ng_hci_unit_con_p con = NULL;
+		int size;
 
 		/*
-		 * XXX 
+		 * XXX
 		 *
 		 * After RESET command unit goes into standby mode
 		 * and all operational state is lost. Host controller
 		 * will revert to default values for all parameters.
-		 * 
+		 *
 		 * For now we shall terminate all connections and drop
 		 * inited bit. After RESET unit must be re-initialized.
 		 */
@@ -654,7 +651,7 @@ process_hc_baseband_params(ng_hci_unit_p unit, u_int16_t ocf,
 		NG_HCI_BUFF_SCO_FREE(unit->buffer, size);
 
 		unit->state &= ~NG_HCI_UNIT_INITED;
-		} break;
+	} break;
 
 	default:
 		error = EINVAL;
@@ -667,15 +664,15 @@ process_hc_baseband_params(ng_hci_unit_p unit, u_int16_t ocf,
 	return (error);
 } /* process_hc_baseband_params */
 
-/* 
+/*
  * Process info command return parameters
  */
 
 static int
-process_info_params(ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp,
-		struct mbuf *mrp)
+process_info_params(
+    ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp, struct mbuf *mrp)
 {
-	int	error = 0, len;
+	int error = 0, len;
 
 	switch (ocf) {
 	case NG_HCI_OCF_READ_LOCAL_VER:
@@ -685,11 +682,11 @@ process_info_params(ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp,
 	case NG_HCI_OCF_READ_LOCAL_FEATURES:
 		m_adj(mrp, sizeof(u_int8_t));
 		len = min(mrp->m_pkthdr.len, sizeof(unit->features));
-		m_copydata(mrp, 0, len, (caddr_t) unit->features);
+		m_copydata(mrp, 0, len, (caddr_t)unit->features);
 		break;
 
 	case NG_HCI_OCF_READ_BUFFER_SIZE: {
-		ng_hci_read_buffer_size_rp	*rp = NULL;
+		ng_hci_read_buffer_size_rp *rp = NULL;
 
 		/* Do not update buffer descriptor if node was initialized */
 		if ((unit->state & NG_HCI_UNIT_READY) == NG_HCI_UNIT_READY)
@@ -700,17 +697,15 @@ process_info_params(ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp,
 			rp = mtod(mrp, ng_hci_read_buffer_size_rp *);
 
 			NG_HCI_BUFF_ACL_SET(
-				unit->buffer,
-				le16toh(rp->num_acl_pkt),  /* number */
-				le16toh(rp->max_acl_size), /* size */
-				le16toh(rp->num_acl_pkt)   /* free */
+			    unit->buffer, le16toh(rp->num_acl_pkt), /* number */
+			    le16toh(rp->max_acl_size),		    /* size */
+			    le16toh(rp->num_acl_pkt)		    /* free */
 			);
 
 			NG_HCI_BUFF_SCO_SET(
-				unit->buffer,
-				le16toh(rp->num_sco_pkt), /* number */
-				rp->max_sco_size,         /* size */
-				le16toh(rp->num_sco_pkt)  /* free */
+			    unit->buffer, le16toh(rp->num_sco_pkt), /* number */
+			    rp->max_sco_size,			    /* size */
+			    le16toh(rp->num_sco_pkt)		    /* free */
 			);
 
 			/* Let upper layers know */
@@ -718,7 +713,7 @@ process_info_params(ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp,
 			ng_hci_node_is_up(unit->node, unit->sco, NULL, 0);
 		} else
 			error = ENOBUFS;
-		} break;
+	} break;
 
 	case NG_HCI_OCF_READ_BDADDR:
 		/* Do not update BD_ADDR if node was initialized */
@@ -727,7 +722,7 @@ process_info_params(ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp,
 
 		m_adj(mrp, sizeof(u_int8_t));
 		len = min(mrp->m_pkthdr.len, sizeof(unit->bdaddr));
-		m_copydata(mrp, 0, len, (caddr_t) &unit->bdaddr);
+		m_copydata(mrp, 0, len, (caddr_t)&unit->bdaddr);
 
 		/* Let upper layers know */
 		ng_hci_node_is_up(unit->node, unit->acl, NULL, 0);
@@ -745,15 +740,15 @@ process_info_params(ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp,
 	return (error);
 } /* process_info_params */
 
-/* 
+/*
  * Process status command return parameters
  */
 
 static int
-process_status_params(ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp,
-		struct mbuf *mrp)
+process_status_params(
+    ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp, struct mbuf *mrp)
 {
-	int	error = 0;
+	int error = 0;
 
 	switch (ocf) {
 	case NG_HCI_OCF_READ_FAILED_CONTACT_CNTR:
@@ -774,23 +769,23 @@ process_status_params(ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp,
 	return (error);
 } /* process_status_params */
 
-/* 
+/*
  * Process testing command return parameters
  */
 
 int
-process_testing_params(ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp,
-		struct mbuf *mrp)
+process_testing_params(
+    ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp, struct mbuf *mrp)
 {
-	int	error = 0;
+	int error = 0;
 
 	switch (ocf) {
-	/*
-	 * XXX FIXME
-	 * We do not support these features at this time. However,
-	 * HCI node could support this and do something smart. At least
-	 * node can change unit state.
-	 */
+		/*
+		 * XXX FIXME
+		 * We do not support these features at this time. However,
+		 * HCI node could support this and do something smart. At least
+		 * node can change unit state.
+		 */
 
 	case NG_HCI_OCF_READ_LOOPBACK_MODE:
 	case NG_HCI_OCF_WRITE_LOOPBACK_MODE:
@@ -808,17 +803,17 @@ process_testing_params(ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp,
 	return (error);
 } /* process_testing_params */
 
-/* 
+/*
  * Process LE command return parameters
  */
 
 static int
-process_le_params(ng_hci_unit_p unit, u_int16_t ocf,
-		struct mbuf *mcp, struct mbuf *mrp)
+process_le_params(
+    ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp, struct mbuf *mrp)
 {
-	int	error = 0;
+	int error = 0;
 
-	switch (ocf){
+	switch (ocf) {
 	case NG_HCI_OCF_LE_SET_EVENT_MASK:
 	case NG_HCI_OCF_LE_READ_BUFFER_SIZE:
 	case NG_HCI_OCF_LE_READ_LOCAL_SUPPORTED_FEATURES:
@@ -855,30 +850,29 @@ process_le_params(ng_hci_unit_p unit, u_int16_t ocf,
 
 	default:
 		/*
-		 * None of these command was supposed to generate 
-		 * Command_Complete event. Instead Command_Status event 
+		 * None of these command was supposed to generate
+		 * Command_Complete event. Instead Command_Status event
 		 * should have been generated and then appropriate event
 		 * should have been sent to indicate the final result.
 		 */
 
 		error = EINVAL;
 		break;
-	} 
+	}
 
 	NG_FREE_M(mcp);
 	NG_FREE_M(mrp);
 
 	return (error);
-
 }
 
 static int
-process_le_status(ng_hci_unit_p unit,ng_hci_command_status_ep *ep,
-		struct mbuf *mcp)
+process_le_status(
+    ng_hci_unit_p unit, ng_hci_command_status_ep *ep, struct mbuf *mcp)
 {
-	int	error = 0;
+	int error = 0;
 
-	switch (NG_HCI_OCF(ep->opcode)){
+	switch (NG_HCI_OCF(ep->opcode)) {
 	case NG_HCI_OCF_LE_CREATE_CONNECTION:
 	case NG_HCI_OCF_LE_CONNECTION_UPDATE:
 	case NG_HCI_OCF_LE_READ_REMOTE_USED_FEATURES:
@@ -916,18 +910,17 @@ process_le_status(ng_hci_unit_p unit,ng_hci_command_status_ep *ep,
 
 	default:
 		/*
-		 * None of these command was supposed to generate 
+		 * None of these command was supposed to generate
 		 * Command_Stutus event. Command Complete instead.
 		 */
 
 		error = EINVAL;
 		break;
-	} 
+	}
 
 	NG_FREE_M(mcp);
 
 	return (error);
-
 }
 
 /*
@@ -935,15 +928,15 @@ process_le_status(ng_hci_unit_p unit,ng_hci_command_status_ep *ep,
  */
 
 static int
-process_link_control_status(ng_hci_unit_p unit, ng_hci_command_status_ep *ep,
-		struct mbuf *mcp)
+process_link_control_status(
+    ng_hci_unit_p unit, ng_hci_command_status_ep *ep, struct mbuf *mcp)
 {
-	int	error = 0;
+	int error = 0;
 
 	switch (NG_HCI_OCF(ep->opcode)) {
 	case NG_HCI_OCF_INQUIRY:
-	case NG_HCI_OCF_DISCON:		/* XXX */
-	case NG_HCI_OCF_REJECT_CON:	/* XXX */
+	case NG_HCI_OCF_DISCON:	    /* XXX */
+	case NG_HCI_OCF_REJECT_CON: /* XXX */
 	case NG_HCI_OCF_CHANGE_CON_PKT_TYPE:
 	case NG_HCI_OCF_AUTH_REQ:
 	case NG_HCI_OCF_SET_CON_ENCRYPTION:
@@ -969,14 +962,14 @@ process_link_control_status(ng_hci_unit_p unit, ng_hci_command_status_ep *ep,
 	case NG_HCI_OCF_PERIODIC_INQUIRY:
 	case NG_HCI_OCF_EXIT_PERIODIC_INQUIRY:
 	case NG_HCI_OCF_LINK_KEY_REP:
-	case NG_HCI_OCF_LINK_KEY_NEG_REP: 
+	case NG_HCI_OCF_LINK_KEY_NEG_REP:
 	case NG_HCI_OCF_PIN_CODE_REP:
 	case NG_HCI_OCF_PIN_CODE_NEG_REP:
 	default:
 
 		/*
-		 * None of these command was supposed to generate 
-		 * Command_Status event. Instead Command_Complete event 
+		 * None of these command was supposed to generate
+		 * Command_Status event. Instead Command_Complete event
 		 * should have been sent.
 		 */
 
@@ -994,10 +987,10 @@ process_link_control_status(ng_hci_unit_p unit, ng_hci_command_status_ep *ep,
  */
 
 static int
-process_link_policy_status(ng_hci_unit_p unit, ng_hci_command_status_ep *ep,
-		struct mbuf *mcp)
+process_link_policy_status(
+    ng_hci_unit_p unit, ng_hci_command_status_ep *ep, struct mbuf *mcp)
 {
-	int	error = 0;
+	int error = 0;
 
 	switch (NG_HCI_OCF(ep->opcode)) {
 	case NG_HCI_OCF_HOLD_MODE:
@@ -1018,8 +1011,8 @@ process_link_policy_status(ng_hci_unit_p unit, ng_hci_command_status_ep *ep,
 	default:
 
 		/*
-		 * None of these command was supposed to generate 
-		 * Command_Status event. Instead Command_Complete event 
+		 * None of these command was supposed to generate
+		 * Command_Status event. Instead Command_Complete event
 		 * should have been sent.
 		 */
 

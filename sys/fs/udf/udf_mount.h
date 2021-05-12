@@ -28,4 +28,4 @@
  * $FreeBSD$
  */
 
-#define	UDFMNT_KICONV	0x00000001
+#define UDFMNT_KICONV 0x00000001

@@ -27,6 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -34,13 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
-#include <sys/systm.h>
-
-#include <contrib/cloudabi/cloudabi32_types.h>
 
 #include <compat/cloudabi/cloudabi_util.h>
-
 #include <compat/cloudabi32/cloudabi32_util.h>
+#include <contrib/cloudabi/cloudabi32_types.h>
 
 extern char _binary_cloudabi32_vdso_o_start[];
 extern char _binary_cloudabi32_vdso_o_end[];
@@ -116,8 +114,11 @@ cloudabi32_fixup(uintptr_t *stack_base, struct image_params *imgp)
 
 	/* Write out an auxiliary vector. */
 	cloudabi32_auxv_t auxv[] = {
-#define	VAL(type, val)	{ .a_type = (type), .a_val = (val) }
-#define	PTR(type, ptr)	{ .a_type = (type), .a_ptr = (uintptr_t)(ptr) }
+#define VAL(type, val)                           \
+	{                                        \
+		.a_type = (type), .a_val = (val) \
+	}
+#define PTR(type, ptr) { .a_type = (type), .a_ptr = (uintptr_t)(ptr) }
 		PTR(CLOUDABI_AT_ARGDATA, argdata),
 		VAL(CLOUDABI_AT_ARGDATALEN, argdatalen),
 		VAL(CLOUDABI_AT_BASE, args->base),
@@ -173,11 +174,8 @@ cloudabi32_modevent(module_t mod, int type, void *data)
 	}
 }
 
-static moduledata_t cloudabi32_module = {
-	"cloudabi32",
-	cloudabi32_modevent,
-	NULL
-};
+static moduledata_t cloudabi32_module = { "cloudabi32", cloudabi32_modevent,
+	NULL };
 
 DECLARE_MODULE_TIED(cloudabi32, cloudabi32_module, SI_SUB_EXEC, SI_ORDER_ANY);
 MODULE_DEPEND(cloudabi32, cloudabi, 1, 1, 1);

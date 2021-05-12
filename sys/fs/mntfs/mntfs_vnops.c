@@ -53,11 +53,11 @@ mntfs_reclaim(struct vop_reclaim_args *ap)
 }
 
 struct vop_vector mntfs_vnodeops = {
-	.vop_default =		&default_vnodeops,
+	.vop_default = &default_vnodeops,
 
-	.vop_fsync =		vop_stdfsync,
-	.vop_strategy = 	VOP_PANIC,
-	.vop_reclaim =		mntfs_reclaim,
+	.vop_fsync = vop_stdfsync,
+	.vop_strategy = VOP_PANIC,
+	.vop_reclaim = mntfs_reclaim,
 };
 VFS_VOP_VECTOR_REGISTER(mntfs_vnodeops);
 

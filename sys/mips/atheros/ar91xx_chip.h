@@ -28,8 +28,8 @@
 
 /* $FreeBSD$ */
 
-#ifndef	__AR91XX_CHIP_H__
-#define	__AR91XX_CHIP_H__
+#ifndef __AR91XX_CHIP_H__
+#define __AR91XX_CHIP_H__
 
 extern struct ar71xx_cpu_def ar91xx_chip_def;
 

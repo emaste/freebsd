@@ -19,7 +19,7 @@
  * N66001-04-C-6019 ("SEFOS").
  *
  * This software was developed at the University of Cambridge Computer
- * Laboratory with support from a grant from Google, Inc. 
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,22 +49,22 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/condvar.h>
+#include <sys/file.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/mac.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/sdt.h>
-#include <sys/systm.h>
-#include <sys/vnode.h>
-#include <sys/mount.h>
-#include <sys/file.h>
-#include <sys/namei.h>
 #include <sys/sysctl.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -152,8 +152,8 @@ mac_cred_create_init(struct ucred *cred)
 }
 
 int
-mac_cred_externalize_label(struct label *label, char *elements,
-    char *outbuf, size_t outbuflen)
+mac_cred_externalize_label(
+    struct label *label, char *elements, char *outbuf, size_t outbuflen)
 {
 	int error;
 
@@ -181,8 +181,8 @@ void
 mac_cred_copy(struct ucred *src, struct ucred *dest)
 {
 
-	MAC_POLICY_PERFORM_NOSLEEP(cred_copy_label, src->cr_label,
-	    dest->cr_label);
+	MAC_POLICY_PERFORM_NOSLEEP(
+	    cred_copy_label, src->cr_label, dest->cr_label);
 }
 
 /*
@@ -197,8 +197,7 @@ mac_cred_relabel(struct ucred *cred, struct label *newlabel)
 	MAC_POLICY_PERFORM_NOSLEEP(cred_relabel, cred, newlabel);
 }
 
-MAC_CHECK_PROBE_DEFINE2(cred_check_relabel, "struct ucred *",
-    "struct label *");
+MAC_CHECK_PROBE_DEFINE2(cred_check_relabel, "struct ucred *", "struct label *");
 
 int
 mac_cred_check_relabel(struct ucred *cred, struct label *newlabel)
@@ -263,8 +262,8 @@ mac_cred_check_setegid(struct ucred *cred, gid_t egid)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(cred_check_setgroups, "struct ucred *", "int",
-    "gid_t *");
+MAC_CHECK_PROBE_DEFINE3(
+    cred_check_setgroups, "struct ucred *", "int", "gid_t *");
 
 int
 mac_cred_check_setgroups(struct ucred *cred, int ngroups, gid_t *gidset)
@@ -277,8 +276,8 @@ mac_cred_check_setgroups(struct ucred *cred, int ngroups, gid_t *gidset)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(cred_check_setreuid, "struct ucred *", "uid_t",
-    "uid_t");
+MAC_CHECK_PROBE_DEFINE3(
+    cred_check_setreuid, "struct ucred *", "uid_t", "uid_t");
 
 int
 mac_cred_check_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
@@ -291,8 +290,8 @@ mac_cred_check_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(cred_check_setregid, "struct ucred *", "gid_t",
-    "gid_t");
+MAC_CHECK_PROBE_DEFINE3(
+    cred_check_setregid, "struct ucred *", "gid_t", "gid_t");
 
 int
 mac_cred_check_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
@@ -305,40 +304,35 @@ mac_cred_check_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE4(cred_check_setresuid, "struct ucred *", "uid_t",
-    "uid_t", "uid_t");
+MAC_CHECK_PROBE_DEFINE4(
+    cred_check_setresuid, "struct ucred *", "uid_t", "uid_t", "uid_t");
 
 int
-mac_cred_check_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
-    uid_t suid)
+mac_cred_check_setresuid(struct ucred *cred, uid_t ruid, uid_t euid, uid_t suid)
 {
 	int error;
 
 	MAC_POLICY_CHECK_NOSLEEP(cred_check_setresuid, cred, ruid, euid, suid);
-	MAC_CHECK_PROBE4(cred_check_setresuid, error, cred, ruid, euid,
-	    suid);
+	MAC_CHECK_PROBE4(cred_check_setresuid, error, cred, ruid, euid, suid);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE4(cred_check_setresgid, "struct ucred *", "gid_t",
-    "gid_t", "gid_t");
+MAC_CHECK_PROBE_DEFINE4(
+    cred_check_setresgid, "struct ucred *", "gid_t", "gid_t", "gid_t");
 
 int
-mac_cred_check_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
-    gid_t sgid)
+mac_cred_check_setresgid(struct ucred *cred, gid_t rgid, gid_t egid, gid_t sgid)
 {
 	int error;
 
 	MAC_POLICY_CHECK_NOSLEEP(cred_check_setresgid, cred, rgid, egid, sgid);
-	MAC_CHECK_PROBE4(cred_check_setresgid, error, cred, rgid, egid,
-	    sgid);
+	MAC_CHECK_PROBE4(cred_check_setresgid, error, cred, rgid, egid, sgid);
 
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE2(cred_check_visible, "struct ucred *",
-    "struct ucred *");
+MAC_CHECK_PROBE_DEFINE2(cred_check_visible, "struct ucred *", "struct ucred *");
 
 int
 mac_cred_check_visible(struct ucred *cr1, struct ucred *cr2)

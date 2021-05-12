@@ -44,55 +44,53 @@
  * $FreeBSD$
  */
 
+#include "opt_directio.h"
 #include "opt_suiddir.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/fcntl.h>
-#include <sys/filio.h>
-#include <sys/limits.h>
-#include <sys/sdt.h>
-#include <sys/stat.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/conf.h>
 #include <sys/endian.h>
+#include <sys/event.h>
+#include <sys/extattr.h>
+#include <sys/fcntl.h>
+#include <sys/file.h>
+#include <sys/filio.h>
+#include <sys/kernel.h>
+#include <sys/limits.h>
+#include <sys/lockf.h>
+#include <sys/mount.h>
+#include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/rwlock.h>
-#include <sys/mount.h>
-#include <sys/unistd.h>
+#include <sys/sdt.h>
+#include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/vnode.h>
-#include <sys/namei.h>
-#include <sys/lockf.h>
-#include <sys/event.h>
-#include <sys/conf.h>
-#include <sys/file.h>
-#include <sys/extattr.h>
+#include <sys/unistd.h>
 #include <sys/vmmeter.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
 #include <vm/vnode_pager.h>
 
-#include "opt_directio.h"
-
-#include <ufs/ufs/dir.h>
-
-#include <fs/ext2fs/fs.h>
-#include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_acl.h>
-#include <fs/ext2fs/ext2fs.h>
-#include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_dir.h>
-#include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/ext2_extattr.h>
 #include <fs/ext2fs/ext2_extents.h>
+#include <fs/ext2fs/ext2_extern.h>
+#include <fs/ext2fs/ext2_mount.h>
+#include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/fs.h>
+#include <fs/ext2fs/inode.h>
+#include <ufs/ufs/dir.h>
 
 SDT_PROVIDER_DECLARE(ext2fs);
 /*
@@ -102,103 +100,104 @@ SDT_PROVIDER_DECLARE(ext2fs);
  */
 SDT_PROBE_DEFINE2(ext2fs, , vnops, trace, "int", "char*");
 
-static int ext2_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
+static int ext2_makeinode(
+    int mode, struct vnode *, struct vnode **, struct componentname *);
 static void ext2_itimes_locked(struct vnode *);
 
-static vop_access_t	ext2_access;
+static vop_access_t ext2_access;
 static int ext2_chmod(struct vnode *, int, struct ucred *, struct thread *);
-static int ext2_chown(struct vnode *, uid_t, gid_t, struct ucred *,
-    struct thread *);
-static vop_close_t	ext2_close;
-static vop_create_t	ext2_create;
-static vop_fsync_t	ext2_fsync;
-static vop_getattr_t	ext2_getattr;
-static vop_ioctl_t	ext2_ioctl;
-static vop_link_t	ext2_link;
-static vop_mkdir_t	ext2_mkdir;
-static vop_mknod_t	ext2_mknod;
-static vop_open_t	ext2_open;
-static vop_pathconf_t	ext2_pathconf;
-static vop_print_t	ext2_print;
-static vop_read_t	ext2_read;
-static vop_readlink_t	ext2_readlink;
-static vop_remove_t	ext2_remove;
-static vop_rename_t	ext2_rename;
-static vop_rmdir_t	ext2_rmdir;
-static vop_setattr_t	ext2_setattr;
-static vop_strategy_t	ext2_strategy;
-static vop_symlink_t	ext2_symlink;
-static vop_write_t	ext2_write;
-static vop_deleteextattr_t	ext2_deleteextattr;
-static vop_getextattr_t	ext2_getextattr;
-static vop_listextattr_t	ext2_listextattr;
-static vop_setextattr_t	ext2_setextattr;
-static vop_vptofh_t	ext2_vptofh;
-static vop_close_t	ext2fifo_close;
-static vop_kqfilter_t	ext2fifo_kqfilter;
+static int ext2_chown(
+    struct vnode *, uid_t, gid_t, struct ucred *, struct thread *);
+static vop_close_t ext2_close;
+static vop_create_t ext2_create;
+static vop_fsync_t ext2_fsync;
+static vop_getattr_t ext2_getattr;
+static vop_ioctl_t ext2_ioctl;
+static vop_link_t ext2_link;
+static vop_mkdir_t ext2_mkdir;
+static vop_mknod_t ext2_mknod;
+static vop_open_t ext2_open;
+static vop_pathconf_t ext2_pathconf;
+static vop_print_t ext2_print;
+static vop_read_t ext2_read;
+static vop_readlink_t ext2_readlink;
+static vop_remove_t ext2_remove;
+static vop_rename_t ext2_rename;
+static vop_rmdir_t ext2_rmdir;
+static vop_setattr_t ext2_setattr;
+static vop_strategy_t ext2_strategy;
+static vop_symlink_t ext2_symlink;
+static vop_write_t ext2_write;
+static vop_deleteextattr_t ext2_deleteextattr;
+static vop_getextattr_t ext2_getextattr;
+static vop_listextattr_t ext2_listextattr;
+static vop_setextattr_t ext2_setextattr;
+static vop_vptofh_t ext2_vptofh;
+static vop_close_t ext2fifo_close;
+static vop_kqfilter_t ext2fifo_kqfilter;
 
 /* Global vfs data structures for ext2. */
 struct vop_vector ext2_vnodeops = {
-	.vop_default =		&default_vnodeops,
-	.vop_access =		ext2_access,
-	.vop_bmap =		ext2_bmap,
-	.vop_cachedlookup =	ext2_lookup,
-	.vop_close =		ext2_close,
-	.vop_create =		ext2_create,
-	.vop_fsync =		ext2_fsync,
-	.vop_getpages =		vnode_pager_local_getpages,
-	.vop_getpages_async =	vnode_pager_local_getpages_async,
-	.vop_getattr =		ext2_getattr,
-	.vop_inactive =		ext2_inactive,
-	.vop_ioctl =		ext2_ioctl,
-	.vop_link =		ext2_link,
-	.vop_lookup =		vfs_cache_lookup,
-	.vop_mkdir =		ext2_mkdir,
-	.vop_mknod =		ext2_mknod,
-	.vop_open =		ext2_open,
-	.vop_pathconf =		ext2_pathconf,
-	.vop_poll =		vop_stdpoll,
-	.vop_print =		ext2_print,
-	.vop_read =		ext2_read,
-	.vop_readdir =		ext2_readdir,
-	.vop_readlink =		ext2_readlink,
-	.vop_reallocblks =	ext2_reallocblks,
-	.vop_reclaim =		ext2_reclaim,
-	.vop_remove =		ext2_remove,
-	.vop_rename =		ext2_rename,
-	.vop_rmdir =		ext2_rmdir,
-	.vop_setattr =		ext2_setattr,
-	.vop_strategy =		ext2_strategy,
-	.vop_symlink =		ext2_symlink,
-	.vop_write =		ext2_write,
-	.vop_deleteextattr =	ext2_deleteextattr,
-	.vop_getextattr =	ext2_getextattr,
-	.vop_listextattr =	ext2_listextattr,
-	.vop_setextattr =	ext2_setextattr,
+	.vop_default = &default_vnodeops,
+	.vop_access = ext2_access,
+	.vop_bmap = ext2_bmap,
+	.vop_cachedlookup = ext2_lookup,
+	.vop_close = ext2_close,
+	.vop_create = ext2_create,
+	.vop_fsync = ext2_fsync,
+	.vop_getpages = vnode_pager_local_getpages,
+	.vop_getpages_async = vnode_pager_local_getpages_async,
+	.vop_getattr = ext2_getattr,
+	.vop_inactive = ext2_inactive,
+	.vop_ioctl = ext2_ioctl,
+	.vop_link = ext2_link,
+	.vop_lookup = vfs_cache_lookup,
+	.vop_mkdir = ext2_mkdir,
+	.vop_mknod = ext2_mknod,
+	.vop_open = ext2_open,
+	.vop_pathconf = ext2_pathconf,
+	.vop_poll = vop_stdpoll,
+	.vop_print = ext2_print,
+	.vop_read = ext2_read,
+	.vop_readdir = ext2_readdir,
+	.vop_readlink = ext2_readlink,
+	.vop_reallocblks = ext2_reallocblks,
+	.vop_reclaim = ext2_reclaim,
+	.vop_remove = ext2_remove,
+	.vop_rename = ext2_rename,
+	.vop_rmdir = ext2_rmdir,
+	.vop_setattr = ext2_setattr,
+	.vop_strategy = ext2_strategy,
+	.vop_symlink = ext2_symlink,
+	.vop_write = ext2_write,
+	.vop_deleteextattr = ext2_deleteextattr,
+	.vop_getextattr = ext2_getextattr,
+	.vop_listextattr = ext2_listextattr,
+	.vop_setextattr = ext2_setextattr,
 #ifdef UFS_ACL
-	.vop_getacl =		ext2_getacl,
-	.vop_setacl =		ext2_setacl,
-	.vop_aclcheck =		ext2_aclcheck,
+	.vop_getacl = ext2_getacl,
+	.vop_setacl = ext2_setacl,
+	.vop_aclcheck = ext2_aclcheck,
 #endif /* UFS_ACL */
-	.vop_vptofh =		ext2_vptofh,
+	.vop_vptofh = ext2_vptofh,
 };
 VFS_VOP_VECTOR_REGISTER(ext2_vnodeops);
 
 struct vop_vector ext2_fifoops = {
-	.vop_default =		&fifo_specops,
-	.vop_access =		ext2_access,
-	.vop_close =		ext2fifo_close,
-	.vop_fsync =		ext2_fsync,
-	.vop_getattr =		ext2_getattr,
-	.vop_inactive =		ext2_inactive,
-	.vop_kqfilter =		ext2fifo_kqfilter,
-	.vop_pathconf =		ext2_pathconf,
-	.vop_print =		ext2_print,
-	.vop_read =		VOP_PANIC,
-	.vop_reclaim =		ext2_reclaim,
-	.vop_setattr =		ext2_setattr,
-	.vop_write =		VOP_PANIC,
-	.vop_vptofh =		ext2_vptofh,
+	.vop_default = &fifo_specops,
+	.vop_access = ext2_access,
+	.vop_close = ext2fifo_close,
+	.vop_fsync = ext2_fsync,
+	.vop_getattr = ext2_getattr,
+	.vop_inactive = ext2_inactive,
+	.vop_kqfilter = ext2fifo_kqfilter,
+	.vop_pathconf = ext2_pathconf,
+	.vop_print = ext2_print,
+	.vop_read = VOP_PANIC,
+	.vop_reclaim = ext2_reclaim,
+	.vop_setattr = ext2_setattr,
+	.vop_write = VOP_PANIC,
+	.vop_vptofh = ext2_vptofh,
 };
 VFS_VOP_VECTOR_REGISTER(ext2_fifoops);
 
@@ -208,14 +207,11 @@ VFS_VOP_VECTOR_REGISTER(ext2_fifoops);
  * Also, we don't use `struct odirtemplate', since it would just cause
  * endianness problems.
  */
-static struct dirtemplate mastertemplate = {
-	0, htole16(12), 1, EXT2_FT_DIR, ".",
-	0, htole16(DIRBLKSIZ - 12), 2, EXT2_FT_DIR, ".."
-};
-static struct dirtemplate omastertemplate = {
-	0, htole16(12), 1, EXT2_FT_UNKNOWN, ".",
-	0, htole16(DIRBLKSIZ - 12), 2, EXT2_FT_UNKNOWN, ".."
-};
+static struct dirtemplate mastertemplate = { 0, htole16(12), 1, EXT2_FT_DIR,
+	".", 0, htole16(DIRBLKSIZ - 12), 2, EXT2_FT_DIR, ".." };
+static struct dirtemplate omastertemplate = { 0, htole16(12), 1,
+	EXT2_FT_UNKNOWN, ".", 0, htole16(DIRBLKSIZ - 12), 2, EXT2_FT_UNKNOWN,
+	".." };
 
 static void
 ext2_itimes_locked(struct vnode *vp)
@@ -268,9 +264,9 @@ ext2_create(struct vop_create_args *ap)
 {
 	int error;
 
-	error =
-	    ext2_makeinode(MAKEIMODE(ap->a_vap->va_type, ap->a_vap->va_mode),
-	    ap->a_dvp, ap->a_vpp, ap->a_cnp);
+	error = ext2_makeinode(
+	    MAKEIMODE(ap->a_vap->va_type, ap->a_vap->va_mode), ap->a_dvp,
+	    ap->a_vpp, ap->a_cnp);
 	if (error != 0)
 		return (error);
 	if ((ap->a_cnp->cn_flags & MAKEENTRY) != 0)
@@ -453,8 +449,8 @@ ext2_setattr(struct vop_setattr_args *ap)
 	if (vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (gid_t)VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
-		if ((error = ext2_chown(vp, vap->va_uid, vap->va_gid, cred,
-		    td)) != 0)
+		if ((error = ext2_chown(
+			 vp, vap->va_uid, vap->va_gid, cred, td)) != 0)
 			return (error);
 	}
 	if (vap->va_size != VNOVAL) {
@@ -490,7 +486,7 @@ ext2_setattr(struct vop_setattr_args *ap)
 		 */
 		if ((error = VOP_ACCESS(vp, VADMIN, cred, td)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(vp, VWRITE, cred, td))))
+			(error = VOP_ACCESS(vp, VWRITE, cred, td))))
 			return (error);
 		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
 		if (vap->va_atime.tv_sec != VNOVAL) {
@@ -585,8 +581,7 @@ ext2_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	 * to a group of which we are not a member, the caller must
 	 * have privilege.
 	 */
-	if (uid != ip->i_uid || (gid != ip->i_gid &&
-	    !groupmember(gid, cred))) {
+	if (uid != ip->i_uid || (gid != ip->i_gid && !groupmember(gid, cred))) {
 		error = priv_check_cred(cred, PRIV_VFS_CHOWN);
 		if (error)
 			return (error);
@@ -650,8 +645,8 @@ ext2_mknod(struct vop_mknod_args *ap)
 			return (error);
 	}
 
-	error = ext2_makeinode(MAKEIMODE(vap->va_type, vap->va_mode),
-	    ap->a_dvp, vpp, ap->a_cnp);
+	error = ext2_makeinode(
+	    MAKEIMODE(vap->va_type, vap->va_mode), ap->a_dvp, vpp, ap->a_cnp);
 	if (error)
 		return (error);
 	ip = VTOI(*vpp);
@@ -665,7 +660,7 @@ ext2_mknod(struct vop_mknod_args *ap)
 	 * the inode cache.	 XXX I don't believe this is necessary now.
 	 */
 	(*vpp)->v_type = VNON;
-	ino = ip->i_number;	/* Save this before vgone() invalidates ip. */
+	ino = ip->i_number; /* Save this before vgone() invalidates ip. */
 	vgone(*vpp);
 	vput(*vpp);
 	error = VFS_VGET(ap->a_dvp->v_mount, ino, LK_EXCLUSIVE, vpp);
@@ -804,8 +799,7 @@ ext2_rename(struct vop_rename_args *ap)
 	u_char namlen;
 
 #ifdef INVARIANTS
-	if ((tcnp->cn_flags & HASBUF) == 0 ||
-	    (fcnp->cn_flags & HASBUF) == 0)
+	if ((tcnp->cn_flags & HASBUF) == 0 || (fcnp->cn_flags & HASBUF) == 0)
 		panic("ext2_rename: no name");
 #endif
 	/*
@@ -814,7 +808,7 @@ ext2_rename(struct vop_rename_args *ap)
 	if ((fvp->v_mount != tdvp->v_mount) ||
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
 		error = EXDEV;
-abortit:
+	abortit:
 		if (tdvp == tvp)
 			vrele(tdvp);
 		else
@@ -826,8 +820,9 @@ abortit:
 		return (error);
 	}
 
-	if (tvp && ((VTOI(tvp)->i_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
-	    (VTOI(tdvp)->i_flags & APPEND))) {
+	if (tvp &&
+	    ((VTOI(tvp)->i_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
+		(VTOI(tdvp)->i_flags & APPEND))) {
 		error = EPERM;
 		goto abortit;
 	}
@@ -853,8 +848,8 @@ abortit:
 		error = EMLINK;
 		goto abortit;
 	}
-	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))
-	    || (dp->i_flags & APPEND)) {
+	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
+	    (dp->i_flags & APPEND)) {
 		VOP_UNLOCK(fvp);
 		error = EPERM;
 		goto abortit;
@@ -913,7 +908,7 @@ abortit:
 	if (oldparent != dp->i_number)
 		newparent = dp->i_number;
 	if (doingdirectory && newparent) {
-		if (error)	/* write access check above */
+		if (error) /* write access check above */
 			goto bad;
 		if (xp != NULL)
 			vput(tvp);
@@ -1088,11 +1083,12 @@ abortit:
 		if (doingdirectory && newparent) {
 			ext2_dec_nlink(dp);
 			dp->i_flag |= IN_CHANGE;
-			dirbuf = malloc(dp->i_e2fs->e2fs_bsize, M_TEMP, M_WAITOK | M_ZERO);
+			dirbuf = malloc(
+			    dp->i_e2fs->e2fs_bsize, M_TEMP, M_WAITOK | M_ZERO);
 			error = vn_rdwr(UIO_READ, fvp, (caddr_t)dirbuf,
-			    ip->i_e2fs->e2fs_bsize, (off_t)0,
-			    UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
-			    tcnp->cn_cred, NOCRED, NULL, NULL);
+			    ip->i_e2fs->e2fs_bsize, (off_t)0, UIO_SYSSPACE,
+			    IO_NODELOCKED | IO_NOMACCHECK, tcnp->cn_cred,
+			    NOCRED, NULL, NULL);
 			if (error == 0) {
 				/* Like ufs little-endian: */
 				namlen = dirbuf->dotdot_type;
@@ -1113,11 +1109,11 @@ abortit:
 					    (struct ext2fs_direct_2 *)dirbuf);
 					(void)vn_rdwr(UIO_WRITE, fvp,
 					    (caddr_t)dirbuf,
-					    ip->i_e2fs->e2fs_bsize,
-					    (off_t)0, UIO_SYSSPACE,
+					    ip->i_e2fs->e2fs_bsize, (off_t)0,
+					    UIO_SYSSPACE,
 					    IO_NODELOCKED | IO_SYNC |
-					    IO_NOMACCHECK, tcnp->cn_cred,
-					    NOCRED, NULL, NULL);
+						IO_NOMACCHECK,
+					    tcnp->cn_cred, NOCRED, NULL, NULL);
 					cache_purge(fdvp);
 				}
 			}
@@ -1212,7 +1208,7 @@ ext2_do_posix1e_acl_inheritance_dir(struct vnode *dvp, struct vnode *tvp,
 		 */
 #ifdef DEBUG
 		printf("ext2_mkdir: VOP_GETACL() but no VOP_SETACL()\n");
-#endif	/* DEBUG */
+#endif /* DEBUG */
 		break;
 
 	default:
@@ -1284,7 +1280,7 @@ ext2_do_posix1e_acl_inheritance_file(struct vnode *dvp, struct vnode *tvp,
 		 * supposed to free acl.
 		 */
 		printf("ufs_do_posix1e_acl_inheritance_file: VOP_GETACL() "
-		    "but no VOP_SETACL()\n");
+		       "but no VOP_SETACL()\n");
 		/* panic("ufs_do_posix1e_acl_inheritance_file: VOP_GETACL() "
 		    "but no VOP_SETACL()"); */
 		break;
@@ -1363,7 +1359,7 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 #endif
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
 	ip->i_mode = dmode;
-	tvp->v_type = VDIR;	/* Rest init'd in getnewvnode(). */
+	tvp->v_type = VDIR; /* Rest init'd in getnewvnode(). */
 	ip->i_nlink = 2;
 	if (cnp->cn_flags & ISWHITEOUT)
 		ip->i_flags |= UF_OPAQUE;
@@ -1382,8 +1378,7 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 		goto bad;
 
 	/* Initialize directory with "." and ".." from static template. */
-	if (EXT2_HAS_INCOMPAT_FEATURE(ip->i_e2fs,
-	    EXT2F_INCOMPAT_FTYPE))
+	if (EXT2_HAS_INCOMPAT_FEATURE(ip->i_e2fs, EXT2F_INCOMPAT_FTYPE))
 		dtp = &mastertemplate;
 	else
 		dtp = &omastertemplate;
@@ -1394,22 +1389,21 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 	 * note that in ext2 DIRBLKSIZ == blocksize, not DEV_BSIZE so let's
 	 * just redefine it - for this function only
 	 */
-#undef  DIRBLKSIZ
-#define DIRBLKSIZ  VTOI(dvp)->i_e2fs->e2fs_bsize
+#undef DIRBLKSIZ
+#define DIRBLKSIZ VTOI(dvp)->i_e2fs->e2fs_bsize
 	dirtemplate.dotdot_reclen = htole16(DIRBLKSIZ - 12);
 	buf = malloc(DIRBLKSIZ, M_TEMP, M_WAITOK | M_ZERO);
 	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
-		dirtemplate.dotdot_reclen =
-		    htole16(le16toh(dirtemplate.dotdot_reclen) -
+		dirtemplate.dotdot_reclen = htole16(
+		    le16toh(dirtemplate.dotdot_reclen) -
 		    sizeof(struct ext2fs_direct_tail));
 		ext2_init_dirent_tail(EXT2_DIRENT_TAIL(buf, DIRBLKSIZ));
 	}
 	memcpy(buf, &dirtemplate, sizeof(dirtemplate));
 	ext2_dirent_csum_set(ip, (struct ext2fs_direct_2 *)buf);
-	error = vn_rdwr(UIO_WRITE, tvp, (caddr_t)buf,
-	    DIRBLKSIZ, (off_t)0, UIO_SYSSPACE,
-	    IO_NODELOCKED | IO_SYNC | IO_NOMACCHECK, cnp->cn_cred, NOCRED,
-	    NULL, NULL);
+	error = vn_rdwr(UIO_WRITE, tvp, (caddr_t)buf, DIRBLKSIZ, (off_t)0,
+	    UIO_SYSSPACE, IO_NODELOCKED | IO_SYNC | IO_NOMACCHECK, cnp->cn_cred,
+	    NOCRED, NULL, NULL);
 	if (error) {
 		ext2_dec_nlink(dp);
 		dp->i_flag |= IN_CHANGE;
@@ -1425,8 +1419,8 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 
 #ifdef UFS_ACL
 	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
-		error = ext2_do_posix1e_acl_inheritance_dir(dvp, tvp, dmode,
-		    cnp->cn_cred, cnp->cn_thread);
+		error = ext2_do_posix1e_acl_inheritance_dir(
+		    dvp, tvp, dmode, cnp->cn_cred, cnp->cn_thread);
 		if (error)
 			goto bad;
 	}
@@ -1453,8 +1447,8 @@ bad:
 out:
 	free(buf, M_TEMP);
 	return (error);
-#undef  DIRBLKSIZ
-#define DIRBLKSIZ  DEV_BSIZE
+#undef DIRBLKSIZ
+#define DIRBLKSIZ DEV_BSIZE
 }
 
 /*
@@ -1483,8 +1477,8 @@ ext2_rmdir(struct vop_rmdir_args *ap)
 		error = ENOTEMPTY;
 		goto out;
 	}
-	if ((dp->i_flags & APPEND)
-	    || (ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))) {
+	if ((dp->i_flags & APPEND) ||
+	    (ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))) {
 		error = EPERM;
 		goto out;
 	}
@@ -1505,8 +1499,8 @@ ext2_rmdir(struct vop_rmdir_args *ap)
 	 * in the directory is "." and "..".
 	 */
 	ip->i_nlink = 0;
-	error = ext2_truncate(vp, (off_t)0, IO_SYNC, cnp->cn_cred,
-	    cnp->cn_thread);
+	error = ext2_truncate(
+	    vp, (off_t)0, IO_SYNC, cnp->cn_cred, cnp->cn_thread);
 	cache_purge(ITOV(ip));
 	if (vn_lock(dvp, LK_EXCLUSIVE | LK_NOWAIT) != 0) {
 		VOP_UNLOCK(vp);
@@ -1527,8 +1521,8 @@ ext2_symlink(struct vop_symlink_args *ap)
 	struct inode *ip;
 	int len, error;
 
-	error = ext2_makeinode(IFLNK | ap->a_vap->va_mode, ap->a_dvp,
-	    vpp, ap->a_cnp);
+	error = ext2_makeinode(
+	    IFLNK | ap->a_vap->va_mode, ap->a_dvp, vpp, ap->a_cnp);
 	if (error)
 		return (error);
 	vp = *vpp;
@@ -1585,9 +1579,11 @@ ext2_strategy(struct vop_strategy_args *ap)
 		panic("ext2_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
 		if (VTOI(ap->a_vp)->i_flag & IN_E4EXTENTS)
-			error = ext4_bmapext(vp, bp->b_lblkno, &blkno, NULL, NULL);
+			error = ext4_bmapext(
+			    vp, bp->b_lblkno, &blkno, NULL, NULL);
 		else
-			error = ext2_bmaparray(vp, bp->b_lblkno, &blkno, NULL, NULL);
+			error = ext2_bmaparray(
+			    vp, bp->b_lblkno, &blkno, NULL, NULL);
 
 		bp->b_blkno = blkno;
 		if (error) {
@@ -1668,8 +1664,8 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 
 	switch (ap->a_name) {
 	case _PC_LINK_MAX:
-		if (EXT2_HAS_RO_COMPAT_FEATURE(VTOI(ap->a_vp)->i_e2fs,
-		    EXT2F_ROCOMPAT_DIR_NLINK))
+		if (EXT2_HAS_RO_COMPAT_FEATURE(
+			VTOI(ap->a_vp)->i_e2fs, EXT2F_ROCOMPAT_DIR_NLINK))
 			*ap->a_retval = INT_MAX;
 		else
 			*ap->a_retval = EXT4_LINK_MAX;
@@ -1724,7 +1720,7 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 		*ap->a_retval = ap->a_vp->v_mount->mnt_stat.f_iosize;
 		break;
 	case _PC_REC_MAX_XFER_SIZE:
-		*ap->a_retval = -1;	/* means ``unlimited'' */
+		*ap->a_retval = -1; /* means ``unlimited'' */
 		break;
 	case _PC_REC_MIN_XFER_SIZE:
 		*ap->a_retval = ap->a_vp->v_mount->mnt_stat.f_iosize;
@@ -1762,21 +1758,23 @@ ext2_deleteextattr(struct vop_deleteextattr_args *ap)
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
-	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
-	    ap->a_cred, ap->a_td, VWRITE);
+	error = extattr_check_cred(
+	    ap->a_vp, ap->a_attrnamespace, ap->a_cred, ap->a_td, VWRITE);
 	if (error)
 		return (error);
 
 	error = ENOATTR;
 
 	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
-		error = ext2_extattr_inode_delete(ip, ap->a_attrnamespace, ap->a_name);
+		error = ext2_extattr_inode_delete(
+		    ip, ap->a_attrnamespace, ap->a_name);
 		if (error != ENOATTR)
 			return (error);
 	}
 
 	if (ip->i_facl)
-		error = ext2_extattr_block_delete(ip, ap->a_attrnamespace, ap->a_name);
+		error = ext2_extattr_block_delete(
+		    ip, ap->a_attrnamespace, ap->a_name);
 
 	return (error);
 }
@@ -1800,8 +1798,8 @@ ext2_getextattr(struct vop_getextattr_args *ap)
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
-	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
-	    ap->a_cred, ap->a_td, VREAD);
+	error = extattr_check_cred(
+	    ap->a_vp, ap->a_attrnamespace, ap->a_cred, ap->a_td, VREAD);
 	if (error)
 		return (error);
 
@@ -1811,15 +1809,15 @@ ext2_getextattr(struct vop_getextattr_args *ap)
 	error = ENOATTR;
 
 	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
-		error = ext2_extattr_inode_get(ip, ap->a_attrnamespace,
-		    ap->a_name, ap->a_uio, ap->a_size);
+		error = ext2_extattr_inode_get(
+		    ip, ap->a_attrnamespace, ap->a_name, ap->a_uio, ap->a_size);
 		if (error != ENOATTR)
 			return (error);
 	}
 
 	if (ip->i_facl)
-		error = ext2_extattr_block_get(ip, ap->a_attrnamespace,
-		    ap->a_name, ap->a_uio, ap->a_size);
+		error = ext2_extattr_block_get(
+		    ip, ap->a_attrnamespace, ap->a_name, ap->a_uio, ap->a_size);
 
 	return (error);
 }
@@ -1843,8 +1841,8 @@ ext2_listextattr(struct vop_listextattr_args *ap)
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
-	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
-	    ap->a_cred, ap->a_td, VREAD);
+	error = extattr_check_cred(
+	    ap->a_vp, ap->a_attrnamespace, ap->a_cred, ap->a_td, VREAD);
 	if (error)
 		return (error);
 
@@ -1852,15 +1850,15 @@ ext2_listextattr(struct vop_listextattr_args *ap)
 		*ap->a_size = 0;
 
 	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
-		error = ext2_extattr_inode_list(ip, ap->a_attrnamespace,
-		    ap->a_uio, ap->a_size);
+		error = ext2_extattr_inode_list(
+		    ip, ap->a_attrnamespace, ap->a_uio, ap->a_size);
 		if (error)
 			return (error);
 	}
 
 	if (ip->i_facl)
-		error = ext2_extattr_block_list(ip, ap->a_attrnamespace,
-		    ap->a_uio, ap->a_size);
+		error = ext2_extattr_block_list(
+		    ip, ap->a_attrnamespace, ap->a_uio, ap->a_size);
 
 	return (error);
 }
@@ -1884,8 +1882,8 @@ ext2_setextattr(struct vop_setextattr_args *ap)
 	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
-	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
-	    ap->a_cred, ap->a_td, VWRITE);
+	error = extattr_check_cred(
+	    ap->a_vp, ap->a_attrnamespace, ap->a_cred, ap->a_td, VWRITE);
 	if (error)
 		return (error);
 
@@ -1894,14 +1892,14 @@ ext2_setextattr(struct vop_setextattr_args *ap)
 		return (error);
 
 	if (EXT2_INODE_SIZE(fs) != E2FS_REV0_INODE_SIZE) {
-		error = ext2_extattr_inode_set(ip, ap->a_attrnamespace,
-		    ap->a_name, ap->a_uio);
+		error = ext2_extattr_inode_set(
+		    ip, ap->a_attrnamespace, ap->a_name, ap->a_uio);
 		if (error != ENOSPC)
 			return (error);
 	}
 
-	error = ext2_extattr_block_set(ip, ap->a_attrnamespace,
-	    ap->a_name, ap->a_uio);
+	error = ext2_extattr_block_set(
+	    ip, ap->a_attrnamespace, ap->a_name, ap->a_uio);
 
 	return (error);
 }
@@ -1956,8 +1954,8 @@ ext2_vinit(struct mount *mntp, struct vop_vector *fifoops, struct vnode **vpp)
  * Allocate a new inode.
  */
 static int
-ext2_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
-    struct componentname *cnp)
+ext2_makeinode(
+    int mode, struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 {
 	struct inode *ip, *pdir;
 	struct vnode *tvp;
@@ -2002,7 +2000,7 @@ ext2_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 #endif
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
 	ip->i_mode = mode;
-	tvp->v_type = IFTOVT(mode);	/* Rest init'd in getnewvnode(). */
+	tvp->v_type = IFTOVT(mode); /* Rest init'd in getnewvnode(). */
 	ip->i_nlink = 1;
 	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred)) {
 		if (priv_check_cred(cnp->cn_cred, PRIV_VFS_RETAINSUGID))
@@ -2021,8 +2019,8 @@ ext2_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 
 #ifdef UFS_ACL
 	if (dvp->v_mount->mnt_flag & MNT_ACLS) {
-		error = ext2_do_posix1e_acl_inheritance_file(dvp, tvp, mode,
-		    cnp->cn_cred, cnp->cn_thread);
+		error = ext2_do_posix1e_acl_inheritance_file(
+		    dvp, tvp, mode, cnp->cn_cred, cnp->cn_thread);
 		if (error)
 			goto bad;
 	}
@@ -2107,14 +2105,13 @@ ext2_read(struct vop_read_args *ap)
 		if (lblktosize(fs, nextlbn) >= ip->i_size)
 			error = bread(vp, lbn, size, NOCRED, &bp);
 		else if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
-			error = cluster_read(vp, ip->i_size, lbn, size,
-			    NOCRED, blkoffset + uio->uio_resid, seqcount,
-			    0, &bp);
+			error = cluster_read(vp, ip->i_size, lbn, size, NOCRED,
+			    blkoffset + uio->uio_resid, seqcount, 0, &bp);
 		} else if (seqcount > 1) {
 			u_int nextsize = blksize(fs, ip, nextlbn);
 
-			error = breadn(vp, lbn,
-			    size, &nextlbn, &nextsize, 1, NOCRED, &bp);
+			error = breadn(
+			    vp, lbn, size, &nextlbn, &nextsize, 1, NOCRED, &bp);
 		} else
 			error = bread(vp, lbn, size, NOCRED, &bp);
 		if (error) {
@@ -2136,8 +2133,8 @@ ext2_read(struct vop_read_args *ap)
 				break;
 			xfersize = size;
 		}
-		error = uiomove((char *)bp->b_data + blkoffset,
-		    (int)xfersize, uio);
+		error = uiomove(
+		    (char *)bp->b_data + blkoffset, (int)xfersize, uio);
 		if (error)
 			break;
 		vfs_bio_brelse(bp, ioflag);
@@ -2170,16 +2167,16 @@ ext2_ioctl(struct vop_ioctl_args *ap)
 		if (!(VTOI(vp)->i_flag & IN_E4EXTENTS)) {
 			error = vn_lock(vp, LK_SHARED);
 			if (error == 0) {
-				error = ext2_bmap_seekdata(vp,
-				    (off_t *)ap->a_data);
+				error = ext2_bmap_seekdata(
+				    vp, (off_t *)ap->a_data);
 				VOP_UNLOCK(vp);
 			} else
 				error = EBADF;
 			return (error);
 		}
 	case FIOSEEKHOLE:
-		return (vn_bmap_seekhole(vp, ap->a_command,
-		    (off_t *)ap->a_data, ap->a_cred));
+		return (vn_bmap_seekhole(
+		    vp, ap->a_command, (off_t *)ap->a_data, ap->a_cred));
 	default:
 		return (ENOTTY);
 	}
@@ -2270,8 +2267,8 @@ ext2_write(struct vop_write_args *ap)
 			flags |= BA_CLRBUF;
 		else
 			flags &= ~BA_CLRBUF;
-		error = ext2_balloc(ip, lbn, blkoffset + xfersize,
-		    ap->a_cred, &bp, flags);
+		error = ext2_balloc(
+		    ip, lbn, blkoffset + xfersize, ap->a_cred, &bp, flags);
 		if (error != 0)
 			break;
 
@@ -2283,8 +2280,8 @@ ext2_write(struct vop_write_args *ap)
 		if (size < xfersize)
 			xfersize = size;
 
-		error =
-		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
+		error = uiomove(
+		    (char *)bp->b_data + blkoffset, (int)xfersize, uio);
 		/*
 		 * If the buffer is not already filled and we encounter an
 		 * error while trying to fill it, we have to clear out any
@@ -2317,8 +2314,7 @@ ext2_write(struct vop_write_args *ap)
 		 */
 		if (ioflag & IO_SYNC) {
 			(void)bwrite(bp);
-		} else if (vm_page_count_severe() ||
-			    buf_dirty_count_severe() ||
+		} else if (vm_page_count_severe() || buf_dirty_count_severe() ||
 		    (ioflag & IO_ASYNC)) {
 			bp->b_flags |= B_CLUSTEROK;
 			bawrite(bp);
@@ -2352,8 +2348,8 @@ ext2_write(struct vop_write_args *ap)
 	}
 	if (error) {
 		if (ioflag & IO_UNIT) {
-			(void)ext2_truncate(vp, osize,
-			    ioflag & IO_SYNC, ap->a_cred, uio->uio_td);
+			(void)ext2_truncate(vp, osize, ioflag & IO_SYNC,
+			    ap->a_cred, uio->uio_td);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}

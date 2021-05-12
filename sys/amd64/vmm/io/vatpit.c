@@ -31,76 +31,76 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_bhyve_snapshot.h"
 
-#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/queue.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
+#include <sys/queue.h>
 
 #include <machine/vmm.h>
 #include <machine/vmm_snapshot.h>
 
-#include "vmm_ktr.h"
 #include "vatpic.h"
-#include "vioapic.h"
 #include "vatpit.h"
+#include "vioapic.h"
+#include "vmm_ktr.h"
 
 static MALLOC_DEFINE(M_VATPIT, "atpit", "bhyve virtual atpit (8254)");
 
-#define	VATPIT_LOCK(vatpit)		mtx_lock_spin(&((vatpit)->mtx))
-#define	VATPIT_UNLOCK(vatpit)		mtx_unlock_spin(&((vatpit)->mtx))
-#define	VATPIT_LOCKED(vatpit)		mtx_owned(&((vatpit)->mtx))
+#define VATPIT_LOCK(vatpit) mtx_lock_spin(&((vatpit)->mtx))
+#define VATPIT_UNLOCK(vatpit) mtx_unlock_spin(&((vatpit)->mtx))
+#define VATPIT_LOCKED(vatpit) mtx_owned(&((vatpit)->mtx))
 
-#define	TIMER_SEL_MASK		0xc0
-#define	TIMER_RW_MASK		0x30
-#define	TIMER_MODE_MASK		0x0f
-#define	TIMER_SEL_READBACK	0xc0
+#define TIMER_SEL_MASK 0xc0
+#define TIMER_RW_MASK 0x30
+#define TIMER_MODE_MASK 0x0f
+#define TIMER_SEL_READBACK 0xc0
 
-#define	TIMER_STS_OUT		0x80
-#define	TIMER_STS_NULLCNT	0x40
+#define TIMER_STS_OUT 0x80
+#define TIMER_STS_NULLCNT 0x40
 
-#define	TIMER_RB_LCTR		0x20
-#define	TIMER_RB_LSTATUS	0x10
-#define	TIMER_RB_CTR_2		0x08
-#define	TIMER_RB_CTR_1		0x04
-#define	TIMER_RB_CTR_0		0x02
+#define TIMER_RB_LCTR 0x20
+#define TIMER_RB_LSTATUS 0x10
+#define TIMER_RB_CTR_2 0x08
+#define TIMER_RB_CTR_1 0x04
+#define TIMER_RB_CTR_0 0x02
 
-#define	TMR2_OUT_STS		0x20
+#define TMR2_OUT_STS 0x20
 
-#define	PIT_8254_FREQ		1193182
-#define	TIMER_DIV(freq, hz)	(((freq) + (hz) / 2) / (hz))
+#define PIT_8254_FREQ 1193182
+#define TIMER_DIV(freq, hz) (((freq) + (hz) / 2) / (hz))
 
 struct vatpit_callout_arg {
-	struct vatpit	*vatpit;
-	int		channel_num;
+	struct vatpit *vatpit;
+	int channel_num;
 };
 
 struct channel {
-	int		mode;
-	uint16_t	initial;	/* initial counter value */
-	struct bintime	now_bt;		/* uptime when counter was loaded */
-	uint8_t		cr[2];
-	uint8_t		ol[2];
-	bool		slatched;	/* status latched */
-	uint8_t		status;
-	int		crbyte;
-	int		olbyte;
-	int		frbyte;
-	struct callout	callout;
-	struct bintime	callout_bt;	/* target time */
+	int mode;
+	uint16_t initial;      /* initial counter value */
+	struct bintime now_bt; /* uptime when counter was loaded */
+	uint8_t cr[2];
+	uint8_t ol[2];
+	bool slatched; /* status latched */
+	uint8_t status;
+	int crbyte;
+	int olbyte;
+	int frbyte;
+	struct callout callout;
+	struct bintime callout_bt; /* target time */
 	struct vatpit_callout_arg callout_arg;
 };
 
 struct vatpit {
-	struct vm	*vm;
-	struct mtx	mtx;
+	struct vm *vm;
+	struct mtx mtx;
 
-	struct bintime	freq_bt;
+	struct bintime freq_bt;
 
-	struct channel	channel[3];
+	struct channel channel[3];
 };
 
 static void pit_timer_start_cntr0(struct vatpit *vatpit);
@@ -158,10 +158,10 @@ vatpit_callout_handler(void *a)
 
 	VATPIT_LOCK(vatpit);
 
-	if (callout_pending(callout))		/* callout was reset */
+	if (callout_pending(callout)) /* callout was reset */
 		goto done;
 
-	if (!callout_active(callout))		/* callout was stopped */
+	if (!callout_active(callout)) /* callout was stopped */
 		goto done;
 
 	callout_deactivate(callout);
@@ -238,8 +238,8 @@ pit_update_counter(struct vatpit *vatpit, struct channel *c, bool latch)
 
 	if (latch) {
 		c->olbyte = 2;
-		c->ol[1] = lval;		/* LSB */
-		c->ol[0] = lval >> 8;		/* MSB */
+		c->ol[1] = lval;      /* LSB */
+		c->ol[0] = lval >> 8; /* MSB */
 	}
 
 	return (lval);
@@ -257,7 +257,7 @@ pit_readback1(struct vatpit *vatpit, int channel, uint8_t cmd)
 	 * N.B. that the count/status latch-select bits are active-low.
 	 */
 	if (!(cmd & TIMER_RB_LCTR) && !c->olbyte) {
-		(void) pit_update_counter(vatpit, c, true);
+		(void)pit_update_counter(vatpit, c, true);
 	}
 
 	if (!(cmd & TIMER_RB_LSTATUS) && !c->slatched) {
@@ -316,10 +316,8 @@ vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 		 * Counter mode is not affected when issuing a
 		 * latch command.
 		 */
-		if (mode != TIMER_INTTC &&
-		    mode != TIMER_RATEGEN &&
-		    mode != TIMER_SQWAVE &&
-		    mode != TIMER_SWSTROBE)
+		if (mode != TIMER_INTTC && mode != TIMER_RATEGEN &&
+		    mode != TIMER_SQWAVE && mode != TIMER_SWSTROBE)
 			return (-1);
 	}
 
@@ -328,7 +326,7 @@ vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 		pit_update_counter(vatpit, c, true);
 	else {
 		c->mode = mode;
-		c->olbyte = 0;	/* reset latch after reprogramming */
+		c->olbyte = 0; /* reset latch after reprogramming */
 		c->status |= TIMER_STS_NULLCNT;
 	}
 
@@ -336,8 +334,8 @@ vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 }
 
 int
-vatpit_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
-    uint32_t *eax)
+vatpit_handler(
+    struct vm *vm, int vcpuid, bool in, int port, int bytes, uint32_t *eax)
 {
 	struct vatpit *vatpit;
 	struct channel *c;
@@ -394,7 +392,7 @@ vatpit_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 			tmp &= 0xff;
 			*eax = tmp;
 			c->frbyte ^= 1;
-		}  else
+		} else
 			*eax = c->ol[--c->olbyte];
 	} else {
 		c->cr[c->crbyte++] = *eax;
@@ -419,21 +417,21 @@ vatpit_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 }
 
 int
-vatpit_nmisc_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
-    uint32_t *eax)
+vatpit_nmisc_handler(
+    struct vm *vm, int vcpuid, bool in, int port, int bytes, uint32_t *eax)
 {
 	struct vatpit *vatpit;
 
 	vatpit = vm_atpit(vm);
 
 	if (in) {
-			VATPIT_LOCK(vatpit);
-			if (vatpit_get_out(vatpit, 2))
-				*eax = TMR2_OUT_STS;
-			else
-				*eax = 0;
+		VATPIT_LOCK(vatpit);
+		if (vatpit_get_out(vatpit, 2))
+			*eax = TMR2_OUT_STS;
+		else
+			*eax = 0;
 
-			VATPIT_UNLOCK(vatpit);
+		VATPIT_UNLOCK(vatpit);
 	}
 
 	return (0);
@@ -495,17 +493,17 @@ vatpit_snapshot(struct vatpit *vatpit, struct vm_snapshot_meta *meta)
 		SNAPSHOT_VAR_OR_LEAVE(channel->initial, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(channel->now_bt.sec, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(channel->now_bt.frac, meta, ret, done);
-		SNAPSHOT_BUF_OR_LEAVE(channel->cr, sizeof(channel->cr),
-			meta, ret, done);
-		SNAPSHOT_BUF_OR_LEAVE(channel->ol, sizeof(channel->ol),
-			meta, ret, done);
+		SNAPSHOT_BUF_OR_LEAVE(
+		    channel->cr, sizeof(channel->cr), meta, ret, done);
+		SNAPSHOT_BUF_OR_LEAVE(
+		    channel->ol, sizeof(channel->ol), meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(channel->slatched, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(channel->status, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(channel->crbyte, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(channel->frbyte, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(channel->callout_bt.sec, meta, ret, done);
-		SNAPSHOT_VAR_OR_LEAVE(channel->callout_bt.frac, meta, ret,
-			done);
+		SNAPSHOT_VAR_OR_LEAVE(
+		    channel->callout_bt.frac, meta, ret, done);
 	}
 
 done:

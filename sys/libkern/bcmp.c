@@ -33,18 +33,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/libkern.h>
+
 #include <machine/endian.h>
 
-typedef	const void	*cvp;
-typedef	const unsigned char	*ustring;
-typedef unsigned long	ul;
-typedef const unsigned long	*culp;
+typedef const void *cvp;
+typedef const unsigned char *ustring;
+typedef unsigned long ul;
+typedef const unsigned long *culp;
 
 /*
  * bcmp -- vax cmpc3 instruction
  */
-int
-(bcmp)(const void *b1, const void *b2, size_t length)
+int(bcmp)(const void *b1, const void *b2, size_t length)
 {
 #if BYTE_ORDER == LITTLE_ENDIAN
 	/*
@@ -57,9 +57,9 @@ int
 	 * a problem since AFAIK, objects are not protected at smaller
 	 * than longword boundaries.
 	 */
-	int	shl, shr, len = length;
-	ustring	p1 = b1, p2 = b2;
-	ul	va, vb;
+	int shl, shr, len = length;
+	ustring p1 = b1, p2 = b2;
+	ul va, vb;
 
 	if (len == 0)
 		return (0);
@@ -80,8 +80,8 @@ int
 	 */
 	shr = (long)p2 & (sizeof(long) - 1);
 	if (shr != 0) {
-		p2 -= shr;			/* p2 now longword aligned */
-		shr <<= 3;			/* offset in bits */
+		p2 -= shr; /* p2 now longword aligned */
+		shr <<= 3; /* offset in bits */
 		shl = (sizeof(long) << 3) - shr;
 
 		va = *(culp)p2;
@@ -102,7 +102,7 @@ int
 		if (!(len += sizeof(long)))
 			return (0);
 
-		len <<= 3;		/* remaining length in bits */
+		len <<= 3; /* remaining length in bits */
 		/*
 		 * The following is similar to the `if' condition
 		 * inside the above while loop.  The ?: is necessary
@@ -110,7 +110,8 @@ int
 		 * containing the last byte to be compared.
 		 */
 		return ((((va >> shr | ((shl < len) ? *(culp)p2 << shl : 0)) ^
-		    *(culp)p1) & ((1L << len) - 1)) != 0);
+			     *(culp)p1) &
+			    ((1L << len) - 1)) != 0);
 	} else {
 		/* p1 and p2 have common alignment so no shifting needed */
 		while ((len -= sizeof(long)) >= 0) {
@@ -127,20 +128,20 @@ int
 		if (!(len += sizeof(long)))
 			return (0);
 
-		return (((*(culp)p1 ^ *(culp)p2)
-			 & ((1L << (len << 3)) - 1)) != 0);
+		return (
+		    ((*(culp)p1 ^ *(culp)p2) & ((1L << (len << 3)) - 1)) != 0);
 	}
 #else
 	const char *p1, *p2;
 
 	if (length == 0)
-		return(0);
+		return (0);
 	p1 = b1;
 	p2 = b2;
 	do
 		if (*p1++ != *p2++)
 			break;
 	while (--length);
-	return(length);
+	return (length);
 #endif
 }

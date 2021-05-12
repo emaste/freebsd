@@ -36,7 +36,7 @@
  */
 
 #ifdef KCSAN
-#define	SAN_RUNTIME
+#define SAN_RUNTIME
 #endif
 
 #include <sys/cdefs.h>

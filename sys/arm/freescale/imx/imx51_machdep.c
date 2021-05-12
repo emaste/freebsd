@@ -34,14 +34,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/reboot.h>
 #include <sys/devmap.h>
+#include <sys/reboot.h>
 
 #include <vm/vm.h>
 
 #include <machine/bus.h>
 #include <machine/machdep.h>
-#include <machine/platformvar.h> 
+#include <machine/platformvar.h>
 
 #include <arm/freescale/imx/imx_machdep.h>
 
@@ -56,7 +56,7 @@ imx51_attach(platform_t plat)
 {
 
 	/* XXX - Get rid of this stuff soon. */
-	boothowto |= RB_VERBOSE|RB_MULTIPLE;
+	boothowto |= RB_VERBOSE | RB_MULTIPLE;
 	bootverbose = 1;
 
 	return (0);
@@ -94,9 +94,9 @@ imx_soc_type(void)
 }
 
 static platform_method_t imx51_methods[] = {
-	PLATFORMMETHOD(platform_attach,		imx51_attach),
-	PLATFORMMETHOD(platform_devmap_init,	imx51_devmap_init),
-	PLATFORMMETHOD(platform_cpu_reset,	imx51_cpu_reset),
+	PLATFORMMETHOD(platform_attach, imx51_attach),
+	PLATFORMMETHOD(platform_devmap_init, imx51_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset, imx51_cpu_reset),
 
 	PLATFORMMETHOD_END,
 };

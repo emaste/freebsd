@@ -34,25 +34,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/endian.h>
 
-#include <mips/nlm/hal/mips-extns.h>
+#include <mips/nlm/board.h>
+#include <mips/nlm/hal/gbu.h>
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
-#include <mips/nlm/hal/gbu.h>
+#include <mips/nlm/hal/mips-extns.h>
 
-#include <mips/nlm/board.h>
+#define CPLD_REVISION 0x0
+#define CPLD_RESET 0x1
+#define CPLD_CTRL 0x2
+#define CPLD_RSVD 0x3
+#define CPLD_PWR_CTRL 0x4
+#define CPLD_MISC 0x5
+#define CPLD_CTRL_STATUS 0x6
+#define CPLD_PWR_INTR_STATUS 0x7
+#define CPLD_DATA 0x8
 
-#define CPLD_REVISION		0x0
-#define CPLD_RESET		0x1
-#define CPLD_CTRL		0x2
-#define CPLD_RSVD		0x3
-#define CPLD_PWR_CTRL		0x4
-#define CPLD_MISC		0x5
-#define CPLD_CTRL_STATUS	0x6
-#define CPLD_PWR_INTR_STATUS	0x7
-#define CPLD_DATA		0x8
-
-static __inline
-int nlm_cpld_read(uint64_t base, int reg)
+static __inline int
+nlm_cpld_read(uint64_t base, int reg)
 {
 	uint16_t val;
 
@@ -79,7 +78,8 @@ nlm_board_cpld_minorversion(uint64_t base)
 	return (nlm_cpld_read(base, CPLD_REVISION) & 0xff);
 }
 
-uint64_t nlm_board_cpld_base(int node, int chipselect)
+uint64_t
+nlm_board_cpld_base(int node, int chipselect)
 {
 	uint64_t gbubase, cpld_phys;
 
@@ -93,7 +93,7 @@ nlm_board_cpld_reset(uint64_t base)
 {
 
 	nlm_cpld_write(base, CPLD_RESET, 1 << 15);
-	for(;;)
+	for (;;)
 		__asm __volatile("wait");
 }
 
@@ -105,10 +105,18 @@ nlm_board_cpld_dboard_type(uint64_t base, int slot)
 	int shift = 0;
 
 	switch (slot) {
-	case 0: shift = 0; break;
-	case 1: shift = 4; break;
-	case 2: shift = 2; break;
-	case 3: shift = 6; break;
+	case 0:
+		shift = 0;
+		break;
+	case 1:
+		shift = 4;
+		break;
+	case 2:
+		shift = 2;
+		break;
+	case 3:
+		shift = 6;
+		break;
 	}
 	val = nlm_cpld_read(base, CPLD_CTRL_STATUS) >> shift;
 	return (val & 0x3);

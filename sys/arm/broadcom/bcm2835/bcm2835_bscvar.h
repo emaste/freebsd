@@ -35,37 +35,35 @@
 struct iic_msg;
 
 struct bcm_bsc_softc {
-	device_t		sc_dev;
-	device_t		sc_iicbus;
-	struct mtx		sc_mtx;
-	struct resource *	sc_mem_res;
-	struct resource *	sc_irq_res;
-	void *			sc_intrhand;
-	struct iic_msg *	sc_curmsg;
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
-	int			sc_debug;
-	uint16_t		sc_replen;
-	uint16_t		sc_totlen;
-	uint16_t		sc_resid;
-	uint16_t		sc_dlen;
-	uint8_t *		sc_data;
-	uint8_t			sc_flags;
+	device_t sc_dev;
+	device_t sc_iicbus;
+	struct mtx sc_mtx;
+	struct resource *sc_mem_res;
+	struct resource *sc_irq_res;
+	void *sc_intrhand;
+	struct iic_msg *sc_curmsg;
+	bus_space_tag_t sc_bst;
+	bus_space_handle_t sc_bsh;
+	int sc_debug;
+	uint16_t sc_replen;
+	uint16_t sc_totlen;
+	uint16_t sc_resid;
+	uint16_t sc_dlen;
+	uint8_t *sc_data;
+	uint8_t sc_flags;
 };
 
-#define	BCM_I2C_BUSY		0x01
-#define	BCM_I2C_READ		0x02
-#define	BCM_I2C_ERROR		0x04
-#define	BCM_I2C_DONE		0x08
+#define BCM_I2C_BUSY 0x01
+#define BCM_I2C_READ 0x02
+#define BCM_I2C_ERROR 0x04
+#define BCM_I2C_DONE 0x08
 
-#define	BCM_BSC_WRITE(_sc, _off, _val)		\
-    bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, _off, _val)
-#define	BCM_BSC_READ(_sc, _off)			\
-    bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, _off)
+#define BCM_BSC_WRITE(_sc, _off, _val) \
+	bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, _off, _val)
+#define BCM_BSC_READ(_sc, _off) \
+	bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, _off)
 
-#define	BCM_BSC_LOCK(_sc)			\
-    mtx_lock(&(_sc)->sc_mtx)
-#define	BCM_BSC_UNLOCK(_sc)			\
-    mtx_unlock(&(_sc)->sc_mtx)
+#define BCM_BSC_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define BCM_BSC_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
 
-#endif	/* _BCM2835_BSCVAR_H_ */
+#endif /* _BCM2835_BSCVAR_H_ */

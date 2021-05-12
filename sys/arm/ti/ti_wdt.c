@@ -30,64 +30,60 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/event.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
-#include <sys/event.h>
 #include <sys/selinfo.h>
 #include <sys/watchdog.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <machine/bus.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/ti/ti_wdt.h>
 
 #ifdef DEBUG
-#define	DPRINTF(fmt, ...)	do {	\
-	printf("%s: ", __func__);	\
-	printf(fmt, __VA_ARGS__);	\
-} while (0)
+#define DPRINTF(fmt, ...)                 \
+	do {                              \
+		printf("%s: ", __func__); \
+		printf(fmt, __VA_ARGS__); \
+	} while (0)
 #else
-#define	DPRINTF(fmt, ...)
+#define DPRINTF(fmt, ...)
 #endif
 
-static device_probe_t		ti_wdt_probe;
-static device_attach_t		ti_wdt_attach;
-static device_detach_t		ti_wdt_detach;
-static void			ti_wdt_intr(void *);
-static void			ti_wdt_event(void *, unsigned int, int *);
+static device_probe_t ti_wdt_probe;
+static device_attach_t ti_wdt_attach;
+static device_detach_t ti_wdt_detach;
+static void ti_wdt_intr(void *);
+static void ti_wdt_event(void *, unsigned int, int *);
 
 struct ti_wdt_softc {
-	struct resource 	*sc_mem_res;
-	struct resource 	*sc_irq_res;
-	void            	*sc_intr;
-	bus_space_tag_t		sc_bt;
-	bus_space_handle_t	sc_bh;
-	eventhandler_tag	sc_ev_tag;
+	struct resource *sc_mem_res;
+	struct resource *sc_irq_res;
+	void *sc_intr;
+	bus_space_tag_t sc_bt;
+	bus_space_handle_t sc_bh;
+	eventhandler_tag sc_ev_tag;
 };
 
-static device_method_t ti_wdt_methods[] = {
-	DEVMETHOD(device_probe,		ti_wdt_probe),
-	DEVMETHOD(device_attach,	ti_wdt_attach),
-	DEVMETHOD(device_detach,	ti_wdt_detach),
+static device_method_t ti_wdt_methods[] = { DEVMETHOD(
+						device_probe, ti_wdt_probe),
+	DEVMETHOD(device_attach, ti_wdt_attach),
+	DEVMETHOD(device_detach, ti_wdt_detach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
-static driver_t ti_wdt_driver = {
-	"ti_wdt",
-	ti_wdt_methods,
-	sizeof(struct ti_wdt_softc)
-};
+static driver_t ti_wdt_driver = { "ti_wdt", ti_wdt_methods,
+	sizeof(struct ti_wdt_softc) };
 
 static devclass_t ti_wdt_devclass;
 
@@ -163,39 +159,39 @@ ti_wdt_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {
 		device_printf(dev, "could not allocate memory resource\n");
 		return (ENXIO);
 	}
 	sc->sc_bt = rman_get_bustag(sc->sc_mem_res);
 	sc->sc_bh = rman_get_bushandle(sc->sc_mem_res);
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->sc_irq_res == NULL) {
 		device_printf(dev, "could not allocate interrupt resource\n");
 		ti_wdt_detach(dev);
 		return (ENXIO);
 	}
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_MPSAFE | INTR_TYPE_MISC,
-		NULL, ti_wdt_intr, sc,  &sc->sc_intr) != 0) {
-		device_printf(dev,
-		    "unable to setup the interrupt handler\n");
+		NULL, ti_wdt_intr, sc, &sc->sc_intr) != 0) {
+		device_printf(dev, "unable to setup the interrupt handler\n");
 		ti_wdt_detach(dev);
 		return (ENXIO);
 	}
 	/* Reset, enable interrupts and stop the watchdog. */
-	ti_wdt_reg_write(sc, TI_WDT_WDSC,
-	    ti_wdt_reg_read(sc, TI_WDT_WDSC) | TI_WDSC_SR);
+	ti_wdt_reg_write(
+	    sc, TI_WDT_WDSC, ti_wdt_reg_read(sc, TI_WDT_WDSC) | TI_WDSC_SR);
 	while (ti_wdt_reg_read(sc, TI_WDT_WDSC) & TI_WDSC_SR)
 		DELAY(10);
 	ti_wdt_reg_write(sc, TI_WDT_WIRQENSET, TI_IRQ_EN_OVF | TI_IRQ_EN_DLY);
 	ti_wdt_disable(sc);
 	if (bootverbose)
-		device_printf(dev, "revision: 0x%x\n",
-		    ti_wdt_reg_read(sc, TI_WDT_WIDR));
-	sc->sc_ev_tag = EVENTHANDLER_REGISTER(watchdog_list, ti_wdt_event, sc,
-	    0);
+		device_printf(
+		    dev, "revision: 0x%x\n", ti_wdt_reg_read(sc, TI_WDT_WIDR));
+	sc->sc_ev_tag = EVENTHANDLER_REGISTER(
+	    watchdog_list, ti_wdt_event, sc, 0);
 
 	return (0);
 }
@@ -215,7 +211,7 @@ ti_wdt_detach(device_t dev)
 		    rman_get_rid(sc->sc_irq_res), sc->sc_irq_res);
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    rman_get_rid(sc->sc_mem_res),  sc->sc_mem_res);
+		    rman_get_rid(sc->sc_mem_res), sc->sc_mem_res);
 
 	return (0);
 }
@@ -268,8 +264,7 @@ ti_wdt_event(void *arg, unsigned int cmd, int *error)
 	/*
 	 * Trigger a timer reload.
 	 */
-	ti_wdt_reg_write(sc, TI_WDT_WTGR,
-	    ti_wdt_reg_read(sc, TI_WDT_WTGR) + 1);
+	ti_wdt_reg_write(sc, TI_WDT_WTGR, ti_wdt_reg_read(sc, TI_WDT_WTGR) + 1);
 	ti_wdt_reg_wait(sc, TI_W_PEND_WTGR);
 	ti_wdt_enable(sc);
 	*error = 0;

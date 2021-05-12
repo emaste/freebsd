@@ -30,53 +30,47 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/resource.h>
-#include <sys/systm.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
+
 #include <dev/ofw/ofw_bus_subr.h>
 
-#define	AL_CCU_SNOOP_CONTROL_IOFAB_0_OFFSET	0x4000
-#define	AL_CCU_SNOOP_CONTROL_IOFAB_1_OFFSET	0x5000
-#define	AL_CCU_SPECULATION_CONTROL_OFFSET	0x4
+#define AL_CCU_SNOOP_CONTROL_IOFAB_0_OFFSET 0x4000
+#define AL_CCU_SNOOP_CONTROL_IOFAB_1_OFFSET 0x5000
+#define AL_CCU_SPECULATION_CONTROL_OFFSET 0x4
 
-static struct resource_spec al_ccu_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec al_ccu_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 struct al_ccu_softc {
-	struct resource	*res;
+	struct resource *res;
 };
 
 static int al_ccu_probe(device_t dev);
 static int al_ccu_attach(device_t dev);
 static int al_ccu_detach(device_t dev);
 
-static device_method_t al_ccu_methods[] = {
-	DEVMETHOD(device_probe,		al_ccu_probe),
-	DEVMETHOD(device_attach,	al_ccu_attach),
-	DEVMETHOD(device_detach,	al_ccu_detach),
-	{ 0, 0 }
-};
+static device_method_t al_ccu_methods[] = { DEVMETHOD(
+						device_probe, al_ccu_probe),
+	DEVMETHOD(device_attach, al_ccu_attach),
+	DEVMETHOD(device_detach, al_ccu_detach), { 0, 0 } };
 
-static driver_t al_ccu_driver = {
-	"ccu",
-	al_ccu_methods,
-	sizeof(struct al_ccu_softc)
-};
+static driver_t al_ccu_driver = { "ccu", al_ccu_methods,
+	sizeof(struct al_ccu_softc) };
 
 static devclass_t al_ccu_devclass;
 
-EARLY_DRIVER_MODULE(al_ccu, simplebus, al_ccu_driver,
-    al_ccu_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(al_ccu, ofwbus, al_ccu_driver,
-    al_ccu_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(al_ccu, simplebus, al_ccu_driver, al_ccu_devclass, 0, 0,
+    BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(al_ccu, ofwbus, al_ccu_driver, al_ccu_devclass, 0, 0,
+    BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
 
 static int
 al_ccu_probe(device_t dev)

@@ -38,13 +38,16 @@ __FBSDID("$FreeBSD$");
 #include "opt_smp.h"
 #include "opt_vm.h"
 
-#define	PMAP_PAE_COMP
+#define PMAP_PAE_COMP
 #include <sys/param.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#define	PMTYPE	pmap_pae_
-#define	pm_pdir	pm_pdir_pae
-#define	pm_pdpt	pm_pdpt_pae
-#include <machine/pmap_pae.h>
+#define PMTYPE pmap_pae_
+#define pm_pdir pm_pdir_pae
+#define pm_pdpt pm_pdpt_pae
 #include <vm/pmap.h>
+
+#include <machine/pmap_pae.h>
+
 #include "pmap.c"

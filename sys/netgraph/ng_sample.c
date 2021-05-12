@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -43,17 +43,17 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
 #include <sys/ctype.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/syslog.h>
 
+#include <netgraph/netgraph.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_sample.h>
-#include <netgraph/netgraph.h>
 
 /* If you do complicated mallocs you may want to do this */
 /* and use it for your mallocs */
@@ -68,73 +68,64 @@ static MALLOC_DEFINE(M_NETGRAPH_XXX, "netgraph_xxx", "netgraph xxx node");
  * sample node. These methods define the netgraph 'type'.
  */
 
-static ng_constructor_t	ng_xxx_constructor;
-static ng_rcvmsg_t	ng_xxx_rcvmsg;
-static ng_shutdown_t	ng_xxx_shutdown;
-static ng_newhook_t	ng_xxx_newhook;
-static ng_connect_t	ng_xxx_connect;
-static ng_rcvdata_t	ng_xxx_rcvdata;
-static ng_disconnect_t	ng_xxx_disconnect;
+static ng_constructor_t ng_xxx_constructor;
+static ng_rcvmsg_t ng_xxx_rcvmsg;
+static ng_shutdown_t ng_xxx_shutdown;
+static ng_newhook_t ng_xxx_newhook;
+static ng_connect_t ng_xxx_connect;
+static ng_rcvdata_t ng_xxx_rcvdata;
+static ng_disconnect_t ng_xxx_disconnect;
 
 /* Parse type for struct ngxxxstat */
-static const struct ng_parse_struct_field ng_xxx_stat_type_fields[]
-	= NG_XXX_STATS_TYPE_INFO;
-static const struct ng_parse_type ng_xxx_stat_type = {
-	&ng_parse_struct_type,
-	&ng_xxx_stat_type_fields
-};
+static const struct ng_parse_struct_field ng_xxx_stat_type_fields[] =
+    NG_XXX_STATS_TYPE_INFO;
+static const struct ng_parse_type ng_xxx_stat_type = { &ng_parse_struct_type,
+	&ng_xxx_stat_type_fields };
 
 /* List of commands and how to convert arguments to/from ASCII */
-static const struct ng_cmdlist ng_xxx_cmdlist[] = {
-	{
-	  NGM_XXX_COOKIE,
-	  NGM_XXX_GET_STATUS,
-	  "getstatus",
-	  NULL,
-	  &ng_xxx_stat_type,
-	},
-	{
-	  NGM_XXX_COOKIE,
-	  NGM_XXX_SET_FLAG,
-	  "setflag",
-	  &ng_parse_int32_type,
-	  NULL
-	},
-	{ 0 }
-};
+static const struct ng_cmdlist ng_xxx_cmdlist[] = { {
+							NGM_XXX_COOKIE,
+							NGM_XXX_GET_STATUS,
+							"getstatus",
+							NULL,
+							&ng_xxx_stat_type,
+						    },
+	{ NGM_XXX_COOKIE, NGM_XXX_SET_FLAG, "setflag", &ng_parse_int32_type,
+	    NULL },
+	{ 0 } };
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_XXX_NODE_TYPE,
-	.constructor =	ng_xxx_constructor,
-	.rcvmsg =	ng_xxx_rcvmsg,
-	.shutdown =	ng_xxx_shutdown,
-	.newhook =	ng_xxx_newhook,
-/*	.findhook =	ng_xxx_findhook, 	*/
-	.connect =	ng_xxx_connect,
-	.rcvdata =	ng_xxx_rcvdata,
-	.disconnect =	ng_xxx_disconnect,
-	.cmdlist =	ng_xxx_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_XXX_NODE_TYPE,
+	.constructor = ng_xxx_constructor,
+	.rcvmsg = ng_xxx_rcvmsg,
+	.shutdown = ng_xxx_shutdown,
+	.newhook = ng_xxx_newhook,
+	/*	.findhook =	ng_xxx_findhook, 	*/
+	.connect = ng_xxx_connect,
+	.rcvdata = ng_xxx_rcvdata,
+	.disconnect = ng_xxx_disconnect,
+	.cmdlist = ng_xxx_cmdlist,
 };
 NETGRAPH_INIT(xxx, &typestruct);
 
 /* Information we store for each hook on each node */
 struct XXX_hookinfo {
-	int	dlci;		/* The DLCI it represents, -1 == downstream */
-	int	channel;	/* The channel representing this DLCI */
-	hook_p	hook;
+	int dlci;    /* The DLCI it represents, -1 == downstream */
+	int channel; /* The channel representing this DLCI */
+	hook_p hook;
 };
 
 /* Information we store for each node */
 struct XXX {
 	struct XXX_hookinfo channel[XXX_NUM_DLCIS];
 	struct XXX_hookinfo downstream_hook;
-	node_p		node;		/* back pointer to node */
-	hook_p  	debughook;
-	u_int   	packets_in;	/* packets in from downstream */
-	u_int   	packets_out;	/* packets out towards downstream */
-	u_int32_t	flags;
+	node_p node; /* back pointer to node */
+	hook_p debughook;
+	u_int packets_in;  /* packets in from downstream */
+	u_int packets_out; /* packets out towards downstream */
+	u_int32_t flags;
 };
 typedef struct XXX *xxx_p;
 
@@ -197,8 +188,8 @@ ng_xxx_newhook(node_p node, hook_p hook, const char *name)
 	 * hooks start with 'dlci' and have a decimal trailing channel
 	 * number up to 4 digits Use the leadin defined int he associated .h
 	 * file. */
-	if (strncmp(name,
-	    NG_XXX_HOOK_DLCI_LEADIN, strlen(NG_XXX_HOOK_DLCI_LEADIN)) == 0) {
+	if (strncmp(name, NG_XXX_HOOK_DLCI_LEADIN,
+		strlen(NG_XXX_HOOK_DLCI_LEADIN)) == 0) {
 		char *eptr;
 
 		cp = name + strlen(NG_XXX_HOOK_DLCI_LEADIN);
@@ -235,8 +226,8 @@ ng_xxx_newhook(node_p node, hook_p hook, const char *name)
 		xxxp->debughook = hook;
 		NG_HOOK_SET_PRIVATE(hook, NULL);
 	} else
-		return (EINVAL);	/* not a hook we know about */
-	return(0);
+		return (EINVAL); /* not a hook we know about */
+	return (0);
 }
 
 /*
@@ -268,8 +259,7 @@ ng_xxx_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	switch (msg->header.typecookie) {
 	case NGM_XXX_COOKIE:
 		switch (msg->header.cmd) {
-		case NGM_XXX_GET_STATUS:
-		    {
+		case NGM_XXX_GET_STATUS: {
 			struct ngxxxstat *stats;
 
 			NG_MKRESPONSE(resp, msg, sizeof(*stats), M_NOWAIT);
@@ -277,25 +267,25 @@ ng_xxx_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 				break;
 			}
-			stats = (struct ngxxxstat *) resp->data;
+			stats = (struct ngxxxstat *)resp->data;
 			stats->packets_in = xxxp->packets_in;
 			stats->packets_out = xxxp->packets_out;
 			break;
-		    }
+		}
 		case NGM_XXX_SET_FLAG:
 			if (msg->header.arglen != sizeof(u_int32_t)) {
 				error = EINVAL;
 				break;
 			}
-			xxxp->flags = *((u_int32_t *) msg->data);
+			xxxp->flags = *((u_int32_t *)msg->data);
 			break;
 		default:
-			error = EINVAL;		/* unknown command */
+			error = EINVAL; /* unknown command */
 			break;
 		}
 		break;
 	default:
-		error = EINVAL;			/* unknown cookie type */
+		error = EINVAL; /* unknown cookie type */
 		break;
 	}
 
@@ -303,7 +293,7 @@ ng_xxx_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	NG_RESPOND_MSG(error, node, item, resp);
 	/* Free the message and return */
 	NG_FREE_MSG(msg);
-	return(error);
+	return (error);
 }
 
 /*
@@ -322,7 +312,7 @@ ng_xxx_rcvmsg(node_p node, item_p item, hook_p lasthook)
  * in the connect() method.
  */
 static int
-ng_xxx_rcvdata(hook_p hook, item_p item )
+ng_xxx_rcvdata(hook_p hook, item_p item)
 {
 	const xxx_p xxxp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	int chan = -2;
@@ -332,8 +322,8 @@ ng_xxx_rcvdata(hook_p hook, item_p item )
 
 	NGI_GET_M(item, m);
 	if (NG_HOOK_PRIVATE(hook)) {
-		dlci = ((struct XXX_hookinfo *) NG_HOOK_PRIVATE(hook))->dlci;
-		chan = ((struct XXX_hookinfo *) NG_HOOK_PRIVATE(hook))->channel;
+		dlci = ((struct XXX_hookinfo *)NG_HOOK_PRIVATE(hook))->dlci;
+		chan = ((struct XXX_hookinfo *)NG_HOOK_PRIVATE(hook))->channel;
 		if (dlci != -1) {
 			/* If received on a DLCI hook process for this
 			 * channel and pass it to the downstream module.
@@ -341,13 +331,13 @@ ng_xxx_rcvdata(hook_p hook, item_p item )
 			 * the front here */
 			/* M_PREPEND(....)	; */
 			/* mtod(m, xxxxxx)->dlci = dlci; */
-			NG_FWD_NEW_DATA(error, item,
-				xxxp->downstream_hook.hook, m);
+			NG_FWD_NEW_DATA(
+			    error, item, xxxp->downstream_hook.hook, m);
 			xxxp->packets_out++;
 		} else {
 			/* data came from the multiplexed link */
-			dlci = 1;	/* get dlci from header */
-			/* madjust(....) *//* chop off header */
+			dlci = 1;	    /* get dlci from header */
+			/* madjust(....) */ /* chop off header */
 			for (chan = 0; chan < XXX_NUM_DLCIS; chan++)
 				if (xxxp->channel[chan].dlci == dlci)
 					break;
@@ -367,8 +357,8 @@ ng_xxx_rcvdata(hook_p hook, item_p item )
 			 * the processing of the data can continue. After
 			 * these are run 'm' should be considered
 			 * as invalid and NG_SEND_DATA actually zaps them. */
-			NG_FWD_NEW_DATA(error, item,
-				xxxp->channel[chan].hook, m);
+			NG_FWD_NEW_DATA(
+			    error, item, xxxp->channel[chan].hook, m);
 			xxxp->packets_in++;
 		}
 	} else {
@@ -399,7 +389,7 @@ devintr()
 				/* and ng_xxx_connect() */
 }
 
-#endif				/* 0 */
+#endif /* 0 */
 
 /*
  * Do local shutdown processing..
@@ -434,7 +424,7 @@ ng_xxx_shutdown(node_p node)
 		free(privdata, M_NETGRAPH);
 		return (0);
 	}
-	NG_NODE_REVIVE(node);		/* tell ng_rmnode() we will persist */
+	NG_NODE_REVIVE(node); /* tell ng_rmnode() we will persist */
 #endif /* PERSISTANT_NODE */
 	return (0);
 }
@@ -487,9 +477,9 @@ static int
 ng_xxx_disconnect(hook_p hook)
 {
 	if (NG_HOOK_PRIVATE(hook))
-		((struct XXX_hookinfo *) (NG_HOOK_PRIVATE(hook)))->hook = NULL;
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) /* already shutting down? */
+		((struct XXX_hookinfo *)(NG_HOOK_PRIVATE(hook)))->hook = NULL;
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
+	    (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) /* already shutting down? */
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }

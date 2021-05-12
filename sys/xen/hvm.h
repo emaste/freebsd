@@ -20,19 +20,18 @@
  * $FreeBSD$
  */
 
-#ifndef	__XEN_HVM_H__
-#define	__XEN_HVM_H__
+#ifndef __XEN_HVM_H__
+#define __XEN_HVM_H__
 
-#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
-
 #include <xen/interface/hvm/params.h>
+#include <xen/xen-os.h>
 
 /**
  * \brief Wrapper function to obtain a HVM parameter value.
  *
  * \param index	HVM parameter index; see <xen/interface/hvm/params.h>.
- * 
+ *
  * \returns	0 on failure; the value of the parameter otherwise.
  */
 static inline unsigned long
@@ -45,8 +44,8 @@ hvm_get_parameter(int index)
 	xhv.index = index;
 	error = HYPERVISOR_hvm_op(HVMOP_get_param, &xhv);
 	if (error) {
-		printf("%s: error %d trying to get %d\n", __func__,
-		    error, index);
+		printf(
+		    "%s: error %d trying to get %d\n", __func__, error, index);
 		return (0);
 	}
 	return (xhv.value);
@@ -57,39 +56,35 @@ enum {
 	HVM_CB_TYPE_GSI,
 	HVM_CB_TYPE_PCI_INTX,
 	HVM_CB_TYPE_VECTOR,
-	HVM_CB_TYPE_MASK  = 0xFF,
+	HVM_CB_TYPE_MASK = 0xFF,
 	HVM_CB_TYPE_SHIFT = 56
 };
 
 /** Format for specifying a GSI type callback. */
-enum {
-	HVM_CB_GSI_GSI_MASK  = 0xFFFFFFFF,
-	HVM_CB_GSI_GSI_SHIFT = 0
-};
-#define HVM_CALLBACK_GSI(gsi) \
-    (((uint64_t)HVM_CB_TYPE_GSI << HVM_CB_TYPE_SHIFT) \
-   | ((gsi) & HVM_CB_GSI_GSI_MASK) << HVM_CB_GSI_GSI_SHIFT)
+enum { HVM_CB_GSI_GSI_MASK = 0xFFFFFFFF, HVM_CB_GSI_GSI_SHIFT = 0 };
+#define HVM_CALLBACK_GSI(gsi)                               \
+	(((uint64_t)HVM_CB_TYPE_GSI << HVM_CB_TYPE_SHIFT) | \
+	    ((gsi)&HVM_CB_GSI_GSI_MASK) << HVM_CB_GSI_GSI_SHIFT)
 
 /** Format for specifying a virtual PCI interrupt line GSI style callback. */
 enum {
-	HVM_CB_PCI_INTX_INTPIN_MASK  = 0x3,
+	HVM_CB_PCI_INTX_INTPIN_MASK = 0x3,
 	HVM_CB_PCI_INTX_INTPIN_SHIFT = 0,
-	HVM_CB_PCI_INTX_SLOT_MASK    = 0x1F,
-	HVM_CB_PCI_INTX_SLOT_SHIFT   = 11,
+	HVM_CB_PCI_INTX_SLOT_MASK = 0x1F,
+	HVM_CB_PCI_INTX_SLOT_SHIFT = 11,
 };
-#define HVM_CALLBACK_PCI_INTX(slot, pin) \
-    (((uint64_t)HVM_CB_TYPE_PCI_INTX << HVM_CB_TYPE_SHIFT) \
-   | (((slot) & HVM_CB_PCI_INTX_SLOT_MASK) << HVM_CB_PCI_INTX_SLOT_SHIFT) \
-   | (((pin) & HVM_CB_PCI_INTX_INTPIN_MASK) << HVM_CB_PCI_INTX_INTPIN_SHIFT))
+#define HVM_CALLBACK_PCI_INTX(slot, pin)                         \
+	(((uint64_t)HVM_CB_TYPE_PCI_INTX << HVM_CB_TYPE_SHIFT) | \
+	    (((slot)&HVM_CB_PCI_INTX_SLOT_MASK)                  \
+		<< HVM_CB_PCI_INTX_SLOT_SHIFT) |                 \
+	    (((pin)&HVM_CB_PCI_INTX_INTPIN_MASK)                 \
+		<< HVM_CB_PCI_INTX_INTPIN_SHIFT))
 
 /** Format for specifying a direct IDT vector injection style callback. */
-enum {
-	HVM_CB_VECTOR_VECTOR_MASK  = 0xFFFFFFFF,
-	HVM_CB_VECTOR_VECTOR_SHIFT = 0
-};
-#define HVM_CALLBACK_VECTOR(vector) \
-    (((uint64_t)HVM_CB_TYPE_VECTOR << HVM_CB_TYPE_SHIFT) \
-   | (((vector) & HVM_CB_GSI_GSI_MASK) << HVM_CB_GSI_GSI_SHIFT))
+enum { HVM_CB_VECTOR_VECTOR_MASK = 0xFFFFFFFF, HVM_CB_VECTOR_VECTOR_SHIFT = 0 };
+#define HVM_CALLBACK_VECTOR(vector)                            \
+	(((uint64_t)HVM_CB_TYPE_VECTOR << HVM_CB_TYPE_SHIFT) | \
+	    (((vector)&HVM_CB_GSI_GSI_MASK) << HVM_CB_GSI_GSI_SHIFT))
 
 enum xen_hvm_init_type {
 	XEN_HVM_INIT_EARLY,
@@ -106,4 +101,4 @@ void xen_hvm_resume(bool suspend_cancelled);
 extern uint32_t hvm_start_flags;
 extern bool xen_evtchn_needs_ack;
 
-#endif	/* __XEN_HVM_H__ */
+#endif /* __XEN_HVM_H__ */

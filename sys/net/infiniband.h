@@ -26,37 +26,35 @@
  */
 
 #ifndef __INFINIBAND_H__
-#define	__INFINIBAND_H__
+#define __INFINIBAND_H__
 
 #include <sys/cdefs.h>
 #include <sys/stdint.h>
 
-#define	INFINIBAND_ADDR_LEN	20	/* bytes */
-#define	INFINIBAND_MTU		1500	/* bytes - default value */
+#define INFINIBAND_ADDR_LEN 20 /* bytes */
+#define INFINIBAND_MTU 1500    /* bytes - default value */
 
-#define	INFINIBAND_ENC_LEN	4	/* bytes */
-#define	INFINIBAND_HDR_LEN \
-    (INFINIBAND_ADDR_LEN + INFINIBAND_ENC_LEN)
+#define INFINIBAND_ENC_LEN 4 /* bytes */
+#define INFINIBAND_HDR_LEN (INFINIBAND_ADDR_LEN + INFINIBAND_ENC_LEN)
 
-#define	INFINIBAND_IS_MULTICAST(addr) \
-    ((addr)[4] == 0xff)
+#define INFINIBAND_IS_MULTICAST(addr) ((addr)[4] == 0xff)
 
-#define	INFINIBAND_BPF_MTAP(_ifp, _m)			\
-do {							\
-	if (bpf_peers_present((_ifp)->if_bpf)) {	\
-		M_ASSERTVALID(_m);			\
-		infiniband_bpf_mtap(_ifp, _m);		\
-	}						\
-} while (0)
+#define INFINIBAND_BPF_MTAP(_ifp, _m)                    \
+	do {                                             \
+		if (bpf_peers_present((_ifp)->if_bpf)) { \
+			M_ASSERTVALID(_m);               \
+			infiniband_bpf_mtap(_ifp, _m);   \
+		}                                        \
+	} while (0)
 
 struct infiniband_header {
-	uint8_t	ib_hwaddr[INFINIBAND_ADDR_LEN];
-	uint16_t ib_protocol;		/* big endian */
-	uint16_t ib_reserved;		/* zero */
+	uint8_t ib_hwaddr[INFINIBAND_ADDR_LEN];
+	uint16_t ib_protocol; /* big endian */
+	uint16_t ib_reserved; /* zero */
 } __packed;
 
 struct infiniband_address {
-	uint8_t	octet[INFINIBAND_ADDR_LEN];
+	uint8_t octet[INFINIBAND_ADDR_LEN];
 } __packed;
 
 #ifdef _KERNEL
@@ -66,15 +64,17 @@ struct infiniband_address {
 struct ifnet;
 struct mbuf;
 
-extern void infiniband_ifattach(struct ifnet *, const uint8_t *hwaddr, const uint8_t *bcaddr);
+extern void infiniband_ifattach(
+    struct ifnet *, const uint8_t *hwaddr, const uint8_t *bcaddr);
 extern void infiniband_ifdetach(struct ifnet *);
 extern void infiniband_bpf_mtap(struct ifnet *, struct mbuf *);
 
 /* new infiniband interface attached event */
 typedef void (*infiniband_ifattach_event_handler_t)(void *, struct ifnet *);
 
-EVENTHANDLER_DECLARE(infiniband_ifattach_event, infiniband_ifattach_event_handler_t);
+EVENTHANDLER_DECLARE(
+    infiniband_ifattach_event, infiniband_ifattach_event_handler_t);
 
 #endif
 
-#endif					/* __INFINIBAND_H__ */
+#endif /* __INFINIBAND_H__ */

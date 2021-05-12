@@ -34,6 +34,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -45,11 +46,10 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sx.h>
-#include <sys/systm.h>
 
 #include <net/if.h>
-#include <net/vnet.h>
 #include <net/raw_cb.h>
+#include <net/vnet.h>
 
 MTX_SYSINIT(rawcb_mtx, &rawcb_mtx, "rawcb", MTX_DEF);
 
@@ -87,10 +87,10 @@ raw_input_ext(struct mbuf *m0, struct sockproto *proto, struct sockaddr *src,
 
 	last = NULL;
 	mtx_lock(&rawcb_mtx);
-	LIST_FOREACH(rp, &V_rawcb_list, list) {
+	LIST_FOREACH (rp, &V_rawcb_list, list) {
 		if (rp->rcb_proto.sp_family != proto->sp_family)
 			continue;
-		if (rp->rcb_proto.sp_protocol  &&
+		if (rp->rcb_proto.sp_protocol &&
 		    rp->rcb_proto.sp_protocol != proto->sp_protocol)
 			continue;
 		if (cb != NULL && (*cb)(m, proto, src, rp) != 0)
@@ -99,8 +99,8 @@ raw_input_ext(struct mbuf *m0, struct sockproto *proto, struct sockaddr *src,
 			struct mbuf *n;
 			n = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 			if (n) {
-				if (sbappendaddr(&last->so_rcv, src,
-				    n, (struct mbuf *)0) == 0)
+				if (sbappendaddr(&last->so_rcv, src, n,
+					(struct mbuf *)0) == 0)
 					/* should notify about lost packet */
 					m_freem(n);
 				else
@@ -110,8 +110,7 @@ raw_input_ext(struct mbuf *m0, struct sockproto *proto, struct sockaddr *src,
 		last = rp->rcb_socket;
 	}
 	if (last) {
-		if (sbappendaddr(&last->so_rcv, src,
-		    m, (struct mbuf *)0) == 0)
+		if (sbappendaddr(&last->so_rcv, src, m, (struct mbuf *)0) == 0)
 			m_freem(m);
 		else
 			sorwakeup(last);
@@ -263,15 +262,15 @@ raw_usockaddr(struct socket *so, struct sockaddr **nam)
 }
 
 struct pr_usrreqs raw_usrreqs = {
-	.pru_abort =		raw_uabort,
-	.pru_attach =		raw_uattach,
-	.pru_bind =		raw_ubind,
-	.pru_connect =		raw_uconnect,
-	.pru_detach =		raw_udetach, 
-	.pru_disconnect =	raw_udisconnect,
-	.pru_peeraddr =		raw_upeeraddr,
-	.pru_send =		raw_usend,
-	.pru_shutdown =		raw_ushutdown,
-	.pru_sockaddr =		raw_usockaddr,
-	.pru_close =		raw_uclose,
+	.pru_abort = raw_uabort,
+	.pru_attach = raw_uattach,
+	.pru_bind = raw_ubind,
+	.pru_connect = raw_uconnect,
+	.pru_detach = raw_udetach,
+	.pru_disconnect = raw_udisconnect,
+	.pru_peeraddr = raw_upeeraddr,
+	.pru_send = raw_usend,
+	.pru_shutdown = raw_ushutdown,
+	.pru_sockaddr = raw_usockaddr,
+	.pru_close = raw_uclose,
 };

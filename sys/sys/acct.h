@@ -53,59 +53,59 @@
  */
 
 struct acctv3 {
-	uint8_t   ac_zero;		/* zero identifies new version */
-	uint8_t   ac_version;		/* record version number */
-	uint16_t  ac_len;		/* record length */
+	uint8_t ac_zero;    /* zero identifies new version */
+	uint8_t ac_version; /* record version number */
+	uint16_t ac_len;    /* record length */
 
-	char	  ac_comm[AC_COMM_LEN];	/* command name */
-	float	  ac_utime;		/* user time */
-	float	  ac_stime;		/* system time */
-	float	  ac_etime;		/* elapsed time */
-	time_t	  ac_btime;		/* starting time */
-	uid_t	  ac_uid;		/* user id */
-	gid_t	  ac_gid;		/* group id */
-	float	  ac_mem;		/* average memory usage */
-	float	  ac_io;		/* count of IO blocks */
-	__dev_t   ac_tty;		/* controlling tty */
-	uint32_t  ac_pad0;
-	uint16_t  ac_len2;		/* record length */
+	char ac_comm[AC_COMM_LEN]; /* command name */
+	float ac_utime;		   /* user time */
+	float ac_stime;		   /* system time */
+	float ac_etime;		   /* elapsed time */
+	time_t ac_btime;	   /* starting time */
+	uid_t ac_uid;		   /* user id */
+	gid_t ac_gid;		   /* group id */
+	float ac_mem;		   /* average memory usage */
+	float ac_io;		   /* count of IO blocks */
+	__dev_t ac_tty;		   /* controlling tty */
+	uint32_t ac_pad0;
+	uint16_t ac_len2; /* record length */
 	union {
-		uint32_t  ac_align;	/* force v1 compatible alignment */
+		uint32_t ac_align; /* force v1 compatible alignment */
 
-#define	AFORK	0x01			/* forked but not exec'ed */
+#define AFORK 0x01 /* forked but not exec'ed */
 /* ASU is no longer supported */
-#define	ASU	0x02			/* used super-user permissions */
-#define	ACOMPAT	0x04			/* used compatibility mode */
-#define	ACORE	0x08			/* dumped core */
-#define	AXSIG	0x10			/* killed by a signal */
-#define ANVER	0x20			/* new record version */
+#define ASU 0x02 /* used super-user permissions */
+#define ACOMPAT 0x04 /* used compatibility mode */
+#define ACORE 0x08 /* dumped core */
+#define AXSIG 0x10 /* killed by a signal */
+#define ANVER 0x20 /* new record version */
 
-		uint8_t   ac_flag;	/* accounting flags */
+		uint8_t ac_flag; /* accounting flags */
 	} ac_trailer;
 
 #define ac_flagx ac_trailer.ac_flag
 };
 
 struct acctv2 {
-	uint8_t   ac_zero;		/* zero identifies new version */
-	uint8_t   ac_version;		/* record version number */
-	uint16_t  ac_len;		/* record length */
+	uint8_t ac_zero;    /* zero identifies new version */
+	uint8_t ac_version; /* record version number */
+	uint16_t ac_len;    /* record length */
 
-	char	  ac_comm[AC_COMM_LEN];	/* command name */
-	float	  ac_utime;		/* user time */
-	float	  ac_stime;		/* system time */
-	float	  ac_etime;		/* elapsed time */
-	time_t	  ac_btime;		/* starting time */
-	uid_t	  ac_uid;		/* user id */
-	gid_t	  ac_gid;		/* group id */
-	float	  ac_mem;		/* average memory usage */
-	float	  ac_io;		/* count of IO blocks */
-	uint32_t  ac_tty;		/* controlling tty */
+	char ac_comm[AC_COMM_LEN]; /* command name */
+	float ac_utime;		   /* user time */
+	float ac_stime;		   /* system time */
+	float ac_etime;		   /* elapsed time */
+	time_t ac_btime;	   /* starting time */
+	uid_t ac_uid;		   /* user id */
+	gid_t ac_gid;		   /* group id */
+	float ac_mem;		   /* average memory usage */
+	float ac_io;		   /* count of IO blocks */
+	uint32_t ac_tty;	   /* controlling tty */
 
-	uint16_t  ac_len2;		/* record length */
+	uint16_t ac_len2; /* record length */
 	union {
-		uint32_t   ac_align;	/* force v1 compatible alignment */
-		uint8_t   ac_flag;	/* accounting flags */
+		uint32_t ac_align; /* force v1 compatible alignment */
+		uint8_t ac_flag;   /* accounting flags */
 	} ac_trailer;
 };
 
@@ -120,29 +120,29 @@ struct acctv2 {
 typedef uint16_t comp_t;
 
 struct acctv1 {
-	char	  ac_comm[AC_COMM_LEN];	/* command name */
-	comp_t	  ac_utime;		/* user time */
-	comp_t	  ac_stime;		/* system time */
-	comp_t	  ac_etime;		/* elapsed time */
-	time_t	  ac_btime;		/* starting time */
-	uid_t	  ac_uid;		/* user id */
-	gid_t	  ac_gid;		/* group id */
-	uint16_t  ac_mem;		/* average memory usage */
-	comp_t	  ac_io;		/* count of IO blocks */
-	uint32_t  ac_tty;		/* controlling tty */
-	uint8_t   ac_flag;		/* accounting flags */
+	char ac_comm[AC_COMM_LEN]; /* command name */
+	comp_t ac_utime;	   /* user time */
+	comp_t ac_stime;	   /* system time */
+	comp_t ac_etime;	   /* elapsed time */
+	time_t ac_btime;	   /* starting time */
+	uid_t ac_uid;		   /* user id */
+	gid_t ac_gid;		   /* group id */
+	uint16_t ac_mem;	   /* average memory usage */
+	comp_t ac_io;		   /* count of IO blocks */
+	uint32_t ac_tty;	   /* controlling tty */
+	uint8_t ac_flag;	   /* accounting flags */
 };
 
 /*
  * 1/AHZV1 is the granularity of the data encoded in the comp_t fields.
  * This is not necessarily equal to hz.
  */
-#define	AHZV1	64
+#define AHZV1 64
 
 #ifdef _KERNEL
 struct thread;
 
-int	acct_process(struct thread *td);
+int acct_process(struct thread *td);
 #undef float
 #endif
 

@@ -32,89 +32,83 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/endian.h>
 #include <sys/systm.h>
-#include <sys/sockio.h>
+#include <sys/bus.h>
+#include <sys/endian.h>
+#include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/limits.h>
-#include <sys/bus.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #define __RMAN_RESOURCE_VISIBLE
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_arp.h>
-#include <net/ethernet.h>
-#include <net/if_dl.h>
-#include <net/if_media.h>
-#include <net/bpf.h>
-#include <net/if_types.h>
-#include <net/if_vlan_var.h>
-
-#include <dev/pci/pcivar.h>
-
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/uma.h>
 
-#include <machine/reg.h>
-#include <machine/cpu.h>
-#include <machine/mips_opcode.h>
 #include <machine/asm.h>
-#include <machine/cpuregs.h>
-
-#include <machine/intr_machdep.h>
-#include <machine/clock.h>	/* for DELAY */
 #include <machine/bus.h>
+#include <machine/clock.h> /* for DELAY */
+#include <machine/cpu.h>
+#include <machine/cpuregs.h>
+#include <machine/intr_machdep.h>
+#include <machine/mips_opcode.h>
+#include <machine/reg.h>
 #include <machine/resource.h>
-#include <mips/nlm/hal/haldefs.h>
-#include <mips/nlm/hal/iomap.h>
-#include <mips/nlm/hal/mips-extns.h>
-#include <mips/nlm/hal/cop2.h>
-#include <mips/nlm/hal/fmn.h>
-#include <mips/nlm/hal/sys.h>
-#include <mips/nlm/hal/nae.h>
-#include <mips/nlm/hal/mdio.h>
-#include <mips/nlm/hal/sgmii.h>
-#include <mips/nlm/hal/xaui.h>
-#include <mips/nlm/hal/poe.h>
-#include <ucore_app_bin.h>
-#include <mips/nlm/hal/ucore_loader.h>
-#include <mips/nlm/xlp.h>
-#include <mips/nlm/board.h>
-#include <mips/nlm/msgring.h>
 
+#include <dev/mii/brgphyreg.h>
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#include "miidevs.h"
-#include <dev/mii/brgphyreg.h>
-#include "miibus_if.h"
-#include <sys/sysctl.h>
+#include <dev/pci/pcivar.h>
 
+#include <net/bpf.h>
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_arp.h>
+#include <net/if_dl.h>
+#include <net/if_media.h>
+#include <net/if_types.h>
+#include <net/if_var.h>
+#include <net/if_vlan_var.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+
+#include <mips/nlm/board.h>
 #include <mips/nlm/dev/net/xlpge.h>
+#include <mips/nlm/hal/cop2.h>
+#include <mips/nlm/hal/fmn.h>
+#include <mips/nlm/hal/haldefs.h>
+#include <mips/nlm/hal/iomap.h>
+#include <mips/nlm/hal/mdio.h>
+#include <mips/nlm/hal/mips-extns.h>
+#include <mips/nlm/hal/nae.h>
+#include <mips/nlm/hal/poe.h>
+#include <mips/nlm/hal/sgmii.h>
+#include <mips/nlm/hal/sys.h>
+#include <mips/nlm/hal/ucore_loader.h>
+#include <mips/nlm/hal/xaui.h>
+#include <mips/nlm/msgring.h>
+#include <mips/nlm/xlp.h>
+#include <ucore_app_bin.h>
+
+#include "miibus_if.h"
+#include "miidevs.h"
 
 /*#define XLP_DRIVER_LOOPBACK*/
 
 static struct nae_port_config nae_port_config[64];
 
-int poe_cl_tbl[MAX_POE_CLASSES] = {
-	0x0, 0x249249,
-	0x492492, 0x6db6db,
-	0x924924, 0xb6db6d,
-	0xdb6db6, 0xffffff
-};
+int poe_cl_tbl[MAX_POE_CLASSES] = { 0x0, 0x249249, 0x492492, 0x6db6db, 0x924924,
+	0xb6db6d, 0xdb6db6, 0xffffff };
 
 /* #define DUMP_PACKET */
 
@@ -150,23 +144,20 @@ static int nlm_xlpnae_shutdown(device_t);
 
 static device_method_t nlm_xlpnae_methods[] = {
 	/* Methods from the device interface */
-	DEVMETHOD(device_probe,		nlm_xlpnae_probe),
-	DEVMETHOD(device_attach,	nlm_xlpnae_attach),
-	DEVMETHOD(device_detach,	nlm_xlpnae_detach),
-	DEVMETHOD(device_suspend,	nlm_xlpnae_suspend),
-	DEVMETHOD(device_resume,	nlm_xlpnae_resume),
-	DEVMETHOD(device_shutdown,	nlm_xlpnae_shutdown),
+	DEVMETHOD(device_probe, nlm_xlpnae_probe),
+	DEVMETHOD(device_attach, nlm_xlpnae_attach),
+	DEVMETHOD(device_detach, nlm_xlpnae_detach),
+	DEVMETHOD(device_suspend, nlm_xlpnae_suspend),
+	DEVMETHOD(device_resume, nlm_xlpnae_resume),
+	DEVMETHOD(device_shutdown, nlm_xlpnae_shutdown),
 
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
 
 	DEVMETHOD_END
 };
 
-static driver_t nlm_xlpnae_driver = {
-	"xlpnae",
-	nlm_xlpnae_methods,
-	sizeof(struct nlm_xlpnae_softc)
-};
+static driver_t nlm_xlpnae_driver = { "xlpnae", nlm_xlpnae_methods,
+	sizeof(struct nlm_xlpnae_softc) };
 
 static devclass_t nlm_xlpnae_devclass;
 
@@ -184,29 +175,26 @@ static void nlm_xlpge_mii_statchg(device_t);
 
 static device_method_t nlm_xlpge_methods[] = {
 	/* Methods from the device interface */
-	DEVMETHOD(device_probe,		nlm_xlpge_probe),
-	DEVMETHOD(device_attach,	nlm_xlpge_attach),
-	DEVMETHOD(device_detach,	nlm_xlpge_detach),
-	DEVMETHOD(device_suspend,	nlm_xlpge_suspend),
-	DEVMETHOD(device_resume,	nlm_xlpge_resume),
-	DEVMETHOD(device_shutdown,	nlm_xlpge_shutdown),
+	DEVMETHOD(device_probe, nlm_xlpge_probe),
+	DEVMETHOD(device_attach, nlm_xlpge_attach),
+	DEVMETHOD(device_detach, nlm_xlpge_detach),
+	DEVMETHOD(device_suspend, nlm_xlpge_suspend),
+	DEVMETHOD(device_resume, nlm_xlpge_resume),
+	DEVMETHOD(device_shutdown, nlm_xlpge_shutdown),
 
 	/* Methods from the nexus bus needed for explicitly
 	 * probing children when driver is loaded as a kernel module
 	 */
-	DEVMETHOD(miibus_readreg,	nlm_xlpge_mii_read),
-	DEVMETHOD(miibus_writereg,	nlm_xlpge_mii_write),
-	DEVMETHOD(miibus_statchg,	nlm_xlpge_mii_statchg),
+	DEVMETHOD(miibus_readreg, nlm_xlpge_mii_read),
+	DEVMETHOD(miibus_writereg, nlm_xlpge_mii_write),
+	DEVMETHOD(miibus_statchg, nlm_xlpge_mii_statchg),
 
 	/* Terminate method list */
 	DEVMETHOD_END
 };
 
-static driver_t nlm_xlpge_driver = {
-	"xlpge",
-	nlm_xlpge_methods,
-	sizeof(struct nlm_xlpge_softc)
-};
+static driver_t nlm_xlpge_driver = { "xlpge", nlm_xlpge_methods,
+	sizeof(struct nlm_xlpge_softc) };
 
 static devclass_t nlm_xlpge_devclass;
 
@@ -222,8 +210,8 @@ MODULE_DEPEND(xlpge, miibus, 1, 1, 1);
 #define SGMII_RCV_CONTEXT_WIDTH 8
 
 /* prototypes */
-static void nlm_xlpge_msgring_handler(int vc, int size,
-    int code, int srcid, struct nlm_fmn_msg *msg, void *data);
+static void nlm_xlpge_msgring_handler(
+    int vc, int size, int code, int srcid, struct nlm_fmn_msg *msg, void *data);
 static void nlm_xlpge_submit_rx_free_desc(struct nlm_xlpge_softc *sc, int num);
 static void nlm_xlpge_init(void *addr);
 static void nlm_xlpge_port_disable(struct nlm_xlpge_softc *sc);
@@ -261,8 +249,8 @@ nlm_xlpnae_print_frin_desc_carving(struct nlm_xlpnae_softc *sc)
 
 	/* XXXJC: use max_ports instead of 20 ? */
 	for (intf = 0; intf < 20; intf++) {
-		nlm_write_nae_reg(sc->base, NAE_FREE_IN_FIFO_CFG,
-		    (0x80000000 | intf));
+		nlm_write_nae_reg(
+		    sc->base, NAE_FREE_IN_FIFO_CFG, (0x80000000 | intf));
 		value = nlm_read_nae_reg(sc->base, NAE_FREE_IN_FIFO_CFG);
 		size = 2 * ((value >> 20) & 0x3ff);
 		start = 2 * ((value >> 8) & 0x1ff);
@@ -270,8 +258,8 @@ nlm_xlpnae_print_frin_desc_carving(struct nlm_xlpnae_softc *sc)
 }
 
 static void
-nlm_config_egress(struct nlm_xlpnae_softc *sc, int nblock,
-    int context_base, int hwport, int max_channels)
+nlm_config_egress(struct nlm_xlpnae_softc *sc, int nblock, int context_base,
+    int hwport, int max_channels)
 {
 	int offset, num_channels;
 	uint32_t data;
@@ -285,18 +273,18 @@ nlm_config_egress(struct nlm_xlpnae_softc *sc, int nblock,
 	    (context_base << 12) | (hwport << 4) | 1;
 	nlm_write_nae_reg(sc->base, NAE_TX_DDR_ACTVLIST_CMD, data);
 
-	config_egress_fifo_carvings(sc->base, hwport,
-	    context_base, num_channels, max_channels, sc->portcfg);
-	config_egress_fifo_credits(sc->base, hwport,
-	    context_base, num_channels, max_channels, sc->portcfg);
+	config_egress_fifo_carvings(sc->base, hwport, context_base,
+	    num_channels, max_channels, sc->portcfg);
+	config_egress_fifo_credits(sc->base, hwport, context_base, num_channels,
+	    max_channels, sc->portcfg);
 
 	data = nlm_read_nae_reg(sc->base, NAE_DMA_TX_CREDIT_TH);
 	data |= (1 << 25) | (1 << 24);
 	nlm_write_nae_reg(sc->base, NAE_DMA_TX_CREDIT_TH, data);
 
 	for (offset = 0; offset < num_channels; offset++) {
-		nlm_write_nae_reg(sc->base, NAE_TX_SCHED_MAP_CMD1,
-		    NAE_DRR_QUANTA);
+		nlm_write_nae_reg(
+		    sc->base, NAE_TX_SCHED_MAP_CMD1, NAE_DRR_QUANTA);
 		data = (hwport << 15) | ((context_base + offset) << 5);
 		if (sc->cmplx_type[nblock] == ILC)
 			data |= (offset << 20);
@@ -321,21 +309,20 @@ xlpnae_get_maxchannels(struct nlm_xlpnae_softc *sc)
 }
 
 static void
-nlm_setup_interface(struct nlm_xlpnae_softc *sc, int nblock,
-    int port, uint32_t cur_flow_base, uint32_t flow_mask,
-    int max_channels, int context)
+nlm_setup_interface(struct nlm_xlpnae_softc *sc, int nblock, int port,
+    uint32_t cur_flow_base, uint32_t flow_mask, int max_channels, int context)
 {
 	uint64_t nae_base = sc->base;
-	int mtu = 1536;			/* XXXJC: don't hard code */
+	int mtu = 1536; /* XXXJC: don't hard code */
 	uint32_t ucore_mask;
 
 	if (sc->cmplx_type[nblock] == XAUIC)
-		nlm_config_xaui(nae_base, nblock, mtu,
-		    mtu, sc->portcfg[port].vlan_pri_en);
-	nlm_config_freein_fifo_uniq_cfg(nae_base,
-	    port, sc->portcfg[port].free_desc_sizes);
-	nlm_config_ucore_iface_mask_cfg(nae_base,
-	    port, sc->portcfg[port].ucore_mask);
+		nlm_config_xaui(
+		    nae_base, nblock, mtu, mtu, sc->portcfg[port].vlan_pri_en);
+	nlm_config_freein_fifo_uniq_cfg(
+	    nae_base, port, sc->portcfg[port].free_desc_sizes);
+	nlm_config_ucore_iface_mask_cfg(
+	    nae_base, port, sc->portcfg[port].ucore_mask);
 
 	nlm_program_flow_cfg(nae_base, port, cur_flow_base, flow_mask);
 
@@ -396,7 +383,7 @@ nlm_xlpnae_init(int node, struct nlm_xlpnae_softc *sc)
 	nlm_deflate_frin_fifo_carving(nae_base, sc->max_ports);
 	nlm_reset_nae(node);
 
-	for (i = 0; i < sc->nucores; i++)	/* XXXJC: code repeated below */
+	for (i = 0; i < sc->nucores; i++) /* XXXJC: code repeated below */
 		ucoremask |= (0x1 << i);
 	printf("Loading 0x%x ucores with microcode\n", ucoremask);
 	nlm_ucore_load_all(nae_base, ucoremask, 1);
@@ -426,8 +413,8 @@ nlm_xlpnae_init(int node, struct nlm_xlpnae_softc *sc)
 		nlm_write_nae_reg(nae_base, NAE_TX_CONFIG, val);
 	}
 
-	nlm_setup_poe_class_config(nae_base, MAX_POE_CLASSES,
-	    sc->ncontexts, poe_cl_tbl);
+	nlm_setup_poe_class_config(
+	    nae_base, MAX_POE_CLASSES, sc->ncontexts, poe_cl_tbl);
 
 	nlm_setup_vfbid_mapping(nae_base);
 
@@ -472,8 +459,8 @@ nlm_xlpnae_update_pde(void *dummy __unused)
 	nlm_write_poe_reg(sc->poe_base, POE_DISTR_EN, 1);
 }
 
-SYSINIT(nlm_xlpnae_update_pde, SI_SUB_SMP, SI_ORDER_ANY,
-    nlm_xlpnae_update_pde, NULL);
+SYSINIT(nlm_xlpnae_update_pde, SI_SUB_SMP, SI_ORDER_ANY, nlm_xlpnae_update_pde,
+    NULL);
 
 /* configuration common for sgmii, xaui, ilaken goes here */
 static void
@@ -486,7 +473,7 @@ nlm_setup_portcfg(struct nlm_xlpnae_softc *sc, struct xlp_nae_ivars *naep,
 	struct xlp_port_ivars *p;
 
 	bp = &(naep->block_ivars[block]);
-	p  = &(bp->port_ivars[port & 0x3]);
+	p = &(bp->port_ivars[port & 0x3]);
 
 	sc->portcfg[port].node = p->node;
 	sc->portcfg[port].block = p->block;
@@ -497,12 +484,12 @@ nlm_setup_portcfg(struct nlm_xlpnae_softc *sc, struct xlp_nae_ivars *naep,
 	sc->portcfg[port].loopback_mode = p->loopback_mode;
 	sc->portcfg[port].num_channels = p->num_channels;
 	if (p->free_desc_sizes != MCLBYTES) {
-		printf("[%d, %d] Error: free_desc_sizes %d != %d\n",
-		    block, port, p->free_desc_sizes, MCLBYTES);
+		printf("[%d, %d] Error: free_desc_sizes %d != %d\n", block,
+		    port, p->free_desc_sizes, MCLBYTES);
 		return;
 	}
 	sc->portcfg[port].free_desc_sizes = p->free_desc_sizes;
-	for (i = 0; i < sc->nucores; i++)	/* XXXJC: configure this */
+	for (i = 0; i < sc->nucores; i++) /* XXXJC: configure this */
 		ucore_mask |= (0x1 << i);
 	sc->portcfg[port].ucore_mask = ucore_mask;
 	sc->portcfg[port].vlan_pri_en = p->vlan_pri_en;
@@ -544,7 +531,7 @@ nlm_setup_portcfg(struct nlm_xlpnae_softc *sc, struct xlp_nae_ivars *naep,
 static int
 nlm_xlpnae_attach(device_t dev)
 {
-	struct xlp_nae_ivars	*nae_ivars;
+	struct xlp_nae_ivars *nae_ivars;
 	struct nlm_xlpnae_softc *sc;
 	device_t tmpd;
 	uint32_t dv[NUM_WORDS_PER_DV];
@@ -587,10 +574,10 @@ nlm_xlpnae_attach(device_t dev)
 	}
 
 	for (i = 0; i < sc->ncontexts; i++)
-		cntx2port[i] = 18;	/* 18 is an invalid port */
+		cntx2port[i] = 18; /* 18 is an invalid port */
 
 	if (sc->nblocks == 5)
-		sc->max_ports = 18;	/* 8xx has a block 4 with 2 ports */
+		sc->max_ports = 18; /* 8xx has a block 4 with 2 ports */
 	else
 		sc->max_ports = sc->nblocks * PORTS_PER_CMPLX;
 
@@ -628,8 +615,8 @@ nlm_xlpnae_attach(device_t dev)
 	}
 
 	poe_pcibase = nlm_get_poe_pcibase(sc->node);
-	sc->per_port_num_flows =
-	    nlm_poe_max_flows(poe_pcibase) / sc->total_num_ports;
+	sc->per_port_num_flows = nlm_poe_max_flows(poe_pcibase) /
+	    sc->total_num_ports;
 
 	/* zone for P2P descriptors */
 	nl_tx_desc_zone = uma_zcreate("NL Tx Desc",
@@ -641,8 +628,8 @@ nlm_xlpnae_attach(device_t dev)
 	 */
 	qstart = nlm_qidstart(nae_pcibase);
 	qnum = nlm_qnum(nae_pcibase);
-	if (register_msgring_handler(qstart, qstart + qnum - 1,
-	    nlm_xlpge_msgring_handler, sc)) {
+	if (register_msgring_handler(
+		qstart, qstart + qnum - 1, nlm_xlpge_msgring_handler, sc)) {
 		panic("Couldn't register NAE msgring handler\n");
 	}
 
@@ -651,8 +638,8 @@ nlm_xlpnae_attach(device_t dev)
 	 */
 	qstart = nlm_qidstart(poe_pcibase);
 	qnum = nlm_qnum(poe_pcibase);
-	if (register_msgring_handler(qstart, qstart + qnum - 1,
-	    nlm_xlpge_msgring_handler, sc)) {
+	if (register_msgring_handler(
+		qstart, qstart + qnum - 1, nlm_xlpge_msgring_handler, sc)) {
 		panic("Couldn't register POE msgring handler\n");
 	}
 
@@ -667,8 +654,8 @@ nlm_xlpnae_attach(device_t dev)
 		block = sc->portcfg[i].block;
 		port = sc->portcfg[i].port;
 		tmpd = device_add_child(dev, "xlpge", i);
-		device_set_ivars(tmpd,
-		    &(nae_ivars->block_ivars[block].port_ivars[port]));
+		device_set_ivars(
+		    tmpd, &(nae_ivars->block_ivars[block].port_ivars[port]));
 		sprintf(desc, "XLP NAE Port %d,%d", block, port);
 		device_set_desc_copy(tmpd, desc);
 	}
@@ -728,32 +715,32 @@ nlm_xlpge_mac_set_rx_mode(struct nlm_xlpge_softc *sc)
 {
 	if (sc->if_flags & IFF_PROMISC) {
 		if (sc->type == SGMIIC)
-			nlm_nae_setup_rx_mode_sgmii(sc->base_addr,
-			    sc->block, sc->port, sc->type, 1 /* broadcast */,
-			    1/* multicast */, 0 /* pause */, 1 /* promisc */);
+			nlm_nae_setup_rx_mode_sgmii(sc->base_addr, sc->block,
+			    sc->port, sc->type, 1 /* broadcast */,
+			    1 /* multicast */, 0 /* pause */, 1 /* promisc */);
 		else
-			nlm_nae_setup_rx_mode_xaui(sc->base_addr,
-			    sc->block, sc->port, sc->type, 1 /* broadcast */,
-			    1/* multicast */, 0 /* pause */, 1 /* promisc */);
+			nlm_nae_setup_rx_mode_xaui(sc->base_addr, sc->block,
+			    sc->port, sc->type, 1 /* broadcast */,
+			    1 /* multicast */, 0 /* pause */, 1 /* promisc */);
 	} else {
 		if (sc->type == SGMIIC)
-			nlm_nae_setup_rx_mode_sgmii(sc->base_addr,
-			    sc->block, sc->port, sc->type, 1 /* broadcast */,
-			    1/* multicast */, 0 /* pause */, 0 /* promisc */);
+			nlm_nae_setup_rx_mode_sgmii(sc->base_addr, sc->block,
+			    sc->port, sc->type, 1 /* broadcast */,
+			    1 /* multicast */, 0 /* pause */, 0 /* promisc */);
 		else
-			nlm_nae_setup_rx_mode_xaui(sc->base_addr,
-			    sc->block, sc->port, sc->type, 1 /* broadcast */,
-			    1/* multicast */, 0 /* pause */, 0 /* promisc */);
+			nlm_nae_setup_rx_mode_xaui(sc->base_addr, sc->block,
+			    sc->port, sc->type, 1 /* broadcast */,
+			    1 /* multicast */, 0 /* pause */, 0 /* promisc */);
 	}
 }
 
 static int
 nlm_xlpge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	struct mii_data		*mii;
-	struct nlm_xlpge_softc	*sc;
-	struct ifreq		*ifr;
-	int			error;
+	struct mii_data *mii;
+	struct nlm_xlpge_softc *sc;
+	struct ifreq *ifr;
+	int error;
 
 	sc = ifp->if_softc;
 	error = 0;
@@ -782,8 +769,8 @@ nlm_xlpge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFMEDIA:
 		if (sc->mii_bus != NULL) {
 			mii = device_get_softc(sc->mii_bus);
-			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media,
-			    command);
+			error = ifmedia_ioctl(
+			    ifp, ifr, &mii->mii_media, command);
 		}
 		break;
 	default:
@@ -797,13 +784,13 @@ nlm_xlpge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static int
 xlpge_tx(struct ifnet *ifp, struct mbuf *mbuf_chain)
 {
-	struct nlm_fmn_msg	msg;
-	struct xlpge_tx_desc	*p2p;
-	struct nlm_xlpge_softc	*sc;
-	struct mbuf	*m;
-	vm_paddr_t      paddr;
-	int		fbid, dst, pos, err;
-	int		ret = 0, tx_msgstatus, retries;
+	struct nlm_fmn_msg msg;
+	struct xlpge_tx_desc *p2p;
+	struct nlm_xlpge_softc *sc;
+	struct mbuf *m;
+	vm_paddr_t paddr;
+	int fbid, dst, pos, err;
+	int ret = 0, tx_msgstatus, retries;
 
 	err = 0;
 	if (mbuf_chain == NULL)
@@ -833,9 +820,9 @@ xlpge_tx(struct ifnet *ifp, struct mbuf *mbuf_chain)
 	}
 
 	for (m = mbuf_chain; m != NULL; m = m->m_next) {
-		vm_offset_t buf = (vm_offset_t) m->m_data;
-		int	len = m->m_len;
-		int	frag_sz;
+		vm_offset_t buf = (vm_offset_t)m->m_data;
+		int len = m->m_len;
+		int frag_sz;
 		uint64_t desc;
 
 		/*printf("m_data = %p len %d\n", m->m_data, len); */
@@ -851,8 +838,7 @@ xlpge_tx(struct ifnet *ifp, struct mbuf *mbuf_chain)
 			frag_sz = PAGE_SIZE - (buf & PAGE_MASK);
 			if (len < frag_sz)
 				frag_sz = len;
-			desc = nae_tx_desc(P2D_NEOP, 0, 127,
-			    frag_sz, paddr);
+			desc = nae_tx_desc(P2D_NEOP, 0, 127, frag_sz, paddr);
 			p2p->frag[pos] = htobe64(desc);
 			pos++;
 			len -= frag_sz;
@@ -863,17 +849,17 @@ xlpge_tx(struct ifnet *ifp, struct mbuf *mbuf_chain)
 	KASSERT(pos != 0, ("Zero-length mbuf chain?\n"));
 
 	/* Make the last one P2D EOP */
-	p2p->frag[pos-1] |= htobe64((uint64_t)P2D_EOP << 62);
+	p2p->frag[pos - 1] |= htobe64((uint64_t)P2D_EOP << 62);
 
 	/* stash useful pointers in the desc */
-	p2p->frag[XLP_NTXFRAGS-3] = 0xf00bad;
-	p2p->frag[XLP_NTXFRAGS-2] = (uintptr_t)p2p;
-	p2p->frag[XLP_NTXFRAGS-1] = (uintptr_t)mbuf_chain;
+	p2p->frag[XLP_NTXFRAGS - 3] = 0xf00bad;
+	p2p->frag[XLP_NTXFRAGS - 2] = (uintptr_t)p2p;
+	p2p->frag[XLP_NTXFRAGS - 1] = (uintptr_t)mbuf_chain;
 
 	paddr = vtophys(p2p);
 	msg.msg[0] = nae_tx_desc(P2P, 0, fbid, pos, paddr);
 
-	for (retries = 16;  retries > 0; retries--) {
+	for (retries = 16; retries > 0; retries--) {
 		ret = nlm_fmn_msgsend(dst, 1, FMN_SWCODE_NAE, &msg);
 		if (ret == 0)
 			return (0);
@@ -922,7 +908,7 @@ nlm_xlpge_gmac_config_speed(struct nlm_xlpge_softc *sc)
 static void
 nlm_xlpge_port_disable(struct nlm_xlpge_softc *sc)
 {
-	struct ifnet   *ifp;
+	struct ifnet *ifp;
 
 	ifp = sc->xlpge_if;
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
@@ -944,8 +930,7 @@ nlm_mii_pollstat(void *arg)
 
 		mii_pollstat(mii);
 
-		callout_reset(&sc->xlpge_callout, hz,
-		    nlm_mii_pollstat, sc);
+		callout_reset(&sc->xlpge_callout, hz, nlm_mii_pollstat, sc);
 	}
 }
 
@@ -962,7 +947,7 @@ static void
 nlm_xlpge_init(void *addr)
 {
 	struct nlm_xlpge_softc *sc;
-	struct ifnet   *ifp;
+	struct ifnet *ifp;
 	struct mii_data *mii = NULL;
 
 	sc = (struct nlm_xlpge_softc *)addr;
@@ -997,11 +982,11 @@ xlpge_read_mac_addr(struct nlm_xlpge_softc *sc)
 	sc->dev_addr[5] += (sc->block * 4) + sc->port;
 
 	if (sc->type == SGMIIC)
-		nlm_nae_setup_mac_addr_sgmii(sc->base_addr, sc->block,
-		    sc->port, sc->type, sc->dev_addr);
+		nlm_nae_setup_mac_addr_sgmii(
+		    sc->base_addr, sc->block, sc->port, sc->type, sc->dev_addr);
 	else if (sc->type == XAUIC)
-		nlm_nae_setup_mac_addr_xaui(sc->base_addr, sc->block,
-		    sc->port, sc->type, sc->dev_addr);
+		nlm_nae_setup_mac_addr_xaui(
+		    sc->base_addr, sc->block, sc->port, sc->type, sc->dev_addr);
 }
 
 static int
@@ -1057,14 +1042,15 @@ nlm_xlpge_ifinit(struct nlm_xlpge_softc *sc)
 	ifp->if_capabilities = 0;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_ioctl = nlm_xlpge_ioctl;
-	ifp->if_init  = nlm_xlpge_init ;
+	ifp->if_init = nlm_xlpge_init;
 	ifp->if_hwassist = 0;
-	ifp->if_snd.ifq_drv_maxlen = NLM_XLPGE_TXQ_SIZE; /* TODO: make this a sysint */
+	ifp->if_snd.ifq_drv_maxlen =
+	    NLM_XLPGE_TXQ_SIZE; /* TODO: make this a sysint */
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 
-	ifmedia_init(&sc->xlpge_mii.mii_media, 0, xlpge_mediachange,
-	    xlpge_mediastatus);
+	ifmedia_init(
+	    &sc->xlpge_mii.mii_media, 0, xlpge_mediachange, xlpge_mediastatus);
 	ifmedia_add(&sc->xlpge_mii.mii_media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&sc->xlpge_mii.mii_media, IFM_ETHER | IFM_AUTO);
 	sc->xlpge_mii.mii_media.ifm_media =
@@ -1088,10 +1074,10 @@ nlm_xlpge_probe(device_t dev)
 static void *
 get_buf(void)
 {
-	struct mbuf     *m_new;
-	uint64_t        *md;
+	struct mbuf *m_new;
+	uint64_t *md;
 #ifdef INVARIANTS
-	vm_paddr_t      temp1, temp2;
+	vm_paddr_t temp1, temp2;
 #endif
 
 	if ((m_new = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR)) == NULL)
@@ -1100,15 +1086,14 @@ get_buf(void)
 	KASSERT(((uintptr_t)m_new->m_data & (NAE_CACHELINE_SIZE - 1)) == 0,
 	    ("m_new->m_data is not cacheline aligned"));
 	md = (uint64_t *)m_new->m_data;
-	md[0] = (intptr_t)m_new;        /* Back Ptr */
+	md[0] = (intptr_t)m_new; /* Back Ptr */
 	md[1] = 0xf00bad;
 	m_adj(m_new, NAE_CACHELINE_SIZE);
 
 #ifdef INVARIANTS
-	temp1 = vtophys((vm_offset_t) m_new->m_data);
-	temp2 = vtophys((vm_offset_t) m_new->m_data + 1536);
-	KASSERT((temp1 + 1536) == temp2,
-	    ("Alloced buffer is not contiguous"));
+	temp1 = vtophys((vm_offset_t)m_new->m_data);
+	temp2 = vtophys((vm_offset_t)m_new->m_data + 1536);
+	KASSERT((temp1 + 1536) == temp2, ("Alloced buffer is not contiguous"));
 #endif
 	return ((void *)m_new->m_data);
 }
@@ -1118,9 +1103,9 @@ nlm_xlpge_mii_init(device_t dev, struct nlm_xlpge_softc *sc)
 {
 	int error;
 
-	error = mii_attach(dev, &sc->mii_bus, sc->xlpge_if,
-			xlpge_mediachange, xlpge_mediastatus,
-			BMSR_DEFCAPMASK, sc->phy_addr, MII_OFFSET_ANY, 0);
+	error = mii_attach(dev, &sc->mii_bus, sc->xlpge_if, xlpge_mediachange,
+	    xlpge_mediastatus, BMSR_DEFCAPMASK, sc->phy_addr, MII_OFFSET_ANY,
+	    0);
 
 	if (error) {
 		device_printf(dev, "attaching PHYs failed\n");
@@ -1133,8 +1118,7 @@ nlm_xlpge_mii_init(device_t dev, struct nlm_xlpge_softc *sc)
 	}
 }
 
-static int
-xlpge_stats_sysctl(SYSCTL_HANDLER_ARGS)
+static int xlpge_stats_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct nlm_xlpge_softc *sc;
 	uint32_t val;
@@ -1158,15 +1142,15 @@ nlm_xlpge_setup_stats_sysctl(device_t dev, struct nlm_xlpge_softc *sc)
 	tree = device_get_sysctl_tree(dev);
 	child = SYSCTL_CHILDREN(tree);
 
-#define XLPGE_STAT(name, offset, desc)				\
-	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, name,		\
-	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,	\
-	    sc, offset,	xlpge_stats_sysctl, "IU", desc)
+#define XLPGE_STAT(name, offset, desc)                                 \
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, name,                    \
+	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, offset, \
+	    xlpge_stats_sysctl, "IU", desc)
 
 	XLPGE_STAT("tr127", nlm_sgmii_stats_tr127, "TxRx 64 - 127 Bytes");
 	XLPGE_STAT("tr255", nlm_sgmii_stats_tr255, "TxRx 128 - 255 Bytes");
 	XLPGE_STAT("tr511", nlm_sgmii_stats_tr511, "TxRx 256 - 511 Bytes");
-	XLPGE_STAT("tr1k",  nlm_sgmii_stats_tr1k,  "TxRx 512 - 1023 Bytes");
+	XLPGE_STAT("tr1k", nlm_sgmii_stats_tr1k, "TxRx 512 - 1023 Bytes");
 	XLPGE_STAT("trmax", nlm_sgmii_stats_trmax, "TxRx 1024 - 1518 Bytes");
 	XLPGE_STAT("trmgv", nlm_sgmii_stats_trmgv, "TxRx 1519 - 1522 Bytes");
 
@@ -1244,15 +1228,15 @@ nlm_xlpge_attach(device_t dev)
 
 	XLPGE_LOCK_INIT(sc, device_get_nameunit(dev));
 
-	port = (sc->block*4)+sc->port;
+	port = (sc->block * 4) + sc->port;
 	sc->nfree_desc = nae_port_config[port].num_free_descs;
 	sc->txq = nae_port_config[port].txq;
 	sc->rxfreeq = nae_port_config[port].rxfreeq;
 
 	nlm_xlpge_submit_rx_free_desc(sc, sc->nfree_desc);
 	if (sc->hw_parser_en)
-		nlm_enable_hardware_parser_per_port(sc->base_addr,
-		    sc->block, sc->port);
+		nlm_enable_hardware_parser_per_port(
+		    sc->base_addr, sc->block, sc->port);
 
 	nlm_xlpge_ifinit(sc);
 	ifp_ports[port].xlpge_sc = sc;
@@ -1298,8 +1282,8 @@ nlm_xlpge_mii_read(device_t dev, int phyaddr, int regidx)
 
 	sc = device_get_softc(dev);
 	if (sc->type == SGMIIC)
-		val = nlm_gmac_mdio_read(sc->base_addr, sc->mdio_bus,
-		    BLOCK_7, LANE_CFG, phyaddr, regidx);
+		val = nlm_gmac_mdio_read(sc->base_addr, sc->mdio_bus, BLOCK_7,
+		    LANE_CFG, phyaddr, regidx);
 	else
 		val = 0xffff;
 
@@ -1332,20 +1316,20 @@ nlm_xlpge_mii_statchg(device_t dev)
 
 	mii = device_get_softc(sc->mii_bus);
 	if (mii->mii_media_status & IFM_ACTIVE) {
-		if (IFM_SUBTYPE(mii->mii_media_active) ==  IFM_10_T) {
+		if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T) {
 			sc->speed = NLM_SGMII_SPEED_10;
-			speed =  "10Mbps";
+			speed = "10Mbps";
 		} else if (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
 			sc->speed = NLM_SGMII_SPEED_100;
 			speed = "100Mbps";
 		} else { /* default to 1G */
 			sc->speed = NLM_SGMII_SPEED_1000;
-			speed =  "1Gbps";
+			speed = "1Gbps";
 		}
 
 		if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
 			sc->duplexity = NLM_SGMII_DUPLEX_FULL;
-			duplexity =  "full";
+			duplexity = "full";
 		} else {
 			sc->duplexity = NLM_SGMII_DUPLEX_HALF;
 			duplexity = "half";
@@ -1365,7 +1349,7 @@ nlm_xlpge_mii_statchg(device_t dev)
 static void
 nlm_xlpge_release_mbuf(uint64_t paddr)
 {
-	uint64_t	mag, desc, mbuf;
+	uint64_t mag, desc, mbuf;
 
 	paddr += (XLP_NTXFRAGS - 3) * sizeof(uint64_t);
 	mag = nlm_paddr_ld(paddr);
@@ -1374,7 +1358,8 @@ nlm_xlpge_release_mbuf(uint64_t paddr)
 
 	if (mag != 0xf00bad) {
 		/* somebody else packet Error - FIXME in intialization */
-		printf("cpu %d: ERR Tx packet paddr %jx, mag %jx, desc %jx mbuf %jx\n",
+		printf(
+		    "cpu %d: ERR Tx packet paddr %jx, mag %jx, desc %jx mbuf %jx\n",
 		    nlm_cpuid(), (uintmax_t)paddr, (uintmax_t)mag,
 		    (intmax_t)desc, (uintmax_t)mbuf);
 		return;
@@ -1386,11 +1371,11 @@ nlm_xlpge_release_mbuf(uint64_t paddr)
 static void
 nlm_xlpge_rx(struct nlm_xlpge_softc *sc, int port, vm_paddr_t paddr, int len)
 {
-	struct ifnet	*ifp;
-	struct mbuf	*m;
-	vm_offset_t	temp;
-	unsigned long	mag;
-	int		prepad_size;
+	struct ifnet *ifp;
+	struct mbuf *m;
+	vm_offset_t temp;
+	unsigned long mag;
+	int prepad_size;
 
 	ifp = sc->xlpge_if;
 	temp = nlm_paddr_ld(paddr - NAE_CACHELINE_SIZE);
@@ -1408,10 +1393,10 @@ nlm_xlpge_rx(struct nlm_xlpge_softc *sc, int port, vm_paddr_t paddr, int len)
 
 #ifdef DUMP_PACKET
 	{
-		int     i = 0, j = 64;
+		int i = 0, j = 64;
 		unsigned char *buf = (char *)m->m_data;
 		printf("(cpu_%d: nlge_rx, !RX_COPY) Rx Packet: length=%d\n",
-				nlm_cpuid(), len);
+		    nlm_cpuid(), len);
 		if (len < j)
 			j = len;
 		if (sc->prepad_en)
@@ -1450,7 +1435,7 @@ nlm_xlpge_submit_rx_free_desc(struct nlm_xlpge_softc *sc, int num)
 	struct nlm_fmn_msg msg;
 	void *ptr;
 
-	for(i = 0; i < num; i++) {
+	for (i = 0; i < num; i++) {
 		memset(&msg, 0, sizeof(msg));
 		ptr = get_buf();
 		if (!ptr) {
@@ -1472,7 +1457,8 @@ nlm_xlpge_submit_rx_free_desc(struct nlm_xlpge_softc *sc, int num)
 			if (ret == 0)
 				break;
 			if (n++ > 10000) {
-				printf("Too many credit fails for send free desc\n");
+				printf(
+				    "Too many credit fails for send free desc\n");
 				break;
 			}
 		}
@@ -1480,8 +1466,8 @@ nlm_xlpge_submit_rx_free_desc(struct nlm_xlpge_softc *sc, int num)
 }
 
 void
-nlm_xlpge_msgring_handler(int vc, int size, int code, int src_id,
-    struct nlm_fmn_msg *msg, void *data)
+nlm_xlpge_msgring_handler(
+    int vc, int size, int code, int src_id, struct nlm_fmn_msg *msg, void *data)
 {
 	uint64_t phys_addr;
 	struct nlm_xlpnae_softc *sc;
@@ -1504,8 +1490,8 @@ nlm_xlpge_msgring_handler(int vc, int size, int code, int src_id,
 		port = cntx2port[context];
 
 		if (port >= XLP_MAX_PORTS) {
-			printf("%s:%d Bad port %d (context=%d)\n",
-				__func__, __LINE__, port, context);
+			printf("%s:%d Bad port %d (context=%d)\n", __func__,
+			    __LINE__, port, context);
 			return;
 		}
 		ifp = ifp_ports[port].xlpge_if;
@@ -1527,8 +1513,8 @@ nlm_xlpge_msgring_handler(int vc, int size, int code, int src_id,
 		port = cntx2port[context];
 
 		if (port >= XLP_MAX_PORTS) {
-			printf("%s:%d Bad port %d (context=%d)\n",
-				__func__, __LINE__, port, context);
+			printf("%s:%d Bad port %d (context=%d)\n", __func__,
+			    __LINE__, port, context);
 			return;
 		}
 

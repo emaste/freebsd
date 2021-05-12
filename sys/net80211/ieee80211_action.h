@@ -36,19 +36,18 @@
 struct ieee80211_node;
 struct ieee80211_frame;
 
-typedef int ieee80211_send_action_func(struct ieee80211_node *,
-    int, int, void *);
-int	ieee80211_send_action_register(int cat, int act,
-		ieee80211_send_action_func *f);
-void	ieee80211_send_action_unregister(int cat, int act);
-int	ieee80211_send_action(struct ieee80211_node *, int, int, void *);
+typedef int ieee80211_send_action_func(
+    struct ieee80211_node *, int, int, void *);
+int ieee80211_send_action_register(
+    int cat, int act, ieee80211_send_action_func *f);
+void ieee80211_send_action_unregister(int cat, int act);
+int ieee80211_send_action(struct ieee80211_node *, int, int, void *);
 
 typedef int ieee80211_recv_action_func(struct ieee80211_node *,
     const struct ieee80211_frame *, const uint8_t *, const uint8_t *);
-int	ieee80211_recv_action_register(int cat, int act,
-		ieee80211_recv_action_func *);
-void	ieee80211_recv_action_unregister(int cat, int act);
-int	ieee80211_recv_action(struct ieee80211_node *,
-		const struct ieee80211_frame *,
-		const uint8_t *, const uint8_t *);
+int ieee80211_recv_action_register(
+    int cat, int act, ieee80211_recv_action_func *);
+void ieee80211_recv_action_unregister(int cat, int act);
+int ieee80211_recv_action(struct ieee80211_node *,
+    const struct ieee80211_frame *, const uint8_t *, const uint8_t *);
 #endif /* _NET80211_IEEE80211_ACTION_H_ */

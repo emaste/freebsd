@@ -47,23 +47,25 @@ __RCSID("$NetBSD: ubsan.c,v 1.3 2018/08/03 16:31:04 kamil Exp $");
 #endif
 
 #if defined(_KERNEL)
-#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/limits.h>
+#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
+
 #include <machine/_inttypes.h>
 #include <machine/stdarg.h>
-#define	ASSERT(x) KASSERT(x, ("%s: " __STRING(x) " failed", __func__))
-#define	__arraycount(x) nitems(x)
-#define	ISSET(x, y)	((x) & (y))
-#define	__BIT(x)	((uintmax_t)1 << (uintmax_t)(x))
-#define	__LOWEST_SET_BIT(__mask) ((((__mask) - 1) & (__mask)) ^ (__mask))
-#define	__SHIFTOUT(__x, __mask) (((__x) & (__mask)) / __LOWEST_SET_BIT(__mask))
+#define ASSERT(x) KASSERT(x, ("%s: " __STRING(x) " failed", __func__))
+#define __arraycount(x) nitems(x)
+#define ISSET(x, y) ((x) & (y))
+#define __BIT(x) ((uintmax_t)1 << (uintmax_t)(x))
+#define __LOWEST_SET_BIT(__mask) ((((__mask)-1) & (__mask)) ^ (__mask))
+#define __SHIFTOUT(__x, __mask) (((__x) & (__mask)) / __LOWEST_SET_BIT(__mask))
 #else
 #if defined(_LIBC)
 #include "namespace.h"
 #endif
 #include <sys/param.h>
+
 #include <assert.h>
 #include <inttypes.h>
 #include <math.h>
@@ -85,41 +87,41 @@ __RCSID("$NetBSD: ubsan.c,v 1.3 2018/08/03 16:31:04 kamil Exp $");
 #define ASSERT(x) assert(x)
 #endif
 /* These macros are available in _KERNEL only */
-#define SET(t, f)	((t) |= (f))
-#define ISSET(t, f)	((t) & (f))
-#define CLR(t, f)	((t) &= ~(f))
+#define SET(t, f) ((t) |= (f))
+#define ISSET(t, f) ((t) & (f))
+#define CLR(t, f) ((t) &= ~(f))
 #endif
 
-#define REINTERPRET_CAST(__dt, __st)	((__dt)(__st))
-#define STATIC_CAST(__dt, __st)		((__dt)(__st))
+#define REINTERPRET_CAST(__dt, __st) ((__dt)(__st))
+#define STATIC_CAST(__dt, __st) ((__dt)(__st))
 
-#define ACK_REPORTED	__BIT(31)
+#define ACK_REPORTED __BIT(31)
 
-#define MUL_STRING	"*"
-#define PLUS_STRING	"+"
-#define MINUS_STRING	"-"
-#define DIVREM_STRING	"divrem"
+#define MUL_STRING "*"
+#define PLUS_STRING "+"
+#define MINUS_STRING "-"
+#define DIVREM_STRING "divrem"
 
-#define CFI_VCALL		0
-#define CFI_NVCALL		1
-#define CFI_DERIVEDCAST		2
-#define CFI_UNRELATEDCAST	3
-#define CFI_ICALL		4
-#define CFI_NVMFCALL		5
-#define CFI_VMFCALL		6
+#define CFI_VCALL 0
+#define CFI_NVCALL 1
+#define CFI_DERIVEDCAST 2
+#define CFI_UNRELATEDCAST 3
+#define CFI_ICALL 4
+#define CFI_NVMFCALL 5
+#define CFI_VMFCALL 6
 
-#define NUMBER_MAXLEN	128
-#define LOCATION_MAXLEN	(PATH_MAX + 32 /* ':LINE:COLUMN' */)
+#define NUMBER_MAXLEN 128
+#define LOCATION_MAXLEN (PATH_MAX + 32 /* ':LINE:COLUMN' */)
 
-#define WIDTH_8		8
-#define WIDTH_16	16
-#define WIDTH_32	32
-#define WIDTH_64	64
-#define WIDTH_80	80
-#define WIDTH_96	96
-#define WIDTH_128	128
+#define WIDTH_8 8
+#define WIDTH_16 16
+#define WIDTH_32 32
+#define WIDTH_64 64
+#define WIDTH_80 80
+#define WIDTH_96 96
+#define WIDTH_128 128
 
-#define NUMBER_SIGNED_BIT	1U
+#define NUMBER_SIGNED_BIT 1U
 
 #if __SIZEOF_INT128__
 typedef __int128 longest;
@@ -131,17 +133,17 @@ typedef uint64_t ulongest;
 
 #ifndef _KERNEL
 static int ubsan_flags = -1;
-#define UBSAN_ABORT	__BIT(0)
-#define UBSAN_STDOUT	__BIT(1)
-#define UBSAN_STDERR	__BIT(2)
-#define UBSAN_SYSLOG	__BIT(3)
+#define UBSAN_ABORT __BIT(0)
+#define UBSAN_STDOUT __BIT(1)
+#define UBSAN_STDERR __BIT(2)
+#define UBSAN_SYSLOG __BIT(3)
 #endif
 
 /* Undefined Behavior specific defines and structures */
 
-#define KIND_INTEGER	0
-#define KIND_FLOAT	1
-#define KIND_UNKNOWN	UINT16_MAX
+#define KIND_INTEGER 0
+#define KIND_FLOAT 1
+#define KIND_UNKNOWN UINT16_MAX
 
 struct CSourceLocation {
 	char *mFilename;
@@ -238,7 +240,8 @@ struct CVLABoundData {
 };
 
 struct CFloatCastOverflowData {
-	struct CSourceLocation mLocation;	/* This field exists in this struct since 2015 August 11th */
+	struct CSourceLocation mLocation; /* This field exists in this struct
+					     since 2015 August 11th */
 	struct CTypeDescriptor *mFromType;
 	struct CTypeDescriptor *mToType;
 };
@@ -253,102 +256,185 @@ struct CAlignmentAssumptionData {
 static void Report(bool isFatal, const char *pFormat, ...) __printflike(2, 3);
 static bool isAlreadyReported(struct CSourceLocation *pLocation);
 static size_t zDeserializeTypeWidth(struct CTypeDescriptor *pType);
-static void DeserializeLocation(char *pBuffer, size_t zBUfferLength, struct CSourceLocation *pLocation);
+static void DeserializeLocation(
+    char *pBuffer, size_t zBUfferLength, struct CSourceLocation *pLocation);
 #ifdef __SIZEOF_INT128__
-static void DeserializeUINT128(char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, __uint128_t U128);
+static void DeserializeUINT128(char *pBuffer, size_t zBUfferLength,
+    struct CTypeDescriptor *pType, __uint128_t U128);
 #endif
-static void DeserializeNumberSigned(char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, longest L);
-static void DeserializeNumberUnsigned(char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, ulongest L);
+static void DeserializeNumberSigned(char *pBuffer, size_t zBUfferLength,
+    struct CTypeDescriptor *pType, longest L);
+static void DeserializeNumberUnsigned(char *pBuffer, size_t zBUfferLength,
+    struct CTypeDescriptor *pType, ulongest L);
 #ifndef _KERNEL
-static void DeserializeFloatOverPointer(char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, unsigned long *pNumber);
-static void DeserializeFloatInlined(char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, unsigned long ulNumber);
+static void DeserializeFloatOverPointer(char *pBuffer, size_t zBUfferLength,
+    struct CTypeDescriptor *pType, unsigned long *pNumber);
+static void DeserializeFloatInlined(char *pBuffer, size_t zBUfferLength,
+    struct CTypeDescriptor *pType, unsigned long ulNumber);
 #endif
-static longest llliGetNumber(char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber);
-static ulongest llluGetNumber(char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber);
+static longest llliGetNumber(
+    char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber);
+static ulongest llluGetNumber(
+    char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber);
 #ifndef _KERNEL
-static void DeserializeNumberFloat(char *szLocation, char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, unsigned long ulNumber);
+static void DeserializeNumberFloat(char *szLocation, char *pBuffer,
+    size_t zBUfferLength, struct CTypeDescriptor *pType,
+    unsigned long ulNumber);
 #endif
-static void DeserializeNumber(char *szLocation, char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, unsigned long ulNumber);
+static void DeserializeNumber(char *szLocation, char *pBuffer,
+    size_t zBUfferLength, struct CTypeDescriptor *pType,
+    unsigned long ulNumber);
 static const char *DeserializeTypeCheckKind(uint8_t hhuTypeCheckKind);
 static const char *DeserializeBuiltinCheckKind(uint8_t hhuBuiltinCheckKind);
 static const char *DeserializeCFICheckKind(uint8_t hhuCFICheckKind);
-static bool isNegativeNumber(char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber);
-static bool isShiftExponentTooLarge(char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber, size_t zWidth);
+static bool isNegativeNumber(
+    char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber);
+static bool isShiftExponentTooLarge(char *szLocation,
+    struct CTypeDescriptor *pType, unsigned long ulNumber, size_t zWidth);
 
 /* Unused in this implementation, emitted by the C++ check dynamic type cast. */
 intptr_t __ubsan_vptr_type_cache[128];
 
 /* Public symbols used in the instrumentation of the code generation part */
-void __ubsan_handle_add_overflow(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
-void __ubsan_handle_add_overflow_abort(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
-void __ubsan_handle_alignment_assumption(struct CAlignmentAssumptionData *pData, unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset);
-void __ubsan_handle_alignment_assumption_abort(struct CAlignmentAssumptionData *pData, unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset);
+void __ubsan_handle_add_overflow(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
+void __ubsan_handle_add_overflow_abort(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
+void __ubsan_handle_alignment_assumption(struct CAlignmentAssumptionData *pData,
+    unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset);
+void __ubsan_handle_alignment_assumption_abort(
+    struct CAlignmentAssumptionData *pData, unsigned long ulPointer,
+    unsigned long ulAlignment, unsigned long ulOffset);
 void __ubsan_handle_builtin_unreachable(struct CUnreachableData *pData);
-void __ubsan_handle_cfi_bad_type(struct CCFICheckFailData *pData, unsigned long ulVtable, bool bValidVtable, bool FromUnrecoverableHandler, unsigned long ProgramCounter, unsigned long FramePointer);
-void __ubsan_handle_cfi_check_fail(struct CCFICheckFailData *pData, unsigned long ulValue, unsigned long ulValidVtable);
-void __ubsan_handle_cfi_check_fail_abort(struct CCFICheckFailData *pData, unsigned long ulValue, unsigned long ulValidVtable);
-void __ubsan_handle_divrem_overflow(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
-void __ubsan_handle_divrem_overflow_abort(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
-void __ubsan_handle_dynamic_type_cache_miss(struct CDynamicTypeCacheMissData *pData, unsigned long ulPointer, unsigned long ulHash);
-void __ubsan_handle_dynamic_type_cache_miss_abort(struct CDynamicTypeCacheMissData *pData, unsigned long ulPointer, unsigned long ulHash);
-void __ubsan_handle_float_cast_overflow(struct CFloatCastOverflowData *pData, unsigned long ulFrom);
-void __ubsan_handle_float_cast_overflow_abort(struct CFloatCastOverflowData *pData, unsigned long ulFrom);
-void __ubsan_handle_function_type_mismatch(struct CFunctionTypeMismatchData *pData, unsigned long ulFunction);
-void __ubsan_handle_function_type_mismatch_abort(struct CFunctionTypeMismatchData *pData, unsigned long ulFunction);
+void __ubsan_handle_cfi_bad_type(struct CCFICheckFailData *pData,
+    unsigned long ulVtable, bool bValidVtable, bool FromUnrecoverableHandler,
+    unsigned long ProgramCounter, unsigned long FramePointer);
+void __ubsan_handle_cfi_check_fail(struct CCFICheckFailData *pData,
+    unsigned long ulValue, unsigned long ulValidVtable);
+void __ubsan_handle_cfi_check_fail_abort(struct CCFICheckFailData *pData,
+    unsigned long ulValue, unsigned long ulValidVtable);
+void __ubsan_handle_divrem_overflow(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
+void __ubsan_handle_divrem_overflow_abort(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
+void __ubsan_handle_dynamic_type_cache_miss(
+    struct CDynamicTypeCacheMissData *pData, unsigned long ulPointer,
+    unsigned long ulHash);
+void __ubsan_handle_dynamic_type_cache_miss_abort(
+    struct CDynamicTypeCacheMissData *pData, unsigned long ulPointer,
+    unsigned long ulHash);
+void __ubsan_handle_float_cast_overflow(
+    struct CFloatCastOverflowData *pData, unsigned long ulFrom);
+void __ubsan_handle_float_cast_overflow_abort(
+    struct CFloatCastOverflowData *pData, unsigned long ulFrom);
+void __ubsan_handle_function_type_mismatch(
+    struct CFunctionTypeMismatchData *pData, unsigned long ulFunction);
+void __ubsan_handle_function_type_mismatch_abort(
+    struct CFunctionTypeMismatchData *pData, unsigned long ulFunction);
 void __ubsan_handle_invalid_builtin(struct CInvalidBuiltinData *pData);
 void __ubsan_handle_invalid_builtin_abort(struct CInvalidBuiltinData *pData);
-void __ubsan_handle_load_invalid_value(struct CInvalidValueData *pData, unsigned long ulVal);
-void __ubsan_handle_load_invalid_value_abort(struct CInvalidValueData *pData, unsigned long ulVal);
+void __ubsan_handle_load_invalid_value(
+    struct CInvalidValueData *pData, unsigned long ulVal);
+void __ubsan_handle_load_invalid_value_abort(
+    struct CInvalidValueData *pData, unsigned long ulVal);
 void __ubsan_handle_missing_return(struct CUnreachableData *pData);
-void __ubsan_handle_mul_overflow(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
-void __ubsan_handle_mul_overflow_abort(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
-void __ubsan_handle_negate_overflow(struct COverflowData *pData, unsigned long ulOldVal);
-void __ubsan_handle_negate_overflow_abort(struct COverflowData *pData, unsigned long ulOldVal);
+void __ubsan_handle_mul_overflow(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
+void __ubsan_handle_mul_overflow_abort(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
+void __ubsan_handle_negate_overflow(
+    struct COverflowData *pData, unsigned long ulOldVal);
+void __ubsan_handle_negate_overflow_abort(
+    struct COverflowData *pData, unsigned long ulOldVal);
 void __ubsan_handle_nonnull_arg(struct CNonNullArgData *pData);
 void __ubsan_handle_nonnull_arg_abort(struct CNonNullArgData *pData);
-void __ubsan_handle_nonnull_return_v1(struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer);
-void __ubsan_handle_nonnull_return_v1_abort(struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer);
+void __ubsan_handle_nonnull_return_v1(
+    struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer);
+void __ubsan_handle_nonnull_return_v1_abort(
+    struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer);
 void __ubsan_handle_nullability_arg(struct CNonNullArgData *pData);
 void __ubsan_handle_nullability_arg_abort(struct CNonNullArgData *pData);
-void __ubsan_handle_nullability_return_v1(struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer);
-void __ubsan_handle_nullability_return_v1_abort(struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer);
-void __ubsan_handle_out_of_bounds(struct COutOfBoundsData *pData, unsigned long ulIndex);
-void __ubsan_handle_out_of_bounds_abort(struct COutOfBoundsData *pData, unsigned long ulIndex);
-void __ubsan_handle_pointer_overflow(struct CPointerOverflowData *pData, unsigned long ulBase, unsigned long ulResult);
-void __ubsan_handle_pointer_overflow_abort(struct CPointerOverflowData *pData, unsigned long ulBase, unsigned long ulResult);
-void __ubsan_handle_shift_out_of_bounds(struct CShiftOutOfBoundsData *pData, unsigned long ulLHS, unsigned long ulRHS);
-void __ubsan_handle_shift_out_of_bounds_abort(struct CShiftOutOfBoundsData *pData, unsigned long ulLHS, unsigned long ulRHS);
-void __ubsan_handle_sub_overflow(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
-void __ubsan_handle_sub_overflow_abort(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
-void __ubsan_handle_type_mismatch(struct CTypeMismatchData *pData, unsigned long ulPointer);
-void __ubsan_handle_type_mismatch_abort(struct CTypeMismatchData *pData, unsigned long ulPointer);
-void __ubsan_handle_type_mismatch_v1(struct CTypeMismatchData_v1 *pData, unsigned long ulPointer);
-void __ubsan_handle_type_mismatch_v1_abort(struct CTypeMismatchData_v1 *pData, unsigned long ulPointer);
-void __ubsan_handle_vla_bound_not_positive(struct CVLABoundData *pData, unsigned long ulBound);
-void __ubsan_handle_vla_bound_not_positive_abort(struct CVLABoundData *pData, unsigned long ulBound);
-void __ubsan_get_current_report_data(const char **ppOutIssueKind, const char **ppOutMessage, const char **ppOutFilename, uint32_t *pOutLine, uint32_t *pOutCol, char **ppOutMemoryAddr);
+void __ubsan_handle_nullability_return_v1(
+    struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer);
+void __ubsan_handle_nullability_return_v1_abort(
+    struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer);
+void __ubsan_handle_out_of_bounds(
+    struct COutOfBoundsData *pData, unsigned long ulIndex);
+void __ubsan_handle_out_of_bounds_abort(
+    struct COutOfBoundsData *pData, unsigned long ulIndex);
+void __ubsan_handle_pointer_overflow(struct CPointerOverflowData *pData,
+    unsigned long ulBase, unsigned long ulResult);
+void __ubsan_handle_pointer_overflow_abort(struct CPointerOverflowData *pData,
+    unsigned long ulBase, unsigned long ulResult);
+void __ubsan_handle_shift_out_of_bounds(struct CShiftOutOfBoundsData *pData,
+    unsigned long ulLHS, unsigned long ulRHS);
+void __ubsan_handle_shift_out_of_bounds_abort(
+    struct CShiftOutOfBoundsData *pData, unsigned long ulLHS,
+    unsigned long ulRHS);
+void __ubsan_handle_sub_overflow(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
+void __ubsan_handle_sub_overflow_abort(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS);
+void __ubsan_handle_type_mismatch(
+    struct CTypeMismatchData *pData, unsigned long ulPointer);
+void __ubsan_handle_type_mismatch_abort(
+    struct CTypeMismatchData *pData, unsigned long ulPointer);
+void __ubsan_handle_type_mismatch_v1(
+    struct CTypeMismatchData_v1 *pData, unsigned long ulPointer);
+void __ubsan_handle_type_mismatch_v1_abort(
+    struct CTypeMismatchData_v1 *pData, unsigned long ulPointer);
+void __ubsan_handle_vla_bound_not_positive(
+    struct CVLABoundData *pData, unsigned long ulBound);
+void __ubsan_handle_vla_bound_not_positive_abort(
+    struct CVLABoundData *pData, unsigned long ulBound);
+void __ubsan_get_current_report_data(const char **ppOutIssueKind,
+    const char **ppOutMessage, const char **ppOutFilename, uint32_t *pOutLine,
+    uint32_t *pOutCol, char **ppOutMemoryAddr);
 
-static void HandleOverflow(bool isFatal, struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS, const char *szOperation);
-static void HandleNegateOverflow(bool isFatal, struct COverflowData *pData, unsigned long ulOldValue);
-static void HandleBuiltinUnreachable(bool isFatal, struct CUnreachableData *pData);
-static void HandleTypeMismatch(bool isFatal, struct CSourceLocation *mLocation, struct CTypeDescriptor *mType, unsigned long mLogAlignment, uint8_t mTypeCheckKind, unsigned long ulPointer);
-static void HandleVlaBoundNotPositive(bool isFatal, struct CVLABoundData *pData, unsigned long ulBound);
-static void HandleOutOfBounds(bool isFatal, struct COutOfBoundsData *pData, unsigned long ulIndex);
-static void HandleShiftOutOfBounds(bool isFatal, struct CShiftOutOfBoundsData *pData, unsigned long ulLHS, unsigned long ulRHS);
-static void HandleLoadInvalidValue(bool isFatal, struct CInvalidValueData *pData, unsigned long ulValue);
-static void HandleInvalidBuiltin(bool isFatal, struct CInvalidBuiltinData *pData);
-static void HandleFunctionTypeMismatch(bool isFatal, struct CFunctionTypeMismatchData *pData, unsigned long ulFunction);
-static void HandleCFIBadType(bool isFatal, struct CCFICheckFailData *pData, unsigned long ulVtable, bool *bValidVtable, bool *FromUnrecoverableHandler, unsigned long *ProgramCounter, unsigned long *FramePointer);
-static void HandleDynamicTypeCacheMiss(bool isFatal, struct CDynamicTypeCacheMissData *pData, unsigned long ulPointer, unsigned long ulHash);
-static void HandleFloatCastOverflow(bool isFatal, struct CFloatCastOverflowData *pData, unsigned long ulFrom);
+static void HandleOverflow(bool isFatal, struct COverflowData *pData,
+    unsigned long ulLHS, unsigned long ulRHS, const char *szOperation);
+static void HandleNegateOverflow(
+    bool isFatal, struct COverflowData *pData, unsigned long ulOldValue);
+static void HandleBuiltinUnreachable(
+    bool isFatal, struct CUnreachableData *pData);
+static void HandleTypeMismatch(bool isFatal, struct CSourceLocation *mLocation,
+    struct CTypeDescriptor *mType, unsigned long mLogAlignment,
+    uint8_t mTypeCheckKind, unsigned long ulPointer);
+static void HandleVlaBoundNotPositive(
+    bool isFatal, struct CVLABoundData *pData, unsigned long ulBound);
+static void HandleOutOfBounds(
+    bool isFatal, struct COutOfBoundsData *pData, unsigned long ulIndex);
+static void HandleShiftOutOfBounds(bool isFatal,
+    struct CShiftOutOfBoundsData *pData, unsigned long ulLHS,
+    unsigned long ulRHS);
+static void HandleLoadInvalidValue(
+    bool isFatal, struct CInvalidValueData *pData, unsigned long ulValue);
+static void HandleInvalidBuiltin(
+    bool isFatal, struct CInvalidBuiltinData *pData);
+static void HandleFunctionTypeMismatch(bool isFatal,
+    struct CFunctionTypeMismatchData *pData, unsigned long ulFunction);
+static void HandleCFIBadType(bool isFatal, struct CCFICheckFailData *pData,
+    unsigned long ulVtable, bool *bValidVtable, bool *FromUnrecoverableHandler,
+    unsigned long *ProgramCounter, unsigned long *FramePointer);
+static void HandleDynamicTypeCacheMiss(bool isFatal,
+    struct CDynamicTypeCacheMissData *pData, unsigned long ulPointer,
+    unsigned long ulHash);
+static void HandleFloatCastOverflow(
+    bool isFatal, struct CFloatCastOverflowData *pData, unsigned long ulFrom);
 static void HandleMissingReturn(bool isFatal, struct CUnreachableData *pData);
 static void HandleNonnullArg(bool isFatal, struct CNonNullArgData *pData);
-static void HandleNonnullReturn(bool isFatal, struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer);
-static void HandlePointerOverflow(bool isFatal, struct CPointerOverflowData *pData, unsigned long ulBase, unsigned long ulResult);
-static void HandleAlignmentAssumption(bool isFatal, struct CAlignmentAssumptionData *pData, unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset);
+static void HandleNonnullReturn(bool isFatal, struct CNonNullReturnData *pData,
+    struct CSourceLocation *pLocationPointer);
+static void HandlePointerOverflow(bool isFatal,
+    struct CPointerOverflowData *pData, unsigned long ulBase,
+    unsigned long ulResult);
+static void HandleAlignmentAssumption(bool isFatal,
+    struct CAlignmentAssumptionData *pData, unsigned long ulPointer,
+    unsigned long ulAlignment, unsigned long ulOffset);
 
 static void
-HandleOverflow(bool isFatal, struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS, const char *szOperation)
+HandleOverflow(bool isFatal, struct COverflowData *pData, unsigned long ulLHS,
+    unsigned long ulRHS, const char *szOperation)
 {
 	char szLocation[LOCATION_MAXLEN];
 	char szLHS[NUMBER_MAXLEN];
@@ -360,15 +446,22 @@ HandleOverflow(bool isFatal, struct COverflowData *pData, unsigned long ulLHS, u
 		return;
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
-	DeserializeNumber(szLocation, szLHS, NUMBER_MAXLEN, pData->mType, ulLHS);
-	DeserializeNumber(szLocation, szRHS, NUMBER_MAXLEN, pData->mType, ulRHS);
+	DeserializeNumber(
+	    szLocation, szLHS, NUMBER_MAXLEN, pData->mType, ulLHS);
+	DeserializeNumber(
+	    szLocation, szRHS, NUMBER_MAXLEN, pData->mType, ulRHS);
 
-	Report(isFatal, "UBSan: Undefined Behavior in %s, %s integer overflow: %s %s %s cannot be represented in type %s\n",
-	       szLocation, ISSET(pData->mType->mTypeInfo, NUMBER_SIGNED_BIT) ? "signed" : "unsigned", szLHS, szOperation, szRHS, pData->mType->mTypeName);
+	Report(isFatal,
+	    "UBSan: Undefined Behavior in %s, %s integer overflow: %s %s %s cannot be represented in type %s\n",
+	    szLocation,
+	    ISSET(pData->mType->mTypeInfo, NUMBER_SIGNED_BIT) ? "signed" :
+								      "unsigned",
+	    szLHS, szOperation, szRHS, pData->mType->mTypeName);
 }
 
 static void
-HandleNegateOverflow(bool isFatal, struct COverflowData *pData, unsigned long ulOldValue)
+HandleNegateOverflow(
+    bool isFatal, struct COverflowData *pData, unsigned long ulOldValue)
 {
 	char szLocation[LOCATION_MAXLEN];
 	char szOldValue[NUMBER_MAXLEN];
@@ -379,10 +472,12 @@ HandleNegateOverflow(bool isFatal, struct COverflowData *pData, unsigned long ul
 		return;
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
-	DeserializeNumber(szLocation, szOldValue, NUMBER_MAXLEN, pData->mType, ulOldValue);
+	DeserializeNumber(
+	    szLocation, szOldValue, NUMBER_MAXLEN, pData->mType, ulOldValue);
 
-	Report(isFatal, "UBSan: Undefined Behavior in %s, negation of %s cannot be represented in type %s\n",
-	       szLocation, szOldValue, pData->mType->mTypeName);
+	Report(isFatal,
+	    "UBSan: Undefined Behavior in %s, negation of %s cannot be represented in type %s\n",
+	    szLocation, szOldValue, pData->mType->mTypeName);
 }
 
 static void
@@ -397,12 +492,15 @@ HandleBuiltinUnreachable(bool isFatal, struct CUnreachableData *pData)
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
 
-	Report(isFatal, "UBSan: Undefined Behavior in %s, calling __builtin_unreachable()\n",
-	       szLocation);
+	Report(isFatal,
+	    "UBSan: Undefined Behavior in %s, calling __builtin_unreachable()\n",
+	    szLocation);
 }
 
 static void
-HandleTypeMismatch(bool isFatal, struct CSourceLocation *mLocation, struct CTypeDescriptor *mType, unsigned long mLogAlignment, uint8_t mTypeCheckKind, unsigned long ulPointer)
+HandleTypeMismatch(bool isFatal, struct CSourceLocation *mLocation,
+    struct CTypeDescriptor *mType, unsigned long mLogAlignment,
+    uint8_t mTypeCheckKind, unsigned long ulPointer)
 {
 	char szLocation[LOCATION_MAXLEN];
 
@@ -415,19 +513,27 @@ HandleTypeMismatch(bool isFatal, struct CSourceLocation *mLocation, struct CType
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, mLocation);
 
 	if (ulPointer == 0) {
-		Report(isFatal, "UBSan: Undefined Behavior in %s, %s null pointer of type %s\n",
-		       szLocation, DeserializeTypeCheckKind(mTypeCheckKind), mType->mTypeName);
+		Report(isFatal,
+		    "UBSan: Undefined Behavior in %s, %s null pointer of type %s\n",
+		    szLocation, DeserializeTypeCheckKind(mTypeCheckKind),
+		    mType->mTypeName);
 	} else if ((mLogAlignment - 1) & ulPointer) {
-		Report(isFatal, "UBSan: Undefined Behavior in %s, %s misaligned address %p for type %s which requires %ld byte alignment\n",
-		       szLocation, DeserializeTypeCheckKind(mTypeCheckKind), REINTERPRET_CAST(void *, ulPointer), mType->mTypeName, mLogAlignment);
+		Report(isFatal,
+		    "UBSan: Undefined Behavior in %s, %s misaligned address %p for type %s which requires %ld byte alignment\n",
+		    szLocation, DeserializeTypeCheckKind(mTypeCheckKind),
+		    REINTERPRET_CAST(void *, ulPointer), mType->mTypeName,
+		    mLogAlignment);
 	} else {
-		Report(isFatal, "UBSan: Undefined Behavior in %s, %s address %p with insufficient space for an object of type %s\n",
-		       szLocation, DeserializeTypeCheckKind(mTypeCheckKind), REINTERPRET_CAST(void *, ulPointer), mType->mTypeName);
+		Report(isFatal,
+		    "UBSan: Undefined Behavior in %s, %s address %p with insufficient space for an object of type %s\n",
+		    szLocation, DeserializeTypeCheckKind(mTypeCheckKind),
+		    REINTERPRET_CAST(void *, ulPointer), mType->mTypeName);
 	}
 }
 
 static void
-HandleVlaBoundNotPositive(bool isFatal, struct CVLABoundData *pData, unsigned long ulBound)
+HandleVlaBoundNotPositive(
+    bool isFatal, struct CVLABoundData *pData, unsigned long ulBound)
 {
 	char szLocation[LOCATION_MAXLEN];
 	char szBound[NUMBER_MAXLEN];
@@ -438,14 +544,17 @@ HandleVlaBoundNotPositive(bool isFatal, struct CVLABoundData *pData, unsigned lo
 		return;
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
-	DeserializeNumber(szLocation, szBound, NUMBER_MAXLEN, pData->mType, ulBound);
+	DeserializeNumber(
+	    szLocation, szBound, NUMBER_MAXLEN, pData->mType, ulBound);
 
-	Report(isFatal, "UBSan: Undefined Behavior in %s, variable length array bound value %s <= 0\n",
-	       szLocation, szBound);
+	Report(isFatal,
+	    "UBSan: Undefined Behavior in %s, variable length array bound value %s <= 0\n",
+	    szLocation, szBound);
 }
 
 static void
-HandleOutOfBounds(bool isFatal, struct COutOfBoundsData *pData, unsigned long ulIndex)
+HandleOutOfBounds(
+    bool isFatal, struct COutOfBoundsData *pData, unsigned long ulIndex)
 {
 	char szLocation[LOCATION_MAXLEN];
 	char szIndex[NUMBER_MAXLEN];
@@ -456,14 +565,17 @@ HandleOutOfBounds(bool isFatal, struct COutOfBoundsData *pData, unsigned long ul
 		return;
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
-	DeserializeNumber(szLocation, szIndex, NUMBER_MAXLEN, pData->mIndexType, ulIndex);
+	DeserializeNumber(
+	    szLocation, szIndex, NUMBER_MAXLEN, pData->mIndexType, ulIndex);
 
-	Report(isFatal, "UBSan: Undefined Behavior in %s, index %s is out of range for type %s\n",
-	       szLocation, szIndex, pData->mArrayType->mTypeName);
+	Report(isFatal,
+	    "UBSan: Undefined Behavior in %s, index %s is out of range for type %s\n",
+	    szLocation, szIndex, pData->mArrayType->mTypeName);
 }
 
 static void
-HandleShiftOutOfBounds(bool isFatal, struct CShiftOutOfBoundsData *pData, unsigned long ulLHS, unsigned long ulRHS)
+HandleShiftOutOfBounds(bool isFatal, struct CShiftOutOfBoundsData *pData,
+    unsigned long ulLHS, unsigned long ulRHS)
 {
 	char szLocation[LOCATION_MAXLEN];
 	char szLHS[NUMBER_MAXLEN];
@@ -475,25 +587,34 @@ HandleShiftOutOfBounds(bool isFatal, struct CShiftOutOfBoundsData *pData, unsign
 		return;
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
-	DeserializeNumber(szLocation, szLHS, NUMBER_MAXLEN, pData->mLHSType, ulLHS);
-	DeserializeNumber(szLocation, szRHS, NUMBER_MAXLEN, pData->mRHSType, ulRHS);
+	DeserializeNumber(
+	    szLocation, szLHS, NUMBER_MAXLEN, pData->mLHSType, ulLHS);
+	DeserializeNumber(
+	    szLocation, szRHS, NUMBER_MAXLEN, pData->mRHSType, ulRHS);
 
 	if (isNegativeNumber(szLocation, pData->mRHSType, ulRHS))
-		Report(isFatal, "UBSan: Undefined Behavior in %s, shift exponent %s is negative\n",
-		       szLocation, szRHS);
-	else if (isShiftExponentTooLarge(szLocation, pData->mRHSType, ulRHS, zDeserializeTypeWidth(pData->mLHSType)))
-		Report(isFatal, "UBSan: Undefined Behavior in %s, shift exponent %s is too large for %zu-bit type %s\n",
-		       szLocation, szRHS, zDeserializeTypeWidth(pData->mLHSType), pData->mLHSType->mTypeName);
+		Report(isFatal,
+		    "UBSan: Undefined Behavior in %s, shift exponent %s is negative\n",
+		    szLocation, szRHS);
+	else if (isShiftExponentTooLarge(szLocation, pData->mRHSType, ulRHS,
+		     zDeserializeTypeWidth(pData->mLHSType)))
+		Report(isFatal,
+		    "UBSan: Undefined Behavior in %s, shift exponent %s is too large for %zu-bit type %s\n",
+		    szLocation, szRHS, zDeserializeTypeWidth(pData->mLHSType),
+		    pData->mLHSType->mTypeName);
 	else if (isNegativeNumber(szLocation, pData->mLHSType, ulLHS))
-		Report(isFatal, "UBSan: Undefined Behavior in %s, left shift of negative value %s\n",
-		       szLocation, szLHS);
+		Report(isFatal,
+		    "UBSan: Undefined Behavior in %s, left shift of negative value %s\n",
+		    szLocation, szLHS);
 	else
-		Report(isFatal, "UBSan: Undefined Behavior in %s, left shift of %s by %s places cannot be represented in type %s\n",
-		       szLocation, szLHS, szRHS, pData->mLHSType->mTypeName);
+		Report(isFatal,
+		    "UBSan: Undefined Behavior in %s, left shift of %s by %s places cannot be represented in type %s\n",
+		    szLocation, szLHS, szRHS, pData->mLHSType->mTypeName);
 }
 
 static void
-HandleLoadInvalidValue(bool isFatal, struct CInvalidValueData *pData, unsigned long ulValue)
+HandleLoadInvalidValue(
+    bool isFatal, struct CInvalidValueData *pData, unsigned long ulValue)
 {
 	char szLocation[LOCATION_MAXLEN];
 	char szValue[NUMBER_MAXLEN];
@@ -504,10 +625,12 @@ HandleLoadInvalidValue(bool isFatal, struct CInvalidValueData *pData, unsigned l
 		return;
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
-	DeserializeNumber(szLocation, szValue, NUMBER_MAXLEN, pData->mType, ulValue);
+	DeserializeNumber(
+	    szLocation, szValue, NUMBER_MAXLEN, pData->mType, ulValue);
 
-	Report(isFatal, "UBSan: Undefined Behavior in %s, load of value %s is not a valid value for type %s\n",
-	       szLocation, szValue, pData->mType->mTypeName);
+	Report(isFatal,
+	    "UBSan: Undefined Behavior in %s, load of value %s is not a valid value for type %s\n",
+	    szLocation, szValue, pData->mType->mTypeName);
 }
 
 static void
@@ -522,12 +645,14 @@ HandleInvalidBuiltin(bool isFatal, struct CInvalidBuiltinData *pData)
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
 
-	Report(isFatal, "UBSan: Undefined Behavior in %s, passing zero to %s, which is not a valid argument\n",
-	       szLocation, DeserializeBuiltinCheckKind(pData->mKind));
+	Report(isFatal,
+	    "UBSan: Undefined Behavior in %s, passing zero to %s, which is not a valid argument\n",
+	    szLocation, DeserializeBuiltinCheckKind(pData->mKind));
 }
 
 static void
-HandleFunctionTypeMismatch(bool isFatal, struct CFunctionTypeMismatchData *pData, unsigned long ulFunction)
+HandleFunctionTypeMismatch(bool isFatal,
+    struct CFunctionTypeMismatchData *pData, unsigned long ulFunction)
 {
 	char szLocation[LOCATION_MAXLEN];
 
@@ -548,12 +673,15 @@ HandleFunctionTypeMismatch(bool isFatal, struct CFunctionTypeMismatchData *pData
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
 
-	Report(isFatal, "UBSan: Undefined Behavior in %s, call to function %#lx through pointer to incorrect function type %s\n",
-	      szLocation, ulFunction, pData->mType->mTypeName);
+	Report(isFatal,
+	    "UBSan: Undefined Behavior in %s, call to function %#lx through pointer to incorrect function type %s\n",
+	    szLocation, ulFunction, pData->mType->mTypeName);
 }
 
 static void
-HandleCFIBadType(bool isFatal, struct CCFICheckFailData *pData, unsigned long ulVtable, bool *bValidVtable, bool *FromUnrecoverableHandler, unsigned long *ProgramCounter, unsigned long *FramePointer)
+HandleCFIBadType(bool isFatal, struct CCFICheckFailData *pData,
+    unsigned long ulVtable, bool *bValidVtable, bool *FromUnrecoverableHandler,
+    unsigned long *ProgramCounter, unsigned long *FramePointer)
 {
 	char szLocation[LOCATION_MAXLEN];
 
@@ -569,17 +697,27 @@ HandleCFIBadType(bool isFatal, struct CCFICheckFailData *pData, unsigned long ul
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
 
-	if (pData->mCheckKind == CFI_ICALL || pData->mCheckKind == CFI_VMFCALL) {
-		Report(isFatal, "UBSan: Undefined Behavior in %s, control flow integrity check for type %s failed during %s (vtable address %#lx)\n",
-		      szLocation, pData->mType->mTypeName, DeserializeCFICheckKind(pData->mCheckKind), ulVtable);
+	if (pData->mCheckKind == CFI_ICALL ||
+	    pData->mCheckKind == CFI_VMFCALL) {
+		Report(isFatal,
+		    "UBSan: Undefined Behavior in %s, control flow integrity check for type %s failed during %s (vtable address %#lx)\n",
+		    szLocation, pData->mType->mTypeName,
+		    DeserializeCFICheckKind(pData->mCheckKind), ulVtable);
 	} else {
-		Report(isFatal || FromUnrecoverableHandler, "UBSan: Undefined Behavior in %s, control flow integrity check for type %s failed during %s (vtable address %#lx; %s vtable; from %s handler; Program Counter %#lx; Frame Pointer %#lx)\n",
-		      szLocation, pData->mType->mTypeName, DeserializeCFICheckKind(pData->mCheckKind), ulVtable, *bValidVtable ? "valid" : "invalid", *FromUnrecoverableHandler ? "unrecoverable" : "recoverable", *ProgramCounter, *FramePointer);
+		Report(isFatal || FromUnrecoverableHandler,
+		    "UBSan: Undefined Behavior in %s, control flow integrity check for type %s failed during %s (vtable address %#lx; %s vtable; from %s handler; Program Counter %#lx; Frame Pointer %#lx)\n",
+		    szLocation, pData->mType->mTypeName,
+		    DeserializeCFICheckKind(pData->mCheckKind), ulVtable,
+		    *bValidVtable ? "valid" : "invalid",
+		    *FromUnrecoverableHandler ? "unrecoverable" : "recoverable",
+		    *ProgramCounter, *FramePointer);
 	}
 }
 
 static void
-HandleDynamicTypeCacheMiss(bool isFatal, struct CDynamicTypeCacheMissData *pData, unsigned long ulPointer, unsigned long ulHash)
+HandleDynamicTypeCacheMiss(bool isFatal,
+    struct CDynamicTypeCacheMissData *pData, unsigned long ulPointer,
+    unsigned long ulHash)
 {
 #if 0
 	char szLocation[LOCATION_MAXLEN];
@@ -606,7 +744,8 @@ HandleDynamicTypeCacheMiss(bool isFatal, struct CDynamicTypeCacheMissData *pData
 }
 
 static void
-HandleFloatCastOverflow(bool isFatal, struct CFloatCastOverflowData *pData, unsigned long ulFrom)
+HandleFloatCastOverflow(
+    bool isFatal, struct CFloatCastOverflowData *pData, unsigned long ulFrom)
 {
 	char szLocation[LOCATION_MAXLEN];
 	char szFrom[NUMBER_MAXLEN];
@@ -617,10 +756,13 @@ HandleFloatCastOverflow(bool isFatal, struct CFloatCastOverflowData *pData, unsi
 		return;
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
-	DeserializeNumber(szLocation, szFrom, NUMBER_MAXLEN, pData->mFromType, ulFrom);
+	DeserializeNumber(
+	    szLocation, szFrom, NUMBER_MAXLEN, pData->mFromType, ulFrom);
 
-	Report(isFatal, "UBSan: Undefined Behavior in %s, %s (of type %s) is outside the range of representable values of type %s\n",
-	       szLocation, szFrom, pData->mFromType->mTypeName, pData->mToType->mTypeName);
+	Report(isFatal,
+	    "UBSan: Undefined Behavior in %s, %s (of type %s) is outside the range of representable values of type %s\n",
+	    szLocation, szFrom, pData->mFromType->mTypeName,
+	    pData->mToType->mTypeName);
 }
 
 static void
@@ -635,8 +777,9 @@ HandleMissingReturn(bool isFatal, struct CUnreachableData *pData)
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
 
-	Report(isFatal, "UBSan: Undefined Behavior in %s, execution reached the end of a value-returning function without returning a value\n",
-	       szLocation);
+	Report(isFatal,
+	    "UBSan: Undefined Behavior in %s, execution reached the end of a value-returning function without returning a value\n",
+	    szLocation);
 }
 
 static void
@@ -652,16 +795,23 @@ HandleNonnullArg(bool isFatal, struct CNonNullArgData *pData)
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
 	if (pData->mAttributeLocation.mFilename)
-		DeserializeLocation(szAttributeLocation, LOCATION_MAXLEN, &pData->mAttributeLocation);
+		DeserializeLocation(szAttributeLocation, LOCATION_MAXLEN,
+		    &pData->mAttributeLocation);
 	else
 		szAttributeLocation[0] = '\0';
 
-	Report(isFatal, "UBSan: Undefined Behavior in %s, null pointer passed as argument %d, which is declared to never be null%s%s\n",
-	       szLocation, pData->mArgIndex, pData->mAttributeLocation.mFilename ? ", nonnull/_Nonnull specified in " : "", szAttributeLocation);
+	Report(isFatal,
+	    "UBSan: Undefined Behavior in %s, null pointer passed as argument %d, which is declared to never be null%s%s\n",
+	    szLocation, pData->mArgIndex,
+	    pData->mAttributeLocation.mFilename ?
+		      ", nonnull/_Nonnull specified in " :
+		      "",
+	    szAttributeLocation);
 }
 
 static void
-HandleNonnullReturn(bool isFatal, struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer)
+HandleNonnullReturn(bool isFatal, struct CNonNullReturnData *pData,
+    struct CSourceLocation *pLocationPointer)
 {
 	char szLocation[LOCATION_MAXLEN];
 	char szAttributeLocation[LOCATION_MAXLEN];
@@ -674,16 +824,23 @@ HandleNonnullReturn(bool isFatal, struct CNonNullReturnData *pData, struct CSour
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, pLocationPointer);
 	if (pData->mAttributeLocation.mFilename)
-		DeserializeLocation(szAttributeLocation, LOCATION_MAXLEN, &pData->mAttributeLocation);
+		DeserializeLocation(szAttributeLocation, LOCATION_MAXLEN,
+		    &pData->mAttributeLocation);
 	else
 		szAttributeLocation[0] = '\0';
 
-	Report(isFatal, "UBSan: Undefined Behavior in %s, null pointer returned from function declared to never return null%s%s\n",
-	       szLocation, pData->mAttributeLocation.mFilename ? ", nonnull/_Nonnull specified in " : "", szAttributeLocation);
+	Report(isFatal,
+	    "UBSan: Undefined Behavior in %s, null pointer returned from function declared to never return null%s%s\n",
+	    szLocation,
+	    pData->mAttributeLocation.mFilename ?
+		      ", nonnull/_Nonnull specified in " :
+		      "",
+	    szAttributeLocation);
 }
 
 static void
-HandlePointerOverflow(bool isFatal, struct CPointerOverflowData *pData, unsigned long ulBase, unsigned long ulResult)
+HandlePointerOverflow(bool isFatal, struct CPointerOverflowData *pData,
+    unsigned long ulBase, unsigned long ulResult)
 {
 	char szLocation[LOCATION_MAXLEN];
 
@@ -694,12 +851,14 @@ HandlePointerOverflow(bool isFatal, struct CPointerOverflowData *pData, unsigned
 
 	DeserializeLocation(szLocation, LOCATION_MAXLEN, &pData->mLocation);
 
-	Report(isFatal, "UBSan: Undefined Behavior in %s, pointer expression with base %#lx overflowed to %#lx\n",
-	       szLocation, ulBase, ulResult);
+	Report(isFatal,
+	    "UBSan: Undefined Behavior in %s, pointer expression with base %#lx overflowed to %#lx\n",
+	    szLocation, ulBase, ulResult);
 }
 
 static void
-HandleAlignmentAssumption(bool isFatal, struct CAlignmentAssumptionData *pData, unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset)
+HandleAlignmentAssumption(bool isFatal, struct CAlignmentAssumptionData *pData,
+    unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset)
 {
 	char szLocation[LOCATION_MAXLEN];
 	char szAssumptionLocation[LOCATION_MAXLEN];
@@ -717,18 +876,21 @@ HandleAlignmentAssumption(bool isFatal, struct CAlignmentAssumptionData *pData, 
 	if (pData->mAssumptionLocation.mFilename != NULL) {
 		DeserializeLocation(szAssumptionLocation, LOCATION_MAXLEN,
 		    &pData->mAssumptionLocation);
-		Report(isFatal, "UBSan: Undefined Behavior in %s, alignment assumption of %#lx for pointer %#lx (offset %#lx), asumption made in %s\n",
+		Report(isFatal,
+		    "UBSan: Undefined Behavior in %s, alignment assumption of %#lx for pointer %#lx (offset %#lx), asumption made in %s\n",
 		    szLocation, ulAlignment, ulRealPointer, ulOffset,
 		    szAssumptionLocation);
 	} else {
-		Report(isFatal, "UBSan: Undefined Behavior in %s, alignment assumption of %#lx for pointer %#lx (offset %#lx)\n",
+		Report(isFatal,
+		    "UBSan: Undefined Behavior in %s, alignment assumption of %#lx for pointer %#lx (offset %#lx)\n",
 		    szLocation, ulAlignment, ulRealPointer, ulOffset);
 	}
 }
 
 /* Definions of public symbols emitted by the instrumentation code */
 void
-__ubsan_handle_add_overflow(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
+__ubsan_handle_add_overflow(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
 {
 
 	ASSERT(pData);
@@ -737,7 +899,8 @@ __ubsan_handle_add_overflow(struct COverflowData *pData, unsigned long ulLHS, un
 }
 
 void
-__ubsan_handle_add_overflow_abort(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
+__ubsan_handle_add_overflow_abort(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
 {
 
 	ASSERT(pData);
@@ -746,21 +909,26 @@ __ubsan_handle_add_overflow_abort(struct COverflowData *pData, unsigned long ulL
 }
 
 void
-__ubsan_handle_alignment_assumption(struct CAlignmentAssumptionData *pData, unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset)
+__ubsan_handle_alignment_assumption(struct CAlignmentAssumptionData *pData,
+    unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset)
 {
 
 	ASSERT(pData);
 
-	HandleAlignmentAssumption(false, pData, ulPointer, ulAlignment, ulOffset);
+	HandleAlignmentAssumption(
+	    false, pData, ulPointer, ulAlignment, ulOffset);
 }
 
 void
-__ubsan_handle_alignment_assumption_abort(struct CAlignmentAssumptionData *pData, unsigned long ulPointer, unsigned long ulAlignment, unsigned long ulOffset)
+__ubsan_handle_alignment_assumption_abort(
+    struct CAlignmentAssumptionData *pData, unsigned long ulPointer,
+    unsigned long ulAlignment, unsigned long ulOffset)
 {
 
 	ASSERT(pData);
 
-	HandleAlignmentAssumption(true, pData, ulPointer, ulAlignment, ulOffset);
+	HandleAlignmentAssumption(
+	    true, pData, ulPointer, ulAlignment, ulOffset);
 }
 
 void
@@ -773,16 +941,20 @@ __ubsan_handle_builtin_unreachable(struct CUnreachableData *pData)
 }
 
 void
-__ubsan_handle_cfi_bad_type(struct CCFICheckFailData *pData, unsigned long ulVtable, bool bValidVtable, bool FromUnrecoverableHandler, unsigned long ProgramCounter, unsigned long FramePointer)
+__ubsan_handle_cfi_bad_type(struct CCFICheckFailData *pData,
+    unsigned long ulVtable, bool bValidVtable, bool FromUnrecoverableHandler,
+    unsigned long ProgramCounter, unsigned long FramePointer)
 {
 
 	ASSERT(pData);
 
-	HandleCFIBadType(false, pData, ulVtable, &bValidVtable, &FromUnrecoverableHandler, &ProgramCounter, &FramePointer);
+	HandleCFIBadType(false, pData, ulVtable, &bValidVtable,
+	    &FromUnrecoverableHandler, &ProgramCounter, &FramePointer);
 }
 
 void
-__ubsan_handle_cfi_check_fail(struct CCFICheckFailData *pData, unsigned long ulValue, unsigned long ulValidVtable)
+__ubsan_handle_cfi_check_fail(struct CCFICheckFailData *pData,
+    unsigned long ulValue, unsigned long ulValidVtable)
 {
 
 	ASSERT(pData);
@@ -791,7 +963,8 @@ __ubsan_handle_cfi_check_fail(struct CCFICheckFailData *pData, unsigned long ulV
 }
 
 void
-__ubsan_handle_cfi_check_fail_abort(struct CCFICheckFailData *pData, unsigned long ulValue, unsigned long ulValidVtable)
+__ubsan_handle_cfi_check_fail_abort(struct CCFICheckFailData *pData,
+    unsigned long ulValue, unsigned long ulValidVtable)
 {
 
 	ASSERT(pData);
@@ -800,7 +973,8 @@ __ubsan_handle_cfi_check_fail_abort(struct CCFICheckFailData *pData, unsigned lo
 }
 
 void
-__ubsan_handle_divrem_overflow(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
+__ubsan_handle_divrem_overflow(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
 {
 
 	ASSERT(pData);
@@ -809,7 +983,8 @@ __ubsan_handle_divrem_overflow(struct COverflowData *pData, unsigned long ulLHS,
 }
 
 void
-__ubsan_handle_divrem_overflow_abort(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
+__ubsan_handle_divrem_overflow_abort(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
 {
 
 	ASSERT(pData);
@@ -818,7 +993,8 @@ __ubsan_handle_divrem_overflow_abort(struct COverflowData *pData, unsigned long 
 }
 
 void
-__ubsan_handle_dynamic_type_cache_miss(struct CDynamicTypeCacheMissData *pData, unsigned long ulPointer, unsigned long ulHash)
+__ubsan_handle_dynamic_type_cache_miss(struct CDynamicTypeCacheMissData *pData,
+    unsigned long ulPointer, unsigned long ulHash)
 {
 
 	ASSERT(pData);
@@ -827,7 +1003,9 @@ __ubsan_handle_dynamic_type_cache_miss(struct CDynamicTypeCacheMissData *pData, 
 }
 
 void
-__ubsan_handle_dynamic_type_cache_miss_abort(struct CDynamicTypeCacheMissData *pData, unsigned long ulPointer, unsigned long ulHash)
+__ubsan_handle_dynamic_type_cache_miss_abort(
+    struct CDynamicTypeCacheMissData *pData, unsigned long ulPointer,
+    unsigned long ulHash)
 {
 
 	ASSERT(pData);
@@ -836,7 +1014,8 @@ __ubsan_handle_dynamic_type_cache_miss_abort(struct CDynamicTypeCacheMissData *p
 }
 
 void
-__ubsan_handle_float_cast_overflow(struct CFloatCastOverflowData *pData, unsigned long ulFrom)
+__ubsan_handle_float_cast_overflow(
+    struct CFloatCastOverflowData *pData, unsigned long ulFrom)
 {
 
 	ASSERT(pData);
@@ -845,7 +1024,8 @@ __ubsan_handle_float_cast_overflow(struct CFloatCastOverflowData *pData, unsigne
 }
 
 void
-__ubsan_handle_float_cast_overflow_abort(struct CFloatCastOverflowData *pData, unsigned long ulFrom)
+__ubsan_handle_float_cast_overflow_abort(
+    struct CFloatCastOverflowData *pData, unsigned long ulFrom)
 {
 
 	ASSERT(pData);
@@ -854,7 +1034,8 @@ __ubsan_handle_float_cast_overflow_abort(struct CFloatCastOverflowData *pData, u
 }
 
 void
-__ubsan_handle_function_type_mismatch(struct CFunctionTypeMismatchData *pData, unsigned long ulFunction)
+__ubsan_handle_function_type_mismatch(
+    struct CFunctionTypeMismatchData *pData, unsigned long ulFunction)
 {
 
 	ASSERT(pData);
@@ -863,7 +1044,8 @@ __ubsan_handle_function_type_mismatch(struct CFunctionTypeMismatchData *pData, u
 }
 
 void
-__ubsan_handle_function_type_mismatch_abort(struct CFunctionTypeMismatchData *pData, unsigned long ulFunction)
+__ubsan_handle_function_type_mismatch_abort(
+    struct CFunctionTypeMismatchData *pData, unsigned long ulFunction)
 {
 
 	ASSERT(pData);
@@ -890,7 +1072,8 @@ __ubsan_handle_invalid_builtin_abort(struct CInvalidBuiltinData *pData)
 }
 
 void
-__ubsan_handle_load_invalid_value(struct CInvalidValueData *pData, unsigned long ulValue)
+__ubsan_handle_load_invalid_value(
+    struct CInvalidValueData *pData, unsigned long ulValue)
 {
 
 	ASSERT(pData);
@@ -899,7 +1082,8 @@ __ubsan_handle_load_invalid_value(struct CInvalidValueData *pData, unsigned long
 }
 
 void
-__ubsan_handle_load_invalid_value_abort(struct CInvalidValueData *pData, unsigned long ulValue)
+__ubsan_handle_load_invalid_value_abort(
+    struct CInvalidValueData *pData, unsigned long ulValue)
 {
 
 	ASSERT(pData);
@@ -917,7 +1101,8 @@ __ubsan_handle_missing_return(struct CUnreachableData *pData)
 }
 
 void
-__ubsan_handle_mul_overflow(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
+__ubsan_handle_mul_overflow(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
 {
 
 	ASSERT(pData);
@@ -926,7 +1111,8 @@ __ubsan_handle_mul_overflow(struct COverflowData *pData, unsigned long ulLHS, un
 }
 
 void
-__ubsan_handle_mul_overflow_abort(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
+__ubsan_handle_mul_overflow_abort(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
 {
 
 	ASSERT(pData);
@@ -935,7 +1121,8 @@ __ubsan_handle_mul_overflow_abort(struct COverflowData *pData, unsigned long ulL
 }
 
 void
-__ubsan_handle_negate_overflow(struct COverflowData *pData, unsigned long ulOldValue)
+__ubsan_handle_negate_overflow(
+    struct COverflowData *pData, unsigned long ulOldValue)
 {
 
 	ASSERT(pData);
@@ -944,7 +1131,8 @@ __ubsan_handle_negate_overflow(struct COverflowData *pData, unsigned long ulOldV
 }
 
 void
-__ubsan_handle_negate_overflow_abort(struct COverflowData *pData, unsigned long ulOldValue)
+__ubsan_handle_negate_overflow_abort(
+    struct COverflowData *pData, unsigned long ulOldValue)
 {
 
 	ASSERT(pData);
@@ -971,7 +1159,8 @@ __ubsan_handle_nonnull_arg_abort(struct CNonNullArgData *pData)
 }
 
 void
-__ubsan_handle_nonnull_return_v1(struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer)
+__ubsan_handle_nonnull_return_v1(
+    struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer)
 {
 
 	ASSERT(pData);
@@ -981,7 +1170,8 @@ __ubsan_handle_nonnull_return_v1(struct CNonNullReturnData *pData, struct CSourc
 }
 
 void
-__ubsan_handle_nonnull_return_v1_abort(struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer)
+__ubsan_handle_nonnull_return_v1_abort(
+    struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer)
 {
 
 	ASSERT(pData);
@@ -1009,7 +1199,8 @@ __ubsan_handle_nullability_arg_abort(struct CNonNullArgData *pData)
 }
 
 void
-__ubsan_handle_nullability_return_v1(struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer)
+__ubsan_handle_nullability_return_v1(
+    struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer)
 {
 
 	ASSERT(pData);
@@ -1019,7 +1210,8 @@ __ubsan_handle_nullability_return_v1(struct CNonNullReturnData *pData, struct CS
 }
 
 void
-__ubsan_handle_nullability_return_v1_abort(struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer)
+__ubsan_handle_nullability_return_v1_abort(
+    struct CNonNullReturnData *pData, struct CSourceLocation *pLocationPointer)
 {
 
 	ASSERT(pData);
@@ -1029,7 +1221,8 @@ __ubsan_handle_nullability_return_v1_abort(struct CNonNullReturnData *pData, str
 }
 
 void
-__ubsan_handle_out_of_bounds(struct COutOfBoundsData *pData, unsigned long ulIndex)
+__ubsan_handle_out_of_bounds(
+    struct COutOfBoundsData *pData, unsigned long ulIndex)
 {
 
 	ASSERT(pData);
@@ -1038,7 +1231,8 @@ __ubsan_handle_out_of_bounds(struct COutOfBoundsData *pData, unsigned long ulInd
 }
 
 void
-__ubsan_handle_out_of_bounds_abort(struct COutOfBoundsData *pData, unsigned long ulIndex)
+__ubsan_handle_out_of_bounds_abort(
+    struct COutOfBoundsData *pData, unsigned long ulIndex)
 {
 
 	ASSERT(pData);
@@ -1047,7 +1241,8 @@ __ubsan_handle_out_of_bounds_abort(struct COutOfBoundsData *pData, unsigned long
 }
 
 void
-__ubsan_handle_pointer_overflow(struct CPointerOverflowData *pData, unsigned long ulBase, unsigned long ulResult)
+__ubsan_handle_pointer_overflow(struct CPointerOverflowData *pData,
+    unsigned long ulBase, unsigned long ulResult)
 {
 
 	ASSERT(pData);
@@ -1056,7 +1251,8 @@ __ubsan_handle_pointer_overflow(struct CPointerOverflowData *pData, unsigned lon
 }
 
 void
-__ubsan_handle_pointer_overflow_abort(struct CPointerOverflowData *pData, unsigned long ulBase, unsigned long ulResult)
+__ubsan_handle_pointer_overflow_abort(struct CPointerOverflowData *pData,
+    unsigned long ulBase, unsigned long ulResult)
 {
 
 	ASSERT(pData);
@@ -1065,7 +1261,8 @@ __ubsan_handle_pointer_overflow_abort(struct CPointerOverflowData *pData, unsign
 }
 
 void
-__ubsan_handle_shift_out_of_bounds(struct CShiftOutOfBoundsData *pData, unsigned long ulLHS, unsigned long ulRHS)
+__ubsan_handle_shift_out_of_bounds(struct CShiftOutOfBoundsData *pData,
+    unsigned long ulLHS, unsigned long ulRHS)
 {
 
 	ASSERT(pData);
@@ -1074,7 +1271,8 @@ __ubsan_handle_shift_out_of_bounds(struct CShiftOutOfBoundsData *pData, unsigned
 }
 
 void
-__ubsan_handle_shift_out_of_bounds_abort(struct CShiftOutOfBoundsData *pData, unsigned long ulLHS, unsigned long ulRHS)
+__ubsan_handle_shift_out_of_bounds_abort(struct CShiftOutOfBoundsData *pData,
+    unsigned long ulLHS, unsigned long ulRHS)
 {
 
 	ASSERT(pData);
@@ -1083,7 +1281,8 @@ __ubsan_handle_shift_out_of_bounds_abort(struct CShiftOutOfBoundsData *pData, un
 }
 
 void
-__ubsan_handle_sub_overflow(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
+__ubsan_handle_sub_overflow(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
 {
 
 	ASSERT(pData);
@@ -1092,7 +1291,8 @@ __ubsan_handle_sub_overflow(struct COverflowData *pData, unsigned long ulLHS, un
 }
 
 void
-__ubsan_handle_sub_overflow_abort(struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
+__ubsan_handle_sub_overflow_abort(
+    struct COverflowData *pData, unsigned long ulLHS, unsigned long ulRHS)
 {
 
 	ASSERT(pData);
@@ -1101,43 +1301,52 @@ __ubsan_handle_sub_overflow_abort(struct COverflowData *pData, unsigned long ulL
 }
 
 void
-__ubsan_handle_type_mismatch(struct CTypeMismatchData *pData, unsigned long ulPointer)
+__ubsan_handle_type_mismatch(
+    struct CTypeMismatchData *pData, unsigned long ulPointer)
 {
 
 	ASSERT(pData);
 
-	HandleTypeMismatch(false, &pData->mLocation, pData->mType, pData->mLogAlignment, pData->mTypeCheckKind, ulPointer);
+	HandleTypeMismatch(false, &pData->mLocation, pData->mType,
+	    pData->mLogAlignment, pData->mTypeCheckKind, ulPointer);
 }
 
 void
-__ubsan_handle_type_mismatch_abort(struct CTypeMismatchData *pData, unsigned long ulPointer)
+__ubsan_handle_type_mismatch_abort(
+    struct CTypeMismatchData *pData, unsigned long ulPointer)
 {
 
 	ASSERT(pData);
 
-	HandleTypeMismatch(true, &pData->mLocation, pData->mType, pData->mLogAlignment, pData->mTypeCheckKind, ulPointer);
+	HandleTypeMismatch(true, &pData->mLocation, pData->mType,
+	    pData->mLogAlignment, pData->mTypeCheckKind, ulPointer);
 }
 
 void
-__ubsan_handle_type_mismatch_v1(struct CTypeMismatchData_v1 *pData, unsigned long ulPointer)
+__ubsan_handle_type_mismatch_v1(
+    struct CTypeMismatchData_v1 *pData, unsigned long ulPointer)
 {
 
 	ASSERT(pData);
 
-	HandleTypeMismatch(false, &pData->mLocation, pData->mType, __BIT(pData->mLogAlignment), pData->mTypeCheckKind, ulPointer);
+	HandleTypeMismatch(false, &pData->mLocation, pData->mType,
+	    __BIT(pData->mLogAlignment), pData->mTypeCheckKind, ulPointer);
 }
 
 void
-__ubsan_handle_type_mismatch_v1_abort(struct CTypeMismatchData_v1 *pData, unsigned long ulPointer)
+__ubsan_handle_type_mismatch_v1_abort(
+    struct CTypeMismatchData_v1 *pData, unsigned long ulPointer)
 {
 
 	ASSERT(pData);
 
-	HandleTypeMismatch(true, &pData->mLocation, pData->mType, __BIT(pData->mLogAlignment), pData->mTypeCheckKind, ulPointer);
+	HandleTypeMismatch(true, &pData->mLocation, pData->mType,
+	    __BIT(pData->mLogAlignment), pData->mTypeCheckKind, ulPointer);
 }
 
 void
-__ubsan_handle_vla_bound_not_positive(struct CVLABoundData *pData, unsigned long ulBound)
+__ubsan_handle_vla_bound_not_positive(
+    struct CVLABoundData *pData, unsigned long ulBound)
 {
 
 	ASSERT(pData);
@@ -1146,7 +1355,8 @@ __ubsan_handle_vla_bound_not_positive(struct CVLABoundData *pData, unsigned long
 }
 
 void
-__ubsan_handle_vla_bound_not_positive_abort(struct CVLABoundData *pData, unsigned long ulBound)
+__ubsan_handle_vla_bound_not_positive_abort(
+    struct CVLABoundData *pData, unsigned long ulBound)
 {
 
 	ASSERT(pData);
@@ -1155,7 +1365,9 @@ __ubsan_handle_vla_bound_not_positive_abort(struct CVLABoundData *pData, unsigne
 }
 
 void
-__ubsan_get_current_report_data(const char **ppOutIssueKind, const char **ppOutMessage, const char **ppOutFilename, uint32_t *pOutLine, uint32_t *pOutCol, char **ppOutMemoryAddr)
+__ubsan_get_current_report_data(const char **ppOutIssueKind,
+    const char **ppOutMessage, const char **ppOutFilename, uint32_t *pOutLine,
+    uint32_t *pOutCol, char **ppOutMemoryAddr)
 {
 	/*
 	 * Unimplemented.
@@ -1281,7 +1493,8 @@ isAlreadyReported(struct CSourceLocation *pLocation)
 
 	do {
 		siOldValue = *pLine;
-	} while (__sync_val_compare_and_swap(pLine, siOldValue, siOldValue | ACK_REPORTED) != siOldValue);
+	} while (__sync_val_compare_and_swap(pLine, siOldValue,
+		     siOldValue | ACK_REPORTED) != siOldValue);
 
 	return ISSET(siOldValue, ACK_REPORTED);
 }
@@ -1295,13 +1508,15 @@ zDeserializeTypeWidth(struct CTypeDescriptor *pType)
 
 	switch (pType->mTypeKind) {
 	case KIND_INTEGER:
-		zWidth = __BIT(__SHIFTOUT(pType->mTypeInfo, ~NUMBER_SIGNED_BIT));
+		zWidth = __BIT(
+		    __SHIFTOUT(pType->mTypeInfo, ~NUMBER_SIGNED_BIT));
 		break;
 	case KIND_FLOAT:
 		zWidth = pType->mTypeInfo;
 		break;
 	default:
-		Report(true, "UBSan: Unknown variable type %#04" PRIx16 "\n", pType->mTypeKind);
+		Report(true, "UBSan: Unknown variable type %#04" PRIx16 "\n",
+		    pType->mTypeKind);
 		/* NOTREACHED */
 	}
 
@@ -1312,18 +1527,22 @@ zDeserializeTypeWidth(struct CTypeDescriptor *pType)
 }
 
 static void
-DeserializeLocation(char *pBuffer, size_t zBUfferLength, struct CSourceLocation *pLocation)
+DeserializeLocation(
+    char *pBuffer, size_t zBUfferLength, struct CSourceLocation *pLocation)
 {
 
 	ASSERT(pLocation);
 	ASSERT(pLocation->mFilename);
 
-	snprintf(pBuffer, zBUfferLength, "%s:%" PRIu32 ":%" PRIu32, pLocation->mFilename, pLocation->mLine & (uint32_t)~ACK_REPORTED, pLocation->mColumn);
+	snprintf(pBuffer, zBUfferLength, "%s:%" PRIu32 ":%" PRIu32,
+	    pLocation->mFilename, pLocation->mLine & (uint32_t)~ACK_REPORTED,
+	    pLocation->mColumn);
 }
 
 #ifdef __SIZEOF_INT128__
 static void
-DeserializeUINT128(char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, __uint128_t U128)
+DeserializeUINT128(char *pBuffer, size_t zBUfferLength,
+    struct CTypeDescriptor *pType, __uint128_t U128)
 {
 	char szBuf[3]; /* 'XX\0' */
 	char rgNumber[sizeof(ulongest)];
@@ -1345,7 +1564,8 @@ DeserializeUINT128(char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *
 #endif
 
 static void
-DeserializeNumberSigned(char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, longest L)
+DeserializeNumberSigned(char *pBuffer, size_t zBUfferLength,
+    struct CTypeDescriptor *pType, longest L)
 {
 
 	ASSERT(pBuffer);
@@ -1359,20 +1579,23 @@ DeserializeNumberSigned(char *pBuffer, size_t zBUfferLength, struct CTypeDescrip
 		/* NOTREACHED */
 #ifdef __SIZEOF_INT128__
 	case WIDTH_128:
-		DeserializeUINT128(pBuffer, zBUfferLength, pType, STATIC_CAST(__uint128_t, L));
+		DeserializeUINT128(
+		    pBuffer, zBUfferLength, pType, STATIC_CAST(__uint128_t, L));
 		break;
 #endif
 	case WIDTH_64:
 	case WIDTH_32:
 	case WIDTH_16:
 	case WIDTH_8:
-		snprintf(pBuffer, zBUfferLength, "%" PRId64, STATIC_CAST(int64_t, L));
+		snprintf(pBuffer, zBUfferLength, "%" PRId64,
+		    STATIC_CAST(int64_t, L));
 		break;
 	}
 }
 
 static void
-DeserializeNumberUnsigned(char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, ulongest L)
+DeserializeNumberUnsigned(char *pBuffer, size_t zBUfferLength,
+    struct CTypeDescriptor *pType, ulongest L)
 {
 
 	ASSERT(pBuffer);
@@ -1386,21 +1609,24 @@ DeserializeNumberUnsigned(char *pBuffer, size_t zBUfferLength, struct CTypeDescr
 		/* NOTREACHED */
 #ifdef __SIZEOF_INT128__
 	case WIDTH_128:
-		DeserializeUINT128(pBuffer, zBUfferLength, pType, STATIC_CAST(__uint128_t, L));
+		DeserializeUINT128(
+		    pBuffer, zBUfferLength, pType, STATIC_CAST(__uint128_t, L));
 		break;
 #endif
 	case WIDTH_64:
 	case WIDTH_32:
 	case WIDTH_16:
 	case WIDTH_8:
-		snprintf(pBuffer, zBUfferLength, "%" PRIu64, STATIC_CAST(uint64_t, L));
+		snprintf(pBuffer, zBUfferLength, "%" PRIu64,
+		    STATIC_CAST(uint64_t, L));
 		break;
 	}
 }
 
 #ifndef _KERNEL
 static void
-DeserializeFloatOverPointer(char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, unsigned long *pNumber)
+DeserializeFloatOverPointer(char *pBuffer, size_t zBUfferLength,
+    struct CTypeDescriptor *pType, unsigned long *pNumber)
 {
 	double D;
 #ifdef __HAVE_LONG_DOUBLE
@@ -1414,7 +1640,8 @@ DeserializeFloatOverPointer(char *pBuffer, size_t zBUfferLength, struct CTypeDes
 	/*
 	 * This function handles 64-bit number over a pointer on 32-bit CPUs.
 	 */
-	ASSERT((sizeof(*pNumber) * CHAR_BIT < WIDTH_64) || (zDeserializeTypeWidth(pType) >= WIDTH_64));
+	ASSERT((sizeof(*pNumber) * CHAR_BIT < WIDTH_64) ||
+	    (zDeserializeTypeWidth(pType) >= WIDTH_64));
 	ASSERT(sizeof(D) == sizeof(uint64_t));
 #ifdef __HAVE_LONG_DOUBLE
 	ASSERT(sizeof(LD) > sizeof(uint64_t));
@@ -1437,7 +1664,8 @@ DeserializeFloatOverPointer(char *pBuffer, size_t zBUfferLength, struct CTypeDes
 }
 
 static void
-DeserializeFloatInlined(char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, unsigned long ulNumber)
+DeserializeFloatInlined(char *pBuffer, size_t zBUfferLength,
+    struct CTypeDescriptor *pType, unsigned long ulNumber)
 {
 	float F;
 	double D;
@@ -1465,14 +1693,17 @@ DeserializeFloatInlined(char *pBuffer, size_t zBUfferLength, struct CTypeDescrip
 		snprintf(pBuffer, zBUfferLength, "%g", F);
 		break;
 	case WIDTH_16:
-		snprintf(pBuffer, zBUfferLength, "Undecoded-16-bit-Floating-Type (%#04" PRIx16 ")", STATIC_CAST(uint16_t, ulNumber));
+		snprintf(pBuffer, zBUfferLength,
+		    "Undecoded-16-bit-Floating-Type (%#04" PRIx16 ")",
+		    STATIC_CAST(uint16_t, ulNumber));
 		break;
 	}
 }
 #endif
 
 static longest
-llliGetNumber(char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber)
+llliGetNumber(
+    char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber)
 {
 	size_t zNumberWidth;
 	longest L = 0;
@@ -1483,13 +1714,16 @@ llliGetNumber(char *szLocation, struct CTypeDescriptor *pType, unsigned long ulN
 	zNumberWidth = zDeserializeTypeWidth(pType);
 	switch (zNumberWidth) {
 	default:
-		Report(true, "UBSan: Unexpected %zu-Bit Type in %s\n", zNumberWidth, szLocation);
+		Report(true, "UBSan: Unexpected %zu-Bit Type in %s\n",
+		    zNumberWidth, szLocation);
 		/* NOTREACHED */
 	case WIDTH_128:
 #ifdef __SIZEOF_INT128__
-		memcpy(&L, REINTERPRET_CAST(longest *, ulNumber), sizeof(longest));
+		memcpy(
+		    &L, REINTERPRET_CAST(longest *, ulNumber), sizeof(longest));
 #else
-		Report(true, "UBSan: Unexpected 128-Bit Type in %s\n", szLocation);
+		Report(
+		    true, "UBSan: Unexpected 128-Bit Type in %s\n", szLocation);
 		/* NOTREACHED */
 #endif
 		break;
@@ -1497,7 +1731,8 @@ llliGetNumber(char *szLocation, struct CTypeDescriptor *pType, unsigned long ulN
 		if (sizeof(ulNumber) * CHAR_BIT < WIDTH_64) {
 			L = *REINTERPRET_CAST(int64_t *, ulNumber);
 		} else {
-			L = STATIC_CAST(int64_t, STATIC_CAST(uint64_t, ulNumber));
+			L = STATIC_CAST(
+			    int64_t, STATIC_CAST(uint64_t, ulNumber));
 		}
 		break;
 	case WIDTH_32:
@@ -1515,7 +1750,8 @@ llliGetNumber(char *szLocation, struct CTypeDescriptor *pType, unsigned long ulN
 }
 
 static ulongest
-llluGetNumber(char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber)
+llluGetNumber(
+    char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber)
 {
 	size_t zNumberWidth;
 	ulongest UL = 0;
@@ -1525,14 +1761,17 @@ llluGetNumber(char *szLocation, struct CTypeDescriptor *pType, unsigned long ulN
 	zNumberWidth = zDeserializeTypeWidth(pType);
 	switch (zNumberWidth) {
 	default:
-		Report(true, "UBSan: Unexpected %zu-Bit Type in %s\n", zNumberWidth, szLocation);
+		Report(true, "UBSan: Unexpected %zu-Bit Type in %s\n",
+		    zNumberWidth, szLocation);
 		/* NOTREACHED */
 	case WIDTH_128:
 #ifdef __SIZEOF_INT128__
-		memcpy(&UL, REINTERPRET_CAST(ulongest *, ulNumber), sizeof(ulongest));
+		memcpy(&UL, REINTERPRET_CAST(ulongest *, ulNumber),
+		    sizeof(ulongest));
 		break;
 #else
-		Report(true, "UBSan: Unexpected 128-Bit Type in %s\n", szLocation);
+		Report(
+		    true, "UBSan: Unexpected 128-Bit Type in %s\n", szLocation);
 		/* NOTREACHED */
 #endif
 	case WIDTH_64:
@@ -1555,7 +1794,8 @@ llluGetNumber(char *szLocation, struct CTypeDescriptor *pType, unsigned long ulN
 
 #ifndef _KERNEL
 static void
-DeserializeNumberFloat(char *szLocation, char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, unsigned long ulNumber)
+DeserializeNumberFloat(char *szLocation, char *pBuffer, size_t zBUfferLength,
+    struct CTypeDescriptor *pType, unsigned long ulNumber)
 {
 	size_t zNumberWidth;
 
@@ -1568,30 +1808,35 @@ DeserializeNumberFloat(char *szLocation, char *pBuffer, size_t zBUfferLength, st
 	zNumberWidth = zDeserializeTypeWidth(pType);
 	switch (zNumberWidth) {
 	default:
-		Report(true, "UBSan: Unexpected %zu-Bit Type in %s\n", zNumberWidth, szLocation);
+		Report(true, "UBSan: Unexpected %zu-Bit Type in %s\n",
+		    zNumberWidth, szLocation);
 		/* NOTREACHED */
 #ifdef __HAVE_LONG_DOUBLE
 	case WIDTH_128:
 	case WIDTH_96:
 	case WIDTH_80:
-		DeserializeFloatOverPointer(pBuffer, zBUfferLength, pType, REINTERPRET_CAST(unsigned long *, ulNumber));
+		DeserializeFloatOverPointer(pBuffer, zBUfferLength, pType,
+		    REINTERPRET_CAST(unsigned long *, ulNumber));
 		break;
 #endif
 	case WIDTH_64:
 		if (sizeof(ulNumber) * CHAR_BIT < WIDTH_64) {
-			DeserializeFloatOverPointer(pBuffer, zBUfferLength, pType, REINTERPRET_CAST(unsigned long *, ulNumber));
+			DeserializeFloatOverPointer(pBuffer, zBUfferLength,
+			    pType, REINTERPRET_CAST(unsigned long *, ulNumber));
 			break;
 		}
 	case WIDTH_32:
 	case WIDTH_16:
-		DeserializeFloatInlined(pBuffer, zBUfferLength, pType, ulNumber);
+		DeserializeFloatInlined(
+		    pBuffer, zBUfferLength, pType, ulNumber);
 		break;
 	}
 }
 #endif
 
 static void
-DeserializeNumber(char *szLocation, char *pBuffer, size_t zBUfferLength, struct CTypeDescriptor *pType, unsigned long ulNumber)
+DeserializeNumber(char *szLocation, char *pBuffer, size_t zBUfferLength,
+    struct CTypeDescriptor *pType, unsigned long ulNumber)
 {
 
 	ASSERT(szLocation);
@@ -1599,22 +1844,27 @@ DeserializeNumber(char *szLocation, char *pBuffer, size_t zBUfferLength, struct 
 	ASSERT(zBUfferLength > 0);
 	ASSERT(pType);
 
-	switch(pType->mTypeKind) {
+	switch (pType->mTypeKind) {
 	case KIND_INTEGER:
 		if (ISSET(pType->mTypeInfo, NUMBER_SIGNED_BIT)) {
 			longest L = llliGetNumber(szLocation, pType, ulNumber);
-			DeserializeNumberSigned(pBuffer, zBUfferLength, pType, L);
+			DeserializeNumberSigned(
+			    pBuffer, zBUfferLength, pType, L);
 		} else {
-			ulongest UL = llluGetNumber(szLocation, pType, ulNumber);
-			DeserializeNumberUnsigned(pBuffer, zBUfferLength, pType, UL);
+			ulongest UL = llluGetNumber(
+			    szLocation, pType, ulNumber);
+			DeserializeNumberUnsigned(
+			    pBuffer, zBUfferLength, pType, UL);
 		}
 		break;
 	case KIND_FLOAT:
 #ifdef _KERNEL
-		Report(true, "UBSan: Unexpected Float Type in %s\n", szLocation);
+		Report(
+		    true, "UBSan: Unexpected Float Type in %s\n", szLocation);
 		/* NOTREACHED */
 #else
-		DeserializeNumberFloat(szLocation, pBuffer, zBUfferLength, pType, ulNumber);
+		DeserializeNumberFloat(
+		    szLocation, pBuffer, zBUfferLength, pType, ulNumber);
 #endif
 		break;
 	case KIND_UNKNOWN:
@@ -1627,20 +1877,11 @@ DeserializeNumber(char *szLocation, char *pBuffer, size_t zBUfferLength, struct 
 static const char *
 DeserializeTypeCheckKind(uint8_t hhuTypeCheckKind)
 {
-	const char *rgczTypeCheckKinds[] = {
-		"load of",
-		"store to",
-		"reference binding to",
-		"member access within",
-		"member call on",
-		"constructor call on",
-		"downcast of",
-		"downcast of",
-		"upcast of",
-		"cast to virtual base of",
-		"_Nonnull binding to",
-		"dynamic operation on"
-	};
+	const char *rgczTypeCheckKinds[] = { "load of", "store to",
+		"reference binding to", "member access within",
+		"member call on", "constructor call on", "downcast of",
+		"downcast of", "upcast of", "cast to virtual base of",
+		"_Nonnull binding to", "dynamic operation on" };
 
 	ASSERT(__arraycount(rgczTypeCheckKinds) > hhuTypeCheckKind);
 
@@ -1650,10 +1891,7 @@ DeserializeTypeCheckKind(uint8_t hhuTypeCheckKind)
 static const char *
 DeserializeBuiltinCheckKind(uint8_t hhuBuiltinCheckKind)
 {
-	const char *rgczBuiltinCheckKinds[] = {
-		"ctz()",
-		"clz()"
-	};
+	const char *rgczBuiltinCheckKinds[] = { "ctz()", "clz()" };
 
 	ASSERT(__arraycount(rgczBuiltinCheckKinds) > hhuBuiltinCheckKind);
 
@@ -1664,13 +1902,13 @@ static const char *
 DeserializeCFICheckKind(uint8_t hhuCFICheckKind)
 {
 	const char *rgczCFICheckKinds[] = {
-		"virtual call",					// CFI_VCALL
-		"non-virtual call",				// CFI_NVCALL
-		"base-to-derived cast",				// CFI_DERIVEDCAST
-		"cast to unrelated type",			// CFI_UNRELATEDCAST
-		"indirect function call",			// CFI_ICALL
-		"non-virtual pointer to member function call",	// CFI_NVMFCALL
-		"virtual pointer to member function call",	// CFI_VMFCALL
+		"virtual call",		  // CFI_VCALL
+		"non-virtual call",	  // CFI_NVCALL
+		"base-to-derived cast",	  // CFI_DERIVEDCAST
+		"cast to unrelated type", // CFI_UNRELATEDCAST
+		"indirect function call", // CFI_ICALL
+		"non-virtual pointer to member function call", // CFI_NVMFCALL
+		"virtual pointer to member function call",     // CFI_VMFCALL
 	};
 
 	ASSERT(__arraycount(rgczCFICheckKinds) > hhuCFICheckKind);
@@ -1679,7 +1917,8 @@ DeserializeCFICheckKind(uint8_t hhuCFICheckKind)
 }
 
 static bool
-isNegativeNumber(char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber)
+isNegativeNumber(
+    char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber)
 {
 
 	ASSERT(szLocation);
@@ -1693,7 +1932,8 @@ isNegativeNumber(char *szLocation, struct CTypeDescriptor *pType, unsigned long 
 }
 
 static bool
-isShiftExponentTooLarge(char *szLocation, struct CTypeDescriptor *pType, unsigned long ulNumber, size_t zWidth)
+isShiftExponentTooLarge(char *szLocation, struct CTypeDescriptor *pType,
+    unsigned long ulNumber, size_t zWidth)
 {
 
 	ASSERT(szLocation);

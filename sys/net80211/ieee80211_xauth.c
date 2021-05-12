@@ -44,34 +44,32 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/systm.h> 
-#include <sys/malloc.h>   
-#include <sys/mbuf.h>   
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
-
 #include <sys/socket.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
-#include <net/ethernet.h>
 #include <net/route.h>
-
 #include <net80211/ieee80211_var.h>
 
 /* XXX number of references from net80211 layer; needed for module code */
-static	int nrefs = 0;
+static int nrefs = 0;
 
 /*
  * One module handles everything for now.  May want
  * to split things up for embedded applications.
  */
 static const struct ieee80211_authenticator xauth = {
-	.ia_name	= "external",
-	.ia_attach	= NULL,
-	.ia_detach	= NULL,
-	.ia_node_join	= NULL,
-	.ia_node_leave	= NULL,
+	.ia_name = "external",
+	.ia_attach = NULL,
+	.ia_detach = NULL,
+	.ia_node_join = NULL,
+	.ia_node_leave = NULL,
 };
 
 IEEE80211_AUTH_MODULE(xauth, 1);

@@ -66,14 +66,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/vnet.h>
-
+#include <netinet/cc/cc.h>
+#include <netinet/cc/cc_module.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
-#include <netinet/cc/cc.h>
-
-#include <netinet/cc/cc_module.h>
 
 /*
  * List of available cc algorithms on the current system. First element
@@ -89,8 +87,7 @@ VNET_DEFINE(struct cc_algo *, default_cc_ptr) = &newreno_cc_algo;
 /*
  * Sysctl handler to show and change the default CC algorithm.
  */
-static int
-cc_default_algo(SYSCTL_HANDLER_ARGS)
+static int cc_default_algo(SYSCTL_HANDLER_ARGS)
 {
 	char default_cc[TCP_CA_NAME_MAX];
 	struct cc_algo *funcs;
@@ -111,7 +108,7 @@ cc_default_algo(SYSCTL_HANDLER_ARGS)
 
 	/* Find algo with specified name and set it to default. */
 	CC_LIST_RLOCK();
-	STAILQ_FOREACH(funcs, &cc_list, entries) {
+	STAILQ_FOREACH (funcs, &cc_list, entries) {
 		if (strncmp(default_cc, funcs->name, sizeof(default_cc)))
 			continue;
 		V_default_cc_ptr = funcs;
@@ -126,8 +123,7 @@ done:
 /*
  * Sysctl handler to display the list of available CC algorithms.
  */
-static int
-cc_list_available(SYSCTL_HANDLER_ARGS)
+static int cc_list_available(SYSCTL_HANDLER_ARGS)
 {
 	struct cc_algo *algo;
 	struct sbuf *s;
@@ -137,7 +133,7 @@ cc_list_available(SYSCTL_HANDLER_ARGS)
 	first = 1;
 
 	CC_LIST_RLOCK();
-	STAILQ_FOREACH(algo, &cc_list, entries) {
+	STAILQ_FOREACH (algo, &cc_list, entries) {
 		nalgos++;
 	}
 	CC_LIST_RUNLOCK();
@@ -155,7 +151,7 @@ cc_list_available(SYSCTL_HANDLER_ARGS)
 	 * the sysctl will fail gracefully.
 	 */
 	CC_LIST_RLOCK();
-	STAILQ_FOREACH(algo, &cc_list, entries) {
+	STAILQ_FOREACH (algo, &cc_list, entries) {
 		err = sbuf_printf(s, first ? "%s" : ", %s", algo->name);
 		if (err) {
 			/* Sbuf overflow condition. */
@@ -187,10 +183,11 @@ cc_checkreset_default(struct cc_algo *remove_cc)
 	CC_LIST_LOCK_ASSERT();
 
 	VNET_LIST_RLOCK_NOSLEEP();
-	VNET_FOREACH(vnet_iter) {
+	VNET_FOREACH(vnet_iter)
+	{
 		CURVNET_SET(vnet_iter);
 		if (strncmp(CC_DEFAULT()->name, remove_cc->name,
-		    TCP_CA_NAME_MAX) == 0)
+			TCP_CA_NAME_MAX) == 0)
 			V_default_cc_ptr = &newreno_cc_algo;
 		CURVNET_RESTORE();
 	}
@@ -224,7 +221,7 @@ cc_deregister_algo(struct cc_algo *remove_cc)
 
 	/* Remove algo from cc_list so that new connections can't use it. */
 	CC_LIST_WLOCK();
-	STAILQ_FOREACH_SAFE(funcs, &cc_list, entries, tmpfuncs) {
+	STAILQ_FOREACH_SAFE (funcs, &cc_list, entries, tmpfuncs) {
 		if (funcs == remove_cc) {
 			cc_checkreset_default(remove_cc);
 			STAILQ_REMOVE(&cc_list, funcs, cc_algo, entries);
@@ -262,9 +259,9 @@ cc_register_algo(struct cc_algo *add_cc)
 	 * we're not trying to add a duplicate.
 	 */
 	CC_LIST_WLOCK();
-	STAILQ_FOREACH(funcs, &cc_list, entries) {
-		if (funcs == add_cc || strncmp(funcs->name, add_cc->name,
-		    TCP_CA_NAME_MAX) == 0)
+	STAILQ_FOREACH (funcs, &cc_list, entries) {
+		if (funcs == add_cc ||
+		    strncmp(funcs->name, add_cc->name, TCP_CA_NAME_MAX) == 0)
 			err = EEXIST;
 	}
 
@@ -288,7 +285,7 @@ cc_modevent(module_t mod, int event_type, void *data)
 	err = 0;
 	algo = (struct cc_algo *)data;
 
-	switch(event_type) {
+	switch (event_type) {
 	case MOD_LOAD:
 		if (algo->mod_init != NULL)
 			err = algo->mod_init();
@@ -321,14 +318,12 @@ SYSCTL_NODE(_net_inet_tcp, OID_AUTO, cc, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "Congestion control related settings");
 
 SYSCTL_PROC(_net_inet_tcp_cc, OID_AUTO, algorithm,
-    CTLFLAG_VNET | CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    NULL, 0, cc_default_algo, "A",
-    "Default congestion control algorithm");
+    CTLFLAG_VNET | CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
+    cc_default_algo, "A", "Default congestion control algorithm");
 
 SYSCTL_PROC(_net_inet_tcp_cc, OID_AUTO, available,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, 0, cc_list_available, "A",
-    "List available congestion control algorithms");
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0, cc_list_available,
+    "A", "List available congestion control algorithms");
 
 VNET_DEFINE(int, cc_do_abe) = 0;
 SYSCTL_INT(_net_inet_tcp_cc, OID_AUTO, abe, CTLFLAG_VNET | CTLFLAG_RW,
@@ -336,7 +331,7 @@ SYSCTL_INT(_net_inet_tcp_cc, OID_AUTO, abe, CTLFLAG_VNET | CTLFLAG_RW,
     "Enable draft-ietf-tcpm-alternativebackoff-ecn (TCP Alternative Backoff with ECN)");
 
 VNET_DEFINE(int, cc_abe_frlossreduce) = 0;
-SYSCTL_INT(_net_inet_tcp_cc, OID_AUTO, abe_frlossreduce, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(cc_abe_frlossreduce), 0,
+SYSCTL_INT(_net_inet_tcp_cc, OID_AUTO, abe_frlossreduce,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(cc_abe_frlossreduce), 0,
     "Apply standard beta instead of ABE-beta during ECN-signalled congestion "
     "recovery episodes if loss also needs to be repaired");

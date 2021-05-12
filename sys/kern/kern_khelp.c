@@ -40,8 +40,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
+#include <sys/systm.h>
 #include <sys/hhook.h>
+#include <sys/kernel.h>
 #include <sys/khelp.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -51,22 +52,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/refcount.h>
 #include <sys/rwlock.h>
-#include <sys/systm.h>
 
 static struct rwlock khelp_list_lock;
 RW_SYSINIT(khelplistlock, &khelp_list_lock, "helper list lock");
 
-static TAILQ_HEAD(helper_head, helper) helpers = TAILQ_HEAD_INITIALIZER(helpers);
+static TAILQ_HEAD(helper_head, helper) helpers = TAILQ_HEAD_INITIALIZER(
+    helpers);
 
 /* Private function prototypes. */
 static inline void khelp_remove_osd(struct helper *h, struct osd *hosd);
 void khelp_new_hhook_registered(struct hhook_head *hhh, uint32_t flags);
 
-#define	KHELP_LIST_WLOCK() rw_wlock(&khelp_list_lock)
-#define	KHELP_LIST_WUNLOCK() rw_wunlock(&khelp_list_lock)
-#define	KHELP_LIST_RLOCK() rw_rlock(&khelp_list_lock)
-#define	KHELP_LIST_RUNLOCK() rw_runlock(&khelp_list_lock)
-#define	KHELP_LIST_LOCK_ASSERT() rw_assert(&khelp_list_lock, RA_LOCKED)
+#define KHELP_LIST_WLOCK() rw_wlock(&khelp_list_lock)
+#define KHELP_LIST_WUNLOCK() rw_wunlock(&khelp_list_lock)
+#define KHELP_LIST_RLOCK() rw_rlock(&khelp_list_lock)
+#define KHELP_LIST_RUNLOCK() rw_runlock(&khelp_list_lock)
+#define KHELP_LIST_LOCK_ASSERT() rw_assert(&khelp_list_lock, RA_LOCKED)
 
 int
 khelp_register_helper(struct helper *h)
@@ -85,8 +86,8 @@ khelp_register_helper(struct helper *h)
 		error = hhook_add_hook_lookup(&h->h_hooks[i], HHOOK_WAITOK);
 		if (error)
 			printf("%s: \"%s\" khelp module unable to "
-			    "hook type %d id %d due to error %d\n", __func__,
-			    h->h_name, h->h_hooks[i].hook_type,
+			       "hook type %d id %d due to error %d\n",
+			    __func__, h->h_name, h->h_hooks[i].hook_type,
 			    h->h_hooks[i].hook_id, error);
 	}
 
@@ -101,7 +102,7 @@ khelp_register_helper(struct helper *h)
 		 * the way osd_set() works, a sorted list ensures
 		 * khelp_init_osd() will operate with improved efficiency.
 		 */
-		TAILQ_FOREACH(tmph, &helpers, h_next) {
+		TAILQ_FOREACH (tmph, &helpers, h_next) {
 			if (tmph->h_id < h->h_id) {
 				TAILQ_INSERT_BEFORE(tmph, h, h_next);
 				inserted = 1;
@@ -128,7 +129,7 @@ khelp_deregister_helper(struct helper *h)
 		error = EBUSY;
 	else {
 		error = ENOENT;
-		TAILQ_FOREACH(tmph, &helpers, h_next) {
+		TAILQ_FOREACH (tmph, &helpers, h_next) {
 			if (tmph == h) {
 				TAILQ_REMOVE(&helpers, h, h_next);
 				error = 0;
@@ -159,7 +160,7 @@ khelp_init_osd(uint32_t classes, struct osd *hosd)
 	error = 0;
 
 	KHELP_LIST_RLOCK();
-	TAILQ_FOREACH(h, &helpers, h_next) {
+	TAILQ_FOREACH (h, &helpers, h_next) {
 		/* If helper is correct class and needs to store OSD... */
 		if (h->h_classes & classes && h->h_flags & HELPER_NEEDS_OSD) {
 			hdata = uma_zalloc(h->h_zone, M_NOWAIT);
@@ -174,7 +175,7 @@ khelp_init_osd(uint32_t classes, struct osd *hosd)
 
 	if (error) {
 		/* Delete OSD that was assigned prior to the error. */
-		TAILQ_FOREACH(h, &helpers, h_next) {
+		TAILQ_FOREACH (h, &helpers, h_next) {
 			if (h->h_classes & classes)
 				khelp_remove_osd(h, hosd);
 		}
@@ -201,7 +202,7 @@ khelp_destroy_osd(struct osd *hosd)
 	 * XXXLAS: Would be nice to use something like osd_exit() here but it
 	 * doesn't have the right semantics for this purpose.
 	 */
-	TAILQ_FOREACH(h, &helpers, h_next)
+	TAILQ_FOREACH (h, &helpers, h_next)
 		khelp_remove_osd(h, hosd);
 	KHELP_LIST_RUNLOCK();
 
@@ -244,7 +245,7 @@ khelp_get_id(char *hname)
 	id = -1;
 
 	KHELP_LIST_RLOCK();
-	TAILQ_FOREACH(h, &helpers, h_next) {
+	TAILQ_FOREACH (h, &helpers, h_next) {
 		if (strncmp(h->h_name, hname, HELPER_NAME_MAXLEN) == 0) {
 			id = h->h_id;
 			break;
@@ -294,7 +295,7 @@ khelp_new_hhook_registered(struct hhook_head *hhh, uint32_t flags)
 	int error, i;
 
 	KHELP_LIST_RLOCK();
-	TAILQ_FOREACH(h, &helpers, h_next) {
+	TAILQ_FOREACH (h, &helpers, h_next) {
 		for (i = 0; i < h->h_nhooks; i++) {
 			if (hhh->hhh_type != h->h_hooks[i].hook_type ||
 			    hhh->hhh_id != h->h_hooks[i].hook_id)
@@ -302,7 +303,7 @@ khelp_new_hhook_registered(struct hhook_head *hhh, uint32_t flags)
 			error = hhook_add_hook(hhh, &h->h_hooks[i], flags);
 			if (error) {
 				printf("%s: \"%s\" khelp module unable to "
-				    "hook type %d id %d due to error %d\n",
+				       "hook type %d id %d due to error %d\n",
 				    __func__, h->h_name,
 				    h->h_hooks[i].hook_type,
 				    h->h_hooks[i].hook_id, error);
@@ -322,11 +323,12 @@ khelp_modevent(module_t mod, int event_type, void *data)
 	kmd = (struct khelp_modevent_data *)data;
 	error = 0;
 
-	switch(event_type) {
+	switch (event_type) {
 	case MOD_LOAD:
 		if (kmd->helper->h_flags & HELPER_NEEDS_OSD) {
 			if (kmd->uma_zsize <= 0) {
-				printf("Use KHELP_DECLARE_MOD_UMA() instead!\n");
+				printf(
+				    "Use KHELP_DECLARE_MOD_UMA() instead!\n");
 				error = EDOOFUS;
 				break;
 			}
@@ -361,8 +363,8 @@ khelp_modevent(module_t mod, int event_type, void *data)
 			error = 0;
 		else if (error == EBUSY)
 			printf("Khelp module \"%s\" can't unload until its "
-			    "refcount drops from %d to 0.\n", kmd->name,
-			    kmd->helper->h_refcount);
+			       "refcount drops from %d to 0.\n",
+			    kmd->name, kmd->helper->h_refcount);
 		break;
 
 	default:

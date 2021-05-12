@@ -36,29 +36,38 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/uuid.h>
+
 #include <machine/bus.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
 
 #include <arm64/coresight/coresight.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
-#define	ACPI_CORESIGHT_LINK_OUTPUT	1
-#define	ACPI_CORESIGHT_LINK_INPUT	0
+#define ACPI_CORESIGHT_LINK_OUTPUT 1
+#define ACPI_CORESIGHT_LINK_INPUT 0
 
 static const struct uuid acpi_graph_uuid = {
-	0xab02a46b, 0x74c7, 0x45a2, 0xbd, 0x68,
+	0xab02a46b,
+	0x74c7,
+	0x45a2,
+	0xbd,
+	0x68,
 	{ 0xf7, 0xd3, 0x44, 0xef, 0x21, 0x53 },
 };
 
 static const struct uuid coresight_graph_uuid = {
-	0x3ecbc8b6, 0x1d0e, 0x4fb3, 0x81, 0x07,
+	0x3ecbc8b6,
+	0x1d0e,
+	0x4fb3,
+	0x81,
+	0x07,
 	{ 0xe6, 0x27, 0xf8, 0x05, 0xc6, 0xcd },
 };
 
@@ -148,8 +157,7 @@ cs_is_acpi_coresight_graph(const union acpi_object *obj)
 {
 	const union acpi_object *graphid, *guid, *links;
 
-	if (obj->Type != ACPI_TYPE_PACKAGE ||
-	    obj->Package.Count < 3)
+	if (obj->Type != ACPI_TYPE_PACKAGE || obj->Package.Count < 3)
 		return (false);
 
 	graphid = &obj->Package.Elements[0];
@@ -248,8 +256,7 @@ cs_get_coresight_graph(device_t dev)
 }
 
 static int
-cs_acpi_record_endpoint(device_t dev,
-    struct coresight_platform_data *pdata,
+cs_acpi_record_endpoint(device_t dev, struct coresight_platform_data *pdata,
     const union acpi_object *link)
 {
 	const union acpi_object *fields;
@@ -257,8 +264,7 @@ cs_acpi_record_endpoint(device_t dev,
 	ACPI_HANDLE handle;
 	int dir;
 
-	if (link->Type != ACPI_TYPE_PACKAGE ||
-	    link->Package.Count != 4)
+	if (link->Type != ACPI_TYPE_PACKAGE || link->Package.Count != 4)
 		return (ENXIO);
 
 	fields = link->Package.Elements;
@@ -271,8 +277,7 @@ cs_acpi_record_endpoint(device_t dev,
 	handle = fields[2].Reference.Handle;
 	dir = fields[3].Integer.Value;
 
-	endp = malloc(sizeof(struct endpoint),
-	    M_CORESIGHT, M_WAITOK | M_ZERO);
+	endp = malloc(sizeof(struct endpoint), M_CORESIGHT, M_WAITOK | M_ZERO);
 	if (endp == NULL) {
 		device_printf(dev, "Failed to allocate memory.\n");
 		return (ENXIO);
@@ -296,8 +301,7 @@ cs_acpi_record_endpoint(device_t dev,
 }
 
 static int
-coresight_acpi_get_ports(device_t dev,
-    struct coresight_platform_data *pdata)
+coresight_acpi_get_ports(device_t dev, struct coresight_platform_data *pdata)
 {
 	const union acpi_object *graph;
 	const union acpi_object *link;
@@ -355,8 +359,8 @@ coresight_acpi_get_platform_data(device_t dev)
 {
 	struct coresight_platform_data *pdata;
 
-	pdata = malloc(sizeof(struct coresight_platform_data),
-	    M_CORESIGHT, M_WAITOK | M_ZERO);
+	pdata = malloc(sizeof(struct coresight_platform_data), M_CORESIGHT,
+	    M_WAITOK | M_ZERO);
 	pdata->bus_type = CORESIGHT_BUS_ACPI;
 
 	mtx_init(&pdata->mtx_lock, "Coresight Platform Data", NULL, MTX_DEF);
@@ -366,8 +370,8 @@ coresight_acpi_get_platform_data(device_t dev)
 	coresight_acpi_get_ports(dev, pdata);
 
 	if (bootverbose)
-		printf("Total ports: in %d out %d\n",
-		    pdata->in_ports, pdata->out_ports);
+		printf("Total ports: in %d out %d\n", pdata->in_ports,
+		    pdata->out_ports);
 
 	return (pdata);
 }

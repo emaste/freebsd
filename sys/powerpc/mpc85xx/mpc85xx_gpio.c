@@ -32,15 +32,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
-#include <sys/gpio.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -53,22 +53,21 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
-#define MAXPIN		(7)
+#define MAXPIN (7)
 
-#define VALID_PIN(u)	((u) >= 0 && (u) <= MAXPIN)
+#define VALID_PIN(u) ((u) >= 0 && (u) <= MAXPIN)
 
-#define GPIO_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)
-#define	GPIO_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
+#define GPIO_LOCK(sc) mtx_lock(&(sc)->sc_mtx)
+#define GPIO_UNLOCK(sc) mtx_unlock(&(sc)->sc_mtx)
 #define GPIO_LOCK_INIT(sc) \
-	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev),	\
-	    "gpio", MTX_DEF)
-#define GPIO_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
+	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev), "gpio", MTX_DEF)
+#define GPIO_LOCK_DESTROY(_sc) mtx_destroy(&_sc->sc_mtx);
 
 struct mpc85xx_gpio_softc {
-	device_t	dev;
-	device_t	busdev;
-	struct mtx	sc_mtx;
-	struct resource *out_res;	/* Memory resource */
+	device_t dev;
+	device_t busdev;
+	struct mtx sc_mtx;
+	struct resource *out_res; /* Memory resource */
 	struct resource *in_res;
 };
 
@@ -112,7 +111,7 @@ mpc85xx_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 		return (EINVAL);
 
 	snprintf(name, GPIOMAXNAME, "GPIO%d", pin);
-	name[GPIOMAXNAME-1] = '\0';
+	name[GPIOMAXNAME - 1] = '\0';
 
 	return (0);
 }
@@ -214,19 +213,21 @@ mpc85xx_gpio_attach(device_t dev)
 
 	/* Allocate memory. */
 	rid = 0;
-	sc->out_res = bus_alloc_resource_any(dev,
-		     SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->out_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->out_res == NULL) {
-		device_printf(dev, "Can't allocate memory for device output port");
+		device_printf(
+		    dev, "Can't allocate memory for device output port");
 		mpc85xx_gpio_detach(dev);
 		return (ENOMEM);
 	}
 
 	rid = 1;
-	sc->in_res = bus_alloc_resource_any(dev,
-		     SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->in_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->in_res == NULL) {
-		device_printf(dev, "Can't allocate memory for device input port");
+		device_printf(
+		    dev, "Can't allocate memory for device input port");
 		mpc85xx_gpio_detach(dev);
 		return (ENOMEM);
 	}
@@ -252,13 +253,13 @@ mpc85xx_gpio_detach(device_t dev)
 	if (sc->out_res != NULL) {
 		/* Release output port resource. */
 		bus_release_resource(dev, SYS_RES_MEMORY,
-				     rman_get_rid(sc->out_res), sc->out_res);
+		    rman_get_rid(sc->out_res), sc->out_res);
 	}
 
 	if (sc->in_res != NULL) {
 		/* Release input port resource. */
-		bus_release_resource(dev, SYS_RES_MEMORY,
-				     rman_get_rid(sc->in_res), sc->in_res);
+		bus_release_resource(
+		    dev, SYS_RES_MEMORY, rman_get_rid(sc->in_res), sc->in_res);
 	}
 
 	GPIO_LOCK_DESTROY(sc);
@@ -268,18 +269,18 @@ mpc85xx_gpio_detach(device_t dev)
 
 static device_method_t mpc85xx_gpio_methods[] = {
 	/* device_if */
-	DEVMETHOD(device_probe, 	mpc85xx_gpio_probe),
-	DEVMETHOD(device_attach, 	mpc85xx_gpio_attach),
-	DEVMETHOD(device_detach, 	mpc85xx_gpio_detach),
+	DEVMETHOD(device_probe, mpc85xx_gpio_probe),
+	DEVMETHOD(device_attach, mpc85xx_gpio_attach),
+	DEVMETHOD(device_detach, mpc85xx_gpio_detach),
 
 	/* GPIO protocol */
-	DEVMETHOD(gpio_get_bus, 	mpc85xx_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max, 	mpc85xx_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname, 	mpc85xx_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getcaps, 	mpc85xx_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_get, 	mpc85xx_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set, 	mpc85xx_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle, 	mpc85xx_gpio_pin_toggle),
+	DEVMETHOD(gpio_get_bus, mpc85xx_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max, mpc85xx_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname, mpc85xx_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getcaps, mpc85xx_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_get, mpc85xx_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set, mpc85xx_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle, mpc85xx_gpio_pin_toggle),
 
 	DEVMETHOD_END
 };

@@ -38,13 +38,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/unistd.h>
 
+#include <compat/cloudabi/cloudabi_proto.h>
 #include <contrib/cloudabi/cloudabi_types_common.h>
 
-#include <compat/cloudabi/cloudabi_proto.h>
-
 int
-cloudabi_sys_proc_exec(struct thread *td,
-    struct cloudabi_sys_proc_exec_args *uap)
+cloudabi_sys_proc_exec(
+    struct thread *td, struct cloudabi_sys_proc_exec_args *uap)
 {
 	struct image_args args;
 	struct vmspace *oldvmspace;
@@ -53,8 +52,8 @@ cloudabi_sys_proc_exec(struct thread *td,
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_data_fds(td, &args, uap->data, uap->data_len,
-	    uap->fds, uap->fds_len);
+	error = exec_copyin_data_fds(
+	    td, &args, uap->data, uap->data_len, uap->fds, uap->fds_len);
 	if (error == 0) {
 		args.fd = uap->fd;
 		error = kern_execve(td, &args, NULL, oldvmspace);
@@ -64,8 +63,8 @@ cloudabi_sys_proc_exec(struct thread *td,
 }
 
 int
-cloudabi_sys_proc_exit(struct thread *td,
-    struct cloudabi_sys_proc_exit_args *uap)
+cloudabi_sys_proc_exit(
+    struct thread *td, struct cloudabi_sys_proc_exit_args *uap)
 {
 
 	exit1(td, uap->rval, 0);
@@ -73,8 +72,8 @@ cloudabi_sys_proc_exit(struct thread *td,
 }
 
 int
-cloudabi_sys_proc_fork(struct thread *td,
-    struct cloudabi_sys_proc_fork_args *uap)
+cloudabi_sys_proc_fork(
+    struct thread *td, struct cloudabi_sys_proc_fork_args *uap)
 {
 	struct fork_req fr;
 	struct filecaps fcaps = {};
@@ -94,8 +93,8 @@ cloudabi_sys_proc_fork(struct thread *td,
 }
 
 int
-cloudabi_sys_proc_raise(struct thread *td,
-    struct cloudabi_sys_proc_raise_args *uap)
+cloudabi_sys_proc_raise(
+    struct thread *td, struct cloudabi_sys_proc_raise_args *uap)
 {
 	static const int signals[] = {
 		[CLOUDABI_SIGABRT] = SIGABRT,

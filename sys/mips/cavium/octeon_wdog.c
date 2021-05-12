@@ -37,19 +37,19 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/watchdog.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/sysctl.h>
 #include <sys/rman.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
+#include <sys/watchdog.h>
 
 #include <contrib/octeon-sdk/cvmx.h>
 #include <mips/cavium/octeon_irq.h>
 
-#define	DEFAULT_TIMER_VAL	65535
+#define DEFAULT_TIMER_VAL 65535
 
 struct octeon_wdog_softc {
 	device_t sc_dev;
@@ -84,7 +84,8 @@ octeon_wdog_nmi(void)
 
 	printf("cpu%u: NMI detected\n", core);
 	printf("cpu%u: Exception PC: %p\n", core, (void *)mips_rd_excpc());
-	printf("cpu%u: status %#x cause %#x\n", core, mips_rd_status(), mips_rd_cause());
+	printf("cpu%u: status %#x cause %#x\n", core, mips_rd_status(),
+	    mips_rd_cause());
 
 	/*
 	 * This is the end
@@ -135,13 +136,13 @@ octeon_wdog_watchdog_fn(void *private, u_int cmd, int *error)
 	if (sc->sc_debug)
 		device_printf(sc->sc_dev, "%s: cmd: %x\n", __func__, cmd);
 	if (cmd > 0) {
-		CPU_FOREACH(core)
+		CPU_FOREACH (core)
 			octeon_watchdog_arm_core(core);
 		sc->sc_armed = 1;
 		*error = 0;
 	} else {
 		if (sc->sc_armed) {
-			CPU_FOREACH(core)
+			CPU_FOREACH (core)
 				octeon_watchdog_disarm_core(core);
 			sc->sc_armed = 0;
 		}
@@ -153,15 +154,13 @@ octeon_wdog_sysctl(device_t dev)
 {
 	struct octeon_wdog_softc *sc = device_get_softc(dev);
 
-        struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
-        struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
 
-        SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-                "debug", CTLFLAG_RW, &sc->sc_debug, 0,
-                "enable watchdog debugging");
-        SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-                "armed", CTLFLAG_RD, &sc->sc_armed, 0,
-                "whether the watchdog is armed");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "debug",
+	    CTLFLAG_RW, &sc->sc_debug, 0, "enable watchdog debugging");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "armed",
+	    CTLFLAG_RD, &sc->sc_armed, 0, "whether the watchdog is armed");
 }
 
 static void
@@ -179,8 +178,8 @@ octeon_wdog_setup(struct octeon_wdog_softc *sc, int core)
 	csc->csc_intr = bus_alloc_resource(sc->sc_dev, SYS_RES_IRQ, &rid,
 	    OCTEON_IRQ_WDOG0 + core, OCTEON_IRQ_WDOG0 + core, 1, RF_ACTIVE);
 	if (csc->csc_intr == NULL)
-		panic("%s: bus_alloc_resource for core %u failed",
-		    __func__, core);
+		panic("%s: bus_alloc_resource for core %u failed", __func__,
+		    core);
 
 	error = bus_setup_intr(sc->sc_dev, csc->csc_intr, INTR_TYPE_MISC,
 	    octeon_wdog_intr, NULL, csc, &csc->csc_intr_cookie);
@@ -189,8 +188,8 @@ octeon_wdog_setup(struct octeon_wdog_softc *sc, int core)
 		    error);
 
 	bus_bind_intr(sc->sc_dev, csc->csc_intr, core);
-	bus_describe_intr(sc->sc_dev, csc->csc_intr, csc->csc_intr_cookie,
-	    "cpu%u", core);
+	bus_describe_intr(
+	    sc->sc_dev, csc->csc_intr, csc->csc_intr_cookie, "cpu%u", core);
 
 	if (sc->sc_armed) {
 		/* Armed by default.  */
@@ -207,8 +206,8 @@ octeon_wdog_intr(void *arg)
 	struct octeon_wdog_core_softc *csc = arg;
 
 	KASSERT(csc->csc_core == cvmx_get_core_num(),
-	    ("got watchdog interrupt for core %u on core %u.",
-	     csc->csc_core, cvmx_get_core_num()));
+	    ("got watchdog interrupt for core %u on core %u.", csc->csc_core,
+		cvmx_get_core_num()));
 
 	(void)csc;
 
@@ -230,7 +229,7 @@ static int
 octeon_wdog_attach(device_t dev)
 {
 	struct octeon_wdog_softc *sc = device_get_softc(dev);
-	uint64_t *nmi_handler = (uint64_t*)octeon_wdog_nmi_handler;
+	uint64_t *nmi_handler = (uint64_t *)octeon_wdog_nmi_handler;
 	int core, i;
 
 	/* Initialise */
@@ -244,11 +243,11 @@ octeon_wdog_attach(device_t dev)
 	for (i = 0; i < 16; i++) {
 		cvmx_write_csr(CVMX_MIO_BOOT_LOC_ADR, i * 8);
 		cvmx_write_csr(CVMX_MIO_BOOT_LOC_DAT, nmi_handler[i]);
-        }
+	}
 
 	cvmx_write_csr(CVMX_MIO_BOOT_LOC_CFGX(0), 0x81fc0000);
 
-	CPU_FOREACH(core)
+	CPU_FOREACH (core)
 		octeon_wdog_setup(sc, core);
 	return (0);
 }
@@ -265,7 +264,7 @@ static device_method_t octeon_wdog_methods[] = {
 
 	DEVMETHOD(device_probe, octeon_wdog_probe),
 	DEVMETHOD(device_attach, octeon_wdog_attach),
-	{0, 0},
+	{ 0, 0 },
 };
 
 static driver_t octeon_wdog_driver = {

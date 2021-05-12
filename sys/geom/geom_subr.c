@@ -42,22 +42,24 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/devicestat.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/bio.h>
-#include <sys/sysctl.h>
-#include <sys/proc.h>
+#include <sys/devicestat.h>
+#include <sys/errno.h>
+#include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/errno.h>
+#include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/sdt.h>
+#include <sys/sysctl.h>
+
+#include <machine/stdarg.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
 #include <geom/geom_int.h>
-#include <machine/stdarg.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -74,17 +76,16 @@ static struct g_tailq_head geoms = TAILQ_HEAD_INITIALIZER(geoms);
 char *g_wait_event, *g_wait_up, *g_wait_down, *g_wait_sim;
 
 struct g_hh00 {
-	struct g_class		*mp;
-	struct g_provider	*pp;
-	off_t			size;
-	int			error;
-	int			post;
+	struct g_class *mp;
+	struct g_provider *pp;
+	off_t size;
+	int error;
+	int post;
 };
 
 void
-g_dbg_printf(const char *classname, int lvl, struct bio *bp,
-    const char *format,
-    ...)
+g_dbg_printf(
+    const char *classname, int lvl, struct bio *bp, const char *format, ...)
 {
 #ifndef PRINTF_BUFR_SIZE
 #define PRINTF_BUFR_SIZE 64
@@ -131,7 +132,7 @@ g_load_class(void *arg, int flag)
 	struct g_provider *pp;
 
 	g_topology_assert();
-	if (flag == EV_CANCEL)	/* XXX: can't happen ? */
+	if (flag == EV_CANCEL) /* XXX: can't happen ? */
 		return;
 	if (g_shutdown)
 		return;
@@ -144,9 +145,9 @@ g_load_class(void *arg, int flag)
 		hh = NULL;
 	}
 	g_trace(G_T_TOPOLOGY, "g_load_class(%s)", mp->name);
-	KASSERT(mp->name != NULL && *mp->name != '\0',
-	    ("GEOM class has no name"));
-	LIST_FOREACH(mp2, &g_classes, class) {
+	KASSERT(
+	    mp->name != NULL && *mp->name != '\0', ("GEOM class has no name"));
+	LIST_FOREACH (mp2, &g_classes, class) {
 		if (mp2 == mp) {
 			printf("The GEOM class %s is already loaded.\n",
 			    mp2->name);
@@ -154,8 +155,8 @@ g_load_class(void *arg, int flag)
 				hh->error = EEXIST;
 			return;
 		} else if (strcmp(mp2->name, mp->name) == 0) {
-			printf("A GEOM class %s is already loaded.\n",
-			    mp2->name);
+			printf(
+			    "A GEOM class %s is already loaded.\n", mp2->name);
 			if (hh != NULL)
 				hh->error = EEXIST;
 			return;
@@ -168,11 +169,11 @@ g_load_class(void *arg, int flag)
 		mp->init(mp);
 	if (mp->taste == NULL)
 		return;
-	LIST_FOREACH(mp2, &g_classes, class) {
+	LIST_FOREACH (mp2, &g_classes, class) {
 		if (mp == mp2)
 			continue;
-		LIST_FOREACH(gp, &mp2->geom, geom) {
-			LIST_FOREACH(pp, &gp->provider, provider) {
+		LIST_FOREACH (gp, &mp2->geom, geom) {
+			LIST_FOREACH (pp, &gp->provider, provider) {
 				mp->taste(mp, pp, 0);
 				g_topology_assert();
 			}
@@ -192,14 +193,14 @@ g_unload_class(struct g_class *mp)
 	g_trace(G_T_TOPOLOGY, "g_unload_class(%s)", mp->name);
 retry:
 	G_VALID_CLASS(mp);
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		/* We refuse to unload if anything is open */
-		LIST_FOREACH(pp, &gp->provider, provider)
+		LIST_FOREACH (pp, &gp->provider, provider)
 			if (pp->acr || pp->acw || pp->ace) {
 				g_topology_unlock();
 				return (EBUSY);
 			}
-		LIST_FOREACH(cp, &gp->consumer, consumer)
+		LIST_FOREACH (cp, &gp->consumer, consumer)
 			if (cp->acr || cp->acw || cp->ace) {
 				g_topology_unlock();
 				return (EBUSY);
@@ -224,7 +225,7 @@ retry:
 	mp->taste = NULL;
 	mp->config = NULL;
 
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		error = mp->destroy_geom(NULL, mp, gp);
 		if (error != 0) {
 			g_topology_unlock();
@@ -237,7 +238,7 @@ retry:
 		if (gp == NULL)
 			break;
 		KASSERT(gp->flags & G_GEOM_WITHER,
-		   ("Non-withering geom in class %s", mp->name));
+		    ("Non-withering geom in class %s", mp->name));
 		g_topology_sleep(mp, 1);
 	}
 	G_VALID_CLASS(mp);
@@ -259,8 +260,8 @@ g_modevent(module_t mod, int type, void *data)
 
 	mp = data;
 	if (mp->version != G_VERSION) {
-		printf("GEOM class %s has Wrong version %x\n",
-		    mp->name, mp->version);
+		printf("GEOM class %s has Wrong version %x\n", mp->name,
+		    mp->version);
 		return (EINVAL);
 	}
 	if (!g_ignition) {
@@ -282,8 +283,8 @@ g_modevent(module_t mod, int type, void *data)
 			hh->post = 1;
 			error = g_post_event(g_load_class, hh, M_WAITOK, NULL);
 		} else {
-			error = g_waitfor_event(g_load_class, hh, M_WAITOK,
-			    NULL);
+			error = g_waitfor_event(
+			    g_load_class, hh, M_WAITOK, NULL);
 			if (error == 0)
 				error = hh->error;
 			g_free(hh);
@@ -311,7 +312,7 @@ g_retaste_event(void *arg, int flag)
 	struct g_consumer *cp;
 
 	g_topology_assert();
-	if (flag == EV_CANCEL)  /* XXX: can't happen ? */
+	if (flag == EV_CANCEL) /* XXX: can't happen ? */
 		return;
 	if (g_shutdown || g_notaste)
 		return;
@@ -325,12 +326,12 @@ g_retaste_event(void *arg, int flag)
 	}
 	g_trace(G_T_TOPOLOGY, "g_retaste(%s)", mp->name);
 
-	LIST_FOREACH(mp2, &g_classes, class) {
-		LIST_FOREACH(gp, &mp2->geom, geom) {
-			LIST_FOREACH(pp, &gp->provider, provider) {
+	LIST_FOREACH (mp2, &g_classes, class) {
+		LIST_FOREACH (gp, &mp2->geom, geom) {
+			LIST_FOREACH (pp, &gp->provider, provider) {
 				if (pp->acr || pp->acw || pp->ace)
 					continue;
-				LIST_FOREACH(cp, &pp->consumers, consumers) {
+				LIST_FOREACH (cp, &pp->consumers, consumers) {
 					if (cp->geom->class == mp &&
 					    (cp->flags & G_CF_ORPHAN) == 0)
 						break;
@@ -416,11 +417,11 @@ g_destroy_geom(struct g_geom *gp)
 	G_VALID_GEOM(gp);
 	g_trace(G_T_TOPOLOGY, "g_destroy_geom(%p(%s))", gp, gp->name);
 	KASSERT(LIST_EMPTY(&gp->consumer),
-	    ("g_destroy_geom(%s) with consumer(s) [%p]",
-	    gp->name, LIST_FIRST(&gp->consumer)));
+	    ("g_destroy_geom(%s) with consumer(s) [%p]", gp->name,
+		LIST_FIRST(&gp->consumer)));
 	KASSERT(LIST_EMPTY(&gp->provider),
-	    ("g_destroy_geom(%s) with provider(s) [%p]",
-	    gp->name, LIST_FIRST(&gp->provider)));
+	    ("g_destroy_geom(%s) with provider(s) [%p]", gp->name,
+		LIST_FIRST(&gp->provider)));
 	g_cancel_event(gp);
 	LIST_REMOVE(gp, geom);
 	TAILQ_REMOVE(&geoms, gp, geoms);
@@ -441,7 +442,7 @@ g_wither_geom(struct g_geom *gp, int error)
 	g_trace(G_T_TOPOLOGY, "g_wither_geom(%p(%s))", gp, gp->name);
 	if (!(gp->flags & G_GEOM_WITHER)) {
 		gp->flags |= G_GEOM_WITHER;
-		LIST_FOREACH(pp, &gp->provider, provider)
+		LIST_FOREACH (pp, &gp->provider, provider)
 			if (!(pp->flags & G_PF_ORPHAN))
 				g_orphan_provider(pp, error);
 	}
@@ -471,7 +472,7 @@ g_wither_geom_close(struct g_geom *gp, int error)
 	g_topology_assert();
 	G_VALID_GEOM(gp);
 	g_trace(G_T_TOPOLOGY, "g_wither_geom_close(%p(%s))", gp, gp->name);
-	LIST_FOREACH(cp, &gp->consumer, consumer)
+	LIST_FOREACH (cp, &gp->consumer, consumer)
 		if (cp->acr || cp->acw || cp->ace)
 			g_access(cp, -cp->acr, -cp->acw, -cp->ace);
 	g_wither_geom(gp, error);
@@ -490,9 +491,9 @@ g_wither_washer()
 	struct g_consumer *cp, *cp2;
 
 	g_topology_assert();
-	LIST_FOREACH(mp, &g_classes, class) {
-		LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
-			LIST_FOREACH_SAFE(pp, &gp->provider, provider, pp2) {
+	LIST_FOREACH (mp, &g_classes, class) {
+		LIST_FOREACH_SAFE (gp, &mp->geom, geom, gp2) {
+			LIST_FOREACH_SAFE (pp, &gp->provider, provider, pp2) {
 				if (!(pp->flags & G_PF_WITHER))
 					continue;
 				if (LIST_EMPTY(&pp->consumers))
@@ -500,11 +501,11 @@ g_wither_washer()
 			}
 			if (!(gp->flags & G_GEOM_WITHER))
 				continue;
-			LIST_FOREACH_SAFE(pp, &gp->provider, provider, pp2) {
+			LIST_FOREACH_SAFE (pp, &gp->provider, provider, pp2) {
 				if (LIST_EMPTY(&pp->consumers))
 					g_destroy_provider(pp);
 			}
-			LIST_FOREACH_SAFE(cp, &gp->consumer, consumer, cp2) {
+			LIST_FOREACH_SAFE (cp, &gp->consumer, consumer, cp2) {
 				if (cp->acr || cp->acw || cp->ace)
 					continue;
 				if (cp->provider != NULL)
@@ -526,18 +527,18 @@ g_new_consumer(struct g_geom *gp)
 	g_topology_assert();
 	G_VALID_GEOM(gp);
 	KASSERT(!(gp->flags & G_GEOM_WITHER),
-	    ("g_new_consumer on WITHERing geom(%s) (class %s)",
-	    gp->name, gp->class->name));
+	    ("g_new_consumer on WITHERing geom(%s) (class %s)", gp->name,
+		gp->class->name));
 	KASSERT(gp->orphan != NULL,
-	    ("g_new_consumer on geom(%s) (class %s) without orphan",
-	    gp->name, gp->class->name));
+	    ("g_new_consumer on geom(%s) (class %s) without orphan", gp->name,
+		gp->class->name));
 
 	cp = g_malloc(sizeof *cp, M_WAITOK | M_ZERO);
 	cp->geom = gp;
 	cp->stat = devstat_new_entry(cp, -1, 0, DEVSTAT_ALL_SUPPORTED,
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	LIST_INSERT_HEAD(&gp->consumer, cp, consumer);
-	return(cp);
+	return (cp);
 }
 
 void
@@ -548,10 +549,10 @@ g_destroy_consumer(struct g_consumer *cp)
 	g_topology_assert();
 	G_VALID_CONSUMER(cp);
 	g_trace(G_T_TOPOLOGY, "g_destroy_consumer(%p)", cp);
-	KASSERT (cp->provider == NULL, ("g_destroy_consumer but attached"));
-	KASSERT (cp->acr == 0, ("g_destroy_consumer with acr"));
-	KASSERT (cp->acw == 0, ("g_destroy_consumer with acw"));
-	KASSERT (cp->ace == 0, ("g_destroy_consumer with ace"));
+	KASSERT(cp->provider == NULL, ("g_destroy_consumer but attached"));
+	KASSERT(cp->acr == 0, ("g_destroy_consumer with acr"));
+	KASSERT(cp->acw == 0, ("g_destroy_consumer with acw"));
+	KASSERT(cp->ace == 0, ("g_destroy_consumer with ace"));
 	g_cancel_event(cp);
 	gp = cp->geom;
 	LIST_REMOVE(cp, consumer);
@@ -577,17 +578,17 @@ g_new_provider_event(void *arg, int flag)
 	G_VALID_PROVIDER(pp);
 	if ((pp->flags & G_PF_WITHER) != 0)
 		return;
-	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, next_cp) {
+	LIST_FOREACH_SAFE (cp, &pp->consumers, consumers, next_cp) {
 		if ((cp->flags & G_CF_ORPHAN) == 0 &&
 		    cp->geom->attrchanged != NULL)
 			cp->geom->attrchanged(cp, "GEOM::media");
 	}
 	if (g_notaste)
 		return;
-	LIST_FOREACH(mp, &g_classes, class) {
+	LIST_FOREACH (mp, &g_classes, class) {
 		if (mp->taste == NULL)
 			continue;
-		LIST_FOREACH(cp, &pp->consumers, consumers)
+		LIST_FOREACH (cp, &pp->consumers, consumers)
 			if (cp->geom->class == mp &&
 			    (cp->flags & G_CF_ORPHAN) == 0)
 				break;
@@ -608,14 +609,14 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	g_topology_assert();
 	G_VALID_GEOM(gp);
 	KASSERT(gp->access != NULL,
-	    ("new provider on geom(%s) without ->access (class %s)",
-	    gp->name, gp->class->name));
+	    ("new provider on geom(%s) without ->access (class %s)", gp->name,
+		gp->class->name));
 	KASSERT(gp->start != NULL,
-	    ("new provider on geom(%s) without ->start (class %s)",
-	    gp->name, gp->class->name));
+	    ("new provider on geom(%s) without ->start (class %s)", gp->name,
+		gp->class->name));
 	KASSERT(!(gp->flags & G_GEOM_WITHER),
-	    ("new provider on WITHERing geom(%s) (class %s)",
-	    gp->name, gp->class->name));
+	    ("new provider on WITHERing geom(%s) (class %s)", gp->name,
+		gp->class->name));
 	sb = sbuf_new_auto();
 	va_start(ap, fmt);
 	sbuf_vprintf(sb, fmt, ap);
@@ -652,7 +653,7 @@ g_provider_add_alias(struct g_provider *pp, const char *fmt, ...)
 	va_end(ap);
 	sbuf_finish(sb);
 
-	LIST_FOREACH(gap, &pp->aliases, ga_next) {
+	LIST_FOREACH (gap, &pp->aliases, ga_next) {
 		if (strcmp(gap->ga_alias, sbuf_data(sb)) != 0)
 			continue;
 		/* Don't re-add the same alias. */
@@ -699,7 +700,7 @@ g_resize_provider_event(void *arg, int flag)
 	    ("g_resize_provider_event but withered"));
 	g_trace(G_T_TOPOLOGY, "g_resize_provider_event(%p)", pp);
 
-	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, cp2) {
+	LIST_FOREACH_SAFE (cp, &pp->consumers, consumers, cp2) {
 		gp = cp->geom;
 		if (gp->resize == NULL && size < pp->mediasize) {
 			/*
@@ -717,7 +718,7 @@ g_resize_provider_event(void *arg, int flag)
 
 	pp->mediasize = size;
 
-	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, cp2) {
+	LIST_FOREACH_SAFE (cp, &pp->consumers, consumers, cp2) {
 		gp = cp->geom;
 		if ((gp->flags & G_GEOM_WITHER) == 0 && gp->resize != NULL)
 			gp->resize(cp);
@@ -727,10 +728,10 @@ g_resize_provider_event(void *arg, int flag)
 	 * After resizing, the previously invalid GEOM class metadata
 	 * might become valid.  This means we should retaste.
 	 */
-	LIST_FOREACH(mp, &g_classes, class) {
+	LIST_FOREACH (mp, &g_classes, class) {
 		if (mp->taste == NULL)
 			continue;
-		LIST_FOREACH(cp, &pp->consumers, consumers)
+		LIST_FOREACH (cp, &pp->consumers, consumers)
 			if (cp->geom->class == mp &&
 			    (cp->flags & G_CF_ORPHAN) == 0)
 				break;
@@ -770,9 +771,9 @@ g_provider_by_name(char const *arg)
 		arg += sizeof(_PATH_DEV) - 1;
 
 	wpp = NULL;
-	LIST_FOREACH(cp, &g_classes, class) {
-		LIST_FOREACH(gp, &cp->geom, geom) {
-			LIST_FOREACH(pp, &gp->provider, provider) {
+	LIST_FOREACH (cp, &g_classes, class) {
+		LIST_FOREACH (gp, &cp->geom, geom) {
+			LIST_FOREACH (pp, &gp->provider, provider) {
 				if (strcmp(arg, pp->name) != 0)
 					continue;
 				if ((gp->flags & G_GEOM_WITHER) == 0 &&
@@ -795,11 +796,11 @@ g_destroy_provider(struct g_provider *pp)
 
 	g_topology_assert();
 	G_VALID_PROVIDER(pp);
-	KASSERT(LIST_EMPTY(&pp->consumers),
-	    ("g_destroy_provider but attached"));
-	KASSERT (pp->acr == 0, ("g_destroy_provider with acr"));
-	KASSERT (pp->acw == 0, ("g_destroy_provider with acw"));
-	KASSERT (pp->ace == 0, ("g_destroy_provider with ace"));
+	KASSERT(
+	    LIST_EMPTY(&pp->consumers), ("g_destroy_provider but attached"));
+	KASSERT(pp->acr == 0, ("g_destroy_provider with acr"));
+	KASSERT(pp->acw == 0, ("g_destroy_provider with acw"));
+	KASSERT(pp->ace == 0, ("g_destroy_provider with ace"));
 	g_cancel_event(pp);
 	LIST_REMOVE(pp, provider);
 	gp = pp->geom;
@@ -810,7 +811,7 @@ g_destroy_provider(struct g_provider *pp)
 	 */
 	if (gp->providergone != NULL)
 		gp->providergone(pp);
-	LIST_FOREACH_SAFE(gap, &pp->aliases, ga_next, gaptmp)
+	LIST_FOREACH_SAFE (gap, &pp->aliases, ga_next, gaptmp)
 		g_free(gap);
 	g_free(pp);
 	if ((gp->flags & G_GEOM_WITHER))
@@ -858,7 +859,7 @@ redo_rank(struct g_geom *gp)
 	for (; gp1 != NULL; gp1 = gp2) {
 		gp1->rank = 0;
 		m = 1;
-		LIST_FOREACH(cp, &gp1->consumer, consumer) {
+		LIST_FOREACH (cp, &gp1->consumer, consumer) {
 			if (cp->provider == NULL)
 				continue;
 			n = cp->provider->geom->rank;
@@ -876,7 +877,7 @@ redo_rank(struct g_geom *gp)
 			continue;
 
 		/* no rank to original geom means loop */
-		if (gp == gp1) 
+		if (gp == gp1)
 			return (ELOOP);
 
 		/* no rank, put it at the end move on */
@@ -922,14 +923,12 @@ g_detach(struct g_consumer *cp)
 	KASSERT(cp->acr == 0, ("detach but nonzero acr"));
 	KASSERT(cp->acw == 0, ("detach but nonzero acw"));
 	KASSERT(cp->ace == 0, ("detach but nonzero ace"));
-	KASSERT(cp->nstart == cp->nend,
-	    ("detach with active requests"));
+	KASSERT(cp->nstart == cp->nend, ("detach with active requests"));
 	pp = cp->provider;
 	LIST_REMOVE(cp, consumers);
 	cp->provider = NULL;
 	if ((cp->geom->flags & G_GEOM_WITHER) ||
-	    (pp->geom->flags & G_GEOM_WITHER) ||
-	    (pp->flags & G_PF_WITHER))
+	    (pp->geom->flags & G_GEOM_WITHER) || (pp->flags & G_PF_WITHER))
 		g_do_wither();
 	redo_rank(cp->geom);
 }
@@ -959,15 +958,15 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	G_VALID_PROVIDER(pp);
 	gp = pp->geom;
 
-	g_trace(G_T_ACCESS, "g_access(%p(%s), %d, %d, %d)",
-	    cp, pp->name, dcr, dcw, dce);
+	g_trace(G_T_ACCESS, "g_access(%p(%s), %d, %d, %d)", cp, pp->name, dcr,
+	    dcw, dce);
 
 	KASSERT(cp->acr + dcr >= 0, ("access resulting in negative acr"));
 	KASSERT(cp->acw + dcw >= 0, ("access resulting in negative acw"));
 	KASSERT(cp->ace + dce >= 0, ("access resulting in negative ace"));
 	KASSERT(dcr != 0 || dcw != 0 || dce != 0, ("NOP access request"));
 	KASSERT(cp->acr + dcr != 0 || cp->acw + dcw != 0 ||
-	    cp->ace + dce != 0 || cp->nstart == cp->nend,
+		cp->ace + dce != 0 || cp->nstart == cp->nend,
 	    ("Last close with active requests"));
 	KASSERT(gp->access != NULL, ("NULL geom->access"));
 
@@ -1009,10 +1008,8 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	pe = pp->ace - cp->ace;
 
 	g_trace(G_T_ACCESS,
-    "open delta:[r%dw%de%d] old:[r%dw%de%d] provider:[r%dw%de%d] %p(%s)",
-	    dcr, dcw, dce,
-	    cp->acr, cp->acw, cp->ace,
-	    pp->acr, pp->acw, pp->ace,
+	    "open delta:[r%dw%de%d] old:[r%dw%de%d] provider:[r%dw%de%d] %p(%s)",
+	    dcr, dcw, dce, cp->acr, cp->acw, cp->ace, pp->acr, pp->acw, pp->ace,
 	    pp, pp->name);
 
 	/* If foot-shooting is enabled, any open on rank#1 is OK */
@@ -1026,8 +1023,8 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 		return (EPERM);
 	/* If we try to open more but provider is error'ed: fail */
 	else if ((dcr > 0 || dcw > 0 || dce > 0) && pp->error != 0) {
-		printf("%s(%d): provider %s has error %d set\n",
-		    __func__, __LINE__, pp->name, pp->error);
+		printf("%s(%d): provider %s has error %d set\n", __func__,
+		    __LINE__, pp->name, pp->error);
 		return (pp->error);
 	}
 
@@ -1042,8 +1039,8 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	error = gp->access(pp, dcr, dcw, dce);
 	KASSERT(dcr > 0 || dcw > 0 || dce > 0 || error == 0,
 	    ("Geom provider %s::%s dcr=%d dcw=%d dce=%d error=%d failed "
-	    "closing ->access()", gp->class->name, pp->name, dcr, dcw,
-	    dce, error));
+	     "closing ->access()",
+		gp->class->name, pp->name, dcr, dcw, dce, error));
 
 	g_topology_assert();
 	gp->flags &= ~G_GEOM_IN_ACCESS;
@@ -1064,8 +1061,8 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 			g_spoil(pp, cp);
 		else if (pp->acw != 0 && pp->acw == -dcw && pp->error == 0 &&
 		    !(gp->flags & G_GEOM_WITHER))
-			g_post_event(g_new_provider_event, pp, M_WAITOK, 
-			    pp, NULL);
+			g_post_event(
+			    g_new_provider_event, pp, M_WAITOK, pp, NULL);
 
 		pp->acr += dcr;
 		pp->acw += dcw;
@@ -1076,8 +1073,8 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 		if (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)
 			KASSERT(pp->sectorsize > 0,
 			    ("Provider %s lacks sectorsize", pp->name));
-		if ((cp->geom->flags & G_GEOM_WITHER) &&
-		    cp->acr == 0 && cp->acw == 0 && cp->ace == 0)
+		if ((cp->geom->flags & G_GEOM_WITHER) && cp->acr == 0 &&
+		    cp->acw == 0 && cp->ace == 0)
 			g_do_wither();
 	}
 	return (error);
@@ -1122,7 +1119,8 @@ g_handleattr(struct bio *bp, const char *attribute, const void *val, int len)
 		bzero(bp->bio_data, bp->bio_length);
 		if (strlcpy(bp->bio_data, val, bp->bio_length) >=
 		    bp->bio_length) {
-			printf("%s: %s %s bio_length %jd strlen %zu -> EFAULT\n",
+			printf(
+			    "%s: %s %s bio_length %jd strlen %zu -> EFAULT\n",
 			    __func__, bp->bio_to->name, attribute,
 			    (intmax_t)bp->bio_length, strlen(val));
 			error = EFAULT;
@@ -1141,13 +1139,13 @@ g_handleattr(struct bio *bp, const char *attribute, const void *val, int len)
 }
 
 int
-g_std_access(struct g_provider *pp,
-	int dr __unused, int dw __unused, int de __unused)
+g_std_access(
+    struct g_provider *pp, int dr __unused, int dw __unused, int de __unused)
 {
 
 	g_topology_assert();
 	G_VALID_PROVIDER(pp);
-        return (0);
+	return (0);
 }
 
 void
@@ -1182,7 +1180,7 @@ g_std_spoiled(struct g_consumer *cp)
 	cp->flags |= G_CF_ORPHAN;
 	g_detach(cp);
 	gp = cp->geom;
-	LIST_FOREACH(pp, &gp->provider, provider)
+	LIST_FOREACH (pp, &gp->provider, provider)
 		g_orphan_provider(pp, ENXIO);
 	g_destroy_consumer(cp);
 	if (LIST_EMPTY(&gp->provider) && LIST_EMPTY(&gp->consumer))
@@ -1236,13 +1234,14 @@ g_spoil(struct g_provider *pp, struct g_consumer *cp)
 	G_VALID_PROVIDER(pp);
 	G_VALID_CONSUMER(cp);
 
-	LIST_FOREACH(cp2, &pp->consumers, consumers) {
+	LIST_FOREACH (cp2, &pp->consumers, consumers) {
 		if (cp2 == cp)
 			continue;
-/*
-		KASSERT(cp2->acr == 0, ("spoiling cp->acr = %d", cp2->acr));
-		KASSERT(cp2->acw == 0, ("spoiling cp->acw = %d", cp2->acw));
-*/
+		/*
+				KASSERT(cp2->acr == 0, ("spoiling cp->acr = %d",
+		   cp2->acr)); KASSERT(cp2->acw == 0, ("spoiling cp->acw = %d",
+		   cp2->acw));
+		*/
 		KASSERT(cp2->ace == 0, ("spoiling cp->ace = %d", cp2->ace));
 		cp2->flags |= G_CF_SPOILED;
 	}
@@ -1277,7 +1276,7 @@ g_media_changed(struct g_provider *pp, int flag)
 {
 	struct g_consumer *cp;
 
-	LIST_FOREACH(cp, &pp->consumers, consumers)
+	LIST_FOREACH (cp, &pp->consumers, consumers)
 		cp->flags |= G_CF_SPOILED;
 	return (g_post_event(g_media_changed_event, pp, flag, pp, NULL));
 }
@@ -1287,7 +1286,7 @@ g_media_gone(struct g_provider *pp, int flag)
 {
 	struct g_consumer *cp;
 
-	LIST_FOREACH(cp, &pp->consumers, consumers)
+	LIST_FOREACH (cp, &pp->consumers, consumers)
 		cp->flags |= G_CF_SPOILED;
 	return (g_post_event(g_spoil_event, pp, flag, pp, NULL));
 }
@@ -1364,43 +1363,46 @@ g_valid_obj(void const *ptr)
 #endif
 		g_topology_assert();
 
-	LIST_FOREACH(mp, &g_classes, class) {
+	LIST_FOREACH (mp, &g_classes, class) {
 		if (ptr == mp)
 			return (1);
-		LIST_FOREACH(gp, &mp->geom, geom) {
+		LIST_FOREACH (gp, &mp->geom, geom) {
 			if (ptr == gp)
 				return (2);
-			LIST_FOREACH(cp, &gp->consumer, consumer)
+			LIST_FOREACH (cp, &gp->consumer, consumer)
 				if (ptr == cp)
 					return (3);
-			LIST_FOREACH(pp, &gp->provider, provider)
+			LIST_FOREACH (pp, &gp->provider, provider)
 				if (ptr == pp)
 					return (4);
 		}
 	}
-	return(0);
+	return (0);
 }
 #endif
 
 #ifdef DDB
 
-#define	gprintf(...)	do {						\
-	db_printf("%*s", indent, "");					\
-	db_printf(__VA_ARGS__);						\
-} while (0)
-#define	gprintln(...)	do {						\
-	gprintf(__VA_ARGS__);						\
-	db_printf("\n");						\
-} while (0)
+#define gprintf(...)                          \
+	do {                                  \
+		db_printf("%*s", indent, ""); \
+		db_printf(__VA_ARGS__);       \
+	} while (0)
+#define gprintln(...)                 \
+	do {                          \
+		gprintf(__VA_ARGS__); \
+		db_printf("\n");      \
+	} while (0)
 
-#define	ADDFLAG(obj, flag, sflag)	do {				\
-	if ((obj)->flags & (flag)) {					\
-		if (comma)						\
-			strlcat(str, ",", size);			\
-		strlcat(str, (sflag), size);				\
-		comma = 1;						\
-	}								\
-} while (0)
+#define ADDFLAG(obj, flag, sflag)                        \
+	do {                                             \
+		if ((obj)->flags & (flag)) {             \
+			if (comma)                       \
+				strlcat(str, ",", size); \
+			strlcat(str, (sflag), size);     \
+			comma = 1;                       \
+		}                                        \
+	} while (0)
 
 static char *
 provider_flags_to_string(struct g_provider *pp, char *str, size_t size)
@@ -1453,8 +1455,8 @@ db_show_geom_consumer(int indent, struct g_consumer *cp)
 #endif
 	} else {
 		gprintf("consumer: %p (%s), access=r%dw%de%d", cp,
-		    cp->provider != NULL ? cp->provider->name : "none",
-		    cp->acr, cp->acw, cp->ace);
+		    cp->provider != NULL ? cp->provider->name : "none", cp->acr,
+		    cp->acw, cp->ace);
 		if (cp->flags)
 			db_printf(", flags=0x%04x", cp->flags);
 		db_printf("\n");
@@ -1476,8 +1478,8 @@ db_show_geom_provider(int indent, struct g_provider *pp)
 		gprintln("  sectorsize:   %u", pp->sectorsize);
 		gprintln("  stripesize:   %ju", (uintmax_t)pp->stripesize);
 		gprintln("  stripeoffset: %ju", (uintmax_t)pp->stripeoffset);
-		gprintln("  access:       r%dw%de%d", pp->acr, pp->acw,
-		    pp->ace);
+		gprintln(
+		    "  access:       r%dw%de%d", pp->acr, pp->acw, pp->ace);
 		gprintln("  flags:        %s (0x%04x)",
 		    provider_flags_to_string(pp, flags, sizeof(flags)),
 		    pp->flags);
@@ -1485,8 +1487,8 @@ db_show_geom_provider(int indent, struct g_provider *pp)
 		if (LIST_EMPTY(&pp->consumers))
 			gprintln("  consumers:    none");
 	} else {
-		gprintf("provider: %s (%p), access=r%dw%de%d",
-		    pp->name, pp, pp->acr, pp->acw, pp->ace);
+		gprintf("provider: %s (%p), access=r%dw%de%d", pp->name, pp,
+		    pp->acr, pp->acw, pp->ace);
 		if (pp->flags != 0) {
 			db_printf(", flags=%s (0x%04x)",
 			    provider_flags_to_string(pp, flags, sizeof(flags)),
@@ -1495,7 +1497,7 @@ db_show_geom_provider(int indent, struct g_provider *pp)
 		db_printf("\n");
 	}
 	if (!LIST_EMPTY(&pp->consumers)) {
-		LIST_FOREACH(cp, &pp->consumers, consumers) {
+		LIST_FOREACH (cp, &pp->consumers, consumers) {
 			db_show_geom_consumer(indent + 2, cp);
 			if (db_pager_quit)
 				break;
@@ -1530,14 +1532,14 @@ db_show_geom_geom(int indent, struct g_geom *gp)
 		db_printf("\n");
 	}
 	if (!LIST_EMPTY(&gp->provider)) {
-		LIST_FOREACH(pp, &gp->provider, provider) {
+		LIST_FOREACH (pp, &gp->provider, provider) {
 			db_show_geom_provider(indent + 2, pp);
 			if (db_pager_quit)
 				break;
 		}
 	}
 	if (!LIST_EMPTY(&gp->consumer)) {
-		LIST_FOREACH(cp, &gp->consumer, consumer) {
+		LIST_FOREACH (cp, &gp->consumer, consumer) {
 			db_show_geom_consumer(indent + 2, cp);
 			if (db_pager_quit)
 				break;
@@ -1551,7 +1553,7 @@ db_show_geom_class(struct g_class *mp)
 	struct g_geom *gp;
 
 	db_printf("class: %s (%p)\n", mp->name, mp);
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		db_show_geom_geom(2, gp);
 		if (db_pager_quit)
 			break;
@@ -1567,7 +1569,7 @@ DB_SHOW_COMMAND(geom, db_show_geom)
 
 	if (!have_addr) {
 		/* No address given, print the entire topology. */
-		LIST_FOREACH(mp, &g_classes, class) {
+		LIST_FOREACH (mp, &g_classes, class) {
 			db_show_geom_class(mp);
 			db_printf("\n");
 			if (db_pager_quit)
@@ -1599,16 +1601,36 @@ db_print_bio_cmd(struct bio *bp)
 {
 	db_printf("  cmd: ");
 	switch (bp->bio_cmd) {
-	case BIO_READ: db_printf("BIO_READ"); break;
-	case BIO_WRITE: db_printf("BIO_WRITE"); break;
-	case BIO_DELETE: db_printf("BIO_DELETE"); break;
-	case BIO_GETATTR: db_printf("BIO_GETATTR"); break;
-	case BIO_FLUSH: db_printf("BIO_FLUSH"); break;
-	case BIO_CMD0: db_printf("BIO_CMD0"); break;
-	case BIO_CMD1: db_printf("BIO_CMD1"); break;
-	case BIO_CMD2: db_printf("BIO_CMD2"); break;
-	case BIO_ZONE: db_printf("BIO_ZONE"); break;
-	default: db_printf("UNKNOWN"); break;
+	case BIO_READ:
+		db_printf("BIO_READ");
+		break;
+	case BIO_WRITE:
+		db_printf("BIO_WRITE");
+		break;
+	case BIO_DELETE:
+		db_printf("BIO_DELETE");
+		break;
+	case BIO_GETATTR:
+		db_printf("BIO_GETATTR");
+		break;
+	case BIO_FLUSH:
+		db_printf("BIO_FLUSH");
+		break;
+	case BIO_CMD0:
+		db_printf("BIO_CMD0");
+		break;
+	case BIO_CMD1:
+		db_printf("BIO_CMD1");
+		break;
+	case BIO_CMD2:
+		db_printf("BIO_CMD2");
+		break;
+	case BIO_ZONE:
+		db_printf("BIO_ZONE");
+		break;
+	default:
+		db_printf("UNKNOWN");
+		break;
 	}
 	db_printf("\n");
 }
@@ -1669,8 +1691,8 @@ DB_SHOW_COMMAND(bio, db_show_bio)
 	}
 }
 
-#undef	gprintf
-#undef	gprintln
-#undef	ADDFLAG
+#undef gprintf
+#undef gprintln
+#undef ADDFLAG
 
-#endif	/* DDB */
+#endif /* DDB */

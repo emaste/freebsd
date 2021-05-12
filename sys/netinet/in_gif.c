@@ -40,30 +40,29 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
 #include <sys/jail.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/mbuf.h>
-#include <sys/errno.h>
-#include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/in_var.h>
-#include <netinet/ip_encap.h>
-#include <netinet/ip_ecn.h>
 #include <netinet/in_fib.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/ip_ecn.h>
+#include <netinet/ip_encap.h>
+#include <netinet/ip_var.h>
 
 #ifdef INET6
 #include <netinet/ip6.h>
@@ -71,9 +70,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if_gif.h>
 
-#define GIF_TTL		30
+#define GIF_TTL 30
 VNET_DEFINE_STATIC(int, ip_gif_ttl) = GIF_TTL;
-#define	V_ip_gif_ttl		VNET(ip_gif_ttl)
+#define V_ip_gif_ttl VNET(ip_gif_ttl)
 SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_gif_ttl), 0, "Default TTL value for encapsulated packets");
 
@@ -84,16 +83,17 @@ SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_VNET | CTLFLAG_RW,
 VNET_DEFINE_STATIC(struct gif_list *, ipv4_hashtbl) = NULL;
 VNET_DEFINE_STATIC(struct gif_list *, ipv4_srchashtbl) = NULL;
 VNET_DEFINE_STATIC(struct gif_list, ipv4_list) = CK_LIST_HEAD_INITIALIZER();
-#define	V_ipv4_hashtbl		VNET(ipv4_hashtbl)
-#define	V_ipv4_srchashtbl	VNET(ipv4_srchashtbl)
-#define	V_ipv4_list		VNET(ipv4_list)
+#define V_ipv4_hashtbl VNET(ipv4_hashtbl)
+#define V_ipv4_srchashtbl VNET(ipv4_srchashtbl)
+#define V_ipv4_list VNET(ipv4_list)
 
-#define	GIF_HASH(src, dst)	(V_ipv4_hashtbl[\
-    in_gif_hashval((src), (dst)) & (GIF_HASH_SIZE - 1)])
-#define	GIF_SRCHASH(src)	(V_ipv4_srchashtbl[\
-    fnv_32_buf(&(src), sizeof(src), FNV1_32_INIT) & (GIF_HASH_SIZE - 1)])
-#define	GIF_HASH_SC(sc)		GIF_HASH((sc)->gif_iphdr->ip_src.s_addr,\
-    (sc)->gif_iphdr->ip_dst.s_addr)
+#define GIF_HASH(src, dst) \
+	(V_ipv4_hashtbl[in_gif_hashval((src), (dst)) & (GIF_HASH_SIZE - 1)])
+#define GIF_SRCHASH(src)                                                   \
+	(V_ipv4_srchashtbl[fnv_32_buf(&(src), sizeof(src), FNV1_32_INIT) & \
+	    (GIF_HASH_SIZE - 1)])
+#define GIF_HASH_SC(sc) \
+	GIF_HASH((sc)->gif_iphdr->ip_src.s_addr, (sc)->gif_iphdr->ip_dst.s_addr)
 static uint32_t
 in_gif_hashval(in_addr_t src, in_addr_t dst)
 {
@@ -108,12 +108,12 @@ in_gif_checkdup(const struct gif_softc *sc, in_addr_t src, in_addr_t dst)
 {
 	struct gif_softc *tmp;
 
-	if (sc->gif_family == AF_INET &&
-	    sc->gif_iphdr->ip_src.s_addr == src &&
+	if (sc->gif_family == AF_INET && sc->gif_iphdr->ip_src.s_addr == src &&
 	    sc->gif_iphdr->ip_dst.s_addr == dst)
 		return (EEXIST);
 
-	CK_LIST_FOREACH(tmp, &GIF_HASH(src, dst), chain) {
+	CK_LIST_FOREACH(tmp, &GIF_HASH(src, dst), chain)
+	{
 		if (tmp == sc)
 			continue;
 		if (tmp->gif_iphdr->ip_src.s_addr == src &&
@@ -142,8 +142,8 @@ in_gif_set_running(struct gif_softc *sc)
  * source address spoofing.
  */
 static void
-in_gif_srcaddr(void *arg __unused, const struct sockaddr *sa,
-    int event __unused)
+in_gif_srcaddr(
+    void *arg __unused, const struct sockaddr *sa, int event __unused)
 {
 	const struct sockaddr_in *sin;
 	struct gif_softc *sc;
@@ -154,7 +154,8 @@ in_gif_srcaddr(void *arg __unused, const struct sockaddr *sa,
 
 	NET_EPOCH_ASSERT();
 	sin = (const struct sockaddr_in *)sa;
-	CK_LIST_FOREACH(sc, &GIF_SRCHASH(sin->sin_addr.s_addr), srchash) {
+	CK_LIST_FOREACH(sc, &GIF_SRCHASH(sin->sin_addr.s_addr), srchash)
+	{
 		if (sc->gif_iphdr->ip_src.s_addr != sin->sin_addr.s_addr)
 			continue;
 		in_gif_set_running(sc);
@@ -170,8 +171,8 @@ in_gif_attach(struct gif_softc *sc)
 	else
 		CK_LIST_INSERT_HEAD(&GIF_HASH_SC(sc), sc, chain);
 
-	CK_LIST_INSERT_HEAD(&GIF_SRCHASH(sc->gif_iphdr->ip_src.s_addr),
-	    sc, srchash);
+	CK_LIST_INSERT_HEAD(
+	    &GIF_SRCHASH(sc->gif_iphdr->ip_src.s_addr), sc, srchash);
 }
 
 int
@@ -222,8 +223,8 @@ in_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 			V_ipv4_hashtbl = gif_hashinit();
 			V_ipv4_srchashtbl = gif_hashinit();
 		}
-		error = in_gif_checkdup(sc, src->sin_addr.s_addr,
-		    dst->sin_addr.s_addr);
+		error = in_gif_checkdup(
+		    sc, src->sin_addr.s_addr, dst->sin_addr.s_addr);
 		if (error == EADDRNOTAVAIL)
 			break;
 		if (error == EEXIST) {
@@ -258,7 +259,8 @@ in_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 		src->sin_family = AF_INET;
 		src->sin_len = sizeof(*src);
 		src->sin_addr = (cmd == SIOCGIFPSRCADDR) ?
-		    sc->gif_iphdr->ip_src: sc->gif_iphdr->ip_dst;
+			  sc->gif_iphdr->ip_src :
+			  sc->gif_iphdr->ip_dst;
 		error = prison_if(curthread->td_ucred, (struct sockaddr *)src);
 		if (error != 0)
 			memset(src, 0, sizeof(*src));
@@ -351,8 +353,9 @@ in_gif_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	 * section, but ip_encap lookup+input are executed in epoch section.
 	 */
 	ret = 0;
-	CK_LIST_FOREACH(sc, &GIF_HASH(ip->ip_dst.s_addr,
-	    ip->ip_src.s_addr), chain) {
+	CK_LIST_FOREACH(
+	    sc, &GIF_HASH(ip->ip_dst.s_addr, ip->ip_src.s_addr), chain)
+	{
 		/*
 		 * This is an inbound packet, its ip_dst is source address
 		 * in softc.
@@ -367,7 +370,8 @@ in_gif_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	 * No exact match.
 	 * Check the list of interfaces with GIF_IGNORE_SOURCE flag.
 	 */
-	CK_LIST_FOREACH(sc, &V_ipv4_list, chain) {
+	CK_LIST_FOREACH(sc, &V_ipv4_list, chain)
+	{
 		if (sc->gif_iphdr->ip_src.s_addr == ip->ip_dst.s_addr) {
 			ret = 32 + 8; /* src + proto */
 			goto done;
@@ -380,7 +384,7 @@ done:
 	/* ingress filters on outer source */
 	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0) {
 		if (fib4_check_urpf(sc->gif_fibnum, ip->ip_src, 0, NHR_NONE,
-					m->m_pkthdr.rcvif) == 0)
+			m->m_pkthdr.rcvif) == 0)
 			return (0);
 	}
 	*arg = sc;
@@ -391,40 +395,30 @@ static const struct srcaddrtab *ipv4_srcaddrtab;
 static struct {
 	const struct encap_config encap;
 	const struct encaptab *cookie;
-} ipv4_encap_cfg[] = {
-	{
-		.encap = {
-			.proto = IPPROTO_IPV4,
-			.min_length = 2 * sizeof(struct ip),
-			.exact_match = ENCAP_DRV_LOOKUP,
-			.lookup = in_gif_lookup,
-			.input = in_gif_input
-		},
-	},
+} ipv4_encap_cfg[] = { {
+			   .encap = { .proto = IPPROTO_IPV4,
+			       .min_length = 2 * sizeof(struct ip),
+			       .exact_match = ENCAP_DRV_LOOKUP,
+			       .lookup = in_gif_lookup,
+			       .input = in_gif_input },
+		       },
 #ifdef INET6
 	{
-		.encap = {
-			.proto = IPPROTO_IPV6,
-			.min_length = sizeof(struct ip) +
-			    sizeof(struct ip6_hdr),
-			.exact_match = ENCAP_DRV_LOOKUP,
-			.lookup = in_gif_lookup,
-			.input = in_gif_input
-		},
+	    .encap = { .proto = IPPROTO_IPV6,
+		.min_length = sizeof(struct ip) + sizeof(struct ip6_hdr),
+		.exact_match = ENCAP_DRV_LOOKUP,
+		.lookup = in_gif_lookup,
+		.input = in_gif_input },
 	},
 #endif
 	{
-		.encap = {
-			.proto = IPPROTO_ETHERIP,
-			.min_length = sizeof(struct ip) +
-			    sizeof(struct etherip_header) +
-			    sizeof(struct ether_header),
-			.exact_match = ENCAP_DRV_LOOKUP,
-			.lookup = in_gif_lookup,
-			.input = in_gif_input
-		},
-	}
-};
+	    .encap = { .proto = IPPROTO_ETHERIP,
+		.min_length = sizeof(struct ip) +
+		    sizeof(struct etherip_header) + sizeof(struct ether_header),
+		.exact_match = ENCAP_DRV_LOOKUP,
+		.lookup = in_gif_lookup,
+		.input = in_gif_input },
+	} };
 
 void
 in_gif_init(void)
@@ -434,8 +428,8 @@ in_gif_init(void)
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 
-	ipv4_srcaddrtab = ip_encap_register_srcaddr(in_gif_srcaddr,
-	    NULL, M_WAITOK);
+	ipv4_srcaddrtab = ip_encap_register_srcaddr(
+	    in_gif_srcaddr, NULL, M_WAITOK);
 	for (i = 0; i < nitems(ipv4_encap_cfg); i++)
 		ipv4_encap_cfg[i].cookie = ip_encap_attach(
 		    &ipv4_encap_cfg[i].encap, NULL, M_WAITOK);

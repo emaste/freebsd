@@ -31,13 +31,13 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
 
-#include <mips/nlm/hal/mips-extns.h>
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
+#include <mips/nlm/hal/mips-extns.h>
 #include <mips/nlm/hal/sys.h>
 #include <mips/nlm/xlp.h>
 
@@ -51,14 +51,14 @@ xlp_get_cpu_frequency(int node, int core)
 	rstval = nlm_read_sys_reg(sysbase, SYS_POWER_ON_RESET_CFG);
 	dfsval = nlm_read_sys_reg(sysbase, SYS_CORE_DFS_DIV_VALUE);
 	pll_divf = ((rstval >> 10) & 0x7f) + 1;
-	pll_divr = ((rstval >> 8)  & 0x3) + 1;
+	pll_divr = ((rstval >> 8) & 0x3) + 1;
 	if (!nlm_is_xlp8xx_ax())
 		ext_div = ((rstval >> 30) & 0x3) + 1;
 	else
 		ext_div = 1;
-	dfs_div  = ((dfsval >> (core << 2)) & 0xf) + 1;
+	dfs_div = ((dfsval >> (core << 2)) & 0xf) + 1;
 
-	return ((800000000ULL * pll_divf)/(3 * pll_divr * ext_div * dfs_div));
+	return ((800000000ULL * pll_divf) / (3 * pll_divr * ext_div * dfs_div));
 }
 
 static u_int
@@ -99,15 +99,15 @@ nlm_set_device_frequency(int node, int devtype, int frequency)
 	else
 		dec_div = 0;
 
-	for(;;) {
+	for (;;) {
 		if ((cur_freq >= (frequency - 5)) && (cur_freq <= frequency))
 			break;
 		if (dec_div)
-			nlm_write_sys_reg(sysbase, SYS_DFS_DIV_DEC_CTRL,
-			    (1 << devtype));
+			nlm_write_sys_reg(
+			    sysbase, SYS_DFS_DIV_DEC_CTRL, (1 << devtype));
 		else
-			nlm_write_sys_reg(sysbase, SYS_DFS_DIV_INC_CTRL,
-			    (1 << devtype));
+			nlm_write_sys_reg(
+			    sysbase, SYS_DFS_DIV_INC_CTRL, (1 << devtype));
 		cur_freq = nlm_get_device_frequency(sysbase, devtype);
 	}
 	return (nlm_get_device_frequency(sysbase, devtype));

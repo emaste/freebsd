@@ -26,10 +26,10 @@
  */
 
 #ifndef _CLOUDABI32_UTIL_H_
-#define	_CLOUDABI32_UTIL_H_
+#define _CLOUDABI32_UTIL_H_
 
 #include <sys/types.h>
-#define	__ELF_WORD_SIZE	32
+#define __ELF_WORD_SIZE 32
 #include <sys/imgact_elf.h>
 
 #include <contrib/cloudabi/cloudabi32_types.h>
@@ -39,13 +39,13 @@ struct thread;
 
 extern Elf32_Brandinfo cloudabi32_brand;
 
-#define	TO_PTR(x)	((void *)(uintptr_t)(x))
+#define TO_PTR(x) ((void *)(uintptr_t)(x))
 
 /* Stack initialization during process execution. */
-int	cloudabi32_copyout_strings(struct image_params *, uintptr_t *);
-int	cloudabi32_fixup(uintptr_t *, struct image_params *);
+int cloudabi32_copyout_strings(struct image_params *, uintptr_t *);
+int cloudabi32_fixup(uintptr_t *, struct image_params *);
 
-int	cloudabi32_thread_setregs(struct thread *,
-    const cloudabi32_threadattr_t *, uint32_t);
+int cloudabi32_thread_setregs(
+    struct thread *, const cloudabi32_threadattr_t *, uint32_t);
 
 #endif

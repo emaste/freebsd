@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2006 Vadim Goncharov <vadimnuclight@tpu.ru>
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -65,8 +65,8 @@
 #include <sys/mbuf.h>
 #include <sys/stddef.h>
 
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_tag.h>
 
@@ -76,7 +76,11 @@ static MALLOC_DEFINE(M_NETGRAPH_TAG, "netgraph_tag", "netgraph tag node");
 #define M_NETGRAPH_TAG M_NETGRAPH
 #endif
 
-#define ERROUT(x)	do { error = (x); goto done; } while (0)
+#define ERROUT(x)            \
+	do {                 \
+		error = (x); \
+		goto done;   \
+	} while (0)
 
 /*
  * Per hook private info.
@@ -94,163 +98,121 @@ static MALLOC_DEFINE(M_NETGRAPH_TAG, "netgraph_tag", "netgraph tag node");
  * destination hooks instead of expensive ng_findhook().
  */
 struct ng_tag_hookinfo {
-	hook_p			hi_match;	/* matching hook pointer */
-	hook_p			hi_nonmatch;	/* non-matching hook pointer */
-	uint32_t		in_tag_cookie;
-	uint32_t		out_tag_cookie;
-	uint16_t		in_tag_id;
-	uint16_t		in_tag_len;
-	uint16_t		out_tag_id;
-	uint16_t		out_tag_len;
-	uint8_t			strip;
-	void			*in_tag_data;
-	void			*out_tag_data;
-	struct ng_tag_hookin	*in;
-	struct ng_tag_hookout	*out;
+	hook_p hi_match;    /* matching hook pointer */
+	hook_p hi_nonmatch; /* non-matching hook pointer */
+	uint32_t in_tag_cookie;
+	uint32_t out_tag_cookie;
+	uint16_t in_tag_id;
+	uint16_t in_tag_len;
+	uint16_t out_tag_id;
+	uint16_t out_tag_len;
+	uint8_t strip;
+	void *in_tag_data;
+	void *out_tag_data;
+	struct ng_tag_hookin *in;
+	struct ng_tag_hookout *out;
 #ifdef NG_TAG_DEBUG
-	struct ng_tag_hookstat	stats;
+	struct ng_tag_hookstat stats;
 #endif
 };
 typedef struct ng_tag_hookinfo *hinfo_p;
 
 /* Netgraph methods. */
-static ng_constructor_t	ng_tag_constructor;
-static ng_rcvmsg_t	ng_tag_rcvmsg;
-static ng_shutdown_t	ng_tag_shutdown;
-static ng_newhook_t	ng_tag_newhook;
-static ng_rcvdata_t	ng_tag_rcvdata;
-static ng_disconnect_t	ng_tag_disconnect;
+static ng_constructor_t ng_tag_constructor;
+static ng_rcvmsg_t ng_tag_rcvmsg;
+static ng_shutdown_t ng_tag_shutdown;
+static ng_newhook_t ng_tag_newhook;
+static ng_rcvdata_t ng_tag_rcvdata;
+static ng_disconnect_t ng_tag_disconnect;
 
 /* Internal helper functions. */
-static int	ng_tag_setdata_in(hook_p hook, const struct ng_tag_hookin *hp);
-static int	ng_tag_setdata_out(hook_p hook, const struct ng_tag_hookout *hp);
+static int ng_tag_setdata_in(hook_p hook, const struct ng_tag_hookin *hp);
+static int ng_tag_setdata_out(hook_p hook, const struct ng_tag_hookout *hp);
 
 /* Parse types for the field 'tag_data' in structs ng_tag_hookin and out. */
 static int
-ng_tag_hookinary_getLength(const struct ng_parse_type *type,
-	const u_char *start, const u_char *buf)
+ng_tag_hookinary_getLength(
+    const struct ng_parse_type *type, const u_char *start, const u_char *buf)
 {
 	const struct ng_tag_hookin *hp;
 
-	hp = (const struct ng_tag_hookin *)
-	    (buf - offsetof(struct ng_tag_hookin, tag_data));
+	hp = (const struct ng_tag_hookin *)(buf -
+	    offsetof(struct ng_tag_hookin, tag_data));
 	return (hp->tag_len);
 }
 
 static int
-ng_tag_hookoutary_getLength(const struct ng_parse_type *type,
-	const u_char *start, const u_char *buf)
+ng_tag_hookoutary_getLength(
+    const struct ng_parse_type *type, const u_char *start, const u_char *buf)
 {
 	const struct ng_tag_hookout *hp;
 
-	hp = (const struct ng_tag_hookout *)
-	    (buf - offsetof(struct ng_tag_hookout, tag_data));
+	hp = (const struct ng_tag_hookout *)(buf -
+	    offsetof(struct ng_tag_hookout, tag_data));
 	return (hp->tag_len);
 }
 
 static const struct ng_parse_type ng_tag_hookinary_type = {
-	&ng_parse_bytearray_type,
-	&ng_tag_hookinary_getLength
+	&ng_parse_bytearray_type, &ng_tag_hookinary_getLength
 };
 
 static const struct ng_parse_type ng_tag_hookoutary_type = {
-	&ng_parse_bytearray_type,
-	&ng_tag_hookoutary_getLength
+	&ng_parse_bytearray_type, &ng_tag_hookoutary_getLength
 };
 
 /* Parse type for struct ng_tag_hookin. */
-static const struct ng_parse_struct_field ng_tag_hookin_type_fields[]
-	= NG_TAG_HOOKIN_TYPE_INFO(&ng_tag_hookinary_type);
-static const struct ng_parse_type ng_tag_hookin_type = {
-	&ng_parse_struct_type,
-	&ng_tag_hookin_type_fields
-};
+static const struct ng_parse_struct_field ng_tag_hookin_type_fields[] =
+    NG_TAG_HOOKIN_TYPE_INFO(&ng_tag_hookinary_type);
+static const struct ng_parse_type ng_tag_hookin_type = { &ng_parse_struct_type,
+	&ng_tag_hookin_type_fields };
 
 /* Parse type for struct ng_tag_hookout. */
-static const struct ng_parse_struct_field ng_tag_hookout_type_fields[]
-	= NG_TAG_HOOKOUT_TYPE_INFO(&ng_tag_hookoutary_type);
-static const struct ng_parse_type ng_tag_hookout_type = {
-	&ng_parse_struct_type,
-	&ng_tag_hookout_type_fields
-};
+static const struct ng_parse_struct_field ng_tag_hookout_type_fields[] =
+    NG_TAG_HOOKOUT_TYPE_INFO(&ng_tag_hookoutary_type);
+static const struct ng_parse_type ng_tag_hookout_type = { &ng_parse_struct_type,
+	&ng_tag_hookout_type_fields };
 
 #ifdef NG_TAG_DEBUG
 /* Parse type for struct ng_tag_hookstat. */
-static const struct ng_parse_struct_field ng_tag_hookstat_type_fields[]
-	= NG_TAG_HOOKSTAT_TYPE_INFO;
+static const struct ng_parse_struct_field ng_tag_hookstat_type_fields[] =
+    NG_TAG_HOOKSTAT_TYPE_INFO;
 static const struct ng_parse_type ng_tag_hookstat_type = {
-	&ng_parse_struct_type,
-	&ng_tag_hookstat_type_fields
+	&ng_parse_struct_type, &ng_tag_hookstat_type_fields
 };
 #endif
 
 /* List of commands and how to convert arguments to/from ASCII. */
 static const struct ng_cmdlist ng_tag_cmdlist[] = {
-	{
-	  NGM_TAG_COOKIE,
-	  NGM_TAG_SET_HOOKIN,
-	  "sethookin",
-	  &ng_tag_hookin_type,
-	  NULL
-	},
-	{
-	  NGM_TAG_COOKIE,
-	  NGM_TAG_GET_HOOKIN,
-	  "gethookin",
-	  &ng_parse_hookbuf_type,
-	  &ng_tag_hookin_type
-	},
-	{
-	  NGM_TAG_COOKIE,
-	  NGM_TAG_SET_HOOKOUT,
-	  "sethookout",
-	  &ng_tag_hookout_type,
-	  NULL
-	},
-	{
-	  NGM_TAG_COOKIE,
-	  NGM_TAG_GET_HOOKOUT,
-	  "gethookout",
-	  &ng_parse_hookbuf_type,
-	  &ng_tag_hookout_type
-	},
+	{ NGM_TAG_COOKIE, NGM_TAG_SET_HOOKIN, "sethookin", &ng_tag_hookin_type,
+	    NULL },
+	{ NGM_TAG_COOKIE, NGM_TAG_GET_HOOKIN, "gethookin",
+	    &ng_parse_hookbuf_type, &ng_tag_hookin_type },
+	{ NGM_TAG_COOKIE, NGM_TAG_SET_HOOKOUT, "sethookout",
+	    &ng_tag_hookout_type, NULL },
+	{ NGM_TAG_COOKIE, NGM_TAG_GET_HOOKOUT, "gethookout",
+	    &ng_parse_hookbuf_type, &ng_tag_hookout_type },
 #ifdef NG_TAG_DEBUG
-	{
-	  NGM_TAG_COOKIE,
-	  NGM_TAG_GET_STATS,
-	  "getstats",
-	  &ng_parse_hookbuf_type,
-	  &ng_tag_hookstat_type
-	},
-	{
-	  NGM_TAG_COOKIE,
-	  NGM_TAG_CLR_STATS,
-	  "clrstats",
-	  &ng_parse_hookbuf_type,
-	  NULL
-	},
-	{
-	  NGM_TAG_COOKIE,
-	  NGM_TAG_GETCLR_STATS,
-	  "getclrstats",
-	  &ng_parse_hookbuf_type,
-	  &ng_tag_hookstat_type
-	},
+	{ NGM_TAG_COOKIE, NGM_TAG_GET_STATS, "getstats", &ng_parse_hookbuf_type,
+	    &ng_tag_hookstat_type },
+	{ NGM_TAG_COOKIE, NGM_TAG_CLR_STATS, "clrstats", &ng_parse_hookbuf_type,
+	    NULL },
+	{ NGM_TAG_COOKIE, NGM_TAG_GETCLR_STATS, "getclrstats",
+	    &ng_parse_hookbuf_type, &ng_tag_hookstat_type },
 #endif
 	{ 0 }
 };
 
 /* Netgraph type descriptor. */
 static struct ng_type typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_TAG_NODE_TYPE,
-	.constructor =	ng_tag_constructor,
-	.rcvmsg =	ng_tag_rcvmsg,
-	.shutdown =	ng_tag_shutdown,
-	.newhook =	ng_tag_newhook,
-	.rcvdata =	ng_tag_rcvdata,
-	.disconnect =	ng_tag_disconnect,
-	.cmdlist =	ng_tag_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_TAG_NODE_TYPE,
+	.constructor = ng_tag_constructor,
+	.rcvmsg = ng_tag_rcvmsg,
+	.shutdown = ng_tag_shutdown,
+	.newhook = ng_tag_newhook,
+	.rcvdata = ng_tag_rcvdata,
+	.disconnect = ng_tag_disconnect,
+	.cmdlist = ng_tag_cmdlist,
 };
 NETGRAPH_INIT(tag, &typestruct);
 
@@ -267,21 +229,14 @@ NETGRAPH_INIT(tag, &typestruct);
 
 /* Default tag values for a hook that matches nothing. */
 static const struct ng_tag_hookin ng_tag_default_in = {
-	{ '\0' },		/* to be filled in at hook creation time */
-	{ '\0' },
-	{ '\0' },
-	0,
-	0,
-	0,
-	0
+	{ '\0' }, /* to be filled in at hook creation time */
+	{ '\0' }, { '\0' }, 0, 0, 0, 0
 };
 
 /* Default tag values for a hook that adds nothing */
 static const struct ng_tag_hookout ng_tag_default_out = {
-	{ '\0' },		/* to be filled in at hook creation time */
-	0,
-	0,
-	0
+	{ '\0' }, /* to be filled in at hook creation time */
+	0, 0, 0
 };
 
 /*
@@ -356,15 +311,15 @@ ng_tag_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	switch (msg->header.typecookie) {
 	case NGM_TAG_COOKIE:
 		switch (msg->header.cmd) {
-		case NGM_TAG_SET_HOOKIN:
-		    {
-			struct ng_tag_hookin *const
-			    hp = (struct ng_tag_hookin *)msg->data;
+		case NGM_TAG_SET_HOOKIN: {
+			struct ng_tag_hookin *const hp =
+			    (struct ng_tag_hookin *)msg->data;
 			hook_p hook;
 
 			/* Sanity check. */
 			if (msg->header.arglen < sizeof(*hp) ||
-			    msg->header.arglen < NG_TAG_HOOKIN_SIZE(hp->tag_len))
+			    msg->header.arglen <
+				NG_TAG_HOOKIN_SIZE(hp->tag_len))
 				ERROUT(EINVAL);
 
 			/* Find hook. */
@@ -375,17 +330,17 @@ ng_tag_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if ((error = ng_tag_setdata_in(hook, hp)) != 0)
 				ERROUT(error);
 			break;
-		    }
+		}
 
-		case NGM_TAG_SET_HOOKOUT:
-		    {
-			struct ng_tag_hookout *const
-			    hp = (struct ng_tag_hookout *)msg->data;
+		case NGM_TAG_SET_HOOKOUT: {
+			struct ng_tag_hookout *const hp =
+			    (struct ng_tag_hookout *)msg->data;
 			hook_p hook;
 
 			/* Sanity check. */
 			if (msg->header.arglen < sizeof(*hp) ||
-			    msg->header.arglen < NG_TAG_HOOKOUT_SIZE(hp->tag_len))
+			    msg->header.arglen <
+				NG_TAG_HOOKOUT_SIZE(hp->tag_len))
 				ERROUT(EINVAL);
 
 			/* Find hook. */
@@ -396,10 +351,9 @@ ng_tag_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if ((error = ng_tag_setdata_out(hook, hp)) != 0)
 				ERROUT(error);
 			break;
-		    }
+		}
 
-		case NGM_TAG_GET_HOOKIN:
-		    {
+		case NGM_TAG_GET_HOOKIN: {
 			struct ng_tag_hookin *hp;
 			hook_p hook;
 
@@ -417,13 +371,11 @@ ng_tag_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			NG_MKRESPONSE(resp, msg,
 			    NG_TAG_HOOKIN_SIZE(hp->tag_len), M_WAITOK);
 			/* M_WAITOK can't return NULL. */
-			bcopy(hp, resp->data,
-			   NG_TAG_HOOKIN_SIZE(hp->tag_len));
+			bcopy(hp, resp->data, NG_TAG_HOOKIN_SIZE(hp->tag_len));
 			break;
-		    }
+		}
 
-		case NGM_TAG_GET_HOOKOUT:
-		    {
+		case NGM_TAG_GET_HOOKOUT: {
 			struct ng_tag_hookout *hp;
 			hook_p hook;
 
@@ -441,16 +393,14 @@ ng_tag_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			NG_MKRESPONSE(resp, msg,
 			    NG_TAG_HOOKOUT_SIZE(hp->tag_len), M_WAITOK);
 			/* M_WAITOK can't return NULL. */
-			bcopy(hp, resp->data,
-			   NG_TAG_HOOKOUT_SIZE(hp->tag_len));
+			bcopy(hp, resp->data, NG_TAG_HOOKOUT_SIZE(hp->tag_len));
 			break;
-		    }
+		}
 
 #ifdef NG_TAG_DEBUG
 		case NGM_TAG_GET_STATS:
 		case NGM_TAG_CLR_STATS:
-		case NGM_TAG_GETCLR_STATS:
-		    {
+		case NGM_TAG_GETCLR_STATS: {
 			struct ng_tag_hookstat *stats;
 			hook_p hook;
 
@@ -466,8 +416,8 @@ ng_tag_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			/* Build response (if desired). */
 			if (msg->header.cmd != NGM_TAG_CLR_STATS) {
-				NG_MKRESPONSE(resp,
-				    msg, sizeof(*stats), M_WAITOK);
+				NG_MKRESPONSE(
+				    resp, msg, sizeof(*stats), M_WAITOK);
 				/* M_WAITOK can't return NULL. */
 				bcopy(stats, resp->data, sizeof(*stats));
 			}
@@ -476,7 +426,7 @@ ng_tag_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (msg->header.cmd != NGM_TAG_GET_STATS)
 				bzero(stats, sizeof(*stats));
 			break;
-		    }
+		}
 #endif /* NG_TAG_DEBUG */
 
 		default:
@@ -512,7 +462,7 @@ ng_tag_rcvdata(hook_p hook, item_p item)
 	int totlen;
 	int found = 0, error = 0;
 
-	m = NGI_M(item);	/* 'item' still owns it.. we are peeking */
+	m = NGI_M(item); /* 'item' still owns it.. we are peeking */
 	totlen = m->m_pkthdr.len;
 
 #ifdef NG_TAG_DEBUG
@@ -535,8 +485,8 @@ ng_tag_rcvdata(hook_p hook, item_p item)
 	if ((cookie != 0) || (type != 0)) {
 		tag = m_tag_locate(m, cookie, type, NULL);
 		while (tag != NULL) {
-			if (memcmp((void *)(tag + 1),
-			    hip->in_tag_data, tag_len) == 0) {
+			if (memcmp((void *)(tag + 1), hip->in_tag_data,
+				tag_len) == 0) {
 				found = 1;
 				break;
 			}
@@ -578,8 +528,8 @@ ng_tag_rcvdata(hook_p hook, item_p item)
 		if (tag != NULL) {
 			if (tag_len != 0) {
 				/* copy tag data to its place */
-				memcpy((void *)(tag + 1),
-				    dhip->out_tag_data, tag_len);
+				memcpy((void *)(tag + 1), dhip->out_tag_data,
+				    tag_len);
 			}
 			m_tag_prepend(m, tag);
 		}
@@ -613,7 +563,7 @@ ng_tag_disconnect(hook_p hook)
 
 	KASSERT(hip != NULL, ("%s: null info", __func__));
 
-	LIST_FOREACH(hook2, &node->nd_hooks, hk_hooks) {
+	LIST_FOREACH (hook2, &node->nd_hooks, hk_hooks) {
 		hinfo_p priv = NG_HOOK_PRIVATE(hook2);
 
 		if (priv->hi_match == hook)
@@ -625,7 +575,7 @@ ng_tag_disconnect(hook_p hook)
 	free(hip->in, M_NETGRAPH_TAG);
 	free(hip->out, M_NETGRAPH_TAG);
 	free(hip, M_NETGRAPH_TAG);
-	NG_HOOK_SET_PRIVATE(hook, NULL);			/* for good measure */
+	NG_HOOK_SET_PRIVATE(hook, NULL); /* for good measure */
 	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
 	    (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
 		ng_rmnode_self(NG_HOOK_NODE(hook));
@@ -683,7 +633,7 @@ ng_tag_setdata_in(hook_p hook, const struct ng_tag_hookin *hp0)
 	hip->in_tag_id = hip->in->tag_id;
 	hip->in_tag_len = hip->in->tag_len;
 	hip->strip = hip->in->strip;
-	hip->in_tag_data = (void*)(hip->in->tag_data);
+	hip->in_tag_data = (void *)(hip->in->tag_data);
 	return (0);
 }
 
@@ -712,6 +662,6 @@ ng_tag_setdata_out(hook_p hook, const struct ng_tag_hookout *hp0)
 	hip->out_tag_cookie = hip->out->tag_cookie;
 	hip->out_tag_id = hip->out->tag_id;
 	hip->out_tag_len = hip->out->tag_len;
-	hip->out_tag_data = (void*)(hip->out->tag_data);
+	hip->out_tag_data = (void *)(hip->out->tag_data);
 	return (0);
 }

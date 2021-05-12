@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -45,19 +45,19 @@
 #define _NETGRAPH_NG_RFC1490_H_
 
 /* Node type name */
-#define NG_RFC1490_NODE_TYPE		"rfc1490"
-#define NGM_RFC1490_COOKIE		1086947474
+#define NG_RFC1490_NODE_TYPE "rfc1490"
+#define NGM_RFC1490_COOKIE 1086947474
 
 /* Hook names */
-#define NG_RFC1490_HOOK_DOWNSTREAM	"downstream"
-#define NG_RFC1490_HOOK_INET		"inet"
-#define NG_RFC1490_HOOK_PPP		"ppp"
-#define NG_RFC1490_HOOK_ETHERNET	"ethernet"
+#define NG_RFC1490_HOOK_DOWNSTREAM "downstream"
+#define NG_RFC1490_HOOK_INET "inet"
+#define NG_RFC1490_HOOK_PPP "ppp"
+#define NG_RFC1490_HOOK_ETHERNET "ethernet"
 
 /* Netgraph commands */
 enum {
-	NGM_RFC1490_SET_ENCAP,		/* sets encapsulation method */
-	NGM_RFC1490_GET_ENCAP,		/* gets current encapsulation method */
+	NGM_RFC1490_SET_ENCAP, /* sets encapsulation method */
+	NGM_RFC1490_GET_ENCAP, /* gets current encapsulation method */
 };
 
 #endif /* _NETGRAPH_NG_RFC1490_H_ */

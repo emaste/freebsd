@@ -29,11 +29,11 @@
  */
 
 #ifndef _UFS_UFS_GJOURNAL_H_
-#define	_UFS_UFS_GJOURNAL_H_
+#define _UFS_UFS_GJOURNAL_H_
 
 /*
  * GEOM journal function prototypes.
  */
-void	ufs_gjournal_orphan(struct vnode *fvp);
-void	ufs_gjournal_close(struct vnode *vp);
+void ufs_gjournal_orphan(struct vnode *fvp);
+void ufs_gjournal_close(struct vnode *vp);
 #endif /* !_UFS_UFS_GJOURNAL_H_ */

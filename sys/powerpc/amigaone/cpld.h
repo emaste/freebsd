@@ -34,13 +34,13 @@
  * Write 'words' to 'offset' offset in dual-port RAM, then write cmd to mailbox.
  */
 struct cpld_cmd_data {
-	unsigned int	cmd;
-	unsigned int	len;
-	unsigned int	offset;
-	void		*words;
+	unsigned int cmd;
+	unsigned int len;
+	unsigned int offset;
+	void *words;
 };
 
-#define	IOCCPLDSEND	_IOW('c', 2, struct cpld_cmd_data)
-#define	IOCCPLDRECV	_IOW('c', 3, struct cpld_cmd_data)
+#define IOCCPLDSEND _IOW('c', 2, struct cpld_cmd_data)
+#define IOCCPLDRECV _IOW('c', 3, struct cpld_cmd_data)
 
 #endif /* AMIGAONE_CPLD_H */

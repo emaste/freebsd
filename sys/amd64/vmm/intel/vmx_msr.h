@@ -29,7 +29,7 @@
  */
 
 #ifndef _VMX_MSR_H_
-#define	_VMX_MSR_H_
+#define _VMX_MSR_H_
 
 struct vmx;
 
@@ -45,7 +45,7 @@ int vmx_wrmsr(struct vmx *, int vcpuid, u_int num, uint64_t val, bool *retu);
 uint32_t vmx_revision(void);
 
 int vmx_set_ctlreg(int ctl_reg, int true_ctl_reg, uint32_t ones_mask,
-		   uint32_t zeros_mask, uint32_t *retval);
+    uint32_t zeros_mask, uint32_t *retval);
 
 /*
  * According to Section 21.10.4 "Software Access to Related Structures",
@@ -58,17 +58,18 @@ int vmx_set_ctlreg(int ctl_reg, int true_ctl_reg, uint32_t ones_mask,
  * would involve some form of synchronization between the vcpus to vmclear
  * all VMCSs' that point to the bitmap.
  */
-#define	MSR_BITMAP_ACCESS_NONE	0x0
-#define	MSR_BITMAP_ACCESS_READ	0x1
-#define	MSR_BITMAP_ACCESS_WRITE	0x2
-#define	MSR_BITMAP_ACCESS_RW	(MSR_BITMAP_ACCESS_READ|MSR_BITMAP_ACCESS_WRITE)
-void	msr_bitmap_initialize(char *bitmap);
-int	msr_bitmap_change_access(char *bitmap, u_int msr, int access);
+#define MSR_BITMAP_ACCESS_NONE 0x0
+#define MSR_BITMAP_ACCESS_READ 0x1
+#define MSR_BITMAP_ACCESS_WRITE 0x2
+#define MSR_BITMAP_ACCESS_RW (MSR_BITMAP_ACCESS_READ | MSR_BITMAP_ACCESS_WRITE)
+void msr_bitmap_initialize(char *bitmap);
+int msr_bitmap_change_access(char *bitmap, u_int msr, int access);
 
-#define	guest_msr_rw(vmx, msr) \
-    msr_bitmap_change_access((vmx)->msr_bitmap, (msr), MSR_BITMAP_ACCESS_RW)
+#define guest_msr_rw(vmx, msr) \
+	msr_bitmap_change_access((vmx)->msr_bitmap, (msr), MSR_BITMAP_ACCESS_RW)
 
-#define	guest_msr_ro(vmx, msr) \
-    msr_bitmap_change_access((vmx)->msr_bitmap, (msr), MSR_BITMAP_ACCESS_READ)
+#define guest_msr_ro(vmx, msr)    \
+	msr_bitmap_change_access( \
+	    (vmx)->msr_bitmap, (msr), MSR_BITMAP_ACCESS_READ)
 
 #endif

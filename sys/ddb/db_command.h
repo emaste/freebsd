@@ -29,7 +29,7 @@
  */
 
 #ifndef _DDB_DB_COMMAND_H_
-#define	_DDB_DB_COMMAND_H_
+#define _DDB_DB_COMMAND_H_
 
 /*
  *	Author: David B. Golub, Carnegie Mellon University
@@ -45,16 +45,16 @@ db_expr_t db_hex2dec(db_expr_t expr);
  * Command loop declarations.
  */
 
-void	db_command_init(void);
-void	db_command_loop(void);
-void	db_command_script(const char *command);
+void db_command_init(void);
+void db_command_loop(void);
+void db_command_script(const char *command);
 
-extern int		db_cmd_loop_done;
-extern db_addr_t	db_dot;		/* current location */
-extern db_addr_t	db_last_addr;	/* last explicit address typed */
-extern db_addr_t	db_prev;	/* last address examined
-					   or written */
-extern db_addr_t	db_next;	/* next address to be examined
-					   or written */
+extern int db_cmd_loop_done;
+extern db_addr_t db_dot;       /* current location */
+extern db_addr_t db_last_addr; /* last explicit address typed */
+extern db_addr_t db_prev;      /* last address examined
+				  or written */
+extern db_addr_t db_next;      /* next address to be examined
+				  or written */
 
 #endif /* !_DDB_DB_COMMAND_H_ */

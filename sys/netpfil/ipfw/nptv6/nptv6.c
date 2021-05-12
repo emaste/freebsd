@@ -31,82 +31,86 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/counter.h>
-#include <sys/eventhandler.h>
 #include <sys/errno.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/queue.h>
 #include <sys/rmlock.h>
 #include <sys/rwlock.h>
 #include <sys/socket.h>
-#include <sys/queue.h>
-#include <sys/syslog.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/pfil.h>
 #include <net/vnet.h>
-
-#include <netinet/in.h>
-#include <netinet/ip_var.h>
-#include <netinet/ip_fw.h>
-#include <netinet/ip6.h>
 #include <netinet/icmp6.h>
+#include <netinet/in.h>
+#include <netinet/ip6.h>
+#include <netinet/ip_fw.h>
+#include <netinet/ip_var.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
-
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/nptv6/nptv6.h>
 
 VNET_DEFINE_STATIC(uint16_t, nptv6_eid) = 0;
-#define	V_nptv6_eid	VNET(nptv6_eid)
-#define	IPFW_TLV_NPTV6_NAME	IPFW_TLV_EACTION_NAME(V_nptv6_eid)
+#define V_nptv6_eid VNET(nptv6_eid)
+#define IPFW_TLV_NPTV6_NAME IPFW_TLV_EACTION_NAME(V_nptv6_eid)
 
 static eventhandler_tag nptv6_ifaddr_event;
 
 static struct nptv6_cfg *nptv6_alloc_config(const char *name, uint8_t set);
 static void nptv6_free_config(struct nptv6_cfg *cfg);
-static struct nptv6_cfg *nptv6_find(struct namedobj_instance *ni,
-    const char *name, uint8_t set);
-static int nptv6_rewrite_internal(struct nptv6_cfg *cfg, struct mbuf **mp,
-    int offset);
-static int nptv6_rewrite_external(struct nptv6_cfg *cfg, struct mbuf **mp,
-    int offset);
+static struct nptv6_cfg *nptv6_find(
+    struct namedobj_instance *ni, const char *name, uint8_t set);
+static int nptv6_rewrite_internal(
+    struct nptv6_cfg *cfg, struct mbuf **mp, int offset);
+static int nptv6_rewrite_external(
+    struct nptv6_cfg *cfg, struct mbuf **mp, int offset);
 
-#define	NPTV6_LOOKUP(chain, cmd)	\
-    (struct nptv6_cfg *)SRV_OBJECT((chain), (cmd)->arg1)
+#define NPTV6_LOOKUP(chain, cmd) \
+	(struct nptv6_cfg *)SRV_OBJECT((chain), (cmd)->arg1)
 
 #ifndef IN6_MASK_ADDR
-#define IN6_MASK_ADDR(a, m)	do { \
-	(a)->s6_addr32[0] &= (m)->s6_addr32[0]; \
-	(a)->s6_addr32[1] &= (m)->s6_addr32[1]; \
-	(a)->s6_addr32[2] &= (m)->s6_addr32[2]; \
-	(a)->s6_addr32[3] &= (m)->s6_addr32[3]; \
-} while (0)
+#define IN6_MASK_ADDR(a, m)                             \
+	do {                                            \
+		(a)->s6_addr32[0] &= (m)->s6_addr32[0]; \
+		(a)->s6_addr32[1] &= (m)->s6_addr32[1]; \
+		(a)->s6_addr32[2] &= (m)->s6_addr32[2]; \
+		(a)->s6_addr32[3] &= (m)->s6_addr32[3]; \
+	} while (0)
 #endif
 #ifndef IN6_ARE_MASKED_ADDR_EQUAL
-#define IN6_ARE_MASKED_ADDR_EQUAL(d, a, m)	(	\
-	(((d)->s6_addr32[0] ^ (a)->s6_addr32[0]) & (m)->s6_addr32[0]) == 0 && \
-	(((d)->s6_addr32[1] ^ (a)->s6_addr32[1]) & (m)->s6_addr32[1]) == 0 && \
-	(((d)->s6_addr32[2] ^ (a)->s6_addr32[2]) & (m)->s6_addr32[2]) == 0 && \
-	(((d)->s6_addr32[3] ^ (a)->s6_addr32[3]) & (m)->s6_addr32[3]) == 0 )
+#define IN6_ARE_MASKED_ADDR_EQUAL(d, a, m)                                     \
+	((((d)->s6_addr32[0] ^ (a)->s6_addr32[0]) & (m)->s6_addr32[0]) == 0 && \
+	    (((d)->s6_addr32[1] ^ (a)->s6_addr32[1]) & (m)->s6_addr32[1]) ==   \
+		0 &&                                                           \
+	    (((d)->s6_addr32[2] ^ (a)->s6_addr32[2]) & (m)->s6_addr32[2]) ==   \
+		0 &&                                                           \
+	    (((d)->s6_addr32[3] ^ (a)->s6_addr32[3]) & (m)->s6_addr32[3]) ==   \
+		0)
 #endif
 
 #if 0
-#define	NPTV6_DEBUG(fmt, ...)	do {			\
-	printf("%s: " fmt "\n", __func__, ## __VA_ARGS__);	\
-} while (0)
-#define	NPTV6_IPDEBUG(fmt, ...)	do {			\
-	char _s[INET6_ADDRSTRLEN], _d[INET6_ADDRSTRLEN];	\
-	printf("%s: " fmt "\n", __func__, ## __VA_ARGS__);	\
-} while (0)
+#define NPTV6_DEBUG(fmt, ...)                                     \
+	do {                                                      \
+		printf("%s: " fmt "\n", __func__, ##__VA_ARGS__); \
+	} while (0)
+#define NPTV6_IPDEBUG(fmt, ...)                                   \
+	do {                                                      \
+		char _s[INET6_ADDRSTRLEN], _d[INET6_ADDRSTRLEN];  \
+		printf("%s: " fmt "\n", __func__, ##__VA_ARGS__); \
+	} while (0)
 #else
-#define	NPTV6_DEBUG(fmt, ...)
-#define	NPTV6_IPDEBUG(fmt, ...)
+#define NPTV6_DEBUG(fmt, ...)
+#define NPTV6_IPDEBUG(fmt, ...)
 #endif
 
 static int
@@ -116,7 +120,7 @@ nptv6_getlasthdr(struct nptv6_cfg *cfg, struct mbuf *m, int *offset)
 	struct ip6_hbh *hbh;
 	int proto, hlen;
 
-	hlen = (offset == NULL) ? 0: *offset;
+	hlen = (offset == NULL) ? 0 : *offset;
 	if (m->m_len < hlen)
 		return (-1);
 	ip6 = mtodo(m, hlen);
@@ -175,13 +179,12 @@ nptv6_translate_icmpv6(struct nptv6_cfg *cfg, struct mbuf **mp, int offset)
 	ip6 = mtodo(m, offset);
 	NPTV6_IPDEBUG("offset %d, %s -> %s %d", offset,
 	    inet_ntop(AF_INET6, &ip6->ip6_src, _s, sizeof(_s)),
-	    inet_ntop(AF_INET6, &ip6->ip6_dst, _d, sizeof(_d)),
-	    ip6->ip6_nxt);
-	if (IN6_ARE_MASKED_ADDR_EQUAL(&ip6->ip6_src,
-	    &cfg->external, &cfg->mask))
+	    inet_ntop(AF_INET6, &ip6->ip6_dst, _d, sizeof(_d)), ip6->ip6_nxt);
+	if (IN6_ARE_MASKED_ADDR_EQUAL(
+		&ip6->ip6_src, &cfg->external, &cfg->mask))
 		return (nptv6_rewrite_external(cfg, mp, offset));
-	else if (IN6_ARE_MASKED_ADDR_EQUAL(&ip6->ip6_dst,
-	    &cfg->internal, &cfg->mask))
+	else if (IN6_ARE_MASKED_ADDR_EQUAL(
+		     &ip6->ip6_dst, &cfg->internal, &cfg->mask))
 		return (nptv6_rewrite_internal(cfg, mp, offset));
 	/*
 	 * Addresses in the inner IPv6 header doesn't matched to
@@ -208,20 +211,19 @@ nptv6_search_index(struct nptv6_cfg *cfg, struct in6_addr *a)
 	 * datagram MUST be dropped, and an ICMPv6 Parameter Problem error
 	 * SHOULD be generated.
 	 */
-	if (idx == 8 ||
-	    (a->s6_addr32[2] == 0 && a->s6_addr32[3] == 0))
+	if (idx == 8 || (a->s6_addr32[2] == 0 && a->s6_addr32[3] == 0))
 		return (-1);
 	return (idx);
 }
 
 static void
-nptv6_copy_addr(struct in6_addr *src, struct in6_addr *dst,
-    struct in6_addr *mask)
+nptv6_copy_addr(
+    struct in6_addr *src, struct in6_addr *dst, struct in6_addr *mask)
 {
 	int i;
 
 	for (i = 0; i < 8 && mask->s6_addr8[i] != 0; i++) {
-		dst->s6_addr8[i] &=  ~mask->s6_addr8[i];
+		dst->s6_addr8[i] &= ~mask->s6_addr8[i];
 		dst->s6_addr8[i] |= src->s6_addr8[i] & mask->s6_addr8[i];
 	}
 }
@@ -237,8 +239,7 @@ nptv6_rewrite_internal(struct nptv6_cfg *cfg, struct mbuf **mp, int offset)
 	ip6 = mtodo(*mp, offset);
 	NPTV6_IPDEBUG("offset %d, %s -> %s %d", offset,
 	    inet_ntop(AF_INET6, &ip6->ip6_src, _s, sizeof(_s)),
-	    inet_ntop(AF_INET6, &ip6->ip6_dst, _d, sizeof(_d)),
-	    ip6->ip6_nxt);
+	    inet_ntop(AF_INET6, &ip6->ip6_dst, _d, sizeof(_d)), ip6->ip6_nxt);
 	if (offset == 0)
 		addr = &ip6->ip6_src;
 	else {
@@ -276,8 +277,9 @@ nptv6_rewrite_internal(struct nptv6_cfg *cfg, struct mbuf **mp, int offset)
 		 * header for ICMPv6 error messages.
 		 */
 		proto = nptv6_getlasthdr(cfg, *mp, &offset);
-		if (proto < 0 || (proto == IPPROTO_ICMPV6 &&
-		    nptv6_translate_icmpv6(cfg, mp, offset) != 0))
+		if (proto < 0 ||
+		    (proto == IPPROTO_ICMPV6 &&
+			nptv6_translate_icmpv6(cfg, mp, offset) != 0))
 			return (IP_FW_DENY);
 		NPTV6STAT_INC(cfg, in2ex);
 	}
@@ -295,8 +297,7 @@ nptv6_rewrite_external(struct nptv6_cfg *cfg, struct mbuf **mp, int offset)
 	ip6 = mtodo(*mp, offset);
 	NPTV6_IPDEBUG("offset %d, %s -> %s %d", offset,
 	    inet_ntop(AF_INET6, &ip6->ip6_src, _s, sizeof(_s)),
-	    inet_ntop(AF_INET6, &ip6->ip6_dst, _d, sizeof(_d)),
-	    ip6->ip6_nxt);
+	    inet_ntop(AF_INET6, &ip6->ip6_dst, _d, sizeof(_d)), ip6->ip6_nxt);
 	if (offset == 0)
 		addr = &ip6->ip6_dst;
 	else {
@@ -334,8 +335,9 @@ nptv6_rewrite_external(struct nptv6_cfg *cfg, struct mbuf **mp, int offset)
 		 * header for ICMPv6 error messages.
 		 */
 		proto = nptv6_getlasthdr(cfg, *mp, &offset);
-		if (proto < 0 || (proto == IPPROTO_ICMPV6 &&
-		    nptv6_translate_icmpv6(cfg, mp, offset) != 0))
+		if (proto < 0 ||
+		    (proto == IPPROTO_ICMPV6 &&
+			nptv6_translate_icmpv6(cfg, mp, offset) != 0))
 			return (IP_FW_DENY);
 		NPTV6STAT_INC(cfg, ex2in);
 	}
@@ -346,8 +348,8 @@ nptv6_rewrite_external(struct nptv6_cfg *cfg, struct mbuf **mp, int offset)
  * ipfw external action handler.
  */
 static int
-ipfw_nptv6(struct ip_fw_chain *chain, struct ip_fw_args *args,
-    ipfw_insn *cmd, int *done)
+ipfw_nptv6(struct ip_fw_chain *chain, struct ip_fw_args *args, ipfw_insn *cmd,
+    int *done)
 {
 	struct ip6_hdr *ip6;
 	struct nptv6_cfg *cfg;
@@ -357,8 +359,7 @@ ipfw_nptv6(struct ip_fw_chain *chain, struct ip_fw_args *args,
 	*done = 0; /* try next rule if not matched */
 	ret = IP_FW_DENY;
 	icmd = cmd + 1;
-	if (cmd->opcode != O_EXTERNAL_ACTION ||
-	    cmd->arg1 != V_nptv6_eid ||
+	if (cmd->opcode != O_EXTERNAL_ACTION || cmd->arg1 != V_nptv6_eid ||
 	    icmd->opcode != O_EXTERNAL_INSTANCE ||
 	    (cfg = NPTV6_LOOKUP(chain, icmd)) == NULL ||
 	    (cfg->flags & NPTV6_READY) == 0)
@@ -375,23 +376,21 @@ ipfw_nptv6(struct ip_fw_chain *chain, struct ip_fw_args *args,
 	 * ip6_forward(), ip6_fastfwd() and ipfw_chk() already did.
 	 */
 	ip6 = mtod(args->m, struct ip6_hdr *);
-	NPTV6_IPDEBUG("eid %u, oid %u, %s -> %s %d",
-	    cmd->arg1, icmd->arg1,
+	NPTV6_IPDEBUG("eid %u, oid %u, %s -> %s %d", cmd->arg1, icmd->arg1,
 	    inet_ntop(AF_INET6, &ip6->ip6_src, _s, sizeof(_s)),
-	    inet_ntop(AF_INET6, &ip6->ip6_dst, _d, sizeof(_d)),
-	    ip6->ip6_nxt);
-	if (IN6_ARE_MASKED_ADDR_EQUAL(&ip6->ip6_src,
-	    &cfg->internal, &cfg->mask)) {
+	    inet_ntop(AF_INET6, &ip6->ip6_dst, _d, sizeof(_d)), ip6->ip6_nxt);
+	if (IN6_ARE_MASKED_ADDR_EQUAL(
+		&ip6->ip6_src, &cfg->internal, &cfg->mask)) {
 		/*
 		 * XXX: Do not translate packets when both src and dst
 		 * are from internal prefix.
 		 */
-		if (IN6_ARE_MASKED_ADDR_EQUAL(&ip6->ip6_dst,
-		    &cfg->internal, &cfg->mask))
+		if (IN6_ARE_MASKED_ADDR_EQUAL(
+			&ip6->ip6_dst, &cfg->internal, &cfg->mask))
 			return (ret);
 		ret = nptv6_rewrite_internal(cfg, &args->m, 0);
-	} else if (IN6_ARE_MASKED_ADDR_EQUAL(&ip6->ip6_dst,
-	    &cfg->external, &cfg->mask))
+	} else if (IN6_ARE_MASKED_ADDR_EQUAL(
+		       &ip6->ip6_dst, &cfg->external, &cfg->mask))
 		ret = nptv6_rewrite_external(cfg, &args->m, 0);
 	else
 		return (ret);
@@ -441,8 +440,8 @@ nptv6_free_config(struct nptv6_cfg *cfg)
 }
 
 static void
-nptv6_export_config(struct ip_fw_chain *ch, struct nptv6_cfg *cfg,
-    ipfw_nptv6_cfg *uc)
+nptv6_export_config(
+    struct ip_fw_chain *ch, struct nptv6_cfg *cfg, ipfw_nptv6_cfg *uc)
 {
 
 	uc->internal = cfg->internal;
@@ -462,8 +461,8 @@ struct nptv6_dump_arg {
 };
 
 static int
-export_config_cb(struct namedobj_instance *ni, struct named_object *no,
-    void *arg)
+export_config_cb(
+    struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
 	struct nptv6_dump_arg *da = (struct nptv6_dump_arg *)arg;
 	ipfw_nptv6_cfg *uc;
@@ -478,8 +477,8 @@ nptv6_find(struct namedobj_instance *ni, const char *name, uint8_t set)
 {
 	struct nptv6_cfg *cfg;
 
-	cfg = (struct nptv6_cfg *)ipfw_objhash_lookup_name_type(ni, set,
-	    IPFW_TLV_NPTV6_NAME, name);
+	cfg = (struct nptv6_cfg *)ipfw_objhash_lookup_name_type(
+	    ni, set, IPFW_TLV_NPTV6_NAME, name);
 
 	return (cfg);
 }
@@ -492,12 +491,12 @@ nptv6_calculate_adjustment(struct nptv6_cfg *cfg)
 
 	/* Calculate checksum of internal prefix */
 	for (i = 0, p = (uint16_t *)&cfg->internal;
-	    p < (uint16_t *)(&cfg->internal + 1); p++)
+	     p < (uint16_t *)(&cfg->internal + 1); p++)
 		i = cksum_add(i, *p);
 
 	/* Calculate checksum of external prefix */
 	for (e = 0, p = (uint16_t *)&cfg->external;
-	    p < (uint16_t *)(&cfg->external + 1); p++)
+	     p < (uint16_t *)(&cfg->external + 1); p++)
 		e = cksum_add(e, *p);
 
 	/* Adjustment value for Int->Ext direction */
@@ -508,10 +507,8 @@ static int
 nptv6_check_prefix(const struct in6_addr *addr)
 {
 
-	if (IN6_IS_ADDR_MULTICAST(addr) ||
-	    IN6_IS_ADDR_LINKLOCAL(addr) ||
-	    IN6_IS_ADDR_LOOPBACK(addr) ||
-	    IN6_IS_ADDR_UNSPECIFIED(addr))
+	if (IN6_IS_ADDR_MULTICAST(addr) || IN6_IS_ADDR_LINKLOCAL(addr) ||
+	    IN6_IS_ADDR_LOOPBACK(addr) || IN6_IS_ADDR_UNSPECIFIED(addr))
 		return (EINVAL);
 	return (0);
 }
@@ -531,8 +528,8 @@ nptv6_set_external(struct nptv6_cfg *cfg, struct in6_addr *addr)
  * configured interface name.
  */
 static void
-nptv6_find_prefix(struct ip_fw_chain *ch, struct nptv6_cfg *cfg,
-    struct ifnet *ifp)
+nptv6_find_prefix(
+    struct ip_fw_chain *ch, struct nptv6_cfg *cfg, struct ifnet *ifp)
 {
 	struct epoch_tracker et;
 	struct ifaddr *ifa;
@@ -547,13 +544,14 @@ nptv6_find_prefix(struct ip_fw_chain *ch, struct nptv6_cfg *cfg,
 			return;
 	}
 	NET_EPOCH_ENTER(et);
-	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+	{
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ia = (struct in6_ifaddr *)ifa;
 		if (nptv6_check_prefix(&ia->ia_addr.sin6_addr) ||
-		    IN6_ARE_MASKED_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
-		    &cfg->internal, &cfg->mask))
+		    IN6_ARE_MASKED_ADDR_EQUAL(
+			&ia->ia_addr.sin6_addr, &cfg->internal, &cfg->mask))
 			continue;
 		/* Suitable address is found. */
 		nptv6_set_external(cfg, &ia->ia_addr.sin6_addr);
@@ -570,8 +568,7 @@ struct ifaddr_event_args {
 };
 
 static int
-ifaddr_cb(struct namedobj_instance *ni, struct named_object *no,
-    void *arg)
+ifaddr_cb(struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
 	struct ifaddr_event_args *args;
 	struct ip_fw_chain *ch;
@@ -595,19 +592,19 @@ ifaddr_cb(struct namedobj_instance *ni, struct named_object *no,
 		if ((cfg->flags & NPTV6_READY) == 0)
 			return (0);
 		/* If address does not match the external prefix, ignore */
-		if (IN6_ARE_MASKED_ADDR_EQUAL(&cfg->external, args->addr,
-		    &cfg->mask) != 0)
+		if (IN6_ARE_MASKED_ADDR_EQUAL(
+			&cfg->external, args->addr, &cfg->mask) != 0)
 			return (0);
 		/* Otherwise clear READY flag */
 		cfg->flags &= ~NPTV6_READY;
-	} else {/* IFADDR_EVENT_ADD */
+	} else { /* IFADDR_EVENT_ADD */
 		/* If instance is already ready, ignore */
 		if (cfg->flags & NPTV6_READY)
 			return (0);
 		/* If address is not suitable for prefix, ignore */
 		if (nptv6_check_prefix(args->addr) ||
-		    IN6_ARE_MASKED_ADDR_EQUAL(args->addr, &cfg->internal,
-		    &cfg->mask))
+		    IN6_ARE_MASKED_ADDR_EQUAL(
+			args->addr, &cfg->internal, &cfg->mask))
 			return (0);
 		/* FALLTHROUGH */
 	}
@@ -619,8 +616,8 @@ ifaddr_cb(struct namedobj_instance *ni, struct named_object *no,
 }
 
 static void
-nptv6_ifaddrevent_handler(void *arg __unused, struct ifnet *ifp,
-    struct ifaddr *ifa, int event)
+nptv6_ifaddrevent_handler(
+    void *arg __unused, struct ifnet *ifp, struct ifaddr *ifa, int event)
 {
 	struct ifaddr_event_args args;
 	struct ip_fw_chain *ch;
@@ -634,8 +631,8 @@ nptv6_ifaddrevent_handler(void *arg __unused, struct ifnet *ifp,
 
 	ch = &V_layer3_chain;
 	IPFW_UH_WLOCK(ch);
-	ipfw_objhash_foreach_type(CHAIN_TO_SRV(ch), ifaddr_cb, &args,
-	    IPFW_TLV_NPTV6_NAME);
+	ipfw_objhash_foreach_type(
+	    CHAIN_TO_SRV(ch), ifaddr_cb, &args, IPFW_TLV_NPTV6_NAME);
 	IPFW_UH_WUNLOCK(ch);
 }
 
@@ -647,8 +644,8 @@ nptv6_ifaddrevent_handler(void *arg __unused, struct ifnet *ifp,
  * Returns 0 on success
  */
 static int
-nptv6_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nptv6_create(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	struct in6_addr mask;
 	ipfw_obj_lheader *olh;
@@ -668,9 +665,9 @@ nptv6_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	if (nptv6_check_prefix(&uc->internal))
 		return (EINVAL);
 	in6_prefixlen2mask(&mask, uc->plen);
-	if ((uc->flags & NPTV6_DYNAMIC_PREFIX) == 0 && (
-	    nptv6_check_prefix(&uc->external) ||
-	    IN6_ARE_MASKED_ADDR_EQUAL(&uc->external, &uc->internal, &mask)))
+	if ((uc->flags & NPTV6_DYNAMIC_PREFIX) == 0 &&
+	    (nptv6_check_prefix(&uc->external) ||
+		IN6_ARE_MASKED_ADDR_EQUAL(&uc->external, &uc->internal, &mask)))
 		return (EINVAL);
 
 	ni = CHAIN_TO_SRV(ch);
@@ -696,9 +693,8 @@ nptv6_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 
 	if ((uc->flags & NPTV6_DYNAMIC_PREFIX) != 0 &&
 	    nptv6_ifaddr_event == NULL)
-		nptv6_ifaddr_event = EVENTHANDLER_REGISTER(
-		    ifaddr_event_ext, nptv6_ifaddrevent_handler, NULL,
-		    EVENTHANDLER_PRI_ANY);
+		nptv6_ifaddr_event = EVENTHANDLER_REGISTER(ifaddr_event_ext,
+		    nptv6_ifaddrevent_handler, NULL, EVENTHANDLER_PRI_ANY);
 
 	IPFW_UH_WLOCK(ch);
 	if (ipfw_objhash_alloc_idx(ni, &cfg->no.kidx) != 0) {
@@ -723,8 +719,8 @@ nptv6_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  * Returns 0 on success
  */
 static int
-nptv6_destroy(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nptv6_destroy(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	ipfw_obj_header *oh;
 	struct nptv6_cfg *cfg;
@@ -762,8 +758,8 @@ nptv6_destroy(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  * Request: [ ipfw_obj_header [ ipfw_nptv6_cfg ] ]
  */
 static int
-nptv6_config(struct ip_fw_chain *chain, ip_fw3_opheader *op,
-    struct sockopt_data *sd)
+nptv6_config(
+    struct ip_fw_chain *chain, ip_fw3_opheader *op, struct sockopt_data *sd)
 {
 
 	return (EOPNOTSUPP);
@@ -778,8 +774,8 @@ nptv6_config(struct ip_fw_chain *chain, ip_fw3_opheader *op,
  * Returns 0 on success
  */
 static int
-nptv6_list(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nptv6_list(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	ipfw_obj_lheader *olh;
 	struct nptv6_dump_arg da;
@@ -791,8 +787,8 @@ nptv6_list(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	olh = (ipfw_obj_lheader *)ipfw_get_sopt_header(sd, sizeof(*olh));
 
 	IPFW_UH_RLOCK(ch);
-	olh->count = ipfw_objhash_count_type(CHAIN_TO_SRV(ch),
-	    IPFW_TLV_NPTV6_NAME);
+	olh->count = ipfw_objhash_count_type(
+	    CHAIN_TO_SRV(ch), IPFW_TLV_NPTV6_NAME);
 	olh->objsize = sizeof(ipfw_nptv6_cfg);
 	olh->size = sizeof(*olh) + olh->count * olh->objsize;
 
@@ -803,14 +799,14 @@ nptv6_list(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	memset(&da, 0, sizeof(da));
 	da.ch = ch;
 	da.sd = sd;
-	ipfw_objhash_foreach_type(CHAIN_TO_SRV(ch), export_config_cb,
-	    &da, IPFW_TLV_NPTV6_NAME);
+	ipfw_objhash_foreach_type(
+	    CHAIN_TO_SRV(ch), export_config_cb, &da, IPFW_TLV_NPTV6_NAME);
 	IPFW_UH_RUNLOCK(ch);
 
 	return (0);
 }
 
-#define	__COPY_STAT_FIELD(_cfg, _stats, _field)	\
+#define __COPY_STAT_FIELD(_cfg, _stats, _field) \
 	(_stats)->_field = NPTV6STAT_FETCH(_cfg, _field)
 static void
 export_stats(struct ip_fw_chain *ch, struct nptv6_cfg *cfg,
@@ -831,8 +827,8 @@ export_stats(struct ip_fw_chain *ch, struct nptv6_cfg *cfg,
  * Returns 0 on success
  */
 static int
-nptv6_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
-    struct sockopt_data *sd)
+nptv6_stats(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op, struct sockopt_data *sd)
 {
 	struct ipfw_nptv6_stats stats;
 	struct nptv6_cfg *cfg;
@@ -881,8 +877,8 @@ nptv6_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
  * Returns 0 on success
  */
 static int
-nptv6_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
-    struct sockopt_data *sd)
+nptv6_reset_stats(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op, struct sockopt_data *sd)
 {
 	struct nptv6_cfg *cfg;
 	ipfw_obj_header *oh;
@@ -905,13 +901,13 @@ nptv6_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 	return (0);
 }
 
-static struct ipfw_sopt_handler	scodes[] = {
-	{ IP_FW_NPTV6_CREATE, 0,	HDIR_SET,	nptv6_create },
-	{ IP_FW_NPTV6_DESTROY,0,	HDIR_SET,	nptv6_destroy },
-	{ IP_FW_NPTV6_CONFIG, 0,	HDIR_BOTH,	nptv6_config },
-	{ IP_FW_NPTV6_LIST,   0,	HDIR_GET,	nptv6_list },
-	{ IP_FW_NPTV6_STATS,  0,	HDIR_GET,	nptv6_stats },
-	{ IP_FW_NPTV6_RESET_STATS,0,	HDIR_SET,	nptv6_reset_stats },
+static struct ipfw_sopt_handler scodes[] = {
+	{ IP_FW_NPTV6_CREATE, 0, HDIR_SET, nptv6_create },
+	{ IP_FW_NPTV6_DESTROY, 0, HDIR_SET, nptv6_destroy },
+	{ IP_FW_NPTV6_CONFIG, 0, HDIR_BOTH, nptv6_config },
+	{ IP_FW_NPTV6_LIST, 0, HDIR_GET, nptv6_list },
+	{ IP_FW_NPTV6_STATS, 0, HDIR_GET, nptv6_stats },
+	{ IP_FW_NPTV6_RESET_STATS, 0, HDIR_SET, nptv6_reset_stats },
 };
 
 static int
@@ -920,10 +916,9 @@ nptv6_classify(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
 	ipfw_insn *icmd;
 
 	icmd = cmd - 1;
-	NPTV6_DEBUG("opcode %d, arg1 %d, opcode0 %d, arg1 %d",
-	    cmd->opcode, cmd->arg1, icmd->opcode, icmd->arg1);
-	if (icmd->opcode != O_EXTERNAL_ACTION ||
-	    icmd->arg1 != V_nptv6_eid)
+	NPTV6_DEBUG("opcode %d, arg1 %d, opcode0 %d, arg1 %d", cmd->opcode,
+	    cmd->arg1, icmd->opcode, icmd->arg1);
+	if (icmd->opcode != O_EXTERNAL_ACTION || icmd->arg1 != V_nptv6_eid)
 		return (1);
 
 	*puidx = cmd->arg1;
@@ -940,13 +935,13 @@ nptv6_update_arg1(ipfw_insn *cmd, uint16_t idx)
 }
 
 static int
-nptv6_findbyname(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct named_object **pno)
+nptv6_findbyname(
+    struct ip_fw_chain *ch, struct tid_info *ti, struct named_object **pno)
 {
 	int err;
 
-	err = ipfw_objhash_find_type(CHAIN_TO_SRV(ch), ti,
-	    IPFW_TLV_NPTV6_NAME, pno);
+	err = ipfw_objhash_find_type(
+	    CHAIN_TO_SRV(ch), ti, IPFW_TLV_NPTV6_NAME, pno);
 	NPTV6_DEBUG("uidx %u, type %u, err %d", ti->uidx, ti->type, err);
 	return (err);
 }
@@ -971,25 +966,25 @@ nptv6_manage_sets(struct ip_fw_chain *ch, uint16_t set, uint8_t new_set,
     enum ipfw_sets_cmd cmd)
 {
 
-	return (ipfw_obj_manage_sets(CHAIN_TO_SRV(ch), IPFW_TLV_NPTV6_NAME,
-	    set, new_set, cmd));
+	return (ipfw_obj_manage_sets(
+	    CHAIN_TO_SRV(ch), IPFW_TLV_NPTV6_NAME, set, new_set, cmd));
 }
 
 static struct opcode_obj_rewrite opcodes[] = {
 	{
-		.opcode	= O_EXTERNAL_INSTANCE,
-		.etlv = IPFW_TLV_EACTION /* just show it isn't table */,
-		.classifier = nptv6_classify,
-		.update = nptv6_update_arg1,
-		.find_byname = nptv6_findbyname,
-		.find_bykidx = nptv6_findbykidx,
-		.manage_sets = nptv6_manage_sets,
+	    .opcode = O_EXTERNAL_INSTANCE,
+	    .etlv = IPFW_TLV_EACTION /* just show it isn't table */,
+	    .classifier = nptv6_classify,
+	    .update = nptv6_update_arg1,
+	    .find_byname = nptv6_findbyname,
+	    .find_bykidx = nptv6_findbykidx,
+	    .manage_sets = nptv6_manage_sets,
 	},
 };
 
 static int
-destroy_config_cb(struct namedobj_instance *ni, struct named_object *no,
-    void *arg)
+destroy_config_cb(
+    struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
 	struct nptv6_cfg *cfg;
 	struct ip_fw_chain *ch;
@@ -1034,8 +1029,8 @@ nptv6_uninit(struct ip_fw_chain *ch, int last)
 	 * IPFW_WLOCK().
 	 */
 	IPFW_UH_WLOCK(ch);
-	ipfw_objhash_foreach_type(CHAIN_TO_SRV(ch), destroy_config_cb, ch,
-	    IPFW_TLV_NPTV6_NAME);
+	ipfw_objhash_foreach_type(
+	    CHAIN_TO_SRV(ch), destroy_config_cb, ch, IPFW_TLV_NPTV6_NAME);
 	V_nptv6_eid = 0;
 	IPFW_UH_WUNLOCK(ch);
 }

@@ -29,8 +29,8 @@
 #ifndef __XEN_PCI_H__
 #define __XEN_PCI_H__
 
-void xen_pci_enable_msi_method(device_t dev, device_t child, uint64_t address,
-     uint16_t data);
+void xen_pci_enable_msi_method(
+    device_t dev, device_t child, uint64_t address, uint16_t data);
 void xen_pci_disable_msi_method(device_t dev, device_t child);
 void xen_pci_child_added_method(device_t dev, device_t child);
 

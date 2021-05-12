@@ -40,37 +40,37 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/cpu.h>
-#include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/intr.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
+#include <machine/smp.h>
 
 #include <arm/freescale/imx/imx6_machdep.h>
 
-#define	SCU_PHYSBASE			0x00a00000
-#define	SCU_SIZE			0x00001000
+#define SCU_PHYSBASE 0x00a00000
+#define SCU_SIZE 0x00001000
 
-#define	SCU_CONTROL_REG			0x00
-#define	  SCU_CONTROL_ENABLE		  (1 << 0)
-#define	SCU_CONFIG_REG			0x04
-#define	  SCU_CONFIG_REG_NCPU_MASK	  0x03
-#define	SCU_CPUPOWER_REG		0x08
-#define	SCU_INV_TAGS_REG		0x0c
-#define	SCU_DIAG_CONTROL		0x30
-#define	  SCU_DIAG_DISABLE_MIGBIT	  (1 << 0)
-#define	SCU_FILTER_START_REG		0x40
-#define	SCU_FILTER_END_REG		0x44
-#define	SCU_SECURE_ACCESS_REG		0x50
-#define	SCU_NONSECURE_ACCESS_REG	0x54
+#define SCU_CONTROL_REG 0x00
+#define SCU_CONTROL_ENABLE (1 << 0)
+#define SCU_CONFIG_REG 0x04
+#define SCU_CONFIG_REG_NCPU_MASK 0x03
+#define SCU_CPUPOWER_REG 0x08
+#define SCU_INV_TAGS_REG 0x0c
+#define SCU_DIAG_CONTROL 0x30
+#define SCU_DIAG_DISABLE_MIGBIT (1 << 0)
+#define SCU_FILTER_START_REG 0x40
+#define SCU_FILTER_END_REG 0x44
+#define SCU_SECURE_ACCESS_REG 0x50
+#define SCU_NONSECURE_ACCESS_REG 0x54
 
-#define	SRC_PHYSBASE			0x020d8000
-#define SRC_SIZE			0x4000
-#define	SRC_CONTROL_REG			0x00
-#define	SRC_CONTROL_C1ENA_SHIFT		  22	/* Bit for Core 1 enable */
-#define	SRC_CONTROL_C1RST_SHIFT		  14	/* Bit for Core 1 reset */
-#define	SRC_GPR0_C1FUNC			0x20	/* Register for Core 1 entry func */
-#define	SRC_GPR1_C1ARG			0x24	/* Register for Core 1 entry arg */
+#define SRC_PHYSBASE 0x020d8000
+#define SRC_SIZE 0x4000
+#define SRC_CONTROL_REG 0x00
+#define SRC_CONTROL_C1ENA_SHIFT 22 /* Bit for Core 1 enable */
+#define SRC_CONTROL_C1RST_SHIFT 14 /* Bit for Core 1 reset */
+#define SRC_GPR0_C1FUNC 0x20 /* Register for Core 1 entry func */
+#define SRC_GPR1_C1ARG 0x24 /* Register for Core 1 entry arg */
 
 void
 imx6_mp_setmaxid(platform_t plat)
@@ -125,7 +125,7 @@ imx6_mp_start_ap(platform_t plat)
 	 * Diagnostic Control Register helps work around the problem.
 	 */
 	val = bus_space_read_4(fdtbus_bs_tag, scu, SCU_DIAG_CONTROL);
-	bus_space_write_4(fdtbus_bs_tag, scu, SCU_DIAG_CONTROL, 
+	bus_space_write_4(fdtbus_bs_tag, scu, SCU_DIAG_CONTROL,
 	    val | SCU_DIAG_DISABLE_MIGBIT);
 
 	/*
@@ -136,8 +136,8 @@ imx6_mp_start_ap(platform_t plat)
 	 * their SCU tag ram above, so they will be coherent from startup.
 	 */
 	val = bus_space_read_4(fdtbus_bs_tag, scu, SCU_CONTROL_REG);
-	bus_space_write_4(fdtbus_bs_tag, scu, SCU_CONTROL_REG, 
-	    val | SCU_CONTROL_ENABLE);
+	bus_space_write_4(
+	    fdtbus_bs_tag, scu, SCU_CONTROL_REG, val | SCU_CONTROL_ENABLE);
 	dcache_wbinv_poc_all();
 
 	/*
@@ -145,13 +145,14 @@ imx6_mp_start_ap(platform_t plat)
 	 * and set the core-enable and core-reset bits in the control register.
 	 */
 	val = bus_space_read_4(fdtbus_bs_tag, src, SRC_CONTROL_REG);
-	for (i=1; i < mp_ncpus; i++) {
-		bus_space_write_4(fdtbus_bs_tag, src, SRC_GPR0_C1FUNC + 8*i,
+	for (i = 1; i < mp_ncpus; i++) {
+		bus_space_write_4(fdtbus_bs_tag, src, SRC_GPR0_C1FUNC + 8 * i,
 		    pmap_kextract((vm_offset_t)mpentry));
-		bus_space_write_4(fdtbus_bs_tag, src, SRC_GPR1_C1ARG  + 8*i, 0);
+		bus_space_write_4(
+		    fdtbus_bs_tag, src, SRC_GPR1_C1ARG + 8 * i, 0);
 
-		val |= ((1 << (SRC_CONTROL_C1ENA_SHIFT - 1 + i )) |
-		    ( 1 << (SRC_CONTROL_C1RST_SHIFT - 1 + i)));
+		val |= ((1 << (SRC_CONTROL_C1ENA_SHIFT - 1 + i)) |
+		    (1 << (SRC_CONTROL_C1RST_SHIFT - 1 + i)));
 	}
 	bus_space_write_4(fdtbus_bs_tag, src, SRC_CONTROL_REG, val);
 

@@ -39,33 +39,30 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
+#include <machine/in_cksum.h>
+#include <machine/pcb.h>
+
+#include <net/debugnet.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
-
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
-#include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
+#include <netinet/ip_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
-
-#include <machine/in_cksum.h>
-#include <machine/pcb.h>
-
-#include <net/debugnet.h>
-#define	DEBUGNET_INTERNAL
+#define DEBUGNET_INTERNAL
 #include <net/debugnet_int.h>
 
 int debugnet_arp_nretries = 3;
 SYSCTL_INT(_net_debugnet, OID_AUTO, arp_nretries, CTLFLAG_RWTUN,
-    &debugnet_arp_nretries, 0,
-    "Number of ARP attempts before giving up");
+    &debugnet_arp_nretries, 0, "Number of ARP attempts before giving up");
 
 /*
  * Handler for IP packets: checks their sanity and then processes any debugnet
@@ -131,7 +128,7 @@ debugnet_handle_ip(struct debugnet_pcb *pcb, struct mbuf **mb)
 
 #ifdef INVARIANTS
 	if ((IN_LOOPBACK(ntohl(ip->ip_dst.s_addr)) ||
-	    IN_LOOPBACK(ntohl(ip->ip_src.s_addr))) &&
+		IN_LOOPBACK(ntohl(ip->ip_src.s_addr))) &&
 	    (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) {
 		DNETDEBUG("Bad IP header (RFC1122)\n");
 		return;
@@ -145,7 +142,7 @@ debugnet_handle_ip(struct debugnet_pcb *pcb, struct mbuf **mb)
 			return;
 		}
 	} else {
-		/* XXX */ ;
+		/* XXX */;
 	}
 
 	/* Convert fields to host byte order. */
@@ -201,7 +198,7 @@ debugnet_handle_ip(struct debugnet_pcb *pcb, struct mbuf **mb)
 			return;
 		}
 	} else {
-		/* XXX */ ;
+		/* XXX */;
 	}
 
 	/* UDP custom is to have packet length not include IP header. */
@@ -302,8 +299,8 @@ debugnet_handle_arp(struct debugnet_pcb *pcb, struct mbuf **mb)
 		return;
 	}
 	if (ntohs(ah->ar_pro) != ETHERTYPE_IP) {
-		DNETDEBUG("drop ARP for unknown protocol %d\n",
-		    ntohs(ah->ar_pro));
+		DNETDEBUG(
+		    "drop ARP for unknown protocol %d\n", ntohs(ah->ar_pro));
 		return;
 	}
 	req_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
@@ -344,14 +341,15 @@ debugnet_handle_arp(struct debugnet_pcb *pcb, struct mbuf **mb)
 		    isaddr.s_addr != pcb->dp_server) {
 			inet_ntoa_r(isaddr, buf);
 			DNETDEBUG("ignoring ARP reply from %s (not configured"
-			    " server or gateway)\n", buf);
+				  " server or gateway)\n",
+			    buf);
 			return;
 		}
 		memcpy(pcb->dp_gw_mac.octet, ar_sha(ah),
 		    min(ah->ar_hln, ETHER_ADDR_LEN));
-		
-		DNETDEBUG("got server MAC address %6D\n",
-		    pcb->dp_gw_mac.octet, ":");
+
+		DNETDEBUG(
+		    "got server MAC address %6D\n", pcb->dp_gw_mac.octet, ":");
 
 		MPASS(pcb->dp_state == DN_STATE_INIT);
 		pcb->dp_state = DN_STATE_HAVE_GW_MAC;
@@ -374,7 +372,7 @@ debugnet_handle_arp(struct debugnet_pcb *pcb, struct mbuf **mb)
 	memcpy(ar_spa(ah), &itaddr, ah->ar_pln);
 	ah->ar_op = htons(ARPOP_REPLY);
 	ah->ar_pro = htons(ETHERTYPE_IP);
-	m->m_flags &= ~(M_BCAST|M_MCAST);
+	m->m_flags &= ~(M_BCAST | M_MCAST);
 	m->m_len = arphdr_len(ah);
 	m->m_pkthdr.len = m->m_len;
 
@@ -405,7 +403,8 @@ restart:
 		if (error != 0)
 			return (error);
 		for (polls = 0; polls < debugnet_npolls &&
-		    pcb->dp_state < DN_STATE_HAVE_GW_MAC; polls++) {
+		     pcb->dp_state < DN_STATE_HAVE_GW_MAC;
+		     polls++) {
 			debugnet_network_poll(pcb);
 			DELAY(500);
 		}

@@ -31,22 +31,22 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PROC_H_
-#define	_MACHINE_PROC_H_
+#ifndef _MACHINE_PROC_H_
+#define _MACHINE_PROC_H_
 
 struct mdthread {
-	int	md_spinlock_count;	/* (k) */
-	register_t md_saved_daif;	/* (k) */
+	int md_spinlock_count;	  /* (k) */
+	register_t md_saved_daif; /* (k) */
 };
 
 struct mdproc {
-	long	md_dummy;
+	long md_dummy;
 };
 
-#define	KINFO_PROC_SIZE	1088
-#define	KINFO_PROC32_SIZE 816
+#define KINFO_PROC_SIZE 1088
+#define KINFO_PROC32_SIZE 816
 
-#define	MAXARGS		8
+#define MAXARGS 8
 struct syscall_args {
 	u_int code;
 	struct sysent *callp;
@@ -57,13 +57,14 @@ struct syscall_args {
 
 #include <machine/pcb.h>
 
-#define	GET_STACK_USAGE(total, used) do {				\
-	struct thread *td = curthread;					\
-	(total) = td->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb);	\
-	(used) = (char *)td->td_kstack +				\
-	    td->td_kstack_pages * PAGE_SIZE -				\
-	    (char *)&td;						\
-} while (0)
+#define GET_STACK_USAGE(total, used)                               \
+	do {                                                       \
+		struct thread *td = curthread;                     \
+		(total) = td->td_kstack_pages * PAGE_SIZE -        \
+		    sizeof(struct pcb);                            \
+		(used) = (char *)td->td_kstack +                   \
+		    td->td_kstack_pages * PAGE_SIZE - (char *)&td; \
+	} while (0)
 
 #endif
 

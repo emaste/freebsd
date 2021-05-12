@@ -38,20 +38,18 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/systm.h> 
-
 #include <sys/socket.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_media.h>
 #include <net/ethernet.h>
-
-#include <net80211/ieee80211_var.h>
+#include <net/if.h>
+#include <net/if_media.h>
+#include <net/if_var.h>
 #include <net80211/ieee80211_action.h>
 #include <net80211/ieee80211_mesh.h>
+#include <net80211/ieee80211_var.h>
 
 static int
 send_inval(struct ieee80211_node *ni, int cat, int act, void *sa)
@@ -60,29 +58,64 @@ send_inval(struct ieee80211_node *ni, int cat, int act, void *sa)
 }
 
 static ieee80211_send_action_func *ba_send_action[8] = {
-	send_inval, send_inval, send_inval, send_inval,
-	send_inval, send_inval, send_inval, send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
 };
 static ieee80211_send_action_func *ht_send_action[8] = {
-	send_inval, send_inval, send_inval, send_inval,
-	send_inval, send_inval, send_inval, send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
 };
 static ieee80211_send_action_func *meshpl_send_action[8] = {
-	send_inval, send_inval, send_inval, send_inval,
-	send_inval, send_inval, send_inval, send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
 };
 static ieee80211_send_action_func *meshaction_send_action[12] = {
-	send_inval, send_inval, send_inval, send_inval,
-	send_inval, send_inval, send_inval, send_inval,
-	send_inval, send_inval, send_inval, send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
 };
 static ieee80211_send_action_func *vendor_send_action[8] = {
-	send_inval, send_inval, send_inval, send_inval,
-	send_inval, send_inval, send_inval, send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
 };
 
 static ieee80211_send_action_func *vht_send_action[3] = {
-	send_inval, send_inval, send_inval,
+	send_inval,
+	send_inval,
+	send_inval,
 };
 
 int
@@ -165,36 +198,68 @@ ieee80211_send_action(struct ieee80211_node *ni, int cat, int act, void *sa)
 
 static int
 recv_inval(struct ieee80211_node *ni, const struct ieee80211_frame *wh,
-	const uint8_t *frm, const uint8_t *efrm)
+    const uint8_t *frm, const uint8_t *efrm)
 {
 	return EINVAL;
 }
 
 static ieee80211_recv_action_func *ba_recv_action[8] = {
-	recv_inval, recv_inval, recv_inval, recv_inval,
-	recv_inval, recv_inval, recv_inval, recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
 };
 static ieee80211_recv_action_func *ht_recv_action[8] = {
-	recv_inval, recv_inval, recv_inval, recv_inval,
-	recv_inval, recv_inval, recv_inval, recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
 };
 static ieee80211_recv_action_func *meshpl_recv_action[8] = {
-	recv_inval, recv_inval, recv_inval, recv_inval,
-	recv_inval, recv_inval, recv_inval, recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
 };
 static ieee80211_recv_action_func *meshaction_recv_action[12] = {
-	recv_inval, recv_inval, recv_inval, recv_inval,
-	recv_inval, recv_inval, recv_inval, recv_inval,
-	recv_inval, recv_inval, recv_inval, recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
 };
 static ieee80211_recv_action_func *vendor_recv_action[8] = {
-	recv_inval, recv_inval, recv_inval, recv_inval,
-	recv_inval, recv_inval, recv_inval, recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
+	recv_inval,
 };
 
-static ieee80211_recv_action_func *vht_recv_action[3] = {
-	recv_inval, recv_inval, recv_inval
-};
+static ieee80211_recv_action_func *vht_recv_action[3] = { recv_inval,
+	recv_inval, recv_inval };
 
 int
 ieee80211_recv_action_register(int cat, int act, ieee80211_recv_action_func *f)
@@ -242,13 +307,12 @@ ieee80211_recv_action_unregister(int cat, int act)
 
 int
 ieee80211_recv_action(struct ieee80211_node *ni,
-	const struct ieee80211_frame *wh,
-	const uint8_t *frm, const uint8_t *efrm)
+    const struct ieee80211_frame *wh, const uint8_t *frm, const uint8_t *efrm)
 {
 	ieee80211_recv_action_func *f = recv_inval;
 	struct ieee80211vap *vap = ni->ni_vap;
-	const struct ieee80211_action *ia =
-	    (const struct ieee80211_action *) frm;
+	const struct ieee80211_action *ia = (const struct ieee80211_action *)
+	    frm;
 
 	switch (ia->ia_category) {
 	case IEEE80211_ACTION_CAT_BA:

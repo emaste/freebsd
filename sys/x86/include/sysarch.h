@@ -39,39 +39,39 @@
 
 #include <sys/cdefs.h>
 
-#define I386_GET_LDT	0
-#define I386_SET_LDT	1
-#define	LDT_AUTO_ALLOC	0xffffffff
-				/* I386_IOPL */
-#define I386_GET_IOPERM	3
-#define I386_SET_IOPERM	4
-				/* xxxxx */
-#define	I386_VM86		6	/* XXX Not implementable on amd64 */
-#define	I386_GET_FSBASE		7
-#define	I386_SET_FSBASE		8
-#define	I386_GET_GSBASE		9
-#define	I386_SET_GSBASE		10
-#define	I386_GET_XFPUSTATE	11
-#define	I386_SET_PKRU		12
-#define	I386_CLEAR_PKRU		13
+#define I386_GET_LDT 0
+#define I386_SET_LDT 1
+#define LDT_AUTO_ALLOC 0xffffffff
+/* I386_IOPL */
+#define I386_GET_IOPERM 3
+#define I386_SET_IOPERM 4
+/* xxxxx */
+#define I386_VM86 6 /* XXX Not implementable on amd64 */
+#define I386_GET_FSBASE 7
+#define I386_SET_FSBASE 8
+#define I386_GET_GSBASE 9
+#define I386_SET_GSBASE 10
+#define I386_GET_XFPUSTATE 11
+#define I386_SET_PKRU 12
+#define I386_CLEAR_PKRU 13
 
 /* Leave space for 0-127 for to avoid translating syscalls */
-#define	AMD64_GET_FSBASE	128
-#define	AMD64_SET_FSBASE	129
-#define	AMD64_GET_GSBASE	130
-#define	AMD64_SET_GSBASE	131
-#define	AMD64_GET_XFPUSTATE	132
-#define	AMD64_SET_PKRU		133
-#define	AMD64_CLEAR_PKRU	134
+#define AMD64_GET_FSBASE 128
+#define AMD64_SET_FSBASE 129
+#define AMD64_GET_GSBASE 130
+#define AMD64_SET_GSBASE 131
+#define AMD64_GET_XFPUSTATE 132
+#define AMD64_SET_PKRU 133
+#define AMD64_CLEAR_PKRU 134
 
 /* Flags for AMD64_SET_PKRU */
-#define	AMD64_PKRU_EXCL		0x0001
-#define	AMD64_PKRU_PERSIST	0x0002
+#define AMD64_PKRU_EXCL 0x0001
+#define AMD64_PKRU_PERSIST 0x0002
 
 struct i386_ioperm_args {
 	unsigned int start;
 	unsigned int length;
-	int	enable;
+	int enable;
 };
 
 #ifdef __i386__
@@ -82,8 +82,8 @@ struct i386_ldt_args {
 };
 
 struct i386_vm86_args {
-	int	sub_op;			/* sub-operation to perform */
-	char	*sub_args;		/* args */
+	int sub_op;	/* sub-operation to perform */
+	char *sub_args; /* args */
 };
 
 struct i386_get_xfpustate {
@@ -144,8 +144,8 @@ int amd64_set_fsbase(void *);
 int amd64_set_gsbase(void *);
 int x86_pkru_get_perm(unsigned int keyidx, int *access, int *modify);
 int x86_pkru_set_perm(unsigned int keyidx, int access, int modify);
-int x86_pkru_protect_range(void *addr, unsigned long len, unsigned int keyidx,
-    int flag);
+int x86_pkru_protect_range(
+    void *addr, unsigned long len, unsigned int keyidx, int flag);
 int x86_pkru_unprotect_range(void *addr, unsigned long len);
 int sysarch(int, void *);
 __END_DECLS
@@ -158,8 +158,8 @@ int i386_set_ldt(struct thread *, struct i386_ldt_args *, union descriptor *);
 int i386_get_ioperm(struct thread *, struct i386_ioperm_args *);
 int i386_set_ioperm(struct thread *, struct i386_ioperm_args *);
 int amd64_get_ldt(struct thread *, struct i386_ldt_args *);
-int amd64_set_ldt(struct thread *, struct i386_ldt_args *,
-    struct user_segment_descriptor *);
+int amd64_set_ldt(
+    struct thread *, struct i386_ldt_args *, struct user_segment_descriptor *);
 int amd64_get_ioperm(struct thread *, struct i386_ioperm_args *);
 int amd64_set_ioperm(struct thread *, struct i386_ioperm_args *);
 #endif

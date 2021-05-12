@@ -38,86 +38,85 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/malloc.h>
-#include <sys/fnv_hash.h>
-#include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/vnode.h>
-#include <sys/mount.h>
-#include <sys/refcount.h>
-#include <sys/sysctl.h>
-#include <sys/sx.h>
 #include <sys/eventhandler.h>
+#include <sys/fnv_hash.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/refcount.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/vnode.h>
+
 #include <vm/uma.h>
 
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/dirhash.h>
 #include <ufs/ufs/extattr.h>
-#include <ufs/ufs/ufsmount.h>
+#include <ufs/ufs/inode.h>
+#include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufs_extern.h>
+#include <ufs/ufs/ufsmount.h>
 
-#define WRAPINCR(val, limit)	(((val) + 1 == (limit)) ? 0 : ((val) + 1))
-#define WRAPDECR(val, limit)	(((val) == 0) ? ((limit) - 1) : ((val) - 1))
-#define OFSFMT(vp)		((vp)->v_mount->mnt_maxsymlinklen <= 0)
-#define BLKFREE2IDX(n)		((n) > DH_NFSTATS ? DH_NFSTATS : (n))
+#define WRAPINCR(val, limit) (((val) + 1 == (limit)) ? 0 : ((val) + 1))
+#define WRAPDECR(val, limit) (((val) == 0) ? ((limit)-1) : ((val)-1))
+#define OFSFMT(vp) ((vp)->v_mount->mnt_maxsymlinklen <= 0)
+#define BLKFREE2IDX(n) ((n) > DH_NFSTATS ? DH_NFSTATS : (n))
 
 static MALLOC_DEFINE(M_DIRHASH, "ufs_dirhash", "UFS directory hash tables");
 
 static int ufs_mindirhashsize = DIRBLKSIZ * 5;
-SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_minsize, CTLFLAG_RW,
-    &ufs_mindirhashsize,
+SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_minsize, CTLFLAG_RW, &ufs_mindirhashsize,
     0, "minimum directory size in bytes for which to use hashed lookup");
-static int ufs_dirhashmaxmem = 2 * 1024 * 1024;	/* NOTE: initial value. It is
+static int ufs_dirhashmaxmem = 2 * 1024 * 1024; /* NOTE: initial value. It is
 						   tuned in ufsdirhash_init() */
 SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_maxmem, CTLFLAG_RW, &ufs_dirhashmaxmem,
     0, "maximum allowed dirhash memory usage");
 static int ufs_dirhashmem;
-SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_mem, CTLFLAG_RD, &ufs_dirhashmem,
-    0, "current dirhash memory usage");
+SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_mem, CTLFLAG_RD, &ufs_dirhashmem, 0,
+    "current dirhash memory usage");
 static int ufs_dirhashcheck = 0;
 SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_docheck, CTLFLAG_RW, &ufs_dirhashcheck,
     0, "enable extra sanity tests");
 static int ufs_dirhashlowmemcount = 0;
-SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_lowmemcount, CTLFLAG_RD, 
+SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_lowmemcount, CTLFLAG_RD,
     &ufs_dirhashlowmemcount, 0, "number of times low memory hook called");
 static int ufs_dirhashreclaimpercent = 10;
 static int ufsdirhash_set_reclaimpercent(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vfs_ufs, OID_AUTO, dirhash_reclaimpercent,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    0, 0, ufsdirhash_set_reclaimpercent, "I",
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0,
+    ufsdirhash_set_reclaimpercent, "I",
     "set percentage of dirhash cache to be removed in low VM events");
 
 static int ufsdirhash_hash(struct dirhash *dh, char *name, int namelen);
 static void ufsdirhash_adjfree(struct dirhash *dh, doff_t offset, int diff);
 static void ufsdirhash_delslot(struct dirhash *dh, int slot);
-static int ufsdirhash_findslot(struct dirhash *dh, char *name, int namelen,
-	   doff_t offset);
+static int ufsdirhash_findslot(
+    struct dirhash *dh, char *name, int namelen, doff_t offset);
 static doff_t ufsdirhash_getprev(struct direct *dp, doff_t offset);
 static int ufsdirhash_recycle(int wanted);
 static void ufsdirhash_lowmem(void);
 static void ufsdirhash_free_locked(struct inode *ip);
 
-static uma_zone_t	ufsdirhash_zone;
+static uma_zone_t ufsdirhash_zone;
 
-#define DIRHASHLIST_LOCK() 		mtx_lock(&ufsdirhash_mtx)
-#define DIRHASHLIST_UNLOCK() 		mtx_unlock(&ufsdirhash_mtx)
-#define DIRHASH_BLKALLOC_WAITOK() 	uma_zalloc(ufsdirhash_zone, M_WAITOK)
-#define DIRHASH_BLKFREE(ptr) 		uma_zfree(ufsdirhash_zone, (ptr))
-#define	DIRHASH_ASSERT_LOCKED(dh)					\
-    sx_assert(&(dh)->dh_lock, SA_LOCKED)
+#define DIRHASHLIST_LOCK() mtx_lock(&ufsdirhash_mtx)
+#define DIRHASHLIST_UNLOCK() mtx_unlock(&ufsdirhash_mtx)
+#define DIRHASH_BLKALLOC_WAITOK() uma_zalloc(ufsdirhash_zone, M_WAITOK)
+#define DIRHASH_BLKFREE(ptr) uma_zfree(ufsdirhash_zone, (ptr))
+#define DIRHASH_ASSERT_LOCKED(dh) sx_assert(&(dh)->dh_lock, SA_LOCKED)
 
 /* Dirhash list; recently-used entries are near the tail. */
 static TAILQ_HEAD(, dirhash) ufsdirhash_list;
 
 /* Protects: ufsdirhash_list, `dh_list' field, ufs_dirhashmem. */
-static struct mtx	ufsdirhash_mtx;
+static struct mtx ufsdirhash_mtx;
 
 /*
  * Locking:
@@ -200,8 +199,7 @@ ufsdirhash_create(struct inode *ip)
 	for (;;) {
 		/* Racy check for i_dirhash to prefetch a dirhash structure. */
 		if (ip->i_dirhash == NULL && ndh == NULL) {
-			ndh = malloc(sizeof *dh, M_DIRHASH,
-			    M_NOWAIT | M_ZERO);
+			ndh = malloc(sizeof *dh, M_DIRHASH, M_NOWAIT | M_ZERO);
 			if (ndh == NULL)
 				return (NULL);
 			refcount_init(&ndh->dh_refcount, 1);
@@ -416,12 +414,12 @@ ufsdirhash_build(struct inode *ip)
 	 * Use non-blocking mallocs so that we will revert to a linear
 	 * lookup on failure rather than potentially blocking forever.
 	 */
-	dh->dh_hash = malloc(narrays * sizeof(dh->dh_hash[0]),
-	    M_DIRHASH, M_NOWAIT | M_ZERO);
+	dh->dh_hash = malloc(
+	    narrays * sizeof(dh->dh_hash[0]), M_DIRHASH, M_NOWAIT | M_ZERO);
 	if (dh->dh_hash == NULL)
 		goto fail;
-	dh->dh_blkfree = malloc(nblocks * sizeof(dh->dh_blkfree[0]),
-	    M_DIRHASH, M_NOWAIT);
+	dh->dh_blkfree = malloc(
+	    nblocks * sizeof(dh->dh_blkfree[0]), M_DIRHASH, M_NOWAIT);
 	if (dh->dh_blkfree == NULL)
 		goto fail;
 	for (i = 0; i < narrays; i++) {
@@ -445,8 +443,8 @@ ufsdirhash_build(struct inode *ip)
 
 		/* Add this entry to the hash. */
 		ep = (struct direct *)((char *)bp->b_data + (pos & bmask));
-		if (ep->d_reclen == 0 || ep->d_reclen >
-		    DIRBLKSIZ - (pos & (DIRBLKSIZ - 1))) {
+		if (ep->d_reclen == 0 ||
+		    ep->d_reclen > DIRBLKSIZ - (pos & (DIRBLKSIZ - 1))) {
 			/* Corrupted directory. */
 			brelse(bp);
 			goto fail;
@@ -580,8 +578,8 @@ ufsdirhash_lookup(struct inode *ip, char *name, int namelen, doff_t *offp,
 		    dh->dh_score >= dh_next->dh_score) {
 			KASSERT(dh->dh_onlist, ("dirhash: not on list"));
 			TAILQ_REMOVE(&ufsdirhash_list, dh, dh_list);
-			TAILQ_INSERT_AFTER(&ufsdirhash_list, dh_next, dh,
-			    dh_list);
+			TAILQ_INSERT_AFTER(
+			    &ufsdirhash_list, dh_next, dh, dh_list);
 		}
 	}
 	/* Update the score. */
@@ -608,7 +606,7 @@ restart:
 		 * appears in the hash chain for the name we are looking for.
 		 */
 		for (i = slot; (offset = DH_ENTRY(dh, i)) != DIRHASH_EMPTY;
-		    i = WRAPINCR(i, dh->dh_hlen))
+		     i = WRAPINCR(i, dh->dh_hlen))
 			if (offset == seqoff)
 				break;
 		if (offset == seqoff) {
@@ -616,14 +614,14 @@ restart:
 			 * We found an entry with the expected offset. This
 			 * is probably the entry we want, but if not, the
 			 * code below will retry.
-			 */ 
+			 */
 			slot = i;
 		} else
 			seqoff = -1;
 	}
 
 	for (; (offset = DH_ENTRY(dh, slot)) != DIRHASH_EMPTY;
-	    slot = WRAPINCR(slot, dh->dh_hlen)) {
+	     slot = WRAPINCR(slot, dh->dh_hlen)) {
 		if (offset == DIRHASH_DEL)
 			continue;
 		if (offset < 0 || offset >= ip->i_size)
@@ -639,8 +637,8 @@ restart:
 		}
 		KASSERT(bp != NULL, ("no buffer allocated"));
 		dp = (struct direct *)(bp->b_data + (offset & bmask));
-		if (dp->d_reclen == 0 || dp->d_reclen >
-		    DIRBLKSIZ - (offset & (DIRBLKSIZ - 1))) {
+		if (dp->d_reclen == 0 ||
+		    dp->d_reclen > DIRBLKSIZ - (offset & (DIRBLKSIZ - 1))) {
 			/* Corrupted directory. */
 			error = EJUSTRETURN;
 			goto fail;
@@ -650,8 +648,8 @@ restart:
 			/* Found. Get the prev offset if needed. */
 			if (prevoffp != NULL) {
 				if (offset & (DIRBLKSIZ - 1)) {
-					prevoff = ufsdirhash_getprev(dp,
-					    offset);
+					prevoff = ufsdirhash_getprev(
+					    dp, offset);
 					if (prevoff == -1) {
 						error = EJUSTRETURN;
 						goto fail;
@@ -725,7 +723,7 @@ ufsdirhash_findfree(struct inode *ip, int slotneeded, int *slotsize)
 		return (-1);
 
 	KASSERT(dirblock < dh->dh_nblk &&
-	    dh->dh_blkfree[dirblock] >= howmany(slotneeded, DIRALIGN),
+		dh->dh_blkfree[dirblock] >= howmany(slotneeded, DIRALIGN),
 	    ("ufsdirhash_findfree: bad stats"));
 	pos = dirblock * DIRBLKSIZ;
 	error = UFS_BLKATOFF(ip->i_vnode, (off_t)pos, (char **)&dp, &bp);
@@ -733,7 +731,7 @@ ufsdirhash_findfree(struct inode *ip, int slotneeded, int *slotsize)
 		return (-1);
 
 	/* Find the first entry with free space. */
-	for (i = 0; i < DIRBLKSIZ; ) {
+	for (i = 0; i < DIRBLKSIZ;) {
 		if (dp->d_reclen == 0) {
 			brelse(bp);
 			return (-1);
@@ -872,8 +870,8 @@ ufsdirhash_remove(struct inode *ip, struct direct *dirp, doff_t offset)
  * when compacting directory blocks.
  */
 void
-ufsdirhash_move(struct inode *ip, struct direct *dirp, doff_t oldoff,
-    doff_t newoff)
+ufsdirhash_move(
+    struct inode *ip, struct direct *dirp, doff_t oldoff, doff_t newoff)
 {
 	struct dirhash *dh;
 	int slot;
@@ -882,7 +880,7 @@ ufsdirhash_move(struct inode *ip, struct direct *dirp, doff_t oldoff,
 		return;
 
 	KASSERT(oldoff < dh->dh_dirblks * DIRBLKSIZ &&
-	    newoff < dh->dh_dirblks * DIRBLKSIZ,
+		newoff < dh->dh_dirblks * DIRBLKSIZ,
 	    ("ufsdirhash_move: bad offset"));
 	/* Find the entry, and update the offset. */
 	slot = ufsdirhash_findslot(dh, dirp->d_name, dirp->d_namlen, oldoff);
@@ -1064,7 +1062,7 @@ ufsdirhash_adjfree(struct dirhash *dh, doff_t offset, int diff)
 	/* Update the per-block summary info. */
 	block = offset / DIRBLKSIZ;
 	KASSERT(block < dh->dh_nblk && block < dh->dh_dirblks,
-	     ("dirhash bad offset"));
+	    ("dirhash bad offset"));
 	ofidx = BLKFREE2IDX(dh->dh_blkfree[block]);
 	dh->dh_blkfree[block] = (int)dh->dh_blkfree[block] + (diff / DIRALIGN);
 	nfidx = BLKFREE2IDX(dh->dh_blkfree[block]);
@@ -1102,8 +1100,8 @@ ufsdirhash_findslot(struct dirhash *dh, char *name, int namelen, doff_t offset)
 	/* Find the entry. */
 	KASSERT(dh->dh_hused < dh->dh_hlen, ("dirhash find full"));
 	slot = ufsdirhash_hash(dh, name, namelen);
-	while (DH_ENTRY(dh, slot) != offset &&
-	    DH_ENTRY(dh, slot) != DIRHASH_EMPTY)
+	while (
+	    DH_ENTRY(dh, slot) != offset && DH_ENTRY(dh, slot) != DIRHASH_EMPTY)
 		slot = WRAPINCR(slot, dh->dh_hlen);
 	if (DH_ENTRY(dh, slot) != offset)
 		panic("ufsdirhash_findslot: '%.*s' not found", namelen, name);
@@ -1127,7 +1125,7 @@ ufsdirhash_delslot(struct dirhash *dh, int slot)
 	DH_ENTRY(dh, slot) = DIRHASH_DEL;
 
 	/* If this is the end of a chain of DIRHASH_DEL slots, remove them. */
-	for (i = slot; DH_ENTRY(dh, i) == DIRHASH_DEL; )
+	for (i = slot; DH_ENTRY(dh, i) == DIRHASH_DEL;)
 		i = WRAPINCR(i, dh->dh_hlen);
 	if (DH_ENTRY(dh, i) == DIRHASH_EMPTY) {
 		i = WRAPDECR(i, dh->dh_hlen);
@@ -1154,7 +1152,7 @@ ufsdirhash_getprev(struct direct *dirp, doff_t offset)
 	doff_t blkoff, prevoff;
 	int entrypos, i;
 
-	blkoff = rounddown2(offset, DIRBLKSIZ);	/* offset of start of block */
+	blkoff = rounddown2(offset, DIRBLKSIZ); /* offset of start of block */
 	entrypos = offset & (DIRBLKSIZ - 1);	/* entry relative to block */
 	blkbuf = (char *)dirp - entrypos;
 	prevoff = blkoff;
@@ -1167,15 +1165,15 @@ ufsdirhash_getprev(struct direct *dirp, doff_t offset)
 	for (i = 0; i < entrypos; i += dp->d_reclen) {
 		dp = (struct direct *)(blkbuf + i);
 		if (dp->d_reclen == 0 || i + dp->d_reclen > entrypos)
-			return (-1);	/* Corrupted directory. */
+			return (-1); /* Corrupted directory. */
 		prevoff = blkoff + i;
 	}
 	return (prevoff);
 }
 
 /*
- * Delete the given dirhash and reclaim its memory. Assumes that 
- * ufsdirhash_list is locked, and leaves it locked. Also assumes 
+ * Delete the given dirhash and reclaim its memory. Assumes that
+ * ufsdirhash_list is locked, and leaves it locked. Also assumes
  * that dh is locked. Returns the amount of memory freed.
  */
 static int
@@ -1270,7 +1268,7 @@ ufsdirhash_lowmem()
 	 * be the oldest. If during list traversal we can't get a lock on the
 	 * dirhash, it will be skipped.
 	 */
-	TAILQ_FOREACH_SAFE(dh, &ufsdirhash_list, dh_list, dh_temp) {
+	TAILQ_FOREACH_SAFE (dh, &ufsdirhash_list, dh_list, dh_temp) {
 		if (sx_try_xlock(&dh->dh_lock))
 			memfreed += ufsdirhash_destroy(dh);
 		if (memfreed >= memwanted)
@@ -1279,8 +1277,7 @@ ufsdirhash_lowmem()
 	DIRHASHLIST_UNLOCK();
 }
 
-static int
-ufsdirhash_set_reclaimpercent(SYSCTL_HANDLER_ARGS)
+static int ufsdirhash_set_reclaimpercent(SYSCTL_HANDLER_ARGS)
 {
 	int error, v;
 
@@ -1303,8 +1300,8 @@ ufsdirhash_set_reclaimpercent(SYSCTL_HANDLER_ARGS)
 void
 ufsdirhash_init()
 {
-	ufs_dirhashmaxmem = lmax(roundup(hibufspace / 64, PAGE_SIZE),
-	    2 * 1024 * 1024);
+	ufs_dirhashmaxmem = lmax(
+	    roundup(hibufspace / 64, PAGE_SIZE), 2 * 1024 * 1024);
 
 	ufsdirhash_zone = uma_zcreate("DIRHASH", DH_NBLKOFF * sizeof(doff_t),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
@@ -1312,8 +1309,8 @@ ufsdirhash_init()
 	TAILQ_INIT(&ufsdirhash_list);
 
 	/* Register a callback function to handle low memory signals */
-	EVENTHANDLER_REGISTER(vm_lowmem, ufsdirhash_lowmem, NULL, 
-	    EVENTHANDLER_PRI_FIRST);
+	EVENTHANDLER_REGISTER(
+	    vm_lowmem, ufsdirhash_lowmem, NULL, EVENTHANDLER_PRI_FIRST);
 }
 
 void

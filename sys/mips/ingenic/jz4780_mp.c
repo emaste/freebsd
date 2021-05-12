@@ -30,22 +30,22 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/smp.h>
-#include <sys/systm.h>
 
 #include <machine/cpufunc.h>
 #include <machine/hwfunc.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 
-#include <mips/ingenic/jz4780_regs.h>
 #include <mips/ingenic/jz4780_cpuregs.h>
+#include <mips/ingenic/jz4780_regs.h>
 
 void jz4780_mpentry(void);
 
-#define JZ4780_MAXCPU	2
+#define JZ4780_MAXCPU 2
 
 void
 platform_ipi_send(int cpuid)
@@ -117,7 +117,7 @@ platform_cpu_mask(cpuset_t *mask)
 	uint32_t i, m;
 
 	CPU_ZERO(mask);
-	for (i = 0, m = 1 ; i < JZ4780_MAXCPU; i++, m <<= 1)
+	for (i = 0, m = 1; i < JZ4780_MAXCPU; i++, m <<= 1)
 		CPU_SET(i, mask);
 }
 
@@ -154,8 +154,7 @@ platform_start_ap(int cpuid)
 
 	/* Figure out address of mpentry in KSEG1 */
 	addr = MIPS_PHYS_TO_KSEG1(MIPS_KSEG0_TO_PHYS(jz4780_mpentry));
-	KASSERT((addr & ~JZ_REIM_ENTRY_MASK) == 0,
-	    ("Unaligned mpentry"));
+	KASSERT((addr & ~JZ_REIM_ENTRY_MASK) == 0, ("Unaligned mpentry"));
 
 	/* Configure core alternative entry point */
 	reg = mips_rd_xburst_reim();

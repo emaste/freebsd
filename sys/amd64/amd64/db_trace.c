@@ -35,20 +35,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/stack.h>
 #include <sys/sysent.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_param.h>
+
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
 #include <machine/stack.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-
-#include <ddb/ddb.h>
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
+#include <ddb/ddb.h>
 
 static db_varfcn_t db_frame;
 static db_varfcn_t db_frame_seg;
@@ -58,32 +58,32 @@ CTASSERT(sizeof(struct dbreg) == sizeof(((struct pcpu *)NULL)->pc_dbreg));
 /*
  * Machine register set.
  */
-#define	DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
+#define DB_OFFSET(x) (db_expr_t *)offsetof(struct trapframe, x)
 struct db_variable db_regs[] = {
-	{ "cs",		DB_OFFSET(tf_cs),	db_frame_seg },
-	{ "ds",		DB_OFFSET(tf_ds),	db_frame_seg },
-	{ "es",		DB_OFFSET(tf_es),	db_frame_seg },
-	{ "fs",		DB_OFFSET(tf_fs),	db_frame_seg },
-	{ "gs",		DB_OFFSET(tf_gs),	db_frame_seg },
-	{ "ss",		DB_OFFSET(tf_ss),	db_frame_seg },
-	{ "rax",	DB_OFFSET(tf_rax),	db_frame },
-	{ "rcx",        DB_OFFSET(tf_rcx),	db_frame },
-	{ "rdx",	DB_OFFSET(tf_rdx),	db_frame },
-	{ "rbx",	DB_OFFSET(tf_rbx),	db_frame },
-	{ "rsp",	DB_OFFSET(tf_rsp),	db_frame },
-	{ "rbp",	DB_OFFSET(tf_rbp),	db_frame },
-	{ "rsi",	DB_OFFSET(tf_rsi),	db_frame },
-	{ "rdi",	DB_OFFSET(tf_rdi),	db_frame },
-	{ "r8",		DB_OFFSET(tf_r8),	db_frame },
-	{ "r9",		DB_OFFSET(tf_r9),	db_frame },
-	{ "r10",	DB_OFFSET(tf_r10),	db_frame },
-	{ "r11",	DB_OFFSET(tf_r11),	db_frame },
-	{ "r12",	DB_OFFSET(tf_r12),	db_frame },
-	{ "r13",	DB_OFFSET(tf_r13),	db_frame },
-	{ "r14",	DB_OFFSET(tf_r14),	db_frame },
-	{ "r15",	DB_OFFSET(tf_r15),	db_frame },
-	{ "rip",	DB_OFFSET(tf_rip),	db_frame },
-	{ "rflags",	DB_OFFSET(tf_rflags),	db_frame },
+	{ "cs", DB_OFFSET(tf_cs), db_frame_seg },
+	{ "ds", DB_OFFSET(tf_ds), db_frame_seg },
+	{ "es", DB_OFFSET(tf_es), db_frame_seg },
+	{ "fs", DB_OFFSET(tf_fs), db_frame_seg },
+	{ "gs", DB_OFFSET(tf_gs), db_frame_seg },
+	{ "ss", DB_OFFSET(tf_ss), db_frame_seg },
+	{ "rax", DB_OFFSET(tf_rax), db_frame },
+	{ "rcx", DB_OFFSET(tf_rcx), db_frame },
+	{ "rdx", DB_OFFSET(tf_rdx), db_frame },
+	{ "rbx", DB_OFFSET(tf_rbx), db_frame },
+	{ "rsp", DB_OFFSET(tf_rsp), db_frame },
+	{ "rbp", DB_OFFSET(tf_rbp), db_frame },
+	{ "rsi", DB_OFFSET(tf_rsi), db_frame },
+	{ "rdi", DB_OFFSET(tf_rdi), db_frame },
+	{ "r8", DB_OFFSET(tf_r8), db_frame },
+	{ "r9", DB_OFFSET(tf_r9), db_frame },
+	{ "r10", DB_OFFSET(tf_r10), db_frame },
+	{ "r11", DB_OFFSET(tf_r11), db_frame },
+	{ "r12", DB_OFFSET(tf_r12), db_frame },
+	{ "r13", DB_OFFSET(tf_r13), db_frame },
+	{ "r14", DB_OFFSET(tf_r14), db_frame },
+	{ "r15", DB_OFFSET(tf_r15), db_frame },
+	{ "rip", DB_OFFSET(tf_rip), db_frame },
+	{ "rflags", DB_OFFSET(tf_rflags), db_frame },
 };
 struct db_variable *db_eregs = db_regs + nitems(db_regs);
 
@@ -119,10 +119,10 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 	return (1);
 }
 
-#define NORMAL		0
-#define	TRAP		1
-#define	INTERRUPT	2
-#define	SYSCALL		3
+#define NORMAL 0
+#define TRAP 1
+#define INTERRUPT 2
+#define SYSCALL 3
 
 static void db_nextframe(struct amd64_frame **, db_addr_t *, struct thread *);
 static void db_print_stack_entry(const char *, db_addr_t, void *);
@@ -174,8 +174,8 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 	c_db_sym_t sym;
 	const char *name;
 
-	rip = db_get_value((long) &(*fp)->f_retaddr, 8, FALSE);
-	rbp = db_get_value((long) &(*fp)->f_frame, 8, FALSE);
+	rip = db_get_value((long)&(*fp)->f_retaddr, 8, FALSE);
+	rbp = db_get_value((long)&(*fp)->f_frame, 8, FALSE);
 
 	/*
 	 * Figure out frame type.  We look at the address just before
@@ -219,8 +219,8 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 	 * Normal frames need no special processing.
 	 */
 	if (frame_type == NORMAL) {
-		*ip = (db_addr_t) rip;
-		*fp = (struct amd64_frame *) rbp;
+		*ip = (db_addr_t)rip;
+		*fp = (struct amd64_frame *)rbp;
 		return;
 	}
 
@@ -232,7 +232,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 	 */
 	tf = (struct trapframe *)((long)*fp + 16);
 
-	if (INKERNEL((long) tf)) {
+	if (INKERNEL((long)tf)) {
 		rsp = tf->tf_rsp;
 		rip = tf->tf_rip;
 		rbp = tf->tf_rbp;
@@ -254,8 +254,8 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 		    rsp, rbp);
 	}
 
-	*ip = (db_addr_t) rip;
-	*fp = (struct amd64_frame *) rbp;
+	*ip = (db_addr_t)rip;
+	*fp = (struct amd64_frame *)rbp;
 }
 
 static int
@@ -299,7 +299,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct amd64_frame *frame,
 				db_print_stack_entry(name, pc, NULL);
 				pc = db_get_value(sp, 8, FALSE);
 				if (db_search_symbol(pc, DB_STGY_PROC,
-				    &offset) == C_DB_SYM_NULL)
+					&offset) == C_DB_SYM_NULL)
 					break;
 				continue;
 			} else if (tf != NULL) {
@@ -338,8 +338,8 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct amd64_frame *frame,
 
 		if (actframe != frame) {
 			/* `frame' belongs to caller. */
-			pc = (db_addr_t)
-			    db_get_value((long)&actframe->f_retaddr, 8, FALSE);
+			pc = (db_addr_t)db_get_value(
+			    (long)&actframe->f_retaddr, 8, FALSE);
 			continue;
 		}
 
@@ -351,7 +351,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct amd64_frame *frame,
 			db_print_stack_entry(name, pc, frame);
 			break;
 		}
-		if (!INKERNEL((long) frame)) {
+		if (!INKERNEL((long)frame)) {
 			break;
 		}
 	}
@@ -366,7 +366,7 @@ db_trace_self(void)
 	db_addr_t callpc;
 	register_t rbp;
 
-	__asm __volatile("movq %%rbp,%0" : "=r" (rbp));
+	__asm __volatile("movq %%rbp,%0" : "=r"(rbp));
 	frame = (struct amd64_frame *)rbp;
 	callpc = (db_addr_t)db_get_value((long)&frame->f_retaddr, 8, FALSE);
 	frame = frame->f_frame;

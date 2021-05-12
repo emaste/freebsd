@@ -45,29 +45,29 @@
  * they should be decoupled from the protocol at which time we can
  * pack them and reduce the size of the array to a minimum.
  */
-#define	AH_ALG_MAX	16
+#define AH_ALG_MAX 16
 
 struct ahstat {
-	uint64_t	ahs_hdrops;	/* Packet shorter than header shows */
-	uint64_t	ahs_nopf;	/* Protocol family not supported */
-	uint64_t	ahs_notdb;
-	uint64_t	ahs_badkcr;
-	uint64_t	ahs_badauth;
-	uint64_t	ahs_noxform;
-	uint64_t	ahs_qfull;
-	uint64_t	ahs_wrap;
-	uint64_t	ahs_replay;
-	uint64_t	ahs_badauthl;	/* Bad authenticator length */
-	uint64_t	ahs_input;	/* Input AH packets */
-	uint64_t	ahs_output;	/* Output AH packets */
-	uint64_t	ahs_invalid;	/* Trying to use an invalid TDB */
-	uint64_t	ahs_ibytes;	/* Input bytes */
-	uint64_t	ahs_obytes;	/* Output bytes */
-	uint64_t	ahs_toobig;	/* Packet got larger than IP_MAXPACKET */
-	uint64_t	ahs_pdrops;	/* Packet blocked due to policy */
-	uint64_t	ahs_crypto;	/* Crypto processing failure */
-	uint64_t	ahs_tunnel;	/* Tunnel sanity check failure */
-	uint64_t	ahs_hist[AH_ALG_MAX];	/* Per-algorithm op count */
+	uint64_t ahs_hdrops; /* Packet shorter than header shows */
+	uint64_t ahs_nopf;   /* Protocol family not supported */
+	uint64_t ahs_notdb;
+	uint64_t ahs_badkcr;
+	uint64_t ahs_badauth;
+	uint64_t ahs_noxform;
+	uint64_t ahs_qfull;
+	uint64_t ahs_wrap;
+	uint64_t ahs_replay;
+	uint64_t ahs_badauthl;	       /* Bad authenticator length */
+	uint64_t ahs_input;	       /* Input AH packets */
+	uint64_t ahs_output;	       /* Output AH packets */
+	uint64_t ahs_invalid;	       /* Trying to use an invalid TDB */
+	uint64_t ahs_ibytes;	       /* Input bytes */
+	uint64_t ahs_obytes;	       /* Output bytes */
+	uint64_t ahs_toobig;	       /* Packet got larger than IP_MAXPACKET */
+	uint64_t ahs_pdrops;	       /* Packet blocked due to policy */
+	uint64_t ahs_crypto;	       /* Crypto processing failure */
+	uint64_t ahs_tunnel;	       /* Tunnel sanity check failure */
+	uint64_t ahs_hist[AH_ALG_MAX]; /* Per-algorithm op count */
 };
 
 #ifdef _KERNEL
@@ -77,10 +77,10 @@ VNET_DECLARE(int, ah_enable);
 VNET_DECLARE(int, ah_cleartos);
 VNET_PCPUSTAT_DECLARE(struct ahstat, ahstat);
 
-#define	AHSTAT_ADD(name, val)	\
-    VNET_PCPUSTAT_ADD(struct ahstat, ahstat, name , (val))
-#define	AHSTAT_INC(name)	AHSTAT_ADD(name, 1)
-#define	V_ah_enable		VNET(ah_enable)
-#define	V_ah_cleartos		VNET(ah_cleartos)
+#define AHSTAT_ADD(name, val) \
+	VNET_PCPUSTAT_ADD(struct ahstat, ahstat, name, (val))
+#define AHSTAT_INC(name) AHSTAT_ADD(name, 1)
+#define V_ah_enable VNET(ah_enable)
+#define V_ah_cleartos VNET(ah_cleartos)
 #endif /* _KERNEL */
 #endif /*_NETIPSEC_AH_VAR_H_*/

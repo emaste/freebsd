@@ -34,9 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
-
 #include <dev/acpica/acpivar.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 
 /*
  * ARM64TODO: Implement this.
@@ -49,13 +49,13 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 }
 
 int
-acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
-    int intr_enabled)
+acpi_wakeup_machdep(
+    struct acpi_softc *sc, int state, int sleep_result, int intr_enabled)
 {
 
 	/* ARM64TODO: We will need this with acpi_sleep_machdep */
-	KASSERT(sleep_result == -1,
-	    ("acpi_wakeup_machdep: Invalid sleep result"));
+	KASSERT(
+	    sleep_result == -1, ("acpi_wakeup_machdep: Invalid sleep result"));
 
 	return (sleep_result);
 }

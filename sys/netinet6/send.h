@@ -31,15 +31,15 @@
 #ifndef _NETINET6_SEND_H_
 #define _NETINET6_SEND_H_
 
-#define	SND_OUT		0	/* Outgoing traffic */
-#define	SND_IN		1	/* Incoming traffic. */
+#define SND_OUT 0 /* Outgoing traffic */
+#define SND_IN 1  /* Incoming traffic. */
 
 struct sockaddr_send {
-	uint8_t			send_len;	/* total length */
-	sa_family_t		send_family;	/* address family */
-	int			send_direction;
-	int			send_ifidx;
-	char			send_zero[8];
+	uint8_t send_len;	 /* total length */
+	sa_family_t send_family; /* address family */
+	int send_direction;
+	int send_ifidx;
+	char send_zero[8];
 };
 
 extern int (*send_sendso_input_hook)(struct mbuf *, struct ifnet *, int, int);

@@ -28,9 +28,9 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_MP_WATCHDOG_H_
-#define	_MACHINE_MP_WATCHDOG_H_
+#ifndef _MACHINE_MP_WATCHDOG_H_
+#define _MACHINE_MP_WATCHDOG_H_
 
-void	ap_watchdog(u_int cpuid);
+void ap_watchdog(u_int cpuid);
 
 #endif /* !_MACHINE_MP_WATCHDOG_H_ */

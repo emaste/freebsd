@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 
 #include <machine/bus.h>
@@ -44,50 +44,45 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/phy/phy_usb.h>
 #include <dev/extres/regulator/regulator.h>
 #include <dev/extres/syscon/syscon.h>
+#include <dev/fdt/simple_mfd.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/syscon/syscon.h>
-#include <dev/fdt/simple_mfd.h>
 #include "phynode_if.h"
 #include "phynode_usb_if.h"
 #include "syscon_if.h"
 
-
-
 /* Phy registers */
-#define	UOC_CON0			0x00
-#define	 UOC_CON0_SIDDQ				(1 << 13)
-#define	 UOC_CON0_DISABLE			(1 <<  4)
-#define	 UOC_CON0_COMMON_ON_N			(1 <<  0)
+#define UOC_CON0 0x00
+#define UOC_CON0_SIDDQ (1 << 13)
+#define UOC_CON0_DISABLE (1 << 4)
+#define UOC_CON0_COMMON_ON_N (1 << 0)
 
-#define	UOC_CON2			0x08
-#define	 UOC_CON2_SOFT_CON_SEL			(1 << 2)
+#define UOC_CON2 0x08
+#define UOC_CON2_SOFT_CON_SEL (1 << 2)
 
-#define UOC_CON3			0x0c
+#define UOC_CON3 0x0c
 
-
-#define	WR4(_sc, _r, _v)	bus_write_4((_sc)->mem_res, (_r), (_v))
-#define	RD4(_sc, _r)		bus_read_4((_sc)->mem_res, (_r))
-
+#define WR4(_sc, _r, _v) bus_write_4((_sc)->mem_res, (_r), (_v))
+#define RD4(_sc, _r) bus_read_4((_sc)->mem_res, (_r))
 
 static struct ofw_compat_data compat_data[] = {
-	{"rockchip,rk3288-usb-phy",	1},
-	{NULL,				0},
+	{ "rockchip,rk3288-usb-phy", 1 },
+	{ NULL, 0 },
 };
 
 struct rk_usbphy_softc {
-	device_t		dev;
+	device_t dev;
 };
 
 struct rk_phynode_sc {
-	struct phynode_usb_sc	usb_sc;
-	uint32_t		base;
-	int			mode;
-	clk_t			clk;
-	hwreset_t		hwreset;
-	regulator_t		supply_vbus;
-	struct syscon		*syscon;
+	struct phynode_usb_sc usb_sc;
+	uint32_t base;
+	int mode;
+	clk_t clk;
+	hwreset_t hwreset;
+	regulator_t supply_vbus;
+	struct syscon *syscon;
 };
 
 static int
@@ -98,13 +93,10 @@ rk_phynode_phy_enable(struct phynode *phy, bool enable)
 
 	sc = phynode_get_softc(phy);
 
-	rv = SYSCON_MODIFY_4(sc->syscon,
-	    sc->base + UOC_CON0,
-	    UOC_CON0_SIDDQ << 16 | UOC_CON0_SIDDQ,
-	    enable ? 0 : UOC_CON0_SIDDQ);
+	rv = SYSCON_MODIFY_4(sc->syscon, sc->base + UOC_CON0,
+	    UOC_CON0_SIDDQ << 16 | UOC_CON0_SIDDQ, enable ? 0 : UOC_CON0_SIDDQ);
 
 	return (rv);
-
 }
 
 static int
@@ -128,12 +120,11 @@ rk_phynode_set_mode(struct phynode *phynode, int mode)
 	return (0);
 }
 
-
- /* Phy controller class and methods. */
+/* Phy controller class and methods. */
 static phynode_method_t rk_phynode_methods[] = {
-	PHYNODEUSBMETHOD(phynode_enable,	rk_phynode_phy_enable),
-	PHYNODEMETHOD(phynode_usb_get_mode,	rk_phynode_get_mode),
-	PHYNODEMETHOD(phynode_usb_set_mode,	rk_phynode_set_mode),
+	PHYNODEUSBMETHOD(phynode_enable, rk_phynode_phy_enable),
+	PHYNODEMETHOD(phynode_usb_get_mode, rk_phynode_get_mode),
+	PHYNODEMETHOD(phynode_usb_set_mode, rk_phynode_set_mode),
 	PHYNODEUSBMETHOD_END
 };
 DEFINE_CLASS_1(rk_phynode, rk_phynode_class, rk_phynode_methods,
@@ -173,10 +164,10 @@ rk_usbphy_init_phy(struct rk_usbphy_softc *sc, phandle_t node)
 		device_printf(sc->dev, "Cannot get 'phy-reset' reset\n");
 		goto fail;
 	}
-	rv = regulator_get_by_ofw_property(sc->dev, node, "vbus-supply",
-	     &supply_vbus);
+	rv = regulator_get_by_ofw_property(
+	    sc->dev, node, "vbus-supply", &supply_vbus);
 	if (rv != 0 && rv != ENOENT) {
-		device_printf(sc->dev,  "Cannot get 'vbus' regulator.\n");
+		device_printf(sc->dev, "Cannot get 'vbus' regulator.\n");
 		goto fail;
 	}
 
@@ -197,8 +188,8 @@ rk_usbphy_init_phy(struct rk_usbphy_softc *sc, phandle_t node)
 	if (clk != NULL) {
 		rv = clk_enable(clk);
 		if (rv != 0) {
-			device_printf(sc->dev,
-			     "Cannot enable 'phyclk' clock.\n");
+			device_printf(
+			    sc->dev, "Cannot enable 'phyclk' clock.\n");
 			goto fail;
 		}
 	}
@@ -237,11 +228,11 @@ rk_usbphy_init_phy(struct rk_usbphy_softc *sc, phandle_t node)
 
 fail:
 	if (supply_vbus != NULL)
-		 regulator_release(supply_vbus);
+		regulator_release(supply_vbus);
 	if (clk != NULL)
-		 clk_release(clk);
+		clk_release(clk);
 	if (hwreset != NULL)
-		 hwreset_release(hwreset);
+		hwreset_release(hwreset);
 
 	return (ENXIO);
 }
@@ -294,14 +285,13 @@ rk_usbphy_detach(device_t dev)
 
 static device_method_t rk_usbphy_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,			rk_usbphy_probe),
-	DEVMETHOD(device_attach,		rk_usbphy_attach),
-	DEVMETHOD(device_detach,		rk_usbphy_detach),
-	DEVMETHOD_END
+	DEVMETHOD(device_probe, rk_usbphy_probe),
+	DEVMETHOD(device_attach, rk_usbphy_attach),
+	DEVMETHOD(device_detach, rk_usbphy_detach), DEVMETHOD_END
 };
 
 static devclass_t rk_usbphy_devclass;
 static DEFINE_CLASS_0(rk_usbphy, rk_usbphy_driver, rk_usbphy_methods,
     sizeof(struct rk_usbphy_softc));
-EARLY_DRIVER_MODULE(rk_usbphy, simplebus, rk_usbphy_driver,
-    rk_usbphy_devclass, NULL, NULL, BUS_PASS_TIMER + BUS_PASS_ORDER_LAST);
+EARLY_DRIVER_MODULE(rk_usbphy, simplebus, rk_usbphy_driver, rk_usbphy_devclass,
+    NULL, NULL, BUS_PASS_TIMER + BUS_PASS_ORDER_LAST);

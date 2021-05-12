@@ -32,14 +32,15 @@
  *
  * $FreeBSD$
  */
-#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/callout.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/queue.h>
-#include <sys/callout.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
+
 #include <machine/stdarg.h>
 
 /*
@@ -48,37 +49,33 @@
  */
 #ifndef SSCFU_DEBUG
 
-#define	MEMINIT() \
+#define MEMINIT()                   \
 	MALLOC_DECLARE(M_NG_SSCFU); \
 	DECL_SIGQ_GET
 
-#define	MEMZALLOC(PTR, CAST, SIZE) \
+#define MEMZALLOC(PTR, CAST, SIZE) \
 	((PTR) = (CAST)malloc((SIZE), M_NG_SSCFU, M_NOWAIT | M_ZERO))
-#define	MEMFREE(PTR) \
-	free(PTR, M_NG_SSCFU)
+#define MEMFREE(PTR) free(PTR, M_NG_SSCFU)
 
-#define	SIG_ALLOC(PTR) \
+#define SIG_ALLOC(PTR) \
 	MEMZALLOC(PTR, struct sscfu_sig *, sizeof(struct sscfu_sig))
-#define	SIG_FREE(PTR) \
-	MEMFREE(PTR)
+#define SIG_FREE(PTR) MEMFREE(PTR)
 
 #else
 
-#define	MEMINIT() 							\
-	MALLOC_DEFINE(M_NG_SSCFU_INS, "sscfu_ins", "SSCFU instances");	\
-	MALLOC_DEFINE(M_NG_SSCFU_SIG, "sscfu_sig", "SSCFU signals");	\
+#define MEMINIT()                                                      \
+	MALLOC_DEFINE(M_NG_SSCFU_INS, "sscfu_ins", "SSCFU instances"); \
+	MALLOC_DEFINE(M_NG_SSCFU_SIG, "sscfu_sig", "SSCFU signals");   \
 	DECL_SIGQ_GET
 
-#define	MEMZALLOC(PTR, CAST, SIZE)					\
+#define MEMZALLOC(PTR, CAST, SIZE) \
 	((PTR) = (CAST)malloc((SIZE), M_NG_SSCFU_INS, M_NOWAIT | M_ZERO))
-#define	MEMFREE(PTR)							\
-	free(PTR, M_NG_SSCFU_INS)
+#define MEMFREE(PTR) free(PTR, M_NG_SSCFU_INS)
 
-#define	SIG_ALLOC(PTR)							\
-	((PTR) = malloc(sizeof(struct sscfu_sig),			\
-	    M_NG_SSCFU_SIG, M_NOWAIT | M_ZERO))
-#define	SIG_FREE(PTR)							\
-	free(PTR, M_NG_SSCFU_SIG)
+#define SIG_ALLOC(PTR)   \
+	((PTR) = malloc( \
+	     sizeof(struct sscfu_sig), M_NG_SSCFU_SIG, M_NOWAIT | M_ZERO))
+#define SIG_FREE(PTR) free(PTR, M_NG_SSCFU_SIG)
 
 #endif
 
@@ -87,45 +84,45 @@
  */
 typedef TAILQ_ENTRY(sscfu_sig) sscfu_sigq_link_t;
 typedef TAILQ_HEAD(sscfu_sigq, sscfu_sig) sscfu_sigq_head_t;
-#define	SIGQ_INIT(Q) 		TAILQ_INIT(Q)
-#define	SIGQ_APPEND(Q, S)	TAILQ_INSERT_TAIL(Q, S, link)
+#define SIGQ_INIT(Q) TAILQ_INIT(Q)
+#define SIGQ_APPEND(Q, S) TAILQ_INSERT_TAIL(Q, S, link)
 
-#define	SIGQ_GET(Q) ng_sscfu_sigq_get((Q))
+#define SIGQ_GET(Q) ng_sscfu_sigq_get((Q))
 
-#define	DECL_SIGQ_GET							\
-static __inline struct sscfu_sig *					\
-ng_sscfu_sigq_get(struct sscfu_sigq *q)					\
-{									\
-	struct sscfu_sig *s;						\
-									\
-	s = TAILQ_FIRST(q);						\
-	if (s != NULL)							\
-		TAILQ_REMOVE(q, s, link);				\
-	return (s);							\
-}
+#define DECL_SIGQ_GET                                        \
+	static __inline struct sscfu_sig *ng_sscfu_sigq_get( \
+	    struct sscfu_sigq *q)                            \
+	{                                                    \
+		struct sscfu_sig *s;                         \
+                                                             \
+		s = TAILQ_FIRST(q);                          \
+		if (s != NULL)                               \
+			TAILQ_REMOVE(q, s, link);            \
+		return (s);                                  \
+	}
 
-#define	SIGQ_CLEAR(Q)							\
-    do {								\
-	struct sscfu_sig *_s1, *_s2;					\
-									\
-	_s1 = TAILQ_FIRST(Q);						\
-	while (_s1 != NULL) {						\
-		_s2 = TAILQ_NEXT(_s1, link);				\
-		if (_s1->m)						\
-			MBUF_FREE(_s1->m);				\
-		SIG_FREE(_s1);						\
-		_s1 = _s2;						\
-	}								\
-	TAILQ_INIT(Q);							\
-    } while (0)
+#define SIGQ_CLEAR(Q)                                \
+	do {                                         \
+		struct sscfu_sig *_s1, *_s2;         \
+                                                     \
+		_s1 = TAILQ_FIRST(Q);                \
+		while (_s1 != NULL) {                \
+			_s2 = TAILQ_NEXT(_s1, link); \
+			if (_s1->m)                  \
+				MBUF_FREE(_s1->m);   \
+			SIG_FREE(_s1);               \
+			_s1 = _s2;                   \
+		}                                    \
+		TAILQ_INIT(Q);                       \
+	} while (0)
 
 /*
  * Message buffers
  */
-#define	MBUF_FREE(M)	m_freem(M)
+#define MBUF_FREE(M) m_freem(M)
 
 #ifdef SSCFU_DEBUG
-#define	ASSERT(S)	KASSERT(S, (#S))
+#define ASSERT(S) KASSERT(S, (#S))
 #else
-#define	ASSERT(S)
+#define ASSERT(S)
 #endif

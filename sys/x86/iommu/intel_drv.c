@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
 #if defined(__amd64__)
-#define	DEV_APIC
+#define DEV_APIC
 #else
 #include "opt_apic.h"
 #endif
@@ -54,35 +54,42 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/vmem.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_map.h>
-#include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/accommon.h>
-#include <dev/acpica/acpivar.h>
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
+
 #include <machine/bus.h>
 #include <machine/pci_cfgreg.h>
+
 #include <x86/include/busdma_impl.h>
-#include <dev/iommu/busdma_iommu.h>
-#include <x86/iommu/intel_reg.h>
 #include <x86/iommu/intel_dmar.h>
+#include <x86/iommu/intel_reg.h>
+
+#include <dev/acpica/acpivar.h>
+#include <dev/iommu/busdma_iommu.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
 #ifdef DEV_APIC
-#include "pcib_if.h"
 #include <machine/intr_machdep.h>
+
 #include <x86/apicreg.h>
 #include <x86/apicvar.h>
+
+#include "pcib_if.h"
 #endif
 
-#define	DMAR_FAULT_IRQ_RID	0
-#define	DMAR_QI_IRQ_RID		1
-#define	DMAR_REG_RID		2
+#define DMAR_FAULT_IRQ_RID 0
+#define DMAR_QI_IRQ_RID 1
+#define DMAR_REG_RID 2
 
 static devclass_t dmar_devclass;
 static device_t *dmar_devs;
@@ -193,8 +200,8 @@ dmar_identify(driver_t *driver, device_t parent)
 	dmar_iterate_tbl(dmar_count_iter, NULL);
 	if (dmar_devcnt == 0)
 		return;
-	dmar_devs = malloc(sizeof(device_t) * dmar_devcnt, M_DEVBUF,
-	    M_WAITOK | M_ZERO);
+	dmar_devs = malloc(
+	    sizeof(device_t) * dmar_devcnt, M_DEVBUF, M_WAITOK | M_ZERO);
 	for (i = 0; i < dmar_devcnt; i++) {
 		dmarh = dmar_find_by_index(i);
 		if (dmarh == NULL) {
@@ -210,7 +217,7 @@ dmar_identify(driver_t *driver, device_t parent)
 		    DMAR_REG_RID, dmarh->Address, PAGE_SIZE);
 		if (error != 0) {
 			printf(
-	"dmar%d: unable to alloc register window at 0x%08jx: error %d\n",
+			    "dmar%d: unable to alloc register window at 0x%08jx: error %d\n",
 			    i, (uintmax_t)dmarh->Address, error);
 			device_delete_child(parent, dmar_devs[i]);
 			dmar_devs[i] = NULL;
@@ -239,8 +246,8 @@ dmar_release_intr(device_t dev, struct dmar_unit *unit, int idx)
 	bus_teardown_intr(dev, dmd->irq_res, dmd->intr_handle);
 	bus_release_resource(dev, SYS_RES_IRQ, dmd->irq_rid, dmd->irq_res);
 	bus_delete_resource(dev, SYS_RES_IRQ, dmd->irq_rid);
-	PCIB_RELEASE_MSIX(device_get_parent(device_get_parent(dev)),
-	    dev, dmd->irq);
+	PCIB_RELEASE_MSIX(
+	    device_get_parent(device_get_parent(dev)), dev, dmd->irq);
 	dmd->irq = -1;
 }
 
@@ -256,10 +263,10 @@ dmar_release_resources(device_t dev, struct dmar_unit *unit)
 	for (i = 0; i < DMAR_INTR_TOTAL; i++)
 		dmar_release_intr(dev, unit, i);
 	if (unit->regs != NULL) {
-		bus_deactivate_resource(dev, SYS_RES_MEMORY, unit->reg_rid,
-		    unit->regs);
-		bus_release_resource(dev, SYS_RES_MEMORY, unit->reg_rid,
-		    unit->regs);
+		bus_deactivate_resource(
+		    dev, SYS_RES_MEMORY, unit->reg_rid, unit->regs);
+		bus_release_resource(
+		    dev, SYS_RES_MEMORY, unit->reg_rid, unit->regs);
 		unit->regs = NULL;
 	}
 	if (unit->domids != NULL) {
@@ -289,33 +296,32 @@ dmar_alloc_irq(device_t dev, struct dmar_unit *unit, int idx)
 		    dmd->name, error);
 		goto err1;
 	}
-	error = bus_set_resource(dev, SYS_RES_IRQ, dmd->irq_rid,
-	    dmd->irq, 1);
+	error = bus_set_resource(dev, SYS_RES_IRQ, dmd->irq_rid, dmd->irq, 1);
 	if (error != 0) {
 		device_printf(dev, "cannot set %s interrupt resource, %d\n",
 		    dmd->name, error);
 		goto err2;
 	}
-	dmd->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &dmd->irq_rid, RF_ACTIVE);
+	dmd->irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &dmd->irq_rid, RF_ACTIVE);
 	if (dmd->irq_res == NULL) {
 		device_printf(dev,
 		    "cannot allocate resource for %s interrupt\n", dmd->name);
 		error = ENXIO;
 		goto err3;
 	}
-	error = bus_setup_intr(dev, dmd->irq_res, INTR_TYPE_MISC,
-	    dmd->handler, NULL, unit, &dmd->intr_handle);
+	error = bus_setup_intr(dev, dmd->irq_res, INTR_TYPE_MISC, dmd->handler,
+	    NULL, unit, &dmd->intr_handle);
 	if (error != 0) {
-		device_printf(dev, "cannot setup %s interrupt, %d\n",
-		    dmd->name, error);
+		device_printf(
+		    dev, "cannot setup %s interrupt, %d\n", dmd->name, error);
 		goto err4;
 	}
 	bus_describe_intr(dev, dmd->irq_res, dmd->intr_handle, "%s", dmd->name);
 	error = PCIB_MAP_MSI(pcib, dev, dmd->irq, &msi_addr, &msi_data);
 	if (error != 0) {
-		device_printf(dev, "cannot map %s interrupt, %d\n",
-		    dmd->name, error);
+		device_printf(
+		    dev, "cannot map %s interrupt, %d\n", dmd->name, error);
 		goto err5;
 	}
 	dmar_write4(unit, dmd->msi_data_reg, msi_data);
@@ -351,9 +357,9 @@ dmar_remap_intr(device_t dev, device_t child, u_int irq)
 	for (i = 0; i < DMAR_INTR_TOTAL; i++) {
 		dmd = &unit->intrs[i];
 		if (irq == dmd->irq) {
-			error = PCIB_MAP_MSI(device_get_parent(
-			    device_get_parent(dev)),
-			    dev, irq, &msi_addr, &msi_data);
+			error = PCIB_MAP_MSI(
+			    device_get_parent(device_get_parent(dev)), dev, irq,
+			    &msi_addr, &msi_data);
 			if (error != 0)
 				return (error);
 			DMAR_LOCK(unit);
@@ -371,15 +377,15 @@ dmar_remap_intr(device_t dev, device_t child, u_int irq)
 #endif
 
 static void
-dmar_print_caps(device_t dev, struct dmar_unit *unit,
-    ACPI_DMAR_HARDWARE_UNIT *dmaru)
+dmar_print_caps(
+    device_t dev, struct dmar_unit *unit, ACPI_DMAR_HARDWARE_UNIT *dmaru)
 {
 	uint32_t caphi, ecaphi;
 
 	device_printf(dev, "regs@0x%08jx, ver=%d.%d, seg=%d, flags=<%b>\n",
 	    (uintmax_t)dmaru->Address, DMAR_MAJOR_VER(unit->hw_ver),
-	    DMAR_MINOR_VER(unit->hw_ver), dmaru->Segment,
-	    dmaru->Flags, "\020\001INCLUDE_ALL_PCI");
+	    DMAR_MINOR_VER(unit->hw_ver), dmaru->Segment, dmaru->Flags,
+	    "\020\001INCLUDE_ALL_PCI");
 	caphi = unit->hw_cap >> 32;
 	device_printf(dev, "cap=%b,", (u_int)unit->hw_cap,
 	    "\020\004AFL\005WBF\006PLMR\007PHMR\010CM\027ZLR\030ISOCH");
@@ -418,8 +424,8 @@ dmar_attach(device_t dev)
 	unit->segment = dmaru->Segment;
 	unit->base = dmaru->Address;
 	unit->reg_rid = DMAR_REG_RID;
-	unit->regs = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &unit->reg_rid, RF_ACTIVE);
+	unit->regs = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &unit->reg_rid, RF_ACTIVE);
 	if (unit->regs == NULL) {
 		device_printf(dev, "cannot allocate register window\n");
 		return (ENOMEM);
@@ -468,8 +474,8 @@ dmar_attach(device_t dev)
 	}
 
 	mtx_init(&unit->iommu.lock, "dmarhw", NULL, MTX_DEF);
-	unit->domids = new_unrhdr(0, dmar_nd2mask(DMAR_CAP_ND(unit->hw_cap)),
-	    &unit->iommu.lock);
+	unit->domids = new_unrhdr(
+	    0, dmar_nd2mask(DMAR_CAP_ND(unit->hw_cap)), &unit->iommu.lock);
 	LIST_INIT(&unit->domains);
 
 	/*
@@ -482,8 +488,8 @@ dmar_attach(device_t dev)
 	if ((unit->hw_cap & DMAR_CAP_CM) != 0)
 		alloc_unr_specific(unit->domids, 0);
 
-	unit->ctx_obj = vm_pager_allocate(OBJT_PHYS, NULL, IDX_TO_OFF(1 +
-	    DMAR_CTX_CNT), 0, 0, NULL);
+	unit->ctx_obj = vm_pager_allocate(
+	    OBJT_PHYS, NULL, IDX_TO_OFF(1 + DMAR_CTX_CNT), 0, 0, NULL);
 
 	/*
 	 * Allocate and load the root entry table pointer.  Enable the
@@ -571,8 +577,8 @@ dmar_resume(device_t dev)
 	return (0);
 }
 
-static device_method_t dmar_methods[] = {
-	DEVMETHOD(device_identify, dmar_identify),
+static device_method_t dmar_methods[] = { DEVMETHOD(
+					      device_identify, dmar_identify),
 	DEVMETHOD(device_probe, dmar_probe),
 	DEVMETHOD(device_attach, dmar_attach),
 	DEVMETHOD(device_detach, dmar_detach),
@@ -581,10 +587,9 @@ static device_method_t dmar_methods[] = {
 #ifdef DEV_APIC
 	DEVMETHOD(bus_remap_intr, dmar_remap_intr),
 #endif
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
-static driver_t	dmar_driver = {
+static driver_t dmar_driver = {
 	"dmar",
 	dmar_methods,
 	sizeof(struct dmar_unit),
@@ -615,11 +620,10 @@ dmar_dev_depth(device_t child)
 	int depth;
 
 	pci_class = devclass_find("pci");
-	for (depth = 1; ; depth++) {
+	for (depth = 1;; depth++) {
 		bus = device_get_parent(child);
 		pcib = device_get_parent(bus);
-		if (device_get_devclass(device_get_parent(pcib)) !=
-		    pci_class)
+		if (device_get_devclass(device_get_parent(pcib)) != pci_class)
 			return (depth);
 		child = pcib;
 	}
@@ -639,8 +643,7 @@ dmar_dev_path(device_t child, int *busno, void *path1, int depth)
 		path[depth].Function = pci_get_function(child);
 		bus = device_get_parent(child);
 		pcib = device_get_parent(bus);
-		if (device_get_devclass(device_get_parent(pcib)) !=
-		    pci_class) {
+		if (device_get_devclass(device_get_parent(pcib)) != pci_class) {
 			/* reached a host bridge */
 			*busno = pcib_get_bus(bus);
 			return;
@@ -729,8 +732,8 @@ dmar_match_by_path(struct dmar_unit *unit, int dev_domain, int dev_busno,
 	while (ptr < ptrend) {
 		devscope = (ACPI_DMAR_DEVICE_SCOPE *)ptr;
 		ptr += devscope->Length;
-		match = dmar_match_devscope(devscope, dev_busno, dev_path,
-		    dev_path_len);
+		match = dmar_match_devscope(
+		    devscope, dev_busno, dev_path, dev_path_len);
 		if (match == -1)
 			return (false);
 		if (match == 1) {
@@ -754,7 +757,7 @@ dmar_find_by_scope(int dev_domain, int dev_busno,
 			continue;
 		unit = device_get_softc(dmar_devs[i]);
 		if (dmar_match_by_path(unit, dev_domain, dev_busno, dev_path,
-		    dev_path_len, NULL))
+			dev_path_len, NULL))
 			return (unit);
 	}
 	return (NULL);
@@ -771,8 +774,7 @@ dmar_find(device_t dev, bool verbose)
 	/*
 	 * This function can only handle PCI(e) devices.
 	 */
-	if (device_get_devclass(device_get_parent(dev)) !=
-	    devclass_find("pci"))
+	if (device_get_devclass(device_get_parent(dev)) != devclass_find("pci"))
 		return (NULL);
 
 	dmar_dev = NULL;
@@ -786,8 +788,8 @@ dmar_find(device_t dev, bool verbose)
 		if (dmar_devs[i] == NULL)
 			continue;
 		unit = device_get_softc(dmar_devs[i]);
-		if (dmar_match_by_path(unit, dev_domain, dev_busno,
-		    dev_path, dev_path_len, &banner))
+		if (dmar_match_by_path(unit, dev_domain, dev_busno, dev_path,
+			dev_path_len, &banner))
 			break;
 	}
 	if (i == dmar_devcnt)
@@ -848,18 +850,18 @@ dmar_find_nonpci(u_int id, u_int entry_type, uint16_t *rid)
 					return (unit);
 			}
 #endif
-			if (devscope->Length - sizeof(ACPI_DMAR_DEVICE_SCOPE)
-			    == 2) {
+			if (devscope->Length - sizeof(ACPI_DMAR_DEVICE_SCOPE) ==
+			    2) {
 				if (rid != NULL) {
-					path = (ACPI_DMAR_PCI_PATH *)
-					    (devscope + 1);
+					path = (ACPI_DMAR_PCI_PATH *)(devscope +
+					    1);
 					*rid = PCI_RID(devscope->Bus,
 					    path->Device, path->Function);
 				}
 				return (unit);
 			}
 			printf(
-		           "dmar_find_nonpci: id %d type %d path length != 2\n",
+			    "dmar_find_nonpci: id %d type %d path length != 2\n",
 			    id, entry_type);
 			break;
 		}
@@ -871,8 +873,8 @@ struct dmar_unit *
 dmar_find_hpet(device_t dev, uint16_t *rid)
 {
 
-	return (dmar_find_nonpci(hpet_get_uid(dev), ACPI_DMAR_SCOPE_TYPE_HPET,
-	    rid));
+	return (dmar_find_nonpci(
+	    hpet_get_uid(dev), ACPI_DMAR_SCOPE_TYPE_HPET, rid));
 }
 
 struct dmar_unit *
@@ -916,16 +918,16 @@ dmar_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 			break;
 		devscope = (ACPI_DMAR_DEVICE_SCOPE *)ptr;
 		ptr += devscope->Length;
-		match = dmar_match_devscope(devscope, ria->dev_busno,
-		    ria->dev_path, ria->dev_path_len);
+		match = dmar_match_devscope(
+		    devscope, ria->dev_busno, ria->dev_path, ria->dev_path_len);
 		if (match == 1) {
-			entry = iommu_gas_alloc_entry(DOM2IODOM(ria->domain),
-			    IOMMU_PGF_WAITOK);
+			entry = iommu_gas_alloc_entry(
+			    DOM2IODOM(ria->domain), IOMMU_PGF_WAITOK);
 			entry->start = resmem->BaseAddress;
 			/* The RMRR entry end address is inclusive. */
 			entry->end = resmem->EndAddress;
-			TAILQ_INSERT_TAIL(ria->rmrr_entries, entry,
-			    unroll_link);
+			TAILQ_INSERT_TAIL(
+			    ria->rmrr_entries, entry, unroll_link);
 		}
 	}
 
@@ -961,8 +963,8 @@ dmar_path_dev(int segment, int path_len, int busno,
 
 	dev = NULL;
 	for (i = 0; i < path_len; i++) {
-		dev = pci_find_dbsf(segment, busno, path->Device,
-		    path->Function);
+		dev = pci_find_dbsf(
+		    segment, busno, path->Device, path->Function);
 		if (i != path_len - 1) {
 			busno = pci_cfgregread(busno, path->Device,
 			    path->Function, PCIR_SECBUS_1, 1);
@@ -1006,18 +1008,18 @@ dmar_inst_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 			continue;
 		rid = 0;
 		dev_path_len = (devscope->Length -
-		    sizeof(ACPI_DMAR_DEVICE_SCOPE)) / 2;
+				   sizeof(ACPI_DMAR_DEVICE_SCOPE)) /
+		    2;
 		dev = dmar_path_dev(resmem->Segment, dev_path_len,
-		    devscope->Bus,
-		    (const ACPI_DMAR_PCI_PATH *)(devscope + 1), &rid);
+		    devscope->Bus, (const ACPI_DMAR_PCI_PATH *)(devscope + 1),
+		    &rid);
 		if (dev == NULL) {
 			if (bootverbose) {
 				printf("dmar%d no dev found for RMRR "
-				    "[%#jx, %#jx] rid %#x scope path ",
-				     iria->dmar->iommu.unit,
-				     (uintmax_t)resmem->BaseAddress,
-				     (uintmax_t)resmem->EndAddress,
-				     rid);
+				       "[%#jx, %#jx] rid %#x scope path ",
+				    iria->dmar->iommu.unit,
+				    (uintmax_t)resmem->BaseAddress,
+				    (uintmax_t)resmem->EndAddress, rid);
 				dmar_print_path(devscope->Bus, dev_path_len,
 				    (const ACPI_DMAR_PCI_PATH *)(devscope + 1));
 				printf("\n");
@@ -1029,20 +1031,18 @@ dmar_inst_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 			if (iria->dmar != unit)
 				continue;
 			dmar_get_ctx_for_devpath(iria->dmar, rid,
-			    resmem->Segment, devscope->Bus, 
+			    resmem->Segment, devscope->Bus,
 			    (const ACPI_DMAR_PCI_PATH *)(devscope + 1),
 			    dev_path_len, false, true);
 		} else {
 			unit = dmar_find(dev, false);
 			if (iria->dmar != unit)
 				continue;
-			iommu_instantiate_ctx(&(iria)->dmar->iommu,
-			    dev, true);
+			iommu_instantiate_ctx(&(iria)->dmar->iommu, dev, true);
 		}
 	}
 
 	return (1);
-
 }
 
 /*
@@ -1066,8 +1066,8 @@ dmar_instantiate_rmrr_ctxs(struct iommu_unit *unit)
 	DMAR_LOCK(dmar);
 	if (!LIST_EMPTY(&dmar->domains)) {
 		KASSERT((dmar->hw_gcmd & DMAR_GCMD_TE) == 0,
-	    ("dmar%d: RMRR not handled but translation is already enabled",
-		    dmar->iommu.unit));
+		    ("dmar%d: RMRR not handled but translation is already enabled",
+			dmar->iommu.unit));
 		error = dmar_enable_translation(dmar);
 		if (bootverbose) {
 			if (error == 0) {
@@ -1075,7 +1075,8 @@ dmar_instantiate_rmrr_ctxs(struct iommu_unit *unit)
 				    dmar->iommu.unit);
 			} else {
 				printf("dmar%d: enabling translation failed, "
-				    "error %d\n", dmar->iommu.unit, error);
+				       "error %d\n",
+				    dmar->iommu.unit, error);
 			}
 		}
 	}
@@ -1084,8 +1085,8 @@ dmar_instantiate_rmrr_ctxs(struct iommu_unit *unit)
 }
 
 #ifdef DDB
-#include <ddb/ddb.h>
 #include <ddb/db_lex.h>
+#include <ddb/ddb.h>
 
 static void
 dmar_print_domain_entry(const struct iommu_map_entry *entry)
@@ -1116,8 +1117,8 @@ dmar_print_ctx(struct dmar_ctx *ctx)
 {
 
 	db_printf(
-	    "    @%p pci%d:%d:%d refs %d flags %x loads %lu unloads %lu\n",
-	    ctx, pci_get_bus(ctx->context.tag->owner),
+	    "    @%p pci%d:%d:%d refs %d flags %x loads %lu unloads %lu\n", ctx,
+	    pci_get_bus(ctx->context.tag->owner),
 	    pci_get_slot(ctx->context.tag->owner),
 	    pci_get_function(ctx->context.tag->owner), ctx->refs,
 	    ctx->context.flags, ctx->context.loads, ctx->context.unloads);
@@ -1132,21 +1133,20 @@ dmar_print_domain(struct dmar_domain *domain, bool show_mappings)
 
 	iodom = DOM2IODOM(domain);
 
-	db_printf(
-	    "  @%p dom %d mgaw %d agaw %d pglvl %d end %jx refs %d\n"
-	    "   ctx_cnt %d flags %x pgobj %p map_ents %u\n",
+	db_printf("  @%p dom %d mgaw %d agaw %d pglvl %d end %jx refs %d\n"
+		  "   ctx_cnt %d flags %x pgobj %p map_ents %u\n",
 	    domain, domain->domain, domain->mgaw, domain->agaw, domain->pglvl,
 	    (uintmax_t)domain->iodom.end, domain->refs, domain->ctx_cnt,
 	    domain->iodom.flags, domain->pgtbl_obj, domain->iodom.entries_cnt);
 	if (!LIST_EMPTY(&domain->contexts)) {
 		db_printf("  Contexts:\n");
-		LIST_FOREACH(ctx, &domain->contexts, link)
+		LIST_FOREACH (ctx, &domain->contexts, link)
 			dmar_print_ctx(ctx);
 	}
 	if (!show_mappings)
 		return;
 	db_printf("    mapped:\n");
-	RB_FOREACH(entry, iommu_gas_entries_tree, &iodom->rb_root) {
+	RB_FOREACH (entry, iommu_gas_entries_tree, &iodom->rb_root) {
 		dmar_print_domain_entry(entry);
 		if (db_pager_quit)
 			break;
@@ -1154,7 +1154,7 @@ dmar_print_domain(struct dmar_domain *domain, bool show_mappings)
 	if (db_pager_quit)
 		return;
 	db_printf("    unloading:\n");
-	TAILQ_FOREACH(entry, &domain->iodom.unload_entries, dmamap_link) {
+	TAILQ_FOREACH (entry, &domain->iodom.unload_entries, dmamap_link) {
 		dmar_print_domain_entry(entry);
 		if (db_pager_quit)
 			break;
@@ -1203,25 +1203,27 @@ DB_FUNC(dmar_domain, db_dmar_print_domain, db_show_table, CS_OWN, NULL)
 			}
 		}
 	}
-			db_radix = radix;
+	db_radix = radix;
 	db_skip_to_eol();
 	if (!valid) {
 		db_printf("usage: show dmar_domain [/m] "
-		    "<domain> <bus> <device> <func>\n");
+			  "<domain> <bus> <device> <func>\n");
 		return;
 	}
 	for (i = 0; i < dmar_devcnt; i++) {
 		unit = device_get_softc(dmar_devs[i]);
-		LIST_FOREACH(domain, &unit->domains, link) {
-			LIST_FOREACH(ctx, &domain->contexts, link) {
-				if (pci_domain == unit->segment && 
-				    bus == pci_get_bus(ctx->context.tag->owner) &&
+		LIST_FOREACH (domain, &unit->domains, link) {
+			LIST_FOREACH (ctx, &domain->contexts, link) {
+				if (pci_domain == unit->segment &&
+				    bus ==
+					pci_get_bus(ctx->context.tag->owner) &&
 				    device ==
-				    pci_get_slot(ctx->context.tag->owner) &&
+					pci_get_slot(ctx->context.tag->owner) &&
 				    function ==
-				    pci_get_function(ctx->context.tag->owner)) {
-					dmar_print_domain(domain,
-					    show_mappings);
+					pci_get_function(
+					    ctx->context.tag->owner)) {
+					dmar_print_domain(
+					    domain, show_mappings);
 					goto out;
 				}
 			}
@@ -1244,8 +1246,7 @@ dmar_print_one(int idx, bool show_domains, bool show_mappings)
 	db_printf("cap 0x%jx ecap 0x%jx gsts 0x%x fsts 0x%x fectl 0x%x\n",
 	    (uintmax_t)dmar_read8(unit, DMAR_CAP_REG),
 	    (uintmax_t)dmar_read8(unit, DMAR_ECAP_REG),
-	    dmar_read4(unit, DMAR_GSTS_REG),
-	    dmar_read4(unit, DMAR_FSTS_REG),
+	    dmar_read4(unit, DMAR_GSTS_REG), dmar_read4(unit, DMAR_FSTS_REG),
 	    dmar_read4(unit, DMAR_FECTL_REG));
 	if (unit->ir_enabled) {
 		db_printf("ir is enabled; IRT @%p phys 0x%jx maxcnt %d\n",
@@ -1268,10 +1269,11 @@ dmar_print_one(int idx, bool show_domains, bool show_mappings)
 		    dmar_read4(unit, DMAR_IEADDR_REG),
 		    dmar_read4(unit, DMAR_IEUADDR_REG));
 		if (unit->qi_enabled) {
-			db_printf("qi is enabled: queue @0x%jx (IQA 0x%jx) "
+			db_printf(
+			    "qi is enabled: queue @0x%jx (IQA 0x%jx) "
 			    "size 0x%jx\n"
-		    "  head 0x%x tail 0x%x avail 0x%x status 0x%x ctrl 0x%x\n"
-		    "  hw compl 0x%x@%p/phys@%jx next seq 0x%x gen 0x%x\n",
+			    "  head 0x%x tail 0x%x avail 0x%x status 0x%x ctrl 0x%x\n"
+			    "  hw compl 0x%x@%p/phys@%jx next seq 0x%x gen 0x%x\n",
 			    (uintmax_t)unit->inv_queue,
 			    (uintmax_t)dmar_read8(unit, DMAR_IQA_REG),
 			    (uintmax_t)unit->inv_queue_size,
@@ -1280,18 +1282,16 @@ dmar_print_one(int idx, bool show_domains, bool show_mappings)
 			    unit->inv_queue_avail,
 			    dmar_read4(unit, DMAR_ICS_REG),
 			    dmar_read4(unit, DMAR_IECTL_REG),
-			    unit->inv_waitd_seq_hw,
-			    &unit->inv_waitd_seq_hw,
+			    unit->inv_waitd_seq_hw, &unit->inv_waitd_seq_hw,
 			    (uintmax_t)unit->inv_waitd_seq_hw_phys,
-			    unit->inv_waitd_seq,
-			    unit->inv_waitd_gen);
+			    unit->inv_waitd_seq, unit->inv_waitd_gen);
 		} else {
 			db_printf("qi is disabled\n");
 		}
 	}
 	if (show_domains) {
 		db_printf("domains:\n");
-		LIST_FOREACH(domain, &unit->domains, link) {
+		LIST_FOREACH (domain, &unit->domains, link) {
 			dmar_print_domain(domain, show_mappings);
 			if (db_pager_quit)
 				break;

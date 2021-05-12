@@ -31,30 +31,29 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resource.h>
-#include <sys/gpio.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
 
-#include <dev/gpio/gpiobusvar.h>
-
 #include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <mips/ingenic/jz4780_regs.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <mips/ingenic/jz4780_regs.h>
 
-#include "jz4780_gpio_if.h"
 #include "gpio_if.h"
+#include "jz4780_gpio_if.h"
 #include "pic_if.h"
 
 #define JZ4780_GPIO_PINS 32
@@ -80,34 +79,32 @@ struct jz4780_gpio_pin {
 };
 
 struct jz4780_gpio_softc {
-	device_t		dev;
-	device_t		busdev;
-	struct resource		*res[2];
-	struct mtx		mtx;
-	struct jz4780_gpio_pin  pins[JZ4780_GPIO_PINS];
-	void			*intrhand;
+	device_t dev;
+	device_t busdev;
+	struct resource *res[2];
+	struct mtx mtx;
+	struct jz4780_gpio_pin pins[JZ4780_GPIO_PINS];
+	void *intrhand;
 };
 
-static struct resource_spec jz4780_gpio_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
-	{ SYS_RES_IRQ,    0, RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec jz4780_gpio_spec[] = { { SYS_RES_MEMORY, 0,
+						       RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
 static int jz4780_gpio_probe(device_t dev);
 static int jz4780_gpio_attach(device_t dev);
 static int jz4780_gpio_detach(device_t dev);
 static int jz4780_gpio_intr(void *arg);
 
-#define	JZ4780_GPIO_LOCK(sc)		mtx_lock_spin(&(sc)->mtx)
-#define	JZ4780_GPIO_UNLOCK(sc)		mtx_unlock_spin(&(sc)->mtx)
-#define	JZ4780_GPIO_LOCK_INIT(sc)	\
-    mtx_init(&(sc)->mtx, device_get_nameunit((sc)->dev),	\
-    "jz4780_gpio", MTX_SPIN)
-#define	JZ4780_GPIO_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->mtx);
+#define JZ4780_GPIO_LOCK(sc) mtx_lock_spin(&(sc)->mtx)
+#define JZ4780_GPIO_UNLOCK(sc) mtx_unlock_spin(&(sc)->mtx)
+#define JZ4780_GPIO_LOCK_INIT(sc)                                           \
+	mtx_init(&(sc)->mtx, device_get_nameunit((sc)->dev), "jz4780_gpio", \
+	    MTX_SPIN)
+#define JZ4780_GPIO_LOCK_DESTROY(sc) mtx_destroy(&(sc)->mtx);
 
-#define CSR_WRITE_4(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
-#define CSR_READ_4(sc, reg)		bus_read_4((sc)->res[0], (reg))
+#define CSR_WRITE_4(sc, reg, val) bus_write_4((sc)->res[0], (reg), (val))
+#define CSR_READ_4(sc, reg) bus_read_4((sc)->res[0], (reg))
 
 static int
 jz4780_gpio_probe(device_t dev)
@@ -118,8 +115,8 @@ jz4780_gpio_probe(device_t dev)
 		return (ENXIO);
 
 	/* We only like particular parent */
-	if (!ofw_bus_is_compatible(device_get_parent(dev),
-	   "ingenic,jz4780-pinctrl"))
+	if (!ofw_bus_is_compatible(
+		device_get_parent(dev), "ingenic,jz4780-pinctrl"))
 		return (ENXIO);
 
 	/* ... and only specific children os that parent */
@@ -133,8 +130,8 @@ jz4780_gpio_probe(device_t dev)
 }
 
 static int
-jz4780_gpio_pin_set_func(struct jz4780_gpio_softc *sc, uint32_t pin,
-    uint32_t func)
+jz4780_gpio_pin_set_func(
+    struct jz4780_gpio_softc *sc, uint32_t pin, uint32_t func)
 {
 	uint32_t mask = (1u << pin);
 
@@ -158,8 +155,8 @@ jz4780_gpio_pin_set_func(struct jz4780_gpio_softc *sc, uint32_t pin,
 }
 
 static int
-jz4780_gpio_pin_set_direction(struct jz4780_gpio_softc *sc,
-    uint32_t pin, uint32_t dir)
+jz4780_gpio_pin_set_direction(
+    struct jz4780_gpio_softc *sc, uint32_t pin, uint32_t dir)
 {
 	uint32_t mask = (1u << pin);
 
@@ -184,8 +181,8 @@ jz4780_gpio_pin_set_direction(struct jz4780_gpio_softc *sc,
 }
 
 static int
-jz4780_gpio_pin_set_bias(struct jz4780_gpio_softc *sc,
-    uint32_t pin, uint32_t bias)
+jz4780_gpio_pin_set_bias(
+    struct jz4780_gpio_softc *sc, uint32_t pin, uint32_t bias)
 {
 	uint32_t mask = (1u << pin);
 
@@ -269,7 +266,7 @@ jz4780_gpio_pin_probe(struct jz4780_gpio_softc *sc, uint32_t pin)
 		val = CSR_READ_4(sc, JZ_GPIO_DPULL);
 		if ((val & mask) == 0)
 			sc->pins[pin].pin_flags |= sc->pins[pin].pin_caps &
-				(GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN);
+			    (GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN);
 		sc->pins[pin].pin_func = JZ_FUNC_GPIO;
 		return;
 	}
@@ -277,7 +274,7 @@ jz4780_gpio_pin_probe(struct jz4780_gpio_softc *sc, uint32_t pin)
 	val = CSR_READ_4(sc, JZ_GPIO_DPULL);
 	if ((val & mask) == 0)
 		sc->pins[pin].pin_flags = sc->pins[pin].pin_caps &
-			(GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN);
+		    (GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN);
 	val = ((CSR_READ_4(sc, JZ_GPIO_PAT1) & mask) >> pin) << 1;
 	val = val | ((CSR_READ_4(sc, JZ_GPIO_PAT1) & mask) >> pin);
 	sc->pins[pin].pin_func = (enum pin_function)val;
@@ -294,8 +291,8 @@ jz4780_gpio_register_isrcs(struct jz4780_gpio_softc *sc)
 	name = device_get_nameunit(sc->dev);
 	for (irq = 0; irq < JZ4780_GPIO_PINS; irq++) {
 		isrc = &sc->pins[irq].pin_irqsrc;
-		error = intr_isrc_register(isrc, sc->dev, 0, "%s,%d",
-		    name, irq);
+		error = intr_isrc_register(
+		    isrc, sc->dev, 0, "%s,%d", name, irq);
 		if (error != 0) {
 			for (i = 0; i < irq; i++)
 				intr_isrc_deregister(&sc->pins[i].pin_irqsrc);
@@ -353,7 +350,7 @@ jz4780_gpio_attach(device_t dev)
 	}
 
 	if (bus_setup_intr(dev, sc->res[1], INTR_TYPE_MISC | INTR_MPSAFE,
-	    jz4780_gpio_intr, NULL, sc, &sc->intrhand) != 0)
+		jz4780_gpio_intr, NULL, sc, &sc->intrhand) != 0)
 		goto fail_pic;
 
 	sc->busdev = gpiobus_attach_bus(dev);
@@ -382,8 +379,8 @@ jz4780_gpio_detach(device_t dev)
 }
 
 static int
-jz4780_gpio_configure_pin(device_t dev, uint32_t pin, uint32_t func,
-    uint32_t flags)
+jz4780_gpio_configure_pin(
+    device_t dev, uint32_t pin, uint32_t func, uint32_t flags)
 {
 	struct jz4780_gpio_softc *sc;
 	int retval;
@@ -476,11 +473,11 @@ jz4780_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 
 	sc = device_get_softc(dev);
 	JZ4780_GPIO_LOCK(sc);
-	retval = jz4780_gpio_pin_set_direction(sc, pin,
-	    flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT));
+	retval = jz4780_gpio_pin_set_direction(
+	    sc, pin, flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT));
 	if (retval == 0)
-		retval = jz4780_gpio_pin_set_bias(sc, pin,
-		    flags & (GPIO_PIN_PULLDOWN | GPIO_PIN_PULLUP));
+		retval = jz4780_gpio_pin_set_bias(
+		    sc, pin, flags & (GPIO_PIN_PULLDOWN | GPIO_PIN_PULLUP));
 	JZ4780_GPIO_UNLOCK(sc);
 
 	return (retval);
@@ -545,8 +542,8 @@ jz4780_gpio_pin_toggle(device_t dev, uint32_t pin)
 	if (sc->pins[pin].pin_func == JZ_FUNC_GPIO &&
 	    sc->pins[pin].pin_flags & GPIO_PIN_OUTPUT) {
 		data = CSR_READ_4(sc, JZ_GPIO_PIN);
-		CSR_WRITE_4(sc, (data & mask) ? JZ_GPIO_PAT0C : JZ_GPIO_PAT0S,
-		    mask);
+		CSR_WRITE_4(
+		    sc, (data & mask) ? JZ_GPIO_PAT0C : JZ_GPIO_PAT0S, mask);
 		retval = 0;
 	}
 	JZ4780_GPIO_UNLOCK(sc);
@@ -557,7 +554,7 @@ jz4780_gpio_pin_toggle(device_t dev, uint32_t pin)
 #ifdef FDT
 static int
 jz_gpio_map_intr_fdt(device_t dev, struct intr_map_data *data, u_int *irqp,
-        enum intr_polarity *polp, enum intr_trigger *trigp)
+    enum intr_polarity *polp, enum intr_trigger *trigp)
 {
 	struct jz4780_gpio_softc *sc;
 	struct intr_map_data_fdt *daf;
@@ -576,8 +573,7 @@ jz_gpio_map_intr_fdt(device_t dev, struct intr_map_data *data, u_int *irqp,
 		return (0);
 	}
 
-	switch (daf->cells[1])
-	{
+	switch (daf->cells[1]) {
 	case IRQ_TYPE_EDGE_RISING:
 		*trigp = INTR_TRIGGER_EDGE;
 		*polp = INTR_POLARITY_HIGH;
@@ -606,7 +602,7 @@ jz_gpio_map_intr_fdt(device_t dev, struct intr_map_data *data, u_int *irqp,
 
 static int
 jz_gpio_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
-        enum intr_polarity *polp, enum intr_trigger *trigp)
+    enum intr_polarity *polp, enum intr_trigger *trigp)
 {
 	struct jz4780_gpio_softc *sc;
 	enum intr_polarity pol;
@@ -637,8 +633,8 @@ jz_gpio_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 }
 
 static int
-jz4780_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+jz4780_gpio_pic_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct jz4780_gpio_softc *sc;
 	int retval;
@@ -654,7 +650,7 @@ jz4780_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 
 static int
 jz4780_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
-        struct resource *res, struct intr_map_data *data)
+    struct resource *res, struct intr_map_data *data)
 {
 	struct jz4780_gpio_softc *sc;
 	struct jz4780_gpio_pin *pin;
@@ -675,7 +671,8 @@ jz4780_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 	/* Compare config if this is not first setup. */
 	if (isrc->isrc_handlers != 0) {
-		if ((pol != INTR_POLARITY_CONFORM && pol != pin->intr_polarity) ||
+		if ((pol != INTR_POLARITY_CONFORM &&
+			pol != pin->intr_polarity) ||
 		    (trig != INTR_TRIGGER_CONFORM && trig != pin->intr_trigger))
 			return (EINVAL);
 		else
@@ -683,9 +680,9 @@ jz4780_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	}
 
 	if (pol == INTR_POLARITY_CONFORM)
-		pol = INTR_POLARITY_LOW;	/* just pick some */
+		pol = INTR_POLARITY_LOW; /* just pick some */
 	if (trig == INTR_TRIGGER_CONFORM)
-		trig = INTR_TRIGGER_EDGE;	/* just pick some */
+		trig = INTR_TRIGGER_EDGE; /* just pick some */
 
 	sc = device_get_softc(dev);
 	mask = 1u << pin->pin_num;
@@ -777,7 +774,7 @@ jz4780_gpio_intr(void *arg)
 		if ((interrupts & 0x1) == 0)
 			continue;
 		if (intr_isrc_dispatch(&sc->pins[i].pin_irqsrc,
-		    curthread->td_intr_frame) != 0) {
+			curthread->td_intr_frame) != 0) {
 			device_printf(sc->dev, "spurious interrupt %d\n", i);
 			PIC_DISABLE_INTR(sc->dev, &sc->pins[i].pin_irqsrc);
 		}
@@ -795,35 +792,35 @@ jz4780_gpio_bus_get_node(device_t bus, device_t dev)
 
 static device_method_t jz4780_gpio_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		jz4780_gpio_probe),
-	DEVMETHOD(device_attach,	jz4780_gpio_attach),
-	DEVMETHOD(device_detach,	jz4780_gpio_detach),
+	DEVMETHOD(device_probe, jz4780_gpio_probe),
+	DEVMETHOD(device_attach, jz4780_gpio_attach),
+	DEVMETHOD(device_detach, jz4780_gpio_detach),
 
 	/* GPIO protocol */
-	DEVMETHOD(gpio_get_bus,		jz4780_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max,		jz4780_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname,	jz4780_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getflags,	jz4780_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_getcaps,	jz4780_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_setflags,	jz4780_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_get,		jz4780_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set,		jz4780_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle,	jz4780_gpio_pin_toggle),
+	DEVMETHOD(gpio_get_bus, jz4780_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max, jz4780_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname, jz4780_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getflags, jz4780_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_getcaps, jz4780_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_setflags, jz4780_gpio_pin_setflags),
+	DEVMETHOD(gpio_pin_get, jz4780_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set, jz4780_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle, jz4780_gpio_pin_toggle),
 
 	/* Custom interface to set pin function */
 	DEVMETHOD(jz4780_gpio_configure_pin, jz4780_gpio_configure_pin),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_setup_intr,	jz4780_gpio_pic_setup_intr),
-	DEVMETHOD(pic_enable_intr,	jz4780_gpio_pic_enable_intr),
-	DEVMETHOD(pic_disable_intr,	jz4780_gpio_pic_disable_intr),
-	DEVMETHOD(pic_map_intr,		jz4780_gpio_pic_map_intr),
-	DEVMETHOD(pic_post_filter,	jz4780_gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	jz4780_gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	jz4780_gpio_pic_pre_ithread),
+	DEVMETHOD(pic_setup_intr, jz4780_gpio_pic_setup_intr),
+	DEVMETHOD(pic_enable_intr, jz4780_gpio_pic_enable_intr),
+	DEVMETHOD(pic_disable_intr, jz4780_gpio_pic_disable_intr),
+	DEVMETHOD(pic_map_intr, jz4780_gpio_pic_map_intr),
+	DEVMETHOD(pic_post_filter, jz4780_gpio_pic_post_filter),
+	DEVMETHOD(pic_post_ithread, jz4780_gpio_pic_post_ithread),
+	DEVMETHOD(pic_pre_ithread, jz4780_gpio_pic_pre_ithread),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	jz4780_gpio_bus_get_node),
+	DEVMETHOD(ofw_bus_get_node, jz4780_gpio_bus_get_node),
 
 	DEVMETHOD_END
 };

@@ -1,4 +1,5 @@
-/*	$OpenBSD: timingsafe_bcmp.c,v 1.2 2014/06/10 04:16:57 deraadt Exp $	*/
+/*	$OpenBSD: timingsafe_bcmp.c,v 1.2 2014/06/10 04:16:57 deraadt Exp $
+ */
 /*
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
  *

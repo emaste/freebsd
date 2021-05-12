@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/trap.h>
 
-#include <ddb/ddb.h>
 #include <ddb/db_sym.h>
+#include <ddb/ddb.h>
 
 extern char _locore[];
 extern char _locoreEnd[];
@@ -63,21 +63,22 @@ extern char edata[];
  *
  * XXX the abi does not require that the addiu instruction be the first one.
  */
-#define	MIPS_START_OF_FUNCTION(ins)	((((ins) & 0xffff8000) == 0x27bd8000) \
-	|| (((ins) & 0xffff8000) == 0x67bd8000))
+#define MIPS_START_OF_FUNCTION(ins)            \
+	((((ins)&0xffff8000) == 0x27bd8000) || \
+	    (((ins)&0xffff8000) == 0x67bd8000))
 
 /*
  * LLD will insert invalid instruction traps between functions.
  * Currently this is 0xefefefef but it may change in the future.
  */
-#define	MIPS_LLD_PADDING_BETWEEN_FUNCTIONS(ins)	((ins) == 0xefefefef)
+#define MIPS_LLD_PADDING_BETWEEN_FUNCTIONS(ins) ((ins) == 0xefefefef)
 
 #if defined(__mips_n64)
-#	define	MIPS_IS_VALID_KERNELADDR(reg)	((((reg) & 3) == 0) && \
-					((vm_offset_t)(reg) >= MIPS_XKPHYS_START))
+#define MIPS_IS_VALID_KERNELADDR(reg) \
+	((((reg)&3) == 0) && ((vm_offset_t)(reg) >= MIPS_XKPHYS_START))
 #else
-#	define	MIPS_IS_VALID_KERNELADDR(reg)	((((reg) & 3) == 0) && \
-					((vm_offset_t)(reg) >= MIPS_KSEG0_START))
+#define MIPS_IS_VALID_KERNELADDR(reg) \
+	((((reg)&3) == 0) && ((vm_offset_t)(reg) >= MIPS_KSEG0_START))
 #endif
 
 static void
@@ -94,7 +95,7 @@ stacktrace_subr(register_t pc, register_t sp, register_t ra)
 	unsigned instr, mask;
 	unsigned int frames = 0;
 	int more, stksize, j;
-	register_t	next_ra;
+	register_t next_ra;
 	bool trapframe;
 
 /* Jump here when done with a frame, to start a new one */
@@ -123,10 +124,8 @@ loop:
 		subr = 0;
 		goto done;
 	}
-#define Between(x, y, z) \
-		( ((x) <= (y)) && ((y) < (z)) )
-#define pcBetween(a,b) \
-		Between((uintptr_t)a, pc, (uintptr_t)b)
+#define Between(x, y, z) (((x) <= (y)) && ((y) < (z)))
+#define pcBetween(a, b) Between((uintptr_t)a, pc, (uintptr_t)b)
 
 	/*
 	 * Check for current PC in  exception handler code that don't have a
@@ -186,14 +185,15 @@ loop:
 		while (1) {
 			instr = kdbpeek((int *)va);
 
-			/* LLD fills padding between functions with 0xefefefef */
+			/* LLD fills padding between functions with 0xefefefef
+			 */
 			if (MIPS_LLD_PADDING_BETWEEN_FUNCTIONS(instr))
 				break;
 
 			if (MIPS_START_OF_FUNCTION(instr))
 				break;
 
- 			va -= sizeof(int);
+			va -= sizeof(int);
 		}
 
 		/*
@@ -201,7 +201,8 @@ loop:
 		 * object files or functions.
 		 */
 		instr = kdbpeek((int *)va);
-		while (instr == 0 || MIPS_LLD_PADDING_BETWEEN_FUNCTIONS(instr)) {
+		while (
+		    instr == 0 || MIPS_LLD_PADDING_BETWEEN_FUNCTIONS(instr)) {
 			va += sizeof(int);
 			instr = kdbpeek((int *)va);
 		}
@@ -212,8 +213,8 @@ loop:
 	stksize = 0;
 	more = 3;
 	mask = 0;
-	for (va = subr; more; va += sizeof(int),
-	    more = (more == 3) ? 3 : more - 1) {
+	for (va = subr; more;
+	     va += sizeof(int), more = (more == 3) ? 3 : more - 1) {
 		/* stop if hit our current position */
 		if (va >= pc)
 			break;
@@ -224,12 +225,12 @@ loop:
 			switch (i.RType.func) {
 			case OP_JR:
 			case OP_JALR:
-				more = 2;	/* stop after next instruction */
+				more = 2; /* stop after next instruction */
 				break;
 
 			case OP_SYSCALL:
 			case OP_BREAK:
-				more = 1;	/* stop now */
+				more = 1; /* stop now */
 			}
 			break;
 
@@ -240,7 +241,7 @@ loop:
 		case OP_BNE:
 		case OP_BLEZ:
 		case OP_BGTZ:
-			more = 2;	/* stop after next instruction */
+			more = 2; /* stop after next instruction */
 			break;
 
 		case OP_COP0:
@@ -250,7 +251,7 @@ loop:
 			switch (i.RType.rs) {
 			case OP_BCx:
 			case OP_BCy:
-				more = 2;	/* stop after next instruction */
+				more = 2; /* stop after next instruction */
 			}
 			break;
 
@@ -265,33 +266,37 @@ loop:
 			if (mask & (1 << i.IType.rt)) {
 				if (subr == (uintptr_t)MipsKernGenException &&
 				    i.IType.rt == 31)
-					next_ra = kdbpeek((int *)(sp +
-					    (short)i.IType.imm));
+					next_ra = kdbpeek(
+					    (int *)(sp + (short)i.IType.imm));
 				break;
 			}
 			mask |= (1 << i.IType.rt);
 			switch (i.IType.rt) {
-			case 4:/* a0 */
-				args[0] = kdbpeek((int *)(sp + (short)i.IType.imm));
+			case 4: /* a0 */
+				args[0] = kdbpeek(
+				    (int *)(sp + (short)i.IType.imm));
 				valid_args[0] = 1;
 				break;
 
-			case 5:/* a1 */
-				args[1] = kdbpeek((int *)(sp + (short)i.IType.imm));
+			case 5: /* a1 */
+				args[1] = kdbpeek(
+				    (int *)(sp + (short)i.IType.imm));
 				valid_args[1] = 1;
 				break;
 
-			case 6:/* a2 */
-				args[2] = kdbpeek((int *)(sp + (short)i.IType.imm));
+			case 6: /* a2 */
+				args[2] = kdbpeek(
+				    (int *)(sp + (short)i.IType.imm));
 				valid_args[2] = 1;
 				break;
 
-			case 7:/* a3 */
-				args[3] = kdbpeek((int *)(sp + (short)i.IType.imm));
+			case 7: /* a3 */
+				args[3] = kdbpeek(
+				    (int *)(sp + (short)i.IType.imm));
 				valid_args[3] = 1;
 				break;
 
-			case 31:	/* ra */
+			case 31: /* ra */
 				ra = kdbpeek((int *)(sp + (short)i.IType.imm));
 			}
 			break;
@@ -305,27 +310,31 @@ loop:
 				break;
 			mask |= (1 << i.IType.rt);
 			switch (i.IType.rt) {
-			case 4:/* a0 */
-				args[0] = kdbpeekd((int *)(sp + (short)i.IType.imm));
+			case 4: /* a0 */
+				args[0] = kdbpeekd(
+				    (int *)(sp + (short)i.IType.imm));
 				valid_args[0] = 1;
 				break;
 
-			case 5:/* a1 */
-				args[1] = kdbpeekd((int *)(sp + (short)i.IType.imm));
+			case 5: /* a1 */
+				args[1] = kdbpeekd(
+				    (int *)(sp + (short)i.IType.imm));
 				valid_args[1] = 1;
 				break;
 
-			case 6:/* a2 */
-				args[2] = kdbpeekd((int *)(sp + (short)i.IType.imm));
+			case 6: /* a2 */
+				args[2] = kdbpeekd(
+				    (int *)(sp + (short)i.IType.imm));
 				valid_args[2] = 1;
 				break;
 
-			case 7:/* a3 */
-				args[3] = kdbpeekd((int *)(sp + (short)i.IType.imm));
+			case 7: /* a3 */
+				args[3] = kdbpeekd(
+				    (int *)(sp + (short)i.IType.imm));
 				valid_args[3] = 1;
 				break;
 
-			case 31:	/* ra */
+			case 31: /* ra */
 				ra = kdbpeekd((int *)(sp + (short)i.IType.imm));
 			}
 			break;
@@ -344,7 +353,7 @@ loop:
 done:
 	db_printsym(pc, DB_STGY_PROC);
 	db_printf(" (");
-	for (j = 0; j < 4; j ++) {
+	for (j = 0; j < 4; j++) {
 		if (j > 0)
 			db_printf(",");
 		if (valid_args[j])
@@ -353,13 +362,11 @@ done:
 			db_printf("?");
 	}
 
-	db_printf(") ra %jx sp %jx sz %d\n",
-	    (uintmax_t)(u_register_t) ra,
-	    (uintmax_t)(u_register_t) sp,
-	    stksize);
+	db_printf(") ra %jx sp %jx sz %d\n", (uintmax_t)(u_register_t)ra,
+	    (uintmax_t)(u_register_t)sp, stksize);
 
 	if (trapframe) {
-#define	TF_REG(base, reg)	((base) + CALLFRAME_SIZ + ((reg) * SZREG))
+#define TF_REG(base, reg) ((base) + CALLFRAME_SIZ + ((reg)*SZREG))
 #if defined(__mips_n64) || defined(__mips_n32)
 		pc = kdbpeekd((int *)TF_REG(sp, PC));
 		ra = kdbpeekd((int *)TF_REG(sp, RA));
@@ -408,14 +415,13 @@ db_trace_self(void)
 	sp = (register_t)(intptr_t)__builtin_frame_address(0);
 	ra = (register_t)(intptr_t)__builtin_return_address(0);
 
-	__asm __volatile(
-		"jal 99f\n"
-		"nop\n"
-		"99:\n"
-		 "move %0, $31\n" /* get ra */
-		 "move $31, %1\n" /* restore ra */
-		 : "=r" (pc)
-		 : "r" (ra));
+	__asm __volatile("jal 99f\n"
+			 "nop\n"
+			 "99:\n"
+			 "move %0, $31\n" /* get ra */
+			 "move $31, %1\n" /* restore ra */
+			 : "=r"(pc)
+			 : "r"(ra));
 	stacktrace_subr(pc, sp, ra);
 	return;
 }

@@ -42,47 +42,24 @@
 #ifndef _NETGRAPH_L2CAP_PRSE_H_
 #define _NETGRAPH_L2CAP_PRSE_H_
 
-/* 
+/*
  * L2CAP node command list
  */
 
-static const struct ng_cmdlist	ng_l2cap_cmdlist[] = {
+static const struct ng_cmdlist ng_l2cap_cmdlist[] = {
+	{ NGM_L2CAP_COOKIE, NGM_L2CAP_NODE_GET_FLAGS, "get_flags", NULL,
+	    &ng_parse_uint16_type },
+	{ NGM_L2CAP_COOKIE, NGM_L2CAP_NODE_GET_DEBUG, "get_debug", NULL,
+	    &ng_parse_uint16_type },
+	{ NGM_L2CAP_COOKIE, NGM_L2CAP_NODE_SET_DEBUG, "set_debug",
+	    &ng_parse_uint16_type, NULL },
+	{ NGM_L2CAP_COOKIE, NGM_L2CAP_NODE_GET_AUTO_DISCON_TIMO,
+	    "get_disc_timo", NULL, &ng_parse_uint16_type },
+	{ NGM_L2CAP_COOKIE, NGM_L2CAP_NODE_SET_AUTO_DISCON_TIMO,
+	    "set_disc_timo", &ng_parse_uint16_type, NULL },
 	{
-		NGM_L2CAP_COOKIE,
-		NGM_L2CAP_NODE_GET_FLAGS,
-		"get_flags",
-		NULL,
-		&ng_parse_uint16_type
-	},
-	{
-		NGM_L2CAP_COOKIE,
-		NGM_L2CAP_NODE_GET_DEBUG,
-		"get_debug",
-		NULL,
-		&ng_parse_uint16_type
-	},
-	{
-		NGM_L2CAP_COOKIE,
-		NGM_L2CAP_NODE_SET_DEBUG,
-		"set_debug",
-		&ng_parse_uint16_type,
-		NULL
-	},
-	{
-		NGM_L2CAP_COOKIE,
-		NGM_L2CAP_NODE_GET_AUTO_DISCON_TIMO,
-		"get_disc_timo",
-		NULL,
-		&ng_parse_uint16_type
-	},
-	{
-		NGM_L2CAP_COOKIE,
-		NGM_L2CAP_NODE_SET_AUTO_DISCON_TIMO,
-		"set_disc_timo",
-		&ng_parse_uint16_type,
-		NULL
-	},
-	{ 0, }
+	    0,
+	}
 };
 
 #endif /* ndef _NETGRAPH_L2CAP_PRSE_H_ */

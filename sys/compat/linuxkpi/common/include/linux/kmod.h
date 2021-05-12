@@ -28,23 +28,24 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_KMOD_H_
-#define	_LINUX_KMOD_H_
+#ifndef _LINUX_KMOD_H_
+#define _LINUX_KMOD_H_
 
 #include <sys/types.h>
-#include <sys/syscallsubr.h>
+#include <sys/proc.h>
 #include <sys/refcount.h>
 #include <sys/sbuf.h>
-#include <machine/stdarg.h>
-#include <sys/proc.h>
+#include <sys/syscallsubr.h>
 
-#define	request_module(...) \
-({\
-	char modname[128]; \
-	int fileid; \
-	snprintf(modname, sizeof(modname), __VA_ARGS__); \
-	kern_kldload(curthread, modname, &fileid); \
-})
+#include <machine/stdarg.h>
+
+#define request_module(...)                                      \
+	({                                                       \
+		char modname[128];                               \
+		int fileid;                                      \
+		snprintf(modname, sizeof(modname), __VA_ARGS__); \
+		kern_kldload(curthread, modname, &fileid);       \
+	})
 
 #define request_module_nowait request_module
 

@@ -45,23 +45,23 @@ typedef void (*mp_ring_serial_t)(struct ifmp_ring *);
 #endif
 
 struct ifmp_ring {
-	volatile uint64_t	state __aligned(CACHE_LINE_SIZE);
+	volatile uint64_t state __aligned(CACHE_LINE_SIZE);
 
-	int			size __aligned(CACHE_LINE_SIZE);
-	void *			cookie;
-	struct malloc_type *	mt;
-	mp_ring_drain_t		drain;
-	mp_ring_can_drain_t	can_drain;	/* cheap, may be unreliable */
-	counter_u64_t		enqueues;
-	counter_u64_t		drops;
-	counter_u64_t		starts;
-	counter_u64_t		stalls;
-	counter_u64_t		restarts;	/* recovered after stalling */
-	counter_u64_t		abdications;
+	int size __aligned(CACHE_LINE_SIZE);
+	void *cookie;
+	struct malloc_type *mt;
+	mp_ring_drain_t drain;
+	mp_ring_can_drain_t can_drain; /* cheap, may be unreliable */
+	counter_u64_t enqueues;
+	counter_u64_t drops;
+	counter_u64_t starts;
+	counter_u64_t stalls;
+	counter_u64_t restarts; /* recovered after stalling */
+	counter_u64_t abdications;
 #ifdef MP_RING_NO_64BIT_ATOMICS
-	struct mtx		lock;
+	struct mtx lock;
 #endif
-	void * volatile		items[] __aligned(CACHE_LINE_SIZE);
+	void *volatile items[] __aligned(CACHE_LINE_SIZE);
 };
 
 int ifmp_ring_alloc(struct ifmp_ring **, int, void *, mp_ring_drain_t,

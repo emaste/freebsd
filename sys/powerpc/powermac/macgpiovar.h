@@ -31,22 +31,22 @@
 #define _MACIO_MACGPIOVAR_H_
 
 /* relative offsets into gpio space */
-#define GPIO_EXTINT_BASE	0x08
-#define GPIO_BASE		0x1a
+#define GPIO_EXTINT_BASE 0x08
+#define GPIO_BASE 0x1a
 
-#define GPIO_EXTINT_COUNT	0x12
-#define GPIO_COUNT		0x11
+#define GPIO_EXTINT_COUNT 0x12
+#define GPIO_COUNT 0x11
 
-#define GPIO_LEVELS_0	0x50
-#define GPIO_LEVELS_1	0x54
+#define GPIO_LEVELS_0 0x50
+#define GPIO_LEVELS_1 0x54
 
 /* gpio bit definitions */
-#define GPIO_DATA		0x01 /* GPIO data */
-#define GPIO_LEVEL_RO		0x02 /* read-only level on pin */
-#define GPIO_DDR_INPUT		0x00 /* use for input */
-#define GPIO_DDR_OUTPUT		0x04 /* use for output */
+#define GPIO_DATA 0x01	     /* GPIO data */
+#define GPIO_LEVEL_RO 0x02   /* read-only level on pin */
+#define GPIO_DDR_INPUT 0x00  /* use for input */
+#define GPIO_DDR_OUTPUT 0x04 /* use for output */
 
-uint8_t	macgpio_read(device_t dev);
-void	macgpio_write(device_t dev,uint8_t);
+uint8_t macgpio_read(device_t dev);
+void macgpio_write(device_t dev, uint8_t);
 
 #endif /* _MACIO_MACGPIOVAR_H_ */

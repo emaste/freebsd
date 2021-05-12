@@ -32,20 +32,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/vmem.h>
+
+#include <vm/vm.h>
+#include <vm/vm_pageout.h>
 
 #include <machine/bus.h>
 
-#include <dev/extres/clk/clk.h>
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_crtc_helper.h>
 #include <dev/drm2/drm_fb_helper.h>
+#include <dev/extres/clk/clk.h>
 
 #include <arm/nvidia/drm2/tegra_drm.h>
-
-#include <sys/vmem.h>
-#include <sys/vmem.h>
-#include <vm/vm.h>
-#include <vm/vm_pageout.h>
 
 static void
 tegra_bo_destruct(struct tegra_bo *bo)
@@ -93,8 +92,8 @@ tegra_bo_free_object(struct drm_gem_object *gem_obj)
 }
 
 static int
-tegra_bo_alloc_contig(size_t npages, u_long alignment, vm_memattr_t memattr,
-    vm_page_t **ret_page)
+tegra_bo_alloc_contig(
+    size_t npages, u_long alignment, vm_memattr_t memattr, vm_page_t **ret_page)
 {
 	vm_page_t m;
 	int pflags, tries, i;
@@ -103,16 +102,16 @@ tegra_bo_alloc_contig(size_t npages, u_long alignment, vm_memattr_t memattr,
 	low = 0;
 	high = -1UL;
 	boundary = 0;
-	pflags = VM_ALLOC_NORMAL  | VM_ALLOC_NOOBJ | VM_ALLOC_NOBUSY |
+	pflags = VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_NOBUSY |
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO;
 	tries = 0;
 retry:
-	m = vm_page_alloc_contig(NULL, 0, pflags, npages, low, high, alignment,
-	    boundary, memattr);
+	m = vm_page_alloc_contig(
+	    NULL, 0, pflags, npages, low, high, alignment, boundary, memattr);
 	if (m == NULL) {
 		if (tries < 3) {
-			if (!vm_page_reclaim_contig(pflags, npages, low, high,
-			    alignment, boundary))
+			if (!vm_page_reclaim_contig(
+				pflags, npages, low, high, alignment, boundary))
 				vm_wait(NULL);
 			tries++;
 			goto retry;
@@ -182,8 +181,8 @@ tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo)
 	bo->m = malloc(sizeof(vm_page_t *) * bo->npages, DRM_MEM_DRIVER,
 	    M_WAITOK | M_ZERO);
 
-	rv = tegra_bo_alloc_contig(bo->npages, PAGE_SIZE,
-	    VM_MEMATTR_WRITE_COMBINING, &(bo->m));
+	rv = tegra_bo_alloc_contig(
+	    bo->npages, PAGE_SIZE, VM_MEMATTR_WRITE_COMBINING, &(bo->m));
 	if (rv != 0) {
 		DRM_WARNING("Cannot allocate memory for gem object.\n");
 		return (rv);
@@ -266,18 +265,18 @@ tegra_bo_dumb_create(struct drm_file *file, struct drm_device *drm_dev,
 
 	drm = container_of(drm_dev, struct tegra_drm, drm_dev);
 
-	args->pitch= (args->width * args->bpp + 7) / 8;
+	args->pitch = (args->width * args->bpp + 7) / 8;
 	args->pitch = roundup(args->pitch, drm->pitch_align);
 	args->size = args->pitch * args->height;
-	rv = tegra_bo_create_with_handle(file, drm_dev, args->size,
-	    &args->handle, &bo);
+	rv = tegra_bo_create_with_handle(
+	    file, drm_dev, args->size, &args->handle, &bo);
 
 	return (rv);
 }
 
 static int
-tegra_bo_dumb_map_offset(struct drm_file *file_priv,
-    struct drm_device *drm_dev, uint32_t handle, uint64_t *offset)
+tegra_bo_dumb_map_offset(struct drm_file *file_priv, struct drm_device *drm_dev,
+    uint32_t handle, uint64_t *offset)
 {
 	struct drm_gem_object *gem_obj;
 	int rv;
@@ -307,8 +306,8 @@ fail:
 }
 
 static int
-tegra_bo_dumb_destroy(struct drm_file *file_priv, struct drm_device *drm_dev,
-    unsigned int handle)
+tegra_bo_dumb_destroy(
+    struct drm_file *file_priv, struct drm_device *drm_dev, unsigned int handle)
 {
 	int rv;
 
@@ -320,16 +319,15 @@ tegra_bo_dumb_destroy(struct drm_file *file_priv, struct drm_device *drm_dev,
  * mmap support
  */
 static int
-tegra_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
-    vm_page_t *mres)
+tegra_gem_pager_fault(
+    vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_page_t *mres)
 {
 
 #ifdef DRM_PAGER_DEBUG
-	DRM_DEBUG("object %p offset %jd prot %d mres %p\n",
-	    vm_obj, (intmax_t)offset, prot, mres);
+	DRM_DEBUG("object %p offset %jd prot %d mres %p\n", vm_obj,
+	    (intmax_t)offset, prot, mres);
 #endif
 	return (VM_PAGER_FAIL);
-
 }
 
 static int
@@ -345,13 +343,12 @@ tegra_gem_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 static void
 tegra_gem_pager_dtor(void *handle)
 {
-
 }
 
 static struct cdev_pager_ops tegra_gem_pager_ops = {
 	.cdev_pg_fault = tegra_gem_pager_fault,
-	.cdev_pg_ctor  = tegra_gem_pager_ctor,
-	.cdev_pg_dtor  = tegra_gem_pager_dtor
+	.cdev_pg_ctor = tegra_gem_pager_ctor,
+	.cdev_pg_dtor = tegra_gem_pager_dtor
 };
 
 /* Fill up relevant fields in drm_driver ops */

@@ -31,32 +31,32 @@
  */
 
 #ifndef _MACHINE_UCONTEXT_H_
-#define	_MACHINE_UCONTEXT_H_
+#define _MACHINE_UCONTEXT_H_
 
 struct gpregs {
-	__register_t	gp_x[30];
-	__register_t	gp_lr;
-	__register_t	gp_sp;
-	__register_t	gp_elr;
-	__uint32_t	gp_spsr;
-	int		gp_pad;
+	__register_t gp_x[30];
+	__register_t gp_lr;
+	__register_t gp_sp;
+	__register_t gp_elr;
+	__uint32_t gp_spsr;
+	int gp_pad;
 };
 
 struct fpregs {
-	__uint128_t	fp_q[32];
-	__uint32_t	fp_sr;
-	__uint32_t	fp_cr;
-	int		fp_flags;
-	int		fp_pad;
+	__uint128_t fp_q[32];
+	__uint32_t fp_sr;
+	__uint32_t fp_cr;
+	int fp_flags;
+	int fp_pad;
 };
 
 struct __mcontext {
-	struct gpregs	mc_gpregs;
-	struct fpregs	mc_fpregs;
-	int		mc_flags;
-#define	_MC_FP_VALID	0x1		/* Set when mc_fpregs has valid data */
-	int		mc_pad;		/* Padding */
-	__uint64_t	mc_spare[8];	/* Space for expansion, set to zero */
+	struct gpregs mc_gpregs;
+	struct fpregs mc_fpregs;
+	int mc_flags;
+#define _MC_FP_VALID 0x1 /* Set when mc_fpregs has valid data */
+	int mc_pad;		/* Padding */
+	__uint64_t mc_spare[8]; /* Space for expansion, set to zero */
 };
 
 typedef struct __mcontext mcontext_t;
@@ -64,26 +64,26 @@ typedef struct __mcontext mcontext_t;
 #ifdef COMPAT_FREEBSD32
 #include <compat/freebsd32/freebsd32_signal.h>
 typedef struct __mcontext32 {
-	uint32_t		mc_gregset[17];
-	uint32_t		mc_vfp_size;
-	uint32_t		mc_vfp_ptr;
-	uint32_t		mc_spare[33];
+	uint32_t mc_gregset[17];
+	uint32_t mc_vfp_size;
+	uint32_t mc_vfp_ptr;
+	uint32_t mc_spare[33];
 } mcontext32_t;
 
 typedef struct __ucontext32 {
-	sigset_t		uc_sigmask;
-	mcontext32_t		uc_mcontext;
-	u_int32_t		uc_link;
-	struct sigaltstack32	uc_stack;
-	u_int32_t		uc_flags;
-	u_int32_t		__spare__[4];
+	sigset_t uc_sigmask;
+	mcontext32_t uc_mcontext;
+	u_int32_t uc_link;
+	struct sigaltstack32 uc_stack;
+	u_int32_t uc_flags;
+	u_int32_t __spare__[4];
 } ucontext32_t;
 
 typedef struct __mcontext32_vfp {
-	__uint64_t	mcv_reg[32];
-	__uint32_t	mcv_fpscr;
+	__uint64_t mcv_reg[32];
+	__uint32_t mcv_fpscr;
 } mcontext32_vfp_t;
 
 #endif /* COMPAT_FREEBSD32 */
 
-#endif	/* !_MACHINE_UCONTEXT_H_ */
+#endif /* !_MACHINE_UCONTEXT_H_ */

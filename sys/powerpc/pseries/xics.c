@@ -32,12 +32,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
 
@@ -59,49 +59,46 @@ __FBSDID("$FreeBSD$");
 #include "phyp-hvcall.h"
 #include "pic_if.h"
 
-#define XICP_PRIORITY	5	/* Random non-zero number */
-#define XICP_IPI	2
-#define MAX_XICP_IRQS	(1<<24)	/* 24-bit XIRR field */
+#define XICP_PRIORITY 5 /* Random non-zero number */
+#define XICP_IPI 2
+#define MAX_XICP_IRQS (1 << 24) /* 24-bit XIRR field */
 
-static int	xicp_probe(device_t);
-static int	xicp_attach(device_t);
-static int	xics_probe(device_t);
-static int	xics_attach(device_t);
+static int xicp_probe(device_t);
+static int xicp_attach(device_t);
+static int xics_probe(device_t);
+static int xics_attach(device_t);
 
-static void	xicp_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv);
-static void	xicp_dispatch(device_t, struct trapframe *);
-static void	xicp_enable(device_t, u_int, u_int, void **priv);
-static void	xicp_eoi(device_t, u_int, void *priv);
-static void	xicp_ipi(device_t, u_int);
-static void	xicp_mask(device_t, u_int, void *priv);
-static void	xicp_unmask(device_t, u_int, void *priv);
+static void xicp_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv);
+static void xicp_dispatch(device_t, struct trapframe *);
+static void xicp_enable(device_t, u_int, u_int, void **priv);
+static void xicp_eoi(device_t, u_int, void *priv);
+static void xicp_ipi(device_t, u_int);
+static void xicp_mask(device_t, u_int, void *priv);
+static void xicp_unmask(device_t, u_int, void *priv);
 
 #ifdef POWERNV
 extern void (*powernv_smp_ap_extra_init)(void);
-static void	xicp_smp_cpu_startup(void);
+static void xicp_smp_cpu_startup(void);
 #endif
 
-static device_method_t  xicp_methods[] = {
+static device_method_t xicp_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		xicp_probe),
-	DEVMETHOD(device_attach,	xicp_attach),
+	DEVMETHOD(device_probe, xicp_probe),
+	DEVMETHOD(device_attach, xicp_attach),
 
 	/* PIC interface */
-	DEVMETHOD(pic_bind,		xicp_bind),
-	DEVMETHOD(pic_dispatch,		xicp_dispatch),
-	DEVMETHOD(pic_enable,		xicp_enable),
-	DEVMETHOD(pic_eoi,		xicp_eoi),
-	DEVMETHOD(pic_ipi,		xicp_ipi),
-	DEVMETHOD(pic_mask,		xicp_mask),
-	DEVMETHOD(pic_unmask,		xicp_unmask),
+	DEVMETHOD(pic_bind, xicp_bind), DEVMETHOD(pic_dispatch, xicp_dispatch),
+	DEVMETHOD(pic_enable, xicp_enable), DEVMETHOD(pic_eoi, xicp_eoi),
+	DEVMETHOD(pic_ipi, xicp_ipi), DEVMETHOD(pic_mask, xicp_mask),
+	DEVMETHOD(pic_unmask, xicp_unmask),
 
 	DEVMETHOD_END
 };
 
-static device_method_t  xics_methods[] = {
+static device_method_t xics_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		xics_probe),
-	DEVMETHOD(device_attach,	xics_attach),
+	DEVMETHOD(device_probe, xics_probe),
+	DEVMETHOD(device_attach, xics_attach),
 
 	DEVMETHOD_END
 };
@@ -130,17 +127,10 @@ struct xicp_softc {
 	bool xics_emu;
 };
 
-static driver_t xicp_driver = {
-	"xicp",
-	xicp_methods,
-	sizeof(struct xicp_softc)
-};
+static driver_t xicp_driver = { "xicp", xicp_methods,
+	sizeof(struct xicp_softc) };
 
-static driver_t xics_driver = {
-	"xics",
-	xics_methods,
-	0
-};
+static driver_t xics_driver = { "xics", xics_methods, 0 };
 
 #ifdef POWERNV
 /* We can only pass physical addresses into OPAL.  Kernel stacks are in the KVA,
@@ -158,10 +148,10 @@ static uint32_t cpu_xirr[MAXCPU];
 static devclass_t xicp_devclass;
 static devclass_t xics_devclass;
 
-EARLY_DRIVER_MODULE(xicp, ofwbus, xicp_driver, xicp_devclass, 0, 0,
-    BUS_PASS_INTERRUPT-1);
-EARLY_DRIVER_MODULE(xics, ofwbus, xics_driver, xics_devclass, 0, 0,
-    BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(
+    xicp, ofwbus, xicp_driver, xicp_devclass, 0, 0, BUS_PASS_INTERRUPT - 1);
+EARLY_DRIVER_MODULE(
+    xics, ofwbus, xics_driver, xics_devclass, 0, 0, BUS_PASS_INTERRUPT);
 
 #ifdef POWERNV
 static struct resource *
@@ -171,7 +161,8 @@ xicp_mem_for_cpu(int cpu)
 	struct xicp_softc *sc;
 	int i;
 
-	for (i = 0; (dev = devclass_get_device(xicp_devclass, i)) != NULL; i++){
+	for (i = 0; (dev = devclass_get_device(xicp_devclass, i)) != NULL;
+	     i++) {
 		sc = device_get_softc(dev);
 		if (cpu >= sc->cpu_range[0] && cpu < sc->cpu_range[1])
 			return (sc->mem[cpu - sc->cpu_range[0]]);
@@ -230,15 +221,15 @@ xicp_attach(device_t dev)
 		    sc->cpu_range, sizeof(sc->cpu_range));
 		sc->cpu_range[1] += sc->cpu_range[0];
 		device_printf(dev, "Handling CPUs %d-%d\n", sc->cpu_range[0],
-		    sc->cpu_range[1]-1);
+		    sc->cpu_range[1] - 1);
 #ifdef POWERNV
 	} else if (ofw_bus_is_compatible(dev, "ibm,opal-intc")) {
-			/*
-			 * For now run POWER9 XIVE interrupt controller in XICS
-			 * compatibility mode.
-			 */
-			sc->xics_emu = true;
-			opal_call(OPAL_XIVE_RESET, OPAL_XIVE_XICS_MODE_EMU);
+		/*
+		 * For now run POWER9 XIVE interrupt controller in XICS
+		 * compatibility mode.
+		 */
+		sc->xics_emu = true;
+		opal_call(OPAL_XIVE_RESET, OPAL_XIVE_XICS_MODE_EMU);
 #endif
 	} else {
 		sc->cpu_range[0] = 0;
@@ -256,12 +247,15 @@ xicp_attach(device_t dev)
 				    pcpu_find(i)->pc_hwref, 0xff);
 			}
 		} else {
-			for (i = 0; i < sc->cpu_range[1] - sc->cpu_range[0]; i++) {
-				sc->mem[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-				    &i, RF_ACTIVE);
+			for (i = 0; i < sc->cpu_range[1] - sc->cpu_range[0];
+			     i++) {
+				sc->mem[i] = bus_alloc_resource_any(
+				    dev, SYS_RES_MEMORY, &i, RF_ACTIVE);
 				if (sc->mem[i] == NULL) {
-					device_printf(dev, "Could not alloc mem "
-					    "resource %d\n", i);
+					device_printf(dev,
+					    "Could not alloc mem "
+					    "resource %d\n",
+					    i);
 					return (ENXIO);
 				}
 
@@ -305,7 +299,7 @@ xicp_setup_priv(struct xicp_softc *sc, u_int irq, void **priv)
 {
 	if (*priv == NULL) {
 		KASSERT(sc->nintvecs + 1 < nitems(sc->intvecs),
-			("Too many XICP interrupts"));
+		    ("Too many XICP interrupts"));
 		mtx_lock(&sc->sc_mtx);
 		*priv = &sc->intvecs[sc->nintvecs++];
 		mtx_unlock(&sc->sc_mtx);
@@ -337,12 +331,13 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv)
 	 * random CPU.
 	 */
 	ncpus = 0;
-	CPU_FOREACH(cpu)
-		if (CPU_ISSET(cpu, &cpumask)) ncpus++;
+	CPU_FOREACH (cpu)
+		if (CPU_ISSET(cpu, &cpumask))
+			ncpus++;
 
 	i = mftb() % ncpus;
 	ncpus = 0;
-	CPU_FOREACH(cpu) {
+	CPU_FOREACH (cpu) {
 		if (!CPU_ISSET(cpu, &cpumask))
 			continue;
 		if (ncpus == i)
@@ -354,8 +349,8 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv)
 	iv->cpu = cpu;
 
 	if (rtas_exists())
-		error = rtas_call_method(sc->ibm_set_xive, 3, 1, irq, cpu,
-		    XICP_PRIORITY, &status);
+		error = rtas_call_method(
+		    sc->ibm_set_xive, 3, 1, irq, cpu, XICP_PRIORITY, &status);
 #ifdef POWERNV
 	else
 		error = opal_call(OPAL_SET_XIVE, irq, cpu << 2, XICP_PRIORITY);
@@ -378,7 +373,8 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 	if ((mfmsr() & PSL_HV) && !sc->xics_emu) {
 		regs = xicp_mem_for_cpu(PCPU_GET(hwref));
 		KASSERT(regs != NULL,
-		    ("Can't find regs for CPU %ld", (uintptr_t)PCPU_GET(hwref)));
+		    ("Can't find regs for CPU %ld",
+			(uintptr_t)PCPU_GET(hwref)));
 	}
 #endif
 
@@ -401,20 +397,20 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 		if (xirr == 0) /* No more pending interrupts? */
 			break;
 
-		if (xirr == XICP_IPI) {		/* Magic number for IPIs */
-			xirr = MAX_XICP_IRQS;	/* Map to FreeBSD magic */
+		if (xirr == XICP_IPI) {	      /* Magic number for IPIs */
+			xirr = MAX_XICP_IRQS; /* Map to FreeBSD magic */
 
 			/* Clear IPI */
 			if (regs)
 				bus_write_1(regs, 12, 0xff);
 #ifdef POWERNV
 			else if (sc->xics_emu)
-				opal_call(OPAL_INT_SET_MFRR,
-				    PCPU_GET(hwref), 0xff);
+				opal_call(
+				    OPAL_INT_SET_MFRR, PCPU_GET(hwref), 0xff);
 #endif
 			else
-				phyp_hcall(H_IPI, (uint64_t)(PCPU_GET(hwref)),
-				    0xff);
+				phyp_hcall(
+				    H_IPI, (uint64_t)(PCPU_GET(hwref)), 0xff);
 			i = sc->ipi_vec;
 		} else {
 			/* XXX: super inefficient */
@@ -455,8 +451,8 @@ xicp_enable(device_t dev, u_int irq, u_int vector, void **priv)
 	}
 
 	if (rtas_exists()) {
-		rtas_call_method(sc->ibm_set_xive, 3, 1, irq, cpu,
-		    XICP_PRIORITY, &status);
+		rtas_call_method(
+		    sc->ibm_set_xive, 3, 1, irq, cpu, XICP_PRIORITY, &status);
 		xicp_unmask(dev, irq, intr);
 #ifdef POWERNV
 	} else {
@@ -508,7 +504,8 @@ xicp_ipi(device_t dev, u_int cpu)
 			int64_t rv;
 			rv = opal_call(OPAL_INT_SET_MFRR, cpu, XICP_PRIORITY);
 			if (rv != 0)
-			    device_printf(dev, "IPI SET_MFRR result: %ld\n", rv);
+				device_printf(
+				    dev, "IPI SET_MFRR result: %ld\n", rv);
 		} else
 			bus_write_1(xicp_mem_for_cpu(cpu), 12, XICP_PRIORITY);
 	} else

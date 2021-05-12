@@ -35,43 +35,40 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
-
 #include <sys/socket.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
-
-#include <net/ethernet.h>
 #include <net/route.h>
-
-#include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_phy.h>
+#include <net80211/ieee80211_var.h>
 
 #ifdef notyet
 struct ieee80211_ds_plcp_hdr {
-	uint8_t		i_signal;
-	uint8_t		i_service;
-	uint16_t	i_length;
-	uint16_t	i_crc;
+	uint8_t i_signal;
+	uint8_t i_service;
+	uint16_t i_length;
+	uint16_t i_crc;
 } __packed;
 
-#endif	/* notyet */
+#endif /* notyet */
 
 /* shorthands to compact tables for readability */
-#define	OFDM	IEEE80211_T_OFDM
-#define	CCK	IEEE80211_T_CCK
-#define	TURBO	IEEE80211_T_TURBO
-#define	HALF	IEEE80211_T_OFDM_HALF
-#define	QUART	IEEE80211_T_OFDM_QUARTER
-#define	HT	IEEE80211_T_HT
+#define OFDM IEEE80211_T_OFDM
+#define CCK IEEE80211_T_CCK
+#define TURBO IEEE80211_T_TURBO
+#define HALF IEEE80211_T_OFDM_HALF
+#define QUART IEEE80211_T_OFDM_QUARTER
+#define HT IEEE80211_T_HT
 /* XXX the 11n and the basic rate flag are unfortunately overlapping. Grr. */
-#define	N(r)	(IEEE80211_RATE_MCS | r)
-#define	PBCC	(IEEE80211_T_OFDM_QUARTER+1)		/* XXX */
-#define	B(r)	(IEEE80211_RATE_BASIC | r)
-#define	Mb(x)	(x*1000)
+#define N(r) (IEEE80211_RATE_MCS | r)
+#define PBCC (IEEE80211_T_OFDM_QUARTER + 1) /* XXX */
+#define B(r) (IEEE80211_RATE_BASIC | r)
+#define Mb(x) (x * 1000)
 
 static struct ieee80211_rate_table ieee80211_11b_table = {
     .rateCount = 4,		/* XXX no PBCC */
@@ -277,16 +274,16 @@ static struct ieee80211_rate_table ieee80211_11na_table = {
     },
 };
 
-#undef	Mb
-#undef	B
-#undef	OFDM
-#undef	HALF
-#undef	QUART
-#undef	CCK
-#undef	TURBO
-#undef	XR
-#undef	HT
-#undef	N
+#undef Mb
+#undef B
+#undef OFDM
+#undef HALF
+#undef QUART
+#undef CCK
+#undef TURBO
+#undef XR
+#undef HT
+#undef N
 
 /*
  * Setup a rate table's reverse lookup table and fill in
@@ -300,13 +297,13 @@ static struct ieee80211_rate_table ieee80211_11na_table = {
 static void
 ieee80211_setup_ratetable(struct ieee80211_rate_table *rt)
 {
-#define	WLAN_CTRL_FRAME_SIZE \
+#define WLAN_CTRL_FRAME_SIZE \
 	(sizeof(struct ieee80211_frame_ack) + IEEE80211_CRC_LEN)
 
 	int i;
 
 	for (i = 0; i < nitems(rt->rateCodeToIndex); i++)
-		rt->rateCodeToIndex[i] = (uint8_t) -1;
+		rt->rateCodeToIndex[i] = (uint8_t)-1;
 	for (i = 0; i < rt->rateCount; i++) {
 		uint8_t code = rt->info[i].dot11Rate;
 		uint8_t cix = rt->info[i].ctlRateIndex;
@@ -339,10 +336,10 @@ ieee80211_setup_ratetable(struct ieee80211_rate_table *rt)
 		 *     current rate, so control rate's reverse lookup entry
 		 *     has been installed and following call is safe.
 		 */
-		rt->info[i].lpAckDuration = ieee80211_compute_duration(rt,
-			WLAN_CTRL_FRAME_SIZE, ctl_rate, 0);
-		rt->info[i].spAckDuration = ieee80211_compute_duration(rt,
-			WLAN_CTRL_FRAME_SIZE, ctl_rate, IEEE80211_F_SHPREAMBLE);
+		rt->info[i].lpAckDuration = ieee80211_compute_duration(
+		    rt, WLAN_CTRL_FRAME_SIZE, ctl_rate, 0);
+		rt->info[i].spAckDuration = ieee80211_compute_duration(
+		    rt, WLAN_CTRL_FRAME_SIZE, ctl_rate, IEEE80211_F_SHPREAMBLE);
 	}
 
 #undef WLAN_CTRL_FRAME_SIZE
@@ -352,22 +349,16 @@ ieee80211_setup_ratetable(struct ieee80211_rate_table *rt)
 static void
 ieee80211_phy_init(void)
 {
-	static struct ieee80211_rate_table * const ratetables[] = {
-		&ieee80211_half_table,
-		&ieee80211_quarter_table,
-		&ieee80211_11na_table,
-		&ieee80211_11ng_table,
-		&ieee80211_turbog_table,
-		&ieee80211_turboa_table,
-		&ieee80211_11a_table,
-		&ieee80211_11g_table,
-		&ieee80211_11b_table
+	static struct ieee80211_rate_table *const ratetables[] = {
+		&ieee80211_half_table, &ieee80211_quarter_table,
+		&ieee80211_11na_table, &ieee80211_11ng_table,
+		&ieee80211_turbog_table, &ieee80211_turboa_table,
+		&ieee80211_11a_table, &ieee80211_11g_table, &ieee80211_11b_table
 	};
 	int i;
 
 	for (i = 0; i < nitems(ratetables); ++i)
 		ieee80211_setup_ratetable(ratetables[i]);
-
 }
 SYSINIT(wlan_phy, SI_SUB_DRIVERS, SI_ORDER_FIRST, ieee80211_phy_init, NULL);
 
@@ -400,7 +391,7 @@ ieee80211_get_ratetable(struct ieee80211_channel *c)
 	else {
 		/* NB: should not get here */
 		panic("%s: no rate table for channel; freq %u flags 0x%x\n",
-		      __func__, c->ic_freq, c->ic_flags);
+		    __func__, c->ic_freq, c->ic_flags);
 	}
 	return rt;
 }
@@ -418,25 +409,23 @@ uint8_t
 ieee80211_plcp2rate(uint8_t plcp, enum ieee80211_phytype type)
 {
 	if (type == IEEE80211_T_OFDM) {
-		static const uint8_t ofdm_plcp2rate[16] = {
-			[0xb]	= 12,
-			[0xf]	= 18,
-			[0xa]	= 24,
-			[0xe]	= 36,
-			[0x9]	= 48,
-			[0xd]	= 72,
-			[0x8]	= 96,
-			[0xc]	= 108
-		};
+		static const uint8_t ofdm_plcp2rate[16] = { [0xb] = 12,
+			[0xf] = 18,
+			[0xa] = 24,
+			[0xe] = 36,
+			[0x9] = 48,
+			[0xd] = 72,
+			[0x8] = 96,
+			[0xc] = 108 };
 		return ofdm_plcp2rate[plcp & 0xf];
 	}
 	if (type == IEEE80211_T_CCK) {
 		static const uint8_t cck_plcp2rate[16] = {
-			[0xa]	= 2,	/* 0x0a */
-			[0x4]	= 4,	/* 0x14 */
-			[0x7]	= 11,	/* 0x37 */
-			[0xe]	= 22,	/* 0x6e */
-			[0xc]	= 44,	/* 0xdc , actually PBCC */
+			[0xa] = 2,  /* 0x0a */
+			[0x4] = 4,  /* 0x14 */
+			[0x7] = 11, /* 0x37 */
+			[0xe] = 22, /* 0x6e */
+			[0xc] = 44, /* 0xdc , actually PBCC */
 		};
 		return cck_plcp2rate[plcp & 0xf];
 	}
@@ -452,48 +441,61 @@ ieee80211_rate2plcp(int rate, enum ieee80211_phytype type)
 	/* XXX ignore type for now since rates are unique */
 	switch (rate) {
 	/* OFDM rates (cf IEEE Std 802.11a-1999, pp. 14 Table 80) */
-	case 12:	return 0xb;
-	case 18:	return 0xf;
-	case 24:	return 0xa;
-	case 36:	return 0xe;
-	case 48:	return 0x9;
-	case 72:	return 0xd;
-	case 96:	return 0x8;
-	case 108:	return 0xc;
+	case 12:
+		return 0xb;
+	case 18:
+		return 0xf;
+	case 24:
+		return 0xa;
+	case 36:
+		return 0xe;
+	case 48:
+		return 0x9;
+	case 72:
+		return 0xd;
+	case 96:
+		return 0x8;
+	case 108:
+		return 0xc;
 	/* CCK rates (IEEE Std 802.11b-1999 page 15, subclause 18.2.3.3) */
-	case 2:		return 10;
-	case 4:		return 20;
-	case 11:	return 55;
-	case 22:	return 110;
+	case 2:
+		return 10;
+	case 4:
+		return 20;
+	case 11:
+		return 55;
+	case 22:
+		return 110;
 	/* IEEE Std 802.11g-2003 page 19, subclause 19.3.2.1 */
-	case 44:	return 220;
+	case 44:
+		return 220;
 	}
-	return 0;		/* XXX unsupported/unknown rate */
+	return 0; /* XXX unsupported/unknown rate */
 }
 
-#define CCK_SIFS_TIME		10
-#define CCK_PREAMBLE_BITS	144
-#define CCK_PLCP_BITS		48
+#define CCK_SIFS_TIME 10
+#define CCK_PREAMBLE_BITS 144
+#define CCK_PLCP_BITS 48
 
-#define OFDM_SIFS_TIME		16
-#define OFDM_PREAMBLE_TIME	20
-#define OFDM_PLCP_BITS		22
-#define OFDM_SYMBOL_TIME	4
+#define OFDM_SIFS_TIME 16
+#define OFDM_PREAMBLE_TIME 20
+#define OFDM_PLCP_BITS 22
+#define OFDM_SYMBOL_TIME 4
 
-#define OFDM_HALF_SIFS_TIME	32
-#define OFDM_HALF_PREAMBLE_TIME	40
-#define OFDM_HALF_PLCP_BITS	22
-#define OFDM_HALF_SYMBOL_TIME	8
+#define OFDM_HALF_SIFS_TIME 32
+#define OFDM_HALF_PREAMBLE_TIME 40
+#define OFDM_HALF_PLCP_BITS 22
+#define OFDM_HALF_SYMBOL_TIME 8
 
-#define OFDM_QUARTER_SIFS_TIME 		64
-#define OFDM_QUARTER_PREAMBLE_TIME	80
-#define OFDM_QUARTER_PLCP_BITS		22
-#define OFDM_QUARTER_SYMBOL_TIME	16
+#define OFDM_QUARTER_SIFS_TIME 64
+#define OFDM_QUARTER_PREAMBLE_TIME 80
+#define OFDM_QUARTER_PLCP_BITS 22
+#define OFDM_QUARTER_SYMBOL_TIME 16
 
-#define TURBO_SIFS_TIME		8
-#define TURBO_PREAMBLE_TIME	14
-#define TURBO_PLCP_BITS		22
-#define TURBO_SYMBOL_TIME	4
+#define TURBO_SIFS_TIME 8
+#define TURBO_PREAMBLE_TIME 14
+#define TURBO_PLCP_BITS 22
+#define TURBO_SYMBOL_TIME 4
 
 /*
  * Compute the time to transmit a frame of length frameLen bytes
@@ -502,7 +504,7 @@ ieee80211_rate2plcp(int rate, enum ieee80211_phytype type)
  */
 uint16_t
 ieee80211_compute_duration(const struct ieee80211_rate_table *rt,
-	uint32_t frameLen, uint16_t rate, int isShortPreamble)
+    uint32_t frameLen, uint16_t rate, int isShortPreamble)
 {
 	uint8_t rix = rt->rateCodeToIndex[rate];
 	uint32_t bitsPerSymbol, numBits, numSymbols, phyTime, txTime;
@@ -510,97 +512,87 @@ ieee80211_compute_duration(const struct ieee80211_rate_table *rt,
 
 	KASSERT(rix != (uint8_t)-1, ("rate %d has no info", rate));
 	kbps = rt->info[rix].rateKbps;
-	if (kbps == 0)			/* XXX bandaid for channel changes */
+	if (kbps == 0) /* XXX bandaid for channel changes */
 		return 0;
 
 	switch (rt->info[rix].phy) {
 	case IEEE80211_T_CCK:
-		phyTime		= CCK_PREAMBLE_BITS + CCK_PLCP_BITS;
+		phyTime = CCK_PREAMBLE_BITS + CCK_PLCP_BITS;
 		if (isShortPreamble && rt->info[rix].shortPreamble)
 			phyTime >>= 1;
-		numBits		= frameLen << 3;
-		txTime		= CCK_SIFS_TIME + phyTime
-				+ ((numBits * 1000)/kbps);
+		numBits = frameLen << 3;
+		txTime = CCK_SIFS_TIME + phyTime + ((numBits * 1000) / kbps);
 		break;
 	case IEEE80211_T_OFDM:
-		bitsPerSymbol	= (kbps * OFDM_SYMBOL_TIME) / 1000;
+		bitsPerSymbol = (kbps * OFDM_SYMBOL_TIME) / 1000;
 		KASSERT(bitsPerSymbol != 0, ("full rate bps"));
 
-		numBits		= OFDM_PLCP_BITS + (frameLen << 3);
-		numSymbols	= howmany(numBits, bitsPerSymbol);
-		txTime		= OFDM_SIFS_TIME
-				+ OFDM_PREAMBLE_TIME
-				+ (numSymbols * OFDM_SYMBOL_TIME);
+		numBits = OFDM_PLCP_BITS + (frameLen << 3);
+		numSymbols = howmany(numBits, bitsPerSymbol);
+		txTime = OFDM_SIFS_TIME + OFDM_PREAMBLE_TIME +
+		    (numSymbols * OFDM_SYMBOL_TIME);
 		break;
 	case IEEE80211_T_OFDM_HALF:
-		bitsPerSymbol	= (kbps * OFDM_HALF_SYMBOL_TIME) / 1000;
+		bitsPerSymbol = (kbps * OFDM_HALF_SYMBOL_TIME) / 1000;
 		KASSERT(bitsPerSymbol != 0, ("1/4 rate bps"));
 
-		numBits		= OFDM_PLCP_BITS + (frameLen << 3);
-		numSymbols	= howmany(numBits, bitsPerSymbol);
-		txTime		= OFDM_HALF_SIFS_TIME
-				+ OFDM_HALF_PREAMBLE_TIME
-				+ (numSymbols * OFDM_HALF_SYMBOL_TIME);
+		numBits = OFDM_PLCP_BITS + (frameLen << 3);
+		numSymbols = howmany(numBits, bitsPerSymbol);
+		txTime = OFDM_HALF_SIFS_TIME + OFDM_HALF_PREAMBLE_TIME +
+		    (numSymbols * OFDM_HALF_SYMBOL_TIME);
 		break;
 	case IEEE80211_T_OFDM_QUARTER:
-		bitsPerSymbol	= (kbps * OFDM_QUARTER_SYMBOL_TIME) / 1000;
+		bitsPerSymbol = (kbps * OFDM_QUARTER_SYMBOL_TIME) / 1000;
 		KASSERT(bitsPerSymbol != 0, ("1/2 rate bps"));
 
-		numBits		= OFDM_PLCP_BITS + (frameLen << 3);
-		numSymbols	= howmany(numBits, bitsPerSymbol);
-		txTime		= OFDM_QUARTER_SIFS_TIME
-				+ OFDM_QUARTER_PREAMBLE_TIME
-				+ (numSymbols * OFDM_QUARTER_SYMBOL_TIME);
+		numBits = OFDM_PLCP_BITS + (frameLen << 3);
+		numSymbols = howmany(numBits, bitsPerSymbol);
+		txTime = OFDM_QUARTER_SIFS_TIME + OFDM_QUARTER_PREAMBLE_TIME +
+		    (numSymbols * OFDM_QUARTER_SYMBOL_TIME);
 		break;
 	case IEEE80211_T_TURBO:
 		/* we still save OFDM rates in kbps - so double them */
 		bitsPerSymbol = ((kbps << 1) * TURBO_SYMBOL_TIME) / 1000;
 		KASSERT(bitsPerSymbol != 0, ("turbo bps"));
 
-		numBits       = TURBO_PLCP_BITS + (frameLen << 3);
-		numSymbols    = howmany(numBits, bitsPerSymbol);
-		txTime        = TURBO_SIFS_TIME + TURBO_PREAMBLE_TIME
-			      + (numSymbols * TURBO_SYMBOL_TIME);
+		numBits = TURBO_PLCP_BITS + (frameLen << 3);
+		numSymbols = howmany(numBits, bitsPerSymbol);
+		txTime = TURBO_SIFS_TIME + TURBO_PREAMBLE_TIME +
+		    (numSymbols * TURBO_SYMBOL_TIME);
 		break;
 	default:
 		panic("%s: unknown phy %u (rate %u)\n", __func__,
-		      rt->info[rix].phy, rate);
+		    rt->info[rix].phy, rate);
 	}
 	return txTime;
 }
 
-static const uint16_t ht20_bps[32] = {
-	26, 52, 78, 104, 156, 208, 234, 260,
-	52, 104, 156, 208, 312, 416, 468, 520,
-	78, 156, 234, 312, 468, 624, 702, 780,
-	104, 208, 312, 416, 624, 832, 936, 1040
-};
-static const uint16_t ht40_bps[32] = {
-	54, 108, 162, 216, 324, 432, 486, 540,
-	108, 216, 324, 432, 648, 864, 972, 1080,
-	162, 324, 486, 648, 972, 1296, 1458, 1620,
-	216, 432, 648, 864, 1296, 1728, 1944, 2160
-};
+static const uint16_t ht20_bps[32] = { 26, 52, 78, 104, 156, 208, 234, 260, 52,
+	104, 156, 208, 312, 416, 468, 520, 78, 156, 234, 312, 468, 624, 702,
+	780, 104, 208, 312, 416, 624, 832, 936, 1040 };
+static const uint16_t ht40_bps[32] = { 54, 108, 162, 216, 324, 432, 486, 540,
+	108, 216, 324, 432, 648, 864, 972, 1080, 162, 324, 486, 648, 972, 1296,
+	1458, 1620, 216, 432, 648, 864, 1296, 1728, 1944, 2160 };
 
-#define	OFDM_PLCP_BITS	22
-#define	HT_L_STF	8
-#define	HT_L_LTF	8
-#define	HT_L_SIG	4
-#define	HT_SIG		8
-#define	HT_STF		4
-#define	HT_LTF(n)	((n) * 4)
+#define OFDM_PLCP_BITS 22
+#define HT_L_STF 8
+#define HT_L_LTF 8
+#define HT_L_SIG 4
+#define HT_SIG 8
+#define HT_STF 4
+#define HT_LTF(n) ((n)*4)
 
 /*
  * Calculate the transmit duration of an 11n frame.
  */
 uint32_t
-ieee80211_compute_duration_ht(uint32_t frameLen, uint16_t rate,
-    int streams, int isht40, int isShortGI)
+ieee80211_compute_duration_ht(
+    uint32_t frameLen, uint16_t rate, int streams, int isht40, int isShortGI)
 {
 	uint32_t bitsPerSymbol, numBits, numSymbols, txTime;
 
 	KASSERT(rate & IEEE80211_RATE_MCS, ("not mcs %d", rate));
-	KASSERT((rate &~ IEEE80211_RATE_MCS) < 31, ("bad mcs 0x%x", rate));
+	KASSERT((rate & ~IEEE80211_RATE_MCS) < 31, ("bad mcs 0x%x", rate));
 
 	if (isht40)
 		bitsPerSymbol = ht40_bps[rate & 0x1f];
@@ -609,17 +601,17 @@ ieee80211_compute_duration_ht(uint32_t frameLen, uint16_t rate,
 	numBits = OFDM_PLCP_BITS + (frameLen << 3);
 	numSymbols = howmany(numBits, bitsPerSymbol);
 	if (isShortGI)
-		txTime = ((numSymbols * 18) + 4) / 5;   /* 3.6us */
+		txTime = ((numSymbols * 18) + 4) / 5; /* 3.6us */
 	else
-		txTime = numSymbols * 4;                /* 4us */
-	return txTime + HT_L_STF + HT_L_LTF +
-	    HT_L_SIG + HT_SIG + HT_STF + HT_LTF(streams);
+		txTime = numSymbols * 4; /* 4us */
+	return txTime + HT_L_STF + HT_L_LTF + HT_L_SIG + HT_SIG + HT_STF +
+	    HT_LTF(streams);
 }
 
-#undef	HT_LTF
-#undef	HT_STF
-#undef	HT_SIG
-#undef	HT_L_SIG
-#undef	HT_L_LTF
-#undef	HT_L_STF
-#undef	OFDM_PLCP_BITS
+#undef HT_LTF
+#undef HT_STF
+#undef HT_SIG
+#undef HT_L_SIG
+#undef HT_L_LTF
+#undef HT_L_STF
+#undef OFDM_PLCP_BITS

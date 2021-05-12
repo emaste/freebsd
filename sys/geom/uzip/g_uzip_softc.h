@@ -34,23 +34,23 @@ struct bio;
 DEFINE_RAW_METHOD(g_uzip_do, void, struct g_uzip_softc *, struct bio *);
 
 struct g_uzip_softc {
-	uint32_t blksz;                 /* block size */
-	uint32_t nblocks;               /* number of blocks */
-	struct g_uzip_blk *toc;         /* table of contents */
+	uint32_t blksz;		/* block size */
+	uint32_t nblocks;	/* number of blocks */
+	struct g_uzip_blk *toc; /* table of contents */
 
 	struct mtx last_mtx;
-	uint32_t last_blk;              /* last blk no */
-	char *last_buf;                 /* last blk data */
-	int req_total;                  /* total requests */
-	int req_cached;                 /* cached requests */
-	struct g_uzip_dapi *dcp;        /* decompressor instance */
+	uint32_t last_blk;	 /* last blk no */
+	char *last_buf;		 /* last blk data */
+	int req_total;		 /* total requests */
+	int req_cached;		 /* cached requests */
+	struct g_uzip_dapi *dcp; /* decompressor instance */
 
 	g_uzip_do_t uzip_do;
 
 	struct proc *procp;
-	struct bio_queue_head bio_queue; 
+	struct bio_queue_head bio_queue;
 	struct mtx queue_mtx;
 	unsigned wrkthr_flags;
-#define	GUZ_SHUTDOWN	(0x1 << 0)
-#define	GUZ_EXITING	(0x1 << 1)
+#define GUZ_SHUTDOWN (0x1 << 0)
+#define GUZ_EXITING (0x1 << 1)
 };

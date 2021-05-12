@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#define	NPORTS		5
-#define	NGPIO		(NPORTS * 32)
+#define NPORTS 5
+#define NGPIO (NPORTS * 32)
 
 enum ev_type {
 	DMA_RISING_EDGE,

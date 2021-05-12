@@ -19,27 +19,27 @@
 
 #ifndef LOCORE
 
-#include <x86/x86_smp.h>
-
 #include <sys/bus.h>
+
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <x86/apicvar.h>
 #include <machine/pcb.h>
 
-inthand_t
-	IDTVEC(invltlb),	/* TLB shootdowns - global */
-	IDTVEC(invlpg),		/* TLB shootdowns - 1 page */
-	IDTVEC(invlrng),	/* TLB shootdowns - page range */
-	IDTVEC(invlcache);	/* Write back and invalidate cache */
+#include <x86/apicvar.h>
+#include <x86/x86_smp.h>
+
+inthand_t IDTVEC(invltlb), /* TLB shootdowns - global */
+    IDTVEC(invlpg),	   /* TLB shootdowns - 1 page */
+    IDTVEC(invlrng),	   /* TLB shootdowns - page range */
+    IDTVEC(invlcache);	   /* Write back and invalidate cache */
 
 /* functions in mpboot.s */
 void bootMP(void);
 
-void	invltlb_handler(void);
-void	invlpg_handler(void);
-void	invlrng_handler(void);
-void	invlcache_handler(void);
+void invltlb_handler(void);
+void invlpg_handler(void);
+void invlrng_handler(void);
+void invlcache_handler(void);
 
 #endif /* !LOCORE */
 #endif /* SMP */

@@ -59,55 +59,55 @@
  * still Version 2 anyhow.)
  */
 struct nfsv3_diskless {
-	struct ifaliasreq myif;			/* Default interface */
-	struct sockaddr_in mygateway;		/* Default gateway */
-	struct nfs_args	root_args;		/* Mount args for root fs */
-	int		root_fhsize;		/* Size of root file handle */
-	u_char		root_fh[NFSX_V3FHMAX];	/* File handle of root dir */
-	struct sockaddr_in root_saddr;		/* Address of root server */
-	char		root_hostnam[MNAMELEN];	/* Host name for mount pt */
-	long		root_time;		/* Timestamp of root fs */
-	char		my_hostnam[MAXHOSTNAMELEN]; /* Client host name */
+	struct ifaliasreq myif;		 /* Default interface */
+	struct sockaddr_in mygateway;	 /* Default gateway */
+	struct nfs_args root_args;	 /* Mount args for root fs */
+	int root_fhsize;		 /* Size of root file handle */
+	u_char root_fh[NFSX_V3FHMAX];	 /* File handle of root dir */
+	struct sockaddr_in root_saddr;	 /* Address of root server */
+	char root_hostnam[MNAMELEN];	 /* Host name for mount pt */
+	long root_time;			 /* Timestamp of root fs */
+	char my_hostnam[MAXHOSTNAMELEN]; /* Client host name */
 };
 
 /*
  * Old arguments to mount NFS
  */
 struct onfs_args {
-	struct sockaddr	*addr;		/* file server address */
-	int		addrlen;	/* length of address */
-	int		sotype;		/* Socket type */
-	int		proto;		/* and Protocol */
-	u_char		*fh;		/* File handle to be mounted */
-	int		fhsize;		/* Size, in bytes, of fh */
-	int		flags;		/* flags */
-	int		wsize;		/* write size in bytes */
-	int		rsize;		/* read size in bytes */
-	int		readdirsize;	/* readdir size in bytes */
-	int		timeo;		/* initial timeout in .1 secs */
-	int		retrans;	/* times to retry send */
-	int		maxgrouplist;	/* Max. size of group list */
-	int		readahead;	/* # of blocks to readahead */
-	int		leaseterm;	/* Term (sec) of lease */
-	int		deadthresh;	/* Retrans threshold */
-	char		*hostname;	/* server's name */
+	struct sockaddr *addr; /* file server address */
+	int addrlen;	       /* length of address */
+	int sotype;	       /* Socket type */
+	int proto;	       /* and Protocol */
+	u_char *fh;	       /* File handle to be mounted */
+	int fhsize;	       /* Size, in bytes, of fh */
+	int flags;	       /* flags */
+	int wsize;	       /* write size in bytes */
+	int rsize;	       /* read size in bytes */
+	int readdirsize;       /* readdir size in bytes */
+	int timeo;	       /* initial timeout in .1 secs */
+	int retrans;	       /* times to retry send */
+	int maxgrouplist;      /* Max. size of group list */
+	int readahead;	       /* # of blocks to readahead */
+	int leaseterm;	       /* Term (sec) of lease */
+	int deadthresh;	       /* Retrans threshold */
+	char *hostname;	       /* server's name */
 };
 
 struct nfs_diskless {
-	struct ifaliasreq myif;			/* Default interface */
-	struct sockaddr_in mygateway;		/* Default gateway */
-	struct onfs_args root_args;		/* Mount args for root fs */
-	u_char		root_fh[NFSX_V2FH];	/* File handle of root dir */
-	struct sockaddr_in root_saddr;		/* Address of root server */
-	char		root_hostnam[MNAMELEN];	/* Host name for mount pt */
-	long		root_time;		/* Timestamp of root fs */
-	char		my_hostnam[MAXHOSTNAMELEN]; /* Client host name */
+	struct ifaliasreq myif;		 /* Default interface */
+	struct sockaddr_in mygateway;	 /* Default gateway */
+	struct onfs_args root_args;	 /* Mount args for root fs */
+	u_char root_fh[NFSX_V2FH];	 /* File handle of root dir */
+	struct sockaddr_in root_saddr;	 /* Address of root server */
+	char root_hostnam[MNAMELEN];	 /* Host name for mount pt */
+	long root_time;			 /* Timestamp of root fs */
+	char my_hostnam[MAXHOSTNAMELEN]; /* Client host name */
 };
 
 #ifdef _KERNEL
 extern struct nfsv3_diskless nfsv3_diskless;
 extern struct nfs_diskless nfs_diskless;
-extern int	nfs_diskless_valid;
+extern int nfs_diskless_valid;
 void bootpc_init(void);
 void nfs_setup_diskless(void);
 void nfs_parse_options(const char *, struct nfs_args *);

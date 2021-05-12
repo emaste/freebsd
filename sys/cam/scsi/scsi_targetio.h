@@ -60,19 +60,19 @@
  * The user can then re-enable the device for a new path.
  */
 struct ioc_enable_lun {
-	path_id_t	path_id;
-	target_id_t	target_id;
-	lun_id_t	lun_id;
-	int		grp6_len;
-	int		grp7_len;
+	path_id_t path_id;
+	target_id_t target_id;
+	lun_id_t lun_id;
+	int grp6_len;
+	int grp7_len;
 };
-#define TARGIOCENABLE	_IOW('C', 5, struct ioc_enable_lun)
-#define TARGIOCDISABLE	 _IO('C', 6)
+#define TARGIOCENABLE _IOW('C', 5, struct ioc_enable_lun)
+#define TARGIOCDISABLE _IO('C', 6)
 
 /*
  * Set/clear debugging for this target mode instance
  */
-#define	TARGIOCDEBUG	_IOW('C', 7, int)
+#define TARGIOCDEBUG _IOW('C', 7, int)
 
 TAILQ_HEAD(ccb_queue, ccb_hdr);
 

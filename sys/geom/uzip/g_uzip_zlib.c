@@ -33,9 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 
-#include <contrib/zlib/zlib.h>
 #include <dev/zlib/zcalloc.h>
 
+#include <contrib/zlib/zlib.h>
 #include <geom/uzip/g_uzip.h>
 #include <geom/uzip/g_uzip_dapi.h>
 #include <geom/uzip/g_uzip_zlib.h>

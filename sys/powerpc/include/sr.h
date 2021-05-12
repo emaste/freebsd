@@ -28,7 +28,7 @@
  */
 
 #ifndef _MACHINE_SR_H_
-#define	_MACHINE_SR_H_
+#define _MACHINE_SR_H_
 
 /*
  * Bit definitions for segment registers.
@@ -37,28 +37,28 @@
  * Microprocessors, section 2.3.5
  */
 
-#define	SR_TYPE		0x80000000	/* Type selector */
-#define	SR_KS		0x40000000	/* Supervisor-state protection key */
-#define	SR_KP		0x20000000	/* User-state protection key */
-#define	SR_N		0x10000000	/* No-execute protection */
-#define	SR_VSID_MASK	0x00ffffff	/* Virtual Segment ID mask */
+#define SR_TYPE 0x80000000	/* Type selector */
+#define SR_KS 0x40000000	/* Supervisor-state protection key */
+#define SR_KP 0x20000000	/* User-state protection key */
+#define SR_N 0x10000000		/* No-execute protection */
+#define SR_VSID_MASK 0x00ffffff /* Virtual Segment ID mask */
 
 /* Kernel segment register usage */
-#define	USER_SR		12
-#define	KERNEL_SR	13
-#define	KERNEL2_SR	14
-#define	KERNEL3_SR	15
-#define	KERNEL_VSIDBITS	0xfffffUL
-#define	KERNEL_SEGMENT	(0xfffff0 + KERNEL_SR)
-#define	KERNEL2_SEGMENT	(0xfffff0 + KERNEL2_SR)
-#define	EMPTY_SEGMENT	0xfffff0
+#define USER_SR 12
+#define KERNEL_SR 13
+#define KERNEL2_SR 14
+#define KERNEL3_SR 15
+#define KERNEL_VSIDBITS 0xfffffUL
+#define KERNEL_SEGMENT (0xfffff0 + KERNEL_SR)
+#define KERNEL2_SEGMENT (0xfffff0 + KERNEL2_SR)
+#define EMPTY_SEGMENT 0xfffff0
 #ifdef __powerpc64__
-#define	USER_ADDR	0xc00ffffff0000000UL
+#define USER_ADDR 0xc00ffffff0000000UL
 #else
-#define	USER_ADDR	((uintptr_t)USER_SR << ADDR_SR_SHFT)
+#define USER_ADDR ((uintptr_t)USER_SR << ADDR_SR_SHFT)
 #endif
-#define	SEGMENT_LENGTH	0x10000000UL
-#define	SEGMENT_INVMASK	0x0fffffffUL
-#define	SEGMENT_MASK	~SEGMENT_INVMASK
+#define SEGMENT_LENGTH 0x10000000UL
+#define SEGMENT_INVMASK 0x0fffffffUL
+#define SEGMENT_MASK ~SEGMENT_INVMASK
 
 #endif /* !_MACHINE_SR_H_ */

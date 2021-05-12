@@ -28,28 +28,28 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_INTERRUPT_H_
-#define	_LINUX_INTERRUPT_H_
-
-#include <linux/device.h>
-#include <linux/pci.h>
-#include <linux/irqreturn.h>
+#ifndef _LINUX_INTERRUPT_H_
+#define _LINUX_INTERRUPT_H_
 
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-typedef	irqreturn_t	(*irq_handler_t)(int, void *);
+#include <linux/device.h>
+#include <linux/irqreturn.h>
+#include <linux/pci.h>
 
-#define	IRQF_SHARED	RF_SHAREABLE
+typedef irqreturn_t (*irq_handler_t)(int, void *);
+
+#define IRQF_SHARED RF_SHAREABLE
 
 struct irq_ent {
-	struct list_head	links;
-	struct device	*dev;
-	struct resource	*res;
-	void		*arg;
-	irqreturn_t	(*handler)(int, void *);
-	void		*tag;
-	unsigned int	irq;
+	struct list_head links;
+	struct device *dev;
+	struct resource *res;
+	void *arg;
+	irqreturn_t (*handler)(int, void *);
+	void *tag;
+	unsigned int irq;
 };
 
 static inline int
@@ -69,9 +69,8 @@ linux_irq_ent(struct device *dev, unsigned int irq)
 {
 	struct irq_ent *irqe;
 
-	list_for_each_entry(irqe, &dev->irqents, links)
-		if (irqe->irq == irq)
-			return (irqe);
+	list_for_each_entry(
+	    irqe, &dev->irqents, links) if (irqe->irq == irq) return (irqe);
 
 	return (NULL);
 }
@@ -90,8 +89,8 @@ request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 	if (dev == NULL)
 		return -ENXIO;
 	rid = linux_irq_rid(dev, irq);
-	res = bus_alloc_resource_any(dev->bsddev, SYS_RES_IRQ, &rid,
-	    flags | RF_ACTIVE);
+	res = bus_alloc_resource_any(
+	    dev->bsddev, SYS_RES_IRQ, &rid, flags | RF_ACTIVE);
 	if (res == NULL)
 		return (-ENXIO);
 	irqe = kmalloc(sizeof(*irqe), GFP_KERNEL);
@@ -124,8 +123,9 @@ enable_irq(unsigned int irq)
 	irqe = linux_irq_ent(dev, irq);
 	if (irqe == NULL || irqe->tag != NULL)
 		return -EINVAL;
-	return -bus_setup_intr(dev->bsddev, irqe->res, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, linux_irq_handler, irqe, &irqe->tag);
+	return -bus_setup_intr(dev->bsddev, irqe->res,
+	    INTR_TYPE_NET | INTR_MPSAFE, NULL, linux_irq_handler, irqe,
+	    &irqe->tag);
 }
 
 static inline void
@@ -197,15 +197,15 @@ struct tasklet_struct {
 	unsigned long data;
 };
 
-#define	DECLARE_TASKLET(_name, _func, _data)	\
-struct tasklet_struct _name = { .func = (_func), .data = (_data) }
+#define DECLARE_TASKLET(_name, _func, _data) \
+	struct tasklet_struct _name = { .func = (_func), .data = (_data) }
 
-#define	tasklet_hi_schedule(t)	tasklet_schedule(t)
+#define tasklet_hi_schedule(t) tasklet_schedule(t)
 
 extern void tasklet_schedule(struct tasklet_struct *);
 extern void tasklet_kill(struct tasklet_struct *);
-extern void tasklet_init(struct tasklet_struct *, tasklet_func_t *,
-    unsigned long data);
+extern void tasklet_init(
+    struct tasklet_struct *, tasklet_func_t *, unsigned long data);
 extern void tasklet_enable(struct tasklet_struct *);
 extern void tasklet_disable(struct tasklet_struct *);
 extern void tasklet_disable_nosync(struct tasklet_struct *);
@@ -213,4 +213,4 @@ extern int tasklet_trylock(struct tasklet_struct *);
 extern void tasklet_unlock(struct tasklet_struct *);
 extern void tasklet_unlock_wait(struct tasklet_struct *ts);
 
-#endif	/* _LINUX_INTERRUPT_H_ */
+#endif /* _LINUX_INTERRUPT_H_ */

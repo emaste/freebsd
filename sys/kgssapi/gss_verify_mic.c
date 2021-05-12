@@ -42,10 +42,8 @@ __FBSDID("$FreeBSD$");
 #include "kgss_if.h"
 
 OM_uint32
-gss_verify_mic(OM_uint32 *minor_status,
-    const gss_ctx_id_t ctx,
-    const gss_buffer_t message_buffer,
-    const gss_buffer_t token_buffer,
+gss_verify_mic(OM_uint32 *minor_status, const gss_ctx_id_t ctx,
+    const gss_buffer_t message_buffer, const gss_buffer_t token_buffer,
     gss_qop_t *qop_state)
 {
 	OM_uint32 maj_stat;

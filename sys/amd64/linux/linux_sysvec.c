@@ -34,10 +34,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define	__ELF_WORD_SIZE	64
+#define __ELF_WORD_SIZE 64
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
 #include <sys/imgact.h>
@@ -56,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/vnode.h>
-#include <sys/eventhandler.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 
 #include <amd64/linux/linux.h>
 #include <amd64/linux/linux_proto.h>
+
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
@@ -96,57 +97,56 @@ extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
-static int	linux_copyout_strings(struct image_params *imgp,
-		    uintptr_t *stack_base);
-static int	linux_fixup_elf(uintptr_t *stack_base,
-		    struct image_params *iparams);
-static bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
-static void	linux_vdso_install(void *param);
-static void	linux_vdso_deinstall(void *param);
-static void	linux_set_syscall_retval(struct thread *td, int error);
-static int	linux_fetch_syscall_args(struct thread *td);
-static void	linux_exec_setregs(struct thread *td, struct image_params *imgp,
-		    uintptr_t stack);
-static int	linux_vsyscall(struct thread *td);
+static int linux_copyout_strings(
+    struct image_params *imgp, uintptr_t *stack_base);
+static int linux_fixup_elf(uintptr_t *stack_base, struct image_params *iparams);
+static bool linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
+static void linux_vdso_install(void *param);
+static void linux_vdso_deinstall(void *param);
+static void linux_set_syscall_retval(struct thread *td, int error);
+static int linux_fetch_syscall_args(struct thread *td);
+static void linux_exec_setregs(
+    struct thread *td, struct image_params *imgp, uintptr_t stack);
+static int linux_vsyscall(struct thread *td);
 
-#define LINUX_T_UNKNOWN  255
+#define LINUX_T_UNKNOWN 255
 static int _bsd_to_linux_trapcode[] = {
-	LINUX_T_UNKNOWN,	/* 0 */
-	6,			/* 1  T_PRIVINFLT */
-	LINUX_T_UNKNOWN,	/* 2 */
-	3,			/* 3  T_BPTFLT */
-	LINUX_T_UNKNOWN,	/* 4 */
-	LINUX_T_UNKNOWN,	/* 5 */
-	16,			/* 6  T_ARITHTRAP */
-	254,			/* 7  T_ASTFLT */
-	LINUX_T_UNKNOWN,	/* 8 */
-	13,			/* 9  T_PROTFLT */
-	1,			/* 10 T_TRCTRAP */
-	LINUX_T_UNKNOWN,	/* 11 */
-	14,			/* 12 T_PAGEFLT */
-	LINUX_T_UNKNOWN,	/* 13 */
-	17,			/* 14 T_ALIGNFLT */
-	LINUX_T_UNKNOWN,	/* 15 */
-	LINUX_T_UNKNOWN,	/* 16 */
-	LINUX_T_UNKNOWN,	/* 17 */
-	0,			/* 18 T_DIVIDE */
-	2,			/* 19 T_NMI */
-	4,			/* 20 T_OFLOW */
-	5,			/* 21 T_BOUND */
-	7,			/* 22 T_DNA */
-	8,			/* 23 T_DOUBLEFLT */
-	9,			/* 24 T_FPOPFLT */
-	10,			/* 25 T_TSSFLT */
-	11,			/* 26 T_SEGNPFLT */
-	12,			/* 27 T_STKFLT */
-	18,			/* 28 T_MCHK */
-	19,			/* 29 T_XMMFLT */
-	15			/* 30 T_RESERVED */
+	LINUX_T_UNKNOWN, /* 0 */
+	6,		 /* 1  T_PRIVINFLT */
+	LINUX_T_UNKNOWN, /* 2 */
+	3,		 /* 3  T_BPTFLT */
+	LINUX_T_UNKNOWN, /* 4 */
+	LINUX_T_UNKNOWN, /* 5 */
+	16,		 /* 6  T_ARITHTRAP */
+	254,		 /* 7  T_ASTFLT */
+	LINUX_T_UNKNOWN, /* 8 */
+	13,		 /* 9  T_PROTFLT */
+	1,		 /* 10 T_TRCTRAP */
+	LINUX_T_UNKNOWN, /* 11 */
+	14,		 /* 12 T_PAGEFLT */
+	LINUX_T_UNKNOWN, /* 13 */
+	17,		 /* 14 T_ALIGNFLT */
+	LINUX_T_UNKNOWN, /* 15 */
+	LINUX_T_UNKNOWN, /* 16 */
+	LINUX_T_UNKNOWN, /* 17 */
+	0,		 /* 18 T_DIVIDE */
+	2,		 /* 19 T_NMI */
+	4,		 /* 20 T_OFLOW */
+	5,		 /* 21 T_BOUND */
+	7,		 /* 22 T_DNA */
+	8,		 /* 23 T_DOUBLEFLT */
+	9,		 /* 24 T_FPOPFLT */
+	10,		 /* 25 T_TSSFLT */
+	11,		 /* 26 T_SEGNPFLT */
+	12,		 /* 27 T_STKFLT */
+	18,		 /* 28 T_MCHK */
+	19,		 /* 29 T_XMMFLT */
+	15		 /* 30 T_RESERVED */
 };
-#define bsd_to_linux_trapcode(code) \
-    ((code)<nitems(_bsd_to_linux_trapcode)? \
-     _bsd_to_linux_trapcode[(code)]: \
-     LINUX_T_UNKNOWN)
+#define bsd_to_linux_trapcode(code)                \
+	((code) < nitems(_bsd_to_linux_trapcode) ? \
+		      _bsd_to_linux_trapcode[(code)] :   \
+		      LINUX_T_UNKNOWN)
 
 LINUX_VDSO_SYM_INTPTR(linux_rt_sigcode);
 LINUX_VDSO_SYM_CHAR(linux_platform);
@@ -213,7 +213,7 @@ linux_set_syscall_retval(struct thread *td, int error)
 	switch (error) {
 	case 0:
 		frame->tf_rax = td->td_retval[0];
- 		frame->tf_r10 = frame->tf_rcx;
+		frame->tf_r10 = frame->tf_rcx;
 		break;
 
 	case ERESTART:
@@ -226,7 +226,7 @@ linux_set_syscall_retval(struct thread *td, int error)
 		frame->tf_rip -= frame->tf_err;
 		frame->tf_r10 = frame->tf_rcx;
 		break;
- 
+
 	case EJUSTRETURN:
 		break;
 
@@ -258,8 +258,8 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 
 	p = imgp->proc;
 	args = (Elf64_Auxargs *)imgp->auxargs;
-	argarray = pos = malloc(LINUX_AT_COUNT * sizeof(*pos), M_TEMP,
-	    M_WAITOK | M_ZERO);
+	argarray = pos = malloc(
+	    LINUX_AT_COUNT * sizeof(*pos), M_TEMP, M_WAITOK | M_ZERO);
 
 	issetugid = p->p_flag & P_SUGID ? 1 : 0;
 	AUXARGS_ENTRY(pos, LINUX_AT_SYSINFO_EHDR,
@@ -291,8 +291,8 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	imgp->auxargs = NULL;
 	KASSERT(pos - argarray <= LINUX_AT_COUNT, ("Too many auxargs"));
 
-	error = copyout(argarray, (void *)base,
-	    sizeof(*argarray) * LINUX_AT_COUNT);
+	error = copyout(
+	    argarray, (void *)base, sizeof(*argarray) * LINUX_AT_COUNT);
 	free(argarray, M_TEMP);
 	return (error);
 }
@@ -391,8 +391,8 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	envc = imgp->args->envc;
 
 	/* Copy out strings - arguments and environment. */
-	error = copyout(stringp, (void *)ustringp,
-	    ARG_MAX - imgp->args->stringspace);
+	error = copyout(
+	    stringp, (void *)ustringp, ARG_MAX - imgp->args->stringspace);
 	if (error != 0)
 		return (error);
 
@@ -433,8 +433,8 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 
 	if (imgp->auxargs) {
 		vectp++;
-		error = imgp->sysent->sv_copyout_auxargs(imgp,
-		    (uintptr_t)vectp);
+		error = imgp->sysent->sv_copyout_auxargs(
+		    imgp, (uintptr_t)vectp);
 		if (error != 0)
 			return (error);
 	}
@@ -446,8 +446,8 @@ linux_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
  * Reset registers to default values on exec.
  */
 static void
-linux_exec_setregs(struct thread *td, struct image_params *imgp,
-    uintptr_t stack)
+linux_exec_setregs(
+    struct thread *td, struct image_params *imgp, uintptr_t stack)
 {
 	struct trapframe *regs;
 	struct pcb *pcb;
@@ -526,7 +526,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	 * one less debugger trap, so allowing it is fairly harmless.
 	 */
 
-#define RFLAG_SECURE(ef, oef)     ((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
+#define RFLAG_SECURE(ef, oef) ((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 	if (!RFLAG_SECURE(rflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF)) {
 		printf("linux_rt_sigreturn: rflags = 0x%lx\n", rflags);
 		return (EINVAL);
@@ -537,7 +537,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	 * hardware check for invalid selectors, excess privilege in
 	 * other selectors, invalid %eip's and invalid %esp's.
 	 */
-#define CS_SECURE(cs)           (ISPL(cs) == SEL_UPL)
+#define CS_SECURE(cs) (ISPL(cs) == SEL_UPL)
 	if (!CS_SECURE(context->sc_cs)) {
 		printf("linux_rt_sigreturn: cs = 0x%x\n", context->sc_cs);
 		ksiginfo_init_trap(&ksi);
@@ -555,25 +555,25 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	signotify(td);
 	PROC_UNLOCK(p);
 
-	regs->tf_rdi    = context->sc_rdi;
-	regs->tf_rsi    = context->sc_rsi;
-	regs->tf_rdx    = context->sc_rdx;
-	regs->tf_rbp    = context->sc_rbp;
-	regs->tf_rbx    = context->sc_rbx;
-	regs->tf_rcx    = context->sc_rcx;
-	regs->tf_rax    = context->sc_rax;
-	regs->tf_rip    = context->sc_rip;
-	regs->tf_rsp    = context->sc_rsp;
-	regs->tf_r8     = context->sc_r8;
-	regs->tf_r9     = context->sc_r9;
-	regs->tf_r10    = context->sc_r10;
-	regs->tf_r11    = context->sc_r11;
-	regs->tf_r12    = context->sc_r12;
-	regs->tf_r13    = context->sc_r13;
-	regs->tf_r14    = context->sc_r14;
-	regs->tf_r15    = context->sc_r15;
-	regs->tf_cs     = context->sc_cs;
-	regs->tf_err    = context->sc_err;
+	regs->tf_rdi = context->sc_rdi;
+	regs->tf_rsi = context->sc_rsi;
+	regs->tf_rdx = context->sc_rdx;
+	regs->tf_rbp = context->sc_rbp;
+	regs->tf_rbx = context->sc_rbx;
+	regs->tf_rcx = context->sc_rcx;
+	regs->tf_rax = context->sc_rax;
+	regs->tf_rip = context->sc_rip;
+	regs->tf_rsp = context->sc_rsp;
+	regs->tf_r8 = context->sc_r8;
+	regs->tf_r9 = context->sc_r9;
+	regs->tf_r10 = context->sc_r10;
+	regs->tf_r11 = context->sc_r11;
+	regs->tf_r12 = context->sc_r12;
+	regs->tf_r13 = context->sc_r13;
+	regs->tf_r14 = context->sc_r14;
+	regs->tf_r15 = context->sc_r15;
+	regs->tf_cs = context->sc_cs;
+	regs->tf_err = context->sc_err;
 	regs->tf_rflags = rflags;
 
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
@@ -607,8 +607,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_rsp);
 
-	LINUX_CTR4(rt_sendsig, "%p, %d, %p, %u",
-	    catcher, sig, mask, code);
+	LINUX_CTR4(rt_sendsig, "%p, %d, %p, %u", catcher, sig, mask, code);
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -631,38 +630,39 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	sf.sf_sc.uc_stack.ss_sp = PTROUT(td->td_sigstk.ss_sp);
 	sf.sf_sc.uc_stack.ss_size = td->td_sigstk.ss_size;
-	sf.sf_sc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
-	    ? ((oonstack) ? LINUX_SS_ONSTACK : 0) : LINUX_SS_DISABLE;
+	sf.sf_sc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK) ?
+		  ((oonstack) ? LINUX_SS_ONSTACK : 0) :
+		  LINUX_SS_DISABLE;
 	PROC_UNLOCK(p);
 
-	sf.sf_sc.uc_mcontext.sc_rdi    = regs->tf_rdi;
-	sf.sf_sc.uc_mcontext.sc_rsi    = regs->tf_rsi;
-	sf.sf_sc.uc_mcontext.sc_rdx    = regs->tf_rdx;
-	sf.sf_sc.uc_mcontext.sc_rbp    = regs->tf_rbp;
-	sf.sf_sc.uc_mcontext.sc_rbx    = regs->tf_rbx;
-	sf.sf_sc.uc_mcontext.sc_rcx    = regs->tf_rcx;
-	sf.sf_sc.uc_mcontext.sc_rax    = regs->tf_rax;
-	sf.sf_sc.uc_mcontext.sc_rip    = regs->tf_rip;
-	sf.sf_sc.uc_mcontext.sc_rsp    = regs->tf_rsp;
-	sf.sf_sc.uc_mcontext.sc_r8     = regs->tf_r8;
-	sf.sf_sc.uc_mcontext.sc_r9     = regs->tf_r9;
-	sf.sf_sc.uc_mcontext.sc_r10    = regs->tf_r10;
-	sf.sf_sc.uc_mcontext.sc_r11    = regs->tf_r11;
-	sf.sf_sc.uc_mcontext.sc_r12    = regs->tf_r12;
-	sf.sf_sc.uc_mcontext.sc_r13    = regs->tf_r13;
-	sf.sf_sc.uc_mcontext.sc_r14    = regs->tf_r14;
-	sf.sf_sc.uc_mcontext.sc_r15    = regs->tf_r15;
-	sf.sf_sc.uc_mcontext.sc_cs     = regs->tf_cs;
+	sf.sf_sc.uc_mcontext.sc_rdi = regs->tf_rdi;
+	sf.sf_sc.uc_mcontext.sc_rsi = regs->tf_rsi;
+	sf.sf_sc.uc_mcontext.sc_rdx = regs->tf_rdx;
+	sf.sf_sc.uc_mcontext.sc_rbp = regs->tf_rbp;
+	sf.sf_sc.uc_mcontext.sc_rbx = regs->tf_rbx;
+	sf.sf_sc.uc_mcontext.sc_rcx = regs->tf_rcx;
+	sf.sf_sc.uc_mcontext.sc_rax = regs->tf_rax;
+	sf.sf_sc.uc_mcontext.sc_rip = regs->tf_rip;
+	sf.sf_sc.uc_mcontext.sc_rsp = regs->tf_rsp;
+	sf.sf_sc.uc_mcontext.sc_r8 = regs->tf_r8;
+	sf.sf_sc.uc_mcontext.sc_r9 = regs->tf_r9;
+	sf.sf_sc.uc_mcontext.sc_r10 = regs->tf_r10;
+	sf.sf_sc.uc_mcontext.sc_r11 = regs->tf_r11;
+	sf.sf_sc.uc_mcontext.sc_r12 = regs->tf_r12;
+	sf.sf_sc.uc_mcontext.sc_r13 = regs->tf_r13;
+	sf.sf_sc.uc_mcontext.sc_r14 = regs->tf_r14;
+	sf.sf_sc.uc_mcontext.sc_r15 = regs->tf_r15;
+	sf.sf_sc.uc_mcontext.sc_cs = regs->tf_cs;
 	sf.sf_sc.uc_mcontext.sc_rflags = regs->tf_rflags;
-	sf.sf_sc.uc_mcontext.sc_err    = regs->tf_err;
+	sf.sf_sc.uc_mcontext.sc_err = regs->tf_err;
 	sf.sf_sc.uc_mcontext.sc_trapno = bsd_to_linux_trapcode(code);
-	sf.sf_sc.uc_mcontext.sc_cr2    = (register_t)ksi->ksi_addr;
+	sf.sf_sc.uc_mcontext.sc_cr2 = (register_t)ksi->ksi_addr;
 
 	/* Build the argument list for the signal handler. */
-	regs->tf_rdi = sig;			/* arg 1 in %rdi */
+	regs->tf_rdi = sig; /* arg 1 in %rdi */
 	regs->tf_rax = 0;
-	regs->tf_rsi = (register_t)&sfp->sf_si;	/* arg 2 in %rsi */
-	regs->tf_rdx = (register_t)&sfp->sf_sc;	/* arg 3 in %rdx */
+	regs->tf_rsi = (register_t)&sfp->sf_si; /* arg 2 in %rsi */
+	regs->tf_rdx = (register_t)&sfp->sf_sc; /* arg 3 in %rdx */
 
 	sf.sf_handler = catcher;
 	/* Fill in POSIX parts. */
@@ -683,8 +683,8 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	mtx_lock(&psp->ps_mtx);
 }
 
-#define	LINUX_VSYSCALL_START		(-10UL << 20)
-#define	LINUX_VSYSCALL_SZ		1024
+#define LINUX_VSYSCALL_START (-10UL << 20)
+#define LINUX_VSYSCALL_SZ 1024
 
 const unsigned long linux_vsyscall_vector[] = {
 	LINUX_SYS_gettimeofday,
@@ -731,39 +731,39 @@ linux_vsyscall(struct thread *td)
 }
 
 struct sysentvec elf_linux_sysvec = {
-	.sv_size	= LINUX_SYS_MAXSYSCALL,
-	.sv_table	= linux_sysent,
-	.sv_transtrap	= linux_translate_traps,
-	.sv_fixup	= linux_fixup_elf,
-	.sv_sendsig	= linux_rt_sendsig,
-	.sv_sigcode	= &_binary_linux_locore_o_start,
-	.sv_szsigcode	= &linux_szsigcode,
-	.sv_name	= "Linux ELF64",
-	.sv_coredump	= elf64_coredump,
-	.sv_imgact_try	= linux_exec_imgact_try,
-	.sv_minsigstksz	= LINUX_MINSIGSTKSZ,
-	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= VM_MAXUSER_ADDRESS_LA48,
-	.sv_usrstack	= USRSTACK_LA48,
-	.sv_psstrings	= PS_STRINGS_LA48,
-	.sv_stackprot	= VM_PROT_ALL,
+	.sv_size = LINUX_SYS_MAXSYSCALL,
+	.sv_table = linux_sysent,
+	.sv_transtrap = linux_translate_traps,
+	.sv_fixup = linux_fixup_elf,
+	.sv_sendsig = linux_rt_sendsig,
+	.sv_sigcode = &_binary_linux_locore_o_start,
+	.sv_szsigcode = &linux_szsigcode,
+	.sv_name = "Linux ELF64",
+	.sv_coredump = elf64_coredump,
+	.sv_imgact_try = linux_exec_imgact_try,
+	.sv_minsigstksz = LINUX_MINSIGSTKSZ,
+	.sv_minuser = VM_MIN_ADDRESS,
+	.sv_maxuser = VM_MAXUSER_ADDRESS_LA48,
+	.sv_usrstack = USRSTACK_LA48,
+	.sv_psstrings = PS_STRINGS_LA48,
+	.sv_stackprot = VM_PROT_ALL,
 	.sv_copyout_auxargs = linux_copyout_auxargs,
 	.sv_copyout_strings = linux_copyout_strings,
-	.sv_setregs	= linux_exec_setregs,
-	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_LINUX | SV_LP64 | SV_SHP,
+	.sv_setregs = linux_exec_setregs,
+	.sv_fixlimit = NULL,
+	.sv_maxssiz = NULL,
+	.sv_flags = SV_ABI_LINUX | SV_LP64 | SV_SHP,
 	.sv_set_syscall_retval = linux_set_syscall_retval,
 	.sv_fetch_syscall_args = linux_fetch_syscall_args,
 	.sv_syscallnames = NULL,
 	.sv_shared_page_base = SHAREDPAGE_LA48,
 	.sv_shared_page_len = PAGE_SIZE,
-	.sv_schedtail	= linux_schedtail,
+	.sv_schedtail = linux_schedtail,
 	.sv_thread_detach = linux_thread_detach,
-	.sv_trap	= linux_vsyscall,
-	.sv_onexec	= linux_on_exec,
-	.sv_onexit	= linux_on_exit,
-	.sv_ontdexit	= linux_thread_dtor,
+	.sv_trap = linux_vsyscall,
+	.sv_onexec = linux_on_exec,
+	.sv_onexit = linux_on_exit,
+	.sv_ontdexit = linux_thread_dtor,
 };
 
 static void
@@ -780,8 +780,8 @@ linux_vdso_install(void *param)
 
 	__elfN(linux_vdso_fixup)(&elf_linux_sysvec);
 
-	linux_shared_page_obj = __elfN(linux_shared_page_init)
-	    (&linux_shared_page_mapping);
+	linux_shared_page_obj = __elfN(linux_shared_page_init)(
+	    &linux_shared_page_mapping);
 
 	__elfN(linux_vdso_reloc)(&elf_linux_sysvec);
 
@@ -792,15 +792,15 @@ linux_vdso_install(void *param)
 	linux_kplatform = linux_shared_page_mapping +
 	    (linux_platform - (caddr_t)elf_linux_sysvec.sv_shared_page_base);
 }
-SYSINIT(elf_linux_vdso_init, SI_SUB_EXEC, SI_ORDER_ANY,
-    linux_vdso_install, NULL);
+SYSINIT(
+    elf_linux_vdso_init, SI_SUB_EXEC, SI_ORDER_ANY, linux_vdso_install, NULL);
 
 static void
 linux_vdso_deinstall(void *param)
 {
 
-	__elfN(linux_shared_page_fini)(linux_shared_page_obj,
-	    linux_shared_page_mapping);
+	__elfN(linux_shared_page_fini)(
+	    linux_shared_page_obj, linux_shared_page_mapping);
 }
 SYSUNINIT(elf_linux_vdso_uninit, SI_SUB_EXEC, SI_ORDER_FIRST,
     linux_vdso_deinstall, NULL);
@@ -831,57 +831,46 @@ linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
 	return (true);
 }
 
-static Elf_Brandnote linux64_brandnote = {
-	.hdr.n_namesz	= sizeof(GNULINUX_ABI_VENDOR),
-	.hdr.n_descsz	= 16,
-	.hdr.n_type	= 1,
-	.vendor		= GNULINUX_ABI_VENDOR,
-	.flags		= BN_TRANSLATE_OSREL,
-	.trans_osrel	= linux_trans_osrel
-};
+static Elf_Brandnote linux64_brandnote = { .hdr.n_namesz = sizeof(
+					       GNULINUX_ABI_VENDOR),
+	.hdr.n_descsz = 16,
+	.hdr.n_type = 1,
+	.vendor = GNULINUX_ABI_VENDOR,
+	.flags = BN_TRANSLATE_OSREL,
+	.trans_osrel = linux_trans_osrel };
 
-static Elf64_Brandinfo linux_glibc2brand = {
-	.brand		= ELFOSABI_LINUX,
-	.machine	= EM_X86_64,
-	.compat_3_brand	= "Linux",
-	.emul_path	= linux_emul_path,
-	.interp_path	= "/lib64/ld-linux-x86-64.so.2",
-	.sysvec		= &elf_linux_sysvec,
-	.interp_newpath	= NULL,
-	.brand_note	= &linux64_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
-};
+static Elf64_Brandinfo linux_glibc2brand = { .brand = ELFOSABI_LINUX,
+	.machine = EM_X86_64,
+	.compat_3_brand = "Linux",
+	.emul_path = linux_emul_path,
+	.interp_path = "/lib64/ld-linux-x86-64.so.2",
+	.sysvec = &elf_linux_sysvec,
+	.interp_newpath = NULL,
+	.brand_note = &linux64_brandnote,
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_NOTE };
 
-static Elf64_Brandinfo linux_glibc2brandshort = {
-	.brand		= ELFOSABI_LINUX,
-	.machine	= EM_X86_64,
-	.compat_3_brand	= "Linux",
-	.emul_path	= linux_emul_path,
-	.interp_path	= "/lib64/ld-linux.so.2",
-	.sysvec		= &elf_linux_sysvec,
-	.interp_newpath	= NULL,
-	.brand_note	= &linux64_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
-};
+static Elf64_Brandinfo linux_glibc2brandshort = { .brand = ELFOSABI_LINUX,
+	.machine = EM_X86_64,
+	.compat_3_brand = "Linux",
+	.emul_path = linux_emul_path,
+	.interp_path = "/lib64/ld-linux.so.2",
+	.sysvec = &elf_linux_sysvec,
+	.interp_newpath = NULL,
+	.brand_note = &linux64_brandnote,
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_NOTE };
 
-static Elf64_Brandinfo linux_muslbrand = {
-	.brand		= ELFOSABI_LINUX,
-	.machine	= EM_X86_64,
-	.compat_3_brand	= "Linux",
-	.emul_path	= linux_emul_path,
-	.interp_path	= "/lib/ld-musl-x86_64.so.1",
-	.sysvec		= &elf_linux_sysvec,
-	.interp_newpath	= NULL,
-	.brand_note	= &linux64_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
-};
+static Elf64_Brandinfo linux_muslbrand = { .brand = ELFOSABI_LINUX,
+	.machine = EM_X86_64,
+	.compat_3_brand = "Linux",
+	.emul_path = linux_emul_path,
+	.interp_path = "/lib/ld-musl-x86_64.so.1",
+	.sysvec = &elf_linux_sysvec,
+	.interp_newpath = NULL,
+	.brand_note = &linux64_brandnote,
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_NOTE };
 
-Elf64_Brandinfo *linux_brandlist[] = {
-	&linux_glibc2brand,
-	&linux_glibc2brandshort,
-	&linux_muslbrand,
-	NULL
-};
+Elf64_Brandinfo *linux_brandlist[] = { &linux_glibc2brand,
+	&linux_glibc2brandshort, &linux_muslbrand, NULL };
 
 static int
 linux64_elf_modevent(module_t mod, int type, void *data)
@@ -892,7 +881,7 @@ linux64_elf_modevent(module_t mod, int type, void *data)
 
 	error = 0;
 
-	switch(type) {
+	switch (type) {
 	case MOD_LOAD:
 		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
 		     ++brandinfo)
@@ -900,12 +889,14 @@ linux64_elf_modevent(module_t mod, int type, void *data)
 				error = EINVAL;
 		if (error == 0) {
 			SET_FOREACH(lihp, linux_ioctl_handler_set)
-				linux_ioctl_register_handler(*lihp);
+			linux_ioctl_register_handler(*lihp);
 			stclohz = (stathz ? stathz : hz);
 			if (bootverbose)
-				printf("Linux x86-64 ELF exec handler installed\n");
+				printf(
+				    "Linux x86-64 ELF exec handler installed\n");
 		} else
-			printf("cannot insert Linux x86-64 ELF brand handler\n");
+			printf(
+			    "cannot insert Linux x86-64 ELF brand handler\n");
 		break;
 	case MOD_UNLOAD:
 		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
@@ -920,7 +911,7 @@ linux64_elf_modevent(module_t mod, int type, void *data)
 		}
 		if (error == 0) {
 			SET_FOREACH(lihp, linux_ioctl_handler_set)
-				linux_ioctl_unregister_handler(*lihp);
+			linux_ioctl_unregister_handler(*lihp);
 			if (bootverbose)
 				printf("Linux ELF exec handler removed\n");
 		} else
@@ -932,11 +923,7 @@ linux64_elf_modevent(module_t mod, int type, void *data)
 	return (error);
 }
 
-static moduledata_t linux64_elf_mod = {
-	"linux64elf",
-	linux64_elf_modevent,
-	0
-};
+static moduledata_t linux64_elf_mod = { "linux64elf", linux64_elf_modevent, 0 };
 
 DECLARE_MODULE_TIED(linux64elf, linux64_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
 MODULE_DEPEND(linux64elf, linux_common, 1, 1, 1);

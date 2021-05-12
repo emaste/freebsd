@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
@@ -39,75 +40,77 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
 #include <sys/taskqueue.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include "geom/raid/g_raid.h"
+
 #include "g_raid_md_if.h"
+#include "geom/raid/g_raid.h"
 
-static MALLOC_DEFINE(M_MD_JMICRON, "md_jmicron_data", "GEOM_RAID JMicron metadata");
+static MALLOC_DEFINE(
+    M_MD_JMICRON, "md_jmicron_data", "GEOM_RAID JMicron metadata");
 
-#define	JMICRON_MAX_DISKS	8
-#define	JMICRON_MAX_SPARE	2
+#define JMICRON_MAX_DISKS 8
+#define JMICRON_MAX_SPARE 2
 
 struct jmicron_raid_conf {
-    u_int8_t		signature[2];
-#define	JMICRON_MAGIC		"JM"
+	u_int8_t signature[2];
+#define JMICRON_MAGIC "JM"
 
-    u_int16_t		version;
-#define	JMICRON_VERSION		0x0001
+	u_int16_t version;
+#define JMICRON_VERSION 0x0001
 
-    u_int16_t		checksum;
-    u_int8_t		filler_1[10];
-    u_int32_t		disk_id;
-    u_int32_t		offset;
-    u_int32_t		disk_sectors_high;
-    u_int16_t		disk_sectors_low;
-    u_int8_t		filler_2[2];
-    u_int8_t		name[16];
-    u_int8_t		type;
-#define	JMICRON_T_RAID0		0
-#define	JMICRON_T_RAID1		1
-#define	JMICRON_T_RAID01	2
-#define	JMICRON_T_CONCAT	3
-#define	JMICRON_T_RAID5		5
+	u_int16_t checksum;
+	u_int8_t filler_1[10];
+	u_int32_t disk_id;
+	u_int32_t offset;
+	u_int32_t disk_sectors_high;
+	u_int16_t disk_sectors_low;
+	u_int8_t filler_2[2];
+	u_int8_t name[16];
+	u_int8_t type;
+#define JMICRON_T_RAID0 0
+#define JMICRON_T_RAID1 1
+#define JMICRON_T_RAID01 2
+#define JMICRON_T_CONCAT 3
+#define JMICRON_T_RAID5 5
 
-    u_int8_t		stripe_shift;
-    u_int16_t		flags;
-#define	JMICRON_F_READY		0x0001
-#define	JMICRON_F_BOOTABLE	0x0002
-#define	JMICRON_F_BADSEC	0x0004
-#define	JMICRON_F_ACTIVE	0x0010
-#define	JMICRON_F_UNSYNC	0x0020
-#define	JMICRON_F_NEWEST	0x0040
+	u_int8_t stripe_shift;
+	u_int16_t flags;
+#define JMICRON_F_READY 0x0001
+#define JMICRON_F_BOOTABLE 0x0002
+#define JMICRON_F_BADSEC 0x0004
+#define JMICRON_F_ACTIVE 0x0010
+#define JMICRON_F_UNSYNC 0x0020
+#define JMICRON_F_NEWEST 0x0040
 
-    u_int8_t		filler_3[4];
-    u_int32_t		spare[JMICRON_MAX_SPARE];
-    u_int32_t		disks[JMICRON_MAX_DISKS];
-#define	JMICRON_DISK_MASK	0xFFFFFFF0
-#define	JMICRON_SEG_MASK	0x0000000F
-    u_int8_t		filler_4[32];
-    u_int8_t		filler_5[384];
+	u_int8_t filler_3[4];
+	u_int32_t spare[JMICRON_MAX_SPARE];
+	u_int32_t disks[JMICRON_MAX_DISKS];
+#define JMICRON_DISK_MASK 0xFFFFFFF0
+#define JMICRON_SEG_MASK 0x0000000F
+	u_int8_t filler_4[32];
+	u_int8_t filler_5[384];
 };
 
 struct g_raid_md_jmicron_perdisk {
-	struct jmicron_raid_conf	*pd_meta;
-	int				 pd_disk_pos;
-	int				 pd_disk_id;
-	off_t				 pd_disk_size;
+	struct jmicron_raid_conf *pd_meta;
+	int pd_disk_pos;
+	int pd_disk_id;
+	off_t pd_disk_size;
 };
 
 struct g_raid_md_jmicron_object {
-	struct g_raid_md_object	 mdio_base;
-	uint32_t		 mdio_config_id;
-	struct jmicron_raid_conf	*mdio_meta;
-	struct callout		 mdio_start_co;	/* STARTING state timer. */
-	int			 mdio_total_disks;
-	int			 mdio_disks_present;
-	int			 mdio_started;
-	int			 mdio_incomplete;
-	struct root_hold_token	*mdio_rootmount; /* Root mount delay token. */
+	struct g_raid_md_object mdio_base;
+	uint32_t mdio_config_id;
+	struct jmicron_raid_conf *mdio_meta;
+	struct callout mdio_start_co; /* STARTING state timer. */
+	int mdio_total_disks;
+	int mdio_disks_present;
+	int mdio_started;
+	int mdio_incomplete;
+	struct root_hold_token *mdio_rootmount; /* Root mount delay token. */
 };
 
 static g_raid_md_create_t g_raid_md_create_jmicron;
@@ -120,24 +123,19 @@ static g_raid_md_free_disk_t g_raid_md_free_disk_jmicron;
 static g_raid_md_free_t g_raid_md_free_jmicron;
 
 static kobj_method_t g_raid_md_jmicron_methods[] = {
-	KOBJMETHOD(g_raid_md_create,	g_raid_md_create_jmicron),
-	KOBJMETHOD(g_raid_md_taste,	g_raid_md_taste_jmicron),
-	KOBJMETHOD(g_raid_md_event,	g_raid_md_event_jmicron),
-	KOBJMETHOD(g_raid_md_ctl,	g_raid_md_ctl_jmicron),
-	KOBJMETHOD(g_raid_md_write,	g_raid_md_write_jmicron),
-	KOBJMETHOD(g_raid_md_fail_disk,	g_raid_md_fail_disk_jmicron),
-	KOBJMETHOD(g_raid_md_free_disk,	g_raid_md_free_disk_jmicron),
-	KOBJMETHOD(g_raid_md_free,	g_raid_md_free_jmicron),
-	{ 0, 0 }
+	KOBJMETHOD(g_raid_md_create, g_raid_md_create_jmicron),
+	KOBJMETHOD(g_raid_md_taste, g_raid_md_taste_jmicron),
+	KOBJMETHOD(g_raid_md_event, g_raid_md_event_jmicron),
+	KOBJMETHOD(g_raid_md_ctl, g_raid_md_ctl_jmicron),
+	KOBJMETHOD(g_raid_md_write, g_raid_md_write_jmicron),
+	KOBJMETHOD(g_raid_md_fail_disk, g_raid_md_fail_disk_jmicron),
+	KOBJMETHOD(g_raid_md_free_disk, g_raid_md_free_disk_jmicron),
+	KOBJMETHOD(g_raid_md_free, g_raid_md_free_jmicron), { 0, 0 }
 };
 
-static struct g_raid_md_class g_raid_md_jmicron_class = {
-	"JMicron",
-	g_raid_md_jmicron_methods,
-	sizeof(struct g_raid_md_jmicron_object),
-	.mdc_enable = 1,
-	.mdc_priority = 100
-};
+static struct g_raid_md_class g_raid_md_jmicron_class = { "JMicron",
+	g_raid_md_jmicron_methods, sizeof(struct g_raid_md_jmicron_object),
+	.mdc_enable = 1, .mdc_priority = 100 };
 
 static void
 g_raid_md_jmicron_print(struct jmicron_raid_conf *meta)
@@ -148,7 +146,8 @@ g_raid_md_jmicron_print(struct jmicron_raid_conf *meta)
 		return;
 
 	printf("********* ATA JMicron RAID Metadata *********\n");
-	printf("signature           <%c%c>\n", meta->signature[0], meta->signature[1]);
+	printf("signature           <%c%c>\n", meta->signature[0],
+	    meta->signature[1]);
 	printf("version             %04x\n", meta->version);
 	printf("checksum            0x%04x\n", meta->checksum);
 	printf("disk_id             0x%08x\n", meta->disk_id);
@@ -272,8 +271,8 @@ jmicron_meta_read(struct g_consumer *cp)
 	pp = cp->provider;
 
 	/* Read the anchor sector. */
-	buf = g_read_data(cp,
-	    pp->mediasize - pp->sectorsize, pp->sectorsize, &error);
+	buf = g_read_data(
+	    cp, pp->mediasize - pp->sectorsize, pp->sectorsize, &error);
 	if (buf == NULL) {
 		G_RAID_DEBUG(1, "Cannot read metadata from %s (error=%d).",
 		    pp->name, error);
@@ -283,7 +282,8 @@ jmicron_meta_read(struct g_consumer *cp)
 
 	/* Check if this is an JMicron RAID struct */
 	if (strncmp(meta->signature, JMICRON_MAGIC, strlen(JMICRON_MAGIC))) {
-		G_RAID_DEBUG(1, "JMicron signature check failed on %s", pp->name);
+		G_RAID_DEBUG(
+		    1, "JMicron signature check failed on %s", pp->name);
 		g_free(buf);
 		return (NULL);
 	}
@@ -295,7 +295,8 @@ jmicron_meta_read(struct g_consumer *cp)
 	for (checksum = 0, ptr = (uint16_t *)meta, i = 0; i < 64; i++)
 		checksum += *ptr++;
 	if (checksum != 0) {
-		G_RAID_DEBUG(1, "JMicron checksum check failed on %s", pp->name);
+		G_RAID_DEBUG(
+		    1, "JMicron checksum check failed on %s", pp->name);
 		free(meta, M_MD_JMICRON);
 		return (NULL);
 	}
@@ -323,8 +324,8 @@ jmicron_meta_write(struct g_consumer *cp, struct jmicron_raid_conf *meta)
 	buf = malloc(pp->sectorsize, M_MD_JMICRON, M_WAITOK | M_ZERO);
 	memcpy(buf, meta, sizeof(*meta));
 
-	error = g_write_data(cp,
-	    pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
+	error = g_write_data(
+	    cp, pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
 	if (error != 0) {
 		G_RAID_DEBUG(1, "Cannot write metadata to %s (error=%d).",
 		    pp->name, error);
@@ -343,8 +344,8 @@ jmicron_meta_erase(struct g_consumer *cp)
 
 	pp = cp->provider;
 	buf = malloc(pp->sectorsize, M_MD_JMICRON, M_WAITOK | M_ZERO);
-	error = g_write_data(cp,
-	    pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
+	error = g_write_data(
+	    cp, pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
 	if (error != 0) {
 		G_RAID_DEBUG(1, "Cannot erase metadata on %s (error=%d).",
 		    pp->name, error);
@@ -356,10 +357,10 @@ jmicron_meta_erase(struct g_consumer *cp)
 static struct g_raid_disk *
 g_raid_md_jmicron_get_disk(struct g_raid_softc *sc, int id)
 {
-	struct g_raid_disk	*disk;
+	struct g_raid_disk *disk;
 	struct g_raid_md_jmicron_perdisk *pd;
 
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
 		if (pd->pd_disk_pos == id)
 			break;
@@ -451,12 +452,12 @@ g_raid_md_jmicron_start_disk(struct g_raid_disk *disk)
 		 * If we have already started - try to get use of the disk.
 		 * Try to replace OFFLINE disks first, then FAILED.
 		 */
-		TAILQ_FOREACH(tmpdisk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (tmpdisk, &sc->sc_disks, d_next) {
 			if (tmpdisk->d_state != G_RAID_DISK_S_OFFLINE &&
 			    tmpdisk->d_state != G_RAID_DISK_S_FAILED)
 				continue;
 			/* Make sure this disk is big enough. */
-			TAILQ_FOREACH(sd, &tmpdisk->d_subdisks, sd_next) {
+			TAILQ_FOREACH (sd, &tmpdisk->d_subdisks, sd_next) {
 				if (sd->sd_offset + sd->sd_size + 512 >
 				    pd->pd_disk_size) {
 					G_RAID_DEBUG1(1, sc,
@@ -475,14 +476,14 @@ g_raid_md_jmicron_start_disk(struct g_raid_disk *disk)
 				olddisk = tmpdisk;
 		}
 		if (olddisk == NULL) {
-nofit:
+		nofit:
 			if (disk_pos == -3 || pd->pd_disk_pos == -3) {
-				g_raid_change_disk_state(disk,
-				    G_RAID_DISK_S_SPARE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_SPARE);
 				return (1);
 			} else {
-				g_raid_change_disk_state(disk,
-				    G_RAID_DISK_S_STALE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_STALE);
 				return (0);
 			}
 		}
@@ -497,8 +498,8 @@ nofit:
 		if (olddisk == NULL)
 			panic("No disk at position %d!", disk_pos);
 		if (olddisk->d_state != G_RAID_DISK_S_OFFLINE) {
-			G_RAID_DEBUG1(1, sc, "More than one disk for pos %d",
-			    disk_pos);
+			G_RAID_DEBUG1(
+			    1, sc, "More than one disk for pos %d", disk_pos);
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE);
 			return (0);
 		}
@@ -506,7 +507,7 @@ nofit:
 	}
 
 	/* Replace failed disk or placeholder with new disk. */
-	TAILQ_FOREACH_SAFE(sd, &olddisk->d_subdisks, sd_next, tmpsd) {
+	TAILQ_FOREACH_SAFE (sd, &olddisk->d_subdisks, sd_next, tmpsd) {
 		TAILQ_REMOVE(&olddisk->d_subdisks, sd, sd_next);
 		TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
 		sd->sd_disk = disk;
@@ -526,46 +527,44 @@ nofit:
 
 	/* Welcome the new disk. */
 	g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
-	TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
+	TAILQ_FOREACH (sd, &disk->d_subdisks, sd_next) {
 		/*
 		 * Different disks may have different sizes/offsets,
 		 * especially in concat mode. Update.
 		 */
 		if (!resurrection) {
-			sd->sd_offset =
-			    (off_t)pd->pd_meta->offset * 16 * 512; //ZZZ
-			sd->sd_size =
-			    (((off_t)pd->pd_meta->disk_sectors_high << 16) +
-			      pd->pd_meta->disk_sectors_low) * 512;
+			sd->sd_offset = (off_t)pd->pd_meta->offset * 16 *
+			    512; // ZZZ
+			sd->sd_size = (((off_t)pd->pd_meta->disk_sectors_high
+					   << 16) +
+					  pd->pd_meta->disk_sectors_low) *
+			    512;
 		}
 
 		if (resurrection) {
 			/* Stale disk, almost same as new. */
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_NEW);
+			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NEW);
 		} else if ((meta->flags & JMICRON_F_BADSEC) != 0 &&
 		    (pd->pd_meta->flags & JMICRON_F_BADSEC) == 0) {
 			/* Cold-inserted or rebuilding disk. */
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_NEW);
+			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NEW);
 		} else if (pd->pd_meta->flags & JMICRON_F_UNSYNC) {
 			/* Dirty or resyncing disk.. */
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_STALE);
+			g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_STALE);
 		} else {
 			/* Up to date disk. */
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_ACTIVE);
+			g_raid_change_subdisk_state(
+			    sd, G_RAID_SUBDISK_S_ACTIVE);
 		}
-		g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
-		    G_RAID_EVENT_SUBDISK);
+		g_raid_event_send(
+		    sd, G_RAID_SUBDISK_E_NEW, G_RAID_EVENT_SUBDISK);
 	}
 
 	/* Update status of our need for spare. */
 	if (mdi->mdio_started) {
-		mdi->mdio_incomplete =
-		    (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) <
-		     mdi->mdio_total_disks);
+		mdi->mdio_incomplete = (g_raid_ndisks(
+					    sc, G_RAID_DISK_S_ACTIVE) <
+		    mdi->mdio_total_disks);
 	}
 
 	return (resurrection);
@@ -600,10 +599,11 @@ g_raid_md_jmicron_refill(struct g_raid_softc *sc)
 
 		G_RAID_DEBUG1(1, md->mdo_softc,
 		    "Array is not complete (%d of %d), "
-		    "trying to refill.", na, mdi->mdio_total_disks);
+		    "trying to refill.",
+		    na, mdi->mdio_total_disks);
 
 		/* Try to get use some of STALE disks. */
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_state == G_RAID_DISK_S_STALE) {
 				update += g_raid_md_jmicron_start_disk(disk);
 				if (disk->d_state == G_RAID_DISK_S_ACTIVE)
@@ -614,7 +614,7 @@ g_raid_md_jmicron_refill(struct g_raid_softc *sc)
 			continue;
 
 		/* Try to get use some of SPARE disks. */
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_state == G_RAID_DISK_S_SPARE) {
 				update += g_raid_md_jmicron_start_disk(disk);
 				if (disk->d_state == G_RAID_DISK_S_ACTIVE)
@@ -633,8 +633,8 @@ g_raid_md_jmicron_refill(struct g_raid_softc *sc)
 
 	/* Request retaste hoping to find spare. */
 	if (mdi->mdio_incomplete) {
-		task = malloc(sizeof(struct task),
-		    M_MD_JMICRON, M_WAITOK | M_ZERO);
+		task = malloc(
+		    sizeof(struct task), M_MD_JMICRON, M_WAITOK | M_ZERO);
 		TASK_INIT(task, 0, g_disk_md_jmicron_retaste, task);
 		taskqueue_enqueue(taskqueue_swi, task);
 	}
@@ -662,7 +662,7 @@ g_raid_md_jmicron_start(struct g_raid_softc *sc)
 	jmicron_meta_get_name(meta, buf);
 	vol = g_raid_create_volume(sc, buf, -1);
 	size = ((off_t)meta->disk_sectors_high << 16) + meta->disk_sectors_low;
-	size *= 512; //ZZZ
+	size *= 512; // ZZZ
 	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 	if (meta->type == JMICRON_T_RAID0) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
@@ -687,12 +687,12 @@ g_raid_md_jmicron_start(struct g_raid_softc *sc)
 		vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
 		vol->v_mediasize = 0;
 	}
-	vol->v_strip_size = 1024 << meta->stripe_shift; //ZZZ
+	vol->v_strip_size = 1024 << meta->stripe_shift; // ZZZ
 	vol->v_disks_count = mdi->mdio_total_disks;
-	vol->v_sectorsize = 512; //ZZZ
+	vol->v_sectorsize = 512; // ZZZ
 	for (j = 0; j < vol->v_disks_count; j++) {
 		sd = &vol->v_subdisks[j];
-		sd->sd_offset = (off_t)meta->offset * 16 * 512; //ZZZ
+		sd->sd_offset = (off_t)meta->offset * 16 * 512; // ZZZ
 		sd->sd_size = size;
 	}
 	g_raid_start_volume(vol);
@@ -712,7 +712,7 @@ g_raid_md_jmicron_start(struct g_raid_softc *sc)
 
 	/* Make all disks found till the moment take their places. */
 	do {
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_state == G_RAID_DISK_S_NONE) {
 				g_raid_md_jmicron_start_disk(disk);
 				break;
@@ -759,24 +759,25 @@ g_raid_md_jmicron_new_disk(struct g_raid_disk *disk)
 		 * to get subdisks details, avoiding data from spare disks.
 		 */
 		if (mdi->mdio_meta == NULL ||
-		    jmicron_meta_find_disk(mdi->mdio_meta,
-		     mdi->mdio_meta->disk_id) == -3) {
+		    jmicron_meta_find_disk(
+			mdi->mdio_meta, mdi->mdio_meta->disk_id) == -3) {
 			if (mdi->mdio_meta != NULL)
 				free(mdi->mdio_meta, M_MD_JMICRON);
 			mdi->mdio_meta = jmicron_meta_copy(pdmeta);
-			mdi->mdio_total_disks = jmicron_meta_total_disks(pdmeta);
+			mdi->mdio_total_disks = jmicron_meta_total_disks(
+			    pdmeta);
 		}
 		mdi->mdio_meta->flags |= pdmeta->flags & JMICRON_F_BADSEC;
 
 		mdi->mdio_disks_present++;
 		G_RAID_DEBUG1(1, sc, "Matching disk (%d of %d+%d up)",
-		    mdi->mdio_disks_present,
-		    mdi->mdio_total_disks,
+		    mdi->mdio_disks_present, mdi->mdio_total_disks,
 		    jmicron_meta_total_spare(mdi->mdio_meta));
 
 		/* If we collected all needed disks - start array. */
-		if (mdi->mdio_disks_present == mdi->mdio_total_disks +
-		    jmicron_meta_total_spare(mdi->mdio_meta))
+		if (mdi->mdio_disks_present ==
+		    mdi->mdio_total_disks +
+			jmicron_meta_total_spare(mdi->mdio_meta))
 			g_raid_md_jmicron_start(sc);
 	}
 }
@@ -798,8 +799,8 @@ g_raid_jmicron_go(void *arg)
 }
 
 static int
-g_raid_md_create_jmicron(struct g_raid_md_object *md, struct g_class *mp,
-    struct g_geom **gp)
+g_raid_md_create_jmicron(
+    struct g_raid_md_object *md, struct g_class *mp, struct g_geom **gp)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_md_jmicron_object *mdi;
@@ -818,7 +819,7 @@ g_raid_md_create_jmicron(struct g_raid_md_object *md, struct g_class *mp,
 
 static int
 g_raid_md_taste_jmicron(struct g_raid_md_object *md, struct g_class *mp,
-                              struct g_consumer *cp, struct g_geom **gp)
+    struct g_consumer *cp, struct g_geom **gp)
 {
 	struct g_consumer *rcp;
 	struct g_provider *pp;
@@ -848,8 +849,8 @@ g_raid_md_taste_jmicron(struct g_raid_md_object *md, struct g_class *mp,
 	if (meta == NULL) {
 		if (g_raid_aggressive_spare) {
 			if (vendor == 0x197b) {
-				G_RAID_DEBUG(1,
-				    "No JMicron metadata, forcing spare.");
+				G_RAID_DEBUG(
+				    1, "No JMicron metadata, forcing spare.");
 				spare = 2;
 				goto search;
 			} else {
@@ -864,8 +865,8 @@ g_raid_md_taste_jmicron(struct g_raid_md_object *md, struct g_class *mp,
 	/* Check this disk position in obtained metadata. */
 	disk_pos = jmicron_meta_find_disk(meta, meta->disk_id);
 	if (disk_pos == -1) {
-		G_RAID_DEBUG(1, "JMicron disk_id %08x not found",
-		    meta->disk_id);
+		G_RAID_DEBUG(
+		    1, "JMicron disk_id %08x not found", meta->disk_id);
 		goto fail1;
 	}
 
@@ -878,7 +879,7 @@ search:
 	/* Search for matching node. */
 	sc = NULL;
 	mdi1 = NULL;
-	LIST_FOREACH(geom, &mp->geom, geom) {
+	LIST_FOREACH (geom, &mp->geom, geom) {
 		sc = geom->softc;
 		if (sc == NULL)
 			continue;
@@ -909,8 +910,8 @@ search:
 	} else { /* Not found matching node -- create one. */
 		result = G_RAID_MD_TASTE_NEW;
 		mdi->mdio_config_id = jmicron_meta_config_id(meta);
-		snprintf(name, sizeof(name), "JMicron-%08x",
-		    mdi->mdio_config_id);
+		snprintf(
+		    name, sizeof(name), "JMicron-%08x", mdi->mdio_config_id);
 		sc = g_raid_create_node(mp, name, md);
 		md->mdo_softc = sc;
 		geom = sc->sc_geom;
@@ -928,7 +929,7 @@ search:
 	rcp->flags |= G_CF_DIRECT_RECEIVE;
 	g_attach(rcp, pp);
 	if (g_access(rcp, 1, 1, 1) != 0)
-		; //goto fail1;
+		; // goto fail1;
 
 	g_topology_unlock();
 	sx_xlock(&sc->sc_lock);
@@ -962,8 +963,8 @@ fail1:
 }
 
 static int
-g_raid_md_event_jmicron(struct g_raid_md_object *md,
-    struct g_raid_disk *disk, u_int event)
+g_raid_md_event_jmicron(
+    struct g_raid_md_object *md, struct g_raid_disk *disk, u_int event)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_subdisk *sd;
@@ -991,10 +992,11 @@ g_raid_md_event_jmicron(struct g_raid_md_object *md,
 				g_raid_kill_consumer(sc, disk->d_consumer);
 				disk->d_consumer = NULL;
 			}
-			TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
-				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_NONE);
-				g_raid_event_send(sd, G_RAID_SUBDISK_E_DISCONNECTED,
+			TAILQ_FOREACH (sd, &disk->d_subdisks, sd_next) {
+				g_raid_change_subdisk_state(
+				    sd, G_RAID_SUBDISK_S_NONE);
+				g_raid_event_send(sd,
+				    G_RAID_SUBDISK_E_DISCONNECTED,
 				    G_RAID_EVENT_SUBDISK);
 			}
 		} else {
@@ -1018,8 +1020,7 @@ g_raid_md_event_jmicron(struct g_raid_md_object *md,
 }
 
 static int
-g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
-    struct gctl_req *req)
+g_raid_md_ctl_jmicron(struct g_raid_md_object *md, struct gctl_req *req)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
@@ -1065,9 +1066,10 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 		}
 		numdisks = *nargs - 3;
 		force = gctl_get_paraml(req, "force", sizeof(*force));
-		if (!g_raid_md_jmicron_supported(level, qual, numdisks,
-		    force ? *force : 0)) {
-			gctl_error(req, "Unsupported RAID level "
+		if (!g_raid_md_jmicron_supported(
+			level, qual, numdisks, force ? *force : 0)) {
+			gctl_error(req,
+			    "Unsupported RAID level "
 			    "(0x%02x/0x%02x), or number of disks (%d).",
 			    level, qual, numdisks);
 			return (-5);
@@ -1091,15 +1093,16 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 				g_topology_lock();
 				cp = g_raid_open_consumer(sc, diskname);
 				if (cp == NULL) {
-					gctl_error(req, "Can't open '%s'.",
-					    diskname);
+					gctl_error(
+					    req, "Can't open '%s'.", diskname);
 					g_topology_unlock();
 					error = -7;
 					break;
 				}
 				pp = cp->provider;
 			}
-			pd = malloc(sizeof(*pd), M_MD_JMICRON, M_WAITOK | M_ZERO);
+			pd = malloc(
+			    sizeof(*pd), M_MD_JMICRON, M_WAITOK | M_ZERO);
 			pd->pd_disk_pos = i;
 			pd->pd_disk_id = arc4random() & JMICRON_DISK_MASK;
 			disk = g_raid_create_disk(sc);
@@ -1205,22 +1208,24 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 		g_raid_start_volume(vol);
 
 		/* , and subdisks. */
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-			pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
+			pd = (struct g_raid_md_jmicron_perdisk *)
+				 disk->d_md_data;
 			sd = &vol->v_subdisks[pd->pd_disk_pos];
 			sd->sd_disk = disk;
 			sd->sd_offset = 0;
 			sd->sd_size = size;
 			TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
 			if (sd->sd_disk->d_consumer != NULL) {
-				g_raid_change_disk_state(disk,
-				    G_RAID_DISK_S_ACTIVE);
-				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_ACTIVE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_ACTIVE);
+				g_raid_change_subdisk_state(
+				    sd, G_RAID_SUBDISK_S_ACTIVE);
 				g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
 				    G_RAID_EVENT_SUBDISK);
 			} else {
-				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_OFFLINE);
 			}
 		}
 
@@ -1231,28 +1236,26 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 		/* Pickup any STALE/SPARE disks to refill array if needed. */
 		g_raid_md_jmicron_refill(sc);
 
-		g_raid_event_send(vol, G_RAID_VOLUME_E_START,
-		    G_RAID_EVENT_VOLUME);
+		g_raid_event_send(
+		    vol, G_RAID_VOLUME_E_START, G_RAID_EVENT_VOLUME);
 		return (0);
 	}
 	if (strcmp(verb, "delete") == 0) {
 		/* Check if some volume is still open. */
 		force = gctl_get_paraml(req, "force", sizeof(*force));
-		if (force != NULL && *force == 0 &&
-		    g_raid_nopens(sc) != 0) {
+		if (force != NULL && *force == 0 && g_raid_nopens(sc) != 0) {
 			gctl_error(req, "Some volume is still open.");
 			return (-4);
 		}
 
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 			if (disk->d_consumer)
 				jmicron_meta_erase(disk->d_consumer);
 		}
 		g_raid_destroy_node(sc, 0);
 		return (0);
 	}
-	if (strcmp(verb, "remove") == 0 ||
-	    strcmp(verb, "fail") == 0) {
+	if (strcmp(verb, "remove") == 0 || strcmp(verb, "fail") == 0) {
 		if (*nargs < 2) {
 			gctl_error(req, "Invalid number of arguments.");
 			return (-1);
@@ -1268,16 +1271,16 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 			if (strncmp(diskname, _PATH_DEV, 5) == 0)
 				diskname += 5;
 
-			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-				if (disk->d_consumer != NULL && 
+			TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
+				if (disk->d_consumer != NULL &&
 				    disk->d_consumer->provider != NULL &&
 				    strcmp(disk->d_consumer->provider->name,
-				     diskname) == 0)
+					diskname) == 0)
 					break;
 			}
 			if (disk == NULL) {
-				gctl_error(req, "Disk '%s' not found.",
-				    diskname);
+				gctl_error(
+				    req, "Disk '%s' not found.", diskname);
 				error = -3;
 				break;
 			}
@@ -1287,25 +1290,29 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 				continue;
 			}
 
-			pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
+			pd = (struct g_raid_md_jmicron_perdisk *)
+				 disk->d_md_data;
 
 			/* Erase metadata on deleting disk. */
 			jmicron_meta_erase(disk->d_consumer);
 
 			/* If disk was assigned, just update statuses. */
 			if (pd->pd_disk_pos >= 0) {
-				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_OFFLINE);
 				g_raid_kill_consumer(sc, disk->d_consumer);
 				disk->d_consumer = NULL;
-				TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
-					g_raid_change_subdisk_state(sd,
-					    G_RAID_SUBDISK_S_NONE);
-					g_raid_event_send(sd, G_RAID_SUBDISK_E_DISCONNECTED,
+				TAILQ_FOREACH (sd, &disk->d_subdisks, sd_next) {
+					g_raid_change_subdisk_state(
+					    sd, G_RAID_SUBDISK_S_NONE);
+					g_raid_event_send(sd,
+					    G_RAID_SUBDISK_E_DISCONNECTED,
 					    G_RAID_EVENT_SUBDISK);
 				}
 			} else {
 				/* Otherwise -- delete. */
-				g_raid_change_disk_state(disk, G_RAID_DISK_S_NONE);
+				g_raid_change_disk_state(
+				    disk, G_RAID_DISK_S_NONE);
 				g_raid_destroy_disk(disk);
 			}
 		}
@@ -1341,15 +1348,16 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 			g_topology_lock();
 			cp = g_raid_open_consumer(sc, diskname);
 			if (cp == NULL) {
-				gctl_error(req, "Can't open disk '%s'.",
-				    diskname);
+				gctl_error(
+				    req, "Can't open disk '%s'.", diskname);
 				g_topology_unlock();
 				error = -4;
 				break;
 			}
 			pp = cp->provider;
 
-			pd = malloc(sizeof(*pd), M_MD_JMICRON, M_WAITOK | M_ZERO);
+			pd = malloc(
+			    sizeof(*pd), M_MD_JMICRON, M_WAITOK | M_ZERO);
 			pd->pd_disk_pos = -3;
 			pd->pd_disk_id = arc4random() & JMICRON_DISK_MASK;
 			pd->pd_disk_size = pp->mediasize;
@@ -1366,8 +1374,8 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 			update += g_raid_md_jmicron_start_disk(disk);
 			if (disk->d_state != G_RAID_DISK_S_ACTIVE &&
 			    disk->d_state != G_RAID_DISK_S_SPARE) {
-				gctl_error(req, "Disk '%s' doesn't fit.",
-				    diskname);
+				gctl_error(
+				    req, "Disk '%s' doesn't fit.", diskname);
 				g_raid_destroy_disk(disk);
 				error = -8;
 				break;
@@ -1429,7 +1437,7 @@ g_raid_md_write_jmicron(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			meta->disks[i] = 0xffffffff;
 		else {
 			pd = (struct g_raid_md_jmicron_perdisk *)
-			    sd->sd_disk->d_md_data;
+				 sd->sd_disk->d_md_data;
 			meta->disks[i] = pd->pd_disk_id;
 		}
 		if (sd->sd_state < G_RAID_SUBDISK_S_STALE)
@@ -1440,7 +1448,7 @@ g_raid_md_write_jmicron(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 
 	/* Put spares to their slots. */
 	spares = 0;
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
 		if (disk->d_state != G_RAID_DISK_S_SPARE)
 			continue;
@@ -1453,7 +1461,7 @@ g_raid_md_write_jmicron(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	if (mdi->mdio_meta != NULL)
 		free(mdi->mdio_meta, M_MD_JMICRON);
 	mdi->mdio_meta = meta;
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+	TAILQ_FOREACH (disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
 		if (disk->d_state != G_RAID_DISK_S_ACTIVE &&
 		    disk->d_state != G_RAID_DISK_S_SPARE)
@@ -1465,12 +1473,11 @@ g_raid_md_write_jmicron(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		pd->pd_meta = jmicron_meta_copy(meta);
 		pd->pd_meta->disk_id = pd->pd_disk_id;
 		if ((sd = TAILQ_FIRST(&disk->d_subdisks)) != NULL) {
-			pd->pd_meta->offset =
-			    (sd->sd_offset / 512) / 16;
-			pd->pd_meta->disk_sectors_high =
-			    (sd->sd_size / 512) >> 16;
-			pd->pd_meta->disk_sectors_low =
-			    (sd->sd_size / 512) & 0xffff;
+			pd->pd_meta->offset = (sd->sd_offset / 512) / 16;
+			pd->pd_meta->disk_sectors_high = (sd->sd_size / 512) >>
+			    16;
+			pd->pd_meta->disk_sectors_low = (sd->sd_size / 512) &
+			    0xffff;
 			if (sd->sd_state < G_RAID_SUBDISK_S_STALE)
 				pd->pd_meta->flags &= ~JMICRON_F_BADSEC;
 			else if (sd->sd_state < G_RAID_SUBDISK_S_ACTIVE)
@@ -1504,19 +1511,17 @@ g_raid_md_fail_disk_jmicron(struct g_raid_md_object *md,
 
 	/* Change states. */
 	g_raid_change_disk_state(tdisk, G_RAID_DISK_S_FAILED);
-	TAILQ_FOREACH(sd, &tdisk->d_subdisks, sd_next) {
-		g_raid_change_subdisk_state(sd,
-		    G_RAID_SUBDISK_S_FAILED);
-		g_raid_event_send(sd, G_RAID_SUBDISK_E_FAILED,
-		    G_RAID_EVENT_SUBDISK);
+	TAILQ_FOREACH (sd, &tdisk->d_subdisks, sd_next) {
+		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_FAILED);
+		g_raid_event_send(
+		    sd, G_RAID_SUBDISK_E_FAILED, G_RAID_EVENT_SUBDISK);
 	}
 
 	/* Write updated metadata to remaining disks. */
 	g_raid_md_write_jmicron(md, NULL, NULL, tdisk);
 
 	/* Check if anything left except placeholders. */
-	if (g_raid_ndisks(sc, -1) ==
-	    g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
+	if (g_raid_ndisks(sc, -1) == g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
 		g_raid_destroy_node(sc, 0);
 	else
 		g_raid_md_jmicron_refill(sc);
@@ -1524,8 +1529,8 @@ g_raid_md_fail_disk_jmicron(struct g_raid_md_object *md,
 }
 
 static int
-g_raid_md_free_disk_jmicron(struct g_raid_md_object *md,
-    struct g_raid_disk *disk)
+g_raid_md_free_disk_jmicron(
+    struct g_raid_md_object *md, struct g_raid_disk *disk)
 {
 	struct g_raid_md_jmicron_perdisk *pd;
 
@@ -1548,8 +1553,8 @@ g_raid_md_free_jmicron(struct g_raid_md_object *md)
 	if (!mdi->mdio_started) {
 		mdi->mdio_started = 0;
 		callout_stop(&mdi->mdio_start_co);
-		G_RAID_DEBUG1(1, md->mdo_softc,
-		    "root_mount_rel %p", mdi->mdio_rootmount);
+		G_RAID_DEBUG1(
+		    1, md->mdo_softc, "root_mount_rel %p", mdi->mdio_rootmount);
 		root_mount_rel(mdi->mdio_rootmount);
 		mdi->mdio_rootmount = NULL;
 	}

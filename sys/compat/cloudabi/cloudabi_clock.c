@@ -27,15 +27,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/stdint.h>
-#include <sys/systm.h>
 #include <sys/syscallsubr.h>
-
-#include <contrib/cloudabi/cloudabi_types_common.h>
 
 #include <compat/cloudabi/cloudabi_proto.h>
 #include <compat/cloudabi/cloudabi_util.h>
+#include <contrib/cloudabi/cloudabi_types_common.h>
 
 /* Converts a CloudABI clock ID to a FreeBSD clock ID. */
 static int
@@ -84,8 +83,8 @@ cloudabi_convert_timespec(const struct timespec *in, cloudabi_timestamp_t *out)
 
 /* Fetches the time value of a clock. */
 int
-cloudabi_clock_time_get(struct thread *td, cloudabi_clockid_t clock_id,
-    cloudabi_timestamp_t *ret)
+cloudabi_clock_time_get(
+    struct thread *td, cloudabi_clockid_t clock_id, cloudabi_timestamp_t *ret)
 {
 	struct timespec ts;
 	int error;
@@ -101,8 +100,8 @@ cloudabi_clock_time_get(struct thread *td, cloudabi_clockid_t clock_id,
 }
 
 int
-cloudabi_sys_clock_res_get(struct thread *td,
-    struct cloudabi_sys_clock_res_get_args *uap)
+cloudabi_sys_clock_res_get(
+    struct thread *td, struct cloudabi_sys_clock_res_get_args *uap)
 {
 	struct timespec ts;
 	cloudabi_timestamp_t cts;
@@ -123,8 +122,8 @@ cloudabi_sys_clock_res_get(struct thread *td,
 }
 
 int
-cloudabi_sys_clock_time_get(struct thread *td,
-    struct cloudabi_sys_clock_time_get_args *uap)
+cloudabi_sys_clock_time_get(
+    struct thread *td, struct cloudabi_sys_clock_time_get_args *uap)
 {
 	cloudabi_timestamp_t ts;
 	int error;

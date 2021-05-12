@@ -29,10 +29,9 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include "opt_mac.h"
 
+#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/exec.h>
@@ -50,11 +49,11 @@
  * @brief per-device meta-data storage
  */
 struct veriexec_dev_list {
-	dev_t fsid;	/**< file system identifier of the mount point */
+	dev_t fsid; /**< file system identifier of the mount point */
 	LIST_HEAD(filehead, mac_veriexec_file_info) file_head;
-	    /**< list of per-file meta-data information */
+	/**< list of per-file meta-data information */
 	LIST_ENTRY(veriexec_dev_list) entries;
-	    /**< next entries in the device list */
+	/**< next entries in the device list */
 };
 
 typedef LIST_HEAD(veriexec_devhead, veriexec_dev_list) veriexec_devhead_t;
@@ -110,9 +109,11 @@ get_veriexec_file(struct veriexec_devhead *head, dev_t fsid, long fileid,
 	if (found_dev != NULL)
 		*found_dev = 0;
 
-	VERIEXEC_DEBUG(3, ("searching for file %ju.%lu on device %ju,"
-	    " files=%d\n", (uintmax_t)fileid, gen, (uintmax_t)fsid,
-	    (head == &veriexec_file_dev_head)));
+	VERIEXEC_DEBUG(3,
+	    ("searching for file %ju.%lu on device %ju,"
+	     " files=%d\n",
+		(uintmax_t)fileid, gen, (uintmax_t)fsid,
+		(head == &veriexec_file_dev_head)));
 
 	/* Get a lock to access the list */
 	mtx_lock(&ve_mutex);
@@ -124,15 +125,15 @@ get_veriexec_file(struct veriexec_devhead *head, dev_t fsid, long fileid,
 
 	/* We found the file system in the list */
 	if (lp != NULL) {
-		VERIEXEC_DEBUG(3, ("found matching dev number %ju\n",
-		    (uintmax_t)lp->fsid));
+		VERIEXEC_DEBUG(3,
+		    ("found matching dev number %ju\n", (uintmax_t)lp->fsid));
 
 		/* If found_dev is non-NULL, store true there */
 		if (found_dev != NULL)
 			*found_dev = 1;
 
 		/* Next, look for the meta-data information for the file */
-		LIST_FOREACH_SAFE(ip, &(lp->file_head), entries, tip) {
+		LIST_FOREACH_SAFE (ip, &(lp->file_head), entries, tip) {
 			if (ip->fileid == fileid) {
 				if (ip->gen == gen)
 					break;
@@ -166,11 +167,12 @@ mac_veriexec_print_db_dev_list(struct sbuf *sbp, struct veriexec_dev_list *lp)
 
 #define FPB(i) (ip->fingerprint[i])
 	for (ip = LIST_FIRST(&(lp->file_head)); ip != NULL;
-	    ip = LIST_NEXT(ip, entries))
-		sbuf_printf(sbp, "  %ld: %u %ld [%02x %02x %02x %02x %02x "
-		    "%02x %02x %02x...]\n", ip->fileid, ip->flags, ip->gen,
-		    FPB(0), FPB(1), FPB(2), FPB(3), FPB(4), FPB(5), FPB(6),
-		    FPB(7));
+	     ip = LIST_NEXT(ip, entries))
+		sbuf_printf(sbp,
+		    "  %ld: %u %ld [%02x %02x %02x %02x %02x "
+		    "%02x %02x %02x...]\n",
+		    ip->fileid, ip->flags, ip->gen, FPB(0), FPB(1), FPB(2),
+		    FPB(3), FPB(4), FPB(5), FPB(6), FPB(7));
 }
 
 /**
@@ -189,7 +191,6 @@ mac_veriexec_print_db_head(struct sbuf *sbp, struct veriexec_devhead *head)
 		sbuf_printf(sbp, " FS id: %ju\n", (uintmax_t)lp->fsid);
 		mac_veriexec_print_db_dev_list(sbp, lp);
 	}
-
 }
 
 /**
@@ -211,7 +212,7 @@ mac_veriexec_metadata_print_db(struct sbuf *sbp)
 	int i;
 
 	mtx_lock(&ve_mutex);
-	for (i = 0; i < sizeof(fpdbs)/sizeof(fpdbs[0]); i++) {
+	for (i = 0; i < sizeof(fpdbs) / sizeof(fpdbs[0]); i++) {
 		sbuf_printf(sbp, "%s fingerprint db:\n", fpdbs[i].name);
 		mac_veriexec_print_db_head(sbp, fpdbs[i].h);
 	}
@@ -230,8 +231,8 @@ int
 mac_veriexec_metadata_has_file(dev_t fsid, long fileid, unsigned long gen)
 {
 
-	return (mac_veriexec_metadata_get_file_info(fsid, fileid, gen, NULL,
-	    VERIEXEC_FILES_FIRST) != NULL);
+	return (mac_veriexec_metadata_get_file_info(
+		    fsid, fileid, gen, NULL, VERIEXEC_FILES_FIRST) != NULL);
 }
 
 /**
@@ -254,9 +255,9 @@ free_veriexec_dev(dev_t fsid, struct veriexec_devhead *head)
 	struct mac_veriexec_file_info *ip, *nip;
 
 	/* Look for the file system */
-	for (lp = LIST_FIRST(head); lp != NULL;
-	     lp = LIST_NEXT(lp, entries))
-		if (lp->fsid == fsid) break;
+	for (lp = LIST_FIRST(head); lp != NULL; lp = LIST_NEXT(lp, entries))
+		if (lp->fsid == fsid)
+			break;
 
 	/* If lp is NULL, we did not find it */
 	if (lp == NULL)
@@ -306,9 +307,9 @@ find_veriexec_dev(dev_t fsid, struct veriexec_devhead *head)
 
 search:
 	/* Look for the file system */
-	for (lp = LIST_FIRST(head); lp != NULL;
-	     lp = LIST_NEXT(lp, entries))
-		if (lp->fsid == fsid) break;
+	for (lp = LIST_FIRST(head); lp != NULL; lp = LIST_NEXT(lp, entries))
+		if (lp->fsid == fsid)
+			break;
 
 	if (lp == NULL) {
 		if (np == NULL) {
@@ -367,8 +368,8 @@ search:
  * @note Called with ve_mutex locked.
  */
 static size_t
-mac_veriexec_init_label(char **labelp, size_t labellen, char *src,
-    size_t srclen)
+mac_veriexec_init_label(
+    char **labelp, size_t labellen, char *src, size_t srclen)
 {
 	char *label;
 
@@ -401,23 +402,23 @@ mac_veriexec_init_label(char **labelp, size_t labellen, char *src,
 int
 mac_veriexec_metadata_unmounted(dev_t fsid, struct thread *td)
 {
-    int error;
+	int error;
 
-    /*
-     * The device can have entries on both lists.
-     */
-    mtx_lock(&ve_mutex);
-    error = free_veriexec_dev(fsid, &veriexec_dev_head);
-    if (error && error != ENOENT) {
-	    mtx_unlock(&ve_mutex);
-	    return error;
-    }
-    error = free_veriexec_dev(fsid, &veriexec_file_dev_head);
-    mtx_unlock(&ve_mutex);
-    if (error && error != ENOENT) {
-	    return error;
-    }
-    return 0;
+	/*
+	 * The device can have entries on both lists.
+	 */
+	mtx_lock(&ve_mutex);
+	error = free_veriexec_dev(fsid, &veriexec_dev_head);
+	if (error && error != ENOENT) {
+		mtx_unlock(&ve_mutex);
+		return error;
+	}
+	error = free_veriexec_dev(fsid, &veriexec_file_dev_head);
+	mtx_unlock(&ve_mutex);
+	if (error && error != ENOENT) {
+		return error;
+	}
+	return 0;
 }
 
 /**
@@ -434,14 +435,14 @@ mac_veriexec_metadata_unmounted(dev_t fsid, struct thread *td)
  * @return 0 on success, otherwise an error code.
  */
 int
-mac_veriexec_metadata_get_file_flags(dev_t fsid, long fileid, unsigned long gen,
-    int *flags, int check_files)
+mac_veriexec_metadata_get_file_flags(
+    dev_t fsid, long fileid, unsigned long gen, int *flags, int check_files)
 {
 	struct mac_veriexec_file_info *ip;
 	int found_dev;
 
-	ip = mac_veriexec_metadata_get_file_info(fsid, fileid, gen, &found_dev,
-	    check_files);
+	ip = mac_veriexec_metadata_get_file_info(
+	    fsid, fileid, gen, &found_dev, check_files);
 	if (ip == NULL)
 		return (ENOENT);
 
@@ -462,8 +463,8 @@ mac_veriexec_metadata_get_file_flags(dev_t fsid, long fileid, unsigned long gen,
  *     error code
  */
 int
-mac_veriexec_metadata_get_executable_flags(struct ucred *cred, struct proc *p,
-    int *flags, int check_files)
+mac_veriexec_metadata_get_executable_flags(
+    struct ucred *cred, struct proc *p, int *flags, int check_files)
 {
 	struct vnode *proc_vn;
 	struct vattr vap;
@@ -479,9 +480,8 @@ mac_veriexec_metadata_get_executable_flags(struct ucred *cred, struct proc *p,
 	if (error)
 		return error;
 
-	error = mac_veriexec_metadata_get_file_flags(vap.va_fsid,
-	    vap.va_fileid, vap.va_gen, flags,
-	    (check_files == VERIEXEC_FILES_FIRST));
+	error = mac_veriexec_metadata_get_file_flags(vap.va_fsid, vap.va_fileid,
+	    vap.va_gen, flags, (check_files == VERIEXEC_FILES_FIRST));
 
 	return (error);
 }
@@ -499,8 +499,8 @@ mac_veriexec_metadata_get_executable_flags(struct ucred *cred, struct proc *p,
  * @return 0 on success, otherwise an error code.
  */
 int
-mac_veriexec_metadata_fetch_fingerprint_status(struct vnode *vp,
-    struct vattr *vap, struct thread *td, int check_files)
+mac_veriexec_metadata_fetch_fingerprint_status(
+    struct vnode *vp, struct vattr *vap, struct thread *td, int check_files)
 {
 	unsigned char digest[MAXFINGERPRINTLEN];
 	struct mac_veriexec_file_info *ip;
@@ -517,17 +517,18 @@ mac_veriexec_metadata_fetch_fingerprint_status(struct vnode *vp,
 		    vap->va_fileid, vap->va_gen, &found_dev, check_files);
 		if (ip == NULL) {
 			status = (found_dev) ? FINGERPRINT_NOENTRY :
-			    FINGERPRINT_NODEV;
+						     FINGERPRINT_NODEV;
 			VERIEXEC_DEBUG(3,
 			    ("fingerprint status is %d for dev %ju, file "
-			    "%ju.%lu\n", status, (uintmax_t)vap->va_fsid,
-			    (uintmax_t)vap->va_fileid, vap->va_gen));
+			     "%ju.%lu\n",
+				status, (uintmax_t)vap->va_fsid,
+				(uintmax_t)vap->va_fileid, vap->va_gen));
 		} else {
 			/*
 			 * evaluate and compare fingerprint
 			 */
-			error = mac_veriexec_fingerprint_check_vnode(vp, ip,
-			    td, vap->va_size, digest);
+			error = mac_veriexec_fingerprint_check_vnode(
+			    vp, ip, td, vap->va_size, digest);
 			switch (error) {
 			case 0:
 				/* Process flags */
@@ -539,36 +540,39 @@ mac_veriexec_metadata_fetch_fingerprint_status(struct vnode *vp,
 					status = FINGERPRINT_VALID;
 				VERIEXEC_DEBUG(2,
 				    ("%sfingerprint matches for dev %ju, file "
-				    "%ju.%lu\n",
-				     (status == FINGERPRINT_INDIRECT) ?
-				     "indirect " :
-				     (status == FINGERPRINT_FILE) ?
-				     "file " : "", (uintmax_t)vap->va_fsid,
-				     (uintmax_t)vap->va_fileid, vap->va_gen));
+				     "%ju.%lu\n",
+					(status == FINGERPRINT_INDIRECT) ?
+						  "indirect " :
+					    (status == FINGERPRINT_FILE) ?
+						  "file " :
+						  "",
+					(uintmax_t)vap->va_fsid,
+					(uintmax_t)vap->va_fileid,
+					vap->va_gen));
 				break;
 
 			case EAUTH:
 #ifdef VERIFIED_EXEC_DEBUG_VERBOSE
-				{
-					char have[MAXFINGERPRINTLEN * 2 + 1];
-					char want[MAXFINGERPRINTLEN * 2 + 1];
-					int i, len;
+			{
+				char have[MAXFINGERPRINTLEN * 2 + 1];
+				char want[MAXFINGERPRINTLEN * 2 + 1];
+				int i, len;
 
-					len = ip->ops->digest_len;
-					for (i = 0; i < len; i++) {
-						sprintf(&want[i * 2], "%02x",
-						    ip->fingerprint[i]);
-						sprintf(&have[i * 2], "%02x",
-						    digest[i]);
-					}
-					log(LOG_ERR, MAC_VERIEXEC_FULLNAME
-					    ": fingerprint for dev %ju, file "
-					    "%ju.%lu %s != %s\n",
-					    (uintmax_t)vap->va_fsid,
-					    (uintmax_t)vap->va_fileid,
-					    vap->va_gen,
-					    have, want);
+				len = ip->ops->digest_len;
+				for (i = 0; i < len; i++) {
+					sprintf(&want[i * 2], "%02x",
+					    ip->fingerprint[i]);
+					sprintf(
+					    &have[i * 2], "%02x", digest[i]);
 				}
+				log(LOG_ERR,
+				    MAC_VERIEXEC_FULLNAME
+				    ": fingerprint for dev %ju, file "
+				    "%ju.%lu %s != %s\n",
+				    (uintmax_t)vap->va_fsid,
+				    (uintmax_t)vap->va_fileid, vap->va_gen,
+				    have, want);
+			}
 #endif
 				status = FINGERPRINT_NOMATCH;
 				break;
@@ -633,13 +637,13 @@ mac_veriexec_metadata_add_file(int file_dev, dev_t fsid, long fileid,
 search:
 	for (ip = LIST_FIRST(&(lp->file_head)); ip != NULL;
 	     ip = LIST_NEXT(ip, entries)) {
-		  /* check for a dupe file in the list, skip if an entry
-		   * exists for this file except for when the flags contains
-		   * VERIEXEC_INDIRECT, always set the flags when it is so
-		   * we don't get a hole caused by conflicting flags on
-		   * hardlinked files.  XXX maybe we should validate
-		   * fingerprint is same and complain if it is not...
-		   */
+		/* check for a dupe file in the list, skip if an entry
+		 * exists for this file except for when the flags contains
+		 * VERIEXEC_INDIRECT, always set the flags when it is so
+		 * we don't get a hole caused by conflicting flags on
+		 * hardlinked files.  XXX maybe we should validate
+		 * fingerprint is same and complain if it is not...
+		 */
 		if (ip->fileid == fileid && ip->gen == gen) {
 			if (override) {
 				/*
@@ -660,7 +664,8 @@ search:
 					ip->labellen = 0;
 					ip->label = NULL;
 				}
-			} else if ((flags & (VERIEXEC_INDIRECT|VERIEXEC_FILE)))
+			} else if ((flags &
+				       (VERIEXEC_INDIRECT | VERIEXEC_FILE)))
 				ip->flags |= flags;
 
 			if (np) {
@@ -706,16 +711,16 @@ search:
 	ip->gen = gen;
 	memcpy(ip->fingerprint, fingerprint, fpops->digest_len);
 	if (flags & VERIEXEC_LABEL)
-		ip->labellen = mac_veriexec_init_label(&ip->label,
-		    ip->labellen, label, labellen);
+		ip->labellen = mac_veriexec_init_label(
+		    &ip->label, ip->labellen, label, labellen);
 	else {
 		ip->label = NULL;
 		ip->labellen = 0;
 	}
 
-	VERIEXEC_DEBUG(3, ("add file %ju.%lu (files=%d)\n",
-	    (uintmax_t)ip->fileid,
-	    ip->gen, file_dev));
+	VERIEXEC_DEBUG(3,
+	    ("add file %ju.%lu (files=%d)\n", (uintmax_t)ip->fileid, ip->gen,
+		file_dev));
 
 	/* Add the entry to the list */
 	LIST_INSERT_HEAD(&(lp->file_head), ip, entries);
@@ -746,8 +751,8 @@ search:
  *     the specified file identifier, otherwise @c NULL
  */
 struct mac_veriexec_file_info *
-mac_veriexec_metadata_get_file_info(dev_t fsid, long fileid, unsigned long gen,
-    int *found_dev, int check_files)
+mac_veriexec_metadata_get_file_info(
+    dev_t fsid, long fileid, unsigned long gen, int *found_dev, int check_files)
 {
 	struct veriexec_devhead *search[3];
 	struct mac_veriexec_file_info *ip;
@@ -763,8 +768,9 @@ mac_veriexec_metadata_get_file_info(dev_t fsid, long fileid, unsigned long gen,
 	}
 	search[2] = NULL;
 
-	VERIEXEC_DEBUG(3, ("%s: searching for dev %ju, file %lu\n",
-	    __func__, (uintmax_t)fsid, fileid));
+	VERIEXEC_DEBUG(3,
+	    ("%s: searching for dev %ju, file %lu\n", __func__, (uintmax_t)fsid,
+		fileid));
 
 	/* Search for the specified file */
 	for (ip = NULL, x = 0; ip == NULL && search[x]; x++)

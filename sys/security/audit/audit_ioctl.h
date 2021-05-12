@@ -29,11 +29,11 @@
  */
 
 #ifndef _SECURITY_AUDIT_AUDIT_IOCTL_H_
-#define	_SECURITY_AUDIT_AUDIT_IOCTL_H_
+#define _SECURITY_AUDIT_AUDIT_IOCTL_H_
 
 #include <bsm/audit.h>
 
-#define	AUDITPIPE_IOBASE	'A'
+#define AUDITPIPE_IOBASE 'A'
 
 /*
  * Data structures used for complex ioctl arguments.  Do not change existing
@@ -41,45 +41,45 @@
  * old structures and ioctls for backwards compatibility.
  */
 struct auditpipe_ioctl_preselect {
-	au_id_t		aip_auid;
-	au_mask_t	aip_mask;
+	au_id_t aip_auid;
+	au_mask_t aip_mask;
 };
 
 /*
  * Possible modes of operation for audit pipe preselection.
  */
-#define	AUDITPIPE_PRESELECT_MODE_TRAIL	1	/* Global audit trail. */
-#define	AUDITPIPE_PRESELECT_MODE_LOCAL	2	/* Local audit trail. */
+#define AUDITPIPE_PRESELECT_MODE_TRAIL 1 /* Global audit trail. */
+#define AUDITPIPE_PRESELECT_MODE_LOCAL 2 /* Local audit trail. */
 
 /*
  * Ioctls to read and control the behavior of individual audit pipe devices.
  */
-#define	AUDITPIPE_GET_QLEN		_IOR(AUDITPIPE_IOBASE, 1, u_int)
-#define	AUDITPIPE_GET_QLIMIT		_IOR(AUDITPIPE_IOBASE, 2, u_int)
-#define	AUDITPIPE_SET_QLIMIT		_IOW(AUDITPIPE_IOBASE, 3, u_int)
-#define	AUDITPIPE_GET_QLIMIT_MIN	_IOR(AUDITPIPE_IOBASE, 4, u_int)
-#define	AUDITPIPE_GET_QLIMIT_MAX	_IOR(AUDITPIPE_IOBASE, 5, u_int)
-#define	AUDITPIPE_GET_PRESELECT_FLAGS	_IOR(AUDITPIPE_IOBASE, 6, au_mask_t)
-#define	AUDITPIPE_SET_PRESELECT_FLAGS	_IOW(AUDITPIPE_IOBASE, 7, au_mask_t)
-#define	AUDITPIPE_GET_PRESELECT_NAFLAGS	_IOR(AUDITPIPE_IOBASE, 8, au_mask_t)
-#define	AUDITPIPE_SET_PRESELECT_NAFLAGS	_IOW(AUDITPIPE_IOBASE, 9, au_mask_t)
-#define	AUDITPIPE_GET_PRESELECT_AUID	_IOR(AUDITPIPE_IOBASE, 10,	\
-					    struct auditpipe_ioctl_preselect)
-#define	AUDITPIPE_SET_PRESELECT_AUID	_IOW(AUDITPIPE_IOBASE, 11,	\
-					    struct auditpipe_ioctl_preselect)
-#define	AUDITPIPE_DELETE_PRESELECT_AUID	_IOW(AUDITPIPE_IOBASE, 12, au_id_t)
-#define	AUDITPIPE_FLUSH_PRESELECT_AUID	_IO(AUDITPIPE_IOBASE, 13)
-#define	AUDITPIPE_GET_PRESELECT_MODE	_IOR(AUDITPIPE_IOBASE, 14, int)
-#define	AUDITPIPE_SET_PRESELECT_MODE	_IOW(AUDITPIPE_IOBASE, 15, int)
-#define	AUDITPIPE_FLUSH			_IO(AUDITPIPE_IOBASE, 16)
-#define	AUDITPIPE_GET_MAXAUDITDATA	_IOR(AUDITPIPE_IOBASE, 17, u_int)
+#define AUDITPIPE_GET_QLEN _IOR(AUDITPIPE_IOBASE, 1, u_int)
+#define AUDITPIPE_GET_QLIMIT _IOR(AUDITPIPE_IOBASE, 2, u_int)
+#define AUDITPIPE_SET_QLIMIT _IOW(AUDITPIPE_IOBASE, 3, u_int)
+#define AUDITPIPE_GET_QLIMIT_MIN _IOR(AUDITPIPE_IOBASE, 4, u_int)
+#define AUDITPIPE_GET_QLIMIT_MAX _IOR(AUDITPIPE_IOBASE, 5, u_int)
+#define AUDITPIPE_GET_PRESELECT_FLAGS _IOR(AUDITPIPE_IOBASE, 6, au_mask_t)
+#define AUDITPIPE_SET_PRESELECT_FLAGS _IOW(AUDITPIPE_IOBASE, 7, au_mask_t)
+#define AUDITPIPE_GET_PRESELECT_NAFLAGS _IOR(AUDITPIPE_IOBASE, 8, au_mask_t)
+#define AUDITPIPE_SET_PRESELECT_NAFLAGS _IOW(AUDITPIPE_IOBASE, 9, au_mask_t)
+#define AUDITPIPE_GET_PRESELECT_AUID \
+	_IOR(AUDITPIPE_IOBASE, 10, struct auditpipe_ioctl_preselect)
+#define AUDITPIPE_SET_PRESELECT_AUID \
+	_IOW(AUDITPIPE_IOBASE, 11, struct auditpipe_ioctl_preselect)
+#define AUDITPIPE_DELETE_PRESELECT_AUID _IOW(AUDITPIPE_IOBASE, 12, au_id_t)
+#define AUDITPIPE_FLUSH_PRESELECT_AUID _IO(AUDITPIPE_IOBASE, 13)
+#define AUDITPIPE_GET_PRESELECT_MODE _IOR(AUDITPIPE_IOBASE, 14, int)
+#define AUDITPIPE_SET_PRESELECT_MODE _IOW(AUDITPIPE_IOBASE, 15, int)
+#define AUDITPIPE_FLUSH _IO(AUDITPIPE_IOBASE, 16)
+#define AUDITPIPE_GET_MAXAUDITDATA _IOR(AUDITPIPE_IOBASE, 17, u_int)
 
 /*
  * Ioctls to retrieve audit pipe statistics.
  */
-#define	AUDITPIPE_GET_INSERTS		_IOR(AUDITPIPE_IOBASE, 100, u_int64_t)
-#define	AUDITPIPE_GET_READS		_IOR(AUDITPIPE_IOBASE, 101, u_int64_t)
-#define	AUDITPIPE_GET_DROPS		_IOR(AUDITPIPE_IOBASE, 102, u_int64_t)
-#define	AUDITPIPE_GET_TRUNCATES		_IOR(AUDITPIPE_IOBASE, 103, u_int64_t)
+#define AUDITPIPE_GET_INSERTS _IOR(AUDITPIPE_IOBASE, 100, u_int64_t)
+#define AUDITPIPE_GET_READS _IOR(AUDITPIPE_IOBASE, 101, u_int64_t)
+#define AUDITPIPE_GET_DROPS _IOR(AUDITPIPE_IOBASE, 102, u_int64_t)
+#define AUDITPIPE_GET_TRUNCATES _IOR(AUDITPIPE_IOBASE, 103, u_int64_t)
 
 #endif /* _SECURITY_AUDIT_AUDIT_IOCTL_H_ */

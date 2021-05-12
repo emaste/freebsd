@@ -44,57 +44,57 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_vm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/queue.h>
 #include <sys/callout.h>
+#include <sys/condvar.h>
 #include <sys/hash.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/queue.h>
 #include <sys/smp.h>
-#include <sys/condvar.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/vmem.h>
 #include <sys/vmmeter.h>
 
-#include "opt_vm.h"
-
-#include <vm/uma.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/uma.h>
+#include <vm/uma_int.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_phys.h>
 #include <vm/vm_pagequeue.h>
-#include <vm/uma_int.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
-#define	VMEM_OPTORDER		5
-#define	VMEM_OPTVALUE		(1 << VMEM_OPTORDER)
-#define	VMEM_MAXORDER						\
-    (VMEM_OPTVALUE - 1 + sizeof(vmem_size_t) * NBBY - VMEM_OPTORDER)
+#define VMEM_OPTORDER 5
+#define VMEM_OPTVALUE (1 << VMEM_OPTORDER)
+#define VMEM_MAXORDER \
+	(VMEM_OPTVALUE - 1 + sizeof(vmem_size_t) * NBBY - VMEM_OPTORDER)
 
-#define	VMEM_HASHSIZE_MIN	16
-#define	VMEM_HASHSIZE_MAX	131072
+#define VMEM_HASHSIZE_MIN 16
+#define VMEM_HASHSIZE_MAX 131072
 
-#define	VMEM_QCACHE_IDX_MAX	16
+#define VMEM_QCACHE_IDX_MAX 16
 
-#define	VMEM_FITMASK	(M_BESTFIT | M_FIRSTFIT | M_NEXTFIT)
+#define VMEM_FITMASK (M_BESTFIT | M_FIRSTFIT | M_NEXTFIT)
 
-#define	VMEM_FLAGS	(M_NOWAIT | M_WAITOK | M_USE_RESERVE | M_NOVM |	\
-    M_BESTFIT | M_FIRSTFIT | M_NEXTFIT)
+#define VMEM_FLAGS                                                  \
+	(M_NOWAIT | M_WAITOK | M_USE_RESERVE | M_NOVM | M_BESTFIT | \
+	    M_FIRSTFIT | M_NEXTFIT)
 
-#define	BT_FLAGS	(M_NOWAIT | M_WAITOK | M_USE_RESERVE | M_NOVM)
+#define BT_FLAGS (M_NOWAIT | M_WAITOK | M_USE_RESERVE | M_NOVM)
 
-#define	QC_NAME_MAX	16
+#define QC_NAME_MAX 16
 
 /*
  * Data structures private to vmem.
@@ -108,15 +108,15 @@ LIST_HEAD(vmem_freelist, vmem_btag);
 LIST_HEAD(vmem_hashlist, vmem_btag);
 
 struct qcache {
-	uma_zone_t	qc_cache;
-	vmem_t 		*qc_vmem;
-	vmem_size_t	qc_size;
-	char		qc_name[QC_NAME_MAX];
+	uma_zone_t qc_cache;
+	vmem_t *qc_vmem;
+	vmem_size_t qc_size;
+	char qc_name[QC_NAME_MAX];
 };
 typedef struct qcache qcache_t;
-#define	QC_POOL_TO_QCACHE(pool)	((qcache_t *)(pool->pr_qcache))
+#define QC_POOL_TO_QCACHE(pool) ((qcache_t *)(pool->pr_qcache))
 
-#define	VMEM_NAME_MAX	16
+#define VMEM_NAME_MAX 16
 
 /* boundary tag */
 struct vmem_btag {
@@ -125,111 +125,115 @@ struct vmem_btag {
 		LIST_ENTRY(vmem_btag) u_freelist; /* BT_TYPE_FREE */
 		LIST_ENTRY(vmem_btag) u_hashlist; /* BT_TYPE_BUSY */
 	} bt_u;
-#define	bt_hashlist	bt_u.u_hashlist
-#define	bt_freelist	bt_u.u_freelist
-	vmem_addr_t	bt_start;
-	vmem_size_t	bt_size;
-	int		bt_type;
+#define bt_hashlist bt_u.u_hashlist
+#define bt_freelist bt_u.u_freelist
+	vmem_addr_t bt_start;
+	vmem_size_t bt_size;
+	int bt_type;
 };
 
 /* vmem arena */
 struct vmem {
-	struct mtx_padalign	vm_lock;
-	struct cv		vm_cv;
-	char			vm_name[VMEM_NAME_MAX+1];
-	LIST_ENTRY(vmem)	vm_alllist;
-	struct vmem_hashlist	vm_hash0[VMEM_HASHSIZE_MIN];
-	struct vmem_freelist	vm_freelist[VMEM_MAXORDER];
-	struct vmem_seglist	vm_seglist;
-	struct vmem_hashlist	*vm_hashlist;
-	vmem_size_t		vm_hashsize;
+	struct mtx_padalign vm_lock;
+	struct cv vm_cv;
+	char vm_name[VMEM_NAME_MAX + 1];
+	LIST_ENTRY(vmem) vm_alllist;
+	struct vmem_hashlist vm_hash0[VMEM_HASHSIZE_MIN];
+	struct vmem_freelist vm_freelist[VMEM_MAXORDER];
+	struct vmem_seglist vm_seglist;
+	struct vmem_hashlist *vm_hashlist;
+	vmem_size_t vm_hashsize;
 
 	/* Constant after init */
-	vmem_size_t		vm_qcache_max;
-	vmem_size_t		vm_quantum_mask;
-	vmem_size_t		vm_import_quantum;
-	int			vm_quantum_shift;
+	vmem_size_t vm_qcache_max;
+	vmem_size_t vm_quantum_mask;
+	vmem_size_t vm_import_quantum;
+	int vm_quantum_shift;
 
 	/* Written on alloc/free */
-	LIST_HEAD(, vmem_btag)	vm_freetags;
-	int			vm_nfreetags;
-	int			vm_nbusytag;
-	vmem_size_t		vm_inuse;
-	vmem_size_t		vm_size;
-	vmem_size_t		vm_limit;
-	struct vmem_btag	vm_cursor;
+	LIST_HEAD(, vmem_btag) vm_freetags;
+	int vm_nfreetags;
+	int vm_nbusytag;
+	vmem_size_t vm_inuse;
+	vmem_size_t vm_size;
+	vmem_size_t vm_limit;
+	struct vmem_btag vm_cursor;
 
 	/* Used on import. */
-	vmem_import_t		*vm_importfn;
-	vmem_release_t		*vm_releasefn;
-	void			*vm_arg;
+	vmem_import_t *vm_importfn;
+	vmem_release_t *vm_releasefn;
+	void *vm_arg;
 
 	/* Space exhaustion callback. */
-	vmem_reclaim_t		*vm_reclaimfn;
+	vmem_reclaim_t *vm_reclaimfn;
 
 	/* quantum cache */
-	qcache_t		vm_qcache[VMEM_QCACHE_IDX_MAX];
+	qcache_t vm_qcache[VMEM_QCACHE_IDX_MAX];
 };
 
-#define	BT_TYPE_SPAN		1	/* Allocated from importfn */
-#define	BT_TYPE_SPAN_STATIC	2	/* vmem_add() or create. */
-#define	BT_TYPE_FREE		3	/* Available space. */
-#define	BT_TYPE_BUSY		4	/* Used space. */
-#define	BT_TYPE_CURSOR		5	/* Cursor for nextfit allocations. */
-#define	BT_ISSPAN_P(bt)	((bt)->bt_type <= BT_TYPE_SPAN_STATIC)
+#define BT_TYPE_SPAN 1 /* Allocated from importfn */
+#define BT_TYPE_SPAN_STATIC 2 /* vmem_add() or create. */
+#define BT_TYPE_FREE 3 /* Available space. */
+#define BT_TYPE_BUSY 4 /* Used space. */
+#define BT_TYPE_CURSOR 5 /* Cursor for nextfit allocations. */
+#define BT_ISSPAN_P(bt) ((bt)->bt_type <= BT_TYPE_SPAN_STATIC)
 
-#define	BT_END(bt)	((bt)->bt_start + (bt)->bt_size - 1)
+#define BT_END(bt) ((bt)->bt_start + (bt)->bt_size - 1)
 
 #if defined(DIAGNOSTIC)
 static int enable_vmem_check = 1;
-SYSCTL_INT(_debug, OID_AUTO, vmem_check, CTLFLAG_RWTUN,
-    &enable_vmem_check, 0, "Enable vmem check");
+SYSCTL_INT(_debug, OID_AUTO, vmem_check, CTLFLAG_RWTUN, &enable_vmem_check, 0,
+    "Enable vmem check");
 static void vmem_check(vmem_t *);
 #endif
 
-static struct callout	vmem_periodic_ch;
-static int		vmem_periodic_interval;
-static struct task	vmem_periodic_wk;
+static struct callout vmem_periodic_ch;
+static int vmem_periodic_interval;
+static struct task vmem_periodic_wk;
 
 static struct mtx_padalign __exclusive_cache_line vmem_list_lock;
 static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
 static uma_zone_t vmem_zone;
 
 /* ---- misc */
-#define	VMEM_CONDVAR_INIT(vm, wchan)	cv_init(&vm->vm_cv, wchan)
-#define	VMEM_CONDVAR_DESTROY(vm)	cv_destroy(&vm->vm_cv)
-#define	VMEM_CONDVAR_WAIT(vm)		cv_wait(&vm->vm_cv, &vm->vm_lock)
-#define	VMEM_CONDVAR_BROADCAST(vm)	cv_broadcast(&vm->vm_cv)
+#define VMEM_CONDVAR_INIT(vm, wchan) cv_init(&vm->vm_cv, wchan)
+#define VMEM_CONDVAR_DESTROY(vm) cv_destroy(&vm->vm_cv)
+#define VMEM_CONDVAR_WAIT(vm) cv_wait(&vm->vm_cv, &vm->vm_lock)
+#define VMEM_CONDVAR_BROADCAST(vm) cv_broadcast(&vm->vm_cv)
 
-#define	VMEM_LOCK(vm)		mtx_lock(&vm->vm_lock)
-#define	VMEM_TRYLOCK(vm)	mtx_trylock(&vm->vm_lock)
-#define	VMEM_UNLOCK(vm)		mtx_unlock(&vm->vm_lock)
-#define	VMEM_LOCK_INIT(vm, name) mtx_init(&vm->vm_lock, (name), NULL, MTX_DEF)
-#define	VMEM_LOCK_DESTROY(vm)	mtx_destroy(&vm->vm_lock)
-#define	VMEM_ASSERT_LOCKED(vm)	mtx_assert(&vm->vm_lock, MA_OWNED);
+#define VMEM_LOCK(vm) mtx_lock(&vm->vm_lock)
+#define VMEM_TRYLOCK(vm) mtx_trylock(&vm->vm_lock)
+#define VMEM_UNLOCK(vm) mtx_unlock(&vm->vm_lock)
+#define VMEM_LOCK_INIT(vm, name) mtx_init(&vm->vm_lock, (name), NULL, MTX_DEF)
+#define VMEM_LOCK_DESTROY(vm) mtx_destroy(&vm->vm_lock)
+#define VMEM_ASSERT_LOCKED(vm) mtx_assert(&vm->vm_lock, MA_OWNED);
 
-#define	VMEM_ALIGNUP(addr, align)	(-(-(addr) & -(align)))
+#define VMEM_ALIGNUP(addr, align) (-(-(addr) & -(align)))
 
-#define	VMEM_CROSS_P(addr1, addr2, boundary) \
+#define VMEM_CROSS_P(addr1, addr2, boundary) \
 	((((addr1) ^ (addr2)) & -(boundary)) != 0)
 
-#define	ORDER2SIZE(order)	((order) < VMEM_OPTVALUE ? ((order) + 1) : \
-    (vmem_size_t)1 << ((order) - (VMEM_OPTVALUE - VMEM_OPTORDER - 1)))
-#define	SIZE2ORDER(size)	((size) <= VMEM_OPTVALUE ? ((size) - 1) : \
-    (flsl(size) + (VMEM_OPTVALUE - VMEM_OPTORDER - 2)))
+#define ORDER2SIZE(order)                          \
+	((order) < VMEM_OPTVALUE ? ((order) + 1) : \
+					 (vmem_size_t)1  \
+		    << ((order) - (VMEM_OPTVALUE - VMEM_OPTORDER - 1)))
+#define SIZE2ORDER(size)           \
+	((size) <= VMEM_OPTVALUE ? \
+		      ((size)-1) :       \
+		      (flsl(size) + (VMEM_OPTVALUE - VMEM_OPTORDER - 2)))
 
 /*
  * Maximum number of boundary tags that may be required to satisfy an
  * allocation.  Two may be required to import.  Another two may be
  * required to clip edges.
  */
-#define	BT_MAXALLOC	4
+#define BT_MAXALLOC 4
 
 /*
  * Max free limits the number of locally cached boundary tags.  We
  * just want to avoid hitting the zone allocator for every call.
  */
-#define BT_MAXFREE	(BT_MAXALLOC * 8)
+#define BT_MAXFREE (BT_MAXALLOC * 8)
 
 /* Allocator for boundary tags. */
 static uma_zone_t vmem_bt_zone;
@@ -288,8 +292,8 @@ _bt_fill(vmem_t *vm, int flags)
 	 * holding a vmem lock.
 	 */
 	while (vm->vm_nfreetags < BT_MAXALLOC) {
-		bt = uma_zalloc(vmem_bt_zone,
-		    (flags & M_USE_RESERVE) | M_NOWAIT | M_NOVM);
+		bt = uma_zalloc(
+		    vmem_bt_zone, (flags & M_USE_RESERVE) | M_NOWAIT | M_NOVM);
 		if (bt == NULL) {
 			VMEM_UNLOCK(vm);
 			bt = uma_zalloc(vmem_bt_zone, flags);
@@ -460,8 +464,8 @@ bt_lookupbusy(vmem_t *vm, vmem_addr_t addr)
 	bt_t *bt;
 
 	VMEM_ASSERT_LOCKED(vm);
-	list = bt_hashhead(vm, addr); 
-	LIST_FOREACH(bt, list, bt_hashlist) {
+	list = bt_hashhead(vm, addr);
+	LIST_FOREACH (bt, list, bt_hashlist) {
 		if (bt->bt_start == addr) {
 			break;
 		}
@@ -558,7 +562,7 @@ qc_import(void *arg, void **store, int cnt, int domain, int flags)
 	qc = arg;
 	for (i = 0; i < cnt; i++) {
 		if (vmem_xalloc(qc->qc_vmem, qc->qc_size, 0, 0, 0,
-		    VMEM_ADDR_QCACHE_MIN, VMEM_ADDR_MAX, flags, &addr) != 0)
+			VMEM_ADDR_QCACHE_MIN, VMEM_ADDR_MAX, flags, &addr) != 0)
 			break;
 		store[i] = (void *)addr;
 	}
@@ -588,8 +592,8 @@ qc_init(vmem_t *vm, vmem_size_t qcache_max)
 	int i;
 
 	MPASS((qcache_max & vm->vm_quantum_mask) == 0);
-	qcache_idx_max = MIN(qcache_max >> vm->vm_quantum_shift,
-	    VMEM_QCACHE_IDX_MAX);
+	qcache_idx_max = MIN(
+	    qcache_max >> vm->vm_quantum_shift, VMEM_QCACHE_IDX_MAX);
 	vm->vm_qcache_max = qcache_idx_max << vm->vm_quantum_shift;
 	for (i = 0; i < qcache_idx_max; i++) {
 		qc = &vm->vm_qcache[i];
@@ -598,8 +602,8 @@ qc_init(vmem_t *vm, vmem_size_t qcache_max)
 		    vm->vm_name, size);
 		qc->qc_vmem = vm;
 		qc->qc_size = size;
-		qc->qc_cache = uma_zcache_create(qc->qc_name, size,
-		    NULL, NULL, NULL, NULL, qc_import, qc_release, qc, 0);
+		qc->qc_cache = uma_zcache_create(qc->qc_name, size, NULL, NULL,
+		    NULL, NULL, qc_import, qc_release, qc, 0);
 		MPASS(qc->qc_cache);
 	}
 }
@@ -642,7 +646,7 @@ static struct mtx_padalign __exclusive_cache_line vmem_bt_lock;
  * page of kva.  We dip into this reserve by specifying M_USE_RESERVE only
  * when allocating the page to hold new boundary tags.  In this way the
  * reserve is automatically filled by the allocation that uses the reserve.
- * 
+ *
  * We still have to guarantee that the new tags are allocated atomically since
  * many threads may try concurrently.  The bt_lock provides this guarantee.
  * We convert WAITOK allocations to NOWAIT and then handle the blocking here
@@ -657,8 +661,8 @@ static struct mtx_padalign __exclusive_cache_line vmem_bt_lock;
  * we are really out of KVA.
  */
 static void *
-vmem_bt_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
-    int wait)
+vmem_bt_alloc(
+    uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag, int wait)
 {
 	vmem_addr_t addr;
 
@@ -670,10 +674,10 @@ vmem_bt_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	 */
 	mtx_lock(&vmem_bt_lock);
 	if (vmem_xalloc(vm_dom[domain].vmd_kernel_arena, bytes, 0, 0, 0,
-	    VMEM_ADDR_MIN, VMEM_ADDR_MAX,
-	    M_NOWAIT | M_NOVM | M_USE_RESERVE | M_BESTFIT, &addr) == 0) {
+		VMEM_ADDR_MIN, VMEM_ADDR_MAX,
+		M_NOWAIT | M_NOVM | M_USE_RESERVE | M_BESTFIT, &addr) == 0) {
 		if (kmem_back_domain(domain, kernel_object, addr, bytes,
-		    M_NOWAIT | M_USE_RESERVE) == 0) {
+			M_NOWAIT | M_USE_RESERVE) == 0) {
 			mtx_unlock(&vmem_bt_lock);
 			return ((void *)addr);
 		}
@@ -703,12 +707,10 @@ vmem_startup(void)
 {
 
 	mtx_init(&vmem_list_lock, "vmem list lock", NULL, MTX_DEF);
-	vmem_zone = uma_zcreate("vmem",
-	    sizeof(struct vmem), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
-	vmem_bt_zone = uma_zcreate("vmem btag",
-	    sizeof(struct vmem_btag), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_VM);
+	vmem_zone = uma_zcreate("vmem", sizeof(struct vmem), NULL, NULL, NULL,
+	    NULL, UMA_ALIGN_PTR, 0);
+	vmem_bt_zone = uma_zcreate("vmem btag", sizeof(struct vmem_btag), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
 #ifndef UMA_MD_SMALL_ALLOC
 	mtx_init(&vmem_bt_lock, "btag lock", NULL, MTX_DEF);
 	uma_prealloc(vmem_bt_zone, BT_MAXALLOC);
@@ -736,8 +738,8 @@ vmem_rehash(vmem_t *vm, vmem_size_t newhashsize)
 
 	MPASS(newhashsize > 0);
 
-	newhashlist = malloc(sizeof(struct vmem_hashlist) * newhashsize,
-	    M_VMEM, M_NOWAIT);
+	newhashlist = malloc(
+	    sizeof(struct vmem_hashlist) * newhashsize, M_VMEM, M_NOWAIT);
 	if (newhashlist == NULL)
 		return ENOMEM;
 	for (i = 0; i < newhashsize; i++) {
@@ -782,7 +784,7 @@ vmem_periodic(void *unused, int pending)
 	vmem_size_t current;
 
 	mtx_lock(&vmem_list_lock);
-	LIST_FOREACH(vm, &vmem_list, vm_alllist) {
+	LIST_FOREACH (vm, &vmem_list, vm_alllist) {
 #ifdef DIAGNOSTIC
 		/* Convenient time to verify vmem state. */
 		if (enable_vmem_check == 1) {
@@ -792,8 +794,8 @@ vmem_periodic(void *unused, int pending)
 		}
 #endif
 		desired = 1 << flsl(vm->vm_nbusytag);
-		desired = MIN(MAX(desired, VMEM_HASHSIZE_MIN),
-		    VMEM_HASHSIZE_MAX);
+		desired = MIN(
+		    MAX(desired, VMEM_HASHSIZE_MIN), VMEM_HASHSIZE_MAX);
 		current = vm->vm_hashsize;
 
 		/* Grow in powers of two.  Shrink less aggressively. */
@@ -943,9 +945,9 @@ vmem_import(vmem_t *vm, vmem_size_t size, vmem_size_t align, int flags)
  * before calling us.
  */
 static int
-vmem_fit(const bt_t *bt, vmem_size_t size, vmem_size_t align,
-    vmem_size_t phase, vmem_size_t nocross, vmem_addr_t minaddr,
-    vmem_addr_t maxaddr, vmem_addr_t *addrp)
+vmem_fit(const bt_t *bt, vmem_size_t size, vmem_size_t align, vmem_size_t phase,
+    vmem_size_t nocross, vmem_addr_t minaddr, vmem_addr_t maxaddr,
+    vmem_addr_t *addrp)
 {
 	vmem_addr_t start;
 	vmem_addr_t end;
@@ -965,7 +967,7 @@ vmem_fit(const bt_t *bt, vmem_size_t size, vmem_size_t align,
 	end = BT_END(bt);
 	if (end > maxaddr)
 		end = maxaddr;
-	if (start > end) 
+	if (start > end)
 		return (ENOMEM);
 
 	start = VMEM_ALIGNUP(start - phase, align) + phase;
@@ -1010,8 +1012,7 @@ vmem_clip(vmem_t *vm, bt_t *bt, vmem_addr_t start, vmem_size_t size)
 		bt->bt_start = start;
 		bt->bt_size -= btprev->bt_size;
 		bt_insfree(vm, btprev);
-		bt_insseg(vm, btprev,
-		    TAILQ_PREV(bt, vmem_seglist, bt_seglist));
+		bt_insseg(vm, btprev, TAILQ_PREV(bt, vmem_seglist, bt_seglist));
 	}
 	MPASS(bt->bt_start == start);
 	if (bt->bt_size != size && bt->bt_size - size > vm->vm_quantum_mask) {
@@ -1023,8 +1024,7 @@ vmem_clip(vmem_t *vm, bt_t *bt, vmem_addr_t start, vmem_size_t size)
 		bt->bt_start = bt->bt_start + size;
 		bt->bt_size -= size;
 		bt_insfree(vm, bt);
-		bt_insseg(vm, btnew,
-		    TAILQ_PREV(bt, vmem_seglist, bt_seglist));
+		bt_insseg(vm, btnew, TAILQ_PREV(bt, vmem_seglist, bt_seglist));
 		bt_insbusy(vm, btnew);
 		bt = btnew;
 	} else {
@@ -1132,12 +1132,12 @@ retry:
 	 * perform the allocation.
 	 */
 	for (cursor = &vm->vm_cursor, bt = TAILQ_NEXT(cursor, bt_seglist);
-	    bt != cursor; bt = TAILQ_NEXT(bt, bt_seglist)) {
+	     bt != cursor; bt = TAILQ_NEXT(bt, bt_seglist)) {
 		if (bt == NULL)
 			bt = TAILQ_FIRST(&vm->vm_seglist);
 		if (bt->bt_type == BT_TYPE_FREE && bt->bt_size >= size &&
 		    (error = vmem_fit(bt, size, align, phase, nocross,
-		    VMEM_ADDR_MIN, VMEM_ADDR_MAX, addrp)) == 0) {
+			 VMEM_ADDR_MIN, VMEM_ADDR_MAX, addrp)) == 0) {
 			vmem_clip(vm, bt, *addrp, size);
 			break;
 		}
@@ -1162,7 +1162,7 @@ retry:
 		 */
 		if (error == ENOMEM && prev->bt_size >= size &&
 		    (error = vmem_fit(prev, size, align, phase, nocross,
-		    VMEM_ADDR_MIN, VMEM_ADDR_MAX, addrp)) == 0) {
+			 VMEM_ADDR_MIN, VMEM_ADDR_MAX, addrp)) == 0) {
 			vmem_clip(vm, prev, *addrp, size);
 			bt = prev;
 		} else
@@ -1175,7 +1175,7 @@ retry:
 	if (error == 0) {
 		TAILQ_REMOVE(&vm->vm_seglist, cursor, bt_seglist);
 		for (; bt != NULL && bt->bt_start < *addrp + size;
-		    bt = TAILQ_NEXT(bt, bt_seglist))
+		     bt = TAILQ_NEXT(bt, bt_seglist))
 			;
 		if (bt != NULL)
 			TAILQ_INSERT_BEFORE(bt, cursor, bt_seglist);
@@ -1198,8 +1198,8 @@ out:
 /* ---- vmem API */
 
 void
-vmem_set_import(vmem_t *vm, vmem_import_t *importfn,
-     vmem_release_t *releasefn, void *arg, vmem_size_t import_quantum)
+vmem_set_import(vmem_t *vm, vmem_import_t *importfn, vmem_release_t *releasefn,
+    void *arg, vmem_size_t import_quantum)
 {
 
 	VMEM_LOCK(vm);
@@ -1292,11 +1292,10 @@ vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
 
 	vmem_t *vm;
 
-	vm = uma_zalloc(vmem_zone, flags & (M_WAITOK|M_NOWAIT));
+	vm = uma_zalloc(vmem_zone, flags & (M_WAITOK | M_NOWAIT));
 	if (vm == NULL)
 		return (NULL);
-	if (vmem_init(vm, name, base, size, quantum, qcache_max,
-	    flags) == NULL)
+	if (vmem_init(vm, name, base, size, quantum, qcache_max, flags) == NULL)
 		return (NULL);
 	return (vm);
 }
@@ -1341,14 +1340,14 @@ vmem_alloc(vmem_t *vm, vmem_size_t size, int flags, vmem_addr_t *addrp)
 		 * to return 0.
 		 */
 		qc = &vm->vm_qcache[(size - 1) >> vm->vm_quantum_shift];
-		*addrp = (vmem_addr_t)uma_zalloc(qc->qc_cache,
-		    (flags & ~M_WAITOK) | M_NOWAIT);
+		*addrp = (vmem_addr_t)uma_zalloc(
+		    qc->qc_cache, (flags & ~M_WAITOK) | M_NOWAIT);
 		if (__predict_true(*addrp != 0))
 			return (0);
 	}
 
-	return (vmem_xalloc(vm, size, 0, 0, 0, VMEM_ADDR_MIN, VMEM_ADDR_MAX,
-	    flags, addrp));
+	return (vmem_xalloc(
+	    vm, size, 0, 0, 0, VMEM_ADDR_MIN, VMEM_ADDR_MAX, flags, addrp));
 }
 
 int
@@ -1370,7 +1369,7 @@ vmem_xalloc(vmem_t *vm, const vmem_size_t size0, vmem_size_t align,
 	MPASS(size0 > 0);
 	MPASS(size > 0);
 	MPASS(strat == M_BESTFIT || strat == M_FIRSTFIT || strat == M_NEXTFIT);
-	MPASS((flags & (M_NOWAIT|M_WAITOK)) != (M_NOWAIT|M_WAITOK));
+	MPASS((flags & (M_NOWAIT | M_WAITOK)) != (M_NOWAIT | M_WAITOK));
 	if ((flags & M_NOWAIT) == 0)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "vmem_xalloc");
 	MPASS((align & vm->vm_quantum_mask) == 0);
@@ -1393,8 +1392,8 @@ vmem_xalloc(vmem_t *vm, const vmem_size_t size0, vmem_size_t align,
 	 * Next-fit allocations don't use the freelists.
 	 */
 	if (strat == M_NEXTFIT)
-		return (vmem_xalloc_nextfit(vm, size0, align, phase, nocross,
-		    flags, addrp));
+		return (vmem_xalloc_nextfit(
+		    vm, size0, align, phase, nocross, flags, addrp));
 
 	end = &vm->vm_freelist[VMEM_MAXORDER];
 	/*
@@ -1411,13 +1410,13 @@ vmem_xalloc(vmem_t *vm, const vmem_size_t size0, vmem_size_t align,
 		goto out;
 	for (;;) {
 		/*
-	 	 * Scan freelists looking for a tag that satisfies the
+		 * Scan freelists looking for a tag that satisfies the
 		 * allocation.  If we're doing BESTFIT we may encounter
 		 * sizes below the request.  If we're doing FIRSTFIT we
 		 * inspect only the first element from each list.
 		 */
 		for (list = first; list < end; list++) {
-			LIST_FOREACH(bt, list, bt_freelist) {
+			LIST_FOREACH (bt, list, bt_freelist) {
 				if (bt->bt_size >= size) {
 					error = vmem_fit(bt, size, align, phase,
 					    nocross, minaddr, maxaddr, addrp);
@@ -1497,14 +1496,14 @@ vmem_xfree(vmem_t *vm, vmem_addr_t addr, vmem_size_t size __unused)
 	/* coalesce */
 	t = TAILQ_NEXT(bt, bt_seglist);
 	if (t != NULL && t->bt_type == BT_TYPE_FREE) {
-		MPASS(BT_END(bt) < t->bt_start);	/* YYY */
+		MPASS(BT_END(bt) < t->bt_start); /* YYY */
 		bt->bt_size += t->bt_size;
 		bt_remfree(vm, t);
 		bt_remseg(vm, t);
 	}
 	t = TAILQ_PREV(bt, vmem_seglist, bt_seglist);
 	if (t != NULL && t->bt_type == BT_TYPE_FREE) {
-		MPASS(BT_END(t) < bt->bt_start);	/* YYY */
+		MPASS(BT_END(t) < bt->bt_start); /* YYY */
 		bt->bt_size += t->bt_size;
 		bt->bt_start = t->bt_start;
 		bt_remfree(vm, t);
@@ -1551,7 +1550,7 @@ vmem_size(vmem_t *vm, int typemask)
 		return vm->vm_inuse;
 	case VMEM_FREE:
 		return vm->vm_size - vm->vm_inuse;
-	case VMEM_FREE|VMEM_ALLOC:
+	case VMEM_FREE | VMEM_ALLOC:
 		return vm->vm_size;
 	case VMEM_MAXFREE:
 		VMEM_LOCK(vm);
@@ -1559,8 +1558,8 @@ vmem_size(vmem_t *vm, int typemask)
 			if (LIST_EMPTY(&vm->vm_freelist[i]))
 				continue;
 			VMEM_UNLOCK(vm);
-			return ((vmem_size_t)ORDER2SIZE(i) <<
-			    vm->vm_quantum_shift);
+			return (
+			    (vmem_size_t)ORDER2SIZE(i) << vm->vm_quantum_shift);
 		}
 		VMEM_UNLOCK(vm);
 		return (0);
@@ -1573,8 +1572,8 @@ vmem_size(vmem_t *vm, int typemask)
 
 #if defined(DDB) || defined(DIAGNOSTIC)
 
-static void bt_dump(const bt_t *, int (*)(const char *, ...)
-    __printflike(1, 2));
+static void bt_dump(
+    const bt_t *, int (*)(const char *, ...) __printflike(1, 2));
 
 static const char *
 bt_type_string(int type)
@@ -1601,19 +1600,18 @@ static void
 bt_dump(const bt_t *bt, int (*pr)(const char *, ...))
 {
 
-	(*pr)("\t%p: %jx %jx, %d(%s)\n",
-	    bt, (intmax_t)bt->bt_start, (intmax_t)bt->bt_size,
-	    bt->bt_type, bt_type_string(bt->bt_type));
+	(*pr)("\t%p: %jx %jx, %d(%s)\n", bt, (intmax_t)bt->bt_start,
+	    (intmax_t)bt->bt_size, bt->bt_type, bt_type_string(bt->bt_type));
 }
 
 static void
-vmem_dump(const vmem_t *vm , int (*pr)(const char *, ...) __printflike(1, 2))
+vmem_dump(const vmem_t *vm, int (*pr)(const char *, ...) __printflike(1, 2))
 {
 	const bt_t *bt;
 	int i;
 
 	(*pr)("vmem %p '%s'\n", vm, vm->vm_name);
-	TAILQ_FOREACH(bt, &vm->vm_seglist, bt_seglist) {
+	TAILQ_FOREACH (bt, &vm->vm_seglist, bt_seglist) {
 		bt_dump(bt, pr);
 	}
 
@@ -1625,7 +1623,7 @@ vmem_dump(const vmem_t *vm , int (*pr)(const char *, ...) __printflike(1, 2))
 		}
 
 		(*pr)("freelist[%d]\n", i);
-		LIST_FOREACH(bt, fl, bt_freelist) {
+		LIST_FOREACH (bt, fl, bt_freelist) {
 			bt_dump(bt, pr);
 		}
 	}
@@ -1641,7 +1639,7 @@ vmem_whatis_lookup(vmem_t *vm, vmem_addr_t addr)
 {
 	bt_t *bt;
 
-	TAILQ_FOREACH(bt, &vm->vm_seglist, bt_seglist) {
+	TAILQ_FOREACH (bt, &vm->vm_seglist, bt_seglist) {
 		if (BT_ISSPAN_P(bt)) {
 			continue;
 		}
@@ -1658,16 +1656,16 @@ vmem_whatis(vmem_addr_t addr, int (*pr)(const char *, ...))
 {
 	vmem_t *vm;
 
-	LIST_FOREACH(vm, &vmem_list, vm_alllist) {
+	LIST_FOREACH (vm, &vmem_list, vm_alllist) {
 		bt_t *bt;
 
 		bt = vmem_whatis_lookup(vm, addr);
 		if (bt == NULL) {
 			continue;
 		}
-		(*pr)("%p is %p+%zu in VMEM '%s' (%s)\n",
-		    (void *)addr, (void *)bt->bt_start,
-		    (vmem_size_t)(addr - bt->bt_start), vm->vm_name,
+		(*pr)("%p is %p+%zu in VMEM '%s' (%s)\n", (void *)addr,
+		    (void *)bt->bt_start, (vmem_size_t)(addr - bt->bt_start),
+		    vm->vm_name,
 		    (bt->bt_type == BT_TYPE_BUSY) ? "allocated" : "free");
 	}
 }
@@ -1677,7 +1675,7 @@ vmem_printall(const char *modif, int (*pr)(const char *, ...))
 {
 	const vmem_t *vm;
 
-	LIST_FOREACH(vm, &vmem_list, vm_alllist) {
+	LIST_FOREACH (vm, &vmem_list, vm_alllist) {
 		vmem_dump(vm, pr);
 	}
 }
@@ -1705,7 +1703,7 @@ DB_SHOW_ALL_COMMAND(vmemdump, vmemdumpall)
 {
 	const vmem_t *vm;
 
-	LIST_FOREACH(vm, &vmem_list, vm_alllist)
+	LIST_FOREACH (vm, &vmem_list, vm_alllist)
 		vmem_dump(vm, db_printf);
 }
 
@@ -1734,7 +1732,7 @@ DB_SHOW_COMMAND(vmem, vmem_summ)
 	memset(&ut, 0, sizeof(ut));
 	memset(&fs, 0, sizeof(fs));
 	memset(&us, 0, sizeof(us));
-	TAILQ_FOREACH(bt, &vm->vm_seglist, bt_seglist) {
+	TAILQ_FOREACH (bt, &vm->vm_seglist, bt_seglist) {
 		ord = SIZE2ORDER(bt->bt_size >> vm->vm_quantum_shift);
 		if (bt->bt_type == BT_TYPE_BUSY) {
 			ut[ord]++;
@@ -1749,8 +1747,8 @@ DB_SHOW_COMMAND(vmem, vmem_summ)
 		if (ut[ord] == 0 && ft[ord] == 0)
 			continue;
 		db_printf("\t%-15zu %zu\t%-15zu %zu\t%-16zu\n",
-		    ORDER2SIZE(ord) << vm->vm_quantum_shift,
-		    ut[ord], us[ord], ft[ord], fs[ord]);
+		    ORDER2SIZE(ord) << vm->vm_quantum_shift, ut[ord], us[ord],
+		    ft[ord], fs[ord]);
 	}
 }
 
@@ -1758,7 +1756,7 @@ DB_SHOW_ALL_COMMAND(vmem, vmem_summall)
 {
 	const vmem_t *vm;
 
-	LIST_FOREACH(vm, &vmem_list, vm_alllist)
+	LIST_FOREACH (vm, &vmem_list, vm_alllist)
 		vmem_summ((db_expr_t)vm, TRUE, count, modif);
 }
 #endif /* defined(DDB) */
@@ -1774,14 +1772,14 @@ vmem_check_sanity(vmem_t *vm)
 
 	MPASS(vm != NULL);
 
-	TAILQ_FOREACH(bt, &vm->vm_seglist, bt_seglist) {
+	TAILQ_FOREACH (bt, &vm->vm_seglist, bt_seglist) {
 		if (bt->bt_start > BT_END(bt)) {
 			printf("corrupted tag\n");
 			bt_dump(bt, vmem_printf);
 			return false;
 		}
 	}
-	TAILQ_FOREACH(bt, &vm->vm_seglist, bt_seglist) {
+	TAILQ_FOREACH (bt, &vm->vm_seglist, bt_seglist) {
 		if (bt->bt_type == BT_TYPE_CURSOR) {
 			if (bt->bt_start != 0 || bt->bt_size != 0) {
 				printf("corrupted cursor\n");
@@ -1789,7 +1787,7 @@ vmem_check_sanity(vmem_t *vm)
 			}
 			continue;
 		}
-		TAILQ_FOREACH(bt2, &vm->vm_seglist, bt_seglist) {
+		TAILQ_FOREACH (bt2, &vm->vm_seglist, bt_seglist) {
 			if (bt == bt2) {
 				continue;
 			}

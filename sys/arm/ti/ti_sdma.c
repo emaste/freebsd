@@ -33,27 +33,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/interrupt.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/rman.h>
 #include <sys/queue.h>
+#include <sys/rman.h>
 #include <sys/taskqueue.h>
 #include <sys/timetc.h>
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/ti/ti_cpuid.h>
-#include <arm/ti/ti_sysc.h>
 #include <arm/ti/ti_sdma.h>
 #include <arm/ti/ti_sdmareg.h>
+#include <arm/ti/ti_sysc.h>
 
 /**
  *	Kernel functions for using the DMA controller
@@ -61,13 +62,13 @@ __FBSDID("$FreeBSD$");
  *
  *	DMA TRANSFERS:
  *	A DMA transfer block consists of a number of frames (FN). Each frame
- *	consists of a number of elements, and each element can have a size of 8, 16,
- *	or 32 bits.
+ *	consists of a number of elements, and each element can have a size of 8,
+ *16, or 32 bits.
  *
- *	OMAP44xx and newer chips support linked list (aka scatter gather) transfers,
- *	where a linked list of source/destination pairs can be placed in memory
- *	for the H/W to process.  Earlier chips only allowed you to chain multiple
- *	channels together.  However currently this linked list feature is not
+ *	OMAP44xx and newer chips support linked list (aka scatter gather)
+ *transfers, where a linked list of source/destination pairs can be placed in
+ *memory for the H/W to process.  Earlier chips only allowed you to chain
+ *multiple channels together.  However currently this linked list feature is not
  *	supported by the driver.
  *
  */
@@ -83,19 +84,19 @@ struct ti_sdma_channel {
 	 * by the set functions and only written to the actual registers when a
 	 * transaction is started.
 	 */
-	uint32_t		reg_csdp;
-	uint32_t		reg_ccr;
-	uint32_t		reg_cicr;
+	uint32_t reg_csdp;
+	uint32_t reg_ccr;
+	uint32_t reg_cicr;
 
 	/* Set when one of the configuration registers above change */
-	uint32_t		need_reg_write;
+	uint32_t need_reg_write;
 
-	/* Callback function used when an interrupt is tripped on the given channel */
+	/* Callback function used when an interrupt is tripped on the given
+	 * channel */
 	void (*callback)(unsigned int ch, uint32_t ch_status, void *data);
 
 	/* Callback data passed in the callback ... duh */
-	void*			callback_data;
-
+	void *callback_data;
 };
 
 /**
@@ -104,28 +105,27 @@ struct ti_sdma_channel {
  *
  */
 struct ti_sdma_softc {
-	device_t		sc_dev;
-	struct resource*	sc_irq_res;
-	struct resource*	sc_mem_res;
+	device_t sc_dev;
+	struct resource *sc_irq_res;
+	struct resource *sc_mem_res;
 
 	/*
 	 * I guess in theory we should have a mutex per DMA channel for register
-	 * modifications. But since we know we are never going to be run on a SMP
-	 * system, we can use just the single lock for all channels.
+	 * modifications. But since we know we are never going to be run on a
+	 * SMP system, we can use just the single lock for all channels.
 	 */
-	struct mtx		sc_mtx;
+	struct mtx sc_mtx;
 
 	/* Stores the H/W revision read from the registers */
-	uint32_t		sc_hw_rev;
+	uint32_t sc_hw_rev;
 
 	/*
 	 * Bits in the sc_active_channels data field indicate if the channel has
 	 * been activated.
 	 */
-	uint32_t		sc_active_channels;
+	uint32_t sc_active_channels;
 
 	struct ti_sdma_channel sc_channel[NUM_DMA_CHANNELS];
-
 };
 
 static struct ti_sdma_softc *ti_sdma_sc = NULL;
@@ -133,14 +133,14 @@ static struct ti_sdma_softc *ti_sdma_sc = NULL;
 /**
  *	Macros for driver mutex locking
  */
-#define TI_SDMA_LOCK(_sc)             mtx_lock_spin(&(_sc)->sc_mtx)
-#define TI_SDMA_UNLOCK(_sc)           mtx_unlock_spin(&(_sc)->sc_mtx)
-#define TI_SDMA_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	         "ti_sdma", MTX_SPIN)
-#define TI_SDMA_LOCK_DESTROY(_sc)     mtx_destroy(&_sc->sc_mtx);
-#define TI_SDMA_ASSERT_LOCKED(_sc)    mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define TI_SDMA_ASSERT_UNLOCKED(_sc)  mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+#define TI_SDMA_LOCK(_sc) mtx_lock_spin(&(_sc)->sc_mtx)
+#define TI_SDMA_UNLOCK(_sc) mtx_unlock_spin(&(_sc)->sc_mtx)
+#define TI_SDMA_LOCK_INIT(_sc)                                              \
+	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), "ti_sdma", \
+	    MTX_SPIN)
+#define TI_SDMA_LOCK_DESTROY(_sc) mtx_destroy(&_sc->sc_mtx);
+#define TI_SDMA_ASSERT_LOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define TI_SDMA_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
 /**
  *	Function prototypes
@@ -219,7 +219,7 @@ ti_sdma_intr(void *arg)
 	uint32_t intr;
 	uint32_t csr;
 	unsigned int ch, j;
-	struct ti_sdma_channel* channel;
+	struct ti_sdma_channel *channel;
 
 	TI_SDMA_LOCK(sc);
 
@@ -235,50 +235,68 @@ ti_sdma_intr(void *arg)
 			if (intr & (1 << ch)) {
 				channel = &sc->sc_channel[ch];
 
-				/* Read the CSR regsiter and verify we don't have a spurious IRQ */
+				/* Read the CSR regsiter and verify we don't
+				 * have a spurious IRQ */
 				csr = ti_sdma_read_4(sc, DMA4_CSR(ch));
 				if (csr == 0) {
-					device_printf(sc->sc_dev, "Spurious DMA IRQ for channel "
-					              "%d\n", ch);
+					device_printf(sc->sc_dev,
+					    "Spurious DMA IRQ for channel "
+					    "%d\n",
+					    ch);
 					continue;
 				}
 
 				/* Sanity check this channel is active */
 				if ((sc->sc_active_channels & (1 << ch)) == 0) {
-					device_printf(sc->sc_dev, "IRQ %d for a non-activated "
-					              "channel %d\n", j, ch);
+					device_printf(sc->sc_dev,
+					    "IRQ %d for a non-activated "
+					    "channel %d\n",
+					    j, ch);
 					continue;
 				}
 
 				/* Check the status error codes */
 				if (csr & DMA4_CSR_DROP)
-					device_printf(sc->sc_dev, "Synchronization event drop "
-					              "occurred during the transfer on channel %u\n",
-								  ch);
+					device_printf(sc->sc_dev,
+					    "Synchronization event drop "
+					    "occurred during the transfer on channel %u\n",
+					    ch);
 				if (csr & DMA4_CSR_SECURE_ERR)
-					device_printf(sc->sc_dev, "Secure transaction error event "
-					              "on channel %u\n", ch);
+					device_printf(sc->sc_dev,
+					    "Secure transaction error event "
+					    "on channel %u\n",
+					    ch);
 				if (csr & DMA4_CSR_MISALIGNED_ADRS_ERR)
-					device_printf(sc->sc_dev, "Misaligned address error event "
-					              "on channel %u\n", ch);
+					device_printf(sc->sc_dev,
+					    "Misaligned address error event "
+					    "on channel %u\n",
+					    ch);
 				if (csr & DMA4_CSR_TRANS_ERR) {
-					device_printf(sc->sc_dev, "Transaction error event on "
-					              "channel %u\n", ch);
+					device_printf(sc->sc_dev,
+					    "Transaction error event on "
+					    "channel %u\n",
+					    ch);
 					/*
-					 * Apparently according to linux code, there is an errata
-					 * that says the channel is not disabled upon this error.
-					 * They explicitly disable the channel here .. since I
-					 * haven't seen the errata, I'm going to ignore for now.
+					 * Apparently according to linux code,
+					 * there is an errata that says the
+					 * channel is not disabled upon this
+					 * error. They explicitly disable the
+					 * channel here .. since I haven't seen
+					 * the errata, I'm going to ignore for
+					 * now.
 					 */
 				}
 
 				/* Clear the status flags for the IRQ */
-				ti_sdma_write_4(sc, DMA4_CSR(ch), DMA4_CSR_CLEAR_MASK);
-				ti_sdma_write_4(sc, DMA4_IRQSTATUS_L(j), (1 << ch));
+				ti_sdma_write_4(
+				    sc, DMA4_CSR(ch), DMA4_CSR_CLEAR_MASK);
+				ti_sdma_write_4(
+				    sc, DMA4_IRQSTATUS_L(j), (1 << ch));
 
 				/* Call the callback for the given channel */
 				if (channel->callback)
-					channel->callback(ch, csr, channel->callback_data);
+					channel->callback(
+					    ch, csr, channel->callback_data);
 			}
 		}
 	}
@@ -295,8 +313,8 @@ ti_sdma_intr(void *arg)
  *	@data: optional data supplied when the callback is called
  *
  *	Simply activates a channel be enabling and writing default values to the
- *	channel's register set.  It doesn't start a transaction, just populates the
- *	internal data structures and sets defaults.
+ *	channel's register set.  It doesn't start a transaction, just populates
+ *the internal data structures and sets defaults.
  *
  *	Note this function doesn't enable interrupts, for that you need to call
  *	ti_sdma_enable_channel_irq(). If not using IRQ to detect the end of the
@@ -314,8 +332,7 @@ ti_sdma_intr(void *arg)
  */
 int
 ti_sdma_activate_channel(unsigned int *ch,
-                          void (*callback)(unsigned int ch, uint32_t status, void *data),
-                          void *data)
+    void (*callback)(unsigned int ch, uint32_t status, void *data), void *data)
 {
 	struct ti_sdma_softc *sc = ti_sdma_sc;
 	struct ti_sdma_channel *channel = NULL;
@@ -355,27 +372,19 @@ ti_sdma_activate_channel(unsigned int *ch,
 	channel->need_reg_write = 1;
 
 	/* Set the default configuration for the DMA channel */
-	channel->reg_csdp = DMA4_CSDP_DATA_TYPE(0x2)
-		| DMA4_CSDP_SRC_BURST_MODE(0)
-		| DMA4_CSDP_DST_BURST_MODE(0)
-		| DMA4_CSDP_SRC_ENDIANISM(0)
-		| DMA4_CSDP_DST_ENDIANISM(0)
-		| DMA4_CSDP_WRITE_MODE(0)
-		| DMA4_CSDP_SRC_PACKED(0)
-		| DMA4_CSDP_DST_PACKED(0);
+	channel->reg_csdp = DMA4_CSDP_DATA_TYPE(0x2) |
+	    DMA4_CSDP_SRC_BURST_MODE(0) | DMA4_CSDP_DST_BURST_MODE(0) |
+	    DMA4_CSDP_SRC_ENDIANISM(0) | DMA4_CSDP_DST_ENDIANISM(0) |
+	    DMA4_CSDP_WRITE_MODE(0) | DMA4_CSDP_SRC_PACKED(0) |
+	    DMA4_CSDP_DST_PACKED(0);
 
-	channel->reg_ccr = DMA4_CCR_DST_ADDRESS_MODE(1)
-		| DMA4_CCR_SRC_ADDRESS_MODE(1)
-		| DMA4_CCR_READ_PRIORITY(0)
-		| DMA4_CCR_WRITE_PRIORITY(0)
-		| DMA4_CCR_SYNC_TRIGGER(0)
-		| DMA4_CCR_FRAME_SYNC(0)
-		| DMA4_CCR_BLOCK_SYNC(0);
+	channel->reg_ccr = DMA4_CCR_DST_ADDRESS_MODE(1) |
+	    DMA4_CCR_SRC_ADDRESS_MODE(1) | DMA4_CCR_READ_PRIORITY(0) |
+	    DMA4_CCR_WRITE_PRIORITY(0) | DMA4_CCR_SYNC_TRIGGER(0) |
+	    DMA4_CCR_FRAME_SYNC(0) | DMA4_CCR_BLOCK_SYNC(0);
 
-	channel->reg_cicr = DMA4_CICR_TRANS_ERR_IE
-		| DMA4_CICR_SECURE_ERR_IE
-		| DMA4_CICR_SUPERVISOR_ERR_IE
-		| DMA4_CICR_MISALIGNED_ADRS_ERR_IE;
+	channel->reg_cicr = DMA4_CICR_TRANS_ERR_IE | DMA4_CICR_SECURE_ERR_IE |
+	    DMA4_CICR_SUPERVISOR_ERR_IE | DMA4_CICR_MISALIGNED_ADRS_ERR_IE;
 
 	/* Clear all the channel registers, this should abort any transaction */
 	for (addr = DMA4_CCR(*ch); addr <= DMA4_COLOR(*ch); addr += 4)
@@ -483,7 +492,8 @@ ti_sdma_disable_channel_irq(unsigned int ch)
 		ti_sdma_write_4(sc, DMA4_IRQENABLE_L(j), irq_enable);
 	}
 
-	/* Indicate the registers need to be rewritten on the next transaction */
+	/* Indicate the registers need to be rewritten on the next transaction
+	 */
 	sc->sc_channel[ch].need_reg_write = 1;
 
 	TI_SDMA_UNLOCK(sc);
@@ -531,7 +541,7 @@ ti_sdma_enable_channel_irq(unsigned int ch, uint32_t flags)
 
 	/* Always enable the error interrupts if we have interrupts enabled */
 	flags |= DMA4_CICR_TRANS_ERR_IE | DMA4_CICR_SECURE_ERR_IE |
-	         DMA4_CICR_SUPERVISOR_ERR_IE | DMA4_CICR_MISALIGNED_ADRS_ERR_IE;
+	    DMA4_CICR_SUPERVISOR_ERR_IE | DMA4_CICR_MISALIGNED_ADRS_ERR_IE;
 
 	sc->sc_channel[ch].reg_cicr = flags;
 
@@ -544,7 +554,8 @@ ti_sdma_enable_channel_irq(unsigned int ch, uint32_t flags)
 
 	ti_sdma_write_4(sc, DMA4_IRQENABLE_L(0), irq_enable);
 
-	/* Indicate the registers need to be rewritten on the next transaction */
+	/* Indicate the registers need to be rewritten on the next transaction
+	 */
 	sc->sc_channel[ch].need_reg_write = 1;
 
 	TI_SDMA_UNLOCK(sc);
@@ -555,8 +566,8 @@ ti_sdma_enable_channel_irq(unsigned int ch, uint32_t flags)
 /**
  *	ti_sdma_get_channel_status - returns the status of a given channel
  *	@ch: the channel number to get the status of
- *	@status: upon return will contain the status bitmask, see below for possible
- *	         values.
+ *	@status: upon return will contain the status bitmask, see below for
+ *possible values.
  *
  *	      DMA_STATUS_DROP
  *	      DMA_STATUS_HALF
@@ -611,8 +622,8 @@ ti_sdma_get_channel_status(unsigned int ch, uint32_t *status)
  *	@src_paddr: the source phsyical address
  *	@dst_paddr: the destination phsyical address
  *	@frmcnt: the number of frames per block
- *	@elmcnt: the number of elements in a frame, an element is either an 8, 16
- *           or 32-bit value as defined by ti_sdma_set_xfer_burst()
+ *	@elmcnt: the number of elements in a frame, an element is either an 8,
+ *16 or 32-bit value as defined by ti_sdma_set_xfer_burst()
  *
  *
  *	LOCKING:
@@ -623,8 +634,7 @@ ti_sdma_get_channel_status(unsigned int ch, uint32_t *status)
  */
 int
 ti_sdma_start_xfer(unsigned int ch, unsigned int src_paddr,
-                    unsigned long dst_paddr,
-                    unsigned int frmcnt, unsigned int elmcnt)
+    unsigned long dst_paddr, unsigned int frmcnt, unsigned int elmcnt)
 {
 	struct ti_sdma_softc *sc = ti_sdma_sc;
 	struct ti_sdma_channel *channel;
@@ -644,8 +654,8 @@ ti_sdma_start_xfer(unsigned int ch, unsigned int src_paddr,
 	channel = &sc->sc_channel[ch];
 
 	/* a) Write the CSDP register */
-	ti_sdma_write_4(sc, DMA4_CSDP(ch),
-	    channel->reg_csdp | DMA4_CSDP_WRITE_MODE(1));
+	ti_sdma_write_4(
+	    sc, DMA4_CSDP(ch), channel->reg_csdp | DMA4_CSDP_WRITE_MODE(1));
 
 	/* b) Set the number of element per frame CEN[23:0] */
 	ti_sdma_write_4(sc, DMA4_CEN(ch), elmcnt);
@@ -694,14 +704,16 @@ ti_sdma_start_xfer(unsigned int ch, unsigned int src_paddr,
  *	@src_paddr: the source physical address
  *	@dst_paddr: the destination physical address
  *	@frmcnt: the number of frames to transfer
- *	@elmcnt: the number of elements in a frame, an element is either an 8, 16
- *           or 32-bit value as defined by ti_sdma_set_xfer_burst()
+ *	@elmcnt: the number of elements in a frame, an element is either an 8,
+ *16 or 32-bit value as defined by ti_sdma_set_xfer_burst()
  *	@pktsize: the number of elements in each transfer packet
  *
  *	The @frmcnt and @elmcnt define the overall number of bytes to transfer,
- *	typically @frmcnt is 1 and @elmcnt contains the total number of elements.
+ *	typically @frmcnt is 1 and @elmcnt contains the total number of
+ *elements.
  *	@pktsize is the size of each individual packet, there might be multiple
- *	packets per transfer.  i.e. for the following with element size of 32-bits
+ *	packets per transfer.  i.e. for the following with element size of
+ *32-bits
  *
  *		frmcnt = 1, elmcnt = 512, pktsize = 128
  *
@@ -717,8 +729,8 @@ ti_sdma_start_xfer(unsigned int ch, unsigned int src_paddr,
  */
 int
 ti_sdma_start_xfer_packet(unsigned int ch, unsigned int src_paddr,
-                           unsigned long dst_paddr, unsigned int frmcnt,
-                           unsigned int elmcnt, unsigned int pktsize)
+    unsigned long dst_paddr, unsigned int frmcnt, unsigned int elmcnt,
+    unsigned int pktsize)
 {
 	struct ti_sdma_softc *sc = ti_sdma_sc;
 	struct ti_sdma_channel *channel;
@@ -753,8 +765,8 @@ ti_sdma_start_xfer_packet(unsigned int ch, unsigned int src_paddr,
 	ti_sdma_write_4(sc, DMA4_CDSA(ch), dst_paddr);
 
 	/* e) Write the CCR register */
-	ti_sdma_write_4(sc, DMA4_CCR(ch),
-	    channel->reg_ccr | DMA4_CCR_PACKET_TRANS);
+	ti_sdma_write_4(
+	    sc, DMA4_CCR(ch), channel->reg_ccr | DMA4_CCR_PACKET_TRANS);
 
 	/* f)  - Set the source element index increment CSEI[15:0] */
 	ti_sdma_write_4(sc, DMA4_CSE(ch), 0x0001);
@@ -788,7 +800,8 @@ ti_sdma_start_xfer_packet(unsigned int ch, unsigned int src_paddr,
  *	ti_sdma_stop_xfer - stops any currently active transfers
  *	@ch: the channel number to set the endianness of
  *
- *	This function call is effectively a NOP if no transaction is in progress.
+ *	This function call is effectively a NOP if no transaction is in
+ *progress.
  *
  *	LOCKING:
  *	DMA registers protected by internal mutex
@@ -837,7 +850,8 @@ ti_sdma_stop_xfer(unsigned int ch)
  *	ti_sdma_set_xfer_endianess - sets the endianness of subsequent transfers
  *	@ch: the channel number to set the endianness of
  *	@src: the source endianness (either DMA_ENDIAN_LITTLE or DMA_ENDIAN_BIG)
- *	@dst: the destination endianness (either DMA_ENDIAN_LITTLE or DMA_ENDIAN_BIG)
+ *	@dst: the destination endianness (either DMA_ENDIAN_LITTLE or
+ *DMA_ENDIAN_BIG)
  *
  *
  *	LOCKING:
@@ -878,12 +892,13 @@ ti_sdma_set_xfer_endianess(unsigned int ch, unsigned int src, unsigned int dst)
 /**
  *	ti_sdma_set_xfer_burst - sets the source and destination element size
  *	@ch: the channel number to set the burst settings of
- *	@src: the source endianness (either DMA_BURST_NONE, DMA_BURST_16, DMA_BURST_32
- *	      or DMA_BURST_64)
+ *	@src: the source endianness (either DMA_BURST_NONE, DMA_BURST_16,
+ *DMA_BURST_32 or DMA_BURST_64)
  *	@dst: the destination endianness (either DMA_BURST_NONE, DMA_BURST_16,
  *	      DMA_BURST_32 or DMA_BURST_64)
  *
- *	This function sets the size of the elements for all subsequent transfers.
+ *	This function sets the size of the elements for all subsequent
+ *transfers.
  *
  *	LOCKING:
  *	DMA registers protected by internal mutex
@@ -923,8 +938,8 @@ ti_sdma_set_xfer_burst(unsigned int ch, unsigned int src, unsigned int dst)
 /**
  *	ti_sdma_set_xfer_data_type - driver attach function
  *	@ch: the channel number to set the endianness of
- *	@type: the xfer data type (either DMA_DATA_8BITS_SCALAR, DMA_DATA_16BITS_SCALAR
- *	       or DMA_DATA_32BITS_SCALAR)
+ *	@type: the xfer data type (either DMA_DATA_8BITS_SCALAR,
+ *DMA_DATA_16BITS_SCALAR or DMA_DATA_32BITS_SCALAR)
  *
  *
  *	LOCKING:
@@ -973,8 +988,7 @@ ti_sdma_set_xfer_data_type(unsigned int ch, unsigned int type)
  */
 int
 ti_sdma_set_callback(unsigned int ch,
-                      void (*callback)(unsigned int ch, uint32_t status, void *data),
-                      void *data)
+    void (*callback)(unsigned int ch, uint32_t status, void *data), void *data)
 {
 	struct ti_sdma_softc *sc = ti_sdma_sc;
 
@@ -1068,8 +1082,8 @@ ti_sdma_sync_params(unsigned int ch, unsigned int trigger, unsigned int mode)
  *	@rd_mode: the xfer source addressing mode (either DMA_ADDR_CONSTANT,
  *	          DMA_ADDR_POST_INCREMENT, DMA_ADDR_SINGLE_INDEX or
  *	          DMA_ADDR_DOUBLE_INDEX)
- *	@wr_mode: the xfer destination addressing mode (either DMA_ADDR_CONSTANT,
- *	          DMA_ADDR_POST_INCREMENT, DMA_ADDR_SINGLE_INDEX or
+ *	@wr_mode: the xfer destination addressing mode (either
+ *DMA_ADDR_CONSTANT, DMA_ADDR_POST_INCREMENT, DMA_ADDR_SINGLE_INDEX or
  *	          DMA_ADDR_DOUBLE_INDEX)
  *
  *
@@ -1080,8 +1094,8 @@ ti_sdma_sync_params(unsigned int ch, unsigned int trigger, unsigned int mode)
  *	EH_HANDLED or EH_NOT_HANDLED
  */
 int
-ti_sdma_set_addr_mode(unsigned int ch, unsigned int src_mode,
-                       unsigned int dst_mode)
+ti_sdma_set_addr_mode(
+    unsigned int ch, unsigned int src_mode, unsigned int dst_mode)
 {
 	struct ti_sdma_softc *sc = ti_sdma_sc;
 	uint32_t ccr;
@@ -1153,9 +1167,9 @@ ti_sdma_attach(device_t dev)
 	struct ti_sdma_softc *sc = device_get_softc(dev);
 	unsigned int timeout;
 	unsigned int i;
-	int      rid;
-	void    *ihl;
-	int      err;
+	int rid;
+	void *ihl;
+	int err;
 
 	/* Setup the basics */
 	sc->sc_dev = dev;
@@ -1168,7 +1182,8 @@ ti_sdma_attach(device_t dev)
 
 	/* Get the memory resource for the register mapping */
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->sc_mem_res == NULL)
 		panic("%s: Cannot map registers", device_get_name(dev));
 
@@ -1176,12 +1191,13 @@ ti_sdma_attach(device_t dev)
 	ti_sysc_clock_enable(device_get_parent(dev));
 
 	/* Read the sDMA revision register and sanity check it's known */
-	sc->sc_hw_rev = ti_sdma_read_4(sc,
-	    ti_sysc_get_rev_address_offset_host(device_get_parent(dev)));
+	sc->sc_hw_rev = ti_sdma_read_4(
+	    sc, ti_sysc_get_rev_address_offset_host(device_get_parent(dev)));
 	device_printf(dev, "sDMA revision %08x\n", sc->sc_hw_rev);
 
 	if (!ti_sdma_is_omap4_rev(sc) && !ti_sdma_is_omap3_rev(sc)) {
-		device_printf(sc->sc_dev, "error - unknown sDMA H/W revision\n");
+		device_printf(
+		    sc->sc_dev, "error - unknown sDMA H/W revision\n");
 		return (EINVAL);
 	}
 
@@ -1204,19 +1220,20 @@ ti_sdma_attach(device_t dev)
 			pause("DMARESET", 1);
 
 			if (timeout-- == 0) {
-				device_printf(sc->sc_dev, "sDMA reset operation timed out\n");
+				device_printf(sc->sc_dev,
+				    "sDMA reset operation timed out\n");
 				return (EINVAL);
 			}
 		}
 	}
 
 	/*
-	 * Install interrupt handlers for the for possible interrupts. Any channel
-	 * can trip one of the four IRQs
+	 * Install interrupt handlers for the for possible interrupts. Any
+	 * channel can trip one of the four IRQs
 	 */
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_irq_res == NULL)
 		panic("Unable to setup the dma irq handler.\n");
 
@@ -1225,7 +1242,8 @@ ti_sdma_attach(device_t dev)
 	if (err)
 		panic("%s: Cannot register IRQ", device_get_name(dev));
 
-	/* Store the DMA structure globally ... this driver should never be unloaded */
+	/* Store the DMA structure globally ... this driver should never be
+	 * unloaded */
 	ti_sdma_sc = sc;
 
 	return (0);
@@ -1234,7 +1252,7 @@ ti_sdma_attach(device_t dev)
 static device_method_t ti_sdma_methods[] = {
 	DEVMETHOD(device_probe, ti_sdma_probe),
 	DEVMETHOD(device_attach, ti_sdma_attach),
-	{0, 0},
+	{ 0, 0 },
 };
 
 static driver_t ti_sdma_driver = {

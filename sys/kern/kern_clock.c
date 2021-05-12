@@ -39,22 +39,25 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdb.h"
 #include "opt_device_polling.h"
 #include "opt_hwpmc_hooks.h"
+#include "opt_kdb.h"
 #include "opt_ntp.h"
 #include "opt_watchdog.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/callout.h>
 #include <sys/epoch.h>
 #include <sys/eventhandler.h>
 #include <sys/gtaskqueue.h>
+#include <sys/interrupt.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/ktr.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -65,14 +68,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
+#include <sys/timetc.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/sysctl.h>
-#include <sys/bus.h>
-#include <sys/interrupt.h>
-#include <sys/limits.h>
-#include <sys/timetc.h>
 
 #ifdef GPROF
 #include <sys/gmon.h>
@@ -80,10 +81,9 @@ __FBSDID("$FreeBSD$");
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
-PMC_SOFT_DEFINE( , , clock, hard);
-PMC_SOFT_DEFINE( , , clock, stat);
-PMC_SOFT_DEFINE_EX( , , clock, prof, \
-    cpu_startprofclock, cpu_stopprofclock);
+PMC_SOFT_DEFINE(, , clock, hard);
+PMC_SOFT_DEFINE(, , clock, stat);
+PMC_SOFT_DEFINE_EX(, , clock, prof, cpu_startprofclock, cpu_stopprofclock);
 #endif
 
 #ifdef DEVICE_POLLING
@@ -99,8 +99,7 @@ static struct mtx time_lock;
 SDT_PROVIDER_DECLARE(sched);
 SDT_PROBE_DEFINE2(sched, , , tick, "struct thread *", "struct proc *");
 
-static int
-sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	long cp_time[CPUSTATES];
@@ -127,13 +126,13 @@ sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, cp_time, CTLTYPE_LONG|CTLFLAG_RD|CTLFLAG_MPSAFE,
-    0,0, sysctl_kern_cp_time, "LU", "CPU time statistics");
+SYSCTL_PROC(_kern, OID_AUTO, cp_time,
+    CTLTYPE_LONG | CTLFLAG_RD | CTLFLAG_MPSAFE, 0, 0, sysctl_kern_cp_time, "LU",
+    "CPU time statistics");
 
 static long empty[CPUSTATES];
 
-static int
-sysctl_kern_cp_times(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_cp_times(SYSCTL_HANDLER_ARGS)
 {
 	struct pcpu *pcpu;
 	int error;
@@ -147,10 +146,12 @@ sysctl_kern_cp_times(SYSCTL_HANDLER_ARGS)
 	if (!req->oldptr) {
 #ifdef SCTL_MASK32
 		if (req->flags & SCTL_MASK32)
-			return SYSCTL_OUT(req, 0, sizeof(cp_time32) * (mp_maxid + 1));
+			return SYSCTL_OUT(
+			    req, 0, sizeof(cp_time32) * (mp_maxid + 1));
 		else
 #endif
-			return SYSCTL_OUT(req, 0, sizeof(long) * CPUSTATES * (mp_maxid + 1));
+			return SYSCTL_OUT(
+			    req, 0, sizeof(long) * CPUSTATES * (mp_maxid + 1));
 	}
 	for (error = 0, c = 0; error == 0 && c <= mp_maxid; c++) {
 		if (!CPU_ABSENT(c)) {
@@ -166,21 +167,18 @@ sysctl_kern_cp_times(SYSCTL_HANDLER_ARGS)
 			error = SYSCTL_OUT(req, cp_time32, sizeof(cp_time32));
 		} else
 #endif
-			error = SYSCTL_OUT(req, cp_time, sizeof(long) * CPUSTATES);
+			error = SYSCTL_OUT(
+			    req, cp_time, sizeof(long) * CPUSTATES);
 	}
 	return error;
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, cp_times, CTLTYPE_LONG|CTLFLAG_RD|CTLFLAG_MPSAFE,
-    0,0, sysctl_kern_cp_times, "LU", "per-CPU time statistics");
+SYSCTL_PROC(_kern, OID_AUTO, cp_times,
+    CTLTYPE_LONG | CTLFLAG_RD | CTLFLAG_MPSAFE, 0, 0, sysctl_kern_cp_times,
+    "LU", "per-CPU time statistics");
 
 #ifdef DEADLKRES
-static const char *blessed[] = {
-	"getblk",
-	"so_snd_sx",
-	"so_rcv_sx",
-	NULL
-};
+static const char *blessed[] = { "getblk", "so_snd_sx", "so_rcv_sx", NULL };
 static int slptime_threshold = 1800;
 static int blktime_threshold = 900;
 static int sleepfreq = 3;
@@ -206,8 +204,8 @@ deadlres_td_on_lock(struct proc *p, struct thread *td, int blkticks)
 		 * for too long on a turnstile.
 		 */
 		panic("%s: possible deadlock detected for %p (%s), "
-		    "blocked for %d ticks\n", __func__,
-		    td, sched_tdname(td), tticks);
+		      "blocked for %d ticks\n",
+		    __func__, td, sched_tdname(td), tticks);
 }
 
 static void
@@ -240,8 +238,8 @@ deadlres_td_sleep_q(struct proc *p, struct thread *td, int slpticks)
 				return;
 
 		panic("%s: possible deadlock detected for %p (%s), "
-		    "blocked for %d ticks\n", __func__,
-		    td, sched_tdname(td), tticks);
+		      "blocked for %d ticks\n",
+		    __func__, td, sched_tdname(td), tticks);
 	}
 }
 
@@ -266,26 +264,25 @@ deadlkres(void)
 		if (!sx_try_slock(&allproc_lock)) {
 			if (tryl > 100)
 				panic("%s: possible deadlock detected "
-				    "on allproc_lock\n", __func__);
+				      "on allproc_lock\n",
+				    __func__);
 			tryl++;
 			pause("allproc", sleepfreq * hz);
 			continue;
 		}
 		tryl = 0;
-		FOREACH_PROC_IN_SYSTEM(p) {
+		FOREACH_PROC_IN_SYSTEM (p) {
 			PROC_LOCK(p);
 			if (p->p_state == PRS_NEW) {
 				PROC_UNLOCK(p);
 				continue;
 			}
-			FOREACH_THREAD_IN_PROC(p, td) {
+			FOREACH_THREAD_IN_PROC (p, td) {
 				thread_lock(td);
 				if (TD_ON_LOCK(td))
-					deadlres_td_on_lock(p, td,
-					    blkticks);
+					deadlres_td_on_lock(p, td, blkticks);
 				else if (TD_IS_SLEEPING(td))
-					deadlres_td_sleep_q(p, td,
-					    slpticks);
+					deadlres_td_sleep_q(p, td, slpticks);
 				thread_unlock(td);
 			}
 			PROC_UNLOCK(p);
@@ -297,11 +294,8 @@ deadlkres(void)
 	}
 }
 
-static struct kthread_desc deadlkres_kd = {
-	"deadlkres",
-	deadlkres,
-	(struct thread **)NULL
-};
+static struct kthread_desc deadlkres_kd = { "deadlkres", deadlkres,
+	(struct thread **)NULL };
 
 SYSINIT(deadlkres, SI_SUB_CLOCKS, SI_ORDER_ANY, kthread_start, &deadlkres_kd);
 
@@ -315,7 +309,7 @@ SYSCTL_INT(_debug_deadlkres, OID_AUTO, blktime_threshold, CTLFLAG_RW,
     "Number of seconds within is valid to block on a turnstile");
 SYSCTL_INT(_debug_deadlkres, OID_AUTO, sleepfreq, CTLFLAG_RW, &sleepfreq, 0,
     "Number of seconds between any deadlock resolver thread run");
-#endif	/* DEADLKRES */
+#endif /* DEADLKRES */
 
 void
 read_cpu_time(long *cp_time)
@@ -325,7 +319,7 @@ read_cpu_time(long *cp_time)
 
 	/* Sum up global cp_time[]. */
 	bzero(cp_time, sizeof(long) * CPUSTATES);
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		pc = pcpu_find(i);
 		for (j = 0; j < CPUSTATES; j++)
 			cp_time[j] += pc->pc_cp_time[j];
@@ -377,13 +371,13 @@ watchdog_attach(void)
  * interrupts.
  */
 
-int	stathz;
-int	profhz;
-int	profprocs;
-volatile int	ticks;
-int	psratio;
+int stathz;
+int profhz;
+int profprocs;
+volatile int ticks;
+int psratio;
 
-DPCPU_DEFINE_STATIC(int, pcputicks);	/* Per-CPU version of ticks. */
+DPCPU_DEFINE_STATIC(int, pcputicks); /* Per-CPU version of ticks. */
 #ifdef DEVICE_POLLING
 static int devpoll_run = 0;
 #endif
@@ -423,7 +417,8 @@ initclocks(void *dummy)
 }
 
 static __noinline void
-hardclock_itimer(struct thread *td, struct pstats *pstats, int cnt, int usermode)
+hardclock_itimer(
+    struct thread *td, struct pstats *pstats, int cnt, int usermode)
 {
 	struct proc *p;
 	int flags;
@@ -433,15 +428,14 @@ hardclock_itimer(struct thread *td, struct pstats *pstats, int cnt, int usermode
 	if (usermode &&
 	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value)) {
 		PROC_ITIMLOCK(p);
-		if (itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL],
-		    tick * cnt) == 0)
+		if (itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick * cnt) ==
+		    0)
 			flags |= TDF_ALRMPEND | TDF_ASTPENDING;
 		PROC_ITIMUNLOCK(p);
 	}
 	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value)) {
 		PROC_ITIMLOCK(p);
-		if (itimerdecr(&pstats->p_timer[ITIMER_PROF],
-		    tick * cnt) == 0)
+		if (itimerdecr(&pstats->p_timer[ITIMER_PROF], tick * cnt) == 0)
 			flags |= TDF_PROFPEND | TDF_ASTPENDING;
 		PROC_ITIMUNLOCK(p);
 	}
@@ -481,15 +475,15 @@ hardclock(int cnt, int usermode)
 	 */
 	pstats = p->p_stats;
 	if (__predict_false(
-	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) ||
-	    timevalisset(&pstats->p_timer[ITIMER_PROF].it_value)))
+		timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) ||
+		timevalisset(&pstats->p_timer[ITIMER_PROF].it_value)))
 		hardclock_itimer(td, pstats, cnt, usermode);
 
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
 		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
 	if (td->td_intr_frame != NULL)
-		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
+		PMC_SOFT_CALL_TF(, , clock, hard, td->td_intr_frame);
 #endif
 	/* We are in charge to handle this tick duty. */
 	if (newticks > 0) {
@@ -567,14 +561,13 @@ tvtohz(struct timeval *tv)
 			usec -= 1000000;
 		}
 		printf("tvotohz: negative time difference %ld sec %ld usec\n",
-		       sec, usec);
+		    sec, usec);
 #endif
 		ticks = 1;
 	} else if (sec <= LONG_MAX / 1000000)
 		ticks = howmany(sec * 1000000 + (unsigned long)usec, tick) + 1;
 	else if (sec <= LONG_MAX / hz)
-		ticks = sec * hz
-			+ howmany((unsigned long)usec, tick) + 1;
+		ticks = sec * hz + howmany((unsigned long)usec, tick) + 1;
 	else
 		ticks = LONG_MAX;
 	if (ticks > INT_MAX)
@@ -698,7 +691,7 @@ statclock(int cnt, int usermode)
 	if (ru->ru_maxrss < rss)
 		ru->ru_maxrss = rss;
 	KTR_POINT2(KTR_SCHED, "thread", sched_tdname(td), "statclock",
-	    "prio:%d", td->td_priority, "stathz:%d", (stathz)?stathz:hz);
+	    "prio:%d", td->td_priority, "stathz:%d", (stathz) ? stathz : hz);
 	SDT_PROBE2(sched, , , tick, td, td->td_proc);
 	thread_lock_flags(td, MTX_QUIET);
 
@@ -716,7 +709,7 @@ statclock(int cnt, int usermode)
 	thread_unlock(td);
 #ifdef HWPMC_HOOKS
 	if (td->td_intr_frame != NULL)
-		PMC_SOFT_CALL_TF( , , clock, stat, td->td_intr_frame);
+		PMC_SOFT_CALL_TF(, , clock, stat, td->td_intr_frame);
 #endif
 }
 
@@ -756,15 +749,14 @@ profclock(int cnt, int usermode, uintfptr_t pc)
 #endif
 #ifdef HWPMC_HOOKS
 	if (td->td_intr_frame != NULL)
-		PMC_SOFT_CALL_TF( , , clock, prof, td->td_intr_frame);
+		PMC_SOFT_CALL_TF(, , clock, prof, td->td_intr_frame);
 #endif
 }
 
 /*
  * Return information about system clocks.
  */
-static int
-sysctl_kern_clockrate(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_clockrate(SYSCTL_HANDLER_ARGS)
 {
 	struct clockinfo clkinfo;
 	/*
@@ -779,9 +771,8 @@ sysctl_kern_clockrate(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate,
-	CTLTYPE_STRUCT|CTLFLAG_RD|CTLFLAG_MPSAFE,
-	0, 0, sysctl_kern_clockrate, "S,clockinfo",
-	"Rate and period of various kernel clocks");
+    CTLTYPE_STRUCT | CTLFLAG_RD | CTLFLAG_MPSAFE, 0, 0, sysctl_kern_clockrate,
+    "S,clockinfo", "Rate and period of various kernel clocks");
 
 static void
 watchdog_config(void *unused __unused, u_int cmd, int *error)

@@ -31,19 +31,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/systm.h>
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
+#include <geom/vinum/geom_vinum_var.h>
 
-#define DEFAULT_STRIPESIZE	262144
+#define DEFAULT_STRIPESIZE 262144
 
 /*
  * Create a new drive object, either by user request, during taste of the drive
@@ -79,8 +79,10 @@ gv_create_drive(struct gv_softc *sc, struct gv_drive *d)
 		}
 
 		if (gv_find_drive_device(sc, d->device) != NULL) {
-			G_VINUM_DEBUG(0, "provider '%s' already in use by "
-			    "gvinum", d->device);
+			G_VINUM_DEBUG(0,
+			    "provider '%s' already in use by "
+			    "gvinum",
+			    d->device);
 			return (GV_ERR_CREATE);
 		}
 
@@ -97,8 +99,8 @@ gv_create_drive(struct gv_softc *sc, struct gv_drive *d)
 		if (g_attach(cp, pp) != 0) {
 			g_destroy_consumer(cp);
 			g_topology_unlock();
-			G_VINUM_DEBUG(0, "create drive '%s': unable to attach",
-			    d->name);
+			G_VINUM_DEBUG(
+			    0, "create drive '%s': unable to attach", d->name);
 			g_free(d);
 			return (GV_ERR_CREATE);
 		}
@@ -127,7 +129,7 @@ gv_create_drive(struct gv_softc *sc, struct gv_drive *d)
 	 * Update access counts of the new drive to those of an already
 	 * existing drive.
 	 */
-	LIST_FOREACH(d2, &sc->drives, drive) {
+	LIST_FOREACH (d2, &sc->drives, drive) {
 		if ((d == d2) || (d2->consumer == NULL))
 			continue;
 
@@ -138,8 +140,10 @@ gv_create_drive(struct gv_softc *sc, struct gv_drive *d)
 			g_detach(cp);
 			g_destroy_consumer(cp);
 			g_topology_unlock();
-			G_VINUM_DEBUG(0, "create drive '%s': unable to update "
-			    "access counts", d->name);
+			G_VINUM_DEBUG(0,
+			    "create drive '%s': unable to update "
+			    "access counts",
+			    d->name);
 			if (d->hdr != NULL)
 				g_free(d->hdr);
 			g_free(d);
@@ -246,8 +250,8 @@ gv_create_sd(struct gv_softc *sc, struct gv_sd *s)
 		 * practically empty "referenced" drive.
 		 */
 		if (s->flags & GV_SD_TASTED) {
-			d = g_malloc(sizeof(struct gv_drive),
-			    M_WAITOK | M_ZERO);
+			d = g_malloc(
+			    sizeof(struct gv_drive), M_WAITOK | M_ZERO);
 			d->flags |= GV_DRIVE_REFERENCED;
 			strlcpy(d->name, s->drive, sizeof(d->name));
 			gv_create_drive(sc, d);
@@ -262,8 +266,8 @@ gv_create_sd(struct gv_softc *sc, struct gv_sd *s)
 	/* Find the plex where this subdisk belongs to. */
 	p = gv_find_plex(sc, s->plex);
 	if (p == NULL) {
-		G_VINUM_DEBUG(0, "create sd '%s': plex '%s' not found",
-		    s->name, s->plex);
+		G_VINUM_DEBUG(
+		    0, "create sd '%s': plex '%s' not found", s->name, s->plex);
 		g_free(s);
 		return (GV_ERR_CREATE);
 	}
@@ -282,8 +286,8 @@ gv_create_sd(struct gv_softc *sc, struct gv_sd *s)
 	 * given values are correct and maybe adjust them.
 	 */
 	if (gv_sd_to_plex(s, p) != 0) {
-		G_VINUM_DEBUG(0, "unable to give sd '%s' to plex '%s'",
-		    s->name, p->name);
+		G_VINUM_DEBUG(
+		    0, "unable to give sd '%s' to plex '%s'", s->name, p->name);
 		if (s->drive_sc && !(s->drive_sc->flags & GV_DRIVE_REFERENCED))
 			LIST_REMOVE(s, from_drive);
 		gv_free_sd(s);
@@ -323,13 +327,13 @@ gv_concat(struct g_geom *gp, struct gctl_req *req)
 	dcount = 0;
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
-		gctl_error(req, "volume name not given");	
+		gctl_error(req, "volume name not given");
 		return;
 	}
 
 	drives = gctl_get_paraml(req, "drives", sizeof(*drives));
 
-	if (drives == NULL) { 
+	if (drives == NULL) {
 		gctl_error(req, "drive names not given");
 		return;
 	}
@@ -390,21 +394,22 @@ gv_mirror(struct g_geom *gp, struct gctl_req *req)
 	pcount = 0;
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
-		gctl_error(req, "volume name not given");	
+		gctl_error(req, "volume name not given");
 		return;
 	}
 
 	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
 	drives = gctl_get_paraml(req, "drives", sizeof(*drives));
 
-	if (drives == NULL) { 
+	if (drives == NULL) {
 		gctl_error(req, "drive names not given");
 		return;
 	}
 
 	/* We must have an even number of drives. */
 	if (*drives % 2 != 0) {
-		gctl_error(req, "mirror organization must have an even number "
+		gctl_error(req,
+		    "mirror organization must have an even number "
 		    "of drives");
 		return;
 	}
@@ -422,8 +427,7 @@ gv_mirror(struct g_geom *gp, struct gctl_req *req)
 	/* Then we create the plexes. */
 	for (pcount = 0; pcount < 2; pcount++) {
 		p = g_malloc(sizeof(*p), M_WAITOK | M_ZERO);
-		snprintf(p->name, sizeof(p->name), "%s.p%d", v->name,
-		    pcount);
+		snprintf(p->name, sizeof(p->name), "%s.p%d", v->name, pcount);
 		strlcpy(p->volume, v->name, sizeof(p->volume));
 		if (*flags & GV_FLAG_S) {
 			p->org = GV_PLEX_STRIPED;
@@ -444,8 +448,8 @@ gv_mirror(struct g_geom *gp, struct gctl_req *req)
 			drive = gctl_get_param(req, buf, NULL);
 			d = gv_find_drive(sc, drive);
 			if (d == NULL) {
-				gctl_error(req, "No such drive '%s', aborting",
-				    drive);
+				gctl_error(
+				    req, "No such drive '%s', aborting", drive);
 				scount++;
 				break;
 			}
@@ -481,7 +485,7 @@ gv_raid5(struct g_geom *gp, struct gctl_req *req)
 
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
-		gctl_error(req, "volume name not given");	
+		gctl_error(req, "volume name not given");
 		return;
 	}
 	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
@@ -500,7 +504,8 @@ gv_raid5(struct g_geom *gp, struct gctl_req *req)
 
 	/* We must have at least three drives. */
 	if (*drives < 3) {
-		gctl_error(req, "must have at least three drives for this "
+		gctl_error(req,
+		    "must have at least three drives for this "
 		    "plex organisation");
 		return;
 	}
@@ -559,13 +564,13 @@ gv_stripe(struct g_geom *gp, struct gctl_req *req)
 	pcount = 0;
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
-		gctl_error(req, "volume name not given");	
+		gctl_error(req, "volume name not given");
 		return;
 	}
 	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
 	drives = gctl_get_paraml(req, "drives", sizeof(*drives));
 
-	if (drives == NULL) { 
+	if (drives == NULL) {
 		gctl_error(req, "drive names not given");
 		return;
 	}

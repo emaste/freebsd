@@ -169,9 +169,10 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/hash.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
-#include <sys/hash.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
@@ -180,18 +181,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
+
+#include <net/vnet.h>
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
+#include <netinet/tcp_fastopen.h>
+#include <netinet/tcp_var.h>
 
 #include <crypto/siphash/siphash.h>
 
-#include <net/vnet.h>
-
-#include <netinet/in.h>
-#include <netinet/in_pcb.h>
-#include <netinet/tcp_var.h>
-#include <netinet/tcp_fastopen.h>
-
-#define	TCP_FASTOPEN_KEY_LEN	SIPHASH_KEY_LENGTH
+#define TCP_FASTOPEN_KEY_LEN SIPHASH_KEY_LENGTH
 
 #if TCP_FASTOPEN_PSK_LEN != TCP_FASTOPEN_KEY_LEN
 #error TCP_FASTOPEN_PSK_LEN must be equal to TCP_FASTOPEN_KEY_LEN
@@ -205,31 +204,31 @@ __FBSDID("$FreeBSD$");
 #error TCP_FASTOPEN_MAX_COOKIE_LEN must be >= TCP_FASTOPEN_PSK_LEN
 #endif
 
-#define TCP_FASTOPEN_CCACHE_BUCKET_LIMIT_DEFAULT	16
-#define TCP_FASTOPEN_CCACHE_BUCKETS_DEFAULT		2048 /* must be power of 2 */
+#define TCP_FASTOPEN_CCACHE_BUCKET_LIMIT_DEFAULT 16
+#define TCP_FASTOPEN_CCACHE_BUCKETS_DEFAULT 2048 /* must be power of 2 */
 
-#define TCP_FASTOPEN_PATH_DISABLE_TIME_DEFAULT		900 /* seconds */
+#define TCP_FASTOPEN_PATH_DISABLE_TIME_DEFAULT 900 /* seconds */
 
 #if !defined(TCP_RFC7413_MAX_KEYS) || (TCP_RFC7413_MAX_KEYS < 1)
-#define	TCP_FASTOPEN_MAX_KEYS	2
+#define TCP_FASTOPEN_MAX_KEYS 2
 #else
-#define	TCP_FASTOPEN_MAX_KEYS	TCP_RFC7413_MAX_KEYS
+#define TCP_FASTOPEN_MAX_KEYS TCP_RFC7413_MAX_KEYS
 #endif
 
 #if TCP_FASTOPEN_MAX_KEYS > 10
 #undef TCP_FASTOPEN_MAX_KEYS
-#define	TCP_FASTOPEN_MAX_KEYS	10
+#define TCP_FASTOPEN_MAX_KEYS 10
 #endif
 
 #if !defined(TCP_RFC7413_MAX_PSKS) || (TCP_RFC7413_MAX_PSKS < 1)
-#define	TCP_FASTOPEN_MAX_PSKS	2
+#define TCP_FASTOPEN_MAX_PSKS 2
 #else
-#define	TCP_FASTOPEN_MAX_PSKS	TCP_RFC7413_MAX_PSKS
+#define TCP_FASTOPEN_MAX_PSKS TCP_RFC7413_MAX_PSKS
 #endif
 
 #if TCP_FASTOPEN_MAX_PSKS > 10
 #undef TCP_FASTOPEN_MAX_PSKS
-#define	TCP_FASTOPEN_MAX_PSKS	10
+#define TCP_FASTOPEN_MAX_PSKS 10
 #endif
 
 struct tcp_fastopen_keylist {
@@ -247,39 +246,40 @@ struct tcp_fastopen_callout {
 static struct tcp_fastopen_ccache_entry *tcp_fastopen_ccache_lookup(
     struct in_conninfo *, struct tcp_fastopen_ccache_bucket **);
 static struct tcp_fastopen_ccache_entry *tcp_fastopen_ccache_create(
-    struct tcp_fastopen_ccache_bucket *, struct in_conninfo *, uint16_t, uint8_t,
-    uint8_t *);
-static void tcp_fastopen_ccache_bucket_trim(struct tcp_fastopen_ccache_bucket *,
-    unsigned int);
-static void tcp_fastopen_ccache_entry_drop(struct tcp_fastopen_ccache_entry *,
-    struct tcp_fastopen_ccache_bucket *);
+    struct tcp_fastopen_ccache_bucket *, struct in_conninfo *, uint16_t,
+    uint8_t, uint8_t *);
+static void tcp_fastopen_ccache_bucket_trim(
+    struct tcp_fastopen_ccache_bucket *, unsigned int);
+static void tcp_fastopen_ccache_entry_drop(
+    struct tcp_fastopen_ccache_entry *, struct tcp_fastopen_ccache_bucket *);
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, fastopen, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP Fast Open");
 
 VNET_DEFINE_STATIC(int, tcp_fastopen_acceptany) = 0;
-#define	V_tcp_fastopen_acceptany	VNET(tcp_fastopen_acceptany)
+#define V_tcp_fastopen_acceptany VNET(tcp_fastopen_acceptany)
 SYSCTL_INT(_net_inet_tcp_fastopen, OID_AUTO, acceptany,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(tcp_fastopen_acceptany), 0,
     "Accept any non-empty cookie");
 
 VNET_DEFINE_STATIC(unsigned int, tcp_fastopen_autokey) = 120;
-#define	V_tcp_fastopen_autokey	VNET(tcp_fastopen_autokey)
+#define V_tcp_fastopen_autokey VNET(tcp_fastopen_autokey)
 static int sysctl_net_inet_tcp_fastopen_autokey(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, autokey,
-    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    NULL, 0, &sysctl_net_inet_tcp_fastopen_autokey, "IU",
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
+    &sysctl_net_inet_tcp_fastopen_autokey, "IU",
     "Number of seconds between auto-generation of a new key; zero disables");
 
-static int sysctl_net_inet_tcp_fastopen_ccache_bucket_limit(SYSCTL_HANDLER_ARGS);
+static int sysctl_net_inet_tcp_fastopen_ccache_bucket_limit(
+    SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, ccache_bucket_limit,
-    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
-    NULL, 0, &sysctl_net_inet_tcp_fastopen_ccache_bucket_limit, "IU",
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, NULL, 0,
+    &sysctl_net_inet_tcp_fastopen_ccache_bucket_limit, "IU",
     "Max entries per bucket in client cookie cache");
 
-VNET_DEFINE_STATIC(unsigned int, tcp_fastopen_ccache_buckets) =
-    TCP_FASTOPEN_CCACHE_BUCKETS_DEFAULT;
-#define	V_tcp_fastopen_ccache_buckets VNET(tcp_fastopen_ccache_buckets)
+VNET_DEFINE_STATIC(unsigned int,
+    tcp_fastopen_ccache_buckets) = TCP_FASTOPEN_CCACHE_BUCKETS_DEFAULT;
+#define V_tcp_fastopen_ccache_buckets VNET(tcp_fastopen_ccache_buckets)
 SYSCTL_UINT(_net_inet_tcp_fastopen, OID_AUTO, ccache_buckets,
     CTLFLAG_VNET | CTLFLAG_RDTUN, &VNET_NAME(tcp_fastopen_ccache_buckets), 0,
     "Client cookie cache number of buckets (power of 2)");
@@ -287,67 +287,64 @@ SYSCTL_UINT(_net_inet_tcp_fastopen, OID_AUTO, ccache_buckets,
 VNET_DEFINE(unsigned int, tcp_fastopen_client_enable) = 1;
 static int sysctl_net_inet_tcp_fastopen_client_enable(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, client_enable,
-    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    NULL, 0, &sysctl_net_inet_tcp_fastopen_client_enable, "IU",
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    &sysctl_net_inet_tcp_fastopen_client_enable, "IU",
     "Enable/disable TCP Fast Open client functionality");
 
-SYSCTL_INT(_net_inet_tcp_fastopen, OID_AUTO, keylen,
-    CTLFLAG_RD, SYSCTL_NULL_INT_PTR, TCP_FASTOPEN_KEY_LEN,
-    "Key length in bytes");
+SYSCTL_INT(_net_inet_tcp_fastopen, OID_AUTO, keylen, CTLFLAG_RD,
+    SYSCTL_NULL_INT_PTR, TCP_FASTOPEN_KEY_LEN, "Key length in bytes");
 
-SYSCTL_INT(_net_inet_tcp_fastopen, OID_AUTO, maxkeys,
-    CTLFLAG_RD, SYSCTL_NULL_INT_PTR, TCP_FASTOPEN_MAX_KEYS,
+SYSCTL_INT(_net_inet_tcp_fastopen, OID_AUTO, maxkeys, CTLFLAG_RD,
+    SYSCTL_NULL_INT_PTR, TCP_FASTOPEN_MAX_KEYS,
     "Maximum number of keys supported");
 
-SYSCTL_INT(_net_inet_tcp_fastopen, OID_AUTO, maxpsks,
-    CTLFLAG_RD, SYSCTL_NULL_INT_PTR, TCP_FASTOPEN_MAX_PSKS,
+SYSCTL_INT(_net_inet_tcp_fastopen, OID_AUTO, maxpsks, CTLFLAG_RD,
+    SYSCTL_NULL_INT_PTR, TCP_FASTOPEN_MAX_PSKS,
     "Maximum number of pre-shared keys supported");
 
 VNET_DEFINE_STATIC(unsigned int, tcp_fastopen_numkeys) = 0;
-#define	V_tcp_fastopen_numkeys	VNET(tcp_fastopen_numkeys)
+#define V_tcp_fastopen_numkeys VNET(tcp_fastopen_numkeys)
 SYSCTL_UINT(_net_inet_tcp_fastopen, OID_AUTO, numkeys,
     CTLFLAG_VNET | CTLFLAG_RD, &VNET_NAME(tcp_fastopen_numkeys), 0,
     "Number of keys installed");
 
 VNET_DEFINE_STATIC(unsigned int, tcp_fastopen_numpsks) = 0;
-#define	V_tcp_fastopen_numpsks	VNET(tcp_fastopen_numpsks)
+#define V_tcp_fastopen_numpsks VNET(tcp_fastopen_numpsks)
 SYSCTL_UINT(_net_inet_tcp_fastopen, OID_AUTO, numpsks,
     CTLFLAG_VNET | CTLFLAG_RD, &VNET_NAME(tcp_fastopen_numpsks), 0,
     "Number of pre-shared keys installed");
 
-VNET_DEFINE_STATIC(unsigned int, tcp_fastopen_path_disable_time) =
-    TCP_FASTOPEN_PATH_DISABLE_TIME_DEFAULT;
-#define	V_tcp_fastopen_path_disable_time VNET(tcp_fastopen_path_disable_time)
+VNET_DEFINE_STATIC(unsigned int,
+    tcp_fastopen_path_disable_time) = TCP_FASTOPEN_PATH_DISABLE_TIME_DEFAULT;
+#define V_tcp_fastopen_path_disable_time VNET(tcp_fastopen_path_disable_time)
 SYSCTL_UINT(_net_inet_tcp_fastopen, OID_AUTO, path_disable_time,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(tcp_fastopen_path_disable_time), 0,
     "Seconds a TFO failure disables a {client_ip, server_ip, server_port} path");
 
 VNET_DEFINE_STATIC(unsigned int, tcp_fastopen_psk_enable) = 0;
-#define	V_tcp_fastopen_psk_enable	VNET(tcp_fastopen_psk_enable)
+#define V_tcp_fastopen_psk_enable VNET(tcp_fastopen_psk_enable)
 static int sysctl_net_inet_tcp_fastopen_psk_enable(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, psk_enable,
-    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    NULL, 0, &sysctl_net_inet_tcp_fastopen_psk_enable, "IU",
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
+    &sysctl_net_inet_tcp_fastopen_psk_enable, "IU",
     "Enable/disable TCP Fast Open server pre-shared key mode");
 
 VNET_DEFINE(unsigned int, tcp_fastopen_server_enable) = 0;
 static int sysctl_net_inet_tcp_fastopen_server_enable(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, server_enable,
-    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    NULL, 0, &sysctl_net_inet_tcp_fastopen_server_enable, "IU",
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
+    &sysctl_net_inet_tcp_fastopen_server_enable, "IU",
     "Enable/disable TCP Fast Open server functionality");
 
 static int sysctl_net_inet_tcp_fastopen_setkey(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, setkey,
-    CTLFLAG_VNET | CTLTYPE_OPAQUE | CTLFLAG_WR | CTLFLAG_MPSAFE,
-    NULL, 0, &sysctl_net_inet_tcp_fastopen_setkey, "",
-    "Install a new key");
+    CTLFLAG_VNET | CTLTYPE_OPAQUE | CTLFLAG_WR | CTLFLAG_MPSAFE, NULL, 0,
+    &sysctl_net_inet_tcp_fastopen_setkey, "", "Install a new key");
 
 static int sysctl_net_inet_tcp_fastopen_setpsk(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, setpsk,
-    CTLFLAG_VNET | CTLTYPE_OPAQUE | CTLFLAG_WR | CTLFLAG_MPSAFE,
-    NULL, 0, &sysctl_net_inet_tcp_fastopen_setpsk, "",
-    "Install a new pre-shared key");
+    CTLFLAG_VNET | CTLTYPE_OPAQUE | CTLFLAG_WR | CTLFLAG_MPSAFE, NULL, 0,
+    &sysctl_net_inet_tcp_fastopen_setpsk, "", "Install a new pre-shared key");
 
 static int sysctl_net_inet_tcp_fastopen_ccache_list(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, ccache_list,
@@ -356,41 +353,42 @@ SYSCTL_PROC(_net_inet_tcp_fastopen, OID_AUTO, ccache_list,
     "List of all client cookie cache entries");
 
 VNET_DEFINE_STATIC(struct rmlock, tcp_fastopen_keylock);
-#define	V_tcp_fastopen_keylock	VNET(tcp_fastopen_keylock)
+#define V_tcp_fastopen_keylock VNET(tcp_fastopen_keylock)
 
-#define TCP_FASTOPEN_KEYS_RLOCK(t)	rm_rlock(&V_tcp_fastopen_keylock, (t))
-#define TCP_FASTOPEN_KEYS_RUNLOCK(t)	rm_runlock(&V_tcp_fastopen_keylock, (t))
-#define TCP_FASTOPEN_KEYS_WLOCK()	rm_wlock(&V_tcp_fastopen_keylock)
-#define TCP_FASTOPEN_KEYS_WUNLOCK()	rm_wunlock(&V_tcp_fastopen_keylock)
+#define TCP_FASTOPEN_KEYS_RLOCK(t) rm_rlock(&V_tcp_fastopen_keylock, (t))
+#define TCP_FASTOPEN_KEYS_RUNLOCK(t) rm_runlock(&V_tcp_fastopen_keylock, (t))
+#define TCP_FASTOPEN_KEYS_WLOCK() rm_wlock(&V_tcp_fastopen_keylock)
+#define TCP_FASTOPEN_KEYS_WUNLOCK() rm_wunlock(&V_tcp_fastopen_keylock)
 
 VNET_DEFINE_STATIC(struct tcp_fastopen_keylist, tcp_fastopen_keys);
-#define V_tcp_fastopen_keys	VNET(tcp_fastopen_keys)
+#define V_tcp_fastopen_keys VNET(tcp_fastopen_keys)
 
 VNET_DEFINE_STATIC(struct tcp_fastopen_callout, tcp_fastopen_autokey_ctx);
-#define V_tcp_fastopen_autokey_ctx	VNET(tcp_fastopen_autokey_ctx)
+#define V_tcp_fastopen_autokey_ctx VNET(tcp_fastopen_autokey_ctx)
 
 VNET_DEFINE_STATIC(uma_zone_t, counter_zone);
-#define	V_counter_zone			VNET(counter_zone)
+#define V_counter_zone VNET(counter_zone)
 
-static MALLOC_DEFINE(M_TCP_FASTOPEN_CCACHE, "tfo_ccache", "TFO client cookie cache buckets");
+static MALLOC_DEFINE(
+    M_TCP_FASTOPEN_CCACHE, "tfo_ccache", "TFO client cookie cache buckets");
 
 VNET_DEFINE_STATIC(struct tcp_fastopen_ccache, tcp_fastopen_ccache);
-#define V_tcp_fastopen_ccache	VNET(tcp_fastopen_ccache)
+#define V_tcp_fastopen_ccache VNET(tcp_fastopen_ccache)
 
-#define	CCB_LOCK(ccb)		mtx_lock(&(ccb)->ccb_mtx)
-#define	CCB_UNLOCK(ccb)		mtx_unlock(&(ccb)->ccb_mtx)
-#define	CCB_LOCK_ASSERT(ccb)	mtx_assert(&(ccb)->ccb_mtx, MA_OWNED)
+#define CCB_LOCK(ccb) mtx_lock(&(ccb)->ccb_mtx)
+#define CCB_UNLOCK(ccb) mtx_unlock(&(ccb)->ccb_mtx)
+#define CCB_LOCK_ASSERT(ccb) mtx_assert(&(ccb)->ccb_mtx, MA_OWNED)
 
 void
 tcp_fastopen_init(void)
 {
 	unsigned int i;
 
-	V_counter_zone = uma_zcreate("tfo", sizeof(unsigned int),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	V_counter_zone = uma_zcreate("tfo", sizeof(unsigned int), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	rm_init(&V_tcp_fastopen_keylock, "tfo_keylock");
-	callout_init_rm(&V_tcp_fastopen_autokey_ctx.c,
-	    &V_tcp_fastopen_keylock, 0);
+	callout_init_rm(
+	    &V_tcp_fastopen_autokey_ctx.c, &V_tcp_fastopen_keylock, 0);
 	V_tcp_fastopen_autokey_ctx.v = curvnet;
 	V_tcp_fastopen_keys.newest = TCP_FASTOPEN_MAX_KEYS - 1;
 	V_tcp_fastopen_keys.newest_psk = TCP_FASTOPEN_MAX_PSKS - 1;
@@ -404,7 +402,7 @@ tcp_fastopen_init(void)
 	if ((V_tcp_fastopen_ccache_buckets == 0) ||
 	    !powerof2(V_tcp_fastopen_ccache_buckets))
 		V_tcp_fastopen_ccache.buckets =
-			TCP_FASTOPEN_CCACHE_BUCKETS_DEFAULT;
+		    TCP_FASTOPEN_CCACHE_BUCKETS_DEFAULT;
 	else
 		V_tcp_fastopen_ccache.buckets = V_tcp_fastopen_ccache_buckets;
 
@@ -412,13 +410,13 @@ tcp_fastopen_init(void)
 	V_tcp_fastopen_ccache.secret = arc4random();
 
 	V_tcp_fastopen_ccache.base = malloc(V_tcp_fastopen_ccache.buckets *
-	    sizeof(struct tcp_fastopen_ccache_bucket), M_TCP_FASTOPEN_CCACHE,
-	    M_WAITOK | M_ZERO);
+		sizeof(struct tcp_fastopen_ccache_bucket),
+	    M_TCP_FASTOPEN_CCACHE, M_WAITOK | M_ZERO);
 
 	for (i = 0; i < V_tcp_fastopen_ccache.buckets; i++) {
 		TAILQ_INIT(&V_tcp_fastopen_ccache.base[i].ccb_entries);
-		mtx_init(&V_tcp_fastopen_ccache.base[i].ccb_mtx, "tfo_ccache_bucket",
-			 NULL, MTX_DEF);
+		mtx_init(&V_tcp_fastopen_ccache.base[i].ccb_mtx,
+		    "tfo_ccache_bucket", NULL, MTX_DEF);
 		if (V_tcp_fastopen_client_enable) {
 			/* enable bucket */
 			V_tcp_fastopen_ccache.base[i].ccb_num_entries = 0;
@@ -426,7 +424,8 @@ tcp_fastopen_init(void)
 			/* disable bucket */
 			V_tcp_fastopen_ccache.base[i].ccb_num_entries = -1;
 		}
-		V_tcp_fastopen_ccache.base[i].ccb_ccache = &V_tcp_fastopen_ccache;
+		V_tcp_fastopen_ccache.base[i].ccb_ccache =
+		    &V_tcp_fastopen_ccache;
 	}
 
 	/*
@@ -527,12 +526,13 @@ tcp_fastopen_autokey_callout(void *arg)
 	CURVNET_SET(ctx->v);
 	tcp_fastopen_autokey_locked();
 	callout_reset(&ctx->c, V_tcp_fastopen_autokey * hz,
-		      tcp_fastopen_autokey_callout, ctx);
+	    tcp_fastopen_autokey_callout, ctx);
 	CURVNET_RESTORE();
 }
 
 static uint64_t
-tcp_fastopen_make_cookie(uint8_t key[SIPHASH_KEY_LENGTH], struct in_conninfo *inc)
+tcp_fastopen_make_cookie(
+    uint8_t key[SIPHASH_KEY_LENGTH], struct in_conninfo *inc)
 {
 	SIPHASH_CTX ctx;
 	uint64_t siphash;
@@ -571,7 +571,8 @@ tcp_fastopen_make_psk_cookie(uint8_t *psk, uint8_t *cookie, uint8_t cookie_len)
 }
 
 static int
-tcp_fastopen_find_cookie_match_locked(uint8_t *wire_cookie, uint64_t *cur_cookie)
+tcp_fastopen_find_cookie_match_locked(
+    uint8_t *wire_cookie, uint64_t *cur_cookie)
 {
 	unsigned int i, psk_index;
 	uint64_t psk_cookie;
@@ -579,14 +580,12 @@ tcp_fastopen_find_cookie_match_locked(uint8_t *wire_cookie, uint64_t *cur_cookie
 	if (V_tcp_fastopen_psk_enable) {
 		psk_index = V_tcp_fastopen_keys.newest_psk;
 		for (i = 0; i < V_tcp_fastopen_numpsks; i++) {
-			psk_cookie =
-			    tcp_fastopen_make_psk_cookie(
-				 V_tcp_fastopen_keys.psk[psk_index],
-				 (uint8_t *)cur_cookie,
-				 TCP_FASTOPEN_COOKIE_LEN);
+			psk_cookie = tcp_fastopen_make_psk_cookie(
+			    V_tcp_fastopen_keys.psk[psk_index],
+			    (uint8_t *)cur_cookie, TCP_FASTOPEN_COOKIE_LEN);
 
 			if (memcmp(wire_cookie, &psk_cookie,
-				   TCP_FASTOPEN_COOKIE_LEN) == 0)
+				TCP_FASTOPEN_COOKIE_LEN) == 0)
 				return (1);
 
 			if (psk_index == 0)
@@ -594,7 +593,8 @@ tcp_fastopen_find_cookie_match_locked(uint8_t *wire_cookie, uint64_t *cur_cookie
 			else
 				psk_index--;
 		}
-	} else if (memcmp(wire_cookie, cur_cookie, TCP_FASTOPEN_COOKIE_LEN) == 0)
+	} else if (memcmp(wire_cookie, cur_cookie, TCP_FASTOPEN_COOKIE_LEN) ==
+	    0)
 		return (1);
 
 	return (0);
@@ -623,10 +623,9 @@ tcp_fastopen_check_cookie(struct in_conninfo *inc, uint8_t *cookie,
 	TCP_FASTOPEN_KEYS_RLOCK(&tracker);
 	if (len != TCP_FASTOPEN_COOKIE_LEN) {
 		if (V_tcp_fastopen_numkeys > 0) {
-			*latest_cookie =
-			    tcp_fastopen_make_cookie(
-				V_tcp_fastopen_keys.key[V_tcp_fastopen_keys.newest],
-				inc);
+			*latest_cookie = tcp_fastopen_make_cookie(
+			    V_tcp_fastopen_keys.key[V_tcp_fastopen_keys.newest],
+			    inc);
 			rv = 0;
 		} else
 			rv = -1;
@@ -638,9 +637,8 @@ tcp_fastopen_check_cookie(struct in_conninfo *inc, uint8_t *cookie,
 	 */
 	key_index = V_tcp_fastopen_keys.newest;
 	for (i = 0; i < V_tcp_fastopen_numkeys; i++) {
-		cur_cookie =
-		    tcp_fastopen_make_cookie(V_tcp_fastopen_keys.key[key_index],
-			inc);
+		cur_cookie = tcp_fastopen_make_cookie(
+		    V_tcp_fastopen_keys.key[key_index], inc);
 		if (i == 0)
 			*latest_cookie = cur_cookie;
 		rv = tcp_fastopen_find_cookie_match_locked(cookie, &cur_cookie);
@@ -653,13 +651,12 @@ tcp_fastopen_check_cookie(struct in_conninfo *inc, uint8_t *cookie,
 	}
 	rv = 0;
 
- out:
+out:
 	TCP_FASTOPEN_KEYS_RUNLOCK(&tracker);
 	return (rv);
 }
 
-static int
-sysctl_net_inet_tcp_fastopen_autokey(SYSCTL_HANDLER_ARGS)
+static int sysctl_net_inet_tcp_fastopen_autokey(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	unsigned int new;
@@ -676,7 +673,7 @@ sysctl_net_inet_tcp_fastopen_autokey(SYSCTL_HANDLER_ARGS)
 				callout_stop(&V_tcp_fastopen_autokey_ctx.c);
 			else if (new)
 				callout_reset(&V_tcp_fastopen_autokey_ctx.c,
-				    new * hz, tcp_fastopen_autokey_callout,
+				    new *hz, tcp_fastopen_autokey_callout,
 				    &V_tcp_fastopen_autokey_ctx);
 		}
 		V_tcp_fastopen_autokey = new;
@@ -686,8 +683,7 @@ sysctl_net_inet_tcp_fastopen_autokey(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static int
-sysctl_net_inet_tcp_fastopen_psk_enable(SYSCTL_HANDLER_ARGS)
+static int sysctl_net_inet_tcp_fastopen_psk_enable(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	unsigned int new;
@@ -699,8 +695,8 @@ sysctl_net_inet_tcp_fastopen_psk_enable(SYSCTL_HANDLER_ARGS)
 			/* enabled -> disabled */
 			TCP_FASTOPEN_KEYS_WLOCK();
 			V_tcp_fastopen_numpsks = 0;
-			V_tcp_fastopen_keys.newest_psk =
-			    TCP_FASTOPEN_MAX_PSKS - 1;
+			V_tcp_fastopen_keys.newest_psk = TCP_FASTOPEN_MAX_PSKS -
+			    1;
 			V_tcp_fastopen_psk_enable = 0;
 			TCP_FASTOPEN_KEYS_WUNLOCK();
 		} else if (!V_tcp_fastopen_psk_enable && new) {
@@ -713,8 +709,7 @@ sysctl_net_inet_tcp_fastopen_psk_enable(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static int
-sysctl_net_inet_tcp_fastopen_server_enable(SYSCTL_HANDLER_ARGS)
+static int sysctl_net_inet_tcp_fastopen_server_enable(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	unsigned int new;
@@ -730,8 +725,8 @@ sysctl_net_inet_tcp_fastopen_server_enable(SYSCTL_HANDLER_ARGS)
 			if (V_tcp_fastopen_autokey)
 				callout_stop(&V_tcp_fastopen_autokey_ctx.c);
 			V_tcp_fastopen_numpsks = 0;
-			V_tcp_fastopen_keys.newest_psk =
-			    TCP_FASTOPEN_MAX_PSKS - 1;
+			V_tcp_fastopen_keys.newest_psk = TCP_FASTOPEN_MAX_PSKS -
+			    1;
 			V_tcp_fastopen_server_enable = 0;
 			TCP_FASTOPEN_KEYS_WUNLOCK();
 		} else if (!V_tcp_fastopen_server_enable && new) {
@@ -752,8 +747,7 @@ sysctl_net_inet_tcp_fastopen_server_enable(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static int
-sysctl_net_inet_tcp_fastopen_setkey(SYSCTL_HANDLER_ARGS)
+static int sysctl_net_inet_tcp_fastopen_setkey(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	uint8_t newkey[TCP_FASTOPEN_KEY_LEN];
@@ -775,8 +769,7 @@ sysctl_net_inet_tcp_fastopen_setkey(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-sysctl_net_inet_tcp_fastopen_setpsk(SYSCTL_HANDLER_ARGS)
+static int sysctl_net_inet_tcp_fastopen_setpsk(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	uint8_t newpsk[TCP_FASTOPEN_KEY_LEN];
@@ -798,8 +791,7 @@ sysctl_net_inet_tcp_fastopen_setpsk(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-sysctl_net_inet_tcp_fastopen_ccache_bucket_limit(SYSCTL_HANDLER_ARGS)
+static int sysctl_net_inet_tcp_fastopen_ccache_bucket_limit(SYSCTL_HANDLER_ARGS)
 {
 	struct tcp_fastopen_ccache_bucket *ccb;
 	int error;
@@ -816,7 +808,8 @@ sysctl_net_inet_tcp_fastopen_ccache_bucket_limit(SYSCTL_HANDLER_ARGS)
 				for (i = 0; i < V_tcp_fastopen_ccache.buckets;
 				     i++) {
 					ccb = &V_tcp_fastopen_ccache.base[i];
-					tcp_fastopen_ccache_bucket_trim(ccb, new);
+					tcp_fastopen_ccache_bucket_trim(
+					    ccb, new);
 				}
 			}
 			V_tcp_fastopen_ccache.bucket_limit = new;
@@ -825,8 +818,7 @@ sysctl_net_inet_tcp_fastopen_ccache_bucket_limit(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static int
-sysctl_net_inet_tcp_fastopen_client_enable(SYSCTL_HANDLER_ARGS)
+static int sysctl_net_inet_tcp_fastopen_client_enable(SYSCTL_HANDLER_ARGS)
 {
 	struct tcp_fastopen_ccache_bucket *ccb;
 	int error;
@@ -851,10 +843,11 @@ sysctl_net_inet_tcp_fastopen_client_enable(SYSCTL_HANDLER_ARGS)
 				ccb = &V_tcp_fastopen_ccache.base[i];
 				CCB_LOCK(ccb);
 				KASSERT(TAILQ_EMPTY(&ccb->ccb_entries),
-				    ("%s: ccb->ccb_entries not empty", __func__));
+				    ("%s: ccb->ccb_entries not empty",
+					__func__));
 				KASSERT(ccb->ccb_num_entries == -1,
-				    ("%s: ccb->ccb_num_entries %d not -1", __func__,
-					ccb->ccb_num_entries));
+				    ("%s: ccb->ccb_num_entries %d not -1",
+					__func__, ccb->ccb_num_entries));
 				ccb->ccb_num_entries = 0; /* enable bucket */
 				CCB_UNLOCK(ccb);
 			}
@@ -881,11 +874,10 @@ tcp_fastopen_connect(struct tcpcb *tp)
 		if (cce->disable_time == 0) {
 			if ((cce->cookie_len > 0) &&
 			    (tp->t_tfo_client_cookie_len ==
-			     TCP_FASTOPEN_PSK_LEN)) {
-				psk_cookie =
-				    tcp_fastopen_make_psk_cookie(
-					tp->t_tfo_cookie.client,
-					cce->cookie, cce->cookie_len);
+				TCP_FASTOPEN_PSK_LEN)) {
+				psk_cookie = tcp_fastopen_make_psk_cookie(
+				    tp->t_tfo_cookie.client, cce->cookie,
+				    cce->cookie_len);
 			} else {
 				tp->t_tfo_client_cookie_len = cce->cookie_len;
 				memcpy(tp->t_tfo_cookie.client, cce->cookie,
@@ -894,7 +886,8 @@ tcp_fastopen_connect(struct tcpcb *tp)
 			server_mss = cce->server_mss;
 			CCB_UNLOCK(ccb);
 			if (tp->t_tfo_client_cookie_len ==
-			    TCP_FASTOPEN_PSK_LEN && psk_cookie) {
+				TCP_FASTOPEN_PSK_LEN &&
+			    psk_cookie) {
 				tp->t_tfo_client_cookie_len =
 				    TCP_FASTOPEN_COOKIE_LEN;
 				memcpy(tp->t_tfo_cookie.client, &psk_cookie,
@@ -909,7 +902,8 @@ tcp_fastopen_connect(struct tcpcb *tp)
 			 */
 			now = getsbinuptime();
 			if (now - cce->disable_time >
-			    ((sbintime_t)V_tcp_fastopen_path_disable_time << 32)) {
+			    ((sbintime_t)V_tcp_fastopen_path_disable_time
+				<< 32)) {
 				/*
 				 * Re-enable path.  Force a TFO cookie
 				 * request.  Forget the old MSS as it may be
@@ -970,16 +964,16 @@ tcp_fastopen_disable_path(struct tcpcb *tp)
 		if (cce->disable_time == 0)
 			cce->disable_time = getsbinuptime();
 	} else /* use invalid cookie len to create disabled entry */
-		tcp_fastopen_ccache_create(ccb, inc, 0,
-	   	    TCP_FASTOPEN_MAX_COOKIE_LEN + 1, NULL);
+		tcp_fastopen_ccache_create(
+		    ccb, inc, 0, TCP_FASTOPEN_MAX_COOKIE_LEN + 1, NULL);
 
 	CCB_UNLOCK(ccb);
 	tp->t_flags &= ~TF_FASTOPEN;
 }
 
 void
-tcp_fastopen_update_cache(struct tcpcb *tp, uint16_t mss,
-    uint8_t cookie_len, uint8_t *cookie)
+tcp_fastopen_update_cache(
+    struct tcpcb *tp, uint16_t mss, uint8_t cookie_len, uint8_t *cookie)
 {
 	struct in_conninfo *inc = &tp->t_inpcb->inp_inc;
 	struct tcp_fastopen_ccache_bucket *ccb;
@@ -1012,8 +1006,8 @@ tcp_fastopen_update_cache(struct tcpcb *tp, uint16_t mss,
 }
 
 static struct tcp_fastopen_ccache_entry *
-tcp_fastopen_ccache_lookup(struct in_conninfo *inc,
-    struct tcp_fastopen_ccache_bucket **ccbp)
+tcp_fastopen_ccache_lookup(
+    struct in_conninfo *inc, struct tcp_fastopen_ccache_bucket **ccbp)
 {
 	struct tcp_fastopen_ccache_bucket *ccb;
 	struct tcp_fastopen_ccache_entry *cce;
@@ -1022,8 +1016,7 @@ tcp_fastopen_ccache_lookup(struct in_conninfo *inc,
 
 	hash = jenkins_hash32((uint32_t *)&inc->inc_ie.ie_dependladdr, 4,
 	    V_tcp_fastopen_ccache.secret);
-	hash = jenkins_hash32((uint32_t *)&inc->inc_ie.ie_dependfaddr, 4,
-	    hash);
+	hash = jenkins_hash32((uint32_t *)&inc->inc_ie.ie_dependfaddr, 4, hash);
 	last_word = inc->inc_fport;
 	hash = jenkins_hash32(&last_word, 1, hash);
 	ccb = &V_tcp_fastopen_ccache.base[hash & V_tcp_fastopen_ccache.mask];
@@ -1033,15 +1026,20 @@ tcp_fastopen_ccache_lookup(struct in_conninfo *inc,
 	/*
 	 * Always returns with locked bucket.
 	 */
-	TAILQ_FOREACH(cce, &ccb->ccb_entries, cce_link)
-		if ((!(cce->af == AF_INET6) == !(inc->inc_flags & INC_ISIPV6)) &&
+	TAILQ_FOREACH (cce, &ccb->ccb_entries, cce_link)
+		if ((!(cce->af == AF_INET6) ==
+			!(inc->inc_flags & INC_ISIPV6)) &&
 		    (cce->server_port == inc->inc_ie.ie_fport) &&
 		    (((cce->af == AF_INET) &&
-		      (cce->cce_client_ip.v4.s_addr == inc->inc_laddr.s_addr) &&
-		      (cce->cce_server_ip.v4.s_addr == inc->inc_faddr.s_addr)) ||
-		     ((cce->af == AF_INET6) &&
-		      IN6_ARE_ADDR_EQUAL(&cce->cce_client_ip.v6, &inc->inc6_laddr) &&
-		      IN6_ARE_ADDR_EQUAL(&cce->cce_server_ip.v6, &inc->inc6_faddr))))
+			 (cce->cce_client_ip.v4.s_addr ==
+			     inc->inc_laddr.s_addr) &&
+			 (cce->cce_server_ip.v4.s_addr ==
+			     inc->inc_faddr.s_addr)) ||
+			((cce->af == AF_INET6) &&
+			    IN6_ARE_ADDR_EQUAL(
+				&cce->cce_client_ip.v6, &inc->inc6_laddr) &&
+			    IN6_ARE_ADDR_EQUAL(
+				&cce->cce_server_ip.v6, &inc->inc6_faddr))))
 			break;
 
 	return (cce);
@@ -1108,15 +1106,15 @@ tcp_fastopen_ccache_create(struct tcp_fastopen_ccache_bucket *ccb,
 }
 
 static void
-tcp_fastopen_ccache_bucket_trim(struct tcp_fastopen_ccache_bucket *ccb,
-    unsigned int limit)
+tcp_fastopen_ccache_bucket_trim(
+    struct tcp_fastopen_ccache_bucket *ccb, unsigned int limit)
 {
 	struct tcp_fastopen_ccache_entry *cce, *cce_tmp;
 	unsigned int entries;
 
 	CCB_LOCK(ccb);
 	entries = 0;
-	TAILQ_FOREACH_SAFE(cce, &ccb->ccb_entries, cce_link, cce_tmp) {
+	TAILQ_FOREACH_SAFE (cce, &ccb->ccb_entries, cce_link, cce_tmp) {
 		entries++;
 		if (entries > limit)
 			tcp_fastopen_ccache_entry_drop(cce, ccb);
@@ -1144,8 +1142,7 @@ tcp_fastopen_ccache_entry_drop(struct tcp_fastopen_ccache_entry *cce,
 	uma_zfree(V_tcp_fastopen_ccache.zone, cce);
 }
 
-static int
-sysctl_net_inet_tcp_fastopen_ccache_list(SYSCTL_HANDLER_ARGS)
+static int sysctl_net_inet_tcp_fastopen_ccache_list(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sb;
 	struct tcp_fastopen_ccache_bucket *ccb;
@@ -1178,15 +1175,15 @@ sysctl_net_inet_tcp_fastopen_ccache_list(SYSCTL_HANDLER_ARGS)
 	sbuf_new(&sb, NULL, linesize * (num_entries + 1), SBUF_INCLUDENUL);
 
 	sbuf_printf(&sb,
-	            "\nLocal IP address     Remote IP address     Port   MSS"
-	            " Disabled Cookie\n");
+	    "\nLocal IP address     Remote IP address     Port   MSS"
+	    " Disabled Cookie\n");
 
 	now = getsbinuptime();
 	limit = (sbintime_t)V_tcp_fastopen_path_disable_time << 32;
 	for (i = 0; i < V_tcp_fastopen_ccache.buckets; i++) {
 		ccb = &V_tcp_fastopen_ccache.base[i];
 		CCB_LOCK(ccb);
-		TAILQ_FOREACH(cce, &ccb->ccb_entries, cce_link) {
+		TAILQ_FOREACH (cce, &ccb->ccb_entries, cce_link) {
 			if (cce->disable_time != 0) {
 				duration = now - cce->disable_time;
 				if (limit >= duration)
@@ -1195,16 +1192,15 @@ sysctl_net_inet_tcp_fastopen_ccache_list(SYSCTL_HANDLER_ARGS)
 					duration = 0;
 			} else
 				duration = 0;
-			sbuf_printf(&sb,
-			            "%-20s %-20s %5u %5u ",
-			            inet_ntop(cce->af, &cce->cce_client_ip,
-			                clt_buf, sizeof(clt_buf)),
-			            inet_ntop(cce->af, &cce->cce_server_ip,
-			                srv_buf, sizeof(srv_buf)),
-			            ntohs(cce->server_port),
-			            cce->server_mss);
+			sbuf_printf(&sb, "%-20s %-20s %5u %5u ",
+			    inet_ntop(cce->af, &cce->cce_client_ip, clt_buf,
+				sizeof(clt_buf)),
+			    inet_ntop(cce->af, &cce->cce_server_ip, srv_buf,
+				sizeof(srv_buf)),
+			    ntohs(cce->server_port), cce->server_mss);
 			if (duration > 0)
-				sbuf_printf(&sb, "%7ds ", sbintime_getsec(duration));
+				sbuf_printf(
+				    &sb, "%7ds ", sbintime_getsec(duration));
 			else
 				sbuf_printf(&sb, "%8s ", "No");
 			for (j = 0; j < cce->cookie_len; j++)

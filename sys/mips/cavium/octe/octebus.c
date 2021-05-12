@@ -37,8 +37,8 @@
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
-#include <sys/mbuf.h>
 #include <sys/lock.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
@@ -47,32 +47,30 @@
 #include <sys/sysctl.h>
 
 #include "ethernet-common.h"
-
 #include "octebusvar.h"
 
-static void		octebus_identify(driver_t *drv, device_t parent);
-static int		octebus_probe(device_t dev);
-static int		octebus_attach(device_t dev);
-static int		octebus_detach(device_t dev);
-static int		octebus_shutdown(device_t dev);
+static void octebus_identify(driver_t *drv, device_t parent);
+static int octebus_probe(device_t dev);
+static int octebus_attach(device_t dev);
+static int octebus_detach(device_t dev);
+static int octebus_shutdown(device_t dev);
 
 static device_method_t octebus_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	octebus_identify),
-	DEVMETHOD(device_probe,		octebus_probe),
-	DEVMETHOD(device_attach,	octebus_attach),
-	DEVMETHOD(device_detach,	octebus_detach),
-	DEVMETHOD(device_shutdown,	octebus_shutdown),
+	DEVMETHOD(device_identify, octebus_identify),
+	DEVMETHOD(device_probe, octebus_probe),
+	DEVMETHOD(device_attach, octebus_attach),
+	DEVMETHOD(device_detach, octebus_detach),
+	DEVMETHOD(device_shutdown, octebus_shutdown),
 
 	/* Bus interface.  */
-	DEVMETHOD(bus_add_child,	bus_generic_add_child),
-	{ 0, 0 }
+	DEVMETHOD(bus_add_child, bus_generic_add_child), { 0, 0 }
 };
 
 static driver_t octebus_driver = {
 	"octebus",
 	octebus_methods,
-	sizeof (struct octebus_softc),
+	sizeof(struct octebus_softc),
 };
 
 static devclass_t octebus_devclass;

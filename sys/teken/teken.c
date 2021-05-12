@@ -31,48 +31,50 @@
 #include <sys/cdefs.h>
 #if defined(__FreeBSD__) && defined(_KERNEL)
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/systm.h>
-#define	teken_assert(x)		MPASS(x)
+#define teken_assert(x) MPASS(x)
 #elif defined(__FreeBSD__) && defined(_STANDALONE)
-#include <stand.h>
 #include <sys/limits.h>
+
 #include <assert.h>
-#define	teken_assert(x)		assert(x)
+#include <stand.h>
+#define teken_assert(x) assert(x)
 #else /* !(__FreeBSD__ && _STANDALONE) */
 #include <sys/types.h>
+
 #include <assert.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#define	teken_assert(x)		assert(x)
+#define teken_assert(x) assert(x)
 #endif /* __FreeBSD__ && _STANDALONE */
 
 /* debug messages */
-#define	teken_printf(x,...)
+#define teken_printf(x, ...)
 
 /* Private flags for t_stateflags. */
-#define	TS_FIRSTDIGIT	0x0001	/* First numeric digit in escape sequence. */
-#define	TS_INSERT	0x0002	/* Insert mode. */
-#define	TS_AUTOWRAP	0x0004	/* Autowrap. */
-#define	TS_ORIGIN	0x0008	/* Origin mode. */
-#define	TS_WRAPPED	0x0010	/* Next character should be printed on col 0. */
-#define	TS_8BIT		0x0020	/* UTF-8 disabled. */
-#define	TS_CONS25	0x0040	/* cons25 emulation. */
-#define	TS_INSTRING	0x0080	/* Inside string. */
-#define	TS_CURSORKEYS	0x0100	/* Cursor keys mode. */
-#define	TS_CONS25KEYS	0x0400	/* Fuller cons25 emul (fix function keys). */
+#define TS_FIRSTDIGIT 0x0001 /* First numeric digit in escape sequence. */
+#define TS_INSERT 0x0002     /* Insert mode. */
+#define TS_AUTOWRAP 0x0004   /* Autowrap. */
+#define TS_ORIGIN 0x0008     /* Origin mode. */
+#define TS_WRAPPED 0x0010    /* Next character should be printed on col 0. */
+#define TS_8BIT 0x0020	     /* UTF-8 disabled. */
+#define TS_CONS25 0x0040     /* cons25 emulation. */
+#define TS_INSTRING 0x0080   /* Inside string. */
+#define TS_CURSORKEYS 0x0100 /* Cursor keys mode. */
+#define TS_CONS25KEYS 0x0400 /* Fuller cons25 emul (fix function keys). */
 
 /* Character that blanks a cell. */
-#define	BLANK	' '
+#define BLANK ' '
 
 #include "teken.h"
-#include "teken_wcwidth.h"
 #include "teken_scs.h"
+#include "teken_wcwidth.h"
 
-static teken_state_t	teken_state_init;
+static teken_state_t teken_state_init;
 
 /*
  * Wrappers for hooks.
@@ -110,8 +112,8 @@ teken_funcs_putchar(const teken_t *t, const teken_pos_t *p, teken_char_t c,
 }
 
 static inline void
-teken_funcs_fill(const teken_t *t, const teken_rect_t *r,
-    const teken_char_t c, const teken_attr_t *a)
+teken_funcs_fill(const teken_t *t, const teken_rect_t *r, const teken_char_t c,
+    const teken_attr_t *a)
 {
 
 	teken_assert(r->tr_end.tp_row > r->tr_begin.tp_row);
@@ -131,8 +133,10 @@ teken_funcs_copy(const teken_t *t, const teken_rect_t *r, const teken_pos_t *p)
 	teken_assert(r->tr_end.tp_row <= t->t_winsize.tp_row);
 	teken_assert(r->tr_end.tp_col > r->tr_begin.tp_col);
 	teken_assert(r->tr_end.tp_col <= t->t_winsize.tp_col);
-	teken_assert(p->tp_row + (r->tr_end.tp_row - r->tr_begin.tp_row) <= t->t_winsize.tp_row);
-	teken_assert(p->tp_col + (r->tr_end.tp_col - r->tr_begin.tp_col) <= t->t_winsize.tp_col);
+	teken_assert(p->tp_row + (r->tr_end.tp_row - r->tr_begin.tp_row) <=
+	    t->t_winsize.tp_row);
+	teken_assert(p->tp_col + (r->tr_end.tp_col - r->tr_begin.tp_col) <=
+	    t->t_winsize.tp_col);
 
 	teken_assert(t->t_funcs->tf_copy != NULL);
 	t->t_funcs->tf_copy(t->t_softc, r, p);
@@ -269,9 +273,9 @@ teken_input_char(teken_t *t, teken_char_t c)
 	teken_assert(t->t_scrollreg.ts_begin < t->t_scrollreg.ts_end);
 	/* Origin region has to be window size or the same as scrollreg. */
 	teken_assert((t->t_originreg.ts_begin == t->t_scrollreg.ts_begin &&
-	    t->t_originreg.ts_end == t->t_scrollreg.ts_end) ||
+			 t->t_originreg.ts_end == t->t_scrollreg.ts_end) ||
 	    (t->t_originreg.ts_begin == 0 &&
-	    t->t_originreg.ts_end == t->t_winsize.tp_row));
+		t->t_originreg.ts_end == t->t_winsize.tp_row));
 }
 
 static void
@@ -462,8 +466,8 @@ teken_state_numbers(teken_t *t, teken_char_t c)
 			 * Ignore any further digits if the value is
 			 * already UINT_MAX / 100.
 			 */
-			t->t_nums[t->t_curnum] =
-			    t->t_nums[t->t_curnum] * 10 + c - '0';
+			t->t_nums[t->t_curnum] = t->t_nums[t->t_curnum] * 10 +
+			    c - '0';
 		}
 		return (1);
 	} else if (c == ';') {
@@ -492,22 +496,22 @@ teken_state_numbers(teken_t *t, teken_char_t c)
 	return (0);
 }
 
-#define	k	TC_BLACK
-#define	b	TC_BLUE
-#define	y	TC_BROWN
-#define	c	TC_CYAN
-#define	g	TC_GREEN
-#define	m	TC_MAGENTA
-#define	r	TC_RED
-#define	w	TC_WHITE
-#define	K	(TC_BLACK | TC_LIGHT)
-#define	B	(TC_BLUE | TC_LIGHT)
-#define	Y	(TC_BROWN | TC_LIGHT)
-#define	C	(TC_CYAN | TC_LIGHT)
-#define	G	(TC_GREEN | TC_LIGHT)
-#define	M	(TC_MAGENTA | TC_LIGHT)
-#define	R	(TC_RED | TC_LIGHT)
-#define	W	(TC_WHITE | TC_LIGHT)
+#define k TC_BLACK
+#define b TC_BLUE
+#define y TC_BROWN
+#define c TC_CYAN
+#define g TC_GREEN
+#define m TC_MAGENTA
+#define r TC_RED
+#define w TC_WHITE
+#define K (TC_BLACK | TC_LIGHT)
+#define B (TC_BLUE | TC_LIGHT)
+#define Y (TC_BROWN | TC_LIGHT)
+#define C (TC_CYAN | TC_LIGHT)
+#define G (TC_GREEN | TC_LIGHT)
+#define M (TC_MAGENTA | TC_LIGHT)
+#define R (TC_RED | TC_LIGHT)
+#define W (TC_WHITE | TC_LIGHT)
 
 /**
  * The xterm-256 color map has steps of 0x28 (in the range 0-0xff), except
@@ -532,64 +536,278 @@ teken_state_numbers(teken_t *t, teken_char_t c)
  */
 static const teken_color_t teken_256to8tab[] = {
 	/* xterm normal colors: */
-	k, r, g, y, b, m, c, w,
+	k,
+	r,
+	g,
+	y,
+	b,
+	m,
+	c,
+	w,
 
 	/* xterm bright colors: */
-	k, r, g, y, b, m, c, w,
+	k,
+	r,
+	g,
+	y,
+	b,
+	m,
+	c,
+	w,
 
 	/* Red0 submap. */
-	k, b, b, b, b, b,
-	g, c, c, b, b, b,
-	g, c, c, c, b, b,
-	g, g, c, c, c, b,
-	g, g, g, c, c, c,
-	g, g, g, g, c, c,
+	k,
+	b,
+	b,
+	b,
+	b,
+	b,
+	g,
+	c,
+	c,
+	b,
+	b,
+	b,
+	g,
+	c,
+	c,
+	c,
+	b,
+	b,
+	g,
+	g,
+	c,
+	c,
+	c,
+	b,
+	g,
+	g,
+	g,
+	c,
+	c,
+	c,
+	g,
+	g,
+	g,
+	g,
+	c,
+	c,
 
 	/* Red2 submap. */
-	r, m, m, b, b, b,
-	y, k, b, b, b, b,
-	y, g, c, c, b, b,
-	g, g, c, c, c, b,
-	g, g, g, c, c, c,
-	g, g, g, g, c, c,
+	r,
+	m,
+	m,
+	b,
+	b,
+	b,
+	y,
+	k,
+	b,
+	b,
+	b,
+	b,
+	y,
+	g,
+	c,
+	c,
+	b,
+	b,
+	g,
+	g,
+	c,
+	c,
+	c,
+	b,
+	g,
+	g,
+	g,
+	c,
+	c,
+	c,
+	g,
+	g,
+	g,
+	g,
+	c,
+	c,
 
 	/* Red3 submap. */
-	r, m, m, m, b, b,
-	y, r, m, m, b, b,
-	y, y, w, b, b, b,
-	y, y, g, c, c, b,
-	g, g, g, c, c, c,
-	g, g, g, g, c, c,
+	r,
+	m,
+	m,
+	m,
+	b,
+	b,
+	y,
+	r,
+	m,
+	m,
+	b,
+	b,
+	y,
+	y,
+	w,
+	b,
+	b,
+	b,
+	y,
+	y,
+	g,
+	c,
+	c,
+	b,
+	g,
+	g,
+	g,
+	c,
+	c,
+	c,
+	g,
+	g,
+	g,
+	g,
+	c,
+	c,
 
 	/* Red4 submap. */
-	r, r, m, m, m, b,
-	r, r, m, m, m, b,
-	y, y, r, m, m, b,
-	y, y, y, w, b, b,
-	y, y, y, g, c, c,
-	g, g, g, g, c, c,
+	r,
+	r,
+	m,
+	m,
+	m,
+	b,
+	r,
+	r,
+	m,
+	m,
+	m,
+	b,
+	y,
+	y,
+	r,
+	m,
+	m,
+	b,
+	y,
+	y,
+	y,
+	w,
+	b,
+	b,
+	y,
+	y,
+	y,
+	g,
+	c,
+	c,
+	g,
+	g,
+	g,
+	g,
+	c,
+	c,
 
 	/* Red5 submap. */
-	r, r, r, m, m, m,
-	r, r, r, m, m, m,
-	r, r, r, m, m, m,
-	y, y, y, r, m, m,
-	y, y, y, y, w, b,
-	y, y, y, y, g, c,
+	r,
+	r,
+	r,
+	m,
+	m,
+	m,
+	r,
+	r,
+	r,
+	m,
+	m,
+	m,
+	r,
+	r,
+	r,
+	m,
+	m,
+	m,
+	y,
+	y,
+	y,
+	r,
+	m,
+	m,
+	y,
+	y,
+	y,
+	y,
+	w,
+	b,
+	y,
+	y,
+	y,
+	y,
+	g,
+	c,
 
 	/* Red6 submap. */
-	r, r, r, r, m, m,
-	r, r, r, r, m, m,
-	r, r, r, r, m, m,
-	r, r, r, r, m, m,
-	y, y, y, y, r, m,
-	y, y, y, y, y, w,
+	r,
+	r,
+	r,
+	r,
+	m,
+	m,
+	r,
+	r,
+	r,
+	r,
+	m,
+	m,
+	r,
+	r,
+	r,
+	r,
+	m,
+	m,
+	r,
+	r,
+	r,
+	r,
+	m,
+	m,
+	y,
+	y,
+	y,
+	y,
+	r,
+	m,
+	y,
+	y,
+	y,
+	y,
+	y,
+	w,
 
 	/* Grey submap. */
-	k, k, k, k, k, k,
-	k, k, k, k, k, k,
-	w, w, w, w, w, w,
-	w, w, w, w, w, w,
+	k,
+	k,
+	k,
+	k,
+	k,
+	k,
+	k,
+	k,
+	k,
+	k,
+	k,
+	k,
+	w,
+	w,
+	w,
+	w,
+	w,
+	w,
+	w,
+	w,
+	w,
+	w,
+	w,
+	w,
 };
 
 /*
@@ -600,82 +818,296 @@ static const teken_color_t teken_256to8tab[] = {
  */
 static const teken_color_t teken_256to16tab[] = {
 	/* xterm normal colors: */
-	k, r, g, y, b, m, c, w,
+	k,
+	r,
+	g,
+	y,
+	b,
+	m,
+	c,
+	w,
 
 	/* xterm bright colors: */
-	K, R, G, Y, B, M, C, W,
+	K,
+	R,
+	G,
+	Y,
+	B,
+	M,
+	C,
+	W,
 
 	/* Red0 submap. */
-	k, b, b, b, b, b,
-	g, c, c, b, b, b,
-	g, c, c, c, b, b,
-	g, g, c, c, c, b,
-	g, g, g, c, c, c,
-	g, g, g, g, c, c,
+	k,
+	b,
+	b,
+	b,
+	b,
+	b,
+	g,
+	c,
+	c,
+	b,
+	b,
+	b,
+	g,
+	c,
+	c,
+	c,
+	b,
+	b,
+	g,
+	g,
+	c,
+	c,
+	c,
+	b,
+	g,
+	g,
+	g,
+	c,
+	c,
+	c,
+	g,
+	g,
+	g,
+	g,
+	c,
+	c,
 
 	/* Red2 submap. */
-	r, m, m, b, b, b,
-	y, K, b, b, B, B,
-	y, g, c, c, B, B,
-	g, g, c, c, C, B,
-	g, G, G, C, C, C,
-	g, G, G, G, C, C,
+	r,
+	m,
+	m,
+	b,
+	b,
+	b,
+	y,
+	K,
+	b,
+	b,
+	B,
+	B,
+	y,
+	g,
+	c,
+	c,
+	B,
+	B,
+	g,
+	g,
+	c,
+	c,
+	C,
+	B,
+	g,
+	G,
+	G,
+	C,
+	C,
+	C,
+	g,
+	G,
+	G,
+	G,
+	C,
+	C,
 
 	/* Red3 submap. */
-	r, m, m, m, b, b,
-	y, r, m, m, B, B,
-	y, y, w, B, B, B,
-	y, y, G, C, C, B,
-	g, G, G, C, C, C,
-	g, G, G, G, C, C,
+	r,
+	m,
+	m,
+	m,
+	b,
+	b,
+	y,
+	r,
+	m,
+	m,
+	B,
+	B,
+	y,
+	y,
+	w,
+	B,
+	B,
+	B,
+	y,
+	y,
+	G,
+	C,
+	C,
+	B,
+	g,
+	G,
+	G,
+	C,
+	C,
+	C,
+	g,
+	G,
+	G,
+	G,
+	C,
+	C,
 
 	/* Red4 submap. */
-	r, r, m, m, m, b,
-	r, r, m, m, M, B,
-	y, y, R, M, M, B,
-	y, y, Y, W, B, B,
-	y, Y, Y, G, C, C,
-	g, G, G, G, C, C,
+	r,
+	r,
+	m,
+	m,
+	m,
+	b,
+	r,
+	r,
+	m,
+	m,
+	M,
+	B,
+	y,
+	y,
+	R,
+	M,
+	M,
+	B,
+	y,
+	y,
+	Y,
+	W,
+	B,
+	B,
+	y,
+	Y,
+	Y,
+	G,
+	C,
+	C,
+	g,
+	G,
+	G,
+	G,
+	C,
+	C,
 
 	/* Red5 submap. */
-	r, r, r, m, m, m,
-	r, R, R, M, M, M,
-	r, R, R, M, M, M,
-	y, Y, Y, R, M, M,
-	y, Y, Y, Y, W, B,
-	y, Y, Y, Y, G, C,
+	r,
+	r,
+	r,
+	m,
+	m,
+	m,
+	r,
+	R,
+	R,
+	M,
+	M,
+	M,
+	r,
+	R,
+	R,
+	M,
+	M,
+	M,
+	y,
+	Y,
+	Y,
+	R,
+	M,
+	M,
+	y,
+	Y,
+	Y,
+	Y,
+	W,
+	B,
+	y,
+	Y,
+	Y,
+	Y,
+	G,
+	C,
 
 	/* Red6 submap. */
-	r, r, r, r, m, m,
-	r, R, R, R, M, M,
-	r, R, R, R, M, M,
-	r, R, R, R, M, M,
-	y, Y, Y, Y, R, M,
-	y, Y, Y, Y, Y, W,
+	r,
+	r,
+	r,
+	r,
+	m,
+	m,
+	r,
+	R,
+	R,
+	R,
+	M,
+	M,
+	r,
+	R,
+	R,
+	R,
+	M,
+	M,
+	r,
+	R,
+	R,
+	R,
+	M,
+	M,
+	y,
+	Y,
+	Y,
+	Y,
+	R,
+	M,
+	y,
+	Y,
+	Y,
+	Y,
+	Y,
+	W,
 
 	/* Grey submap. */
-	k, k, k, k, k, k,
-	K, K, K, K, K, K,
-	w, w, w, w, w, w,
-	W, W, W, W, W, W,
+	k,
+	k,
+	k,
+	k,
+	k,
+	k,
+	K,
+	K,
+	K,
+	K,
+	K,
+	K,
+	w,
+	w,
+	w,
+	w,
+	w,
+	w,
+	W,
+	W,
+	W,
+	W,
+	W,
+	W,
 };
 
-#undef	k
-#undef	b
-#undef	y
-#undef	c
-#undef	g
-#undef	m
-#undef	r
-#undef	w
-#undef	K
-#undef	B
-#undef	Y
-#undef	C
-#undef	G
-#undef	M
-#undef	R
-#undef	W
+#undef k
+#undef b
+#undef y
+#undef c
+#undef g
+#undef m
+#undef r
+#undef w
+#undef K
+#undef B
+#undef Y
+#undef C
+#undef G
+#undef M
+#undef R
+#undef W
 
 teken_color_t
 teken_256to8(teken_color_t c)
@@ -691,43 +1123,68 @@ teken_256to16(teken_color_t c)
 	return (teken_256to16tab[c % 256]);
 }
 
-static const char * const special_strings_cons25[] = {
-	[TKEY_UP] = "\x1B[A",		[TKEY_DOWN] = "\x1B[B",
-	[TKEY_LEFT] = "\x1B[D",		[TKEY_RIGHT] = "\x1B[C",
+static const char *const special_strings_cons25[] = {
+	[TKEY_UP] = "\x1B[A",
+	[TKEY_DOWN] = "\x1B[B",
+	[TKEY_LEFT] = "\x1B[D",
+	[TKEY_RIGHT] = "\x1B[C",
 
-	[TKEY_HOME] = "\x1B[H",		[TKEY_END] = "\x1B[F",
-	[TKEY_INSERT] = "\x1B[L",	[TKEY_DELETE] = "\x7F",
-	[TKEY_PAGE_UP] = "\x1B[I",	[TKEY_PAGE_DOWN] = "\x1B[G",
+	[TKEY_HOME] = "\x1B[H",
+	[TKEY_END] = "\x1B[F",
+	[TKEY_INSERT] = "\x1B[L",
+	[TKEY_DELETE] = "\x7F",
+	[TKEY_PAGE_UP] = "\x1B[I",
+	[TKEY_PAGE_DOWN] = "\x1B[G",
 
-	[TKEY_F1] = "\x1B[M",		[TKEY_F2] = "\x1B[N",
-	[TKEY_F3] = "\x1B[O",		[TKEY_F4] = "\x1B[P",
-	[TKEY_F5] = "\x1B[Q",		[TKEY_F6] = "\x1B[R",
-	[TKEY_F7] = "\x1B[S",		[TKEY_F8] = "\x1B[T",
-	[TKEY_F9] = "\x1B[U",		[TKEY_F10] = "\x1B[V",
-	[TKEY_F11] = "\x1B[W",		[TKEY_F12] = "\x1B[X",
+	[TKEY_F1] = "\x1B[M",
+	[TKEY_F2] = "\x1B[N",
+	[TKEY_F3] = "\x1B[O",
+	[TKEY_F4] = "\x1B[P",
+	[TKEY_F5] = "\x1B[Q",
+	[TKEY_F6] = "\x1B[R",
+	[TKEY_F7] = "\x1B[S",
+	[TKEY_F8] = "\x1B[T",
+	[TKEY_F9] = "\x1B[U",
+	[TKEY_F10] = "\x1B[V",
+	[TKEY_F11] = "\x1B[W",
+	[TKEY_F12] = "\x1B[X",
 };
 
-static const char * const special_strings_ckeys[] = {
-	[TKEY_UP] = "\x1BOA",		[TKEY_DOWN] = "\x1BOB",
-	[TKEY_LEFT] = "\x1BOD",		[TKEY_RIGHT] = "\x1BOC",
+static const char *const special_strings_ckeys[] = {
+	[TKEY_UP] = "\x1BOA",
+	[TKEY_DOWN] = "\x1BOB",
+	[TKEY_LEFT] = "\x1BOD",
+	[TKEY_RIGHT] = "\x1BOC",
 
-	[TKEY_HOME] = "\x1BOH",		[TKEY_END] = "\x1BOF",
+	[TKEY_HOME] = "\x1BOH",
+	[TKEY_END] = "\x1BOF",
 };
 
-static const char * const special_strings_normal[] = {
-	[TKEY_UP] = "\x1B[A",		[TKEY_DOWN] = "\x1B[B",
-	[TKEY_LEFT] = "\x1B[D",		[TKEY_RIGHT] = "\x1B[C",
+static const char *const special_strings_normal[] = {
+	[TKEY_UP] = "\x1B[A",
+	[TKEY_DOWN] = "\x1B[B",
+	[TKEY_LEFT] = "\x1B[D",
+	[TKEY_RIGHT] = "\x1B[C",
 
-	[TKEY_HOME] = "\x1B[H",		[TKEY_END] = "\x1B[F",
-	[TKEY_INSERT] = "\x1B[2~",	[TKEY_DELETE] = "\x1B[3~",
-	[TKEY_PAGE_UP] = "\x1B[5~",	[TKEY_PAGE_DOWN] = "\x1B[6~",
+	[TKEY_HOME] = "\x1B[H",
+	[TKEY_END] = "\x1B[F",
+	[TKEY_INSERT] = "\x1B[2~",
+	[TKEY_DELETE] = "\x1B[3~",
+	[TKEY_PAGE_UP] = "\x1B[5~",
+	[TKEY_PAGE_DOWN] = "\x1B[6~",
 
-	[TKEY_F1] = "\x1BOP",		[TKEY_F2] = "\x1BOQ",
-	[TKEY_F3] = "\x1BOR",		[TKEY_F4] = "\x1BOS",
-	[TKEY_F5] = "\x1B[15~",		[TKEY_F6] = "\x1B[17~",
-	[TKEY_F7] = "\x1B[18~",		[TKEY_F8] = "\x1B[19~",
-	[TKEY_F9] = "\x1B[20~",		[TKEY_F10] = "\x1B[21~",
-	[TKEY_F11] = "\x1B[23~",	[TKEY_F12] = "\x1B[24~",
+	[TKEY_F1] = "\x1BOP",
+	[TKEY_F2] = "\x1BOQ",
+	[TKEY_F3] = "\x1BOR",
+	[TKEY_F4] = "\x1BOS",
+	[TKEY_F5] = "\x1B[15~",
+	[TKEY_F6] = "\x1B[17~",
+	[TKEY_F7] = "\x1B[18~",
+	[TKEY_F8] = "\x1B[19~",
+	[TKEY_F9] = "\x1B[20~",
+	[TKEY_F10] = "\x1B[21~",
+	[TKEY_F11] = "\x1B[23~",
+	[TKEY_F12] = "\x1B[24~",
 };
 
 const char *
@@ -737,7 +1194,7 @@ teken_get_sequence(const teken_t *t, unsigned int k)
 	/* Cons25 mode. */
 	if ((t->t_stateflags & (TS_CONS25 | TS_CONS25KEYS)) ==
 	    (TS_CONS25 | TS_CONS25KEYS))
-		return (NULL);	/* Don't override good kbd(4) strings. */
+		return (NULL); /* Don't override good kbd(4) strings. */
 	if (t->t_stateflags & TS_CONS25 &&
 	    k < sizeof special_strings_cons25 / sizeof(char *))
 		return (special_strings_cons25[k]);

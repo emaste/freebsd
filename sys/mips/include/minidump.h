@@ -28,11 +28,11 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_MINIDUMP_H_
-#define	_MACHINE_MINIDUMP_H_ 1
+#ifndef _MACHINE_MINIDUMP_H_
+#define _MACHINE_MINIDUMP_H_ 1
 
-#define	MINIDUMP_MAGIC		"minidump FreeBSD/mips"
-#define	MINIDUMP_VERSION	2
+#define MINIDUMP_MAGIC "minidump FreeBSD/mips"
+#define MINIDUMP_VERSION 2
 
 struct minidumphdr {
 	char magic[24];

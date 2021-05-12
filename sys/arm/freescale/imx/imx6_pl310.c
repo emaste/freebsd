@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/pl310.h>
@@ -62,6 +62,6 @@ imx6_pl310_init(platform_t plat, struct pl310_softc *sc)
 	reg |= POWER_CTRL_ENABLE_GATING | POWER_CTRL_ENABLE_STANDBY;
 	pl310_write4(sc, PL310_POWER_CTRL, reg);
 
-	pl310_set_ram_latency(sc, PL310_TAG_RAM_CTRL,  4, 2, 3);
+	pl310_set_ram_latency(sc, PL310_TAG_RAM_CTRL, 4, 2, 3);
 	pl310_set_ram_latency(sc, PL310_DATA_RAM_CTRL, 4, 2, 3);
 }

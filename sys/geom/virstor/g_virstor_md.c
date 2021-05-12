@@ -32,8 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/endian.h>
 
-#include <geom/virstor/g_virstor_md.h>
 #include <geom/virstor/binstream.h>
+#include <geom/virstor/g_virstor_md.h>
 
 /*
  * Encode data from g_virstor_metadata structure into a endian-independant

@@ -35,10 +35,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/ofw_bus.h>
 
-#include "clock_if.h"
 #include "as3722.h"
+#include "clock_if.h"
 
-#define	AS3722_RTC_START_YEAR	2000
+#define AS3722_RTC_START_YEAR 2000
 
 int
 as3722_rtc_gettime(device_t dev, struct timespec *ts)

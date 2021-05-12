@@ -36,22 +36,21 @@
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
-
-#include <linux/notifier.h>
 
 #include <acpi/acpi_bus.h>
 #include <acpi/video.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <linux/notifier.h>
 
-#define	ACPI_AC_CLASS	"ac_adapter"
+#define ACPI_AC_CLASS "ac_adapter"
 
 ACPI_MODULE_NAME("linux_acpi")
 
 enum {
 	LINUX_ACPI_ACAD,
 	LINUX_ACPI_VIDEO,
-	LINUX_ACPI_TAGS			/* must be last */
+	LINUX_ACPI_TAGS /* must be last */
 };
 _Static_assert(LINUX_ACPI_TAGS <= LINUX_NOTIFY_TAGS,
     "Not enough space for tags in notifier_block structure");
@@ -89,13 +88,15 @@ acpi_check_dsm(ACPI_HANDLE handle, const char *uuid, int rev, uint64_t funcs)
 }
 
 ACPI_OBJECT *
-acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const char *uuid, int rev,
-    int func, ACPI_OBJECT *argv4, ACPI_OBJECT_TYPE type)
+acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const char *uuid, int rev, int func,
+    ACPI_OBJECT *argv4, ACPI_OBJECT_TYPE type)
 {
 	ACPI_BUFFER buf;
 
-	return (ACPI_SUCCESS(acpi_EvaluateDSMTyped(handle, uuid, rev, func,
-	    argv4, &buf, type)) ? (ACPI_OBJECT *)buf.Pointer : NULL);
+	return (ACPI_SUCCESS(acpi_EvaluateDSMTyped(
+		    handle, uuid, rev, func, argv4, &buf, type)) ?
+		      (ACPI_OBJECT *)buf.Pointer :
+		      NULL);
 }
 
 static void
@@ -126,9 +127,9 @@ linux_handle_acpi_acad_event(void *arg, int data)
 	 * use any type e.g. ACPI_NOTIFY_BUS_CHECK that suits notifier handler.
 	 */
 	struct acpi_bus_event abe = {
-	    .device_class = ACPI_AC_CLASS,
-	    .type = ACPI_NOTIFY_BUS_CHECK,
-	    .data = data,
+		.device_class = ACPI_AC_CLASS,
+		.type = ACPI_NOTIFY_BUS_CHECK,
+		.data = data,
 	};
 
 	nb->notifier_call(nb, 0, &abe);
@@ -139,9 +140,9 @@ linux_handle_acpi_video_event(void *arg, int type)
 {
 	struct notifier_block *nb = arg;
 	struct acpi_bus_event abe = {
-	    .device_class = ACPI_VIDEO_CLASS,
-	    .type = type,
-	    .data = 0,
+		.device_class = ACPI_VIDEO_CLASS,
+		.type = type,
+		.data = 0,
 	};
 
 	nb->notifier_call(nb, 0, &abe);
@@ -201,7 +202,7 @@ SYSINIT(linux_acpi_events, SI_SUB_DRIVERS, SI_ORDER_ANY,
 SYSUNINIT(linux_acpi_events, SI_SUB_DRIVERS, SI_ORDER_ANY,
     linux_deregister_acpi_event_handlers, NULL);
 
-#else	/* !DEV_ACPI */
+#else /* !DEV_ACPI */
 
 ACPI_HANDLE
 bsd_acpi_get_handle(device_t bsddev)
@@ -216,8 +217,8 @@ acpi_check_dsm(ACPI_HANDLE handle, const char *uuid, int rev, uint64_t funcs)
 }
 
 ACPI_OBJECT *
-acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const char *uuid, int rev,
-     int func, ACPI_OBJECT *argv4, ACPI_OBJECT_TYPE type)
+acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const char *uuid, int rev, int func,
+    ACPI_OBJECT *argv4, ACPI_OBJECT_TYPE type)
 {
 	return (NULL);
 }
@@ -240,4 +241,4 @@ acpi_target_system_state(void)
 	return (ACPI_STATE_S0);
 }
 
-#endif	/* !DEV_ACPI */
+#endif /* !DEV_ACPI */

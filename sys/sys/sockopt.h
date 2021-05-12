@@ -48,25 +48,25 @@ struct socket;
  */
 enum sopt_dir { SOPT_GET, SOPT_SET };
 
-struct	sockopt {
-	enum	sopt_dir sopt_dir; /* is this a get or a set? */
-	int	sopt_level;	/* second arg of [gs]etsockopt */
-	int	sopt_name;	/* third arg of [gs]etsockopt */
-	void   *sopt_val;	/* fourth arg of [gs]etsockopt */
-	size_t	sopt_valsize;	/* (almost) fifth arg of [gs]etsockopt */
-	struct	thread *sopt_td; /* calling thread or null if kernel */
+struct sockopt {
+	enum sopt_dir sopt_dir; /* is this a get or a set? */
+	int sopt_level;		/* second arg of [gs]etsockopt */
+	int sopt_name;		/* third arg of [gs]etsockopt */
+	void *sopt_val;		/* fourth arg of [gs]etsockopt */
+	size_t sopt_valsize;	/* (almost) fifth arg of [gs]etsockopt */
+	struct thread *sopt_td; /* calling thread or null if kernel */
 };
 
-int	sosetopt(struct socket *so, struct sockopt *sopt);
-int	sogetopt(struct socket *so, struct sockopt *sopt);
-int	sooptcopyin(struct sockopt *sopt, void *buf, size_t len, size_t minlen);
-int	sooptcopyout(struct sockopt *sopt, const void *buf, size_t len);
-int	soopt_getm(struct sockopt *sopt, struct mbuf **mp);
-int	soopt_mcopyin(struct sockopt *sopt, struct mbuf *m);
-int	soopt_mcopyout(struct sockopt *sopt, struct mbuf *m);
-int	accept_filt_getopt(struct socket *, struct sockopt *);
-int	accept_filt_setopt(struct socket *, struct sockopt *);
-int	so_setsockopt(struct socket *so, int level, int optname,
-	    void *optval, size_t optlen);
+int sosetopt(struct socket *so, struct sockopt *sopt);
+int sogetopt(struct socket *so, struct sockopt *sopt);
+int sooptcopyin(struct sockopt *sopt, void *buf, size_t len, size_t minlen);
+int sooptcopyout(struct sockopt *sopt, const void *buf, size_t len);
+int soopt_getm(struct sockopt *sopt, struct mbuf **mp);
+int soopt_mcopyin(struct sockopt *sopt, struct mbuf *m);
+int soopt_mcopyout(struct sockopt *sopt, struct mbuf *m);
+int accept_filt_getopt(struct socket *, struct sockopt *);
+int accept_filt_setopt(struct socket *, struct sockopt *);
+int so_setsockopt(
+    struct socket *so, int level, int optname, void *optval, size_t optlen);
 
 #endif /* _SYS_SOCKOPT_H_ */

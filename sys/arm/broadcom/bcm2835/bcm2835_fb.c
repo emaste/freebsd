@@ -52,71 +52,57 @@ __FBSDID("$FreeBSD$");
 #include "mbox_if.h"
 
 struct argb {
-	uint8_t		a;
-	uint8_t		r;
-	uint8_t		g;
-	uint8_t		b;
+	uint8_t a;
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
 };
 
-static struct argb bcmfb_palette[16] = {
-	{0x00, 0x00, 0x00, 0x00},
-	{0x00, 0x00, 0x00, 0xaa},
-	{0x00, 0x00, 0xaa, 0x00},
-	{0x00, 0x00, 0xaa, 0xaa},
-	{0x00, 0xaa, 0x00, 0x00},
-	{0x00, 0xaa, 0x00, 0xaa},
-	{0x00, 0xaa, 0x55, 0x00},
-	{0x00, 0xaa, 0xaa, 0xaa},
-	{0x00, 0x55, 0x55, 0x55},
-	{0x00, 0x55, 0x55, 0xff},
-	{0x00, 0x55, 0xff, 0x55},
-	{0x00, 0x55, 0xff, 0xff},
-	{0x00, 0xff, 0x55, 0x55},
-	{0x00, 0xff, 0x55, 0xff},
-	{0x00, 0xff, 0xff, 0x55},
-	{0x00, 0xff, 0xff, 0xff}
-};
+static struct argb bcmfb_palette[16] = { { 0x00, 0x00, 0x00, 0x00 },
+	{ 0x00, 0x00, 0x00, 0xaa }, { 0x00, 0x00, 0xaa, 0x00 },
+	{ 0x00, 0x00, 0xaa, 0xaa }, { 0x00, 0xaa, 0x00, 0x00 },
+	{ 0x00, 0xaa, 0x00, 0xaa }, { 0x00, 0xaa, 0x55, 0x00 },
+	{ 0x00, 0xaa, 0xaa, 0xaa }, { 0x00, 0x55, 0x55, 0x55 },
+	{ 0x00, 0x55, 0x55, 0xff }, { 0x00, 0x55, 0xff, 0x55 },
+	{ 0x00, 0x55, 0xff, 0xff }, { 0x00, 0xff, 0x55, 0x55 },
+	{ 0x00, 0xff, 0x55, 0xff }, { 0x00, 0xff, 0xff, 0x55 },
+	{ 0x00, 0xff, 0xff, 0xff } };
 
 /* mouse pointer from dev/syscons/scgfbrndr.c */
-static u_char mouse_pointer[16] = {
-        0x00, 0x40, 0x60, 0x70, 0x78, 0x7c, 0x7e, 0x68,
-        0x0c, 0x0c, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00
-};
+static u_char mouse_pointer[16] = { 0x00, 0x40, 0x60, 0x70, 0x78, 0x7c, 0x7e,
+	0x68, 0x0c, 0x0c, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00 };
 
-#define	BCMFB_FONT_HEIGHT	16
-#define	BCMFB_FONT_WIDTH	8
-#define	FB_WIDTH		640
-#define	FB_HEIGHT		480
-#define	FB_DEPTH		24
+#define BCMFB_FONT_HEIGHT 16
+#define BCMFB_FONT_WIDTH 8
+#define FB_WIDTH 640
+#define FB_HEIGHT 480
+#define FB_DEPTH 24
 
 struct bcmsc_softc {
 	/* Videoadpater part */
-	video_adapter_t	va;
+	video_adapter_t va;
 
-	intptr_t	fb_addr;
-	intptr_t	fb_paddr;
-	unsigned int	fb_size;
+	intptr_t fb_addr;
+	intptr_t fb_paddr;
+	unsigned int fb_size;
 
-	unsigned int	height;
-	unsigned int	width;
-	unsigned int	depth;
-	unsigned int	stride;
+	unsigned int height;
+	unsigned int width;
+	unsigned int depth;
+	unsigned int stride;
 
-	unsigned int	xmargin;
-	unsigned int	ymargin;
+	unsigned int xmargin;
+	unsigned int ymargin;
 
-	unsigned char	*font;
-	int		fbswap;
-	int		initialized;
+	unsigned char *font;
+	int fbswap;
+	int initialized;
 };
 
 static struct bcmsc_softc bcmsc;
 
-static struct ofw_compat_data compat_data[] = {
-	{"broadcom,bcm2835-fb",		1},
-	{"brcm,bcm2708-fb",		1},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "broadcom,bcm2835-fb", 1 },
+	{ "brcm,bcm2708-fb", 1 }, { NULL, 0 } };
 
 static int bcm_fb_probe(device_t);
 static int bcm_fb_attach(device_t);
@@ -132,8 +118,8 @@ bcm_fb_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "BCM2835 framebuffer device");
-	error = sc_probe_unit(device_get_unit(dev), 
-	    device_get_flags(dev) | SC_AUTODETECT_KBD);
+	error = sc_probe_unit(
+	    device_get_unit(dev), device_get_flags(dev) | SC_AUTODETECT_KBD);
 	if (error != 0)
 		return (error);
 
@@ -146,8 +132,8 @@ bcm_fb_attach(device_t dev)
 	struct bcm2835_fb_config fb;
 	struct bcmsc_softc *sc;
 
-	sc = (struct bcmsc_softc *)vid_get_adapter(vid_find_adapter(
-	    "bcmfb", 0));
+	sc = (struct bcmsc_softc *)vid_get_adapter(
+	    vid_find_adapter("bcmfb", 0));
 	if (sc != NULL)
 		device_set_softc(dev, sc);
 	else
@@ -173,7 +159,7 @@ bcm_fb_attach(device_t dev)
 	bcmfb_update_margins(&sc->va);
 
 	if (sc_attach_unit(device_get_unit(dev),
-	    device_get_flags(dev) | SC_AUTODETECT_KBD) != 0) {
+		device_get_flags(dev) | SC_AUTODETECT_KBD) != 0) {
 		device_printf(dev, "failed to attach syscons\n");
 		return (ENXIO);
 	}
@@ -181,17 +167,16 @@ bcm_fb_attach(device_t dev)
 	device_printf(dev, "%dx%d(%dx%d@%d,%d) %dbpp\n", fb.xres, fb.yres,
 	    fb.vxres, fb.vyres, fb.xoffset, fb.yoffset, fb.bpp);
 	device_printf(dev,
-	    "fbswap: %d, pitch %d, base 0x%08x, screen_size %d\n",
-	    sc->fbswap, fb.pitch, fb.base, fb.size);
+	    "fbswap: %d, pitch %d, base 0x%08x, screen_size %d\n", sc->fbswap,
+	    fb.pitch, fb.base, fb.size);
 
 	return (0);
 }
 
 static device_method_t bcm_fb_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		bcm_fb_probe),
-	DEVMETHOD(device_attach,	bcm_fb_attach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, bcm_fb_probe),
+	DEVMETHOD(device_attach, bcm_fb_attach), { 0, 0 }
 };
 
 static devclass_t bcm_fb_devclass;
@@ -208,70 +193,70 @@ DRIVER_MODULE(bcm2835fb, simplebus, bcm_fb_driver, bcm_fb_devclass, 0, 0);
 /*
  * Video driver routines and glue.
  */
-static vi_probe_t		bcmfb_probe;
-static vi_init_t		bcmfb_init;
-static vi_get_info_t		bcmfb_get_info;
-static vi_query_mode_t		bcmfb_query_mode;
-static vi_set_mode_t		bcmfb_set_mode;
-static vi_save_font_t		bcmfb_save_font;
-static vi_load_font_t		bcmfb_load_font;
-static vi_show_font_t		bcmfb_show_font;
-static vi_save_palette_t	bcmfb_save_palette;
-static vi_load_palette_t	bcmfb_load_palette;
-static vi_set_border_t		bcmfb_set_border;
-static vi_save_state_t		bcmfb_save_state;
-static vi_load_state_t		bcmfb_load_state;
-static vi_set_win_org_t		bcmfb_set_win_org;
-static vi_read_hw_cursor_t	bcmfb_read_hw_cursor;
-static vi_set_hw_cursor_t	bcmfb_set_hw_cursor;
-static vi_set_hw_cursor_shape_t	bcmfb_set_hw_cursor_shape;
-static vi_blank_display_t	bcmfb_blank_display;
-static vi_mmap_t		bcmfb_mmap;
-static vi_ioctl_t		bcmfb_ioctl;
-static vi_clear_t		bcmfb_clear;
-static vi_fill_rect_t		bcmfb_fill_rect;
-static vi_bitblt_t		bcmfb_bitblt;
-static vi_diag_t		bcmfb_diag;
-static vi_save_cursor_palette_t	bcmfb_save_cursor_palette;
-static vi_load_cursor_palette_t	bcmfb_load_cursor_palette;
-static vi_copy_t		bcmfb_copy;
-static vi_putp_t		bcmfb_putp;
-static vi_putc_t		bcmfb_putc;
-static vi_puts_t		bcmfb_puts;
-static vi_putm_t		bcmfb_putm;
+static vi_probe_t bcmfb_probe;
+static vi_init_t bcmfb_init;
+static vi_get_info_t bcmfb_get_info;
+static vi_query_mode_t bcmfb_query_mode;
+static vi_set_mode_t bcmfb_set_mode;
+static vi_save_font_t bcmfb_save_font;
+static vi_load_font_t bcmfb_load_font;
+static vi_show_font_t bcmfb_show_font;
+static vi_save_palette_t bcmfb_save_palette;
+static vi_load_palette_t bcmfb_load_palette;
+static vi_set_border_t bcmfb_set_border;
+static vi_save_state_t bcmfb_save_state;
+static vi_load_state_t bcmfb_load_state;
+static vi_set_win_org_t bcmfb_set_win_org;
+static vi_read_hw_cursor_t bcmfb_read_hw_cursor;
+static vi_set_hw_cursor_t bcmfb_set_hw_cursor;
+static vi_set_hw_cursor_shape_t bcmfb_set_hw_cursor_shape;
+static vi_blank_display_t bcmfb_blank_display;
+static vi_mmap_t bcmfb_mmap;
+static vi_ioctl_t bcmfb_ioctl;
+static vi_clear_t bcmfb_clear;
+static vi_fill_rect_t bcmfb_fill_rect;
+static vi_bitblt_t bcmfb_bitblt;
+static vi_diag_t bcmfb_diag;
+static vi_save_cursor_palette_t bcmfb_save_cursor_palette;
+static vi_load_cursor_palette_t bcmfb_load_cursor_palette;
+static vi_copy_t bcmfb_copy;
+static vi_putp_t bcmfb_putp;
+static vi_putc_t bcmfb_putc;
+static vi_puts_t bcmfb_puts;
+static vi_putm_t bcmfb_putm;
 
 static video_switch_t bcmfbvidsw = {
-	.probe			= bcmfb_probe,
-	.init			= bcmfb_init,
-	.get_info		= bcmfb_get_info,
-	.query_mode		= bcmfb_query_mode,
-	.set_mode		= bcmfb_set_mode,
-	.save_font		= bcmfb_save_font,
-	.load_font		= bcmfb_load_font,
-	.show_font		= bcmfb_show_font,
-	.save_palette		= bcmfb_save_palette,
-	.load_palette		= bcmfb_load_palette,
-	.set_border		= bcmfb_set_border,
-	.save_state		= bcmfb_save_state,
-	.load_state		= bcmfb_load_state,
-	.set_win_org		= bcmfb_set_win_org,
-	.read_hw_cursor		= bcmfb_read_hw_cursor,
-	.set_hw_cursor		= bcmfb_set_hw_cursor,
-	.set_hw_cursor_shape	= bcmfb_set_hw_cursor_shape,
-	.blank_display		= bcmfb_blank_display,
-	.mmap			= bcmfb_mmap,
-	.ioctl			= bcmfb_ioctl,
-	.clear			= bcmfb_clear,
-	.fill_rect		= bcmfb_fill_rect,
-	.bitblt			= bcmfb_bitblt,
-	.diag			= bcmfb_diag,
-	.save_cursor_palette	= bcmfb_save_cursor_palette,
-	.load_cursor_palette	= bcmfb_load_cursor_palette,
-	.copy			= bcmfb_copy,
-	.putp			= bcmfb_putp,
-	.putc			= bcmfb_putc,
-	.puts			= bcmfb_puts,
-	.putm			= bcmfb_putm,
+	.probe = bcmfb_probe,
+	.init = bcmfb_init,
+	.get_info = bcmfb_get_info,
+	.query_mode = bcmfb_query_mode,
+	.set_mode = bcmfb_set_mode,
+	.save_font = bcmfb_save_font,
+	.load_font = bcmfb_load_font,
+	.show_font = bcmfb_show_font,
+	.save_palette = bcmfb_save_palette,
+	.load_palette = bcmfb_load_palette,
+	.set_border = bcmfb_set_border,
+	.save_state = bcmfb_save_state,
+	.load_state = bcmfb_load_state,
+	.set_win_org = bcmfb_set_win_org,
+	.read_hw_cursor = bcmfb_read_hw_cursor,
+	.set_hw_cursor = bcmfb_set_hw_cursor,
+	.set_hw_cursor_shape = bcmfb_set_hw_cursor_shape,
+	.blank_display = bcmfb_blank_display,
+	.mmap = bcmfb_mmap,
+	.ioctl = bcmfb_ioctl,
+	.clear = bcmfb_clear,
+	.fill_rect = bcmfb_fill_rect,
+	.bitblt = bcmfb_bitblt,
+	.diag = bcmfb_diag,
+	.save_cursor_palette = bcmfb_save_cursor_palette,
+	.load_cursor_palette = bcmfb_load_cursor_palette,
+	.copy = bcmfb_copy,
+	.putp = bcmfb_putp,
+	.putc = bcmfb_putc,
+	.puts = bcmfb_puts,
+	.putm = bcmfb_putm,
 };
 
 VIDEO_DRIVER(bcmfb, bcmfbvidsw, bcmfb_configure);
@@ -290,47 +275,42 @@ static vr_draw_mouse_t bcmrend_draw_mouse;
  * We use our own renderer; this is because we must emulate a hardware
  * cursor.
  */
-static sc_rndr_sw_t bcmrend = {
-	bcmrend_init,
-	bcmrend_clear,
-	bcmrend_draw_border,
-	bcmrend_draw,
-	bcmrend_set_cursor,
-	bcmrend_draw_cursor,
-	bcmrend_blink_cursor,
-	bcmrend_set_mouse,
-	bcmrend_draw_mouse
-};
+static sc_rndr_sw_t bcmrend = { bcmrend_init, bcmrend_clear,
+	bcmrend_draw_border, bcmrend_draw, bcmrend_set_cursor,
+	bcmrend_draw_cursor, bcmrend_blink_cursor, bcmrend_set_mouse,
+	bcmrend_draw_mouse };
 
 RENDERER(bcmfb, 0, bcmrend, gfb_set);
 RENDERER_MODULE(bcmfb, gfb_set);
 
 static void
-bcmrend_init(scr_stat* scp)
+bcmrend_init(scr_stat *scp)
 {
 }
 
 static void
-bcmrend_clear(scr_stat* scp, int c, int attr)
+bcmrend_clear(scr_stat *scp, int c, int attr)
 {
 }
 
 static void
-bcmrend_draw_border(scr_stat* scp, int color)
+bcmrend_draw_border(scr_stat *scp, int color)
 {
 }
 
 static void
-bcmrend_draw(scr_stat* scp, int from, int count, int flip)
+bcmrend_draw(scr_stat *scp, int from, int count, int flip)
 {
-	video_adapter_t* adp = scp->sc->adp;
+	video_adapter_t *adp = scp->sc->adp;
 	int i, c, a;
 
 	if (!flip) {
 		/* Normal printing */
-		vidd_puts(adp, from, (uint16_t*)sc_vtb_pointer(&scp->vtb, from), count);
-	} else {	
-		/* This is for selections and such: invert the color attribute */
+		vidd_puts(adp, from,
+		    (uint16_t *)sc_vtb_pointer(&scp->vtb, from), count);
+	} else {
+		/* This is for selections and such: invert the color attribute
+		 */
 		for (i = count; i-- > 0; ++from) {
 			c = sc_vtb_getc(&scp->vtb, from);
 			a = sc_vtb_geta(&scp->vtb, from) >> 8;
@@ -340,12 +320,12 @@ bcmrend_draw(scr_stat* scp, int from, int count, int flip)
 }
 
 static void
-bcmrend_set_cursor(scr_stat* scp, int base, int height, int blink)
+bcmrend_set_cursor(scr_stat *scp, int base, int height, int blink)
 {
 }
 
 static void
-bcmrend_draw_cursor(scr_stat* scp, int off, int blink, int on, int flip)
+bcmrend_draw_cursor(scr_stat *scp, int off, int blink, int on, int flip)
 {
 	int bytes, col, i, j, row;
 	struct bcmsc_softc *sc;
@@ -368,9 +348,8 @@ bcmrend_draw_cursor(scr_stat* scp, int off, int blink, int on, int flip)
 	row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
 	col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
 
-	addr = (uint8_t *)sc->fb_addr
-	    + (row + sc->ymargin)*(sc->stride)
-	    + (sc->depth/8) * (col + sc->xmargin);
+	addr = (uint8_t *)sc->fb_addr + (row + sc->ymargin) * (sc->stride) +
+	    (sc->depth / 8) * (col + sc->xmargin);
 
 	bytes = sc->depth / 8;
 	/* our cursor consists of simply inverting the char under it */
@@ -379,11 +358,11 @@ bcmrend_draw_cursor(scr_stat* scp, int off, int blink, int on, int flip)
 			switch (sc->depth) {
 			case 32:
 			case 24:
-				addr[bytes*j + 2] ^= 0xff;
+				addr[bytes * j + 2] ^= 0xff;
 				/* FALLTHROUGH */
 			case 16:
-				addr[bytes*j + 1] ^= 0xff;
-				addr[bytes*j] ^= 0xff;
+				addr[bytes * j + 1] ^= 0xff;
+				addr[bytes * j] ^= 0xff;
 				break;
 			default:
 				break;
@@ -395,22 +374,22 @@ bcmrend_draw_cursor(scr_stat* scp, int off, int blink, int on, int flip)
 }
 
 static void
-bcmrend_blink_cursor(scr_stat* scp, int at, int flip)
+bcmrend_blink_cursor(scr_stat *scp, int at, int flip)
 {
 }
 
 static void
-bcmrend_set_mouse(scr_stat* scp)
+bcmrend_set_mouse(scr_stat *scp)
 {
 }
 
 static void
-bcmrend_draw_mouse(scr_stat* scp, int x, int y, int on)
+bcmrend_draw_mouse(scr_stat *scp, int x, int y, int on)
 {
 	vidd_putm(scp->sc->adp, x, y, mouse_pointer, 0xffffffff, 16, 8);
 }
 
-static uint16_t bcmfb_static_window[ROW*COL];
+static uint16_t bcmfb_static_window[ROW * COL];
 extern u_char dflt_font_16[];
 
 /*
@@ -471,17 +450,17 @@ bcmfb_configure(int flags)
 	}
 
 	root = OF_finddevice("/");
-	if ((root != -1) && 
+	if ((root != -1) &&
 	    (display = fdt_find_compatible(root, "broadcom,bcm2835-fb", 1))) {
 		if (sc->width == 0) {
-			if ((OF_getencprop(display, "broadcom,width",
-			    &cell, sizeof(cell))) > 0)
+			if ((OF_getencprop(display, "broadcom,width", &cell,
+				sizeof(cell))) > 0)
 				sc->width = cell;
 		}
 
 		if (sc->height == 0) {
-			if ((OF_getencprop(display, "broadcom,height", 
-			    &cell, sizeof(cell))) > 0)
+			if ((OF_getencprop(display, "broadcom,height", &cell,
+				sizeof(cell))) > 0)
 				sc->height = cell;
 		}
 	}
@@ -532,7 +511,7 @@ bcmfb_init(int unit, video_adapter_t *adp, int flags)
 	sc->xmargin = (sc->width - (vi->vi_width * vi->vi_cwidth)) / 2;
 	sc->ymargin = (sc->height - (vi->vi_height * vi->vi_cheight)) / 2;
 
-	adp->va_window = (vm_offset_t) bcmfb_static_window;
+	adp->va_window = (vm_offset_t)bcmfb_static_window;
 	adp->va_flags |= V_ADP_FONT /* | V_ADP_COLOR | V_ADP_MODECHANGE */;
 
 	vid_register(&sc->va);
@@ -635,8 +614,8 @@ bcmfb_set_hw_cursor(video_adapter_t *adp, int col, int row)
 }
 
 static int
-bcmfb_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
-    int celsize, int blink)
+bcmfb_set_hw_cursor_shape(
+    video_adapter_t *adp, int base, int height, int celsize, int blink)
 {
 	return (0);
 }
@@ -649,7 +628,7 @@ bcmfb_blank_display(video_adapter_t *adp, int mode)
 
 	sc = (struct bcmsc_softc *)adp;
 	if (sc && sc->fb_addr)
-		memset((void*)sc->fb_addr, 0, sc->fb_size);
+		memset((void *)sc->fb_addr, 0, sc->fb_size);
 
 	return (0);
 }
@@ -666,7 +645,7 @@ bcmfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 	 * This might be a legacy VGA mem request: if so, just point it at the
 	 * framebuffer, since it shouldn't be touched
 	 */
-	if (offset < sc->stride*sc->height) {
+	if (offset < sc->stride * sc->height) {
 		*paddr = sc->fb_paddr + offset;
 		return (0);
 	}
@@ -775,12 +754,11 @@ bcmfb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 
 	row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
 	col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
-	p = sc->font + c*BCMFB_FONT_HEIGHT;
-	addr = (uint8_t *)sc->fb_addr
-	    + (row + sc->ymargin)*(sc->stride)
-	    + (sc->depth/8) * (col + sc->xmargin);
+	p = sc->font + c * BCMFB_FONT_HEIGHT;
+	addr = (uint8_t *)sc->fb_addr + (row + sc->ymargin) * (sc->stride) +
+	    (sc->depth / 8) * (col + sc->xmargin);
 
-	fg = a & 0xf ;
+	fg = a & 0xf;
 	bg = (a >> 4) & 0xf;
 
 	bytes = sc->depth / 8;
@@ -828,7 +806,7 @@ bcmfb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 		addr += (sc->stride);
 	}
 
-        return (0);
+	return (0);
 }
 
 static int
@@ -836,7 +814,7 @@ bcmfb_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
 {
 	int i;
 
-	for (i = 0; i < len; i++) 
+	for (i = 0; i < len; i++)
 		bcmfb_putc(adp, off + i, s[i] & 0xff, (s[i] & 0xff00) >> 8);
 
 	return (0);

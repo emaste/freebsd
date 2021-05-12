@@ -39,8 +39,8 @@
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
-#include <sys/mbuf.h>
 #include <sys/lock.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
@@ -58,13 +58,13 @@
 #include <net/if_vlan_var.h>
 
 #ifdef INET
-#include <netinet/in.h>
 #include <netinet/if_ether.h>
+#include <netinet/in.h>
 #endif
 
+#include <contrib/octeon-sdk/cvmx-mgmt-port.h>
 #include <contrib/octeon-sdk/cvmx.h>
 #include <mips/cavium/octeon_irq.h>
-#include <contrib/octeon-sdk/cvmx-mgmt-port.h>
 
 struct octm_softc {
 	struct ifnet *sc_ifp;
@@ -76,36 +76,35 @@ struct octm_softc {
 	void *sc_intr_cookie;
 };
 
-static void	octm_identify(driver_t *, device_t);
-static int	octm_probe(device_t);
-static int	octm_attach(device_t);
-static int	octm_detach(device_t);
-static int	octm_shutdown(device_t);
+static void octm_identify(driver_t *, device_t);
+static int octm_probe(device_t);
+static int octm_attach(device_t);
+static int octm_detach(device_t);
+static int octm_shutdown(device_t);
 
-static void	octm_init(void *);
-static int	octm_transmit(struct ifnet *, struct mbuf *);
+static void octm_init(void *);
+static int octm_transmit(struct ifnet *, struct mbuf *);
 
-static int	octm_medchange(struct ifnet *);
-static void	octm_medstat(struct ifnet *, struct ifmediareq *);
+static int octm_medchange(struct ifnet *);
+static void octm_medstat(struct ifnet *, struct ifmediareq *);
 
-static int	octm_ioctl(struct ifnet *, u_long, caddr_t);
+static int octm_ioctl(struct ifnet *, u_long, caddr_t);
 
-static void	octm_rx_intr(void *);
+static void octm_rx_intr(void *);
 
 static device_method_t octm_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	octm_identify),
-	DEVMETHOD(device_probe,		octm_probe),
-	DEVMETHOD(device_attach,	octm_attach),
-	DEVMETHOD(device_detach,	octm_detach),
-	DEVMETHOD(device_shutdown,	octm_shutdown),
-	{ 0, 0 }
+	DEVMETHOD(device_identify, octm_identify),
+	DEVMETHOD(device_probe, octm_probe),
+	DEVMETHOD(device_attach, octm_attach),
+	DEVMETHOD(device_detach, octm_detach),
+	DEVMETHOD(device_shutdown, octm_shutdown), { 0, 0 }
 };
 
 static driver_t octm_driver = {
 	"octm",
 	octm_methods,
-	sizeof (struct octm_softc),
+	sizeof(struct octm_softc),
 };
 
 static devclass_t octm_devclass;
@@ -170,7 +169,8 @@ octm_attach(device_t dev)
 		irq = OCTEON_IRQ_MII1;
 		break;
 	default:
-		device_printf(dev, "unsupported management port %u.\n", sc->sc_port);
+		device_printf(
+		    dev, "unsupported management port %u.\n", sc->sc_port);
 		return (ENXIO);
 	}
 
@@ -194,8 +194,8 @@ octm_attach(device_t dev)
 
 	/* Allocate and establish interrupt.  */
 	rid = 0;
-	sc->sc_intr = bus_alloc_resource(sc->sc_dev, SYS_RES_IRQ, &rid,
-	    irq, irq, 1, RF_ACTIVE);
+	sc->sc_intr = bus_alloc_resource(
+	    sc->sc_dev, SYS_RES_IRQ, &rid, irq, irq, 1, RF_ACTIVE);
 	if (sc->sc_intr == NULL) {
 		device_printf(dev, "unable to allocate IRQ.\n");
 		return (ENXIO);
@@ -224,7 +224,8 @@ octm_attach(device_t dev)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_init = octm_init;
 	ifp->if_softc = sc;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST | IFF_ALLMULTI;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_ALLMULTI;
 	ifp->if_ioctl = octm_ioctl;
 
 	sc->sc_ifp = ifp;
@@ -474,7 +475,8 @@ octm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		return (0);
 
 	case SIOCSIFMTU:
-		cvmx_mgmt_port_set_max_packet_size(sc->sc_port, ifr->ifr_mtu + ifp->if_hdrlen);
+		cvmx_mgmt_port_set_max_packet_size(
+		    sc->sc_port, ifr->ifr_mtu + ifp->if_hdrlen);
 		return (0);
 
 	case SIOCSIFMEDIA:
@@ -508,7 +510,8 @@ octm_rx_intr(void *arg)
 	for (;;) {
 		struct mbuf *m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
-			device_printf(sc->sc_dev, "no memory for receive mbuf.\n");
+			device_printf(
+			    sc->sc_dev, "no memory for receive mbuf.\n");
 			return;
 		}
 

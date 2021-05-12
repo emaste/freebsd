@@ -21,9 +21,9 @@
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
@@ -51,7 +51,7 @@ void sctp_startup_iterator(void);
 void sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa);
 #endif
 
-#ifdef  SCTP_PACKET_LOGGING
+#ifdef SCTP_PACKET_LOGGING
 
 void sctp_packet_log(struct mbuf *m);
 int sctp_copy_out_packet_log(uint8_t *target, int length);
@@ -62,7 +62,7 @@ void sctp_addr_change(struct ifaddr *ifa, int cmd);
 
 void sctp_addr_change_event_handler(void *, struct ifaddr *, int);
 
-void sctp_add_or_del_interfaces(int (*pred) (struct ifnet *), int add);
+void sctp_add_or_del_interfaces(int (*pred)(struct ifnet *), int add);
 
 #endif
 #endif

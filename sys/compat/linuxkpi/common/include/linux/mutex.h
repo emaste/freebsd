@@ -28,16 +28,16 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_MUTEX_H_
-#define	_LINUX_MUTEX_H_
+#ifndef _LINUX_MUTEX_H_
+#define _LINUX_MUTEX_H_
 
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/proc.h>
 #include <sys/sx.h>
 
-#include <linux/spinlock.h>
 #include <asm/atomic.h>
+#include <linux/spinlock.h>
 
 typedef struct mutex {
 	struct sx sx;
@@ -48,49 +48,43 @@ typedef struct mutex {
  * not be skipped during panic().
  */
 #ifdef CONFIG_NO_MUTEX_SKIP
-#define	MUTEX_SKIP(void) 0
+#define MUTEX_SKIP(void) 0
 #else
-#define	MUTEX_SKIP(void) unlikely(SCHEDULER_STOPPED() || kdb_active)
+#define MUTEX_SKIP(void) unlikely(SCHEDULER_STOPPED() || kdb_active)
 #endif
 
-#define	mutex_lock(_m) do {			\
-	if (MUTEX_SKIP())			\
-		break;				\
-	sx_xlock(&(_m)->sx);			\
-} while (0)
+#define mutex_lock(_m)               \
+	do {                         \
+		if (MUTEX_SKIP())    \
+			break;       \
+		sx_xlock(&(_m)->sx); \
+	} while (0)
 
-#define	mutex_lock_nested(_m, _s)	mutex_lock(_m)
-#define	mutex_lock_nest_lock(_m, _s)	mutex_lock(_m)
+#define mutex_lock_nested(_m, _s) mutex_lock(_m)
+#define mutex_lock_nest_lock(_m, _s) mutex_lock(_m)
 
-#define	mutex_lock_interruptible(_m) ({		\
-	MUTEX_SKIP() ? 0 :			\
-	linux_mutex_lock_interruptible(_m);	\
-})
+#define mutex_lock_interruptible(_m) \
+	({ MUTEX_SKIP() ? 0 : linux_mutex_lock_interruptible(_m); })
 
-#define	mutex_lock_interruptible_nested(m, c)	mutex_lock_interruptible(m)
+#define mutex_lock_interruptible_nested(m, c) mutex_lock_interruptible(m)
 
 /*
  * Reuse the interruptable method since the SX
  * lock handles both signals and interrupts:
  */
-#define	mutex_lock_killable(_m) ({		\
-	MUTEX_SKIP() ? 0 :			\
-	linux_mutex_lock_interruptible(_m);	\
-})
+#define mutex_lock_killable(_m) \
+	({ MUTEX_SKIP() ? 0 : linux_mutex_lock_interruptible(_m); })
 
-#define	mutex_lock_killable_nested(_m, _sub)	\
-	mutex_lock_killable(_m)
+#define mutex_lock_killable_nested(_m, _sub) mutex_lock_killable(_m)
 
-#define	mutex_unlock(_m) do {			\
-	if (MUTEX_SKIP())			\
-		break;				\
-	sx_xunlock(&(_m)->sx);			\
-} while (0)
+#define mutex_unlock(_m)               \
+	do {                           \
+		if (MUTEX_SKIP())      \
+			break;         \
+		sx_xunlock(&(_m)->sx); \
+	} while (0)
 
-#define	mutex_trylock(_m) ({			\
-	MUTEX_SKIP() ? 1 :			\
-	!!sx_try_xlock(&(_m)->sx);		\
-})
+#define mutex_trylock(_m) ({ MUTEX_SKIP() ? 1 : !!sx_try_xlock(&(_m)->sx); })
 
 enum mutex_trylock_recursive_enum {
 	MUTEX_TRYLOCK_FAILED = 0,
@@ -107,17 +101,13 @@ mutex_trylock_recursive(struct mutex *lock)
 	return (mutex_trylock(lock));
 }
 
-#define	mutex_init(_m) \
-	linux_mutex_init(_m, mutex_name(#_m), SX_NOWITNESS)
+#define mutex_init(_m) linux_mutex_init(_m, mutex_name(#_m), SX_NOWITNESS)
 
-#define	__mutex_init(_m, _n, _l) \
-	linux_mutex_init(_m, _n, SX_NOWITNESS)
+#define __mutex_init(_m, _n, _l) linux_mutex_init(_m, _n, SX_NOWITNESS)
 
-#define	mutex_init_witness(_m) \
-	linux_mutex_init(_m, mutex_name(#_m), SX_DUPOK)
+#define mutex_init_witness(_m) linux_mutex_init(_m, mutex_name(#_m), SX_DUPOK)
 
-#define	mutex_destroy(_m) \
-	linux_mutex_destroy(_m)
+#define mutex_destroy(_m) linux_mutex_destroy(_m)
 
 static inline bool
 mutex_is_locked(mutex_t *m)
@@ -131,7 +121,8 @@ mutex_is_owned(mutex_t *m)
 	return (sx_xlocked(&m->sx));
 }
 
-static inline int atomic_dec_and_mutex_lock(atomic_t *cnt, struct mutex *m)
+static inline int
+atomic_dec_and_mutex_lock(atomic_t *cnt, struct mutex *m)
 {
 	if (atomic_dec_and_test(cnt)) {
 		mutex_lock(m);
@@ -143,17 +134,17 @@ static inline int atomic_dec_and_mutex_lock(atomic_t *cnt, struct mutex *m)
 
 #ifdef WITNESS_ALL
 /* NOTE: the maximum WITNESS name is 64 chars */
-#define	__mutex_name(name, file, line)		\
-	(((const char *){file ":" #line "-" name}) +	\
-	(sizeof(file) > 16 ? sizeof(file) - 16 : 0))
+#define __mutex_name(name, file, line)                  \
+	(((const char *) { file ":" #line "-" name }) + \
+	    (sizeof(file) > 16 ? sizeof(file) - 16 : 0))
 #else
-#define	__mutex_name(name, file, line)	name
+#define __mutex_name(name, file, line) name
 #endif
-#define	_mutex_name(...)	__mutex_name(__VA_ARGS__)
-#define	mutex_name(name)	_mutex_name(name, __FILE__, __LINE__)
+#define _mutex_name(...) __mutex_name(__VA_ARGS__)
+#define mutex_name(name) _mutex_name(name, __FILE__, __LINE__)
 
-#define	DEFINE_MUTEX(lock)						\
-	mutex_t lock;							\
+#define DEFINE_MUTEX(lock) \
+	mutex_t lock;      \
 	SX_SYSINIT_FLAGS(lock, &(lock).sx, mutex_name(#lock), SX_DUPOK)
 
 static inline void
@@ -173,4 +164,4 @@ linux_mutex_destroy(mutex_t *m)
 
 extern int linux_mutex_lock_interruptible(mutex_t *m);
 
-#endif					/* _LINUX_MUTEX_H_ */
+#endif /* _LINUX_MUTEX_H_ */

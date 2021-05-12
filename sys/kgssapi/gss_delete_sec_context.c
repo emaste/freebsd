@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 
 OM_uint32
 gss_delete_sec_context(OM_uint32 *minor_status, gss_ctx_id_t *context_handle,
-	gss_buffer_t output_token)
+    gss_buffer_t output_token)
 {
 	struct delete_sec_context_res res;
 	struct delete_sec_context_args args;
@@ -80,9 +80,9 @@ gss_delete_sec_context(OM_uint32 *minor_status, gss_ctx_id_t *context_handle,
 			}
 
 			if (output_token)
-				kgss_copy_buffer(&res.output_token,
-				    output_token);
-			xdr_free((xdrproc_t) xdr_delete_sec_context_res, &res);
+				kgss_copy_buffer(
+				    &res.output_token, output_token);
+			xdr_free((xdrproc_t)xdr_delete_sec_context_res, &res);
 
 			kgss_delete_context(ctx, NULL);
 		} else {

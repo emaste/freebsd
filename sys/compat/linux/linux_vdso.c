@@ -30,9 +30,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-#define	__ELF_WORD_SIZE	32
+#define __ELF_WORD_SIZE 32
 #else
-#define	__ELF_WORD_SIZE	64
+#define __ELF_WORD_SIZE 64
 #endif
 
 #include <sys/param.h>
@@ -40,12 +40,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/elf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/rwlock.h>
 #include <sys/queue.h>
+#include <sys/rwlock.h>
 #include <sys/sysent.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -53,34 +52,32 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
 
 #include <compat/linux/linux_vdso.h>
 
-SLIST_HEAD(, linux_vdso_sym) __elfN(linux_vdso_syms) =
-    SLIST_HEAD_INITIALIZER(__elfN(linux_vdso_syms));
+SLIST_HEAD(, linux_vdso_sym)
+    __elfN(linux_vdso_syms) = SLIST_HEAD_INITIALIZER(__elfN(linux_vdso_syms));
 
 static int __elfN(symtabindex);
 static int __elfN(symstrindex);
 
-static void
-__elfN(linux_vdso_lookup)(Elf_Ehdr *, struct linux_vdso_sym *);
+static void __elfN(linux_vdso_lookup)(Elf_Ehdr *, struct linux_vdso_sym *);
 
-void
-__elfN(linux_vdso_sym_init)(struct linux_vdso_sym *s)
+void __elfN(linux_vdso_sym_init)(struct linux_vdso_sym *s)
 {
 
 	SLIST_INSERT_HEAD(&__elfN(linux_vdso_syms), s, sym);
 }
 
-vm_object_t
-__elfN(linux_shared_page_init)(char **mapping)
+vm_object_t __elfN(linux_shared_page_init)(char **mapping)
 {
 	vm_page_t m;
 	vm_object_t obj;
 	vm_offset_t addr;
 
-	obj = vm_pager_allocate(OBJT_PHYS, 0, PAGE_SIZE,
-	    VM_PROT_DEFAULT, 0, NULL);
+	obj = vm_pager_allocate(
+	    OBJT_PHYS, 0, PAGE_SIZE, VM_PROT_DEFAULT, 0, NULL);
 	VM_OBJECT_WLOCK(obj);
 	m = vm_page_grab(obj, 0, VM_ALLOC_ZERO);
 	VM_OBJECT_WUNLOCK(obj);
@@ -92,8 +89,7 @@ __elfN(linux_shared_page_init)(char **mapping)
 	return (obj);
 }
 
-void
-__elfN(linux_shared_page_fini)(vm_object_t obj, void *mapping)
+void __elfN(linux_shared_page_fini)(vm_object_t obj, void *mapping)
 {
 	vm_offset_t va;
 
@@ -103,27 +99,24 @@ __elfN(linux_shared_page_fini)(vm_object_t obj, void *mapping)
 	vm_object_deallocate(obj);
 }
 
-void
-__elfN(linux_vdso_fixup)(struct sysentvec *sv)
+void __elfN(linux_vdso_fixup)(struct sysentvec *sv)
 {
 	Elf_Ehdr *ehdr;
 	Elf_Shdr *shdr;
 	int i;
 
-	ehdr = (Elf_Ehdr *) sv->sv_sigcode;
+	ehdr = (Elf_Ehdr *)sv->sv_sigcode;
 
-	if (!IS_ELF(*ehdr) ||
-	    ehdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
+	if (!IS_ELF(*ehdr) || ehdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
 	    ehdr->e_ident[EI_DATA] != ELF_TARG_DATA ||
-	    ehdr->e_ident[EI_VERSION] != EV_CURRENT ||
-	    ehdr->e_shoff == 0 ||
+	    ehdr->e_ident[EI_VERSION] != EV_CURRENT || ehdr->e_shoff == 0 ||
 	    ehdr->e_shentsize != sizeof(Elf_Shdr))
 		panic("Linux invalid vdso header.\n");
 
 	if (ehdr->e_type != ET_DYN)
 		panic("Linux invalid vdso header.\n");
 
-	shdr = (Elf_Shdr *) ((caddr_t)ehdr + ehdr->e_shoff);
+	shdr = (Elf_Shdr *)((caddr_t)ehdr + ehdr->e_shoff);
 
 	__elfN(symtabindex) = -1;
 	__elfN(symstrindex) = -1;
@@ -142,8 +135,7 @@ __elfN(linux_vdso_fixup)(struct sysentvec *sv)
 	ehdr->e_ident[EI_OSABI] = ELFOSABI_LINUX;
 }
 
-void
-__elfN(linux_vdso_reloc)(struct sysentvec *sv)
+void __elfN(linux_vdso_reloc)(struct sysentvec *sv)
 {
 	struct linux_vdso_sym *lsym;
 	Elf_Ehdr *ehdr;
@@ -153,7 +145,7 @@ __elfN(linux_vdso_reloc)(struct sysentvec *sv)
 	Elf_Sym *sym;
 	int i, j, symcnt;
 
-	ehdr = (Elf_Ehdr *) sv->sv_sigcode;
+	ehdr = (Elf_Ehdr *)sv->sv_sigcode;
 
 	/* Adjust our so relative to the sigcode_base */
 	if (sv->sv_shared_page_base != 0) {
@@ -166,7 +158,7 @@ __elfN(linux_vdso_reloc)(struct sysentvec *sv)
 			if (phdr[i].p_type != PT_DYNAMIC)
 				continue;
 			dyn = (Elf_Dyn *)((caddr_t)ehdr + phdr[i].p_offset);
-			for(; dyn->d_tag != DT_NULL; dyn++) {
+			for (; dyn->d_tag != DT_NULL; dyn++) {
 				switch (dyn->d_tag) {
 				case DT_PLTGOT:
 				case DT_HASH:
@@ -182,13 +174,15 @@ __elfN(linux_vdso_reloc)(struct sysentvec *sv)
 				case DT_VERDEF:
 				case DT_VERNEED:
 				case DT_ADDRRNGLO ... DT_ADDRRNGHI:
-					dyn->d_un.d_ptr += sv->sv_shared_page_base;
+					dyn->d_un.d_ptr +=
+					    sv->sv_shared_page_base;
 					break;
-				case DT_ENCODING ... DT_LOOS-1:
+				case DT_ENCODING ... DT_LOOS - 1:
 				case DT_LOOS ... DT_HIOS:
 					if (dyn->d_tag >= DT_ENCODING &&
 					    (dyn->d_tag & 1) == 0)
-						dyn->d_un.d_ptr += sv->sv_shared_page_base;
+						dyn->d_un.d_ptr +=
+						    sv->sv_shared_page_base;
 					break;
 				default:
 					break;
@@ -198,7 +192,7 @@ __elfN(linux_vdso_reloc)(struct sysentvec *sv)
 
 		/* sections */
 		shdr = (Elf_Shdr *)((caddr_t)ehdr + ehdr->e_shoff);
-		for(i = 0; i < ehdr->e_shnum; i++) {
+		for (i = 0; i < ehdr->e_shnum; i++) {
 			if (!(shdr[i].sh_flags & SHF_ALLOC))
 				continue;
 			shdr[i].sh_addr += sv->sv_shared_page_base;
@@ -209,7 +203,7 @@ __elfN(linux_vdso_reloc)(struct sysentvec *sv)
 			sym = (Elf_Sym *)((caddr_t)ehdr + shdr[i].sh_offset);
 			symcnt = shdr[i].sh_size / sizeof(*sym);
 
-			for(j = 0; j < symcnt; j++, sym++) {
+			for (j = 0; j < symcnt; j++, sym++) {
 				if (sym->st_shndx == SHN_UNDEF ||
 				    sym->st_shndx == SHN_ABS)
 					continue;
@@ -218,22 +212,22 @@ __elfN(linux_vdso_reloc)(struct sysentvec *sv)
 		}
 	}
 
-	SLIST_FOREACH(lsym, &__elfN(linux_vdso_syms), sym)
+	SLIST_FOREACH (lsym, &__elfN(linux_vdso_syms), sym)
 		__elfN(linux_vdso_lookup)(ehdr, lsym);
 }
 
-static void
-__elfN(linux_vdso_lookup)(Elf_Ehdr *ehdr, struct linux_vdso_sym *vsym)
+static void __elfN(linux_vdso_lookup)(
+    Elf_Ehdr *ehdr, struct linux_vdso_sym *vsym)
 {
 	vm_offset_t strtab, symname;
 	uint32_t symcnt;
 	Elf_Shdr *shdr;
 	int i;
 
-	shdr = (Elf_Shdr *) ((caddr_t)ehdr + ehdr->e_shoff);
+	shdr = (Elf_Shdr *)((caddr_t)ehdr + ehdr->e_shoff);
 
-	strtab = (vm_offset_t)((caddr_t)ehdr +
-	    shdr[__elfN(symstrindex)].sh_offset);
+	strtab = (vm_offset_t)(
+	    (caddr_t)ehdr + shdr[__elfN(symstrindex)].sh_offset);
 	Elf_Sym *sym = (Elf_Sym *)((caddr_t)ehdr +
 	    shdr[__elfN(symtabindex)].sh_offset);
 	symcnt = shdr[__elfN(symtabindex)].sh_size / sizeof(*sym);

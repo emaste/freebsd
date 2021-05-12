@@ -39,20 +39,20 @@
  */
 
 #ifndef __SGLIST_H__
-#define	__SGLIST_H__
+#define __SGLIST_H__
 
 #include <sys/refcount.h>
 
 struct sglist_seg {
-	vm_paddr_t	ss_paddr;
-	size_t		ss_len;
+	vm_paddr_t ss_paddr;
+	size_t ss_len;
 };
 
 struct sglist {
 	struct sglist_seg *sg_segs;
-	u_int		sg_refs;
-	u_short		sg_nseg;
-	u_short		sg_maxseg;
+	u_int sg_refs;
+	u_short sg_nseg;
+	u_short sg_maxseg;
 };
 
 struct bio;
@@ -85,32 +85,31 @@ sglist_hold(struct sglist *sg)
 }
 
 struct sglist *sglist_alloc(int nsegs, int mflags);
-int	sglist_append(struct sglist *sg, void *buf, size_t len);
-int	sglist_append_bio(struct sglist *sg, struct bio *bp);
-int	sglist_append_mbuf(struct sglist *sg, struct mbuf *m0);
-int	sglist_append_mbuf_epg(struct sglist *sg, struct mbuf *m0, size_t off,
-	    size_t len);
-int	sglist_append_phys(struct sglist *sg, vm_paddr_t paddr,
-	    size_t len);
-int	sglist_append_sglist(struct sglist *sg, struct sglist *source,
-	    size_t offset, size_t length);
-int	sglist_append_uio(struct sglist *sg, struct uio *uio);
-int	sglist_append_user(struct sglist *sg, void *buf, size_t len,
-	    struct thread *td);
-int	sglist_append_vmpages(struct sglist *sg, vm_page_t *m, size_t pgoff,
-	    size_t len);
+int sglist_append(struct sglist *sg, void *buf, size_t len);
+int sglist_append_bio(struct sglist *sg, struct bio *bp);
+int sglist_append_mbuf(struct sglist *sg, struct mbuf *m0);
+int sglist_append_mbuf_epg(
+    struct sglist *sg, struct mbuf *m0, size_t off, size_t len);
+int sglist_append_phys(struct sglist *sg, vm_paddr_t paddr, size_t len);
+int sglist_append_sglist(
+    struct sglist *sg, struct sglist *source, size_t offset, size_t length);
+int sglist_append_uio(struct sglist *sg, struct uio *uio);
+int sglist_append_user(
+    struct sglist *sg, void *buf, size_t len, struct thread *td);
+int sglist_append_vmpages(
+    struct sglist *sg, vm_page_t *m, size_t pgoff, size_t len);
 struct sglist *sglist_build(void *buf, size_t len, int mflags);
 struct sglist *sglist_clone(struct sglist *sg, int mflags);
-int	sglist_consume_uio(struct sglist *sg, struct uio *uio, size_t resid);
-int	sglist_count(void *buf, size_t len);
-int	sglist_count_mbuf_epg(struct mbuf *m, size_t off, size_t len);
-int	sglist_count_vmpages(vm_page_t *m, size_t pgoff, size_t len);
-void	sglist_free(struct sglist *sg);
-int	sglist_join(struct sglist *first, struct sglist *second);
-size_t	sglist_length(struct sglist *sg);
-int	sglist_slice(struct sglist *original, struct sglist **slice,
-	    size_t offset, size_t length, int mflags);
-int	sglist_split(struct sglist *original, struct sglist **head,
-	    size_t length, int mflags);
+int sglist_consume_uio(struct sglist *sg, struct uio *uio, size_t resid);
+int sglist_count(void *buf, size_t len);
+int sglist_count_mbuf_epg(struct mbuf *m, size_t off, size_t len);
+int sglist_count_vmpages(vm_page_t *m, size_t pgoff, size_t len);
+void sglist_free(struct sglist *sg);
+int sglist_join(struct sglist *first, struct sglist *second);
+size_t sglist_length(struct sglist *sg);
+int sglist_slice(struct sglist *original, struct sglist **slice, size_t offset,
+    size_t length, int mflags);
+int sglist_split(
+    struct sglist *original, struct sglist **head, size_t length, int mflags);
 
-#endif	/* !__SGLIST_H__ */
+#endif /* !__SGLIST_H__ */

@@ -48,14 +48,14 @@
  * DN_MAX_ID indicates the first value outside the range.
  */
 
-#define	DN_API_VERSION	12500000
-#define	DN_MAX_ID	0x10000
+#define DN_API_VERSION 12500000
+#define DN_MAX_ID 0x10000
 
 struct dn_id {
-	uint16_t	len;	/* total obj len including this header */
-	uint8_t		type;
-	uint8_t		subtype;
-	uint32_t	id;	/* generic id */
+	uint16_t len; /* total obj len including this header */
+	uint8_t type;
+	uint8_t subtype;
+	uint32_t id; /* generic id */
 };
 
 /*
@@ -72,12 +72,12 @@ enum {
 	DN_QUEUE,
 	DN_DELAY_LINE,
 	DN_PROFILE,
-	DN_FLOW,		/* struct dn_flow */
-	DN_TEXT,		/* opaque text is the object */
+	DN_FLOW, /* struct dn_flow */
+	DN_TEXT, /* opaque text is the object */
 
-	DN_CMD_CONFIG = 0x80,	/* objects follow */
-	DN_CMD_DELETE,		/* subtype + list of entries */
-	DN_CMD_GET,		/* subtype + list of entries */
+	DN_CMD_CONFIG = 0x80, /* objects follow */
+	DN_CMD_DELETE,	      /* subtype + list of entries */
+	DN_CMD_GET,	      /* subtype + list of entries */
 	DN_CMD_FLUSH,
 	/* for compatibility with FreeBSD 7.2/8 */
 	DN_COMPAT_PIPE,
@@ -104,19 +104,19 @@ enum { /* subtype for schedulers, flowset and the like */
 	/* others are in individual modules */
 };
 
-enum {	/* user flags */
-	DN_HAVE_MASK	= 0x0001,	/* fs or sched has a mask */
-	DN_NOERROR	= 0x0002,	/* do not report errors */
-	DN_QHT_HASH	= 0x0004,	/* qht is a hash table */
-	DN_QSIZE_BYTES	= 0x0008,	/* queue size is in bytes */
-	DN_HAS_PROFILE	= 0x0010,	/* a link has a profile */
-	DN_IS_RED	= 0x0020,
-	DN_IS_GENTLE_RED= 0x0040,
-	DN_IS_ECN	= 0x0080,
-	#ifdef NEW_AQM
-	DN_IS_AQM = 0x0100,     /* AQMs: e.g Codel & PIE */
-	#endif
-	DN_PIPE_CMD	= 0x1000,	/* pipe config... */
+enum {				 /* user flags */
+	DN_HAVE_MASK = 0x0001,	 /* fs or sched has a mask */
+	DN_NOERROR = 0x0002,	 /* do not report errors */
+	DN_QHT_HASH = 0x0004,	 /* qht is a hash table */
+	DN_QSIZE_BYTES = 0x0008, /* queue size is in bytes */
+	DN_HAS_PROFILE = 0x0010, /* a link has a profile */
+	DN_IS_RED = 0x0020,
+	DN_IS_GENTLE_RED = 0x0040,
+	DN_IS_ECN = 0x0080,
+#ifdef NEW_AQM
+	DN_IS_AQM = 0x0100, /* AQMs: e.g Codel & PIE */
+#endif
+	DN_PIPE_CMD = 0x1000, /* pipe config... */
 };
 
 /*
@@ -130,10 +130,10 @@ struct dn_link {
 	 * The kernel converts this back and forth to bits/tick and ticks.
 	 * XXX what about burst ?
 	 */
-	int32_t		link_nr;
-	int		bandwidth;	/* bit/s or bits/tick.   */
-	int		delay;		/* ms and ticks */
-	uint64_t	burst;		/* scaled. bits*Hz  XXX */
+	int32_t link_nr;
+	int bandwidth;	/* bit/s or bits/tick.   */
+	int delay;	/* ms and ticks */
+	uint64_t burst; /* scaled. bits*Hz  XXX */
 };
 
 /*
@@ -144,14 +144,14 @@ struct dn_link {
  */
 struct dn_fs {
 	struct dn_id oid;
-	uint32_t fs_nr;		/* the flowset number */
-	uint32_t flags;		/* userland flags */
-	int qsize;		/* queue size in slots or bytes */
-	int32_t plr;		/* PLR, pkt loss rate (2^31-1 means 100%) */
-	uint32_t buckets;	/* buckets used for the queue hash table */
+	uint32_t fs_nr;	  /* the flowset number */
+	uint32_t flags;	  /* userland flags */
+	int qsize;	  /* queue size in slots or bytes */
+	int32_t plr;	  /* PLR, pkt loss rate (2^31-1 means 100%) */
+	uint32_t buckets; /* buckets used for the queue hash table */
 
 	struct ipfw_flow_id flow_mask;
-	uint32_t sched_nr;	/* the scheduler we attach to */
+	uint32_t sched_nr; /* the scheduler we attach to */
 	/* generic scheduler parameters. Leave them at -1 if unset.
 	 * Now we use 0: weight, 1: lmax, 2: priority
 	 */
@@ -161,15 +161,14 @@ struct dn_fs {
 	 * weight and probabilities are in the range 0..1 represented
 	 * in fixed point arithmetic with SCALE_RED decimal bits.
 	 */
-#define SCALE_RED	16
-#define SCALE(x)	( (x) << SCALE_RED )
-#define SCALE_VAL(x)	( (x) >> SCALE_RED )
-#define SCALE_MUL(x,y)	( ( (x) * (y) ) >> SCALE_RED )
-	int w_q ;		/* queue weight (scaled) */
-	int max_th ;		/* maximum threshold for queue (scaled) */
-	int min_th ;		/* minimum threshold for queue (scaled) */
-	int max_p ;		/* maximum value for p_b (scaled) */
-
+#define SCALE_RED 16
+#define SCALE(x) ((x) << SCALE_RED)
+#define SCALE_VAL(x) ((x) >> SCALE_RED)
+#define SCALE_MUL(x, y) (((x) * (y)) >> SCALE_RED)
+	int w_q;    /* queue weight (scaled) */
+	int max_th; /* maximum threshold for queue (scaled) */
+	int min_th; /* minimum threshold for queue (scaled) */
+	int max_p;  /* maximum value for p_b (scaled) */
 };
 
 /*
@@ -179,13 +178,13 @@ struct dn_fs {
  * of the parent object.
  */
 struct dn_flow {
-	struct dn_id	oid;
+	struct dn_id oid;
 	struct ipfw_flow_id fid;
-	uint64_t	tot_pkts; /* statistics counters  */
-	uint64_t	tot_bytes;
-	uint32_t	length; /* Queue length, in packets */
-	uint32_t	len_bytes; /* Queue length, in bytes */
-	uint32_t	drops;
+	uint64_t tot_pkts; /* statistics counters  */
+	uint64_t tot_bytes;
+	uint32_t length;    /* Queue length, in packets */
+	uint32_t len_bytes; /* Queue length, in bytes */
+	uint32_t drops;
 };
 
 /*
@@ -193,12 +192,12 @@ struct dn_flow {
  * sched_mask and buckets.
  */
 struct dn_sch {
-	struct dn_id	oid;
-	uint32_t	sched_nr; /* N, scheduler number */
-	uint32_t	buckets; /* number of buckets for the instances */
-	uint32_t	flags;	/* have_mask, ... */
+	struct dn_id oid;
+	uint32_t sched_nr; /* N, scheduler number */
+	uint32_t buckets;  /* number of buckets for the instances */
+	uint32_t flags;	   /* have_mask, ... */
 
-	char name[16];	/* null terminated */
+	char name[16]; /* null terminated */
 	/* mask to select the appropriate scheduler instance */
 	struct ipfw_flow_id sched_mask; /* M */
 };
@@ -206,17 +205,17 @@ struct dn_sch {
 /* A delay profile is attached to a link.
  * Note that a profile, as any other object, cannot be longer than 2^16
  */
-#define	ED_MAX_SAMPLES_NO	1024
+#define ED_MAX_SAMPLES_NO 1024
 struct dn_profile {
-	struct dn_id	oid;
+	struct dn_id oid;
 	/* fields to simulate a delay profile */
-#define ED_MAX_NAME_LEN		32
-	char	name[ED_MAX_NAME_LEN];
-	int	link_nr;
-	int	loss_level;
-	int	bandwidth;			// XXX use link bandwidth?
-	int	samples_no;			/* actual len of samples[] */
-	int	samples[ED_MAX_SAMPLES_NO];	/* may be shorter */
+#define ED_MAX_NAME_LEN 32
+	char name[ED_MAX_NAME_LEN];
+	int link_nr;
+	int loss_level;
+	int bandwidth;			// XXX use link bandwidth?
+	int samples_no;			/* actual len of samples[] */
+	int samples[ED_MAX_SAMPLES_NO]; /* may be shorter */
 };
 
 #ifdef NEW_AQM
@@ -228,7 +227,7 @@ struct dn_extra_parms {
 	struct dn_id oid;
 	char name[16];
 	uint32_t nr;
-#define DN_MAX_EXTRA_PARM	10
+#define DN_MAX_EXTRA_PARM 10
 	int64_t par[DN_MAX_EXTRA_PARM];
 };
 #endif
@@ -244,19 +243,19 @@ according to a 'mask', puts them into independent queues (one
 per flow) with configurable size and queue management policy,
 and passes flows to a scheduler:
 
-                 (flow_mask|sched_mask)  sched_mask
+		 (flow_mask|sched_mask)  sched_mask
 	 +---------+   weight Wx  +-------------+
-         |         |->-[flow]-->--|             |-+
+	 |         |->-[flow]-->--|             |-+
     -->--| QUEUE x |   ...        |             | |
-         |         |->-[flow]-->--| SCHEDuler N | |
+	 |         |->-[flow]-->--| SCHEDuler N | |
 	 +---------+              |             | |
 	     ...                  |             +--[LINK N]-->--
 	 +---------+   weight Wy  |             | +--[LINK N]-->--
-         |         |->-[flow]-->--|             | |
+	 |         |->-[flow]-->--|             | |
     -->--| QUEUE y |   ...        |             | |
-         |         |->-[flow]-->--|             | |
+	 |         |->-[flow]-->--|             | |
 	 +---------+              +-------------+ |
-	                            +-------------+
+				    +-------------+
 
 Many QUEUE objects can connect to the same scheduler, each
 QUEUE object can have its own set of parameters.

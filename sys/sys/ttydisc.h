@@ -32,7 +32,7 @@
  */
 
 #ifndef _SYS_TTYDISC_H_
-#define	_SYS_TTYDISC_H_
+#define _SYS_TTYDISC_H_
 
 #ifndef _SYS_TTY_H_
 #error "can only be included through <sys/tty.h>"
@@ -44,29 +44,29 @@ struct tty;
 struct uio;
 
 /* Top half routines. */
-void	ttydisc_open(struct tty *tp);
-void	ttydisc_close(struct tty *tp);
-int	ttydisc_read(struct tty *tp, struct uio *uio, int ioflag);
-int	ttydisc_write(struct tty *tp, struct uio *uio, int ioflag);
-void	ttydisc_optimize(struct tty *tp);
+void ttydisc_open(struct tty *tp);
+void ttydisc_close(struct tty *tp);
+int ttydisc_read(struct tty *tp, struct uio *uio, int ioflag);
+int ttydisc_write(struct tty *tp, struct uio *uio, int ioflag);
+void ttydisc_optimize(struct tty *tp);
 
 /* Bottom half routines. */
-void	ttydisc_modem(struct tty *tp, int open);
+void ttydisc_modem(struct tty *tp, int open);
 #define ttydisc_can_bypass(tp) ((tp)->t_flags & TF_BYPASS)
-int	ttydisc_rint(struct tty *tp, char c, int flags);
-size_t	ttydisc_rint_simple(struct tty *tp, const void *buf, size_t len);
-size_t	ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len);
-void	ttydisc_rint_done(struct tty *tp);
-size_t	ttydisc_rint_poll(struct tty *tp);
-size_t	ttydisc_getc(struct tty *tp, void *buf, size_t len);
-int	ttydisc_getc_uio(struct tty *tp, struct uio *uio);
-size_t	ttydisc_getc_poll(struct tty *tp);
+int ttydisc_rint(struct tty *tp, char c, int flags);
+size_t ttydisc_rint_simple(struct tty *tp, const void *buf, size_t len);
+size_t ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len);
+void ttydisc_rint_done(struct tty *tp);
+size_t ttydisc_rint_poll(struct tty *tp);
+size_t ttydisc_getc(struct tty *tp, void *buf, size_t len);
+int ttydisc_getc_uio(struct tty *tp, struct uio *uio);
+size_t ttydisc_getc_poll(struct tty *tp);
 
 /* Error codes for ttydisc_rint(). */
-#define	TRE_FRAMING	0x01
-#define	TRE_PARITY	0x02
-#define	TRE_OVERRUN	0x04
-#define	TRE_BREAK	0x08
+#define TRE_FRAMING 0x01
+#define TRE_PARITY 0x02
+#define TRE_OVERRUN 0x04
+#define TRE_BREAK 0x08
 
 static __inline size_t
 ttydisc_read_poll(struct tty *tp)

@@ -38,17 +38,17 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
+#include <sys/imgact_elf.h>
+#include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/proc.h>
+#include <sys/signalvar.h>
+#include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
-#include <sys/imgact_elf.h>
-#include <sys/syscall.h>
-#include <sys/signalvar.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
@@ -63,38 +63,38 @@ static const char *riscv_machine_arch(struct proc *p);
 u_long elf_hwcap;
 
 struct sysentvec elf64_freebsd_sysvec = {
-	.sv_size	= SYS_MAXSYSCALL,
-	.sv_table	= sysent,
-	.sv_transtrap	= NULL,
-	.sv_fixup	= __elfN(freebsd_fixup),
-	.sv_sendsig	= sendsig,
-	.sv_sigcode	= sigcode,
-	.sv_szsigcode	= &szsigcode,
-	.sv_name	= "FreeBSD ELF64",
-	.sv_coredump	= __elfN(coredump),
-	.sv_imgact_try	= NULL,
-	.sv_minsigstksz	= MINSIGSTKSZ,
-	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= VM_MAXUSER_ADDRESS,
-	.sv_usrstack	= USRSTACK,
-	.sv_psstrings	= PS_STRINGS,
-	.sv_stackprot	= VM_PROT_READ | VM_PROT_WRITE,
+	.sv_size = SYS_MAXSYSCALL,
+	.sv_table = sysent,
+	.sv_transtrap = NULL,
+	.sv_fixup = __elfN(freebsd_fixup),
+	.sv_sendsig = sendsig,
+	.sv_sigcode = sigcode,
+	.sv_szsigcode = &szsigcode,
+	.sv_name = "FreeBSD ELF64",
+	.sv_coredump = __elfN(coredump),
+	.sv_imgact_try = NULL,
+	.sv_minsigstksz = MINSIGSTKSZ,
+	.sv_minuser = VM_MIN_ADDRESS,
+	.sv_maxuser = VM_MAXUSER_ADDRESS,
+	.sv_usrstack = USRSTACK,
+	.sv_psstrings = PS_STRINGS,
+	.sv_stackprot = VM_PROT_READ | VM_PROT_WRITE,
 	.sv_copyout_auxargs = __elfN(freebsd_copyout_auxargs),
-	.sv_copyout_strings	= exec_copyout_strings,
-	.sv_setregs	= exec_setregs,
-	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_LP64 | SV_SHP | SV_ASLR |
+	.sv_copyout_strings = exec_copyout_strings,
+	.sv_setregs = exec_setregs,
+	.sv_fixlimit = NULL,
+	.sv_maxssiz = NULL,
+	.sv_flags = SV_ABI_FREEBSD | SV_LP64 | SV_SHP | SV_ASLR |
 	    SV_RNG_SEED_VER,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
 	.sv_shared_page_base = SHAREDPAGE,
 	.sv_shared_page_len = PAGE_SIZE,
-	.sv_schedtail	= NULL,
+	.sv_schedtail = NULL,
 	.sv_thread_detach = NULL,
-	.sv_trap	= NULL,
-	.sv_hwcap	= &elf_hwcap,
+	.sv_trap = NULL,
+	.sv_hwcap = &elf_hwcap,
 	.sv_machine_arch = riscv_machine_arch,
 };
 INIT_SYSENTVEC(elf64_sysvec, &elf64_freebsd_sysvec);
@@ -109,17 +109,15 @@ riscv_machine_arch(struct proc *p)
 	return (MACHINE_ARCH);
 }
 
-static Elf64_Brandinfo freebsd_brand_info = {
-	.brand		= ELFOSABI_FREEBSD,
-	.machine	= EM_RISCV,
-	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
-	.interp_path	= "/libexec/ld-elf.so.1",
-	.sysvec		= &elf64_freebsd_sysvec,
-	.interp_newpath	= NULL,
-	.brand_note	= &elf64_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
-};
+static Elf64_Brandinfo freebsd_brand_info = { .brand = ELFOSABI_FREEBSD,
+	.machine = EM_RISCV,
+	.compat_3_brand = "FreeBSD",
+	.emul_path = NULL,
+	.interp_path = "/libexec/ld-elf.so.1",
+	.sysvec = &elf64_freebsd_sysvec,
+	.interp_newpath = NULL,
+	.brand_note = &elf64_freebsd_brandnote,
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_NOTE };
 
 SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_FIRST,
     (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_info);
@@ -136,7 +134,6 @@ struct type2str_ent {
 void
 elf64_dump_thread(struct thread *td, void *dst, size_t *off)
 {
-
 }
 
 /*
@@ -188,8 +185,7 @@ insert_bits(uint32_t d, uint32_t s, int msb, int lsb)
 }
 
 static uint32_t
-insert_imm(uint32_t insn, uint32_t imm, int imm_msb, int imm_lsb,
-    int insn_lsb)
+insert_imm(uint32_t insn, uint32_t imm, int imm_msb, int imm_lsb, int insn_lsb)
 {
 	int insn_msb;
 	uint32_t v;
@@ -230,18 +226,18 @@ calc_hi20_imm(uint32_t value)
 }
 
 static const struct type2str_ent t2s[] = {
-	{ R_RISCV_NONE,		"R_RISCV_NONE"		},
-	{ R_RISCV_64,		"R_RISCV_64"		},
-	{ R_RISCV_JUMP_SLOT,	"R_RISCV_JUMP_SLOT"	},
-	{ R_RISCV_RELATIVE,	"R_RISCV_RELATIVE"	},
-	{ R_RISCV_JAL,		"R_RISCV_JAL"		},
-	{ R_RISCV_CALL,		"R_RISCV_CALL"		},
-	{ R_RISCV_PCREL_HI20,	"R_RISCV_PCREL_HI20"	},
-	{ R_RISCV_PCREL_LO12_I,	"R_RISCV_PCREL_LO12_I"	},
-	{ R_RISCV_PCREL_LO12_S,	"R_RISCV_PCREL_LO12_S"	},
-	{ R_RISCV_HI20,		"R_RISCV_HI20"		},
-	{ R_RISCV_LO12_I,	"R_RISCV_LO12_I"	},
-	{ R_RISCV_LO12_S,	"R_RISCV_LO12_S"	},
+	{ R_RISCV_NONE, "R_RISCV_NONE" },
+	{ R_RISCV_64, "R_RISCV_64" },
+	{ R_RISCV_JUMP_SLOT, "R_RISCV_JUMP_SLOT" },
+	{ R_RISCV_RELATIVE, "R_RISCV_RELATIVE" },
+	{ R_RISCV_JAL, "R_RISCV_JAL" },
+	{ R_RISCV_CALL, "R_RISCV_CALL" },
+	{ R_RISCV_PCREL_HI20, "R_RISCV_PCREL_HI20" },
+	{ R_RISCV_PCREL_LO12_I, "R_RISCV_PCREL_LO12_I" },
+	{ R_RISCV_PCREL_LO12_S, "R_RISCV_PCREL_LO12_S" },
+	{ R_RISCV_HI20, "R_RISCV_HI20" },
+	{ R_RISCV_LO12_I, "R_RISCV_LO12_I" },
+	{ R_RISCV_LO12_S, "R_RISCV_LO12_S" },
 };
 
 static const char *
@@ -299,8 +295,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		symidx = ELF_R_SYM(rela->r_info);
 		break;
 	default:
-		printf("%s:%d unknown reloc type %d\n",
-		    __FUNCTION__, __LINE__, type);
+		printf("%s:%d unknown reloc type %d\n", __FUNCTION__, __LINE__,
+		    type);
 		return (-1);
 	}
 
@@ -346,7 +342,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 
 		before32 = *insn32p;
 		*insn32p = insert_imm(*insn32p, val, 20, 20, 31);
-		*insn32p = insert_imm(*insn32p, val, 10,  1, 21);
+		*insn32p = insert_imm(*insn32p, val, 10, 1, 21);
 		*insn32p = insert_imm(*insn32p, val, 11, 11, 20);
 		*insn32p = insert_imm(*insn32p, val, 19, 12, 12);
 		if (debug_kld)
@@ -378,7 +374,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 
 		/* Relocate JALR. */
 		before32_1 = insn32p[1];
-		insn32p[1] = insert_imm(insn32p[1], val, 11,  0, 20);
+		insn32p[1] = insert_imm(insn32p[1], val, 11, 0, 20);
 		if (debug_kld)
 			printf("%p %c %-24s %08x %08x -> %08x %08x\n", where,
 			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
@@ -409,7 +405,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		val = addr - (Elf_Addr)where;
 		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
-		*insn32p = insert_imm(*insn32p, addr, 11,  0, 20);
+		*insn32p = insert_imm(*insn32p, addr, 11, 0, 20);
 		if (debug_kld)
 			printf("%p %c %-24s %08x -> %08x\n", where,
 			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
@@ -424,8 +420,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		val = addr - (Elf_Addr)where;
 		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
-		*insn32p = insert_imm(*insn32p, addr, 11,  5, 25);
-		*insn32p = insert_imm(*insn32p, addr,  4,  0,  7);
+		*insn32p = insert_imm(*insn32p, addr, 11, 5, 25);
+		*insn32p = insert_imm(*insn32p, addr, 4, 0, 7);
 		if (debug_kld)
 			printf("%p %c %-24s %08x -> %08x\n", where,
 			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
@@ -456,7 +452,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		val = addr;
 		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
-		*insn32p = insert_imm(*insn32p, addr, 11,  0, 20);
+		*insn32p = insert_imm(*insn32p, addr, 11, 0, 20);
 		if (debug_kld)
 			printf("%p %c %-24s %08x -> %08x\n", where,
 			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
@@ -471,8 +467,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		val = addr;
 		insn32p = (uint32_t *)where;
 		before32 = *insn32p;
-		*insn32p = insert_imm(*insn32p, addr, 11,  5, 25);
-		*insn32p = insert_imm(*insn32p, addr,  4,  0,  7);
+		*insn32p = insert_imm(*insn32p, addr, 11, 5, 25);
+		*insn32p = insert_imm(*insn32p, addr, 4, 0, 7);
 		if (debug_kld)
 			printf("%p %c %-24s %08x -> %08x\n", where,
 			    (local ? 'l' : 'g'), reloctype_to_str(rtype),
@@ -481,7 +477,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 
 	default:
 		printf("kldload: unexpected relocation type %ld, "
-		    "symbol index %ld\n", rtype, symidx);
+		       "symbol index %ld\n",
+		    rtype, symidx);
 		return (-1);
 	}
 

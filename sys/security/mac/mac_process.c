@@ -48,22 +48,22 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/condvar.h>
+#include <sys/file.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/mac.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/sdt.h>
-#include <sys/systm.h>
-#include <sys/vnode.h>
-#include <sys/mount.h>
-#include <sys/file.h>
-#include <sys/namei.h>
 #include <sys/sysctl.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -74,18 +74,20 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_internal.h>
 #include <security/mac/mac_policy.h>
 
-static int	mac_mmap_revocation = 1;
+static int mac_mmap_revocation = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation, CTLFLAG_RW,
-    &mac_mmap_revocation, 0, "Revoke mmap access to files on subject "
+    &mac_mmap_revocation, 0,
+    "Revoke mmap access to files on subject "
     "relabel");
 
-static int	mac_mmap_revocation_via_cow = 0;
+static int mac_mmap_revocation_via_cow = 0;
 SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation_via_cow, CTLFLAG_RW,
-    &mac_mmap_revocation_via_cow, 0, "Revoke mmap access to files via "
+    &mac_mmap_revocation_via_cow, 0,
+    "Revoke mmap access to files via "
     "copy-on-write semantics, or by removing all write access");
 
-static void	mac_proc_vm_revoke_recurse(struct thread *td,
-		    struct ucred *cred, struct vm_map *map);
+static void mac_proc_vm_revoke_recurse(
+    struct thread *td, struct ucred *cred, struct vm_map *map);
 
 static struct label *
 mac_proc_label_alloc(void)
@@ -182,8 +184,8 @@ mac_execve_exit(struct image_params *imgp)
 }
 
 void
-mac_execve_interpreter_enter(struct vnode *interpvp,
-    struct label **interpvplabel)
+mac_execve_interpreter_enter(
+    struct vnode *interpvp, struct label **interpvplabel)
 {
 
 	if (mac_labeled & MPC_OBJECT_VNODE) {
@@ -217,8 +219,7 @@ mac_proc_vm_revoke(struct thread *td)
 	PROC_UNLOCK(td->td_proc);
 
 	/* XXX freeze all other threads */
-	mac_proc_vm_revoke_recurse(td, cred,
-	    &td->td_proc->p_vmspace->vm_map);
+	mac_proc_vm_revoke_recurse(td, cred, &td->td_proc->p_vmspace->vm_map);
 	/* XXX allow other threads to continue */
 
 	crfree(cred);
@@ -249,8 +250,8 @@ prot2str(vm_prot_t prot)
 }
 
 static void
-mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
-    struct vm_map *map)
+mac_proc_vm_revoke_recurse(
+    struct thread *td, struct ucred *cred, struct vm_map *map)
 {
 	vm_map_entry_t prev, vme;
 	int result;
@@ -266,10 +267,10 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 	prev = &map->header;
 	vm_map_lock(map);
 	for (vme = vm_map_entry_first(map); vme != &map->header;
-	    prev = vme, vme = vm_map_entry_succ(prev)) {
+	     prev = vme, vme = vm_map_entry_succ(prev)) {
 		if (vme->eflags & MAP_ENTRY_IS_SUB_MAP) {
-			mac_proc_vm_revoke_recurse(td, cred,
-			    vme->object.sub_map);
+			mac_proc_vm_revoke_recurse(
+			    td, cred, vme->object.sub_map);
 			continue;
 		}
 		/*
@@ -313,9 +314,9 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 		if (!revokeperms)
 			continue;
 		printf("pid %ld: revoking %s perms from %#lx:%ld "
-		    "(max %s/cur %s)\n", (long)td->td_proc->p_pid,
-		    prot2str(revokeperms), (u_long)vme->start,
-		    (long)(vme->end - vme->start),
+		       "(max %s/cur %s)\n",
+		    (long)td->td_proc->p_pid, prot2str(revokeperms),
+		    (u_long)vme->start, (long)(vme->end - vme->start),
 		    prot2str(vme->max_protection), prot2str(vme->protection));
 		/*
 		 * This is the really simple case: if a map has more
@@ -333,11 +334,11 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 				 * copy-on-write.
 				 */
 				vm_object_reference(object);
-				(void) vn_start_write(vp, &mp, V_WAIT);
+				(void)vn_start_write(vp, &mp, V_WAIT);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 				VM_OBJECT_WLOCK(object);
-				vm_object_page_clean(object, offset, offset +
-				    vme->end - vme->start, OBJPC_SYNC);
+				vm_object_page_clean(object, offset,
+				    offset + vme->end - vme->start, OBJPC_SYNC);
 				VM_OBJECT_WUNLOCK(object);
 				VOP_UNLOCK(vp);
 				vn_finished_write(mp);
@@ -351,7 +352,8 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 				if (!mac_mmap_revocation_via_cow) {
 					vme->max_protection &= ~VM_PROT_WRITE;
 					vme->protection &= ~VM_PROT_WRITE;
-				} if ((revokeperms & VM_PROT_READ) == 0)
+				}
+				if ((revokeperms & VM_PROT_READ) == 0)
 					vme->eflags |= MAP_ENTRY_COW |
 					    MAP_ENTRY_NEEDS_COPY;
 			}
@@ -401,8 +403,8 @@ mac_proc_check_sched(struct ucred *cred, struct proc *p)
 	return (error);
 }
 
-MAC_CHECK_PROBE_DEFINE3(proc_check_signal, "struct ucred *", "struct proc *",
-    "int");
+MAC_CHECK_PROBE_DEFINE3(
+    proc_check_signal, "struct ucred *", "struct proc *", "int");
 
 int
 mac_proc_check_signal(struct ucred *cred, struct proc *p, int signum)

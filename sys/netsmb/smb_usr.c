@@ -30,24 +30,23 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/proc.h>
 #include <sys/fcntl.h>
+#include <sys/iconv.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/mbuf.h>
-
-#include <sys/iconv.h>
 
 #include <netsmb/smb.h>
 #include <netsmb/smb_conn.h>
+#include <netsmb/smb_dev.h>
 #include <netsmb/smb_rq.h>
 #include <netsmb/smb_subr.h>
-#include <netsmb/smb_dev.h>
 
 /*
  * helpers for nsmb device. Can be moved to the smb_dev.c file.
@@ -126,11 +125,11 @@ smb_usr_share2spec(struct smbioc_oshare *dp, struct smb_sharespec *spec)
 
 int
 smb_usr_lookup(struct smbioc_lookup *dp, struct smb_cred *scred,
-	struct smb_vc **vcpp, struct smb_share **sspp)
+    struct smb_vc **vcpp, struct smb_share **sspp)
 {
 	struct smb_vc *vcp = NULL;
-	struct smb_vcspec vspec;			/* XXX */
-	struct smb_sharespec sspec, *sspecp = NULL;	/* XXX */
+	struct smb_vcspec vspec;		    /* XXX */
+	struct smb_sharespec sspec, *sspecp = NULL; /* XXX */
 	int error;
 
 	if (dp->ioc_level < SMBL_VC || dp->ioc_level > SMBL_SHARE)
@@ -163,8 +162,8 @@ out:
  * If no errors occurred smb_vc returned locked and referenced.
  */
 int
-smb_usr_opensession(struct smbioc_ossn *dp, struct smb_cred *scred,
-	struct smb_vc **vcpp)
+smb_usr_opensession(
+    struct smbioc_ossn *dp, struct smb_cred *scred, struct smb_vc **vcpp)
 {
 	struct smb_vc *vcp = NULL;
 	struct smb_vcspec vspec;
@@ -183,7 +182,7 @@ smb_usr_opensession(struct smbioc_ossn *dp, struct smb_cred *scred,
 
 int
 smb_usr_openshare(struct smb_vc *vcp, struct smbioc_oshare *dp,
-	struct smb_cred *scred, struct smb_share **sspp)
+    struct smb_cred *scred, struct smb_share **sspp)
 {
 	struct smb_share *ssp;
 	struct smb_sharespec shspec;
@@ -211,8 +210,8 @@ smb_usr_openshare(struct smb_vc *vcp, struct smbioc_oshare *dp,
 }
 
 int
-smb_usr_simplerequest(struct smb_share *ssp, struct smbioc_rq *dp,
-	struct smb_cred *scred)
+smb_usr_simplerequest(
+    struct smb_share *ssp, struct smbioc_rq *dp, struct smb_cred *scred)
 {
 	struct smb_rq *rqp;
 	struct mbchain *mbp;
@@ -222,15 +221,15 @@ smb_usr_simplerequest(struct smb_share *ssp, struct smbioc_rq *dp,
 	int error;
 
 	switch (dp->ioc_cmd) {
-	    case SMB_COM_TRANSACTION2:
-	    case SMB_COM_TRANSACTION2_SECONDARY:
-	    case SMB_COM_CLOSE_AND_TREE_DISC:
-	    case SMB_COM_TREE_CONNECT:
-	    case SMB_COM_TREE_DISCONNECT:
-	    case SMB_COM_NEGOTIATE:
-	    case SMB_COM_SESSION_SETUP_ANDX:
-	    case SMB_COM_LOGOFF_ANDX:
-	    case SMB_COM_TREE_CONNECT_ANDX:
+	case SMB_COM_TRANSACTION2:
+	case SMB_COM_TRANSACTION2_SECONDARY:
+	case SMB_COM_CLOSE_AND_TREE_DISC:
+	case SMB_COM_TREE_CONNECT:
+	case SMB_COM_TREE_DISCONNECT:
+	case SMB_COM_NEGOTIATE:
+	case SMB_COM_SESSION_SETUP_ANDX:
+	case SMB_COM_LOGOFF_ANDX:
+	case SMB_COM_TREE_CONNECT_ANDX:
 		return EPERM;
 	}
 	rqp = malloc(sizeof(struct smb_rq), M_SMBTEMP, M_WAITOK);
@@ -278,7 +277,6 @@ bad:
 	smb_rq_done(rqp);
 	free(rqp, M_SMBTEMP);
 	return error;
-
 }
 
 static int
@@ -295,8 +293,8 @@ smb_cpdatain(struct mbchain *mbp, int len, caddr_t data)
 }
 
 int
-smb_usr_t2request(struct smb_share *ssp, struct smbioc_t2rq *dp,
-	struct smb_cred *scred)
+smb_usr_t2request(
+    struct smb_share *ssp, struct smbioc_t2rq *dp, struct smb_cred *scred)
 {
 	struct smb_t2rq *t2p;
 	struct mdchain *mdp;
@@ -312,7 +310,7 @@ smb_usr_t2request(struct smb_share *ssp, struct smbioc_t2rq *dp,
 	}
 	len = t2p->t2_setupcount = dp->ioc_setupcnt;
 	if (len > 1)
-		t2p->t2_setupdata = dp->ioc_setup; 
+		t2p->t2_setupdata = dp->ioc_setup;
 	if (dp->ioc_name) {
 		t2p->t_name = smb_strdupin(dp->ioc_name, 128);
 		if (t2p->t_name == NULL) {
@@ -323,7 +321,8 @@ smb_usr_t2request(struct smb_share *ssp, struct smbioc_t2rq *dp,
 	t2p->t2_maxscount = 0;
 	t2p->t2_maxpcount = dp->ioc_rparamcnt;
 	t2p->t2_maxdcount = dp->ioc_rdatacnt;
-	error = smb_cpdatain(&t2p->t2_tparam, dp->ioc_tparamcnt, dp->ioc_tparam);
+	error = smb_cpdatain(
+	    &t2p->t2_tparam, dp->ioc_tparamcnt, dp->ioc_tparam);
 	if (error)
 		goto bad;
 	error = smb_cpdatain(&t2p->t2_tdata, dp->ioc_tdatacnt, dp->ioc_tdata);

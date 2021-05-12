@@ -72,8 +72,7 @@ kcsan_md_delay(uint64_t us)
 	 * early delay function may cause us to recurse on a spin lock
 	 * leading to a panic.
 	 */
-	if ((tsc_is_invariant && tsc_freq != 0) ||
-	    timecounter->tc_quality > 0)
+	if ((tsc_is_invariant && tsc_freq != 0) || timecounter->tc_quality > 0)
 		DELAY(us);
 }
 

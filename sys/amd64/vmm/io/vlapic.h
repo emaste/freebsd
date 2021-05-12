@@ -29,7 +29,7 @@
  */
 
 #ifndef _VLAPIC_H_
-#define	_VLAPIC_H_
+#define _VLAPIC_H_
 
 struct vm;
 struct vm_snapshot_meta;
@@ -82,8 +82,8 @@ int vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val);
 void vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state s);
 bool vlapic_enabled(struct vlapic *vlapic);
 
-void vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
-    int delmode, int vec);
+void vlapic_deliver_intr(
+    struct vm *vm, bool level, uint32_t dest, bool phys, int delmode, int vec);
 
 /* Reset the trigger-mode bits for all vectors to be edge-triggered */
 void vlapic_reset_tmr(struct vlapic *vlapic);
@@ -93,8 +93,8 @@ void vlapic_reset_tmr(struct vlapic *vlapic);
  * the (dest,phys,delmode) tuple resolves to an interrupt being delivered to
  * this 'vlapic'.
  */
-void vlapic_set_tmr_level(struct vlapic *vlapic, uint32_t dest, bool phys,
-    int delmode, int vector);
+void vlapic_set_tmr_level(
+    struct vlapic *vlapic, uint32_t dest, bool phys, int delmode, int vector);
 
 void vlapic_set_cr8(struct vlapic *vlapic, uint64_t val);
 uint64_t vlapic_get_cr8(struct vlapic *vlapic);
@@ -115,4 +115,4 @@ void vlapic_self_ipi_handler(struct vlapic *vlapic, uint64_t val);
 int vlapic_snapshot(struct vm *vm, struct vm_snapshot_meta *meta);
 #endif
 
-#endif	/* _VLAPIC_H_ */
+#endif /* _VLAPIC_H_ */

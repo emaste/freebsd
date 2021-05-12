@@ -4,11 +4,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/errno.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
 
 #include <compat/linux/linux.h>
 #include <compat/linux/linux_errno.h>
+
 #include <compat/linux/linux_errno.inc>
 
 int
@@ -36,6 +37,5 @@ linux_check_errtbl(void)
 		KASSERT(linux_to_bsd_errtbl[i] != 0,
 		    ("%s: linux_to_bsd_errtbl[%d] == 0", __func__, i));
 	}
-
 }
 #endif

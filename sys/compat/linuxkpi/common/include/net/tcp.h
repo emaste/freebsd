@@ -29,12 +29,12 @@
  * $FreeBSD$
  */
 #ifndef _LINUX_NET_TCP_H_
-#define	_LINUX_NET_TCP_H_
-
-#include <linux/list.h>
-#include <linux/slab.h>
-#include <linux/kref.h>
+#define _LINUX_NET_TCP_H_
 
 #include <net/ip.h>
 
-#endif	/* _LINUX_NET_TCP_H_ */
+#include <linux/kref.h>
+#include <linux/list.h>
+#include <linux/slab.h>
+
+#endif /* _LINUX_NET_TCP_H_ */

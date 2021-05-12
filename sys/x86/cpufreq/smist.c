@@ -41,90 +41,88 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/systm.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/vm86.h>
 
-#include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include <dev/pci/pcivar.h>
 
 #include "cpufreq_if.h"
 
 #if 0
-#define DPRINT(dev, x...)	device_printf(dev, x)
+#define DPRINT(dev, x...) device_printf(dev, x)
 #else
 #define DPRINT(dev, x...)
 #endif
 
 struct smist_softc {
-	device_t		 dev;
-	int			 smi_cmd;
-	int			 smi_data;
-	int			 command;
-	int			 flags;
-	struct cf_setting	 sets[2];	/* Only two settings. */
+	device_t dev;
+	int smi_cmd;
+	int smi_data;
+	int command;
+	int flags;
+	struct cf_setting sets[2]; /* Only two settings. */
 };
 
 static char smist_magic[] = "Copyright (c) 1999 Intel Corporation";
 
-static void	smist_identify(driver_t *driver, device_t parent);
-static int	smist_probe(device_t dev);
-static int	smist_attach(device_t dev);
-static int	smist_detach(device_t dev);
-static int	smist_settings(device_t dev, struct cf_setting *sets,
-		    int *count);
-static int	smist_set(device_t dev, const struct cf_setting *set);
-static int	smist_get(device_t dev, struct cf_setting *set);
-static int	smist_type(device_t dev, int *type);
+static void smist_identify(driver_t *driver, device_t parent);
+static int smist_probe(device_t dev);
+static int smist_attach(device_t dev);
+static int smist_detach(device_t dev);
+static int smist_settings(device_t dev, struct cf_setting *sets, int *count);
+static int smist_set(device_t dev, const struct cf_setting *set);
+static int smist_get(device_t dev, struct cf_setting *set);
+static int smist_type(device_t dev, int *type);
 
 static device_method_t smist_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	smist_identify),
-	DEVMETHOD(device_probe,		smist_probe),
-	DEVMETHOD(device_attach,	smist_attach),
-	DEVMETHOD(device_detach,	smist_detach),
+	DEVMETHOD(device_identify, smist_identify),
+	DEVMETHOD(device_probe, smist_probe),
+	DEVMETHOD(device_attach, smist_attach),
+	DEVMETHOD(device_detach, smist_detach),
 
 	/* cpufreq interface */
-	DEVMETHOD(cpufreq_drv_set,	smist_set),
-	DEVMETHOD(cpufreq_drv_get,	smist_get),
-	DEVMETHOD(cpufreq_drv_type,	smist_type),
-	DEVMETHOD(cpufreq_drv_settings,	smist_settings),
-	{0, 0}
+	DEVMETHOD(cpufreq_drv_set, smist_set),
+	DEVMETHOD(cpufreq_drv_get, smist_get),
+	DEVMETHOD(cpufreq_drv_type, smist_type),
+	DEVMETHOD(cpufreq_drv_settings, smist_settings), { 0, 0 }
 };
 
-static driver_t smist_driver = {
-	"smist", smist_methods, sizeof(struct smist_softc)
-};
+static driver_t smist_driver = { "smist", smist_methods,
+	sizeof(struct smist_softc) };
 static devclass_t smist_devclass;
 DRIVER_MODULE(smist, cpu, smist_driver, smist_devclass, 0, 0);
 
 struct piix4_pci_device {
-	uint16_t		 vendor;
-	uint16_t		 device;
-	char			*desc;
+	uint16_t vendor;
+	uint16_t device;
+	char *desc;
 };
 
 static struct piix4_pci_device piix4_pci_devices[] = {
-	{0x8086, 0x7113, "Intel PIIX4 ISA bridge"},
-	{0x8086, 0x719b, "Intel PIIX4 ISA bridge (embedded in MX440 chipset)"},
+	{ 0x8086, 0x7113, "Intel PIIX4 ISA bridge" },
+	{ 0x8086, 0x719b,
+	    "Intel PIIX4 ISA bridge (embedded in MX440 chipset)" },
 
-	{0, 0, NULL},
+	{ 0, 0, NULL },
 };
 
-#define SET_OWNERSHIP		0
-#define GET_STATE		1
-#define SET_STATE		2
+#define SET_OWNERSHIP 0
+#define GET_STATE 1
+#define SET_STATE 2
 
 static int
 int15_gsic_call(int *sig, int *smi_cmd, int *command, int *smi_data, int *flags)
@@ -132,8 +130,8 @@ int15_gsic_call(int *sig, int *smi_cmd, int *command, int *smi_data, int *flags)
 	struct vm86frame vmf;
 
 	bzero(&vmf, sizeof(vmf));
-	vmf.vmf_eax = 0x0000E980;	/* IST support */
-	vmf.vmf_edx = 0x47534943;	/* 'GSIC' in ASCII */
+	vmf.vmf_eax = 0x0000E980; /* IST support */
+	vmf.vmf_edx = 0x47534943; /* 'GSIC' in ASCII */
 	vm86_intcall(0x15, &vmf);
 
 	if (vmf.vmf_eax == 0x47534943) {
@@ -155,10 +153,10 @@ int15_gsic_call(int *sig, int *smi_cmd, int *command, int *smi_data, int *flags)
 
 /* Temporary structure to hold mapped page and status. */
 struct set_ownership_data {
-	int	smi_cmd;
-	int	command;
-	int	result;
-	void	*buf;
+	int smi_cmd;
+	int command;
+	int result;
+	void *buf;
 };
 
 /* Perform actual SMI call to enable SpeedStep. */
@@ -175,16 +173,11 @@ set_ownership_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 	/* Copy in the magic string and send it by writing to the SMI port. */
 	strlcpy(data->buf, smist_magic, PAGE_SIZE);
-	__asm __volatile(
-	    "movl $-1, %%edi\n\t"
-	    "out %%al, (%%dx)\n"
-	    : "=D" (data->result)
-	    : "a" (data->command),
-	      "b" (0),
-	      "c" (0),
-	      "d" (data->smi_cmd),
-	      "S" ((uint32_t)segs[0].ds_addr)
-	);
+	__asm __volatile("movl $-1, %%edi\n\t"
+			 "out %%al, (%%dx)\n"
+			 : "=D"(data->result)
+			 : "a"(data->command), "b"(0), "c"(0),
+			 "d"(data->smi_cmd), "S"((uint32_t)segs[0].ds_addr));
 }
 
 static int
@@ -202,11 +195,12 @@ set_ownership(device_t dev)
 	 */
 	sc = device_get_softc(dev);
 	if (bus_dma_tag_create(/*parent*/ NULL,
-	    /*alignment*/ PAGE_SIZE, /*no boundary*/ 0,
-	    /*lowaddr*/ BUS_SPACE_MAXADDR_32BIT, /*highaddr*/ BUS_SPACE_MAXADDR,
-	    NULL, NULL, /*maxsize*/ PAGE_SIZE, /*segments*/ 1,
-	    /*maxsegsize*/ PAGE_SIZE, 0, busdma_lock_mutex, &Giant,
-	    &tag) != 0) {
+		/*alignment*/ PAGE_SIZE, /*no boundary*/ 0,
+		/*lowaddr*/ BUS_SPACE_MAXADDR_32BIT,
+		/*highaddr*/ BUS_SPACE_MAXADDR, NULL, NULL,
+		/*maxsize*/ PAGE_SIZE, /*segments*/ 1,
+		/*maxsegsize*/ PAGE_SIZE, 0, busdma_lock_mutex, &Giant,
+		&tag) != 0) {
 		device_printf(dev, "can't create mem tag\n");
 		return (ENXIO);
 	}
@@ -220,7 +214,7 @@ set_ownership(device_t dev)
 	cb_data.smi_cmd = sc->smi_cmd;
 	cb_data.command = sc->command;
 	if (bus_dmamap_load(tag, map, cb_data.buf, PAGE_SIZE, set_ownership_cb,
-	    &cb_data, BUS_DMA_NOWAIT) != 0) {
+		&cb_data, BUS_DMA_NOWAIT) != 0) {
 		bus_dmamem_free(tag, cb_data.buf, map);
 		bus_dma_tag_destroy(tag);
 		device_printf(dev, "can't load mem\n");
@@ -249,19 +243,13 @@ getset_state(struct smist_softc *sc, int *state, int function)
 	DPRINT(sc->dev, "calling GSI\n");
 
 	__asm __volatile(
-	     "movl $-1, %%edi\n\t"
-	     "out %%al, (%%dx)\n"
-	   : "=a" (eax),
-	     "=b" (new_state),
-	     "=D" (result)
-	   : "a" (sc->command),
-	     "b" (function),
-	     "c" (*state),
-	     "d" (sc->smi_cmd)
-	);
+	    "movl $-1, %%edi\n\t"
+	    "out %%al, (%%dx)\n"
+	    : "=a"(eax), "=b"(new_state), "=D"(result)
+	    : "a"(sc->command), "b"(function), "c"(*state), "d"(sc->smi_cmd));
 
-	DPRINT(sc->dev, "GSI returned: eax %.8x ebx %.8x edi %.8x\n",
-	    eax, new_state, result);
+	DPRINT(sc->dev, "GSI returned: eax %.8x ebx %.8x edi %.8x\n", eax,
+	    new_state, result);
 
 	*state = new_state & 1;
 
@@ -291,8 +279,8 @@ smist_identify(driver_t *driver, device_t parent)
 	if (cpu_vendor_id != CPU_VENDOR_INTEL)
 		return;
 	switch (cpu_id & 0xff0) {
-	case 0x680:	/* Pentium III [coppermine] */
-	case 0x6a0:	/* Pentium III [Tualatin] */
+	case 0x680: /* Pentium III [coppermine] */
+	case 0x6a0: /* Pentium III [Tualatin] */
 		break;
 	default:
 		return;
@@ -345,7 +333,8 @@ smist_probe(device_t dev)
 
 	int15_gsic_call(&sig, &smi_cmd, &command, &smi_data, &flags);
 	if (bootverbose)
-		device_printf(dev, "sig %.8x smi_cmd %.4x command %.2x "
+		device_printf(dev,
+		    "sig %.8x smi_cmd %.4x command %.2x "
 		    "smi_data %.4x flags %.8x\n",
 		    sig, smi_cmd, command, smi_data, flags);
 
@@ -359,8 +348,8 @@ smist_probe(device_t dev)
 		 * this value given by the registry.
 		 */
 		if (command == 0x80) {
-			device_printf(dev,
-			    "GSIC returned cmd 0x80, should be 0x82\n");
+			device_printf(
+			    dev, "GSIC returned cmd 0x80, should be 0x82\n");
 			command = 0x82;
 		}
 		sc->command = (sig & 0xffffff00) | (command & 0xff);
@@ -473,8 +462,7 @@ smist_set(device_t dev, const struct cf_setting *set)
 		if (rv)
 			DELAY(200);
 	} while (rv && --try);
-	DPRINT(dev, "set_state return %d, tried %d times\n",
-	    rv, 4 - try);
+	DPRINT(dev, "set_state return %d, tried %d times\n", rv, 4 - try);
 
 	return (rv);
 }

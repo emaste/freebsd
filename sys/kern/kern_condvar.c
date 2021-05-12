@@ -33,42 +33,44 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/condvar.h>
+#include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/kernel.h>
-#include <sys/ktr.h>
-#include <sys/condvar.h>
+#include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
-#include <sys/resourcevar.h>
 #ifdef KTRACE
-#include <sys/uio.h>
 #include <sys/ktrace.h>
+#include <sys/uio.h>
 #endif
 
 /*
  * A bound below which cv_waiters is valid.  Once cv_waiters reaches this bound,
  * cv_signal must manually check the wait queue for threads.
  */
-#define	CV_WAITERS_BOUND	INT_MAX
+#define CV_WAITERS_BOUND INT_MAX
 
-#define	CV_WAITERS_INC(cvp) do {					\
-	if ((cvp)->cv_waiters < CV_WAITERS_BOUND)			\
-		(cvp)->cv_waiters++;					\
-} while (0)
+#define CV_WAITERS_INC(cvp)                               \
+	do {                                              \
+		if ((cvp)->cv_waiters < CV_WAITERS_BOUND) \
+			(cvp)->cv_waiters++;              \
+	} while (0)
 
 /*
  * Common sanity checks for cv_wait* functions.
  */
-#define	CV_ASSERT(cvp, lock, td) do {					\
-	KASSERT((td) != NULL, ("%s: td NULL", __func__));		\
-	KASSERT(TD_IS_RUNNING(td), ("%s: not TDS_RUNNING", __func__));	\
-	KASSERT((cvp) != NULL, ("%s: cvp NULL", __func__));		\
-	KASSERT((lock) != NULL, ("%s: lock NULL", __func__));		\
-} while (0)
+#define CV_ASSERT(cvp, lock, td)                                               \
+	do {                                                                   \
+		KASSERT((td) != NULL, ("%s: td NULL", __func__));              \
+		KASSERT(TD_IS_RUNNING(td), ("%s: not TDS_RUNNING", __func__)); \
+		KASSERT((cvp) != NULL, ("%s: cvp NULL", __func__));            \
+		KASSERT((lock) != NULL, ("%s: lock NULL", __func__));          \
+	} while (0)
 
 /*
  * Initialize a condition variable.  Must be called before use.
@@ -120,8 +122,8 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 		ktrcsw(1, 0, cv_wmesg(cvp));
 #endif
 	CV_ASSERT(cvp, lock, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
-	    "Waiting on \"%s\"", cvp->cv_description);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock, "Waiting on \"%s\"",
+	    cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
 	if (SCHEDULER_STOPPED_TD(td))
@@ -172,8 +174,8 @@ _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
 		ktrcsw(1, 0, cv_wmesg(cvp));
 #endif
 	CV_ASSERT(cvp, lock, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
-	    "Waiting on \"%s\"", cvp->cv_description);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock, "Waiting on \"%s\"",
+	    cvp->cv_description);
 	KASSERT(lock != &Giant.lock_object,
 	    ("cv_wait_unlock cannot be used with Giant"));
 	class = LOCK_CLASS(lock);
@@ -225,8 +227,8 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 		ktrcsw(1, 0, cv_wmesg(cvp));
 #endif
 	CV_ASSERT(cvp, lock, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
-	    "Waiting on \"%s\"", cvp->cv_description);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock, "Waiting on \"%s\"",
+	    cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
 	if (SCHEDULER_STOPPED_TD(td))
@@ -239,8 +241,8 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
 
-	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
-	    SLEEPQ_INTERRUPTIBLE, 0);
+	sleepq_add(cvp, lock, cvp->cv_description,
+	    SLEEPQ_CONDVAR | SLEEPQ_INTERRUPTIBLE, 0);
 	if (lock != &Giant.lock_object) {
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_release(cvp);
@@ -285,8 +287,8 @@ _cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
 		ktrcsw(1, 0, cv_wmesg(cvp));
 #endif
 	CV_ASSERT(cvp, lock, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
-	    "Waiting on \"%s\"", cvp->cv_description);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock, "Waiting on \"%s\"",
+	    cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
 	if (SCHEDULER_STOPPED_TD(td))
@@ -325,15 +327,15 @@ _cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
 }
 
 /*
- * Wait on a condition variable for (at most) the value specified in sbt 
+ * Wait on a condition variable for (at most) the value specified in sbt
  * argument, allowing interruption by signals.
  * Returns 0 if the thread was resumed by cv_signal or cv_broadcast,
  * EWOULDBLOCK if the timeout expires, and EINTR or ERESTART if a signal
  * was caught.
  */
 int
-_cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
-    sbintime_t sbt, sbintime_t pr, int flags)
+_cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
+    sbintime_t pr, int flags)
 {
 	WITNESS_SAVE_DECL(lock_witness);
 	struct lock_class *class;
@@ -347,8 +349,8 @@ _cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
 		ktrcsw(1, 0, cv_wmesg(cvp));
 #endif
 	CV_ASSERT(cvp, lock, td);
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
-	    "Waiting on \"%s\"", cvp->cv_description);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock, "Waiting on \"%s\"",
+	    cvp->cv_description);
 	class = LOCK_CLASS(lock);
 
 	if (SCHEDULER_STOPPED_TD(td))
@@ -361,8 +363,8 @@ _cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
 		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
 
-	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
-	    SLEEPQ_INTERRUPTIBLE, 0);
+	sleepq_add(cvp, lock, cvp->cv_description,
+	    SLEEPQ_CONDVAR | SLEEPQ_INTERRUPTIBLE, 0);
 	sleepq_set_timeout_sbt(cvp, sbt, pr, flags);
 	if (lock != &Giant.lock_object) {
 		if (class->lc_flags & LC_SLEEPABLE)
@@ -410,8 +412,8 @@ cv_signal(struct cv *cvp)
 		} else {
 			if (cvp->cv_waiters < CV_WAITERS_BOUND)
 				cvp->cv_waiters--;
-			wakeup_swapper = sleepq_signal(cvp, SLEEPQ_CONDVAR, 0,
-			    0);
+			wakeup_swapper = sleepq_signal(
+			    cvp, SLEEPQ_CONDVAR, 0, 0);
 		}
 	}
 	sleepq_release(cvp);

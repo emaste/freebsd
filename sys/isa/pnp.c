@@ -33,15 +33,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+
+#include <machine/bus.h>
+
 #include <isa/isavar.h>
 #include <isa/pnpreg.h>
 #include <isa/pnpvar.h>
-#include <machine/bus.h>
 
 typedef struct _pnp_id {
 	uint32_t vendor_id;
@@ -50,18 +52,18 @@ typedef struct _pnp_id {
 } pnp_id;
 
 struct pnp_set_config_arg {
-	int	csn;		/* Card number to configure */
-	int	ldn;		/* Logical device on card */
+	int csn; /* Card number to configure */
+	int ldn; /* Logical device on card */
 };
 
 struct pnp_quirk {
-	uint32_t vendor_id;	/* Vendor of the card */
-	uint32_t logical_id;	/* ID of the device with quirk */
-	int	type;
-#define PNP_QUIRK_WRITE_REG	1 /* Need to write a pnp register  */
-#define PNP_QUIRK_EXTRA_IO	2 /* Has extra io ports  */
-	int	arg1;
-	int	arg2;
+	uint32_t vendor_id;  /* Vendor of the card */
+	uint32_t logical_id; /* ID of the device with quirk */
+	int type;
+#define PNP_QUIRK_WRITE_REG 1 /* Need to write a pnp register  */
+#define PNP_QUIRK_EXTRA_IO 2 /* Has extra io ports  */
+	int arg1;
+	int arg2;
 };
 
 struct pnp_quirk pnp_quirks[] = {
@@ -70,28 +72,26 @@ struct pnp_quirk pnp_quirks[] = {
 	 * to enable power.
 	 * XXX need to know the logical device id.
 	 */
-	{ 0x0100561e /* GRV0001 */,	0,
-	  PNP_QUIRK_WRITE_REG,	0xf2,	 0xff },
+	{ 0x0100561e /* GRV0001 */, 0, PNP_QUIRK_WRITE_REG, 0xf2, 0xff },
 	/*
 	 * An emu8000 does not give us other than the first
 	 * port.
 	 */
-	{ 0x26008c0e /* SB16 */,	0x21008c0e,
-	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
-	{ 0x42008c0e /* SB32(CTL0042) */,	0x21008c0e,
-	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
-	{ 0x44008c0e /* SB32(CTL0044) */,	0x21008c0e,
-	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
-	{ 0x49008c0e /* SB32(CTL0049) */,	0x21008c0e,
-	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
-	{ 0xf1008c0e /* SB32(CTL00f1) */,	0x21008c0e,
-	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
-	{ 0xc1008c0e /* SB64(CTL00c1) */,	0x22008c0e,
-	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
-	{ 0xc5008c0e /* SB64(CTL00c5) */,	0x22008c0e,
-	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
-	{ 0xe4008c0e /* SB64(CTL00e4) */,	0x22008c0e,
-	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
+	{ 0x26008c0e /* SB16 */, 0x21008c0e, PNP_QUIRK_EXTRA_IO, 0x400, 0x800 },
+	{ 0x42008c0e /* SB32(CTL0042) */, 0x21008c0e, PNP_QUIRK_EXTRA_IO, 0x400,
+	    0x800 },
+	{ 0x44008c0e /* SB32(CTL0044) */, 0x21008c0e, PNP_QUIRK_EXTRA_IO, 0x400,
+	    0x800 },
+	{ 0x49008c0e /* SB32(CTL0049) */, 0x21008c0e, PNP_QUIRK_EXTRA_IO, 0x400,
+	    0x800 },
+	{ 0xf1008c0e /* SB32(CTL00f1) */, 0x21008c0e, PNP_QUIRK_EXTRA_IO, 0x400,
+	    0x800 },
+	{ 0xc1008c0e /* SB64(CTL00c1) */, 0x22008c0e, PNP_QUIRK_EXTRA_IO, 0x400,
+	    0x800 },
+	{ 0xc5008c0e /* SB64(CTL00c5) */, 0x22008c0e, PNP_QUIRK_EXTRA_IO, 0x400,
+	    0x800 },
+	{ 0xe4008c0e /* SB64(CTL00e4) */, 0x22008c0e, PNP_QUIRK_EXTRA_IO, 0x400,
+	    0x800 },
 
 	{ 0 }
 };
@@ -99,15 +99,15 @@ struct pnp_quirk pnp_quirks[] = {
 /* The READ_DATA port that we are using currently */
 static int pnp_rd_port;
 
-static void   pnp_send_initiation_key(void);
-static int    pnp_get_serial(pnp_id *p);
-static int    pnp_isolation_protocol(device_t parent);
+static void pnp_send_initiation_key(void);
+static int pnp_get_serial(pnp_id *p);
+static int pnp_isolation_protocol(device_t parent);
 
 static void
 pnp_write(int d, u_char r)
 {
-	outb (_PNP_ADDRESS, d);
-	outb (_PNP_WRITE_DATA, r);
+	outb(_PNP_ADDRESS, d);
+	outb(_PNP_WRITE_DATA, r);
 }
 
 /*
@@ -132,7 +132,6 @@ pnp_send_initiation_key()
 	}
 }
 
-
 /*
  * Get the device's serial number.  Returns 1 if the serial is valid.
  */
@@ -146,16 +145,16 @@ pnp_get_serial(pnp_id *p)
 	outb(_PNP_ADDRESS, PNP_SERIAL_ISOLATION);
 	for (i = 0; i < 72; i++) {
 		bit = inb((pnp_rd_port << 2) | 0x3) == 0x55;
-		DELAY(250);	/* Delay 250 usec */
+		DELAY(250); /* Delay 250 usec */
 
 		/* Can't Short Circuit the next evaluation, so 'and' is last */
 		bit = (inb((pnp_rd_port << 2) | 0x3) == 0xaa) && bit;
-		DELAY(250);	/* Delay 250 usec */
+		DELAY(250); /* Delay 250 usec */
 
 		valid = valid || bit;
 		if (i < 64)
 			sum = (sum >> 1) |
-			  (((sum ^ (sum >> 1) ^ bit) << 7) & 0xff);
+			    (((sum ^ (sum >> 1) ^ bit) << 7) & 0xff);
 		data[i / 8] = (data[i / 8] >> 1) | (bit ? 0x80 : 0);
 	}
 
@@ -202,8 +201,8 @@ pnp_get_resource_info(u_char *buffer, int len)
 static void
 pnp_set_config(void *arg, struct isa_config *config, int enable)
 {
-	int csn = ((struct pnp_set_config_arg *) arg)->csn;
-	int ldn = ((struct pnp_set_config_arg *) arg)->ldn;
+	int csn = ((struct pnp_set_config_arg *)arg)->csn;
+	int ldn = ((struct pnp_set_config_arg *)arg)->ldn;
 	int i;
 
 	/*
@@ -257,9 +256,10 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 			pnp_write(PNP_MEM_RANGE_LOW(i), 0);
 		} else {
 			start = config->ic_mem[i].ir_start;
-			size =  config->ic_mem[i].ir_size;
+			size = config->ic_mem[i].ir_size;
 			if (start & 0xff)
-				panic("pnp_set_config: bogus memory assignment");
+				panic(
+				    "pnp_set_config: bogus memory assignment");
 			pnp_write(PNP_MEM_BASE_HIGH(i), (start >> 16) & 0xff);
 			pnp_write(PNP_MEM_BASE_LOW(i), (start >> 8) & 0xff);
 			pnp_write(PNP_MEM_RANGE_HIGH(i), (size >> 16) & 0xff);
@@ -310,7 +310,7 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 		 */
 		pnp_write(PNP_IRQ_LEVEL(i), 0);
 		pnp_write(PNP_IRQ_TYPE(i), 2);
-	}		
+	}
 
 	for (i = 0; i < config->ic_ndrq; i++) {
 		int drq;
@@ -328,7 +328,7 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 		 * indicate no DMA channel is active.
 		 */
 		pnp_write(PNP_DMA_CHANNEL(i), 4);
-	}		
+	}
 
 	pnp_write(PNP_ACTIVATE, enable ? 1 : 0);
 
@@ -342,14 +342,14 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
  * Process quirks for a logical device.. The card must be in Config state.
  */
 void
-pnp_check_quirks(uint32_t vendor_id, uint32_t logical_id, int ldn,
-    struct isa_config *config)
+pnp_check_quirks(
+    uint32_t vendor_id, uint32_t logical_id, int ldn, struct isa_config *config)
 {
 	struct pnp_quirk *qp;
 
 	for (qp = &pnp_quirks[0]; qp->vendor_id; qp++) {
-		if (qp->vendor_id == vendor_id
-		    && (qp->logical_id == 0 || qp->logical_id == logical_id)) {
+		if (qp->vendor_id == vendor_id &&
+		    (qp->logical_id == 0 || qp->logical_id == logical_id)) {
 			switch (qp->type) {
 			case PNP_QUIRK_WRITE_REG:
 				pnp_write(PNP_SET_LDN, ldn);
@@ -360,15 +360,21 @@ pnp_check_quirks(uint32_t vendor_id, uint32_t logical_id, int ldn,
 					break;
 				if (qp->arg1 != 0) {
 					config->ic_nport++;
-					config->ic_port[config->ic_nport - 1] = config->ic_port[0];
-					config->ic_port[config->ic_nport - 1].ir_start += qp->arg1;
-					config->ic_port[config->ic_nport - 1].ir_end += qp->arg1;
+					config->ic_port[config->ic_nport - 1] =
+					    config->ic_port[0];
+					config->ic_port[config->ic_nport - 1]
+					    .ir_start += qp->arg1;
+					config->ic_port[config->ic_nport - 1]
+					    .ir_end += qp->arg1;
 				}
 				if (qp->arg2 != 0) {
 					config->ic_nport++;
-					config->ic_port[config->ic_nport - 1] = config->ic_port[0];
-					config->ic_port[config->ic_nport - 1].ir_start += qp->arg2;
-					config->ic_port[config->ic_nport - 1].ir_end += qp->arg2;
+					config->ic_port[config->ic_nport - 1] =
+					    config->ic_port[0];
+					config->ic_port[config->ic_nport - 1]
+					    .ir_start += qp->arg2;
+					config->ic_port[config->ic_nport - 1]
+					    .ir_end += qp->arg2;
 				}
 				break;
 			}
@@ -384,8 +390,8 @@ pnp_check_quirks(uint32_t vendor_id, uint32_t logical_id, int ldn,
  * case the return value will be TRUE, FALSE otherwise.
  */
 static int
-pnp_create_devices(device_t parent, pnp_id *p, int csn,
-    u_char *resources, int len)
+pnp_create_devices(
+    device_t parent, pnp_id *p, int csn, u_char *resources, int len)
 {
 	u_char tag, *resp, *resinfo, *startres = NULL;
 	int large_len, scanning = len, retval = FALSE;
@@ -434,7 +440,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 				/*
 				 * Trim trailing spaces.
 				 */
-				while (buf[large_len-1] == ' ')
+				while (buf[large_len - 1] == ' ')
 					large_len--;
 				buf[large_len] = '\0';
 				desc = buf;
@@ -443,7 +449,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 
 			continue;
 		}
-		
+
 		/* Small resource */
 		if (scanning < PNP_SRES_LEN(tag)) {
 			scanning = 0;
@@ -452,7 +458,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 		resinfo = resp;
 		resp += PNP_SRES_LEN(tag);
 		scanning -= PNP_SRES_LEN(tag);
-			
+
 		switch (PNP_SRES_NUM(tag)) {
 		case PNP_TAG_LOGICAL_DEVICE:
 			/*
@@ -460,13 +466,13 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			 * logical device (if any).
 			 */
 			if (startres) {
-				pnp_parse_resources(dev, startres,
-				    resinfo - startres - 1, ldn);
+				pnp_parse_resources(
+				    dev, startres, resinfo - startres - 1, ldn);
 				dev = 0;
 				startres = NULL;
 			}
 
-			/* 
+			/*
 			 * A new logical device. Scan for end of
 			 * resources.
 			 */
@@ -476,13 +482,13 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			if (desc)
 				device_set_desc_copy(dev, desc);
 			else
-				device_set_desc_copy(dev,
-				    pnp_eisaformat(logical_id));
+				device_set_desc_copy(
+				    dev, pnp_eisaformat(logical_id));
 			isa_set_vendorid(dev, p->vendor_id);
 			isa_set_serial(dev, p->serial);
 			isa_set_logicalid(dev, logical_id);
-			isa_set_configattr(dev,
-			    ISACFGATTR_CANDISABLE | ISACFGATTR_DYNAMIC);
+			isa_set_configattr(
+			    dev, ISACFGATTR_CANDISABLE | ISACFGATTR_DYNAMIC);
 			csnldn = malloc(sizeof *csnldn, M_DEVBUF, M_NOWAIT);
 			if (!csnldn) {
 				device_printf(parent, "out of memory\n");
@@ -491,22 +497,22 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			}
 			csnldn->csn = csn;
 			csnldn->ldn = ldn;
-			ISA_SET_CONFIG_CALLBACK(parent, dev, pnp_set_config,
-			    csnldn);
+			ISA_SET_CONFIG_CALLBACK(
+			    parent, dev, pnp_set_config, csnldn);
 			isa_set_pnp_csn(dev, csn);
 			isa_set_pnp_ldn(dev, ldn);
 			ldn++;
 			startres = resp;
 			break;
-		    
+
 		case PNP_TAG_END:
 			if (!startres) {
 				device_printf(parent, "malformed resources\n");
 				scanning = 0;
 				break;
 			}
-			pnp_parse_resources(dev, startres,
-			    resinfo - startres - 1, ldn);
+			pnp_parse_resources(
+			    dev, startres, resinfo - startres - 1, ldn);
 			dev = 0;
 			startres = NULL;
 			scanning = 0;
@@ -547,7 +553,7 @@ pnp_read_bytes(int amount, u_char **resourcesp, int *spacep, int *lenp)
 		if (!resources)
 			return (ENOMEM);
 	}
-	
+
 	if (len + amount > space) {
 		int extra = 1024;
 		while (len + amount > space + extra)
@@ -596,13 +602,13 @@ pnp_read_resources(u_char **resourcesp, int *spacep, int *lenp)
 		error = pnp_read_bytes(1, &resources, &space, &len);
 		if (error)
 			goto out;
-		tag = resources[len-1];
+		tag = resources[len - 1];
 		if (PNP_RES_TYPE(tag) == 0) {
 			/*
 			 * Small resource, read contents.
 			 */
-			error = pnp_read_bytes(PNP_SRES_LEN(tag),
-			    &resources, &space, &len);
+			error = pnp_read_bytes(
+			    PNP_SRES_LEN(tag), &resources, &space, &len);
 			if (error)
 				goto out;
 			if (PNP_SRES_NUM(tag) == PNP_TAG_END)
@@ -614,15 +620,15 @@ pnp_read_resources(u_char **resourcesp, int *spacep, int *lenp)
 			error = pnp_read_bytes(2, &resources, &space, &len);
 			if (error)
 				goto out;
-			error = pnp_read_bytes(resources[len-2]
-			    + (resources[len-1] << 8), &resources, &space,
-			    &len);
+			error = pnp_read_bytes(
+			    resources[len - 2] + (resources[len - 1] << 8),
+			    &resources, &space, &len);
 			if (error)
 				goto out;
 		}
 	}
 
- out:
+out:
 	*resourcesp = resources;
 	*spacep = space;
 	*lenp = len;
@@ -675,7 +681,7 @@ pnp_isolation_protocol(device_t parent)
 		 * Start the serial isolation protocol.
 		 */
 		outb(_PNP_ADDRESS, PNP_SERIAL_ISOLATION);
-		DELAY(1000);	/* Delay 1 msec */
+		DELAY(1000); /* Delay 1 msec */
 
 		if (pnp_get_serial(&id)) {
 			/*
@@ -724,7 +730,6 @@ pnp_isolation_protocol(device_t parent)
 	return (found);
 }
 
-
 /*
  * pnp_identify()
  *
@@ -756,15 +761,13 @@ pnp_identify(driver_t *driver, device_t parent)
 
 static device_method_t pnp_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	pnp_identify),
+	DEVMETHOD(device_identify, pnp_identify),
 
 	{ 0, 0 }
 };
 
 static driver_t pnp_driver = {
-	"pnp",
-	pnp_methods,
-	1,			/* no softc */
+	"pnp", pnp_methods, 1, /* no softc */
 };
 
 static devclass_t pnp_devclass;

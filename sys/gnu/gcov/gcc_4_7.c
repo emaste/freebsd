@@ -25,31 +25,29 @@
  *  Uses gcc-internal data definitions.
  */
 
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/types.h>
-#include <sys/systm.h>
-#include <sys/sbuf.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sbuf.h>
+
 #include <gnu/gcov/gcov.h>
 
-
 #if (__GNUC__ >= 7)
-#define GCOV_COUNTERS			9
+#define GCOV_COUNTERS 9
 #elif (__GNUC__ > 5) || (__GNUC__ == 5 && __GNUC_MINOR__ >= 1)
-#define GCOV_COUNTERS			10
+#define GCOV_COUNTERS 10
 #elif __GNUC__ == 4 && __GNUC_MINOR__ >= 9
-#define GCOV_COUNTERS			9
+#define GCOV_COUNTERS 9
 #else
-#define GCOV_COUNTERS			8
+#define GCOV_COUNTERS 8
 #endif
 
-#define GCOV_TAG_FUNCTION_LENGTH	3
+#define GCOV_TAG_FUNCTION_LENGTH 3
 
 static struct gcov_info *gcov_info_head;
 
@@ -177,8 +175,8 @@ gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info)
 
 /* Symbolic links to be created for each profiling data file. */
 const struct gcov_link gcov_link[] = {
-	{ OBJ_TREE, "gcno" },	/* Link to .gcno file in $(objtree). */
-	{ 0, NULL},
+	{ OBJ_TREE, "gcno" }, /* Link to .gcno file in $(objtree). */
+	{ 0, NULL },
 };
 
 /*
@@ -222,8 +220,8 @@ gcov_info_reset(struct gcov_info *info)
 			if (!counter_active(info, ct_idx))
 				continue;
 
-			memset(ci_ptr->values, 0,
-					sizeof(gcov_type) * ci_ptr->num);
+			memset(
+			    ci_ptr->values, 0, sizeof(gcov_type) * ci_ptr->num);
 			ci_ptr++;
 		}
 	}
@@ -268,7 +266,7 @@ gcov_info_add(struct gcov_info *dst, struct gcov_info *src)
 
 			for (val_idx = 0; val_idx < sci_ptr->num; val_idx++)
 				dci_ptr->values[val_idx] +=
-					sci_ptr->values[val_idx];
+				    sci_ptr->values[val_idx];
 
 			dci_ptr++;
 			sci_ptr++;
@@ -291,10 +289,10 @@ gcov_info_dup(struct gcov_info *info)
 	unsigned int active;
 	unsigned int fi_idx; /* function info idx */
 	unsigned int ct_idx; /* counter type idx */
-	size_t fi_size; /* function info size */
-	size_t cv_size; /* counter values size */
+	size_t fi_size;	     /* function info size */
+	size_t cv_size;	     /* counter values size */
 
-	if ((dup = malloc(sizeof(*dup), M_GCOV, M_NOWAIT|M_ZERO)) == NULL)
+	if ((dup = malloc(sizeof(*dup), M_GCOV, M_NOWAIT | M_ZERO)) == NULL)
 		return (NULL);
 	memcpy(dup, info, sizeof(*dup));
 
@@ -306,7 +304,9 @@ gcov_info_dup(struct gcov_info *info)
 	if (dup->filename == NULL)
 		goto err_free;
 
-	dup->functions = malloc(info->n_functions * sizeof(struct gcov_fn_info *), M_GCOV, M_NOWAIT|M_ZERO);
+	dup->functions = malloc(
+	    info->n_functions * sizeof(struct gcov_fn_info *), M_GCOV,
+	    M_NOWAIT | M_ZERO);
 	if (dup->functions == NULL)
 		goto err_free;
 	active = num_counter_active(info);
@@ -314,7 +314,8 @@ gcov_info_dup(struct gcov_info *info)
 	fi_size += sizeof(struct gcov_ctr_info) * active;
 
 	for (fi_idx = 0; fi_idx < info->n_functions; fi_idx++) {
-		dup->functions[fi_idx] = malloc(fi_size, M_GCOV, M_NOWAIT|M_ZERO);
+		dup->functions[fi_idx] = malloc(
+		    fi_size, M_GCOV, M_NOWAIT | M_ZERO);
 		if (!dup->functions[fi_idx])
 			goto err_free;
 
@@ -379,9 +380,9 @@ free_info:
 	free(info->functions, M_GCOV);
 	free(__DECONST(char *, info->filename), M_GCOV);
 	free(info, M_GCOV);
- }
+}
 
-#define ITER_STRIDE	PAGE_SIZE
+#define ITER_STRIDE PAGE_SIZE
 
 /**
  * struct gcov_iterator - specifies current file position in logical records
@@ -414,7 +415,7 @@ store_gcov_uint32(void *buffer, size_t off, uint32_t v)
 	uint32_t *data;
 
 	if (buffer) {
-		data = (void*)((caddr_t)buffer + off);
+		data = (void *)((caddr_t)buffer + off);
 		*data = v;
 	}
 
@@ -440,7 +441,7 @@ store_gcov_uint64(void *buffer, size_t off, uint64_t v)
 	uint32_t *data;
 
 	if (buffer) {
-		data = (void*)((caddr_t)buffer + off);
+		data = (void *)((caddr_t)buffer + off);
 
 		data[0] = (v & 0xffffffffUL);
 		data[1] = (v >> 32);
@@ -488,13 +489,13 @@ convert_to_gcda(char *buffer, struct gcov_info *info)
 				continue;
 
 			/* Counter record. */
-			pos += store_gcov_uint32(buffer, pos,
-					      GCOV_TAG_FOR_COUNTER(ct_idx));
+			pos += store_gcov_uint32(
+			    buffer, pos, GCOV_TAG_FOR_COUNTER(ct_idx));
 			pos += store_gcov_uint32(buffer, pos, ci_ptr->num * 2);
 
 			for (cv_idx = 0; cv_idx < ci_ptr->num; cv_idx++) {
-				pos += store_gcov_uint64(buffer, pos,
-						      ci_ptr->values[cv_idx]);
+				pos += store_gcov_uint64(
+				    buffer, pos, ci_ptr->values[cv_idx]);
 			}
 
 			ci_ptr++;
@@ -515,7 +516,7 @@ gcov_iter_new(struct gcov_info *info)
 {
 	struct gcov_iterator *iter;
 
-	iter = malloc(sizeof(struct gcov_iterator), M_GCOV, M_NOWAIT|M_ZERO);
+	iter = malloc(sizeof(struct gcov_iterator), M_GCOV, M_NOWAIT | M_ZERO);
 	if (iter == NULL)
 		goto err_free;
 
@@ -534,7 +535,6 @@ err_free:
 	free(iter, M_GCOV);
 	return (NULL);
 }
-
 
 /**
  * gcov_iter_get_info - return profiling data set for given file iterator

@@ -29,7 +29,7 @@
  */
 
 #ifndef _SYS_TTYHOOK_H_
-#define	_SYS_TTYHOOK_H_
+#define _SYS_TTYHOOK_H_
 
 #ifndef _SYS_TTY_H_
 #error "can only be included through <sys/tty.h>"
@@ -55,25 +55,25 @@ typedef void th_close_t(struct tty *tp);
 
 struct ttyhook {
 	/* Character input. */
-	th_rint_t		*th_rint;
-	th_rint_bypass_t	*th_rint_bypass;
-	th_rint_done_t		*th_rint_done;
-	th_rint_poll_t		*th_rint_poll;
+	th_rint_t *th_rint;
+	th_rint_bypass_t *th_rint_bypass;
+	th_rint_done_t *th_rint_done;
+	th_rint_poll_t *th_rint_poll;
 
 	/* Character output. */
-	th_getc_inject_t	*th_getc_inject;
-	th_getc_capture_t	*th_getc_capture;
-	th_getc_poll_t		*th_getc_poll;
+	th_getc_inject_t *th_getc_inject;
+	th_getc_capture_t *th_getc_capture;
+	th_getc_poll_t *th_getc_poll;
 
-	th_close_t		*th_close;
+	th_close_t *th_close;
 };
 
-int	ttyhook_register(struct tty **, struct proc *, int,
-    struct ttyhook *, void *);
-void	ttyhook_unregister(struct tty *);
-#define	ttyhook_softc(tp)		((tp)->t_hooksoftc)
-#define	ttyhook_hashook(tp,hook)	((tp)->t_hook != NULL && \
-					(tp)->t_hook->th_ ## hook != NULL)
+int ttyhook_register(
+    struct tty **, struct proc *, int, struct ttyhook *, void *);
+void ttyhook_unregister(struct tty *);
+#define ttyhook_softc(tp) ((tp)->t_hooksoftc)
+#define ttyhook_hashook(tp, hook) \
+	((tp)->t_hook != NULL && (tp)->t_hook->th_##hook != NULL)
 
 static __inline int
 ttyhook_rint(struct tty *tp, char c, int flags)

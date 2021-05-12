@@ -40,7 +40,7 @@
  * HCI events processing routines
  */
 
-int	ng_hci_process_event	(ng_hci_unit_p, struct mbuf *);
-void	ng_hci_send_data	(ng_hci_unit_p);
+int ng_hci_process_event(ng_hci_unit_p, struct mbuf *);
+void ng_hci_send_data(ng_hci_unit_p);
 
 #endif /* ndef _NETGRAPH_HCI_EVNT_H_ */

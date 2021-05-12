@@ -34,40 +34,38 @@
 #include "opt_altq.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#ifdef ALTQ_CBQ	/* cbq is enabled by ALTQ_CBQ option in opt_altq.h */
+#ifdef ALTQ_CBQ /* cbq is enabled by ALTQ_CBQ option in opt_altq.h */
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/errno.h>
+#include <sys/socket.h>
 #include <sys/time.h>
 
+#include <net/altq/altq.h>
+#include <net/altq/altq_cbq.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <netinet/in.h>
-
 #include <netpfil/pf/pf.h>
 #include <netpfil/pf/pf_altq.h>
 #include <netpfil/pf/pf_mtag.h>
-#include <net/altq/altq.h>
-#include <net/altq/altq_cbq.h>
 
 /*
  * Forward Declarations.
  */
-static int		 cbq_class_destroy(cbq_state_t *, struct rm_class *);
-static struct rm_class  *clh_to_clp(cbq_state_t *, u_int32_t);
-static int		 cbq_clear_interface(cbq_state_t *);
-static int		 cbq_request(struct ifaltq *, int, void *);
-static int		 cbq_enqueue(struct ifaltq *, struct mbuf *,
-			     struct altq_pktattr *);
-static struct mbuf	*cbq_dequeue(struct ifaltq *, int);
-static void		 cbqrestart(struct ifaltq *);
-static void		 get_class_stats(class_stats_t *, struct rm_class *);
-static void		 cbq_purge(cbq_state_t *);
+static int cbq_class_destroy(cbq_state_t *, struct rm_class *);
+static struct rm_class *clh_to_clp(cbq_state_t *, u_int32_t);
+static int cbq_clear_interface(cbq_state_t *);
+static int cbq_request(struct ifaltq *, int, void *);
+static int cbq_enqueue(struct ifaltq *, struct mbuf *, struct altq_pktattr *);
+static struct mbuf *cbq_dequeue(struct ifaltq *, int);
+static void cbqrestart(struct ifaltq *);
+static void get_class_stats(class_stats_t *, struct rm_class *);
+static void cbq_purge(cbq_state_t *);
 
 /*
  * int
@@ -78,7 +76,7 @@ static void		 cbq_purge(cbq_state_t *);
 static int
 cbq_class_destroy(cbq_state_t *cbqp, struct rm_class *cl)
 {
-	int	i;
+	int i;
 
 	/* delete the class */
 	rmc_delete_class(&cbqp->ifnp, cl);
@@ -124,8 +122,8 @@ clh_to_clp(cbq_state_t *cbqp, u_int32_t chandle)
 static int
 cbq_clear_interface(cbq_state_t *cbqp)
 {
-	int		 again, i;
-	struct rm_class	*cl;
+	int again, i;
+	struct rm_class *cl;
 
 #ifdef ALTQ3_CLFIER_COMPAT
 	/* free the filters for this interface */
@@ -157,7 +155,7 @@ cbq_clear_interface(cbq_state_t *cbqp)
 static int
 cbq_request(struct ifaltq *ifq, int req, void *arg)
 {
-	cbq_state_t	*cbqp = (cbq_state_t *)ifq->altq_disc;
+	cbq_state_t *cbqp = (cbq_state_t *)ifq->altq_disc;
 
 	IFQ_LOCK_ASSERT(ifq);
 
@@ -173,25 +171,25 @@ cbq_request(struct ifaltq *ifq, int req, void *arg)
 static void
 get_class_stats(class_stats_t *statsp, struct rm_class *cl)
 {
-	statsp->xmit_cnt	= cl->stats_.xmit_cnt;
-	statsp->drop_cnt	= cl->stats_.drop_cnt;
-	statsp->over		= cl->stats_.over;
-	statsp->borrows		= cl->stats_.borrows;
-	statsp->overactions	= cl->stats_.overactions;
-	statsp->delays		= cl->stats_.delays;
+	statsp->xmit_cnt = cl->stats_.xmit_cnt;
+	statsp->drop_cnt = cl->stats_.drop_cnt;
+	statsp->over = cl->stats_.over;
+	statsp->borrows = cl->stats_.borrows;
+	statsp->overactions = cl->stats_.overactions;
+	statsp->delays = cl->stats_.delays;
 
-	statsp->depth		= cl->depth_;
-	statsp->priority	= cl->pri_;
-	statsp->maxidle		= cl->maxidle_;
-	statsp->minidle		= cl->minidle_;
-	statsp->offtime		= cl->offtime_;
-	statsp->qmax		= qlimit(cl->q_);
-	statsp->ns_per_byte	= cl->ns_per_byte_;
-	statsp->wrr_allot	= cl->w_allotment_;
-	statsp->qcnt		= qlen(cl->q_);
-	statsp->avgidle		= cl->avgidle_;
+	statsp->depth = cl->depth_;
+	statsp->priority = cl->pri_;
+	statsp->maxidle = cl->maxidle_;
+	statsp->minidle = cl->minidle_;
+	statsp->offtime = cl->offtime_;
+	statsp->qmax = qlimit(cl->q_);
+	statsp->ns_per_byte = cl->ns_per_byte_;
+	statsp->wrr_allot = cl->w_allotment_;
+	statsp->qcnt = qlen(cl->q_);
+	statsp->avgidle = cl->avgidle_;
 
-	statsp->qtype		= qtype(cl->q_);
+	statsp->qtype = qtype(cl->q_);
 #ifdef ALTQ_RED
 	if (q_is_red(cl->q_))
 		red_getstats(cl->red_, &statsp->red[0]);
@@ -209,14 +207,14 @@ get_class_stats(class_stats_t *statsp, struct rm_class *cl)
 int
 cbq_pfattach(struct pf_altq *a)
 {
-	struct ifnet	*ifp;
-	int		 s, error;
+	struct ifnet *ifp;
+	int s, error;
 
 	if ((ifp = ifunit(a->ifname)) == NULL || a->altq_disc == NULL)
 		return (EINVAL);
 	s = splnet();
-	error = altq_attach(&ifp->if_snd, ALTQT_CBQ, a->altq_disc,
-	    cbq_enqueue, cbq_dequeue, cbq_request);
+	error = altq_attach(&ifp->if_snd, ALTQT_CBQ, a->altq_disc, cbq_enqueue,
+	    cbq_dequeue, cbq_request);
 	splx(s);
 	return (error);
 }
@@ -224,7 +222,7 @@ cbq_pfattach(struct pf_altq *a)
 int
 cbq_add_altq(struct ifnet *ifp, struct pf_altq *a)
 {
-	cbq_state_t	*cbqp;
+	cbq_state_t *cbqp;
 
 	if (ifp == NULL)
 		return (EINVAL);
@@ -237,7 +235,7 @@ cbq_add_altq(struct ifnet *ifp, struct pf_altq *a)
 		return (ENOMEM);
 	CALLOUT_INIT(&cbqp->cbq_callout);
 	cbqp->cbq_qlen = 0;
-	cbqp->ifnp.ifq_ = &ifp->if_snd;	    /* keep the ifq */
+	cbqp->ifnp.ifq_ = &ifp->if_snd; /* keep the ifq */
 
 	/* keep the state in pf_altq */
 	a->altq_disc = cbqp;
@@ -248,7 +246,7 @@ cbq_add_altq(struct ifnet *ifp, struct pf_altq *a)
 int
 cbq_remove_altq(struct pf_altq *a)
 {
-	cbq_state_t	*cbqp;
+	cbq_state_t *cbqp;
 
 	if ((cbqp = a->altq_disc) == NULL)
 		return (EINVAL);
@@ -270,11 +268,11 @@ cbq_remove_altq(struct pf_altq *a)
 int
 cbq_add_queue(struct pf_altq *a)
 {
-	struct rm_class	*borrow, *parent;
-	cbq_state_t	*cbqp;
-	struct rm_class	*cl;
-	struct cbq_opts	*opts;
-	int		i;
+	struct rm_class *borrow, *parent;
+	cbq_state_t *cbqp;
+	struct rm_class *cl;
+	struct cbq_opts *opts;
+	int i;
 
 	if ((cbqp = a->altq_disc) == NULL)
 		return (EINVAL);
@@ -316,7 +314,7 @@ cbq_add_queue(struct pf_altq *a)
 		return (EINVAL);
 	}
 
-	if ((borrow != parent)  && (borrow != NULL)) {
+	if ((borrow != parent) && (borrow != NULL)) {
 		printf("cbq_add_class: borrow class != parent\n");
 		return (EINVAL);
 	}
@@ -350,16 +348,13 @@ cbq_add_queue(struct pf_altq *a)
 	 */
 	if ((opts->flags & CBQCLF_CLASSMASK) == CBQCLF_ROOTCLASS) {
 		rmc_init(cbqp->ifnp.ifq_, &cbqp->ifnp, opts->ns_per_byte,
-		    cbqrestart, a->qlimit, RM_MAXQUEUED,
-		    opts->maxidle, opts->minidle, opts->offtime,
-		    opts->flags);
+		    cbqrestart, a->qlimit, RM_MAXQUEUED, opts->maxidle,
+		    opts->minidle, opts->offtime, opts->flags);
 		cl = cbqp->ifnp.root_;
 	} else {
-		cl = rmc_newclass(a->priority,
-				  &cbqp->ifnp, opts->ns_per_byte,
-				  rmc_delay_action, a->qlimit, parent, borrow,
-				  opts->maxidle, opts->minidle, opts->offtime,
-				  opts->pktsize, opts->flags);
+		cl = rmc_newclass(a->priority, &cbqp->ifnp, opts->ns_per_byte,
+		    rmc_delay_action, a->qlimit, parent, borrow, opts->maxidle,
+		    opts->minidle, opts->offtime, opts->pktsize, opts->flags);
 	}
 	if (cl == NULL)
 		return (ENOMEM);
@@ -380,9 +375,9 @@ cbq_add_queue(struct pf_altq *a)
 int
 cbq_remove_queue(struct pf_altq *a)
 {
-	struct rm_class	*cl;
-	cbq_state_t	*cbqp;
-	int		i;
+	struct rm_class *cl;
+	cbq_state_t *cbqp;
+	int i;
 
 	if ((cbqp = a->altq_disc) == NULL)
 		return (EINVAL);
@@ -416,10 +411,10 @@ cbq_remove_queue(struct pf_altq *a)
 int
 cbq_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
 {
-	cbq_state_t	*cbqp;
-	struct rm_class	*cl;
-	class_stats_t	 stats;
-	int		 error = 0;
+	cbq_state_t *cbqp;
+	struct rm_class *cl;
+	class_stats_t stats;
+	int error = 0;
 
 	if ((cbqp = altq_lookup(a->ifname, ALTQT_CBQ)) == NULL)
 		return (EBADF);
@@ -456,10 +451,10 @@ cbq_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
 static int
 cbq_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 {
-	cbq_state_t	*cbqp = (cbq_state_t *)ifq->altq_disc;
-	struct rm_class	*cl;
-	struct pf_mtag	*t;
-	int		 len;
+	cbq_state_t *cbqp = (cbq_state_t *)ifq->altq_disc;
+	struct rm_class *cl;
+	struct pf_mtag *t;
+	int len;
 
 	IFQ_LOCK_ASSERT(ifq);
 
@@ -498,15 +493,15 @@ cbq_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 static struct mbuf *
 cbq_dequeue(struct ifaltq *ifq, int op)
 {
-	cbq_state_t	*cbqp = (cbq_state_t *)ifq->altq_disc;
-	struct mbuf	*m;
+	cbq_state_t *cbqp = (cbq_state_t *)ifq->altq_disc;
+	struct mbuf *m;
 
 	IFQ_LOCK_ASSERT(ifq);
 
 	m = rmc_dequeue_next(&cbqp->ifnp, op);
 
 	if (m && op == ALTDQ_REMOVE) {
-		--cbqp->cbq_qlen;  /* decrement # of packets in cbq */
+		--cbqp->cbq_qlen; /* decrement # of packets in cbq */
 		IFQ_DEC_LEN(ifq);
 
 		/* Update the class. */
@@ -526,8 +521,8 @@ cbq_dequeue(struct ifaltq *ifq, int op)
 static void
 cbqrestart(struct ifaltq *ifq)
 {
-	cbq_state_t	*cbqp;
-	struct ifnet	*ifp;
+	cbq_state_t *cbqp;
+	struct ifnet *ifp;
 
 	IFQ_LOCK_ASSERT(ifq);
 
@@ -540,18 +535,19 @@ cbqrestart(struct ifaltq *ifq)
 		return;
 
 	ifp = ifq->altq_ifp;
-	if (ifp->if_start &&
-	    cbqp->cbq_qlen > 0 && (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
-	    	IFQ_UNLOCK(ifq);
+	if (ifp->if_start && cbqp->cbq_qlen > 0 &&
+	    (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
+		IFQ_UNLOCK(ifq);
 		(*ifp->if_start)(ifp);
 		IFQ_LOCK(ifq);
 	}
 }
 
-static void cbq_purge(cbq_state_t *cbqp)
+static void
+cbq_purge(cbq_state_t *cbqp)
 {
-	struct rm_class	*cl;
-	int		 i;
+	struct rm_class *cl;
+	int i;
 
 	for (i = 0; i < CBQ_MAX_CLASSES; i++)
 		if ((cl = cbqp->cbq_class_tbl[i]) != NULL)

@@ -34,19 +34,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/sysctl.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/kerneldump.h>
+#include <sys/proc.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+
+#include <machine/armreg.h>
 #include <machine/dump.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
-#include <machine/armreg.h>
-#include <machine/vmparam.h>	/* For KERNVIRTADDR */
+#include <machine/vmparam.h> /* For KERNVIRTADDR */
 
 int do_minidump = 1;
 SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RWTUN, &do_minidump, 0,
@@ -88,7 +89,7 @@ dumpsys_write_aux_headers(struct dumperinfo *di)
 
 	bzero(&phdr, sizeof(phdr));
 	phdr.p_type = PT_DUMP_DELTA;
-	phdr.p_flags = PF_R;			/* XXX */
+	phdr.p_flags = PF_R; /* XXX */
 	phdr.p_offset = 0;
 	phdr.p_vaddr = KERNVIRTADDR;
 	phdr.p_paddr = pmap_kextract(KERNVIRTADDR);
@@ -96,6 +97,6 @@ dumpsys_write_aux_headers(struct dumperinfo *di)
 	phdr.p_memsz = 0;
 	phdr.p_align = PAGE_SIZE;
 
-	error = dumpsys_buf_write(di, (char*)&phdr, sizeof(phdr));
+	error = dumpsys_buf_write(di, (char *)&phdr, sizeof(phdr));
 	return (error);
 }

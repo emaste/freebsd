@@ -34,8 +34,8 @@ crc32(const void *buf, size_t size)
 }
 #endif
 
-uint32_t calculate_crc32c(uint32_t crc32c, const unsigned char *buffer,
-    unsigned int length);
+uint32_t calculate_crc32c(
+    uint32_t crc32c, const unsigned char *buffer, unsigned int length);
 
 #if defined(__amd64__) || defined(__i386__)
 uint32_t sse42_crc32c(uint32_t, const unsigned char *, unsigned);

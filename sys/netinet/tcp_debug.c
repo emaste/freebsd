@@ -43,8 +43,8 @@ __FBSDID("$FreeBSD$");
 /* load symbolic names */
 #define PRUREQUESTS
 #define TCPSTATES
-#define	TCPTIMERS
-#define	TANAMES
+#define TCPTIMERS
+#define TANAMES
 #endif
 
 #include <sys/param.h>
@@ -64,14 +64,14 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
+#include <netinet/tcp_debug.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
-#include <netinet/tcp_debug.h>
 
 #ifdef TCPDEBUG
-static int		tcpconsdebug = 0;
+static int tcpconsdebug = 0;
 #endif
 
 /*
@@ -80,15 +80,15 @@ static int		tcpconsdebug = 0;
  * next available slot.  There is no explicit export of this data structure;
  * it will be read via /dev/kmem by debugging tools.
  */
-static struct tcp_debug	tcp_debug[TCP_NDEBUG];
-static int		tcp_debx;
+static struct tcp_debug tcp_debug[TCP_NDEBUG];
+static int tcp_debx;
 
 /*
  * All global state is protected by tcp_debug_mtx; tcp_trace() is split into
  * two parts, one of which saves connection and other state into the global
  * array (locked by tcp_debug_mtx).
  */
-struct mtx		tcp_debug_mtx;
+struct mtx tcp_debug_mtx;
 MTX_SYSINIT(tcp_debug_mtx, &tcp_debug_mtx, "tcp_debug_mtx", MTX_DEF);
 
 /*
@@ -118,7 +118,7 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, void *ipgen,
 #ifdef INET6
 	    (isipv6 != 0) ? AF_INET6 :
 #endif
-	    AF_INET;
+				  AF_INET;
 #ifdef INET
 	td->td_time = iptime();
 #endif
@@ -177,36 +177,42 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, void *ipgen,
 #ifdef INET6
 		    isipv6 ? ntohs(((struct ip6_hdr *)ipgen)->ip6_plen) :
 #endif
-		    ntohs(((struct ip *)ipgen)->ip_len);
+				   ntohs(((struct ip *)ipgen)->ip_len);
 		if (act == TA_OUTPUT) {
 			seq = ntohl(seq);
 			ack = ntohl(ack);
 		}
 		if (act == TA_OUTPUT)
-			len -= sizeof (struct tcphdr);
+			len -= sizeof(struct tcphdr);
 		if (len)
-			printf("[%x..%x)", seq, seq+len);
+			printf("[%x..%x)", seq, seq + len);
 		else
 			printf("%x", seq);
 		printf("@%x, urp=%x", ack, th->th_urp);
 		flags = th->th_flags;
 		if (flags) {
 			char *cp = "<";
-#define pf(f) {					\
-	if (th->th_flags & TH_##f) {		\
-		printf("%s%s", cp, #f);		\
-		cp = ",";			\
-	}					\
-}
-			pf(SYN); pf(ACK); pf(FIN); pf(RST); pf(PUSH); pf(URG);
+#define pf(f)                                   \
+	{                                       \
+		if (th->th_flags & TH_##f) {    \
+			printf("%s%s", cp, #f); \
+			cp = ",";               \
+		}                               \
+	}
+			pf(SYN);
+			pf(ACK);
+			pf(FIN);
+			pf(RST);
+			pf(PUSH);
+			pf(URG);
 			printf(">");
 		}
 		break;
 
 	case TA_USER:
-		printf("%s", prurequests[req&0xff]);
+		printf("%s", prurequests[req & 0xff]);
 		if ((req & 0xff) == PRU_SLOWTIMO)
-			printf("<%s>", tcptimers[req>>8]);
+			printf("<%s>", tcptimers[req >> 8]);
 		break;
 	}
 	if (tp != NULL)
@@ -216,10 +222,10 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, void *ipgen,
 	if (tp == NULL)
 		return;
 	printf(
-	"\trcv_(nxt,wnd,up) (%lx,%lx,%lx) snd_(una,nxt,max) (%lx,%lx,%lx)\n",
+	    "\trcv_(nxt,wnd,up) (%lx,%lx,%lx) snd_(una,nxt,max) (%lx,%lx,%lx)\n",
 	    (u_long)tp->rcv_nxt, (u_long)tp->rcv_wnd, (u_long)tp->rcv_up,
 	    (u_long)tp->snd_una, (u_long)tp->snd_nxt, (u_long)tp->snd_max);
-	printf("\tsnd_(wl1,wl2,wnd) (%lx,%lx,%lx)\n",
-	    (u_long)tp->snd_wl1, (u_long)tp->snd_wl2, (u_long)tp->snd_wnd);
+	printf("\tsnd_(wl1,wl2,wnd) (%lx,%lx,%lx)\n", (u_long)tp->snd_wl1,
+	    (u_long)tp->snd_wl2, (u_long)tp->snd_wnd);
 #endif /* TCPDEBUG */
 }

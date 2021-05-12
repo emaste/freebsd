@@ -28,13 +28,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/proc.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/syscallsubr.h>
-#include <sys/ktr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+
 #include <machine/armreg.h>
 #ifdef VFP
 #include <machine/vfp.h>
@@ -49,7 +50,7 @@ extern void freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
  * context.  The next field is uc_link; we want to avoid destroying the link
  * when copying out contexts.
  */
-#define UC32_COPY_SIZE  offsetof(ucontext32_t, uc_link)
+#define UC32_COPY_SIZE offsetof(ucontext32_t, uc_link)
 
 #ifdef VFP
 static void get_fpcontext32(struct thread *td, mcontext32_vfp_t *);
@@ -64,53 +65,50 @@ freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
 {
 	int error;
 
-#define ARM_SYNC_ICACHE		0
-#define ARM_DRAIN_WRITEBUF	1
-#define ARM_SET_TP		2
-#define ARM_GET_TP		3
-#define ARM_GET_VFPSTATE	4
+#define ARM_SYNC_ICACHE 0
+#define ARM_DRAIN_WRITEBUF 1
+#define ARM_SET_TP 2
+#define ARM_GET_TP 3
+#define ARM_GET_VFPSTATE 4
 
-	switch(uap->op) {
+	switch (uap->op) {
 	case ARM_SET_TP:
 		WRITE_SPECIALREG(tpidr_el0, uap->parms);
 		WRITE_SPECIALREG(tpidrro_el0, uap->parms);
 		return 0;
-	case ARM_SYNC_ICACHE:
-		{
-			struct {
-				uint32_t addr;
-				uint32_t size;
-			} args;
+	case ARM_SYNC_ICACHE: {
+		struct {
+			uint32_t addr;
+			uint32_t size;
+		} args;
 
-			if ((error = copyin(uap->parms, &args, sizeof(args))) != 0)
-				return (error);
-			if ((uint64_t)args.addr + (uint64_t)args.size > 0xffffffff)
-				return (EINVAL);
-			cpu_icache_sync_range_checked(args.addr, args.size);
-			return 0;
-		}
-	case ARM_GET_VFPSTATE:
-		{
-			mcontext32_vfp_t mcontext_vfp;
+		if ((error = copyin(uap->parms, &args, sizeof(args))) != 0)
+			return (error);
+		if ((uint64_t)args.addr + (uint64_t)args.size > 0xffffffff)
+			return (EINVAL);
+		cpu_icache_sync_range_checked(args.addr, args.size);
+		return 0;
+	}
+	case ARM_GET_VFPSTATE: {
+		mcontext32_vfp_t mcontext_vfp;
 
-			struct {
-				uint32_t mc_vfp_size;
-				uint32_t mc_vfp;
-			} args;
-			if ((error = copyin(uap->parms, &args, sizeof(args))) != 0)
-				return (error);
-			if (args.mc_vfp_size != sizeof(mcontext_vfp))
-				return (EINVAL);
+		struct {
+			uint32_t mc_vfp_size;
+			uint32_t mc_vfp;
+		} args;
+		if ((error = copyin(uap->parms, &args, sizeof(args))) != 0)
+			return (error);
+		if (args.mc_vfp_size != sizeof(mcontext_vfp))
+			return (EINVAL);
 #ifdef VFP
-			get_fpcontext32(td, &mcontext_vfp);
+		get_fpcontext32(td, &mcontext_vfp);
 #else
-			bzero(&mcontext_vfp, sizeof(mcontext_vfp));
+		bzero(&mcontext_vfp, sizeof(mcontext_vfp));
 #endif
-			error = copyout(&mcontext_vfp,
-				(void *)(uintptr_t)args.mc_vfp,
-				sizeof(mcontext_vfp));
-			return error;
-		}
+		error = copyout(&mcontext_vfp, (void *)(uintptr_t)args.mc_vfp,
+		    sizeof(mcontext_vfp));
+		return error;
+	}
 	}
 
 	return (EINVAL);
@@ -134,15 +132,17 @@ get_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp)
 		vfp_save_state(td, curpcb);
 
 		KASSERT(curpcb->pcb_fpusaved == &curpcb->pcb_fpustate,
-				("Called get_fpcontext while the kernel is using the VFP"));
+		    ("Called get_fpcontext while the kernel is using the VFP"));
 		KASSERT((curpcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
-				("Non-userspace FPU flags set in get_fpcontext"));
+		    ("Non-userspace FPU flags set in get_fpcontext"));
 		for (i = 0; i < 32; i++)
-			mcp->mcv_reg[i] = (uint64_t)curpcb->pcb_fpustate.vfp_regs[i];
-		mcp->mcv_fpscr = VFP_FPSCR_FROM_SRCR(curpcb->pcb_fpustate.vfp_fpcr,
-				curpcb->pcb_fpustate.vfp_fpsr);
+			mcp->mcv_reg[i] = (uint64_t)
+					      curpcb->pcb_fpustate.vfp_regs[i];
+		mcp->mcv_fpscr = VFP_FPSCR_FROM_SRCR(
+		    curpcb->pcb_fpustate.vfp_fpcr,
+		    curpcb->pcb_fpustate.vfp_fpsr);
 	}
- critical_exit();
+	critical_exit();
 }
 
 static void
@@ -205,7 +205,7 @@ set_mcontext32(struct thread *td, mcontext32_t *mcp)
 #ifdef VFP
 	if (mcp->mc_vfp_size == sizeof(mc_vfp) && mcp->mc_vfp_ptr != 0) {
 		if (copyin((void *)(uintptr_t)mcp->mc_vfp_ptr, &mc_vfp,
-					sizeof(mc_vfp)) != 0)
+			sizeof(mc_vfp)) != 0)
 			return (EFAULT);
 		set_fpcontext32(td, &mc_vfp);
 	}
@@ -214,7 +214,7 @@ set_mcontext32(struct thread *td, mcontext32_t *mcp)
 	return (0);
 }
 
-#define UC_COPY_SIZE	offsetof(ucontext32_t, uc_link)
+#define UC_COPY_SIZE offsetof(ucontext32_t, uc_link)
 
 int
 freebsd32_getcontext(struct thread *td, struct freebsd32_getcontext_args *uap)
@@ -248,8 +248,8 @@ freebsd32_setcontext(struct thread *td, struct freebsd32_setcontext_args *uap)
 		if (ret == 0) {
 			ret = set_mcontext32(td, &uc.uc_mcontext);
 			if (ret == 0)
-				kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask,
-						NULL, 0);
+				kern_sigprocmask(
+				    td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 		}
 	}
 	return (ret);
@@ -273,7 +273,6 @@ freebsd32_sigreturn(struct thread *td, struct freebsd32_sigreturn_args *uap)
 	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	return (EJUSTRETURN);
-
 }
 
 int
@@ -295,8 +294,8 @@ freebsd32_swapcontext(struct thread *td, struct freebsd32_swapcontext_args *uap)
 			ret = copyin(uap->ucp, &uc, UC32_COPY_SIZE);
 			if (ret == 0) {
 				ret = set_mcontext32(td, &uc.uc_mcontext);
-				kern_sigprocmask(td, SIG_SETMASK,
-						&uc.uc_sigmask, NULL, 0);
+				kern_sigprocmask(
+				    td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 			}
 		}
 	}
@@ -346,7 +345,7 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	fp--;
 
 	/* make the stack aligned */
-	fp = (struct sigframe32 *)((unsigned long)(fp) &~ (8 - 1));
+	fp = (struct sigframe32 *)((unsigned long)(fp) & ~(8 - 1));
 	/* Populate the siginfo frame. */
 	get_mcontext32(td, &frame.sf_uc.uc_mcontext, 0);
 #ifdef VFP
@@ -359,8 +358,9 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 #endif
 	frame.sf_si = siginfo;
 	frame.sf_uc.uc_sigmask = *mask;
-	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK )
-	    ? ((onstack) ? SS_ONSTACK : 0) : SS_DISABLE;
+	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK) ?
+		  ((onstack) ? SS_ONSTACK : 0) :
+		  SS_DISABLE;
 	frame.sf_uc.uc_stack.ss_sp = (uintptr_t)td->td_sigstk.ss_sp;
 	frame.sf_uc.uc_stack.ss_size = td->td_sigstk.ss_size;
 
@@ -394,8 +394,8 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	if (sysent->sv_sigcode_base != 0)
 		tf->tf_x[14] = (register_t)sysent->sv_sigcode_base;
 	else
-		tf->tf_x[14] = (register_t)(sysent->sv_psstrings -
-		    *(sysent->sv_szsigcode));
+		tf->tf_x[14] = (register_t)(
+		    sysent->sv_psstrings - *(sysent->sv_szsigcode));
 	/* Set the mode to enter in the signal handler */
 	if ((register_t)catcher & 1)
 		tf->tf_spsr |= PSR_T;
@@ -407,7 +407,6 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
-
 }
 
 #ifdef COMPAT_43
@@ -417,8 +416,8 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
  */
 #define ARM32_PAGE_SIZE 4096
 int
-ofreebsd32_getpagesize(struct thread *td,
-    struct ofreebsd32_getpagesize_args *uap)
+ofreebsd32_getpagesize(
+    struct thread *td, struct ofreebsd32_getpagesize_args *uap)
 {
 
 	td->td_retval[0] = ARM32_PAGE_SIZE;

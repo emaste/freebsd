@@ -53,16 +53,15 @@ enum therm_info {
 };
 
 struct tegra124_coretemp_softc {
-	device_t		dev;
-	int			overheat_log;
-	int			core_max_temp;
-	int			cpu_id;
-	device_t		tsens_dev;
-	intptr_t		tsens_id;
+	device_t dev;
+	int overheat_log;
+	int core_max_temp;
+	int cpu_id;
+	device_t tsens_dev;
+	intptr_t tsens_id;
 };
 
-static int
-coretemp_get_val_sysctl(SYSCTL_HANDLER_ARGS)
+static int coretemp_get_val_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev;
 	int val, temp, rv;
@@ -70,23 +69,23 @@ coretemp_get_val_sysctl(SYSCTL_HANDLER_ARGS)
 	enum therm_info type;
 	char stemp[16];
 
-	dev = (device_t) arg1;
+	dev = (device_t)arg1;
 	sc = device_get_softc(dev);
 	type = arg2;
 
-	rv = TEGRA_SOCTHERM_GET_TEMPERATURE(sc->tsens_dev, sc->dev,
-	     sc->tsens_id, &temp);
+	rv = TEGRA_SOCTHERM_GET_TEMPERATURE(
+	    sc->tsens_dev, sc->dev, sc->tsens_id, &temp);
 	if (rv != 0) {
 		device_printf(sc->dev,
-		    "Cannot read temperature sensor %d:  %d\n",
-		    sc->tsens_id, rv);
+		    "Cannot read temperature sensor %d:  %d\n", sc->tsens_id,
+		    rv);
 		return (rv);
 	}
 
 	switch (type) {
 	case CORETEMP_TEMP:
 		val = temp / 100;
-		val +=  2731;
+		val += 2731;
 		break;
 	case CORETEMP_DELTA:
 		val = (sc->core_max_temp - temp) / 1000;
@@ -96,11 +95,11 @@ coretemp_get_val_sysctl(SYSCTL_HANDLER_ARGS)
 		break;
 	case CORETEMP_TJMAX:
 		val = sc->core_max_temp / 100;
-		val +=  2731;
+		val += 2731;
 		break;
 	}
 
-	if ((temp > sc->core_max_temp)  && !sc->overheat_log) {
+	if ((temp > sc->core_max_temp) && !sc->overheat_log) {
 		sc->overheat_log = 1;
 
 		/*
@@ -114,11 +113,11 @@ coretemp_get_val_sysctl(SYSCTL_HANDLER_ARGS)
 		 * If we reach a critical level, allow devctl(4)
 		 * to catch this and shutdown the system.
 		 */
-		device_printf(dev, "critical temperature detected, "
+		device_printf(dev,
+		    "critical temperature detected, "
 		    "suggest system shutdown\n");
 		snprintf(stemp, sizeof(stemp), "%d", val);
-		devctl_notify("coretemp", "Thermal", stemp,
-		    "notify=0xcc");
+		devctl_notify("coretemp", "Thermal", stemp, "notify=0xcc");
 	} else {
 		sc->overheat_log = 0;
 	}
@@ -148,8 +147,8 @@ tegra124_coretemp_ofw_parse(struct tegra124_coretemp_softc *sc)
 	rv = ofw_bus_parse_xref_list_alloc(node, "thermal-sensors",
 	    "#thermal-sensor-cells", 0, &xnode, &ncells, &cells);
 	if (rv != 0) {
-		device_printf(sc->dev,
-		    "Cannot parse 'thermal-sensors' property.\n");
+		device_printf(
+		    sc->dev, "Cannot parse 'thermal-sensors' property.\n");
 		return (ENXIO);
 	}
 	if (ncells != 1) {
@@ -159,13 +158,12 @@ tegra124_coretemp_ofw_parse(struct tegra124_coretemp_softc *sc)
 		return (ENXIO);
 	}
 
-	sc->tsens_id = 0x100 + sc->cpu_id; //cells[0];
+	sc->tsens_id = 0x100 + sc->cpu_id; // cells[0];
 	OF_prop_free(cells);
 
 	sc->tsens_dev = OF_device_from_xref(xnode);
 	if (sc->tsens_dev == NULL) {
-		device_printf(sc->dev,
-		    "Cannot find thermal sensors device.");
+		device_printf(sc->dev, "Cannot find thermal sensors device.");
 		return (ENXIO);
 	}
 	return (0);
@@ -215,9 +213,8 @@ tegra124_coretemp_attach(device_t dev)
 	ctx = device_get_sysctl_ctx(dev);
 
 	oid = SYSCTL_ADD_NODE(ctx,
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(pdev)), OID_AUTO,
-	    "coretemp", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
-	    "Per-CPU thermal information");
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(pdev)), OID_AUTO, "coretemp",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Per-CPU thermal information");
 
 	/*
 	 * Add the MIBs to dev.cpu.N and dev.cpu.N.coretemp.
@@ -232,12 +229,10 @@ tegra124_coretemp_attach(device_t dev)
 	    "Delta between TCC activation and current temperature");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "resolution",
 	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, CORETEMP_RESOLUTION,
-	    coretemp_get_val_sysctl, "I",
-	    "Resolution of CPU thermal sensor");
+	    coretemp_get_val_sysctl, "I", "Resolution of CPU thermal sensor");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "tjmax",
 	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, CORETEMP_TJMAX,
-	    coretemp_get_val_sysctl, "IK",
-	    "TCC activation temperature");
+	    coretemp_get_val_sysctl, "IK", "TCC activation temperature");
 
 	return (0);
 }
@@ -253,10 +248,10 @@ tegra124_coretemp_detach(device_t dev)
 
 static device_method_t tegra124_coretemp_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	tegra124_coretemp_identify),
-	DEVMETHOD(device_probe,		tegra124_coretemp_probe),
-	DEVMETHOD(device_attach,	tegra124_coretemp_attach),
-	DEVMETHOD(device_detach,	tegra124_coretemp_detach),
+	DEVMETHOD(device_identify, tegra124_coretemp_identify),
+	DEVMETHOD(device_probe, tegra124_coretemp_probe),
+	DEVMETHOD(device_attach, tegra124_coretemp_attach),
+	DEVMETHOD(device_detach, tegra124_coretemp_detach),
 
 	DEVMETHOD_END
 };

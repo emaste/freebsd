@@ -36,40 +36,37 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/socket.h>
-#include <sys/sockio.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/md5.h>
 #include <sys/proc.h>
 #include <sys/rmlock.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/syslog.h>
-#include <sys/md5.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
-
-#include <netinet/in.h>
-#include <netinet/in_var.h>
 #include <netinet/if_ether.h>
+#include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_var.h>
+#include <netinet/ip6.h>
 #include <netinet/ip_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
-
-#include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
-#include <netinet6/in6_var.h>
-#include <netinet6/in6_pcb.h>
 #include <netinet6/in6_ifattach.h>
+#include <netinet6/in6_pcb.h>
+#include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/nd6.h>
 #include <netinet6/mld6_var.h>
+#include <netinet6/nd6.h>
 #include <netinet6/scope6_var.h>
 
 VNET_DEFINE(unsigned long, in6_maxmtu) = 0;
@@ -77,14 +74,14 @@ VNET_DEFINE(unsigned long, in6_maxmtu) = 0;
 #ifdef IP6_AUTO_LINKLOCAL
 VNET_DEFINE(int, ip6_auto_linklocal) = IP6_AUTO_LINKLOCAL;
 #else
-VNET_DEFINE(int, ip6_auto_linklocal) = 1;	/* enabled by default */
+VNET_DEFINE(int, ip6_auto_linklocal) = 1; /* enabled by default */
 #endif
 
 VNET_DEFINE(struct callout, in6_tmpaddrtimer_ch);
-#define	V_in6_tmpaddrtimer_ch		VNET(in6_tmpaddrtimer_ch)
+#define V_in6_tmpaddrtimer_ch VNET(in6_tmpaddrtimer_ch)
 
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
-#define	V_ripcbinfo			VNET(ripcbinfo)
+#define V_ripcbinfo VNET(ripcbinfo)
 
 static int get_rand_ifid(struct ifnet *, struct in6_addr *);
 static int generate_tmp_ifid(u_int8_t *, const u_int8_t *, u_int8_t *);
@@ -93,16 +90,19 @@ static int in6_ifattach_linklocal(struct ifnet *, struct ifnet *);
 static int in6_ifattach_loopback(struct ifnet *);
 static void in6_purgemaddrs(struct ifnet *);
 
-#define EUI64_GBIT	0x01
-#define EUI64_UBIT	0x02
-#define EUI64_TO_IFID(in6)	do {(in6)->s6_addr[8] ^= EUI64_UBIT; } while (0)
-#define EUI64_GROUP(in6)	((in6)->s6_addr[8] & EUI64_GBIT)
-#define EUI64_INDIVIDUAL(in6)	(!EUI64_GROUP(in6))
-#define EUI64_LOCAL(in6)	((in6)->s6_addr[8] & EUI64_UBIT)
-#define EUI64_UNIVERSAL(in6)	(!EUI64_LOCAL(in6))
+#define EUI64_GBIT 0x01
+#define EUI64_UBIT 0x02
+#define EUI64_TO_IFID(in6)                       \
+	do {                                     \
+		(in6)->s6_addr[8] ^= EUI64_UBIT; \
+	} while (0)
+#define EUI64_GROUP(in6) ((in6)->s6_addr[8] & EUI64_GBIT)
+#define EUI64_INDIVIDUAL(in6) (!EUI64_GROUP(in6))
+#define EUI64_LOCAL(in6) ((in6)->s6_addr[8] & EUI64_UBIT)
+#define EUI64_UNIVERSAL(in6) (!EUI64_LOCAL(in6))
 
-#define IFID_LOCAL(in6)		(!EUI64_LOCAL(in6))
-#define IFID_UNIVERSAL(in6)	(!EUI64_UNIVERSAL(in6))
+#define IFID_LOCAL(in6) (!EUI64_LOCAL(in6))
+#define IFID_UNIVERSAL(in6) (!EUI64_UNIVERSAL(in6))
 
 /*
  * Generate a last-resort interface identifier, when the machine has no
@@ -143,7 +143,7 @@ get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 	bcopy(digest, &in6->s6_addr[8], 8);
 
 	/* make sure to set "u" bit to local, and "g" bit to individual. */
-	in6->s6_addr[8] &= ~EUI64_GBIT;	/* g bit to "individual" */
+	in6->s6_addr[8] &= ~EUI64_GBIT; /* g bit to "individual" */
 	in6->s6_addr[8] |= EUI64_UBIT;	/* u bit to "local" */
 
 	/* convert EUI64 into IPv6 interface identifier */
@@ -175,7 +175,7 @@ generate_tmp_ifid(u_int8_t *seed0, const u_int8_t *seed1, u_int8_t *ret)
 	/* XXX assumption on the size of IFID */
 	bcopy(seed1, &seed[8], 8);
 
-	if (0) {		/* for debugging purposes only */
+	if (0) { /* for debugging purposes only */
 		int i;
 
 		printf("generate_tmp_ifid: new randomized ID from: ");
@@ -219,7 +219,7 @@ generate_tmp_ifid(u_int8_t *seed0, const u_int8_t *seed1, u_int8_t *ret)
 	 */
 	bcopy(&digest[8], seed0, 8);
 
-	if (0) {		/* for debugging purposes only */
+	if (0) { /* for debugging purposes only */
 		int i;
 
 		printf("to: ");
@@ -245,12 +245,13 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 	u_int8_t *addr;
 	size_t addrlen;
 	static u_int8_t allzero[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-	static u_int8_t allone[8] =
-		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	static u_int8_t allone[8] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff };
 
 	NET_EPOCH_ASSERT();
 
-	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+	{
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
@@ -355,8 +356,7 @@ found:
  * altifp - secondary EUI64 source
  */
 static int
-get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
-    struct in6_addr *in6)
+get_ifid(struct ifnet *ifp0, struct ifnet *altifp, struct in6_addr *in6)
 {
 	struct ifnet *ifp;
 
@@ -377,7 +377,8 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 	}
 
 	/* next, try to get it from some other hardware interface */
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link)
+	{
 		if (ifp == ifp0)
 			continue;
 		if (in6_get_hw_ifid(ifp, in6) != 0)
@@ -442,8 +443,8 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 		error = get_ifid(ifp, altifp, &ifra.ifra_addr.sin6_addr);
 		NET_EPOCH_EXIT(et);
 		if (error != 0) {
-			nd6log((LOG_ERR,
-			    "%s: no ifid available\n", if_name(ifp)));
+			nd6log(
+			    (LOG_ERR, "%s: no ifid available\n", if_name(ifp)));
 			return (-1);
 		}
 	}
@@ -460,8 +461,8 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 	 * we know there's no other link-local address on the interface
 	 * and therefore we are adding one (instead of updating one).
 	 */
-	if ((error = in6_update_ifa(ifp, &ifra, NULL,
-				    IN6_IFAUPDATE_DADDELAY)) != 0) {
+	if ((error = in6_update_ifa(
+		 ifp, &ifra, NULL, IN6_IFAUPDATE_DADDELAY)) != 0) {
 		/*
 		 * XXX: When the interface does not support IPv6, this call
 		 * would fail in the SIOCSIFADDR ioctl.  I believe the
@@ -469,7 +470,8 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 		 * suppress it.  (jinmei@kame.net 20010130)
 		 */
 		if (error != EAFNOSUPPORT)
-			nd6log((LOG_NOTICE, "in6_ifattach_linklocal: failed to "
+			nd6log((LOG_NOTICE,
+			    "in6_ifattach_linklocal: failed to "
 			    "configure a link-local address on %s "
 			    "(errno=%d)\n",
 			    if_name(ifp), error));
@@ -484,8 +486,10 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 		 * Another thread removed the address that we just added.
 		 * This should be rare, but it happens.
 		 */
-		nd6log((LOG_NOTICE, "%s: %s: new link-local address "
-			"disappeared\n", __func__, if_name(ifp)));
+		nd6log((LOG_NOTICE,
+		    "%s: %s: new link-local address "
+		    "disappeared\n",
+		    __func__, if_name(ifp)));
 		return (-1);
 	}
 	ifa_free(&ia->ia_ifa);
@@ -509,7 +513,7 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 	 * on-link, and its lifetimes never expire.
 	 */
 	pr0.ndpr_raf_onlink = 1;
-	pr0.ndpr_raf_auto = 1;	/* probably meaningless */
+	pr0.ndpr_raf_auto = 1; /* probably meaningless */
 	pr0.ndpr_vltime = ND6_INFINITE_LIFETIME;
 	pr0.ndpr_pltime = ND6_INFINITE_LIFETIME;
 	/*
@@ -559,7 +563,8 @@ in6_ifattach_loopback(struct ifnet *ifp)
 	 * NULL to the 3rd arg.
 	 */
 	if ((error = in6_update_ifa(ifp, &ifra, NULL, 0)) != 0) {
-		nd6log((LOG_ERR, "in6_ifattach_loopback: failed to configure "
+		nd6log((LOG_ERR,
+		    "in6_ifattach_loopback: failed to configure "
 		    "the loopback address on %s (errno=%d)\n",
 		    if_name(ifp), error));
 		return (-1);
@@ -575,7 +580,7 @@ in6_ifattach_loopback(struct ifnet *ifp)
  * when ifp == NULL, the caller is responsible for filling scopeid.
  *
  * If oldmcprefix == 1, FF02:0:0:0:0:2::/96 is used for NI group address
- * while it is FF02:0:0:0:0:2:FF00::/104 in RFC 4620. 
+ * while it is FF02:0:0:0:0:2:FF00::/104 in RFC 4620.
  */
 static int
 in6_nigroup0(struct ifnet *ifp, const char *name, int namelen,
@@ -587,7 +592,7 @@ in6_nigroup0(struct ifnet *ifp, const char *name, int namelen,
 	MD5_CTX ctxt;
 	u_int8_t digest[16];
 	char l;
-	char n[64];	/* a single label must not exceed 63 chars */
+	char n[64]; /* a single label must not exceed 63 chars */
 
 	/*
 	 * If no name is given and namelen is -1,
@@ -612,7 +617,7 @@ in6_nigroup0(struct ifnet *ifp, const char *name, int namelen,
 	if (p == name || p - name > sizeof(n) - 1) {
 		if (pr != NULL)
 			mtx_unlock(&pr->pr_mtx);
-		return -1;	/* label too long */
+		return -1; /* label too long */
 	}
 	l = p - name;
 	strncpy(n, name, l);
@@ -636,10 +641,10 @@ in6_nigroup0(struct ifnet *ifp, const char *name, int namelen,
 	in6->s6_addr8[11] = 2;
 	if (oldmcprefix == 0) {
 		in6->s6_addr8[12] = 0xff;
-	 	/* Copy the first 24 bits of 128-bit hash into the address. */
+		/* Copy the first 24 bits of 128-bit hash into the address. */
 		bcopy(digest, &in6->s6_addr8[13], 3);
 	} else {
-	 	/* Copy the first 32 bits of 128-bit hash into the address. */
+		/* Copy the first 32 bits of 128-bit hash into the address. */
 		bcopy(digest, &in6->s6_addr32[3], sizeof(in6->s6_addr32[3]));
 	}
 	if (in6_setscope(in6, ifp, NULL))
@@ -649,16 +654,16 @@ in6_nigroup0(struct ifnet *ifp, const char *name, int namelen,
 }
 
 int
-in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
-    struct in6_addr *in6)
+in6_nigroup(
+    struct ifnet *ifp, const char *name, int namelen, struct in6_addr *in6)
 {
 
 	return (in6_nigroup0(ifp, name, namelen, in6, 0));
 }
 
 int
-in6_nigroup_oldmcprefix(struct ifnet *ifp, const char *name, int namelen,
-    struct in6_addr *in6)
+in6_nigroup_oldmcprefix(
+    struct ifnet *ifp, const char *name, int namelen, struct in6_addr *in6)
 {
 
 	return (in6_nigroup0(ifp, name, namelen, in6, 1));
@@ -700,7 +705,8 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	 * usually, we require multicast capability to the interface
 	 */
 	if ((ifp->if_flags & IFF_MULTICAST) == 0) {
-		nd6log((LOG_INFO, "in6_ifattach: "
+		nd6log((LOG_INFO,
+		    "in6_ifattach: "
 		    "%s is not multicast capable, IPv6 not enabled\n",
 		    if_name(ifp)));
 		return;
@@ -760,7 +766,8 @@ _in6_ifdetach(struct ifnet *ifp, int purgeulp)
 	/*
 	 * nuke any of IPv6 addresses we have
 	 */
-	CK_STAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next) {
+	CK_STAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, next)
+	{
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		in6_purgeaddr(ifa);
@@ -800,8 +807,8 @@ in6_ifdetach_destroy(struct ifnet *ifp)
 }
 
 int
-in6_get_tmpifid(struct ifnet *ifp, u_int8_t *retbuf,
-    const u_int8_t *baseid, int generate)
+in6_get_tmpifid(
+    struct ifnet *ifp, u_int8_t *retbuf, const u_int8_t *baseid, int generate)
 {
 	u_int8_t nullbuf[8];
 	struct nd_ifinfo *ndi = ND_IFINFO(ifp);
@@ -816,8 +823,8 @@ in6_get_tmpifid(struct ifnet *ifp, u_int8_t *retbuf,
 		bcopy(baseid, ndi->randomseed1, sizeof(ndi->randomseed1));
 
 		/* generate_tmp_ifid will update seedn and buf */
-		(void)generate_tmp_ifid(ndi->randomseed0, ndi->randomseed1,
-		    ndi->randomid);
+		(void)generate_tmp_ifid(
+		    ndi->randomseed0, ndi->randomseed1, ndi->randomid);
 	}
 	bcopy(ndi->randomid, retbuf, 8);
 
@@ -827,17 +834,20 @@ in6_get_tmpifid(struct ifnet *ifp, u_int8_t *retbuf,
 void
 in6_tmpaddrtimer(void *arg)
 {
-	CURVNET_SET((struct vnet *) arg);
+	CURVNET_SET((struct vnet *)arg);
 	struct nd_ifinfo *ndi;
 	u_int8_t nullbuf[8];
 	struct ifnet *ifp;
 
 	callout_reset(&V_in6_tmpaddrtimer_ch,
 	    (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
-	    V_ip6_temp_regen_advance) * hz, in6_tmpaddrtimer, curvnet);
+		V_ip6_temp_regen_advance) *
+		hz,
+	    in6_tmpaddrtimer, curvnet);
 
 	bzero(nullbuf, sizeof(nullbuf));
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link)
+	{
 		if (ifp->if_afdata[AF_INET6] == NULL)
 			continue;
 		ndi = ND_IFINFO(ifp);
@@ -846,8 +856,8 @@ in6_tmpaddrtimer(void *arg)
 			 * We've been generating a random ID on this interface.
 			 * Create a new one.
 			 */
-			(void)generate_tmp_ifid(ndi->randomseed0,
-			    ndi->randomseed1, ndi->randomid);
+			(void)generate_tmp_ifid(
+			    ndi->randomseed0, ndi->randomseed1, ndi->randomid);
 		}
 	}
 
@@ -890,7 +900,8 @@ in6_ifattach_init(void *dummy)
 	callout_init(&V_in6_tmpaddrtimer_ch, 0);
 	callout_reset(&V_in6_tmpaddrtimer_ch,
 	    (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
-	    V_ip6_temp_regen_advance) * hz,
+		V_ip6_temp_regen_advance) *
+		hz,
 	    in6_tmpaddrtimer, curvnet);
 }
 

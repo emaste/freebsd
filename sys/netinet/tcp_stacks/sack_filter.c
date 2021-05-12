@@ -36,16 +36,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockopt.h>
 #endif
 #include <netinet/tcp.h>
-#include <netinet/tcp_var.h>
 #include <netinet/tcp_seq.h>
+#include <netinet/tcp_var.h>
 #ifndef _KERNEL
+#include <getopt.h>
+#include <limits.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <stdlib.h>
-#include <limits.h>
-#include <getopt.h>
+#include <unistd.h>
 #endif
 #include "sack_filter.h"
 
@@ -82,9 +82,9 @@ __FBSDID("$FreeBSD$");
 int detailed_dump = 0;
 uint64_t cnt_skipped_oldsack = 0;
 uint64_t cnt_used_oldsack = 0;
-int highest_used=0;
-int over_written=0;
-int empty_avail=0;
+int highest_used = 0;
+int over_written = 0;
+int empty_avail = 0;
 int no_collapse = 0;
 FILE *out = NULL;
 FILE *in = NULL;
@@ -97,8 +97,8 @@ FILE *in = NULL;
 #ifndef _KERNEL
 static
 #endif
-void
-sack_filter_clear(struct sack_filter *sf, tcp_seq seq)
+    void
+    sack_filter_clear(struct sack_filter *sf, tcp_seq seq)
 {
 	sf->sf_ack = seq;
 	sf->sf_bits = 0;
@@ -146,7 +146,7 @@ is_sack_on_board(struct sack_filter *sf, struct sackblk *b)
 {
 	int32_t i, cnt;
 
-	for (i = sf->sf_cur, cnt=0; cnt < SACK_FILTER_BLOCKS; cnt++) {
+	for (i = sf->sf_cur, cnt = 0; cnt < SACK_FILTER_BLOCKS; cnt++) {
 		if (sack_blk_used(sf, i)) {
 			if (SEQ_LT(b->start, sf->sf_ack)) {
 				/* Behind cum-ack update */
@@ -157,7 +157,7 @@ is_sack_on_board(struct sack_filter *sf, struct sackblk *b)
 				b->end = sf->sf_ack;
 			}
 			if (b->start == b->end) {
-				return(1);
+				return (1);
 			}
 			/* Jonathans Rule 1 */
 			if (SEQ_LEQ(sf->sf_blks[i].start, b->start) &&
@@ -173,10 +173,10 @@ is_sack_on_board(struct sack_filter *sf, struct sackblk *b)
 				 * sack       |----|
 				 *
 				 */
-				return(1);
+				return (1);
 			}
 			/* Jonathans Rule 2 */
-			if(SEQ_LT(sf->sf_blks[i].end, b->start)) {
+			if (SEQ_LT(sf->sf_blks[i].end, b->start)) {
 				/**
 				 * Not near each other:
 				 *
@@ -238,13 +238,13 @@ is_sack_on_board(struct sack_filter *sf, struct sackblk *b)
 	}
 	/* Did we totally consume it in pieces? */
 	if (b->start != b->end)
-		return(0);
+		return (0);
 	else
-		return(1);
+		return (1);
 }
 
 static int32_t
-sack_filter_old(struct sack_filter *sf, struct sackblk *in, int  numblks)
+sack_filter_old(struct sack_filter *sf, struct sackblk *in, int numblks)
 {
 	int32_t num, i;
 	struct sackblk blkboard[TCP_MAX_SACK];
@@ -256,7 +256,7 @@ sack_filter_old(struct sack_filter *sf, struct sackblk *in, int  numblks)
 	 * off anything we have. With this function though we
 	 * won't add to the board.
 	 */
-	for( i = 0, num = 0; i<numblks; i++ ) {
+	for (i = 0, num = 0; i < numblks; i++) {
 		if (is_sack_on_board(sf, &in[i])) {
 #ifndef _KERNEL
 			cnt_skipped_oldsack++;
@@ -289,9 +289,10 @@ sack_move_to_empty(struct sack_filter *sf, uint32_t idx)
 	int32_t i, cnt;
 
 	i = (idx + 1) % SACK_FILTER_BLOCKS;
-	for (cnt=0; cnt <(SACK_FILTER_BLOCKS-1); cnt++) {
+	for (cnt = 0; cnt < (SACK_FILTER_BLOCKS - 1); cnt++) {
 		if (sack_blk_used(sf, i) == 0) {
-			memcpy(&sf->sf_blks[i], &sf->sf_blks[idx], sizeof(struct sackblk));
+			memcpy(&sf->sf_blks[i], &sf->sf_blks[idx],
+			    sizeof(struct sackblk));
 			sf->sf_bits = sack_blk_clr(sf, idx);
 			sf->sf_bits = sack_blk_set(sf, i);
 			return;
@@ -302,7 +303,8 @@ sack_move_to_empty(struct sack_filter *sf, uint32_t idx)
 }
 
 static int32_t
-sack_filter_new(struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq th_ack)
+sack_filter_new(
+    struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq th_ack)
 {
 	struct sackblk blkboard[TCP_MAX_SACK];
 	int32_t num, i;
@@ -310,14 +312,14 @@ sack_filter_new(struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq
 	 * First lets trim the old and possibly
 	 * throw any away we have.
 	 */
-	for(i=0, num=0; i<numblks; i++) {
+	for (i = 0, num = 0; i < numblks; i++) {
 		if (is_sack_on_board(sf, &in[i]))
 			continue;
 		memcpy(&blkboard[num], &in[i], sizeof(struct sackblk));
 		num++;
 	}
 	if (num == 0)
-		return(num);
+		return (num);
 
 	/* Now what we are left with is either
 	 * completely merged on to the board
@@ -331,7 +333,7 @@ sack_filter_new(struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq
 	memcpy(in, blkboard, (num * sizeof(struct sackblk)));
 	numblks = num;
 	/* Now go through and add to our board as needed */
-	for(i=(num-1); i>=0; i--) {
+	for (i = (num - 1); i >= 0; i--) {
 		if (is_sack_on_board(sf, &blkboard[i])) {
 			continue;
 		}
@@ -349,7 +351,8 @@ sack_filter_new(struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq
 				empty_avail++;
 		}
 #endif
-		memcpy(&sf->sf_blks[sf->sf_cur], &in[i], sizeof(struct sackblk));
+		memcpy(
+		    &sf->sf_blks[sf->sf_cur], &in[i], sizeof(struct sackblk));
 		if (sack_blk_used(sf, sf->sf_cur) == 0) {
 			sf->sf_used++;
 #ifndef _KERNEL
@@ -359,7 +362,7 @@ sack_filter_new(struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq
 			sf->sf_bits = sack_blk_set(sf, sf->sf_cur);
 		}
 	}
-	return(numblks);
+	return (numblks);
 }
 
 /*
@@ -367,11 +370,12 @@ sack_filter_new(struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq
  * any other used entries overlap or meet, if so return the index.
  */
 static int32_t
-sack_blocks_overlap_or_meet(struct sack_filter *sf, struct sackblk *sb, uint32_t skip)
+sack_blocks_overlap_or_meet(
+    struct sack_filter *sf, struct sackblk *sb, uint32_t skip)
 {
 	int32_t i;
 
-	for(i=0; i<SACK_FILTER_BLOCKS; i++) {
+	for (i = 0; i < SACK_FILTER_BLOCKS; i++) {
 		if (sack_blk_used(sf, i) == 0)
 			continue;
 		if (i == skip)
@@ -391,7 +395,7 @@ sack_blocks_overlap_or_meet(struct sack_filter *sf, struct sackblk *sb, uint32_t
 			 *  board1   |--------|
 			 *  board2   |--------|
 			 */
-			return(i);
+			return (i);
 		}
 		if (SEQ_LEQ(sf->sf_blks[i].start, sb->end) &&
 		    SEQ_GEQ(sf->sf_blks[i].start, sb->start) &&
@@ -408,7 +412,7 @@ sack_blocks_overlap_or_meet(struct sack_filter *sf, struct sackblk *sb, uint32_t
 			 *      and
 			 * 2) Update the start of this block to my end.
 			 */
-			return(i);
+			return (i);
 		}
 	}
 	return (-1);
@@ -438,7 +442,7 @@ sack_board_collapse(struct sack_filter *sf)
 {
 	int32_t i, j, i_d, j_d;
 
-	for(i=0; i<SACK_FILTER_BLOCKS; i++) {
+	for (i = 0; i < SACK_FILTER_BLOCKS; i++) {
 		if (sack_blk_used(sf, i) == 0)
 			continue;
 		/*
@@ -471,22 +475,20 @@ sack_board_collapse(struct sack_filter *sf)
 }
 
 #ifndef _KERNEL
-uint64_t saved=0;
-uint64_t tot_sack_blks=0;
+uint64_t saved = 0;
+uint64_t tot_sack_blks = 0;
 
 static void
 sack_filter_dump(FILE *out, struct sack_filter *sf)
 {
 	int i;
-	fprintf(out, "	sf_ack:%u sf_bits:0x%x c:%d used:%d\n",
-		sf->sf_ack, sf->sf_bits,
-		sf->sf_cur, sf->sf_used);
+	fprintf(out, "	sf_ack:%u sf_bits:0x%x c:%d used:%d\n", sf->sf_ack,
+	    sf->sf_bits, sf->sf_cur, sf->sf_used);
 
-	for(i=0; i<SACK_FILTER_BLOCKS; i++) {
+	for (i = 0; i < SACK_FILTER_BLOCKS; i++) {
 		if (sack_blk_used(sf, i)) {
 			fprintf(out, "Entry:%d start:%u end:%u\n", i,
-			       sf->sf_blks[i].start,
-			       sf->sf_blks[i].end);
+			    sf->sf_blks[i].start, sf->sf_blks[i].end);
 		}
 	}
 }
@@ -495,19 +497,18 @@ sack_filter_dump(FILE *out, struct sack_filter *sf)
 #ifndef _KERNEL
 static
 #endif
-int
-sack_filter_blks(struct sack_filter *sf, struct sackblk *in, int numblks,
-		 tcp_seq th_ack)
+    int
+    sack_filter_blks(
+	struct sack_filter *sf, struct sackblk *in, int numblks, tcp_seq th_ack)
 {
 	int32_t i, ret;
 
 	if (numblks > TCP_MAX_SACK) {
 #ifdef _KERNEL
 		panic("sf:%p sb:%p Impossible number of sack blocks %d > 4\n",
-		      sf, in,
-		      numblks);
+		    sf, in, numblks);
 #endif
-		return(numblks);
+		return (numblks);
 	}
 #ifndef _KERNEL
 	if ((sf->sf_used > 1) && (no_collapse == 0))
@@ -526,8 +527,9 @@ sack_filter_blks(struct sack_filter *sf, struct sackblk *in, int numblks,
 		int cnt_added = 0;
 
 		sf->sf_ack = th_ack;
-		for(i=(numblks-1), sf->sf_cur=0; i >= 0; i--) {
-			memcpy(&sf->sf_blks[sf->sf_cur], &in[i], sizeof(struct sackblk));
+		for (i = (numblks - 1), sf->sf_cur = 0; i >= 0; i--) {
+			memcpy(&sf->sf_blks[sf->sf_cur], &in[i],
+			    sizeof(struct sackblk));
 			sf->sf_bits = sack_blk_set(sf, sf->sf_cur);
 			sf->sf_cur++;
 			sf->sf_cur %= SACK_FILTER_BLOCKS;
@@ -573,7 +575,7 @@ sack_filter_reject(struct sack_filter *sf, struct sackblk *in)
 	 */
 	int i;
 
-	for(i=0; i<SACK_FILTER_BLOCKS; i++) {
+	for (i = 0; i < SACK_FILTER_BLOCKS; i++) {
 		if (sack_blk_used(sf, i) == 0)
 			continue;
 		/*
@@ -626,14 +628,14 @@ main(int argc, char **argv)
 	FILE *err;
 	tcp_seq th_ack, snd_una, snd_max = 0;
 	struct sack_filter sf;
-	int32_t numblks,i;
-	int snd_una_set=0;
+	int32_t numblks, i;
+	int snd_una_set = 0;
 	double a, b, c;
 	int invalid_sack_print = 0;
-	uint32_t chg_remembered=0;
-	uint32_t sack_chg=0;
+	uint32_t chg_remembered = 0;
+	uint32_t sack_chg = 0;
 	char line_buf[10][256];
-	int line_buf_at=0;
+	int line_buf_at = 0;
 
 	in = stdin;
 	out = stdout;
@@ -645,28 +647,33 @@ main(int argc, char **argv)
 		case 'd':
 			detailed_dump = 1;
 			break;
-		case'I':
+		case 'I':
 			invalid_sack_print = 1;
 			break;
 		case 'i':
 			in = fopen(optarg, "r");
 			if (in == NULL) {
-				fprintf(stderr, "Fatal error can't open %s for input\n", optarg);
+				fprintf(stderr,
+				    "Fatal error can't open %s for input\n",
+				    optarg);
 				exit(-1);
 			}
 			break;
 		case 'o':
 			out = fopen(optarg, "w");
 			if (out == NULL) {
-				fprintf(stderr, "Fatal error can't open %s for output\n", optarg);
+				fprintf(stderr,
+				    "Fatal error can't open %s for output\n",
+				    optarg);
 				exit(-1);
 			}
 			break;
 		default:
 		case '?':
 		case 'h':
-			fprintf(stderr, "Use %s [ -i infile -o outfile -I]\n", argv[0]);
-			return(0);
+			fprintf(stderr, "Use %s [ -i infile -o outfile -I]\n",
+			    argv[0]);
+			return (0);
 			break;
 		};
 	}
@@ -688,39 +695,42 @@ main(int argc, char **argv)
 			int nn, ii;
 			if (numblks) {
 				uint32_t szof, tot_chg;
-				for(ii=0; ii<line_buf_at; ii++) {
+				for (ii = 0; ii < line_buf_at; ii++) {
 					fprintf(out, "%s", line_buf[ii]);
 				}
-				fprintf(out, "------------------------------------\n");
-				nn = sack_filter_blks(&sf, blks, numblks, th_ack);
+				fprintf(out,
+				    "------------------------------------\n");
+				nn = sack_filter_blks(
+				    &sf, blks, numblks, th_ack);
 				saved += numblks - nn;
 				tot_sack_blks += numblks;
 				fprintf(out, "ACK:%u\n", sf.sf_ack);
-				for(ii=0, tot_chg=0; ii<nn; ii++) {
+				for (ii = 0, tot_chg = 0; ii < nn; ii++) {
 					szof = blks[ii].end - blks[ii].start;
 					tot_chg += szof;
 					fprintf(out, "SACK:%u:%u [%u]\n",
-					       blks[ii].start,
-						blks[ii].end, szof);
+					    blks[ii].start, blks[ii].end, szof);
 				}
-				fprintf(out,"************************************\n");
+				fprintf(out,
+				    "************************************\n");
 				chg_remembered = tot_chg;
 				if (detailed_dump) {
 					sack_filter_dump(out, &sf);
-					fprintf(out,"************************************\n");
+					fprintf(out,
+					    "************************************\n");
 				}
 			}
 			memset(blks, 0, sizeof(blks));
 			memset(line_buf, 0, sizeof(line_buf));
-			line_buf_at=0;
+			line_buf_at = 0;
 			numblks = 0;
 		} else if (strncmp(buffer, "CHG:", 4) == 0) {
 			sack_chg = strtoul(&buffer[4], NULL, 0);
 			if ((sack_chg != chg_remembered) &&
-			    (sack_chg > chg_remembered)){
-				fprintf(out,"***WARNING WILL RODGERS DANGER!! sack_chg:%u last:%u\n",
-					sack_chg, chg_remembered
-					);
+			    (sack_chg > chg_remembered)) {
+				fprintf(out,
+				    "***WARNING WILL RODGERS DANGER!! sack_chg:%u last:%u\n",
+				    sack_chg, chg_remembered);
 			}
 			sack_chg = chg_remembered = 0;
 		} else if (strncmp(buffer, "RXT", 3) == 0) {
@@ -737,7 +747,7 @@ main(int argc, char **argv)
 			sack_filter_clear(&sf, snd_una);
 			sack_chg = chg_remembered = 0;
 		} else if (strncmp(buffer, "SACK:", 5) == 0) {
-			char *end=NULL;
+			char *end = NULL;
 			uint32_t start;
 			uint32_t endv;
 
@@ -745,13 +755,17 @@ main(int argc, char **argv)
 			if (end) {
 				endv = strtoul(&end[1], NULL, 0);
 			} else {
-				fprintf(out, "--Sack invalid skip 0 start:%u : ??\n", start);
+				fprintf(out,
+				    "--Sack invalid skip 0 start:%u : ??\n",
+				    start);
 				continue;
 			}
 			if (SEQ_GT(endv, snd_max))
 				snd_max = endv;
 			if (SEQ_LT(endv, start)) {
-				fprintf(out, "--Sack invalid skip 1 endv:%u < start:%u\n", endv, start);
+				fprintf(out,
+				    "--Sack invalid skip 1 endv:%u < start:%u\n",
+				    endv, start);
 				continue;
 			}
 			if (numblks == TCP_MAX_SACK) {
@@ -763,7 +777,7 @@ main(int argc, char **argv)
 			numblks++;
 		} else if (strncmp(buffer, "REJ:n:n", 4) == 0) {
 			struct sackblk in;
-			char *end=NULL;
+			char *end = NULL;
 
 			in.start = strtoul(&buffer[4], &end, 0);
 			if (end) {
@@ -774,12 +788,16 @@ main(int argc, char **argv)
 		} else if (strncmp(buffer, "HELP", 4) == 0) {
 			fprintf(out, "You can input:\n");
 			fprintf(out, "SACK:S:E -- to define a sack block\n");
-			fprintf(out, "RXT -- to clear the filter without changing the remembered\n");
-			fprintf(out, "EXIT -- To clear the sack filter and start all fresh\n");
+			fprintf(out,
+			    "RXT -- to clear the filter without changing the remembered\n");
+			fprintf(out,
+			    "EXIT -- To clear the sack filter and start all fresh\n");
 			fprintf(out, "ACK:N -- To advance the cum-ack to N\n");
 			fprintf(out, "MAX:N -- To set send-max to N\n");
-			fprintf(out, "COMMIT -- To apply the sack you built to the filter and dump the filter\n");
-			fprintf(out, "DUMP -- To display the current contents of the sack filter\n");
+			fprintf(out,
+			    "COMMIT -- To apply the sack you built to the filter and dump the filter\n");
+			fprintf(out,
+			    "DUMP -- To display the current contents of the sack filter\n");
 			fprintf(out, "QUIT -- To exit this program\n");
 		} else {
 			fprintf(out, "Command %s unknown\n", buffer);
@@ -795,15 +813,17 @@ main(int argc, char **argv)
 	a = saved * 100.0;
 	b = tot_sack_blks * 1.0;
 	if (b > 0.0)
-		c = a/b;
+		c = a / b;
 	else
 		c = 0.0;
 	if (out != stdout)
 		err = stdout;
 	else
 		err = stderr;
-	fprintf(err, "Saved %lu sack blocks out of %lu (%2.3f%%) old_skip:%lu old_usd:%lu high_cnt:%d ow:%d ea:%d\n",
-		saved, tot_sack_blks, c, cnt_skipped_oldsack, cnt_used_oldsack, highest_used, over_written, empty_avail);
-	return(0);
+	fprintf(err,
+	    "Saved %lu sack blocks out of %lu (%2.3f%%) old_skip:%lu old_usd:%lu high_cnt:%d ow:%d ea:%d\n",
+	    saved, tot_sack_blks, c, cnt_skipped_oldsack, cnt_used_oldsack,
+	    highest_used, over_written, empty_avail);
+	return (0);
 }
 #endif

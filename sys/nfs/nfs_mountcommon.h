@@ -29,28 +29,27 @@
  */
 
 #ifndef _NFS_MOUNTCOMMON_H_
-#define	_NFS_MOUNTCOMMON_H_
+#define _NFS_MOUNTCOMMON_H_
 
 /*
  * The common fields of the nfsmount structure for the two clients
  * used by the nlm. It includes a function pointer that provides
  * a mechanism for getting the client specific info for an nfs vnode.
  */
-typedef void	nfs_getinfofromvp_ftype(struct vnode *, uint8_t *, size_t *,
-		    struct sockaddr_storage *, int *, off_t *,
-		    struct timeval *);
-typedef int	nfs_vinvalbuf_ftype(struct vnode *, int, struct thread *, int);
+typedef void nfs_getinfofromvp_ftype(struct vnode *, uint8_t *, size_t *,
+    struct sockaddr_storage *, int *, off_t *, struct timeval *);
+typedef int nfs_vinvalbuf_ftype(struct vnode *, int, struct thread *, int);
 
-struct	nfsmount_common {
-	struct mtx	nmcom_mtx;
-	int	nmcom_flag;		/* Flags for soft/hard... */
-	int	nmcom_state;		/* Internal state flags */
-	struct	mount *nmcom_mountp;	/* Vfs structure for this filesystem */
-	int	nmcom_timeo;		/* Init timer for NFSMNT_DUMBTIMR */
-	int	nmcom_retry;		/* Max retries */
-	char	nmcom_hostname[MNAMELEN];	/* server's name */
-	nfs_getinfofromvp_ftype	*nmcom_getinfo;	/* Get info from nfsnode */
-	nfs_vinvalbuf_ftype	*nmcom_vinvalbuf; /* Invalidate buffers */
+struct nfsmount_common {
+	struct mtx nmcom_mtx;
+	int nmcom_flag;		       /* Flags for soft/hard... */
+	int nmcom_state;	       /* Internal state flags */
+	struct mount *nmcom_mountp;    /* Vfs structure for this filesystem */
+	int nmcom_timeo;	       /* Init timer for NFSMNT_DUMBTIMR */
+	int nmcom_retry;	       /* Max retries */
+	char nmcom_hostname[MNAMELEN]; /* server's name */
+	nfs_getinfofromvp_ftype *nmcom_getinfo; /* Get info from nfsnode */
+	nfs_vinvalbuf_ftype *nmcom_vinvalbuf;	/* Invalidate buffers */
 };
 
-#endif	/* _NFS_MOUNTCOMMON_H_ */
+#endif /* _NFS_MOUNTCOMMON_H_ */

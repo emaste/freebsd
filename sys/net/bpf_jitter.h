@@ -54,8 +54,8 @@ typedef u_int (*bpf_filter_func)(u_char *, u_int, u_int);
 /* Structure describing a native filtering program created by the jitter. */
 typedef struct bpf_jit_filter {
 	/* The native filtering binary, in the form of a bpf_filter_func. */
-	bpf_filter_func	func;
-	size_t		size;
+	bpf_filter_func func;
+	size_t size;
 } bpf_jit_filter;
 
 /*
@@ -70,7 +70,7 @@ typedef struct bpf_jit_filter {
  * bpf_jitter allocates the buffers for the new native filter and
  * then translates the program pointed by fp calling bpf_jit_compile().
  */
-bpf_jit_filter	*bpf_jitter(struct bpf_insn *fp, int nins);
+bpf_jit_filter *bpf_jitter(struct bpf_insn *fp, int nins);
 
 /*
  * Deletes a filtering function that was previously created by bpf_jitter().
@@ -80,13 +80,13 @@ bpf_jit_filter	*bpf_jitter(struct bpf_insn *fp, int nins);
  * This function frees the variuos buffers (code, memory, etc.) associated
  * with a filtering function.
  */
-void		bpf_destroy_jit_filter(bpf_jit_filter *filter);
+void bpf_destroy_jit_filter(bpf_jit_filter *filter);
 
 /*
  * Declarations for machine-dependent functions.
  */
 struct bpf_insn;
 
-bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, size_t *);
+bpf_filter_func bpf_jit_compile(struct bpf_insn *, u_int, size_t *);
 
-#endif	/* _NET_BPF_JITTER_H_ */
+#endif /* _NET_BPF_JITTER_H_ */

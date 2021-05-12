@@ -34,8 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
 
 #include <machine/bus.h>
@@ -47,35 +47,30 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/ingenic/jz4780_regs.h>
 
-static struct ofw_compat_data compat_data[] = {
-	{"ingenic,jz4780-efuse",	1},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "ingenic,jz4780-efuse", 1 },
+	{ NULL, 0 } };
 
 struct jz4780_efuse_data {
 	uint32_t serial_num;
 	uint32_t date;
-	uint8_t  nanufacturer[2];
-	uint8_t	 macaddr[6];
+	uint8_t nanufacturer[2];
+	uint8_t macaddr[6];
 } __packed;
 
 static struct resource_spec jz4780_efuse_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, { -1, 0 }
 };
 
 struct jz4780_efuse_softc {
-	device_t		dev;
-	struct resource		*res[1];
+	device_t dev;
+	struct resource *res[1];
 	struct jz4780_efuse_data data;
 };
 
-#define CSR_WRITE_4(sc, reg, val) \
-    bus_write_4((sc)->res[0], (reg), (val))
-#define CSR_READ_4(sc, reg) \
-    bus_read_4((sc)->res[0], (reg))
+#define CSR_WRITE_4(sc, reg, val) bus_write_4((sc)->res[0], (reg), (val))
+#define CSR_READ_4(sc, reg) bus_read_4((sc)->res[0], (reg))
 
-#define JZ_EFUSE_BANK_SIZE	(4096 / 8) /* Bank size is 4096 bits */
+#define JZ_EFUSE_BANK_SIZE (4096 / 8) /* Bank size is 4096 bits */
 
 static int
 jz4780_efuse_probe(device_t dev)
@@ -90,16 +85,17 @@ jz4780_efuse_probe(device_t dev)
 }
 
 static void
-jz4780_efuse_read_chunk(struct jz4780_efuse_softc *sc, int addr, uint8_t *buf, int len)
+jz4780_efuse_read_chunk(
+    struct jz4780_efuse_softc *sc, int addr, uint8_t *buf, int len)
 {
 	uint32_t abuf;
 	int i, count;
 
 	/* Setup to read proper bank */
-	CSR_WRITE_4(sc, JZ_EFUCTRL, JZ_EFUSE_READ |
-	    (addr < JZ_EFUSE_BANK_SIZE ? 0: JZ_EFUSE_BANK) |
-	    (addr << JZ_EFUSE_ADDR_SHIFT) |
-	    ((len - 1) << JZ_EFUSE_SIZE_SHIFT));
+	CSR_WRITE_4(sc, JZ_EFUCTRL,
+	    JZ_EFUSE_READ | (addr < JZ_EFUSE_BANK_SIZE ? 0 : JZ_EFUSE_BANK) |
+		(addr << JZ_EFUSE_ADDR_SHIFT) |
+		((len - 1) << JZ_EFUSE_SIZE_SHIFT));
 	/* Wait for read to complete */
 	while ((CSR_READ_4(sc, JZ_EFUSTATE) & JZ_EFUSE_RD_DONE) == 0)
 		DELAY(1000);
@@ -147,8 +143,7 @@ jz4780_efuse_update_kenv(struct jz4780_efuse_softc *sc)
 	 * It is quite possible one was set by command line already.
 	 */
 	if (kern_getenv("hint.dme.0.macaddr") == NULL) {
-		snprintf(macstr, sizeof(macstr), "%6D",
-		    sc->data.macaddr, ":");
+		snprintf(macstr, sizeof(macstr), "%6D", sc->data.macaddr, ":");
 		kern_setenv("hint.dme.0.macaddr", macstr);
 	}
 }
@@ -158,7 +153,7 @@ jz4780_efuse_attach(device_t dev)
 {
 	struct jz4780_efuse_softc *sc;
 
- 	sc = device_get_softc(dev);
+	sc = device_get_softc(dev);
 	sc->dev = dev;
 
 	if (bus_alloc_resources(dev, jz4780_efuse_spec, sc->res)) {
@@ -167,8 +162,8 @@ jz4780_efuse_attach(device_t dev)
 	}
 
 	/*
-	 * Default RD_STROBE to 4 h2clk cycles, should already be set to 4 by  reset
-	 * but configure it anyway.
+	 * Default RD_STROBE to 4 h2clk cycles, should already be set to 4 by
+	 * reset but configure it anyway.
 	 */
 	CSR_WRITE_4(sc, JZ_EFUCFG, 0x00040000);
 
@@ -195,9 +190,9 @@ jz4780_efuse_detach(device_t dev)
 
 static device_method_t jz4780_efuse_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		jz4780_efuse_probe),
-	DEVMETHOD(device_attach,	jz4780_efuse_attach),
-	DEVMETHOD(device_detach,	jz4780_efuse_detach),
+	DEVMETHOD(device_probe, jz4780_efuse_probe),
+	DEVMETHOD(device_attach, jz4780_efuse_attach),
+	DEVMETHOD(device_detach, jz4780_efuse_detach),
 
 	DEVMETHOD_END
 };

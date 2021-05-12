@@ -30,13 +30,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/proc.h>
-#include <sys/ptrace.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/ptrace.h>
 
-#include <machine/machdep.h>
 #include <machine/db_machdep.h>
+#include <machine/machdep.h>
 
 static int
 ptrace_read_int(struct thread *td, vm_offset_t addr, uint32_t *v)
@@ -62,10 +62,10 @@ ptrace_get_usr_reg(void *cookie, int reg)
 	int ret;
 	struct thread *td = cookie;
 
-	KASSERT(((reg >= 0) && (reg <= ARM_REG_NUM_PC)),
-	 ("reg is outside range"));
+	KASSERT(
+	    ((reg >= 0) && (reg <= ARM_REG_NUM_PC)), ("reg is outside range"));
 
-	switch(reg) {
+	switch (reg) {
 	case ARM_REG_NUM_PC:
 		ret = td->td_frame->tf_pc;
 		break;
@@ -76,7 +76,7 @@ ptrace_get_usr_reg(void *cookie, int reg)
 		ret = td->td_frame->tf_usr_sp;
 		break;
 	default:
-		ret = *((register_t*)&td->td_frame->tf_r0 + reg);
+		ret = *((register_t *)&td->td_frame->tf_r0 + reg);
 		break;
 	}
 
@@ -84,7 +84,7 @@ ptrace_get_usr_reg(void *cookie, int reg)
 }
 
 static u_int
-ptrace_get_usr_int(void* cookie, vm_offset_t offset, u_int* val)
+ptrace_get_usr_int(void *cookie, vm_offset_t offset, u_int *val)
 {
 	struct thread *td = cookie;
 	u_int error;
@@ -109,8 +109,8 @@ ptrace_get_usr_int(void* cookie, vm_offset_t offset, u_int* val)
  *            <EINVAL>          otherwise
  */
 static int
-ptrace_get_alternative_next(struct thread *td, uint32_t cur_instr,
-    uint32_t *alt_next_address)
+ptrace_get_alternative_next(
+    struct thread *td, uint32_t cur_instr, uint32_t *alt_next_address)
 {
 	int error;
 
@@ -136,23 +136,21 @@ ptrace_single_step(struct thread *td)
 	if ((td->td_frame->tf_spsr & PSR_T) != 0)
 		return (EINVAL);
 
-	KASSERT(td->td_md.md_ptrace_instr == 0,
-	 ("Didn't clear single step"));
+	KASSERT(td->td_md.md_ptrace_instr == 0, ("Didn't clear single step"));
 	KASSERT(td->td_md.md_ptrace_instr_alt == 0,
-	 ("Didn't clear alternative single step"));
+	    ("Didn't clear alternative single step"));
 	p = td->td_proc;
 	PROC_UNLOCK(p);
 
-	error = ptrace_read_int(td, td->td_frame->tf_pc,
-	    &cur_instr);
+	error = ptrace_read_int(td, td->td_frame->tf_pc, &cur_instr);
 	if (error)
 		goto out;
 
-	error = ptrace_read_int(td, td->td_frame->tf_pc + INSN_SIZE,
-	    &td->td_md.md_ptrace_instr);
+	error = ptrace_read_int(
+	    td, td->td_frame->tf_pc + INSN_SIZE, &td->td_md.md_ptrace_instr);
 	if (error == 0) {
-		error = ptrace_write_int(td, td->td_frame->tf_pc + INSN_SIZE,
-		    PTRACE_BREAKPOINT);
+		error = ptrace_write_int(
+		    td, td->td_frame->tf_pc + INSN_SIZE, PTRACE_BREAKPOINT);
 		if (error) {
 			td->td_md.md_ptrace_instr = 0;
 		} else {
@@ -163,13 +161,13 @@ ptrace_single_step(struct thread *td)
 
 	error_alt = ptrace_get_alternative_next(td, cur_instr, &alt_next);
 	if (error_alt == 0) {
-		error_alt = ptrace_read_int(td, alt_next,
-		    &td->td_md.md_ptrace_instr_alt);
+		error_alt = ptrace_read_int(
+		    td, alt_next, &td->td_md.md_ptrace_instr_alt);
 		if (error_alt) {
 			td->td_md.md_ptrace_instr_alt = 0;
 		} else {
-			error_alt = ptrace_write_int(td, alt_next,
-			    PTRACE_BREAKPOINT);
+			error_alt = ptrace_write_int(
+			    td, alt_next, PTRACE_BREAKPOINT);
 			if (error_alt)
 				td->td_md.md_ptrace_instr_alt = 0;
 			else
@@ -194,8 +192,8 @@ ptrace_clear_single_step(struct thread *td)
 	if (td->td_md.md_ptrace_instr != 0) {
 		p = td->td_proc;
 		PROC_UNLOCK(p);
-		ptrace_write_int(td, td->td_md.md_ptrace_addr,
-		    td->td_md.md_ptrace_instr);
+		ptrace_write_int(
+		    td, td->td_md.md_ptrace_addr, td->td_md.md_ptrace_instr);
 		PROC_LOCK(p);
 		td->td_md.md_ptrace_instr = 0;
 	}
@@ -221,15 +219,15 @@ ptrace_set_pc(struct thread *td, unsigned long addr)
 
 int
 arm_predict_branch(void *cookie, u_int insn, register_t pc, register_t *new_pc,
-    u_int (*fetch_reg)(void*, int),
-    u_int (*read_int)(void*, vm_offset_t, u_int*))
+    u_int (*fetch_reg)(void *, int),
+    u_int (*read_int)(void *, vm_offset_t, u_int *))
 {
 	u_int addr, nregs, offset = 0;
 	int error = 0;
 
 	switch ((insn >> 24) & 0xf) {
-	case 0x2:	/* add pc, reg1, #value */
-	case 0x0:	/* add pc, reg1, reg2, lsl #offset */
+	case 0x2: /* add pc, reg1, #value */
+	case 0x0: /* add pc, reg1, reg2, lsl #offset */
 		addr = fetch_reg(cookie, (insn >> 16) & 0xf);
 		if (((insn >> 16) & 0xf) == 15)
 			addr += 8;
@@ -241,8 +239,8 @@ arm_predict_branch(void *cookie, u_int insn, register_t pc, register_t *new_pc,
 			offset = fetch_reg(cookie, insn & 0x0f);
 			if ((insn & 0x0000ff0) != 0x00000000) {
 				if (insn & 0x10)
-					nregs = fetch_reg(cookie,
-					    (insn >> 8) & 0xf);
+					nregs = fetch_reg(
+					    cookie, (insn >> 8) & 0xf);
 				else
 					nregs = (insn >> 7) & 0x1f;
 				switch ((insn >> 5) & 3) {
@@ -262,24 +260,24 @@ arm_predict_branch(void *cookie, u_int insn, register_t pc, register_t *new_pc,
 			return (0);
 		}
 
-	case 0xa:	/* b ... */
-	case 0xb:	/* bl ... */
+	case 0xa: /* b ... */
+	case 0xb: /* bl ... */
 		addr = ((insn << 2) & 0x03ffffff);
 		if (addr & 0x02000000)
 			addr |= 0xfc000000;
 		*new_pc = (pc + 8 + addr);
 		return (0);
-	case 0x7:	/* ldr pc, [pc, reg, lsl #2] */
+	case 0x7: /* ldr pc, [pc, reg, lsl #2] */
 		addr = fetch_reg(cookie, insn & 0xf);
 		addr = pc + 8 + (addr << 2);
 		error = read_int(cookie, addr, &addr);
 		*new_pc = addr;
 		return (error);
-	case 0x1:	/* mov pc, reg */
+	case 0x1: /* mov pc, reg */
 		*new_pc = fetch_reg(cookie, insn & 0xf);
 		return (0);
 	case 0x4:
-	case 0x5:	/* ldr pc, [reg] */
+	case 0x5: /* ldr pc, [reg] */
 		addr = fetch_reg(cookie, (insn >> 16) & 0xf);
 		/* ldr pc, [reg, #offset] */
 		if (insn & (1 << 24))
@@ -292,24 +290,24 @@ arm_predict_branch(void *cookie, u_int insn, register_t pc, register_t *new_pc,
 		*new_pc = addr;
 
 		return (error);
-	case 0x8:	/* ldmxx reg, {..., pc} */
+	case 0x8: /* ldmxx reg, {..., pc} */
 	case 0x9:
 		addr = fetch_reg(cookie, (insn >> 16) & 0xf);
-		nregs = (insn  & 0x5555) + ((insn  >> 1) & 0x5555);
+		nregs = (insn & 0x5555) + ((insn >> 1) & 0x5555);
 		nregs = (nregs & 0x3333) + ((nregs >> 2) & 0x3333);
 		nregs = (nregs + (nregs >> 4)) & 0x0f0f;
 		nregs = (nregs + (nregs >> 8)) & 0x001f;
 		switch ((insn >> 23) & 0x3) {
-		case 0x0:	/* ldmda */
+		case 0x0: /* ldmda */
 			addr = addr - 0;
 			break;
-		case 0x1:	/* ldmia */
+		case 0x1: /* ldmia */
 			addr = addr + 0 + ((nregs - 1) << 2);
 			break;
-		case 0x2:	/* ldmdb */
+		case 0x2: /* ldmdb */
 			addr = addr - 4;
 			break;
-		case 0x3:	/* ldmib */
+		case 0x3: /* ldmib */
 			addr = addr + 4 + ((nregs - 1) << 2);
 			break;
 		}

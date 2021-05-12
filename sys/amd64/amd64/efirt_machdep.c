@@ -33,26 +33,20 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/clock.h>
 #include <sys/efi.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/clock.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/vmmeter.h>
-#include <isa/rtc.h>
-#include <machine/fpu.h>
-#include <machine/efi.h>
-#include <machine/metadata.h>
-#include <machine/md_var.h>
-#include <machine/smp.h>
-#include <machine/vmparam.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
@@ -60,6 +54,15 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+
+#include <machine/efi.h>
+#include <machine/fpu.h>
+#include <machine/md_var.h>
+#include <machine/metadata.h>
+#include <machine/smp.h>
+#include <machine/vmparam.h>
+
+#include <isa/rtc.h>
 
 static pml5_entry_t *efi_pml5;
 static pml4_entry_t *efi_pml4;
@@ -74,7 +77,7 @@ efi_destroy_1t1_map(void)
 
 	if (obj_1t1_pt != NULL) {
 		VM_OBJECT_RLOCK(obj_1t1_pt);
-		TAILQ_FOREACH(m, &obj_1t1_pt->memq, listq)
+		TAILQ_FOREACH (m, &obj_1t1_pt->memq, listq)
 			m->ref_count = VPRC_OBJREF;
 		vm_wire_sub(obj_1t1_pt->resident_page_count);
 		VM_OBJECT_RUNLOCK(obj_1t1_pt);
@@ -104,8 +107,8 @@ static vm_page_t
 efi_1t1_page(void)
 {
 
-	return (vm_page_grab(obj_1t1_pt, efi_1t1_idx++, VM_ALLOC_NOBUSY |
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO));
+	return (vm_page_grab(obj_1t1_pt, efi_1t1_idx++,
+	    VM_ALLOC_NOBUSY | VM_ALLOC_WIRED | VM_ALLOC_ZERO));
 }
 
 static pt_entry_t *
@@ -139,7 +142,7 @@ efi_1t1_pte(vm_offset_t va)
 
 	if (*pml4e == 0) {
 		m = efi_1t1_page();
-		mphys =  VM_PAGE_TO_PHYS(m);
+		mphys = VM_PAGE_TO_PHYS(m);
 		*pml4e = mphys | X86_PG_RW | X86_PG_V;
 	} else {
 		mphys = *pml4e & PG_FRAME;
@@ -150,7 +153,7 @@ efi_1t1_pte(vm_offset_t va)
 	pdpe += pdp_idx;
 	if (*pdpe == 0) {
 		m = efi_1t1_page();
-		mphys =  VM_PAGE_TO_PHYS(m);
+		mphys = VM_PAGE_TO_PHYS(m);
 		*pdpe = mphys | X86_PG_RW | X86_PG_V;
 	} else {
 		mphys = *pdpe & PG_FRAME;
@@ -184,8 +187,9 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	uint64_t idx;
 	int bits, i, mode;
 
-	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL, ptoa(1 +
-	    NPML4EPG + NPML4EPG * NPDPEPG + NPML4EPG * NPDPEPG * NPDEPG),
+	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL,
+	    ptoa(1 + NPML4EPG + NPML4EPG * NPDPEPG +
+		NPML4EPG * NPDPEPG * NPDEPG),
 	    VM_PROT_ALL, 0, NULL);
 	efi_1t1_idx = 0;
 	VM_OBJECT_WLOCK(obj_1t1_pt);
@@ -200,8 +204,8 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		pmap_pinit_pml4(efi_pmltop_page);
 	}
 
-	for (i = 0, p = map; i < ndesc; i++, p = efi_next_descriptor(p,
-	    descsz)) {
+	for (i = 0, p = map; i < ndesc;
+	     i++, p = efi_next_descriptor(p, descsz)) {
 		if ((p->md_attr & EFI_MD_ATTR_RT) == 0)
 			continue;
 		if (p->md_virt != 0 && p->md_virt != p->md_phys) {
@@ -211,17 +215,16 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		}
 		if ((p->md_phys & EFI_PAGE_MASK) != 0) {
 			if (bootverbose)
-				printf("EFI Runtime entry %d is not aligned\n",
-				    i);
+				printf(
+				    "EFI Runtime entry %d is not aligned\n", i);
 			goto fail;
 		}
 		if (p->md_phys + p->md_pages * EFI_PAGE_SIZE < p->md_phys ||
 		    p->md_phys + p->md_pages * EFI_PAGE_SIZE >=
-		    VM_MAXUSER_ADDRESS) {
+			VM_MAXUSER_ADDRESS) {
 			printf("EFI Runtime entry %d is not in mappable for RT:"
-			    "base %#016jx %#jx pages\n",
-			    i, (uintmax_t)p->md_phys,
-			    (uintmax_t)p->md_pages);
+			       "base %#016jx %#jx pages\n",
+			    i, (uintmax_t)p->md_phys, (uintmax_t)p->md_pages);
 			goto fail;
 		}
 		if ((p->md_attr & EFI_MD_ATTR_WB) != 0)
@@ -237,14 +240,15 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		else {
 			if (bootverbose)
 				printf("EFI Runtime entry %d mapping "
-				    "attributes unsupported\n", i);
+				       "attributes unsupported\n",
+				    i);
 			mode = VM_MEMATTR_UNCACHEABLE;
 		}
 		bits = pmap_cache_bits(kernel_pmap, mode, FALSE) | X86_PG_RW |
 		    X86_PG_V;
 		VM_OBJECT_WLOCK(obj_1t1_pt);
-		for (va = p->md_phys, idx = 0; idx < p->md_pages; idx++,
-		    va += PAGE_SIZE) {
+		for (va = p->md_phys, idx = 0; idx < p->md_pages;
+		     idx++, va += PAGE_SIZE) {
 			pte = efi_1t1_pte(va);
 			pte_store(pte, va | bits);
 		}
@@ -304,8 +308,9 @@ efi_arch_enter(void)
 	if (pmap_pcid_enabled && !invpcid_works)
 		PCPU_SET(curpmap, NULL);
 
-	load_cr3(VM_PAGE_TO_PHYS(efi_pmltop_page) | (pmap_pcid_enabled ?
-	    curpmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid : 0));
+	load_cr3(VM_PAGE_TO_PHYS(efi_pmltop_page) |
+	    (pmap_pcid_enabled ? curpmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid :
+				       0));
 	/*
 	 * If PCID is enabled, the clear CR3_PCID_SAVE bit in the loaded %cr3
 	 * causes TLB invalidation.
@@ -323,16 +328,16 @@ efi_arch_leave(void)
 	curpmap = &curproc->p_vmspace->vm_pmap;
 	if (pmap_pcid_enabled && !invpcid_works)
 		PCPU_SET(curpmap, curpmap);
-	load_cr3(curpmap->pm_cr3 | (pmap_pcid_enabled ?
-	    curpmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid : 0));
+	load_cr3(curpmap->pm_cr3 |
+	    (pmap_pcid_enabled ? curpmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid :
+				       0));
 	if (!pmap_pcid_enabled)
 		invltlb();
 	vm_fault_enable_pagefaults(curthread->td_md.md_efirt_dis_pf);
 }
 
 /* XXX debug stuff */
-static int
-efi_time_sysctl_handler(SYSCTL_HANDLER_ARGS)
+static int efi_time_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 	struct efi_tm tm;
 	int error, val;
@@ -344,13 +349,13 @@ efi_time_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	error = efi_get_time(&tm);
 	if (error == 0) {
 		uprintf("EFI reports: Year %d Month %d Day %d Hour %d Min %d "
-		    "Sec %d\n", tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour,
-		    tm.tm_min, tm.tm_sec);
+			"Sec %d\n",
+		    tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min,
+		    tm.tm_sec);
 	}
 	return (error);
 }
 
 SYSCTL_PROC(_debug, OID_AUTO, efi_time,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
-    efi_time_sysctl_handler, "I",
-    "");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0, efi_time_sysctl_handler,
+    "I", "");

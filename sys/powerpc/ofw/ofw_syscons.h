@@ -32,33 +32,33 @@
 #define _OFW_SYSCONS_H_
 
 struct ofwfb_softc {
-	video_adapter_t	sc_va;
+	video_adapter_t sc_va;
 	struct cdev *sc_si;
 	bus_space_tag_t sc_tag;
-	phandle_t	sc_node;
-	int	       	sc_console;
+	phandle_t sc_node;
+	int sc_console;
 
-	intptr_t	sc_addr;
-	int		sc_depth;
-        int	       	sc_height;
-        int	       	sc_width;
-	int	       	sc_stride;
-        int	       	sc_ncol;
-        int	       	sc_nrow;
+	intptr_t sc_addr;
+	int sc_depth;
+	int sc_height;
+	int sc_width;
+	int sc_stride;
+	int sc_ncol;
+	int sc_nrow;
 
-	int	       	sc_xmargin;
-	int	       	sc_ymargin;
+	int sc_xmargin;
+	int sc_ymargin;
 
-	u_char	       *sc_font;
-	int		sc_font_height;
+	u_char *sc_font;
+	int sc_font_height;
 
 	vi_blank_display_t *sc_blank;
-	vi_putc_t	*sc_putc;
-	vi_putm_t	*sc_putm;
-	vi_set_border_t	*sc_set_border;
+	vi_putc_t *sc_putc;
+	vi_putm_t *sc_putm;
+	vi_set_border_t *sc_set_border;
 
-#define OFWSC_MAXADDR	8
-	int		sc_num_pciaddrs;
+#define OFWSC_MAXADDR 8
+	int sc_num_pciaddrs;
 	struct ofw_pci_register sc_pciaddrs[OFWSC_MAXADDR];
 };
 

@@ -37,36 +37,35 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/malloc.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/interrupt.h>
 #include <sys/pcpu.h>
-#include <sys/smp.h>
 #include <sys/refcount.h>
+#include <sys/smp.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/intr_machdep.h>
-#include <x86/apicvar.h>
-#include <x86/apicreg.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>
-
 #include <machine/xen/synch_bitops.h>
 #include <machine/xen/xen-os.h>
 
-#include <xen/xen-os.h>
+#include <x86/apicreg.h>
+#include <x86/apicvar.h>
+#include <xen/evtchn/evtchnvar.h>
 #include <xen/hvm.h>
 #include <xen/hypervisor.h>
+#include <xen/xen-os.h>
 #include <xen/xen_intr.h>
-#include <xen/evtchn/evtchnvar.h>
 
-#include <dev/xen/xenpci/xenpcivar.h>
 #include <dev/pci/pcivar.h>
+#include <dev/xen/xenpci/xenpcivar.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -85,13 +84,13 @@ struct xen_intr_pcpu_data {
 	 * This is used to ensure we scan all ports before
 	 * servicing an already servied port again.
 	 */
-	u_int	last_processed_l1i;
+	u_int last_processed_l1i;
 
 	/**
 	 * The last event channel processed within the event channel
 	 * bitmap being scanned.
 	 */
-	u_int	last_processed_l2i;
+	u_int last_processed_l2i;
 
 	/** Pointer to this CPU's interrupt statistic counter. */
 	u_long *evtchn_intrcnt;
@@ -100,79 +99,76 @@ struct xen_intr_pcpu_data {
 	 * A bitmap of ports that can be serviced from this CPU.
 	 * A set bit means interrupt handling is enabled.
 	 */
-	u_long	evtchn_enabled[sizeof(u_long) * 8];
+	u_long evtchn_enabled[sizeof(u_long) * 8];
 };
 
 /*
  * Start the scan at port 0 by initializing the last scanned
  * location as the highest numbered event channel port.
  */
-DPCPU_DEFINE_STATIC(struct xen_intr_pcpu_data, xen_intr_pcpu) = {
-	.last_processed_l1i = LONG_BIT - 1,
-	.last_processed_l2i = LONG_BIT - 1
-};
+DPCPU_DEFINE_STATIC(struct xen_intr_pcpu_data,
+    xen_intr_pcpu) = { .last_processed_l1i = LONG_BIT - 1,
+	.last_processed_l2i = LONG_BIT - 1 };
 
 DPCPU_DECLARE(struct vcpu_info *, vcpu_info);
 
-#define	XEN_EEXIST		17 /* Xen "already exists" error */
-#define	XEN_ALLOCATE_VECTOR	0 /* Allocate a vector for this event channel */
-#define	XEN_INVALID_EVTCHN	0 /* Invalid event channel */
+#define XEN_EEXIST 17 /* Xen "already exists" error */
+#define XEN_ALLOCATE_VECTOR 0 /* Allocate a vector for this event channel */
+#define XEN_INVALID_EVTCHN 0 /* Invalid event channel */
 
-#define	is_valid_evtchn(x)	((x) != XEN_INVALID_EVTCHN)
+#define is_valid_evtchn(x) ((x) != XEN_INVALID_EVTCHN)
 
 struct xenisrc {
-	struct intsrc	xi_intsrc;
+	struct intsrc xi_intsrc;
 	enum evtchn_type xi_type;
-	int		xi_cpu;		/* VCPU for delivery. */
-	int		xi_vector;	/* Global isrc vector number. */
-	evtchn_port_t	xi_port;
-	int		xi_pirq;
-	int		xi_virq;
-	void		*xi_cookie;
-	u_int		xi_close:1;	/* close on unbind? */
-	u_int		xi_activehi:1;
-	u_int		xi_edgetrigger:1;
-	u_int		xi_masked:1;
-	volatile u_int	xi_refcount;
+	int xi_cpu;    /* VCPU for delivery. */
+	int xi_vector; /* Global isrc vector number. */
+	evtchn_port_t xi_port;
+	int xi_pirq;
+	int xi_virq;
+	void *xi_cookie;
+	u_int xi_close : 1; /* close on unbind? */
+	u_int xi_activehi : 1;
+	u_int xi_edgetrigger : 1;
+	u_int xi_masked : 1;
+	volatile u_int xi_refcount;
 };
 
-static void	xen_intr_suspend(struct pic *);
-static void	xen_intr_resume(struct pic *, bool suspend_cancelled);
-static void	xen_intr_enable_source(struct intsrc *isrc);
-static void	xen_intr_disable_source(struct intsrc *isrc, int eoi);
-static void	xen_intr_eoi_source(struct intsrc *isrc);
-static void	xen_intr_enable_intr(struct intsrc *isrc);
-static void	xen_intr_disable_intr(struct intsrc *isrc);
-static int	xen_intr_vector(struct intsrc *isrc);
-static int	xen_intr_source_pending(struct intsrc *isrc);
-static int	xen_intr_config_intr(struct intsrc *isrc,
-		     enum intr_trigger trig, enum intr_polarity pol);
-static int	xen_intr_assign_cpu(struct intsrc *isrc, u_int apic_id);
+static void xen_intr_suspend(struct pic *);
+static void xen_intr_resume(struct pic *, bool suspend_cancelled);
+static void xen_intr_enable_source(struct intsrc *isrc);
+static void xen_intr_disable_source(struct intsrc *isrc, int eoi);
+static void xen_intr_eoi_source(struct intsrc *isrc);
+static void xen_intr_enable_intr(struct intsrc *isrc);
+static void xen_intr_disable_intr(struct intsrc *isrc);
+static int xen_intr_vector(struct intsrc *isrc);
+static int xen_intr_source_pending(struct intsrc *isrc);
+static int xen_intr_config_intr(
+    struct intsrc *isrc, enum intr_trigger trig, enum intr_polarity pol);
+static int xen_intr_assign_cpu(struct intsrc *isrc, u_int apic_id);
 
-static void	xen_intr_pirq_enable_source(struct intsrc *isrc);
-static void	xen_intr_pirq_disable_source(struct intsrc *isrc, int eoi);
-static void	xen_intr_pirq_eoi_source(struct intsrc *isrc);
-static void	xen_intr_pirq_enable_intr(struct intsrc *isrc);
-static void	xen_intr_pirq_disable_intr(struct intsrc *isrc);
-static int	xen_intr_pirq_config_intr(struct intsrc *isrc,
-		     enum intr_trigger trig, enum intr_polarity pol);
+static void xen_intr_pirq_enable_source(struct intsrc *isrc);
+static void xen_intr_pirq_disable_source(struct intsrc *isrc, int eoi);
+static void xen_intr_pirq_eoi_source(struct intsrc *isrc);
+static void xen_intr_pirq_enable_intr(struct intsrc *isrc);
+static void xen_intr_pirq_disable_intr(struct intsrc *isrc);
+static int xen_intr_pirq_config_intr(
+    struct intsrc *isrc, enum intr_trigger trig, enum intr_polarity pol);
 
 /**
  * PIC interface for all event channel port types except physical IRQs.
  */
-struct pic xen_intr_pic = {
-	.pic_enable_source  = xen_intr_enable_source,
+struct pic xen_intr_pic = { .pic_enable_source = xen_intr_enable_source,
 	.pic_disable_source = xen_intr_disable_source,
-	.pic_eoi_source     = xen_intr_eoi_source,
-	.pic_enable_intr    = xen_intr_enable_intr,
-	.pic_disable_intr   = xen_intr_disable_intr,
-	.pic_vector         = xen_intr_vector,
+	.pic_eoi_source = xen_intr_eoi_source,
+	.pic_enable_intr = xen_intr_enable_intr,
+	.pic_disable_intr = xen_intr_disable_intr,
+	.pic_vector = xen_intr_vector,
 	.pic_source_pending = xen_intr_source_pending,
-	.pic_suspend        = xen_intr_suspend,
-	.pic_resume         = xen_intr_resume,
-	.pic_config_intr    = xen_intr_config_intr,
-	.pic_assign_cpu     = xen_intr_assign_cpu
-};
+	.pic_suspend = xen_intr_suspend,
+	.pic_resume = xen_intr_resume,
+	.pic_config_intr = xen_intr_config_intr,
+	.pic_assign_cpu = xen_intr_assign_cpu };
 
 /**
  * PIC interface for all event channel representing
@@ -182,22 +178,22 @@ struct pic xen_intr_pirq_pic = {
 #ifdef __amd64__
 	.pic_register_sources = xenpv_register_pirqs,
 #endif
-	.pic_enable_source  = xen_intr_pirq_enable_source,
+	.pic_enable_source = xen_intr_pirq_enable_source,
 	.pic_disable_source = xen_intr_pirq_disable_source,
-	.pic_eoi_source     = xen_intr_pirq_eoi_source,
-	.pic_enable_intr    = xen_intr_pirq_enable_intr,
-	.pic_disable_intr   = xen_intr_pirq_disable_intr,
-	.pic_vector         = xen_intr_vector,
+	.pic_eoi_source = xen_intr_pirq_eoi_source,
+	.pic_enable_intr = xen_intr_pirq_enable_intr,
+	.pic_disable_intr = xen_intr_pirq_disable_intr,
+	.pic_vector = xen_intr_vector,
 	.pic_source_pending = xen_intr_source_pending,
-	.pic_config_intr    = xen_intr_pirq_config_intr,
-	.pic_assign_cpu     = xen_intr_assign_cpu
+	.pic_config_intr = xen_intr_pirq_config_intr,
+	.pic_assign_cpu = xen_intr_assign_cpu
 };
 
-static struct mtx	 xen_intr_isrc_lock;
-static u_int		 xen_intr_auto_vector_count;
-static struct xenisrc	*xen_intr_port_to_isrc[NR_EVENT_CHANNELS];
-static u_long		*xen_intr_pirq_eoi_map;
-static boolean_t	 xen_intr_pirq_eoi_map_enabled;
+static struct mtx xen_intr_isrc_lock;
+static u_int xen_intr_auto_vector_count;
+static struct xenisrc *xen_intr_port_to_isrc[NR_EVENT_CHANNELS];
+static u_long *xen_intr_pirq_eoi_map;
+static boolean_t xen_intr_pirq_eoi_map_enabled;
 
 /*------------------------- Private Functions --------------------------------*/
 /**
@@ -279,14 +275,13 @@ xen_intr_find_unused_isrc(enum evtchn_type type)
 
 	KASSERT(mtx_owned(&xen_intr_isrc_lock), ("Evtchn isrc lock not held"));
 
-	for (isrc_idx = 0; isrc_idx < xen_intr_auto_vector_count; isrc_idx ++) {
+	for (isrc_idx = 0; isrc_idx < xen_intr_auto_vector_count; isrc_idx++) {
 		struct xenisrc *isrc;
 		u_int vector;
 
 		vector = first_evtchn_irq + isrc_idx;
 		isrc = (struct xenisrc *)intr_lookup_source(vector);
-		if (isrc != NULL
-		 && isrc->xi_type == EVTCHN_TYPE_UNBOUND) {
+		if (isrc != NULL && isrc->xi_type == EVTCHN_TYPE_UNBOUND) {
 			KASSERT(isrc->xi_intsrc.is_handlers == 0,
 			    ("Free evtchn still has handlers"));
 			isrc->xi_type = type;
@@ -330,8 +325,9 @@ xen_intr_alloc_isrc(enum evtchn_type type, int vector)
 
 	mtx_unlock(&xen_intr_isrc_lock);
 	isrc = malloc(sizeof(*isrc), M_XENINTR, M_WAITOK | M_ZERO);
-	isrc->xi_intsrc.is_pic =
-	    (type == EVTCHN_TYPE_PIRQ) ? &xen_intr_pirq_pic : &xen_intr_pic;
+	isrc->xi_intsrc.is_pic = (type == EVTCHN_TYPE_PIRQ) ?
+		  &xen_intr_pirq_pic :
+		  &xen_intr_pic;
 	isrc->xi_vector = vector;
 	isrc->xi_type = type;
 	intr_register_source(&isrc->xi_intsrc);
@@ -408,8 +404,8 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 
 	*isrcp = NULL;
 	if (port_handlep == NULL) {
-		printf("%s: xen_intr_bind_isrc: Bad event handle\n",
-		    intr_owner);
+		printf(
+		    "%s: xen_intr_bind_isrc: Bad event handle\n", intr_owner);
 		return (EINVAL);
 	}
 
@@ -451,8 +447,8 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 		return (0);
 	}
 
-	error = xen_intr_add_handler(intr_owner, filter, handler, arg, flags,
-	    *port_handlep);
+	error = xen_intr_add_handler(
+	    intr_owner, filter, handler, arg, flags, *port_handlep);
 	if (error != 0) {
 		xen_intr_release_isrc(isrc);
 		return (error);
@@ -463,7 +459,7 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 
 /**
  * Lookup a Xen interrupt source object given an interrupt binding handle.
- * 
+ *
  * \param handle  A handle initialized by a previous call to
  *                xen_intr_bind_isrc().
  *
@@ -481,7 +477,7 @@ xen_intr_isrc(xen_intr_handle_t handle)
 
 	vector = *(int *)handle;
 	KASSERT(vector >= first_evtchn_irq &&
-	    vector < (first_evtchn_irq + xen_intr_auto_vector_count),
+		vector < (first_evtchn_irq + xen_intr_auto_vector_count),
 	    ("Xen interrupt vector is out of range"));
 
 	return ((struct xenisrc *)intr_lookup_source(vector));
@@ -490,7 +486,7 @@ xen_intr_isrc(xen_intr_handle_t handle)
 /**
  * Determine the event channel ports at the given section of the
  * event port bitmap which have pending events for the given cpu.
- * 
+ *
  * \param pcpu  The Xen interrupt pcpu data for the cpu being querried.
  * \param sh    The Xen shared info area.
  * \param idx   The index of the section of the event channel bitmap to
@@ -500,22 +496,21 @@ xen_intr_isrc(xen_intr_handle_t handle)
  *           events.
  */
 static inline u_long
-xen_intr_active_ports(struct xen_intr_pcpu_data *pcpu, shared_info_t *sh,
-    u_int idx)
+xen_intr_active_ports(
+    struct xen_intr_pcpu_data *pcpu, shared_info_t *sh, u_int idx)
 {
 
 	CTASSERT(sizeof(sh->evtchn_mask[0]) == sizeof(sh->evtchn_pending[0]));
 	CTASSERT(sizeof(sh->evtchn_mask[0]) == sizeof(pcpu->evtchn_enabled[0]));
 	CTASSERT(sizeof(sh->evtchn_mask) == sizeof(sh->evtchn_pending));
 	CTASSERT(sizeof(sh->evtchn_mask) == sizeof(pcpu->evtchn_enabled));
-	return (sh->evtchn_pending[idx]
-	      & ~sh->evtchn_mask[idx]
-	      & pcpu->evtchn_enabled[idx]);
+	return (sh->evtchn_pending[idx] & ~sh->evtchn_mask[idx] &
+	    pcpu->evtchn_enabled[idx]);
 }
 
 /**
  * Interrupt handler for processing all Xen event channel events.
- * 
+ *
  * \param trap_frame  The trap frame context for the current interrupt.
  */
 void
@@ -536,9 +531,9 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 	critical_enter();
 
 	cpu = PCPU_GET(cpuid);
-	pc  = DPCPU_PTR(xen_intr_pcpu);
-	s   = HYPERVISOR_shared_info;
-	v   = DPCPU_GET(vcpu_info);
+	pc = DPCPU_PTR(xen_intr_pcpu);
+	s = HYPERVISOR_shared_info;
+	v = DPCPU_GET(vcpu_info);
 
 	if (xen_hvm_domain() && !xen_vector_callback_enabled) {
 		KASSERT((cpu == 0), ("Fired PCI event callback on wrong CPU"));
@@ -597,7 +592,7 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 
 			/* Make sure we are firing on the right vCPU */
 			KASSERT((isrc->xi_cpu == PCPU_GET(cpuid)),
-				("Received unexpected event on vCPU#%d, event bound to vCPU#%d",
+			    ("Received unexpected event on vCPU#%d, event bound to vCPU#%d",
 				PCPU_GET(cpuid), isrc->xi_cpu));
 
 			intr_execute_handlers(&isrc->xi_intsrc, trap_frame);
@@ -644,7 +639,7 @@ xen_intr_init(void *dummy __unused)
 	 * Set the per-cpu mask of CPU#0 to enable all, since by default all
 	 * event channels are bound to CPU#0.
 	 */
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		pcpu = DPCPU_ID_PTR(i, xen_intr_pcpu);
 		memset(pcpu->evtchn_enabled, i == 0 ? ~0 : 0,
 		    sizeof(pcpu->evtchn_enabled));
@@ -685,7 +680,7 @@ xen_intrcnt_init(void *dummy __unused)
 	 * Register interrupt count manually as we aren't guaranteed to see a
 	 * call to xen_intr_assign_cpu() before our first interrupt.
 	 */
-	CPU_FOREACH(i)
+	CPU_FOREACH (i)
 		xen_intr_intrcnt_add(i);
 }
 SYSINIT(xen_intrcnt_init, SI_SUB_INTR, SI_ORDER_MIDDLE, xen_intrcnt_init, NULL);
@@ -718,8 +713,7 @@ xen_rebind_ipi(struct xenisrc *isrc)
 	int error;
 	struct evtchn_bind_ipi bind_ipi = { .vcpu = vcpu_id };
 
-	error = HYPERVISOR_event_channel_op(EVTCHNOP_bind_ipi,
-	                                    &bind_ipi);
+	error = HYPERVISOR_event_channel_op(EVTCHNOP_bind_ipi, &bind_ipi);
 	if (error != 0)
 		panic("unable to rebind xen IPI: %d", error);
 
@@ -727,11 +721,9 @@ xen_rebind_ipi(struct xenisrc *isrc)
 	isrc->xi_cpu = 0;
 	xen_intr_port_to_isrc[bind_ipi.port] = isrc;
 
-	error = xen_intr_assign_cpu(&isrc->xi_intsrc,
-	                            cpu_apic_ids[cpu]);
+	error = xen_intr_assign_cpu(&isrc->xi_intsrc, cpu_apic_ids[cpu]);
 	if (error)
-		panic("unable to bind xen IPI to CPU#%d: %d",
-		      cpu, error);
+		panic("unable to bind xen IPI to CPU#%d: %d", cpu, error);
 
 	evtchn_unmask_port(bind_ipi.port);
 #else
@@ -746,10 +738,9 @@ xen_rebind_virq(struct xenisrc *isrc)
 	int vcpu_id = pcpu_find(cpu)->pc_vcpu_id;
 	int error;
 	struct evtchn_bind_virq bind_virq = { .virq = isrc->xi_virq,
-	                                      .vcpu = vcpu_id };
+		.vcpu = vcpu_id };
 
-	error = HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq,
-	                                    &bind_virq);
+	error = HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq, &bind_virq);
 	if (error != 0)
 		panic("unable to rebind xen VIRQ#%d: %d", isrc->xi_virq, error);
 
@@ -758,11 +749,10 @@ xen_rebind_virq(struct xenisrc *isrc)
 	xen_intr_port_to_isrc[bind_virq.port] = isrc;
 
 #ifdef SMP
-	error = xen_intr_assign_cpu(&isrc->xi_intsrc,
-	                            cpu_apic_ids[cpu]);
+	error = xen_intr_assign_cpu(&isrc->xi_intsrc, cpu_apic_ids[cpu]);
 	if (error)
-		panic("unable to bind xen VIRQ#%d to CPU#%d: %d",
-		      isrc->xi_virq, cpu, error);
+		panic("unable to bind xen VIRQ#%d to CPU#%d: %d", isrc->xi_virq,
+		    cpu, error);
 #endif
 
 	evtchn_unmask_port(bind_virq.port);
@@ -783,7 +773,7 @@ xen_intr_resume(struct pic *unused, bool suspend_cancelled)
 		return;
 
 	/* Reset the per-CPU masks */
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		struct xen_intr_pcpu_data *pcpu;
 
 		pcpu = DPCPU_ID_PTR(i, xen_intr_pcpu);
@@ -877,8 +867,8 @@ xen_intr_source_pending(struct intsrc *isrc)
  * \returns  0 if no events are pending, otherwise non-zero.
  */
 static int
-xen_intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
-    enum intr_polarity pol)
+xen_intr_config_intr(
+    struct intsrc *isrc, enum intr_trigger trig, enum intr_polarity pol)
 {
 	/* Configuration is only possible via the evtchn apis. */
 	return (ENODEV);
@@ -920,7 +910,7 @@ xen_intr_assign_cpu(struct intsrc *base_isrc, u_int apic_id)
 	 */
 	masked = evtchn_test_and_set_mask(isrc->xi_port);
 	if ((isrc->xi_type == EVTCHN_TYPE_VIRQ) ||
-		(isrc->xi_type == EVTCHN_TYPE_IPI)) {
+	    (isrc->xi_type == EVTCHN_TYPE_IPI)) {
 		/*
 		 * Virtual IRQs are associated with a cpu by
 		 * the Hypervisor at evtchn_bind_virq time, so
@@ -1075,8 +1065,8 @@ xen_intr_pirq_eoi_source(struct intsrc *base_isrc)
 
 		error = HYPERVISOR_physdev_op(PHYSDEVOP_eoi, &eoi);
 		if (error != 0)
-			panic("Unable to EOI PIRQ#%d: %d\n",
-			    isrc->xi_pirq, error);
+			panic("Unable to EOI PIRQ#%d: %d\n", isrc->xi_pirq,
+			    error);
 	}
 }
 
@@ -1097,8 +1087,8 @@ xen_intr_pirq_enable_intr(struct intsrc *base_isrc)
 
 	if (!xen_intr_pirq_eoi_map_enabled) {
 		irq_status.irq = isrc->xi_pirq;
-		error = HYPERVISOR_physdev_op(PHYSDEVOP_irq_status_query,
-		    &irq_status);
+		error = HYPERVISOR_physdev_op(
+		    PHYSDEVOP_irq_status_query, &irq_status);
 		if (error)
 			panic("unable to get status of IRQ#%d", isrc->xi_pirq);
 
@@ -1147,8 +1137,8 @@ xen_intr_pirq_disable_intr(struct intsrc *base_isrc)
 	close.port = isrc->xi_port;
 	error = HYPERVISOR_event_channel_op(EVTCHNOP_close, &close);
 	if (error)
-		panic("unable to close event channel %d IRQ#%d",
-		    isrc->xi_port, isrc->xi_pirq);
+		panic("unable to close event channel %d IRQ#%d", isrc->xi_port,
+		    isrc->xi_pirq);
 
 	mtx_lock(&xen_intr_isrc_lock);
 	xen_intr_port_to_isrc[isrc->xi_port] = NULL;
@@ -1167,8 +1157,8 @@ xen_intr_pirq_disable_intr(struct intsrc *base_isrc)
  * \returns  0 if no events are pending, otherwise non-zero.
  */
 static int
-xen_intr_pirq_config_intr(struct intsrc *base_isrc, enum intr_trigger trig,
-    enum intr_polarity pol)
+xen_intr_pirq_config_intr(
+    struct intsrc *base_isrc, enum intr_trigger trig, enum intr_polarity pol)
 {
 	struct xenisrc *isrc = (struct xenisrc *)base_isrc;
 	struct physdev_setup_gsi setup_gsi;
@@ -1231,10 +1221,10 @@ xen_intr_alloc_and_bind_local_port(device_t dev, u_int remote_domain,
 	struct evtchn_alloc_unbound alloc_unbound;
 	int error;
 
-	alloc_unbound.dom        = DOMID_SELF;
+	alloc_unbound.dom = DOMID_SELF;
 	alloc_unbound.remote_dom = remote_domain;
-	error = HYPERVISOR_event_channel_op(EVTCHNOP_alloc_unbound,
-		    &alloc_unbound);
+	error = HYPERVISOR_event_channel_op(
+	    EVTCHNOP_alloc_unbound, &alloc_unbound);
 	if (error != 0) {
 		/*
 		 * XXX Trap Hypercall error code Linuxisms in
@@ -1257,19 +1247,19 @@ xen_intr_alloc_and_bind_local_port(device_t dev, u_int remote_domain,
 	return (0);
 }
 
-int 
-xen_intr_bind_remote_port(device_t dev, u_int remote_domain,
-    u_int remote_port, driver_filter_t filter, driver_intr_t handler,
-    void *arg, enum intr_type flags, xen_intr_handle_t *port_handlep)
+int
+xen_intr_bind_remote_port(device_t dev, u_int remote_domain, u_int remote_port,
+    driver_filter_t filter, driver_intr_t handler, void *arg,
+    enum intr_type flags, xen_intr_handle_t *port_handlep)
 {
 	struct xenisrc *isrc;
 	struct evtchn_bind_interdomain bind_interdomain;
 	int error;
 
-	bind_interdomain.remote_dom  = remote_domain;
+	bind_interdomain.remote_dom = remote_domain;
 	bind_interdomain.remote_port = remote_port;
-	error = HYPERVISOR_event_channel_op(EVTCHNOP_bind_interdomain,
-					    &bind_interdomain);
+	error = HYPERVISOR_event_channel_op(
+	    EVTCHNOP_bind_interdomain, &bind_interdomain);
 	if (error != 0) {
 		/*
 		 * XXX Trap Hypercall error code Linuxisms in
@@ -1296,10 +1286,10 @@ xen_intr_bind_remote_port(device_t dev, u_int remote_domain,
 	return (0);
 }
 
-int 
-xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
-    driver_filter_t filter, driver_intr_t handler, void *arg,
-    enum intr_type flags, xen_intr_handle_t *port_handlep)
+int
+xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu, driver_filter_t filter,
+    driver_intr_t handler, void *arg, enum intr_type flags,
+    xen_intr_handle_t *port_handlep)
 {
 	int vcpu_id = pcpu_find(cpu)->pc_vcpu_id;
 	struct xenisrc *isrc;
@@ -1380,8 +1370,8 @@ xen_intr_alloc_and_bind_ipi(u_int cpu, driver_filter_t filter,
 
 	snprintf(name, sizeof(name), "cpu%u", cpu);
 
-	error = xen_intr_bind_isrc(&isrc, bind_ipi.port, EVTCHN_TYPE_IPI,
-	    name, filter, NULL, NULL, flags, port_handlep);
+	error = xen_intr_bind_isrc(&isrc, bind_ipi.port, EVTCHN_TYPE_IPI, name,
+	    filter, NULL, NULL, flags, port_handlep);
 	if (error != 0) {
 		evtchn_close_t close = { .port = bind_ipi.port };
 
@@ -1456,8 +1446,8 @@ xen_register_msi(device_t dev, int vector, int count)
 
 	memset(&msi_irq, 0, sizeof(msi_irq));
 	msi_irq.domid = DOMID_SELF;
-	msi_irq.type = count == 1 ?
-	    MAP_PIRQ_TYPE_MSI_SEG : MAP_PIRQ_TYPE_MULTI_MSI;
+	msi_irq.type = count == 1 ? MAP_PIRQ_TYPE_MSI_SEG :
+					  MAP_PIRQ_TYPE_MULTI_MSI;
 	msi_irq.index = -1;
 	msi_irq.pirq = -1;
 	msi_irq.bus = pci_get_bus(dev) | (pci_get_domain(dev) << 16);
@@ -1469,7 +1459,8 @@ xen_register_msi(device_t dev, int vector, int count)
 		return (ret);
 	if (count != msi_irq.entry_nr) {
 		panic("unable to setup all requested MSI vectors "
-		    "(expected %d got %d)", count, msi_irq.entry_nr);
+		      "(expected %d got %d)",
+		    count, msi_irq.entry_nr);
 	}
 
 	mtx_lock(&xen_intr_isrc_lock);
@@ -1558,7 +1549,7 @@ xen_intr_signal(xen_intr_handle_t handle)
 	if (isrc != NULL) {
 		KASSERT(isrc->xi_type == EVTCHN_TYPE_PORT ||
 			isrc->xi_type == EVTCHN_TYPE_IPI,
-			("evtchn_signal on something other than a local port"));
+		    ("evtchn_signal on something other than a local port"));
 		struct evtchn_send send = { .port = isrc->xi_port };
 		(void)HYPERVISOR_event_channel_op(EVTCHNOP_send, &send);
 	}
@@ -1588,8 +1579,8 @@ xen_intr_add_handler(const char *name, driver_filter_t filter,
 	if (isrc == NULL || isrc->xi_cookie != NULL)
 		return (EINVAL);
 
-	error = intr_add_handler(name, isrc->xi_vector,filter, handler, arg,
-	    flags|INTR_EXCL, &isrc->xi_cookie, 0);
+	error = intr_add_handler(name, isrc->xi_vector, filter, handler, arg,
+	    flags | INTR_EXCL, &isrc->xi_cookie, 0);
 	if (error != 0) {
 		printf(
 		    "%s: xen_intr_add_handler: intr_add_handler failed: %d\n",
@@ -1629,11 +1620,11 @@ static const char *
 xen_intr_print_type(enum evtchn_type type)
 {
 	static const char *evtchn_type_to_string[EVTCHN_TYPE_COUNT] = {
-		[EVTCHN_TYPE_UNBOUND]	= "UNBOUND",
-		[EVTCHN_TYPE_PIRQ]	= "PIRQ",
-		[EVTCHN_TYPE_VIRQ]	= "VIRQ",
-		[EVTCHN_TYPE_IPI]	= "IPI",
-		[EVTCHN_TYPE_PORT]	= "PORT",
+		[EVTCHN_TYPE_UNBOUND] = "UNBOUND",
+		[EVTCHN_TYPE_PIRQ] = "PIRQ",
+		[EVTCHN_TYPE_VIRQ] = "VIRQ",
+		[EVTCHN_TYPE_IPI] = "IPI",
+		[EVTCHN_TYPE_PORT] = "PORT",
 	};
 
 	if (type >= EVTCHN_TYPE_COUNT)
@@ -1649,11 +1640,11 @@ xen_intr_dump_port(struct xenisrc *isrc)
 	shared_info_t *s = HYPERVISOR_shared_info;
 	int i;
 
-	db_printf("Port %d Type: %s\n",
-	    isrc->xi_port, xen_intr_print_type(isrc->xi_type));
+	db_printf("Port %d Type: %s\n", isrc->xi_port,
+	    xen_intr_print_type(isrc->xi_type));
 	if (isrc->xi_type == EVTCHN_TYPE_PIRQ) {
 		db_printf("\tPirq: %d ActiveHi: %d EdgeTrigger: %d "
-		    "NeedsEOI: %d\n",
+			  "NeedsEOI: %d\n",
 		    isrc->xi_pirq, isrc->xi_activehi, isrc->xi_edgetrigger,
 		    !!xen_test_bit(isrc->xi_pirq, xen_intr_pirq_eoi_map));
 	}
@@ -1665,7 +1656,7 @@ xen_intr_dump_port(struct xenisrc *isrc)
 	    !!xen_test_bit(isrc->xi_port, &s->evtchn_pending[0]));
 
 	db_printf("\tPer-CPU Masks: ");
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		pcpu = DPCPU_ID_PTR(i, xen_intr_pcpu);
 		db_printf("cpu#%d: %d ", i,
 		    !!xen_test_bit(isrc->xi_port, pcpu->evtchn_enabled));

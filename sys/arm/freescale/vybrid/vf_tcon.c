@@ -38,38 +38,36 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include <arm/freescale/vybrid/vf_common.h>
 
-#define	TCON0_CTRL1	0x00
-#define	TCON_BYPASS	(1 << 29)
+#define TCON0_CTRL1 0x00
+#define TCON_BYPASS (1 << 29)
 
 struct tcon_softc {
-	struct resource		*res[1];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
+	struct resource *res[1];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
 };
 
 struct tcon_softc *tcon_sc;
 
-static struct resource_spec tcon_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec tcon_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 uint32_t
 tcon_bypass(void)
@@ -121,11 +119,8 @@ tcon_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t tcon_methods[] = {
-	DEVMETHOD(device_probe,		tcon_probe),
-	DEVMETHOD(device_attach,	tcon_attach),
-	{ 0, 0 }
-};
+static device_method_t tcon_methods[] = { DEVMETHOD(device_probe, tcon_probe),
+	DEVMETHOD(device_attach, tcon_attach), { 0, 0 } };
 
 static driver_t tcon_driver = {
 	"tcon",

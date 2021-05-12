@@ -33,67 +33,65 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
-#include <sys/rman.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
 
 #include <dev/fdt/simplebus.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include "pic_if.h"
 
-#define	MV_AP806_SEI_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
-#define	MV_AP806_SEI_UNLOCK(_sc)	mtx_unlock(&(_sc)->mtx)
-#define	MV_AP806_SEI_LOCK_INIT(_sc)	mtx_init(&_sc->mtx, 			\
-	    device_get_nameunit(_sc->dev), "mv_ap806_sei", MTX_DEF)
-#define	MV_AP806_SEI_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->mtx);
-#define	MV_AP806_SEI_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->mtx, MA_OWNED);
-#define	MV_AP806_SEI_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->mtx, MA_NOTOWNED);
+#define MV_AP806_SEI_LOCK(_sc) mtx_lock(&(_sc)->mtx)
+#define MV_AP806_SEI_UNLOCK(_sc) mtx_unlock(&(_sc)->mtx)
+#define MV_AP806_SEI_LOCK_INIT(_sc) \
+	mtx_init(                   \
+	    &_sc->mtx, device_get_nameunit(_sc->dev), "mv_ap806_sei", MTX_DEF)
+#define MV_AP806_SEI_LOCK_DESTROY(_sc) mtx_destroy(&_sc->mtx);
+#define MV_AP806_SEI_ASSERT_LOCKED(_sc) mtx_assert(&_sc->mtx, MA_OWNED);
+#define MV_AP806_SEI_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->mtx, MA_NOTOWNED);
 
-#define	MV_AP806_SEI_MAX_NIRQS	64
-#define GICP_SECR0		0x00
-#define GICP_SECR1		0x04
-#define GICP_SECR(i)		(0x00  + (((i)/32) * 0x4))
-#define GICP_SECR_BIT(i)	((i) % 32)
-#define GICP_SEMR0		0x20
-#define GICP_SEMR1		0x24
-#define GICP_SEMR(i)		(0x20  + (((i)/32) * 0x4))
-#define GICP_SEMR_BIT(i)	((i) % 32)
+#define MV_AP806_SEI_MAX_NIRQS 64
+#define GICP_SECR0 0x00
+#define GICP_SECR1 0x04
+#define GICP_SECR(i) (0x00 + (((i) / 32) * 0x4))
+#define GICP_SECR_BIT(i) ((i) % 32)
+#define GICP_SEMR0 0x20
+#define GICP_SEMR1 0x24
+#define GICP_SEMR(i) (0x20 + (((i) / 32) * 0x4))
+#define GICP_SEMR_BIT(i) ((i) % 32)
 
 struct mv_ap806_sei_irqsrc {
-	struct intr_irqsrc	isrc;
-	u_int			irq;
+	struct intr_irqsrc isrc;
+	u_int irq;
 };
 
 struct mv_ap806_sei_softc {
-	device_t		dev;
-	struct resource		*mem_res;
-	struct resource		*irq_res;
-	void			*irq_ih;
-	struct mtx		mtx;
+	device_t dev;
+	struct resource *mem_res;
+	struct resource *irq_res;
+	void *irq_ih;
+	struct mtx mtx;
 
 	struct mv_ap806_sei_irqsrc *isrcs;
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{"marvell,ap806-sei", 1},
-	{NULL,             0}
-};
+static struct ofw_compat_data compat_data[] = { { "marvell,ap806-sei", 1 },
+	{ NULL, 0 } };
 
-#define	RD4(sc, reg)		bus_read_4((sc)->mem_res, (reg))
-#define	WR4(sc, reg, val)	bus_write_4((sc)->mem_res, (reg), (val))
+#define RD4(sc, reg) bus_read_4((sc)->mem_res, (reg))
+#define WR4(sc, reg, val) bus_write_4((sc)->mem_res, (reg), (val))
 
 static inline void
 mv_ap806_sei_isrc_mask(struct mv_ap806_sei_softc *sc,
-     struct mv_ap806_sei_irqsrc *sisrc, uint32_t val)
+    struct mv_ap806_sei_irqsrc *sisrc, uint32_t val)
 {
 	uint32_t tmp;
 	int bit;
@@ -110,8 +108,8 @@ mv_ap806_sei_isrc_mask(struct mv_ap806_sei_softc *sc,
 }
 
 static inline void
-mv_ap806_sei_isrc_eoi(struct mv_ap806_sei_softc *sc,
-     struct mv_ap806_sei_irqsrc *sisrc)
+mv_ap806_sei_isrc_eoi(
+    struct mv_ap806_sei_softc *sc, struct mv_ap806_sei_irqsrc *sisrc)
 {
 
 	WR4(sc, GICP_SECR(sisrc->irq), GICP_SECR_BIT(sisrc->irq));
@@ -158,12 +156,12 @@ mv_ap806_sei_map(device_t dev, struct intr_map_data *data, u_int *irqp)
 	if (irqp != NULL)
 		*irqp = irq;
 
-	return(0);
+	return (0);
 }
 
 static int
-mv_ap806_sei_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+mv_ap806_sei_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct mv_ap806_sei_softc *sc;
 	u_int irq;
@@ -272,14 +270,14 @@ mv_ap806_sei_intr(void *arg)
 		cause |= RD4(sc, GICP_SECR0);
 
 		irq = ffsll(cause);
-		if (irq == 0) break;
+		if (irq == 0)
+			break;
 		irq--;
 		sirq = &sc->isrcs[irq];
 		if (intr_isrc_dispatch(&sirq->isrc, tf) != 0) {
 			mv_ap806_sei_isrc_mask(sc, sirq, 0);
 			mv_ap806_sei_isrc_eoi(sc, sirq);
-			device_printf(sc->dev,
-			    "Stray irq %u disabled\n", irq);
+			device_printf(sc->dev, "Stray irq %u disabled\n", irq);
 		}
 	}
 
@@ -316,8 +314,8 @@ mv_ap806_sei_attach(device_t dev)
 
 	/* Allocate resources. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Cannot allocate memory resources\n");
 		rv = ENXIO;
@@ -342,21 +340,21 @@ mv_ap806_sei_attach(device_t dev)
 	name = device_get_nameunit(sc->dev);
 	for (irq = 0; irq < MV_AP806_SEI_MAX_NIRQS; irq++) {
 		sc->isrcs[irq].irq = irq;
-		rv = intr_isrc_register(&sc->isrcs[irq].isrc,
-		    sc->dev, 0, "%s,%u", name, irq);
+		rv = intr_isrc_register(
+		    &sc->isrcs[irq].isrc, sc->dev, 0, "%s,%u", name, irq);
 		if (rv != 0)
 			goto fail; /* XXX deregister ISRCs */
 	}
-	xref = OF_xref_from_node(node);;
+	xref = OF_xref_from_node(node);
+	;
 	if (intr_pic_register(dev, xref) == NULL) {
 		device_printf(dev, "Cannot register SEI\n");
 		rv = ENXIO;
 		goto fail;
 	}
-	if (bus_setup_intr(dev, sc->irq_res,INTR_TYPE_MISC | INTR_MPSAFE,
-	    mv_ap806_sei_intr, NULL, sc, &sc->irq_ih)) {
-		device_printf(dev,
-		    "Unable to register interrupt handler\n");
+	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
+		mv_ap806_sei_intr, NULL, sc, &sc->irq_ih)) {
+		device_printf(dev, "Unable to register interrupt handler\n");
 		rv = ENXIO;
 		goto fail;
 	}
@@ -384,19 +382,19 @@ mv_ap806_sei_detach(device_t dev)
 
 static device_method_t mv_ap806_sei_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		mv_ap806_sei_probe),
-	DEVMETHOD(device_attach,	mv_ap806_sei_attach),
-	DEVMETHOD(device_detach,	mv_ap806_sei_detach),
+	DEVMETHOD(device_probe, mv_ap806_sei_probe),
+	DEVMETHOD(device_attach, mv_ap806_sei_attach),
+	DEVMETHOD(device_detach, mv_ap806_sei_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_disable_intr,	mv_ap806_sei_disable_intr),
-	DEVMETHOD(pic_enable_intr,	mv_ap806_sei_enable_intr),
-	DEVMETHOD(pic_map_intr,		mv_ap806_sei_map_intr),
-	DEVMETHOD(pic_setup_intr,	mv_ap806_sei_setup_intr),
-	DEVMETHOD(pic_teardown_intr,	mv_ap806_sei_teardown_intr),
-	DEVMETHOD(pic_post_filter,	mv_ap806_sei_post_filter),
-	DEVMETHOD(pic_post_ithread,	mv_ap806_sei_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mv_ap806_sei_pre_ithread),
+	DEVMETHOD(pic_disable_intr, mv_ap806_sei_disable_intr),
+	DEVMETHOD(pic_enable_intr, mv_ap806_sei_enable_intr),
+	DEVMETHOD(pic_map_intr, mv_ap806_sei_map_intr),
+	DEVMETHOD(pic_setup_intr, mv_ap806_sei_setup_intr),
+	DEVMETHOD(pic_teardown_intr, mv_ap806_sei_teardown_intr),
+	DEVMETHOD(pic_post_filter, mv_ap806_sei_post_filter),
+	DEVMETHOD(pic_post_ithread, mv_ap806_sei_post_ithread),
+	DEVMETHOD(pic_pre_ithread, mv_ap806_sei_pre_ithread),
 
 	DEVMETHOD_END
 };

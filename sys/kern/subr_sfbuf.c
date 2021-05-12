@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 
 #ifndef NSFBUFS
-#define	NSFBUFS		(512 + maxusers * 16)
+#define NSFBUFS (512 + maxusers * 16)
 #endif
 
 static int nsfbufs;
@@ -57,7 +57,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
 SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
     "Number of sendfile(2) sf_bufs in use");
 
-static void	sf_buf_init(void *arg);
+static void sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
 LIST_HEAD(sf_head, sf_buf);
@@ -68,10 +68,10 @@ LIST_HEAD(sf_head, sf_buf);
 static struct sf_head *sf_buf_active;
 static u_long sf_buf_hashmask;
 
-#define	SF_BUF_HASH(m)	(((m) - vm_page_array) & sf_buf_hashmask)
+#define SF_BUF_HASH(m) (((m)-vm_page_array) & sf_buf_hashmask)
 
 static TAILQ_HEAD(, sf_buf) sf_buf_freelist;
-static u_int	sf_buf_alloc_want;
+static u_int sf_buf_alloc_want;
 
 /*
  * A lock used to synchronize access to the hash table and free list
@@ -97,8 +97,8 @@ sf_buf_init(void *arg)
 	sf_buf_active = hashinit(nsfbufs, M_TEMP, &sf_buf_hashmask);
 	TAILQ_INIT(&sf_buf_freelist);
 	sf_base = kva_alloc(nsfbufs * PAGE_SIZE);
-	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
-	    M_WAITOK | M_ZERO);
+	sf_bufs = malloc(
+	    nsfbufs * sizeof(struct sf_buf), M_TEMP, M_WAITOK | M_ZERO);
 	for (i = 0; i < nsfbufs; i++) {
 		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
 		TAILQ_INSERT_TAIL(&sf_buf_freelist, &sf_bufs[i], free_entry);
@@ -124,7 +124,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	    ("sf_buf_alloc(SFB_CPUPRIVATE): curthread not pinned"));
 	hash_list = &sf_buf_active[SF_BUF_HASH(m)];
 	mtx_lock(&sf_buf_lock);
-	LIST_FOREACH(sf, hash_list, list_entry) {
+	LIST_FOREACH (sf, hash_list, list_entry) {
 		if (sf->m == m) {
 			sf->ref_count++;
 			if (sf->ref_count == 1) {
@@ -148,7 +148,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 		sf_buf_alloc_want--;
 
 		/*
-		 * If we got a signal, don't risk going back to sleep. 
+		 * If we got a signal, don't risk going back to sleep.
 		 */
 		if (error)
 			goto done;
@@ -220,7 +220,7 @@ sf_buf_process_page(vm_page_t m, void (*cb)(struct sf_buf *))
 
 	hash_list = &sf_buf_active[SF_BUF_HASH(m)];
 	mtx_lock(&sf_buf_lock);
-	LIST_FOREACH(sf, hash_list, list_entry) {
+	LIST_FOREACH (sf, hash_list, list_entry) {
 		if (sf->m == m) {
 			cb(sf);
 			mtx_unlock(&sf_buf_lock);
@@ -230,4 +230,4 @@ sf_buf_process_page(vm_page_t m, void (*cb)(struct sf_buf *))
 	mtx_unlock(&sf_buf_lock);
 	return (FALSE);
 }
-#endif	/* SFBUF_PROCESS_PAGE */
+#endif /* SFBUF_PROCESS_PAGE */

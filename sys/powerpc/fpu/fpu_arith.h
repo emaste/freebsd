@@ -60,7 +60,7 @@
 #ifndef FPE_USE_ASM
 
 /* set up for extended-precision arithemtic */
-#define	FPU_DECL_CARRY quad_t fpu_carry, fpu_tmp;
+#define FPU_DECL_CARRY quad_t fpu_carry, fpu_tmp;
 
 /*
  * We have three kinds of add:
@@ -78,41 +78,39 @@
  * or set it from a value.  SET_CARRY turns 0 into no-carry, nonzero
  * into carry; GET_CARRY sets its argument to 0 or 1.
  */
-#define	FPU_ADDC(r, x, y) \
-	(r) = (x) + (y) + (!!fpu_carry)
-#define	FPU_ADDS(r, x, y) \
-	{ \
-		fpu_tmp = (quad_t)(x) + (quad_t)(y); \
-		(r) = (u_int)fpu_tmp; \
+#define FPU_ADDC(r, x, y) (r) = (x) + (y) + (!!fpu_carry)
+#define FPU_ADDS(r, x, y)                                            \
+	{                                                            \
+		fpu_tmp = (quad_t)(x) + (quad_t)(y);                 \
+		(r) = (u_int)fpu_tmp;                                \
 		fpu_carry = ((fpu_tmp & 0xffffffff00000000LL) != 0); \
 	}
-#define	FPU_ADDCS(r, x, y) \
-	{ \
+#define FPU_ADDCS(r, x, y)                                           \
+	{                                                            \
 		fpu_tmp = (quad_t)(x) + (quad_t)(y) + (!!fpu_carry); \
-		(r) = (u_int)fpu_tmp; \
+		(r) = (u_int)fpu_tmp;                                \
 		fpu_carry = ((fpu_tmp & 0xffffffff00000000LL) != 0); \
 	}
-#define	FPU_SUBC(r, x, y) \
-	(r) = (x) - (y) - (!!fpu_carry)
-#define	FPU_SUBS(r, x, y) \
-	{ \
-		fpu_tmp = (quad_t)(x) - (quad_t)(y); \
-		(r) = (u_int)fpu_tmp; \
+#define FPU_SUBC(r, x, y) (r) = (x) - (y) - (!!fpu_carry)
+#define FPU_SUBS(r, x, y)                                            \
+	{                                                            \
+		fpu_tmp = (quad_t)(x) - (quad_t)(y);                 \
+		(r) = (u_int)fpu_tmp;                                \
 		fpu_carry = ((fpu_tmp & 0xffffffff00000000LL) != 0); \
 	}
-#define	FPU_SUBCS(r, x, y) \
-	{ \
+#define FPU_SUBCS(r, x, y)                                           \
+	{                                                            \
 		fpu_tmp = (quad_t)(x) - (quad_t)(y) - (!!fpu_carry); \
-		(r) = (u_int)fpu_tmp; \
+		(r) = (u_int)fpu_tmp;                                \
 		fpu_carry = ((fpu_tmp & 0xffffffff00000000LL) != 0); \
 	}
 
-#define	FPU_GET_CARRY(r) (r) = (!!fpu_carry)
-#define	FPU_SET_CARRY(v) fpu_carry = ((v) != 0)
+#define FPU_GET_CARRY(r) (r) = (!!fpu_carry)
+#define FPU_SET_CARRY(v) fpu_carry = ((v) != 0)
 
 #else
 /* set up for extended-precision arithemtic */
-#define	FPU_DECL_CARRY
+#define FPU_DECL_CARRY
 
 /*
  * We have three kinds of add:
@@ -130,24 +128,26 @@
  * or set it from a value.  SET_CARRY turns 0 into no-carry, nonzero
  * into carry; GET_CARRY sets its argument to 0 or 1.
  */
-#define	FPU_ADDC(r, x, y) \
+#define FPU_ADDC(r, x, y) \
 	__asm volatile("adde %0,%1,%2" : "=r"(r) : "r"(x), "r"(y))
-#define	FPU_ADDS(r, x, y) \
+#define FPU_ADDS(r, x, y) \
 	__asm volatile("addc %0,%1,%2" : "=r"(r) : "r"(x), "r"(y))
-#define	FPU_ADDCS(r, x, y) \
+#define FPU_ADDCS(r, x, y) \
 	__asm volatile("adde %0,%1,%2" : "=r"(r) : "r"(x), "r"(y))
-#define	FPU_SUBC(r, x, y) \
+#define FPU_SUBC(r, x, y) \
 	__asm volatile("subfe %0,%2,%1" : "=r"(r) : "r"(x), "r"(y))
-#define	FPU_SUBS(r, x, y) \
+#define FPU_SUBS(r, x, y) \
 	__asm volatile("subfc %0,%2,%1" : "=r"(r) : "r"(x), "r"(y))
-#define	FPU_SUBCS(r, x, y) \
+#define FPU_SUBCS(r, x, y) \
 	__asm volatile("subfe %0,%2,%1" : "=r"(r) : "r"(x), "r"(y))
 
-#define	FPU_GET_CARRY(r) __asm volatile("li %0,0; addie %0,%0,0" : "=r"(r))
+#define FPU_GET_CARRY(r) __asm volatile("li %0,0; addie %0,%0,0" : "=r"(r))
 /* This one needs to destroy a temp register. */
-#define	FPU_SET_CARRY(v) do { int __tmp;				\
+#define FPU_SET_CARRY(v)                                                \
+	do {                                                            \
+		int __tmp;                                              \
 		__asm volatile("addic %0,%0,-1" : "r"(__tmp) : "r"(v)); \
 	} while (0)
 
-#define	FPU_SHL1_BY_ADD	/* shift left 1 faster by ADDC than (a<<1)|(b>>31) */
+#define FPU_SHL1_BY_ADD /* shift left 1 faster by ADDC than (a<<1)|(b>>31) */
 #endif

@@ -33,7 +33,7 @@
  */
 
 #ifndef _VM_EXTERN_H_
-#define	_VM_EXTERN_H_
+#define _VM_EXTERN_H_
 
 struct pmap;
 struct proc;
@@ -55,19 +55,19 @@ vm_offset_t kmap_alloc_wait(vm_map_t, vm_size_t);
 void kmap_free_wakeup(vm_map_t, vm_offset_t, vm_size_t);
 
 /* These operate on virtual addresses backed by memory. */
-vm_offset_t kmem_alloc_attr(vm_size_t size, int flags,
-    vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr);
+vm_offset_t kmem_alloc_attr(vm_size_t size, int flags, vm_paddr_t low,
+    vm_paddr_t high, vm_memattr_t memattr);
 vm_offset_t kmem_alloc_attr_domainset(struct domainset *ds, vm_size_t size,
     int flags, vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr);
-vm_offset_t kmem_alloc_contig(vm_size_t size, int flags,
-    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+vm_offset_t kmem_alloc_contig(vm_size_t size, int flags, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr);
 vm_offset_t kmem_alloc_contig_domainset(struct domainset *ds, vm_size_t size,
     int flags, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr);
 vm_offset_t kmem_malloc(vm_size_t size, int flags);
-vm_offset_t kmem_malloc_domainset(struct domainset *ds, vm_size_t size,
-    int flags);
+vm_offset_t kmem_malloc_domainset(
+    struct domainset *ds, vm_size_t size, int flags);
 void kmem_free(vm_offset_t addr, vm_size_t size);
 
 /* This provides memory for previously allocated address space. */
@@ -77,8 +77,8 @@ void kmem_unback(vm_object_t, vm_offset_t, vm_size_t);
 
 /* Bootstrapping. */
 void kmem_bootstrap_free(vm_offset_t, vm_size_t);
-void kmem_subinit(vm_map_t, vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t,
-    bool);
+void kmem_subinit(
+    vm_map_t, vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t, bool);
 void kmem_init(vm_offset_t, vm_offset_t);
 void kmem_init_zero_region(void);
 void kmeminit(void);
@@ -87,24 +87,24 @@ int kernacc(void *, int, int);
 int useracc(void *, int, int);
 int vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold);
-void vm_fault_copy_entry(vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t,
-    vm_ooffset_t *);
+void vm_fault_copy_entry(
+    vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t, vm_ooffset_t *);
 int vm_fault_disable_pagefaults(void);
 void vm_fault_enable_pagefaults(int save);
 int vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
     vm_prot_t prot, vm_page_t *ma, int max_count);
 int vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, int *signo, int *ucode);
-int vm_forkproc(struct thread *, struct proc *, struct thread *,
-    struct vmspace *, int);
+int vm_forkproc(
+    struct thread *, struct proc *, struct thread *, struct vmspace *, int);
 void vm_waitproc(struct proc *);
 int vm_mmap(vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int,
     objtype_t, void *, vm_ooffset_t);
-int vm_mmap_object(vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t,
-    vm_prot_t, int, vm_object_t, vm_ooffset_t, boolean_t, struct thread *);
+int vm_mmap_object(vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t,
+    int, vm_object_t, vm_ooffset_t, boolean_t, struct thread *);
 int vm_mmap_to_errno(int rv);
-int vm_mmap_cdev(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
-    int *, struct cdev *, struct cdevsw *, vm_ooffset_t *, vm_object_t *);
+int vm_mmap_cdev(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *, int *,
+    struct cdev *, struct cdevsw *, vm_ooffset_t *, vm_object_t *);
 int vm_mmap_vnode(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *, int *,
     struct vnode *, vm_ooffset_t *, vm_object_t *, boolean_t *);
 void vm_set_page_size(void);
@@ -132,5 +132,5 @@ u_int vm_active_count(void);
 u_int vm_inactive_count(void);
 u_int vm_laundry_count(void);
 u_int vm_wait_count(void);
-#endif				/* _KERNEL */
-#endif				/* !_VM_EXTERN_H_ */
+#endif /* _KERNEL */
+#endif /* !_VM_EXTERN_H_ */

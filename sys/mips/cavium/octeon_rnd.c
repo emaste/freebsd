@@ -40,37 +40,33 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/random.h>
 
-#include <contrib/octeon-sdk/cvmx.h>
 #include <contrib/octeon-sdk/cvmx-rng.h>
+#include <contrib/octeon-sdk/cvmx.h>
 
-#define	OCTEON_RND_WORDS	2
+#define OCTEON_RND_WORDS 2
 
 struct octeon_rnd_softc {
 	uint64_t sc_entropy[OCTEON_RND_WORDS];
 	struct callout sc_callout;
 };
 
-static void	octeon_rnd_identify(driver_t *drv, device_t parent);
-static int	octeon_rnd_attach(device_t dev);
-static int	octeon_rnd_probe(device_t dev);
-static int	octeon_rnd_detach(device_t dev);
+static void octeon_rnd_identify(driver_t *drv, device_t parent);
+static int octeon_rnd_attach(device_t dev);
+static int octeon_rnd_probe(device_t dev);
+static int octeon_rnd_detach(device_t dev);
 
-static void	octeon_rnd_harvest(void *);
+static void octeon_rnd_harvest(void *);
 
 static device_method_t octeon_rnd_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	octeon_rnd_identify),
-	DEVMETHOD(device_probe,		octeon_rnd_probe),
-	DEVMETHOD(device_attach,	octeon_rnd_attach),
-	DEVMETHOD(device_detach,	octeon_rnd_detach),
-	{ 0, 0 }
+	DEVMETHOD(device_identify, octeon_rnd_identify),
+	DEVMETHOD(device_probe, octeon_rnd_probe),
+	DEVMETHOD(device_attach, octeon_rnd_attach),
+	DEVMETHOD(device_detach, octeon_rnd_detach), { 0, 0 }
 };
 
-static driver_t octeon_rnd_driver = {
-	"rnd",
-	octeon_rnd_methods,
-	sizeof (struct octeon_rnd_softc)
-};
+static driver_t octeon_rnd_driver = { "rnd", octeon_rnd_methods,
+	sizeof(struct octeon_rnd_softc) };
 static devclass_t octeon_rnd_devclass;
 DRIVER_MODULE(rnd, nexus, octeon_rnd_driver, octeon_rnd_devclass, 0, 0);
 
@@ -127,7 +123,8 @@ octeon_rnd_harvest(void *arg)
 	for (i = 0; i < OCTEON_RND_WORDS; i++)
 		sc->sc_entropy[i] = cvmx_rng_get_random64();
 	/* MarkM: FIX!! Check that this does not swamp the harvester! */
-	random_harvest_queue(sc->sc_entropy, sizeof sc->sc_entropy, RANDOM_PURE_OCTEON);
+	random_harvest_queue(
+	    sc->sc_entropy, sizeof sc->sc_entropy, RANDOM_PURE_OCTEON);
 
 	callout_reset(&sc->sc_callout, hz * 5, octeon_rnd_harvest, sc);
 }

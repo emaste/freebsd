@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -54,26 +54,26 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/ng_ether_echo.h>
 
 #include <net/ethernet.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_ether_echo.h>
+#include <netgraph/ng_message.h>
 
 /* Netgraph methods */
-static ng_constructor_t	ngee_cons;
-static ng_rcvmsg_t	ngee_rcvmsg;
-static ng_rcvdata_t	ngee_rcvdata;
-static ng_disconnect_t	ngee_disconnect;
+static ng_constructor_t ngee_cons;
+static ng_rcvmsg_t ngee_rcvmsg;
+static ng_rcvdata_t ngee_rcvdata;
+static ng_disconnect_t ngee_disconnect;
 
 /* Netgraph type */
 static struct ng_type typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_ETHER_ECHO_NODE_TYPE,
-	.constructor =	ngee_cons,
-	.rcvmsg =	ngee_rcvmsg,
-	.rcvdata =	ngee_rcvdata,
-	.disconnect =	ngee_disconnect,
+	.version = NG_ABI_VERSION,
+	.name = NG_ETHER_ECHO_NODE_TYPE,
+	.constructor = ngee_cons,
+	.rcvmsg = ngee_rcvmsg,
+	.rcvdata = ngee_rcvdata,
+	.disconnect = ngee_disconnect,
 };
 NETGRAPH_INIT(ether_echo, &typestruct);
 
@@ -112,11 +112,11 @@ ngee_rcvdata(hook_p hook, item_p item)
 
 	/* Make sure we have an entire header */
 	NGI_GET_M(item, m);
-	if (m->m_len < sizeof(*eh) ) {
+	if (m->m_len < sizeof(*eh)) {
 		m = m_pullup(m, sizeof(*eh));
 		if (m == NULL) {
 			NG_FREE_ITEM(item);
-			return(EINVAL);
+			return (EINVAL);
 		}
 	}
 	eh = mtod(m, struct ether_header *);
@@ -136,8 +136,8 @@ ngee_rcvdata(hook_p hook, item_p item)
 static int
 ngee_disconnect(hook_p hook)
 {
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
+	    (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	}
 	return (0);

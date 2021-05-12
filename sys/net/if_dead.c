@@ -62,7 +62,6 @@ ifdead_input(struct ifnet *ifp, struct mbuf *m)
 static void
 ifdead_start(struct ifnet *ifp)
 {
-
 }
 
 static int
@@ -73,8 +72,8 @@ ifdead_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static int
-ifdead_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
-    struct sockaddr *sa)
+ifdead_resolvemulti(
+    struct ifnet *ifp, struct sockaddr **llsa, struct sockaddr *sa)
 {
 
 	*llsa = NULL;
@@ -84,7 +83,6 @@ ifdead_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 static void
 ifdead_qflush(struct ifnet *ifp)
 {
-
 }
 
 static int
@@ -110,13 +108,15 @@ ifdead_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 }
 
 static int
-ifdead_snd_tag_modify(struct m_snd_tag *pmt, union if_snd_tag_modify_params *params)
+ifdead_snd_tag_modify(
+    struct m_snd_tag *pmt, union if_snd_tag_modify_params *params)
 {
 	return (EOPNOTSUPP);
 }
 
 static int
-ifdead_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params)
+ifdead_snd_tag_query(
+    struct m_snd_tag *pmt, union if_snd_tag_query_params *params)
 {
 	return (EOPNOTSUPP);
 }
@@ -127,8 +127,8 @@ ifdead_snd_tag_free(struct m_snd_tag *pmt)
 }
 
 static void
-ifdead_ratelimit_query(struct ifnet *ifp __unused,
-      struct if_ratelimit_query_results *q)
+ifdead_ratelimit_query(
+    struct ifnet *ifp __unused, struct if_ratelimit_query_results *q)
 {
 	/*
 	 * This guy does not support

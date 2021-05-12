@@ -29,13 +29,14 @@
  */
 
 #ifndef _MACHINE_ASAN_H_
-#define	_MACHINE_ASAN_H_
+#define _MACHINE_ASAN_H_
 
 #ifdef KASAN
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_page.h>
+
 #include <machine/vmparam.h>
 
 static inline vm_offset_t
@@ -56,8 +57,9 @@ kasan_md_unsupported(vm_offset_t addr)
 	 * that KASAN must validate accesses before the vm_page array is
 	 * initialized.
 	 */
-	kernmin = vm_page_array == NULL ? VM_MIN_KERNEL_ADDRESS :
-	    (vm_offset_t)(vm_page_array + vm_page_array_size);
+	kernmin = vm_page_array == NULL ?
+		  VM_MIN_KERNEL_ADDRESS :
+		  (vm_offset_t)(vm_page_array + vm_page_array_size);
 	return (addr < kernmin || addr >= VM_MAX_KERNEL_ADDRESS);
 }
 

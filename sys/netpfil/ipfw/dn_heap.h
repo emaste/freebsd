@@ -35,8 +35,8 @@
 #ifndef _IP_DN_HEAP_H
 #define _IP_DN_HEAP_H
 
-#define DN_KEY_LT(a,b)     ((int64_t)((a)-(b)) < 0)
-#define DN_KEY_LEQ(a,b)    ((int64_t)((a)-(b)) <= 0)
+#define DN_KEY_LT(a, b) ((int64_t)((a) - (b)) < 0)
+#define DN_KEY_LEQ(a, b) ((int64_t)((a) - (b)) <= 0)
 
 /*
  * This module implements a binary heap supporting random extraction.
@@ -56,15 +56,15 @@
  * is not used.
  */
 struct dn_heap_entry {
-	uint64_t key;	/* sorting key, smallest comes first */
-	void *object;	/* object pointer */
+	uint64_t key; /* sorting key, smallest comes first */
+	void *object; /* object pointer */
 };
 
 struct dn_heap {
-	int size;	/* the size of the array */
-	int elements;	/* elements in use */
-	int ofs;	/* offset in the object of heap index */
-	struct dn_heap_entry *p;	/* array of "size" entries */
+	int size;		 /* the size of the array */
+	int elements;		 /* elements in use */
+	int ofs;		 /* offset in the object of heap index */
+	struct dn_heap_entry *p; /* array of "size" entries */
 };
 
 enum {
@@ -98,11 +98,14 @@ enum {
  *	Because the order is not guaranteed, we should use heap_scan()
  *	only as a last resort mechanism.
  */
-#define HEAP_TOP(h)	((h)->p)
-#define SET_HEAP_OFS(h, n)	do { (h)->ofs = n; } while (0)
-int     heap_init(struct dn_heap *h, int size, int ofs);
-int     heap_insert(struct dn_heap *h, uint64_t key1, void *p);
-void    heap_extract(struct dn_heap *h, void *obj);
+#define HEAP_TOP(h) ((h)->p)
+#define SET_HEAP_OFS(h, n)    \
+	do {                  \
+		(h)->ofs = n; \
+	} while (0)
+int heap_init(struct dn_heap *h, int size, int ofs);
+int heap_insert(struct dn_heap *h, uint64_t key1, void *p);
+void heap_extract(struct dn_heap *h, void *obj);
 void heap_free(struct dn_heap *h);
 int heap_scan(struct dn_heap *, int (*)(void *, uintptr_t), uintptr_t);
 
@@ -117,7 +120,7 @@ int heap_scan(struct dn_heap *, int (*)(void *, uintptr_t), uintptr_t);
  * dn_ht_init() initializes the table, setting the number of
  *	buckets, the offset of the link field, the main callbacks.
  *	Callbacks are:
- * 
+ *
  *	hash(key, flags, arg) called to return a bucket index.
  *	match(obj, key, flags, arg) called to determine if key
  *		matches the current 'obj' in the heap
@@ -164,30 +167,30 @@ int heap_scan(struct dn_heap *, int (*)(void *, uintptr_t), uintptr_t);
  *
  * DNHT_REMOVE		remove objects if we find them.
  */
-struct dn_ht;	/* should be opaque */
+struct dn_ht; /* should be opaque */
 
-struct dn_ht *dn_ht_init(struct dn_ht *, int buckets, int ofs, 
-        uint32_t (*hash)(uintptr_t, int, void *),
-        int (*match)(void *, uintptr_t, int, void *),
-        void *(*newh)(uintptr_t, int, void *));
+struct dn_ht *dn_ht_init(struct dn_ht *, int buckets, int ofs,
+    uint32_t (*hash)(uintptr_t, int, void *),
+    int (*match)(void *, uintptr_t, int, void *),
+    void *(*newh)(uintptr_t, int, void *));
 void dn_ht_free(struct dn_ht *, int flags);
 
 void *dn_ht_find(struct dn_ht *, uintptr_t, int, void *);
 int dn_ht_scan(struct dn_ht *, int (*)(void *, void *), void *);
-int dn_ht_scan_bucket(struct dn_ht *, int * , int (*)(void *, void *), void *);
+int dn_ht_scan_bucket(struct dn_ht *, int *, int (*)(void *, void *), void *);
 int dn_ht_entries(struct dn_ht *);
 
-enum {  /* flags values.
-	 * first two are returned by the scan callback to indicate
-	 * to delete the matching element or to end the scan
-	 */
-        DNHT_SCAN_DEL	= 0x0001,
-        DNHT_SCAN_END	= 0x0002,
-        DNHT_KEY_IS_OBJ	= 0x0004,	/* key is the obj pointer */
-        DNHT_MATCH_PTR	= 0x0008,	/* match by pointer, not match() */
-        DNHT_INSERT	= 0x0010,	/* insert if not found */
-        DNHT_UNIQUE	= 0x0020,	/* report error if already there */
-        DNHT_REMOVE	= 0x0040,	/* remove on find or dn_ht_free */
-}; 
+enum { /* flags values.
+	* first two are returned by the scan callback to indicate
+	* to delete the matching element or to end the scan
+	*/
+	DNHT_SCAN_DEL = 0x0001,
+	DNHT_SCAN_END = 0x0002,
+	DNHT_KEY_IS_OBJ = 0x0004, /* key is the obj pointer */
+	DNHT_MATCH_PTR = 0x0008,  /* match by pointer, not match() */
+	DNHT_INSERT = 0x0010,	  /* insert if not found */
+	DNHT_UNIQUE = 0x0020,	  /* report error if already there */
+	DNHT_REMOVE = 0x0040,	  /* remove on find or dn_ht_free */
+};
 
 #endif /* _IP_DN_HEAP_H */

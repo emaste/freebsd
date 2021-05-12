@@ -50,16 +50,15 @@ __FBSDID("$FreeBSD$");
 #include <arm/rockchip/rk32xx_mp.h>
 
 #include "platform_if.h"
-#define CRU_PHYSBASE		0xFF760000
-#define CRU_SIZE		0x00010000
-#define	 CRU_GLB_SRST_FST_VALUE	 0x1B0
+#define CRU_PHYSBASE 0xFF760000
+#define CRU_SIZE 0x00010000
+#define CRU_GLB_SRST_FST_VALUE 0x1B0
 
 static platform_def_t rk3288w_platform;
 
 static void
 rk32xx_late_init(platform_t plat)
 {
-
 }
 
 /*
@@ -85,7 +84,7 @@ rk32xx_cpu_reset(platform_t plat)
 	dsb();
 	/* Generate 'first global software reset' */
 	bus_space_write_4(fdtbus_bs_tag, cru, CRU_GLB_SRST_FST_VALUE, 0xfdb9);
-	while(1)
+	while (1)
 		;
 }
 
@@ -112,15 +111,15 @@ early_putc_t *early_putc = rk32xx_early_putc;
 #endif
 #endif
 static platform_method_t rk32xx_methods[] = {
-	PLATFORMMETHOD(platform_devmap_init,	rk32xx_devmap_init),
-	PLATFORMMETHOD(platform_late_init,	rk32xx_late_init),
-	PLATFORMMETHOD(platform_cpu_reset,	rk32xx_cpu_reset),
+	PLATFORMMETHOD(platform_devmap_init, rk32xx_devmap_init),
+	PLATFORMMETHOD(platform_late_init, rk32xx_late_init),
+	PLATFORMMETHOD(platform_cpu_reset, rk32xx_cpu_reset),
 
 #ifdef SMP
-	PLATFORMMETHOD(platform_mp_start_ap,	rk32xx_mp_start_ap),
-	PLATFORMMETHOD(platform_mp_setmaxid,	rk32xx_mp_setmaxid),
+	PLATFORMMETHOD(platform_mp_start_ap, rk32xx_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid, rk32xx_mp_setmaxid),
 #endif
 	PLATFORMMETHOD_END,
 };
-FDT_PLATFORM_DEF2(rk32xx, rk3288,  "RK3288",  0, "rockchip,rk3288",  200);
+FDT_PLATFORM_DEF2(rk32xx, rk3288, "RK3288", 0, "rockchip,rk3288", 200);
 FDT_PLATFORM_DEF2(rk32xx, rk3288w, "RK3288W", 0, "rockchip,rk3288w", 200);

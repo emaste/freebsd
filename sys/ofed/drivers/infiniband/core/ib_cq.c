@@ -35,16 +35,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <linux/module.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/slab.h>
-
 #include <rdma/ib_verbs.h>
 
-#define	IB_CQ_POLL_MAX	16
+#define IB_CQ_POLL_MAX 16
 /* maximum number of completions per poll loop */
-#define	IB_CQ_POLL_BUDGET 65536
-#define	IB_CQ_POLL_FLAGS (IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS)
+#define IB_CQ_POLL_BUDGET 65536
+#define IB_CQ_POLL_FLAGS (IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS)
 
 static void
 ib_cq_poll_work(struct work_struct *work)
@@ -86,8 +85,8 @@ ib_cq_completion_workqueue(struct ib_cq *cq, void *private)
 }
 
 struct ib_cq *
-ib_alloc_cq(struct ib_device *dev, void *private,
-    int nr_cqe, int comp_vector, enum ib_poll_context poll_ctx)
+ib_alloc_cq(struct ib_device *dev, void *private, int nr_cqe, int comp_vector,
+    enum ib_poll_context poll_ctx)
 {
 	struct ib_cq_init_attr cq_attr = {
 		.cqe = nr_cqe,
@@ -121,7 +120,7 @@ ib_alloc_cq(struct ib_device *dev, void *private,
 
 	switch (poll_ctx) {
 	case IB_POLL_DIRECT:
-		cq->comp_handler = NULL;	/* no hardware completions */
+		cq->comp_handler = NULL; /* no hardware completions */
 		break;
 	case IB_POLL_SOFTIRQ:
 	case IB_POLL_WORKQUEUE:

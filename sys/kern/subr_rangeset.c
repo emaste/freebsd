@@ -37,12 +37,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/pctrie.h>
 #include <sys/rangeset.h>
+
 #include <vm/uma.h>
 
 #ifdef DIAGNOSTIC
 static void rangeset_check(struct rangeset *rs);
 #else
-#define	rangeset_check(rs)
+#define rangeset_check(rs)
 #endif
 
 static uma_zone_t rs_node_zone;
@@ -51,9 +52,8 @@ static void
 rs_rangeset_init(void *arg __unused)
 {
 
-	rs_node_zone = uma_zcreate("rangeset pctrie nodes",
-	    pctrie_node_size(), NULL, NULL, pctrie_zone_init, NULL,
-	    UMA_ALIGN_PTR, 0);
+	rs_node_zone = uma_zcreate("rangeset pctrie nodes", pctrie_node_size(),
+	    NULL, NULL, pctrie_zone_init, NULL, UMA_ALIGN_PTR, 0);
 }
 SYSINIT(rs, SI_SUB_LOCK, SI_ORDER_ANY, rs_rangeset_init, NULL);
 
@@ -110,8 +110,7 @@ rangeset_check_empty(struct rangeset *rs, uint64_t start, uint64_t end)
 }
 
 int
-rangeset_insert(struct rangeset *rs, uint64_t start, uint64_t end,
-    void *data)
+rangeset_insert(struct rangeset *rs, uint64_t start, uint64_t end, void *data)
 {
 	struct rs_el *r;
 	int error;
@@ -129,8 +128,8 @@ rangeset_insert(struct rangeset *rs, uint64_t start, uint64_t end,
 }
 
 int
-rangeset_remove_pred(struct rangeset *rs, uint64_t start, uint64_t end,
-    rs_pred_t pred)
+rangeset_remove_pred(
+    struct rangeset *rs, uint64_t start, uint64_t end, rs_pred_t pred)
 {
 	struct rs_el *r, *rn;
 	uint64_t *r1;
@@ -168,8 +167,8 @@ rangeset_remove_pred(struct rangeset *rs, uint64_t start, uint64_t end,
 			 */
 			end = r->re_start;
 			if (pred(rs->rs_data_ctx, r)) {
-				pctrie_remove(&rs->rs_trie, r->re_start,
-				    rs_node_free);
+				pctrie_remove(
+				    &rs->rs_trie, r->re_start, rs_node_free);
 				rs->rs_free_data(rs->rs_data_ctx, r);
 			}
 			continue;
@@ -181,11 +180,11 @@ rangeset_remove_pred(struct rangeset *rs, uint64_t start, uint64_t end,
 		 */
 		if (r->re_start >= start) {
 			if (pred(rs->rs_data_ctx, r)) {
-				pctrie_remove(&rs->rs_trie, r->re_start,
-				    rs_node_free);
+				pctrie_remove(
+				    &rs->rs_trie, r->re_start, rs_node_free);
 				r->re_start = end;
-				error = pctrie_insert(&rs->rs_trie,
-				    &r->re_start, rs_node_alloc);
+				error = pctrie_insert(
+				    &rs->rs_trie, &r->re_start, rs_node_alloc);
 				/*
 				 * The insert above must succeed
 				 * because rs_node zone is marked
@@ -216,8 +215,8 @@ rangeset_remove_pred(struct rangeset *rs, uint64_t start, uint64_t end,
 			}
 			rn->re_start = end;
 			rn->re_end = r->re_end;
-			error = pctrie_insert(&rs->rs_trie, &rn->re_start,
-			    rs_node_alloc);
+			error = pctrie_insert(
+			    &rs->rs_trie, &rn->re_start, rs_node_alloc);
 			if (error != 0) {
 				rs->rs_free_data(rs->rs_data_ctx, rn);
 				break;
@@ -298,8 +297,8 @@ rangeset_copy(struct rangeset *dst_rs, struct rangeset *src_rs)
 			error = ENOMEM;
 			break;
 		}
-		error = pctrie_insert(&dst_rs->rs_trie, &dst_r->re_start,
-		    rs_node_alloc);
+		error = pctrie_insert(
+		    &dst_rs->rs_trie, &dst_r->re_start, rs_node_alloc);
 		if (error != 0)
 			break;
 	}
@@ -321,15 +320,15 @@ rangeset_check(struct rangeset *rs)
 			break;
 		r = __containerof(r1, struct rs_el, re_start);
 		KASSERT(r->re_start < r->re_end,
-		    ("invalid interval rs %p elem %p (%#jx, %#jx)",
-		    rs, r, (uintmax_t)r->re_start,  (uintmax_t)r->re_end));
+		    ("invalid interval rs %p elem %p (%#jx, %#jx)", rs, r,
+			(uintmax_t)r->re_start, (uintmax_t)r->re_end));
 		if (rp != NULL) {
 			KASSERT(rp->re_end <= r->re_start,
 			    ("non-ascending neighbors rs %p "
-			    "prev elem %p (%#jx, %#jx) elem %p (%#jx, %#jx)",
-			    rs, rp,  (uintmax_t)rp->re_start,
-			    (uintmax_t)rp->re_end, r,  (uintmax_t)r->re_start,
-			    (uintmax_t)r->re_end));
+			     "prev elem %p (%#jx, %#jx) elem %p (%#jx, %#jx)",
+				rs, rp, (uintmax_t)rp->re_start,
+				(uintmax_t)rp->re_end, r,
+				(uintmax_t)r->re_start, (uintmax_t)r->re_end));
 		}
 	}
 }
@@ -338,6 +337,7 @@ rangeset_check(struct rangeset *rs)
 #include "opt_ddb.h"
 #ifdef DDB
 #include <sys/kernel.h>
+
 #include <ddb/ddb.h>
 
 DB_SHOW_COMMAND(rangeset, rangeset_show_fn)
@@ -358,8 +358,8 @@ DB_SHOW_COMMAND(rangeset, rangeset_show_fn)
 		if (r1 == NULL)
 			break;
 		r = __containerof(r1, struct rs_el, re_start);
-		db_printf("  el %p start %#jx end %#jx\n",
-		    r, r->re_start, r->re_end);
+		db_printf(
+		    "  el %p start %#jx end %#jx\n", r, r->re_start, r->re_end);
 	}
 }
 #endif

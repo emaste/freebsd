@@ -28,7 +28,7 @@
  */
 
 #ifndef _SYS_SMR_TYPES_H_
-#define	_SYS_SMR_TYPES_H_
+#define _SYS_SMR_TYPES_H_
 
 #include <sys/_smr.h>
 
@@ -52,28 +52,31 @@
  */
 
 /* Type restricting pointer access to force smr accessors. */
-#define	SMR_POINTER(type)						\
-struct {								\
-	type	__ptr;		/* Do not access directly */		\
-}
+#define SMR_POINTER(type)                                \
+	struct {                                         \
+		type __ptr; /* Do not access directly */ \
+	}
 
 /*
  * Read from an SMR protected pointer while in a read section.
  */
-#define	smr_entered_load(p, smr) ({					\
-	SMR_ASSERT(SMR_ENTERED((smr)), "smr_entered_load");		\
-	(__typeof((p)->__ptr))atomic_load_acq_ptr((uintptr_t *)&(p)->__ptr); \
-})
+#define smr_entered_load(p, smr)                                    \
+	({                                                          \
+		SMR_ASSERT(SMR_ENTERED((smr)), "smr_entered_load"); \
+		(__typeof((p)->__ptr))                              \
+		    atomic_load_acq_ptr((uintptr_t *)&(p)->__ptr);  \
+	})
 
 /*
  * Read from an SMR protected pointer while serialized by an
  * external mechanism.  'ex' should contain an assert that the
  * external mechanism is held.  i.e. mtx_owned()
  */
-#define	smr_serialized_load(p, ex) ({					\
-	SMR_ASSERT(ex, "smr_serialized_load");				\
-	(__typeof((p)->__ptr))atomic_load_ptr(&(p)->__ptr);		\
-})
+#define smr_serialized_load(p, ex)                                   \
+	({                                                           \
+		SMR_ASSERT(ex, "smr_serialized_load");               \
+		(__typeof((p)->__ptr)) atomic_load_ptr(&(p)->__ptr); \
+	})
 
 /*
  * Store 'v' to an SMR protected pointer while serialized by an
@@ -83,11 +86,12 @@ struct {								\
  * Writers that are serialized with mutual exclusion or on a single
  * thread should use smr_serialized_store() rather than swap.
  */
-#define	smr_serialized_store(p, v, ex) do {				\
-	SMR_ASSERT(ex, "smr_serialized_store");				\
-	__typeof((p)->__ptr) _v = (v);					\
-	atomic_store_rel_ptr((uintptr_t *)&(p)->__ptr, (uintptr_t)_v);	\
-} while (0)
+#define smr_serialized_store(p, v, ex)                                         \
+	do {                                                                   \
+		SMR_ASSERT(ex, "smr_serialized_store");                        \
+		__typeof((p)->__ptr) _v = (v);                                 \
+		atomic_store_rel_ptr((uintptr_t *)&(p)->__ptr, (uintptr_t)_v); \
+	} while (0)
 
 /*
  * swap 'v' with an SMR protected pointer and return the old value
@@ -96,35 +100,39 @@ struct {								\
  *
  * Swap permits multiple writers to update a pointer concurrently.
  */
-#define	smr_serialized_swap(p, v, ex) ({				\
-	SMR_ASSERT(ex, "smr_serialized_swap");				\
-	__typeof((p)->__ptr) _v = (v);					\
-	/* Release barrier guarantees contents are visible to reader */ \
-	atomic_thread_fence_rel();					\
-	(__typeof((p)->__ptr))atomic_swap_ptr(				\
-	    (uintptr_t *)&(p)->__ptr, (uintptr_t)_v);			\
-})
+#define smr_serialized_swap(p, v, ex)                                         \
+	({                                                                    \
+		SMR_ASSERT(ex, "smr_serialized_swap");                        \
+		__typeof((p)->__ptr) _v = (v);                                \
+		/* Release barrier guarantees contents are visible to reader  \
+		 */                                                           \
+		atomic_thread_fence_rel();                                    \
+		(__typeof((p)->__ptr))                                        \
+		    atomic_swap_ptr((uintptr_t *)&(p)->__ptr, (uintptr_t)_v); \
+	})
 
 /*
  * Read from an SMR protected pointer when no serialization is required
  * such as in the destructor callback or when the caller guarantees other
  * synchronization.
  */
-#define	smr_unserialized_load(p, ex) ({					\
-	SMR_ASSERT(ex, "smr_unserialized_load");			\
-	(__typeof((p)->__ptr))atomic_load_ptr(&(p)->__ptr);		\
-})
+#define smr_unserialized_load(p, ex)                                 \
+	({                                                           \
+		SMR_ASSERT(ex, "smr_unserialized_load");             \
+		(__typeof((p)->__ptr)) atomic_load_ptr(&(p)->__ptr); \
+	})
 
 /*
  * Store to an SMR protected pointer when no serialiation is required
  * such as in the destructor callback or when the caller guarantees other
  * synchronization.
  */
-#define	smr_unserialized_store(p, v, ex) do {				\
-	SMR_ASSERT(ex, "smr_unserialized_store");			\
-	__typeof((p)->__ptr) _v = (v);					\
-	atomic_store_ptr((uintptr_t *)&(p)->__ptr, (uintptr_t)_v);	\
-} while (0)
+#define smr_unserialized_store(p, v, ex)                                   \
+	do {                                                               \
+		SMR_ASSERT(ex, "smr_unserialized_store");                  \
+		__typeof((p)->__ptr) _v = (v);                             \
+		atomic_store_ptr((uintptr_t *)&(p)->__ptr, (uintptr_t)_v); \
+	} while (0)
 
 #ifndef _KERNEL
 
@@ -132,7 +140,7 @@ struct {								\
  * Load an SMR protected pointer when accessing kernel data structures through
  * libkvm.
  */
-#define	smr_kvm_load(p) ((p)->__ptr)
+#define smr_kvm_load(p) ((p)->__ptr)
 
 #endif /* !_KERNEL */
 #endif /* !_SYS_SMR_TYPES_H_ */

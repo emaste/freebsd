@@ -33,6 +33,7 @@
 #include "opt_pmap.h"
 
 #include <vm/vm_extern.h>
+
 #include <machine/mmuvar.h>
 
 struct dump_context {
@@ -48,16 +49,16 @@ extern const struct mmu_kobj oea64_mmu;
  */
 
 /* Allocate physical memory for use in moea64_bootstrap. */
-vm_offset_t	moea64_bootstrap_alloc(vm_size_t size, vm_size_t align);
+vm_offset_t moea64_bootstrap_alloc(vm_size_t size, vm_size_t align);
 /* Set an LPTE structure to match the contents of a PVO */
-void	moea64_pte_from_pvo(const struct pvo_entry *pvo, struct lpte *lpte);
+void moea64_pte_from_pvo(const struct pvo_entry *pvo, struct lpte *lpte);
 
 /*
  * Flags
  */
 
-#define MOEA64_PTE_PROT_UPDATE	1
-#define MOEA64_PTE_INVALIDATE	2
+#define MOEA64_PTE_PROT_UPDATE 1
+#define MOEA64_PTE_INVALIDATE 2
 
 /*
  * Bootstrap subroutines
@@ -70,43 +71,40 @@ void	moea64_pte_from_pvo(const struct pvo_entry *pvo, struct lpte *lpte);
  *   moea64_late_bootstrap();
  */
 
-void		moea64_early_bootstrap(vm_offset_t kernelstart,
-		    vm_offset_t kernelend);
-void		moea64_mid_bootstrap(vm_offset_t kernelstart,
-		    vm_offset_t kernelend);
-void		moea64_late_bootstrap(vm_offset_t kernelstart,
-		    vm_offset_t kernelend);
+void moea64_early_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend);
+void moea64_mid_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend);
+void moea64_late_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend);
 
 /* "base" install method for initializing moea64 pmap ifuncs */
-void		moea64_install(void);
+void moea64_install(void);
 
-int64_t		moea64_pte_replace(struct pvo_entry *, int);
-int64_t		moea64_pte_insert(struct pvo_entry *);
-int64_t		moea64_pte_unset(struct pvo_entry *);
-int64_t		moea64_pte_clear(struct pvo_entry *, uint64_t);
-int64_t		moea64_pte_synch(struct pvo_entry *);
-int64_t		moea64_pte_insert_sp(struct pvo_entry *);
-int64_t		moea64_pte_unset_sp(struct pvo_entry *);
-int64_t		moea64_pte_replace_sp(struct pvo_entry *);
+int64_t moea64_pte_replace(struct pvo_entry *, int);
+int64_t moea64_pte_insert(struct pvo_entry *);
+int64_t moea64_pte_unset(struct pvo_entry *);
+int64_t moea64_pte_clear(struct pvo_entry *, uint64_t);
+int64_t moea64_pte_synch(struct pvo_entry *);
+int64_t moea64_pte_insert_sp(struct pvo_entry *);
+int64_t moea64_pte_unset_sp(struct pvo_entry *);
+int64_t moea64_pte_replace_sp(struct pvo_entry *);
 
-typedef int64_t	(*moea64_pte_replace_t)(struct pvo_entry *, int);
-typedef int64_t	(*moea64_pte_insert_t)(struct pvo_entry *);
-typedef int64_t	(*moea64_pte_unset_t)(struct pvo_entry *);
-typedef int64_t	(*moea64_pte_clear_t)(struct pvo_entry *, uint64_t);
-typedef int64_t	(*moea64_pte_synch_t)(struct pvo_entry *);
-typedef int64_t	(*moea64_pte_insert_sp_t)(struct pvo_entry *);
-typedef int64_t	(*moea64_pte_unset_sp_t)(struct pvo_entry *);
-typedef int64_t	(*moea64_pte_replace_sp_t)(struct pvo_entry *);
+typedef int64_t (*moea64_pte_replace_t)(struct pvo_entry *, int);
+typedef int64_t (*moea64_pte_insert_t)(struct pvo_entry *);
+typedef int64_t (*moea64_pte_unset_t)(struct pvo_entry *);
+typedef int64_t (*moea64_pte_clear_t)(struct pvo_entry *, uint64_t);
+typedef int64_t (*moea64_pte_synch_t)(struct pvo_entry *);
+typedef int64_t (*moea64_pte_insert_sp_t)(struct pvo_entry *);
+typedef int64_t (*moea64_pte_unset_sp_t)(struct pvo_entry *);
+typedef int64_t (*moea64_pte_replace_sp_t)(struct pvo_entry *);
 
 struct moea64_funcs {
-	moea64_pte_replace_t	pte_replace;
-	moea64_pte_insert_t	pte_insert;
-	moea64_pte_unset_t	pte_unset;
-	moea64_pte_clear_t	pte_clear;
-	moea64_pte_synch_t	pte_synch;
-	moea64_pte_insert_sp_t	pte_insert_sp;
-	moea64_pte_unset_sp_t	pte_unset_sp;
-	moea64_pte_replace_sp_t	pte_replace_sp;
+	moea64_pte_replace_t pte_replace;
+	moea64_pte_insert_t pte_insert;
+	moea64_pte_unset_t pte_unset;
+	moea64_pte_clear_t pte_clear;
+	moea64_pte_synch_t pte_synch;
+	moea64_pte_insert_sp_t pte_insert_sp;
+	moea64_pte_unset_sp_t pte_unset_sp;
+	moea64_pte_replace_sp_t pte_replace_sp;
 };
 
 extern struct moea64_funcs *moea64_ops;
@@ -123,23 +121,23 @@ moea64_pte_vpn_from_pvo_vpn(const struct pvo_entry *pvo)
  */
 
 #ifdef MOEA64_STATS
-extern u_int	moea64_pte_valid;
-extern u_int	moea64_pte_overflow;
-#define STAT_MOEA64(x)	x
+extern u_int moea64_pte_valid;
+extern u_int moea64_pte_overflow;
+#define STAT_MOEA64(x) x
 #else
-#define	STAT_MOEA64(x) ((void)0)
+#define STAT_MOEA64(x) ((void)0)
 #endif
 
 /*
  * State variables
  */
 
-extern int		moea64_large_page_shift;
-extern uint64_t		moea64_large_page_size;
-extern uint64_t		moea64_large_page_mask;
-extern u_long		moea64_pteg_count;
-extern u_long		moea64_pteg_mask;
-extern int		n_slbs;
-extern bool		moea64_has_lp_4k_16m;
+extern int moea64_large_page_shift;
+extern uint64_t moea64_large_page_size;
+extern uint64_t moea64_large_page_mask;
+extern u_long moea64_pteg_count;
+extern u_long moea64_pteg_mask;
+extern int n_slbs;
+extern bool moea64_has_lp_4k_16m;
 
 #endif /* _POWERPC_AIM_MMU_OEA64_H */

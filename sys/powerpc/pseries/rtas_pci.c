@@ -30,20 +30,14 @@
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_pci.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/ofwpci.h>
-
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
@@ -52,54 +46,58 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/rtas.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/ofwpci.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <powerpc/pseries/plpar_iommu.h>
 
-#include "pcib_if.h"
 #include "iommu_if.h"
+#include "pcib_if.h"
 
 /*
  * Device interface.
  */
-static int		rtaspci_probe(device_t);
-static int		rtaspci_attach(device_t);
+static int rtaspci_probe(device_t);
+static int rtaspci_attach(device_t);
 
 /*
  * pcib interface.
  */
-static u_int32_t	rtaspci_read_config(device_t, u_int, u_int, u_int,
-			    u_int, int);
-static void		rtaspci_write_config(device_t, u_int, u_int, u_int,
-			    u_int, u_int32_t, int);
+static u_int32_t rtaspci_read_config(device_t, u_int, u_int, u_int, u_int, int);
+static void rtaspci_write_config(
+    device_t, u_int, u_int, u_int, u_int, u_int32_t, int);
 
 /*
  * Driver methods.
  */
-static device_method_t	rtaspci_methods[] = {
+static device_method_t rtaspci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		rtaspci_probe),
-	DEVMETHOD(device_attach,	rtaspci_attach),
+	DEVMETHOD(device_probe, rtaspci_probe),
+	DEVMETHOD(device_attach, rtaspci_attach),
 
 	/* pcib interface */
-	DEVMETHOD(pcib_read_config,	rtaspci_read_config),
-	DEVMETHOD(pcib_write_config,	rtaspci_write_config),
+	DEVMETHOD(pcib_read_config, rtaspci_read_config),
+	DEVMETHOD(pcib_write_config, rtaspci_write_config),
 
 	DEVMETHOD_END
 };
 
 struct rtaspci_softc {
-	struct ofw_pci_softc	pci_sc;
+	struct ofw_pci_softc pci_sc;
 
-	struct ofw_pci_register	sc_pcir;
+	struct ofw_pci_register sc_pcir;
 
-	cell_t			read_pci_config, write_pci_config;
-	cell_t			ex_read_pci_config, ex_write_pci_config;
-	int			sc_extended_config;
+	cell_t read_pci_config, write_pci_config;
+	cell_t ex_read_pci_config, ex_write_pci_config;
+	int sc_extended_config;
 };
 
-static devclass_t	rtaspci_devclass;
+static devclass_t rtaspci_devclass;
 DEFINE_CLASS_1(pcib, rtaspci_driver, rtaspci_methods,
     sizeof(struct rtaspci_softc), ofw_pci_driver);
 DRIVER_MODULE(rtaspci, ofwbus, rtaspci_driver, rtaspci_devclass, 0, 0);
@@ -107,7 +105,7 @@ DRIVER_MODULE(rtaspci, ofwbus, rtaspci_driver, rtaspci_devclass, 0, 0);
 static int
 rtaspci_probe(device_t dev)
 {
-	const char	*type;
+	const char *type;
 
 	if (!rtas_exists())
 		return (ENXIO);
@@ -126,12 +124,12 @@ rtaspci_probe(device_t dev)
 static int
 rtaspci_attach(device_t dev)
 {
-	struct		rtaspci_softc *sc;
+	struct rtaspci_softc *sc;
 
 	sc = device_get_softc(dev);
 
 	if (OF_getencprop(ofw_bus_get_node(dev), "reg", (pcell_t *)&sc->sc_pcir,
-	    sizeof(sc->sc_pcir)) == -1)
+		sizeof(sc->sc_pcir)) == -1)
 		return (ENXIO);
 
 	sc->read_pci_config = rtas_token_lookup("read-pci-config");
@@ -147,8 +145,8 @@ rtaspci_attach(device_t dev)
 }
 
 static uint32_t
-rtaspci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
-    int width)
+rtaspci_read_config(
+    device_t dev, u_int bus, u_int slot, u_int func, u_int reg, int width)
 {
 	struct rtaspci_softc *sc;
 	uint32_t retval = 0xffffffff;
@@ -161,14 +159,14 @@ rtaspci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	    ((func & 0x7) << 8) | (reg & 0xff);
 	if (sc->sc_extended_config)
 		config_addr |= (reg & 0xf00) << 16;
-		
+
 	if (sc->ex_read_pci_config != -1)
 		error = rtas_call_method(sc->ex_read_pci_config, 4, 2,
-		    config_addr, sc->sc_pcir.phys_hi,
-		    sc->sc_pcir.phys_mid, width, &pcierror, &retval);
+		    config_addr, sc->sc_pcir.phys_hi, sc->sc_pcir.phys_mid,
+		    width, &pcierror, &retval);
 	else
-		error = rtas_call_method(sc->read_pci_config, 2, 2,
-		    config_addr, width, &pcierror, &retval);
+		error = rtas_call_method(sc->read_pci_config, 2, 2, config_addr,
+		    width, &pcierror, &retval);
 
 	/* Sign-extend output */
 	switch (width) {
@@ -187,8 +185,8 @@ rtaspci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 }
 
 static void
-rtaspci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
-    u_int reg, uint32_t val, int width)
+rtaspci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
+    uint32_t val, int width)
 {
 	struct rtaspci_softc *sc;
 	uint32_t config_addr;
@@ -200,12 +198,12 @@ rtaspci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 	    ((func & 0x7) << 8) | (reg & 0xff);
 	if (sc->sc_extended_config)
 		config_addr |= (reg & 0xf00) << 16;
-		
+
 	if (sc->ex_write_pci_config != -1)
 		rtas_call_method(sc->ex_write_pci_config, 5, 1, config_addr,
-		    sc->sc_pcir.phys_hi, sc->sc_pcir.phys_mid,
-		    width, val, &pcierror);
+		    sc->sc_pcir.phys_hi, sc->sc_pcir.phys_mid, width, val,
+		    &pcierror);
 	else
-		rtas_call_method(sc->write_pci_config, 3, 1, config_addr,
-		    width, val, &pcierror);
+		rtas_call_method(sc->write_pci_config, 3, 1, config_addr, width,
+		    val, &pcierror);
 }

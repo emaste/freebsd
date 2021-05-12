@@ -33,61 +33,64 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
 
-#include <sys/lock.h>
-#include <sys/mutex.h>
-
-#include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
-#include "iicbus_if.h"
-
+#include <dev/iicbus/iiconf.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#define I2C_ADDR_REG		0x00 /* I2C slave address register */
-#define I2C_FDR_REG		0x04 /* I2C frequency divider register */
-#define I2C_CONTROL_REG		0x08 /* I2C control register */
-#define I2C_STATUS_REG		0x0C /* I2C status register */
-#define I2C_DATA_REG		0x10 /* I2C data register */
-#define I2C_DFSRR_REG		0x14 /* I2C Digital Filter Sampling rate */
-#define I2C_ENABLE		0x80 /* Module enable - interrupt disable */
-#define I2CSR_RXAK		0x01 /* Received acknowledge */
-#define I2CSR_MCF		(1<<7) /* Data transfer */
-#define I2CSR_MASS		(1<<6) /* Addressed as a slave */
-#define I2CSR_MBB		(1<<5) /* Bus busy */
-#define I2CSR_MAL		(1<<4) /* Arbitration lost */
-#define I2CSR_SRW		(1<<2) /* Slave read/write */
-#define I2CSR_MIF		(1<<1) /* Module interrupt */
-#define I2CCR_MEN		(1<<7) /* Module enable */
-#define I2CCR_MSTA		(1<<5) /* Master/slave mode */
-#define I2CCR_MTX		(1<<4) /* Transmit/receive mode */
-#define I2CCR_TXAK		(1<<3) /* Transfer acknowledge */
-#define I2CCR_RSTA		(1<<2) /* Repeated START */
+#include "iicbus_if.h"
 
-#define I2C_BAUD_RATE_FAST	0x31
-#define I2C_BAUD_RATE_DEF	0x3F
-#define I2C_DFSSR_DIV		0x10
+#define I2C_ADDR_REG 0x00 /* I2C slave address register */
+#define I2C_FDR_REG 0x04 /* I2C frequency divider register */
+#define I2C_CONTROL_REG 0x08 /* I2C control register */
+#define I2C_STATUS_REG 0x0C /* I2C status register */
+#define I2C_DATA_REG 0x10 /* I2C data register */
+#define I2C_DFSRR_REG 0x14 /* I2C Digital Filter Sampling rate */
+#define I2C_ENABLE 0x80 /* Module enable - interrupt disable */
+#define I2CSR_RXAK 0x01 /* Received acknowledge */
+#define I2CSR_MCF (1 << 7) /* Data transfer */
+#define I2CSR_MASS (1 << 6) /* Addressed as a slave */
+#define I2CSR_MBB (1 << 5) /* Bus busy */
+#define I2CSR_MAL (1 << 4) /* Arbitration lost */
+#define I2CSR_SRW (1 << 2) /* Slave read/write */
+#define I2CSR_MIF (1 << 1) /* Module interrupt */
+#define I2CCR_MEN (1 << 7) /* Module enable */
+#define I2CCR_MSTA (1 << 5) /* Master/slave mode */
+#define I2CCR_MTX (1 << 4) /* Transmit/receive mode */
+#define I2CCR_TXAK (1 << 3) /* Transfer acknowledge */
+#define I2CCR_RSTA (1 << 2) /* Repeated START */
 
-#ifdef  DEBUG
-#define debugf(fmt, args...) do { printf("%s(): ", __func__); printf(fmt,##args); } while (0)
+#define I2C_BAUD_RATE_FAST 0x31
+#define I2C_BAUD_RATE_DEF 0x3F
+#define I2C_DFSSR_DIV 0x10
+
+#ifdef DEBUG
+#define debugf(fmt, args...)                \
+	do {                                \
+		printf("%s(): ", __func__); \
+		printf(fmt, ##args);        \
+	} while (0)
 #else
 #define debugf(fmt, args...)
 #endif
 
 struct i2c_softc {
-	device_t		dev;
-	device_t		iicbus;
-	struct resource		*res;
-	struct mtx		mutex;
-	int			rid;
-	bus_space_handle_t	bsh;
-	bus_space_tag_t		bst;
+	device_t dev;
+	device_t iicbus;
+	struct resource *res;
+	struct mtx mutex;
+	int rid;
+	bus_space_handle_t bsh;
+	bus_space_tag_t bst;
 };
 
 static int i2c_probe(device_t);
@@ -97,32 +100,29 @@ static int i2c_repeated_start(device_t dev, u_char slave, int timeout);
 static int i2c_start(device_t dev, u_char slave, int timeout);
 static int i2c_stop(device_t dev);
 static int i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr);
-static int i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay);
-static int i2c_write(device_t dev, const char *buf, int len, int *sent, int timeout);
+static int i2c_read(
+    device_t dev, char *buf, int len, int *read, int last, int delay);
+static int i2c_write(
+    device_t dev, const char *buf, int len, int *sent, int timeout);
 static phandle_t i2c_get_node(device_t bus, device_t dev);
 
-static device_method_t i2c_methods[] = {
-	DEVMETHOD(device_probe,			i2c_probe),
-	DEVMETHOD(device_attach,		i2c_attach),
+static device_method_t i2c_methods[] = { DEVMETHOD(device_probe, i2c_probe),
+	DEVMETHOD(device_attach, i2c_attach),
 
-	DEVMETHOD(iicbus_callback,		iicbus_null_callback),
-	DEVMETHOD(iicbus_repeated_start,	i2c_repeated_start),
-	DEVMETHOD(iicbus_start,			i2c_start),
-	DEVMETHOD(iicbus_stop,			i2c_stop),
-	DEVMETHOD(iicbus_reset,			i2c_reset),
-	DEVMETHOD(iicbus_read,			i2c_read),
-	DEVMETHOD(iicbus_write,			i2c_write),
-	DEVMETHOD(iicbus_transfer,		iicbus_transfer_gen),
-	DEVMETHOD(ofw_bus_get_node,		i2c_get_node),
-	{ 0, 0 }
-};
+	DEVMETHOD(iicbus_callback, iicbus_null_callback),
+	DEVMETHOD(iicbus_repeated_start, i2c_repeated_start),
+	DEVMETHOD(iicbus_start, i2c_start), DEVMETHOD(iicbus_stop, i2c_stop),
+	DEVMETHOD(iicbus_reset, i2c_reset), DEVMETHOD(iicbus_read, i2c_read),
+	DEVMETHOD(iicbus_write, i2c_write),
+	DEVMETHOD(iicbus_transfer, iicbus_transfer_gen),
+	DEVMETHOD(ofw_bus_get_node, i2c_get_node), { 0, 0 } };
 
 static driver_t i2c_driver = {
 	"iichb",
 	i2c_methods,
 	sizeof(struct i2c_softc),
 };
-static devclass_t  i2c_devclass;
+static devclass_t i2c_devclass;
 
 DRIVER_MODULE(i2c, simplebus, i2c_driver, i2c_devclass, 0, 0);
 DRIVER_MODULE(iicbus, i2c, iicbus_driver, iicbus_devclass, 0, 0);
@@ -160,8 +160,8 @@ i2c_do_wait(device_t dev, struct i2c_softc *sc, int write, int start)
 	status = i2c_read_reg(sc, I2C_STATUS_REG);
 	if (status & I2CSR_MIF) {
 		if (write && start && (status & I2CSR_RXAK)) {
-			debugf("no ack %s", start ?
-			    "after sending slave address" : "");
+			debugf("no ack %s",
+			    start ? "after sending slave address" : "");
 			err = IIC_ENOACK;
 			goto error;
 		}
@@ -196,8 +196,8 @@ i2c_probe(device_t dev)
 	sc = device_get_softc(dev);
 	sc->rid = 0;
 
-	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->rid,
-	    RF_ACTIVE);
+	sc->res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->rid, RF_ACTIVE);
 	if (sc->res == NULL) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
@@ -225,8 +225,8 @@ i2c_attach(device_t dev)
 
 	mtx_init(&sc->mutex, device_get_nameunit(dev), "I2C", MTX_DEF);
 
-	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->rid,
-	    RF_ACTIVE);
+	sc->res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->rid, RF_ACTIVE);
 	if (sc->res == NULL) {
 		device_printf(dev, "could not allocate resources");
 		mtx_destroy(&sc->mutex);
@@ -256,7 +256,7 @@ i2c_repeated_start(device_t dev, u_char slave, int timeout)
 
 	mtx_lock(&sc->mutex);
 	/* Set repeated start condition */
-	i2c_flag_set(sc, I2C_CONTROL_REG ,I2CCR_RSTA);
+	i2c_flag_set(sc, I2C_CONTROL_REG, I2CCR_RSTA);
 	/* Write target address - LSB is R/W bit */
 	i2c_write_reg(sc, I2C_DATA_REG, slave);
 	DELAY(1250);
@@ -364,12 +364,12 @@ i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 	mtx_lock(&sc->mutex);
 	if (len) {
 		if (len == 1)
-			i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
-			    I2CCR_MSTA | I2CCR_TXAK);
+			i2c_write_reg(sc, I2C_CONTROL_REG,
+			    I2CCR_MEN | I2CCR_MSTA | I2CCR_TXAK);
 
 		else
-			i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
-			    I2CCR_MSTA);
+			i2c_write_reg(
+			    sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_MSTA);
 
 		/* dummy read */
 		i2c_read_reg(sc, I2C_DATA_REG);
@@ -384,13 +384,13 @@ i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 			return (error);
 		}
 		if ((*read == len - 2) && last) {
-			i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
-			    I2CCR_MSTA | I2CCR_TXAK);
+			i2c_write_reg(sc, I2C_CONTROL_REG,
+			    I2CCR_MEN | I2CCR_MSTA | I2CCR_TXAK);
 		}
 
 		if ((*read == len - 1) && last) {
-			i2c_write_reg(sc, I2C_CONTROL_REG,  I2CCR_MEN |
-			    I2CCR_TXAK);
+			i2c_write_reg(
+			    sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_TXAK);
 		}
 
 		*buf++ = i2c_read_reg(sc, I2C_DATA_REG);

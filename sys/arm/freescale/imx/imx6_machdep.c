@@ -34,8 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/reboot.h>
 #include <sys/devmap.h>
+#include <sys/reboot.h>
 
 #include <vm/vm.h>
 
@@ -44,15 +44,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
 
-#include <arm/arm/mpcore_timervar.h>
-#include <arm/freescale/imx/imx6_anatopreg.h>
-#include <arm/freescale/imx/imx6_anatopvar.h>
-#include <arm/freescale/imx/imx_machdep.h>
-
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
+#include <arm/arm/mpcore_timervar.h>
+#include <arm/freescale/imx/imx6_anatopreg.h>
+#include <arm/freescale/imx/imx6_anatopvar.h>
 #include <arm/freescale/imx/imx6_machdep.h>
+#include <arm/freescale/imx/imx_machdep.h>
 
 #include "platform_if.h"
 #include "platform_pl310_if.h"
@@ -101,7 +100,7 @@ static platform_cpu_reset_t imx6_cpu_reset;
  */
 
 static void
-fix_node_iparent(const char* nodepath, phandle_t gpcxref, phandle_t gicxref)
+fix_node_iparent(const char *nodepath, phandle_t gpcxref, phandle_t gicxref)
 {
 	static const char *propname = "interrupt-parent";
 	phandle_t node, iparent;
@@ -137,8 +136,8 @@ fix_fdt_interrupt_data(void)
 	gicxref = OF_xref_from_node(gicnode);
 
 	/* If gic node has no parent, pretend it is its own parent. */
-	result = OF_getencprop(gicnode, "interrupt-parent", &gicipar,
-	    sizeof(gicipar));
+	result = OF_getencprop(
+	    gicnode, "interrupt-parent", &gicipar, sizeof(gicipar));
 	if (result <= 0)
 		gicipar = gicxref;
 
@@ -149,8 +148,8 @@ fix_fdt_interrupt_data(void)
 		gpcnode = OF_finddevice("/soc/bus@2000000/gpc@20dc000");
 	if (gpcnode == -1)
 		return;
-	result = OF_getencprop(gpcnode, "interrupt-parent", &gpcipar,
-	    sizeof(gpcipar));
+	result = OF_getencprop(
+	    gpcnode, "interrupt-parent", &gpcipar, sizeof(gpcipar));
 	if (result <= 0)
 		return;
 	gpcxref = OF_xref_from_node(gpcnode);
@@ -189,7 +188,7 @@ fix_fdt_iomuxc_data(void)
 	 */
 	node = OF_finddevice("/soc/aips-bus@2000000/iomuxc-gpr@20e0000");
 	if (node == -1)
-	    node = OF_finddevice("/soc/bus@2000000/iomuxc-gpr@20e0000");
+		node = OF_finddevice("/soc/bus@2000000/iomuxc-gpr@20e0000");
 	if (node != -1)
 		OF_setprop(node, "status", "disabled", sizeof("disabled"));
 }
@@ -294,17 +293,17 @@ imx_soc_type(void)
 	uint32_t *pcr;
 	static u_int soctype;
 	const vm_offset_t SCU_CONFIG_PHYSADDR = 0x00a00004;
-#define	HWSOC_MX6SL	0x60
-#define	HWSOC_MX6DL	0x61
-#define	HWSOC_MX6SOLO	0x62
-#define	HWSOC_MX6Q	0x63
-#define	HWSOC_MX6UL	0x64
+#define HWSOC_MX6SL 0x60
+#define HWSOC_MX6DL 0x61
+#define HWSOC_MX6SOLO 0x62
+#define HWSOC_MX6Q 0x63
+#define HWSOC_MX6UL 0x64
 
 	if (soctype != 0)
 		return (soctype);
 
 	digprog = imx6_anatop_read_4(IMX6_ANALOG_DIGPROG_SL);
-	hwsoc = (digprog >> IMX6_ANALOG_DIGPROG_SOCTYPE_SHIFT) & 
+	hwsoc = (digprog >> IMX6_ANALOG_DIGPROG_SOCTYPE_SHIFT) &
 	    IMX6_ANALOG_DIGPROG_SOCTYPE_MASK;
 
 	if (hwsoc != HWSOC_MX6SL) {
@@ -334,7 +333,7 @@ imx_soc_type(void)
 	case HWSOC_MX6DL:
 		soctype = IMXSOC_6DL;
 		break;
-	case HWSOC_MX6Q :
+	case HWSOC_MX6Q:
 		soctype = IMXSOC_6Q;
 		break;
 	case HWSOC_MX6UL:
@@ -342,7 +341,8 @@ imx_soc_type(void)
 		break;
 	default:
 		printf("imx_soc_type: Don't understand hwsoc 0x%02x, "
-		    "digprog 0x%08x; assuming IMXSOC_6Q\n", hwsoc, digprog);
+		       "digprog 0x%08x; assuming IMXSOC_6Q\n",
+		    hwsoc, digprog);
 		soctype = IMXSOC_6Q;
 		break;
 	}
@@ -375,17 +375,17 @@ early_putc_t *early_putc = imx6_early_putc;
 #endif
 
 static platform_method_t imx6_methods[] = {
-	PLATFORMMETHOD(platform_attach,		imx6_attach),
-	PLATFORMMETHOD(platform_devmap_init,	imx6_devmap_init),
-	PLATFORMMETHOD(platform_late_init,	imx6_late_init),
-	PLATFORMMETHOD(platform_cpu_reset,	imx6_cpu_reset),
+	PLATFORMMETHOD(platform_attach, imx6_attach),
+	PLATFORMMETHOD(platform_devmap_init, imx6_devmap_init),
+	PLATFORMMETHOD(platform_late_init, imx6_late_init),
+	PLATFORMMETHOD(platform_cpu_reset, imx6_cpu_reset),
 
 #ifdef SMP
-	PLATFORMMETHOD(platform_mp_start_ap,	imx6_mp_start_ap),
-	PLATFORMMETHOD(platform_mp_setmaxid,	imx6_mp_setmaxid),
+	PLATFORMMETHOD(platform_mp_start_ap, imx6_mp_start_ap),
+	PLATFORMMETHOD(platform_mp_setmaxid, imx6_mp_setmaxid),
 #endif
 
-	PLATFORMMETHOD(platform_pl310_init,	imx6_pl310_init),
+	PLATFORMMETHOD(platform_pl310_init, imx6_pl310_init),
 
 	PLATFORMMETHOD_END,
 };

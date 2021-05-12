@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#ifndef	__AW_CLK_NKMP_H__
+#ifndef __AW_CLK_NKMP_H__
 #define __AW_CLK_NKMP_H__
 
 #include <arm/allwinner/clkng/aw_clk.h>
@@ -34,23 +34,23 @@
 struct aw_clk_nkmp_def {
 	struct clknode_init_def clkdef;
 
-	uint32_t		offset;
+	uint32_t offset;
 
-	struct aw_clk_factor	m;
-	struct aw_clk_factor	k;
-	struct aw_clk_factor	n;
-	struct aw_clk_factor	p;
+	struct aw_clk_factor m;
+	struct aw_clk_factor k;
+	struct aw_clk_factor n;
+	struct aw_clk_factor p;
 
-	uint32_t		mux_shift;
-	uint32_t		mux_width;
-	uint32_t		gate_shift;
-	uint32_t		lock_shift;
-	uint32_t		lock_retries;
-	uint32_t		update_shift;
+	uint32_t mux_shift;
+	uint32_t mux_width;
+	uint32_t gate_shift;
+	uint32_t lock_shift;
+	uint32_t lock_retries;
+	uint32_t update_shift;
 
-	uint32_t		flags;
+	uint32_t flags;
 };
 
-int	aw_clk_nkmp_register(struct clkdom *clkdom, struct aw_clk_nkmp_def *clkdef);
+int aw_clk_nkmp_register(struct clkdom *clkdom, struct aw_clk_nkmp_def *clkdef);
 
 #endif /* __AW_CLK_NKMP_H__ */

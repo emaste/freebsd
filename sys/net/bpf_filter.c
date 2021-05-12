@@ -53,18 +53,17 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifndef BPF_ALIGN
-#define EXTRACT_SHORT(p)	((u_int16_t)ntohs(*(u_int16_t *)p))
-#define EXTRACT_LONG(p)		(ntohl(*(u_int32_t *)p))
+#define EXTRACT_SHORT(p) ((u_int16_t)ntohs(*(u_int16_t *)p))
+#define EXTRACT_LONG(p) (ntohl(*(u_int32_t *)p))
 #else
-#define EXTRACT_SHORT(p)\
-	((u_int16_t)\
-		((u_int16_t)*((u_char *)p+0)<<8|\
-		 (u_int16_t)*((u_char *)p+1)<<0))
-#define EXTRACT_LONG(p)\
-		((u_int32_t)*((u_char *)p+0)<<24|\
-		 (u_int32_t)*((u_char *)p+1)<<16|\
-		 (u_int32_t)*((u_char *)p+2)<<8|\
-		 (u_int32_t)*((u_char *)p+3)<<0)
+#define EXTRACT_SHORT(p)                                    \
+	((u_int16_t)((u_int16_t) * ((u_char *)p + 0) << 8 | \
+	    (u_int16_t) * ((u_char *)p + 1) << 0))
+#define EXTRACT_LONG(p)                             \
+	((u_int32_t) * ((u_char *)p + 0) << 24 |    \
+	    (u_int32_t) * ((u_char *)p + 1) << 16 | \
+	    (u_int32_t) * ((u_char *)p + 2) << 8 |  \
+	    (u_int32_t) * ((u_char *)p + 3) << 0)
 #endif
 
 #ifdef _KERNEL
@@ -74,21 +73,21 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <net/bpf.h>
 #ifdef _KERNEL
-#define MINDEX(m, k) \
-{ \
-	int len = m->m_len; \
- \
-	while (k >= len) { \
-		k -= len; \
-		m = m->m_next; \
-		if (m == 0) \
-			return (0); \
-		len = m->m_len; \
-	} \
-}
+#define MINDEX(m, k)                        \
+	{                                   \
+		int len = m->m_len;         \
+                                            \
+		while (k >= len) {          \
+			k -= len;           \
+			m = m->m_next;      \
+			if (m == 0)         \
+				return (0); \
+			len = m->m_len;     \
+		}                           \
+	}
 
-static u_int16_t	m_xhalf(struct mbuf *m, bpf_u_int32 k, int *err);
-static u_int32_t	m_xword(struct mbuf *m, bpf_u_int32 k, int *err);
+static u_int16_t m_xhalf(struct mbuf *m, bpf_u_int32 k, int *err);
+static u_int32_t m_xword(struct mbuf *m, bpf_u_int32 k, int *err);
 
 static u_int32_t
 m_xword(struct mbuf *m, bpf_u_int32 k, int *err)
@@ -117,24 +116,18 @@ m_xword(struct mbuf *m, bpf_u_int32 k, int *err)
 	np = mtod(m0, u_char *);
 	switch (len - k) {
 	case 1:
-		return (((u_int32_t)cp[0] << 24) |
-		    ((u_int32_t)np[0] << 16) |
-		    ((u_int32_t)np[1] << 8)  |
-		    (u_int32_t)np[2]);
+		return (((u_int32_t)cp[0] << 24) | ((u_int32_t)np[0] << 16) |
+		    ((u_int32_t)np[1] << 8) | (u_int32_t)np[2]);
 
 	case 2:
-		return (((u_int32_t)cp[0] << 24) |
-		    ((u_int32_t)cp[1] << 16) |
-		    ((u_int32_t)np[0] << 8) |
-		    (u_int32_t)np[1]);
+		return (((u_int32_t)cp[0] << 24) | ((u_int32_t)cp[1] << 16) |
+		    ((u_int32_t)np[0] << 8) | (u_int32_t)np[1]);
 
 	default:
-		return (((u_int32_t)cp[0] << 24) |
-		    ((u_int32_t)cp[1] << 16) |
-		    ((u_int32_t)cp[2] << 8) |
-		    (u_int32_t)np[0]);
+		return (((u_int32_t)cp[0] << 24) | ((u_int32_t)cp[1] << 16) |
+		    ((u_int32_t)cp[2] << 8) | (u_int32_t)np[0]);
 	}
-    bad:
+bad:
 	*err = 1;
 	return (0);
 }
@@ -164,7 +157,7 @@ m_xhalf(struct mbuf *m, bpf_u_int32 k, int *err)
 		goto bad;
 	*err = 0;
 	return ((cp[0] << 8) | mtod(m0, u_char *)[0]);
- bad:
+bad:
 	*err = 1;
 	return (0);
 }
@@ -201,13 +194,13 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 			abort();
 #endif
 
-		case BPF_RET|BPF_K:
+		case BPF_RET | BPF_K:
 			return ((u_int)pc->k);
 
-		case BPF_RET|BPF_A:
+		case BPF_RET | BPF_A:
 			return ((u_int)A);
 
-		case BPF_LD|BPF_W|BPF_ABS:
+		case BPF_LD | BPF_W | BPF_ABS:
 			k = pc->k;
 			if (k > buflen || sizeof(int32_t) > buflen - k) {
 #ifdef _KERNEL
@@ -231,7 +224,7 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 				A = ntohl(*(int32_t *)(p + k));
 			continue;
 
-		case BPF_LD|BPF_H|BPF_ABS:
+		case BPF_LD | BPF_H | BPF_ABS:
 			k = pc->k;
 			if (k > buflen || sizeof(int16_t) > buflen - k) {
 #ifdef _KERNEL
@@ -248,7 +241,7 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 			A = EXTRACT_SHORT(&p[k]);
 			continue;
 
-		case BPF_LD|BPF_B|BPF_ABS:
+		case BPF_LD | BPF_B | BPF_ABS:
 			k = pc->k;
 			if (k >= buflen) {
 #ifdef _KERNEL
@@ -267,15 +260,15 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 			A = p[k];
 			continue;
 
-		case BPF_LD|BPF_W|BPF_LEN:
+		case BPF_LD | BPF_W | BPF_LEN:
 			A = wirelen;
 			continue;
 
-		case BPF_LDX|BPF_W|BPF_LEN:
+		case BPF_LDX | BPF_W | BPF_LEN:
 			X = wirelen;
 			continue;
 
-		case BPF_LD|BPF_W|BPF_IND:
+		case BPF_LD | BPF_W | BPF_IND:
 			k = X + pc->k;
 			if (pc->k > buflen || X > buflen - pc->k ||
 			    sizeof(int32_t) > buflen - k) {
@@ -300,7 +293,7 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 				A = ntohl(*(int32_t *)(p + k));
 			continue;
 
-		case BPF_LD|BPF_H|BPF_IND:
+		case BPF_LD | BPF_H | BPF_IND:
 			k = X + pc->k;
 			if (X > buflen || pc->k > buflen - X ||
 			    sizeof(int16_t) > buflen - k) {
@@ -320,7 +313,7 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 			A = EXTRACT_SHORT(&p[k]);
 			continue;
 
-		case BPF_LD|BPF_B|BPF_IND:
+		case BPF_LD | BPF_B | BPF_IND:
 			k = X + pc->k;
 			if (pc->k >= buflen || X >= buflen - pc->k) {
 #ifdef _KERNEL
@@ -339,7 +332,7 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 			A = p[k];
 			continue;
 
-		case BPF_LDX|BPF_MSH|BPF_B:
+		case BPF_LDX | BPF_MSH | BPF_B:
 			k = pc->k;
 			if (k >= buflen) {
 #ifdef _KERNEL
@@ -358,19 +351,19 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 			X = (p[pc->k] & 0xf) << 2;
 			continue;
 
-		case BPF_LD|BPF_IMM:
+		case BPF_LD | BPF_IMM:
 			A = pc->k;
 			continue;
 
-		case BPF_LDX|BPF_IMM:
+		case BPF_LDX | BPF_IMM:
 			X = pc->k;
 			continue;
 
-		case BPF_LD|BPF_MEM:
+		case BPF_LD | BPF_MEM:
 			A = mem[pc->k];
 			continue;
 
-		case BPF_LDX|BPF_MEM:
+		case BPF_LDX | BPF_MEM:
 			X = mem[pc->k];
 			continue;
 
@@ -382,135 +375,135 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 			mem[pc->k] = X;
 			continue;
 
-		case BPF_JMP|BPF_JA:
+		case BPF_JMP | BPF_JA:
 			pc += pc->k;
 			continue;
 
-		case BPF_JMP|BPF_JGT|BPF_K:
+		case BPF_JMP | BPF_JGT | BPF_K:
 			pc += (A > pc->k) ? pc->jt : pc->jf;
 			continue;
 
-		case BPF_JMP|BPF_JGE|BPF_K:
+		case BPF_JMP | BPF_JGE | BPF_K:
 			pc += (A >= pc->k) ? pc->jt : pc->jf;
 			continue;
 
-		case BPF_JMP|BPF_JEQ|BPF_K:
+		case BPF_JMP | BPF_JEQ | BPF_K:
 			pc += (A == pc->k) ? pc->jt : pc->jf;
 			continue;
 
-		case BPF_JMP|BPF_JSET|BPF_K:
+		case BPF_JMP | BPF_JSET | BPF_K:
 			pc += (A & pc->k) ? pc->jt : pc->jf;
 			continue;
 
-		case BPF_JMP|BPF_JGT|BPF_X:
+		case BPF_JMP | BPF_JGT | BPF_X:
 			pc += (A > X) ? pc->jt : pc->jf;
 			continue;
 
-		case BPF_JMP|BPF_JGE|BPF_X:
+		case BPF_JMP | BPF_JGE | BPF_X:
 			pc += (A >= X) ? pc->jt : pc->jf;
 			continue;
 
-		case BPF_JMP|BPF_JEQ|BPF_X:
+		case BPF_JMP | BPF_JEQ | BPF_X:
 			pc += (A == X) ? pc->jt : pc->jf;
 			continue;
 
-		case BPF_JMP|BPF_JSET|BPF_X:
+		case BPF_JMP | BPF_JSET | BPF_X:
 			pc += (A & X) ? pc->jt : pc->jf;
 			continue;
 
-		case BPF_ALU|BPF_ADD|BPF_X:
+		case BPF_ALU | BPF_ADD | BPF_X:
 			A += X;
 			continue;
 
-		case BPF_ALU|BPF_SUB|BPF_X:
+		case BPF_ALU | BPF_SUB | BPF_X:
 			A -= X;
 			continue;
 
-		case BPF_ALU|BPF_MUL|BPF_X:
+		case BPF_ALU | BPF_MUL | BPF_X:
 			A *= X;
 			continue;
 
-		case BPF_ALU|BPF_DIV|BPF_X:
+		case BPF_ALU | BPF_DIV | BPF_X:
 			if (X == 0)
 				return (0);
 			A /= X;
 			continue;
 
-		case BPF_ALU|BPF_MOD|BPF_X:
+		case BPF_ALU | BPF_MOD | BPF_X:
 			if (X == 0)
 				return (0);
 			A %= X;
 			continue;
 
-		case BPF_ALU|BPF_AND|BPF_X:
+		case BPF_ALU | BPF_AND | BPF_X:
 			A &= X;
 			continue;
 
-		case BPF_ALU|BPF_OR|BPF_X:
+		case BPF_ALU | BPF_OR | BPF_X:
 			A |= X;
 			continue;
 
-		case BPF_ALU|BPF_XOR|BPF_X:
+		case BPF_ALU | BPF_XOR | BPF_X:
 			A ^= X;
 			continue;
 
-		case BPF_ALU|BPF_LSH|BPF_X:
+		case BPF_ALU | BPF_LSH | BPF_X:
 			A <<= X;
 			continue;
 
-		case BPF_ALU|BPF_RSH|BPF_X:
+		case BPF_ALU | BPF_RSH | BPF_X:
 			A >>= X;
 			continue;
 
-		case BPF_ALU|BPF_ADD|BPF_K:
+		case BPF_ALU | BPF_ADD | BPF_K:
 			A += pc->k;
 			continue;
 
-		case BPF_ALU|BPF_SUB|BPF_K:
+		case BPF_ALU | BPF_SUB | BPF_K:
 			A -= pc->k;
 			continue;
 
-		case BPF_ALU|BPF_MUL|BPF_K:
+		case BPF_ALU | BPF_MUL | BPF_K:
 			A *= pc->k;
 			continue;
 
-		case BPF_ALU|BPF_DIV|BPF_K:
+		case BPF_ALU | BPF_DIV | BPF_K:
 			A /= pc->k;
 			continue;
 
-		case BPF_ALU|BPF_MOD|BPF_K:
+		case BPF_ALU | BPF_MOD | BPF_K:
 			A %= pc->k;
 			continue;
 
-		case BPF_ALU|BPF_AND|BPF_K:
+		case BPF_ALU | BPF_AND | BPF_K:
 			A &= pc->k;
 			continue;
 
-		case BPF_ALU|BPF_OR|BPF_K:
+		case BPF_ALU | BPF_OR | BPF_K:
 			A |= pc->k;
 			continue;
 
-		case BPF_ALU|BPF_XOR|BPF_K:
+		case BPF_ALU | BPF_XOR | BPF_K:
 			A ^= pc->k;
 			continue;
 
-		case BPF_ALU|BPF_LSH|BPF_K:
+		case BPF_ALU | BPF_LSH | BPF_K:
 			A <<= pc->k;
 			continue;
 
-		case BPF_ALU|BPF_RSH|BPF_K:
+		case BPF_ALU | BPF_RSH | BPF_K:
 			A >>= pc->k;
 			continue;
 
-		case BPF_ALU|BPF_NEG:
+		case BPF_ALU | BPF_NEG:
 			A = -A;
 			continue;
 
-		case BPF_MISC|BPF_TAX:
+		case BPF_MISC | BPF_TAX:
 			X = A;
 			continue;
 
-		case BPF_MISC|BPF_TXA:
+		case BPF_MISC | BPF_TXA:
 			A = X;
 			continue;
 		}
@@ -518,27 +511,27 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 }
 
 #ifdef _KERNEL
-static const u_short	bpf_code_map[] = {
-	0x10ff,	/* 0x00-0x0f: 1111111100001000 */
-	0x3070,	/* 0x10-0x1f: 0000111000001100 */
-	0x3131,	/* 0x20-0x2f: 1000110010001100 */
-	0x3031,	/* 0x30-0x3f: 1000110000001100 */
-	0x3131,	/* 0x40-0x4f: 1000110010001100 */
-	0x1011,	/* 0x50-0x5f: 1000100000001000 */
-	0x1013,	/* 0x60-0x6f: 1100100000001000 */
-	0x1010,	/* 0x70-0x7f: 0000100000001000 */
-	0x0093,	/* 0x80-0x8f: 1100100100000000 */
-	0x1010,	/* 0x90-0x9f: 0000100000001000 */
-	0x1010,	/* 0xa0-0xaf: 0000100000001000 */
-	0x0002,	/* 0xb0-0xbf: 0100000000000000 */
-	0x0000,	/* 0xc0-0xcf: 0000000000000000 */
-	0x0000,	/* 0xd0-0xdf: 0000000000000000 */
-	0x0000,	/* 0xe0-0xef: 0000000000000000 */
+static const u_short bpf_code_map[] = {
+	0x10ff, /* 0x00-0x0f: 1111111100001000 */
+	0x3070, /* 0x10-0x1f: 0000111000001100 */
+	0x3131, /* 0x20-0x2f: 1000110010001100 */
+	0x3031, /* 0x30-0x3f: 1000110000001100 */
+	0x3131, /* 0x40-0x4f: 1000110010001100 */
+	0x1011, /* 0x50-0x5f: 1000100000001000 */
+	0x1013, /* 0x60-0x6f: 1100100000001000 */
+	0x1010, /* 0x70-0x7f: 0000100000001000 */
+	0x0093, /* 0x80-0x8f: 1100100100000000 */
+	0x1010, /* 0x90-0x9f: 0000100000001000 */
+	0x1010, /* 0xa0-0xaf: 0000100000001000 */
+	0x0002, /* 0xb0-0xbf: 0100000000000000 */
+	0x0000, /* 0xc0-0xcf: 0000000000000000 */
+	0x0000, /* 0xd0-0xdf: 0000000000000000 */
+	0x0000, /* 0xe0-0xef: 0000000000000000 */
 	0x0000	/* 0xf0-0xff: 0000000000000000 */
 };
 
-#define	BPF_VALIDATE_CODE(c)	\
-    ((c) <= 0xff && (bpf_code_map[(c) >> 4] & (1 << ((c) & 0xf))) != 0)
+#define BPF_VALIDATE_CODE(c) \
+	((c) <= 0xff && (bpf_code_map[(c) >> 4] & (1 << ((c)&0xf))) != 0)
 
 /*
  * Return true if the 'fcode' is a valid filter program.
@@ -576,7 +569,7 @@ bpf_validate(const struct bpf_insn *f, int len)
 		if (BPF_CLASS(p->code) == BPF_JMP) {
 			u_int offset;
 
-			if (p->code == (BPF_JMP|BPF_JA))
+			if (p->code == (BPF_JMP | BPF_JA))
 				offset = p->k;
 			else
 				offset = p->jt > p->jf ? p->jt : p->jf;
@@ -588,8 +581,8 @@ bpf_validate(const struct bpf_insn *f, int len)
 		 * Check that memory operations use valid addresses.
 		 */
 		if (p->code == BPF_ST || p->code == BPF_STX ||
-		    p->code == (BPF_LD|BPF_MEM) ||
-		    p->code == (BPF_LDX|BPF_MEM)) {
+		    p->code == (BPF_LD | BPF_MEM) ||
+		    p->code == (BPF_LDX | BPF_MEM)) {
 			if (p->k >= BPF_MEMWORDS)
 				return (0);
 			continue;
@@ -597,8 +590,9 @@ bpf_validate(const struct bpf_insn *f, int len)
 		/*
 		 * Check for constant division by 0.
 		 */
-		if ((p->code == (BPF_ALU|BPF_DIV|BPF_K) ||
-		    p->code == (BPF_ALU|BPF_MOD|BPF_K)) && p->k == 0)
+		if ((p->code == (BPF_ALU | BPF_DIV | BPF_K) ||
+			p->code == (BPF_ALU | BPF_MOD | BPF_K)) &&
+		    p->k == 0)
 			return (0);
 	}
 	return (BPF_CLASS(f[len - 1].code) == BPF_RET);

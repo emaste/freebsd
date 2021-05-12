@@ -41,13 +41,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/pmc.h>
+#include <sys/pmckern.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
-#include <sys/pmc.h>
-#include <sys/pmckern.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -61,8 +61,8 @@ int pmu_attched = 0;
 uint32_t ccnt_hi[MAXCPU];
 #endif
 
-#define	PMU_OVSR_C		0x80000000	/* Cycle Counter */
-#define	PMU_IESR_C		0x80000000	/* Cycle Counter */
+#define PMU_OVSR_C 0x80000000 /* Cycle Counter */
+#define PMU_IESR_C 0x80000000 /* Cycle Counter */
 
 static int
 pmu_intr(void *arg)
@@ -117,16 +117,16 @@ pmu_attach(device_t dev)
 		    INTR_MPSAFE | INTR_TYPE_MISC, pmu_intr, NULL, NULL,
 		    &sc->irq[i].ih);
 		if (err != 0) {
-			device_printf(dev,
-			    "Unable to setup interrupt handler.\n");
+			device_printf(
+			    dev, "Unable to setup interrupt handler.\n");
 			goto fail;
 		}
 		if (sc->irq[i].cpuid != -1) {
-			err = bus_bind_intr(dev, sc->irq[i].res,
-			    sc->irq[i].cpuid);
+			err = bus_bind_intr(
+			    dev, sc->irq[i].res, sc->irq[i].cpuid);
 			if (err != 0) {
-				device_printf(sc->dev,
-				    "Unable to bind interrupt.\n");
+				device_printf(
+				    sc->dev, "Unable to bind interrupt.\n");
 				goto fail;
 			}
 		}
@@ -153,9 +153,8 @@ fail:
 		if (sc->irq[i].ih != NULL)
 			bus_teardown_intr(dev, sc->irq[i].res, sc->irq[i].ih);
 		if (sc->irq[i].res != NULL)
-			bus_release_resource(dev, SYS_RES_IRQ, i,
-			    sc->irq[i].res);
+			bus_release_resource(
+			    dev, SYS_RES_IRQ, i, sc->irq[i].res);
 	}
-	return(err);
+	return (err);
 }
-

@@ -31,52 +31,50 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/types.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
-#include <sys/rman.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/pciio.h>
-
-#include <machine/bus.h>
-#include <machine/md_var.h>
-#include <machine/intr_machdep.h>
-#include <machine/cpuregs.h>
+#include <sys/rman.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_param.h>
 
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
+#include <machine/bus.h>
+#include <machine/cpuregs.h>
+#include <machine/intr_machdep.h>
+#include <machine/md_var.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/pci/pci_private.h>
-
+#include <dev/pci/pcib_private.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <mips/nlm/hal/haldefs.h>
-#include <mips/nlm/interrupt.h>
-#include <mips/nlm/hal/iomap.h>
-#include <mips/nlm/hal/mips-extns.h>
-#include <mips/nlm/hal/pic.h>
 #include <mips/nlm/hal/bridge.h>
 #include <mips/nlm/hal/gbu.h>
+#include <mips/nlm/hal/haldefs.h>
+#include <mips/nlm/hal/iomap.h>
+#include <mips/nlm/hal/mips-extns.h>
 #include <mips/nlm/hal/pcibus.h>
+#include <mips/nlm/hal/pic.h>
 #include <mips/nlm/hal/uart.h>
+#include <mips/nlm/interrupt.h>
 #include <mips/nlm/xlp.h>
 
-#include "pcib_if.h"
-#include <dev/pci/pcib_private.h>
 #include "pci_if.h"
+#include "pcib_if.h"
 
 static int
 xlp_pci_attach(device_t dev)
@@ -110,7 +108,8 @@ xlp_pci_attach(device_t dev)
 				continue;
 
 			/* Find if there is a desc for the SoC device */
-			devid = PCIB_READ_CONFIG(pcib, busno, s, f, PCIR_DEVICE, 2);
+			devid = PCIB_READ_CONFIG(
+			    pcib, busno, s, f, PCIR_DEVICE, 2);
 
 			/* Skip devices that don't have a proper PCI header */
 			switch (devid) {
@@ -128,8 +127,8 @@ xlp_pci_attach(device_t dev)
 				    XLP_PCI_DEVSCRATCH_REG0 << 2,
 				    (1 << 8) | irq, 4);
 			}
-			dinfo = pci_read_device(pcib, dev, pcib_get_domain(dev),
-			    busno, s, f);
+			dinfo = pci_read_device(
+			    pcib, dev, pcib_get_domain(dev), busno, s, f);
 			pci_add_child(dev, dinfo);
 		}
 	}
@@ -155,14 +154,13 @@ xlp_pci_probe(device_t dev)
 static devclass_t pci_devclass;
 static device_method_t xlp_pci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		xlp_pci_probe),
-	DEVMETHOD(device_attach,	xlp_pci_attach),
-	DEVMETHOD(bus_rescan,		bus_null_rescan),
-	DEVMETHOD_END
+	DEVMETHOD(device_probe, xlp_pci_probe),
+	DEVMETHOD(device_attach, xlp_pci_attach),
+	DEVMETHOD(bus_rescan, bus_null_rescan), DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(pci, xlp_pci_driver, xlp_pci_methods, sizeof(struct pci_softc),
-    pci_driver);
+DEFINE_CLASS_1(
+    pci, xlp_pci_driver, xlp_pci_methods, sizeof(struct pci_softc), pci_driver);
 DRIVER_MODULE(xlp_pci, pcib, xlp_pci_driver, pci_devclass, 0, 0);
 
 static int
@@ -211,12 +209,12 @@ xlp_pcib_maxslots(device_t dev)
 }
 
 static u_int32_t
-xlp_pcib_read_config(device_t dev, u_int b, u_int s, u_int f,
-    u_int reg, int width)
+xlp_pcib_read_config(
+    device_t dev, u_int b, u_int s, u_int f, u_int reg, int width)
 {
 	uint32_t data = 0;
 	uint64_t cfgaddr;
-	int	regindex = reg/sizeof(uint32_t);
+	int regindex = reg / sizeof(uint32_t);
 
 	cfgaddr = nlm_pcicfg_base(XLP_HDR_OFFSET(0, b, s, f));
 	if ((width == 2) && (reg & 1))
@@ -242,12 +240,12 @@ xlp_pcib_read_config(device_t dev, u_int b, u_int s, u_int f,
 }
 
 static void
-xlp_pcib_write_config(device_t dev, u_int b, u_int s, u_int f,
-    u_int reg, u_int32_t val, int width)
+xlp_pcib_write_config(device_t dev, u_int b, u_int s, u_int f, u_int reg,
+    u_int32_t val, int width)
 {
 	uint64_t cfgaddr;
 	uint32_t data = 0;
-	int	regindex = reg / sizeof(uint32_t);
+	int regindex = reg / sizeof(uint32_t);
 
 	cfgaddr = nlm_pcicfg_base(XLP_HDR_OFFSET(0, b, s, f));
 	if ((width == 2) && (reg & 1))
@@ -379,8 +377,8 @@ xlp_release_msi(device_t pcib, device_t dev, int count, int *irqs)
 }
 
 static int
-xlp_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
-    uint32_t *data)
+xlp_map_msi(
+    device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data)
 {
 	int link;
 
@@ -398,27 +396,27 @@ xlp_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
 static void
 bridge_pcie_ack(int irq, void *arg)
 {
-	uint32_t node,reg;
+	uint32_t node, reg;
 	uint64_t base;
 
 	node = nlm_nodeid();
 	reg = PCIE_MSI_STATUS;
 
 	switch (irq) {
-		case PIC_PCIE_0_IRQ:
-			base = nlm_pcicfg_base(XLP_IO_PCIE0_OFFSET(node));
-			break;
-		case PIC_PCIE_1_IRQ:
-			base = nlm_pcicfg_base(XLP_IO_PCIE1_OFFSET(node));
-			break;
-		case PIC_PCIE_2_IRQ:
-			base = nlm_pcicfg_base(XLP_IO_PCIE2_OFFSET(node));
-			break;
-		case PIC_PCIE_3_IRQ:
-			base = nlm_pcicfg_base(XLP_IO_PCIE3_OFFSET(node));
-			break;
-		default:
-			return;
+	case PIC_PCIE_0_IRQ:
+		base = nlm_pcicfg_base(XLP_IO_PCIE0_OFFSET(node));
+		break;
+	case PIC_PCIE_1_IRQ:
+		base = nlm_pcicfg_base(XLP_IO_PCIE1_OFFSET(node));
+		break;
+	case PIC_PCIE_2_IRQ:
+		base = nlm_pcicfg_base(XLP_IO_PCIE2_OFFSET(node));
+		break;
+	case PIC_PCIE_3_IRQ:
+		base = nlm_pcicfg_base(XLP_IO_PCIE3_OFFSET(node));
+		break;
+	default:
+		return;
 	}
 
 	nlm_write_pci_reg(base, reg, 0xFFFFFFFF);
@@ -427,8 +425,8 @@ bridge_pcie_ack(int irq, void *arg)
 
 static int
 mips_platform_pcib_setup_intr(device_t dev, device_t child,
-    struct resource *irq, int flags, driver_filter_t *filt,
-    driver_intr_t *intr, void *arg, void **cookiep)
+    struct resource *irq, int flags, driver_filter_t *filt, driver_intr_t *intr,
+    void *arg, void **cookiep)
 {
 	int error = 0;
 	int xlpirq;
@@ -462,46 +460,45 @@ mips_platform_pcib_setup_intr(device_t dev, device_t child,
 
 		node = nlm_nodeid();
 		link = xlpirq / 32;
-		base = nlm_pcicfg_base(XLP_IO_PCIE_OFFSET(node,link));
+		base = nlm_pcicfg_base(XLP_IO_PCIE_OFFSET(node, link));
 
 		/* MSI Interrupt Vector enable at bridge's configuration */
 		nlm_write_pci_reg(base, PCIE_MSI_EN, PCIE_MSI_VECTOR_INT_EN);
 
 		val = nlm_read_pci_reg(base, PCIE_INT_EN0);
 		/* MSI Interrupt enable at bridge's configuration */
-		nlm_write_pci_reg(base, PCIE_INT_EN0,
-		    (val | PCIE_MSI_INT_EN));
+		nlm_write_pci_reg(base, PCIE_INT_EN0, (val | PCIE_MSI_INT_EN));
 
 		/* legacy interrupt disable at bridge */
 		val = nlm_read_pci_reg(base, PCIE_BRIDGE_CMD);
-		nlm_write_pci_reg(base, PCIE_BRIDGE_CMD,
-		    (val | PCIM_CMD_INTxDIS));
+		nlm_write_pci_reg(
+		    base, PCIE_BRIDGE_CMD, (val | PCIM_CMD_INTxDIS));
 
 		/* MSI address update at bridge */
-		nlm_write_pci_reg(base, PCIE_BRIDGE_MSI_ADDRL,
-		    MSI_MIPS_ADDR_BASE);
+		nlm_write_pci_reg(
+		    base, PCIE_BRIDGE_MSI_ADDRL, MSI_MIPS_ADDR_BASE);
 		nlm_write_pci_reg(base, PCIE_BRIDGE_MSI_ADDRH, 0);
 
 		val = nlm_read_pci_reg(base, PCIE_BRIDGE_MSI_CAP);
 		/* MSI capability enable at bridge */
 		nlm_write_pci_reg(base, PCIE_BRIDGE_MSI_CAP,
 		    (val | (PCIM_MSICTRL_MSI_ENABLE << 16) |
-		        (PCIM_MSICTRL_MMC_32 << 16)));
+			(PCIM_MSICTRL_MMC_32 << 16)));
 		xlpirq = PIC_PCIE_IRQ(link);
 	}
 
 	/* if it is for real PCIe, we need to ack at bridge too */
 	if (xlpirq >= PIC_PCIE_IRQ(0) && xlpirq <= PIC_PCIE_IRQ(3))
 		xlp_set_bus_ack(xlpirq, bridge_pcie_ack, NULL);
-	cpu_establish_hardintr(device_get_name(child), filt, intr, arg,
-	    xlpirq, flags, cookiep);
+	cpu_establish_hardintr(
+	    device_get_name(child), filt, intr, arg, xlpirq, flags, cookiep);
 
 	return (0);
 }
 
 static int
-mips_platform_pcib_teardown_intr(device_t dev, device_t child,
-    struct resource *irq, void *cookie)
+mips_platform_pcib_teardown_intr(
+    device_t dev, device_t child, struct resource *irq, void *cookie)
 {
 	if (strcmp(device_get_name(child), "pci") == 0) {
 		/* if needed reprogram the pic to clear pcix related entry */
@@ -533,7 +530,7 @@ mips_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 		if (d == 1)
 			return (PIC_PCIE_IRQ(f));
 		else
-			return (255);	/* use intline, don't reroute */
+			return (255); /* use intline, don't reroute */
 	} else {
 		/* Regular PCI devices */
 		return (PIC_PCIE_IRQ(xlp_pcie_link(bus, dev)));
@@ -560,7 +557,7 @@ static device_method_t xlp_pcib_methods[] = {
 	DEVMETHOD(pcib_read_config, xlp_pcib_read_config),
 	DEVMETHOD(pcib_write_config, xlp_pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt, mips_pcib_route_interrupt),
-	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
+	DEVMETHOD(pcib_request_feature, pcib_request_feature_allow),
 
 	DEVMETHOD(pcib_alloc_msi, xlp_alloc_msi),
 	DEVMETHOD(pcib_release_msi, xlp_release_msi),
@@ -570,9 +567,7 @@ static device_method_t xlp_pcib_methods[] = {
 };
 
 static driver_t xlp_pcib_driver = {
-	"pcib",
-	xlp_pcib_methods,
-	1, /* no softc */
+	"pcib", xlp_pcib_methods, 1, /* no softc */
 };
 
 static devclass_t pcib_devclass;

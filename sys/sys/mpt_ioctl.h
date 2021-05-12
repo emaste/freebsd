@@ -35,11 +35,11 @@
  */
 
 #ifndef _MPT_IOCTL_H_
-#define	_MPT_IOCTL_H_
+#define _MPT_IOCTL_H_
 
-#include <dev/mpt/mpilib/mpi_type.h>
 #include <dev/mpt/mpilib/mpi.h>
 #include <dev/mpt/mpilib/mpi_cnfg.h>
+#include <dev/mpt/mpilib/mpi_type.h>
 
 /*
  * For the read header requests, the header should include the page
@@ -53,19 +53,19 @@
  *
  * All requests specify the page address in 'page_address'.
  */
-struct mpt_cfg_page_req {	
+struct mpt_cfg_page_req {
 	CONFIG_PAGE_HEADER header;
 	uint32_t page_address;
-	void	*buf;
-	int	len;
+	void *buf;
+	int len;
 	uint16_t ioc_status;
 };
 
 struct mpt_ext_cfg_page_req {
 	CONFIG_EXTENDED_PAGE_HEADER header;
 	uint32_t page_address;
-	void	*buf;
-	int	len;
+	void *buf;
+	int len;
 	uint16_t ioc_status;
 };
 
@@ -84,19 +84,19 @@ struct mpt_raid_action {
 	uint8_t write;
 };
 
-#define	MPTIO_READ_CFG_HEADER	_IOWR('M', 100, struct mpt_cfg_page_req)
-#define	MPTIO_READ_CFG_PAGE	_IOWR('M', 101, struct mpt_cfg_page_req)
-#define	MPTIO_READ_EXT_CFG_HEADER _IOWR('M', 102, struct mpt_ext_cfg_page_req)
-#define	MPTIO_READ_EXT_CFG_PAGE	_IOWR('M', 103, struct mpt_ext_cfg_page_req)
-#define	MPTIO_WRITE_CFG_PAGE	_IOWR('M', 104, struct mpt_cfg_page_req)
-#define	MPTIO_RAID_ACTION	_IOWR('M', 105, struct mpt_raid_action)
+#define MPTIO_READ_CFG_HEADER _IOWR('M', 100, struct mpt_cfg_page_req)
+#define MPTIO_READ_CFG_PAGE _IOWR('M', 101, struct mpt_cfg_page_req)
+#define MPTIO_READ_EXT_CFG_HEADER _IOWR('M', 102, struct mpt_ext_cfg_page_req)
+#define MPTIO_READ_EXT_CFG_PAGE _IOWR('M', 103, struct mpt_ext_cfg_page_req)
+#define MPTIO_WRITE_CFG_PAGE _IOWR('M', 104, struct mpt_cfg_page_req)
+#define MPTIO_RAID_ACTION _IOWR('M', 105, struct mpt_raid_action)
 
 #if defined(__amd64__)
 struct mpt_cfg_page_req32 {
 	CONFIG_PAGE_HEADER header;
 	uint32_t page_address;
 	uint32_t buf;
-	int	len;	
+	int len;
 	uint16_t ioc_status;
 };
 
@@ -104,7 +104,7 @@ struct mpt_ext_cfg_page_req32 {
 	CONFIG_EXTENDED_PAGE_HEADER header;
 	uint32_t page_address;
 	uint32_t buf;
-	int	len;
+	int len;
 	uint16_t ioc_status;
 };
 
@@ -123,12 +123,13 @@ struct mpt_raid_action32 {
 	uint8_t write;
 };
 
-#define	MPTIO_READ_CFG_HEADER32	_IOWR('M', 100, struct mpt_cfg_page_req32)
-#define	MPTIO_READ_CFG_PAGE32	_IOWR('M', 101, struct mpt_cfg_page_req32)
-#define	MPTIO_READ_EXT_CFG_HEADER32 _IOWR('M', 102, struct mpt_ext_cfg_page_req32)
-#define	MPTIO_READ_EXT_CFG_PAGE32 _IOWR('M', 103, struct mpt_ext_cfg_page_req32)
-#define	MPTIO_WRITE_CFG_PAGE32	_IOWR('M', 104, struct mpt_cfg_page_req32)
-#define	MPTIO_RAID_ACTION32	_IOWR('M', 105, struct mpt_raid_action32)
+#define MPTIO_READ_CFG_HEADER32 _IOWR('M', 100, struct mpt_cfg_page_req32)
+#define MPTIO_READ_CFG_PAGE32 _IOWR('M', 101, struct mpt_cfg_page_req32)
+#define MPTIO_READ_EXT_CFG_HEADER32 \
+	_IOWR('M', 102, struct mpt_ext_cfg_page_req32)
+#define MPTIO_READ_EXT_CFG_PAGE32 _IOWR('M', 103, struct mpt_ext_cfg_page_req32)
+#define MPTIO_WRITE_CFG_PAGE32 _IOWR('M', 104, struct mpt_cfg_page_req32)
+#define MPTIO_RAID_ACTION32 _IOWR('M', 105, struct mpt_raid_action32)
 #endif
 
 #endif /* !_MPT_IOCTL_H_ */

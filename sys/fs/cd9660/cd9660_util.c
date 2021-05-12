@@ -42,12 +42,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/iconv.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
-#include <sys/iconv.h>
 
-#include <fs/cd9660/iso.h>
 #include <fs/cd9660/cd9660_mount.h>
+#include <fs/cd9660/iso.h>
 
 extern struct iconv_functions *cd9660_iconv;
 
@@ -56,51 +56,51 @@ extern struct iconv_functions *cd9660_iconv;
  * Obey joliet_level
  * Return number of bytes consumed
  */
-int
-isochar(isofn, isoend, joliet_level, c, clen, flags, handle)
-      u_char *isofn;
-      u_char *isoend;
-      int joliet_level;
-      u_short *c;
-      int *clen;
-      int flags;
-      void *handle;
+int isochar(isofn, isoend, joliet_level, c, clen, flags, handle) u_char *isofn;
+u_char *isoend;
+int joliet_level;
+u_short *c;
+int *clen;
+int flags;
+void *handle;
 {
-      size_t i, j, len;
-      char inbuf[3], outbuf[3], *inp, *outp;
+	size_t i, j, len;
+	char inbuf[3], outbuf[3], *inp, *outp;
 
-      *c = *isofn++;
-      if (clen) *clen = 1;
-      if (joliet_level == 0 || isofn == isoend)
-              /* (00) and (01) are one byte in Joliet, too */
-              return 1;
+	*c = *isofn++;
+	if (clen)
+		*clen = 1;
+	if (joliet_level == 0 || isofn == isoend)
+		/* (00) and (01) are one byte in Joliet, too */
+		return 1;
 
-      if (flags & ISOFSMNT_KICONV && cd9660_iconv) {
-              i = j = len = 2;
-              inbuf[0]=(char)*(isofn - 1);
-              inbuf[1]=(char)*isofn;
-              inbuf[2]='\0';
-              inp = inbuf;
-              outp = outbuf;
-              cd9660_iconv->convchr(handle, __DECONST(const char **, &inp), &i,
-                  &outp, &j);
-              len -= j;
-              if (clen) *clen = len;
-              *c = '\0';
-              while(len--)
-                      *c |= (*(outp - len - 1) & 0xff) << (len << 3);
-      } else {
-              switch (*c) {
-              default:
-                      *c = '?';
-                      break;
-              case '\0':
-                      *c = *isofn;
-                      break;
-              }
-      }
+	if (flags & ISOFSMNT_KICONV && cd9660_iconv) {
+		i = j = len = 2;
+		inbuf[0] = (char)*(isofn - 1);
+		inbuf[1] = (char)*isofn;
+		inbuf[2] = '\0';
+		inp = inbuf;
+		outp = outbuf;
+		cd9660_iconv->convchr(
+		    handle, __DECONST(const char **, &inp), &i, &outp, &j);
+		len -= j;
+		if (clen)
+			*clen = len;
+		*c = '\0';
+		while (len--)
+			*c |= (*(outp - len - 1) & 0xff) << (len << 3);
+	} else {
+		switch (*c) {
+		default:
+			*c = '?';
+			break;
+		case '\0':
+			*c = *isofn;
+			break;
+		}
+	}
 
-      return 2;
+	return 2;
 }
 
 /*
@@ -108,27 +108,27 @@ isochar(isofn, isoend, joliet_level, c, clen, flags, handle)
  * returns (fn - isofn)
  * Note: Version number plus ';' may be omitted.
  */
-int
-isofncmp(fn, fnlen, isofn, isolen, joliet_level, flags, handle, lhandle)
-	u_char *fn;
-	int fnlen;
-	u_char *isofn;
-	int isolen;
-	int joliet_level;
-	int flags;
-	void *handle;
-	void *lhandle;
+int isofncmp(
+    fn, fnlen, isofn, isolen, joliet_level, flags, handle, lhandle) u_char *fn;
+int fnlen;
+u_char *isofn;
+int isolen;
+int joliet_level;
+int flags;
+void *handle;
+void *lhandle;
 {
 	int i, j;
 	u_short c, d;
 	u_char *fnend = fn + fnlen, *isoend = isofn + isolen;
 
-	for (; fn < fnend; ) {
+	for (; fn < fnend;) {
 		d = sgetrune(fn, fnend - fn, __DECONST(const char **, &fn),
 		    flags, lhandle);
 		if (isofn == isoend)
 			return d;
-		isofn += isochar(isofn, isoend, joliet_level, &c, NULL, flags, handle);
+		isofn += isochar(
+		    isofn, isoend, joliet_level, &c, NULL, flags, handle);
 		if (c == ';') {
 			if (d != ';')
 				return d;
@@ -138,9 +138,8 @@ isofncmp(fn, fnlen, isofn, isolen, joliet_level, flags, handle, lhandle)
 				}
 			}
 			for (j = 0; isofn != isoend; j = j * 10 + c - '0')
-				isofn += isochar(isofn, isoend,
-						 joliet_level, &c,
-						 NULL, flags, handle);
+				isofn += isochar(isofn, isoend, joliet_level,
+				    &c, NULL, flags, handle);
 			return i - j;
 		}
 		if (c != d) {
@@ -156,14 +155,15 @@ isofncmp(fn, fnlen, isofn, isolen, joliet_level, flags, handle, lhandle)
 		}
 	}
 	if (isofn != isoend) {
-		isofn += isochar(isofn, isoend, joliet_level, &c, NULL, flags, handle);
+		isofn += isochar(
+		    isofn, isoend, joliet_level, &c, NULL, flags, handle);
 		switch (c) {
 		default:
 			return -c;
 		case '.':
 			if (isofn != isoend) {
-				isochar(isofn, isoend, joliet_level, &c,
-					NULL, flags, handle);
+				isochar(isofn, isoend, joliet_level, &c, NULL,
+				    flags, handle);
 				if (c == ';')
 					return 0;
 			}
@@ -178,17 +178,16 @@ isofncmp(fn, fnlen, isofn, isolen, joliet_level, flags, handle, lhandle)
 /*
  * translate a filename of length > 0
  */
-void
-isofntrans(infn, infnlen, outfn, outfnlen, original, assoc, joliet_level, flags, handle)
-	u_char *infn;
-	int infnlen;
-	u_char *outfn;
-	u_short *outfnlen;
-	int original;
-	int assoc;
-	int joliet_level;
-	int flags;
-	void *handle;
+void isofntrans(infn, infnlen, outfn, outfnlen, original, assoc, joliet_level,
+    flags, handle) u_char *infn;
+int infnlen;
+u_char *outfn;
+u_short *outfnlen;
+int original;
+int assoc;
+int joliet_level;
+int flags;
+void *handle;
 {
 	u_short c, d = '\0';
 	u_char *outp = outfn, *infnend = infn + infnlen;
@@ -197,8 +196,9 @@ isofntrans(infn, infnlen, outfn, outfnlen, original, assoc, joliet_level, flags,
 	if (assoc) {
 		*outp++ = ASSOCCHAR;
 	}
-	for (; infn != infnend; ) {
-		infn += isochar(infn, infnend, joliet_level, &c, &clen, flags, handle);
+	for (; infn != infnend;) {
+		infn += isochar(
+		    infn, infnend, joliet_level, &c, &clen, flags, handle);
 
 		if (!original && !joliet_level && c >= 'A' && c <= 'Z')
 			c += ('a' - 'A');
@@ -207,7 +207,7 @@ isofntrans(infn, infnlen, outfn, outfnlen, original, assoc, joliet_level, flags,
 			break;
 		}
 		d = c;
-		while(clen--)
+		while (clen--)
 			*outp++ = c >> (clen << 3);
 	}
 	*outfnlen = outp - outfn;
@@ -216,13 +216,11 @@ isofntrans(infn, infnlen, outfn, outfnlen, original, assoc, joliet_level, flags,
 /*
  * same as sgetrune(3)
  */
-u_short
-sgetrune(string, n, result, flags, handle)
-	const char *string;
-	size_t n;
-	char const **result;
-	int flags;
-	void *handle;
+u_short sgetrune(string, n, result, flags, handle) const char *string;
+size_t n;
+char const **result;
+int flags;
+void *handle;
 {
 	size_t i, j, len;
 	char outbuf[3], *outp;
@@ -233,15 +231,17 @@ sgetrune(string, n, result, flags, handle)
 	outp = outbuf;
 
 	if (flags & ISOFSMNT_KICONV && cd9660_iconv) {
-		cd9660_iconv->convchr(handle, (const char **)&string,
-			&i, &outp, &j);
+		cd9660_iconv->convchr(
+		    handle, (const char **)&string, &i, &outp, &j);
 		len -= i;
 	} else {
 		len = 1;
 		string++;
 	}
 
-	if (result) *result = string;
-	while(len--) c |= (*(string - len - 1) & 0xff) << (len << 3);
+	if (result)
+		*result = string;
+	while (len--)
+		c |= (*(string - len - 1) & 0xff) << (len << 3);
 	return (c);
 }

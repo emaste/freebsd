@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2015 Luiz Otavio O Souza <loos@freebsd.org> All rights reserved.
- * Copyright (c) 2014-2015 M. Warner Losh <imp@FreeBSD.org>
+ * Copyright (c) 2015 Luiz Otavio O Souza <loos@freebsd.org> All rights
+ * reserved. Copyright (c) 2014-2015 M. Warner Losh <imp@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,17 +37,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <dev/ofw/ofw_bus.h> 
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/ahci/ahci.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/regulator/regulator.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 /*
  * Allwinner a1x/a2x/a8x SATA attachment.  This is just the AHCI register
@@ -61,73 +61,72 @@ __FBSDID("$FreeBSD$");
 
 /* BITx -- Unknown bit that needs to be set/cleared at position x */
 /* UFx -- Uknown multi-bit field frobbed during init */
-#define	AHCI_BISTAFR	0x00A0
-#define	AHCI_BISTCR	0x00A4
-#define	AHCI_BISTFCTR	0x00A8
-#define	AHCI_BISTSR	0x00AC
-#define	AHCI_BISTDECR	0x00B0
-#define	AHCI_DIAGNR	0x00B4
-#define	AHCI_DIAGNR1	0x00B8
-#define	AHCI_OOBR	0x00BC
-#define	AHCI_PHYCS0R	0x00C0
+#define AHCI_BISTAFR 0x00A0
+#define AHCI_BISTCR 0x00A4
+#define AHCI_BISTFCTR 0x00A8
+#define AHCI_BISTSR 0x00AC
+#define AHCI_BISTDECR 0x00B0
+#define AHCI_DIAGNR 0x00B4
+#define AHCI_DIAGNR1 0x00B8
+#define AHCI_OOBR 0x00BC
+#define AHCI_PHYCS0R 0x00C0
 /* Bits 0..17 are a mystery */
-#define	 PHYCS0R_BIT18			(1 << 18)
-#define	 PHYCS0R_POWER_ENABLE		(1 << 19)
-#define	 PHYCS0R_UF1_MASK		(7 << 20)	/* Unknown Field 1 */
-#define	  PHYCS0R_UF1_INIT		(3 << 20)
-#define	 PHYCS0R_BIT23			(1 << 23)
-#define	 PHYCS0R_UF2_MASK		(7 << 24)	/* Uknown Field 2 */
-#define	  PHYCS0R_UF2_INIT		(5 << 24)
+#define PHYCS0R_BIT18 (1 << 18)
+#define PHYCS0R_POWER_ENABLE (1 << 19)
+#define PHYCS0R_UF1_MASK (7 << 20) /* Unknown Field 1 */
+#define PHYCS0R_UF1_INIT (3 << 20)
+#define PHYCS0R_BIT23 (1 << 23)
+#define PHYCS0R_UF2_MASK (7 << 24) /* Uknown Field 2 */
+#define PHYCS0R_UF2_INIT (5 << 24)
 /* Bit 27 mystery */
-#define	 PHYCS0R_POWER_STATUS_MASK	(7 << 28)
-#define	  PHYCS0R_PS_GOOD		(2 << 28)
+#define PHYCS0R_POWER_STATUS_MASK (7 << 28)
+#define PHYCS0R_PS_GOOD (2 << 28)
 /* Bit 31 mystery */
-#define	AHCI_PHYCS1R	0x00C4
+#define AHCI_PHYCS1R 0x00C4
 /* Bits 0..5 are a mystery */
-#define	 PHYCS1R_UF1_MASK		(3 << 6)
-#define	  PHYCS1R_UF1_INIT		(2 << 6)
-#define	 PHYCS1R_UF2_MASK		(0x1f << 8)
-#define	  PHYCS1R_UF2_INIT		(6 << 8)
+#define PHYCS1R_UF1_MASK (3 << 6)
+#define PHYCS1R_UF1_INIT (2 << 6)
+#define PHYCS1R_UF2_MASK (0x1f << 8)
+#define PHYCS1R_UF2_INIT (6 << 8)
 /* Bits 13..14 are a mystery */
-#define	 PHYCS1R_BIT15			(1 << 15)
-#define	 PHYCS1R_UF3_MASK		(3 << 16)
-#define	  PHYCS1R_UF3_INIT		(2 << 16)
+#define PHYCS1R_BIT15 (1 << 15)
+#define PHYCS1R_UF3_MASK (3 << 16)
+#define PHYCS1R_UF3_INIT (2 << 16)
 /* Bit 18 mystery */
-#define	 PHYCS1R_HIGHZ			(1 << 19)
+#define PHYCS1R_HIGHZ (1 << 19)
 /* Bits 20..27 mystery */
-#define	 PHYCS1R_BIT28			(1 << 28)
+#define PHYCS1R_BIT28 (1 << 28)
 /* Bits 29..31 mystery */
-#define	AHCI_PHYCS2R	0x00C8
+#define AHCI_PHYCS2R 0x00C8
 /* bits 0..4 mystery */
-#define	 PHYCS2R_UF1_MASK		(0x1f << 5)
-#define	  PHYCS2R_UF1_INIT		(0x19 << 5)
+#define PHYCS2R_UF1_MASK (0x1f << 5)
+#define PHYCS2R_UF1_INIT (0x19 << 5)
 /* Bits 10..23 mystery */
-#define	 PHYCS2R_CALIBRATE		(1 << 24)
+#define PHYCS2R_CALIBRATE (1 << 24)
 /* Bits 25..31 mystery */
-#define	AHCI_TIMER1MS	0x00E0
-#define	AHCI_GPARAM1R	0x00E8
-#define	AHCI_GPARAM2R	0x00EC
-#define	AHCI_PPARAMR	0x00F0
-#define	AHCI_TESTR	0x00F4
-#define	AHCI_VERSIONR	0x00F8
-#define	AHCI_IDR	0x00FC
-#define	AHCI_RWCR	0x00FC
+#define AHCI_TIMER1MS 0x00E0
+#define AHCI_GPARAM1R 0x00E8
+#define AHCI_GPARAM2R 0x00EC
+#define AHCI_PPARAMR 0x00F0
+#define AHCI_TESTR 0x00F4
+#define AHCI_VERSIONR 0x00F8
+#define AHCI_IDR 0x00FC
+#define AHCI_RWCR 0x00FC
 
-#define	AHCI_P0DMACR	0x0070
-#define	AHCI_P0PHYCR	0x0078
-#define	AHCI_P0PHYSR	0x007C
+#define AHCI_P0DMACR 0x0070
+#define AHCI_P0PHYCR 0x0078
+#define AHCI_P0PHYSR 0x007C
 
-#define	PLL_FREQ	100000000
+#define PLL_FREQ 100000000
 
 struct ahci_a10_softc {
-	struct ahci_controller	ahci_ctlr;
-	regulator_t		ahci_reg;
-	clk_t			clk_pll;
-	clk_t			clk_gate;
+	struct ahci_controller ahci_ctlr;
+	regulator_t ahci_reg;
+	clk_t clk_pll;
+	clk_t clk_gate;
 };
 
-static void inline
-ahci_set(struct resource *m, bus_size_t off, uint32_t set)
+static void inline ahci_set(struct resource *m, bus_size_t off, uint32_t set)
 {
 	uint32_t val = ATA_INL(m, off);
 
@@ -135,8 +134,7 @@ ahci_set(struct resource *m, bus_size_t off, uint32_t set)
 	ATA_OUTL(m, off, val);
 }
 
-static void inline
-ahci_clr(struct resource *m, bus_size_t off, uint32_t clr)
+static void inline ahci_clr(struct resource *m, bus_size_t off, uint32_t clr)
 {
 	uint32_t val = ATA_INL(m, off);
 
@@ -144,8 +142,8 @@ ahci_clr(struct resource *m, bus_size_t off, uint32_t clr)
 	ATA_OUTL(m, off, val);
 }
 
-static void inline
-ahci_mask_set(struct resource *m, bus_size_t off, uint32_t mask, uint32_t set)
+static void inline ahci_mask_set(
+    struct resource *m, bus_size_t off, uint32_t mask, uint32_t set)
 {
 	uint32_t val = ATA_INL(m, off);
 
@@ -157,7 +155,7 @@ ahci_mask_set(struct resource *m, bus_size_t off, uint32_t mask, uint32_t set)
 /*
  * Should this be phy_reset or phy_init
  */
-#define	PHY_RESET_TIMEOUT	1000
+#define PHY_RESET_TIMEOUT 1000
 static void
 ahci_a10_phy_reset(device_t dev)
 {
@@ -188,8 +186,7 @@ ahci_a10_phy_reset(device_t dev)
 	/*
 	 * Frob PHYCS0R...
 	 */
-	ahci_mask_set(ctlr->r_mem, AHCI_PHYCS0R,
-	    ~PHYCS0R_UF2_MASK,
+	ahci_mask_set(ctlr->r_mem, AHCI_PHYCS0R, ~PHYCS0R_UF2_MASK,
 	    PHYCS0R_UF2_INIT | PHYCS0R_BIT23 | PHYCS0R_BIT18);
 
 	/*
@@ -214,16 +211,16 @@ ahci_a10_phy_reset(device_t dev)
 	/*
 	 * Frob PHYCS0R again...
 	 */
-	ahci_mask_set(ctlr->r_mem, AHCI_PHYCS0R,
-	    ~PHYCS0R_UF1_MASK, PHYCS0R_UF1_INIT);
+	ahci_mask_set(
+	    ctlr->r_mem, AHCI_PHYCS0R, ~PHYCS0R_UF1_MASK, PHYCS0R_UF1_INIT);
 
 	/*
 	 * Frob PHYCS2R, because 25 means something?
 	 */
-	ahci_mask_set(ctlr->r_mem, AHCI_PHYCS2R, ~PHYCS2R_UF1_MASK,
-	    PHYCS2R_UF1_INIT);
+	ahci_mask_set(
+	    ctlr->r_mem, AHCI_PHYCS2R, ~PHYCS2R_UF1_MASK, PHYCS2R_UF1_INIT);
 
-	DELAY(100);		/* WAG */
+	DELAY(100); /* WAG */
 
 	/*
 	 * Turn on the power to the PHY and wait for it to report back
@@ -315,13 +312,13 @@ ahci_a10_attach(device_t dev)
 	ctlr->subvendorid = 0;
 	ctlr->subdeviceid = 0;
 	ctlr->r_rid = 0;
-	if (!(ctlr->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &ctlr->r_rid, RF_ACTIVE)))
+	if (!(ctlr->r_mem = bus_alloc_resource_any(
+		  dev, SYS_RES_MEMORY, &ctlr->r_rid, RF_ACTIVE)))
 		return (ENXIO);
 
 	/* Enable the (optional) regulator */
-	if (regulator_get_by_ofw_property(dev, 0, "target-supply",
-	    &sc->ahci_reg)  == 0) {
+	if (regulator_get_by_ofw_property(
+		dev, 0, "target-supply", &sc->ahci_reg) == 0) {
 		error = regulator_enable(sc->ahci_reg);
 		if (error != 0) {
 			device_printf(dev, "Could not enable regulator\n");
@@ -404,23 +401,19 @@ ahci_a10_detach(device_t dev)
 	return (ahci_detach(dev));
 }
 
-static device_method_t ahci_ata_methods[] = {
-	DEVMETHOD(device_probe,     ahci_a10_probe),
-	DEVMETHOD(device_attach,    ahci_a10_attach),
-	DEVMETHOD(device_detach,    ahci_a10_detach),
-	DEVMETHOD(bus_print_child,  ahci_print_child),
-	DEVMETHOD(bus_alloc_resource,       ahci_alloc_resource),
-	DEVMETHOD(bus_release_resource,     ahci_release_resource),
-	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
-	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
+static device_method_t ahci_ata_methods[] = { DEVMETHOD(
+						  device_probe, ahci_a10_probe),
+	DEVMETHOD(device_attach, ahci_a10_attach),
+	DEVMETHOD(device_detach, ahci_a10_detach),
+	DEVMETHOD(bus_print_child, ahci_print_child),
+	DEVMETHOD(bus_alloc_resource, ahci_alloc_resource),
+	DEVMETHOD(bus_release_resource, ahci_release_resource),
+	DEVMETHOD(bus_setup_intr, ahci_setup_intr),
+	DEVMETHOD(bus_teardown_intr, ahci_teardown_intr),
 	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
-static driver_t ahci_ata_driver = {
-        "ahci",
-        ahci_ata_methods,
-        sizeof(struct ahci_a10_softc)
-};
+static driver_t ahci_ata_driver = { "ahci", ahci_ata_methods,
+	sizeof(struct ahci_a10_softc) };
 
 DRIVER_MODULE(a10_ahci, simplebus, ahci_ata_driver, ahci_devclass, 0, 0);

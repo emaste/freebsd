@@ -34,82 +34,78 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
-
+#include <sys/module.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
-
 #include <machine/machdep.h> /* For arm_set_delay */
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
-#include <machine/bus.h>
+#define SP804_TIMER1_LOAD 0x00
+#define SP804_TIMER1_VALUE 0x04
+#define SP804_TIMER1_CONTROL 0x08
+#define TIMER_CONTROL_EN (1 << 7)
+#define TIMER_CONTROL_FREERUN (0 << 6)
+#define TIMER_CONTROL_PERIODIC (1 << 6)
+#define TIMER_CONTROL_INTREN (1 << 5)
+#define TIMER_CONTROL_DIV1 (0 << 2)
+#define TIMER_CONTROL_DIV16 (1 << 2)
+#define TIMER_CONTROL_DIV256 (2 << 2)
+#define TIMER_CONTROL_32BIT (1 << 1)
+#define TIMER_CONTROL_ONESHOT (1 << 0)
+#define SP804_TIMER1_INTCLR 0x0C
+#define SP804_TIMER1_RIS 0x10
+#define SP804_TIMER1_MIS 0x14
+#define SP804_TIMER1_BGLOAD 0x18
+#define SP804_TIMER2_LOAD 0x20
+#define SP804_TIMER2_VALUE 0x24
+#define SP804_TIMER2_CONTROL 0x28
+#define SP804_TIMER2_INTCLR 0x2C
+#define SP804_TIMER2_RIS 0x30
+#define SP804_TIMER2_MIS 0x34
+#define SP804_TIMER2_BGLOAD 0x38
 
-#define	SP804_TIMER1_LOAD	0x00
-#define	SP804_TIMER1_VALUE	0x04
-#define	SP804_TIMER1_CONTROL	0x08
-#define		TIMER_CONTROL_EN	(1 << 7)
-#define		TIMER_CONTROL_FREERUN	(0 << 6)
-#define		TIMER_CONTROL_PERIODIC	(1 << 6)
-#define		TIMER_CONTROL_INTREN	(1 << 5)
-#define		TIMER_CONTROL_DIV1	(0 << 2)
-#define		TIMER_CONTROL_DIV16	(1 << 2)
-#define		TIMER_CONTROL_DIV256	(2 << 2)
-#define		TIMER_CONTROL_32BIT	(1 << 1)
-#define		TIMER_CONTROL_ONESHOT	(1 << 0)
-#define	SP804_TIMER1_INTCLR	0x0C
-#define	SP804_TIMER1_RIS	0x10
-#define	SP804_TIMER1_MIS	0x14
-#define	SP804_TIMER1_BGLOAD	0x18
-#define	SP804_TIMER2_LOAD	0x20
-#define	SP804_TIMER2_VALUE	0x24
-#define	SP804_TIMER2_CONTROL	0x28
-#define	SP804_TIMER2_INTCLR	0x2C
-#define	SP804_TIMER2_RIS	0x30
-#define	SP804_TIMER2_MIS	0x34
-#define	SP804_TIMER2_BGLOAD	0x38
+#define SP804_PERIPH_ID0 0xFE0
+#define SP804_PERIPH_ID1 0xFE4
+#define SP804_PERIPH_ID2 0xFE8
+#define SP804_PERIPH_ID3 0xFEC
+#define SP804_PRIMECELL_ID0 0xFF0
+#define SP804_PRIMECELL_ID1 0xFF4
+#define SP804_PRIMECELL_ID2 0xFF8
+#define SP804_PRIMECELL_ID3 0xFFC
 
-#define	SP804_PERIPH_ID0	0xFE0
-#define	SP804_PERIPH_ID1	0xFE4
-#define	SP804_PERIPH_ID2	0xFE8
-#define	SP804_PERIPH_ID3	0xFEC
-#define	SP804_PRIMECELL_ID0	0xFF0
-#define	SP804_PRIMECELL_ID1	0xFF4
-#define	SP804_PRIMECELL_ID2	0xFF8
-#define	SP804_PRIMECELL_ID3	0xFFC
-
-#define	DEFAULT_FREQUENCY	1000000
+#define DEFAULT_FREQUENCY 1000000
 /*
  * QEMU seems to have problem with full frequency
  */
-#define	DEFAULT_DIVISOR		16
-#define	DEFAULT_CONTROL_DIV	TIMER_CONTROL_DIV16
+#define DEFAULT_DIVISOR 16
+#define DEFAULT_CONTROL_DIV TIMER_CONTROL_DIV16
 
 struct sp804_timer_softc {
-	struct resource*	mem_res;
-	struct resource*	irq_res;
-	void*			intr_hl;
-	uint32_t		sysclk_freq;
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	struct timecounter	tc;
-	bool			et_enabled;
-	struct eventtimer	et;
-	int			timer_initialized;
+	struct resource *mem_res;
+	struct resource *irq_res;
+	void *intr_hl;
+	uint32_t sysclk_freq;
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	struct timecounter tc;
+	bool et_enabled;
+	struct eventtimer et;
+	int timer_initialized;
 };
 
 /* Read/Write macros for Timer used as timecounter */
-#define sp804_timer_tc_read_4(reg)		\
-	bus_space_read_4(sc->bst, sc->bsh, reg)
+#define sp804_timer_tc_read_4(reg) bus_space_read_4(sc->bst, sc->bsh, reg)
 
-#define sp804_timer_tc_write_4(reg, val)	\
+#define sp804_timer_tc_write_4(reg, val) \
 	bus_space_write_4(sc->bst, sc->bsh, reg, val)
 
 static unsigned sp804_timer_tc_get_timecount(struct timecounter *);
@@ -140,7 +136,7 @@ sp804_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		sp804_timer_tc_write_4(SP804_TIMER2_CONTROL, reg);
 
 		return (0);
-	} 
+	}
 
 	if (period != 0) {
 		panic("period");
@@ -172,7 +168,7 @@ sp804_timer_intr(void *arg)
 
 	x = sp804_timer_tc_read_4(SP804_TIMER1_VALUE);
 
-	prev =x ;
+	prev = x;
 	sp804_timer_tc_write_4(SP804_TIMER2_INTCLR, 1);
 	if (sc->et_enabled) {
 		if (sc->et.et_active) {
@@ -208,7 +204,8 @@ sp804_timer_attach(device_t dev)
 	phandle_t node;
 	pcell_t clock;
 
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "could not allocate memory resource\n");
 		return (ENXIO);
@@ -218,7 +215,7 @@ sp804_timer_attach(device_t dev)
 	sc->bsh = rman_get_bushandle(sc->mem_res);
 
 	/* Request the IRQ resources */
-	sc->irq_res =  bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "Error: could not allocate irq resources\n");
 		return (ENXIO);
@@ -227,16 +224,15 @@ sp804_timer_attach(device_t dev)
 	sc->sysclk_freq = DEFAULT_FREQUENCY;
 	/* Get the base clock frequency */
 	node = ofw_bus_get_node(dev);
-	if ((OF_getencprop(node, "clock-frequency", &clock, sizeof(clock))) > 0) {
+	if ((OF_getencprop(node, "clock-frequency", &clock, sizeof(clock))) >
+	    0) {
 		sc->sysclk_freq = clock;
 	}
 
 	/* Setup and enable the timer */
-	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CLK,
-			sp804_timer_intr, NULL, sc,
-			&sc->intr_hl) != 0) {
-		bus_release_resource(dev, SYS_RES_IRQ, rid,
-			sc->irq_res);
+	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CLK, sp804_timer_intr,
+		NULL, sc, &sc->intr_hl) != 0) {
+		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->irq_res);
 		device_printf(dev, "Unable to setup the clock irq handler.\n");
 		return (ENXIO);
 	}
@@ -263,7 +259,7 @@ sp804_timer_attach(device_t dev)
 	sp804_timer_tc_write_4(SP804_TIMER1_CONTROL, reg);
 	tc_init(&sc->tc);
 
-	/* 
+	/*
 	 * Timer 2, event timer
 	 */
 	sc->et_enabled = 0;
@@ -280,16 +276,16 @@ sp804_timer_attach(device_t dev)
 
 	id = 0;
 	for (i = 3; i >= 0; i--) {
-		id = (id << 8) | 
-		     (sp804_timer_tc_read_4(SP804_PERIPH_ID0 + i*4) & 0xff);
+		id = (id << 8) |
+		    (sp804_timer_tc_read_4(SP804_PERIPH_ID0 + i * 4) & 0xff);
 	}
 
 	device_printf(dev, "peripheral ID: %08x\n", id);
 
 	id = 0;
 	for (i = 3; i >= 0; i--) {
-		id = (id << 8) | 
-		     (sp804_timer_tc_read_4(SP804_PRIMECELL_ID0 + i*4) & 0xff);
+		id = (id << 8) |
+		    (sp804_timer_tc_read_4(SP804_PRIMECELL_ID0 + i * 4) & 0xff);
 	}
 
 	arm_set_delay(sp804_timer_delay, sc);
@@ -301,11 +297,9 @@ sp804_timer_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t sp804_timer_methods[] = {
-	DEVMETHOD(device_probe,		sp804_timer_probe),
-	DEVMETHOD(device_attach,	sp804_timer_attach),
-	{ 0, 0 }
-};
+static device_method_t sp804_timer_methods[] = { DEVMETHOD(device_probe,
+						     sp804_timer_probe),
+	DEVMETHOD(device_attach, sp804_timer_attach), { 0, 0 } };
 
 static driver_t sp804_timer_driver = {
 	"timer",
@@ -315,7 +309,8 @@ static driver_t sp804_timer_driver = {
 
 static devclass_t sp804_timer_devclass;
 
-DRIVER_MODULE(sp804_timer, simplebus, sp804_timer_driver, sp804_timer_devclass, 0, 0);
+DRIVER_MODULE(
+    sp804_timer, simplebus, sp804_timer_driver, sp804_timer_devclass, 0, 0);
 
 static void
 sp804_timer_delay(int usec, void *arg)

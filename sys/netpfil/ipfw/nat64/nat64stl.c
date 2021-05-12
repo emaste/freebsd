@@ -42,30 +42,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_pflog.h>
+#include <net/if_var.h>
 #include <net/pfil.h>
-
+#include <netinet/icmp6.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet/ip_fw.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
-#include <netinet/ip_fw.h>
-#include <netinet/ip6.h>
-#include <netinet/icmp6.h>
 #include <netinet6/ip_fw_nat64.h>
-
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/pf/pf.h>
 
 #include "nat64stl.h"
 
-#define	NAT64_LOOKUP(chain, cmd)	\
+#define NAT64_LOOKUP(chain, cmd) \
 	(struct nat64stl_cfg *)SRV_OBJECT((chain), (cmd)->arg1)
 
 static void
-nat64stl_log(struct pfloghdr *plog, struct mbuf *m, sa_family_t family,
-    uint32_t kidx)
+nat64stl_log(
+    struct pfloghdr *plog, struct mbuf *m, sa_family_t family, uint32_t kidx)
 {
 	static uint32_t pktid = 0;
 
@@ -90,7 +88,7 @@ nat64stl_handle_ip4(struct ip_fw_chain *chain, struct nat64stl_cfg *cfg,
 	struct in6_addr saddr, daddr;
 	struct ip *ip;
 
-	ip = mtod(m, struct ip*);
+	ip = mtod(m, struct ip *);
 	if (nat64_check_ip4(ip->ip_src.s_addr) != 0 ||
 	    nat64_check_ip4(ip->ip_dst.s_addr) != 0 ||
 	    nat64_check_private_ip4(&cfg->base, ip->ip_src.s_addr) != 0 ||
@@ -108,8 +106,7 @@ nat64stl_handle_ip4(struct ip_fw_chain *chain, struct nat64stl_cfg *cfg,
 		nat64stl_log(logdata, m, AF_INET, cfg->no.kidx);
 	} else
 		logdata = NULL;
-	return (nat64_do_handle_ip4(m, &saddr, &daddr, 0, &cfg->base,
-	    logdata));
+	return (nat64_do_handle_ip4(m, &saddr, &daddr, 0, &cfg->base, logdata));
 }
 
 static int
@@ -133,7 +130,7 @@ nat64stl_handle_ip6(struct ip_fw_chain *chain, struct nat64stl_cfg *cfg,
 	ip6 = mtod(m, struct ip6_hdr *);
 	/* Check ip6_dst matches configured prefix */
 	if (memcmp(&ip6->ip6_dst, &cfg->base.plat_prefix,
-	    cfg->base.plat_plen / 8) != 0)
+		cfg->base.plat_plen / 8) != 0)
 		return (NAT64SKIP);
 
 	if (cfg->base.flags & NAT64_LOG) {
@@ -145,8 +142,8 @@ nat64stl_handle_ip6(struct ip_fw_chain *chain, struct nat64stl_cfg *cfg,
 }
 
 static int
-nat64stl_handle_icmp6(struct ip_fw_chain *chain, struct nat64stl_cfg *cfg,
-    struct mbuf *m)
+nat64stl_handle_icmp6(
+    struct ip_fw_chain *chain, struct nat64stl_cfg *cfg, struct mbuf *m)
 {
 	struct pfloghdr loghdr, *logdata;
 	struct nat64_counters *stats;
@@ -189,8 +186,8 @@ nat64stl_handle_icmp6(struct ip_fw_chain *chain, struct nat64stl_cfg *cfg,
 	 * IPv4 mapped address.
 	 */
 	ip6i = mtodo(m, hlen);
-	if (ipfw_lookup_table(chain, cfg->map64,
-	    sizeof(struct in6_addr), &ip6i->ip6_dst, &tablearg) == 0) {
+	if (ipfw_lookup_table(chain, cfg->map64, sizeof(struct in6_addr),
+		&ip6i->ip6_dst, &tablearg) == 0) {
 		m_freem(m);
 		return (NAT64RETURN);
 	}
@@ -199,8 +196,8 @@ nat64stl_handle_icmp6(struct ip_fw_chain *chain, struct nat64stl_cfg *cfg,
 		nat64stl_log(logdata, m, AF_INET6, cfg->no.kidx);
 	} else
 		logdata = NULL;
-	return (nat64_handle_icmp6(m, 0,
-	    htonl(TARG_VAL(chain, tablearg, nh4)), 0, &cfg->base, logdata));
+	return (nat64_handle_icmp6(m, 0, htonl(TARG_VAL(chain, tablearg, nh4)),
+	    0, &cfg->base, logdata));
 }
 
 int
@@ -217,8 +214,7 @@ ipfw_nat64stl(struct ip_fw_chain *chain, struct ip_fw_args *args,
 
 	*done = 0; /* try next rule if not matched */
 	icmd = cmd + 1;
-	if (cmd->opcode != O_EXTERNAL_ACTION ||
-	    cmd->arg1 != V_nat64stl_eid ||
+	if (cmd->opcode != O_EXTERNAL_ACTION || cmd->arg1 != V_nat64stl_eid ||
 	    icmd->opcode != O_EXTERNAL_INSTANCE ||
 	    (cfg = NAT64_LOOKUP(chain, icmd)) == NULL)
 		return (0);
@@ -226,8 +222,8 @@ ipfw_nat64stl(struct ip_fw_chain *chain, struct ip_fw_args *args,
 	switch (args->f_id.addr_type) {
 	case 4:
 		dst4 = htonl(args->f_id.dst_ip);
-		ret = ipfw_lookup_table(chain, cfg->map46, sizeof(in_addr_t),
-		    &dst4, &tablearg);
+		ret = ipfw_lookup_table(
+		    chain, cfg->map46, sizeof(in_addr_t), &dst4, &tablearg);
 		break;
 	case 6:
 		ret = ipfw_lookup_table(chain, cfg->map64,
@@ -248,11 +244,11 @@ ipfw_nat64stl(struct ip_fw_chain *chain, struct ip_fw_args *args,
 		ret = nat64stl_handle_icmp6(chain, cfg, args->m);
 	} else {
 		if (args->f_id.addr_type == 4)
-			ret = nat64stl_handle_ip4(chain, cfg, args->m,
-			    tablearg);
+			ret = nat64stl_handle_ip4(
+			    chain, cfg, args->m, tablearg);
 		else
-			ret = nat64stl_handle_ip6(chain, cfg, args->m,
-			    tablearg);
+			ret = nat64stl_handle_ip6(
+			    chain, cfg, args->m, tablearg);
 	}
 	if (ret == NAT64SKIP)
 		return (0);

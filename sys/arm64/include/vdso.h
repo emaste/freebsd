@@ -26,14 +26,14 @@
  */
 
 #ifndef _MACHINE_VDSO_H_
-#define	_MACHINE_VDSO_H_
+#define _MACHINE_VDSO_H_
 
-#define	VDSO_TIMEHANDS_MD			\
-	uint32_t	th_physical;		\
-	uint32_t	th_res[7];
+#define VDSO_TIMEHANDS_MD     \
+	uint32_t th_physical; \
+	uint32_t th_res[7];
 
-#define	VDSO_TH_ALGO_ARM_GENTIM	VDSO_TH_ALGO_1
+#define VDSO_TH_ALGO_ARM_GENTIM VDSO_TH_ALGO_1
 
-#define	VDSO_TIMEHANDS_MD32	VDSO_TIMEHANDS_MD
+#define VDSO_TIMEHANDS_MD32 VDSO_TIMEHANDS_MD
 
 #endif /* !_MACHINE_VDSO_H_ */

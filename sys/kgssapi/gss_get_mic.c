@@ -42,11 +42,8 @@ __FBSDID("$FreeBSD$");
 #include "kgss_if.h"
 
 OM_uint32
-gss_get_mic(OM_uint32 *minor_status,
-    const gss_ctx_id_t ctx,
-    gss_qop_t qop_req,
-    const gss_buffer_t message_buffer,
-    gss_buffer_t message_token)
+gss_get_mic(OM_uint32 *minor_status, const gss_ctx_id_t ctx, gss_qop_t qop_req,
+    const gss_buffer_t message_buffer, gss_buffer_t message_token)
 {
 	OM_uint32 maj_stat;
 	struct mbuf *m, *mic;
@@ -66,10 +63,9 @@ gss_get_mic(OM_uint32 *minor_status,
 	m_freem(m);
 	if (maj_stat == GSS_S_COMPLETE) {
 		message_token->length = m_length(mic, NULL);
-		message_token->value = malloc(message_token->length,
-		    M_GSSAPI, M_WAITOK);
-		m_copydata(mic, 0, message_token->length,
-		    message_token->value);
+		message_token->value = malloc(
+		    message_token->length, M_GSSAPI, M_WAITOK);
+		m_copydata(mic, 0, message_token->length, message_token->value);
 		m_freem(mic);
 	}
 

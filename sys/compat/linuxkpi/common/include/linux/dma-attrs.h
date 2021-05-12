@@ -28,24 +28,24 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_DMA_ATTR_H_
-#define	_LINUX_DMA_ATTR_H_
+#ifndef _LINUX_DMA_ATTR_H_
+#define _LINUX_DMA_ATTR_H_
 
-#define	DMA_ATTR_WRITE_BARRIER		(1 << 0)
-#define	DMA_ATTR_WEAK_ORDERING		(1 << 1)
-#define	DMA_ATTR_WRITE_COMBINE		(1 << 2)
-#define	DMA_ATTR_NON_CONSISTENT		(1 << 3)
-#define	DMA_ATTR_NO_KERNEL_MAPPING	(1 << 4)
-#define	DMA_ATTR_SKIP_CPU_SYNC		(1 << 5)
-#define	DMA_ATTR_FORCE_CONTIGUOUS	(1 << 6)
-#define	DMA_ATTR_ALLOC_SINGLE_PAGES	(1 << 7)
-#define	DMA_ATTR_NO_WARN		(1 << 8)
-#define	DMA_ATTR_PRIVILEGED		(1 << 9)
+#define DMA_ATTR_WRITE_BARRIER (1 << 0)
+#define DMA_ATTR_WEAK_ORDERING (1 << 1)
+#define DMA_ATTR_WRITE_COMBINE (1 << 2)
+#define DMA_ATTR_NON_CONSISTENT (1 << 3)
+#define DMA_ATTR_NO_KERNEL_MAPPING (1 << 4)
+#define DMA_ATTR_SKIP_CPU_SYNC (1 << 5)
+#define DMA_ATTR_FORCE_CONTIGUOUS (1 << 6)
+#define DMA_ATTR_ALLOC_SINGLE_PAGES (1 << 7)
+#define DMA_ATTR_NO_WARN (1 << 8)
+#define DMA_ATTR_PRIVILEGED (1 << 9)
 
 struct dma_attrs {
 	unsigned long flags;
 };
-#define DEFINE_DMA_ATTRS(x) struct dma_attrs x = { }
+#define DEFINE_DMA_ATTRS(x) struct dma_attrs x = {}
 
 static inline void
 init_dma_attrs(struct dma_attrs *attrs)
@@ -53,4 +53,4 @@ init_dma_attrs(struct dma_attrs *attrs)
 	attrs->flags = 0;
 }
 
-#endif	/* _LINUX_DMA_ATTR_H_ */
+#endif /* _LINUX_DMA_ATTR_H_ */

@@ -34,9 +34,10 @@
  * Conversion macros for little endian encoded unsigned integers
  * in byte streams to the local unsigned integer format.
  */
-#define UINT16BYTES(p) ((uint32_t)((p)[0] + (256*(p)[1])))
-#define UINT32BYTES(p) ((uint32_t)((p)[0] + (256*(p)[1]) +		\
-	    (65536*(p)[2]) + (16777216*(p)[3])))
+#define UINT16BYTES(p) ((uint32_t)((p)[0] + (256 * (p)[1])))
+#define UINT32BYTES(p) \
+	((uint32_t)(   \
+	    (p)[0] + (256 * (p)[1]) + (65536 * (p)[2]) + (16777216 * (p)[3])))
 
 /*
  * All following structures are according to:
@@ -115,16 +116,15 @@ typedef struct fat32_bsbpb {
 /*
  * FAT directory entry structure
  */
-#define	FAT_DES_ATTR_READ_ONLY	0x01
-#define	FAT_DES_ATTR_HIDDEN	0x02
-#define	FAT_DES_ATTR_SYSTEM	0x04
-#define	FAT_DES_ATTR_VOLUME_ID	0x08
-#define	FAT_DES_ATTR_DIRECTORY	0x10
-#define	FAT_DES_ATTR_ARCHIVE	0x20
-#define	FAT_DES_ATTR_LONG_NAME	(FAT_DES_ATTR_READ_ONLY |		\
-				 FAT_DES_ATTR_HIDDEN |			\
-				 FAT_DES_ATTR_SYSTEM |			\
-				 FAT_DES_ATTR_VOLUME_ID)
+#define FAT_DES_ATTR_READ_ONLY 0x01
+#define FAT_DES_ATTR_HIDDEN 0x02
+#define FAT_DES_ATTR_SYSTEM 0x04
+#define FAT_DES_ATTR_VOLUME_ID 0x08
+#define FAT_DES_ATTR_DIRECTORY 0x10
+#define FAT_DES_ATTR_ARCHIVE 0x20
+#define FAT_DES_ATTR_LONG_NAME                                                \
+	(FAT_DES_ATTR_READ_ONLY | FAT_DES_ATTR_HIDDEN | FAT_DES_ATTR_SYSTEM | \
+	    FAT_DES_ATTR_VOLUME_ID)
 
 typedef struct fat_des {
 	uint8_t DIR_Name[11];

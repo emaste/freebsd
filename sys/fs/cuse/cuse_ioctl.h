@@ -25,18 +25,19 @@
  */
 
 #ifndef _CUSE_IOCTL_H_
-#define	_CUSE_IOCTL_H_
+#define _CUSE_IOCTL_H_
 
-#include <sys/ioccom.h>
 #include <sys/types.h>
+#include <sys/ioccom.h>
 
-#define	CUSE_BUFFER_MAX		PAGE_SIZE
-#define	CUSE_DEVICES_MAX	64	/* units */
-#define	CUSE_BUF_MIN_PTR	0x10000UL
-#define	CUSE_BUF_MAX_PTR	0x20000UL
-#define	CUSE_ALLOC_UNIT_MAX	128	/* units */
+#define CUSE_BUFFER_MAX PAGE_SIZE
+#define CUSE_DEVICES_MAX 64 /* units */
+#define CUSE_BUF_MIN_PTR 0x10000UL
+#define CUSE_BUF_MAX_PTR 0x20000UL
+#define CUSE_ALLOC_UNIT_MAX 128 /* units */
 /* All memory allocations must be less than the following limit */
-#define	CUSE_ALLOC_PAGES_MAX	(((16UL * 1024UL * 1024UL) + PAGE_SIZE - 1) / PAGE_SIZE)
+#define CUSE_ALLOC_PAGES_MAX \
+	(((16UL * 1024UL * 1024UL) + PAGE_SIZE - 1) / PAGE_SIZE)
 
 struct cuse_dev;
 
@@ -57,33 +58,33 @@ struct cuse_command {
 	uintptr_t per_file_handle;
 	uintptr_t data_pointer;
 	unsigned long argument;
-	unsigned long command;		/* see CUSE_CMD_XXX */
+	unsigned long command; /* see CUSE_CMD_XXX */
 };
 
 struct cuse_create_dev {
 	struct cuse_dev *dev;
-	uid_t	user_id;
-	gid_t	group_id;
-	int	permissions;
-	char	devname[80];		/* /dev/xxxxx */
+	uid_t user_id;
+	gid_t group_id;
+	int permissions;
+	char devname[80]; /* /dev/xxxxx */
 };
 
 /* Definition of internal IOCTLs for /dev/cuse */
 
-#define	CUSE_IOCTL_GET_COMMAND		_IOR('C', 0, struct cuse_command)
-#define	CUSE_IOCTL_WRITE_DATA		_IOW('C', 1, struct cuse_data_chunk)
-#define	CUSE_IOCTL_READ_DATA		_IOW('C', 2, struct cuse_data_chunk)
-#define	CUSE_IOCTL_SYNC_COMMAND		_IOW('C', 3, int)
-#define	CUSE_IOCTL_GET_SIG		_IOR('C', 4, int)
-#define	CUSE_IOCTL_ALLOC_MEMORY		_IOW('C', 5, struct cuse_alloc_info)
-#define	CUSE_IOCTL_FREE_MEMORY		_IOW('C', 6, struct cuse_alloc_info)
-#define	CUSE_IOCTL_SET_PFH		_IOW('C', 7, uintptr_t)
-#define	CUSE_IOCTL_CREATE_DEV		_IOW('C', 8, struct cuse_create_dev)
-#define	CUSE_IOCTL_DESTROY_DEV		_IOW('C', 9, struct cuse_dev *)
-#define	CUSE_IOCTL_ALLOC_UNIT		_IOR('C',10, int)
-#define	CUSE_IOCTL_FREE_UNIT		_IOW('C',11, int)
-#define	CUSE_IOCTL_SELWAKEUP		_IOW('C',12, int)
-#define	CUSE_IOCTL_ALLOC_UNIT_BY_ID	_IOWR('C',13, int)
-#define	CUSE_IOCTL_FREE_UNIT_BY_ID	_IOWR('C',14, int)
+#define CUSE_IOCTL_GET_COMMAND _IOR('C', 0, struct cuse_command)
+#define CUSE_IOCTL_WRITE_DATA _IOW('C', 1, struct cuse_data_chunk)
+#define CUSE_IOCTL_READ_DATA _IOW('C', 2, struct cuse_data_chunk)
+#define CUSE_IOCTL_SYNC_COMMAND _IOW('C', 3, int)
+#define CUSE_IOCTL_GET_SIG _IOR('C', 4, int)
+#define CUSE_IOCTL_ALLOC_MEMORY _IOW('C', 5, struct cuse_alloc_info)
+#define CUSE_IOCTL_FREE_MEMORY _IOW('C', 6, struct cuse_alloc_info)
+#define CUSE_IOCTL_SET_PFH _IOW('C', 7, uintptr_t)
+#define CUSE_IOCTL_CREATE_DEV _IOW('C', 8, struct cuse_create_dev)
+#define CUSE_IOCTL_DESTROY_DEV _IOW('C', 9, struct cuse_dev *)
+#define CUSE_IOCTL_ALLOC_UNIT _IOR('C', 10, int)
+#define CUSE_IOCTL_FREE_UNIT _IOW('C', 11, int)
+#define CUSE_IOCTL_SELWAKEUP _IOW('C', 12, int)
+#define CUSE_IOCTL_ALLOC_UNIT_BY_ID _IOWR('C', 13, int)
+#define CUSE_IOCTL_FREE_UNIT_BY_ID _IOWR('C', 14, int)
 
-#endif			/* _CUSE_IOCTL_H_ */
+#endif /* _CUSE_IOCTL_H_ */

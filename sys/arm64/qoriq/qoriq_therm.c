@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 
@@ -50,64 +50,62 @@ __FBSDID("$FreeBSD$");
 
 #include "qoriq_therm_if.h"
 
-#define	TMU_TMR		0x00
-#define	TMU_TSR		0x04
-#define TMUV1_TMTMIR	0x08
-#define TMUV2_TMSR	0x08
-#define TMUV2_TMTMIR	0x0C
-#define	TMU_TIER	0x20
-#define	TMU_TTCFGR	0x80
-#define	TMU_TSCFGR	0x84
-#define	TMU_TRITSR(x)	(0x100 + (16 * (x)))
-#define	 TMU_TRITSR_VALID	(1U << 31)
-#define	TMUV2_TMSAR(x)	(0x304 + (16 * (x)))
-#define	TMU_VERSION	0xBF8			/* not in TRM */
-#define	TMUV2_TEUMR(x)	(0xF00 + (4 * (x)))
-#define	TMU_TTRCR(x)	(0xF10 + (4 * (x)))
-
+#define TMU_TMR 0x00
+#define TMU_TSR 0x04
+#define TMUV1_TMTMIR 0x08
+#define TMUV2_TMSR 0x08
+#define TMUV2_TMTMIR 0x0C
+#define TMU_TIER 0x20
+#define TMU_TTCFGR 0x80
+#define TMU_TSCFGR 0x84
+#define TMU_TRITSR(x) (0x100 + (16 * (x)))
+#define TMU_TRITSR_VALID (1U << 31)
+#define TMUV2_TMSAR(x) (0x304 + (16 * (x)))
+#define TMU_VERSION 0xBF8 /* not in TRM */
+#define TMUV2_TEUMR(x) (0xF00 + (4 * (x)))
+#define TMU_TTRCR(x) (0xF10 + (4 * (x)))
 
 struct tsensor {
-	int			site_id;
-	char 			*name;
-	int			id;
+	int site_id;
+	char *name;
+	int id;
 };
 
 struct qoriq_therm_softc {
-	device_t		dev;
-	struct resource		*mem_res;
-	struct resource		*irq_res;
-	void			*irq_ih;
-	int			ntsensors;
-	struct tsensor		*tsensors;
-	bool			little_endian;
-	clk_t			clk;
-	int			ver;
+	device_t dev;
+	struct resource *mem_res;
+	struct resource *irq_res;
+	void *irq_ih;
+	int ntsensors;
+	struct tsensor *tsensors;
+	bool little_endian;
+	clk_t clk;
+	int ver;
 };
 
 static struct sysctl_ctx_list qoriq_therm_sysctl_ctx;
 
-struct tsensor default_sensors[] =
-{
-	{ 0, "site0", 0},
-	{ 1, "site1", 1},
-	{ 2, "site2", 2},
-	{ 3, "site3", 3},
-	{ 4, "site4", 4},
-	{ 5, "site5", 5},
-	{ 6, "site6", 6},
+struct tsensor default_sensors[] = {
+	{ 0, "site0", 0 },
+	{ 1, "site1", 1 },
+	{ 2, "site2", 2 },
+	{ 3, "site3", 3 },
+	{ 4, "site4", 4 },
+	{ 5, "site5", 5 },
+	{ 6, "site6", 6 },
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"fsl,qoriq-tmu",	1},
-	{"fsl,imx8mq-tmu",	1},
-	{NULL,			0},
+	{ "fsl,qoriq-tmu", 1 },
+	{ "fsl,imx8mq-tmu", 1 },
+	{ NULL, 0 },
 };
 
 static inline void
 WR4(struct qoriq_therm_softc *sc, bus_size_t addr, uint32_t val)
 {
 
-	val = sc->little_endian ? htole32(val): htobe32(val);
+	val = sc->little_endian ? htole32(val) : htobe32(val);
 	bus_write_4(sc->mem_res, addr, val);
 }
 
@@ -117,12 +115,12 @@ RD4(struct qoriq_therm_softc *sc, bus_size_t addr)
 	uint32_t val;
 
 	val = bus_read_4(sc->mem_res, addr);
-	return (sc->little_endian ? le32toh(val): be32toh(val));
+	return (sc->little_endian ? le32toh(val) : be32toh(val));
 }
 
 static int
-qoriq_therm_read_temp(struct qoriq_therm_softc *sc, struct tsensor *sensor,
-    int *temp)
+qoriq_therm_read_temp(
+    struct qoriq_therm_softc *sc, struct tsensor *sensor, int *temp)
 {
 	int timeout;
 	uint32_t val;
@@ -154,11 +152,10 @@ qoriq_therm_get_temp(device_t dev, device_t cdev, uintptr_t id, int *val)
 	sc = device_get_softc(dev);
 	if (id >= sc->ntsensors)
 		return (ERANGE);
-	return(qoriq_therm_read_temp(sc, sc->tsensors + id, val));
+	return (qoriq_therm_read_temp(sc, sc->tsensors + id, val));
 }
 
-static int
-qoriq_therm_sysctl_temperature(SYSCTL_HANDLER_ARGS)
+static int qoriq_therm_sysctl_temperature(SYSCTL_HANDLER_ARGS)
 {
 	struct qoriq_therm_softc *sc;
 	int val;
@@ -174,12 +171,12 @@ qoriq_therm_sysctl_temperature(SYSCTL_HANDLER_ARGS)
 
 	if (id >= sc->ntsensors)
 		return (ERANGE);
-	rv =  qoriq_therm_read_temp(sc, sc->tsensors + id, &val);
+	rv = qoriq_therm_read_temp(sc, sc->tsensors + id, &val);
 	if (rv != 0)
 		return (rv);
 
 	val = val / 100;
-	val +=  2731;
+	val += 2731;
 	rv = sysctl_handle_int(oidp, &val, 0, req);
 	return (rv);
 }
@@ -199,10 +196,10 @@ qoriq_therm_init_sysctl(struct qoriq_therm_softc *sc)
 		return (ENXIO);
 
 	/* add sensors */
-	for (i = sc->ntsensors  - 1; i >= 0; i--) {
+	for (i = sc->ntsensors - 1; i >= 0; i--) {
 		tmp = SYSCTL_ADD_PROC(&qoriq_therm_sysctl_ctx,
 		    SYSCTL_CHILDREN(oid), OID_AUTO, sc->tsensors[i].name,
-		    CTLTYPE_INT | CTLFLAG_RD , sc, i,
+		    CTLTYPE_INT | CTLFLAG_RD, sc, i,
 		    qoriq_therm_sysctl_temperature, "IK", "SoC Temperature");
 		if (tmp == NULL)
 			return (ENXIO);
@@ -213,12 +210,12 @@ qoriq_therm_init_sysctl(struct qoriq_therm_softc *sc)
 static int
 qoriq_therm_fdt_calib(struct qoriq_therm_softc *sc, phandle_t node)
 {
-	int 	nranges, ncalibs, i;
-	int	*ranges, *calibs;
+	int nranges, ncalibs, i;
+	int *ranges, *calibs;
 
 	/* initialize temperature range control registes */
-	nranges = OF_getencprop_alloc_multi(node, "fsl,tmu-range",
-	    sizeof(*ranges), (void **)&ranges);
+	nranges = OF_getencprop_alloc_multi(
+	    node, "fsl,tmu-range", sizeof(*ranges), (void **)&ranges);
 	if (nranges < 2 || nranges > 4) {
 		device_printf(sc->dev, "Invalid 'tmu-range' property\n");
 		return (ERANGE);
@@ -228,13 +225,13 @@ qoriq_therm_fdt_calib(struct qoriq_therm_softc *sc, phandle_t node)
 	}
 
 	/* initialize calibration data for above ranges */
-	ncalibs = OF_getencprop_alloc_multi(node, "fsl,tmu-calibration",
-	    sizeof(*calibs),(void **)&calibs);
+	ncalibs = OF_getencprop_alloc_multi(
+	    node, "fsl,tmu-calibration", sizeof(*calibs), (void **)&calibs);
 	if (ncalibs <= 0 || (ncalibs % 2) != 0) {
 		device_printf(sc->dev, "Invalid 'tmu-calibration' property\n");
 		return (ERANGE);
 	}
-	for (i = 0; i < ncalibs; i +=2) {
+	for (i = 0; i < ncalibs; i += 2) {
 		WR4(sc, TMU_TTCFGR, calibs[i]);
 		WR4(sc, TMU_TSCFGR, calibs[i + 1]);
 	}
@@ -270,8 +267,8 @@ qoriq_therm_attach(device_t dev)
 	sc->little_endian = OF_hasprop(node, "little-endian");
 
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Cannot allocate memory resources\n");
 		goto fail;
@@ -284,14 +281,14 @@ qoriq_therm_attach(device_t dev)
 		goto fail;
 	}
 
-/*
-	if ((bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    qoriq_therm_intr, NULL, sc, &sc->irq_ih))) {
-		device_printf(dev,
-		    "WARNING: unable to register interrupt handler\n");
-		goto fail;
-	}
-*/
+	/*
+		if ((bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC |
+	   INTR_MPSAFE, qoriq_therm_intr, NULL, sc, &sc->irq_ih))) {
+			device_printf(dev,
+			    "WARNING: unable to register interrupt handler\n");
+			goto fail;
+		}
+	*/
 	rv = clk_get_by_ofw_index(dev, 0, 0, &sc->clk);
 	if (rv != 0 && rv != ENOENT) {
 		device_printf(dev, "Cannot get clock: %d %d\n", rv, ENOENT);
@@ -322,7 +319,7 @@ qoriq_therm_attach(device_t dev)
 	if (sc->ver == 1) {
 		WR4(sc, TMUV1_TMTMIR, 0x0F);
 	} else {
-		WR4(sc, TMUV2_TMTMIR, 0x0F);	/* disable */
+		WR4(sc, TMUV2_TMTMIR, 0x0F); /* disable */
 		/* these registers are not of settings is not in TRM */
 		WR4(sc, TMUV2_TEUMR(0), 0x51009c00);
 		for (int i = 0; i < 7; i++)
@@ -332,8 +329,8 @@ qoriq_therm_attach(device_t dev)
 	/* prepare calibration tables */
 	rv = qoriq_therm_fdt_calib(sc, node);
 	if (rv != 0) {
-		device_printf(sc->dev,
-		    "Cannot initialize calibration tables\n");
+		device_printf(
+		    sc->dev, "Cannot initialize calibration tables\n");
 		goto fail;
 	}
 	/* start monitoring */
@@ -389,18 +386,18 @@ qoriq_therm_detach(device_t dev)
 
 static device_method_t qoriq_qoriq_therm_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,			qoriq_therm_probe),
-	DEVMETHOD(device_attach,		qoriq_therm_attach),
-	DEVMETHOD(device_detach,		qoriq_therm_detach),
+	DEVMETHOD(device_probe, qoriq_therm_probe),
+	DEVMETHOD(device_attach, qoriq_therm_attach),
+	DEVMETHOD(device_detach, qoriq_therm_detach),
 
 	/* SOCTHERM interface */
-	DEVMETHOD(qoriq_therm_get_temperature,	qoriq_therm_get_temp),
+	DEVMETHOD(qoriq_therm_get_temperature, qoriq_therm_get_temp),
 
 	DEVMETHOD_END
 };
 
 static devclass_t qoriq_qoriq_therm_devclass;
-static DEFINE_CLASS_0(soctherm, qoriq_qoriq_therm_driver, qoriq_qoriq_therm_methods,
-    sizeof(struct qoriq_therm_softc));
+static DEFINE_CLASS_0(soctherm, qoriq_qoriq_therm_driver,
+    qoriq_qoriq_therm_methods, sizeof(struct qoriq_therm_softc));
 DRIVER_MODULE(qoriq_soctherm, simplebus, qoriq_qoriq_therm_driver,
     qoriq_qoriq_therm_devclass, NULL, NULL);

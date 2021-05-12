@@ -31,22 +31,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
+
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <vm/vm_page.h>
-#include <vm/vm_dumpset.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
+#include <vm/vm_dumpset.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+
 #include <machine/md_var.h>
 
 static int hw_uma_mdpages;
 SYSCTL_INT(_hw, OID_AUTO, uma_mdpages, CTLFLAG_RD, &hw_uma_mdpages, 0,
-	   "UMA MD pages in use");
+    "UMA MD pages in use");
 
 void *
-uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
-    int wait)
+uma_small_alloc(
+    uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags, int wait)
 {
 	void *va;
 	vm_paddr_t pa;
@@ -56,7 +58,7 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
 
 	m = vm_page_alloc_domain(NULL, 0, domain,
 	    malloc2vm_flags(wait) | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ);
-	if (m == NULL) 
+	if (m == NULL)
 		return (NULL);
 
 	pa = VM_PAGE_TO_PHYS(m);

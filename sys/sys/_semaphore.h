@@ -33,7 +33,7 @@
 typedef intptr_t semid_t;
 struct timespec;
 
-#define SEM_VALUE_MAX  __INT_MAX
+#define SEM_VALUE_MAX __INT_MAX
 
 #ifndef _KERNEL
 
@@ -45,8 +45,8 @@ int ksem_wait(semid_t id);
 int ksem_trywait(semid_t id);
 int ksem_timedwait(semid_t id, const struct timespec *abstime);
 int ksem_init(semid_t *idp, unsigned int value);
-int ksem_open(semid_t *idp, const char *name, int oflag, mode_t mode,
-    unsigned int value);
+int ksem_open(
+    semid_t *idp, const char *name, int oflag, mode_t mode, unsigned int value);
 int ksem_unlink(const char *name);
 int ksem_getvalue(semid_t id, int *val);
 int ksem_destroy(semid_t id);

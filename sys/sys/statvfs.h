@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -30,7 +30,7 @@
  */
 
 #ifndef _SYS_STATVFS_H_
-#define	_SYS_STATVFS_H_
+#define _SYS_STATVFS_H_
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
@@ -42,9 +42,9 @@
  * statvfs members.  (Well, actually, we don't -- see below -- but
  * a quality implementation should.)
  */
-#ifndef _FSBLKCNT_T_DECLARED		/* always declared together */
-typedef	__fsblkcnt_t	fsblkcnt_t;
-typedef	__fsfilcnt_t	fsfilcnt_t;
+#ifndef _FSBLKCNT_T_DECLARED /* always declared together */
+typedef __fsblkcnt_t fsblkcnt_t;
+typedef __fsfilcnt_t fsfilcnt_t;
 #define _FSBLKCNT_T_DECLARED
 #endif
 
@@ -57,25 +57,25 @@ typedef	__fsfilcnt_t	fsfilcnt_t;
  * unspecified!)
  */
 struct statvfs {
-	fsblkcnt_t	f_bavail;	/* Number of blocks */
-	fsblkcnt_t	f_bfree;
-	fsblkcnt_t	f_blocks;
-	fsfilcnt_t	f_favail;	/* Number of files (e.g., inodes) */
-	fsfilcnt_t	f_ffree;
-	fsfilcnt_t	f_files;
-	unsigned long	f_bsize;	/* Size of blocks counted above */
-	unsigned long	f_flag;
-	unsigned long	f_frsize;	/* Size of fragments */
-	unsigned long	f_fsid;		/* Not meaningful */
-	unsigned long	f_namemax;	/* Same as pathconf(_PC_NAME_MAX) */
+	fsblkcnt_t f_bavail; /* Number of blocks */
+	fsblkcnt_t f_bfree;
+	fsblkcnt_t f_blocks;
+	fsfilcnt_t f_favail; /* Number of files (e.g., inodes) */
+	fsfilcnt_t f_ffree;
+	fsfilcnt_t f_files;
+	unsigned long f_bsize; /* Size of blocks counted above */
+	unsigned long f_flag;
+	unsigned long f_frsize;	 /* Size of fragments */
+	unsigned long f_fsid;	 /* Not meaningful */
+	unsigned long f_namemax; /* Same as pathconf(_PC_NAME_MAX) */
 };
 
 /* flag bits for f_flag: */
-#define	ST_RDONLY	0x1
-#define	ST_NOSUID	0x2
+#define ST_RDONLY 0x1
+#define ST_NOSUID 0x2
 
 __BEGIN_DECLS
-int	fstatvfs(int, struct statvfs *);
-int	statvfs(const char *__restrict, struct statvfs *__restrict);
+int fstatvfs(int, struct statvfs *);
+int statvfs(const char *__restrict, struct statvfs *__restrict);
 __END_DECLS
 #endif /* _SYS_STATVFS_H_ */

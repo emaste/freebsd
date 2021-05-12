@@ -42,8 +42,8 @@
 
 #include <machine/stdarg.h>
 
-#ifndef	_CTL_ERROR_H_
-#define	_CTL_ERROR_H_
+#ifndef _CTL_ERROR_H_
+#define _CTL_ERROR_H_
 
 struct ctl_lun;
 
@@ -54,11 +54,11 @@ void ctl_set_sense_data(struct scsi_sense_data *sense_data, u_int *sense_len,
     void *lun, scsi_sense_data_type sense_format, int current_error,
     int sense_key, int asc, int ascq, ...);
 void ctl_set_sense(struct ctl_scsiio *ctsio, int current_error, int sense_key,
-		   int asc, int ascq, ...);
+    int asc, int ascq, ...);
 void ctl_sense_to_desc(struct scsi_sense_data_fixed *sense_src,
-		      struct scsi_sense_data_desc *sense_dest);
+    struct scsi_sense_data_desc *sense_dest);
 void ctl_sense_to_fixed(struct scsi_sense_data_desc *sense_src,
-			struct scsi_sense_data_fixed *sense_dest);
+    struct scsi_sense_data_fixed *sense_dest);
 void ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq);
 ctl_ua_type ctl_build_qae(struct ctl_lun *lun, uint32_t initidx, uint8_t *resp);
 ctl_ua_type ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
@@ -67,7 +67,7 @@ ctl_ua_type ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 void ctl_set_overlapped_cmd(struct ctl_scsiio *ctsio);
 void ctl_set_overlapped_tag(struct ctl_scsiio *ctsio, uint8_t tag);
 void ctl_set_invalid_field(struct ctl_scsiio *ctsio, int sks_valid, int command,
-			   int field, int bit_valid, int bit);
+    int field, int bit_valid, int bit);
 void ctl_set_invalid_field_ciu(struct ctl_scsiio *ctsio);
 void ctl_set_invalid_opcode(struct ctl_scsiio *ctsio);
 void ctl_set_param_len_error(struct ctl_scsiio *ctsio);
@@ -76,8 +76,8 @@ void ctl_set_unsupported_lun(struct ctl_scsiio *ctsio);
 void ctl_set_lun_transit(struct ctl_scsiio *ctsio);
 void ctl_set_lun_standby(struct ctl_scsiio *ctsio);
 void ctl_set_lun_unavail(struct ctl_scsiio *ctsio);
-void ctl_set_internal_failure(struct ctl_scsiio *ctsio, int sks_valid,
-			      uint16_t retry_count);
+void ctl_set_internal_failure(
+    struct ctl_scsiio *ctsio, int sks_valid, uint16_t retry_count);
 void ctl_set_medium_error(struct ctl_scsiio *ctsio, int read);
 void ctl_set_aborted(struct ctl_scsiio *ctsio);
 void ctl_set_lba_out_of_range(struct ctl_scsiio *ctsio, uint64_t lba);
@@ -97,4 +97,4 @@ void ctl_set_hw_write_protected(struct ctl_scsiio *ctsio);
 void ctl_set_space_alloc_fail(struct ctl_scsiio *ctsio);
 void ctl_set_success(struct ctl_scsiio *ctsio);
 
-#endif	/* _CTL_ERROR_H_ */
+#endif /* _CTL_ERROR_H_ */

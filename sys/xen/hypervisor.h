@@ -1,8 +1,8 @@
 /******************************************************************************
  * hypervisor.h
-  * 
+ *
  * Linux-specific hypervisor handling.
- * 
+ *
  * Copyright (c) 2002, K A Fraser
  *
  * $FreeBSD$
@@ -13,55 +13,54 @@
 
 #include <sys/cdefs.h>
 #include <sys/systm.h>
-#include <xen/interface/xen.h>
-#include <xen/interface/platform.h>
-#include <xen/interface/event_channel.h>
-#include <xen/interface/physdev.h>
-#include <xen/interface/sched.h>
-#include <xen/interface/callback.h>
-#include <xen/interface/memory.h>
-#include <xen/interface/hvm/dm_op.h>
+
 #include <machine/xen/hypercall.h>
+
+#include <xen/interface/callback.h>
+#include <xen/interface/event_channel.h>
+#include <xen/interface/hvm/dm_op.h>
+#include <xen/interface/memory.h>
+#include <xen/interface/physdev.h>
+#include <xen/interface/platform.h>
+#include <xen/interface/sched.h>
+#include <xen/interface/xen.h>
 
 extern uint64_t get_system_time(int ticks);
 
-static inline int 
+static inline int
 HYPERVISOR_console_write(const char *str, int count)
 {
-    return HYPERVISOR_console_io(CONSOLEIO_write, count, str); 
+	return HYPERVISOR_console_io(CONSOLEIO_write, count, str);
 }
 
 static inline int
 HYPERVISOR_yield(void)
 {
-        int rc = HYPERVISOR_sched_op(SCHEDOP_yield, NULL);
+	int rc = HYPERVISOR_sched_op(SCHEDOP_yield, NULL);
 
 #if CONFIG_XEN_COMPAT <= 0x030002
 	if (rc == -ENOXENSYS)
 		rc = HYPERVISOR_sched_op_compat(SCHEDOP_yield, 0);
 #endif
-        return (rc);
+	return (rc);
 }
 
 static inline int
-HYPERVISOR_block(
-        void)
+HYPERVISOR_block(void)
 {
-        int rc = HYPERVISOR_sched_op(SCHEDOP_block, NULL);
+	int rc = HYPERVISOR_sched_op(SCHEDOP_block, NULL);
 
 #if CONFIG_XEN_COMPAT <= 0x030002
 	if (rc == -ENOXENSYS)
 		rc = HYPERVISOR_sched_op_compat(SCHEDOP_block, 0);
 #endif
-        return (rc);
+	return (rc);
 }
 
-static inline void 
+static inline void
 HYPERVISOR_shutdown(unsigned int reason)
 {
-	struct sched_shutdown sched_shutdown = {
-		.reason = reason
-	};
+	struct sched_shutdown sched_shutdown = { .reason = reason };
 
 	HYPERVISOR_sched_op(SCHEDOP_shutdown, &sched_shutdown);
 #if CONFIG_XEN_COMPAT <= 0x030002
@@ -70,31 +69,29 @@ HYPERVISOR_shutdown(unsigned int reason)
 }
 
 static inline void
-HYPERVISOR_crash(void) 
+HYPERVISOR_crash(void)
 {
-        HYPERVISOR_shutdown(SHUTDOWN_crash); 
+	HYPERVISOR_shutdown(SHUTDOWN_crash);
 	/* NEVER REACHED */
-        for (;;) ; /* eliminate noreturn error */ 
+	for (;;)
+		; /* eliminate noreturn error */
 }
 
 /* Transfer control to hypervisor until an event is detected on one */
 /* of the specified ports or the specified number of ticks elapse */
 static inline int
-HYPERVISOR_poll(
-	evtchn_port_t *ports, unsigned int nr_ports, int ticks)
+HYPERVISOR_poll(evtchn_port_t *ports, unsigned int nr_ports, int ticks)
 {
 	int rc;
-	struct sched_poll sched_poll = {
-		.nr_ports = nr_ports,
-		.timeout = get_system_time(ticks)
-	};
+	struct sched_poll sched_poll = { .nr_ports = nr_ports,
+		.timeout = get_system_time(ticks) };
 	set_xen_guest_handle(sched_poll.ports, ports);
 
 	rc = HYPERVISOR_sched_op(SCHEDOP_poll, &sched_poll);
 #if CONFIG_XEN_COMPAT <= 0x030002
 	if (rc == -ENOXENSYS)
 		rc = HYPERVISOR_sched_op_compat(SCHEDOP_yield, 0);
-#endif	
+#endif
 	return (rc);
 }
 

@@ -35,145 +35,143 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/condvar.h>
 #include <sys/eventhandler.h>
+#include <sys/fbio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/fbio.h>
+#include <sys/rman.h>
+
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/pmap.h>
 
 #include <machine/bus.h>
 
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/videomode/videomode.h>
-#include <dev/videomode/edidvar.h>
-
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/videomode/edidvar.h>
+#include <dev/videomode/videomode.h>
 
 #include "fb_if.h"
 #include "hdmi_if.h"
 
-#define	FB_DEFAULT_W	800
-#define	FB_DEFAULT_H	600
-#define	FB_DEFAULT_REF	60
-#define	FB_BPP		32
-#define	FB_ALIGN	0x1000
+#define FB_DEFAULT_W 800
+#define FB_DEFAULT_H 600
+#define FB_DEFAULT_REF 60
+#define FB_BPP 32
+#define FB_ALIGN 0x1000
 
-#define	HDMI_ENABLE_DELAY	20000
-#define	DEBE_FREQ		300000000
+#define HDMI_ENABLE_DELAY 20000
+#define DEBE_FREQ 300000000
 
-#define	DOT_CLOCK_TO_HZ(c)	((c) * 1000)
+#define DOT_CLOCK_TO_HZ(c) ((c)*1000)
 
 /* Display backend */
-#define	DEBE_REG_START		0x800
-#define	DEBE_REG_END		0x1000
-#define	DEBE_REG_WIDTH		4
-#define	DEBE_MODCTL		0x800
-#define	MODCTL_ITLMOD_EN	(1 << 28)
-#define	MODCTL_OUT_SEL_MASK	(0x7 << 20)
-#define	MODCTL_OUT_SEL(sel)	((sel) << 20)
-#define	OUT_SEL_LCD		0
-#define	MODCTL_LAY0_EN		(1 << 8)
-#define	MODCTL_START_CTL	(1 << 1)
-#define	MODCTL_EN		(1 << 0)
-#define	DEBE_DISSIZE		0x808
-#define	DIS_HEIGHT(h)		(((h) - 1) << 16)
-#define	DIS_WIDTH(w)		(((w) - 1) << 0)
-#define	DEBE_LAYSIZE0		0x810
-#define	LAY_HEIGHT(h)		(((h) - 1) << 16)
-#define	LAY_WIDTH(w)		(((w) - 1) << 0)
-#define	DEBE_LAYCOOR0		0x820
-#define	LAY_XCOOR(x)		((x) << 16)
-#define	LAY_YCOOR(y)		((y) << 0)
-#define	DEBE_LAYLINEWIDTH0	0x840
-#define	DEBE_LAYFB_L32ADD0	0x850
-#define	LAYFB_L32ADD(pa)	((pa) << 3)
-#define	DEBE_LAYFB_H4ADD	0x860
-#define	LAY0FB_H4ADD(pa)	((pa) >> 29)
-#define	DEBE_REGBUFFCTL		0x870
-#define	REGBUFFCTL_LOAD		(1 << 0)
-#define	DEBE_ATTCTL1		0x8a0
-#define	ATTCTL1_FBFMT(fmt)	((fmt) << 8)
-#define	FBFMT_XRGB8888		9
-#define	ATTCTL1_FBPS(ps)	((ps) << 0)
-#define	FBPS_32BPP_ARGB		0
+#define DEBE_REG_START 0x800
+#define DEBE_REG_END 0x1000
+#define DEBE_REG_WIDTH 4
+#define DEBE_MODCTL 0x800
+#define MODCTL_ITLMOD_EN (1 << 28)
+#define MODCTL_OUT_SEL_MASK (0x7 << 20)
+#define MODCTL_OUT_SEL(sel) ((sel) << 20)
+#define OUT_SEL_LCD 0
+#define MODCTL_LAY0_EN (1 << 8)
+#define MODCTL_START_CTL (1 << 1)
+#define MODCTL_EN (1 << 0)
+#define DEBE_DISSIZE 0x808
+#define DIS_HEIGHT(h) (((h)-1) << 16)
+#define DIS_WIDTH(w) (((w)-1) << 0)
+#define DEBE_LAYSIZE0 0x810
+#define LAY_HEIGHT(h) (((h)-1) << 16)
+#define LAY_WIDTH(w) (((w)-1) << 0)
+#define DEBE_LAYCOOR0 0x820
+#define LAY_XCOOR(x) ((x) << 16)
+#define LAY_YCOOR(y) ((y) << 0)
+#define DEBE_LAYLINEWIDTH0 0x840
+#define DEBE_LAYFB_L32ADD0 0x850
+#define LAYFB_L32ADD(pa) ((pa) << 3)
+#define DEBE_LAYFB_H4ADD 0x860
+#define LAY0FB_H4ADD(pa) ((pa) >> 29)
+#define DEBE_REGBUFFCTL 0x870
+#define REGBUFFCTL_LOAD (1 << 0)
+#define DEBE_ATTCTL1 0x8a0
+#define ATTCTL1_FBFMT(fmt) ((fmt) << 8)
+#define FBFMT_XRGB8888 9
+#define ATTCTL1_FBPS(ps) ((ps) << 0)
+#define FBPS_32BPP_ARGB 0
 
 /* Timing controller */
-#define	TCON_GCTL		0x000
-#define	GCTL_TCON_EN		(1 << 31)
-#define	GCTL_IO_MAP_SEL_TCON1	(1 << 0)
-#define	TCON_GINT1		0x008
-#define	GINT1_TCON1_LINENO(n)	(((n) + 2) << 0)
-#define	TCON0_DCLK		0x044
-#define	DCLK_EN			0xf0000000
-#define	TCON1_CTL		0x090
-#define	TCON1_EN		(1 << 31)
-#define	INTERLACE_EN		(1 << 20)
-#define	TCON1_SRC_SEL(src)	((src) << 0)
-#define	TCON1_SRC_CH1		0
-#define	TCON1_SRC_CH2		1
-#define	TCON1_SRC_BLUE		2
-#define	TCON1_START_DELAY(sd)	((sd) << 4)
-#define	TCON1_BASIC0		0x094
-#define	TCON1_BASIC1		0x098
-#define	TCON1_BASIC2		0x09c
-#define	TCON1_BASIC3		0x0a0
-#define	TCON1_BASIC4		0x0a4
-#define	TCON1_BASIC5		0x0a8
-#define	BASIC_X(x)		(((x) - 1) << 16)
-#define	BASIC_Y(y)		(((y) - 1) << 0)
-#define	BASIC3_HT(ht)		(((ht) - 1) << 16)
-#define	BASIC3_HBP(hbp)		(((hbp) - 1) << 0)
-#define	BASIC4_VT(vt)		((vt) << 16)
-#define	BASIC4_VBP(vbp)		(((vbp) - 1) << 0)
-#define	BASIC5_HSPW(hspw)	(((hspw) - 1) << 16)
-#define	BASIC5_VSPW(vspw)	(((vspw) - 1) << 0)
-#define	TCON1_IO_POL		0x0f0
-#define	IO_POL_IO2_INV		(1 << 26)
-#define	IO_POL_PHSYNC		(1 << 25)
-#define	IO_POL_PVSYNC		(1 << 24)
-#define	TCON1_IO_TRI		0x0f4
-#define	IO0_OUTPUT_TRI_EN	(1 << 24)
-#define	IO1_OUTPUT_TRI_EN	(1 << 25)
-#define	IO_TRI_MASK		0xffffffff
-#define	START_DELAY(vbl)	(MIN(32, (vbl)) - 2)
-#define	VBLANK_LEN(vt, vd, i)	((((vt) << (i)) >> 1) - (vd) - 2)
-#define	VTOTAL(vt)		((vt) * 2)
-#define	DIVIDE(x, y)		(((x) + ((y) / 2)) / (y))
+#define TCON_GCTL 0x000
+#define GCTL_TCON_EN (1 << 31)
+#define GCTL_IO_MAP_SEL_TCON1 (1 << 0)
+#define TCON_GINT1 0x008
+#define GINT1_TCON1_LINENO(n) (((n) + 2) << 0)
+#define TCON0_DCLK 0x044
+#define DCLK_EN 0xf0000000
+#define TCON1_CTL 0x090
+#define TCON1_EN (1 << 31)
+#define INTERLACE_EN (1 << 20)
+#define TCON1_SRC_SEL(src) ((src) << 0)
+#define TCON1_SRC_CH1 0
+#define TCON1_SRC_CH2 1
+#define TCON1_SRC_BLUE 2
+#define TCON1_START_DELAY(sd) ((sd) << 4)
+#define TCON1_BASIC0 0x094
+#define TCON1_BASIC1 0x098
+#define TCON1_BASIC2 0x09c
+#define TCON1_BASIC3 0x0a0
+#define TCON1_BASIC4 0x0a4
+#define TCON1_BASIC5 0x0a8
+#define BASIC_X(x) (((x)-1) << 16)
+#define BASIC_Y(y) (((y)-1) << 0)
+#define BASIC3_HT(ht) (((ht)-1) << 16)
+#define BASIC3_HBP(hbp) (((hbp)-1) << 0)
+#define BASIC4_VT(vt) ((vt) << 16)
+#define BASIC4_VBP(vbp) (((vbp)-1) << 0)
+#define BASIC5_HSPW(hspw) (((hspw)-1) << 16)
+#define BASIC5_VSPW(vspw) (((vspw)-1) << 0)
+#define TCON1_IO_POL 0x0f0
+#define IO_POL_IO2_INV (1 << 26)
+#define IO_POL_PHSYNC (1 << 25)
+#define IO_POL_PVSYNC (1 << 24)
+#define TCON1_IO_TRI 0x0f4
+#define IO0_OUTPUT_TRI_EN (1 << 24)
+#define IO1_OUTPUT_TRI_EN (1 << 25)
+#define IO_TRI_MASK 0xffffffff
+#define START_DELAY(vbl) (MIN(32, (vbl)) - 2)
+#define VBLANK_LEN(vt, vd, i) ((((vt) << (i)) >> 1) - (vd)-2)
+#define VTOTAL(vt) ((vt)*2)
+#define DIVIDE(x, y) (((x) + ((y) / 2)) / (y))
 
 struct a10fb_softc {
-	device_t		dev;
-	device_t		fbdev;
-	struct resource		*res[2];
+	device_t dev;
+	device_t fbdev;
+	struct resource *res[2];
 
 	/* Framebuffer */
-	struct fb_info		info;
-	size_t			fbsize;
-	bus_addr_t		paddr;
-	vm_offset_t		vaddr;
+	struct fb_info info;
+	size_t fbsize;
+	bus_addr_t paddr;
+	vm_offset_t vaddr;
 
 	/* HDMI */
-	eventhandler_tag	hdmi_evh;
+	eventhandler_tag hdmi_evh;
 };
 
-static struct resource_spec a10fb_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* DEBE */
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },	/* TCON */
-	{ -1, 0 }
-};
+static struct resource_spec a10fb_spec[] = { { SYS_RES_MEMORY, 0,
+						 RF_ACTIVE }, /* DEBE */
+	{ SYS_RES_MEMORY, 1, RF_ACTIVE },		      /* TCON */
+	{ -1, 0 } };
 
-#define	DEBE_READ(sc, reg)		bus_read_4((sc)->res[0], (reg))
-#define	DEBE_WRITE(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
+#define DEBE_READ(sc, reg) bus_read_4((sc)->res[0], (reg))
+#define DEBE_WRITE(sc, reg, val) bus_write_4((sc)->res[0], (reg), (val))
 
-#define	TCON_READ(sc, reg)		bus_read_4((sc)->res[1], (reg))
-#define	TCON_WRITE(sc, reg, val)	bus_write_4((sc)->res[1], (reg), (val))
+#define TCON_READ(sc, reg) bus_read_4((sc)->res[1], (reg))
+#define TCON_WRITE(sc, reg, val) bus_write_4((sc)->res[1], (reg), (val))
 
 static int
 a10fb_allocfb(struct a10fb_softc *sc)
@@ -278,8 +276,8 @@ a10fb_setup_debe(struct a10fb_softc *sc, const struct videomode *mode)
 	DEBE_WRITE(sc, DEBE_LAYFB_H4ADD, LAY0FB_H4ADD(sc->paddr));
 
 	/* Set backend format and pixel sequence */
-	DEBE_WRITE(sc, DEBE_ATTCTL1, ATTCTL1_FBFMT(FBFMT_XRGB8888) |
-	    ATTCTL1_FBPS(FBPS_32BPP_ARGB));
+	DEBE_WRITE(sc, DEBE_ATTCTL1,
+	    ATTCTL1_FBFMT(FBFMT_XRGB8888) | ATTCTL1_FBPS(FBPS_32BPP_ARGB));
 
 	/* Enable layer 0, output to LCD, setup interlace */
 	val = DEBE_READ(sc, DEBE_MODCTL);
@@ -406,8 +404,9 @@ a10fb_setup_tcon(struct a10fb_softc *sc, const struct videomode *mode)
 	/* Vertical total and back porch */
 	vtotal = VTOTAL(mode->vtotal);
 	if (interlace) {
-		framerate = DIVIDE(DIVIDE(DOT_CLOCK_TO_HZ(mode->dot_clock),
-		    mode->htotal), mode->vtotal);
+		framerate = DIVIDE(
+		    DIVIDE(DOT_CLOCK_TO_HZ(mode->dot_clock), mode->htotal),
+		    mode->vtotal);
 		clk = mode->htotal * (VTOTAL(mode->vtotal) + 1) * framerate;
 		if ((clk / 2) == DOT_CLOCK_TO_HZ(mode->dot_clock))
 			vtotal += 1;
@@ -485,7 +484,8 @@ a10fb_configure(struct a10fb_softc *sc, const struct videomode *mode)
 	if (sc->vaddr == 0) {
 		error = a10fb_allocfb(sc);
 		if (error != 0) {
-			device_printf(sc->dev, "failed to allocate FB memory\n");
+			device_printf(
+			    sc->dev, "failed to allocate FB memory\n");
 			return (ENXIO);
 		}
 	}
@@ -547,8 +547,8 @@ a10fb_hdmi_event(void *arg, device_t hdmi_dev)
 	} else {
 		error = edid_parse(edid, &ei);
 		if (error != 0) {
-			device_printf(sc->dev, "failed to parse EDID: %d\n",
-			    error);
+			device_printf(
+			    sc->dev, "failed to parse EDID: %d\n", error);
 		} else {
 			if (bootverbose)
 				edid_print(&ei);
@@ -558,8 +558,8 @@ a10fb_hdmi_event(void *arg, device_t hdmi_dev)
 
 	/* If the preferred mode could not be determined, use the default */
 	if (mode == NULL)
-		mode = pick_mode_by_ref(FB_DEFAULT_W, FB_DEFAULT_H,
-		    FB_DEFAULT_REF);
+		mode = pick_mode_by_ref(
+		    FB_DEFAULT_W, FB_DEFAULT_H, FB_DEFAULT_REF);
 
 	if (mode == NULL) {
 		device_printf(sc->dev, "failed to find usable video mode\n");
@@ -567,8 +567,8 @@ a10fb_hdmi_event(void *arg, device_t hdmi_dev)
 	}
 
 	if (bootverbose)
-		device_printf(sc->dev, "using %dx%d\n",
-		    mode->hdisplay, mode->vdisplay);
+		device_printf(
+		    sc->dev, "using %dx%d\n", mode->hdisplay, mode->vdisplay);
 
 	/* Disable HDMI */
 	HDMI_ENABLE(hdmi_dev, 0);
@@ -624,8 +624,8 @@ a10fb_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->hdmi_evh = EVENTHANDLER_REGISTER(hdmi_event,
-	    a10fb_hdmi_event, sc, 0);
+	sc->hdmi_evh = EVENTHANDLER_REGISTER(
+	    hdmi_event, a10fb_hdmi_event, sc, 0);
 
 	return (0);
 }
@@ -642,11 +642,11 @@ a10fb_fb_getinfo(device_t dev)
 
 static device_method_t a10fb_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		a10fb_probe),
-	DEVMETHOD(device_attach,	a10fb_attach),
+	DEVMETHOD(device_probe, a10fb_probe),
+	DEVMETHOD(device_attach, a10fb_attach),
 
 	/* FB interface */
-	DEVMETHOD(fb_getinfo,		a10fb_fb_getinfo),
+	DEVMETHOD(fb_getinfo, a10fb_fb_getinfo),
 
 	DEVMETHOD_END
 };

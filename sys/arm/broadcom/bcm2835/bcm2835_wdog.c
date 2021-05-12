@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
@@ -37,62 +38,62 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/reboot.h>
 #include <sys/rman.h>
-#include <sys/systm.h>
 #include <sys/watchdog.h>
-
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
 #include <machine/machdep.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include <arm/broadcom/bcm2835/bcm2835_wdog.h>
 
-#define	BCM2835_PASSWORD	0x5a
+#define BCM2835_PASSWORD 0x5a
 
-#define BCM2835_WDOG_RESET	0
-#define BCM2835_PASSWORD_MASK	0xff000000
-#define BCM2835_PASSWORD_SHIFT	24
-#define BCM2835_WDOG_TIME_MASK	0x000fffff
-#define BCM2835_WDOG_TIME_SHIFT	0
+#define BCM2835_WDOG_RESET 0
+#define BCM2835_PASSWORD_MASK 0xff000000
+#define BCM2835_PASSWORD_SHIFT 24
+#define BCM2835_WDOG_TIME_MASK 0x000fffff
+#define BCM2835_WDOG_TIME_SHIFT 0
 
-#define	READ(_sc, _r) bus_space_read_4((_sc)->bst, (_sc)->bsh, (_r) + (_sc)->regs_offset)
-#define	WRITE(_sc, _r, _v) bus_space_write_4((_sc)->bst, (_sc)->bsh, (_r) + (_sc)->regs_offset, (_v))
+#define READ(_sc, _r) \
+	bus_space_read_4((_sc)->bst, (_sc)->bsh, (_r) + (_sc)->regs_offset)
+#define WRITE(_sc, _r, _v) \
+	bus_space_write_4( \
+	    (_sc)->bst, (_sc)->bsh, (_r) + (_sc)->regs_offset, (_v))
 
-#define BCM2835_RSTC_WRCFG_CLR		0xffffffcf
-#define BCM2835_RSTC_WRCFG_SET		0x00000030
-#define BCM2835_RSTC_WRCFG_FULL_RESET	0x00000020
-#define BCM2835_RSTC_RESET		0x00000102
+#define BCM2835_RSTC_WRCFG_CLR 0xffffffcf
+#define BCM2835_RSTC_WRCFG_SET 0x00000030
+#define BCM2835_RSTC_WRCFG_FULL_RESET 0x00000020
+#define BCM2835_RSTC_RESET 0x00000102
 
-#define	BCM2835_RSTC_REG	0x00
-#define	BCM2835_RSTS_REG	0x04
-#define	BCM2835_WDOG_REG	0x08
+#define BCM2835_RSTC_REG 0x00
+#define BCM2835_RSTS_REG 0x04
+#define BCM2835_WDOG_REG 0x08
 
 static struct bcmwd_softc *bcmwd_lsc = NULL;
 
 struct bcmwd_softc {
-	device_t		dev;
-	struct resource *	res;
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	int			wdog_armed;
-	int			wdog_period;
-	char			wdog_passwd;
-	struct mtx		mtx;
-	int			regs_offset;
+	device_t dev;
+	struct resource *res;
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	int wdog_armed;
+	int wdog_period;
+	char wdog_passwd;
+	struct mtx mtx;
+	int regs_offset;
 };
 
-#define	BSD_DTB		1
-#define	UPSTREAM_DTB	2
-#define	UPSTREAM_DTB_REGS_OFFSET	0x1c
+#define BSD_DTB 1
+#define UPSTREAM_DTB 2
+#define UPSTREAM_DTB_REGS_OFFSET 0x1c
 
-static struct ofw_compat_data compat_data[] = {
-	{"broadcom,bcm2835-wdt",	BSD_DTB},
-	{"brcm,bcm2835-pm-wdt",		UPSTREAM_DTB},
-	{"brcm,bcm2835-pm",		UPSTREAM_DTB},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "broadcom,bcm2835-wdt",
+						    BSD_DTB },
+	{ "brcm,bcm2835-pm-wdt", UPSTREAM_DTB },
+	{ "brcm,bcm2835-pm", UPSTREAM_DTB }, { NULL, 0 } };
 
 static void bcmwd_watchdog_fn(void *private, u_int cmd, int *error);
 static void bcmwd_reboot_system(void *, int);
@@ -138,8 +139,8 @@ bcmwd_attach(device_t dev)
 	sc->bsh = rman_get_bushandle(sc->res);
 
 	/* compensate base address difference */
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data
-	   == UPSTREAM_DTB)
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data ==
+	    UPSTREAM_DTB)
 		sc->regs_offset = UPSTREAM_DTB_REGS_OFFSET;
 
 	bcmwd_lsc = sc;
@@ -152,8 +153,8 @@ bcmwd_attach(device_t dev)
 	 * implemented on the Pi and it just puts the Pi into a halt
 	 * state.
 	 */
-	EVENTHANDLER_REGISTER(shutdown_final, bcmwd_reboot_system, sc,
-	    SHUTDOWN_PRI_LAST-1);
+	EVENTHANDLER_REGISTER(
+	    shutdown_final, bcmwd_reboot_system, sc, SHUTDOWN_PRI_LAST - 1);
 
 	return (0);
 }
@@ -181,7 +182,7 @@ bcmwd_watchdog_fn(void *private, u_int cmd, int *error)
 			    "Can't arm, timeout must be between 1-15 seconds\n");
 			WRITE(sc, BCM2835_RSTC_REG,
 			    (BCM2835_PASSWORD << BCM2835_PASSWORD_SHIFT) |
-			    BCM2835_RSTC_RESET);
+				BCM2835_RSTC_RESET);
 			mtx_unlock(&sc->mtx);
 			*error = EINVAL;
 			return;
@@ -198,11 +199,10 @@ bcmwd_watchdog_fn(void *private, u_int cmd, int *error)
 		WRITE(sc, BCM2835_RSTC_REG, reg);
 
 		*error = 0;
-	}
-	else
+	} else
 		WRITE(sc, BCM2835_RSTC_REG,
 		    (BCM2835_PASSWORD << BCM2835_PASSWORD_SHIFT) |
-		    BCM2835_RSTC_RESET);
+			BCM2835_RSTC_RESET);
 
 	mtx_unlock(&sc->mtx);
 }
@@ -244,12 +244,10 @@ bcmwd_reboot_system(void *sc, int howto)
 	printf("failed to reset (errno %d).\n", error);
 }
 
-static device_method_t bcmwd_methods[] = {
-	DEVMETHOD(device_probe, bcmwd_probe),
+static device_method_t bcmwd_methods[] = { DEVMETHOD(device_probe, bcmwd_probe),
 	DEVMETHOD(device_attach, bcmwd_attach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t bcmwd_driver = {
 	"bcmwd",

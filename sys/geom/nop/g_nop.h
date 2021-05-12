@@ -28,12 +28,12 @@
  * $FreeBSD$
  */
 
-#ifndef	_G_NOP_H_
-#define	_G_NOP_H_
+#ifndef _G_NOP_H_
+#define _G_NOP_H_
 
-#define	G_NOP_CLASS_NAME	"NOP"
-#define	G_NOP_VERSION		4
-#define	G_NOP_SUFFIX		".nop"
+#define G_NOP_CLASS_NAME "NOP"
+#define G_NOP_VERSION 4
+#define G_NOP_SUFFIX ".nop"
 /*
  * Special flag to instruct gnop to passthrough the underlying provider's
  * physical path
@@ -41,43 +41,43 @@
 #define G_NOP_PHYSPATH_PASSTHROUGH "\255"
 
 #ifdef _KERNEL
-#define	G_NOP_DEBUG(lvl, ...) \
-    _GEOM_DEBUG("GEOM_NOP", g_nop_debug, (lvl), NULL, __VA_ARGS__)
+#define G_NOP_DEBUG(lvl, ...) \
+	_GEOM_DEBUG("GEOM_NOP", g_nop_debug, (lvl), NULL, __VA_ARGS__)
 #define G_NOP_LOGREQLVL(lvl, bp, ...) \
-    _GEOM_DEBUG("GEOM_NOP", g_nop_debug, (lvl), (bp), __VA_ARGS__)
-#define	G_NOP_LOGREQ(bp, ...)	G_NOP_LOGREQLVL(2, bp, __VA_ARGS__)
+	_GEOM_DEBUG("GEOM_NOP", g_nop_debug, (lvl), (bp), __VA_ARGS__)
+#define G_NOP_LOGREQ(bp, ...) G_NOP_LOGREQLVL(2, bp, __VA_ARGS__)
 
 struct g_nop_delay;
 
 TAILQ_HEAD(g_nop_delay_head, g_nop_delay);
 
 struct g_nop_softc {
-	int			 sc_error;
-	off_t			 sc_offset;
-	off_t			 sc_explicitsize;
-	off_t			 sc_stripesize;
-	off_t			 sc_stripeoffset;
-	u_int			 sc_rfailprob;
-	u_int			 sc_wfailprob;
-	u_int			 sc_delaymsec;
-	u_int			 sc_rdelayprob;
-	u_int			 sc_wdelayprob;
-	u_int			 sc_count_until_fail;
-	uintmax_t		 sc_reads;
-	uintmax_t		 sc_writes;
-	uintmax_t		 sc_deletes;
-	uintmax_t		 sc_getattrs;
-	uintmax_t		 sc_flushes;
-	uintmax_t		 sc_cmd0s;
-	uintmax_t		 sc_cmd1s;
-	uintmax_t		 sc_cmd2s;
-	uintmax_t		 sc_speedups;
-	uintmax_t		 sc_readbytes;
-	uintmax_t		 sc_wrotebytes;
-	char			*sc_physpath;
-	struct mtx		 sc_lock;
-	struct g_nop_delay_head	 sc_head_delay;
+	int sc_error;
+	off_t sc_offset;
+	off_t sc_explicitsize;
+	off_t sc_stripesize;
+	off_t sc_stripeoffset;
+	u_int sc_rfailprob;
+	u_int sc_wfailprob;
+	u_int sc_delaymsec;
+	u_int sc_rdelayprob;
+	u_int sc_wdelayprob;
+	u_int sc_count_until_fail;
+	uintmax_t sc_reads;
+	uintmax_t sc_writes;
+	uintmax_t sc_deletes;
+	uintmax_t sc_getattrs;
+	uintmax_t sc_flushes;
+	uintmax_t sc_cmd0s;
+	uintmax_t sc_cmd1s;
+	uintmax_t sc_cmd2s;
+	uintmax_t sc_speedups;
+	uintmax_t sc_readbytes;
+	uintmax_t sc_wrotebytes;
+	char *sc_physpath;
+	struct mtx sc_lock;
+	struct g_nop_delay_head sc_head_delay;
 };
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
-#endif	/* _G_NOP_H_ */
+#endif /* _G_NOP_H_ */

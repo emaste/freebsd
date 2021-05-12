@@ -59,29 +59,29 @@
  */
 
 #ifndef _IMX51_TZICREG_H_
-#define	_IMX51_TZICREG_H_
+#define _IMX51_TZICREG_H_
 
 #include <sys/cdefs.h>
 
-#define	TZIC_SIZE		0x4000
-#define	TZIC_INTCNTL		0x0000
-#define		INTCNTL_NSEN_MASK	0x80000000
-#define		INTCNTL_NSEN		0x00010000
-#define		INTCNTL_EN		0x00000001
-#define	TZIC_INTTYPE		0x0004
-#define	TZIC_PRIOMASK		0x000c
-#define	TZIC_SYNCCTRL		0x0010
-#define	TZIC_DSMINT		0x0014
-#define	TZIC_INTSEC(n)		(0x0080 + 0x04 * (n))
-#define	TZIC_ENSET(n)		(0x0100 + 0x04 * (n))
-#define	TZIC_ENCLEAR(n)		(0x0180 + 0x04 * (n))
-#define	TZIC_SRCSET(n)		(0x0200 + 0x04 * (n))
-#define	TZIC_SRCCLAR(n)		(0x0280 + 0x04 * (n))
-#define	TZIC_PRIORITY(n)	(0x0400 + 0x04 * (n))
-#define	TZIC_PND(n)		(0x0d00 + 0x04 * (n))
-#define	TZIC_HIPND(n)		(0x0d80 + 0x04 * (n))
-#define	TZIC_WAKEUP(n)		(0x0e00 + 0x04 * (n))
-#define	TZIC_SWINT		0x0f00
+#define TZIC_SIZE 0x4000
+#define TZIC_INTCNTL 0x0000
+#define INTCNTL_NSEN_MASK 0x80000000
+#define INTCNTL_NSEN 0x00010000
+#define INTCNTL_EN 0x00000001
+#define TZIC_INTTYPE 0x0004
+#define TZIC_PRIOMASK 0x000c
+#define TZIC_SYNCCTRL 0x0010
+#define TZIC_DSMINT 0x0014
+#define TZIC_INTSEC(n) (0x0080 + 0x04 * (n))
+#define TZIC_ENSET(n) (0x0100 + 0x04 * (n))
+#define TZIC_ENCLEAR(n) (0x0180 + 0x04 * (n))
+#define TZIC_SRCSET(n) (0x0200 + 0x04 * (n))
+#define TZIC_SRCCLAR(n) (0x0280 + 0x04 * (n))
+#define TZIC_PRIORITY(n) (0x0400 + 0x04 * (n))
+#define TZIC_PND(n) (0x0d00 + 0x04 * (n))
+#define TZIC_HIPND(n) (0x0d80 + 0x04 * (n))
+#define TZIC_WAKEUP(n) (0x0e00 + 0x04 * (n))
+#define TZIC_SWINT 0x0f00
 
-#define	TZIC_INTNUM		128
+#define TZIC_INTNUM 128
 #endif /* _IMX51_TZICRREG_H_ */

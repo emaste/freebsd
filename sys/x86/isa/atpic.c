@@ -51,87 +51,85 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/segments.h>
 
-#include <dev/ic/i8259.h>
 #include <x86/isa/icu.h>
+
+#include <dev/ic/i8259.h>
+
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 
 #ifdef __amd64__
-#define	SDT_ATPIC	SDT_SYSIGT
-#define	GSEL_ATPIC	0
+#define SDT_ATPIC SDT_SYSIGT
+#define GSEL_ATPIC 0
 #else
-#define	SDT_ATPIC	SDT_SYS386IGT
-#define	GSEL_ATPIC	GSEL(GCODE_SEL, SEL_KPL)
+#define SDT_ATPIC SDT_SYS386IGT
+#define GSEL_ATPIC GSEL(GCODE_SEL, SEL_KPL)
 #endif
 
-#define	MASTER	0
-#define	SLAVE	1
+#define MASTER 0
+#define SLAVE 1
 
-#define	IMEN_MASK(ai)		(IRQ_MASK((ai)->at_irq))
+#define IMEN_MASK(ai) (IRQ_MASK((ai)->at_irq))
 
-#define	NUM_ISA_IRQS		16
+#define NUM_ISA_IRQS 16
 
-static void	atpic_init(void *dummy);
+static void atpic_init(void *dummy);
 
-inthand_t
-	IDTVEC(atpic_intr0), IDTVEC(atpic_intr1), IDTVEC(atpic_intr2),
-	IDTVEC(atpic_intr3), IDTVEC(atpic_intr4), IDTVEC(atpic_intr5),
-	IDTVEC(atpic_intr6), IDTVEC(atpic_intr7), IDTVEC(atpic_intr8),
-	IDTVEC(atpic_intr9), IDTVEC(atpic_intr10), IDTVEC(atpic_intr11),
-	IDTVEC(atpic_intr12), IDTVEC(atpic_intr13), IDTVEC(atpic_intr14),
-	IDTVEC(atpic_intr15);
+inthand_t IDTVEC(atpic_intr0), IDTVEC(atpic_intr1), IDTVEC(atpic_intr2),
+    IDTVEC(atpic_intr3), IDTVEC(atpic_intr4), IDTVEC(atpic_intr5),
+    IDTVEC(atpic_intr6), IDTVEC(atpic_intr7), IDTVEC(atpic_intr8),
+    IDTVEC(atpic_intr9), IDTVEC(atpic_intr10), IDTVEC(atpic_intr11),
+    IDTVEC(atpic_intr12), IDTVEC(atpic_intr13), IDTVEC(atpic_intr14),
+    IDTVEC(atpic_intr15);
 /* XXXKIB i386 uses stubs until pti comes */
-inthand_t
-	IDTVEC(atpic_intr0_pti), IDTVEC(atpic_intr1_pti),
-	IDTVEC(atpic_intr2_pti), IDTVEC(atpic_intr3_pti),
-	IDTVEC(atpic_intr4_pti), IDTVEC(atpic_intr5_pti),
-	IDTVEC(atpic_intr6_pti), IDTVEC(atpic_intr7_pti),
-	IDTVEC(atpic_intr8_pti), IDTVEC(atpic_intr9_pti),
-	IDTVEC(atpic_intr10_pti), IDTVEC(atpic_intr11_pti),
-	IDTVEC(atpic_intr12_pti), IDTVEC(atpic_intr13_pti),
-	IDTVEC(atpic_intr14_pti), IDTVEC(atpic_intr15_pti);
+inthand_t IDTVEC(atpic_intr0_pti), IDTVEC(atpic_intr1_pti),
+    IDTVEC(atpic_intr2_pti), IDTVEC(atpic_intr3_pti), IDTVEC(atpic_intr4_pti),
+    IDTVEC(atpic_intr5_pti), IDTVEC(atpic_intr6_pti), IDTVEC(atpic_intr7_pti),
+    IDTVEC(atpic_intr8_pti), IDTVEC(atpic_intr9_pti), IDTVEC(atpic_intr10_pti),
+    IDTVEC(atpic_intr11_pti), IDTVEC(atpic_intr12_pti),
+    IDTVEC(atpic_intr13_pti), IDTVEC(atpic_intr14_pti),
+    IDTVEC(atpic_intr15_pti);
 
-#define	IRQ(ap, ai)	((ap)->at_irqbase + (ai)->at_irq)
+#define IRQ(ap, ai) ((ap)->at_irqbase + (ai)->at_irq)
 
-#define	ATPIC(io, base, eoi) {						\
-		.at_pic = {						\
-			.pic_register_sources = atpic_register_sources,	\
-			.pic_enable_source = atpic_enable_source,	\
-			.pic_disable_source = atpic_disable_source,	\
-			.pic_eoi_source = (eoi),			\
-			.pic_enable_intr = atpic_enable_intr,		\
-			.pic_disable_intr = atpic_disable_intr,		\
-			.pic_vector = atpic_vector,			\
-			.pic_source_pending = atpic_source_pending,	\
-			.pic_resume = atpic_resume,			\
-			.pic_config_intr = atpic_config_intr,		\
-			.pic_assign_cpu = atpic_assign_cpu		\
-		},							\
-		.at_ioaddr = (io),					\
-		.at_irqbase = (base),					\
-		.at_intbase = IDT_IO_INTS + (base),			\
-		.at_imen = 0xff,					\
+#define ATPIC(io, base, eoi)                                                \
+	{                                                                   \
+		.at_pic = { .pic_register_sources = atpic_register_sources, \
+			.pic_enable_source = atpic_enable_source,           \
+			.pic_disable_source = atpic_disable_source,         \
+			.pic_eoi_source = (eoi),                            \
+			.pic_enable_intr = atpic_enable_intr,               \
+			.pic_disable_intr = atpic_disable_intr,             \
+			.pic_vector = atpic_vector,                         \
+			.pic_source_pending = atpic_source_pending,         \
+			.pic_resume = atpic_resume,                         \
+			.pic_config_intr = atpic_config_intr,               \
+			.pic_assign_cpu = atpic_assign_cpu },               \
+		.at_ioaddr = (io), .at_irqbase = (base),                    \
+		.at_intbase = IDT_IO_INTS + (base), .at_imen = 0xff,        \
 	}
 
-#define	INTSRC(irq)							\
-	{ { &atpics[(irq) / 8].at_pic }, IDTVEC(atpic_intr ## irq ),	\
-	    IDTVEC(atpic_intr ## irq ## _pti), (irq) % 8 }
+#define INTSRC(irq)                                                     \
+	{                                                               \
+		{ &atpics[(irq) / 8].at_pic }, IDTVEC(atpic_intr##irq), \
+		    IDTVEC(atpic_intr##irq##_pti), (irq) % 8            \
+	}
 
 struct atpic {
 	struct pic at_pic;
-	int	at_ioaddr;
-	int	at_irqbase;
-	uint8_t	at_intbase;
-	uint8_t	at_imen;
+	int at_ioaddr;
+	int at_irqbase;
+	uint8_t at_intbase;
+	uint8_t at_imen;
 };
 
 struct atpic_intsrc {
 	struct intsrc at_intsrc;
 	inthand_t *at_intr, *at_intr_pti;
-	int	at_irq;			/* Relative to PIC base. */
+	int at_irq; /* Relative to PIC base. */
 	enum intr_trigger at_trigger;
-	u_long	at_count;
-	u_long	at_straycount;
+	u_long at_count;
+	u_long at_straycount;
 };
 
 static void atpic_register_sources(struct pic *pic);
@@ -144,15 +142,13 @@ static void atpic_disable_intr(struct intsrc *isrc);
 static int atpic_vector(struct intsrc *isrc);
 static void atpic_resume(struct pic *pic, bool suspend_cancelled);
 static int atpic_source_pending(struct intsrc *isrc);
-static int atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
-    enum intr_polarity pol);
+static int atpic_config_intr(
+    struct intsrc *isrc, enum intr_trigger trig, enum intr_polarity pol);
 static int atpic_assign_cpu(struct intsrc *isrc, u_int apic_id);
 static void i8259_init(struct atpic *pic, int slave);
 
-static struct atpic atpics[] = {
-	ATPIC(IO_ICU1, 0, atpic_eoi_master),
-	ATPIC(IO_ICU2, 8, atpic_eoi_slave)
-};
+static struct atpic atpics[] = { ATPIC(IO_ICU1, 0, atpic_eoi_master),
+	ATPIC(IO_ICU2, 8, atpic_eoi_slave) };
 
 static struct atpic_intsrc atintrs[] = {
 	INTSRC(0),
@@ -340,8 +336,8 @@ atpic_resume(struct pic *pic, bool suspend_cancelled)
 }
 
 static int
-atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
-    enum intr_polarity pol)
+atpic_config_intr(
+    struct intsrc *isrc, enum intr_trigger trig, enum intr_polarity pol)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	u_int vector;
@@ -355,7 +351,7 @@ atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 	if ((trig == INTR_TRIGGER_EDGE && pol == INTR_POLARITY_LOW) ||
 	    (trig == INTR_TRIGGER_LEVEL && pol == INTR_POLARITY_HIGH)) {
 		printf(
-		"atpic: Mismatched config for IRQ%u: trigger %s, polarity %s\n",
+		    "atpic: Mismatched config for IRQ%u: trigger %s, polarity %s\n",
 		    vector, trig == INTR_TRIGGER_EDGE ? "edge" : "level",
 		    pol == INTR_POLARITY_HIGH ? "high" : "low");
 		return (EINVAL);
@@ -374,15 +370,16 @@ atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 	    trig == INTR_TRIGGER_LEVEL) {
 		if (bootverbose)
 			printf(
-		"atpic: Ignoring invalid level/low configuration for IRQ%u\n",
+			    "atpic: Ignoring invalid level/low configuration for IRQ%u\n",
 			    vector);
 		return (EINVAL);
 	}
 	if (!elcr_found) {
 		if (bootverbose)
 			printf("atpic: No ELCR to configure IRQ%u as %s\n",
-			    vector, trig == INTR_TRIGGER_EDGE ? "edge/high" :
-			    "level/low");
+			    vector,
+			    trig == INTR_TRIGGER_EDGE ? "edge/high" :
+							      "level/low");
 		return (ENXIO);
 	}
 	if (bootverbose)
@@ -466,8 +463,9 @@ atpic_startup(void)
 		ai->at_intsrc.is_count = &ai->at_count;
 		ai->at_intsrc.is_straycount = &ai->at_straycount;
 		setidt(((struct atpic *)ai->at_intsrc.is_pic)->at_intbase +
-		    ai->at_irq, pti ? ai->at_intr_pti : ai->at_intr, SDT_ATPIC,
-		    SEL_KPL, GSEL_ATPIC);
+			ai->at_irq,
+		    pti ? ai->at_intr_pti : ai->at_intr, SDT_ATPIC, SEL_KPL,
+		    GSEL_ATPIC);
 	}
 
 	/*
@@ -557,8 +555,7 @@ atpic_handle_intr(u_int vector, struct trapframe *frame)
  * Bus attachment for the ISA PIC.
  */
 static struct isa_pnp_id atpic_ids[] = {
-	{ 0x0000d041 /* PNP0000 */, "AT interrupt controller" },
-	{ 0 }
+	{ 0x0000d041 /* PNP0000 */, "AT interrupt controller" }, { 0 }
 };
 
 static int
@@ -597,19 +594,16 @@ atpic_attach(device_t dev)
 
 static device_method_t atpic_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		atpic_probe),
-	DEVMETHOD(device_attach,	atpic_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, atpic_probe),
+	DEVMETHOD(device_attach, atpic_attach),
+	DEVMETHOD(device_detach, bus_generic_detach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume), { 0, 0 }
 };
 
 static driver_t atpic_driver = {
-	"atpic",
-	atpic_methods,
-	1,		/* no softc */
+	"atpic", atpic_methods, 1, /* no softc */
 };
 
 static devclass_t atpic_devclass;

@@ -43,11 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
-
-#include <arm/freescale/imx/imx_ccmvar.h>
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
@@ -56,100 +55,97 @@ __FBSDID("$FreeBSD$");
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
 
+#include <arm/freescale/imx/imx_ccmvar.h>
+
 #include "spibus_if.h"
 
-#define	ECSPI_RXDATA            0x00
-#define	ECSPI_TXDATA            0x04
-#define	ECSPI_CTLREG            0x08
-#define	  CTLREG_BLEN_SHIFT	  20
-#define	  CTLREG_BLEN_MASK	  0x0fff
-#define	  CTLREG_CSEL_SHIFT	  18
-#define	  CTLREG_CSEL_MASK	  0x03
-#define	  CTLREG_DRCTL_SHIFT	  16
-#define	  CTLREG_DRCTL_MASK	  0x03
-#define	  CTLREG_PREDIV_SHIFT	  12
-#define	  CTLREG_PREDIV_MASK	  0x0f
-#define	  CTLREG_POSTDIV_SHIFT	  8
-#define	  CTLREG_POSTDIV_MASK	  0x0f
-#define	  CTLREG_CMODE_SHIFT	  4
-#define	  CTLREG_CMODE_MASK	  0x0f
-#define	  CTLREG_CMODES_MASTER	  (CTLREG_CMODE_MASK << CTLREG_CMODE_SHIFT)
-#define	  CTLREG_SMC		  (1u << 3)
-#define	  CTLREG_XCH		  (1u << 2)
-#define	  CTLREG_HT		  (1u << 1)
-#define	  CTLREG_EN		  (1u << 0)
-#define	ECSPI_CFGREG		0x0c
-#define	  CFGREG_HTLEN_SHIFT	  24
-#define	  CFGREG_SCLKCTL_SHIFT	  20
-#define	  CFGREG_DATACTL_SHIFT	  16
-#define	  CFGREG_SSPOL_SHIFT	  12
-#define	  CFGREG_SSCTL_SHIFT	   8
-#define	  CFGREG_SCLKPOL_SHIFT	   4 
-#define	  CFGREG_SCLKPHA_SHIFT	   0
-#define	  CFGREG_MASK		   0x0f /* all CFGREG fields are 4 bits */
-#define	ECSPI_INTREG            0x10
-#define	  INTREG_TCEN		  (1u << 7)
-#define	  INTREG_ROEN		  (1u << 6)
-#define	  INTREG_RFEN		  (1u << 5)
-#define	  INTREG_RDREN		  (1u << 4)
-#define	  INTREG_RREN		  (1u << 3)
-#define	  INTREG_TFEN		  (1u << 2)
-#define	  INTREG_TDREN		  (1u << 1)
-#define	  INTREG_TEEN		  (1u << 0)
-#define	ECSPI_DMAREG            0x14
-#define	  DMA_RX_THRESH_SHIFT	  16
-#define	  DMA_RX_THRESH_MASK	  0x3f
-#define	  DMA_TX_THRESH_SHIFT	  0
-#define	  DMA_TX_THRESH_MASK	  0x3f
-#define	ECSPI_STATREG           0x18
-#define	  SREG_TC		  (1u << 7)
-#define	  SREG_RO		  (1u << 6)
-#define	  SREG_RF		  (1u << 5)
-#define	  SREG_RDR		  (1u << 4)
-#define	  SREG_RR		  (1u << 3)
-#define	  SREG_TF		  (1u << 2)
-#define	  SREG_TDR		  (1u << 1)
-#define	  SREG_TE		  (1u << 0)
-#define	ECSPI_PERIODREG         0x1c
-#define	ECSPI_TESTREG           0x20
+#define ECSPI_RXDATA 0x00
+#define ECSPI_TXDATA 0x04
+#define ECSPI_CTLREG 0x08
+#define CTLREG_BLEN_SHIFT 20
+#define CTLREG_BLEN_MASK 0x0fff
+#define CTLREG_CSEL_SHIFT 18
+#define CTLREG_CSEL_MASK 0x03
+#define CTLREG_DRCTL_SHIFT 16
+#define CTLREG_DRCTL_MASK 0x03
+#define CTLREG_PREDIV_SHIFT 12
+#define CTLREG_PREDIV_MASK 0x0f
+#define CTLREG_POSTDIV_SHIFT 8
+#define CTLREG_POSTDIV_MASK 0x0f
+#define CTLREG_CMODE_SHIFT 4
+#define CTLREG_CMODE_MASK 0x0f
+#define CTLREG_CMODES_MASTER (CTLREG_CMODE_MASK << CTLREG_CMODE_SHIFT)
+#define CTLREG_SMC (1u << 3)
+#define CTLREG_XCH (1u << 2)
+#define CTLREG_HT (1u << 1)
+#define CTLREG_EN (1u << 0)
+#define ECSPI_CFGREG 0x0c
+#define CFGREG_HTLEN_SHIFT 24
+#define CFGREG_SCLKCTL_SHIFT 20
+#define CFGREG_DATACTL_SHIFT 16
+#define CFGREG_SSPOL_SHIFT 12
+#define CFGREG_SSCTL_SHIFT 8
+#define CFGREG_SCLKPOL_SHIFT 4
+#define CFGREG_SCLKPHA_SHIFT 0
+#define CFGREG_MASK 0x0f /* all CFGREG fields are 4 bits */
+#define ECSPI_INTREG 0x10
+#define INTREG_TCEN (1u << 7)
+#define INTREG_ROEN (1u << 6)
+#define INTREG_RFEN (1u << 5)
+#define INTREG_RDREN (1u << 4)
+#define INTREG_RREN (1u << 3)
+#define INTREG_TFEN (1u << 2)
+#define INTREG_TDREN (1u << 1)
+#define INTREG_TEEN (1u << 0)
+#define ECSPI_DMAREG 0x14
+#define DMA_RX_THRESH_SHIFT 16
+#define DMA_RX_THRESH_MASK 0x3f
+#define DMA_TX_THRESH_SHIFT 0
+#define DMA_TX_THRESH_MASK 0x3f
+#define ECSPI_STATREG 0x18
+#define SREG_TC (1u << 7)
+#define SREG_RO (1u << 6)
+#define SREG_RF (1u << 5)
+#define SREG_RDR (1u << 4)
+#define SREG_RR (1u << 3)
+#define SREG_TF (1u << 2)
+#define SREG_TDR (1u << 1)
+#define SREG_TE (1u << 0)
+#define ECSPI_PERIODREG 0x1c
+#define ECSPI_TESTREG 0x20
 
-#define	CS_MAX		4	/* Max number of chip selects. */
-#define	CS_MASK		0x03	/* Mask flag bits out of chipsel. */
+#define CS_MAX 4 /* Max number of chip selects. */
+#define CS_MASK 0x03 /* Mask flag bits out of chipsel. */
 
-#define	FIFO_SIZE	64
-#define	FIFO_RXTHRESH	32
-#define	FIFO_TXTHRESH	32
+#define FIFO_SIZE 64
+#define FIFO_RXTHRESH 32
+#define FIFO_TXTHRESH 32
 
 struct spi_softc {
-	device_t 		dev;
-	device_t		spibus;
-	struct mtx		mtx;
-	struct resource		*memres;
-	struct resource		*intres;
-	void			*inthandle;
-	gpio_pin_t		cspins[CS_MAX];
-	u_int			debug;
-	u_int			basefreq;
-	uint32_t		ctlreg;
-	uint32_t		intreg;
-	uint32_t		fifocnt;
-	uint8_t			*rxbuf;
-	uint32_t		rxidx;
-	uint32_t		rxlen;
-	uint8_t			*txbuf;
-	uint32_t		txidx;
-	uint32_t		txlen;
+	device_t dev;
+	device_t spibus;
+	struct mtx mtx;
+	struct resource *memres;
+	struct resource *intres;
+	void *inthandle;
+	gpio_pin_t cspins[CS_MAX];
+	u_int debug;
+	u_int basefreq;
+	uint32_t ctlreg;
+	uint32_t intreg;
+	uint32_t fifocnt;
+	uint8_t *rxbuf;
+	uint32_t rxidx;
+	uint32_t rxlen;
+	uint8_t *txbuf;
+	uint32_t txidx;
+	uint32_t txlen;
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{"fsl,imx51-ecspi",  true},
-	{"fsl,imx53-ecspi",  true},
-	{"fsl,imx6dl-ecspi", true},
-	{"fsl,imx6q-ecspi",  true},
-	{"fsl,imx6sx-ecspi", true},
-	{"fsl,imx6ul-ecspi", true},
-	{NULL,               false}
-};
+static struct ofw_compat_data compat_data[] = { { "fsl,imx51-ecspi", true },
+	{ "fsl,imx53-ecspi", true }, { "fsl,imx6dl-ecspi", true },
+	{ "fsl,imx6q-ecspi", true }, { "fsl,imx6sx-ecspi", true },
+	{ "fsl,imx6ul-ecspi", true }, { NULL, false } };
 
 static inline uint32_t
 RD4(struct spi_softc *sc, bus_size_t offset)
@@ -236,7 +232,7 @@ spi_hw_setup(struct spi_softc *sc, u_int cs, u_int mode, u_int freq)
 	 * Set up control register, and write it first to bring the device out
 	 * of reset.
 	 */
-	sc->ctlreg  = CTLREG_EN | CTLREG_CMODES_MASTER | CTLREG_SMC;
+	sc->ctlreg = CTLREG_EN | CTLREG_CMODES_MASTER | CTLREG_SMC;
 	sc->ctlreg |= spi_calc_clockdiv(sc, freq);
 	sc->ctlreg |= 7 << CTLREG_BLEN_SHIFT; /* XXX byte at a time */
 	WR4(sc, ECSPI_CTLREG, sc->ctlreg);
@@ -260,7 +256,7 @@ spi_hw_setup(struct spi_softc *sc, u_int cs, u_int mode, u_int freq)
 	/*
 	 * Set up the rx/tx FIFO interrupt thresholds.
 	 */
-	reg  = (FIFO_RXTHRESH << DMA_RX_THRESH_SHIFT);
+	reg = (FIFO_RXTHRESH << DMA_RX_THRESH_SHIFT);
 	reg |= (FIFO_TXTHRESH << DMA_TX_THRESH_SHIFT);
 	WR4(sc, ECSPI_DMAREG, reg);
 
@@ -377,8 +373,8 @@ spi_xfer_buf(struct spi_softc *sc, void *rxbuf, void *txbuf, uint32_t len)
 
 	if (sc->debug >= 1) {
 		device_printf(sc->dev,
-		    "spi_xfer_buf, rxbuf %p txbuf %p len %u\n",
-		    rxbuf, txbuf, len);
+		    "spi_xfer_buf, rxbuf %p txbuf %p len %u\n", rxbuf, txbuf,
+		    len);
 	}
 
 	if (len == 0)
@@ -428,8 +424,8 @@ spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	if (sc->debug >= 1) {
 		device_printf(sc->dev,
-		    "spi_transfer, cs 0x%x clock %u mode %u\n",
-		    cs, clock, mode);
+		    "spi_transfer, cs 0x%x clock %u mode %u\n", cs, clock,
+		    mode);
 	}
 
 	/* Set up the hardware and select the device. */
@@ -439,11 +435,11 @@ spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	/* Transfer command then data bytes. */
 	err = 0;
 	if (cmd->tx_cmd_sz > 0)
-		err = spi_xfer_buf(sc, cmd->rx_cmd, cmd->tx_cmd,
-		    cmd->tx_cmd_sz);
+		err = spi_xfer_buf(
+		    sc, cmd->rx_cmd, cmd->tx_cmd, cmd->tx_cmd_sz);
 	if (cmd->tx_data_sz > 0 && err == 0)
-		err = spi_xfer_buf(sc, cmd->rx_data, cmd->tx_data,
-		    cmd->tx_data_sz);
+		err = spi_xfer_buf(
+		    sc, cmd->rx_data, cmd->tx_data, cmd->tx_data_sz);
 
 	/* Deselect the device, turn off (and reset) hardware. */
 	spi_set_chipsel(sc, cs, false);
@@ -508,15 +504,15 @@ spi_attach(device_t dev)
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	/* Set up debug-enable sysctl. */
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev), 
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
-	    OID_AUTO, "debug", CTLFLAG_RWTUN, &sc->debug, 0,
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO, "debug",
+	    CTLFLAG_RWTUN, &sc->debug, 0,
 	    "Enable debug, higher values = more info");
 
 	/* Allocate mmio register access resources. */
 	rid = 0;
-	sc->memres = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->memres = bus_alloc_resource_any(
+	    sc->dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->memres == NULL) {
 		device_printf(sc->dev, "could not allocate registers\n");
 		spi_detach(sc->dev);
@@ -525,8 +521,8 @@ spi_attach(device_t dev)
 
 	/* Allocate interrupt resources and set up handler. */
 	rid = 0;
-	sc->intres = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->intres = bus_alloc_resource_any(
+	    sc->dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->intres == NULL) {
 		device_printf(sc->dev, "could not allocate interrupt\n");
 		device_detach(sc->dev);
@@ -543,8 +539,8 @@ spi_attach(device_t dev)
 	/* Allocate gpio pins for configured chip selects. */
 	node = ofw_bus_get_node(sc->dev);
 	for (idx = 0; idx < nitems(sc->cspins); ++idx) {
-		err = gpio_pin_get_by_ofw_propidx(sc->dev, node, "cs-gpios",
-		    idx, &sc->cspins[idx]);
+		err = gpio_pin_get_by_ofw_propidx(
+		    sc->dev, node, "cs-gpios", idx, &sc->cspins[idx]);
 		if (err == 0) {
 			gpio_pin_setflags(sc->cspins[idx], GPIO_PIN_OUTPUT);
 		} else if (sc->debug >= 2) {
@@ -583,19 +579,17 @@ spi_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-static device_method_t spi_methods[] = {
-	DEVMETHOD(device_probe,		spi_probe),
-	DEVMETHOD(device_attach,	spi_attach),
-	DEVMETHOD(device_detach,	spi_detach),
+static device_method_t spi_methods[] = { DEVMETHOD(device_probe, spi_probe),
+	DEVMETHOD(device_attach, spi_attach),
+	DEVMETHOD(device_detach, spi_detach),
 
-        /* spibus_if  */
-	DEVMETHOD(spibus_transfer,	spi_transfer),
+	/* spibus_if  */
+	DEVMETHOD(spibus_transfer, spi_transfer),
 
-        /* ofw_bus_if */
-	DEVMETHOD(ofw_bus_get_node,	spi_get_node),
+	/* ofw_bus_if */
+	DEVMETHOD(ofw_bus_get_node, spi_get_node),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t spi_driver = {
 	"imx_spi",
@@ -606,6 +600,7 @@ static driver_t spi_driver = {
 static devclass_t spi_devclass;
 
 DRIVER_MODULE(imx_spi, simplebus, spi_driver, spi_devclass, 0, 0);
-DRIVER_MODULE(ofw_spibus, imx_spi, ofw_spibus_driver, ofw_spibus_devclass, 0, 0);
+DRIVER_MODULE(
+    ofw_spibus, imx_spi, ofw_spibus_driver, ofw_spibus_devclass, 0, 0);
 MODULE_DEPEND(imx_spi, ofw_spibus, 1, 1, 1);
 SIMPLEBUS_PNP_INFO(compat_data);

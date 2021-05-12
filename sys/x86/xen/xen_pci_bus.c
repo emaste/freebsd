@@ -31,30 +31,30 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-
 #include <sys/pciio.h>
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pci_private.h>
 
-#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
+#include <xen/xen-os.h>
 #include <xen/xen_pci.h>
 
-#include "pcib_if.h"
+#include <dev/pci/pci_private.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
 #include "pci_if.h"
+#include "pcib_if.h"
 
 void
-xen_pci_enable_msi_method(device_t dev, device_t child, uint64_t address,
-     uint16_t data)
+xen_pci_enable_msi_method(
+    device_t dev, device_t child, uint64_t address, uint16_t data)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct pcicfg_msi *msi = &dinfo->cfg.msi;
 
 	/* Enable MSI in the control register. */
 	msi->msi_ctrl |= PCIM_MSICTRL_MSI_ENABLE;
-	pci_write_config(child, msi->msi_location + PCIR_MSI_CTRL,
-	    msi->msi_ctrl, 2);
+	pci_write_config(
+	    child, msi->msi_location + PCIR_MSI_CTRL, msi->msi_ctrl, 2);
 }
 
 void
@@ -64,8 +64,8 @@ xen_pci_disable_msi_method(device_t dev, device_t child)
 	struct pcicfg_msi *msi = &dinfo->cfg.msi;
 
 	msi->msi_ctrl &= ~PCIM_MSICTRL_MSI_ENABLE;
-	pci_write_config(child, msi->msi_location + PCIR_MSI_CTRL,
-	    msi->msi_ctrl, 2);
+	pci_write_config(
+	    child, msi->msi_location + PCIR_MSI_CTRL, msi->msi_ctrl, 2);
 }
 
 void

@@ -36,21 +36,21 @@
 #define _NETIPSEC_KEY_VAR_H_
 
 /* sysctl */
-#define KEYCTL_DEBUG_LEVEL		1
-#define KEYCTL_SPI_TRY			2
-#define KEYCTL_SPI_MIN_VALUE		3
-#define KEYCTL_SPI_MAX_VALUE		4
-#define KEYCTL_RANDOM_INT		5
-#define KEYCTL_LARVAL_LIFETIME		6
-#define KEYCTL_BLOCKACQ_COUNT		7
-#define KEYCTL_BLOCKACQ_LIFETIME	8
-#define KEYCTL_ESP_KEYMIN		9
-#define KEYCTL_ESP_AUTH			10
-#define KEYCTL_AH_KEYMIN		11
-#define KEYCTL_PREFERED_OLDSA		12
+#define KEYCTL_DEBUG_LEVEL 1
+#define KEYCTL_SPI_TRY 2
+#define KEYCTL_SPI_MIN_VALUE 3
+#define KEYCTL_SPI_MAX_VALUE 4
+#define KEYCTL_RANDOM_INT 5
+#define KEYCTL_LARVAL_LIFETIME 6
+#define KEYCTL_BLOCKACQ_COUNT 7
+#define KEYCTL_BLOCKACQ_LIFETIME 8
+#define KEYCTL_ESP_KEYMIN 9
+#define KEYCTL_ESP_AUTH 10
+#define KEYCTL_AH_KEYMIN 11
+#define KEYCTL_PREFERED_OLDSA 12
 
 #ifdef _KERNEL
-#define _ARRAYLEN(p) (sizeof(p)/sizeof(p[0]))
+#define _ARRAYLEN(p) (sizeof(p) / sizeof(p[0]))
 #define _KEYLEN(key) ((u_int)((key)->bits >> 3))
 #define _KEYBITS(key) ((u_int)((key)->bits))
 #define _KEYBUF(key) ((caddr_t)((caddr_t)(key) + sizeof(struct sadb_key)))

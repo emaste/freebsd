@@ -28,34 +28,34 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_NET_H_
-#define	_LINUX_NET_H_
+#ifndef _LINUX_NET_H_
+#define _LINUX_NET_H_
 
 #include <sys/types.h>
+#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/errno.h>
 
 static inline int
 sock_create_kern(int family, int type, int proto, struct socket **res)
 {
-	return -socreate(family, res, type, proto, curthread->td_ucred,
-	    curthread);
+	return -socreate(
+	    family, res, type, proto, curthread->td_ucred, curthread);
 }
 
 static inline int
-sock_getname(struct socket *so, struct sockaddr *addr, int *sockaddr_len,
-    int peer)
+sock_getname(
+    struct socket *so, struct sockaddr *addr, int *sockaddr_len, int peer)
 {
 	struct sockaddr *nam;
 	int error;
 
 	nam = NULL;
 	if (peer) {
-		if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0)
+		if ((so->so_state & (SS_ISCONNECTED | SS_ISCONFIRMING)) == 0)
 			return (-ENOTCONN);
 
 		error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, &nam);
@@ -76,7 +76,6 @@ sock_release(struct socket *so)
 	soclose(so);
 }
 
-
 int linuxkpi_net_ratelimit(void);
 
 static inline int
@@ -86,4 +85,4 @@ net_ratelimit(void)
 	return (linuxkpi_net_ratelimit());
 }
 
-#endif	/* _LINUX_NET_H_ */
+#endif /* _LINUX_NET_H_ */

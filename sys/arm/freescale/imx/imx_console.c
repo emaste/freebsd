@@ -40,24 +40,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 
 /* Allow it to be predefined, to be able to use another UART for console */
-#ifndef	IMX_UART_BASE
-#define	IMX_UART_BASE	0xe3fbc000 /* imx51 UART1 */
+#ifndef IMX_UART_BASE
+#define IMX_UART_BASE 0xe3fbc000 /* imx51 UART1 */
 #endif
 
-#define	IMX_RXD			0x00
-#define	IMX_TXD			0x40
+#define IMX_RXD 0x00
+#define IMX_TXD 0x40
 
-#define	IMX_UFCR		0x90
-#define	IMX_USR1		0x94
-#define	IMX_USR1_TRDY		(1 << 13)
+#define IMX_UFCR 0x90
+#define IMX_USR1 0x94
+#define IMX_USR1_TRDY (1 << 13)
 
-#define	IMX_USR2		0x98
-#define	IMX_USR2_RDR		(1 << 0)
-#define	IMX_USR2_TXFE		(1 << 14)
-#define	IMX_USR2_TXDC		(1 << 3)
+#define IMX_USR2 0x98
+#define IMX_USR2_RDR (1 << 0)
+#define IMX_USR2_TXFE (1 << 14)
+#define IMX_USR2_TXDC (1 << 3)
 
-#define	IMX_UTS			0xb4
-#define	IMX_UTS_TXFULL		(1 << 4)
+#define IMX_UTS 0xb4
+#define IMX_UTS_TXFULL (1 << 4)
 
 /*
  * The base address of the uart registers.
@@ -98,8 +98,9 @@ static int
 ub_getc(void)
 {
 
-	while (!ub_tstc());
-		__asm __volatile("nop");
+	while (!ub_tstc())
+		;
+	__asm __volatile("nop");
 
 	return (ub_getreg(IMX_RXD) & 0xff);
 }
@@ -117,39 +118,37 @@ ub_putc(unsigned char c)
 	ub_setreg(IMX_TXD, c);
 }
 
-static cn_probe_t	uart_cnprobe;
-static cn_init_t	uart_cninit;
-static cn_term_t	uart_cnterm;
-static cn_getc_t	uart_cngetc;
-static cn_putc_t	uart_cnputc;
-static cn_grab_t	uart_cngrab;
-static cn_ungrab_t	uart_cnungrab;
+static cn_probe_t uart_cnprobe;
+static cn_init_t uart_cninit;
+static cn_term_t uart_cnterm;
+static cn_getc_t uart_cngetc;
+static cn_putc_t uart_cnputc;
+static cn_grab_t uart_cngrab;
+static cn_ungrab_t uart_cnungrab;
 
 static void
 uart_cngrab(struct consdev *cp)
 {
-
 }
 
 static void
 uart_cnungrab(struct consdev *cp)
 {
-
 }
 
 static void
 uart_cnprobe(struct consdev *cp)
 {
 
-        sprintf(cp->cn_name, "uart");
-        cp->cn_pri = CN_NORMAL;
+	sprintf(cp->cn_name, "uart");
+	cp->cn_pri = CN_NORMAL;
 }
 
 static void
 uart_cninit(struct consdev *cp)
 {
 
-        /* Init fifo trigger levels to 32 bytes, refclock div to 2. */
+	/* Init fifo trigger levels to 32 bytes, refclock div to 2. */
 	ub_setreg(IMX_UFCR, 0x00004210);
 }
 
@@ -161,16 +160,15 @@ uart_cnputc(struct consdev *cp, int c)
 }
 
 static int
-uart_cngetc(struct consdev * cp)
+uart_cngetc(struct consdev *cp)
 {
 
 	return ub_getc();
 }
 
 static void
-uart_cnterm(struct consdev * cp)
+uart_cnterm(struct consdev *cp)
 {
-
 }
 
 CONSOLE_DRIVER(uart);

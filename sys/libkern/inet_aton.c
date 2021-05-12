@@ -30,9 +30,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/ctype.h>
 #include <sys/limits.h>
-#include <sys/systm.h>
 
 #include <netinet/in.h>
 
@@ -76,10 +76,10 @@ inet_aton(const char *cp, struct in_addr *addr)
 
 		/* Check the next character past the previous number's end */
 		switch (*c) {
-		case '.' :
+		case '.':
 
 			/* Make sure we only do 3 dots .. */
-			if (n == 3)	/* Whoops. Quit. */
+			if (n == 3) /* Whoops. Quit. */
 				return (0);
 			n++;
 			c++;
@@ -102,26 +102,26 @@ inet_aton(const char *cp, struct in_addr *addr)
 
 	/* Concoct the address according to the number of parts specified. */
 	switch (n) {
-	case 0:				/* a -- 32 bits */
+	case 0: /* a -- 32 bits */
 
 		/*
 		 * Nothing is necessary here.  Overflow checking was
 		 * already done in strtoul().
 		 */
 		break;
-	case 1:				/* a.b -- 8.24 bits */
+	case 1: /* a.b -- 8.24 bits */
 		if (val > 0xffffff || parts[0] > 0xff)
 			return (0);
 		val |= parts[0] << 24;
 		break;
 
-	case 2:				/* a.b.c -- 8.8.16 bits */
+	case 2: /* a.b.c -- 8.8.16 bits */
 		if (val > 0xffff || parts[0] > 0xff || parts[1] > 0xff)
 			return (0);
 		val |= (parts[0] << 24) | (parts[1] << 16);
 		break;
 
-	case 3:				/* a.b.c.d -- 8.8.8.8 bits */
+	case 3: /* a.b.c.d -- 8.8.8.8 bits */
 		if (val > 0xff || parts[0] > 0xff || parts[1] > 0xff ||
 		    parts[2] > 0xff)
 			return (0);

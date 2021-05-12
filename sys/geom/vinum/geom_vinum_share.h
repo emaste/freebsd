@@ -29,41 +29,37 @@
  */
 
 #ifndef _GEOM_VINUM_SHARE_H_
-#define	_GEOM_VINUM_SHARE_H_
+#define _GEOM_VINUM_SHARE_H_
 
 /* Maximum number of arguments for a single command. */
-#define	GV_MAXARGS	64
+#define GV_MAXARGS 64
 
-enum {
-    KILOBYTE = 1024,
-    MEGABYTE = 1048576,
-    GIGABYTE = 1073741824
-};
+enum { KILOBYTE = 1024, MEGABYTE = 1048576, GIGABYTE = 1073741824 };
 
-off_t	gv_sizespec(char *);
-int	gv_tokenize(char *, char **, int);
+off_t gv_sizespec(char *);
+int gv_tokenize(char *, char **, int);
 
-struct gv_sd	 *gv_alloc_sd(void);
+struct gv_sd *gv_alloc_sd(void);
 struct gv_volume *gv_alloc_volume(void);
-struct gv_plex	 *gv_alloc_plex(void);
-struct gv_drive	 *gv_alloc_drive(void);
-struct gv_drive	 *gv_new_drive(int, char **);
-struct gv_plex	 *gv_new_plex(int, char **);
-struct gv_sd	 *gv_new_sd(int, char **);
+struct gv_plex *gv_alloc_plex(void);
+struct gv_drive *gv_alloc_drive(void);
+struct gv_drive *gv_new_drive(int, char **);
+struct gv_plex *gv_new_plex(int, char **);
+struct gv_sd *gv_new_sd(int, char **);
 struct gv_volume *gv_new_volume(int, char **);
 
-int	gv_drivestatei(char *);
-int	gv_plexorgi(char *);
-int	gv_plexstatei(char *);
-int	gv_sdstatei(char *);
-int	gv_volstatei(char *);
+int gv_drivestatei(char *);
+int gv_plexorgi(char *);
+int gv_plexstatei(char *);
+int gv_sdstatei(char *);
+int gv_volstatei(char *);
 
-const char	*gv_drivestate(int);
-const char	*gv_plexorg(int);
-const char	*gv_plexorg_short(int);
-const char	*gv_plexstate(int);
-const char	*gv_sdstate(int);
-const char	*gv_volstate(int);
-const char	*gv_roughlength(off_t, int);
+const char *gv_drivestate(int);
+const char *gv_plexorg(int);
+const char *gv_plexorg_short(int);
+const char *gv_plexstate(int);
+const char *gv_sdstate(int);
+const char *gv_volstate(int);
+const char *gv_roughlength(off_t, int);
 
 #endif /* _GEOM_VINUM_SHARE_H_ */

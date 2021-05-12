@@ -61,21 +61,21 @@
  */
 
 #include <sys/param.h>
-#include <sys/bio.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/queue.h>
-#include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
-#include <sys/proc.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/sysctl.h>
 
 #include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/sha2/sha512.h>
-#include <geom/geom.h>
 #include <geom/bde/g_bde.h>
+#include <geom/geom.h>
 
 /*
  * FIXME: This used to call malloc_last_fail which in practice was almost
@@ -91,8 +91,9 @@ g_bde_malloc_last_fail(void)
 	return (time_uptime);
 }
 
-static void g_bde_delete_sector(struct g_bde_softc *wp, struct g_bde_sector *sp);
-static struct g_bde_sector * g_bde_new_sector(struct g_bde_work *wp, u_int len);
+static void g_bde_delete_sector(
+    struct g_bde_softc *wp, struct g_bde_sector *sp);
+static struct g_bde_sector *g_bde_new_sector(struct g_bde_work *wp, u_int len);
 static void g_bde_release_keysector(struct g_bde_work *wp);
 static struct g_bde_sector *g_bde_get_keysector(struct g_bde_work *wp);
 static int g_bde_start_read(struct g_bde_sector *sp);
@@ -221,7 +222,8 @@ g_bde_get_keysector(struct g_bde_work *wp)
 	off_t offset;
 
 	offset = wp->kso;
-	g_trace(G_T_TOPOLOGY, "g_bde_get_keysector(%p, %jd)", wp, (intmax_t)offset);
+	g_trace(
+	    G_T_TOPOLOGY, "g_bde_get_keysector(%p, %jd)", wp, (intmax_t)offset);
 	sc = wp->softc;
 
 	if (g_bde_malloc_last_fail() < g_bde_ncache)
@@ -231,7 +233,7 @@ g_bde_get_keysector(struct g_bde_work *wp)
 	if (sp != NULL && sp->ref == 0 && sp->used + 300 < time_uptime)
 		g_bde_purge_one_sector(sc, sp);
 
-	TAILQ_FOREACH(sp, &sc->freelist, list) {
+	TAILQ_FOREACH (sp, &sc->freelist, list) {
 		if (sp->offset == offset)
 			break;
 	}
@@ -243,7 +245,7 @@ g_bde_get_keysector(struct g_bde_work *wp)
 			sp->owner = wp;
 	} else {
 		if (g_bde_malloc_last_fail() < g_bde_ncache) {
-			TAILQ_FOREACH(sp, &sc->freelist, list)
+			TAILQ_FOREACH (sp, &sc->freelist, list)
 				if (sp->ref == 0)
 					break;
 		}
@@ -275,7 +277,7 @@ g_bde_get_keysector(struct g_bde_work *wp)
 		sp->used = time_uptime;
 	}
 	wp->ksp = sp;
-	return(sp);
+	return (sp);
 }
 
 static void
@@ -297,7 +299,7 @@ g_bde_release_keysector(struct g_bde_work *wp)
 	if (sp->ref > 0) {
 		TAILQ_REMOVE(&sc->freelist, sp, list);
 		TAILQ_INSERT_TAIL(&sc->freelist, sp, list);
-		TAILQ_FOREACH(wp2, &sc->worklist, list) {
+		TAILQ_FOREACH (wp2, &sc->worklist, list) {
 			if (wp2->ksp == sp) {
 				KASSERT(wp2 != wp, ("Self-reowning"));
 				sp->owner = wp2;
@@ -324,14 +326,14 @@ g_bde_purge_sector(struct g_bde_softc *sc, int fraction)
 	g_trace(G_T_TOPOLOGY, "g_bde_purge_sector(%p)", sc);
 	if (fraction > 0)
 		n = sc->ncache / fraction + 1;
-	else 
+	else
 		n = g_bde_ncache - g_bde_malloc_last_fail();
 	if (n < 0)
 		return;
 	if (n > sc->ncache)
 		n = sc->ncache;
-	while(n--) {
-		TAILQ_FOREACH(sp, &sc->freelist, list) {
+	while (n--) {
+		TAILQ_FOREACH (sp, &sc->freelist, list) {
 			if (sp->ref != 0)
 				continue;
 			TAILQ_REMOVE(&sc->freelist, sp, list);
@@ -388,12 +390,13 @@ static void
 g_bde_contribute(struct bio *bp, off_t bytes, int error)
 {
 
-	g_trace(G_T_TOPOLOGY, "g_bde_contribute bp %p bytes %jd error %d",
-	     bp, (intmax_t)bytes, error);
+	g_trace(G_T_TOPOLOGY, "g_bde_contribute bp %p bytes %jd error %d", bp,
+	    (intmax_t)bytes, error);
 	if (bp->bio_error == 0)
 		bp->bio_error = error;
 	bp->bio_completed += bytes;
-	KASSERT(bp->bio_completed <= bp->bio_length, ("Too large contribution"));
+	KASSERT(
+	    bp->bio_completed <= bp->bio_length, ("Too large contribution"));
 	if (bp->bio_completed == bp->bio_length) {
 		if (bp->bio_error != 0)
 			bp->bio_completed = 0;
@@ -451,7 +454,8 @@ g_bde_write_done(struct bio *bp)
 		return;
 	}
 
-	KASSERT(wp->bp->bio_cmd == BIO_WRITE, ("Confused in g_bde_write_done()"));
+	KASSERT(
+	    wp->bp->bio_cmd == BIO_WRITE, ("Confused in g_bde_write_done()"));
 	KASSERT(sp == wp->sp || sp == wp->ksp, ("trashed write op"));
 	if (wp->sp == sp) {
 		g_bde_delete_sector(sc, wp->sp);
@@ -491,7 +495,7 @@ g_bde_start_write(struct g_bde_sector *sp)
 	bp->bio_caller2 = sc;
 	sp->state = IO;
 	g_io_request(bp, sc->consumer);
-	return(0);
+	return (0);
 }
 
 /*
@@ -546,7 +550,7 @@ g_bde_start_read(struct g_bde_sector *sp)
 	bp->bio_caller2 = sc;
 	sp->state = IO;
 	g_io_request(bp, sc->consumer);
-	return(0);
+	return (0);
 }
 
 /*
@@ -575,11 +579,11 @@ g_bde_worker(void *arg)
 	for (;;) {
 		restart = 0;
 		g_trace(G_T_TOPOLOGY, "g_bde_worker scan");
-		TAILQ_FOREACH_SAFE(wp, &sc->worklist, list, twp) {
+		TAILQ_FOREACH_SAFE (wp, &sc->worklist, list, twp) {
 			KASSERT(wp != NULL, ("NULL wp"));
 			KASSERT(wp->softc != NULL, ("NULL wp->softc"));
 			if (wp->state != WAIT)
-				continue;	/* Not interesting here */
+				continue; /* Not interesting here */
 
 			KASSERT(wp->bp != NULL, ("NULL wp->bp"));
 			KASSERT(wp->sp != NULL, ("NULL wp->sp"));
@@ -591,7 +595,7 @@ g_bde_worker(void *arg)
 					continue;
 				KASSERT(wp->ksp->state == VALID,
 				    ("Illegal sector state (%d)",
-				    wp->ksp->state));
+					wp->ksp->state));
 			}
 
 			if (wp->bp->bio_cmd == BIO_READ && wp->sp->state == IO)
@@ -600,8 +604,8 @@ g_bde_worker(void *arg)
 			if (wp->ksp != NULL && wp->ksp->error != 0) {
 				g_bde_work_done(wp, wp->ksp->error);
 				continue;
-			} 
-			switch(wp->bp->bio_cmd) {
+			}
+			switch (wp->bp->bio_cmd) {
 			case BIO_READ:
 				if (wp->ksp == NULL) {
 					KASSERT(wp->error != 0,
@@ -658,8 +662,8 @@ g_bde_worker(void *arg)
 			if (sc->dead)
 				break;
 			g_trace(G_T_TOPOLOGY, "g_bde_worker sleep");
-			error = msleep(sc, &sc->worklist_mutex,
-			    PRIBIO, "-", hz);
+			error = msleep(
+			    sc, &sc->worklist_mutex, PRIBIO, "-", hz);
 			if (error == EWOULDBLOCK) {
 				/*
 				 * Lose our skey cache in an orderly fashion.
@@ -735,7 +739,7 @@ g_bde_start2(struct g_bde_work *wp)
 		}
 		break;
 	default:
-		KASSERT(0 == 1, 
+		KASSERT(0 == 1,
 		    ("Wrong bio_cmd %d in g_bde_start2", wp->bp->bio_cmd));
 	}
 
@@ -759,7 +763,7 @@ g_bde_start1(struct bio *bp)
 	bp->bio_driver1 = sc;
 
 	mtx_lock(&sc->worklist_mutex);
-	for(done = 0; done < bp->bio_length; ) {
+	for (done = 0; done < bp->bio_length;) {
 		wp = g_bde_new_work(sc);
 		if (wp != NULL) {
 			wp->bp = bp;

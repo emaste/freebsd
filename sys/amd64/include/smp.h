@@ -22,24 +22,18 @@
 #include <x86/x86_smp.h>
 
 /* global symbols in mpboot.S */
-extern char			mptramp_start[];
-extern u_int32_t		mptramp_pagetables;
+extern char mptramp_start[];
+extern u_int32_t mptramp_pagetables;
 
 /* IPI handlers */
-inthand_t
-	IDTVEC(justreturn),	/* interrupt CPU with minimum overhead */
-	IDTVEC(justreturn1_pti),
-	IDTVEC(invlop_pti),
-	IDTVEC(invlop),
-	IDTVEC(ipi_intr_bitmap_handler_pti),
-	IDTVEC(ipi_swi_pti),
-	IDTVEC(cpustop_pti),
-	IDTVEC(cpususpend_pti),
-	IDTVEC(rendezvous_pti);
+inthand_t IDTVEC(justreturn), /* interrupt CPU with minimum overhead */
+    IDTVEC(justreturn1_pti), IDTVEC(invlop_pti), IDTVEC(invlop),
+    IDTVEC(ipi_intr_bitmap_handler_pti), IDTVEC(ipi_swi_pti),
+    IDTVEC(cpustop_pti), IDTVEC(cpususpend_pti), IDTVEC(rendezvous_pti);
 
-void	invlop_handler(void);
-int	native_start_all_aps(void);
-void	mp_bootaddress(vm_paddr_t *, unsigned int *);
+void invlop_handler(void);
+int native_start_all_aps(void);
+void mp_bootaddress(vm_paddr_t *, unsigned int *);
 
 #endif /* !LOCORE */
 #endif /* SMP */

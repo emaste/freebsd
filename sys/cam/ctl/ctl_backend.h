@@ -39,11 +39,12 @@
  * Author: Ken Merry <ken@FreeBSD.org>
  */
 
-#ifndef	_CTL_BACKEND_H_
-#define	_CTL_BACKEND_H_
+#ifndef _CTL_BACKEND_H_
+#define _CTL_BACKEND_H_
+
+#include <sys/nv.h>
 
 #include <cam/ctl/ctl_ioctl.h>
-#include <sys/nv.h>
 
 typedef enum {
 	CTL_LUN_SERSEQ_OFF,
@@ -54,30 +55,27 @@ typedef enum {
 
 #ifdef _KERNEL
 
-#define CTL_BACKEND_DECLARE(name, driver) \
-	static int name ## _modevent(module_t mod, int type, void *data) \
-	{ \
-		switch (type) { \
-		case MOD_LOAD: \
-			return (ctl_backend_register( \
-				(struct ctl_backend_driver *)data)); \
-			break; \
-		case MOD_UNLOAD: \
-			return (ctl_backend_deregister( \
-				(struct ctl_backend_driver *)data)); \
-			break; \
-		default: \
-			return EOPNOTSUPP; \
-		} \
-		return 0; \
-	} \
-	static moduledata_t name ## _mod = { \
-		#name, \
-		name ## _modevent, \
-		(void *)&driver \
-	}; \
-	DECLARE_MODULE(name, name ## _mod, SI_SUB_CONFIGURE, SI_ORDER_FOURTH); \
-	MODULE_DEPEND(name, ctl, 1, 1, 1); \
+#define CTL_BACKEND_DECLARE(name, driver)                                    \
+	static int name##_modevent(module_t mod, int type, void *data)       \
+	{                                                                    \
+		switch (type) {                                              \
+		case MOD_LOAD:                                               \
+			return (ctl_backend_register(                        \
+			    (struct ctl_backend_driver *)data));             \
+			break;                                               \
+		case MOD_UNLOAD:                                             \
+			return (ctl_backend_deregister(                      \
+			    (struct ctl_backend_driver *)data));             \
+			break;                                               \
+		default:                                                     \
+			return EOPNOTSUPP;                                   \
+		}                                                            \
+		return 0;                                                    \
+	}                                                                    \
+	static moduledata_t name##_mod = { #name, name##_modevent,           \
+		(void *)&driver };                                           \
+	DECLARE_MODULE(name, name##_mod, SI_SUB_CONFIGURE, SI_ORDER_FOURTH); \
+	MODULE_DEPEND(name, ctl, 1, 1, 1);                                   \
 	MODULE_DEPEND(name, cam, 1, 1, 1)
 
 struct ctl_be_lun;
@@ -145,60 +143,61 @@ typedef void (*be_callback_t)(struct ctl_be_lun *be_lun);
  * the backend.
  */
 struct ctl_be_lun {
-	uint8_t			lun_type;	/* passed to CTL */
-	ctl_backend_lun_flags	flags;		/* passed to CTL */
-	ctl_lun_serseq		serseq;		/* passed to CTL */
-	uint64_t		maxlba;		/* passed to CTL */
-	uint32_t		blocksize;	/* passed to CTL */
-	uint16_t		pblockexp;	/* passed to CTL */
-	uint16_t		pblockoff;	/* passed to CTL */
-	uint16_t		ublockexp;	/* passed to CTL */
-	uint16_t		ublockoff;	/* passed to CTL */
-	uint32_t		atomicblock;	/* passed to CTL */
-	uint32_t		opttxferlen;	/* passed to CTL */
-	uint32_t		req_lun_id;	/* passed to CTL */
-	uint32_t		lun_id;		/* returned from CTL */
-	uint8_t			serial_num[CTL_SN_LEN];	 /* passed to CTL */
-	uint8_t			device_id[CTL_DEVID_LEN];/* passed to CTL */
-	be_callback_t		lun_shutdown;	/* passed to CTL */
-	struct ctl_backend_driver *be;		/* passed to CTL */
-	void			*ctl_lun;	/* used by CTL */
-	nvlist_t	 	*options;	/* passed to CTL */
-	STAILQ_ENTRY(ctl_be_lun) links;		/* used by CTL */
+	uint8_t lun_type;		  /* passed to CTL */
+	ctl_backend_lun_flags flags;	  /* passed to CTL */
+	ctl_lun_serseq serseq;		  /* passed to CTL */
+	uint64_t maxlba;		  /* passed to CTL */
+	uint32_t blocksize;		  /* passed to CTL */
+	uint16_t pblockexp;		  /* passed to CTL */
+	uint16_t pblockoff;		  /* passed to CTL */
+	uint16_t ublockexp;		  /* passed to CTL */
+	uint16_t ublockoff;		  /* passed to CTL */
+	uint32_t atomicblock;		  /* passed to CTL */
+	uint32_t opttxferlen;		  /* passed to CTL */
+	uint32_t req_lun_id;		  /* passed to CTL */
+	uint32_t lun_id;		  /* returned from CTL */
+	uint8_t serial_num[CTL_SN_LEN];	  /* passed to CTL */
+	uint8_t device_id[CTL_DEVID_LEN]; /* passed to CTL */
+	be_callback_t lun_shutdown;	  /* passed to CTL */
+	struct ctl_backend_driver *be;	  /* passed to CTL */
+	void *ctl_lun;			  /* used by CTL */
+	nvlist_t *options;		  /* passed to CTL */
+	STAILQ_ENTRY(ctl_be_lun) links;	  /* used by CTL */
 };
 
 typedef enum {
-	CTL_BE_FLAG_NONE	= 0x00,	/* no flags */
-	CTL_BE_FLAG_HAS_CONFIG	= 0x01,	/* can do config reads, writes */
+	CTL_BE_FLAG_NONE = 0x00,       /* no flags */
+	CTL_BE_FLAG_HAS_CONFIG = 0x01, /* can do config reads, writes */
 } ctl_backend_flags;
 
 typedef int (*be_init_t)(void);
 typedef int (*be_shutdown_t)(void);
 typedef int (*be_func_t)(union ctl_io *io);
 typedef void (*be_vfunc_t)(union ctl_io *io);
-typedef int (*be_ioctl_t)(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
-			  struct thread *td);
+typedef int (*be_ioctl_t)(
+    struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td);
 typedef int (*be_luninfo_t)(struct ctl_be_lun *be_lun, struct sbuf *sb);
-typedef uint64_t (*be_lunattr_t)(struct ctl_be_lun *be_lun, const char *attrname);
+typedef uint64_t (*be_lunattr_t)(
+    struct ctl_be_lun *be_lun, const char *attrname);
 
 struct ctl_backend_driver {
-	char		  name[CTL_BE_NAME_LEN]; /* passed to CTL */
-	ctl_backend_flags flags;	         /* passed to CTL */
-	be_init_t	  init;			 /* passed to CTL */
-	be_shutdown_t	  shutdown;		 /* passed to CTL */
-	be_func_t	  data_submit;		 /* passed to CTL */
-	be_func_t	  config_read;		 /* passed to CTL */
-	be_func_t	  config_write;		 /* passed to CTL */
-	be_ioctl_t	  ioctl;		 /* passed to CTL */
-	be_luninfo_t	  lun_info;		 /* passed to CTL */
-	be_lunattr_t	  lun_attr;		 /* passed to CTL */
+	char name[CTL_BE_NAME_LEN]; /* passed to CTL */
+	ctl_backend_flags flags;    /* passed to CTL */
+	be_init_t init;		    /* passed to CTL */
+	be_shutdown_t shutdown;	    /* passed to CTL */
+	be_func_t data_submit;	    /* passed to CTL */
+	be_func_t config_read;	    /* passed to CTL */
+	be_func_t config_write;	    /* passed to CTL */
+	be_ioctl_t ioctl;	    /* passed to CTL */
+	be_luninfo_t lun_info;	    /* passed to CTL */
+	be_lunattr_t lun_attr;	    /* passed to CTL */
 #ifdef CS_BE_CONFIG_MOVE_DONE_IS_NOT_USED
-	be_func_t	  config_move_done;	 /* passed to backend */
+	be_func_t config_move_done; /* passed to backend */
 #endif
 #if 0
 	be_vfunc_t	  config_write_done;	 /* passed to backend */
 #endif
-	STAILQ_ENTRY(ctl_backend_driver) links;	 /* used by CTL */
+	STAILQ_ENTRY(ctl_backend_driver) links; /* used by CTL */
 };
 
 int ctl_backend_register(struct ctl_backend_driver *be);

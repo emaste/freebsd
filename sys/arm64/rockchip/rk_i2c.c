@@ -34,81 +34,82 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
+
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
+#include <dev/iicbus/iicbus.h>
+#include <dev/iicbus/iiconf.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/iicbus/iiconf.h>
-#include <dev/iicbus/iicbus.h>
-
-#include <dev/extres/clk/clk.h>
-
 #include "iicbus_if.h"
 
-#define	RK_I2C_CON			0x00
-#define	 RK_I2C_CON_EN			(1 << 0)
-#define	 RK_I2C_CON_MODE_SHIFT		1
-#define	 RK_I2C_CON_MODE_TX		0
-#define	 RK_I2C_CON_MODE_RRX		1
-#define	 RK_I2C_CON_MODE_RX		2
-#define	 RK_I2C_CON_MODE_RTX		3
-#define	 RK_I2C_CON_MODE_MASK		0x6
-#define	 RK_I2C_CON_START		(1 << 3)
-#define	 RK_I2C_CON_STOP		(1 << 4)
-#define	 RK_I2C_CON_LASTACK		(1 << 5)
-#define	 RK_I2C_CON_NAKSTOP		(1 << 6)
-#define	 RK_I2C_CON_CTRL_MASK		0xFF
+#define RK_I2C_CON 0x00
+#define RK_I2C_CON_EN (1 << 0)
+#define RK_I2C_CON_MODE_SHIFT 1
+#define RK_I2C_CON_MODE_TX 0
+#define RK_I2C_CON_MODE_RRX 1
+#define RK_I2C_CON_MODE_RX 2
+#define RK_I2C_CON_MODE_RTX 3
+#define RK_I2C_CON_MODE_MASK 0x6
+#define RK_I2C_CON_START (1 << 3)
+#define RK_I2C_CON_STOP (1 << 4)
+#define RK_I2C_CON_LASTACK (1 << 5)
+#define RK_I2C_CON_NAKSTOP (1 << 6)
+#define RK_I2C_CON_CTRL_MASK 0xFF
 
-#define	RK_I2C_CLKDIV		0x04
-#define	 RK_I2C_CLKDIVL_MASK	0xFFFF
-#define	 RK_I2C_CLKDIVL_SHIFT	0
-#define	 RK_I2C_CLKDIVH_MASK	0xFFFF0000
-#define	 RK_I2C_CLKDIVH_SHIFT	16
-#define	 RK_I2C_CLKDIV_MUL	8
+#define RK_I2C_CLKDIV 0x04
+#define RK_I2C_CLKDIVL_MASK 0xFFFF
+#define RK_I2C_CLKDIVL_SHIFT 0
+#define RK_I2C_CLKDIVH_MASK 0xFFFF0000
+#define RK_I2C_CLKDIVH_SHIFT 16
+#define RK_I2C_CLKDIV_MUL 8
 
-#define	RK_I2C_MRXADDR			0x08
-#define	 RK_I2C_MRXADDR_SADDR_MASK	0xFFFFFF
-#define	 RK_I2C_MRXADDR_VALID(x)	(1 << (24 + x))
+#define RK_I2C_MRXADDR 0x08
+#define RK_I2C_MRXADDR_SADDR_MASK 0xFFFFFF
+#define RK_I2C_MRXADDR_VALID(x) (1 << (24 + x))
 
-#define	RK_I2C_MRXRADDR			0x0C
-#define	 RK_I2C_MRXRADDR_SRADDR_MASK	0xFFFFFF
-#define	 RK_I2C_MRXRADDR_VALID(x)	(1 << (24 + x))
+#define RK_I2C_MRXRADDR 0x0C
+#define RK_I2C_MRXRADDR_SRADDR_MASK 0xFFFFFF
+#define RK_I2C_MRXRADDR_VALID(x) (1 << (24 + x))
 
-#define	RK_I2C_MTXCNT		0x10
-#define	 RK_I2C_MTXCNT_MASK	0x3F
+#define RK_I2C_MTXCNT 0x10
+#define RK_I2C_MTXCNT_MASK 0x3F
 
-#define	RK_I2C_MRXCNT		0x14
-#define	 RK_I2C_MRXCNT_MASK	0x3F
+#define RK_I2C_MRXCNT 0x14
+#define RK_I2C_MRXCNT_MASK 0x3F
 
-#define	RK_I2C_IEN		0x18
-#define	 RK_I2C_IEN_BTFIEN	(1 << 0)
-#define	 RK_I2C_IEN_BRFIEN	(1 << 1)
-#define	 RK_I2C_IEN_MBTFIEN	(1 << 2)
-#define	 RK_I2C_IEN_MBRFIEN	(1 << 3)
-#define	 RK_I2C_IEN_STARTIEN	(1 << 4)
-#define	 RK_I2C_IEN_STOPIEN	(1 << 5)
-#define	 RK_I2C_IEN_NAKRCVIEN	(1 << 6)
-#define	 RK_I2C_IEN_ALL		(RK_I2C_IEN_MBTFIEN | RK_I2C_IEN_MBRFIEN | \
-	RK_I2C_IEN_STARTIEN | RK_I2C_IEN_STOPIEN | RK_I2C_IEN_NAKRCVIEN)
+#define RK_I2C_IEN 0x18
+#define RK_I2C_IEN_BTFIEN (1 << 0)
+#define RK_I2C_IEN_BRFIEN (1 << 1)
+#define RK_I2C_IEN_MBTFIEN (1 << 2)
+#define RK_I2C_IEN_MBRFIEN (1 << 3)
+#define RK_I2C_IEN_STARTIEN (1 << 4)
+#define RK_I2C_IEN_STOPIEN (1 << 5)
+#define RK_I2C_IEN_NAKRCVIEN (1 << 6)
+#define RK_I2C_IEN_ALL                                                   \
+	(RK_I2C_IEN_MBTFIEN | RK_I2C_IEN_MBRFIEN | RK_I2C_IEN_STARTIEN | \
+	    RK_I2C_IEN_STOPIEN | RK_I2C_IEN_NAKRCVIEN)
 
-#define	RK_I2C_IPD		0x1C
-#define	 RK_I2C_IPD_BTFIPD	(1 << 0)
-#define	 RK_I2C_IPD_BRFIPD	(1 << 1)
-#define	 RK_I2C_IPD_MBTFIPD	(1 << 2)
-#define	 RK_I2C_IPD_MBRFIPD	(1 << 3)
-#define	 RK_I2C_IPD_STARTIPD	(1 << 4)
-#define	 RK_I2C_IPD_STOPIPD	(1 << 5)
-#define	 RK_I2C_IPD_NAKRCVIPD	(1 << 6)
-#define	 RK_I2C_IPD_ALL		(RK_I2C_IPD_MBTFIPD | RK_I2C_IPD_MBRFIPD | \
-	RK_I2C_IPD_STARTIPD | RK_I2C_IPD_STOPIPD | RK_I2C_IPD_NAKRCVIPD)
+#define RK_I2C_IPD 0x1C
+#define RK_I2C_IPD_BTFIPD (1 << 0)
+#define RK_I2C_IPD_BRFIPD (1 << 1)
+#define RK_I2C_IPD_MBTFIPD (1 << 2)
+#define RK_I2C_IPD_MBRFIPD (1 << 3)
+#define RK_I2C_IPD_STARTIPD (1 << 4)
+#define RK_I2C_IPD_STOPIPD (1 << 5)
+#define RK_I2C_IPD_NAKRCVIPD (1 << 6)
+#define RK_I2C_IPD_ALL                                                   \
+	(RK_I2C_IPD_MBTFIPD | RK_I2C_IPD_MBRFIPD | RK_I2C_IPD_STARTIPD | \
+	    RK_I2C_IPD_STOPIPD | RK_I2C_IPD_NAKRCVIPD)
 
-#define	RK_I2C_FNCT		0x20
-#define	 RK_I2C_FNCT_MASK	0x3F
+#define RK_I2C_FNCT 0x20
+#define RK_I2C_FNCT_MASK 0x3F
 
-#define	RK_I2C_TXDATA_BASE	0x100
+#define RK_I2C_TXDATA_BASE 0x100
 
-#define	RK_I2C_RXDATA_BASE	0x200
+#define RK_I2C_RXDATA_BASE 0x200
 
 enum rk_i2c_state {
 	STATE_IDLE = 0,
@@ -119,49 +120,43 @@ enum rk_i2c_state {
 };
 
 struct rk_i2c_softc {
-	device_t	dev;
-	struct resource	*res[2];
-	struct mtx	mtx;
-	clk_t		sclk;
-	clk_t		pclk;
-	int		busy;
-	void *		intrhand;
-	uint32_t	intr;
-	uint32_t	ipd;
-	struct iic_msg	*msg;
-	size_t		cnt;
-	int		msg_len;
-	bool		transfer_done;
-	bool		nak_recv;
-	bool		tx_slave_addr;
-	uint8_t		mode;
-	uint8_t		state;
+	device_t dev;
+	struct resource *res[2];
+	struct mtx mtx;
+	clk_t sclk;
+	clk_t pclk;
+	int busy;
+	void *intrhand;
+	uint32_t intr;
+	uint32_t ipd;
+	struct iic_msg *msg;
+	size_t cnt;
+	int msg_len;
+	bool transfer_done;
+	bool nak_recv;
+	bool tx_slave_addr;
+	uint8_t mode;
+	uint8_t state;
 
-	device_t	iicbus;
+	device_t iicbus;
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{"rockchip,rk3288-i2c", 1},
-	{"rockchip,rk3328-i2c", 1},
-	{"rockchip,rk3399-i2c", 1},
-	{NULL,             0}
-};
+static struct ofw_compat_data compat_data[] = { { "rockchip,rk3288-i2c", 1 },
+	{ "rockchip,rk3328-i2c", 1 }, { "rockchip,rk3399-i2c", 1 },
+	{ NULL, 0 } };
 
-static struct resource_spec rk_i2c_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE | RF_SHAREABLE },
-	{ -1, 0 }
-};
+static struct resource_spec rk_i2c_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE | RF_SHAREABLE }, { -1, 0 } };
 
 static int rk_i2c_probe(device_t dev);
 static int rk_i2c_attach(device_t dev);
 static int rk_i2c_detach(device_t dev);
 
-#define	RK_I2C_LOCK(sc)			mtx_lock(&(sc)->mtx)
-#define	RK_I2C_UNLOCK(sc)		mtx_unlock(&(sc)->mtx)
-#define	RK_I2C_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->mtx, MA_OWNED)
-#define	RK_I2C_READ(sc, reg)		bus_read_4((sc)->res[0], (reg))
-#define	RK_I2C_WRITE(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
+#define RK_I2C_LOCK(sc) mtx_lock(&(sc)->mtx)
+#define RK_I2C_UNLOCK(sc) mtx_unlock(&(sc)->mtx)
+#define RK_I2C_ASSERT_LOCKED(sc) mtx_assert(&(sc)->mtx, MA_OWNED)
+#define RK_I2C_READ(sc, reg) bus_read_4((sc)->res[0], (reg))
+#define RK_I2C_WRITE(sc, reg, val) bus_write_4((sc)->res[0], (reg), (val))
 
 static uint32_t
 rk_i2c_get_clkdiv(struct rk_i2c_softc *sc, uint32_t speed)
@@ -224,7 +219,7 @@ rk_i2c_fill_tx(struct rk_i2c_softc *sc)
 
 	for (i = 0; i < len; i++) {
 		buf32 = 0;
-		for (j = 0; j < 4 ; j++) {
+		for (j = 0; j < 4; j++) {
 			if (sc->cnt == sc->msg->len)
 				break;
 
@@ -266,7 +261,8 @@ rk_i2c_drain_rx(struct rk_i2c_softc *sc)
 
 	for (i = 0; i < len; i++) {
 		if (i % 4 == 0)
-			buf32 = RK_I2C_READ(sc, RK_I2C_RXDATA_BASE + (i / 4) * 4);
+			buf32 = RK_I2C_READ(
+			    sc, RK_I2C_RXDATA_BASE + (i / 4) * 4);
 
 		buf8 = (buf32 >> ((i % 4) * 8)) & 0xFF;
 		sc->msg->buf[sc->cnt++] = buf8;
@@ -321,8 +317,8 @@ rk_i2c_intr_locked(struct rk_i2c_softc *sc)
 		if (sc->mode == RK_I2C_CON_MODE_RRX ||
 		    sc->mode == RK_I2C_CON_MODE_RX) {
 			sc->state = STATE_READ;
-			RK_I2C_WRITE(sc, RK_I2C_IEN, RK_I2C_IEN_MBRFIEN |
-			    RK_I2C_IEN_NAKRCVIEN);
+			RK_I2C_WRITE(sc, RK_I2C_IEN,
+			    RK_I2C_IEN_MBRFIEN | RK_I2C_IEN_NAKRCVIEN);
 
 			reg = RK_I2C_READ(sc, RK_I2C_CON);
 			reg |= RK_I2C_CON_LASTACK;
@@ -331,8 +327,8 @@ rk_i2c_intr_locked(struct rk_i2c_softc *sc)
 			RK_I2C_WRITE(sc, RK_I2C_MRXCNT, sc->msg->len);
 		} else {
 			sc->state = STATE_WRITE;
-			RK_I2C_WRITE(sc, RK_I2C_IEN, RK_I2C_IEN_MBTFIEN |
-			    RK_I2C_IEN_NAKRCVIEN);
+			RK_I2C_WRITE(sc, RK_I2C_IEN,
+			    RK_I2C_IEN_MBTFIEN | RK_I2C_IEN_NAKRCVIEN);
 
 			sc->msg->len += 1;
 			rk_i2c_fill_tx(sc);
@@ -348,7 +344,7 @@ rk_i2c_intr_locked(struct rk_i2c_softc *sc)
 		break;
 	case STATE_WRITE:
 		if (sc->cnt == sc->msg->len &&
-		     !(sc->msg->flags & IIC_M_NOSTOP)) {
+		    !(sc->msg->flags & IIC_M_NOSTOP)) {
 			rk_i2c_send_stop(sc);
 			break;
 		}
@@ -400,7 +396,7 @@ rk_i2c_start_xfer(struct rk_i2c_softc *sc, struct iic_msg *msg, boolean_t last)
 	if (!(sc->msg->flags & IIC_M_NOSTART)) {
 		/* Stadard message */
 		if (sc->mode == RK_I2C_CON_MODE_TX) {
-			sc->msg_len++;	/* Take slave address in account. */
+			sc->msg_len++; /* Take slave address in account. */
 			sc->tx_slave_addr = true;
 		}
 		sc->state = STATE_START;
@@ -415,16 +411,16 @@ rk_i2c_start_xfer(struct rk_i2c_softc *sc, struct iic_msg *msg, boolean_t last)
 				reg |= RK_I2C_CON_LASTACK;
 
 			RK_I2C_WRITE(sc, RK_I2C_MRXCNT, sc->msg->len);
-			RK_I2C_WRITE(sc, RK_I2C_IEN, RK_I2C_IEN_MBRFIEN |
-			    RK_I2C_IEN_NAKRCVIEN);
+			RK_I2C_WRITE(sc, RK_I2C_IEN,
+			    RK_I2C_IEN_MBRFIEN | RK_I2C_IEN_NAKRCVIEN);
 		} else {
 			sc->state = STATE_WRITE;
 			len = rk_i2c_fill_tx(sc);
 
 			RK_I2C_WRITE(sc, RK_I2C_MTXCNT, len);
 
-			RK_I2C_WRITE(sc, RK_I2C_IEN, RK_I2C_IEN_MBTFIEN |
-			    RK_I2C_IEN_NAKRCVIEN);
+			RK_I2C_WRITE(sc, RK_I2C_IEN,
+			    RK_I2C_IEN_MBTFIEN | RK_I2C_IEN_NAKRCVIEN);
 		}
 	}
 	reg |= sc->mode << RK_I2C_CON_MODE_SHIFT;
@@ -458,8 +454,7 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	err = 0;
 	for (i = 0; i < nmsgs; i++) {
 		/* Validate parameters. */
-		if (msgs == NULL || msgs[i].buf == NULL ||
-		    msgs[i].len == 0) {
+		if (msgs == NULL || msgs[i].buf == NULL || msgs[i].len == 0) {
 			err = EINVAL;
 			break;
 		}
@@ -470,8 +465,8 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		if (i < nmsgs - 1) {
 			if ((msgs[i + 1].flags & IIC_M_NOSTART) &&
 			    ((msgs[i].flags & IIC_M_RD) !=
-			    (msgs[i + 1].flags & IIC_M_RD) ||
-			    (msgs[i].slave !=  msgs[i + 1].slave))) {
+				    (msgs[i + 1].flags & IIC_M_RD) ||
+				(msgs[i].slave != msgs[i + 1].slave))) {
 				err = EINVAL;
 				break;
 			}
@@ -484,7 +479,7 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		 */
 
 		if (nmsgs - i >= 2 && msgs[i].len < 4 &&
-		    msgs[i].flags == (IIC_M_WR  | IIC_M_NOSTOP) &&
+		    msgs[i].flags == (IIC_M_WR | IIC_M_NOSTOP) &&
 		    msgs[i + 1].flags == IIC_M_RD &&
 		    (msgs[i].slave & ~LSB) == (msgs[i + 1].slave & ~LSB)) {
 			sc->mode = RK_I2C_CON_MODE_RRX;
@@ -496,7 +491,7 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 
 			/* Write slave register address */
 			reg = 0;
-			for (j = 0; j < msgs[i].len ; j++) {
+			for (j = 0; j < msgs[i].len; j++) {
 				reg |= (msgs[i].buf[j] & 0xff) << (j * 8);
 				reg |= RK_I2C_MRXADDR_VALID(j);
 			}
@@ -524,7 +519,7 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		rk_i2c_start_xfer(sc, msgs + i, last_msg);
 
 		if (cold) {
-			for(timeout = 10000; timeout > 0; timeout--)  {
+			for (timeout = 10000; timeout > 0; timeout--) {
 				rk_i2c_intr_locked(sc);
 				if (sc->transfer_done != 0)
 					break;
@@ -534,8 +529,8 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 				err = ETIMEDOUT;
 		} else {
 			while (err == 0 && sc->transfer_done != 1) {
-				err = msleep(sc, &sc->mtx, PZERO, "rk_i2c",
-				    10 * hz);
+				err = msleep(
+				    sc, &sc->mtx, PZERO, "rk_i2c", 10 * hz);
 			}
 		}
 	}
@@ -580,9 +575,8 @@ rk_i2c_attach(device_t dev)
 		goto fail;
 	}
 
-	if (bus_setup_intr(dev, sc->res[1],
-	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, rk_i2c_intr, sc,
-	    &sc->intrhand)) {
+	if (bus_setup_intr(dev, sc->res[1], INTR_TYPE_MISC | INTR_MPSAFE, NULL,
+		rk_i2c_intr, sc, &sc->intrhand)) {
 		bus_release_resources(dev, rk_i2c_spec, sc->res);
 		device_printf(dev, "cannot setup interrupt handler\n");
 		return (ENXIO);
@@ -669,20 +663,19 @@ rk_i2c_get_node(device_t bus, device_t dev)
 	return ofw_bus_get_node(bus);
 }
 
-static device_method_t rk_i2c_methods[] = {
-	DEVMETHOD(device_probe,		rk_i2c_probe),
-	DEVMETHOD(device_attach,	rk_i2c_attach),
-	DEVMETHOD(device_detach,	rk_i2c_detach),
+static device_method_t rk_i2c_methods[] = { DEVMETHOD(
+						device_probe, rk_i2c_probe),
+	DEVMETHOD(device_attach, rk_i2c_attach),
+	DEVMETHOD(device_detach, rk_i2c_detach),
 
 	/* OFW methods */
-	DEVMETHOD(ofw_bus_get_node,		rk_i2c_get_node),
+	DEVMETHOD(ofw_bus_get_node, rk_i2c_get_node),
 
-	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
-	DEVMETHOD(iicbus_reset,		rk_i2c_reset),
-	DEVMETHOD(iicbus_transfer,	rk_i2c_transfer),
+	DEVMETHOD(iicbus_callback, iicbus_null_callback),
+	DEVMETHOD(iicbus_reset, rk_i2c_reset),
+	DEVMETHOD(iicbus_transfer, rk_i2c_transfer),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t rk_i2c_driver = {
 	"rk_i2c",

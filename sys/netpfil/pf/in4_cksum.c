@@ -69,15 +69,20 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 
+#include <machine/in_cksum.h>
+
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 
-#include <machine/in_cksum.h>
-
-#define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
-#define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; (void)ADDCARRY(sum);}
+#define ADDCARRY(x) (x > 65535 ? x -= 65535 : x)
+#define REDUCE                                   \
+	{                                        \
+		l_util.l = sum;                  \
+		sum = l_util.s[0] + l_util.s[1]; \
+		(void)ADDCARRY(sum);             \
+	}
 
 int in4_cksum(struct mbuf *, u_int8_t, int, int);
 
@@ -110,8 +115,16 @@ in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len)
 		u.ipov.ih_dst = mtod(m, struct ip *)->ip_dst;
 		w = u.w;
 		/* assumes sizeof(ipov) == 20 */
-		sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3]; sum += w[4];
-		sum += w[5]; sum += w[6]; sum += w[7]; sum += w[8]; sum += w[9];
+		sum += w[0];
+		sum += w[1];
+		sum += w[2];
+		sum += w[3];
+		sum += w[4];
+		sum += w[5];
+		sum += w[6];
+		sum += w[7];
+		sum += w[8];
+		sum += w[9];
 	}
 
 	psum = in_cksum_skip(m, len + off, off);

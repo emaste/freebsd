@@ -30,18 +30,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/capsicum.h>
-#include <sys/module.h>
 #include <sys/systm.h>
+#include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/file.h> /* Must come after sys/malloc.h */
+#include <sys/filedesc.h>
 #include <sys/ioccom.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/file.h>		/* Must come after sys/malloc.h */
-#include <sys/filedesc.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/select.h>
@@ -52,15 +52,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <net/if.h>
-
 #include <netsmb/smb.h>
 #include <netsmb/smb_conn.h>
-#include <netsmb/smb_subr.h>
 #include <netsmb/smb_dev.h>
+#include <netsmb/smb_subr.h>
 
 static struct cdev *nsmb_dev;
 
-static d_open_t	 nsmb_dev_open;
+static d_open_t nsmb_dev_open;
 static d_ioctl_t nsmb_dev_ioctl;
 
 MODULE_DEPEND(netsmb, libiconv, 1, 1, 2);
@@ -74,25 +73,23 @@ SYSCTL_INT(_net_smb, OID_AUTO, version, CTLFLAG_RD, &smb_version, 0, "");
 
 static MALLOC_DEFINE(M_NSMBDEV, "NETSMBDEV", "NET/SMB device");
 
-static struct cdevsw nsmb_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	nsmb_dev_open,
-	.d_ioctl =	nsmb_dev_ioctl,
-	.d_name =	NSMB_NAME
-};
+static struct cdevsw nsmb_cdevsw = { .d_version = D_VERSION,
+	.d_open = nsmb_dev_open,
+	.d_ioctl = nsmb_dev_ioctl,
+	.d_name = NSMB_NAME };
 
 static int
 nsmb_dev_init(void)
 {
 
-	nsmb_dev = make_dev(&nsmb_cdevsw, 0, UID_ROOT, GID_OPERATOR,
-	    0600, "nsmb");
+	nsmb_dev = make_dev(
+	    &nsmb_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0600, "nsmb");
 	if (nsmb_dev == NULL)
-		return (ENOMEM);  
+		return (ENOMEM);
 	return (0);
 }
 
-static void 
+static void
 nsmb_dev_destroy(void)
 {
 
@@ -107,19 +104,19 @@ smbdev_alloc(struct cdev *dev)
 	struct smb_dev *sdp;
 
 	sdp = malloc(sizeof(struct smb_dev), M_NSMBDEV, M_WAITOK | M_ZERO);
-	sdp->dev = dev;	
+	sdp->dev = dev;
 	sdp->sd_level = -1;
 	sdp->sd_flags |= NSMBFL_OPEN;
 	sdp->refcount = 1;
-	return (sdp);	
-} 
+	return (sdp);
+}
 
 void
 sdp_dtor(void *arg)
 {
 	struct smb_dev *dev;
 
-	dev = (struct smb_dev *)arg;	
+	dev = (struct smb_dev *)arg;
 	SMB_LOCK();
 	sdp_trydestroy(dev);
 	SMB_UNLOCK();
@@ -134,7 +131,7 @@ nsmb_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	sdp = smbdev_alloc(dev);
 	error = devfs_set_cdevpriv(sdp, sdp_dtor);
 	if (error) {
-		free(sdp, M_NSMBDEV);	
+		free(sdp, M_NSMBDEV);
 		return (error);
 	}
 	return (0);
@@ -152,7 +149,7 @@ sdp_trydestroy(struct smb_dev *sdp)
 		panic("No smb_dev upon device close");
 	MPASS(sdp->refcount > 0);
 	sdp->refcount--;
-	if (sdp->refcount) 
+	if (sdp->refcount)
 		return;
 	scred = malloc(sizeof(struct smb_cred), M_NSMBDEV, M_WAITOK);
 	smb_makescred(scred, curthread, NULL);
@@ -172,7 +169,8 @@ sdp_trydestroy(struct smb_dev *sdp)
 }
 
 static int
-nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+nsmb_dev_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct smb_dev *sdp;
 	struct smb_vc *vcp;
@@ -187,20 +185,20 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 	SMB_LOCK();
 	smb_makescred(scred, td, NULL);
 	switch (cmd) {
-	    case SMBIOC_OPENSESSION:
+	case SMBIOC_OPENSESSION:
 		if (sdp->sd_vc) {
 			error = EISCONN;
 			goto out;
 		}
-		error = smb_usr_opensession((struct smbioc_ossn*)data,
-		    scred, &vcp);
+		error = smb_usr_opensession(
+		    (struct smbioc_ossn *)data, scred, &vcp);
 		if (error)
 			break;
 		sdp->sd_vc = vcp;
 		smb_vc_unlock(vcp);
 		sdp->sd_level = SMBL_VC;
 		break;
-	    case SMBIOC_OPENSHARE:
+	case SMBIOC_OPENSHARE:
 		if (sdp->sd_share) {
 			error = EISCONN;
 			goto out;
@@ -209,32 +207,32 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 			error = ENOTCONN;
 			goto out;
 		}
-		error = smb_usr_openshare(sdp->sd_vc,
-		    (struct smbioc_oshare*)data, scred, &ssp);
+		error = smb_usr_openshare(
+		    sdp->sd_vc, (struct smbioc_oshare *)data, scred, &ssp);
 		if (error)
 			break;
 		sdp->sd_share = ssp;
 		smb_share_unlock(ssp);
 		sdp->sd_level = SMBL_SHARE;
 		break;
-	    case SMBIOC_REQUEST:
+	case SMBIOC_REQUEST:
 		if (sdp->sd_share == NULL) {
 			error = ENOTCONN;
 			goto out;
 		}
-		error = smb_usr_simplerequest(sdp->sd_share,
-		    (struct smbioc_rq*)data, scred);
+		error = smb_usr_simplerequest(
+		    sdp->sd_share, (struct smbioc_rq *)data, scred);
 		break;
-	    case SMBIOC_T2RQ:
+	case SMBIOC_T2RQ:
 		if (sdp->sd_share == NULL) {
 			error = ENOTCONN;
 			goto out;
 		}
-		error = smb_usr_t2request(sdp->sd_share,
-		    (struct smbioc_t2rq*)data, scred);
+		error = smb_usr_t2request(
+		    sdp->sd_share, (struct smbioc_t2rq *)data, scred);
 		break;
-	    case SMBIOC_SETFLAGS: {
-		struct smbioc_flags *fl = (struct smbioc_flags*)data;
+	case SMBIOC_SETFLAGS: {
+		struct smbioc_flags *fl = (struct smbioc_flags *)data;
 		int on;
 
 		if (fl->ioc_level == SMBL_VC) {
@@ -247,10 +245,12 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 				error = smb_vc_get(vcp, scred);
 				if (error)
 					break;
-				if (on && (vcp->obj.co_flags & SMBV_PERMANENT) == 0) {
+				if (on &&
+				    (vcp->obj.co_flags & SMBV_PERMANENT) == 0) {
 					vcp->obj.co_flags |= SMBV_PERMANENT;
 					smb_vc_ref(vcp);
-				} else if (!on && (vcp->obj.co_flags & SMBV_PERMANENT)) {
+				} else if (!on &&
+				    (vcp->obj.co_flags & SMBV_PERMANENT)) {
 					vcp->obj.co_flags &= ~SMBV_PERMANENT;
 					smb_vc_rele(vcp, scred);
 				}
@@ -267,10 +267,12 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 				error = smb_share_get(ssp, scred);
 				if (error)
 					break;
-				if (on && (ssp->obj.co_flags & SMBS_PERMANENT) == 0) {
+				if (on &&
+				    (ssp->obj.co_flags & SMBS_PERMANENT) == 0) {
 					ssp->obj.co_flags |= SMBS_PERMANENT;
 					smb_share_ref(ssp);
-				} else if (!on && (ssp->obj.co_flags & SMBS_PERMANENT)) {
+				} else if (!on &&
+				    (ssp->obj.co_flags & SMBS_PERMANENT)) {
 					ssp->obj.co_flags &= ~SMBS_PERMANENT;
 					smb_share_rele(ssp, scred);
 				}
@@ -281,15 +283,16 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 		} else
 			error = EINVAL;
 		break;
-	    }
-	    case SMBIOC_LOOKUP:
+	}
+	case SMBIOC_LOOKUP:
 		if (sdp->sd_vc || sdp->sd_share) {
 			error = EISCONN;
 			goto out;
 		}
 		vcp = NULL;
 		ssp = NULL;
-		error = smb_usr_lookup((struct smbioc_lookup*)data, scred, &vcp, &ssp);
+		error = smb_usr_lookup(
+		    (struct smbioc_lookup *)data, scred, &vcp, &ssp);
 		if (error)
 			break;
 		if (vcp) {
@@ -303,15 +306,16 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 			sdp->sd_level = SMBL_SHARE;
 		}
 		break;
-	    case SMBIOC_READ: case SMBIOC_WRITE: {
-		struct smbioc_rw *rwrq = (struct smbioc_rw*)data;
+	case SMBIOC_READ:
+	case SMBIOC_WRITE: {
+		struct smbioc_rw *rwrq = (struct smbioc_rw *)data;
 		struct uio auio;
 		struct iovec iov;
 
 		if ((ssp = sdp->sd_share) == NULL) {
 			error = ENOTCONN;
 			goto out;
-	 	}
+		}
 		iov.iov_base = rwrq->ioc_base;
 		iov.iov_len = rwrq->ioc_cnt;
 		auio.uio_iov = &iov;
@@ -327,8 +331,8 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 			error = smb_write(ssp, rwrq->ioc_fh, &auio, scred);
 		rwrq->ioc_cnt -= auio.uio_resid;
 		break;
-	    }
-	    default:
+	}
+	default:
 		error = ENODEV;
 	}
 out:
@@ -343,7 +347,7 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 	int error = 0;
 
 	switch (cmd) {
-	    case MOD_LOAD:
+	case MOD_LOAD:
 		error = smb_sm_init();
 		if (error)
 			break;
@@ -357,7 +361,7 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 			break;
 		sx_init(&smb_lock, "samba device lock");
 		break;
-	    case MOD_UNLOAD:
+	case MOD_UNLOAD:
 		smb_iod_done();
 		error = smb_sm_done();
 		if (error)
@@ -365,18 +369,18 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 		nsmb_dev_destroy();
 		sx_destroy(&smb_lock);
 		break;
-	    default:
+	default:
 		error = EINVAL;
 		break;
 	}
 	return error;
 }
 
-DEV_MODULE (dev_netsmb, nsmb_dev_load, 0);
+DEV_MODULE(dev_netsmb, nsmb_dev_load, 0);
 
 int
-smb_dev2share(int fd, int mode, struct smb_cred *scred,
-	struct smb_share **sspp, struct smb_dev **ssdp)
+smb_dev2share(int fd, int mode, struct smb_cred *scred, struct smb_share **sspp,
+    struct smb_dev **ssdp)
 {
 	struct file *fp, *fptmp;
 	struct smb_dev *sdp;

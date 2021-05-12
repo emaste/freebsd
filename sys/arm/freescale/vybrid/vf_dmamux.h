@@ -43,8 +43,8 @@ enum mux_grp {
 };
 
 /* DMAMUX */
-#define	MUX_READ1(_sc, _mux, _reg)				\
+#define MUX_READ1(_sc, _mux, _reg) \
 	bus_space_read_1(_sc->bst[_mux], _sc->bsh[_mux], _reg)
 
-#define	MUX_WRITE1(_sc, _mux, _reg, _val)			\
+#define MUX_WRITE1(_sc, _mux, _reg, _val) \
 	bus_space_write_1(_sc->bst[_mux], _sc->bsh[_mux], _reg, _val)

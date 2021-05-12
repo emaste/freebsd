@@ -36,50 +36,77 @@
  * Routines to build and maintain radix trees for routing lookups.
  */
 #include <sys/param.h>
-#ifdef	_KERNEL
+#ifdef _KERNEL
+#include <sys/systm.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/rmlock.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/syslog.h>
+
 #include <net/radix.h>
 #else /* !_KERNEL */
 #include <stdio.h>
-#include <strings.h>
 #include <stdlib.h>
-#define log(x, arg...)	fprintf(stderr, ## arg)
-#define panic(x)	fprintf(stderr, "PANIC: %s", x), exit(1)
-#define min(a, b) ((a) < (b) ? (a) : (b) )
+#include <strings.h>
+#define log(x, arg...) fprintf(stderr, ##arg)
+#define panic(x) fprintf(stderr, "PANIC: %s", x), exit(1)
+#define min(a, b) ((a) < (b) ? (a) : (b))
 #include <net/radix.h>
 #endif /* !_KERNEL */
 
-static struct radix_node
-	 *rn_insert(void *, struct radix_head *, int *,
-	     struct radix_node [2]),
-	 *rn_newpair(void *, int, struct radix_node[2]),
-	 *rn_search(void *, struct radix_node *),
-	 *rn_search_m(void *, struct radix_node *, void *);
-static struct radix_node *rn_addmask(void *, struct radix_mask_head *, int,int);
+static struct radix_node *rn_insert(
+    void *, struct radix_head *, int *, struct radix_node[2]),
+    *rn_newpair(void *, int, struct radix_node[2]),
+    *rn_search(void *, struct radix_node *),
+    *rn_search_m(void *, struct radix_node *, void *);
+static struct radix_node *rn_addmask(
+    void *, struct radix_mask_head *, int, int);
 
 static void rn_detachhead_internal(struct radix_head *);
 
-#define	RADIX_MAX_KEY_LEN	32
+#define RADIX_MAX_KEY_LEN 32
 
 static char rn_zeros[RADIX_MAX_KEY_LEN];
 static char rn_ones[RADIX_MAX_KEY_LEN] = {
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
+	-1,
 };
 
-static int	rn_lexobetter(void *m_arg, void *n_arg);
-static struct radix_mask *
-		rn_new_radix_mask(struct radix_node *tt,
-		    struct radix_mask *next);
-static int	rn_satisfies_leaf(char *trial, struct radix_node *leaf,
-		    int skip);
+static int rn_lexobetter(void *m_arg, void *n_arg);
+static struct radix_mask *rn_new_radix_mask(
+    struct radix_node *tt, struct radix_mask *next);
+static int rn_satisfies_leaf(char *trial, struct radix_node *leaf, int skip);
 
 /*
  * The data structure for the keys is a radix tree with one way
@@ -125,7 +152,7 @@ static int	rn_satisfies_leaf(char *trial, struct radix_node *leaf,
  * to LEN() as the argument is evaluated only once.
  * We cast the result to int as this is the dominant usage.
  */
-#define LEN(x) ( (int) (*(const u_char *)(x)) )
+#define LEN(x) ((int)(*(const u_char *)(x)))
 
 /*
  * XXX THIS NEEDS TO BE FIXED
@@ -196,7 +223,7 @@ rn_refines(void *m_arg, void *n_arg)
 		if (*n++)
 			return (0);
 	if (masks_are_equal && (longer < 0))
-		for (lim2 = m - longer; m < lim2; )
+		for (lim2 = m - longer; m < lim2;)
 			if (*m++)
 				return (1);
 	return (!masks_are_equal);
@@ -218,8 +245,8 @@ rn_lookup(void *v_arg, void *m_arg, struct radix_head *head)
 		/*
 		 * Most common case: search exact prefix/mask
 		 */
-		x = rn_addmask(m_arg, head->rnh_masks, 1,
-		    head->rnh_treetop->rn_offset);
+		x = rn_addmask(
+		    m_arg, head->rnh_masks, 1, head->rnh_treetop->rn_offset);
 		if (x == NULL)
 			return (NULL);
 		netmask = x->rn_key;
@@ -260,7 +287,9 @@ rn_satisfies_leaf(char *trial, struct radix_node *leaf, int skip)
 		cp3 = rn_ones;
 	else
 		length = min(length, LEN(cp3));
-	cplim = cp + length; cp3 += skip; cp2 += skip;
+	cplim = cp + length;
+	cp3 += skip;
+	cp2 += skip;
 	for (cp += skip; cp < cplim; cp++, cp2++, cp3++)
 		if ((*cp ^ *cp2) & *cp3)
 			return (0);
@@ -285,7 +314,7 @@ rn_match(void *v_arg, struct radix_head *head)
 	 * Open code rn_search(v, top) to avoid overhead of extra
 	 * subroutine call.
 	 */
-	for (; t->rn_bit >= 0; ) {
+	for (; t->rn_bit >= 0;) {
 		if (t->rn_bmask & cp[t->rn_offset])
 			t = t->rn_right;
 		else
@@ -304,7 +333,9 @@ rn_match(void *v_arg, struct radix_head *head)
 	 */
 	if (t->rn_mask)
 		vlen = *(u_char *)t->rn_mask;
-	cp += off; cp2 = t->rn_key + off; cplim = v + vlen;
+	cp += off;
+	cp2 = t->rn_key + off;
+	cplim = v + vlen;
 	for (; cp < cplim; cp++, cp2++)
 		if (*cp != *cp2)
 			goto on1;
@@ -340,7 +371,7 @@ on1:
 			if (rn_bit <= t->rn_bit)
 				return (t);
 		} else if (rn_satisfies_leaf(v, t, matched_off))
-				return (t);
+			return (t);
 	t = saved_t;
 	/* start searching up the tree */
 	do {
@@ -372,10 +403,10 @@ on1:
 }
 
 #ifdef RN_DEBUG
-int	rn_nodenum;
-struct	radix_node *rn_clist;
-int	rn_saveinfo;
-int	rn_debug =  1;
+int rn_nodenum;
+struct radix_node *rn_clist;
+int rn_saveinfo;
+int rn_debug = 1;
 #endif
 
 /*
@@ -398,7 +429,7 @@ rn_newpair(void *v, int b, struct radix_node nodes[2])
 	t->rn_left = tt;
 	t->rn_offset = b >> 3;
 
-#if 0  /* XXX perhaps we should fill these fields as well. */
+#if 0 /* XXX perhaps we should fill these fields as well. */
 	t->rn_parent = t->rn_right = NULL;
 
 	tt->rn_mask = NULL;
@@ -411,7 +442,8 @@ rn_newpair(void *v, int b, struct radix_node nodes[2])
 	tt->rn_flags = t->rn_flags = RNF_ACTIVE;
 	tt->rn_mklist = t->rn_mklist = 0;
 #ifdef RN_DEBUG
-	tt->rn_info = rn_nodenum++; t->rn_info = rn_nodenum++;
+	tt->rn_info = rn_nodenum++;
+	t->rn_info = rn_nodenum++;
 	tt->rn_twin = t;
 	tt->rn_ybro = rn_clist;
 	rn_clist = tt;
@@ -430,7 +462,7 @@ rn_insert(void *v_arg, struct radix_head *head, int *dupentry,
 	caddr_t cp = v + head_off;
 	unsigned b;
 	struct radix_node *p, *tt, *x;
-    	/*
+	/*
 	 * Find first bit at which v and t->rn_key differ
 	 */
 	caddr_t cp2 = t->rn_key + head_off;
@@ -456,13 +488,13 @@ on1:
 			x = x->rn_right;
 		else
 			x = x->rn_left;
-	} while (b > (unsigned) x->rn_bit);
-				/* x->rn_bit < b && x->rn_bit >= 0 */
+	} while (b > (unsigned)x->rn_bit);
+	/* x->rn_bit < b && x->rn_bit >= 0 */
 #ifdef RN_DEBUG
 	if (rn_debug)
 		log(LOG_DEBUG, "rn_insert: Going In:\n"), traverse(p);
 #endif
-	t = rn_newpair(v_arg, b, nodes); 
+	t = rn_newpair(v_arg, b, nodes);
 	tt = t->rn_left;
 	if ((cp[p->rn_offset] & p->rn_bmask) == 0)
 		p->rn_left = t;
@@ -519,7 +551,7 @@ rn_addmask(void *n_arg, struct radix_mask_head *maskhead, int search, int skip)
 		x = NULL;
 	if (x || search)
 		return (x);
-	R_Zalloc(x, struct radix_node *, RADIX_MAX_KEY_LEN + 2 * sizeof (*x));
+	R_Zalloc(x, struct radix_node *, RADIX_MAX_KEY_LEN + 2 * sizeof(*x));
 	if ((saved_x = x) == NULL)
 		return (0);
 	netmask = cp = (unsigned char *)(x + 2);
@@ -537,7 +569,7 @@ rn_addmask(void *n_arg, struct radix_mask_head *maskhead, int search, int skip)
 	 * the bits should be contiguous, otherwise we have got
 	 * a non-contiguous mask.
 	 */
-#define	CONTIG(_c)	(((~(_c) + 1) & (_c)) == (unsigned char)(~(_c) + 1))
+#define CONTIG(_c) (((~(_c) + 1) & (_c)) == (unsigned char)(~(_c) + 1))
 	cplim = netmask + mlen;
 	isnormal = 1;
 	for (cp = netmask + skip; (cp < cplim) && *(u_char *)cp == 0xff;)
@@ -555,13 +587,13 @@ rn_addmask(void *n_arg, struct radix_mask_head *maskhead, int search, int skip)
 	return (x);
 }
 
-static int	/* XXX: arbitrary ordering for non-contiguous masks */
+static int /* XXX: arbitrary ordering for non-contiguous masks */
 rn_lexobetter(void *m_arg, void *n_arg)
 {
 	u_char *mp = m_arg, *np = n_arg, *lim;
 
 	if (LEN(mp) > LEN(np))
-		return (1);  /* not really, but need to check longer one first */
+		return (1); /* not really, but need to check longer one first */
 	if (LEN(mp) == LEN(np))
 		for (lim = mp + LEN(mp); mp < lim;)
 			if (*mp++ > *np++)
@@ -574,7 +606,7 @@ rn_new_radix_mask(struct radix_node *tt, struct radix_mask *next)
 {
 	struct radix_mask *m;
 
-	R_Malloc(m, struct radix_mask *, sizeof (struct radix_mask));
+	R_Malloc(m, struct radix_mask *, sizeof(struct radix_mask));
 	if (m == NULL) {
 		log(LOG_ERR, "Failed to allocate route mask\n");
 		return (0);
@@ -610,7 +642,7 @@ rn_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 	 * the mask to speed avoiding duplicate references at
 	 * nodes and possibly save time in calculating indices.
 	 */
-	if (netmask)  {
+	if (netmask) {
 		x = rn_addmask(netmask, head->rnh_masks, 0, top->rn_offset);
 		if (x == NULL)
 			return (0);
@@ -628,9 +660,10 @@ rn_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 				return (0);
 			if (netmask == 0 ||
 			    (tt->rn_mask &&
-			     ((b_leaf < tt->rn_bit) /* index(netmask) > node */
-			      || rn_refines(netmask, tt->rn_mask)
-			      || rn_lexobetter(netmask, tt->rn_mask))))
+				((b_leaf <
+				     tt->rn_bit) /* index(netmask) > node */
+				    || rn_refines(netmask, tt->rn_mask) ||
+				    rn_lexobetter(netmask, tt->rn_mask))))
 				break;
 		}
 		/*
@@ -647,29 +680,34 @@ rn_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 		 * parent pointer.
 		 */
 		if (tt == saved_tt) {
-			struct	radix_node *xx = x;
+			struct radix_node *xx = x;
 			/* link in at head of list */
 			(tt = treenodes)->rn_dupedkey = t;
 			tt->rn_flags = t->rn_flags;
 			tt->rn_parent = x = t->rn_parent;
-			t->rn_parent = tt;	 		/* parent */
+			t->rn_parent = tt; /* parent */
 			if (x->rn_left == t)
 				x->rn_left = tt;
 			else
 				x->rn_right = tt;
-			saved_tt = tt; x = xx;
+			saved_tt = tt;
+			x = xx;
 		} else {
 			(tt = treenodes)->rn_dupedkey = t->rn_dupedkey;
 			t->rn_dupedkey = tt;
-			tt->rn_parent = t;			/* parent */
-			if (tt->rn_dupedkey)			/* parent */
+			tt->rn_parent = t;			 /* parent */
+			if (tt->rn_dupedkey)			 /* parent */
 				tt->rn_dupedkey->rn_parent = tt; /* parent */
 		}
 #ifdef RN_DEBUG
-		t=tt+1; tt->rn_info = rn_nodenum++; t->rn_info = rn_nodenum++;
-		tt->rn_twin = t; tt->rn_ybro = rn_clist; rn_clist = tt;
+		t = tt + 1;
+		tt->rn_info = rn_nodenum++;
+		t->rn_info = rn_nodenum++;
+		tt->rn_twin = t;
+		tt->rn_ybro = rn_clist;
+		rn_clist = tt;
 #endif
-		tt->rn_key = (caddr_t) v;
+		tt->rn_key = (caddr_t)v;
 		tt->rn_bit = -1;
 		tt->rn_flags = RNF_ACTIVE;
 	}
@@ -691,12 +729,13 @@ rn_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 		x = t->rn_right;
 	/* Promote general routes from below */
 	if (x->rn_bit < 0) {
-	    for (mp = &t->rn_mklist; x; x = x->rn_dupedkey)
-		if (x->rn_mask && (x->rn_bit >= b_leaf) && x->rn_mklist == 0) {
-			*mp = m = rn_new_radix_mask(x, 0);
-			if (m)
-				mp = &m->rm_mklist;
-		}
+		for (mp = &t->rn_mklist; x; x = x->rn_dupedkey)
+			if (x->rn_mask && (x->rn_bit >= b_leaf) &&
+			    x->rn_mklist == 0) {
+				*mp = m = rn_new_radix_mask(x, 0);
+				if (m)
+					mp = &m->rm_mklist;
+			}
 	} else if (x->rn_mklist) {
 		/*
 		 * Skip over masks whose index is > that of new node
@@ -704,11 +743,12 @@ rn_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 		for (mp = &x->rn_mklist; (m = *mp); mp = &m->rm_mklist)
 			if (m->rm_bit >= b_leaf)
 				break;
-		t->rn_mklist = m; *mp = NULL;
+		t->rn_mklist = m;
+		*mp = NULL;
 	}
 on2:
 	/* Add new route to highest possible ancestor's list */
-	if ((netmask == 0) || (b > t->rn_bit ))
+	if ((netmask == 0) || (b > t->rn_bit))
 		return (tt); /* can't lift at all */
 	b_leaf = tt->rn_bit;
 	do {
@@ -729,8 +769,8 @@ on2:
 		if (m->rm_flags & RNF_NORMAL) {
 			mmask = m->rm_leaf->rn_mask;
 			if (tt->rn_flags & RNF_NORMAL) {
-			    log(LOG_ERR,
-			        "Non-unique normal route, mask not entered\n");
+				log(LOG_ERR,
+				    "Non-unique normal route, mask not entered\n");
 				return (tt);
 			}
 		} else
@@ -740,8 +780,7 @@ on2:
 			tt->rn_mklist = m;
 			return (tt);
 		}
-		if (rn_refines(netmask, mmask)
-		    || rn_lexobetter(netmask, mmask))
+		if (rn_refines(netmask, mmask) || rn_lexobetter(netmask, mmask))
 			break;
 	}
 	*mp = rn_new_radix_mask(tt, *mp);
@@ -762,7 +801,7 @@ rn_delete(void *v_arg, void *netmask_arg, struct radix_head *head)
 	x = head->rnh_treetop;
 	tt = rn_search(v, x);
 	head_off = x->rn_offset;
-	vlen =  LEN(v);
+	vlen = LEN(v);
 	saved_tt = tt;
 	top = x;
 	if (tt == NULL ||
@@ -785,7 +824,7 @@ rn_delete(void *v_arg, void *netmask_arg, struct radix_head *head)
 	if (tt->rn_flags & RNF_NORMAL) {
 		if (m->rm_leaf != tt || m->rm_refs > 0) {
 			log(LOG_ERR, "rn_delete: inconsistent annotation\n");
-			return (0);  /* dangling ref could cause disaster */
+			return (0); /* dangling ref could cause disaster */
 		}
 	} else {
 		if (m->rm_mask != tt->rn_mask) {
@@ -822,8 +861,10 @@ on1:
 		return (0);
 #ifdef RN_DEBUG
 	/* Get us out of the creation list */
-	for (t = rn_clist; t && t->rn_ybro != tt; t = t->rn_ybro) {}
-	if (t) t->rn_ybro = tt->rn_ybro;
+	for (t = rn_clist; t && t->rn_ybro != tt; t = t->rn_ybro) {
+	}
+	if (t)
+		t->rn_ybro = tt->rn_ybro;
 #endif
 	t = tt->rn_parent;
 	dupedkey = saved_tt->rn_dupedkey;
@@ -834,7 +875,8 @@ on1:
 		 */
 		if (tt == saved_tt) {
 			/* remove from head of chain */
-			x = dupedkey; x->rn_parent = t;
+			x = dupedkey;
+			x->rn_parent = t;
 			if (t->rn_left == tt)
 				t->rn_left = x;
 			else
@@ -845,13 +887,14 @@ on1:
 				p = p->rn_dupedkey;
 			if (p) {
 				p->rn_dupedkey = tt->rn_dupedkey;
-				if (tt->rn_dupedkey)		/* parent */
+				if (tt->rn_dupedkey) /* parent */
 					tt->rn_dupedkey->rn_parent = p;
-								/* parent */
-			} else log(LOG_ERR, "rn_delete: couldn't find us\n");
+				/* parent */
+			} else
+				log(LOG_ERR, "rn_delete: couldn't find us\n");
 		}
 		t = tt + 1;
-		if  (t->rn_flags & RNF_ACTIVE) {
+		if (t->rn_flags & RNF_ACTIVE) {
 #ifndef RN_DEBUG
 			*++x = *t;
 			p = t->rn_parent;
@@ -902,8 +945,8 @@ on1:
 				}
 			if (m)
 				log(LOG_ERR,
-				    "rn_delete: Orphaned Mask %p at %p\n",
-				    m, x);
+				    "rn_delete: Orphaned Mask %p at %p\n", m,
+				    x);
 		}
 	}
 	/*
@@ -937,8 +980,8 @@ out:
  * exit.
  */
 int
-rn_walktree_from(struct radix_head *h, void *a, void *m,
-    walktree_f_t *f, void *w)
+rn_walktree_from(
+    struct radix_head *h, void *a, void *m, walktree_f_t *f, void *w)
 {
 	int error;
 	struct radix_node *base, *next;
@@ -955,7 +998,7 @@ rn_walktree_from(struct radix_head *h, void *a, void *m,
 	 * function because we need to keep track of the last node seen.
 	 */
 	/* printf("about to search\n"); */
-	for (rn = h->rnh_treetop; rn->rn_bit >= 0; ) {
+	for (rn = h->rnh_treetop; rn->rn_bit >= 0;) {
 		last = rn;
 		/* printf("rn_bit %d, rn_bmask %x, xm[rn_offset] %x\n",
 		       rn->rn_bit, rn->rn_bmask, xm[rn->rn_offset]); */
@@ -993,8 +1036,8 @@ rn_walktree_from(struct radix_head *h, void *a, void *m,
 		/* printf("node %p (%d)\n", rn, rn->rn_bit); */
 		base = rn;
 		/* If at right child go back up, otherwise, go right */
-		while (rn->rn_parent->rn_right == rn
-		       && !(rn->rn_flags & RNF_ROOT)) {
+		while (rn->rn_parent->rn_right == rn &&
+		    !(rn->rn_flags & RNF_ROOT)) {
 			rn = rn->rn_parent;
 
 			/* if went up beyond last, stop */
@@ -1010,8 +1053,8 @@ rn_walktree_from(struct radix_head *h, void *a, void *m,
 				 */
 			}
 		}
-		
-		/* 
+
+		/*
 		 * At the top of the tree, no need to traverse the right
 		 * half, prevent the traversal of the entire tree in the
 		 * case of default route.
@@ -1027,8 +1070,7 @@ rn_walktree_from(struct radix_head *h, void *a, void *m,
 		while ((rn = base) != NULL) {
 			base = rn->rn_dupedkey;
 			/* printf("leaf %p\n", rn); */
-			if (!(rn->rn_flags & RNF_ROOT)
-			    && (error = (*f)(rn, w)))
+			if (!(rn->rn_flags & RNF_ROOT) && (error = (*f)(rn, w)))
 				return (error);
 		}
 		rn = next;
@@ -1059,8 +1101,8 @@ rn_walktree(struct radix_head *h, walktree_f_t *f, void *w)
 	for (;;) {
 		base = rn;
 		/* If at right child go back up, otherwise, go right */
-		while (rn->rn_parent->rn_right == rn
-		       && (rn->rn_flags & RNF_ROOT) == 0)
+		while (rn->rn_parent->rn_right == rn &&
+		    (rn->rn_flags & RNF_ROOT) == 0)
 			rn = rn->rn_parent;
 		/* Find the next *leaf* since next node might vanish, too */
 		for (rn = rn->rn_parent->rn_right; rn->rn_bit >= 0;)
@@ -1069,8 +1111,7 @@ rn_walktree(struct radix_head *h, walktree_f_t *f, void *w)
 		/* Process leaves */
 		while ((rn = base)) {
 			base = rn->rn_dupedkey;
-			if (!(rn->rn_flags & RNF_ROOT)
-			    && (error = (*f)(rn, w)))
+			if (!(rn->rn_flags & RNF_ROOT) && (error = (*f)(rn, w)))
 				return (error);
 		}
 		rn = next;
@@ -1088,7 +1129,8 @@ rn_walktree(struct radix_head *h, walktree_f_t *f, void *w)
  * bits starting at 'off'.
  */
 void
-rn_inithead_internal(struct radix_head *rh, struct radix_node *base_nodes, int off)
+rn_inithead_internal(
+    struct radix_head *rh, struct radix_node *base_nodes, int off)
 {
 	struct radix_node *t, *tt, *ttt;
 
@@ -1096,7 +1138,7 @@ rn_inithead_internal(struct radix_head *rh, struct radix_node *base_nodes, int o
 	ttt = base_nodes + 2;
 	t->rn_right = ttt;
 	t->rn_parent = t;
-	tt = t->rn_left;	/* ... which in turn is base_nodes */
+	tt = t->rn_left; /* ... which in turn is base_nodes */
 	tt->rn_flags = t->rn_flags = RNF_ROOT | RNF_ACTIVE;
 	tt->rn_bit = -1 - off;
 	*ttt = *tt;
@@ -1109,8 +1151,7 @@ static void
 rn_detachhead_internal(struct radix_head *head)
 {
 
-	KASSERT((head != NULL),
-	    ("%s: head already freed", __func__));
+	KASSERT((head != NULL), ("%s: head already freed", __func__));
 
 	/* Free <left,root,right> nodes. */
 	R_Free(head);
@@ -1130,8 +1171,8 @@ rn_inithead(void **head, int off)
 	if (*head != NULL)
 		return (1);
 
-	R_Zalloc(rnh, struct radix_node_head *, sizeof (*rnh));
-	R_Zalloc(rmh, struct radix_mask_head *, sizeof (*rmh));
+	R_Zalloc(rnh, struct radix_node_head *, sizeof(*rnh));
+	R_Zalloc(rmh, struct radix_mask_head *, sizeof(*rmh));
 	if (rnh == NULL || rmh == NULL) {
 		if (rnh != NULL)
 			R_Free(rnh);
@@ -1160,7 +1201,7 @@ rn_inithead(void **head, int off)
 static int
 rn_freeentry(struct radix_node *rn, void *arg)
 {
-	struct radix_head * const rnh = arg;
+	struct radix_head *const rnh = arg;
 	struct radix_node *x;
 
 	x = (struct radix_node *)rn_delete(rn + 2, NULL, rnh);

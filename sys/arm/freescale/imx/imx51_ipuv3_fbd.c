@@ -38,7 +38,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/consio.h>
 #include <sys/endian.h>
+#include <sys/eventhandler.h>
+#include <sys/fbio.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
@@ -50,69 +54,62 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/time.h>
 #include <sys/timetc.h>
-#include <sys/fbio.h>
-#include <sys/consio.h>
-#include <sys/eventhandler.h>
-
-#include <sys/kdb.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/vt/vt.h>
 #include <dev/vt/colors/vt_termcolors.h>
+#include <dev/vt/vt.h>
 
 #include <arm/freescale/imx/imx51_ccmvar.h>
-
 #include <arm/freescale/imx/imx51_ipuv3reg.h>
 
 #include "fb_if.h"
 
-#define	IMX51_IPU_HSP_CLOCK	665000000
+#define IMX51_IPU_HSP_CLOCK 665000000
 
 struct ipu3sc_softc {
-	device_t		dev;
-	device_t		sc_fbd;		/* fbd child */
-	struct fb_info		sc_info;
+	device_t dev;
+	device_t sc_fbd; /* fbd child */
+	struct fb_info sc_info;
 
-	bus_space_tag_t		iot;
-	bus_space_handle_t	ioh;
-	bus_space_handle_t	cm_ioh;
-	bus_space_handle_t	dp_ioh;
-	bus_space_handle_t	di0_ioh;
-	bus_space_handle_t	di1_ioh;
-	bus_space_handle_t	dctmpl_ioh;
-	bus_space_handle_t	dc_ioh;
-	bus_space_handle_t	dmfc_ioh;
-	bus_space_handle_t	idmac_ioh;
-	bus_space_handle_t	cpmem_ioh;
+	bus_space_tag_t iot;
+	bus_space_handle_t ioh;
+	bus_space_handle_t cm_ioh;
+	bus_space_handle_t dp_ioh;
+	bus_space_handle_t di0_ioh;
+	bus_space_handle_t di1_ioh;
+	bus_space_handle_t dctmpl_ioh;
+	bus_space_handle_t dc_ioh;
+	bus_space_handle_t dmfc_ioh;
+	bus_space_handle_t idmac_ioh;
+	bus_space_handle_t cpmem_ioh;
 };
 
 static struct ipu3sc_softc *ipu3sc_softc;
 
-#define	IPUV3_READ(ipuv3, module, reg)					\
+#define IPUV3_READ(ipuv3, module, reg) \
 	bus_space_read_4((ipuv3)->iot, (ipuv3)->module##_ioh, (reg))
-#define	IPUV3_WRITE(ipuv3, module, reg, val)				\
+#define IPUV3_WRITE(ipuv3, module, reg, val) \
 	bus_space_write_4((ipuv3)->iot, (ipuv3)->module##_ioh, (reg), (val))
 
-#define	CPMEM_CHANNEL_OFFSET(_c)	((_c) * 0x40)
-#define	CPMEM_WORD_OFFSET(_w)		((_w) * 0x20)
-#define	CPMEM_DP_OFFSET(_d)		((_d) * 0x10000)
-#define	IMX_IPU_DP0		0
-#define	IMX_IPU_DP1		1
-#define	CPMEM_CHANNEL(_dp, _ch, _w)					\
-	    (CPMEM_DP_OFFSET(_dp) + CPMEM_CHANNEL_OFFSET(_ch) +		\
-		CPMEM_WORD_OFFSET(_w))
-#define	CPMEM_OFFSET(_dp, _ch, _w, _o)					\
-	    (CPMEM_CHANNEL((_dp), (_ch), (_w)) + (_o))
+#define CPMEM_CHANNEL_OFFSET(_c) ((_c)*0x40)
+#define CPMEM_WORD_OFFSET(_w) ((_w)*0x20)
+#define CPMEM_DP_OFFSET(_d) ((_d)*0x10000)
+#define IMX_IPU_DP0 0
+#define IMX_IPU_DP1 1
+#define CPMEM_CHANNEL(_dp, _ch, _w)                         \
+	(CPMEM_DP_OFFSET(_dp) + CPMEM_CHANNEL_OFFSET(_ch) + \
+	    CPMEM_WORD_OFFSET(_w))
+#define CPMEM_OFFSET(_dp, _ch, _w, _o) \
+	(CPMEM_CHANNEL((_dp), (_ch), (_w)) + (_o))
 
-static int	ipu3_fb_probe(device_t);
-static int	ipu3_fb_attach(device_t);
+static int ipu3_fb_probe(device_t);
+static int ipu3_fb_attach(device_t);
 
 static void
 ipu3_fb_init(struct ipu3sc_softc *sc)
@@ -137,14 +134,15 @@ ipu3_fb_init(struct ipu3sc_softc *sc)
 	    sc->sc_info.fb_stride);
 	sc->sc_info.fb_size = sc->sc_info.fb_height * sc->sc_info.fb_stride;
 
-	sc->sc_info.fb_vbase = (intptr_t)contigmalloc(sc->sc_info.fb_size,
-	    M_DEVBUF, M_ZERO, 0, ~0, PAGE_SIZE, 0);
+	sc->sc_info.fb_vbase = (intptr_t)contigmalloc(
+	    sc->sc_info.fb_size, M_DEVBUF, M_ZERO, 0, ~0, PAGE_SIZE, 0);
 	sc->sc_info.fb_pbase = (intptr_t)vtophys(sc->sc_info.fb_vbase);
 
 	/* DP1 + config_ch_23 + word_2 */
 	IPUV3_WRITE(sc, cpmem, CPMEM_OFFSET(IMX_IPU_DP1, 23, 1, 0),
 	    (((uint32_t)sc->sc_info.fb_pbase >> 3) |
-	    (((uint32_t)sc->sc_info.fb_pbase >> 3) << 29)) & 0xffffffff);
+		(((uint32_t)sc->sc_info.fb_pbase >> 3) << 29)) &
+		0xffffffff);
 
 	IPUV3_WRITE(sc, cpmem, CPMEM_OFFSET(IMX_IPU_DP1, 23, 1, 4),
 	    (((uint32_t)sc->sc_info.fb_pbase >> 3) >> 3) & 0xffffffff);
@@ -161,18 +159,18 @@ ipu3_fb_init_cmap(uint32_t *cmap, int bytespp)
 
 	switch (bytespp) {
 	case 8:
-		return (vt_generate_cons_palette(cmap, COLOR_FORMAT_RGB,
-		    0x7, 5, 0x7, 2, 0x3, 0));
+		return (vt_generate_cons_palette(
+		    cmap, COLOR_FORMAT_RGB, 0x7, 5, 0x7, 2, 0x3, 0));
 	case 15:
-		return (vt_generate_cons_palette(cmap, COLOR_FORMAT_RGB,
-		    0x1f, 10, 0x1f, 5, 0x1f, 0));
+		return (vt_generate_cons_palette(
+		    cmap, COLOR_FORMAT_RGB, 0x1f, 10, 0x1f, 5, 0x1f, 0));
 	case 16:
-		return (vt_generate_cons_palette(cmap, COLOR_FORMAT_RGB,
-		    0x1f, 11, 0x3f, 5, 0x1f, 0));
+		return (vt_generate_cons_palette(
+		    cmap, COLOR_FORMAT_RGB, 0x1f, 11, 0x3f, 5, 0x1f, 0));
 	case 24:
 	case 32: /* Ignore alpha. */
-		return (vt_generate_cons_palette(cmap, COLOR_FORMAT_RGB,
-		    0xff, 0, 0xff, 8, 0xff, 16));
+		return (vt_generate_cons_palette(
+		    cmap, COLOR_FORMAT_RGB, 0xff, 0, 0xff, 8, 0xff, 16));
 	default:
 		return (1);
 	}
@@ -201,7 +199,7 @@ ipu3_fb_attach(device_t dev)
 	bus_space_handle_t ioh;
 	phandle_t node;
 	pcell_t reg;
- 	int err;
+	int err;
 	uintptr_t base;
 
 	ipu3sc_softc = sc;
@@ -264,29 +262,27 @@ ipu3_fb_attach(device_t dev)
 	sc->dc_ioh = ioh;
 
 	/* map Image DMA Controller registers */
-	err = bus_space_map(iot, IPU_IDMAC_BASE(base), IPU_IDMAC_SIZE, 0,
-	    &ioh);
+	err = bus_space_map(iot, IPU_IDMAC_BASE(base), IPU_IDMAC_SIZE, 0, &ioh);
 	if (err)
 		goto fail_retarn_idmac;
 	sc->idmac_ioh = ioh;
 
 	/* map CPMEM registers */
-	err = bus_space_map(iot, IPU_CPMEM_BASE(base), IPU_CPMEM_SIZE, 0,
-	    &ioh);
+	err = bus_space_map(iot, IPU_CPMEM_BASE(base), IPU_CPMEM_SIZE, 0, &ioh);
 	if (err)
 		goto fail_retarn_cpmem;
 	sc->cpmem_ioh = ioh;
 
 	/* map DCTEMPL registers */
-	err = bus_space_map(iot, IPU_DCTMPL_BASE(base), IPU_DCTMPL_SIZE, 0,
-	    &ioh);
+	err = bus_space_map(
+	    iot, IPU_DCTMPL_BASE(base), IPU_DCTMPL_SIZE, 0, &ioh);
 	if (err)
 		goto fail_retarn_dctmpl;
 	sc->dctmpl_ioh = ioh;
 
 #ifdef notyet
-	sc->ih = imx51_ipuv3_intr_establish(IMX51_INT_IPUV3, IPL_BIO,
-	    ipuv3intr, sc);
+	sc->ih = imx51_ipuv3_intr_establish(
+	    IMX51_INT_IPUV3, IPL_BIO, ipuv3intr, sc);
 	if (sc->ih == NULL) {
 		device_printf(sc->dev,
 		    "unable to establish interrupt at irq %d\n",
@@ -296,7 +292,7 @@ ipu3_fb_attach(device_t dev)
 #endif
 
 	/*
-	 * We have to wait until interrupts are enabled. 
+	 * We have to wait until interrupts are enabled.
 	 * Mailbox relies on it to get data from VideoCore
 	 */
 	ipu3_fb_init(sc);
@@ -330,8 +326,7 @@ fail_retarn_di0:
 fail_retarn_dmfc:
 	bus_space_unmap(sc->iot, sc->dc_ioh, IPU_CM_SIZE);
 fail_retarn_cm:
-	device_printf(sc->dev,
-	    "failed to map registers (errno=%d)\n", err);
+	device_printf(sc->dev, "failed to map registers (errno=%d)\n", err);
 	return (err);
 }
 
@@ -345,12 +340,11 @@ ipu3_fb_getinfo(device_t dev)
 
 static device_method_t ipu3_fb_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ipu3_fb_probe),
-	DEVMETHOD(device_attach,	ipu3_fb_attach),
+	DEVMETHOD(device_probe, ipu3_fb_probe),
+	DEVMETHOD(device_attach, ipu3_fb_attach),
 
 	/* Framebuffer service methods */
-	DEVMETHOD(fb_getinfo,		ipu3_fb_getinfo),
-	{ 0, 0 }
+	DEVMETHOD(fb_getinfo, ipu3_fb_getinfo), { 0, 0 }
 };
 
 static devclass_t ipu3_fb_devclass;

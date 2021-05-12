@@ -32,12 +32,13 @@
  * This is a Solaris compatibility header
  */
 
-#ifndef	_SYS_ELF_H_
-#define	_SYS_ELF_H_
+#ifndef _SYS_ELF_H_
+#define _SYS_ELF_H_
 
 #include <sys/types.h>
-#include <machine/elf.h>
 #include <sys/elf32.h>
 #include <sys/elf64.h>
+
+#include <machine/elf.h>
 
 #endif /* !_SYS_ELF_H_ */

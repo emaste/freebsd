@@ -24,9 +24,9 @@
  *
  * $FreeBSD$
  */
-#ifndef	__NET80211_IEEE80211_SCAN_SW_H__
-#define	__NET80211_IEEE80211_SCAN_SW_H__
+#ifndef __NET80211_IEEE80211_SCAN_SW_H__
+#define __NET80211_IEEE80211_SCAN_SW_H__
 
-extern	void ieee80211_swscan_attach(struct ieee80211com *ic);
+extern void ieee80211_swscan_attach(struct ieee80211com *ic);
 
-#endif	/* __NET80211_IEEE80211_SCAN_SW_H__ */
+#endif /* __NET80211_IEEE80211_SCAN_SW_H__ */

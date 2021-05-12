@@ -32,18 +32,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/kernel.h>
 
 #include <net/route/nhop_utils.h>
 
-#define	BLOCK_ITEMS	(8 * sizeof(u_long))	/* Number of items for ffsl() */
+#define BLOCK_ITEMS (8 * sizeof(u_long)) /* Number of items for ffsl() */
 
-#define	_BLOCKS_TO_SZ(_blocks)		((size_t)(_blocks) * sizeof(u_long))
-#define	_BLOCKS_TO_ITEMS(_blocks)	((uint32_t)(_blocks) * BLOCK_ITEMS)
-#define	_ITEMS_TO_BLOCKS(_items)	((_items) / BLOCK_ITEMS)
+#define _BLOCKS_TO_SZ(_blocks) ((size_t)(_blocks) * sizeof(u_long))
+#define _BLOCKS_TO_ITEMS(_blocks) ((uint32_t)(_blocks)*BLOCK_ITEMS)
+#define _ITEMS_TO_BLOCKS(_items) ((_items) / BLOCK_ITEMS)
 
 static void _bitmask_init_idx(void *index, uint32_t items);
 
@@ -62,7 +62,8 @@ bitmask_init(struct bitmask_head *bh, void *idx, uint32_t num_items)
 uint32_t
 bitmask_get_resize_items(const struct bitmask_head *bh)
 {
-	if ((bh->items_count * 2 > _BLOCKS_TO_ITEMS(bh->blocks)) && bh->items_count < 65536)
+	if ((bh->items_count * 2 > _BLOCKS_TO_ITEMS(bh->blocks)) &&
+	    bh->items_count < 65536)
 		return (_BLOCKS_TO_ITEMS(bh->blocks) * 2);
 
 	return (0);
@@ -89,8 +90,8 @@ bitmask_get_size(uint32_t items)
 {
 #if _KERNEL
 	KASSERT((items % BLOCK_ITEMS) == 0,
-	   ("bitmask size needs to power of 2 and greater or equal to %zu",
-	    BLOCK_ITEMS));
+	    ("bitmask size needs to power of 2 and greater or equal to %zu",
+		BLOCK_ITEMS));
 #else
 	assert((items % BLOCK_ITEMS) == 0);
 #endif
@@ -134,7 +135,8 @@ bitmask_copy(const struct bitmask_head *bi, void *new_idx, uint32_t new_items)
 }
 
 void
-bitmask_swap(struct bitmask_head *bh, void *new_idx, uint32_t new_items, void **pidx)
+bitmask_swap(
+    struct bitmask_head *bh, void *new_idx, uint32_t new_items, void **pidx)
 {
 	void *old_ptr;
 
@@ -165,7 +167,7 @@ bitmask_alloc_idx(struct bitmask_head *bi, uint16_t *pidx)
 			continue;
 
 		/* Mark as busy */
-		*mask &= ~ ((u_long)1 << (v - 1));
+		*mask &= ~((u_long)1 << (v - 1));
 
 		bi->free_off = i;
 

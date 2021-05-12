@@ -45,17 +45,17 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/sbuf.h>
-#include <sys/systm.h>
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
 #include <geom/vinum/geom_vinum_share.h>
+#include <geom/vinum/geom_vinum_var.h>
 
-int	gv_drive_is_newer(struct gv_softc *, struct gv_drive *);
+int gv_drive_is_newer(struct gv_softc *, struct gv_drive *);
 static off_t gv_plex_smallest_sd(struct gv_plex *);
 
 void
@@ -145,7 +145,8 @@ gv_parse_config(struct gv_softc *sc, char *buf, struct gv_drive *d)
 				/* XXX */
 				if (is_newer) {
 					s2->state = s->state;
-					G_VINUM_DEBUG(2, "newer subdisk found!");
+					G_VINUM_DEBUG(
+					    2, "newer subdisk found!");
 				}
 				g_free(s);
 				continue;
@@ -192,13 +193,13 @@ gv_format_config(struct gv_softc *sc, struct sbuf *sb, int ondisk, char *prefix)
 	 * config to disk.
 	 */
 	if (!ondisk) {
-		LIST_FOREACH(d, &sc->drives, drive) {
+		LIST_FOREACH (d, &sc->drives, drive) {
 			sbuf_printf(sb, "%sdrive %s device /dev/%s\n", prefix,
 			    d->name, d->device);
 		}
 	}
 
-	LIST_FOREACH(v, &sc->volumes, volume) {
+	LIST_FOREACH (v, &sc->volumes, volume) {
 		if (!ondisk)
 			sbuf_printf(sb, "%s", prefix);
 		sbuf_printf(sb, "volume %s", v->name);
@@ -207,11 +208,11 @@ gv_format_config(struct gv_softc *sc, struct sbuf *sb, int ondisk, char *prefix)
 		sbuf_printf(sb, "\n");
 	}
 
-	LIST_FOREACH(p, &sc->plexes, plex) {
+	LIST_FOREACH (p, &sc->plexes, plex) {
 		if (!ondisk)
 			sbuf_printf(sb, "%s", prefix);
-		sbuf_printf(sb, "plex name %s org %s ", p->name,
-		    gv_plexorg(p->org));
+		sbuf_printf(
+		    sb, "plex name %s org %s ", p->name, gv_plexorg(p->org));
 		if (gv_is_striped(p))
 			sbuf_printf(sb, "%ds ", p->stripesize / 512);
 		if (p->vol_sc != NULL)
@@ -221,12 +222,13 @@ gv_format_config(struct gv_softc *sc, struct sbuf *sb, int ondisk, char *prefix)
 		sbuf_printf(sb, "\n");
 	}
 
-	LIST_FOREACH(s, &sc->subdisks, sd) {
+	LIST_FOREACH (s, &sc->subdisks, sd) {
 		if (!ondisk)
 			sbuf_printf(sb, "%s", prefix);
-		sbuf_printf(sb, "sd name %s drive %s len %jds driveoffset "
-		    "%jds", s->name, s->drive, s->size / 512,
-		    s->drive_offset / 512);
+		sbuf_printf(sb,
+		    "sd name %s drive %s len %jds driveoffset "
+		    "%jds",
+		    s->name, s->drive, s->size / 512, s->drive_offset / 512);
 		if (s->plex_sc != NULL) {
 			sbuf_printf(sb, " plex %s plexoffset %jds", s->plex,
 			    s->plex_offset / 512);
@@ -249,7 +251,7 @@ gv_plex_smallest_sd(struct gv_plex *p)
 	if (s == NULL)
 		return (-1);
 	smallest = s->size;
-	LIST_FOREACH(s, &p->subdisks, in_plex) {
+	LIST_FOREACH (s, &p->subdisks, in_plex) {
 		if (s->size < smallest)
 			smallest = s->size;
 	}
@@ -267,7 +269,7 @@ gv_plexdown(struct gv_volume *v)
 
 	plexdown = 0;
 
-	LIST_FOREACH(p, &v->plexes, plex) {
+	LIST_FOREACH (p, &v->plexes, plex) {
 		if (p->state == GV_PLEX_DOWN)
 			plexdown++;
 	}
@@ -292,10 +294,11 @@ gv_sd_to_plex(struct gv_sd *s, struct gv_plex *p)
 		remainder = s->size % p->stripesize;
 
 		if (remainder) {
-			G_VINUM_DEBUG(1, "size of sd %s is not a "
+			G_VINUM_DEBUG(1,
+			    "size of sd %s is not a "
 			    "multiple of plex stripesize, taking off "
-			    "%jd bytes", s->name,
-			    (intmax_t)remainder);
+			    "%jd bytes",
+			    s->name, (intmax_t)remainder);
 			gv_adjust_freespace(s, remainder);
 		}
 
@@ -304,9 +307,9 @@ gv_sd_to_plex(struct gv_sd *s, struct gv_plex *p)
 		remainder = s->size - smallest;
 
 		/*
-		 * Don't allow a remainder below zero for running plexes, it's too
-		 * painful, and if someone were to accidentally do this, the
-		 * resulting array might be smaller than the original... not god 
+		 * Don't allow a remainder below zero for running plexes, it's
+		 * too painful, and if someone were to accidentally do this, the
+		 * resulting array might be smaller than the original... not god
 		 */
 		if (remainder < 0) {
 			if (!(p->flags & GV_PLEX_NEWBORN)) {
@@ -315,29 +318,31 @@ gv_sd_to_plex(struct gv_sd *s, struct gv_plex *p)
 				return (GV_ERR_BADSIZE);
 			}
 			/* Adjust other subdisks. */
-			LIST_FOREACH(s2, &p->subdisks, in_plex) {
-				G_VINUM_DEBUG(1, "size of sd %s is to big, "
-				    "taking off %jd bytes", s->name,
-				    (intmax_t)remainder);
+			LIST_FOREACH (s2, &p->subdisks, in_plex) {
+				G_VINUM_DEBUG(1,
+				    "size of sd %s is to big, "
+				    "taking off %jd bytes",
+				    s->name, (intmax_t)remainder);
 				gv_adjust_freespace(s2, (remainder * -1));
 			}
 		} else if (remainder > 0) {
-			G_VINUM_DEBUG(1, "size of sd %s is to big, "
-			    "taking off %jd bytes", s->name,
-			    (intmax_t)remainder);
+			G_VINUM_DEBUG(1,
+			    "size of sd %s is to big, "
+			    "taking off %jd bytes",
+			    s->name, (intmax_t)remainder);
 			gv_adjust_freespace(s, remainder);
 		}
 	}
 
 	/* Find the correct plex offset for this subdisk, if needed. */
 	if (s->plex_offset == -1) {
-		/* 
+		/*
 		 * First set it to 0 to catch the case where we had a detached
 		 * subdisk that didn't get any good offset.
 		 */
 		s->plex_offset = 0;
 		if (p->sdcount) {
-			LIST_FOREACH(s2, &p->subdisks, in_plex) {
+			LIST_FOREACH (s2, &p->subdisks, in_plex) {
 				if (gv_is_striped(p))
 					s->plex_offset = p->sdcount *
 					    p->stripesize;
@@ -352,9 +357,9 @@ gv_sd_to_plex(struct gv_sd *s, struct gv_plex *p)
 	if (LIST_EMPTY(&p->subdisks)) {
 		LIST_INSERT_HEAD(&p->subdisks, s, in_plex);
 
-	/* Insert in correct order, depending on plex_offset. */
+		/* Insert in correct order, depending on plex_offset. */
 	} else {
-		LIST_FOREACH(s2, &p->subdisks, in_plex) {
+		LIST_FOREACH (s2, &p->subdisks, in_plex) {
 			if (s->plex_offset < s2->plex_offset) {
 				LIST_INSERT_BEFORE(s2, s, in_plex);
 				break;
@@ -366,7 +371,7 @@ gv_sd_to_plex(struct gv_sd *s, struct gv_plex *p)
 	}
 
 	s->plex_sc = p;
-        /* Adjust the size of our plex. We check if the plex misses a subdisk,
+	/* Adjust the size of our plex. We check if the plex misses a subdisk,
 	 * so we don't make the plex smaller than it actually should be.
 	 */
 	psizeorig = p->size;
@@ -381,10 +386,8 @@ gv_sd_to_plex(struct gv_sd *s, struct gv_plex *p)
 		}
 		p->sddetached--;
 	} else {
-		if ((p->org == GV_PLEX_RAID5 ||
-		    p->org == GV_PLEX_STRIPED) &&
-		    !(p->flags & GV_PLEX_NEWBORN) && 
-		    p->state == GV_PLEX_UP) {
+		if ((p->org == GV_PLEX_RAID5 || p->org == GV_PLEX_STRIPED) &&
+		    !(p->flags & GV_PLEX_NEWBORN) && p->state == GV_PLEX_UP) {
 			s->flags |= GV_SD_GROW;
 		}
 		p->sdcount++;
@@ -415,7 +418,7 @@ gv_sdcount(struct gv_plex *p, int growing)
 
 	sdcount = p->sdcount;
 	if (growing) {
-		LIST_FOREACH(s, &p->subdisks, in_plex) {
+		LIST_FOREACH (s, &p->subdisks, in_plex) {
 			if (s->flags & GV_SD_GROW)
 				sdcount--;
 		}
@@ -439,7 +442,7 @@ gv_plex_size(struct gv_plex *p)
 	sdcount = gv_sdcount(p, 1);
 	switch (p->org) {
 	case GV_PLEX_CONCAT:
-		LIST_FOREACH(s, &p->subdisks, in_plex)
+		LIST_FOREACH (s, &p->subdisks, in_plex)
 			size += s->size;
 		break;
 	case GV_PLEX_STRIPED:
@@ -469,7 +472,7 @@ gv_vol_size(struct gv_volume *v)
 		return (0);
 
 	minplexsize = p->size;
-	LIST_FOREACH(p, &v->plexes, in_volume) {
+	LIST_FOREACH (p, &v->plexes, in_volume) {
 		if (p->size < minplexsize) {
 			minplexsize = p->size;
 		}
@@ -512,23 +515,26 @@ gv_update_plex_config(struct gv_plex *p)
 		 * The subdisks in striped plexes must all have the same size.
 		 */
 		s = LIST_FIRST(&p->subdisks);
-		LIST_FOREACH(s2, &p->subdisks, in_plex) {
+		LIST_FOREACH (s2, &p->subdisks, in_plex) {
 			if (s->size != s2->size) {
-				G_VINUM_DEBUG(0, "subdisk size mismatch %s"
-				    "(%jd) <> %s (%jd)", s->name, s->size,
-				    s2->name, s2->size);
-				gv_set_plex_state(p, GV_PLEX_DOWN,
-				    GV_SETSTATE_FORCE);
+				G_VINUM_DEBUG(0,
+				    "subdisk size mismatch %s"
+				    "(%jd) <> %s (%jd)",
+				    s->name, s->size, s2->name, s2->size);
+				gv_set_plex_state(
+				    p, GV_PLEX_DOWN, GV_SETSTATE_FORCE);
 			}
 		}
 
-		LIST_FOREACH(s, &p->subdisks, in_plex) {
+		LIST_FOREACH (s, &p->subdisks, in_plex) {
 			/* Trim subdisk sizes to match the stripe size. */
 			remainder = s->size % p->stripesize;
 			if (remainder) {
-				G_VINUM_DEBUG(1, "size of sd %s is not a "
+				G_VINUM_DEBUG(1,
+				    "size of sd %s is not a "
 				    "multiple of plex stripesize, taking off "
-				    "%jd bytes", s->name, (intmax_t)remainder);
+				    "%jd bytes",
+				    s->name, (intmax_t)remainder);
 				gv_adjust_freespace(s, remainder);
 			}
 		}
@@ -538,22 +544,22 @@ gv_update_plex_config(struct gv_plex *p)
 	if (p->sdcount == 0)
 		gv_set_plex_state(p, GV_PLEX_DOWN, GV_SETSTATE_FORCE);
 	else if (p->org == GV_PLEX_RAID5 && p->flags & GV_PLEX_NEWBORN) {
-		LIST_FOREACH(s, &p->subdisks, in_plex)
+		LIST_FOREACH (s, &p->subdisks, in_plex)
 			gv_set_sd_state(s, GV_SD_UP, GV_SETSTATE_FORCE);
 		/* If added to a volume, we want the plex to be down. */
 		state = (p->flags & GV_PLEX_ADDED) ? GV_PLEX_DOWN : GV_PLEX_UP;
 		gv_set_plex_state(p, state, GV_SETSTATE_FORCE);
 		p->flags &= ~GV_PLEX_ADDED;
 	} else if (p->flags & GV_PLEX_ADDED) {
-		LIST_FOREACH(s, &p->subdisks, in_plex)
+		LIST_FOREACH (s, &p->subdisks, in_plex)
 			gv_set_sd_state(s, GV_SD_STALE, GV_SETSTATE_FORCE);
 		gv_set_plex_state(p, GV_PLEX_DOWN, GV_SETSTATE_FORCE);
 		p->flags &= ~GV_PLEX_ADDED;
 	} else if (p->state == GV_PLEX_UP) {
-		LIST_FOREACH(s, &p->subdisks, in_plex) {
+		LIST_FOREACH (s, &p->subdisks, in_plex) {
 			if (s->flags & GV_SD_GROW) {
-				gv_set_plex_state(p, GV_PLEX_GROWABLE,
-				    GV_SETSTATE_FORCE);
+				gv_set_plex_state(
+				    p, GV_PLEX_GROWABLE, GV_SETSTATE_FORCE);
 				break;
 			}
 		}
@@ -589,24 +595,25 @@ gv_sd_to_drive(struct gv_sd *s, struct gv_drive *d)
 				return (0);
 			}
 		} else {
-			G_VINUM_DEBUG(0, "error giving subdisk '%s' to '%s' "
-			    "(already on '%s')", s->name, d->name,
-			    s->drive_sc->name);
+			G_VINUM_DEBUG(0,
+			    "error giving subdisk '%s' to '%s' "
+			    "(already on '%s')",
+			    s->name, d->name, s->drive_sc->name);
 			return (GV_ERR_ISATTACHED);
 		}
 	}
 
 	/* Preliminary checks. */
 	if ((s->size > d->avail) || (d->freelist_entries == 0)) {
-		G_VINUM_DEBUG(0, "not enough space on '%s' for '%s'", d->name,
-		    s->name);
+		G_VINUM_DEBUG(
+		    0, "not enough space on '%s' for '%s'", d->name, s->name);
 		return (GV_ERR_NOSPACE);
 	}
 
 	/* If no size was given for this subdisk, try to auto-size it... */
 	if (s->size == -1) {
 		/* Find the largest available slot. */
-		LIST_FOREACH(fl, &d->freelist, freelist) {
+		LIST_FOREACH (fl, &d->freelist, freelist) {
 			if (fl->size < s->size)
 				continue;
 			s->size = fl->size;
@@ -621,13 +628,13 @@ gv_sd_to_drive(struct gv_sd *s, struct gv_drive *d)
 			return (GV_ERR_BADSIZE);
 		}
 
-	/*
-	 * ... or check if we have a free slot that's large enough for the
-	 * given size.
-	 */
+		/*
+		 * ... or check if we have a free slot that's large enough for
+		 * the given size.
+		 */
 	} else {
 		i = 0;
-		LIST_FOREACH(fl, &d->freelist, freelist) {
+		LIST_FOREACH (fl, &d->freelist, freelist) {
 			if (fl->size < s->size)
 				continue;
 			/* Assign drive offset, if not given. */
@@ -649,7 +656,7 @@ gv_sd_to_drive(struct gv_sd *s, struct gv_drive *d)
 	/* No drive offset given, try to calculate it. */
 	if (s->drive_offset == -1) {
 		/* Add offsets and sizes from other subdisks on this drive. */
-		LIST_FOREACH(s2, &d->subdisks, from_drive) {
+		LIST_FOREACH (s2, &d->subdisks, from_drive) {
 			s->drive_offset = s2->drive_offset + s2->size;
 		}
 
@@ -660,14 +667,14 @@ gv_sd_to_drive(struct gv_sd *s, struct gv_drive *d)
 		if (s->drive_offset == -1)
 			s->drive_offset = GV_DATA_START;
 
-	/* Check if we have a free slot at the given drive offset. */
+		/* Check if we have a free slot at the given drive offset. */
 	} else {
 		i = 0;
-		LIST_FOREACH(fl, &d->freelist, freelist) {
+		LIST_FOREACH (fl, &d->freelist, freelist) {
 			/* Yes, this subdisk fits. */
 			if ((fl->offset <= s->drive_offset) &&
 			    (fl->offset + fl->size >=
-			    s->drive_offset + s->size)) {
+				s->drive_offset + s->size)) {
 				i++;
 				fl2 = fl;
 				break;
@@ -676,8 +683,10 @@ gv_sd_to_drive(struct gv_sd *s, struct gv_drive *d)
 
 		/* Couldn't find a good free slot. */
 		if (i == 0) {
-			G_VINUM_DEBUG(0, "given drive_offset for '%s' won't fit "
-			    "on '%s'", s->name, d->name);
+			G_VINUM_DEBUG(0,
+			    "given drive_offset for '%s' won't fit "
+			    "on '%s'",
+			    s->name, d->name);
 			return (GV_ERR_NOSPACE);
 		}
 	}
@@ -688,7 +697,7 @@ gv_sd_to_drive(struct gv_sd *s, struct gv_drive *d)
 	 */
 
 	/* First, adjust the freelist. */
-	LIST_FOREACH(fl, &d->freelist, freelist) {
+	LIST_FOREACH (fl, &d->freelist, freelist) {
 		/* Look for the free slot that we have found before. */
 		if (fl != fl2)
 			continue;
@@ -703,10 +712,10 @@ gv_sd_to_drive(struct gv_sd *s, struct gv_drive *d)
 				d->freelist_entries--;
 				LIST_REMOVE(fl, freelist);
 			}
-		/*
-		 * The subdisk does not start at the beginning of the free
-		 * slot.
-		 */
+			/*
+			 * The subdisk does not start at the beginning of the
+			 * free slot.
+			 */
 		} else {
 			tmp = fl->offset + fl->size;
 			fl->size = s->drive_offset - fl->offset;
@@ -733,9 +742,10 @@ gv_sd_to_drive(struct gv_sd *s, struct gv_drive *d)
 	if (LIST_EMPTY(&d->subdisks)) {
 		LIST_INSERT_HEAD(&d->subdisks, s, from_drive);
 
-	/* There are other subdisks, so insert this one in correct order. */
+		/* There are other subdisks, so insert this one in correct
+		 * order. */
 	} else {
-		LIST_FOREACH(s2, &d->subdisks, from_drive) {
+		LIST_FOREACH (s2, &d->subdisks, from_drive) {
 			if (s->drive_offset < s2->drive_offset) {
 				LIST_INSERT_BEFORE(s2, s, from_drive);
 				break;
@@ -774,7 +784,7 @@ gv_free_sd(struct gv_sd *s)
 	 * subdisk.
 	 */
 	fl = NULL;
-	LIST_FOREACH(fl, &d->freelist, freelist) {
+	LIST_FOREACH (fl, &d->freelist, freelist) {
 		if (fl->offset == s->drive_offset + s->size)
 			break;
 		if (fl->offset + fl->size == s->drive_offset)
@@ -790,7 +800,7 @@ gv_free_sd(struct gv_sd *s)
 		if (d->freelist_entries == 0) {
 			LIST_INSERT_HEAD(&d->freelist, fl, freelist);
 		} else {
-			LIST_FOREACH(fl2, &d->freelist, freelist) {
+			LIST_FOREACH (fl2, &d->freelist, freelist) {
 				if (fl->offset < fl2->offset) {
 					LIST_INSERT_BEFORE(fl2, fl, freelist);
 					break;
@@ -803,7 +813,7 @@ gv_free_sd(struct gv_sd *s)
 
 		d->freelist_entries++;
 
-	/* Expand the free slot we just found. */
+		/* Expand the free slot we just found. */
 	} else {
 		fl->size += s->size;
 		if (fl->offset > s->drive_offset)
@@ -826,7 +836,7 @@ gv_adjust_freespace(struct gv_sd *s, off_t remainder)
 
 	/* First, find the free slot that's immediately after this subdisk. */
 	fl = NULL;
-	LIST_FOREACH(fl, &d->freelist, freelist) {
+	LIST_FOREACH (fl, &d->freelist, freelist) {
 		if (fl->offset == s->drive_offset + s->size)
 			break;
 	}
@@ -840,7 +850,7 @@ gv_adjust_freespace(struct gv_sd *s, off_t remainder)
 		if (d->freelist_entries == 0) {
 			LIST_INSERT_HEAD(&d->freelist, fl, freelist);
 		} else {
-			LIST_FOREACH(fl2, &d->freelist, freelist) {
+			LIST_FOREACH (fl2, &d->freelist, freelist) {
 				if (fl->offset < fl2->offset) {
 					LIST_INSERT_BEFORE(fl2, fl, freelist);
 					break;
@@ -853,7 +863,7 @@ gv_adjust_freespace(struct gv_sd *s, off_t remainder)
 
 		d->freelist_entries++;
 
-	/* Expand the free slot we just found. */
+		/* Expand the free slot we just found. */
 	} else {
 		fl->offset -= remainder;
 		fl->size += remainder;
@@ -868,7 +878,7 @@ int
 gv_is_striped(struct gv_plex *p)
 {
 	KASSERT(p != NULL, ("gv_is_striped: NULL p"));
-	switch(p->org) {
+	switch (p->org) {
 	case GV_PLEX_STRIPED:
 	case GV_PLEX_RAID5:
 		return (1);
@@ -883,7 +893,7 @@ gv_find_vol(struct gv_softc *sc, char *name)
 {
 	struct gv_volume *v;
 
-	LIST_FOREACH(v, &sc->volumes, volume) {
+	LIST_FOREACH (v, &sc->volumes, volume) {
 		if (!strncmp(v->name, name, GV_MAXVOLNAME))
 			return (v);
 	}
@@ -897,7 +907,7 @@ gv_find_plex(struct gv_softc *sc, char *name)
 {
 	struct gv_plex *p;
 
-	LIST_FOREACH(p, &sc->plexes, plex) {
+	LIST_FOREACH (p, &sc->plexes, plex) {
 		if (!strncmp(p->name, name, GV_MAXPLEXNAME))
 			return (p);
 	}
@@ -911,7 +921,7 @@ gv_find_sd(struct gv_softc *sc, char *name)
 {
 	struct gv_sd *s;
 
-	LIST_FOREACH(s, &sc->subdisks, sd) {
+	LIST_FOREACH (s, &sc->subdisks, sd) {
 		if (!strncmp(s->name, name, GV_MAXSDNAME))
 			return (s);
 	}
@@ -925,7 +935,7 @@ gv_find_drive(struct gv_softc *sc, char *name)
 {
 	struct gv_drive *d;
 
-	LIST_FOREACH(d, &sc->drives, drive) {
+	LIST_FOREACH (d, &sc->drives, drive) {
 		if (!strncmp(d->name, name, GV_MAXDRIVENAME))
 			return (d);
 	}
@@ -939,8 +949,8 @@ gv_find_drive_device(struct gv_softc *sc, char *device)
 {
 	struct gv_drive *d;
 
-	LIST_FOREACH(d, &sc->drives, drive) {
-		if(!strcmp(d->device, device))
+	LIST_FOREACH (d, &sc->drives, drive) {
+		if (!strcmp(d->device, device))
 			return (d);
 	}
 
@@ -982,11 +992,11 @@ gv_drive_is_newer(struct gv_softc *sc, struct gv_drive *d)
 	struct gv_drive *d2;
 	struct timeval *a, *b;
 
-	KASSERT(!LIST_EMPTY(&sc->drives),
-	    ("gv_is_drive_newer: empty drive list"));
+	KASSERT(
+	    !LIST_EMPTY(&sc->drives), ("gv_is_drive_newer: empty drive list"));
 
 	a = &d->hdr->label.last_update;
-	LIST_FOREACH(d2, &sc->drives, drive) {
+	LIST_FOREACH (d2, &sc->drives, drive) {
 		if ((d == d2) || (d2->state != GV_DRIVE_UP) ||
 		    (d2->hdr == NULL))
 			continue;
@@ -1007,22 +1017,22 @@ gv_object_type(struct gv_softc *sc, char *name)
 	struct gv_sd *s;
 	struct gv_volume *v;
 
-	LIST_FOREACH(v, &sc->volumes, volume) {
+	LIST_FOREACH (v, &sc->volumes, volume) {
 		if (!strncmp(v->name, name, GV_MAXVOLNAME))
 			return (GV_TYPE_VOL);
 	}
 
-	LIST_FOREACH(p, &sc->plexes, plex) {
+	LIST_FOREACH (p, &sc->plexes, plex) {
 		if (!strncmp(p->name, name, GV_MAXPLEXNAME))
 			return (GV_TYPE_PLEX);
 	}
 
-	LIST_FOREACH(s, &sc->subdisks, sd) {
+	LIST_FOREACH (s, &sc->subdisks, sd) {
 		if (!strncmp(s->name, name, GV_MAXSDNAME))
 			return (GV_TYPE_SD);
 	}
 
-	LIST_FOREACH(d, &sc->drives, drive) {
+	LIST_FOREACH (d, &sc->drives, drive) {
 		if (!strncmp(d->name, name, GV_MAXDRIVENAME))
 			return (GV_TYPE_DRIVE);
 	}
@@ -1039,7 +1049,7 @@ gv_setup_objects(struct gv_softc *sc)
 	struct gv_sd *s;
 	struct gv_drive *d;
 
-	LIST_FOREACH(s, &sc->subdisks, sd) {
+	LIST_FOREACH (s, &sc->subdisks, sd) {
 		d = gv_find_drive(sc, s->drive);
 		if (d != NULL)
 			gv_sd_to_drive(s, d);
@@ -1049,7 +1059,7 @@ gv_setup_objects(struct gv_softc *sc)
 		gv_update_sd_state(s);
 	}
 
-	LIST_FOREACH(p, &sc->plexes, plex) {
+	LIST_FOREACH (p, &sc->plexes, plex) {
 		gv_update_plex_config(p);
 		v = gv_find_vol(sc, p->volume);
 		if (v != NULL && p->vol_sc != v) {
@@ -1060,13 +1070,13 @@ gv_setup_objects(struct gv_softc *sc)
 		gv_update_plex_config(p);
 	}
 
-	LIST_FOREACH(v, &sc->volumes, volume) {
+	LIST_FOREACH (v, &sc->volumes, volume) {
 		v->size = gv_vol_size(v);
 		if (v->provider == NULL) {
 			g_topology_lock();
 			pp = g_new_providerf(sc->geom, "gvinum/%s", v->name);
 			pp->mediasize = v->size;
-			pp->sectorsize = 512;    /* XXX */
+			pp->sectorsize = 512; /* XXX */
 			g_error_provider(pp, 0);
 			v->provider = pp;
 			pp->private = v;
@@ -1091,24 +1101,24 @@ gv_cleanup(struct gv_softc *sc)
 	struct gv_freelist *fl, *fl2;
 
 	mtx_lock(&sc->config_mtx);
-	LIST_FOREACH_SAFE(v, &sc->volumes, volume, v2) {
+	LIST_FOREACH_SAFE (v, &sc->volumes, volume, v2) {
 		LIST_REMOVE(v, volume);
 		g_free(v->wqueue);
 		g_free(v);
 	}
-	LIST_FOREACH_SAFE(p, &sc->plexes, plex, p2) {
+	LIST_FOREACH_SAFE (p, &sc->plexes, plex, p2) {
 		LIST_REMOVE(p, plex);
 		g_free(p->bqueue);
 		g_free(p->rqueue);
 		g_free(p->wqueue);
 		g_free(p);
 	}
-	LIST_FOREACH_SAFE(s, &sc->subdisks, sd, s2) {
+	LIST_FOREACH_SAFE (s, &sc->subdisks, sd, s2) {
 		LIST_REMOVE(s, sd);
 		g_free(s);
 	}
-	LIST_FOREACH_SAFE(d, &sc->drives, drive, d2) {
-		LIST_FOREACH_SAFE(fl, &d->freelist, freelist, fl2) {
+	LIST_FOREACH_SAFE (d, &sc->drives, drive, d2) {
+		LIST_FOREACH_SAFE (fl, &d->freelist, freelist, fl2) {
 			LIST_REMOVE(fl, freelist);
 			g_free(fl);
 		}
@@ -1138,7 +1148,7 @@ gv_attach_plex(struct gv_plex *p, struct gv_volume *v, int rename)
 	}
 
 	/* Stale all subdisks of this plex. */
-	LIST_FOREACH(s, &p->subdisks, in_plex) {
+	LIST_FOREACH (s, &p->subdisks, in_plex) {
 		if (s->state != GV_SD_STALE)
 			gv_set_sd_state(s, GV_SD_STALE, GV_SETSTATE_FORCE);
 	}
@@ -1152,8 +1162,8 @@ gv_attach_plex(struct gv_plex *p, struct gv_volume *v, int rename)
 	strlcpy(p->volume, v->name, sizeof(p->volume));
 	v->plexcount++;
 	if (rename) {
-		snprintf(p->name, sizeof(p->name), "%s.p%d", v->name,
-		    v->plexcount);
+		snprintf(
+		    p->name, sizeof(p->name), "%s.p%d", v->name, v->plexcount);
 	}
 	LIST_INSERT_HEAD(&v->plexes, p, in_volume);
 
@@ -1184,7 +1194,7 @@ gv_attach_sd(struct gv_sd *s, struct gv_plex *p, off_t offset, int rename)
 	 * starts at the same, and it's correct module stripesize, it is */
 	if (offset != -1 && offset % p->stripesize != 0)
 		return (GV_ERR_BADOFFSET);
-	LIST_FOREACH(s2, &p->subdisks, in_plex) {
+	LIST_FOREACH (s2, &p->subdisks, in_plex) {
 		if (s2->plex_offset == offset)
 			return (GV_ERR_BADOFFSET);
 	}
@@ -1200,8 +1210,8 @@ gv_attach_sd(struct gv_sd *s, struct gv_plex *p, off_t offset, int rename)
 	gv_update_plex_config(p);
 
 	if (rename) {
-		snprintf(s->name, sizeof(s->name), "%s.s%d", s->plex,
-		    p->sdcount);
+		snprintf(
+		    s->name, sizeof(s->name), "%s.s%d", s->plex, p->sdcount);
 	}
 	if (p->vol_sc != NULL)
 		gv_update_vol_size(p->vol_sc, gv_vol_size(p->vol_sc));
@@ -1221,23 +1231,23 @@ gv_detach_plex(struct gv_plex *p, int flags)
 	v = p->vol_sc;
 
 	if (v == NULL) {
-		G_VINUM_DEBUG(1, "unable to detach %s: already detached",
-		    p->name);
+		G_VINUM_DEBUG(
+		    1, "unable to detach %s: already detached", p->name);
 		return (0); /* Not an error. */
 	}
 
 	/*
 	 * Only proceed if forced or volume inactive.
 	 */
-	if (!(flags & GV_FLAG_F) && (gv_provider_is_open(v->provider) ||
-	    p->state == GV_PLEX_UP)) {
+	if (!(flags & GV_FLAG_F) &&
+	    (gv_provider_is_open(v->provider) || p->state == GV_PLEX_UP)) {
 		G_VINUM_DEBUG(1, "unable to detach %s: volume %s is busy",
 		    p->name, p->volume);
 		return (GV_ERR_ISBUSY);
 	}
 	v->plexcount--;
 	/* Make sure someone don't read us when gone. */
-	v->last_read_plex = NULL; 
+	v->last_read_plex = NULL;
 	LIST_REMOVE(p, in_volume);
 	p->vol_sc = NULL;
 	memset(p->volume, 0, GV_MAXVOLNAME);
@@ -1256,8 +1266,8 @@ gv_detach_sd(struct gv_sd *s, int flags)
 	p = s->plex_sc;
 
 	if (p == NULL) {
-		G_VINUM_DEBUG(1, "unable to detach %s: already detached",
-		    s->name);
+		G_VINUM_DEBUG(
+		    1, "unable to detach %s: already detached", s->name);
 		return (0); /* Not an error. */
 	}
 
@@ -1265,9 +1275,10 @@ gv_detach_sd(struct gv_sd *s, int flags)
 	 * Don't proceed if we're not forcing, and the plex is up, or degraded
 	 * with this subdisk up.
 	 */
-	if (!(flags & GV_FLAG_F) && ((p->state > GV_PLEX_DEGRADED) ||
-	    ((p->state == GV_PLEX_DEGRADED) && (s->state == GV_SD_UP)))) {
-	    	G_VINUM_DEBUG(1, "unable to detach %s: plex %s is busy",
+	if (!(flags & GV_FLAG_F) &&
+	    ((p->state > GV_PLEX_DEGRADED) ||
+		((p->state == GV_PLEX_DEGRADED) && (s->state == GV_SD_UP)))) {
+		G_VINUM_DEBUG(1, "unable to detach %s: plex %s is busy",
 		    s->name, s->plex);
 		return (GV_ERR_ISBUSY);
 	}

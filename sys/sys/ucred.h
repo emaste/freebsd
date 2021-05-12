@@ -33,7 +33,7 @@
  */
 
 #ifndef _SYS_UCRED_H_
-#define	_SYS_UCRED_H_
+#define _SYS_UCRED_H_
 
 #if defined(_KERNEL) || defined(_WANT_UCRED)
 #include <sys/_lock.h>
@@ -43,7 +43,7 @@
 
 struct loginclass;
 
-#define	XU_NGROUPS	16
+#define XU_NGROUPS 16
 
 /*
  * Credentials.
@@ -61,54 +61,54 @@ struct loginclass;
 #if defined(_KERNEL) || defined(_WANT_UCRED)
 struct ucred {
 	struct mtx cr_mtx;
-	u_int	cr_ref;			/* (c) reference count */
-	u_int	cr_users;		/* (c) proc + thread using this cred */
-	struct auditinfo_addr	cr_audit;	/* Audit properties. */
-#define	cr_startcopy cr_uid
-	uid_t	cr_uid;			/* effective user id */
-	uid_t	cr_ruid;		/* real user id */
-	uid_t	cr_svuid;		/* saved user id */
-	int	cr_ngroups;		/* number of groups */
-	gid_t	cr_rgid;		/* real group id */
-	gid_t	cr_svgid;		/* saved group id */
-	struct uidinfo	*cr_uidinfo;	/* per euid resource consumption */
-	struct uidinfo	*cr_ruidinfo;	/* per ruid resource consumption */
-	struct prison	*cr_prison;	/* jail(2) */
-	struct loginclass	*cr_loginclass; /* login class */
-	u_int		cr_flags;	/* credential flags */
-	void 		*cr_pspare2[2];	/* general use 2 */
-#define	cr_endcopy	cr_label
-	struct label	*cr_label;	/* MAC label */
-	gid_t	*cr_groups;		/* groups */
-	int	cr_agroups;		/* Available groups */
-	gid_t   cr_smallgroups[XU_NGROUPS];	/* storage for small groups */
+	u_int cr_ref;			/* (c) reference count */
+	u_int cr_users;			/* (c) proc + thread using this cred */
+	struct auditinfo_addr cr_audit; /* Audit properties. */
+#define cr_startcopy cr_uid
+	uid_t cr_uid;			  /* effective user id */
+	uid_t cr_ruid;			  /* real user id */
+	uid_t cr_svuid;			  /* saved user id */
+	int cr_ngroups;			  /* number of groups */
+	gid_t cr_rgid;			  /* real group id */
+	gid_t cr_svgid;			  /* saved group id */
+	struct uidinfo *cr_uidinfo;	  /* per euid resource consumption */
+	struct uidinfo *cr_ruidinfo;	  /* per ruid resource consumption */
+	struct prison *cr_prison;	  /* jail(2) */
+	struct loginclass *cr_loginclass; /* login class */
+	u_int cr_flags;			  /* credential flags */
+	void *cr_pspare2[2];		  /* general use 2 */
+#define cr_endcopy cr_label
+	struct label *cr_label;		  /* MAC label */
+	gid_t *cr_groups;		  /* groups */
+	int cr_agroups;			  /* Available groups */
+	gid_t cr_smallgroups[XU_NGROUPS]; /* storage for small groups */
 };
-#define	NOCRED	((struct ucred *)0)	/* no credential available */
-#define	FSCRED	((struct ucred *)-1)	/* filesystem credential */
+#define NOCRED ((struct ucred *)0) /* no credential available */
+#define FSCRED ((struct ucred *)-1) /* filesystem credential */
 #endif /* _KERNEL || _WANT_UCRED */
 
 /*
  * Flags for cr_flags.
  */
-#define	CRED_FLAG_CAPMODE	0x00000001	/* In capability mode. */
+#define CRED_FLAG_CAPMODE 0x00000001 /* In capability mode. */
 
 /*
  * This is the external representation of struct ucred.
  */
 struct xucred {
-	u_int	cr_version;		/* structure layout version */
-	uid_t	cr_uid;			/* effective user id */
-	short	cr_ngroups;		/* number of groups */
-	gid_t	cr_groups[XU_NGROUPS];	/* groups */
+	u_int cr_version;	     /* structure layout version */
+	uid_t cr_uid;		     /* effective user id */
+	short cr_ngroups;	     /* number of groups */
+	gid_t cr_groups[XU_NGROUPS]; /* groups */
 	union {
-		void	*_cr_unused1;	/* compatibility with old ucred */
-		pid_t	cr_pid;
+		void *_cr_unused1; /* compatibility with old ucred */
+		pid_t cr_pid;
 	};
 };
-#define	XUCRED_VERSION	0
+#define XUCRED_VERSION 0
 
 /* This can be used for both ucred and xucred structures. */
-#define	cr_gid cr_groups[0]
+#define cr_gid cr_groups[0]
 
 #ifdef _KERNEL
 struct proc;
@@ -127,39 +127,38 @@ credbatch_prep(struct credbatch *crb)
 	crb->users = 0;
 	crb->ref = 0;
 }
-void	credbatch_add(struct credbatch *crb, struct thread *td);
+void credbatch_add(struct credbatch *crb, struct thread *td);
 
 static inline void
 credbatch_process(struct credbatch *crb __unused)
 {
-
 }
 
-void	credbatch_final(struct credbatch *crb);
+void credbatch_final(struct credbatch *crb);
 
-void	change_egid(struct ucred *newcred, gid_t egid);
-void	change_euid(struct ucred *newcred, struct uidinfo *euip);
-void	change_rgid(struct ucred *newcred, gid_t rgid);
-void	change_ruid(struct ucred *newcred, struct uidinfo *ruip);
-void	change_svgid(struct ucred *newcred, gid_t svgid);
-void	change_svuid(struct ucred *newcred, uid_t svuid);
-void	crcopy(struct ucred *dest, struct ucred *src);
-struct ucred	*crcopysafe(struct proc *p, struct ucred *cr);
-struct ucred	*crdup(struct ucred *cr);
-void	crextend(struct ucred *cr, int n);
-void	proc_set_cred_init(struct proc *p, struct ucred *cr);
-void	proc_set_cred(struct proc *p, struct ucred *cr);
-void	proc_unset_cred(struct proc *p);
-void	crfree(struct ucred *cr);
-struct ucred	*crcowsync(void);
-struct ucred	*crget(void);
-struct ucred	*crhold(struct ucred *cr);
-struct ucred	*crcowget(struct ucred *cr);
-void	crcowfree(struct thread *td);
-void	cru2x(struct ucred *cr, struct xucred *xcr);
-void	cru2xt(struct thread *td, struct xucred *xcr);
-void	crsetgroups(struct ucred *cr, int n, gid_t *groups);
-int	groupmember(gid_t gid, struct ucred *cred);
+void change_egid(struct ucred *newcred, gid_t egid);
+void change_euid(struct ucred *newcred, struct uidinfo *euip);
+void change_rgid(struct ucred *newcred, gid_t rgid);
+void change_ruid(struct ucred *newcred, struct uidinfo *ruip);
+void change_svgid(struct ucred *newcred, gid_t svgid);
+void change_svuid(struct ucred *newcred, uid_t svuid);
+void crcopy(struct ucred *dest, struct ucred *src);
+struct ucred *crcopysafe(struct proc *p, struct ucred *cr);
+struct ucred *crdup(struct ucred *cr);
+void crextend(struct ucred *cr, int n);
+void proc_set_cred_init(struct proc *p, struct ucred *cr);
+void proc_set_cred(struct proc *p, struct ucred *cr);
+void proc_unset_cred(struct proc *p);
+void crfree(struct ucred *cr);
+struct ucred *crcowsync(void);
+struct ucred *crget(void);
+struct ucred *crhold(struct ucred *cr);
+struct ucred *crcowget(struct ucred *cr);
+void crcowfree(struct thread *td);
+void cru2x(struct ucred *cr, struct xucred *xcr);
+void cru2xt(struct thread *td, struct xucred *xcr);
+void crsetgroups(struct ucred *cr, int n, gid_t *groups);
+int groupmember(gid_t gid, struct ucred *cred);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_UCRED_H_ */

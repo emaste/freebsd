@@ -28,20 +28,20 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_MISCDEVICE_H_
-#define	_LINUX_MISCDEVICE_H_
+#ifndef _LINUX_MISCDEVICE_H_
+#define _LINUX_MISCDEVICE_H_
 
-#define	MISC_DYNAMIC_MINOR	-1
+#define MISC_DYNAMIC_MINOR -1
 
-#include <linux/device.h>
 #include <linux/cdev.h>
+#include <linux/device.h>
 
-struct miscdevice  {
-	const char	*name;
-	struct device	*this_device;
+struct miscdevice {
+	const char *name;
+	struct device *this_device;
 	const struct file_operations *fops;
-	struct cdev	*cdev;
-	int		minor;
+	struct cdev *cdev;
+	int minor;
 	const char *nodename;
 	umode_t mode;
 };
@@ -51,8 +51,8 @@ extern struct class linux_class_misc;
 static inline int
 misc_register(struct miscdevice *misc)
 {
-	misc->this_device = device_create(&linux_class_misc,
-	    &linux_root_device, 0, misc, misc->name);
+	misc->this_device = device_create(
+	    &linux_class_misc, &linux_root_device, 0, misc, misc->name);
 	misc->cdev = cdev_alloc();
 	if (misc->cdev == NULL)
 		return -ENOMEM;
@@ -73,4 +73,4 @@ misc_deregister(struct miscdevice *misc)
 	return (0);
 }
 
-#endif	/* _LINUX_MISCDEVICE_H_ */
+#endif /* _LINUX_MISCDEVICE_H_ */

@@ -32,12 +32,12 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/syscallsubr.h>
-#include <sys/systm.h>
 
 #include <machine/md_var.h>
 #include <machine/pcb.h>
@@ -45,70 +45,71 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
+
 #include <compat/linux/linux_signal.h>
 
 /*
  *   Linux ptrace requests numbers. Mostly identical to FreeBSD,
  *   except for MD ones and PT_ATTACH/PT_DETACH.
  */
-#define	PTRACE_TRACEME		0
-#define	PTRACE_PEEKTEXT		1
-#define	PTRACE_PEEKDATA		2
-#define	PTRACE_PEEKUSR		3
-#define	PTRACE_POKETEXT		4
-#define	PTRACE_POKEDATA		5
-#define	PTRACE_POKEUSR		6
-#define	PTRACE_CONT		7
-#define	PTRACE_KILL		8
-#define	PTRACE_SINGLESTEP	9
+#define PTRACE_TRACEME 0
+#define PTRACE_PEEKTEXT 1
+#define PTRACE_PEEKDATA 2
+#define PTRACE_PEEKUSR 3
+#define PTRACE_POKETEXT 4
+#define PTRACE_POKEDATA 5
+#define PTRACE_POKEUSR 6
+#define PTRACE_CONT 7
+#define PTRACE_KILL 8
+#define PTRACE_SINGLESTEP 9
 
-#define PTRACE_ATTACH		16
-#define PTRACE_DETACH		17
+#define PTRACE_ATTACH 16
+#define PTRACE_DETACH 17
 
-#define	LINUX_PTRACE_SYSCALL	24
+#define LINUX_PTRACE_SYSCALL 24
 
-#define PTRACE_GETREGS		12
-#define PTRACE_SETREGS		13
-#define PTRACE_GETFPREGS	14
-#define PTRACE_SETFPREGS	15
-#define PTRACE_GETFPXREGS	18
-#define PTRACE_SETFPXREGS	19
+#define PTRACE_GETREGS 12
+#define PTRACE_SETREGS 13
+#define PTRACE_GETFPREGS 14
+#define PTRACE_SETFPREGS 15
+#define PTRACE_GETFPXREGS 18
+#define PTRACE_SETFPXREGS 19
 
-#define PTRACE_SETOPTIONS	21
+#define PTRACE_SETOPTIONS 21
 
 /*
  * Linux keeps debug registers at the following
  * offset in the user struct
  */
-#define LINUX_DBREG_OFFSET	252
-#define LINUX_DBREG_SIZE	(8*sizeof(l_int))
+#define LINUX_DBREG_OFFSET 252
+#define LINUX_DBREG_SIZE (8 * sizeof(l_int))
 
 static __inline int
 map_signum(int signum)
 {
 
 	signum = linux_to_bsd_signal(signum);
-	return ((signum == SIGSTOP)? 0 : signum);
+	return ((signum == SIGSTOP) ? 0 : signum);
 }
 
 struct linux_pt_reg {
-	l_long	ebx;
-	l_long	ecx;
-	l_long	edx;
-	l_long	esi;
-	l_long	edi;
-	l_long	ebp;
-	l_long	eax;
-	l_int	xds;
-	l_int	xes;
-	l_int	xfs;
-	l_int	xgs;
-	l_long	orig_eax;
-	l_long	eip;
-	l_int	xcs;
-	l_long	eflags;
-	l_long	esp;
-	l_int	xss;
+	l_long ebx;
+	l_long ecx;
+	l_long edx;
+	l_long esi;
+	l_long edi;
+	l_long ebp;
+	l_long eax;
+	l_int xds;
+	l_int xes;
+	l_int xfs;
+	l_int xgs;
+	l_long orig_eax;
+	l_long eip;
+	l_int xcs;
+	l_long eflags;
+	l_long esp;
+	l_int xss;
 };
 
 /*
@@ -148,12 +149,12 @@ map_regs_from_linux(struct reg *bsd_r, struct linux_pt_reg *linux_r)
 	bsd_r->r_edi = linux_r->edi;
 	bsd_r->r_ebp = linux_r->ebp;
 	bsd_r->r_eax = linux_r->eax;
-	bsd_r->r_ds  = linux_r->xds;
-	bsd_r->r_es  = linux_r->xes;
-	bsd_r->r_fs  = linux_r->xfs;
-	bsd_r->r_gs  = linux_r->xgs;
+	bsd_r->r_ds = linux_r->xds;
+	bsd_r->r_es = linux_r->xes;
+	bsd_r->r_fs = linux_r->xfs;
+	bsd_r->r_gs = linux_r->xgs;
 	bsd_r->r_eip = linux_r->eip;
-	bsd_r->r_cs  = linux_r->xcs;
+	bsd_r->r_cs = linux_r->xcs;
 	bsd_r->r_eflags = linux_r->eflags;
 	bsd_r->r_esp = linux_r->esp;
 	bsd_r->r_ss = linux_r->xss;
@@ -167,7 +168,7 @@ struct linux_pt_fpreg {
 	l_long fcs;
 	l_long foo;
 	l_long fos;
-	l_long st_space[2*10];
+	l_long st_space[2 * 10];
 };
 
 static void
@@ -197,19 +198,19 @@ map_fpregs_from_linux(struct fpreg *bsd_r, struct linux_pt_fpreg *linux_r)
 }
 
 struct linux_pt_fpxreg {
-	l_ushort	cwd;
-	l_ushort	swd;
-	l_ushort	twd;
-	l_ushort	fop;
-	l_long		fip;
-	l_long		fcs;
-	l_long		foo;
-	l_long		fos;
-	l_long		mxcsr;
-	l_long		reserved;
-	l_long		st_space[32];
-	l_long		xmm_space[32];
-	l_long		padding[56];
+	l_ushort cwd;
+	l_ushort swd;
+	l_ushort twd;
+	l_ushort fop;
+	l_long fip;
+	l_long fcs;
+	l_long foo;
+	l_long fos;
+	l_long mxcsr;
+	l_long reserved;
+	l_long st_space[32];
+	l_long xmm_space[32];
+	l_long padding[56];
 };
 
 static int
@@ -238,14 +239,14 @@ int
 linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 {
 	union {
-		struct linux_pt_reg	reg;
-		struct linux_pt_fpreg	fpreg;
-		struct linux_pt_fpxreg	fpxreg;
+		struct linux_pt_reg reg;
+		struct linux_pt_fpreg fpreg;
+		struct linux_pt_fpxreg fpxreg;
 	} r;
 	union {
-		struct reg		bsd_reg;
-		struct fpreg		bsd_fpreg;
-		struct dbreg		bsd_dbreg;
+		struct reg bsd_reg;
+		struct fpreg bsd_fpreg;
+		struct dbreg bsd_dbreg;
 	} u;
 	void *addr;
 	pid_t pid;
@@ -254,8 +255,8 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 	error = 0;
 
 	/* by default, just copy data intact */
-	req  = uap->req;
-	pid  = (pid_t)uap->pid;
+	req = uap->req;
+	pid = (pid_t)uap->pid;
 	addr = (void *)uap->addr;
 
 	switch (req) {
@@ -271,19 +272,19 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		int rval = td->td_retval[0];
 		error = kern_ptrace(td, req, pid, addr, 0);
 		if (error == 0)
-			error = copyout(td->td_retval, (void *)uap->data,
-			    sizeof(l_int));
+			error = copyout(
+			    td->td_retval, (void *)uap->data, sizeof(l_int));
 		td->td_retval[0] = rval;
 		break;
 	}
 	case PTRACE_DETACH:
-		error = kern_ptrace(td, PT_DETACH, pid, (void *)1,
-		     map_signum(uap->data));
+		error = kern_ptrace(
+		    td, PT_DETACH, pid, (void *)1, map_signum(uap->data));
 		break;
 	case PTRACE_SINGLESTEP:
 	case PTRACE_CONT:
-		error = kern_ptrace(td, req, pid, (void *)1,
-		     map_signum(uap->data));
+		error = kern_ptrace(
+		    td, req, pid, (void *)1, map_signum(uap->data));
 		break;
 	case PTRACE_ATTACH:
 		error = kern_ptrace(td, PT_ATTACH, pid, addr, uap->data);
@@ -293,8 +294,8 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		error = kern_ptrace(td, PT_GETREGS, pid, &u.bsd_reg, 0);
 		if (error == 0) {
 			map_regs_to_linux(&u.bsd_reg, &r.reg);
-			error = copyout(&r.reg, (void *)uap->data,
-			    sizeof(r.reg));
+			error = copyout(
+			    &r.reg, (void *)uap->data, sizeof(r.reg));
 		}
 		break;
 	case PTRACE_SETREGS:
@@ -310,8 +311,8 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		error = kern_ptrace(td, PT_GETFPREGS, pid, &u.bsd_fpreg, 0);
 		if (error == 0) {
 			map_fpregs_to_linux(&u.bsd_fpreg, &r.fpreg);
-			error = copyout(&r.fpreg, (void *)uap->data,
-			    sizeof(r.fpreg));
+			error = copyout(
+			    &r.fpreg, (void *)uap->data, sizeof(r.fpreg));
 		}
 		break;
 	case PTRACE_SETFPREGS:
@@ -319,8 +320,8 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		error = copyin((void *)uap->data, &r.fpreg, sizeof(r.fpreg));
 		if (error == 0) {
 			map_fpregs_from_linux(&u.bsd_fpreg, &r.fpreg);
-			error = kern_ptrace(td, PT_SETFPREGS, pid,
-			    &u.bsd_fpreg, 0);
+			error = kern_ptrace(
+			    td, PT_SETFPREGS, pid, &u.bsd_fpreg, 0);
 		}
 		break;
 	case PTRACE_SETFPXREGS:
@@ -381,7 +382,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		}
 
 		if (req == PTRACE_GETFPXREGS) {
-			_PHOLD(p);	/* may block */
+			_PHOLD(p); /* may block */
 			td2 = FIRST_THREAD_IN_PROC(p);
 			error = linux_proc_read_fpxregs(td2, &r.fpxreg);
 			_PRELE(p);
@@ -392,7 +393,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		} else {
 			/* clear dangerous bits exactly as Linux does*/
 			r.fpxreg.mxcsr &= 0xffbf;
-			_PHOLD(p);	/* may block */
+			_PHOLD(p); /* may block */
 			td2 = FIRST_THREAD_IN_PROC(p);
 			error = linux_proc_write_fpxregs(td2, &r.fpxreg);
 			_PRELE(p);
@@ -428,8 +429,8 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 				break;
 			}
 
-			*(l_int *)((char *)&r.reg + uap->addr) =
-			    (l_int)uap->data;
+			*(l_int *)((char *)&r.reg +
+			    uap->addr) = (l_int)uap->data;
 
 			map_regs_from_linux(&u.bsd_reg, &r.reg);
 			error = kern_ptrace(td, PT_SETREGS, pid, &u.bsd_reg, 0);
@@ -440,23 +441,23 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		 */
 		if (uap->addr >= LINUX_DBREG_OFFSET &&
 		    uap->addr <= LINUX_DBREG_OFFSET + LINUX_DBREG_SIZE) {
-			error = kern_ptrace(td, PT_GETDBREGS, pid, &u.bsd_dbreg,
-			    0);
+			error = kern_ptrace(
+			    td, PT_GETDBREGS, pid, &u.bsd_dbreg, 0);
 			if (error != 0)
 				break;
 
 			uap->addr -= LINUX_DBREG_OFFSET;
 			if (req == PTRACE_PEEKUSR) {
-				error = copyout((char *)&u.bsd_dbreg +
-				    uap->addr, (void *)uap->data,
-				    sizeof(l_int));
+				error = copyout(
+				    (char *)&u.bsd_dbreg + uap->addr,
+				    (void *)uap->data, sizeof(l_int));
 				break;
 			}
 
-			*(l_int *)((char *)&u.bsd_dbreg + uap->addr) =
-			     uap->data;
-			error = kern_ptrace(td, PT_SETDBREGS, pid,
-			    &u.bsd_dbreg, 0);
+			*(l_int *)((char *)&u.bsd_dbreg +
+			    uap->addr) = uap->data;
+			error = kern_ptrace(
+			    td, PT_SETDBREGS, pid, &u.bsd_dbreg, 0);
 		}
 
 		break;

@@ -47,22 +47,21 @@
 
 #define _RLIMIT_IDENT
 
-#include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/resourcevar.h>
-#include <sys/resource.h>
-#include <sys/sbuf.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/resource.h>
+#include <sys/resourcevar.h>
+#include <sys/sbuf.h>
 
-#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
+#include <fs/pseudofs/pseudofs.h>
 
-int
-procfs_doprocrlimit(PFS_FILL_ARGS)
+int procfs_doprocrlimit(PFS_FILL_ARGS)
 {
 	struct plimit *limp;
 	int i;

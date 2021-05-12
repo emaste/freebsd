@@ -41,34 +41,33 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #ifdef _KERNEL
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/rmlock.h>
-#include <sys/systm.h>
 #endif
 #include <sys/stats.h>
 
 #include <net/vnet.h>
-
+#include <netinet/cc/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
 
-#include <netinet/cc/cc.h>
-
 VNET_DEFINE(int, tcp_perconn_stats_dflt_tpl) = -1;
 
 #ifndef _KERNEL
-#define	V_tcp_perconn_stats_enable	VNET(tcp_perconn_stats_enable)
-#define	V_tcp_perconn_stats_dflt_tpl	VNET(tcp_perconn_stats_dflt_tpl)
+#define V_tcp_perconn_stats_enable VNET(tcp_perconn_stats_enable)
+#define V_tcp_perconn_stats_dflt_tpl VNET(tcp_perconn_stats_dflt_tpl)
 #else /* _KERNEL */
 
 VNET_DEFINE(int, tcp_perconn_stats_enable) = 2;
-VNET_DEFINE_STATIC(struct stats_tpl_sample_rate *, tcp_perconn_stats_sample_rates);
+VNET_DEFINE_STATIC(
+    struct stats_tpl_sample_rate *, tcp_perconn_stats_sample_rates);
 VNET_DEFINE_STATIC(int, tcp_stats_nrates) = 0;
-#define	V_tcp_perconn_stats_sample_rates VNET(tcp_perconn_stats_sample_rates)
-#define	V_tcp_stats_nrates		VNET(tcp_stats_nrates)
+#define V_tcp_perconn_stats_sample_rates VNET(tcp_perconn_stats_sample_rates)
+#define V_tcp_stats_nrates VNET(tcp_stats_nrates)
 
 static struct rmlock tcp_stats_tpl_sampling_lock;
 static int tcp_stats_tpl_sr_cb(enum stats_tpl_sr_cb_action action,
@@ -89,8 +88,8 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, perconn_stats_sample_rates,
 int
 #else
 static int
-/* Ensure all templates are also added to the userland template list. */
-__attribute__ ((constructor))
+    /* Ensure all templates are also added to the userland template list. */
+    __attribute__((constructor))
 #endif
 tcp_stats_init()
 {
@@ -106,24 +105,24 @@ tcp_stats_init()
 		STATS_VSS_SUM(),
 	};
 	err |= stats_tpl_add_voistats(V_tcp_perconn_stats_dflt_tpl,
-	    VOI_TCP_TXPB, "TCP_TXPB", VSD_DTYPE_INT_U64,
-	    NVSS(vss_sum), vss_sum, 0);
+	    VOI_TCP_TXPB, "TCP_TXPB", VSD_DTYPE_INT_U64, NVSS(vss_sum), vss_sum,
+	    0);
 	lasterr = err ? err : lasterr;
 	err |= stats_tpl_add_voistats(V_tcp_perconn_stats_dflt_tpl,
-	    VOI_TCP_RETXPB, "TCP_RETXPB", VSD_DTYPE_INT_U32,
-	    NVSS(vss_sum), vss_sum, 0);
+	    VOI_TCP_RETXPB, "TCP_RETXPB", VSD_DTYPE_INT_U32, NVSS(vss_sum),
+	    vss_sum, 0);
 	lasterr = err ? err : lasterr;
 
 	struct voistatspec vss_max[] = {
 		STATS_VSS_MAX(),
 	};
 	err |= stats_tpl_add_voistats(V_tcp_perconn_stats_dflt_tpl,
-	    VOI_TCP_FRWIN, "TCP_FRWIN", VSD_DTYPE_INT_ULONG,
-	    NVSS(vss_max), vss_max, 0);
+	    VOI_TCP_FRWIN, "TCP_FRWIN", VSD_DTYPE_INT_ULONG, NVSS(vss_max),
+	    vss_max, 0);
 	lasterr = err ? err : lasterr;
 	err |= stats_tpl_add_voistats(V_tcp_perconn_stats_dflt_tpl,
-	    VOI_TCP_LCWIN, "TCP_LCWIN", VSD_DTYPE_INT_ULONG,
-	    NVSS(vss_max), vss_max, 0);
+	    VOI_TCP_LCWIN, "TCP_LCWIN", VSD_DTYPE_INT_ULONG, NVSS(vss_max),
+	    vss_max, 0);
 	lasterr = err ? err : lasterr;
 
 	struct voistatspec vss_rtt[] = {
@@ -131,18 +130,17 @@ tcp_stats_init()
 		STATS_VSS_MIN(),
 		STATS_VSS_TDGSTCLUST32(20, 4),
 	};
-	err |= stats_tpl_add_voistats(V_tcp_perconn_stats_dflt_tpl,
-	    VOI_TCP_RTT, "TCP_RTT", VSD_DTYPE_INT_U32,
-	    NVSS(vss_rtt), vss_rtt, 0);
+	err |= stats_tpl_add_voistats(V_tcp_perconn_stats_dflt_tpl, VOI_TCP_RTT,
+	    "TCP_RTT", VSD_DTYPE_INT_U32, NVSS(vss_rtt), vss_rtt, 0);
 	lasterr = err ? err : lasterr;
 
-	struct voistatspec vss_congsig[] = {
-		STATS_VSS_DVHIST32_USR(HBKTS(DVBKT(CC_ECN), DVBKT(CC_RTO),
-		    DVBKT(CC_RTO_ERR), DVBKT(CC_NDUPACK)), 0)
-	};
+	struct voistatspec vss_congsig[] = { STATS_VSS_DVHIST32_USR(
+	    HBKTS(DVBKT(CC_ECN), DVBKT(CC_RTO), DVBKT(CC_RTO_ERR),
+		DVBKT(CC_NDUPACK)),
+	    0) };
 	err |= stats_tpl_add_voistats(V_tcp_perconn_stats_dflt_tpl,
-	    VOI_TCP_CSIG, "TCP_CSIG", VSD_DTYPE_INT_U32,
-	    NVSS(vss_congsig), vss_congsig, 0);
+	    VOI_TCP_CSIG, "TCP_CSIG", VSD_DTYPE_INT_U32, NVSS(vss_congsig),
+	    vss_congsig, 0);
 	lasterr = err ? err : lasterr;
 
 	struct voistatspec vss_gput[] = {
@@ -150,8 +148,8 @@ tcp_stats_init()
 		STATS_VSS_TDGSTCLUST32(20, 4),
 	};
 	err |= stats_tpl_add_voistats(V_tcp_perconn_stats_dflt_tpl,
-	    VOI_TCP_GPUT, "TCP_GPUT", VSD_DTYPE_INT_U32,
-	    NVSS(vss_gput), vss_gput, 0);
+	    VOI_TCP_GPUT, "TCP_GPUT", VSD_DTYPE_INT_U32, NVSS(vss_gput),
+	    vss_gput, 0);
 	lasterr = err ? err : lasterr;
 
 	struct voistatspec vss_gput_nd[] = {
@@ -162,21 +160,18 @@ tcp_stats_init()
 	    NVSS(vss_gput_nd), vss_gput_nd, 0);
 	lasterr = err ? err : lasterr;
 
-	struct voistatspec vss_windiff[] = {
-		STATS_VSS_CRHIST32_USR(HBKTS(CRBKT(0)), VSD_HIST_LBOUND_INF)
-	};
+	struct voistatspec vss_windiff[] = { STATS_VSS_CRHIST32_USR(
+	    HBKTS(CRBKT(0)), VSD_HIST_LBOUND_INF) };
 	err |= stats_tpl_add_voistats(V_tcp_perconn_stats_dflt_tpl,
 	    VOI_TCP_CALCFRWINDIFF, "TCP_CALCFRWINDIFF", VSD_DTYPE_INT_S32,
 	    NVSS(vss_windiff), vss_windiff, 0);
 	lasterr = err ? err : lasterr;
 
-	struct voistatspec vss_acklen[] = {
-		STATS_VSS_MAX(),
-		STATS_VSS_CRHIST32_LIN(0, 9, 1, VSD_HIST_UBOUND_INF)
-	};
+	struct voistatspec vss_acklen[] = { STATS_VSS_MAX(),
+		STATS_VSS_CRHIST32_LIN(0, 9, 1, VSD_HIST_UBOUND_INF) };
 	err |= stats_tpl_add_voistats(V_tcp_perconn_stats_dflt_tpl,
-	    VOI_TCP_ACKLEN, "TCP_ACKLEN", VSD_DTYPE_INT_U32,
-	    NVSS(vss_acklen), vss_acklen, 0);
+	    VOI_TCP_ACKLEN, "TCP_ACKLEN", VSD_DTYPE_INT_U32, NVSS(vss_acklen),
+	    vss_acklen, 0);
 	lasterr = err ? err : lasterr;
 
 	return (lasterr);
@@ -184,8 +179,8 @@ tcp_stats_init()
 
 #ifdef _KERNEL
 int
-tcp_stats_sample_rollthedice(struct tcpcb *tp, void *seed_bytes,
-    size_t seed_len)
+tcp_stats_sample_rollthedice(
+    struct tcpcb *tp, void *seed_bytes, size_t seed_len)
 {
 	struct rm_priotracker tracker;
 	int tpl;
@@ -194,8 +189,9 @@ tcp_stats_sample_rollthedice(struct tcpcb *tp, void *seed_bytes,
 
 	if (V_tcp_stats_nrates > 0) {
 		rm_rlock(&tcp_stats_tpl_sampling_lock, &tracker);
-		tpl = stats_tpl_sample_rollthedice(V_tcp_perconn_stats_sample_rates,
-		    V_tcp_stats_nrates, seed_bytes, seed_len);
+		tpl = stats_tpl_sample_rollthedice(
+		    V_tcp_perconn_stats_sample_rates, V_tcp_stats_nrates,
+		    seed_bytes, seed_len);
 		rm_runlock(&tcp_stats_tpl_sampling_lock, &tracker);
 
 		if (tpl >= 0) {
@@ -232,8 +228,8 @@ tcp_stats_tpl_sr_cb(enum stats_tpl_sr_cb_action action,
 		 * "action == TPL_SR_RUNLOCK" call.
 		 */
 		rm_assert(&tcp_stats_tpl_sampling_lock, RA_UNLOCKED);
-		rm_rlock(&tcp_stats_tpl_sampling_lock,
-		    (struct rm_priotracker *)ctx);
+		rm_rlock(
+		    &tcp_stats_tpl_sampling_lock, (struct rm_priotracker *)ctx);
 		/* FALLTHROUGH */
 	case TPL_SR_UNLOCKED_GET:
 		if (rates != NULL)
@@ -243,8 +239,8 @@ tcp_stats_tpl_sr_cb(enum stats_tpl_sr_cb_action action,
 		break;
 	case TPL_SR_RUNLOCK:
 		rm_assert(&tcp_stats_tpl_sampling_lock, RA_RLOCKED);
-		rm_runlock(&tcp_stats_tpl_sampling_lock,
-		    (struct rm_priotracker *)ctx);
+		rm_runlock(
+		    &tcp_stats_tpl_sampling_lock, (struct rm_priotracker *)ctx);
 		break;
 	case TPL_SR_PUT:
 		KASSERT(rates != NULL && nrates != NULL,

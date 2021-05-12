@@ -42,20 +42,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 
-#include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
-
-#include "iicbus_if.h"
-
-#include <dev/ofw/openfirm.h>
+#include <dev/iicbus/iiconf.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
+#include "iicbus_if.h"
 
 #ifdef EXT_RESOURCES
 #include <dev/extres/clk/clk.h>
@@ -67,39 +66,38 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/freescale/vybrid/vf_common.h>
 
-#define	I2C_IBAD	0x0	/* I2C Bus Address Register */
-#define	I2C_IBFD	0x1	/* I2C Bus Frequency Divider Register */
-#define	I2C_IBCR	0x2	/* I2C Bus Control Register */
-#define	 IBCR_MDIS		(1 << 7) /* Module disable. */
-#define	 IBCR_IBIE		(1 << 6) /* I-Bus Interrupt Enable. */
-#define	 IBCR_MSSL		(1 << 5) /* Master/Slave mode select. */
-#define	 IBCR_TXRX		(1 << 4) /* Transmit/Receive mode select. */
-#define	 IBCR_NOACK		(1 << 3) /* Data Acknowledge disable. */
-#define	 IBCR_RSTA		(1 << 2) /* Repeat Start. */
-#define	 IBCR_DMAEN		(1 << 1) /* DMA Enable. */
-#define	I2C_IBSR	0x3	/* I2C Bus Status Register */
-#define	 IBSR_TCF		(1 << 7) /* Transfer complete. */
-#define	 IBSR_IAAS		(1 << 6) /* Addressed as a slave. */
-#define	 IBSR_IBB		(1 << 5) /* Bus busy. */
-#define	 IBSR_IBAL		(1 << 4) /* Arbitration Lost. */
-#define	 IBSR_SRW		(1 << 2) /* Slave Read/Write. */
-#define	 IBSR_IBIF		(1 << 1) /* I-Bus Interrupt Flag. */
-#define	 IBSR_RXAK		(1 << 0) /* Received Acknowledge. */
-#define	I2C_IBDR	0x4	/* I2C Bus Data I/O Register */
-#define	I2C_IBIC	0x5	/* I2C Bus Interrupt Config Register */
-#define	 IBIC_BIIE		(1 << 7) /* Bus Idle Interrupt Enable bit. */
-#define	I2C_IBDBG	0x6	/* I2C Bus Debug Register */
+#define I2C_IBAD 0x0 /* I2C Bus Address Register */
+#define I2C_IBFD 0x1 /* I2C Bus Frequency Divider Register */
+#define I2C_IBCR 0x2 /* I2C Bus Control Register */
+#define IBCR_MDIS (1 << 7) /* Module disable. */
+#define IBCR_IBIE (1 << 6) /* I-Bus Interrupt Enable. */
+#define IBCR_MSSL (1 << 5) /* Master/Slave mode select. */
+#define IBCR_TXRX (1 << 4) /* Transmit/Receive mode select. */
+#define IBCR_NOACK (1 << 3) /* Data Acknowledge disable. */
+#define IBCR_RSTA (1 << 2) /* Repeat Start. */
+#define IBCR_DMAEN (1 << 1) /* DMA Enable. */
+#define I2C_IBSR 0x3 /* I2C Bus Status Register */
+#define IBSR_TCF (1 << 7) /* Transfer complete. */
+#define IBSR_IAAS (1 << 6) /* Addressed as a slave. */
+#define IBSR_IBB (1 << 5) /* Bus busy. */
+#define IBSR_IBAL (1 << 4) /* Arbitration Lost. */
+#define IBSR_SRW (1 << 2) /* Slave Read/Write. */
+#define IBSR_IBIF (1 << 1) /* I-Bus Interrupt Flag. */
+#define IBSR_RXAK (1 << 0) /* Received Acknowledge. */
+#define I2C_IBDR 0x4 /* I2C Bus Data I/O Register */
+#define I2C_IBIC 0x5 /* I2C Bus Interrupt Config Register */
+#define IBIC_BIIE (1 << 7) /* Bus Idle Interrupt Enable bit. */
+#define I2C_IBDBG 0x6 /* I2C Bus Debug Register */
 
 #ifdef DEBUG
-#define vf_i2c_dbg(_sc, fmt, args...) \
-	device_printf((_sc)->dev, fmt, ##args)
+#define vf_i2c_dbg(_sc, fmt, args...) device_printf((_sc)->dev, fmt, ##args)
 #else
 #define vf_i2c_dbg(_sc, fmt, args...)
 #endif
 
-#define	HW_UNKNOWN	0x00
-#define	HW_MVF600	0x01
-#define	HW_VF610	0x02
+#define HW_UNKNOWN 0x00
+#define HW_MVF600 0x01
+#define HW_VF610 0x02
 
 static int i2c_repeated_start(device_t, u_char, int);
 static int i2c_start(device_t, u_char, int);
@@ -115,48 +113,82 @@ struct i2c_div_type {
 };
 
 struct i2c_softc {
-	struct resource		*res[2];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
+	struct resource *res[2];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
 #ifdef EXT_RESOURCES
-	clk_t			clock;
-	uint32_t		freq;
+	clk_t clock;
+	uint32_t freq;
 #endif
-	device_t		dev;
-	device_t		iicbus;
-	struct mtx		mutex;
-	uintptr_t		hwtype;
+	device_t dev;
+	device_t iicbus;
+	struct mtx mutex;
+	uintptr_t hwtype;
 };
 
-static struct resource_spec i2c_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec i2c_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
 #ifdef EXT_RESOURCES
 static struct i2c_div_type vf610_div_table[] = {
-	{ 0x00, 20 }, { 0x01, 22 }, { 0x02, 24 }, { 0x03, 26 },
-	{ 0x04, 28 }, { 0x05, 30 }, { 0x09, 32 }, { 0x06, 34 },
-	{ 0x0A, 36 }, { 0x0B, 40 }, { 0x0C, 44 }, { 0x0D, 48 },
-	{ 0x0E, 56 }, { 0x12, 64 }, { 0x13, 72 }, { 0x14, 80 },
-	{ 0x15, 88 }, { 0x19, 96 }, { 0x16, 104 }, { 0x1A, 112 },
-	{ 0x17, 128 }, { 0x1D, 160 }, { 0x1E, 192 }, { 0x22, 224 },
-	{ 0x1F, 240 }, { 0x23, 256 }, { 0x24, 288 }, { 0x25, 320 },
-	{ 0x26, 384 }, { 0x2A, 448 }, { 0x27, 480 }, { 0x2B, 512 },
-	{ 0x2C, 576 }, { 0x2D, 640 }, { 0x2E, 768 }, { 0x32, 896 },
-	{ 0x2F, 960 }, { 0x33, 1024 }, { 0x34, 1152 }, { 0x35, 1280 },
-	{ 0x36, 1536 }, { 0x3A, 1792 }, { 0x37, 1920 }, { 0x3B, 2048 },
-	{ 0x3C, 2304 }, { 0x3D, 2560 }, { 0x3E, 3072 }, { 0x3F, 3840 },
-	{ 0x3F, 3840 }, { 0x7B, 4096 }, { 0x7D, 5120 }, { 0x7E, 6144 },
+	{ 0x00, 20 },
+	{ 0x01, 22 },
+	{ 0x02, 24 },
+	{ 0x03, 26 },
+	{ 0x04, 28 },
+	{ 0x05, 30 },
+	{ 0x09, 32 },
+	{ 0x06, 34 },
+	{ 0x0A, 36 },
+	{ 0x0B, 40 },
+	{ 0x0C, 44 },
+	{ 0x0D, 48 },
+	{ 0x0E, 56 },
+	{ 0x12, 64 },
+	{ 0x13, 72 },
+	{ 0x14, 80 },
+	{ 0x15, 88 },
+	{ 0x19, 96 },
+	{ 0x16, 104 },
+	{ 0x1A, 112 },
+	{ 0x17, 128 },
+	{ 0x1D, 160 },
+	{ 0x1E, 192 },
+	{ 0x22, 224 },
+	{ 0x1F, 240 },
+	{ 0x23, 256 },
+	{ 0x24, 288 },
+	{ 0x25, 320 },
+	{ 0x26, 384 },
+	{ 0x2A, 448 },
+	{ 0x27, 480 },
+	{ 0x2B, 512 },
+	{ 0x2C, 576 },
+	{ 0x2D, 640 },
+	{ 0x2E, 768 },
+	{ 0x32, 896 },
+	{ 0x2F, 960 },
+	{ 0x33, 1024 },
+	{ 0x34, 1152 },
+	{ 0x35, 1280 },
+	{ 0x36, 1536 },
+	{ 0x3A, 1792 },
+	{ 0x37, 1920 },
+	{ 0x3B, 2048 },
+	{ 0x3C, 2304 },
+	{ 0x3D, 2560 },
+	{ 0x3E, 3072 },
+	{ 0x3F, 3840 },
+	{ 0x3F, 3840 },
+	{ 0x7B, 4096 },
+	{ 0x7D, 5120 },
+	{ 0x7E, 6144 },
 };
 #endif
 
-static const struct ofw_compat_data i2c_compat_data[] = {
-	{"fsl,mvf600-i2c",	HW_MVF600},
-	{"fsl,vf610-i2c",	HW_VF610},
-	{NULL,			HW_UNKNOWN}
-};
+static const struct ofw_compat_data i2c_compat_data[] = { { "fsl,mvf600-i2c",
+							      HW_MVF600 },
+	{ "fsl,vf610-i2c", HW_VF610 }, { NULL, HW_UNKNOWN } };
 
 static int
 i2c_probe(device_t dev)
@@ -262,7 +294,7 @@ wait_for_iif(struct i2c_softc *sc)
 	int retry;
 
 	retry = 1000;
-	while (retry --) {
+	while (retry--) {
 		if (READ1(sc, I2C_IBSR) & IBSR_IBIF) {
 			WRITE1(sc, I2C_IBSR, IBSR_IBIF);
 			return (IIC_NOERR);
@@ -280,7 +312,7 @@ wait_for_nibb(struct i2c_softc *sc)
 	int retry;
 
 	retry = 1000;
-	while (retry --) {
+	while (retry--) {
 		if ((READ1(sc, I2C_IBSR) & IBSR_IBB) == 0)
 			return (IIC_NOERR);
 		DELAY(10);
@@ -296,7 +328,7 @@ wait_for_icf(struct i2c_softc *sc)
 	int retry;
 
 	retry = 1000;
-	while (retry --) {
+	while (retry--) {
 		if (READ1(sc, I2C_IBSR) & IBSR_TCF) {
 			if (READ1(sc, I2C_IBSR) & IBSR_IBIF) {
 				WRITE1(sc, I2C_IBSR, IBSR_IBIF);
@@ -314,7 +346,6 @@ tx_acked(struct i2c_softc *sc)
 {
 
 	return (READ1(sc, I2C_IBSR) & IBSR_RXAK) ? false : true;
-
 }
 
 static int
@@ -352,8 +383,8 @@ i2c_repeated_start(device_t dev, u_char slave, int timeout)
 	error = wait_for_iif(sc);
 
 	if (!tx_acked(sc)) {
-		vf_i2c_dbg(sc,
-		    "cant i2c start: missing ACK after slave addres\n");
+		vf_i2c_dbg(
+		    sc, "cant i2c start: missing ACK after slave addres\n");
 		return (IIC_ENOACK);
 	}
 
@@ -407,8 +438,8 @@ i2c_start(device_t dev, u_char slave, int timeout)
 	mtx_unlock(&sc->mutex);
 
 	if (!tx_acked(sc)) {
-		vf_i2c_dbg(sc,
-		    "cant i2c start: missing QACK after slave addres\n");
+		vf_i2c_dbg(
+		    sc, "cant i2c start: missing QACK after slave addres\n");
 		return (IIC_ENOACK);
 	}
 
@@ -459,7 +490,8 @@ i2c_get_div_val(device_t dev)
 
 	error = clk_get_freq(sc->clock, &clk_freq);
 	if (error != 0) {
-		device_printf(dev, "Could not get parent clock frequency. "
+		device_printf(dev,
+		    "Could not get parent clock frequency. "
 		    "Using default divider.\n");
 		return vf610_div_table[nitems(vf610_div_table) - 1].reg_val;
 	}
@@ -531,8 +563,8 @@ i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 
 	if (len) {
 		if (len == 1)
-			WRITE1(sc, I2C_IBCR, IBCR_IBIE | IBCR_MSSL |	\
-			    IBCR_NOACK);
+			WRITE1(
+			    sc, I2C_IBCR, IBCR_IBIE | IBCR_MSSL | IBCR_NOACK);
 		else
 			WRITE1(sc, I2C_IBCR, IBCR_IBIE | IBCR_MSSL);
 
@@ -550,8 +582,8 @@ i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 
 		if ((*read == len - 2) && last) {
 			/* NO ACK on last byte */
-			WRITE1(sc, I2C_IBCR, IBCR_IBIE | IBCR_MSSL |	\
-			    IBCR_NOACK);
+			WRITE1(
+			    sc, I2C_IBCR, IBCR_IBIE | IBCR_MSSL | IBCR_NOACK);
 		}
 
 		if ((*read == len - 1) && last) {
@@ -589,7 +621,7 @@ i2c_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 			return (error);
 		}
 
-		if (!tx_acked(sc) && (*sent  = (len - 2)) ){
+		if (!tx_acked(sc) && (*sent = (len - 2))) {
 			mtx_unlock(&sc->mutex);
 			vf_i2c_dbg(sc, "no ACK on %d write\n", *sent);
 			return (IIC_ENOACK);
@@ -608,23 +640,18 @@ i2c_get_node(device_t bus, device_t dev)
 	return ofw_bus_get_node(bus);
 }
 
-static device_method_t i2c_methods[] = {
-	DEVMETHOD(device_probe,			i2c_probe),
-	DEVMETHOD(device_attach,		i2c_attach),
-	DEVMETHOD(device_detach,		i2c_detach),
+static device_method_t i2c_methods[] = { DEVMETHOD(device_probe, i2c_probe),
+	DEVMETHOD(device_attach, i2c_attach),
+	DEVMETHOD(device_detach, i2c_detach),
 
-	DEVMETHOD(ofw_bus_get_node,		i2c_get_node),
+	DEVMETHOD(ofw_bus_get_node, i2c_get_node),
 
-	DEVMETHOD(iicbus_callback,		iicbus_null_callback),
-	DEVMETHOD(iicbus_repeated_start,	i2c_repeated_start),
-	DEVMETHOD(iicbus_start,			i2c_start),
-	DEVMETHOD(iicbus_stop,			i2c_stop),
-	DEVMETHOD(iicbus_reset,			i2c_reset),
-	DEVMETHOD(iicbus_read,			i2c_read),
-	DEVMETHOD(iicbus_write,			i2c_write),
-	DEVMETHOD(iicbus_transfer,		iicbus_transfer_gen),
-	{ 0, 0 }
-};
+	DEVMETHOD(iicbus_callback, iicbus_null_callback),
+	DEVMETHOD(iicbus_repeated_start, i2c_repeated_start),
+	DEVMETHOD(iicbus_start, i2c_start), DEVMETHOD(iicbus_stop, i2c_stop),
+	DEVMETHOD(iicbus_reset, i2c_reset), DEVMETHOD(iicbus_read, i2c_read),
+	DEVMETHOD(iicbus_write, i2c_write),
+	DEVMETHOD(iicbus_transfer, iicbus_transfer_gen), { 0, 0 } };
 
 static devclass_t i2c_devclass;
 static DEFINE_CLASS_0(i2c, i2c_driver, i2c_methods, sizeof(struct i2c_softc));

@@ -36,13 +36,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
 
 #include <dev/extres/clk/clk.h>
 #include <dev/ofw/ofw_bus.h>
@@ -50,90 +50,84 @@ __FBSDID("$FreeBSD$");
 
 #include "clock_if.h"
 
-#define	MC_INTSTATUS			0x000
-#define	MC_INTMASK			0x004
-#define	 MC_INT_DECERR_MTS			(1 << 16)
-#define	 MC_INT_SECERR_SEC			(1 << 13)
-#define	 MC_INT_DECERR_VPR			(1 << 12)
-#define	 MC_INT_INVALID_APB_ASID_UPDATE		(1 << 11)
-#define	 MC_INT_INVALID_SMMU_PAGE		(1 << 10)
-#define	 MC_INT_ARBITRATION_EMEM		(1 << 9)
-#define	 MC_INT_SECURITY_VIOLATION		(1 << 8)
-#define	 MC_INT_DECERR_EMEM			(1 << 6)
-#define	 MC_INT_INT_MASK	(MC_INT_DECERR_MTS |			\
-				 MC_INT_SECERR_SEC |			\
-				 MC_INT_DECERR_VPR |			\
-				 MC_INT_INVALID_APB_ASID_UPDATE |	\
-				 MC_INT_INVALID_SMMU_PAGE |		\
-				 MC_INT_ARBITRATION_EMEM |		\
-				 MC_INT_SECURITY_VIOLATION |		\
-				 MC_INT_DECERR_EMEM)
+#define MC_INTSTATUS 0x000
+#define MC_INTMASK 0x004
+#define MC_INT_DECERR_MTS (1 << 16)
+#define MC_INT_SECERR_SEC (1 << 13)
+#define MC_INT_DECERR_VPR (1 << 12)
+#define MC_INT_INVALID_APB_ASID_UPDATE (1 << 11)
+#define MC_INT_INVALID_SMMU_PAGE (1 << 10)
+#define MC_INT_ARBITRATION_EMEM (1 << 9)
+#define MC_INT_SECURITY_VIOLATION (1 << 8)
+#define MC_INT_DECERR_EMEM (1 << 6)
+#define MC_INT_INT_MASK                                                 \
+	(MC_INT_DECERR_MTS | MC_INT_SECERR_SEC | MC_INT_DECERR_VPR |    \
+	    MC_INT_INVALID_APB_ASID_UPDATE | MC_INT_INVALID_SMMU_PAGE | \
+	    MC_INT_ARBITRATION_EMEM | MC_INT_SECURITY_VIOLATION |       \
+	    MC_INT_DECERR_EMEM)
 
-#define	MC_ERR_STATUS			0x008
-#define	 MC_ERR_TYPE(x)				(((x) >> 28) & 0x7)
-#define	 MC_ERR_TYPE_DECERR_EMEM		2
-#define	 MC_ERR_TYPE_SECURITY_TRUSTZONE		3
-#define	 MC_ERR_TYPE_SECURITY_CARVEOUT		4
-#define	 MC_ERR_TYPE_INVALID_SMMU_PAGE		6
-#define	 MC_ERR_INVALID_SMMU_PAGE_READABLE 	(1 << 27)
-#define	 MC_ERR_INVALID_SMMU_PAGE_WRITABLE	(1 << 26)
-#define	 MC_ERR_INVALID_SMMU_PAGE_NONSECURE	(1 << 25)
-#define	 MC_ERR_ADR_HI(x)			(((x) >> 20) & 0x3)
-#define	 MC_ERR_SWAP				(1 << 18)
-#define	 MC_ERR_SECURITY			(1 << 17)
-#define	 MC_ERR_RW				(1 << 16)
-#define	 MC_ERR_ADR1(x)				(((x) >> 12) & 0x7)
-#define	 MC_ERR_ID(x)				(((x) >> 0) & 07F)
+#define MC_ERR_STATUS 0x008
+#define MC_ERR_TYPE(x) (((x) >> 28) & 0x7)
+#define MC_ERR_TYPE_DECERR_EMEM 2
+#define MC_ERR_TYPE_SECURITY_TRUSTZONE 3
+#define MC_ERR_TYPE_SECURITY_CARVEOUT 4
+#define MC_ERR_TYPE_INVALID_SMMU_PAGE 6
+#define MC_ERR_INVALID_SMMU_PAGE_READABLE (1 << 27)
+#define MC_ERR_INVALID_SMMU_PAGE_WRITABLE (1 << 26)
+#define MC_ERR_INVALID_SMMU_PAGE_NONSECURE (1 << 25)
+#define MC_ERR_ADR_HI(x) (((x) >> 20) & 0x3)
+#define MC_ERR_SWAP (1 << 18)
+#define MC_ERR_SECURITY (1 << 17)
+#define MC_ERR_RW (1 << 16)
+#define MC_ERR_ADR1(x) (((x) >> 12) & 0x7)
+#define MC_ERR_ID(x) (((x) >> 0) & 07F)
 
-#define	MC_ERR_ADDR			0x00C
-#define	MC_EMEM_CFG			0x050
-#define	MC_EMEM_ADR_CFG			0x054
-#define	 MC_EMEM_NUMDEV(x)			(((x) >> 0 ) & 0x1)
+#define MC_ERR_ADDR 0x00C
+#define MC_EMEM_CFG 0x050
+#define MC_EMEM_ADR_CFG 0x054
+#define MC_EMEM_NUMDEV(x) (((x) >> 0) & 0x1)
 
-#define	MC_EMEM_ADR_CFG_DEV0		0x058
-#define	MC_EMEM_ADR_CFG_DEV1		0x05C
-#define	 EMEM_DEV_DEVSIZE(x)			(((x) >> 16) & 0xF)
-#define	 EMEM_DEV_BANKWIDTH(x)			(((x) >>  8) & 0x3)
-#define	 EMEM_DEV_COLWIDTH(x)			(((x) >>  8) & 0x3)
+#define MC_EMEM_ADR_CFG_DEV0 0x058
+#define MC_EMEM_ADR_CFG_DEV1 0x05C
+#define EMEM_DEV_DEVSIZE(x) (((x) >> 16) & 0xF)
+#define EMEM_DEV_BANKWIDTH(x) (((x) >> 8) & 0x3)
+#define EMEM_DEV_COLWIDTH(x) (((x) >> 8) & 0x3)
 
-#define	WR4(_sc, _r, _v)	bus_write_4((_sc)->mem_res, (_r), (_v))
-#define	RD4(_sc, _r)		bus_read_4((_sc)->mem_res, (_r))
+#define WR4(_sc, _r, _v) bus_write_4((_sc)->mem_res, (_r), (_v))
+#define RD4(_sc, _r) bus_read_4((_sc)->mem_res, (_r))
 
-#define	LOCK(_sc)		mtx_lock(&(_sc)->mtx)
-#define	UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
-#define	SLEEP(_sc, timeout)	mtx_sleep(sc, &sc->mtx, 0, "tegra_mc", timeout);
-#define	LOCK_INIT(_sc)							\
+#define LOCK(_sc) mtx_lock(&(_sc)->mtx)
+#define UNLOCK(_sc) mtx_unlock(&(_sc)->mtx)
+#define SLEEP(_sc, timeout) mtx_sleep(sc, &sc->mtx, 0, "tegra_mc", timeout);
+#define LOCK_INIT(_sc) \
 	mtx_init(&_sc->mtx, device_get_nameunit(_sc->dev), "tegra_mc", MTX_DEF)
-#define	LOCK_DESTROY(_sc)	mtx_destroy(&_sc->mtx)
-#define	ASSERT_LOCKED(_sc)	mtx_assert(&_sc->mtx, MA_OWNED)
-#define	ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->mtx, MA_NOTOWNED)
+#define LOCK_DESTROY(_sc) mtx_destroy(&_sc->mtx)
+#define ASSERT_LOCKED(_sc) mtx_assert(&_sc->mtx, MA_OWNED)
+#define ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->mtx, MA_NOTOWNED)
 
-static struct ofw_compat_data compat_data[] = {
-	{"nvidia,tegra124-mc",	1},
-	{"nvidia,tegra210-mc",	1},
-	{NULL,			0}
-};
+static struct ofw_compat_data compat_data[] = { { "nvidia,tegra124-mc", 1 },
+	{ "nvidia,tegra210-mc", 1 }, { NULL, 0 } };
 
 struct tegra_mc_softc {
-	device_t		dev;
-	struct mtx		mtx;
+	device_t dev;
+	struct mtx mtx;
 
-	struct resource		*mem_res;
-	struct resource		*irq_res;
-	void			*irq_h;
+	struct resource *mem_res;
+	struct resource *irq_res;
+	void *irq_h;
 
-	clk_t			clk;
+	clk_t clk;
 };
 
 static char *smmu_err_tbl[16] = {
-	"reserved",		/*  0 */
-	"reserved",		/*  1 */
-	"DRAM decode",		/*  2 */
-	"Trustzome Security",	/*  3 */
-	"Security carveout",	/*  4 */
-	"reserved",		/*  5 */
-	"Invalid SMMU page",	/*  6 */
-	"reserved",		/*  7 */
+	"reserved",	      /*  0 */
+	"reserved",	      /*  1 */
+	"DRAM decode",	      /*  2 */
+	"Trustzome Security", /*  3 */
+	"Security carveout",  /*  4 */
+	"reserved",	      /*  5 */
+	"Invalid SMMU page",  /*  6 */
+	"reserved",	      /*  7 */
 };
 
 static void
@@ -169,14 +163,14 @@ tegra_mc_intr(void *arg)
 	if (stat & MC_INT_DECERR_EMEM)
 		printf(" - SMMU address decode error\n");
 
-	if ((stat & (MC_INT_INVALID_SMMU_PAGE | MC_INT_SECURITY_VIOLATION |
-	   MC_INT_DECERR_EMEM)) != 0) {
+	if ((stat &
+		(MC_INT_INVALID_SMMU_PAGE | MC_INT_SECURITY_VIOLATION |
+		    MC_INT_DECERR_EMEM)) != 0) {
 		err = RD4(sc, MC_ERR_STATUS);
 		addr = RD4(sc, MC_ERR_STATUS);
 		addr |= (uint64_t)(MC_ERR_ADR_HI(err)) << 32;
 		printf(" at 0x%012jX [%s %s %s]  - %s error.\n",
-		    (uintmax_t)addr,
-		    stat & MC_ERR_SWAP ? "Swap, " : "",
+		    (uintmax_t)addr, stat & MC_ERR_SWAP ? "Swap, " : "",
 		    stat & MC_ERR_SECURITY ? "Sec, " : "",
 		    stat & MC_ERR_RW ? "Write" : "Read",
 		    smmu_err_tbl[MC_ERR_TYPE(err)]);
@@ -218,8 +212,8 @@ tegra_mc_attach(device_t dev)
 
 	/* Get the memory resource for the register mapping. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Cannot map registers.\n");
 		rv = ENXIO;
@@ -228,8 +222,7 @@ tegra_mc_attach(device_t dev)
 
 	/* Allocate our IRQ resource. */
 	rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "Cannot allocate interrupt.\n");
 		rv = ENXIO;
@@ -297,15 +290,15 @@ tegra_mc_detach(device_t dev)
 
 static device_method_t tegra_mc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		tegra_mc_probe),
-	DEVMETHOD(device_attach,	tegra_mc_attach),
-	DEVMETHOD(device_detach,	tegra_mc_detach),
+	DEVMETHOD(device_probe, tegra_mc_probe),
+	DEVMETHOD(device_attach, tegra_mc_attach),
+	DEVMETHOD(device_detach, tegra_mc_detach),
 
 	DEVMETHOD_END
 };
 
 static devclass_t tegra_mc_devclass;
-static DEFINE_CLASS_0(mc, tegra_mc_driver, tegra_mc_methods,
-    sizeof(struct tegra_mc_softc));
-DRIVER_MODULE(tegra_mc, simplebus, tegra_mc_driver, tegra_mc_devclass,
-    NULL, NULL);
+static DEFINE_CLASS_0(
+    mc, tegra_mc_driver, tegra_mc_methods, sizeof(struct tegra_mc_softc));
+DRIVER_MODULE(
+    tegra_mc, simplebus, tegra_mc_driver, tegra_mc_devclass, NULL, NULL);

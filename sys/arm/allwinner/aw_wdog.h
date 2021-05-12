@@ -27,7 +27,7 @@
  *
  */
 #ifndef __AW_WDOG_H__
-#define	__AW_WDOG_H__
+#define __AW_WDOG_H__
 
 void aw_wdog_watchdog_reset(void);
 

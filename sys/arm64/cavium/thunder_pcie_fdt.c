@@ -30,51 +30,49 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
-#include <sys/kernel.h>
-#include <sys/rman.h>
-#include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/endian.h>
 #include <sys/cpuset.h>
+#include <sys/endian.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/rman.h>
+#include <sys/sysctl.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/pci/pci_host_generic.h>
 #include <dev/pci/pci_host_generic_fdt.h>
 #include <dev/pci/pcib_private.h>
-
-#include "thunder_pcie_common.h"
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include "pcib_if.h"
+#include "thunder_pcie_common.h"
 
 #ifdef THUNDERX_PASS_1_1_ERRATA
-static struct resource * thunder_pcie_fdt_alloc_resource(device_t, device_t,
-    int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+static struct resource *thunder_pcie_fdt_alloc_resource(
+    device_t, device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 #endif
 static int thunder_pcie_fdt_attach(device_t);
 static int thunder_pcie_fdt_probe(device_t);
-static int thunder_pcie_fdt_get_id(device_t, device_t, enum pci_id_type,
-    uintptr_t *);
+static int thunder_pcie_fdt_get_id(
+    device_t, device_t, enum pci_id_type, uintptr_t *);
 
 static device_method_t thunder_pcie_fdt_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		thunder_pcie_fdt_probe),
-	DEVMETHOD(device_attach,	thunder_pcie_fdt_attach),
+	DEVMETHOD(device_probe, thunder_pcie_fdt_probe),
+	DEVMETHOD(device_attach, thunder_pcie_fdt_attach),
 #ifdef THUNDERX_PASS_1_1_ERRATA
-	DEVMETHOD(bus_alloc_resource,	thunder_pcie_fdt_alloc_resource),
+	DEVMETHOD(bus_alloc_resource, thunder_pcie_fdt_alloc_resource),
 #endif
 
 	/* pcib interface */
-	DEVMETHOD(pcib_get_id,		thunder_pcie_fdt_get_id),
+	DEVMETHOD(pcib_get_id, thunder_pcie_fdt_get_id),
 
 	/* End */
 	DEVMETHOD_END
@@ -95,8 +93,8 @@ thunder_pcie_fdt_probe(device_t dev)
 {
 
 	/* Check if we're running on Cavium ThunderX */
-	if (!CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK,
-	    CPU_IMPL_CAVIUM, CPU_PART_THUNDERX, 0, 0))
+	if (!CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK, CPU_IMPL_CAVIUM,
+		CPU_PART_THUNDERX, 0, 0))
 		return (ENXIO);
 
 	if (!ofw_bus_status_okay(dev))
@@ -125,8 +123,8 @@ thunder_pcie_fdt_attach(device_t dev)
 }
 
 static int
-thunder_pcie_fdt_get_id(device_t pci, device_t child, enum pci_id_type type,
-    uintptr_t *id)
+thunder_pcie_fdt_get_id(
+    device_t pci, device_t child, enum pci_id_type type, uintptr_t *id)
 {
 	phandle_t node;
 	int bsf;
@@ -146,15 +144,15 @@ thunder_pcie_fdt_get_id(device_t pci, device_t child, enum pci_id_type type,
 
 #ifdef THUNDERX_PASS_1_1_ERRATA
 static struct resource *
-thunder_pcie_fdt_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+thunder_pcie_fdt_alloc_resource(device_t dev, device_t child, int type,
+    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 
 	if ((int)ofw_bus_get_node(child) > 0)
-		return (pci_host_generic_alloc_resource(dev, child,
-		    type, rid, start, end, count, flags));
+		return (pci_host_generic_alloc_resource(
+		    dev, child, type, rid, start, end, count, flags));
 
-	return (thunder_pcie_alloc_resource(dev, child,
-	    type, rid, start, end, count, flags));
+	return (thunder_pcie_alloc_resource(
+	    dev, child, type, rid, start, end, count, flags));
 }
 #endif

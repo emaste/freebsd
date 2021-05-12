@@ -44,8 +44,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/errno.h>
+#include <sys/mbuf.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -102,7 +102,7 @@ ip_ecn_ingress(int mode, u_int8_t *outer, const u_int8_t *inner)
 
 	*outer = *inner;
 	switch (mode) {
-	case ECN_ALLOWED:		/* ECN allowed */
+	case ECN_ALLOWED: /* ECN allowed */
 		/*
 		 * full-functionality: if the inner is CE, set ECT(0)
 		 * to the outer.  otherwise, copy the ECN field.
@@ -110,13 +110,13 @@ ip_ecn_ingress(int mode, u_int8_t *outer, const u_int8_t *inner)
 		if ((*inner & IPTOS_ECN_MASK) == IPTOS_ECN_CE)
 			*outer &= ~IPTOS_ECN_ECT1;
 		break;
-	case ECN_FORBIDDEN:		/* ECN forbidden */
+	case ECN_FORBIDDEN: /* ECN forbidden */
 		/*
 		 * limited-functionality: set not-ECT to the outer
 		 */
 		*outer &= ~IPTOS_ECN_MASK;
 		break;
-	case ECN_NOCARE:	/* no consideration to ECN */
+	case ECN_NOCARE: /* no consideration to ECN */
 		break;
 	}
 }
@@ -144,7 +144,7 @@ ip_ecn_egress(int mode, const u_int8_t *outer, u_int8_t *inner)
 			*inner |= IPTOS_ECN_CE;
 		}
 		break;
-	case ECN_FORBIDDEN:		/* ECN forbidden */
+	case ECN_FORBIDDEN: /* ECN forbidden */
 		/*
 		 * limited-functionality: if the outer is CE, should drop it.
 		 * otherwise, leave the inner.
@@ -152,7 +152,7 @@ ip_ecn_egress(int mode, const u_int8_t *outer, u_int8_t *inner)
 		if ((*outer & IPTOS_ECN_MASK) == IPTOS_ECN_CE)
 			return (0);
 		break;
-	case ECN_NOCARE:	/* no consideration to ECN */
+	case ECN_NOCARE: /* no consideration to ECN */
 		break;
 	}
 	return (1);

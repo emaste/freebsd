@@ -36,15 +36,15 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
+#include <geom/vinum/geom_vinum_var.h>
 
-static int		 gv_sync(struct gv_volume *);
-static int		 gv_rebuild_plex(struct gv_plex *);
-static int		 gv_init_plex(struct gv_plex *);
-static int		 gv_grow_plex(struct gv_plex *);
-static int		 gv_sync_plex(struct gv_plex *, struct gv_plex *);
-static struct gv_plex	*gv_find_good_plex(struct gv_volume *);
+static int gv_sync(struct gv_volume *);
+static int gv_rebuild_plex(struct gv_plex *);
+static int gv_init_plex(struct gv_plex *);
+static int gv_grow_plex(struct gv_plex *);
+static int gv_sync_plex(struct gv_plex *, struct gv_plex *);
+static struct gv_plex *gv_find_good_plex(struct gv_volume *);
 
 void
 gv_start_obj(struct g_geom *gp, struct gctl_req *req)
@@ -90,8 +90,8 @@ gv_start_obj(struct g_geom *gp, struct gctl_req *req)
 		case GV_TYPE_SD:
 		case GV_TYPE_DRIVE:
 			/* XXX Not implemented, but what is the use? */
-			gctl_error(req, "unable to start '%s' - not yet supported",
-			    argv);
+			gctl_error(req,
+			    "unable to start '%s' - not yet supported", argv);
 			return;
 		default:
 			gctl_error(req, "unknown object '%s'", argv);
@@ -116,7 +116,7 @@ gv_start_plex(struct gv_plex *p)
 	/* RAID5 plexes can either be init, rebuilt or grown. */
 	if (p->org == GV_PLEX_RAID5) {
 		if (p->state > GV_PLEX_DEGRADED) {
-			LIST_FOREACH(s, &p->subdisks, in_plex) {
+			LIST_FOREACH (s, &p->subdisks, in_plex) {
 				if (s->flags & GV_SD_GROW) {
 					error = gv_grow_plex(p);
 					return (error);
@@ -138,21 +138,23 @@ gv_start_plex(struct gv_plex *p)
 			error = gv_access(v->provider, 1, 1, 0);
 			if (error) {
 				g_topology_unlock();
-				G_VINUM_DEBUG(0, "sync from '%s' failed to "
-				    "access volume: %d", up->name, error);
+				G_VINUM_DEBUG(0,
+				    "sync from '%s' failed to "
+				    "access volume: %d",
+				    up->name, error);
 				return (error);
 			}
 			g_topology_unlock();
 			error = gv_sync_plex(p, up);
 			if (error)
 				return (error);
-		/*
-		 * In case we have a stripe that is up, check whether it can be
-		 * grown.
-		 */
+			/*
+			 * In case we have a stripe that is up, check whether it
+			 * can be grown.
+			 */
 		} else if (p->org == GV_PLEX_STRIPED &&
 		    p->state != GV_PLEX_DOWN) {
-			LIST_FOREACH(s, &p->subdisks, in_plex) {
+			LIST_FOREACH (s, &p->subdisks, in_plex) {
 				if (s->flags & GV_SD_GROW) {
 					error = gv_grow_plex(p);
 					break;
@@ -196,17 +198,15 @@ gv_sync_plex(struct gv_plex *p, struct gv_plex *up)
 	KASSERT(up != NULL, ("%s: NULL up", __func__));
 	if ((p == up) || (p->state == GV_PLEX_UP))
 		return (0);
-	if (p->flags & GV_PLEX_SYNCING ||
-	    p->flags & GV_PLEX_REBUILDING ||
+	if (p->flags & GV_PLEX_SYNCING || p->flags & GV_PLEX_REBUILDING ||
 	    p->flags & GV_PLEX_GROWING) {
 		return (EINPROGRESS);
 	}
 	p->synced = 0;
 	p->flags |= GV_PLEX_SYNCING;
 	G_VINUM_DEBUG(1, "starting sync of plex %s", p->name);
-	error = gv_sync_request(up, p, p->synced, 
-	    MIN(GV_DFLT_SYNCSIZE, up->size - p->synced), 
-	    BIO_READ, NULL);
+	error = gv_sync_request(up, p, p->synced,
+	    MIN(GV_DFLT_SYNCSIZE, up->size - p->synced), BIO_READ, NULL);
 	if (error) {
 		G_VINUM_DEBUG(0, "error syncing plex %s", p->name);
 		return (error);
@@ -222,7 +222,7 @@ gv_find_good_plex(struct gv_volume *v)
 
 	/* Find the plex that's up. */
 	up = NULL;
-	LIST_FOREACH(up, &v->plexes, in_volume) {
+	LIST_FOREACH (up, &v->plexes, in_volume) {
 		if (up->state == GV_PLEX_UP)
 			break;
 	}
@@ -255,7 +255,7 @@ gv_sync(struct gv_volume *v)
 	g_topology_unlock();
 
 	/* Go through the good plex, and issue BIO's to all other plexes. */
-	LIST_FOREACH(p, &v->plexes, in_volume) {
+	LIST_FOREACH (p, &v->plexes, in_volume) {
 		error = gv_sync_plex(p, up);
 		if (error)
 			break;
@@ -270,19 +270,20 @@ gv_rebuild_plex(struct gv_plex *p)
 	struct gv_sd *s;
 	int error;
 
-	if (p->flags & GV_PLEX_SYNCING ||
-	    p->flags & GV_PLEX_REBUILDING ||
+	if (p->flags & GV_PLEX_SYNCING || p->flags & GV_PLEX_REBUILDING ||
 	    p->flags & GV_PLEX_GROWING)
 		return (EINPROGRESS);
 	/*
 	 * Make sure that all subdisks have consumers. We won't allow a rebuild
 	 * unless every subdisk have one.
 	 */
-	LIST_FOREACH(s, &p->subdisks, in_plex) {
+	LIST_FOREACH (s, &p->subdisks, in_plex) {
 		d = s->drive_sc;
 		if (d == NULL || (d->flags & GV_DRIVE_REFERENCED)) {
-			G_VINUM_DEBUG(0, "unable to rebuild %s, subdisk(s) have"
-			    " no drives", p->name);
+			G_VINUM_DEBUG(0,
+			    "unable to rebuild %s, subdisk(s) have"
+			    " no drives",
+			    p->name);
 			return (ENXIO);
 		}
 	}
@@ -314,8 +315,7 @@ gv_grow_plex(struct gv_plex *p)
 	v = p->vol_sc;
 	KASSERT(v != NULL, ("gv_grow_plex: NULL v"));
 
-	if (p->flags & GV_PLEX_GROWING || 
-	    p->flags & GV_PLEX_SYNCING ||
+	if (p->flags & GV_PLEX_GROWING || p->flags & GV_PLEX_SYNCING ||
 	    p->flags & GV_PLEX_REBUILDING)
 		return (EINPROGRESS);
 	g_topology_lock();
@@ -329,7 +329,7 @@ gv_grow_plex(struct gv_plex *p)
 	/* XXX: This routine with finding origsize is used two other places as
 	 * well, so we should create a function for it. */
 	sdcount = p->sdcount;
-	LIST_FOREACH(s, &p->subdisks, in_plex) {
+	LIST_FOREACH (s, &p->subdisks, in_plex) {
 		if (s->flags & GV_SD_GROW)
 			sdcount--;
 	}
@@ -359,7 +359,7 @@ gv_init_plex(struct gv_plex *p)
 
 	KASSERT(p != NULL, ("gv_init_plex: NULL p"));
 
-	LIST_FOREACH(s, &p->subdisks, in_plex) {
+	LIST_FOREACH (s, &p->subdisks, in_plex) {
 		if (s->state == GV_SD_INITIALIZING)
 			return (EINPROGRESS);
 		gv_set_sd_state(s, GV_SD_INITIALIZING, GV_SETSTATE_FORCE);
@@ -367,7 +367,8 @@ gv_init_plex(struct gv_plex *p)
 		start = s->drive_offset + s->initialized;
 		d = s->drive_sc;
 		if (d == NULL) {
-			G_VINUM_DEBUG(0, "subdisk %s has no drive yet", s->name);
+			G_VINUM_DEBUG(
+			    0, "subdisk %s has no drive yet", s->name);
 			break;
 		}
 		/*
@@ -379,8 +380,10 @@ gv_init_plex(struct gv_plex *p)
 		error = g_access(d->consumer, 0, 1, 0);
 		g_topology_unlock();
 		if (error) {
-			G_VINUM_DEBUG(0, "error accessing consumer when "
-			    "initializing %s", s->name);
+			G_VINUM_DEBUG(0,
+			    "error accessing consumer when "
+			    "initializing %s",
+			    s->name);
 			break;
 		}
 		data = g_malloc(s->init_size, M_WAITOK | M_ZERO);

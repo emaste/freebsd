@@ -35,40 +35,48 @@
  */
 
 #ifndef _MACHINE_ASM_H_
-#define	_MACHINE_ASM_H_
+#define _MACHINE_ASM_H_
 
 #undef __FBSDID
 #if !defined(lint) && !defined(STRIP_FBSDID)
-#define	__FBSDID(s)	.ident s
+#define __FBSDID(s) .ident s
 #else
-#define	__FBSDID(s)	/* nothing */
-#endif /* not lint and not STRIP_FBSDID */
+#define __FBSDID(s) /* nothing */
+#endif		    /* not lint and not STRIP_FBSDID */
 
-#define	_C_LABEL(x)	x
+#define _C_LABEL(x) x
 
-#define	ENTRY(sym)						\
-	.text; .globl sym; .type sym,@function; .align 4; sym: .cfi_startproc;
-#define	END(sym) .cfi_endproc; .size sym, . - sym
+#define ENTRY(sym)            \
+	.text;                \
+	.globl sym;           \
+	.type sym, @function; \
+	.align 4;             \
+	sym:                  \
+	.cfi_startproc;
+#define END(sym)      \
+	.cfi_endproc; \
+	.size sym, .- sym
 
-#define	EENTRY(sym)						\
-	.globl	sym; sym:
-#define	EEND(sym)
+#define EENTRY(sym) \
+	.globl sym; \
+	sym:
+#define EEND(sym)
 
-#define	WEAK_REFERENCE(sym, alias)				\
-	.weak alias;						\
-	.set alias,sym
+#define WEAK_REFERENCE(sym, alias) \
+	.weak alias;               \
+	.set alias, sym
 
-#define	SET_FAULT_HANDLER(handler, tmp)					\
-	ld	tmp, PC_CURTHREAD(tp);					\
-	ld	tmp, TD_PCB(tmp);		/* Load the pcb */	\
-	sd	handler, PCB_ONFAULT(tmp)	/* Set the handler */
+#define SET_FAULT_HANDLER(handler, tmp)                 \
+	ld tmp, PC_CURTHREAD(tp);                       \
+	ld tmp, TD_PCB(tmp);	     /* Load the pcb */ \
+	sd handler, PCB_ONFAULT(tmp) /* Set the handler */
 
-#define	ENTER_USER_ACCESS(tmp)						\
-	li	tmp, SSTATUS_SUM;					\
-	csrs	sstatus, tmp
+#define ENTER_USER_ACCESS(tmp) \
+	li tmp, SSTATUS_SUM;   \
+	csrs sstatus, tmp
 
-#define	EXIT_USER_ACCESS(tmp)						\
-	li	tmp, SSTATUS_SUM;					\
-	csrc	sstatus, tmp
+#define EXIT_USER_ACCESS(tmp) \
+	li tmp, SSTATUS_SUM;  \
+	csrc sstatus, tmp
 
 #endif /* _MACHINE_ASM_H_ */

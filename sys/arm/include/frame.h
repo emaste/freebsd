@@ -93,9 +93,9 @@ struct trapframe {
  * The pointers are used in the trampoline code to locate the ucontext.
  */
 struct sigframe {
-	siginfo_t       sf_si;          /* actual saved siginfo */
-	ucontext_t      sf_uc;          /* actual saved ucontext */
-	mcontext_vfp_t	sf_vfp;         /* actual saved VFP context */
+	siginfo_t sf_si;       /* actual saved siginfo */
+	ucontext_t sf_uc;      /* actual saved ucontext */
+	mcontext_vfp_t sf_vfp; /* actual saved VFP context */
 };
 
 /*
@@ -104,32 +104,31 @@ struct sigframe {
  * It is important this is a multiple of 8 bytes so the stack is correctly
  * aligned when we create new threads.
  */
-struct switchframe
-{
-        register_t sf_r4;
-        register_t sf_r5;
-        register_t sf_r6;
-        register_t sf_r7;
-        register_t sf_r8;
-        register_t sf_r9;
-        register_t sf_r10;
-        register_t sf_r11;
-        register_t sf_r12;
-        register_t sf_sp;
-        register_t sf_lr;
-        register_t sf_pc;
-        register_t sf_tpidrurw;
-        register_t sf_spare0;
+struct switchframe {
+	register_t sf_r4;
+	register_t sf_r5;
+	register_t sf_r6;
+	register_t sf_r7;
+	register_t sf_r8;
+	register_t sf_r9;
+	register_t sf_r10;
+	register_t sf_r11;
+	register_t sf_r12;
+	register_t sf_sp;
+	register_t sf_lr;
+	register_t sf_pc;
+	register_t sf_tpidrurw;
+	register_t sf_spare0;
 };
 
 /*
  * Stack frame. Used during stack traces (db_trace.c)
  */
 struct frame {
-	u_int	fr_fp;
-	u_int	fr_sp;
-	u_int	fr_lr;
-	u_int	fr_pc;
+	u_int fr_fp;
+	u_int fr_sp;
+	u_int fr_lr;
+	u_int fr_pc;
 };
 
 #endif /* !_LOCORE */

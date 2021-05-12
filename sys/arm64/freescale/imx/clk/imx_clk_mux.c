@@ -30,10 +30,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/bus.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
 
 #include <machine/bus.h>
 
@@ -43,35 +43,30 @@ __FBSDID("$FreeBSD$");
 
 #include "clkdev_if.h"
 
-#define	WR4(_clk, off, val)						\
-	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
-#define	RD4(_clk, off, val)						\
-	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
-#define	MD4(_clk, off, clr, set )					\
+#define WR4(_clk, off, val) CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
+#define RD4(_clk, off, val) CLKDEV_READ_4(clknode_get_device(_clk), off, val)
+#define MD4(_clk, off, clr, set) \
 	CLKDEV_MODIFY_4(clknode_get_device(_clk), off, clr, set)
-#define	DEVICE_LOCK(_clk)						\
-	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
-#define	DEVICE_UNLOCK(_clk)						\
-	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
+#define DEVICE_LOCK(_clk) CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
+#define DEVICE_UNLOCK(_clk) CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
 static int imx_clk_mux_init(struct clknode *clk, device_t dev);
 static int imx_clk_mux_set_mux(struct clknode *clk, int idx);
 
 struct imx_clk_mux_sc {
-	uint32_t	offset;
-	uint32_t	shift;
-	uint32_t	mask;
-	int		mux_flags;
+	uint32_t offset;
+	uint32_t shift;
+	uint32_t mask;
+	int mux_flags;
 };
 
 static clknode_method_t imx_clk_mux_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init, 	imx_clk_mux_init),
-	CLKNODEMETHOD(clknode_set_mux, 	imx_clk_mux_set_mux),
-	CLKNODEMETHOD_END
+	CLKNODEMETHOD(clknode_init, imx_clk_mux_init),
+	CLKNODEMETHOD(clknode_set_mux, imx_clk_mux_set_mux), CLKNODEMETHOD_END
 };
 DEFINE_CLASS_1(imx_clk_mux, imx_clk_mux_class, imx_clk_mux_methods,
-   sizeof(struct imx_clk_mux_sc), clknode_class);
+    sizeof(struct imx_clk_mux_sc), clknode_class);
 
 static int
 imx_clk_mux_init(struct clknode *clk, device_t dev)
@@ -90,7 +85,7 @@ imx_clk_mux_init(struct clknode *clk, device_t dev)
 	}
 	reg = (reg >> sc->shift) & sc->mask;
 	clknode_init_parent_idx(clk, reg);
-	return(0);
+	return (0);
 }
 
 static int
@@ -112,7 +107,7 @@ imx_clk_mux_set_mux(struct clknode *clk, int idx)
 	RD4(clk, sc->offset, &reg);
 	DEVICE_UNLOCK(clk);
 
-	return(0);
+	return (0);
 }
 
 int
@@ -128,7 +123,7 @@ imx_clk_mux_register(struct clkdom *clkdom, struct imx_clk_mux_def *clkdef)
 	sc = clknode_get_softc(clk);
 	sc->offset = clkdef->offset;
 	sc->shift = clkdef->shift;
-	sc->mask =  (1 << clkdef->width) - 1;
+	sc->mask = (1 << clkdef->width) - 1;
 	sc->mux_flags = clkdef->mux_flags;
 
 	clknode_register(clkdom, clk);

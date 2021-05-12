@@ -27,13 +27,14 @@
  */
 
 #ifndef _LINUX_SMP_H_
-#define	_LINUX_SMP_H_
+#define _LINUX_SMP_H_
 
-#define	on_each_cpu(cb, data, wait) ({				\
-	CTASSERT(wait);						\
-	linux_on_each_cpu(cb, data);				\
-})
+#define on_each_cpu(cb, data, wait)          \
+	({                                   \
+		CTASSERT(wait);              \
+		linux_on_each_cpu(cb, data); \
+	})
 
-extern int	linux_on_each_cpu(void (*)(void *), void *);
+extern int linux_on_each_cpu(void (*)(void *), void *);
 
 #endif /* _LINUX_SMP_H_ */

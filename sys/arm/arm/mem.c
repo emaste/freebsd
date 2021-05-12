@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
@@ -58,16 +59,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_phys.h>
-#include <vm/vm_dumpset.h>
 #include <vm/pmap.h>
+#include <vm/vm_dumpset.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #include <machine/memdev.h>
 
@@ -107,7 +107,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			v = uio->uio_offset;
 			v &= ~PAGE_MASK;
 			for (i = 0; dump_avail[i] || dump_avail[i + 1];
-			i += 2) {
+			     i += 2) {
 				if (v >= dump_avail[i] &&
 				    v < dump_avail[i + 1]) {
 					address_valid = 1;
@@ -120,15 +120,15 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			pmap_kenter((vm_offset_t)_tmppt, v);
 			pmap_tlb_flush(kernel_pmap, (vm_offset_t)_tmppt);
 			o = (int)uio->uio_offset & PAGE_MASK;
-			c = (u_int)(PAGE_SIZE - ((int)iov->iov_base & PAGE_MASK));
+			c = (u_int)(
+			    PAGE_SIZE - ((int)iov->iov_base & PAGE_MASK));
 			c = min(c, (u_int)(PAGE_SIZE - o));
 			c = min(c, (u_int)iov->iov_len);
 			error = uiomove((caddr_t)&_tmppt[o], (int)c, uio);
 			pmap_qremove((vm_offset_t)_tmppt, 1);
 			sx_xunlock(&tmppt_lock);
 			continue;
-		}
-		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
+		} else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			c = iov->iov_len;
 
 			/*
@@ -143,10 +143,11 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 				if (pmap_extract(kernel_pmap, addr) == 0)
 					return (EFAULT);
 			if (!kernacc((caddr_t)(int)uio->uio_offset, c,
-			    uio->uio_rw == UIO_READ ?
-			    VM_PROT_READ : VM_PROT_WRITE))
-					return (EFAULT);
-			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
+				uio->uio_rw == UIO_READ ? VM_PROT_READ :
+								VM_PROT_WRITE))
+				return (EFAULT);
+			error = uiomove(
+			    (caddr_t)(int)uio->uio_offset, (int)c, uio);
 			continue;
 		}
 		/* else panic! */

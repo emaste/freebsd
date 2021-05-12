@@ -32,57 +32,55 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
-#include <sys/systm.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_vlan_var.h>
-
+#include <netgraph/netgraph.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_vlan.h>
-#include <netgraph/netgraph.h>
 
 struct ng_vlan_private {
-	hook_p		downstream_hook;
-	hook_p		nomatch_hook;
-	uint32_t	decap_enable;
-	uint32_t	encap_enable;
-	uint16_t	encap_proto;
-	hook_p		vlan_hook[(EVL_VLID_MASK + 1)];
+	hook_p downstream_hook;
+	hook_p nomatch_hook;
+	uint32_t decap_enable;
+	uint32_t encap_enable;
+	uint16_t encap_proto;
+	hook_p vlan_hook[(EVL_VLID_MASK + 1)];
 };
 typedef struct ng_vlan_private *priv_p;
 
-#define	ETHER_VLAN_HDR_LEN (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN)
-#define	VLAN_TAG_MASK	0xFFFF
-#define	HOOK_VLAN_TAG_SET_MASK ((uintptr_t)((~0) & ~(VLAN_TAG_MASK)))
-#define	IS_HOOK_VLAN_SET(hdata) \
-	    ((((uintptr_t)hdata) & HOOK_VLAN_TAG_SET_MASK) == HOOK_VLAN_TAG_SET_MASK)
+#define ETHER_VLAN_HDR_LEN (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN)
+#define VLAN_TAG_MASK 0xFFFF
+#define HOOK_VLAN_TAG_SET_MASK ((uintptr_t)((~0) & ~(VLAN_TAG_MASK)))
+#define IS_HOOK_VLAN_SET(hdata)                           \
+	((((uintptr_t)hdata) & HOOK_VLAN_TAG_SET_MASK) == \
+	    HOOK_VLAN_TAG_SET_MASK)
 
-static ng_constructor_t	ng_vlan_constructor;
-static ng_rcvmsg_t	ng_vlan_rcvmsg;
-static ng_shutdown_t	ng_vlan_shutdown;
-static ng_newhook_t	ng_vlan_newhook;
-static ng_rcvdata_t	ng_vlan_rcvdata;
-static ng_disconnect_t	ng_vlan_disconnect;
+static ng_constructor_t ng_vlan_constructor;
+static ng_rcvmsg_t ng_vlan_rcvmsg;
+static ng_shutdown_t ng_vlan_shutdown;
+static ng_newhook_t ng_vlan_newhook;
+static ng_rcvdata_t ng_vlan_rcvdata;
+static ng_disconnect_t ng_vlan_disconnect;
 
 /* Parse type for struct ng_vlan_filter. */
 static const struct ng_parse_struct_field ng_vlan_filter_fields[] =
-	NG_VLAN_FILTER_FIELDS;
-static const struct ng_parse_type ng_vlan_filter_type = {
-	&ng_parse_struct_type,
-	&ng_vlan_filter_fields
-};
+    NG_VLAN_FILTER_FIELDS;
+static const struct ng_parse_type ng_vlan_filter_type = { &ng_parse_struct_type,
+	&ng_vlan_filter_fields };
 
 static int
-ng_vlan_getTableLength(const struct ng_parse_type *type,
-    const u_char *start, const u_char *buf)
+ng_vlan_getTableLength(
+    const struct ng_parse_type *type, const u_char *start, const u_char *buf)
 {
 	const struct ng_vlan_table *const table =
 	    (const struct ng_vlan_table *)(buf - sizeof(u_int32_t));
@@ -92,105 +90,51 @@ ng_vlan_getTableLength(const struct ng_parse_type *type,
 
 /* Parse type for struct ng_vlan_table. */
 static const struct ng_parse_array_info ng_vlan_table_array_info = {
-	&ng_vlan_filter_type,
-	ng_vlan_getTableLength
+	&ng_vlan_filter_type, ng_vlan_getTableLength
 };
 static const struct ng_parse_type ng_vlan_table_array_type = {
-	&ng_parse_array_type,
-	&ng_vlan_table_array_info
+	&ng_parse_array_type, &ng_vlan_table_array_info
 };
 static const struct ng_parse_struct_field ng_vlan_table_fields[] =
-	NG_VLAN_TABLE_FIELDS;
-static const struct ng_parse_type ng_vlan_table_type = {
-	&ng_parse_struct_type,
-	&ng_vlan_table_fields
-};
+    NG_VLAN_TABLE_FIELDS;
+static const struct ng_parse_type ng_vlan_table_type = { &ng_parse_struct_type,
+	&ng_vlan_table_fields };
 
 /* List of commands and how to convert arguments to/from ASCII. */
 static const struct ng_cmdlist ng_vlan_cmdlist[] = {
-	{
-	  NGM_VLAN_COOKIE,
-	  NGM_VLAN_ADD_FILTER,
-	  "addfilter",
-	  &ng_vlan_filter_type,
-	  NULL
-	},
-	{
-	  NGM_VLAN_COOKIE,
-	  NGM_VLAN_DEL_FILTER,
-	  "delfilter",
-	  &ng_parse_hookbuf_type,
-	  NULL
-	},
-	{
-	  NGM_VLAN_COOKIE,
-	  NGM_VLAN_GET_TABLE,
-	  "gettable",
-	  NULL,
-	  &ng_vlan_table_type
-	},
-	{
-	  NGM_VLAN_COOKIE,
-	  NGM_VLAN_DEL_VID_FLT,
-	  "delvidflt",
-	  &ng_parse_uint16_type,
-	  NULL
-	},
-	{
-	  NGM_VLAN_COOKIE,
-	  NGM_VLAN_GET_DECAP,
-	  "getdecap",
-	  NULL,
-	  &ng_parse_hint32_type
-	},
-	{
-	  NGM_VLAN_COOKIE,
-	  NGM_VLAN_SET_DECAP,
-	  "setdecap",
-	  &ng_parse_hint32_type,
-	  NULL
-	},
-	{
-	  NGM_VLAN_COOKIE,
-	  NGM_VLAN_GET_ENCAP,
-	  "getencap",
-	  NULL,
-	  &ng_parse_hint32_type
-	},
-	{
-	  NGM_VLAN_COOKIE,
-	  NGM_VLAN_SET_ENCAP,
-	  "setencap",
-	  &ng_parse_hint32_type,
-	  NULL
-	},
-	{
-	  NGM_VLAN_COOKIE,
-	  NGM_VLAN_GET_ENCAP_PROTO,
-	  "getencapproto",
-	  NULL,
-	  &ng_parse_hint16_type
-	},
-	{
-	  NGM_VLAN_COOKIE,
-	  NGM_VLAN_SET_ENCAP_PROTO,
-	  "setencapproto",
-	  &ng_parse_hint16_type,
-	  NULL
-	},
+	{ NGM_VLAN_COOKIE, NGM_VLAN_ADD_FILTER, "addfilter",
+	    &ng_vlan_filter_type, NULL },
+	{ NGM_VLAN_COOKIE, NGM_VLAN_DEL_FILTER, "delfilter",
+	    &ng_parse_hookbuf_type, NULL },
+	{ NGM_VLAN_COOKIE, NGM_VLAN_GET_TABLE, "gettable", NULL,
+	    &ng_vlan_table_type },
+	{ NGM_VLAN_COOKIE, NGM_VLAN_DEL_VID_FLT, "delvidflt",
+	    &ng_parse_uint16_type, NULL },
+	{ NGM_VLAN_COOKIE, NGM_VLAN_GET_DECAP, "getdecap", NULL,
+	    &ng_parse_hint32_type },
+	{ NGM_VLAN_COOKIE, NGM_VLAN_SET_DECAP, "setdecap",
+	    &ng_parse_hint32_type, NULL },
+	{ NGM_VLAN_COOKIE, NGM_VLAN_GET_ENCAP, "getencap", NULL,
+	    &ng_parse_hint32_type },
+	{ NGM_VLAN_COOKIE, NGM_VLAN_SET_ENCAP, "setencap",
+	    &ng_parse_hint32_type, NULL },
+	{ NGM_VLAN_COOKIE, NGM_VLAN_GET_ENCAP_PROTO, "getencapproto", NULL,
+	    &ng_parse_hint16_type },
+	{ NGM_VLAN_COOKIE, NGM_VLAN_SET_ENCAP_PROTO, "setencapproto",
+	    &ng_parse_hint16_type, NULL },
 	{ 0 }
 };
 
 static struct ng_type ng_vlan_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_VLAN_NODE_TYPE,
-	.constructor =	ng_vlan_constructor,
-	.rcvmsg =	ng_vlan_rcvmsg,
-	.shutdown =	ng_vlan_shutdown,
-	.newhook =	ng_vlan_newhook,
-	.rcvdata =	ng_vlan_rcvdata,
-	.disconnect =	ng_vlan_disconnect,
-	.cmdlist =	ng_vlan_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_VLAN_NODE_TYPE,
+	.constructor = ng_vlan_constructor,
+	.rcvmsg = ng_vlan_rcvmsg,
+	.shutdown = ng_vlan_shutdown,
+	.newhook = ng_vlan_newhook,
+	.rcvdata = ng_vlan_rcvdata,
+	.disconnect = ng_vlan_disconnect,
+	.cmdlist = ng_vlan_cmdlist,
 };
 NETGRAPH_INIT(vlan, &ng_vlan_typestruct);
 
@@ -275,7 +219,7 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			vf = (struct ng_vlan_filter *)msg->data;
 			/* Sanity check the VLAN ID value. */
-#ifdef	NG_VLAN_USE_OLD_VLAN_NAME
+#ifdef NG_VLAN_USE_OLD_VLAN_NAME
 			if (vf->vid == 0 && vf->vid != vf->vlan) {
 				vf->vid = vf->vlan;
 			} else if (vf->vid != 0 && vf->vlan != 0 &&
@@ -284,8 +228,7 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 #endif
-			if (vf->vid & ~EVL_VLID_MASK ||
-			    vf->pcp & ~7 ||
+			if (vf->vid & ~EVL_VLID_MASK || vf->pcp & ~7 ||
 			    vf->cfi & ~1) {
 				error = EINVAL;
 				break;
@@ -315,7 +258,7 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			/* Link vlan and hook together. */
 			NG_HOOK_SET_PRIVATE(hook,
 			    (void *)(HOOK_VLAN_TAG_SET_MASK |
-			    EVL_MAKETAG(vf->vid, vf->pcp, vf->cfi)));
+				EVL_MAKETAG(vf->vid, vf->pcp, vf->cfi)));
 			priv->vlan_hook[vf->vid] = hook;
 			break;
 		case NGM_VLAN_DEL_FILTER:
@@ -336,9 +279,10 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 
-			KASSERT(priv->vlan_hook[EVL_VLANOFTAG(hook_data)] == hook,
+			KASSERT(
+			    priv->vlan_hook[EVL_VLANOFTAG(hook_data)] == hook,
 			    ("%s: NGM_VLAN_DEL_FILTER: Invalid VID for Hook = %s\n",
-			    __func__, (char *)msg->data));
+				__func__, (char *)msg->data));
 
 			/* Purge a rule that refers to this hook. */
 			priv->vlan_hook[EVL_VLANOFTAG(hook_data)] = NULL;
@@ -370,9 +314,9 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			KASSERT(EVL_VLANOFTAG(hook_data) == vid,
 			    ("%s: NGM_VLAN_DEL_VID_FLT:"
-			    " Invalid VID Hook = %us, must be: %us\n",
-			    __func__, (uint16_t )EVL_VLANOFTAG(hook_data),
-			    vid));
+			     " Invalid VID Hook = %us, must be: %us\n",
+				__func__, (uint16_t)EVL_VLANOFTAG(hook_data),
+				vid));
 
 			/* Purge a rule that refers to this hook. */
 			priv->vlan_hook[vid] = NULL;
@@ -381,15 +325,16 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_VLAN_GET_TABLE:
 			/* Calculate vlans. */
 			vlan_count = 0;
-			for (i = 0; i < (EVL_VLID_MASK + 1); i ++) {
+			for (i = 0; i < (EVL_VLID_MASK + 1); i++) {
 				if (priv->vlan_hook[i] != NULL &&
 				    NG_HOOK_IS_VALID(priv->vlan_hook[i]))
-					vlan_count ++;
+					vlan_count++;
 			}
 
 			/* Allocate memory for response. */
-			NG_MKRESPONSE(resp, msg, sizeof(*t) +
-			    vlan_count * sizeof(*t->filter), M_NOWAIT);
+			NG_MKRESPONSE(resp, msg,
+			    sizeof(*t) + vlan_count * sizeof(*t->filter),
+			    M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
@@ -399,7 +344,7 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			t = (struct ng_vlan_table *)resp->data;
 			t->n = 0;
 			vf = &t->filter[0];
-			for (i = 0; i < (EVL_VLID_MASK + 1); i ++) {
+			for (i = 0; i < (EVL_VLID_MASK + 1); i++) {
 				hook = priv->vlan_hook[i];
 				if (hook == NULL || NG_HOOK_NOT_VALID(hook))
 					continue;
@@ -409,20 +354,20 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 				KASSERT(EVL_VLANOFTAG(hook_data) == i,
 				    ("%s: NGM_VLAN_GET_TABLE:"
-				    " hook %s VID = %us, must be: %i\n",
-				    __func__, NG_HOOK_NAME(hook),
-				    (uint16_t)EVL_VLANOFTAG(hook_data), i));
+				     " hook %s VID = %us, must be: %i\n",
+					__func__, NG_HOOK_NAME(hook),
+					(uint16_t)EVL_VLANOFTAG(hook_data), i));
 
-#ifdef	NG_VLAN_USE_OLD_VLAN_NAME
+#ifdef NG_VLAN_USE_OLD_VLAN_NAME
 				vf->vlan = i;
 #endif
 				vf->vid = i;
 				vf->pcp = EVL_PRIOFTAG(hook_data);
 				vf->cfi = EVL_CFIOFTAG(hook_data);
-				strncpy(vf->hook_name,
-				    NG_HOOK_NAME(hook), NG_HOOKSIZ);
-				vf ++;
-				t->n ++;
+				strncpy(vf->hook_name, NG_HOOK_NAME(hook),
+				    NG_HOOKSIZ);
+				vf++;
+				t->n++;
 			}
 			break;
 		case NGM_VLAN_GET_DECAP:
@@ -475,8 +420,7 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			break;
 		}
 		break;
-	case NGM_FLOW_COOKIE:
-	    {
+	case NGM_FLOW_COOKIE: {
 		struct ng_mesg *copy;
 
 		/*
@@ -489,18 +433,18 @@ ng_vlan_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		if (lasthook != priv->downstream_hook)
 			break;
 		/* Broadcast the event to all uplinks. */
-		for (i = 0; i < (EVL_VLID_MASK + 1); i ++) {
+		for (i = 0; i < (EVL_VLID_MASK + 1); i++) {
 			if (priv->vlan_hook[i] == NULL)
 				continue;
 
 			NG_COPYMESSAGE(copy, msg, M_NOWAIT);
 			if (copy == NULL)
 				continue;
-			NG_SEND_MSG_HOOK(error, node, copy,
-			    priv->vlan_hook[i], 0);
+			NG_SEND_MSG_HOOK(
+			    error, node, copy, priv->vlan_hook[i], 0);
 		}
 		break;
-	    }
+	}
 	default: /* Unknown type cookie. */
 		error = EINVAL;
 		break;
@@ -606,7 +550,7 @@ ng_vlan_rcvdata(hook_p hook, item_p item)
 		dst_hook = priv->downstream_hook;
 		if (dst_hook == NULL)
 			goto net_down;
-		if (hook != priv->nomatch_hook) {/* Filter hook. */
+		if (hook != priv->nomatch_hook) { /* Filter hook. */
 			hook_data = (uintptr_t)NG_HOOK_PRIVATE(hook);
 			if (IS_HOOK_VLAN_SET(hook_data) == 0) {
 				/*
@@ -617,14 +561,16 @@ ng_vlan_rcvdata(hook_p hook, item_p item)
 				goto drop;
 			}
 			eth_vtag = (hook_data & VLAN_TAG_MASK);
-			if ((priv->encap_enable & VLAN_ENCAP_FROM_FILTER) == 0) {
+			if ((priv->encap_enable & VLAN_ENCAP_FROM_FILTER) ==
+			    0) {
 				/* Just set packet header tag and send. */
 				m->m_flags |= M_VLANTAG;
 				m->m_pkthdr.ether_vtag = eth_vtag;
 				goto send_packet;
 			}
 		} else { /* nomatch_hook */
-			if ((priv->encap_enable & VLAN_ENCAP_FROM_NOMATCH) == 0 ||
+			if ((priv->encap_enable & VLAN_ENCAP_FROM_NOMATCH) ==
+				0 ||
 			    (m->m_flags & M_VLANTAG) == 0)
 				goto send_packet;
 			/* Encapsulate tagged packet. */
@@ -656,8 +602,8 @@ ng_vlan_rcvdata(hook_p hook, item_p item)
 			goto mchk_err;
 
 		evl = mtod(m, struct ether_vlan_header *);
-		bcopy(((char *)evl + ETHER_VLAN_ENCAP_LEN),
-		    (char *)evl, (ETHER_ADDR_LEN * 2));
+		bcopy(((char *)evl + ETHER_VLAN_ENCAP_LEN), (char *)evl,
+		    (ETHER_ADDR_LEN * 2));
 		evl->evl_encap_proto = priv->encap_proto;
 		evl->evl_tag = htons(eth_vtag);
 	}

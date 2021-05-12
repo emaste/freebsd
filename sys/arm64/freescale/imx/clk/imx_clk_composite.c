@@ -40,40 +40,37 @@ __FBSDID("$FreeBSD$");
 
 #include "clkdev_if.h"
 
-#define	TARGET_ROOT_ENABLE	(1 << 28)
-#define	TARGET_ROOT_MUX(n)	((n) << 24)
-#define	TARGET_ROOT_MUX_MASK	(7 << 24)
-#define	TARGET_ROOT_MUX_SHIFT	24
-#define	TARGET_ROOT_PRE_PODF(n)		((((n) - 1) & 0x7) << 16)
-#define	TARGET_ROOT_PRE_PODF_MASK	(0x7 << 16)
-#define	TARGET_ROOT_PRE_PODF_SHIFT	16
-#define	TARGET_ROOT_PRE_PODF_MAX	7
-#define	TARGET_ROOT_POST_PODF(n)	((((n) - 1) & 0x3f) << 0)
-#define	TARGET_ROOT_POST_PODF_MASK	(0x3f << 0)
-#define	TARGET_ROOT_POST_PODF_SHIFT	0
-#define	TARGET_ROOT_POST_PODF_MAX	0x3f
+#define TARGET_ROOT_ENABLE (1 << 28)
+#define TARGET_ROOT_MUX(n) ((n) << 24)
+#define TARGET_ROOT_MUX_MASK (7 << 24)
+#define TARGET_ROOT_MUX_SHIFT 24
+#define TARGET_ROOT_PRE_PODF(n) ((((n)-1) & 0x7) << 16)
+#define TARGET_ROOT_PRE_PODF_MASK (0x7 << 16)
+#define TARGET_ROOT_PRE_PODF_SHIFT 16
+#define TARGET_ROOT_PRE_PODF_MAX 7
+#define TARGET_ROOT_POST_PODF(n) ((((n)-1) & 0x3f) << 0)
+#define TARGET_ROOT_POST_PODF_MASK (0x3f << 0)
+#define TARGET_ROOT_POST_PODF_SHIFT 0
+#define TARGET_ROOT_POST_PODF_MAX 0x3f
 
 struct imx_clk_composite_sc {
-	uint32_t	offset;
-	uint32_t	flags;
+	uint32_t offset;
+	uint32_t flags;
 };
 
-#define	WRITE4(_clk, off, val)						\
+#define WRITE4(_clk, off, val) \
 	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
-#define	READ4(_clk, off, val)						\
-	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
-#define	DEVICE_LOCK(_clk)						\
-	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
-#define	DEVICE_UNLOCK(_clk)						\
-	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
+#define READ4(_clk, off, val) CLKDEV_READ_4(clknode_get_device(_clk), off, val)
+#define DEVICE_LOCK(_clk) CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
+#define DEVICE_UNLOCK(_clk) CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
-#define	IMX_CLK_COMPOSITE_MASK_SHIFT	16
+#define IMX_CLK_COMPOSITE_MASK_SHIFT 16
 
 #if 0
-#define	dprintf(format, arg...)						\
+#define dprintf(format, arg...) \
 	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg)
 #else
-#define	dprintf(format, arg...)
+#define dprintf(format, arg...)
 #endif
 
 static int
@@ -146,10 +143,12 @@ imx_clk_composite_recalc(struct clknode *clk, uint64_t *freq)
 	READ4(clk, sc->offset, &reg);
 	DEVICE_UNLOCK(clk);
 
-	pre_div = ((reg & TARGET_ROOT_PRE_PODF_MASK)
-	    >> TARGET_ROOT_PRE_PODF_SHIFT) + 1;
-	post_div = ((reg & TARGET_ROOT_POST_PODF_MASK)
-	    >> TARGET_ROOT_POST_PODF_SHIFT) + 1;
+	pre_div = ((reg & TARGET_ROOT_PRE_PODF_MASK) >>
+		      TARGET_ROOT_PRE_PODF_SHIFT) +
+	    1;
+	post_div = ((reg & TARGET_ROOT_POST_PODF_MASK) >>
+		       TARGET_ROOT_POST_PODF_SHIFT) +
+	    1;
 
 	dprintf("parent_freq=%ju, div=%u\n", *freq, div);
 	*freq = *freq / pre_div / post_div;
@@ -159,7 +158,7 @@ imx_clk_composite_recalc(struct clknode *clk, uint64_t *freq)
 
 static int
 imx_clk_composite_find_best(uint64_t fparent, uint64_t ftarget,
-	uint32_t *pre_div, uint32_t *post_div, int flags)
+    uint32_t *pre_div, uint32_t *post_div, int flags)
 {
 	uint32_t prediv, postdiv, best_prediv, best_postdiv;
 	int64_t diff, best_diff;
@@ -167,8 +166,9 @@ imx_clk_composite_find_best(uint64_t fparent, uint64_t ftarget,
 
 	best_diff = INT64_MAX;
 	for (prediv = 1; prediv <= TARGET_ROOT_PRE_PODF_MAX + 1; prediv++) {
-		for (postdiv = 1; postdiv <= TARGET_ROOT_POST_PODF_MAX + 1; postdiv++) {
-			cur= fparent / prediv / postdiv;
+		for (postdiv = 1; postdiv <= TARGET_ROOT_POST_PODF_MAX + 1;
+		     postdiv++) {
+			cur = fparent / prediv / postdiv;
 			diff = (int64_t)ftarget - (int64_t)cur;
 			if (flags & CLK_SET_ROUND_DOWN) {
 				if (diff >= 0 && diff < best_diff) {
@@ -176,15 +176,13 @@ imx_clk_composite_find_best(uint64_t fparent, uint64_t ftarget,
 					best_prediv = prediv;
 					best_postdiv = postdiv;
 				}
-			}
-			else if (flags & CLK_SET_ROUND_UP) {
+			} else if (flags & CLK_SET_ROUND_UP) {
 				if (diff <= 0 && abs(diff) < best_diff) {
 					best_diff = diff;
 					best_prediv = prediv;
 					best_postdiv = postdiv;
 				}
-			}
-			else {
+			} else {
 				if (abs(diff) < best_diff) {
 					best_diff = abs(diff);
 					best_prediv = prediv;
@@ -204,8 +202,8 @@ imx_clk_composite_find_best(uint64_t fparent, uint64_t ftarget,
 }
 
 static int
-imx_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
-    int flags, int *stop)
+imx_clk_composite_set_freq(
+    struct clknode *clk, uint64_t fparent, uint64_t *fout, int flags, int *stop)
 {
 	struct imx_clk_composite_sc *sc;
 	struct clknode *p_clk;
@@ -228,7 +226,8 @@ imx_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout
 		dprintf("Testing with parent %s (%d) at freq %ju\n",
 		    clknode_get_name(p_clk), p_idx, fparent);
 
-		if (!imx_clk_composite_find_best(fparent, *fout, &pre_div, &post_div, sc->flags))
+		if (!imx_clk_composite_find_best(
+			fparent, *fout, &pre_div, &post_div, sc->flags))
 			continue;
 		cur = fparent / pre_div / post_div;
 		diff = abs((int64_t)*fout - (int64_t)cur);
@@ -239,7 +238,8 @@ imx_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout
 			best_post_div = pre_div;
 			best_parent = p_idx;
 			dprintf("Best parent so far %s (%d) with best freq at "
-			    "%ju\n", clknode_get_name(p_clk), p_idx, best);
+				"%ju\n",
+			    clknode_get_name(p_clk), p_idx, best);
 		}
 	}
 
@@ -259,7 +259,8 @@ imx_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout
 		clknode_set_parent_by_idx(clk, best_parent);
 	}
 
-	dprintf("Setting dividers to pre=%d, post=%d\n", best_pre_div, best_post_div);
+	dprintf("Setting dividers to pre=%d, post=%d\n", best_pre_div,
+	    best_post_div);
 
 	DEVICE_LOCK(clk);
 	READ4(clk, sc->offset, &val);
@@ -274,11 +275,11 @@ imx_clk_composite_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout
 
 static clknode_method_t imx_clk_composite_clknode_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init,		imx_clk_composite_init),
-	CLKNODEMETHOD(clknode_set_gate,		imx_clk_composite_set_gate),
-	CLKNODEMETHOD(clknode_set_mux,		imx_clk_composite_set_mux),
-	CLKNODEMETHOD(clknode_recalc_freq,	imx_clk_composite_recalc),
-	CLKNODEMETHOD(clknode_set_freq,		imx_clk_composite_set_freq),
+	CLKNODEMETHOD(clknode_init, imx_clk_composite_init),
+	CLKNODEMETHOD(clknode_set_gate, imx_clk_composite_set_gate),
+	CLKNODEMETHOD(clknode_set_mux, imx_clk_composite_set_mux),
+	CLKNODEMETHOD(clknode_recalc_freq, imx_clk_composite_recalc),
+	CLKNODEMETHOD(clknode_set_freq, imx_clk_composite_set_freq),
 	CLKNODEMETHOD_END
 };
 
@@ -287,14 +288,14 @@ DEFINE_CLASS_1(imx_clk_composite_clknode, imx_clk_composite_clknode_class,
     clknode_class);
 
 int
-imx_clk_composite_register(struct clkdom *clkdom,
-    struct imx_clk_composite_def *clkdef)
+imx_clk_composite_register(
+    struct clkdom *clkdom, struct imx_clk_composite_def *clkdef)
 {
 	struct clknode *clk;
 	struct imx_clk_composite_sc *sc;
 
-	clk = clknode_create(clkdom, &imx_clk_composite_clknode_class,
-	    &clkdef->clkdef);
+	clk = clknode_create(
+	    clkdom, &imx_clk_composite_clknode_class, &clkdef->clkdef);
 	if (clk == NULL)
 		return (1);
 

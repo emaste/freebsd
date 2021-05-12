@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
@@ -53,22 +54,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/memrange.h>
 #include <sys/module.h>
+#include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/msgbuf.h>
-#include <sys/systm.h>
 #include <sys/signalvar.h>
 #include <sys/uio.h>
-
-#include <machine/md_var.h>
-#include <machine/vmparam.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 
+#include <machine/md_var.h>
 #include <machine/memdev.h>
+#include <machine/vmparam.h>
 
 struct mem_range_softc mem_range_softc;
 
@@ -101,23 +100,21 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			v = uio->uio_offset;
 
 			off = uio->uio_offset & PAGE_MASK;
-			cnt = PAGE_SIZE - ((vm_offset_t)iov->iov_base &
-			    PAGE_MASK);
+			cnt = PAGE_SIZE -
+			    ((vm_offset_t)iov->iov_base & PAGE_MASK);
 			cnt = min(cnt, PAGE_SIZE - off);
 			cnt = min(cnt, iov->iov_len);
 
 			m.phys_addr = trunc_page(v);
 			marr = &m;
 			error = uiomove_fromphys(&marr, off, cnt, uio);
-		}
-		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
+		} else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			va = uio->uio_offset;
 
 			va = trunc_page(uio->uio_offset);
-			eva = round_page(uio->uio_offset
-			    + iov->iov_len);
+			eva = round_page(uio->uio_offset + iov->iov_len);
 
-			/* 
+			/*
 			 * Make sure that all the pages are currently resident
 			 * so that we don't create any zero-fill pages.
 			 */
@@ -127,12 +124,13 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 					if (pmap_extract(kernel_pmap, va) == 0)
 						return (EFAULT);
 
-				prot = (uio->uio_rw == UIO_READ)
-				    ? VM_PROT_READ : VM_PROT_WRITE;
+				prot = (uio->uio_rw == UIO_READ) ?
+					  VM_PROT_READ :
+					  VM_PROT_WRITE;
 
 				va = uio->uio_offset;
-				if (kernacc((void *) va, iov->iov_len, prot)
-				    == FALSE)
+				if (kernacc((void *)va, iov->iov_len, prot) ==
+				    FALSE)
 					return (EFAULT);
 			}
 
@@ -150,8 +148,8 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
  * instead of going through read/write
  */
 int
-memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
-    int prot, vm_memattr_t *memattr)
+memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr, int prot,
+    vm_memattr_t *memattr)
 {
 	if (dev2unit(dev) != CDEV_MINOR_MEM)
 		return (-1);

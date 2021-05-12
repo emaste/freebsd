@@ -39,24 +39,22 @@
  */
 
 #include <sys/param.h>
-
-#include <sys/proc.h>
-#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/lock.h>
+#include <sys/proc.h>
+#include <sys/sdt.h>
 #include <sys/ucred.h>
 #include <sys/vnode.h>
 
+#include <fs/ext2fs/ext2_dinode.h>
+#include <fs/ext2fs/ext2_extents.h>
+#include <fs/ext2fs/ext2_extern.h>
+#include <fs/ext2fs/ext2_mount.h>
+#include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
-#include <fs/ext2fs/ext2fs.h>
-#include <fs/ext2fs/ext2_extern.h>
-#include <fs/ext2fs/fs.h>
-#include <fs/ext2fs/ext2_extents.h>
-#include <fs/ext2fs/ext2_mount.h>
-#include <fs/ext2fs/ext2_dinode.h>
 
 /*
  * Return buffer with the contents of block "offset" from the beginning of
@@ -100,7 +98,8 @@ ext2_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
  * Cnt == 1 means free; cnt == -1 means allocating.
  */
 void
-ext2_clusteracct(struct m_ext2fs *fs, char *bbp, int cg, e4fs_daddr_t bno, int cnt)
+ext2_clusteracct(
+    struct m_ext2fs *fs, char *bbp, int cg, e4fs_daddr_t bno, int cnt)
 {
 	int32_t *sump = fs->e2fs_clustersum[cg].cs_sum;
 	int32_t *lp;

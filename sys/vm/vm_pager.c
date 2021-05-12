@@ -72,39 +72,39 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/vnode.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/ucred.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/rwlock.h>
+#include <sys/ucred.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
+#include <vm/uma.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_extern.h>
-#include <vm/uma.h>
+#include <vm/vm_param.h>
 
 uma_zone_t pbuf_zone;
-static int	pbuf_init(void *, int, int);
-static int	pbuf_ctor(void *, int, void *, int);
-static void	pbuf_dtor(void *, int, void *);
+static int pbuf_init(void *, int, int);
+static int pbuf_ctor(void *, int, void *, int);
+static void pbuf_dtor(void *, int, void *);
 
 static int dead_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
-static vm_object_t dead_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
-    vm_ooffset_t, struct ucred *);
+static vm_object_t dead_pager_alloc(
+    void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t, struct ucred *);
 static void dead_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
 static boolean_t dead_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static void dead_pager_dealloc(vm_object_t);
 static void dead_pager_getvp(vm_object_t, struct vnode **, bool *);
 
 static int
-dead_pager_getpages(vm_object_t obj, vm_page_t *ma, int count, int *rbehind,
-    int *rahead)
+dead_pager_getpages(
+    vm_object_t obj, vm_page_t *ma, int count, int *rbehind, int *rahead)
 {
 
 	return (VM_PAGER_FAIL);
@@ -119,8 +119,8 @@ dead_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 }
 
 static void
-dead_pager_putpages(vm_object_t object, vm_page_t *m, int count,
-    int flags, int *rtvals)
+dead_pager_putpages(
+    vm_object_t object, vm_page_t *m, int count, int flags, int *rtvals)
 {
 	int i;
 
@@ -142,7 +142,6 @@ dead_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *prev, int *next)
 static void
 dead_pager_dealloc(vm_object_t object)
 {
-
 }
 
 static void
@@ -155,24 +154,24 @@ dead_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
 }
 
 static const struct pagerops deadpagerops = {
-	.pgo_alloc = 	dead_pager_alloc,
-	.pgo_dealloc =	dead_pager_dealloc,
-	.pgo_getpages =	dead_pager_getpages,
-	.pgo_putpages =	dead_pager_putpages,
-	.pgo_haspage =	dead_pager_haspage,
-	.pgo_getvp =	dead_pager_getvp,
+	.pgo_alloc = dead_pager_alloc,
+	.pgo_dealloc = dead_pager_dealloc,
+	.pgo_getpages = dead_pager_getpages,
+	.pgo_putpages = dead_pager_putpages,
+	.pgo_haspage = dead_pager_haspage,
+	.pgo_getvp = dead_pager_getvp,
 };
 
 const struct pagerops *pagertab[] __read_mostly = {
-	[OBJT_DEFAULT] =	&defaultpagerops,
-	[OBJT_SWAP] =		&swappagerops,
-	[OBJT_VNODE] =		&vnodepagerops,
-	[OBJT_DEVICE] =		&devicepagerops,
-	[OBJT_PHYS] =		&physpagerops,
-	[OBJT_DEAD] =		&deadpagerops,
-	[OBJT_SG] = 		&sgpagerops,
-	[OBJT_MGTDEVICE] = 	&mgtdevicepagerops,
-	[OBJT_SWAP_TMPFS] =	&swaptmpfspagerops,
+	[OBJT_DEFAULT] = &defaultpagerops,
+	[OBJT_SWAP] = &swappagerops,
+	[OBJT_VNODE] = &vnodepagerops,
+	[OBJT_DEVICE] = &devicepagerops,
+	[OBJT_PHYS] = &physpagerops,
+	[OBJT_DEAD] = &deadpagerops,
+	[OBJT_SG] = &sgpagerops,
+	[OBJT_MGTDEVICE] = &mgtdevicepagerops,
+	[OBJT_SWAP_TMPFS] = &swaptmpfspagerops,
 };
 
 void
@@ -196,9 +195,8 @@ vm_pager_bufferinit(void)
 
 	/* Main zone for paging bufs. */
 	pbuf_zone = uma_zcreate("pbuf",
-	    sizeof(struct buf) + PBUF_PAGES * sizeof(vm_page_t),
-	    pbuf_ctor, pbuf_dtor, pbuf_init, NULL, UMA_ALIGN_CACHE,
-	    UMA_ZONE_NOFREE);
+	    sizeof(struct buf) + PBUF_PAGES * sizeof(vm_page_t), pbuf_ctor,
+	    pbuf_dtor, pbuf_init, NULL, UMA_ALIGN_CACHE, UMA_ZONE_NOFREE);
 	/* Few systems may still use this zone directly, so it needs a limit. */
 	nswbuf_max += uma_zone_set_max(pbuf_zone, NSWBUF_MIN);
 }
@@ -208,8 +206,8 @@ pbuf_zsecond_create(const char *name, int max)
 {
 	uma_zone_t zone;
 
-	zone = uma_zsecond_create(name, pbuf_ctor, pbuf_dtor, NULL, NULL,
-	    pbuf_zone);
+	zone = uma_zsecond_create(
+	    name, pbuf_ctor, pbuf_dtor, NULL, NULL, pbuf_zone);
 	/*
 	 * uma_prealloc() rounds up to items per slab. If we would prealloc
 	 * immediately on every pbuf_zsecond_create(), we may accumulate too
@@ -262,7 +260,7 @@ vm_pager_deallocate(vm_object_t object)
 {
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	(*pagertab[object->type]->pgo_dealloc) (object);
+	(*pagertab[object->type]->pgo_dealloc)(object);
 }
 
 static void
@@ -279,7 +277,7 @@ vm_pager_assert_in(vm_object_t object, vm_page_t *m, int count)
 	VM_OBJECT_ASSERT_UNLOCKED(object);
 	VM_OBJECT_ASSERT_PAGING(object);
 	KASSERT(count > 0, ("%s: 0 count", __func__));
-	for (int i = 0 ; i < count; i++) {
+	for (int i = 0; i < count; i++) {
 		if (m[i] == bogus_page) {
 			KASSERT(i != 0 && i != count - 1,
 			    ("%s: page %d is the bogus page", __func__, i));
@@ -290,8 +288,8 @@ vm_pager_assert_in(vm_object_t object, vm_page_t *m, int count)
 		    ("%s: page %p is mapped", __func__, m[i]));
 		KASSERT(m[i]->valid != VM_PAGE_BITS_ALL,
 		    ("%s: request for a valid page %p", __func__, m[i]));
-		KASSERT(m[i]->dirty == 0,
-		    ("%s: page %p is dirty", __func__, m[i]));
+		KASSERT(
+		    m[i]->dirty == 0, ("%s: page %p is dirty", __func__, m[i]));
 		KASSERT(m[i]->object == object,
 		    ("%s: wrong object %p/%p", __func__, object, m[i]->object));
 		KASSERT(m[i]->pindex == m[0]->pindex + i,
@@ -305,8 +303,8 @@ vm_pager_assert_in(vm_object_t object, vm_page_t *m, int count)
  * The requested page must be fully valid on successful return.
  */
 int
-vm_pager_get_pages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
-    int *rahead)
+vm_pager_get_pages(
+    vm_object_t object, vm_page_t *m, int count, int *rbehind, int *rahead)
 {
 #ifdef INVARIANTS
 	vm_pindex_t pindex = m[0]->pindex;
@@ -315,8 +313,8 @@ vm_pager_get_pages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 
 	vm_pager_assert_in(object, m, count);
 
-	r = (*pagertab[object->type]->pgo_getpages)(object, m, count, rbehind,
-	    rahead);
+	r = (*pagertab[object->type]->pgo_getpages)(
+	    object, m, count, rbehind, rahead);
 	if (r != VM_PAGER_OK)
 		return (r);
 
@@ -328,8 +326,8 @@ vm_pager_get_pages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 #ifdef INVARIANTS
 		VM_OBJECT_RLOCK(object);
 		KASSERT(m[i] == vm_page_lookup(object, pindex++),
-		    ("%s: mismatch page %p pindex %ju", __func__,
-		    m[i], (uintmax_t )pindex - 1));
+		    ("%s: mismatch page %p pindex %ju", __func__, m[i],
+			(uintmax_t)pindex - 1));
 		VM_OBJECT_RUNLOCK(object);
 #endif
 		/*
@@ -348,8 +346,8 @@ vm_pager_get_pages_async(vm_object_t object, vm_page_t *m, int count,
 
 	vm_pager_assert_in(object, m, count);
 
-	return ((*pagertab[object->type]->pgo_getpages_async)(object, m,
-	    count, rbehind, rahead, iodone, arg));
+	return ((*pagertab[object->type]->pgo_getpages_async)(
+	    object, m, count, rbehind, rahead, iodone, arg));
 }
 
 /*
@@ -369,7 +367,7 @@ vm_pager_object_lookup(struct pagerlst *pg_list, void *handle)
 {
 	vm_object_t object;
 
-	TAILQ_FOREACH(object, pg_list, pager_object_list) {
+	TAILQ_FOREACH (object, pg_list, pager_object_list) {
 		if (object->handle == handle) {
 			VM_OBJECT_WLOCK(object);
 			if ((object->flags & OBJ_DEAD) == 0) {
@@ -394,7 +392,7 @@ pbuf_ctor(void *mem, int size, void *arg, int flags)
 	/* copied from initpbuf() */
 	bp->b_rcred = NOCRED;
 	bp->b_wcred = NOCRED;
-	bp->b_qindex = 0;       /* On no queue (QUEUE_NONE) */
+	bp->b_qindex = 0; /* On no queue (QUEUE_NONE) */
 	bp->b_data = bp->b_kvabase;
 	bp->b_xflags = 0;
 	bp->b_flags = B_MAXPHYS;

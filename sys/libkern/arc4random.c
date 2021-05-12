@@ -42,19 +42,20 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
+#include <dev/random/randomdev.h>
+
 #include <crypto/chacha20/chacha.h>
 #include <crypto/sha2/sha256.h>
-#include <dev/random/randomdev.h>
 #ifdef RANDOM_FENESTRASX
 #include <dev/random/fenestrasX/fx_pub.h>
 #endif
 
-#define	CHACHA20_RESEED_BYTES	65536
-#define	CHACHA20_RESEED_SECONDS	300
-#define	CHACHA20_KEYBYTES	32
-#define	CHACHA20_BUFFER_SIZE	64
+#define CHACHA20_RESEED_BYTES 65536
+#define CHACHA20_RESEED_SECONDS 300
+#define CHACHA20_KEYBYTES 32
+#define CHACHA20_BUFFER_SIZE 64
 
-CTASSERT(CHACHA20_KEYBYTES*8 >= CHACHA_MINKEYLEN);
+CTASSERT(CHACHA20_KEYBYTES * 8 >= CHACHA_MINKEYLEN);
 
 #ifndef RANDOM_FENESTRASX
 int arc4rand_iniseed_state = ARC4_ENTR_NONE;
@@ -75,10 +76,9 @@ struct chacha20_s {
 
 static struct chacha20_s *chacha20inst = NULL;
 
-#define CHACHA20_FOREACH(_chacha20) \
+#define CHACHA20_FOREACH(_chacha20)        \
 	for (_chacha20 = &chacha20inst[0]; \
-	     _chacha20 <= &chacha20inst[mp_maxid]; \
-	     _chacha20++)
+	     _chacha20 <= &chacha20inst[mp_maxid]; _chacha20++)
 
 /*
  * Mix up the current context.
@@ -92,7 +92,8 @@ chacha20_randomstir(struct chacha20_s *chacha20)
 	uint64_t seed_version;
 
 #else
-	if (__predict_false(random_bypass_before_seeding && !is_random_seeded())) {
+	if (__predict_false(
+		random_bypass_before_seeding && !is_random_seeded())) {
 		SHA256_CTX ctx;
 		uint64_t cc;
 		uint32_t fver;
@@ -100,7 +101,8 @@ chacha20_randomstir(struct chacha20_s *chacha20)
 		if (!arc4random_bypassed_before_seeding) {
 			arc4random_bypassed_before_seeding = true;
 			if (!random_bypass_disable_warnings)
-				printf("arc4random: WARNING: initial seeding "
+				printf(
+				    "arc4random: WARNING: initial seeding "
 				    "bypassed the cryptographic random device "
 				    "because it was not yet seeded and the "
 				    "knob 'bypass_before_seeding' was "
@@ -120,24 +122,25 @@ chacha20_randomstir(struct chacha20_s *chacha20)
 	} else {
 #endif
 #ifdef RANDOM_FENESTRASX
-		read_random_key(key, CHACHA20_KEYBYTES, &seed_version);
+	read_random_key(key, CHACHA20_KEYBYTES, &seed_version);
 #else
 		/*
-		* If the loader(8) did not have an entropy stash from the
-		* previous shutdown to load, then we will block.  The answer is
-		* to make sure there is an entropy stash at shutdown time.
-		*
-		* On the other hand, if the random_bypass_before_seeding knob
-		* was set and we landed in this branch, we know this won't
-		* block because we know the random device is seeded.
-		*/
+		 * If the loader(8) did not have an entropy stash from the
+		 * previous shutdown to load, then we will block.  The answer is
+		 * to make sure there is an entropy stash at shutdown time.
+		 *
+		 * On the other hand, if the random_bypass_before_seeding knob
+		 * was set and we landed in this branch, we know this won't
+		 * block because we know the random device is seeded.
+		 */
 		read_random(key, CHACHA20_KEYBYTES);
 	}
 #endif
 	getmicrouptime(&tv_now);
 	mtx_lock(&chacha20->mtx);
-	chacha_keysetup(&chacha20->ctx, key, CHACHA20_KEYBYTES*8);
-	chacha_ivsetup(&chacha20->ctx, (u_char *)&tv_now.tv_sec, (u_char *)&tv_now.tv_usec);
+	chacha_keysetup(&chacha20->ctx, key, CHACHA20_KEYBYTES * 8);
+	chacha_ivsetup(&chacha20->ctx, (u_char *)&tv_now.tv_sec,
+	    (u_char *)&tv_now.tv_usec);
 	/* Reset for next reseed cycle. */
 	chacha20->t_reseed = tv_now.tv_sec + CHACHA20_RESEED_SECONDS;
 	chacha20->numbytes = 0;
@@ -156,10 +159,12 @@ chacha20_init(void)
 	struct chacha20_s *chacha20;
 
 	chacha20inst = malloc((mp_maxid + 1) * sizeof(struct chacha20_s),
-			M_CHACHA20RANDOM, M_NOWAIT | M_ZERO);
-	KASSERT(chacha20inst != NULL, ("chacha20_init: memory allocation error"));
+	    M_CHACHA20RANDOM, M_NOWAIT | M_ZERO);
+	KASSERT(
+	    chacha20inst != NULL, ("chacha20_init: memory allocation error"));
 
-	CHACHA20_FOREACH(chacha20) {
+	CHACHA20_FOREACH(chacha20)
+	{
 		mtx_init(&chacha20->mtx, "chacha20_mtx", NULL, MTX_DEF);
 		chacha20->t_reseed = -1;
 		chacha20->numbytes = 0;
@@ -169,18 +174,16 @@ chacha20_init(void)
 }
 SYSINIT(chacha20, SI_SUB_LOCK, SI_ORDER_ANY, chacha20_init, NULL);
 
-
 static void
 chacha20_uninit(void)
 {
 	struct chacha20_s *chacha20;
 
 	CHACHA20_FOREACH(chacha20)
-		mtx_destroy(&chacha20->mtx);
+	mtx_destroy(&chacha20->mtx);
 	free(chacha20inst, M_CHACHA20RANDOM);
 }
 SYSUNINIT(chacha20, SI_SUB_LOCK, SI_ORDER_ANY, chacha20_uninit, NULL);
-
 
 /*
  * MPSAFE
@@ -197,23 +200,25 @@ arc4rand(void *ptr, u_int len, int reseed)
 	if (__predict_false(reseed))
 #else
 	if (__predict_false(reseed ||
-	    (arc4rand_iniseed_state == ARC4_ENTR_HAVE &&
-	    atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_HAVE, ARC4_ENTR_SEED))))
+		(arc4rand_iniseed_state == ARC4_ENTR_HAVE &&
+		    atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_HAVE,
+			ARC4_ENTR_SEED))))
 #endif
 		CHACHA20_FOREACH(chacha20)
-			chacha20_randomstir(chacha20);
+	chacha20_randomstir(chacha20);
 
 	getmicrouptime(&tv);
 	chacha20 = &chacha20inst[curcpu];
-	/* We may get unlucky and be migrated off this CPU, but that is expected to be infrequent */
-	if ((chacha20->numbytes > CHACHA20_RESEED_BYTES) || (tv.tv_sec > chacha20->t_reseed))
+	/* We may get unlucky and be migrated off this CPU, but that is expected
+	 * to be infrequent */
+	if ((chacha20->numbytes > CHACHA20_RESEED_BYTES) ||
+	    (tv.tv_sec > chacha20->t_reseed))
 		chacha20_randomstir(chacha20);
 
 	mtx_lock(&chacha20->mtx);
 #ifdef RANDOM_FENESTRASX
-	if (__predict_false(
-	    atomic_load_acq_64(&fxrng_root_generation) != chacha20->seed_version
-	    )) {
+	if (__predict_false(atomic_load_acq_64(&fxrng_root_generation) !=
+		chacha20->seed_version)) {
 		mtx_unlock(&chacha20->mtx);
 		chacha20_randomstir(chacha20);
 		mtx_lock(&chacha20->mtx);
@@ -223,7 +228,8 @@ arc4rand(void *ptr, u_int len, int reseed)
 	p = ptr;
 	while (len) {
 		length = MIN(CHACHA20_BUFFER_SIZE, len);
-		chacha_encrypt_bytes(&chacha20->ctx, chacha20->m_buffer, p, length);
+		chacha_encrypt_bytes(
+		    &chacha20->ctx, chacha20->m_buffer, p, length);
 		p += length;
 		len -= length;
 		chacha20->numbytes += length;

@@ -28,25 +28,23 @@
  */
 
 #ifndef _SYS_IN_KDTRACE_H_
-#define	_SYS_IN_KDTRACE_H_
+#define _SYS_IN_KDTRACE_H_
 
-#define	IP_PROBE(probe, arg0, arg1, arg2, arg3, arg4, arg5)		\
+#define IP_PROBE(probe, arg0, arg1, arg2, arg3, arg4, arg5) \
 	SDT_PROBE6(ip, , , probe, arg0, arg1, arg2, arg3, arg4, arg5)
-#define	UDP_PROBE(probe, arg0, arg1, arg2, arg3, arg4)			\
+#define UDP_PROBE(probe, arg0, arg1, arg2, arg3, arg4) \
 	SDT_PROBE5(udp, , , probe, arg0, arg1, arg2, arg3, arg4)
-#define	UDPLITE_PROBE(probe, arg0, arg1, arg2, arg3, arg4)		\
+#define UDPLITE_PROBE(probe, arg0, arg1, arg2, arg3, arg4) \
 	SDT_PROBE5(udplite, , , probe, arg0, arg1, arg2, arg3, arg4)
-#define	TCP_PROBE1(probe, arg0)						\
-	SDT_PROBE1(tcp, , , probe, arg0)
-#define	TCP_PROBE2(probe, arg0, arg1)					\
-	SDT_PROBE2(tcp, , , probe, arg0, arg1)
-#define	TCP_PROBE3(probe, arg0, arg1, arg2)				\
+#define TCP_PROBE1(probe, arg0) SDT_PROBE1(tcp, , , probe, arg0)
+#define TCP_PROBE2(probe, arg0, arg1) SDT_PROBE2(tcp, , , probe, arg0, arg1)
+#define TCP_PROBE3(probe, arg0, arg1, arg2) \
 	SDT_PROBE3(tcp, , , probe, arg0, arg1, arg2)
-#define	TCP_PROBE4(probe, arg0, arg1, arg2, arg3)			\
+#define TCP_PROBE4(probe, arg0, arg1, arg2, arg3) \
 	SDT_PROBE4(tcp, , , probe, arg0, arg1, arg2, arg3)
-#define	TCP_PROBE5(probe, arg0, arg1, arg2, arg3, arg4)			\
+#define TCP_PROBE5(probe, arg0, arg1, arg2, arg3, arg4) \
 	SDT_PROBE5(tcp, , , probe, arg0, arg1, arg2, arg3, arg4)
-#define	TCP_PROBE6(probe, arg0, arg1, arg2, arg3, arg4, arg5)		\
+#define TCP_PROBE6(probe, arg0, arg1, arg2, arg3, arg4, arg5) \
 	SDT_PROBE6(tcp, , , probe, arg0, arg1, arg2, arg3, arg4, arg5)
 
 SDT_PROVIDER_DECLARE(ip);

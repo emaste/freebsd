@@ -45,11 +45,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #endif
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_phys.h>
-#include <vm/vm_dumpset.h>
 #include <vm/pmap.h>
+#include <vm/vm_dumpset.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
+
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/elf.h>
@@ -103,7 +104,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 	u_int maxdumpsz;
 
 	maxdumpsz = min(di->maxiosize, MAXDUMPPGS * PAGE_SIZE);
-	if (maxdumpsz == 0)	/* seatbelt */
+	if (maxdumpsz == 0) /* seatbelt */
 		maxdumpsz = PAGE_SIZE;
 	error = 0;
 	if (ptr != NULL && pa != 0) {
@@ -134,7 +135,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		progress -= len;
 		if (counter >> 22) {
 			printf(" %lld", PG2MB(progress >> PAGE_SHIFT));
-			counter &= (1<<22) - 1;
+			counter &= (1 << 22) - 1;
 		}
 
 #ifdef SW_WATCHDOG
@@ -148,8 +149,8 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 			sz -= len;
 		} else {
 			for (i = 0; i < len; i += PAGE_SIZE)
-				dump_va = pmap_kenter_temporary(pa + i,
-				    (i + fragsz) >> PAGE_SHIFT);
+				dump_va = pmap_kenter_temporary(
+				    pa + i, (i + fragsz) >> PAGE_SHIFT);
 			fragsz += len;
 			pa += len;
 			sz -= len;
@@ -212,7 +213,7 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += round_page(msgbufp->msg_size);
 	dumpsize += round_page(nitems(dump_avail) * sizeof(uint64_t));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH (pa) {
 		/* Clear out undumpable pages now if needed */
 		if (is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
@@ -235,8 +236,8 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.mmuformat = MINIDUMP_MMU_FORMAT_V6;
 	mdhdr.dumpavailsize = round_page(nitems(dump_avail) * sizeof(uint64_t));
 
-	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_ARM_VERSION,
-	    dumpsize);
+	dump_init_header(
+	    di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_ARM_VERSION, dumpsize);
 
 	error = dump_start(di, &kdh);
 	if (error != 0)
@@ -253,8 +254,8 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump msgbuf up front */
-	error = blk_write(di, (char *)msgbufp->msg_ptr, 0,
-	    round_page(msgbufp->msg_size));
+	error = blk_write(
+	    di, (char *)msgbufp->msg_ptr, 0, round_page(msgbufp->msg_size));
 	if (error)
 		goto fail;
 
@@ -296,7 +297,7 @@ minidumpsys(struct dumperinfo *di)
 	}
 
 	/* Dump memory chunks */
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH (pa) {
 		if (!count) {
 			prev_pa = pa;
 			count++;
@@ -304,8 +305,8 @@ minidumpsys(struct dumperinfo *di)
 			if (pa == (prev_pa + count * PAGE_SIZE))
 				count++;
 			else {
-				error = blk_write(di, NULL, prev_pa,
-				    count * PAGE_SIZE);
+				error = blk_write(
+				    di, NULL, prev_pa, count * PAGE_SIZE);
 				if (error)
 					goto fail;
 				count = 1;
@@ -340,7 +341,8 @@ fail:
 		printf("\nDump aborted\n");
 	else if (error == E2BIG || error == ENOSPC) {
 		printf("\nDump failed. Partition too small (about %lluMB were "
-		    "needed this time).\n", (long long)dumpsize >> 20);
+		       "needed this time).\n",
+		    (long long)dumpsize >> 20);
 	} else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);
 	return (error);

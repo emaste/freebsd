@@ -33,7 +33,7 @@
  */
 
 #ifndef _SYS_PCPU_H_
-#define	_SYS_PCPU_H_
+#define _SYS_PCPU_H_
 
 #ifdef LOCORE
 #error "no assembler-serviceable parts inside"
@@ -43,14 +43,15 @@
 #include <sys/_cpuset.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_rmlock.h>
 #include <sys/_sx.h>
 #include <sys/queue.h>
-#include <sys/_rmlock.h>
 #include <sys/resource.h>
+
 #include <machine/pcpu.h>
 
-#define	DPCPU_SETNAME		"set_pcpu"
-#define	DPCPU_SYMPREFIX		"pcpu_entry_"
+#define DPCPU_SETNAME "set_pcpu"
+#define DPCPU_SYMPREFIX "pcpu_entry_"
 
 #ifdef _KERNEL
 
@@ -70,23 +71,24 @@ extern uintptr_t dpcpu_off[];
 /*
  * Convenience defines.
  */
-#define	DPCPU_START		((uintptr_t)&__start_set_pcpu)
-#define	DPCPU_STOP		((uintptr_t)&__stop_set_pcpu)
-#define	DPCPU_BYTES		(DPCPU_STOP - DPCPU_START)
-#define	DPCPU_MODMIN		2048
-#define	DPCPU_SIZE		roundup2(DPCPU_BYTES, PAGE_SIZE)
-#define	DPCPU_MODSIZE		(DPCPU_SIZE - (DPCPU_BYTES - DPCPU_MODMIN))
+#define DPCPU_START ((uintptr_t)&__start_set_pcpu)
+#define DPCPU_STOP ((uintptr_t)&__stop_set_pcpu)
+#define DPCPU_BYTES (DPCPU_STOP - DPCPU_START)
+#define DPCPU_MODMIN 2048
+#define DPCPU_SIZE roundup2(DPCPU_BYTES, PAGE_SIZE)
+#define DPCPU_MODSIZE (DPCPU_SIZE - (DPCPU_BYTES - DPCPU_MODMIN))
 
 /*
  * Declaration and definition.
  */
-#define	DPCPU_NAME(n)		pcpu_entry_##n
-#define	DPCPU_DECLARE(t, n)	extern t DPCPU_NAME(n)
+#define DPCPU_NAME(n) pcpu_entry_##n
+#define DPCPU_DECLARE(t, n) extern t DPCPU_NAME(n)
 /* struct _hack is to stop this from being used with the static keyword. */
-#define	DPCPU_DEFINE(t, n)	\
-    struct _hack; t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
-#if defined(KLD_MODULE) && (defined(__aarch64__) || defined(__riscv) \
-		|| defined(__powerpc64__))
+#define DPCPU_DEFINE(t, n) \
+	struct _hack;      \
+	t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
+#if defined(KLD_MODULE) && \
+    (defined(__aarch64__) || defined(__riscv) || defined(__powerpc64__))
 /*
  * On some architectures the compiler will use PC-relative load to
  * find the address of DPCPU data with the static keyword. We then
@@ -102,69 +104,70 @@ extern uintptr_t dpcpu_off[];
  *
  * VNET_DEFINE_STATIC also has the same workaround.
  */
-#define	DPCPU_DEFINE_STATIC(t, n)	\
-    t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
+#define DPCPU_DEFINE_STATIC(t, n) \
+	t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
 #else
-#define	DPCPU_DEFINE_STATIC(t, n)	\
-    static t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
+#define DPCPU_DEFINE_STATIC(t, n) \
+	static t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
 #endif
 
 /*
  * Accessors with a given base.
  */
-#define	_DPCPU_PTR(b, n)						\
-    (__typeof(DPCPU_NAME(n))*)((b) + (uintptr_t)&DPCPU_NAME(n))
-#define	_DPCPU_GET(b, n)	(*_DPCPU_PTR(b, n))
-#define	_DPCPU_SET(b, n, v)	(*_DPCPU_PTR(b, n) = v)
+#define _DPCPU_PTR(b, n) \
+	(__typeof(DPCPU_NAME(n)) *)((b) + (uintptr_t)&DPCPU_NAME(n))
+#define _DPCPU_GET(b, n) (*_DPCPU_PTR(b, n))
+#define _DPCPU_SET(b, n, v) (*_DPCPU_PTR(b, n) = v)
 
 /*
  * Accessors for the current cpu.
  */
-#define	DPCPU_PTR(n)		_DPCPU_PTR(PCPU_GET(dynamic), n)
-#define	DPCPU_GET(n)		(*DPCPU_PTR(n))
-#define	DPCPU_SET(n, v)		(*DPCPU_PTR(n) = v)
+#define DPCPU_PTR(n) _DPCPU_PTR(PCPU_GET(dynamic), n)
+#define DPCPU_GET(n) (*DPCPU_PTR(n))
+#define DPCPU_SET(n, v) (*DPCPU_PTR(n) = v)
 
 /*
  * Accessors for remote cpus.
  */
-#define	DPCPU_ID_PTR(i, n)	_DPCPU_PTR(dpcpu_off[(i)], n)
-#define	DPCPU_ID_GET(i, n)	(*DPCPU_ID_PTR(i, n))
-#define	DPCPU_ID_SET(i, n, v)	(*DPCPU_ID_PTR(i, n) = v)
+#define DPCPU_ID_PTR(i, n) _DPCPU_PTR(dpcpu_off[(i)], n)
+#define DPCPU_ID_GET(i, n) (*DPCPU_ID_PTR(i, n))
+#define DPCPU_ID_SET(i, n, v) (*DPCPU_ID_PTR(i, n) = v)
 
 /*
  * Utility macros.
  */
-#define	DPCPU_SUM(n) __extension__					\
-({									\
-	u_int _i;							\
-	__typeof(*DPCPU_PTR(n)) sum;					\
-									\
-	sum = 0;							\
-	CPU_FOREACH(_i) {						\
-		sum += *DPCPU_ID_PTR(_i, n);				\
-	}								\
-	sum;								\
-})
+#define DPCPU_SUM(n)                                 \
+	__extension__({                              \
+		u_int _i;                            \
+		__typeof(*DPCPU_PTR(n)) sum;         \
+                                                     \
+		sum = 0;                             \
+		CPU_FOREACH (_i) {                   \
+			sum += *DPCPU_ID_PTR(_i, n); \
+		}                                    \
+		sum;                                 \
+	})
 
-#define	DPCPU_VARSUM(n, var) __extension__				\
-({									\
-	u_int _i;							\
-	__typeof((DPCPU_PTR(n))->var) sum;				\
-									\
-	sum = 0;							\
-	CPU_FOREACH(_i) {						\
-		sum += (DPCPU_ID_PTR(_i, n))->var;			\
-	}								\
-	sum;								\
-})
+#define DPCPU_VARSUM(n, var)                               \
+	__extension__({                                    \
+		u_int _i;                                  \
+		__typeof((DPCPU_PTR(n))->var) sum;         \
+                                                           \
+		sum = 0;                                   \
+		CPU_FOREACH (_i) {                         \
+			sum += (DPCPU_ID_PTR(_i, n))->var; \
+		}                                          \
+		sum;                                       \
+	})
 
-#define	DPCPU_ZERO(n) do {						\
-	u_int _i;							\
-									\
-	CPU_FOREACH(_i) {						\
-		bzero(DPCPU_ID_PTR(_i, n), sizeof(*DPCPU_PTR(n)));	\
-	}								\
-} while (0)
+#define DPCPU_ZERO(n)                                                      \
+	do {                                                               \
+		u_int _i;                                                  \
+                                                                           \
+		CPU_FOREACH (_i) {                                         \
+			bzero(DPCPU_ID_PTR(_i, n), sizeof(*DPCPU_PTR(n))); \
+		}                                                          \
+	} while (0)
 
 #endif /* _KERNEL */
 
@@ -175,26 +178,26 @@ extern uintptr_t dpcpu_off[];
  * defined in the PCPU_MD_FIELDS macro defined in <machine/pcpu.h>.
  */
 struct pcpu {
-	struct thread	*pc_curthread;		/* Current thread */
-	struct thread	*pc_idlethread;		/* Idle thread */
-	struct thread	*pc_fpcurthread;	/* Fp state owner */
-	struct thread	*pc_deadthread;		/* Zombie thread or NULL */
-	struct pcb	*pc_curpcb;		/* Current pcb */
-	void		*pc_sched;		/* Scheduler state */
-	uint64_t	pc_switchtime;		/* cpu_ticks() at last csw */
-	int		pc_switchticks;		/* `ticks' at last csw */
-	u_int		pc_cpuid;		/* This cpu number */
+	struct thread *pc_curthread;   /* Current thread */
+	struct thread *pc_idlethread;  /* Idle thread */
+	struct thread *pc_fpcurthread; /* Fp state owner */
+	struct thread *pc_deadthread;  /* Zombie thread or NULL */
+	struct pcb *pc_curpcb;	       /* Current pcb */
+	void *pc_sched;		       /* Scheduler state */
+	uint64_t pc_switchtime;	       /* cpu_ticks() at last csw */
+	int pc_switchticks;	       /* `ticks' at last csw */
+	u_int pc_cpuid;		       /* This cpu number */
 	STAILQ_ENTRY(pcpu) pc_allcpu;
 	struct lock_list_entry *pc_spinlocks;
-	long		pc_cp_time[CPUSTATES];	/* statclock ticks */
-	struct _device	*pc_device;		/* CPU device handle */
-	void		*pc_netisr;		/* netisr SWI cookie */
-	int		pc_unused1;		/* unused field */
-	int		pc_domain;		/* Memory domain. */
-	struct rm_queue	pc_rm_queue;		/* rmlock list of trackers */
-	uintptr_t	pc_dynamic;		/* Dynamic per-cpu data area */
-	uint64_t	pc_early_dummy_counter;	/* Startup time counter(9) */
-	uintptr_t	pc_zpcpu_offset;	/* Offset into zpcpu allocs */
+	long pc_cp_time[CPUSTATES];	 /* statclock ticks */
+	struct _device *pc_device;	 /* CPU device handle */
+	void *pc_netisr;		 /* netisr SWI cookie */
+	int pc_unused1;			 /* unused field */
+	int pc_domain;			 /* Memory domain. */
+	struct rm_queue pc_rm_queue;	 /* rmlock list of trackers */
+	uintptr_t pc_dynamic;		 /* Dynamic per-cpu data area */
+	uint64_t pc_early_dummy_counter; /* Startup time counter(9) */
+	uintptr_t pc_zpcpu_offset;	 /* Offset into zpcpu allocs */
 
 	/*
 	 * Keep MD fields last, so that CPU-specific variations on a
@@ -216,27 +219,27 @@ STAILQ_HEAD(cpuhead, pcpu);
 extern struct cpuhead cpuhead;
 extern struct pcpu *cpuid_to_pcpu[];
 
-#define	curcpu		PCPU_GET(cpuid)
-#define	curvidata	PCPU_GET(vidata)
+#define curcpu PCPU_GET(cpuid)
+#define curvidata PCPU_GET(vidata)
 
-#define UMA_PCPU_ALLOC_SIZE		PAGE_SIZE
+#define UMA_PCPU_ALLOC_SIZE PAGE_SIZE
 
 #include <machine/pcpu_aux.h>
 
 #ifndef curthread
-#define	curthread	PCPU_GET(curthread)
+#define curthread PCPU_GET(curthread)
 #endif
-#define	curproc		(curthread->td_proc)
+#define curproc (curthread->td_proc)
 
 #ifndef ZPCPU_ASSERT_PROTECTED
 #define ZPCPU_ASSERT_PROTECTED() MPASS(curthread->td_critnest > 0)
 #endif
 
 #ifndef zpcpu_offset_cpu
-#define zpcpu_offset_cpu(cpu)	(UMA_PCPU_ALLOC_SIZE * cpu)
+#define zpcpu_offset_cpu(cpu) (UMA_PCPU_ALLOC_SIZE * cpu)
 #endif
 #ifndef zpcpu_offset
-#define zpcpu_offset()		(PCPU_GET(zpcpu_offset))
+#define zpcpu_offset() (PCPU_GET(zpcpu_offset))
 #endif
 
 #ifndef zpcpu_base_to_offset
@@ -247,15 +250,19 @@ extern struct pcpu *cpuid_to_pcpu[];
 #endif
 
 /* Accessor to elements allocated via UMA_ZONE_PCPU zone. */
-#define zpcpu_get(base) ({								\
-	__typeof(base) _ptr = (void *)((char *)(base) + zpcpu_offset());		\
-	_ptr;										\
-})
+#define zpcpu_get(base)                                               \
+	({                                                            \
+		__typeof(base)                                        \
+		    _ptr = (void *)((char *)(base) + zpcpu_offset()); \
+		_ptr;                                                 \
+	})
 
-#define zpcpu_get_cpu(base, cpu) ({							\
-	__typeof(base) _ptr = (void *)((char *)(base) +	zpcpu_offset_cpu(cpu));		\
-	_ptr;										\
-})
+#define zpcpu_get_cpu(base, cpu)                                             \
+	({                                                                   \
+		__typeof(base)                                               \
+		    _ptr = (void *)((char *)(base) + zpcpu_offset_cpu(cpu)); \
+		_ptr;                                                        \
+	})
 
 /*
  * This operation is NOT atomic and does not post any barriers.
@@ -263,49 +270,54 @@ extern struct pcpu *cpuid_to_pcpu[];
  * be modifying this variable.
  * If you need atomicity use xchg.
  * */
-#define zpcpu_replace(base, val) ({					\
-	__typeof(val) *_ptr = zpcpu_get(base);				\
-	__typeof(val) _old;						\
-									\
-	_old = *_ptr;							\
-	*_ptr = val;							\
-	_old;								\
-})
+#define zpcpu_replace(base, val)                       \
+	({                                             \
+		__typeof(val) *_ptr = zpcpu_get(base); \
+		__typeof(val) _old;                    \
+                                                       \
+		_old = *_ptr;                          \
+		*_ptr = val;                           \
+		_old;                                  \
+	})
 
-#define zpcpu_replace_cpu(base, val, cpu) ({				\
-	__typeof(val) *_ptr = zpcpu_get_cpu(base, cpu);			\
-	__typeof(val) _old;						\
-									\
-	_old = *_ptr;							\
-	*_ptr = val;							\
-	_old;								\
-})
+#define zpcpu_replace_cpu(base, val, cpu)                       \
+	({                                                      \
+		__typeof(val) *_ptr = zpcpu_get_cpu(base, cpu); \
+		__typeof(val) _old;                             \
+                                                                \
+		_old = *_ptr;                                   \
+		*_ptr = val;                                    \
+		_old;                                           \
+	})
 
 #ifndef zpcpu_set_protected
-#define zpcpu_set_protected(base, val) ({				\
-	ZPCPU_ASSERT_PROTECTED();					\
-	__typeof(val) *_ptr = zpcpu_get(base);				\
-									\
-	*_ptr = (val);							\
-})
+#define zpcpu_set_protected(base, val)                 \
+	({                                             \
+		ZPCPU_ASSERT_PROTECTED();              \
+		__typeof(val) *_ptr = zpcpu_get(base); \
+                                                       \
+		*_ptr = (val);                         \
+	})
 #endif
 
 #ifndef zpcpu_add_protected
-#define zpcpu_add_protected(base, val) ({				\
-	ZPCPU_ASSERT_PROTECTED();					\
-	__typeof(val) *_ptr = zpcpu_get(base);				\
-									\
-	*_ptr += (val);							\
-})
+#define zpcpu_add_protected(base, val)                 \
+	({                                             \
+		ZPCPU_ASSERT_PROTECTED();              \
+		__typeof(val) *_ptr = zpcpu_get(base); \
+                                                       \
+		*_ptr += (val);                        \
+	})
 #endif
 
 #ifndef zpcpu_sub_protected
-#define zpcpu_sub_protected(base, val) ({				\
-	ZPCPU_ASSERT_PROTECTED();					\
-	__typeof(val) *_ptr = zpcpu_get(base);				\
-									\
-	*_ptr -= (val);							\
-})
+#define zpcpu_sub_protected(base, val)                 \
+	({                                             \
+		ZPCPU_ASSERT_PROTECTED();              \
+		__typeof(val) *_ptr = zpcpu_get(base); \
+                                                       \
+		*_ptr -= (val);                        \
+	})
 #endif
 
 /*
@@ -314,16 +326,16 @@ extern struct pcpu *cpuid_to_pcpu[];
  * db_show_mdpcpu() is responsible for handling machine dependent
  * fields for the DDB 'show pcpu' command.
  */
-void	cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size);
-void	db_show_mdpcpu(struct pcpu *pcpu);
+void cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size);
+void db_show_mdpcpu(struct pcpu *pcpu);
 
-void	*dpcpu_alloc(int size);
-void	dpcpu_copy(void *s, int size);
-void	dpcpu_free(void *s, int size);
-void	dpcpu_init(void *dpcpu, int cpuid);
-void	pcpu_destroy(struct pcpu *pcpu);
-struct	pcpu *pcpu_find(u_int cpuid);
-void	pcpu_init(struct pcpu *pcpu, int cpuid, size_t size);
+void *dpcpu_alloc(int size);
+void dpcpu_copy(void *s, int size);
+void dpcpu_free(void *s, int size);
+void dpcpu_init(void *dpcpu, int cpuid);
+void pcpu_destroy(struct pcpu *pcpu);
+struct pcpu *pcpu_find(u_int cpuid);
+void pcpu_init(struct pcpu *pcpu, int cpuid, size_t size);
 
 #endif /* _KERNEL */
 

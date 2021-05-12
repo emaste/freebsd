@@ -34,38 +34,38 @@
  */
 
 #ifndef _NETINET_UDP_H_
-#define	_NETINET_UDP_H_
+#define _NETINET_UDP_H_
 
 /*
  * UDP protocol header.
  * Per RFC 768, September, 1981.
  */
 struct udphdr {
-	u_short	uh_sport;		/* source port */
-	u_short	uh_dport;		/* destination port */
-	u_short	uh_ulen;		/* udp length */
-	u_short	uh_sum;			/* udp checksum */
+	u_short uh_sport; /* source port */
+	u_short uh_dport; /* destination port */
+	u_short uh_ulen;  /* udp length */
+	u_short uh_sum;	  /* udp checksum */
 };
 
 /*
  * User-settable options (used with setsockopt).
  */
-#define	UDP_ENCAP			1
+#define UDP_ENCAP 1
 
 /* Start of reserved space for third-party user-settable options. */
-#define	UDP_VENDOR			SO_VENDOR
+#define UDP_VENDOR SO_VENDOR
 
 /*
  * UDP Encapsulation of IPsec Packets options.
  */
 /* Encapsulation types. */
-#define	UDP_ENCAP_ESPINUDP_NON_IKE	1 /* draft-ietf-ipsec-nat-t-ike-00/01 */
-#define	UDP_ENCAP_ESPINUDP		2 /* RFC3948 */
+#define UDP_ENCAP_ESPINUDP_NON_IKE 1 /* draft-ietf-ipsec-nat-t-ike-00/01 */
+#define UDP_ENCAP_ESPINUDP 2 /* RFC3948 */
 
 /* Default ESP in UDP encapsulation port. */
-#define	UDP_ENCAP_ESPINUDP_PORT		500
+#define UDP_ENCAP_ESPINUDP_PORT 500
 
 /* Maximum UDP fragment size for ESP over UDP. */
-#define	UDP_ENCAP_ESPINUDP_MAXFRAGLEN	552
+#define UDP_ENCAP_ESPINUDP_MAXFRAGLEN 552
 
 #endif

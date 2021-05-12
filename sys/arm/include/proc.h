@@ -37,20 +37,20 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PROC_H_
-#define	_MACHINE_PROC_H_
+#ifndef _MACHINE_PROC_H_
+#define _MACHINE_PROC_H_
 
 #include <machine/utrap.h>
 
 struct md_utrap {
-	utrap_entry_t *ut_precise[UT_MAX];	/* must be first */
-	int	ut_refcnt;
+	utrap_entry_t *ut_precise[UT_MAX]; /* must be first */
+	int ut_refcnt;
 };
 
 struct mdthread {
-	int	md_spinlock_count;	/* (k) */
-	register_t md_saved_cspr;	/* (k) */
-	register_t md_spurflt_addr;     /* (k) Spurious page fault address. */
+	int md_spinlock_count;	    /* (k) */
+	register_t md_saved_cspr;   /* (k) */
+	register_t md_spurflt_addr; /* (k) Spurious page fault address. */
 	int md_ptrace_instr;
 	int md_ptrace_addr;
 	int md_ptrace_instr_alt;
@@ -58,13 +58,13 @@ struct mdthread {
 };
 
 struct mdproc {
-	struct	md_utrap *md_utrap;
-	void	*md_sigtramp;
+	struct md_utrap *md_utrap;
+	void *md_sigtramp;
 };
 
-#define	KINFO_PROC_SIZE 816
+#define KINFO_PROC_SIZE 816
 
-#define MAXARGS	8
+#define MAXARGS 8
 /*
  * This holds the syscall state for a single system call.
  * As some syscall arguments may be 64-bit aligned we need to ensure the

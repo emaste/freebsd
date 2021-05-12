@@ -29,27 +29,26 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 /*
-* TI TPS65217 PMIC companion chip for AM335x SoC sitting on I2C bus
-*/
+ * TI TPS65217 PMIC companion chip for AM335x SoC sitting on I2C bus
+ */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/clock.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/clock.h>
-#include <sys/time.h>
-#include <sys/bus.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/time.h>
 
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
-
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/ti/am335x/am335x_rtcvar.h>
 #include <arm/ti/am335x/tps65217x.h>
@@ -57,13 +56,13 @@ __FBSDID("$FreeBSD$");
 #include "iicbus_if.h"
 
 struct am335x_pmic_softc {
-	device_t		sc_dev;
-	uint32_t		sc_addr;
-	struct resource		*sc_irq_res;
-	void			*sc_intrhand;
+	device_t sc_dev;
+	uint32_t sc_addr;
+	struct resource *sc_irq_res;
+	void *sc_intrhand;
 };
 
-static const char *tps65217_voreg_c[4] = {"4.10V", "4.15V", "4.20V", "4.25V"};
+static const char *tps65217_voreg_c[4] = { "4.10V", "4.15V", "4.20V", "4.25V" };
 
 static int am335x_pmic_bootverbose = 0;
 TUNABLE_INT("hw.am335x_pmic.bootverbose", &am335x_pmic_bootverbose);
@@ -94,13 +93,15 @@ am335x_pmic_intr(void *arg)
 	char notify_buf[16];
 
 	THREAD_SLEEPING_OK();
-	rv = am335x_pmic_read(sc->sc_dev, TPS65217_INT_REG, (uint8_t *)&int_reg, 1);
+	rv = am335x_pmic_read(
+	    sc->sc_dev, TPS65217_INT_REG, (uint8_t *)&int_reg, 1);
 	if (rv != 0) {
 		device_printf(sc->sc_dev, "Cannot read interrupt register\n");
 		THREAD_NO_SLEEPING();
 		return;
 	}
-	rv = am335x_pmic_read(sc->sc_dev, TPS65217_STATUS_REG, (uint8_t *)&status_reg, 1);
+	rv = am335x_pmic_read(
+	    sc->sc_dev, TPS65217_STATUS_REG, (uint8_t *)&status_reg, 1);
 	if (rv != 0) {
 		device_printf(sc->sc_dev, "Cannot read status register\n");
 		THREAD_NO_SLEEPING();
@@ -142,25 +143,27 @@ am335x_pmic_dump_chgconfig(device_t dev)
 	struct tps65217_chgconfig1_reg reg1;
 	struct tps65217_chgconfig2_reg reg2;
 	struct tps65217_chgconfig3_reg reg3;
-	const char *e_d[] = {"enabled", "disabled"};
-	const char *d_e[] = {"disabled", "enabled"};
-	const char *i_a[] = {"inactive", "active"};
-	const char *f_t[] = {"false", "true"};
-	const char *timer_c[] = {"4h", "5h", "6h", "8h"};
-	const char *ntc_type_c[] = {"100k", "10k"};
-	const char *vprechg_c[] = {"2.9V", "2.5V"};
-	const char *trange_c[] = {"0-45 C", "0-60 C"};
-	const char *termif_c[] = {"2.5%", "7.5%", "15%", "18%"};
-	const char *pchrgt_c[] = {"30 min", "60 min"};
-	const char *dppmth_c[] = {"3.50V", "3.75V", "4.00V", "4.25V"};
-	const char *ichrg_c[] = {"300mA", "400mA", "500mA", "700mA"};
+	const char *e_d[] = { "enabled", "disabled" };
+	const char *d_e[] = { "disabled", "enabled" };
+	const char *i_a[] = { "inactive", "active" };
+	const char *f_t[] = { "false", "true" };
+	const char *timer_c[] = { "4h", "5h", "6h", "8h" };
+	const char *ntc_type_c[] = { "100k", "10k" };
+	const char *vprechg_c[] = { "2.9V", "2.5V" };
+	const char *trange_c[] = { "0-45 C", "0-60 C" };
+	const char *termif_c[] = { "2.5%", "7.5%", "15%", "18%" };
+	const char *pchrgt_c[] = { "30 min", "60 min" };
+	const char *dppmth_c[] = { "3.50V", "3.75V", "4.00V", "4.25V" };
+	const char *ichrg_c[] = { "300mA", "400mA", "500mA", "700mA" };
 
 	am335x_pmic_read(dev, TPS65217_CHGCONFIG0_REG, (uint8_t *)&reg0, 1);
 	device_printf(dev, " BAT TEMP/NTC ERROR: %s\n", f_t[reg0.battemp]);
-	device_printf(dev, " Pre-charge timer time-out: %s\n", f_t[reg0.pchgtout]);
+	device_printf(
+	    dev, " Pre-charge timer time-out: %s\n", f_t[reg0.pchgtout]);
 	device_printf(dev, " Charge timer time-out: %s\n", f_t[reg0.chgtout]);
 	device_printf(dev, " Charger active: %s\n", f_t[reg0.active]);
-	device_printf(dev, " Termination current detected: %s\n", f_t[reg0.termi]);
+	device_printf(
+	    dev, " Termination current detected: %s\n", f_t[reg0.termi]);
 	device_printf(dev, " Thermal suspend: %s\n", f_t[reg0.tsusp]);
 	device_printf(dev, " DPPM active: %s\n", f_t[reg0.dppm]);
 	device_printf(dev, " Thermal regulation: %s\n", i_a[reg0.treg]);
@@ -175,16 +178,21 @@ am335x_pmic_dump_chgconfig(device_t dev)
 	device_printf(dev, " Charge safety timer: %s\n", timer_c[reg1.timer]);
 
 	am335x_pmic_read(dev, TPS65217_CHGCONFIG2_REG, (uint8_t *)&reg2, 1);
-	device_printf(dev, " Charge voltage: %s\n", tps65217_voreg_c[reg2.voreg]);
-	device_printf(dev, " Pre-charge to fast charge transition voltage: %s\n",
+	device_printf(
+	    dev, " Charge voltage: %s\n", tps65217_voreg_c[reg2.voreg]);
+	device_printf(dev,
+	    " Pre-charge to fast charge transition voltage: %s\n",
 	    vprechg_c[reg2.vprechg]);
 	device_printf(dev, " Dynamic timer function: %s\n", d_e[reg2.dyntmr]);
 
 	am335x_pmic_read(dev, TPS65217_CHGCONFIG3_REG, (uint8_t *)&reg3, 1);
-	device_printf(dev, " Temperature range for charging: %s\n", trange_c[reg3.trange]);
-	device_printf(dev, " Termination current factor: %s\n", termif_c[reg3.termif]);
+	device_printf(dev, " Temperature range for charging: %s\n",
+	    trange_c[reg3.trange]);
+	device_printf(
+	    dev, " Termination current factor: %s\n", termif_c[reg3.termif]);
 	device_printf(dev, " Pre-charge time: %s\n", pchrgt_c[reg3.pchrgt]);
-	device_printf(dev, " Power path DPPM threshold: %s\n", dppmth_c[reg3.dppmth]);
+	device_printf(
+	    dev, " Power path DPPM threshold: %s\n", dppmth_c[reg3.dppmth]);
 	device_printf(dev, " Charge current: %s\n", ichrg_c[reg3.ichrg]);
 }
 
@@ -206,27 +214,27 @@ am335x_pmic_start(struct am335x_pmic_softc *sc)
 	struct tps65217_chipid_reg chipid_reg;
 	uint8_t reg, vo;
 	char name[20];
-	char pwr[4][11] = {"Battery", "USB", "AC", "USB and AC"};
+	char pwr[4][11] = { "Battery", "USB", "AC", "USB and AC" };
 	int rv;
 	phandle_t node;
 
 	dev = sc->sc_dev;
 	am335x_pmic_read(dev, TPS65217_CHIPID_REG, (uint8_t *)&chipid_reg, 1);
 	switch (chipid_reg.chip) {
-		case TPS65217A:
-			sprintf(name, "TPS65217A ver 1.%u", chipid_reg.rev);
-			break;
-		case TPS65217B:
-			sprintf(name, "TPS65217B ver 1.%u", chipid_reg.rev);
-			break;
-		case TPS65217C:
-			sprintf(name, "TPS65217C ver 1.%u", chipid_reg.rev);
-			break;
-		case TPS65217D:
-			sprintf(name, "TPS65217D ver 1.%u", chipid_reg.rev);
-			break;
-		default:
-			sprintf(name, "Unknown PMIC");
+	case TPS65217A:
+		sprintf(name, "TPS65217A ver 1.%u", chipid_reg.rev);
+		break;
+	case TPS65217B:
+		sprintf(name, "TPS65217B ver 1.%u", chipid_reg.rev);
+		break;
+	case TPS65217C:
+		sprintf(name, "TPS65217C ver 1.%u", chipid_reg.rev);
+		break;
+	case TPS65217D:
+		sprintf(name, "TPS65217D ver 1.%u", chipid_reg.rev);
+		break;
+	default:
+		sprintf(name, "Unknown PMIC");
 	}
 
 	am335x_pmic_read(dev, TPS65217_STATUS_REG, (uint8_t *)&status_reg, 1);
@@ -235,12 +243,14 @@ am335x_pmic_start(struct am335x_pmic_softc *sc)
 
 	/* Check devicetree for ti,pmic-shutdown-controller
 	 * if present; PMIC will go to shutdown state on PWR_EN toggle
-	 * if not present; PMIC will enter sleep state on PWR_EN toggle (default on reset)
+	 * if not present; PMIC will enter sleep state on PWR_EN toggle (default
+	 * on reset)
 	 */
 	node = ofw_bus_get_node(dev);
 	if (OF_hasprop(node, "ti,pmic-shutdown-controller")) {
 		status_reg.off = 1;
-		am335x_pmic_write(dev, TPS65217_STATUS_REG, (uint8_t *)&status_reg, 1);
+		am335x_pmic_write(
+		    dev, TPS65217_STATUS_REG, (uint8_t *)&status_reg, 1);
 	}
 
 	if (am335x_pmic_vo[0] != '\0') {
@@ -249,8 +259,10 @@ am335x_pmic_start(struct am335x_pmic_softc *sc)
 				break;
 		}
 		if (vo == 4) {
-			device_printf(dev, "WARNING: hw.am335x_pmic.vo=\"%s\""
-			    ": unsupported value\n", am335x_pmic_vo);
+			device_printf(dev,
+			    "WARNING: hw.am335x_pmic.vo=\"%s\""
+			    ": unsupported value\n",
+			    am335x_pmic_vo);
 		} else {
 			am335x_pmic_setvo(dev, vo);
 		}
@@ -260,8 +272,8 @@ am335x_pmic_start(struct am335x_pmic_softc *sc)
 		am335x_pmic_dump_chgconfig(dev);
 	}
 
-	EVENTHANDLER_REGISTER(shutdown_final, am335x_pmic_shutdown, dev,
-	    SHUTDOWN_PRI_LAST);
+	EVENTHANDLER_REGISTER(
+	    shutdown_final, am335x_pmic_shutdown, dev, SHUTDOWN_PRI_LAST);
 
 	/* Unmask all interrupts and clear pending status */
 	reg = 0;
@@ -270,11 +282,11 @@ am335x_pmic_start(struct am335x_pmic_softc *sc)
 
 	if (sc->sc_irq_res != NULL) {
 		rv = bus_setup_intr(dev, sc->sc_irq_res,
-		    INTR_TYPE_MISC | INTR_MPSAFE, NULL, am335x_pmic_intr,
-		    sc, &sc->sc_intrhand);
+		    INTR_TYPE_MISC | INTR_MPSAFE, NULL, am335x_pmic_intr, sc,
+		    &sc->sc_intrhand);
 		if (rv != 0)
-			device_printf(dev,
-			    "Unable to setup the irq handler.\n");
+			device_printf(
+			    dev, "Unable to setup the irq handler.\n");
 	}
 }
 
@@ -287,8 +299,8 @@ am335x_pmic_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!sc->sc_irq_res) {
 		device_printf(dev, "cannot allocate interrupt\n");
 		/* return (ENXIO); */
@@ -310,9 +322,9 @@ am335x_pmic_shutdown(void *xdev, int howto)
 }
 
 static device_method_t am335x_pmic_methods[] = {
-	DEVMETHOD(device_probe,		am335x_pmic_probe),
-	DEVMETHOD(device_attach,	am335x_pmic_attach),
-	{0, 0},
+	DEVMETHOD(device_probe, am335x_pmic_probe),
+	DEVMETHOD(device_attach, am335x_pmic_attach),
+	{ 0, 0 },
 };
 
 static driver_t am335x_pmic_driver = {
@@ -323,6 +335,7 @@ static driver_t am335x_pmic_driver = {
 
 static devclass_t am335x_pmic_devclass;
 
-DRIVER_MODULE(am335x_pmic, iicbus, am335x_pmic_driver, am335x_pmic_devclass, 0, 0);
+DRIVER_MODULE(
+    am335x_pmic, iicbus, am335x_pmic_driver, am335x_pmic_devclass, 0, 0);
 MODULE_VERSION(am335x_pmic, 1);
 MODULE_DEPEND(am335x_pmic, iicbus, 1, 1, 1);

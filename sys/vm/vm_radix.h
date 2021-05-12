@@ -37,17 +37,17 @@
 
 #ifdef _KERNEL
 
-int		vm_radix_insert(struct vm_radix *rtree, vm_page_t page);
-void		vm_radix_wait(void);
-boolean_t	vm_radix_is_singleton(struct vm_radix *rtree);
-vm_page_t	vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index);
-vm_page_t	vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index);
-vm_page_t	vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index);
-vm_page_t	vm_radix_lookup_unlocked(struct vm_radix *rtree, vm_pindex_t index);
-void		vm_radix_reclaim_allnodes(struct vm_radix *rtree);
-vm_page_t	vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index);
-vm_page_t	vm_radix_replace(struct vm_radix *rtree, vm_page_t newpage);
-void		vm_radix_zinit(void);
+int vm_radix_insert(struct vm_radix *rtree, vm_page_t page);
+void vm_radix_wait(void);
+boolean_t vm_radix_is_singleton(struct vm_radix *rtree);
+vm_page_t vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index);
+vm_page_t vm_radix_lookup_ge(struct vm_radix *rtree, vm_pindex_t index);
+vm_page_t vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index);
+vm_page_t vm_radix_lookup_unlocked(struct vm_radix *rtree, vm_pindex_t index);
+void vm_radix_reclaim_allnodes(struct vm_radix *rtree);
+vm_page_t vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index);
+vm_page_t vm_radix_replace(struct vm_radix *rtree, vm_page_t newpage);
+void vm_radix_zinit(void);
 
 static __inline void
 vm_radix_init(struct vm_radix *rtree)

@@ -32,7 +32,7 @@
  * In-kernel UNI stack message functions.
  */
 #ifndef _NETGRAPH_ATM_NGATMBASE_H_
-#define	_NETGRAPH_ATM_NGATMBASE_H_
+#define _NETGRAPH_ATM_NGATMBASE_H_
 
 /* forward declarations */
 struct mbuf;
@@ -47,11 +47,11 @@ struct uni_msg *_uni_msg_build(const char *, int, void *, ...);
 void _uni_msg_destroy(struct uni_msg *, const char *, int);
 int _uni_msg_unpack_mbuf(struct mbuf *, struct uni_msg **, const char *, int);
 
-#define	uni_msg_alloc(S) _uni_msg_alloc((S), __FILE__, __LINE__)
-#define	uni_msg_build(P...) _uni_msg_build(__FILE__, __LINE__, P)
-#define	uni_msg_destroy(M) _uni_msg_destroy((M), __FILE__, __LINE__)
-#define	uni_msg_unpack_mbuf(M, PP) \
-	    _uni_msg_unpack_mbuf((M), (PP), __FILE__, __LINE__)
+#define uni_msg_alloc(S) _uni_msg_alloc((S), __FILE__, __LINE__)
+#define uni_msg_build(P...) _uni_msg_build(__FILE__, __LINE__, P)
+#define uni_msg_destroy(M) _uni_msg_destroy((M), __FILE__, __LINE__)
+#define uni_msg_unpack_mbuf(M, PP) \
+	_uni_msg_unpack_mbuf((M), (PP), __FILE__, __LINE__)
 
 #else /* !NGATM_DEBUG */
 

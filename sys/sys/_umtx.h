@@ -30,52 +30,52 @@
  */
 
 #ifndef _SYS__UMTX_H_
-#define	_SYS__UMTX_H_
+#define _SYS__UMTX_H_
 
-#include <sys/_types.h>
 #include <sys/_timespec.h>
+#include <sys/_types.h>
 
 struct umutex {
-	volatile __lwpid_t	m_owner;	/* Owner of the mutex */
-	__uint32_t		m_flags;	/* Flags of the mutex */
-	__uint32_t		m_ceilings[2];	/* Priority protect ceiling */
-	__uintptr_t		m_rb_lnk;	/* Robust linkage */
+	volatile __lwpid_t m_owner; /* Owner of the mutex */
+	__uint32_t m_flags;	    /* Flags of the mutex */
+	__uint32_t m_ceilings[2];   /* Priority protect ceiling */
+	__uintptr_t m_rb_lnk;	    /* Robust linkage */
 #ifndef __LP64__
-	__uint32_t		m_pad;
+	__uint32_t m_pad;
 #endif
-	__uint32_t		m_spare[2];
+	__uint32_t m_spare[2];
 };
 
 struct ucond {
-	volatile __uint32_t	c_has_waiters;	/* Has waiters in kernel */
-	__uint32_t		c_flags;	/* Flags of the condition variable */
-	__uint32_t              c_clockid;	/* Clock id */
-	__uint32_t              c_spare[1];	/* Spare space */
+	volatile __uint32_t c_has_waiters; /* Has waiters in kernel */
+	__uint32_t c_flags;		   /* Flags of the condition variable */
+	__uint32_t c_clockid;		   /* Clock id */
+	__uint32_t c_spare[1];		   /* Spare space */
 };
 
 struct urwlock {
-	volatile __int32_t	rw_state;
-	__uint32_t		rw_flags;
-	__uint32_t		rw_blocked_readers;
-	__uint32_t		rw_blocked_writers;
-	__uint32_t		rw_spare[4];
+	volatile __int32_t rw_state;
+	__uint32_t rw_flags;
+	__uint32_t rw_blocked_readers;
+	__uint32_t rw_blocked_writers;
+	__uint32_t rw_spare[4];
 };
 
 struct _usem {
-	volatile __uint32_t	_has_waiters;
-	volatile __uint32_t	_count;
-	__uint32_t		_flags;
+	volatile __uint32_t _has_waiters;
+	volatile __uint32_t _count;
+	__uint32_t _flags;
 };
 
 struct _usem2 {
-	volatile __uint32_t	_count;		/* Waiters flag in high bit. */
-	__uint32_t		_flags;
+	volatile __uint32_t _count; /* Waiters flag in high bit. */
+	__uint32_t _flags;
 };
 
 struct _umtx_time {
-	struct timespec		_timeout;
-	__uint32_t		_flags;
-	__uint32_t		_clockid;
+	struct timespec _timeout;
+	__uint32_t _flags;
+	__uint32_t _clockid;
 };
 
 #endif /* !_SYS__UMTX_H_ */

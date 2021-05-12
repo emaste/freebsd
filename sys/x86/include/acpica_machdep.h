@@ -36,52 +36,54 @@
  *****************************************************************************/
 
 #ifndef __ACPICA_MACHDEP_H__
-#define	__ACPICA_MACHDEP_H__
+#define __ACPICA_MACHDEP_H__
 
 #ifdef _KERNEL
 /*
  * Calling conventions:
  *
  * ACPI_SYSTEM_XFACE        - Interfaces to host OS (handlers, threads)
- * ACPI_EXTERNAL_XFACE      - External ACPI interfaces 
+ * ACPI_EXTERNAL_XFACE      - External ACPI interfaces
  * ACPI_INTERNAL_XFACE      - Internal ACPI interfaces
  * ACPI_INTERNAL_VAR_XFACE  - Internal variable-parameter list interfaces
  */
-#define	ACPI_SYSTEM_XFACE
-#define	ACPI_EXTERNAL_XFACE
-#define	ACPI_INTERNAL_XFACE
-#define	ACPI_INTERNAL_VAR_XFACE
+#define ACPI_SYSTEM_XFACE
+#define ACPI_EXTERNAL_XFACE
+#define ACPI_INTERNAL_XFACE
+#define ACPI_INTERNAL_VAR_XFACE
 
 /* Asm macros */
 
-#define	ACPI_ASM_MACROS
-#define	BREAKPOINT3
-#define	ACPI_DISABLE_IRQS() disable_intr()
-#define	ACPI_ENABLE_IRQS()  enable_intr()
+#define ACPI_ASM_MACROS
+#define BREAKPOINT3
+#define ACPI_DISABLE_IRQS() disable_intr()
+#define ACPI_ENABLE_IRQS() enable_intr()
 
-#define	ACPI_FLUSH_CPU_CACHE()	wbinvd()
+#define ACPI_FLUSH_CPU_CACHE() wbinvd()
 
 /* Section 5.2.10.1: global lock acquire/release functions */
-int	acpi_acquire_global_lock(volatile uint32_t *);
-int	acpi_release_global_lock(volatile uint32_t *);
-#define	ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq)	do {			\
-	(Acq) = acpi_acquire_global_lock(&((GLptr)->GlobalLock));	\
-} while (0)
-#define	ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq)	do {			\
-	(Acq) = acpi_release_global_lock(&((GLptr)->GlobalLock));	\
-} while (0)
+int acpi_acquire_global_lock(volatile uint32_t *);
+int acpi_release_global_lock(volatile uint32_t *);
+#define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq)                              \
+	do {                                                              \
+		(Acq) = acpi_acquire_global_lock(&((GLptr)->GlobalLock)); \
+	} while (0)
+#define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq)                              \
+	do {                                                              \
+		(Acq) = acpi_release_global_lock(&((GLptr)->GlobalLock)); \
+	} while (0)
 
 enum intr_trigger;
 enum intr_polarity;
 
-void	acpi_SetDefaultIntrModel(int model);
-void	acpi_cpu_c1(void);
-void	acpi_cpu_idle_mwait(uint32_t mwait_hint);
-void	*acpi_map_table(vm_paddr_t pa, const char *sig);
-void	acpi_unmap_table(void *table);
+void acpi_SetDefaultIntrModel(int model);
+void acpi_cpu_c1(void);
+void acpi_cpu_idle_mwait(uint32_t mwait_hint);
+void *acpi_map_table(vm_paddr_t pa, const char *sig);
+void acpi_unmap_table(void *table);
 vm_paddr_t acpi_find_table(const char *sig);
-void	madt_parse_interrupt_values(void *entry,
-	    enum intr_trigger *trig, enum intr_polarity *pol);
+void madt_parse_interrupt_values(
+    void *entry, enum intr_trigger *trig, enum intr_polarity *pol);
 
 extern int madt_found_sci_override;
 extern int (*apei_nmi)(void);

@@ -38,102 +38,104 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/smp.h>
-#include <sys/systm.h>
 
 #include <machine/cpufunc.h>
 #include <machine/hwfunc.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 
-#define	VPECONF0_VPA	(1 << 0)
-#define	MVPCONTROL_VPC	(1 << 1)
-#define	MVPCONF0_PVPE_SHIFT	10
-#define	MVPCONF0_PVPE_MASK	(0xf << MVPCONF0_PVPE_SHIFT)
-#define	TCSTATUS_A	(1 << 13)
+#define VPECONF0_VPA (1 << 0)
+#define MVPCONTROL_VPC (1 << 1)
+#define MVPCONF0_PVPE_SHIFT 10
+#define MVPCONF0_PVPE_MASK (0xf << MVPCONF0_PVPE_SHIFT)
+#define TCSTATUS_A (1 << 13)
 
 unsigned malta_ap_boot = ~0;
 
-#define	C_SW0		(1 << 8)
-#define	C_SW1		(1 << 9)
-#define	C_IRQ0		(1 << 10)
-#define	C_IRQ1		(1 << 11)
-#define	C_IRQ2		(1 << 12)
-#define	C_IRQ3		(1 << 13)
-#define	C_IRQ4		(1 << 14)
-#define	C_IRQ5		(1 << 15)
+#define C_SW0 (1 << 8)
+#define C_SW1 (1 << 9)
+#define C_IRQ0 (1 << 10)
+#define C_IRQ1 (1 << 11)
+#define C_IRQ2 (1 << 12)
+#define C_IRQ3 (1 << 13)
+#define C_IRQ4 (1 << 14)
+#define C_IRQ5 (1 << 15)
 
 static inline void
 evpe(void)
 {
-	__asm __volatile(
-	"	.set push			\n"
-	"	.set noreorder			\n"
-	"	.set noat			\n"
-	"	.set mips32r2			\n"
-	"	.word	0x41600021	# evpe	\n"
-	"	ehb				\n"
-	"	.set pop			\n");
+	__asm __volatile("	.set push			\n"
+			 "	.set noreorder			\n"
+			 "	.set noat			\n"
+			 "	.set mips32r2			\n"
+			 "	.word	0x41600021	# evpe	\n"
+			 "	ehb				\n"
+			 "	.set pop			\n");
 }
 
 static inline void
 ehb(void)
 {
-	__asm __volatile(
-	"	.set mips32r2	\n"
-	"	ehb		\n"
-	"	.set mips0	\n");
+	__asm __volatile("	.set mips32r2	\n"
+			 "	ehb		\n"
+			 "	.set mips0	\n");
 }
 
-#define	mttc0(rd, sel, val)						\
-({									\
-	__asm __volatile(						\
-	"	.set push					\n"	\
-	"	.set mips32r2					\n"	\
-	"	.set noat					\n"	\
-	"	move	$1, %0					\n"	\
-	"	.word 0x41810000 | (" #rd " << 11) | " #sel "	\n"	\
-	"	.set pop					\n"	\
-	:: "r" (val));							\
-})
+#define mttc0(rd, sel, val)                                                        \
+	({                                                                         \
+		__asm __volatile(                                                  \
+		    "	.set push					\n"                                            \
+		    "	.set mips32r2					\n"                                        \
+		    "	.set noat					\n"                                            \
+		    "	move	$1, %0					\n"                                          \
+		    "	.word 0x41810000 | (" #rd " << 11) | " #sel            \
+		    "	\n"                                                          \
+		    "	.set pop					\n" :: \
+			"r"(val));                                                 \
+	})
 
-#define	mftc0(rt, sel)							\
-({									\
-	unsigned long __res;						\
-	__asm __volatile(						\
-	"	.set push					\n"	\
-	"	.set mips32r2					\n"	\
-	"	.set noat					\n"	\
-	"	.word 0x41000800 | (" #rt " << 16) | " #sel "	\n"	\
-	"	move	%0, $1					\n"	\
-	"	.set pop					\n"	\
-	: "=r" (__res));						\
-	 __res;								\
-})
+#define mftc0(rt, sel)                                                  \
+	({                                                              \
+		unsigned long __res;                                    \
+		__asm __volatile(                                       \
+		    "	.set push					\n"                                 \
+		    "	.set mips32r2					\n"                             \
+		    "	.set noat					\n"                                 \
+		    "	.word 0x41000800 | (" #rt " << 16) | " #sel \
+		    "	\n"                                               \
+		    "	move	%0, $1					\n"                               \
+		    "	.set pop					\n"                                  \
+		    : "=r"(__res));                                     \
+		__res;                                                  \
+	})
 
-#define	write_c0_register32(reg, sel, val)				\
-({									\
-	__asm __volatile(						\
-	"	.set push					\n"	\
-	"	.set mips32					\n"	\
-	"	mtc0	%0, $%1, %2				\n"	\
-	"	.set pop					\n"	\
-	:: "r" (val), "i" (reg), "i" (sel));				\
-})
+#define write_c0_register32(reg, sel, val)                                         \
+	({                                                                         \
+		__asm __volatile(                                                  \
+		    "	.set push					\n"                                            \
+		    "	.set mips32					\n"                                          \
+		    "	mtc0	%0, $%1, %2				\n"                                      \
+		    "	.set pop					\n" :: \
+			"r"(val),                                                  \
+		    "i"(reg), "i"(sel));                                           \
+	})
 
-#define	read_c0_register32(reg, sel)					\
-({									\
-	uint32_t __retval;						\
-	__asm __volatile(						\
-	"	.set push					\n"	\
-	"	.set mips32					\n"	\
-	"	mfc0	%0, $%1, %2				\n"	\
-	"	.set pop					\n"	\
-	: "=r" (__retval) : "i" (reg), "i" (sel));			\
-	__retval;							\
-})
+#define read_c0_register32(reg, sel)          \
+	({                                    \
+		uint32_t __retval;            \
+		__asm __volatile(             \
+		    "	.set push					\n"       \
+		    "	.set mips32					\n"     \
+		    "	mfc0	%0, $%1, %2				\n" \
+		    "	.set pop					\n"        \
+		    : "=r"(__retval)          \
+		    : "i"(reg), "i"(sel));    \
+		__retval;                     \
+	})
 
 static void
 set_thread_context(int cpuid)

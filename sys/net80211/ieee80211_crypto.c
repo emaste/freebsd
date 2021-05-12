@@ -37,35 +37,33 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/mbuf.h>   
-
+#include <sys/mbuf.h>
 #include <sys/socket.h>
 
+#include <net/ethernet.h> /* XXX ETHER_HDR_LEN */
 #include <net/if.h>
 #include <net/if_media.h>
-#include <net/ethernet.h>		/* XXX ETHER_HDR_LEN */
-
 #include <net80211/ieee80211_var.h>
 
 MALLOC_DEFINE(M_80211_CRYPTO, "80211crypto", "802.11 crypto state");
 
-static	int _ieee80211_crypto_delkey(struct ieee80211vap *,
-		struct ieee80211_key *);
+static int _ieee80211_crypto_delkey(
+    struct ieee80211vap *, struct ieee80211_key *);
 
 /*
  * Table of registered cipher modules.
  */
-static	const struct ieee80211_cipher *ciphers[IEEE80211_CIPHER_MAX];
+static const struct ieee80211_cipher *ciphers[IEEE80211_CIPHER_MAX];
 
 /*
  * Default "null" key management routines.
  */
 static int
 null_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
-	ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
+    ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
 {
 	if (!(&vap->iv_nw_keys[0] <= k &&
-	     k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])) {
+		k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])) {
 		/*
 		 * Not in the global key table, the driver should handle this
 		 * by allocating a slot in the h/w key table/cache.  In
@@ -78,11 +76,11 @@ null_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 		 */
 		if (k->wk_flags & IEEE80211_KEY_GROUP)
 			return 0;
-		*keyix = 0;	/* NB: use key index 0 for ucast key */
+		*keyix = 0; /* NB: use key index 0 for ucast key */
 	} else {
 		*keyix = ieee80211_crypto_get_key_wepidx(vap, k);
 	}
-	*rxkeyix = IEEE80211_KEYIX_NONE;	/* XXX maybe *keyix? */
+	*rxkeyix = IEEE80211_KEYIX_NONE; /* XXX maybe *keyix? */
 	return 1;
 }
 static int
@@ -90,12 +88,15 @@ null_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 	return 1;
 }
-static 	int
+static int
 null_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 	return 1;
 }
-static void null_key_update(struct ieee80211vap *vap) {}
+static void
+null_key_update(struct ieee80211vap *vap)
+{
+}
 
 /*
  * Write-arounds for common operations.
@@ -112,20 +113,18 @@ cipher_attach(struct ieee80211vap *vap, struct ieee80211_key *key)
 	return key->wk_cipher->ic_attach(vap, key);
 }
 
-/* 
+/*
  * Wrappers for driver key management methods.
  */
 static __inline int
-dev_key_alloc(struct ieee80211vap *vap,
-	struct ieee80211_key *key,
-	ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
+dev_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *key,
+    ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
 {
 	return vap->iv_key_alloc(vap, key, keyix, rxkeyix);
 }
 
 static __inline int
-dev_key_delete(struct ieee80211vap *vap,
-	const struct ieee80211_key *key)
+dev_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *key)
 {
 	return vap->iv_key_delete(vap, key);
 }
@@ -166,8 +165,8 @@ ieee80211_crypto_vattach(struct ieee80211vap *vap)
 	vap->iv_max_keyix = IEEE80211_WEP_NKID;
 	vap->iv_def_txkey = IEEE80211_KEYIX_NONE;
 	for (i = 0; i < IEEE80211_WEP_NKID; i++)
-		ieee80211_crypto_resetkey(vap, &vap->iv_nw_keys[i],
-			IEEE80211_KEYIX_NONE);
+		ieee80211_crypto_resetkey(
+		    vap, &vap->iv_nw_keys[i], IEEE80211_KEYIX_NONE);
 	/*
 	 * Initialize the driver key support routines to noop entries.
 	 * This is useful especially for the cipher test modules.
@@ -196,12 +195,12 @@ ieee80211_crypto_register(const struct ieee80211_cipher *cip)
 {
 	if (cip->ic_cipher >= IEEE80211_CIPHER_MAX) {
 		printf("%s: cipher %s has an invalid cipher index %u\n",
-			__func__, cip->ic_name, cip->ic_cipher);
+		    __func__, cip->ic_name, cip->ic_cipher);
 		return;
 	}
 	if (ciphers[cip->ic_cipher] != NULL && ciphers[cip->ic_cipher] != cip) {
 		printf("%s: cipher %s registered with a different template\n",
-			__func__, cip->ic_name);
+		    __func__, cip->ic_name);
 		return;
 	}
 	ciphers[cip->ic_cipher] = cip;
@@ -215,12 +214,12 @@ ieee80211_crypto_unregister(const struct ieee80211_cipher *cip)
 {
 	if (cip->ic_cipher >= IEEE80211_CIPHER_MAX) {
 		printf("%s: cipher %s has an invalid cipher index %u\n",
-			__func__, cip->ic_name, cip->ic_cipher);
+		    __func__, cip->ic_name, cip->ic_cipher);
 		return;
 	}
 	if (ciphers[cip->ic_cipher] != NULL && ciphers[cip->ic_cipher] != cip) {
 		printf("%s: cipher %s registered with a different template\n",
-			__func__, cip->ic_name);
+		    __func__, cip->ic_name);
 		return;
 	}
 	/* NB: don't complain about not being registered */
@@ -236,13 +235,13 @@ ieee80211_crypto_available(u_int cipher)
 
 /* XXX well-known names! */
 static const char *cipher_modnames[IEEE80211_CIPHER_MAX] = {
-	[IEEE80211_CIPHER_WEP]	   = "wlan_wep",
-	[IEEE80211_CIPHER_TKIP]	   = "wlan_tkip",
+	[IEEE80211_CIPHER_WEP] = "wlan_wep",
+	[IEEE80211_CIPHER_TKIP] = "wlan_tkip",
 	[IEEE80211_CIPHER_AES_OCB] = "wlan_aes_ocb",
 	[IEEE80211_CIPHER_AES_CCM] = "wlan_ccmp",
-	[IEEE80211_CIPHER_TKIPMIC] = "#4",	/* NB: reserved */
-	[IEEE80211_CIPHER_CKIP]	   = "wlan_ckip",
-	[IEEE80211_CIPHER_NONE]	   = "wlan_none",
+	[IEEE80211_CIPHER_TKIPMIC] = "#4", /* NB: reserved */
+	[IEEE80211_CIPHER_CKIP] = "wlan_ckip",
+	[IEEE80211_CIPHER_NONE] = "wlan_none",
 };
 
 /* NB: there must be no overlap between user-supplied and device-owned flags */
@@ -261,8 +260,8 @@ CTASSERT((IEEE80211_KEY_COMMON & IEEE80211_KEY_DEVICE) == 0);
  *	ieee80211_key_update_end(vap);
  */
 int
-ieee80211_crypto_newkey(struct ieee80211vap *vap,
-	int cipher, int flags, struct ieee80211_key *key)
+ieee80211_crypto_newkey(
+    struct ieee80211vap *vap, int cipher, int flags, struct ieee80211_key *key)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	const struct ieee80211_cipher *cip;
@@ -271,8 +270,8 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 	int oflags;
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
-	    "%s: cipher %u flags 0x%x keyix %u\n",
-	    __func__, cipher, flags, key->wk_keyix);
+	    "%s: cipher %u flags 0x%x keyix %u\n", __func__, cipher, flags,
+	    key->wk_keyix);
 
 	/*
 	 * Validate cipher and set reference to cipher routines.
@@ -292,8 +291,8 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 		 * name; e.g. wlan_cipher_<cipher-name>.
 		 */
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
-		    "%s: unregistered cipher %u, load module %s\n",
-		    __func__, cipher, cipher_modnames[cipher]);
+		    "%s: unregistered cipher %u, load module %s\n", __func__,
+		    cipher, cipher_modnames[cipher]);
 		ieee80211_load_module(cipher_modnames[cipher]);
 		/*
 		 * If cipher module loaded it should immediately
@@ -318,7 +317,7 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 	 * If the hardware does not support the cipher then
 	 * fallback to a host-based implementation.
 	 */
-	if ((ic->ic_cryptocaps & (1<<cipher)) == 0) {
+	if ((ic->ic_cryptocaps & (1 << cipher)) == 0) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
 		    "%s: no h/w support for cipher %s, falling back to s/w\n",
 		    __func__, cip->ic_name);
@@ -354,14 +353,14 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 		keyctx = cip->ic_attach(vap, key);
 		if (keyctx == NULL) {
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
-				"%s: unable to attach cipher %s\n",
-				__func__, cip->ic_name);
-			key->wk_flags = oflags;	/* restore old flags */
+			    "%s: unable to attach cipher %s\n", __func__,
+			    cip->ic_name);
+			key->wk_flags = oflags; /* restore old flags */
 			vap->iv_stats.is_crypto_attachfail++;
 			return 0;
 		}
 		cipher_detach(key);
-		key->wk_cipher = cip;		/* XXX refcnt? */
+		key->wk_cipher = cip; /* XXX refcnt? */
 		key->wk_private = keyctx;
 	}
 
@@ -380,8 +379,8 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 			 */
 			vap->iv_stats.is_crypto_keyfail++;
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
-			    "%s: unable to setup cipher %s\n",
-			    __func__, cip->ic_name);
+			    "%s: unable to setup cipher %s\n", __func__,
+			    cip->ic_name);
 			return 0;
 		}
 		if (key->wk_flags != flags) {
@@ -393,20 +392,20 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 			 */
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
 			    "%s: driver override for cipher %s, flags "
-			    "0x%x -> 0x%x\n", __func__, cip->ic_name,
-			    oflags, key->wk_flags);
+			    "0x%x -> 0x%x\n",
+			    __func__, cip->ic_name, oflags, key->wk_flags);
 			keyctx = cip->ic_attach(vap, key);
 			if (keyctx == NULL) {
 				IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
 				    "%s: unable to attach cipher %s with "
-				    "flags 0x%x\n", __func__, cip->ic_name,
-				    key->wk_flags);
-				key->wk_flags = oflags;	/* restore old flags */
+				    "flags 0x%x\n",
+				    __func__, cip->ic_name, key->wk_flags);
+				key->wk_flags = oflags; /* restore old flags */
 				vap->iv_stats.is_crypto_attachfail++;
 				return 0;
 			}
 			cipher_detach(key);
-			key->wk_cipher = cip;		/* XXX refcnt? */
+			key->wk_cipher = cip; /* XXX refcnt? */
 			key->wk_private = keyctx;
 		}
 		key->wk_keyix = keyix;
@@ -425,9 +424,8 @@ _ieee80211_crypto_delkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	KASSERT(key->wk_cipher != NULL, ("No cipher!"));
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
-	    "%s: %s keyix %u flags 0x%x rsc %ju tsc %ju len %u\n",
-	    __func__, key->wk_cipher->ic_name,
-	    key->wk_keyix, key->wk_flags,
+	    "%s: %s keyix %u flags 0x%x rsc %ju tsc %ju len %u\n", __func__,
+	    key->wk_cipher->ic_name, key->wk_keyix, key->wk_flags,
 	    key->wk_keyrsc[IEEE80211_NONQOS_TID], key->wk_keytsc,
 	    key->wk_keylen);
 
@@ -474,7 +472,7 @@ ieee80211_crypto_delglobalkeys(struct ieee80211vap *vap)
 
 	ieee80211_key_update_begin(vap);
 	for (i = 0; i < IEEE80211_WEP_NKID; i++)
-		(void) _ieee80211_crypto_delkey(vap, &vap->iv_nw_keys[i]);
+		(void)_ieee80211_crypto_delkey(vap, &vap->iv_nw_keys[i]);
 	ieee80211_key_update_end(vap);
 }
 
@@ -494,12 +492,12 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
 	    "%s: %s keyix %u flags 0x%x mac %s rsc %ju tsc %ju len %u\n",
-	    __func__, cip->ic_name, key->wk_keyix,
-	    key->wk_flags, ether_sprintf(key->wk_macaddr),
+	    __func__, cip->ic_name, key->wk_keyix, key->wk_flags,
+	    ether_sprintf(key->wk_macaddr),
 	    key->wk_keyrsc[IEEE80211_NONQOS_TID], key->wk_keytsc,
 	    key->wk_keylen);
 
-	if ((key->wk_flags & IEEE80211_KEY_DEVKEY)  == 0) {
+	if ((key->wk_flags & IEEE80211_KEY_DEVKEY) == 0) {
 		/* XXX nothing allocated, should not happen */
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
 		    "%s: no device key setup done; should not happen!\n",
@@ -514,8 +512,8 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	if (!cip->ic_setkey(key)) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
 		    "%s: cipher %s rejected key index %u len %u flags 0x%x\n",
-		    __func__, cip->ic_name, key->wk_keyix,
-		    key->wk_keylen, key->wk_flags);
+		    __func__, cip->ic_name, key->wk_keyix, key->wk_keylen,
+		    key->wk_flags);
 		vap->iv_stats.is_crypto_setkey_cipher++;
 		return 0;
 	}
@@ -529,12 +527,12 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
  * 0 for unicast keys; it assumes that it won't be used for WEP.
  */
 int
-ieee80211_crypto_get_key_wepidx(const struct ieee80211vap *vap,
-    const struct ieee80211_key *k)
+ieee80211_crypto_get_key_wepidx(
+    const struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 
 	if (k >= &vap->iv_nw_keys[0] &&
-	    k <  &vap->iv_nw_keys[IEEE80211_WEP_NKID])
+	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])
 		return (k - vap->iv_nw_keys);
 	return (-1);
 }
@@ -546,7 +544,7 @@ uint8_t
 ieee80211_crypto_get_keyid(struct ieee80211vap *vap, struct ieee80211_key *k)
 {
 	if (k >= &vap->iv_nw_keys[0] &&
-	    k <  &vap->iv_nw_keys[IEEE80211_WEP_NKID])
+	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])
 		return (k - vap->iv_nw_keys);
 	else
 		return (0);
@@ -606,10 +604,10 @@ int
 ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen,
     struct ieee80211_key **key)
 {
-#define	IEEE80211_WEP_HDRLEN	(IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN)
-#define	IEEE80211_WEP_MINLEN \
-	(sizeof(struct ieee80211_frame) + \
-	IEEE80211_WEP_HDRLEN + IEEE80211_WEP_CRCLEN)
+#define IEEE80211_WEP_HDRLEN (IEEE80211_WEP_IVLEN + IEEE80211_WEP_KIDLEN)
+#define IEEE80211_WEP_MINLEN                                     \
+	(sizeof(struct ieee80211_frame) + IEEE80211_WEP_HDRLEN + \
+	    IEEE80211_WEP_CRCLEN)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_key *k;
 	struct ieee80211_frame *wh;
@@ -640,9 +638,9 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen,
 	/* NB: this minimum size data frame could be bigger */
 	if (m->m_pkthdr.len < IEEE80211_WEP_MINLEN) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_ANY,
-			"%s: WEP data frame too short, len %u\n",
-			__func__, m->m_pkthdr.len);
-		vap->iv_stats.is_rx_tooshort++;	/* XXX need unique stat? */
+		    "%s: WEP data frame too short, len %u\n", __func__,
+		    m->m_pkthdr.len);
+		vap->iv_stats.is_rx_tooshort++; /* XXX need unique stat? */
 		*key = NULL;
 		return (0);
 	}
@@ -775,7 +773,7 @@ ieee80211_crypto_reload_keys(struct ieee80211com *ic)
 	 * Keys in the global key table of each vap.
 	 */
 	/* NB: used only during resume so don't lock for now */
-	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+	TAILQ_FOREACH (vap, &ic->ic_vaps, iv_next) {
 		if (vap->iv_state != IEEE80211_S_RUN)
 			continue;
 		for (i = 0; i < IEEE80211_WEP_NKID; i++) {

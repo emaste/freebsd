@@ -37,37 +37,39 @@
  * CPU device support.
  */
 
-#define CPU_IVAR_PCPU		1
-#define CPU_IVAR_NOMINAL_MHZ	2
-#define CPU_IVAR_CPUID_SIZE	3
-#define CPU_IVAR_CPUID		4
+#define CPU_IVAR_PCPU 1
+#define CPU_IVAR_NOMINAL_MHZ 2
+#define CPU_IVAR_CPUID_SIZE 3
+#define CPU_IVAR_CPUID 4
 
-static __inline struct pcpu *cpu_get_pcpu(device_t dev)
+static __inline struct pcpu *
+cpu_get_pcpu(device_t dev)
 {
 	uintptr_t v = 0;
 	BUS_READ_IVAR(device_get_parent(dev), dev, CPU_IVAR_PCPU, &v);
 	return ((struct pcpu *)v);
 }
 
-static __inline int32_t cpu_get_nominal_mhz(device_t dev)
+static __inline int32_t
+cpu_get_nominal_mhz(device_t dev)
 {
 	uintptr_t v = 0;
-	if (BUS_READ_IVAR(device_get_parent(dev), dev,
-	    CPU_IVAR_NOMINAL_MHZ, &v) != 0)
+	if (BUS_READ_IVAR(
+		device_get_parent(dev), dev, CPU_IVAR_NOMINAL_MHZ, &v) != 0)
 		return (-1);
 	return ((int32_t)v);
 }
 
-static __inline const uint32_t *cpu_get_cpuid(device_t dev, size_t *count)
+static __inline const uint32_t *
+cpu_get_cpuid(device_t dev, size_t *count)
 {
 	uintptr_t v = 0;
-	if (BUS_READ_IVAR(device_get_parent(dev), dev,
-	    CPU_IVAR_CPUID_SIZE, &v) != 0)
+	if (BUS_READ_IVAR(
+		device_get_parent(dev), dev, CPU_IVAR_CPUID_SIZE, &v) != 0)
 		return (NULL);
 	*count = (size_t)v;
 
-	if (BUS_READ_IVAR(device_get_parent(dev), dev,
-	    CPU_IVAR_CPUID, &v) != 0)
+	if (BUS_READ_IVAR(device_get_parent(dev), dev, CPU_IVAR_CPUID, &v) != 0)
 		return (NULL);
 	return ((const uint32_t *)v);
 }
@@ -78,30 +80,30 @@ static __inline const uint32_t *cpu_get_cpuid(device_t dev, size_t *count)
 
 /* Each driver's CPU frequency setting is exported in this format. */
 struct cf_setting {
-	int	freq;	/* CPU clock in Mhz or 100ths of a percent. */
-	int	volts;	/* Voltage in mV. */
-	int	power;	/* Power consumed in mW. */
-	int	lat;	/* Transition latency in us. */
-	device_t dev;	/* Driver providing this setting. */
-	int	spec[4];/* Driver-specific storage for non-standard info. */
+	int freq;     /* CPU clock in Mhz or 100ths of a percent. */
+	int volts;    /* Voltage in mV. */
+	int power;    /* Power consumed in mW. */
+	int lat;      /* Transition latency in us. */
+	device_t dev; /* Driver providing this setting. */
+	int spec[4];  /* Driver-specific storage for non-standard info. */
 };
 
 /* Maximum number of settings a given driver can have. */
-#define MAX_SETTINGS		256
+#define MAX_SETTINGS 256
 
 /* A combination of settings is a level. */
 struct cf_level {
-	struct cf_setting	total_set;
-	struct cf_setting	abs_set;
-	struct cf_setting	rel_set[MAX_SETTINGS];
-	int			rel_count;
-	TAILQ_ENTRY(cf_level)	link;
+	struct cf_setting total_set;
+	struct cf_setting abs_set;
+	struct cf_setting rel_set[MAX_SETTINGS];
+	int rel_count;
+	TAILQ_ENTRY(cf_level) link;
 };
 
 TAILQ_HEAD(cf_level_lst, cf_level);
 
 /* Drivers should set all unknown values to this. */
-#define CPUFREQ_VAL_UNKNOWN	(-1)
+#define CPUFREQ_VAL_UNKNOWN (-1)
 
 /*
  * Every driver offers a type of CPU control.  Absolute levels are mutually
@@ -125,11 +127,11 @@ TAILQ_HEAD(cf_level_lst, cf_level);
  * instantaneous frequency from the underlying hardware regardless of cached
  * state. It is probably a bug to not combine this with "info only"
  */
-#define CPUFREQ_TYPE_MASK	0xffff
-#define CPUFREQ_TYPE_RELATIVE	(1<<0)
-#define CPUFREQ_TYPE_ABSOLUTE	(1<<1)
-#define CPUFREQ_FLAG_INFO_ONLY	(1<<16)
-#define CPUFREQ_FLAG_UNCACHED	(1<<17)
+#define CPUFREQ_TYPE_MASK 0xffff
+#define CPUFREQ_TYPE_RELATIVE (1 << 0)
+#define CPUFREQ_TYPE_ABSOLUTE (1 << 1)
+#define CPUFREQ_FLAG_INFO_ONLY (1 << 16)
+#define CPUFREQ_FLAG_UNCACHED (1 << 17)
 
 /*
  * When setting a level, the caller indicates the priority of this request.
@@ -139,10 +141,10 @@ TAILQ_HEAD(cf_level_lst, cf_level);
  * the driver would use a higher priority.  Once the event has passed, the
  * driver would call cpufreq to resume any previous level.
  */
-#define CPUFREQ_PRIO_HIGHEST	1000000
-#define CPUFREQ_PRIO_KERN	1000
-#define CPUFREQ_PRIO_USER	100
-#define CPUFREQ_PRIO_LOWEST	0
+#define CPUFREQ_PRIO_HIGHEST 1000000
+#define CPUFREQ_PRIO_KERN 1000
+#define CPUFREQ_PRIO_USER 100
+#define CPUFREQ_PRIO_LOWEST 0
 
 /*
  * Register and unregister a driver with the cpufreq core.  Once a driver
@@ -150,21 +152,21 @@ TAILQ_HEAD(cf_level_lst, cf_level);
  * and CPUFREQ_SET methods.  It must also unregister before returning from
  * its DEVICE_DETACH method.
  */
-int	cpufreq_register(device_t dev);
-int	cpufreq_unregister(device_t dev);
+int cpufreq_register(device_t dev);
+int cpufreq_unregister(device_t dev);
 
 /*
  * Notify the cpufreq core that the number of or values for settings have
  * changed.
  */
-int	cpufreq_settings_changed(device_t dev);
+int cpufreq_settings_changed(device_t dev);
 
 /*
  * Eventhandlers that are called before and after a change in frequency.
  * The new level and the result of the change (0 is success) is passed in.
  * If the driver wishes to revoke the change from cpufreq_pre_change, it
  * stores a non-zero error code in the result parameter and the change will
- * not be made.  If the post-change eventhandler gets a non-zero result, 
+ * not be made.  If the post-change eventhandler gets a non-zero result,
  * no change was made and the previous level remains in effect.  If a change
  * is revoked, the post-change eventhandler is still called with the error
  * value supplied by the revoking driver.  This gives listeners who cached
@@ -184,13 +186,13 @@ typedef void (*cpufreq_levels_notify_fn)(void *, int);
 EVENTHANDLER_DECLARE(cpufreq_levels_changed, cpufreq_levels_notify_fn);
 
 /* Allow values to be +/- a bit since sometimes we have to estimate. */
-#define CPUFREQ_CMP(x, y)	(abs((x) - (y)) < 25)
+#define CPUFREQ_CMP(x, y) (abs((x) - (y)) < 25)
 
 /*
  * Machine-dependent functions.
  */
 
 /* Estimate the current clock rate for the given CPU id. */
-int	cpu_est_clockrate(int cpu_id, uint64_t *rate);
+int cpu_est_clockrate(int cpu_id, uint64_t *rate);
 
 #endif /* !_SYS_CPU_H_ */

@@ -36,12 +36,12 @@
 #include <sys/param.h>
 
 #include <stdio.h>
-#include <strings.h>
 #include <stdlib.h>
+#include <strings.h>
 
-#include  "dn_heap.h"
-#define log(x, arg...)	fprintf(stderr, ## arg)
-#define panic(x...)	fprintf(stderr, ## x), exit(1)
+#include "dn_heap.h"
+#define log(x, arg...) fprintf(stderr, ##arg)
+#define panic(x...) fprintf(stderr, ##x), exit(1)
 
 #include <string.h>
 
@@ -50,20 +50,23 @@ struct x {
 	char buf[0];
 };
 
-uint32_t hf(uintptr_t key, int flags, void *arg)
+uint32_t
+hf(uintptr_t key, int flags, void *arg)
 {
-	return (flags & DNHT_KEY_IS_OBJ) ?
-		((struct x *)key)->buf[0] : *(char *)key;
+	return (flags & DNHT_KEY_IS_OBJ) ? ((struct x *)key)->buf[0] :
+						 *(char *)key;
 }
 
-int matchf(void *obj, uintptr_t key, int flags, void *arg)
+int
+matchf(void *obj, uintptr_t key, int flags, void *arg)
 {
-	char *s = (flags & DNHT_KEY_IS_OBJ) ?
-		((struct x *)key)->buf : (char *)key;
+	char *s = (flags & DNHT_KEY_IS_OBJ) ? ((struct x *)key)->buf :
+						    (char *)key;
 	return (strcmp(((struct x *)obj)->buf, s) == 0);
 }
 
-void *newfn(uintptr_t key, int flags, void *arg)
+void *
+newfn(uintptr_t key, int flags, void *arg)
 {
 	char *s = (char *)key;
 	struct x *p = malloc(sizeof(*p) + 1 + strlen(s));
@@ -73,13 +76,27 @@ void *newfn(uintptr_t key, int flags, void *arg)
 }
 
 char *strings[] = {
-	"undici", "unico", "doppio", "devoto",
-	"uno", "due", "tre", "quattro", "cinque", "sei",
-	"uno", "due", "tre", "quattro", "cinque", "sei",
+	"undici",
+	"unico",
+	"doppio",
+	"devoto",
+	"uno",
+	"due",
+	"tre",
+	"quattro",
+	"cinque",
+	"sei",
+	"uno",
+	"due",
+	"tre",
+	"quattro",
+	"cinque",
+	"sei",
 	NULL,
 };
 
-int doprint(void *_x, void *arg)
+int
+doprint(void *_x, void *arg)
 {
 	struct x *x = _x;
 	printf("found element <%s>\n", x->buf);
@@ -111,17 +128,18 @@ test_hash()
 			if (x1 == 0)
 				x1 = (uintptr_t)*p;
 		}
-		dn_ht_find(h, (uintptr_t)y, DNHT_INSERT | DNHT_KEY_IS_OBJ, NULL);
+		dn_ht_find(
+		    h, (uintptr_t)y, DNHT_INSERT | DNHT_KEY_IS_OBJ, NULL);
 	}
 	dn_ht_scan(h, doprint, 0);
 	printf("remove %p gives %p\n", (void *)x,
-		dn_ht_find(h, x, DNHT_KEY_IS_OBJ | DNHT_REMOVE, NULL));
+	    dn_ht_find(h, x, DNHT_KEY_IS_OBJ | DNHT_REMOVE, NULL));
 	printf("remove %p gives %p\n", (void *)x,
-		dn_ht_find(h, x, DNHT_KEY_IS_OBJ | DNHT_REMOVE, NULL));
+	    dn_ht_find(h, x, DNHT_KEY_IS_OBJ | DNHT_REMOVE, NULL));
 	printf("remove %p gives %p\n", (void *)x,
-		dn_ht_find(h, x1, DNHT_REMOVE, NULL));
+	    dn_ht_find(h, x1, DNHT_REMOVE, NULL));
 	printf("remove %p gives %p\n", (void *)x,
-		dn_ht_find(h, x1, DNHT_REMOVE, NULL));
+	    dn_ht_find(h, x1, DNHT_REMOVE, NULL));
 	dn_ht_scan(h, doprint, 0);
 }
 
@@ -146,17 +164,18 @@ main(int argc, char *argv[])
 	heap_init(&h, n, -1);
 	while (n2-- > 0) {
 		uint64_t prevk = 0;
-		for (i=0; i < n; i++)
-			heap_insert(&h, n3 ? n-i: random(), (void *)(100+i));
-		
-		for (i=0; h.elements > 0; i++) {
+		for (i = 0; i < n; i++)
+			heap_insert(
+			    &h, n3 ? n - i : random(), (void *)(100 + i));
+
+		for (i = 0; h.elements > 0; i++) {
 			uint64_t k = h.p[0].key;
 			if (k < prevk)
 				panic("wrong sequence\n");
 			prevk = k;
 			if (0)
-			printf("%d key %llu, val %p\n",
-				i, h.p[0].key, h.p[0].object);
+				printf("%d key %llu, val %p\n", i, h.p[0].key,
+				    h.p[0].object);
 			heap_extract(&h, NULL);
 		}
 	}

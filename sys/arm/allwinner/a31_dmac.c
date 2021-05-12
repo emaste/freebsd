@@ -35,86 +35,86 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/condvar.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/endian.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/allwinner/a10_dmac.h>
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/hwreset/hwreset.h>
 
 #include "sunxi_dma_if.h"
 
-#define	DMA_IRQ_EN_REG0		0x00
-#define	DMA_IRQ_EN_REG1		0x04
-#define	DMA_IRQ_EN_REG(ch)	(DMA_IRQ_EN_REG0 + ((ch) / 8) * 4)
-#define	 DMA_PKG_IRQ_EN(ch)	(1 << (((ch) % 8) * 4 + 1))
-#define	 DMA_PKG_IRQ_MASK	0x2222222222222222ULL
-#define	DMA_IRQ_PEND_REG0	0x10
-#define	DMA_IRQ_PEND_REG1	0x14
-#define	DMA_IRQ_PEND_REG(ch)	(DMA_IRQ_PEND_REG0 + ((ch) / 8) * 4)
-#define	DMA_STA_REG		0x30
-#define	DMA_EN_REG(n)		(0x100 + (n) * 0x40 + 0x00)
-#define	 DMA_EN			(1 << 0)
-#define	DMA_PAU_REG(n)		(0x100 + (n) * 0x40 + 0x04)
-#define	DMA_STAR_ADDR_REG(n)	(0x100 + (n) * 0x40 + 0x08)
-#define	DMA_CFG_REG(n)		(0x100 + (n) * 0x40 + 0x0c)
-#define	 DMA_DEST_DATA_WIDTH		(0x3 << 25)
-#define	 DMA_DEST_DATA_WIDTH_SHIFT	25
-#define	 DMA_DEST_BST_LEN		(0x3 << 22)
-#define	 DMA_DEST_BST_LEN_SHIFT		22
-#define	 DMA_DEST_ADDR_MODE		(0x1 << 21)
-#define	 DMA_DEST_ADDR_MODE_SHIFT	21
-#define	 DMA_DEST_DRQ_TYPE		(0x1f << 16)
-#define	 DMA_DEST_DRQ_TYPE_SHIFT	16
-#define	 DMA_SRC_DATA_WIDTH		(0x3 << 9)
-#define	 DMA_SRC_DATA_WIDTH_SHIFT	9
-#define	 DMA_SRC_BST_LEN		(0x3 << 6)
-#define	 DMA_SRC_BST_LEN_SHIFT		6
-#define	 DMA_SRC_ADDR_MODE		(0x1 << 5)
-#define	 DMA_SRC_ADDR_MODE_SHIFT	5
-#define	 DMA_SRC_DRQ_TYPE		(0x1f << 0)
-#define	 DMA_SRC_DRQ_TYPE_SHIFT		0	
-#define	 DMA_DATA_WIDTH_8BIT		0
-#define	 DMA_DATA_WIDTH_16BIT		1
-#define	 DMA_DATA_WIDTH_32BIT		2
-#define	 DMA_DATA_WIDTH_64BIT		3
-#define	 DMA_ADDR_MODE_LINEAR		0
-#define	 DMA_ADDR_MODE_IO		1
-#define	 DMA_BST_LEN_1			0
-#define	 DMA_BST_LEN_4			1
-#define	 DMA_BST_LEN_8			2
-#define	 DMA_BST_LEN_16			3
-#define	DMA_CUR_SRC_REG(n)	(0x100 + (n) * 0x40 + 0x10)
-#define	DMA_CUR_DEST_REG(n)	(0x100 + (n) * 0x40 + 0x14)
-#define	DMA_BCNT_LEFT_REG(n)	(0x100 + (n) * 0x40 + 0x18)
-#define	DMA_PARA_REG(n)		(0x100 + (n) * 0x40 + 0x1c)
-#define	 WAIT_CYC			(0xff << 0)
-#define	 WAIT_CYC_SHIFT			0
+#define DMA_IRQ_EN_REG0 0x00
+#define DMA_IRQ_EN_REG1 0x04
+#define DMA_IRQ_EN_REG(ch) (DMA_IRQ_EN_REG0 + ((ch) / 8) * 4)
+#define DMA_PKG_IRQ_EN(ch) (1 << (((ch) % 8) * 4 + 1))
+#define DMA_PKG_IRQ_MASK 0x2222222222222222ULL
+#define DMA_IRQ_PEND_REG0 0x10
+#define DMA_IRQ_PEND_REG1 0x14
+#define DMA_IRQ_PEND_REG(ch) (DMA_IRQ_PEND_REG0 + ((ch) / 8) * 4)
+#define DMA_STA_REG 0x30
+#define DMA_EN_REG(n) (0x100 + (n)*0x40 + 0x00)
+#define DMA_EN (1 << 0)
+#define DMA_PAU_REG(n) (0x100 + (n)*0x40 + 0x04)
+#define DMA_STAR_ADDR_REG(n) (0x100 + (n)*0x40 + 0x08)
+#define DMA_CFG_REG(n) (0x100 + (n)*0x40 + 0x0c)
+#define DMA_DEST_DATA_WIDTH (0x3 << 25)
+#define DMA_DEST_DATA_WIDTH_SHIFT 25
+#define DMA_DEST_BST_LEN (0x3 << 22)
+#define DMA_DEST_BST_LEN_SHIFT 22
+#define DMA_DEST_ADDR_MODE (0x1 << 21)
+#define DMA_DEST_ADDR_MODE_SHIFT 21
+#define DMA_DEST_DRQ_TYPE (0x1f << 16)
+#define DMA_DEST_DRQ_TYPE_SHIFT 16
+#define DMA_SRC_DATA_WIDTH (0x3 << 9)
+#define DMA_SRC_DATA_WIDTH_SHIFT 9
+#define DMA_SRC_BST_LEN (0x3 << 6)
+#define DMA_SRC_BST_LEN_SHIFT 6
+#define DMA_SRC_ADDR_MODE (0x1 << 5)
+#define DMA_SRC_ADDR_MODE_SHIFT 5
+#define DMA_SRC_DRQ_TYPE (0x1f << 0)
+#define DMA_SRC_DRQ_TYPE_SHIFT 0
+#define DMA_DATA_WIDTH_8BIT 0
+#define DMA_DATA_WIDTH_16BIT 1
+#define DMA_DATA_WIDTH_32BIT 2
+#define DMA_DATA_WIDTH_64BIT 3
+#define DMA_ADDR_MODE_LINEAR 0
+#define DMA_ADDR_MODE_IO 1
+#define DMA_BST_LEN_1 0
+#define DMA_BST_LEN_4 1
+#define DMA_BST_LEN_8 2
+#define DMA_BST_LEN_16 3
+#define DMA_CUR_SRC_REG(n) (0x100 + (n)*0x40 + 0x10)
+#define DMA_CUR_DEST_REG(n) (0x100 + (n)*0x40 + 0x14)
+#define DMA_BCNT_LEFT_REG(n) (0x100 + (n)*0x40 + 0x18)
+#define DMA_PARA_REG(n) (0x100 + (n)*0x40 + 0x1c)
+#define WAIT_CYC (0xff << 0)
+#define WAIT_CYC_SHIFT 0
 
 struct a31dmac_desc {
-	uint32_t		config;
-	uint32_t		srcaddr;
-	uint32_t		dstaddr;
-	uint32_t		bcnt;
-	uint32_t		para;
-	uint32_t		next;
-#define	DMA_NULL		0xfffff800
+	uint32_t config;
+	uint32_t srcaddr;
+	uint32_t dstaddr;
+	uint32_t bcnt;
+	uint32_t para;
+	uint32_t next;
+#define DMA_NULL 0xfffff800
 };
-#define	DESC_ALIGN		4
-#define	DESC_SIZE		sizeof(struct a31dmac_desc)
+#define DESC_ALIGN 4
+#define DESC_SIZE sizeof(struct a31dmac_desc)
 
 struct a31dmac_config {
-	u_int			nchans;
+	u_int nchans;
 };
 
 static const struct a31dmac_config a31_config = { .nchans = 16 };
@@ -122,46 +122,42 @@ static const struct a31dmac_config h3_config = { .nchans = 12 };
 static const struct a31dmac_config a83t_config = { .nchans = 8 };
 static const struct a31dmac_config a64_config = { .nchans = 8 };
 
-static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun6i-a31-dma",	(uintptr_t)&a31_config },
-	{ "allwinner,sun8i-a83t-dma",	(uintptr_t)&a83t_config },
-	{ "allwinner,sun8i-h3-dma",	(uintptr_t)&h3_config },
-	{ "allwinner,sun50i-a64-dma",	(uintptr_t)&a64_config },
-	{ NULL,				(uintptr_t)NULL }
-};
+static struct ofw_compat_data compat_data[] = { { "allwinner,sun6i-a31-dma",
+						    (uintptr_t)&a31_config },
+	{ "allwinner,sun8i-a83t-dma", (uintptr_t)&a83t_config },
+	{ "allwinner,sun8i-h3-dma", (uintptr_t)&h3_config },
+	{ "allwinner,sun50i-a64-dma", (uintptr_t)&a64_config },
+	{ NULL, (uintptr_t)NULL } };
 
 struct a31dmac_softc;
 
 struct a31dmac_channel {
-	struct a31dmac_softc *		sc;
-	uint8_t				index;
-	void				(*callback)(void *);
-	void *				callbackarg;
+	struct a31dmac_softc *sc;
+	uint8_t index;
+	void (*callback)(void *);
+	void *callbackarg;
 
-	bus_dmamap_t			dmamap;
-	struct a31dmac_desc		*desc;
-	bus_addr_t			physaddr;
+	bus_dmamap_t dmamap;
+	struct a31dmac_desc *desc;
+	bus_addr_t physaddr;
 };
 
 struct a31dmac_softc {
-	struct resource *		res[2];
-	struct mtx			mtx;
-	void *				ih;
+	struct resource *res[2];
+	struct mtx mtx;
+	void *ih;
 
-	bus_dma_tag_t			dmat;
+	bus_dma_tag_t dmat;
 
-	u_int				nchans;
-	struct a31dmac_channel *	chans;
+	u_int nchans;
+	struct a31dmac_channel *chans;
 };
 
-static struct resource_spec a31dmac_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec a31dmac_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
-#define	DMA_READ(sc, reg)	bus_read_4((sc)->res[0], (reg))
-#define	DMA_WRITE(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
+#define DMA_READ(sc, reg) bus_read_4((sc)->res[0], (reg))
+#define DMA_WRITE(sc, reg, val) bus_write_4((sc)->res[0], (reg), (val))
 
 static void a31dmac_intr(void *);
 static void a31dmac_dmamap_cb(void *, bus_dma_segment_t *, int, int);
@@ -220,17 +216,16 @@ a31dmac_attach(device_t dev)
 	}
 
 	/* Descriptor DMA */
-	error = bus_dma_tag_create(
-		bus_get_dma_tag(dev),		/* Parent tag */
-		DESC_ALIGN, 0,			/* alignment, boundary */
-		BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-		BUS_SPACE_MAXADDR,		/* highaddr */
-		NULL, NULL,			/* filter, filterarg */
-		DESC_SIZE, 1,			/* maxsize, nsegs */
-		DESC_SIZE,			/* maxsegsize */
-		0,				/* flags */
-		NULL, NULL,			/* lockfunc, lockarg */
-		&sc->dmat);
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), /* Parent tag */
+	    DESC_ALIGN, 0,	     /* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
+	    BUS_SPACE_MAXADDR,	     /* highaddr */
+	    NULL, NULL,		     /* filter, filterarg */
+	    DESC_SIZE, 1,	     /* maxsize, nsegs */
+	    DESC_SIZE,		     /* maxsegsize */
+	    0,			     /* flags */
+	    NULL, NULL,		     /* lockfunc, lockarg */
+	    &sc->dmat);
 	if (error != 0) {
 		device_printf(dev, "cannot create dma tag\n");
 		goto fail;
@@ -244,8 +239,8 @@ a31dmac_attach(device_t dev)
 
 	/* Initialize channels */
 	sc->nchans = conf->nchans;
-	sc->chans = malloc(sizeof(*sc->chans) * sc->nchans, M_DEVBUF,
-	    M_WAITOK | M_ZERO);
+	sc->chans = malloc(
+	    sizeof(*sc->chans) * sc->nchans, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	for (index = 0; index < sc->nchans; index++) {
 		sc->chans[index].sc = sc;
@@ -261,7 +256,7 @@ a31dmac_attach(device_t dev)
 			device_printf(dev, "cannot allocate dma mem\n");
 			goto fail;
 		}
-		error = bus_dmamap_load(sc->dmat, sc->chans[index].dmamap, 
+		error = bus_dmamap_load(sc->dmat, sc->chans[index].dmamap,
 		    sc->chans[index].desc, sizeof(*sc->chans[index].desc),
 		    a31dmac_dmamap_cb, &sc->chans[index], BUS_DMA_WAITOK);
 		if (error != 0) {
@@ -431,13 +426,13 @@ a31dmac_set_config(device_t dev, void *priv, const struct sunxi_dma_config *cfg)
 		return (EINVAL);
 
 	config = (dst_dw << DMA_DEST_DATA_WIDTH_SHIFT) |
-		 (dst_bl << DMA_DEST_BST_LEN_SHIFT) |
-		 (dst_am << DMA_DEST_ADDR_MODE_SHIFT) |
-		 (cfg->dst_drqtype << DMA_DEST_DRQ_TYPE_SHIFT) |
-		 (src_dw << DMA_SRC_DATA_WIDTH_SHIFT) |
-		 (src_bl << DMA_SRC_BST_LEN_SHIFT) |
-		 (src_am << DMA_SRC_ADDR_MODE_SHIFT) |
-		 (cfg->src_drqtype << DMA_SRC_DRQ_TYPE_SHIFT);
+	    (dst_bl << DMA_DEST_BST_LEN_SHIFT) |
+	    (dst_am << DMA_DEST_ADDR_MODE_SHIFT) |
+	    (cfg->dst_drqtype << DMA_DEST_DRQ_TYPE_SHIFT) |
+	    (src_dw << DMA_SRC_DATA_WIDTH_SHIFT) |
+	    (src_bl << DMA_SRC_BST_LEN_SHIFT) |
+	    (src_am << DMA_SRC_ADDR_MODE_SHIFT) |
+	    (cfg->src_drqtype << DMA_SRC_DRQ_TYPE_SHIFT);
 	para = (dst_wc << WAIT_CYC_SHIFT);
 
 	ch->desc->config = htole32(config);
@@ -501,8 +496,8 @@ a31dmac_free(device_t dev, void *priv)
 }
 
 static int
-a31dmac_transfer(device_t dev, void *priv, bus_addr_t src, bus_addr_t dst,
-    size_t nbytes)
+a31dmac_transfer(
+    device_t dev, void *priv, bus_addr_t src, bus_addr_t dst, size_t nbytes)
 {
 	struct a31dmac_channel *ch;
 	struct a31dmac_softc *sc;
@@ -535,24 +530,21 @@ a31dmac_halt(device_t dev, void *priv)
 
 static device_method_t a31dmac_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		a31dmac_probe),
-	DEVMETHOD(device_attach,	a31dmac_attach),
+	DEVMETHOD(device_probe, a31dmac_probe),
+	DEVMETHOD(device_attach, a31dmac_attach),
 
 	/* sunxi DMA interface */
-	DEVMETHOD(sunxi_dma_alloc,	a31dmac_alloc),
-	DEVMETHOD(sunxi_dma_free,	a31dmac_free),
-	DEVMETHOD(sunxi_dma_set_config,	a31dmac_set_config),
-	DEVMETHOD(sunxi_dma_transfer,	a31dmac_transfer),
-	DEVMETHOD(sunxi_dma_halt,	a31dmac_halt),
+	DEVMETHOD(sunxi_dma_alloc, a31dmac_alloc),
+	DEVMETHOD(sunxi_dma_free, a31dmac_free),
+	DEVMETHOD(sunxi_dma_set_config, a31dmac_set_config),
+	DEVMETHOD(sunxi_dma_transfer, a31dmac_transfer),
+	DEVMETHOD(sunxi_dma_halt, a31dmac_halt),
 
 	DEVMETHOD_END
 };
 
-static driver_t a31dmac_driver = {
-	"a31dmac",
-	a31dmac_methods,
-	sizeof(struct a31dmac_softc)
-};
+static driver_t a31dmac_driver = { "a31dmac", a31dmac_methods,
+	sizeof(struct a31dmac_softc) };
 
 static devclass_t a31dmac_devclass;
 

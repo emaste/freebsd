@@ -64,34 +64,34 @@
  * This structure describes an MMC/SD card
  */
 struct mmc_params {
-        u_int8_t	model[40]; /* Card model */
+	u_int8_t model[40]; /* Card model */
 
-        /* Card OCR */
-        uint32_t card_ocr;
+	/* Card OCR */
+	uint32_t card_ocr;
 
-        /* OCR of the IO portion of the card */
-        uint32_t io_ocr;
+	/* OCR of the IO portion of the card */
+	uint32_t io_ocr;
 
-        /* Card CID -- raw and parsed */
-        uint32_t card_cid[4];
-        struct mmc_cid  cid;
+	/* Card CID -- raw and parsed */
+	uint32_t card_cid[4];
+	struct mmc_cid cid;
 
-        /* Card CSD -- raw */
-        uint32_t card_csd[4];
+	/* Card CSD -- raw */
+	uint32_t card_csd[4];
 
-        /* Card RCA */
-        uint16_t card_rca;
+	/* Card RCA */
+	uint16_t card_rca;
 
-        /* What kind of card is it */
-        uint32_t card_features;
+	/* What kind of card is it */
+	uint32_t card_features;
 #define CARD_FEATURE_MEMORY 0x1
-#define CARD_FEATURE_SDHC   0x1 << 1
-#define CARD_FEATURE_SDIO   0x1 << 2
-#define CARD_FEATURE_SD20   0x1 << 3
-#define CARD_FEATURE_MMC    0x1 << 4
-#define CARD_FEATURE_18V    0x1 << 5
+#define CARD_FEATURE_SDHC 0x1 << 1
+#define CARD_FEATURE_SDIO 0x1 << 2
+#define CARD_FEATURE_SD20 0x1 << 3
+#define CARD_FEATURE_MMC 0x1 << 4
+#define CARD_FEATURE_18V 0x1 << 5
 
-        uint8_t sdio_func_count;
+	uint8_t sdio_func_count;
 } __packed;
 
 /*
@@ -101,5 +101,5 @@ struct mmc_params {
  * of already probed cards. Furthermore, retuning and high-speed
  * settings should also take all cards into account.
  */
-#define MMC_PROPOSED_RCA    2
+#define MMC_PROPOSED_RCA 2
 #endif

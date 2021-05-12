@@ -59,24 +59,24 @@ char nfs_v2pubfh[NFSX_V2FH];
 struct nfsdontlisthead nfsrv_dontlisthead;
 struct nfslayouthead nfsrv_recalllisthead;
 static nfstype newnfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK,
-    NFNON, NFCHR, NFNON };
+	NFNON, NFCHR, NFNON };
 extern nfstype nfsv34_type[9];
 
 static u_int32_t nfsrv_isannfserr(u_int32_t);
 
 SYSCTL_DECL(_vfs_nfsd);
 
-static int	enable_checkutf8 = 1;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_checkutf8, CTLFLAG_RW,
-    &enable_checkutf8, 0,
+static int enable_checkutf8 = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_checkutf8, CTLFLAG_RW, &enable_checkutf8,
+    0,
     "Enable the NFSv4 check for the UTF8 compliant name required by rfc3530");
 
-static int    enable_nobodycheck = 1;
+static int enable_nobodycheck = 1;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_nobodycheck, CTLFLAG_RW,
     &enable_nobodycheck, 0,
     "Enable the NFSv4 check when setting user nobody as owner");
 
-static int    enable_nogroupcheck = 1;
+static int enable_nogroupcheck = 1;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_nogroupcheck, CTLFLAG_RW,
     &enable_nogroupcheck, 0,
     "Enable the NFSv4 check when setting group nogroup as owner");
@@ -89,21 +89,77 @@ static char nfsrv_hexdigit(char, int *);
  * RFC 1094. (It now includes the errors added for NFSv3.)
  */
 static u_char nfsrv_v2errmap[NFSERR_REMOTE] = {
-  NFSERR_PERM,	NFSERR_NOENT,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_NXIO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_ACCES,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_EXIST,	NFSERR_XDEV,	NFSERR_NODEV,	NFSERR_NOTDIR,
-  NFSERR_ISDIR,	NFSERR_INVAL,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_FBIG,	NFSERR_NOSPC,	NFSERR_IO,	NFSERR_ROFS,
-  NFSERR_MLINK,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_NAMETOL,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_NOTEMPTY, NFSERR_IO,	NFSERR_IO,	NFSERR_DQUOT,	NFSERR_STALE,
-  NFSERR_REMOTE,
+	NFSERR_PERM,
+	NFSERR_NOENT,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_NXIO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_ACCES,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_EXIST,
+	NFSERR_XDEV,
+	NFSERR_NODEV,
+	NFSERR_NOTDIR,
+	NFSERR_ISDIR,
+	NFSERR_INVAL,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_FBIG,
+	NFSERR_NOSPC,
+	NFSERR_IO,
+	NFSERR_ROFS,
+	NFSERR_MLINK,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_NAMETOL,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_NOTEMPTY,
+	NFSERR_IO,
+	NFSERR_IO,
+	NFSERR_DQUOT,
+	NFSERR_STALE,
+	NFSERR_REMOTE,
 };
 
 /*
@@ -1329,8 +1385,8 @@ nfsrv_adj(struct mbuf *mp, int len, int nul)
 			/* Trim this mbuf. */
 			trim = m->m_len - lastlen;
 			while (trim >= plen) {
-				KASSERT(pgno > 0,
-				    ("nfsrv_adj: freeing page 0"));
+				KASSERT(
+				    pgno > 0, ("nfsrv_adj: freeing page 0"));
 				/* Free page. */
 				pg = PHYS_TO_VM_PAGE(m->m_epg_pa[pgno]);
 				vm_page_unwire_noq(pg);
@@ -1390,8 +1446,8 @@ nfsrv_wcc(struct nfsrv_descript *nd, int before_ret,
 }
 
 void
-nfsrv_postopattr(struct nfsrv_descript *nd, int after_ret,
-    struct nfsvattr *after_nvap)
+nfsrv_postopattr(
+    struct nfsrv_descript *nd, int after_ret, struct nfsvattr *after_nvap)
 {
 	u_int32_t *tl;
 
@@ -1490,16 +1546,17 @@ nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 			nd->nd_flag |= ND_DSSERVER;
 		} else if (len < NFSRV_MINFH || len > NFSRV_MAXFH) {
 			if (nd->nd_flag & ND_NFSV4) {
-			    if (len > 0 && len <= NFSX_V4FHMAX) {
-				error = nfsm_advance(nd, NFSM_RNDUP(len), -1);
-				if (error)
+				if (len > 0 && len <= NFSX_V4FHMAX) {
+					error = nfsm_advance(
+					    nd, NFSM_RNDUP(len), -1);
+					if (error)
+						goto nfsmout;
+					nd->nd_repstat = NFSERR_BADHANDLE;
 					goto nfsmout;
-				nd->nd_repstat = NFSERR_BADHANDLE;
-				goto nfsmout;
-			    } else {
-				    error = EBADRPC;
-				    goto nfsmout;
-			    }
+				} else {
+					error = EBADRPC;
+					goto nfsmout;
+				}
 			} else {
 				error = EBADRPC;
 				goto nfsmout;
@@ -1547,11 +1604,11 @@ nfsd_errmap(struct nfsrv_descript *nd)
 		if (nd->nd_procnum == NFSPROC_NOOP)
 			return (txdr_unsigned(nd->nd_repstat & 0xffff));
 		if (nd->nd_flag & ND_NFSV3)
-		    errp = defaulterrp = nfsrv_v3errmap[nd->nd_procnum];
+			errp = defaulterrp = nfsrv_v3errmap[nd->nd_procnum];
 		else if (nd->nd_repstat == EBADRPC)
 			return (txdr_unsigned(NFSERR_BADXDR));
 		else if (nd->nd_repstat == NFSERR_MINORVERMISMATCH ||
-			 nd->nd_repstat == NFSERR_OPILLEGAL)
+		    nd->nd_repstat == NFSERR_OPILLEGAL)
 			return (txdr_unsigned(nd->nd_repstat));
 		else if (nd->nd_repstat == NFSERR_REPLYFROMCACHE)
 			return (txdr_unsigned(NFSERR_IO));
@@ -1561,7 +1618,7 @@ nfsd_errmap(struct nfsrv_descript *nd)
 			nd->nd_repstat = nfsrv_isannfserr(nd->nd_repstat);
 			return (txdr_unsigned(nd->nd_repstat));
 		} else
-		    errp = defaulterrp = nfsrv_v4errmap[nd->nd_procnum];
+			errp = defaulterrp = nfsrv_v4errmap[nd->nd_procnum];
 		while (*++errp)
 			if (*errp == nd->nd_repstat)
 				return (txdr_unsigned(nd->nd_repstat));
@@ -1605,9 +1662,9 @@ nfsrv_checkuidgid(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 	if (NFSVNO_NOTSETUID(nvap) && NFSVNO_NOTSETGID(nvap))
 		goto out;
 	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid == nfsrv_defaultuid &&
-           enable_nobodycheck == 1)
-	    || (NFSVNO_ISSETGID(nvap) && nvap->na_gid == nfsrv_defaultgid &&
-           enable_nogroupcheck == 1)) {
+		enable_nobodycheck == 1) ||
+	    (NFSVNO_ISSETGID(nvap) && nvap->na_gid == nfsrv_defaultgid &&
+		enable_nogroupcheck == 1)) {
 		error = NFSERR_BADOWNER;
 		goto out;
 	}
@@ -1615,7 +1672,7 @@ nfsrv_checkuidgid(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 		goto out;
 	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid != nd->nd_cred->cr_uid) ||
 	    (NFSVNO_ISSETGID(nvap) && nvap->na_gid != nd->nd_cred->cr_gid &&
-	    !groupmember(nvap->na_gid, nd->nd_cred)))
+		!groupmember(nvap->na_gid, nd->nd_cred)))
 		error = NFSERR_PERM;
 
 out:
@@ -1628,8 +1685,8 @@ out:
  * by nfsrv_checkuidgid().
  */
 void
-nfsrv_fixattr(struct nfsrv_descript *nd, vnode_t vp,
-    struct nfsvattr *nvap, NFSACL_T *aclp, NFSPROC_T *p, nfsattrbit_t *attrbitp,
+nfsrv_fixattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
+    NFSACL_T *aclp, NFSPROC_T *p, nfsattrbit_t *attrbitp,
     struct nfsexstuff *exp)
 {
 	int change = 0;
@@ -1649,8 +1706,7 @@ nfsrv_fixattr(struct nfsrv_descript *nd, vnode_t vp,
 	NFSZERO_ATTRBIT(&nattrbits);
 	tuid = nd->nd_cred->cr_uid;
 	if (NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_OWNER) &&
-	    NFSVNO_ISSETUID(nvap) &&
-	    nvap->na_uid != nd->nd_cred->cr_uid) {
+	    NFSVNO_ISSETUID(nvap) && nvap->na_uid != nd->nd_cred->cr_uid) {
 		if (nd->nd_cred->cr_uid == 0) {
 			nva.na_uid = nvap->na_uid;
 			change++;
@@ -1694,8 +1750,8 @@ nfsrv_fixattr(struct nfsrv_descript *nd, vnode_t vp,
 		NFSCLRBIT_ATTRBIT(attrbitp, NFSATTRBIT_SIZE);
 	}
 #ifdef NFS4_ACL_EXTATTR_NAME
-	if (NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_ACL) &&
-	    nfsrv_useacl != 0 && aclp != NULL) {
+	if (NFSISSET_ATTRBIT(attrbitp, NFSATTRBIT_ACL) && nfsrv_useacl != 0 &&
+	    aclp != NULL) {
 		if (aclp->acl_cnt > 0) {
 			error = nfsrv_setacl(vp, aclp, nd->nd_cred, p);
 			if (error) {
@@ -1704,7 +1760,7 @@ nfsrv_fixattr(struct nfsrv_descript *nd, vnode_t vp,
 		}
 	} else
 #endif
-	NFSCLRBIT_ATTRBIT(attrbitp, NFSATTRBIT_ACL);
+		NFSCLRBIT_ATTRBIT(attrbitp, NFSATTRBIT_ACL);
 	nd->nd_cred->cr_uid = tuid;
 
 out:
@@ -1728,7 +1784,7 @@ nfsrv_hexdigit(char c, int *err)
 		return (c - 'A' + ((char)10));
 	/* Not valid ! */
 	*err = 1;
-	return (1);	/* BOGUS */
+	return (1); /* BOGUS */
 }
 
 /*
@@ -1803,66 +1859,68 @@ nfsrv_putreferralattr(struct nfsrv_descript *nd, nfsattrbit_t *retbitp,
 	 * Now, loop around filling in the attributes for each bit set.
 	 */
 	for (bitpos = 0; bitpos < NFSATTRBIT_MAX; bitpos++) {
-	    if (NFSISSET_ATTRBIT(&tmpbits, bitpos)) {
-		switch (bitpos) {
-		case NFSATTRBIT_TYPE:
-			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = txdr_unsigned(NFDIR);
-			retnum += NFSX_UNSIGNED;
-			break;
-		case NFSATTRBIT_FSID:
-			NFSM_BUILD(tl, u_int32_t *, NFSX_V4FSID);
-			*tl++ = 0;
-			*tl++ = txdr_unsigned(NFSV4ROOT_FSID0);
-			*tl++ = 0;
-			*tl = txdr_unsigned(NFSV4ROOT_REFERRAL);
-			retnum += NFSX_V4FSID;
-			break;
-		case NFSATTRBIT_RDATTRERROR:
-			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			if (nonrefbit)
-				*tl = txdr_unsigned(NFSERR_MOVED);
-			else
-				*tl = 0;
-			retnum += NFSX_UNSIGNED;
-			break;
-		case NFSATTRBIT_FSLOCATIONS:
-			retnum += nfsm_strtom(nd, "/", 1);
-			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = txdr_unsigned(refp->nfr_srvcnt);
-			retnum += NFSX_UNSIGNED;
-			cp = refp->nfr_srvlist;
-			for (i = 0; i < refp->nfr_srvcnt; i++) {
+		if (NFSISSET_ATTRBIT(&tmpbits, bitpos)) {
+			switch (bitpos) {
+			case NFSATTRBIT_TYPE:
 				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-				*tl = txdr_unsigned(1);
+				*tl = txdr_unsigned(NFDIR);
 				retnum += NFSX_UNSIGNED;
-				cp2 = STRCHR(cp, ':');
-				if (cp2 != NULL)
-					len = cp2 - cp;
+				break;
+			case NFSATTRBIT_FSID:
+				NFSM_BUILD(tl, u_int32_t *, NFSX_V4FSID);
+				*tl++ = 0;
+				*tl++ = txdr_unsigned(NFSV4ROOT_FSID0);
+				*tl++ = 0;
+				*tl = txdr_unsigned(NFSV4ROOT_REFERRAL);
+				retnum += NFSX_V4FSID;
+				break;
+			case NFSATTRBIT_RDATTRERROR:
+				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+				if (nonrefbit)
+					*tl = txdr_unsigned(NFSERR_MOVED);
 				else
-					len = 1;
-				retnum += nfsm_strtom(nd, cp, len);
-				if (cp2 != NULL)
-					cp = cp2 + 1;
-				cp2 = STRCHR(cp, ',');
-				if (cp2 != NULL)
-					len = cp2 - cp;
-				else
-					len = strlen(cp);
-				retnum += nfsm_strtom(nd, cp, len);
-				if (cp2 != NULL)
-					cp = cp2 + 1;
+					*tl = 0;
+				retnum += NFSX_UNSIGNED;
+				break;
+			case NFSATTRBIT_FSLOCATIONS:
+				retnum += nfsm_strtom(nd, "/", 1);
+				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+				*tl = txdr_unsigned(refp->nfr_srvcnt);
+				retnum += NFSX_UNSIGNED;
+				cp = refp->nfr_srvlist;
+				for (i = 0; i < refp->nfr_srvcnt; i++) {
+					NFSM_BUILD(
+					    tl, u_int32_t *, NFSX_UNSIGNED);
+					*tl = txdr_unsigned(1);
+					retnum += NFSX_UNSIGNED;
+					cp2 = STRCHR(cp, ':');
+					if (cp2 != NULL)
+						len = cp2 - cp;
+					else
+						len = 1;
+					retnum += nfsm_strtom(nd, cp, len);
+					if (cp2 != NULL)
+						cp = cp2 + 1;
+					cp2 = STRCHR(cp, ',');
+					if (cp2 != NULL)
+						len = cp2 - cp;
+					else
+						len = strlen(cp);
+					retnum += nfsm_strtom(nd, cp, len);
+					if (cp2 != NULL)
+						cp = cp2 + 1;
+				}
+				break;
+			case NFSATTRBIT_MOUNTEDONFILEID:
+				NFSM_BUILD(tl, u_int32_t *, NFSX_HYPER);
+				txdr_hyper(refp->nfr_dfileno, tl);
+				retnum += NFSX_HYPER;
+				break;
+			default:
+				printf(
+				    "EEK! Bad V4 refattr bitpos=%d\n", bitpos);
 			}
-			break;
-		case NFSATTRBIT_MOUNTEDONFILEID:
-			NFSM_BUILD(tl, u_int32_t *, NFSX_HYPER);
-			txdr_hyper(refp->nfr_dfileno, tl);
-			retnum += NFSX_HYPER;
-			break;
-		default:
-			printf("EEK! Bad V4 refattr bitpos=%d\n", bitpos);
 		}
-	    }
 	}
 	*retnump = txdr_unsigned(retnum);
 	return (retnum + prefixnum);
@@ -1872,8 +1930,8 @@ nfsrv_putreferralattr(struct nfsrv_descript *nd, nfsattrbit_t *retbitp,
  * Parse a file name out of a request.
  */
 int
-nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
-    NFSPATHLEN_T *outlenp)
+nfsrv_parsename(
+    struct nfsrv_descript *nd, char *bufp, u_long *hashp, NFSPATHLEN_T *outlenp)
 {
 	char *fromcp, *tocp, val = '\0';
 	struct mbuf *md;
@@ -1891,177 +1949,179 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 	 * Otherwise, get the component name.
 	 */
 	if ((nd->nd_flag & ND_NFSV4) && nd->nd_procnum == NFSV4OP_LOOKUPP) {
-	    *tocp++ = '.';
-	    hash += ((u_char)'.');
-	    *tocp++ = '.';
-	    hash += ((u_char)'.');
-	    outlen = 2;
+		*tocp++ = '.';
+		hash += ((u_char)'.');
+		*tocp++ = '.';
+		hash += ((u_char)'.');
+		outlen = 2;
 	} else {
-	    /*
-	     * First, get the name length.
-	     */
-	    NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
-	    len = fxdr_unsigned(int, *tl);
-	    if (len > NFS_MAXNAMLEN) {
-		nd->nd_repstat = NFSERR_NAMETOL;
-		error = 0;
-		goto nfsmout;
-	    } else if (len <= 0) {
-		nd->nd_repstat = NFSERR_INVAL;
-		error = 0;
-		goto nfsmout;
-	    }
-
-	    /*
-	     * Now, copy the component name into the buffer.
-	     */
-	    fromcp = nd->nd_dpos;
-	    md = nd->nd_md;
-	    rem = mtod(md, caddr_t) + md->m_len - fromcp;
-	    for (i = 0; i < len; i++) {
-		while (rem == 0) {
-			md = md->m_next;
-			if (md == NULL) {
-				error = EBADRPC;
-				goto nfsmout;
-			}
-			fromcp = mtod(md, caddr_t);
-			rem = md->m_len;
-		}
-		if (*fromcp == '\0') {
-			nd->nd_repstat = EACCES;
+		/*
+		 * First, get the name length.
+		 */
+		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
+		len = fxdr_unsigned(int, *tl);
+		if (len > NFS_MAXNAMLEN) {
+			nd->nd_repstat = NFSERR_NAMETOL;
+			error = 0;
+			goto nfsmout;
+		} else if (len <= 0) {
+			nd->nd_repstat = NFSERR_INVAL;
 			error = 0;
 			goto nfsmout;
 		}
+
 		/*
-		 * For lookups on the public filehandle, do some special
-		 * processing on the name. (The public file handle is the
-		 * root of the public file system for this server.)
+		 * Now, copy the component name into the buffer.
 		 */
-		if (nd->nd_flag & ND_PUBLOOKUP) {
-			/*
-			 * If the first char is ASCII, it is a canonical
-			 * path, otherwise it is a native path. (RFC2054
-			 * doesn't actually state what it is if the first
-			 * char isn't ASCII or 0x80, so I assume native.)
-			 * pubtype == 1 -> native path
-			 * pubtype == 2 -> canonical path
-			 */
-			if (i == 0) {
-				if (*fromcp & 0x80) {
-					/*
-					 * Since RFC2054 doesn't indicate
-					 * that a native path of just 0x80
-					 * isn't allowed, I'll replace the
-					 * 0x80 with '/' instead of just
-					 * throwing it away.
-					 */
-					*fromcp = '/';
-					pubtype = 1;
-				} else {
-					pubtype = 2;
+		fromcp = nd->nd_dpos;
+		md = nd->nd_md;
+		rem = mtod(md, caddr_t) + md->m_len - fromcp;
+		for (i = 0; i < len; i++) {
+			while (rem == 0) {
+				md = md->m_next;
+				if (md == NULL) {
+					error = EBADRPC;
+					goto nfsmout;
 				}
+				fromcp = mtod(md, caddr_t);
+				rem = md->m_len;
 			}
-			/*
-			 * '/' only allowed in a native path
-			 */
-			if (*fromcp == '/' && pubtype != 1) {
+			if (*fromcp == '\0') {
 				nd->nd_repstat = EACCES;
 				error = 0;
 				goto nfsmout;
 			}
-
 			/*
-			 * For the special case of 2 hex digits after a
-			 * '%' in an absolute path, calculate the value.
-			 * percent == 1 -> indicates "get first hex digit"
-			 * percent == 2 -> indicates "get second hex digit"
+			 * For lookups on the public filehandle, do some special
+			 * processing on the name. (The public file handle is
+			 * the root of the public file system for this server.)
 			 */
-			if (percent > 0) {
-				digit = nfsrv_hexdigit(*fromcp, &error);
-				if (error) {
+			if (nd->nd_flag & ND_PUBLOOKUP) {
+				/*
+				 * If the first char is ASCII, it is a canonical
+				 * path, otherwise it is a native path. (RFC2054
+				 * doesn't actually state what it is if the
+				 * first char isn't ASCII or 0x80, so I assume
+				 * native.) pubtype == 1 -> native path pubtype
+				 * == 2 -> canonical path
+				 */
+				if (i == 0) {
+					if (*fromcp & 0x80) {
+						/*
+						 * Since RFC2054 doesn't
+						 * indicate that a native path
+						 * of just 0x80 isn't allowed,
+						 * I'll replace the 0x80 with
+						 * '/' instead of just throwing
+						 * it away.
+						 */
+						*fromcp = '/';
+						pubtype = 1;
+					} else {
+						pubtype = 2;
+					}
+				}
+				/*
+				 * '/' only allowed in a native path
+				 */
+				if (*fromcp == '/' && pubtype != 1) {
 					nd->nd_repstat = EACCES;
 					error = 0;
 					goto nfsmout;
 				}
-				if (percent == 1) {
-					val = (digit << 4);
-					percent = 2;
-				} else {
-					val += digit;
-					percent = 0;
-					*tocp++ = val;
-					hash += ((u_char)val);
-					outlen++;
-				}
-			} else {
-				if (*fromcp == '%' && pubtype == 2) {
-					/*
-					 * Must be followed by 2 hex digits
-					 */
-					if ((len - i) < 3) {
+
+				/*
+				 * For the special case of 2 hex digits after a
+				 * '%' in an absolute path, calculate the value.
+				 * percent == 1 -> indicates "get first hex
+				 * digit" percent == 2 -> indicates "get second
+				 * hex digit"
+				 */
+				if (percent > 0) {
+					digit = nfsrv_hexdigit(*fromcp, &error);
+					if (error) {
 						nd->nd_repstat = EACCES;
 						error = 0;
 						goto nfsmout;
 					}
-					percent = 1;
+					if (percent == 1) {
+						val = (digit << 4);
+						percent = 2;
+					} else {
+						val += digit;
+						percent = 0;
+						*tocp++ = val;
+						hash += ((u_char)val);
+						outlen++;
+					}
 				} else {
-					*tocp++ = *fromcp;
-					hash += ((u_char)*fromcp);
-					outlen++;
+					if (*fromcp == '%' && pubtype == 2) {
+						/*
+						 * Must be followed by 2 hex
+						 * digits
+						 */
+						if ((len - i) < 3) {
+							nd->nd_repstat = EACCES;
+							error = 0;
+							goto nfsmout;
+						}
+						percent = 1;
+					} else {
+						*tocp++ = *fromcp;
+						hash += ((u_char)*fromcp);
+						outlen++;
+					}
 				}
+			} else {
+				/*
+				 * Normal, non lookup on public, name.
+				 */
+				if (*fromcp == '/') {
+					if (nd->nd_flag & ND_NFSV4)
+						nd->nd_repstat = NFSERR_BADNAME;
+					else
+						nd->nd_repstat = EACCES;
+					error = 0;
+					goto nfsmout;
+				}
+				hash += ((u_char)*fromcp);
+				*tocp++ = *fromcp;
+				outlen++;
 			}
-		} else {
-			/*
-			 * Normal, non lookup on public, name.
-			 */
-			if (*fromcp == '/') {
-				if (nd->nd_flag & ND_NFSV4)
-					nd->nd_repstat = NFSERR_BADNAME;
-				else
-					nd->nd_repstat = EACCES;
+			fromcp++;
+			rem--;
+		}
+		nd->nd_md = md;
+		nd->nd_dpos = fromcp;
+		i = NFSM_RNDUP(len) - len;
+		if (i > 0) {
+			if (rem >= i) {
+				nd->nd_dpos += i;
+			} else {
+				error = nfsm_advance(nd, i, rem);
+				if (error)
+					goto nfsmout;
+			}
+		}
+
+		/*
+		 * For v4, don't allow lookups of '.' or '..' and
+		 * also check for non-utf8 strings.
+		 */
+		if (nd->nd_flag & ND_NFSV4) {
+			if ((outlen == 1 && bufp[0] == '.') ||
+			    (outlen == 2 && bufp[0] == '.' && bufp[1] == '.')) {
+				nd->nd_repstat = NFSERR_BADNAME;
 				error = 0;
 				goto nfsmout;
 			}
-			hash += ((u_char)*fromcp);
-			*tocp++ = *fromcp;
-			outlen++;
-		}
-		fromcp++;
-		rem--;
-	    }
-	    nd->nd_md = md;
-	    nd->nd_dpos = fromcp;
-	    i = NFSM_RNDUP(len) - len;
-	    if (i > 0) {
-		if (rem >= i) {
-			nd->nd_dpos += i;
-		} else {
-			error = nfsm_advance(nd, i, rem);
-			if (error)
+			if (enable_checkutf8 == 1 &&
+			    nfsrv_checkutf8((u_int8_t *)bufp, outlen)) {
+				nd->nd_repstat = NFSERR_INVAL;
+				error = 0;
 				goto nfsmout;
+			}
 		}
-	    }
-
-	    /*
-	     * For v4, don't allow lookups of '.' or '..' and
-	     * also check for non-utf8 strings.
-	     */
-	    if (nd->nd_flag & ND_NFSV4) {
-		if ((outlen == 1 && bufp[0] == '.') ||
-		    (outlen == 2 && bufp[0] == '.' &&
-		     bufp[1] == '.')) {
-		    nd->nd_repstat = NFSERR_BADNAME;
-		    error = 0;
-		    goto nfsmout;
-		}
-		if (enable_checkutf8 == 1 &&
-		    nfsrv_checkutf8((u_int8_t *)bufp, outlen)) {
-		    nd->nd_repstat = NFSERR_INVAL;
-		    error = 0;
-		    goto nfsmout;
-		}
-	    }
 	}
 	*tocp = '\0';
 	*outlenp = (size_t)outlen;
@@ -2086,16 +2146,19 @@ nfsd_init(void)
 	 * Initialize client queues. Don't free/reinitialize
 	 * them when nfsds are restarted.
 	 */
-	nfsclienthash = malloc(sizeof(struct nfsclienthashhead) *
-	    nfsrv_clienthashsize, M_NFSDCLIENT, M_WAITOK | M_ZERO);
+	nfsclienthash = malloc(
+	    sizeof(struct nfsclienthashhead) * nfsrv_clienthashsize,
+	    M_NFSDCLIENT, M_WAITOK | M_ZERO);
 	for (i = 0; i < nfsrv_clienthashsize; i++)
 		LIST_INIT(&nfsclienthash[i]);
-	nfslockhash = malloc(sizeof(struct nfslockhashhead) *
-	    nfsrv_lockhashsize, M_NFSDLOCKFILE, M_WAITOK | M_ZERO);
+	nfslockhash = malloc(
+	    sizeof(struct nfslockhashhead) * nfsrv_lockhashsize, M_NFSDLOCKFILE,
+	    M_WAITOK | M_ZERO);
 	for (i = 0; i < nfsrv_lockhashsize; i++)
 		LIST_INIT(&nfslockhash[i]);
-	nfssessionhash = malloc(sizeof(struct nfssessionhash) *
-	    nfsrv_sessionhashsize, M_NFSDSESSION, M_WAITOK | M_ZERO);
+	nfssessionhash = malloc(
+	    sizeof(struct nfssessionhash) * nfsrv_sessionhashsize,
+	    M_NFSDSESSION, M_WAITOK | M_ZERO);
 	for (i = 0; i < nfsrv_sessionhashsize; i++) {
 		mtx_init(&nfssessionhash[i].mtx, "nfssm", NULL, MTX_DEF);
 		LIST_INIT(&nfssessionhash[i].list);
@@ -2123,8 +2186,9 @@ nfsd_checkrootexp(struct nfsrv_descript *nd)
 	if ((nd->nd_flag & (ND_GSSPRIVACY | ND_EXGSSPRIVACY)) ==
 	    (ND_GSSPRIVACY | ND_EXGSSPRIVACY))
 		goto checktls;
-	if ((nd->nd_flag & (ND_GSS | ND_GSSINTEGRITY | ND_GSSPRIVACY |
-	     ND_EXGSS)) == (ND_GSS | ND_EXGSS))
+	if ((nd->nd_flag &
+		(ND_GSS | ND_GSSINTEGRITY | ND_GSSPRIVACY | ND_EXGSS)) ==
+	    (ND_GSS | ND_EXGSS))
 		goto checktls;
 	return (1);
 checktls:

@@ -26,9 +26,9 @@
  */
 
 #ifndef _ALLWINNER_PINCTRL_H_
-#define	_ALLWINNER_PINCTRL_H_
+#define _ALLWINNER_PINCTRL_H_
 
-#define AW_MAX_FUNC_BY_PIN	8
+#define AW_MAX_FUNC_BY_PIN 8
 
 struct allwinner_pins {
 	const char *name;
@@ -41,8 +41,8 @@ struct allwinner_pins {
 };
 
 struct allwinner_padconf {
-	uint32_t			npins;
-	const struct allwinner_pins *	pins;
+	uint32_t npins;
+	const struct allwinner_pins *pins;
 };
 
 #endif /* _ALLWINNER_PINCTRL_H_ */

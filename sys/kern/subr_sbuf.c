@@ -34,13 +34,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #ifdef _KERNEL
+#include <sys/systm.h>
 #include <sys/ctype.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
+
 #include <machine/stdarg.h>
 #else /* _KERNEL */
 #include <ctype.h>
@@ -56,46 +57,51 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
-#define	SBMALLOC(size, flags)	malloc(size, M_SBUF, (flags) | M_ZERO)
-#define	SBFREE(buf)		free(buf, M_SBUF)
+#define SBMALLOC(size, flags) malloc(size, M_SBUF, (flags) | M_ZERO)
+#define SBFREE(buf) free(buf, M_SBUF)
 #else /* _KERNEL */
-#define	KASSERT(e, m)
-#define	SBMALLOC(size, flags)	calloc(1, size)
-#define	SBFREE(buf)		free(buf)
+#define KASSERT(e, m)
+#define SBMALLOC(size, flags) calloc(1, size)
+#define SBFREE(buf) free(buf)
 #endif /* _KERNEL */
 
 /*
  * Predicates
  */
-#define	SBUF_ISDYNAMIC(s)	((s)->s_flags & SBUF_DYNAMIC)
-#define	SBUF_ISDYNSTRUCT(s)	((s)->s_flags & SBUF_DYNSTRUCT)
-#define	SBUF_ISFINISHED(s)	((s)->s_flags & SBUF_FINISHED)
-#define	SBUF_ISDRAINATEOL(s)	((s)->s_flags & SBUF_DRAINATEOL)
-#define	SBUF_HASROOM(s)		((s)->s_len < (s)->s_size - 1)
-#define	SBUF_FREESPACE(s)	((s)->s_size - ((s)->s_len + 1))
-#define	SBUF_CANEXTEND(s)	((s)->s_flags & SBUF_AUTOEXTEND)
-#define	SBUF_ISSECTION(s)	((s)->s_flags & SBUF_INSECTION)
-#define	SBUF_NULINCLUDED(s)	((s)->s_flags & SBUF_INCLUDENUL)
-#define	SBUF_ISDRAINTOEOR(s)	((s)->s_flags & SBUF_DRAINTOEOR)
-#define	SBUF_DODRAINTOEOR(s)	(SBUF_ISSECTION(s) && SBUF_ISDRAINTOEOR(s))
-#define	SBUF_MALLOCFLAG(s)	\
-	(((s)->s_flags & SBUF_NOWAIT) ? M_NOWAIT : M_WAITOK)
+#define SBUF_ISDYNAMIC(s) ((s)->s_flags & SBUF_DYNAMIC)
+#define SBUF_ISDYNSTRUCT(s) ((s)->s_flags & SBUF_DYNSTRUCT)
+#define SBUF_ISFINISHED(s) ((s)->s_flags & SBUF_FINISHED)
+#define SBUF_ISDRAINATEOL(s) ((s)->s_flags & SBUF_DRAINATEOL)
+#define SBUF_HASROOM(s) ((s)->s_len < (s)->s_size - 1)
+#define SBUF_FREESPACE(s) ((s)->s_size - ((s)->s_len + 1))
+#define SBUF_CANEXTEND(s) ((s)->s_flags & SBUF_AUTOEXTEND)
+#define SBUF_ISSECTION(s) ((s)->s_flags & SBUF_INSECTION)
+#define SBUF_NULINCLUDED(s) ((s)->s_flags & SBUF_INCLUDENUL)
+#define SBUF_ISDRAINTOEOR(s) ((s)->s_flags & SBUF_DRAINTOEOR)
+#define SBUF_DODRAINTOEOR(s) (SBUF_ISSECTION(s) && SBUF_ISDRAINTOEOR(s))
+#define SBUF_MALLOCFLAG(s) (((s)->s_flags & SBUF_NOWAIT) ? M_NOWAIT : M_WAITOK)
 
 /*
  * Set / clear flags
  */
-#define	SBUF_SETFLAG(s, f)	do { (s)->s_flags |= (f); } while (0)
-#define	SBUF_CLEARFLAG(s, f)	do { (s)->s_flags &= ~(f); } while (0)
+#define SBUF_SETFLAG(s, f)           \
+	do {                         \
+		(s)->s_flags |= (f); \
+	} while (0)
+#define SBUF_CLEARFLAG(s, f)          \
+	do {                          \
+		(s)->s_flags &= ~(f); \
+	} while (0)
 
-#define	SBUF_MINSIZE		 2		/* Min is 1 byte + nulterm. */
-#define	SBUF_MINEXTENDSIZE	16		/* Should be power of 2. */
+#define SBUF_MINSIZE 2 /* Min is 1 byte + nulterm. */
+#define SBUF_MINEXTENDSIZE 16 /* Should be power of 2. */
 
 #ifdef PAGE_SIZE
-#define	SBUF_MAXEXTENDSIZE	PAGE_SIZE
-#define	SBUF_MAXEXTENDINCR	PAGE_SIZE
+#define SBUF_MAXEXTENDSIZE PAGE_SIZE
+#define SBUF_MAXEXTENDINCR PAGE_SIZE
 #else
-#define	SBUF_MAXEXTENDSIZE	4096
-#define	SBUF_MAXEXTENDINCR	4096
+#define SBUF_MAXEXTENDSIZE 4096
+#define SBUF_MAXEXTENDINCR 4096
 #endif
 
 /*
@@ -107,18 +113,17 @@ static void
 _assert_sbuf_integrity(const char *fun, struct sbuf *s)
 {
 
-	KASSERT(s != NULL,
-	    ("%s called with a NULL sbuf pointer", fun));
+	KASSERT(s != NULL, ("%s called with a NULL sbuf pointer", fun));
 	KASSERT(s->s_buf != NULL,
 	    ("%s called with uninitialized or corrupt sbuf", fun));
 	if (SBUF_ISFINISHED(s) && SBUF_NULINCLUDED(s)) {
 		KASSERT(s->s_len <= s->s_size,
-		    ("wrote past end of sbuf (%jd >= %jd)",
-		    (intmax_t)s->s_len, (intmax_t)s->s_size));
+		    ("wrote past end of sbuf (%jd >= %jd)", (intmax_t)s->s_len,
+			(intmax_t)s->s_size));
 	} else {
 		KASSERT(s->s_len < s->s_size,
-		    ("wrote past end of sbuf (%jd >= %jd)",
-		    (intmax_t)s->s_len, (intmax_t)s->s_size));
+		    ("wrote past end of sbuf (%jd >= %jd)", (intmax_t)s->s_len,
+			(intmax_t)s->s_size));
 	}
 }
 
@@ -128,16 +133,20 @@ _assert_sbuf_state(const char *fun, struct sbuf *s, int state)
 
 	KASSERT((s->s_flags & SBUF_FINISHED) == state,
 	    ("%s called with %sfinished or corrupt sbuf", fun,
-	    (state ? "un" : "")));
+		(state ? "un" : "")));
 }
 
-#define	assert_sbuf_integrity(s) _assert_sbuf_integrity(__func__, (s))
-#define	assert_sbuf_state(s, i)	 _assert_sbuf_state(__func__, (s), (i))
+#define assert_sbuf_integrity(s) _assert_sbuf_integrity(__func__, (s))
+#define assert_sbuf_state(s, i) _assert_sbuf_state(__func__, (s), (i))
 
 #else /* _KERNEL && INVARIANTS */
 
-#define	assert_sbuf_integrity(s) do { } while (0)
-#define	assert_sbuf_state(s, i)	 do { } while (0)
+#define assert_sbuf_integrity(s) \
+	do {                     \
+	} while (0)
+#define assert_sbuf_state(s, i) \
+	do {                    \
+	} while (0)
 
 #endif /* _KERNEL && INVARIANTS */
 
@@ -202,7 +211,7 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 	    ("%s called with invalid flags", __func__));
 	KASSERT((flags & SBUF_AUTOEXTEND) || length >= SBUF_MINSIZE,
 	    ("sbuf buffer %d smaller than minimum %d bytes", length,
-	    SBUF_MINSIZE));
+		SBUF_MINSIZE));
 
 	flags &= SBUF_USRFLAGMSK;
 
@@ -210,8 +219,8 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 	 * Allocate 'DYNSTRUCT' sbuf from the heap, if NULL 's' was provided.
 	 */
 	if (s == NULL) {
-		s = SBMALLOC(sizeof(*s),
-		    (flags & SBUF_NOWAIT) ?  M_NOWAIT : M_WAITOK);
+		s = SBMALLOC(
+		    sizeof(*s), (flags & SBUF_NOWAIT) ? M_NOWAIT : M_WAITOK);
 		if (s == NULL)
 			goto out;
 		SBUF_SETFLAG(s, SBUF_DYNSTRUCT);
@@ -261,10 +270,8 @@ struct sbuf *
 sbuf_uionew(struct sbuf *s, struct uio *uio, int *error)
 {
 
-	KASSERT(uio != NULL,
-	    ("%s called with NULL uio pointer", __func__));
-	KASSERT(error != NULL,
-	    ("%s called with NULL error pointer", __func__));
+	KASSERT(uio != NULL, ("%s called with NULL uio pointer", __func__));
+	KASSERT(error != NULL, ("%s called with NULL error pointer", __func__));
 
 	if (uio->uio_resid >= INT_MAX || uio->uio_resid < SBUF_MINSIZE - 1) {
 		*error = EINVAL;
@@ -342,10 +349,9 @@ sbuf_setpos(struct sbuf *s, ssize_t pos)
 	KASSERT(pos >= 0,
 	    ("attempt to seek to a negative position (%jd)", (intmax_t)pos));
 	KASSERT(pos < s->s_size,
-	    ("attempt to seek past end of sbuf (%jd >= %jd)",
-	    (intmax_t)pos, (intmax_t)s->s_size));
-	KASSERT(!SBUF_ISSECTION(s),
-	    ("attempt to seek when in a section"));
+	    ("attempt to seek past end of sbuf (%jd >= %jd)", (intmax_t)pos,
+		(intmax_t)s->s_size));
+	KASSERT(!SBUF_ISSECTION(s), ("attempt to seek when in a section"));
 
 	if (pos < 0 || pos > s->s_len)
 		return (-1);
@@ -397,7 +403,7 @@ sbuf_drain(struct sbuf *s)
 	 * or an error has already been accumulated.
 	 */
 	if ((s->s_len == 0) || (s->s_error != 0))
-		return(s->s_error);
+		return (s->s_error);
 
 	if (SBUF_DODRAINTOEOR(s) && s->s_rec_off == 0)
 		return (s->s_error = EDEADLK);
@@ -458,8 +464,8 @@ sbuf_put_bytes(struct sbuf *s, const char *buf, size_t len)
 			 */
 			if (s->s_drain_func != NULL)
 				(void)sbuf_drain(s);
-			else if (sbuf_extend(s, len > INT_MAX ? INT_MAX : len)
-			    < 0)
+			else if (sbuf_extend(s, len > INT_MAX ? INT_MAX : len) <
+			    0)
 				s->s_error = ENOMEM;
 			if (s->s_error != 0)
 				return;
@@ -573,7 +579,7 @@ sbuf_copyin(struct sbuf *s, const void *uaddr, size_t len)
 		return (-1);
 
 	if (len == 0)
-		len = SBUF_FREESPACE(s);	/* XXX return 0? */
+		len = SBUF_FREESPACE(s); /* XXX return 0? */
 	if (len > SBUF_FREESPACE(s)) {
 		sbuf_extend(s, len);
 		if (SBUF_FREESPACE(s) < len)
@@ -589,7 +595,7 @@ sbuf_copyin(struct sbuf *s, const void *uaddr, size_t len)
 			s->s_sect_len += done - 1;
 		break;
 	default:
-		return (-1);	/* XXX */
+		return (-1); /* XXX */
 	}
 
 	return (done);
@@ -634,8 +640,7 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
-	KASSERT(fmt != NULL,
-	    ("%s called with a NULL format string", __func__));
+	KASSERT(fmt != NULL, ("%s called with a NULL format string", __func__));
 
 	(void)kvprintf(fmt, sbuf_putc_func, s, 10, ap);
 	if (s->s_error != 0)
@@ -652,8 +657,7 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
-	KASSERT(fmt != NULL,
-	    ("%s called with a NULL format string", __func__));
+	KASSERT(fmt != NULL, ("%s called with a NULL format string", __func__));
 
 	if (s->s_error != 0)
 		return (-1);
@@ -672,8 +676,8 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 	error = 0;
 	do {
 		va_copy(ap_copy, ap);
-		len = vsnprintf(&s->s_buf[s->s_len], SBUF_FREESPACE(s) + 1,
-		    fmt, ap_copy);
+		len = vsnprintf(
+		    &s->s_buf[s->s_len], SBUF_FREESPACE(s) + 1, fmt, ap_copy);
 		if (len < 0) {
 			s->s_error = errno;
 			return (-1);
@@ -788,7 +792,7 @@ sbuf_trim(struct sbuf *s)
 	if (s->s_error != 0)
 		return (-1);
 
-	while (s->s_len > 0 && isspace(s->s_buf[s->s_len-1])) {
+	while (s->s_len > 0 && isspace(s->s_buf[s->s_len - 1])) {
 		--s->s_len;
 		if (SBUF_ISSECTION(s))
 			s->s_sect_len--;

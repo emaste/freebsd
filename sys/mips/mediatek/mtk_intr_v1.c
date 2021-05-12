@@ -34,75 +34,71 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/module.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/rman.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
-#include <sys/cpuset.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/smp.h>
+#include <sys/rman.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
 
 #include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "pic_if.h"
 
-#define	MTK_NIRQS	32
+#define MTK_NIRQS 32
 
-#define MTK_IRQ0STAT	0x0000
-#define MTK_IRQ1STAT	0x0004
-#define MTK_INTTYPE	0x0020
-#define MTK_INTRAW	0x0030
-#define MTK_INTENA	0x0034
-#define MTK_INTDIS	0x0038
+#define MTK_IRQ0STAT 0x0000
+#define MTK_IRQ1STAT 0x0004
+#define MTK_INTTYPE 0x0020
+#define MTK_INTRAW 0x0030
+#define MTK_INTENA 0x0034
+#define MTK_INTDIS 0x0038
 
 static int mtk_pic_intr(void *);
 
 struct mtk_pic_irqsrc {
-	struct intr_irqsrc	isrc;
-	u_int			irq;
+	struct intr_irqsrc isrc;
+	u_int irq;
 };
 
 struct mtk_pic_softc {
-	device_t		pic_dev;
-	void *                  pic_intrhand;
-	struct resource *       pic_res[2];
-	struct mtk_pic_irqsrc	pic_irqs[MTK_NIRQS];
-	struct mtx		mutex;
-	uint32_t		nirqs;
+	device_t pic_dev;
+	void *pic_intrhand;
+	struct resource *pic_res[2];
+	struct mtk_pic_irqsrc pic_irqs[MTK_NIRQS];
+	struct mtx mutex;
+	uint32_t nirqs;
 };
 
-#define PIC_INTR_ISRC(sc, irq)	(&(sc)->pic_irqs[(irq)].isrc)
+#define PIC_INTR_ISRC(sc, irq) (&(sc)->pic_irqs[(irq)].isrc)
 
-static struct resource_spec mtk_pic_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Registers */
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },	/* Parent interrupt 1 */
-//	{ SYS_RES_IRQ,		1,	RF_ACTIVE },	/* Parent interrupt 2 */
-	{ -1, 0 }
-};
+static struct resource_spec mtk_pic_spec[] = { { SYS_RES_MEMORY, 0,
+						   RF_ACTIVE }, /* Registers */
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, /* Parent interrupt 1 */
+	//	{ SYS_RES_IRQ,		1,	RF_ACTIVE },	/* Parent
+	//interrupt 2 */
+	{ -1, 0 } };
 
-static struct ofw_compat_data compat_data[] = {
-	{ "ralink,rt2880-intc",  1 },
-	{ "ralink,rt3050-intc",  1 },
-	{ "ralink,rt3352-intc",  1 },
-	{ "ralink,rt3883-intc",  1 },
-	{ "ralink,rt5350-intc",  1 },
-	{ "ralink,mt7620a-intc", 1 },
-	{ NULL,				0 }
-};
+static struct ofw_compat_data compat_data[] = { { "ralink,rt2880-intc", 1 },
+	{ "ralink,rt3050-intc", 1 }, { "ralink,rt3352-intc", 1 },
+	{ "ralink,rt3883-intc", 1 }, { "ralink,rt5350-intc", 1 },
+	{ "ralink,mt7620a-intc", 1 }, { NULL, 0 } };
 
-#define	READ4(_sc, _reg)	bus_read_4((_sc)->pic_res[0], _reg)
-#define	WRITE4(_sc, _reg, _val) bus_write_4((_sc)->pic_res[0], _reg, _val)
+#define READ4(_sc, _reg) bus_read_4((_sc)->pic_res[0], _reg)
+#define WRITE4(_sc, _reg, _val) bus_write_4((_sc)->pic_res[0], _reg, _val)
 
 static int
 mtk_pic_probe(device_t dev)
@@ -206,8 +202,8 @@ mtk_pic_attach(device_t dev)
 		goto cleanup;
 	}
 
-	if (bus_setup_intr(dev, sc->pic_res[1], INTR_TYPE_CLK,
-	    mtk_pic_intr, NULL, sc, &sc->pic_intrhand)) {
+	if (bus_setup_intr(dev, sc->pic_res[1], INTR_TYPE_CLK, mtk_pic_intr,
+		NULL, sc, &sc->pic_intrhand)) {
 		device_printf(dev, "could not setup irq handler\n");
 		intr_pic_deregister(dev, xref);
 		goto cleanup;
@@ -216,7 +212,7 @@ mtk_pic_attach(device_t dev)
 
 cleanup:
 	bus_release_resources(dev, mtk_pic_spec, sc->pic_res);
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static int
@@ -236,10 +232,10 @@ mtk_pic_intr(void *arg)
 		i--;
 		intr &= ~(1u << i);
 
-		if (intr_isrc_dispatch(PIC_INTR_ISRC(sc, i),
-		    curthread->td_intr_frame) != 0) {
-			device_printf(sc->pic_dev,
-			    "Stray interrupt %u detected\n", i);
+		if (intr_isrc_dispatch(
+			PIC_INTR_ISRC(sc, i), curthread->td_intr_frame) != 0) {
+			device_printf(
+			    sc->pic_dev, "Stray interrupt %u detected\n", i);
 			pic_irq_mask(sc, i);
 			continue;
 		}
@@ -254,10 +250,10 @@ mtk_pic_intr(void *arg)
 		i--;
 		intr &= ~(1u << i);
 
-		if (intr_isrc_dispatch(PIC_INTR_ISRC(sc, i),
-		    curthread->td_intr_frame) != 0) {
-			device_printf(sc->pic_dev,
-				"Stray interrupt %u detected\n", i);
+		if (intr_isrc_dispatch(
+			PIC_INTR_ISRC(sc, i), curthread->td_intr_frame) != 0) {
+			device_printf(
+			    sc->pic_dev, "Stray interrupt %u detected\n", i);
 			pic_irq_mask(sc, i);
 			continue;
 		}
@@ -271,8 +267,8 @@ mtk_pic_intr(void *arg)
 }
 
 static int
-mtk_pic_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+mtk_pic_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 #ifdef FDT
 	struct intr_map_data_fdt *daf;
@@ -333,16 +329,15 @@ mtk_pic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 
 static device_method_t mtk_pic_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		mtk_pic_probe),
-	DEVMETHOD(device_attach,	mtk_pic_attach),
+	DEVMETHOD(device_probe, mtk_pic_probe),
+	DEVMETHOD(device_attach, mtk_pic_attach),
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_disable_intr,	mtk_pic_disable_intr),
-	DEVMETHOD(pic_enable_intr,	mtk_pic_enable_intr),
-	DEVMETHOD(pic_map_intr,		mtk_pic_map_intr),
-	DEVMETHOD(pic_post_filter,	mtk_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	mtk_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mtk_pic_pre_ithread),
-	{ 0, 0 }
+	DEVMETHOD(pic_disable_intr, mtk_pic_disable_intr),
+	DEVMETHOD(pic_enable_intr, mtk_pic_enable_intr),
+	DEVMETHOD(pic_map_intr, mtk_pic_map_intr),
+	DEVMETHOD(pic_post_filter, mtk_pic_post_filter),
+	DEVMETHOD(pic_post_ithread, mtk_pic_post_ithread),
+	DEVMETHOD(pic_pre_ithread, mtk_pic_pre_ithread), { 0, 0 }
 };
 
 static driver_t mtk_pic_driver = {

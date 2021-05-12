@@ -29,31 +29,31 @@
  * $FreeBSD$
  */
 
-#ifndef	_G_MOUNTVER_H_
-#define	_G_MOUNTVER_H_
+#ifndef _G_MOUNTVER_H_
+#define _G_MOUNTVER_H_
 
-#define	G_MOUNTVER_CLASS_NAME	"MOUNTVER"
-#define	G_MOUNTVER_VERSION	4
-#define	G_MOUNTVER_SUFFIX	".mountver"
+#define G_MOUNTVER_CLASS_NAME "MOUNTVER"
+#define G_MOUNTVER_VERSION 4
+#define G_MOUNTVER_SUFFIX ".mountver"
 
 #ifdef _KERNEL
 
-#define	G_MOUNTVER_DEBUG(lvl, ...) \
-    _GEOM_DEBUG("GEOM_MOUNTVER", g_mountver_debug, (lvl), NULL, __VA_ARGS__)
-#define	G_MOUNTVER_LOGREQ(bp, ...) \
-    _GEOM_DEBUG("GEOM_MOUNTVER", g_mountver_debug, 2, (bp), __VA_ARGS__)
+#define G_MOUNTVER_DEBUG(lvl, ...) \
+	_GEOM_DEBUG("GEOM_MOUNTVER", g_mountver_debug, (lvl), NULL, __VA_ARGS__)
+#define G_MOUNTVER_LOGREQ(bp, ...) \
+	_GEOM_DEBUG("GEOM_MOUNTVER", g_mountver_debug, 2, (bp), __VA_ARGS__)
 
 struct g_mountver_softc {
-	TAILQ_HEAD(, bio)		sc_queue;
-	struct mtx			sc_mtx;
-	char				*sc_provider_name;
-	char				sc_ident[DISK_IDENT_SIZE];
-	int				sc_orphaned;
-	int				sc_shutting_down;
-	int				sc_access_r;
-	int				sc_access_w;
-	int				sc_access_e;
+	TAILQ_HEAD(, bio) sc_queue;
+	struct mtx sc_mtx;
+	char *sc_provider_name;
+	char sc_ident[DISK_IDENT_SIZE];
+	int sc_orphaned;
+	int sc_shutting_down;
+	int sc_access_r;
+	int sc_access_w;
+	int sc_access_e;
 };
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
-#endif	/* _G_MOUNTVER_H_ */
+#endif /* _G_MOUNTVER_H_ */

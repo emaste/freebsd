@@ -87,8 +87,8 @@
  * the SMMU, which is only in a case of errors (e.g. translation fault).
  */
 
-#include "opt_platform.h"
 #include "opt_acpi.h"
+#include "opt_platform.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -97,59 +97,57 @@ __FBSDID("$FreeBSD$");
 #include <sys/bitstring.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
-#include <sys/lock.h>
-#include <sys/tree.h>
 #include <sys/taskqueue.h>
+#include <sys/tree.h>
+
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #if DEV_ACPI
-#include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 #endif
+#include <dev/iommu/iommu.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#include <dev/iommu/iommu.h>
+
 #include <arm64/iommu/iommu_pmap.h>
 
 #include "iommu.h"
 #include "iommu_if.h"
-
 #include "smmureg.h"
 #include "smmuvar.h"
 
-#define	STRTAB_L1_SZ_SHIFT	20
-#define	STRTAB_SPLIT		8
+#define STRTAB_L1_SZ_SHIFT 20
+#define STRTAB_SPLIT 8
 
-#define	STRTAB_L1_DESC_L2PTR_M	(0x3fffffffffff << 6)
-#define	STRTAB_L1_DESC_DWORDS	1
+#define STRTAB_L1_DESC_L2PTR_M (0x3fffffffffff << 6)
+#define STRTAB_L1_DESC_DWORDS 1
 
-#define	STRTAB_STE_DWORDS	8
+#define STRTAB_STE_DWORDS 8
 
-#define	CMDQ_ENTRY_DWORDS	2
-#define	EVTQ_ENTRY_DWORDS	4
-#define	PRIQ_ENTRY_DWORDS	2
+#define CMDQ_ENTRY_DWORDS 2
+#define EVTQ_ENTRY_DWORDS 4
+#define PRIQ_ENTRY_DWORDS 2
 
-#define	CD_DWORDS		8
+#define CD_DWORDS 8
 
-#define	Q_WRP(q, p)		((p) & (1 << (q)->size_log2))
-#define	Q_IDX(q, p)		((p) & ((1 << (q)->size_log2) - 1))
-#define	Q_OVF(p)		((p) & (1 << 31)) /* Event queue overflowed */
+#define Q_WRP(q, p) ((p) & (1 << (q)->size_log2))
+#define Q_IDX(q, p) ((p) & ((1 << (q)->size_log2) - 1))
+#define Q_OVF(p) ((p) & (1 << 31)) /* Event queue overflowed */
 
-#define	SMMU_Q_ALIGN		(64 * 1024)
+#define SMMU_Q_ALIGN (64 * 1024)
 
-static struct resource_spec smmu_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
-	{ SYS_RES_IRQ, 0, RF_ACTIVE },
-	{ SYS_RES_IRQ, 1, RF_ACTIVE },
-	{ SYS_RES_IRQ, 2, RF_ACTIVE },
-	RESOURCE_SPEC_END
-};
+static struct resource_spec smmu_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { SYS_RES_IRQ, 1, RF_ACTIVE },
+	{ SYS_RES_IRQ, 2, RF_ACTIVE }, RESOURCE_SPEC_END };
 
 MALLOC_DEFINE(M_SMMU, "SMMU", SMMU_DEVSTR);
 
-#define	dprintf(fmt, ...)
+#define dprintf(fmt, ...)
 
 struct smmu_event {
 	int ident;
@@ -158,49 +156,38 @@ struct smmu_event {
 };
 
 static struct smmu_event events[] = {
-	{ 0x01, "F_UUT",
-		"Unsupported Upstream Transaction."},
-	{ 0x02, "C_BAD_STREAMID",
-		"Transaction StreamID out of range."},
-	{ 0x03, "F_STE_FETCH",
-		"Fetch of STE caused external abort."},
-	{ 0x04, "C_BAD_STE",
-		"Used STE invalid."},
+	{ 0x01, "F_UUT", "Unsupported Upstream Transaction." },
+	{ 0x02, "C_BAD_STREAMID", "Transaction StreamID out of range." },
+	{ 0x03, "F_STE_FETCH", "Fetch of STE caused external abort." },
+	{ 0x04, "C_BAD_STE", "Used STE invalid." },
 	{ 0x05, "F_BAD_ATS_TREQ",
-		"Address Translation Request disallowed for a StreamID "
-		"and a PCIe ATS Translation Request received."},
+	    "Address Translation Request disallowed for a StreamID "
+	    "and a PCIe ATS Translation Request received." },
 	{ 0x06, "F_STREAM_DISABLED",
-		"The STE of a transaction marks non-substream transactions "
-		"disabled."},
+	    "The STE of a transaction marks non-substream transactions "
+	    "disabled." },
 	{ 0x07, "F_TRANSL_FORBIDDEN",
-		"An incoming PCIe transaction is marked Translated but "
-		"SMMU bypass is disallowed for this StreamID."},
+	    "An incoming PCIe transaction is marked Translated but "
+	    "SMMU bypass is disallowed for this StreamID." },
 	{ 0x08, "C_BAD_SUBSTREAMID",
-		"Incoming SubstreamID present, but configuration is invalid."},
-	{ 0x09, "F_CD_FETCH",
-		"Fetch of CD caused external abort."},
-	{ 0x0a, "C_BAD_CD",
-		"Fetched CD invalid."},
+	    "Incoming SubstreamID present, but configuration is invalid." },
+	{ 0x09, "F_CD_FETCH", "Fetch of CD caused external abort." },
+	{ 0x0a, "C_BAD_CD", "Fetched CD invalid." },
 	{ 0x0b, "F_WALK_EABT",
-		"An external abort occurred fetching (or updating) "
-		"a translation table descriptor."},
-	{ 0x10, "F_TRANSLATION",
-		"Translation fault."},
-	{ 0x11, "F_ADDR_SIZE",
-		"Address Size fault."},
+	    "An external abort occurred fetching (or updating) "
+	    "a translation table descriptor." },
+	{ 0x10, "F_TRANSLATION", "Translation fault." },
+	{ 0x11, "F_ADDR_SIZE", "Address Size fault." },
 	{ 0x12, "F_ACCESS",
-		"Access flag fault due to AF == 0 in a page or block TTD."},
-	{ 0x13, "F_PERMISSION",
-		"Permission fault occurred on page access."},
+	    "Access flag fault due to AF == 0 in a page or block TTD." },
+	{ 0x13, "F_PERMISSION", "Permission fault occurred on page access." },
 	{ 0x20, "F_TLB_CONFLICT",
-		"A TLB conflict occurred because of the transaction."},
+	    "A TLB conflict occurred because of the transaction." },
 	{ 0x21, "F_CFG_CONFLICT",
-		"A configuration cache conflict occurred due to "
-		"the transaction."},
-	{ 0x24, "E_PAGE_REQUEST",
-		"Speculative page request hint."},
-	{ 0x25, "F_VMS_FETCH",
-		"Fetch of VMS caused external abort."},
+	    "A configuration cache conflict occurred due to "
+	    "the transaction." },
+	{ 0x24, "E_PAGE_REQUEST", "Speculative page request hint." },
+	{ 0x25, "F_VMS_FETCH", "Fetch of VMS caused external abort." },
 	{ 0, NULL, NULL },
 };
 
@@ -274,8 +261,8 @@ smmu_q_inc_prod(struct smmu_queue *q)
 }
 
 static int
-smmu_write_ack(struct smmu_softc *sc, uint32_t reg,
-    uint32_t reg_ack, uint32_t val)
+smmu_write_ack(
+    struct smmu_softc *sc, uint32_t reg, uint32_t reg_ack, uint32_t val)
 {
 	uint32_t v;
 	int timeout;
@@ -308,16 +295,16 @@ ilog2(long x)
 }
 
 static int
-smmu_init_queue(struct smmu_softc *sc, struct smmu_queue *q,
-    uint32_t prod_off, uint32_t cons_off, uint32_t dwords)
+smmu_init_queue(struct smmu_softc *sc, struct smmu_queue *q, uint32_t prod_off,
+    uint32_t cons_off, uint32_t dwords)
 {
 	int sz;
 
 	sz = (1 << q->size_log2) * dwords * 8;
 
 	/* Set up the command circular buffer */
-	q->vaddr = contigmalloc(sz, M_SMMU,
-	    M_WAITOK | M_ZERO, 0, (1ul << 48) - 1, SMMU_Q_ALIGN, 0);
+	q->vaddr = contigmalloc(
+	    sz, M_SMMU, M_WAITOK | M_ZERO, 0, (1ul << 48) - 1, SMMU_Q_ALIGN, 0);
 	if (q->vaddr == NULL) {
 		device_printf(sc->dev, "failed to allocate %d bytes\n", sz);
 		return (-1);
@@ -340,14 +327,14 @@ smmu_init_queues(struct smmu_softc *sc)
 	int err;
 
 	/* Command queue. */
-	err = smmu_init_queue(sc, &sc->cmdq,
-	    SMMU_CMDQ_PROD, SMMU_CMDQ_CONS, CMDQ_ENTRY_DWORDS);
+	err = smmu_init_queue(
+	    sc, &sc->cmdq, SMMU_CMDQ_PROD, SMMU_CMDQ_CONS, CMDQ_ENTRY_DWORDS);
 	if (err)
 		return (ENXIO);
 
 	/* Event queue. */
-	err = smmu_init_queue(sc, &sc->evtq,
-	    SMMU_EVENTQ_PROD, SMMU_EVENTQ_CONS, EVTQ_ENTRY_DWORDS);
+	err = smmu_init_queue(sc, &sc->evtq, SMMU_EVENTQ_PROD, SMMU_EVENTQ_CONS,
+	    EVTQ_ENTRY_DWORDS);
 	if (err)
 		return (ENXIO);
 
@@ -355,8 +342,8 @@ smmu_init_queues(struct smmu_softc *sc)
 		return (0);
 
 	/* PRI queue. */
-	err = smmu_init_queue(sc, &sc->priq,
-	    SMMU_PRIQ_PROD, SMMU_PRIQ_CONS, PRIQ_ENTRY_DWORDS);
+	err = smmu_init_queue(
+	    sc, &sc->priq, SMMU_PRIQ_PROD, SMMU_PRIQ_CONS, PRIQ_ENTRY_DWORDS);
 	if (err)
 		return (ENXIO);
 
@@ -457,13 +444,12 @@ smmu_print_event(struct smmu_softc *sc, uint32_t *evt)
 	}
 
 	if (ev) {
-		device_printf(sc->dev,
-		    "Event %s (%s) received.\n", ev->str, ev->msg);
+		device_printf(
+		    sc->dev, "Event %s (%s) received.\n", ev->str, ev->msg);
 	} else
 		device_printf(sc->dev, "Event 0x%x received\n", event_id);
 
-	device_printf(sc->dev, "SID %x, Input Address: %jx\n",
-	    sid, input_addr);
+	device_printf(sc->dev, "SID %x, Input Address: %jx\n", sid, input_addr);
 
 	for (i = 0; i < 8; i++)
 		device_printf(sc->dev, "evt[%d] %x\n", i, evt[i]);
@@ -472,8 +458,7 @@ smmu_print_event(struct smmu_softc *sc, uint32_t *evt)
 }
 
 static void
-make_cmd(struct smmu_softc *sc, uint64_t *cmd,
-    struct smmu_cmdq_entry *entry)
+make_cmd(struct smmu_softc *sc, uint64_t *cmd, struct smmu_cmdq_entry *entry)
 {
 
 	memset(cmd, 0, CMDQ_ENTRY_DWORDS * 8);
@@ -721,19 +706,16 @@ smmu_init_ste_bypass(struct smmu_softc *sc, uint32_t sid, uint64_t *ste)
  * Enable Stage1 (S1) translation for the sid.
  */
 static int
-smmu_init_ste_s1(struct smmu_softc *sc, struct smmu_cd *cd,
-    uint32_t sid, uint64_t *ste)
+smmu_init_ste_s1(
+    struct smmu_softc *sc, struct smmu_cd *cd, uint32_t sid, uint64_t *ste)
 {
 	uint64_t val;
 
 	val = STE0_VALID;
 
 	/* S1 */
-	ste[1] = STE1_EATS_FULLATS	|
-		 STE1_S1CSH_IS		|
-		 STE1_S1CIR_WBRA	|
-		 STE1_S1COR_WBRA	|
-		 STE1_STRW_NS_EL1;
+	ste[1] = STE1_EATS_FULLATS | STE1_S1CSH_IS | STE1_S1CIR_WBRA |
+	    STE1_S1COR_WBRA | STE1_STRW_NS_EL1;
 	ste[2] = 0;
 	ste[3] = 0;
 	ste[4] = 0;
@@ -806,15 +788,14 @@ smmu_init_cd(struct smmu_softc *sc, struct smmu_domain *domain)
 	size = 1 * (CD_DWORDS << 3);
 
 	p = &domain->p;
-	cd = domain->cd = malloc(sizeof(struct smmu_cd),
-	    M_SMMU, M_WAITOK | M_ZERO);
+	cd = domain->cd = malloc(
+	    sizeof(struct smmu_cd), M_SMMU, M_WAITOK | M_ZERO);
 
-	cd->vaddr = contigmalloc(size, M_SMMU,
-	    M_WAITOK | M_ZERO,	/* flags */
-	    0,			/* low */
-	    (1ul << 40) - 1,	/* high */
-	    size,		/* alignment */
-	    0);			/* boundary */
+	cd->vaddr = contigmalloc(size, M_SMMU, M_WAITOK | M_ZERO, /* flags */
+	    0,							  /* low */
+	    (1ul << 40) - 1,					  /* high */
+	    size, /* alignment */
+	    0);	  /* boundary */
 	if (cd->vaddr == NULL) {
 		device_printf(sc->dev, "Failed to allocate CD\n");
 		return (ENXIO);
@@ -841,10 +822,10 @@ smmu_init_cd(struct smmu_softc *sc, struct smmu_domain *domain)
 
 	ptr[1] = paddr;
 	ptr[2] = 0;
-	ptr[3] = MAIR_ATTR(MAIR_DEVICE_nGnRnE, VM_MEMATTR_DEVICE)	|
-		 MAIR_ATTR(MAIR_NORMAL_NC, VM_MEMATTR_UNCACHEABLE)	|
-		 MAIR_ATTR(MAIR_NORMAL_WB, VM_MEMATTR_WRITE_BACK)	|
-		 MAIR_ATTR(MAIR_NORMAL_WT, VM_MEMATTR_WRITE_THROUGH);
+	ptr[3] = MAIR_ATTR(MAIR_DEVICE_nGnRnE, VM_MEMATTR_DEVICE) |
+	    MAIR_ATTR(MAIR_NORMAL_NC, VM_MEMATTR_UNCACHEABLE) |
+	    MAIR_ATTR(MAIR_NORMAL_WB, VM_MEMATTR_WRITE_BACK) |
+	    MAIR_ATTR(MAIR_NORMAL_WT, VM_MEMATTR_WRITE_THROUGH);
 
 	/* Install the CD. */
 	ptr[0] = val;
@@ -867,15 +848,15 @@ smmu_init_strtab_linear(struct smmu_softc *sc)
 
 	if (bootverbose)
 		device_printf(sc->dev,
-		    "%s: linear strtab size %d, num_l1_entries %d\n",
-		    __func__, size, strtab->num_l1_entries);
+		    "%s: linear strtab size %d, num_l1_entries %d\n", __func__,
+		    size, strtab->num_l1_entries);
 
 	strtab->vaddr = contigmalloc(size, M_SMMU,
-	    M_WAITOK | M_ZERO,	/* flags */
-	    0,			/* low */
-	    (1ul << 48) - 1,	/* high */
-	    size,		/* alignment */
-	    0);			/* boundary */
+	    M_WAITOK | M_ZERO, /* flags */
+	    0,		       /* low */
+	    (1ul << 48) - 1,   /* high */
+	    size,	       /* alignment */
+	    0);		       /* boundary */
 	if (strtab->vaddr == NULL) {
 		device_printf(sc->dev, "failed to allocate strtab\n");
 		return (ENXIO);
@@ -917,15 +898,15 @@ smmu_init_strtab_2lvl(struct smmu_softc *sc)
 
 	if (bootverbose)
 		device_printf(sc->dev,
-		    "%s: size %d, l1 entries %d, l1size %d\n",
-		    __func__, size, strtab->num_l1_entries, l1size);
+		    "%s: size %d, l1 entries %d, l1size %d\n", __func__, size,
+		    strtab->num_l1_entries, l1size);
 
 	strtab->vaddr = contigmalloc(l1size, M_SMMU,
-	    M_WAITOK | M_ZERO,	/* flags */
-	    0,			/* low */
-	    (1ul << 48) - 1,	/* high */
-	    l1size,		/* alignment */
-	    0);			/* boundary */
+	    M_WAITOK | M_ZERO, /* flags */
+	    0,		       /* low */
+	    (1ul << 48) - 1,   /* high */
+	    l1size,	       /* alignment */
+	    0);		       /* boundary */
 	if (strtab->vaddr == NULL) {
 		device_printf(sc->dev, "Failed to allocate 2lvl strtab.\n");
 		return (ENOMEM);
@@ -984,12 +965,11 @@ smmu_init_l1_entry(struct smmu_softc *sc, int sid)
 
 	l1_desc->span = STRTAB_SPLIT + 1;
 	l1_desc->size = size;
-	l1_desc->va = contigmalloc(size, M_SMMU,
-	    M_WAITOK | M_ZERO,	/* flags */
-	    0,			/* low */
-	    (1ul << 48) - 1,	/* high */
-	    size,		/* alignment */
-	    0);			/* boundary */
+	l1_desc->va = contigmalloc(size, M_SMMU, M_WAITOK | M_ZERO, /* flags */
+	    0,							    /* low */
+	    (1ul << 48) - 1,					    /* high */
+	    size, /* alignment */
+	    0);	  /* boundary */
 	if (l1_desc->va == NULL) {
 		device_printf(sc->dev, "failed to allocate l2 entry\n");
 		return (ENXIO);
@@ -1165,15 +1145,15 @@ smmu_setup_interrupts(struct smmu_softc *sc)
 	smmu_configure_intr(sc, sc->res[3]);
 #endif
 
-	error = bus_setup_intr(dev, sc->res[1], INTR_TYPE_MISC,
-	    smmu_event_intr, NULL, sc, &sc->intr_cookie[0]);
+	error = bus_setup_intr(dev, sc->res[1], INTR_TYPE_MISC, smmu_event_intr,
+	    NULL, sc, &sc->intr_cookie[0]);
 	if (error) {
 		device_printf(dev, "Couldn't setup Event interrupt handler\n");
 		return (ENXIO);
 	}
 
-	error = bus_setup_intr(dev, sc->res[3], INTR_TYPE_MISC,
-	    smmu_gerr_intr, NULL, sc, &sc->intr_cookie[2]);
+	error = bus_setup_intr(dev, sc->res[3], INTR_TYPE_MISC, smmu_gerr_intr,
+	    NULL, sc, &sc->intr_cookie[2]);
 	if (error) {
 		device_printf(dev, "Couldn't setup Gerr interrupt handler\n");
 		return (ENXIO);
@@ -1193,25 +1173,21 @@ smmu_reset(struct smmu_softc *sc)
 	reg = bus_read_4(sc->res[0], SMMU_CR0);
 
 	if (reg & CR0_SMMUEN)
-		device_printf(sc->dev,
-		    "%s: Warning: SMMU is enabled\n", __func__);
+		device_printf(
+		    sc->dev, "%s: Warning: SMMU is enabled\n", __func__);
 
 	error = smmu_disable(sc);
 	if (error)
-		device_printf(sc->dev,
-		    "%s: Could not disable SMMU.\n", __func__);
+		device_printf(
+		    sc->dev, "%s: Could not disable SMMU.\n", __func__);
 
 	if (smmu_enable_interrupts(sc) != 0) {
 		device_printf(sc->dev, "Could not enable interrupts.\n");
 		return (ENXIO);
 	}
 
-	reg = CR1_TABLE_SH_IS	|
-	      CR1_TABLE_OC_WBC	|
-	      CR1_TABLE_IC_WBC	|
-	      CR1_QUEUE_SH_IS	|
-	      CR1_QUEUE_OC_WBC	|
-	      CR1_QUEUE_IC_WBC;
+	reg = CR1_TABLE_SH_IS | CR1_TABLE_OC_WBC | CR1_TABLE_IC_WBC |
+	    CR1_QUEUE_SH_IS | CR1_QUEUE_OC_WBC | CR1_QUEUE_IC_WBC;
 	bus_write_4(sc->res[0], SMMU_CR1, reg);
 
 	reg = CR2_PTM | CR2_RECINVSID | CR2_E2H;
@@ -1302,15 +1278,14 @@ smmu_check_features(struct smmu_softc *sc)
 
 	if (reg & IDR0_ST_LVL_2) {
 		if (bootverbose)
-			device_printf(sc->dev,
-			    "2-level stream table supported.\n");
+			device_printf(
+			    sc->dev, "2-level stream table supported.\n");
 		sc->features |= SMMU_FEATURE_2_LVL_STREAM_TABLE;
 	}
 
 	if (reg & IDR0_CD2L) {
 		if (bootverbose)
-			device_printf(sc->dev,
-			    "2-level CD table supported.\n");
+			device_printf(sc->dev, "2-level CD table supported.\n");
 		sc->features |= SMMU_FEATURE_2_LVL_CD;
 	}
 
@@ -1323,8 +1298,8 @@ smmu_check_features(struct smmu_softc *sc)
 		break;
 	case IDR0_TTENDIAN_LITTLE:
 		if (bootverbose)
-			device_printf(sc->dev,
-			    "Little endian supported only.\n");
+			device_printf(
+			    sc->dev, "Little endian supported only.\n");
 		sc->features |= SMMU_FEATURE_TT_LE;
 		break;
 	case IDR0_TTENDIAN_BIG:
@@ -1371,14 +1346,14 @@ smmu_check_features(struct smmu_softc *sc)
 	/* Grab translation stages supported. */
 	if (reg & IDR0_S1P) {
 		if (bootverbose)
-			device_printf(sc->dev,
-			    "Stage 1 translation supported.\n");
+			device_printf(
+			    sc->dev, "Stage 1 translation supported.\n");
 		sc->features |= SMMU_FEATURE_S1P;
 	}
 	if (reg & IDR0_S2P) {
 		if (bootverbose)
-			device_printf(sc->dev,
-			    "Stage 2 translation supported.\n");
+			device_printf(
+			    sc->dev, "Stage 2 translation supported.\n");
 		sc->features |= SMMU_FEATURE_S2P;
 	}
 
@@ -1549,7 +1524,8 @@ smmu_attach(device_t dev)
 
 	error = smmu_check_features(sc);
 	if (error) {
-		device_printf(dev, "Some features are required "
+		device_printf(dev,
+		    "Some features are required "
 		    "but not supported by hardware.\n");
 		return (ENXIO);
 	}
@@ -1602,8 +1578,8 @@ smmu_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 }
 
 static int
-smmu_unmap(device_t dev, struct iommu_domain *iodom,
-    vm_offset_t va, bus_size_t size)
+smmu_unmap(
+    device_t dev, struct iommu_domain *iodom, vm_offset_t va, bus_size_t size)
 {
 	struct smmu_domain *domain;
 	struct smmu_softc *sc;
@@ -1635,9 +1611,8 @@ smmu_unmap(device_t dev, struct iommu_domain *iodom,
 }
 
 static int
-smmu_map(device_t dev, struct iommu_domain *iodom,
-    vm_offset_t va, vm_page_t *ma, vm_size_t size,
-    vm_prot_t prot)
+smmu_map(device_t dev, struct iommu_domain *iodom, vm_offset_t va,
+    vm_page_t *ma, vm_size_t size, vm_prot_t prot)
 {
 	struct smmu_domain *domain;
 	struct smmu_softc *sc;
@@ -1684,8 +1659,8 @@ smmu_domain_alloc(device_t dev, struct iommu_unit *iommu)
 	error = smmu_asid_alloc(sc, &new_asid);
 	if (error) {
 		free(domain, M_SMMU);
-		device_printf(sc->dev,
-		    "Could not allocate ASID for a new domain.\n");
+		device_printf(
+		    sc->dev, "Could not allocate ASID for a new domain.\n");
 		return (NULL);
 	}
 
@@ -1740,8 +1715,7 @@ smmu_domain_free(device_t dev, struct iommu_domain *iodom)
 }
 
 static int
-smmu_set_buswide(device_t dev, struct smmu_domain *domain,
-    struct smmu_ctx *ctx)
+smmu_set_buswide(device_t dev, struct smmu_domain *domain, struct smmu_ctx *ctx)
 {
 	struct smmu_softc *sc;
 	int i;
@@ -1755,8 +1729,8 @@ smmu_set_buswide(device_t dev, struct smmu_domain *domain,
 }
 
 static struct iommu_ctx *
-smmu_ctx_alloc(device_t dev, struct iommu_domain *iodom, device_t child,
-    bool disabled)
+smmu_ctx_alloc(
+    device_t dev, struct iommu_domain *iodom, device_t child, bool disabled)
 {
 	struct smmu_domain *domain;
 	struct smmu_softc *sc;
@@ -1839,8 +1813,8 @@ smmu_ctx_lookup_by_sid(device_t dev, u_int sid)
 
 	unit = &sc->unit;
 
-	LIST_FOREACH(domain, &unit->domain_list, next) {
-		LIST_FOREACH(ctx, &domain->ctx_list, next) {
+	LIST_FOREACH (domain, &unit->domain_list, next) {
+		LIST_FOREACH (ctx, &domain->ctx_list, next) {
 			if (ctx->sid == sid)
 				return (ctx);
 		}
@@ -1865,9 +1839,9 @@ smmu_ctx_lookup(device_t dev, device_t child)
 
 	IOMMU_ASSERT_LOCKED(iommu);
 
-	LIST_FOREACH(domain, &unit->domain_list, next) {
+	LIST_FOREACH (domain, &unit->domain_list, next) {
 		IOMMU_DOMAIN_LOCK(&domain->iodom);
-		LIST_FOREACH(ctx, &domain->ctx_list, next) {
+		LIST_FOREACH (ctx, &domain->ctx_list, next) {
 			if (ctx->dev == child) {
 				IOMMU_DOMAIN_UNLOCK(&domain->iodom);
 				return (&ctx->ioctx);
@@ -1916,20 +1890,19 @@ smmu_find(device_t dev, device_t child)
 
 static device_method_t smmu_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_detach,	smmu_detach),
+	DEVMETHOD(device_detach, smmu_detach),
 
 	/* SMMU interface */
-	DEVMETHOD(iommu_find,		smmu_find),
-	DEVMETHOD(iommu_map,		smmu_map),
-	DEVMETHOD(iommu_unmap,		smmu_unmap),
-	DEVMETHOD(iommu_domain_alloc,	smmu_domain_alloc),
-	DEVMETHOD(iommu_domain_free,	smmu_domain_free),
-	DEVMETHOD(iommu_ctx_alloc,	smmu_ctx_alloc),
-	DEVMETHOD(iommu_ctx_free,	smmu_ctx_free),
-	DEVMETHOD(iommu_ctx_lookup,	smmu_ctx_lookup),
+	DEVMETHOD(iommu_find, smmu_find), DEVMETHOD(iommu_map, smmu_map),
+	DEVMETHOD(iommu_unmap, smmu_unmap),
+	DEVMETHOD(iommu_domain_alloc, smmu_domain_alloc),
+	DEVMETHOD(iommu_domain_free, smmu_domain_free),
+	DEVMETHOD(iommu_ctx_alloc, smmu_ctx_alloc),
+	DEVMETHOD(iommu_ctx_free, smmu_ctx_free),
+	DEVMETHOD(iommu_ctx_lookup, smmu_ctx_lookup),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,	smmu_read_ivar),
+	DEVMETHOD(bus_read_ivar, smmu_read_ivar),
 
 	/* End */
 	DEVMETHOD_END

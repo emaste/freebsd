@@ -28,30 +28,26 @@
  *		 Yi CDL Yang
  */
 
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/systm.h>
 #include <sys/param.h>
-#include <sys/sbuf.h>
-
-#include <sys/queue.h>
-#include <sys/linker.h>
-#include <sys/module.h>
+#include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/linker.h>
 #include <sys/malloc.h>
-#include <sys/syslog.h>
+#include <sys/module.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
-#include <sys/syslog.h>
 #include <sys/sysctl.h>
-#include <linux/debugfs.h>
+#include <sys/syslog.h>
 
 #include <gnu/gcov/gcov.h>
-#include <sys/queue.h>
+#include <linux/debugfs.h>
 
 extern int gcov_events_enabled;
 static int gcov_persist;
@@ -71,12 +67,10 @@ void __gcov_exit(void);
 
 static void gcov_event(enum gcov_action action, struct gcov_info *info);
 
-
 /*
  * Private copy taken from libc
  */
-static char *
-(basename)(char *path)
+static char *(basename)(char *path)
 {
 	char *ptr;
 
@@ -179,7 +173,6 @@ __gcov_exit(void)
 	/* Unused. */
 }
 
-
 /**
  * struct gcov_node - represents a debugfs entry
  * @entry: list entry for parent's child node list
@@ -280,10 +273,10 @@ gcov_seq_stop(struct seq_file *seq, void *data)
 }
 
 static const struct seq_operations gcov_seq_ops = {
-	.start	= gcov_seq_start,
-	.next	= gcov_seq_next,
-	.show	= gcov_seq_show,
-	.stop	= gcov_seq_stop,
+	.start = gcov_seq_start,
+	.next = gcov_seq_next,
+	.show = gcov_seq_show,
+	.stop = gcov_seq_stop,
 };
 
 /*
@@ -394,7 +387,7 @@ get_node_by_name(const char *name)
 	struct gcov_node *node;
 	struct gcov_info *info;
 
-	LIST_FOREACH(node, &all_head, all_entry) {
+	LIST_FOREACH (node, &all_head, all_entry) {
 		info = get_node_info(node);
 		if (info && (strcmp(gcov_info_filename(info), name) == 0))
 			return (node);
@@ -423,8 +416,8 @@ gcov_stats_reset(void)
 	struct gcov_node *node;
 
 	mtx_lock(&node_lock);
- restart:
-	LIST_FOREACH(node, &all_head, all_entry) {
+restart:
+	LIST_FOREACH (node, &all_head, all_entry) {
 		if (node->num_loaded > 0)
 			reset_node(node);
 		else if (LIST_EMPTY(&node->children)) {
@@ -520,7 +513,7 @@ get_link_target(const char *filename, const struct gcov_link *ext)
 	return (result);
 }
 
-#define SKEW_PREFIX	".tmp_"
+#define SKEW_PREFIX ".tmp_"
 
 /*
  * For a filename .tmp_filename.ext return filename.ext. Needed to compensate
@@ -548,20 +541,20 @@ add_links(struct gcov_node *node, struct dentry *parent)
 
 	for (num = 0; gcov_link[num].ext; num++)
 		/* Nothing. */;
-	node->links = malloc((num*sizeof(struct dentry *)), M_GCOV, M_NOWAIT|M_ZERO);
+	node->links = malloc(
+	    (num * sizeof(struct dentry *)), M_GCOV, M_NOWAIT | M_ZERO);
 	if (node->links == NULL)
 		return;
 	for (i = 0; i < num; i++) {
 		target = get_link_target(
-				gcov_info_filename(get_node_info(node)),
-				&gcov_link[i]);
+		    gcov_info_filename(get_node_info(node)), &gcov_link[i]);
 		if (target == NULL)
 			goto out_err;
 		path_basename = basename(target);
 		if (path_basename == target)
 			goto out_err;
-		node->links[i] = debugfs_create_symlink(deskew(path_basename),
-							parent,	target);
+		node->links[i] = debugfs_create_symlink(
+		    deskew(path_basename), parent, target);
 		if (!node->links[i])
 			goto out_err;
 		free(target, M_GCOV);
@@ -577,17 +570,17 @@ out_err:
 }
 
 static const struct file_operations gcov_data_fops = {
-	.open		= gcov_seq_open,
-	.release	= gcov_seq_release,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.write		= gcov_seq_write,
+	.open = gcov_seq_open,
+	.release = gcov_seq_release,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = gcov_seq_write,
 };
 
 /* Basic initialization of a new node. */
 static void
-init_node(struct gcov_node *node, struct gcov_info *info,
-   const char *name, struct gcov_node *parent)
+init_node(struct gcov_node *node, struct gcov_info *info, const char *name,
+    struct gcov_node *parent)
 {
 	LIST_INIT(&node->children);
 	if (node->loaded_info) {
@@ -608,11 +601,13 @@ new_node(struct gcov_node *parent, struct gcov_info *info, const char *name)
 {
 	struct gcov_node *node;
 
-	node = malloc(sizeof(struct gcov_node) + strlen(name) + 1, M_GCOV, M_NOWAIT|M_ZERO);
+	node = malloc(sizeof(struct gcov_node) + strlen(name) + 1, M_GCOV,
+	    M_NOWAIT | M_ZERO);
 	if (!node)
 		goto err_nomem;
 	if (info) {
-		node->loaded_info = malloc(sizeof(struct gcov_info *), M_GCOV, M_NOWAIT|M_ZERO);
+		node->loaded_info = malloc(
+		    sizeof(struct gcov_info *), M_GCOV, M_NOWAIT | M_ZERO);
 		if (!node->loaded_info)
 			goto err_nomem;
 	}
@@ -620,7 +615,7 @@ new_node(struct gcov_node *parent, struct gcov_info *info, const char *name)
 	/* Differentiate between gcov data file nodes and directory nodes. */
 	if (info) {
 		node->dentry = debugfs_create_file(deskew(node->name), 0600,
-					parent->dentry, node, &gcov_data_fops);
+		    parent->dentry, node, &gcov_data_fops);
 	} else
 		node->dentry = debugfs_create_dir(node->name, parent->dentry);
 	if (!node->dentry) {
@@ -693,7 +688,7 @@ get_child_by_name(struct gcov_node *parent, const char *name)
 {
 	struct gcov_node *node;
 
-	LIST_FOREACH(node, &parent->children, children_entry) {
+	LIST_FOREACH (node, &parent->children, children_entry) {
 		if (strcmp(node->name, name) == 0)
 			return (node);
 	}
@@ -767,14 +762,15 @@ add_info(struct gcov_node *node, struct gcov_info *info)
 	 * case the new data set is incompatible, the node only contains
 	 * unloaded data sets and there's not enough memory for the array.
 	 */
-	loaded_info = malloc((num + 1)* sizeof(struct gcov_info *), M_GCOV, M_NOWAIT|M_ZERO);
+	loaded_info = malloc(
+	    (num + 1) * sizeof(struct gcov_info *), M_GCOV, M_NOWAIT | M_ZERO);
 	if (!loaded_info) {
 		log(LOG_WARNING, "could not add '%s' (out of memory)\n",
-			gcov_info_filename(info));
+		    gcov_info_filename(info));
 		return;
 	}
-	memcpy(loaded_info, node->loaded_info,
-	       num * sizeof(struct gcov_info *));
+	memcpy(
+	    loaded_info, node->loaded_info, num * sizeof(struct gcov_info *));
 	loaded_info[num] = info;
 	/* Check if the new data set is compatible. */
 	if (num == 0) {
@@ -783,9 +779,10 @@ add_info(struct gcov_node *node, struct gcov_info *info)
 		 * data set replaces the copy of the last one.
 		 */
 		if (!gcov_info_is_compatible(node->unloaded_info, info)) {
-			log(LOG_WARNING, "discarding saved data for %s "
-				"(incompatible version)\n",
-				gcov_info_filename(info));
+			log(LOG_WARNING,
+			    "discarding saved data for %s "
+			    "(incompatible version)\n",
+			    gcov_info_filename(info));
 			gcov_info_free(node->unloaded_info);
 			node->unloaded_info = NULL;
 		}
@@ -795,8 +792,10 @@ add_info(struct gcov_node *node, struct gcov_info *info)
 		 * The initial one takes precedence.
 		 */
 		if (!gcov_info_is_compatible(node->loaded_info[0], info)) {
-			log(LOG_WARNING, "could not add '%s' (incompatible "
-				"version)\n", gcov_info_filename(info));
+			log(LOG_WARNING,
+			    "could not add '%s' (incompatible "
+			    "version)\n",
+			    gcov_info_filename(info));
 			free(loaded_info, M_GCOV);
 			return;
 		}
@@ -833,9 +832,10 @@ save_info(struct gcov_node *node, struct gcov_info *info)
 	else {
 		node->unloaded_info = gcov_info_dup(info);
 		if (!node->unloaded_info) {
-			log(LOG_WARNING, "could not save data for '%s' "
-				"(out of memory)\n",
-				gcov_info_filename(info));
+			log(LOG_WARNING,
+			    "could not save data for '%s' "
+			    "(out of memory)\n",
+			    gcov_info_filename(info));
 		}
 	}
 }
@@ -852,7 +852,7 @@ remove_info(struct gcov_node *node, struct gcov_info *info)
 	i = get_info_index(node, info);
 	if (i < 0) {
 		log(LOG_WARNING, "could not remove '%s' (not found)\n",
-			gcov_info_filename(info));
+		    gcov_info_filename(info));
 		return;
 	}
 	if (gcov_persist)
@@ -893,7 +893,7 @@ gcov_event(enum gcov_action action, struct gcov_info *info)
 			remove_info(node, info);
 		else {
 			log(LOG_WARNING, "could not remove '%s' (not found)\n",
-				gcov_info_filename(info));
+			    gcov_info_filename(info));
 		}
 		break;
 	}
@@ -935,7 +935,7 @@ gcov_module_unload(void *arg __unused, module_t mod)
 	struct gcov_info *info = NULL;
 	struct gcov_info *prev = NULL;
 
-	mtx_lock(&gcov_mtx );
+	mtx_lock(&gcov_mtx);
 
 	/* Remove entries located in module from linked list. */
 	while ((info = gcov_info_next(info))) {

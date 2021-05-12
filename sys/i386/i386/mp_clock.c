@@ -26,7 +26,7 @@ __FBSDID("$FreeBSD$");
  * ]   timer specification is violated due to erroneous reads.  Implication:
  * ]   System hangs due to the "inaccuracy" of the timer when used by
  * ]   software for time critical events and delays.
- * ] 
+ * ]
  * ] Workaround: Read the register twice and compare.
  * ] Status: This will not be fixed in the PIIX4 or PIIX4E.
  *
@@ -41,11 +41,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/timetc.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
-#include <sys/bus.h>
+#include <sys/timetc.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -53,18 +53,17 @@ __FBSDID("$FreeBSD$");
 static unsigned piix_get_timecount(struct timecounter *tc);
 
 static u_int32_t piix_timecounter_address;
-static u_int piix_freq = 14318182/4;
+static u_int piix_freq = 14318182 / 4;
 
 static struct timecounter piix_timecounter = {
-	piix_get_timecount,	/* get_timecount */
-	0,			/* no poll_pps */
-	0xffffff,		/* counter_mask */
-	0,			/* frequency */
-	"PIIX"			/* name */
+	piix_get_timecount, /* get_timecount */
+	0,		    /* no poll_pps */
+	0xffffff,	    /* counter_mask */
+	0,		    /* frequency */
+	"PIIX"		    /* name */
 };
 
-static int
-sysctl_machdep_piix_freq(SYSCTL_HANDLER_ARGS)
+static int sysctl_machdep_piix_freq(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	u_int freq;
@@ -82,8 +81,7 @@ sysctl_machdep_piix_freq(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_machdep, OID_AUTO, piix_freq,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(u_int),
-    sysctl_machdep_piix_freq, "I",
-    "");
+    sysctl_machdep_piix_freq, "I", "");
 
 static unsigned
 piix_get_timecount(struct timecounter *tc)
@@ -137,9 +135,8 @@ piix_attach(device_t dev)
 
 static device_method_t piix_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		piix_probe),
-	DEVMETHOD(device_attach,	piix_attach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, piix_probe),
+	DEVMETHOD(device_attach, piix_attach), { 0, 0 }
 };
 
 static driver_t piix_driver = {

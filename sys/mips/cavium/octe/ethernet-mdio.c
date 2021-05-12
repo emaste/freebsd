@@ -21,10 +21,21 @@ met:
       derived from this software without specific prior written
       permission.
 
-This Software, including technical data, may be subject to U.S. export  control laws, including the U.S. Export Administration Act and its  associated regulations, and may be subject to export or import  regulations in other countries.
+This Software, including technical data, may be subject to U.S. export  control
+laws, including the U.S. Export Administration Act and its  associated
+regulations, and may be subject to export or import  regulations in other
+countries.
 
 TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
-AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
+AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
 
 *************************************************************************/
 
@@ -36,17 +47,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
 #include <sys/lock.h>
+#include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/socket.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 
-#include "wrapper-cvmx-includes.h"
 #include "ethernet-headers.h"
+#include "wrapper-cvmx-includes.h"
 
 struct mtx cvm_oct_mdio_mtx;
 MTX_SYSINIT(cvm_oct_mdio, &cvm_oct_mdio_mtx, "MDIO", MTX_DEF);
@@ -59,10 +70,11 @@ MTX_SYSINIT(cvm_oct_mdio, &cvm_oct_mdio_mtx, "MDIO", MTX_DEF);
  * @param location Register location to read
  * @return Result from the read or zero on failure
  */
-int cvm_oct_mdio_read(struct ifnet *ifp, int phy_id, int location)
+int
+cvm_oct_mdio_read(struct ifnet *ifp, int phy_id, int location)
 {
-	cvmx_smi_cmd_t          smi_cmd;
-	cvmx_smi_rd_dat_t       smi_rd;
+	cvmx_smi_cmd_t smi_cmd;
+	cvmx_smi_rd_dat_t smi_rd;
 
 	MDIO_LOCK();
 	smi_cmd.u64 = 0;
@@ -92,10 +104,11 @@ int cvm_oct_mdio_read(struct ifnet *ifp, int phy_id, int location)
  * @param location Register location to write
  * @param val      Value to write
  */
-void cvm_oct_mdio_write(struct ifnet *ifp, int phy_id, int location, int val)
+void
+cvm_oct_mdio_write(struct ifnet *ifp, int phy_id, int location, int val)
 {
-	cvmx_smi_cmd_t          smi_cmd;
-	cvmx_smi_wr_dat_t       smi_wr;
+	cvmx_smi_cmd_t smi_cmd;
+	cvmx_smi_wr_dat_t smi_wr;
 
 	MDIO_LOCK();
 	smi_wr.u64 = 0;
@@ -122,7 +135,8 @@ void cvm_oct_mdio_write(struct ifnet *ifp, int phy_id, int location, int val)
  *
  * @return Zero on success, negative on failure
  */
-int cvm_oct_mdio_setup_device(struct ifnet *ifp)
+int
+cvm_oct_mdio_setup_device(struct ifnet *ifp)
 {
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 

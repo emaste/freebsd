@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 #ifndef _MACHINE_BUS_DMA_H_
-#define	_MACHINE_BUS_DMA_H_
+#define _MACHINE_BUS_DMA_H_
 
 #define WANT_INLINE_DMAMAP
 #include <sys/bus_dma.h>
@@ -52,8 +52,8 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
  * A dmamap to for use with dmamap_load is also allocated.
  */
 static inline int
-bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
-    bus_dmamap_t *mapp)
+bus_dmamem_alloc(
+    bus_dma_tag_t dmat, void **vaddr, int flags, bus_dmamap_t *mapp)
 {
 	struct bus_dma_tag_common *tc;
 
@@ -102,20 +102,18 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 	struct bus_dma_tag_common *tc;
 
 	tc = (struct bus_dma_tag_common *)dmat;
-	return (tc->impl->load_phys(dmat, map, buf, buflen, flags, segs,
-	    segp));
+	return (tc->impl->load_phys(dmat, map, buf, buflen, flags, segs, segp));
 }
 
 static inline int
 _bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map, struct vm_page **ma,
-    bus_size_t tlen, int ma_offs, int flags, bus_dma_segment_t *segs,
-    int *segp)
+    bus_size_t tlen, int ma_offs, int flags, bus_dma_segment_t *segs, int *segp)
 {
 	struct bus_dma_tag_common *tc;
 
 	tc = (struct bus_dma_tag_common *)dmat;
-	return (tc->impl->load_ma(dmat, map, ma, tlen, ma_offs, flags,
-	    segs, segp));
+	return (
+	    tc->impl->load_ma(dmat, map, ma, tlen, ma_offs, flags, segs, segp));
 }
 
 static inline int
@@ -126,13 +124,13 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	struct bus_dma_tag_common *tc;
 
 	tc = (struct bus_dma_tag_common *)dmat;
-	return (tc->impl->load_buffer(dmat, map, buf, buflen, pmap, flags, segs,
-	    segp));
+	return (tc->impl->load_buffer(
+	    dmat, map, buf, buflen, pmap, flags, segs, segp));
 }
 
 static inline void
-_bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
-    struct memdesc *mem, bus_dmamap_callback_t *callback, void *callback_arg)
+_bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map, struct memdesc *mem,
+    bus_dmamap_callback_t *callback, void *callback_arg)
 {
 	struct bus_dma_tag_common *tc;
 

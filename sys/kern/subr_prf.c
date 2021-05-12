@@ -42,25 +42,25 @@ __FBSDID("$FreeBSD$");
 #ifdef _KERNEL
 #include "opt_ddb.h"
 #include "opt_printf.h"
-#endif  /* _KERNEL */
+#endif /* _KERNEL */
 
 #include <sys/param.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
-#include <sys/lock.h>
+#include <sys/cons.h>
 #include <sys/kdb.h>
-#include <sys/mutex.h>
-#include <sys/sx.h>
 #include <sys/kernel.h>
-#include <sys/msgbuf.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/msgbuf.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/stddef.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
-#include <sys/tty.h>
 #include <sys/syslog.h>
-#include <sys/cons.h>
+#include <sys/tty.h>
 #include <sys/uio.h>
 #else /* !_KERNEL */
 #include <errno.h>
@@ -92,46 +92,46 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 
-#define TOCONS	0x01
-#define TOTTY	0x02
-#define TOLOG	0x04
+#define TOCONS 0x01
+#define TOTTY 0x02
+#define TOLOG 0x04
 
 /* Max number conversion buffer length: a u_quad_t in base 2, plus NUL byte. */
-#define MAXNBUF	(sizeof(intmax_t) * NBBY + 1)
+#define MAXNBUF (sizeof(intmax_t) * NBBY + 1)
 
 struct putchar_arg {
-	int	flags;
-	int	pri;
-	struct	tty *tty;
-	char	*p_bufr;
-	size_t	n_bufr;
-	char	*p_next;
-	size_t	remain;
+	int flags;
+	int pri;
+	struct tty *tty;
+	char *p_bufr;
+	size_t n_bufr;
+	char *p_next;
+	size_t remain;
 };
 
 struct snprintf_arg {
-	char	*str;
-	size_t	remain;
+	char *str;
+	size_t remain;
 };
 
-extern	int log_open;
+extern int log_open;
 
-static void  msglogchar(int c, int pri);
-static void  msglogstr(char *str, int pri, int filter_cr);
-static void  putchar(int ch, void *arg);
+static void msglogchar(int c, int pri);
+static void msglogstr(char *str, int pri, int filter_cr);
+static void putchar(int ch, void *arg);
 static char *ksprintn(char *nbuf, uintmax_t num, int base, int *len, int upper);
-static void  snprintf_func(int ch, void *arg);
+static void snprintf_func(int ch, void *arg);
 
-static bool msgbufmapped;		/* Set when safe to use msgbuf */
+static bool msgbufmapped; /* Set when safe to use msgbuf */
 int msgbuftrigger;
 struct msgbuf *msgbufp;
 
 #ifndef BOOT_TAG_SZ
-#define	BOOT_TAG_SZ	32
+#define BOOT_TAG_SZ 32
 #endif
 #ifndef BOOT_TAG
 /* Tag used to mark the start of a boot in dmesg */
-#define	BOOT_TAG	"---<<BOOT>>---"
+#define BOOT_TAG "---<<BOOT>>---"
 #endif
 
 static char current_boot_tag[BOOT_TAG_SZ + 1] = BOOT_TAG;
@@ -298,7 +298,7 @@ _vprintf(int level, int flags, const char *fmt, va_list ap)
 	/* Write any buffered console/log output: */
 	if (*pca.p_bufr != '\0') {
 		if (pca.flags & TOLOG)
-			msglogstr(pca.p_bufr, level, /*filter_cr*/1);
+			msglogstr(pca.p_bufr, level, /*filter_cr*/ 1);
 
 		if (pca.flags & TOCONS)
 			cnputs(pca.p_bufr);
@@ -428,14 +428,13 @@ prf_putbuf(char *bufr, int flags, int pri)
 {
 
 	if (flags & TOLOG)
-		msglogstr(bufr, pri, /*filter_cr*/1);
+		msglogstr(bufr, pri, /*filter_cr*/ 1);
 
 	if (flags & TOCONS) {
 		if ((!KERNEL_PANICKED()) && (constty != NULL))
-			msgbuf_addstr(&consmsgbuf, -1,
-			    bufr, /*filter_cr*/ 0);
+			msgbuf_addstr(&consmsgbuf, -1, bufr, /*filter_cr*/ 0);
 
-		if ((constty == NULL) ||(always_console_output))
+		if ((constty == NULL) || (always_console_output))
 			cnputs(bufr);
 	}
 }
@@ -476,8 +475,8 @@ putbuf(int c, struct putchar_arg *ap)
 		 * if someone sets PRINTF_BUFR_SIZE to 1 or something
 		 * similarly silly.
 		 */
-		KASSERT(ap->remain > 2, ("Bad buffer logic, remain = %zd",
-		    ap->remain));
+		KASSERT(ap->remain > 2,
+		    ("Bad buffer logic, remain = %zd", ap->remain));
 	}
 }
 
@@ -489,7 +488,7 @@ putbuf(int c, struct putchar_arg *ap)
 static void
 putchar(int c, void *arg)
 {
-	struct putchar_arg *ap = (struct putchar_arg*) arg;
+	struct putchar_arg *ap = (struct putchar_arg *)arg;
 	struct tty *tp = ap->tty;
 	int flags = ap->flags;
 
@@ -548,7 +547,7 @@ snprintf(char *str, size_t size, const char *format, ...)
 	va_start(ap, format);
 	retval = vsnprintf(str, size, format, ap);
 	va_end(ap);
-	return(retval);
+	return (retval);
 }
 
 /*
@@ -645,9 +644,18 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
  *		("%*D", len, ptr, " " -> XX XX XX XX ...
  */
 int
-kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_list ap)
+kvprintf(char const *fmt, void (*func)(int, void *), void *arg, int radix,
+    va_list ap)
 {
-#define PCHAR(c) {int cc=(c); if (func) (*func)(cc,arg); else *d++ = cc; retval++; }
+#define PCHAR(c)                          \
+	{                                 \
+		int cc = (c);             \
+		if (func)                 \
+			(*func)(cc, arg); \
+		else                      \
+			*d++ = cc;        \
+		retval++;                 \
+	}
 	char nbuf[MAXNBUF];
 	char *d;
 	const char *p, *percent, *q;
@@ -663,7 +671,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 	num = 0;
 	q = NULL;
 	if (!func)
-		d = (char *) arg;
+		d = (char *)arg;
 	else
 		d = NULL;
 
@@ -682,10 +690,23 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 			PCHAR(ch);
 		}
 		percent = fmt - 1;
-		qflag = 0; lflag = 0; ladjust = 0; sharpflag = 0; neg = 0;
-		sign = 0; dot = 0; bconv = 0; dwidth = 0; upper = 0;
-		cflag = 0; hflag = 0; jflag = 0; tflag = 0; zflag = 0;
-reswitch:	switch (ch = (u_char)*fmt++) {
+		qflag = 0;
+		lflag = 0;
+		ladjust = 0;
+		sharpflag = 0;
+		neg = 0;
+		sign = 0;
+		dot = 0;
+		bconv = 0;
+		dwidth = 0;
+		upper = 0;
+		cflag = 0;
+		hflag = 0;
+		jflag = 0;
+		tflag = 0;
+		zflag = 0;
+	reswitch:
+		switch (ch = (u_char)*fmt++) {
 		case '.':
 			dot = 1;
 			goto reswitch;
@@ -718,14 +739,21 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				goto reswitch;
 			}
 			/* FALLTHROUGH */
-		case '1': case '2': case '3': case '4':
-		case '5': case '6': case '7': case '8': case '9':
-				for (n = 0;; ++fmt) {
-					n = n * 10 + ch - '0';
-					ch = *fmt;
-					if (ch < '0' || ch > '9')
-						break;
-				}
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			for (n = 0;; ++fmt) {
+				n = n * 10 + ch - '0';
+				ch = *fmt;
+				if (ch < '0' || ch > '9')
+					break;
+			}
 			if (dot)
 				dwidth = n;
 			else
@@ -751,12 +779,12 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			p = va_arg(ap, char *);
 			if (!width)
 				width = 16;
-			while(width--) {
+			while (width--) {
 				PCHAR(hex2ascii(*up >> 4));
 				PCHAR(hex2ascii(*up & 0x0f));
 				up++;
 				if (width)
-					for (q=p;*q;q++)
+					for (q = p; *q; q++)
 						PCHAR(*q);
 			}
 			break;
@@ -824,7 +852,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			if (p == NULL)
 				p = "(null)";
 			if (!dot)
-				n = strlen (p);
+				n = strlen(p);
 			else
 				for (n = 0; n < dwidth && p[n]; n++)
 					continue;
@@ -859,7 +887,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 		case 'z':
 			zflag = 1;
 			goto reswitch;
-handle_nosign:
+		handle_nosign:
 			sign = 0;
 			if (jflag)
 				num = va_arg(ap, uintmax_t);
@@ -882,7 +910,7 @@ handle_nosign:
 				base = *q++;
 			}
 			goto number;
-handle_sign:
+		handle_sign:
 			if (jflag)
 				num = va_arg(ap, intmax_t);
 			else if (qflag)
@@ -899,7 +927,7 @@ handle_sign:
 				num = (char)va_arg(ap, int);
 			else
 				num = va_arg(ap, int);
-number:
+		number:
 			if (sign && (intmax_t)num < 0) {
 				neg = 1;
 				num = -(intmax_t)num;
@@ -944,8 +972,8 @@ number:
 				while (*q) {
 					n = *q++;
 					if (num & (1 << (n - 1))) {
-						PCHAR(retval != tmp ?
-						    ',' : '<');
+						PCHAR(
+						    retval != tmp ? ',' : '<');
 						for (; (n = *q) > ' '; ++q)
 							PCHAR(n);
 					} else
@@ -1048,8 +1076,7 @@ msgbufinit(void *ptr, int size)
 }
 
 /* Sysctls for accessing/clearing the msgbuf */
-static int
-sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 {
 	char buf[128];
 	u_int seq;
@@ -1077,13 +1104,12 @@ sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, msgbuf,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, 0, sysctl_kern_msgbuf, "A", "Contents of kernel message buffer");
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0, sysctl_kern_msgbuf,
+    "A", "Contents of kernel message buffer");
 
 static int msgbuf_clearflag;
 
-static int
-sysctl_kern_msgbuf_clear(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_msgbuf_clear(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
@@ -1143,7 +1169,7 @@ hexdump(const void *ptr, int length, const char *hdr, int flags)
 		cols = 16;
 
 	cp = ptr;
-	for (i = 0; i < length; i+= cols) {
+	for (i = 0; i < length; i += cols) {
 		if (hdr != NULL)
 			printf("%s", hdr);
 
@@ -1179,8 +1205,8 @@ hexdump(const void *ptr, int length, const char *hdr, int flags)
 #endif /* _KERNEL */
 
 void
-sbuf_hexdump(struct sbuf *sb, const void *ptr, int length, const char *hdr,
-	     int flags)
+sbuf_hexdump(
+    struct sbuf *sb, const void *ptr, int length, const char *hdr, int flags)
 {
 	int i, j, k;
 	int cols;
@@ -1198,7 +1224,7 @@ sbuf_hexdump(struct sbuf *sb, const void *ptr, int length, const char *hdr,
 		cols = 16;
 
 	cp = ptr;
-	for (i = 0; i < length; i+= cols) {
+	for (i = 0; i < length; i += cols) {
 		if (hdr != NULL)
 			sbuf_printf(sb, "%s", hdr);
 
@@ -1245,8 +1271,8 @@ counted_warning(unsigned *counter, const char *msg)
 			break;
 		if (atomic_cmpset_int(counter, c, c - 1)) {
 			td = curthread;
-			log(LOG_INFO, "pid %d (%s) %s%s\n",
-			    td->td_proc->p_pid, td->td_name, msg,
+			log(LOG_INFO, "pid %d (%s) %s%s\n", td->td_proc->p_pid,
+			    td->td_name, msg,
 			    c > 1 ? "" : " - not logging anymore");
 			break;
 		}

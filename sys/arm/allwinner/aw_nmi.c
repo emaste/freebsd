@@ -35,85 +35,84 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_intr.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "pic_if.h"
 
-#define	NMI_IRQ_CTRL_REG	0x0
-#define	 NMI_IRQ_LOW_LEVEL	0x0
-#define	 NMI_IRQ_LOW_EDGE	0x1
-#define	 NMI_IRQ_HIGH_LEVEL	0x2
-#define	 NMI_IRQ_HIGH_EDGE	0x3
-#define	NMI_IRQ_PENDING_REG	0x4
-#define	 NMI_IRQ_ACK		(1U << 0)
-#define	A20_NMI_IRQ_ENABLE_REG	0x8
-#define	A31_NMI_IRQ_ENABLE_REG	0x34
-#define	 NMI_IRQ_ENABLE		(1U << 0)
+#define NMI_IRQ_CTRL_REG 0x0
+#define NMI_IRQ_LOW_LEVEL 0x0
+#define NMI_IRQ_LOW_EDGE 0x1
+#define NMI_IRQ_HIGH_LEVEL 0x2
+#define NMI_IRQ_HIGH_EDGE 0x3
+#define NMI_IRQ_PENDING_REG 0x4
+#define NMI_IRQ_ACK (1U << 0)
+#define A20_NMI_IRQ_ENABLE_REG 0x8
+#define A31_NMI_IRQ_ENABLE_REG 0x34
+#define NMI_IRQ_ENABLE (1U << 0)
 
-#define	R_NMI_IRQ_CTRL_REG	0x0c
-#define	R_NMI_IRQ_PENDING_REG	0x10
-#define	R_NMI_IRQ_ENABLE_REG	0x40
+#define R_NMI_IRQ_CTRL_REG 0x0c
+#define R_NMI_IRQ_PENDING_REG 0x10
+#define R_NMI_IRQ_ENABLE_REG 0x40
 
-#define	SC_NMI_READ(_sc, _reg)		bus_read_4(_sc->res[0], _reg)
-#define	SC_NMI_WRITE(_sc, _reg, _val)	bus_write_4(_sc->res[0], _reg, _val)
+#define SC_NMI_READ(_sc, _reg) bus_read_4(_sc->res[0], _reg)
+#define SC_NMI_WRITE(_sc, _reg, _val) bus_write_4(_sc->res[0], _reg, _val)
 
-static struct resource_spec aw_nmi_res_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1,			0,	0 }
-};
+static struct resource_spec aw_nmi_res_spec[] = { { SYS_RES_MEMORY, 0,
+						      RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0, 0 } };
 
 struct aw_nmi_intr {
-	struct intr_irqsrc	isrc;
-	u_int			irq;
-	enum intr_polarity	pol;
-	enum intr_trigger	tri;
+	struct intr_irqsrc isrc;
+	u_int irq;
+	enum intr_polarity pol;
+	enum intr_trigger tri;
 };
 
 struct aw_nmi_reg_cfg {
-	uint8_t			ctrl_reg;
-	uint8_t			pending_reg;
-	uint8_t			enable_reg;
+	uint8_t ctrl_reg;
+	uint8_t pending_reg;
+	uint8_t enable_reg;
 };
 
 struct aw_nmi_softc {
-	device_t		dev;
-	struct resource *	res[2];
-	void *			intrcookie;
-	struct aw_nmi_intr	intr;
-	struct aw_nmi_reg_cfg *	cfg;
+	device_t dev;
+	struct resource *res[2];
+	void *intrcookie;
+	struct aw_nmi_intr intr;
+	struct aw_nmi_reg_cfg *cfg;
 };
 
 static struct aw_nmi_reg_cfg a20_nmi_cfg = {
-	.ctrl_reg =	NMI_IRQ_CTRL_REG,
-	.pending_reg =	NMI_IRQ_PENDING_REG,
-	.enable_reg =	A20_NMI_IRQ_ENABLE_REG,
+	.ctrl_reg = NMI_IRQ_CTRL_REG,
+	.pending_reg = NMI_IRQ_PENDING_REG,
+	.enable_reg = A20_NMI_IRQ_ENABLE_REG,
 };
 
 static struct aw_nmi_reg_cfg a31_nmi_cfg = {
-	.ctrl_reg =	NMI_IRQ_CTRL_REG,
-	.pending_reg =	NMI_IRQ_PENDING_REG,
-	.enable_reg =	A31_NMI_IRQ_ENABLE_REG,
+	.ctrl_reg = NMI_IRQ_CTRL_REG,
+	.pending_reg = NMI_IRQ_PENDING_REG,
+	.enable_reg = A31_NMI_IRQ_ENABLE_REG,
 };
 
 static struct aw_nmi_reg_cfg a83t_r_nmi_cfg = {
-	.ctrl_reg =	R_NMI_IRQ_CTRL_REG,
-	.pending_reg =	R_NMI_IRQ_PENDING_REG,
-	.enable_reg =	R_NMI_IRQ_ENABLE_REG,
+	.ctrl_reg = R_NMI_IRQ_CTRL_REG,
+	.pending_reg = R_NMI_IRQ_PENDING_REG,
+	.enable_reg = R_NMI_IRQ_ENABLE_REG,
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"allwinner,sun7i-a20-sc-nmi", (uintptr_t)&a20_nmi_cfg},
-	{"allwinner,sun6i-a31-sc-nmi", (uintptr_t)&a31_nmi_cfg},
-	{"allwinner,sun6i-a31-r-intc", (uintptr_t)&a83t_r_nmi_cfg},
-	{"allwinner,sun8i-a83t-r-intc", (uintptr_t)&a83t_r_nmi_cfg},
-	{NULL, 0},
+	{ "allwinner,sun7i-a20-sc-nmi", (uintptr_t)&a20_nmi_cfg },
+	{ "allwinner,sun6i-a31-sc-nmi", (uintptr_t)&a31_nmi_cfg },
+	{ "allwinner,sun6i-a31-r-intc", (uintptr_t)&a83t_r_nmi_cfg },
+	{ "allwinner,sun8i-a83t-r-intc", (uintptr_t)&a83t_r_nmi_cfg },
+	{ NULL, 0 },
 };
 
 static int
@@ -180,23 +179,23 @@ aw_nmi_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
 	switch (tripol) {
 	case FDT_INTR_EDGE_RISING:
 		trig = INTR_TRIGGER_EDGE;
-		pol  = INTR_POLARITY_HIGH;
+		pol = INTR_POLARITY_HIGH;
 		break;
 	case FDT_INTR_EDGE_FALLING:
 		trig = INTR_TRIGGER_EDGE;
-		pol  = INTR_POLARITY_LOW;
+		pol = INTR_POLARITY_LOW;
 		break;
 	case FDT_INTR_LEVEL_HIGH:
 		trig = INTR_TRIGGER_LEVEL;
-		pol  = INTR_POLARITY_HIGH;
+		pol = INTR_POLARITY_HIGH;
 		break;
 	case FDT_INTR_LEVEL_LOW:
 		trig = INTR_TRIGGER_LEVEL;
-		pol  = INTR_POLARITY_LOW;
+		pol = INTR_POLARITY_LOW;
 		break;
 	default:
-		device_printf(dev, "unsupported trigger/polarity 0x%2x\n",
-		    tripol);
+		device_printf(
+		    dev, "unsupported trigger/polarity 0x%2x\n", tripol);
 		return (ENOTSUP);
 	}
 
@@ -209,8 +208,8 @@ aw_nmi_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
 }
 
 static int
-aw_nmi_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+aw_nmi_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct intr_map_data_fdt *daf;
 	struct aw_nmi_softc *sc;
@@ -231,8 +230,8 @@ aw_nmi_map_intr(device_t dev, struct intr_map_data *data,
 }
 
 static int
-aw_nmi_setup_intr(device_t dev, struct intr_irqsrc *isrc,
-    struct resource *res, struct intr_map_data *data)
+aw_nmi_setup_intr(device_t dev, struct intr_irqsrc *isrc, struct resource *res,
+    struct intr_map_data *data)
 {
 	struct intr_map_data_fdt *daf;
 	struct aw_nmi_softc *sc;
@@ -352,15 +351,16 @@ aw_nmi_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	sc->cfg = (struct aw_nmi_reg_cfg *)
-	    ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	sc->cfg = (struct aw_nmi_reg_cfg *)ofw_bus_search_compatible(
+	    dev, compat_data)
+		      ->ocd_data;
 
 	if (bus_alloc_resources(dev, aw_nmi_res_spec, sc->res) != 0) {
 		device_printf(dev, "can't allocate device resources\n");
 		return (ENXIO);
 	}
-	if ((bus_setup_intr(dev, sc->res[1], INTR_TYPE_MISC,
-	    aw_nmi_intr, NULL, sc, &sc->intrcookie))) {
+	if ((bus_setup_intr(dev, sc->res[1], INTR_TYPE_MISC, aw_nmi_intr, NULL,
+		sc, &sc->intrcookie))) {
 		device_printf(dev, "unable to register interrupt handler\n");
 		bus_release_resources(dev, aw_nmi_res_spec, sc->res);
 		return (ENXIO);
@@ -376,7 +376,7 @@ aw_nmi_attach(device_t dev)
 	sc->intr.pol = INTR_POLARITY_CONFORM;
 	sc->intr.tri = INTR_TRIGGER_CONFORM;
 	if (intr_isrc_register(&sc->intr.isrc, sc->dev, 0, "%s,%u",
-	      device_get_nameunit(sc->dev), sc->intr.irq) != 0)
+		device_get_nameunit(sc->dev), sc->intr.irq) != 0)
 		goto error;
 
 	if (intr_pic_register(dev, (intptr_t)xref) == NULL) {
@@ -392,20 +392,20 @@ error:
 }
 
 static device_method_t aw_nmi_methods[] = {
-	DEVMETHOD(device_probe,		aw_nmi_probe),
-	DEVMETHOD(device_attach,	aw_nmi_attach),
+	DEVMETHOD(device_probe, aw_nmi_probe),
+	DEVMETHOD(device_attach, aw_nmi_attach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_disable_intr,	aw_nmi_disable_intr),
-	DEVMETHOD(pic_enable_intr,	aw_nmi_enable_intr),
-	DEVMETHOD(pic_map_intr,		aw_nmi_map_intr),
-	DEVMETHOD(pic_setup_intr,	aw_nmi_setup_intr),
-	DEVMETHOD(pic_teardown_intr,	aw_nmi_teardown_intr),
-	DEVMETHOD(pic_post_filter,	aw_nmi_post_filter),
-	DEVMETHOD(pic_post_ithread,	aw_nmi_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	aw_nmi_pre_ithread),
+	DEVMETHOD(pic_disable_intr, aw_nmi_disable_intr),
+	DEVMETHOD(pic_enable_intr, aw_nmi_enable_intr),
+	DEVMETHOD(pic_map_intr, aw_nmi_map_intr),
+	DEVMETHOD(pic_setup_intr, aw_nmi_setup_intr),
+	DEVMETHOD(pic_teardown_intr, aw_nmi_teardown_intr),
+	DEVMETHOD(pic_post_filter, aw_nmi_post_filter),
+	DEVMETHOD(pic_post_ithread, aw_nmi_post_ithread),
+	DEVMETHOD(pic_pre_ithread, aw_nmi_pre_ithread),
 
-	{0, 0},
+	{ 0, 0 },
 };
 
 static driver_t aw_nmi_driver = {
@@ -416,5 +416,5 @@ static driver_t aw_nmi_driver = {
 
 static devclass_t aw_nmi_devclass;
 
-EARLY_DRIVER_MODULE(aw_nmi, simplebus, aw_nmi_driver,
-    aw_nmi_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
+EARLY_DRIVER_MODULE(aw_nmi, simplebus, aw_nmi_driver, aw_nmi_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

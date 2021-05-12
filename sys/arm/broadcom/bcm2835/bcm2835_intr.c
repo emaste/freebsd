@@ -41,123 +41,120 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "pic_if.h"
 
-#define	INTC_PENDING_BASIC	0x00
-#define	INTC_PENDING_BANK1	0x04
-#define	INTC_PENDING_BANK2	0x08
-#define	INTC_FIQ_CONTROL	0x0C
-#define	INTC_ENABLE_BANK1	0x10
-#define	INTC_ENABLE_BANK2	0x14
-#define	INTC_ENABLE_BASIC	0x18
-#define	INTC_DISABLE_BANK1	0x1C
-#define	INTC_DISABLE_BANK2	0x20
-#define	INTC_DISABLE_BASIC	0x24
+#define INTC_PENDING_BASIC 0x00
+#define INTC_PENDING_BANK1 0x04
+#define INTC_PENDING_BANK2 0x08
+#define INTC_FIQ_CONTROL 0x0C
+#define INTC_ENABLE_BANK1 0x10
+#define INTC_ENABLE_BANK2 0x14
+#define INTC_ENABLE_BASIC 0x18
+#define INTC_DISABLE_BANK1 0x1C
+#define INTC_DISABLE_BANK2 0x20
+#define INTC_DISABLE_BASIC 0x24
 
-#define INTC_PENDING_BASIC_ARM		0x0000FF
-#define INTC_PENDING_BASIC_GPU1_PEND	0x000100
-#define INTC_PENDING_BASIC_GPU2_PEND	0x000200
-#define INTC_PENDING_BASIC_GPU1_7	0x000400
-#define INTC_PENDING_BASIC_GPU1_9	0x000800
-#define INTC_PENDING_BASIC_GPU1_10	0x001000
-#define INTC_PENDING_BASIC_GPU1_18	0x002000
-#define INTC_PENDING_BASIC_GPU1_19	0x004000
-#define INTC_PENDING_BASIC_GPU2_21	0x008000
-#define INTC_PENDING_BASIC_GPU2_22	0x010000
-#define INTC_PENDING_BASIC_GPU2_23	0x020000
-#define INTC_PENDING_BASIC_GPU2_24	0x040000
-#define INTC_PENDING_BASIC_GPU2_25	0x080000
-#define INTC_PENDING_BASIC_GPU2_30	0x100000
-#define INTC_PENDING_BASIC_MASK		0x1FFFFF
+#define INTC_PENDING_BASIC_ARM 0x0000FF
+#define INTC_PENDING_BASIC_GPU1_PEND 0x000100
+#define INTC_PENDING_BASIC_GPU2_PEND 0x000200
+#define INTC_PENDING_BASIC_GPU1_7 0x000400
+#define INTC_PENDING_BASIC_GPU1_9 0x000800
+#define INTC_PENDING_BASIC_GPU1_10 0x001000
+#define INTC_PENDING_BASIC_GPU1_18 0x002000
+#define INTC_PENDING_BASIC_GPU1_19 0x004000
+#define INTC_PENDING_BASIC_GPU2_21 0x008000
+#define INTC_PENDING_BASIC_GPU2_22 0x010000
+#define INTC_PENDING_BASIC_GPU2_23 0x020000
+#define INTC_PENDING_BASIC_GPU2_24 0x040000
+#define INTC_PENDING_BASIC_GPU2_25 0x080000
+#define INTC_PENDING_BASIC_GPU2_30 0x100000
+#define INTC_PENDING_BASIC_MASK 0x1FFFFF
 
-#define INTC_PENDING_BASIC_GPU1_MASK	(INTC_PENDING_BASIC_GPU1_7 |	\
-					 INTC_PENDING_BASIC_GPU1_9 |	\
-					 INTC_PENDING_BASIC_GPU1_10 |	\
-					 INTC_PENDING_BASIC_GPU1_18 |	\
-					 INTC_PENDING_BASIC_GPU1_19)
+#define INTC_PENDING_BASIC_GPU1_MASK                                  \
+	(INTC_PENDING_BASIC_GPU1_7 | INTC_PENDING_BASIC_GPU1_9 |      \
+	    INTC_PENDING_BASIC_GPU1_10 | INTC_PENDING_BASIC_GPU1_18 | \
+	    INTC_PENDING_BASIC_GPU1_19)
 
-#define INTC_PENDING_BASIC_GPU2_MASK	(INTC_PENDING_BASIC_GPU2_21 |	\
-					 INTC_PENDING_BASIC_GPU2_22 |	\
-					 INTC_PENDING_BASIC_GPU2_23 |	\
-					 INTC_PENDING_BASIC_GPU2_24 |	\
-					 INTC_PENDING_BASIC_GPU2_25 |	\
-					 INTC_PENDING_BASIC_GPU2_30)
+#define INTC_PENDING_BASIC_GPU2_MASK                                  \
+	(INTC_PENDING_BASIC_GPU2_21 | INTC_PENDING_BASIC_GPU2_22 |    \
+	    INTC_PENDING_BASIC_GPU2_23 | INTC_PENDING_BASIC_GPU2_24 | \
+	    INTC_PENDING_BASIC_GPU2_25 | INTC_PENDING_BASIC_GPU2_30)
 
-#define INTC_PENDING_BANK1_MASK (~((1 << 7) | (1 << 9) | (1 << 10) | \
-    (1 << 18) | (1 << 19)))
-#define INTC_PENDING_BANK2_MASK (~((1 << 21) | (1 << 22) | (1 << 23) | \
-    (1 << 24) | (1 << 25) | (1 << 30)))
+#define INTC_PENDING_BANK1_MASK \
+	(~((1 << 7) | (1 << 9) | (1 << 10) | (1 << 18) | (1 << 19)))
+#define INTC_PENDING_BANK2_MASK                                        \
+	(~((1 << 21) | (1 << 22) | (1 << 23) | (1 << 24) | (1 << 25) | \
+	    (1 << 30)))
 
-#define	BANK1_START	8
-#define	BANK1_END	(BANK1_START + 32 - 1)
-#define	BANK2_START	(BANK1_START + 32)
-#define	BANK2_END	(BANK2_START + 32 - 1)
+#define BANK1_START 8
+#define BANK1_END (BANK1_START + 32 - 1)
+#define BANK2_START (BANK1_START + 32)
+#define BANK2_END (BANK2_START + 32 - 1)
 
-#define	IS_IRQ_BASIC(n)	(((n) >= 0) && ((n) < BANK1_START))
-#define	IS_IRQ_BANK1(n)	(((n) >= BANK1_START) && ((n) <= BANK1_END))
-#define	IS_IRQ_BANK2(n)	(((n) >= BANK2_START) && ((n) <= BANK2_END))
-#define	IRQ_BANK1(n)	((n) - BANK1_START)
-#define	IRQ_BANK2(n)	((n) - BANK2_START)
+#define IS_IRQ_BASIC(n) (((n) >= 0) && ((n) < BANK1_START))
+#define IS_IRQ_BANK1(n) (((n) >= BANK1_START) && ((n) <= BANK1_END))
+#define IS_IRQ_BANK2(n) (((n) >= BANK2_START) && ((n) <= BANK2_END))
+#define IRQ_BANK1(n) ((n)-BANK1_START)
+#define IRQ_BANK2(n) ((n)-BANK2_START)
 
-#ifdef  DEBUG
+#ifdef DEBUG
 #define dprintf(fmt, args...) printf(fmt, ##args)
 #else
 #define dprintf(fmt, args...)
 #endif
 
-#define BCM_INTC_NIRQS		72	/* 8 + 32 + 32 */
+#define BCM_INTC_NIRQS 72 /* 8 + 32 + 32 */
 
 struct bcm_intc_irqsrc {
-	struct intr_irqsrc	bii_isrc;
-	u_int			bii_irq;
-	uint16_t		bii_disable_reg;
-	uint16_t		bii_enable_reg;
-	uint32_t		bii_mask;
+	struct intr_irqsrc bii_isrc;
+	u_int bii_irq;
+	uint16_t bii_disable_reg;
+	uint16_t bii_enable_reg;
+	uint32_t bii_mask;
 };
 
 struct bcm_intc_softc {
-	device_t		sc_dev;
-	struct resource *	intc_res;
-	bus_space_tag_t		intc_bst;
-	bus_space_handle_t	intc_bsh;
-	struct resource *	intc_irq_res;
-	void *			intc_irq_hdl;
-	struct bcm_intc_irqsrc	intc_isrcs[BCM_INTC_NIRQS];
+	device_t sc_dev;
+	struct resource *intc_res;
+	bus_space_tag_t intc_bst;
+	bus_space_handle_t intc_bsh;
+	struct resource *intc_irq_res;
+	void *intc_irq_hdl;
+	struct bcm_intc_irqsrc intc_isrcs[BCM_INTC_NIRQS];
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"broadcom,bcm2835-armctrl-ic",		1},
-	{"brcm,bcm2835-armctrl-ic",		1},
-	{"brcm,bcm2836-armctrl-ic",		1},
-	{NULL,					0}
+	{ "broadcom,bcm2835-armctrl-ic", 1 }, { "brcm,bcm2835-armctrl-ic", 1 },
+	{ "brcm,bcm2836-armctrl-ic", 1 }, { NULL, 0 }
 };
 
 static struct bcm_intc_softc *bcm_intc_sc = NULL;
 
-#define	intc_read_4(_sc, reg)		\
-    bus_space_read_4((_sc)->intc_bst, (_sc)->intc_bsh, (reg))
-#define	intc_write_4(_sc, reg, val)		\
-    bus_space_write_4((_sc)->intc_bst, (_sc)->intc_bsh, (reg), (val))
+#define intc_read_4(_sc, reg) \
+	bus_space_read_4((_sc)->intc_bst, (_sc)->intc_bsh, (reg))
+#define intc_write_4(_sc, reg, val) \
+	bus_space_write_4((_sc)->intc_bst, (_sc)->intc_bsh, (reg), (val))
 
 static inline void
 bcm_intc_isrc_mask(struct bcm_intc_softc *sc, struct bcm_intc_irqsrc *bii)
 {
 
-	intc_write_4(sc, bii->bii_disable_reg,  bii->bii_mask);
+	intc_write_4(sc, bii->bii_disable_reg, bii->bii_mask);
 }
 
 static inline void
 bcm_intc_isrc_unmask(struct bcm_intc_softc *sc, struct bcm_intc_irqsrc *bii)
 {
 
-	intc_write_4(sc, bii->bii_enable_reg,  bii->bii_mask);
+	intc_write_4(sc, bii->bii_enable_reg, bii->bii_mask);
 }
 
 static inline int
@@ -208,7 +205,7 @@ bcm2835_intc_active_intr(struct bcm_intc_softc *sc)
 		if (pending_gpu != 0)
 			return (BANK2_START + ffs(pending_gpu) - 1);
 	}
-	return (-1);	/* It shouldn't end here, but it's hardware. */
+	return (-1); /* It shouldn't end here, but it's hardware. */
 }
 
 static int
@@ -217,15 +214,15 @@ bcm2835_intc_intr(void *arg)
 	int irq, num;
 	struct bcm_intc_softc *sc = arg;
 
-	for (num = 0; ; num++) {
+	for (num = 0;; num++) {
 		irq = bcm2835_intc_active_intr(sc);
 		if (irq == -1)
 			break;
 		if (intr_isrc_dispatch(&sc->intc_isrcs[irq].bii_isrc,
-		    curthread->td_intr_frame) != 0) {
+			curthread->td_intr_frame) != 0) {
 			bcm_intc_isrc_mask(sc, &sc->intc_isrcs[irq]);
-			device_printf(sc->sc_dev, "Stray irq %u disabled\n",
-			    irq);
+			device_printf(
+			    sc->sc_dev, "Stray irq %u disabled\n", irq);
 		}
 		arm_irq_memory_barrier(0); /* XXX */
 	}
@@ -248,13 +245,13 @@ static void
 bcm_intc_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
 
-	bcm_intc_isrc_mask(device_get_softc(dev),
-	    (struct bcm_intc_irqsrc *)isrc);
+	bcm_intc_isrc_mask(
+	    device_get_softc(dev), (struct bcm_intc_irqsrc *)isrc);
 }
 
 static int
-bcm_intc_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+bcm_intc_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	u_int irq;
 	struct intr_map_data_fdt *daf;
@@ -296,8 +293,7 @@ bcm_intc_map_intr(device_t dev, struct intr_map_data *data,
 			    daf->cells[0], daf->cells[1]);
 			return (EINVAL);
 		}
-	}
-	else
+	} else
 		return (EINVAL);
 
 	if (irq >= BCM_INTC_NIRQS)
@@ -354,8 +350,8 @@ bcm_intc_pic_register(struct bcm_intc_softc *sc, intptr_t xref)
 		} else
 			return (ENXIO);
 
-		error = intr_isrc_register(&bii->bii_isrc, sc->sc_dev, 0,
-		    "%s,%u", name, irq);
+		error = intr_isrc_register(
+		    &bii->bii_isrc, sc->sc_dev, 0, "%s,%u", name, irq);
 		if (error != 0)
 			return (error);
 	}
@@ -382,15 +378,16 @@ bcm_intc_probe(device_t dev)
 static int
 bcm_intc_attach(device_t dev)
 {
-	struct		bcm_intc_softc *sc = device_get_softc(dev);
-	int		rid = 0;
-	intptr_t	xref;
+	struct bcm_intc_softc *sc = device_get_softc(dev);
+	int rid = 0;
+	intptr_t xref;
 	sc->sc_dev = dev;
 
 	if (bcm_intc_sc)
 		return (ENXIO);
 
-	sc->intc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->intc_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->intc_res == NULL) {
 		device_printf(dev, "could not allocate memory resource\n");
 		return (ENXIO);
@@ -404,17 +401,18 @@ bcm_intc_attach(device_t dev)
 	}
 
 	rid = 0;
-	sc->intc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->intc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->intc_irq_res == NULL) {
-		if (intr_pic_claim_root(dev, xref, bcm2835_intc_intr, sc, 0) != 0) {
+		if (intr_pic_claim_root(dev, xref, bcm2835_intc_intr, sc, 0) !=
+		    0) {
 			/* XXX clean up */
 			device_printf(dev, "could not set PIC as a root\n");
 			return (ENXIO);
 		}
 	} else {
 		if (bus_setup_intr(dev, sc->intc_irq_res, INTR_TYPE_CLK,
-		    bcm2835_intc_intr, NULL, sc, &sc->intc_irq_hdl)) {
+			bcm2835_intc_intr, NULL, sc, &sc->intc_irq_hdl)) {
 			/* XXX clean up */
 			device_printf(dev, "could not setup irq handler\n");
 			return (ENXIO);
@@ -428,18 +426,16 @@ bcm_intc_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t bcm_intc_methods[] = {
-	DEVMETHOD(device_probe,		bcm_intc_probe),
-	DEVMETHOD(device_attach,	bcm_intc_attach),
+static device_method_t bcm_intc_methods[] = { DEVMETHOD(
+						  device_probe, bcm_intc_probe),
+	DEVMETHOD(device_attach, bcm_intc_attach),
 
-	DEVMETHOD(pic_disable_intr,	bcm_intc_disable_intr),
-	DEVMETHOD(pic_enable_intr,	bcm_intc_enable_intr),
-	DEVMETHOD(pic_map_intr,		bcm_intc_map_intr),
-	DEVMETHOD(pic_post_filter,	bcm_intc_post_filter),
-	DEVMETHOD(pic_post_ithread,	bcm_intc_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	bcm_intc_pre_ithread),
-	{ 0, 0 }
-};
+	DEVMETHOD(pic_disable_intr, bcm_intc_disable_intr),
+	DEVMETHOD(pic_enable_intr, bcm_intc_enable_intr),
+	DEVMETHOD(pic_map_intr, bcm_intc_map_intr),
+	DEVMETHOD(pic_post_filter, bcm_intc_post_filter),
+	DEVMETHOD(pic_post_ithread, bcm_intc_post_ithread),
+	DEVMETHOD(pic_pre_ithread, bcm_intc_pre_ithread), { 0, 0 } };
 
 static driver_t bcm_intc_driver = {
 	"intc",
@@ -449,5 +445,5 @@ static driver_t bcm_intc_driver = {
 
 static devclass_t bcm_intc_devclass;
 
-EARLY_DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

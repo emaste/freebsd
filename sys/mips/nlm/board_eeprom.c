@@ -31,27 +31,26 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
-#include <sys/endian.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
-#include <sys/bus.h>
 
 #include <dev/iicbus/iicoc.h>
 
+#include <mips/nlm/board.h>
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
 #include <mips/nlm/hal/mips-extns.h> /* needed by board.h */
-
-#include <mips/nlm/board.h>
 
 /*
  * We have to read the EEPROM in early boot (now only for MAC addr)
  * but later for board information.  Use simple polled mode driver
  * for I2C
  */
-#define	oc_read_reg(reg)	nlm_read_reg(eeprom_i2c_base, reg)
-#define	oc_write_reg(reg, val)	nlm_write_reg(eeprom_i2c_base, reg, val)
+#define oc_read_reg(reg) nlm_read_reg(eeprom_i2c_base, reg)
+#define oc_write_reg(reg, val) nlm_write_reg(eeprom_i2c_base, reg, val)
 
 static uint64_t eeprom_i2c_base;
 
@@ -65,7 +64,7 @@ oc_wait_on_status(uint8_t bit)
 		status = oc_read_reg(OC_I2C_STATUS_REG);
 	} while ((status & bit) != 0 && --tries > 0);
 
-	return (tries == 0 ? -1: 0);
+	return (tries == 0 ? -1 : 0);
 }
 
 static int
@@ -73,9 +72,9 @@ oc_rd_cmd(uint8_t cmd)
 {
 	uint8_t data;
 
-		oc_write_reg(OC_I2C_CMD_REG, cmd);
-		if (oc_wait_on_status(OC_STATUS_TIP) < 0)
-			return (-1);
+	oc_write_reg(OC_I2C_CMD_REG, cmd);
+	if (oc_wait_on_status(OC_STATUS_TIP) < 0)
+		return (-1);
 
 	data = oc_read_reg(OC_I2C_DATA_REG);
 	return (data);
@@ -93,8 +92,8 @@ oc_wr_cmd(uint8_t data, uint8_t cmd)
 }
 
 int
-nlm_board_eeprom_read(int node, int bus, int addr, int offs, uint8_t *buf,
-    int sz)
+nlm_board_eeprom_read(
+    int node, int bus, int addr, int offs, uint8_t *buf, int sz)
 {
 	int rd, i;
 	char *err = NULL;
@@ -150,7 +149,7 @@ nlm_board_eeprom_read(int node, int bus, int addr, int offs, uint8_t *buf,
 			err = "I2C read data byte failed.";
 			goto err_exit_stop;
 		}
-	buf[i] = rd;
+		buf[i] = rd;
 	}
 
 	/* last byte */

@@ -29,7 +29,7 @@
  */
 
 #ifndef _SYS_MEMDESC_H_
-#define	_SYS_MEMDESC_H_
+#define _SYS_MEMDESC_H_
 
 struct bio;
 struct bus_dma_segment;
@@ -43,26 +43,26 @@ union ccb;
  */
 struct memdesc {
 	union {
-		void			*md_vaddr;
-		vm_paddr_t		md_paddr;
-		struct bus_dma_segment	*md_list;
-		struct bio		*md_bio;
-		struct uio		*md_uio;
-		struct mbuf		*md_mbuf;
-		union ccb		*md_ccb;
+		void *md_vaddr;
+		vm_paddr_t md_paddr;
+		struct bus_dma_segment *md_list;
+		struct bio *md_bio;
+		struct uio *md_uio;
+		struct mbuf *md_mbuf;
+		union ccb *md_ccb;
 	} u;
-	size_t		md_opaque;	/* type specific data. */
-	uint32_t	md_type;	/* Type of memory. */
+	size_t md_opaque; /* type specific data. */
+	uint32_t md_type; /* Type of memory. */
 };
 
-#define	MEMDESC_VADDR	1	/* Contiguous virtual address. */
-#define	MEMDESC_PADDR	2	/* Contiguous physical address. */
-#define	MEMDESC_VLIST	3	/* scatter/gather list of kva addresses. */
-#define	MEMDESC_PLIST	4	/* scatter/gather list of physical addresses. */
-#define	MEMDESC_BIO	5	/* Pointer to a bio (block io). */
-#define	MEMDESC_UIO	6	/* Pointer to a uio (any io). */
-#define	MEMDESC_MBUF	7	/* Pointer to a mbuf (network io). */
-#define	MEMDESC_CCB	8	/* Cam control block. (scsi/ata io). */
+#define MEMDESC_VADDR 1 /* Contiguous virtual address. */
+#define MEMDESC_PADDR 2 /* Contiguous physical address. */
+#define MEMDESC_VLIST 3 /* scatter/gather list of kva addresses. */
+#define MEMDESC_PLIST 4 /* scatter/gather list of physical addresses. */
+#define MEMDESC_BIO 5 /* Pointer to a bio (block io). */
+#define MEMDESC_UIO 6 /* Pointer to a uio (any io). */
+#define MEMDESC_MBUF 7 /* Pointer to a mbuf (network io). */
+#define MEMDESC_CCB 8 /* Cam control block. (scsi/ata io). */
 
 static inline struct memdesc
 memdesc_vaddr(void *vaddr, size_t len)

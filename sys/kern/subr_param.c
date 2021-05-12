@@ -39,10 +39,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_param.h"
-#include "opt_msgbuf.h"
 #include "opt_maxphys.h"
 #include "opt_maxusers.h"
+#include "opt_msgbuf.h"
+#include "opt_param.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,68 +50,68 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/msgbuf.h>
-#include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_param.h>
 
 /*
  * System parameter formulae.
  */
 
 #ifndef HZ
-#  if defined(__mips__) || defined(__arm__)
-#    define	HZ 100
-#  else
-#    define	HZ 1000
-#  endif
-#  ifndef HZ_VM
-#    define	HZ_VM 100
-#  endif
+#if defined(__mips__) || defined(__arm__)
+#define HZ 100
 #else
-#  ifndef HZ_VM
-#    define	HZ_VM HZ
-#  endif
+#define HZ 1000
 #endif
-#define	NPROC (20 + 16 * maxusers)
+#ifndef HZ_VM
+#define HZ_VM 100
+#endif
+#else
+#ifndef HZ_VM
+#define HZ_VM HZ
+#endif
+#endif
+#define NPROC (20 + 16 * maxusers)
 #ifndef NBUF
 #define NBUF 0
 #endif
 #ifndef MAXFILES
-#define	MAXFILES (40 + 32 * maxusers)
+#define MAXFILES (40 + 32 * maxusers)
 #endif
 
 static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
 
-int	hz;				/* system clock's frequency */
-int	tick;				/* usec per tick (1000000 / hz) */
-struct bintime tick_bt;			/* bintime per tick (1s / hz) */
+int hz;			/* system clock's frequency */
+int tick;		/* usec per tick (1000000 / hz) */
+struct bintime tick_bt; /* bintime per tick (1s / hz) */
 sbintime_t tick_sbt;
-int	maxusers;			/* base tunable */
-int	maxproc;			/* maximum # of processes */
-int	maxprocperuid;			/* max # of procs per user */
-int	maxfiles;			/* sys. wide open files limit */
-int	maxfilesperproc;		/* per-proc open files limit */
-int	msgbufsize;			/* size of kernel message buffer */
-int	nbuf;				/* number of bcache bufs */
-int	bio_transient_maxcnt;
-int	ngroups_max;			/* max # groups per process */
-int	nswbuf;
-pid_t	pid_max = PID_MAX;
-u_long	maxswzone;			/* max swmeta KVA storage */
-u_long	maxbcache;			/* max buffer cache KVA storage */
-u_long	maxpipekva;			/* Limit on pipe KVA */
-u_long	maxphys;			/* max raw I/O transfer size */
-int	vm_guest = VM_GUEST_NO;		/* Running as virtual machine guest? */
-u_long	maxtsiz;			/* max text size */
-u_long	dfldsiz;			/* initial data size limit */
-u_long	maxdsiz;			/* max data size */
-u_long	dflssiz;			/* initial stack size limit */
-u_long	maxssiz;			/* max stack size */
-u_long	sgrowsiz;			/* amount to grow stack */
+int maxusers;	     /* base tunable */
+int maxproc;	     /* maximum # of processes */
+int maxprocperuid;   /* max # of procs per user */
+int maxfiles;	     /* sys. wide open files limit */
+int maxfilesperproc; /* per-proc open files limit */
+int msgbufsize;	     /* size of kernel message buffer */
+int nbuf;	     /* number of bcache bufs */
+int bio_transient_maxcnt;
+int ngroups_max; /* max # groups per process */
+int nswbuf;
+pid_t pid_max = PID_MAX;
+u_long maxswzone;	    /* max swmeta KVA storage */
+u_long maxbcache;	    /* max buffer cache KVA storage */
+u_long maxpipekva;	    /* Limit on pipe KVA */
+u_long maxphys;		    /* max raw I/O transfer size */
+int vm_guest = VM_GUEST_NO; /* Running as virtual machine guest? */
+u_long maxtsiz;		    /* max text size */
+u_long dfldsiz;		    /* initial data size limit */
+u_long maxdsiz;		    /* max data size */
+u_long dflssiz;		    /* initial stack size limit */
+u_long maxssiz;		    /* max stack size */
+u_long sgrowsiz;	    /* amount to grow stack */
 
 SYSCTL_INT(_kern, OID_AUTO, hz, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &hz, 0,
     "Number of clock ticks per second");
@@ -119,38 +119,36 @@ SYSCTL_INT(_kern, OID_AUTO, nbuf, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &nbuf, 0,
     "Number of buffers in the buffer cache");
 SYSCTL_INT(_kern, OID_AUTO, nswbuf, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &nswbuf, 0,
     "Number of swap buffers");
-SYSCTL_INT(_kern, OID_AUTO, msgbufsize, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &msgbufsize, 0,
-    "Size of the kernel message buffer");
-SYSCTL_LONG(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &maxswzone, 0,
-    "Maximum memory for swap metadata");
-SYSCTL_LONG(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &maxbcache, 0,
-    "Maximum value of vfs.maxbufspace");
-SYSCTL_INT(_kern, OID_AUTO, bio_transient_maxcnt, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
-    &bio_transient_maxcnt, 0,
+SYSCTL_INT(_kern, OID_AUTO, msgbufsize, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &msgbufsize, 0, "Size of the kernel message buffer");
+SYSCTL_LONG(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &maxswzone, 0, "Maximum memory for swap metadata");
+SYSCTL_LONG(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &maxbcache, 0, "Maximum value of vfs.maxbufspace");
+SYSCTL_INT(_kern, OID_AUTO, bio_transient_maxcnt,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &bio_transient_maxcnt, 0,
     "Maximum number of transient BIOs mappings");
-SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &maxtsiz, 0,
-    "Maximum text size");
-SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &dfldsiz, 0,
-    "Initial data size limit");
-SYSCTL_ULONG(_kern, OID_AUTO, maxdsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &maxdsiz, 0,
-    "Maximum data size");
-SYSCTL_ULONG(_kern, OID_AUTO, dflssiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &dflssiz, 0,
-    "Initial stack size limit");
-SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &maxssiz, 0,
-    "Maximum stack size");
-SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &sgrowsiz, 0,
-    "Amount to grow stack on a stack fault");
+SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
+    &maxtsiz, 0, "Maximum text size");
+SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
+    &dfldsiz, 0, "Initial data size limit");
+SYSCTL_ULONG(_kern, OID_AUTO, maxdsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
+    &maxdsiz, 0, "Maximum data size");
+SYSCTL_ULONG(_kern, OID_AUTO, dflssiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
+    &dflssiz, 0, "Initial stack size limit");
+SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
+    &maxssiz, 0, "Maximum stack size");
+SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
+    &sgrowsiz, 0, "Amount to grow stack on a stack fault");
 SYSCTL_PROC(_kern, OID_AUTO, vm_guest,
-    CTLFLAG_RD | CTLTYPE_STRING | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_kern_vm_guest, "A",
-    "Virtual machine guest detected?");
+    CTLFLAG_RD | CTLTYPE_STRING | CTLFLAG_MPSAFE, NULL, 0, sysctl_kern_vm_guest,
+    "A", "Virtual machine guest detected?");
 
 /*
  * The elements of this array are ordered based upon the values of the
  * corresponding enum VM_GUEST members.
  */
-static const char *const vm_guest_sysctl_names[] = {
-	[VM_GUEST_NO] = "none",
+static const char *const vm_guest_sysctl_names[] = { [VM_GUEST_NO] = "none",
 	[VM_GUEST_VM] = "generic",
 	[VM_GUEST_XEN] = "xen",
 	[VM_GUEST_HV] = "hv",
@@ -159,8 +157,7 @@ static const char *const vm_guest_sysctl_names[] = {
 	[VM_GUEST_BHYVE] = "bhyve",
 	[VM_GUEST_VBOX] = "vbox",
 	[VM_GUEST_PARALLELS] = "parallels",
-	[VM_LAST] = NULL
-};
+	[VM_LAST] = NULL };
 CTASSERT(nitems(vm_guest_sysctl_names) - 1 == VM_LAST);
 
 /*
@@ -253,16 +250,16 @@ init_param2(long physpages)
 		if (maxusers < 32)
 			maxusers = 32;
 #ifdef VM_MAX_AUTOTUNE_MAXUSERS
-                if (maxusers > VM_MAX_AUTOTUNE_MAXUSERS)
-                        maxusers = VM_MAX_AUTOTUNE_MAXUSERS;
+		if (maxusers > VM_MAX_AUTOTUNE_MAXUSERS)
+			maxusers = VM_MAX_AUTOTUNE_MAXUSERS;
 #endif
-                /*
-                 * Scales down the function in which maxusers grows once
-                 * we hit 384.
-                 */
-                if (maxusers > 384)
-                        maxusers = 384 + ((maxusers - 384) / 8);
-        }
+		/*
+		 * Scales down the function in which maxusers grows once
+		 * we hit 384.
+		 */
+		if (maxusers > 384)
+			maxusers = 384 + ((maxusers - 384) / 8);
+	}
 
 	/*
 	 * The following can be overridden after boot via sysctl.  Note:
@@ -300,7 +297,7 @@ init_param2(long physpages)
 	TUNABLE_ULONG_FETCH("kern.maxphys", &maxphys);
 	if (maxphys == 0) {
 		maxphys = MAXPHYS;
-	} else if (__bitcountl(maxphys) != 1) {	/* power of two */
+	} else if (__bitcountl(maxphys) != 1) { /* power of two */
 		if (flsl(maxphys) == NBBY * sizeof(maxphys))
 			maxphys = MAXPHYS;
 		else
@@ -331,8 +328,7 @@ init_param2(long physpages)
 /*
  * Sysctl stringifying handler for kern.vm_guest.
  */
-static int
-sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS)
+static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS)
 {
 	return (SYSCTL_OUT_STR(req, vm_guest_sysctl_names[vm_guest]));
 }

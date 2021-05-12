@@ -30,10 +30,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/iconv.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 
 #include "iconv_converter_if.h"
 
@@ -41,32 +41,31 @@ __FBSDID("$FreeBSD$");
  * "UCS" converter
  */
 
-#define	KICONV_UCS_COMBINE	0x1
-#define	KICONV_UCS_FROM_UTF8	0x2
-#define	KICONV_UCS_TO_UTF8	0x4
-#define	KICONV_UCS_FROM_LE	0x8
-#define	KICONV_UCS_TO_LE	0x10
-#define	KICONV_UCS_FROM_UTF16	0x20
-#define	KICONV_UCS_TO_UTF16	0x40
-#define	KICONV_UCS_UCS4		0x80
+#define KICONV_UCS_COMBINE 0x1
+#define KICONV_UCS_FROM_UTF8 0x2
+#define KICONV_UCS_TO_UTF8 0x4
+#define KICONV_UCS_FROM_LE 0x8
+#define KICONV_UCS_TO_LE 0x10
+#define KICONV_UCS_FROM_UTF16 0x20
+#define KICONV_UCS_TO_UTF16 0x40
+#define KICONV_UCS_UCS4 0x80
 
-#define	ENCODING_UTF16	"UTF-16BE"
-#define	ENCODING_UTF8	"UTF-8"
+#define ENCODING_UTF16 "UTF-16BE"
+#define ENCODING_UTF8 "UTF-8"
 
 static struct {
 	const char *name;
 	int from_flag, to_flag;
-} unicode_family[] = {
-	{ "UTF-8",	KICONV_UCS_FROM_UTF8,	KICONV_UCS_TO_UTF8 },
-	{ "UCS-2LE",	KICONV_UCS_FROM_LE,	KICONV_UCS_TO_LE },
-	{ "UTF-16BE",	KICONV_UCS_FROM_UTF16,	KICONV_UCS_TO_UTF16 },
-	{ "UTF-16LE",	KICONV_UCS_FROM_UTF16|KICONV_UCS_FROM_LE,
-	    KICONV_UCS_TO_UTF16|KICONV_UCS_TO_LE },
-	{ NULL,		0,	0 }
-};
+} unicode_family[] = { { "UTF-8", KICONV_UCS_FROM_UTF8, KICONV_UCS_TO_UTF8 },
+	{ "UCS-2LE", KICONV_UCS_FROM_LE, KICONV_UCS_TO_LE },
+	{ "UTF-16BE", KICONV_UCS_FROM_UTF16, KICONV_UCS_TO_UTF16 },
+	{ "UTF-16LE", KICONV_UCS_FROM_UTF16 | KICONV_UCS_FROM_LE,
+	    KICONV_UCS_TO_UTF16 | KICONV_UCS_TO_LE },
+	{ NULL, 0, 0 } };
 
 static uint32_t utf8_to_ucs4(const char *src, size_t *utf8width, size_t srclen);
-static u_char *ucs4_to_utf8(uint32_t ucs4, char * dst, size_t *utf8width, size_t dstlen);
+static u_char *ucs4_to_utf8(
+    uint32_t ucs4, char *dst, size_t *utf8width, size_t dstlen);
 static uint32_t encode_surrogate(uint32_t code);
 static uint32_t decode_surrogate(const u_char *ucs);
 
@@ -79,23 +78,24 @@ MODULE_DEPEND(iconv_ucs, libiconv, 2, 2, 2);
  */
 struct iconv_ucs {
 	KOBJ_FIELDS;
-	int			convtype;
-	struct iconv_cspair *	d_csp;
-	struct iconv_cspair *	d_cspf;
-	void *			f_ctp;
-	void *			t_ctp;
-	void *			ctype;
+	int convtype;
+	struct iconv_cspair *d_csp;
+	struct iconv_cspair *d_cspf;
+	void *f_ctp;
+	void *t_ctp;
+	void *ctype;
 };
 
 static int
-iconv_ucs_open(struct iconv_converter_class *dcp,
-	struct iconv_cspair *csp, struct iconv_cspair *cspf, void **dpp)
+iconv_ucs_open(struct iconv_converter_class *dcp, struct iconv_cspair *csp,
+    struct iconv_cspair *cspf, void **dpp)
 {
 	struct iconv_ucs *dp;
 	int i;
 	const char *from, *to;
 
-	dp = (struct iconv_ucs *)kobj_create((struct kobj_class*)dcp, M_ICONV, M_WAITOK);
+	dp = (struct iconv_ucs *)kobj_create(
+	    (struct kobj_class *)dcp, M_ICONV, M_WAITOK);
 	to = csp->cp_to;
 	from = cspf ? cspf->cp_from : csp->cp_from;
 
@@ -140,7 +140,7 @@ iconv_ucs_open(struct iconv_converter_class *dcp,
 	}
 	if (dp->convtype & (KICONV_UCS_TO_UTF8 | KICONV_UCS_TO_LE))
 		csp->cp_refcount++;
-	*dpp = (void*)dp;
+	*dpp = (void *)dp;
 	return 0;
 }
 
@@ -161,16 +161,15 @@ iconv_ucs_close(void *data)
 		dp->d_csp->cp_refcount--;
 	if (dp->convtype & (KICONV_UCS_TO_UTF8 | KICONV_UCS_TO_LE))
 		dp->d_csp->cp_refcount--;
-	kobj_delete((struct kobj*)data, M_ICONV);
+	kobj_delete((struct kobj *)data, M_ICONV);
 	return 0;
 }
 
 static int
-iconv_ucs_conv(void *d2p, const char **inbuf,
-	size_t *inbytesleft, char **outbuf, size_t *outbytesleft,
-	int convchar, int casetype)
+iconv_ucs_conv(void *d2p, const char **inbuf, size_t *inbytesleft,
+    char **outbuf, size_t *outbytesleft, int convchar, int casetype)
 {
-	struct iconv_ucs *dp = (struct iconv_ucs*)d2p;
+	struct iconv_ucs *dp = (struct iconv_ucs *)d2p;
 	int ret = 0, i;
 	size_t in, on, ir, or, inlen, outlen, ucslen;
 	const char *src, *p;
@@ -178,7 +177,8 @@ iconv_ucs_conv(void *d2p, const char **inbuf,
 	u_char ucs[4], *q;
 	uint32_t code;
 
-	if (inbuf == NULL || *inbuf == NULL || outbuf == NULL || *outbuf == NULL)
+	if (inbuf == NULL || *inbuf == NULL || outbuf == NULL ||
+	    *outbuf == NULL)
 		return 0;
 	ir = in = *inbytesleft;
 	or = on = *outbytesleft;
@@ -207,7 +207,8 @@ iconv_ucs_conv(void *d2p, const char **inbuf,
 				code = towupper(code, dp->ctype);
 			}
 
-			if ((code >= 0xd800 && code < 0xe000) || code >= 0x110000 ) {
+			if ((code >= 0xd800 && code < 0xe000) ||
+			    code >= 0x110000) {
 				/* reserved for utf-16 surrogate pair */
 				/* invalid unicode */
 				ret = -1;
@@ -228,7 +229,7 @@ iconv_ucs_conv(void *d2p, const char **inbuf,
 			}
 
 			/* save UCS-4 into ucs[] */
-			for (q = ucs, i = ucslen - 1 ; i >= 0 ; i--)
+			for (q = ucs, i = ucslen - 1; i >= 0; i--)
 				*q++ = (code >> (i << 3)) & 0xff;
 
 		} else if (dp->convtype & KICONV_UCS_COMBINE && dp->f_ctp) {
@@ -236,8 +237,9 @@ iconv_ucs_conv(void *d2p, const char **inbuf,
 			ucslen = 4;
 			inlen = ir;
 			q = ucs;
-			ret = iconv_convchr_case(dp->f_ctp, &p, &inlen, (char **)&q,
-			    &ucslen, casetype & (KICONV_FROM_LOWER | KICONV_FROM_UPPER));
+			ret = iconv_convchr_case(dp->f_ctp, &p, &inlen,
+			    (char **)&q, &ucslen,
+			    casetype & (KICONV_FROM_LOWER | KICONV_FROM_UPPER));
 			if (ret)
 				break;
 			inlen = ir - inlen;
@@ -320,7 +322,7 @@ iconv_ucs_conv(void *d2p, const char **inbuf,
 
 		} else if (dp->convtype & KICONV_UCS_COMBINE && dp->t_ctp) {
 			ret = iconv_convchr_case(dp->t_ctp, &p, &ucslen, &dst,
-			    &or, casetype & (KICONV_LOWER | KICONV_UPPER));
+			    & or, casetype & (KICONV_LOWER | KICONV_UPPER));
 			if (ret)
 				break;
 
@@ -365,9 +367,9 @@ iconv_ucs_conv(void *d2p, const char **inbuf,
 	}
 
 	*inbuf += in - ir;
-	*outbuf += on - or;
+	*outbuf += on - or ;
 	*inbytesleft -= in - ir;
-	*outbytesleft -= on - or;
+	*outbytesleft -= on - or ;
 	return (ret);
 }
 
@@ -397,15 +399,13 @@ iconv_ucs_name(struct iconv_converter_class *dcp)
 	return (ENCODING_UNICODE);
 }
 
-static kobj_method_t iconv_ucs_methods[] = {
-	KOBJMETHOD(iconv_converter_open,	iconv_ucs_open),
-	KOBJMETHOD(iconv_converter_close,	iconv_ucs_close),
-	KOBJMETHOD(iconv_converter_conv,	iconv_ucs_conv),
-	KOBJMETHOD(iconv_converter_init,	iconv_ucs_init),
-	KOBJMETHOD(iconv_converter_done,	iconv_ucs_done),
-	KOBJMETHOD(iconv_converter_name,	iconv_ucs_name),
-	{0, 0}
-};
+static kobj_method_t iconv_ucs_methods[] = { KOBJMETHOD(iconv_converter_open,
+						 iconv_ucs_open),
+	KOBJMETHOD(iconv_converter_close, iconv_ucs_close),
+	KOBJMETHOD(iconv_converter_conv, iconv_ucs_conv),
+	KOBJMETHOD(iconv_converter_init, iconv_ucs_init),
+	KOBJMETHOD(iconv_converter_done, iconv_ucs_done),
+	KOBJMETHOD(iconv_converter_name, iconv_ucs_name), { 0, 0 } };
 
 KICONV_CONVERTER(ucs, sizeof(struct iconv_ucs));
 
@@ -465,7 +465,7 @@ utf8_to_ucs4(const char *src, size_t *utf8width, size_t srclen)
 	/*
 	 * get left parts from utf-8
 	 */
-	for (i = 1 ; i < w ; i++) {
+	for (i = 1; i < w; i++) {
 		if ((*(src + i) & 0xc0) != 0x80) {
 			/* invalid: leading 2 bits are not "10" */
 			return (0);
@@ -490,16 +490,16 @@ ucs4_to_utf8(uint32_t ucs4, char *dst, size_t *utf8width, size_t dstlen)
 	 */
 	if (ucs4 < 0x80) {
 		w = 1;
-		lead = 0;	/* "0" */
+		lead = 0; /* "0" */
 	} else if (ucs4 < 0x800) {
 		w = 2;
-		lead = 0xc0;	/* "11" */
+		lead = 0xc0; /* "11" */
 	} else if (ucs4 < 0x10000) {
 		w = 3;
-		lead = 0xe0;	/* "111" */
+		lead = 0xe0; /* "111" */
 	} else if (ucs4 < 0x200000) {
 		w = 4;
-		lead = 0xf0;	/* "1111" */
+		lead = 0xf0; /* "1111" */
 	} else {
 		return (NULL);
 	}
@@ -511,7 +511,7 @@ ucs4_to_utf8(uint32_t ucs4, char *dst, size_t *utf8width, size_t dstlen)
 	 * construct utf-8
 	 */
 	p = dst;
-	for (i = w - 1 ; i >= 1 ; i--) {
+	for (i = w - 1; i >= 1; i--) {
 		/* get trailing 6 bits and put it with leading bit as "1" */
 		*(p + i) = (ucs4 & 0x3f) | 0x80;
 		ucs4 >>= 6;
@@ -534,5 +534,6 @@ static uint32_t
 decode_surrogate(const u_char *ucs)
 {
 	return ((((ucs[0] & 0x3) << 18) | (ucs[1] << 10) |
-	    ((ucs[2] & 0x3) << 8) | ucs[3]) + 0x10000);
+		    ((ucs[2] & 0x3) << 8) | ucs[3]) +
+	    0x10000);
 }

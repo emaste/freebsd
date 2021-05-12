@@ -33,12 +33,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/sysctl.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #include <machine/bus.h>
@@ -48,106 +48,101 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
 
 #include "spibus_if.h"
 
-static struct ofw_compat_data compat_data[] = {
-	{"xlnx,zy7_spi",		1},
-	{"xlnx,zynq-spi-1.0",		1},
-	{"cdns,spi-r1p6",		1},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "xlnx,zy7_spi", 1 },
+	{ "xlnx,zynq-spi-1.0", 1 }, { "cdns,spi-r1p6", 1 }, { NULL, 0 } };
 
 struct zy7_spi_softc {
-	device_t		dev;
-	device_t		child;
-	struct mtx		sc_mtx;
-	struct resource		*mem_res;
-	struct resource		*irq_res;
-	void			*intrhandle;
+	device_t dev;
+	device_t child;
+	struct mtx sc_mtx;
+	struct resource *mem_res;
+	struct resource *irq_res;
+	void *intrhandle;
 
-	uint32_t		cfg_reg_shadow;
-	uint32_t		spi_clock;
-	uint32_t		ref_clock;
-	unsigned int		spi_clk_real_freq;
-	unsigned int		rx_overflows;
-	unsigned int		tx_underflows;
-	unsigned int		interrupts;
-	unsigned int		stray_ints;
-	struct spi_command	*cmd;
-	int			tx_bytes;	/* tx_cmd_sz + tx_data_sz */
-	int			tx_bytes_sent;
-	int			rx_bytes;	/* rx_cmd_sz + rx_data_sz */
-	int			rx_bytes_rcvd;
-	int			busy;
+	uint32_t cfg_reg_shadow;
+	uint32_t spi_clock;
+	uint32_t ref_clock;
+	unsigned int spi_clk_real_freq;
+	unsigned int rx_overflows;
+	unsigned int tx_underflows;
+	unsigned int interrupts;
+	unsigned int stray_ints;
+	struct spi_command *cmd;
+	int tx_bytes; /* tx_cmd_sz + tx_data_sz */
+	int tx_bytes_sent;
+	int rx_bytes; /* rx_cmd_sz + rx_data_sz */
+	int rx_bytes_rcvd;
+	int busy;
 };
 
-#define ZY7_SPI_DEFAULT_SPI_CLOCK	50000000
+#define ZY7_SPI_DEFAULT_SPI_CLOCK 50000000
 
-#define SPI_SC_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)
-#define	SPI_SC_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
+#define SPI_SC_LOCK(sc) mtx_lock(&(sc)->sc_mtx)
+#define SPI_SC_UNLOCK(sc) mtx_unlock(&(sc)->sc_mtx)
 #define SPI_SC_LOCK_INIT(sc) \
-	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev),	NULL, MTX_DEF)
-#define SPI_SC_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->sc_mtx)
-#define SPI_SC_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev), NULL, MTX_DEF)
+#define SPI_SC_LOCK_DESTROY(sc) mtx_destroy(&(sc)->sc_mtx)
+#define SPI_SC_ASSERT_LOCKED(sc) mtx_assert(&(sc)->sc_mtx, MA_OWNED)
 
-#define RD4(sc, off)		(bus_read_4((sc)->mem_res, (off)))
-#define WR4(sc, off, val)	(bus_write_4((sc)->mem_res, (off), (val)))
+#define RD4(sc, off) (bus_read_4((sc)->mem_res, (off)))
+#define WR4(sc, off, val) (bus_write_4((sc)->mem_res, (off), (val)))
 
 /*
  * SPI device registers.
  * Reference: Zynq-7000 All Programmable SoC Technical Reference Manual.
  * (v1.12.1) December 6, 2017.  Xilinx doc UG585.
  */
-#define ZY7_SPI_CONFIG_REG		0x0000
-#define   ZY7_SPI_CONFIG_MODEFAIL_GEN_EN	(1 << 17)
-#define   ZY7_SPI_CONFIG_MAN_STRT		(1 << 16)
-#define   ZY7_SPI_CONFIG_MAN_STRT_EN		(1 << 15)
-#define   ZY7_SPI_CONFIG_MAN_CS			(1 << 14)
-#define   ZY7_SPI_CONFIG_CS_MASK		(0xf << 10)
-#define   ZY7_SPI_CONFIG_CS(x)			((0xf ^ (1 << (x))) << 10)
-#define   ZY7_SPI_CONFIG_PERI_SEL		(1 << 9)
-#define   ZY7_SPI_CONFIG_REF_CLK		(1 << 8)
-#define   ZY7_SPI_CONFIG_BAUD_RATE_DIV_MASK	(7 << 3)
-#define   ZY7_SPI_CONFIG_BAUD_RATE_DIV_SHIFT	3
-#define   ZY7_SPI_CONFIG_BAUD_RATE_DIV(x)	((x) << 3) /* divide by 2<<x */
-#define   ZY7_SPI_CONFIG_CLK_PH			(1 << 2)   /* clock phase */
-#define   ZY7_SPI_CONFIG_CLK_POL		(1 << 1)   /* clock polatiry */
-#define   ZY7_SPI_CONFIG_MODE_SEL		(1 << 0)   /* master enable */
+#define ZY7_SPI_CONFIG_REG 0x0000
+#define ZY7_SPI_CONFIG_MODEFAIL_GEN_EN (1 << 17)
+#define ZY7_SPI_CONFIG_MAN_STRT (1 << 16)
+#define ZY7_SPI_CONFIG_MAN_STRT_EN (1 << 15)
+#define ZY7_SPI_CONFIG_MAN_CS (1 << 14)
+#define ZY7_SPI_CONFIG_CS_MASK (0xf << 10)
+#define ZY7_SPI_CONFIG_CS(x) ((0xf ^ (1 << (x))) << 10)
+#define ZY7_SPI_CONFIG_PERI_SEL (1 << 9)
+#define ZY7_SPI_CONFIG_REF_CLK (1 << 8)
+#define ZY7_SPI_CONFIG_BAUD_RATE_DIV_MASK (7 << 3)
+#define ZY7_SPI_CONFIG_BAUD_RATE_DIV_SHIFT 3
+#define ZY7_SPI_CONFIG_BAUD_RATE_DIV(x) ((x) << 3) /* divide by 2<<x */
+#define ZY7_SPI_CONFIG_CLK_PH (1 << 2) /* clock phase */
+#define ZY7_SPI_CONFIG_CLK_POL (1 << 1) /* clock polatiry */
+#define ZY7_SPI_CONFIG_MODE_SEL (1 << 0) /* master enable */
 
-#define ZY7_SPI_INTR_STAT_REG		0x0004
-#define ZY7_SPI_INTR_EN_REG		0x0008
-#define ZY7_SPI_INTR_DIS_REG		0x000c
-#define ZY7_SPI_INTR_MASK_REG		0x0010
-#define   ZY7_SPI_INTR_TX_FIFO_UNDERFLOW	(1 << 6)
-#define   ZY7_SPI_INTR_RX_FIFO_FULL		(1 << 5)
-#define   ZY7_SPI_INTR_RX_FIFO_NOT_EMPTY	(1 << 4)
-#define   ZY7_SPI_INTR_TX_FIFO_FULL		(1 << 3)
-#define   ZY7_SPI_INTR_TX_FIFO_NOT_FULL		(1 << 2)
-#define   ZY7_SPI_INTR_MODE_FAULT		(1 << 1)
-#define   ZY7_SPI_INTR_RX_OVERFLOW		(1 << 0)
+#define ZY7_SPI_INTR_STAT_REG 0x0004
+#define ZY7_SPI_INTR_EN_REG 0x0008
+#define ZY7_SPI_INTR_DIS_REG 0x000c
+#define ZY7_SPI_INTR_MASK_REG 0x0010
+#define ZY7_SPI_INTR_TX_FIFO_UNDERFLOW (1 << 6)
+#define ZY7_SPI_INTR_RX_FIFO_FULL (1 << 5)
+#define ZY7_SPI_INTR_RX_FIFO_NOT_EMPTY (1 << 4)
+#define ZY7_SPI_INTR_TX_FIFO_FULL (1 << 3)
+#define ZY7_SPI_INTR_TX_FIFO_NOT_FULL (1 << 2)
+#define ZY7_SPI_INTR_MODE_FAULT (1 << 1)
+#define ZY7_SPI_INTR_RX_OVERFLOW (1 << 0)
 
-#define ZY7_SPI_EN_REG			0x0014
-#define   ZY7_SPI_ENABLE		(1 << 0)
+#define ZY7_SPI_EN_REG 0x0014
+#define ZY7_SPI_ENABLE (1 << 0)
 
-#define ZY7_SPI_DELAY_CTRL_REG		0x0018
-#define   ZY7_SPI_DELAY_CTRL_BTWN_MASK		(0xff << 16)
-#define   ZY7_SPI_DELAY_CTRL_BTWN_SHIFT		16
-#define   ZY7_SPI_DELAY_CTRL_AFTER_MASK		(0xff << 8)
-#define   ZY7_SPI_DELAY_CTRL_AFTER_SHIFT	8
-#define   ZY7_SPI_DELAY_CTRL_INIT_MASK		(0xff << 0)
-#define   ZY7_SPI_DELAY_CTRL_INIT_SHIFT		0
+#define ZY7_SPI_DELAY_CTRL_REG 0x0018
+#define ZY7_SPI_DELAY_CTRL_BTWN_MASK (0xff << 16)
+#define ZY7_SPI_DELAY_CTRL_BTWN_SHIFT 16
+#define ZY7_SPI_DELAY_CTRL_AFTER_MASK (0xff << 8)
+#define ZY7_SPI_DELAY_CTRL_AFTER_SHIFT 8
+#define ZY7_SPI_DELAY_CTRL_INIT_MASK (0xff << 0)
+#define ZY7_SPI_DELAY_CTRL_INIT_SHIFT 0
 
-#define ZY7_SPI_TX_DATA_REG		0x001c
-#define ZY7_SPI_RX_DATA_REG		0x0020
+#define ZY7_SPI_TX_DATA_REG 0x001c
+#define ZY7_SPI_RX_DATA_REG 0x0020
 
-#define ZY7_SPI_SLV_IDLE_COUNT_REG	0x0024
+#define ZY7_SPI_SLV_IDLE_COUNT_REG 0x0024
 
-#define ZY7_SPI_TX_THRESH_REG		0x0028
-#define ZY7_SPI_RX_THRESH_REG		0x002c
+#define ZY7_SPI_TX_THRESH_REG 0x0028
+#define ZY7_SPI_RX_THRESH_REG 0x002c
 
 /* Fill hardware fifo with command and data bytes. */
 static void
@@ -158,12 +153,12 @@ zy7_spi_write_fifo(struct zy7_spi_softc *sc, int nbytes)
 	while (nbytes > 0) {
 		if (sc->tx_bytes_sent < sc->cmd->tx_cmd_sz)
 			/* Writing command. */
-			byte = *((uint8_t *)sc->cmd->tx_cmd +
-				 sc->tx_bytes_sent);
+			byte = *(
+			    (uint8_t *)sc->cmd->tx_cmd + sc->tx_bytes_sent);
 		else
 			/* Writing data. */
 			byte = *((uint8_t *)sc->cmd->tx_data +
-				 (sc->tx_bytes_sent - sc->cmd->tx_cmd_sz));
+			    (sc->tx_bytes_sent - sc->cmd->tx_cmd_sz));
 
 		WR4(sc, ZY7_SPI_TX_DATA_REG, (uint32_t)byte);
 
@@ -183,19 +178,18 @@ zy7_spi_read_fifo(struct zy7_spi_softc *sc)
 
 		if (sc->rx_bytes_rcvd < sc->cmd->rx_cmd_sz)
 			/* Reading command. */
-			*((uint8_t *)sc->cmd->rx_cmd + sc->rx_bytes_rcvd) =
-			    byte;
+			*((uint8_t *)sc->cmd->rx_cmd +
+			    sc->rx_bytes_rcvd) = byte;
 		else
 			/* Reading data. */
 			*((uint8_t *)sc->cmd->rx_data +
-			    (sc->rx_bytes_rcvd - sc->cmd->rx_cmd_sz)) =
-			    byte;
+			    (sc->rx_bytes_rcvd - sc->cmd->rx_cmd_sz)) = byte;
 
 		sc->rx_bytes_rcvd++;
 
 	} while (sc->rx_bytes_rcvd < sc->rx_bytes &&
-	    (RD4(sc, ZY7_SPI_INTR_STAT_REG) &
-		ZY7_SPI_INTR_RX_FIFO_NOT_EMPTY) != 0);
+	    (RD4(sc, ZY7_SPI_INTR_STAT_REG) & ZY7_SPI_INTR_RX_FIFO_NOT_EMPTY) !=
+		0);
 }
 
 /* End a transfer early by draining rx fifo and disabling interrupts. */
@@ -204,14 +198,13 @@ zy7_spi_abort_transfer(struct zy7_spi_softc *sc)
 {
 	/* Drain receive fifo. */
 	while ((RD4(sc, ZY7_SPI_INTR_STAT_REG) &
-		ZY7_SPI_INTR_RX_FIFO_NOT_EMPTY) != 0)
+		   ZY7_SPI_INTR_RX_FIFO_NOT_EMPTY) != 0)
 		(void)RD4(sc, ZY7_SPI_RX_DATA_REG);
 
 	/* Shut down interrupts. */
 	WR4(sc, ZY7_SPI_INTR_DIS_REG,
-	    ZY7_SPI_INTR_RX_OVERFLOW |
-	    ZY7_SPI_INTR_RX_FIFO_NOT_EMPTY |
-	    ZY7_SPI_INTR_TX_FIFO_NOT_FULL);
+	    ZY7_SPI_INTR_RX_OVERFLOW | ZY7_SPI_INTR_RX_FIFO_NOT_EMPTY |
+		ZY7_SPI_INTR_TX_FIFO_NOT_FULL);
 }
 
 static void
@@ -238,8 +231,7 @@ zy7_spi_intr(void *arg)
 		sc->rx_overflows++;
 
 		/* Clear status bit. */
-		WR4(sc, ZY7_SPI_INTR_STAT_REG,
-		    ZY7_SPI_INTR_RX_OVERFLOW);
+		WR4(sc, ZY7_SPI_INTR_STAT_REG, ZY7_SPI_INTR_RX_OVERFLOW);
 	}
 
 	/* Empty receive fifo before any more transmit data is sent. */
@@ -250,7 +242,7 @@ zy7_spi_intr(void *arg)
 			/* Disable receive interrupts. */
 			WR4(sc, ZY7_SPI_INTR_DIS_REG,
 			    ZY7_SPI_INTR_RX_FIFO_NOT_EMPTY |
-			    ZY7_SPI_INTR_RX_OVERFLOW);
+				ZY7_SPI_INTR_RX_OVERFLOW);
 	}
 
 	/* Count tx underflows.  They probably shouldn't happen. */
@@ -258,15 +250,14 @@ zy7_spi_intr(void *arg)
 		sc->tx_underflows++;
 
 		/* Clear status bit. */
-		WR4(sc, ZY7_SPI_INTR_STAT_REG,
-		    ZY7_SPI_INTR_TX_FIFO_UNDERFLOW);
+		WR4(sc, ZY7_SPI_INTR_STAT_REG, ZY7_SPI_INTR_TX_FIFO_UNDERFLOW);
 	}
 
 	/* Fill transmit fifo. */
 	if (sc->tx_bytes_sent < sc->tx_bytes &&
 	    (istatus & ZY7_SPI_INTR_TX_FIFO_NOT_FULL) != 0) {
-		zy7_spi_write_fifo(sc, MIN(96, sc->tx_bytes -
-			sc->tx_bytes_sent));
+		zy7_spi_write_fifo(
+		    sc, MIN(96, sc->tx_bytes - sc->tx_bytes_sent));
 
 		if (sc->tx_bytes_sent == sc->tx_bytes) {
 			/* Disable transmit FIFO interrupt, enable receive
@@ -283,8 +274,8 @@ zy7_spi_intr(void *arg)
 	if (sc->tx_bytes_sent == sc->tx_bytes &&
 	    sc->rx_bytes_rcvd == sc->rx_bytes) {
 		/* De-assert CS. */
-		sc->cfg_reg_shadow &=
-		    ~(ZY7_SPI_CONFIG_CLK_PH | ZY7_SPI_CONFIG_CLK_POL);
+		sc->cfg_reg_shadow &= ~(
+		    ZY7_SPI_CONFIG_CLK_PH | ZY7_SPI_CONFIG_CLK_POL);
 		sc->cfg_reg_shadow |= ZY7_SPI_CONFIG_CS_MASK;
 		WR4(sc, ZY7_SPI_CONFIG_REG, sc->cfg_reg_shadow);
 
@@ -302,22 +293,21 @@ zy7_spi_init_hw(struct zy7_spi_softc *sc)
 
 	/* Find best clock divider. Divide by 2 not supported. */
 	baud_div = 1;
-	while ((sc->ref_clock >> (baud_div + 1)) > sc->spi_clock &&
-	    baud_div < 8)
+	while (
+	    (sc->ref_clock >> (baud_div + 1)) > sc->spi_clock && baud_div < 8)
 		baud_div++;
 	if (baud_div >= 8) {
-		device_printf(sc->dev, "cannot configure clock divider: ref=%d"
-		    " spi=%d.\n", sc->ref_clock, sc->spi_clock);
+		device_printf(sc->dev,
+		    "cannot configure clock divider: ref=%d"
+		    " spi=%d.\n",
+		    sc->ref_clock, sc->spi_clock);
 		return (EINVAL);
 	}
 	sc->spi_clk_real_freq = sc->ref_clock >> (baud_div + 1);
 
 	/* Set up configuration register. */
-	sc->cfg_reg_shadow =
-	    ZY7_SPI_CONFIG_MAN_CS |
-	    ZY7_SPI_CONFIG_CS_MASK |
-	    ZY7_SPI_CONFIG_BAUD_RATE_DIV(baud_div) |
-	    ZY7_SPI_CONFIG_MODE_SEL;
+	sc->cfg_reg_shadow = ZY7_SPI_CONFIG_MAN_CS | ZY7_SPI_CONFIG_CS_MASK |
+	    ZY7_SPI_CONFIG_BAUD_RATE_DIV(baud_div) | ZY7_SPI_CONFIG_MODE_SEL;
 	WR4(sc, ZY7_SPI_CONFIG_REG, sc->cfg_reg_shadow);
 
 	/* Set thresholds. */
@@ -405,8 +395,8 @@ zy7_spi_attach(device_t dev)
 
 	/* Get memory resource. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "could not allocate memory resources.\n");
 		zy7_spi_detach(dev);
@@ -415,8 +405,7 @@ zy7_spi_attach(device_t dev)
 
 	/* Allocate IRQ. */
 	rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "could not allocate IRQ resource.\n");
 		zy7_spi_detach(dev);
@@ -475,8 +464,8 @@ zy7_spi_detach(device_t dev)
 	if (sc->irq_res != NULL) {
 		if (sc->intrhandle)
 			bus_teardown_intr(dev, sc->irq_res, sc->intrhandle);
-		bus_release_resource(dev, SYS_RES_IRQ,
-		    rman_get_rid(sc->irq_res), sc->irq_res);
+		bus_release_resource(
+		    dev, SYS_RES_IRQ, rman_get_rid(sc->irq_res), sc->irq_res);
 	}
 
 	/* Release memory resource. */
@@ -513,8 +502,8 @@ zy7_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	spibus_get_cs(child, &cs);
 	cs &= ~SPIBUS_CS_HIGH;
 	if (cs > 2) {
-		device_printf(dev, "Invalid chip select %d requested by %s",
-		    cs, device_get_nameunit(child));
+		device_printf(dev, "Invalid chip select %d requested by %s", cs,
+		    device_get_nameunit(child));
 		return (EINVAL);
 	}
 	spibus_get_mode(child, &mode);
@@ -540,8 +529,7 @@ zy7_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	/* Enable interrupts.  zy7_spi_intr() will handle transfer. */
 	WR4(sc, ZY7_SPI_INTR_EN_REG,
-	    ZY7_SPI_INTR_TX_FIFO_NOT_FULL |
-	    ZY7_SPI_INTR_RX_OVERFLOW);
+	    ZY7_SPI_INTR_TX_FIFO_NOT_FULL | ZY7_SPI_INTR_RX_OVERFLOW);
 
 	/* Handle polarity and phase. */
 	if (mode == SPIBUS_MODE_CPHA || mode == SPIBUS_MODE_CPOL_CPHA)
@@ -570,15 +558,15 @@ zy7_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 static device_method_t zy7_spi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		zy7_spi_probe),
-	DEVMETHOD(device_attach,	zy7_spi_attach),
-	DEVMETHOD(device_detach,	zy7_spi_detach),
+	DEVMETHOD(device_probe, zy7_spi_probe),
+	DEVMETHOD(device_attach, zy7_spi_attach),
+	DEVMETHOD(device_detach, zy7_spi_detach),
 
 	/* SPI interface */
-	DEVMETHOD(spibus_transfer,	zy7_spi_transfer),
+	DEVMETHOD(spibus_transfer, zy7_spi_transfer),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	zy7_spi_get_node),
+	DEVMETHOD(ofw_bus_get_node, zy7_spi_get_node),
 
 	DEVMETHOD_END
 };
@@ -591,6 +579,7 @@ static driver_t zy7_spi_driver = {
 static devclass_t zy7_spi_devclass;
 
 DRIVER_MODULE(zy7_spi, simplebus, zy7_spi_driver, zy7_spi_devclass, 0, 0);
-DRIVER_MODULE(ofw_spibus, zy7_spi, ofw_spibus_driver, ofw_spibus_devclass, 0, 0);
+DRIVER_MODULE(
+    ofw_spibus, zy7_spi, ofw_spibus_driver, ofw_spibus_devclass, 0, 0);
 SIMPLEBUS_PNP_INFO(compat_data);
 MODULE_DEPEND(zy7_spi, ofw_spibus, 1, 1, 1);

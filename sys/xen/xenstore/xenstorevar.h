@@ -6,20 +6,20 @@
  * Copyright (C) 2005 Rusty Russell, IBM Corporation
  * Copyright (C) 2005 XenSource Ltd.
  * Copyright (C) 2009,2010 Spectra Logic Corporation
- * 
+ *
  * This file may be distributed separately from the Linux kernel, or
  * incorporated into other software packages, subject to the following license:
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this source file (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use, copy, modify,
  * merge, publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -34,18 +34,18 @@
 #ifndef _XEN_XENSTORE_XENSTOREVAR_H
 #define _XEN_XENSTORE_XENSTOREVAR_H
 
-#include <sys/queue.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
+#include <sys/queue.h>
 #include <sys/sbuf.h>
 
 #include <machine/stdarg.h>
 
-#include <xen/xen-os.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/xenbus.h>
 #include <xen/interface/io/xs_wire.h>
+#include <xen/xen-os.h>
 
 #include "xenbus_if.h"
 
@@ -54,12 +54,11 @@ MALLOC_DECLARE(M_XENSTORE);
 
 struct xs_watch;
 
-typedef	void (xs_watch_cb_t)(struct xs_watch *, const char **vec,
-    unsigned int len);
+typedef void(xs_watch_cb_t)(
+    struct xs_watch *, const char **vec, unsigned int len);
 
 /* Register callback to watch subtree (node) in the XenStore. */
-struct xs_watch
-{
+struct xs_watch {
 	LIST_ENTRY(xs_watch) list;
 
 	/* Path being watched. */
@@ -84,8 +83,7 @@ LIST_HEAD(xs_watch_list, xs_watch);
 
 typedef int (*xs_event_handler_t)(void *);
 
-struct xs_transaction
-{
+struct xs_transaction {
 	uint32_t id;
 };
 
@@ -127,8 +125,8 @@ vm_paddr_t xs_address(void);
  * \note The results buffer is malloced and should be free'd by the
  *       caller with 'free(*result, M_XENSTORE)'.
  */
-int xs_directory(struct xs_transaction t, const char *dir,
-    const char *node, unsigned int *num, const char ***result);
+int xs_directory(struct xs_transaction t, const char *dir, const char *node,
+    unsigned int *num, const char ***result);
 
 /**
  * Determine if a path exists in the XenStore.
@@ -160,8 +158,8 @@ int xs_exists(struct xs_transaction t, const char *dir, const char *node);
  * \note The results buffer is malloced and should be free'd by the
  *       caller with 'free(*result, M_XENSTORE)'.
  */
-int xs_read(struct xs_transaction t, const char *dir,
-    const char *node, unsigned int *len, void **result);
+int xs_read(struct xs_transaction t, const char *dir, const char *node,
+    unsigned int *len, void **result);
 
 /**
  * Write to a single file.
@@ -174,8 +172,8 @@ int xs_read(struct xs_transaction t, const char *dir,
  * \return  On success, 0. Otherwise an errno value indicating the
  *          type of failure.
  */
-int xs_write(struct xs_transaction t, const char *dir,
-    const char *node, const char *string);
+int xs_write(struct xs_transaction t, const char *dir, const char *node,
+    const char *string);
 
 /**
  * Create a new directory.
@@ -187,8 +185,7 @@ int xs_write(struct xs_transaction t, const char *dir,
  * \return  On success, 0. Otherwise an errno value indicating the
  *          type of failure.
  */
-int xs_mkdir(struct xs_transaction t, const char *dir,
-    const char *node);
+int xs_mkdir(struct xs_transaction t, const char *dir, const char *node);
 
 /**
  * Remove a file or directory (directories must be empty).
@@ -212,8 +209,7 @@ int xs_rm(struct xs_transaction t, const char *dir, const char *node);
  * \return  On success, 0. Otherwise an errno value indicating the
  *          type of failure.
  */
-int xs_rm_tree(struct xs_transaction t, const char *dir,
-    const char *node);
+int xs_rm_tree(struct xs_transaction t, const char *dir, const char *node);
 
 /**
  * Start a transaction.
@@ -255,9 +251,8 @@ int xs_transaction_end(struct xs_transaction t, int abort);
  * \return  On success, 0. Otherwise an errno value indicating the
  *          type of failure.
  */
-int xs_scanf(struct xs_transaction t,
-    const char *dir, const char *node, int *scancountp, const char *fmt, ...)
-    __attribute__((format(scanf, 5, 6)));
+int xs_scanf(struct xs_transaction t, const char *dir, const char *node,
+    int *scancountp, const char *fmt, ...) __attribute__((format(scanf, 5, 6)));
 
 /**
  * Printf formatted write to a XenStore file.
@@ -271,9 +266,8 @@ int xs_scanf(struct xs_transaction t,
  * \return  On success, 0. Otherwise an errno value indicating the
  *          type of write failure.
  */
-int xs_printf(struct xs_transaction t, const char *dir,
-    const char *node, const char *fmt, ...)
-    __attribute__((format(printf, 4, 5)));
+int xs_printf(struct xs_transaction t, const char *dir, const char *node,
+    const char *fmt, ...) __attribute__((format(printf, 4, 5)));
 
 /**
  * va_list version of xenbus_printf().
@@ -287,8 +281,8 @@ int xs_printf(struct xs_transaction t, const char *dir,
  * \return  On success, 0. Otherwise an errno value indicating the
  *          type of write failure.
  */
-int xs_vprintf(struct xs_transaction t, const char *dir,
-    const char *node, const char *fmt, va_list ap);
+int xs_vprintf(struct xs_transaction t, const char *dir, const char *node,
+    const char *fmt, va_list ap);
 
 /**
  * Multi-file read within a single directory and scanf parsing of

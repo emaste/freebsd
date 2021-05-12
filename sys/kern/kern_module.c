@@ -30,35 +30,35 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
-#include <sys/malloc.h>
-#include <sys/sysproto.h>
-#include <sys/sysent.h>
-#include <sys/proc.h>
+#include <sys/kernel.h>
+#include <sys/linker.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/sx.h>
-#include <sys/module.h>
-#include <sys/linker.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
 
 static MALLOC_DEFINE(M_MODULE, "module", "module data structures");
 
 struct module {
-	TAILQ_ENTRY(module)	link;	/* chain together all modules */
-	TAILQ_ENTRY(module)	flink;	/* all modules in a file */
-	struct linker_file	*file;	/* file which contains this module */
-	int			refs;	/* reference count */
-	int 			id;	/* unique id number */
-	char 			*name;	/* module name */
-	modeventhand_t 		handler;	/* event handler */
-	void 			*arg;	/* argument for handler */
-	modspecific_t 		data;	/* module specific data */
+	TAILQ_ENTRY(module) link;  /* chain together all modules */
+	TAILQ_ENTRY(module) flink; /* all modules in a file */
+	struct linker_file *file;  /* file which contains this module */
+	int refs;		   /* reference count */
+	int id;			   /* unique id number */
+	char *name;		   /* module name */
+	modeventhand_t handler;	   /* event handler */
+	void *arg;		   /* argument for handler */
+	modspecific_t data;	   /* module specific data */
 };
 
-#define MOD_EVENT(mod, type)	(mod)->handler((mod), (type), (mod)->arg)
+#define MOD_EVENT(mod, type) (mod)->handler((mod), (type), (mod)->arg)
 
 static TAILQ_HEAD(modulelist, module) modules;
 struct sx modules_sx;
@@ -69,7 +69,7 @@ static int
 modevent_nop(module_t mod, int what, void *arg)
 {
 
-	switch(what) {
+	switch (what) {
 	case MOD_LOAD:
 		return (0);
 	case MOD_UNLOAD:
@@ -85,8 +85,8 @@ module_init(void *arg)
 
 	sx_init(&modules_sx, "module subsystem sx lock");
 	TAILQ_INIT(&modules);
-	EVENTHANDLER_REGISTER(shutdown_final, module_shutdown, NULL,
-	    SHUTDOWN_PRI_DEFAULT);
+	EVENTHANDLER_REGISTER(
+	    shutdown_final, module_shutdown, NULL, SHUTDOWN_PRI_DEFAULT);
 }
 
 SYSINIT(module, SI_SUB_KLD, SI_ORDER_FIRST, module_init, NULL);
@@ -100,7 +100,7 @@ module_shutdown(void *arg1, int arg2)
 		return;
 	mtx_lock(&Giant);
 	MOD_SLOCK;
-	TAILQ_FOREACH_REVERSE(mod, &modules, modulelist, link)
+	TAILQ_FOREACH_REVERSE (mod, &modules, modulelist, link)
 		MOD_EVENT(mod, MOD_SHUTDOWN);
 	MOD_SUNLOCK;
 	mtx_unlock(&Giant);
@@ -127,8 +127,8 @@ module_register_init(const void *arg)
 		module_release(mod);
 		MOD_XUNLOCK;
 		printf("module_register_init: MOD_LOAD (%s, %p, %p) error"
-		    " %d\n", data->name, (void *)data->evhand, data->priv,
-		    error); 
+		       " %d\n",
+		    data->name, (void *)data->evhand, data->priv, error);
 	} else {
 		MOD_XLOCK;
 		if (mod->file) {
@@ -158,8 +158,10 @@ module_register(const moduledata_t *data, linker_file_t container)
 	newmod = module_lookupbyname(data->name);
 	if (newmod != NULL) {
 		MOD_XUNLOCK;
-		printf("%s: cannot register %s from %s; already loaded from %s\n",
-		    __func__, data->name, container->filename, newmod->file->filename);
+		printf(
+		    "%s: cannot register %s from %s; already loaded from %s\n",
+		    __func__, data->name, container->filename,
+		    newmod->file->filename);
 		return (EEXIST);
 	}
 	namelen = strlen(data->name) + 1;
@@ -218,7 +220,7 @@ module_lookupbyname(const char *name)
 
 	MOD_LOCK_ASSERT;
 
-	TAILQ_FOREACH(mod, &modules, link) {
+	TAILQ_FOREACH (mod, &modules, link) {
 		err = strcmp(mod->name, name);
 		if (err == 0)
 			return (mod);
@@ -229,14 +231,14 @@ module_lookupbyname(const char *name)
 module_t
 module_lookupbyid(int modid)
 {
-        module_t mod;
+	module_t mod;
 
-        MOD_LOCK_ASSERT;
+	MOD_LOCK_ASSERT;
 
-        TAILQ_FOREACH(mod, &modules, link)
-                if (mod->id == modid)
-                        return(mod);
-        return (NULL);
+	TAILQ_FOREACH (mod, &modules, link)
+		if (mod->id == modid)
+			return (mod);
+	return (NULL);
 }
 
 int
@@ -360,10 +362,10 @@ sys_modfnext(struct thread *td, struct modfnext_args *uap)
 }
 
 struct module_stat_v1 {
-	int	version;		/* set to sizeof(struct module_stat) */
-	char	name[MAXMODNAME];
-	int	refs;
-	int	id;
+	int version; /* set to sizeof(struct module_stat) */
+	char name[MAXMODNAME];
+	int refs;
+	int id;
 };
 
 int
@@ -394,8 +396,8 @@ sys_modstat(struct thread *td, struct modstat_args *uap)
 	 */
 	if ((error = copyin(&stat->version, &version, sizeof(version))) != 0)
 		return (error);
-	if (version != sizeof(struct module_stat_v1)
-	    && version != sizeof(struct module_stat))
+	if (version != sizeof(struct module_stat_v1) &&
+	    version != sizeof(struct module_stat))
 		return (EINVAL);
 	namelen = strlen(mod->name) + 1;
 	if (namelen > MAXMODNAME)
@@ -412,8 +414,7 @@ sys_modstat(struct thread *td, struct modstat_args *uap)
 	 * >v1 stat includes module data.
 	 */
 	if (version == sizeof(struct module_stat))
-		if ((error = copyout(&data, &stat->data, 
-		    sizeof(data))) != 0)
+		if ((error = copyout(&data, &stat->data, sizeof(data))) != 0)
 			return (error);
 	td->td_retval[0] = 0;
 	return (error);
@@ -444,23 +445,24 @@ MODULE_VERSION(kernel, __FreeBSD_version);
 #ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
 #include <sys/socket.h>
-#include <compat/freebsd32/freebsd32_util.h>
+
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_proto.h>
+#include <compat/freebsd32/freebsd32_util.h>
 
 typedef union modspecific32 {
-	int		intval;
-	uint32_t	uintval;
-	int		longval;
-	uint32_t	ulongval;
+	int intval;
+	uint32_t uintval;
+	int longval;
+	uint32_t ulongval;
 } modspecific32_t;
 
 struct module_stat32 {
-	int		version;
-	char		name[MAXMODNAME];
-	int		refs;
-	int		id;
-	modspecific32_t	data;
+	int version;
+	char name[MAXMODNAME];
+	int refs;
+	int id;
+	modspecific32_t data;
 };
 
 int
@@ -492,8 +494,8 @@ freebsd32_modstat(struct thread *td, struct freebsd32_modstat_args *uap)
 
 	if ((error = copyin(&stat32->version, &version, sizeof(version))) != 0)
 		return (error);
-	if (version != sizeof(struct module_stat_v1)
-	    && version != sizeof(struct module_stat32))
+	if (version != sizeof(struct module_stat_v1) &&
+	    version != sizeof(struct module_stat32))
 		return (EINVAL);
 	namelen = strlen(mod->name) + 1;
 	if (namelen > MAXMODNAME)
@@ -510,8 +512,8 @@ freebsd32_modstat(struct thread *td, struct freebsd32_modstat_args *uap)
 	 * >v1 stat includes module data.
 	 */
 	if (version == sizeof(struct module_stat32))
-		if ((error = copyout(&data32, &stat32->data,
-		    sizeof(data32))) != 0)
+		if ((error = copyout(&data32, &stat32->data, sizeof(data32))) !=
+		    0)
 			return (error);
 	td->td_retval[0] = 0;
 	return (error);

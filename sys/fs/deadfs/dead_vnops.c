@@ -43,46 +43,46 @@
 /*
  * Prototypes for dead operations on vnodes.
  */
-static vop_lookup_t	dead_lookup;
-static vop_open_t	dead_open;
-static vop_close_t	dead_close;
+static vop_lookup_t dead_lookup;
+static vop_open_t dead_open;
+static vop_close_t dead_close;
 static vop_getwritemount_t dead_getwritemount;
-static vop_rename_t	dead_rename;
-static vop_unset_text_t	dead_unset_text;
+static vop_rename_t dead_rename;
+static vop_unset_text_t dead_unset_text;
 
 struct vop_vector dead_vnodeops = {
-	.vop_default =		&default_vnodeops,
+	.vop_default = &default_vnodeops,
 
-	.vop_access =		VOP_EBADF,
-	.vop_advlock =		VOP_EBADF,
-	.vop_bmap =		VOP_EBADF,
-	.vop_close =		dead_close,
-	.vop_create =		VOP_PANIC,
-	.vop_getattr =		VOP_EBADF,
-	.vop_getwritemount =	dead_getwritemount,
-	.vop_inactive =		VOP_NULL,
-	.vop_ioctl =		VOP_EBADF,
-	.vop_link =		VOP_PANIC,
-	.vop_lookup =		dead_lookup,
-	.vop_mkdir =		VOP_PANIC,
-	.vop_mknod =		VOP_PANIC,
-	.vop_open =		dead_open,
-	.vop_pathconf =		VOP_EBADF,	/* per pathconf(2) */
-	.vop_poll =		dead_poll,
-	.vop_read =		dead_read,
-	.vop_readdir =		VOP_EBADF,
-	.vop_readlink =		VOP_EBADF,
-	.vop_reclaim =		VOP_NULL,
-	.vop_remove =		VOP_PANIC,
-	.vop_rename =		dead_rename,
-	.vop_rmdir =		VOP_PANIC,
-	.vop_setattr =		VOP_EBADF,
-	.vop_symlink =		VOP_PANIC,
-	.vop_vptocnp =		VOP_EBADF,
-	.vop_unset_text =	dead_unset_text,
-	.vop_write =		dead_write,
-	.vop_fplookup_vexec =	VOP_EOPNOTSUPP,
-	.vop_fplookup_symlink =	VOP_EAGAIN,
+	.vop_access = VOP_EBADF,
+	.vop_advlock = VOP_EBADF,
+	.vop_bmap = VOP_EBADF,
+	.vop_close = dead_close,
+	.vop_create = VOP_PANIC,
+	.vop_getattr = VOP_EBADF,
+	.vop_getwritemount = dead_getwritemount,
+	.vop_inactive = VOP_NULL,
+	.vop_ioctl = VOP_EBADF,
+	.vop_link = VOP_PANIC,
+	.vop_lookup = dead_lookup,
+	.vop_mkdir = VOP_PANIC,
+	.vop_mknod = VOP_PANIC,
+	.vop_open = dead_open,
+	.vop_pathconf = VOP_EBADF, /* per pathconf(2) */
+	.vop_poll = dead_poll,
+	.vop_read = dead_read,
+	.vop_readdir = VOP_EBADF,
+	.vop_readlink = VOP_EBADF,
+	.vop_reclaim = VOP_NULL,
+	.vop_remove = VOP_PANIC,
+	.vop_rename = dead_rename,
+	.vop_rmdir = VOP_PANIC,
+	.vop_setattr = VOP_EBADF,
+	.vop_symlink = VOP_PANIC,
+	.vop_vptocnp = VOP_EBADF,
+	.vop_unset_text = dead_unset_text,
+	.vop_write = dead_write,
+	.vop_fplookup_vexec = VOP_EOPNOTSUPP,
+	.vop_fplookup_symlink = VOP_EAGAIN,
 };
 VFS_VOP_VECTOR_REGISTER(dead_vnodeops);
 
@@ -150,7 +150,6 @@ dead_poll(struct vop_poll_args *ap)
 	 * Let the user find out that the descriptor is gone.
 	 */
 	return (POLLHUP | ((POLLIN | POLLRDNORM) & ap->a_events));
-
 }
 
 static int

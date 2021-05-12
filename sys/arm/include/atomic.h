@@ -38,8 +38,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_ATOMIC_H_
-#define	_MACHINE_ATOMIC_H_
+#ifndef _MACHINE_ATOMIC_H_
+#define _MACHINE_ATOMIC_H_
 
 #include <sys/atomic_common.h>
 
@@ -58,46 +58,46 @@ atomic_swap_long(volatile u_long *p, u_long v)
 	return (atomic_swap_32((volatile uint32_t *)p, v));
 }
 
-#define atomic_clear_ptr		atomic_clear_32
-#define atomic_clear_acq_ptr		atomic_clear_acq_32
-#define atomic_clear_rel_ptr		atomic_clear_rel_32
-#define atomic_set_ptr			atomic_set_32
-#define atomic_set_acq_ptr		atomic_set_acq_32
-#define atomic_set_rel_ptr		atomic_set_rel_32
-#define atomic_fcmpset_ptr		atomic_fcmpset_32
-#define atomic_fcmpset_rel_ptr		atomic_fcmpset_rel_32
-#define atomic_fcmpset_acq_ptr		atomic_fcmpset_acq_32
-#define atomic_cmpset_ptr		atomic_cmpset_32
-#define atomic_cmpset_acq_ptr		atomic_cmpset_acq_32
-#define atomic_cmpset_rel_ptr		atomic_cmpset_rel_32
-#define atomic_load_acq_ptr		atomic_load_acq_32
-#define atomic_store_rel_ptr		atomic_store_rel_32
-#define atomic_swap_ptr			atomic_swap_32
-#define atomic_readandclear_ptr		atomic_readandclear_32
+#define atomic_clear_ptr atomic_clear_32
+#define atomic_clear_acq_ptr atomic_clear_acq_32
+#define atomic_clear_rel_ptr atomic_clear_rel_32
+#define atomic_set_ptr atomic_set_32
+#define atomic_set_acq_ptr atomic_set_acq_32
+#define atomic_set_rel_ptr atomic_set_rel_32
+#define atomic_fcmpset_ptr atomic_fcmpset_32
+#define atomic_fcmpset_rel_ptr atomic_fcmpset_rel_32
+#define atomic_fcmpset_acq_ptr atomic_fcmpset_acq_32
+#define atomic_cmpset_ptr atomic_cmpset_32
+#define atomic_cmpset_acq_ptr atomic_cmpset_acq_32
+#define atomic_cmpset_rel_ptr atomic_cmpset_rel_32
+#define atomic_load_acq_ptr atomic_load_acq_32
+#define atomic_store_rel_ptr atomic_store_rel_32
+#define atomic_swap_ptr atomic_swap_32
+#define atomic_readandclear_ptr atomic_readandclear_32
 
-#define atomic_add_int			atomic_add_32
-#define atomic_add_acq_int		atomic_add_acq_32
-#define atomic_add_rel_int		atomic_add_rel_32
-#define atomic_subtract_int		atomic_subtract_32
-#define atomic_subtract_acq_int		atomic_subtract_acq_32
-#define atomic_subtract_rel_int		atomic_subtract_rel_32
-#define atomic_clear_int		atomic_clear_32
-#define atomic_clear_acq_int		atomic_clear_acq_32
-#define atomic_clear_rel_int		atomic_clear_rel_32
-#define atomic_set_int			atomic_set_32
-#define atomic_set_acq_int		atomic_set_acq_32
-#define atomic_set_rel_int		atomic_set_rel_32
-#define atomic_fcmpset_int		atomic_fcmpset_32
-#define atomic_fcmpset_acq_int		atomic_fcmpset_acq_32
-#define atomic_fcmpset_rel_int		atomic_fcmpset_rel_32
-#define atomic_cmpset_int		atomic_cmpset_32
-#define atomic_cmpset_acq_int		atomic_cmpset_acq_32
-#define atomic_cmpset_rel_int		atomic_cmpset_rel_32
-#define atomic_fetchadd_int		atomic_fetchadd_32
-#define atomic_readandclear_int		atomic_readandclear_32
-#define atomic_load_acq_int		atomic_load_acq_32
-#define atomic_store_rel_int		atomic_store_rel_32
-#define atomic_swap_int			atomic_swap_32
+#define atomic_add_int atomic_add_32
+#define atomic_add_acq_int atomic_add_acq_32
+#define atomic_add_rel_int atomic_add_rel_32
+#define atomic_subtract_int atomic_subtract_32
+#define atomic_subtract_acq_int atomic_subtract_acq_32
+#define atomic_subtract_rel_int atomic_subtract_rel_32
+#define atomic_clear_int atomic_clear_32
+#define atomic_clear_acq_int atomic_clear_acq_32
+#define atomic_clear_rel_int atomic_clear_rel_32
+#define atomic_set_int atomic_set_32
+#define atomic_set_acq_int atomic_set_acq_32
+#define atomic_set_rel_int atomic_set_rel_32
+#define atomic_fcmpset_int atomic_fcmpset_32
+#define atomic_fcmpset_acq_int atomic_fcmpset_acq_32
+#define atomic_fcmpset_rel_int atomic_fcmpset_rel_32
+#define atomic_cmpset_int atomic_cmpset_32
+#define atomic_cmpset_acq_int atomic_cmpset_acq_32
+#define atomic_cmpset_rel_int atomic_cmpset_rel_32
+#define atomic_fetchadd_int atomic_fetchadd_32
+#define atomic_readandclear_int atomic_readandclear_32
+#define atomic_load_acq_int atomic_load_acq_32
+#define atomic_store_rel_int atomic_store_rel_32
+#define atomic_swap_int atomic_swap_32
 
 #include <sys/_atomic_subword.h>
 

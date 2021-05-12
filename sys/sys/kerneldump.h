@@ -46,29 +46,29 @@
 #include <machine/endian.h>
 
 #if BYTE_ORDER == LITTLE_ENDIAN
-#define	dtoh32(x)	__bswap32(x)
-#define	dtoh64(x)	__bswap64(x)
-#define	htod32(x)	__bswap32(x)
-#define	htod64(x)	__bswap64(x)
+#define dtoh32(x) __bswap32(x)
+#define dtoh64(x) __bswap64(x)
+#define htod32(x) __bswap32(x)
+#define htod64(x) __bswap64(x)
 #elif BYTE_ORDER == BIG_ENDIAN
-#define	dtoh32(x)	(x)
-#define	dtoh64(x)	(x)
-#define	htod32(x)	(x)
-#define	htod64(x)	(x)
+#define dtoh32(x) (x)
+#define dtoh64(x) (x)
+#define htod32(x) (x)
+#define htod64(x) (x)
 #endif
 
-#define	KERNELDUMP_COMP_NONE		0
-#define	KERNELDUMP_COMP_GZIP		1
-#define	KERNELDUMP_COMP_ZSTD		2
+#define KERNELDUMP_COMP_NONE 0
+#define KERNELDUMP_COMP_GZIP 1
+#define KERNELDUMP_COMP_ZSTD 2
 
-#define	KERNELDUMP_ENC_NONE		0
-#define	KERNELDUMP_ENC_AES_256_CBC	1
-#define	KERNELDUMP_ENC_CHACHA20		2
+#define KERNELDUMP_ENC_NONE 0
+#define KERNELDUMP_ENC_AES_256_CBC 1
+#define KERNELDUMP_ENC_CHACHA20 2
 
-#define	KERNELDUMP_BUFFER_SIZE		4096
-#define	KERNELDUMP_IV_MAX_SIZE		32
-#define	KERNELDUMP_KEY_MAX_SIZE		64
-#define	KERNELDUMP_ENCKEY_MAX_SIZE	(16384 / 8)
+#define KERNELDUMP_BUFFER_SIZE 4096
+#define KERNELDUMP_IV_MAX_SIZE 32
+#define KERNELDUMP_KEY_MAX_SIZE 64
+#define KERNELDUMP_ENCKEY_MAX_SIZE (16384 / 8)
 
 /*
  * All uintX_t fields are in dump byte order, which is the same as
@@ -76,41 +76,41 @@
  * write the fields.
  */
 struct kerneldumpheader {
-	char		magic[20];
-#define	KERNELDUMPMAGIC		"FreeBSD Kernel Dump"
-#define	TEXTDUMPMAGIC		"FreeBSD Text Dump"
-#define	KERNELDUMPMAGIC_CLEARED	"Cleared Kernel Dump"
-	char		architecture[12];
-	uint32_t	version;
-#define	KERNELDUMPVERSION		4
-#define	KERNELDUMP_TEXT_VERSION		4
-	uint32_t	architectureversion;
-#define	KERNELDUMP_AARCH64_VERSION	1
-#define	KERNELDUMP_AMD64_VERSION	2
-#define	KERNELDUMP_ARM_VERSION		1
-#define	KERNELDUMP_I386_VERSION		2
-#define	KERNELDUMP_MIPS_VERSION		1
-#define	KERNELDUMP_POWERPC_VERSION	1
-#define	KERNELDUMP_RISCV_VERSION	1
-#define	KERNELDUMP_SPARC64_VERSION	1
-	uint64_t	dumplength;		/* excl headers */
-	uint64_t	dumptime;
-	uint32_t	dumpkeysize;
-	uint32_t	blocksize;
-	char		hostname[64];
-	char		versionstring[192];
-	char		panicstring[175];
-	uint8_t		compression;
-	uint64_t	dumpextent;
-	char		unused[4];
-	uint32_t	parity;
+	char magic[20];
+#define KERNELDUMPMAGIC "FreeBSD Kernel Dump"
+#define TEXTDUMPMAGIC "FreeBSD Text Dump"
+#define KERNELDUMPMAGIC_CLEARED "Cleared Kernel Dump"
+	char architecture[12];
+	uint32_t version;
+#define KERNELDUMPVERSION 4
+#define KERNELDUMP_TEXT_VERSION 4
+	uint32_t architectureversion;
+#define KERNELDUMP_AARCH64_VERSION 1
+#define KERNELDUMP_AMD64_VERSION 2
+#define KERNELDUMP_ARM_VERSION 1
+#define KERNELDUMP_I386_VERSION 2
+#define KERNELDUMP_MIPS_VERSION 1
+#define KERNELDUMP_POWERPC_VERSION 1
+#define KERNELDUMP_RISCV_VERSION 1
+#define KERNELDUMP_SPARC64_VERSION 1
+	uint64_t dumplength; /* excl headers */
+	uint64_t dumptime;
+	uint32_t dumpkeysize;
+	uint32_t blocksize;
+	char hostname[64];
+	char versionstring[192];
+	char panicstring[175];
+	uint8_t compression;
+	uint64_t dumpextent;
+	char unused[4];
+	uint32_t parity;
 };
 
 struct kerneldumpkey {
-	uint8_t		kdk_encryption;
-	uint8_t		kdk_iv[KERNELDUMP_IV_MAX_SIZE];
-	uint32_t	kdk_encryptedkeysize;
-	uint8_t		kdk_encryptedkey[];
+	uint8_t kdk_encryption;
+	uint8_t kdk_iv[KERNELDUMP_IV_MAX_SIZE];
+	uint32_t kdk_encryptedkeysize;
+	uint8_t kdk_encryptedkey[];
 } __packed;
 
 /*

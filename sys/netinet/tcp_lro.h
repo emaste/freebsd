@@ -37,7 +37,7 @@
 
 #ifndef TCP_LRO_ENTRIES
 /* Define default number of LRO entries per RX queue */
-#define	TCP_LRO_ENTRIES	8
+#define TCP_LRO_ENTRIES 8
 #endif
 
 /*
@@ -53,25 +53,25 @@
  * by a stack.
  *
  */
-#define TSTMP_LRO		0x0100
-#define TSTMP_HDWR		0x0200
-#define HAS_TSTMP		0x0400
+#define TSTMP_LRO 0x0100
+#define TSTMP_HDWR 0x0200
+#define HAS_TSTMP 0x0400
 
 struct inpcb;
 
 union lro_address {
 	u_long raw[1];
 	struct {
-		uint16_t lro_type;	/* internal */
-#define	LRO_TYPE_NONE     0
-#define	LRO_TYPE_IPV4_TCP 1
-#define	LRO_TYPE_IPV6_TCP 2
-#define	LRO_TYPE_IPV4_UDP 3
-#define	LRO_TYPE_IPV6_UDP 4
-		uint16_t vlan_id;	/* VLAN identifier */
-		uint16_t s_port;	/* source TCP/UDP port */
-		uint16_t d_port;	/* destination TCP/UDP port */
-		uint32_t vxlan_vni;	/* VXLAN virtual network identifier */
+		uint16_t lro_type; /* internal */
+#define LRO_TYPE_NONE 0
+#define LRO_TYPE_IPV4_TCP 1
+#define LRO_TYPE_IPV6_TCP 2
+#define LRO_TYPE_IPV4_UDP 3
+#define LRO_TYPE_IPV6_UDP 4
+		uint16_t vlan_id;   /* VLAN identifier */
+		uint16_t s_port;    /* source TCP/UDP port */
+		uint16_t d_port;    /* destination TCP/UDP port */
+		uint32_t vxlan_vni; /* VXLAN virtual network identifier */
 		union {
 #ifdef INET
 			struct in_addr v4;
@@ -79,7 +79,7 @@ union lro_address {
 #ifdef INET6
 			struct in6_addr v6;
 #endif
-		} s_addr;	/* source IPv4/IPv6 address */
+		} s_addr; /* source IPv4/IPv6 address */
 		union {
 #ifdef INET
 			struct in_addr v4;
@@ -87,12 +87,11 @@ union lro_address {
 #ifdef INET6
 			struct in6_addr v6;
 #endif
-		} d_addr;	/* destination IPv4/IPv6 address */
+		} d_addr; /* destination IPv4/IPv6 address */
 	};
 } __aligned(sizeof(u_long));
 
-#define	LRO_RAW_ADDRESS_MAX \
-    (sizeof(union lro_address) / sizeof(u_long))
+#define LRO_RAW_ADDRESS_MAX (sizeof(union lro_address) / sizeof(u_long))
 
 /* Optimize address comparison by comparing one unsigned long at a time: */
 
@@ -101,10 +100,11 @@ lro_address_compare(const union lro_address *pa, const union lro_address *pb)
 {
 	if (pa->lro_type == LRO_TYPE_NONE && pb->lro_type == LRO_TYPE_NONE) {
 		return (true);
-	} else for (unsigned i = 0; i < LRO_RAW_ADDRESS_MAX; i++) {
-		if (pa->raw[i] != pb->raw[i])
-			return (false);
-	}
+	} else
+		for (unsigned i = 0; i < LRO_RAW_ADDRESS_MAX; i++) {
+			if (pa->raw[i] != pb->raw[i])
+				return (false);
+		}
 	return (true);
 }
 
@@ -125,22 +125,22 @@ struct lro_parser {
 
 /* This structure is zeroed frequently, try to keep it small. */
 struct lro_entry {
-	LIST_ENTRY(lro_entry)	next;
-	LIST_ENTRY(lro_entry)	hash_next;
-	struct mbuf		*m_head;
-	struct mbuf		*m_tail;
-	struct mbuf		*m_last_mbuf;
-	struct lro_parser	outer;
-	struct lro_parser	inner;
-	uint32_t		next_seq;	/* tcp_seq */
-	uint32_t		ack_seq;	/* tcp_seq */
-	uint32_t		tsval;
-	uint32_t		tsecr;
-	uint16_t		compressed;
-	uint16_t		uncompressed;
-	uint16_t		window;
-	uint16_t		timestamp;	/* flag, not a TCP hdr field. */
-	sbintime_t		alloc_time;	/* time when entry was allocated */
+	LIST_ENTRY(lro_entry) next;
+	LIST_ENTRY(lro_entry) hash_next;
+	struct mbuf *m_head;
+	struct mbuf *m_tail;
+	struct mbuf *m_last_mbuf;
+	struct lro_parser outer;
+	struct lro_parser inner;
+	uint32_t next_seq; /* tcp_seq */
+	uint32_t ack_seq;  /* tcp_seq */
+	uint32_t tsval;
+	uint32_t tsecr;
+	uint16_t compressed;
+	uint16_t uncompressed;
+	uint16_t window;
+	uint16_t timestamp;    /* flag, not a TCP hdr field. */
+	sbintime_t alloc_time; /* time when entry was allocated */
 };
 
 LIST_HEAD(lro_head, lro_entry);
@@ -152,43 +152,48 @@ struct lro_mbuf_sort {
 
 /* NB: This is part of driver structs. */
 struct lro_ctrl {
-	struct ifnet	*ifp;
+	struct ifnet *ifp;
 	struct lro_mbuf_sort *lro_mbuf_data;
-	sbintime_t	lro_last_queue_time;	/* last time data was queued */
-	uint64_t	lro_queued;
-	uint64_t	lro_flushed;
-	uint64_t	lro_bad_csum;
-	unsigned	lro_cnt;
-	unsigned	lro_mbuf_count;
-	unsigned	lro_mbuf_max;
-	unsigned short	lro_ackcnt_lim;		/* max # of aggregated ACKs */
-	unsigned 	lro_length_lim;		/* max len of aggregated data */
+	sbintime_t lro_last_queue_time; /* last time data was queued */
+	uint64_t lro_queued;
+	uint64_t lro_flushed;
+	uint64_t lro_bad_csum;
+	unsigned lro_cnt;
+	unsigned lro_mbuf_count;
+	unsigned lro_mbuf_max;
+	unsigned short lro_ackcnt_lim; /* max # of aggregated ACKs */
+	unsigned lro_length_lim;       /* max len of aggregated data */
 
-	u_long		lro_hashsz;
-	struct lro_head	*lro_hash;
-	struct lro_head	lro_active;
-	struct lro_head	lro_free;
+	u_long lro_hashsz;
+	struct lro_head *lro_hash;
+	struct lro_head lro_active;
+	struct lro_head lro_free;
 };
 
 struct tcp_ackent {
-	uint64_t timestamp;	/* hardware or sofware timestamp, valid if TSTMP_LRO or TSTMP_HDRW set */
-	uint32_t seq;		/* th_seq value */
-	uint32_t ack;		/* th_ack value */
-	uint32_t ts_value;	/* If ts option value, valid if HAS_TSTMP is set */
-	uint32_t ts_echo;	/* If ts option echo, valid if HAS_TSTMP is set */
-	uint16_t win;		/* TCP window */
-	uint16_t flags;		/* Flags to say if TS is present and type of timestamp and th_flags */
-	uint8_t  codepoint;	/* IP level codepoint including ECN bits */
-	uint8_t  ack_val_set;	/* Classification of ack used by the stack */
-	uint8_t  pad[2];	/* To 32 byte boundary */
+	uint64_t timestamp; /* hardware or sofware timestamp, valid if TSTMP_LRO
+			       or TSTMP_HDRW set */
+	uint32_t seq;	    /* th_seq value */
+	uint32_t ack;	    /* th_ack value */
+	uint32_t ts_value;  /* If ts option value, valid if HAS_TSTMP is set */
+	uint32_t ts_echo;   /* If ts option echo, valid if HAS_TSTMP is set */
+	uint16_t win;	    /* TCP window */
+	uint16_t flags; /* Flags to say if TS is present and type of timestamp
+			   and th_flags */
+	uint8_t codepoint;   /* IP level codepoint including ECN bits */
+	uint8_t ack_val_set; /* Classification of ack used by the stack */
+	uint8_t pad[2];	     /* To 32 byte boundary */
 };
 
 /* We use two M_PROTO on the mbuf */
-#define M_ACKCMP	M_PROTO4   /* Indicates LRO is sending in a  Ack-compression mbuf */
-#define M_LRO_EHDRSTRP	M_PROTO6   /* Indicates that LRO has stripped the etherenet header */
+#define M_ACKCMP \
+	M_PROTO4 /* Indicates LRO is sending in a  Ack-compression mbuf */
+#define M_LRO_EHDRSTRP \
+	M_PROTO6 /* Indicates that LRO has stripped the etherenet header */
 
-#define	TCP_LRO_LENGTH_MAX	(65535 - 255)	/* safe value with room for outer headers */
-#define	TCP_LRO_ACKCNT_MAX	65535		/* unlimited */
+#define TCP_LRO_LENGTH_MAX \
+	(65535 - 255) /* safe value with room for outer headers */
+#define TCP_LRO_ACKCNT_MAX 65535 /* unlimited */
 
 int tcp_lro_init(struct lro_ctrl *);
 int tcp_lro_init_args(struct lro_ctrl *, struct ifnet *, unsigned, unsigned);
@@ -201,8 +206,8 @@ void tcp_lro_queue_mbuf(struct lro_ctrl *, struct mbuf *);
 void tcp_lro_reg_mbufq(void);
 void tcp_lro_dereg_mbufq(void);
 
-#define	TCP_LRO_NO_ENTRIES	-2
-#define	TCP_LRO_CANNOT		-1
-#define	TCP_LRO_NOT_SUPPORTED	1
+#define TCP_LRO_NO_ENTRIES -2
+#define TCP_LRO_CANNOT -1
+#define TCP_LRO_NOT_SUPPORTED 1
 
 #endif /* _TCP_LRO_H_ */

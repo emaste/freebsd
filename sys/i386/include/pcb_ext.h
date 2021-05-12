@@ -34,15 +34,15 @@
 /*
  * Extension to the 386 process control block
  */
+#include <machine/segments.h>
 #include <machine/tss.h>
 #include <machine/vm86.h>
-#include <machine/segments.h>
 
 struct pcb_ext {
-	struct 	segment_descriptor ext_tssd;	/* tss descriptor */
-	struct 	i386tss	ext_tss;	/* per-process i386tss */
-	caddr_t	ext_iomap;		/* i/o permission bitmap */
-	struct	vm86_kernel ext_vm86;	/* vm86 area */
+	struct segment_descriptor ext_tssd; /* tss descriptor */
+	struct i386tss ext_tss;		    /* per-process i386tss */
+	caddr_t ext_iomap;		    /* i/o permission bitmap */
+	struct vm86_kernel ext_vm86;	    /* vm86 area */
 };
 
 #ifdef _KERNEL

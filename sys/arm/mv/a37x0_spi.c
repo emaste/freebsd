@@ -35,8 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -46,76 +46,75 @@ __FBSDID("$FreeBSD$");
 #include "spibus_if.h"
 
 struct a37x0_spi_softc {
-	device_t		sc_dev;
-	struct mtx		sc_mtx;
-	struct resource		*sc_mem_res;
-	struct resource		*sc_irq_res;
-	struct spi_command	*sc_cmd;
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
-	uint32_t		sc_len;
-	uint32_t		sc_maxfreq;
-	uint32_t		sc_read;
-	uint32_t		sc_flags;
-	uint32_t		sc_written;
-	void			*sc_intrhand;
+	device_t sc_dev;
+	struct mtx sc_mtx;
+	struct resource *sc_mem_res;
+	struct resource *sc_irq_res;
+	struct spi_command *sc_cmd;
+	bus_space_tag_t sc_bst;
+	bus_space_handle_t sc_bsh;
+	uint32_t sc_len;
+	uint32_t sc_maxfreq;
+	uint32_t sc_read;
+	uint32_t sc_flags;
+	uint32_t sc_written;
+	void *sc_intrhand;
 };
 
-#define	A37X0_SPI_WRITE(_sc, _off, _val)		\
-    bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off), (_val))
-#define	A37X0_SPI_READ(_sc, _off)			\
-    bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off))
-#define	A37X0_SPI_LOCK(_sc)	mtx_lock(&(_sc)->sc_mtx)
-#define	A37X0_SPI_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
+#define A37X0_SPI_WRITE(_sc, _off, _val) \
+	bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off), (_val))
+#define A37X0_SPI_READ(_sc, _off) \
+	bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, (_off))
+#define A37X0_SPI_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define A37X0_SPI_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
 
-#define	A37X0_SPI_BUSY			(1 << 0)
+#define A37X0_SPI_BUSY (1 << 0)
 /*
  * While the A3700 utils from Marvell usually sets the QSF clock to 200MHz,
  * there is no guarantee that it is correct without the proper clock framework
  * to retrieve the actual TBG and PLL settings.
  */
-#define	A37X0_SPI_CLOCK			200000000	/* QSF Clock 200MHz */
+#define A37X0_SPI_CLOCK 200000000 /* QSF Clock 200MHz */
 
-#define	A37X0_SPI_CONTROL		0x0
-#define	 A37X0_SPI_CS_SHIFT		16
-#define	 A37X0_SPI_CS_MASK		(0xf << A37X0_SPI_CS_SHIFT)
-#define	A37X0_SPI_CONF			0x4
-#define	 A37X0_SPI_WFIFO_THRS_SHIFT	28
-#define	 A37X0_SPI_RFIFO_THRS_SHIFT	24
-#define	 A37X0_SPI_AUTO_CS_EN		(1 << 20)
-#define	 A37X0_SPI_DMA_WR_EN		(1 << 19)
-#define	 A37X0_SPI_DMA_RD_EN		(1 << 18)
-#define	 A37X0_SPI_FIFO_MODE		(1 << 17)
-#define	 A37X0_SPI_SRST			(1 << 16)
-#define	 A37X0_SPI_XFER_START		(1 << 15)
-#define	 A37X0_SPI_XFER_STOP		(1 << 14)
-#define	 A37X0_SPI_INSTR_PIN		(1 << 13)
-#define	 A37X0_SPI_ADDR_PIN		(1 << 12)
-#define	 A37X0_SPI_DATA_PIN_MASK	0x3
-#define	 A37X0_SPI_DATA_PIN_SHIFT	10
-#define	 A37X0_SPI_FIFO_FLUSH		(1 << 9)
-#define	 A37X0_SPI_RW_EN		(1 << 8)
-#define	 A37X0_SPI_CLK_POL		(1 << 7)
-#define	 A37X0_SPI_CLK_PHASE		(1 << 6)
-#define	 A37X0_SPI_BYTE_LEN		(1 << 5)
-#define	 A37X0_SPI_PSC_MASK		0x1f
-#define	A37X0_SPI_DATA_OUT		0x8
-#define	A37X0_SPI_DATA_IN		0xc
-#define	A37X0_SPI_INTR_STAT		0x28
-#define	A37X0_SPI_INTR_MASK		0x2c
-#define	 A37X0_SPI_RDY			(1 << 1)
-#define	 A37X0_SPI_XFER_DONE		(1 << 0)
+#define A37X0_SPI_CONTROL 0x0
+#define A37X0_SPI_CS_SHIFT 16
+#define A37X0_SPI_CS_MASK (0xf << A37X0_SPI_CS_SHIFT)
+#define A37X0_SPI_CONF 0x4
+#define A37X0_SPI_WFIFO_THRS_SHIFT 28
+#define A37X0_SPI_RFIFO_THRS_SHIFT 24
+#define A37X0_SPI_AUTO_CS_EN (1 << 20)
+#define A37X0_SPI_DMA_WR_EN (1 << 19)
+#define A37X0_SPI_DMA_RD_EN (1 << 18)
+#define A37X0_SPI_FIFO_MODE (1 << 17)
+#define A37X0_SPI_SRST (1 << 16)
+#define A37X0_SPI_XFER_START (1 << 15)
+#define A37X0_SPI_XFER_STOP (1 << 14)
+#define A37X0_SPI_INSTR_PIN (1 << 13)
+#define A37X0_SPI_ADDR_PIN (1 << 12)
+#define A37X0_SPI_DATA_PIN_MASK 0x3
+#define A37X0_SPI_DATA_PIN_SHIFT 10
+#define A37X0_SPI_FIFO_FLUSH (1 << 9)
+#define A37X0_SPI_RW_EN (1 << 8)
+#define A37X0_SPI_CLK_POL (1 << 7)
+#define A37X0_SPI_CLK_PHASE (1 << 6)
+#define A37X0_SPI_BYTE_LEN (1 << 5)
+#define A37X0_SPI_PSC_MASK 0x1f
+#define A37X0_SPI_DATA_OUT 0x8
+#define A37X0_SPI_DATA_IN 0xc
+#define A37X0_SPI_INTR_STAT 0x28
+#define A37X0_SPI_INTR_MASK 0x2c
+#define A37X0_SPI_RDY (1 << 1)
+#define A37X0_SPI_XFER_DONE (1 << 0)
 
 static struct ofw_compat_data compat_data[] = {
-	{ "marvell,armada-3700-spi",	1 },
-	{ NULL, 0 }
+	{ "marvell,armada-3700-spi", 1 }, { NULL, 0 }
 };
 
 static void a37x0_spi_intr(void *);
 
 static int
-a37x0_spi_wait(struct a37x0_spi_softc *sc, int timeout, uint32_t reg,
-    uint32_t mask)
+a37x0_spi_wait(
+    struct a37x0_spi_softc *sc, int timeout, uint32_t reg, uint32_t mask)
 {
 	int i;
 
@@ -153,8 +152,8 @@ a37x0_spi_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
 		return (ENXIO);
@@ -164,8 +163,8 @@ a37x0_spi_attach(device_t dev)
 	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!sc->sc_irq_res) {
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot allocate interrupt\n");
@@ -202,7 +201,7 @@ a37x0_spi_attach(device_t dev)
 
 	/* Hook up our interrupt handler. */
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, a37x0_spi_intr, sc, &sc->sc_intrhand)) {
+		NULL, a37x0_spi_intr, sc, &sc->sc_intrhand)) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot setup the interrupt handler\n");
@@ -213,7 +212,7 @@ a37x0_spi_attach(device_t dev)
 
 	/* Read the controller max-frequency. */
 	if (OF_getencprop(ofw_bus_get_node(dev), "spi-max-frequency", &maxfreq,
-	    sizeof(maxfreq)) == -1)
+		sizeof(maxfreq)) == -1)
 		maxfreq = 0;
 	sc->sc_maxfreq = maxfreq;
 
@@ -382,22 +381,19 @@ a37x0_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	spibus_get_cs(child, &cs);
 	cs &= ~SPIBUS_CS_HIGH;
 	if (cs > 3) {
-		device_printf(dev,
-		    "Invalid CS %d requested by %s\n", cs,
+		device_printf(dev, "Invalid CS %d requested by %s\n", cs,
 		    device_get_nameunit(child));
 		return (EINVAL);
 	}
 	spibus_get_clock(child, &clock);
 	if (clock == 0) {
-		device_printf(dev,
-		    "Invalid clock %uHz requested by %s\n", clock,
-		    device_get_nameunit(child));
+		device_printf(dev, "Invalid clock %uHz requested by %s\n",
+		    clock, device_get_nameunit(child));
 		return (EINVAL);
 	}
 	spibus_get_mode(child, &mode);
 	if (mode > 3) {
-		device_printf(dev,
-		    "Invalid mode %u requested by %s\n", mode,
+		device_printf(dev, "Invalid mode %u requested by %s\n", mode,
 		    device_get_nameunit(child));
 		return (EINVAL);
 	}
@@ -470,15 +466,15 @@ a37x0_spi_get_node(device_t bus, device_t dev)
 
 static device_method_t a37x0_spi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		a37x0_spi_probe),
-	DEVMETHOD(device_attach,	a37x0_spi_attach),
-	DEVMETHOD(device_detach,	a37x0_spi_detach),
+	DEVMETHOD(device_probe, a37x0_spi_probe),
+	DEVMETHOD(device_attach, a37x0_spi_attach),
+	DEVMETHOD(device_detach, a37x0_spi_detach),
 
 	/* SPI interface */
-	DEVMETHOD(spibus_transfer,	a37x0_spi_transfer),
+	DEVMETHOD(spibus_transfer, a37x0_spi_transfer),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	a37x0_spi_get_node),
+	DEVMETHOD(ofw_bus_get_node, a37x0_spi_get_node),
 
 	DEVMETHOD_END
 };

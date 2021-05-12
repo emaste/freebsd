@@ -29,12 +29,12 @@
  */
 
 #ifndef __DISASSEM_H_
-#define	__DISASSEM_H_
+#define __DISASSEM_H_
 
 struct disasm_interface {
-	u_int	(*di_readword)(vm_offset_t);
-	void	(*di_printaddr)(vm_offset_t);
-	int	(*di_printf)(const char *, ...) __printflike(1, 2);
+	u_int (*di_readword)(vm_offset_t);
+	void (*di_printaddr)(vm_offset_t);
+	int (*di_printf)(const char *, ...) __printflike(1, 2);
 };
 
 vm_offset_t disasm(const struct disasm_interface *, vm_offset_t, int);

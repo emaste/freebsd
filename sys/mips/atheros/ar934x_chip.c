@@ -32,18 +32,16 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/reboot.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
-
-#include <net/ethernet.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -53,14 +51,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
-#include <mips/atheros/ar71xxreg.h>
-#include <mips/atheros/ar934xreg.h>
-
-#include <mips/atheros/ar71xx_cpudef.h>
-#include <mips/atheros/ar71xx_setup.h>
+#include <net/ethernet.h>
 
 #include <mips/atheros/ar71xx_chip.h>
+#include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xx_setup.h>
+#include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar934x_chip.h>
+#include <mips/atheros/ar934xreg.h>
 
 static void
 ar934x_chip_detect_mem_size(void)
@@ -116,18 +114,18 @@ ar934x_chip_detect_sys_frequency(void)
 	} else {
 		pll = ATH_READ_REG(AR934X_PLL_CPU_CONFIG_REG);
 		out_div = (pll >> AR934X_PLL_CPU_CONFIG_OUTDIV_SHIFT) &
-			AR934X_PLL_CPU_CONFIG_OUTDIV_MASK;
+		    AR934X_PLL_CPU_CONFIG_OUTDIV_MASK;
 		ref_div = (pll >> AR934X_PLL_CPU_CONFIG_REFDIV_SHIFT) &
-			  AR934X_PLL_CPU_CONFIG_REFDIV_MASK;
+		    AR934X_PLL_CPU_CONFIG_REFDIV_MASK;
 		nint = (pll >> AR934X_PLL_CPU_CONFIG_NINT_SHIFT) &
-		       AR934X_PLL_CPU_CONFIG_NINT_MASK;
+		    AR934X_PLL_CPU_CONFIG_NINT_MASK;
 		nfrac = (pll >> AR934X_PLL_CPU_CONFIG_NFRAC_SHIFT) &
-			AR934X_PLL_CPU_CONFIG_NFRAC_MASK;
+		    AR934X_PLL_CPU_CONFIG_NFRAC_MASK;
 		frac = 1 << 6;
 	}
 
-	cpu_pll = ar934x_get_pll_freq(u_ar71xx_refclk, ref_div, nint,
-	    nfrac, frac, out_div);
+	cpu_pll = ar934x_get_pll_freq(
+	    u_ar71xx_refclk, ref_div, nint, nfrac, frac, out_div);
 
 	pll = ATH_READ_REG(AR934X_SRIF_DDR_DPLL2_REG);
 	if (pll & AR934X_SRIF_DPLL2_LOCAL_PLL) {
@@ -153,8 +151,8 @@ ar934x_chip_detect_sys_frequency(void)
 		frac = 1 << 10;
 	}
 
-	ddr_pll = ar934x_get_pll_freq(u_ar71xx_refclk, ref_div, nint,
-	    nfrac, frac, out_div);
+	ddr_pll = ar934x_get_pll_freq(
+	    u_ar71xx_refclk, ref_div, nint, nfrac, frac, out_div);
 
 	clk_ctrl = ATH_READ_REG(AR934X_PLL_CPU_DDR_CLK_CTRL_REG);
 
@@ -162,7 +160,7 @@ ar934x_chip_detect_sys_frequency(void)
 	    AR934X_PLL_CPU_DDR_CLK_CTRL_CPU_POST_DIV_MASK;
 
 	if (clk_ctrl & AR934X_PLL_CPU_DDR_CLK_CTRL_CPU_PLL_BYPASS)
-	    u_ar71xx_cpu_freq = u_ar71xx_refclk;
+		u_ar71xx_cpu_freq = u_ar71xx_refclk;
 	else if (clk_ctrl & AR934X_PLL_CPU_DDR_CLK_CTRL_CPUCLK_FROM_CPUPLL)
 		u_ar71xx_cpu_freq = cpu_pll / (postdiv + 1);
 	else
@@ -179,7 +177,7 @@ ar934x_chip_detect_sys_frequency(void)
 		u_ar71xx_ddr_freq = cpu_pll / (postdiv + 1);
 
 	postdiv = (clk_ctrl >> AR934X_PLL_CPU_DDR_CLK_CTRL_AHB_POST_DIV_SHIFT) &
-		  AR934X_PLL_CPU_DDR_CLK_CTRL_AHB_POST_DIV_MASK;
+	    AR934X_PLL_CPU_DDR_CLK_CTRL_AHB_POST_DIV_MASK;
 
 	if (clk_ctrl & AR934X_PLL_CPU_DDR_CLK_CTRL_AHB_PLL_BYPASS)
 		u_ar71xx_ahb_freq = u_ar71xx_refclk;
@@ -254,8 +252,8 @@ ar934x_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 		/* XXX nothing */
 		break;
 	default:
-		printf("%s: invalid PLL set for arge unit: %d\n",
-		    __func__, unit);
+		printf(
+		    "%s: invalid PLL set for arge unit: %d\n", __func__, unit);
 		return;
 	}
 }
@@ -390,12 +388,9 @@ ar934x_chip_init_gmac(void)
 {
 	long gmac_cfg;
 
-	if (resource_long_value("ar934x_gmac", 0, "gmac_cfg",
-	    &gmac_cfg) == 0) {
-		printf("%s: gmac_cfg=0x%08lx\n",
-		    __func__,
-		    (long) gmac_cfg);
-		ar934x_configure_gmac((uint32_t) gmac_cfg);
+	if (resource_long_value("ar934x_gmac", 0, "gmac_cfg", &gmac_cfg) == 0) {
+		printf("%s: gmac_cfg=0x%08lx\n", __func__, (long)gmac_cfg);
+		ar934x_configure_gmac((uint32_t)gmac_cfg);
 	}
 }
 

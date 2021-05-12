@@ -38,49 +38,48 @@
 #ifndef _LINUX_FUTEX_H
 #define _LINUX_FUTEX_H
 
-#define LINUX_FUTEX_WAIT		 0
-#define LINUX_FUTEX_WAKE		 1
-#define LINUX_FUTEX_FD			 2	/* unused */
-#define LINUX_FUTEX_REQUEUE		 3
-#define LINUX_FUTEX_CMP_REQUEUE		 4
-#define LINUX_FUTEX_WAKE_OP		 5
-#define LINUX_FUTEX_LOCK_PI		 6
-#define LINUX_FUTEX_UNLOCK_PI		 7
-#define LINUX_FUTEX_TRYLOCK_PI		 8
-#define LINUX_FUTEX_WAIT_BITSET		 9
-#define LINUX_FUTEX_WAKE_BITSET		10
-#define LINUX_FUTEX_WAIT_REQUEUE_PI	11
-#define LINUX_FUTEX_CMP_REQUEUE_PI	12
+#define LINUX_FUTEX_WAIT 0
+#define LINUX_FUTEX_WAKE 1
+#define LINUX_FUTEX_FD 2 /* unused */
+#define LINUX_FUTEX_REQUEUE 3
+#define LINUX_FUTEX_CMP_REQUEUE 4
+#define LINUX_FUTEX_WAKE_OP 5
+#define LINUX_FUTEX_LOCK_PI 6
+#define LINUX_FUTEX_UNLOCK_PI 7
+#define LINUX_FUTEX_TRYLOCK_PI 8
+#define LINUX_FUTEX_WAIT_BITSET 9
+#define LINUX_FUTEX_WAKE_BITSET 10
+#define LINUX_FUTEX_WAIT_REQUEUE_PI 11
+#define LINUX_FUTEX_CMP_REQUEUE_PI 12
 
-#define LINUX_FUTEX_PRIVATE_FLAG	128
-#define LINUX_FUTEX_CLOCK_REALTIME	256
+#define LINUX_FUTEX_PRIVATE_FLAG 128
+#define LINUX_FUTEX_CLOCK_REALTIME 256
 
-#define FUTEX_OP_SET            0	/* *(int *)UADDR2 = OPARG; */
-#define FUTEX_OP_ADD            1	/* *(int *)UADDR2 += OPARG; */
-#define FUTEX_OP_OR             2	/* *(int *)UADDR2 |= OPARG; */
-#define FUTEX_OP_ANDN           3	/* *(int *)UADDR2 &= ~OPARG; */
-#define FUTEX_OP_XOR            4	/* *(int *)UADDR2 ^= OPARG; */
+#define FUTEX_OP_SET 0	/* *(int *)UADDR2 = OPARG; */
+#define FUTEX_OP_ADD 1	/* *(int *)UADDR2 += OPARG; */
+#define FUTEX_OP_OR 2	/* *(int *)UADDR2 |= OPARG; */
+#define FUTEX_OP_ANDN 3 /* *(int *)UADDR2 &= ~OPARG; */
+#define FUTEX_OP_XOR 4	/* *(int *)UADDR2 ^= OPARG; */
 
-#define FUTEX_OP_OPARG_SHIFT    8	/* Use (1 << OPARG) instead of OPARG.  */
+#define FUTEX_OP_OPARG_SHIFT 8 /* Use (1 << OPARG) instead of OPARG.  */
 
-#define FUTEX_OP_CMP_EQ         0	/* if (oldval == CMPARG) wake */
-#define FUTEX_OP_CMP_NE         1	/* if (oldval != CMPARG) wake */
-#define FUTEX_OP_CMP_LT         2	/* if (oldval < CMPARG) wake */
-#define FUTEX_OP_CMP_LE         3	/* if (oldval <= CMPARG) wake */
-#define FUTEX_OP_CMP_GT         4	/* if (oldval > CMPARG) wake */
-#define FUTEX_OP_CMP_GE         5	/* if (oldval >= CMPARG) wake */
+#define FUTEX_OP_CMP_EQ 0 /* if (oldval == CMPARG) wake */
+#define FUTEX_OP_CMP_NE 1 /* if (oldval != CMPARG) wake */
+#define FUTEX_OP_CMP_LT 2 /* if (oldval < CMPARG) wake */
+#define FUTEX_OP_CMP_LE 3 /* if (oldval <= CMPARG) wake */
+#define FUTEX_OP_CMP_GT 4 /* if (oldval > CMPARG) wake */
+#define FUTEX_OP_CMP_GE 5 /* if (oldval >= CMPARG) wake */
 
-#define	FUTEX_WAITERS		0x80000000
-#define	FUTEX_OWNER_DIED	0x40000000
-#define	FUTEX_TID_MASK		0x3fffffff
-#define	FUTEX_BITSET_MATCH_ANY	0xffffffff
+#define FUTEX_WAITERS 0x80000000
+#define FUTEX_OWNER_DIED 0x40000000
+#define FUTEX_TID_MASK 0x3fffffff
+#define FUTEX_BITSET_MATCH_ANY 0xffffffff
 
 int futex_xchgl(int oparg, uint32_t *uaddr, int *oldval);
 int futex_addl(int oparg, uint32_t *uaddr, int *oldval);
 int futex_orl(int oparg, uint32_t *uaddr, int *oldval);
 int futex_andl(int oparg, uint32_t *uaddr, int *oldval);
 int futex_xorl(int oparg, uint32_t *uaddr, int *oldval);
-void	release_futexes(struct thread *,
-			struct linux_emuldata *);
+void release_futexes(struct thread *, struct linux_emuldata *);
 
-#endif	/* !_LINUX_FUTEX_H */
+#endif /* !_LINUX_FUTEX_H */

@@ -32,11 +32,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
-#include <sys/systm.h>
 
 #include <machine/machdep.h>
 #include <machine/stack.h>
@@ -62,34 +62,34 @@ __FBSDID("$FreeBSD$");
  */
 
 /* A special case when we are unable to unwind past this function */
-#define	EXIDX_CANTUNWIND	1
+#define EXIDX_CANTUNWIND 1
 
 /*
  * Entry types.
  * These are the only entry types that have been seen in the kernel.
  */
-#define	ENTRY_MASK	0xff000000
-#define	ENTRY_ARM_SU16	0x80000000
-#define	ENTRY_ARM_LU16	0x81000000
+#define ENTRY_MASK 0xff000000
+#define ENTRY_ARM_SU16 0x80000000
+#define ENTRY_ARM_LU16 0x81000000
 
 /* Instruction masks. */
-#define	INSN_VSP_MASK		0xc0
-#define	INSN_VSP_SIZE_MASK	0x3f
-#define	INSN_STD_MASK		0xf0
-#define	INSN_STD_DATA_MASK	0x0f
-#define	INSN_POP_TYPE_MASK	0x08
-#define	INSN_POP_COUNT_MASK	0x07
-#define	INSN_VSP_LARGE_INC_MASK	0xff
+#define INSN_VSP_MASK 0xc0
+#define INSN_VSP_SIZE_MASK 0x3f
+#define INSN_STD_MASK 0xf0
+#define INSN_STD_DATA_MASK 0x0f
+#define INSN_POP_TYPE_MASK 0x08
+#define INSN_POP_COUNT_MASK 0x07
+#define INSN_VSP_LARGE_INC_MASK 0xff
 
 /* Instruction definitions */
-#define	INSN_VSP_INC		0x00
-#define	INSN_VSP_DEC		0x40
-#define	INSN_POP_MASKED		0x80
-#define	INSN_VSP_REG		0x90
-#define	INSN_POP_COUNT		0xa0
-#define	INSN_FINISH		0xb0
-#define	INSN_POP_REGS		0xb1
-#define	INSN_VSP_LARGE_INC	0xb2
+#define INSN_VSP_INC 0x00
+#define INSN_VSP_DEC 0x40
+#define INSN_POP_MASKED 0x80
+#define INSN_VSP_REG 0x90
+#define INSN_POP_COUNT 0xa0
+#define INSN_FINISH 0xb0
+#define INSN_POP_REGS 0xb1
+#define INSN_VSP_LARGE_INC 0xb2
 
 /* An item in the exception index table */
 struct unwind_idx {
@@ -135,12 +135,12 @@ struct unwind_idx {
  * unloading a module.
  */
 struct module_info {
-	uintptr_t	module_start;   /* Start of loaded module */
-	uintptr_t	module_end;     /* End of loaded module */
-	uintptr_t	exidx_start;    /* Start of unwind data */
-	uintptr_t	exidx_end;      /* End of unwind data */
+	uintptr_t module_start; /* Start of loaded module */
+	uintptr_t module_end;	/* End of loaded module */
+	uintptr_t exidx_start;	/* Start of unwind data */
+	uintptr_t exidx_end;	/* End of unwind data */
 	STAILQ_ENTRY(module_info)
-			link;           /* Link to next entry */
+	link; /* Link to next entry */
 };
 static STAILQ_HEAD(, module_info) module_list;
 
@@ -149,8 +149,8 @@ static STAILQ_HEAD(, module_info) module_list;
  *  CADDR - cast a pointer or number to caddr_t.
  *  UADDR - cast a pointer or number to uintptr_t.
  */
-#define	CADDR(addr)	((caddr_t)(void*)(uintptr_t)(addr))
-#define	UADDR(addr)	((uintptr_t)(addr))
+#define CADDR(addr) ((caddr_t)(void *)(uintptr_t)(addr))
+#define UADDR(addr) ((uintptr_t)(addr))
 
 /*
  * Clear the info in an existing module_info entry on the list.  The
@@ -162,7 +162,7 @@ static void
 clear_module_info(struct module_info *info)
 {
 	info->module_start = UINTPTR_MAX;
-	info->module_end   = 0;
+	info->module_end = 0;
 }
 
 /*
@@ -177,10 +177,10 @@ populate_module_info(struct module_info *info, linker_file_t lf)
 	 * Careful!  The module_start and module_end fields must not be set
 	 * until all other data in the structure is valid.
 	 */
-	info->exidx_start  = UADDR(lf->exidx_addr);
-	info->exidx_end    = UADDR(lf->exidx_addr) + lf->exidx_size;
+	info->exidx_start = UADDR(lf->exidx_addr);
+	info->exidx_end = UADDR(lf->exidx_addr) + lf->exidx_size;
 	info->module_start = UADDR(lf->address);
-	info->module_end   = UADDR(lf->address) + lf->size;
+	info->module_end = UADDR(lf->address) + lf->size;
 }
 
 /*
@@ -208,7 +208,7 @@ find_module_info(uintptr_t addr)
 {
 	struct module_info *info;
 
-	STAILQ_FOREACH(info, &module_list, link) {
+	STAILQ_FOREACH (info, &module_list, link) {
 		if ((addr >= info->module_start && addr < info->module_end) ||
 		    (addr == 0 && info->module_start == UINTPTR_MAX))
 			return (info);
@@ -287,9 +287,9 @@ module_info_init(void *arg __unused)
 
 	STAILQ_INIT(&module_list);
 
-	thekernel.filename   = "kernel";
-	thekernel.address    = CADDR(&_start);
-	thekernel.size       = UADDR(&_end) - UADDR(&_start);
+	thekernel.filename = "kernel";
+	thekernel.address = CADDR(&_start);
+	thekernel.size = UADDR(&_end) - UADDR(&_start);
 	thekernel.exidx_addr = CADDR(&_exidx_start);
 	thekernel.exidx_size = UADDR(&_exidx_end) - UADDR(&_exidx_start);
 	populate_module_info(create_module_info(), &thekernel);
@@ -565,9 +565,8 @@ unwind_stack_one(struct unwind_state *state, int can_lock __unused)
 		state->insn = &index->insn;
 	} else {
 		/* A prel31 offset to the unwind table */
-		state->insn = (uint32_t *)
-		    ((uintptr_t)&index->insn +
-		     expand_prel31(index->insn));
+		state->insn = (uint32_t *)((uintptr_t)&index->insn +
+		    expand_prel31(index->insn));
 	}
 
 	/* Run the unwind function, return its finished/not-finished status. */

@@ -30,31 +30,31 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/systm.h>
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/vinum/geom_vinum_var.h>
-#include <geom/vinum/geom_vinum_raid5.h>
 #include <geom/vinum/geom_vinum.h>
+#include <geom/vinum/geom_vinum_raid5.h>
+#include <geom/vinum/geom_vinum_var.h>
 
-static int		gv_raid5_offset(struct gv_plex *, off_t, off_t,
-			    off_t *, off_t *, int *, int *, int);
-static struct bio *	gv_raid5_clone_bio(struct bio *, struct gv_sd *,
-			    struct gv_raid5_packet *, caddr_t, int);
-static int	gv_raid5_request(struct gv_plex *, struct gv_raid5_packet *,
-		    struct bio *, caddr_t, off_t, off_t, int *);
-static int	gv_raid5_check(struct gv_plex *, struct gv_raid5_packet *,
-		    struct bio *, caddr_t, off_t, off_t);
-static int	gv_raid5_rebuild(struct gv_plex *, struct gv_raid5_packet *,
-		    struct bio *, caddr_t, off_t, off_t);
+static int gv_raid5_offset(
+    struct gv_plex *, off_t, off_t, off_t *, off_t *, int *, int *, int);
+static struct bio *gv_raid5_clone_bio(
+    struct bio *, struct gv_sd *, struct gv_raid5_packet *, caddr_t, int);
+static int gv_raid5_request(struct gv_plex *, struct gv_raid5_packet *,
+    struct bio *, caddr_t, off_t, off_t, int *);
+static int gv_raid5_check(struct gv_plex *, struct gv_raid5_packet *,
+    struct bio *, caddr_t, off_t, off_t);
+static int gv_raid5_rebuild(struct gv_plex *, struct gv_raid5_packet *,
+    struct bio *, caddr_t, off_t, off_t);
 
 struct gv_raid5_packet *
-gv_raid5_start(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff,
-    off_t bcount)
+gv_raid5_start(
+    struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff, off_t bcount)
 {
 	struct bio *cbp;
 	struct gv_raid5_packet *wp, *wp2;
@@ -86,7 +86,7 @@ gv_raid5_start(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff,
 	 */
 	if (err) {
 		G_VINUM_LOGREQ(0, bp, "raid5 plex request failed.");
-		TAILQ_FOREACH_SAFE(bq, &wp->bits, queue, bq2) {
+		TAILQ_FOREACH_SAFE (bq, &wp->bits, queue, bq2) {
 			TAILQ_REMOVE(&wp->bits, bq, queue);
 			g_free(bq);
 		}
@@ -104,12 +104,12 @@ gv_raid5_start(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff,
 		}
 		g_free(wp);
 
-		TAILQ_FOREACH_SAFE(wp, &p->packets, list, wp2) {
+		TAILQ_FOREACH_SAFE (wp, &p->packets, list, wp2) {
 			if (wp->bio != bp)
 				continue;
 
 			TAILQ_REMOVE(&p->packets, wp, list);
-			TAILQ_FOREACH_SAFE(bq, &wp->bits, queue, bq2) {
+			TAILQ_FOREACH_SAFE (bq, &wp->bits, queue, bq2) {
 				TAILQ_REMOVE(&wp->bits, bq, queue);
 				g_free(bq);
 			}
@@ -157,7 +157,7 @@ gv_stripe_active(struct gv_plex *p, struct bio *bp)
 		return (0);
 
 	overlap = 0;
-	TAILQ_FOREACH(owp, &p->packets, list) {
+	TAILQ_FOREACH (owp, &p->packets, list) {
 		if (owp == wp)
 			break;
 		if ((wp->lockbase >= owp->lockbase) &&
@@ -193,7 +193,7 @@ gv_raid5_check(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
 	/* Find the right subdisk. */
 	parity = NULL;
 	i = 0;
-	LIST_FOREACH(s, &p->subdisks, in_plex) {
+	LIST_FOREACH (s, &p->subdisks, in_plex) {
 		if (i == psdno) {
 			parity = s;
 			break;
@@ -213,7 +213,7 @@ gv_raid5_check(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
 	wp->lockbase = real_off;
 
 	/* Read all subdisks. */
-	LIST_FOREACH(s, &p->subdisks, in_plex) {
+	LIST_FOREACH (s, &p->subdisks, in_plex) {
 		/* Skip the parity subdisk. */
 		if (s == parity)
 			continue;
@@ -269,7 +269,7 @@ gv_raid5_rebuild(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
 
 	/* Find the right subdisk. */
 	broken = NULL;
-	LIST_FOREACH(s, &p->subdisks, in_plex) {
+	LIST_FOREACH (s, &p->subdisks, in_plex) {
 		if (s->state != GV_SD_UP)
 			broken = s;
 	}
@@ -307,7 +307,7 @@ gv_raid5_rebuild(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
 	KASSERT(wp->length >= 0, ("gv_rebuild_raid5: wp->length < 0"));
 
 	/* Read all subdisks. */
-	LIST_FOREACH(s, &p->subdisks, in_plex) {
+	LIST_FOREACH (s, &p->subdisks, in_plex) {
 		/* Skip the broken subdisk. */
 		if (s == broken)
 			continue;
@@ -342,8 +342,8 @@ gv_raid5_rebuild(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
 
 /* Build a request group to perform (part of) a RAID5 request. */
 static int
-gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
-    struct bio *bp, caddr_t addr, off_t boff, off_t bcount, int *delay)
+gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
+    caddr_t addr, off_t boff, off_t bcount, int *delay)
 {
 	struct g_geom *gp;
 	struct gv_sd *broken, *original, *parity, *s;
@@ -357,10 +357,10 @@ gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
 	if (p == NULL || LIST_EMPTY(&p->subdisks))
 		return (ENXIO);
 
-	/* We are optimistic and assume that this request will be OK. */
-#define	REQ_TYPE_NORMAL		0
-#define	REQ_TYPE_DEGRADED	1
-#define	REQ_TYPE_NOPARITY	2
+		/* We are optimistic and assume that this request will be OK. */
+#define REQ_TYPE_NORMAL 0
+#define REQ_TYPE_DEGRADED 1
+#define REQ_TYPE_NOPARITY 2
 
 	type = REQ_TYPE_NORMAL;
 	original = parity = broken = NULL;
@@ -369,24 +369,24 @@ gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
 	 * be aware of it. Also this should perhaps be done on rebuild/check as
 	 * well?
 	 */
-	/* If we're over, we must use the old. */ 
+	/* If we're over, we must use the old. */
 	if (boff >= p->synced) {
 		grow = 1;
-	/* Or if over the resized offset, we use all drives. */
+		/* Or if over the resized offset, we use all drives. */
 	} else if (boff + bcount <= p->synced) {
 		grow = 0;
-	/* Else, we're in the middle, and must wait a bit. */
+		/* Else, we're in the middle, and must wait a bit. */
 	} else {
 		bioq_disksort(p->rqueue, bp);
 		*delay = 1;
 		return (0);
 	}
-	gv_raid5_offset(p, boff, bcount, &real_off, &real_len,
-	    &sdno, &psdno, grow);
+	gv_raid5_offset(
+	    p, boff, bcount, &real_off, &real_len, &sdno, &psdno, grow);
 
 	/* Find the right subdisks. */
 	i = 0;
-	LIST_FOREACH(s, &p->subdisks, in_plex) {
+	LIST_FOREACH (s, &p->subdisks, in_plex) {
 		if (i == sdno)
 			original = s;
 		if (i == psdno)
@@ -407,7 +407,7 @@ gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
 	if (original->state == GV_SD_STALE && parity->state == GV_SD_STALE &&
 	    bp->bio_pflags & GV_BIO_SYNCREQ && bp->bio_cmd == BIO_WRITE) {
 		type = REQ_TYPE_NORMAL;
-	/* Our parity stripe is missing. */
+		/* Our parity stripe is missing. */
 	} else if (parity->state != GV_SD_UP) {
 		/* We cannot take another failure if we're already degraded. */
 		if (type != REQ_TYPE_NORMAL)
@@ -440,7 +440,7 @@ gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
 		 */
 		if (type == REQ_TYPE_DEGRADED) {
 			bzero(wp->data, wp->length);
-			LIST_FOREACH(s, &p->subdisks, in_plex) {
+			LIST_FOREACH (s, &p->subdisks, in_plex) {
 				/* Skip the broken subdisk. */
 				if (s == broken)
 					continue;
@@ -458,7 +458,8 @@ gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
 				TAILQ_INSERT_TAIL(&wp->bits, bq, queue);
 			}
 
-		/* A normal read can be fulfilled with the original subdisk. */
+			/* A normal read can be fulfilled with the original
+			 * subdisk. */
 		} else {
 			cbp = gv_raid5_clone_bio(bp, original, wp, addr, 0);
 			if (cbp == NULL)
@@ -479,7 +480,7 @@ gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
 		 */
 		if (type == REQ_TYPE_DEGRADED) {
 			/* Read all subdisks. */
-			LIST_FOREACH(s, &p->subdisks, in_plex) {
+			LIST_FOREACH (s, &p->subdisks, in_plex) {
 				/* Skip the broken and the parity subdisk. */
 				if ((s == broken) || (s == parity))
 					continue;
@@ -506,9 +507,10 @@ gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
 			bcopy(addr, cbp->bio_data, wp->length);
 			wp->parity = cbp;
 
-		/*
-		 * When the parity stripe is missing we just write out the data.
-		 */
+			/*
+			 * When the parity stripe is missing we just write out
+			 * the data.
+			 */
 		} else if (type == REQ_TYPE_NOPARITY) {
 			cbp = gv_raid5_clone_bio(bp, original, wp, addr, 1);
 			if (cbp == NULL)
@@ -520,11 +522,11 @@ gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
 			bq->bp = cbp;
 			TAILQ_INSERT_TAIL(&wp->bits, bq, queue);
 
-		/*
-		 * A normal write request goes to the original subdisk, then we
-		 * read in all other stripes, recalculate the parity and write
-		 * out the parity again.
-		 */
+			/*
+			 * A normal write request goes to the original subdisk,
+			 * then we read in all other stripes, recalculate the
+			 * parity and write out the parity again.
+			 */
 		} else {
 			/* Read old parity. */
 			cbp = gv_raid5_clone_bio(bp, parity, wp, NULL, 1);
@@ -581,7 +583,7 @@ gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
 
 /*
  * Calculate the offsets in the various subdisks for a RAID5 request. Also take
- * care of new subdisks in an expanded RAID5 array. 
+ * care of new subdisks in an expanded RAID5 array.
  * XXX: This assumes that the new subdisks are inserted after the others (which
  * is okay as long as plex_offset is larger). If subdisks are inserted into the
  * plexlist before, we get problems.
@@ -596,15 +598,14 @@ gv_raid5_offset(struct gv_plex *p, off_t boff, off_t bcount, off_t *real_off,
 
 	sdcount = p->sdcount;
 	if (growing) {
-		LIST_FOREACH(s, &p->subdisks, in_plex) {
+		LIST_FOREACH (s, &p->subdisks, in_plex) {
 			if (s->flags & GV_SD_GROW)
 				sdcount--;
 		}
 	}
 
 	/* The number of the subdisk containing the parity stripe. */
-	psd = sdcount - 1 - ( boff / (p->stripesize * (sdcount - 1))) %
-	    sdcount;
+	psd = sdcount - 1 - (boff / (p->stripesize * (sdcount - 1))) % sdcount;
 	KASSERT(psdno >= 0, ("gv_raid5_offset: psdno < 0"));
 
 	/* Offset of the start address from the start of the stripe. */

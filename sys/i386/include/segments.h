@@ -37,7 +37,7 @@
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
-#define	_MACHINE_SEGMENTS_H_
+#define _MACHINE_SEGMENTS_H_
 
 /*
  * 386 Segmentation Data Structures and definitions
@@ -52,48 +52,48 @@
  * when needed to be used by the 386 hardware
  */
 
-struct	soft_segment_descriptor	{
-	unsigned ssd_base ;		/* segment base address  */
-	unsigned ssd_limit ;		/* segment extent */
-	unsigned ssd_type:5 ;		/* segment type */
-	unsigned ssd_dpl:2 ;		/* segment descriptor priority level */
-	unsigned ssd_p:1 ;		/* segment descriptor present */
-	unsigned ssd_xx:4 ;		/* unused */
-	unsigned ssd_xx1:2 ;		/* unused */
-	unsigned ssd_def32:1 ;		/* default 32 vs 16 bit size */
-	unsigned ssd_gran:1 ;		/* limit granularity (byte/page units)*/
+struct soft_segment_descriptor {
+	unsigned ssd_base;	/* segment base address  */
+	unsigned ssd_limit;	/* segment extent */
+	unsigned ssd_type : 5;	/* segment type */
+	unsigned ssd_dpl : 2;	/* segment descriptor priority level */
+	unsigned ssd_p : 1;	/* segment descriptor present */
+	unsigned ssd_xx : 4;	/* unused */
+	unsigned ssd_xx1 : 2;	/* unused */
+	unsigned ssd_def32 : 1; /* default 32 vs 16 bit size */
+	unsigned ssd_gran : 1;	/* limit granularity (byte/page units)*/
 };
 
 /*
  * region descriptors, used to load gdt/idt tables before segments yet exist.
  */
 struct region_descriptor {
-	unsigned rd_limit:16;		/* segment extent */
-	unsigned rd_base:32 __packed;	/* base address  */
+	unsigned rd_limit : 16;		/* segment extent */
+	unsigned rd_base : 32 __packed; /* base address  */
 };
 
 /*
  * Segment Protection Exception code bits
  */
 
-#define	SEGEX_EXT	0x01	/* recursive or externally induced */
-#define	SEGEX_IDT	0x02	/* interrupt descriptor table */
-#define	SEGEX_TI	0x04	/* local descriptor table */
-				/* other bits are affected descriptor index */
-#define SEGEX_IDX(s)	(((s)>>3)&0x1fff)
+#define SEGEX_EXT 0x01 /* recursive or externally induced */
+#define SEGEX_IDT 0x02 /* interrupt descriptor table */
+#define SEGEX_TI 0x04 /* local descriptor table */
+/* other bits are affected descriptor index */
+#define SEGEX_IDX(s) (((s) >> 3) & 0x1fff)
 
 #ifdef _KERNEL
-extern int	_default_ldt;
+extern int _default_ldt;
 extern union descriptor *gdt;
 extern union descriptor *ldt;
 extern struct soft_segment_descriptor gdt_segs[];
 extern struct gate_descriptor *idt;
 
-void	lgdt(struct region_descriptor *rdp);
-void	sdtossd(struct segment_descriptor *sdp,
-	    struct soft_segment_descriptor *ssdp);
-void	ssdtosd(struct soft_segment_descriptor *ssdp,
-	    struct segment_descriptor *sdp);
+void lgdt(struct region_descriptor *rdp);
+void sdtossd(
+    struct segment_descriptor *sdp, struct soft_segment_descriptor *ssdp);
+void ssdtosd(
+    struct soft_segment_descriptor *ssdp, struct segment_descriptor *sdp);
 #endif /* _KERNEL */
 
 #endif /* !_MACHINE_SEGMENTS_H_ */

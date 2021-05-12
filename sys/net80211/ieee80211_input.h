@@ -30,107 +30,121 @@
 #define _NET80211_IEEE80211_INPUT_H_
 
 /* Verify the existence and length of __elem or get out. */
-#define IEEE80211_VERIFY_ELEMENT(__elem, __maxlen, _action) do {	\
-	if ((__elem) == NULL) {						\
-		IEEE80211_DISCARD(vap, IEEE80211_MSG_ELEMID,		\
-		    wh, NULL, "%s", "no " #__elem );			\
-		vap->iv_stats.is_rx_elem_missing++;			\
-		_action;						\
-	} else if ((__elem)[1] > (__maxlen)) {				\
-		IEEE80211_DISCARD(vap, IEEE80211_MSG_ELEMID,		\
-		    wh, NULL, "bad " #__elem " len %d", (__elem)[1]);	\
-		vap->iv_stats.is_rx_elem_toobig++;			\
-		_action;						\
-	}								\
-} while (0)
+#define IEEE80211_VERIFY_ELEMENT(__elem, __maxlen, _action)                    \
+	do {                                                                   \
+		if ((__elem) == NULL) {                                        \
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_ELEMID, wh, NULL, \
+			    "%s", "no " #__elem);                              \
+			vap->iv_stats.is_rx_elem_missing++;                    \
+			_action;                                               \
+		} else if ((__elem)[1] > (__maxlen)) {                         \
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_ELEMID, wh, NULL, \
+			    "bad " #__elem " len %d", (__elem)[1]);            \
+			vap->iv_stats.is_rx_elem_toobig++;                     \
+			_action;                                               \
+		}                                                              \
+	} while (0)
 
-#define	IEEE80211_VERIFY_LENGTH(_len, _minlen, _action) do {		\
-	if ((_len) < (_minlen)) {					\
-		IEEE80211_DISCARD(vap, IEEE80211_MSG_ELEMID,		\
-		    wh, NULL, "ie too short, got %d, expected %d",	\
-		    (_len), (_minlen));					\
-		vap->iv_stats.is_rx_elem_toosmall++;			\
-		_action;						\
-	}								\
-} while (0)
+#define IEEE80211_VERIFY_LENGTH(_len, _minlen, _action)                        \
+	do {                                                                   \
+		if ((_len) < (_minlen)) {                                      \
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_ELEMID, wh, NULL, \
+			    "ie too short, got %d, expected %d", (_len),       \
+			    (_minlen));                                        \
+			vap->iv_stats.is_rx_elem_toosmall++;                   \
+			_action;                                               \
+		}                                                              \
+	} while (0)
 
 #ifdef IEEE80211_DEBUG
-void	ieee80211_ssid_mismatch(struct ieee80211vap *, const char *tag,
-	uint8_t mac[IEEE80211_ADDR_LEN], uint8_t *ssid);
+void ieee80211_ssid_mismatch(struct ieee80211vap *, const char *tag,
+    uint8_t mac[IEEE80211_ADDR_LEN], uint8_t *ssid);
 
-#define	IEEE80211_VERIFY_SSID(_ni, _ssid, _action) do {			\
-	if ((_ssid)[1] != 0 &&						\
-	    ((_ssid)[1] != (_ni)->ni_esslen ||				\
-	    memcmp((_ssid) + 2, (_ni)->ni_essid, (_ssid)[1]) != 0)) {	\
-		if (ieee80211_msg_input(vap))				\
-			ieee80211_ssid_mismatch(vap, 			\
-			    ieee80211_mgt_subtype_name(subtype),	\
-				wh->i_addr2, _ssid);			\
-		vap->iv_stats.is_rx_ssidmismatch++;			\
-		_action;						\
-	}								\
-} while (0)
+#define IEEE80211_VERIFY_SSID(_ni, _ssid, _action)                          \
+	do {                                                                \
+		if ((_ssid)[1] != 0 &&                                      \
+		    ((_ssid)[1] != (_ni)->ni_esslen ||                      \
+			memcmp((_ssid) + 2, (_ni)->ni_essid, (_ssid)[1]) != \
+			    0)) {                                           \
+			if (ieee80211_msg_input(vap))                       \
+				ieee80211_ssid_mismatch(vap,                \
+				    ieee80211_mgt_subtype_name(subtype),    \
+				    wh->i_addr2, _ssid);                    \
+			vap->iv_stats.is_rx_ssidmismatch++;                 \
+			_action;                                            \
+		}                                                           \
+	} while (0)
 #else /* !IEEE80211_DEBUG */
-#define	IEEE80211_VERIFY_SSID(_ni, _ssid, _action) do {			\
-	if ((_ssid)[1] != 0 &&						\
-	    ((_ssid)[1] != (_ni)->ni_esslen ||				\
-	    memcmp((_ssid) + 2, (_ni)->ni_essid, (_ssid)[1]) != 0)) {	\
-		vap->iv_stats.is_rx_ssidmismatch++;			\
-		_action;						\
-	}								\
-} while (0)
+#define IEEE80211_VERIFY_SSID(_ni, _ssid, _action)                          \
+	do {                                                                \
+		if ((_ssid)[1] != 0 &&                                      \
+		    ((_ssid)[1] != (_ni)->ni_esslen ||                      \
+			memcmp((_ssid) + 2, (_ni)->ni_essid, (_ssid)[1]) != \
+			    0)) {                                           \
+			vap->iv_stats.is_rx_ssidmismatch++;                 \
+			_action;                                            \
+		}                                                           \
+	} while (0)
 #endif /* !IEEE80211_DEBUG */
 
-#include <sys/endian.h>		/* For le16toh() / le32dec() */
+#include <sys/endian.h> /* For le16toh() / le32dec() */
 
 static __inline int
 iswpaoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && le32dec(frm+2) == ((WPA_OUI_TYPE<<24)|WPA_OUI);
+	return frm[1] > 3 &&
+	    le32dec(frm + 2) == ((WPA_OUI_TYPE << 24) | WPA_OUI);
 }
 
 static __inline int
 iswmeoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && le32dec(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI);
+	return frm[1] > 3 &&
+	    le32dec(frm + 2) == ((WME_OUI_TYPE << 24) | WME_OUI);
 }
 
 static __inline int
 iswmeparam(const uint8_t *frm)
 {
-	return frm[1] > 5 && le32dec(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI) &&
-		frm[6] == WME_PARAM_OUI_SUBTYPE;
+	return frm[1] > 5 &&
+	    le32dec(frm + 2) == ((WME_OUI_TYPE << 24) | WME_OUI) &&
+	    frm[6] == WME_PARAM_OUI_SUBTYPE;
 }
 
 static __inline int
 iswmeinfo(const uint8_t *frm)
 {
-	return frm[1] > 5 && le32dec(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI) &&
-		frm[6] == WME_INFO_OUI_SUBTYPE;
+	return frm[1] > 5 &&
+	    le32dec(frm + 2) == ((WME_OUI_TYPE << 24) | WME_OUI) &&
+	    frm[6] == WME_INFO_OUI_SUBTYPE;
 }
 
 static __inline int
 isatherosoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && le32dec(frm+2) == ((ATH_OUI_TYPE<<24)|ATH_OUI);
+	return frm[1] > 3 &&
+	    le32dec(frm + 2) == ((ATH_OUI_TYPE << 24) | ATH_OUI);
 }
 
 static __inline int
 istdmaoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && le32dec(frm+2) == ((TDMA_OUI_TYPE<<24)|TDMA_OUI);
+	return frm[1] > 3 &&
+	    le32dec(frm + 2) == ((TDMA_OUI_TYPE << 24) | TDMA_OUI);
 }
 
 static __inline int
 ishtcapoui(const uint8_t *frm)
 {
-	return frm[1] > 3 && le32dec(frm+2) == ((BCM_OUI_HTCAP<<24)|BCM_OUI);
+	return frm[1] > 3 &&
+	    le32dec(frm + 2) == ((BCM_OUI_HTCAP << 24) | BCM_OUI);
 }
 
 static __inline int
 ishtinfooui(const uint8_t *frm)
 {
-	return frm[1] > 3 && le32dec(frm+2) == ((BCM_OUI_HTINFO<<24)|BCM_OUI);
+	return frm[1] > 3 &&
+	    le32dec(frm + 2) == ((BCM_OUI_HTINFO << 24) | BCM_OUI);
 }
 
 static __inline int
@@ -138,7 +152,7 @@ ieee80211_check_rxseq_amsdu(const struct ieee80211_rx_stats *rxs)
 {
 	if (rxs == NULL)
 		return 0;
-	return (!! (rxs->c_pktflags & IEEE80211_RX_F_AMSDU));
+	return (!!(rxs->c_pktflags & IEEE80211_RX_F_AMSDU));
 }
 
 /*
@@ -195,10 +209,10 @@ static __inline int
 ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh,
     uint8_t *bssid, const struct ieee80211_rx_stats *rxs)
 {
-#define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
-#define	SEQ_EQ(a,b)	((int)((a)-(b)) == 0)
-#define	SEQNO(a)	((a) >> IEEE80211_SEQ_SEQ_SHIFT)
-#define	FRAGNO(a)	((a) & IEEE80211_SEQ_FRAG_MASK)
+#define SEQ_LEQ(a, b) ((int)((a) - (b)) <= 0)
+#define SEQ_EQ(a, b) ((int)((a) - (b)) == 0)
+#define SEQNO(a) ((a) >> IEEE80211_SEQ_SEQ_SHIFT)
+#define FRAGNO(a) ((a)&IEEE80211_SEQ_FRAG_MASK)
 	struct ieee80211vap *vap = ni->ni_vap;
 	uint16_t rxseq;
 	uint8_t type, subtype;
@@ -213,7 +227,7 @@ ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 	 * Types with no sequence number (or QoS (+)Null frames)
 	 * are always treated valid.
 	 */
-	if (! IEEE80211_HAS_SEQ(type, subtype))
+	if (!IEEE80211_HAS_SEQ(type, subtype))
 		return 1;
 
 	/*
@@ -238,7 +252,7 @@ ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 			goto ok;
 	}
 
-	/*	
+	/*
 	 * Otherwise, retries for packets below or equal to the last
 	 * seen sequence number should be dropped.
 	 */
@@ -258,7 +272,7 @@ ieee80211_check_rxseq(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 		 * Treat any subsequent frame as fine if the last seen frame
 		 * is 4095 and it's not a retransmit for the same sequence
 		 * number. However, this doesn't capture incorrectly ordered
-	 	 * fragments w/ sequence number 4095. It shouldn't be seen
+		 * fragments w/ sequence number 4095. It shouldn't be seen
 		 * in practice, but see the comment above for further info.
 		 */
 		goto ok;
@@ -293,33 +307,31 @@ ok:
 fail:
 	/* duplicate, discard */
 	IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT, bssid, "duplicate",
-	    "seqno <%u,%u> fragno <%u,%u> tid %u",
-	     SEQNO(rxseq),  SEQNO(ni->ni_rxseqs[tid]),
-	    FRAGNO(rxseq), FRAGNO(ni->ni_rxseqs[tid]), tid);
+	    "seqno <%u,%u> fragno <%u,%u> tid %u", SEQNO(rxseq),
+	    SEQNO(ni->ni_rxseqs[tid]), FRAGNO(rxseq),
+	    FRAGNO(ni->ni_rxseqs[tid]), tid);
 	vap->iv_stats.is_rx_dup++;
 	IEEE80211_NODE_STAT(ni, rx_dup);
 
 	return 0;
-#undef	SEQ_LEQ
-#undef	SEQ_EQ
-#undef	SEQNO
-#undef	FRAGNO
+#undef SEQ_LEQ
+#undef SEQ_EQ
+#undef SEQNO
+#undef FRAGNO
 }
 
-void	ieee80211_deliver_data(struct ieee80211vap *,
-		struct ieee80211_node *, struct mbuf *);
-struct mbuf *ieee80211_defrag(struct ieee80211_node *,
-		struct mbuf *, int);
+void ieee80211_deliver_data(
+    struct ieee80211vap *, struct ieee80211_node *, struct mbuf *);
+struct mbuf *ieee80211_defrag(struct ieee80211_node *, struct mbuf *, int);
 struct mbuf *ieee80211_realign(struct ieee80211vap *, struct mbuf *, size_t);
 struct mbuf *ieee80211_decap(struct ieee80211vap *, struct mbuf *, int);
 struct mbuf *ieee80211_decap1(struct mbuf *, int *);
-int	ieee80211_setup_rates(struct ieee80211_node *ni,
-		const uint8_t *rates, const uint8_t *xrates, int flags);
+int ieee80211_setup_rates(struct ieee80211_node *ni, const uint8_t *rates,
+    const uint8_t *xrates, int flags);
 void ieee80211_send_error(struct ieee80211_node *,
-		const uint8_t mac[IEEE80211_ADDR_LEN], int subtype, int arg);
-int	ieee80211_alloc_challenge(struct ieee80211_node *);
-int	ieee80211_parse_beacon(struct ieee80211_node *, struct mbuf *,
-		struct ieee80211_channel *,
-		struct ieee80211_scanparams *);
-int	ieee80211_parse_action(struct ieee80211_node *, struct mbuf *);
+    const uint8_t mac[IEEE80211_ADDR_LEN], int subtype, int arg);
+int ieee80211_alloc_challenge(struct ieee80211_node *);
+int ieee80211_parse_beacon(struct ieee80211_node *, struct mbuf *,
+    struct ieee80211_channel *, struct ieee80211_scanparams *);
+int ieee80211_parse_action(struct ieee80211_node *, struct mbuf *);
 #endif /* _NET80211_IEEE80211_INPUT_H_ */

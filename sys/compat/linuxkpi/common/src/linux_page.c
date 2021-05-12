@@ -31,37 +31,36 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/rwlock.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
-
-#include <machine/bus.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_param.h>
+#include <vm/uma.h>
+#include <vm/uma_int.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_object.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
 #include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
-#include <vm/vm_extern.h>
 
-#include <vm/uma.h>
-#include <vm/uma_int.h>
+#include <machine/bus.h>
 
+#include <linux/fs.h>
 #include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/preempt.h>
-#include <linux/fs.h>
 #include <linux/shmem_fs.h>
 
 void
@@ -77,12 +76,12 @@ linux_page_address(struct page *page)
 {
 
 	if (page->object != kernel_object) {
-		return (PMAP_HAS_DMAP ?
-		    ((void *)(uintptr_t)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page))) :
-		    NULL);
+		return (PMAP_HAS_DMAP ? ((void *)(uintptr_t)PHYS_TO_DMAP(
+					    VM_PAGE_TO_PHYS(page))) :
+					      NULL);
 	}
-	return ((void *)(uintptr_t)(VM_MIN_KERNEL_ADDRESS +
-	    IDX_TO_OFF(page->pindex)));
+	return ((void *)(uintptr_t)(
+	    VM_MIN_KERNEL_ADDRESS + IDX_TO_OFF(page->pindex)));
 }
 
 vm_page_t
@@ -102,15 +101,16 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 				return (NULL);
 		} else {
 			vm_paddr_t pmax = (flags & GFP_DMA32) ?
-			    BUS_SPACE_MAXADDR_32BIT : BUS_SPACE_MAXADDR;
+				  BUS_SPACE_MAXADDR_32BIT :
+				  BUS_SPACE_MAXADDR;
 		retry:
-			page = vm_page_alloc_contig(NULL, 0, req,
-			    npages, 0, pmax, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+			page = vm_page_alloc_contig(NULL, 0, req, npages, 0,
+			    pmax, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 
 			if (page == NULL) {
 				if (flags & M_WAITOK) {
-					if (!vm_page_reclaim_contig(req,
-					    npages, 0, pmax, PAGE_SIZE, 0)) {
+					if (!vm_page_reclaim_contig(req, npages,
+						0, pmax, PAGE_SIZE, 0)) {
 						vm_wait(NULL);
 					}
 					flags &= ~M_WAITOK;
@@ -200,13 +200,14 @@ linux_get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages,
 
 	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;
 	len = ptoa((vm_offset_t)nr_pages);
-	count = vm_fault_quick_hold_pages(map, start, len, prot, pages, nr_pages);
+	count = vm_fault_quick_hold_pages(
+	    map, start, len, prot, pages, nr_pages);
 	return (count == -1 ? -EFAULT : nr_pages);
 }
 
 int
-__get_user_pages_fast(unsigned long start, int nr_pages, int write,
-    struct page **pages)
+__get_user_pages_fast(
+    unsigned long start, int nr_pages, int write, struct page **pages)
 {
 	vm_map_t map;
 	vm_page_t *mp;
@@ -225,7 +226,7 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 		return (-EINVAL);
 	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;
 	for (count = 0, mp = pages, va = start; va < end;
-	    mp++, va += PAGE_SIZE, count++) {
+	     mp++, va += PAGE_SIZE, count++) {
 		*mp = pmap_extract_and_hold(map->pmap, va, prot);
 		if (*mp == NULL)
 			break;
@@ -255,8 +256,8 @@ get_user_pages_remote(struct task_struct *task, struct mm_struct *mm,
 	vm_map_t map;
 
 	map = &task->task_thread->td_proc->p_vmspace->vm_map;
-	return (linux_get_user_pages_internal(map, start, nr_pages,
-	    !!(gup_flags & FOLL_WRITE), pages));
+	return (linux_get_user_pages_internal(
+	    map, start, nr_pages, !!(gup_flags & FOLL_WRITE), pages));
 }
 
 long
@@ -266,8 +267,8 @@ get_user_pages(unsigned long start, unsigned long nr_pages, int gup_flags,
 	vm_map_t map;
 
 	map = &curthread->td_proc->p_vmspace->vm_map;
-	return (linux_get_user_pages_internal(map, start, nr_pages,
-	    !!(gup_flags & FOLL_WRITE), pages));
+	return (linux_get_user_pages_internal(
+	    map, start, nr_pages, !!(gup_flags & FOLL_WRITE), pages));
 }
 
 int

@@ -40,93 +40,92 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/proc.h>
-#include <sys/rman.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/gpio.h>
 #include <sys/interrupt.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
+
+#include <dev/gpio/gpiobusvar.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_gpio.h>
 #include <arm/ti/ti_scm.h>
 #include <arm/ti/ti_sysc.h>
 
-#include <dev/gpio/gpiobusvar.h>
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include "gpio_if.h"
-#include "ti_gpio_if.h"
 #include "pic_if.h"
+#include "ti_gpio_if.h"
 
 #if !defined(SOC_OMAP4) && !defined(SOC_TI_AM335X)
 #error "Unknown SoC"
 #endif
 
 /* Register definitions */
-#define	TI_GPIO_REVISION		0x0000
-#define	TI_GPIO_SYSCONFIG		0x0010
-#define	TI_GPIO_IRQSTATUS_RAW_0		0x0024
-#define	TI_GPIO_IRQSTATUS_RAW_1		0x0028
-#define	TI_GPIO_IRQSTATUS_0		0x002C	/* writing a 0 has no effect */
-#define	TI_GPIO_IRQSTATUS_1		0x0030	/* writing a 0 has no effect */
-#define	TI_GPIO_IRQSTATUS_SET_0		0x0034	/* writing a 0 has no effect */
-#define	TI_GPIO_IRQSTATUS_SET_1		0x0038	/* writing a 0 has no effect */
-#define	TI_GPIO_IRQSTATUS_CLR_0		0x003C	/* writing a 0 has no effect */
-#define	TI_GPIO_IRQSTATUS_CLR_1		0x0040	/* writing a 0 has no effect */
-#define	TI_GPIO_IRQWAKEN_0		0x0044
-#define	TI_GPIO_IRQWAKEN_1		0x0048
-#define	TI_GPIO_SYSSTATUS		0x0114
-#define	TI_GPIO_IRQSTATUS1		0x0118
-#define	TI_GPIO_IRQENABLE1		0x011C
-#define	TI_GPIO_WAKEUPENABLE		0x0120
-#define	TI_GPIO_IRQSTATUS2		0x0128
-#define	TI_GPIO_IRQENABLE2		0x012C
-#define	TI_GPIO_CTRL			0x0130
-#define	TI_GPIO_OE			0x0134
-#define	TI_GPIO_DATAIN			0x0138
-#define	TI_GPIO_DATAOUT			0x013C
-#define	TI_GPIO_LEVELDETECT0		0x0140	/* RW register */
-#define	TI_GPIO_LEVELDETECT1		0x0144	/* RW register */
-#define	TI_GPIO_RISINGDETECT		0x0148	/* RW register */
-#define	TI_GPIO_FALLINGDETECT		0x014C	/* RW register */
-#define	TI_GPIO_DEBOUNCENABLE		0x0150
-#define	TI_GPIO_DEBOUNCINGTIME		0x0154
-#define	TI_GPIO_CLEARWKUPENA		0x0180
-#define	TI_GPIO_SETWKUENA		0x0184
-#define	TI_GPIO_CLEARDATAOUT		0x0190
-#define	TI_GPIO_SETDATAOUT		0x0194
+#define TI_GPIO_REVISION 0x0000
+#define TI_GPIO_SYSCONFIG 0x0010
+#define TI_GPIO_IRQSTATUS_RAW_0 0x0024
+#define TI_GPIO_IRQSTATUS_RAW_1 0x0028
+#define TI_GPIO_IRQSTATUS_0 0x002C /* writing a 0 has no effect */
+#define TI_GPIO_IRQSTATUS_1 0x0030 /* writing a 0 has no effect */
+#define TI_GPIO_IRQSTATUS_SET_0 0x0034 /* writing a 0 has no effect */
+#define TI_GPIO_IRQSTATUS_SET_1 0x0038 /* writing a 0 has no effect */
+#define TI_GPIO_IRQSTATUS_CLR_0 0x003C /* writing a 0 has no effect */
+#define TI_GPIO_IRQSTATUS_CLR_1 0x0040 /* writing a 0 has no effect */
+#define TI_GPIO_IRQWAKEN_0 0x0044
+#define TI_GPIO_IRQWAKEN_1 0x0048
+#define TI_GPIO_SYSSTATUS 0x0114
+#define TI_GPIO_IRQSTATUS1 0x0118
+#define TI_GPIO_IRQENABLE1 0x011C
+#define TI_GPIO_WAKEUPENABLE 0x0120
+#define TI_GPIO_IRQSTATUS2 0x0128
+#define TI_GPIO_IRQENABLE2 0x012C
+#define TI_GPIO_CTRL 0x0130
+#define TI_GPIO_OE 0x0134
+#define TI_GPIO_DATAIN 0x0138
+#define TI_GPIO_DATAOUT 0x013C
+#define TI_GPIO_LEVELDETECT0 0x0140 /* RW register */
+#define TI_GPIO_LEVELDETECT1 0x0144 /* RW register */
+#define TI_GPIO_RISINGDETECT 0x0148 /* RW register */
+#define TI_GPIO_FALLINGDETECT 0x014C /* RW register */
+#define TI_GPIO_DEBOUNCENABLE 0x0150
+#define TI_GPIO_DEBOUNCINGTIME 0x0154
+#define TI_GPIO_CLEARWKUPENA 0x0180
+#define TI_GPIO_SETWKUENA 0x0184
+#define TI_GPIO_CLEARDATAOUT 0x0190
+#define TI_GPIO_SETDATAOUT 0x0194
 
 /* Other SoC Specific definitions */
-#define	OMAP4_FIRST_GPIO_BANK		1
-#define	OMAP4_INTR_PER_BANK		1
-#define	OMAP4_GPIO_REV			0x50600801
-#define	AM335X_FIRST_GPIO_BANK		0
-#define	AM335X_INTR_PER_BANK		2
-#define	AM335X_GPIO_REV			0x50600801
-#define	PINS_PER_BANK			32
-#define	TI_GPIO_MASK(p)			(1U << ((p) % PINS_PER_BANK))
+#define OMAP4_FIRST_GPIO_BANK 1
+#define OMAP4_INTR_PER_BANK 1
+#define OMAP4_GPIO_REV 0x50600801
+#define AM335X_FIRST_GPIO_BANK 0
+#define AM335X_INTR_PER_BANK 2
+#define AM335X_GPIO_REV 0x50600801
+#define PINS_PER_BANK 32
+#define TI_GPIO_MASK(p) (1U << ((p) % PINS_PER_BANK))
 
-#define OMAP4_GPIO1_REV			0x00000
-#define OMAP4_GPIO2_REV			0x55000
-#define OMAP4_GPIO3_REV			0x57000
-#define OMAP4_GPIO4_REV			0x59000
-#define OMAP4_GPIO5_REV			0x5b000
-#define OMAP4_GPIO6_REV			0x5d000
+#define OMAP4_GPIO1_REV 0x00000
+#define OMAP4_GPIO2_REV 0x55000
+#define OMAP4_GPIO3_REV 0x57000
+#define OMAP4_GPIO4_REV 0x59000
+#define OMAP4_GPIO5_REV 0x5b000
+#define OMAP4_GPIO6_REV 0x5d000
 
-#define AM335X_GPIO0_REV		0x07000
-#define AM335X_GPIO1_REV		0x4C000
-#define AM335X_GPIO2_REV		0xAC000
-#define AM335X_GPIO3_REV		0xAE000
+#define AM335X_GPIO0_REV 0x07000
+#define AM335X_GPIO1_REV 0x4C000
+#define AM335X_GPIO2_REV 0xAC000
+#define AM335X_GPIO3_REV 0xAE000
 
 static int ti_gpio_intr(void *arg);
 static int ti_gpio_detach(device_t);
@@ -137,7 +136,7 @@ static int ti_gpio_pic_detach(struct ti_gpio_softc *sc);
 static uint32_t
 ti_gpio_rev(void)
 {
-	switch(ti_chip()) {
+	switch (ti_chip()) {
 #ifdef SOC_OMAP4
 	case CHIP_OMAP_4:
 		return (OMAP4_GPIO_REV);
@@ -153,14 +152,14 @@ ti_gpio_rev(void)
 /**
  *	Macros for driver mutex locking
  */
-#define	TI_GPIO_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
-#define	TI_GPIO_UNLOCK(_sc)		mtx_unlock_spin(&(_sc)->sc_mtx)
-#define	TI_GPIO_LOCK_INIT(_sc)		\
-	mtx_init(&_sc->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
-	    "ti_gpio", MTX_SPIN)
-#define	TI_GPIO_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
-#define	TI_GPIO_ASSERT_LOCKED(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
-#define	TI_GPIO_ASSERT_UNLOCKED(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
+#define TI_GPIO_LOCK(_sc) mtx_lock_spin(&(_sc)->sc_mtx)
+#define TI_GPIO_UNLOCK(_sc) mtx_unlock_spin(&(_sc)->sc_mtx)
+#define TI_GPIO_LOCK_INIT(_sc)                                                \
+	mtx_init(&_sc->sc_mtx, device_get_nameunit((_sc)->sc_dev), "ti_gpio", \
+	    MTX_SPIN)
+#define TI_GPIO_LOCK_DESTROY(_sc) mtx_destroy(&(_sc)->sc_mtx)
+#define TI_GPIO_ASSERT_LOCKED(_sc) mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
+#define TI_GPIO_ASSERT_UNLOCKED(_sc) mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
 
 /**
  *	ti_gpio_read_4 - reads a 32-bit value from one of the GPIO registers
@@ -189,8 +188,7 @@ ti_gpio_read_4(struct ti_gpio_softc *sc, bus_size_t off)
  *	nothing
  */
 static inline void
-ti_gpio_write_4(struct ti_gpio_softc *sc, bus_size_t off,
-                 uint32_t val)
+ti_gpio_write_4(struct ti_gpio_softc *sc, bus_size_t off, uint32_t val)
 {
 	bus_write_4(sc->sc_mem_res, off, val);
 }
@@ -252,8 +250,8 @@ ti_gpio_get_bus(device_t dev)
 /**
  *	ti_gpio_pin_max - Returns the maximum number of GPIO pins
  *	@dev: gpio device handle
- *	@maxpin: pointer to a value that upon return will contain the maximum number
- *	         of pins in the device.
+ *	@maxpin: pointer to a value that upon return will contain the maximum
+ *number of pins in the device.
  *
  *
  *	LOCKING:
@@ -360,8 +358,8 @@ ti_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
  *	@pin: the number of the pin
  *	@name: buffer to put the name in
  *
- *	The driver simply calls the pins gpio_n, where 'n' is obviously the number
- *	of the pin.
+ *	The driver simply calls the pins gpio_n, where 'n' is obviously the
+ *number of the pin.
  *
  *	LOCKING:
  *	No locking required, returns static data.
@@ -391,8 +389,9 @@ ti_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
  *	@pin: the number of the pin
  *	@flags: the flags to set
  *
- *	The flags of the pin correspond to things like input/output mode, pull-ups,
- *	pull-downs, etc.  This driver doesn't support all flags, only the following:
+ *	The flags of the pin correspond to things like input/output mode,
+ *pull-ups, pull-downs, etc.  This driver doesn't support all flags, only the
+ *following:
  *	  - GPIO_PIN_INPUT
  *	  - GPIO_PIN_OUTPUT
  *	  - GPIO_PIN_PULLUP
@@ -559,45 +558,45 @@ ti_gpio_bank_init(device_t dev)
 	rev_address = ti_sysc_get_rev_address(device_get_parent(dev));
 	/* AM335x
 	 * sc->sc_bank used in am335x/am335x_gpio.c and omap4/omap4_gpio.c */
-	switch(ti_chip()) {
+	switch (ti_chip()) {
 #ifdef SOC_OMAP4
 	case CHIP_OMAP_4:
 		switch (rev_address) {
-			case OMAP4_GPIO1_REV:
-				sc->sc_bank = 0;
-				break;
-			case OMAP4_GPIO2_REV:
-				sc->sc_bank = 1;
-				break;
-			case OMAP4_GPIO3_REV:
-				sc->sc_bank = 2;
-				break;
-			case OMAP4_GPIO4_REV:
-				sc->sc_bank = 3;
-				break;
-			case OMAP4_GPIO5_REV:
-				sc->sc_bank = 4;
-				break;
-			case OMAP4_GPIO6_REV:
-				sc->sc_bank = 5;
-				break;
+		case OMAP4_GPIO1_REV:
+			sc->sc_bank = 0;
+			break;
+		case OMAP4_GPIO2_REV:
+			sc->sc_bank = 1;
+			break;
+		case OMAP4_GPIO3_REV:
+			sc->sc_bank = 2;
+			break;
+		case OMAP4_GPIO4_REV:
+			sc->sc_bank = 3;
+			break;
+		case OMAP4_GPIO5_REV:
+			sc->sc_bank = 4;
+			break;
+		case OMAP4_GPIO6_REV:
+			sc->sc_bank = 5;
+			break;
 		}
 #endif
 #ifdef SOC_TI_AM335X
 	case CHIP_AM335X:
 		switch (rev_address) {
-			case AM335X_GPIO0_REV:
-				sc->sc_bank = 0;
-				break;
-			case AM335X_GPIO1_REV:
-				sc->sc_bank = 1;
-				break;
-			case AM335X_GPIO2_REV:
-				sc->sc_bank = 2;
-				break;
-			case AM335X_GPIO3_REV:
-				sc->sc_bank = 3;
-				break;
+		case AM335X_GPIO0_REV:
+			sc->sc_bank = 0;
+			break;
+		case AM335X_GPIO1_REV:
+			sc->sc_bank = 1;
+			break;
+		case AM335X_GPIO2_REV:
+			sc->sc_bank = 2;
+			break;
+		case AM335X_GPIO3_REV:
+			sc->sc_bank = 3;
+			break;
 		}
 #endif
 	}
@@ -612,13 +611,15 @@ ti_gpio_bank_init(device_t dev)
 	 * actual revision numbers, so instead the values have been
 	 * determined by experimentation.
 	 */
-	rev = ti_gpio_read_4(sc,
-	    ti_sysc_get_rev_address_offset_host(device_get_parent(dev)));
+	rev = ti_gpio_read_4(
+	    sc, ti_sysc_get_rev_address_offset_host(device_get_parent(dev)));
 
 	/* Check the revision. */
 	if (rev != ti_gpio_rev()) {
-		device_printf(dev, "Warning: could not determine the revision "
-		    "of GPIO module (revision:0x%08x)\n", rev);
+		device_printf(dev,
+		    "Warning: could not determine the revision "
+		    "of GPIO module (revision:0x%08x)\n",
+		    rev);
 		return (EINVAL);
 	}
 
@@ -647,8 +648,9 @@ ti_gpio_bank_init(device_t dev)
  *	ti_gpio_attach - attach function for the driver
  *	@dev: gpio device handle
  *
- *	Allocates and sets up the driver context for all GPIO banks.  This function
- *	expects the memory ranges and IRQs to already be allocated to the driver.
+ *	Allocates and sets up the driver context for all GPIO banks.  This
+ *function expects the memory ranges and IRQs to already be allocated to the
+ *driver.
  *
  *	LOCKING:
  *	None
@@ -669,8 +671,8 @@ ti_gpio_attach(device_t dev)
 	sc->sc_maxpin++;
 
 	sc->sc_mem_rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->sc_mem_rid, RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->sc_mem_rid, RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "Error: could not allocate mem resources\n");
 		ti_gpio_detach(dev);
@@ -678,8 +680,8 @@ ti_gpio_attach(device_t dev)
 	}
 
 	sc->sc_irq_rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &sc->sc_irq_rid, RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &sc->sc_irq_rid, RF_ACTIVE);
 	if (!sc->sc_irq_res) {
 		device_printf(dev, "Error: could not allocate irq resources\n");
 		ti_gpio_detach(dev);
@@ -689,11 +691,10 @@ ti_gpio_attach(device_t dev)
 	/*
 	 * Register our interrupt filter for each of the IRQ resources.
 	 */
-	if (bus_setup_intr(dev, sc->sc_irq_res,
-	    INTR_TYPE_MISC | INTR_MPSAFE, ti_gpio_intr, NULL, sc,
-	    &sc->sc_irq_hdl) != 0) {
-		device_printf(dev,
-		    "WARNING: unable to register interrupt filter\n");
+	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
+		ti_gpio_intr, NULL, sc, &sc->sc_irq_hdl) != 0) {
+		device_printf(
+		    dev, "WARNING: unable to register interrupt filter\n");
 		ti_gpio_detach(dev);
 		return (ENXIO);
 	}
@@ -704,10 +705,10 @@ ti_gpio_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	/* We need to go through each block and ensure the clocks are running and
-	 * the module is enabled.  It might be better to do this only when the
-	 * pins are configured which would result in less power used if the GPIO
-	 * pins weren't used ...
+	/* We need to go through each block and ensure the clocks are running
+	 * and the module is enabled.  It might be better to do this only when
+	 * the pins are configured which would result in less power used if the
+	 * GPIO pins weren't used ...
 	 */
 	if (sc->sc_mem_res != NULL) {
 		/* Initialize the GPIO module. */
@@ -756,23 +757,22 @@ ti_gpio_detach(device_t dev)
 		ti_gpio_pic_detach(sc);
 	/* Release the memory and IRQ resources. */
 	if (sc->sc_irq_hdl) {
-		bus_teardown_intr(dev, sc->sc_irq_res,
-		    sc->sc_irq_hdl);
+		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_irq_hdl);
 	}
 	if (sc->sc_irq_res)
-		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irq_rid,
-		    sc->sc_irq_res);
+		bus_release_resource(
+		    dev, SYS_RES_IRQ, sc->sc_irq_rid, sc->sc_irq_res);
 	if (sc->sc_mem_res)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_mem_rid,
-		    sc->sc_mem_res);
+		bus_release_resource(
+		    dev, SYS_RES_MEMORY, sc->sc_mem_rid, sc->sc_mem_res);
 	TI_GPIO_LOCK_DESTROY(sc);
 
 	return (0);
 }
 
 static inline void
-ti_gpio_rwreg_modify(struct ti_gpio_softc *sc, uint32_t reg, uint32_t mask,
-    bool set_bits)
+ti_gpio_rwreg_modify(
+    struct ti_gpio_softc *sc, uint32_t reg, uint32_t mask, bool set_bits)
 {
 	uint32_t value;
 
@@ -835,8 +835,8 @@ ti_gpio_intr(void *arg)
 			ti_gpio_isrc_mask(sc, tgi);
 			if (ti_gpio_isrc_is_level(tgi))
 				ti_gpio_isrc_eoi(sc, tgi);
-			device_printf(sc->sc_dev, "Stray irq %u disabled\n",
-			    irq);
+			device_printf(
+			    sc->sc_dev, "Stray irq %u disabled\n", irq);
 		}
 	}
 	return (FILTER_HANDLED);
@@ -849,8 +849,8 @@ ti_gpio_pic_attach(struct ti_gpio_softc *sc)
 	uint32_t irq;
 	const char *name;
 
-	sc->sc_isrcs = malloc(sizeof(*sc->sc_isrcs) * sc->sc_maxpin, M_DEVBUF,
-	    M_WAITOK | M_ZERO);
+	sc->sc_isrcs = malloc(
+	    sizeof(*sc->sc_isrcs) * sc->sc_maxpin, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	name = device_get_nameunit(sc->sc_dev);
 	for (irq = 0; irq < sc->sc_maxpin; irq++) {
@@ -864,7 +864,7 @@ ti_gpio_pic_attach(struct ti_gpio_softc *sc)
 			return (error); /* XXX deregister ISRCs */
 	}
 	if (intr_pic_register(sc->sc_dev,
-	    OF_xref_from_node(ofw_bus_get_node(sc->sc_dev))) == NULL)
+		OF_xref_from_node(ofw_bus_get_node(sc->sc_dev))) == NULL)
 		return (ENXIO);
 
 	return (0);
@@ -883,8 +883,8 @@ ti_gpio_pic_detach(struct ti_gpio_softc *sc)
 }
 
 static void
-ti_gpio_pic_config_intr(struct ti_gpio_softc *sc, struct ti_gpio_irqsrc *tgi,
-    uint32_t mode)
+ti_gpio_pic_config_intr(
+    struct ti_gpio_softc *sc, struct ti_gpio_irqsrc *tgi, uint32_t mode)
 {
 
 	TI_GPIO_LOCK(sc);
@@ -985,19 +985,19 @@ ti_gpio_pic_map(struct ti_gpio_softc *sc, struct intr_map_data *data,
 
 	switch (data->type) {
 	case INTR_MAP_DATA_FDT:
-		return (ti_gpio_pic_map_fdt(sc,
-		    (struct intr_map_data_fdt *)data, irqp, modep));
+		return (ti_gpio_pic_map_fdt(
+		    sc, (struct intr_map_data_fdt *)data, irqp, modep));
 	case INTR_MAP_DATA_GPIO:
-		return (ti_gpio_pic_map_gpio(sc,
-		    (struct intr_map_data_gpio *)data, irqp, modep));
+		return (ti_gpio_pic_map_gpio(
+		    sc, (struct intr_map_data_gpio *)data, irqp, modep));
 	default:
 		return (ENOTSUP);
 	}
 }
 
 static int
-ti_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+ti_gpio_pic_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	int error;
 	u_int irq;
@@ -1103,19 +1103,19 @@ static device_method_t ti_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_toggle, ti_gpio_pin_toggle),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_disable_intr,	ti_gpio_pic_disable_intr),
-	DEVMETHOD(pic_enable_intr,	ti_gpio_pic_enable_intr),
-	DEVMETHOD(pic_map_intr,		ti_gpio_pic_map_intr),
-	DEVMETHOD(pic_setup_intr,	ti_gpio_pic_setup_intr),
-	DEVMETHOD(pic_teardown_intr,	ti_gpio_pic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	ti_gpio_pic_post_filter),
-	DEVMETHOD(pic_post_ithread,	ti_gpio_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	ti_gpio_pic_pre_ithread),
+	DEVMETHOD(pic_disable_intr, ti_gpio_pic_disable_intr),
+	DEVMETHOD(pic_enable_intr, ti_gpio_pic_enable_intr),
+	DEVMETHOD(pic_map_intr, ti_gpio_pic_map_intr),
+	DEVMETHOD(pic_setup_intr, ti_gpio_pic_setup_intr),
+	DEVMETHOD(pic_teardown_intr, ti_gpio_pic_teardown_intr),
+	DEVMETHOD(pic_post_filter, ti_gpio_pic_post_filter),
+	DEVMETHOD(pic_post_ithread, ti_gpio_pic_post_ithread),
+	DEVMETHOD(pic_pre_ithread, ti_gpio_pic_pre_ithread),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node, ti_gpio_get_node),
 
-	{0, 0},
+	{ 0, 0 },
 };
 
 driver_t ti_gpio_driver = {

@@ -93,18 +93,18 @@ db_segsize(struct trapframe *tfp)
 	int sel;
 
 	if (tfp == NULL)
-	    return (32);
+		return (32);
 	if (tfp->tf_eflags & PSL_VM)
-	    return (16);
+		return (16);
 	sel = tfp->tf_cs & 0xffff;
 	if (sel == GSEL(GCODE_SEL, SEL_KPL))
-	    return (32);
+		return (32);
 	/* Rare cases follow.  User mode cases are currently unreachable. */
 	if (ISLDT(sel)) {
-	    plp = curthread->td_proc->p_md.md_ldt;
-	    sdp = (plp != NULL) ? &plp->ldt_sd : &ldt[0].sd;
+		plp = curthread->td_proc->p_md.md_ldt;
+		sdp = (plp != NULL) ? &plp->ldt_sd : &ldt[0].sd;
 	} else {
-	    sdp = &gdt[PCPU_GET(cpuid) * NGDT].sd;
+		sdp = &gdt[PCPU_GET(cpuid) * NGDT].sd;
 	}
 	return (sdp[IDXSEL(sel)].sd_def32 == 0 ? 16 : 32);
 }

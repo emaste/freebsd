@@ -29,25 +29,25 @@
  * $FreeBSD$
  */
 
-#ifndef	_POWERPC_POWERMAC_GRACKLEVAR_H_
-#define	_POWERPC_POWERMAC_GRACKLEVAR_H_
+#ifndef _POWERPC_POWERMAC_GRACKLEVAR_H_
+#define _POWERPC_POWERMAC_GRACKLEVAR_H_
 
 struct grackle_softc {
-	struct ofw_pci_softc	pci_sc;
-	vm_offset_t		sc_addr;
-	vm_offset_t		sc_data;
+	struct ofw_pci_softc pci_sc;
+	vm_offset_t sc_addr;
+	vm_offset_t sc_data;
 };
 
 /*
  * Apple uses address map B for the MPC106
  */
-#define GRACKLE_ADDR	0xFEC00000
-#define GRACKLE_DATA	0xFEE00000
+#define GRACKLE_ADDR 0xFEC00000
+#define GRACKLE_DATA 0xFEE00000
 
 /*
  * The high bit of the config word is 'Enable'. This should always be
  * set.
  */
-#define GRACKLE_CFG_ENABLE	0x80000000
+#define GRACKLE_CFG_ENABLE 0x80000000
 
-#endif  /* _POWERPC_POWERMAC_GRACKLEVAR_H_ */
+#endif /* _POWERPC_POWERMAC_GRACKLEVAR_H_ */

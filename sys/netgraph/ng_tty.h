@@ -6,7 +6,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -17,7 +17,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -46,14 +46,14 @@
 #define _NETGRAPH_NG_TTY_H_
 
 /* Node type name and magic cookie */
-#define NG_TTY_NODE_TYPE	"tty"
-#define NGM_TTY_COOKIE		1226109660
+#define NG_TTY_NODE_TYPE "tty"
+#define NGM_TTY_COOKIE 1226109660
 
 /* Default hot char */
-#define NG_TTY_DFL_HOTCHAR	0x7e	/* PPP flag byte */
+#define NG_TTY_DFL_HOTCHAR 0x7e /* PPP flag byte */
 
 /* Hook names */
-#define NG_TTY_HOOK		"hook"
+#define NG_TTY_HOOK "hook"
 
 /* Netgraph commands */
 enum {

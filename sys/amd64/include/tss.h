@@ -46,23 +46,23 @@
  * make the 64 bit fields aligned in practice.
  */
 struct amd64tss {
-	u_int32_t	tss_rsvd0;
-	u_int64_t	tss_rsp0 __packed; 	/* kernel stack pointer ring 0 */
-	u_int64_t	tss_rsp1 __packed; 	/* kernel stack pointer ring 1 */
-	u_int64_t	tss_rsp2 __packed; 	/* kernel stack pointer ring 2 */
-	u_int32_t	tss_rsvd1;
-	u_int32_t	tss_rsvd2;
-	u_int64_t	tss_ist1 __packed;	/* Interrupt stack table 1 */
-	u_int64_t	tss_ist2 __packed;	/* Interrupt stack table 2 */
-	u_int64_t	tss_ist3 __packed;	/* Interrupt stack table 3 */
-	u_int64_t	tss_ist4 __packed;	/* Interrupt stack table 4 */
-	u_int64_t	tss_ist5 __packed;	/* Interrupt stack table 5 */
-	u_int64_t	tss_ist6 __packed;	/* Interrupt stack table 6 */
-	u_int64_t	tss_ist7 __packed;	/* Interrupt stack table 7 */
-	u_int32_t	tss_rsvd3;
-	u_int32_t	tss_rsvd4;
-	u_int16_t	tss_rsvd5;
-	u_int16_t	tss_iobase;	/* io bitmap offset */
+	u_int32_t tss_rsvd0;
+	u_int64_t tss_rsp0 __packed; /* kernel stack pointer ring 0 */
+	u_int64_t tss_rsp1 __packed; /* kernel stack pointer ring 1 */
+	u_int64_t tss_rsp2 __packed; /* kernel stack pointer ring 2 */
+	u_int32_t tss_rsvd1;
+	u_int32_t tss_rsvd2;
+	u_int64_t tss_ist1 __packed; /* Interrupt stack table 1 */
+	u_int64_t tss_ist2 __packed; /* Interrupt stack table 2 */
+	u_int64_t tss_ist3 __packed; /* Interrupt stack table 3 */
+	u_int64_t tss_ist4 __packed; /* Interrupt stack table 4 */
+	u_int64_t tss_ist5 __packed; /* Interrupt stack table 5 */
+	u_int64_t tss_ist6 __packed; /* Interrupt stack table 6 */
+	u_int64_t tss_ist7 __packed; /* Interrupt stack table 7 */
+	u_int32_t tss_rsvd3;
+	u_int32_t tss_rsvd4;
+	u_int16_t tss_rsvd5;
+	u_int16_t tss_iobase; /* io bitmap offset */
 };
 
 #endif /* _MACHINE_TSS_H_ */

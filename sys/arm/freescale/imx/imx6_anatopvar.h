@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef	IMX6_ANATOPVAR_H
-#define	IMX6_ANATOPVAR_H
+#ifndef IMX6_ANATOPVAR_H
+#define IMX6_ANATOPVAR_H
 
 /*
  * All registers controlling various analog aspects of the SoC (such as PLLs or

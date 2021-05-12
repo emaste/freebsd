@@ -6,27 +6,27 @@
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
+ * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * - Redistributions of source code must retain the above copyright notice, 
+ * - Redistributions of source code must retain the above copyright notice,
  *   this list of conditions and the following disclaimer.
- * - Redistributions in binary form must reproduce the above copyright notice, 
- *   this list of conditions and the following disclaimer in the documentation 
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
  *   and/or other materials provided with the distribution.
- * - Neither the name of Sun Microsystems, Inc. nor the names of its 
- *   contributors may be used to endorse or promote products derived 
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
@@ -37,7 +37,7 @@ static char sccsid3[] = "@(#)clnt_vc.c 1.19 89/03/16 Copyr 1988 Sun Micro";
 #endif
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
- 
+
 /*
  * clnt_tcp.c, Implements a TCP/IP based, client side RPC.
  *
@@ -79,21 +79,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <net/vnet.h>
-
 #include <netinet/tcp.h>
 
+#include <rpc/krpc.h>
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
-#include <rpc/krpc.h>
 #include <rpc/rpcsec_tls.h>
 
 struct cmessage {
-        struct cmsghdr cmsg;
-        struct cmsgcred cmcred;
+	struct cmsghdr cmsg;
+	struct cmsgcred cmcred;
 };
 
-static enum clnt_stat clnt_vc_call(CLIENT *, struct rpc_callextra *,
-    rpcproc_t, struct mbuf *, struct mbuf **, struct timeval);
+static enum clnt_stat clnt_vc_call(CLIENT *, struct rpc_callextra *, rpcproc_t,
+    struct mbuf *, struct mbuf **, struct timeval);
 static void clnt_vc_geterr(CLIENT *, struct rpc_err *);
 static bool_t clnt_vc_freeres(CLIENT *, xdrproc_t, void *);
 static void clnt_vc_abort(CLIENT *);
@@ -104,19 +103,17 @@ static bool_t time_not_ok(struct timeval *);
 static int clnt_vc_soupcall(struct socket *so, void *arg, int waitflag);
 static void clnt_vc_dotlsupcall(void *data);
 
-static struct clnt_ops clnt_vc_ops = {
-	.cl_call =	clnt_vc_call,
-	.cl_abort =	clnt_vc_abort,
-	.cl_geterr =	clnt_vc_geterr,
-	.cl_freeres =	clnt_vc_freeres,
-	.cl_close =	clnt_vc_close,
-	.cl_destroy =	clnt_vc_destroy,
-	.cl_control =	clnt_vc_control
-};
+static struct clnt_ops clnt_vc_ops = { .cl_call = clnt_vc_call,
+	.cl_abort = clnt_vc_abort,
+	.cl_geterr = clnt_vc_geterr,
+	.cl_freeres = clnt_vc_freeres,
+	.cl_close = clnt_vc_close,
+	.cl_destroy = clnt_vc_destroy,
+	.cl_control = clnt_vc_control };
 
 static void clnt_vc_upcallsdone(struct ct_data *);
 
-static int	fake_wchan;
+static int fake_wchan;
 
 /*
  * Create a client handle for a connection.
@@ -130,17 +127,16 @@ static int	fake_wchan;
  * fd should be an open socket
  */
 CLIENT *
-clnt_vc_create(
-	struct socket *so,		/* open file descriptor */
-	struct sockaddr *raddr,		/* servers address */
-	const rpcprog_t prog,		/* program number */
-	const rpcvers_t vers,		/* version number */
-	size_t sendsz,			/* buffer recv size */
-	size_t recvsz,			/* buffer send size */
-	int intrflag)			/* interruptible */
+clnt_vc_create(struct socket *so, /* open file descriptor */
+    struct sockaddr *raddr,	  /* servers address */
+    const rpcprog_t prog,	  /* program number */
+    const rpcvers_t vers,	  /* version number */
+    size_t sendsz,		  /* buffer recv size */
+    size_t recvsz,		  /* buffer send size */
+    int intrflag)		  /* interruptible */
 {
-	CLIENT *cl;			/* client handle */
-	struct ct_data *ct = NULL;	/* client handle */
+	CLIENT *cl;		   /* client handle */
+	struct ct_data *ct = NULL; /* client handle */
 	struct timeval now;
 	struct rpc_msg call_msg;
 	static uint32_t disrupt;
@@ -152,8 +148,8 @@ clnt_vc_create(
 	if (disrupt == 0)
 		disrupt = (uint32_t)(long)raddr;
 
-	cl = (CLIENT *)mem_alloc(sizeof (*cl));
-	ct = (struct ct_data *)mem_alloc(sizeof (*ct));
+	cl = (CLIENT *)mem_alloc(sizeof(*cl));
+	ct = (struct ct_data *)mem_alloc(sizeof(*ct));
 
 	mtx_init(&ct->ct_lock, "ct->ct_lock", NULL, MTX_DEF);
 	ct->ct_threads = 0;
@@ -162,17 +158,16 @@ clnt_vc_create(
 	ct->ct_upcallrefs = 0;
 	ct->ct_rcvstate = RPCRCVSTATE_NORMAL;
 
-	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) {
+	if ((so->so_state & (SS_ISCONNECTED | SS_ISCONFIRMING)) == 0) {
 		error = soconnect(so, raddr, curthread);
 		SOCK_LOCK(so);
 		interrupted = 0;
 		sleep_flag = PSOCK;
 		if (intrflag != 0)
 			sleep_flag |= PCATCH;
-		while ((so->so_state & SS_ISCONNECTING)
-		    && so->so_error == 0) {
-			error = msleep(&so->so_timeo, SOCK_MTX(so),
-			    sleep_flag, "connec", 0);
+		while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
+			error = msleep(&so->so_timeo, SOCK_MTX(so), sleep_flag,
+			    "connec", 0);
 			if (error) {
 				if (error == EINTR || error == ERESTART)
 					interrupted = 1;
@@ -241,9 +236,8 @@ clnt_vc_create(
 	/*
 	 * pre-serialize the static part of the call msg and stash it away
 	 */
-	xdrmem_create(&xdrs, ct->ct_mcallc, MCALL_MSG_SIZE,
-	    XDR_ENCODE);
-	if (! xdr_callhdr(&xdrs, &call_msg)) {
+	xdrmem_create(&xdrs, ct->ct_mcallc, MCALL_MSG_SIZE, XDR_ENCODE);
+	if (!xdr_callhdr(&xdrs, &call_msg)) {
 		if (ct->ct_closeit) {
 			soclose(ct->ct_socket);
 		}
@@ -285,29 +279,28 @@ clnt_vc_create(
 
 err:
 	mtx_destroy(&ct->ct_lock);
-	mem_free(ct, sizeof (struct ct_data));
-	mem_free(cl, sizeof (CLIENT));
+	mem_free(ct, sizeof(struct ct_data));
+	mem_free(cl, sizeof(CLIENT));
 
 	return ((CLIENT *)NULL);
 }
 
 static enum clnt_stat
-clnt_vc_call(
-	CLIENT		*cl,		/* client handle */
-	struct rpc_callextra *ext,	/* call metadata */
-	rpcproc_t	proc,		/* procedure number */
-	struct mbuf	*args,		/* pointer to args */
-	struct mbuf	**resultsp,	/* pointer to results */
-	struct timeval	utimeout)
+clnt_vc_call(CLIENT *cl,       /* client handle */
+    struct rpc_callextra *ext, /* call metadata */
+    rpcproc_t proc,	       /* procedure number */
+    struct mbuf *args,	       /* pointer to args */
+    struct mbuf **resultsp,    /* pointer to results */
+    struct timeval utimeout)
 {
-	struct ct_data *ct = (struct ct_data *) cl->cl_private;
+	struct ct_data *ct = (struct ct_data *)cl->cl_private;
 	AUTH *auth;
 	struct rpc_err *errp;
 	enum clnt_stat stat;
 	XDR xdrs;
 	struct rpc_msg reply_msg;
 	bool_t ok;
-	int nrefreshes = 2;		/* number of times to refresh cred */
+	int nrefreshes = 2; /* number of times to refresh cred */
 	struct timeval timeout;
 	uint32_t xid;
 	struct mbuf *mreq = NULL, *results;
@@ -340,9 +333,9 @@ clnt_vc_call(
 	cr->cr_error = 0;
 
 	if (ct->ct_wait.tv_usec == -1) {
-		timeout = utimeout;	/* use supplied timeout */
+		timeout = utimeout; /* use supplied timeout */
 	} else {
-		timeout = ct->ct_wait;	/* use default timeout */
+		timeout = ct->ct_wait; /* use default timeout */
 	}
 
 	/*
@@ -370,8 +363,8 @@ call_again:
 	 */
 	mreq = m_gethdr(M_WAITOK, MT_DATA);
 	mreq->m_data += sizeof(uint32_t);
-	KASSERT(ct->ct_mpos + sizeof(uint32_t) <= MHLEN,
-	    ("RPC header too big"));
+	KASSERT(
+	    ct->ct_mpos + sizeof(uint32_t) <= MHLEN, ("RPC header too big"));
 	bcopy(ct->ct_mcallc, mreq->m_data, ct->ct_mpos);
 	mreq->m_len = ct->ct_mpos;
 
@@ -384,9 +377,9 @@ call_again:
 
 	errp->re_status = stat = RPC_SUCCESS;
 
-	if ((! XDR_PUTINT32(&xdrs, &proc)) ||
-	    (! AUTH_MARSHALL(auth, xid, &xdrs,
-		m_copym(args, 0, M_COPYALL, M_WAITOK)))) {
+	if ((!XDR_PUTINT32(&xdrs, &proc)) ||
+	    (!AUTH_MARSHALL(
+		auth, xid, &xdrs, m_copym(args, 0, M_COPYALL, M_WAITOK)))) {
 		errp->re_status = stat = RPC_CANTENCODEARGS;
 		mtx_lock(&ct->ct_lock);
 		goto out;
@@ -397,8 +390,8 @@ call_again:
 	 * Prepend a record marker containing the packet length.
 	 */
 	M_PREPEND(mreq, sizeof(uint32_t), M_WAITOK);
-	*mtod(mreq, uint32_t *) =
-		htonl(0x80000000 | (mreq->m_pkthdr.len - sizeof(uint32_t)));
+	*mtod(mreq, uint32_t *) = htonl(
+	    0x80000000 | (mreq->m_pkthdr.len - sizeof(uint32_t)));
 
 	cr->cr_xid = xid;
 	mtx_lock(&ct->ct_lock);
@@ -420,8 +413,8 @@ call_again:
 	}
 
 	/* For TLS, wait for an upcall to be done, as required. */
-	while ((ct->ct_rcvstate & (RPCRCVSTATE_NORMAL |
-	    RPCRCVSTATE_NONAPPDATA)) == 0)
+	while ((ct->ct_rcvstate &
+		   (RPCRCVSTATE_NORMAL | RPCRCVSTATE_NONAPPDATA)) == 0)
 		msleep(&ct->ct_rcvstate, &ct->ct_lock, 0, "rpcrcvst", hz);
 
 	TAILQ_INSERT_TAIL(&ct->ct_pending, cr, cr_link);
@@ -444,8 +437,9 @@ call_again:
 	 */
 	error = sosend(ct->ct_socket, NULL, NULL, mreq, NULL, 0, curthread);
 	mreq = NULL;
-	if (error == EMSGSIZE || (error == ERESTART &&
-	    (ct->ct_waitflag & PCATCH) == 0 && trycnt-- > 0)) {
+	if (error == EMSGSIZE ||
+	    (error == ERESTART && (ct->ct_waitflag & PCATCH) == 0 &&
+		trycnt-- > 0)) {
 		SOCKBUF_LOCK(&ct->ct_socket->so_snd);
 		sbwait(&ct->ct_socket->so_snd);
 		SOCKBUF_UNLOCK(&ct->ct_socket->so_snd);
@@ -557,31 +551,29 @@ got_reply:
 		if (stat == RPC_SUCCESS) {
 			results = xdrmbuf_getall(&xdrs);
 			if (!AUTH_VALIDATE(auth, xid,
-				&reply_msg.acpted_rply.ar_verf,
-				&results)) {
+				&reply_msg.acpted_rply.ar_verf, &results)) {
 				errp->re_status = stat = RPC_AUTHERROR;
 				errp->re_why = AUTH_INVALIDRESP;
 			} else {
-				KASSERT(results,
-				    ("auth validated but no result"));
+				KASSERT(
+				    results, ("auth validated but no result"));
 				*resultsp = results;
 			}
-		}		/* end successful completion */
+		} /* end successful completion */
 		/*
 		 * If unsuccessful AND error is an authentication error
 		 * then refresh credentials and try again, else break
 		 */
 		else if (stat == RPC_AUTHERROR)
 			/* maybe our credentials need to be refreshed ... */
-			if (nrefreshes > 0 &&
-			    AUTH_REFRESH(auth, &reply_msg)) {
+			if (nrefreshes > 0 && AUTH_REFRESH(auth, &reply_msg)) {
 				nrefreshes--;
 				XDR_DESTROY(&xdrs);
 				mtx_lock(&ct->ct_lock);
 				goto call_again;
 			}
 		/* end of unsuccessful completion */
-	}	/* end of valid reply message */
+	} /* end of valid reply message */
 	else {
 		errp->re_status = stat = RPC_CANTDECODERES;
 	}
@@ -590,8 +582,8 @@ got_reply:
 out:
 	mtx_assert(&ct->ct_lock, MA_OWNED);
 
-	KASSERT(stat != RPC_SUCCESS || *resultsp,
-	    ("RPC_SUCCESS without reply"));
+	KASSERT(
+	    stat != RPC_SUCCESS || *resultsp, ("RPC_SUCCESS without reply"));
 
 	if (mreq)
 		m_freem(mreq);
@@ -601,7 +593,7 @@ out:
 	ct->ct_threads--;
 	if (ct->ct_closing)
 		wakeup(ct);
-		
+
 	mtx_unlock(&ct->ct_lock);
 
 	if (auth && stat != RPC_SUCCESS)
@@ -615,7 +607,7 @@ out:
 static void
 clnt_vc_geterr(CLIENT *cl, struct rpc_err *errp)
 {
-	struct ct_data *ct = (struct ct_data *) cl->cl_private;
+	struct ct_data *ct = (struct ct_data *)cl->cl_private;
 
 	*errp = ct->ct_error;
 }
@@ -680,7 +672,7 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 		*(struct timeval *)infop = ct->ct_wait;
 		break;
 	case CLGET_SERVER_ADDR:
-		(void) memcpy(info, &ct->ct_addr, (size_t)ct->ct_addr.ss_len);
+		(void)memcpy(info, &ct->ct_addr, (size_t)ct->ct_addr.ss_len);
 		break;
 	case CLGET_SVC_ADDR:
 		/*
@@ -689,7 +681,7 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 		 */
 		memcpy(info, &ct->ct_addr, ct->ct_addr.ss_len);
 		break;
-	case CLSET_SVC_ADDR:		/* set to new address */
+	case CLSET_SVC_ADDR: /* set to new address */
 		mtx_unlock(&ct->ct_lock);
 		return (FALSE);
 	case CLGET_XID:
@@ -707,15 +699,13 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 		 * beginning of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
-		*(uint32_t *)info =
-		    ntohl(*(uint32_t *)(void *)(ct->ct_mcallc +
+		*(uint32_t *)info = ntohl(*(uint32_t *)(void *)(ct->ct_mcallc +
 		    4 * BYTES_PER_XDR_UNIT));
 		break;
 
 	case CLSET_VERS:
 		*(uint32_t *)(void *)(ct->ct_mcallc +
-		    4 * BYTES_PER_XDR_UNIT) =
-		    htonl(*(uint32_t *)info);
+		    4 * BYTES_PER_XDR_UNIT) = htonl(*(uint32_t *)info);
 		break;
 
 	case CLGET_PROG:
@@ -725,15 +715,13 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 		 * beginning of the RPC header. MUST be changed if the
 		 * call_struct is changed
 		 */
-		*(uint32_t *)info =
-		    ntohl(*(uint32_t *)(void *)(ct->ct_mcallc +
+		*(uint32_t *)info = ntohl(*(uint32_t *)(void *)(ct->ct_mcallc +
 		    3 * BYTES_PER_XDR_UNIT));
 		break;
 
 	case CLSET_PROG:
 		*(uint32_t *)(void *)(ct->ct_mcallc +
-		    3 * BYTES_PER_XDR_UNIT) =
-		    htonl(*(uint32_t *)info);
+		    3 * BYTES_PER_XDR_UNIT) = htonl(*(uint32_t *)info);
 		break;
 
 	case CLSET_WAITCHAN:
@@ -741,11 +729,11 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 		break;
 
 	case CLGET_WAITCHAN:
-		*(const char **) info = ct->ct_waitchan;
+		*(const char **)info = ct->ct_waitchan;
 		break;
 
 	case CLSET_INTERRUPTIBLE:
-		if (*(int *) info)
+		if (*(int *)info)
 			ct->ct_waitflag = PCATCH;
 		else
 			ct->ct_waitflag = 0;
@@ -753,9 +741,9 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 
 	case CLGET_INTERRUPTIBLE:
 		if (ct->ct_waitflag)
-			*(int *) info = TRUE;
+			*(int *)info = TRUE;
 		else
-			*(int *) info = FALSE;
+			*(int *)info = FALSE;
 		break;
 
 	case CLSET_BACKCHANNEL:
@@ -776,8 +764,8 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 		if (ct->ct_sslrefno != RPCTLS_REFNO_HANDSHAKE) {
 			mtx_unlock(&ct->ct_lock);
 			/* Start the kthread that handles upcalls. */
-			error = kthread_add(clnt_vc_dotlsupcall, ct,
-			    NULL, NULL, 0, 0, "krpctls%u", thrdnum++);
+			error = kthread_add(clnt_vc_dotlsupcall, ct, NULL, NULL,
+			    0, 0, "krpctls%u", thrdnum++);
 			if (error != 0)
 				panic("Can't add KRPC thread error %d", error);
 		} else
@@ -785,7 +773,7 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 		return (TRUE);
 
 	case CLSET_BLOCKRCV:
-		if (*(int *) info) {
+		if (*(int *)info) {
 			ct->ct_rcvstate &= ~RPCRCVSTATE_NORMAL;
 			ct->ct_rcvstate |= RPCRCVSTATE_TLSHANDSHAKE;
 		} else {
@@ -806,7 +794,7 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 static void
 clnt_vc_close(CLIENT *cl)
 {
-	struct ct_data *ct = (struct ct_data *) cl->cl_private;
+	struct ct_data *ct = (struct ct_data *)cl->cl_private;
 	struct ct_request *cr;
 
 	mtx_lock(&ct->ct_lock);
@@ -840,7 +828,7 @@ clnt_vc_close(CLIENT *cl)
 		 * has finished with clnt_vc_call.
 		 */
 		mtx_lock(&ct->ct_lock);
-		TAILQ_FOREACH(cr, &ct->ct_pending, cr_link) {
+		TAILQ_FOREACH (cr, &ct->ct_pending, cr_link) {
 			cr->cr_xid = 0;
 			cr->cr_error = ESHUTDOWN;
 			wakeup(cr);
@@ -860,7 +848,7 @@ clnt_vc_close(CLIENT *cl)
 static void
 clnt_vc_destroy(CLIENT *cl)
 {
-	struct ct_data *ct = (struct ct_data *) cl->cl_private;
+	struct ct_data *ct = (struct ct_data *)cl->cl_private;
 	struct socket *so = NULL;
 	SVCXPRT *xprt;
 	enum clnt_stat stat;
@@ -872,7 +860,7 @@ clnt_vc_destroy(CLIENT *cl)
 	xprt = ct->ct_backchannelxprt;
 	ct->ct_backchannelxprt = NULL;
 	if (xprt != NULL) {
-		mtx_unlock(&ct->ct_lock);	/* To avoid a LOR. */
+		mtx_unlock(&ct->ct_lock); /* To avoid a LOR. */
 		sx_xlock(&xprt->xp_lock);
 		mtx_lock(&ct->ct_lock);
 		xprt->xp_p2 = NULL;
@@ -887,8 +875,7 @@ clnt_vc_destroy(CLIENT *cl)
 
 	/* Wait for the upcall kthread to terminate. */
 	while ((ct->ct_rcvstate & RPCRCVSTATE_UPCALLTHREAD) != 0)
-		msleep(&ct->ct_sslrefno, &ct->ct_lock, 0,
-		    "clntvccl", hz);
+		msleep(&ct->ct_sslrefno, &ct->ct_lock, 0, "clntvccl", hz);
 	mtx_unlock(&ct->ct_lock);
 
 	mtx_destroy(&ct->ct_lock);
@@ -907,8 +894,7 @@ clnt_vc_destroy(CLIENT *cl)
 				 * restarted, so ignore return stat.
 				 */
 				stat = rpctls_cl_disconnect(ct->ct_sslsec,
-				    ct->ct_sslusec, ct->ct_sslrefno,
-				    &reterr);
+				    ct->ct_sslusec, ct->ct_sslrefno, &reterr);
 			}
 			/* Must sorele() to get rid of reference. */
 			CURVNET_SET(so->so_vnet);
@@ -924,9 +910,9 @@ clnt_vc_destroy(CLIENT *cl)
 	m_freem(ct->ct_raw);
 	mem_free(ct, sizeof(struct ct_data));
 	if (cl->cl_netid && cl->cl_netid[0])
-		mem_free(cl->cl_netid, strlen(cl->cl_netid) +1);
+		mem_free(cl->cl_netid, strlen(cl->cl_netid) + 1);
 	if (cl->cl_tp && cl->cl_tp[0])
-		mem_free(cl->cl_tp, strlen(cl->cl_tp) +1);
+		mem_free(cl->cl_tp, strlen(cl->cl_tp) + 1);
 	mem_free(cl, sizeof(CLIENT));
 }
 
@@ -937,14 +923,14 @@ clnt_vc_destroy(CLIENT *cl)
 static bool_t
 time_not_ok(struct timeval *t)
 {
-	return (t->tv_sec <= -1 || t->tv_sec > 100000000 ||
-		t->tv_usec <= -1 || t->tv_usec > 1000000);
+	return (t->tv_sec <= -1 || t->tv_sec > 100000000 || t->tv_usec <= -1 ||
+	    t->tv_usec > 1000000);
 }
 
 int
 clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 {
-	struct ct_data *ct = (struct ct_data *) arg;
+	struct ct_data *ct = (struct ct_data *)arg;
 	struct uio uio;
 	struct mbuf *m, *m2, **ctrlp;
 	struct ct_request *cr;
@@ -962,11 +948,12 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 	 * the socket via openssl library calls.
 	 */
 	mtx_lock(&ct->ct_lock);
-	if ((ct->ct_rcvstate & (RPCRCVSTATE_NORMAL |
-	    RPCRCVSTATE_NONAPPDATA)) == 0) {
+	if ((ct->ct_rcvstate & (RPCRCVSTATE_NORMAL | RPCRCVSTATE_NONAPPDATA)) ==
+	    0) {
 		/* Mark that a socket upcall needs to be done. */
-		if ((ct->ct_rcvstate & (RPCRCVSTATE_UPCALLNEEDED |
-		    RPCRCVSTATE_UPCALLINPROG)) != 0)
+		if ((ct->ct_rcvstate &
+			(RPCRCVSTATE_UPCALLNEEDED |
+			    RPCRCVSTATE_UPCALLINPROG)) != 0)
 			ct->ct_rcvstate |= RPCRCVSTATE_SOUPCALLNEEDED;
 		mtx_unlock(&ct->ct_lock);
 		return (SU_OK);
@@ -993,8 +980,8 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 		uio.uio_td = curthread;
 		m2 = m = NULL;
 		rcvflag = MSG_DONTWAIT | MSG_SOCALLBCK;
-		if (ct->ct_sslrefno != 0 && (ct->ct_rcvstate &
-		    RPCRCVSTATE_NORMAL) != 0) {
+		if (ct->ct_sslrefno != 0 &&
+		    (ct->ct_rcvstate & RPCRCVSTATE_NORMAL) != 0) {
 			rcvflag |= MSG_TLSAPPDATA;
 			ctrlp = NULL;
 		} else
@@ -1088,8 +1075,8 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 		if (ct->ct_record_resid == 0) {
 			if (rawlen < sizeof(uint32_t))
 				break;
-			m_copydata(ct->ct_raw, 0, sizeof(uint32_t),
-			    (char *)&header);
+			m_copydata(
+			    ct->ct_raw, 0, sizeof(uint32_t), (char *)&header);
 			header = ntohl(header);
 			ct->ct_record_resid = header & 0x7fffffff;
 			ct->ct_record_eor = ((header & 0x80000000) != 0);
@@ -1112,8 +1099,8 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 				ct->ct_record_resid -= rawlen;
 				rawlen = 0;
 			} else {
-				m = m_split(ct->ct_raw, ct->ct_record_resid,
-				    M_NOWAIT);
+				m = m_split(
+				    ct->ct_raw, ct->ct_record_resid, M_NOWAIT);
 				if (m == NULL)
 					break;
 				if (ct->ct_record != NULL)
@@ -1139,9 +1126,9 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 				 * is the second one.
 				 */
 				if (ct->ct_record->m_len <
-				    sizeof(xid_plus_direction) &&
+					sizeof(xid_plus_direction) &&
 				    m_length(ct->ct_record, NULL) <
-				    sizeof(xid_plus_direction)) {
+					sizeof(xid_plus_direction)) {
 					/*
 					 * What to do now?
 					 * The data in the TCP stream is
@@ -1153,17 +1140,17 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 					 * and establish a new one.
 					 */
 					printf("clnt_vc_soupcall: "
-					    "connection data corrupted\n");
+					       "connection data corrupted\n");
 					error = ECONNRESET;
 					goto wakeup_all;
 				}
 				m_copydata(ct->ct_record, 0,
 				    sizeof(xid_plus_direction),
 				    (char *)xid_plus_direction);
-				xid_plus_direction[0] =
-				    ntohl(xid_plus_direction[0]);
-				xid_plus_direction[1] =
-				    ntohl(xid_plus_direction[1]);
+				xid_plus_direction[0] = ntohl(
+				    xid_plus_direction[0]);
+				xid_plus_direction[1] = ntohl(
+				    xid_plus_direction[1]);
 				/* Check message direction. */
 				if (xid_plus_direction[1] == CALL) {
 					/* This is a backchannel request. */
@@ -1176,7 +1163,7 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 						ct->ct_record = NULL;
 					} else {
 						cd = (struct cf_conn *)
-						    xprt->xp_p1;
+							 xprt->xp_p1;
 						m2 = cd->mreq;
 						/*
 						 * The requests are chained
@@ -1192,8 +1179,7 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 						else
 							cd->mreq =
 							    ct->ct_record;
-						ct->ct_record->m_nextpkt =
-						    NULL;
+						ct->ct_record->m_nextpkt = NULL;
 						ct->ct_record = NULL;
 						xprt_active(xprt);
 						mtx_unlock(&ct->ct_lock);
@@ -1201,8 +1187,8 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 				} else {
 					mtx_lock(&ct->ct_lock);
 					foundreq = 0;
-					TAILQ_FOREACH(cr, &ct->ct_pending,
-					    cr_link) {
+					TAILQ_FOREACH (
+					    cr, &ct->ct_pending, cr_link) {
 						if (cr->cr_xid ==
 						    xid_plus_direction[0]) {
 							/*
@@ -1245,7 +1231,7 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 		mtx_lock(&ct->ct_lock);
 		ct->ct_error.re_status = RPC_CANTRECV;
 		ct->ct_error.re_errno = error;
-		TAILQ_FOREACH(cr, &ct->ct_pending, cr_link) {
+		TAILQ_FOREACH (cr, &ct->ct_pending, cr_link) {
 			cr->cr_error = error;
 			wakeup(cr);
 		}
@@ -1270,7 +1256,7 @@ clnt_vc_upcallsdone(struct ct_data *ct)
 	SOCKBUF_LOCK_ASSERT(&ct->ct_socket->so_rcv);
 
 	while (ct->ct_upcallrefs > 0)
-		(void) msleep(&ct->ct_upcallrefs,
+		(void)msleep(&ct->ct_upcallrefs,
 		    SOCKBUF_MTX(&ct->ct_socket->so_rcv), 0, "rpcvcup", 0);
 }
 
@@ -1291,8 +1277,8 @@ clnt_vc_dotlsupcall(void *data)
 		if ((ct->ct_rcvstate & RPCRCVSTATE_UPCALLNEEDED) != 0) {
 			ct->ct_rcvstate &= ~RPCRCVSTATE_UPCALLNEEDED;
 			ct->ct_rcvstate |= RPCRCVSTATE_UPCALLINPROG;
-			if (ct->ct_sslrefno != 0 && ct->ct_sslrefno !=
-			    RPCTLS_REFNO_HANDSHAKE) {
+			if (ct->ct_sslrefno != 0 &&
+			    ct->ct_sslrefno != RPCTLS_REFNO_HANDSHAKE) {
 				mtx_unlock(&ct->ct_lock);
 				ret = rpctls_cl_handlerecord(ct->ct_sslsec,
 				    ct->ct_sslusec, ct->ct_sslrefno, &reterr);

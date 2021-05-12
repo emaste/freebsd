@@ -39,20 +39,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/vmparam.h>
-#include <machine/pc/bios.h>
 
-#define BIOS_START	0xe0000
-#define BIOS_SIZE	0x20000
+#include <machine/pc/bios.h>
+#include <machine/vmparam.h>
+
+#define BIOS_START 0xe0000
+#define BIOS_SIZE 0x20000
 
 /*
  * bios_sigsearch
  *
  * Search some or all of the BIOS region for a signature string.
  *
- * (start)	Optional offset returned from this function 
+ * (start)	Optional offset returned from this function
  *		(for searching for multiple matches), or NULL
  *		to start the search from the base of the BIOS.
  *		Note that this will be a _physical_ address in
@@ -67,30 +69,31 @@ __FBSDID("$FreeBSD$");
  */
 
 u_int32_t
-bios_sigsearch(u_int32_t start, u_char *sig, int siglen, int paralen, int sigofs)
+bios_sigsearch(
+    u_int32_t start, u_char *sig, int siglen, int paralen, int sigofs)
 {
-    u_char	*sp, *end;
-    
-    /* compute the starting address */
-    if ((start >= BIOS_START) && (start <= (BIOS_START + BIOS_SIZE))) {
-	sp = (char *)BIOS_PADDRTOVADDR(start);
-    } else if (start == 0) {
-	sp = (char *)BIOS_PADDRTOVADDR(BIOS_START);
-    } else {
-	return 0;				/* bogus start address */
-    }
+	u_char *sp, *end;
 
-    /* compute the end address */
-    end = (u_char *)BIOS_PADDRTOVADDR(BIOS_START + BIOS_SIZE);
-
-    /* loop searching */
-    while ((sp + sigofs + siglen) < end) {
-	/* compare here */
-	if (!bcmp(sp + sigofs, sig, siglen)) {
-	    /* convert back to physical address */
-	    return((u_int32_t)(uintptr_t)BIOS_VADDRTOPADDR(sp));
+	/* compute the starting address */
+	if ((start >= BIOS_START) && (start <= (BIOS_START + BIOS_SIZE))) {
+		sp = (char *)BIOS_PADDRTOVADDR(start);
+	} else if (start == 0) {
+		sp = (char *)BIOS_PADDRTOVADDR(BIOS_START);
+	} else {
+		return 0; /* bogus start address */
 	}
-	sp += paralen;
-    }
-    return(0);
+
+	/* compute the end address */
+	end = (u_char *)BIOS_PADDRTOVADDR(BIOS_START + BIOS_SIZE);
+
+	/* loop searching */
+	while ((sp + sigofs + siglen) < end) {
+		/* compare here */
+		if (!bcmp(sp + sigofs, sig, siglen)) {
+			/* convert back to physical address */
+			return ((u_int32_t)(uintptr_t)BIOS_VADDRTOPADDR(sp));
+		}
+		sp += paralen;
+	}
+	return (0);
 }

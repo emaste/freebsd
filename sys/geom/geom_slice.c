@@ -40,18 +40,20 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/bio.h>
-#include <sys/sysctl.h>
-#include <sys/proc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/sysctl.h>
+
+#include <machine/stdarg.h>
+
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
-#include <machine/stdarg.h>
 
 static g_access_t g_slice_access;
 static g_start_t g_slice_start;
@@ -66,8 +68,8 @@ g_slice_alloc(unsigned nslice, unsigned scsize)
 		gsp->softc = g_malloc(scsize, M_WAITOK | M_ZERO);
 	else
 		gsp->softc = NULL;
-	gsp->slices = g_malloc(nslice * sizeof(struct g_slice),
-	    M_WAITOK | M_ZERO);
+	gsp->slices = g_malloc(
+	    nslice * sizeof(struct g_slice), M_WAITOK | M_ZERO);
 	gsp->nslice = nslice;
 	return (gsp);
 }
@@ -108,7 +110,7 @@ g_slice_access(struct g_provider *pp, int dr, int dw, int de)
 
 	gp = pp->geom;
 	cp = LIST_FIRST(&gp->consumer);
-	KASSERT (cp != NULL, ("g_slice_access but no consumer"));
+	KASSERT(cp != NULL, ("g_slice_access but no consumer"));
 	gsp = gp->softc;
 	if (dr > 0 || dw > 0 || de > 0) {
 		gsl = &gsp->slices[pp->index];
@@ -166,8 +168,8 @@ g_slice_finish_hot(struct bio *bp)
 	struct g_slice *gsl;
 	int idx;
 
-	KASSERT(bp->bio_to != NULL,
-	    ("NULL bio_to in g_slice_finish_hot(%p)", bp));
+	KASSERT(
+	    bp->bio_to != NULL, ("NULL bio_to in g_slice_finish_hot(%p)", bp));
 	KASSERT(bp->bio_from != NULL,
 	    ("NULL bio_from in g_slice_finish_hot(%p)", bp));
 	gp = bp->bio_to->geom;
@@ -195,15 +197,15 @@ g_slice_done(struct bio *bp)
 {
 
 	KASSERT(bp->bio_cmd == BIO_GETATTR &&
-	    strcmp(bp->bio_attribute, "GEOM::ident") == 0,
+		strcmp(bp->bio_attribute, "GEOM::ident") == 0,
 	    ("bio_cmd=0x%x bio_attribute=%s", bp->bio_cmd, bp->bio_attribute));
 
 	if (bp->bio_error == 0 && bp->bio_data[0] != '\0') {
 		char idx[8];
 
 		/* Add index to the ident received. */
-		snprintf(idx, sizeof(idx), "s%d",
-		    bp->bio_parent->bio_to->index);
+		snprintf(
+		    idx, sizeof(idx), "s%d", bp->bio_parent->bio_to->index);
 		if (strlcat(bp->bio_data, idx, bp->bio_length) >=
 		    bp->bio_length) {
 			bp->bio_error = EFAULT;
@@ -232,7 +234,7 @@ g_slice_start(struct bio *bp)
 	cp = LIST_FIRST(&gp->consumer);
 	idx = pp->index;
 	gsl = &gsp->slices[idx];
-	switch(bp->bio_cmd) {
+	switch (bp->bio_cmd) {
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
@@ -251,12 +253,18 @@ g_slice_start(struct bio *bp)
 				continue;
 			if (t + bp->bio_length <= ghp->offset)
 				continue;
-			switch(bp->bio_cmd) {
-			case BIO_READ:		idx = ghp->ract; break;
-			case BIO_WRITE:		idx = ghp->wact; break;
-			case BIO_DELETE:	idx = ghp->dact; break;
+			switch (bp->bio_cmd) {
+			case BIO_READ:
+				idx = ghp->ract;
+				break;
+			case BIO_WRITE:
+				idx = ghp->wact;
+				break;
+			case BIO_DELETE:
+				idx = ghp->dact;
+				break;
 			}
-			switch(idx) {
+			switch (idx) {
 			case G_SLICE_HOT_ALLOW:
 				/* Fall out and continue normal processing */
 				continue;
@@ -269,8 +277,8 @@ g_slice_start(struct bio *bp)
 					g_io_deliver(bp, error);
 				return;
 			case G_SLICE_HOT_CALL:
-				error = g_post_event(gsp->hot, bp, M_NOWAIT,
-				    gp, NULL);
+				error = g_post_event(
+				    gsp->hot, bp, M_NOWAIT, gp, NULL);
 				if (error)
 					g_io_deliver(bp, error);
 				return;
@@ -329,21 +337,22 @@ g_slice_start(struct bio *bp)
 }
 
 void
-g_slice_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
+g_slice_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
+    struct g_consumer *cp, struct g_provider *pp)
 {
 	struct g_slicer *gsp;
 
 	gsp = gp->softc;
 	if (indent == NULL) {
 		sbuf_printf(sb, " i %u", pp->index);
-		sbuf_printf(sb, " o %ju", 
-		    (uintmax_t)gsp->slices[pp->index].offset);
+		sbuf_printf(
+		    sb, " o %ju", (uintmax_t)gsp->slices[pp->index].offset);
 		return;
 	}
 	if (pp != NULL) {
 		sbuf_printf(sb, "%s<index>%u</index>\n", indent, pp->index);
-		sbuf_printf(sb, "%s<length>%ju</length>\n",
-		    indent, (uintmax_t)gsp->slices[pp->index].length);
+		sbuf_printf(sb, "%s<length>%ju</length>\n", indent,
+		    (uintmax_t)gsp->slices[pp->index].length);
 		sbuf_printf(sb, "%s<seclength>%ju</seclength>\n", indent,
 		    (uintmax_t)gsp->slices[pp->index].length / 512);
 		sbuf_printf(sb, "%s<offset>%ju</offset>\n", indent,
@@ -354,7 +363,8 @@ g_slice_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct 
 }
 
 int
-g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length, u_int sectorsize, const char *fmt, ...)
+g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset,
+    off_t length, u_int sectorsize, const char *fmt, ...)
 {
 	struct g_provider *pp, *pp2;
 	struct g_slicer *gsp;
@@ -363,12 +373,11 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 	struct sbuf *sb;
 	int acc;
 
-	g_trace(G_T_TOPOLOGY, "g_slice_config(%s, %d, %d)",
-	     gp->name, idx, how);
+	g_trace(G_T_TOPOLOGY, "g_slice_config(%s, %d, %d)", gp->name, idx, how);
 	g_topology_assert();
 	gsp = gp->softc;
 	if (idx >= gsp->nslice)
-		return(EINVAL);
+		return (EINVAL);
 	gsl = &gsp->slices[idx];
 	pp = gsl->provider;
 	if (pp != NULL)
@@ -377,9 +386,9 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 		acc = 0;
 	if (acc != 0 && how != G_SLICE_CONFIG_FORCE) {
 		if (length < gsl->length)
-			return(EBUSY);
+			return (EBUSY);
 		if (offset != gsl->offset)
-			return(EBUSY);
+			return (EBUSY);
 	}
 	/* XXX: check offset + length <= MEDIASIZE */
 	if (how == G_SLICE_CONFIG_CHECK)
@@ -399,7 +408,8 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 	}
 	if (pp != NULL) {
 		if (bootverbose)
-			printf("GEOM: Reconfigure %s, start %jd length %jd end %jd\n",
+			printf(
+			    "GEOM: Reconfigure %s, start %jd length %jd end %jd\n",
 			    pp->name, (intmax_t)offset, (intmax_t)length,
 			    (intmax_t)(offset + length - 1));
 		g_resize_provider(pp, gsl->length);
@@ -431,7 +441,7 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 	gsp->nprovider++;
 	g_error_provider(pp, 0);
 	sbuf_delete(sb);
-	return(0);
+	return (0);
 }
 
 /*
@@ -448,27 +458,29 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
  */
 
 int
-g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length, int ract, int dact, int wact)
+g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length,
+    int ract, int dact, int wact)
 {
 	struct g_slicer *gsp;
 	struct g_slice_hot *gsl, *gsl2;
 	struct g_consumer *cp;
 	struct g_provider *pp;
 
-	g_trace(G_T_TOPOLOGY, "g_slice_conf_hot(%s, idx: %d, off: %jd, len: %jd)",
-	    gp->name, idx, (intmax_t)offset, (intmax_t)length);
+	g_trace(G_T_TOPOLOGY,
+	    "g_slice_conf_hot(%s, idx: %d, off: %jd, len: %jd)", gp->name, idx,
+	    (intmax_t)offset, (intmax_t)length);
 	g_topology_assert();
 	gsp = gp->softc;
 	/* Deny unmapped I/O and direct dispatch if hotspots are used. */
 	if (gsp->nhotspot == 0) {
-		LIST_FOREACH(pp, &gp->provider, provider)
-			pp->flags &= ~(G_PF_ACCEPT_UNMAPPED |
-			    G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE);
-		LIST_FOREACH(cp, &gp->consumer, consumer)
+		LIST_FOREACH (pp, &gp->provider, provider)
+			pp->flags &= ~(G_PF_ACCEPT_UNMAPPED | G_PF_DIRECT_SEND |
+			    G_PF_DIRECT_RECEIVE);
+		LIST_FOREACH (cp, &gp->consumer, consumer)
 			cp->flags &= ~(G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE);
 	}
 	gsl = gsp->hotspot;
-	if(idx >= gsp->nhotspot) {
+	if (idx >= gsp->nhotspot) {
 		gsl2 = g_malloc((idx + 1) * sizeof *gsl2, M_WAITOK | M_ZERO);
 		if (gsp->hotspot != NULL)
 			bcopy(gsp->hotspot, gsl2, gsp->nhotspot * sizeof *gsl2);
@@ -480,8 +492,9 @@ g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length, int r
 	}
 	gsl[idx].offset = offset;
 	gsl[idx].length = length;
-	KASSERT(!((ract | dact | wact) & G_SLICE_HOT_START)
-	    || gsp->start != NULL, ("G_SLICE_HOT_START but no slice->start"));
+	KASSERT(
+	    !((ract | dact | wact) & G_SLICE_HOT_START) || gsp->start != NULL,
+	    ("G_SLICE_HOT_START but no slice->start"));
 	/* XXX: check that we _have_ a start function if HOT_START specified */
 	gsl[idx].ract = ract;
 	gsl[idx].dact = dact;
@@ -517,7 +530,8 @@ g_slice_spoiled(struct g_consumer *cp)
 }
 
 int
-g_slice_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
+g_slice_destroy_geom(
+    struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 {
 
 	g_slice_spoiled(LIST_FIRST(&gp->consumer));
@@ -525,7 +539,8 @@ g_slice_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp
 }
 
 struct g_geom *
-g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_consumer **cpp, void *extrap, int extra, g_slice_start_t *start)
+g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp,
+    struct g_consumer **cpp, void *extrap, int extra, g_slice_start_t *start)
 {
 	struct g_geom *gp;
 	struct g_slicer *gsp;

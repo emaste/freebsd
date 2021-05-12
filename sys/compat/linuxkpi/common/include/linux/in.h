@@ -28,20 +28,22 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_IN_H_
-#define	_LINUX_IN_H_
+#ifndef _LINUX_IN_H_
+#define _LINUX_IN_H_
 
 #include "opt_inet.h"
 
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+
 #include <netinet/in.h>
+
 #include <asm/byteorder.h>
 
-#define	ipv4_is_zeronet(be)	IN_ZERONET(ntohl(be))
-#define	ipv4_is_loopback(be)	IN_LOOPBACK(ntohl(be))
-#define	ipv4_is_multicast(be)	IN_MULTICAST(ntohl(be))
-#define	ipv4_is_lbcast(be)	((be) == INADDR_BROADCAST)
+#define ipv4_is_zeronet(be) IN_ZERONET(ntohl(be))
+#define ipv4_is_loopback(be) IN_LOOPBACK(ntohl(be))
+#define ipv4_is_multicast(be) IN_MULTICAST(ntohl(be))
+#define ipv4_is_lbcast(be) ((be) == INADDR_BROADCAST)
 
-#endif	/* _LINUX_IN_H_ */
+#endif /* _LINUX_IN_H_ */

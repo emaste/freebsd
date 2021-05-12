@@ -61,15 +61,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_vm.h"
-#include "opt_kstack_pages.h"
 #include "opt_kstack_max_pages.h"
+#include "opt_kstack_pages.h"
 #include "opt_kstack_usage_prof.h"
+#include "opt_vm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/asan.h>
 #include <sys/domainset.h>
+#include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -83,27 +85,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/sf_buf.h>
 #include <sys/shm.h>
 #include <sys/smp.h>
-#include <sys/vmmeter.h>
-#include <sys/vmem.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
-#include <sys/kernel.h>
-#include <sys/ktr.h>
 #include <sys/unistd.h>
+#include <sys/vmem.h>
+#include <sys/vmmeter.h>
 
-#include <vm/uma.h>
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/swap_pager.h>
+#include <vm/uma.h>
 #include <vm/vm_domainset.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_object.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
 #include <vm/vm_pager.h>
-#include <vm/swap_pager.h>
+#include <vm/vm_param.h>
 
 #include <machine/cpu.h>
 
@@ -269,8 +269,7 @@ vm_object_t kstack_object;
 static uma_zone_t kstack_cache;
 static int kstack_cache_size;
 
-static int
-sysctl_kstack_cache_size(SYSCTL_HANDLER_ARGS)
+static int sysctl_kstack_cache_size(SYSCTL_HANDLER_ARGS)
 {
 	int error, oldsize;
 
@@ -281,7 +280,7 @@ sysctl_kstack_cache_size(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_vm, OID_AUTO, kstack_cache_size,
-    CTLTYPE_INT|CTLFLAG_MPSAFE|CTLFLAG_RW, &kstack_cache_size, 0,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, &kstack_cache_size, 0,
     sysctl_kstack_cache_size, "IU", "Maximum number of cached kernel stacks");
 
 /*
@@ -303,8 +302,8 @@ vm_thread_stack_create(struct domainset *ds, int pages)
 	 * a single TLB entry.
 	 */
 	if (vmem_xalloc(kernel_arena, (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE,
-	    PAGE_SIZE * 2, 0, 0, VMEM_ADDR_MIN, VMEM_ADDR_MAX,
-	    M_BESTFIT | M_NOWAIT, &ks)) {
+		PAGE_SIZE * 2, 0, 0, VMEM_ADDR_MIN, VMEM_ADDR_MAX,
+		M_BESTFIT | M_NOWAIT, &ks)) {
 		ks = 0;
 	}
 #else
@@ -380,8 +379,8 @@ vm_thread_new(struct thread *td, int pages)
 	 * swap-in.
 	 */
 	if (ks == 0)
-		ks = vm_thread_stack_create(DOMAINSET_PREF(PCPU_GET(domain)),
-		    pages);
+		ks = vm_thread_stack_create(
+		    DOMAINSET_PREF(PCPU_GET(domain)), pages);
 	if (ks == 0)
 		return (0);
 	td->td_kstack = ks;
@@ -433,8 +432,8 @@ vm_thread_stack_back(struct domainset *ds, vm_offset_t ks, vm_page_t ma[],
 		 * if we had to sleep for pages.
 		 */
 		n += vm_page_grab_pages(kstack_object, pindex + n,
-		    req_class | VM_ALLOC_WIRED | VM_ALLOC_WAITFAIL,
-		    &ma[n], npages - n);
+		    req_class | VM_ALLOC_WIRED | VM_ALLOC_WAITFAIL, &ma[n],
+		    npages - n);
 	}
 	VM_OBJECT_WUNLOCK(kstack_object);
 }
@@ -473,12 +472,11 @@ kstack_release(void *arg, void **store, int cnt)
 static void
 kstack_cache_init(void *null)
 {
-	kstack_object = vm_object_allocate(OBJT_SWAP,
-	    atop(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS));
+	kstack_object = vm_object_allocate(
+	    OBJT_SWAP, atop(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS));
 	kstack_cache = uma_zcache_create("kstack_cache",
-	    kstack_pages * PAGE_SIZE, NULL, NULL, NULL, NULL,
-	    kstack_import, kstack_release, NULL,
-	    UMA_ZONE_FIRSTTOUCH);
+	    kstack_pages * PAGE_SIZE, NULL, NULL, NULL, NULL, kstack_import,
+	    kstack_release, NULL, UMA_ZONE_FIRSTTOUCH);
 	kstack_cache_size = imax(128, mp_ncpus * 4);
 	uma_zone_set_maxcache(kstack_cache, kstack_cache_size);
 }
@@ -490,8 +488,7 @@ SYSINIT(vm_kstacks, SI_SUB_KMEM, SI_ORDER_ANY, kstack_cache_init, NULL);
  */
 static int max_kstack_used;
 
-SYSCTL_INT(_debug, OID_AUTO, max_kstack_used, CTLFLAG_RD,
-    &max_kstack_used, 0,
+SYSCTL_INT(_debug, OID_AUTO, max_kstack_used, CTLFLAG_RD, &max_kstack_used, 0,
     "Maxiumum stack depth used by a thread in kernel");
 
 void
@@ -591,12 +588,10 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
  * The idea is to reclaim resources that we could not reclaim while
  * the process was still executing.
  */
-void
-vm_waitproc(p)
-	struct proc *p;
+void vm_waitproc(p) struct proc *p;
 {
 
-	vmspace_exitfree(p);		/* and clean-out the vmspace */
+	vmspace_exitfree(p); /* and clean-out the vmspace */
 }
 
 void

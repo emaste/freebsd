@@ -47,16 +47,16 @@
 #include <sys/_types.h>
 
 #ifndef _TIME_T_DECLARED
-typedef	__time_t	time_t;
-#define	_TIME_T_DECLARED
+typedef __time_t time_t;
+#define _TIME_T_DECLARED
 #endif
 
 /* The ftime(2) system call structure -- deprecated. */
 struct timeb {
-	time_t	time;			/* seconds since the Epoch */
-	unsigned short millitm;		/* + milliseconds since the Epoch */
-	short	timezone;		/* minutes west of CUT */
-	short	dstflag;		/* DST == non-zero */
+	time_t time;		/* seconds since the Epoch */
+	unsigned short millitm; /* + milliseconds since the Epoch */
+	short timezone;		/* minutes west of CUT */
+	short dstflag;		/* DST == non-zero */
 };
 
 #ifndef _KERNEL

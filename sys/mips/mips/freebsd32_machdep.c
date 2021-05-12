@@ -36,24 +36,23 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/sysent.h>
 #include <sys/exec.h>
-#include <sys/imgact.h>
-#include <sys/ktr.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/namei.h>
 #include <sys/fcntl.h>
-#include <sys/sysent.h>
+#include <sys/imgact.h>
 #include <sys/imgact_elf.h>
+#include <sys/kernel.h>
+#include <sys/ktr.h>
+#include <sys/linker.h>
+#include <sys/malloc.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/signalvar.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/signalvar.h>
 #include <sys/vnode.h>
-#include <sys/linker.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -65,9 +64,9 @@
 #include <machine/sysarch.h>
 #include <machine/tls.h>
 
+#include <compat/freebsd32/freebsd32_proto.h>
 #include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_util.h>
-#include <compat/freebsd32/freebsd32_proto.h>
 
 static int get_mcontext32(struct thread *, mcontext32_t *, int);
 static int set_mcontext32(struct thread *, mcontext32_t *);
@@ -76,52 +75,49 @@ static void freebsd32_sendsig(sig_t, ksiginfo_t *, sigset_t *);
 extern const char *freebsd32_syscallnames[];
 
 struct sysentvec elf32_freebsd_sysvec = {
-	.sv_size	= SYS_MAXSYSCALL,
-	.sv_table	= freebsd32_sysent,
-	.sv_transtrap	= NULL,
-	.sv_fixup	= __elfN(freebsd_fixup),
-	.sv_sendsig	= freebsd32_sendsig,
-	.sv_sigcode	= sigcode32,
-	.sv_szsigcode	= &szsigcode32,
-	.sv_name	= "FreeBSD ELF32",
-	.sv_coredump	= __elfN(coredump),
-	.sv_imgact_try	= NULL,
-	.sv_minsigstksz	= MINSIGSTKSZ,
-	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= ((vm_offset_t)0x80000000),
-	.sv_usrstack	= FREEBSD32_USRSTACK,
-	.sv_psstrings	= FREEBSD32_PS_STRINGS,
-	.sv_stackprot	= VM_PROT_ALL,
+	.sv_size = SYS_MAXSYSCALL,
+	.sv_table = freebsd32_sysent,
+	.sv_transtrap = NULL,
+	.sv_fixup = __elfN(freebsd_fixup),
+	.sv_sendsig = freebsd32_sendsig,
+	.sv_sigcode = sigcode32,
+	.sv_szsigcode = &szsigcode32,
+	.sv_name = "FreeBSD ELF32",
+	.sv_coredump = __elfN(coredump),
+	.sv_imgact_try = NULL,
+	.sv_minsigstksz = MINSIGSTKSZ,
+	.sv_minuser = VM_MIN_ADDRESS,
+	.sv_maxuser = ((vm_offset_t)0x80000000),
+	.sv_usrstack = FREEBSD32_USRSTACK,
+	.sv_psstrings = FREEBSD32_PS_STRINGS,
+	.sv_stackprot = VM_PROT_ALL,
 	.sv_copyout_auxargs = __elfN(freebsd_copyout_auxargs),
 	.sv_copyout_strings = freebsd32_copyout_strings,
-	.sv_setregs	= exec_setregs,
-	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32 | SV_RNG_SEED_VER,
+	.sv_setregs = exec_setregs,
+	.sv_fixlimit = NULL,
+	.sv_maxssiz = NULL,
+	.sv_flags = SV_ABI_FREEBSD | SV_ILP32 | SV_RNG_SEED_VER,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = freebsd32_syscallnames,
-	.sv_schedtail	= NULL,
+	.sv_schedtail = NULL,
 	.sv_thread_detach = NULL,
-	.sv_trap	= NULL,
+	.sv_trap = NULL,
 };
 INIT_SYSENTVEC(elf32_sysvec, &elf32_freebsd_sysvec);
 
-static Elf32_Brandinfo freebsd_brand_info = {
-	.brand		= ELFOSABI_FREEBSD,
-	.machine	= EM_MIPS,
-	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
-	.interp_path	= "/libexec/ld-elf.so.1",
-	.sysvec		= &elf32_freebsd_sysvec,
-	.interp_newpath	= "/libexec/ld-elf32.so.1",
-	.brand_note	= &elf32_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
-};
+static Elf32_Brandinfo freebsd_brand_info = { .brand = ELFOSABI_FREEBSD,
+	.machine = EM_MIPS,
+	.compat_3_brand = "FreeBSD",
+	.emul_path = NULL,
+	.interp_path = "/libexec/ld-elf.so.1",
+	.sysvec = &elf32_freebsd_sysvec,
+	.interp_newpath = "/libexec/ld-elf32.so.1",
+	.brand_note = &elf32_freebsd_brandnote,
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_NOTE };
 
 SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST,
-    (sysinit_cfunc_t) elf32_insert_brand_entry,
-    &freebsd_brand_info);
+    (sysinit_cfunc_t)elf32_insert_brand_entry, &freebsd_brand_info);
 
 int
 set_regs32(struct thread *td, struct reg32 *regs)
@@ -262,7 +258,7 @@ freebsd32_sigreturn(struct thread *td, struct freebsd32_sigreturn_args *uap)
  * context.  The next field is uc_link; we want to avoid destroying the link
  * when copying out contexts.
  */
-#define	UC32_COPY_SIZE	offsetof(ucontext32_t, uc_link)
+#define UC32_COPY_SIZE offsetof(ucontext32_t, uc_link)
 
 int
 freebsd32_getcontext(struct thread *td, struct freebsd32_getcontext_args *uap)
@@ -287,7 +283,7 @@ int
 freebsd32_setcontext(struct thread *td, struct freebsd32_setcontext_args *uap)
 {
 	ucontext32_t uc;
-	int ret;	
+	int ret;
 
 	if (uap->ucp == NULL)
 		ret = EINVAL;
@@ -296,8 +292,8 @@ freebsd32_setcontext(struct thread *td, struct freebsd32_setcontext_args *uap)
 		if (ret == 0) {
 			ret = set_mcontext32(td, &uc.uc_mcontext);
 			if (ret == 0) {
-				kern_sigprocmask(td, SIG_SETMASK,
-				    &uc.uc_sigmask, NULL, 0);
+				kern_sigprocmask(
+				    td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 			}
 		}
 	}
@@ -333,7 +329,7 @@ freebsd32_swapcontext(struct thread *td, struct freebsd32_swapcontext_args *uap)
 	return (ret == 0 ? EJUSTRETURN : ret);
 }
 
-#define	UCONTEXT_MAGIC	0xACEDBADE
+#define UCONTEXT_MAGIC 0xACEDBADE
 
 /*
  * Send an interrupt to process.
@@ -379,7 +375,7 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mullo = regs.r_regs[MULLO];
 	sf.sf_uc.uc_mcontext.mulhi = regs.r_regs[MULHI];
 	sf.sf_uc.uc_mcontext.mc_tls = (int32_t)(intptr_t)td->td_md.md_tls;
-	sf.sf_uc.uc_mcontext.mc_regs[0] = UCONTEXT_MAGIC;  /* magic number */
+	sf.sf_uc.uc_mcontext.mc_regs[0] = UCONTEXT_MAGIC; /* magic number */
 	for (i = 1; i < 32; i++)
 		sf.sf_uc.uc_mcontext.mc_regs[i] = regs.r_regs[i];
 	sf.sf_uc.uc_mcontext.mc_fpused = td->td_md.md_flags & MDTD_FPUSED;
@@ -396,11 +392,13 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sfp = (struct sigframe32 *)(((uintptr_t)td->td_sigstk.ss_sp +
-		    td->td_sigstk.ss_size - sizeof(struct sigframe32))
-		    & ~(sizeof(__int64_t) - 1));
+						td->td_sigstk.ss_size -
+						sizeof(struct sigframe32)) &
+		    ~(sizeof(__int64_t) - 1));
 	} else
-		sfp = (struct sigframe32 *)((vm_offset_t)(td->td_frame->sp - 
-		    sizeof(struct sigframe32)) & ~(sizeof(__int64_t) - 1));
+		sfp = (struct sigframe32 *)((vm_offset_t)(td->td_frame->sp -
+						sizeof(struct sigframe32)) &
+		    ~(sizeof(__int64_t) - 1));
 
 	/* Build the argument list for the signal handler. */
 	td->td_frame->a0 = sig;
@@ -442,7 +440,8 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Signal trampoline code is at base of user stack.
 	 */
-	td->td_frame->ra = (register_t)(intptr_t)FREEBSD32_PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	td->td_frame->ra = (register_t)(intptr_t)FREEBSD32_PS_STRINGS -
+	    *(p->p_sysent->sv_szsigcode);
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -468,7 +467,7 @@ freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
 			    td->td_proc->p_md.md_tls_tcb_offset));
 		}
 		return (0);
-	case MIPS_GET_TLS: 
+	case MIPS_GET_TLS:
 		tlsbase = (int32_t)(intptr_t)td->td_md.md_tls;
 		error = copyout(&tlsbase, uap->parms, sizeof(tlsbase));
 		return (error);
@@ -479,7 +478,7 @@ freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
 }
 
 void
-elf32_dump_thread(struct thread *td __unused, void *dst __unused,
-    size_t *off __unused)
+elf32_dump_thread(
+    struct thread *td __unused, void *dst __unused, size_t *off __unused)
 {
 }

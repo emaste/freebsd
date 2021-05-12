@@ -59,14 +59,13 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
 
-#include <rpc/types.h>
-#include <rpc/auth.h>
-#include <rpc/rpc_msg.h>
 #include <nfs/krpc.h>
 #include <nfs/xdr_subs.h>
+#include <rpc/auth.h>
+#include <rpc/rpc_msg.h>
+#include <rpc/types.h>
 
 /*
  * Kernel support for Sun RPC
@@ -79,47 +78,47 @@ __FBSDID("$FreeBSD$");
  */
 
 struct auth_info {
-	u_int32_t 	authtype;	/* auth type */
-	u_int32_t	authlen;	/* auth length */
+	u_int32_t authtype; /* auth type */
+	u_int32_t authlen;  /* auth length */
 };
 
 struct auth_unix {
-	int32_t   ua_time;
-	int32_t   ua_hostname;	/* null */
-	int32_t   ua_uid;
-	int32_t   ua_gid;
-	int32_t   ua_gidlist;	/* null */
+	int32_t ua_time;
+	int32_t ua_hostname; /* null */
+	int32_t ua_uid;
+	int32_t ua_gid;
+	int32_t ua_gidlist; /* null */
 };
 
 struct krpc_call {
-	u_int32_t	rp_xid;		/* request transaction id */
-	int32_t 	rp_direction;	/* call direction (0) */
-	u_int32_t	rp_rpcvers;	/* rpc version (2) */
-	u_int32_t	rp_prog;	/* program */
-	u_int32_t	rp_vers;	/* version */
-	u_int32_t	rp_proc;	/* procedure */
-	struct	auth_info rpc_auth;
-	struct	auth_unix rpc_unix;
-	struct	auth_info rpc_verf;
+	u_int32_t rp_xid;     /* request transaction id */
+	int32_t rp_direction; /* call direction (0) */
+	u_int32_t rp_rpcvers; /* rpc version (2) */
+	u_int32_t rp_prog;    /* program */
+	u_int32_t rp_vers;    /* version */
+	u_int32_t rp_proc;    /* procedure */
+	struct auth_info rpc_auth;
+	struct auth_unix rpc_unix;
+	struct auth_info rpc_verf;
 };
 
 struct krpc_reply {
-	u_int32_t rp_xid;		/* request transaction id */
-	int32_t  rp_direction;		/* call direction (1) */
-	int32_t  rp_astatus;		/* accept status (0: accepted) */
+	u_int32_t rp_xid;     /* request transaction id */
+	int32_t rp_direction; /* call direction (1) */
+	int32_t rp_astatus;   /* accept status (0: accepted) */
 	union {
 		u_int32_t rpu_errno;
 		struct {
 			struct auth_info rok_auth;
-			u_int32_t	rok_status;
+			u_int32_t rok_status;
 		} rpu_rok;
 	} rp_u;
 };
-#define rp_errno  rp_u.rpu_errno
-#define rp_auth   rp_u.rpu_rok.rok_auth
+#define rp_errno rp_u.rpu_errno
+#define rp_auth rp_u.rpu_rok.rok_auth
 #define rp_status rp_u.rpu_rok.rok_status
 
-#define MIN_REPLY_HDR 16	/* xid, dir, astat, errno */
+#define MIN_REPLY_HDR 16 /* xid, dir, astat, errno */
 
 /*
  * What is the longest we will wait before re-sending a request?
@@ -127,7 +126,7 @@ struct krpc_reply {
  * The re-send loop count sup linearly to this maximum, so the
  * first complaint will happen after (1+2+3+4+5)=15 seconds.
  */
-#define	MAX_RESEND_DELAY 5	/* seconds */
+#define MAX_RESEND_DELAY 5 /* seconds */
 
 /*
  * Call portmap to lookup a port number for a particular rpc program
@@ -138,15 +137,15 @@ krpc_portmap(struct sockaddr_in *sin, u_int prog, u_int vers, u_int16_t *portp,
     struct thread *td)
 {
 	struct sdata {
-		u_int32_t prog;		/* call program */
-		u_int32_t vers;		/* call version */
-		u_int32_t proto;	/* call protocol */
-		u_int32_t port;		/* call port (unused) */
-	} *sdata;
+		u_int32_t prog;	 /* call program */
+		u_int32_t vers;	 /* call version */
+		u_int32_t proto; /* call protocol */
+		u_int32_t port;	 /* call port (unused) */
+	} * sdata;
 	struct rdata {
 		u_int16_t pad;
 		u_int16_t port;
-	} *rdata;
+	} * rdata;
 	struct mbuf *m;
 	int error;
 
@@ -167,8 +166,8 @@ krpc_portmap(struct sockaddr_in *sin, u_int prog, u_int vers, u_int16_t *portp,
 	sdata->port = 0;
 
 	sin->sin_port = htons(PMAPPORT);
-	error = krpc_call(sin, PMAPPROG, PMAPVERS,
-					  PMAPPROC_GETPORT, &m, NULL, td);
+	error = krpc_call(
+	    sin, PMAPPROG, PMAPVERS, PMAPPROC_GETPORT, &m, NULL, td);
 	if (error)
 		return error;
 
@@ -263,8 +262,7 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 		tport--;
 		sin->sin_port = htons(tport);
 		error = sobind(so, (struct sockaddr *)sin, td);
-	} while (error == EADDRINUSE &&
-			 tport > IPPORT_RESERVED / 2);
+	} while (error == EADDRINUSE && tport > IPPORT_RESERVED / 2);
 	if (error) {
 		printf("bind failed\n");
 		goto out;
@@ -292,10 +290,10 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 	call->rp_proc = txdr_unsigned(func);
 	/* rpc_auth part (auth_unix as root) */
 	call->rpc_auth.authtype = txdr_unsigned(AUTH_UNIX);
-	call->rpc_auth.authlen  = txdr_unsigned(sizeof(struct auth_unix));
+	call->rpc_auth.authlen = txdr_unsigned(sizeof(struct auth_unix));
 	/* rpc_verf part (auth_null) */
 	call->rpc_verf.authtype = 0;
-	call->rpc_verf.authlen  = 0;
+	call->rpc_verf.authlen = 0;
 
 	/*
 	 * Setup packet header
@@ -312,8 +310,7 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 	for (;;) {
 		/* Send RPC request (or re-send). */
 		m = m_copym(mhead, 0, M_COPYALL, M_WAITOK);
-		error = sosend(so, (struct sockaddr *)sa, NULL, m,
-			       NULL, 0, td);
+		error = sosend(so, (struct sockaddr *)sa, NULL, m, NULL, 0, td);
 		if (error) {
 			printf("krpc_call: sosend: %d\n", error);
 			goto out;
@@ -326,10 +323,8 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 		else {
 			saddr = ntohl(sa->sin_addr.s_addr);
 			printf("RPC timeout for server %d.%d.%d.%d\n",
-			       (saddr >> 24) & 255,
-			       (saddr >> 16) & 255,
-			       (saddr >> 8) & 255,
-			       saddr & 255);
+			    (saddr >> 24) & 255, (saddr >> 16) & 255,
+			    (saddr >> 8) & 255, saddr & 255);
 		}
 
 		/*
@@ -347,7 +342,7 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 				m = NULL;
 			}
 			bzero(&auio, sizeof(auio));
-			auio.uio_resid = len = 1<<16;
+			auio.uio_resid = len = 1 << 16;
 			rcvflg = 0;
 			error = soreceive(so, &from, &auio, &m, NULL, &rcvflg);
 			if (error == EWOULDBLOCK) {
@@ -374,31 +369,33 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 
 			/* Was RPC accepted? (authorization OK) */
 			if (reply->rp_astatus != 0) {
-				error = fxdr_unsigned(u_int32_t, reply->rp_errno);
+				error = fxdr_unsigned(
+				    u_int32_t, reply->rp_errno);
 				printf("rpc denied, error=%d\n", error);
 				continue;
 			}
 
 			/* Did the call succeed? */
 			if (reply->rp_status != 0) {
-				error = fxdr_unsigned(u_int32_t, reply->rp_status);
+				error = fxdr_unsigned(
+				    u_int32_t, reply->rp_status);
 				if (error == PROG_MISMATCH) {
-				  error = EBADRPC;
-				  goto out;
+					error = EBADRPC;
+					goto out;
 				}
 				printf("rpc denied, status=%d\n", error);
 				continue;
 			}
 
-			goto gotreply;	/* break two levels */
+			goto gotreply; /* break two levels */
 
 		} /* while secs */
-	} /* forever send/receive */
+	}	  /* forever send/receive */
 
 	error = ETIMEDOUT;
 	goto out;
 
- gotreply:
+gotreply:
 
 	/*
 	 * Get RPC reply header into first mbuf,
@@ -426,9 +423,11 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 		from = NULL;
 	}
 
- out:
-	if (mhead) m_freem(mhead);
-	if (from) free(from, M_SONAME);
+out:
+	if (mhead)
+		m_freem(mhead);
+	if (from)
+		free(from, M_SONAME);
 	soclose(so);
 	return error;
 }
@@ -442,9 +441,9 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
  * String representation for RPC.
  */
 struct xdr_string {
-	u_int32_t len;		/* length without null or padding */
-	char data[4];	/* data (longer, of course) */
-    /* data is padded to a long-word boundary */
+	u_int32_t len; /* length without null or padding */
+	char data[4];  /* data (longer, of course) */
+		       /* data is padded to a long-word boundary */
 };
 
 struct mbuf *
@@ -452,13 +451,13 @@ xdr_string_encode(char *str, int len)
 {
 	struct mbuf *m;
 	struct xdr_string *xs;
-	int dlen;	/* padded string length */
-	int mlen;	/* message length */
+	int dlen; /* padded string length */
+	int mlen; /* message length */
 
 	dlen = (len + 3) & ~3;
 	mlen = dlen + 4;
 
-	if (mlen > MCLBYTES)		/* If too big, we just can't do it. */
+	if (mlen > MCLBYTES) /* If too big, we just can't do it. */
 		return (NULL);
 
 	m = m_get2(mlen, M_WAITOK, MT_DATA, 0);

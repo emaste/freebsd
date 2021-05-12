@@ -50,25 +50,22 @@ __FBSDID("$FreeBSD$");
  */
 
 struct aw_clk_m_sc {
-	uint32_t	offset;
+	uint32_t offset;
 
-	struct aw_clk_factor	m;
+	struct aw_clk_factor m;
 
-	uint32_t	mux_shift;
-	uint32_t	mux_mask;
-	uint32_t	gate_shift;
+	uint32_t mux_shift;
+	uint32_t mux_mask;
+	uint32_t gate_shift;
 
-	uint32_t	flags;
+	uint32_t flags;
 };
 
-#define	WRITE4(_clk, off, val)						\
+#define WRITE4(_clk, off, val) \
 	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
-#define	READ4(_clk, off, val)						\
-	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
-#define	DEVICE_LOCK(_clk)							\
-	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
-#define	DEVICE_UNLOCK(_clk)						\
-	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
+#define READ4(_clk, off, val) CLKDEV_READ_4(clknode_get_device(_clk), off, val)
+#define DEVICE_LOCK(_clk) CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
+#define DEVICE_UNLOCK(_clk) CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
 static int
 aw_clk_m_init(struct clknode *clk, device_t dev)
@@ -147,7 +144,7 @@ aw_clk_m_find_best(struct aw_clk_m_sc *sc, uint64_t fparent, uint64_t *fout,
 	max_m = aw_clk_factor_get_max(&sc->m);
 	min_m = aw_clk_factor_get_min(&sc->m);
 
-	for (m = min_m; m <= max_m; ) {
+	for (m = min_m; m <= max_m;) {
 		cur = fparent / m;
 		if (abs(*fout - cur) < abs(*fout - best)) {
 			best = cur;
@@ -163,8 +160,8 @@ aw_clk_m_find_best(struct aw_clk_m_sc *sc, uint64_t fparent, uint64_t *fout,
 }
 
 static int
-aw_clk_m_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
-    int flags, int *stop)
+aw_clk_m_set_freq(
+    struct clknode *clk, uint64_t fparent, uint64_t *fout, int flags, int *stop)
 {
 	struct aw_clk_m_sc *sc;
 	struct clknode *p_clk;
@@ -178,18 +175,15 @@ aw_clk_m_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	if ((sc->flags & AW_CLK_SET_PARENT) != 0) {
 		p_clk = clknode_get_parent(clk);
 		if (p_clk == NULL) {
-			printf("%s: Cannot get parent for clock %s\n",
-			    __func__,
+			printf("%s: Cannot get parent for clock %s\n", __func__,
 			    clknode_get_name(clk));
 			return (ENXIO);
 		}
 		clknode_set_freq(p_clk, *fout, CLK_SET_ROUND_MULTIPLE, 0);
 		clknode_get_freq(p_clk, &fparent);
-		best = aw_clk_m_find_best(sc, fparent, fout,
-		    &best_m);
+		best = aw_clk_m_find_best(sc, fparent, fout, &best_m);
 	} else {
-		best = aw_clk_m_find_best(sc, fparent, fout,
-		    &best_m);
+		best = aw_clk_m_find_best(sc, fparent, fout, &best_m);
 	}
 
 	if ((flags & CLK_SET_DRYRUN) != 0) {
@@ -198,13 +192,11 @@ aw_clk_m_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 		return (0);
 	}
 
-	if ((best < *fout) &&
-	  ((flags & CLK_SET_ROUND_DOWN) == 0)) {
+	if ((best < *fout) && ((flags & CLK_SET_ROUND_DOWN) == 0)) {
 		*stop = 1;
 		return (ERANGE);
 	}
-	if ((best > *fout) &&
-	  ((flags & CLK_SET_ROUND_UP) == 0)) {
+	if ((best > *fout) && ((flags & CLK_SET_ROUND_UP) == 0)) {
 		*stop = 1;
 		return (ERANGE);
 	}
@@ -246,12 +238,11 @@ aw_clk_m_recalc(struct clknode *clk, uint64_t *freq)
 
 static clknode_method_t aw_m_clknode_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init,		aw_clk_m_init),
-	CLKNODEMETHOD(clknode_set_gate,		aw_clk_m_set_gate),
-	CLKNODEMETHOD(clknode_set_mux,		aw_clk_m_set_mux),
-	CLKNODEMETHOD(clknode_recalc_freq,	aw_clk_m_recalc),
-	CLKNODEMETHOD(clknode_set_freq,		aw_clk_m_set_freq),
-	CLKNODEMETHOD_END
+	CLKNODEMETHOD(clknode_init, aw_clk_m_init),
+	CLKNODEMETHOD(clknode_set_gate, aw_clk_m_set_gate),
+	CLKNODEMETHOD(clknode_set_mux, aw_clk_m_set_mux),
+	CLKNODEMETHOD(clknode_recalc_freq, aw_clk_m_recalc),
+	CLKNODEMETHOD(clknode_set_freq, aw_clk_m_set_freq), CLKNODEMETHOD_END
 };
 
 DEFINE_CLASS_1(aw_m_clknode, aw_m_clknode_class, aw_m_clknode_methods,

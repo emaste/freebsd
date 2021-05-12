@@ -27,28 +27,28 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PCPU_H_
-#define	_MACHINE_PCPU_H_
+#ifndef _MACHINE_PCPU_H_
+#define _MACHINE_PCPU_H_
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 
-#define	ALT_STACK_SIZE	128
+#define ALT_STACK_SIZE 128
 
 typedef int (*pcpu_bp_harden)(void);
 typedef int (*pcpu_ssbd)(int);
 struct debug_monitor_state;
 
-#define	PCPU_MD_FIELDS							\
-	u_int	pc_acpi_id;	/* ACPI CPU id */			\
-	u_int	pc_midr;	/* stored MIDR value */			\
-	uint64_t pc_clock;						\
-	pcpu_bp_harden pc_bp_harden;					\
-	pcpu_ssbd pc_ssbd;						\
-	struct pmap *pc_curpmap;					\
-	struct pmap *pc_curvmpmap;					\
-	u_int	pc_bcast_tlbi_workaround;				\
-	u_int	pc_mpidr;	/* stored MPIDR value */		\
+#define PCPU_MD_FIELDS                            \
+	u_int pc_acpi_id; /* ACPI CPU id */       \
+	u_int pc_midr;	  /* stored MIDR value */ \
+	uint64_t pc_clock;                        \
+	pcpu_bp_harden pc_bp_harden;              \
+	pcpu_ssbd pc_ssbd;                        \
+	struct pmap *pc_curpmap;                  \
+	struct pmap *pc_curvmpmap;                \
+	u_int pc_bcast_tlbi_workaround;           \
+	u_int pc_mpidr; /* stored MPIDR value */  \
 	char __pad[201]
 
 #ifdef _KERNEL
@@ -56,9 +56,9 @@ struct debug_monitor_state;
 struct pcb;
 struct pcpu;
 
-register struct pcpu *pcpup __asm ("x18");
+register struct pcpu *pcpup __asm("x18");
 
-#define	get_pcpu()	pcpup
+#define get_pcpu() pcpup
 
 static inline struct thread *
 get_curthread(void)
@@ -69,13 +69,13 @@ get_curthread(void)
 	return (td);
 }
 
-#define	curthread get_curthread()
+#define curthread get_curthread()
 
-#define	PCPU_GET(member)	(pcpup->pc_ ## member)
-#define	PCPU_ADD(member, value)	(pcpup->pc_ ## member += (value))
-#define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
-#define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
+#define PCPU_GET(member) (pcpup->pc_##member)
+#define PCPU_ADD(member, value) (pcpup->pc_##member += (value))
+#define PCPU_PTR(member) (&pcpup->pc_##member)
+#define PCPU_SET(member, value) (pcpup->pc_##member = (value))
 
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
-#endif	/* !_MACHINE_PCPU_H_ */
+#endif /* !_MACHINE_PCPU_H_ */

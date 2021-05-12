@@ -34,30 +34,30 @@
  */
 
 #ifndef _NETINET_IP_OPTIONS_H_
-#define	_NETINET_IP_OPTIONS_H_
+#define _NETINET_IP_OPTIONS_H_
 
 struct ipoptrt {
-        struct  in_addr dst;                    /* final destination */
-        char    nop;                            /* one NOP to align */
-        char    srcopt[IPOPT_OFFSET + 1];       /* OPTVAL, OLEN and OFFSET */
-        struct  in_addr route[MAX_IPOPTLEN/sizeof(struct in_addr)];
+	struct in_addr dst;	       /* final destination */
+	char nop;		       /* one NOP to align */
+	char srcopt[IPOPT_OFFSET + 1]; /* OPTVAL, OLEN and OFFSET */
+	struct in_addr route[MAX_IPOPTLEN / sizeof(struct in_addr)];
 };
 
 struct ipopt_tag {
-	struct	m_tag tag;			/* m_tag */
-	int	ip_nhops;
-	struct	ipoptrt ip_srcrt;
+	struct m_tag tag; /* m_tag */
+	int ip_nhops;
+	struct ipoptrt ip_srcrt;
 };
 
-VNET_DECLARE(int, ip_doopts);		/* process or ignore IP options */
-#define	V_ip_doopts	VNET(ip_doopts)
+VNET_DECLARE(int, ip_doopts); /* process or ignore IP options */
+#define V_ip_doopts VNET(ip_doopts)
 
-int		 ip_checkrouteralert(struct mbuf *);
-int		 ip_dooptions(struct mbuf *, int);
-struct mbuf	*ip_insertoptions(struct mbuf *, struct mbuf *, int *);
-int		 ip_optcopy(struct ip *, struct ip *);
-int		 ip_pcbopts(struct inpcb *, int, struct mbuf *);
-void		 ip_stripoptions(struct mbuf *);
-struct mbuf	*ip_srcroute(struct mbuf *);
+int ip_checkrouteralert(struct mbuf *);
+int ip_dooptions(struct mbuf *, int);
+struct mbuf *ip_insertoptions(struct mbuf *, struct mbuf *, int *);
+int ip_optcopy(struct ip *, struct ip *);
+int ip_pcbopts(struct inpcb *, int, struct mbuf *);
+void ip_stripoptions(struct mbuf *);
+struct mbuf *ip_srcroute(struct mbuf *);
 
 #endif /* !_NETINET_IP_OPTIONS_H_ */

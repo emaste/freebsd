@@ -29,14 +29,16 @@
 
 #ifndef _SYS_KPILITE_H_
 #define _SYS_KPILITE_H_
-#if !defined(GENOFFSET) && (!defined(KLD_MODULE) || defined(KLD_TIED)) && defined(_KERNEL)
+#if !defined(GENOFFSET) && (!defined(KLD_MODULE) || defined(KLD_TIED)) && \
+    defined(_KERNEL)
 #include "offset.inc"
 
 static __inline void
 sched_pin_lite(struct thread_lite *td)
 {
 
-	KASSERT((struct thread *)td == curthread, ("sched_pin called on non curthread"));
+	KASSERT((struct thread *)td == curthread,
+	    ("sched_pin called on non curthread"));
 	td->td_pinned++;
 	atomic_interrupt_fence();
 }
@@ -45,7 +47,8 @@ static __inline void
 sched_unpin_lite(struct thread_lite *td)
 {
 
-	KASSERT((struct thread *)td == curthread, ("sched_unpin called on non curthread"));
+	KASSERT((struct thread *)td == curthread,
+	    ("sched_unpin called on non curthread"));
 	KASSERT(td->td_pinned > 0, ("sched_unpin called on non pinned thread"));
 	atomic_interrupt_fence();
 	td->td_pinned--;

@@ -27,7 +27,7 @@
  */
 
 #ifndef _CAVIUM_THUNDER_PCIE_COMMON_H_
-#define	_CAVIUM_THUNDER_PCIE_COMMON_H_
+#define _CAVIUM_THUNDER_PCIE_COMMON_H_
 
 DECLARE_CLASS(thunder_pcie_driver);
 DECLARE_CLASS(thunder_pem_driver);
@@ -41,8 +41,8 @@ uint64_t range_addr_pci_to_phys(struct pcie_range *, uint64_t);
 
 int thunder_pcie_identify_ecam(device_t, int *);
 #ifdef THUNDERX_PASS_1_1_ERRATA
-struct resource *thunder_pcie_alloc_resource(device_t,
-    device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
+struct resource *thunder_pcie_alloc_resource(
+    device_t, device_t, int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 #endif
 
 #endif /* _CAVIUM_THUNDER_PCIE_COMMON_H_ */

@@ -37,44 +37,38 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
+
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk_fixed.h>
 #include <dev/fdt/simplebus.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/clk/clk_fixed.h>
-
 #include <arm64/qoriq/clk/qoriq_clkgen.h>
 
-#define	PLL(_id1, _id2, cname, o, d)					\
-{									\
-	.clkdef.id = QORIQ_CLK_ID(_id1, _id2),				\
-	.clkdef.name = cname,						\
-	.clkdef.flags = 0,						\
-	.offset = o,							\
-	.shift  = 1,							\
-	.mask = 0xFE,							\
-	.dividers = d,							\
-	.flags = QORIQ_CLK_PLL_HAS_KILL_BIT,				\
-}
+#define PLL(_id1, _id2, cname, o, d)                                         \
+	{                                                                    \
+		.clkdef.id = QORIQ_CLK_ID(_id1, _id2), .clkdef.name = cname, \
+		.clkdef.flags = 0, .offset = o, .shift = 1, .mask = 0xFE,    \
+		.dividers = d, .flags = QORIQ_CLK_PLL_HAS_KILL_BIT,          \
+	}
 
-static const uint8_t plt_divs[] =
-    {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 0};
-static const uint8_t cga_divs[] =  {2, 4, 0};
-static const uint8_t cgb_divs[] =  {2, 3, 4, 0};
+static const uint8_t plt_divs[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+	14, 15, 16, 0 };
+static const uint8_t cga_divs[] = { 2, 4, 0 };
+static const uint8_t cgb_divs[] = { 2, 3, 4, 0 };
 
-static struct qoriq_clk_pll_def pltfrm_pll =
-    PLL(QORIQ_TYPE_PLATFORM_PLL, 0, "platform_pll", 0x60080, plt_divs);
-static struct qoriq_clk_pll_def cga_pll1 =
-    PLL(QORIQ_TYPE_INTERNAL, 0, "cga_pll1", 0x80, cga_divs);
-static struct qoriq_clk_pll_def cga_pll2 =
-    PLL(QORIQ_TYPE_INTERNAL, 0, "cga_pll2", 0xA0, cga_divs);
-static struct qoriq_clk_pll_def cgb_pll1 =
-    PLL(QORIQ_TYPE_INTERNAL, 0, "cgb_pll1", 0x10080, cgb_divs);
-static struct qoriq_clk_pll_def cgb_pll2 =
-    PLL(QORIQ_TYPE_INTERNAL, 0, "cgb_pll2", 0x100A0, cgb_divs);
+static struct qoriq_clk_pll_def pltfrm_pll = PLL(
+    QORIQ_TYPE_PLATFORM_PLL, 0, "platform_pll", 0x60080, plt_divs);
+static struct qoriq_clk_pll_def cga_pll1 = PLL(
+    QORIQ_TYPE_INTERNAL, 0, "cga_pll1", 0x80, cga_divs);
+static struct qoriq_clk_pll_def cga_pll2 = PLL(
+    QORIQ_TYPE_INTERNAL, 0, "cga_pll2", 0xA0, cga_divs);
+static struct qoriq_clk_pll_def cgb_pll1 = PLL(
+    QORIQ_TYPE_INTERNAL, 0, "cgb_pll1", 0x10080, cgb_divs);
+static struct qoriq_clk_pll_def cgb_pll2 = PLL(
+    QORIQ_TYPE_INTERNAL, 0, "cgb_pll2", 0x100A0, cgb_divs);
 
 static struct qoriq_clk_pll_def *cg_plls[] = {
 	&cga_pll1,
@@ -116,34 +110,29 @@ static const char *cmuxb_plist[] = {
 	"cgb_pll2_div4",
 };
 
-#define	MUX(_id1, _id2, cname, plist, o)				\
-{									\
-	.clkdef.id = QORIQ_CLK_ID(_id1, _id2),				\
-	.clkdef.name = cname,						\
-	.clkdef.parent_names = plist,					\
-	.clkdef.parent_cnt = nitems(plist),				\
-	.clkdef.flags = 0,						\
-	.offset = o,							\
-	.width  = 4,							\
-	.shift = 27,							\
-	.mux_flags = 0,							\
-}
-static struct clk_mux_def cmux0 =
-   MUX(QORIQ_TYPE_CMUX, 0, "cg-cmux0", cmuxa_plist, 0x70000);
-static struct clk_mux_def cmux1 =
-   MUX(QORIQ_TYPE_CMUX, 1, "cg-cmux1", cmuxa_plist, 0x70020);
-static struct clk_mux_def cmux2 =
-   MUX(QORIQ_TYPE_CMUX, 2, "cg-cmux2", cmuxa_plist, 0x70040);
-static struct clk_mux_def cmux3 =
-   MUX(QORIQ_TYPE_CMUX, 3, "cg-cmux3", cmuxa_plist, 0x70060);
-static struct clk_mux_def cmux4 =
-   MUX(QORIQ_TYPE_CMUX, 4, "cg-cmux4", cmuxb_plist, 0x70080);
-static struct clk_mux_def cmux5 =
-   MUX(QORIQ_TYPE_CMUX, 5, "cg-cmux5", cmuxb_plist, 0x700A0);
-static struct clk_mux_def cmux6 =
-   MUX(QORIQ_TYPE_CMUX, 6, "cg-cmux6", cmuxb_plist,  0x700C0);
-static struct clk_mux_def cmux7 =
-   MUX(QORIQ_TYPE_CMUX, 7, "cg-cmux7", cmuxb_plist,  0x700E0);
+#define MUX(_id1, _id2, cname, plist, o)                                     \
+	{                                                                    \
+		.clkdef.id = QORIQ_CLK_ID(_id1, _id2), .clkdef.name = cname, \
+		.clkdef.parent_names = plist,                                \
+		.clkdef.parent_cnt = nitems(plist), .clkdef.flags = 0,       \
+		.offset = o, .width = 4, .shift = 27, .mux_flags = 0,        \
+	}
+static struct clk_mux_def cmux0 = MUX(
+    QORIQ_TYPE_CMUX, 0, "cg-cmux0", cmuxa_plist, 0x70000);
+static struct clk_mux_def cmux1 = MUX(
+    QORIQ_TYPE_CMUX, 1, "cg-cmux1", cmuxa_plist, 0x70020);
+static struct clk_mux_def cmux2 = MUX(
+    QORIQ_TYPE_CMUX, 2, "cg-cmux2", cmuxa_plist, 0x70040);
+static struct clk_mux_def cmux3 = MUX(
+    QORIQ_TYPE_CMUX, 3, "cg-cmux3", cmuxa_plist, 0x70060);
+static struct clk_mux_def cmux4 = MUX(
+    QORIQ_TYPE_CMUX, 4, "cg-cmux4", cmuxb_plist, 0x70080);
+static struct clk_mux_def cmux5 = MUX(
+    QORIQ_TYPE_CMUX, 5, "cg-cmux5", cmuxb_plist, 0x700A0);
+static struct clk_mux_def cmux6 = MUX(
+    QORIQ_TYPE_CMUX, 6, "cg-cmux6", cmuxb_plist, 0x700C0);
+static struct clk_mux_def cmux7 = MUX(
+    QORIQ_TYPE_CMUX, 7, "cg-cmux7", cmuxb_plist, 0x700E0);
 
 static struct clk_mux_def *mux_nodes[] = {
 	&cmux0,
@@ -163,7 +152,7 @@ lx2160a_clkgen_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if(!ofw_bus_is_compatible(dev, "fsl,lx2160a-clockgen"))
+	if (!ofw_bus_is_compatible(dev, "fsl,lx2160a-clockgen"))
 		return (ENXIO);
 
 	device_set_desc(dev, "LX2160A clockgen");
@@ -187,21 +176,26 @@ lx2160a_clkgen_attach(device_t dev)
 
 	rv = qoriq_clkgen_attach(dev);
 
-	printf(" %s: offset: 0x%08X, val: 0x%08X\n", __func__, 0x00080, bus_read_4(sc->res, 0x00080));
-	printf(" %s: offset: 0x%08X, val: 0x%08X\n", __func__, 0x000A0, bus_read_4(sc->res, 0x000A0));
-	printf(" %s: offset: 0x%08X, val: 0x%08X\n", __func__, 0x10080, bus_read_4(sc->res, 0x10080));
-	printf(" %s: offset: 0x%08X, val: 0x%08X\n", __func__, 0x100A0, bus_read_4(sc->res, 0x100A0));
-	printf(" %s: offset: 0x%08X, val: 0x%08X\n", __func__, 0x60080, bus_read_4(sc->res, 0x60080));
-	printf(" %s: offset: 0x%08X, val: 0x%08X\n", __func__, 0x600A0, bus_read_4(sc->res, 0x600A0));
+	printf(" %s: offset: 0x%08X, val: 0x%08X\n", __func__, 0x00080,
+	    bus_read_4(sc->res, 0x00080));
+	printf(" %s: offset: 0x%08X, val: 0x%08X\n", __func__, 0x000A0,
+	    bus_read_4(sc->res, 0x000A0));
+	printf(" %s: offset: 0x%08X, val: 0x%08X\n", __func__, 0x10080,
+	    bus_read_4(sc->res, 0x10080));
+	printf(" %s: offset: 0x%08X, val: 0x%08X\n", __func__, 0x100A0,
+	    bus_read_4(sc->res, 0x100A0));
+	printf(" %s: offset: 0x%08X, val: 0x%08X\n", __func__, 0x60080,
+	    bus_read_4(sc->res, 0x60080));
+	printf(" %s: offset: 0x%08X, val: 0x%08X\n", __func__, 0x600A0,
+	    bus_read_4(sc->res, 0x600A0));
 	return (rv);
 }
 
-static device_method_t lx2160a_clkgen_methods[] = {
-	DEVMETHOD(device_probe,		lx2160a_clkgen_probe),
-	DEVMETHOD(device_attach,	lx2160a_clkgen_attach),
+static device_method_t lx2160a_clkgen_methods[] = { DEVMETHOD(device_probe,
+							lx2160a_clkgen_probe),
+	DEVMETHOD(device_attach, lx2160a_clkgen_attach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static devclass_t lx2160a_clkgen_devclass;
 

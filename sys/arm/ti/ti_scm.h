@@ -37,18 +37,18 @@
 /**
  *	Functions to configure the PIN multiplexing on the chip.
  *
- *	This is different from the GPIO module in that it is used to configure the
- *	pins between modules not just GPIO input output.
+ *	This is different from the GPIO module in that it is used to configure
+ *the pins between modules not just GPIO input output.
  *
  */
 #ifndef _TI_SCM_H_
 #define _TI_SCM_H_
 
 struct ti_scm_softc {
-	device_t		sc_dev;
-	struct resource *	sc_res[4];
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
+	device_t sc_dev;
+	struct resource *sc_res[4];
+	bus_space_tag_t sc_bst;
+	bus_space_handle_t sc_bsh;
 };
 
 int ti_scm_reg_read_4(uint32_t reg, uint32_t *val);

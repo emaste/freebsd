@@ -53,27 +53,27 @@
  * Architecture specific syscalls (arm)
  */
 
-#define ARM_SYNC_ICACHE		0
-#define ARM_DRAIN_WRITEBUF	1
-#define ARM_SET_TP		2
-#define ARM_GET_TP		3
-#define ARM_GET_VFPSTATE	4
+#define ARM_SYNC_ICACHE 0
+#define ARM_DRAIN_WRITEBUF 1
+#define ARM_SET_TP 2
+#define ARM_GET_TP 3
+#define ARM_GET_VFPSTATE 4
 
 struct arm_sync_icache_args {
-	__uintptr_t	addr;		/* Virtual start address */
-	__size_t	len;		/* Region size */
+	__uintptr_t addr; /* Virtual start address */
+	__size_t len;	  /* Region size */
 };
 
 struct arm_get_vfpstate_args {
-	__size_t	mc_vfp_size;
-	void 		*mc_vfp;
+	__size_t mc_vfp_size;
+	void *mc_vfp;
 };
 
 #ifndef _KERNEL
 __BEGIN_DECLS
-int	arm_sync_icache(unsigned int, int);
-int	arm_drain_writebuf(void);
-int	sysarch(int, void *);
+int arm_sync_icache(unsigned int, int);
+int arm_drain_writebuf(void);
+int sysarch(int, void *);
 __END_DECLS
 #endif
 

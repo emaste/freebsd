@@ -56,18 +56,18 @@
  */
 
 #ifndef _MACHINE_ABI_H_
-#define	_MACHINE_ABI_H_
+#define _MACHINE_ABI_H_
 
 #if defined(__mips_o32)
-#define	SZREG	4
+#define SZREG 4
 #else
-#define	SZREG	8
+#define SZREG 8
 #endif
 
 #if defined(__mips_o32) || defined(__mips_o64)
-#define	STACK_ALIGN	8
+#define STACK_ALIGN 8
 #else
-#define	STACK_ALIGN	16
+#define STACK_ALIGN 16
 #endif
 
 /*
@@ -80,16 +80,16 @@
  *  };
  */
 #if defined(__mips_o32) || defined(__mips_o64)
-#define	CALLFRAME_SIZ	(SZREG * (4 + 2))
-#define	CALLFRAME_S0	0
+#define CALLFRAME_SIZ (SZREG * (4 + 2))
+#define CALLFRAME_S0 0
 #elif defined(__mips_n32) || defined(__mips_n64)
-#define	CALLFRAME_SIZ	(SZREG * 4)
-#define	CALLFRAME_S0	(CALLFRAME_SIZ - 4 * SZREG)
+#define CALLFRAME_SIZ (SZREG * 4)
+#define CALLFRAME_S0 (CALLFRAME_SIZ - 4 * SZREG)
 #endif
 #ifndef _KERNEL
-#define	CALLFRAME_GP	(CALLFRAME_SIZ - 3 * SZREG)
+#define CALLFRAME_GP (CALLFRAME_SIZ - 3 * SZREG)
 #endif
-#define	CALLFRAME_SP	(CALLFRAME_SIZ - 2 * SZREG)
-#define	CALLFRAME_RA	(CALLFRAME_SIZ - 1 * SZREG)
+#define CALLFRAME_SP (CALLFRAME_SIZ - 2 * SZREG)
+#define CALLFRAME_RA (CALLFRAME_SIZ - 1 * SZREG)
 
 #endif /* !_MACHINE_ABI_H_ */

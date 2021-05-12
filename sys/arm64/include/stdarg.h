@@ -28,12 +28,12 @@
  */
 
 #ifndef _MACHINE_STDARG_H_
-#define	_MACHINE_STDARG_H_
+#define _MACHINE_STDARG_H_
 
 #include <sys/_stdarg.h>
 
 #ifndef va_start
-  #error this file needs to be ported to your compiler
+#error this file needs to be ported to your compiler
 #endif
 
 #endif /* !_MACHINE_STDARG_H_ */

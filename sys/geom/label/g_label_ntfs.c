@@ -37,58 +37,58 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/label/g_label.h>
 
-#define	NTFS_A_VOLUMENAME	0x60
-#define	NTFS_FILEMAGIC		((uint32_t)(0x454C4946))
-#define	NTFS_VOLUMEINO		3
+#define NTFS_A_VOLUMENAME 0x60
+#define NTFS_FILEMAGIC ((uint32_t)(0x454C4946))
+#define NTFS_VOLUMEINO 3
 
 struct ntfs_attr {
-	uint32_t	a_type;
-	uint32_t	reclen;
-	uint8_t		a_flag;
-	uint8_t		a_namelen;
-	uint8_t		a_nameoff;
-	uint8_t		reserved1;
-	uint8_t		a_compression;
-	uint8_t		reserved2;
-	uint16_t	a_index;
-	uint16_t	a_datalen;
-	uint16_t	reserved3;
-	uint16_t	a_dataoff;
-	uint16_t	a_indexed;
+	uint32_t a_type;
+	uint32_t reclen;
+	uint8_t a_flag;
+	uint8_t a_namelen;
+	uint8_t a_nameoff;
+	uint8_t reserved1;
+	uint8_t a_compression;
+	uint8_t reserved2;
+	uint16_t a_index;
+	uint16_t a_datalen;
+	uint16_t reserved3;
+	uint16_t a_dataoff;
+	uint16_t a_indexed;
 } __packed;
 
 struct ntfs_filerec {
-	uint32_t	fr_hdrmagic;
-	uint16_t	fr_hdrfoff;
-	uint16_t	fr_hdrfnum;
-	uint8_t		reserved[8];
-	uint16_t	fr_seqnum;
-	uint16_t	fr_nlink;
-	uint16_t	fr_attroff;
-	uint16_t	fr_flags;
-	uint32_t	fr_size;
-	uint32_t	fr_allocated;
-	uint64_t	fr_mainrec;
-	uint16_t	fr_attrnum;
+	uint32_t fr_hdrmagic;
+	uint16_t fr_hdrfoff;
+	uint16_t fr_hdrfnum;
+	uint8_t reserved[8];
+	uint16_t fr_seqnum;
+	uint16_t fr_nlink;
+	uint16_t fr_attroff;
+	uint16_t fr_flags;
+	uint32_t fr_size;
+	uint32_t fr_allocated;
+	uint64_t fr_mainrec;
+	uint16_t fr_attrnum;
 } __packed;
 
 struct ntfs_bootfile {
-	uint8_t		reserved1[3];
-	uint8_t		bf_sysid[8];
-	uint16_t	bf_bps;
-	uint8_t		bf_spc;
-	uint8_t		reserved2[7];
-	uint8_t		bf_media;
-	uint8_t		reserved3[2];
-	uint16_t	bf_spt;
-	uint16_t	bf_heads;
-	uint8_t		reserver4[12];
-	uint64_t	bf_spv;
-	uint64_t	bf_mftcn;
-	uint64_t	bf_mftmirrcn;
-	int8_t		bf_mftrecsz;
-	uint32_t	bf_ibsz;
-	uint32_t	bf_volsn;
+	uint8_t reserved1[3];
+	uint8_t bf_sysid[8];
+	uint16_t bf_bps;
+	uint8_t bf_spc;
+	uint8_t reserved2[7];
+	uint8_t bf_media;
+	uint8_t reserved3[2];
+	uint16_t bf_spt;
+	uint16_t bf_heads;
+	uint8_t reserver4[12];
+	uint64_t bf_spv;
+	uint64_t bf_mftcn;
+	uint64_t bf_mftmirrcn;
+	int8_t bf_mftrecsz;
+	uint32_t bf_ibsz;
+	uint32_t bf_volsn;
 } __packed;
 
 static void
@@ -115,7 +115,8 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 		goto done;
 
 	mftrecsz = bf->bf_mftrecsz;
-	recsize = (mftrecsz > 0) ? (mftrecsz * bf->bf_bps * bf->bf_spc) : (1 << -mftrecsz);
+	recsize = (mftrecsz > 0) ? (mftrecsz * bf->bf_bps * bf->bf_spc) :
+					 (1 << -mftrecsz);
 	if (recsize == 0 || recsize % pp->sectorsize != 0)
 		goto done;
 
@@ -133,10 +134,10 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 		goto done;
 
 	for (ap = filerecp + fr->fr_attroff;
-	    atr = (struct ntfs_attr *)ap, atr->a_type != -1;
-	    ap += atr->reclen) {
+	     atr = (struct ntfs_attr *)ap, atr->a_type != -1;
+	     ap += atr->reclen) {
 		if (atr->a_type == NTFS_A_VOLUMENAME) {
-			if(atr->a_datalen >= size *2){
+			if (atr->a_datalen >= size * 2) {
 				label[0] = 0;
 				goto done;
 			}
@@ -166,10 +167,8 @@ done:
 		g_free(filerecp);
 }
 
-struct g_label_desc g_label_ntfs = {
-	.ld_taste = g_label_ntfs_taste,
+struct g_label_desc g_label_ntfs = { .ld_taste = g_label_ntfs_taste,
 	.ld_dirprefix = "ntfs/",
-	.ld_enabled = 1
-};
+	.ld_enabled = 1 };
 
 G_LABEL_INIT(ntfs, g_label_ntfs, "Create device nodes for NTFS volumes");

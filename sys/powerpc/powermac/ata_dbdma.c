@@ -37,20 +37,24 @@ __FBSDID("* $FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
+#include <sys/ata.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
+
 #include <vm/uma.h>
-#include <machine/stdarg.h>
-#include <machine/resource.h>
+
 #include <machine/bus.h>
-#include <sys/rman.h>
-#include <sys/ata.h>
+#include <machine/resource.h>
+#include <machine/stdarg.h>
+
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-pci.h>
+
 #include <ata_if.h>
 
 #include "ata_dbdma.h"
@@ -73,7 +77,7 @@ ata_dbdma_setprd(void *xarg, bus_dma_segment_t *segs, int nsegs, int error)
 
 	mtx_lock(&sc->dbdma_mtx);
 
-	prev_stop = sc->next_dma_slot-1;
+	prev_stop = sc->next_dma_slot - 1;
 	if (prev_stop < 0)
 		prev_stop = 0xff;
 
@@ -85,16 +89,16 @@ ata_dbdma_setprd(void *xarg, bus_dma_segment_t *segs, int nsegs, int error)
 			branch_type = DBDMA_NEVER;
 
 		if (arg->write) {
-			command = (i + 1 < nsegs) ? DBDMA_OUTPUT_MORE : 
-			    DBDMA_OUTPUT_LAST;
+			command = (i + 1 < nsegs) ? DBDMA_OUTPUT_MORE :
+							  DBDMA_OUTPUT_LAST;
 		} else {
-			command = (i + 1 < nsegs) ? DBDMA_INPUT_MORE : 
-			    DBDMA_INPUT_LAST;
+			command = (i + 1 < nsegs) ? DBDMA_INPUT_MORE :
+							  DBDMA_INPUT_LAST;
 		}
 
-		dbdma_insert_command(sc->dbdma, sc->next_dma_slot++,
-		    command, 0, segs[i].ds_addr, segs[i].ds_len,
-		    DBDMA_NEVER, branch_type, DBDMA_NEVER, 0);
+		dbdma_insert_command(sc->dbdma, sc->next_dma_slot++, command, 0,
+		    segs[i].ds_addr, segs[i].ds_len, DBDMA_NEVER, branch_type,
+		    DBDMA_NEVER, 0);
 
 		if (branch_type == DBDMA_ALWAYS)
 			sc->next_dma_slot = 0;
@@ -130,8 +134,8 @@ ata_dbdma_status(device_t dev)
 	struct ata_channel *ch = device_get_softc(dev);
 
 	if (sc->sc_ch.dma.flags & ATA_DMA_ACTIVE) {
-		return (!(dbdma_get_chan_status(sc->dbdma) & 
-		    DBDMA_STATUS_ACTIVE));
+		return (
+		    !(dbdma_get_chan_status(sc->dbdma) & DBDMA_STATUS_ACTIVE));
 	}
 
 	if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
@@ -161,7 +165,7 @@ ata_dbdma_reset(device_t dev)
 
 	dbdma_stop(sc->dbdma);
 	dbdma_insert_stop(sc->dbdma, 0);
-	sc->next_dma_slot=1;
+	sc->next_dma_slot = 1;
 	dbdma_set_current_cmd(sc->dbdma, 0);
 
 	sc->sc_ch.dma.flags &= ~ATA_DMA_ACTIVE;
@@ -182,20 +186,23 @@ ata_dbdma_stop(struct ata_request *request)
 	sc->sc_ch.dma.flags &= ~ATA_DMA_ACTIVE;
 
 	if (status & DBDMA_STATUS_DEAD) {
-		device_printf(request->parent,"DBDMA dead, resetting "
+		device_printf(request->parent,
+		    "DBDMA dead, resetting "
 		    "channel...\n");
 		ata_dbdma_reset(request->parent);
 		return ATA_S_ERROR;
 	}
 
 	if (!(status & DBDMA_STATUS_RUN)) {
-		device_printf(request->parent,"DBDMA confused, stop called "
+		device_printf(request->parent,
+		    "DBDMA confused, stop called "
 		    "when channel is not running!\n");
 		return ATA_S_ERROR;
 	}
 
 	if (status & DBDMA_STATUS_ACTIVE) {
-		device_printf(request->parent,"DBDMA channel stopped "
+		device_printf(request->parent,
+		    "DBDMA channel stopped "
 		    "prematurely\n");
 		return ATA_S_ERROR;
 	}
@@ -233,9 +240,9 @@ ata_dbdma_load(struct ata_request *request, void *addr, int *entries)
 
 	request->dma = &ch->dma.slot[0];
 
-	if ((error = bus_dmamap_load(request->dma->data_tag, 
-	    request->dma->data_map, request->data, request->bytecount,
-	    &ata_dbdma_setprd, &args, BUS_DMA_NOWAIT))) {
+	if ((error = bus_dmamap_load(request->dma->data_tag,
+		 request->dma->data_map, request->data, request->bytecount,
+		 &ata_dbdma_setprd, &args, BUS_DMA_NOWAIT))) {
 		device_printf(request->dev, "FAILURE - load data\n");
 		goto error;
 	}
@@ -243,11 +250,11 @@ ata_dbdma_load(struct ata_request *request, void *addr, int *entries)
 	if (entries)
 		*entries = args.nsegs;
 
-	bus_dmamap_sync(request->dma->sg_tag, request->dma->sg_map,
-	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(
+	    request->dma->sg_tag, request->dma->sg_map, BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(request->dma->data_tag, request->dma->data_map,
-	    (request->flags & ATA_R_READ) ?
-	    BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE);
+	    (request->flags & ATA_R_READ) ? BUS_DMASYNC_PREREAD :
+						  BUS_DMASYNC_PREWRITE);
 
 	return 0;
 
@@ -265,10 +272,10 @@ ata_dbdma_dmainit(device_t dev)
 	error = dbdma_allocate_channel(sc->dbdma_regs, sc->dbdma_offset,
 	    bus_get_dma_tag(dev), 256, &sc->dbdma);
 
-	dbdma_set_wait_selector(sc->dbdma,1 << 7, 1 << 7);
+	dbdma_set_wait_selector(sc->dbdma, 1 << 7, 1 << 7);
 
-	dbdma_insert_stop(sc->dbdma,0);
-	sc->next_dma_slot=1;
+	dbdma_insert_stop(sc->dbdma, 0);
+	sc->next_dma_slot = 1;
 
 	sc->sc_ch.dma.start = ata_dbdma_start;
 	sc->sc_ch.dma.stop = ata_dbdma_stop;

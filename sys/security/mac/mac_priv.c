@@ -42,9 +42,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/priv.h>
 #include <sys/sdt.h>
-#include <sys/module.h>
 
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>

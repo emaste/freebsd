@@ -29,13 +29,13 @@
  */
 
 #ifndef _MACHINE_GDB_MACHDEP_H_
-#define	_MACHINE_GDB_MACHDEP_H_
+#define _MACHINE_GDB_MACHDEP_H_
 
 #ifdef BOOKE
-#define	PPC_GDB_NREGS0	1
-#define	PPC_GDB_NREGS4	(70 + 1)
-#define	PPC_GDB_NREGS8	(1 + 32)
-#define	PPC_GDB_NREGS16	0
+#define PPC_GDB_NREGS0 1
+#define PPC_GDB_NREGS4 (70 + 1)
+#define PPC_GDB_NREGS8 (1 + 32)
+#define PPC_GDB_NREGS16 0
 
 #else
 /*
@@ -49,40 +49,39 @@
  * 103 - VSCR, VRSAVE (4)
  */
 
-#define	PPC_REGNUM_R0	0
-#define	PPC_REGNUM_R31	(PPC_REGNUM_R0 + 31)
-#define	PPC_REGNUM_FR0	32
-#define	PPC_REGNUM_FR31	(PPC_REGNUM_FR0 + 31)
-#define	PPC_REGNUM_PC	64
-#define	PPC_REGNUM_PS	65
-#define	PPC_REGNUM_CR	66
-#define	PPC_REGNUM_LR	67
-#define	PPC_REGNUM_CTR	68
-#define	PPC_REGNUM_XER	69
-#define	PPC_REGNUM_FPSCR 70
-#define	PPC_REGNUM_VR0	71
-#define	PPC_REGNUM_VR31	(PPC_REGNUM_VR0 + 31)
+#define PPC_REGNUM_R0 0
+#define PPC_REGNUM_R31 (PPC_REGNUM_R0 + 31)
+#define PPC_REGNUM_FR0 32
+#define PPC_REGNUM_FR31 (PPC_REGNUM_FR0 + 31)
+#define PPC_REGNUM_PC 64
+#define PPC_REGNUM_PS 65
+#define PPC_REGNUM_CR 66
+#define PPC_REGNUM_LR 67
+#define PPC_REGNUM_CTR 68
+#define PPC_REGNUM_XER 69
+#define PPC_REGNUM_FPSCR 70
+#define PPC_REGNUM_VR0 71
+#define PPC_REGNUM_VR31 (PPC_REGNUM_VR0 + 31)
 
-#define	PPC_GDB_NREGS0	0
+#define PPC_GDB_NREGS0 0
 
 #ifdef __powerpc64__
-#define	PPC_GDB_NREGS4	5
-#define	PPC_GDB_NREGS8	(64 + 4)
+#define PPC_GDB_NREGS4 5
+#define PPC_GDB_NREGS8 (64 + 4)
 #else
-#define	PPC_GDB_NREGS4	(32 + 7 + 2)
-#define	PPC_GDB_NREGS8	32
+#define PPC_GDB_NREGS4 (32 + 7 + 2)
+#define PPC_GDB_NREGS8 32
 #endif
 
-#define	PPC_GDB_NREGS16	32
+#define PPC_GDB_NREGS16 32
 #endif
 
-#define GDB_NREGS	(PPC_GDB_NREGS0 + PPC_GDB_NREGS4 + \
-			 PPC_GDB_NREGS8 + PPC_GDB_NREGS16)
-#define	GDB_REG_PC	64
+#define GDB_NREGS \
+	(PPC_GDB_NREGS0 + PPC_GDB_NREGS4 + PPC_GDB_NREGS8 + PPC_GDB_NREGS16)
+#define GDB_REG_PC 64
 
-#define	GDB_BUFSZ	(PPC_GDB_NREGS4 * 8 +	\
-			 PPC_GDB_NREGS8 * 16 +	\
-			 PPC_GDB_NREGS16 * 32)
+#define GDB_BUFSZ \
+	(PPC_GDB_NREGS4 * 8 + PPC_GDB_NREGS8 * 16 + PPC_GDB_NREGS16 * 32)
 
 static __inline size_t
 gdb_cpu_regsz(int regnum)
@@ -125,13 +124,11 @@ gdb_begin_write(void)
 static __inline void
 gdb_end_write(void *arg __unused)
 {
-
 }
 
 static __inline void
 gdb_cpu_stop_reason(int type __unused, int code __unused)
 {
-
 }
 
 void *gdb_cpu_getreg(int, size_t *);

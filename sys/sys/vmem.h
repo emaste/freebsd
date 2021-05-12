@@ -30,7 +30,7 @@
 /* $FreeBSD$ */
 
 #ifndef _SYS_VMEM_H_
-#define	_SYS_VMEM_H_
+#define _SYS_VMEM_H_
 
 #include <sys/types.h>
 
@@ -38,16 +38,16 @@
 
 typedef struct vmem vmem_t;
 
-typedef uintptr_t	vmem_addr_t;
-typedef size_t		vmem_size_t;
+typedef uintptr_t vmem_addr_t;
+typedef size_t vmem_size_t;
 
-#define	VMEM_ADDR_MIN		0
-#define	VMEM_ADDR_QCACHE_MIN	1
-#define	VMEM_ADDR_MAX		(~(vmem_addr_t)0)
+#define VMEM_ADDR_MIN 0
+#define VMEM_ADDR_QCACHE_MIN 1
+#define VMEM_ADDR_MAX (~(vmem_addr_t)0)
 
-typedef int (vmem_import_t)(void *, vmem_size_t, int, vmem_addr_t *);
-typedef void (vmem_release_t)(void *, vmem_addr_t, vmem_size_t);
-typedef void (vmem_reclaim_t)(vmem_t *, int);
+typedef int(vmem_import_t)(void *, vmem_size_t, int, vmem_addr_t *);
+typedef void(vmem_release_t)(void *, vmem_addr_t, vmem_size_t);
+typedef void(vmem_reclaim_t)(vmem_t *, int);
 
 /*
  * Create a vmem:
@@ -59,8 +59,8 @@ typedef void (vmem_reclaim_t)(vmem_t *, int);
  *			  cache for each multiple of quantum up to qcache_max.
  *	flags		- M_* flags
  */
-vmem_t *vmem_create(const char *name, vmem_addr_t base,
-    vmem_size_t size, vmem_size_t quantum, vmem_size_t qcache_max, int flags);
+vmem_t *vmem_create(const char *name, vmem_addr_t base, vmem_size_t size,
+    vmem_size_t quantum, vmem_size_t qcache_max, int flags);
 vmem_t *vmem_init(vmem_t *vm, const char *name, vmem_addr_t base,
     vmem_size_t size, vmem_size_t quantum, vmem_size_t qcache_max, int flags);
 void vmem_destroy(vmem_t *);
@@ -127,18 +127,18 @@ vmem_size_t vmem_roundup_size(vmem_t *vm, vmem_size_t size);
  */
 vmem_size_t vmem_size(vmem_t *vm, int typemask);
 
-void vmem_whatis(vmem_addr_t addr, int (*fn)(const char *, ...)
-    __printflike(1, 2));
-void vmem_print(vmem_addr_t addr, const char *, int (*fn)(const char *, ...)
-    __printflike(1, 2));
-void vmem_printall(const char *, int (*fn)(const char *, ...)
-    __printflike(1, 2));
+void vmem_whatis(
+    vmem_addr_t addr, int (*fn)(const char *, ...) __printflike(1, 2));
+void vmem_print(vmem_addr_t addr, const char *,
+    int (*fn)(const char *, ...) __printflike(1, 2));
+void vmem_printall(
+    const char *, int (*fn)(const char *, ...) __printflike(1, 2));
 void vmem_startup(void);
 
 /* vmem_size typemask */
-#define VMEM_ALLOC	0x01
-#define VMEM_FREE	0x02
-#define VMEM_MAXFREE	0x10
+#define VMEM_ALLOC 0x01
+#define VMEM_FREE 0x02
+#define VMEM_MAXFREE 0x10
 
 #endif /* _KERNEL */
 

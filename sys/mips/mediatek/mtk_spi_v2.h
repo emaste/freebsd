@@ -35,21 +35,21 @@
 
 /* SPI controller interface */
 
-#define MTK_SPITRANS		0x00
-#define 	SPIBUSY			(1<<16)
-#define		SPISTART		(1<<8)
+#define MTK_SPITRANS 0x00
+#define SPIBUSY (1 << 16)
+#define SPISTART (1 << 8)
 
-#define MTK_SPIMASTER		0x28
+#define MTK_SPIMASTER 0x28
 
-#define MTK_SPIMOREBUF		0x2C
+#define MTK_SPIMOREBUF 0x2C
 
-#define MTK_SPIOPCODE		0x04
-#define MTK_SPIDATA		0x08
-#define		SPIDATA_MASK		0x000000ff
+#define MTK_SPIOPCODE 0x04
+#define MTK_SPIDATA 0x08
+#define SPIDATA_MASK 0x000000ff
 
-#define MTK_SPI_WRITE		1
-#define MTK_SPI_READ		0
+#define MTK_SPI_WRITE 1
+#define MTK_SPI_READ 0
 
-#define MTK_SPIPOLAR		0x38
+#define MTK_SPIPOLAR 0x38
 
 #endif /* _MTK_SPI_NEWVAR_H_ */

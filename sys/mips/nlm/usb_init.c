@@ -32,14 +32,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/types.h>
-#include <sys/systm.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
 #include <mips/nlm/hal/usb.h>
-
 #include <mips/nlm/xlp.h>
 
 static void
@@ -50,9 +49,9 @@ nlm_usb_intr_en(int node, int port)
 
 	port_addr = nlm_get_usb_regbase(node, port);
 	val = nlm_read_usb_reg(port_addr, USB_INT_EN);
-	val = USB_CTRL_INTERRUPT_EN  | USB_OHCI_INTERRUPT_EN |
-		USB_OHCI_INTERRUPT1_EN | USB_OHCI_INTERRUPT2_EN;
-        nlm_write_usb_reg(port_addr, USB_INT_EN, val);
+	val = USB_CTRL_INTERRUPT_EN | USB_OHCI_INTERRUPT_EN |
+	    USB_OHCI_INTERRUPT1_EN | USB_OHCI_INTERRUPT2_EN;
+	nlm_write_usb_reg(port_addr, USB_INT_EN, val);
 }
 
 static void
@@ -87,5 +86,4 @@ nlm_usb_init(void)
 	nlm_usb_intr_en(0, 3);
 }
 
-SYSINIT(nlm_usb_init, SI_SUB_CPU, SI_ORDER_MIDDLE,
-    nlm_usb_init, NULL);
+SYSINIT(nlm_usb_init, SI_SUB_CPU, SI_ORDER_MIDDLE, nlm_usb_init, NULL);

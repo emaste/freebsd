@@ -30,19 +30,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/sysctl.h>
 #include <sys/errno.h>
 #include <sys/jail.h>
-#include <sys/malloc.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/osd.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/rmlock.h>
 #include <sys/sx.h>
-#include <sys/queue.h>
-#include <sys/proc.h>
-#include <sys/osd.h>
+#include <sys/sysctl.h>
 
 /* OSD (Object Specific Data) */
 
@@ -53,31 +53,33 @@ __FBSDID("$FreeBSD$");
  *  (l) osd_list_lock
  */
 struct osd_master {
-	struct sx		 osd_module_lock;
-	struct rmlock		 osd_object_lock;
-	struct mtx		 osd_list_lock;
-	LIST_HEAD(, osd)	 osd_list;		/* (l) */
-	osd_destructor_t	*osd_destructors;	/* (o) */
-	osd_method_t		*osd_methods;		/* (m) */
-	u_int			 osd_ntslots;		/* (m) */
-	const u_int		 osd_nmethods;
+	struct sx osd_module_lock;
+	struct rmlock osd_object_lock;
+	struct mtx osd_list_lock;
+	LIST_HEAD(, osd) osd_list;	   /* (l) */
+	osd_destructor_t *osd_destructors; /* (o) */
+	osd_method_t *osd_methods;	   /* (m) */
+	u_int osd_ntslots;		   /* (m) */
+	const u_int osd_nmethods;
 };
 
 static MALLOC_DEFINE(M_OSD, "osd", "Object Specific Data");
 
 static int osd_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, osd, CTLFLAG_RWTUN, &osd_debug, 0, "OSD debug level");
+SYSCTL_INT(
+    _debug, OID_AUTO, osd, CTLFLAG_RWTUN, &osd_debug, 0, "OSD debug level");
 
-#define	OSD_DEBUG(...)	do {						\
-	if (osd_debug) {						\
-		printf("OSD (%s:%u): ", __func__, __LINE__);		\
-		printf(__VA_ARGS__);					\
-		printf("\n");						\
-	}								\
-} while (0)
+#define OSD_DEBUG(...)                                               \
+	do {                                                         \
+		if (osd_debug) {                                     \
+			printf("OSD (%s:%u): ", __func__, __LINE__); \
+			printf(__VA_ARGS__);                         \
+			printf("\n");                                \
+		}                                                    \
+	} while (0)
 
-static void do_osd_del(u_int type, struct osd *osd, u_int slot,
-    int list_locked);
+static void do_osd_del(
+    u_int type, struct osd *osd, u_int slot, int list_locked);
 
 /*
  * List of objects with OSD.
@@ -113,8 +115,8 @@ osd_register(u_int type, osd_destructor_t destructor, osd_method_t *methods)
 	 */
 	for (i = 0; i < osdm[type].osd_ntslots; i++) {
 		if (osdm[type].osd_destructors[i] == NULL) {
-			OSD_DEBUG("Unused slot found (type=%u, slot=%u).",
-			    type, i);
+			OSD_DEBUG(
+			    "Unused slot found (type=%u, slot=%u).", type, i);
 			break;
 		}
 	}
@@ -126,24 +128,26 @@ osd_register(u_int type, osd_destructor_t destructor, osd_method_t *methods)
 		if (osdm[type].osd_nmethods != 0)
 			osdm[type].osd_methods = realloc(osdm[type].osd_methods,
 			    sizeof(osd_method_t) * osdm[type].osd_ntslots *
-			    osdm[type].osd_nmethods, M_OSD, M_WAITOK);
-		newptr = malloc(sizeof(osd_destructor_t) *
-		    osdm[type].osd_ntslots, M_OSD, M_WAITOK);
+				osdm[type].osd_nmethods,
+			    M_OSD, M_WAITOK);
+		newptr = malloc(
+		    sizeof(osd_destructor_t) * osdm[type].osd_ntslots, M_OSD,
+		    M_WAITOK);
 		rm_wlock(&osdm[type].osd_object_lock);
 		bcopy(osdm[type].osd_destructors, newptr,
 		    sizeof(osd_destructor_t) * i);
 		free(osdm[type].osd_destructors, M_OSD);
 		osdm[type].osd_destructors = newptr;
 		rm_wunlock(&osdm[type].osd_object_lock);
-		OSD_DEBUG("New slot allocated (type=%u, slot=%u).",
-		    type, i + 1);
+		OSD_DEBUG(
+		    "New slot allocated (type=%u, slot=%u).", type, i + 1);
 	}
 
 	osdm[type].osd_destructors[i] = destructor;
 	if (osdm[type].osd_nmethods != 0) {
 		for (m = 0; m < osdm[type].osd_nmethods; m++)
-			osdm[type].osd_methods[i * osdm[type].osd_nmethods + m]
-			    = methods != NULL ? methods[m] : NULL;
+			osdm[type].osd_methods[i * osdm[type].osd_nmethods +
+			    m] = methods != NULL ? methods[m] : NULL;
 	}
 	sx_xunlock(&osdm[type].osd_module_lock);
 	return (i + 1);
@@ -164,7 +168,7 @@ osd_deregister(u_int type, u_int slot)
 	 * Free all OSD for the given slot.
 	 */
 	mtx_lock(&osdm[type].osd_list_lock);
-	LIST_FOREACH_SAFE(osd, &osdm[type].osd_list, osd_next, tosd)
+	LIST_FOREACH_SAFE (osd, &osdm[type].osd_list, osd_next, tosd)
 		do_osd_del(type, osd, slot, 1);
 	mtx_unlock(&osdm[type].osd_list_lock);
 	/*
@@ -179,19 +183,21 @@ osd_deregister(u_int type, u_int slot)
 		if (osdm[type].osd_nmethods != 0)
 			osdm[type].osd_methods = realloc(osdm[type].osd_methods,
 			    sizeof(osd_method_t) * osdm[type].osd_ntslots *
-			    osdm[type].osd_nmethods, M_OSD, M_NOWAIT | M_ZERO);
+				osdm[type].osd_nmethods,
+			    M_OSD, M_NOWAIT | M_ZERO);
 		/*
 		 * We always reallocate to smaller size, so we assume it will
 		 * always succeed.
 		 */
 		KASSERT(osdm[type].osd_destructors != NULL &&
-		    (osdm[type].osd_nmethods == 0 ||
-		     osdm[type].osd_methods != NULL), ("realloc() failed"));
+			(osdm[type].osd_nmethods == 0 ||
+			    osdm[type].osd_methods != NULL),
+		    ("realloc() failed"));
 		OSD_DEBUG("Deregistration of the last slot (type=%u, slot=%u).",
 		    type, slot);
 	} else {
-		OSD_DEBUG("Slot deregistration (type=%u, slot=%u).",
-		    type, slot);
+		OSD_DEBUG(
+		    "Slot deregistration (type=%u, slot=%u).", type, slot);
 	}
 	rm_wunlock(&osdm[type].osd_object_lock);
 	sx_xunlock(&osdm[type].osd_module_lock);
@@ -215,8 +221,8 @@ osd_reserve(u_int slot)
 }
 
 int
-osd_set_reserved(u_int type, struct osd *osd, u_int slot, void **rsv,
-    void *value)
+osd_set_reserved(
+    u_int type, struct osd *osd, u_int slot, void **rsv, void *value)
 {
 	struct rm_priotracker tracker;
 
@@ -257,8 +263,8 @@ osd_set_reserved(u_int type, struct osd *osd, u_int slot, void **rsv,
 			newptr = realloc(osd->osd_slots, sizeof(void *) * slot,
 			    M_OSD, M_NOWAIT | M_ZERO);
 			if (newptr == NULL) {
-				rm_runlock(&osdm[type].osd_object_lock,
-				    &tracker);
+				rm_runlock(
+				    &osdm[type].osd_object_lock, &tracker);
 				return (ENOMEM);
 			}
 		}

@@ -31,7 +31,7 @@
  *
  * $Id: ng_h4_var.h,v 1.5 2005/10/31 17:57:43 max Exp $
  * $FreeBSD$
- * 
+ *
  * Based on:
  * ---------
  *
@@ -52,53 +52,62 @@ MALLOC_DECLARE(M_NETGRAPH_H4);
 #define M_NETGRAPH_H4 M_NETGRAPH
 #endif /* NG_SEPARATE_MALLOC */
 
-/* 
+/*
  * Debug
  */
 
-#define	NG_H4_ALERT	if (sc->debug >= NG_H4_ALERT_LEVEL) printf
-#define	NG_H4_ERR	if (sc->debug >= NG_H4_ERR_LEVEL)   printf
-#define	NG_H4_WARN	if (sc->debug >= NG_H4_WARN_LEVEL)  printf
-#define	NG_H4_INFO	if (sc->debug >= NG_H4_INFO_LEVEL)  printf
+#define NG_H4_ALERT                         \
+	if (sc->debug >= NG_H4_ALERT_LEVEL) \
+	printf
+#define NG_H4_ERR                         \
+	if (sc->debug >= NG_H4_ERR_LEVEL) \
+	printf
+#define NG_H4_WARN                         \
+	if (sc->debug >= NG_H4_WARN_LEVEL) \
+	printf
+#define NG_H4_INFO                         \
+	if (sc->debug >= NG_H4_INFO_LEVEL) \
+	printf
 
-#define NG_H4_HIWATER		256	/* High water mark on output */
+#define NG_H4_HIWATER 256 /* High water mark on output */
 
-/* 
- * Per-node private info 
+/*
+ * Per-node private info
  */
 
 typedef struct ng_h4_info {
-	struct tty		*tp;	/* Terminal device */
-	node_p			 node;	/* Netgraph node */
+	struct tty *tp; /* Terminal device */
+	node_p node;	/* Netgraph node */
 
-	ng_h4_node_debug_ep	 debug;	/* Debug level */
-	ng_h4_node_state_ep	 state;	/* State */
+	ng_h4_node_debug_ep debug; /* Debug level */
+	ng_h4_node_state_ep state; /* State */
 
-	ng_h4_node_stat_ep	 stat;
-#define NG_H4_STAT_PCKTS_SENT(s)	(s).pckts_sent ++
-#define NG_H4_STAT_BYTES_SENT(s, n)	(s).bytes_sent += (n)
-#define NG_H4_STAT_PCKTS_RECV(s)	(s).pckts_recv ++
-#define NG_H4_STAT_BYTES_RECV(s, n)	(s).bytes_recv += (n)
-#define NG_H4_STAT_OERROR(s)		(s).oerrors ++
-#define NG_H4_STAT_IERROR(s)		(s).ierrors ++
-#define NG_H4_STAT_RESET(s)		bzero(&(s), sizeof((s)))
+	ng_h4_node_stat_ep stat;
+#define NG_H4_STAT_PCKTS_SENT(s) (s).pckts_sent++
+#define NG_H4_STAT_BYTES_SENT(s, n) (s).bytes_sent += (n)
+#define NG_H4_STAT_PCKTS_RECV(s) (s).pckts_recv++
+#define NG_H4_STAT_BYTES_RECV(s, n) (s).bytes_recv += (n)
+#define NG_H4_STAT_OERROR(s) (s).oerrors++
+#define NG_H4_STAT_IERROR(s) (s).ierrors++
+#define NG_H4_STAT_RESET(s) bzero(&(s), sizeof((s)))
 
-	struct ifqueue		outq;	/* Queue of outgoing mbuf's */
-#define NG_H4_DEFAULTQLEN	 12     /* XXX max number of mbuf's in outq */
-#define	NG_H4_LOCK(sc)		IF_LOCK(&sc->outq)
-#define	NG_H4_UNLOCK(sc)	IF_UNLOCK(&sc->outq)
+	struct ifqueue outq; /* Queue of outgoing mbuf's */
+#define NG_H4_DEFAULTQLEN 12 /* XXX max number of mbuf's in outq */
+#define NG_H4_LOCK(sc) IF_LOCK(&sc->outq)
+#define NG_H4_UNLOCK(sc) IF_UNLOCK(&sc->outq)
 
-#define NG_H4_IBUF_SIZE		1024	/* XXX must be big enough to hold full 
-					   frame */
-	u_int8_t		 ibuf[NG_H4_IBUF_SIZE];	/* Incoming data */
-	u_int32_t		 got;	/* Number of bytes we have received */
-	u_int32_t		 want;	/* Number of bytes we want to receive */
+#define NG_H4_IBUF_SIZE                             \
+	1024 /* XXX must be big enough to hold full \
+		frame */
+	u_int8_t ibuf[NG_H4_IBUF_SIZE]; /* Incoming data */
+	u_int32_t got;			/* Number of bytes we have received */
+	u_int32_t want;			/* Number of bytes we want to receive */
 
-	hook_p			 hook;	/* Upstream hook */
-	struct callout		 timo;	/* See man timeout(9) */
+	hook_p hook;	     /* Upstream hook */
+	struct callout timo; /* See man timeout(9) */
 
-	u_int8_t		 dying;	/* are we dying? */
+	u_int8_t dying; /* are we dying? */
 } ng_h4_info_t;
-typedef ng_h4_info_t *		 ng_h4_info_p;
+typedef ng_h4_info_t *ng_h4_info_p;
 
 #endif /* _NETGRAPH_H4_VAR_H_ */

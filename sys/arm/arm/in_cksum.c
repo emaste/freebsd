@@ -39,16 +39,18 @@
  *	@(#)in_cksum.c	8.1 (Berkeley) 6/10/93
  */
 
-#include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
+#include <sys/cdefs.h> /* RCS ID & Copyright macro defns */
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/mbuf.h>
 #include <sys/systm.h>
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
+#include <sys/mbuf.h>
+
 #include <machine/in_cksum.h>
+
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 /*
  * Checksum routine for Internet Protocol family headers
@@ -58,19 +60,20 @@ __FBSDID("$FreeBSD$");
  * code and should be modified for each CPU to be as fast as possible.
  */
 
-#define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
-#define REDUCE32							  \
-    {									  \
-	q_util.q = sum;							  \
-	sum = q_util.s[0] + q_util.s[1] + q_util.s[2] + q_util.s[3];	  \
-    }
-#define REDUCE16							  \
-    {									  \
-	q_util.q = sum;							  \
-	l_util.l = q_util.s[0] + q_util.s[1] + q_util.s[2] + q_util.s[3]; \
-	sum = l_util.s[0] + l_util.s[1];				  \
-	ADDCARRY(sum);							  \
-    }
+#define ADDCARRY(x) (x > 65535 ? x -= 65535 : x)
+#define REDUCE32                                                             \
+	{                                                                    \
+		q_util.q = sum;                                              \
+		sum = q_util.s[0] + q_util.s[1] + q_util.s[2] + q_util.s[3]; \
+	}
+#define REDUCE16                                                     \
+	{                                                            \
+		q_util.q = sum;                                      \
+		l_util.l = q_util.s[0] + q_util.s[1] + q_util.s[2] + \
+		    q_util.s[3];                                     \
+		sum = l_util.s[0] + l_util.s[1];                     \
+		ADDCARRY(sum);                                       \
+	}
 
 union l_util {
 	u_int16_t s[2];
@@ -91,8 +94,8 @@ in_addword(u_short a, u_short b)
 	return (sum);
 }
 
-static
-uint64_t _do_cksum(void *addr, int len)
+static uint64_t
+_do_cksum(void *addr, int len)
 {
 	uint64_t sum;
 	union q_util q_util;
@@ -112,30 +115,30 @@ in_cksum_skip(struct mbuf *m, int len, int skip)
 	union q_util q_util;
 	union l_util l_util;
 
-        len -= skip;
-        for (; skip && m; m = m->m_next) {
-                if (m->m_len > skip) {
-                        mlen = m->m_len - skip;
+	len -= skip;
+	for (; skip && m; m = m->m_next) {
+		if (m->m_len > skip) {
+			mlen = m->m_len - skip;
 			addr = mtod(m, caddr_t) + skip;
-                        goto skip_start;
-                } else {
-                        skip -= m->m_len;
-                }
-        }
+			goto skip_start;
+		} else {
+			skip -= m->m_len;
+		}
+	}
 
 	for (; m && len; m = m->m_next) {
 		if (m->m_len == 0)
 			continue;
 		mlen = m->m_len;
 		addr = mtod(m, caddr_t);
-skip_start:
+	skip_start:
 		if (len < mlen)
 			mlen = len;
 
-		if ((clen ^ (int) addr) & 1)
-		    sum += _do_cksum(addr, mlen) << 8;
+		if ((clen ^ (int)addr) & 1)
+			sum += _do_cksum(addr, mlen) << 8;
 		else
-		    sum += _do_cksum(addr, mlen);
+			sum += _do_cksum(addr, mlen);
 
 		clen += mlen;
 		len -= mlen;
@@ -144,11 +147,12 @@ skip_start:
 	return (~sum & 0xffff);
 }
 
-u_int in_cksum_hdr(const struct ip *ip)
+u_int
+in_cksum_hdr(const struct ip *ip)
 {
 	u_int64_t sum = do_cksum(ip, sizeof(struct ip));
 	union q_util q_util;
-    	union l_util l_util;
+	union l_util l_util;
 	REDUCE16;
 	return (~sum & 0xffff);
 }

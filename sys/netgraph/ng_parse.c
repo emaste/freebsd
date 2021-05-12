@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -44,22 +44,20 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
+#include <sys/ctype.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/ctype.h>
 
 #include <machine/stdarg.h>
 
 #include <net/ethernet.h>
-
-#include <netinet/in.h>
-
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
 #include <netgraph/ng_parse.h>
+#include <netinet/in.h>
 
 #ifdef NG_SEPARATE_MALLOC
 static MALLOC_DEFINE(M_NETGRAPH_PARSE, "netgraph_parse", "netgraph parse info");
@@ -69,29 +67,29 @@ static MALLOC_DEFINE(M_NETGRAPH_PARSE, "netgraph_parse", "netgraph parse info");
 
 /* Compute alignment for primitive integral types */
 struct int16_temp {
-	char	x;
-	int16_t	y;
+	char x;
+	int16_t y;
 };
 
 struct int32_temp {
-	char	x;
-	int32_t	y;
+	char x;
+	int32_t y;
 };
 
 struct int64_temp {
-	char	x;
-	int64_t	y;
+	char x;
+	int64_t y;
 };
 
-#define INT8_ALIGNMENT		1
-#define INT16_ALIGNMENT		((size_t)&((struct int16_temp *)0)->y)
-#define INT32_ALIGNMENT		((size_t)&((struct int32_temp *)0)->y)
-#define INT64_ALIGNMENT		((size_t)&((struct int64_temp *)0)->y)
+#define INT8_ALIGNMENT 1
+#define INT16_ALIGNMENT ((size_t) & ((struct int16_temp *)0)->y)
+#define INT32_ALIGNMENT ((size_t) & ((struct int32_temp *)0)->y)
+#define INT64_ALIGNMENT ((size_t) & ((struct int64_temp *)0)->y)
 
 /* Output format for integral types */
-#define INT_UNSIGNED		0
-#define INT_SIGNED		1
-#define INT_HEX			2
+#define INT_UNSIGNED 0
+#define INT_SIGNED 1
+#define INT_HEX 2
 
 /* Type of composite object: struct, array, or fixedarray */
 enum comptype {
@@ -101,40 +99,35 @@ enum comptype {
 };
 
 /* Composite types helper functions */
-static int	ng_parse_composite(const struct ng_parse_type *type,
-			const char *s, int *off, const u_char *start,
-			u_char *const buf, int *buflen, enum comptype ctype);
-static int	ng_unparse_composite(const struct ng_parse_type *type,
-			const u_char *data, int *off, char *cbuf, int cbuflen,
-			enum comptype ctype);
-static int	ng_get_composite_elem_default(const struct ng_parse_type *type,
-			int index, const u_char *start, u_char *buf,
-			int *buflen, enum comptype ctype);
-static int	ng_get_composite_len(const struct ng_parse_type *type,
-			const u_char *start, const u_char *buf,
-			enum comptype ctype);
-static const	struct ng_parse_type *ng_get_composite_etype(const struct
-			ng_parse_type *type, int index, enum comptype ctype);
-static int	ng_parse_get_elem_pad(const struct ng_parse_type *type,
-			int index, enum comptype ctype, int posn);
+static int ng_parse_composite(const struct ng_parse_type *type, const char *s,
+    int *off, const u_char *start, u_char *const buf, int *buflen,
+    enum comptype ctype);
+static int ng_unparse_composite(const struct ng_parse_type *type,
+    const u_char *data, int *off, char *cbuf, int cbuflen, enum comptype ctype);
+static int ng_get_composite_elem_default(const struct ng_parse_type *type,
+    int index, const u_char *start, u_char *buf, int *buflen,
+    enum comptype ctype);
+static int ng_get_composite_len(const struct ng_parse_type *type,
+    const u_char *start, const u_char *buf, enum comptype ctype);
+static const struct ng_parse_type *ng_get_composite_etype(
+    const struct ng_parse_type *type, int index, enum comptype ctype);
+static int ng_parse_get_elem_pad(
+    const struct ng_parse_type *type, int index, enum comptype ctype, int posn);
 
 /* Parsing helper functions */
-static int	ng_parse_skip_value(const char *s, int off, int *lenp);
-static int	ng_parse_append(char **cbufp, int *cbuflenp,
-			const char *fmt, ...);
+static int ng_parse_skip_value(const char *s, int off, int *lenp);
+static int ng_parse_append(char **cbufp, int *cbuflenp, const char *fmt, ...);
 
 /* Poor man's virtual method calls */
-#define METHOD(t,m)	(ng_get_ ## m ## _method(t))
-#define INVOKE(t,m)	(*METHOD(t,m))
+#define METHOD(t, m) (ng_get_##m##_method(t))
+#define INVOKE(t, m) (*METHOD(t, m))
 
-static ng_parse_t	*ng_get_parse_method(const struct ng_parse_type *t);
-static ng_unparse_t	*ng_get_unparse_method(const struct ng_parse_type *t);
-static ng_getDefault_t	*ng_get_getDefault_method(const
-				struct ng_parse_type *t);
-static ng_getAlign_t	*ng_get_getAlign_method(const struct ng_parse_type *t);
+static ng_parse_t *ng_get_parse_method(const struct ng_parse_type *t);
+static ng_unparse_t *ng_get_unparse_method(const struct ng_parse_type *t);
+static ng_getDefault_t *ng_get_getDefault_method(const struct ng_parse_type *t);
+static ng_getAlign_t *ng_get_getAlign_method(const struct ng_parse_type *t);
 
-#define ALIGNMENT(t)	(METHOD(t, getAlign) == NULL ? \
-				0 : INVOKE(t, getAlign)(t))
+#define ALIGNMENT(t) (METHOD(t, getAlign) == NULL ? 0 : INVOKE(t, getAlign)(t))
 
 /************************************************************************
 			PUBLIC FUNCTIONS
@@ -144,8 +137,8 @@ static ng_getAlign_t	*ng_get_getAlign_method(const struct ng_parse_type *t);
  * Convert an ASCII string to binary according to the supplied type descriptor
  */
 int
-ng_parse(const struct ng_parse_type *type,
-	const char *string, int *off, u_char *buf, int *buflen)
+ng_parse(const struct ng_parse_type *type, const char *string, int *off,
+    u_char *buf, int *buflen)
 {
 	return INVOKE(type, parse)(type, string, off, buf, buf, buflen);
 }
@@ -154,8 +147,8 @@ ng_parse(const struct ng_parse_type *type,
  * Convert binary to an ASCII string according to the supplied type descriptor
  */
 int
-ng_unparse(const struct ng_parse_type *type,
-	const u_char *data, char *cbuf, int cbuflen)
+ng_unparse(const struct ng_parse_type *type, const u_char *data, char *cbuf,
+    int cbuflen)
 {
 	int off = 0;
 
@@ -180,28 +173,27 @@ ng_parse_getDefault(const struct ng_parse_type *type, u_char *buf, int *buflen)
  ************************************************************************/
 
 static int
-ng_struct_parse(const struct ng_parse_type *type,
-	const char *s, int *off, const u_char *const start,
-	u_char *const buf, int *buflen)
+ng_struct_parse(const struct ng_parse_type *type, const char *s, int *off,
+    const u_char *const start, u_char *const buf, int *buflen)
 {
 	return ng_parse_composite(type, s, off, start, buf, buflen, CT_STRUCT);
 }
 
 static int
-ng_struct_unparse(const struct ng_parse_type *type,
-	const u_char *data, int *off, char *cbuf, int cbuflen)
+ng_struct_unparse(const struct ng_parse_type *type, const u_char *data,
+    int *off, char *cbuf, int cbuflen)
 {
 	return ng_unparse_composite(type, data, off, cbuf, cbuflen, CT_STRUCT);
 }
 
 static int
 ng_struct_getDefault(const struct ng_parse_type *type,
-	const u_char *const start, u_char *buf, int *buflen)
+    const u_char *const start, u_char *buf, int *buflen)
 {
 	int off = 0;
 
-	return ng_parse_composite(type,
-	    "{}", &off, start, buf, buflen, CT_STRUCT);
+	return ng_parse_composite(
+	    type, "{}", &off, start, buf, buflen, CT_STRUCT);
 }
 
 static int
@@ -219,45 +211,38 @@ ng_struct_getAlign(const struct ng_parse_type *type)
 	return align;
 }
 
-const struct ng_parse_type ng_parse_struct_type = {
-	NULL,
-	NULL,
-	NULL,
-	ng_struct_parse,
-	ng_struct_unparse,
-	ng_struct_getDefault,
-	ng_struct_getAlign
-};
+const struct ng_parse_type ng_parse_struct_type = { NULL, NULL, NULL,
+	ng_struct_parse, ng_struct_unparse, ng_struct_getDefault,
+	ng_struct_getAlign };
 
 /************************************************************************
 			FIXED LENGTH ARRAY TYPE
  ************************************************************************/
 
 static int
-ng_fixedarray_parse(const struct ng_parse_type *type,
-	const char *s, int *off, const u_char *const start,
-	u_char *const buf, int *buflen)
+ng_fixedarray_parse(const struct ng_parse_type *type, const char *s, int *off,
+    const u_char *const start, u_char *const buf, int *buflen)
 {
-	return ng_parse_composite(type,
-	    s, off, start, buf, buflen, CT_FIXEDARRAY);
+	return ng_parse_composite(
+	    type, s, off, start, buf, buflen, CT_FIXEDARRAY);
 }
 
 static int
-ng_fixedarray_unparse(const struct ng_parse_type *type,
-	const u_char *data, int *off, char *cbuf, int cbuflen)
+ng_fixedarray_unparse(const struct ng_parse_type *type, const u_char *data,
+    int *off, char *cbuf, int cbuflen)
 {
-	return ng_unparse_composite(type,
-		data, off, cbuf, cbuflen, CT_FIXEDARRAY);
+	return ng_unparse_composite(
+	    type, data, off, cbuf, cbuflen, CT_FIXEDARRAY);
 }
 
 static int
 ng_fixedarray_getDefault(const struct ng_parse_type *type,
-	const u_char *const start, u_char *buf, int *buflen)
+    const u_char *const start, u_char *buf, int *buflen)
 {
 	int off = 0;
 
-	return ng_parse_composite(type,
-	    "[]", &off, start, buf, buflen, CT_FIXEDARRAY);
+	return ng_parse_composite(
+	    type, "[]", &off, start, buf, buflen, CT_FIXEDARRAY);
 }
 
 static int
@@ -268,43 +253,36 @@ ng_fixedarray_getAlign(const struct ng_parse_type *type)
 	return ALIGNMENT(fi->elementType);
 }
 
-const struct ng_parse_type ng_parse_fixedarray_type = {
-	NULL,
-	NULL,
-	NULL,
-	ng_fixedarray_parse,
-	ng_fixedarray_unparse,
-	ng_fixedarray_getDefault,
-	ng_fixedarray_getAlign
-};
+const struct ng_parse_type ng_parse_fixedarray_type = { NULL, NULL, NULL,
+	ng_fixedarray_parse, ng_fixedarray_unparse, ng_fixedarray_getDefault,
+	ng_fixedarray_getAlign };
 
 /************************************************************************
 			VARIABLE LENGTH ARRAY TYPE
  ************************************************************************/
 
 static int
-ng_array_parse(const struct ng_parse_type *type,
-	const char *s, int *off, const u_char *const start,
-	u_char *const buf, int *buflen)
+ng_array_parse(const struct ng_parse_type *type, const char *s, int *off,
+    const u_char *const start, u_char *const buf, int *buflen)
 {
 	return ng_parse_composite(type, s, off, start, buf, buflen, CT_ARRAY);
 }
 
 static int
-ng_array_unparse(const struct ng_parse_type *type,
-	const u_char *data, int *off, char *cbuf, int cbuflen)
+ng_array_unparse(const struct ng_parse_type *type, const u_char *data, int *off,
+    char *cbuf, int cbuflen)
 {
 	return ng_unparse_composite(type, data, off, cbuf, cbuflen, CT_ARRAY);
 }
 
 static int
-ng_array_getDefault(const struct ng_parse_type *type,
-	const u_char *const start, u_char *buf, int *buflen)
+ng_array_getDefault(const struct ng_parse_type *type, const u_char *const start,
+    u_char *buf, int *buflen)
 {
 	int off = 0;
 
-	return ng_parse_composite(type,
-	    "[]", &off, start, buf, buflen, CT_ARRAY);
+	return ng_parse_composite(
+	    type, "[]", &off, start, buf, buflen, CT_ARRAY);
 }
 
 static int
@@ -315,24 +293,17 @@ ng_array_getAlign(const struct ng_parse_type *type)
 	return ALIGNMENT(ai->elementType);
 }
 
-const struct ng_parse_type ng_parse_array_type = {
-	NULL,
-	NULL,
-	NULL,
-	ng_array_parse,
-	ng_array_unparse,
-	ng_array_getDefault,
-	ng_array_getAlign
-};
+const struct ng_parse_type ng_parse_array_type = { NULL, NULL, NULL,
+	ng_array_parse, ng_array_unparse, ng_array_getDefault,
+	ng_array_getAlign };
 
 /************************************************************************
 				INT8 TYPE
  ************************************************************************/
 
 static int
-ng_int8_parse(const struct ng_parse_type *type,
-	const char *s, int *off, const u_char *const start,
-	u_char *const buf, int *buflen)
+ng_int8_parse(const struct ng_parse_type *type, const char *s, int *off,
+    const u_char *const start, u_char *const buf, int *buflen)
 {
 	long val;
 	int8_t val8;
@@ -349,8 +320,8 @@ ng_int8_parse(const struct ng_parse_type *type,
 }
 
 static int
-ng_int8_unparse(const struct ng_parse_type *type,
-	const u_char *data, int *off, char *cbuf, int cbuflen)
+ng_int8_unparse(const struct ng_parse_type *type, const u_char *data, int *off,
+    char *cbuf, int cbuflen)
 {
 	const char *fmt;
 	int fval;
@@ -381,8 +352,8 @@ ng_int8_unparse(const struct ng_parse_type *type,
 }
 
 static int
-ng_int8_getDefault(const struct ng_parse_type *type,
-	const u_char *const start, u_char *buf, int *buflen)
+ng_int8_getDefault(const struct ng_parse_type *type, const u_char *const start,
+    u_char *buf, int *buflen)
 {
 	int8_t val;
 
@@ -400,42 +371,31 @@ ng_int8_getAlign(const struct ng_parse_type *type)
 	return INT8_ALIGNMENT;
 }
 
-const struct ng_parse_type ng_parse_int8_type = {
-	NULL,
-	(void *)INT_SIGNED,
-	NULL,
-	ng_int8_parse,
-	ng_int8_unparse,
-	ng_int8_getDefault,
-	ng_int8_getAlign
-};
+const struct ng_parse_type ng_parse_int8_type = { NULL, (void *)INT_SIGNED,
+	NULL, ng_int8_parse, ng_int8_unparse, ng_int8_getDefault,
+	ng_int8_getAlign };
 
-const struct ng_parse_type ng_parse_uint8_type = {
-	&ng_parse_int8_type,
-	(void *)INT_UNSIGNED
-};
+const struct ng_parse_type ng_parse_uint8_type = { &ng_parse_int8_type,
+	(void *)INT_UNSIGNED };
 
-const struct ng_parse_type ng_parse_hint8_type = {
-	&ng_parse_int8_type,
-	(void *)INT_HEX
-};
+const struct ng_parse_type ng_parse_hint8_type = { &ng_parse_int8_type,
+	(void *)INT_HEX };
 
 /************************************************************************
 				INT16 TYPE
  ************************************************************************/
 
 static int
-ng_int16_parse(const struct ng_parse_type *type,
-	const char *s, int *off, const u_char *const start,
-	u_char *const buf, int *buflen)
+ng_int16_parse(const struct ng_parse_type *type, const char *s, int *off,
+    const u_char *const start, u_char *const buf, int *buflen)
 {
 	long val;
 	int16_t val16;
 	char *eptr;
 
 	val = strtol(s + *off, &eptr, 0);
-	if (val < (int16_t)0x8000
-	    || val > (u_int16_t)0xffff || eptr == s + *off)
+	if (val < (int16_t)0x8000 || val > (u_int16_t)0xffff ||
+	    eptr == s + *off)
 		return (EINVAL);
 	*off = eptr - s;
 	val16 = (int16_t)val;
@@ -445,8 +405,8 @@ ng_int16_parse(const struct ng_parse_type *type,
 }
 
 static int
-ng_int16_unparse(const struct ng_parse_type *type,
-	const u_char *data, int *off, char *cbuf, int cbuflen)
+ng_int16_unparse(const struct ng_parse_type *type, const u_char *data, int *off,
+    char *cbuf, int cbuflen)
 {
 	const char *fmt;
 	int fval;
@@ -477,8 +437,8 @@ ng_int16_unparse(const struct ng_parse_type *type,
 }
 
 static int
-ng_int16_getDefault(const struct ng_parse_type *type,
-	const u_char *const start, u_char *buf, int *buflen)
+ng_int16_getDefault(const struct ng_parse_type *type, const u_char *const start,
+    u_char *buf, int *buflen)
 {
 	int16_t val;
 
@@ -496,36 +456,25 @@ ng_int16_getAlign(const struct ng_parse_type *type)
 	return INT16_ALIGNMENT;
 }
 
-const struct ng_parse_type ng_parse_int16_type = {
-	NULL,
-	(void *)INT_SIGNED,
-	NULL,
-	ng_int16_parse,
-	ng_int16_unparse,
-	ng_int16_getDefault,
-	ng_int16_getAlign
-};
+const struct ng_parse_type ng_parse_int16_type = { NULL, (void *)INT_SIGNED,
+	NULL, ng_int16_parse, ng_int16_unparse, ng_int16_getDefault,
+	ng_int16_getAlign };
 
-const struct ng_parse_type ng_parse_uint16_type = {
-	&ng_parse_int16_type,
-	(void *)INT_UNSIGNED
-};
+const struct ng_parse_type ng_parse_uint16_type = { &ng_parse_int16_type,
+	(void *)INT_UNSIGNED };
 
-const struct ng_parse_type ng_parse_hint16_type = {
-	&ng_parse_int16_type,
-	(void *)INT_HEX
-};
+const struct ng_parse_type ng_parse_hint16_type = { &ng_parse_int16_type,
+	(void *)INT_HEX };
 
 /************************************************************************
 				INT32 TYPE
  ************************************************************************/
 
 static int
-ng_int32_parse(const struct ng_parse_type *type,
-	const char *s, int *off, const u_char *const start,
-	u_char *const buf, int *buflen)
+ng_int32_parse(const struct ng_parse_type *type, const char *s, int *off,
+    const u_char *const start, u_char *const buf, int *buflen)
 {
-	long val;			/* assumes long is at least 32 bits */
+	long val; /* assumes long is at least 32 bits */
 	int32_t val32;
 	char *eptr;
 
@@ -533,8 +482,8 @@ ng_int32_parse(const struct ng_parse_type *type,
 		val = strtol(s + *off, &eptr, 0);
 	else
 		val = strtoul(s + *off, &eptr, 0);
-	if (val < (int32_t)0x80000000
-	    || val > (u_int32_t)0xffffffff || eptr == s + *off)
+	if (val < (int32_t)0x80000000 || val > (u_int32_t)0xffffffff ||
+	    eptr == s + *off)
 		return (EINVAL);
 	*off = eptr - s;
 	val32 = (int32_t)val;
@@ -544,8 +493,8 @@ ng_int32_parse(const struct ng_parse_type *type,
 }
 
 static int
-ng_int32_unparse(const struct ng_parse_type *type,
-	const u_char *data, int *off, char *cbuf, int cbuflen)
+ng_int32_unparse(const struct ng_parse_type *type, const u_char *data, int *off,
+    char *cbuf, int cbuflen)
 {
 	const char *fmt;
 	long fval;
@@ -576,8 +525,8 @@ ng_int32_unparse(const struct ng_parse_type *type,
 }
 
 static int
-ng_int32_getDefault(const struct ng_parse_type *type,
-	const u_char *const start, u_char *buf, int *buflen)
+ng_int32_getDefault(const struct ng_parse_type *type, const u_char *const start,
+    u_char *buf, int *buflen)
 {
 	int32_t val;
 
@@ -595,34 +544,23 @@ ng_int32_getAlign(const struct ng_parse_type *type)
 	return INT32_ALIGNMENT;
 }
 
-const struct ng_parse_type ng_parse_int32_type = {
-	NULL,
-	(void *)INT_SIGNED,
-	NULL,
-	ng_int32_parse,
-	ng_int32_unparse,
-	ng_int32_getDefault,
-	ng_int32_getAlign
-};
+const struct ng_parse_type ng_parse_int32_type = { NULL, (void *)INT_SIGNED,
+	NULL, ng_int32_parse, ng_int32_unparse, ng_int32_getDefault,
+	ng_int32_getAlign };
 
-const struct ng_parse_type ng_parse_uint32_type = {
-	&ng_parse_int32_type,
-	(void *)INT_UNSIGNED
-};
+const struct ng_parse_type ng_parse_uint32_type = { &ng_parse_int32_type,
+	(void *)INT_UNSIGNED };
 
-const struct ng_parse_type ng_parse_hint32_type = {
-	&ng_parse_int32_type,
-	(void *)INT_HEX
-};
+const struct ng_parse_type ng_parse_hint32_type = { &ng_parse_int32_type,
+	(void *)INT_HEX };
 
 /************************************************************************
 				INT64 TYPE
  ************************************************************************/
 
 static int
-ng_int64_parse(const struct ng_parse_type *type,
-	const char *s, int *off, const u_char *const start,
-	u_char *const buf, int *buflen)
+ng_int64_parse(const struct ng_parse_type *type, const char *s, int *off,
+    const u_char *const start, u_char *const buf, int *buflen)
 {
 	quad_t val;
 	int64_t val64;
@@ -639,8 +577,8 @@ ng_int64_parse(const struct ng_parse_type *type,
 }
 
 static int
-ng_int64_unparse(const struct ng_parse_type *type,
-	const u_char *data, int *off, char *cbuf, int cbuflen)
+ng_int64_unparse(const struct ng_parse_type *type, const u_char *data, int *off,
+    char *cbuf, int cbuflen)
 {
 	const char *fmt;
 	long long fval;
@@ -671,8 +609,8 @@ ng_int64_unparse(const struct ng_parse_type *type,
 }
 
 static int
-ng_int64_getDefault(const struct ng_parse_type *type,
-	const u_char *const start, u_char *buf, int *buflen)
+ng_int64_getDefault(const struct ng_parse_type *type, const u_char *const start,
+    u_char *buf, int *buflen)
 {
 	int64_t val;
 
@@ -690,34 +628,23 @@ ng_int64_getAlign(const struct ng_parse_type *type)
 	return INT64_ALIGNMENT;
 }
 
-const struct ng_parse_type ng_parse_int64_type = {
-	NULL,
-	(void *)INT_SIGNED,
-	NULL,
-	ng_int64_parse,
-	ng_int64_unparse,
-	ng_int64_getDefault,
-	ng_int64_getAlign
-};
+const struct ng_parse_type ng_parse_int64_type = { NULL, (void *)INT_SIGNED,
+	NULL, ng_int64_parse, ng_int64_unparse, ng_int64_getDefault,
+	ng_int64_getAlign };
 
-const struct ng_parse_type ng_parse_uint64_type = {
-	&ng_parse_int64_type,
-	(void *)INT_UNSIGNED
-};
+const struct ng_parse_type ng_parse_uint64_type = { &ng_parse_int64_type,
+	(void *)INT_UNSIGNED };
 
-const struct ng_parse_type ng_parse_hint64_type = {
-	&ng_parse_int64_type,
-	(void *)INT_HEX
-};
+const struct ng_parse_type ng_parse_hint64_type = { &ng_parse_int64_type,
+	(void *)INT_HEX };
 
 /************************************************************************
 				STRING TYPE
  ************************************************************************/
 
 static int
-ng_string_parse(const struct ng_parse_type *type,
-	const char *s, int *off, const u_char *const start,
-	u_char *const buf, int *buflen)
+ng_string_parse(const struct ng_parse_type *type, const char *s, int *off,
+    const u_char *const start, u_char *const buf, int *buflen)
 {
 	char *sval;
 	int len;
@@ -733,8 +660,8 @@ ng_string_parse(const struct ng_parse_type *type,
 }
 
 static int
-ng_string_unparse(const struct ng_parse_type *type,
-	const u_char *data, int *off, char *cbuf, int cbuflen)
+ng_string_unparse(const struct ng_parse_type *type, const u_char *data,
+    int *off, char *cbuf, int cbuflen)
 {
 	const char *const raw = (const char *)data + *off;
 	char *const s = ng_encode_string(raw, strlen(raw));
@@ -753,7 +680,7 @@ ng_string_unparse(const struct ng_parse_type *type,
 
 static int
 ng_string_getDefault(const struct ng_parse_type *type,
-	const u_char *const start, u_char *buf, int *buflen)
+    const u_char *const start, u_char *buf, int *buflen)
 {
 
 	if (*buflen < 1)
@@ -763,24 +690,16 @@ ng_string_getDefault(const struct ng_parse_type *type,
 	return (0);
 }
 
-const struct ng_parse_type ng_parse_string_type = {
-	NULL,
-	NULL,
-	NULL,
-	ng_string_parse,
-	ng_string_unparse,
-	ng_string_getDefault,
-	NULL
-};
+const struct ng_parse_type ng_parse_string_type = { NULL, NULL, NULL,
+	ng_string_parse, ng_string_unparse, ng_string_getDefault, NULL };
 
 /************************************************************************
 			FIXED BUFFER STRING TYPE
  ************************************************************************/
 
 static int
-ng_fixedstring_parse(const struct ng_parse_type *type,
-	const char *s, int *off, const u_char *const start,
-	u_char *const buf, int *buflen)
+ng_fixedstring_parse(const struct ng_parse_type *type, const char *s, int *off,
+    const u_char *const start, u_char *const buf, int *buflen)
 {
 	const struct ng_parse_fixedstring_info *const fi = type->info;
 	char *sval;
@@ -802,8 +721,8 @@ ng_fixedstring_parse(const struct ng_parse_type *type,
 }
 
 static int
-ng_fixedstring_unparse(const struct ng_parse_type *type,
-	const u_char *data, int *off, char *cbuf, int cbuflen)
+ng_fixedstring_unparse(const struct ng_parse_type *type, const u_char *data,
+    int *off, char *cbuf, int cbuflen)
 {
 	const struct ng_parse_fixedstring_info *const fi = type->info;
 	int error, temp = *off;
@@ -816,7 +735,7 @@ ng_fixedstring_unparse(const struct ng_parse_type *type,
 
 static int
 ng_fixedstring_getDefault(const struct ng_parse_type *type,
-	const u_char *const start, u_char *buf, int *buflen)
+    const u_char *const start, u_char *buf, int *buflen)
 {
 	const struct ng_parse_fixedstring_info *const fi = type->info;
 
@@ -827,64 +746,37 @@ ng_fixedstring_getDefault(const struct ng_parse_type *type,
 	return (0);
 }
 
-const struct ng_parse_type ng_parse_fixedstring_type = {
-	NULL,
-	NULL,
-	NULL,
-	ng_fixedstring_parse,
-	ng_fixedstring_unparse,
-	ng_fixedstring_getDefault,
-	NULL
-};
+const struct ng_parse_type ng_parse_fixedstring_type = { NULL, NULL, NULL,
+	ng_fixedstring_parse, ng_fixedstring_unparse, ng_fixedstring_getDefault,
+	NULL };
 
-const struct ng_parse_fixedstring_info ng_parse_nodebuf_info = {
-	NG_NODESIZ
-};
-const struct ng_parse_type ng_parse_nodebuf_type = {
-	&ng_parse_fixedstring_type,
-	&ng_parse_nodebuf_info
-};
+const struct ng_parse_fixedstring_info ng_parse_nodebuf_info = { NG_NODESIZ };
+const struct ng_parse_type ng_parse_nodebuf_type = { &ng_parse_fixedstring_type,
+	&ng_parse_nodebuf_info };
 
-const struct ng_parse_fixedstring_info ng_parse_hookbuf_info = {
-	NG_HOOKSIZ
-};
-const struct ng_parse_type ng_parse_hookbuf_type = {
-	&ng_parse_fixedstring_type,
-	&ng_parse_hookbuf_info
-};
+const struct ng_parse_fixedstring_info ng_parse_hookbuf_info = { NG_HOOKSIZ };
+const struct ng_parse_type ng_parse_hookbuf_type = { &ng_parse_fixedstring_type,
+	&ng_parse_hookbuf_info };
 
-const struct ng_parse_fixedstring_info ng_parse_pathbuf_info = {
-	NG_PATHSIZ
-};
-const struct ng_parse_type ng_parse_pathbuf_type = {
-	&ng_parse_fixedstring_type,
-	&ng_parse_pathbuf_info
-};
+const struct ng_parse_fixedstring_info ng_parse_pathbuf_info = { NG_PATHSIZ };
+const struct ng_parse_type ng_parse_pathbuf_type = { &ng_parse_fixedstring_type,
+	&ng_parse_pathbuf_info };
 
-const struct ng_parse_fixedstring_info ng_parse_typebuf_info = {
-	NG_TYPESIZ
-};
-const struct ng_parse_type ng_parse_typebuf_type = {
-	&ng_parse_fixedstring_type,
-	&ng_parse_typebuf_info
-};
+const struct ng_parse_fixedstring_info ng_parse_typebuf_info = { NG_TYPESIZ };
+const struct ng_parse_type ng_parse_typebuf_type = { &ng_parse_fixedstring_type,
+	&ng_parse_typebuf_info };
 
-const struct ng_parse_fixedstring_info ng_parse_cmdbuf_info = {
-	NG_CMDSTRSIZ
-};
-const struct ng_parse_type ng_parse_cmdbuf_type = {
-	&ng_parse_fixedstring_type,
-	&ng_parse_cmdbuf_info
-};
+const struct ng_parse_fixedstring_info ng_parse_cmdbuf_info = { NG_CMDSTRSIZ };
+const struct ng_parse_type ng_parse_cmdbuf_type = { &ng_parse_fixedstring_type,
+	&ng_parse_cmdbuf_info };
 
 /************************************************************************
 			EXPLICITLY SIZED STRING TYPE
  ************************************************************************/
 
 static int
-ng_sizedstring_parse(const struct ng_parse_type *type,
-	const char *s, int *off, const u_char *const start,
-	u_char *const buf, int *buflen)
+ng_sizedstring_parse(const struct ng_parse_type *type, const char *s, int *off,
+    const u_char *const start, u_char *const buf, int *buflen)
 {
 	char *sval;
 	int len;
@@ -905,8 +797,8 @@ ng_sizedstring_parse(const struct ng_parse_type *type,
 }
 
 static int
-ng_sizedstring_unparse(const struct ng_parse_type *type,
-	const u_char *data, int *off, char *cbuf, int cbuflen)
+ng_sizedstring_unparse(const struct ng_parse_type *type, const u_char *data,
+    int *off, char *cbuf, int cbuflen)
 {
 	const char *const raw = (const char *)data + *off + 2;
 	const int slen = *((const u_int16_t *)(data + *off));
@@ -926,7 +818,7 @@ ng_sizedstring_unparse(const struct ng_parse_type *type,
 
 static int
 ng_sizedstring_getDefault(const struct ng_parse_type *type,
-	const u_char *const start, u_char *buf, int *buflen)
+    const u_char *const start, u_char *buf, int *buflen)
 {
 	if (*buflen < 2)
 		return (ERANGE);
@@ -935,30 +827,23 @@ ng_sizedstring_getDefault(const struct ng_parse_type *type,
 	return (0);
 }
 
-const struct ng_parse_type ng_parse_sizedstring_type = {
-	NULL,
-	NULL,
-	NULL,
-	ng_sizedstring_parse,
-	ng_sizedstring_unparse,
-	ng_sizedstring_getDefault,
-	NULL
-};
+const struct ng_parse_type ng_parse_sizedstring_type = { NULL, NULL, NULL,
+	ng_sizedstring_parse, ng_sizedstring_unparse, ng_sizedstring_getDefault,
+	NULL };
 
 /************************************************************************
 			IP ADDRESS TYPE
  ************************************************************************/
 
 static int
-ng_ipaddr_parse(const struct ng_parse_type *type,
-	const char *s, int *off, const u_char *const start,
-	u_char *const buf, int *buflen)
+ng_ipaddr_parse(const struct ng_parse_type *type, const char *s, int *off,
+    const u_char *const start, u_char *const buf, int *buflen)
 {
 	int i, error;
 
 	for (i = 0; i < 4; i++) {
-		if ((error = ng_int8_parse(&ng_parse_int8_type,
-		    s, off, start, buf + i, buflen)) != 0)
+		if ((error = ng_int8_parse(&ng_parse_int8_type, s, off, start,
+			 buf + i, buflen)) != 0)
 			return (error);
 		if (i < 3 && s[*off] != '.')
 			return (EINVAL);
@@ -969,16 +854,16 @@ ng_ipaddr_parse(const struct ng_parse_type *type,
 }
 
 static int
-ng_ipaddr_unparse(const struct ng_parse_type *type,
-	const u_char *data, int *off, char *cbuf, int cbuflen)
+ng_ipaddr_unparse(const struct ng_parse_type *type, const u_char *data,
+    int *off, char *cbuf, int cbuflen)
 {
 	struct in_addr ip;
 	int error;
 
 	bcopy(data + *off, &ip, sizeof(ip));
 	if ((error = ng_parse_append(&cbuf, &cbuflen, "%d.%d.%d.%d",
-	    ((u_char *)&ip)[0], ((u_char *)&ip)[1],
-	    ((u_char *)&ip)[2], ((u_char *)&ip)[3])) != 0)
+		 ((u_char *)&ip)[0], ((u_char *)&ip)[1], ((u_char *)&ip)[2],
+		 ((u_char *)&ip)[3])) != 0)
 		return (error);
 	*off += sizeof(ip);
 	return (0);
@@ -986,7 +871,7 @@ ng_ipaddr_unparse(const struct ng_parse_type *type,
 
 static int
 ng_ipaddr_getDefault(const struct ng_parse_type *type,
-	const u_char *const start, u_char *buf, int *buflen)
+    const u_char *const start, u_char *buf, int *buflen)
 {
 	struct in_addr ip = { 0 };
 
@@ -997,24 +882,17 @@ ng_ipaddr_getDefault(const struct ng_parse_type *type,
 	return (0);
 }
 
-const struct ng_parse_type ng_parse_ipaddr_type = {
-	NULL,
-	NULL,
-	NULL,
-	ng_ipaddr_parse,
-	ng_ipaddr_unparse,
-	ng_ipaddr_getDefault,
-	ng_int32_getAlign
-};
+const struct ng_parse_type ng_parse_ipaddr_type = { NULL, NULL, NULL,
+	ng_ipaddr_parse, ng_ipaddr_unparse, ng_ipaddr_getDefault,
+	ng_int32_getAlign };
 
 /************************************************************************
 			ETHERNET ADDRESS TYPE
  ************************************************************************/
 
 static int
-ng_enaddr_parse(const struct ng_parse_type *type,
-	const char *s, int *const off, const u_char *const start,
-	u_char *const buf, int *const buflen)
+ng_enaddr_parse(const struct ng_parse_type *type, const char *s, int *const off,
+    const u_char *const start, u_char *const buf, int *const buflen)
 {
 	char *eptr;
 	u_long val;
@@ -1039,29 +917,22 @@ ng_enaddr_parse(const struct ng_parse_type *type,
 }
 
 static int
-ng_enaddr_unparse(const struct ng_parse_type *type,
-	const u_char *data, int *off, char *cbuf, int cbuflen)
+ng_enaddr_unparse(const struct ng_parse_type *type, const u_char *data,
+    int *off, char *cbuf, int cbuflen)
 {
 	int len;
 
 	len = snprintf(cbuf, cbuflen, "%02x:%02x:%02x:%02x:%02x:%02x",
-	    data[*off], data[*off + 1], data[*off + 2],
-	    data[*off + 3], data[*off + 4], data[*off + 5]);
+	    data[*off], data[*off + 1], data[*off + 2], data[*off + 3],
+	    data[*off + 4], data[*off + 5]);
 	if (len >= cbuflen)
 		return (ERANGE);
 	*off += ETHER_ADDR_LEN;
 	return (0);
 }
 
-const struct ng_parse_type ng_parse_enaddr_type = {
-	NULL,
-	NULL,
-	NULL,
-	ng_enaddr_parse,
-	ng_enaddr_unparse,
-	NULL,
-	0
-};
+const struct ng_parse_type ng_parse_enaddr_type = { NULL, NULL, NULL,
+	ng_enaddr_parse, ng_enaddr_unparse, NULL, 0 };
 
 /************************************************************************
 			BYTE ARRAY TYPE
@@ -1069,8 +940,8 @@ const struct ng_parse_type ng_parse_enaddr_type = {
 
 /* Get the length of a byte array */
 static int
-ng_parse_bytearray_subtype_getLength(const struct ng_parse_type *type,
-	const u_char *start, const u_char *buf)
+ng_parse_bytearray_subtype_getLength(
+    const struct ng_parse_type *type, const u_char *start, const u_char *buf)
 {
 	ng_parse_array_getLength_t *const getLength = type->private;
 
@@ -1079,19 +950,15 @@ ng_parse_bytearray_subtype_getLength(const struct ng_parse_type *type,
 
 /* Byte array element type is hex int8 */
 static const struct ng_parse_array_info ng_parse_bytearray_subtype_info = {
-	&ng_parse_hint8_type,
-	&ng_parse_bytearray_subtype_getLength,
-	NULL
+	&ng_parse_hint8_type, &ng_parse_bytearray_subtype_getLength, NULL
 };
 static const struct ng_parse_type ng_parse_bytearray_subtype = {
-	&ng_parse_array_type,
-	&ng_parse_bytearray_subtype_info
+	&ng_parse_array_type, &ng_parse_bytearray_subtype_info
 };
 
 static int
-ng_bytearray_parse(const struct ng_parse_type *type,
-	const char *s, int *off, const u_char *const start,
-	u_char *const buf, int *buflen)
+ng_bytearray_parse(const struct ng_parse_type *type, const char *s, int *off,
+    const u_char *const start, u_char *const buf, int *buflen)
 {
 	char *str;
 	int toklen;
@@ -1127,8 +994,8 @@ ng_bytearray_parse(const struct ng_parse_type *type,
 }
 
 static int
-ng_bytearray_unparse(const struct ng_parse_type *type,
-	const u_char *data, int *off, char *cbuf, int cbuflen)
+ng_bytearray_unparse(const struct ng_parse_type *type, const u_char *data,
+    int *off, char *cbuf, int cbuflen)
 {
 	struct ng_parse_type subtype;
 
@@ -1139,7 +1006,7 @@ ng_bytearray_unparse(const struct ng_parse_type *type,
 
 static int
 ng_bytearray_getDefault(const struct ng_parse_type *type,
-	const u_char *const start, u_char *buf, int *buflen)
+    const u_char *const start, u_char *buf, int *buflen)
 {
 	struct ng_parse_type subtype;
 
@@ -1148,15 +1015,9 @@ ng_bytearray_getDefault(const struct ng_parse_type *type,
 	return ng_array_getDefault(&subtype, start, buf, buflen);
 }
 
-const struct ng_parse_type ng_parse_bytearray_type = {
-	NULL,
-	NULL,
-	NULL,
-	ng_bytearray_parse,
-	ng_bytearray_unparse,
-	ng_bytearray_getDefault,
-	NULL
-};
+const struct ng_parse_type ng_parse_bytearray_type = { NULL, NULL, NULL,
+	ng_bytearray_parse, ng_bytearray_unparse, ng_bytearray_getDefault,
+	NULL };
 
 /************************************************************************
 			STRUCT NG_MESG TYPE
@@ -1164,8 +1025,8 @@ const struct ng_parse_type ng_parse_bytearray_type = {
 
 /* Get msg->header.arglen when "buf" is pointing to msg->data */
 static int
-ng_parse_ng_mesg_getLength(const struct ng_parse_type *type,
-	const u_char *start, const u_char *buf)
+ng_parse_ng_mesg_getLength(
+    const struct ng_parse_type *type, const u_char *start, const u_char *buf)
 {
 	const struct ng_mesg *msg;
 
@@ -1174,14 +1035,12 @@ ng_parse_ng_mesg_getLength(const struct ng_parse_type *type,
 }
 
 /* Type for the variable length data portion of a struct ng_mesg */
-static const struct ng_parse_type ng_msg_data_type = {
-	&ng_parse_bytearray_type,
-	&ng_parse_ng_mesg_getLength
-};
+static const struct ng_parse_type ng_msg_data_type = { &ng_parse_bytearray_type,
+	&ng_parse_ng_mesg_getLength };
 
 /* Type for the entire struct ng_mesg header with data section */
-static const struct ng_parse_struct_field ng_parse_ng_mesg_type_fields[]
-	= NG_GENERIC_NG_MESG_INFO(&ng_msg_data_type);
+static const struct ng_parse_struct_field ng_parse_ng_mesg_type_fields[] =
+    NG_GENERIC_NG_MESG_INFO(&ng_msg_data_type);
 const struct ng_parse_type ng_parse_ng_mesg_type = {
 	&ng_parse_struct_type,
 	&ng_parse_ng_mesg_type_fields,
@@ -1195,14 +1054,14 @@ const struct ng_parse_type ng_parse_ng_mesg_type = {
  * Convert a structure or array from ASCII to binary
  */
 static int
-ng_parse_composite(const struct ng_parse_type *type, const char *s,
-	int *off, const u_char *const start, u_char *const buf, int *buflen,
-	const enum comptype ctype)
+ng_parse_composite(const struct ng_parse_type *type, const char *s, int *off,
+    const u_char *const start, u_char *const buf, int *buflen,
+    const enum comptype ctype)
 {
 	const int num = ng_get_composite_len(type, start, buf, ctype);
-	int nextIndex = 0;		/* next implicit array index */
-	u_int index;			/* field or element index */
-	int *foff;			/* field value offsets in string */
+	int nextIndex = 0; /* next implicit array index */
+	u_int index;	   /* field or element index */
+	int *foff;	   /* field value offsets in string */
 	int align, len, blen, error = 0;
 
 	/* Initialize */
@@ -1213,8 +1072,8 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 	}
 
 	/* Get opening brace/bracket */
-	if (ng_parse_get_token(s, off, &len)
-	    != (ctype == CT_STRUCT ? T_LBRACE : T_LBRACKET)) {
+	if (ng_parse_get_token(s, off, &len) !=
+	    (ctype == CT_STRUCT ? T_LBRACE : T_LBRACKET)) {
 		error = EINVAL;
 		goto done;
 	}
@@ -1267,9 +1126,9 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 			index = (u_int)ul;
 			nextIndex = index + 1;
 			*off += len + len2;
-		} else {			/* a structure field */
-			const struct ng_parse_struct_field *const
-			    fields = type->info;
+		} else { /* a structure field */
+			const struct ng_parse_struct_field *const fields =
+			    type->info;
 
 			/* Find the field by name (required) in field list */
 			if (tok != T_WORD) {
@@ -1277,11 +1136,11 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 				goto done;
 			}
 			for (index = 0; index < num; index++) {
-				const struct ng_parse_struct_field *const
-				    field = &fields[index];
+				const struct ng_parse_struct_field
+				    *const field = &fields[index];
 
-				if (strncmp(&s[*off], field->name, len) == 0
-				    && field->name[len] == '\0')
+				if (strncmp(&s[*off], field->name, len) == 0 &&
+				    field->name[len] == '\0')
 					break;
 			}
 			if (index == num) {
@@ -1297,7 +1156,7 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 			}
 			*off += len;
 		}
-gotIndex:
+	gotIndex:
 
 		/* Check array index */
 		if (index >= num) {
@@ -1307,7 +1166,7 @@ gotIndex:
 
 		/* Save value's position and skip over it for now */
 		if (foff[index] != 0) {
-			error = EALREADY;		/* duplicate */
+			error = EALREADY; /* duplicate */
 			goto done;
 		}
 		while (isspace(s[*off]))
@@ -1320,8 +1179,8 @@ gotIndex:
 
 	/* Now build binary structure from supplied values and defaults */
 	for (blen = index = 0; index < num; index++) {
-		const struct ng_parse_type *const
-		    etype = ng_get_composite_etype(type, index, ctype);
+		const struct ng_parse_type *const etype =
+		    ng_get_composite_etype(type, index, ctype);
 		int k, pad, vlen;
 
 		/* Zero-pad any alignment bytes */
@@ -1336,13 +1195,13 @@ gotIndex:
 
 		/* Get value */
 		vlen = *buflen - blen;
-		if (foff[index] == 0) {		/* use default value */
-			error = ng_get_composite_elem_default(type, index,
-			    start, buf + blen, &vlen, ctype);
-		} else {			/* parse given value */
+		if (foff[index] == 0) { /* use default value */
+			error = ng_get_composite_elem_default(
+			    type, index, start, buf + blen, &vlen, ctype);
+		} else { /* parse given value */
 			*off = foff[index];
-			error = INVOKE(etype, parse)(etype,
-			    s, off, start, buf + blen, &vlen);
+			error = INVOKE(etype, parse)(
+			    etype, s, off, start, buf + blen, &vlen);
 		}
 		if (error != 0)
 			goto done;
@@ -1373,12 +1232,12 @@ done:
  */
 static int
 ng_unparse_composite(const struct ng_parse_type *type, const u_char *data,
-	int *off, char *cbuf, int cbuflen, const enum comptype ctype)
+    int *off, char *cbuf, int cbuflen, const enum comptype ctype)
 {
-	const struct ng_mesg *const hdr
-	    = (const struct ng_mesg *)(data - sizeof(*hdr));
+	const struct ng_mesg *const hdr = (const struct ng_mesg *)(data -
+	    sizeof(*hdr));
 	const int num = ng_get_composite_len(type, data, data + *off, ctype);
-	const int workSize = 20 * 1024;		/* XXX hard coded constant */
+	const int workSize = 20 * 1024; /* XXX hard coded constant */
 	int nextIndex = 0, didOne = 0;
 	int error, index;
 	u_char *workBuf;
@@ -1389,14 +1248,14 @@ ng_unparse_composite(const struct ng_parse_type *type, const u_char *data,
 		return (ENOMEM);
 
 	/* Opening brace/bracket */
-	if ((error = ng_parse_append(&cbuf, &cbuflen, "%c",
-	    (ctype == CT_STRUCT) ? '{' : '[')) != 0)
+	if ((error = ng_parse_append(
+		 &cbuf, &cbuflen, "%c", (ctype == CT_STRUCT) ? '{' : '[')) != 0)
 		goto fail;
 
 	/* Do each item */
 	for (index = 0; index < num; index++) {
-		const struct ng_parse_type *const
-		    etype = ng_get_composite_etype(type, index, ctype);
+		const struct ng_parse_type *const etype =
+		    ng_get_composite_etype(type, index, ctype);
 
 		/* Skip any alignment pad bytes */
 		*off += ng_parse_get_elem_pad(type, index, ctype, *off);
@@ -1409,11 +1268,12 @@ ng_unparse_composite(const struct ng_parse_type *type, const u_char *data,
 			int tempsize = workSize - sizeof(*hdr) - *off;
 
 			bcopy(hdr, workBuf, sizeof(*hdr) + *off);
-			if (ng_get_composite_elem_default(type, index, workBuf
-			      + sizeof(*hdr), workBuf + sizeof(*hdr) + *off,
-			      &tempsize, ctype) == 0
-			    && bcmp(workBuf + sizeof(*hdr) + *off,
-			      data + *off, tempsize) == 0) {
+			if (ng_get_composite_elem_default(type, index,
+				workBuf + sizeof(*hdr),
+				workBuf + sizeof(*hdr) + *off, &tempsize,
+				ctype) == 0 &&
+			    bcmp(workBuf + sizeof(*hdr) + *off, data + *off,
+				tempsize) == 0) {
 				*off += tempsize;
 				continue;
 			}
@@ -1425,23 +1285,23 @@ ng_unparse_composite(const struct ng_parse_type *type, const u_char *data,
 		if (ctype != CT_STRUCT) {
 			if (index != nextIndex) {
 				nextIndex = index;
-				if ((error = ng_parse_append(&cbuf,
-				    &cbuflen, "%d=", index)) != 0)
+				if ((error = ng_parse_append(
+					 &cbuf, &cbuflen, "%d=", index)) != 0)
 					goto fail;
 			}
 			nextIndex++;
 		} else {
-			const struct ng_parse_struct_field *const
-			    fields = type->info;
+			const struct ng_parse_struct_field *const fields =
+			    type->info;
 
-			if ((error = ng_parse_append(&cbuf,
-			    &cbuflen, "%s=", fields[index].name)) != 0)
+			if ((error = ng_parse_append(&cbuf, &cbuflen,
+				 "%s=", fields[index].name)) != 0)
 				goto fail;
 		}
 
 		/* Print value */
-		if ((error = INVOKE(etype, unparse)
-		    (etype, data, off, cbuf, cbuflen)) != 0) {
+		if ((error = INVOKE(etype, unparse)(
+			 etype, data, off, cbuf, cbuflen)) != 0) {
 			free(workBuf, M_NETGRAPH_PARSE);
 			return (error);
 		}
@@ -1451,8 +1311,8 @@ ng_unparse_composite(const struct ng_parse_type *type, const u_char *data,
 	}
 
 	/* Closing brace/bracket */
-	error = ng_parse_append(&cbuf, &cbuflen, "%s%c",
-	    didOne ? " " : "", (ctype == CT_STRUCT) ? '}' : ']');
+	error = ng_parse_append(&cbuf, &cbuflen, "%s%c", didOne ? " " : "",
+	    (ctype == CT_STRUCT) ? '}' : ']');
 
 fail:
 	/* Clean up after failure */
@@ -1465,9 +1325,9 @@ fail:
  * Returns EOPNOTSUPP if default value is unspecified.
  */
 static int
-ng_get_composite_elem_default(const struct ng_parse_type *type,
-	int index, const u_char *const start, u_char *buf, int *buflen,
-	const enum comptype ctype)
+ng_get_composite_elem_default(const struct ng_parse_type *type, int index,
+    const u_char *const start, u_char *buf, int *buflen,
+    const enum comptype ctype)
 {
 	const struct ng_parse_type *etype;
 	ng_getDefault_t *func;
@@ -1475,28 +1335,26 @@ ng_get_composite_elem_default(const struct ng_parse_type *type,
 	switch (ctype) {
 	case CT_STRUCT:
 		break;
-	case CT_ARRAY:
-	    {
+	case CT_ARRAY: {
 		const struct ng_parse_array_info *const ai = type->info;
 
 		if (ai->getDefault != NULL) {
-			return (*ai->getDefault)(type,
-			    index, start, buf, buflen);
+			return (*ai->getDefault)(
+			    type, index, start, buf, buflen);
 		}
 		break;
-	    }
-	case CT_FIXEDARRAY:
-	    {
+	}
+	case CT_FIXEDARRAY: {
 		const struct ng_parse_fixedarray_info *const fi = type->info;
 
 		if (*fi->getDefault != NULL) {
-			return (*fi->getDefault)(type,
-			    index, start, buf, buflen);
+			return (*fi->getDefault)(
+			    type, index, start, buf, buflen);
 		}
 		break;
-	    }
+	}
 	default:
-	    panic("%s", __func__);
+		panic("%s", __func__);
 	}
 
 	/* Default to element type default */
@@ -1512,38 +1370,34 @@ ng_get_composite_elem_default(const struct ng_parse_type *type,
  */
 static int
 ng_get_composite_len(const struct ng_parse_type *type,
-	const u_char *const start, const u_char *buf,
-	const enum comptype ctype)
+    const u_char *const start, const u_char *buf, const enum comptype ctype)
 {
 	switch (ctype) {
-	case CT_STRUCT:
-	    {
+	case CT_STRUCT: {
 		const struct ng_parse_struct_field *const fields = type->info;
 		int numFields = 0;
 
-		for (numFields = 0; ; numFields++) {
-			const struct ng_parse_struct_field *const
-				fi = &fields[numFields];
+		for (numFields = 0;; numFields++) {
+			const struct ng_parse_struct_field *const fi =
+			    &fields[numFields];
 
 			if (fi->name == NULL)
 				break;
 		}
 		return (numFields);
-	    }
-	case CT_ARRAY:
-	    {
+	}
+	case CT_ARRAY: {
 		const struct ng_parse_array_info *const ai = type->info;
 
 		return (*ai->getLength)(type, start, buf);
-	    }
-	case CT_FIXEDARRAY:
-	    {
+	}
+	case CT_FIXEDARRAY: {
 		const struct ng_parse_fixedarray_info *const fi = type->info;
 
 		return fi->length;
-	    }
+	}
 	default:
-	    panic("%s", __func__);
+		panic("%s", __func__);
 	}
 	return (0);
 }
@@ -1552,35 +1406,32 @@ ng_get_composite_len(const struct ng_parse_type *type,
  * Return the type of the index'th element of a composite structure
  */
 static const struct ng_parse_type *
-ng_get_composite_etype(const struct ng_parse_type *type,
-	int index, const enum comptype ctype)
+ng_get_composite_etype(
+    const struct ng_parse_type *type, int index, const enum comptype ctype)
 {
 	const struct ng_parse_type *etype = NULL;
 
 	switch (ctype) {
-	case CT_STRUCT:
-	    {
+	case CT_STRUCT: {
 		const struct ng_parse_struct_field *const fields = type->info;
 
 		etype = fields[index].type;
 		break;
-	    }
-	case CT_ARRAY:
-	    {
+	}
+	case CT_ARRAY: {
 		const struct ng_parse_array_info *const ai = type->info;
 
 		etype = ai->elementType;
 		break;
-	    }
-	case CT_FIXEDARRAY:
-	    {
+	}
+	case CT_FIXEDARRAY: {
 		const struct ng_parse_fixedarray_info *const fi = type->info;
 
 		etype = fi->elementType;
 		break;
-	    }
+	}
 	default:
-	    panic("%s", __func__);
+		panic("%s", __func__);
 	}
 	return (etype);
 }
@@ -1590,11 +1441,11 @@ ng_get_composite_etype(const struct ng_parse_type *type,
  * element in a composite structure.
  */
 static int
-ng_parse_get_elem_pad(const struct ng_parse_type *type,
-	int index, enum comptype ctype, int posn)
+ng_parse_get_elem_pad(
+    const struct ng_parse_type *type, int index, enum comptype ctype, int posn)
 {
-	const struct ng_parse_type *const
-	    etype = ng_get_composite_etype(type, index, ctype);
+	const struct ng_parse_type *const etype = ng_get_composite_etype(
+	    type, index, ctype);
 	int align;
 
 	/* Get element's alignment, and possibly override */
@@ -1709,9 +1560,10 @@ ng_parse_get_token(const char *s, int *startp, int *lenp)
 		free(t, M_NETGRAPH_PARSE);
 		return T_STRING;
 	default:
-		for (i = *startp + 1; s[i] != '\0' && !isspace(s[i])
-		    && s[i] != '{' && s[i] != '}' && s[i] != '['
-		    && s[i] != ']' && s[i] != '=' && s[i] != '"'; i++)
+		for (i = *startp + 1; s[i] != '\0' && !isspace(s[i]) &&
+		     s[i] != '{' && s[i] != '}' && s[i] != '[' && s[i] != ']' &&
+		     s[i] != '=' && s[i] != '"';
+		     i++)
 			;
 		*lenp = i - *startp;
 		return T_WORD;
@@ -1765,32 +1617,39 @@ ng_get_string_token(const char *s, int *startp, int *lenp, int *slenp)
 				off++;
 				continue;
 			case 'v':
-				*v =  '\v';
+				*v = '\v';
 				off++;
 				continue;
 			case 'f':
-				*v =  '\f';
+				*v = '\f';
 				off++;
 				continue;
 			case '"':
-				*v =  '"';
+				*v = '"';
 				off++;
 				continue;
-			case '0': case '1': case '2': case '3':
-			case '4': case '5': case '6': case '7':
-				for (x = k = 0;
-				    k < 3 && *v >= '0' && *v <= '7'; v++) {
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+				for (x = k = 0; k < 3 && *v >= '0' && *v <= '7';
+				     v++) {
 					x = (x << 3) + (*v - '0');
 					off++;
 				}
 				*--v = (char)x;
 				break;
 			case 'x':
-				for (v++, x = k = 0;
-				    k < 2 && isxdigit(*v); v++) {
-					x = (x << 4) + (isdigit(*v) ?
-					      (*v - '0') :
-					      (tolower(*v) - 'a' + 10));
+				for (v++, x = k = 0; k < 2 && isxdigit(*v);
+				     v++) {
+					x = (x << 4) +
+					    (isdigit(*v) ?
+							  (*v - '0') :
+							  (tolower(*v) - 'a' + 10));
 					off++;
 				}
 				*--v = (char)x;
@@ -1802,7 +1661,7 @@ ng_get_string_token(const char *s, int *startp, int *lenp, int *slenp)
 		}
 	}
 	free(cbuf, M_NETGRAPH_PARSE);
-	return (NULL);		/* no closing quote */
+	return (NULL); /* no closing quote */
 }
 
 /*
@@ -1850,8 +1709,8 @@ ng_encode_string(const char *raw, int slen)
 			break;
 		default:
 			if (*raw < 0x20 || *raw > 0x7e) {
-				off += sprintf(cbuf + off,
-				    "\\x%02x", (u_char)*raw);
+				off += sprintf(
+				    cbuf + off, "\\x%02x", (u_char)*raw);
 				break;
 			}
 			cbuf[off++] = *raw;

@@ -37,9 +37,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#if	defined(_KERNEL) || defined(_STANDALONE)
-#include <sys/time.h>
+#if defined(_KERNEL) || defined(_STANDALONE)
 #include <sys/proc.h>
+#include <sys/time.h>
+
 #include <vm/vm.h>
 #endif
 #include <sys/sysctl.h>
@@ -51,21 +52,21 @@ void
 __syncicache(void *from, int len)
 {
 	register_t l, off;
-	char	*p;
+	char *p;
 
 	off = (uintptr_t)from & (cacheline_size - 1);
 	l = len += off;
 	p = (char *)from - off;
 
 	do {
-		__asm __volatile ("dcbst 0,%0" :: "r"(p));
+		__asm __volatile("dcbst 0,%0" ::"r"(p));
 		p += cacheline_size;
 	} while ((l -= cacheline_size) > 0);
-	__asm __volatile ("sync");
+	__asm __volatile("sync");
 	p = (char *)from - off;
 	do {
-		__asm __volatile ("icbi 0,%0" :: "r"(p));
+		__asm __volatile("icbi 0,%0" ::"r"(p));
 		p += cacheline_size;
 	} while ((len -= cacheline_size) > 0);
-	__asm __volatile ("sync; isync");
+	__asm __volatile("sync; isync");
 }

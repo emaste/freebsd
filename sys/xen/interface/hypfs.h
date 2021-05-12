@@ -33,33 +33,34 @@
  */
 
 /* Highest version number of the hypfs interface currently defined. */
-#define XEN_HYPFS_VERSION      1
+#define XEN_HYPFS_VERSION 1
 
 /* Maximum length of a path in the filesystem. */
-#define XEN_HYPFS_MAX_PATHLEN  1024
+#define XEN_HYPFS_MAX_PATHLEN 1024
 
 struct xen_hypfs_direntry {
-    uint8_t type;
-#define XEN_HYPFS_TYPE_DIR     0
-#define XEN_HYPFS_TYPE_BLOB    1
-#define XEN_HYPFS_TYPE_STRING  2
-#define XEN_HYPFS_TYPE_UINT    3
-#define XEN_HYPFS_TYPE_INT     4
-#define XEN_HYPFS_TYPE_BOOL    5
-    uint8_t encoding;
-#define XEN_HYPFS_ENC_PLAIN    0
-#define XEN_HYPFS_ENC_GZIP     1
-    uint16_t pad;              /* Returned as 0. */
-    uint32_t content_len;      /* Current length of data. */
-    uint32_t max_write_len;    /* Max. length for writes (0 if read-only). */
+	uint8_t type;
+#define XEN_HYPFS_TYPE_DIR 0
+#define XEN_HYPFS_TYPE_BLOB 1
+#define XEN_HYPFS_TYPE_STRING 2
+#define XEN_HYPFS_TYPE_UINT 3
+#define XEN_HYPFS_TYPE_INT 4
+#define XEN_HYPFS_TYPE_BOOL 5
+	uint8_t encoding;
+#define XEN_HYPFS_ENC_PLAIN 0
+#define XEN_HYPFS_ENC_GZIP 1
+	uint16_t pad;		/* Returned as 0. */
+	uint32_t content_len;	/* Current length of data. */
+	uint32_t max_write_len; /* Max. length for writes (0 if read-only). */
 };
 
 struct xen_hypfs_dirlistentry {
-    struct xen_hypfs_direntry e;
-    /* Offset in bytes to next entry (0 == this is the last entry). */
-    uint16_t off_next;
-    /* Zero terminated entry name, possibly with some padding for alignment. */
-    char name[XEN_FLEX_ARRAY_DIM];
+	struct xen_hypfs_direntry e;
+	/* Offset in bytes to next entry (0 == this is the last entry). */
+	uint16_t off_next;
+	/* Zero terminated entry name, possibly with some padding for alignment.
+	 */
+	char name[XEN_FLEX_ARRAY_DIM];
 };
 
 /*
@@ -77,7 +78,7 @@ struct xen_hypfs_dirlistentry {
  * >0: highest supported interface version
  * <0: negative Xen errno value
  */
-#define XEN_HYPFS_OP_get_version     0
+#define XEN_HYPFS_OP_get_version 0
 
 /*
  * XEN_HYPFS_OP_read
@@ -104,7 +105,7 @@ struct xen_hypfs_dirlistentry {
  * 0: success
  * <0 : negative Xen errno value
  */
-#define XEN_HYPFS_OP_read              1
+#define XEN_HYPFS_OP_read 1
 
 /*
  * XEN_HYPFS_OP_write_contents
@@ -124,6 +125,6 @@ struct xen_hypfs_dirlistentry {
  * 0: success
  * <0 : negative Xen errno value
  */
-#define XEN_HYPFS_OP_write_contents    2
+#define XEN_HYPFS_OP_write_contents 2
 
 #endif /* __XEN_PUBLIC_HYPFS_H__ */

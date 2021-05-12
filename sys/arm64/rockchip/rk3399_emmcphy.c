@@ -36,90 +36,87 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/gpio.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/phy/phy.h>
+#include <dev/extres/syscon/syscon.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/syscon/syscon.h>
-#include <dev/extres/phy/phy.h>
-
 #include "syscon_if.h"
 
-#define	GRF_EMMCPHY_BASE	0xf780
-#define	GRF_EMMCPHY_CON0	(GRF_EMMCPHY_BASE + 0x00)
-#define	 PHYCTRL_FRQSEL		(1 << 13) | (1 << 12)
-#define	  PHYCTRL_FRQSEL_200M	0
-#define	  PHYCTRL_FRQSEL_50M	1
-#define	  PHYCTRL_FRQSEL_100M	2
-#define	  PHYCTRL_FRQSEL_150M	3
-#define	 PHYCTRL_OTAPDLYENA	(1 << 11)
-#define	 PHYCTRL_OTAPDLYSEL	(1 << 10) | (1 << 9) | (1 << 8) | (1 << 7)
-#define	 PHYCTRL_ITAPCHGWIN	(1 << 6)
-#define	 PHYCTRL_ITAPDLYSEL	(1 << 5) | (1 << 4)  | (1 << 3) | (1 << 2) | \
-    (1 << 1)
-#define	 PHYCTRL_ITAPDLYENA	(1 << 0)
-#define	GRF_EMMCPHY_CON1	(GRF_EMMCPHY_BASE + 0x04)
-#define	 PHYCTRL_CLKBUFSEL	(1 << 8) | (1 << 7) | (1 << 6)
-#define	 PHYCTRL_SELDLYTXCLK	(1 << 5)
-#define	 PHYCTRL_SELDLYRXCLK	(1 << 4)
-#define	 PHYCTRL_STRBSEL	0xf
-#define	GRF_EMMCPHY_CON2	(GRF_EMMCPHY_BASE + 0x08)
-#define	 PHYCTRL_REN_STRB	(1 << 9)
-#define	 PHYCTRL_REN_CMD	(1 << 8)
-#define	 PHYCTRL_REN_DAT	0xff
-#define	GRF_EMMCPHY_CON3	(GRF_EMMCPHY_BASE + 0x0c)
-#define	 PHYCTRL_PU_STRB	(1 << 9)
-#define	 PHYCTRL_PU_CMD		(1 << 8)
-#define	 PHYCTRL_PU_DAT		0xff
-#define	GRF_EMMCPHY_CON4	(GRF_EMMCPHY_BASE + 0x10)
-#define	 PHYCTRL_OD_RELEASE_CMD		(1 << 9)
-#define	 PHYCTRL_OD_RELEASE_STRB	(1 << 8)
-#define	 PHYCTRL_OD_RELEASE_DAT		0xff
-#define	GRF_EMMCPHY_CON5	(GRF_EMMCPHY_BASE + 0x14)
-#define	 PHYCTRL_ODEN_STRB	(1 << 9)
-#define	 PHYCTRL_ODEN_CMD	(1 << 8)
-#define	 PHYCTRL_ODEN_DAT	0xff
-#define	GRF_EMMCPHY_CON6	(GRF_EMMCPHY_BASE + 0x18)
-#define	 PHYCTRL_DLL_TRM_ICP	(1 << 12) | (1 << 11) | (1 << 10) | (1 << 9)
-#define	 PHYCTRL_EN_RTRIM	(1 << 8)
-#define	 PHYCTRL_RETRIM		(1 << 7)
-#define	 PHYCTRL_DR_TY		(1 << 6) | (1 << 5) | (1 << 4)
-#define	 PHYCTRL_RETENB		(1 << 3)
-#define	 PHYCTRL_RETEN		(1 << 2)
-#define	 PHYCTRL_ENDLL		(1 << 1)
-#define	 PHYCTRL_PDB		(1 << 0)
-#define	GRF_EMMCPHY_STATUS	(GRF_EMMCPHY_BASE + 0x20)
-#define	 PHYCTRL_CALDONE	(1 << 6)
-#define	 PHYCTRL_DLLRDY		(1 << 5)
-#define	 PHYCTRL_RTRIM		(1 << 4) | (1 << 3) | (1 << 2) | (1 << 1)
-#define	 PHYCTRL_EXR_NINST	(1 << 0)
+#define GRF_EMMCPHY_BASE 0xf780
+#define GRF_EMMCPHY_CON0 (GRF_EMMCPHY_BASE + 0x00)
+#define PHYCTRL_FRQSEL (1 << 13) | (1 << 12)
+#define PHYCTRL_FRQSEL_200M 0
+#define PHYCTRL_FRQSEL_50M 1
+#define PHYCTRL_FRQSEL_100M 2
+#define PHYCTRL_FRQSEL_150M 3
+#define PHYCTRL_OTAPDLYENA (1 << 11)
+#define PHYCTRL_OTAPDLYSEL (1 << 10) | (1 << 9) | (1 << 8) | (1 << 7)
+#define PHYCTRL_ITAPCHGWIN (1 << 6)
+#define PHYCTRL_ITAPDLYSEL (1 << 5) | (1 << 4) | (1 << 3) | (1 << 2) | (1 << 1)
+#define PHYCTRL_ITAPDLYENA (1 << 0)
+#define GRF_EMMCPHY_CON1 (GRF_EMMCPHY_BASE + 0x04)
+#define PHYCTRL_CLKBUFSEL (1 << 8) | (1 << 7) | (1 << 6)
+#define PHYCTRL_SELDLYTXCLK (1 << 5)
+#define PHYCTRL_SELDLYRXCLK (1 << 4)
+#define PHYCTRL_STRBSEL 0xf
+#define GRF_EMMCPHY_CON2 (GRF_EMMCPHY_BASE + 0x08)
+#define PHYCTRL_REN_STRB (1 << 9)
+#define PHYCTRL_REN_CMD (1 << 8)
+#define PHYCTRL_REN_DAT 0xff
+#define GRF_EMMCPHY_CON3 (GRF_EMMCPHY_BASE + 0x0c)
+#define PHYCTRL_PU_STRB (1 << 9)
+#define PHYCTRL_PU_CMD (1 << 8)
+#define PHYCTRL_PU_DAT 0xff
+#define GRF_EMMCPHY_CON4 (GRF_EMMCPHY_BASE + 0x10)
+#define PHYCTRL_OD_RELEASE_CMD (1 << 9)
+#define PHYCTRL_OD_RELEASE_STRB (1 << 8)
+#define PHYCTRL_OD_RELEASE_DAT 0xff
+#define GRF_EMMCPHY_CON5 (GRF_EMMCPHY_BASE + 0x14)
+#define PHYCTRL_ODEN_STRB (1 << 9)
+#define PHYCTRL_ODEN_CMD (1 << 8)
+#define PHYCTRL_ODEN_DAT 0xff
+#define GRF_EMMCPHY_CON6 (GRF_EMMCPHY_BASE + 0x18)
+#define PHYCTRL_DLL_TRM_ICP (1 << 12) | (1 << 11) | (1 << 10) | (1 << 9)
+#define PHYCTRL_EN_RTRIM (1 << 8)
+#define PHYCTRL_RETRIM (1 << 7)
+#define PHYCTRL_DR_TY (1 << 6) | (1 << 5) | (1 << 4)
+#define PHYCTRL_RETENB (1 << 3)
+#define PHYCTRL_RETEN (1 << 2)
+#define PHYCTRL_ENDLL (1 << 1)
+#define PHYCTRL_PDB (1 << 0)
+#define GRF_EMMCPHY_STATUS (GRF_EMMCPHY_BASE + 0x20)
+#define PHYCTRL_CALDONE (1 << 6)
+#define PHYCTRL_DLLRDY (1 << 5)
+#define PHYCTRL_RTRIM (1 << 4) | (1 << 3) | (1 << 2) | (1 << 1)
+#define PHYCTRL_EXR_NINST (1 << 0)
 
 static struct ofw_compat_data compat_data[] = {
-	{ "rockchip,rk3399-emmc-phy",	1 },
-	{ NULL,				0 }
+	{ "rockchip,rk3399-emmc-phy", 1 }, { NULL, 0 }
 };
 
 struct rk_emmcphy_softc {
-	struct syscon		*syscon;
-	struct rk_emmcphy_conf	*phy_conf;
-	clk_t			clk;
+	struct syscon *syscon;
+	struct rk_emmcphy_conf *phy_conf;
+	clk_t clk;
 };
 
-#define	LOWEST_SET_BIT(mask)	((((mask) - 1) & (mask)) ^ (mask))
-#define	SHIFTIN(x, mask)	((x) * LOWEST_SET_BIT(mask))
+#define LOWEST_SET_BIT(mask) ((((mask)-1) & (mask)) ^ (mask))
+#define SHIFTIN(x, mask) ((x)*LOWEST_SET_BIT(mask))
 
 /* Phy class and methods. */
 static int rk_emmcphy_enable(struct phynode *phynode, bool enable);
 static phynode_method_t rk_emmcphy_phynode_methods[] = {
-	PHYNODEMETHOD(phynode_enable,	rk_emmcphy_enable),
-	PHYNODEMETHOD_END
+	PHYNODEMETHOD(phynode_enable, rk_emmcphy_enable), PHYNODEMETHOD_END
 };
 
 DEFINE_CLASS_1(rk_emmcphy_phynode, rk_emmcphy_phynode_class,
@@ -150,14 +147,14 @@ rk_emmcphy_enable(struct phynode *phynode, bool enable)
 		/* Drive strength */
 		mask = PHYCTRL_DR_TY;
 		val = SHIFTIN(0, PHYCTRL_DR_TY);
-		SYSCON_WRITE_4(sc->syscon, GRF_EMMCPHY_CON6,
-		    (mask << 16) | val);
+		SYSCON_WRITE_4(
+		    sc->syscon, GRF_EMMCPHY_CON6, (mask << 16) | val);
 
 		/* Enable output tap delay */
 		mask = PHYCTRL_OTAPDLYENA | PHYCTRL_OTAPDLYSEL;
 		val = PHYCTRL_OTAPDLYENA | SHIFTIN(4, PHYCTRL_OTAPDLYSEL);
-		SYSCON_WRITE_4(sc->syscon, GRF_EMMCPHY_CON0,
-		    (mask << 16) | val);
+		SYSCON_WRITE_4(
+		    sc->syscon, GRF_EMMCPHY_CON0, (mask << 16) | val);
 	}
 
 	/* Power down PHY and disable DLL before making changes */
@@ -168,8 +165,9 @@ rk_emmcphy_enable(struct phynode *phynode, bool enable)
 	if (enable == false)
 		return (0);
 
-	sc->phy_conf = (struct rk_emmcphy_conf *)ofw_bus_search_compatible(dev,
-	    compat_data)->ocd_data;
+	sc->phy_conf = (struct rk_emmcphy_conf *)ofw_bus_search_compatible(
+	    dev, compat_data)
+			   ->ocd_data;
 
 	/* Get clock */
 	error = clk_get_by_ofw_name(dev, 0, "emmcclk", &sc->clk);
@@ -283,15 +281,15 @@ rk_emmcphy_attach(device_t dev)
 	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
 
-	if (OF_getencprop(node, "clocks", (void *)&handle,
-	    sizeof(handle)) <= 0) {
+	if (OF_getencprop(node, "clocks", (void *)&handle, sizeof(handle)) <=
+	    0) {
 		device_printf(dev, "cannot get clocks handle\n");
 		return (ENXIO);
 	}
 	xnode = OF_node_from_xref(handle);
 	if (OF_hasprop(xnode, "arasan,soc-ctl-syscon") &&
-	    syscon_get_by_ofw_property(dev, xnode,
-	    "arasan,soc-ctl-syscon", &sc->syscon) != 0) {
+	    syscon_get_by_ofw_property(
+		dev, xnode, "arasan,soc-ctl-syscon", &sc->syscon) != 0) {
 		device_printf(dev, "cannot get grf driver handle\n");
 		return (ENXIO);
 	}
@@ -323,17 +321,14 @@ rk_emmcphy_attach(device_t dev)
 
 static device_method_t rk_emmcphy_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		rk_emmcphy_probe),
-	DEVMETHOD(device_attach,	rk_emmcphy_attach),
+	DEVMETHOD(device_probe, rk_emmcphy_probe),
+	DEVMETHOD(device_attach, rk_emmcphy_attach),
 
 	DEVMETHOD_END
 };
 
-static driver_t rk_emmcphy_driver = {
-	"rk_emmcphy",
-	rk_emmcphy_methods,
-	sizeof(struct rk_emmcphy_softc)
-};
+static driver_t rk_emmcphy_driver = { "rk_emmcphy", rk_emmcphy_methods,
+	sizeof(struct rk_emmcphy_softc) };
 
 static devclass_t rk_emmcphy_devclass;
 EARLY_DRIVER_MODULE(rk_emmcphy, simplebus, rk_emmcphy_driver,

@@ -30,14 +30,15 @@
  */
 
 #ifndef _LINUX_IO_MAPPING_H_
-#define	_LINUX_IO_MAPPING_H_
+#define _LINUX_IO_MAPPING_H_
 
 #include <sys/types.h>
+
 #include <machine/vm.h>
 
-#include <linux/types.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/types.h>
 
 struct io_mapping {
 	unsigned long base;
@@ -47,8 +48,8 @@ struct io_mapping {
 };
 
 static inline struct io_mapping *
-io_mapping_init_wc(struct io_mapping *mapping, resource_size_t base,
-    unsigned long size)
+io_mapping_init_wc(
+    struct io_mapping *mapping, resource_size_t base, unsigned long size)
 {
 
 	mapping->base = base;
@@ -102,8 +103,8 @@ io_mapping_unmap_atomic(void *vaddr)
 }
 
 static inline void *
-io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset,
-    unsigned long size)
+io_mapping_map_wc(
+    struct io_mapping *mapping, unsigned long offset, unsigned long size)
 {
 
 	return ((char *)mapping->mem + offset);

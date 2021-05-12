@@ -33,17 +33,18 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bio.h>
-#include <sys/sysctl.h>
-#include <sys/taskqueue.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
 #include <sys/devicestat.h>
 #include <sys/eventhandler.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/cons.h>
+#include <sys/mutex.h>
+#include <sys/sysctl.h>
+#include <sys/taskqueue.h>
+
 #include <geom/geom_disk.h>
 #endif /* _KERNEL */
 
@@ -52,14 +53,13 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #endif /* _KERNEL */
 
+#include <cam/ata/ata_all.h>
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_periph.h>
-#include <cam/cam_xpt_periph.h>
-#include <cam/cam_xpt_internal.h>
 #include <cam/cam_sim.h>
-
-#include <cam/ata/ata_all.h>
+#include <cam/cam_xpt_internal.h>
+#include <cam/cam_xpt_periph.h>
 
 #ifdef _KERNEL
 
@@ -78,61 +78,58 @@ typedef enum {
 	PMP_STATE_SCAN
 } pmp_state;
 
-typedef enum {
-	PMP_FLAG_SCTX_INIT	= 0x200
-} pmp_flags;
+typedef enum { PMP_FLAG_SCTX_INIT = 0x200 } pmp_flags;
 
 typedef enum {
-	PMP_CCB_PROBE		= 0x01,
+	PMP_CCB_PROBE = 0x01,
 } pmp_ccb_state;
 
 /* Offsets into our private area for storing information */
-#define ccb_state	ppriv_field0
-#define ccb_bp		ppriv_ptr1
+#define ccb_state ppriv_field0
+#define ccb_bp ppriv_ptr1
 
 struct pmp_softc {
-	SLIST_ENTRY(pmp_softc)	links;
-	pmp_state		state;
-	pmp_flags		flags;
-	uint32_t		pm_pid;
-	uint32_t		pm_prv;
-	int			pm_ports;
-	int			pm_step;
-	int			pm_try;
-	int			found;
-	int			reset;
-	int			frozen;
-	int			restart;
-	int			events;
-#define PMP_EV_RESET	1
-#define PMP_EV_RESCAN	2
-	u_int			caps;
-	struct task		sysctl_task;
-	struct sysctl_ctx_list	sysctl_ctx;
-	struct sysctl_oid	*sysctl_tree;
+	SLIST_ENTRY(pmp_softc) links;
+	pmp_state state;
+	pmp_flags flags;
+	uint32_t pm_pid;
+	uint32_t pm_prv;
+	int pm_ports;
+	int pm_step;
+	int pm_try;
+	int found;
+	int reset;
+	int frozen;
+	int restart;
+	int events;
+#define PMP_EV_RESET 1
+#define PMP_EV_RESCAN 2
+	u_int caps;
+	struct task sysctl_task;
+	struct sysctl_ctx_list sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
 };
 
-static	periph_init_t	pmpinit;
-static	void		pmpasync(void *callback_arg, u_int32_t code,
-				struct cam_path *path, void *arg);
-static	void		pmpsysctlinit(void *context, int pending);
-static	periph_ctor_t	pmpregister;
-static	periph_dtor_t	pmpcleanup;
-static	periph_start_t	pmpstart;
-static	periph_oninv_t	pmponinvalidate;
-static	void		pmpdone(struct cam_periph *periph,
-			       union ccb *done_ccb);
+static periph_init_t pmpinit;
+static void pmpasync(
+    void *callback_arg, u_int32_t code, struct cam_path *path, void *arg);
+static void pmpsysctlinit(void *context, int pending);
+static periph_ctor_t pmpregister;
+static periph_dtor_t pmpcleanup;
+static periph_start_t pmpstart;
+static periph_oninv_t pmponinvalidate;
+static void pmpdone(struct cam_periph *periph, union ccb *done_ccb);
 
 #ifndef PMP_DEFAULT_TIMEOUT
-#define PMP_DEFAULT_TIMEOUT 30	/* Timeout in seconds */
+#define PMP_DEFAULT_TIMEOUT 30 /* Timeout in seconds */
 #endif
 
-#ifndef	PMP_DEFAULT_RETRY
-#define	PMP_DEFAULT_RETRY	1
+#ifndef PMP_DEFAULT_RETRY
+#define PMP_DEFAULT_RETRY 1
 #endif
 
-#ifndef	PMP_DEFAULT_HIDE_SPECIAL
-#define	PMP_DEFAULT_HIDE_SPECIAL	1
+#ifndef PMP_DEFAULT_HIDE_SPECIAL
+#define PMP_DEFAULT_HIDE_SPECIAL 1
 #endif
 
 static int pmp_retry_count = PMP_DEFAULT_RETRY;
@@ -142,18 +139,15 @@ static int pmp_hide_special = PMP_DEFAULT_HIDE_SPECIAL;
 static SYSCTL_NODE(_kern_cam, OID_AUTO, pmp, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "CAM Direct Access Disk driver");
 SYSCTL_INT(_kern_cam_pmp, OID_AUTO, retry_count, CTLFLAG_RWTUN,
-           &pmp_retry_count, 0, "Normal I/O retry count");
+    &pmp_retry_count, 0, "Normal I/O retry count");
 SYSCTL_INT(_kern_cam_pmp, OID_AUTO, default_timeout, CTLFLAG_RWTUN,
-           &pmp_default_timeout, 0, "Normal I/O timeout (in seconds)");
+    &pmp_default_timeout, 0, "Normal I/O timeout (in seconds)");
 SYSCTL_INT(_kern_cam_pmp, OID_AUTO, hide_special, CTLFLAG_RWTUN,
-           &pmp_hide_special, 0, "Hide extra ports");
+    &pmp_hide_special, 0, "Hide extra ports");
 
-static struct periph_driver pmpdriver =
-{
-	pmpinit, "pmp",
+static struct periph_driver pmpdriver = { pmpinit, "pmp",
 	TAILQ_HEAD_INITIALIZER(pmpdriver.units), /* generation */ 0,
-	CAM_PERIPH_DRV_EARLY
-};
+	CAM_PERIPH_DRV_EARLY };
 
 PERIPHDRIVER_DECLARE(pmp, pmpdriver);
 
@@ -170,7 +164,8 @@ pmpinit(void)
 
 	if (status != CAM_REQ_CMP) {
 		printf("pmp: Failed to attach master async callback "
-		       "due to status 0x%x!\n", status);
+		       "due to status 0x%x!\n",
+		    status);
 	}
 }
 
@@ -186,8 +181,7 @@ pmpfreeze(struct cam_periph *periph, int mask)
 		if ((mask & (1 << i)) == 0)
 			continue;
 		if (xpt_create_path(&dpath, periph,
-		    xpt_path_path_id(periph->path),
-		    i, 0) == CAM_REQ_CMP) {
+			xpt_path_path_id(periph->path), i, 0) == CAM_REQ_CMP) {
 			softc->frozen |= (1 << i);
 			xpt_acquire_device(dpath->device);
 			cam_freeze_devq(dpath);
@@ -208,8 +202,7 @@ pmprelease(struct cam_periph *periph, int mask)
 		if ((mask & (1 << i)) == 0)
 			continue;
 		if (xpt_create_path(&dpath, periph,
-		    xpt_path_path_id(periph->path),
-		    i, 0) == CAM_REQ_CMP) {
+			xpt_path_path_id(periph->path), i, 0) == CAM_REQ_CMP) {
 			softc->frozen &= ~(1 << i);
 			cam_release_devq(dpath, 0, 0, 0, FALSE);
 			xpt_release_device(dpath->device);
@@ -231,8 +224,7 @@ pmponinvalidate(struct cam_periph *periph)
 
 	for (i = 0; i < 15; i++) {
 		if (xpt_create_path(&dpath, periph,
-		    xpt_path_path_id(periph->path),
-		    i, 0) == CAM_REQ_CMP) {
+			xpt_path_path_id(periph->path), i, 0) == CAM_REQ_CMP) {
 			xpt_async(AC_LOST_DEVICE, dpath, NULL);
 			xpt_free_path(dpath);
 		}
@@ -252,8 +244,8 @@ pmpcleanup(struct cam_periph *periph)
 	/*
 	 * If we can't free the sysctl tree, oh well...
 	 */
-	if ((softc->flags & PMP_FLAG_SCTX_INIT) != 0
-	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
+	if ((softc->flags & PMP_FLAG_SCTX_INIT) != 0 &&
+	    sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
 		xpt_print(periph->path, "can't remove sysctl context\n");
 	}
 
@@ -262,16 +254,14 @@ pmpcleanup(struct cam_periph *periph)
 }
 
 static void
-pmpasync(void *callback_arg, u_int32_t code,
-	struct cam_path *path, void *arg)
+pmpasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph;
 	struct pmp_softc *softc;
 
 	periph = (struct cam_periph *)callback_arg;
 	switch (code) {
-	case AC_FOUND_DEVICE:
-	{
+	case AC_FOUND_DEVICE: {
 		struct ccb_getdev *cgd;
 		cam_status status;
 
@@ -288,15 +278,13 @@ pmpasync(void *callback_arg, u_int32_t code,
 		 * process.
 		 */
 		status = cam_periph_alloc(pmpregister, pmponinvalidate,
-					  pmpcleanup, pmpstart,
-					  "pmp", CAM_PERIPH_BIO,
-					  path, pmpasync,
-					  AC_FOUND_DEVICE, cgd);
+		    pmpcleanup, pmpstart, "pmp", CAM_PERIPH_BIO, path, pmpasync,
+		    AC_FOUND_DEVICE, cgd);
 
-		if (status != CAM_REQ_CMP
-		 && status != CAM_REQ_INPROG)
+		if (status != CAM_REQ_CMP && status != CAM_REQ_INPROG)
 			printf("pmpasync: Unable to attach to new device "
-				"due to status 0x%x\n", status);
+			       "due to status 0x%x\n",
+			    status);
 		break;
 	}
 	case AC_SCSI_AEN:
@@ -347,14 +335,15 @@ pmpsysctlinit(void *context, int pending)
 		return;
 
 	softc = (struct pmp_softc *)periph->softc;
-	snprintf(tmpstr, sizeof(tmpstr), "CAM PMP unit %d", periph->unit_number);
+	snprintf(
+	    tmpstr, sizeof(tmpstr), "CAM PMP unit %d", periph->unit_number);
 	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
 
 	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->flags |= PMP_FLAG_SCTX_INIT;
 	softc->sysctl_tree = SYSCTL_ADD_NODE_WITH_LABEL(&softc->sysctl_ctx,
-		SYSCTL_STATIC_CHILDREN(_kern_cam_pmp), OID_AUTO, tmpstr2,
-		CTLFLAG_RD | CTLFLAG_MPSAFE, 0, tmpstr, "device_index");
+	    SYSCTL_STATIC_CHILDREN(_kern_cam_pmp), OID_AUTO, tmpstr2,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, tmpstr, "device_index");
 	if (softc->sysctl_tree == NULL) {
 		printf("pmpsysctlinit: unable to allocate sysctl tree\n");
 		cam_periph_release(periph);
@@ -373,16 +362,16 @@ pmpregister(struct cam_periph *periph, void *arg)
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
 		printf("pmpregister: no getdev CCB, can't register device\n");
-		return(CAM_REQ_CMP_ERR);
+		return (CAM_REQ_CMP_ERR);
 	}
 
-	softc = (struct pmp_softc *)malloc(sizeof(*softc), M_DEVBUF,
-	    M_NOWAIT|M_ZERO);
+	softc = (struct pmp_softc *)malloc(
+	    sizeof(*softc), M_DEVBUF, M_NOWAIT | M_ZERO);
 
 	if (softc == NULL) {
 		printf("pmpregister: Unable to probe new device. "
-		       "Unable to allocate softc\n");				
-		return(CAM_REQ_CMP_ERR);
+		       "Unable to allocate softc\n");
+		return (CAM_REQ_CMP_ERR);
 	}
 	periph->softc = softc;
 
@@ -400,8 +389,9 @@ pmpregister(struct cam_periph *periph, void *arg)
 	 * them and the only alternative would be to
 	 * not attach the device on failure.
 	 */
-	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE |
-		AC_SCSI_AEN, pmpasync, periph, periph->path);
+	xpt_register_async(
+	    AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE | AC_SCSI_AEN, pmpasync,
+	    periph, periph->path);
 
 	/*
 	 * Take an exclusive refcount on the periph while pmpstart is called
@@ -414,7 +404,7 @@ pmpregister(struct cam_periph *periph, void *arg)
 	softc->events = PMP_EV_RESCAN;
 	xpt_schedule(periph, CAM_PRIORITY_DEV);
 
-	return(CAM_REQ_CMP);
+	return (CAM_REQ_CMP);
 }
 
 static void
@@ -442,53 +432,42 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 	if (softc->state == PMP_STATE_RESET ||
 	    softc->state == PMP_STATE_CONNECT) {
 		if (xpt_create_path(&dpath, periph,
-		    xpt_path_path_id(periph->path),
-		    softc->pm_step, 0) == CAM_REQ_CMP) {
+			xpt_path_path_id(periph->path), softc->pm_step,
+			0) == CAM_REQ_CMP) {
 			bzero(&cts, sizeof(cts));
 			xpt_setup_ccb(&cts.ccb_h, dpath, CAM_PRIORITY_NONE);
 			cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 			cts.type = CTS_TYPE_USER_SETTINGS;
 			xpt_action((union ccb *)&cts);
-			if (cts.xport_specific.sata.valid & CTS_SATA_VALID_REVISION)
+			if (cts.xport_specific.sata.valid &
+			    CTS_SATA_VALID_REVISION)
 				revision = cts.xport_specific.sata.revision;
 			xpt_free_path(dpath);
 		}
 	}
 	switch (softc->state) {
 	case PMP_STATE_PORTS:
-		cam_fill_ataio(ataio,
-		      pmp_retry_count,
-		      pmpdone,
-		      /*flags*/CAM_DIR_NONE,
-		      0,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      pmp_default_timeout * 1000);
+		cam_fill_ataio(ataio, pmp_retry_count, pmpdone,
+		    /*flags*/ CAM_DIR_NONE, 0,
+		    /*data_ptr*/ NULL,
+		    /*dxfer_len*/ 0, pmp_default_timeout * 1000);
 		ata_pm_read_cmd(ataio, 2, 15);
 		break;
 
 	case PMP_STATE_PM_QUIRKS_1:
 	case PMP_STATE_PM_QUIRKS_3:
-		cam_fill_ataio(ataio,
-		      pmp_retry_count,
-		      pmpdone,
-		      /*flags*/CAM_DIR_NONE,
-		      0,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      pmp_default_timeout * 1000);
+		cam_fill_ataio(ataio, pmp_retry_count, pmpdone,
+		    /*flags*/ CAM_DIR_NONE, 0,
+		    /*data_ptr*/ NULL,
+		    /*dxfer_len*/ 0, pmp_default_timeout * 1000);
 		ata_pm_read_cmd(ataio, 129, 15);
 		break;
 
 	case PMP_STATE_PM_QUIRKS_2:
-		cam_fill_ataio(ataio,
-		      pmp_retry_count,
-		      pmpdone,
-		      /*flags*/CAM_DIR_NONE,
-		      0,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      pmp_default_timeout * 1000);
+		cam_fill_ataio(ataio, pmp_retry_count, pmpdone,
+		    /*flags*/ CAM_DIR_NONE, 0,
+		    /*data_ptr*/ NULL,
+		    /*dxfer_len*/ 0, pmp_default_timeout * 1000);
 		ata_pm_write_cmd(ataio, 129, 15, softc->caps & ~0x1);
 		break;
 
@@ -503,75 +482,50 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 			softc->caps = cts.xport_specific.sata.caps;
 		else
 			softc->caps = 0;
-		cam_fill_ataio(ataio,
-		      pmp_retry_count,
-		      pmpdone,
-		      /*flags*/CAM_DIR_NONE,
-		      0,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      pmp_default_timeout * 1000);
+		cam_fill_ataio(ataio, pmp_retry_count, pmpdone,
+		    /*flags*/ CAM_DIR_NONE, 0,
+		    /*data_ptr*/ NULL,
+		    /*dxfer_len*/ 0, pmp_default_timeout * 1000);
 		ata_pm_write_cmd(ataio, 0x60, 15, 0x0);
 		break;
 	case PMP_STATE_RESET:
-		cam_fill_ataio(ataio,
-		      pmp_retry_count,
-		      pmpdone,
-		      /*flags*/CAM_DIR_NONE,
-		      0,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      pmp_default_timeout * 1000);
+		cam_fill_ataio(ataio, pmp_retry_count, pmpdone,
+		    /*flags*/ CAM_DIR_NONE, 0,
+		    /*data_ptr*/ NULL,
+		    /*dxfer_len*/ 0, pmp_default_timeout * 1000);
 		ata_pm_write_cmd(ataio, 2, softc->pm_step,
 		    (revision << 4) |
-		    ((softc->found & (1 << softc->pm_step)) ? 0 : 1));
+			((softc->found & (1 << softc->pm_step)) ? 0 : 1));
 		break;
 	case PMP_STATE_CONNECT:
-		cam_fill_ataio(ataio,
-		      pmp_retry_count,
-		      pmpdone,
-		      /*flags*/CAM_DIR_NONE,
-		      0,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      pmp_default_timeout * 1000);
-		ata_pm_write_cmd(ataio, 2, softc->pm_step,
-		    (revision << 4));
+		cam_fill_ataio(ataio, pmp_retry_count, pmpdone,
+		    /*flags*/ CAM_DIR_NONE, 0,
+		    /*data_ptr*/ NULL,
+		    /*dxfer_len*/ 0, pmp_default_timeout * 1000);
+		ata_pm_write_cmd(ataio, 2, softc->pm_step, (revision << 4));
 		break;
 	case PMP_STATE_CHECK:
-		cam_fill_ataio(ataio,
-		      pmp_retry_count,
-		      pmpdone,
-		      /*flags*/CAM_DIR_NONE,
-		      0,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      pmp_default_timeout * 1000);
+		cam_fill_ataio(ataio, pmp_retry_count, pmpdone,
+		    /*flags*/ CAM_DIR_NONE, 0,
+		    /*data_ptr*/ NULL,
+		    /*dxfer_len*/ 0, pmp_default_timeout * 1000);
 		ata_pm_read_cmd(ataio, 0, softc->pm_step);
 		break;
 	case PMP_STATE_CLEAR:
 		softc->reset = 0;
-		cam_fill_ataio(ataio,
-		      pmp_retry_count,
-		      pmpdone,
-		      /*flags*/CAM_DIR_NONE,
-		      0,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      pmp_default_timeout * 1000);
+		cam_fill_ataio(ataio, pmp_retry_count, pmpdone,
+		    /*flags*/ CAM_DIR_NONE, 0,
+		    /*data_ptr*/ NULL,
+		    /*dxfer_len*/ 0, pmp_default_timeout * 1000);
 		ata_pm_write_cmd(ataio, 1, softc->pm_step, 0xFFFFFFFF);
 		break;
 	case PMP_STATE_CONFIG:
-		cam_fill_ataio(ataio,
-		      pmp_retry_count,
-		      pmpdone,
-		      /*flags*/CAM_DIR_NONE,
-		      0,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      pmp_default_timeout * 1000);
-		ata_pm_write_cmd(ataio, 0x60, 15, 0x07 |
-		    ((softc->caps & CTS_SATA_CAPS_H_AN) ? 0x08 : 0));
+		cam_fill_ataio(ataio, pmp_retry_count, pmpdone,
+		    /*flags*/ CAM_DIR_NONE, 0,
+		    /*data_ptr*/ NULL,
+		    /*dxfer_len*/ 0, pmp_default_timeout * 1000);
+		ata_pm_write_cmd(ataio, 0x60, 15,
+		    0x07 | ((softc->caps & CTS_SATA_CAPS_H_AN) ? 0x08 : 0));
 		break;
 	default:
 		break;
@@ -586,7 +540,7 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 	struct pmp_softc *softc;
 	struct ccb_ataio *ataio;
 	struct cam_path *dpath;
-	u_int32_t  priority, res;
+	u_int32_t priority, res;
 	int i;
 
 	softc = (struct pmp_softc *)periph->softc;
@@ -601,10 +555,10 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 			return;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			cam_release_devq(done_ccb->ccb_h.path,
-			    /*relsim_flags*/0,
-			    /*reduction*/0,
-			    /*timeout*/0,
-			    /*getcount_only*/0);
+			    /*relsim_flags*/ 0,
+			    /*reduction*/ 0,
+			    /*timeout*/ 0,
+			    /*getcount_only*/ 0);
 		}
 		goto done;
 	}
@@ -623,8 +577,7 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 	switch (softc->state) {
 	case PMP_STATE_PORTS:
 		softc->pm_ports = (ataio->res.lba_high << 24) +
-		    (ataio->res.lba_mid << 16) +
-		    (ataio->res.lba_low << 8) +
+		    (ataio->res.lba_mid << 16) + (ataio->res.lba_low << 8) +
 		    ataio->res.sector_count;
 		if (pmp_hide_special) {
 			/*
@@ -634,7 +587,7 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 			 * to PMP over I2C.
 			 */
 			if ((softc->pm_pid == 0x37261095 ||
-			     softc->pm_pid == 0x38261095) &&
+				softc->pm_pid == 0x38261095) &&
 			    softc->pm_ports == 6)
 				softc->pm_ports = 5;
 
@@ -655,9 +608,8 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 			    softc->pm_pid == 0x57441095)
 				softc->pm_ports--;
 		}
-		printf("%s%d: %d fan-out ports\n",
-		    periph->periph_name, periph->unit_number,
-		    softc->pm_ports);
+		printf("%s%d: %d fan-out ports\n", periph->periph_name,
+		    periph->unit_number, softc->pm_ports);
 		if (softc->pm_pid == 0x37261095 || softc->pm_pid == 0x38261095)
 			softc->state = PMP_STATE_PM_QUIRKS_1;
 		else
@@ -668,8 +620,7 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 
 	case PMP_STATE_PM_QUIRKS_1:
 		softc->caps = (ataio->res.lba_high << 24) +
-		    (ataio->res.lba_mid << 16) +
-		    (ataio->res.lba_low << 8) +
+		    (ataio->res.lba_mid << 16) + (ataio->res.lba_low << 8) +
 		    ataio->res.sector_count;
 		if (softc->caps & 0x1)
 			softc->state = PMP_STATE_PM_QUIRKS_2;
@@ -689,10 +640,8 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 		return;
 
 	case PMP_STATE_PM_QUIRKS_3:
-		res = (ataio->res.lba_high << 24) +
-		    (ataio->res.lba_mid << 16) +
-		    (ataio->res.lba_low << 8) +
-		    ataio->res.sector_count;
+		res = (ataio->res.lba_high << 24) + (ataio->res.lba_mid << 16) +
+		    (ataio->res.lba_low << 8) + ataio->res.sector_count;
 		printf("%s%d: Disabling SiI3x26 R_OK in GSCR_POLL: %x->%x\n",
 		    periph->periph_name, periph->unit_number, softc->caps, res);
 		softc->state = PMP_STATE_PRECONFIG;
@@ -714,9 +663,9 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 			cam_freeze_devq(periph->path);
 			cam_release_devq(periph->path,
 			    RELSIM_RELEASE_AFTER_TIMEOUT,
-			    /*reduction*/0,
-			    /*timeout*/5,
-			    /*getcount_only*/0);
+			    /*reduction*/ 0,
+			    /*timeout*/ 5,
+			    /*getcount_only*/ 0);
 			softc->state = PMP_STATE_CONNECT;
 		}
 		xpt_release_ccb(done_ccb);
@@ -730,19 +679,17 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 			cam_freeze_devq(periph->path);
 			cam_release_devq(periph->path,
 			    RELSIM_RELEASE_AFTER_TIMEOUT,
-			    /*reduction*/0,
-			    /*timeout*/10,
-			    /*getcount_only*/0);
+			    /*reduction*/ 0,
+			    /*timeout*/ 10,
+			    /*getcount_only*/ 0);
 			softc->state = PMP_STATE_CHECK;
 		}
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
 		return;
 	case PMP_STATE_CHECK:
-		res = (ataio->res.lba_high << 24) +
-		    (ataio->res.lba_mid << 16) +
-		    (ataio->res.lba_low << 8) +
-		    ataio->res.sector_count;
+		res = (ataio->res.lba_high << 24) + (ataio->res.lba_mid << 16) +
+		    (ataio->res.lba_low << 8) + ataio->res.sector_count;
 		if (((res & 0xf0f) == 0x103 && (res & 0x0f0) != 0) ||
 		    (res & 0x600) != 0) {
 			if (bootverbose) {
@@ -753,19 +700,24 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 			/* Report device speed if it is online. */
 			if ((res & 0xf0f) == 0x103 &&
 			    xpt_create_path(&dpath, periph,
-			    xpt_path_path_id(periph->path),
-			    softc->pm_step, 0) == CAM_REQ_CMP) {
+				xpt_path_path_id(periph->path), softc->pm_step,
+				0) == CAM_REQ_CMP) {
 				bzero(&cts, sizeof(cts));
-				xpt_setup_ccb(&cts.ccb_h, dpath, CAM_PRIORITY_NONE);
+				xpt_setup_ccb(
+				    &cts.ccb_h, dpath, CAM_PRIORITY_NONE);
 				cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 				cts.type = CTS_TYPE_CURRENT_SETTINGS;
-				cts.xport_specific.sata.revision = (res & 0x0f0) >> 4;
-				cts.xport_specific.sata.valid = CTS_SATA_VALID_REVISION;
+				cts.xport_specific.sata.revision = (res &
+								       0x0f0) >>
+				    4;
+				cts.xport_specific.sata.valid =
+				    CTS_SATA_VALID_REVISION;
 				cts.xport_specific.sata.caps = softc->caps &
 				    (CTS_SATA_CAPS_H_PMREQ |
-				     CTS_SATA_CAPS_H_DMAAA |
-				     CTS_SATA_CAPS_H_AN);
-				cts.xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
+					CTS_SATA_CAPS_H_DMAAA |
+					CTS_SATA_CAPS_H_AN);
+				cts.xport_specific.sata.valid |=
+				    CTS_SATA_VALID_CAPS;
 				xpt_action((union ccb *)&cts);
 				xpt_free_path(dpath);
 			}
@@ -776,20 +728,21 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 				cam_freeze_devq(periph->path);
 				cam_release_devq(periph->path,
 				    RELSIM_RELEASE_AFTER_TIMEOUT,
-				    /*reduction*/0,
-				    /*timeout*/10,
-				    /*getcount_only*/0);
+				    /*reduction*/ 0,
+				    /*timeout*/ 10,
+				    /*getcount_only*/ 0);
 				softc->pm_try++;
 			} else {
 				if (bootverbose) {
 					printf("%s%d: port %d status: %08x\n",
-					    periph->periph_name, periph->unit_number,
-					    softc->pm_step, res);
+					    periph->periph_name,
+					    periph->unit_number, softc->pm_step,
+					    res);
 				}
 				softc->found &= ~(1 << softc->pm_step);
 				if (xpt_create_path(&dpath, periph,
-				    done_ccb->ccb_h.path_id,
-				    softc->pm_step, 0) == CAM_REQ_CMP) {
+					done_ccb->ccb_h.path_id, softc->pm_step,
+					0) == CAM_REQ_CMP) {
 					xpt_async(AC_LOST_DEVICE, dpath, NULL);
 					xpt_free_path(dpath);
 				}
@@ -801,9 +754,9 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 				cam_freeze_devq(periph->path);
 				cam_release_devq(periph->path,
 				    RELSIM_RELEASE_AFTER_TIMEOUT,
-				    /*reduction*/0,
-				    /*timeout*/1000,
-				    /*getcount_only*/0);
+				    /*reduction*/ 0,
+				    /*timeout*/ 1000,
+				    /*getcount_only*/ 0);
 			}
 			softc->state = PMP_STATE_CLEAR;
 			softc->pm_step = 0;
@@ -827,8 +780,8 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 			if ((softc->found & (1 << i)) == 0)
 				continue;
 			if (xpt_create_path(&dpath, periph,
-			    xpt_path_path_id(periph->path),
-			    i, 0) != CAM_REQ_CMP) {
+				xpt_path_path_id(periph->path), i,
+				0) != CAM_REQ_CMP) {
 				printf("pmpdone: xpt_create_path failed\n");
 				continue;
 			}
@@ -842,7 +795,8 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 					xpt_free_path(dpath);
 					goto done;
 				}
-				xpt_setup_ccb(&ccb->ccb_h, dpath, CAM_PRIORITY_XPT);
+				xpt_setup_ccb(
+				    &ccb->ccb_h, dpath, CAM_PRIORITY_XPT);
 				xpt_rescan(ccb);
 			} else
 				xpt_free_path(dpath);

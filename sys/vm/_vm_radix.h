@@ -37,7 +37,7 @@
  * Radix tree root.
  */
 struct vm_radix {
-	uintptr_t	rt_root;
+	uintptr_t rt_root;
 };
 
 #endif /* !__VM_RADIX_H_ */

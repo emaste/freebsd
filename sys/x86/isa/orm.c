@@ -36,35 +36,34 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/socket.h>
-
-#include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/rman.h>
+#include <sys/socket.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
 
 #include <isa/isavar.h>
 #include <isa/pnpvar.h>
 
-#define	IOMEM_START	0x0a0000
-#define	IOMEM_STEP	0x000800
-#define	IOMEM_END	0x100000
+#define IOMEM_START 0x0a0000
+#define IOMEM_STEP 0x000800
+#define IOMEM_END 0x100000
 
-#define	ORM_ID	0x00004d3e
+#define ORM_ID 0x00004d3e
 
 static struct isa_pnp_id orm_ids[] = {
-	{ ORM_ID,	NULL },		/* ORM0000 */
-	{ 0,		NULL },
+	{ ORM_ID, NULL }, /* ORM0000 */
+	{ 0, NULL },
 };
 
-#define MAX_ROMS	32
+#define MAX_ROMS 32
 
 struct orm_softc {
-	int		rnum;
-	int		rid[MAX_ROMS];
+	int rnum;
+	int rid[MAX_ROMS];
 	struct resource *res[MAX_ROMS];
 };
 
@@ -81,17 +80,17 @@ orm_attach(device_t dev)
 }
 
 static void
-orm_identify(driver_t* driver, device_t parent)
+orm_identify(driver_t *driver, device_t parent)
 {
-	bus_space_handle_t	bh;
-	bus_space_tag_t		bt;
-	device_t		child;
-	u_int32_t		chunk = IOMEM_START;
-	struct resource		*res;
-	int			rid;
-	u_int32_t		rom_size;
-	struct orm_softc	*sc;
-	u_int8_t		buf[3];
+	bus_space_handle_t bh;
+	bus_space_tag_t bt;
+	device_t child;
+	u_int32_t chunk = IOMEM_START;
+	struct resource *res;
+	int rid;
+	u_int32_t rom_size;
+	struct orm_softc *sc;
+	u_int8_t buf[3];
 
 	if (resource_disabled("orm", 0))
 		return;
@@ -103,11 +102,11 @@ orm_identify(driver_t* driver, device_t parent)
 	sc = device_get_softc(child);
 	sc->rnum = 0;
 	while (sc->rnum < MAX_ROMS && chunk < IOMEM_END) {
-		bus_set_resource(child, SYS_RES_MEMORY, sc->rnum, chunk,
-		    IOMEM_STEP);
+		bus_set_resource(
+		    child, SYS_RES_MEMORY, sc->rnum, chunk, IOMEM_STEP);
 		rid = sc->rnum;
-		res = bus_alloc_resource_any(child, SYS_RES_MEMORY, &rid,
-		    RF_ACTIVE);
+		res = bus_alloc_resource_any(
+		    child, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 		if (res == NULL) {
 			bus_delete_resource(child, SYS_RES_MEMORY, sc->rnum);
 			chunk += IOMEM_STEP;
@@ -135,8 +134,8 @@ orm_identify(driver_t* driver, device_t parent)
 			continue;
 		}
 		rom_size = buf[2] << 9;
-		bus_set_resource(child, SYS_RES_MEMORY, sc->rnum, chunk,
-		    rom_size);
+		bus_set_resource(
+		    child, SYS_RES_MEMORY, sc->rnum, chunk, rom_size);
 		rid = sc->rnum;
 		res = bus_alloc_resource_any(child, SYS_RES_MEMORY, &rid, 0);
 		if (res == NULL) {
@@ -161,29 +160,24 @@ orm_identify(driver_t* driver, device_t parent)
 static int
 orm_detach(device_t dev)
 {
-	int			i;
-	struct orm_softc	*sc = device_get_softc(dev);
+	int i;
+	struct orm_softc *sc = device_get_softc(dev);
 
 	for (i = 0; i < sc->rnum; i++)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->rid[i],
-		    sc->res[i]);
+		bus_release_resource(
+		    dev, SYS_RES_MEMORY, sc->rid[i], sc->res[i]);
 	return (0);
 }
 
 static device_method_t orm_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	orm_identify),
-	DEVMETHOD(device_probe,		orm_probe),
-	DEVMETHOD(device_attach,	orm_attach),
-	DEVMETHOD(device_detach,	orm_detach),
-	{ 0, 0 }
+	DEVMETHOD(device_identify, orm_identify),
+	DEVMETHOD(device_probe, orm_probe),
+	DEVMETHOD(device_attach, orm_attach),
+	DEVMETHOD(device_detach, orm_detach), { 0, 0 }
 };
 
-static driver_t orm_driver = {
-	"orm",
-	orm_methods,
-	sizeof (struct orm_softc)
-};
+static driver_t orm_driver = { "orm", orm_methods, sizeof(struct orm_softc) };
 
 static devclass_t orm_devclass;
 

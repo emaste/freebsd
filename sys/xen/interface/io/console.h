@@ -29,13 +29,13 @@
 
 typedef uint32_t XENCONS_RING_IDX;
 
-#define MASK_XENCONS_IDX(idx, ring) ((idx) & (sizeof(ring)-1))
+#define MASK_XENCONS_IDX(idx, ring) ((idx) & (sizeof(ring) - 1))
 
 struct xencons_interface {
-    char in[1024];
-    char out[2048];
-    XENCONS_RING_IDX in_cons, in_prod;
-    XENCONS_RING_IDX out_cons, out_prod;
+	char in[1024];
+	char out[2048];
+	XENCONS_RING_IDX in_cons, in_prod;
+	XENCONS_RING_IDX out_cons, out_prod;
 };
 
 #ifdef XEN_WANT_FLEX_CONSOLE_RING

@@ -56,8 +56,8 @@ SDT_PROBE_DEFINE1(lockstat, , , rw__downgrade, "struct rwlock *");
 
 SDT_PROBE_DEFINE2(lockstat, , , sx__acquire, "struct sx *", "int");
 SDT_PROBE_DEFINE2(lockstat, , , sx__release, "struct sx *", "int");
-SDT_PROBE_DEFINE5(lockstat, , , sx__block, "struct sx *", "uint64_t", "int",
-    "int", "int");
+SDT_PROBE_DEFINE5(
+    lockstat, , , sx__block, "struct sx *", "uint64_t", "int", "int", "int");
 SDT_PROBE_DEFINE2(lockstat, , , sx__spin, "struct sx *", "uint64_t");
 SDT_PROBE_DEFINE1(lockstat, , , sx__upgrade, "struct sx *");
 SDT_PROBE_DEFINE1(lockstat, , , sx__downgrade, "struct sx *");
@@ -74,7 +74,7 @@ SDT_PROBE_DEFINE2(lockstat, , , thread__spin, "struct mtx *", "uint64_t");
 
 volatile bool __read_frequently lockstat_enabled;
 
-uint64_t 
+uint64_t
 lockstat_nsecs(struct lock_object *lo)
 {
 	struct bintime bt;

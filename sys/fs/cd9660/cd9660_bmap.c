@@ -41,11 +41,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/vnode.h>
 #include <sys/mount.h>
+#include <sys/vnode.h>
 
-#include <fs/cd9660/iso.h>
 #include <fs/cd9660/cd9660_node.h>
+#include <fs/cd9660/iso.h>
 
 /*
  * Bmap converts the logical block number of a file to its physical
@@ -53,16 +53,15 @@ __FBSDID("$FreeBSD$");
  * logical block number to index into the data block (extent) for the
  * file.
  */
-int
-cd9660_bmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		daddr_t  a_bn;
-		struct bufobj **a_bop;
-		daddr_t *a_bnp;
-		int *a_runp;
-		int *a_runb;
-	} */ *ap;
+int cd9660_bmap(ap) struct vop_bmap_args
+    /* {
+struct vnode *a_vp;
+daddr_t  a_bn;
+struct bufobj **a_bop;
+daddr_t *a_bnp;
+int *a_runp;
+int *a_runb;
+} */ *ap;
 {
 	struct iso_node *ip = VTOI(ap->a_vp);
 	daddr_t lblkno = ap->a_bn;

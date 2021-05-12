@@ -38,19 +38,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-
-#include <arm/mv/mvwin.h>
-#include <arm/mv/mvreg.h>
-#include <arm/mv/mvvar.h>
+#include <machine/fdt.h>
 
 #include <dev/ofw/openfirm.h>
 
-#include <machine/fdt.h>
+#include <arm/mv/mvreg.h>
+#include <arm/mv/mvvar.h>
+#include <arm/mv/mvwin.h>
 
-#define CPU_FREQ_FIELD(sar)	(((0x01 & (sar >> 52)) << 3) | \
-				    (0x07 & (sar >> 21)))
-#define FAB_FREQ_FIELD(sar)	(((0x01 & (sar >> 51)) << 4) | \
-				    (0x0F & (sar >> 24)))
+#define CPU_FREQ_FIELD(sar) (((0x01 & (sar >> 52)) << 3) | (0x07 & (sar >> 21)))
+#define FAB_FREQ_FIELD(sar) (((0x01 & (sar >> 51)) << 4) | (0x0F & (sar >> 24)))
 
 static uint32_t count_l2clk(void);
 void armadaxp_l2_init(void);
@@ -58,90 +55,89 @@ void armadaxp_init_coher_fabric(void);
 int platform_get_ncpus(void);
 static uint64_t get_sar_value_armadaxp(void);
 
-#define ARMADAXP_L2_BASE		(MV_BASE + 0x8000)
-#define ARMADAXP_L2_CTRL		0x100
-#define L2_ENABLE			(1 << 0)
-#define ARMADAXP_L2_AUX_CTRL		0x104
-#define L2_WBWT_MODE_MASK		(3 << 0)
-#define L2_WBWT_MODE_PAGE		0
-#define L2_WBWT_MODE_WB			1
-#define L2_WBWT_MODE_WT			2
-#define L2_REP_STRAT_MASK		(3 << 27)
-#define L2_REP_STRAT_LSFR		(1 << 27)
-#define L2_REP_STRAT_SEMIPLRU		(3 << 27)
+#define ARMADAXP_L2_BASE (MV_BASE + 0x8000)
+#define ARMADAXP_L2_CTRL 0x100
+#define L2_ENABLE (1 << 0)
+#define ARMADAXP_L2_AUX_CTRL 0x104
+#define L2_WBWT_MODE_MASK (3 << 0)
+#define L2_WBWT_MODE_PAGE 0
+#define L2_WBWT_MODE_WB 1
+#define L2_WBWT_MODE_WT 2
+#define L2_REP_STRAT_MASK (3 << 27)
+#define L2_REP_STRAT_LSFR (1 << 27)
+#define L2_REP_STRAT_SEMIPLRU (3 << 27)
 
-#define ARMADAXP_L2_CNTR_CTRL		0x200
-#define ARMADAXP_L2_CNTR_CONF(x)	(0x204 + (x) * 0xc)
-#define ARMADAXP_L2_CNTR2_VAL_LOW	(0x208 + (x) * 0xc)
-#define ARMADAXP_L2_CNTR2_VAL_HI	(0x20c + (x) * 0xc)
+#define ARMADAXP_L2_CNTR_CTRL 0x200
+#define ARMADAXP_L2_CNTR_CONF(x) (0x204 + (x)*0xc)
+#define ARMADAXP_L2_CNTR2_VAL_LOW (0x208 + (x)*0xc)
+#define ARMADAXP_L2_CNTR2_VAL_HI (0x20c + (x)*0xc)
 
-#define ARMADAXP_L2_INT_CAUSE		0x220
+#define ARMADAXP_L2_INT_CAUSE 0x220
 
-#define ARMADAXP_L2_SYNC_BARRIER	0x700
-#define ARMADAXP_L2_INV_WAY		0x778
-#define ARMADAXP_L2_CLEAN_WAY		0x7BC
-#define ARMADAXP_L2_FLUSH_PHYS		0x7F0
-#define ARMADAXP_L2_FLUSH_WAY		0x7FC
+#define ARMADAXP_L2_SYNC_BARRIER 0x700
+#define ARMADAXP_L2_INV_WAY 0x778
+#define ARMADAXP_L2_CLEAN_WAY 0x7BC
+#define ARMADAXP_L2_FLUSH_PHYS 0x7F0
+#define ARMADAXP_L2_FLUSH_WAY 0x7FC
 
-#define MV_COHERENCY_FABRIC_BASE	(MV_MBUS_BRIDGE_BASE + 0x200)
-#define COHER_FABRIC_CTRL		0x00
-#define COHER_FABRIC_CONF		0x04
-#define COHER_FABRIC_CFU		0x28
-#define COHER_FABRIC_CIB_CTRL		0x80
+#define MV_COHERENCY_FABRIC_BASE (MV_MBUS_BRIDGE_BASE + 0x200)
+#define COHER_FABRIC_CTRL 0x00
+#define COHER_FABRIC_CONF 0x04
+#define COHER_FABRIC_CFU 0x28
+#define COHER_FABRIC_CIB_CTRL 0x80
 
 struct vco_freq_ratio {
-	uint8_t	vco_cpu;	/* VCO to CLK0(CPU) clock ratio */
-	uint8_t	vco_l2c;	/* VCO to NB(L2 cache) clock ratio */
-	uint8_t	vco_hcl;	/* VCO to HCLK(DDR controller) clock ratio */
-	uint8_t	vco_ddr;	/* VCO to DR(DDR memory) clock ratio */
+	uint8_t vco_cpu; /* VCO to CLK0(CPU) clock ratio */
+	uint8_t vco_l2c; /* VCO to NB(L2 cache) clock ratio */
+	uint8_t vco_hcl; /* VCO to HCLK(DDR controller) clock ratio */
+	uint8_t vco_ddr; /* VCO to DR(DDR memory) clock ratio */
 };
 
 static struct vco_freq_ratio freq_conf_table[] = {
-/*00*/	{ 1, 1,	 4,  2 },
-/*01*/	{ 1, 2,	 2,  2 },
-/*02*/	{ 2, 2,	 6,  3 },
-/*03*/	{ 2, 2,	 3,  3 },
-/*04*/	{ 1, 2,	 3,  3 },
-/*05*/	{ 1, 2,	 4,  2 },
-/*06*/	{ 1, 1,	 2,  2 },
-/*07*/	{ 2, 3,	 6,  6 },
-/*08*/	{ 2, 3,	 5,  5 },
-/*09*/	{ 1, 2,	 6,  3 },
-/*10*/	{ 2, 4,	10,  5 },
-/*11*/	{ 1, 3,	 6,  6 },
-/*12*/	{ 1, 2,	 5,  5 },
-/*13*/	{ 1, 3,	 6,  3 },
-/*14*/	{ 1, 2,	 5,  5 },
-/*15*/	{ 2, 2,	 5,  5 },
-/*16*/	{ 1, 1,	 3,  3 },
-/*17*/	{ 2, 5,	10, 10 },
-/*18*/	{ 1, 3,	 8,  4 },
-/*19*/	{ 1, 1,	 2,  1 },
-/*20*/	{ 2, 3,	 6,  3 },
-/*21*/	{ 1, 2,	 8,  4 },
-/*22*/	{ 2, 5,	10,  5 }
+	/*00*/ { 1, 1, 4, 2 },
+	/*01*/ { 1, 2, 2, 2 },
+	/*02*/ { 2, 2, 6, 3 },
+	/*03*/ { 2, 2, 3, 3 },
+	/*04*/ { 1, 2, 3, 3 },
+	/*05*/ { 1, 2, 4, 2 },
+	/*06*/ { 1, 1, 2, 2 },
+	/*07*/ { 2, 3, 6, 6 },
+	/*08*/ { 2, 3, 5, 5 },
+	/*09*/ { 1, 2, 6, 3 },
+	/*10*/ { 2, 4, 10, 5 },
+	/*11*/ { 1, 3, 6, 6 },
+	/*12*/ { 1, 2, 5, 5 },
+	/*13*/ { 1, 3, 6, 3 },
+	/*14*/ { 1, 2, 5, 5 },
+	/*15*/ { 2, 2, 5, 5 },
+	/*16*/ { 1, 1, 3, 3 },
+	/*17*/ { 2, 5, 10, 10 },
+	/*18*/ { 1, 3, 8, 4 },
+	/*19*/ { 1, 1, 2, 1 },
+	/*20*/ { 2, 3, 6, 3 },
+	/*21*/ { 1, 2, 8, 4 },
+	/*22*/ { 2, 5, 10, 5 }
 };
 
-static uint16_t	cpu_clock_table[] = {
-    1000, 1066, 1200, 1333, 1500, 1666, 1800, 2000, 600,  667,  800,  1600,
-    2133, 2200, 2400 };
+static uint16_t cpu_clock_table[] = { 1000, 1066, 1200, 1333, 1500, 1666, 1800,
+	2000, 600, 667, 800, 1600, 2133, 2200, 2400 };
 
 static uint64_t
 get_sar_value_armadaxp(void)
 {
 	uint32_t sar_low, sar_high;
 
-	sar_high = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
-	    SAMPLE_AT_RESET_HI);
-	sar_low = bus_space_read_4(fdtbus_bs_tag, MV_MISC_BASE,
-	    SAMPLE_AT_RESET_LO);
+	sar_high = bus_space_read_4(
+	    fdtbus_bs_tag, MV_MISC_BASE, SAMPLE_AT_RESET_HI);
+	sar_low = bus_space_read_4(
+	    fdtbus_bs_tag, MV_MISC_BASE, SAMPLE_AT_RESET_LO);
 	return (((uint64_t)sar_high << 32) | sar_low);
 }
 
 uint32_t
 get_tclk_armadaxp(void)
 {
- 	uint32_t cputype;
+	uint32_t cputype;
 
 	cputype = cp15_midr_get();
 	cputype &= CPU_ID_CPU_MASK;
@@ -164,7 +160,7 @@ count_l2clk(void)
 {
 	uint64_t sar_reg;
 	uint32_t freq_vco, freq_l2clk;
-	uint8_t  sar_cpu_freq, sar_fab_freq, array_size;
+	uint8_t sar_cpu_freq, sar_fab_freq, array_size;
 
 	/* Get value of the SAR register and process it */
 	sar_reg = get_sar_value_armadaxp();
@@ -175,13 +171,15 @@ count_l2clk(void)
 	array_size = nitems(cpu_clock_table);
 	if (sar_cpu_freq >= array_size)
 		panic("Reserved value in cpu frequency configuration field: "
-		    "%d", sar_cpu_freq);
+		      "%d",
+		    sar_cpu_freq);
 
 	/* Check if fabric frequency field has correct value */
 	array_size = nitems(freq_conf_table);
 	if (sar_fab_freq >= array_size)
 		panic("Reserved value in fabric frequency configuration field: "
-		    "%d", sar_fab_freq);
+		      "%d",
+		    sar_fab_freq);
 
 	/* Get CPU clock frequency */
 	freq_vco = cpu_clock_table[sar_cpu_freq] *
@@ -192,7 +190,7 @@ count_l2clk(void)
 
 	/* Round L2CLK value to integer MHz */
 	if (((freq_vco % freq_conf_table[sar_fab_freq].vco_l2c) * 10 /
-	    freq_conf_table[sar_fab_freq].vco_l2c) >= 5)
+		freq_conf_table[sar_fab_freq].vco_l2c) >= 5)
 		freq_l2clk++;
 
 	return (freq_l2clk * 1000000);
@@ -201,7 +199,7 @@ count_l2clk(void)
 uint32_t
 get_l2clk(void)
 {
-	static uint32_t	l2clk_freq = 0;
+	static uint32_t l2clk_freq = 0;
 
 	/* If get_l2clk is called first time get L2CLK value from register */
 	if (l2clk_freq == 0)
@@ -251,7 +249,7 @@ armadaxp_init_coher_fabric(void)
 	write_coher_fabric(COHER_FABRIC_CONF, val);
 }
 
-#define ALL_WAYS	0xffffffff
+#define ALL_WAYS 0xffffffff
 
 /* L2 cache configuration registers */
 static uint32_t

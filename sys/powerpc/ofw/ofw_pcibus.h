@@ -41,12 +41,12 @@
 /*
  * Export class definition for inheritance purposes
  */
-DECLARE_CLASS(ofw_pcibus_driver);	/* PCI Bus Enumerators */
+DECLARE_CLASS(ofw_pcibus_driver); /* PCI Bus Enumerators */
 
 struct ofw_pcibus_devinfo {
-        struct pci_devinfo      opd_dinfo;
-        struct ofw_bus_devinfo  opd_obdinfo;
-	bus_dma_tag_t		opd_dma_tag;
+	struct pci_devinfo opd_dinfo;
+	struct ofw_bus_devinfo opd_obdinfo;
+	bus_dma_tag_t opd_dma_tag;
 };
 
 #endif // POWERPC_OFW_OFW_PCIBUS_H

@@ -35,32 +35,34 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/smp.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <x86/apicreg.h>
 #include <machine/intr_machdep.h>
-#include <x86/apicvar.h>
 #include <machine/md_var.h>
-#include <x86/vmware.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/aclocal.h>
-#include <contrib/dev/acpica/include/actables.h>
+#include <x86/apicreg.h>
+#include <x86/apicvar.h>
+#include <x86/vmware.h>
 
 #include <dev/acpica/acpivar.h>
 #include <dev/pci/pcivar.h>
+
+#include <contrib/dev/acpica/include/aclocal.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/actables.h>
 
 /* These two arrays are indexed by APIC IDs. */
 static struct {
 	void *io_apic;
 	UINT32 io_vector;
-} *ioapics;
+} * ioapics;
 
 static struct lapic_info {
 	u_int la_enabled;
 	u_int la_acpi_id;
-} *lapics;
+} * lapics;
 
 int madt_found_sci_override;
 static ACPI_TABLE_MADT *madt;
@@ -71,33 +73,29 @@ static MALLOC_DEFINE(M_MADT, "madt_table", "ACPI MADT Table Items");
 
 static enum intr_polarity interrupt_polarity(UINT16 IntiFlags, UINT8 Source);
 static enum intr_trigger interrupt_trigger(UINT16 IntiFlags, UINT8 Source);
-static int	madt_find_cpu(u_int acpi_id, u_int *apic_id);
-static int	madt_find_interrupt(int intr, void **apic, u_int *pin);
-static void	madt_parse_apics(ACPI_SUBTABLE_HEADER *entry, void *arg);
-static void	madt_parse_interrupt_override(
-		    ACPI_MADT_INTERRUPT_OVERRIDE *intr);
-static void	madt_parse_ints(ACPI_SUBTABLE_HEADER *entry,
-		    void *arg __unused);
-static void	madt_parse_local_nmi(ACPI_MADT_LOCAL_APIC_NMI *nmi);
-static void	madt_parse_nmi(ACPI_MADT_NMI_SOURCE *nmi);
-static int	madt_probe(void);
-static int	madt_probe_cpus(void);
-static void	madt_probe_cpus_handler(ACPI_SUBTABLE_HEADER *entry,
-		    void *arg __unused);
-static void	madt_setup_cpus_handler(ACPI_SUBTABLE_HEADER *entry,
-		    void *arg __unused);
-static void	madt_register(void *dummy);
-static int	madt_setup_local(void);
-static int	madt_setup_io(void);
-static void	madt_walk_table(acpi_subtable_handler *handler, void *arg);
+static int madt_find_cpu(u_int acpi_id, u_int *apic_id);
+static int madt_find_interrupt(int intr, void **apic, u_int *pin);
+static void madt_parse_apics(ACPI_SUBTABLE_HEADER *entry, void *arg);
+static void madt_parse_interrupt_override(ACPI_MADT_INTERRUPT_OVERRIDE *intr);
+static void madt_parse_ints(ACPI_SUBTABLE_HEADER *entry, void *arg __unused);
+static void madt_parse_local_nmi(ACPI_MADT_LOCAL_APIC_NMI *nmi);
+static void madt_parse_nmi(ACPI_MADT_NMI_SOURCE *nmi);
+static int madt_probe(void);
+static int madt_probe_cpus(void);
+static void madt_probe_cpus_handler(
+    ACPI_SUBTABLE_HEADER *entry, void *arg __unused);
+static void madt_setup_cpus_handler(
+    ACPI_SUBTABLE_HEADER *entry, void *arg __unused);
+static void madt_register(void *dummy);
+static int madt_setup_local(void);
+static int madt_setup_io(void);
+static void madt_walk_table(acpi_subtable_handler *handler, void *arg);
 
-static struct apic_enumerator madt_enumerator = {
-	.apic_name = "MADT",
+static struct apic_enumerator madt_enumerator = { .apic_name = "MADT",
 	.apic_probe = madt_probe,
 	.apic_probe_cpus = madt_probe_cpus,
 	.apic_setup_local = madt_setup_local,
-	.apic_setup_io = madt_setup_io
-};
+	.apic_setup_io = madt_setup_io };
 
 /*
  * Look for an ACPI Multiple APIC Description Table ("APIC")
@@ -152,8 +150,8 @@ madt_setup_local(void)
 		 */
 		dmartbl_physaddr = acpi_find_table(ACPI_SIG_DMAR);
 		if (dmartbl_physaddr != 0) {
-			dmartbl = acpi_map_table(dmartbl_physaddr,
-			    ACPI_SIG_DMAR);
+			dmartbl = acpi_map_table(
+			    dmartbl_physaddr, ACPI_SIG_DMAR);
 			if ((dmartbl->Flags & ACPI_DMAR_X2APIC_OPT_OUT) != 0)
 				reason = "by DMAR table";
 			acpi_unmap_table(dmartbl);
@@ -182,10 +180,10 @@ madt_setup_local(void)
 			 */
 			if (hw_vendor != NULL) {
 				if (!strcmp(hw_vendor, "LENOVO") ||
-				    !strcmp(hw_vendor,
-				    "ASUSTeK Computer Inc.")) {
+				    !strcmp(
+					hw_vendor, "ASUSTeK Computer Inc.")) {
 					reason =
-				    "for a suspected SandyBridge BIOS bug";
+					    "for a suspected SandyBridge BIOS bug";
 				}
 				freeenv(hw_vendor);
 			}
@@ -194,8 +192,8 @@ madt_setup_local(void)
 		if (reason != NULL && bios_x2apic) {
 			if (bootverbose)
 				printf("x2APIC should be disabled %s but "
-				    "already enabled by BIOS; enabling.\n",
-				     reason);
+				       "already enabled by BIOS; enabling.\n",
+				    reason);
 			reason = NULL;
 		}
 		if (reason == NULL)
@@ -207,7 +205,7 @@ madt_setup_local(void)
 		if (user_x2apic != x2apic_mode) {
 			if (bios_x2apic && !user_x2apic)
 				printf("x2APIC disabled by tunable and "
-				    "enabled by BIOS; ignoring tunable.");
+				       "enabled by BIOS; ignoring tunable.");
 			else
 				x2apic_mode = user_x2apic;
 		}
@@ -222,8 +220,8 @@ madt_setup_local(void)
 		max_apic_id = min(max_apic_id, xAPIC_MAX_APIC_ID);
 
 	madt = pmap_mapbios(madt_physaddr, madt_length);
-	lapics = malloc(sizeof(*lapics) * (max_apic_id + 1), M_MADT,
-	    M_WAITOK | M_ZERO);
+	lapics = malloc(
+	    sizeof(*lapics) * (max_apic_id + 1), M_MADT, M_WAITOK | M_ZERO);
 	madt_walk_table(madt_setup_cpus_handler, NULL);
 
 	lapic_init(madt->Address);
@@ -259,8 +257,8 @@ madt_setup_io(void)
 		panic("Using MADT but ACPI doesn't work");
 	}
 
-	ioapics = malloc(sizeof(*ioapics) * (IOAPIC_MAX_ID + 1), M_MADT,
-	    M_WAITOK | M_ZERO);
+	ioapics = malloc(
+	    sizeof(*ioapics) * (IOAPIC_MAX_ID + 1), M_MADT, M_WAITOK | M_ZERO);
 
 	/* First, we run through adding I/O APIC's. */
 	madt_walk_table(madt_parse_apics, NULL);
@@ -273,13 +271,13 @@ madt_setup_io(void)
 	 * force it to use level trigger and active-low polarity.
 	 */
 	if (!madt_found_sci_override) {
-		if (madt_find_interrupt(AcpiGbl_FADT.SciInterrupt, &ioapic,
-		    &pin) != 0)
+		if (madt_find_interrupt(
+			AcpiGbl_FADT.SciInterrupt, &ioapic, &pin) != 0)
 			printf("MADT: Could not find APIC for SCI IRQ %u\n",
 			    AcpiGbl_FADT.SciInterrupt);
 		else {
 			printf(
-	"MADT: Forcing active-low polarity and level trigger for SCI\n");
+			    "MADT: Forcing active-low polarity and level trigger for SCI\n");
 			ioapic_set_polarity(ioapic, pin, INTR_POLARITY_LOW);
 			ioapic_set_triggermode(ioapic, pin, INTR_TRIGGER_LEVEL);
 		}
@@ -309,7 +307,8 @@ madt_register(void *dummy __unused)
 
 	apic_register_enumerator(&madt_enumerator);
 }
-SYSINIT(madt_register, SI_SUB_TUNABLES - 1, SI_ORDER_FIRST, madt_register, NULL);
+SYSINIT(
+    madt_register, SI_SUB_TUNABLES - 1, SI_ORDER_FIRST, madt_register, NULL);
 
 /*
  * Call the handler routine for each entry in the MADT table.
@@ -318,8 +317,8 @@ static void
 madt_walk_table(acpi_subtable_handler *handler, void *arg)
 {
 
-	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
-	    handler, arg);
+	acpi_walk_subtables(
+	    madt + 1, (char *)madt + madt->Header.Length, handler, arg);
 }
 
 static void
@@ -350,14 +349,13 @@ madt_add_cpu(u_int acpi_id, u_int apic_id, u_int flags)
 	 * MP code figure out which CPU is the BSP on its own.
 	 */
 	if (bootverbose)
-		printf("MADT: Found CPU APIC ID %u ACPI ID %u: %s\n",
-		    apic_id, acpi_id, flags & ACPI_MADT_ENABLED ?
-		    "enabled" : "disabled");
+		printf("MADT: Found CPU APIC ID %u ACPI ID %u: %s\n", apic_id,
+		    acpi_id,
+		    flags & ACPI_MADT_ENABLED ? "enabled" : "disabled");
 	if (!(flags & ACPI_MADT_ENABLED))
 		return;
 	if (apic_id > max_apic_id) {
-		printf("MADT: Ignoring local APIC ID %u (too high)\n",
-		    apic_id);
+		printf("MADT: Ignoring local APIC ID %u (too high)\n", apic_id);
 		return;
 	}
 
@@ -399,8 +397,8 @@ madt_setup_cpus_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		break;
 	case ACPI_MADT_TYPE_LOCAL_X2APIC:
 		x2apic = (ACPI_MADT_LOCAL_X2APIC *)entry;
-		madt_add_cpu(x2apic->Uid, x2apic->LocalApicId,
-		    x2apic->LapicFlags);
+		madt_add_cpu(
+		    x2apic->Uid, x2apic->LocalApicId, x2apic->LapicFlags);
 		break;
 	}
 }
@@ -422,12 +420,12 @@ madt_parse_apics(ACPI_SUBTABLE_HEADER *entry, void *arg __unused)
 			    apic->Id, apic->GlobalIrqBase,
 			    (void *)(uintptr_t)apic->Address);
 		if (apic->Id > IOAPIC_MAX_ID)
-			panic("%s: I/O APIC ID %u too high", __func__,
-			    apic->Id);
+			panic(
+			    "%s: I/O APIC ID %u too high", __func__, apic->Id);
 		if (ioapics[apic->Id].io_apic != NULL)
 			panic("%s: Double APIC ID %u", __func__, apic->Id);
-		ioapics[apic->Id].io_apic = ioapic_create(apic->Address,
-		    apic->Id, apic->GlobalIrqBase);
+		ioapics[apic->Id].io_apic = ioapic_create(
+		    apic->Address, apic->Id, apic->GlobalIrqBase);
 		ioapics[apic->Id].io_vector = apic->GlobalIrqBase;
 		break;
 	default:
@@ -467,7 +465,8 @@ interrupt_trigger(UINT16 IntiFlags, UINT8 Source)
 
 	switch (IntiFlags & ACPI_MADT_TRIGGER_MASK) {
 	default:
-		printf("WARNING: Bogus Interrupt Trigger Mode. Assume CONFORMS.\n");
+		printf(
+		    "WARNING: Bogus Interrupt Trigger Mode. Assume CONFORMS.\n");
 		/*FALLTHROUGH*/
 	case ACPI_MADT_TRIGGER_CONFORMS:
 		if (Source == AcpiGbl_FADT.SciInterrupt)
@@ -511,8 +510,7 @@ madt_find_interrupt(int intr, void **apic, u_int *pin)
 
 	best = -1;
 	for (i = 0; i <= IOAPIC_MAX_ID; i++) {
-		if (ioapics[i].io_apic == NULL ||
-		    ioapics[i].io_vector > intr)
+		if (ioapics[i].io_apic == NULL || ioapics[i].io_vector > intr)
 			continue;
 		if (best == -1 ||
 		    ioapics[best].io_vector < ioapics[i].io_vector)
@@ -523,14 +521,14 @@ madt_find_interrupt(int intr, void **apic, u_int *pin)
 	*apic = ioapics[best].io_apic;
 	*pin = intr - ioapics[best].io_vector;
 	if (*pin > 32)
-		printf("WARNING: Found intpin of %u for vector %d\n", *pin,
-		    intr);
+		printf(
+		    "WARNING: Found intpin of %u for vector %d\n", *pin, intr);
 	return (0);
 }
 
 void
-madt_parse_interrupt_values(void *entry,
-    enum intr_trigger *trig, enum intr_polarity *pol)
+madt_parse_interrupt_values(
+    void *entry, enum intr_trigger *trig, enum intr_polarity *pol)
 {
 	ACPI_MADT_INTERRUPT_OVERRIDE *intr;
 	char buf[64];
@@ -563,7 +561,7 @@ madt_parse_interrupt_values(void *entry,
 				*trig = INTR_TRIGGER_LEVEL;
 			else
 				panic(
-				"Invalid trigger %s: must be 'edge' or 'level'",
+				    "Invalid trigger %s: must be 'edge' or 'level'",
 				    buf);
 			printf("MADT: Forcing SCI to %s trigger\n",
 			    *trig == INTR_TRIGGER_EDGE ? "edge" : "level");
@@ -575,7 +573,7 @@ madt_parse_interrupt_values(void *entry,
 				*pol = INTR_POLARITY_LOW;
 			else
 				panic(
-				"Invalid polarity %s: must be 'high' or 'low'",
+				    "Invalid polarity %s: must be 'high' or 'low'",
 				    buf);
 			printf("MADT: Forcing SCI to active %s polarity\n",
 			    *pol == INTR_POLARITY_HIGH ? "high" : "low");
@@ -620,10 +618,10 @@ madt_parse_interrupt_override(ACPI_MADT_INTERRUPT_OVERRIDE *intr)
 		    intr->SourceIrq == AcpiGbl_FADT.SciInterrupt)
 			acpi_OverrideInterruptLevel(intr->GlobalIrq);
 		else
-			ioapic_remap_vector(new_ioapic, new_pin,
-			    intr->SourceIrq);
-		if (madt_find_interrupt(intr->SourceIrq, &old_ioapic,
-		    &old_pin) != 0)
+			ioapic_remap_vector(
+			    new_ioapic, new_pin, intr->SourceIrq);
+		if (madt_find_interrupt(
+			intr->SourceIrq, &old_ioapic, &old_pin) != 0)
 			printf("MADT: Could not find APIC for source IRQ %u\n",
 			    intr->SourceIrq);
 		else if (ioapic_get_vector(old_ioapic, old_pin) ==
@@ -653,11 +651,11 @@ madt_parse_nmi(ACPI_MADT_NMI_SOURCE *nmi)
 
 	ioapic_set_nmi(ioapic, pin);
 	if (!(nmi->IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
-		ioapic_set_triggermode(ioapic, pin,
-		    interrupt_trigger(nmi->IntiFlags, 0));
+		ioapic_set_triggermode(
+		    ioapic, pin, interrupt_trigger(nmi->IntiFlags, 0));
 	if (!(nmi->IntiFlags & ACPI_MADT_POLARITY_CONFORMS))
-		ioapic_set_polarity(ioapic, pin,
-		    interrupt_polarity(nmi->IntiFlags, 0));
+		ioapic_set_polarity(
+		    ioapic, pin, interrupt_polarity(nmi->IntiFlags, 0));
 }
 
 /*
@@ -673,7 +671,8 @@ madt_handle_local_nmi(u_int acpi_id, UINT8 Lint, UINT16 IntiFlags)
 	else if (madt_find_cpu(acpi_id, &apic_id) != 0) {
 		if (bootverbose)
 			printf("MADT: Ignoring local NMI routed to "
-			    "ACPI CPU %u\n", acpi_id);
+			       "ACPI CPU %u\n",
+			    acpi_id);
 		return;
 	}
 	if (Lint == 0)
@@ -682,19 +681,20 @@ madt_handle_local_nmi(u_int acpi_id, UINT8 Lint, UINT16 IntiFlags)
 		pin = APIC_LVT_LINT1;
 	lapic_set_lvt_mode(apic_id, pin, APIC_LVT_DM_NMI);
 	if (!(IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
-		lapic_set_lvt_triggermode(apic_id, pin,
-		    interrupt_trigger(IntiFlags, 0));
+		lapic_set_lvt_triggermode(
+		    apic_id, pin, interrupt_trigger(IntiFlags, 0));
 	if (!(IntiFlags & ACPI_MADT_POLARITY_CONFORMS))
-		lapic_set_lvt_polarity(apic_id, pin,
-		    interrupt_polarity(IntiFlags, 0));
+		lapic_set_lvt_polarity(
+		    apic_id, pin, interrupt_polarity(IntiFlags, 0));
 }
 
 static void
 madt_parse_local_nmi(ACPI_MADT_LOCAL_APIC_NMI *nmi)
 {
 
-	madt_handle_local_nmi(nmi->ProcessorId == 0xff ? 0xffffffff :
-	    nmi->ProcessorId, nmi->Lint, nmi->IntiFlags);
+	madt_handle_local_nmi(
+	    nmi->ProcessorId == 0xff ? 0xffffffff : nmi->ProcessorId, nmi->Lint,
+	    nmi->IntiFlags);
 }
 
 static void
@@ -714,7 +714,7 @@ madt_parse_ints(ACPI_SUBTABLE_HEADER *entry, void *arg __unused)
 	switch (entry->Type) {
 	case ACPI_MADT_TYPE_INTERRUPT_OVERRIDE:
 		madt_parse_interrupt_override(
-			(ACPI_MADT_INTERRUPT_OVERRIDE *)entry);
+		    (ACPI_MADT_INTERRUPT_OVERRIDE *)entry);
 		break;
 	case ACPI_MADT_TYPE_NMI_SOURCE:
 		madt_parse_nmi((ACPI_MADT_NMI_SOURCE *)entry);
@@ -744,7 +744,7 @@ madt_set_ids(void *dummy)
 
 	KASSERT(lapics != NULL, ("local APICs not initialized"));
 
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		pc = pcpu_find(i);
 		KASSERT(pc != NULL, ("no pcpu data for CPU %u", i));
 		la = &lapics[pc->pc_apic_id];
@@ -753,8 +753,8 @@ madt_set_ids(void *dummy)
 			    pc->pc_apic_id);
 		pc->pc_acpi_id = la->la_acpi_id;
 		if (bootverbose)
-			printf("APIC: CPU %u has ACPI ID %u\n", i,
-			    la->la_acpi_id);
+			printf(
+			    "APIC: CPU %u has ACPI ID %u\n", i, la->la_acpi_id);
 	}
 }
 SYSINIT(madt_set_ids, SI_SUB_CPU, SI_ORDER_MIDDLE, madt_set_ids, NULL);

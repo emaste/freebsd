@@ -31,22 +31,23 @@
  */
 
 #ifdef _KERNEL
-#include <sys/malloc.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/rwlock.h>
-#include <net/if.h>	/* IFNAMSIZ */
+#include <sys/socket.h>
+#include <sys/socketvar.h>
+
+#include <net/if.h> /* IFNAMSIZ */
 #include <netinet/in.h>
-#include <netinet/ip_var.h>		/* ipfw_rule_ref */
-#include <netinet/ip_fw.h>	/* flow_id */
 #include <netinet/ip_dummynet.h>
-#include <netpfil/ipfw/ip_fw_private.h>
+#include <netinet/ip_fw.h>  /* flow_id */
+#include <netinet/ip_var.h> /* ipfw_rule_ref */
 #include <netpfil/ipfw/dn_heap.h>
 #include <netpfil/ipfw/ip_dn_private.h>
+#include <netpfil/ipfw/ip_fw_private.h>
 #ifdef NEW_AQM
 #include <netpfil/ipfw/dn_aqm.h>
 #endif
@@ -55,28 +56,28 @@
 #include <dn_test.h>
 #endif
 
-#define DN_SCHED_RR	3 // XXX Where?
+#define DN_SCHED_RR 3 // XXX Where?
 
 struct rr_queue {
-	struct dn_queue q;		/* Standard queue */
-	int status;			/* 1: queue is in the list */
-	uint32_t credit;		/* max bytes we can transmit */
-	uint32_t quantum;		/* quantum * weight */
-	struct rr_queue *qnext;		/* */
+	struct dn_queue q;	/* Standard queue */
+	int status;		/* 1: queue is in the list */
+	uint32_t credit;	/* max bytes we can transmit */
+	uint32_t quantum;	/* quantum * weight */
+	struct rr_queue *qnext; /* */
 };
 
 /* struct rr_schk contains global config parameters
  * and is right after dn_schk
  */
 struct rr_schk {
-	uint32_t min_q;		/* Min quantum */
-	uint32_t max_q;		/* Max quantum */
-	uint32_t q_bytes;	/* default quantum in bytes */
+	uint32_t min_q;	  /* Min quantum */
+	uint32_t max_q;	  /* Max quantum */
+	uint32_t q_bytes; /* default quantum in bytes */
 };
 
 /* per-instance round robin list, right after dn_sch_inst */
 struct rr_si {
-	struct rr_queue *head, *tail;	/* Pointer to current queue */
+	struct rr_queue *head, *tail; /* Pointer to current queue */
 };
 
 /* Append a queue to the rr list */
@@ -84,15 +85,15 @@ static inline void
 rr_append(struct rr_queue *q, struct rr_si *si)
 {
 	q->status = 1;		/* mark as in-rr_list */
-	q->credit = q->quantum;	/* initialize credit */
+	q->credit = q->quantum; /* initialize credit */
 
 	/* append to the tail */
 	if (si->head == NULL)
 		si->head = q;
 	else
 		si->tail->qnext = q;
-	si->tail = q;		/* advance the tail pointer */
-	q->qnext = si->head;	/* make it circular */
+	si->tail = q;	     /* advance the tail pointer */
+	q->qnext = si->head; /* make it circular */
 }
 
 /* Remove the head queue from circular list. */
@@ -182,9 +183,9 @@ rr_dequeue(struct dn_sch_inst *_si)
 	struct rr_queue *rrq;
 	uint64_t len;
 
-	while ( (rrq = si->head) ) {
+	while ((rrq = si->head)) {
 		struct mbuf *m = rrq->q.mq.head;
-		if ( m == NULL) {
+		if (m == NULL) {
 			/* empty queue, remove from list */
 			rr_remove_head(si);
 			continue;
@@ -215,7 +216,7 @@ rr_config(struct dn_schk *_schk)
 	/* use reasonable quantums (64..2k bytes, default 1500) */
 	schk->min_q = 64;
 	schk->max_q = 2048;
-	schk->q_bytes = 1500;	/* quantum */
+	schk->q_bytes = 1500; /* quantum */
 
 	return 0;
 }
@@ -246,10 +247,9 @@ rr_new_fsk(struct dn_fsk *fs)
 	struct rr_schk *schk = (struct rr_schk *)(fs->sched + 1);
 	/* par[0] is the weight, par[1] is the quantum step */
 	/* make sure the product fits an uint32_t */
-	ipdn_bound_var(&fs->fs.par[0], 1,
-		1, 65536, "RR weight");
-	ipdn_bound_var(&fs->fs.par[1], schk->q_bytes,
-		schk->min_q, schk->max_q, "RR quantum");
+	ipdn_bound_var(&fs->fs.par[0], 1, 1, 65536, "RR weight");
+	ipdn_bound_var(&fs->fs.par[1], schk->q_bytes, schk->min_q, schk->max_q,
+	    "RR quantum");
 	return 0;
 }
 
@@ -262,9 +262,9 @@ rr_new_queue(struct dn_queue *_q)
 	_q->ni.oid.subtype = DN_SCHED_RR;
 
 	quantum = (uint64_t)_q->fs->fs.par[0] * _q->fs->fs.par[1];
-	if (quantum >= (1ULL<< 32)) {
+	if (quantum >= (1ULL << 32)) {
 		D("quantum too large, truncating to 4G - 1");
-		quantum = (1ULL<< 32) - 1;
+		quantum = (1ULL << 32) - 1;
 	}
 	q->quantum = quantum;
 	ND("called, q->quantum %d", q->quantum);
@@ -297,27 +297,27 @@ rr_free_queue(struct dn_queue *_q)
  * structures and function pointers.
  */
 static struct dn_alg rr_desc = {
-	_SI( .type = ) DN_SCHED_RR,
-	_SI( .name = ) "RR",
-	_SI( .flags = ) DN_MULTIQUEUE,
+	_SI(.type =) DN_SCHED_RR,
+	_SI(.name =) "RR",
+	_SI(.flags =) DN_MULTIQUEUE,
 
-	_SI( .schk_datalen = ) sizeof(struct rr_schk),
-	_SI( .si_datalen = ) sizeof(struct rr_si),
-	_SI( .q_datalen = ) sizeof(struct rr_queue) - sizeof(struct dn_queue),
+	_SI(.schk_datalen =) sizeof(struct rr_schk),
+	_SI(.si_datalen =) sizeof(struct rr_si),
+	_SI(.q_datalen =) sizeof(struct rr_queue) - sizeof(struct dn_queue),
 
-	_SI( .enqueue = ) rr_enqueue,
-	_SI( .dequeue = ) rr_dequeue,
+	_SI(.enqueue =) rr_enqueue,
+	_SI(.dequeue =) rr_dequeue,
 
-	_SI( .config = ) rr_config,
-	_SI( .destroy = ) NULL,
-	_SI( .new_sched = ) rr_new_sched,
-	_SI( .free_sched = ) rr_free_sched,
-	_SI( .new_fsk = ) rr_new_fsk,
-	_SI( .free_fsk = ) NULL,
-	_SI( .new_queue = ) rr_new_queue,
-	_SI( .free_queue = ) rr_free_queue,
+	_SI(.config =) rr_config,
+	_SI(.destroy =) NULL,
+	_SI(.new_sched =) rr_new_sched,
+	_SI(.free_sched =) rr_free_sched,
+	_SI(.new_fsk =) rr_new_fsk,
+	_SI(.free_fsk =) NULL,
+	_SI(.new_queue =) rr_new_queue,
+	_SI(.free_queue =) rr_free_queue,
 #ifdef NEW_AQM
-	_SI( .getconfig = )  NULL,
+	_SI(.getconfig =) NULL,
 #endif
 };
 

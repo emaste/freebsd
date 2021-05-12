@@ -20,11 +20,11 @@
  */
 
 #ifndef UNIX
-#define	UNIX
+#define UNIX
 #endif
 
 #ifndef MAXLEN
-#define	MAXLEN	255
+#define MAXLEN 255
 #endif
 
 /***********************************************************************

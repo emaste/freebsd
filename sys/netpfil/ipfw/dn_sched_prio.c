@@ -30,22 +30,23 @@
  * $FreeBSD$
  */
 #ifdef _KERNEL
-#include <sys/malloc.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/rwlock.h>
-#include <net/if.h>	/* IFNAMSIZ */
+#include <sys/socket.h>
+#include <sys/socketvar.h>
+
+#include <net/if.h> /* IFNAMSIZ */
 #include <netinet/in.h>
-#include <netinet/ip_var.h>		/* ipfw_rule_ref */
-#include <netinet/ip_fw.h>	/* flow_id */
 #include <netinet/ip_dummynet.h>
-#include <netpfil/ipfw/ip_fw_private.h>
+#include <netinet/ip_fw.h>  /* flow_id */
+#include <netinet/ip_var.h> /* ipfw_rule_ref */
 #include <netpfil/ipfw/dn_heap.h>
 #include <netpfil/ipfw/ip_dn_private.h>
+#include <netpfil/ipfw/ip_fw_private.h>
 #ifdef NEW_AQM
 #include <netpfil/ipfw/dn_aqm.h>
 #endif
@@ -54,36 +55,36 @@
 #include <dn_test.h>
 #endif
 
-#define DN_SCHED_PRIO	5 //XXX
+#define DN_SCHED_PRIO 5 // XXX
 
 #if !defined(_KERNEL) || !defined(__linux__)
-#define test_bit(ix, pData)	((*pData) & (1<<(ix)))
-#define __set_bit(ix, pData)	(*pData) |= (1<<(ix))
-#define __clear_bit(ix, pData)	(*pData) &= ~(1<<(ix))
+#define test_bit(ix, pData) ((*pData) & (1 << (ix)))
+#define __set_bit(ix, pData) (*pData) |= (1 << (ix))
+#define __clear_bit(ix, pData) (*pData) &= ~(1 << (ix))
 #endif
 
 #ifdef __MIPSEL__
-#define __clear_bit(ix, pData)	(*pData) &= ~(1<<(ix))
+#define __clear_bit(ix, pData) (*pData) &= ~(1 << (ix))
 #endif
 
 /* Size of the array of queues pointers. */
-#define BITMAP_T	unsigned long
-#define MAXPRIO		(sizeof(BITMAP_T) * 8)
+#define BITMAP_T unsigned long
+#define MAXPRIO (sizeof(BITMAP_T) * 8)
 
 /*
  * The scheduler instance contains an array of pointers to queues,
  * one for each priority, and a bitmap listing backlogged queues.
  */
 struct prio_si {
-	BITMAP_T bitmap;			/* array bitmap */
-	struct dn_queue *q_array[MAXPRIO];	/* Array of queues pointers */
+	BITMAP_T bitmap;		   /* array bitmap */
+	struct dn_queue *q_array[MAXPRIO]; /* Array of queues pointers */
 };
 
 /*
  * If a queue with the same priority is already backlogged, use
  * that one instead of the queue passed as argument.
  */
-static int 
+static int
 prio_enqueue(struct dn_sch_inst *_si, struct dn_queue *q, struct mbuf *m)
 {
 	struct prio_si *si = (struct prio_si *)(_si + 1);
@@ -178,7 +179,7 @@ prio_new_queue(struct dn_queue *q)
 		/* No queue with this priority, insert */
 		__set_bit(prio, &si->bitmap);
 		si->q_array[prio] = q;
-	} else if ( (oldq = si->q_array[prio]) != q) {
+	} else if ((oldq = si->q_array[prio]) != q) {
 		/* must append to the existing queue.
 		 * can simply append q->mq.head to q2->...
 		 * and add the counters to those of q2
@@ -208,30 +209,30 @@ prio_free_queue(struct dn_queue *q)
 }
 
 static struct dn_alg prio_desc = {
-	_SI( .type = ) DN_SCHED_PRIO,
-	_SI( .name = ) "PRIO",
-	_SI( .flags = ) DN_MULTIQUEUE,
+	_SI(.type =) DN_SCHED_PRIO,
+	_SI(.name =) "PRIO",
+	_SI(.flags =) DN_MULTIQUEUE,
 
 	/* we need extra space in the si and the queue */
-	_SI( .schk_datalen = ) 0,
-	_SI( .si_datalen = ) sizeof(struct prio_si),
-	_SI( .q_datalen = ) 0,
+	_SI(.schk_datalen =) 0,
+	_SI(.si_datalen =) sizeof(struct prio_si),
+	_SI(.q_datalen =) 0,
 
-	_SI( .enqueue = ) prio_enqueue,
-	_SI( .dequeue = ) prio_dequeue,
+	_SI(.enqueue =) prio_enqueue,
+	_SI(.dequeue =) prio_dequeue,
 
-	_SI( .config = )  NULL,
-	_SI( .destroy = )  NULL,
-	_SI( .new_sched = ) prio_new_sched,
-	_SI( .free_sched = ) NULL,
+	_SI(.config =) NULL,
+	_SI(.destroy =) NULL,
+	_SI(.new_sched =) prio_new_sched,
+	_SI(.free_sched =) NULL,
 
-	_SI( .new_fsk = ) prio_new_fsk,
-	_SI( .free_fsk = )  NULL,
+	_SI(.new_fsk =) prio_new_fsk,
+	_SI(.free_fsk =) NULL,
 
-	_SI( .new_queue = ) prio_new_queue,
-	_SI( .free_queue = ) prio_free_queue,
+	_SI(.new_queue =) prio_new_queue,
+	_SI(.free_queue =) prio_free_queue,
 #ifdef NEW_AQM
-	_SI( .getconfig = )  NULL,
+	_SI(.getconfig =) NULL,
 #endif
 };
 

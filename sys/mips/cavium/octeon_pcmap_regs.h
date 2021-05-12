@@ -34,7 +34,8 @@
  *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  *
  *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
+ *  For any questions regarding licensing please contact
+ *marketing@caviumnetworks.com
  *
  ***********************license end**************************************/
 
@@ -56,6 +57,6 @@
  */
 void octeon_debug_symbol(void);
 void octeon_ciu_reset(void);
-#endif	/* LOCORE */
+#endif /* LOCORE */
 
 #endif /* !OCTEON_PCMAP_REGS_H__ */

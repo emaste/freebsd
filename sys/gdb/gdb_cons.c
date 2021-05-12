@@ -26,7 +26,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* 
+/*
  * Support for redirecting console msgs to gdb.  We register
  * a pseudo console to hook cnputc and send stuff to the gdb
  * port.  The only trickiness here is buffering output so this
@@ -52,25 +52,25 @@ __FBSDID("$FreeBSD$");
 #include <gdb/gdb_int.h>
 
 struct gdbcons {
-	int	npending;
+	int npending;
 	/* /2 for hex conversion, -6 for protocol glue */
-	char	buf[GDB_BUFSZ/2 - 6];
+	char buf[GDB_BUFSZ / 2 - 6];
 	struct callout flush;
 };
 static struct gdbcons state = { -1 };
 
-static	int gdbcons_enable = 0;
+static int gdbcons_enable = 0;
 SYSCTL_INT(_debug_gdb, OID_AUTO, cons, CTLFLAG_RWTUN, &gdbcons_enable, 0,
-	"copy console messages to GDB");
+    "copy console messages to GDB");
 /* Legacy sysctl alias */
-SYSCTL_INT(_debug, OID_AUTO, gdbcons, CTLFLAG_RWTUN, &gdbcons_enable,
-	0, "copy console messages to GDB");
+SYSCTL_INT(_debug, OID_AUTO, gdbcons, CTLFLAG_RWTUN, &gdbcons_enable, 0,
+    "copy console messages to GDB");
 
 static void
 gdb_cnprobe(struct consdev *cp)
 {
 	sprintf(cp->cn_name, "gdb");
-	cp->cn_pri = CN_LOW;		/* XXX no way to say "write only" */
+	cp->cn_pri = CN_LOW; /* XXX no way to say "write only" */
 }
 
 static void
@@ -112,8 +112,8 @@ gdb_tx_puthex(int c)
 {
 	const char *hex = "0123456789abcdef";
 
-	gdb_tx_char(hex[(c>>4)&0xf]);
-	gdb_tx_char(hex[(c>>0)&0xf]);
+	gdb_tx_char(hex[(c >> 4) & 0xf]);
+	gdb_tx_char(hex[(c >> 0) & 0xf]);
 }
 
 static void
@@ -163,13 +163,13 @@ gdb_cnputc(struct consdev *cp, int c)
 		/*
 		 * Flush on end of line; this is especially helpful
 		 * during boot when we don't have callouts to flush
-		 * the buffer.  Otherwise we defer flushing; a 1/4 
+		 * the buffer.  Otherwise we defer flushing; a 1/4
 		 * second is a guess.
 		 */
 		if (c == '\n')
 			gdb_cnflush(gc);
 		else if (calloutok)
-			callout_reset(&gc->flush, hz/4, gdb_cnflush, gc);
+			callout_reset(&gc->flush, hz / 4, gdb_cnflush, gc);
 	}
 }
 

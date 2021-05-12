@@ -40,9 +40,9 @@
 #ifndef _NETINET_IP_ECN_H_
 #define _NETINET_IP_ECN_H_
 
-#define ECN_ALLOWED	1	/* ECN allowed */
-#define ECN_FORBIDDEN	0	/* ECN forbidden */
-#define ECN_NOCARE	(-1)	/* no consideration to ECN */
+#define ECN_ALLOWED 1	/* ECN allowed */
+#define ECN_FORBIDDEN 0 /* ECN forbidden */
+#define ECN_NOCARE (-1) /* no consideration to ECN */
 
 #ifdef _KERNEL
 extern void ip_ecn_ingress(int, u_int8_t *, const u_int8_t *);

@@ -32,15 +32,17 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
-#include <sys/rman.h>
 #include <sys/bus.h>
-#include <dev/ofw/openfirm.h>
+#include <sys/rman.h>
+
 #include <machine/platform.h>
+
+#include <dev/ofw/openfirm.h>
 
 struct mem_region;
 struct numa_mem_region;
 
-typedef	uint32_t	cell_t;
+typedef uint32_t cell_t;
 
 void OF_getetheraddr(device_t dev, u_char *addr);
 
@@ -55,6 +57,6 @@ void ofw_quiesce(void); /* Must be called before VM is up! */
 void ofw_save_trap_vec(char *);
 int ofw_pcibus_get_domain(device_t dev, device_t child, int *domain);
 int ofw_pcibus_get_cpus(device_t dev, device_t child, enum cpu_sets op,
-		size_t setsize, cpuset_t *cpuset);
+    size_t setsize, cpuset_t *cpuset);
 
 #endif /* _MACHINE_OFW_MACHDEP_H_ */

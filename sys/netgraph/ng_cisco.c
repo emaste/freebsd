@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -45,37 +45,35 @@
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
-#include <sys/socket.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/socket.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
-
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
 #include <netgraph/ng_cisco.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
+#include <netinet/if_ether.h>
+#include <netinet/in.h>
 
-#define	CISCO_MULTICAST		0x8f	/* Cisco multicast address */
-#define	CISCO_UNICAST		0x0f	/* Cisco unicast address */
-#define	CISCO_KEEPALIVE		0x8035	/* Cisco keepalive protocol */
-#define	CISCO_ADDR_REQ		0	/* Cisco address request */
-#define	CISCO_ADDR_REPLY	1	/* Cisco address reply */
-#define	CISCO_KEEPALIVE_REQ	2	/* Cisco keepalive request */
+#define CISCO_MULTICAST 0x8f   /* Cisco multicast address */
+#define CISCO_UNICAST 0x0f     /* Cisco unicast address */
+#define CISCO_KEEPALIVE 0x8035 /* Cisco keepalive protocol */
+#define CISCO_ADDR_REQ 0       /* Cisco address request */
+#define CISCO_ADDR_REPLY 1     /* Cisco address reply */
+#define CISCO_KEEPALIVE_REQ 2  /* Cisco keepalive request */
 
-#define KEEPALIVE_SECS		10
+#define KEEPALIVE_SECS 10
 
 struct cisco_header {
-	uint8_t  address;
-	uint8_t  control;
+	uint8_t address;
+	uint8_t control;
 	uint16_t protocol;
 } __packed;
 
-#define	CISCO_HEADER_LEN	sizeof (struct cisco_header)
+#define CISCO_HEADER_LEN sizeof(struct cisco_header)
 
 struct cisco_packet {
 	uint32_t type;
@@ -86,97 +84,79 @@ struct cisco_packet {
 	uint16_t time1;
 } __packed;
 
-#define	CISCO_PACKET_LEN (sizeof(struct cisco_packet))
+#define CISCO_PACKET_LEN (sizeof(struct cisco_packet))
 
 struct protoent {
-	hook_p  hook;		/* the hook for this proto */
-	uint16_t af;		/* address family, -1 = downstream */
+	hook_p hook; /* the hook for this proto */
+	uint16_t af; /* address family, -1 = downstream */
 };
 
 struct cisco_priv {
 	uint32_t local_seq;
 	uint32_t remote_seq;
-	uint32_t seqRetries;	/* how many times we've been here throwing out
-				 * the same sequence number without ack */
-	node_p  node;
+	uint32_t seqRetries; /* how many times we've been here throwing out
+			      * the same sequence number without ack */
+	node_p node;
 	struct callout handle;
 	struct protoent downstream;
-	struct protoent inet;		/* IP information */
+	struct protoent inet; /* IP information */
 	struct in_addr localip;
 	struct in_addr localmask;
-	struct protoent inet6;		/* IPv6 information */
-	struct protoent atalk;		/* AppleTalk information */
-	struct protoent ipx;		/* IPX information */
+	struct protoent inet6; /* IPv6 information */
+	struct protoent atalk; /* AppleTalk information */
+	struct protoent ipx;   /* IPX information */
 };
 typedef struct cisco_priv *sc_p;
 
 /* Netgraph methods */
-static ng_constructor_t		cisco_constructor;
-static ng_rcvmsg_t		cisco_rcvmsg;
-static ng_shutdown_t		cisco_shutdown;
-static ng_newhook_t		cisco_newhook;
-static ng_rcvdata_t		cisco_rcvdata;
-static ng_disconnect_t		cisco_disconnect;
+static ng_constructor_t cisco_constructor;
+static ng_rcvmsg_t cisco_rcvmsg;
+static ng_shutdown_t cisco_shutdown;
+static ng_newhook_t cisco_newhook;
+static ng_rcvdata_t cisco_rcvdata;
+static ng_disconnect_t cisco_disconnect;
 
 /* Other functions */
-static int	cisco_input(sc_p sc, item_p item);
-static void	cisco_keepalive(node_p node, hook_p hook, void *arg1, int arg2);
-static int	cisco_send(sc_p sc, int type, long par1, long par2);
-static void	cisco_notify(sc_p sc, uint32_t cmd);
+static int cisco_input(sc_p sc, item_p item);
+static void cisco_keepalive(node_p node, hook_p hook, void *arg1, int arg2);
+static int cisco_send(sc_p sc, int type, long par1, long par2);
+static void cisco_notify(sc_p sc, uint32_t cmd);
 
 /* Parse type for struct ng_cisco_ipaddr */
-static const struct ng_parse_struct_field ng_cisco_ipaddr_type_fields[]
-	= NG_CISCO_IPADDR_TYPE_INFO;
+static const struct ng_parse_struct_field ng_cisco_ipaddr_type_fields[] =
+    NG_CISCO_IPADDR_TYPE_INFO;
 static const struct ng_parse_type ng_cisco_ipaddr_type = {
-	&ng_parse_struct_type,
-	&ng_cisco_ipaddr_type_fields
+	&ng_parse_struct_type, &ng_cisco_ipaddr_type_fields
 };
 
 /* Parse type for struct ng_async_stat */
-static const struct ng_parse_struct_field ng_cisco_stats_type_fields[]
-	= NG_CISCO_STATS_TYPE_INFO;
-static const struct ng_parse_type ng_cisco_stats_type = {
-	&ng_parse_struct_type,
-	&ng_cisco_stats_type_fields
-};
+static const struct ng_parse_struct_field ng_cisco_stats_type_fields[] =
+    NG_CISCO_STATS_TYPE_INFO;
+static const struct ng_parse_type ng_cisco_stats_type = { &ng_parse_struct_type,
+	&ng_cisco_stats_type_fields };
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_cisco_cmdlist[] = {
-	{
-	  NGM_CISCO_COOKIE,
-	  NGM_CISCO_SET_IPADDR,
-	  "setipaddr",
-	  &ng_cisco_ipaddr_type,
-	  NULL
-	},
-	{
-	  NGM_CISCO_COOKIE,
-	  NGM_CISCO_GET_IPADDR,
-	  "getipaddr",
-	  NULL,
-	  &ng_cisco_ipaddr_type
-	},
-	{
-	  NGM_CISCO_COOKIE,
-	  NGM_CISCO_GET_STATUS,
-	  "getstats",
-	  NULL,
-	  &ng_cisco_stats_type
-	},
+	{ NGM_CISCO_COOKIE, NGM_CISCO_SET_IPADDR, "setipaddr",
+	    &ng_cisco_ipaddr_type, NULL },
+	{ NGM_CISCO_COOKIE, NGM_CISCO_GET_IPADDR, "getipaddr", NULL,
+	    &ng_cisco_ipaddr_type },
+	{ NGM_CISCO_COOKIE, NGM_CISCO_GET_STATUS, "getstats", NULL,
+	    &ng_cisco_stats_type },
 	{ 0 }
 };
 
 /* Node type */
 static struct ng_type typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_CISCO_NODE_TYPE,
-	.constructor =	cisco_constructor,
-	.rcvmsg =	cisco_rcvmsg,
-	.shutdown =	cisco_shutdown,
-	.newhook =	cisco_newhook,
-	.rcvdata =	cisco_rcvdata,
-	.disconnect =	cisco_disconnect,
-	.cmdlist =	ng_cisco_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_CISCO_NODE_TYPE,
+	.constructor = cisco_constructor,
+	.rcvmsg = cisco_rcvmsg,
+	.shutdown = cisco_shutdown,
+	.newhook = cisco_newhook,
+	.rcvdata = cisco_rcvdata,
+	.disconnect = cisco_disconnect,
+	.cmdlist = ng_cisco_cmdlist,
 };
 NETGRAPH_INIT(cisco, &typestruct);
 
@@ -231,7 +211,7 @@ cisco_newhook(node_p node, hook_p hook, const char *name)
 		sc->ipx.hook = hook;
 		NG_HOOK_SET_PRIVATE(hook, &sc->ipx);
 	} else if (strcmp(name, NG_CISCO_HOOK_DEBUG) == 0) {
-		NG_HOOK_SET_PRIVATE(hook, NULL);	/* unimplemented */
+		NG_HOOK_SET_PRIVATE(hook, NULL); /* unimplemented */
 	} else
 		return (EINVAL);
 	return 0;
@@ -252,8 +232,7 @@ cisco_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	switch (msg->header.typecookie) {
 	case NGM_GENERIC_COOKIE:
 		switch (msg->header.cmd) {
-		case NGM_TEXT_STATUS:
-		    {
+		case NGM_TEXT_STATUS: {
 			char *arg;
 			int pos;
 
@@ -262,14 +241,14 @@ cisco_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 				break;
 			}
-			arg = (char *) resp->data;
-			pos = sprintf(arg,
-			  "keepalive period: %d sec; ", KEEPALIVE_SECS);
+			arg = (char *)resp->data;
+			pos = sprintf(
+			    arg, "keepalive period: %d sec; ", KEEPALIVE_SECS);
 			pos += sprintf(arg + pos,
-			  "unacknowledged keepalives: %d", sc->seqRetries);
+			    "unacknowledged keepalives: %d", sc->seqRetries);
 			resp->header.arglen = pos + 1;
 			break;
-		    }
+		}
 		default:
 			error = EINVAL;
 			break;
@@ -277,24 +256,23 @@ cisco_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		break;
 	case NGM_CISCO_COOKIE:
 		switch (msg->header.cmd) {
-		case NGM_CISCO_GET_IPADDR:	/* could be a late reply! */
+		case NGM_CISCO_GET_IPADDR: /* could be a late reply! */
 			if ((msg->header.flags & NGF_RESP) == 0) {
 				struct in_addr *ips;
 
-				NG_MKRESPONSE(resp, msg,
-				    2 * sizeof(*ips), M_NOWAIT);
+				NG_MKRESPONSE(
+				    resp, msg, 2 * sizeof(*ips), M_NOWAIT);
 				if (!resp) {
 					error = ENOMEM;
 					break;
 				}
-				ips = (struct in_addr *) resp->data;
+				ips = (struct in_addr *)resp->data;
 				ips[0] = sc->localip;
 				ips[1] = sc->localmask;
 				break;
 			}
-			/* FALLTHROUGH */	/* ...if it's a reply */
-		case NGM_CISCO_SET_IPADDR:
-		    {
+			/* FALLTHROUGH */ /* ...if it's a reply */
+		case NGM_CISCO_SET_IPADDR: {
 			struct in_addr *const ips = (struct in_addr *)msg->data;
 
 			if (msg->header.arglen < 2 * sizeof(*ips)) {
@@ -304,9 +282,8 @@ cisco_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			sc->localip = ips[0];
 			sc->localmask = ips[1];
 			break;
-		    }
-		case NGM_CISCO_GET_STATUS:
-		    {
+		}
+		case NGM_CISCO_GET_STATUS: {
 			struct ng_cisco_stats *stat;
 
 			NG_MKRESPONSE(resp, msg, sizeof(*stat), M_NOWAIT);
@@ -318,7 +295,7 @@ cisco_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			stat->seqRetries = sc->seqRetries;
 			stat->keepAlivePeriod = KEEPALIVE_SECS;
 			break;
-		    }
+		}
 		default:
 			error = EINVAL;
 			break;
@@ -366,16 +343,16 @@ cisco_rcvdata(hook_p hook, item_p item)
 	h->control = 0;
 
 	switch (pep->af) {
-	case AF_INET:		/* Internet Protocol */
+	case AF_INET: /* Internet Protocol */
 		h->protocol = htons(ETHERTYPE_IP);
 		break;
 	case AF_INET6:
 		h->protocol = htons(ETHERTYPE_IPV6);
 		break;
-	case AF_APPLETALK:	/* AppleTalk Protocol */
+	case AF_APPLETALK: /* AppleTalk Protocol */
 		h->protocol = htons(ETHERTYPE_AT);
 		break;
-	case AF_IPX:		/* Novell IPX Protocol */
+	case AF_IPX: /* Novell IPX Protocol */
 		h->protocol = htons(ETHERTYPE_IPX);
 		break;
 	default:
@@ -384,7 +361,7 @@ cisco_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Send it */
-	NG_FWD_NEW_DATA(error, item,  sc->downstream.hook, m);
+	NG_FWD_NEW_DATA(error, item, sc->downstream.hook, m);
 	return (error);
 
 out:
@@ -426,8 +403,8 @@ cisco_disconnect(hook_p hook)
 	}
 
 	/* If no more hooks, remove the node */
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
+	    (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
@@ -454,7 +431,7 @@ cisco_input(sc_p sc, item_p item)
 	}
 
 	/* Get cisco header */
-	if (m->m_len >= sizeof(*h))			/* the common case */
+	if (m->m_len >= sizeof(*h)) /* the common case */
 		h = mtod(m, const struct cisco_header *);
 	else {
 		m_copydata(m, 0, sizeof(*h), (caddr_t)&hdrbuf);
@@ -464,7 +441,7 @@ cisco_input(sc_p sc, item_p item)
 
 	/* Check header address */
 	switch (h->address) {
-	default:		/* Invalid Cisco packet. */
+	default: /* Invalid Cisco packet. */
 		goto drop;
 	case CISCO_UNICAST:
 	case CISCO_MULTICAST:
@@ -472,8 +449,7 @@ cisco_input(sc_p sc, item_p item)
 		switch (ntohs(h->protocol)) {
 		default:
 			goto drop;
-		case CISCO_KEEPALIVE:
-		    {
+		case CISCO_KEEPALIVE: {
 			const struct cisco_packet *p;
 			struct cisco_packet pktbuf;
 
@@ -484,7 +460,7 @@ cisco_input(sc_p sc, item_p item)
 			}
 
 			/* Get cisco packet */
-			if (m->m_len >= sizeof(*p))	/* the common case */
+			if (m->m_len >= sizeof(*p)) /* the common case */
 				p = mtod(m, const struct cisco_packet *);
 			else {
 				m_copydata(m, 0, sizeof(*p), (caddr_t)&pktbuf);
@@ -496,7 +472,7 @@ cisco_input(sc_p sc, item_p item)
 			default:
 				log(LOG_WARNING,
 				    "cisco: unknown cisco packet type: 0x%lx\n",
-				       (long)ntohl(p->type));
+				    (long)ntohl(p->type));
 				break;
 			case CISCO_ADDR_REPLY:
 				/* Reply on address request, ignore */
@@ -506,12 +482,12 @@ cisco_input(sc_p sc, item_p item)
 				if (sc->local_seq == ntohl(p->par2)) {
 					sc->local_seq++;
 					if (sc->seqRetries > 1)
-						cisco_notify(sc, NGM_LINK_IS_UP);
+						cisco_notify(
+						    sc, NGM_LINK_IS_UP);
 					sc->seqRetries = 0;
 				}
 				break;
-			case CISCO_ADDR_REQ:
-			    {
+			case CISCO_ADDR_REQ: {
 				struct ng_mesg *msg;
 				int dummy_error = 0;
 
@@ -522,23 +498,23 @@ cisco_input(sc_p sc, item_p item)
 				    NGM_CISCO_GET_IPADDR, 0, M_NOWAIT);
 				if (msg == NULL)
 					goto nomsg;
-				NG_SEND_MSG_HOOK(dummy_error,
-				    sc->node, msg, sc->inet.hook, 0);
-		/*
-		 * XXX Now maybe we should set a flag telling
-		 * our receiver to send this message when the response comes in
-		 * instead of now when the data may be bad.
-		 */
-		nomsg:
+				NG_SEND_MSG_HOOK(dummy_error, sc->node, msg,
+				    sc->inet.hook, 0);
+			/*
+			 * XXX Now maybe we should set a flag telling
+			 * our receiver to send this message when the response
+			 * comes in instead of now when the data may be bad.
+			 */
+			nomsg:
 				/* Send reply to peer device */
 				error = cisco_send(sc, CISCO_ADDR_REPLY,
-					    ntohl(sc->localip.s_addr),
-					    ntohl(sc->localmask.s_addr));
+				    ntohl(sc->localip.s_addr),
+				    ntohl(sc->localmask.s_addr));
 				break;
-			    }
+			}
 			}
 			goto drop;
-		    }
+		}
 		case ETHERTYPE_IP:
 			pep = &sc->inet;
 			break;
@@ -598,7 +574,7 @@ cisco_send(sc_p sc, int type, long par1, long par2)
 	struct mbuf *m;
 	struct timeval time;
 	uint32_t t;
-	int     error = 0;
+	int error = 0;
 
 	getmicrouptime(&time);
 
@@ -615,13 +591,13 @@ cisco_send(sc_p sc, int type, long par1, long par2)
 	h->control = 0;
 	h->protocol = htons(CISCO_KEEPALIVE);
 
-	ch = (struct cisco_packet *) (h + 1);
+	ch = (struct cisco_packet *)(h + 1);
 	ch->type = htonl(type);
 	ch->par1 = htonl(par1);
 	ch->par2 = htonl(par2);
 	ch->rel = -1;
-	ch->time0 = htons((uint16_t) (t >> 16));
-	ch->time1 = htons((uint16_t) t);
+	ch->time0 = htons((uint16_t)(t >> 16));
+	ch->time1 = htons((uint16_t)t);
 
 	NG_SEND_DATA_ONLY(error, sc->downstream.hook, m);
 	return (error);
@@ -638,7 +614,7 @@ cisco_notify(sc_p sc, uint32_t cmd)
 
 	if (sc->inet.hook == NULL) /* nothing to notify */
 		return;
-                
+
 	NG_MKMESSAGE(msg, NGM_FLOW_COOKIE, cmd, 0, M_NOWAIT);
 	if (msg != NULL)
 		NG_SEND_MSG_HOOK(dummy_error, sc->node, msg, sc->inet.hook, 0);

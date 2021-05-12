@@ -34,13 +34,13 @@
 /*
  * Constants for the kenv(2) syscall
  */
-#define KENV_GET	0
-#define KENV_SET	1
-#define KENV_UNSET	2
-#define KENV_DUMP	3
+#define KENV_GET 0
+#define KENV_SET 1
+#define KENV_UNSET 2
+#define KENV_DUMP 3
 
-#define KENV_MNAMELEN	128	/* Maximum name length (for the syscall) */
-#define KENV_MVALLEN	128	/* Maximum value length (for the syscall) */
+#define KENV_MNAMELEN 128 /* Maximum name length (for the syscall) */
+#define KENV_MVALLEN 128  /* Maximum value length (for the syscall) */
 
 #ifdef _KERNEL
 /*
@@ -51,7 +51,7 @@ extern struct mtx kenv_lock;
 extern char *kern_envp;
 extern char *md_envp;
 extern char static_env[];
-extern char static_hints[];	/* by config for now */
+extern char static_hints[]; /* by config for now */
 
 extern char **kenvp;
 #endif /* _KERNEL */

@@ -37,39 +37,39 @@ __FBSDID("$FreeBSD$");
 #include "opt_platform.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/imgact.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
-#include <sys/cpu.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/cpu.h>
 #include <sys/exec.h>
-#include <sys/linker.h>
-#include <sys/ucontext.h>
-#include <sys/proc.h>
+#include <sys/imgact.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
+#include <sys/linker.h>
+#include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
 #include <sys/signalvar.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/ucontext.h>
 #include <sys/user.h>
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_subr.h>
+#include <dev/ofw/openfirm.h>
 #endif
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
+#include <vm/vm_dumpset.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 #include <vm/vm_phys.h>
-#include <vm/vm_dumpset.h>
 
 #include <machine/bootinfo.h>
 #include <machine/clock.h>
@@ -81,8 +81,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/pmap.h>
 #include <machine/trap.h>
 
-extern int	*edata;
-extern int	*end;
+extern int *edata;
+extern int *end;
 
 void
 platform_cpu_init()
@@ -118,20 +118,21 @@ mips_init(void)
 	if (fdt_get_mem_regions(mr, &mr_cnt, &val) == 0) {
 		physmem = btoc(val);
 
-		KASSERT((phys_avail[0] >= mr[0].mr_start) && \
+		KASSERT((phys_avail[0] >= mr[0].mr_start) &&
 			(phys_avail[0] < (mr[0].mr_start + mr[0].mr_size)),
-			("First region is not within FDT memory range"));
+		    ("First region is not within FDT memory range"));
 
 		/* Limit size of the first region */
-		phys_avail[1] = (mr[0].mr_start + MIN(mr[0].mr_size, ctob(realmem)));
+		phys_avail[1] = (mr[0].mr_start +
+		    MIN(mr[0].mr_size, ctob(realmem)));
 		dump_avail[1] = phys_avail[1];
 
 		/* Add the rest of regions */
-		for (i = 1, j = 2; i < mr_cnt; i++, j+=2) {
+		for (i = 1, j = 2; i < mr_cnt; i++, j += 2) {
 			phys_avail[j] = mr[i].mr_start;
-			phys_avail[j+1] = (mr[i].mr_start + mr[i].mr_size);
+			phys_avail[j + 1] = (mr[i].mr_start + mr[i].mr_size);
 			dump_avail[j] = phys_avail[j];
-			dump_avail[j+1] = phys_avail[j+1];
+			dump_avail[j + 1] = phys_avail[j + 1];
 		}
 	}
 #endif
@@ -157,18 +158,17 @@ platform_reset(void)
 {
 
 	/* XXX SMP will likely require us to do more. */
-	__asm__ __volatile__(
-		"mfc0 $k0, $12\n\t"
-		"li $k1, 0x00100000\n\t"
-		"or $k0, $k0, $k1\n\t"
-		"mtc0 $k0, $12\n");
-	for( ; ; )
+	__asm__ __volatile__("mfc0 $k0, $12\n\t"
+			     "li $k1, 0x00100000\n\t"
+			     "or $k0, $k0, $k1\n\t"
+			     "mtc0 $k0, $12\n");
+	for (;;)
 		__asm__ __volatile("wait");
 }
 
 void
-platform_start(__register_t a0, __register_t a1,  __register_t a2, 
-    __register_t a3)
+platform_start(
+    __register_t a0, __register_t a1, __register_t a2, __register_t a3)
 {
 	struct bootinfo *bootinfop;
 	vm_offset_t kernend;
@@ -225,13 +225,15 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	if (dtbp == (vm_offset_t)NULL)
 		dtbp = (vm_offset_t)&fdt_static_dtb;
 #else
-#error	"Non-static FDT not yet supported on BERI"
+#error "Non-static FDT not yet supported on BERI"
 #endif
 
 	if (OF_install(OFW_FDT, 0) == FALSE)
-		while (1);
+		while (1)
+			;
 	if (OF_init((void *)dtbp) != 0)
-		while (1);
+		while (1)
+			;
 
 	/*
 	 * Configure more boot-time parameters passed in by loader.
@@ -264,7 +266,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 
 		printf("envp:\n");
 		for (i = 0; envp[i]; i += 2)
-			printf("\t%s = %s\n", envp[i], envp[i+1]);
+			printf("\t%s = %s\n", envp[i], envp[i + 1]);
 
 		if (bootinfop != NULL)
 			printf("bootinfo found at %p\n", bootinfop);

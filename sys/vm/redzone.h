@@ -12,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_VM_REDZONE_H_
-#define	_VM_REDZONE_H_
+#ifndef _VM_REDZONE_H_
+#define _VM_REDZONE_H_
 
 u_long redzone_get_size(caddr_t naddr);
 u_long redzone_size_ntor(u_long nsize);
@@ -37,4 +37,4 @@ void *redzone_addr_ntor(caddr_t naddr);
 void *redzone_setup(caddr_t raddr, u_long nsize);
 void redzone_check(caddr_t naddr);
 
-#endif	/* _VM_REDZONE_H_ */
+#endif /* _VM_REDZONE_H_ */

@@ -29,11 +29,11 @@
  */
 
 #ifndef _SYS_GPT_H_
-#define	_SYS_GPT_H_
+#define _SYS_GPT_H_
 
 #include <sys/uuid.h>
 
-#define	GPT_UUID_TYPE	struct uuid
+#define GPT_UUID_TYPE struct uuid
 #include <sys/disk/gpt.h>
 
 #endif /* _SYS_GPT_H_ */

@@ -46,139 +46,133 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 
-#include <netgraph/ng_message.h>
-#include <netgraph/ng_parse.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_car.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
 
 #include "qos.h"
 
-#define NG_CAR_QUEUE_SIZE	100	/* Maximum queue size for SHAPE mode */
-#define NG_CAR_QUEUE_MIN_TH	8	/* Minimum RED threshold for SHAPE mode */
+#define NG_CAR_QUEUE_SIZE 100 /* Maximum queue size for SHAPE mode */
+#define NG_CAR_QUEUE_MIN_TH 8 /* Minimum RED threshold for SHAPE mode */
 
 /* Hook private info */
 struct hookinfo {
-	hook_p		hook;		/* this (source) hook */
-	hook_p		dest;		/* destination hook */
+	hook_p hook; /* this (source) hook */
+	hook_p dest; /* destination hook */
 
-	int64_t 	tc;		/* committed token bucket counter */
-	int64_t 	te;		/* exceeded/peak token bucket counter */
-	struct bintime	lastRefill;	/* last token refill time */
+	int64_t tc;		   /* committed token bucket counter */
+	int64_t te;		   /* exceeded/peak token bucket counter */
+	struct bintime lastRefill; /* last token refill time */
 
-	struct ng_car_hookconf conf;	/* hook configuration */
-	struct ng_car_hookstats stats;	/* hook stats */
+	struct ng_car_hookconf conf;   /* hook configuration */
+	struct ng_car_hookstats stats; /* hook stats */
 
-	struct mbuf	*q[NG_CAR_QUEUE_SIZE];	/* circular packet queue */
-	u_int		q_first;	/* first queue element */
-	u_int		q_last;		/* last queue element */
-	struct callout	q_callout;	/* periodic queue processing routine */
-	struct mtx	q_mtx;		/* queue mutex */
+	struct mbuf *q[NG_CAR_QUEUE_SIZE]; /* circular packet queue */
+	u_int q_first;			   /* first queue element */
+	u_int q_last;			   /* last queue element */
+	struct callout q_callout; /* periodic queue processing routine */
+	struct mtx q_mtx;	  /* queue mutex */
 };
 
 /* Private information for each node instance */
 struct privdata {
-	node_p node;				/* the node itself */
-	struct hookinfo upper;			/* hook to upper layers */
-	struct hookinfo lower;			/* hook to lower layers */
+	node_p node;	       /* the node itself */
+	struct hookinfo upper; /* hook to upper layers */
+	struct hookinfo lower; /* hook to lower layers */
 };
 typedef struct privdata *priv_p;
 
-static ng_constructor_t	ng_car_constructor;
-static ng_rcvmsg_t	ng_car_rcvmsg;
-static ng_shutdown_t	ng_car_shutdown;
-static ng_newhook_t	ng_car_newhook;
-static ng_rcvdata_t	ng_car_rcvdata;
-static ng_disconnect_t	ng_car_disconnect;
+static ng_constructor_t ng_car_constructor;
+static ng_rcvmsg_t ng_car_rcvmsg;
+static ng_shutdown_t ng_car_shutdown;
+static ng_newhook_t ng_car_newhook;
+static ng_rcvdata_t ng_car_rcvdata;
+static ng_disconnect_t ng_car_disconnect;
 
-static void	ng_car_refillhook(struct hookinfo *h);
-static void	ng_car_schedule(struct hookinfo *h);
-void		ng_car_q_event(node_p node, hook_p hook, void *arg, int arg2);
-static void	ng_car_enqueue(struct hookinfo *h, item_p item);
+static void ng_car_refillhook(struct hookinfo *h);
+static void ng_car_schedule(struct hookinfo *h);
+void ng_car_q_event(node_p node, hook_p hook, void *arg, int arg2);
+static void ng_car_enqueue(struct hookinfo *h, item_p item);
 
 /* Parse type for struct ng_car_hookstats */
-static const struct ng_parse_struct_field ng_car_hookstats_type_fields[]
-	= NG_CAR_HOOKSTATS;
+static const struct ng_parse_struct_field ng_car_hookstats_type_fields[] =
+    NG_CAR_HOOKSTATS;
 static const struct ng_parse_type ng_car_hookstats_type = {
-	&ng_parse_struct_type,
-	&ng_car_hookstats_type_fields
+	&ng_parse_struct_type, &ng_car_hookstats_type_fields
 };
 
 /* Parse type for struct ng_car_bulkstats */
-static const struct ng_parse_struct_field ng_car_bulkstats_type_fields[]
-	= NG_CAR_BULKSTATS(&ng_car_hookstats_type);
+static const struct ng_parse_struct_field ng_car_bulkstats_type_fields[] =
+    NG_CAR_BULKSTATS(&ng_car_hookstats_type);
 static const struct ng_parse_type ng_car_bulkstats_type = {
-	&ng_parse_struct_type,
-	&ng_car_bulkstats_type_fields
+	&ng_parse_struct_type, &ng_car_bulkstats_type_fields
 };
 
 /* Parse type for struct ng_car_hookconf */
-static const struct ng_parse_struct_field ng_car_hookconf_type_fields[]
-	= NG_CAR_HOOKCONF;
+static const struct ng_parse_struct_field ng_car_hookconf_type_fields[] =
+    NG_CAR_HOOKCONF;
 static const struct ng_parse_type ng_car_hookconf_type = {
-	&ng_parse_struct_type,
-	&ng_car_hookconf_type_fields
+	&ng_parse_struct_type, &ng_car_hookconf_type_fields
 };
 
 /* Parse type for struct ng_car_bulkconf */
-static const struct ng_parse_struct_field ng_car_bulkconf_type_fields[]
-	= NG_CAR_BULKCONF(&ng_car_hookconf_type);
+static const struct ng_parse_struct_field ng_car_bulkconf_type_fields[] =
+    NG_CAR_BULKCONF(&ng_car_hookconf_type);
 static const struct ng_parse_type ng_car_bulkconf_type = {
-	&ng_parse_struct_type,
-	&ng_car_bulkconf_type_fields
+	&ng_parse_struct_type, &ng_car_bulkconf_type_fields
 };
 
 /* Command list */
-static struct ng_cmdlist ng_car_cmdlist[] = {
+static struct ng_cmdlist ng_car_cmdlist[] = { {
+						  NGM_CAR_COOKIE,
+						  NGM_CAR_GET_STATS,
+						  "getstats",
+						  NULL,
+						  &ng_car_bulkstats_type,
+					      },
 	{
-	  NGM_CAR_COOKIE,
-	  NGM_CAR_GET_STATS,
-	  "getstats",
-	  NULL,
-	  &ng_car_bulkstats_type,
+	    NGM_CAR_COOKIE,
+	    NGM_CAR_CLR_STATS,
+	    "clrstats",
+	    NULL,
+	    NULL,
 	},
 	{
-	  NGM_CAR_COOKIE,
-	  NGM_CAR_CLR_STATS,
-	  "clrstats",
-	  NULL,
-	  NULL,
-	},
-	{
-	  NGM_CAR_COOKIE,
-	  NGM_CAR_GETCLR_STATS,
-	  "getclrstats",
-	  NULL,
-	  &ng_car_bulkstats_type,
+	    NGM_CAR_COOKIE,
+	    NGM_CAR_GETCLR_STATS,
+	    "getclrstats",
+	    NULL,
+	    &ng_car_bulkstats_type,
 	},
 
 	{
-	  NGM_CAR_COOKIE,
-	  NGM_CAR_GET_CONF,
-	  "getconf",
-	  NULL,
-	  &ng_car_bulkconf_type,
+	    NGM_CAR_COOKIE,
+	    NGM_CAR_GET_CONF,
+	    "getconf",
+	    NULL,
+	    &ng_car_bulkconf_type,
 	},
 	{
-	  NGM_CAR_COOKIE,
-	  NGM_CAR_SET_CONF,
-	  "setconf",
-	  &ng_car_bulkconf_type,
-	  NULL,
+	    NGM_CAR_COOKIE,
+	    NGM_CAR_SET_CONF,
+	    "setconf",
+	    &ng_car_bulkconf_type,
+	    NULL,
 	},
-	{ 0 }
-};
+	{ 0 } };
 
 /* Netgraph node type descriptor */
 static struct ng_type ng_car_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_CAR_NODE_TYPE,
-	.constructor =	ng_car_constructor,
-	.rcvmsg =	ng_car_rcvmsg,
-	.shutdown =	ng_car_shutdown,
-	.newhook =	ng_car_newhook,
-	.rcvdata =	ng_car_rcvdata,
-	.disconnect =	ng_car_disconnect,
-	.cmdlist =	ng_car_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_CAR_NODE_TYPE,
+	.constructor = ng_car_constructor,
+	.rcvmsg = ng_car_rcvmsg,
+	.shutdown = ng_car_shutdown,
+	.newhook = ng_car_newhook,
+	.rcvdata = ng_car_rcvdata,
+	.disconnect = ng_car_disconnect,
+	.cmdlist = ng_car_cmdlist,
 };
 NETGRAPH_INIT(car, &ng_car_typestruct);
 
@@ -253,14 +247,14 @@ ng_car_newhook(node_p node, hook_p hook, const char *name)
 		NG_HOOK_SET_PRIVATE(hook, &priv->upper);
 	} else
 		return (EINVAL);
-	return(0);
+	return (0);
 }
 
 /*
  * Data has arrived.
  */
 static int
-ng_car_rcvdata(hook_p hook, item_p item )
+ng_car_rcvdata(hook_p hook, item_p item)
 {
 	struct hookinfo *const hinfo = NG_HOOK_PRIVATE(hook);
 	struct mbuf *m;
@@ -277,30 +271,30 @@ ng_car_rcvdata(hook_p hook, item_p item )
 
 	m = NGI_M(item);
 
-#define NG_CAR_PERFORM_MATCH_ACTION(a,col)			\
-	do {						\
-		switch (a) {				\
-		case NG_CAR_ACTION_FORWARD:		\
-			/* Do nothing. */		\
-			break;				\
-		case NG_CAR_ACTION_MARK:		\
-			if (colp == NULL) {		\
-				colp = (void *)m_tag_alloc(		\
-				    M_QOS_COOKIE, M_QOS_COLOR,		\
-				    MTAG_SIZE(m_qos_color), M_NOWAIT);	\
-				if (colp != NULL)			\
-				    m_tag_prepend(m, &colp->tag);	\
-			}				\
-			if (colp != NULL)		\
-			    colp->color = col;		\
-			break;				\
-		case NG_CAR_ACTION_DROP:		\
-		default:				\
-			/* Drop packet and return. */	\
-			NG_FREE_ITEM(item);		\
-			++hinfo->stats.dropped_pkts;	\
-			return (0);			\
-		}					\
+#define NG_CAR_PERFORM_MATCH_ACTION(a, col)                              \
+	do {                                                             \
+		switch (a) {                                             \
+		case NG_CAR_ACTION_FORWARD:                              \
+			/* Do nothing. */                                \
+			break;                                           \
+		case NG_CAR_ACTION_MARK:                                 \
+			if (colp == NULL) {                              \
+				colp = (void *)m_tag_alloc(M_QOS_COOKIE, \
+				    M_QOS_COLOR, MTAG_SIZE(m_qos_color), \
+				    M_NOWAIT);                           \
+				if (colp != NULL)                        \
+					m_tag_prepend(m, &colp->tag);    \
+			}                                                \
+			if (colp != NULL)                                \
+				colp->color = col;                       \
+			break;                                           \
+		case NG_CAR_ACTION_DROP:                                 \
+		default:                                                 \
+			/* Drop packet and return. */                    \
+			NG_FREE_ITEM(item);                              \
+			++hinfo->stats.dropped_pkts;                     \
+			return (0);                                      \
+		}                                                        \
 	} while (0)
 
 	/* Packet is counted as 128 tokens for better resolution */
@@ -313,9 +307,9 @@ ng_car_rcvdata(hook_p hook, item_p item )
 	/* Determine current color of the packet (default green) */
 	colp = (void *)m_tag_locate(m, M_QOS_COOKIE, M_QOS_COLOR, NULL);
 	if ((hinfo->conf.opt & NG_CAR_COLOR_AWARE) && (colp != NULL))
-	    col = colp->color;
+		col = colp->color;
 	else
-	    col = QOS_COLOR_GREEN;
+		col = QOS_COLOR_GREEN;
 
 	/* Check committed token bucket. */
 	if (hinfo->tc - len >= 0 && col <= QOS_COLOR_GREEN) {
@@ -323,27 +317,26 @@ ng_car_rcvdata(hook_p hook, item_p item )
 		++hinfo->stats.green_pkts;
 		hinfo->tc -= len;
 		NG_CAR_PERFORM_MATCH_ACTION(
-		    hinfo->conf.green_action,
-		    QOS_COLOR_GREEN);
+		    hinfo->conf.green_action, QOS_COLOR_GREEN);
 	} else {
 		/* Refill only if not green without it. */
 		ng_car_refillhook(hinfo);
 
-		 /* Check committed token bucket again after refill. */
+		/* Check committed token bucket again after refill. */
 		if (hinfo->tc - len >= 0 && col <= QOS_COLOR_GREEN) {
 			/* This packet is green */
 			++hinfo->stats.green_pkts;
 			hinfo->tc -= len;
 			NG_CAR_PERFORM_MATCH_ACTION(
-			    hinfo->conf.green_action,
-			    QOS_COLOR_GREEN);
+			    hinfo->conf.green_action, QOS_COLOR_GREEN);
 
-		/* If not green and mode is SHAPE, enqueue packet. */
+			/* If not green and mode is SHAPE, enqueue packet. */
 		} else if (hinfo->conf.mode == NG_CAR_SHAPE) {
 			ng_car_enqueue(hinfo, item);
 			return (0);
 
-		/* If not green and mode is RED, calculate probability. */
+			/* If not green and mode is RED, calculate probability.
+			 */
 		} else if (hinfo->conf.mode == NG_CAR_RED) {
 			/* Is packet is bigger then extended burst? */
 			if (len - (hinfo->tc - len) > hinfo->conf.ebs ||
@@ -352,13 +345,13 @@ ng_car_rcvdata(hook_p hook, item_p item )
 				++hinfo->stats.red_pkts;
 				hinfo->te = 0;
 				NG_CAR_PERFORM_MATCH_ACTION(
-					hinfo->conf.red_action,
-					QOS_COLOR_RED);
+				    hinfo->conf.red_action, QOS_COLOR_RED);
 
-			/* Use token bucket to simulate RED-like drop
-			   probability. */
-			} else if (hinfo->te + (len - hinfo->tc) < hinfo->conf.ebs &&
-				   col <= QOS_COLOR_YELLOW) {
+				/* Use token bucket to simulate RED-like drop
+				   probability. */
+			} else if (hinfo->te + (len - hinfo->tc) <
+				hinfo->conf.ebs &&
+			    col <= QOS_COLOR_YELLOW) {
 				/* This packet is yellow */
 				++hinfo->stats.yellow_pkts;
 				hinfo->te += len - hinfo->tc;
@@ -372,10 +365,9 @@ ng_car_rcvdata(hook_p hook, item_p item )
 				++hinfo->stats.red_pkts;
 				hinfo->te = 0;
 				NG_CAR_PERFORM_MATCH_ACTION(
-				    hinfo->conf.red_action,
-				    QOS_COLOR_RED);
+				    hinfo->conf.red_action, QOS_COLOR_RED);
 			}
-		/* If not green and mode is SINGLE/DOUBLE RATE. */
+			/* If not green and mode is SINGLE/DOUBLE RATE. */
 		} else {
 			/* Check extended token bucket. */
 			if (hinfo->te - len >= 0 && col <= QOS_COLOR_YELLOW) {
@@ -389,8 +381,7 @@ ng_car_rcvdata(hook_p hook, item_p item )
 				/* This packet is red */
 				++hinfo->stats.red_pkts;
 				NG_CAR_PERFORM_MATCH_ACTION(
-				    hinfo->conf.red_action,
-				    QOS_COLOR_RED);
+				    hinfo->conf.red_action, QOS_COLOR_RED);
 			}
 		}
 	}
@@ -421,131 +412,121 @@ ng_car_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	case NGM_CAR_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_CAR_GET_STATS:
-		case NGM_CAR_GETCLR_STATS:
-			{
-				struct ng_car_bulkstats *bstats;
+		case NGM_CAR_GETCLR_STATS: {
+			struct ng_car_bulkstats *bstats;
 
-				NG_MKRESPONSE(resp, msg,
-					sizeof(*bstats), M_NOWAIT);
-				if (resp == NULL) {
-					error = ENOMEM;
-					break;
-				}
-				bstats = (struct ng_car_bulkstats *)resp->data;
-
-				bcopy(&priv->upper.stats, &bstats->downstream,
-				    sizeof(bstats->downstream));
-				bcopy(&priv->lower.stats, &bstats->upstream,
-				    sizeof(bstats->upstream));
+			NG_MKRESPONSE(resp, msg, sizeof(*bstats), M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
 			}
+			bstats = (struct ng_car_bulkstats *)resp->data;
+
+			bcopy(&priv->upper.stats, &bstats->downstream,
+			    sizeof(bstats->downstream));
+			bcopy(&priv->lower.stats, &bstats->upstream,
+			    sizeof(bstats->upstream));
+		}
 			if (msg->header.cmd == NGM_CAR_GET_STATS)
 				break;
 		case NGM_CAR_CLR_STATS:
-			bzero(&priv->upper.stats,
-				sizeof(priv->upper.stats));
-			bzero(&priv->lower.stats,
-				sizeof(priv->lower.stats));
+			bzero(&priv->upper.stats, sizeof(priv->upper.stats));
+			bzero(&priv->lower.stats, sizeof(priv->lower.stats));
 			break;
-		case NGM_CAR_GET_CONF:
-			{
-				struct ng_car_bulkconf *bconf;
+		case NGM_CAR_GET_CONF: {
+			struct ng_car_bulkconf *bconf;
 
-				NG_MKRESPONSE(resp, msg,
-					sizeof(*bconf), M_NOWAIT);
-				if (resp == NULL) {
-					error = ENOMEM;
-					break;
-				}
-				bconf = (struct ng_car_bulkconf *)resp->data;
-
-				bcopy(&priv->upper.conf, &bconf->downstream,
-				    sizeof(bconf->downstream));
-				bcopy(&priv->lower.conf, &bconf->upstream,
-				    sizeof(bconf->upstream));
-				/* Convert internal 1/(8*128) of pps into pps */
-				if (bconf->downstream.opt & NG_CAR_COUNT_PACKETS) {
-				    bconf->downstream.cir /= 1024;
-				    bconf->downstream.pir /= 1024;
-				    bconf->downstream.cbs /= 128;
-				    bconf->downstream.ebs /= 128;
-				}
-				if (bconf->upstream.opt & NG_CAR_COUNT_PACKETS) {
-				    bconf->upstream.cir /= 1024;
-				    bconf->upstream.pir /= 1024;
-				    bconf->upstream.cbs /= 128;
-				    bconf->upstream.ebs /= 128;
-				}
+			NG_MKRESPONSE(resp, msg, sizeof(*bconf), M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
 			}
-			break;
-		case NGM_CAR_SET_CONF:
-			{
-				struct ng_car_bulkconf *const bconf =
-				(struct ng_car_bulkconf *)msg->data;
+			bconf = (struct ng_car_bulkconf *)resp->data;
 
-				/* Check for invalid or illegal config. */
-				if (msg->header.arglen != sizeof(*bconf)) {
-					error = EINVAL;
-					break;
-				}
-				/* Convert pps into internal 1/(8*128) of pps */
-				if (bconf->downstream.opt & NG_CAR_COUNT_PACKETS) {
-				    bconf->downstream.cir *= 1024;
-				    bconf->downstream.pir *= 1024;
-				    bconf->downstream.cbs *= 125;
-				    bconf->downstream.ebs *= 125;
-				}
-				if (bconf->upstream.opt & NG_CAR_COUNT_PACKETS) {
-				    bconf->upstream.cir *= 1024;
-				    bconf->upstream.pir *= 1024;
-				    bconf->upstream.cbs *= 125;
-				    bconf->upstream.ebs *= 125;
-				}
-				if ((bconf->downstream.cir > 1000000000) ||
-				    (bconf->downstream.pir > 1000000000) ||
-				    (bconf->upstream.cir > 1000000000) ||
-				    (bconf->upstream.pir > 1000000000) ||
-				    (bconf->downstream.cbs == 0 &&
-					bconf->downstream.ebs == 0) ||
-				    (bconf->upstream.cbs == 0 &&
-					bconf->upstream.ebs == 0))
-				{
-					error = EINVAL;
-					break;
-				}
-				if ((bconf->upstream.mode == NG_CAR_SHAPE) &&
-				    (bconf->upstream.cir == 0)) {
-					error = EINVAL;
-					break;
-				}
-				if ((bconf->downstream.mode == NG_CAR_SHAPE) &&
-				    (bconf->downstream.cir == 0)) {
-					error = EINVAL;
-					break;
-				}
-
-				/* Copy downstream config. */
-				bcopy(&bconf->downstream, &priv->upper.conf,
-				    sizeof(priv->upper.conf));
-    				priv->upper.tc = priv->upper.conf.cbs;
-				if (priv->upper.conf.mode == NG_CAR_RED ||
-				    priv->upper.conf.mode == NG_CAR_SHAPE) {
-					priv->upper.te = 0;
-				} else {
-					priv->upper.te = priv->upper.conf.ebs;
-				}
-
-				/* Copy upstream config. */
-				bcopy(&bconf->upstream, &priv->lower.conf,
-				    sizeof(priv->lower.conf));
-    				priv->lower.tc = priv->lower.conf.cbs;
-				if (priv->lower.conf.mode == NG_CAR_RED ||
-				    priv->lower.conf.mode == NG_CAR_SHAPE) {
-					priv->lower.te = 0;
-				} else {
-					priv->lower.te = priv->lower.conf.ebs;
-				}
+			bcopy(&priv->upper.conf, &bconf->downstream,
+			    sizeof(bconf->downstream));
+			bcopy(&priv->lower.conf, &bconf->upstream,
+			    sizeof(bconf->upstream));
+			/* Convert internal 1/(8*128) of pps into pps */
+			if (bconf->downstream.opt & NG_CAR_COUNT_PACKETS) {
+				bconf->downstream.cir /= 1024;
+				bconf->downstream.pir /= 1024;
+				bconf->downstream.cbs /= 128;
+				bconf->downstream.ebs /= 128;
 			}
-			break;
+			if (bconf->upstream.opt & NG_CAR_COUNT_PACKETS) {
+				bconf->upstream.cir /= 1024;
+				bconf->upstream.pir /= 1024;
+				bconf->upstream.cbs /= 128;
+				bconf->upstream.ebs /= 128;
+			}
+		} break;
+		case NGM_CAR_SET_CONF: {
+			struct ng_car_bulkconf *const bconf =
+			    (struct ng_car_bulkconf *)msg->data;
+
+			/* Check for invalid or illegal config. */
+			if (msg->header.arglen != sizeof(*bconf)) {
+				error = EINVAL;
+				break;
+			}
+			/* Convert pps into internal 1/(8*128) of pps */
+			if (bconf->downstream.opt & NG_CAR_COUNT_PACKETS) {
+				bconf->downstream.cir *= 1024;
+				bconf->downstream.pir *= 1024;
+				bconf->downstream.cbs *= 125;
+				bconf->downstream.ebs *= 125;
+			}
+			if (bconf->upstream.opt & NG_CAR_COUNT_PACKETS) {
+				bconf->upstream.cir *= 1024;
+				bconf->upstream.pir *= 1024;
+				bconf->upstream.cbs *= 125;
+				bconf->upstream.ebs *= 125;
+			}
+			if ((bconf->downstream.cir > 1000000000) ||
+			    (bconf->downstream.pir > 1000000000) ||
+			    (bconf->upstream.cir > 1000000000) ||
+			    (bconf->upstream.pir > 1000000000) ||
+			    (bconf->downstream.cbs == 0 &&
+				bconf->downstream.ebs == 0) ||
+			    (bconf->upstream.cbs == 0 &&
+				bconf->upstream.ebs == 0)) {
+				error = EINVAL;
+				break;
+			}
+			if ((bconf->upstream.mode == NG_CAR_SHAPE) &&
+			    (bconf->upstream.cir == 0)) {
+				error = EINVAL;
+				break;
+			}
+			if ((bconf->downstream.mode == NG_CAR_SHAPE) &&
+			    (bconf->downstream.cir == 0)) {
+				error = EINVAL;
+				break;
+			}
+
+			/* Copy downstream config. */
+			bcopy(&bconf->downstream, &priv->upper.conf,
+			    sizeof(priv->upper.conf));
+			priv->upper.tc = priv->upper.conf.cbs;
+			if (priv->upper.conf.mode == NG_CAR_RED ||
+			    priv->upper.conf.mode == NG_CAR_SHAPE) {
+				priv->upper.te = 0;
+			} else {
+				priv->upper.te = priv->upper.conf.ebs;
+			}
+
+			/* Copy upstream config. */
+			bcopy(&bconf->upstream, &priv->lower.conf,
+			    sizeof(priv->lower.conf));
+			priv->lower.tc = priv->lower.conf.cbs;
+			if (priv->lower.conf.mode == NG_CAR_RED ||
+			    priv->lower.conf.mode == NG_CAR_SHAPE) {
+				priv->lower.te = 0;
+			} else {
+				priv->lower.te = priv->lower.conf.ebs;
+			}
+		} break;
 		default:
 			error = EINVAL;
 			break;
@@ -595,7 +576,7 @@ ng_car_disconnect(hook_p hook)
 			NG_FREE_M(hinfo->q[hinfo->q_first]);
 			hinfo->q_first++;
 			if (hinfo->q_first >= NG_CAR_QUEUE_SIZE)
-		    		hinfo->q_first = 0;
+				hinfo->q_first = 0;
 		}
 		/* Remove hook refs. */
 		if (hinfo->hook == priv->upper.hook)
@@ -605,8 +586,8 @@ ng_car_disconnect(hook_p hook)
 		hinfo->hook = NULL;
 	}
 	/* Already shutting down? */
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	    && (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
+	    (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
@@ -629,20 +610,20 @@ ng_car_refillhook(struct hookinfo *h)
 
 	/* Time must go forward. */
 	if (deltat.sec < 0) {
-	    h->lastRefill = newt;
-	    return;
+		h->lastRefill = newt;
+		return;
 	}
 
 	/* But not too far forward. */
 	if (deltat.sec >= 1000) {
-	    deltat_us = (1000 << 20);
+		deltat_us = (1000 << 20);
 	} else {
-	    /* convert bintime to the 1/(2^20) of sec */
-	    deltat_us = (deltat.sec << 20) + (deltat.frac >> 44);
+		/* convert bintime to the 1/(2^20) of sec */
+		deltat_us = (deltat.sec << 20) + (deltat.frac >> 44);
 	}
 
 	if (h->conf.mode == NG_CAR_SINGLE_RATE) {
-		int64_t	delta;
+		int64_t delta;
 		/* Refill committed token bucket. */
 		h->tc += (h->conf.cir * deltat_us) >> 23;
 		delta = h->tc - h->conf.cbs;
@@ -683,7 +664,7 @@ ng_car_refillhook(struct hookinfo *h)
 static void
 ng_car_schedule(struct hookinfo *hinfo)
 {
-	int 	delay;
+	int delay;
 
 	delay = (-(hinfo->tc)) * hz * 8 / hinfo->conf.cir + 1;
 
@@ -697,9 +678,9 @@ ng_car_schedule(struct hookinfo *hinfo)
 void
 ng_car_q_event(node_p node, hook_p hook, void *arg, int arg2)
 {
-	struct hookinfo	*hinfo = NG_HOOK_PRIVATE(hook);
-	struct mbuf 	*m;
-	int		error;
+	struct hookinfo *hinfo = NG_HOOK_PRIVATE(hook);
+	struct mbuf *m;
+	int error;
 
 	/* Refill tokens for time we have slept. */
 	ng_car_refillhook(hinfo);
@@ -743,10 +724,10 @@ ng_car_q_event(node_p node, hook_p hook, void *arg, int arg2)
 static void
 ng_car_enqueue(struct hookinfo *hinfo, item_p item)
 {
-	struct mbuf 	   *m;
-	int		   len;
+	struct mbuf *m;
+	int len;
 	struct m_qos_color *colp;
-	enum qos_color	   col;
+	enum qos_color col;
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
@@ -754,9 +735,9 @@ ng_car_enqueue(struct hookinfo *hinfo, item_p item)
 	/* Determine current color of the packet (default green) */
 	colp = (void *)m_tag_locate(m, M_QOS_COOKIE, M_QOS_COLOR, NULL);
 	if ((hinfo->conf.opt & NG_CAR_COLOR_AWARE) && (colp != NULL))
-	    col = colp->color;
+		col = colp->color;
 	else
-	    col = QOS_COLOR_GREEN;
+		col = QOS_COLOR_GREEN;
 
 	/* Lock queue mutex. */
 	mtx_lock(&hinfo->q_mtx);
@@ -768,8 +749,7 @@ ng_car_enqueue(struct hookinfo *hinfo, item_p item)
 
 	/* If queue is overflowed or we have no RED tokens. */
 	if ((len >= (NG_CAR_QUEUE_SIZE - 1)) ||
-	    (hinfo->te + len >= NG_CAR_QUEUE_SIZE) ||
-	    (col >= QOS_COLOR_RED)) {
+	    (hinfo->te + len >= NG_CAR_QUEUE_SIZE) || (col >= QOS_COLOR_RED)) {
 		/* Drop packet. */
 		++hinfo->stats.red_pkts;
 		++hinfo->stats.dropped_pkts;

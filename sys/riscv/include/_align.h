@@ -31,14 +31,14 @@
  */
 
 #ifndef _MACHINE__ALIGN_H_
-#define	_MACHINE__ALIGN_H_
+#define _MACHINE__ALIGN_H_
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value
  * for all data types (int, long, ...).   The result is unsigned int
  * and must be cast to any desired pointer type.
  */
-#define	_ALIGNBYTES	(sizeof(long long) - 1)
-#define	_ALIGN(p)	(((u_long)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
+#define _ALIGNBYTES (sizeof(long long) - 1)
+#define _ALIGN(p) (((u_long)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
 
 #endif /* !_MACHINE__ALIGN_H_ */

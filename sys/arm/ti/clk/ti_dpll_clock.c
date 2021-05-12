@@ -31,21 +31,22 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/bus.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
 #include <sys/libkern.h>
+#include <sys/module.h>
 
 #include <machine/bus.h>
-#include <dev/fdt/simplebus.h>
 
 #include <dev/extres/clk/clk_div.h>
+#include <dev/fdt/simplebus.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/ti/clk/ti_clk_dpll.h>
+
 #include "clock_common.h"
 
 #if 0
@@ -60,62 +61,63 @@ __FBSDID("$FreeBSD$");
  */
 
 struct ti_dpll_softc {
-	device_t		dev;
-	uint8_t			dpll_type;
+	device_t dev;
+	uint8_t dpll_type;
 
-	bool			attach_done;
-	struct ti_clk_dpll_def	dpll_def;
+	bool attach_done;
+	struct ti_clk_dpll_def dpll_def;
 
-	struct clock_cell_info	clock_cell;
-	struct clkdom		*clkdom;
+	struct clock_cell_info clock_cell;
+	struct clkdom *clkdom;
 };
 
 static int ti_dpll_probe(device_t dev);
 static int ti_dpll_attach(device_t dev);
 static int ti_dpll_detach(device_t dev);
 
-#define TI_OMAP3_DPLL_CLOCK			17
-#define TI_OMAP3_DPLL_CORE_CLOCK		16
-#define TI_OMAP3_DPLL_PER_CLOCK			15
-#define TI_OMAP3_DPLL_PER_J_TYPE_CLOCK		14
-#define TI_OMAP4_DPLL_CLOCK			13
-#define TI_OMAP4_DPLL_X2_CLOCK			12
-#define TI_OMAP4_DPLL_CORE_CLOCK		11
-#define TI_OMAP4_DPLL_M4XEN_CLOCK		10
-#define TI_OMAP4_DPLL_J_TYPE_CLOCK		9
-#define TI_OMAP5_MPU_DPLL_CLOCK			8
-#define TI_AM3_DPLL_NO_GATE_CLOCK		7
-#define TI_AM3_DPLL_J_TYPE_CLOCK		6
-#define TI_AM3_DPLL_NO_GATE_J_TYPE_CLOCK	5
-#define TI_AM3_DPLL_CLOCK			4
-#define TI_AM3_DPLL_CORE_CLOCK			3
-#define TI_AM3_DPLL_X2_CLOCK			2
-#define TI_OMAP2_DPLL_CORE_CLOCK		1
-#define TI_DPLL_END				0
+#define TI_OMAP3_DPLL_CLOCK 17
+#define TI_OMAP3_DPLL_CORE_CLOCK 16
+#define TI_OMAP3_DPLL_PER_CLOCK 15
+#define TI_OMAP3_DPLL_PER_J_TYPE_CLOCK 14
+#define TI_OMAP4_DPLL_CLOCK 13
+#define TI_OMAP4_DPLL_X2_CLOCK 12
+#define TI_OMAP4_DPLL_CORE_CLOCK 11
+#define TI_OMAP4_DPLL_M4XEN_CLOCK 10
+#define TI_OMAP4_DPLL_J_TYPE_CLOCK 9
+#define TI_OMAP5_MPU_DPLL_CLOCK 8
+#define TI_AM3_DPLL_NO_GATE_CLOCK 7
+#define TI_AM3_DPLL_J_TYPE_CLOCK 6
+#define TI_AM3_DPLL_NO_GATE_J_TYPE_CLOCK 5
+#define TI_AM3_DPLL_CLOCK 4
+#define TI_AM3_DPLL_CORE_CLOCK 3
+#define TI_AM3_DPLL_X2_CLOCK 2
+#define TI_OMAP2_DPLL_CORE_CLOCK 1
+#define TI_DPLL_END 0
 
-static struct ofw_compat_data compat_data[] = {
-	{ "ti,omap3-dpll-clock",	TI_OMAP3_DPLL_CLOCK },
-	{ "ti,omap3-dpll-core-clock",	TI_OMAP3_DPLL_CORE_CLOCK },
-	{ "ti,omap3-dpll-per-clock",	TI_OMAP3_DPLL_PER_CLOCK },
-	{ "ti,omap3-dpll-per-j-type-clock",TI_OMAP3_DPLL_PER_J_TYPE_CLOCK },
-	{ "ti,omap4-dpll-clock",	TI_OMAP4_DPLL_CLOCK },
-	{ "ti,omap4-dpll-x2-clock",	TI_OMAP4_DPLL_X2_CLOCK },
-	{ "ti,omap4-dpll-core-clock",	TI_OMAP4_DPLL_CORE_CLOCK },
-	{ "ti,omap4-dpll-m4xen-clock",	TI_OMAP4_DPLL_M4XEN_CLOCK },
-	{ "ti,omap4-dpll-j-type-clock",	TI_OMAP4_DPLL_J_TYPE_CLOCK },
-	{ "ti,omap5-mpu-dpll-clock",	TI_OMAP5_MPU_DPLL_CLOCK },
-	{ "ti,am3-dpll-no-gate-clock",	TI_AM3_DPLL_NO_GATE_CLOCK },
-	{ "ti,am3-dpll-j-type-clock",	TI_AM3_DPLL_J_TYPE_CLOCK },
-	{ "ti,am3-dpll-no-gate-j-type-clock",TI_AM3_DPLL_NO_GATE_J_TYPE_CLOCK },
-	{ "ti,am3-dpll-clock",		TI_AM3_DPLL_CLOCK },
-	{ "ti,am3-dpll-core-clock",	TI_AM3_DPLL_CORE_CLOCK },
-	{ "ti,am3-dpll-x2-clock",	TI_AM3_DPLL_X2_CLOCK },
-	{ "ti,omap2-dpll-core-clock",	TI_OMAP2_DPLL_CORE_CLOCK },
-	{ NULL,				TI_DPLL_END }
-};
+static struct ofw_compat_data compat_data[] = { { "ti,omap3-dpll-clock",
+						    TI_OMAP3_DPLL_CLOCK },
+	{ "ti,omap3-dpll-core-clock", TI_OMAP3_DPLL_CORE_CLOCK },
+	{ "ti,omap3-dpll-per-clock", TI_OMAP3_DPLL_PER_CLOCK },
+	{ "ti,omap3-dpll-per-j-type-clock", TI_OMAP3_DPLL_PER_J_TYPE_CLOCK },
+	{ "ti,omap4-dpll-clock", TI_OMAP4_DPLL_CLOCK },
+	{ "ti,omap4-dpll-x2-clock", TI_OMAP4_DPLL_X2_CLOCK },
+	{ "ti,omap4-dpll-core-clock", TI_OMAP4_DPLL_CORE_CLOCK },
+	{ "ti,omap4-dpll-m4xen-clock", TI_OMAP4_DPLL_M4XEN_CLOCK },
+	{ "ti,omap4-dpll-j-type-clock", TI_OMAP4_DPLL_J_TYPE_CLOCK },
+	{ "ti,omap5-mpu-dpll-clock", TI_OMAP5_MPU_DPLL_CLOCK },
+	{ "ti,am3-dpll-no-gate-clock", TI_AM3_DPLL_NO_GATE_CLOCK },
+	{ "ti,am3-dpll-j-type-clock", TI_AM3_DPLL_J_TYPE_CLOCK },
+	{ "ti,am3-dpll-no-gate-j-type-clock",
+	    TI_AM3_DPLL_NO_GATE_J_TYPE_CLOCK },
+	{ "ti,am3-dpll-clock", TI_AM3_DPLL_CLOCK },
+	{ "ti,am3-dpll-core-clock", TI_AM3_DPLL_CORE_CLOCK },
+	{ "ti,am3-dpll-x2-clock", TI_AM3_DPLL_X2_CLOCK },
+	{ "ti,omap2-dpll-core-clock", TI_OMAP2_DPLL_CORE_CLOCK },
+	{ NULL, TI_DPLL_END } };
 
 static int
-register_clk(struct ti_dpll_softc *sc) {
+register_clk(struct ti_dpll_softc *sc)
+{
 	int err;
 
 	sc->clkdom = clkdom_create(sc->dev);
@@ -126,8 +128,7 @@ register_clk(struct ti_dpll_softc *sc) {
 
 	err = ti_clknode_dpll_register(sc->clkdom, &sc->dpll_def);
 	if (err) {
-		DPRINTF(sc->dev,
-			"ti_clknode_dpll_register failed %x\n", err);
+		DPRINTF(sc->dev, "ti_clknode_dpll_register failed %x\n", err);
 		return (ENXIO);
 	}
 
@@ -155,14 +156,15 @@ ti_dpll_probe(device_t dev)
 }
 
 static int
-parse_dpll_reg(struct ti_dpll_softc *sc) {
+parse_dpll_reg(struct ti_dpll_softc *sc)
+{
 	ssize_t numbytes_regs;
 	uint32_t num_regs;
 	phandle_t node;
 	cell_t reg_cells[4];
 
 	if (sc->dpll_type == TI_AM3_DPLL_X2_CLOCK ||
-		sc->dpll_type == TI_OMAP4_DPLL_X2_CLOCK) {
+	    sc->dpll_type == TI_OMAP4_DPLL_X2_CLOCK) {
 		sc->dpll_def.ti_clksel_mult.value = 2;
 		sc->dpll_def.ti_clksel_mult.flags = TI_CLK_FACTOR_FIXED;
 
@@ -183,32 +185,32 @@ parse_dpll_reg(struct ti_dpll_softc *sc) {
 	OF_getencprop(node, "reg", reg_cells, numbytes_regs);
 
 	switch (sc->dpll_type) {
-		case TI_AM3_DPLL_NO_GATE_CLOCK:
-		case TI_AM3_DPLL_J_TYPE_CLOCK:
-		case TI_AM3_DPLL_NO_GATE_J_TYPE_CLOCK:
-		case TI_AM3_DPLL_CLOCK:
-		case TI_AM3_DPLL_CORE_CLOCK:
-		case TI_AM3_DPLL_X2_CLOCK:
-			if (num_regs != 3)
-				return (ENXIO);
-			sc->dpll_def.ti_clkmode_offset = reg_cells[0];
-			sc->dpll_def.ti_idlest_offset = reg_cells[1];
-			sc->dpll_def.ti_clksel_offset = reg_cells[2];
-			break;
+	case TI_AM3_DPLL_NO_GATE_CLOCK:
+	case TI_AM3_DPLL_J_TYPE_CLOCK:
+	case TI_AM3_DPLL_NO_GATE_J_TYPE_CLOCK:
+	case TI_AM3_DPLL_CLOCK:
+	case TI_AM3_DPLL_CORE_CLOCK:
+	case TI_AM3_DPLL_X2_CLOCK:
+		if (num_regs != 3)
+			return (ENXIO);
+		sc->dpll_def.ti_clkmode_offset = reg_cells[0];
+		sc->dpll_def.ti_idlest_offset = reg_cells[1];
+		sc->dpll_def.ti_clksel_offset = reg_cells[2];
+		break;
 
-		case TI_OMAP2_DPLL_CORE_CLOCK:
-			if (num_regs != 2)
-				return (ENXIO);
-			sc->dpll_def.ti_clkmode_offset = reg_cells[0];
-			sc->dpll_def.ti_clksel_offset = reg_cells[1];
-			break;
+	case TI_OMAP2_DPLL_CORE_CLOCK:
+		if (num_regs != 2)
+			return (ENXIO);
+		sc->dpll_def.ti_clkmode_offset = reg_cells[0];
+		sc->dpll_def.ti_clksel_offset = reg_cells[1];
+		break;
 
-		default:
-			sc->dpll_def.ti_clkmode_offset = reg_cells[0];
-			sc->dpll_def.ti_idlest_offset = reg_cells[1];
-			sc->dpll_def.ti_clksel_offset = reg_cells[2];
-			sc->dpll_def.ti_autoidle_offset = reg_cells[3];
-			break;
+	default:
+		sc->dpll_def.ti_clkmode_offset = reg_cells[0];
+		sc->dpll_def.ti_idlest_offset = reg_cells[1];
+		sc->dpll_def.ti_clksel_offset = reg_cells[2];
+		sc->dpll_def.ti_autoidle_offset = reg_cells[3];
+		break;
 	}
 
 	/* AM335x */
@@ -220,8 +222,7 @@ parse_dpll_reg(struct ti_dpll_softc *sc) {
 		sc->dpll_def.ti_clksel_mult.min_value = 2;
 		sc->dpll_def.ti_clksel_mult.max_value = 4095;
 		sc->dpll_def.ti_clksel_mult.flags = TI_CLK_FACTOR_ZERO_BASED |
-						TI_CLK_FACTOR_MIN_VALUE |
-						TI_CLK_FACTOR_MAX_VALUE;
+		    TI_CLK_FACTOR_MIN_VALUE | TI_CLK_FACTOR_MAX_VALUE;
 
 		sc->dpll_def.ti_clksel_div.shift = 0;
 		sc->dpll_def.ti_clksel_div.mask = 0x000000FF;
@@ -230,7 +231,7 @@ parse_dpll_reg(struct ti_dpll_softc *sc) {
 		sc->dpll_def.ti_clksel_div.min_value = 0;
 		sc->dpll_def.ti_clksel_div.max_value = 255;
 		sc->dpll_def.ti_clksel_div.flags = TI_CLK_FACTOR_MIN_VALUE |
-						TI_CLK_FACTOR_MAX_VALUE;
+		    TI_CLK_FACTOR_MAX_VALUE;
 	} else {
 		sc->dpll_def.ti_clksel_mult.shift = 8;
 		sc->dpll_def.ti_clksel_mult.mask = 0x0007FF00;
@@ -239,8 +240,7 @@ parse_dpll_reg(struct ti_dpll_softc *sc) {
 		sc->dpll_def.ti_clksel_mult.min_value = 2;
 		sc->dpll_def.ti_clksel_mult.max_value = 2047;
 		sc->dpll_def.ti_clksel_mult.flags = TI_CLK_FACTOR_ZERO_BASED |
-						TI_CLK_FACTOR_MIN_VALUE |
-						TI_CLK_FACTOR_MAX_VALUE;
+		    TI_CLK_FACTOR_MIN_VALUE | TI_CLK_FACTOR_MAX_VALUE;
 
 		sc->dpll_def.ti_clksel_div.shift = 0;
 		sc->dpll_def.ti_clksel_div.mask = 0x0000007F;
@@ -249,12 +249,11 @@ parse_dpll_reg(struct ti_dpll_softc *sc) {
 		sc->dpll_def.ti_clksel_div.min_value = 0;
 		sc->dpll_def.ti_clksel_div.max_value = 127;
 		sc->dpll_def.ti_clksel_div.flags = TI_CLK_FACTOR_MIN_VALUE |
-						TI_CLK_FACTOR_MAX_VALUE;
+		    TI_CLK_FACTOR_MAX_VALUE;
 	}
 	DPRINTF(sc->dev, "clkmode %x idlest %x clksel %x autoidle %x\n",
-		sc->dpll_def.ti_clkmode_offset, sc->dpll_def.ti_idlest_offset,
-		sc->dpll_def.ti_clksel_offset,
-		sc->dpll_def.ti_autoidle_offset);
+	    sc->dpll_def.ti_clkmode_offset, sc->dpll_def.ti_idlest_offset,
+	    sc->dpll_def.ti_clksel_offset, sc->dpll_def.ti_autoidle_offset);
 
 	return (0);
 }
@@ -281,7 +280,8 @@ ti_dpll_attach(device_t dev)
 		sc->dpll_def.ti_clkmode_flags |= LOW_POWER_STOP_MODE_FLAG;
 	}
 	if (OF_hasprop(node, "ti,low-power-bypass")) {
-		sc->dpll_def.ti_clkmode_flags |= IDLE_BYPASS_LOW_POWER_MODE_FLAG;
+		sc->dpll_def.ti_clkmode_flags |=
+		    IDLE_BYPASS_LOW_POWER_MODE_FLAG;
 	}
 	if (OF_hasprop(node, "ti,lock")) {
 		sc->dpll_def.ti_clkmode_flags |= LOCK_MODE_FLAG;
@@ -291,8 +291,8 @@ ti_dpll_attach(device_t dev)
 
 	create_clkdef(sc->dev, &sc->clock_cell, &sc->dpll_def.clkdef);
 
-	err = find_parent_clock_names(sc->dev, &sc->clock_cell,
-			&sc->dpll_def.clkdef);
+	err = find_parent_clock_names(
+	    sc->dev, &sc->clock_cell, &sc->dpll_def.clkdef);
 
 	if (err) {
 		/* free_clkdef will be called in ti_dpll_new_pass */
@@ -333,18 +333,19 @@ ti_dpll_new_pass(device_t dev)
 		return;
 	}
 
-	err = find_parent_clock_names(sc->dev, &sc->clock_cell,
-		&sc->dpll_def.clkdef);
+	err = find_parent_clock_names(
+	    sc->dev, &sc->clock_cell, &sc->dpll_def.clkdef);
 	if (err) {
-		/* free_clkdef will be called in a later call to ti_dpll_new_pass */
-		DPRINTF(sc->dev,
-			"new_pass find_parent_clock_names failed\n");
+		/* free_clkdef will be called in a later call to
+		 * ti_dpll_new_pass */
+		DPRINTF(sc->dev, "new_pass find_parent_clock_names failed\n");
 		return;
 	}
 
 	err = register_clk(sc);
 	if (err) {
-		/* free_clkdef will be called in a later call to ti_dpll_new_pass */
+		/* free_clkdef will be called in a later call to
+		 * ti_dpll_new_pass */
 		DPRINTF(sc->dev, "new_pass register_clk failed\n");
 		return;
 	}
@@ -355,21 +356,21 @@ ti_dpll_new_pass(device_t dev)
 
 static device_method_t ti_dpll_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ti_dpll_probe),
-	DEVMETHOD(device_attach,	ti_dpll_attach),
-	DEVMETHOD(device_detach,	ti_dpll_detach),
+	DEVMETHOD(device_probe, ti_dpll_probe),
+	DEVMETHOD(device_attach, ti_dpll_attach),
+	DEVMETHOD(device_detach, ti_dpll_detach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_new_pass,		ti_dpll_new_pass),
+	DEVMETHOD(bus_new_pass, ti_dpll_new_pass),
 
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(ti_dpll, ti_dpll_driver, ti_dpll_methods,
-	sizeof(struct ti_dpll_softc));
+DEFINE_CLASS_0(
+    ti_dpll, ti_dpll_driver, ti_dpll_methods, sizeof(struct ti_dpll_softc));
 
 static devclass_t ti_dpll_devclass;
 
-EARLY_DRIVER_MODULE(ti_dpll, simplebus, ti_dpll_driver,
-	ti_dpll_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ti_dpll, simplebus, ti_dpll_driver, ti_dpll_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ti_dpll, 1);

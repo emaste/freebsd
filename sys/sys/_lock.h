@@ -31,13 +31,13 @@
  */
 
 #ifndef _SYS__LOCK_H_
-#define	_SYS__LOCK_H_
+#define _SYS__LOCK_H_
 
 struct lock_object {
-	const	char *lo_name;		/* Individual lock name. */
-	u_int	lo_flags;
-	u_int	lo_data;		/* General class specific data. */
-	struct	witness *lo_witness;	/* Data for witness. */
+	const char *lo_name; /* Individual lock name. */
+	u_int lo_flags;
+	u_int lo_data;		    /* General class specific data. */
+	struct witness *lo_witness; /* Data for witness. */
 };
 
 #ifdef _KERNEL
@@ -50,11 +50,11 @@ struct lock_object {
  * calling conventions for this debugging code in modules so that modules can
  * work with both debug and non-debug kernels.
  */
-#if (defined(KLD_MODULE) && !defined(KLD_TIED)) || defined(WITNESS) || defined(INVARIANTS) || \
-    defined(LOCK_PROFILING) || defined(KTR)
-#define	LOCK_DEBUG	1
+#if (defined(KLD_MODULE) && !defined(KLD_TIED)) || defined(WITNESS) || \
+    defined(INVARIANTS) || defined(LOCK_PROFILING) || defined(KTR)
+#define LOCK_DEBUG 1
 #else
-#define	LOCK_DEBUG	0
+#define LOCK_DEBUG 0
 #endif
 
 /*
@@ -62,15 +62,15 @@ struct lock_object {
  * operations.  Otherwise, use default values to avoid the unneeded bloat.
  */
 #if LOCK_DEBUG > 0
-#define LOCK_FILE_LINE_ARG_DEF	, const char *file, int line
-#define LOCK_FILE_LINE_ARG	, file, line
-#define	LOCK_FILE	__FILE__
-#define	LOCK_LINE	__LINE__
+#define LOCK_FILE_LINE_ARG_DEF , const char *file, int line
+#define LOCK_FILE_LINE_ARG , file, line
+#define LOCK_FILE __FILE__
+#define LOCK_LINE __LINE__
 #else
 #define LOCK_FILE_LINE_ARG_DEF
 #define LOCK_FILE_LINE_ARG
-#define	LOCK_FILE	NULL
-#define	LOCK_LINE	0
+#define LOCK_FILE NULL
+#define LOCK_LINE 0
 #endif
 #endif /* _KERNEL */
 

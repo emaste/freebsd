@@ -38,29 +38,28 @@
 #ifndef _IWPM_UTIL_H
 #define _IWPM_UTIL_H
 
-#include <linux/module.h>
-#include <linux/io.h>
+#include <linux/delay.h>
+#include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/in6.h>
-#include <linux/spinlock.h>
-#include <linux/kernel.h>
-#include <linux/netdevice.h>
-#include <linux/delay.h>
-#include <linux/workqueue.h>
-#include <linux/mutex.h>
+#include <linux/io.h>
 #include <linux/jhash.h>
+#include <linux/kernel.h>
 #include <linux/kref.h>
-#include <linux/errno.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/netdevice.h>
 #include <linux/rwsem.h>
-
+#include <linux/spinlock.h>
+#include <linux/workqueue.h>
 #include <rdma/iw_portmap.h>
 
-#define IWPM_PID_UNDEFINED     -1
-#define IWPM_PID_UNAVAILABLE   -2
+#define IWPM_PID_UNDEFINED -1
+#define IWPM_PID_UNAVAILABLE -2
 
-#define IWPM_REG_UNDEF          0x01
-#define IWPM_REG_VALID          0x02
-#define IWPM_REG_INCOMPL        0x04
+#define IWPM_REG_UNDEF 0x01
+#define IWPM_REG_VALID 0x02
+#define IWPM_REG_INCOMPL 0x04
 
 /**
  * iwpm_compare_sockaddr - Compare two sockaddr storage structs
@@ -68,8 +67,8 @@
  * Returns 0 if they are holding the same ip/tcp address info,
  * otherwise returns 1
  */
-int iwpm_compare_sockaddr(struct sockaddr_storage *a_sockaddr,
-			struct sockaddr_storage *b_sockaddr);
+int iwpm_compare_sockaddr(
+    struct sockaddr_storage *a_sockaddr, struct sockaddr_storage *b_sockaddr);
 
 /**
  * iwpm_print_sockaddr - Print IPv4/IPv6 address and TCP port

@@ -29,26 +29,25 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
 
 #include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <mips/mediatek/fdt_reset.h>
 #include <mips/mediatek/mtk_sysctl.h>
 
 #include "fdt_reset_if.h"
 
-static const struct ofw_compat_data compat_data[] = {
-	{ "ralink,rt2880-reset",	1 },
+static const struct ofw_compat_data compat_data[] = { { "ralink,rt2880-reset",
+							  1 },
 
 	/* Sentinel */
-	{ NULL,				0 }
-};
+	{ NULL, 0 } };
 
 static int
 mtk_reset_probe(device_t dev)
@@ -79,8 +78,8 @@ mtk_reset_attach(device_t dev)
 	return (0);
 }
 
-#define RESET_ASSERT	1
-#define RESET_DEASSERT	0
+#define RESET_ASSERT 1
+#define RESET_DEASSERT 0
 
 static int
 mtk_reset_set(device_t dev, int index, int value)
@@ -115,16 +114,15 @@ mtk_reset_deassert(device_t dev, int index)
 	return mtk_reset_set(dev, index, RESET_DEASSERT);
 }
 
-static device_method_t mtk_reset_methods[] = {
-	DEVMETHOD(device_probe,		mtk_reset_probe),
-	DEVMETHOD(device_attach,	mtk_reset_attach),
+static device_method_t mtk_reset_methods[] = { DEVMETHOD(device_probe,
+						   mtk_reset_probe),
+	DEVMETHOD(device_attach, mtk_reset_attach),
 
 	/* fdt_reset interface */
-	DEVMETHOD(fdt_reset_assert,	mtk_reset_assert),
-	DEVMETHOD(fdt_reset_deassert,	mtk_reset_deassert),
+	DEVMETHOD(fdt_reset_assert, mtk_reset_assert),
+	DEVMETHOD(fdt_reset_deassert, mtk_reset_deassert),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t mtk_reset_driver = {
 	"rstctrl",

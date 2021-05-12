@@ -31,21 +31,21 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PROC_H_
-#define	_MACHINE_PROC_H_
+#ifndef _MACHINE_PROC_H_
+#define _MACHINE_PROC_H_
 
 struct mdthread {
-	int	md_spinlock_count;	/* (k) */
-	register_t md_saved_sstatus_ie;	/* (k) */
+	int md_spinlock_count;		/* (k) */
+	register_t md_saved_sstatus_ie; /* (k) */
 };
 
 struct mdproc {
 	int dummy;
 };
 
-#define	KINFO_PROC_SIZE	1088
+#define KINFO_PROC_SIZE 1088
 
-#define	MAXARGS		8
+#define MAXARGS 8
 struct syscall_args {
 	u_int code;
 	struct sysent *callp;

@@ -38,16 +38,16 @@
 #define _NETGRAPH_NG_GIF_DEMUX_H_
 
 /* Node type name and magic cookie */
-#define NG_GIF_DEMUX_NODE_TYPE		"gif_demux"
-#define NGM_GIF_DEMUX_COOKIE		995567329
+#define NG_GIF_DEMUX_NODE_TYPE "gif_demux"
+#define NGM_GIF_DEMUX_COOKIE 995567329
 
 /* Hook names */
-#define NG_GIF_DEMUX_HOOK_GIF		"gif"
-#define NG_GIF_DEMUX_HOOK_INET		"inet"
-#define NG_GIF_DEMUX_HOOK_INET6		"inet6"
-#define NG_GIF_DEMUX_HOOK_ATALK		"atalk"
-#define NG_GIF_DEMUX_HOOK_IPX		"ipx"
-#define NG_GIF_DEMUX_HOOK_ATM		"atm"
-#define NG_GIF_DEMUX_HOOK_NATM		"natm"
+#define NG_GIF_DEMUX_HOOK_GIF "gif"
+#define NG_GIF_DEMUX_HOOK_INET "inet"
+#define NG_GIF_DEMUX_HOOK_INET6 "inet6"
+#define NG_GIF_DEMUX_HOOK_ATALK "atalk"
+#define NG_GIF_DEMUX_HOOK_IPX "ipx"
+#define NG_GIF_DEMUX_HOOK_ATM "atm"
+#define NG_GIF_DEMUX_HOOK_NATM "natm"
 
 #endif /* _NETGRAPH_NG_GIF_DEMUX_H_ */

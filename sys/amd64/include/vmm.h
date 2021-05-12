@@ -29,9 +29,10 @@
  */
 
 #ifndef _VMM_H_
-#define	_VMM_H_
+#define _VMM_H_
 
 #include <sys/sdt.h>
+
 #include <x86/segments.h>
 
 struct vm_snapshot_meta;
@@ -101,26 +102,22 @@ enum vm_reg_name {
 	VM_REG_LAST
 };
 
-enum x2apic_state {
-	X2APIC_DISABLED,
-	X2APIC_ENABLED,
-	X2APIC_STATE_LAST
-};
+enum x2apic_state { X2APIC_DISABLED, X2APIC_ENABLED, X2APIC_STATE_LAST };
 
-#define	VM_INTINFO_VECTOR(info)	((info) & 0xff)
-#define	VM_INTINFO_DEL_ERRCODE	0x800
-#define	VM_INTINFO_RSVD		0x7ffff000
-#define	VM_INTINFO_VALID	0x80000000
-#define	VM_INTINFO_TYPE		0x700
-#define	VM_INTINFO_HWINTR	(0 << 8)
-#define	VM_INTINFO_NMI		(2 << 8)
-#define	VM_INTINFO_HWEXCEPTION	(3 << 8)
-#define	VM_INTINFO_SWINTR	(4 << 8)
+#define VM_INTINFO_VECTOR(info) ((info)&0xff)
+#define VM_INTINFO_DEL_ERRCODE 0x800
+#define VM_INTINFO_RSVD 0x7ffff000
+#define VM_INTINFO_VALID 0x80000000
+#define VM_INTINFO_TYPE 0x700
+#define VM_INTINFO_HWINTR (0 << 8)
+#define VM_INTINFO_NMI (2 << 8)
+#define VM_INTINFO_HWEXCEPTION (3 << 8)
+#define VM_INTINFO_SWINTR (4 << 8)
 
 /*
  * The VM name has to fit into the pathname length constraints of devfs,
  * governed primarily by SPECNAMELEN.  The length is the total number of
- * characters in the full path, relative to the mount point and not 
+ * characters in the full path, relative to the mount point and not
  * including any leading '/' characters.
  * A prefix and a suffix are added to the name specified by the user.
  * The prefix is usually "vmm/" or "vmm.io/", but can be a few characters
@@ -135,9 +132,8 @@ enum x2apic_state {
  */
 #define VM_MAX_PREFIXLEN 10
 #define VM_MAX_SUFFIXLEN 15
-#define VM_MIN_NAMELEN   6
-#define VM_MAX_NAMELEN \
-    (SPECNAMELEN - VM_MAX_PREFIXLEN - VM_MAX_SUFFIXLEN - 1)
+#define VM_MIN_NAMELEN 6
+#define VM_MAX_NAMELEN (SPECNAMELEN - VM_MAX_PREFIXLEN - VM_MAX_SUFFIXLEN - 1)
 
 #ifdef _KERNEL
 CTASSERT(VM_MAX_NAMELEN >= VM_MIN_NAMELEN);
@@ -157,60 +153,59 @@ struct pmap;
 enum snapshot_req;
 
 struct vm_eventinfo {
-	void	*rptr;		/* rendezvous cookie */
-	int	*sptr;		/* suspend cookie */
-	int	*iptr;		/* reqidle cookie */
+	void *rptr; /* rendezvous cookie */
+	int *sptr;  /* suspend cookie */
+	int *iptr;  /* reqidle cookie */
 };
 
-typedef int	(*vmm_init_func_t)(int ipinum);
-typedef int	(*vmm_cleanup_func_t)(void);
-typedef void	(*vmm_resume_func_t)(void);
-typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
-typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
-		    struct pmap *pmap, struct vm_eventinfo *info);
-typedef void	(*vmi_cleanup_func_t)(void *vmi);
-typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
-				      uint64_t *retval);
-typedef int	(*vmi_set_register_t)(void *vmi, int vcpu, int num,
-				      uint64_t val);
-typedef int	(*vmi_get_desc_t)(void *vmi, int vcpu, int num,
-				  struct seg_desc *desc);
-typedef int	(*vmi_set_desc_t)(void *vmi, int vcpu, int num,
-				  struct seg_desc *desc);
-typedef int	(*vmi_get_cap_t)(void *vmi, int vcpu, int num, int *retval);
-typedef int	(*vmi_set_cap_t)(void *vmi, int vcpu, int num, int val);
-typedef struct vmspace * (*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
-typedef void	(*vmi_vmspace_free)(struct vmspace *vmspace);
-typedef struct vlapic * (*vmi_vlapic_init)(void *vmi, int vcpu);
-typedef void	(*vmi_vlapic_cleanup)(void *vmi, struct vlapic *vlapic);
-typedef int	(*vmi_snapshot_t)(void *vmi, struct vm_snapshot_meta *meta);
-typedef int	(*vmi_snapshot_vmcx_t)(void *vmi, struct vm_snapshot_meta *meta,
-				       int vcpu);
-typedef int	(*vmi_restore_tsc_t)(void *vmi, int vcpuid, uint64_t now);
+typedef int (*vmm_init_func_t)(int ipinum);
+typedef int (*vmm_cleanup_func_t)(void);
+typedef void (*vmm_resume_func_t)(void);
+typedef void *(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
+typedef int (*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
+    struct pmap *pmap, struct vm_eventinfo *info);
+typedef void (*vmi_cleanup_func_t)(void *vmi);
+typedef int (*vmi_get_register_t)(
+    void *vmi, int vcpu, int num, uint64_t *retval);
+typedef int (*vmi_set_register_t)(void *vmi, int vcpu, int num, uint64_t val);
+typedef int (*vmi_get_desc_t)(
+    void *vmi, int vcpu, int num, struct seg_desc *desc);
+typedef int (*vmi_set_desc_t)(
+    void *vmi, int vcpu, int num, struct seg_desc *desc);
+typedef int (*vmi_get_cap_t)(void *vmi, int vcpu, int num, int *retval);
+typedef int (*vmi_set_cap_t)(void *vmi, int vcpu, int num, int val);
+typedef struct vmspace *(*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
+typedef void (*vmi_vmspace_free)(struct vmspace *vmspace);
+typedef struct vlapic *(*vmi_vlapic_init)(void *vmi, int vcpu);
+typedef void (*vmi_vlapic_cleanup)(void *vmi, struct vlapic *vlapic);
+typedef int (*vmi_snapshot_t)(void *vmi, struct vm_snapshot_meta *meta);
+typedef int (*vmi_snapshot_vmcx_t)(
+    void *vmi, struct vm_snapshot_meta *meta, int vcpu);
+typedef int (*vmi_restore_tsc_t)(void *vmi, int vcpuid, uint64_t now);
 
 struct vmm_ops {
-	vmm_init_func_t		modinit;	/* module wide initialization */
-	vmm_cleanup_func_t	modcleanup;
-	vmm_resume_func_t	modresume;
+	vmm_init_func_t modinit; /* module wide initialization */
+	vmm_cleanup_func_t modcleanup;
+	vmm_resume_func_t modresume;
 
-	vmi_init_func_t		init;		/* vm-specific initialization */
-	vmi_run_func_t		run;
-	vmi_cleanup_func_t	cleanup;
-	vmi_get_register_t	getreg;
-	vmi_set_register_t	setreg;
-	vmi_get_desc_t		getdesc;
-	vmi_set_desc_t		setdesc;
-	vmi_get_cap_t		getcap;
-	vmi_set_cap_t		setcap;
-	vmi_vmspace_alloc	vmspace_alloc;
-	vmi_vmspace_free	vmspace_free;
-	vmi_vlapic_init		vlapic_init;
-	vmi_vlapic_cleanup	vlapic_cleanup;
+	vmi_init_func_t init; /* vm-specific initialization */
+	vmi_run_func_t run;
+	vmi_cleanup_func_t cleanup;
+	vmi_get_register_t getreg;
+	vmi_set_register_t setreg;
+	vmi_get_desc_t getdesc;
+	vmi_set_desc_t setdesc;
+	vmi_get_cap_t getcap;
+	vmi_set_cap_t setcap;
+	vmi_vmspace_alloc vmspace_alloc;
+	vmi_vmspace_free vmspace_free;
+	vmi_vlapic_init vlapic_init;
+	vmi_vlapic_cleanup vlapic_cleanup;
 
 	/* checkpoint operations */
-	vmi_snapshot_t		snapshot;
-	vmi_snapshot_vmcx_t	vmcx_snapshot;
-	vmi_restore_tsc_t	restore_tsc;
+	vmi_snapshot_t snapshot;
+	vmi_snapshot_vmcx_t vmcx_snapshot;
+	vmi_restore_tsc_t restore_tsc;
 };
 
 extern const struct vmm_ops vmm_ops_intel;
@@ -249,17 +244,16 @@ int vm_mmap_getnext(struct vm *vm, vm_paddr_t *gpa, int *segid,
 int vm_get_memseg(struct vm *vm, int ident, size_t *len, bool *sysmem,
     struct vm_object **objptr);
 vm_paddr_t vmm_sysmem_maxaddr(struct vm *vm);
-void *vm_gpa_hold(struct vm *, int vcpuid, vm_paddr_t gpa, size_t len,
-    int prot, void **cookie);
+void *vm_gpa_hold(struct vm *, int vcpuid, vm_paddr_t gpa, size_t len, int prot,
+    void **cookie);
 void vm_gpa_release(void *cookie);
 bool vm_mem_allocated(struct vm *vm, int vcpuid, vm_paddr_t gpa);
 
 int vm_get_register(struct vm *vm, int vcpu, int reg, uint64_t *retval);
 int vm_set_register(struct vm *vm, int vcpu, int reg, uint64_t val);
-int vm_get_seg_desc(struct vm *vm, int vcpu, int reg,
-		    struct seg_desc *ret_desc);
-int vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
-		    struct seg_desc *desc);
+int vm_get_seg_desc(
+    struct vm *vm, int vcpu, int reg, struct seg_desc *ret_desc);
+int vm_set_seg_desc(struct vm *vm, int vcpu, int reg, struct seg_desc *desc);
 int vm_run(struct vm *vm, struct vm_run *vmrun);
 int vm_suspend(struct vm *vm, enum vm_suspend_how how);
 int vm_inject_nmi(struct vm *vm, int vcpu);
@@ -309,7 +303,7 @@ int vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
 cpuset_t vm_active_cpus(struct vm *vm);
 cpuset_t vm_debug_cpus(struct vm *vm);
 cpuset_t vm_suspended_cpus(struct vm *vm);
-#endif	/* _SYS__CPUSET_H_ */
+#endif /* _SYS__CPUSET_H_ */
 
 static __inline int
 vcpu_rendezvous_pending(struct vm_eventinfo *info)
@@ -351,19 +345,17 @@ enum vcpu_state {
 	VCPU_SLEEPING,
 };
 
-int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state,
-    bool from_idle);
+int vcpu_set_state(
+    struct vm *vm, int vcpu, enum vcpu_state state, bool from_idle);
 enum vcpu_state vcpu_get_state(struct vm *vm, int vcpu, int *hostcpu);
 
-static int __inline
-vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
+static int __inline vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 {
 	return (vcpu_get_state(vm, vcpu, hostcpu) == VCPU_RUNNING);
 }
 
 #ifdef _SYS_PROC_H_
-static int __inline
-vcpu_should_yield(struct vm *vm, int vcpu)
+static int __inline vcpu_should_yield(struct vm *vm, int vcpu)
 {
 
 	if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED))
@@ -436,16 +428,16 @@ int vm_set_tsc_offset(struct vm *vm, int vcpu_id, uint64_t offset);
 enum vm_reg_name vm_segment_name(int seg_encoding);
 
 struct vm_copyinfo {
-	uint64_t	gpa;
-	size_t		len;
-	void		*hva;
-	void		*cookie;
+	uint64_t gpa;
+	size_t len;
+	void *hva;
+	void *cookie;
 };
 
 /*
  * Set up 'copyinfo[]' to copy to/from guest linear address space starting
  * at 'gla' and 'len' bytes long. The 'prot' should be set to PROT_READ for
- * a copyin or PROT_WRITE for a copyout. 
+ * a copyin or PROT_WRITE for a copyout.
  *
  * retval	is_fault	Interpretation
  *   0		   0		Success
@@ -459,17 +451,17 @@ struct vm_copyinfo {
 int vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t gla, size_t len, int prot, struct vm_copyinfo *copyinfo,
     int num_copyinfo, int *is_fault);
-void vm_copy_teardown(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
-    int num_copyinfo);
+void vm_copy_teardown(
+    struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo, int num_copyinfo);
 void vm_copyin(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
     void *kaddr, size_t len);
 void vm_copyout(struct vm *vm, int vcpuid, const void *kaddr,
     struct vm_copyinfo *copyinfo, size_t len);
 
 int vcpu_trace_exceptions(struct vm *vm, int vcpuid);
-#endif	/* KERNEL */
+#endif /* KERNEL */
 
-#define	VM_MAXCPU	16			/* maximum virtual cpus */
+#define VM_MAXCPU 16 /* maximum virtual cpus */
 
 /*
  * Identifiers for optional vmm capabilities
@@ -486,10 +478,7 @@ enum vm_cap_type {
 	VM_CAP_MAX
 };
 
-enum vm_intr_trigger {
-	EDGE_TRIGGER,
-	LEVEL_TRIGGER
-};
+enum vm_intr_trigger { EDGE_TRIGGER, LEVEL_TRIGGER };
 
 /*
  * The 'access' field has the format specified in Table 21-2 of the Intel
@@ -499,22 +488,22 @@ enum vm_intr_trigger {
  * bit 16 - Segment Unusable.
  */
 struct seg_desc {
-	uint64_t	base;
-	uint32_t	limit;
-	uint32_t	access;
+	uint64_t base;
+	uint32_t limit;
+	uint32_t access;
 };
-#define	SEG_DESC_TYPE(access)		((access) & 0x001f)
-#define	SEG_DESC_DPL(access)		(((access) >> 5) & 0x3)
-#define	SEG_DESC_PRESENT(access)	(((access) & 0x0080) ? 1 : 0)
-#define	SEG_DESC_DEF32(access)		(((access) & 0x4000) ? 1 : 0)
-#define	SEG_DESC_GRANULARITY(access)	(((access) & 0x8000) ? 1 : 0)
-#define	SEG_DESC_UNUSABLE(access)	(((access) & 0x10000) ? 1 : 0)
+#define SEG_DESC_TYPE(access) ((access)&0x001f)
+#define SEG_DESC_DPL(access) (((access) >> 5) & 0x3)
+#define SEG_DESC_PRESENT(access) (((access)&0x0080) ? 1 : 0)
+#define SEG_DESC_DEF32(access) (((access)&0x4000) ? 1 : 0)
+#define SEG_DESC_GRANULARITY(access) (((access)&0x8000) ? 1 : 0)
+#define SEG_DESC_UNUSABLE(access) (((access)&0x10000) ? 1 : 0)
 
 enum vm_cpu_mode {
 	CPU_MODE_REAL,
 	CPU_MODE_PROTECTED,
-	CPU_MODE_COMPATIBILITY,		/* IA-32E mode (CS.L = 0) */
-	CPU_MODE_64BIT,			/* IA-32E mode (CS.L = 1) */
+	CPU_MODE_COMPATIBILITY, /* IA-32E mode (CS.L = 0) */
+	CPU_MODE_64BIT,		/* IA-32E mode (CS.L = 1) */
 };
 
 enum vm_paging_mode {
@@ -526,8 +515,8 @@ enum vm_paging_mode {
 };
 
 struct vm_guest_paging {
-	uint64_t	cr3;
-	int		cpl;
+	uint64_t cr3;
+	int cpl;
 	enum vm_cpu_mode cpu_mode;
 	enum vm_paging_mode paging_mode;
 };
@@ -538,67 +527,63 @@ struct vm_guest_paging {
  * need to be exposed is because they are part of the 'vm_exit' structure.
  */
 struct vie_op {
-	uint8_t		op_byte;	/* actual opcode byte */
-	uint8_t		op_type;	/* type of operation (e.g. MOV) */
-	uint16_t	op_flags;
+	uint8_t op_byte; /* actual opcode byte */
+	uint8_t op_type; /* type of operation (e.g. MOV) */
+	uint16_t op_flags;
 };
 _Static_assert(sizeof(struct vie_op) == 4, "ABI");
 _Static_assert(_Alignof(struct vie_op) == 2, "ABI");
 
-#define	VIE_INST_SIZE	15
+#define VIE_INST_SIZE 15
 struct vie {
-	uint8_t		inst[VIE_INST_SIZE];	/* instruction bytes */
-	uint8_t		num_valid;		/* size of the instruction */
+	uint8_t inst[VIE_INST_SIZE]; /* instruction bytes */
+	uint8_t num_valid;	     /* size of the instruction */
 
 /* The following fields are all zeroed upon restart. */
-#define	vie_startzero	num_processed
-	uint8_t		num_processed;
+#define vie_startzero num_processed
+	uint8_t num_processed;
 
-	uint8_t		addrsize:4, opsize:4;	/* address and operand sizes */
-	uint8_t		rex_w:1,		/* REX prefix */
-			rex_r:1,
-			rex_x:1,
-			rex_b:1,
-			rex_present:1,
-			repz_present:1,		/* REP/REPE/REPZ prefix */
-			repnz_present:1,	/* REPNE/REPNZ prefix */
-			opsize_override:1,	/* Operand size override */
-			addrsize_override:1,	/* Address size override */
-			segment_override:1;	/* Segment override */
+	uint8_t addrsize : 4, opsize : 4; /* address and operand sizes */
+	uint8_t rex_w : 1,		  /* REX prefix */
+	    rex_r : 1, rex_x : 1, rex_b : 1, rex_present : 1,
+	    repz_present : 1,	   /* REP/REPE/REPZ prefix */
+	    repnz_present : 1,	   /* REPNE/REPNZ prefix */
+	    opsize_override : 1,   /* Operand size override */
+	    addrsize_override : 1, /* Address size override */
+	    segment_override : 1;  /* Segment override */
 
-	uint8_t		mod:2,			/* ModRM byte */
-			reg:4,
-			rm:4;
+	uint8_t mod : 2, /* ModRM byte */
+	    reg : 4, rm : 4;
 
-	uint8_t		ss:2,			/* SIB byte */
-			vex_present:1,		/* VEX prefixed */
-			vex_l:1,		/* L bit */
-			index:4,		/* SIB byte */
-			base:4;			/* SIB byte */
+	uint8_t ss : 2,	     /* SIB byte */
+	    vex_present : 1, /* VEX prefixed */
+	    vex_l : 1,	     /* L bit */
+	    index : 4,	     /* SIB byte */
+	    base : 4;	     /* SIB byte */
 
-	uint8_t		disp_bytes;
-	uint8_t		imm_bytes;
+	uint8_t disp_bytes;
+	uint8_t imm_bytes;
 
-	uint8_t		scale;
+	uint8_t scale;
 
-	uint8_t		vex_reg:4,		/* vvvv: first source register specifier */
-			vex_pp:2,		/* pp */
-			_sparebits:2;
+	uint8_t vex_reg : 4, /* vvvv: first source register specifier */
+	    vex_pp : 2,	     /* pp */
+	    _sparebits : 2;
 
-	uint8_t		_sparebytes[2];
+	uint8_t _sparebytes[2];
 
-	int		base_register;		/* VM_REG_GUEST_xyz */
-	int		index_register;		/* VM_REG_GUEST_xyz */
-	int		segment_register;	/* VM_REG_GUEST_xyz */
+	int base_register;    /* VM_REG_GUEST_xyz */
+	int index_register;   /* VM_REG_GUEST_xyz */
+	int segment_register; /* VM_REG_GUEST_xyz */
 
-	int64_t		displacement;		/* optional addr displacement */
-	int64_t		immediate;		/* optional immediate operand */
+	int64_t displacement; /* optional addr displacement */
+	int64_t immediate;    /* optional immediate operand */
 
-	uint8_t		decoded;	/* set to 1 if successfully decoded */
+	uint8_t decoded; /* set to 1 if successfully decoded */
 
-	uint8_t		_sparebyte;
+	uint8_t _sparebyte;
 
-	struct vie_op	op;			/* opcode description */
+	struct vie_op op; /* opcode description */
 };
 _Static_assert(sizeof(struct vie) == 64, "ABI");
 _Static_assert(__offsetof(struct vie, disp_bytes) == 22, "ABI");
@@ -617,7 +602,7 @@ enum vm_exitcode {
 	VM_EXITCODE_PAGING,
 	VM_EXITCODE_INST_EMUL,
 	VM_EXITCODE_SPINUP_AP,
-	VM_EXITCODE_DEPRECATED1,	/* used to be SPINDOWN_CPU */
+	VM_EXITCODE_DEPRECATED1, /* used to be SPINDOWN_CPU */
 	VM_EXITCODE_RENDEZVOUS,
 	VM_EXITCODE_IOAPIC_EOI,
 	VM_EXITCODE_SUSPENDED,
@@ -634,22 +619,22 @@ enum vm_exitcode {
 };
 
 struct vm_inout {
-	uint16_t	bytes:3;	/* 1 or 2 or 4 */
-	uint16_t	in:1;
-	uint16_t	string:1;
-	uint16_t	rep:1;
-	uint16_t	port;
-	uint32_t	eax;		/* valid for out */
+	uint16_t bytes : 3; /* 1 or 2 or 4 */
+	uint16_t in : 1;
+	uint16_t string : 1;
+	uint16_t rep : 1;
+	uint16_t port;
+	uint32_t eax; /* valid for out */
 };
 
 struct vm_inout_str {
-	struct vm_inout	inout;		/* must be the first element */
+	struct vm_inout inout; /* must be the first element */
 	struct vm_guest_paging paging;
-	uint64_t	rflags;
-	uint64_t	cr0;
-	uint64_t	index;
-	uint64_t	count;		/* rep=1 (%rcx), rep=0 (1) */
-	int		addrsize;
+	uint64_t rflags;
+	uint64_t cr0;
+	uint64_t index;
+	uint64_t count; /* rep=1 (%rcx), rep=0 (1) */
+	int addrsize;
 	enum vm_reg_name seg_name;
 	struct seg_desc seg_desc;
 };
@@ -658,81 +643,81 @@ enum task_switch_reason {
 	TSR_CALL,
 	TSR_IRET,
 	TSR_JMP,
-	TSR_IDT_GATE,	/* task gate in IDT */
+	TSR_IDT_GATE, /* task gate in IDT */
 };
 
 struct vm_task_switch {
-	uint16_t	tsssel;		/* new TSS selector */
-	int		ext;		/* task switch due to external event */
-	uint32_t	errcode;
-	int		errcode_valid;	/* push 'errcode' on the new stack */
+	uint16_t tsssel; /* new TSS selector */
+	int ext;	 /* task switch due to external event */
+	uint32_t errcode;
+	int errcode_valid; /* push 'errcode' on the new stack */
 	enum task_switch_reason reason;
 	struct vm_guest_paging paging;
 };
 
 struct vm_exit {
-	enum vm_exitcode	exitcode;
-	int			inst_length;	/* 0 means unknown */
-	uint64_t		rip;
+	enum vm_exitcode exitcode;
+	int inst_length; /* 0 means unknown */
+	uint64_t rip;
 	union {
-		struct vm_inout	inout;
+		struct vm_inout inout;
 		struct vm_inout_str inout_str;
 		struct {
-			uint64_t	gpa;
-			int		fault_type;
+			uint64_t gpa;
+			int fault_type;
 		} paging;
 		struct {
-			uint64_t	gpa;
-			uint64_t	gla;
-			uint64_t	cs_base;
-			int		cs_d;		/* CS.D */
+			uint64_t gpa;
+			uint64_t gla;
+			uint64_t cs_base;
+			int cs_d; /* CS.D */
 			struct vm_guest_paging paging;
-			struct vie	vie;
+			struct vie vie;
 		} inst_emul;
 		/*
 		 * VMX specific payload. Used when there is no "better"
 		 * exitcode to represent the VM-exit.
 		 */
 		struct {
-			int		status;		/* vmx inst status */
+			int status; /* vmx inst status */
 			/*
 			 * 'exit_reason' and 'exit_qualification' are valid
 			 * only if 'status' is zero.
 			 */
-			uint32_t	exit_reason;
-			uint64_t	exit_qualification;
+			uint32_t exit_reason;
+			uint64_t exit_qualification;
 			/*
 			 * 'inst_error' and 'inst_type' are valid
 			 * only if 'status' is non-zero.
 			 */
-			int		inst_type;
-			int		inst_error;
+			int inst_type;
+			int inst_error;
 		} vmx;
 		/*
 		 * SVM specific payload.
 		 */
 		struct {
-			uint64_t	exitcode;
-			uint64_t	exitinfo1;
-			uint64_t	exitinfo2;
+			uint64_t exitcode;
+			uint64_t exitinfo1;
+			uint64_t exitinfo2;
 		} svm;
 		struct {
-			int		inst_length;
+			int inst_length;
 		} bpt;
 		struct {
-			uint32_t	code;		/* ecx value */
-			uint64_t	wval;
+			uint32_t code; /* ecx value */
+			uint64_t wval;
 		} msr;
 		struct {
-			int		vcpu;
-			uint64_t	rip;
+			int vcpu;
+			uint64_t rip;
 		} spinup_ap;
 		struct {
-			uint64_t	rflags;
-			uint64_t	intr_status;
+			uint64_t rflags;
+			uint64_t intr_status;
 		} hlt;
 		struct {
-			int		vector;
+			int vector;
 		} ioapic_eoi;
 		struct {
 			enum vm_suspend_how how;
@@ -742,8 +727,8 @@ struct vm_exit {
 };
 
 /* APIs to inject faults into the guest */
-void vm_inject_fault(void *vm, int vcpuid, int vector, int errcode_valid,
-    int errcode);
+void vm_inject_fault(
+    void *vm, int vcpuid, int vector, int errcode_valid, int errcode);
 
 static __inline void
 vm_inject_ud(void *vm, int vcpuid)
@@ -773,4 +758,4 @@ void vm_inject_pf(void *vm, int vcpuid, int error_code, uint64_t cr2);
 
 int vm_restart_instruction(void *vm, int vcpuid);
 
-#endif	/* _VMM_H_ */
+#endif /* _VMM_H_ */

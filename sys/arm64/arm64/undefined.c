@@ -49,7 +49,7 @@ MALLOC_DEFINE(M_UNDEF, "undefhandler", "Undefined instruction handler data");
 
 struct undef_handler {
 	LIST_ENTRY(undef_handler) uh_link;
-	undef_handler_t		uh_handler;
+	undef_handler_t uh_handler;
 };
 
 /*
@@ -63,13 +63,13 @@ LIST_HEAD(, undef_handler) undef_handlers[2];
  * registers would raise an exception when they should return 0.
  */
 static int
-id_aa64mmfr2_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
-    uint32_t esr)
+id_aa64mmfr2_handler(
+    vm_offset_t va, uint32_t insn, struct trapframe *frame, uint32_t esr)
 {
 	int reg;
 
-#define	 MRS_ID_AA64MMFR2_EL0_MASK	(MRS_MASK | 0x000fffe0)
-#define	 MRS_ID_AA64MMFR2_EL0_VALUE	(MRS_VALUE | 0x00080740)
+#define MRS_ID_AA64MMFR2_EL0_MASK (MRS_MASK | 0x000fffe0)
+#define MRS_ID_AA64MMFR2_EL0_VALUE (MRS_VALUE | 0x00080740)
 
 	/* mrs xn, id_aa64mfr2_el1 */
 	if ((insn & MRS_ID_AA64MMFR2_EL0_MASK) == MRS_ID_AA64MMFR2_EL0_VALUE) {
@@ -90,11 +90,11 @@ id_aa64mmfr2_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 
 #ifdef COMPAT_FREEBSD32
 /* arm32 GDB breakpoints */
-#define GDB_BREAKPOINT	0xe6000011
-#define GDB5_BREAKPOINT	0xe7ffdefe
+#define GDB_BREAKPOINT 0xe6000011
+#define GDB5_BREAKPOINT 0xe7ffdefe
 static int
-gdb_trapper(vm_offset_t va, uint32_t insn, struct trapframe *frame,
-		uint32_t esr)
+gdb_trapper(
+    vm_offset_t va, uint32_t insn, struct trapframe *frame, uint32_t esr)
 {
 	struct thread *td = curthread;
 
@@ -167,7 +167,7 @@ undef_insn(u_int el, struct trapframe *frame)
 		insn = *(uint32_t *)frame->tf_elr;
 	}
 
-	LIST_FOREACH(uh, &undef_handlers[el], uh_link) {
+	LIST_FOREACH (uh, &undef_handlers[el], uh_link) {
 		ret = uh->uh_handler(frame->tf_elr, insn, frame, frame->tf_esr);
 		if (ret)
 			return (1);

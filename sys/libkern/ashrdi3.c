@@ -59,7 +59,7 @@ __ashrdi3(quad_t a, qshift_t shift)
 		 */
 		s = (aa.sl[H] >> (LONG_BITS - 1)) >> 1;
 		aa.ul[L] = shift >= QUAD_BITS ? s :
-		    aa.sl[H] >> (shift - LONG_BITS);
+						      aa.sl[H] >> (shift - LONG_BITS);
 		aa.ul[H] = s;
 	} else if (shift > 0) {
 		aa.ul[L] = (aa.ul[L] >> shift) |

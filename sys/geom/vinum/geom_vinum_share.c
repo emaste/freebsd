@@ -47,26 +47,26 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #ifdef _KERNEL
-#include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 
 #include <geom/geom.h>
-#define	iswhite(c) (((c) == ' ') || ((c) == '\t'))
+#define iswhite(c) (((c) == ' ') || ((c) == '\t'))
 #else
 #include <ctype.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define	iswhite	isspace
-#define	g_free	free
+#define iswhite isspace
+#define g_free free
 #endif /* _KERNEL */
 
 #include <sys/mutex.h>
 #include <sys/queue.h>
 
-#include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum_share.h>
+#include <geom/vinum/geom_vinum_var.h>
 
 /*
  * Take a blank separated list of tokens and turn it into a list of
@@ -78,8 +78,8 @@ __FBSDID("$FreeBSD$");
 int
 gv_tokenize(char *cptr, char *token[], int maxtoken)
 {
-	int tokennr;	/* Index of this token. */
-	char delim;	/* Delimiter for searching for the partner. */
+	int tokennr; /* Index of this token. */
+	char delim;  /* Delimiter for searching for the partner. */
 
 	for (tokennr = 0; tokennr < maxtoken;) {
 		/* Skip leading white space. */
@@ -91,8 +91,8 @@ gv_tokenize(char *cptr, char *token[], int maxtoken)
 			return tokennr;
 
 		delim = *cptr;
-		token[tokennr] = cptr;		/* Point to it. */
-		tokennr++;			/* One more. */
+		token[tokennr] = cptr; /* Point to it. */
+		tokennr++;	       /* One more. */
 
 		/* Run off the end? */
 		if (tokennr == maxtoken)
@@ -114,15 +114,14 @@ gv_tokenize(char *cptr, char *token[], int maxtoken)
 					/* Delimit. */
 					*cptr++ = '\0';
 
-				/* End-of-line? */
+					/* End-of-line? */
 				} else if ((*cptr == '\0') || (*cptr == '\n'))
 					return -1;
 			}
 
-		/* Not quoted. */
+			/* Not quoted. */
 		} else {
-			while ((*cptr != '\0') &&
-			    (!iswhite(*cptr)) &&
+			while ((*cptr != '\0') && (!iswhite(*cptr)) &&
 			    (*cptr != '\n'))
 				cptr++;
 
@@ -160,11 +159,11 @@ gv_sizespec(char *spec)
 
 	size = 0;
 	sign = 1;
-	if (spec != NULL) {		/* we have a parameter */
+	if (spec != NULL) { /* we have a parameter */
 		s = spec;
-		if (*s == '-') {	/* negative, */
+		if (*s == '-') { /* negative, */
 			sign = -1;
-			s++;		/* skip */
+			s++; /* skip */
 		}
 
 		/* It's numeric. */
@@ -177,21 +176,21 @@ gv_sizespec(char *spec)
 			switch (*s) {
 			case '\0':
 				return size * sign;
-			
+
 			case 'B':
 			case 'b':
 			case 'S':
 			case 's':
 				return size * sign * 512;
-			
+
 			case 'K':
 			case 'k':
 				return size * sign * 1024;
-			
+
 			case 'M':
 			case 'm':
 				return size * sign * 1024 * 1024;
-			
+
 			case 'G':
 			case 'g':
 				return size * sign * 1024 * 1024 * 1024;
@@ -575,7 +574,7 @@ gv_new_plex(int max, char *token[])
 			}
 			p->state = gv_plexstatei(token[j]);
 		} else if (!strcmp(token[j], "vol") ||
-			    !strcmp(token[j], "volume")) {
+		    !strcmp(token[j], "volume")) {
 			j++;
 			if (j >= max) {
 				errors++;

@@ -34,9 +34,9 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
 #include <geom/vinum/geom_vinum_share.h>
+#include <geom/vinum/geom_vinum_var.h>
 
 void
 gv_setstate(struct g_geom *gp, struct gctl_req *req)
@@ -100,8 +100,8 @@ gv_setstate(struct g_geom *gp, struct gctl_req *req)
 			break;
 		}
 		s = gv_find_sd(sc, obj);
-		gv_post_event(sc, GV_EVENT_SET_SD_STATE, s, NULL,
-		    gv_sdstatei(state), f);
+		gv_post_event(
+		    sc, GV_EVENT_SET_SD_STATE, s, NULL, gv_sdstatei(state), f);
 		break;
 
 	case GV_TYPE_DRIVE:
@@ -142,7 +142,7 @@ gv_set_drive_state(struct gv_drive *d, int newstate, int flags)
 	d->state = newstate;
 
 	if (d->state != oldstate) {
-		LIST_FOREACH(s, &d->subdisks, from_drive)
+		LIST_FOREACH (s, &d->subdisks, from_drive)
 			gv_update_sd_state(s);
 	}
 
@@ -184,7 +184,7 @@ gv_set_sd_state(struct gv_sd *s, int newstate, int flags)
 	case GV_SD_INITIALIZING:
 		/*
 		 * Only do this if we're forced, since it usually is done
-		 * internally, and then we do use the force flag. 
+		 * internally, and then we do use the force flag.
 		 */
 		if (!(flags & GV_SETSTATE_FORCE))
 			return (GV_ERR_SETSTATE);
@@ -247,10 +247,9 @@ gv_set_sd_state(struct gv_sd *s, int newstate, int flags)
 				break;
 
 			if ((p->org != GV_PLEX_RAID5 &&
-			    p->vol_sc->plexcount == 1) ||
-			    (p->flags & GV_PLEX_SYNCING &&
-			    p->synced > 0 &&
-			    p->org == GV_PLEX_RAID5))
+				p->vol_sc->plexcount == 1) ||
+			    (p->flags & GV_PLEX_SYNCING && p->synced > 0 &&
+				p->org == GV_PLEX_RAID5))
 				break;
 			else
 				return (GV_ERR_SETSTATE);
@@ -313,7 +312,7 @@ gv_set_plex_state(struct gv_plex *p, int newstate, int flags)
 			/* If the only one up, force is needed. */
 			plexdown = gv_plexdown(v);
 			if ((v->plexcount == 1 ||
-			    (v->plexcount - plexdown == 1)) &&
+				(v->plexcount - plexdown == 1)) &&
 			    ((flags & GV_SETSTATE_FORCE) == 0))
 				return (GV_ERR_SETSTATE);
 		}
@@ -389,7 +388,7 @@ gv_update_sd_state(struct gv_sd *s)
 	/* If our drive isn't up we cannot be up either. */
 	if (d->state != GV_DRIVE_UP) {
 		s->state = GV_SD_DOWN;
-	/* If this subdisk was just created, we assume it is good.*/
+		/* If this subdisk was just created, we assume it is good.*/
 	} else if (s->flags & GV_SD_NEWBORN) {
 		s->state = GV_SD_UP;
 		s->flags &= ~GV_SD_NEWBORN;
@@ -438,10 +437,9 @@ gv_update_plex_state(struct gv_plex *p)
 		else
 			p->state = GV_PLEX_DOWN;
 
-	/* Some of our subdisks are initializing. */
+		/* Some of our subdisks are initializing. */
 	} else if (sdstates & GV_SD_INITSTATE) {
-		if (p->flags & GV_PLEX_SYNCING ||
-		    p->flags & GV_PLEX_REBUILDING)
+		if (p->flags & GV_PLEX_SYNCING || p->flags & GV_PLEX_REBUILDING)
 			p->state = GV_PLEX_DEGRADED;
 		else
 			p->state = GV_PLEX_DOWN;
@@ -449,7 +447,7 @@ gv_update_plex_state(struct gv_plex *p)
 		p->state = GV_PLEX_DOWN;
 
 	if (p->state == GV_PLEX_UP) {
-		LIST_FOREACH(s, &p->subdisks, in_plex) {
+		LIST_FOREACH (s, &p->subdisks, in_plex) {
 			if (s->flags & GV_SD_GROW) {
 				p->state = GV_PLEX_GROWABLE;
 				break;
@@ -480,13 +478,14 @@ gv_update_vol_state(struct gv_volume *v)
 		return;
 	}
 
-	LIST_FOREACH(p, &v->plexes, in_volume) {
+	LIST_FOREACH (p, &v->plexes, in_volume) {
 		/* One of our plexes is accessible, and so are we. */
 		if (p->state > GV_PLEX_DEGRADED) {
 			v->state = GV_VOL_UP;
 			return;
 
-		/* We can handle a RAID5 plex with one dead subdisk as well. */
+			/* We can handle a RAID5 plex with one dead subdisk as
+			 * well. */
 		} else if ((p->org == GV_PLEX_RAID5) &&
 		    (p->state == GV_PLEX_DEGRADED)) {
 			v->state = GV_VOL_UP;
@@ -508,14 +507,14 @@ gv_sdstatemap(struct gv_plex *p)
 	KASSERT(p != NULL, ("gv_sdstatemap: NULL p"));
 
 	statemap = 0;
-	p->sddown = 0;	/* No subdisks down yet. */
+	p->sddown = 0; /* No subdisks down yet. */
 
-	LIST_FOREACH(s, &p->subdisks, in_plex) {
+	LIST_FOREACH (s, &p->subdisks, in_plex) {
 		switch (s->state) {
 		case GV_SD_DOWN:
 		case GV_SD_STALE:
 			statemap |= GV_SD_DOWNSTATE;
-			p->sddown++;	/* Another unusable subdisk. */
+			p->sddown++; /* Another unusable subdisk. */
 			break;
 
 		case GV_SD_UP:
@@ -528,7 +527,7 @@ gv_sdstatemap(struct gv_plex *p)
 
 		case GV_SD_REVIVING:
 			statemap |= GV_SD_INITSTATE;
-			p->sddown++;	/* XXX: Another unusable subdisk? */
+			p->sddown++; /* XXX: Another unusable subdisk? */
 			break;
 		}
 	}

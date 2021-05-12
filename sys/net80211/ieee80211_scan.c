@@ -34,25 +34,22 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
-#include <sys/proc.h>
+#include <sys/systm.h>
+#include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/condvar.h>
-
+#include <sys/proc.h>
 #include <sys/socket.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_media.h>
 #include <net/ethernet.h>
-
+#include <net/if.h>
+#include <net/if_media.h>
+#include <net/if_var.h>
 #include <net80211/ieee80211_var.h>
 
 /* XXX until it's implemented as attach ops */
-#include <net80211/ieee80211_scan_sw.h>
-
 #include <net/bpf.h>
+#include <net80211/ieee80211_scan_sw.h>
 
 /*
  * Roaming-related defaults.  RSSI thresholds are as returned by the
@@ -60,17 +57,18 @@ __FBSDID("$FreeBSD$");
  * .5M units) or MCS.
  */
 /* rssi thresholds */
-#define	ROAM_RSSI_11A_DEFAULT		14	/* 11a bss */
-#define	ROAM_RSSI_11B_DEFAULT		14	/* 11b bss */
-#define	ROAM_RSSI_11BONLY_DEFAULT	14	/* 11b-only bss */
+#define ROAM_RSSI_11A_DEFAULT 14 /* 11a bss */
+#define ROAM_RSSI_11B_DEFAULT 14 /* 11b bss */
+#define ROAM_RSSI_11BONLY_DEFAULT 14 /* 11b-only bss */
 /* transmit rate thresholds */
-#define	ROAM_RATE_11A_DEFAULT		2*12	/* 11a bss */
-#define	ROAM_RATE_11B_DEFAULT		2*5	/* 11b bss */
-#define	ROAM_RATE_11BONLY_DEFAULT	2*1	/* 11b-only bss */
-#define	ROAM_RATE_HALF_DEFAULT		2*6	/* half-width 11a/g bss */
-#define	ROAM_RATE_QUARTER_DEFAULT	2*3	/* quarter-width 11a/g bss */
-#define	ROAM_MCS_11N_DEFAULT		(1 | IEEE80211_RATE_MCS) /* 11n bss */
-#define	ROAM_MCS_11AC_DEFAULT		(1 | IEEE80211_RATE_MCS) /* 11ac bss; XXX not used yet */
+#define ROAM_RATE_11A_DEFAULT 2 * 12 /* 11a bss */
+#define ROAM_RATE_11B_DEFAULT 2 * 5 /* 11b bss */
+#define ROAM_RATE_11BONLY_DEFAULT 2 * 1 /* 11b-only bss */
+#define ROAM_RATE_HALF_DEFAULT 2 * 6 /* half-width 11a/g bss */
+#define ROAM_RATE_QUARTER_DEFAULT 2 * 3 /* quarter-width 11a/g bss */
+#define ROAM_MCS_11N_DEFAULT (1 | IEEE80211_RATE_MCS) /* 11n bss */
+#define ROAM_MCS_11AC_DEFAULT \
+	(1 | IEEE80211_RATE_MCS) /* 11ac bss; XXX not used yet */
 
 void
 ieee80211_scan_attach(struct ieee80211com *ic)
@@ -99,30 +97,30 @@ ieee80211_scan_detach(struct ieee80211com *ic)
 }
 
 static const struct ieee80211_roamparam defroam[IEEE80211_MODE_MAX] = {
-	[IEEE80211_MODE_11A]	= { .rssi = ROAM_RSSI_11A_DEFAULT,
-				    .rate = ROAM_RATE_11A_DEFAULT },
-	[IEEE80211_MODE_11G]	= { .rssi = ROAM_RSSI_11B_DEFAULT,
-				    .rate = ROAM_RATE_11B_DEFAULT },
-	[IEEE80211_MODE_11B]	= { .rssi = ROAM_RSSI_11BONLY_DEFAULT,
-				    .rate = ROAM_RATE_11BONLY_DEFAULT },
-	[IEEE80211_MODE_TURBO_A]= { .rssi = ROAM_RSSI_11A_DEFAULT,
-				    .rate = ROAM_RATE_11A_DEFAULT },
-	[IEEE80211_MODE_TURBO_G]= { .rssi = ROAM_RSSI_11A_DEFAULT,
-				    .rate = ROAM_RATE_11A_DEFAULT },
-	[IEEE80211_MODE_STURBO_A]={ .rssi = ROAM_RSSI_11A_DEFAULT,
-				    .rate = ROAM_RATE_11A_DEFAULT },
-	[IEEE80211_MODE_HALF]	= { .rssi = ROAM_RSSI_11A_DEFAULT,
-				    .rate = ROAM_RATE_HALF_DEFAULT },
-	[IEEE80211_MODE_QUARTER]= { .rssi = ROAM_RSSI_11A_DEFAULT,
-				    .rate = ROAM_RATE_QUARTER_DEFAULT },
-	[IEEE80211_MODE_11NA]	= { .rssi = ROAM_RSSI_11A_DEFAULT,
-				    .rate = ROAM_MCS_11N_DEFAULT },
-	[IEEE80211_MODE_11NG]	= { .rssi = ROAM_RSSI_11B_DEFAULT,
-				    .rate = ROAM_MCS_11N_DEFAULT },
-	[IEEE80211_MODE_VHT_2GHZ]	= { .rssi = ROAM_RSSI_11B_DEFAULT,
-				    .rate = ROAM_MCS_11AC_DEFAULT },
-	[IEEE80211_MODE_VHT_5GHZ]	= { .rssi = ROAM_RSSI_11A_DEFAULT,
-				    .rate = ROAM_MCS_11AC_DEFAULT },
+	[IEEE80211_MODE_11A] = { .rssi = ROAM_RSSI_11A_DEFAULT,
+	    .rate = ROAM_RATE_11A_DEFAULT },
+	[IEEE80211_MODE_11G] = { .rssi = ROAM_RSSI_11B_DEFAULT,
+	    .rate = ROAM_RATE_11B_DEFAULT },
+	[IEEE80211_MODE_11B] = { .rssi = ROAM_RSSI_11BONLY_DEFAULT,
+	    .rate = ROAM_RATE_11BONLY_DEFAULT },
+	[IEEE80211_MODE_TURBO_A] = { .rssi = ROAM_RSSI_11A_DEFAULT,
+	    .rate = ROAM_RATE_11A_DEFAULT },
+	[IEEE80211_MODE_TURBO_G] = { .rssi = ROAM_RSSI_11A_DEFAULT,
+	    .rate = ROAM_RATE_11A_DEFAULT },
+	[IEEE80211_MODE_STURBO_A] = { .rssi = ROAM_RSSI_11A_DEFAULT,
+	    .rate = ROAM_RATE_11A_DEFAULT },
+	[IEEE80211_MODE_HALF] = { .rssi = ROAM_RSSI_11A_DEFAULT,
+	    .rate = ROAM_RATE_HALF_DEFAULT },
+	[IEEE80211_MODE_QUARTER] = { .rssi = ROAM_RSSI_11A_DEFAULT,
+	    .rate = ROAM_RATE_QUARTER_DEFAULT },
+	[IEEE80211_MODE_11NA] = { .rssi = ROAM_RSSI_11A_DEFAULT,
+	    .rate = ROAM_MCS_11N_DEFAULT },
+	[IEEE80211_MODE_11NG] = { .rssi = ROAM_RSSI_11B_DEFAULT,
+	    .rate = ROAM_MCS_11N_DEFAULT },
+	[IEEE80211_MODE_VHT_2GHZ] = { .rssi = ROAM_RSSI_11B_DEFAULT,
+	    .rate = ROAM_MCS_11AC_DEFAULT },
+	[IEEE80211_MODE_VHT_5GHZ] = { .rssi = ROAM_RSSI_11A_DEFAULT,
+	    .rate = ROAM_MCS_11AC_DEFAULT },
 
 };
 
@@ -132,9 +130,9 @@ ieee80211_scan_vattach(struct ieee80211vap *vap)
 	struct ieee80211com *ic = vap->iv_ic;
 	int m;
 
-	vap->iv_bgscanidle = (IEEE80211_BGSCAN_IDLE_DEFAULT*1000)/hz;
-	vap->iv_bgscanintvl = IEEE80211_BGSCAN_INTVAL_DEFAULT*hz;
-	vap->iv_scanvalid = IEEE80211_SCAN_VALID_DEFAULT*hz;
+	vap->iv_bgscanidle = (IEEE80211_BGSCAN_IDLE_DEFAULT * 1000) / hz;
+	vap->iv_bgscanintvl = IEEE80211_BGSCAN_INTVAL_DEFAULT * hz;
+	vap->iv_scanvalid = IEEE80211_SCAN_VALID_DEFAULT * hz;
 
 	vap->iv_roaming = IEEE80211_ROAMING_AUTO;
 
@@ -174,13 +172,13 @@ ieee80211_scan_vdetach(struct ieee80211vap *vap)
  * Simple-minded scanner module support.
  */
 static const char *scan_modnames[IEEE80211_OPMODE_MAX] = {
-	"wlan_scan_sta",	/* IEEE80211_M_IBSS */
-	"wlan_scan_sta",	/* IEEE80211_M_STA */
-	"wlan_scan_wds",	/* IEEE80211_M_WDS */
-	"wlan_scan_sta",	/* IEEE80211_M_AHDEMO */
-	"wlan_scan_ap",		/* IEEE80211_M_HOSTAP */
-	"wlan_scan_monitor",	/* IEEE80211_M_MONITOR */
-	"wlan_scan_sta",	/* IEEE80211_M_MBSS */
+	"wlan_scan_sta",     /* IEEE80211_M_IBSS */
+	"wlan_scan_sta",     /* IEEE80211_M_STA */
+	"wlan_scan_wds",     /* IEEE80211_M_WDS */
+	"wlan_scan_sta",     /* IEEE80211_M_AHDEMO */
+	"wlan_scan_ap",	     /* IEEE80211_M_HOSTAP */
+	"wlan_scan_monitor", /* IEEE80211_M_MONITOR */
+	"wlan_scan_sta",     /* IEEE80211_M_MBSS */
 };
 static const struct ieee80211_scanner *scanners[IEEE80211_OPMODE_MAX];
 
@@ -195,8 +193,8 @@ ieee80211_scanner_get(enum ieee80211_opmode mode)
 }
 
 void
-ieee80211_scanner_register(enum ieee80211_opmode mode,
-	const struct ieee80211_scanner *scan)
+ieee80211_scanner_register(
+    enum ieee80211_opmode mode, const struct ieee80211_scanner *scan)
 {
 	if (mode >= IEEE80211_OPMODE_MAX)
 		return;
@@ -204,8 +202,8 @@ ieee80211_scanner_register(enum ieee80211_opmode mode,
 }
 
 void
-ieee80211_scanner_unregister(enum ieee80211_opmode mode,
-	const struct ieee80211_scanner *scan)
+ieee80211_scanner_unregister(
+    enum ieee80211_opmode mode, const struct ieee80211_scanner *scan)
 {
 	if (mode >= IEEE80211_OPMODE_MAX)
 		return;
@@ -232,8 +230,8 @@ ieee80211_scanner_unregister_all(const struct ieee80211_scanner *scan)
  * reflect current operating mode.
  */
 void
-ieee80211_scan_update_locked(struct ieee80211vap *vap,
-	const struct ieee80211_scanner *scan)
+ieee80211_scan_update_locked(
+    struct ieee80211vap *vap, const struct ieee80211_scanner *scan)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_scan_state *ss = ic->ic_scan;
@@ -245,10 +243,10 @@ ieee80211_scan_update_locked(struct ieee80211vap *vap,
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 		    "%s: current scanner is <%s:%s>, switch to <%s:%s>\n",
 		    __func__,
+		    ss->ss_vap != NULL ? ss->ss_vap->iv_ifp->if_xname : "none",
 		    ss->ss_vap != NULL ?
-			ss->ss_vap->iv_ifp->if_xname : "none",
-		    ss->ss_vap != NULL ?
-			ieee80211_opmode_name[ss->ss_vap->iv_opmode] : "none",
+			      ieee80211_opmode_name[ss->ss_vap->iv_opmode] :
+			      "none",
 		    vap->iv_ifp->if_xname,
 		    ieee80211_opmode_name[vap->iv_opmode]);
 	}
@@ -302,20 +300,21 @@ ieee80211_scan_dump(struct ieee80211_scan_state *ss)
 
 	if_printf(vap->iv_ifp, "scan set ");
 	ieee80211_scan_dump_channels(ss);
-	printf(" dwell min %ums max %ums\n",
-	    ticks_to_msecs(ss->ss_mindwell), ticks_to_msecs(ss->ss_maxdwell));
+	printf(" dwell min %ums max %ums\n", ticks_to_msecs(ss->ss_mindwell),
+	    ticks_to_msecs(ss->ss_maxdwell));
 }
 #endif /* IEEE80211_DEBUG */
 
 void
-ieee80211_scan_copy_ssid(struct ieee80211vap *vap, struct ieee80211_scan_state *ss,
-	int nssid, const struct ieee80211_scan_ssid ssids[])
+ieee80211_scan_copy_ssid(struct ieee80211vap *vap,
+    struct ieee80211_scan_state *ss, int nssid,
+    const struct ieee80211_scan_ssid ssids[])
 {
 	if (nssid > IEEE80211_SCAN_MAX_SSID) {
 		/* XXX printf */
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: too many ssid %d, ignoring all of them\n",
-		    __func__, nssid);
+		    "%s: too many ssid %d, ignoring all of them\n", __func__,
+		    nssid);
 		return;
 	}
 	memcpy(ss->ss_ssid, ssids, nssid * sizeof(ssids[0]));
@@ -326,9 +325,9 @@ ieee80211_scan_copy_ssid(struct ieee80211vap *vap, struct ieee80211_scan_state *
  * Start a scan unless one is already going.
  */
 int
-ieee80211_start_scan(struct ieee80211vap *vap, int flags,
-	u_int duration, u_int mindwell, u_int maxdwell,
-	u_int nssid, const struct ieee80211_scan_ssid ssids[])
+ieee80211_start_scan(struct ieee80211vap *vap, int flags, u_int duration,
+    u_int mindwell, u_int maxdwell, u_int nssid,
+    const struct ieee80211_scan_ssid ssids[])
 {
 	const struct ieee80211_scanner *scan;
 	struct ieee80211com *ic = vap->iv_ic;
@@ -336,14 +335,14 @@ ieee80211_start_scan(struct ieee80211vap *vap, int flags,
 	scan = ieee80211_scanner_get(vap->iv_opmode);
 	if (scan == NULL) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: no scanner support for %s mode\n",
-		    __func__, ieee80211_opmode_name[vap->iv_opmode]);
+		    "%s: no scanner support for %s mode\n", __func__,
+		    ieee80211_opmode_name[vap->iv_opmode]);
 		/* XXX stat */
 		return 0;
 	}
 
-	return ic->ic_scan_methods->sc_start_scan(scan, vap, flags, duration,
-	    mindwell, maxdwell, nssid, ssids);
+	return ic->ic_scan_methods->sc_start_scan(
+	    scan, vap, flags, duration, mindwell, maxdwell, nssid, ssids);
 }
 
 /*
@@ -351,9 +350,9 @@ ieee80211_start_scan(struct ieee80211vap *vap, int flags,
  * fails then kick off a new scan.
  */
 int
-ieee80211_check_scan(struct ieee80211vap *vap, int flags,
-	u_int duration, u_int mindwell, u_int maxdwell,
-	u_int nssid, const struct ieee80211_scan_ssid ssids[])
+ieee80211_check_scan(struct ieee80211vap *vap, int flags, u_int duration,
+    u_int mindwell, u_int maxdwell, u_int nssid,
+    const struct ieee80211_scan_ssid ssids[])
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_scan_state *ss = ic->ic_scan;
@@ -363,8 +362,8 @@ ieee80211_check_scan(struct ieee80211vap *vap, int flags,
 	scan = ieee80211_scanner_get(vap->iv_opmode);
 	if (scan == NULL) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: no scanner support for %s mode\n",
-		    __func__, vap->iv_opmode);
+		    "%s: no scanner support for %s mode\n", __func__,
+		    vap->iv_opmode);
 		/* XXX stat */
 		return 0;
 	}
@@ -375,16 +374,13 @@ ieee80211_check_scan(struct ieee80211vap *vap, int flags,
 	 */
 
 	IEEE80211_LOCK(ic);
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-	    "%s: %s scan, %s%s%s%s%s\n"
-	    , __func__
-	    , flags & IEEE80211_SCAN_ACTIVE ? "active" : "passive"
-	    , flags & IEEE80211_SCAN_FLUSH ? "flush" : "append"
-	    , flags & IEEE80211_SCAN_NOPICK ? ", nopick" : ""
-	    , flags & IEEE80211_SCAN_NOJOIN ? ", nojoin" : ""
-	    , flags & IEEE80211_SCAN_PICK1ST ? ", pick1st" : ""
-	    , flags & IEEE80211_SCAN_ONCE ? ", once" : ""
-	);
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: %s scan, %s%s%s%s%s\n",
+	    __func__, flags & IEEE80211_SCAN_ACTIVE ? "active" : "passive",
+	    flags & IEEE80211_SCAN_FLUSH ? "flush" : "append",
+	    flags & IEEE80211_SCAN_NOPICK ? ", nopick" : "",
+	    flags & IEEE80211_SCAN_NOJOIN ? ", nojoin" : "",
+	    flags & IEEE80211_SCAN_PICK1ST ? ", pick1st" : "",
+	    flags & IEEE80211_SCAN_ONCE ? ", once" : "");
 
 	if (ss->ss_ops != scan) {
 		/* XXX re-use cache contents? e.g. adhoc<->sta */
@@ -396,8 +392,8 @@ ieee80211_check_scan(struct ieee80211vap *vap, int flags,
 	 */
 	ieee80211_scan_update_locked(vap, scan);
 
-	result = ic->ic_scan_methods->sc_check_scan(scan, vap, flags, duration,
-	    mindwell, maxdwell, nssid, ssids);
+	result = ic->ic_scan_methods->sc_check_scan(
+	    scan, vap, flags, duration, mindwell, maxdwell, nssid, ssids);
 
 	IEEE80211_UNLOCK(ic);
 
@@ -411,10 +407,8 @@ ieee80211_check_scan(struct ieee80211vap *vap, int flags,
 int
 ieee80211_check_scan_current(struct ieee80211vap *vap)
 {
-	return ieee80211_check_scan(vap,
-	    IEEE80211_SCAN_ACTIVE,
-	    IEEE80211_SCAN_FOREVER, 0, 0,
-	    vap->iv_des_nssid, vap->iv_des_ssid);
+	return ieee80211_check_scan(vap, IEEE80211_SCAN_ACTIVE,
+	    IEEE80211_SCAN_FOREVER, 0, 0, vap->iv_des_nssid, vap->iv_des_ssid);
 }
 
 /*
@@ -432,8 +426,8 @@ ieee80211_bg_scan(struct ieee80211vap *vap, int flags)
 	scan = ieee80211_scanner_get(vap->iv_opmode);
 	if (scan == NULL) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		    "%s: no scanner support for %s mode\n",
-		    __func__, vap->iv_opmode);
+		    "%s: no scanner support for %s mode\n", __func__,
+		    vap->iv_opmode);
 		/* XXX stat */
 		return 0;
 	}
@@ -531,7 +525,7 @@ static void
 dump_country(const uint8_t *ie)
 {
 	const struct ieee80211_country_ie *cie =
-	   (const struct ieee80211_country_ie *) ie;
+	    (const struct ieee80211_country_ie *)ie;
 	int i, nbands, schan, nchan;
 
 	if (cie->len < 3) {
@@ -544,7 +538,7 @@ dump_country(const uint8_t *ie)
 		schan = cie->band[i].schan;
 		nchan = cie->band[i].nchan;
 		if (nchan != 1)
-			printf(" %u-%u,%u", schan, schan + nchan-1,
+			printf(" %u-%u,%u", schan, schan + nchan - 1,
 			    cie->band[i].maxtxpwr);
 		else
 			printf(" %u,%u", schan, cie->band[i].maxtxpwr);
@@ -554,19 +548,19 @@ dump_country(const uint8_t *ie)
 
 void
 ieee80211_scan_dump_probe_beacon(uint8_t subtype, int isnew,
-	const uint8_t mac[IEEE80211_ADDR_LEN],
-	const struct ieee80211_scanparams *sp, int rssi)
+    const uint8_t mac[IEEE80211_ADDR_LEN],
+    const struct ieee80211_scanparams *sp, int rssi)
 {
 
-	printf("[%s] %s%s on chan %u (bss chan %u) ",
-	    ether_sprintf(mac), isnew ? "new " : "",
-	    ieee80211_mgt_subtype_name(subtype), sp->chan, sp->bchan);
+	printf("[%s] %s%s on chan %u (bss chan %u) ", ether_sprintf(mac),
+	    isnew ? "new " : "", ieee80211_mgt_subtype_name(subtype), sp->chan,
+	    sp->bchan);
 	ieee80211_print_essid(sp->ssid + 2, sp->ssid[1]);
 	printf(" rssi %d\n", rssi);
 
 	if (isnew) {
-		printf("[%s] caps 0x%x bintval %u erp 0x%x", 
-			ether_sprintf(mac), sp->capinfo, sp->bintval, sp->erp);
+		printf("[%s] caps 0x%x bintval %u erp 0x%x", ether_sprintf(mac),
+		    sp->capinfo, sp->bintval, sp->erp);
 		if (sp->country != NULL)
 			dump_country(sp->country);
 		printf("\n");
@@ -578,16 +572,14 @@ ieee80211_scan_dump_probe_beacon(uint8_t subtype, int isnew,
  * Process a beacon or probe response frame.
  */
 void
-ieee80211_add_scan(struct ieee80211vap *vap,
-	struct ieee80211_channel *curchan,
-	const struct ieee80211_scanparams *sp,
-	const struct ieee80211_frame *wh,
-	int subtype, int rssi, int noise)
+ieee80211_add_scan(struct ieee80211vap *vap, struct ieee80211_channel *curchan,
+    const struct ieee80211_scanparams *sp, const struct ieee80211_frame *wh,
+    int subtype, int rssi, int noise)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 
-	return (ic->ic_scan_methods->sc_add_scan(vap, curchan, sp, wh, subtype,
-	    rssi, noise));
+	return (ic->ic_scan_methods->sc_add_scan(
+	    vap, curchan, sp, wh, subtype, rssi, noise));
 }
 
 /*
@@ -612,8 +604,8 @@ ieee80211_scan_assoc_success(struct ieee80211vap *vap, const uint8_t mac[])
 	struct ieee80211_scan_state *ss = vap->iv_ic->ic_scan;
 
 	if (ss->ss_ops != NULL) {
-		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_SCAN,
-			mac, "%s",  __func__);
+		IEEE80211_NOTE_MAC(
+		    vap, IEEE80211_MSG_SCAN, mac, "%s", __func__);
 		ss->ss_ops->scan_assoc_success(ss, mac);
 	}
 }
@@ -622,14 +614,14 @@ ieee80211_scan_assoc_success(struct ieee80211vap *vap, const uint8_t mac[])
  * Demerit a scan cache entry after failing to associate.
  */
 void
-ieee80211_scan_assoc_fail(struct ieee80211vap *vap,
-	const uint8_t mac[], int reason)
+ieee80211_scan_assoc_fail(
+    struct ieee80211vap *vap, const uint8_t mac[], int reason)
 {
 	struct ieee80211_scan_state *ss = vap->iv_ic->ic_scan;
 
 	if (ss->ss_ops != NULL) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_SCAN, mac,
-			"%s: reason %u", __func__, reason);
+		    "%s: reason %u", __func__, reason);
 		ss->ss_ops->scan_assoc_fail(ss, mac, reason);
 	}
 }
@@ -638,8 +630,8 @@ ieee80211_scan_assoc_fail(struct ieee80211vap *vap,
  * Iterate over the contents of the scan cache.
  */
 void
-ieee80211_scan_iterate(struct ieee80211vap *vap,
-	ieee80211_scan_iter_func *f, void *arg)
+ieee80211_scan_iterate(
+    struct ieee80211vap *vap, ieee80211_scan_iter_func *f, void *arg)
 {
 	struct ieee80211_scan_state *ss = vap->iv_ic->ic_scan;
 
@@ -656,7 +648,7 @@ ieee80211_scan_flush(struct ieee80211vap *vap)
 	struct ieee80211_scan_state *ss = vap->iv_ic->ic_scan;
 
 	if (ss->ss_ops != NULL && ss->ss_vap == vap) {
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s\n",  __func__);
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s\n", __func__);
 		ss->ss_ops->scan_flush(ss);
 	}
 }
@@ -679,7 +671,8 @@ ieee80211_scan_pickchannel(struct ieee80211com *ic, int flags)
 	if (ss->ss_ops->scan_pickchan == NULL) {
 		IEEE80211_DPRINTF(ss->ss_vap, IEEE80211_MSG_SCAN,
 		    "%s: scan module does not support picking a channel, "
-		    "opmode %s\n", __func__, ss->ss_vap->iv_opmode);
+		    "opmode %s\n",
+		    __func__, ss->ss_vap->iv_opmode);
 		return NULL;
 	}
 	return ss->ss_ops->scan_pickchan(ss, flags);

@@ -47,8 +47,9 @@
  *  compile time, so the macros in ring.h cannot be used to access the rings.
  */
 
-#include <stdint.h>
 #include <sys/types.h>
+
+#include <stdint.h>
 
 struct ring_shared {
 	uint32_t cons, prod;
@@ -98,4 +99,3 @@ struct vchan_interface {
 	 */
 	uint32_t grants[0];
 };
-

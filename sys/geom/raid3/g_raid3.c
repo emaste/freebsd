@@ -31,22 +31,24 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
+#include <sys/kthread.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/bio.h>
-#include <sys/sbuf.h>
-#include <sys/sysctl.h>
 #include <sys/malloc.h>
-#include <sys/eventhandler.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/sbuf.h>
+#include <sys/sched.h>
+#include <sys/sysctl.h>
+
 #include <vm/uma.h>
+
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <sys/proc.h>
-#include <sys/kthread.h>
-#include <sys/sched.h>
 #include <geom/raid3/g_raid3.h>
 
 FEATURE(geom_raid3, "GEOM RAID-3 functionality");
@@ -60,8 +62,8 @@ u_int g_raid3_debug = 0;
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, debug, CTLFLAG_RWTUN, &g_raid3_debug, 0,
     "Debug level");
 static u_int g_raid3_timeout = 4;
-SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, timeout, CTLFLAG_RWTUN, &g_raid3_timeout,
-    0, "Time to wait on all raid3 components");
+SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, timeout, CTLFLAG_RWTUN,
+    &g_raid3_timeout, 0, "Time to wait on all raid3 components");
 static u_int g_raid3_idletime = 5;
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, idletime, CTLFLAG_RWTUN,
     &g_raid3_idletime, 0, "Mark components as clean when idling");
@@ -86,36 +88,34 @@ SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, n4k, CTLFLAG_RDTUN, &g_raid3_n4k, 0,
     "Maximum number of 4kB allocations");
 
 static SYSCTL_NODE(_kern_geom_raid3, OID_AUTO, stat,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "GEOM_RAID3 statistics");
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "GEOM_RAID3 statistics");
 static u_int g_raid3_parity_mismatch = 0;
 SYSCTL_UINT(_kern_geom_raid3_stat, OID_AUTO, parity_mismatch, CTLFLAG_RD,
     &g_raid3_parity_mismatch, 0, "Number of failures in VERIFY mode");
 
-#define	MSLEEP(ident, mtx, priority, wmesg, timeout)	do {		\
-	G_RAID3_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));	\
-	msleep((ident), (mtx), (priority), (wmesg), (timeout));		\
-	G_RAID3_DEBUG(4, "%s: Woken up %p.", __func__, (ident));	\
-} while (0)
+#define MSLEEP(ident, mtx, priority, wmesg, timeout)                     \
+	do {                                                             \
+		G_RAID3_DEBUG(4, "%s: Sleeping %p.", __func__, (ident)); \
+		msleep((ident), (mtx), (priority), (wmesg), (timeout));  \
+		G_RAID3_DEBUG(4, "%s: Woken up %p.", __func__, (ident)); \
+	} while (0)
 
 static eventhandler_tag g_raid3_post_sync = NULL;
 static int g_raid3_shutdown = 0;
 
-static int g_raid3_destroy_geom(struct gctl_req *req, struct g_class *mp,
-    struct g_geom *gp);
+static int g_raid3_destroy_geom(
+    struct gctl_req *req, struct g_class *mp, struct g_geom *gp);
 static g_taste_t g_raid3_taste;
 static void g_raid3_init(struct g_class *mp);
 static void g_raid3_fini(struct g_class *mp);
 
-struct g_class g_raid3_class = {
-	.name = G_RAID3_CLASS_NAME,
+struct g_class g_raid3_class = { .name = G_RAID3_CLASS_NAME,
 	.version = G_VERSION,
 	.ctlreq = g_raid3_config,
 	.taste = g_raid3_taste,
 	.destroy_geom = g_raid3_destroy_geom,
 	.init = g_raid3_init,
-	.fini = g_raid3_fini
-};
+	.fini = g_raid3_fini };
 
 static void g_raid3_destroy_provider(struct g_raid3_softc *sc);
 static int g_raid3_update_disk(struct g_raid3_disk *disk, u_int state);
@@ -185,8 +185,8 @@ g_raid3_alloc(struct g_raid3_softc *sc, size_t size, int flags)
 	    (zone = g_raid3_zone(size)) == G_RAID3_NUM_ZONES)
 		ptr = malloc(size, M_RAID3, flags);
 	else {
-		ptr = uma_zalloc_arg(sc->sc_zones[zone].sz_zone,
-		   &sc->sc_zones[zone], flags);
+		ptr = uma_zalloc_arg(
+		    sc->sc_zones[zone].sz_zone, &sc->sc_zones[zone], flags);
 		sc->sc_zones[zone].sz_requested++;
 		if (ptr == NULL)
 			sc->sc_zones[zone].sz_failed++;
@@ -203,8 +203,8 @@ g_raid3_free(struct g_raid3_softc *sc, void *ptr, size_t size)
 	    (zone = g_raid3_zone(size)) == G_RAID3_NUM_ZONES)
 		free(ptr, M_RAID3);
 	else {
-		uma_zfree_arg(sc->sc_zones[zone].sz_zone,
-		    ptr, &sc->sc_zones[zone]);
+		uma_zfree_arg(
+		    sc->sc_zones[zone].sz_zone, ptr, &sc->sc_zones[zone]);
 	}
 }
 
@@ -227,9 +227,8 @@ g_raid3_uma_dtor(void *mem, int size, void *arg)
 	sz->sz_inuse--;
 }
 
-#define	g_raid3_xor(src, dst, size)					\
-	_g_raid3_xor((uint64_t *)(src),					\
-	    (uint64_t *)(dst), (size_t)size)
+#define g_raid3_xor(src, dst, size) \
+	_g_raid3_xor((uint64_t *)(src), (uint64_t *)(dst), (size_t)size)
 static void
 _g_raid3_xor(uint64_t *src, uint64_t *dst, size_t size)
 {
@@ -258,9 +257,8 @@ _g_raid3_xor(uint64_t *src, uint64_t *dst, size_t size)
 static int
 g_raid3_is_zero(struct bio *bp)
 {
-	static const uint64_t zeros[] = {
-	    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-	};
+	static const uint64_t zeros[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0 };
 	u_char *addr;
 	ssize_t size;
 
@@ -321,8 +319,8 @@ g_raid3_event_send(void *arg, int state, int flags)
 	sx_xunlock(&sc->sc_lock);
 	while ((ep->e_flags & G_RAID3_EVENT_DONE) == 0) {
 		mtx_lock(&sc->sc_events_mtx);
-		MSLEEP(ep, &sc->sc_events_mtx, PRIBIO | PDROP, "r3:event",
-		    hz * 5);
+		MSLEEP(
+		    ep, &sc->sc_events_mtx, PRIBIO | PDROP, "r3:event", hz * 5);
 	}
 	error = ep->e_error;
 	g_raid3_event_free(ep);
@@ -360,7 +358,7 @@ g_raid3_event_cancel(struct g_raid3_disk *disk)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 	mtx_lock(&sc->sc_events_mtx);
-	TAILQ_FOREACH_SAFE(ep, &sc->sc_events, e_next, tmpep) {
+	TAILQ_FOREACH_SAFE (ep, &sc->sc_events, e_next, tmpep) {
 		if ((ep->e_flags & G_RAID3_EVENT_DEVICE) != 0)
 			continue;
 		if (ep->e_disk != disk)
@@ -405,7 +403,7 @@ g_raid3_nrequests(struct g_raid3_softc *sc, struct g_consumer *cp)
 	u_int nreqs = 0;
 
 	mtx_lock(&sc->sc_queue_mtx);
-	TAILQ_FOREACH(bp, &sc->sc_queue.queue, bio_queue) {
+	TAILQ_FOREACH (bp, &sc->sc_queue.queue, bio_queue) {
 		if (bp->bio_from == cp)
 			nreqs++;
 	}
@@ -504,12 +502,12 @@ g_raid3_connect_disk(struct g_raid3_disk *disk, struct g_provider *pp)
 		return (error);
 	}
 	error = g_access(cp, 1, 1, 1);
-		g_topology_unlock();
+	g_topology_unlock();
 	if (error != 0) {
 		g_detach(cp);
 		g_destroy_consumer(cp);
-		G_RAID3_DEBUG(0, "Cannot open consumer %s (error=%d).",
-		    pp->name, error);
+		G_RAID3_DEBUG(
+		    0, "Cannot open consumer %s (error=%d).", pp->name, error);
 		return (error);
 	}
 	disk->d_consumer = cp;
@@ -591,9 +589,9 @@ g_raid3_destroy_disk(struct g_raid3_disk *disk)
 		disk->d_consumer = NULL;
 		break;
 	default:
-		KASSERT(0 == 1, ("Wrong disk state (%s, %s).",
-		    g_raid3_get_diskname(disk),
-		    g_raid3_disk_state2str(disk->d_state)));
+		KASSERT(0 == 1,
+		    ("Wrong disk state (%s, %s).", g_raid3_get_diskname(disk),
+			g_raid3_disk_state2str(disk->d_state)));
 	}
 	disk->d_state = G_RAID3_DISK_STATE_NODISK;
 }
@@ -665,8 +663,8 @@ g_raid3_orphan(struct g_consumer *cp)
 	if (disk == NULL)
 		return;
 	disk->d_softc->sc_bump_id = G_RAID3_BUMP_SYNCID;
-	g_raid3_event_send(disk, G_RAID3_DISK_STATE_DISCONNECTED,
-	    G_RAID3_EVENT_DONTWAIT);
+	g_raid3_event_send(
+	    disk, G_RAID3_DISK_STATE_DISCONNECTED, G_RAID3_EVENT_DONTWAIT);
 }
 
 static int
@@ -687,7 +685,7 @@ g_raid3_write_metadata(struct g_raid3_disk *disk, struct g_raid3_metadata *md)
 	KASSERT(cp->provider != NULL, ("NULL provider (%s).", sc->sc_name));
 	KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 	    ("Consumer %s closed? (r%dw%de%d).", cp->provider->name, cp->acr,
-	    cp->acw, cp->ace));
+		cp->acw, cp->ace));
 	length = cp->provider->sectorsize;
 	offset = cp->provider->mediasize - length;
 	sector = malloc((size_t)length, M_RAID3, M_WAITOK | M_ZERO);
@@ -697,12 +695,14 @@ g_raid3_write_metadata(struct g_raid3_disk *disk, struct g_raid3_metadata *md)
 	free(sector, M_RAID3);
 	if (error != 0) {
 		if ((disk->d_flags & G_RAID3_DISK_FLAG_BROKEN) == 0) {
-			G_RAID3_DEBUG(0, "Cannot write metadata on %s "
+			G_RAID3_DEBUG(0,
+			    "Cannot write metadata on %s "
 			    "(device=%s, error=%d).",
 			    g_raid3_get_diskname(disk), sc->sc_name, error);
 			disk->d_flags |= G_RAID3_DISK_FLAG_BROKEN;
 		} else {
-			G_RAID3_DEBUG(1, "Cannot write metadata on %s "
+			G_RAID3_DEBUG(1,
+			    "Cannot write metadata on %s "
 			    "(device=%s, error=%d).",
 			    g_raid3_get_diskname(disk), sc->sc_name, error);
 		}
@@ -727,11 +727,10 @@ g_raid3_clear_metadata(struct g_raid3_disk *disk)
 
 	error = g_raid3_write_metadata(disk, NULL);
 	if (error == 0) {
-		G_RAID3_DEBUG(2, "Metadata on %s cleared.",
-		    g_raid3_get_diskname(disk));
+		G_RAID3_DEBUG(
+		    2, "Metadata on %s cleared.", g_raid3_get_diskname(disk));
 	} else {
-		G_RAID3_DEBUG(0,
-		    "Cannot clear metadata on disk %s (error=%d).",
+		G_RAID3_DEBUG(0, "Cannot clear metadata on disk %s (error=%d).",
 		    g_raid3_get_diskname(disk), error);
 	}
 	return (error);
@@ -759,8 +758,8 @@ g_raid3_fill_metadata(struct g_raid3_disk *disk, struct g_raid3_metadata *md)
 	if (disk->d_state != G_RAID3_DISK_STATE_SYNCHRONIZING)
 		md->md_sync_offset = 0;
 	else {
-		md->md_sync_offset =
-		    disk->d_sync.ds_offset_done / (sc->sc_ndisks - 1);
+		md->md_sync_offset = disk->d_sync.ds_offset_done /
+		    (sc->sc_ndisks - 1);
 	}
 	if (disk->d_consumer != NULL && disk->d_consumer->provider != NULL)
 		pp = disk->d_consumer->provider;
@@ -790,8 +789,8 @@ g_raid3_update_metadata(struct g_raid3_disk *disk)
 	g_raid3_fill_metadata(disk, &md);
 	error = g_raid3_write_metadata(disk, &md);
 	if (error == 0) {
-		G_RAID3_DEBUG(2, "Metadata on %s updated.",
-		    g_raid3_get_diskname(disk));
+		G_RAID3_DEBUG(
+		    2, "Metadata on %s updated.", g_raid3_get_diskname(disk));
 	} else {
 		G_RAID3_DEBUG(0,
 		    "Cannot update metadata on disk %s (error=%d).",
@@ -809,11 +808,11 @@ g_raid3_bump_syncid(struct g_raid3_softc *sc)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 	KASSERT(g_raid3_ndisks(sc, G_RAID3_DISK_STATE_ACTIVE) > 0,
 	    ("%s called with no active disks (device=%s).", __func__,
-	    sc->sc_name));
+		sc->sc_name));
 
 	sc->sc_syncid++;
-	G_RAID3_DEBUG(1, "Device %s: syncid bumped to %u.", sc->sc_name,
-	    sc->sc_syncid);
+	G_RAID3_DEBUG(
+	    1, "Device %s: syncid bumped to %u.", sc->sc_name, sc->sc_syncid);
 	for (n = 0; n < sc->sc_ndisks; n++) {
 		disk = &sc->sc_disks[n];
 		if (disk->d_state == G_RAID3_DISK_STATE_ACTIVE ||
@@ -834,11 +833,11 @@ g_raid3_bump_genid(struct g_raid3_softc *sc)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 	KASSERT(g_raid3_ndisks(sc, G_RAID3_DISK_STATE_ACTIVE) > 0,
 	    ("%s called with no active disks (device=%s).", __func__,
-	    sc->sc_name));
+		sc->sc_name));
 
 	sc->sc_genid++;
-	G_RAID3_DEBUG(1, "Device %s: genid bumped to %u.", sc->sc_name,
-	    sc->sc_genid);
+	G_RAID3_DEBUG(
+	    1, "Device %s: genid bumped to %u.", sc->sc_name, sc->sc_genid);
 	for (n = 0; n < sc->sc_ndisks; n++) {
 		disk = &sc->sc_disks[n];
 		if (disk->d_state == G_RAID3_DISK_STATE_ACTIVE ||
@@ -913,18 +912,18 @@ g_raid3_unidle(struct g_raid3_softc *sc)
  * Treat bio_driver1 field in parent bio as list head and field bio_caller1
  * in child bio as pointer to the next element on the list.
  */
-#define	G_RAID3_HEAD_BIO(pbp)	(pbp)->bio_driver1
+#define G_RAID3_HEAD_BIO(pbp) (pbp)->bio_driver1
 
-#define	G_RAID3_NEXT_BIO(cbp)	(cbp)->bio_caller1
+#define G_RAID3_NEXT_BIO(cbp) (cbp)->bio_caller1
 
-#define	G_RAID3_FOREACH_BIO(pbp, bp)					\
-	for ((bp) = G_RAID3_HEAD_BIO(pbp); (bp) != NULL;		\
-	    (bp) = G_RAID3_NEXT_BIO(bp))
+#define G_RAID3_FOREACH_BIO(pbp, bp)                     \
+	for ((bp) = G_RAID3_HEAD_BIO(pbp); (bp) != NULL; \
+	     (bp) = G_RAID3_NEXT_BIO(bp))
 
-#define	G_RAID3_FOREACH_SAFE_BIO(pbp, bp, tmpbp)			\
-	for ((bp) = G_RAID3_HEAD_BIO(pbp);				\
-	    (bp) != NULL && ((tmpbp) = G_RAID3_NEXT_BIO(bp), 1);	\
-	    (bp) = (tmpbp))
+#define G_RAID3_FOREACH_SAFE_BIO(pbp, bp, tmpbp)                  \
+	for ((bp) = G_RAID3_HEAD_BIO(pbp);                        \
+	     (bp) != NULL && ((tmpbp) = G_RAID3_NEXT_BIO(bp), 1); \
+	     (bp) = (tmpbp))
 
 static void
 g_raid3_init_bio(struct bio *pbp)
@@ -942,7 +941,8 @@ g_raid3_remove_bio(struct bio *cbp)
 	if (G_RAID3_HEAD_BIO(pbp) == cbp)
 		G_RAID3_HEAD_BIO(pbp) = G_RAID3_NEXT_BIO(cbp);
 	else {
-		G_RAID3_FOREACH_BIO(pbp, bp) {
+		G_RAID3_FOREACH_BIO(pbp, bp)
+		{
 			if (G_RAID3_NEXT_BIO(bp) == cbp) {
 				G_RAID3_NEXT_BIO(bp) = G_RAID3_NEXT_BIO(cbp);
 				break;
@@ -963,7 +963,8 @@ g_raid3_replace_bio(struct bio *sbp, struct bio *dbp)
 	if (G_RAID3_HEAD_BIO(pbp) == dbp)
 		G_RAID3_HEAD_BIO(pbp) = sbp;
 	else {
-		G_RAID3_FOREACH_BIO(pbp, bp) {
+		G_RAID3_FOREACH_BIO(pbp, bp)
+		{
 			if (G_RAID3_NEXT_BIO(bp) == dbp) {
 				G_RAID3_NEXT_BIO(bp) = sbp;
 				break;
@@ -989,7 +990,8 @@ g_raid3_destroy_bio(struct g_raid3_softc *sc, struct bio *cbp)
 		G_RAID3_NEXT_BIO(cbp) = NULL;
 		g_destroy_bio(cbp);
 	} else {
-		G_RAID3_FOREACH_BIO(pbp, bp) {
+		G_RAID3_FOREACH_BIO(pbp, bp)
+		{
 			if (G_RAID3_NEXT_BIO(bp) == cbp)
 				break;
 		}
@@ -1028,7 +1030,8 @@ g_raid3_clone_bio(struct g_raid3_softc *sc, struct bio *pbp)
 	if (G_RAID3_HEAD_BIO(pbp) == NULL)
 		G_RAID3_HEAD_BIO(pbp) = cbp;
 	else {
-		G_RAID3_FOREACH_BIO(pbp, bp) {
+		G_RAID3_FOREACH_BIO(pbp, bp)
+		{
 			if (G_RAID3_NEXT_BIO(bp) == NULL) {
 				G_RAID3_NEXT_BIO(bp) = cbp;
 				break;
@@ -1053,7 +1056,8 @@ g_raid3_scatter(struct bio *pbp)
 		/*
 		 * Find bio for which we should calculate data.
 		 */
-		G_RAID3_FOREACH_BIO(pbp, cbp) {
+		G_RAID3_FOREACH_BIO(pbp, cbp)
+		{
 			if ((cbp->bio_cflags & G_RAID3_BIO_CFLAG_PARITY) != 0) {
 				bp = cbp;
 				break;
@@ -1064,7 +1068,8 @@ g_raid3_scatter(struct bio *pbp)
 	atom = sc->sc_sectorsize / (sc->sc_ndisks - 1);
 	cadd = padd = 0;
 	for (left = pbp->bio_length; left > 0; left -= sc->sc_sectorsize) {
-		G_RAID3_FOREACH_BIO(pbp, cbp) {
+		G_RAID3_FOREACH_BIO(pbp, cbp)
+		{
 			if (cbp == bp)
 				continue;
 			bcopy(pbp->bio_data + padd, cbp->bio_data + cadd, atom);
@@ -1077,7 +1082,8 @@ g_raid3_scatter(struct bio *pbp)
 		 * Calculate parity.
 		 */
 		first = 1;
-		G_RAID3_FOREACH_SAFE_BIO(pbp, cbp, tmpbp) {
+		G_RAID3_FOREACH_SAFE_BIO(pbp, cbp, tmpbp)
+		{
 			if (cbp == bp)
 				continue;
 			if (first) {
@@ -1092,7 +1098,8 @@ g_raid3_scatter(struct bio *pbp)
 				g_raid3_destroy_bio(sc, cbp);
 		}
 	}
-	G_RAID3_FOREACH_SAFE_BIO(pbp, cbp, tmpbp) {
+	G_RAID3_FOREACH_SAFE_BIO(pbp, cbp, tmpbp)
+	{
 		struct g_consumer *cp;
 
 		disk = cbp->bio_caller2;
@@ -1101,7 +1108,7 @@ g_raid3_scatter(struct bio *pbp)
 		G_RAID3_LOGREQ(3, cbp, "Sending request.");
 		KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
-		    cp->acr, cp->acw, cp->ace));
+			cp->acr, cp->acw, cp->ace));
 		cp->index++;
 		sc->sc_writes++;
 		g_io_request(cbp, cp);
@@ -1126,7 +1133,8 @@ g_raid3_gather(struct bio *pbp)
 	 * If there are more failed requests, we deny whole request.
 	 */
 	xbp = fbp = NULL;
-	G_RAID3_FOREACH_BIO(pbp, cbp) {
+	G_RAID3_FOREACH_BIO(pbp, cbp)
+	{
 		if ((cbp->bio_cflags & G_RAID3_BIO_CFLAG_PARITY) != 0) {
 			KASSERT(xbp == NULL, ("More than one parity bio."));
 			xbp = cbp;
@@ -1137,7 +1145,8 @@ g_raid3_gather(struct bio *pbp)
 		 * Found failed request.
 		 */
 		if (fbp == NULL) {
-			if ((pbp->bio_pflags & G_RAID3_BIO_PFLAG_DEGRADED) != 0) {
+			if ((pbp->bio_pflags & G_RAID3_BIO_PFLAG_DEGRADED) !=
+			    0) {
 				/*
 				 * We are already in degraded mode, so we can't
 				 * accept any failures.
@@ -1207,7 +1216,7 @@ g_raid3_gather(struct bio *pbp)
 		G_RAID3_LOGREQ(3, fbp, "Sending request (recover).");
 		KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
-		    cp->acr, cp->acw, cp->ace));
+			cp->acr, cp->acw, cp->ace));
 		cp->index++;
 		g_io_request(fbp, cp);
 		return;
@@ -1216,11 +1225,12 @@ g_raid3_gather(struct bio *pbp)
 		/*
 		 * Calculate parity.
 		 */
-		G_RAID3_FOREACH_BIO(pbp, cbp) {
+		G_RAID3_FOREACH_BIO(pbp, cbp)
+		{
 			if ((cbp->bio_cflags & G_RAID3_BIO_CFLAG_PARITY) != 0)
 				continue;
-			g_raid3_xor(cbp->bio_data, xbp->bio_data,
-			    xbp->bio_length);
+			g_raid3_xor(
+			    cbp->bio_data, xbp->bio_data, xbp->bio_length);
 		}
 		xbp->bio_cflags &= ~G_RAID3_BIO_CFLAG_PARITY;
 		if ((pbp->bio_pflags & G_RAID3_BIO_PFLAG_VERIFY) != 0) {
@@ -1235,7 +1245,8 @@ g_raid3_gather(struct bio *pbp)
 	atom = sc->sc_sectorsize / (sc->sc_ndisks - 1);
 	cadd = padd = 0;
 	for (left = pbp->bio_length; left > 0; left -= sc->sc_sectorsize) {
-		G_RAID3_FOREACH_BIO(pbp, cbp) {
+		G_RAID3_FOREACH_BIO(pbp, cbp)
+		{
 			bcopy(cbp->bio_data + cadd, pbp->bio_data + padd, atom);
 			pbp->bio_completed += atom;
 			padd += atom;
@@ -1264,7 +1275,8 @@ g_raid3_done(struct bio *bp)
 
 	sc = bp->bio_from->geom->softc;
 	bp->bio_cflags |= G_RAID3_BIO_CFLAG_REGULAR;
-	G_RAID3_LOGREQ(3, bp, "Regular request done (error=%d).", bp->bio_error);
+	G_RAID3_LOGREQ(
+	    3, bp, "Regular request done (error=%d).", bp->bio_error);
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_insert_head(&sc->sc_queue, bp);
 	mtx_unlock(&sc->sc_queue_mtx);
@@ -1297,7 +1309,7 @@ g_raid3_regular_request(struct bio *cbp)
 	pbp->bio_inbed++;
 	KASSERT(pbp->bio_inbed <= pbp->bio_children,
 	    ("bio_inbed (%u) is bigger than bio_children (%u).", pbp->bio_inbed,
-	    pbp->bio_children));
+		pbp->bio_children));
 	if (pbp->bio_inbed != pbp->bio_children)
 		return;
 	switch (pbp->bio_cmd) {
@@ -1305,8 +1317,7 @@ g_raid3_regular_request(struct bio *cbp)
 		g_raid3_gather(pbp);
 		break;
 	case BIO_WRITE:
-	case BIO_DELETE:
-	    {
+	case BIO_DELETE: {
 		int error = 0;
 
 		pbp->bio_completed = pbp->bio_length;
@@ -1361,7 +1372,7 @@ g_raid3_regular_request(struct bio *cbp)
 		g_raid3_sync_release(sc);
 		g_io_deliver(pbp, pbp->bio_error);
 		break;
-	    }
+	}
 	}
 }
 
@@ -1397,7 +1408,7 @@ g_raid3_flush(struct g_raid3_softc *sc, struct bio *bp)
 		cbp = g_clone_bio(bp);
 		if (cbp == NULL) {
 			for (cbp = bioq_first(&queue); cbp != NULL;
-			    cbp = bioq_first(&queue)) {
+			     cbp = bioq_first(&queue)) {
 				bioq_remove(&queue, cbp);
 				g_destroy_bio(cbp);
 			}
@@ -1419,7 +1430,7 @@ g_raid3_flush(struct g_raid3_softc *sc, struct bio *bp)
 		cp = disk->d_consumer;
 		KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
-		    cp->acr, cp->acw, cp->ace));
+			cp->acr, cp->acw, cp->ace));
 		g_io_request(cbp, disk->d_consumer);
 	}
 }
@@ -1434,10 +1445,11 @@ g_raid3_start(struct bio *bp)
 	 * If sc == NULL or there are no valid disks, provider's error
 	 * should be set and g_raid3_start() should not be called at all.
 	 */
-	KASSERT(sc != NULL && (sc->sc_state == G_RAID3_DEVICE_STATE_DEGRADED ||
-	    sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE),
+	KASSERT(sc != NULL &&
+		(sc->sc_state == G_RAID3_DEVICE_STATE_DEGRADED ||
+		    sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE),
 	    ("Provider's error should be set (error=%d)(device=%s).",
-	    bp->bio_to->error, bp->bio_to->name));
+		bp->bio_to->error, bp->bio_to->name));
 	G_RAID3_LOGREQ(3, bp, "Request received.");
 
 	switch (bp->bio_cmd) {
@@ -1509,7 +1521,7 @@ g_raid3_regular_collision(struct g_raid3_softc *sc, struct bio *sbp)
 		return (0);
 	sstart = sbp->bio_offset;
 	send = sstart + sbp->bio_length;
-	TAILQ_FOREACH(bp, &sc->sc_inflight.queue, bio_queue) {
+	TAILQ_FOREACH (bp, &sc->sc_inflight.queue, bio_queue) {
 		rstart = bp->bio_offset;
 		rend = bp->bio_offset + bp->bio_length;
 		if (rend > sstart && rstart < send)
@@ -1549,7 +1561,7 @@ g_raid3_regular_release(struct g_raid3_softc *sc)
 {
 	struct bio *bp, *bp2;
 
-	TAILQ_FOREACH_SAFE(bp, &sc->sc_regular_delayed.queue, bio_queue, bp2) {
+	TAILQ_FOREACH_SAFE (bp, &sc->sc_regular_delayed.queue, bio_queue, bp2) {
 		if (g_raid3_sync_collision(sc, bp))
 			continue;
 		bioq_remove(&sc->sc_regular_delayed, bp);
@@ -1576,12 +1588,12 @@ g_raid3_sync_release(struct g_raid3_softc *sc)
 {
 	struct bio *bp, *bp2;
 
-	TAILQ_FOREACH_SAFE(bp, &sc->sc_sync_delayed.queue, bio_queue, bp2) {
+	TAILQ_FOREACH_SAFE (bp, &sc->sc_sync_delayed.queue, bio_queue, bp2) {
 		if (g_raid3_regular_collision(sc, bp))
 			continue;
 		bioq_remove(&sc->sc_sync_delayed, bp);
-		G_RAID3_LOGREQ(2, bp,
-		    "Releasing delayed synchronization request.");
+		G_RAID3_LOGREQ(
+		    2, bp, "Releasing delayed synchronization request.");
 		g_io_request(bp, bp->bio_from);
 	}
 }
@@ -1589,9 +1601,9 @@ g_raid3_sync_release(struct g_raid3_softc *sc)
 /*
  * Handle synchronization requests.
  * Every synchronization request is two-steps process: first, READ request is
- * send to active provider and then WRITE request (with read data) to the provider
- * being synchronized. When WRITE is finished, new synchronization request is
- * send.
+ * send to active provider and then WRITE request (with read data) to the
+ * provider being synchronized. When WRITE is finished, new synchronization
+ * request is send.
  */
 static void
 g_raid3_sync_request(struct bio *bp)
@@ -1617,8 +1629,7 @@ g_raid3_sync_request(struct bio *bp)
 	 * Synchronization request.
 	 */
 	switch (bp->bio_cmd) {
-	case BIO_READ:
-	    {
+	case BIO_READ: {
 		struct g_consumer *cp;
 		u_char *dst, *src;
 		off_t left;
@@ -1639,7 +1650,7 @@ g_raid3_sync_request(struct bio *bp)
 
 			/* Parity component. */
 			for (left = bp->bio_length; left > 0;
-			    left -= sc->sc_sectorsize) {
+			     left -= sc->sc_sectorsize) {
 				bcopy(src, dst, atom);
 				src += atom;
 				for (n = 1; n < sc->sc_ndisks - 1; n++) {
@@ -1652,7 +1663,7 @@ g_raid3_sync_request(struct bio *bp)
 			/* Regular component. */
 			src += atom * disk->d_no;
 			for (left = bp->bio_length; left > 0;
-			    left -= sc->sc_sectorsize) {
+			     left -= sc->sc_sectorsize) {
 				bcopy(src, dst, atom);
 				src += sc->sc_sectorsize;
 				dst += atom;
@@ -1668,13 +1679,12 @@ g_raid3_sync_request(struct bio *bp)
 		cp = disk->d_consumer;
 		KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
-		    cp->acr, cp->acw, cp->ace));
+			cp->acr, cp->acw, cp->ace));
 		cp->index++;
 		g_io_request(bp, cp);
 		return;
-	    }
-	case BIO_WRITE:
-	    {
+	}
+	case BIO_WRITE: {
 		struct g_raid3_disk_sync *sync;
 		off_t boffset, moffset;
 		void *data;
@@ -1723,7 +1733,8 @@ g_raid3_sync_request(struct bio *bp)
 		g_reset_bio(bp);
 		bp->bio_cmd = BIO_READ;
 		bp->bio_offset = sync->ds_offset * (sc->sc_ndisks - 1);
-		bp->bio_length = MIN(maxphys, sc->sc_mediasize - bp->bio_offset);
+		bp->bio_length = MIN(
+		    maxphys, sc->sc_mediasize - bp->bio_offset);
 		sync->ds_offset += bp->bio_length / (sc->sc_ndisks - 1);
 		bp->bio_done = g_raid3_sync_done;
 		bp->bio_data = data;
@@ -1758,10 +1769,11 @@ g_raid3_sync_request(struct bio *bp)
 			g_raid3_update_metadata(disk);
 		}
 		return;
-	    }
+	}
 	default:
-		KASSERT(1 == 0, ("Invalid command here: %u (device=%s)",
-		    bp->bio_cmd, sc->sc_name));
+		KASSERT(1 == 0,
+		    ("Invalid command here: %u (device=%s)", bp->bio_cmd,
+			sc->sc_name));
 		break;
 	}
 }
@@ -1840,8 +1852,8 @@ g_raid3_register_request(struct bio *pbp)
 			 * of our consumers.  Our own sync requests
 			 * can stick around, as they are finite.
 			 */
-			if ((pbp->bio_cflags &
-			    G_RAID3_BIO_CFLAG_REGULAR) != 0) {
+			if ((pbp->bio_cflags & G_RAID3_BIO_CFLAG_REGULAR) !=
+			    0) {
 				g_io_deliver(pbp, ENOMEM);
 				return (0);
 			}
@@ -1881,7 +1893,8 @@ g_raid3_register_request(struct bio *pbp)
 			    disk->d_state == G_RAID3_DISK_STATE_SYNCHRONIZING) {
 				if (n == ndisks - 1) {
 					/*
-					 * Active parity component, mark it as such.
+					 * Active parity component, mark it as
+					 * such.
 					 */
 					cbp->bio_cflags |=
 					    G_RAID3_BIO_CFLAG_PARITY;
@@ -1918,14 +1931,15 @@ g_raid3_register_request(struct bio *pbp)
 			 */
 			sc->sc_round_robin = 0;
 		}
-		G_RAID3_FOREACH_SAFE_BIO(pbp, cbp, tmpbp) {
+		G_RAID3_FOREACH_SAFE_BIO(pbp, cbp, tmpbp)
+		{
 			disk = cbp->bio_caller2;
 			cp = disk->d_consumer;
 			cbp->bio_to = cp->provider;
 			G_RAID3_LOGREQ(3, cbp, "Sending request.");
 			KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
 			    ("Consumer %s not opened (r%dw%de%d).",
-			    cp->provider->name, cp->acr, cp->acw, cp->ace));
+				cp->provider->name, cp->acr, cp->acw, cp->ace));
 			cp->index++;
 			g_io_request(cbp, cp);
 		}
@@ -1961,17 +1975,17 @@ g_raid3_can_destroy(struct g_raid3_softc *sc)
 	gp = sc->sc_geom;
 	if (gp->softc == NULL)
 		return (1);
-	LIST_FOREACH(cp, &gp->consumer, consumer) {
+	LIST_FOREACH (cp, &gp->consumer, consumer) {
 		if (g_raid3_is_busy(sc, cp))
 			return (0);
 	}
 	gp = sc->sc_sync.ds_geom;
-	LIST_FOREACH(cp, &gp->consumer, consumer) {
+	LIST_FOREACH (cp, &gp->consumer, consumer) {
 		if (g_raid3_is_busy(sc, cp))
 			return (0);
 	}
-	G_RAID3_DEBUG(2, "No I/O requests for %s, it can be destroyed.",
-	    sc->sc_name);
+	G_RAID3_DEBUG(
+	    2, "No I/O requests for %s, it can be destroyed.", sc->sc_name);
 	return (1);
 }
 
@@ -1983,8 +1997,8 @@ g_raid3_try_destroy(struct g_raid3_softc *sc)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 	if (sc->sc_rootmount != NULL) {
-		G_RAID3_DEBUG(1, "root_mount_rel[%u] %p", __LINE__,
-		    sc->sc_rootmount);
+		G_RAID3_DEBUG(
+		    1, "root_mount_rel[%u] %p", __LINE__, sc->sc_rootmount);
 		root_mount_rel(sc->sc_rootmount);
 		sc->sc_rootmount = NULL;
 	}
@@ -1998,8 +2012,7 @@ g_raid3_try_destroy(struct g_raid3_softc *sc)
 	sc->sc_sync.ds_geom->softc = NULL;
 	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_WAIT) != 0) {
 		g_topology_unlock();
-		G_RAID3_DEBUG(4, "%s: Waking up %p.", __func__,
-		    &sc->sc_worker);
+		G_RAID3_DEBUG(4, "%s: Waking up %p.", __func__, &sc->sc_worker);
 		/* Unlock sc_lock here, as it can be destroyed after wakeup. */
 		sx_xunlock(&sc->sc_lock);
 		wakeup(&sc->sc_worker);
@@ -2041,17 +2054,16 @@ g_raid3_worker(void *arg)
 			g_raid3_event_remove(sc, ep);
 			if ((ep->e_flags & G_RAID3_EVENT_DEVICE) != 0) {
 				/* Update only device status. */
-				G_RAID3_DEBUG(3,
-				    "Running event for device %s.",
+				G_RAID3_DEBUG(3, "Running event for device %s.",
 				    sc->sc_name);
 				ep->e_error = 0;
 				g_raid3_update_device(sc, 1);
 			} else {
 				/* Update disk status. */
 				G_RAID3_DEBUG(3, "Running event for disk %s.",
-				     g_raid3_get_diskname(ep->e_disk));
-				ep->e_error = g_raid3_update_disk(ep->e_disk,
-				    ep->e_state);
+				    g_raid3_get_diskname(ep->e_disk));
+				ep->e_error = g_raid3_update_disk(
+				    ep->e_disk, ep->e_state);
 				if (ep->e_error == 0)
 					g_raid3_update_device(sc, 0);
 			}
@@ -2061,14 +2073,13 @@ g_raid3_worker(void *arg)
 				g_raid3_event_free(ep);
 			} else {
 				ep->e_flags |= G_RAID3_EVENT_DONE;
-				G_RAID3_DEBUG(4, "%s: Waking up %p.", __func__,
-				    ep);
+				G_RAID3_DEBUG(
+				    4, "%s: Waking up %p.", __func__, ep);
 				mtx_lock(&sc->sc_events_mtx);
 				wakeup(ep);
 				mtx_unlock(&sc->sc_events_mtx);
 			}
-			if ((sc->sc_flags &
-			    G_RAID3_DEVICE_FLAG_DESTROY) != 0) {
+			if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_DESTROY) != 0) {
 				if (g_raid3_try_destroy(sc)) {
 					curthread->td_pflags &= ~TDP_GEOM;
 					G_RAID3_DEBUG(1, "Thread exiting.");
@@ -2090,8 +2101,7 @@ g_raid3_worker(void *arg)
 		mtx_lock(&sc->sc_queue_mtx);
 		bp = bioq_first(&sc->sc_queue);
 		if (bp == NULL) {
-			if ((sc->sc_flags &
-			    G_RAID3_DEVICE_FLAG_DESTROY) != 0) {
+			if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_DESTROY) != 0) {
 				mtx_unlock(&sc->sc_queue_mtx);
 				if (g_raid3_try_destroy(sc)) {
 					curthread->td_pflags &= ~TDP_GEOM;
@@ -2116,22 +2126,22 @@ g_raid3_worker(void *arg)
 			G_RAID3_DEBUG(5, "%s: I'm here 4.", __func__);
 			continue;
 		}
-process:
+	process:
 		bioq_remove(&sc->sc_queue, bp);
 		mtx_unlock(&sc->sc_queue_mtx);
 
 		if (bp->bio_from->geom == sc->sc_sync.ds_geom &&
 		    (bp->bio_cflags & G_RAID3_BIO_CFLAG_SYNC) != 0) {
-			g_raid3_sync_request(bp);	/* READ */
+			g_raid3_sync_request(bp); /* READ */
 		} else if (bp->bio_to != sc->sc_provider) {
 			if ((bp->bio_cflags & G_RAID3_BIO_CFLAG_REGULAR) != 0)
 				g_raid3_regular_request(bp);
 			else if ((bp->bio_cflags & G_RAID3_BIO_CFLAG_SYNC) != 0)
-				g_raid3_sync_request(bp);	/* WRITE */
+				g_raid3_sync_request(bp); /* WRITE */
 			else {
 				KASSERT(0,
 				    ("Invalid request cflags=0x%hx to=%s.",
-				    bp->bio_cflags, bp->bio_to->name));
+					bp->bio_cflags, bp->bio_to->name));
 			}
 		} else if (g_raid3_register_request(bp) != 0) {
 			mtx_lock(&sc->sc_queue_mtx);
@@ -2140,7 +2150,7 @@ process:
 			 * We are short in memory, let see if there are finished
 			 * request we can free.
 			 */
-			TAILQ_FOREACH(bp, &sc->sc_queue.queue, bio_queue) {
+			TAILQ_FOREACH (bp, &sc->sc_queue.queue, bio_queue) {
 				if (bp->bio_cflags & G_RAID3_BIO_CFLAG_REGULAR)
 					goto process;
 			}
@@ -2148,7 +2158,7 @@ process:
 			 * No finished regular request, so at least keep
 			 * synchronization running.
 			 */
-			TAILQ_FOREACH(bp, &sc->sc_queue.queue, bio_queue) {
+			TAILQ_FOREACH (bp, &sc->sc_queue.queue, bio_queue) {
 				if (bp->bio_cflags & G_RAID3_BIO_CFLAG_SYNC)
 					goto process;
 			}
@@ -2194,9 +2204,9 @@ g_raid3_sync_start(struct g_raid3_softc *sc)
 
 	KASSERT(sc->sc_state == G_RAID3_DEVICE_STATE_DEGRADED,
 	    ("Device not in DEGRADED state (%s, %u).", sc->sc_name,
-	    sc->sc_state));
-	KASSERT(sc->sc_syncdisk == NULL, ("Syncdisk is not NULL (%s, %u).",
-	    sc->sc_name, sc->sc_state));
+		sc->sc_state));
+	KASSERT(sc->sc_syncdisk == NULL,
+	    ("Syncdisk is not NULL (%s, %u).", sc->sc_name, sc->sc_state));
 	disk = NULL;
 	for (n = 0; n < sc->sc_ndisks; n++) {
 		if (sc->sc_disks[n].d_state != G_RAID3_DISK_STATE_SYNCHRONIZING)
@@ -2223,8 +2233,8 @@ g_raid3_sync_start(struct g_raid3_softc *sc)
 	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_NOFAILSYNC) == 0)
 		disk->d_flags |= G_RAID3_DISK_FLAG_DIRTY;
 	KASSERT(disk->d_sync.ds_consumer == NULL,
-	    ("Sync consumer already exists (device=%s, disk=%s).",
-	    sc->sc_name, g_raid3_get_diskname(disk)));
+	    ("Sync consumer already exists (device=%s, disk=%s).", sc->sc_name,
+		g_raid3_get_diskname(disk)));
 
 	disk->d_sync.ds_consumer = cp;
 	disk->d_sync.ds_consumer->private = disk;
@@ -2234,8 +2244,8 @@ g_raid3_sync_start(struct g_raid3_softc *sc)
 	/*
 	 * Allocate memory for synchronization bios and initialize them.
 	 */
-	disk->d_sync.ds_bios = malloc(sizeof(struct bio *) * g_raid3_syncreqs,
-	    M_RAID3, M_WAITOK);
+	disk->d_sync.ds_bios = malloc(
+	    sizeof(struct bio *) * g_raid3_syncreqs, M_RAID3, M_WAITOK);
 	for (n = 0; n < g_raid3_syncreqs; n++) {
 		bp = g_alloc_bio();
 		disk->d_sync.ds_bios[n] = bp;
@@ -2244,7 +2254,8 @@ g_raid3_sync_start(struct g_raid3_softc *sc)
 		bp->bio_data = malloc(maxphys, M_RAID3, M_WAITOK);
 		bp->bio_cflags = 0;
 		bp->bio_offset = disk->d_sync.ds_offset * (sc->sc_ndisks - 1);
-		bp->bio_length = MIN(maxphys, sc->sc_mediasize - bp->bio_offset);
+		bp->bio_length = MIN(
+		    maxphys, sc->sc_mediasize - bp->bio_offset);
 		disk->d_sync.ds_offset += bp->bio_length / (sc->sc_ndisks - 1);
 		bp->bio_done = g_raid3_sync_done;
 		bp->bio_from = disk->d_sync.ds_consumer;
@@ -2288,13 +2299,13 @@ g_raid3_sync_stop(struct g_raid3_softc *sc, int type)
 
 	KASSERT(sc->sc_state == G_RAID3_DEVICE_STATE_DEGRADED,
 	    ("Device not in DEGRADED state (%s, %u).", sc->sc_name,
-	    sc->sc_state));
+		sc->sc_state));
 	disk = sc->sc_syncdisk;
 	sc->sc_syncdisk = NULL;
 	KASSERT(disk != NULL, ("No disk was synchronized (%s).", sc->sc_name));
 	KASSERT(disk->d_state == G_RAID3_DISK_STATE_SYNCHRONIZING,
 	    ("Wrong disk state (%s, %s).", g_raid3_get_diskname(disk),
-	    g_raid3_disk_state2str(disk->d_state)));
+		g_raid3_disk_state2str(disk->d_state)));
 	if (disk->d_sync.ds_consumer == NULL)
 		return;
 
@@ -2337,7 +2348,8 @@ g_raid3_launch_provider(struct g_raid3_softc *sc)
 		if (disk->d_consumer && disk->d_consumer->provider &&
 		    disk->d_consumer->provider->stripesize > pp->stripesize) {
 			pp->stripesize = disk->d_consumer->provider->stripesize;
-			pp->stripeoffset = disk->d_consumer->provider->stripeoffset;
+			pp->stripeoffset =
+			    disk->d_consumer->provider->stripeoffset;
 		}
 	}
 	pp->stripesize *= sc->sc_ndisks - 1;
@@ -2358,8 +2370,8 @@ g_raid3_destroy_provider(struct g_raid3_softc *sc)
 	struct bio *bp;
 
 	g_topology_assert_not();
-	KASSERT(sc->sc_provider != NULL, ("NULL provider (device=%s).",
-	    sc->sc_name));
+	KASSERT(sc->sc_provider != NULL,
+	    ("NULL provider (device=%s).", sc->sc_name));
 
 	g_topology_lock();
 	g_error_provider(sc->sc_provider, ENXIO);
@@ -2385,8 +2397,8 @@ g_raid3_go(void *arg)
 
 	sc = arg;
 	G_RAID3_DEBUG(0, "Force device %s start due to timeout.", sc->sc_name);
-	g_raid3_event_send(sc, 0,
-	    G_RAID3_EVENT_DONTWAIT | G_RAID3_EVENT_DEVICE);
+	g_raid3_event_send(
+	    sc, 0, G_RAID3_EVENT_DONTWAIT | G_RAID3_EVENT_DEVICE);
 }
 
 static u_int
@@ -2397,15 +2409,14 @@ g_raid3_determine_state(struct g_raid3_disk *disk)
 
 	sc = disk->d_softc;
 	if (sc->sc_syncid == disk->d_sync.ds_syncid) {
-		if ((disk->d_flags &
-		    G_RAID3_DISK_FLAG_SYNCHRONIZING) == 0) {
+		if ((disk->d_flags & G_RAID3_DISK_FLAG_SYNCHRONIZING) == 0) {
 			/* Disk does not need synchronization. */
 			state = G_RAID3_DISK_STATE_ACTIVE;
 		} else {
-			if ((sc->sc_flags &
-			     G_RAID3_DEVICE_FLAG_NOAUTOSYNC) == 0 ||
-			    (disk->d_flags &
-			     G_RAID3_DISK_FLAG_FORCE_SYNC) != 0) {
+			if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_NOAUTOSYNC) ==
+				0 ||
+			    (disk->d_flags & G_RAID3_DISK_FLAG_FORCE_SYNC) !=
+				0) {
 				/*
 				 * We can start synchronization from
 				 * the stored offset.
@@ -2440,17 +2451,18 @@ g_raid3_determine_state(struct g_raid3_disk *disk)
 		 * I think the best choice here is don't touch
 		 * this disk and inform the user loudly.
 		 */
-		G_RAID3_DEBUG(0, "Device %s was started before the freshest "
+		G_RAID3_DEBUG(0,
+		    "Device %s was started before the freshest "
 		    "disk (%s) arrives!! It will not be connected to the "
-		    "running device.", sc->sc_name,
-		    g_raid3_get_diskname(disk));
+		    "running device.",
+		    sc->sc_name, g_raid3_get_diskname(disk));
 		g_raid3_destroy_disk(disk);
 		state = G_RAID3_DISK_STATE_NONE;
 		/* Return immediately, because disk was destroyed. */
 		return (state);
 	}
-	G_RAID3_DEBUG(3, "State for %s disk: %s.",
-	    g_raid3_get_diskname(disk), g_raid3_disk_state2str(state));
+	G_RAID3_DEBUG(3, "State for %s disk: %s.", g_raid3_get_diskname(disk),
+	    g_raid3_disk_state2str(state));
 	return (state);
 }
 
@@ -2466,8 +2478,7 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 	switch (sc->sc_state) {
-	case G_RAID3_DEVICE_STATE_STARTING:
-	    {
+	case G_RAID3_DEVICE_STATE_STARTING: {
 		u_int n, ndirty, ndisks, genid, syncid;
 
 		KASSERT(sc->sc_provider == NULL,
@@ -2542,8 +2553,8 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 			} else if (disk->d_sync.ds_syncid < syncid) {
 				continue;
 			}
-			if ((disk->d_flags &
-			    G_RAID3_DISK_FLAG_SYNCHRONIZING) != 0) {
+			if ((disk->d_flags & G_RAID3_DISK_FLAG_SYNCHRONIZING) !=
+			    0) {
 				continue;
 			}
 			ndisks++;
@@ -2566,8 +2577,8 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 		if (ndisks == sc->sc_ndisks && ndirty == 1) {
 			for (n = 0; n < sc->sc_ndisks; n++) {
 				disk = &sc->sc_disks[n];
-				if ((disk->d_flags &
-				    G_RAID3_DISK_FLAG_DIRTY) == 0) {
+				if ((disk->d_flags & G_RAID3_DISK_FLAG_DIRTY) ==
+				    0) {
 					continue;
 				}
 				disk->d_flags |=
@@ -2601,7 +2612,7 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 				sc->sc_bump_id |= G_RAID3_BUMP_SYNCID;
 		}
 		break;
-	    }
+	}
 	case G_RAID3_DEVICE_STATE_DEGRADED:
 		/*
 		 * Genid need to be bumped immediately, so do it here.
@@ -2650,9 +2661,9 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 		if (g_raid3_ndisks(sc, G_RAID3_DISK_STATE_NEW) > 0)
 			return;
 		KASSERT(g_raid3_ndisks(sc, G_RAID3_DISK_STATE_ACTIVE) >=
-		    sc->sc_ndisks - 1,
+			sc->sc_ndisks - 1,
 		    ("Too few ACTIVE components in COMPLETE state (device %s).",
-		    sc->sc_name));
+			sc->sc_name));
 		if (g_raid3_ndisks(sc, G_RAID3_DISK_STATE_ACTIVE) ==
 		    sc->sc_ndisks - 1) {
 			state = G_RAID3_DEVICE_STATE_DEGRADED;
@@ -2672,8 +2683,9 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 		}
 		break;
 	default:
-		KASSERT(1 == 0, ("Wrong device state (%s, %s).", sc->sc_name,
-		    g_raid3_device_state2str(sc->sc_state)));
+		KASSERT(1 == 0,
+		    ("Wrong device state (%s, %s).", sc->sc_name,
+			g_raid3_device_state2str(sc->sc_state)));
 		break;
 	}
 }
@@ -2681,11 +2693,10 @@ g_raid3_update_device(struct g_raid3_softc *sc, boolean_t force)
 /*
  * Update disk state and device state if needed.
  */
-#define	DISK_STATE_CHANGED()	G_RAID3_DEBUG(1,			\
-	"Disk %s state changed from %s to %s (device %s).",		\
-	g_raid3_get_diskname(disk),					\
-	g_raid3_disk_state2str(disk->d_state),				\
-	g_raid3_disk_state2str(state), sc->sc_name)
+#define DISK_STATE_CHANGED()                                                   \
+	G_RAID3_DEBUG(1, "Disk %s state changed from %s to %s (device %s).",   \
+	    g_raid3_get_diskname(disk), g_raid3_disk_state2str(disk->d_state), \
+	    g_raid3_disk_state2str(state), sc->sc_name)
 static int
 g_raid3_update_disk(struct g_raid3_disk *disk, u_int state)
 {
@@ -2707,7 +2718,7 @@ again:
 		/* Previous state should be NONE. */
 		KASSERT(disk->d_state == G_RAID3_DISK_STATE_NONE,
 		    ("Wrong disk state (%s, %s).", g_raid3_get_diskname(disk),
-		    g_raid3_disk_state2str(disk->d_state)));
+			g_raid3_disk_state2str(disk->d_state)));
 		DISK_STATE_CHANGED();
 
 		disk->d_state = state;
@@ -2716,11 +2727,11 @@ again:
 		if (sc->sc_state == G_RAID3_DEVICE_STATE_STARTING)
 			break;
 		KASSERT(sc->sc_state == G_RAID3_DEVICE_STATE_DEGRADED ||
-		    sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE,
+			sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE,
 		    ("Wrong device state (%s, %s, %s, %s).", sc->sc_name,
-		    g_raid3_device_state2str(sc->sc_state),
-		    g_raid3_get_diskname(disk),
-		    g_raid3_disk_state2str(disk->d_state)));
+			g_raid3_device_state2str(sc->sc_state),
+			g_raid3_get_diskname(disk),
+			g_raid3_disk_state2str(disk->d_state)));
 		state = g_raid3_determine_state(disk);
 		if (state != G_RAID3_DISK_STATE_NONE)
 			goto again;
@@ -2732,16 +2743,16 @@ again:
 		 * 2. Synchronization process finished successfully.
 		 */
 		KASSERT(sc->sc_state == G_RAID3_DEVICE_STATE_DEGRADED ||
-		    sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE,
+			sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE,
 		    ("Wrong device state (%s, %s, %s, %s).", sc->sc_name,
-		    g_raid3_device_state2str(sc->sc_state),
-		    g_raid3_get_diskname(disk),
-		    g_raid3_disk_state2str(disk->d_state)));
+			g_raid3_device_state2str(sc->sc_state),
+			g_raid3_get_diskname(disk),
+			g_raid3_disk_state2str(disk->d_state)));
 		/* Previous state should be NEW or SYNCHRONIZING. */
 		KASSERT(disk->d_state == G_RAID3_DISK_STATE_NEW ||
-		    disk->d_state == G_RAID3_DISK_STATE_SYNCHRONIZING,
+			disk->d_state == G_RAID3_DISK_STATE_SYNCHRONIZING,
 		    ("Wrong disk state (%s, %s).", g_raid3_get_diskname(disk),
-		    g_raid3_disk_state2str(disk->d_state)));
+			g_raid3_disk_state2str(disk->d_state)));
 		DISK_STATE_CHANGED();
 
 		if (disk->d_state == G_RAID3_DISK_STATE_SYNCHRONIZING) {
@@ -2765,22 +2776,22 @@ again:
 		/* Previous state should be NEW. */
 		KASSERT(disk->d_state == G_RAID3_DISK_STATE_NEW,
 		    ("Wrong disk state (%s, %s).", g_raid3_get_diskname(disk),
-		    g_raid3_disk_state2str(disk->d_state)));
+			g_raid3_disk_state2str(disk->d_state)));
 		KASSERT(sc->sc_state == G_RAID3_DEVICE_STATE_DEGRADED ||
-		    sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE,
+			sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE,
 		    ("Wrong device state (%s, %s, %s, %s).", sc->sc_name,
-		    g_raid3_device_state2str(sc->sc_state),
-		    g_raid3_get_diskname(disk),
-		    g_raid3_disk_state2str(disk->d_state)));
+			g_raid3_device_state2str(sc->sc_state),
+			g_raid3_get_diskname(disk),
+			g_raid3_disk_state2str(disk->d_state)));
 		/*
 		 * STALE state is only possible if device is marked
 		 * NOAUTOSYNC.
 		 */
 		KASSERT((sc->sc_flags & G_RAID3_DEVICE_FLAG_NOAUTOSYNC) != 0,
 		    ("Wrong device state (%s, %s, %s, %s).", sc->sc_name,
-		    g_raid3_device_state2str(sc->sc_state),
-		    g_raid3_get_diskname(disk),
-		    g_raid3_disk_state2str(disk->d_state)));
+			g_raid3_device_state2str(sc->sc_state),
+			g_raid3_get_diskname(disk),
+			g_raid3_disk_state2str(disk->d_state)));
 		DISK_STATE_CHANGED();
 
 		disk->d_flags &= ~G_RAID3_DISK_FLAG_DIRTY;
@@ -2797,13 +2808,13 @@ again:
 		/* Previous state should be NEW. */
 		KASSERT(disk->d_state == G_RAID3_DISK_STATE_NEW,
 		    ("Wrong disk state (%s, %s).", g_raid3_get_diskname(disk),
-		    g_raid3_disk_state2str(disk->d_state)));
+			g_raid3_disk_state2str(disk->d_state)));
 		KASSERT(sc->sc_state == G_RAID3_DEVICE_STATE_DEGRADED ||
-		    sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE,
+			sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE,
 		    ("Wrong device state (%s, %s, %s, %s).", sc->sc_name,
-		    g_raid3_device_state2str(sc->sc_state),
-		    g_raid3_get_diskname(disk),
-		    g_raid3_disk_state2str(disk->d_state)));
+			g_raid3_device_state2str(sc->sc_state),
+			g_raid3_get_diskname(disk),
+			g_raid3_disk_state2str(disk->d_state)));
 		DISK_STATE_CHANGED();
 
 		if (disk->d_state == G_RAID3_DISK_STATE_NEW)
@@ -2828,30 +2839,32 @@ again:
 			 * SYNCHRONIZING.
 			 */
 			KASSERT(disk->d_state == G_RAID3_DISK_STATE_ACTIVE ||
-			    disk->d_state == G_RAID3_DISK_STATE_STALE ||
-			    disk->d_state == G_RAID3_DISK_STATE_SYNCHRONIZING,
+				disk->d_state == G_RAID3_DISK_STATE_STALE ||
+				disk->d_state ==
+				    G_RAID3_DISK_STATE_SYNCHRONIZING,
 			    ("Wrong disk state (%s, %s).",
-			    g_raid3_get_diskname(disk),
-			    g_raid3_disk_state2str(disk->d_state)));
+				g_raid3_get_diskname(disk),
+				g_raid3_disk_state2str(disk->d_state)));
 		} else if (sc->sc_state == G_RAID3_DEVICE_STATE_STARTING) {
 			/* Previous state should be NEW. */
 			KASSERT(disk->d_state == G_RAID3_DISK_STATE_NEW,
 			    ("Wrong disk state (%s, %s).",
-			    g_raid3_get_diskname(disk),
-			    g_raid3_disk_state2str(disk->d_state)));
+				g_raid3_get_diskname(disk),
+				g_raid3_disk_state2str(disk->d_state)));
 			/*
 			 * Reset bumping syncid if disk disappeared in STARTING
 			 * state.
 			 */
 			if ((sc->sc_bump_id & G_RAID3_BUMP_SYNCID) != 0)
 				sc->sc_bump_id &= ~G_RAID3_BUMP_SYNCID;
-#ifdef	INVARIANTS
+#ifdef INVARIANTS
 		} else {
-			KASSERT(1 == 0, ("Wrong device state (%s, %s, %s, %s).",
-			    sc->sc_name,
-			    g_raid3_device_state2str(sc->sc_state),
-			    g_raid3_get_diskname(disk),
-			    g_raid3_disk_state2str(disk->d_state)));
+			KASSERT(1 == 0,
+			    ("Wrong device state (%s, %s, %s, %s).",
+				sc->sc_name,
+				g_raid3_device_state2str(sc->sc_state),
+				g_raid3_get_diskname(disk),
+				g_raid3_disk_state2str(disk->d_state)));
 #endif
 		}
 		DISK_STATE_CHANGED();
@@ -2866,7 +2879,7 @@ again:
 	}
 	return (0);
 }
-#undef	DISK_STATE_CHANGED
+#undef DISK_STATE_CHANGED
 
 int
 g_raid3_read_metadata(struct g_consumer *cp, struct g_raid3_metadata *md)
@@ -2883,8 +2896,8 @@ g_raid3_read_metadata(struct g_consumer *cp, struct g_raid3_metadata *md)
 	pp = cp->provider;
 	g_topology_unlock();
 	/* Metadata are stored on last sector. */
-	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
-	    &error);
+	buf = g_read_data(
+	    cp, pp->mediasize - pp->sectorsize, pp->sectorsize, &error);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 	if (buf == NULL) {
@@ -2939,9 +2952,10 @@ g_raid3_check_metadata(struct g_raid3_softc *sc, struct g_provider *pp,
 		return (EINVAL);
 	}
 	if ((md->md_mediasize % md->md_sectorsize) != 0) {
-		G_RAID3_DEBUG(1, "Invalid metadata (mediasize %% sectorsize != "
-		    "0) on disk %s (device %s), skipping.", pp->name,
-		    sc->sc_name);
+		G_RAID3_DEBUG(1,
+		    "Invalid metadata (mediasize %% sectorsize != "
+		    "0) on disk %s (device %s), skipping.",
+		    pp->name, sc->sc_name);
 		return (EINVAL);
 	}
 	if (md->md_mediasize != sc->sc_mediasize) {
@@ -2991,8 +3005,10 @@ g_raid3_check_metadata(struct g_raid3_softc *sc, struct g_provider *pp,
 		/*
 		 * VERIFY and ROUND-ROBIN options are mutally exclusive.
 		 */
-		G_RAID3_DEBUG(1, "Both VERIFY and ROUND-ROBIN flags exist on "
-		    "disk %s (device %s), skipping.", pp->name, sc->sc_name);
+		G_RAID3_DEBUG(1,
+		    "Both VERIFY and ROUND-ROBIN flags exist on "
+		    "disk %s (device %s), skipping.",
+		    pp->name, sc->sc_name);
 		return (EINVAL);
 	}
 	if ((md->md_dflags & ~G_RAID3_DISK_FLAG_MASK) != 0) {
@@ -3026,8 +3042,8 @@ g_raid3_add_disk(struct g_raid3_softc *sc, struct g_provider *pp,
 	disk = g_raid3_init_disk(sc, pp, md, &error);
 	if (disk == NULL)
 		return (error);
-	error = g_raid3_event_send(disk, G_RAID3_DISK_STATE_NEW,
-	    G_RAID3_EVENT_WAIT);
+	error = g_raid3_event_send(
+	    disk, G_RAID3_DISK_STATE_NEW, G_RAID3_EVENT_WAIT);
 	if (error != 0)
 		return (error);
 	if (md->md_version < G_RAID3_VERSION) {
@@ -3071,8 +3087,8 @@ g_raid3_access(struct g_provider *pp, int acr, int acw, int ace)
 	int dcr, dcw, dce, error = 0;
 
 	g_topology_assert();
-	G_RAID3_DEBUG(2, "Access request for %s: r%dw%de%d.", pp->name, acr,
-	    acw, ace);
+	G_RAID3_DEBUG(
+	    2, "Access request for %s: r%dw%de%d.", pp->name, acr, acw, ace);
 
 	sc = pp->geom->softc;
 	if (sc == NULL && acr <= 0 && acw <= 0 && ace <= 0)
@@ -3099,8 +3115,8 @@ g_raid3_access(struct g_provider *pp, int acr, int acw, int ace)
 			goto end;
 		}
 		if (dcr == 0 && dcw == 0 && dce == 0) {
-			g_post_event(g_raid3_destroy_delayed, sc, M_WAITOK,
-			    sc, NULL);
+			g_post_event(
+			    g_raid3_destroy_delayed, sc, M_WAITOK, sc, NULL);
 		}
 	}
 end:
@@ -3198,8 +3214,8 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	error = kproc_create(g_raid3_worker, sc, &sc->sc_worker, 0, 0,
 	    "g_raid3 %s", md->md_name);
 	if (error != 0) {
-		G_RAID3_DEBUG(1, "Cannot create kernel thread for %s.",
-		    sc->sc_name);
+		G_RAID3_DEBUG(
+		    1, "Cannot create kernel thread for %s.", sc->sc_name);
 		if (!g_raid3_use_malloc) {
 			uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_64K].sz_zone);
 			uma_zdestroy(sc->sc_zones[G_RAID3_ZONE_16K].sz_zone);
@@ -3243,9 +3259,8 @@ g_raid3_destroy(struct g_raid3_softc *sc, int how)
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
 		switch (how) {
 		case G_RAID3_DESTROY_SOFT:
-			G_RAID3_DEBUG(1,
-			    "Device %s is still open (r%dw%de%d).", pp->name,
-			    pp->acr, pp->acw, pp->ace);
+			G_RAID3_DEBUG(1, "Device %s is still open (r%dw%de%d).",
+			    pp->name, pp->acr, pp->acw, pp->ace);
 			return (EBUSY);
 		case G_RAID3_DESTROY_DELAYED:
 			G_RAID3_DEBUG(1,
@@ -3256,8 +3271,10 @@ g_raid3_destroy(struct g_raid3_softc *sc, int how)
 			sc->sc_flags |= G_RAID3_DEVICE_FLAG_DESTROYING;
 			return (EBUSY);
 		case G_RAID3_DESTROY_HARD:
-			G_RAID3_DEBUG(1, "Device %s is still open, so it "
-			    "can't be definitely removed.", pp->name);
+			G_RAID3_DEBUG(1,
+			    "Device %s is still open, so it "
+			    "can't be definitely removed.",
+			    pp->name);
 			break;
 		}
 	}
@@ -3294,8 +3311,8 @@ static void
 g_raid3_taste_orphan(struct g_consumer *cp)
 {
 
-	KASSERT(1 == 0, ("%s called while tasting %s.", __func__,
-	    cp->provider->name));
+	KASSERT(1 == 0,
+	    ("%s called while tasting %s.", __func__, cp->provider->name));
 }
 
 static struct g_geom *
@@ -3338,7 +3355,7 @@ g_raid3_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	 * Let's check if device already exists.
 	 */
 	sc = NULL;
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
@@ -3347,8 +3364,8 @@ g_raid3_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		if (strcmp(md.md_name, sc->sc_name) != 0)
 			continue;
 		if (md.md_id != sc->sc_id) {
-			G_RAID3_DEBUG(0, "Device %s already configured.",
-			    sc->sc_name);
+			G_RAID3_DEBUG(
+			    0, "Device %s already configured.", sc->sc_name);
 			return (NULL);
 		}
 		break;
@@ -3356,8 +3373,8 @@ g_raid3_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (gp == NULL) {
 		gp = g_raid3_create(mp, &md);
 		if (gp == NULL) {
-			G_RAID3_DEBUG(0, "Cannot create device %s.",
-			    md.md_name);
+			G_RAID3_DEBUG(
+			    0, "Cannot create device %s.", md.md_name);
 			return (NULL);
 		}
 		sc = gp->softc;
@@ -3431,8 +3448,8 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		else
 			sbuf_cat(sb, "DATA");
 		sbuf_cat(sb, "</Type>\n");
-		sbuf_printf(sb, "%s<Number>%u</Number>\n", indent,
-		    (u_int)disk->d_no);
+		sbuf_printf(
+		    sb, "%s<Number>%u</Number>\n", indent, (u_int)disk->d_no);
 		if (disk->d_state == G_RAID3_DISK_STATE_SYNCHRONIZING) {
 			sbuf_printf(sb, "%s<Synchronized>", indent);
 			if (disk->d_sync.ds_offset == 0)
@@ -3440,13 +3457,15 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			else {
 				sbuf_printf(sb, "%u%%",
 				    (u_int)((disk->d_sync.ds_offset * 100) /
-				    (sc->sc_mediasize / (sc->sc_ndisks - 1))));
+					(sc->sc_mediasize /
+					    (sc->sc_ndisks - 1))));
 			}
 			sbuf_cat(sb, "</Synchronized>\n");
 			if (disk->d_sync.ds_offset > 0) {
-				sbuf_printf(sb, "%s<BytesSynced>%jd"
-				    "</BytesSynced>\n", indent,
-				    (intmax_t)disk->d_sync.ds_offset);
+				sbuf_printf(sb,
+				    "%s<BytesSynced>%jd"
+				    "</BytesSynced>\n",
+				    indent, (intmax_t)disk->d_sync.ds_offset);
 			}
 		}
 		sbuf_printf(sb, "%s<SyncID>%u</SyncID>\n", indent,
@@ -3458,22 +3477,23 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		else {
 			int first = 1;
 
-#define	ADD_FLAG(flag, name)	do {					\
-	if ((disk->d_flags & (flag)) != 0) {				\
-		if (!first)						\
-			sbuf_cat(sb, ", ");				\
-		else							\
-			first = 0;					\
-		sbuf_cat(sb, name);					\
-	}								\
-} while (0)
+#define ADD_FLAG(flag, name)                         \
+	do {                                         \
+		if ((disk->d_flags & (flag)) != 0) { \
+			if (!first)                  \
+				sbuf_cat(sb, ", ");  \
+			else                         \
+				first = 0;           \
+			sbuf_cat(sb, name);          \
+		}                                    \
+	} while (0)
 			ADD_FLAG(G_RAID3_DISK_FLAG_DIRTY, "DIRTY");
 			ADD_FLAG(G_RAID3_DISK_FLAG_HARDCODED, "HARDCODED");
-			ADD_FLAG(G_RAID3_DISK_FLAG_SYNCHRONIZING,
-			    "SYNCHRONIZING");
+			ADD_FLAG(
+			    G_RAID3_DISK_FLAG_SYNCHRONIZING, "SYNCHRONIZING");
 			ADD_FLAG(G_RAID3_DISK_FLAG_FORCE_SYNC, "FORCE_SYNC");
 			ADD_FLAG(G_RAID3_DISK_FLAG_BROKEN, "BROKEN");
-#undef	ADD_FLAG
+#undef ADD_FLAG
 		}
 		sbuf_cat(sb, "</Flags>\n");
 		sbuf_printf(sb, "%s<State>%s</State>\n", indent,
@@ -3487,24 +3507,24 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			sbuf_printf(sb,
 			    "%s<Zone4kRequested>%u</Zone4kRequested>\n", indent,
 			    sc->sc_zones[G_RAID3_ZONE_4K].sz_requested);
+			sbuf_printf(sb, "%s<Zone4kFailed>%u</Zone4kFailed>\n",
+			    indent, sc->sc_zones[G_RAID3_ZONE_4K].sz_failed);
 			sbuf_printf(sb,
-			    "%s<Zone4kFailed>%u</Zone4kFailed>\n", indent,
-			    sc->sc_zones[G_RAID3_ZONE_4K].sz_failed);
-			sbuf_printf(sb,
-			    "%s<Zone16kRequested>%u</Zone16kRequested>\n", indent,
+			    "%s<Zone16kRequested>%u</Zone16kRequested>\n",
+			    indent,
 			    sc->sc_zones[G_RAID3_ZONE_16K].sz_requested);
+			sbuf_printf(sb, "%s<Zone16kFailed>%u</Zone16kFailed>\n",
+			    indent, sc->sc_zones[G_RAID3_ZONE_16K].sz_failed);
 			sbuf_printf(sb,
-			    "%s<Zone16kFailed>%u</Zone16kFailed>\n", indent,
-			    sc->sc_zones[G_RAID3_ZONE_16K].sz_failed);
-			sbuf_printf(sb,
-			    "%s<Zone64kRequested>%u</Zone64kRequested>\n", indent,
+			    "%s<Zone64kRequested>%u</Zone64kRequested>\n",
+			    indent,
 			    sc->sc_zones[G_RAID3_ZONE_64K].sz_requested);
-			sbuf_printf(sb,
-			    "%s<Zone64kFailed>%u</Zone64kFailed>\n", indent,
-			    sc->sc_zones[G_RAID3_ZONE_64K].sz_failed);
+			sbuf_printf(sb, "%s<Zone64kFailed>%u</Zone64kFailed>\n",
+			    indent, sc->sc_zones[G_RAID3_ZONE_64K].sz_failed);
 		}
 		sbuf_printf(sb, "%s<ID>%u</ID>\n", indent, (u_int)sc->sc_id);
-		sbuf_printf(sb, "%s<SyncID>%u</SyncID>\n", indent, sc->sc_syncid);
+		sbuf_printf(
+		    sb, "%s<SyncID>%u</SyncID>\n", indent, sc->sc_syncid);
 		sbuf_printf(sb, "%s<GenID>%u</GenID>\n", indent, sc->sc_genid);
 		sbuf_printf(sb, "%s<Flags>", indent);
 		if (sc->sc_flags == 0)
@@ -3512,21 +3532,22 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		else {
 			int first = 1;
 
-#define	ADD_FLAG(flag, name)	do {					\
-	if ((sc->sc_flags & (flag)) != 0) {				\
-		if (!first)						\
-			sbuf_cat(sb, ", ");				\
-		else							\
-			first = 0;					\
-		sbuf_cat(sb, name);					\
-	}								\
-} while (0)
+#define ADD_FLAG(flag, name)                        \
+	do {                                        \
+		if ((sc->sc_flags & (flag)) != 0) { \
+			if (!first)                 \
+				sbuf_cat(sb, ", "); \
+			else                        \
+				first = 0;          \
+			sbuf_cat(sb, name);         \
+		}                                   \
+	} while (0)
 			ADD_FLAG(G_RAID3_DEVICE_FLAG_NOFAILSYNC, "NOFAILSYNC");
 			ADD_FLAG(G_RAID3_DEVICE_FLAG_NOAUTOSYNC, "NOAUTOSYNC");
-			ADD_FLAG(G_RAID3_DEVICE_FLAG_ROUND_ROBIN,
-			    "ROUND-ROBIN");
+			ADD_FLAG(
+			    G_RAID3_DEVICE_FLAG_ROUND_ROBIN, "ROUND-ROBIN");
 			ADD_FLAG(G_RAID3_DEVICE_FLAG_VERIFY, "VERIFY");
-#undef	ADD_FLAG
+#undef ADD_FLAG
 		}
 		sbuf_cat(sb, "</Flags>\n");
 		sbuf_printf(sb, "%s<Components>%u</Components>\n", indent,
@@ -3549,7 +3570,7 @@ g_raid3_shutdown_post_sync(void *arg, int howto)
 	mp = arg;
 	g_topology_lock();
 	g_raid3_shutdown = 1;
-	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
+	LIST_FOREACH_SAFE (gp, &mp->geom, geom, gp2) {
 		if ((sc = gp->softc) == NULL)
 			continue;
 		/* Skip synchronization geom. */

@@ -31,19 +31,19 @@
  * a few other pmap modules from the FreeBSD tree.
  */
 
- /*
-  * VM layout notes:
-  *
-  * Kernel and user threads run within one common virtual address space
-  * defined by AS=0.
-  *
-  * 32-bit pmap:
-  * Virtual address space layout:
-  * -----------------------------
-  * 0x0000_0000 - 0x7fff_ffff	: user process
-  * 0x8000_0000 - 0xbfff_ffff	: pmap_mapdev()-ed area (PCI/PCIE etc.)
-  * 0xc000_0000 - 0xffff_efff	: KVA
-  */
+/*
+ * VM layout notes:
+ *
+ * Kernel and user threads run within one common virtual address space
+ * defined by AS=0.
+ *
+ * 32-bit pmap:
+ * Virtual address space layout:
+ * -----------------------------
+ * 0x0000_0000 - 0x7fff_ffff	: user process
+ * 0x8000_0000 - 0xbfff_ffff	: pmap_mapdev()-ed area (PCI/PCIE etc.)
+ * 0xc000_0000 - 0xffff_efff	: KVA
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -52,52 +52,51 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/malloc.h>
-#include <sys/ktr.h>
-#include <sys/proc.h>
-#include <sys/user.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
+#include <sys/ktr.h>
 #include <sys/linker.h>
-#include <sys/msgbuf.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/msgbuf.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/user.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_page.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_pageout.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_object.h>
-#include <vm/vm_param.h>
-#include <vm/vm_map.h>
-#include <vm/vm_pager.h>
-#include <vm/vm_phys.h>
-#include <vm/vm_pagequeue.h>
 #include <vm/uma.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
+#include <vm/vm_pagequeue.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #include <machine/_inttypes.h>
 #include <machine/cpu.h>
-#include <machine/pcb.h>
-#include <machine/platform.h>
-
-#include <machine/tlb.h>
-#include <machine/spr.h>
 #include <machine/md_var.h>
 #include <machine/mmuvar.h>
+#include <machine/pcb.h>
+#include <machine/platform.h>
 #include <machine/pmap.h>
 #include <machine/pte.h>
+#include <machine/spr.h>
+#include <machine/tlb.h>
 
 #include <ddb/ddb.h>
 
-#define	PRI0ptrX	"08x"
+#define PRI0ptrX "08x"
 
 /* Reserved KVA space and mutex for mmu_booke_zero_page. */
 static vm_offset_t zero_page_va;
@@ -109,13 +108,13 @@ static vm_offset_t copy_page_dst_va;
 static struct mtx copy_page_mutex;
 
 static vm_offset_t kernel_ptbl_root;
-static unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
+static unsigned int kernel_ptbls; /* Number of KVA ptbls. */
 
 /**************************************************************************/
 /* PMAP */
 /**************************************************************************/
 
-#define	VM_MAPDEV_BASE	((vm_offset_t)VM_MAXUSER_ADDRESS + PAGE_SIZE)
+#define VM_MAPDEV_BASE ((vm_offset_t)VM_MAXUSER_ADDRESS + PAGE_SIZE)
 
 static void tid_flush(tlbtid_t tid);
 static unsigned long ilog2(unsigned long);
@@ -124,7 +123,7 @@ static unsigned long ilog2(unsigned long);
 /* Page table management */
 /**************************************************************************/
 
-#define PMAP_ROOT_SIZE	(sizeof(pte_t**) * PDIR_NENTRIES)
+#define PMAP_ROOT_SIZE (sizeof(pte_t **) * PDIR_NENTRIES)
 static void ptbl_init(void);
 static struct ptbl_buf *ptbl_buf_alloc(void);
 static void ptbl_buf_free(struct ptbl_buf *);
@@ -141,12 +140,12 @@ static int pte_remove(pmap_t, vm_offset_t, uint8_t);
 static pte_t *pte_find(pmap_t, vm_offset_t);
 
 struct ptbl_buf {
-	TAILQ_ENTRY(ptbl_buf) link;	/* list link */
-	vm_offset_t kva;		/* va of mapping */
+	TAILQ_ENTRY(ptbl_buf) link; /* list link */
+	vm_offset_t kva;	    /* va of mapping */
 };
 
 /* Number of kva ptbl buffers, each covering one ptbl (PTBL_PAGES). */
-#define PTBL_BUFS		(128 * 16)
+#define PTBL_BUFS (128 * 16)
 
 /* ptbl free list and a lock used for access synchronization. */
 static TAILQ_HEAD(, ptbl_buf) ptbl_buf_freelist;
@@ -177,8 +176,8 @@ ptbl_init(void)
 	TAILQ_INIT(&ptbl_buf_freelist);
 
 	for (i = 0; i < PTBL_BUFS; i++) {
-		ptbl_bufs[i].kva =
-		    ptbl_buf_pool_vabase + i * PTBL_PAGES * PAGE_SIZE;
+		ptbl_bufs[i].kva = ptbl_buf_pool_vabase +
+		    i * PTBL_PAGES * PAGE_SIZE;
 		TAILQ_INSERT_TAIL(&ptbl_buf_freelist, &ptbl_bufs[i], link);
 	}
 }
@@ -224,7 +223,7 @@ ptbl_free_pmap_ptbl(pmap_t pmap, pte_t *ptbl)
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-	TAILQ_FOREACH(pbuf, &pmap->pm_ptbl_list, link)
+	TAILQ_FOREACH (pbuf, &pmap->pm_ptbl_list, link)
 		if (pbuf->kva == (vm_offset_t)ptbl) {
 			/* Remove from pmap ptbl buf list. */
 			TAILQ_REMOVE(&pmap->pm_ptbl_list, pbuf, link);
@@ -257,7 +256,7 @@ ptbl_alloc(pmap_t pmap, unsigned int pdir_idx, boolean_t nosleep)
 	pbuf = ptbl_buf_alloc();
 	if (pbuf == NULL)
 		panic("pte_alloc: couldn't alloc kernel virtual memory");
-		
+
 	ptbl = (pte_t *)pbuf->kva;
 
 	CTR2(KTR_PMAP, "%s: ptbl kva = %p", __func__, ptbl);
@@ -265,7 +264,7 @@ ptbl_alloc(pmap_t pmap, unsigned int pdir_idx, boolean_t nosleep)
 	for (i = 0; i < PTBL_PAGES; i++) {
 		pidx = (PTBL_PAGES * pdir_idx) + i;
 		while ((m = vm_page_alloc(NULL, pidx,
-		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
+			    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
 			if (nosleep) {
 				ptbl_free_pmap_ptbl(pmap, ptbl);
 				for (j = 0; j < i; j++)
@@ -359,19 +358,18 @@ ptbl_unhold(pmap_t pmap, unsigned int pdir_idx)
 
 	KASSERT((pdir_idx <= (VM_MAXUSER_ADDRESS / PDIR_SIZE)),
 	    ("ptbl_unhold: invalid pdir_idx"));
-	KASSERT((pmap != kernel_pmap),
-	    ("ptbl_unhold: unholding kernel ptbl!"));
+	KASSERT((pmap != kernel_pmap), ("ptbl_unhold: unholding kernel ptbl!"));
 
 	ptbl = pmap->pm_pdir[pdir_idx];
 
-	//debugf("ptbl_unhold: ptbl = 0x%08x\n", (u_int32_t)ptbl);
+	// debugf("ptbl_unhold: ptbl = 0x%08x\n", (u_int32_t)ptbl);
 	KASSERT(((vm_offset_t)ptbl >= VM_MIN_KERNEL_ADDRESS),
 	    ("ptbl_unhold: non kva ptbl"));
 
 	/* decrement hold count */
 	for (i = 0; i < PTBL_PAGES; i++) {
-		pa = pte_vatopa(kernel_pmap,
-		    (vm_offset_t)ptbl + (i * PAGE_SIZE));
+		pa = pte_vatopa(
+		    kernel_pmap, (vm_offset_t)ptbl + (i * PAGE_SIZE));
 		m = PHYS_TO_VM_PAGE(pa);
 		m->ref_count--;
 	}
@@ -384,7 +382,7 @@ ptbl_unhold(pmap_t pmap, unsigned int pdir_idx)
 	if (m->ref_count == 0) {
 		ptbl_free(pmap, pdir_idx);
 
-		//debugf("ptbl_unhold: e (freed ptbl)\n");
+		// debugf("ptbl_unhold: e (freed ptbl)\n");
 		return (1);
 	}
 
@@ -403,21 +401,19 @@ ptbl_hold(pmap_t pmap, unsigned int pdir_idx)
 	vm_page_t m;
 	int i;
 
-	CTR3(KTR_PMAP, "%s: pmap = %p pdir_idx = %d", __func__, pmap,
-	    pdir_idx);
+	CTR3(KTR_PMAP, "%s: pmap = %p pdir_idx = %d", __func__, pmap, pdir_idx);
 
 	KASSERT((pdir_idx <= (VM_MAXUSER_ADDRESS / PDIR_SIZE)),
 	    ("ptbl_hold: invalid pdir_idx"));
-	KASSERT((pmap != kernel_pmap),
-	    ("ptbl_hold: holding kernel ptbl!"));
+	KASSERT((pmap != kernel_pmap), ("ptbl_hold: holding kernel ptbl!"));
 
 	ptbl = pmap->pm_pdir[pdir_idx];
 
 	KASSERT((ptbl != NULL), ("ptbl_hold: null ptbl"));
 
 	for (i = 0; i < PTBL_PAGES; i++) {
-		pa = pte_vatopa(kernel_pmap,
-		    (vm_offset_t)ptbl + (i * PAGE_SIZE));
+		pa = pte_vatopa(
+		    kernel_pmap, (vm_offset_t)ptbl + (i * PAGE_SIZE));
 		m = PHYS_TO_VM_PAGE(pa);
 		m->ref_count++;
 	}
@@ -437,9 +433,9 @@ pte_remove(pmap_t pmap, vm_offset_t va, uint8_t flags)
 	pte_t *ptbl;
 	pte_t *pte;
 
-	//int su = (pmap == kernel_pmap);
-	//debugf("pte_remove: s (su = %d pmap = 0x%08x va = 0x%08x flags = %d)\n",
-	//		su, (u_int32_t)pmap, va, flags);
+	// int su = (pmap == kernel_pmap);
+	// debugf("pte_remove: s (su = %d pmap = 0x%08x va = 0x%08x flags =
+	// %d)\n", 		su, (u_int32_t)pmap, va, flags);
 
 	ptbl = pmap->pm_pdir[pdir_idx];
 	KASSERT(ptbl, ("pte_remove: null ptbl"));
@@ -487,11 +483,11 @@ pte_remove(pmap_t pmap, vm_offset_t va, uint8_t flags)
 	pmap->pm_stats.resident_count--;
 
 	if (flags & PTBL_UNHOLD) {
-		//debugf("pte_remove: e (unhold)\n");
+		// debugf("pte_remove: e (unhold)\n");
 		return (ptbl_unhold(pmap, pdir_idx));
 	}
 
-	//debugf("pte_remove: e\n");
+	// debugf("pte_remove: e\n");
 	return (0);
 }
 
@@ -499,8 +495,8 @@ pte_remove(pmap_t pmap, vm_offset_t va, uint8_t flags)
  * Insert PTE for a given page and virtual address.
  */
 static int
-pte_enter(pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
-    boolean_t nosleep)
+pte_enter(
+    pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags, boolean_t nosleep)
 {
 	unsigned int pdir_idx = PDIR_IDX(va);
 	unsigned int ptbl_idx = PTBL_IDX(va);
@@ -598,10 +594,10 @@ pte_find(pmap_t pmap, vm_offset_t va)
 static __inline pte_t *
 pte_find_next(pmap_t pmap, vm_offset_t *pva)
 {
-	vm_offset_t	va;
-	pte_t	      **pdir;
-	pte_t	       *pte;
-	unsigned long	i, j;
+	vm_offset_t va;
+	pte_t **pdir;
+	pte_t *pte;
+	unsigned long i, j;
 
 	KASSERT((pmap != NULL), ("pte_find: invalid pmap"));
 
@@ -627,10 +623,10 @@ pte_find_next(pmap_t pmap, vm_offset_t *pva)
 static void
 kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)
 {
-	pte_t		*pte;
-	vm_offset_t	va;
-	vm_offset_t	pdir_start;
-	int		i;
+	pte_t *pte;
+	vm_offset_t va;
+	vm_offset_t pdir_start;
+	int i;
 
 	kptbl_min = VM_MIN_KERNEL_ADDRESS / PDIR_SIZE;
 	kernel_pmap->pm_pdir = (pte_t **)kernel_ptbl_root;
@@ -639,8 +635,8 @@ kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)
 
 	/* Initialize kernel pdir */
 	for (i = 0; i < kernel_ptbls; i++) {
-		kernel_pmap->pm_pdir[kptbl_min + i] =
-		    (pte_t *)(pdir_start + (i * PAGE_SIZE * PTBL_PAGES));
+		kernel_pmap->pm_pdir[kptbl_min + i] = (pte_t *)(pdir_start +
+		    (i * PAGE_SIZE * PTBL_PAGES));
 	}
 
 	/*
@@ -664,21 +660,21 @@ mmu_booke_alloc_kernel_pgtables(vm_offset_t data_end)
 	/* Allocate space for ptbl_bufs. */
 	ptbl_bufs = (struct ptbl_buf *)data_end;
 	data_end += sizeof(struct ptbl_buf) * PTBL_BUFS;
-	debugf(" ptbl_bufs at 0x%"PRI0ptrX" end = 0x%"PRI0ptrX"\n",
+	debugf(" ptbl_bufs at 0x%" PRI0ptrX " end = 0x%" PRI0ptrX "\n",
 	    (uintptr_t)ptbl_bufs, data_end);
 
 	data_end = round_page(data_end);
 
 	kernel_ptbl_root = data_end;
-	data_end += PDIR_NENTRIES * sizeof(pte_t*);
+	data_end += PDIR_NENTRIES * sizeof(pte_t *);
 
 	/* Allocate PTE tables for kernel KVA. */
-	kernel_ptbls = howmany(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS,
-	    PDIR_SIZE);
+	kernel_ptbls = howmany(
+	    VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS, PDIR_SIZE);
 	data_end += kernel_ptbls * PTBL_PAGES * PAGE_SIZE;
 	debugf(" kernel ptbls: %d\n", kernel_ptbls);
-	debugf(" kernel pdir at %#jx end = %#jx\n",
-	    (uintmax_t)kernel_ptbl_root, (uintmax_t)data_end);
+	debugf(" kernel pdir at %#jx end = %#jx\n", (uintmax_t)kernel_ptbl_root,
+	    (uintmax_t)data_end);
 
 	return (data_end);
 }
@@ -695,7 +691,8 @@ mmu_booke_pinit(pmap_t pmap)
 	CTR4(KTR_PMAP, "%s: pmap = %p, proc %d '%s'", __func__, pmap,
 	    curthread->td_proc->p_pid, curthread->td_proc->p_comm);
 
-	KASSERT((pmap != kernel_pmap), ("pmap_pinit: initializing kernel_pmap"));
+	KASSERT(
+	    (pmap != kernel_pmap), ("pmap_pinit: initializing kernel_pmap"));
 
 	for (i = 0; i < MAXCPU; i++)
 		pmap->pm_tid[i] = TID_NONE;
@@ -719,7 +716,7 @@ mmu_booke_release(pmap_t pmap)
 
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
-	    pmap->pm_stats.resident_count));
+		pmap->pm_stats.resident_count));
 	uma_zfree(ptbl_root_zone, pmap->pm_pdir);
 }
 
@@ -761,10 +758,10 @@ mmu_booke_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 				addr = 0;
 				m = PHYS_TO_VM_PAGE(pa);
 				PMAP_LOCK(pmap);
-				pte_enter(pmap, m, addr,
-				    PTE_SR | PTE_VALID, FALSE);
-				__syncicache((void *)(addr + (va & PAGE_MASK)),
-				    sync_sz);
+				pte_enter(
+				    pmap, m, addr, PTE_SR | PTE_VALID, FALSE);
+				__syncicache(
+				    (void *)(addr + (va & PAGE_MASK)), sync_sz);
 				pte_remove(pmap, addr, PTBL_UNHOLD);
 				PMAP_UNLOCK(pmap);
 			} else
@@ -814,7 +811,7 @@ mmu_booke_zero_page(vm_page_t m)
 	mmu_booke_kenter(va, VM_PAGE_TO_PHYS(m));
 
 	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
-		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
+		__asm __volatile("dcbz 0,%0" ::"r"(va + off));
 
 	mmu_booke_kremove(va);
 
@@ -846,8 +843,8 @@ mmu_booke_copy_page(vm_page_t sm, vm_page_t dm)
 }
 
 static inline void
-mmu_booke_copy_pages(vm_page_t *ma, vm_offset_t a_offset,
-    vm_page_t *mb, vm_offset_t b_offset, int xfersize)
+mmu_booke_copy_pages(vm_page_t *ma, vm_offset_t a_offset, vm_page_t *mb,
+    vm_offset_t b_offset, int xfersize)
 {
 	void *a_cp, *b_cp;
 	vm_offset_t a_pg_offset, b_pg_offset;
@@ -886,7 +883,8 @@ mmu_booke_quick_enter_page(vm_page_t m)
 	paddr = VM_PAGE_TO_PHYS(m);
 
 	flags = PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID;
-	flags |= tlb_calc_wimg(paddr, pmap_page_get_memattr(m)) << PTE_MAS2_SHIFT;
+	flags |= tlb_calc_wimg(paddr, pmap_page_get_memattr(m))
+	    << PTE_MAS2_SHIFT;
 	flags |= PTE_PS_4KB;
 
 	critical_enter();
@@ -896,12 +894,12 @@ mmu_booke_quick_enter_page(vm_page_t m)
 
 	KASSERT(*pte == 0, ("mmu_booke_quick_enter_page: PTE busy"));
 
-	/* 
+	/*
 	 * XXX: tlbivax is broadcast to other cores, but qaddr should
- 	 * not be present in other TLBs.  Is there a better instruction
-	 * sequence to use? Or just forget it & use mmu_booke_kenter()... 
+	 * not be present in other TLBs.  Is there a better instruction
+	 * sequence to use? Or just forget it & use mmu_booke_kenter()...
 	 */
-	__asm __volatile("tlbivax 0, %0" :: "r"(qaddr & MAS2_EPN_MASK));
+	__asm __volatile("tlbivax 0, %0" ::"r"(qaddr & MAS2_EPN_MASK));
 	__asm __volatile("isync; msync");
 
 	*pte = PTE_RPN_FROM_PA(paddr) | flags;
@@ -922,8 +920,7 @@ mmu_booke_quick_remove_page(vm_offset_t addr)
 
 	KASSERT(PCPU_GET(qmap_addr) == addr,
 	    ("mmu_booke_quick_remove_page: invalid address"));
-	KASSERT(*pte != 0,
-	    ("mmu_booke_quick_remove_page: PTE not in use"));
+	KASSERT(*pte != 0, ("mmu_booke_quick_remove_page: PTE not in use"));
 
 	*pte = 0;
 	critical_exit();
@@ -941,7 +938,7 @@ ilog2(unsigned long num)
 {
 	long lz;
 
-	__asm ("cntlzw %0, %1" : "=r" (lz) : "r" (num));
+	__asm("cntlzw %0, %1" : "=r"(lz) : "r"(num));
 	return (31 - lz);
 }
 
@@ -975,7 +972,7 @@ tid_flush(tlbtid_t tid)
 		mtspr(SPR_MAS6, tid << MAS6_SPID0_SHIFT);
 		/* tlbilxpid */
 		__asm __volatile("isync; .long 0x7c200024; isync; msync");
-		__asm __volatile("wrtee %0" :: "r"(msr));
+		__asm __volatile("wrtee %0" ::"r"(msr));
 		return;
 	}
 
@@ -999,5 +996,5 @@ tid_flush(tlbtid_t tid)
 			mtspr(SPR_MAS1, mas1);
 			__asm __volatile("isync; tlbwe; isync; msync");
 		}
-	__asm __volatile("wrtee %0" :: "r"(msr));
+	__asm __volatile("wrtee %0" ::"r"(msr));
 }

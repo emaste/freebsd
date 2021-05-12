@@ -32,9 +32,9 @@
 #define _NETGRAPH_NG_DEVICE_H_
 
 /* Node type name and magic cookie */
-#define NG_DEVICE_NODE_TYPE	"device"
-#define NGM_DEVICE_COOKIE	1091129178
-#define	NG_DEVICE_DEVNAME	"ngd"
+#define NG_DEVICE_NODE_TYPE "device"
+#define NGM_DEVICE_COOKIE 1091129178
+#define NG_DEVICE_DEVNAME "ngd"
 
 /* Netgraph control messages */
 enum {

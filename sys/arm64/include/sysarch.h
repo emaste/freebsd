@@ -34,12 +34,12 @@
  * Architecture specific syscalls (arm64)
  */
 #ifndef _MACHINE_SYSARCH_H_
-#define	_MACHINE_SYSARCH_H_
+#define _MACHINE_SYSARCH_H_
 
 #ifndef _KERNEL
 
 __BEGIN_DECLS
-int	sysarch(int _number, void *_args);
+int sysarch(int _number, void *_args);
 __END_DECLS
 
 #endif

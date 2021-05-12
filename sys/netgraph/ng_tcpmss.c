@@ -55,94 +55,75 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
+#include <netgraph/ng_tcpmss.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
-#include <netgraph/ng_tcpmss.h>
-
 /* Per hook info. */
 typedef struct {
-	hook_p				outHook;
-	struct ng_tcpmss_hookstat	stats;
-} *hpriv_p;
+	hook_p outHook;
+	struct ng_tcpmss_hookstat stats;
+} * hpriv_p;
 
 /* Netgraph methods. */
-static ng_constructor_t	ng_tcpmss_constructor;
-static ng_rcvmsg_t	ng_tcpmss_rcvmsg;
-static ng_newhook_t	ng_tcpmss_newhook;
-static ng_rcvdata_t	ng_tcpmss_rcvdata;
-static ng_disconnect_t	ng_tcpmss_disconnect;
+static ng_constructor_t ng_tcpmss_constructor;
+static ng_rcvmsg_t ng_tcpmss_rcvmsg;
+static ng_newhook_t ng_tcpmss_newhook;
+static ng_rcvdata_t ng_tcpmss_rcvdata;
+static ng_disconnect_t ng_tcpmss_disconnect;
 
 static int correct_mss(struct tcphdr *, int, uint16_t, int);
 
 /* Parse type for struct ng_tcpmss_hookstat. */
-static const struct ng_parse_struct_field ng_tcpmss_hookstat_type_fields[]
-	= NG_TCPMSS_HOOKSTAT_INFO;
+static const struct ng_parse_struct_field ng_tcpmss_hookstat_type_fields[] =
+    NG_TCPMSS_HOOKSTAT_INFO;
 static const struct ng_parse_type ng_tcpmss_hookstat_type = {
-	&ng_parse_struct_type,
-	&ng_tcpmss_hookstat_type_fields
+	&ng_parse_struct_type, &ng_tcpmss_hookstat_type_fields
 };
 
 /* Parse type for struct ng_tcpmss_config. */
-static const struct ng_parse_struct_field ng_tcpmss_config_type_fields[]
-	= NG_TCPMSS_CONFIG_INFO;
+static const struct ng_parse_struct_field ng_tcpmss_config_type_fields[] =
+    NG_TCPMSS_CONFIG_INFO;
 static const struct ng_parse_type ng_tcpmss_config_type = {
-	&ng_parse_struct_type,
-	ng_tcpmss_config_type_fields
+	&ng_parse_struct_type, ng_tcpmss_config_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII. */
 static const struct ng_cmdlist ng_tcpmss_cmds[] = {
-	{
-	  NGM_TCPMSS_COOKIE,
-	  NGM_TCPMSS_GET_STATS,
-	  "getstats",
-	  &ng_parse_hookbuf_type,
-	  &ng_tcpmss_hookstat_type
-	},
-	{
-	  NGM_TCPMSS_COOKIE,
-	  NGM_TCPMSS_CLR_STATS,
-	  "clrstats",
-	  &ng_parse_hookbuf_type,
-	  NULL
-	},
-	{
-	  NGM_TCPMSS_COOKIE,
-	  NGM_TCPMSS_GETCLR_STATS,
-	  "getclrstats",
-	  &ng_parse_hookbuf_type,
-	  &ng_tcpmss_hookstat_type
-	},
-	{
-	  NGM_TCPMSS_COOKIE,
-	  NGM_TCPMSS_CONFIG,
-	  "config",
-	  &ng_tcpmss_config_type,
-	  NULL
-	},
+	{ NGM_TCPMSS_COOKIE, NGM_TCPMSS_GET_STATS, "getstats",
+	    &ng_parse_hookbuf_type, &ng_tcpmss_hookstat_type },
+	{ NGM_TCPMSS_COOKIE, NGM_TCPMSS_CLR_STATS, "clrstats",
+	    &ng_parse_hookbuf_type, NULL },
+	{ NGM_TCPMSS_COOKIE, NGM_TCPMSS_GETCLR_STATS, "getclrstats",
+	    &ng_parse_hookbuf_type, &ng_tcpmss_hookstat_type },
+	{ NGM_TCPMSS_COOKIE, NGM_TCPMSS_CONFIG, "config",
+	    &ng_tcpmss_config_type, NULL },
 	{ 0 }
 };
 
 /* Netgraph type descriptor. */
 static struct ng_type ng_tcpmss_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_TCPMSS_NODE_TYPE,
-	.constructor =	ng_tcpmss_constructor,
-	.rcvmsg =	ng_tcpmss_rcvmsg,
-	.newhook =	ng_tcpmss_newhook,
-	.rcvdata =	ng_tcpmss_rcvdata,
-	.disconnect =	ng_tcpmss_disconnect,
-	.cmdlist =	ng_tcpmss_cmds,
+	.version = NG_ABI_VERSION,
+	.name = NG_TCPMSS_NODE_TYPE,
+	.constructor = ng_tcpmss_constructor,
+	.rcvmsg = ng_tcpmss_rcvmsg,
+	.newhook = ng_tcpmss_newhook,
+	.rcvdata = ng_tcpmss_rcvdata,
+	.disconnect = ng_tcpmss_disconnect,
+	.cmdlist = ng_tcpmss_cmds,
 };
 
 NETGRAPH_INIT(tcpmss, &ng_tcpmss_typestruct);
-#define	ERROUT(x)	{ error = (x); goto done; }
+#define ERROUT(x)            \
+	{                    \
+		error = (x); \
+		goto done;   \
+	}
 
 /*
  * Node constructor. No special actions required.
@@ -174,8 +155,7 @@ ng_tcpmss_newhook(node_p node, hook_p hook, const char *name)
  * Receive a control message.
  */
 static int
-ng_tcpmss_rcvmsg
-(node_p node, item_p item, hook_p lasthook)
+ng_tcpmss_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	struct ng_mesg *msg, *resp = NULL;
 	int error = 0;
@@ -187,8 +167,7 @@ ng_tcpmss_rcvmsg
 		switch (msg->header.cmd) {
 		case NGM_TCPMSS_GET_STATS:
 		case NGM_TCPMSS_CLR_STATS:
-		case NGM_TCPMSS_GETCLR_STATS:
-		    {
+		case NGM_TCPMSS_GETCLR_STATS: {
 			hook_p hook;
 			hpriv_p priv;
 
@@ -206,20 +185,20 @@ ng_tcpmss_rcvmsg
 			/* Create response. */
 			if (msg->header.cmd != NGM_TCPMSS_CLR_STATS) {
 				NG_MKRESPONSE(resp, msg,
-				    sizeof(struct ng_tcpmss_hookstat), M_NOWAIT);
+				    sizeof(struct ng_tcpmss_hookstat),
+				    M_NOWAIT);
 				if (resp == NULL)
 					ERROUT(ENOMEM);
 				bcopy(&priv->stats, resp->data,
-				    sizeof(struct ng_tcpmss_hookstat));	
+				    sizeof(struct ng_tcpmss_hookstat));
 			}
 
 			if (msg->header.cmd != NGM_TCPMSS_GET_STATS)
 				bzero(&priv->stats,
 				    sizeof(struct ng_tcpmss_hookstat));
 			break;
-		    }
-		case NGM_TCPMSS_CONFIG:
-		    {
+		}
+		case NGM_TCPMSS_CONFIG: {
 			struct ng_tcpmss_config *set;
 			hook_p in, out;
 			hpriv_p priv;
@@ -241,7 +220,7 @@ ng_tcpmss_rcvmsg
 			priv->stats.maxMSS = set->maxMSS;
 
 			break;
- 		    }
+		}
 		default:
 			error = EINVAL;
 			break;
@@ -289,13 +268,14 @@ ng_tcpmss_rcvdata(hook_p hook, item_p item)
 	if (priv->stats.maxMSS == 0)
 		goto send;
 
-#define	M_CHECK(length) do {					\
-	pullup_len += length;					\
-	if ((m)->m_pkthdr.len < pullup_len)			\
-		goto send;					\
-	if ((m)->m_len < pullup_len &&				\
-	   (((m) = m_pullup((m), pullup_len)) == NULL))		\
-		ERROUT(ENOBUFS);				\
+#define M_CHECK(length)                                          \
+	do {                                                     \
+		pullup_len += length;                            \
+		if ((m)->m_pkthdr.len < pullup_len)              \
+			goto send;                               \
+		if ((m)->m_len < pullup_len &&                   \
+		    (((m) = m_pullup((m), pullup_len)) == NULL)) \
+			ERROUT(ENOBUFS);                         \
 	} while (0)
 
 	/* Check mbuf packet size and arrange for IP header. */
@@ -308,17 +288,17 @@ ng_tcpmss_rcvdata(hook_p hook, item_p item)
 
 	/* Check IP header length. */
 	iphlen = ip->ip_hl << 2;
-	if (iphlen < sizeof(struct ip) || iphlen > pktlen )
+	if (iphlen < sizeof(struct ip) || iphlen > pktlen)
 		ERROUT(EINVAL);
 
-        /* Check if it is TCP. */
+	/* Check if it is TCP. */
 	if (!(ip->ip_p == IPPROTO_TCP))
 		goto send;
 
 	/* Check mbuf packet size and arrange for IP+TCP header */
 	M_CHECK(iphlen - sizeof(struct ip) + sizeof(struct tcphdr));
 	ip = mtod(m, struct ip *);
-	tcp = (struct tcphdr *)((caddr_t )ip + iphlen);
+	tcp = (struct tcphdr *)((caddr_t)ip + iphlen);
 
 	/* Check TCP header length. */
 	tcphlen = tcp->th_off << 2;
@@ -334,13 +314,13 @@ ng_tcpmss_rcvdata(hook_p hook, item_p item)
 
 	M_CHECK(tcphlen - sizeof(struct tcphdr));
 	ip = mtod(m, struct ip *);
-	tcp = (struct tcphdr *)((caddr_t )ip + iphlen);
+	tcp = (struct tcphdr *)((caddr_t)ip + iphlen);
 
-#undef	M_CHECK
+#undef M_CHECK
 
 	/* Fix MSS and update stats. */
-	if (correct_mss(tcp, tcphlen, priv->stats.maxMSS,
-	    m->m_pkthdr.csum_flags))
+	if (correct_mss(
+		tcp, tcphlen, priv->stats.maxMSS, m->m_pkthdr.csum_flags))
 		priv->stats.FixedPkts++;
 
 send:
@@ -366,7 +346,7 @@ ng_tcpmss_disconnect(hook_p hook)
 	node_p node = NG_HOOK_NODE(hook);
 	hook_p hook2;
 
-	LIST_FOREACH(hook2, &node->nd_hooks, hk_hooks) {
+	LIST_FOREACH (hook2, &node->nd_hooks, hk_hooks) {
 		hpriv_p priv = NG_HOOK_PRIVATE(hook2);
 
 		if (priv->outHook == hook)
@@ -393,19 +373,20 @@ ng_tcpmss_disconnect(hook_p hook)
  * subtracting out new words), and "cksum"
  * is the checksum value to be updated.
  */
-#define TCPMSS_ADJUST_CHECKSUM(acc, cksum) do {		\
-	acc += cksum;					\
-	if (acc < 0) {					\
-		acc = -acc;				\
-		acc = (acc >> 16) + (acc & 0xffff);	\
-		acc += acc >> 16;			\
-		cksum = (u_short) ~acc;			\
-	} else {					\
-		acc = (acc >> 16) + (acc & 0xffff);	\
-		acc += acc >> 16;			\
-		cksum = (u_short) acc;			\
-	}						\
-} while (0);
+#define TCPMSS_ADJUST_CHECKSUM(acc, cksum)                  \
+	do {                                                \
+		acc += cksum;                               \
+		if (acc < 0) {                              \
+			acc = -acc;                         \
+			acc = (acc >> 16) + (acc & 0xffff); \
+			acc += acc >> 16;                   \
+			cksum = (u_short)~acc;              \
+		} else {                                    \
+			acc = (acc >> 16) + (acc & 0xffff); \
+			acc += acc >> 16;                   \
+			cksum = (u_short)acc;               \
+		}                                           \
+	} while (0);
 
 static int
 correct_mss(struct tcphdr *tc, int hlen, uint16_t maxmss, int flags)
@@ -434,7 +415,8 @@ correct_mss(struct tcphdr *tc, int hlen, uint16_t maxmss, int flags)
 					if ((flags & CSUM_TCP) == 0) {
 						accumulate -= maxmss;
 						sum = be16dec(&tc->th_sum);
-						TCPMSS_ADJUST_CHECKSUM(accumulate, sum);
+						TCPMSS_ADJUST_CHECKSUM(
+						    accumulate, sum);
 						be16enc(&tc->th_sum, sum);
 					}
 					be16enc(opt + 2, maxmss);

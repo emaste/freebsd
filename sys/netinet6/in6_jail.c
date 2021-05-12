@@ -33,36 +33,35 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
-#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/kernel.h>
+#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
-#include <sys/sysproto.h>
+#include <sys/fcntl.h>
+#include <sys/jail.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
 #include <sys/osd.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/taskqueue.h>
-#include <sys/fcntl.h>
-#include <sys/jail.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/queue.h>
 #include <sys/racct.h>
 #include <sys/refcount.h>
-#include <sys/sx.h>
-#include <sys/sysent.h>
-#include <sys/namei.h>
-#include <sys/mount.h>
-#include <sys/queue.h>
 #include <sys/socket.h>
+#include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 
 #include <net/if.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
 
 int
@@ -127,8 +126,8 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
 	} else if (pr->pr_ip6s > 0) {
 		/* Remove addresses that aren't in the parent. */
 		for (ij = 0; ij < ppr->pr_ip6s; ij++)
-			if (IN6_ARE_ADDR_EQUAL(&pr->pr_ip6[0],
-			    &ppr->pr_ip6[ij]))
+			if (IN6_ARE_ADDR_EQUAL(
+				&pr->pr_ip6[0], &ppr->pr_ip6[ij]))
 				break;
 		if (ij < ppr->pr_ip6s)
 			ii = 1;
@@ -137,14 +136,16 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
 			    --pr->pr_ip6s * sizeof(*pr->pr_ip6));
 			ii = 0;
 		}
-		for (ij = 1; ii < pr->pr_ip6s; ) {
-			if (IN6_ARE_ADDR_EQUAL(&pr->pr_ip6[ii],
-			    &ppr->pr_ip6[0])) {
+		for (ij = 1; ii < pr->pr_ip6s;) {
+			if (IN6_ARE_ADDR_EQUAL(
+				&pr->pr_ip6[ii], &ppr->pr_ip6[0])) {
 				ii++;
 				continue;
 			}
-			switch (ij >= ppr->pr_ip6s ? -1 :
-				prison_qcmp_v6(&pr->pr_ip6[ii], &ppr->pr_ip6[ij])) {
+			switch (ij >= ppr->pr_ip6s ?
+				      -1 :
+				      prison_qcmp_v6(
+				    &pr->pr_ip6[ii], &ppr->pr_ip6[ij])) {
 			case -1:
 				bcopy(pr->pr_ip6 + ii + 1, pr->pr_ip6 + ii,
 				    (--pr->pr_ip6s - ii) * sizeof(*pr->pr_ip6));
@@ -247,15 +248,15 @@ prison_equal_ip6(struct prison *pr1, struct prison *pr2)
 
 	while (pr1 != &prison0 &&
 #ifdef VIMAGE
-	       !(pr1->pr_flags & PR_VNET) &&
+	    !(pr1->pr_flags & PR_VNET) &&
 #endif
-	       !(pr1->pr_flags & PR_IP6_USER))
+	    !(pr1->pr_flags & PR_IP6_USER))
 		pr1 = pr1->pr_parent;
 	while (pr2 != &prison0 &&
 #ifdef VIMAGE
-	       !(pr2->pr_flags & PR_VNET) &&
+	    !(pr2->pr_flags & PR_VNET) &&
 #endif
-	       !(pr2->pr_flags & PR_IP6_USER))
+	    !(pr2->pr_flags & PR_IP6_USER))
 		pr2 = pr2->pr_parent;
 	return (pr1 == pr2);
 }
@@ -340,7 +341,7 @@ prison_remote_ip6(struct ucred *cred, struct in6_addr *ia6)
 	}
 
 	if (IN6_IS_ADDR_LOOPBACK(ia6) &&
-            prison_check_ip6_locked(pr, ia6) == EADDRNOTAVAIL) {
+	    prison_check_ip6_locked(pr, ia6) == EADDRNOTAVAIL) {
 		bcopy(&pr->pr_ip6[0], ia6, sizeof(struct in6_addr));
 		mtx_unlock(&pr->pr_mtx);
 		return (0);
@@ -377,7 +378,7 @@ prison_check_ip6_locked(const struct prison *pr, const struct in6_addr *ia6)
 	z = pr->pr_ip6s - 2;
 	while (a <= z) {
 		i = (a + z) / 2;
-		d = prison_qcmp_v6(&pr->pr_ip6[i+1], ia6);
+		d = prison_qcmp_v6(&pr->pr_ip6[i + 1], ia6);
 		if (d > 0)
 			z = i - 1;
 		else if (d < 0)

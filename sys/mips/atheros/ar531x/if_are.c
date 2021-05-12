@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2016 Hiroki Mori. All rights reserved.
- * Copyright (C) 2007 
+ * Copyright (C) 2007
  *	Oleksandr Tymoshenko <gonzo@freebsd.org>. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,11 +25,11 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $Id: $
- * 
+ *
  */
 
-#include "opt_platform.h"
 #include "opt_ar531x.h"
+#include "opt_platform.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -39,33 +39,32 @@ __FBSDID("$FreeBSD$");
  * copy from mips/idt/if_kr.c and netbsd code
  */
 #include <sys/param.h>
-#include <sys/endian.h>
 #include <sys/systm.h>
-#include <sys/sockio.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
+#include <sys/bus.h>
+#include <sys/endian.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/taskqueue.h>
-#include <sys/kdb.h>
 
+#include <machine/bus.h>
+#include <machine/resource.h>
+
+#include <net/bpf.h>
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
-
-#include <net/bpf.h>
-
-#include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/bus.h>
-#include <sys/rman.h>
 
 #ifdef INTRNG
 #include <machine/intr.h>
@@ -75,20 +74,21 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/miivar.h>
 
 #ifdef ARE_MDIO
-#include <dev/mdio/mdio.h>
 #include <dev/etherswitch/miiproxy.h>
+#include <dev/mdio/mdio.h>
+
 #include "mdio_if.h"
 #endif
 
 MODULE_DEPEND(are, ether, 1, 1, 1);
 MODULE_DEPEND(are, miibus, 1, 1, 1);
 
-#include "miibus_if.h"
-
-#include <mips/atheros/ar531x/ar5315reg.h>
 #include <mips/atheros/ar531x/ar5312reg.h>
 #include <mips/atheros/ar531x/ar5315_setup.h>
+#include <mips/atheros/ar531x/ar5315reg.h>
 #include <mips/atheros/ar531x/if_arereg.h>
+
+#include "miibus_if.h"
 
 #ifdef ARE_DEBUG
 void dump_txdesc(struct are_softc *, int);
@@ -132,30 +132,26 @@ static void are_hinted_child(device_t bus, const char *dname, int dunit);
 
 static device_method_t are_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		are_probe),
-	DEVMETHOD(device_attach,	are_attach),
-	DEVMETHOD(device_detach,	are_detach),
-	DEVMETHOD(device_suspend,	are_suspend),
-	DEVMETHOD(device_resume,	are_resume),
-	DEVMETHOD(device_shutdown,	are_shutdown),
+	DEVMETHOD(device_probe, are_probe),
+	DEVMETHOD(device_attach, are_attach),
+	DEVMETHOD(device_detach, are_detach),
+	DEVMETHOD(device_suspend, are_suspend),
+	DEVMETHOD(device_resume, are_resume),
+	DEVMETHOD(device_shutdown, are_shutdown),
 
 	/* MII interface */
-	DEVMETHOD(miibus_readreg,	are_miibus_readreg),
-	DEVMETHOD(miibus_writereg,	are_miibus_writereg),
-	DEVMETHOD(miibus_statchg,	are_miibus_statchg),
+	DEVMETHOD(miibus_readreg, are_miibus_readreg),
+	DEVMETHOD(miibus_writereg, are_miibus_writereg),
+	DEVMETHOD(miibus_statchg, are_miibus_statchg),
 
 	/* bus interface */
-	DEVMETHOD(bus_add_child,	device_add_child_ordered),
-	DEVMETHOD(bus_hinted_child,	are_hinted_child),
+	DEVMETHOD(bus_add_child, device_add_child_ordered),
+	DEVMETHOD(bus_hinted_child, are_hinted_child),
 
 	DEVMETHOD_END
 };
 
-static driver_t are_driver = {
-	"are",
-	are_methods,
-	sizeof(struct are_softc)
-};
+static driver_t are_driver = { "are", are_methods, sizeof(struct are_softc) };
 
 static devclass_t are_devclass;
 
@@ -174,20 +170,20 @@ static int aremdio_detach(device_t);
  */
 static device_method_t aremdio_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		aremdio_probe),
-	DEVMETHOD(device_attach,	aremdio_attach),
-	DEVMETHOD(device_detach,	aremdio_detach),
+	DEVMETHOD(device_probe, aremdio_probe),
+	DEVMETHOD(device_attach, aremdio_attach),
+	DEVMETHOD(device_detach, aremdio_detach),
 
 	/* bus interface */
-	DEVMETHOD(bus_add_child,	device_add_child_ordered),
-        
+	DEVMETHOD(bus_add_child, device_add_child_ordered),
+
 	/* MDIO access */
-	DEVMETHOD(mdio_readreg,		are_miibus_readreg),
-	DEVMETHOD(mdio_writereg,	are_miibus_writereg),
+	DEVMETHOD(mdio_readreg, are_miibus_readreg),
+	DEVMETHOD(mdio_writereg, are_miibus_writereg),
 };
 
-DEFINE_CLASS_0(aremdio, aremdio_driver, aremdio_methods,
-    sizeof(struct are_softc));
+DEFINE_CLASS_0(
+    aremdio, aremdio_driver, aremdio_methods, sizeof(struct are_softc));
 static devclass_t aremdio_devclass;
 
 DRIVER_MODULE(miiproxy, are, miiproxy_driver, miiproxy_devclass, 0, 0);
@@ -195,7 +191,7 @@ DRIVER_MODULE(aremdio, nexus, aremdio_driver, aremdio_devclass, 0, 0);
 DRIVER_MODULE(mdio, aremdio, mdio_driver, mdio_devclass, 0, 0);
 #endif
 
-static int 
+static int
 are_probe(device_t dev)
 {
 
@@ -206,18 +202,18 @@ are_probe(device_t dev)
 static int
 are_attach(device_t dev)
 {
-	struct ifnet		*ifp;
-	struct are_softc		*sc;
-	int			error = 0;
+	struct ifnet *ifp;
+	struct are_softc *sc;
+	int error = 0;
 #ifdef INTRNG
-	int			enetirq;
+	int enetirq;
 #else
-	int			rid;
+	int rid;
 #endif
-	int			unit;
-	char *			local_macstr;
-	int			count;
-	int			i;
+	int unit;
+	char *local_macstr;
+	int count;
+	int i;
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -232,20 +228,20 @@ are_attach(device_t dev)
 	sc->are_eaddr[5] = 0x6B;
 
 	/* try to get from hints */
-	if (!resource_string_value(device_get_name(dev),
-		device_get_unit(dev), "macaddr", (const char **)&local_macstr)) {
+	if (!resource_string_value(device_get_name(dev), device_get_unit(dev),
+		"macaddr", (const char **)&local_macstr)) {
 		uint32_t tmpmac[ETHER_ADDR_LEN];
 
 		/* Have a MAC address; should use it */
-		device_printf(dev, "Overriding MAC address from environment: '%s'\n",
+		device_printf(dev,
+		    "Overriding MAC address from environment: '%s'\n",
 		    local_macstr);
 
 		/* Extract out the MAC address */
 		/* XXX this should all be a generic method */
 		count = sscanf(local_macstr, "%x%*c%x%*c%x%*c%x%*c%x%*c%x",
-		    &tmpmac[0], &tmpmac[1],
-		    &tmpmac[2], &tmpmac[3],
-		    &tmpmac[4], &tmpmac[5]);
+		    &tmpmac[0], &tmpmac[1], &tmpmac[2], &tmpmac[3], &tmpmac[4],
+		    &tmpmac[5]);
 		if (count == 6) {
 			/* Valid! */
 			for (i = 0; i < ETHER_ADDR_LEN; i++)
@@ -253,15 +249,15 @@ are_attach(device_t dev)
 		}
 	}
 
-	mtx_init(&sc->are_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF);
+	mtx_init(
+	    &sc->are_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK, MTX_DEF);
 	callout_init_mtx(&sc->are_stat_callout, &sc->are_mtx, 0);
 	TASK_INIT(&sc->are_link_task, 0, are_link_task, sc);
 
 	/* Map control/status registers. */
 	sc->are_rid = 0;
-	sc->are_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->are_rid, 
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->are_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->are_rid, RF_ACTIVE | RF_SHAREABLE);
 
 	if (sc->are_res == NULL) {
 		device_printf(dev, "couldn't map memory\n");
@@ -275,8 +271,8 @@ are_attach(device_t dev)
 #ifndef INTRNG
 	/* Allocate interrupts */
 	rid = 0;
-	sc->are_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, 
-	    RF_SHAREABLE | RF_ACTIVE);
+	sc->are_irq = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->are_irq == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
@@ -355,8 +351,8 @@ are_attach(device_t dev)
 			name = "enet1";
 		}
 	}
-	cpu_establish_hardintr(name, NULL, are_intr, sc, enetirq,
-	    INTR_TYPE_NET, NULL);
+	cpu_establish_hardintr(
+	    name, NULL, are_intr, sc, enetirq, INTR_TYPE_NET, NULL);
 #else
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->are_irq, INTR_TYPE_NET | INTR_MPSAFE,
@@ -370,7 +366,7 @@ are_attach(device_t dev)
 #endif
 
 fail:
-	if (error) 
+	if (error)
 		are_detach(dev);
 
 	return (error);
@@ -379,8 +375,8 @@ fail:
 static int
 are_detach(device_t dev)
 {
-	struct are_softc		*sc = device_get_softc(dev);
-	struct ifnet		*ifp = sc->are_ifp;
+	struct are_softc *sc = device_get_softc(dev);
+	struct ifnet *ifp = sc->are_ifp;
 
 	KASSERT(mtx_initialized(&sc->are_mtx), ("vr mutex not initialized"));
 
@@ -405,8 +401,8 @@ are_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->are_irq);
 
 	if (sc->are_res)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->are_rid, 
-		    sc->are_res);
+		bus_release_resource(
+		    dev, SYS_RES_MEMORY, sc->are_rid, sc->are_res);
 
 	if (ifp)
 		if_free(ifp);
@@ -416,7 +412,6 @@ are_detach(device_t dev)
 	mtx_destroy(&sc->are_mtx);
 
 	return (0);
-
 }
 
 static int
@@ -438,7 +433,7 @@ are_resume(device_t dev)
 static int
 are_shutdown(device_t dev)
 {
-	struct are_softc	*sc;
+	struct are_softc *sc;
 
 	sc = device_get_softc(dev);
 
@@ -452,9 +447,9 @@ are_shutdown(device_t dev)
 static int
 are_miibus_readreg(device_t dev, int phy, int reg)
 {
-	struct are_softc * sc = device_get_softc(dev);
-	uint32_t	addr;
-	int		i;
+	struct are_softc *sc = device_get_softc(dev);
+	uint32_t addr;
+	int i;
 
 	addr = (phy << MIIADDR_PHY_SHIFT) | (reg << MIIADDR_REG_SHIFT);
 	CSR_WRITE_4(sc, CSR_MIIADDR, addr);
@@ -469,9 +464,9 @@ are_miibus_readreg(device_t dev, int phy, int reg)
 static int
 are_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
-	struct are_softc * sc = device_get_softc(dev);
-	uint32_t	addr;
-	int		i;
+	struct are_softc *sc = device_get_softc(dev);
+	uint32_t addr;
+	int i;
 
 	/* write the data register */
 	CSR_WRITE_4(sc, CSR_MIIDATA, data);
@@ -492,7 +487,7 @@ are_miibus_writereg(device_t dev, int phy, int reg, int data)
 static void
 are_miibus_statchg(device_t dev)
 {
-	struct are_softc		*sc;
+	struct are_softc *sc;
 
 	sc = device_get_softc(dev);
 	taskqueue_enqueue(taskqueue_swi, &sc->are_link_task);
@@ -502,9 +497,9 @@ static void
 are_link_task(void *arg, int pending)
 {
 #ifdef ARE_MII
-	struct are_softc		*sc;
-	struct mii_data		*mii;
-	struct ifnet		*ifp;
+	struct are_softc *sc;
+	struct mii_data *mii;
+	struct ifnet *ifp;
 	/* int			lfdx, mfdx; */
 
 	sc = (struct are_softc *)arg;
@@ -531,7 +526,7 @@ are_link_task(void *arg, int pending)
 static void
 are_reset(struct are_softc *sc)
 {
-	int		i;
+	int i;
 
 	CSR_WRITE_4(sc, CSR_BUSMODE, BUSMODE_SWR);
 
@@ -561,7 +556,7 @@ are_reset(struct are_softc *sc)
 static void
 are_init(void *xsc)
 {
-	struct are_softc	 *sc = xsc;
+	struct are_softc *sc = xsc;
 
 	ARE_LOCK(sc);
 	are_init_locked(sc);
@@ -571,9 +566,9 @@ are_init(void *xsc)
 static void
 are_init_locked(struct are_softc *sc)
 {
-	struct ifnet		*ifp = sc->are_ifp;
+	struct ifnet *ifp = sc->are_ifp;
 #ifdef ARE_MII
-	struct mii_data		*mii;
+	struct mii_data *mii;
 #endif
 
 	ARE_LOCK_ASSERT(sc);
@@ -607,14 +602,14 @@ are_init_locked(struct are_softc *sc)
 	 * Initialize the interrupt mask and enable interrupts.
 	 */
 	/* normal interrupts */
-	sc->sc_inten =  STATUS_TI | STATUS_TU | STATUS_RI | STATUS_NIS;
+	sc->sc_inten = STATUS_TI | STATUS_TU | STATUS_RI | STATUS_NIS;
 
 	/* abnormal interrupts */
-	sc->sc_inten |= STATUS_TPS | STATUS_TJT | STATUS_UNF |
-	    STATUS_RU | STATUS_RPS | STATUS_SE | STATUS_AIS;
+	sc->sc_inten |= STATUS_TPS | STATUS_TJT | STATUS_UNF | STATUS_RU |
+	    STATUS_RPS | STATUS_SE | STATUS_AIS;
 
-	sc->sc_rxint_mask = STATUS_RI|STATUS_RU;
-	sc->sc_txint_mask = STATUS_TI|STATUS_UNF|STATUS_TJT;
+	sc->sc_rxint_mask = STATUS_RI | STATUS_RU;
+	sc->sc_txint_mask = STATUS_TI | STATUS_UNF | STATUS_TJT;
 
 	sc->sc_rxint_mask &= sc->sc_inten;
 	sc->sc_txint_mask &= sc->sc_inten;
@@ -632,21 +627,23 @@ are_init_locked(struct are_softc *sc)
 	 * Set the station address.
 	 */
 	CSR_WRITE_4(sc, CSR_MACHI, sc->are_eaddr[5] << 16 | sc->are_eaddr[4]);
-	CSR_WRITE_4(sc, CSR_MACLO, sc->are_eaddr[3] << 24 |
-	    sc->are_eaddr[2] << 16 | sc->are_eaddr[1] << 8 | sc->are_eaddr[0]);
+	CSR_WRITE_4(sc, CSR_MACLO,
+	    sc->are_eaddr[3] << 24 | sc->are_eaddr[2] << 16 |
+		sc->are_eaddr[1] << 8 | sc->are_eaddr[0]);
 
 	/*
 	 * Start the mac.
 	 */
 	CSR_WRITE_4(sc, CSR_FLOWC, FLOWC_FCE);
-	CSR_WRITE_4(sc, CSR_MACCTL, MACCTL_RE | MACCTL_TE |
-	    MACCTL_PM | MACCTL_FDX | MACCTL_HBD | MACCTL_RA);
+	CSR_WRITE_4(sc, CSR_MACCTL,
+	    MACCTL_RE | MACCTL_TE | MACCTL_PM | MACCTL_FDX | MACCTL_HBD |
+		MACCTL_RA);
 
 	/*
 	 * Write out the opmode.
 	 */
-	CSR_WRITE_4(sc, CSR_OPMODE, OPMODE_SR | OPMODE_ST | OPMODE_SF |
-	    OPMODE_TR_64);
+	CSR_WRITE_4(
+	    sc, CSR_OPMODE, OPMODE_SR | OPMODE_ST | OPMODE_SF | OPMODE_TR_64);
 
 	/*
 	 * Start the receive process.
@@ -667,7 +664,7 @@ are_init_locked(struct are_softc *sc)
 static void
 are_start(struct ifnet *ifp)
 {
-	struct are_softc	 *sc;
+	struct are_softc *sc;
 
 	sc = ifp->if_softc;
 
@@ -683,15 +680,15 @@ are_start(struct ifnet *ifp)
 static int
 are_encap(struct are_softc *sc, struct mbuf **m_head)
 {
-	struct are_txdesc	*txd;
-	struct are_desc		*desc, *prev_desc;
-	struct mbuf		*m;
-	bus_dma_segment_t	txsegs[ARE_MAXFRAGS];
-	uint32_t		link_addr;
-	int			error, i, nsegs, prod, si, prev_prod;
-	int			txstat;
-	int			startcount;
-	int			padlen;
+	struct are_txdesc *txd;
+	struct are_desc *desc, *prev_desc;
+	struct mbuf *m;
+	bus_dma_segment_t txsegs[ARE_MAXFRAGS];
+	uint32_t link_addr;
+	int error, i, nsegs, prod, si, prev_prod;
+	int txstat;
+	int startcount;
+	int padlen;
 
 	startcount = sc->are_cdata.are_tx_cnt;
 
@@ -725,7 +722,8 @@ are_encap(struct are_softc *sc, struct mbuf **m_head)
 			m = m_dup(*m_head, M_NOWAIT);
 			m_freem(*m_head);
 			if (m == NULL) {
-				device_printf(sc->are_dev, "are_encap m_dup error\n");
+				device_printf(
+				    sc->are_dev, "are_encap m_dup error\n");
 				*m_head = NULL;
 				return (ENOBUFS);
 			}
@@ -734,7 +732,8 @@ are_encap(struct are_softc *sc, struct mbuf **m_head)
 		if (m->m_next != NULL || M_TRAILINGSPACE(m) < padlen) {
 			m = m_defrag(m, M_NOWAIT);
 			if (m == NULL) {
-				device_printf(sc->are_dev, "are_encap m_defrag error\n");
+				device_printf(
+				    sc->are_dev, "are_encap m_defrag error\n");
 				m_freem(*m_head);
 				*m_head = NULL;
 				return (ENOBUFS);
@@ -786,12 +785,12 @@ are_encap(struct are_softc *sc, struct mbuf **m_head)
 	}
 
 	txd->tx_m = *m_head;
-	bus_dmamap_sync(sc->are_cdata.are_tx_tag, txd->tx_dmamap,
-	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(
+	    sc->are_cdata.are_tx_tag, txd->tx_dmamap, BUS_DMASYNC_PREWRITE);
 
 	si = prod;
 
-	/* 
+	/*
 	 * Make a list of descriptors for this packet. DMA controller will
 	 * walk through it while are_link is not zero. The last one should
 	 * have COF flag set, to pickup next chain from NDPTR
@@ -813,7 +812,7 @@ are_encap(struct are_softc *sc, struct mbuf **m_head)
 		ARE_INC(prod, ARE_TX_RING_CNT);
 	}
 
-	/* 
+	/*
 	 * Set mark last fragment with LD flag
 	 */
 	if (desc) {
@@ -835,8 +834,7 @@ are_encap(struct are_softc *sc, struct mbuf **m_head)
 	if (startcount == 0 && (txstat == 0 || txstat == 6)) {
 		desc = &sc->are_rdata.are_tx_ring[si];
 		desc->are_devcs |= ADCTL_Tx_FS;
-	}
-	else {
+	} else {
 		link_addr = ARE_TX_RING_ADDR(sc, si);
 		/* Get previous descriptor */
 		si = (si + ARE_TX_RING_CNT - 1) % ARE_TX_RING_CNT;
@@ -850,21 +848,22 @@ are_encap(struct are_softc *sc, struct mbuf **m_head)
 static void
 are_start_locked(struct ifnet *ifp)
 {
-	struct are_softc		*sc;
-	struct mbuf		*m_head;
-	int			enq;
-	int			txstat;
+	struct are_softc *sc;
+	struct mbuf *m_head;
+	int enq;
+	int txstat;
 
 	sc = ifp->if_softc;
 
 	ARE_LOCK_ASSERT(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || sc->are_link_status == 0 )
+		IFF_DRV_RUNNING ||
+	    sc->are_link_status == 0)
 		return;
 
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
-	    sc->are_cdata.are_tx_cnt < ARE_TX_RING_CNT - 2; ) {
+	     sc->are_cdata.are_tx_cnt < ARE_TX_RING_CNT - 2;) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
@@ -889,7 +888,7 @@ are_start_locked(struct ifnet *ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
-	if (enq > 0) { 
+	if (enq > 0) {
 		txstat = (CSR_READ_4(sc, CSR_STATUS) >> 20) & 7;
 		if (txstat == 0 || txstat == 6) {
 			/* Transmit Process Stat is stop or suspended */
@@ -901,7 +900,7 @@ are_start_locked(struct ifnet *ifp)
 static void
 are_stop(struct are_softc *sc)
 {
-	struct ifnet	    *ifp;
+	struct ifnet *ifp;
 
 	ARE_LOCK_ASSERT(sc);
 
@@ -916,15 +915,14 @@ are_stop(struct are_softc *sc)
 	CSR_WRITE_4(sc, CSR_OPMODE, 0);
 	CSR_WRITE_4(sc, CSR_RXLIST, 0);
 	CSR_WRITE_4(sc, CSR_TXLIST, 0);
-	CSR_WRITE_4(sc, CSR_MACCTL, 
+	CSR_WRITE_4(sc, CSR_MACCTL,
 	    CSR_READ_4(sc, CSR_MACCTL) & ~(MACCTL_TE | MACCTL_RE));
-
 }
 
 static int
 are_set_filter(struct are_softc *sc)
 {
-	struct ifnet	    *ifp;
+	struct ifnet *ifp;
 	int mchash[2];
 	int macctl;
 
@@ -937,7 +935,7 @@ are_set_filter(struct are_softc *sc)
 	if (ifp->if_flags & IFF_PROMISC)
 		macctl |= MACCTL_PR;
 
-	/* Todo: hash table set. 
+	/* Todo: hash table set.
 	 * But I don't know how to use multicast hash table at this soc.
 	 */
 
@@ -955,12 +953,12 @@ are_set_filter(struct are_softc *sc)
 static int
 are_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	struct are_softc		*sc = ifp->if_softc;
-	struct ifreq		*ifr = (struct ifreq *) data;
+	struct are_softc *sc = ifp->if_softc;
+	struct ifreq *ifr = (struct ifreq *)data;
 #ifdef ARE_MII
-	struct mii_data		*mii;
+	struct mii_data *mii;
 #endif
-	int			error;
+	int error;
 
 	switch (command) {
 	case SIOCSIFFLAGS:
@@ -1016,15 +1014,15 @@ static int
 are_ifmedia_upd(struct ifnet *ifp)
 {
 #ifdef ARE_MII
-	struct are_softc		*sc;
-	struct mii_data		*mii;
-	struct mii_softc	*miisc;
-	int			error;
+	struct are_softc *sc;
+	struct mii_data *mii;
+	struct mii_softc *miisc;
+	int error;
 
 	sc = ifp->if_softc;
 	ARE_LOCK(sc);
 	mii = device_get_softc(sc->are_miibus);
-	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+	LIST_FOREACH (miisc, &mii->mii_phys, mii_list)
 		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	ARE_UNLOCK(sc);
@@ -1042,8 +1040,8 @@ static void
 are_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 #ifdef ARE_MII
-	struct are_softc		*sc = ifp->if_softc;
-	struct mii_data		*mii;
+	struct are_softc *sc = ifp->if_softc;
+	struct mii_data *mii;
 
 	mii = device_get_softc(sc->are_miibus);
 	ARE_LOCK(sc);
@@ -1057,13 +1055,13 @@ are_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 struct are_dmamap_arg {
-	bus_addr_t	are_busaddr;
+	bus_addr_t are_busaddr;
 };
 
 static void
 are_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	struct are_dmamap_arg	*ctx;
+	struct are_dmamap_arg *ctx;
 
 	if (error != 0)
 		return;
@@ -1074,76 +1072,74 @@ are_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 are_dma_alloc(struct are_softc *sc)
 {
-	struct are_dmamap_arg	ctx;
-	struct are_txdesc	*txd;
-	struct are_rxdesc	*rxd;
-	int			error, i;
+	struct are_dmamap_arg ctx;
+	struct are_txdesc *txd;
+	struct are_rxdesc *rxd;
+	int error, i;
 
 	/* Create parent DMA tag. */
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(sc->are_dev),	/* parent */
-	    1, 0,			/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
-	    0,				/* nsegments */
-	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-	    0,				/* flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->are_dev), /* parent */
+	    1, 0,		     /* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
+	    BUS_SPACE_MAXADDR,	     /* highaddr */
+	    NULL, NULL,		     /* filter, filterarg */
+	    BUS_SPACE_MAXSIZE_32BIT, /* maxsize */
+	    0,			     /* nsegments */
+	    BUS_SPACE_MAXSIZE_32BIT, /* maxsegsize */
+	    0,			     /* flags */
+	    NULL, NULL,		     /* lockfunc, lockarg */
 	    &sc->are_cdata.are_parent_tag);
 	if (error != 0) {
 		device_printf(sc->are_dev, "failed to create parent DMA tag\n");
 		goto fail;
 	}
 	/* Create tag for Tx ring. */
-	error = bus_dma_tag_create(
-	    sc->are_cdata.are_parent_tag,	/* parent */
-	    ARE_RING_ALIGN, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    ARE_TX_RING_SIZE,		/* maxsize */
-	    1,				/* nsegments */
-	    ARE_TX_RING_SIZE,		/* maxsegsize */
-	    0,				/* flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	error = bus_dma_tag_create(sc->are_cdata.are_parent_tag, /* parent */
+	    ARE_RING_ALIGN, 0, /* alignment, boundary */
+	    BUS_SPACE_MAXADDR, /* lowaddr */
+	    BUS_SPACE_MAXADDR, /* highaddr */
+	    NULL, NULL,	       /* filter, filterarg */
+	    ARE_TX_RING_SIZE,  /* maxsize */
+	    1,		       /* nsegments */
+	    ARE_TX_RING_SIZE,  /* maxsegsize */
+	    0,		       /* flags */
+	    NULL, NULL,	       /* lockfunc, lockarg */
 	    &sc->are_cdata.are_tx_ring_tag);
 	if (error != 0) {
-		device_printf(sc->are_dev, "failed to create Tx ring DMA tag\n");
+		device_printf(
+		    sc->are_dev, "failed to create Tx ring DMA tag\n");
 		goto fail;
 	}
 
 	/* Create tag for Rx ring. */
-	error = bus_dma_tag_create(
-	    sc->are_cdata.are_parent_tag,	/* parent */
-	    ARE_RING_ALIGN, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    ARE_RX_RING_SIZE,		/* maxsize */
-	    1,				/* nsegments */
-	    ARE_RX_RING_SIZE,		/* maxsegsize */
-	    0,				/* flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	error = bus_dma_tag_create(sc->are_cdata.are_parent_tag, /* parent */
+	    ARE_RING_ALIGN, 0, /* alignment, boundary */
+	    BUS_SPACE_MAXADDR, /* lowaddr */
+	    BUS_SPACE_MAXADDR, /* highaddr */
+	    NULL, NULL,	       /* filter, filterarg */
+	    ARE_RX_RING_SIZE,  /* maxsize */
+	    1,		       /* nsegments */
+	    ARE_RX_RING_SIZE,  /* maxsegsize */
+	    0,		       /* flags */
+	    NULL, NULL,	       /* lockfunc, lockarg */
 	    &sc->are_cdata.are_rx_ring_tag);
 	if (error != 0) {
-		device_printf(sc->are_dev, "failed to create Rx ring DMA tag\n");
+		device_printf(
+		    sc->are_dev, "failed to create Rx ring DMA tag\n");
 		goto fail;
 	}
 
 	/* Create tag for Tx buffers. */
-	error = bus_dma_tag_create(
-	    sc->are_cdata.are_parent_tag,	/* parent */
-	    sizeof(uint32_t), 0,	/* alignment, boundary */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    MCLBYTES * ARE_MAXFRAGS,	/* maxsize */
-	    ARE_MAXFRAGS,		/* nsegments */
-	    MCLBYTES,			/* maxsegsize */
-	    0,				/* flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	error = bus_dma_tag_create(sc->are_cdata.are_parent_tag, /* parent */
+	    sizeof(uint32_t), 0,     /* alignment, boundary */
+	    BUS_SPACE_MAXADDR,	     /* lowaddr */
+	    BUS_SPACE_MAXADDR,	     /* highaddr */
+	    NULL, NULL,		     /* filter, filterarg */
+	    MCLBYTES * ARE_MAXFRAGS, /* maxsize */
+	    ARE_MAXFRAGS,	     /* nsegments */
+	    MCLBYTES,		     /* maxsegsize */
+	    0,			     /* flags */
+	    NULL, NULL,		     /* lockfunc, lockarg */
 	    &sc->are_cdata.are_tx_tag);
 	if (error != 0) {
 		device_printf(sc->are_dev, "failed to create Tx DMA tag\n");
@@ -1151,17 +1147,16 @@ are_dma_alloc(struct are_softc *sc)
 	}
 
 	/* Create tag for Rx buffers. */
-	error = bus_dma_tag_create(
-	    sc->are_cdata.are_parent_tag,	/* parent */
-	    ARE_RX_ALIGN, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    MCLBYTES,			/* maxsize */
-	    1,				/* nsegments */
-	    MCLBYTES,			/* maxsegsize */
-	    0,				/* flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	error = bus_dma_tag_create(sc->are_cdata.are_parent_tag, /* parent */
+	    ARE_RX_ALIGN, 0,   /* alignment, boundary */
+	    BUS_SPACE_MAXADDR, /* lowaddr */
+	    BUS_SPACE_MAXADDR, /* highaddr */
+	    NULL, NULL,	       /* filter, filterarg */
+	    MCLBYTES,	       /* maxsize */
+	    1,		       /* nsegments */
+	    MCLBYTES,	       /* maxsegsize */
+	    0,		       /* flags */
+	    NULL, NULL,	       /* lockfunc, lockarg */
 	    &sc->are_cdata.are_rx_tag);
 	if (error != 0) {
 		device_printf(sc->are_dev, "failed to create Rx DMA tag\n");
@@ -1170,8 +1165,9 @@ are_dma_alloc(struct are_softc *sc)
 
 	/* Allocate DMA'able memory and load the DMA map for Tx ring. */
 	error = bus_dmamem_alloc(sc->are_cdata.are_tx_ring_tag,
-	    (void **)&sc->are_rdata.are_tx_ring, BUS_DMA_WAITOK |
-	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->are_cdata.are_tx_ring_map);
+	    (void **)&sc->are_rdata.are_tx_ring,
+	    BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO,
+	    &sc->are_cdata.are_tx_ring_map);
 	if (error != 0) {
 		device_printf(sc->are_dev,
 		    "failed to allocate DMA'able memory for Tx ring\n");
@@ -1191,8 +1187,9 @@ are_dma_alloc(struct are_softc *sc)
 
 	/* Allocate DMA'able memory and load the DMA map for Rx ring. */
 	error = bus_dmamem_alloc(sc->are_cdata.are_rx_ring_tag,
-	    (void **)&sc->are_rdata.are_rx_ring, BUS_DMA_WAITOK |
-	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->are_cdata.are_rx_ring_map);
+	    (void **)&sc->are_rdata.are_rx_ring,
+	    BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO,
+	    &sc->are_cdata.are_rx_ring_map);
 	if (error != 0) {
 		device_printf(sc->are_dev,
 		    "failed to allocate DMA'able memory for Rx ring\n");
@@ -1215,30 +1212,30 @@ are_dma_alloc(struct are_softc *sc)
 		txd = &sc->are_cdata.are_txdesc[i];
 		txd->tx_m = NULL;
 		txd->tx_dmamap = NULL;
-		error = bus_dmamap_create(sc->are_cdata.are_tx_tag, 0,
-		    &txd->tx_dmamap);
+		error = bus_dmamap_create(
+		    sc->are_cdata.are_tx_tag, 0, &txd->tx_dmamap);
 		if (error != 0) {
-			device_printf(sc->are_dev,
-			    "failed to create Tx dmamap\n");
+			device_printf(
+			    sc->are_dev, "failed to create Tx dmamap\n");
 			goto fail;
 		}
 	}
 	/* Create DMA maps for Rx buffers. */
 	if ((error = bus_dmamap_create(sc->are_cdata.are_rx_tag, 0,
-	    &sc->are_cdata.are_rx_sparemap)) != 0) {
-		device_printf(sc->are_dev,
-		    "failed to create spare Rx dmamap\n");
+		 &sc->are_cdata.are_rx_sparemap)) != 0) {
+		device_printf(
+		    sc->are_dev, "failed to create spare Rx dmamap\n");
 		goto fail;
 	}
 	for (i = 0; i < ARE_RX_RING_CNT; i++) {
 		rxd = &sc->are_cdata.are_rxdesc[i];
 		rxd->rx_m = NULL;
 		rxd->rx_dmamap = NULL;
-		error = bus_dmamap_create(sc->are_cdata.are_rx_tag, 0,
-		    &rxd->rx_dmamap);
+		error = bus_dmamap_create(
+		    sc->are_cdata.are_rx_tag, 0, &rxd->rx_dmamap);
 		if (error != 0) {
-			device_printf(sc->are_dev,
-			    "failed to create Rx dmamap\n");
+			device_printf(
+			    sc->are_dev, "failed to create Rx dmamap\n");
 			goto fail;
 		}
 	}
@@ -1250,9 +1247,9 @@ fail:
 static void
 are_dma_free(struct are_softc *sc)
 {
-	struct are_txdesc	*txd;
-	struct are_rxdesc	*rxd;
-	int			i;
+	struct are_txdesc *txd;
+	struct are_rxdesc *rxd;
+	int i;
 
 	/* Tx ring. */
 	if (sc->are_cdata.are_tx_ring_tag) {
@@ -1287,8 +1284,8 @@ are_dma_free(struct are_softc *sc)
 		for (i = 0; i < ARE_TX_RING_CNT; i++) {
 			txd = &sc->are_cdata.are_txdesc[i];
 			if (txd->tx_dmamap) {
-				bus_dmamap_destroy(sc->are_cdata.are_tx_tag,
-				    txd->tx_dmamap);
+				bus_dmamap_destroy(
+				    sc->are_cdata.are_tx_tag, txd->tx_dmamap);
 				txd->tx_dmamap = NULL;
 			}
 		}
@@ -1300,8 +1297,8 @@ are_dma_free(struct are_softc *sc)
 		for (i = 0; i < ARE_RX_RING_CNT; i++) {
 			rxd = &sc->are_cdata.are_rxdesc[i];
 			if (rxd->rx_dmamap) {
-				bus_dmamap_destroy(sc->are_cdata.are_rx_tag,
-				    rxd->rx_dmamap);
+				bus_dmamap_destroy(
+				    sc->are_cdata.are_rx_tag, rxd->rx_dmamap);
 				rxd->rx_dmamap = NULL;
 			}
 		}
@@ -1326,10 +1323,10 @@ are_dma_free(struct are_softc *sc)
 static int
 are_tx_ring_init(struct are_softc *sc)
 {
-	struct are_ring_data	*rd;
-	struct are_txdesc	*txd;
-	bus_addr_t		addr;
-	int			i;
+	struct are_ring_data *rd;
+	struct are_txdesc *txd;
+	bus_addr_t addr;
+	int i;
 
 	sc->are_cdata.are_tx_prod = 0;
 	sc->are_cdata.are_tx_cons = 0;
@@ -1366,10 +1363,10 @@ are_tx_ring_init(struct are_softc *sc)
 static int
 are_rx_ring_init(struct are_softc *sc)
 {
-	struct are_ring_data	*rd;
-	struct are_rxdesc	*rxd;
-	bus_addr_t		addr;
-	int			i;
+	struct are_ring_data *rd;
+	struct are_rxdesc *rxd;
+	bus_addr_t addr;
+	int i;
 
 	sc->are_cdata.are_rx_cons = 0;
 
@@ -1406,12 +1403,12 @@ are_rx_ring_init(struct are_softc *sc)
 static int
 are_newbuf(struct are_softc *sc, int idx)
 {
-	struct are_desc		*desc;
-	struct are_rxdesc	*rxd;
-	struct mbuf		*m;
-	bus_dma_segment_t	segs[1];
-	bus_dmamap_t		map;
-	int			nsegs;
+	struct are_desc *desc;
+	struct are_rxdesc *rxd;
+	struct mbuf *m;
+	bus_dma_segment_t segs[1];
+	bus_dmamap_t map;
+	int nsegs;
 
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
@@ -1422,7 +1419,7 @@ are_newbuf(struct are_softc *sc, int idx)
 	m_adj(m, 4);
 
 	if (bus_dmamap_load_mbuf_sg(sc->are_cdata.are_rx_tag,
-	    sc->are_cdata.are_rx_sparemap, m, segs, &nsegs, 0) != 0) {
+		sc->are_cdata.are_rx_sparemap, m, segs, &nsegs, 0) != 0) {
 		m_freem(m);
 		return (ENOBUFS);
 	}
@@ -1431,23 +1428,23 @@ are_newbuf(struct are_softc *sc, int idx)
 	rxd = &sc->are_cdata.are_rxdesc[idx];
 	if (rxd->rx_m != NULL) {
 		/*
-		 * THis is if_kr.c original code but make bug. Make scranble on buffer data.
-		 * bus_dmamap_sync(sc->are_cdata.are_rx_tag, rxd->rx_dmamap,
-		 *    BUS_DMASYNC_POSTREAD);
+		 * THis is if_kr.c original code but make bug. Make scranble on
+		 * buffer data. bus_dmamap_sync(sc->are_cdata.are_rx_tag,
+		 * rxd->rx_dmamap, BUS_DMASYNC_POSTREAD);
 		 */
 		bus_dmamap_unload(sc->are_cdata.are_rx_tag, rxd->rx_dmamap);
 	}
 	map = rxd->rx_dmamap;
 	rxd->rx_dmamap = sc->are_cdata.are_rx_sparemap;
 	sc->are_cdata.are_rx_sparemap = map;
-	bus_dmamap_sync(sc->are_cdata.are_rx_tag, rxd->rx_dmamap,
-	    BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(
+	    sc->are_cdata.are_rx_tag, rxd->rx_dmamap, BUS_DMASYNC_PREREAD);
 	rxd->rx_m = m;
 	desc = rxd->desc;
 	desc->are_addr = segs[0].ds_addr;
 	desc->are_devcs |= ARE_DMASIZE(segs[0].ds_len);
-	rxd->saved_ca = desc->are_addr ;
-	rxd->saved_ctl = desc->are_stat ;
+	rxd->saved_ca = desc->are_addr;
+	rxd->saved_ctl = desc->are_stat;
 
 	return (0);
 }
@@ -1455,8 +1452,8 @@ are_newbuf(struct are_softc *sc, int idx)
 static __inline void
 are_fixup_rx(struct mbuf *m)
 {
-        int		i;
-        uint16_t	*src, *dst;
+	int i;
+	uint16_t *src, *dst;
 
 	src = mtod(m, uint16_t *);
 	dst = src - 1;
@@ -1474,11 +1471,11 @@ are_fixup_rx(struct mbuf *m)
 static void
 are_tx(struct are_softc *sc)
 {
-	struct are_txdesc	*txd;
-	struct are_desc		*cur_tx;
-	struct ifnet		*ifp;
-	uint32_t		ctl, devcs;
-	int			cons, prod;
+	struct are_txdesc *txd;
+	struct are_desc *cur_tx;
+	struct ifnet *ifp;
+	uint32_t ctl, devcs;
+	int cons, prod;
 
 	ARE_LOCK_ASSERT(sc);
 
@@ -1539,11 +1536,11 @@ are_tx(struct are_softc *sc)
 static void
 are_rx(struct are_softc *sc)
 {
-	struct are_rxdesc	*rxd;
-	struct ifnet		*ifp = sc->are_ifp;
-	int			cons, prog, packet_len, error;
-	struct are_desc		*cur_rx;
-	struct mbuf		*m;
+	struct are_rxdesc *rxd;
+	struct ifnet *ifp = sc->are_ifp;
+	int cons, prog, packet_len, error;
+	struct are_desc *cur_rx;
+	struct mbuf *m;
 
 	ARE_LOCK_ASSERT(sc);
 
@@ -1559,7 +1556,7 @@ are_rx(struct are_softc *sc)
 		m = rxd->rx_m;
 
 		if ((cur_rx->are_stat & ADSTAT_OWN) == ADSTAT_OWN)
-		       break;	
+			break;
 
 		prog++;
 
@@ -1571,7 +1568,8 @@ are_rx(struct are_softc *sc)
 			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		else if ((cur_rx->are_stat & ADSTAT_Rx_DE) == 0) {
 			error = 0;
-			bus_dmamap_sync(sc->are_cdata.are_rx_tag, rxd->rx_dmamap,
+			bus_dmamap_sync(sc->are_cdata.are_rx_tag,
+			    rxd->rx_dmamap,
 			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 			m = rxd->rx_m;
 			/* Skip 4 bytes of CRC */
@@ -1590,8 +1588,7 @@ are_rx(struct are_softc *sc)
 			cur_rx->are_stat = rxd->saved_ctl;
 			cur_rx->are_addr = rxd->saved_ca;
 			cur_rx->are_devcs = 0;
-		}
-		else {
+		} else {
 			/* Reinit descriptor */
 			cur_rx->are_stat = ADSTAT_OWN;
 			cur_rx->are_devcs = 0;
@@ -1599,8 +1596,8 @@ are_rx(struct are_softc *sc)
 				cur_rx->are_devcs |= ADCTL_ER;
 			cur_rx->are_addr = 0;
 			if (are_newbuf(sc, cons) != 0) {
-				device_printf(sc->are_dev, 
-				    "Failed to allocate buffer\n");
+				device_printf(
+				    sc->are_dev, "Failed to allocate buffer\n");
 				break;
 			}
 		}
@@ -1622,9 +1619,9 @@ are_rx(struct are_softc *sc)
 static void
 are_intr(void *arg)
 {
-	struct are_softc		*sc = arg;
-	uint32_t		status;
-	struct ifnet		*ifp = sc->are_ifp;
+	struct are_softc *sc = arg;
+	uint32_t status;
+	struct ifnet *ifp = sc->are_ifp;
 
 	ARE_LOCK(sc);
 
@@ -1651,8 +1648,8 @@ static void
 are_tick(void *xsc)
 {
 #ifdef ARE_MII
-	struct are_softc		*sc = xsc;
-	struct mii_data		*mii;
+	struct are_softc *sc = xsc;
+	struct mii_data *mii;
 
 	ARE_LOCK_ASSERT(sc);
 
@@ -1673,21 +1670,22 @@ are_hinted_child(device_t bus, const char *dname, int dunit)
 static int
 aremdio_probe(device_t dev)
 {
-	device_set_desc(dev, "Atheros AR531x built-in ethernet interface, MDIO controller");
-	return(0);
+	device_set_desc(
+	    dev, "Atheros AR531x built-in ethernet interface, MDIO controller");
+	return (0);
 }
 
 static int
 aremdio_attach(device_t dev)
 {
-	struct are_softc	*sc;
-	int			error = 0;
+	struct are_softc *sc;
+	int error = 0;
 
 	sc = device_get_softc(dev);
 	sc->are_dev = dev;
 	sc->are_rid = 0;
-	sc->are_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
-	    &sc->are_rid, RF_ACTIVE | RF_SHAREABLE);
+	sc->are_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->are_rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->are_res == NULL) {
 		device_printf(dev, "couldn't map memory\n");
 		error = ENXIO;
@@ -1707,7 +1705,7 @@ fail:
 static int
 aremdio_detach(device_t dev)
 {
-	return(0);
+	return (0);
 }
 #endif
 
@@ -1715,44 +1713,34 @@ aremdio_detach(device_t dev)
 void
 dump_txdesc(struct are_softc *sc, int pos)
 {
-	struct are_desc		*desc;
+	struct are_desc *desc;
 
 	desc = &sc->are_rdata.are_tx_ring[pos];
-	device_printf(sc->are_dev, "CSR_TXLIST %08x\n", CSR_READ_4(sc, CSR_TXLIST));
+	device_printf(
+	    sc->are_dev, "CSR_TXLIST %08x\n", CSR_READ_4(sc, CSR_TXLIST));
 	device_printf(sc->are_dev, "CSR_HTBA %08x\n", CSR_READ_4(sc, CSR_HTBA));
-	device_printf(sc->are_dev, "%d TDES0:%08x TDES1:%08x TDES2:%08x TDES3:%08x\n",
-	    pos, desc->are_stat, desc->are_devcs, desc->are_addr, desc->are_link);
+	device_printf(sc->are_dev,
+	    "%d TDES0:%08x TDES1:%08x TDES2:%08x TDES3:%08x\n", pos,
+	    desc->are_stat, desc->are_devcs, desc->are_addr, desc->are_link);
 }
 
-void 
+void
 dump_status_reg(struct are_softc *sc)
 {
-	uint32_t		status;
+	uint32_t status;
 
 	/* mask out interrupts */
 
 	device_printf(sc->are_dev, "CSR_HTBA %08x\n", CSR_READ_4(sc, CSR_HTBA));
 	status = CSR_READ_4(sc, CSR_STATUS);
-	device_printf(sc->are_dev, "CSR5 Status Register EB:%d TS:%d RS:%d NIS:%d AIS:%d ER:%d SE:%d LNF:%d TM:%d RWT:%d RPS:%d RU:%d RI:%d UNF:%d LNP/ANC:%d TJT:%d TU:%d TPS:%d TI:%d\n", 
-	    (status >> 23 ) & 7,
-	    (status >> 20 ) & 7,
-	    (status >> 17 ) & 7,
-	    (status >> 16 ) & 1,
-	    (status >> 15 ) & 1,
-	    (status >> 14 ) & 1,
-	    (status >> 13 ) & 1,
-	    (status >> 12 ) & 1,
-	    (status >> 11 ) & 1,
-	    (status >> 9 ) & 1,
-	    (status >> 8 ) & 1,
-	    (status >> 7 ) & 1,
-	    (status >> 6 ) & 1,
-	    (status >> 5 ) & 1,
-	    (status >> 4 ) & 1,
-	    (status >> 3 ) & 1,
-	    (status >> 2 ) & 1,
-	    (status >> 1 ) & 1,
-	    (status >> 0 ) & 1);
-
+	device_printf(sc->are_dev,
+	    "CSR5 Status Register EB:%d TS:%d RS:%d NIS:%d AIS:%d ER:%d SE:%d LNF:%d TM:%d RWT:%d RPS:%d RU:%d RI:%d UNF:%d LNP/ANC:%d TJT:%d TU:%d TPS:%d TI:%d\n",
+	    (status >> 23) & 7, (status >> 20) & 7, (status >> 17) & 7,
+	    (status >> 16) & 1, (status >> 15) & 1, (status >> 14) & 1,
+	    (status >> 13) & 1, (status >> 12) & 1, (status >> 11) & 1,
+	    (status >> 9) & 1, (status >> 8) & 1, (status >> 7) & 1,
+	    (status >> 6) & 1, (status >> 5) & 1, (status >> 4) & 1,
+	    (status >> 3) & 1, (status >> 2) & 1, (status >> 1) & 1,
+	    (status >> 0) & 1);
 }
 #endif

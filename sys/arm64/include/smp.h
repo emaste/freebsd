@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_SMP_H_
-#define	_MACHINE_SMP_H_
+#ifndef _MACHINE_SMP_H_
+#define _MACHINE_SMP_H_
 
 #include <machine/pcb.h>
 
@@ -45,11 +45,11 @@ enum {
 	INTR_IPI_COUNT,
 };
 
-void	ipi_all_but_self(u_int ipi);
-void	ipi_cpu(int cpu, u_int ipi);
-void	ipi_selected(cpuset_t cpus, u_int ipi);
+void ipi_all_but_self(u_int ipi);
+void ipi_cpu(int cpu, u_int ipi);
+void ipi_selected(cpuset_t cpus, u_int ipi);
 
 /* global data in mp_machdep.c */
-extern struct pcb               stoppcbs[];
+extern struct pcb stoppcbs[];
 
 #endif /* !_MACHINE_SMP_H_ */

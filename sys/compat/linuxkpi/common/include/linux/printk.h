@@ -29,31 +29,34 @@
  * $FreeBSD$
  */
 #ifndef _LINUX_PRINTK_H_
-#define	_LINUX_PRINTK_H_
+#define _LINUX_PRINTK_H_
 
 #include <linux/kernel.h>
 
 /* GID printing macros */
-#define	GID_PRINT_FMT			"%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x"
-#define	GID_PRINT_ARGS(gid_raw)		htons(((u16 *)gid_raw)[0]), htons(((u16 *)gid_raw)[1]),\
-					htons(((u16 *)gid_raw)[2]), htons(((u16 *)gid_raw)[3]),\
-					htons(((u16 *)gid_raw)[4]), htons(((u16 *)gid_raw)[5]),\
-					htons(((u16 *)gid_raw)[6]), htons(((u16 *)gid_raw)[7])
+#define GID_PRINT_FMT "%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x"
+#define GID_PRINT_ARGS(gid_raw)                                     \
+	htons(((u16 *)gid_raw)[0]), htons(((u16 *)gid_raw)[1]),     \
+	    htons(((u16 *)gid_raw)[2]), htons(((u16 *)gid_raw)[3]), \
+	    htons(((u16 *)gid_raw)[4]), htons(((u16 *)gid_raw)[5]), \
+	    htons(((u16 *)gid_raw)[6]), htons(((u16 *)gid_raw)[7])
 
-enum {
-	DUMP_PREFIX_NONE,
-	DUMP_PREFIX_ADDRESS,
-	DUMP_PREFIX_OFFSET
-};
+enum { DUMP_PREFIX_NONE, DUMP_PREFIX_ADDRESS, DUMP_PREFIX_OFFSET };
 
 static inline void
-print_hex_dump(const char *level, const char *prefix_str,
-    const int prefix_type, const int rowsize, const int groupsize,
-    const void *buf, size_t len, const bool ascii)
+print_hex_dump(const char *level, const char *prefix_str, const int prefix_type,
+    const int rowsize, const int groupsize, const void *buf, size_t len,
+    const bool ascii)
 {
-	typedef const struct { long long value; } __packed *print_64p_t;
-	typedef const struct { uint32_t value; } __packed *print_32p_t;
-	typedef const struct { uint16_t value; } __packed *print_16p_t;
+	typedef const struct {
+		long long value;
+	} __packed *print_64p_t;
+	typedef const struct {
+		uint32_t value;
+	} __packed *print_32p_t;
+	typedef const struct {
+		uint16_t value;
+	} __packed *print_16p_t;
 	const void *buf_old = buf;
 	int row;
 
@@ -68,8 +71,8 @@ print_hex_dump(const char *level, const char *prefix_str,
 			printf("[%p] ", buf);
 			break;
 		case DUMP_PREFIX_OFFSET:
-			printf("[%#tx] ", ((const char *)buf -
-			    (const char *)buf_old));
+			printf("[%#tx] ",
+			    ((const char *)buf - (const char *)buf_old));
 			break;
 		default:
 			break;
@@ -100,31 +103,32 @@ print_hex_dump(const char *level, const char *prefix_str,
 }
 
 static inline void
-print_hex_dump_bytes(const char *prefix_str, const int prefix_type,
-    const void *buf, size_t len)
+print_hex_dump_bytes(
+    const char *prefix_str, const int prefix_type, const void *buf, size_t len)
 {
 	print_hex_dump(NULL, prefix_str, prefix_type, 16, 1, buf, len, 0);
 }
 
-#define	printk_ratelimit() ({			\
-	static linux_ratelimit_t __ratelimited;	\
-	linux_ratelimited(&__ratelimited);	\
-})
+#define printk_ratelimit()                              \
+	({                                              \
+		static linux_ratelimit_t __ratelimited; \
+		linux_ratelimited(&__ratelimited);      \
+	})
 
-#define	printk_ratelimited(...) ({		\
-	bool __retval = printk_ratelimit();	\
-	if (__retval)				\
-		printk(__VA_ARGS__);		\
-	__retval;				\
-})
+#define printk_ratelimited(...)                     \
+	({                                          \
+		bool __retval = printk_ratelimit(); \
+		if (__retval)                       \
+			printk(__VA_ARGS__);        \
+		__retval;                           \
+	})
 
-#define	pr_err_ratelimited(fmt, ...) \
+#define pr_err_ratelimited(fmt, ...) \
 	printk_ratelimited(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
 
-#define	print_hex_dump_debug(...) \
-	print_hex_dump(KERN_DEBUG, ##__VA_ARGS__)
+#define print_hex_dump_debug(...) print_hex_dump(KERN_DEBUG, ##__VA_ARGS__)
 
-#define	pr_info_ratelimited(fmt, ...) \
+#define pr_info_ratelimited(fmt, ...) \
 	printk_ratelimited(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 
-#endif					/* _LINUX_PRINTK_H_ */
+#endif /* _LINUX_PRINTK_H_ */

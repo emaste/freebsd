@@ -29,12 +29,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/libkern.h>
 #include <sys/limits.h>
-#include <sys/types.h>
 
-#define	IDX(c)	((u_char)(c) / LONG_BIT)
-#define	BIT(c)	((u_long)1 << ((u_char)(c) % LONG_BIT))
+#define IDX(c) ((u_char)(c) / LONG_BIT)
+#define BIT(c) ((u_long)1 << ((u_char)(c) % LONG_BIT))
 
 size_t
 strspn(const char *s, const char *charset)
@@ -48,10 +48,10 @@ strspn(const char *s, const char *charset)
 	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT];
 	int idx;
 
-	if(*s == '\0')
+	if (*s == '\0')
 		return (0);
 
-#if LONG_BIT == 64	/* always better to unroll on 64-bit architectures */
+#if LONG_BIT == 64 /* always better to unroll on 64-bit architectures */
 	tbl[3] = tbl[2] = tbl[1] = tbl[0] = 0;
 #else
 	for (idx = 0; idx < sizeof(tbl) / sizeof(tbl[0]); idx++)
@@ -63,7 +63,7 @@ strspn(const char *s, const char *charset)
 		tbl[idx] |= bit;
 	}
 
-	for(s1 = s; ; s1++) {
+	for (s1 = s;; s1++) {
 		idx = IDX(*s1);
 		bit = BIT(*s1);
 		if ((tbl[idx] & bit) == 0)

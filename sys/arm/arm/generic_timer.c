@@ -46,14 +46,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
+#include <sys/smp.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
-#include <sys/smp.h>
 #include <sys/vdso.h>
 #include <sys/watchdog.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
@@ -64,75 +65,75 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef FDT
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 #endif
 
 #ifdef DEV_ACPI
-#include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 #endif
 
-#define	GT_CTRL_ENABLE		(1 << 0)
-#define	GT_CTRL_INT_MASK	(1 << 1)
-#define	GT_CTRL_INT_STAT	(1 << 2)
-#define	GT_REG_CTRL		0
-#define	GT_REG_TVAL		1
+#define GT_CTRL_ENABLE (1 << 0)
+#define GT_CTRL_INT_MASK (1 << 1)
+#define GT_CTRL_INT_STAT (1 << 2)
+#define GT_REG_CTRL 0
+#define GT_REG_TVAL 1
 
-#define	GT_CNTKCTL_PL0PTEN	(1 << 9) /* PL0 Physical timer reg access */
-#define	GT_CNTKCTL_PL0VTEN	(1 << 8) /* PL0 Virtual timer reg access */
-#define	GT_CNTKCTL_EVNTI	(0xf << 4) /* Virtual counter event bits */
-#define	GT_CNTKCTL_EVNTDIR	(1 << 3) /* Virtual counter event transition */
-#define	GT_CNTKCTL_EVNTEN	(1 << 2) /* Enables virtual counter events */
-#define	GT_CNTKCTL_PL0VCTEN	(1 << 1) /* PL0 CNTVCT and CNTFRQ access */
-#define	GT_CNTKCTL_PL0PCTEN	(1 << 0) /* PL0 CNTPCT and CNTFRQ access */
+#define GT_CNTKCTL_PL0PTEN (1 << 9) /* PL0 Physical timer reg access */
+#define GT_CNTKCTL_PL0VTEN (1 << 8) /* PL0 Virtual timer reg access */
+#define GT_CNTKCTL_EVNTI (0xf << 4) /* Virtual counter event bits */
+#define GT_CNTKCTL_EVNTDIR (1 << 3) /* Virtual counter event transition */
+#define GT_CNTKCTL_EVNTEN (1 << 2) /* Enables virtual counter events */
+#define GT_CNTKCTL_PL0VCTEN (1 << 1) /* PL0 CNTVCT and CNTFRQ access */
+#define GT_CNTKCTL_PL0PCTEN (1 << 0) /* PL0 CNTPCT and CNTFRQ access */
 
 struct arm_tmr_softc {
-	struct resource		*res[4];
-	void			*ihl[4];
-	uint64_t		(*get_cntxct)(bool);
-	uint32_t		clkfreq;
-	struct eventtimer	et;
-	bool			physical;
+	struct resource *res[4];
+	void *ihl[4];
+	uint64_t (*get_cntxct)(bool);
+	uint32_t clkfreq;
+	struct eventtimer et;
+	bool physical;
 };
 
 static struct arm_tmr_softc *arm_tmr_sc = NULL;
 
-static struct resource_spec timer_spec[] = {
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },	/* Secure */
-	{ SYS_RES_IRQ,		1,	RF_ACTIVE },	/* Non-secure */
-	{ SYS_RES_IRQ,		2,	RF_ACTIVE | RF_OPTIONAL }, /* Virt */
-	{ SYS_RES_IRQ,		3,	RF_ACTIVE | RF_OPTIONAL	}, /* Hyp */
-	{ -1, 0 }
-};
+static struct resource_spec timer_spec[] = { { SYS_RES_IRQ, 0,
+						 RF_ACTIVE }, /* Secure */
+	{ SYS_RES_IRQ, 1, RF_ACTIVE },			      /* Non-secure */
+	{ SYS_RES_IRQ, 2, RF_ACTIVE | RF_OPTIONAL },	      /* Virt */
+	{ SYS_RES_IRQ, 3, RF_ACTIVE | RF_OPTIONAL },	      /* Hyp */
+	{ -1, 0 } };
 
-static uint32_t arm_tmr_fill_vdso_timehands(struct vdso_timehands *vdso_th,
-    struct timecounter *tc);
+static uint32_t arm_tmr_fill_vdso_timehands(
+    struct vdso_timehands *vdso_th, struct timecounter *tc);
 static void arm_tmr_do_delay(int usec, void *);
 
 static timecounter_get_t arm_tmr_get_timecount;
 
 static struct timecounter arm_tmr_timecount = {
-	.tc_name           = "ARM MPCore Timecounter",
-	.tc_get_timecount  = arm_tmr_get_timecount,
-	.tc_poll_pps       = NULL,
-	.tc_counter_mask   = ~0u,
-	.tc_frequency      = 0,
-	.tc_quality        = 1000,
+	.tc_name = "ARM MPCore Timecounter",
+	.tc_get_timecount = arm_tmr_get_timecount,
+	.tc_poll_pps = NULL,
+	.tc_counter_mask = ~0u,
+	.tc_frequency = 0,
+	.tc_quality = 1000,
 	.tc_fill_vdso_timehands = arm_tmr_fill_vdso_timehands,
 };
 
 #ifdef __arm__
-#define	get_el0(x)	cp15_## x ##_get()
-#define	get_el1(x)	cp15_## x ##_get()
-#define	set_el0(x, val)	cp15_## x ##_set(val)
-#define	set_el1(x, val)	cp15_## x ##_set(val)
+#define get_el0(x) cp15_##x##_get()
+#define get_el1(x) cp15_##x##_get()
+#define set_el0(x, val) cp15_##x##_set(val)
+#define set_el1(x, val) cp15_##x##_set(val)
 #else /* __aarch64__ */
-#define	get_el0(x)	READ_SPECIALREG(x ##_el0)
-#define	get_el1(x)	READ_SPECIALREG(x ##_el1)
-#define	set_el0(x, val)	WRITE_SPECIALREG(x ##_el0, val)
-#define	set_el1(x, val)	WRITE_SPECIALREG(x ##_el1, val)
+#define get_el0(x) READ_SPECIALREG(x##_el0)
+#define get_el1(x) READ_SPECIALREG(x##_el1)
+#define set_el0(x, val) WRITE_SPECIALREG(x##_el0, val)
+#define set_el1(x, val) WRITE_SPECIALREG(x##_el1, val)
 #endif
 
 static int
@@ -144,20 +145,16 @@ get_freq(void)
 static uint64_t
 get_cntxct_a64_unstable(bool physical)
 {
-	uint64_t val
-;
+	uint64_t val;
 	isb();
 	if (physical) {
 		do {
 			val = get_el0(cntpct);
-		}
-		while (((val + 1) & 0x7FF) <= 1);
-	}
-	else {
+		} while (((val + 1) & 0x7FF) <= 1);
+	} else {
 		do {
 			val = get_el0(cntvct);
-		}
-		while (((val + 1) & 0x7FF) <= 1);
+		} while (((val + 1) & 0x7FF) <= 1);
 	}
 
 	return (val);
@@ -222,8 +219,8 @@ setup_user_access(void *arg __unused)
 	uint32_t cntkctl;
 
 	cntkctl = get_el1(cntkctl);
-	cntkctl &= ~(GT_CNTKCTL_PL0PTEN | GT_CNTKCTL_PL0VTEN |
-	    GT_CNTKCTL_EVNTEN);
+	cntkctl &= ~(
+	    GT_CNTKCTL_PL0PTEN | GT_CNTKCTL_PL0VTEN | GT_CNTKCTL_EVNTEN);
 	if (arm_tmr_sc->physical) {
 		cntkctl |= GT_CNTKCTL_PL0PCTEN;
 		cntkctl &= ~GT_CNTKCTL_PL0VCTEN;
@@ -252,8 +249,8 @@ arm_tmr_get_timecount(struct timecounter *tc)
 }
 
 static int
-arm_tmr_start(struct eventtimer *et, sbintime_t first,
-    sbintime_t period __unused)
+arm_tmr_start(
+    struct eventtimer *et, sbintime_t first, sbintime_t period __unused)
 {
 	struct arm_tmr_softc *sc;
 	int counts, ctrl;
@@ -271,7 +268,6 @@ arm_tmr_start(struct eventtimer *et, sbintime_t first,
 	}
 
 	return (EINVAL);
-
 }
 
 static void
@@ -403,8 +399,8 @@ arm_tmr_attach(device_t dev)
 	/* Get the base clock frequency */
 	node = ofw_bus_get_node(dev);
 	if (node > 0) {
-		error = OF_getencprop(node, "clock-frequency", &clock,
-		    sizeof(clock));
+		error = OF_getencprop(
+		    node, "clock-frequency", &clock, sizeof(clock));
 		if (error > 0)
 			sc->clkfreq = clock;
 
@@ -492,11 +488,9 @@ arm_tmr_attach(device_t dev)
 }
 
 #ifdef FDT
-static device_method_t arm_tmr_fdt_methods[] = {
-	DEVMETHOD(device_probe,		arm_tmr_fdt_probe),
-	DEVMETHOD(device_attach,	arm_tmr_attach),
-	{ 0, 0 }
-};
+static device_method_t arm_tmr_fdt_methods[] = { DEVMETHOD(device_probe,
+						     arm_tmr_fdt_probe),
+	DEVMETHOD(device_attach, arm_tmr_attach), { 0, 0 } };
 
 static driver_t arm_tmr_fdt_driver = {
 	"generic_timer",
@@ -508,17 +502,15 @@ static devclass_t arm_tmr_fdt_devclass;
 
 EARLY_DRIVER_MODULE(timer, simplebus, arm_tmr_fdt_driver, arm_tmr_fdt_devclass,
     0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(timer, ofwbus, arm_tmr_fdt_driver, arm_tmr_fdt_devclass,
-    0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(timer, ofwbus, arm_tmr_fdt_driver, arm_tmr_fdt_devclass, 0,
+    0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 #endif
 
 #ifdef DEV_ACPI
-static device_method_t arm_tmr_acpi_methods[] = {
-	DEVMETHOD(device_identify,	arm_tmr_acpi_identify),
-	DEVMETHOD(device_probe,		arm_tmr_acpi_probe),
-	DEVMETHOD(device_attach,	arm_tmr_attach),
-	{ 0, 0 }
-};
+static device_method_t arm_tmr_acpi_methods[] = { DEVMETHOD(device_identify,
+						      arm_tmr_acpi_identify),
+	DEVMETHOD(device_probe, arm_tmr_acpi_probe),
+	DEVMETHOD(device_attach, arm_tmr_attach), { 0, 0 } };
 
 static driver_t arm_tmr_acpi_driver = {
 	"generic_timer",
@@ -528,8 +520,8 @@ static driver_t arm_tmr_acpi_driver = {
 
 static devclass_t arm_tmr_acpi_devclass;
 
-EARLY_DRIVER_MODULE(timer, acpi, arm_tmr_acpi_driver, arm_tmr_acpi_devclass,
-    0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(timer, acpi, arm_tmr_acpi_driver, arm_tmr_acpi_devclass, 0,
+    0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 #endif
 
 static void
@@ -588,8 +580,8 @@ DELAY(int usec)
 #endif
 
 static uint32_t
-arm_tmr_fill_vdso_timehands(struct vdso_timehands *vdso_th,
-    struct timecounter *tc)
+arm_tmr_fill_vdso_timehands(
+    struct vdso_timehands *vdso_th, struct timecounter *tc)
 {
 
 	vdso_th->th_algo = VDSO_TH_ALGO_ARM_GENTIM;

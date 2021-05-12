@@ -45,10 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/sctp.h>
+#include <netinet/sctp_os_bsd.h>
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctp_var.h>
-#include <netinet/sctp_os_bsd.h>
-
 #include <netinet6/ip6_var.h>
 #include <netinet6/sctp6_var.h>
 
@@ -56,27 +55,27 @@ __FBSDID("$FreeBSD$");
 extern struct domain inetdomain;
 
 struct protosw sctp_stream_protosw = {
-	.pr_type =		SOCK_STREAM,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_LASTHDR,
-	.pr_input =		sctp_input,
-	.pr_ctlinput =		sctp_ctlinput,
-	.pr_ctloutput =		sctp_ctloutput,
-	.pr_drain =		sctp_drain,
-	.pr_usrreqs =		&sctp_usrreqs,
+	.pr_type = SOCK_STREAM,
+	.pr_domain = &inetdomain,
+	.pr_protocol = IPPROTO_SCTP,
+	.pr_flags = PR_CONNREQUIRED | PR_WANTRCVD | PR_LASTHDR,
+	.pr_input = sctp_input,
+	.pr_ctlinput = sctp_ctlinput,
+	.pr_ctloutput = sctp_ctloutput,
+	.pr_drain = sctp_drain,
+	.pr_usrreqs = &sctp_usrreqs,
 };
 
 struct protosw sctp_seqpacket_protosw = {
-	.pr_type =		SOCK_SEQPACKET,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_WANTRCVD|PR_LASTHDR,
-	.pr_input =		sctp_input,
-	.pr_ctlinput =		sctp_ctlinput,
-	.pr_ctloutput =		sctp_ctloutput,
-	.pr_drain =		sctp_drain,
-	.pr_usrreqs =		&sctp_usrreqs,
+	.pr_type = SOCK_SEQPACKET,
+	.pr_domain = &inetdomain,
+	.pr_protocol = IPPROTO_SCTP,
+	.pr_flags = PR_WANTRCVD | PR_LASTHDR,
+	.pr_input = sctp_input,
+	.pr_ctlinput = sctp_ctlinput,
+	.pr_ctloutput = sctp_ctloutput,
+	.pr_drain = sctp_drain,
+	.pr_usrreqs = &sctp_usrreqs,
 };
 #endif
 
@@ -84,31 +83,31 @@ struct protosw sctp_seqpacket_protosw = {
 extern struct domain inet6domain;
 
 struct protosw sctp6_stream_protosw = {
-	.pr_type =		SOCK_STREAM,
-	.pr_domain =		&inet6domain,
-	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_LASTHDR,
-	.pr_input =		sctp6_input,
-	.pr_ctlinput =		sctp6_ctlinput,
-	.pr_ctloutput =		sctp_ctloutput,
-	.pr_init =		sctp_init,
-	.pr_drain =		sctp_drain,
-	.pr_usrreqs =		&sctp6_usrreqs,
+	.pr_type = SOCK_STREAM,
+	.pr_domain = &inet6domain,
+	.pr_protocol = IPPROTO_SCTP,
+	.pr_flags = PR_CONNREQUIRED | PR_WANTRCVD | PR_LASTHDR,
+	.pr_input = sctp6_input,
+	.pr_ctlinput = sctp6_ctlinput,
+	.pr_ctloutput = sctp_ctloutput,
+	.pr_init = sctp_init,
+	.pr_drain = sctp_drain,
+	.pr_usrreqs = &sctp6_usrreqs,
 };
 
 struct protosw sctp6_seqpacket_protosw = {
-	.pr_type =		SOCK_SEQPACKET,
-	.pr_domain =		&inet6domain,
-	.pr_protocol =		IPPROTO_SCTP,
-	.pr_flags =		PR_WANTRCVD|PR_LASTHDR,
-	.pr_input =		sctp6_input,
-	.pr_ctlinput =		sctp6_ctlinput,
-	.pr_ctloutput =		sctp_ctloutput,
-#ifndef INET	/* Do not call initialization and drain routines twice. */
-	.pr_init =		sctp_init,
-	.pr_drain =		sctp_drain,
+	.pr_type = SOCK_SEQPACKET,
+	.pr_domain = &inet6domain,
+	.pr_protocol = IPPROTO_SCTP,
+	.pr_flags = PR_WANTRCVD | PR_LASTHDR,
+	.pr_input = sctp6_input,
+	.pr_ctlinput = sctp6_ctlinput,
+	.pr_ctloutput = sctp_ctloutput,
+#ifndef INET /* Do not call initialization and drain routines twice. */
+	.pr_init = sctp_init,
+	.pr_drain = sctp_drain,
 #endif
-	.pr_usrreqs =		&sctp6_usrreqs,
+	.pr_usrreqs = &sctp6_usrreqs,
 };
 #endif
 

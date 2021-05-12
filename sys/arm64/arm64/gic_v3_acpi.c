@@ -43,15 +43,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/resource.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
 struct gic_v3_acpi_devinfo {
-	struct gic_v3_devinfo	di_gic_dinfo;
-	struct resource_list	di_rl;
+	struct gic_v3_devinfo di_gic_dinfo;
+	struct resource_list di_rl;
 };
 
 static device_identify_t gic_v3_acpi_identify;
@@ -63,13 +64,13 @@ static void gic_v3_acpi_bus_attach(device_t);
 
 static device_method_t gic_v3_acpi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,		gic_v3_acpi_identify),
-	DEVMETHOD(device_probe,			gic_v3_acpi_probe),
-	DEVMETHOD(device_attach,		gic_v3_acpi_attach),
+	DEVMETHOD(device_identify, gic_v3_acpi_identify),
+	DEVMETHOD(device_probe, gic_v3_acpi_probe),
+	DEVMETHOD(device_attach, gic_v3_acpi_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_alloc_resource,		gic_v3_acpi_bus_alloc_res),
-	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
+	DEVMETHOD(bus_alloc_resource, gic_v3_acpi_bus_alloc_res),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 
 	/* End */
 	DEVMETHOD_END
@@ -80,8 +81,8 @@ DEFINE_CLASS_1(gic, gic_v3_acpi_driver, gic_v3_acpi_methods,
 
 static devclass_t gic_v3_acpi_devclass;
 
-EARLY_DRIVER_MODULE(gic_v3, acpi, gic_v3_acpi_driver, gic_v3_acpi_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(gic_v3, acpi, gic_v3_acpi_driver, gic_v3_acpi_devclass, 0,
+    0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 struct madt_table_data {
 	device_t parent;
@@ -98,7 +99,7 @@ madt_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 
 	madt_data = (struct madt_table_data *)arg;
 
-	switch(entry->Type) {
+	switch (entry->Type) {
 	case ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR:
 		if (madt_data->dist != NULL) {
 			if (bootverbose)
@@ -127,7 +128,7 @@ rdist_map(ACPI_SUBTABLE_HEADER *entry, void *arg)
 
 	madt_data = (struct madt_table_data *)arg;
 
-	switch(entry->Type) {
+	switch (entry->Type) {
 	case ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR:
 		if (madt_data->rdist_use_gicc)
 			break;
@@ -186,13 +187,13 @@ gic_v3_acpi_identify(driver_t *driver, device_t parent)
 	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
 	    madt_handler, &madt_data);
 	if (madt_data.dist == NULL) {
-		device_printf(parent,
-		    "No gic interrupt or distributor table\n");
+		device_printf(
+		    parent, "No gic interrupt or distributor table\n");
 		goto out;
 	}
 
 	/* Check the GIC version is supported by thiss driver */
-	switch(madt_data.dist->Version) {
+	switch (madt_data.dist->Version) {
 	case ACPI_MADT_GIC_VERSION_V3:
 	case ACPI_MADT_GIC_VERSION_V4:
 		break;
@@ -200,8 +201,8 @@ gic_v3_acpi_identify(driver_t *driver, device_t parent)
 		goto out;
 	}
 
-	dev = BUS_ADD_CHILD(parent, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE,
-	    "gic", -1);
+	dev = BUS_ADD_CHILD(
+	    parent, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE, "gic", -1);
 	if (dev == NULL) {
 		device_printf(parent, "add gic child failed\n");
 		goto out;
@@ -221,8 +222,8 @@ gic_v3_acpi_identify(driver_t *driver, device_t parent)
 		 * address from the GICC sub-table.
 		 */
 		madt_data.rdist_use_gicc = true;
-		acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
-		    rdist_map, &madt_data);
+		acpi_walk_subtables(madt + 1,
+		    (char *)madt + madt->Header.Length, rdist_map, &madt_data);
 	}
 
 	acpi_set_private(dev, (void *)(uintptr_t)madt_data.dist->Version);
@@ -235,7 +236,7 @@ static int
 gic_v3_acpi_probe(device_t dev)
 {
 
-	switch((uintptr_t)acpi_get_private(dev)) {
+	switch ((uintptr_t)acpi_get_private(dev)) {
 	case ACPI_MADT_GIC_VERSION_V3:
 	case ACPI_MADT_GIC_VERSION_V4:
 		break;
@@ -323,7 +324,7 @@ gic_v3_acpi_attach(device_t dev)
 	}
 
 	if (intr_pic_claim_root(dev, ACPI_INTR_XREF, arm_gic_v3_intr, sc,
-	    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
+		GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
 		err = ENXIO;
 		goto error;
 	}
@@ -335,7 +336,8 @@ gic_v3_acpi_attach(device_t dev)
 	 */
 	gic_v3_acpi_bus_attach(dev);
 
-	if (device_get_children(dev, &sc->gic_children, &sc->gic_nchildren) !=0)
+	if (device_get_children(dev, &sc->gic_children, &sc->gic_nchildren) !=
+	    0)
 		sc->gic_nchildren = 0;
 
 	return (0);
@@ -345,8 +347,7 @@ error:
 	gic_v3_detach(dev);
 count_error:
 	if (bootverbose) {
-		device_printf(dev,
-		    "Failed to attach. Error %d\n", err);
+		device_printf(dev, "Failed to attach. Error %d\n", err);
 	}
 
 	return (err);
@@ -439,6 +440,6 @@ gic_v3_acpi_bus_alloc_res(device_t bus, device_t child, int type, int *rid,
 		count = rle->count;
 	}
 
-	return (bus_generic_alloc_resource(bus, child, type, rid, start, end,
-	    count, flags));
+	return (bus_generic_alloc_resource(
+	    bus, child, type, rid, start, end, count, flags));
 }

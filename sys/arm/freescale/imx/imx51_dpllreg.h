@@ -58,50 +58,50 @@
  * $FreeBSD$
  */
 
-#ifndef	_IMX51_DPLLREG_H
-#define	_IMX51_DPLLREG_H
+#ifndef _IMX51_DPLLREG_H
+#define _IMX51_DPLLREG_H
 
 #include <sys/cdefs.h>
 
 /* register offset address */
 
-#define	IMX51_N_DPLLS		3		/* 1..3 */
+#define IMX51_N_DPLLS 3 /* 1..3 */
 
-#define	DPLL_BASE(n)	      	(0x83F80000 + (0x4000 * ((n)-1)))
-#define	DPLL_SIZE		0x100
+#define DPLL_BASE(n) (0x83F80000 + (0x4000 * ((n)-1)))
+#define DPLL_SIZE 0x100
 
-#define	DPLL_DP_CTL		0x0000		/* 0x1223 */
-#define	 DP_CTL_LRF		0x00000001
-#define	 DP_CTL_BRM		0x00000002
-#define	 DP_CTL_PLM		0x00000004
-#define	 DP_CTL_RCP		0x00000008
-#define	 DP_CTL_RST		0x00000010
-#define	 DP_CTL_UPEN		0x00000020
-#define	 DP_CTL_PRE		0x00000040
-#define	 DP_CTL_HFSM		0x00000080
-#define	 DP_CTL_REF_CLK_SEL_MASK	0x00000300
-#define	 DP_CTL_REF_CLK_SEL_COSC	0x00000200
-#define	 DP_CTL_REF_CLK_SEL_FPM 	0x00000300
-#define	 DP_CTL_REF_CLK_DIV	0x00000400
-#define	 DP_CTL_DPDCK0_2_EN	0x00001000
-#define	 DP_CTL_HIGHCLK_EN	DP_CTL_DPDCK0_2_EN
-#define	 DP_CTL_MULCTRL		0x00002000
-#define	DPLL_DP_CONFIG		0x0004		/* 2 */
-#define	 DPLL_DP_CONFIG_APEN	0x00000002
-#define	 DPLL_DP_CONFIG_LDREQ	0x00000001
-#define	DPLL_DP_OP		0x0008		/* 0x80 */
-#define	 DP_OP_PDF_SHIFT	0
-#define	 DP_OP_PDF_MASK		(0xf << DP_OP_PDF_SHIFT)
-#define	 DP_OP_MFI_SHIFT	4
-#define	 DP_OP_MFI_MASK		(0xf << DP_OP_MFI_SHIFT)
-#define	DPLL_DP_MFD		0x000C		/* 2 */
-#define	DPLL_DP_MFN		0x0010		/* 1 */
-#define	DPLL_DP_MFNMINUS	0x0014		/* 0 */
-#define	DPLL_DP_MFNPLUS		0x0018		/* 0 */
-#define	DPLL_DP_HFS_OP		0x001C		/* 0x80 */
-#define	DPLL_DP_HFS_MFD		0x0020		/* 2 */
-#define	DPLL_DP_HFS_MFN		0x0024		/* 1 */
-#define	DPLL_DP_TOGC		0x0028		/* 0x20000 */
-#define	DPLL_DP_DESTAT		0x002C		/* 1 */
+#define DPLL_DP_CTL 0x0000 /* 0x1223 */
+#define DP_CTL_LRF 0x00000001
+#define DP_CTL_BRM 0x00000002
+#define DP_CTL_PLM 0x00000004
+#define DP_CTL_RCP 0x00000008
+#define DP_CTL_RST 0x00000010
+#define DP_CTL_UPEN 0x00000020
+#define DP_CTL_PRE 0x00000040
+#define DP_CTL_HFSM 0x00000080
+#define DP_CTL_REF_CLK_SEL_MASK 0x00000300
+#define DP_CTL_REF_CLK_SEL_COSC 0x00000200
+#define DP_CTL_REF_CLK_SEL_FPM 0x00000300
+#define DP_CTL_REF_CLK_DIV 0x00000400
+#define DP_CTL_DPDCK0_2_EN 0x00001000
+#define DP_CTL_HIGHCLK_EN DP_CTL_DPDCK0_2_EN
+#define DP_CTL_MULCTRL 0x00002000
+#define DPLL_DP_CONFIG 0x0004 /* 2 */
+#define DPLL_DP_CONFIG_APEN 0x00000002
+#define DPLL_DP_CONFIG_LDREQ 0x00000001
+#define DPLL_DP_OP 0x0008 /* 0x80 */
+#define DP_OP_PDF_SHIFT 0
+#define DP_OP_PDF_MASK (0xf << DP_OP_PDF_SHIFT)
+#define DP_OP_MFI_SHIFT 4
+#define DP_OP_MFI_MASK (0xf << DP_OP_MFI_SHIFT)
+#define DPLL_DP_MFD 0x000C	/* 2 */
+#define DPLL_DP_MFN 0x0010	/* 1 */
+#define DPLL_DP_MFNMINUS 0x0014 /* 0 */
+#define DPLL_DP_MFNPLUS 0x0018	/* 0 */
+#define DPLL_DP_HFS_OP 0x001C	/* 0x80 */
+#define DPLL_DP_HFS_MFD 0x0020	/* 2 */
+#define DPLL_DP_HFS_MFN 0x0024	/* 1 */
+#define DPLL_DP_TOGC 0x0028	/* 0x20000 */
+#define DPLL_DP_DESTAT 0x002C	/* 1 */
 
 #endif /* _IMX51_DPLLREG_H */

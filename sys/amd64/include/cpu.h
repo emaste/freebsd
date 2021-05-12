@@ -36,24 +36,23 @@
  */
 
 #ifndef _MACHINE_CPU_H_
-#define	_MACHINE_CPU_H_
+#define _MACHINE_CPU_H_
 
 /*
  * Definitions unique to i386 cpu support.
  */
-#include <machine/psl.h>
 #include <machine/frame.h>
+#include <machine/psl.h>
 #include <machine/segments.h>
 
-#define	cpu_exec(p)	/* nothing */
-#define	cpu_swapin(p)	/* nothing */
-#define	cpu_getstack(td)		((td)->td_frame->tf_rsp)
-#define	cpu_setstack(td, ap)		((td)->td_frame->tf_rsp = (ap))
-#define	cpu_spinwait()			ia32_pause()
+#define cpu_exec(p)   /* nothing */
+#define cpu_swapin(p) /* nothing */
+#define cpu_getstack(td) ((td)->td_frame->tf_rsp)
+#define cpu_setstack(td, ap) ((td)->td_frame->tf_rsp = (ap))
+#define cpu_spinwait() ia32_pause()
 
-#define	TRAPF_USERMODE(framep) \
-	(ISPL((framep)->tf_cs) == SEL_UPL)
-#define	TRAPF_PC(framep)	((framep)->tf_rip)
+#define TRAPF_USERMODE(framep) (ISPL((framep)->tf_cs) == SEL_UPL)
+#define TRAPF_PC(framep) ((framep)->tf_rip)
 
 #ifdef _KERNEL
 /*
@@ -67,20 +66,20 @@ struct cpu_ops {
 	void (*cpu_resume)(void);
 };
 
-extern struct	cpu_ops cpu_ops;
-extern char	brwsection[];
-extern char	btext[];
-extern char	_end[];
-extern char	etext[];
+extern struct cpu_ops cpu_ops;
+extern char brwsection[];
+extern char btext[];
+extern char _end[];
+extern char etext[];
 
 /* Resume hook for VMM. */
-extern	void (*vmm_resume_p)(void);
+extern void (*vmm_resume_p)(void);
 
-void	cpu_halt(void);
-void	cpu_lock_delay(void);
-void	cpu_reset(void);
-void	fork_trampoline(void);
-void	swi_vm(void *);
+void cpu_halt(void);
+void cpu_lock_delay(void);
+void cpu_reset(void);
+void fork_trampoline(void);
+void swi_vm(void *);
 
 /*
  * Return contents of in-cpu fast counter as a sort of "bogo-time"
@@ -93,9 +92,9 @@ get_cyclecount(void)
 	return (rdtsc());
 }
 
-#define MEMSET_EARLY_FUNC       memset_std
-#define MEMCPY_EARLY_FUNC       memcpy_std
-#define MEMMOVE_EARLY_FUNC      memmove_std
+#define MEMSET_EARLY_FUNC memset_std
+#define MEMCPY_EARLY_FUNC memcpy_std
+#define MEMMOVE_EARLY_FUNC memmove_std
 
 #endif
 

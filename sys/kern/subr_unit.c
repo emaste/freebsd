@@ -69,18 +69,18 @@
  *	N is the number of the highest unit allocated.
  */
 
-#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/_unrhdr.h>
 
 #ifdef _KERNEL
 
-#include <sys/bitstring.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/bitstring.h>
+#include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 
 /*
@@ -122,12 +122,12 @@ alloc_unr64(struct unrhdr64 *unr64)
 #include <stdlib.h>
 #include <string.h>
 
-#define KASSERT(cond, arg) \
-	do { \
-		if (!(cond)) { \
+#define KASSERT(cond, arg)          \
+	do {                        \
+		if (!(cond)) {      \
 			printf arg; \
-			abort(); \
-		} \
+			abort();    \
+		}                   \
 	} while (0)
 
 static int no_alloc;
@@ -144,7 +144,7 @@ _Malloc(size_t foo, int line)
 struct unrhdr;
 
 struct mtx {
-	int	state;
+	int state;
 } unitmtx;
 
 static void
@@ -161,7 +161,7 @@ mtx_unlock(struct mtx *mp)
 	mp->state = 0;
 }
 
-#define MA_OWNED	9
+#define MA_OWNED 9
 
 static void
 mtx_assert(struct mtx *mp, int flag)
@@ -172,7 +172,7 @@ mtx_assert(struct mtx *mp, int flag)
 }
 
 #define CTASSERT(foo)
-#define WITNESS_WARN(flags, lock, fmt, ...)	(void)0
+#define WITNESS_WARN(flags, lock, fmt, ...) (void)0
 
 #endif /* USERLAND */
 
@@ -191,23 +191,24 @@ mtx_assert(struct mtx *mp, int flag)
  * The bitmap is the same size as struct unr to optimize memory management.
  */
 struct unr {
-	TAILQ_ENTRY(unr)	list;
-	u_int			len;
-	void			*ptr;
+	TAILQ_ENTRY(unr) list;
+	u_int len;
+	void *ptr;
 };
 
 struct unrb {
-	bitstr_t		map[sizeof(struct unr) / sizeof(bitstr_t)];
+	bitstr_t map[sizeof(struct unr) / sizeof(bitstr_t)];
 };
 
 CTASSERT((sizeof(struct unr) % sizeof(bitstr_t)) == 0);
 
 /* Number of bits we can store in the bitmap */
-#define NBITS (8 * sizeof(((struct unrb*)NULL)->map))
+#define NBITS (8 * sizeof(((struct unrb *)NULL)->map))
 
 /* Is the unrb empty in at least the first len bits? */
 static inline bool
-ub_empty(struct unrb *ub, int len) {
+ub_empty(struct unrb *ub, int len)
+{
 	int first_set;
 
 	bit_ffs(ub->map, len, &first_set);
@@ -242,13 +243,13 @@ check_unrhdr(struct unrhdr *uh, int line)
 
 	y = uh->first;
 	z = 0;
-	TAILQ_FOREACH(up, &uh->head, list) {
+	TAILQ_FOREACH (up, &uh->head, list) {
 		z++;
 		if (up->ptr != uh && up->ptr != NULL) {
 			ub = up->ptr;
-			KASSERT (up->len <= NBITS,
+			KASSERT(up->len <= NBITS,
 			    ("UNR inconsistency: len %u max %zd (line %d)\n",
-			    up->len, NBITS, line));
+				up->len, NBITS, line));
 			z++;
 			w = 0;
 			bit_count(ub->map, 0, up->len, &w);
@@ -256,12 +257,12 @@ check_unrhdr(struct unrhdr *uh, int line)
 		} else if (up->ptr != NULL)
 			y += up->len;
 	}
-	KASSERT (y == uh->busy,
-	    ("UNR inconsistency: items %u found %u (line %d)\n",
-	    uh->busy, y, line));
-	KASSERT (z == uh->alloc,
-	    ("UNR inconsistency: chunks %u found %u (line %d)\n",
-	    uh->alloc, z, line));
+	KASSERT(y == uh->busy,
+	    ("UNR inconsistency: items %u found %u (line %d)\n", uh->busy, y,
+		line));
+	KASSERT(z == uh->alloc,
+	    ("UNR inconsistency: chunks %u found %u (line %d)\n", uh->alloc, z,
+		line));
 }
 
 #else
@@ -269,7 +270,6 @@ check_unrhdr(struct unrhdr *uh, int line)
 static __inline void
 check_unrhdr(struct unrhdr *uh __unused, int line __unused)
 {
-
 }
 
 #endif
@@ -319,7 +319,6 @@ clean_unrhdrl(struct unrhdr *uh)
 		Free(up);
 		mtx_lock(uh->mtx);
 	}
-
 }
 
 void
@@ -383,9 +382,9 @@ clear_unrhdr(struct unrhdr *uh)
 {
 	struct unr *up, *uq;
 
-	KASSERT(TAILQ_EMPTY(&uh->ppfree),
-	    ("unrhdr has postponed item for free"));
-	TAILQ_FOREACH_SAFE(up, &uh->head, list, uq) {
+	KASSERT(
+	    TAILQ_EMPTY(&uh->ppfree), ("unrhdr has postponed item for free"));
+	TAILQ_FOREACH_SAFE (up, &uh->head, list, uq) {
 		if (up->ptr != uh) {
 			Free(up->ptr);
 		}
@@ -426,7 +425,7 @@ optimize_unr(struct unrhdr *uh)
 	 */
 	us = NULL;
 	ba = 0;
-	TAILQ_FOREACH(uf, &uh->head, list) {
+	TAILQ_FOREACH (uf, &uh->head, list) {
 		if (uf->len >= NBITS)
 			continue;
 		a = 1;
@@ -561,7 +560,7 @@ collapse_unr(struct unrhdr *uh, struct unr *up)
 			up->len += upp->len;
 			TAILQ_REMOVE(&uh->head, upp, list);
 			delete_unr(uh, upp);
-			}
+		}
 		upp = TAILQ_NEXT(up, list);
 		if (upp != NULL && up->ptr == upp->ptr) {
 			up->len += upp->len;
@@ -631,10 +630,10 @@ alloc_unrl(struct unrhdr *uh)
 
 	KASSERT(up->ptr != uh, ("UNR first element is allocated"));
 
-	if (up->ptr == NULL) {	/* free run */
+	if (up->ptr == NULL) { /* free run */
 		uh->first++;
 		up->len--;
-	} else {		/* bitmap */
+	} else { /* bitmap */
 		ub = up->ptr;
 		bit_ffc(ub->map, up->len, &y);
 		KASSERT(y != -1, ("UNR corruption: No clear bit in bitmap."));
@@ -697,7 +696,7 @@ alloc_unr_specificl(struct unrhdr *uh, u_int item, void **p1, void **p2)
 		return (item);
 	} else {
 		/* Find the item which contains the unit we want to allocate. */
-		TAILQ_FOREACH(up, &uh->head, list) {
+		TAILQ_FOREACH (up, &uh->head, list) {
 			if (up->len > i)
 				break;
 			i -= up->len;
@@ -796,8 +795,8 @@ free_unrl(struct unrhdr *uh, u_int item, void **p1, void **p2)
 	u_int pl;
 
 	KASSERT(item >= uh->low && item <= uh->high,
-	    ("UNR: free_unr(%u) out of range [%u...%u]",
-	     item, uh->low, uh->high));
+	    ("UNR: free_unr(%u) out of range [%u...%u]", item, uh->low,
+		uh->high));
 	check_unrhdr(uh, __LINE__);
 	item -= uh->low;
 	upp = TAILQ_FIRST(&uh->head);
@@ -812,7 +811,7 @@ free_unrl(struct unrhdr *uh, u_int item, void **p1, void **p2)
 		return;
 	}
 	/*
- 	 * Freeing in the ->first section.  Create a run starting at the
+	 * Freeing in the ->first section.  Create a run starting at the
 	 * freed item.  The code below will subdivide it.
 	 */
 	if (item < uh->first) {
@@ -826,7 +825,7 @@ free_unrl(struct unrhdr *uh, u_int item, void **p1, void **p2)
 	item -= uh->first;
 
 	/* Find the item which contains the unit we want to free */
-	TAILQ_FOREACH(up, &uh->head, list) {
+	TAILQ_FOREACH (up, &uh->head, list) {
 		if (up->len > item)
 			break;
 		item -= up->len;
@@ -914,7 +913,7 @@ free_unr(struct unrhdr *uh, u_int item)
 		Free(p2);
 }
 
-#ifndef _KERNEL	/* USERLAND test driver */
+#ifndef _KERNEL /* USERLAND test driver */
 
 /*
  * Simple stochastic test driver for the above functions.  The code resides
@@ -922,7 +921,11 @@ free_unr(struct unrhdr *uh, u_int item)
  */
 
 static bool verbose;
-#define VPRINTF(...)	{if (verbose) printf(__VA_ARGS__);}
+#define VPRINTF(...)                         \
+	{                                    \
+		if (verbose)                 \
+			printf(__VA_ARGS__); \
+	}
 
 static void
 print_unr(struct unrhdr *uh, struct unr *up)
@@ -958,7 +961,7 @@ print_unrhdr(struct unrhdr *uh)
 	    "%p low = %u high = %u first = %u last = %u busy %u chunks = %u\n",
 	    uh, uh->low, uh->high, uh->first, uh->last, uh->busy, uh->alloc);
 	x = uh->low + uh->first;
-	TAILQ_FOREACH(up, &uh->head, list) {
+	TAILQ_FOREACH (up, &uh->head, list) {
 		printf("  from = %5u", x);
 		print_unr(uh, up);
 		if (up->ptr == NULL || up->ptr == uh)
@@ -1005,7 +1008,7 @@ test_alloc_unr_specific(struct unrhdr *uh, u_int i, char a[])
 }
 
 static void
-usage(char** argv)
+usage(char **argv)
 {
 	printf("%s [-h] [-r REPETITIONS] [-v]\n", argv[0]);
 }
@@ -1015,7 +1018,7 @@ main(int argc, char **argv)
 {
 	struct unrhdr *uh;
 	char *a;
-	long count = 10000;	/* Number of unrs to test */
+	long count = 10000; /* Number of unrs to test */
 	long reps = 1, m;
 	int ch;
 	u_int i;

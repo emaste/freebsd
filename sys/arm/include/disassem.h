@@ -43,9 +43,9 @@
 #ifndef _MACHINE_DISASSEM_H_
 #define _MACHINE_DISASSEM_H_
 typedef struct {
-	u_int	(*di_readword)(u_int);
-	void	(*di_printaddr)(u_int);
-	int	(*di_printf)(const char *, ...) __printflike(1, 2);
+	u_int (*di_readword)(u_int);
+	void (*di_printaddr)(u_int);
+	int (*di_printf)(const char *, ...) __printflike(1, 2);
 } disasm_interface_t;
 
 /* Prototypes for callable functions */

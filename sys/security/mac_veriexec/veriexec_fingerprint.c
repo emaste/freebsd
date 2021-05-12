@@ -29,10 +29,9 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include "opt_mac.h"
 
+#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/imgact.h>
@@ -40,7 +39,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mount.h> 
+#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
@@ -64,12 +63,11 @@ static int mac_veriexec_late;
 static int sysctl_mac_veriexec_algorithms(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_PROC(_security_mac_veriexec, OID_AUTO, algorithms,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
-    0, 0, sysctl_mac_veriexec_algorithms, "A",
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, 0, 0,
+    sysctl_mac_veriexec_algorithms, "A",
     "Verified execution supported hashing algorithms");
 
-static int
-sysctl_mac_veriexec_algorithms(SYSCTL_HANDLER_ARGS)
+static int sysctl_mac_veriexec_algorithms(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sb;
 	struct mac_veriexec_fpops *fpops;
@@ -77,7 +75,7 @@ sysctl_mac_veriexec_algorithms(SYSCTL_HANDLER_ARGS)
 
 	algorithms = 0;
 	sbuf_new(&sb, NULL, 128, SBUF_AUTOEXTEND);
-	LIST_FOREACH(fpops, &fpops_list, entries) {
+	LIST_FOREACH (fpops, &fpops_list, entries) {
 		if (algorithms++)
 			sbuf_printf(&sb, " ");
 		sbuf_printf(&sb, "%s", fpops->type);
@@ -99,7 +97,7 @@ sysctl_mac_veriexec_algorithms(SYSCTL_HANDLER_ARGS)
  * @return String form of the information stored in @p imgp
  */
 static void
-identify_error (struct image_params *imgp, struct thread *td, const char *msg)
+identify_error(struct image_params *imgp, struct thread *td, const char *msg)
 {
 	struct proc *parent;
 	pid_t ppid, gppid;
@@ -107,14 +105,16 @@ identify_error (struct image_params *imgp, struct thread *td, const char *msg)
 	parent = imgp->proc->p_pptr;
 	ppid = (parent != NULL) ? parent->p_pid : 0;
 	gppid = (parent != NULL && parent->p_pptr != NULL) ?
-	    parent->p_pptr->p_pid : 0;
+		  parent->p_pptr->p_pid :
+		  0;
 
-	log(LOG_ERR, MAC_VERIEXEC_FULLNAME ": %s (file=%s fsid=%ju fileid=%ju "
-	    "gen=%lu uid=%u pid=%u ppid=%u gppid=%u)", msg,
-	    (imgp->args != NULL) ? imgp->args->fname : "",
+	log(LOG_ERR,
+	    MAC_VERIEXEC_FULLNAME ": %s (file=%s fsid=%ju fileid=%ju "
+				  "gen=%lu uid=%u pid=%u ppid=%u gppid=%u)",
+	    msg, (imgp->args != NULL) ? imgp->args->fname : "",
 	    (uintmax_t)imgp->attr->va_fsid, (uintmax_t)imgp->attr->va_fileid,
-	    imgp->attr->va_gen, td->td_ucred->cr_ruid, imgp->proc->p_pid,
-	    ppid, gppid);
+	    imgp->attr->va_gen, td->td_ucred->cr_ruid, imgp->proc->p_pid, ppid,
+	    gppid);
 }
 
 /**
@@ -219,9 +219,10 @@ mac_veriexec_fingerprint_check_vnode(struct vnode *vp,
 		return (ETXTBSY);
 
 	if ((vp->v_mount->mnt_flag & MNT_VERIFIED) != 0) {
-		VERIEXEC_DEBUG(2, ("file %ju.%lu on verified %s mount\n",
-		    (uintmax_t)ip->fileid, ip->gen,
-		    vp->v_mount->mnt_vfc->vfc_name));
+		VERIEXEC_DEBUG(2,
+		    ("file %ju.%lu on verified %s mount\n",
+			(uintmax_t)ip->fileid, ip->gen,
+			vp->v_mount->mnt_vfc->vfc_name));
 
 		/*
 		 * The VFS is backed by a file which has been verified.
@@ -253,8 +254,8 @@ mac_veriexec_fingerprint_check_vnode(struct vnode *vp,
  * @return 0 if the signature is valid, otherwise an error code.
  */
 int
-mac_veriexec_fingerprint_check_image(struct image_params *imgp,
-    int check_files, struct thread *td)
+mac_veriexec_fingerprint_check_image(
+    struct image_params *imgp, int check_files, struct thread *td)
 {
 	struct vnode *vp = imgp->vp;
 	int error;
@@ -263,8 +264,8 @@ mac_veriexec_fingerprint_check_image(struct image_params *imgp,
 	if (!mac_veriexec_in_state(VERIEXEC_STATE_ACTIVE))
 		return 0;
 
-	error = mac_veriexec_metadata_fetch_fingerprint_status(vp, imgp->attr,
-	    td, check_files);
+	error = mac_veriexec_metadata_fetch_fingerprint_status(
+	    vp, imgp->attr, td, check_files);
 	if (error && error != EAUTH)
 		return (error);
 
@@ -301,8 +302,8 @@ mac_veriexec_fingerprint_check_image(struct image_params *imgp,
 		break;
 
 	case FINGERPRINT_NOMATCH: /* does not match - whine about it */
-		identify_error(imgp, td,
-		    "fingerprint does not match loaded value");
+		identify_error(
+		    imgp, td, "fingerprint does not match loaded value");
 		if (prison0.pr_securelevel > 1 ||
 		    mac_veriexec_in_state(VERIEXEC_STATE_ENFORCE))
 			error = EAUTH;
@@ -326,7 +327,7 @@ mac_veriexec_fingerprint_check_image(struct image_params *imgp,
 		identify_error(imgp, td, "invalid status field for vnode");
 		error = EPERM;
 	}
-	return error; 
+	return error;
 }
 
 /**
@@ -342,7 +343,7 @@ mac_veriexec_fingerprint_lookup_ops(const char *type)
 	if (type == NULL)
 		return (NULL);
 
-	LIST_FOREACH(fpops, &fpops_list, entries) {
+	LIST_FOREACH (fpops, &fpops_list, entries) {
 		if (!strcasecmp(type, fpops->type))
 			break;
 	}
@@ -407,14 +408,15 @@ mac_veriexec_fingerprint_modevent(module_t mod, int type, void *data)
 	int error;
 
 	error = 0;
-	fpops = (struct mac_veriexec_fpops *) data;
+	fpops = (struct mac_veriexec_fpops *)data;
 
 	switch (type) {
 	case MOD_LOAD:
 		/* We do not allow late loading of fingerprint modules */
 		if (mac_veriexec_late) {
 			printf("%s: can't load %s fingerprint module after "
-			    "booting\n", __func__, fpops->type);
+			       "booting\n",
+			    __func__, fpops->type);
 			error = EBUSY;
 			break;
 		}

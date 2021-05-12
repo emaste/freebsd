@@ -29,34 +29,31 @@
  * $FreeBSD$
  */
 
-#ifndef	_BCM2835_SPIVAR_H_
-#define	_BCM2835_SPIVAR_H_
+#ifndef _BCM2835_SPIVAR_H_
+#define _BCM2835_SPIVAR_H_
 
 struct bcm_spi_softc {
-	device_t		sc_dev;
-	struct mtx		sc_mtx;
-	struct resource *	sc_mem_res;
-	struct resource *	sc_irq_res;
-	struct spi_command	*sc_cmd;
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
-	uint32_t		sc_len;
-	uint32_t		sc_read;
-	uint32_t		sc_flags;
-	uint32_t		sc_written;
-	void *			sc_intrhand;
+	device_t sc_dev;
+	struct mtx sc_mtx;
+	struct resource *sc_mem_res;
+	struct resource *sc_irq_res;
+	struct spi_command *sc_cmd;
+	bus_space_tag_t sc_bst;
+	bus_space_handle_t sc_bsh;
+	uint32_t sc_len;
+	uint32_t sc_read;
+	uint32_t sc_flags;
+	uint32_t sc_written;
+	void *sc_intrhand;
 };
 
-#define	BCM_SPI_BUSY		0x1
+#define BCM_SPI_BUSY 0x1
 
-#define BCM_SPI_WRITE(_sc, _off, _val)		\
-    bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)
-#define BCM_SPI_READ(_sc, _off)			\
-    bus_space_read_4(_sc->sc_bst, _sc->sc_bsh, _off)
+#define BCM_SPI_WRITE(_sc, _off, _val) \
+	bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)
+#define BCM_SPI_READ(_sc, _off) bus_space_read_4(_sc->sc_bst, _sc->sc_bsh, _off)
 
-#define BCM_SPI_LOCK(_sc)			\
-    mtx_lock(&(_sc)->sc_mtx)
-#define BCM_SPI_UNLOCK(_sc)			\
-    mtx_unlock(&(_sc)->sc_mtx)
+#define BCM_SPI_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define BCM_SPI_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
 
-#endif	/* _BCM2835_SPIVAR_H_ */
+#endif /* _BCM2835_SPIVAR_H_ */

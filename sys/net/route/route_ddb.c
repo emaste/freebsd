@@ -30,34 +30,34 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
-#include <sys/ctype.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ctype.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/rmlock.h>
-
-#include <ddb/ddb.h>
-#include <ddb/db_lex.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_dl.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
 
+#include <ddb/db_lex.h>
+#include <ddb/ddb.h>
+
 /*
  * Unfortunately, RTF_ values are expressed as raw masks rather than powers of
  * 2, so we cannot use them as nice C99 initializer indices below.
  */
-static const char * const rtf_flag_strings[] = {
+static const char *const rtf_flag_strings[] = {
 	"UP",
 	"GATEWAY",
 	"HOST",
@@ -88,7 +88,7 @@ static const char * const rtf_flag_strings[] = {
 	[31] = "GWFLAG_COMPAT",
 };
 
-static const char * __pure
+static const char *__pure
 rt_flag_name(unsigned idx)
 {
 	if (idx >= nitems(rtf_flag_strings))
@@ -108,12 +108,12 @@ rt_dumpaddr_ddb(const char *name, const struct sockaddr *sa)
 		res = "NULL";
 	else if (sa->sa_family == AF_INET) {
 		res = inet_ntop(AF_INET,
-		    &((const struct sockaddr_in *)sa)->sin_addr,
-		    buf, sizeof(buf));
+		    &((const struct sockaddr_in *)sa)->sin_addr, buf,
+		    sizeof(buf));
 	} else if (sa->sa_family == AF_INET6) {
 		res = inet_ntop(AF_INET6,
-		    &((const struct sockaddr_in6 *)sa)->sin6_addr,
-		    buf, sizeof(buf));
+		    &((const struct sockaddr_in6 *)sa)->sin6_addr, buf,
+		    sizeof(buf));
 	} else if (sa->sa_family == AF_LINK) {
 		res = "on link";
 	}
@@ -140,8 +140,8 @@ rt_dumpentry_ddb(struct radix_node *rn, void *arg __unused)
 
 	rt_dumpaddr_ddb("dst", rt_key(rt));
 	rt_dumpaddr_ddb("gateway", &rt->rt_nhop->gw_sa);
-	rt_dumpaddr_ddb("netmask", rtsock_fix_netmask(rt_key(rt), rt_mask(rt),
-	    &ss));
+	rt_dumpaddr_ddb(
+	    "netmask", rtsock_fix_netmask(rt_key(rt), rt_mask(rt), &ss));
 	if ((nh->nh_ifp->if_flags & IFF_DYING) == 0) {
 		rt_dumpaddr_ddb("ifp", nh->nh_ifp->if_addr->ifa_addr);
 		rt_dumpaddr_ddb("ifa", nh->nh_ifa->ifa_addr);
@@ -181,8 +181,8 @@ DB_SHOW_COMMAND(routetable, db_show_routetable_cmd)
 		rnh = rt_tables_get_rnh(0, i);
 		if (rnh == NULL) {
 			if (have_addr) {
-				db_printf("%s: AF %d not supported?\n",
-				    __func__, i);
+				db_printf(
+				    "%s: AF %d not supported?\n", __func__, i);
 				break;
 			}
 			continue;
@@ -193,13 +193,14 @@ DB_SHOW_COMMAND(routetable, db_show_routetable_cmd)
 
 		db_printf("Route table for AF %d%s%s%s:\n", i,
 		    (i == AF_INET || i == AF_INET6) ? " (" : "",
-		    (i == AF_INET) ? "INET" : (i == AF_INET6) ? "INET6" : "",
+		    (i == AF_INET)	? "INET" :
+			(i == AF_INET6) ? "INET6" :
+						"",
 		    (i == AF_INET || i == AF_INET6) ? ")" : "");
 
 		error = rnh->rnh_walktree(&rnh->head, rt_dumpentry_ddb, NULL);
 		if (error != 0)
-			db_printf("%s: walktree(%d): %d\n", __func__, i,
-			    error);
+			db_printf("%s: walktree(%d): %d\n", __func__, i, error);
 	}
 }
 
@@ -220,7 +221,7 @@ _DB_FUNC(_show, route, db_show_route_cmd, db_show_table, CS_OWN, NULL)
 
 	/* Remove whitespaces from both ends */
 	end = buf + strlen(buf) - 1;
-	for (; (end >= buf) && (*end=='\n' || isspace(*end)); end--)
+	for (; (end >= buf) && (*end == '\n' || isspace(*end)); end--)
 		*end = '\0';
 	while (isspace(*buf))
 		buf++;
@@ -265,6 +266,6 @@ _DB_FUNC(_show, route, db_show_route_cmd, db_show_table, CS_OWN, NULL)
 	return;
 usage:
 	db_printf("Usage: 'show route <address>'\n"
-	    "  Currently accepts only IPv4 and IPv6 addresses\n");
+		  "  Currently accepts only IPv4 and IPv6 addresses\n");
 	db_skip_to_eol();
 }

@@ -29,7 +29,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -37,23 +39,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/sdt.h>
-#include <sys/systm.h>
-#include <sys/socket.h>
 #include <sys/sockbuf.h>
+#include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/types.h>
 
-#include <net/route.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/route.h>
 #include <net/vnet.h>
-
+#include <netinet/icmp6.h>
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
-#include <netinet/ip_var.h>
 #include <netinet/ip6.h>
-#include <netinet/icmp6.h>
-
+#include <netinet/ip_var.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/scope6_var.h>
@@ -65,16 +63,16 @@ static MALLOC_DEFINE(M_SEND, "send", "Secure Neighbour Discovery");
  * The socket used to communicate with the SeND daemon.
  */
 VNET_DEFINE_STATIC(struct socket *, send_so);
-#define	V_send_so	VNET(send_so)
+#define V_send_so VNET(send_so)
 
-u_long	send_sendspace	= 8 * (1024 + sizeof(struct sockaddr_send));
-u_long	send_recvspace	= 9216;
+u_long send_sendspace = 8 * (1024 + sizeof(struct sockaddr_send));
+u_long send_recvspace = 9216;
 
-struct mtx	send_mtx;
-#define SEND_LOCK_INIT()	mtx_init(&send_mtx, "send_mtx", NULL, MTX_DEF)
-#define SEND_LOCK()		mtx_lock(&send_mtx)
-#define SEND_UNLOCK()		mtx_unlock(&send_mtx)
-#define SEND_LOCK_DESTROY()     mtx_destroy(&send_mtx)
+struct mtx send_mtx;
+#define SEND_LOCK_INIT() mtx_init(&send_mtx, "send_mtx", NULL, MTX_DEF)
+#define SEND_LOCK() mtx_lock(&send_mtx)
+#define SEND_UNLOCK() mtx_unlock(&send_mtx)
+#define SEND_LOCK_DESTROY() mtx_destroy(&send_mtx)
 
 static int
 send_attach(struct socket *so, int proto, struct thread *td)
@@ -90,7 +88,7 @@ send_attach(struct socket *so, int proto, struct thread *td)
 	error = priv_check(td, PRIV_NETINET_RAW);
 	if (error) {
 		SEND_UNLOCK();
-		return(error);
+		return (error);
 	}
 
 	if (proto != IPPROTO_SEND) {
@@ -100,7 +98,7 @@ send_attach(struct socket *so, int proto, struct thread *td)
 	error = soreserve(so, send_sendspace, send_recvspace);
 	if (error) {
 		SEND_UNLOCK();
-		return(error);
+		return (error);
 	}
 
 	V_send_so = so;
@@ -126,10 +124,10 @@ send_output(struct mbuf *m, struct ifnet *ifp, int direction)
 
 	switch (direction) {
 	case SND_IN:
-		if (m->m_len < (sizeof(struct ip6_hdr) +
-		    sizeof(struct icmp6_hdr))) {
-			m = m_pullup(m, sizeof(struct ip6_hdr) +
-			    sizeof(struct icmp6_hdr));
+		if (m->m_len <
+		    (sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr))) {
+			m = m_pullup(m,
+			    sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr));
 			if (!m)
 				return (ENOBUFS);
 		}
@@ -191,7 +189,7 @@ send_output(struct mbuf *m, struct ifnet *ifp, int direction)
 		dst.sin6_len = sizeof(dst);
 		dst.sin6_addr = ip6->ip6_dst;
 
-		m_clrprotoflags(m);	/* Avoid confusing lower layers. */
+		m_clrprotoflags(m); /* Avoid confusing lower layers. */
 
 		IP_PROBE(send, NULL, NULL, ip6, ifp, NULL, ip6);
 
@@ -202,15 +200,15 @@ send_output(struct mbuf *m, struct ifnet *ifp, int direction)
 		 * XXX-BZ as we added data, what about fragmenting,
 		 * if now needed?
 		 */
-		error = ((*ifp->if_output)(ifp, m, (struct sockaddr *)&dst,
-		    NULL));
+		error = ((*ifp->if_output)(
+		    ifp, m, (struct sockaddr *)&dst, NULL));
 		if (error)
 			error = ENOENT;
 		return (error);
 
 	default:
-		panic("%s: direction %d neither SND_IN nor SND_OUT.",
-		     __func__, direction);
+		panic("%s: direction %d neither SND_IN nor SND_OUT.", __func__,
+		    direction);
 	}
 }
 
@@ -227,8 +225,8 @@ send_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	struct ifnet *ifp;
 	int error;
 
-	KASSERT(V_send_so == so, ("%s: socket %p not send socket %p",
-		__func__, so, V_send_so));
+	KASSERT(V_send_so == so,
+	    ("%s: socket %p not send socket %p", __func__, so, V_send_so));
 
 	sendsrc = (struct sockaddr_send *)nam;
 	if (sendsrc->send_family != AF_INET6) {
@@ -274,7 +272,8 @@ send_close(struct socket *so)
  * daemon adding SeND ICMPv6 options.
  */
 static int
-send_input(struct mbuf *m, struct ifnet *ifp, int direction, int msglen __unused)
+send_input(
+    struct mbuf *m, struct ifnet *ifp, int direction, int msglen __unused)
 {
 	struct ip6_hdr *ip6;
 	struct sockaddr_send sendsrc;
@@ -305,8 +304,8 @@ send_input(struct mbuf *m, struct ifnet *ifp, int direction, int msglen __unused
 	 * protected (outgoing) or validated (incoming) according to rfc3971.
 	 */
 	SOCKBUF_LOCK(&V_send_so->so_rcv);
-	if (sbappendaddr_locked(&V_send_so->so_rcv,
-	    (struct sockaddr *)&sendsrc, m, NULL) == 0) {
+	if (sbappendaddr_locked(&V_send_so->so_rcv, (struct sockaddr *)&sendsrc,
+		m, NULL) == 0) {
 		SOCKBUF_UNLOCK(&V_send_so->so_rcv);
 		/* XXX stats. */
 		m_freem(m);
@@ -318,17 +317,13 @@ send_input(struct mbuf *m, struct ifnet *ifp, int direction, int msglen __unused
 	return (0);
 }
 
-struct pr_usrreqs send_usrreqs = {
-	.pru_attach =		send_attach,
-	.pru_send =		send_send,
-	.pru_detach =		send_close
-};
-struct protosw send_protosw = {
-	.pr_type =		SOCK_RAW,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_protocol =		IPPROTO_SEND,
-	.pr_usrreqs =		&send_usrreqs
-};
+struct pr_usrreqs send_usrreqs = { .pru_attach = send_attach,
+	.pru_send = send_send,
+	.pru_detach = send_close };
+struct protosw send_protosw = { .pr_type = SOCK_RAW,
+	.pr_flags = PR_ATOMIC | PR_ADDR,
+	.pr_protocol = IPPROTO_SEND,
+	.pr_usrreqs = &send_usrreqs };
 
 static int
 send_modevent(module_t mod, int type, void *unused)
@@ -345,7 +340,7 @@ send_modevent(module_t mod, int type, void *unused)
 		error = pf_proto_register(PF_INET6, &send_protosw);
 		if (error != 0) {
 			printf("%s:%d: MOD_LOAD pf_proto_register(): %d\n",
-			   __func__, __LINE__, error);
+			    __func__, __LINE__, error);
 			SEND_LOCK_DESTROY();
 			break;
 		}
@@ -357,7 +352,8 @@ send_modevent(module_t mod, int type, void *unused)
 #ifdef __notyet__
 		VNET_LIST_RLOCK_NOSLEEP();
 		SEND_LOCK();
-		VNET_FOREACH(vnet_iter) {
+		VNET_FOREACH(vnet_iter)
+		{
 			CURVNET_SET(vnet_iter);
 			if (V_send_so != NULL) {
 				CURVNET_RESTORE();
@@ -383,10 +379,6 @@ send_modevent(module_t mod, int type, void *unused)
 	return (error);
 }
 
-static moduledata_t sendmod = {
-	"send",
-	send_modevent,
-	0
-};
+static moduledata_t sendmod = { "send", send_modevent, 0 };
 
 DECLARE_MODULE(send, sendmod, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);

@@ -28,8 +28,8 @@
 
 /* $FreeBSD$ */
 
-#ifndef	__AR71XX_SETUP_H__
-#define	__AR71XX_SETUP_H__
+#ifndef __AR71XX_SETUP_H__
+#define __AR71XX_SETUP_H__
 
 enum ar71xx_soc_type {
 	AR71XX_SOC_UNKNOWN,

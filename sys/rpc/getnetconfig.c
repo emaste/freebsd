@@ -33,8 +33,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 
 #include <rpc/types.h>
 
@@ -45,43 +45,43 @@ __FBSDID("$FreeBSD$");
 static struct netconfig netconfigs[] = {
 #ifdef INET6
 	{
-		.nc_netid =	"udp6",
-		.nc_semantics =	NC_TPI_CLTS,
-		.nc_flag =	NC_VISIBLE,
-		.nc_protofmly =	"inet6",
-		.nc_proto =	"udp",
+	    .nc_netid = "udp6",
+	    .nc_semantics = NC_TPI_CLTS,
+	    .nc_flag = NC_VISIBLE,
+	    .nc_protofmly = "inet6",
+	    .nc_proto = "udp",
 	},
 	{
-		.nc_netid =	"tcp6",
-		.nc_semantics =	NC_TPI_COTS_ORD,
-		.nc_flag =	NC_VISIBLE,
-		.nc_protofmly =	"inet6",
-		.nc_proto =	"tcp",
+	    .nc_netid = "tcp6",
+	    .nc_semantics = NC_TPI_COTS_ORD,
+	    .nc_flag = NC_VISIBLE,
+	    .nc_protofmly = "inet6",
+	    .nc_proto = "tcp",
 	},
-#endif	
+#endif
 	{
-		.nc_netid =	"udp",
-		.nc_semantics =	NC_TPI_CLTS,
-		.nc_flag =	NC_VISIBLE,
-		.nc_protofmly =	"inet",
-		.nc_proto =	"udp",
-	},
-	{
-		.nc_netid =	"tcp",
-		.nc_semantics =	NC_TPI_COTS_ORD,
-		.nc_flag =	NC_VISIBLE,
-		.nc_protofmly =	"inet",
-		.nc_proto =	"tcp",
+	    .nc_netid = "udp",
+	    .nc_semantics = NC_TPI_CLTS,
+	    .nc_flag = NC_VISIBLE,
+	    .nc_protofmly = "inet",
+	    .nc_proto = "udp",
 	},
 	{
-		.nc_netid =	"local",
-		.nc_semantics =	NC_TPI_COTS_ORD,
-		.nc_flag =	0,
-		.nc_protofmly =	"loopback",
-		.nc_proto =	"",
+	    .nc_netid = "tcp",
+	    .nc_semantics = NC_TPI_COTS_ORD,
+	    .nc_flag = NC_VISIBLE,
+	    .nc_protofmly = "inet",
+	    .nc_proto = "tcp",
 	},
 	{
-		.nc_netid =	NULL,
+	    .nc_netid = "local",
+	    .nc_semantics = NC_TPI_COTS_ORD,
+	    .nc_flag = 0,
+	    .nc_protofmly = "loopback",
+	    .nc_proto = "",
+	},
+	{
+	    .nc_netid = NULL,
 	}
 };
 
@@ -93,13 +93,13 @@ setnetconfig(void)
 	nconfp = malloc(sizeof(struct netconfig *), M_RPC, M_WAITOK);
 	*nconfp = netconfigs;
 
-	return ((void *) nconfp);
+	return ((void *)nconfp);
 }
 
 struct netconfig *
 getnetconfig(void *handle)
 {
-	struct netconfig **nconfp = (struct netconfig **) handle;
+	struct netconfig **nconfp = (struct netconfig **)handle;
 	struct netconfig *nconf;
 
 	nconf = *nconfp;
@@ -127,13 +127,12 @@ getnetconfigent(const char *netid)
 void
 freenetconfigent(struct netconfig *nconf)
 {
-
 }
 
 int
-endnetconfig(void * handle)
+endnetconfig(void *handle)
 {
-	struct netconfig **nconfp = (struct netconfig **) handle;
+	struct netconfig **nconfp = (struct netconfig **)handle;
 
 	free(nconfp, M_RPC);
 	return (0);

@@ -38,8 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/sysctl.h>
 
-#include <ddb/ddb.h>
 #include <ddb/db_output.h>
+#include <ddb/ddb.h>
 
 /*
  * Character input and editing.
@@ -50,20 +50,20 @@ __FBSDID("$FreeBSD$");
  * since input always ends with a new-line.  We just
  * reset the line position at the end.
  */
-static char *	db_lbuf_start;	/* start of input line buffer */
-static char *	db_lbuf_end;	/* end of input line buffer */
-static char *	db_lc;		/* current character */
-static char *	db_le;		/* one past last character */
+static char *db_lbuf_start; /* start of input line buffer */
+static char *db_lbuf_end;   /* end of input line buffer */
+static char *db_lc;	    /* current character */
+static char *db_le;	    /* one past last character */
 
 /*
  * Raw input buffer, processed only for certain control characters.
  */
-#define	DB_RAW_SIZE	512
-static char	db_raw[DB_RAW_SIZE];
-static u_int	db_raw_pos;
-static u_int	db_raw_cnt;
-static int	db_raw_warned;
-static int	ddb_prioritize_control_input = 1;
+#define DB_RAW_SIZE 512
+static char db_raw[DB_RAW_SIZE];
+static u_int db_raw_pos;
+static u_int db_raw_cnt;
+static int db_raw_warned;
+static int ddb_prioritize_control_input = 1;
 SYSCTL_INT(_debug_ddb, OID_AUTO, prioritize_control_input, CTLFLAG_RWTUN,
     &ddb_prioritize_control_input, 0,
     "Drop input when the buffer fills in order to keep servicing ^C/^S/^Q");
@@ -71,59 +71,53 @@ SYSCTL_INT(_debug_ddb, OID_AUTO, prioritize_control_input, CTLFLAG_RWTUN,
 /*
  * Simple input line history support.
  */
-static char	db_lhistory[2048];
-static int	db_lhistlsize, db_lhistidx, db_lhistcur;
-static int	db_lhist_nlines;
+static char db_lhistory[2048];
+static int db_lhistlsize, db_lhistidx, db_lhistcur;
+static int db_lhist_nlines;
 
-#define	CTRL(c)		((c) & 0x1f)
-#define	BLANK		' '
-#define	BACKUP		'\b'
+#define CTRL(c) ((c)&0x1f)
+#define BLANK ' '
+#define BACKUP '\b'
 
-static void	db_delete(int n, int bwd);
-static int	db_inputchar(int c);
-static void	db_putnchars(int c, int count);
-static void	db_putstring(char *s, int count);
-static int	db_raw_pop(void);
-static void	db_raw_push(int);
-static int	db_raw_space(void);
+static void db_delete(int n, int bwd);
+static int db_inputchar(int c);
+static void db_putnchars(int c, int count);
+static void db_putstring(char *s, int count);
+static int db_raw_pop(void);
+static void db_raw_push(int);
+static int db_raw_space(void);
 
-static void
-db_putstring(s, count)
-	char	*s;
-	int	count;
+static void db_putstring(s, count) char *s;
+int count;
 {
 	while (--count >= 0)
-	    cnputc(*s++);
+		cnputc(*s++);
 }
 
-static void
-db_putnchars(c, count)
-	int	c;
-	int	count;
+static void db_putnchars(c, count) int c;
+int count;
 {
 	while (--count >= 0)
-	    cnputc(c);
+		cnputc(c);
 }
 
 /*
  * Delete N characters, forward or backward
  */
-#define	DEL_FWD		0
-#define	DEL_BWD		1
-static void
-db_delete(n, bwd)
-	int	n;
-	int	bwd;
+#define DEL_FWD 0
+#define DEL_BWD 1
+static void db_delete(n, bwd) int n;
+int bwd;
 {
 	char *p;
 
 	if (bwd) {
-	    db_lc -= n;
-	    db_putnchars(BACKUP, n);
+		db_lc -= n;
+		db_putnchars(BACKUP, n);
 	}
-	for (p = db_lc; p < db_le-n; p++) {
-	    *p = *(p+n);
-	    cnputc(*p);
+	for (p = db_lc; p < db_le - n; p++) {
+		*p = *(p + n);
+		cnputc(*p);
 	}
 	db_putnchars(BLANK, n);
 	db_putnchars(BACKUP, db_le - db_lc);
@@ -131,9 +125,7 @@ db_delete(n, bwd)
 }
 
 /* returns true at end-of-line */
-static int
-db_inputchar(c)
-	int	c;
+static int db_inputchar(c) int c;
 {
 	static int escstate;
 
@@ -152,16 +144,16 @@ db_inputchar(c)
 		 * Otherwise, drop off.
 		 */
 		switch (c) {
-		case 'A':	/* up */
+		case 'A': /* up */
 			c = CTRL('p');
 			break;
-		case 'B':	/* down */
+		case 'B': /* down */
 			c = CTRL('n');
 			break;
-		case 'C':	/* right */
+		case 'C': /* right */
 			c = CTRL('f');
 			break;
-		case 'D':	/* left */
+		case 'D': /* left */
 			c = CTRL('b');
 			break;
 		default:
@@ -170,153 +162,152 @@ db_inputchar(c)
 	}
 
 	switch (c) {
-	    case CTRL('['):
+	case CTRL('['):
 		escstate = 1;
 		break;
-	    case CTRL('b'):
+	case CTRL('b'):
 		/* back up one character */
 		if (db_lc > db_lbuf_start) {
-		    cnputc(BACKUP);
-		    db_lc--;
+			cnputc(BACKUP);
+			db_lc--;
 		}
 		break;
-	    case CTRL('f'):
+	case CTRL('f'):
 		/* forward one character */
 		if (db_lc < db_le) {
-		    cnputc(*db_lc);
-		    db_lc++;
+			cnputc(*db_lc);
+			db_lc++;
 		}
 		break;
-	    case CTRL('a'):
+	case CTRL('a'):
 		/* beginning of line */
 		while (db_lc > db_lbuf_start) {
-		    cnputc(BACKUP);
-		    db_lc--;
+			cnputc(BACKUP);
+			db_lc--;
 		}
 		break;
-	    case CTRL('e'):
+	case CTRL('e'):
 		/* end of line */
 		while (db_lc < db_le) {
-		    cnputc(*db_lc);
-		    db_lc++;
+			cnputc(*db_lc);
+			db_lc++;
 		}
 		break;
-	    case CTRL('h'):
-	    case 0177:
+	case CTRL('h'):
+	case 0177:
 		/* erase previous character */
 		if (db_lc > db_lbuf_start)
-		    db_delete(1, DEL_BWD);
+			db_delete(1, DEL_BWD);
 		break;
-	    case CTRL('d'):
+	case CTRL('d'):
 		/* erase next character */
 		if (db_lc < db_le)
-		    db_delete(1, DEL_FWD);
+			db_delete(1, DEL_FWD);
 		break;
-	    case CTRL('u'):
-	    case CTRL('c'):
+	case CTRL('u'):
+	case CTRL('c'):
 		/* kill entire line: */
 		/* at first, delete to beginning of line */
 		if (db_lc > db_lbuf_start)
-		    db_delete(db_lc - db_lbuf_start, DEL_BWD);
+			db_delete(db_lc - db_lbuf_start, DEL_BWD);
 		/* FALLTHROUGH */
-	    case CTRL('k'):
+	case CTRL('k'):
 		/* delete to end of line */
 		if (db_lc < db_le)
-		    db_delete(db_le - db_lc, DEL_FWD);
+			db_delete(db_le - db_lc, DEL_FWD);
 		break;
-	    case CTRL('t'):
+	case CTRL('t'):
 		/* twiddle last 2 characters */
 		if (db_lc >= db_lbuf_start + 2) {
-		    c = db_lc[-2];
-		    db_lc[-2] = db_lc[-1];
-		    db_lc[-1] = c;
-		    cnputc(BACKUP);
-		    cnputc(BACKUP);
-		    cnputc(db_lc[-2]);
-		    cnputc(db_lc[-1]);
+			c = db_lc[-2];
+			db_lc[-2] = db_lc[-1];
+			db_lc[-1] = c;
+			cnputc(BACKUP);
+			cnputc(BACKUP);
+			cnputc(db_lc[-2]);
+			cnputc(db_lc[-1]);
 		}
 		break;
-	    case CTRL('w'):
+	case CTRL('w'):
 		/* erase previous word */
 		for (; db_lc > db_lbuf_start;) {
-		    if (*(db_lc - 1) != ' ')
-			break;
-		    db_delete(1, DEL_BWD);
+			if (*(db_lc - 1) != ' ')
+				break;
+			db_delete(1, DEL_BWD);
 		}
 		for (; db_lc > db_lbuf_start;) {
-		    if (*(db_lc - 1) == ' ')
-			break;
-		    db_delete(1, DEL_BWD);
+			if (*(db_lc - 1) == ' ')
+				break;
+			db_delete(1, DEL_BWD);
 		}
 		break;
-	    case CTRL('r'):
+	case CTRL('r'):
 		db_putstring("^R\n", 3);
-	    redraw:
+	redraw:
 		if (db_le > db_lbuf_start) {
-		    db_putstring(db_lbuf_start, db_le - db_lbuf_start);
-		    db_putnchars(BACKUP, db_le - db_lc);
+			db_putstring(db_lbuf_start, db_le - db_lbuf_start);
+			db_putnchars(BACKUP, db_le - db_lc);
 		}
 		break;
-	    case CTRL('p'):
+	case CTRL('p'):
 		/* Make previous history line the active one. */
 		if (db_lhistcur >= 0) {
-		    bcopy(db_lhistory + db_lhistcur * db_lhistlsize,
-			  db_lbuf_start, db_lhistlsize);
-		    db_lhistcur--;
-		    goto hist_redraw;
+			bcopy(db_lhistory + db_lhistcur * db_lhistlsize,
+			    db_lbuf_start, db_lhistlsize);
+			db_lhistcur--;
+			goto hist_redraw;
 		}
 		break;
-	    case CTRL('n'):
+	case CTRL('n'):
 		/* Make next history line the active one. */
 		if (db_lhistcur < db_lhistidx - 1) {
-		    db_lhistcur += 2;
-		    bcopy(db_lhistory + db_lhistcur * db_lhistlsize,
-			  db_lbuf_start, db_lhistlsize);
+			db_lhistcur += 2;
+			bcopy(db_lhistory + db_lhistcur * db_lhistlsize,
+			    db_lbuf_start, db_lhistlsize);
 		} else {
-		    /*
-		     * ^N through tail of history, reset the
-		     * buffer to zero length.
-		     */
-		    *db_lbuf_start = '\0';
-		    db_lhistcur = db_lhistidx;
+			/*
+			 * ^N through tail of history, reset the
+			 * buffer to zero length.
+			 */
+			*db_lbuf_start = '\0';
+			db_lhistcur = db_lhistidx;
 		}
 
-	    hist_redraw:
+	hist_redraw:
 		db_putnchars(BACKUP, db_lc - db_lbuf_start);
 		db_putnchars(BLANK, db_le - db_lbuf_start);
 		db_putnchars(BACKUP, db_le - db_lbuf_start);
 		db_le = strchr(db_lbuf_start, '\0');
 		if (db_le[-1] == '\r' || db_le[-1] == '\n')
-		    *--db_le = '\0';
+			*--db_le = '\0';
 		db_lc = db_le;
 		goto redraw;
 
-	    case -1:
+	case -1:
 		/*
 		 * eek! the console returned eof.
 		 * probably that means we HAVE no console.. we should try bail
 		 * XXX
 		 */
 		c = '\r';
-	    case '\n':
+	case '\n':
 		/* FALLTHROUGH */
-	    case '\r':
+	case '\r':
 		*db_le++ = c;
 		return (1);
-	    default:
+	default:
 		if (db_le == db_lbuf_end) {
-		    cnputc('\007');
-		}
-		else if (c >= ' ' && c <= '~') {
-		    char *p;
+			cnputc('\007');
+		} else if (c >= ' ' && c <= '~') {
+			char *p;
 
-		    for (p = db_le; p > db_lc; p--)
-			*p = *(p-1);
-		    *db_lc++ = c;
-		    db_le++;
-		    cnputc(c);
-		    db_putstring(db_lc, db_le - db_lc);
-		    db_putnchars(BACKUP, db_le - db_lc);
+			for (p = db_le; p > db_lc; p--)
+				*p = *(p - 1);
+			*db_lc++ = c;
+			db_le++;
+			cnputc(c);
+			db_putstring(db_lc, db_le - db_lc);
+			db_putnchars(BACKUP, db_le - db_lc);
 		}
 		break;
 	}
@@ -369,10 +360,8 @@ db_raw_pop(void)
 	return (db_raw[db_raw_pos++ % DB_RAW_SIZE]);
 }
 
-int
-db_readline(lstart, lsize)
-	char *	lstart;
-	int	lsize;
+int db_readline(lstart, lsize) char *lstart;
+int lsize;
 {
 
 	if (lsize < 2)
@@ -388,30 +377,30 @@ db_readline(lstart, lsize)
 	}
 	db_lhistcur = db_lhistidx;
 
-	db_force_whitespace();	/* synch output position */
+	db_force_whitespace(); /* synch output position */
 
 	db_lbuf_start = lstart;
-	db_lbuf_end   = lstart + lsize - 2;	/* Will append NL and NUL. */
+	db_lbuf_end = lstart + lsize - 2; /* Will append NL and NUL. */
 	db_lc = lstart;
 	db_le = lstart;
 
 	while (!db_inputchar(db_getc()))
-	    continue;
+		continue;
 
 	db_capture_write(lstart, db_le - db_lbuf_start);
-	db_printf("\n");	/* synch output position */
+	db_printf("\n"); /* synch output position */
 	*db_le = 0;
 
 	if (db_le - db_lbuf_start > 1) {
-	    /* Maintain input line history for non-empty lines. */
-	    if (++db_lhistidx == db_lhist_nlines) {
-		/* Rotate history. */
-		bcopy(db_lhistory + db_lhistlsize, db_lhistory,
-		      db_lhistlsize * (db_lhist_nlines - 1));
-		db_lhistidx--;
-	    }
-	    bcopy(lstart, db_lhistory + db_lhistidx * db_lhistlsize,
-		  db_lhistlsize);
+		/* Maintain input line history for non-empty lines. */
+		if (++db_lhistidx == db_lhist_nlines) {
+			/* Rotate history. */
+			bcopy(db_lhistory + db_lhistlsize, db_lhistory,
+			    db_lhistlsize * (db_lhist_nlines - 1));
+			db_lhistidx--;
+		}
+		bcopy(lstart, db_lhistory + db_lhistidx * db_lhistlsize,
+		    db_lhistlsize);
 	}
 
 	return (db_le - db_lbuf_start);
@@ -430,7 +419,7 @@ db_do_interrupt(const char *reason)
 void
 db_check_interrupt(void)
 {
-	int	c;
+	int c;
 
 	/*
 	 * Check console input for control characters.  Non-control input is
@@ -442,7 +431,7 @@ db_check_interrupt(void)
 			return;
 		c = cncheckc();
 		switch (c) {
-		case -1:		/* no character */
+		case -1: /* no character */
 			return;
 
 		case CTRL('c'):

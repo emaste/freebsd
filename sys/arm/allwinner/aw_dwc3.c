@@ -35,33 +35,31 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/gpio.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
-
-#include <dev/fdt/simplebus.h>
-
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/ofw_subr.h>
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/phy/phy_usb.h>
+#include <dev/fdt/fdt_common.h>
+#include <dev/fdt/simplebus.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_subr.h>
 
 static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun50i-h6-dwc3",	1 },
-	{ NULL,				0 }
+	{ "allwinner,sun50i-h6-dwc3", 1 }, { NULL, 0 }
 };
 
 struct aw_dwc3_softc {
-	struct simplebus_softc	sc;
-	device_t		dev;
-	clk_t			clk_bus;
-	hwreset_t		rst_bus;
+	struct simplebus_softc sc;
+	device_t dev;
+	clk_t clk_bus;
+	hwreset_t rst_bus;
 };
 
 static int
@@ -75,7 +73,8 @@ aw_dwc3_probe(device_t dev)
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	/* Binding says that we need a child node for the actual dwc3 controller */
+	/* Binding says that we need a child node for the actual dwc3 controller
+	 */
 	node = ofw_bus_get_node(dev);
 	if (OF_child(node) <= 0)
 		return (ENXIO);
@@ -133,8 +132,8 @@ aw_dwc3_attach(device_t dev)
 
 static device_method_t aw_dwc3_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		aw_dwc3_probe),
-	DEVMETHOD(device_attach,	aw_dwc3_attach),
+	DEVMETHOD(device_probe, aw_dwc3_probe),
+	DEVMETHOD(device_attach, aw_dwc3_attach),
 
 	DEVMETHOD_END
 };

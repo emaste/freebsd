@@ -61,16 +61,15 @@ __FBSDID("$FreeBSD$");
  * xdr procedure to call to handle each element of the array.
  */
 bool_t
-xdr_array(XDR *xdrs,
-    caddr_t *addrp,		/* array pointer */
-    u_int *sizep,		/* number of elements */
-    u_int maxsize,		/* max numberof elements */
-    u_int elsize,		/* size in bytes of each element */
-    xdrproc_t elproc)		/* xdr routine to handle each element */
+xdr_array(XDR *xdrs, caddr_t *addrp, /* array pointer */
+    u_int *sizep,		     /* number of elements */
+    u_int maxsize,		     /* max numberof elements */
+    u_int elsize,		     /* size in bytes of each element */
+    xdrproc_t elproc)		     /* xdr routine to handle each element */
 {
 	u_int i;
 	caddr_t target = *addrp;
-	u_int c;  /* the actual element count */
+	u_int c; /* the actual element count */
 	bool_t stat = TRUE;
 	u_int nodesize;
 
@@ -79,7 +78,7 @@ xdr_array(XDR *xdrs,
 		return (FALSE);
 	}
 	c = *sizep;
-	if ((c > maxsize || UINT_MAX/elsize < c) &&
+	if ((c > maxsize || UINT_MAX / elsize < c) &&
 	    (xdrs->x_op != XDR_FREE)) {
 		return (FALSE);
 	}
@@ -107,7 +106,7 @@ xdr_array(XDR *xdrs,
 
 		case XDR_ENCODE:
 			break;
-	}
+		}
 
 	/*
 	 * now we xdr each element of array
@@ -138,8 +137,8 @@ xdr_array(XDR *xdrs,
  * > xdr_elem: routine to XDR each element
  */
 bool_t
-xdr_vector(XDR *xdrs, char *basep, u_int nelem, u_int elemsize,
-    xdrproc_t xdr_elem)
+xdr_vector(
+    XDR *xdrs, char *basep, u_int nelem, u_int elemsize, xdrproc_t xdr_elem)
 {
 	u_int i;
 	char *elptr;
@@ -147,9 +146,9 @@ xdr_vector(XDR *xdrs, char *basep, u_int nelem, u_int elemsize,
 	elptr = basep;
 	for (i = 0; i < nelem; i++) {
 		if (!(*xdr_elem)(xdrs, elptr)) {
-			return(FALSE);
+			return (FALSE);
 		}
 		elptr += elemsize;
 	}
-	return(TRUE);	
+	return (TRUE);
 }

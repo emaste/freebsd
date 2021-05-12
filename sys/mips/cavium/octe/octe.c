@@ -43,8 +43,8 @@
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
-#include <sys/mbuf.h>
 #include <sys/lock.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
@@ -62,63 +62,60 @@
 #include <net/if_vlan_var.h>
 
 #ifdef INET
-#include <netinet/in.h>
 #include <netinet/if_ether.h>
+#include <netinet/in.h>
 #endif
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#include "wrapper-cvmx-includes.h"
 #include "cavium-ethernet.h"
-
 #include "ethernet-common.h"
 #include "ethernet-defines.h"
 #include "ethernet-mdio.h"
 #include "ethernet-tx.h"
-
 #include "miibus_if.h"
+#include "wrapper-cvmx-includes.h"
 
-#define	OCTE_TX_LOCK(priv)	mtx_lock(&(priv)->tx_mtx)
-#define	OCTE_TX_UNLOCK(priv)	mtx_unlock(&(priv)->tx_mtx)
+#define OCTE_TX_LOCK(priv) mtx_lock(&(priv)->tx_mtx)
+#define OCTE_TX_UNLOCK(priv) mtx_unlock(&(priv)->tx_mtx)
 
-static int		octe_probe(device_t);
-static int		octe_attach(device_t);
-static int		octe_detach(device_t);
-static int		octe_shutdown(device_t);
+static int octe_probe(device_t);
+static int octe_attach(device_t);
+static int octe_detach(device_t);
+static int octe_shutdown(device_t);
 
-static int		octe_miibus_readreg(device_t, int, int);
-static int		octe_miibus_writereg(device_t, int, int, int);
+static int octe_miibus_readreg(device_t, int, int);
+static int octe_miibus_writereg(device_t, int, int, int);
 
-static void		octe_init(void *);
-static void		octe_stop(void *);
-static int		octe_transmit(struct ifnet *, struct mbuf *);
+static void octe_init(void *);
+static void octe_stop(void *);
+static int octe_transmit(struct ifnet *, struct mbuf *);
 
-static int		octe_mii_medchange(struct ifnet *);
-static void		octe_mii_medstat(struct ifnet *, struct ifmediareq *);
+static int octe_mii_medchange(struct ifnet *);
+static void octe_mii_medstat(struct ifnet *, struct ifmediareq *);
 
-static int		octe_medchange(struct ifnet *);
-static void		octe_medstat(struct ifnet *, struct ifmediareq *);
+static int octe_medchange(struct ifnet *);
+static void octe_medstat(struct ifnet *, struct ifmediareq *);
 
-static int		octe_ioctl(struct ifnet *, u_long, caddr_t);
+static int octe_ioctl(struct ifnet *, u_long, caddr_t);
 
 static device_method_t octe_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		octe_probe),
-	DEVMETHOD(device_attach,	octe_attach),
-	DEVMETHOD(device_detach,	octe_detach),
-	DEVMETHOD(device_shutdown,	octe_shutdown),
+	DEVMETHOD(device_probe, octe_probe),
+	DEVMETHOD(device_attach, octe_attach),
+	DEVMETHOD(device_detach, octe_detach),
+	DEVMETHOD(device_shutdown, octe_shutdown),
 
 	/* MII interface */
-	DEVMETHOD(miibus_readreg,	octe_miibus_readreg),
-	DEVMETHOD(miibus_writereg,	octe_miibus_writereg),
-	{ 0, 0 }
+	DEVMETHOD(miibus_readreg, octe_miibus_readreg),
+	DEVMETHOD(miibus_writereg, octe_miibus_writereg), { 0, 0 }
 };
 
 static driver_t octe_driver = {
 	"octe",
 	octe_methods,
-	sizeof (cvm_oct_private_t),
+	sizeof(cvm_oct_private_t),
 };
 
 static devclass_t octe_devclass;
@@ -156,7 +153,8 @@ octe_attach(device_t dev)
 		} else {
 			child = device_add_child(dev, priv->phy_device, -1);
 			if (child == NULL)
-				device_printf(dev, "missing phy %u device %s\n", priv->phy_id, priv->phy_device);
+				device_printf(dev, "missing phy %u device %s\n",
+				    priv->phy_id, priv->phy_device);
 		}
 	}
 
@@ -169,11 +167,12 @@ octe_attach(device_t dev)
 
 	/*
 	 * XXX
-	 * We don't support programming the multicast filter right now, although it
-	 * ought to be easy enough.  (Presumably it's just a matter of putting
-	 * multicast addresses in the CAM?)
+	 * We don't support programming the multicast filter right now, although
+	 * it ought to be easy enough.  (Presumably it's just a matter of
+	 * putting multicast addresses in the CAM?)
 	 */
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST | IFF_ALLMULTI;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_ALLMULTI;
 	ifp->if_init = octe_init;
 	ifp->if_ioctl = octe_ioctl;
 
@@ -182,7 +181,8 @@ octe_attach(device_t dev)
 	mtx_init(&priv->tx_mtx, ifp->if_xname, "octe tx send queue", MTX_DEF);
 
 	for (qos = 0; qos < 16; qos++) {
-		mtx_init(&priv->tx_free_queue[qos].ifq_mtx, ifp->if_xname, "octe tx free queue", MTX_DEF);
+		mtx_init(&priv->tx_free_queue[qos].ifq_mtx, ifp->if_xname,
+		    "octe tx free queue", MTX_DEF);
 		IFQ_SET_MAXLEN(&priv->tx_free_queue[qos], MAX_OUT_QUEUE_DEPTH);
 	}
 
@@ -277,7 +277,8 @@ octe_init(void *arg)
 	if (priv->open != NULL)
 		priv->open(ifp);
 
-	if (((ifp->if_flags ^ priv->if_flags) & (IFF_ALLMULTI | IFF_MULTICAST | IFF_PROMISC)) != 0)
+	if (((ifp->if_flags ^ priv->if_flags) &
+		(IFF_ALLMULTI | IFF_MULTICAST | IFF_PROMISC)) != 0)
 		cvm_oct_common_set_multicast_list(ifp);
 
 	cvm_oct_common_set_mac_address(ifp, IF_LLADDR(ifp));
@@ -334,7 +335,7 @@ octe_mii_medchange(struct ifnet *ifp)
 
 	priv = ifp->if_softc;
 	mii = device_get_softc(priv->miibus);
-	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+	LIST_FOREACH (miisc, &mii->mii_phys, mii_list)
 		PHY_RESET(miisc);
 	mii_mediachg(mii);
 

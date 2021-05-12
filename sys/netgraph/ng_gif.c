@@ -34,7 +34,7 @@
  *
  * Copyright (c) 1996-2000 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -45,7 +45,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -72,90 +72,82 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
 #include <sys/socket.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
-#include <net/route.h>
+#include <net/if_gif.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
-#include <net/if_gif.h>
+#include <net/route.h>
 #include <net/vnet.h>
-
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include <netgraph/ng_parse.h>
 #include <netgraph/ng_gif.h>
+#include <netgraph/ng_message.h>
+#include <netgraph/ng_parse.h>
 
-#define IFP2NG(ifp)  ((struct ng_node *)((struct gif_softc *)(ifp->if_softc))->gif_netgraph)
-#define IFP2NG_SET(ifp, val)  (((struct gif_softc *)(ifp->if_softc))->gif_netgraph = (val))
+#define IFP2NG(ifp) \
+	((struct ng_node *)((struct gif_softc *)(ifp->if_softc))->gif_netgraph)
+#define IFP2NG_SET(ifp, val) \
+	(((struct gif_softc *)(ifp->if_softc))->gif_netgraph = (val))
 
 /* Per-node private data */
-struct private {
-	struct ifnet	*ifp;		/* associated interface */
-	hook_p		lower;		/* lower OR orphan hook connection */
-	u_char		lowerOrphan;	/* whether lower is lower or orphan */
+struct private
+{
+	struct ifnet *ifp;  /* associated interface */
+	hook_p lower;	    /* lower OR orphan hook connection */
+	u_char lowerOrphan; /* whether lower is lower or orphan */
 };
 typedef struct private *priv_p;
 
 /* Functional hooks called from if_gif.c */
-static void	ng_gif_input(struct ifnet *ifp, struct mbuf **mp, int af);
-static void	ng_gif_input_orphan(struct ifnet *ifp, struct mbuf *m, int af);
-static void	ng_gif_attach(struct ifnet *ifp);
-static void	ng_gif_detach(struct ifnet *ifp); 
+static void ng_gif_input(struct ifnet *ifp, struct mbuf **mp, int af);
+static void ng_gif_input_orphan(struct ifnet *ifp, struct mbuf *m, int af);
+static void ng_gif_attach(struct ifnet *ifp);
+static void ng_gif_detach(struct ifnet *ifp);
 
 /* Other functions */
-static void	ng_gif_input2(node_p node, struct mbuf **mp, int af);
-static int	ng_gif_glue_af(struct mbuf **mp, int af);
-static int	ng_gif_rcv_lower(node_p node, struct mbuf *m);
+static void ng_gif_input2(node_p node, struct mbuf **mp, int af);
+static int ng_gif_glue_af(struct mbuf **mp, int af);
+static int ng_gif_rcv_lower(node_p node, struct mbuf *m);
 
 /* Netgraph node methods */
-static ng_constructor_t	ng_gif_constructor;
-static ng_rcvmsg_t	ng_gif_rcvmsg;
-static ng_shutdown_t	ng_gif_shutdown;
-static ng_newhook_t	ng_gif_newhook;
-static ng_connect_t	ng_gif_connect;
-static ng_rcvdata_t	ng_gif_rcvdata;
-static ng_disconnect_t	ng_gif_disconnect;
-static int		ng_gif_mod_event(module_t mod, int event, void *data);
+static ng_constructor_t ng_gif_constructor;
+static ng_rcvmsg_t ng_gif_rcvmsg;
+static ng_shutdown_t ng_gif_shutdown;
+static ng_newhook_t ng_gif_newhook;
+static ng_connect_t ng_gif_connect;
+static ng_rcvdata_t ng_gif_rcvdata;
+static ng_disconnect_t ng_gif_disconnect;
+static int ng_gif_mod_event(module_t mod, int event, void *data);
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_gif_cmdlist[] = {
-	{
-	  NGM_GIF_COOKIE,
-	  NGM_GIF_GET_IFNAME,
-	  "getifname",
-	  NULL,
-	  &ng_parse_string_type
-	},
-	{
-	  NGM_GIF_COOKIE,
-	  NGM_GIF_GET_IFINDEX,
-	  "getifindex",
-	  NULL,
-	  &ng_parse_int32_type
-	},
+	{ NGM_GIF_COOKIE, NGM_GIF_GET_IFNAME, "getifname", NULL,
+	    &ng_parse_string_type },
+	{ NGM_GIF_COOKIE, NGM_GIF_GET_IFINDEX, "getifindex", NULL,
+	    &ng_parse_int32_type },
 	{ 0 }
 };
 
 static struct ng_type ng_gif_typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_GIF_NODE_TYPE,
-	.mod_event =	ng_gif_mod_event,
-	.constructor =	ng_gif_constructor,
-	.rcvmsg =	ng_gif_rcvmsg,
-	.shutdown =	ng_gif_shutdown,
-	.newhook =	ng_gif_newhook,
-	.connect =	ng_gif_connect,
-	.rcvdata =	ng_gif_rcvdata,
-	.disconnect =	ng_gif_disconnect,
-	.cmdlist =	ng_gif_cmdlist,
+	.version = NG_ABI_VERSION,
+	.name = NG_GIF_NODE_TYPE,
+	.mod_event = ng_gif_mod_event,
+	.constructor = ng_gif_constructor,
+	.rcvmsg = ng_gif_rcvmsg,
+	.shutdown = ng_gif_shutdown,
+	.newhook = ng_gif_newhook,
+	.connect = ng_gif_connect,
+	.rcvdata = ng_gif_rcvdata,
+	.disconnect = ng_gif_disconnect,
+	.cmdlist = ng_gif_cmdlist,
 };
-MODULE_DEPEND(ng_gif, if_gif, 1,1,1);
+MODULE_DEPEND(ng_gif, if_gif, 1, 1, 1);
 NETGRAPH_INIT(gif, &ng_gif_typestruct);
 
 /******************************************************************
@@ -230,16 +222,16 @@ ng_gif_attach(struct ifnet *ifp)
 	/* Create node */
 	KASSERT(!IFP2NG(ifp), ("%s: node already exists?", __func__));
 	if (ng_make_node_common(&ng_gif_typestruct, &node) != 0) {
-		log(LOG_ERR, "%s: can't %s for %s\n",
-		    __func__, "create node", ifp->if_xname);
+		log(LOG_ERR, "%s: can't %s for %s\n", __func__, "create node",
+		    ifp->if_xname);
 		return;
 	}
 
 	/* Allocate private data */
 	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL) {
-		log(LOG_ERR, "%s: can't %s for %s\n",
-		    __func__, "allocate memory", ifp->if_xname);
+		log(LOG_ERR, "%s: can't %s for %s\n", __func__,
+		    "allocate memory", ifp->if_xname);
 		NG_NODE_UNREF(node);
 		return;
 	}
@@ -249,8 +241,8 @@ ng_gif_attach(struct ifnet *ifp)
 
 	/* Try to give the node the same name as the interface */
 	if (ng_name_node(node, ifp->if_xname) != 0) {
-		log(LOG_WARNING, "%s: can't name node %s\n",
-		    __func__, ifp->if_xname);
+		log(LOG_WARNING, "%s: can't name node %s\n", __func__,
+		    ifp->if_xname);
 	}
 }
 
@@ -264,18 +256,18 @@ ng_gif_detach(struct ifnet *ifp)
 	const node_p node = IFP2NG(ifp);
 	priv_p priv;
 
-	if (node == NULL)		/* no node (why not?), ignore */
+	if (node == NULL) /* no node (why not?), ignore */
 		return;
 	priv = NG_NODE_PRIVATE(node);
-	NG_NODE_REALLY_DIE(node);	/* Force real removal of node */
+	NG_NODE_REALLY_DIE(node); /* Force real removal of node */
 	/*
 	 * We can't assume the ifnet is still around when we run shutdown
 	 * So zap it now. XXX We HOPE that anything running at this time
 	 * handles it (as it should in the non netgraph case).
 	 */
 	IFP2NG_SET(ifp, NULL);
-	priv->ifp = NULL;	/* XXX race if interrupted an output packet */
-	ng_rmnode_self(node);		/* remove all netgraph parts */
+	priv->ifp = NULL;     /* XXX race if interrupted an output packet */
+	ng_rmnode_self(node); /* remove all netgraph parts */
 }
 
 /*
@@ -289,7 +281,7 @@ ng_gif_glue_af(struct mbuf **mp, int af)
 	int error = 0;
 	sa_family_t tmp_af;
 
-	tmp_af = (sa_family_t) af;
+	tmp_af = (sa_family_t)af;
 
 	/*
 	 * XXX: should try to bring back some of the optimizations from
@@ -305,7 +297,7 @@ ng_gif_glue_af(struct mbuf **mp, int af)
 	 * hopefully everything after that will not
 	 * need one. So let's just use M_PREPEND.
 	 */
-	M_PREPEND(m, sizeof (tmp_af), M_NOWAIT);
+	M_PREPEND(m, sizeof(tmp_af), M_NOWAIT);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto done;
@@ -342,7 +334,7 @@ ng_gif_constructor(node_p node)
 /*
  * Check for attaching a new hook.
  */
-static	int
+static int
 ng_gif_newhook(node_p node, hook_p hook, const char *name)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
@@ -378,7 +370,7 @@ ng_gif_newhook(node_p node, hook_p hook, const char *name)
  * We don't really care which hook it is.
  * they should all be queuing for outgoing data.
  */
-static	int
+static int
 ng_gif_connect(hook_p hook)
 {
 	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
@@ -454,7 +446,7 @@ ng_gif_rcvdata(hook_p hook, item_p item)
 static int
 ng_gif_rcv_lower(node_p node, struct mbuf *m)
 {
-	struct sockaddr	dst;
+	struct sockaddr dst;
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	bzero(&dst, sizeof(dst));
@@ -464,8 +456,8 @@ ng_gif_rcv_lower(node_p node, struct mbuf *m)
 		NG_FREE_M(m);
 		return (EINVAL);
 	}
-	if (m->m_len < sizeof(sa_family_t)
-	    && (m = m_pullup(m, sizeof(sa_family_t))) == NULL) {
+	if (m->m_len < sizeof(sa_family_t) &&
+	    (m = m_pullup(m, sizeof(sa_family_t))) == NULL) {
 		return (ENOBUFS);
 	}
 
@@ -498,11 +490,11 @@ ng_gif_shutdown(node_p node)
 		 * Assume the ifp has already been freed.
 		 */
 		NG_NODE_SET_PRIVATE(node, NULL);
-		free(priv, M_NETGRAPH);		
-		NG_NODE_UNREF(node);	/* free node itself */
+		free(priv, M_NETGRAPH);
+		NG_NODE_UNREF(node); /* free node itself */
 		return (0);
 	}
-	NG_NODE_REVIVE(node);		/* Signal ng_rmnode we are persisant */
+	NG_NODE_REVIVE(node); /* Signal ng_rmnode we are persisant */
 	return (0);
 }
 
@@ -517,17 +509,17 @@ ng_gif_disconnect(hook_p hook)
 	if (hook == priv->lower) {
 		priv->lower = NULL;
 		priv->lowerOrphan = 0;
-	} else 
+	} else
 		panic("%s: weird hook", __func__);
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	    && (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
-		ng_rmnode_self(NG_HOOK_NODE(hook));	/* reset node */
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
+	    (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+		ng_rmnode_self(NG_HOOK_NODE(hook)); /* reset node */
 
 	return (0);
 }
 
 /******************************************************************
-		    	INITIALIZATION
+			INITIALIZATION
 ******************************************************************/
 
 /*
@@ -556,9 +548,11 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 		/* Create nodes for any already-existing gif interfaces */
 		VNET_LIST_RLOCK();
 		IFNET_RLOCK();
-		VNET_FOREACH(vnet_iter) {
+		VNET_FOREACH(vnet_iter)
+		{
 			CURVNET_SET_QUIET(vnet_iter); /* XXX revisit quiet */
-			CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+			CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link)
+			{
 				if (ifp->if_type == IFT_GIF)
 					ng_gif_attach(ifp);
 			}

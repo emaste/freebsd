@@ -30,33 +30,33 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 
+#include <dev/led/led.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
-#include <dev/led/led.h>
 
 #include "gpio_if.h"
 
 struct rbled_softc {
-	struct cdev	*sc_led;
-	device_t	 sc_gpio;
-	uint32_t	 sc_ledpin;
+	struct cdev *sc_led;
+	device_t sc_gpio;
+	uint32_t sc_ledpin;
 };
 
-static int	rbled_probe(device_t);
-static int	rbled_attach(device_t);
-static int	rbled_detach(device_t);
-static void	rbled_toggle(void *, int);
+static int rbled_probe(device_t);
+static int rbled_attach(device_t);
+static int rbled_detach(device_t);
+static void rbled_toggle(void *, int);
 
-static device_method_t  rbled_methods[] = {
+static device_method_t rbled_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		rbled_probe),
-	DEVMETHOD(device_attach,	rbled_attach),
-        DEVMETHOD(device_detach,        rbled_detach),
+	DEVMETHOD(device_probe, rbled_probe),
+	DEVMETHOD(device_attach, rbled_attach),
+	DEVMETHOD(device_detach, rbled_detach),
 
 	DEVMETHOD_END
 };

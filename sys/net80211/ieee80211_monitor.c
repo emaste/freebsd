@@ -37,33 +37,30 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
-#include <sys/mbuf.h>   
-#include <sys/malloc.h>
-#include <sys/kernel.h>
-
-#include <sys/socket.h>
-#include <sys/sockio.h>
+#include <sys/systm.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/proc.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_media.h>
-#include <net/if_llc.h>
-#include <net/ethernet.h>
-
 #include <net/bpf.h>
-
-#include <net80211/ieee80211_var.h>
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_llc.h>
+#include <net/if_media.h>
+#include <net/if_var.h>
 #include <net80211/ieee80211_monitor.h>
+#include <net80211/ieee80211_var.h>
 
 static void monitor_vattach(struct ieee80211vap *);
 static int monitor_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static int monitor_input(struct ieee80211_node *ni, struct mbuf *m,
-	const struct ieee80211_rx_stats *rxs, int rssi, int nf);
+    const struct ieee80211_rx_stats *rxs, int rssi, int nf);
 
 void
 ieee80211_monitor_attach(struct ieee80211com *ic)
@@ -104,7 +101,7 @@ monitor_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE, "%s: %s -> %s (%d)\n",
 	    __func__, ieee80211_state_name[ostate],
 	    ieee80211_state_name[nstate], arg);
-	vap->iv_state = nstate;			/* state transition */
+	vap->iv_state = nstate; /* state transition */
 	if (nstate == IEEE80211_S_RUN) {
 		switch (ostate) {
 		case IEEE80211_S_INIT:

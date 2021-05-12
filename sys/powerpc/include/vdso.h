@@ -28,17 +28,16 @@
  */
 
 #ifndef _POWERPC_VDSO_H
-#define	_POWERPC_VDSO_H
+#define _POWERPC_VDSO_H
 
-#define	VDSO_TIMEHANDS_MD			\
-	uint32_t	th_res[8];
+#define VDSO_TIMEHANDS_MD uint32_t th_res[8];
 
-#define	VDSO_TH_ALGO_PPC_TB	VDSO_TH_ALGO_1
+#define VDSO_TH_ALGO_PPC_TB VDSO_TH_ALGO_1
 
 #ifdef _KERNEL
 #ifdef COMPAT_FREEBSD32
 
-#define	VDSO_TIMEHANDS_MD32	VDSO_TIMEHANDS_MD
+#define VDSO_TIMEHANDS_MD32 VDSO_TIMEHANDS_MD
 
 #endif
 #endif

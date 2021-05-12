@@ -30,22 +30,22 @@
 #define _MD4_H_
 /* MD4 context. */
 typedef struct MD4Context {
-  u_int32_t state[4];	/* state (ABCD) */
-  u_int32_t count[2];	/* number of bits, modulo 2^64 (lsb first) */
-  unsigned char buffer[64];	/* input buffer */
+	u_int32_t state[4];	  /* state (ABCD) */
+	u_int32_t count[2];	  /* number of bits, modulo 2^64 (lsb first) */
+	unsigned char buffer[64]; /* input buffer */
 } MD4_CTX;
 
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-void   MD4Init(MD4_CTX *);
-void   MD4Update(MD4_CTX *, const unsigned char *, unsigned int);
-void   MD4Pad(MD4_CTX *);
-void   MD4Final(unsigned char [__min_size(16)], MD4_CTX *);
+void MD4Init(MD4_CTX *);
+void MD4Update(MD4_CTX *, const unsigned char *, unsigned int);
+void MD4Pad(MD4_CTX *);
+void MD4Final(unsigned char[__min_size(16)], MD4_CTX *);
 #ifndef _KERNEL
-char * MD4End(MD4_CTX *, char *);
-char * MD4File(const char *, char *);
-char * MD4Data(const unsigned char *, unsigned int, char *);
+char *MD4End(MD4_CTX *, char *);
+char *MD4File(const char *, char *);
+char *MD4Data(const unsigned char *, unsigned int, char *);
 #endif
 __END_DECLS
 

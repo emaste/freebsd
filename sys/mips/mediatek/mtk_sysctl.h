@@ -31,34 +31,34 @@
 #define _MTK_SYSCTL_H_
 
 /* System Control */
-#define SYSCTL_CHIPID0_3	0x00
-#define SYSCTL_CHIPID4_7	0x04
+#define SYSCTL_CHIPID0_3 0x00
+#define SYSCTL_CHIPID4_7 0x04
 
-#define SYSCTL_REVID		0x0C
-#define SYSCTL_REVID_MASK	0xFFFF
-#define SYSCTL_MT7621_REV_E	0x0101
+#define SYSCTL_REVID 0x0C
+#define SYSCTL_REVID_MASK 0xFFFF
+#define SYSCTL_MT7621_REV_E 0x0101
 
-#define SYSCTL_SYSCFG		0x10
-#define SYSCTL_SYSCFG1		0x14
-#define SYSCTL_CLKCFG0		0x2C
-#define SYSCTL_CLKCFG1		0x30
-#define SYSCTL_RSTCTRL		0x34
-#define SYSCTL_GPIOMODE		0x60
+#define SYSCTL_SYSCFG 0x10
+#define SYSCTL_SYSCFG1 0x14
+#define SYSCTL_CLKCFG0 0x2C
+#define SYSCTL_CLKCFG1 0x30
+#define SYSCTL_RSTCTRL 0x34
+#define SYSCTL_GPIOMODE 0x60
 
-#define SYSCTL_CUR_CLK_STS	0x44
+#define SYSCTL_CUR_CLK_STS 0x44
 
-#define SYSCTL_MT7620_CPLL_CFG0	0x54
-#define SYSCTL_MT7620_CPLL_CFG1	0x58
+#define SYSCTL_MT7620_CPLL_CFG0 0x54
+#define SYSCTL_MT7620_CPLL_CFG1 0x58
 
-#define SYSCFG1_USB_HOST_MODE	(1<<10)
+#define SYSCFG1_USB_HOST_MODE (1 << 10)
 
-#define RT3350_CHIPID0_3	0x33335452
+#define RT3350_CHIPID0_3 0x33335452
 
-#define MTK_UNKNOWN_CHIPID0_3	0x6E6B6E75	/* "unkn" */
-#define MTK_UNKNOWN_CHIPID4_7	0x206E776F	/* "own " */
+#define MTK_UNKNOWN_CHIPID0_3 0x6E6B6E75 /* "unkn" */
+#define MTK_UNKNOWN_CHIPID4_7 0x206E776F /* "own " */
 
-extern uint32_t	mtk_sysctl_get(uint32_t);
-extern void	mtk_sysctl_set(uint32_t, uint32_t);
-extern void	mtk_sysctl_clr_set(uint32_t, uint32_t, uint32_t);
+extern uint32_t mtk_sysctl_get(uint32_t);
+extern void mtk_sysctl_set(uint32_t, uint32_t);
+extern void mtk_sysctl_clr_set(uint32_t, uint32_t, uint32_t);
 
 #endif /* _MTK_SYSCTL_H_ */

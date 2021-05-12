@@ -41,7 +41,7 @@
  */
 
 #ifndef _POWERPC_INCLUDE_PARAM_H_
-#define	_POWERPC_INCLUDE_PARAM_H_
+#define _POWERPC_INCLUDE_PARAM_H_
 
 /*
  * Machine dependent constants for PowerPC
@@ -53,111 +53,111 @@
 #define __PCI_REROUTE_INTERRUPT
 
 #ifndef MACHINE
-#define	MACHINE		"powerpc"
+#define MACHINE "powerpc"
 #endif
 #ifndef MACHINE_ARCH
 #ifdef __powerpc64__
 #if defined(__LITTLE_ENDIAN__)
-#define	MACHINE_ARCH	"powerpc64le"
+#define MACHINE_ARCH "powerpc64le"
 #else
-#define	MACHINE_ARCH	"powerpc64"
+#define MACHINE_ARCH "powerpc64"
 #endif
 #else
-#ifdef	__SPE__
-#define	MACHINE_ARCH	"powerpcspe"
+#ifdef __SPE__
+#define MACHINE_ARCH "powerpcspe"
 #else
-#define	MACHINE_ARCH	"powerpc"
+#define MACHINE_ARCH "powerpc"
 #endif
 #endif
 #endif
-#define	MID_MACHINE	MID_POWERPC
+#define MID_MACHINE MID_POWERPC
 #ifdef __powerpc64__
-#ifndef	MACHINE_ARCH32
-#define	MACHINE_ARCH32	"powerpc"
+#ifndef MACHINE_ARCH32
+#define MACHINE_ARCH32 "powerpc"
 #endif
 #endif
 
 #ifdef SMP
 #ifndef MAXCPU
-#define	MAXCPU		256
+#define MAXCPU 256
 #endif
 #else
-#define	MAXCPU		1
+#define MAXCPU 1
 #endif
 
 #ifndef MAXMEMDOM
-#define	MAXMEMDOM	8
+#define MAXMEMDOM 8
 #endif
 
-#define	ALIGNBYTES	_ALIGNBYTES
-#define	ALIGN(p)	_ALIGN(p)
+#define ALIGNBYTES _ALIGNBYTES
+#define ALIGN(p) _ALIGN(p)
 /*
  * ALIGNED_POINTER is a boolean macro that checks whether an address
  * is valid to fetch data elements of type t from on this architecture.
  * This does not reflect the optimal alignment, just the possibility
- * (within reasonable limits). 
+ * (within reasonable limits).
  */
-#define	ALIGNED_POINTER(p, t)	((((uintptr_t)(p)) & (sizeof (t) - 1)) == 0)
+#define ALIGNED_POINTER(p, t) ((((uintptr_t)(p)) & (sizeof(t) - 1)) == 0)
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
  * architecture.  It should be used with appropriate caution.
  */
-#define	CACHE_LINE_SHIFT	7
-#define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
+#define CACHE_LINE_SHIFT 7
+#define CACHE_LINE_SIZE (1 << CACHE_LINE_SHIFT)
 
-#define	PAGE_SHIFT	12
-#define	PAGE_SIZE	(1 << PAGE_SHIFT)	/* Page size */
-#define	PAGE_MASK	(PAGE_SIZE - 1)
-#define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
-#define	NPDEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
+#define PAGE_SHIFT 12
+#define PAGE_SIZE (1 << PAGE_SHIFT) /* Page size */
+#define PAGE_MASK (PAGE_SIZE - 1)
+#define NPTEPG (PAGE_SIZE / (sizeof(pt_entry_t)))
+#define NPDEPG (PAGE_SIZE / (sizeof(pt_entry_t)))
 
 #define L1_PAGE_SIZE_SHIFT 39
-#define L1_PAGE_SIZE (1UL<<L1_PAGE_SIZE_SHIFT)
-#define L1_PAGE_MASK (L1_PAGE_SIZE-1)
+#define L1_PAGE_SIZE (1UL << L1_PAGE_SIZE_SHIFT)
+#define L1_PAGE_MASK (L1_PAGE_SIZE - 1)
 
 #define L2_PAGE_SIZE_SHIFT 30
-#define L2_PAGE_SIZE (1UL<<L2_PAGE_SIZE_SHIFT)
-#define L2_PAGE_MASK (L2_PAGE_SIZE-1)
+#define L2_PAGE_SIZE (1UL << L2_PAGE_SIZE_SHIFT)
+#define L2_PAGE_MASK (L2_PAGE_SIZE - 1)
 
 #define L3_PAGE_SIZE_SHIFT 21
-#define L3_PAGE_SIZE (1UL<<L3_PAGE_SIZE_SHIFT)
-#define L3_PAGE_MASK (L3_PAGE_SIZE-1)
+#define L3_PAGE_SIZE (1UL << L3_PAGE_SIZE_SHIFT)
+#define L3_PAGE_MASK (L3_PAGE_SIZE - 1)
 
-#define	MAXPAGESIZES	3	/* maximum number of supported page sizes */
+#define MAXPAGESIZES 3 /* maximum number of supported page sizes */
 
-#define	RELOCATABLE_KERNEL	1		/* kernel may relocate during startup */
+#define RELOCATABLE_KERNEL 1 /* kernel may relocate during startup */
 
 #ifndef KSTACK_PAGES
 #ifdef __powerpc64__
-#define	KSTACK_PAGES		12		/* includes pcb */
+#define KSTACK_PAGES 12 /* includes pcb */
 #else
-#define	KSTACK_PAGES		4		/* includes pcb */
+#define KSTACK_PAGES 4 /* includes pcb */
 #endif
 #endif
-#define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
-#define	USPACE		(kstack_pages * PAGE_SIZE)	/* total size of pcb */
+#define KSTACK_GUARD_PAGES 1 /* pages of kstack guard; 0 disables */
+#define USPACE (kstack_pages * PAGE_SIZE) /* total size of pcb */
 
-#define	COPYFAULT		0x1
-#define	FUSUFAULT		0x2
+#define COPYFAULT 0x1
+#define FUSUFAULT 0x2
 
 /*
  * Mach derived conversion macros
  */
-#define	trunc_page(x)		((x) & ~(PAGE_MASK))
-#define	round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
-#define	trunc_2mpage(x)		((unsigned long)(x) & ~L3_PAGE_MASK)
-#define	round_2mpage(x)		((((unsigned long)(x)) + L3_PAGE_MASK) & ~L3_PAGE_MASK)
-#define	trunc_1gpage(x)		((unsigned long)(x) & ~L2_PAGE_MASK)
+#define trunc_page(x) ((x) & ~(PAGE_MASK))
+#define round_page(x) (((x) + PAGE_MASK) & ~PAGE_MASK)
+#define trunc_2mpage(x) ((unsigned long)(x) & ~L3_PAGE_MASK)
+#define round_2mpage(x) ((((unsigned long)(x)) + L3_PAGE_MASK) & ~L3_PAGE_MASK)
+#define trunc_1gpage(x) ((unsigned long)(x) & ~L2_PAGE_MASK)
 
-#define	atop(x)			((x) >> PAGE_SHIFT)
-#define	ptoa(x)			((x) << PAGE_SHIFT)
+#define atop(x) ((x) >> PAGE_SHIFT)
+#define ptoa(x) ((x) << PAGE_SHIFT)
 
-#define	powerpc_btop(x)		((x) >> PAGE_SHIFT)
-#define	powerpc_ptob(x)		((x) << PAGE_SHIFT)
+#define powerpc_btop(x) ((x) >> PAGE_SHIFT)
+#define powerpc_ptob(x) ((x) << PAGE_SHIFT)
 
-#define	pgtok(x)		((x) * (PAGE_SIZE / 1024UL))
+#define pgtok(x) ((x) * (PAGE_SIZE / 1024UL))
 
-#define btoc(x)			((vm_offset_t)(((x)+PAGE_MASK)>>PAGE_SHIFT))
+#define btoc(x) ((vm_offset_t)(((x) + PAGE_MASK) >> PAGE_SHIFT))
 
 #endif /* !_POWERPC_INCLUDE_PARAM_H_ */

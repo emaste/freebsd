@@ -31,22 +31,23 @@
  */
 
 #ifdef _KERNEL
-#include <sys/malloc.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/rwlock.h>
-#include <net/if.h>	/* IFNAMSIZ */
+#include <sys/socket.h>
+#include <sys/socketvar.h>
+
+#include <net/if.h> /* IFNAMSIZ */
 #include <netinet/in.h>
-#include <netinet/ip_var.h>		/* ipfw_rule_ref */
-#include <netinet/ip_fw.h>	/* flow_id */
 #include <netinet/ip_dummynet.h>
-#include <netpfil/ipfw/ip_fw_private.h>
+#include <netinet/ip_fw.h>  /* flow_id */
+#include <netinet/ip_var.h> /* ipfw_rule_ref */
 #include <netpfil/ipfw/dn_heap.h>
 #include <netpfil/ipfw/ip_dn_private.h>
+#include <netpfil/ipfw/ip_fw_private.h>
 #ifdef NEW_AQM
 #include <netpfil/ipfw/dn_aqm.h>
 #endif
@@ -56,15 +57,15 @@
 #endif
 
 #ifdef QFQ_DEBUG
-#define _P64	unsigned long long	/* cast for printing uint64_t */
+#define _P64 unsigned long long /* cast for printing uint64_t */
 struct qfq_sched;
 static void dump_sched(struct qfq_sched *q, const char *msg);
-#define	NO(x)	x
+#define NO(x) x
 #else
 #define NO(x)
 #endif
-#define DN_SCHED_QFQ	4 // XXX Where?
-typedef	unsigned long	bitmap;
+#define DN_SCHED_QFQ 4 // XXX Where?
+typedef unsigned long bitmap;
 
 /*
  * bitmaps ops are critical. Some linux versions have __fls
@@ -75,7 +76,8 @@ typedef	unsigned long	bitmap;
  * the ToN QFQ paper
  */
 #if defined(_WIN32) || (defined(__MIPSEL__) && defined(LINUX_24))
-int fls(unsigned int n)
+int
+fls(unsigned int n)
 {
 	int i = 0;
 	for (i = 0; n > 0; n >>= 1, i++)
@@ -84,8 +86,10 @@ int fls(unsigned int n)
 }
 #endif
 
-#if !defined(_KERNEL) || defined( __FreeBSD__ ) || defined(_WIN32) || (defined(__MIPSEL__) && defined(LINUX_24))
-static inline unsigned long __fls(unsigned long word)
+#if !defined(_KERNEL) || defined(__FreeBSD__) || defined(_WIN32) || \
+    (defined(__MIPSEL__) && defined(LINUX_24))
+static inline unsigned long
+__fls(unsigned long word)
 {
 	return fls(word) - 1;
 }
@@ -93,34 +97,37 @@ static inline unsigned long __fls(unsigned long word)
 
 #if !defined(_KERNEL) || !defined(__linux__)
 #ifdef QFQ_DEBUG
-static int test_bit(int ix, bitmap *p)
+static int
+test_bit(int ix, bitmap *p)
 {
 	if (ix < 0 || ix > 31)
 		D("bad index %d", ix);
-	return *p & (1<<ix);
+	return *p & (1 << ix);
 }
-static void __set_bit(int ix, bitmap *p)
+static void
+__set_bit(int ix, bitmap *p)
 {
 	if (ix < 0 || ix > 31)
 		D("bad index %d", ix);
-	*p |= (1<<ix);
+	*p |= (1 << ix);
 }
-static void __clear_bit(int ix, bitmap *p)
+static void
+__clear_bit(int ix, bitmap *p)
 {
 	if (ix < 0 || ix > 31)
 		D("bad index %d", ix);
-	*p &= ~(1<<ix);
+	*p &= ~(1 << ix);
 }
 #else /* !QFQ_DEBUG */
 /* XXX do we have fast version, or leave it to the compiler ? */
-#define test_bit(ix, pData)	((*pData) & (1<<(ix)))
-#define __set_bit(ix, pData)	(*pData) |= (1<<(ix))
-#define __clear_bit(ix, pData)	(*pData) &= ~(1<<(ix))
+#define test_bit(ix, pData) ((*pData) & (1 << (ix)))
+#define __set_bit(ix, pData) (*pData) |= (1 << (ix))
+#define __clear_bit(ix, pData) (*pData) &= ~(1 << (ix))
 #endif /* !QFQ_DEBUG */
 #endif /* !__linux__ */
 
 #ifdef __MIPSEL__
-#define __clear_bit(ix, pData)	(*pData) &= ~(1<<(ix))
+#define __clear_bit(ix, pData) (*pData) &= ~(1 << (ix))
 #endif
 
 /*-------------------------------------------*/
@@ -132,15 +139,15 @@ S, F and V are all computed in fixed point arithmetic with
 FRAC_BITS decimal bits.
 
    QFQ_MAX_INDEX is the maximum index allowed for a group. We need
-  	one bit per index.
+	one bit per index.
    QFQ_MAX_WSHIFT is the maximum power of two supported as a weight.
    The layout of the bits is as below:
-  
-                   [ MTU_SHIFT ][      FRAC_BITS    ]
-                   [ MAX_INDEX    ][ MIN_SLOT_SHIFT ]
-  				 ^.__grp->index = 0
-  				 *.__grp->slot_shift
-  
+
+		   [ MTU_SHIFT ][      FRAC_BITS    ]
+		   [ MAX_INDEX    ][ MIN_SLOT_SHIFT ]
+				 ^.__grp->index = 0
+				 *.__grp->slot_shift
+
    where MIN_SLOT_SHIFT is derived by difference from the others.
 
 The max group index corresponds to Lmax/w_min, where
@@ -165,7 +172,7 @@ for the scheduler: bitmaps and bucket lists.
  * inside a group. This is approx lmax/lmin + 5.
  * XXX check because it poses constraints on MAX_INDEX
  */
-#define QFQ_MAX_SLOTS	32
+#define QFQ_MAX_SLOTS 32
 /*
  * Shifts used for class<->group mapping. Class weights are
  * in the range [1, QFQ_MAX_WEIGHT], we to map each class i to the
@@ -180,17 +187,17 @@ for the scheduler: bitmaps and bucket lists.
  * is below the MAX_INDEX region we use 0 (which is the same as
  * using a larger len).
  */
-#define QFQ_MAX_INDEX		19
-#define QFQ_MAX_WSHIFT		16	/* log2(max_weight) */
+#define QFQ_MAX_INDEX 19
+#define QFQ_MAX_WSHIFT 16 /* log2(max_weight) */
 
-#define	QFQ_MAX_WEIGHT		(1<<QFQ_MAX_WSHIFT)
-#define QFQ_MAX_WSUM		(2*QFQ_MAX_WEIGHT)
+#define QFQ_MAX_WEIGHT (1 << QFQ_MAX_WSHIFT)
+#define QFQ_MAX_WSUM (2 * QFQ_MAX_WEIGHT)
 
-#define FRAC_BITS		30	/* fixed point arithmetic */
-#define ONE_FP			(1UL << FRAC_BITS)
+#define FRAC_BITS 30 /* fixed point arithmetic */
+#define ONE_FP (1UL << FRAC_BITS)
 
-#define QFQ_MTU_SHIFT		11	/* log2(max_len) */
-#define QFQ_MIN_SLOT_SHIFT	(FRAC_BITS + QFQ_MTU_SHIFT - QFQ_MAX_INDEX)
+#define QFQ_MTU_SHIFT 11 /* log2(max_len) */
+#define QFQ_MIN_SLOT_SHIFT (FRAC_BITS + QFQ_MTU_SHIFT - QFQ_MAX_INDEX)
 
 /*
  * Possible group states, also indexes for the bitmaps array in
@@ -216,19 +223,19 @@ struct qfq_class {
 	struct qfq_group *grp;
 
 	/* these are copied from the flowset. */
-	uint32_t	inv_w;	/* ONE_FP/weight */
-	uint32_t 	lmax;	/* Max packet size for this flow. */
+	uint32_t inv_w; /* ONE_FP/weight */
+	uint32_t lmax;	/* Max packet size for this flow. */
 };
 
 /* Group descriptor, see the paper for details.
  * Basically this contains the bucket lists
  */
 struct qfq_group {
-	uint64_t S, F;			/* group timestamps (approx). */
-	unsigned int slot_shift;	/* Slot shift. */
-	unsigned int index;		/* Group index. */
-	unsigned int front;		/* Index of the front slot. */
-	bitmap full_slots;		/* non-empty slots */
+	uint64_t S, F;		 /* group timestamps (approx). */
+	unsigned int slot_shift; /* Slot shift. */
+	unsigned int index;	 /* Group index. */
+	unsigned int front;	 /* Index of the front slot. */
+	bitmap full_slots;	 /* non-empty slots */
 
 	/* Array of lists of active classes. */
 	struct qfq_class *slots[QFQ_MAX_SLOTS];
@@ -236,33 +243,35 @@ struct qfq_group {
 
 /* scheduler instance descriptor. */
 struct qfq_sched {
-	uint64_t	V;		/* Precise virtual time. */
-	uint32_t	wsum;		/* weight sum */
-	uint32_t	iwsum;		/* inverse weight sum */
-	NO(uint32_t	i_wsum;)	/* ONE_FP/w_sum */
-	NO(uint32_t	queued;)	/* debugging */
-	NO(uint32_t	loops;)		/* debugging */
-	bitmap bitmaps[QFQ_MAX_STATE];	/* Group bitmaps. */
+	uint64_t V;				    /* Precise virtual time. */
+	uint32_t wsum;				    /* weight sum */
+	uint32_t iwsum;				    /* inverse weight sum */
+	NO(uint32_t i_wsum;)			    /* ONE_FP/w_sum */
+	NO(uint32_t queued;)			    /* debugging */
+	NO(uint32_t loops;)			    /* debugging */
+	bitmap bitmaps[QFQ_MAX_STATE];		    /* Group bitmaps. */
 	struct qfq_group groups[QFQ_MAX_INDEX + 1]; /* The groups. */
 };
 
 /*---- support functions ----------------------------*/
 
 /* Generic comparison function, handling wraparound. */
-static inline int qfq_gt(uint64_t a, uint64_t b)
+static inline int
+qfq_gt(uint64_t a, uint64_t b)
 {
 	return (int64_t)(a - b) > 0;
 }
 
 /* Round a precise timestamp to its slotted value. */
-static inline uint64_t qfq_round_down(uint64_t ts, unsigned int shift)
+static inline uint64_t
+qfq_round_down(uint64_t ts, unsigned int shift)
 {
 	return ts & ~((1ULL << shift) - 1);
 }
 
 /* return the pointer to the group with lowest index in the bitmap */
-static inline struct qfq_group *qfq_ffs(struct qfq_sched *q,
-					unsigned long bitmap)
+static inline struct qfq_group *
+qfq_ffs(struct qfq_sched *q, unsigned long bitmap)
 {
 	int index = ffs(bitmap) - 1; // zero-based
 	return &q->groups[index];
@@ -273,9 +282,10 @@ static inline struct qfq_group *qfq_ffs(struct qfq_sched *q,
  * index = log_2(maxlen/weight) but we need to apply the scaling.
  * This is used only once at flow creation.
  */
-static int qfq_calc_index(uint32_t inv_w, unsigned int maxlen)
+static int
+qfq_calc_index(uint32_t inv_w, unsigned int maxlen)
 {
-	uint64_t slot_size = (uint64_t)maxlen *inv_w;
+	uint64_t slot_size = (uint64_t)maxlen * inv_w;
 	unsigned long size_map;
 	int index = 0;
 
@@ -283,14 +293,14 @@ static int qfq_calc_index(uint32_t inv_w, unsigned int maxlen)
 	if (!size_map)
 		goto out;
 
-	index = __fls(size_map) + 1;	// basically a log_2()
+	index = __fls(size_map) + 1; // basically a log_2()
 	index -= !(slot_size - (1ULL << (index + QFQ_MIN_SLOT_SHIFT - 1)));
 
 	if (index < 0)
 		index = 0;
 
 out:
-	ND("W = %d, L = %d, I = %d\n", ONE_FP/inv_w, maxlen, index);
+	ND("W = %d, L = %d, I = %d\n", ONE_FP / inv_w, maxlen, index);
 	return index;
 }
 /*---- end support functions ----*/
@@ -305,7 +315,7 @@ qfq_new_queue(struct dn_queue *_q)
 	struct qfq_sched *q = (struct qfq_sched *)(_q->_si + 1);
 	struct qfq_class *cl = (struct qfq_class *)_q;
 	int i;
-	uint32_t w;	/* approximated weight */
+	uint32_t w; /* approximated weight */
 
 	/* import parameters from the flowset. They should be correct
 	 * already.
@@ -316,8 +326,8 @@ qfq_new_queue(struct dn_queue *_q)
 		w = 1;
 		D("rounding weight to 1");
 	}
-	cl->inv_w = ONE_FP/w;
-	w = ONE_FP/cl->inv_w;	
+	cl->inv_w = ONE_FP / w;
+	w = ONE_FP / cl->inv_w;
 	if (q->wsum + w > QFQ_MAX_WSUM)
 		return EINVAL;
 
@@ -336,7 +346,7 @@ qfq_free_queue(struct dn_queue *_q)
 	struct qfq_sched *q = (struct qfq_sched *)(_q->_si + 1);
 	struct qfq_class *cl = (struct qfq_class *)_q;
 	if (cl->inv_w) {
-		q->wsum -= ONE_FP/cl->inv_w;
+		q->wsum -= ONE_FP / cl->inv_w;
 		if (q->wsum != 0)
 			q->iwsum = ONE_FP / q->wsum;
 		cl->inv_w = 0; /* reset weight to avoid run twice */
@@ -521,13 +531,13 @@ qfq_update_eligible(struct qfq_sched *q, uint64_t old_V)
  * Updates the class, returns true if also the group needs to be updated.
  */
 static inline int
-qfq_update_class(struct qfq_sched *q, struct qfq_group *grp,
-	    struct qfq_class *cl)
+qfq_update_class(
+    struct qfq_sched *q, struct qfq_group *grp, struct qfq_class *cl)
 {
 
 	(void)q;
 	cl->S = cl->F;
-	if (cl->_q.mq.head == NULL)  {
+	if (cl->_q.mq.head == NULL) {
 		qfq_front_slot_remove(grp);
 	} else {
 		unsigned int len;
@@ -556,8 +566,7 @@ qfq_dequeue(struct dn_sch_inst *si)
 
 	NO(q->loops++;)
 	if (!q->bitmaps[ER]) {
-		NO(if (q->queued)
-			dump_sched(q, "start dequeue");)
+		NO(if (q->queued) dump_sched(q, "start dequeue");)
 		return NULL;
 	}
 
@@ -583,7 +592,8 @@ qfq_dequeue(struct dn_sch_inst *si)
 			__clear_bit(grp->index, &q->bitmaps[ER]);
 			// grp->S = grp->F + 1; // XXX debugging only
 		} else {
-			uint64_t roundedS = qfq_round_down(cl->S, grp->slot_shift);
+			uint64_t roundedS = qfq_round_down(
+			    cl->S, grp->slot_shift);
 			unsigned int s;
 
 			if (grp->S == roundedS)
@@ -601,8 +611,7 @@ qfq_dequeue(struct dn_sch_inst *si)
 
 skip_unblock:
 	qfq_update_eligible(q, old_V);
-	NO(if (!q->bitmaps[ER] && q->queued)
-		dump_sched(q, "end dequeue");)
+	NO(if (!q->bitmaps[ER] && q->queued) dump_sched(q, "end dequeue");)
 
 	return m;
 }
@@ -636,7 +645,8 @@ qfq_update_start(struct qfq_sched *q, struct qfq_class *cl)
 		if (mask) {
 			struct qfq_group *next = qfq_ffs(q, mask);
 			if (qfq_gt(roundedF, next->F)) {
-				/* from pv 71261956973ba9e0637848a5adb4a5819b4bae83 */
+				/* from pv
+				 * 71261956973ba9e0637848a5adb4a5819b4bae83 */
 				if (qfq_gt(limit, next->F))
 					cl->S = next->F;
 				else /* preserve timestamp correctness */
@@ -660,8 +670,8 @@ qfq_enqueue(struct dn_sch_inst *si, struct dn_queue *_q, struct mbuf *m)
 	int s;
 
 	NO(q->loops++;)
-	DX(4, "len %d flow %p inv_w 0x%x grp %d", m->m_pkthdr.len,
-		_q, cl->inv_w, cl->grp->index);
+	DX(4, "len %d flow %p inv_w 0x%x grp %d", m->m_pkthdr.len, _q,
+	    cl->inv_w, cl->grp->index);
 	/* XXX verify that the packet obeys the parameters */
 	if (m != _q->mq.head) {
 		if (dn_enqueue(_q, m, 0)) /* packet was dropped */
@@ -815,7 +825,7 @@ qfq_new_sched(struct dn_sch_inst *si)
 		grp = &q->groups[i];
 		grp->index = i;
 		grp->slot_shift = QFQ_MTU_SHIFT + FRAC_BITS -
-					(QFQ_MAX_INDEX - i);
+		    (QFQ_MAX_INDEX - i);
 	}
 	return 0;
 }
@@ -824,27 +834,27 @@ qfq_new_sched(struct dn_sch_inst *si)
  * QFQ scheduler descriptor
  */
 static struct dn_alg qfq_desc = {
-	_SI( .type = ) DN_SCHED_QFQ,
-	_SI( .name = ) "QFQ",
-	_SI( .flags = ) DN_MULTIQUEUE,
+	_SI(.type =) DN_SCHED_QFQ,
+	_SI(.name =) "QFQ",
+	_SI(.flags =) DN_MULTIQUEUE,
 
-	_SI( .schk_datalen = ) 0,
-	_SI( .si_datalen = ) sizeof(struct qfq_sched),
-	_SI( .q_datalen = ) sizeof(struct qfq_class) - sizeof(struct dn_queue),
+	_SI(.schk_datalen =) 0,
+	_SI(.si_datalen =) sizeof(struct qfq_sched),
+	_SI(.q_datalen =) sizeof(struct qfq_class) - sizeof(struct dn_queue),
 
-	_SI( .enqueue = ) qfq_enqueue,
-	_SI( .dequeue = ) qfq_dequeue,
+	_SI(.enqueue =) qfq_enqueue,
+	_SI(.dequeue =) qfq_dequeue,
 
-	_SI( .config = )  NULL,
-	_SI( .destroy = )  NULL,
-	_SI( .new_sched = ) qfq_new_sched,
-	_SI( .free_sched = )  NULL,
-	_SI( .new_fsk = ) qfq_new_fsk,
-	_SI( .free_fsk = )  NULL,
-	_SI( .new_queue = ) qfq_new_queue,
-	_SI( .free_queue = ) qfq_free_queue,
+	_SI(.config =) NULL,
+	_SI(.destroy =) NULL,
+	_SI(.new_sched =) qfq_new_sched,
+	_SI(.free_sched =) NULL,
+	_SI(.new_fsk =) qfq_new_fsk,
+	_SI(.free_fsk =) NULL,
+	_SI(.new_queue =) qfq_new_queue,
+	_SI(.free_queue =) qfq_free_queue,
 #ifdef NEW_AQM
-	_SI( .getconfig = )  NULL,
+	_SI(.getconfig =) NULL,
 #endif
 };
 
@@ -859,16 +869,15 @@ dump_groups(struct qfq_sched *q, uint32_t mask)
 	for (i = 0; i < QFQ_MAX_INDEX + 1; i++) {
 		struct qfq_group *g = &q->groups[i];
 
-		if (0 == (mask & (1<<i)))
+		if (0 == (mask & (1 << i)))
 			continue;
 		for (j = 0; j < QFQ_MAX_SLOTS; j++) {
 			if (g->slots[j])
 				D("    bucket %d %p", j, g->slots[j]);
 		}
 		D("full_slots 0x%llx", (_P64)g->full_slots);
-		D("        %2d S 0x%20llx F 0x%llx %c", i,
-			(_P64)g->S, (_P64)g->F,
-			mask & (1<<i) ? '1' : '0');
+		D("        %2d S 0x%20llx F 0x%llx %c", i, (_P64)g->S,
+		    (_P64)g->F, mask & (1 << i) ? '1' : '0');
 	}
 }
 

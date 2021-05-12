@@ -38,82 +38,80 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include <arm/freescale/vybrid/vf_common.h>
 
-#define	ANADIG_PLL3_CTRL	0x010	/* PLL3 Control */
-#define	ANADIG_PLL7_CTRL	0x020	/* PLL7 Control */
-#define	ANADIG_PLL2_CTRL	0x030	/* PLL2 Control */
-#define	ANADIG_PLL2_SS		0x040	/* PLL2 Spread Spectrum */
-#define	ANADIG_PLL2_NUM		0x050	/* PLL2 Numerator */
-#define	ANADIG_PLL2_DENOM	0x060	/* PLL2 Denominator */
-#define	ANADIG_PLL4_CTRL	0x070	/* PLL4 Control */
-#define	ANADIG_PLL4_NUM		0x080	/* PLL4 Numerator */
-#define	ANADIG_PLL4_DENOM	0x090	/* PLL4 Denominator */
-#define	ANADIG_PLL6_CTRL	0x0A0	/* PLL6 Control */
-#define	ANADIG_PLL6_NUM		0x0B0	/* PLL6 Numerator */
-#define	ANADIG_PLL6_DENOM	0x0C0	/* PLL6 Denominator */
-#define	ANADIG_PLL5_CTRL	0x0E0	/* PLL5 Control */
-#define	ANADIG_PLL3_PFD		0x0F0	/* PLL3 PFD */
-#define	ANADIG_PLL2_PFD		0x100	/* PLL2 PFD */
-#define	ANADIG_REG_1P1		0x110	/* Regulator 1P1 */
-#define	ANADIG_REG_3P0		0x120	/* Regulator 3P0 */
-#define	ANADIG_REG_2P5		0x130	/* Regulator 2P5 */
-#define	ANADIG_ANA_MISC0	0x150	/* Analog Miscellaneous */
-#define	ANADIG_ANA_MISC1	0x160	/* Analog Miscellaneous */
-#define	ANADIG_ANADIG_DIGPROG	0x260	/* Digital Program */
-#define	ANADIG_PLL1_CTRL	0x270	/* PLL1 Control */
-#define	ANADIG_PLL1_SS		0x280	/* PLL1 Spread Spectrum */
-#define	ANADIG_PLL1_NUM		0x290	/* PLL1 Numerator */
-#define	ANADIG_PLL1_DENOM	0x2A0	/* PLL1 Denominator */
-#define	ANADIG_PLL1_PFD		0x2B0	/* PLL1_PFD */
-#define	ANADIG_PLL_LOCK		0x2C0	/* PLL Lock */
+#define ANADIG_PLL3_CTRL 0x010 /* PLL3 Control */
+#define ANADIG_PLL7_CTRL 0x020 /* PLL7 Control */
+#define ANADIG_PLL2_CTRL 0x030 /* PLL2 Control */
+#define ANADIG_PLL2_SS 0x040 /* PLL2 Spread Spectrum */
+#define ANADIG_PLL2_NUM 0x050 /* PLL2 Numerator */
+#define ANADIG_PLL2_DENOM 0x060 /* PLL2 Denominator */
+#define ANADIG_PLL4_CTRL 0x070 /* PLL4 Control */
+#define ANADIG_PLL4_NUM 0x080 /* PLL4 Numerator */
+#define ANADIG_PLL4_DENOM 0x090 /* PLL4 Denominator */
+#define ANADIG_PLL6_CTRL 0x0A0 /* PLL6 Control */
+#define ANADIG_PLL6_NUM 0x0B0 /* PLL6 Numerator */
+#define ANADIG_PLL6_DENOM 0x0C0 /* PLL6 Denominator */
+#define ANADIG_PLL5_CTRL 0x0E0 /* PLL5 Control */
+#define ANADIG_PLL3_PFD 0x0F0 /* PLL3 PFD */
+#define ANADIG_PLL2_PFD 0x100 /* PLL2 PFD */
+#define ANADIG_REG_1P1 0x110 /* Regulator 1P1 */
+#define ANADIG_REG_3P0 0x120 /* Regulator 3P0 */
+#define ANADIG_REG_2P5 0x130 /* Regulator 2P5 */
+#define ANADIG_ANA_MISC0 0x150 /* Analog Miscellaneous */
+#define ANADIG_ANA_MISC1 0x160 /* Analog Miscellaneous */
+#define ANADIG_ANADIG_DIGPROG 0x260 /* Digital Program */
+#define ANADIG_PLL1_CTRL 0x270 /* PLL1 Control */
+#define ANADIG_PLL1_SS 0x280 /* PLL1 Spread Spectrum */
+#define ANADIG_PLL1_NUM 0x290 /* PLL1 Numerator */
+#define ANADIG_PLL1_DENOM 0x2A0 /* PLL1 Denominator */
+#define ANADIG_PLL1_PFD 0x2B0 /* PLL1_PFD */
+#define ANADIG_PLL_LOCK 0x2C0 /* PLL Lock */
 
-#define	USB_VBUS_DETECT(n)		(0x1A0 + 0x60 * n)
-#define	USB_CHRG_DETECT(n)		(0x1B0 + 0x60 * n)
-#define	USB_VBUS_DETECT_STATUS(n)	(0x1C0 + 0x60 * n)
-#define	USB_CHRG_DETECT_STATUS(n)	(0x1D0 + 0x60 * n)
-#define	USB_LOOPBACK(n)			(0x1E0 + 0x60 * n)
-#define	USB_MISC(n)			(0x1F0 + 0x60 * n)
+#define USB_VBUS_DETECT(n) (0x1A0 + 0x60 * n)
+#define USB_CHRG_DETECT(n) (0x1B0 + 0x60 * n)
+#define USB_VBUS_DETECT_STATUS(n) (0x1C0 + 0x60 * n)
+#define USB_CHRG_DETECT_STATUS(n) (0x1D0 + 0x60 * n)
+#define USB_LOOPBACK(n) (0x1E0 + 0x60 * n)
+#define USB_MISC(n) (0x1F0 + 0x60 * n)
 
-#define	ANADIG_PLL_LOCKED	(1U << 31)
-#define	ENABLE_LINREG		(1 << 0)
-#define	EN_CLK_TO_UTMI		(1 << 30)
+#define ANADIG_PLL_LOCKED (1U << 31)
+#define ENABLE_LINREG (1 << 0)
+#define EN_CLK_TO_UTMI (1 << 30)
 
-#define	CTRL_BYPASS		(1 << 16)
-#define	CTRL_PWR		(1 << 12)
-#define	CTRL_PLL_EN		(1 << 13)
-#define	EN_USB_CLKS		(1 << 6)
+#define CTRL_BYPASS (1 << 16)
+#define CTRL_PWR (1 << 12)
+#define CTRL_PLL_EN (1 << 13)
+#define EN_USB_CLKS (1 << 6)
 
-#define	PLL4_CTRL_DIV_SEL_S	0
-#define	PLL4_CTRL_DIV_SEL_M	0x7f
+#define PLL4_CTRL_DIV_SEL_S 0
+#define PLL4_CTRL_DIV_SEL_M 0x7f
 
 struct anadig_softc {
-	struct resource		*res[1];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
+	struct resource *res[1];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
 };
 
 struct anadig_softc *anadig_sc;
 
-static struct resource_spec anadig_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec anadig_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 static int
 anadig_probe(device_t dev)
@@ -229,11 +227,9 @@ anadig_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t anadig_methods[] = {
-	DEVMETHOD(device_probe,		anadig_probe),
-	DEVMETHOD(device_attach,	anadig_attach),
-	{ 0, 0 }
-};
+static device_method_t anadig_methods[] = { DEVMETHOD(
+						device_probe, anadig_probe),
+	DEVMETHOD(device_attach, anadig_attach), { 0, 0 } };
 
 static driver_t anadig_driver = {
 	"anadig",

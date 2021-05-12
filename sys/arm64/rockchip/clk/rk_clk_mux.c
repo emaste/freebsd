@@ -30,36 +30,32 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/bus.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
 
 #include <machine/bus.h>
 
 #include <dev/extres/clk/clk.h>
 
-#include <arm64/rockchip/clk/rk_cru.h>
 #include <arm64/rockchip/clk/rk_clk_mux.h>
+#include <arm64/rockchip/clk/rk_cru.h>
 
 #include "clkdev_if.h"
 
-#define	WR4(_clk, off, val)						\
-	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
-#define	RD4(_clk, off, val)						\
-	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
-#define	MD4(_clk, off, clr, set )					\
+#define WR4(_clk, off, val) CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
+#define RD4(_clk, off, val) CLKDEV_READ_4(clknode_get_device(_clk), off, val)
+#define MD4(_clk, off, clr, set) \
 	CLKDEV_MODIFY_4(clknode_get_device(_clk), off, clr, set)
-#define	DEVICE_LOCK(_clk)						\
-	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
-#define	DEVICE_UNLOCK(_clk)						\
-	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
+#define DEVICE_LOCK(_clk) CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
+#define DEVICE_UNLOCK(_clk) CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
 #if 0
-#define	dprintf(format, arg...)						\
+#define dprintf(format, arg...) \
 	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg)
 #else
-#define	dprintf(format, arg...)
+#define dprintf(format, arg...)
 #endif
 
 static int rk_clk_mux_init(struct clknode *clk, device_t dev);
@@ -68,21 +64,20 @@ static int rk_clk_mux_set_freq(struct clknode *clk, uint64_t fparent,
     uint64_t *fout, int flags, int *stop);
 
 struct rk_clk_mux_sc {
-	uint32_t	offset;
-	uint32_t	shift;
-	uint32_t	mask;
-	int		mux_flags;
+	uint32_t offset;
+	uint32_t shift;
+	uint32_t mask;
+	int mux_flags;
 };
 
 static clknode_method_t rk_clk_mux_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init, 	rk_clk_mux_init),
-	CLKNODEMETHOD(clknode_set_mux, 	rk_clk_mux_set_mux),
-	CLKNODEMETHOD(clknode_set_freq,	rk_clk_mux_set_freq),
-	CLKNODEMETHOD_END
+	CLKNODEMETHOD(clknode_init, rk_clk_mux_init),
+	CLKNODEMETHOD(clknode_set_mux, rk_clk_mux_set_mux),
+	CLKNODEMETHOD(clknode_set_freq, rk_clk_mux_set_freq), CLKNODEMETHOD_END
 };
 DEFINE_CLASS_1(rk_clk_mux, rk_clk_mux_class, rk_clk_mux_methods,
-   sizeof(struct rk_clk_mux_sc), clknode_class);
+    sizeof(struct rk_clk_mux_sc), clknode_class);
 
 static int
 rk_clk_mux_init(struct clknode *clk, device_t dev)
@@ -101,7 +96,7 @@ rk_clk_mux_init(struct clknode *clk, device_t dev)
 	}
 	reg = (reg >> sc->shift) & sc->mask;
 	clknode_init_parent_idx(clk, reg);
-	return(0);
+	return (0);
 }
 
 static int
@@ -123,12 +118,12 @@ rk_clk_mux_set_mux(struct clknode *clk, int idx)
 	RD4(clk, sc->offset, &reg);
 	DEVICE_UNLOCK(clk);
 
-	return(0);
+	return (0);
 }
 
 static int
-rk_clk_mux_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
-    int flags, int *stop)
+rk_clk_mux_set_freq(
+    struct clknode *clk, uint64_t fparent, uint64_t *fout, int flags, int *stop)
 {
 	struct rk_clk_mux_sc *sc;
 	struct clknode *p_clk, *p_best_clk;
@@ -192,7 +187,7 @@ rk_clk_mux_register(struct clkdom *clkdom, struct rk_clk_mux_def *clkdef)
 	sc = clknode_get_softc(clk);
 	sc->offset = clkdef->offset;
 	sc->shift = clkdef->shift;
-	sc->mask =  (1 << clkdef->width) - 1;
+	sc->mask = (1 << clkdef->width) - 1;
 	sc->mux_flags = clkdef->mux_flags;
 
 	clknode_register(clkdom, clk);

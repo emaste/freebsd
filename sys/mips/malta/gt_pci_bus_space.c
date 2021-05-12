@@ -81,16 +81,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/ktr.h>
+#include <sys/malloc.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 
 #include <machine/bus.h>
 #include <machine/cache.h>
+
 #include <mips/malta/gt_pci_bus_space.h>
 
 static bs_r_2_proto(gt_pci);
@@ -112,109 +113,109 @@ static bs_sr_4_proto(gt_pci);
 
 static struct bus_space gt_pci_space = {
 	/* cookie */
-	.bs_cookie =	(void *) 0,
+	.bs_cookie = (void *)0,
 
 	/* mapping/unmapping */
-	.bs_map =	generic_bs_map,
-	.bs_unmap =	generic_bs_unmap,
-	.bs_subregion =	generic_bs_subregion,
+	.bs_map = generic_bs_map,
+	.bs_unmap = generic_bs_unmap,
+	.bs_subregion = generic_bs_subregion,
 
 	/* allocation/deallocation */
-	.bs_alloc =	generic_bs_alloc,
-	.bs_free =	generic_bs_free,
+	.bs_alloc = generic_bs_alloc,
+	.bs_free = generic_bs_free,
 
 	/* barrier */
-	.bs_barrier =	generic_bs_barrier,
+	.bs_barrier = generic_bs_barrier,
 
 	/* read (single) */
-	.bs_r_1 =	generic_bs_r_1,
-	.bs_r_2 =	gt_pci_bs_r_2,
-	.bs_r_4 =	gt_pci_bs_r_4,
-	.bs_r_8 =	NULL,
+	.bs_r_1 = generic_bs_r_1,
+	.bs_r_2 = gt_pci_bs_r_2,
+	.bs_r_4 = gt_pci_bs_r_4,
+	.bs_r_8 = NULL,
 
 	/* read multiple */
-	.bs_rm_1 =	generic_bs_rm_1,
-	.bs_rm_2 =	gt_pci_bs_rm_2,
-	.bs_rm_4 =	gt_pci_bs_rm_4,
-	.bs_rm_8 =	NULL,
+	.bs_rm_1 = generic_bs_rm_1,
+	.bs_rm_2 = gt_pci_bs_rm_2,
+	.bs_rm_4 = gt_pci_bs_rm_4,
+	.bs_rm_8 = NULL,
 
 	/* read region */
-	.bs_rr_1 =	generic_bs_rr_1,
-	.bs_rr_2 =	gt_pci_bs_rr_2,
-	.bs_rr_4 =	gt_pci_bs_rr_4,
-	.bs_rr_8 =	NULL,
+	.bs_rr_1 = generic_bs_rr_1,
+	.bs_rr_2 = gt_pci_bs_rr_2,
+	.bs_rr_4 = gt_pci_bs_rr_4,
+	.bs_rr_8 = NULL,
 
 	/* write (single) */
-	.bs_w_1 =	generic_bs_w_1,
-	.bs_w_2 =	gt_pci_bs_w_2,
-	.bs_w_4 =	gt_pci_bs_w_4,
-	.bs_w_8 =	NULL,
+	.bs_w_1 = generic_bs_w_1,
+	.bs_w_2 = gt_pci_bs_w_2,
+	.bs_w_4 = gt_pci_bs_w_4,
+	.bs_w_8 = NULL,
 
 	/* write multiple */
-	.bs_wm_1 =	generic_bs_wm_1,
-	.bs_wm_2 =	gt_pci_bs_wm_2,
-	.bs_wm_4 =	gt_pci_bs_wm_4,
-	.bs_wm_8 =	NULL,
+	.bs_wm_1 = generic_bs_wm_1,
+	.bs_wm_2 = gt_pci_bs_wm_2,
+	.bs_wm_4 = gt_pci_bs_wm_4,
+	.bs_wm_8 = NULL,
 
 	/* write region */
-	.bs_wr_1 =	generic_bs_wr_1,
-	.bs_wr_2 =	gt_pci_bs_wr_2,
-	.bs_wr_4 =	gt_pci_bs_wr_4,
-	.bs_wr_8 =	NULL,
+	.bs_wr_1 = generic_bs_wr_1,
+	.bs_wr_2 = gt_pci_bs_wr_2,
+	.bs_wr_4 = gt_pci_bs_wr_4,
+	.bs_wr_8 = NULL,
 
 	/* set multiple */
-	.bs_sm_1 =	generic_bs_sm_1,
-	.bs_sm_2 =	gt_pci_bs_sm_2,
-	.bs_sm_4 =	gt_pci_bs_sm_4,
-	.bs_sm_8 =	NULL,
+	.bs_sm_1 = generic_bs_sm_1,
+	.bs_sm_2 = gt_pci_bs_sm_2,
+	.bs_sm_4 = gt_pci_bs_sm_4,
+	.bs_sm_8 = NULL,
 
 	/* set region */
-	.bs_sr_1 =	generic_bs_sr_1,
-	.bs_sr_2 =	gt_pci_bs_sr_2,
-	.bs_sr_4 =	gt_pci_bs_sr_4,
-	.bs_sr_8 =	NULL,
+	.bs_sr_1 = generic_bs_sr_1,
+	.bs_sr_2 = gt_pci_bs_sr_2,
+	.bs_sr_4 = gt_pci_bs_sr_4,
+	.bs_sr_8 = NULL,
 
 	/* copy */
-	.bs_c_1 =	generic_bs_c_1,
-	.bs_c_2 =	generic_bs_c_2,
-	.bs_c_4 =	generic_bs_c_4,
-	.bs_c_8 =	NULL,
+	.bs_c_1 = generic_bs_c_1,
+	.bs_c_2 = generic_bs_c_2,
+	.bs_c_4 = generic_bs_c_4,
+	.bs_c_8 = NULL,
 
 	/* read (single) stream */
-	.bs_r_1_s =	generic_bs_r_1,
-	.bs_r_2_s =	generic_bs_r_2,
-	.bs_r_4_s =	generic_bs_r_4,
-	.bs_r_8_s =	NULL,
+	.bs_r_1_s = generic_bs_r_1,
+	.bs_r_2_s = generic_bs_r_2,
+	.bs_r_4_s = generic_bs_r_4,
+	.bs_r_8_s = NULL,
 
 	/* read multiple stream */
-	.bs_rm_1_s =	generic_bs_rm_1,
-	.bs_rm_2_s =	generic_bs_rm_2,
-	.bs_rm_4_s =	generic_bs_rm_4,
-	.bs_rm_8_s =	NULL,
+	.bs_rm_1_s = generic_bs_rm_1,
+	.bs_rm_2_s = generic_bs_rm_2,
+	.bs_rm_4_s = generic_bs_rm_4,
+	.bs_rm_8_s = NULL,
 
 	/* read region stream */
-	.bs_rr_1_s =	generic_bs_rr_1,
-	.bs_rr_2_s =	generic_bs_rr_2,
-	.bs_rr_4_s =	generic_bs_rr_4,
-	.bs_rr_8_s =	NULL,
+	.bs_rr_1_s = generic_bs_rr_1,
+	.bs_rr_2_s = generic_bs_rr_2,
+	.bs_rr_4_s = generic_bs_rr_4,
+	.bs_rr_8_s = NULL,
 
 	/* write (single) stream */
-	.bs_w_1_s =	generic_bs_w_1,
-	.bs_w_2_s =	generic_bs_w_2,
-	.bs_w_4_s =	generic_bs_w_4,
-	.bs_w_8_s =	NULL,
+	.bs_w_1_s = generic_bs_w_1,
+	.bs_w_2_s = generic_bs_w_2,
+	.bs_w_4_s = generic_bs_w_4,
+	.bs_w_8_s = NULL,
 
 	/* write multiple stream */
-	.bs_wm_1_s =	generic_bs_wm_1,
-	.bs_wm_2_s =	generic_bs_wm_2,
-	.bs_wm_4_s =	generic_bs_wm_4,
-	.bs_wm_8_s =	NULL,
+	.bs_wm_1_s = generic_bs_wm_1,
+	.bs_wm_2_s = generic_bs_wm_2,
+	.bs_wm_4_s = generic_bs_wm_4,
+	.bs_wm_8_s = NULL,
 
 	/* write region stream */
-	.bs_wr_1_s =	generic_bs_wr_1,
-	.bs_wr_2_s =	generic_bs_wr_2,
-	.bs_wr_4_s =	generic_bs_wr_4,
-	.bs_wr_8_s =	NULL,
+	.bs_wr_1_s = generic_bs_wr_1,
+	.bs_wr_2_s = generic_bs_wr_2,
+	.bs_wr_4_s = generic_bs_wr_4,
+	.bs_wr_8_s = NULL,
 };
 
 #define rd16(a) le16toh(readw(a))
@@ -226,24 +227,22 @@ static struct bus_space gt_pci_space = {
 bus_space_tag_t gt_pci_bus_space = &gt_pci_space;
 
 uint16_t
-gt_pci_bs_r_2(void *t, bus_space_handle_t handle,
-    bus_size_t offset)
+gt_pci_bs_r_2(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
 	return (rd16(handle + offset));
 }
 
 uint32_t
-gt_pci_bs_r_4(void *t, bus_space_handle_t handle,
-    bus_size_t offset)
+gt_pci_bs_r_4(void *t, bus_space_handle_t handle, bus_size_t offset)
 {
 
 	return (rd32(handle + offset));
 }
 
 void
-gt_pci_bs_rm_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint16_t *addr, size_t count)
+gt_pci_bs_rm_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint16_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -252,8 +251,8 @@ gt_pci_bs_rm_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-gt_pci_bs_rm_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t *addr, size_t count)
+gt_pci_bs_rm_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint32_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -267,8 +266,8 @@ gt_pci_bs_rm_4(void *t, bus_space_handle_t bsh,
  * buffer provided.
  */
 void
-gt_pci_bs_rr_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint16_t *addr, size_t count)
+gt_pci_bs_rr_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint16_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -279,8 +278,8 @@ gt_pci_bs_rr_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-gt_pci_bs_rr_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t *addr, size_t count)
+gt_pci_bs_rr_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint32_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -295,16 +294,16 @@ gt_pci_bs_rr_4(void *t, bus_space_handle_t bsh,
  * described by tag/handle/offset.
  */
 void
-gt_pci_bs_w_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint16_t value)
+gt_pci_bs_w_2(
+    void *t, bus_space_handle_t bsh, bus_size_t offset, uint16_t value)
 {
 
 	wr16(bsh + offset, value);
 }
 
 void
-gt_pci_bs_w_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t value)
+gt_pci_bs_w_4(
+    void *t, bus_space_handle_t bsh, bus_size_t offset, uint32_t value)
 {
 
 	wr32(bsh + offset, value);
@@ -315,8 +314,8 @@ gt_pci_bs_w_4(void *t, bus_space_handle_t bsh,
  * provided to bus space described by tag/handle/offset.
  */
 void
-gt_pci_bs_wm_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint16_t *addr, size_t count)
+gt_pci_bs_wm_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint16_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -325,8 +324,8 @@ gt_pci_bs_wm_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-gt_pci_bs_wm_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint32_t *addr, size_t count)
+gt_pci_bs_wm_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint32_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -339,8 +338,8 @@ gt_pci_bs_wm_4(void *t, bus_space_handle_t bsh,
  * to bus space described by tag/handle starting at `offset'.
  */
 void
-gt_pci_bs_wr_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint16_t *addr, size_t count)
+gt_pci_bs_wr_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint16_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -351,8 +350,8 @@ gt_pci_bs_wr_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-gt_pci_bs_wr_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, const uint32_t *addr, size_t count)
+gt_pci_bs_wr_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    const uint32_t *addr, size_t count)
 {
 	bus_addr_t baddr = bsh + offset;
 
@@ -367,8 +366,8 @@ gt_pci_bs_wr_4(void *t, bus_space_handle_t bsh,
  * by tag/handle/offset `count' times.
  */
 void
-gt_pci_bs_sm_2(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint16_t value, size_t count)
+gt_pci_bs_sm_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint16_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -377,8 +376,8 @@ gt_pci_bs_sm_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-gt_pci_bs_sm_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t value, size_t count)
+gt_pci_bs_sm_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint32_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -391,8 +390,8 @@ gt_pci_bs_sm_4(void *t, bus_space_handle_t bsh,
  * by tag/handle starting at `offset'.
  */
 void
-gt_pci_bs_sr_2(void *t, bus_space_handle_t bsh,
-		       bus_size_t offset, uint16_t value, size_t count)
+gt_pci_bs_sr_2(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint16_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 
@@ -401,8 +400,8 @@ gt_pci_bs_sr_2(void *t, bus_space_handle_t bsh,
 }
 
 void
-gt_pci_bs_sr_4(void *t, bus_space_handle_t bsh,
-    bus_size_t offset, uint32_t value, size_t count)
+gt_pci_bs_sr_4(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    uint32_t value, size_t count)
 {
 	bus_addr_t addr = bsh + offset;
 

@@ -46,39 +46,42 @@ __FBSDID("$FreeBSD$");
 #include <sys/assym.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
-#include <sys/proc.h>
 #include <sys/errno.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
-#include <sys/socket.h>
+#include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
+#include <sys/socket.h>
 #include <sys/ucontext.h>
-#include <machine/bootinfo.h>
-#include <machine/tss.h>
 #include <sys/vmmeter.h>
+
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/proc.h>
+#include <vm/vm_param.h>
+
+#include <machine/bootinfo.h>
+#include <machine/tss.h>
+
 #include <net/if.h>
 #include <netinet/in.h>
+
+#include <nfs/nfsdiskless.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
-#include <nfs/nfsdiskless.h>
 #ifdef DEV_APIC
 #include <x86/apicreg.h>
 #endif
 #include <machine/cpu.h>
-#include <machine/pcb_ext.h>
 #include <machine/pcb.h>
+#include <machine/pcb_ext.h>
+#include <machine/proc.h>
 #include <machine/sigframe.h>
 #include <machine/vm86.h>
-#include <machine/proc.h>
 
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
@@ -217,8 +220,8 @@ ASSYM(KERNLOAD, KERNLOAD);
 ASSYM(KERNBASE, KERNBASE);
 
 #ifdef DEV_APIC
-ASSYM(LA_EOI, LAPIC_EOI * LAPIC_MEM_MUL);
-ASSYM(LA_ISR, LAPIC_ISR0 * LAPIC_MEM_MUL);
+ASSYM(LA_EOI, LAPIC_EOI *LAPIC_MEM_MUL);
+ASSYM(LA_ISR, LAPIC_ISR0 *LAPIC_MEM_MUL);
 #endif
 
 ASSYM(KCSEL, GSEL(GCODE_SEL, SEL_KPL));
@@ -232,6 +235,6 @@ ASSYM(VM86_STACK_SPACE, VM86_STACK_SPACE);
 
 ASSYM(TRAMP_COPYOUT_SZ, TRAMP_COPYOUT_SZ);
 
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);
 #endif

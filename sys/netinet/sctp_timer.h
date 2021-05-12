@@ -21,9 +21,9 @@
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
@@ -43,47 +43,37 @@ __FBSDID("$FreeBSD$");
 #define SCTP_RTT_SHIFT 3
 #define SCTP_RTT_VAR_SHIFT 2
 
-struct sctp_nets *sctp_find_alternate_net(struct sctp_tcb *, struct sctp_nets *, int);
+struct sctp_nets *sctp_find_alternate_net(
+    struct sctp_tcb *, struct sctp_nets *, int);
 
-int
-sctp_t3rxt_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
+int sctp_t3rxt_timer(
+    struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *);
 
-int
-sctp_t1init_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
+int sctp_t1init_timer(
+    struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *);
 
-int
-sctp_shutdown_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
+int sctp_shutdown_timer(
+    struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *);
 
-int
-sctp_heartbeat_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
+int sctp_heartbeat_timer(
+    struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *);
 
-int
-sctp_cookie_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
+int sctp_cookie_timer(
+    struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *);
 
-void
-sctp_pathmtu_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
+void sctp_pathmtu_timer(
+    struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *);
 
-int
-sctp_shutdownack_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
-int
-    sctp_strreset_timer(struct sctp_inpcb *, struct sctp_tcb *);
+int sctp_shutdownack_timer(
+    struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *);
+int sctp_strreset_timer(struct sctp_inpcb *, struct sctp_tcb *);
 
-int
-sctp_asconf_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
+int sctp_asconf_timer(
+    struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *);
 
-void
-     sctp_delete_prim_timer(struct sctp_inpcb *, struct sctp_tcb *);
+void sctp_delete_prim_timer(struct sctp_inpcb *, struct sctp_tcb *);
 
-void
-     sctp_autoclose_timer(struct sctp_inpcb *, struct sctp_tcb *);
+void sctp_autoclose_timer(struct sctp_inpcb *, struct sctp_tcb *);
 
 void sctp_audit_retranmission_queue(struct sctp_association *);
 

@@ -27,7 +27,7 @@
  */
 
 #ifndef _MACHINE_STACK_H_
-#define	_MACHINE_STACK_H_
+#define _MACHINE_STACK_H_
 
 extern int trapexit[];
 extern int asttrapexit[];

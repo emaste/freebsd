@@ -48,9 +48,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/intr.h>
 
-static void	configure_first(void *);
-static void	configure(void *);
-static void	configure_final(void *);
+static void configure_first(void *);
+static void configure(void *);
+static void configure_final(void *);
 
 SYSINIT(configure1, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure_first, NULL);
 /* SI_ORDER_SECOND is hookable */
@@ -83,7 +83,7 @@ configure_final(void *dummy)
 
 	/* Enable interrupt reception on this CPU */
 	intr_enable();
-	cninit_finish(); 
+	cninit_finish();
 
 	if (bootverbose)
 		printf("Device configuration finished.\n");

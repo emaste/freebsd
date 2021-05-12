@@ -33,28 +33,27 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+#include <dev/extres/syscon/syscon.h>
 #include <dev/fdt/simplebus.h>
-
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include "syscon_if.h"
-#include <dev/extres/syscon/syscon.h>
-#include "clkdev_if.h"
+#include <dev/ofw/openfirm.h>
 
 #include <arm/ti/ti_cpuid.h>
+
+#include "clkdev_if.h"
+#include "syscon_if.h"
 
 #if 0
 #define DPRINTF(dev, msg...) device_printf(dev, msg)
@@ -65,25 +64,21 @@ __FBSDID("$FreeBSD$");
 MALLOC_DECLARE(M_SYSCON);
 
 struct ti_scm_syscon_softc {
-	struct simplebus_softc	sc_simplebus;
-	device_t		dev;
-	struct syscon *		syscon;
-	struct resource *	res[1];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	struct mtx		mtx;
+	struct simplebus_softc sc_simplebus;
+	device_t dev;
+	struct syscon *syscon;
+	struct resource *res[1];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	struct mtx mtx;
 };
 
 static struct resource_spec ti_scm_syscon_res_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE | RF_SHAREABLE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE | RF_SHAREABLE }, { -1, 0 }
 };
 
 /* Device */
-static struct ofw_compat_data compat_data[] = {
-	{ "syscon",	1 },
-	{ NULL,		0 }
-};
+static struct ofw_compat_data compat_data[] = { { "syscon", 1 }, { NULL, 0 } };
 
 /* --- dev/extres/syscon syscon_method_t interface --- */
 static int
@@ -114,7 +109,8 @@ ti_scm_syscon_read_4(struct syscon *syscon, bus_size_t offset)
 	return (val);
 }
 static int
-ti_scm_syscon_modify_4(struct syscon *syscon, bus_size_t offset, uint32_t clr, uint32_t set)
+ti_scm_syscon_modify_4(
+    struct syscon *syscon, bus_size_t offset, uint32_t clr, uint32_t set)
 {
 	struct ti_scm_syscon_softc *sc;
 	uint32_t reg;
@@ -127,21 +123,22 @@ ti_scm_syscon_modify_4(struct syscon *syscon, bus_size_t offset, uint32_t clr, u
 	reg |= set;
 	bus_space_write_4(sc->bst, sc->bsh, offset, reg);
 	mtx_unlock(&sc->mtx);
-	DPRINTF(sc->dev, "offset=%lx reg: %x (clr %x set %x)\n", offset, reg, clr, set);
+	DPRINTF(sc->dev, "offset=%lx reg: %x (clr %x set %x)\n", offset, reg,
+	    clr, set);
 
 	return (0);
 }
 
 static syscon_method_t ti_scm_syscon_reg_methods[] = {
-	SYSCONMETHOD(syscon_read_4,	ti_scm_syscon_read_4),
-	SYSCONMETHOD(syscon_write_4,	ti_scm_syscon_write_4),
-	SYSCONMETHOD(syscon_modify_4,	ti_scm_syscon_modify_4),
+	SYSCONMETHOD(syscon_read_4, ti_scm_syscon_read_4),
+	SYSCONMETHOD(syscon_write_4, ti_scm_syscon_write_4),
+	SYSCONMETHOD(syscon_modify_4, ti_scm_syscon_modify_4),
 
 	SYSCONMETHOD_END
 };
 
-DEFINE_CLASS_1(ti_scm_syscon_reg, ti_scm_syscon_reg_class, ti_scm_syscon_reg_methods,
-    0, syscon_class);
+DEFINE_CLASS_1(ti_scm_syscon_reg, ti_scm_syscon_reg_class,
+    ti_scm_syscon_reg_methods, 0, syscon_class);
 
 /* device interface */
 static int
@@ -157,7 +154,7 @@ ti_scm_syscon_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "TI OMAP Control Module Syscon");
-	return(BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -167,7 +164,7 @@ ti_scm_syscon_attach(device_t dev)
 	phandle_t node, child;
 	int err;
 
- 	sc = device_get_softc(dev);
+	sc = device_get_softc(dev);
 	sc->dev = dev;
 
 	if (bus_alloc_resources(dev, ti_scm_syscon_res_spec, sc->res)) {
@@ -183,7 +180,8 @@ ti_scm_syscon_attach(device_t dev)
 	node = ofw_bus_get_node(sc->dev);
 
 	/* dev/extres/syscon interface */
-	sc->syscon = syscon_create_ofw_node(dev, &ti_scm_syscon_reg_class, node);
+	sc->syscon = syscon_create_ofw_node(
+	    dev, &ti_scm_syscon_reg_class, node);
 	if (sc->syscon == NULL) {
 		device_printf(dev, "Failed to create/register syscon\n");
 		return (ENXIO);
@@ -237,7 +235,8 @@ ti_scm_syscon_clk_read_4(device_t dev, bus_addr_t addr, uint32_t *val)
 }
 
 static int
-ti_scm_syscon_clk_modify_4(device_t dev, bus_addr_t addr, uint32_t clr, uint32_t set)
+ti_scm_syscon_clk_modify_4(
+    device_t dev, bus_addr_t addr, uint32_t clr, uint32_t set)
 {
 	struct ti_scm_syscon_softc *sc;
 	uint32_t reg;
@@ -248,7 +247,8 @@ ti_scm_syscon_clk_modify_4(device_t dev, bus_addr_t addr, uint32_t clr, uint32_t
 	reg &= ~clr;
 	reg |= set;
 	bus_space_write_4(sc->bst, sc->bsh, addr, reg);
-	DPRINTF(sc->dev, "offset=%lx reg: %x (clr %x set %x)\n", addr, reg, clr, set);
+	DPRINTF(sc->dev, "offset=%lx reg: %x (clr %x set %x)\n", addr, reg, clr,
+	    set);
 
 	return (0);
 }
@@ -270,22 +270,21 @@ ti_scm_syscon_clk_device_unlock(device_t dev)
 	mtx_unlock(&sc->mtx);
 }
 
-static device_method_t ti_scm_syscon_methods[] = {
-	DEVMETHOD(device_probe,		ti_scm_syscon_probe),
-	DEVMETHOD(device_attach,	ti_scm_syscon_attach),
+static device_method_t ti_scm_syscon_methods[] = { DEVMETHOD(device_probe,
+						       ti_scm_syscon_probe),
+	DEVMETHOD(device_attach, ti_scm_syscon_attach),
 
 	/* syscon interface */
-	DEVMETHOD(syscon_get_handle,	ti_scm_syscon_get_handle),
+	DEVMETHOD(syscon_get_handle, ti_scm_syscon_get_handle),
 
 	/* clkdev interface */
-	DEVMETHOD(clkdev_write_4,	ti_scm_syscon_clk_write_4),
-	DEVMETHOD(clkdev_read_4,	ti_scm_syscon_clk_read_4),
-	DEVMETHOD(clkdev_modify_4,	ti_scm_syscon_clk_modify_4),
-	DEVMETHOD(clkdev_device_lock,	ti_scm_syscon_clk_device_lock),
-	DEVMETHOD(clkdev_device_unlock,	ti_scm_syscon_clk_device_unlock),
+	DEVMETHOD(clkdev_write_4, ti_scm_syscon_clk_write_4),
+	DEVMETHOD(clkdev_read_4, ti_scm_syscon_clk_read_4),
+	DEVMETHOD(clkdev_modify_4, ti_scm_syscon_clk_modify_4),
+	DEVMETHOD(clkdev_device_lock, ti_scm_syscon_clk_device_lock),
+	DEVMETHOD(clkdev_device_unlock, ti_scm_syscon_clk_device_unlock),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 DEFINE_CLASS_1(ti_scm_syscon, ti_scm_syscon_driver, ti_scm_syscon_methods,
     sizeof(struct ti_scm_syscon_softc), simplebus_driver);

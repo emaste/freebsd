@@ -28,8 +28,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * from: FreeBSD: //depot/projects/arm/src/sys/arm/xscale/pxa2x0/pxa2x0_icu.c, rev 1
- * from: FreeBSD: src/sys/arm/mv/ic.c,v 1.5 2011/02/08 01:49:30
+ * from: FreeBSD: //depot/projects/arm/src/sys/arm/xscale/pxa2x0/pxa2x0_icu.c,
+ * rev 1 from: FreeBSD: src/sys/arm/mv/ic.c,v 1.5 2011/02/08 01:49:30
  */
 
 #include <sys/cdefs.h>
@@ -40,136 +40,133 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/kernel.h>
 #include <sys/cpuset.h>
-#include <sys/ktr.h>
 #include <sys/kdb.h>
-#include <sys/module.h>
+#include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/rman.h>
 #include <sys/proc.h>
+#include <sys/rman.h>
 #include <sys/smp.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
 
-#include <arm/mv/mvvar.h>
-#include <arm/mv/mvreg.h>
-
+#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/fdt/fdt_common.h>
+
+#include <arm/mv/mvreg.h>
+#include <arm/mv/mvvar.h>
 
 #include "pic_if.h"
 
 #ifdef DEBUG
-#define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
-    printf(fmt,##args); } while (0)
+#define debugf(fmt, args...)                \
+	do {                                \
+		printf("%s(): ", __func__); \
+		printf(fmt, ##args);        \
+	} while (0)
 #else
 #define debugf(fmt, args...)
 #endif
 
-#define	MPIC_INT_LOCAL			3
-#define	MPIC_INT_ERR			4
-#define	MPIC_INT_MSI			96
+#define MPIC_INT_LOCAL 3
+#define MPIC_INT_ERR 4
+#define MPIC_INT_MSI 96
 
-#define	MPIC_IRQ_MASK		0x3ff
+#define MPIC_IRQ_MASK 0x3ff
 
-#define	MPIC_CTRL		0x0
-#define	MPIC_SOFT_INT		0x4
-#define	MPIC_SOFT_INT_DRBL1	(1 << 5)
-#define	MPIC_ERR_CAUSE		0x20
-#define	MPIC_ISE		0x30
-#define	MPIC_ICE		0x34
-#define	MPIC_INT_CTL(irq)	(0x100 + (irq)*4)
+#define MPIC_CTRL 0x0
+#define MPIC_SOFT_INT 0x4
+#define MPIC_SOFT_INT_DRBL1 (1 << 5)
+#define MPIC_ERR_CAUSE 0x20
+#define MPIC_ISE 0x30
+#define MPIC_ICE 0x34
+#define MPIC_INT_CTL(irq) (0x100 + (irq)*4)
 
-#define	MPIC_INT_IRQ_FIQ_MASK(cpuid)	(0x101 << (cpuid))
-#define	MPIC_CTRL_NIRQS(ctrl)	(((ctrl) >> 2) & 0x3ff)
+#define MPIC_INT_IRQ_FIQ_MASK(cpuid) (0x101 << (cpuid))
+#define MPIC_CTRL_NIRQS(ctrl) (((ctrl) >> 2) & 0x3ff)
 
-#define	MPIC_IN_DRBL		0x08
-#define	MPIC_IN_DRBL_MASK	0x0c
-#define	MPIC_PPI_CAUSE		0x10
-#define	MPIC_CTP		0x40
-#define	MPIC_IIACK		0x44
-#define	MPIC_ISM		0x48
-#define	MPIC_ICM		0x4c
-#define	MPIC_ERR_MASK		0x50
-#define	MPIC_LOCAL_MASK		0x54
-#define	MPIC_CPU(n)		(n) * 0x100
+#define MPIC_IN_DRBL 0x08
+#define MPIC_IN_DRBL_MASK 0x0c
+#define MPIC_PPI_CAUSE 0x10
+#define MPIC_CTP 0x40
+#define MPIC_IIACK 0x44
+#define MPIC_ISM 0x48
+#define MPIC_ICM 0x4c
+#define MPIC_ERR_MASK 0x50
+#define MPIC_LOCAL_MASK 0x54
+#define MPIC_CPU(n) (n) * 0x100
 
-#define	MPIC_PPI	32
+#define MPIC_PPI 32
 
 struct mv_mpic_irqsrc {
-	struct intr_irqsrc	mmi_isrc;
-	u_int			mmi_irq;
+	struct intr_irqsrc mmi_isrc;
+	u_int mmi_irq;
 };
 
 struct mv_mpic_softc {
-	device_t		sc_dev;
-	struct resource	*	mpic_res[4];
-	bus_space_tag_t		mpic_bst;
-	bus_space_handle_t	mpic_bsh;
-	bus_space_tag_t		cpu_bst;
-	bus_space_handle_t	cpu_bsh;
-	bus_space_tag_t		drbl_bst;
-	bus_space_handle_t	drbl_bsh;
-	struct mtx		mtx;
-	struct mv_mpic_irqsrc *	mpic_isrcs;
-	int			nirqs;
-	void *			intr_hand;
+	device_t sc_dev;
+	struct resource *mpic_res[4];
+	bus_space_tag_t mpic_bst;
+	bus_space_handle_t mpic_bsh;
+	bus_space_tag_t cpu_bst;
+	bus_space_handle_t cpu_bsh;
+	bus_space_tag_t drbl_bst;
+	bus_space_handle_t drbl_bsh;
+	struct mtx mtx;
+	struct mv_mpic_irqsrc *mpic_isrcs;
+	int nirqs;
+	void *intr_hand;
 };
 
-static struct resource_spec mv_mpic_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	2,	RF_ACTIVE | RF_OPTIONAL },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE | RF_OPTIONAL },
-	{ -1, 0 }
-};
+static struct resource_spec mv_mpic_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_MEMORY, 1, RF_ACTIVE },
+	{ SYS_RES_MEMORY, 2, RF_ACTIVE | RF_OPTIONAL },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE | RF_OPTIONAL }, { -1, 0 } };
 
-static struct ofw_compat_data compat_data[] = {
-	{"mrvl,mpic",		true},
-	{"marvell,mpic",	true},
-	{NULL,			false}
-};
+static struct ofw_compat_data compat_data[] = { { "mrvl,mpic", true },
+	{ "marvell,mpic", true }, { NULL, false } };
 
 static struct mv_mpic_softc *mv_mpic_sc = NULL;
 
 void mpic_send_ipi(int cpus, u_int ipi);
 
-static int	mv_mpic_probe(device_t);
-static int	mv_mpic_attach(device_t);
-uint32_t	mv_mpic_get_cause(void);
-uint32_t	mv_mpic_get_cause_err(void);
-uint32_t	mv_mpic_get_msi(void);
-static void	mpic_unmask_irq(uintptr_t nb);
-static void	mpic_mask_irq(uintptr_t nb);
-static void	mpic_mask_irq_err(uintptr_t nb);
-static void	mpic_unmask_irq_err(uintptr_t nb);
+static int mv_mpic_probe(device_t);
+static int mv_mpic_attach(device_t);
+uint32_t mv_mpic_get_cause(void);
+uint32_t mv_mpic_get_cause_err(void);
+uint32_t mv_mpic_get_msi(void);
+static void mpic_unmask_irq(uintptr_t nb);
+static void mpic_mask_irq(uintptr_t nb);
+static void mpic_mask_irq_err(uintptr_t nb);
+static void mpic_unmask_irq_err(uintptr_t nb);
 static boolean_t mpic_irq_is_percpu(uintptr_t);
-static int	mpic_intr(void *arg);
-static void	mpic_unmask_msi(void);
+static int mpic_intr(void *arg);
+static void mpic_unmask_msi(void);
 void mpic_init_secondary(device_t);
-void mpic_ipi_send(device_t, struct intr_irqsrc*, cpuset_t, u_int);
+void mpic_ipi_send(device_t, struct intr_irqsrc *, cpuset_t, u_int);
 int mpic_ipi_read(int);
 void mpic_ipi_clear(int);
 
-#define	MPIC_WRITE(softc, reg, val) \
-    bus_space_write_4((softc)->mpic_bst, (softc)->mpic_bsh, (reg), (val))
-#define	MPIC_READ(softc, reg) \
-    bus_space_read_4((softc)->mpic_bst, (softc)->mpic_bsh, (reg))
+#define MPIC_WRITE(softc, reg, val) \
+	bus_space_write_4((softc)->mpic_bst, (softc)->mpic_bsh, (reg), (val))
+#define MPIC_READ(softc, reg) \
+	bus_space_read_4((softc)->mpic_bst, (softc)->mpic_bsh, (reg))
 
 #define MPIC_CPU_WRITE(softc, reg, val) \
-    bus_space_write_4((softc)->cpu_bst, (softc)->cpu_bsh, (reg), (val))
+	bus_space_write_4((softc)->cpu_bst, (softc)->cpu_bsh, (reg), (val))
 #define MPIC_CPU_READ(softc, reg) \
-    bus_space_read_4((softc)->cpu_bst, (softc)->cpu_bsh, (reg))
+	bus_space_read_4((softc)->cpu_bst, (softc)->cpu_bsh, (reg))
 
 #define MPIC_DRBL_WRITE(softc, reg, val) \
-    bus_space_write_4((softc)->drbl_bst, (softc)->drbl_bsh, (reg), (val))
+	bus_space_write_4((softc)->drbl_bst, (softc)->drbl_bsh, (reg), (val))
 #define MPIC_DRBL_READ(softc, reg) \
-    bus_space_read_4((softc)->drbl_bst, (softc)->drbl_bsh, (reg))
+	bus_space_read_4((softc)->drbl_bst, (softc)->drbl_bsh, (reg))
 
 static int
 mv_mpic_probe(device_t dev)
@@ -193,8 +190,8 @@ mv_mpic_register_isrcs(struct mv_mpic_softc *sc)
 	struct intr_irqsrc *isrc;
 	const char *name;
 
-	sc->mpic_isrcs = malloc(sc->nirqs * sizeof (*sc->mpic_isrcs), M_DEVBUF,
-	    M_WAITOK | M_ZERO);
+	sc->mpic_isrcs = malloc(
+	    sc->nirqs * sizeof(*sc->mpic_isrcs), M_DEVBUF, M_WAITOK | M_ZERO);
 
 	name = device_get_nameunit(sc->sc_dev);
 	for (irq = 0; irq < sc->nirqs; irq++) {
@@ -202,11 +199,11 @@ mv_mpic_register_isrcs(struct mv_mpic_softc *sc)
 
 		isrc = &sc->mpic_isrcs[irq].mmi_isrc;
 		if (irq < MPIC_PPI) {
-			error = intr_isrc_register(isrc, sc->sc_dev,
-			    INTR_ISRCF_PPI, "%s", name);
+			error = intr_isrc_register(
+			    isrc, sc->sc_dev, INTR_ISRCF_PPI, "%s", name);
 		} else {
-			error = intr_isrc_register(isrc, sc->sc_dev, 0, "%s",
-			    name);
+			error = intr_isrc_register(
+			    isrc, sc->sc_dev, 0, "%s", name);
 		}
 		if (error != 0) {
 			/* XXX call intr_isrc_deregister() */
@@ -243,8 +240,8 @@ mv_mpic_attach(device_t dev)
 	if (sc->mpic_res[3] == NULL)
 		device_printf(dev, "No interrupt to use.\n");
 	else
-		bus_setup_intr(dev, sc->mpic_res[3], INTR_TYPE_CLK,
-		    mpic_intr, NULL, sc, &sc->intr_hand);
+		bus_setup_intr(dev, sc->mpic_res[3], INTR_TYPE_CLK, mpic_intr,
+		    NULL, sc, &sc->intr_hand);
 
 	sc->mpic_bst = rman_get_bustag(sc->mpic_res[0]);
 	sc->mpic_bsh = rman_get_bushandle(sc->mpic_res[0]);
@@ -283,8 +280,9 @@ mv_mpic_attach(device_t dev)
 	/* Unmask CPU performance counters overflow irq */
 	for (cpu = 0; cpu < mp_ncpus; cpu++)
 		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_CPU(cpu) + MPIC_LOCAL_MASK,
-		    (1 << cpu) | MPIC_CPU_READ(mv_mpic_sc,
-		    MPIC_CPU(cpu) + MPIC_LOCAL_MASK));
+		    (1 << cpu) |
+			MPIC_CPU_READ(
+			    mv_mpic_sc, MPIC_CPU(cpu) + MPIC_LOCAL_MASK));
 
 	return (0);
 }
@@ -302,16 +300,18 @@ mpic_intr(void *arg)
 	irq = 0;
 
 	for (cause = MPIC_CPU_READ(sc, MPIC_PPI_CAUSE); cause > 0;
-	    cause >>= 1, irq++) {
+	     cause >>= 1, irq++) {
 		if (cause & 1) {
 			irqsrc = MPIC_READ(sc, MPIC_INT_CTL(irq));
 			if ((irqsrc & MPIC_INT_IRQ_FIQ_MASK(cpuid)) == 0)
 				continue;
 			if (intr_isrc_dispatch(&sc->mpic_isrcs[irq].mmi_isrc,
-			    curthread->td_intr_frame) != 0) {
+				curthread->td_intr_frame) != 0) {
 				mpic_mask_irq(irq);
-				device_printf(sc->sc_dev, "Stray irq %u "
-				    "disabled\n", irq);
+				device_printf(sc->sc_dev,
+				    "Stray irq %u "
+				    "disabled\n",
+				    irq);
 			}
 		}
 	}
@@ -338,8 +338,8 @@ mpic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-mpic_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+mpic_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct intr_map_data_fdt *daf;
 	struct mv_mpic_softc *sc;
@@ -350,7 +350,7 @@ mpic_map_intr(device_t dev, struct intr_map_data *data,
 	sc = device_get_softc(dev);
 	daf = (struct intr_map_data_fdt *)data;
 
-	if (daf->ncells !=1 || daf->cells[0] >= sc->nirqs)
+	if (daf->ncells != 1 || daf->cells[0] >= sc->nirqs)
 		return (EINVAL);
 
 	*isrcp = &sc->mpic_isrcs[daf->cells[0]].mmi_isrc;
@@ -376,20 +376,18 @@ mpic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 {
 }
 
-static device_method_t mv_mpic_methods[] = {
-	DEVMETHOD(device_probe,		mv_mpic_probe),
-	DEVMETHOD(device_attach,	mv_mpic_attach),
+static device_method_t mv_mpic_methods[] = { DEVMETHOD(
+						 device_probe, mv_mpic_probe),
+	DEVMETHOD(device_attach, mv_mpic_attach),
 
-	DEVMETHOD(pic_disable_intr,	mpic_disable_intr),
-	DEVMETHOD(pic_enable_intr,	mpic_enable_intr),
-	DEVMETHOD(pic_map_intr,		mpic_map_intr),
-	DEVMETHOD(pic_post_filter,	mpic_post_filter),
-	DEVMETHOD(pic_post_ithread,	mpic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mpic_pre_ithread),
-	DEVMETHOD(pic_init_secondary,	mpic_init_secondary),
-	DEVMETHOD(pic_ipi_send,		mpic_ipi_send),
-	{ 0, 0 }
-};
+	DEVMETHOD(pic_disable_intr, mpic_disable_intr),
+	DEVMETHOD(pic_enable_intr, mpic_enable_intr),
+	DEVMETHOD(pic_map_intr, mpic_map_intr),
+	DEVMETHOD(pic_post_filter, mpic_post_filter),
+	DEVMETHOD(pic_post_ithread, mpic_post_ithread),
+	DEVMETHOD(pic_pre_ithread, mpic_pre_ithread),
+	DEVMETHOD(pic_init_secondary, mpic_init_secondary),
+	DEVMETHOD(pic_ipi_send, mpic_ipi_send), { 0, 0 } };
 
 static driver_t mv_mpic_driver = {
 	"mpic",
@@ -454,8 +452,8 @@ mpic_unmask_irq(uintptr_t nb)
 
 	if (nb == MPIC_INT_LOCAL) {
 		for (cpu = 0; cpu < mp_ncpus; cpu++)
-			MPIC_CPU_WRITE(mv_mpic_sc,
-			    MPIC_CPU(cpu) + MPIC_ICM, nb);
+			MPIC_CPU_WRITE(
+			    mv_mpic_sc, MPIC_CPU(cpu) + MPIC_ICM, nb);
 		return;
 	}
 #endif
@@ -479,8 +477,8 @@ mpic_mask_irq(uintptr_t nb)
 
 	if (nb == MPIC_INT_LOCAL) {
 		for (cpu = 0; cpu < mp_ncpus; cpu++)
-			MPIC_CPU_WRITE(mv_mpic_sc,
-			    MPIC_CPU(cpu) + MPIC_ISM, nb);
+			MPIC_CPU_WRITE(
+			    mv_mpic_sc, MPIC_CPU(cpu) + MPIC_ISM, nb);
 		return;
 	}
 #endif
@@ -522,7 +520,8 @@ mv_mpic_get_msi(void)
 	uint32_t cause;
 	uint8_t bit_off;
 
-	KASSERT(mv_mpic_sc->drbl_bst != NULL, ("No doorbell in mv_mpic_get_msi"));
+	KASSERT(
+	    mv_mpic_sc->drbl_bst != NULL, ("No doorbell in mv_mpic_get_msi"));
 	cause = MPIC_DRBL_READ(mv_mpic_sc, 0);
 
 	if (cause)
@@ -558,8 +557,8 @@ mv_msi_data(int irq, uint64_t *addr, uint32_t *data)
 	/* Get offset of MPIC register space */
 	error = fdt_regsize(node, &base, &size);
 	if (error) {
-		printf("%s: Cannot get MPIC register offset, err:%d",
-		    __func__, error);
+		printf("%s: Cannot get MPIC register offset, err:%d", __func__,
+		    error);
 		return (error);
 	}
 

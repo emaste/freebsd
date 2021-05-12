@@ -40,36 +40,31 @@ __FBSDID("$FreeBSD$");
 
 struct dfs_softc {
 	device_t dev;
-	int	 dfs4;
+	int dfs4;
 };
 
-static void	dfs_identify(driver_t *driver, device_t parent);
-static int	dfs_probe(device_t dev);
-static int	dfs_attach(device_t dev);
-static int	dfs_settings(device_t dev, struct cf_setting *sets, int *count);
-static int	dfs_set(device_t dev, const struct cf_setting *set);
-static int	dfs_get(device_t dev, struct cf_setting *set);
-static int	dfs_type(device_t dev, int *type);
+static void dfs_identify(driver_t *driver, device_t parent);
+static int dfs_probe(device_t dev);
+static int dfs_attach(device_t dev);
+static int dfs_settings(device_t dev, struct cf_setting *sets, int *count);
+static int dfs_set(device_t dev, const struct cf_setting *set);
+static int dfs_get(device_t dev, struct cf_setting *set);
+static int dfs_type(device_t dev, int *type);
 
 static device_method_t dfs_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	dfs_identify),
-	DEVMETHOD(device_probe,		dfs_probe),
-	DEVMETHOD(device_attach,	dfs_attach),
+	DEVMETHOD(device_identify, dfs_identify),
+	DEVMETHOD(device_probe, dfs_probe),
+	DEVMETHOD(device_attach, dfs_attach),
 
 	/* cpufreq interface */
-	DEVMETHOD(cpufreq_drv_set,	dfs_set),
-	DEVMETHOD(cpufreq_drv_get,	dfs_get),
-	DEVMETHOD(cpufreq_drv_type,	dfs_type),
-	DEVMETHOD(cpufreq_drv_settings,	dfs_settings),
-	{0, 0}
+	DEVMETHOD(cpufreq_drv_set, dfs_set),
+	DEVMETHOD(cpufreq_drv_get, dfs_get),
+	DEVMETHOD(cpufreq_drv_type, dfs_type),
+	DEVMETHOD(cpufreq_drv_settings, dfs_settings), { 0, 0 }
 };
 
-static driver_t dfs_driver = {
-	"dfs",
-	dfs_methods,
-	sizeof(struct dfs_softc)
-};
+static driver_t dfs_driver = { "dfs", dfs_methods, sizeof(struct dfs_softc) };
 
 static devclass_t dfs_devclass;
 DRIVER_MODULE(dfs, cpu, dfs_driver, dfs_devclass, 0, 0);
@@ -79,8 +74,8 @@ DRIVER_MODULE(dfs, cpu, dfs_driver, dfs_devclass, 0, 0);
  * RISC Microprocessor Family Reference Manual", rev. 5.
  */
 
-#define	HID1_DFS2	(1UL << 22)
-#define	HID1_DFS4	(1UL << 23)
+#define HID1_DFS2 (1UL << 22)
+#define HID1_DFS4 (1UL << 23)
 
 static void
 dfs_identify(driver_t *driver, device_t parent)
@@ -90,11 +85,11 @@ dfs_identify(driver_t *driver, device_t parent)
 
 	/* Check for an MPC 7447A or 7448 CPU */
 	switch (vers) {
-		case MPC7447A:
-		case MPC7448:
-			break;
-		default:
-			return;
+	case MPC7447A:
+	case MPC7448:
+		break;
+	default:
+		return;
 	}
 
 	/* Make sure we're not being doubly invoked. */
@@ -154,8 +149,10 @@ dfs_settings(device_t dev, struct cf_setting *sets, int *count)
 	/* Return a list of valid settings for this driver. */
 	memset(sets, CPUFREQ_VAL_UNKNOWN, sizeof(*sets) * states);
 
-	sets[0].freq = 10000; sets[0].dev = dev;
-	sets[1].freq = 5000; sets[1].dev = dev;
+	sets[0].freq = 10000;
+	sets[0].dev = dev;
+	sets[1].freq = 5000;
+	sets[1].dev = dev;
 	if (sc->dfs4) {
 		sets[2].freq = 2500;
 		sets[2].dev = dev;
@@ -188,7 +185,8 @@ dfs_set(device_t dev, const struct cf_setting *set)
 
 	powerpc_sync();
 	mtspr(SPR_HID1, hid1);
-	powerpc_sync(); isync();
+	powerpc_sync();
+	isync();
 
 	return (0);
 }

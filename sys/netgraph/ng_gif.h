@@ -34,7 +34,7 @@
  *
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -45,7 +45,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -71,18 +71,18 @@
 #define _NETGRAPH_NG_GIF_H_
 
 /* Node type name and magic cookie */
-#define NG_GIF_NODE_TYPE	"gif"
-#define NGM_GIF_COOKIE		994115727
+#define NG_GIF_NODE_TYPE "gif"
+#define NGM_GIF_COOKIE 994115727
 
 /* Hook names */
-#define NG_GIF_HOOK_LOWER	"lower"		/* connection to raw device */
-#define NG_GIF_HOOK_DIVERT	"divert"	/* alias for lower */
-#define NG_GIF_HOOK_ORPHAN	"orphans"	/* like lower, unknowns only */
+#define NG_GIF_HOOK_LOWER "lower"    /* connection to raw device */
+#define NG_GIF_HOOK_DIVERT "divert"  /* alias for lower */
+#define NG_GIF_HOOK_ORPHAN "orphans" /* like lower, unknowns only */
 
 /* Netgraph control messages */
 enum {
-	NGM_GIF_GET_IFNAME = 1,		/* get the interface name */
-	NGM_GIF_GET_IFINDEX		/* get the interface global index # */
+	NGM_GIF_GET_IFNAME = 1, /* get the interface name */
+	NGM_GIF_GET_IFINDEX	/* get the interface global index # */
 };
 
 #endif /* _NETGRAPH_NG_GIF_H_ */

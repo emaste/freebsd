@@ -32,13 +32,13 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 
+#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/signal.h>
 #include <sys/syscallsubr.h>
-#include <sys/systm.h>
 #include <sys/time.h>
-#include <sys/types.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -154,7 +154,8 @@ linux_timer_gettime(struct thread *td, struct linux_timer_gettime_args *uap)
 }
 
 int
-linux_timer_getoverrun(struct thread *td, struct linux_timer_getoverrun_args *uap)
+linux_timer_getoverrun(
+    struct thread *td, struct linux_timer_getoverrun_args *uap)
 {
 
 	return (kern_ktimer_getoverrun(td, uap->timerid));

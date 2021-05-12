@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -45,20 +45,20 @@
 #define _NETGRAPH_NG_IFACE_H_
 
 /* Node type name and magic cookie */
-#define NG_IFACE_NODE_TYPE		"iface"
-#define NGM_IFACE_COOKIE		1108312559
+#define NG_IFACE_NODE_TYPE "iface"
+#define NGM_IFACE_COOKIE 1108312559
 
 /* Interface base name */
-#define NG_IFACE_IFACE_NAME		"ng"
+#define NG_IFACE_IFACE_NAME "ng"
 
 /* My hook names */
-#define NG_IFACE_HOOK_INET		"inet"
-#define NG_IFACE_HOOK_INET6		"inet6"
+#define NG_IFACE_HOOK_INET "inet"
+#define NG_IFACE_HOOK_INET6 "inet6"
 
 /* MTU bounds */
-#define NG_IFACE_MTU_MIN		72
-#define NG_IFACE_MTU_MAX		65535
-#define NG_IFACE_MTU_DEFAULT		1500
+#define NG_IFACE_MTU_MIN 72
+#define NG_IFACE_MTU_MAX 65535
+#define NG_IFACE_MTU_DEFAULT 1500
 
 /* Netgraph commands */
 enum {

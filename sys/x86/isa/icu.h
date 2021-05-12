@@ -41,37 +41,37 @@
  */
 
 #ifndef _X86_ISA_ICU_H_
-#define	_X86_ISA_ICU_H_
+#define _X86_ISA_ICU_H_
 
-#define	ICU_IMR_OFFSET	1
+#define ICU_IMR_OFFSET 1
 
 /*
  * PC-AT machines wire the slave PIC to pin 2 on the master PIC.
  */
-#define	ICU_SLAVEID	2
+#define ICU_SLAVEID 2
 
 /*
  * Determine the base master and slave modes not including auto EOI support.
  * All machines that FreeBSD supports use 8086 mode.
  */
-#define	BASE_MASTER_MODE	ICW4_8086
-#define	BASE_SLAVE_MODE		ICW4_8086
+#define BASE_MASTER_MODE ICW4_8086
+#define BASE_SLAVE_MODE ICW4_8086
 
 /* Enable automatic EOI if requested. */
 #ifdef AUTO_EOI_1
-#define	MASTER_MODE		(BASE_MASTER_MODE | ICW4_AEOI)
+#define MASTER_MODE (BASE_MASTER_MODE | ICW4_AEOI)
 #else
-#define	MASTER_MODE		BASE_MASTER_MODE
+#define MASTER_MODE BASE_MASTER_MODE
 #endif
 #ifdef AUTO_EOI_2
-#define	SLAVE_MODE		(BASE_SLAVE_MODE | ICW4_AEOI)
+#define SLAVE_MODE (BASE_SLAVE_MODE | ICW4_AEOI)
 #else
-#define	SLAVE_MODE		BASE_SLAVE_MODE
+#define SLAVE_MODE BASE_SLAVE_MODE
 #endif
 
-#define	IRQ_MASK(irq)		(1 << (irq))
+#define IRQ_MASK(irq) (1 << (irq))
 
-void	atpic_handle_intr(u_int vector, struct trapframe *frame);
-void	atpic_startup(void);
+void atpic_handle_intr(u_int vector, struct trapframe *frame);
+void atpic_startup(void);
 
 #endif /* !_X86_ISA_ICU_H_ */

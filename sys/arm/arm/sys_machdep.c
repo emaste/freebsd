@@ -40,15 +40,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/capsicum.h>
 #include <sys/proc.h>
-#include <sys/sysproto.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
+#include <sys/sysproto.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
-#include <machine/sysarch.h>
 #include <machine/machdep.h>
+#include <machine/sysarch.h>
 #include <machine/vmparam.h>
 
 #ifndef _SYS_SYSPROTO_H_
@@ -59,7 +60,7 @@ struct sysarch_args {
 #endif
 
 /* Prototypes */
-static int arm32_sync_icache (struct thread *, void *);
+static int arm32_sync_icache(struct thread *, void *);
 static int arm32_drain_writebuf(struct thread *, void *);
 
 static int
@@ -68,7 +69,7 @@ sync_icache(uintptr_t addr, size_t len)
 	size_t size;
 	vm_offset_t rv;
 
-	 /* Align starting address to cacheline size */
+	/* Align starting address to cacheline size */
 	len += addr & cpuinfo.dcache_line_mask;
 	addr &= ~cpuinfo.dcache_line_mask;
 
@@ -106,7 +107,7 @@ arm32_sync_icache(struct thread *td, void *args)
 	if ((error = copyin(args, &ua, sizeof(ua))) != 0)
 		return (error);
 
-	if  (ua.len == 0) {
+	if (ua.len == 0) {
 		td->td_retval[0] = 0;
 		return (0);
 	}

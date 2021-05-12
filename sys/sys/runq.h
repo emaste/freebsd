@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_RUNQ_H_
-#define	_RUNQ_H_
+#ifndef _RUNQ_H_
+#define _RUNQ_H_
 
 #include <machine/runq.h>
 
@@ -39,8 +39,8 @@ struct thread;
  * Run queue parameters.
  */
 
-#define	RQ_NQS		(64)		/* Number of run queues. */
-#define	RQ_PPQ		(4)		/* Priorities per queue. */
+#define RQ_NQS (64) /* Number of run queues. */
+#define RQ_PPQ (4) /* Priorities per queue. */
 
 /*
  * Head of run queues.
@@ -60,18 +60,18 @@ struct rqbits {
  * are placed, and a structure to maintain the status of each queue.
  */
 struct runq {
-	struct	rqbits rq_status;
-	struct	rqhead rq_queues[RQ_NQS];
+	struct rqbits rq_status;
+	struct rqhead rq_queues[RQ_NQS];
 };
 
-void	runq_add(struct runq *, struct thread *, int);
-void	runq_add_pri(struct runq *, struct thread *, u_char, int);
-int	runq_check(struct runq *);
-struct	thread *runq_choose(struct runq *);
-struct	thread *runq_choose_from(struct runq *, u_char);
-struct	thread *runq_choose_fuzz(struct runq *, int);
-void	runq_init(struct runq *);
-void	runq_remove(struct runq *, struct thread *);
-void	runq_remove_idx(struct runq *, struct thread *, u_char *);
+void runq_add(struct runq *, struct thread *, int);
+void runq_add_pri(struct runq *, struct thread *, u_char, int);
+int runq_check(struct runq *);
+struct thread *runq_choose(struct runq *);
+struct thread *runq_choose_from(struct runq *, u_char);
+struct thread *runq_choose_fuzz(struct runq *, int);
+void runq_init(struct runq *);
+void runq_remove(struct runq *, struct thread *);
+void runq_remove_idx(struct runq *, struct thread *, u_char *);
 
 #endif

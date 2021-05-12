@@ -45,8 +45,7 @@ void reinit_mmu(uint32_t ttb, uint32_t aux_clr, uint32_t aux_set);
 int disable_bp_hardening;
 int spectre_v2_safe = 1;
 
-struct cpuinfo cpuinfo =
-{
+struct cpuinfo cpuinfo = {
 	/* Use safe defaults for start */
 	.dcache_line_size = 32,
 	.dcache_line_mask = 31,
@@ -54,10 +53,9 @@ struct cpuinfo cpuinfo =
 	.icache_line_mask = 31,
 };
 
-static SYSCTL_NODE(_hw, OID_AUTO, cpu, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "CPU");
-static SYSCTL_NODE(_hw_cpu, OID_AUTO, quirks, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "CPU quirks");
+static SYSCTL_NODE(_hw, OID_AUTO, cpu, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "CPU");
+static SYSCTL_NODE(
+    _hw_cpu, OID_AUTO, quirks, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "CPU quirks");
 
 /*
  * Tunable CPU quirks.
@@ -73,9 +71,8 @@ SYSCTL_INT(_hw_cpu_quirks, OID_AUTO, actlr_mask,
     "Bits to be masked in ACTLR");
 
 static uint32_t cpu_quirks_actlr_set;
-SYSCTL_INT(_hw_cpu_quirks, OID_AUTO, actlr_set,
-    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &cpu_quirks_actlr_set, 0,
-    "Bits to be set in ACTLR");
+SYSCTL_INT(_hw_cpu_quirks, OID_AUTO, actlr_set, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &cpu_quirks_actlr_set, 0, "Bits to be set in ACTLR");
 
 /* Read and parse CPU id scheme */
 void
@@ -148,9 +145,9 @@ cpuinfo_init(void)
 	cpuinfo.id_isar4 = cp15_id_isar4_get();
 	cpuinfo.id_isar5 = cp15_id_isar5_get();
 
-/* Not yet - CBAR only exist on ARM SMP Cortex A CPUs
-	cpuinfo.cbar = cp15_cbar_get();
-*/
+	/* Not yet - CBAR only exist on ARM SMP Cortex A CPUs
+		cpuinfo.cbar = cp15_cbar_get();
+	*/
 	if (CPU_CT_FORMAT(cpuinfo.ctr) == CPU_CT_ARMV7) {
 		cpuinfo.ccsidr = cp15_ccsidr_get();
 		cpuinfo.clidr = cp15_clidr_get();
@@ -162,7 +159,7 @@ cpuinfo_init(void)
 
 	/* parsed bits of above registers */
 	/* id_mmfr0 */
-	cpuinfo.outermost_shareability =  (cpuinfo.id_mmfr0 >> 8) & 0xF;
+	cpuinfo.outermost_shareability = (cpuinfo.id_mmfr0 >> 8) & 0xF;
 	cpuinfo.shareability_levels = (cpuinfo.id_mmfr0 >> 12) & 0xF;
 	cpuinfo.auxiliary_registers = (cpuinfo.id_mmfr0 >> 20) & 0xF;
 	cpuinfo.innermost_shareability = (cpuinfo.id_mmfr0 >> 28) & 0xF;
@@ -170,7 +167,7 @@ cpuinfo_init(void)
 	cpuinfo.mem_barrier = (cpuinfo.id_mmfr2 >> 20) & 0xF;
 	/* id_mmfr3 */
 	cpuinfo.coherent_walk = (cpuinfo.id_mmfr3 >> 20) & 0xF;
-	cpuinfo.maintenance_broadcast =(cpuinfo.id_mmfr3 >> 12) & 0xF;
+	cpuinfo.maintenance_broadcast = (cpuinfo.id_mmfr3 >> 12) & 0xF;
 	/* id_pfr1 */
 	cpuinfo.generic_timer_ext = (cpuinfo.id_pfr1 >> 16) & 0xF;
 	cpuinfo.virtualization_ext = (cpuinfo.id_pfr1 >> 12) & 0xF;
@@ -180,15 +177,15 @@ cpuinfo_init(void)
 
 	/* L1 Cache sizes */
 	if (CPU_CT_FORMAT(cpuinfo.ctr) == CPU_CT_ARMV7) {
-		cpuinfo.dcache_line_size =
-		    1 << (CPU_CT_DMINLINE(cpuinfo.ctr) + 2);
-		cpuinfo.icache_line_size =
-		    1 << (CPU_CT_IMINLINE(cpuinfo.ctr) + 2);
+		cpuinfo.dcache_line_size = 1
+		    << (CPU_CT_DMINLINE(cpuinfo.ctr) + 2);
+		cpuinfo.icache_line_size = 1
+		    << (CPU_CT_IMINLINE(cpuinfo.ctr) + 2);
 	} else {
-		cpuinfo.dcache_line_size =
-		    1 << (CPU_CT_xSIZE_LEN(CPU_CT_DSIZE(cpuinfo.ctr)) + 3);
-		cpuinfo.icache_line_size =
-		    1 << (CPU_CT_xSIZE_LEN(CPU_CT_ISIZE(cpuinfo.ctr)) + 3);
+		cpuinfo.dcache_line_size = 1
+		    << (CPU_CT_xSIZE_LEN(CPU_CT_DSIZE(cpuinfo.ctr)) + 3);
+		cpuinfo.icache_line_size = 1
+		    << (CPU_CT_xSIZE_LEN(CPU_CT_ISIZE(cpuinfo.ctr)) + 3);
 	}
 	cpuinfo.dcache_line_mask = cpuinfo.dcache_line_size - 1;
 	cpuinfo.icache_line_mask = cpuinfo.icache_line_size - 1;
@@ -197,40 +194,40 @@ cpuinfo_init(void)
 	elf_hwcap |= HWCAP_HALF | HWCAP_FAST_MULT; /* Required for all CPUs */
 	elf_hwcap |= HWCAP_TLS | HWCAP_EDSP;	   /* Required for v6+ CPUs */
 
-	tmp = (cpuinfo.id_isar0 >> 24) & 0xF;	/* Divide_instrs */
+	tmp = (cpuinfo.id_isar0 >> 24) & 0xF; /* Divide_instrs */
 	if (tmp >= 1)
 		elf_hwcap |= HWCAP_IDIVT;
 	if (tmp >= 2)
 		elf_hwcap |= HWCAP_IDIVA;
 
-	tmp = (cpuinfo.id_pfr0 >> 4) & 0xF; 	/* State1  */
+	tmp = (cpuinfo.id_pfr0 >> 4) & 0xF; /* State1  */
 	if (tmp >= 1)
 		elf_hwcap |= HWCAP_THUMB;
 
-	tmp = (cpuinfo.id_pfr0 >> 12) & 0xF; 	/* State3  */
+	tmp = (cpuinfo.id_pfr0 >> 12) & 0xF; /* State3  */
 	if (tmp >= 1)
 		elf_hwcap |= HWCAP_THUMBEE;
 
-	tmp = (cpuinfo.id_mmfr0 >> 0) & 0xF; 	/* VMSA */
+	tmp = (cpuinfo.id_mmfr0 >> 0) & 0xF; /* VMSA */
 	if (tmp >= 5)
 		elf_hwcap |= HWCAP_LPAE;
 
 	/* Fill AT_HWCAP2 bits. */
-	tmp = (cpuinfo.id_isar5 >> 4) & 0xF;	/* AES */
+	tmp = (cpuinfo.id_isar5 >> 4) & 0xF; /* AES */
 	if (tmp >= 1)
 		elf_hwcap2 |= HWCAP2_AES;
 	if (tmp >= 2)
 		elf_hwcap2 |= HWCAP2_PMULL;
 
-	tmp = (cpuinfo.id_isar5 >> 8) & 0xF;	/* SHA1 */
+	tmp = (cpuinfo.id_isar5 >> 8) & 0xF; /* SHA1 */
 	if (tmp >= 1)
 		elf_hwcap2 |= HWCAP2_SHA1;
 
-	tmp = (cpuinfo.id_isar5 >> 12) & 0xF;	/* SHA2 */
+	tmp = (cpuinfo.id_isar5 >> 12) & 0xF; /* SHA2 */
 	if (tmp >= 1)
 		elf_hwcap2 |= HWCAP2_SHA2;
 
-	tmp = (cpuinfo.id_isar5 >> 16) & 0xF;	/* CRC32 */
+	tmp = (cpuinfo.id_isar5 >> 16) & 0xF; /* CRC32 */
 	if (tmp >= 1)
 		elf_hwcap2 |= HWCAP2_CRC32;
 }
@@ -270,8 +267,8 @@ cpuinfo_get_actlr_modifier(uint32_t *actlr_mask, uint32_t *actlr_set)
 			 * Enable snoop-delayed exclusive handling
 			 * Enable SMP mode
 			 */
-			*actlr_mask = (1U << 31) |(1 << 6);
-			*actlr_set = (1U << 31) |(1 << 6);
+			*actlr_mask = (1U << 31) | (1 << 6);
+			*actlr_set = (1U << 31) | (1 << 6);
 			break;
 		case CPU_ARCH_CORTEX_A9:
 			/*
@@ -403,7 +400,7 @@ handle_bp_hardening(bool enable)
 			if (apply_bp_hardening(enable, kind, true, 1 << 6) != 0)
 				goto actlr_err;
 			break;
-		break;
+			break;
 
 		case CPU_ARCH_CORTEX_A9:
 		case CPU_ARCH_CORTEX_A12:
@@ -433,14 +430,15 @@ handle_bp_hardening(bool enable)
 			break;
 		}
 	} else if (cpuinfo.implementer == CPU_IMPLEMENTER_QCOM) {
-		printf("!!!WARNING!!! CPU(%d) is vulnerable to speculative "
+		printf(
+		    "!!!WARNING!!! CPU(%d) is vulnerable to speculative "
 		    "branch attacks. !!!\n"
 		    "Qualcomm Krait cores are known (or believed) to be "
 		    "vulnerable to \n"
 		    "speculative branch attacks, no mitigation exists yet.\n",
 		    PCPU_GET(cpuid));
 		goto unkonown_mitigation;
-	}  else {
+	} else {
 		goto unkonown_mitigation;
 	}
 
@@ -473,9 +471,9 @@ actlr_err:
 	PCPU_SET(bp_harden_kind, PCPU_BP_HARDEN_KIND_NONE);
 	spectre_v2_safe = 0;
 	printf("!!!WARNING!!! CPU(%d) is vulnerable to speculative branch "
-	    "attacks. !!!\n"
-	    "We cannot enable required bit(s) in ACTRL register\n"
-	    "because it's locked by secure monitor and/or firmware.\n",
+	       "attacks. !!!\n"
+	       "We cannot enable required bit(s) in ACTRL register\n"
+	       "because it's locked by secure monitor and/or firmware.\n",
 	    PCPU_GET(cpuid));
 }
 
@@ -498,8 +496,7 @@ bp_hardening_action(void *arg)
 	handle_bp_hardening(disable_bp_hardening == 0);
 }
 
-static int
-sysctl_disable_bp_hardening(SYSCTL_HANDLER_ARGS)
+static int sysctl_disable_bp_hardening(SYSCTL_HANDLER_ARGS)
 {
 	int rv;
 
@@ -510,7 +507,7 @@ sysctl_disable_bp_hardening(SYSCTL_HANDLER_ARGS)
 		dmb();
 #ifdef SMP
 		smp_rendezvous_cpus(all_cpus, smp_no_rendezvous_barrier,
-		bp_hardening_action, NULL, NULL);
+		    bp_hardening_action, NULL, NULL);
 #else
 		bp_hardening_action(NULL);
 #endif
@@ -520,9 +517,8 @@ sysctl_disable_bp_hardening(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, disable_bp_hardening,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    &disable_bp_hardening, 0, sysctl_disable_bp_hardening, "I",
-    "Disable BP hardening mitigation.");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &disable_bp_hardening, 0,
+    sysctl_disable_bp_hardening, "I", "Disable BP hardening mitigation.");
 
-SYSCTL_INT(_machdep, OID_AUTO, spectre_v2_safe, CTLFLAG_RD,
-    &spectre_v2_safe, 0, "System is safe to Spectre Version 2 attacks");
+SYSCTL_INT(_machdep, OID_AUTO, spectre_v2_safe, CTLFLAG_RD, &spectre_v2_safe, 0,
+    "System is safe to Spectre Version 2 attacks");

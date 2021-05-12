@@ -30,20 +30,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/bus.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/systm.h>
-#include <sys/libkern.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 
 #include <machine/bus.h>
-#include <dev/fdt/simplebus.h>
 
 #include <dev/extres/clk/clk_mux.h>
+#include <dev/fdt/simplebus.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -61,27 +61,26 @@ __FBSDID("$FreeBSD$");
  */
 
 struct ti_mux_softc {
-	device_t		sc_dev;
-	bool			attach_done;
+	device_t sc_dev;
+	bool attach_done;
 
-	struct clk_mux_def	mux_def;
-	struct clock_cell_info	clock_cell;
-	struct clkdom 		*clkdom;
+	struct clk_mux_def mux_def;
+	struct clock_cell_info clock_cell;
+	struct clkdom *clkdom;
 };
 
 static int ti_mux_probe(device_t dev);
 static int ti_mux_attach(device_t dev);
 static int ti_mux_detach(device_t dev);
 
-#define TI_MUX_CLOCK			2
-#define TI_COMPOSITE_MUX_CLOCK		1
-#define TI_MUX_END			0
+#define TI_MUX_CLOCK 2
+#define TI_COMPOSITE_MUX_CLOCK 1
+#define TI_MUX_END 0
 
-static struct ofw_compat_data compat_data[] = {
-	{ "ti,mux-clock",		TI_MUX_CLOCK },
-	{ "ti,composite-mux-clock",	TI_COMPOSITE_MUX_CLOCK },
-	{ NULL,				TI_MUX_END }
-};
+static struct ofw_compat_data compat_data[] = { { "ti,mux-clock",
+						    TI_MUX_CLOCK },
+	{ "ti,composite-mux-clock", TI_COMPOSITE_MUX_CLOCK },
+	{ NULL, TI_MUX_END } };
 
 static int
 ti_mux_probe(device_t dev)
@@ -98,7 +97,8 @@ ti_mux_probe(device_t dev)
 }
 
 static int
-register_clk(struct ti_mux_softc *sc) {
+register_clk(struct ti_mux_softc *sc)
+{
 	int err;
 
 	sc->clkdom = clkdom_create(sc->sc_dev);
@@ -141,16 +141,19 @@ ti_mux_attach(device_t dev)
 	if (OF_hasprop(node, "ti,bit-shift")) {
 		OF_getencprop(node, "ti,bit-shift", &value, sizeof(value));
 		sc->mux_def.shift = value;
-		DPRINTF(sc->sc_dev, "ti,bit-shift => shift %x\n", sc->mux_def.shift);
+		DPRINTF(sc->sc_dev, "ti,bit-shift => shift %x\n",
+		    sc->mux_def.shift);
 	}
 	if (OF_hasprop(node, "ti,index-starts-at-one")) {
 		/* FIXME: Add support in dev/extres/clk */
 		/*sc->mux_def.mux_flags =  ... */
-		device_printf(sc->sc_dev, "ti,index-starts-at-one - Not implemented\n");
+		device_printf(
+		    sc->sc_dev, "ti,index-starts-at-one - Not implemented\n");
 	}
 
 	if (OF_hasprop(node, "ti,set-rate-parent"))
-		device_printf(sc->sc_dev, "ti,set-rate-parent - Not implemented\n");
+		device_printf(
+		    sc->sc_dev, "ti,set-rate-parent - Not implemented\n");
 	if (OF_hasprop(node, "ti,latch-bit"))
 		device_printf(sc->sc_dev, "ti,latch-bit - Not implemented\n");
 
@@ -160,14 +163,15 @@ ti_mux_attach(device_t dev)
 
 	/* Figure out the width from ti_max_div */
 	if (sc->mux_def.mux_flags)
-		sc->mux_def.width = fls(sc->clock_cell.num_real_clocks-1);
+		sc->mux_def.width = fls(sc->clock_cell.num_real_clocks - 1);
 	else
 		sc->mux_def.width = fls(sc->clock_cell.num_real_clocks);
 
 	DPRINTF(sc->sc_dev, "sc->clock_cell.num_real_clocks %x def.width %x\n",
-		sc->clock_cell.num_real_clocks, sc->mux_def.width);
+	    sc->clock_cell.num_real_clocks, sc->mux_def.width);
 
-	err = find_parent_clock_names(sc->sc_dev, &sc->clock_cell, &sc->mux_def.clkdef);
+	err = find_parent_clock_names(
+	    sc->sc_dev, &sc->clock_cell, &sc->mux_def.clkdef);
 
 	if (err) {
 		/* free_clkdef will be called in ti_mux_new_pass */
@@ -202,16 +206,20 @@ ti_mux_new_pass(device_t dev)
 		return;
 	}
 
-	err = find_parent_clock_names(sc->sc_dev, &sc->clock_cell, &sc->mux_def.clkdef);
+	err = find_parent_clock_names(
+	    sc->sc_dev, &sc->clock_cell, &sc->mux_def.clkdef);
 	if (err) {
-		/* free_clkdef will be called in later call to ti_mux_new_pass */
-		DPRINTF(sc->sc_dev, "ti_mux_new_pass find_parent_clock_names failed\n");
+		/* free_clkdef will be called in later call to ti_mux_new_pass
+		 */
+		DPRINTF(sc->sc_dev,
+		    "ti_mux_new_pass find_parent_clock_names failed\n");
 		return;
 	}
 
 	err = register_clk(sc);
 	if (err) {
-		/* free_clkdef will be called in later call to ti_mux_new_pass */
+		/* free_clkdef will be called in later call to ti_mux_new_pass
+		 */
 		DPRINTF(sc->sc_dev, "ti_mux_new_pass register_clk failed\n");
 		return;
 	}
@@ -229,21 +237,21 @@ ti_mux_detach(device_t dev)
 
 static device_method_t ti_mux_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ti_mux_probe),
-	DEVMETHOD(device_attach,	ti_mux_attach),
-	DEVMETHOD(device_detach,	ti_mux_detach),
+	DEVMETHOD(device_probe, ti_mux_probe),
+	DEVMETHOD(device_attach, ti_mux_attach),
+	DEVMETHOD(device_detach, ti_mux_detach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_new_pass,		ti_mux_new_pass),
+	DEVMETHOD(bus_new_pass, ti_mux_new_pass),
 
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(ti_mux, ti_mux_driver, ti_mux_methods,
-	sizeof(struct ti_mux_softc));
+DEFINE_CLASS_0(
+    ti_mux, ti_mux_driver, ti_mux_methods, sizeof(struct ti_mux_softc));
 
 static devclass_t ti_mux_devclass;
 
-EARLY_DRIVER_MODULE(ti_mux, simplebus, ti_mux_driver,
-	ti_mux_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ti_mux, simplebus, ti_mux_driver, ti_mux_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ti_mux, 1);

@@ -57,32 +57,33 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 
-#include <machine/machdep.h>
 #include <machine/debug_monitor.h>
 #include <machine/intr.h>
+#include <machine/machdep.h>
 #include <machine/smp.h>
 #ifdef VFP
 #include <machine/vfp.h>
 #endif
 
 #ifdef DEV_ACPI
-#include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 #endif
 
 #ifdef FDT
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_cpu.h>
+#include <dev/ofw/openfirm.h>
 #endif
 
 #include <dev/psci/psci.h>
 
 #include "pic_if.h"
 
-#define	MP_QUIRK_CPULIST	0x01	/* The list of cpus may be wrong, */
-					/* don't panic if one fails to start */
+#define MP_QUIRK_CPULIST 0x01 /* The list of cpus may be wrong, */
+/* don't panic if one fails to start */
 static uint32_t mp_quirks;
 
 #ifdef FDT
@@ -90,10 +91,10 @@ static struct {
 	const char *compat;
 	uint32_t quirks;
 } fdt_quirks[] = {
-	{ "arm,foundation-aarch64",	MP_QUIRK_CPULIST },
-	{ "arm,fvp-base",		MP_QUIRK_CPULIST },
+	{ "arm,foundation-aarch64", MP_QUIRK_CPULIST },
+	{ "arm,fvp-base", MP_QUIRK_CPULIST },
 	/* This is incorrect in some DTS files */
-	{ "arm,vfp-base",		MP_QUIRK_CPULIST },
+	{ "arm,vfp-base", MP_QUIRK_CPULIST },
 	{ NULL, 0 },
 };
 #endif
@@ -101,21 +102,21 @@ static struct {
 typedef void intr_ipi_send_t(void *, cpuset_t, u_int);
 typedef void intr_ipi_handler_t(void *);
 
-#define INTR_IPI_NAMELEN	(MAXCOMLEN + 1)
+#define INTR_IPI_NAMELEN (MAXCOMLEN + 1)
 struct intr_ipi {
-	intr_ipi_handler_t *	ii_handler;
-	void *			ii_handler_arg;
-	intr_ipi_send_t *	ii_send;
-	void *			ii_send_arg;
-	char			ii_name[INTR_IPI_NAMELEN];
-	u_long *		ii_count;
+	intr_ipi_handler_t *ii_handler;
+	void *ii_handler_arg;
+	intr_ipi_send_t *ii_send;
+	void *ii_send_arg;
+	char ii_name[INTR_IPI_NAMELEN];
+	u_long *ii_count;
 };
 
 static struct intr_ipi ipi_sources[INTR_IPI_COUNT];
 
 static struct intr_ipi *intr_ipi_lookup(u_int);
-static void intr_pic_ipi_setup(u_int, const char *, intr_ipi_handler_t *,
-    void *);
+static void intr_pic_ipi_setup(
+    u_int, const char *, intr_ipi_handler_t *, void *);
 
 static void ipi_ast(void *);
 static void ipi_hardclock(void *);
@@ -173,10 +174,9 @@ release_aps(void *dummy __unused)
 
 	atomic_store_rel_int(&aps_ready, 1);
 	/* Wake up the other CPUs */
-	__asm __volatile(
-	    "dsb ishst	\n"
-	    "sev	\n"
-	    ::: "memory");
+	__asm __volatile("dsb ishst	\n"
+			 "sev	\n" ::
+			     : "memory");
 
 	printf("Release APs...");
 
@@ -214,11 +214,11 @@ init_secondary(uint64_t cpu)
 	 * they can pass random value in it.
 	 */
 	mpidr = READ_SPECIALREG(mpidr_el1) & CPU_AFF_MASK;
-	if  (cpu >= MAXCPU || __pcpu[cpu].pc_mpidr != mpidr) {
+	if (cpu >= MAXCPU || __pcpu[cpu].pc_mpidr != mpidr) {
 		for (cpu = 0; cpu < mp_maxid; cpu++)
 			if (__pcpu[cpu].pc_mpidr == mpidr)
 				break;
-		if ( cpu >= MAXCPU)
+		if (cpu >= MAXCPU)
 			panic("MPIDR for this CPU is not in pcpu table");
 	}
 
@@ -227,9 +227,8 @@ init_secondary(uint64_t cpu)
 	 * Set the pcpu pointer with a backup in tpidr_el1 to be
 	 * loaded when entering the kernel from userland.
 	 */
-	__asm __volatile(
-	    "mov x18, %0 \n"
-	    "msr tpidr_el1, %0" :: "r"(pcpup));
+	__asm __volatile("mov x18, %0 \n"
+			 "msr tpidr_el1, %0" ::"r"(pcpup));
 
 	/*
 	 * Identify current CPU. This is necessary to setup
@@ -339,8 +338,8 @@ pic_ipi_send(void *arg, cpuset_t cpus, u_int ipi)
  *  Not SMP coherent.
  */
 static void
-intr_pic_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
-    void *arg)
+intr_pic_ipi_setup(
+    u_int ipi, const char *name, intr_ipi_handler_t *hand, void *arg)
 {
 	struct intr_irqsrc *isrc;
 	struct intr_ipi *ii;
@@ -522,9 +521,9 @@ start_cpu(u_int cpuid, uint64_t target_cpu)
 		 * to indicate we are unable to use it to start the given CPU.
 		 */
 		KASSERT(err == PSCI_MISSING ||
-		    (mp_quirks & MP_QUIRK_CPULIST) == MP_QUIRK_CPULIST,
-		    ("Failed to start CPU %u (%lx), error %d\n",
-		    cpuid, target_cpu, err));
+			(mp_quirks & MP_QUIRK_CPULIST) == MP_QUIRK_CPULIST,
+		    ("Failed to start CPU %u (%lx), error %d\n", cpuid,
+			target_cpu, err));
 
 		pcpu_destroy(pcpup);
 		kmem_free((vm_offset_t)dpcpu[cpuid - 1], DPCPU_SIZE);
@@ -551,7 +550,7 @@ madt_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 	u_int *cpuid;
 	u_int id;
 
-	switch(entry->Type) {
+	switch (entry->Type) {
 	case ACPI_MADT_TYPE_GENERIC_INTERRUPT:
 		intr = (ACPI_MADT_GENERIC_INTERRUPT *)entry;
 		cpuid = arg;
@@ -595,8 +594,8 @@ cpu_init_acpi(void)
 	}
 	/* Boot CPU is always 0 */
 	cpuid = 1;
-	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
-	    madt_handler, &cpuid);
+	acpi_walk_subtables(
+	    madt + 1, (char *)madt + madt->Header.Length, madt_handler, &cpuid);
 
 	acpi_unmap_table(madt);
 
@@ -651,8 +650,8 @@ cpu_init_fdt(void)
 
 	node = OF_peer(0);
 	for (i = 0; fdt_quirks[i].compat != NULL; i++) {
-		if (ofw_bus_node_is_compatible(node,
-		    fdt_quirks[i].compat) != 0) {
+		if (ofw_bus_node_is_compatible(node, fdt_quirks[i].compat) !=
+		    0) {
 			mp_quirks = fdt_quirks[i].quirks;
 		}
 	}
@@ -671,7 +670,7 @@ cpu_mp_start(void)
 	CPU_SET(0, &all_cpus);
 	__pcpu[0].pc_mpidr = READ_SPECIALREG(mpidr_el1) & CPU_AFF_MASK;
 
-	switch(arm64_bus_method) {
+	switch (arm64_bus_method) {
 #ifdef DEV_ACPI
 	case ARM64_BUS_ACPI:
 		mp_quirks = MP_QUIRK_CPULIST;
@@ -701,7 +700,7 @@ cpu_count_acpi_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 	ACPI_MADT_GENERIC_INTERRUPT *intr;
 	u_int *cores = arg;
 
-	switch(entry->Type) {
+	switch (entry->Type) {
 	case ACPI_MADT_TYPE_GENERIC_INTERRUPT:
 		intr = (ACPI_MADT_GENERIC_INTERRUPT *)entry;
 		(*cores)++;
@@ -746,7 +745,7 @@ cpu_mp_setmaxid(void)
 	mp_ncpus = 1;
 	mp_maxid = 0;
 
-	switch(arm64_bus_method) {
+	switch (arm64_bus_method) {
 #ifdef DEV_ACPI
 	case ARM64_BUS_ACPI:
 		cores = cpu_count_acpi();
@@ -873,7 +872,7 @@ intr_ipi_set_handler(u_int ipi, const char *name, intr_ipi_filter_t *filter,
 	int error;
 
 	if (filter == NULL)
-		return(EINVAL);
+		return (EINVAL);
 
 	isrc = intr_ipi_lookup(ipi);
 	if (isrc->isrc_ipifilter != NULL)

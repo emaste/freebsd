@@ -27,9 +27,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/proc.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/counter.h>
 #include <sys/epoch.h>
 #include <sys/gtaskqueue.h>
@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
-
 
 struct epoch_test_instance {
 	int threadid;
@@ -54,11 +52,11 @@ static int inited;
 static int iterations;
 #define ET_EXITING 0x1
 static volatile int state_flags;
-static struct mtx state_mtx __aligned(CACHE_LINE_SIZE*2);
+static struct mtx state_mtx __aligned(CACHE_LINE_SIZE * 2);
 MTX_SYSINIT(state_mtx, &state_mtx, "epoch state mutex", MTX_DEF);
-static struct mtx mutexA __aligned(CACHE_LINE_SIZE*2);
+static struct mtx mutexA __aligned(CACHE_LINE_SIZE * 2);
 MTX_SYSINIT(mutexA, &mutexA, "epoch mutexA", MTX_DEF);
-static struct mtx mutexB __aligned(CACHE_LINE_SIZE*2);
+static struct mtx mutexB __aligned(CACHE_LINE_SIZE * 2);
 MTX_SYSINIT(mutexB, &mutexB, "epoch mutexB", MTX_DEF);
 epoch_t test_epoch;
 
@@ -85,7 +83,7 @@ epoch_testcase1(struct epoch_test_instance *eti)
 		epoch_wait_preempt(test_epoch);
 	}
 	printf("test1: thread: %d took %d ticks to complete %d iterations\n",
-		   eti->threadid, ticks - startticks, iterations);
+	    eti->threadid, ticks - startticks, iterations);
 }
 
 static void
@@ -109,11 +107,12 @@ epoch_testcase2(struct epoch_test_instance *eti)
 		epoch_wait_preempt(test_epoch);
 	}
 	printf("test2: thread: %d took %d ticks to complete %d iterations\n",
-		   eti->threadid, ticks - startticks, iterations);
+	    eti->threadid, ticks - startticks, iterations);
 }
 
 static void
-testloop(void *arg) {
+testloop(void *arg)
+{
 
 	mtx_lock(&state_mtx);
 	while ((state_flags & ET_EXITING) == 0) {
@@ -126,7 +125,7 @@ testloop(void *arg) {
 		epoch_testcase1(arg);
 		mtx_lock(&state_mtx);
 	}
- out:
+out:
 	mtx_unlock(&state_mtx);
 	kthread_exit();
 }
@@ -142,15 +141,15 @@ test_modinit(void)
 
 	pri_range = PRI_MIN_TIMESHARE - PRI_MIN_REALTIME;
 	test_epoch = epoch_alloc("test_epoch", EPOCH_PREEMPT);
-	for (i = 0; i < mp_ncpus*2; i++) {
+	for (i = 0; i < mp_ncpus * 2; i++) {
 		etilist[i].threadid = i;
-		error = kthread_add(testloop, &etilist[i], NULL, &testthreads[i],
-							0, 0, "epoch_test_%d", i);
+		error = kthread_add(testloop, &etilist[i], NULL,
+		    &testthreads[i], 0, 0, "epoch_test_%d", i);
 		if (error) {
-			printf("%s: kthread_add(epoch_test): error %d", __func__,
-				   error);
+			printf("%s: kthread_add(epoch_test): error %d",
+			    __func__, error);
 		} else {
-			pri_off = (i*4)%pri_range;
+			pri_off = (i * 4) % pri_range;
 			td = testthreads[i];
 			thread_lock(td);
 			sched_prio(td, PRI_MIN_REALTIME + pri_off);
@@ -161,8 +160,7 @@ test_modinit(void)
 	return (0);
 }
 
-static int
-epochtest_execute(SYSCTL_HANDLER_ARGS)
+static int epochtest_execute(SYSCTL_HANDLER_ARGS)
 {
 	int error, v;
 
@@ -188,8 +186,7 @@ epochtest_execute(SYSCTL_HANDLER_ARGS)
 SYSCTL_NODE(_kern, OID_AUTO, epochtest, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Epoch Test Framework");
 SYSCTL_PROC(_kern_epochtest, OID_AUTO, runtest,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 0, epochtest_execute, "I",
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0, epochtest_execute, "I",
     "Execute an epoch test");
 
 static int
@@ -208,7 +205,7 @@ epoch_test_module_event_handler(module_t mod, int what, void *arg __unused)
 		wakeup(&state_mtx);
 		mtx_unlock(&state_mtx);
 		/* yes --- gross */
-		pause("epoch unload", 3*hz);
+		pause("epoch unload", 3 * hz);
 		epoch_free(test_epoch);
 		break;
 	default:
@@ -218,11 +215,8 @@ epoch_test_module_event_handler(module_t mod, int what, void *arg __unused)
 	return (0);
 }
 
-static moduledata_t epoch_test_moduledata = {
-	"epoch_test",
-	epoch_test_module_event_handler,
-	NULL
-};
+static moduledata_t epoch_test_moduledata = { "epoch_test",
+	epoch_test_module_event_handler, NULL };
 
 MODULE_VERSION(epoch_test, 1);
 DECLARE_MODULE(epoch_test, epoch_test_moduledata, SI_SUB_PSEUDO, SI_ORDER_ANY);

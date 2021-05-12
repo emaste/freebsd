@@ -35,22 +35,23 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/endian.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/queue.h>
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
+
 #include <netgraph/bluetooth/include/ng_bluetooth.h>
 #include <netgraph/bluetooth/include/ng_hci.h>
 #include <netgraph/bluetooth/include/ng_l2cap.h>
-#include <netgraph/bluetooth/l2cap/ng_l2cap_var.h>
 #include <netgraph/bluetooth/l2cap/ng_l2cap_cmds.h>
 #include <netgraph/bluetooth/l2cap/ng_l2cap_evnt.h>
 #include <netgraph/bluetooth/l2cap/ng_l2cap_llpi.h>
-#include <netgraph/bluetooth/l2cap/ng_l2cap_ulpi.h>
 #include <netgraph/bluetooth/l2cap/ng_l2cap_misc.h>
+#include <netgraph/bluetooth/l2cap/ng_l2cap_ulpi.h>
+#include <netgraph/bluetooth/l2cap/ng_l2cap_var.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
 
 /******************************************************************************
  ******************************************************************************
@@ -68,28 +69,27 @@
 int
 ng_l2cap_lp_con_req(ng_l2cap_p l2cap, bdaddr_p bdaddr, int type)
 {
-	struct ng_mesg		*msg = NULL;
-	ng_hci_lp_con_req_ep	*ep = NULL;
-	ng_l2cap_con_p		 con = NULL;
-	int			 error = 0;
+	struct ng_mesg *msg = NULL;
+	ng_hci_lp_con_req_ep *ep = NULL;
+	ng_l2cap_con_p con = NULL;
+	int error = 0;
 
 	/* Verify that we DO NOT have connection to the remote unit */
 	con = ng_l2cap_con_by_addr(l2cap, bdaddr, type);
 	if (con != NULL) {
 		NG_L2CAP_ALERT(
-"%s: %s - unexpected LP_ConnectReq event. " \
-"Connection already exists, state=%d, con_handle=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), con->state, 
-			con->con_handle);
+		    "%s: %s - unexpected LP_ConnectReq event. "
+		    "Connection already exists, state=%d, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), con->state,
+		    con->con_handle);
 
 		return (EEXIST);
 	}
 
 	/* Check if lower layer protocol is still connected */
 	if (l2cap->hci == NULL || NG_HOOK_NOT_VALID(l2cap->hci)) {
-		NG_L2CAP_ERR(
-"%s: %s - hook \"%s\" is not connected or valid\n",
-			__func__, NG_NODE_NAME(l2cap->node), NG_L2CAP_HOOK_HCI);
+		NG_L2CAP_ERR("%s: %s - hook \"%s\" is not connected or valid\n",
+		    __func__, NG_NODE_NAME(l2cap->node), NG_L2CAP_HOOK_HCI);
 
 		return (ENOTCONN);
 	}
@@ -100,15 +100,15 @@ ng_l2cap_lp_con_req(ng_l2cap_p l2cap, bdaddr_p bdaddr, int type)
 		return (ENOMEM);
 
 	/* Create and send LP_ConnectReq event */
-	NG_MKMESSAGE(msg, NGM_HCI_COOKIE, NGM_HCI_LP_CON_REQ,
-		sizeof(*ep), M_NOWAIT);
+	NG_MKMESSAGE(
+	    msg, NGM_HCI_COOKIE, NGM_HCI_LP_CON_REQ, sizeof(*ep), M_NOWAIT);
 	if (msg == NULL) {
 		ng_l2cap_free_con(con);
 
 		return (ENOMEM);
 	}
 
-	ep = (ng_hci_lp_con_req_ep *) (msg->data);
+	ep = (ng_hci_lp_con_req_ep *)(msg->data);
 	bcopy(bdaddr, &ep->bdaddr, sizeof(ep->bdaddr));
 	ep->link_type = type;
 
@@ -132,34 +132,34 @@ ng_l2cap_lp_con_req(ng_l2cap_p l2cap, bdaddr_p bdaddr, int type)
 } /* ng_l2cap_lp_con_req */
 
 /*
- * Process LP_ConnectCfm event from the lower layer protocol. It could be 
- * positive or negative. Verify remote unit address then stop the timer and 
+ * Process LP_ConnectCfm event from the lower layer protocol. It could be
+ * positive or negative. Verify remote unit address then stop the timer and
  * process event.
  */
 
 int
 ng_l2cap_lp_con_cfm(ng_l2cap_p l2cap, struct ng_mesg *msg)
 {
-	ng_hci_lp_con_cfm_ep	*ep = NULL;
-	ng_l2cap_con_p		 con = NULL;
-	int			 error = 0;
+	ng_hci_lp_con_cfm_ep *ep = NULL;
+	ng_l2cap_con_p con = NULL;
+	int error = 0;
 
 	/* Check message */
 	if (msg->header.arglen != sizeof(*ep)) {
 		NG_L2CAP_ALERT(
-"%s: %s - invalid LP_ConnectCfm[Neg] message size\n",
-			__func__, NG_NODE_NAME(l2cap->node));
+		    "%s: %s - invalid LP_ConnectCfm[Neg] message size\n",
+		    __func__, NG_NODE_NAME(l2cap->node));
 		error = EMSGSIZE;
 		goto out;
 	}
 
-	ep = (ng_hci_lp_con_cfm_ep *) (msg->data);
+	ep = (ng_hci_lp_con_cfm_ep *)(msg->data);
 	/* Check if we have requested/accepted this connection */
 	con = ng_l2cap_con_by_addr(l2cap, &ep->bdaddr, ep->link_type);
 	if (con == NULL) {
 		NG_L2CAP_ERR(
-"%s: %s - unexpected LP_ConnectCfm event. Connection does not exist\n",
-			__func__, NG_NODE_NAME(l2cap->node));
+		    "%s: %s - unexpected LP_ConnectCfm event. Connection does not exist\n",
+		    __func__, NG_NODE_NAME(l2cap->node));
 		error = ENOENT;
 		goto out;
 	}
@@ -167,20 +167,20 @@ ng_l2cap_lp_con_cfm(ng_l2cap_p l2cap, struct ng_mesg *msg)
 	/* Check connection state */
 	if (con->state != NG_L2CAP_W4_LP_CON_CFM) {
 		NG_L2CAP_ALERT(
-"%s: %s - unexpected LP_ConnectCfm event. " \
-"Invalid connection state, state=%d, con_handle=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), con->state, 
-			con->con_handle);
+		    "%s: %s - unexpected LP_ConnectCfm event. "
+		    "Invalid connection state, state=%d, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), con->state,
+		    con->con_handle);
 		error = EINVAL;
 		goto out;
 	}
 
 	/*
-	 * Looks like it is our confirmation. It is safe now to cancel 
+	 * Looks like it is our confirmation. It is safe now to cancel
 	 * connection timer and notify upper layer. If timeout already
 	 * happened then ignore connection confirmation and let timeout
 	 * handle that.
- 	 */
+	 */
 
 	if ((error = ng_l2cap_lp_untimeout(con)) != 0)
 		goto out;
@@ -196,51 +196,49 @@ out:
 } /* ng_l2cap_lp_con_cfm */
 
 /*
- * Process LP_ConnectInd event from the lower layer protocol. This is a good 
+ * Process LP_ConnectInd event from the lower layer protocol. This is a good
  * place to put some extra check on remote unit address and/or class. We could
  * even forward this information to control hook (or check against internal
- * black list) and thus implement some kind of firewall. But for now be simple 
- * and create new connection descriptor, start timer and send LP_ConnectRsp 
+ * black list) and thus implement some kind of firewall. But for now be simple
+ * and create new connection descriptor, start timer and send LP_ConnectRsp
  * event (i.e. accept connection).
  */
 
 int
 ng_l2cap_lp_con_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 {
-	ng_hci_lp_con_ind_ep	*ep = NULL;
-	ng_hci_lp_con_rsp_ep	*rp = NULL;
-	struct ng_mesg		*rsp = NULL;
-	ng_l2cap_con_p		 con = NULL;
-	int			 error = 0;
+	ng_hci_lp_con_ind_ep *ep = NULL;
+	ng_hci_lp_con_rsp_ep *rp = NULL;
+	struct ng_mesg *rsp = NULL;
+	ng_l2cap_con_p con = NULL;
+	int error = 0;
 
 	/* Check message */
 	if (msg->header.arglen != sizeof(*ep)) {
-		NG_L2CAP_ALERT(
-"%s: %s - invalid LP_ConnectInd message size\n",
-			__func__, NG_NODE_NAME(l2cap->node));
+		NG_L2CAP_ALERT("%s: %s - invalid LP_ConnectInd message size\n",
+		    __func__, NG_NODE_NAME(l2cap->node));
 
 		return (EMSGSIZE);
 	}
 
- 	ep = (ng_hci_lp_con_ind_ep *) (msg->data);
+	ep = (ng_hci_lp_con_ind_ep *)(msg->data);
 
 	/* Make sure we have only one connection to the remote unit */
 	con = ng_l2cap_con_by_addr(l2cap, &ep->bdaddr, ep->link_type);
 	if (con != NULL) {
 		NG_L2CAP_ALERT(
-"%s: %s - unexpected LP_ConnectInd event. " \
-"Connection already exists, state=%d, con_handle=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), con->state, 
-			con->con_handle);
+		    "%s: %s - unexpected LP_ConnectInd event. "
+		    "Connection already exists, state=%d, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), con->state,
+		    con->con_handle);
 
 		return (EEXIST);
 	}
 
 	/* Check if lower layer protocol is still connected */
 	if (l2cap->hci == NULL || NG_HOOK_NOT_VALID(l2cap->hci)) {
-		NG_L2CAP_ERR(
-"%s: %s - hook \"%s\" is not connected or valid",
-			__func__, NG_NODE_NAME(l2cap->node), NG_L2CAP_HOOK_HCI);
+		NG_L2CAP_ERR("%s: %s - hook \"%s\" is not connected or valid",
+		    __func__, NG_NODE_NAME(l2cap->node), NG_L2CAP_HOOK_HCI);
 
 		return (ENOTCONN);
 	}
@@ -251,8 +249,8 @@ ng_l2cap_lp_con_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 		return (ENOMEM);
 
 	/* Create and send LP_ConnectRsp event */
-	NG_MKMESSAGE(rsp, NGM_HCI_COOKIE, NGM_HCI_LP_CON_RSP,
-		sizeof(*rp), M_NOWAIT);
+	NG_MKMESSAGE(
+	    rsp, NGM_HCI_COOKIE, NGM_HCI_LP_CON_RSP, sizeof(*rp), M_NOWAIT);
 	if (rsp == NULL) {
 		ng_l2cap_free_con(con);
 
@@ -290,28 +288,27 @@ ng_l2cap_lp_con_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 int
 ng_l2cap_lp_discon_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 {
-	ng_hci_lp_discon_ind_ep	*ep = NULL;
-	ng_l2cap_con_p		 con = NULL;
-	int			 error = 0;
+	ng_hci_lp_discon_ind_ep *ep = NULL;
+	ng_l2cap_con_p con = NULL;
+	int error = 0;
 
 	/* Check message */
 	if (msg->header.arglen != sizeof(*ep)) {
 		NG_L2CAP_ALERT(
-"%s: %s - invalid LP_DisconnectInd message size\n",
-			__func__, NG_NODE_NAME(l2cap->node));
+		    "%s: %s - invalid LP_DisconnectInd message size\n",
+		    __func__, NG_NODE_NAME(l2cap->node));
 		error = EMSGSIZE;
 		goto out;
 	}
 
-	ep = (ng_hci_lp_discon_ind_ep *) (msg->data);
+	ep = (ng_hci_lp_discon_ind_ep *)(msg->data);
 
 	/* Check if we have this connection */
 	con = ng_l2cap_con_by_handle(l2cap, ep->con_handle);
 	if (con == NULL) {
-		NG_L2CAP_ERR(
-"%s: %s - unexpected LP_DisconnectInd event. " \
-"Connection does not exist, con_handle=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), ep->con_handle);
+		NG_L2CAP_ERR("%s: %s - unexpected LP_DisconnectInd event. "
+			     "Connection does not exist, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), ep->con_handle);
 		error = ENOENT;
 		goto out;
 	}
@@ -319,10 +316,10 @@ ng_l2cap_lp_discon_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 	/* XXX Verify connection state -- do we need to check this? */
 	if (con->state != NG_L2CAP_CON_OPEN) {
 		NG_L2CAP_ERR(
-"%s: %s - unexpected LP_DisconnectInd event. " \
-"Invalid connection state, state=%d, con_handle=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), con->state, 
-			con->con_handle);
+		    "%s: %s - unexpected LP_DisconnectInd event. "
+		    "Invalid connection state, state=%d, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), con->state,
+		    con->con_handle);
 		error = EINVAL;
 		goto out;
 	}
@@ -348,21 +345,20 @@ out:
  */
 
 int
-ng_l2cap_lp_qos_req(ng_l2cap_p l2cap, u_int16_t con_handle,
-		ng_l2cap_flow_p flow)
+ng_l2cap_lp_qos_req(
+    ng_l2cap_p l2cap, u_int16_t con_handle, ng_l2cap_flow_p flow)
 {
-	struct ng_mesg		*msg = NULL;
-	ng_hci_lp_qos_req_ep	*ep = NULL;
-	ng_l2cap_con_p		 con = NULL;
-	int			 error = 0;
+	struct ng_mesg *msg = NULL;
+	ng_hci_lp_qos_req_ep *ep = NULL;
+	ng_l2cap_con_p con = NULL;
+	int error = 0;
 
 	/* Verify that we have this connection */
 	con = ng_l2cap_con_by_handle(l2cap, con_handle);
 	if (con == NULL) {
-		NG_L2CAP_ERR(
-"%s: %s - unexpected LP_QoSSetupReq event. " \
-"Connection does not exist, con_handle=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), con_handle);
+		NG_L2CAP_ERR("%s: %s - unexpected LP_QoSSetupReq event. "
+			     "Connection does not exist, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), con_handle);
 
 		return (ENOENT);
 	}
@@ -370,30 +366,29 @@ ng_l2cap_lp_qos_req(ng_l2cap_p l2cap, u_int16_t con_handle,
 	/* Verify connection state */
 	if (con->state != NG_L2CAP_CON_OPEN) {
 		NG_L2CAP_ERR(
-"%s: %s - unexpected LP_QoSSetupReq event. " \
-"Invalid connection state, state=%d, con_handle=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), con->state,
-			con->con_handle);
+		    "%s: %s - unexpected LP_QoSSetupReq event. "
+		    "Invalid connection state, state=%d, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), con->state,
+		    con->con_handle);
 
 		return (EINVAL);
 	}
 
 	/* Check if lower layer protocol is still connected */
 	if (l2cap->hci == NULL || NG_HOOK_NOT_VALID(l2cap->hci)) {
-		NG_L2CAP_ERR(
-"%s: %s - hook \"%s\" is not connected or valid",
-			__func__, NG_NODE_NAME(l2cap->node), NG_L2CAP_HOOK_HCI);
+		NG_L2CAP_ERR("%s: %s - hook \"%s\" is not connected or valid",
+		    __func__, NG_NODE_NAME(l2cap->node), NG_L2CAP_HOOK_HCI);
 
 		return (ENOTCONN);
 	}
 
 	/* Create and send LP_QoSSetupReq event */
-	NG_MKMESSAGE(msg, NGM_HCI_COOKIE, NGM_HCI_LP_QOS_REQ,
-		sizeof(*ep), M_NOWAIT);
+	NG_MKMESSAGE(
+	    msg, NGM_HCI_COOKIE, NGM_HCI_LP_QOS_REQ, sizeof(*ep), M_NOWAIT);
 	if (msg == NULL)
 		return (ENOMEM);
 
-	ep = (ng_hci_lp_qos_req_ep *) (msg->data);
+	ep = (ng_hci_lp_qos_req_ep *)(msg->data);
 	ep->con_handle = con_handle;
 	ep->flags = flow->flags;
 	ep->service_type = flow->service_type;
@@ -414,55 +409,54 @@ ng_l2cap_lp_qos_req(ng_l2cap_p l2cap, u_int16_t con_handle,
 int
 ng_l2cap_lp_qos_cfm(ng_l2cap_p l2cap, struct ng_mesg *msg)
 {
-	ng_hci_lp_qos_cfm_ep	*ep = NULL;
-	int			 error = 0;
+	ng_hci_lp_qos_cfm_ep *ep = NULL;
+	int error = 0;
 
 	/* Check message */
 	if (msg->header.arglen != sizeof(*ep)) {
 		NG_L2CAP_ALERT(
-"%s: %s - invalid LP_QoSSetupCfm[Neg] message size\n",
-			__func__, NG_NODE_NAME(l2cap->node));
+		    "%s: %s - invalid LP_QoSSetupCfm[Neg] message size\n",
+		    __func__, NG_NODE_NAME(l2cap->node));
 		error = EMSGSIZE;
 		goto out;
 	}
 
-	ep = (ng_hci_lp_qos_cfm_ep *) (msg->data);
+	ep = (ng_hci_lp_qos_cfm_ep *)(msg->data);
 	/* XXX FIXME do something */
 out:
 	return (error);
 } /* ng_l2cap_lp_qos_cfm */
 
 /*
- * Process LP_QoSViolationInd event from the lower layer protocol. Lower 
- * layer protocol has detected QoS Violation, so we MUST notify the 
+ * Process LP_QoSViolationInd event from the lower layer protocol. Lower
+ * layer protocol has detected QoS Violation, so we MUST notify the
  * upper layer.
  */
 
 int
 ng_l2cap_lp_qos_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 {
-	ng_hci_lp_qos_ind_ep	*ep = NULL;
-	ng_l2cap_con_p		 con = NULL;
-	int			 error = 0;
+	ng_hci_lp_qos_ind_ep *ep = NULL;
+	ng_l2cap_con_p con = NULL;
+	int error = 0;
 
 	/* Check message */
 	if (msg->header.arglen != sizeof(*ep)) {
 		NG_L2CAP_ALERT(
-"%s: %s - invalid LP_QoSViolation message size\n",
-			__func__, NG_NODE_NAME(l2cap->node));
+		    "%s: %s - invalid LP_QoSViolation message size\n", __func__,
+		    NG_NODE_NAME(l2cap->node));
 		error = EMSGSIZE;
 		goto out;
 	}
 
-	ep = (ng_hci_lp_qos_ind_ep *) (msg->data);
+	ep = (ng_hci_lp_qos_ind_ep *)(msg->data);
 
 	/* Check if we have this connection */
 	con = ng_l2cap_con_by_handle(l2cap, ep->con_handle);
 	if (con == NULL) {
-		NG_L2CAP_ERR(
-"%s: %s - unexpected LP_QoSViolationInd event. " \
-"Connection does not exist, con_handle=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), ep->con_handle);
+		NG_L2CAP_ERR("%s: %s - unexpected LP_QoSViolationInd event. "
+			     "Connection does not exist, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), ep->con_handle);
 		error = ENOENT;
 		goto out;
 	}
@@ -470,10 +464,10 @@ ng_l2cap_lp_qos_ind(ng_l2cap_p l2cap, struct ng_mesg *msg)
 	/* Verify connection state */
 	if (con->state != NG_L2CAP_CON_OPEN) {
 		NG_L2CAP_ERR(
-"%s: %s - unexpected LP_QoSViolationInd event. " \
-"Invalid connection state, state=%d, con_handle=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), con->state, 
-			con->con_handle);
+		    "%s: %s - unexpected LP_QoSViolationInd event. "
+		    "Invalid connection state, state=%d, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), con->state,
+		    con->con_handle);
 		error = EINVAL;
 		goto out;
 	}
@@ -486,28 +480,26 @@ out:
 int
 ng_l2cap_lp_enc_change(ng_l2cap_p l2cap, struct ng_mesg *msg)
 {
-	ng_hci_lp_enc_change_ep	*ep = NULL;
-	ng_l2cap_con_p		 con = NULL;
-	int			 error = 0;
-	ng_l2cap_chan_p 	 ch = NULL;
+	ng_hci_lp_enc_change_ep *ep = NULL;
+	ng_l2cap_con_p con = NULL;
+	int error = 0;
+	ng_l2cap_chan_p ch = NULL;
 	/* Check message */
 	if (msg->header.arglen != sizeof(*ep)) {
-		NG_L2CAP_ALERT(
-"%s: %s - invalid LP_ENCChange message size\n",
-			__func__, NG_NODE_NAME(l2cap->node));
+		NG_L2CAP_ALERT("%s: %s - invalid LP_ENCChange message size\n",
+		    __func__, NG_NODE_NAME(l2cap->node));
 		error = EMSGSIZE;
 		goto out;
 	}
 
-	ep = (ng_hci_lp_enc_change_ep *) (msg->data);
+	ep = (ng_hci_lp_enc_change_ep *)(msg->data);
 
 	/* Check if we have this connection */
 	con = ng_l2cap_con_by_handle(l2cap, ep->con_handle);
 	if (con == NULL) {
-		NG_L2CAP_ERR(
-"%s: %s - unexpected LP_Enc Change Event. " \
-"Connection does not exist, con_handle=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), ep->con_handle);
+		NG_L2CAP_ERR("%s: %s - unexpected LP_Enc Change Event. "
+			     "Connection does not exist, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), ep->con_handle);
 		error = ENOENT;
 		goto out;
 	}
@@ -515,19 +507,19 @@ ng_l2cap_lp_enc_change(ng_l2cap_p l2cap, struct ng_mesg *msg)
 	/* Verify connection state */
 	if (con->state != NG_L2CAP_CON_OPEN) {
 		NG_L2CAP_ERR(
-"%s: %s - unexpected ENC_CHANGE event. " \
-"Invalid connection state, state=%d, con_handle=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), con->state, 
-			con->con_handle);
+		    "%s: %s - unexpected ENC_CHANGE event. "
+		    "Invalid connection state, state=%d, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), con->state,
+		    con->con_handle);
 		error = EINVAL;
 		goto out;
 	}
 
 	con->encryption = ep->status;
 
-	LIST_FOREACH(ch, &l2cap->chan_list, next){
-		if((ch->con->con_handle == ep->con_handle) &&
-		   (ch->con->linktype == ep->link_type))
+	LIST_FOREACH (ch, &l2cap->chan_list, next) {
+		if ((ch->con->con_handle == ep->con_handle) &&
+		    (ch->con->linktype == ep->link_type))
 			ng_l2cap_l2ca_encryption_change(ch, ep->status);
 	}
 
@@ -536,31 +528,33 @@ out:
 } /* ng_l2cap_enc_change */
 
 /*
- * Prepare L2CAP packet. Prepend packet with L2CAP packet header and then 
+ * Prepare L2CAP packet. Prepend packet with L2CAP packet header and then
  * segment it according to HCI MTU.
  */
 
 int
 ng_l2cap_lp_send(ng_l2cap_con_p con, u_int16_t dcid, struct mbuf *m0)
 {
-	ng_l2cap_p		 l2cap = con->l2cap;
-	ng_l2cap_hdr_t		*l2cap_hdr = NULL;
-        ng_hci_acldata_pkt_t	*acl_hdr = NULL;
-        struct mbuf		*m_last = NULL, *m = NULL;
-        int			 len, flag = (con->linktype == NG_HCI_LINK_ACL) ? NG_HCI_PACKET_START : NG_HCI_LE_PACKET_START;
+	ng_l2cap_p l2cap = con->l2cap;
+	ng_l2cap_hdr_t *l2cap_hdr = NULL;
+	ng_hci_acldata_pkt_t *acl_hdr = NULL;
+	struct mbuf *m_last = NULL, *m = NULL;
+	int len,
+	    flag = (con->linktype == NG_HCI_LINK_ACL) ? NG_HCI_PACKET_START :
+							      NG_HCI_LE_PACKET_START;
 
 	KASSERT((con->tx_pkt == NULL),
-("%s: %s - another packet pending?!\n", __func__, NG_NODE_NAME(l2cap->node)));
+	    ("%s: %s - another packet pending?!\n", __func__,
+		NG_NODE_NAME(l2cap->node)));
 	KASSERT((l2cap->pkt_size > 0),
-("%s: %s - invalid l2cap->pkt_size?!\n", __func__, NG_NODE_NAME(l2cap->node)));
+	    ("%s: %s - invalid l2cap->pkt_size?!\n", __func__,
+		NG_NODE_NAME(l2cap->node)));
 
 	/* Prepend mbuf with L2CAP header */
 	m0 = ng_l2cap_prepend(m0, sizeof(*l2cap_hdr));
 	if (m0 == NULL) {
-		NG_L2CAP_ALERT(
-"%s: %s - ng_l2cap_prepend(%zd) failed\n",
-			__func__, NG_NODE_NAME(l2cap->node),
-			sizeof(*l2cap_hdr));
+		NG_L2CAP_ALERT("%s: %s - ng_l2cap_prepend(%zd) failed\n",
+		    __func__, NG_NODE_NAME(l2cap->node), sizeof(*l2cap_hdr));
 
 		goto fail;
 	}
@@ -570,10 +564,10 @@ ng_l2cap_lp_send(ng_l2cap_con_p con, u_int16_t dcid, struct mbuf *m0)
 	l2cap_hdr->dcid = htole16(dcid);
 
 	/*
-	 * Segment single L2CAP packet according to the HCI layer MTU. Convert 
+	 * Segment single L2CAP packet according to the HCI layer MTU. Convert
 	 * each segment into ACL data packet and prepend it with ACL data packet
-	 * header. Link all segments together via m_nextpkt link. 
- 	 *
+	 * header. Link all segments together via m_nextpkt link.
+	 *
 	 * XXX BC (Broadcast flag) will always be 0 (zero).
 	 */
 
@@ -583,9 +577,9 @@ ng_l2cap_lp_send(ng_l2cap_con_p con, u_int16_t dcid, struct mbuf *m0)
 		if (len > l2cap->pkt_size) {
 			m = m_split(m0, l2cap->pkt_size, M_NOWAIT);
 			if (m == NULL) {
-				NG_L2CAP_ALERT(
-"%s: %s - m_split(%d) failed\n",	__func__, NG_NODE_NAME(l2cap->node),
-					l2cap->pkt_size);
+				NG_L2CAP_ALERT("%s: %s - m_split(%d) failed\n",
+				    __func__, NG_NODE_NAME(l2cap->node),
+				    l2cap->pkt_size);
 				goto fail;
 			}
 
@@ -596,17 +590,16 @@ ng_l2cap_lp_send(ng_l2cap_con_p con, u_int16_t dcid, struct mbuf *m0)
 		m0 = ng_l2cap_prepend(m0, sizeof(*acl_hdr));
 		if (m0 == NULL) {
 			NG_L2CAP_ALERT(
-"%s: %s - ng_l2cap_prepend(%zd) failed\n",
-				__func__, NG_NODE_NAME(l2cap->node),
-				sizeof(*acl_hdr));
+			    "%s: %s - ng_l2cap_prepend(%zd) failed\n", __func__,
+			    NG_NODE_NAME(l2cap->node), sizeof(*acl_hdr));
 			goto fail;
 		}
 
 		acl_hdr = mtod(m0, ng_hci_acldata_pkt_t *);
 		acl_hdr->type = NG_HCI_ACL_DATA_PKT;
 		acl_hdr->length = htole16(len);
-		acl_hdr->con_handle = htole16(NG_HCI_MK_CON_HANDLE(
-					con->con_handle, flag, 0));
+		acl_hdr->con_handle = htole16(
+		    NG_HCI_MK_CON_HANDLE(con->con_handle, flag, 0));
 
 		/* Add fragment to the chain */
 		m0->m_nextpkt = NULL;
@@ -619,9 +612,9 @@ ng_l2cap_lp_send(ng_l2cap_con_p con, u_int16_t dcid, struct mbuf *m0)
 		}
 
 		NG_L2CAP_INFO(
-"%s: %s - attaching ACL packet, con_handle=%d, PB=%#x, length=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), con->con_handle,
-			flag, len);
+		    "%s: %s - attaching ACL packet, con_handle=%d, PB=%#x, length=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), con->con_handle, flag,
+		    len);
 
 		m0 = m;
 		m = NULL;
@@ -645,11 +638,11 @@ fail:
 /*
  * Receive ACL data packet from the HCI layer. First strip ACL packet header
  * and get connection handle, PB (Packet Boundary) flag and payload length.
- * Then find connection descriptor and verify its state. Then process ACL 
+ * Then find connection descriptor and verify its state. Then process ACL
  * packet as follows.
- * 
- * 1) If we got first segment (pb == NG_HCI_PACKET_START) then extract L2CAP 
- *    header and get total length of the L2CAP packet. Then start new L2CAP 
+ *
+ * 1) If we got first segment (pb == NG_HCI_PACKET_START) then extract L2CAP
+ *    header and get total length of the L2CAP packet. Then start new L2CAP
  *    packet.
  *
  * 2) If we got other (then first :) segment (pb == NG_HCI_PACKET_FRAGMENT)
@@ -659,17 +652,17 @@ fail:
 int
 ng_l2cap_lp_receive(ng_l2cap_p l2cap, struct mbuf *m)
 {
-	ng_hci_acldata_pkt_t	*acl_hdr = NULL;
-	ng_l2cap_hdr_t		*l2cap_hdr = NULL;
-	ng_l2cap_con_p		 con = NULL;
-	u_int16_t		 con_handle, length, pb;
-	int			 error = 0;
+	ng_hci_acldata_pkt_t *acl_hdr = NULL;
+	ng_l2cap_hdr_t *l2cap_hdr = NULL;
+	ng_l2cap_con_p con = NULL;
+	u_int16_t con_handle, length, pb;
+	int error = 0;
 
 	/* Check ACL data packet */
 	if (m->m_pkthdr.len < sizeof(*acl_hdr)) {
 		NG_L2CAP_ERR(
-"%s: %s - invalid ACL data packet. Packet too small, length=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), m->m_pkthdr.len);
+		    "%s: %s - invalid ACL data packet. Packet too small, length=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), m->m_pkthdr.len);
 		error = EMSGSIZE;
 		goto drop;
 	}
@@ -689,16 +682,15 @@ ng_l2cap_lp_receive(ng_l2cap_p l2cap, struct mbuf *m)
 	length = le16toh(acl_hdr->length);
 
 	NG_L2CAP_INFO(
-"%s: %s - got ACL data packet, con_handle=%d, PB=%#x, length=%d\n",
-		__func__, NG_NODE_NAME(l2cap->node), con_handle, pb, length);
+	    "%s: %s - got ACL data packet, con_handle=%d, PB=%#x, length=%d\n",
+	    __func__, NG_NODE_NAME(l2cap->node), con_handle, pb, length);
 
 	/* Get connection descriptor */
 	con = ng_l2cap_con_by_handle(l2cap, con_handle);
 	if (con == NULL) {
-		NG_L2CAP_ERR(
-"%s: %s - unexpected ACL data packet. " \
-"Connection does not exist, con_handle=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), con_handle);
+		NG_L2CAP_ERR("%s: %s - unexpected ACL data packet. "
+			     "Connection does not exist, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), con_handle);
 		error = ENOENT;
 		goto drop;
 	}
@@ -706,20 +698,19 @@ ng_l2cap_lp_receive(ng_l2cap_p l2cap, struct mbuf *m)
 	/* Verify connection state */
 	if (con->state != NG_L2CAP_CON_OPEN) {
 		NG_L2CAP_ERR(
-"%s: %s - unexpected ACL data packet. Invalid connection state=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), con->state);
+		    "%s: %s - unexpected ACL data packet. Invalid connection state=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), con->state);
 		error = EHOSTDOWN;
 		goto drop;
 	}
 
 	/* Process packet */
-	if ((pb == NG_HCI_PACKET_START) || (pb == NG_HCI_LE_PACKET_START))
-	  {
+	if ((pb == NG_HCI_PACKET_START) || (pb == NG_HCI_LE_PACKET_START)) {
 		if (con->rx_pkt != NULL) {
 			NG_L2CAP_ERR(
-"%s: %s - dropping incomplete L2CAP packet, got %d bytes, want %d bytes\n",
-				__func__, NG_NODE_NAME(l2cap->node),
-				con->rx_pkt->m_pkthdr.len, con->rx_pkt_len);
+			    "%s: %s - dropping incomplete L2CAP packet, got %d bytes, want %d bytes\n",
+			    __func__, NG_NODE_NAME(l2cap->node),
+			    con->rx_pkt->m_pkthdr.len, con->rx_pkt_len);
 			NG_FREE_M(con->rx_pkt);
 			con->rx_pkt_len = 0;
 		}
@@ -727,9 +718,9 @@ ng_l2cap_lp_receive(ng_l2cap_p l2cap, struct mbuf *m)
 		/* Get L2CAP header */
 		if (m->m_pkthdr.len < sizeof(*l2cap_hdr)) {
 			NG_L2CAP_ERR(
-"%s: %s - invalid L2CAP packet start fragment. Packet too small, length=%d\n",
-				__func__, NG_NODE_NAME(l2cap->node),
-				m->m_pkthdr.len);
+			    "%s: %s - invalid L2CAP packet start fragment. Packet too small, length=%d\n",
+			    __func__, NG_NODE_NAME(l2cap->node),
+			    m->m_pkthdr.len);
 			error = EMSGSIZE;
 			goto drop;
 		}
@@ -741,19 +732,20 @@ ng_l2cap_lp_receive(ng_l2cap_p l2cap, struct mbuf *m)
 		l2cap_hdr = mtod(m, ng_l2cap_hdr_t *);
 
 		NG_L2CAP_INFO(
-"%s: %s - staring new L2CAP packet, con_handle=%d, length=%d\n",
-			__func__, NG_NODE_NAME(l2cap->node), con_handle,
-			le16toh(l2cap_hdr->length));
+		    "%s: %s - staring new L2CAP packet, con_handle=%d, length=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), con_handle,
+		    le16toh(l2cap_hdr->length));
 
 		/* Start new L2CAP packet */
 		con->rx_pkt = m;
-		con->rx_pkt_len = le16toh(l2cap_hdr->length)+sizeof(*l2cap_hdr);
+		con->rx_pkt_len = le16toh(l2cap_hdr->length) +
+		    sizeof(*l2cap_hdr);
 	} else if (pb == NG_HCI_PACKET_FRAGMENT) {
 		if (con->rx_pkt == NULL) {
 			NG_L2CAP_ERR(
-"%s: %s - unexpected ACL data packet fragment, con_handle=%d\n",
-				__func__, NG_NODE_NAME(l2cap->node), 
-				con->con_handle);
+			    "%s: %s - unexpected ACL data packet fragment, con_handle=%d\n",
+			    __func__, NG_NODE_NAME(l2cap->node),
+			    con->con_handle);
 			goto drop;
 		}
 
@@ -762,8 +754,8 @@ ng_l2cap_lp_receive(ng_l2cap_p l2cap, struct mbuf *m)
 		con->rx_pkt->m_pkthdr.len += length;
 	} else {
 		NG_L2CAP_ERR(
-"%s: %s - invalid ACL data packet. Invalid PB flag=%#x\n",
-			__func__, NG_NODE_NAME(l2cap->node), pb);
+		    "%s: %s - invalid ACL data packet. Invalid PB flag=%#x\n",
+		    __func__, NG_NODE_NAME(l2cap->node), pb);
 		error = EINVAL;
 		goto drop;
 	}
@@ -771,9 +763,9 @@ ng_l2cap_lp_receive(ng_l2cap_p l2cap, struct mbuf *m)
 	con->rx_pkt_len -= length;
 	if (con->rx_pkt_len < 0) {
 		NG_L2CAP_ALERT(
-"%s: %s - packet length mismatch. Got %d bytes, offset %d bytes\n",
-			__func__, NG_NODE_NAME(l2cap->node), 
-			con->rx_pkt->m_pkthdr.len, con->rx_pkt_len);
+		    "%s: %s - packet length mismatch. Got %d bytes, offset %d bytes\n",
+		    __func__, NG_NODE_NAME(l2cap->node),
+		    con->rx_pkt->m_pkthdr.len, con->rx_pkt_len);
 		NG_FREE_M(con->rx_pkt);
 		con->rx_pkt_len = 0;
 	} else if (con->rx_pkt_len == 0) {
@@ -798,9 +790,9 @@ drop:
 void
 ng_l2cap_lp_deliver(ng_l2cap_con_p con)
 {
-	ng_l2cap_p	 l2cap = con->l2cap;
-	struct mbuf	*m = NULL;
-	int		 error;
+	ng_l2cap_p l2cap = con->l2cap;
+	struct mbuf *m = NULL;
+	int error;
 
 	/* Check connection */
 	if (con->state != NG_L2CAP_CON_OPEN)
@@ -814,9 +806,8 @@ ng_l2cap_lp_deliver(ng_l2cap_con_p con)
 
 	/* Check if lower layer protocol is still connected */
 	if (l2cap->hci == NULL || NG_HOOK_NOT_VALID(l2cap->hci)) {
-		NG_L2CAP_ERR(
-"%s: %s - hook \"%s\" is not connected or valid",
-			__func__, NG_NODE_NAME(l2cap->node), NG_L2CAP_HOOK_HCI);
+		NG_L2CAP_ERR("%s: %s - hook \"%s\" is not connected or valid",
+		    __func__, NG_NODE_NAME(l2cap->node), NG_L2CAP_HOOK_HCI);
 
 		goto drop; /* XXX what to do with "pending"? */
 	}
@@ -827,32 +818,30 @@ ng_l2cap_lp_deliver(ng_l2cap_con_p con)
 		con->tx_pkt = con->tx_pkt->m_nextpkt;
 		m->m_nextpkt = NULL;
 
-		if(m->m_flags &M_PROTO2){
+		if (m->m_flags & M_PROTO2) {
 			ng_l2cap_lp_receive(con->l2cap, m);
 			continue;
 		}
 		NG_L2CAP_INFO(
-"%s: %s - sending ACL packet, con_handle=%d, len=%d\n", 
-			__func__, NG_NODE_NAME(l2cap->node), con->con_handle, 
-			m->m_pkthdr.len);
+		    "%s: %s - sending ACL packet, con_handle=%d, len=%d\n",
+		    __func__, NG_NODE_NAME(l2cap->node), con->con_handle,
+		    m->m_pkthdr.len);
 
 		NG_SEND_DATA_ONLY(error, l2cap->hci, m);
 		if (error != 0) {
 			NG_L2CAP_ERR(
-"%s: %s - could not send ACL data packet, con_handle=%d, error=%d\n",
-				__func__, NG_NODE_NAME(l2cap->node), 
-				con->con_handle, error);
+			    "%s: %s - could not send ACL data packet, con_handle=%d, error=%d\n",
+			    __func__, NG_NODE_NAME(l2cap->node),
+			    con->con_handle, error);
 
 			goto drop; /* XXX what to do with "pending"? */
 		}
 
-		con->pending ++;
+		con->pending++;
 	}
 
-	NG_L2CAP_INFO(
-"%s: %s - %d ACL packets have been sent, con_handle=%d\n",
-		__func__, NG_NODE_NAME(l2cap->node), con->pending, 
-		con->con_handle);
+	NG_L2CAP_INFO("%s: %s - %d ACL packets have been sent, con_handle=%d\n",
+	    __func__, NG_NODE_NAME(l2cap->node), con->pending, con->con_handle);
 
 	return;
 
@@ -866,41 +855,42 @@ drop:
 
 /*
  * Process connection timeout. Remove connection from the list. If there
- * are any channels that wait for the connection then notify them. Free 
+ * are any channels that wait for the connection then notify them. Free
  * connection descriptor.
  */
 
 void
-ng_l2cap_process_lp_timeout(node_p node, hook_p hook, void *arg1, int con_handle)
+ng_l2cap_process_lp_timeout(
+    node_p node, hook_p hook, void *arg1, int con_handle)
 {
-	ng_l2cap_p	l2cap = NULL;
-	ng_l2cap_con_p	con = NULL;
+	ng_l2cap_p l2cap = NULL;
+	ng_l2cap_con_p con = NULL;
 
 	if (NG_NODE_NOT_VALID(node)) {
 		printf("%s: Netgraph node is not valid\n", __func__);
 		return;
 	}
 
-	l2cap = (ng_l2cap_p) NG_NODE_PRIVATE(node);
+	l2cap = (ng_l2cap_p)NG_NODE_PRIVATE(node);
 	con = ng_l2cap_con_by_handle(l2cap, con_handle);
 
 	if (con == NULL) {
 		NG_L2CAP_ALERT(
-"%s: %s - could not find connection, con_handle=%d\n",
-			__func__, NG_NODE_NAME(node), con_handle);
+		    "%s: %s - could not find connection, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(node), con_handle);
 		return;
 	}
 
 	if (!(con->flags & NG_L2CAP_CON_LP_TIMO)) {
 		NG_L2CAP_ALERT(
-"%s: %s - no pending LP timeout, con_handle=%d, state=%d, flags=%#x\n",
-			__func__, NG_NODE_NAME(node), con_handle, con->state,
-			con->flags);
+		    "%s: %s - no pending LP timeout, con_handle=%d, state=%d, flags=%#x\n",
+		    __func__, NG_NODE_NAME(node), con_handle, con->state,
+		    con->flags);
 		return;
 	}
 
 	/*
-	 * Notify channels that connection has timed out. This will remove 
+	 * Notify channels that connection has timed out. This will remove
 	 * connection, channels and pending commands.
 	 */
 
@@ -909,39 +899,40 @@ ng_l2cap_process_lp_timeout(node_p node, hook_p hook, void *arg1, int con_handle
 } /* ng_l2cap_process_lp_timeout */
 
 /*
- * Process auto disconnect timeout and send LP_DisconReq event to the 
+ * Process auto disconnect timeout and send LP_DisconReq event to the
  * lower layer protocol
  */
 
 void
-ng_l2cap_process_discon_timeout(node_p node, hook_p hook, void *arg1, int con_handle)
+ng_l2cap_process_discon_timeout(
+    node_p node, hook_p hook, void *arg1, int con_handle)
 {
-	ng_l2cap_p		 l2cap = NULL;
-	ng_l2cap_con_p		 con = NULL;
-	struct ng_mesg		*msg = NULL;
-	ng_hci_lp_discon_req_ep	*ep = NULL;
-	int			 error;
+	ng_l2cap_p l2cap = NULL;
+	ng_l2cap_con_p con = NULL;
+	struct ng_mesg *msg = NULL;
+	ng_hci_lp_discon_req_ep *ep = NULL;
+	int error;
 
 	if (NG_NODE_NOT_VALID(node)) {
 		printf("%s: Netgraph node is not valid\n", __func__);
 		return;
 	}
 
-	l2cap = (ng_l2cap_p) NG_NODE_PRIVATE(node);
+	l2cap = (ng_l2cap_p)NG_NODE_PRIVATE(node);
 	con = ng_l2cap_con_by_handle(l2cap, con_handle);
 
 	if (con == NULL) {
 		NG_L2CAP_ALERT(
-"%s: %s - could not find connection, con_handle=%d\n",
-			__func__, NG_NODE_NAME(node), con_handle);
+		    "%s: %s - could not find connection, con_handle=%d\n",
+		    __func__, NG_NODE_NAME(node), con_handle);
 		return;
 	}
 
 	if (!(con->flags & NG_L2CAP_CON_AUTO_DISCON_TIMO)) {
 		NG_L2CAP_ALERT(
-"%s: %s - no pending disconnect timeout, con_handle=%d, state=%d, flags=%#x\n",
-			__func__, NG_NODE_NAME(node), con_handle, con->state,
-			con->flags);
+		    "%s: %s - no pending disconnect timeout, con_handle=%d, state=%d, flags=%#x\n",
+		    __func__, NG_NODE_NAME(node), con_handle, con->state,
+		    con->flags);
 		return;
 	}
 
@@ -949,19 +940,18 @@ ng_l2cap_process_discon_timeout(node_p node, hook_p hook, void *arg1, int con_ha
 
 	/* Check if lower layer protocol is still connected */
 	if (l2cap->hci == NULL || NG_HOOK_NOT_VALID(l2cap->hci)) {
-		NG_L2CAP_ERR(
-"%s: %s - hook \"%s\" is not connected or valid\n",
-			__func__, NG_NODE_NAME(l2cap->node), NG_L2CAP_HOOK_HCI);
+		NG_L2CAP_ERR("%s: %s - hook \"%s\" is not connected or valid\n",
+		    __func__, NG_NODE_NAME(l2cap->node), NG_L2CAP_HOOK_HCI);
 		return;
 	}
 
 	/* Create and send LP_DisconReq event */
-	NG_MKMESSAGE(msg, NGM_HCI_COOKIE, NGM_HCI_LP_DISCON_REQ,
-		sizeof(*ep), M_NOWAIT);
+	NG_MKMESSAGE(
+	    msg, NGM_HCI_COOKIE, NGM_HCI_LP_DISCON_REQ, sizeof(*ep), M_NOWAIT);
 	if (msg == NULL)
 		return;
 
-	ep = (ng_hci_lp_discon_req_ep *) (msg->data);
+	ep = (ng_hci_lp_discon_req_ep *)(msg->data);
 	ep->con_handle = con->con_handle;
 	ep->reason = 0x13; /* User Ended Connection */
 

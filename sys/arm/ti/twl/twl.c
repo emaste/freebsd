@@ -48,77 +48,75 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/bus.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
-#include <sys/mutex.h>
-#include <sys/malloc.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
 
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
-
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "arm/ti/twl/twl.h"
 
 /* TWL device IDs */
-#define TWL_DEVICE_UNKNOWN          0xffff
-#define TWL_DEVICE_4030             0x4030
-#define TWL_DEVICE_6025             0x6025
-#define TWL_DEVICE_6030             0x6030
+#define TWL_DEVICE_UNKNOWN 0xffff
+#define TWL_DEVICE_4030 0x4030
+#define TWL_DEVICE_6025 0x6025
+#define TWL_DEVICE_6030 0x6030
 
 /* Each TWL device typically has more than one I2C address */
-#define TWL_MAX_SUBADDRS            4
+#define TWL_MAX_SUBADDRS 4
 
 /* The maxium number of bytes that can be written in one call */
-#define TWL_MAX_IIC_DATA_SIZE       63
+#define TWL_MAX_IIC_DATA_SIZE 63
 
 /* The TWL devices typically use 4 I2C address for the different internal
  * register sets, plus one SmartReflex I2C address.
  */
-#define TWL_CHIP_ID0                0x48
-#define TWL_CHIP_ID1                0x49
-#define TWL_CHIP_ID2                0x4A
-#define TWL_CHIP_ID3                0x4B
+#define TWL_CHIP_ID0 0x48
+#define TWL_CHIP_ID1 0x49
+#define TWL_CHIP_ID2 0x4A
+#define TWL_CHIP_ID3 0x4B
 
-#define TWL_SMARTREFLEX_CHIP_ID     0x12
+#define TWL_SMARTREFLEX_CHIP_ID 0x12
 
-#define TWL_INVALID_CHIP_ID         0xff
+#define TWL_INVALID_CHIP_ID 0xff
 
 struct twl_softc {
-	device_t		sc_dev;
-	struct mtx		sc_mtx;
-	unsigned int	sc_type;
+	device_t sc_dev;
+	struct mtx sc_mtx;
+	unsigned int sc_type;
 
-	uint8_t			sc_subaddr_map[TWL_MAX_SUBADDRS];
+	uint8_t sc_subaddr_map[TWL_MAX_SUBADDRS];
 
-	struct intr_config_hook	sc_scan_hook;
+	struct intr_config_hook sc_scan_hook;
 
-	device_t		sc_vreg;
-	device_t		sc_clks;
+	device_t sc_vreg;
+	device_t sc_clks;
 };
 
 /**
  *	Macros for driver mutex locking
  */
-#define TWL_LOCK(_sc)             mtx_lock(&(_sc)->sc_mtx)
-#define	TWL_UNLOCK(_sc)           mtx_unlock(&(_sc)->sc_mtx)
+#define TWL_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define TWL_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
 #define TWL_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	         "twl", MTX_DEF)
-#define TWL_LOCK_DESTROY(_sc)     mtx_destroy(&_sc->sc_mtx);
-#define TWL_ASSERT_LOCKED(_sc)    mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define TWL_ASSERT_UNLOCKED(_sc)  mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), "twl", MTX_DEF)
+#define TWL_LOCK_DESTROY(_sc) mtx_destroy(&_sc->sc_mtx);
+#define TWL_ASSERT_LOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define TWL_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
 /**
  *	twl_is_4030 - returns true if the device is TWL4030
@@ -195,8 +193,8 @@ twl_read(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt)
 
 	rc = iicbus_transfer(dev, msg, 2);
 	if (rc != 0) {
-		device_printf(dev, "iicbus read failed (adr:0x%02x, reg:0x%02x)\n",
-		              addr, reg);
+		device_printf(dev,
+		    "iicbus read failed (adr:0x%02x, reg:0x%02x)\n", addr, reg);
 		return (EIO);
 	}
 
@@ -249,8 +247,9 @@ twl_write(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt)
 
 	rc = iicbus_transfer(dev, &msg, 1);
 	if (rc != 0) {
-		device_printf(sc->sc_dev, "iicbus write failed (adr:0x%02x, reg:0x%02x)\n",
-		              addr, reg);
+		device_printf(sc->sc_dev,
+		    "iicbus write failed (adr:0x%02x, reg:0x%02x)\n", addr,
+		    reg);
 		return (EIO);
 	}
 
@@ -290,8 +289,8 @@ twl_test_present(struct twl_softc *sc, uint8_t addr)
  *	twl_scan - scans the i2c bus for sub modules
  *	@dev: the twl device
  *
- *	TWL devices don't just have one i2c slave address, rather they have up to
- *	5 other addresses, each is for separate modules within the device. This
+ *	TWL devices don't just have one i2c slave address, rather they have up
+ *to 5 other addresses, each is for separate modules within the device. This
  *	function scans the bus for 4 possible sub-devices and stores the info
  *	internally.
  *
@@ -308,13 +307,14 @@ twl_scan(void *dev)
 
 	memset(devs, TWL_INVALID_CHIP_ID, TWL_MAX_SUBADDRS);
 
-	/* Try each of the addresses (0x48, 0x49, 0x4a & 0x4b) to determine which
-	 * sub modules we have.
+	/* Try each of the addresses (0x48, 0x49, 0x4a & 0x4b) to determine
+	 * which sub modules we have.
 	 */
 	for (i = 0; i < TWL_MAX_SUBADDRS; i++) {
 		if (twl_test_present(sc, (base + i)) == 0) {
 			devs[i] = (base + i);
-			device_printf(sc->sc_dev, "Found (sub)device at 0x%02x\n", (base + i));
+			device_printf(sc->sc_dev,
+			    "Found (sub)device at 0x%02x\n", (base + i));
 		}
 	}
 
@@ -327,14 +327,14 @@ twl_scan(void *dev)
 }
 
 /**
- *	twl_probe - 
+ *	twl_probe -
  *	@dev: the twl device
  *
  *	Scans the FDT for a match for the device, possible compatible device
- *	strings are; "ti,twl6030", "ti,twl6025", "ti,twl4030".  
+ *	strings are; "ti,twl6030", "ti,twl6025", "ti,twl4030".
  *
- *	The FDT compat string also determines the type of device (it is currently
- *	not possible to dynamically determine the device type).
+ *	The FDT compat string also determines the type of device (it is
+ *currently not possible to dynamically determine the device type).
  *
  */
 static int
@@ -366,7 +366,7 @@ twl_probe(device_t dev)
 			sc->sc_type = TWL_DEVICE_6025;
 		else if (strncasecmp(compat, "ti,twl4030", 10) == 0)
 			sc->sc_type = TWL_DEVICE_4030;
-		
+
 		if (sc->sc_type != TWL_DEVICE_UNKNOWN)
 			break;
 
@@ -440,11 +440,11 @@ twl_detach(device_t dev)
 }
 
 static device_method_t twl_methods[] = {
-	DEVMETHOD(device_probe,		twl_probe),
-	DEVMETHOD(device_attach,	twl_attach),
-	DEVMETHOD(device_detach,	twl_detach),
+	DEVMETHOD(device_probe, twl_probe),
+	DEVMETHOD(device_attach, twl_attach),
+	DEVMETHOD(device_detach, twl_detach),
 
-	{0, 0},
+	{ 0, 0 },
 };
 
 static driver_t twl_driver = {

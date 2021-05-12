@@ -42,71 +42,72 @@
  */
 
 #ifndef _MACHINE_TRAP_H_
-#define	_MACHINE_TRAP_H_
+#define _MACHINE_TRAP_H_
 
 /*
  * Trap codes also known in trap.c for name strings.
  * Used for indexing so modify with care.
  */
 
-#define	T_INT			0	/* Interrupt pending */
-#define	T_TLB_MOD		1	/* TLB modified fault */
-#define	T_TLB_LD_MISS		2	/* TLB miss on load or ifetch */
-#define	T_TLB_ST_MISS		3	/* TLB miss on a store */
-#define	T_ADDR_ERR_LD		4	/* Address error on a load or ifetch */
-#define	T_ADDR_ERR_ST		5	/* Address error on a store */
-#define	T_BUS_ERR_IFETCH	6	/* Bus error on an ifetch */
-#define	T_BUS_ERR_LD_ST		7	/* Bus error on a load or store */
-#define	T_SYSCALL		8	/* System call */
-#define	T_BREAK			9	/* Breakpoint */
-#define	T_RES_INST		10	/* Reserved instruction exception */
-#define	T_COP_UNUSABLE		11	/* Coprocessor unusable */
-#define	T_OVFLOW		12	/* Arithmetic overflow */
-#define	T_TRAP			13	/* Trap instruction */
-#define	T_VCEI			14	/* Virtual coherency instruction */
-#define	T_FPE			15	/* Floating point exception */
-#define	T_IWATCH		16	/* Inst. Watch address reference */
-#define T_C2E                   18      /* Exception from coprocessor 2 */
-#define	T_DWATCH		23	/* Data Watch address reference */
-#define T_MCHECK                24      /* Received an MCHECK */
-#define	T_VCED			31	/* Virtual coherency data */
+#define T_INT 0		   /* Interrupt pending */
+#define T_TLB_MOD 1	   /* TLB modified fault */
+#define T_TLB_LD_MISS 2	   /* TLB miss on load or ifetch */
+#define T_TLB_ST_MISS 3	   /* TLB miss on a store */
+#define T_ADDR_ERR_LD 4	   /* Address error on a load or ifetch */
+#define T_ADDR_ERR_ST 5	   /* Address error on a store */
+#define T_BUS_ERR_IFETCH 6 /* Bus error on an ifetch */
+#define T_BUS_ERR_LD_ST 7  /* Bus error on a load or store */
+#define T_SYSCALL 8	   /* System call */
+#define T_BREAK 9	   /* Breakpoint */
+#define T_RES_INST 10	   /* Reserved instruction exception */
+#define T_COP_UNUSABLE 11  /* Coprocessor unusable */
+#define T_OVFLOW 12	   /* Arithmetic overflow */
+#define T_TRAP 13	   /* Trap instruction */
+#define T_VCEI 14	   /* Virtual coherency instruction */
+#define T_FPE 15	   /* Floating point exception */
+#define T_IWATCH 16	   /* Inst. Watch address reference */
+#define T_C2E 18	   /* Exception from coprocessor 2 */
+#define T_DWATCH 23	   /* Data Watch address reference */
+#define T_MCHECK 24	   /* Received an MCHECK */
+#define T_VCED 31	   /* Virtual coherency data */
 
-#define	T_USER			0x20	/* user-mode flag or'ed with type */
+#define T_USER 0x20 /* user-mode flag or'ed with type */
 
 #if !defined(SMP) && (defined(DDB) || defined(DEBUG))
 
-struct trapdebug {		/* trap history buffer for debugging */
-	register_t	status;
-	register_t	cause;
-	register_t	vadr;
-	register_t	pc;
-	register_t	ra;
-	register_t	sp;
-	register_t	code;
+struct trapdebug { /* trap history buffer for debugging */
+	register_t status;
+	register_t cause;
+	register_t vadr;
+	register_t pc;
+	register_t ra;
+	register_t sp;
+	register_t code;
 };
 
-#define	trapdebug_enter(x, cd) {	\
-	register_t s = intr_disable();	\
-	trp->status = x->sr;		\
-	trp->cause = x->cause;		\
-	trp->vadr = x->badvaddr;	\
-	trp->pc = x->pc;		\
-	trp->sp = x->sp;		\
-	trp->ra = x->ra;		\
-	trp->code = cd;			\
-	if (++trp == &trapdebug[TRAPSIZE])	\
-		trp = trapdebug;	\
-	intr_restore(s);		\
-}
+#define trapdebug_enter(x, cd)                     \
+	{                                          \
+		register_t s = intr_disable();     \
+		trp->status = x->sr;               \
+		trp->cause = x->cause;             \
+		trp->vadr = x->badvaddr;           \
+		trp->pc = x->pc;                   \
+		trp->sp = x->sp;                   \
+		trp->ra = x->ra;                   \
+		trp->code = cd;                    \
+		if (++trp == &trapdebug[TRAPSIZE]) \
+			trp = trapdebug;           \
+		intr_restore(s);                   \
+	}
 
-#define	TRAPSIZE 10		/* Trap log buffer length */
-extern struct trapdebug trapdebug[TRAPSIZE], *trp; 
+#define TRAPSIZE 10 /* Trap log buffer length */
+extern struct trapdebug trapdebug[TRAPSIZE], *trp;
 
 void trapDump(char *msg);
 
 #else
 
-#define	trapdebug_enter(x, cd)
+#define trapdebug_enter(x, cd)
 
 #endif
 

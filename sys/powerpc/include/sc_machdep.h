@@ -28,46 +28,46 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_SC_MACHDEP_H_
-#define	_MACHINE_SC_MACHDEP_H_
+#ifndef _MACHINE_SC_MACHDEP_H_
+#define _MACHINE_SC_MACHDEP_H_
 
 /* Color attributes for foreground text */
 
-#define	FG_BLACK		0x0
-#define	FG_BLUE			0x1
-#define	FG_GREEN		0x2
-#define	FG_CYAN			0x3
-#define	FG_RED			0x4
-#define	FG_MAGENTA		0x5
-#define	FG_BROWN		0x6
-#define	FG_LIGHTGREY		0x7	/* aka white */
-#define	FG_DARKGREY		0x8
-#define	FG_LIGHTBLUE		0x9
-#define	FG_LIGHTGREEN		0xa
-#define	FG_LIGHTCYAN		0xb
-#define	FG_LIGHTRED		0xc
-#define	FG_LIGHTMAGENTA		0xd
-#define	FG_YELLOW		0xe
-#define	FG_WHITE		0xf	/* aka bright white */
-#define	FG_BLINK		0x80
+#define FG_BLACK 0x0
+#define FG_BLUE 0x1
+#define FG_GREEN 0x2
+#define FG_CYAN 0x3
+#define FG_RED 0x4
+#define FG_MAGENTA 0x5
+#define FG_BROWN 0x6
+#define FG_LIGHTGREY 0x7 /* aka white */
+#define FG_DARKGREY 0x8
+#define FG_LIGHTBLUE 0x9
+#define FG_LIGHTGREEN 0xa
+#define FG_LIGHTCYAN 0xb
+#define FG_LIGHTRED 0xc
+#define FG_LIGHTMAGENTA 0xd
+#define FG_YELLOW 0xe
+#define FG_WHITE 0xf /* aka bright white */
+#define FG_BLINK 0x80
 
 /* Color attributes for text background */
 
-#define	BG_BLACK		0x00
-#define	BG_BLUE			0x10
-#define	BG_GREEN		0x20
-#define	BG_CYAN			0x30
-#define	BG_RED			0x40
-#define	BG_MAGENTA		0x50
-#define	BG_BROWN		0x60
-#define	BG_LIGHTGREY		0x70
-#define	BG_DARKGREY		0x80
-#define	BG_LIGHTBLUE		0x90
-#define	BG_LIGHTGREEN		0xa0
-#define	BG_LIGHTCYAN		0xb0
-#define	BG_LIGHTRED		0xc0
-#define	BG_LIGHTMAGENTA		0xd0
-#define	BG_YELLOW		0xe0
-#define	BG_WHITE		0xf0
+#define BG_BLACK 0x00
+#define BG_BLUE 0x10
+#define BG_GREEN 0x20
+#define BG_CYAN 0x30
+#define BG_RED 0x40
+#define BG_MAGENTA 0x50
+#define BG_BROWN 0x60
+#define BG_LIGHTGREY 0x70
+#define BG_DARKGREY 0x80
+#define BG_LIGHTBLUE 0x90
+#define BG_LIGHTGREEN 0xa0
+#define BG_LIGHTCYAN 0xb0
+#define BG_LIGHTRED 0xc0
+#define BG_LIGHTMAGENTA 0xd0
+#define BG_YELLOW 0xe0
+#define BG_WHITE 0xf0
 
 #endif /* !_MACHINE_SC_MACHDEP_H_ */

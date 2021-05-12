@@ -43,16 +43,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/armreg.h>
+#include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/fiq.h>
-#include <vm/vm.h>
 #include <machine/pcb.h>
-#include <vm/pmap.h>
-#include <machine/cpu.h>
 
-TAILQ_HEAD(, fiqhandler) fiqhandler_stack =
-    TAILQ_HEAD_INITIALIZER(fiqhandler_stack);
+TAILQ_HEAD(, fiqhandler) fiqhandler_stack = TAILQ_HEAD_INITIALIZER(
+    fiqhandler_stack);
 
 extern char *fiq_nullhandler_code;
 extern uint32_t fiq_nullhandler_size;
@@ -76,7 +77,7 @@ fiq_installhandler(void *func, size_t size)
 	const uint32_t fiqvector = 7 * sizeof(uint32_t);
 
 	memcpy((void *)(vector_page + fiqvector), func, size);
-	icache_sync((vm_offset_t) fiqvector, size);
+	icache_sync((vm_offset_t)fiqvector, size);
 }
 
 /*
@@ -119,7 +120,7 @@ fiq_claim(struct fiqhandler *fh)
 	/* Make sure FIQs are enabled when we return. */
 	oldirqstate &= ~PSR_F;
 
- out:
+out:
 	restore_interrupts(oldirqstate);
 	return (error);
 }

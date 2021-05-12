@@ -30,27 +30,27 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/limits.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/types.h>
-#include <sys/user.h>
+#include <sys/errno.h>
+#include <sys/event.h>
+#include <sys/eventfd.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
-#include <sys/stat.h>
-#include <sys/errno.h>
-#include <sys/event.h>
+#include <sys/kernel.h>
+#include <sys/limits.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
-#include <sys/uio.h>
 #include <sys/selinfo.h>
-#include <sys/eventfd.h>
+#include <sys/stat.h>
+#include <sys/uio.h>
+#include <sys/user.h>
 
 #include <security/audit/audit.h>
 
@@ -59,17 +59,16 @@ _Static_assert(EFD_NONBLOCK == O_NONBLOCK, "Mismatched EFD_NONBLOCK");
 
 MALLOC_DEFINE(M_EVENTFD, "eventfd", "eventfd structures");
 
-static fo_rdwr_t	eventfd_read;
-static fo_rdwr_t	eventfd_write;
-static fo_ioctl_t	eventfd_ioctl;
-static fo_poll_t	eventfd_poll;
-static fo_kqfilter_t	eventfd_kqfilter;
-static fo_stat_t	eventfd_stat;
-static fo_close_t	eventfd_close;
-static fo_fill_kinfo_t	eventfd_fill_kinfo;
+static fo_rdwr_t eventfd_read;
+static fo_rdwr_t eventfd_write;
+static fo_ioctl_t eventfd_ioctl;
+static fo_poll_t eventfd_poll;
+static fo_kqfilter_t eventfd_kqfilter;
+static fo_stat_t eventfd_stat;
+static fo_close_t eventfd_close;
+static fo_fill_kinfo_t eventfd_fill_kinfo;
 
-static struct fileops eventfdops = {
-	.fo_read = eventfd_read,
+static struct fileops eventfdops = { .fo_read = eventfd_read,
 	.fo_write = eventfd_write,
 	.fo_truncate = invfo_truncate,
 	.fo_ioctl = eventfd_ioctl,
@@ -81,35 +80,30 @@ static struct fileops eventfdops = {
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
 	.fo_fill_kinfo = eventfd_fill_kinfo,
-	.fo_flags = DFLAG_PASSABLE
-};
+	.fo_flags = DFLAG_PASSABLE };
 
-static void	filt_eventfddetach(struct knote *kn);
-static int	filt_eventfdread(struct knote *kn, long hint);
-static int	filt_eventfdwrite(struct knote *kn, long hint);
+static void filt_eventfddetach(struct knote *kn);
+static int filt_eventfdread(struct knote *kn, long hint);
+static int filt_eventfdwrite(struct knote *kn, long hint);
 
-static struct filterops eventfd_rfiltops = {
-	.f_isfd = 1,
+static struct filterops eventfd_rfiltops = { .f_isfd = 1,
 	.f_detach = filt_eventfddetach,
-	.f_event = filt_eventfdread
-};
+	.f_event = filt_eventfdread };
 
-static struct filterops eventfd_wfiltops = {
-	.f_isfd = 1,
+static struct filterops eventfd_wfiltops = { .f_isfd = 1,
 	.f_detach = filt_eventfddetach,
-	.f_event = filt_eventfdwrite
-};
+	.f_event = filt_eventfdwrite };
 
 struct eventfd {
-	eventfd_t	efd_count;
-	uint32_t	efd_flags;
-	struct selinfo	efd_sel;
-	struct mtx	efd_lock;
+	eventfd_t efd_count;
+	uint32_t efd_flags;
+	struct selinfo efd_sel;
+	struct mtx efd_lock;
 };
 
 int
-eventfd_create_file(struct thread *td, struct file *fp, uint32_t initval,
-    int flags)
+eventfd_create_file(
+    struct thread *td, struct file *fp, uint32_t initval, int flags)
 {
 	struct eventfd *efd;
 	int fflags;
@@ -163,8 +157,8 @@ eventfd_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			mtx_unlock(&efd->efd_lock);
 			return (EAGAIN);
 		}
-		error = mtx_sleep(&efd->efd_count, &efd->efd_lock, PCATCH,
-		    "efdrd", 0);
+		error = mtx_sleep(
+		    &efd->efd_count, &efd->efd_lock, PCATCH, "efdrd", 0);
 	}
 	if (error == 0) {
 		MPASS(efd->efd_count > 0);
@@ -213,8 +207,8 @@ retry:
 			uio->uio_resid += sizeof(eventfd_t);
 			return (EAGAIN);
 		}
-		error = mtx_sleep(&efd->efd_count, &efd->efd_lock,
-		    PCATCH, "efdwr", 0);
+		error = mtx_sleep(
+		    &efd->efd_count, &efd->efd_lock, PCATCH, "efdwr", 0);
 		if (error == 0)
 			goto retry;
 	}
@@ -231,8 +225,8 @@ retry:
 }
 
 static int
-eventfd_poll(struct file *fp, int events, struct ucred *active_cred,
-    struct thread *td)
+eventfd_poll(
+    struct file *fp, int events, struct ucred *active_cred, struct thread *td)
 {
 	struct eventfd *efd;
 	int revents;
@@ -242,8 +236,8 @@ eventfd_poll(struct file *fp, int events, struct ucred *active_cred,
 	mtx_lock(&efd->efd_lock);
 	if ((events & (POLLIN | POLLRDNORM)) != 0 && efd->efd_count > 0)
 		revents |= events & (POLLIN | POLLRDNORM);
-	if ((events & (POLLOUT | POLLWRNORM)) != 0 && UINT64_MAX - 1 >
-	    efd->efd_count)
+	if ((events & (POLLOUT | POLLWRNORM)) != 0 &&
+	    UINT64_MAX - 1 > efd->efd_count)
 		revents |= events & (POLLOUT | POLLWRNORM);
 	if (revents == 0)
 		selrecord(td, &efd->efd_sel);
@@ -336,7 +330,8 @@ eventfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 }
 
 static int
-eventfd_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+eventfd_fill_kinfo(
+    struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 {
 	struct eventfd *efd = fp->f_data;
 

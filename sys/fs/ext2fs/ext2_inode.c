@@ -40,25 +40,24 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mount.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/endian.h>
-#include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/rwlock.h>
 #include <sys/sdt.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-#include <fs/ext2fs/fs.h>
-#include <fs/ext2fs/inode.h>
+#include <fs/ext2fs/ext2_extattr.h>
+#include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/ext2fs.h>
 #include <fs/ext2fs/fs.h>
-#include <fs/ext2fs/ext2_extern.h>
-#include <fs/ext2fs/ext2_extattr.h>
+#include <fs/ext2fs/inode.h>
 
 /*
  * Update the access, modified, and inode change times as specified by the
@@ -87,13 +86,14 @@ ext2_update(struct vnode *vp, int waitfor)
 	if (fs->e2fs_ronly)
 		return (0);
 	if ((error = bread(ip->i_devvp,
-	    fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-	    (int)fs->e2fs_bsize, NOCRED, &bp)) != 0) {
+		 fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
+		 (int)fs->e2fs_bsize, NOCRED, &bp)) != 0) {
 		brelse(bp);
 		return (error);
 	}
-	error = ext2_i2ei(ip, (struct ext2fs_dinode *)((char *)bp->b_data +
-	    EXT2_INODE_SIZE(fs) * ino_to_fsbo(fs, ip->i_number)));
+	error = ext2_i2ei(ip,
+	    (struct ext2fs_dinode *)((char *)bp->b_data +
+		EXT2_INODE_SIZE(fs) * ino_to_fsbo(fs, ip->i_number)));
 	if (error) {
 		brelse(bp);
 		return (error);
@@ -106,9 +106,9 @@ ext2_update(struct vnode *vp, int waitfor)
 	}
 }
 
-#define	SINGLE	0	/* index of single indirect block */
-#define	DOUBLE	1	/* index of double indirect block */
-#define	TRIPLE	2	/* index of triple indirect block */
+#define SINGLE 0 /* index of single indirect block */
+#define DOUBLE 1 /* index of double indirect block */
+#define TRIPLE 2 /* index of triple indirect block */
 
 /*
  * Release blocks associated with the inode ip and stored in the indirect
@@ -120,8 +120,8 @@ ext2_update(struct vnode *vp, int waitfor)
  * NB: triple indirect blocks are untested.
  */
 static int
-ext2_indirtrunc(struct inode *ip, daddr_t lbn, daddr_t dbn,
-    daddr_t lastbn, int level, e4fs_daddr_t *countp)
+ext2_indirtrunc(struct inode *ip, daddr_t lbn, daddr_t dbn, daddr_t lastbn,
+    int level, e4fs_daddr_t *countp)
 {
 	struct buf *bp;
 	struct m_ext2fs *fs = ip->i_e2fs;
@@ -188,13 +188,13 @@ ext2_indirtrunc(struct inode *ip, daddr_t lbn, daddr_t dbn,
 	 * Recursively free totally unused blocks.
 	 */
 	for (i = NINDIR(fs) - 1, nlbn = lbn + 1 - i * factor; i > last;
-	    i--, nlbn += factor) {
+	     i--, nlbn += factor) {
 		nb = le32toh(bap[i]);
 		if (nb == 0)
 			continue;
 		if (level > SINGLE) {
-			if ((error = ext2_indirtrunc(ip, nlbn,
-			    fsbtodb(fs, nb), (int32_t)-1, level - 1, &blkcount)) != 0)
+			if ((error = ext2_indirtrunc(ip, nlbn, fsbtodb(fs, nb),
+				 (int32_t)-1, level - 1, &blkcount)) != 0)
 				allerror = error;
 			blocksreleased += blkcount;
 		}
@@ -210,7 +210,7 @@ ext2_indirtrunc(struct inode *ip, daddr_t lbn, daddr_t dbn,
 		nb = le32toh(bap[i]);
 		if (nb != 0) {
 			if ((error = ext2_indirtrunc(ip, nlbn, fsbtodb(fs, nb),
-			    last, level - 1, &blkcount)) != 0)
+				 last, level - 1, &blkcount)) != 0)
 				allerror = error;
 			blocksreleased += blkcount;
 		}
@@ -440,18 +440,18 @@ done:
 		if (newblks[i] != oip->i_db[i])
 			panic("itrunc2");
 	BO_LOCK(bo);
-	if (length == 0 && (bo->bo_dirty.bv_cnt != 0 ||
-	    bo->bo_clean.bv_cnt != 0))
+	if (length == 0 &&
+	    (bo->bo_dirty.bv_cnt != 0 || bo->bo_clean.bv_cnt != 0))
 		panic("itrunc3");
 	BO_UNLOCK(bo);
-#endif	/* INVARIANTS */
+#endif /* INVARIANTS */
 	/*
 	 * Put back the real size.
 	 */
 	oip->i_size = length;
 	if (oip->i_blocks >= blocksreleased)
 		oip->i_blocks -= blocksreleased;
-	else				/* sanity */
+	else /* sanity */
 		oip->i_blocks = 0;
 	oip->i_flag |= IN_CHANGE;
 	vnode_pager_setsize(ovp, length);
@@ -459,8 +459,8 @@ done:
 }
 
 static int
-ext2_ext_truncate(struct vnode *vp, off_t length, int flags,
-    struct ucred *cred, struct thread *td)
+ext2_ext_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
+    struct thread *td)
 {
 	struct vnode *ovp = vp;
 	int32_t lastblock;
@@ -561,8 +561,7 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 		return (EINVAL);
 
 	ip = VTOI(vp);
-	if (vp->v_type == VLNK &&
-	    ip->i_size < vp->v_mount->mnt_maxsymlinklen) {
+	if (vp->v_type == VLNK && ip->i_size < vp->v_mount->mnt_maxsymlinklen) {
 #ifdef INVARIANTS
 		if (length != 0)
 			panic("ext2_truncate: partial truncate of symlink");

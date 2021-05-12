@@ -32,20 +32,20 @@
  */
 
 #ifndef _NET_BPF_BUFFER_H_
-#define	_NET_BPF_BUFFER_H_
+#define _NET_BPF_BUFFER_H_
 
 #ifndef _KERNEL
 #error "no user-serviceable parts inside"
 #endif
 
-void	bpf_buffer_append_bytes(struct bpf_d *d, caddr_t buf, u_int offset,
-	    void *src, u_int len);
-void	bpf_buffer_append_mbuf(struct bpf_d *d, caddr_t buf, u_int offset,
-	    void *src, u_int len);
-void	bpf_buffer_free(struct bpf_d *d);
-void	bpf_buffer_init(struct bpf_d *d);
-int	bpf_buffer_ioctl_sblen(struct bpf_d *d, u_int *i);
-int	bpf_buffer_uiomove(struct bpf_d *d, caddr_t buf, u_int len,
-	    struct uio *uio);
+void bpf_buffer_append_bytes(
+    struct bpf_d *d, caddr_t buf, u_int offset, void *src, u_int len);
+void bpf_buffer_append_mbuf(
+    struct bpf_d *d, caddr_t buf, u_int offset, void *src, u_int len);
+void bpf_buffer_free(struct bpf_d *d);
+void bpf_buffer_init(struct bpf_d *d);
+int bpf_buffer_ioctl_sblen(struct bpf_d *d, u_int *i);
+int bpf_buffer_uiomove(
+    struct bpf_d *d, caddr_t buf, u_int len, struct uio *uio);
 
 #endif /* !_NET_BPF_BUFFER_H_ */

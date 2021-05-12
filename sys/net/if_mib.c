@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -37,8 +37,8 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_mib.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 
 /*
@@ -66,15 +66,13 @@
 
 SYSCTL_DECL(_net_link_generic);
 static SYSCTL_NODE(_net_link_generic, IFMIB_SYSTEM, system,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "Variables global to all interfaces");
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "Variables global to all interfaces");
 
 SYSCTL_INT(_net_link_generic_system, IFMIB_IFCOUNT, ifcount,
-	CTLFLAG_VNET | CTLFLAG_RD, &VNET_NAME(if_index), 0,
-	"Number of configured interfaces");
+    CTLFLAG_VNET | CTLFLAG_RD, &VNET_NAME(if_index), 0,
+    "Number of configured interfaces");
 
-static int
-sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
+static int sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 {
 	int *name = (int *)arg1;
 	int error;
@@ -95,7 +93,7 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 	if (ifp == NULL)
 		return (ENOENT);
 
-	switch(name[1]) {
+	switch (name[1]) {
 	default:
 		error = ENOENT;
 		goto out;
@@ -110,8 +108,8 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		ifmd.ifmd_flags = ifp->if_flags | ifp->if_drv_flags;
 		ifmd.ifmd_snd_len = ifp->if_snd.ifq_len;
 		ifmd.ifmd_snd_maxlen = ifp->if_snd.ifq_maxlen;
-		ifmd.ifmd_snd_drops =
-		    ifp->if_get_counter(ifp, IFCOUNTER_OQDROPS);
+		ifmd.ifmd_snd_drops = ifp->if_get_counter(
+		    ifp, IFCOUNTER_OQDROPS);
 
 		error = SYSCTL_OUT(req, &ifmd, sizeof ifmd);
 		if (error)
@@ -148,5 +146,4 @@ out:
 }
 
 static SYSCTL_NODE(_net_link_generic, IFMIB_IFDATA, ifdata,
-    CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ifdata,
-    "Interface table");
+    CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ifdata, "Interface table");

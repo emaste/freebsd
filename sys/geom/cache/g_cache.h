@@ -28,82 +28,82 @@
  * $FreeBSD$
  */
 
-#ifndef	_G_CACHE_H_
-#define	_G_CACHE_H_
+#ifndef _G_CACHE_H_
+#define _G_CACHE_H_
 
 #include <sys/endian.h>
 
-#define	G_CACHE_CLASS_NAME	"CACHE"
-#define	G_CACHE_MAGIC		"GEOM::CACHE"
-#define	G_CACHE_VERSION		1
+#define G_CACHE_CLASS_NAME "CACHE"
+#define G_CACHE_MAGIC "GEOM::CACHE"
+#define G_CACHE_VERSION 1
 
 #ifdef _KERNEL
-#define	G_CACHE_TYPE_MANUAL	0
-#define	G_CACHE_TYPE_AUTOMATIC	1
+#define G_CACHE_TYPE_MANUAL 0
+#define G_CACHE_TYPE_AUTOMATIC 1
 
 #define G_CACHE_DEBUG(lvl, ...) \
-    _GEOM_DEBUG("GEOM_CACHE", g_cache_debug, (lvl), NULL, __VA_ARGS__)
+	_GEOM_DEBUG("GEOM_CACHE", g_cache_debug, (lvl), NULL, __VA_ARGS__)
 #define G_CACHE_LOGREQ(bp, ...) \
-    _GEOM_DEBUG("GEOM_CACHE", g_cache_debug, 2, (bp), __VA_ARGS__)
+	_GEOM_DEBUG("GEOM_CACHE", g_cache_debug, 2, (bp), __VA_ARGS__)
 
-#define	G_CACHE_BUCKETS		(1 << 3)
-#define	G_CACHE_BUCKET(bno)	((bno) & (G_CACHE_BUCKETS - 1))
+#define G_CACHE_BUCKETS (1 << 3)
+#define G_CACHE_BUCKET(bno) ((bno) & (G_CACHE_BUCKETS - 1))
 
 struct g_cache_softc {
-	struct g_geom	*sc_geom;
-	int		sc_type;
-	u_int		sc_bshift;
-	u_int		sc_bsize;
-	off_t		sc_tail;
-	struct mtx	sc_mtx;
-	struct callout	sc_callout;
+	struct g_geom *sc_geom;
+	int sc_type;
+	u_int sc_bshift;
+	u_int sc_bsize;
+	off_t sc_tail;
+	struct mtx sc_mtx;
+	struct callout sc_callout;
 	LIST_HEAD(, g_cache_desc) sc_desclist[G_CACHE_BUCKETS];
 	TAILQ_HEAD(, g_cache_desc) sc_usedlist;
-	uma_zone_t	sc_zone;
+	uma_zone_t sc_zone;
 
-	u_int		sc_maxent;		/* max entries */
-	u_int		sc_nent;		/* allocated entries */
-	u_int		sc_nused;		/* re-useable entries */
-	u_int		sc_invalid;		/* invalid entries */
+	u_int sc_maxent;  /* max entries */
+	u_int sc_nent;	  /* allocated entries */
+	u_int sc_nused;	  /* re-useable entries */
+	u_int sc_invalid; /* invalid entries */
 
-	uintmax_t	sc_reads;		/* #reads */
-	uintmax_t	sc_readbytes;		/* bytes read */
-	uintmax_t	sc_cachereads;		/* #reads from cache */
-	uintmax_t	sc_cachereadbytes;	/* bytes read from cache */
-	uintmax_t	sc_cachehits;		/* cache hits */
-	uintmax_t	sc_cachemisses;		/* cache misses */
-	uintmax_t	sc_cachefull;		/* #times a cache was full */
-	uintmax_t	sc_writes;		/* #writes */
-	uintmax_t	sc_wrotebytes;		/* bytes written */
+	uintmax_t sc_reads;	     /* #reads */
+	uintmax_t sc_readbytes;	     /* bytes read */
+	uintmax_t sc_cachereads;     /* #reads from cache */
+	uintmax_t sc_cachereadbytes; /* bytes read from cache */
+	uintmax_t sc_cachehits;	     /* cache hits */
+	uintmax_t sc_cachemisses;    /* cache misses */
+	uintmax_t sc_cachefull;	     /* #times a cache was full */
+	uintmax_t sc_writes;	     /* #writes */
+	uintmax_t sc_wrotebytes;     /* bytes written */
 };
-#define	sc_name	sc_geom->name
+#define sc_name sc_geom->name
 
 struct g_cache_desc {
-	off_t		d_bno;			/* block number */
-	caddr_t		d_data;			/* data area */
-	struct bio	*d_biolist;		/* waiters */
-	time_t		d_atime;		/* access time */
-	int		d_flags;		/* flags */
-#define	D_FLAG_USED	(1 << 0)			/* can be reused */
-#define	D_FLAG_INVALID	(1 << 1)			/* invalid */
-	LIST_ENTRY(g_cache_desc) d_next;	/* list */
-	TAILQ_ENTRY(g_cache_desc) d_used;	/* used list */
+	off_t d_bno;	       /* block number */
+	caddr_t d_data;	       /* data area */
+	struct bio *d_biolist; /* waiters */
+	time_t d_atime;	       /* access time */
+	int d_flags;	       /* flags */
+#define D_FLAG_USED (1 << 0)   /* can be reused */
+#define D_FLAG_INVALID (1 << 1) /* invalid */
+	LIST_ENTRY(g_cache_desc) d_next;  /* list */
+	TAILQ_ENTRY(g_cache_desc) d_used; /* used list */
 };
 
-#define	G_CACHE_NEXT_BIO1(bp)	(bp)->bio_driver1
-#define	G_CACHE_NEXT_BIO2(bp)	(bp)->bio_driver2
-#define	G_CACHE_DESC1(bp)	(bp)->bio_caller1
-#define	G_CACHE_DESC2(bp)	(bp)->bio_caller2
+#define G_CACHE_NEXT_BIO1(bp) (bp)->bio_driver1
+#define G_CACHE_NEXT_BIO2(bp) (bp)->bio_driver2
+#define G_CACHE_DESC1(bp) (bp)->bio_caller1
+#define G_CACHE_DESC2(bp) (bp)->bio_caller2
 
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
 struct g_cache_metadata {
-	char		md_magic[16];		/* Magic value. */
-	uint32_t	md_version;		/* Version number. */
-	char		md_name[16];		/* Cache value. */
-	uint32_t	md_bsize;		/* Cache block size. */
-	uint32_t	md_size;		/* Cache size. */
-	uint64_t	md_provsize;		/* Provider's size. */
+	char md_magic[16];    /* Magic value. */
+	uint32_t md_version;  /* Version number. */
+	char md_name[16];     /* Cache value. */
+	uint32_t md_bsize;    /* Cache block size. */
+	uint32_t md_size;     /* Cache size. */
+	uint64_t md_provsize; /* Provider's size. */
 };
 
 static __inline void
@@ -130,4 +130,4 @@ cache_metadata_decode(const u_char *data, struct g_cache_metadata *md)
 	md->md_provsize = le64dec(data + 44);
 }
 
-#endif	/* _G_CACHE_H_ */
+#endif /* _G_CACHE_H_ */

@@ -32,27 +32,28 @@
 #ifndef _SYS_SF_BUF_H_
 #define _SYS_SF_BUF_H_
 
-struct sfstat {				/* sendfile statistics */
-	uint64_t	sf_syscalls;	/* times sendfile was called */
-	uint64_t	sf_noiocnt;	/* times sendfile didn't require I/O */
-	uint64_t	sf_iocnt;	/* times sendfile had to do disk I/O */
-	uint64_t	sf_pages_read;	/* pages read as part of a request */
-	uint64_t	sf_pages_valid;	/* pages were valid for a request */
-	uint64_t	sf_rhpages_requested;	/* readahead pages requested */
-	uint64_t	sf_rhpages_read;	/* readahead pages read */
-	uint64_t	sf_busy;	/* times aborted on a busy page */
-	uint64_t	sf_allocfail;	/* times sfbuf allocation failed */
-	uint64_t	sf_allocwait;	/* times sfbuf allocation had to wait */
-	uint64_t	sf_pages_bogus;	/* times bogus page was used */
+struct sfstat {			       /* sendfile statistics */
+	uint64_t sf_syscalls;	       /* times sendfile was called */
+	uint64_t sf_noiocnt;	       /* times sendfile didn't require I/O */
+	uint64_t sf_iocnt;	       /* times sendfile had to do disk I/O */
+	uint64_t sf_pages_read;	       /* pages read as part of a request */
+	uint64_t sf_pages_valid;       /* pages were valid for a request */
+	uint64_t sf_rhpages_requested; /* readahead pages requested */
+	uint64_t sf_rhpages_read;      /* readahead pages read */
+	uint64_t sf_busy;	       /* times aborted on a busy page */
+	uint64_t sf_allocfail;	       /* times sfbuf allocation failed */
+	uint64_t sf_allocwait;	       /* times sfbuf allocation had to wait */
+	uint64_t sf_pages_bogus;       /* times bogus page was used */
 };
 
 #ifdef _KERNEL
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/counter.h>
+
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 
 /*
  * Sf_bufs, or sendfile(2) buffers provide a vm_page that is mapped
@@ -90,13 +91,13 @@ struct sfstat {				/* sendfile statistics */
 #include <sys/queue.h>
 
 struct sf_buf {
-	LIST_ENTRY(sf_buf)	list_entry;	/* list of buffers */
-	TAILQ_ENTRY(sf_buf)	free_entry;	/* list of buffers */
-	vm_page_t		m;		/* currently mapped page */
-	vm_offset_t		kva;		/* va of mapping */
-	int			ref_count;	/* usage of this mapping */
+	LIST_ENTRY(sf_buf) list_entry;	/* list of buffers */
+	TAILQ_ENTRY(sf_buf) free_entry; /* list of buffers */
+	vm_page_t m;			/* currently mapped page */
+	vm_offset_t kva;		/* va of mapping */
+	int ref_count;			/* usage of this mapping */
 #if defined(SMP) && defined(SFBUF_CPUSET)
-	cpuset_t		cpumask;	/* where mapping is valid */
+	cpuset_t cpumask; /* where mapping is valid */
 #endif
 };
 #else /* ! SFBUF */
@@ -118,7 +119,7 @@ sf_buf_kva(struct sf_buf *sf)
 	if (PMAP_HAS_DMAP)
 		return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS((vm_page_t)sf)));
 
-        return (sf->kva);
+	return (sf->kva);
 }
 
 static inline vm_page_t
@@ -127,7 +128,7 @@ sf_buf_page(struct sf_buf *sf)
 	if (PMAP_HAS_DMAP)
 		return ((vm_page_t)sf);
 
-        return (sf->m);
+	return (sf->m);
 }
 
 #ifndef SFBUF_MAP
@@ -181,16 +182,17 @@ sf_buf_ref(struct sf_buf *sf)
  * argument's value should be the result of a bitwise or'ing of one or more
  * of the following values.
  */
-#define	SFB_CATCH	1		/* Check signals if the allocation
-					   sleeps. */
-#define	SFB_CPUPRIVATE	2		/* Create a CPU private mapping. */
-#define	SFB_DEFAULT	0
-#define	SFB_NOWAIT	4		/* Return NULL if all bufs are used. */
+#define SFB_CATCH                            \
+	1 /* Check signals if the allocation \
+	     sleeps. */
+#define SFB_CPUPRIVATE 2 /* Create a CPU private mapping. */
+#define SFB_DEFAULT 0
+#define SFB_NOWAIT 4 /* Return NULL if all bufs are used. */
 
 extern counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
-#define	SFSTAT_ADD(name, val)	\
-    counter_u64_add(sfstat[offsetof(struct sfstat, name) / sizeof(uint64_t)],\
-	(val))
-#define	SFSTAT_INC(name)	SFSTAT_ADD(name, 1)
+#define SFSTAT_ADD(name, val) \
+	counter_u64_add(      \
+	    sfstat[offsetof(struct sfstat, name) / sizeof(uint64_t)], (val))
+#define SFSTAT_INC(name) SFSTAT_ADD(name, 1)
 #endif /* _KERNEL */
 #endif /* !_SYS_SF_BUF_H_ */

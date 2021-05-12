@@ -48,12 +48,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/lock.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/ppireg.h>
 #include <machine/timerreg.h>
+
 #include <x86/init.h>
 
 #include <isa/rtc.h>
@@ -74,21 +75,21 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 #endif
 
-int	clkintr_pending;
+int clkintr_pending;
 #ifndef TIMER_FREQ
-#define TIMER_FREQ   1193182
+#define TIMER_FREQ 1193182
 #endif
-u_int	i8254_freq = TIMER_FREQ;
+u_int i8254_freq = TIMER_FREQ;
 TUNABLE_INT("hw.i8254.freq", &i8254_freq);
-int	i8254_max_count;
+int i8254_max_count;
 static int i8254_timecounter = 1;
 
-static	struct mtx clock_lock;
-static	struct intsrc *i8254_intsrc;
-static	uint16_t i8254_lastcount;
-static	uint16_t i8254_offset;
-static	int	(*i8254_pending)(struct intsrc *);
-static	int	i8254_ticked;
+static struct mtx clock_lock;
+static struct intsrc *i8254_intsrc;
+static uint16_t i8254_lastcount;
+static uint16_t i8254_offset;
+static int (*i8254_pending)(struct intsrc *);
+static int i8254_ticked;
 
 struct attimer_softc {
 	int intr_en;
@@ -98,11 +99,11 @@ struct attimer_softc {
 	void *intr_handler;
 	struct timecounter tc;
 	struct eventtimer et;
-	int		mode;
-#define	MODE_STOP	0
-#define	MODE_PERIODIC	1
-#define	MODE_ONESHOT	2
-	uint32_t	period;
+	int mode;
+#define MODE_STOP 0
+#define MODE_PERIODIC 1
+#define MODE_ONESHOT 2
+	uint32_t period;
 };
 static struct attimer_softc *attimer_sc = NULL;
 
@@ -111,15 +112,15 @@ static int timer0_mode = 0xffff;
 static int timer0_last = 0xffff;
 
 /* Values for timerX_state: */
-#define	RELEASED	0
-#define	RELEASE_PENDING	1
-#define	ACQUIRED	2
-#define	ACQUIRE_PENDING	3
+#define RELEASED 0
+#define RELEASE_PENDING 1
+#define ACQUIRED 2
+#define ACQUIRE_PENDING 3
 
-static	u_char	timer2_state;
+static u_char timer2_state;
 
-static	unsigned i8254_get_timecount(struct timecounter *tc);
-static	void	set_i8254_freq(int mode, uint32_t period);
+static unsigned i8254_get_timecount(struct timecounter *tc);
+static void set_i8254_freq(int mode, uint32_t period);
 
 void
 clock_init(void)
@@ -173,7 +174,7 @@ timer_spkr_acquire(void)
 	 */
 	outb(TIMER_MODE, TIMER_SEL2 | (mode & 0x3f));
 
-	ppi_spkr_on();		/* enable counter2 output to speaker */
+	ppi_spkr_on(); /* enable counter2 output to speaker */
 	return (0);
 }
 
@@ -186,7 +187,7 @@ timer_spkr_release(void)
 	timer2_state = RELEASED;
 	outb(TIMER_MODE, TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT);
 
-	ppi_spkr_off();		/* disable counter2 output to speaker */
+	ppi_spkr_off(); /* disable counter2 output to speaker */
 	return (0);
 }
 
@@ -241,25 +242,26 @@ i8254_delay(int n)
 	if (state == 1)
 		printf("DELAY(%d)...", n);
 #endif
-	/*
-	 * Read the counter first, so that the rest of the setup overhead is
-	 * counted.  Guess the initial overhead is 20 usec (on most systems it
-	 * takes about 1.5 usec for each of the i/o's in getit().  The loop
-	 * takes about 6 usec on a 486/33 and 13 usec on a 386/20.  The
-	 * multiplications and divisions to scale the count take a while).
-	 *
-	 * However, if ddb is active then use a fake counter since reading
-	 * the i8254 counter involves acquiring a lock.  ddb must not do
-	 * locking for many reasons, but it calls here for at least atkbd
-	 * input.
-	 */
+		/*
+		 * Read the counter first, so that the rest of the setup
+		 * overhead is counted.  Guess the initial overhead is 20 usec
+		 * (on most systems it takes about 1.5 usec for each of the
+		 * i/o's in getit().  The loop takes about 6 usec on a 486/33
+		 * and 13 usec on a 386/20.  The multiplications and divisions
+		 * to scale the count take a while).
+		 *
+		 * However, if ddb is active then use a fake counter since
+		 * reading the i8254 counter involves acquiring a lock.  ddb
+		 * must not do locking for many reasons, but it calls here for
+		 * at least atkbd input.
+		 */
 #ifdef KDB
 	if (kdb_active)
 		prev_tick = 1;
 	else
 #endif
 		prev_tick = getit();
-	n -= 0;			/* XXX actually guess no initial overhead */
+	n -= 0; /* XXX actually guess no initial overhead */
 	/*
 	 * Calculate (n * (i8254_freq / 1e6)) without using floating point
 	 * and without any avoidable overflows.
@@ -281,8 +283,8 @@ i8254_delay(int n)
 		 * division, since even the slow way will complete long
 		 * before the delay is up (unless we're interrupted).
 		 */
-		ticks_left = ((u_int)n * (long long)i8254_freq + 999999)
-			     / 1000000;
+		ticks_left = ((u_int)n * (long long)i8254_freq + 999999) /
+		    1000000;
 
 	while (ticks_left > 0) {
 #ifdef KDB
@@ -314,8 +316,8 @@ i8254_delay(int n)
 	}
 #ifdef DELAYDEBUG
 	if (state == 1)
-		printf(" %d calls to getit() at %d usec each\n",
-		       getit_calls, (n + 5) / getit_calls);
+		printf(" %d calls to getit() at %d usec each\n", getit_calls,
+		    (n + 5) / getit_calls);
 #endif
 }
 
@@ -332,8 +334,9 @@ set_i8254_freq(int mode, uint32_t period)
 		} else
 			new_count = -1;
 	} else {
-		new_count = min(((uint64_t)i8254_freq * period +
-		    0x80000000LLU) >> 32, 0x10000);
+		new_count = min(
+		    ((uint64_t)i8254_freq * period + 0x80000000LLU) >> 32,
+		    0x10000);
 	}
 	if (new_count == timer0_period)
 		goto out;
@@ -412,7 +415,7 @@ cpu_initclocks(void)
 
 	td = curthread;
 	cpu_initclocks_bsp();
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		if (i == 0)
 			continue;
 		thread_lock(td);
@@ -429,8 +432,7 @@ cpu_initclocks(void)
 #endif
 }
 
-static int
-sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
+static int sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	u_int freq;
@@ -454,9 +456,8 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    0, sizeof(u_int), sysctl_machdep_i8254_freq, "IU",
-    "i8254 timer frequency");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(u_int),
+    sysctl_machdep_i8254_freq, "IU", "i8254 timer frequency");
 
 static unsigned
 i8254_get_timecount(struct timecounter *tc)
@@ -484,10 +485,12 @@ i8254_get_timecount(struct timecounter *tc)
 	high = inb(TIMER_CNTR0);
 	count = i8254_max_count - ((high << 8) | low);
 	if (count < i8254_lastcount ||
-	    (!i8254_ticked && (clkintr_pending ||
-	    ((count < 20 || (!(flags & PSL_I) &&
-	    count < i8254_max_count / 2u)) &&
-	    i8254_pending != NULL && i8254_pending(i8254_intsrc))))) {
+	    (!i8254_ticked &&
+		(clkintr_pending ||
+		    ((count < 20 ||
+			 (!(flags & PSL_I) && count < i8254_max_count / 2u)) &&
+			i8254_pending != NULL &&
+			i8254_pending(i8254_intsrc))))) {
 		i8254_ticked = 1;
 		i8254_offset += i8254_max_count;
 	}
@@ -535,8 +538,7 @@ attimer_stop(struct eventtimer *et)
  * Attach to the ISA PnP descriptors for the timer
  */
 static struct isa_pnp_id attimer_ids[] = {
-	{ 0x0001d041 /* PNP0100 */, "AT timer" },
-	{ 0 }
+	{ 0x0001d041 /* PNP0100 */, "AT timer" }, { 0 }
 };
 
 static int
@@ -563,8 +565,8 @@ attimer_attach(device_t dev)
 	attimer_sc = sc = device_get_softc(dev);
 	bzero(sc, sizeof(struct attimer_softc));
 	if (!(sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-	    &sc->port_rid, IO_TIMER1, IO_TIMER1 + 3, 4, RF_ACTIVE)))
-		device_printf(dev,"Warning: Couldn't map I/O.\n");
+		  &sc->port_rid, IO_TIMER1, IO_TIMER1 + 3, 4, RF_ACTIVE)))
+		device_printf(dev, "Warning: Couldn't map I/O.\n");
 	i8254_intsrc = intr_lookup_source(0);
 	if (i8254_intsrc != NULL)
 		i8254_pending = i8254_intsrc->is_pic->pic_source_pending;
@@ -580,23 +582,24 @@ attimer_attach(device_t dev)
 		sc->tc.tc_priv = dev;
 		tc_init(&sc->tc);
 	}
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "clock", &i) != 0 || i != 0) {
-	    	sc->intr_rid = 0;
-		while (bus_get_resource(dev, SYS_RES_IRQ, sc->intr_rid,
-		    &s, NULL) == 0 && s != 0)
+	if (resource_int_value(
+		device_get_name(dev), device_get_unit(dev), "clock", &i) != 0 ||
+	    i != 0) {
+		sc->intr_rid = 0;
+		while (bus_get_resource(
+			   dev, SYS_RES_IRQ, sc->intr_rid, &s, NULL) == 0 &&
+		    s != 0)
 			sc->intr_rid++;
 		if (!(sc->intr_res = bus_alloc_resource(dev, SYS_RES_IRQ,
-		    &sc->intr_rid, 0, 0, 1, RF_ACTIVE))) {
-			device_printf(dev,"Can't map interrupt.\n");
+			  &sc->intr_rid, 0, 0, 1, RF_ACTIVE))) {
+			device_printf(dev, "Can't map interrupt.\n");
 			return (0);
 		}
 		/* Dirty hack, to make bus_setup_intr to not enable source. */
 		i8254_intsrc->is_handlers++;
 		if ((bus_setup_intr(dev, sc->intr_res,
-		    INTR_MPSAFE | INTR_TYPE_CLK,
-		    (driver_filter_t *)clkintr, NULL,
-		    sc, &sc->intr_handler))) {
+			INTR_MPSAFE | INTR_TYPE_CLK, (driver_filter_t *)clkintr,
+			NULL, sc, &sc->intr_handler))) {
 			device_printf(dev, "Can't setup interrupt.\n");
 			i8254_intsrc->is_handlers--;
 			return (0);
@@ -616,7 +619,7 @@ attimer_attach(device_t dev)
 		sc->et.et_priv = dev;
 		et_register(&sc->et);
 	}
-	return(0);
+	return (0);
 }
 
 static int
@@ -629,13 +632,12 @@ attimer_resume(device_t dev)
 
 static device_method_t attimer_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		attimer_probe),
-	DEVMETHOD(device_attach,	attimer_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	attimer_resume),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, attimer_probe),
+	DEVMETHOD(device_attach, attimer_attach),
+	DEVMETHOD(device_detach, bus_generic_detach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, attimer_resume), { 0, 0 }
 };
 
 static driver_t attimer_driver = {

@@ -41,31 +41,32 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/types.h>
-#include <sys/malloc.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
+
 #include <machine/atomic.h>
 #include <machine/bus.h>
-#include <sys/sbuf.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
-#include <cam/cam_sim.h>
-#include <cam/cam_xpt_sim.h>
-#include <cam/cam_xpt.h>
 #include <cam/cam_periph.h>
+#include <cam/cam_sim.h>
+#include <cam/cam_xpt.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/ctl/ctl.h>
+#include <cam/ctl/ctl_debug.h>
+#include <cam/ctl/ctl_frontend.h>
+#include <cam/ctl/ctl_io.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
-#include <cam/ctl/ctl_io.h>
-#include <cam/ctl/ctl.h>
-#include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_debug.h>
 
-#define	io_ptr		spriv_ptr1
+#define io_ptr spriv_ptr1
 
 struct cfcs_io {
 	union ccb *ccb;
@@ -88,8 +89,8 @@ struct cfcs_softc {
  * handle physical addresses yet.  That would require mapping things in
  * order to do the copy.
  */
-#define	CFCS_BAD_CCB_FLAGS (CAM_DATA_ISPHYS | CAM_CDB_PHYS | CAM_SENSE_PTR |		\
-	CAM_SENSE_PHYS)
+#define CFCS_BAD_CCB_FLAGS \
+	(CAM_DATA_ISPHYS | CAM_CDB_PHYS | CAM_SENSE_PTR | CAM_SENSE_PHYS)
 
 static int cfcs_init(void);
 static int cfcs_shutdown(void);
@@ -110,11 +111,10 @@ static int cfcs_max_sense = sizeof(struct scsi_sense_data);
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, ctl2cam, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "CAM Target Layer SIM frontend");
-SYSCTL_INT(_kern_cam_ctl2cam, OID_AUTO, max_sense, CTLFLAG_RW,
-           &cfcs_max_sense, 0, "Maximum sense data size");
+SYSCTL_INT(_kern_cam_ctl2cam, OID_AUTO, max_sense, CTLFLAG_RW, &cfcs_max_sense,
+    0, "Maximum sense data size");
 
-static struct ctl_frontend cfcs_frontend =
-{
+static struct ctl_frontend cfcs_frontend = {
 	.name = "camsim",
 	.init = cfcs_init,
 	.shutdown = cfcs_shutdown,
@@ -148,7 +148,7 @@ cfcs_init(void)
 	retval = ctl_port_register(port);
 	if (retval != 0) {
 		printf("%s: ctl_port_register() failed with error %d!\n",
-		       __func__, retval);
+		    __func__, retval);
 		return (retval);
 	}
 
@@ -161,8 +161,8 @@ cfcs_init(void)
 
 		arc4rand(&random_bits, sizeof(random_bits), 0);
 		softc->wwnn = (random_bits & 0x0000000fffffff00ULL) |
-			/* Company ID */ 0x5000000000000000ULL |
-			/* NL-Port */    0x0300;
+		    /* Company ID */ 0x5000000000000000ULL |
+		    /* NL-Port */ 0x0300;
 		softc->wwpn = softc->wwnn + port->targ_port + 1;
 		ctl_port_set_wwns(port, true, softc->wwnn, true, softc->wwpn);
 	} else {
@@ -178,8 +178,8 @@ cfcs_init(void)
 	}
 
 	softc->sim = cam_sim_alloc(cfcs_action, cfcs_poll, softc->port_name,
-				   softc, /*unit*/ 0, NULL, 1,
-				   port->num_requested_ctl_io, softc->devq);
+	    softc, /*unit*/ 0, NULL, 1, port->num_requested_ctl_io,
+	    softc->devq);
 	if (softc->sim == NULL) {
 		printf("%s: error allocating SIM\n", __func__);
 		retval = ENOMEM;
@@ -192,10 +192,9 @@ cfcs_init(void)
 		goto bailout;
 	}
 
-	if (xpt_create_path(&softc->path, /*periph*/NULL,
-			    cam_sim_path(softc->sim),
-			    CAM_TARGET_WILDCARD,
-			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	if (xpt_create_path(&softc->path, /*periph*/ NULL,
+		cam_sim_path(softc->sim), CAM_TARGET_WILDCARD,
+		CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		printf("%s: error creating path\n", __func__);
 		xpt_bus_deregister(cam_sim_path(softc->sim));
 		retval = EINVAL;
@@ -233,7 +232,6 @@ cfcs_shutdown(void)
 static void
 cfcs_poll(struct cam_sim *sim)
 {
-
 }
 
 static void
@@ -250,9 +248,8 @@ cfcs_onoffline(void *arg, int online)
 		return;
 	}
 
-	if (xpt_create_path(&ccb->ccb_h.path, NULL,
-			    cam_sim_path(softc->sim), CAM_TARGET_WILDCARD,
-			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	if (xpt_create_path(&ccb->ccb_h.path, NULL, cam_sim_path(softc->sim),
+		CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		printf("%s: can't allocate path for rescan\n", __func__);
 		xpt_free_ccb(ccb);
 		return;
@@ -301,8 +298,10 @@ cfcs_datamove(union ctl_io *io)
 	 * this code to provide the additional functionality necessary to
 	 * support those modes of operation.
 	 */
-	KASSERT(((ccb->ccb_h.flags & CFCS_BAD_CCB_FLAGS) == 0), ("invalid "
-		  "CAM flags %#x", (ccb->ccb_h.flags & CFCS_BAD_CCB_FLAGS)));
+	KASSERT(((ccb->ccb_h.flags & CFCS_BAD_CCB_FLAGS) == 0),
+	    ("invalid "
+	     "CAM flags %#x",
+		(ccb->ccb_h.flags & CFCS_BAD_CCB_FLAGS)));
 
 	/*
 	 * Simplify things on both sides by putting single buffers into a
@@ -319,10 +318,10 @@ cfcs_datamove(union ctl_io *io)
 
 		for (i = 0, len_seen = 0; i < cam_sg_count; i++) {
 			if ((len_seen + cam_sglist[i].ds_len) >=
-			     io->scsiio.kern_rel_offset) {
+			    io->scsiio.kern_rel_offset) {
 				cam_sg_start = i;
 				cam_sg_offset = io->scsiio.kern_rel_offset -
-					len_seen;
+				    len_seen;
 				break;
 			}
 			len_seen += cam_sglist[i].ds_len;
@@ -332,7 +331,8 @@ cfcs_datamove(union ctl_io *io)
 	case CAM_DATA_VADDR:
 		cam_sglist = &cam_sg_entry;
 		cam_sglist[0].ds_len = ccb->csio.dxfer_len;
-		cam_sglist[0].ds_addr = (bus_addr_t)(uintptr_t)ccb->csio.data_ptr;
+		cam_sglist[0].ds_addr = (bus_addr_t)(
+		    uintptr_t)ccb->csio.data_ptr;
 		cam_sg_count = 1;
 		cam_sg_start = 0;
 		cam_sg_offset = io->scsiio.kern_rel_offset;
@@ -353,12 +353,11 @@ cfcs_datamove(union ctl_io *io)
 
 	ctl_watermark = 0;
 	cam_watermark = cam_sg_offset;
-	for (i = cam_sg_start, j = 0;
-	     i < cam_sg_count && j < ctl_sg_count;) {
+	for (i = cam_sg_start, j = 0; i < cam_sg_count && j < ctl_sg_count;) {
 		uint8_t *cam_ptr, *ctl_ptr;
 
 		len_to_copy = MIN(cam_sglist[i].ds_len - cam_watermark,
-				  ctl_sglist[j].len - ctl_watermark);
+		    ctl_sglist[j].len - ctl_watermark);
 
 		cam_ptr = (uint8_t *)(uintptr_t)cam_sglist[i].ds_addr;
 		cam_ptr = cam_ptr + cam_watermark;
@@ -375,17 +374,17 @@ cfcs_datamove(union ctl_io *io)
 		ctl_ptr = ctl_ptr + ctl_watermark;
 
 		if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
-		     CTL_FLAG_DATA_IN) {
+		    CTL_FLAG_DATA_IN) {
 			CTL_DEBUG_PRINT(("%s: copying %d bytes to CAM\n",
-					 __func__, len_to_copy));
-			CTL_DEBUG_PRINT(("%s: from %p to %p\n", ctl_ptr,
-					 __func__, cam_ptr));
+			    __func__, len_to_copy));
+			CTL_DEBUG_PRINT((
+			    "%s: from %p to %p\n", ctl_ptr, __func__, cam_ptr));
 			bcopy(ctl_ptr, cam_ptr, len_to_copy);
 		} else {
 			CTL_DEBUG_PRINT(("%s: copying %d bytes from CAM\n",
-					 __func__, len_to_copy));
-			CTL_DEBUG_PRINT(("%s: from %p to %p\n", cam_ptr,
-					 __func__, ctl_ptr));
+			    __func__, len_to_copy));
+			CTL_DEBUG_PRINT((
+			    "%s: from %p to %p\n", cam_ptr, __func__, ctl_ptr));
 			bcopy(cam_ptr, ctl_ptr, len_to_copy);
 		}
 
@@ -433,7 +432,7 @@ cfcs_done(union ctl_io *io)
 	 * At this point we should have status.  If we don't, that's a bug.
 	 */
 	KASSERT(((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE),
-		("invalid CTL status %#x", io->io_hdr.status));
+	    ("invalid CTL status %#x", io->io_hdr.status));
 
 	/*
 	 * Translate CTL status to CAM status.
@@ -451,16 +450,16 @@ cfcs_done(union ctl_io *io)
 		ccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
 		ccb->csio.scsi_status = io->scsiio.scsi_status;
 		bcopy(&io->scsiio.sense_data, &ccb->csio.sense_data,
-		      min(io->scsiio.sense_len, ccb->csio.sense_len));
+		    min(io->scsiio.sense_len, ccb->csio.sense_len));
 		if (ccb->csio.sense_len > io->scsiio.sense_len)
 			ccb->csio.sense_resid = ccb->csio.sense_len -
-						io->scsiio.sense_len;
+			    io->scsiio.sense_len;
 		else
 			ccb->csio.sense_resid = 0;
 		if ((ccb->csio.sense_len - ccb->csio.sense_resid) >
-		     cfcs_max_sense) {
+		    cfcs_max_sense) {
 			ccb->csio.sense_resid = ccb->csio.sense_len -
-						cfcs_max_sense;
+			    cfcs_max_sense;
 		}
 		break;
 	case CTL_CMD_ABORTED:
@@ -497,13 +496,13 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 
 		/*
 		 * Catch CCB flags, like physical address flags, that
-	 	 * indicate situations we currently can't handle.
+		 * indicate situations we currently can't handle.
 		 */
 		if (ccb->ccb_h.flags & CFCS_BAD_CCB_FLAGS) {
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			printf("%s: bad CCB flags %#x (all flags %#x)\n",
-			       __func__, ccb->ccb_h.flags & CFCS_BAD_CCB_FLAGS,
-			       ccb->ccb_h.flags);
+			    __func__, ccb->ccb_h.flags & CFCS_BAD_CCB_FLAGS,
+			    ccb->ccb_h.flags);
 			xpt_done(ccb);
 			return;
 		}
@@ -557,10 +556,10 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 			io->scsiio.tag_type = CTL_TAG_SIMPLE;
 			break;
 		case MSG_HEAD_OF_QUEUE_TASK:
-        		io->scsiio.tag_type = CTL_TAG_HEAD_OF_QUEUE;
+			io->scsiio.tag_type = CTL_TAG_HEAD_OF_QUEUE;
 			break;
 		case MSG_ORDERED_TASK:
-        		io->scsiio.tag_type = CTL_TAG_ORDERED;
+			io->scsiio.tag_type = CTL_TAG_ORDERED;
 			break;
 		case MSG_ACA_TASK:
 			io->scsiio.tag_type = CTL_TAG_ACA;
@@ -568,12 +567,12 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		default:
 			io->scsiio.tag_type = CTL_TAG_UNTAGGED;
 			printf("%s: unhandled tag type %#x!!\n", __func__,
-			       csio->tag_action);
+			    csio->tag_action);
 			break;
 		}
 		if (csio->cdb_len > sizeof(io->scsiio.cdb)) {
 			printf("%s: WARNING: CDB len %d > ctl_io space %zd\n",
-			       __func__, csio->cdb_len, sizeof(io->scsiio.cdb));
+			    __func__, csio->cdb_len, sizeof(io->scsiio.cdb));
 		}
 		io->scsiio.cdb_len = min(csio->cdb_len, sizeof(io->scsiio.cdb));
 		bcopy(scsiio_cdb_ptr(csio), io->scsiio.cdb, io->scsiio.cdb_len);
@@ -582,8 +581,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		err = ctl_queue(io);
 		if (err != CTL_RETVAL_COMPLETE) {
 			printf("%s: func %d: error %d returned by "
-			       "ctl_queue()!\n", __func__,
-			       ccb->ccb_h.func_code, err);
+			       "ctl_queue()!\n",
+			    __func__, ccb->ccb_h.func_code, err);
 			ctl_free_io(io);
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(ccb);
@@ -639,10 +638,10 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 			io->taskio.tag_type = CTL_TAG_SIMPLE;
 			break;
 		case MSG_HEAD_OF_QUEUE_TASK:
-        		io->taskio.tag_type = CTL_TAG_HEAD_OF_QUEUE;
+			io->taskio.tag_type = CTL_TAG_HEAD_OF_QUEUE;
 			break;
 		case MSG_ORDERED_TASK:
-        		io->taskio.tag_type = CTL_TAG_ORDERED;
+			io->taskio.tag_type = CTL_TAG_ORDERED;
 			break;
 		case MSG_ACA_TASK:
 			io->taskio.tag_type = CTL_TAG_ACA;
@@ -650,14 +649,14 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		default:
 			io->taskio.tag_type = CTL_TAG_UNTAGGED;
 			printf("%s: unhandled tag type %#x!!\n", __func__,
-			       abort_ccb->csio.tag_action);
+			    abort_ccb->csio.tag_action);
 			break;
 		}
 		err = ctl_queue(io);
 		if (err != CTL_RETVAL_COMPLETE) {
 			printf("%s func %d: error %d returned by "
-			       "ctl_queue()!\n", __func__,
-			       ccb->ccb_h.func_code, err);
+			       "ctl_queue()!\n",
+			    __func__, ccb->ccb_h.func_code, err);
 			ctl_free_io(io);
 		}
 		break;
@@ -671,7 +670,6 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		scsi = &cts->proto_specific.scsi;
 		fc = &cts->xport_specific.fc;
 
-		
 		cts->protocol = PROTO_SCSI;
 		cts->protocol_version = SCSI_REV_SPC2;
 		cts->transport = XPORT_FC;
@@ -685,7 +683,7 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		fc->wwpn = softc->wwpn;
 		fc->port = softc->port.targ_port;
 		fc->valid |= CTS_FC_VALID_WWNN | CTS_FC_VALID_WWPN |
-			CTS_FC_VALID_PORT; 
+		    CTS_FC_VALID_PORT;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -733,8 +731,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		err = ctl_queue(io);
 		if (err != CTL_RETVAL_COMPLETE) {
 			printf("%s func %d: error %d returned by "
-			      "ctl_queue()!\n", __func__,
-			      ccb->ccb_h.func_code, err);
+			       "ctl_queue()!\n",
+			    __func__, ccb->ccb_h.func_code, err);
 			ctl_free_io(io);
 		}
 		break;
@@ -784,7 +782,7 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 	default:
 		ccb->ccb_h.status = CAM_PROVIDE_FAIL;
 		printf("%s: unsupported CCB type %#x\n", __func__,
-		       ccb->ccb_h.func_code);
+		    ccb->ccb_h.func_code);
 		xpt_done(ccb);
 		break;
 	}

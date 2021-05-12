@@ -40,10 +40,7 @@ inet_ntoa_r(struct in_addr ina, char *buf)
 {
 	unsigned char *ucp = (unsigned char *)&ina;
 
-	sprintf(buf, "%d.%d.%d.%d",
-		ucp[0] & 0xff,
-		ucp[1] & 0xff,
-		ucp[2] & 0xff,
-		ucp[3] & 0xff);
+	sprintf(buf, "%d.%d.%d.%d", ucp[0] & 0xff, ucp[1] & 0xff, ucp[2] & 0xff,
+	    ucp[3] & 0xff);
 	return buf;
 }

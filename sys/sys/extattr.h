@@ -35,18 +35,18 @@
  */
 
 #ifndef _SYS_EXTATTR_H_
-#define	_SYS_EXTATTR_H_
+#define _SYS_EXTATTR_H_
 
 /*
  * Defined name spaces for extended attributes.  Numeric constants are passed
  * via system calls, but a user-friendly string is also defined.
  */
-#define	EXTATTR_NAMESPACE_EMPTY		0x00000000
-#define	EXTATTR_NAMESPACE_EMPTY_STRING	"empty"
-#define	EXTATTR_NAMESPACE_USER		0x00000001
-#define	EXTATTR_NAMESPACE_USER_STRING	"user"
-#define	EXTATTR_NAMESPACE_SYSTEM	0x00000002
-#define	EXTATTR_NAMESPACE_SYSTEM_STRING	"system"
+#define EXTATTR_NAMESPACE_EMPTY 0x00000000
+#define EXTATTR_NAMESPACE_EMPTY_STRING "empty"
+#define EXTATTR_NAMESPACE_USER 0x00000001
+#define EXTATTR_NAMESPACE_USER_STRING "user"
+#define EXTATTR_NAMESPACE_SYSTEM 0x00000002
+#define EXTATTR_NAMESPACE_SYSTEM_STRING "system"
 
 /*
  * The following macro is designed to initialize an array that maps
@@ -54,12 +54,13 @@
  *
  * char *extattr_namespace_names[] = EXTATTR_NAMESPACE_NAMES;
  */
-#define EXTATTR_NAMESPACE_NAMES { \
-	EXTATTR_NAMESPACE_EMPTY_STRING, \
-	EXTATTR_NAMESPACE_USER_STRING, \
-	EXTATTR_NAMESPACE_SYSTEM_STRING }
+#define EXTATTR_NAMESPACE_NAMES                                                \
+	{                                                                      \
+		EXTATTR_NAMESPACE_EMPTY_STRING, EXTATTR_NAMESPACE_USER_STRING, \
+		    EXTATTR_NAMESPACE_SYSTEM_STRING                            \
+	}
 
-#define	EXTATTR_MAXNAMELEN	NAME_MAX
+#define EXTATTR_MAXNAMELEN NAME_MAX
 
 #ifdef _KERNEL
 #include <sys/types.h>
@@ -67,8 +68,8 @@
 struct thread;
 struct ucred;
 struct vnode;
-int	extattr_check_cred(struct vnode *vp, int attrnamespace,
-	    struct ucred *cred, struct thread *td, accmode_t accmode);
+int extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
+    struct thread *td, accmode_t accmode);
 
 #else
 #include <sys/cdefs.h>
@@ -76,31 +77,31 @@ int	extattr_check_cred(struct vnode *vp, int attrnamespace,
 struct iovec;
 
 __BEGIN_DECLS
-int	extattrctl(const char *_path, int _cmd, const char *_filename,
-	    int _attrnamespace, const char *_attrname);
-int	extattr_delete_fd(int _fd, int _attrnamespace, const char *_attrname);
-int	extattr_delete_file(const char *_path, int _attrnamespace,
-	    const char *_attrname);
-int	extattr_delete_link(const char *_path, int _attrnamespace,
-	    const char *_attrname);
-ssize_t	extattr_get_fd(int _fd, int _attrnamespace, const char *_attrname,
-	    void *_data, size_t _nbytes);
-ssize_t	extattr_get_file(const char *_path, int _attrnamespace,
-	    const char *_attrname, void *_data, size_t _nbytes);
-ssize_t	extattr_get_link(const char *_path, int _attrnamespace,
-	    const char *_attrname, void *_data, size_t _nbytes);
-ssize_t	extattr_list_fd(int _fd, int _attrnamespace, void *_data,
-	    size_t _nbytes);
-ssize_t	extattr_list_file(const char *_path, int _attrnamespace, void *_data,
-	    size_t _nbytes);
-ssize_t	extattr_list_link(const char *_path, int _attrnamespace, void *_data,
-	    size_t _nbytes);
-ssize_t	extattr_set_fd(int _fd, int _attrnamespace, const char *_attrname,
-	    const void *_data, size_t _nbytes);
-ssize_t	extattr_set_file(const char *_path, int _attrnamespace,
-	    const char *_attrname, const void *_data, size_t _nbytes);
-ssize_t	extattr_set_link(const char *_path, int _attrnamespace,
-	    const char *_attrname, const void *_data, size_t _nbytes);
+int extattrctl(const char *_path, int _cmd, const char *_filename,
+    int _attrnamespace, const char *_attrname);
+int extattr_delete_fd(int _fd, int _attrnamespace, const char *_attrname);
+int extattr_delete_file(
+    const char *_path, int _attrnamespace, const char *_attrname);
+int extattr_delete_link(
+    const char *_path, int _attrnamespace, const char *_attrname);
+ssize_t extattr_get_fd(int _fd, int _attrnamespace, const char *_attrname,
+    void *_data, size_t _nbytes);
+ssize_t extattr_get_file(const char *_path, int _attrnamespace,
+    const char *_attrname, void *_data, size_t _nbytes);
+ssize_t extattr_get_link(const char *_path, int _attrnamespace,
+    const char *_attrname, void *_data, size_t _nbytes);
+ssize_t extattr_list_fd(
+    int _fd, int _attrnamespace, void *_data, size_t _nbytes);
+ssize_t extattr_list_file(
+    const char *_path, int _attrnamespace, void *_data, size_t _nbytes);
+ssize_t extattr_list_link(
+    const char *_path, int _attrnamespace, void *_data, size_t _nbytes);
+ssize_t extattr_set_fd(int _fd, int _attrnamespace, const char *_attrname,
+    const void *_data, size_t _nbytes);
+ssize_t extattr_set_file(const char *_path, int _attrnamespace,
+    const char *_attrname, const void *_data, size_t _nbytes);
+ssize_t extattr_set_link(const char *_path, int _attrnamespace,
+    const char *_attrname, const void *_data, size_t _nbytes);
 __END_DECLS
 
 #endif /* !_KERNEL */

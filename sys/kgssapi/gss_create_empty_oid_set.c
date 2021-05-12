@@ -39,8 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <kgssapi/gssapi_impl.h>
 
 OM_uint32
-gss_create_empty_oid_set(OM_uint32 *minor_status,
-    gss_OID_set *oid_set)
+gss_create_empty_oid_set(OM_uint32 *minor_status, gss_OID_set *oid_set)
 {
 	gss_OID_set set;
 

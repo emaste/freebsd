@@ -26,7 +26,7 @@
  */
 
 #ifndef _ZY7_MACHDEP_H_
-#define	_ZY7_MACHDEP_H_
+#define _ZY7_MACHDEP_H_
 
 struct pl310_softc;
 

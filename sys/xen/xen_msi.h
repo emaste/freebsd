@@ -29,11 +29,11 @@
 #ifndef __XEN_MSI_H__
 #define __XEN_MSI_H__
 
-void	xen_msi_init(void);
-int	xen_msi_map(int irq, uint64_t *addr, uint32_t *data);
-int	xen_msi_alloc(device_t dev, int count, int maxcount, int *irqs);
-int	xen_msi_release(int *irqs, int count);
-int	xen_msix_alloc(device_t dev, int *irq);
-int	xen_msix_release(int irq);
+void xen_msi_init(void);
+int xen_msi_map(int irq, uint64_t *addr, uint32_t *data);
+int xen_msi_alloc(device_t dev, int count, int maxcount, int *irqs);
+int xen_msi_release(int *irqs, int count);
+int xen_msix_alloc(device_t dev, int *irq);
+int xen_msix_release(int irq);
 
 #endif /* !__XEN_MSI_H__ */

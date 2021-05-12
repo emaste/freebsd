@@ -36,21 +36,22 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/acl.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/systm.h>
 #include <sys/mount.h>
 #include <sys/priv.h>
-#include <sys/vnode.h>
-#include <sys/errno.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
-#include <sys/acl.h>
+#include <sys/vnode.h>
 #else
-#include <errno.h>
-#include <assert.h>
 #include <sys/acl.h>
 #include <sys/stat.h>
+
+#include <assert.h>
+#include <errno.h>
 #define KASSERT(a, b) assert(a)
 #define CTASSERT(a)
 
@@ -58,9 +59,9 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 
-static void	acl_nfs4_trivial_from_mode(struct acl *aclp, mode_t mode);
+static void acl_nfs4_trivial_from_mode(struct acl *aclp, mode_t mode);
 
-static int	acl_nfs4_old_semantics = 0;
+static int acl_nfs4_old_semantics = 0;
 
 SYSCTL_INT(_vfs, OID_AUTO, acl_nfs4_old_semantics, CTLFLAG_RW,
     &acl_nfs4_old_semantics, 0, "Use pre-PSARC/2010/029 NFSv4 ACL semantics");
@@ -68,21 +69,16 @@ SYSCTL_INT(_vfs, OID_AUTO, acl_nfs4_old_semantics, CTLFLAG_RW,
 static struct {
 	accmode_t accmode;
 	int mask;
-} accmode2mask[] = {{VREAD, ACL_READ_DATA},
-		    {VWRITE, ACL_WRITE_DATA},
-		    {VAPPEND, ACL_APPEND_DATA},
-		    {VEXEC, ACL_EXECUTE},
-		    {VREAD_NAMED_ATTRS, ACL_READ_NAMED_ATTRS},
-		    {VWRITE_NAMED_ATTRS, ACL_WRITE_NAMED_ATTRS},
-		    {VDELETE_CHILD, ACL_DELETE_CHILD},
-		    {VREAD_ATTRIBUTES, ACL_READ_ATTRIBUTES},
-		    {VWRITE_ATTRIBUTES, ACL_WRITE_ATTRIBUTES},
-		    {VDELETE, ACL_DELETE},
-		    {VREAD_ACL, ACL_READ_ACL},
-		    {VWRITE_ACL, ACL_WRITE_ACL},
-		    {VWRITE_OWNER, ACL_WRITE_OWNER},
-		    {VSYNCHRONIZE, ACL_SYNCHRONIZE},
-		    {0, 0}};
+} accmode2mask[] = { { VREAD, ACL_READ_DATA }, { VWRITE, ACL_WRITE_DATA },
+	{ VAPPEND, ACL_APPEND_DATA }, { VEXEC, ACL_EXECUTE },
+	{ VREAD_NAMED_ATTRS, ACL_READ_NAMED_ATTRS },
+	{ VWRITE_NAMED_ATTRS, ACL_WRITE_NAMED_ATTRS },
+	{ VDELETE_CHILD, ACL_DELETE_CHILD },
+	{ VREAD_ATTRIBUTES, ACL_READ_ATTRIBUTES },
+	{ VWRITE_ATTRIBUTES, ACL_WRITE_ATTRIBUTES }, { VDELETE, ACL_DELETE },
+	{ VREAD_ACL, ACL_READ_ACL }, { VWRITE_ACL, ACL_WRITE_ACL },
+	{ VWRITE_OWNER, ACL_WRITE_OWNER }, { VSYNCHRONIZE, ACL_SYNCHRONIZE },
+	{ 0, 0 } };
 
 static int
 _access_mask_from_accmode(accmode_t accmode)
@@ -178,13 +174,15 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 	    must_be_owner = 0;
 	mode_t file_mode = 0;
 
-	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND |
-	    VEXPLICIT_DENY | VREAD_NAMED_ATTRS | VWRITE_NAMED_ATTRS |
-	    VDELETE_CHILD | VREAD_ATTRIBUTES | VWRITE_ATTRIBUTES | VDELETE |
-	    VREAD_ACL | VWRITE_ACL | VWRITE_OWNER | VSYNCHRONIZE)) == 0,
+	KASSERT(
+	    (accmode &
+		~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND | VEXPLICIT_DENY |
+		    VREAD_NAMED_ATTRS | VWRITE_NAMED_ATTRS | VDELETE_CHILD |
+		    VREAD_ATTRIBUTES | VWRITE_ATTRIBUTES | VDELETE | VREAD_ACL |
+		    VWRITE_ACL | VWRITE_OWNER | VSYNCHRONIZE)) == 0,
 	    ("invalid bit in accmode"));
 	KASSERT((accmode & VAPPEND) == 0 || (accmode & VWRITE),
-	    	("VAPPEND without VWRITE"));
+	    ("VAPPEND without VWRITE"));
 
 	if (accmode & VADMIN)
 		must_be_owner = 1;
@@ -220,8 +218,8 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 		access_mask |= ACL_WRITE_DATA;
 	}
 
-	denied = _acl_denies(aclp, access_mask, cred, file_uid, file_gid,
-	    &explicitly_denied);
+	denied = _acl_denies(
+	    aclp, access_mask, cred, file_uid, file_gid, &explicitly_denied);
 
 	if (must_be_owner) {
 		if (file_uid != cred->cr_uid)
@@ -255,7 +253,8 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 	 * No match.  Try to use privileges, if there are any.
 	 */
 	if (is_directory) {
-		if ((accmode & VEXEC) && !priv_check_cred(cred, PRIV_VFS_LOOKUP))
+		if ((accmode & VEXEC) &&
+		    !priv_check_cred(cred, PRIV_VFS_LOOKUP))
 			priv_granted |= VEXEC;
 	} else {
 		/*
@@ -263,8 +262,8 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 		 * a privileged user will always succeed, and we don't want
 		 * this to happen unless the file really is executable.
 		 */
-		if ((accmode & VEXEC) && (file_mode &
-		    (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 &&
+		if ((accmode & VEXEC) &&
+		    (file_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 &&
 		    !priv_check_cred(cred, PRIV_VFS_EXEC))
 			priv_granted |= VEXEC;
 	}
@@ -276,12 +275,10 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 	    !priv_check_cred(cred, PRIV_VFS_WRITE))
 		priv_granted |= (VWRITE | VAPPEND | VDELETE_CHILD);
 
-	if ((accmode & VADMIN_PERMS) &&
-	    !priv_check_cred(cred, PRIV_VFS_ADMIN))
+	if ((accmode & VADMIN_PERMS) && !priv_check_cred(cred, PRIV_VFS_ADMIN))
 		priv_granted |= VADMIN_PERMS;
 
-	if ((accmode & VSTAT_PERMS) &&
-	    !priv_check_cred(cred, PRIV_VFS_STAT))
+	if ((accmode & VSTAT_PERMS) && !priv_check_cred(cred, PRIV_VFS_STAT))
 		priv_granted |= VSTAT_PERMS;
 
 	if ((accmode & priv_granted) == accmode) {
@@ -357,13 +354,12 @@ _acl_duplicate_entry(struct acl *aclp, unsigned entry_index)
 }
 
 static void
-acl_nfs4_sync_acl_from_mode_draft(struct acl *aclp, mode_t mode,
-    int file_owner_id)
+acl_nfs4_sync_acl_from_mode_draft(
+    struct acl *aclp, mode_t mode, int file_owner_id)
 {
 	int meets, must_append;
 	unsigned i;
-	struct acl_entry *entry, *copy, *previous,
-	    *a1, *a2, *a3, *a4, *a5, *a6;
+	struct acl_entry *entry, *copy, *previous, *a1, *a2, *a3, *a4, *a5, *a6;
 	mode_t amode;
 	const int READ = 04;
 	const int WRITE = 02;
@@ -492,14 +488,15 @@ acl_nfs4_sync_acl_from_mode_draft(struct acl *aclp, mode_t mode,
 			if (previous->ae_perm & ~(entry->ae_perm))
 				meets = 0;
 
-			if (previous->ae_perm & ~(ACL_READ_DATA |
-			    ACL_WRITE_DATA | ACL_APPEND_DATA | ACL_EXECUTE))
+			if (previous->ae_perm &
+			    ~(ACL_READ_DATA | ACL_WRITE_DATA | ACL_APPEND_DATA |
+				ACL_EXECUTE))
 				meets = 0;
 		}
 
 		if (!meets) {
 			/*
-		 	 * Then the ACE of type DENY, with a who equal
+			 * Then the ACE of type DENY, with a who equal
 			 * to the current ACE, flag bits equal to
 			 * (<current ACE flags> & <ACE_IDENTIFIER_GROUP>)
 			 * and no mask bits, is prepended.
@@ -586,10 +583,10 @@ acl_nfs4_sync_acl_from_mode_draft(struct acl *aclp, mode_t mode,
 				}
 
 				if (extramode & WRITE) {
-					entry->ae_perm &=
-					    ~(ACL_WRITE_DATA | ACL_APPEND_DATA);
-					previous->ae_perm &=
-					    ~(ACL_WRITE_DATA | ACL_APPEND_DATA);
+					entry->ae_perm &= ~(
+					    ACL_WRITE_DATA | ACL_APPEND_DATA);
+					previous->ae_perm &= ~(
+					    ACL_WRITE_DATA | ACL_APPEND_DATA);
 				}
 
 				if (extramode & EXEC) {
@@ -615,26 +612,29 @@ acl_nfs4_sync_acl_from_mode_draft(struct acl *aclp, mode_t mode,
 		a2 = &(aclp->acl_entry[aclp->acl_cnt - 5]);
 		a1 = &(aclp->acl_entry[aclp->acl_cnt - 6]);
 
-		if (!_acl_entry_matches(a1, ACL_USER_OBJ, 0,
-		    ACL_ENTRY_TYPE_DENY))
+		if (!_acl_entry_matches(
+			a1, ACL_USER_OBJ, 0, ACL_ENTRY_TYPE_DENY))
 			must_append = 1;
-		if (!_acl_entry_matches(a2, ACL_USER_OBJ, ACL_WRITE_ACL |
-		    ACL_WRITE_OWNER | ACL_WRITE_ATTRIBUTES |
-		    ACL_WRITE_NAMED_ATTRS, ACL_ENTRY_TYPE_ALLOW))
+		if (!_acl_entry_matches(a2, ACL_USER_OBJ,
+			ACL_WRITE_ACL | ACL_WRITE_OWNER | ACL_WRITE_ATTRIBUTES |
+			    ACL_WRITE_NAMED_ATTRS,
+			ACL_ENTRY_TYPE_ALLOW))
 			must_append = 1;
-		if (!_acl_entry_matches(a3, ACL_GROUP_OBJ, 0,
-		    ACL_ENTRY_TYPE_DENY))
+		if (!_acl_entry_matches(
+			a3, ACL_GROUP_OBJ, 0, ACL_ENTRY_TYPE_DENY))
 			must_append = 1;
-		if (!_acl_entry_matches(a4, ACL_GROUP_OBJ, 0,
-		    ACL_ENTRY_TYPE_ALLOW))
+		if (!_acl_entry_matches(
+			a4, ACL_GROUP_OBJ, 0, ACL_ENTRY_TYPE_ALLOW))
 			must_append = 1;
-		if (!_acl_entry_matches(a5, ACL_EVERYONE, ACL_WRITE_ACL |
-		    ACL_WRITE_OWNER | ACL_WRITE_ATTRIBUTES |
-		    ACL_WRITE_NAMED_ATTRS, ACL_ENTRY_TYPE_DENY))
+		if (!_acl_entry_matches(a5, ACL_EVERYONE,
+			ACL_WRITE_ACL | ACL_WRITE_OWNER | ACL_WRITE_ATTRIBUTES |
+			    ACL_WRITE_NAMED_ATTRS,
+			ACL_ENTRY_TYPE_DENY))
 			must_append = 1;
-		if (!_acl_entry_matches(a6, ACL_EVERYONE, ACL_READ_ACL |
-		    ACL_READ_ATTRIBUTES | ACL_READ_NAMED_ATTRS |
-		    ACL_SYNCHRONIZE, ACL_ENTRY_TYPE_ALLOW))
+		if (!_acl_entry_matches(a6, ACL_EVERYONE,
+			ACL_READ_ACL | ACL_READ_ATTRIBUTES |
+			    ACL_READ_NAMED_ATTRS | ACL_SYNCHRONIZE,
+			ACL_ENTRY_TYPE_ALLOW))
 			must_append = 1;
 	}
 
@@ -643,20 +643,24 @@ acl_nfs4_sync_acl_from_mode_draft(struct acl *aclp, mode_t mode,
 		    ("aclp->acl_cnt <= ACL_MAX_ENTRIES"));
 
 		a1 = _acl_append(aclp, ACL_USER_OBJ, 0, ACL_ENTRY_TYPE_DENY);
-		a2 = _acl_append(aclp, ACL_USER_OBJ, ACL_WRITE_ACL |
-		    ACL_WRITE_OWNER | ACL_WRITE_ATTRIBUTES |
-		    ACL_WRITE_NAMED_ATTRS, ACL_ENTRY_TYPE_ALLOW);
+		a2 = _acl_append(aclp, ACL_USER_OBJ,
+		    ACL_WRITE_ACL | ACL_WRITE_OWNER | ACL_WRITE_ATTRIBUTES |
+			ACL_WRITE_NAMED_ATTRS,
+		    ACL_ENTRY_TYPE_ALLOW);
 		a3 = _acl_append(aclp, ACL_GROUP_OBJ, 0, ACL_ENTRY_TYPE_DENY);
 		a4 = _acl_append(aclp, ACL_GROUP_OBJ, 0, ACL_ENTRY_TYPE_ALLOW);
-		a5 = _acl_append(aclp, ACL_EVERYONE, ACL_WRITE_ACL |
-		    ACL_WRITE_OWNER | ACL_WRITE_ATTRIBUTES |
-		    ACL_WRITE_NAMED_ATTRS, ACL_ENTRY_TYPE_DENY);
-		a6 = _acl_append(aclp, ACL_EVERYONE, ACL_READ_ACL |
-		    ACL_READ_ATTRIBUTES | ACL_READ_NAMED_ATTRS |
-		    ACL_SYNCHRONIZE, ACL_ENTRY_TYPE_ALLOW);
+		a5 = _acl_append(aclp, ACL_EVERYONE,
+		    ACL_WRITE_ACL | ACL_WRITE_OWNER | ACL_WRITE_ATTRIBUTES |
+			ACL_WRITE_NAMED_ATTRS,
+		    ACL_ENTRY_TYPE_DENY);
+		a6 = _acl_append(aclp, ACL_EVERYONE,
+		    ACL_READ_ACL | ACL_READ_ATTRIBUTES | ACL_READ_NAMED_ATTRS |
+			ACL_SYNCHRONIZE,
+		    ACL_ENTRY_TYPE_ALLOW);
 
 		KASSERT(a1 != NULL && a2 != NULL && a3 != NULL && a4 != NULL &&
-		    a5 != NULL && a6 != NULL, ("couldn't append to ACL."));
+			a5 != NULL && a6 != NULL,
+		    ("couldn't append to ACL."));
 	}
 
 	/*
@@ -704,8 +708,7 @@ acl_nfs4_sync_acl_from_mode_draft(struct acl *aclp, mode_t mode,
 
 #ifdef _KERNEL
 void
-acl_nfs4_sync_acl_from_mode(struct acl *aclp, mode_t mode,
-    int file_owner_id)
+acl_nfs4_sync_acl_from_mode(struct acl *aclp, mode_t mode, int file_owner_id)
 {
 
 	if (acl_nfs4_old_semantics)
@@ -745,89 +748,104 @@ acl_nfs4_sync_mode_from_acl(mode_t *_mode, const struct acl *aclp)
 			if ((entry->ae_perm & ACL_READ_DATA) &&
 			    ((seen & S_IRUSR) == 0)) {
 				seen |= S_IRUSR;
-				if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+				if (entry->ae_entry_type ==
+				    ACL_ENTRY_TYPE_ALLOW)
 					mode |= S_IRUSR;
 			}
 			if ((entry->ae_perm & ACL_WRITE_DATA) &&
-			     ((seen & S_IWUSR) == 0)) {
+			    ((seen & S_IWUSR) == 0)) {
 				seen |= S_IWUSR;
-				if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+				if (entry->ae_entry_type ==
+				    ACL_ENTRY_TYPE_ALLOW)
 					mode |= S_IWUSR;
 			}
 			if ((entry->ae_perm & ACL_EXECUTE) &&
 			    ((seen & S_IXUSR) == 0)) {
 				seen |= S_IXUSR;
-				if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+				if (entry->ae_entry_type ==
+				    ACL_ENTRY_TYPE_ALLOW)
 					mode |= S_IXUSR;
 			}
 		} else if (entry->ae_tag == ACL_GROUP_OBJ) {
 			if ((entry->ae_perm & ACL_READ_DATA) &&
 			    ((seen & S_IRGRP) == 0)) {
 				seen |= S_IRGRP;
-				if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+				if (entry->ae_entry_type ==
+				    ACL_ENTRY_TYPE_ALLOW)
 					mode |= S_IRGRP;
 			}
 			if ((entry->ae_perm & ACL_WRITE_DATA) &&
 			    ((seen & S_IWGRP) == 0)) {
 				seen |= S_IWGRP;
-				if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+				if (entry->ae_entry_type ==
+				    ACL_ENTRY_TYPE_ALLOW)
 					mode |= S_IWGRP;
 			}
 			if ((entry->ae_perm & ACL_EXECUTE) &&
 			    ((seen & S_IXGRP) == 0)) {
 				seen |= S_IXGRP;
-				if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+				if (entry->ae_entry_type ==
+				    ACL_ENTRY_TYPE_ALLOW)
 					mode |= S_IXGRP;
 			}
 		} else if (entry->ae_tag == ACL_EVERYONE) {
 			if (entry->ae_perm & ACL_READ_DATA) {
 				if ((seen & S_IRUSR) == 0) {
 					seen |= S_IRUSR;
-					if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+					if (entry->ae_entry_type ==
+					    ACL_ENTRY_TYPE_ALLOW)
 						mode |= S_IRUSR;
 				}
 				if ((seen & S_IRGRP) == 0) {
 					seen |= S_IRGRP;
-					if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+					if (entry->ae_entry_type ==
+					    ACL_ENTRY_TYPE_ALLOW)
 						mode |= S_IRGRP;
 				}
 				if ((seen & S_IROTH) == 0) {
 					seen |= S_IROTH;
-					if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+					if (entry->ae_entry_type ==
+					    ACL_ENTRY_TYPE_ALLOW)
 						mode |= S_IROTH;
 				}
 			}
 			if (entry->ae_perm & ACL_WRITE_DATA) {
 				if ((seen & S_IWUSR) == 0) {
 					seen |= S_IWUSR;
-					if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+					if (entry->ae_entry_type ==
+					    ACL_ENTRY_TYPE_ALLOW)
 						mode |= S_IWUSR;
 				}
 				if ((seen & S_IWGRP) == 0) {
 					seen |= S_IWGRP;
-					if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+					if (entry->ae_entry_type ==
+					    ACL_ENTRY_TYPE_ALLOW)
 						mode |= S_IWGRP;
 				}
 				if ((seen & S_IWOTH) == 0) {
 					seen |= S_IWOTH;
-					if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+					if (entry->ae_entry_type ==
+					    ACL_ENTRY_TYPE_ALLOW)
 						mode |= S_IWOTH;
 				}
 			}
 			if (entry->ae_perm & ACL_EXECUTE) {
 				if ((seen & S_IXUSR) == 0) {
 					seen |= S_IXUSR;
-					if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+					if (entry->ae_entry_type ==
+					    ACL_ENTRY_TYPE_ALLOW)
 						mode |= S_IXUSR;
 				}
 				if ((seen & S_IXGRP) == 0) {
 					seen |= S_IXGRP;
-					if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+					if (entry->ae_entry_type ==
+					    ACL_ENTRY_TYPE_ALLOW)
 						mode |= S_IXGRP;
 				}
 				if ((seen & S_IXOTH) == 0) {
 					seen |= S_IXOTH;
-					if (entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
+					if (entry->ae_entry_type ==
+					    ACL_ENTRY_TYPE_ALLOW)
 						mode |= S_IXOTH;
 				}
 			}
@@ -842,10 +860,9 @@ acl_nfs4_sync_mode_from_acl(mode_t *_mode, const struct acl *aclp)
  * Calculate inherited ACL in a manner compatible with NFSv4 Minor Version 1,
  * draft-ietf-nfsv4-minorversion1-03.txt.
  */
-static void		
+static void
 acl_nfs4_compute_inherited_acl_draft(const struct acl *parent_aclp,
-    struct acl *child_aclp, mode_t mode, int file_owner_id,
-    int is_directory)
+    struct acl *child_aclp, mode_t mode, int file_owner_id, int is_directory)
 {
 	int i, flags;
 	const struct acl_entry *parent_entry;
@@ -872,8 +889,9 @@ acl_nfs4_compute_inherited_acl_draft(const struct acl *parent_aclp,
 		/*
 		 * Entry is not inheritable at all.
 		 */
-		if ((flags & (ACL_ENTRY_DIRECTORY_INHERIT |
-		    ACL_ENTRY_FILE_INHERIT)) == 0)
+		if ((flags &
+			(ACL_ENTRY_DIRECTORY_INHERIT |
+			    ACL_ENTRY_FILE_INHERIT)) == 0)
 			continue;
 
 		/*
@@ -911,13 +929,13 @@ acl_nfs4_compute_inherited_acl_draft(const struct acl *parent_aclp,
 		 * apparently does that.
 		 */
 		if (((entry->ae_flags & ACL_ENTRY_NO_PROPAGATE_INHERIT) ||
-		    !is_directory) &&
+			!is_directory) &&
 		    entry->ae_entry_type == ACL_ENTRY_TYPE_ALLOW)
 			entry->ae_perm &= ~(ACL_WRITE_ACL | ACL_WRITE_OWNER);
 
 		/*
-		 * 2.A. If the ACL_ENTRY_NO_PROPAGATE_INHERIT is set, or if the object
-		 *      being created is not a directory, then clear the
+		 * 2.A. If the ACL_ENTRY_NO_PROPAGATE_INHERIT is set, or if the
+		 * object being created is not a directory, then clear the
 		 *      following flags: ACL_ENTRY_NO_PROPAGATE_INHERIT,
 		 *      ACL_ENTRY_FILE_INHERIT, ACL_ENTRY_DIRECTORY_INHERIT,
 		 *      ACL_ENTRY_INHERIT_ONLY.
@@ -925,8 +943,9 @@ acl_nfs4_compute_inherited_acl_draft(const struct acl *parent_aclp,
 		if (entry->ae_flags & ACL_ENTRY_NO_PROPAGATE_INHERIT ||
 		    !is_directory) {
 			entry->ae_flags &= ~(ACL_ENTRY_NO_PROPAGATE_INHERIT |
-			ACL_ENTRY_FILE_INHERIT | ACL_ENTRY_DIRECTORY_INHERIT |
-			ACL_ENTRY_INHERIT_ONLY);
+			    ACL_ENTRY_FILE_INHERIT |
+			    ACL_ENTRY_DIRECTORY_INHERIT |
+			    ACL_ENTRY_INHERIT_ONLY);
 
 			/*
 			 * Continue on to the next ACE.
@@ -936,8 +955,8 @@ acl_nfs4_compute_inherited_acl_draft(const struct acl *parent_aclp,
 
 		/*
 		 * 2.B. If the object is a directory and ACL_ENTRY_FILE_INHERIT
-		 *      is set, but ACL_ENTRY_NO_PROPAGATE_INHERIT is not set, ensure
-		 *      that ACL_ENTRY_INHERIT_ONLY is set.  Continue to the
+		 *      is set, but ACL_ENTRY_NO_PROPAGATE_INHERIT is not set,
+		 * ensure that ACL_ENTRY_INHERIT_ONLY is set.  Continue to the
 		 *      next ACE.  Otherwise...
 		 */
 		/*
@@ -1005,10 +1024,9 @@ acl_nfs4_compute_inherited_acl_draft(const struct acl *parent_aclp,
 /*
  * Populate the ACL with entries inherited from parent_aclp.
  */
-static void		
-acl_nfs4_inherit_entries(const struct acl *parent_aclp,
-    struct acl *child_aclp, mode_t mode, int file_owner_id,
-    int is_directory)
+static void
+acl_nfs4_inherit_entries(const struct acl *parent_aclp, struct acl *child_aclp,
+    mode_t mode, int file_owner_id, int is_directory)
 {
 	int i, flags, tag;
 	const struct acl_entry *parent_entry;
@@ -1032,8 +1050,9 @@ acl_nfs4_inherit_entries(const struct acl *parent_aclp,
 		/*
 		 * Entry is not inheritable at all.
 		 */
-		if ((flags & (ACL_ENTRY_DIRECTORY_INHERIT |
-		    ACL_ENTRY_FILE_INHERIT)) == 0)
+		if ((flags &
+			(ACL_ENTRY_DIRECTORY_INHERIT |
+			    ACL_ENTRY_FILE_INHERIT)) == 0)
 			continue;
 
 		/*
@@ -1083,8 +1102,9 @@ acl_nfs4_inherit_entries(const struct acl *parent_aclp,
 		if (entry->ae_flags & ACL_ENTRY_NO_PROPAGATE_INHERIT ||
 		    !is_directory) {
 			entry->ae_flags &= ~(ACL_ENTRY_NO_PROPAGATE_INHERIT |
-			ACL_ENTRY_FILE_INHERIT | ACL_ENTRY_DIRECTORY_INHERIT |
-			ACL_ENTRY_INHERIT_ONLY);
+			    ACL_ENTRY_FILE_INHERIT |
+			    ACL_ENTRY_DIRECTORY_INHERIT |
+			    ACL_ENTRY_INHERIT_ONLY);
 		}
 
 		/*
@@ -1112,8 +1132,8 @@ acl_nfs4_inherit_entries(const struct acl *parent_aclp,
 			if ((mode & S_IRGRP) == 0)
 				entry->ae_perm &= ~ACL_READ_DATA;
 			if ((mode & S_IWGRP) == 0)
-				entry->ae_perm &=
-				    ~(ACL_WRITE_DATA | ACL_APPEND_DATA);
+				entry->ae_perm &= ~(
+				    ACL_WRITE_DATA | ACL_APPEND_DATA);
 			if ((mode & S_IXGRP) == 0)
 				entry->ae_perm &= ~ACL_EXECUTE;
 		}
@@ -1125,7 +1145,7 @@ acl_nfs4_inherit_entries(const struct acl *parent_aclp,
  * It's also being used to calculate a trivial ACL, by inheriting from
  * a NULL ACL.
  */
-static void		
+static void
 acl_nfs4_compute_inherited_acl_psarc(const struct acl *parent_aclp,
     struct acl *aclp, mode_t mode, int file_owner_id, int is_directory)
 {
@@ -1165,18 +1185,17 @@ acl_nfs4_compute_inherited_acl_psarc(const struct acl *parent_aclp,
 	user_allow_first = group_deny & ~user_deny;
 
 	if (user_allow_first != 0)
-		_acl_append(aclp, ACL_USER_OBJ, user_allow_first,
-		    ACL_ENTRY_TYPE_ALLOW);
+		_acl_append(
+		    aclp, ACL_USER_OBJ, user_allow_first, ACL_ENTRY_TYPE_ALLOW);
 	if (user_deny != 0)
-		_acl_append(aclp, ACL_USER_OBJ, user_deny,
-		    ACL_ENTRY_TYPE_DENY);
+		_acl_append(aclp, ACL_USER_OBJ, user_deny, ACL_ENTRY_TYPE_DENY);
 	if (group_deny != 0)
-		_acl_append(aclp, ACL_GROUP_OBJ, group_deny,
-		    ACL_ENTRY_TYPE_DENY);
+		_acl_append(
+		    aclp, ACL_GROUP_OBJ, group_deny, ACL_ENTRY_TYPE_DENY);
 
 	if (parent_aclp != NULL)
-		acl_nfs4_inherit_entries(parent_aclp, aclp, mode,
-		    file_owner_id, is_directory);
+		acl_nfs4_inherit_entries(
+		    parent_aclp, aclp, mode, file_owner_id, is_directory);
 
 	_acl_append(aclp, ACL_USER_OBJ, user_allow, ACL_ENTRY_TYPE_ALLOW);
 	_acl_append(aclp, ACL_GROUP_OBJ, group_allow, ACL_ENTRY_TYPE_ALLOW);
@@ -1184,18 +1203,17 @@ acl_nfs4_compute_inherited_acl_psarc(const struct acl *parent_aclp,
 }
 
 #ifdef _KERNEL
-void		
+void
 acl_nfs4_compute_inherited_acl(const struct acl *parent_aclp,
-    struct acl *child_aclp, mode_t mode, int file_owner_id,
-    int is_directory)
+    struct acl *child_aclp, mode_t mode, int file_owner_id, int is_directory)
 {
 
 	if (acl_nfs4_old_semantics)
-		acl_nfs4_compute_inherited_acl_draft(parent_aclp, child_aclp,
-		    mode, file_owner_id, is_directory);
+		acl_nfs4_compute_inherited_acl_draft(
+		    parent_aclp, child_aclp, mode, file_owner_id, is_directory);
 	else
-		acl_nfs4_compute_inherited_acl_psarc(parent_aclp, child_aclp,
-		    mode, file_owner_id, is_directory);
+		acl_nfs4_compute_inherited_acl_psarc(
+		    parent_aclp, child_aclp, mode, file_owner_id, is_directory);
 }
 #endif /* _KERNEL */
 
@@ -1343,7 +1361,8 @@ acl_nfs4_check(const struct acl *aclp, int is_directory)
 			return (EINVAL);
 
 		/*
-		 * Disallow ACL_ENTRY_TYPE_AUDIT and ACL_ENTRY_TYPE_ALARM for now.
+		 * Disallow ACL_ENTRY_TYPE_AUDIT and ACL_ENTRY_TYPE_ALARM for
+		 * now.
 		 */
 		if (entry->ae_entry_type != ACL_ENTRY_TYPE_ALLOW &&
 		    entry->ae_entry_type != ACL_ENTRY_TYPE_DENY)
@@ -1353,15 +1372,17 @@ acl_nfs4_check(const struct acl *aclp, int is_directory)
 			return (EINVAL);
 
 		/* Disallow unimplemented flags. */
-		if (entry->ae_flags & (ACL_ENTRY_SUCCESSFUL_ACCESS |
-		    ACL_ENTRY_FAILED_ACCESS))
+		if (entry->ae_flags &
+		    (ACL_ENTRY_SUCCESSFUL_ACCESS | ACL_ENTRY_FAILED_ACCESS))
 			return (EINVAL);
 
 		/* Disallow flags not allowed for ordinary files. */
 		if (!is_directory) {
-			if (entry->ae_flags & (ACL_ENTRY_FILE_INHERIT |
-			    ACL_ENTRY_DIRECTORY_INHERIT |
-			    ACL_ENTRY_NO_PROPAGATE_INHERIT | ACL_ENTRY_INHERIT_ONLY))
+			if (entry->ae_flags &
+			    (ACL_ENTRY_FILE_INHERIT |
+				ACL_ENTRY_DIRECTORY_INHERIT |
+				ACL_ENTRY_NO_PROPAGATE_INHERIT |
+				ACL_ENTRY_INHERIT_ONLY))
 				return (EINVAL);
 		}
 	}
@@ -1369,7 +1390,7 @@ acl_nfs4_check(const struct acl *aclp, int is_directory)
 	return (0);
 }
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 static int
 acl_nfs4_modload(module_t module, int what, void *arg)
 {
@@ -1399,15 +1420,11 @@ acl_nfs4_modload(module_t module, int what, void *arg)
 	return (ret);
 }
 
-static moduledata_t acl_nfs4_mod = {
-	"acl_nfs4",
-	acl_nfs4_modload,
-	NULL
-};
+static moduledata_t acl_nfs4_mod = { "acl_nfs4", acl_nfs4_modload, NULL };
 
 /*
  * XXX TODO: which subsystem, order?
  */
 DECLARE_MODULE(acl_nfs4, acl_nfs4_mod, SI_SUB_VFS, SI_ORDER_FIRST);
 MODULE_VERSION(acl_nfs4, 1);
-#endif	/* _KERNEL */
+#endif /* _KERNEL */

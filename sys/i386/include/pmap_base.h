@@ -32,10 +32,10 @@
  */
 
 #ifndef _MACHINE_PMAP_BASE_H_
-#define	_MACHINE_PMAP_BASE_H_
+#define _MACHINE_PMAP_BASE_H_
 
 /* Internal flags for pmap_mapdev_attr(). */
-#define	MAPDEV_SETATTR		0x0000001	/* Modify existing attrs. */
+#define MAPDEV_SETATTR 0x0000001 /* Modify existing attrs. */
 
 struct pmap_methods {
 	void (*pm_ksetrw)(vm_offset_t);
@@ -74,18 +74,18 @@ struct pmap_methods {
 	int (*pm_mincore)(pmap_t, vm_offset_t, vm_paddr_t *);
 	void (*pm_copy)(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 	void (*pm_copy_page)(vm_page_t, vm_page_t);
-	void (*pm_copy_pages)(vm_page_t [], vm_offset_t, vm_page_t [],
-	    vm_offset_t, int);
+	void (*pm_copy_pages)(
+	    vm_page_t[], vm_offset_t, vm_page_t[], vm_offset_t, int);
 	void (*pm_zero_page)(vm_page_t);
 	void (*pm_zero_page_area)(vm_page_t, int, int);
-	int (*pm_enter)(pmap_t, vm_offset_t, vm_page_t, vm_prot_t, u_int,
-	    int8_t);
-	void (*pm_enter_object)(pmap_t, vm_offset_t, vm_offset_t,
-	    vm_page_t, vm_prot_t);
+	int (*pm_enter)(
+	    pmap_t, vm_offset_t, vm_page_t, vm_prot_t, u_int, int8_t);
+	void (*pm_enter_object)(
+	    pmap_t, vm_offset_t, vm_offset_t, vm_page_t, vm_prot_t);
 	void (*pm_enter_quick)(pmap_t, vm_offset_t, vm_page_t, vm_prot_t);
 	void *(*pm_kenter_temporary)(vm_paddr_t pa, int);
-	void (*pm_object_init_pt)(pmap_t, vm_offset_t, vm_object_t,
-	    vm_pindex_t, vm_size_t);
+	void (*pm_object_init_pt)(
+	    pmap_t, vm_offset_t, vm_object_t, vm_pindex_t, vm_size_t);
 	void (*pm_unwire)(pmap_t, vm_offset_t, vm_offset_t);
 	boolean_t (*pm_page_exists_quick)(pmap_t, vm_page_t);
 	int (*pm_page_wired_mappings)(vm_page_t);
@@ -121,8 +121,8 @@ struct pmap_methods {
 	int (*pm_sysctl_kmaps)(SYSCTL_HANDLER_ARGS);
 };
 
-void	pmap_cold(void);
-void	pmap_pae_cold(void);
-void	pmap_nopae_cold(void);
+void pmap_cold(void);
+void pmap_pae_cold(void);
+void pmap_nopae_cold(void);
 
 #endif

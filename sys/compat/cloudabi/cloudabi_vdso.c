@@ -29,8 +29,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
-#include <sys/sysent.h>
 #include <sys/rwlock.h>
+#include <sys/sysent.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -55,8 +55,8 @@ cloudabi_vdso_init(struct sysentvec *sv, char *begin, char *end)
 	pages_length = pages * PAGE_SIZE;
 
 	/* Allocate a VM object and fill it with the vDSO. */
-	obj = vm_pager_allocate(OBJT_PHYS, 0, pages_length,
-	    VM_PROT_DEFAULT, 0, NULL);
+	obj = vm_pager_allocate(
+	    OBJT_PHYS, 0, pages_length, VM_PROT_DEFAULT, 0, NULL);
 	addr = kva_alloc(PAGE_SIZE);
 	for (i = 0; i < pages; ++i) {
 		VM_OBJECT_WLOCK(obj);

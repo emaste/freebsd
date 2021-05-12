@@ -36,8 +36,8 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	from: src/sys/i386/i386/vm_machdep.c,v 1.132.2.2 2000/08/26 04:19:26 yokota
- *	JNPR: vm_machdep.c,v 1.8.2.2 2007/08/16 15:59:17 girish
+ *	from: src/sys/i386/i386/vm_machdep.c,v 1.132.2.2 2000/08/26 04:19:26
+ *yokota JNPR: vm_machdep.c,v 1.8.2.2 2007/08/16 15:59:17 girish
  */
 
 #include <sys/cdefs.h>
@@ -47,16 +47,29 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/buf.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/syscall.h>
-#include <sys/sysent.h>
-#include <sys/buf.h>
-#include <sys/vnode.h>
-#include <sys/vmmeter.h>
-#include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/unistd.h>
+#include <sys/user.h>
+#include <sys/vmmeter.h>
+#include <sys/vnode.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/uma.h>
+#include <vm/uma_int.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
+#include <vm/vm_param.h>
 
 #include <machine/abi.h>
 #include <machine/cache.h>
@@ -67,20 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/tls.h>
-
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-#include <vm/pmap.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_map.h>
-#include <vm/vm_page.h>
-#include <vm/vm_pageout.h>
-#include <vm/vm_param.h>
-#include <vm/uma.h>
-#include <vm/uma_int.h>
-
-#include <sys/user.h>
-#include <sys/mbuf.h>
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -105,7 +104,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	 * our pcb also includes the td_frame being copied
 	 * too. The older mips2 code did an additional copy
 	 * of the td_frame, for us that's not needed any
-	 * longer (this copy does them both) 
+	 * longer (this copy does them both)
 	 */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
@@ -126,8 +125,9 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	pcb2->pcb_context[PCB_REG_RA] = (register_t)(intptr_t)fork_trampoline;
 	/* Make sp 64-bit aligned */
-	pcb2->pcb_context[PCB_REG_SP] = (register_t)(((vm_offset_t)td2->td_pcb &
-	    ~(sizeof(__int64_t) - 1)) - CALLFRAME_SIZ);
+	pcb2->pcb_context[PCB_REG_SP] = (register_t)(
+	    ((vm_offset_t)td2->td_pcb & ~(sizeof(__int64_t) - 1)) -
+	    CALLFRAME_SIZ);
 	pcb2->pcb_context[PCB_REG_S0] = (register_t)(intptr_t)fork_return;
 	pcb2->pcb_context[PCB_REG_S1] = (register_t)(intptr_t)td2;
 	pcb2->pcb_context[PCB_REG_S2] = (register_t)(intptr_t)td2->td_frame;
@@ -150,28 +150,30 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 			if (td1->td_md.md_ucop2)
 				octeon_cop2_save(td1->td_md.md_ucop2);
 			else
-				panic("cpu_fork: ucop2 is NULL but COP2 is enabled");
-		}
-		else {
+				panic(
+				    "cpu_fork: ucop2 is NULL but COP2 is enabled");
+		} else {
 			if (td1->td_md.md_cop2)
 				octeon_cop2_save(td1->td_md.md_cop2);
 			else
-				panic("cpu_fork: cop2 is NULL but COP2 is enabled");
+				panic(
+				    "cpu_fork: cop2 is NULL but COP2 is enabled");
 		}
 	}
 
 	if (td1->td_md.md_cop2) {
 		td2->td_md.md_cop2 = octeon_cop2_alloc_ctx();
-		memcpy(td2->td_md.md_cop2, td1->td_md.md_cop2, 
-			sizeof(*td1->td_md.md_cop2));
+		memcpy(td2->td_md.md_cop2, td1->td_md.md_cop2,
+		    sizeof(*td1->td_md.md_cop2));
 	}
 	if (td1->td_md.md_ucop2) {
 		td2->td_md.md_ucop2 = octeon_cop2_alloc_ctx();
-		memcpy(td2->td_md.md_ucop2, td1->td_md.md_ucop2, 
-			sizeof(*td1->td_md.md_ucop2));
+		memcpy(td2->td_md.md_ucop2, td1->td_md.md_ucop2,
+		    sizeof(*td1->td_md.md_ucop2));
 	}
 	td2->td_md.md_cop2owner = td1->td_md.md_cop2owner;
-	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
+	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX |
+	    MIPS_SR_SX;
 	/* Clear COP2 bits for userland & kernel */
 	td2->td_frame->sr &= ~MIPS_SR_COP_2_BIT;
 	pcb2->pcb_context[PCB_REG_SR] &= ~MIPS_SR_COP_2_BIT;
@@ -206,20 +208,18 @@ cpu_thread_exit(struct thread *td)
 
 	if (PCPU_GET(fpcurthread) == td)
 		PCPU_GET(fpcurthread) = (struct thread *)0;
-#ifdef  CPU_CNMIPS
+#ifdef CPU_CNMIPS
 	if (td->td_md.md_cop2)
-		memset(td->td_md.md_cop2, 0,
-			sizeof(*td->td_md.md_cop2));
+		memset(td->td_md.md_cop2, 0, sizeof(*td->td_md.md_cop2));
 	if (td->td_md.md_ucop2)
-		memset(td->td_md.md_ucop2, 0,
-			sizeof(*td->td_md.md_ucop2));
+		memset(td->td_md.md_ucop2, 0, sizeof(*td->td_md.md_ucop2));
 #endif
 }
 
 void
 cpu_thread_free(struct thread *td)
 {
-#ifdef  CPU_CNMIPS
+#ifdef CPU_CNMIPS
 	if (td->td_md.md_cop2)
 		octeon_cop2_free_ctx(td->td_md.md_cop2);
 	if (td->td_md.md_ucop2)
@@ -263,9 +263,11 @@ cpu_thread_alloc(struct thread *td)
 	pt_entry_t *pte;
 	int i;
 
-	KASSERT((td->td_kstack & (1 << PAGE_SHIFT)) == 0, ("kernel stack must be aligned."));
+	KASSERT((td->td_kstack & (1 << PAGE_SHIFT)) == 0,
+	    ("kernel stack must be aligned."));
 	td->td_pcb = (struct pcb *)(td->td_kstack +
-	    td->td_kstack_pages * PAGE_SIZE) - 1;
+			 td->td_kstack_pages * PAGE_SIZE) -
+	    1;
 	td->td_frame = &td->td_pcb->pcb_regs;
 
 	for (i = 0; i < KSTACK_PAGES; i++) {
@@ -327,7 +329,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		break;
 
 	case EJUSTRETURN:
-		break;	/* nothing to do */
+		break; /* nothing to do */
 
 	default:
 		if (quad_syscall && code != SYS_lseek) {
@@ -379,8 +381,9 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 	pcb2->pcb_context[PCB_REG_RA] = (register_t)(intptr_t)fork_trampoline;
 	/* Make sp 64-bit aligned */
-	pcb2->pcb_context[PCB_REG_SP] = (register_t)(((vm_offset_t)td->td_pcb &
-	    ~(sizeof(__int64_t) - 1)) - CALLFRAME_SIZ);
+	pcb2->pcb_context[PCB_REG_SP] = (register_t)(
+	    ((vm_offset_t)td->td_pcb & ~(sizeof(__int64_t) - 1)) -
+	    CALLFRAME_SIZ);
 	pcb2->pcb_context[PCB_REG_S0] = (register_t)(intptr_t)fork_return;
 	pcb2->pcb_context[PCB_REG_S1] = (register_t)(intptr_t)td;
 	pcb2->pcb_context[PCB_REG_S2] = (register_t)(intptr_t)td->td_frame;
@@ -411,8 +414,8 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
  * the entry function with the given argument.
  */
 void
-cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
-    stack_t *stack)
+cpu_set_upcall(
+    struct thread *td, void (*entry)(void *), void *arg, stack_t *stack)
 {
 	struct trapframe *tf;
 	register_t sp, sr;
@@ -430,11 +433,11 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	tf->sp = sp;
 	tf->sr = sr;
 	tf->pc = (register_t)(intptr_t)entry;
-	/* 
-	 * MIPS ABI requires T9 to be the same as PC 
+	/*
+	 * MIPS ABI requires T9 to be the same as PC
 	 * in subroutine entry point
 	 */
-	tf->t9 = (register_t)(intptr_t)entry; 
+	tf->t9 = (register_t)(intptr_t)entry;
 	tf->a0 = (register_t)(intptr_t)arg;
 
 	/*
@@ -474,7 +477,7 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
-	td->td_md.md_tls = (char*)tls_base;
+	td->td_md.md_tls = (char *)tls_base;
 	if (td == curthread && cpuinfo.userlocal_reg == true) {
 		mips_wr_userlocal((unsigned long)tls_base +
 		    td->td_proc->p_md.md_tls_tcb_offset);
@@ -486,11 +489,12 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 #ifdef DDB
 #include <ddb/ddb.h>
 
-#define DB_PRINT_REG(ptr, regname)			\
+#define DB_PRINT_REG(ptr, regname) \
 	db_printf("  %-12s %p\n", #regname, (void *)(intptr_t)((ptr)->regname))
 
-#define DB_PRINT_REG_ARRAY(ptr, arrname, regname)	\
-	db_printf("  %-12s %p\n", #regname, (void *)(intptr_t)((ptr)->arrname[regname]))
+#define DB_PRINT_REG_ARRAY(ptr, arrname, regname) \
+	db_printf("  %-12s %p\n", #regname,       \
+	    (void *)(intptr_t)((ptr)->arrname[regname]))
 
 static void
 dump_trapframe(struct trapframe *trapframe)
@@ -592,7 +596,7 @@ DB_SHOW_COMMAND(pcb, ddb_dump_pcb)
 
 	if (td->td_frame != trapframe) {
 		db_printf("td->td_frame %p is not the same as pcb_regs %p\n",
-			  td->td_frame, trapframe);
+		    td->td_frame, trapframe);
 	}
 }
 
@@ -608,4 +612,4 @@ DB_SHOW_COMMAND(trapframe, ddb_dump_trapframe)
 	dump_trapframe((struct trapframe *)addr);
 }
 
-#endif	/* DDB */
+#endif /* DDB */

@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/proc.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
@@ -39,13 +40,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #endif
 
-#include <ddb/ddb.h>
-#include <ddb/db_variables.h>
-
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/stack.h>
 #include <machine/vmparam.h>
+
+#include <ddb/db_variables.h>
+#include <ddb/ddb.h>
 
 static int
 db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
@@ -63,43 +64,43 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 	return (1);
 }
 
-#define DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
+#define DB_OFFSET(x) (db_expr_t *)offsetof(struct trapframe, x)
 struct db_variable db_regs[] = {
-	{ "ra",		DB_OFFSET(tf_ra),	db_frame },
-	{ "sp",		DB_OFFSET(tf_sp),	db_frame },
-	{ "gp",		DB_OFFSET(tf_gp),	db_frame },
-	{ "tp",		DB_OFFSET(tf_tp),	db_frame },
-	{ "t0",		DB_OFFSET(tf_t[0]),	db_frame },
-	{ "t1",		DB_OFFSET(tf_t[1]),	db_frame },
-	{ "t2",		DB_OFFSET(tf_t[2]),	db_frame },
-	{ "t3",		DB_OFFSET(tf_t[3]),	db_frame },
-	{ "t4",		DB_OFFSET(tf_t[4]),	db_frame },
-	{ "t5",		DB_OFFSET(tf_t[5]),	db_frame },
-	{ "t6",		DB_OFFSET(tf_t[6]),	db_frame },
-	{ "s0",		DB_OFFSET(tf_s[0]),	db_frame },
-	{ "s1",		DB_OFFSET(tf_s[1]),	db_frame },
-	{ "s2",		DB_OFFSET(tf_s[2]),	db_frame },
-	{ "s3",		DB_OFFSET(tf_s[3]),	db_frame },
-	{ "s4",		DB_OFFSET(tf_s[4]),	db_frame },
-	{ "s5",		DB_OFFSET(tf_s[5]),	db_frame },
-	{ "s6",		DB_OFFSET(tf_s[6]),	db_frame },
-	{ "s7",		DB_OFFSET(tf_s[7]),	db_frame },
-	{ "s8",		DB_OFFSET(tf_s[8]),	db_frame },
-	{ "s9",		DB_OFFSET(tf_s[9]),	db_frame },
-	{ "s10",	DB_OFFSET(tf_s[10]),	db_frame },
-	{ "s11",	DB_OFFSET(tf_s[11]),	db_frame },
-	{ "a0",		DB_OFFSET(tf_a[0]),	db_frame },
-	{ "a1",		DB_OFFSET(tf_a[1]),	db_frame },
-	{ "a2",		DB_OFFSET(tf_a[2]),	db_frame },
-	{ "a3",		DB_OFFSET(tf_a[3]),	db_frame },
-	{ "a4",		DB_OFFSET(tf_a[4]),	db_frame },
-	{ "a5",		DB_OFFSET(tf_a[5]),	db_frame },
-	{ "a6",		DB_OFFSET(tf_a[6]),	db_frame },
-	{ "a7",		DB_OFFSET(tf_a[7]),	db_frame },
-	{ "sepc",	DB_OFFSET(tf_sepc),	db_frame },
-	{ "sstatus",	DB_OFFSET(tf_sstatus),	db_frame },
-	{ "stval",	DB_OFFSET(tf_stval),	db_frame },
-	{ "scause",	DB_OFFSET(tf_scause),	db_frame },
+	{ "ra", DB_OFFSET(tf_ra), db_frame },
+	{ "sp", DB_OFFSET(tf_sp), db_frame },
+	{ "gp", DB_OFFSET(tf_gp), db_frame },
+	{ "tp", DB_OFFSET(tf_tp), db_frame },
+	{ "t0", DB_OFFSET(tf_t[0]), db_frame },
+	{ "t1", DB_OFFSET(tf_t[1]), db_frame },
+	{ "t2", DB_OFFSET(tf_t[2]), db_frame },
+	{ "t3", DB_OFFSET(tf_t[3]), db_frame },
+	{ "t4", DB_OFFSET(tf_t[4]), db_frame },
+	{ "t5", DB_OFFSET(tf_t[5]), db_frame },
+	{ "t6", DB_OFFSET(tf_t[6]), db_frame },
+	{ "s0", DB_OFFSET(tf_s[0]), db_frame },
+	{ "s1", DB_OFFSET(tf_s[1]), db_frame },
+	{ "s2", DB_OFFSET(tf_s[2]), db_frame },
+	{ "s3", DB_OFFSET(tf_s[3]), db_frame },
+	{ "s4", DB_OFFSET(tf_s[4]), db_frame },
+	{ "s5", DB_OFFSET(tf_s[5]), db_frame },
+	{ "s6", DB_OFFSET(tf_s[6]), db_frame },
+	{ "s7", DB_OFFSET(tf_s[7]), db_frame },
+	{ "s8", DB_OFFSET(tf_s[8]), db_frame },
+	{ "s9", DB_OFFSET(tf_s[9]), db_frame },
+	{ "s10", DB_OFFSET(tf_s[10]), db_frame },
+	{ "s11", DB_OFFSET(tf_s[11]), db_frame },
+	{ "a0", DB_OFFSET(tf_a[0]), db_frame },
+	{ "a1", DB_OFFSET(tf_a[1]), db_frame },
+	{ "a2", DB_OFFSET(tf_a[2]), db_frame },
+	{ "a3", DB_OFFSET(tf_a[3]), db_frame },
+	{ "a4", DB_OFFSET(tf_a[4]), db_frame },
+	{ "a5", DB_OFFSET(tf_a[5]), db_frame },
+	{ "a6", DB_OFFSET(tf_a[6]), db_frame },
+	{ "a7", DB_OFFSET(tf_a[7]), db_frame },
+	{ "sepc", DB_OFFSET(tf_sepc), db_frame },
+	{ "sstatus", DB_OFFSET(tf_sstatus), db_frame },
+	{ "stval", DB_OFFSET(tf_stval), db_frame },
+	{ "scause", DB_OFFSET(tf_scause), db_frame },
 };
 
 struct db_variable *db_eregs = db_regs + nitems(db_regs);

@@ -33,46 +33,46 @@
  * itself, all of which is most gratefully acknowledged.
  */
 
-#ifndef	_G_MULTIPATH_H_
-#define	_G_MULTIPATH_H_
+#ifndef _G_MULTIPATH_H_
+#define _G_MULTIPATH_H_
 
-#define	G_MULTIPATH_CLASS_NAME	"MULTIPATH"
-#define	G_MULTIPATH_VERSION	1
-#define	G_MULTIPATH_MAGIC	"GEOM::MULTIPATH"
+#define G_MULTIPATH_CLASS_NAME "MULTIPATH"
+#define G_MULTIPATH_VERSION 1
+#define G_MULTIPATH_MAGIC "GEOM::MULTIPATH"
 
 #include <sys/endian.h>
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 
 struct g_multipath_softc {
-	struct g_provider *	sc_pp;
-	struct g_consumer *	sc_active;
-	struct mtx		sc_mtx;
-	char			sc_name[16];
-	char			sc_uuid[40];
-	off_t			sc_size;
-	int			sc_opened;
-	int			sc_stopping;
-	int			sc_ndisks;
-	int			sc_active_active; /* Active/Active mode */
+	struct g_provider *sc_pp;
+	struct g_consumer *sc_active;
+	struct mtx sc_mtx;
+	char sc_name[16];
+	char sc_uuid[40];
+	off_t sc_size;
+	int sc_opened;
+	int sc_stopping;
+	int sc_ndisks;
+	int sc_active_active; /* Active/Active mode */
 };
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
 struct g_multipath_metadata {
-	char		md_magic[16];	/* Magic Value */
-	char 		md_uuid[40];	/* more magic */
-	char		md_name[16];	/* a friendly name */
-	uint32_t	md_version;	/* version */
-	uint32_t	md_sectorsize;	/* sectorsize of provider */
-	uint64_t	md_size;	/* absolute size of provider */
-	uint8_t		md_active_active; /* Active/Active mode */
+	char md_magic[16];	  /* Magic Value */
+	char md_uuid[40];	  /* more magic */
+	char md_name[16];	  /* a friendly name */
+	uint32_t md_version;	  /* version */
+	uint32_t md_sectorsize;	  /* sectorsize of provider */
+	uint64_t md_size;	  /* absolute size of provider */
+	uint8_t md_active_active; /* Active/Active mode */
 };
 
-static __inline void
-multipath_metadata_encode(const struct g_multipath_metadata *, u_char *);
+static __inline void multipath_metadata_encode(
+    const struct g_multipath_metadata *, u_char *);
 
-static __inline void
-multipath_metadata_decode(u_char *, struct g_multipath_metadata *);
+static __inline void multipath_metadata_decode(
+    u_char *, struct g_multipath_metadata *);
 
 static __inline void
 multipath_metadata_encode(const struct g_multipath_metadata *md, u_char *data)
@@ -109,4 +109,4 @@ multipath_metadata_decode(u_char *data, struct g_multipath_metadata *md)
 	data += sizeof(md->md_size);
 	md->md_active_active = *data;
 }
-#endif	/* _G_MULTIPATH_H_ */
+#endif /* _G_MULTIPATH_H_ */

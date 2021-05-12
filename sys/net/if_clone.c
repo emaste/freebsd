@@ -33,26 +33,26 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/eventhandler.h>
-#include <sys/malloc.h>
+#include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_clone.h>
+#include <net/if_var.h>
 #include <net/radix.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
 /* Current IF_MAXUNIT expands maximum to 5 characters. */
-#define	IFCLOSIZ	(IFNAMSIZ - 5)
+#define IFCLOSIZ (IFNAMSIZ - 5)
 
 /*
  * Structure describing a `cloning' interface.
@@ -64,103 +64,102 @@
  * (i)		locked by ifc_mtx mtx
  */
 struct if_clone {
-	char ifc_name[IFCLOSIZ];	/* (c) Name of device, e.g. `gif' */
-	struct unrhdr *ifc_unrhdr;	/* (c) alloc_unr(9) header */
-	int ifc_maxunit;		/* (c) maximum unit number */
+	char ifc_name[IFCLOSIZ];   /* (c) Name of device, e.g. `gif' */
+	struct unrhdr *ifc_unrhdr; /* (c) alloc_unr(9) header */
+	int ifc_maxunit;	   /* (c) maximum unit number */
 	int ifc_flags;
-	long ifc_refcnt;		/* (i) Reference count. */
-	LIST_HEAD(, ifnet) ifc_iflist;	/* (i) List of cloned interfaces */
-	struct mtx ifc_mtx;		/* Mutex to protect members. */
+	long ifc_refcnt;	       /* (i) Reference count. */
+	LIST_HEAD(, ifnet) ifc_iflist; /* (i) List of cloned interfaces */
+	struct mtx ifc_mtx;	       /* Mutex to protect members. */
 
 	enum { SIMPLE, ADVANCED } ifc_type; /* (c) */
 
 	/* (c) Driver specific cloning functions.  Called with no locks held. */
 	union {
-		struct {	/* advanced cloner */
-			ifc_match_t	*_ifc_match;
-			ifc_create_t	*_ifc_create;
-			ifc_destroy_t	*_ifc_destroy;
+		struct { /* advanced cloner */
+			ifc_match_t *_ifc_match;
+			ifc_create_t *_ifc_create;
+			ifc_destroy_t *_ifc_destroy;
 		} A;
-		struct {	/* simple cloner */
-			ifcs_create_t	*_ifcs_create;
-			ifcs_destroy_t	*_ifcs_destroy;
-			int		_ifcs_minifs;	/* minimum ifs */
+		struct { /* simple cloner */
+			ifcs_create_t *_ifcs_create;
+			ifcs_destroy_t *_ifcs_destroy;
+			int _ifcs_minifs; /* minimum ifs */
 
 		} S;
 	} U;
-#define	ifc_match	U.A._ifc_match
-#define	ifc_create	U.A._ifc_create
-#define	ifc_destroy	U.A._ifc_destroy
-#define	ifcs_create	U.S._ifcs_create
-#define	ifcs_destroy	U.S._ifcs_destroy
-#define	ifcs_minifs	U.S._ifcs_minifs
+#define ifc_match U.A._ifc_match
+#define ifc_create U.A._ifc_create
+#define ifc_destroy U.A._ifc_destroy
+#define ifcs_create U.S._ifcs_create
+#define ifcs_destroy U.S._ifcs_destroy
+#define ifcs_minifs U.S._ifcs_minifs
 
-	LIST_ENTRY(if_clone) ifc_list;	/* (e) On list of cloners */
+	LIST_ENTRY(if_clone) ifc_list; /* (e) On list of cloners */
 };
 
-static void	if_clone_free(struct if_clone *ifc);
-static int	if_clone_createif(struct if_clone *ifc, char *name, size_t len,
-		    caddr_t params);
+static void if_clone_free(struct if_clone *ifc);
+static int if_clone_createif(
+    struct if_clone *ifc, char *name, size_t len, caddr_t params);
 
-static int     ifc_simple_match(struct if_clone *, const char *);
-static int     ifc_simple_create(struct if_clone *, char *, size_t, caddr_t);
-static int     ifc_simple_destroy(struct if_clone *, struct ifnet *);
+static int ifc_simple_match(struct if_clone *, const char *);
+static int ifc_simple_create(struct if_clone *, char *, size_t, caddr_t);
+static int ifc_simple_destroy(struct if_clone *, struct ifnet *);
 
 static struct mtx if_cloners_mtx;
 MTX_SYSINIT(if_cloners_lock, &if_cloners_mtx, "if_cloners lock", MTX_DEF);
 VNET_DEFINE_STATIC(int, if_cloners_count);
 VNET_DEFINE(LIST_HEAD(, if_clone), if_cloners);
 
-#define	V_if_cloners_count	VNET(if_cloners_count)
-#define	V_if_cloners		VNET(if_cloners)
+#define V_if_cloners_count VNET(if_cloners_count)
+#define V_if_cloners VNET(if_cloners)
 
-#define IF_CLONERS_LOCK_ASSERT()	mtx_assert(&if_cloners_mtx, MA_OWNED)
-#define IF_CLONERS_LOCK()		mtx_lock(&if_cloners_mtx)
-#define IF_CLONERS_UNLOCK()		mtx_unlock(&if_cloners_mtx)
+#define IF_CLONERS_LOCK_ASSERT() mtx_assert(&if_cloners_mtx, MA_OWNED)
+#define IF_CLONERS_LOCK() mtx_lock(&if_cloners_mtx)
+#define IF_CLONERS_UNLOCK() mtx_unlock(&if_cloners_mtx)
 
-#define IF_CLONE_LOCK_INIT(ifc)		\
-    mtx_init(&(ifc)->ifc_mtx, "if_clone lock", NULL, MTX_DEF)
-#define IF_CLONE_LOCK_DESTROY(ifc)	mtx_destroy(&(ifc)->ifc_mtx)
-#define IF_CLONE_LOCK_ASSERT(ifc)	mtx_assert(&(ifc)->ifc_mtx, MA_OWNED)
-#define IF_CLONE_LOCK(ifc)		mtx_lock(&(ifc)->ifc_mtx)
-#define IF_CLONE_UNLOCK(ifc)		mtx_unlock(&(ifc)->ifc_mtx)
+#define IF_CLONE_LOCK_INIT(ifc) \
+	mtx_init(&(ifc)->ifc_mtx, "if_clone lock", NULL, MTX_DEF)
+#define IF_CLONE_LOCK_DESTROY(ifc) mtx_destroy(&(ifc)->ifc_mtx)
+#define IF_CLONE_LOCK_ASSERT(ifc) mtx_assert(&(ifc)->ifc_mtx, MA_OWNED)
+#define IF_CLONE_LOCK(ifc) mtx_lock(&(ifc)->ifc_mtx)
+#define IF_CLONE_UNLOCK(ifc) mtx_unlock(&(ifc)->ifc_mtx)
 
-#define IF_CLONE_ADDREF(ifc)						\
-	do {								\
-		IF_CLONE_LOCK(ifc);					\
-		IF_CLONE_ADDREF_LOCKED(ifc);				\
-		IF_CLONE_UNLOCK(ifc);					\
+#define IF_CLONE_ADDREF(ifc)                 \
+	do {                                 \
+		IF_CLONE_LOCK(ifc);          \
+		IF_CLONE_ADDREF_LOCKED(ifc); \
+		IF_CLONE_UNLOCK(ifc);        \
 	} while (0)
-#define IF_CLONE_ADDREF_LOCKED(ifc)					\
-	do {								\
-		IF_CLONE_LOCK_ASSERT(ifc);				\
-		KASSERT((ifc)->ifc_refcnt >= 0,				\
-		    ("negative refcnt %ld", (ifc)->ifc_refcnt));	\
-		(ifc)->ifc_refcnt++;					\
+#define IF_CLONE_ADDREF_LOCKED(ifc)                              \
+	do {                                                     \
+		IF_CLONE_LOCK_ASSERT(ifc);                       \
+		KASSERT((ifc)->ifc_refcnt >= 0,                  \
+		    ("negative refcnt %ld", (ifc)->ifc_refcnt)); \
+		(ifc)->ifc_refcnt++;                             \
 	} while (0)
-#define IF_CLONE_REMREF(ifc)						\
-	do {								\
-		IF_CLONE_LOCK(ifc);					\
-		IF_CLONE_REMREF_LOCKED(ifc);				\
+#define IF_CLONE_REMREF(ifc)                 \
+	do {                                 \
+		IF_CLONE_LOCK(ifc);          \
+		IF_CLONE_REMREF_LOCKED(ifc); \
 	} while (0)
-#define IF_CLONE_REMREF_LOCKED(ifc)					\
-	do {								\
-		IF_CLONE_LOCK_ASSERT(ifc);				\
-		KASSERT((ifc)->ifc_refcnt > 0,				\
-		    ("bogus refcnt %ld", (ifc)->ifc_refcnt));		\
-		if (--(ifc)->ifc_refcnt == 0) {				\
-			IF_CLONE_UNLOCK(ifc);				\
-			if_clone_free(ifc);				\
-		} else {						\
-			/* silently free the lock */			\
-			IF_CLONE_UNLOCK(ifc);				\
-		}							\
+#define IF_CLONE_REMREF_LOCKED(ifc)                           \
+	do {                                                  \
+		IF_CLONE_LOCK_ASSERT(ifc);                    \
+		KASSERT((ifc)->ifc_refcnt > 0,                \
+		    ("bogus refcnt %ld", (ifc)->ifc_refcnt)); \
+		if (--(ifc)->ifc_refcnt == 0) {               \
+			IF_CLONE_UNLOCK(ifc);                 \
+			if_clone_free(ifc);                   \
+		} else {                                      \
+			/* silently free the lock */          \
+			IF_CLONE_UNLOCK(ifc);                 \
+		}                                             \
 	} while (0)
 
-#define IFC_IFLIST_INSERT(_ifc, _ifp)					\
+#define IFC_IFLIST_INSERT(_ifc, _ifp) \
 	LIST_INSERT_HEAD(&_ifc->ifc_iflist, _ifp, if_clones)
-#define IFC_IFLIST_REMOVE(_ifc, _ifp)					\
-	LIST_REMOVE(_ifp, if_clones)
+#define IFC_IFLIST_REMOVE(_ifc, _ifp) LIST_REMOVE(_ifp, if_clones)
 
 static MALLOC_DEFINE(M_CLONE, "clone", "interface cloning framework");
 
@@ -181,7 +180,7 @@ if_clone_create(char *name, size_t len, caddr_t params)
 
 	/* Try to find an applicable cloner for this request */
 	IF_CLONERS_LOCK();
-	LIST_FOREACH(ifc, &V_if_cloners, ifc_list)
+	LIST_FOREACH (ifc, &V_if_cloners, ifc_list)
 		if (ifc->ifc_type == SIMPLE) {
 			if (ifc_simple_match(ifc, name))
 				break;
@@ -192,7 +191,7 @@ if_clone_create(char *name, size_t len, caddr_t params)
 #ifdef VIMAGE
 	if (ifc == NULL && !IS_DEFAULT_VNET(curvnet)) {
 		CURVNET_SET_QUIET(vnet0);
-		LIST_FOREACH(ifc, &V_if_cloners, ifc_list)
+		LIST_FOREACH (ifc, &V_if_cloners, ifc_list)
 			if (ifc->ifc_type == SIMPLE) {
 				if (ifc_simple_match(ifc, name))
 					break;
@@ -267,7 +266,7 @@ if_clone_destroy(const char *name)
 
 	/* Find the cloner for this interface */
 	IF_CLONERS_LOCK();
-	LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
+	LIST_FOREACH (ifc, &V_if_cloners, ifc_list) {
 		if (strcmp(ifc->ifc_name, ifp->if_dname) == 0) {
 			break;
 		}
@@ -275,7 +274,7 @@ if_clone_destroy(const char *name)
 #ifdef VIMAGE
 	if (ifc == NULL && !IS_DEFAULT_VNET(curvnet)) {
 		CURVNET_SET_QUIET(vnet0);
-		LIST_FOREACH(ifc, &V_if_cloners, ifc_list)
+		LIST_FOREACH (ifc, &V_if_cloners, ifc_list)
 			if (ifc->ifc_type == SIMPLE) {
 				if (ifc_simple_match(ifc, name))
 					break;
@@ -307,7 +306,7 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 	struct ifnet *ifcifp;
 
 	if (ifc->ifc_type == ADVANCED && ifc->ifc_destroy == NULL)
-		return(EOPNOTSUPP);
+		return (EOPNOTSUPP);
 
 	/*
 	 * Given that the cloned ifnet might be attached to a different
@@ -317,7 +316,7 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 	CURVNET_SET_QUIET(ifp->if_vnet);
 
 	IF_CLONE_LOCK(ifc);
-	LIST_FOREACH(ifcifp, &ifc->ifc_iflist, if_clones) {
+	LIST_FOREACH (ifcifp, &ifc->ifc_iflist, if_clones) {
 		if (ifcifp == ifp) {
 			IFC_IFLIST_REMOVE(ifc, ifp);
 			break;
@@ -326,7 +325,7 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 	IF_CLONE_UNLOCK(ifc);
 	if (ifcifp == NULL) {
 		CURVNET_RESTORE();
-		return (ENXIO);		/* ifp is not on the list. */
+		return (ENXIO); /* ifp is not on the list. */
 	}
 	if ((ifc->ifc_flags & IFC_NOGROUP) == 0)
 		if_delgroup(ifp, ifc->ifc_name);
@@ -356,7 +355,7 @@ if_clone_alloc(const char *name, int maxunit)
 	KASSERT(name != NULL, ("%s: no name\n", __func__));
 
 	ifc = malloc(sizeof(struct if_clone), M_CLONE, M_WAITOK | M_ZERO);
-	strncpy(ifc->ifc_name, name, IFCLOSIZ-1);
+	strncpy(ifc->ifc_name, name, IFCLOSIZ - 1);
 	IF_CLONE_LOCK_INIT(ifc);
 	IF_CLONE_ADDREF(ifc);
 	ifc->ifc_maxunit = maxunit ? maxunit : IF_MAXUNIT;
@@ -372,7 +371,7 @@ if_clone_attach(struct if_clone *ifc)
 	struct if_clone *ifc1;
 
 	IF_CLONERS_LOCK();
-	LIST_FOREACH(ifc1, &V_if_cloners, ifc_list)
+	LIST_FOREACH (ifc1, &V_if_cloners, ifc_list)
 		if (strcmp(ifc->ifc_name, ifc1->ifc_name) == 0) {
 			IF_CLONERS_UNLOCK();
 			IF_CLONE_REMREF(ifc);
@@ -387,7 +386,7 @@ if_clone_attach(struct if_clone *ifc)
 
 struct if_clone *
 if_clone_advanced(const char *name, u_int maxunit, ifc_match_t match,
-	ifc_create_t create, ifc_destroy_t destroy)
+    ifc_create_t create, ifc_destroy_t destroy)
 {
 	struct if_clone *ifc;
 
@@ -407,7 +406,7 @@ if_clone_advanced(const char *name, u_int maxunit, ifc_match_t match,
 
 struct if_clone *
 if_clone_simple(const char *name, ifcs_create_t create, ifcs_destroy_t destroy,
-	u_int minifs)
+    u_int minifs)
 {
 	struct if_clone *ifc;
 	u_int unit;
@@ -428,8 +427,8 @@ if_clone_simple(const char *name, ifcs_create_t create, ifcs_destroy_t destroy,
 		snprintf(name, IFNAMSIZ, "%s%d", ifc->ifc_name, unit);
 		error = if_clone_createif(ifc, name, IFNAMSIZ, NULL);
 		KASSERT(error == 0,
-		    ("%s: failed to create required interface %s",
-		    __func__, name));
+		    ("%s: failed to create required interface %s", __func__,
+			name));
 	}
 
 	EVENTHANDLER_INVOKE(if_clone_event, ifc);
@@ -495,10 +494,11 @@ if_clone_list(struct if_clonereq *ifcr)
 	 * allocate arbitrary amounts of kernel memory.
 	 */
 	buf_count = (V_if_cloners_count < ifcr->ifcr_count) ?
-	    V_if_cloners_count : ifcr->ifcr_count;
+		  V_if_cloners_count :
+		  ifcr->ifcr_count;
 	IF_CLONERS_UNLOCK();
 
-	outbuf = malloc(IFNAMSIZ*buf_count, M_CLONE, M_WAITOK | M_ZERO);
+	outbuf = malloc(IFNAMSIZ * buf_count, M_CLONE, M_WAITOK | M_ZERO);
 
 	IF_CLONERS_LOCK();
 
@@ -507,19 +507,19 @@ if_clone_list(struct if_clonereq *ifcr)
 		/* Just asking how many there are. */
 		goto done;
 	}
-	count = (V_if_cloners_count < buf_count) ?
-	    V_if_cloners_count : buf_count;
+	count = (V_if_cloners_count < buf_count) ? V_if_cloners_count :
+							 buf_count;
 
 	for (ifc = LIST_FIRST(&V_if_cloners), buf = outbuf;
-	    ifc != NULL && count != 0;
-	    ifc = LIST_NEXT(ifc, ifc_list), count--, buf += IFNAMSIZ) {
+	     ifc != NULL && count != 0;
+	     ifc = LIST_NEXT(ifc, ifc_list), count--, buf += IFNAMSIZ) {
 		strlcpy(buf, ifc->ifc_name, IFNAMSIZ);
 	}
 
 done:
 	IF_CLONERS_UNLOCK();
 	if (err == 0 && dst != NULL)
-		err = copyout(outbuf, dst, buf_count*IFNAMSIZ);
+		err = copyout(outbuf, dst, buf_count * IFNAMSIZ);
 	if (outbuf != NULL)
 		free(outbuf, M_CLONE);
 	return (err);
@@ -538,9 +538,9 @@ if_clone_findifc(struct ifnet *ifp)
 
 	ifc0 = NULL;
 	IF_CLONERS_LOCK();
-	LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
+	LIST_FOREACH (ifc, &V_if_cloners, ifc_list) {
 		IF_CLONE_LOCK(ifc);
-		LIST_FOREACH(ifcifp, &ifc->ifc_iflist, if_clones) {
+		LIST_FOREACH (ifcifp, &ifc->ifc_iflist, if_clones) {
 			if (ifp == ifcifp) {
 				ifc0 = ifc;
 				IF_CLONE_ADDREF_LOCKED(ifc);
@@ -578,9 +578,9 @@ if_clone_addgroup(struct ifnet *ifp, struct if_clone *ifc)
 int
 ifc_name2unit(const char *name, int *unit)
 {
-	const char	*cp;
-	int		cutoff = INT_MAX / 10;
-	int		cutlim = INT_MAX % 10;
+	const char *cp;
+	int cutoff = INT_MAX / 10;
+	int cutlim = INT_MAX % 10;
 
 	for (cp = name; *cp != '\0' && (*cp < '0' || *cp > '9'); cp++)
 		;
@@ -712,9 +712,10 @@ ifc_simple_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 
 	/* In the wildcard case, we need to update the name. */
 	if (wildcard) {
-		for (dp = name; *dp != '\0'; dp++);
-		if (snprintf(dp, len - (dp-name), "%d", unit) >
-		    len - (dp-name) - 1) {
+		for (dp = name; *dp != '\0'; dp++)
+			;
+		if (snprintf(dp, len - (dp - name), "%d", unit) >
+		    len - (dp - name) - 1) {
 			/*
 			 * This can only be a programmer error and
 			 * there's no straightforward way to recover if
@@ -734,7 +735,7 @@ ifc_simple_destroy(struct if_clone *ifc, struct ifnet *ifp)
 
 	unit = ifp->if_dunit;
 
-	if (unit < ifc->ifcs_minifs) 
+	if (unit < ifc->ifcs_minifs)
 		return (EINVAL);
 
 	ifc->ifcs_destroy(ifp);

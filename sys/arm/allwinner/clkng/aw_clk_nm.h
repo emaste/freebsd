@@ -25,28 +25,28 @@
  * $FreeBSD$
  */
 
-#ifndef	__AW_CLK_NM_H__
+#ifndef __AW_CLK_NM_H__
 #define __AW_CLK_NM_H__
 
 #include <dev/extres/clk/clk.h>
 
 struct aw_clk_nm_def {
 	struct clknode_init_def clkdef;
-	uint32_t		offset;
+	uint32_t offset;
 
-	struct aw_clk_factor	m;
-	struct aw_clk_factor	n;
-	struct aw_clk_factor	prediv;
+	struct aw_clk_factor m;
+	struct aw_clk_factor n;
+	struct aw_clk_factor prediv;
 
-	uint32_t		mux_shift;
-	uint32_t		mux_width;
-	uint32_t		gate_shift;
-	uint32_t		lock_shift;
-	uint32_t		lock_retries;
+	uint32_t mux_shift;
+	uint32_t mux_width;
+	uint32_t gate_shift;
+	uint32_t lock_shift;
+	uint32_t lock_retries;
 
-	uint32_t		flags;
+	uint32_t flags;
 };
 
-int	aw_clk_nm_register(struct clkdom *clkdom, struct aw_clk_nm_def *clkdef);
+int aw_clk_nm_register(struct clkdom *clkdom, struct aw_clk_nm_def *clkdef);
 
 #endif /* __AW_CLK_NM_H__ */

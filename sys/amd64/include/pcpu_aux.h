@@ -31,7 +31,7 @@
  */
 
 #ifndef _MACHINE_PCPU_AUX_H_
-#define	_MACHINE_PCPU_AUX_H_
+#define _MACHINE_PCPU_AUX_H_
 
 #ifndef _KERNEL
 #error "Not for userspace"
@@ -52,11 +52,12 @@ __curthread(void)
 {
 	struct thread *td;
 
-	__asm("movq %%gs:%P1,%0" : "=r" (td) : "n" (offsetof(struct pcpu,
-	    pc_curthread)));
+	__asm("movq %%gs:%P1,%0"
+	      : "=r"(td)
+	      : "n"(offsetof(struct pcpu, pc_curthread)));
 	return (td);
 }
-#define	curthread		(__curthread())
-#define	curpcb			(&curthread->td_md.md_pcb)
+#define curthread (__curthread())
+#define curpcb (&curthread->td_md.md_pcb)
 
-#endif	/* _MACHINE_PCPU_AUX_H_ */
+#endif /* _MACHINE_PCPU_AUX_H_ */

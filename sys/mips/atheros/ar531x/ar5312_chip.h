@@ -26,8 +26,8 @@
 
 /* $FreeBSD$ */
 
-#ifndef	__AR5312_CHIP_H__
-#define	__AR5312_CHIP_H__
+#ifndef __AR5312_CHIP_H__
+#define __AR5312_CHIP_H__
 
 extern struct ar5315_cpu_def ar5312_chip_def;
 

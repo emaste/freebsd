@@ -33,10 +33,9 @@
  */
 #include "sdp.h"
 
-SDP_MODPARAM_INT(rcvbuf_initial_size, 32 * 1024,
-		"Receive buffer initial size in bytes.");
-SDP_MODPARAM_SINT(rcvbuf_scale, 0x8,
-		"Receive buffer size scale factor.");
+SDP_MODPARAM_INT(
+    rcvbuf_initial_size, 32 * 1024, "Receive buffer initial size in bytes.");
+SDP_MODPARAM_SINT(rcvbuf_scale, 0x8, "Receive buffer size scale factor.");
 
 /* Like tcp_fin - called when SDP_MID_DISCONNECT is received */
 static void
@@ -71,8 +70,8 @@ sdp_handle_disconn(struct sdp_sock *ssk)
 			rdma_disconnect(id);
 			SDP_WLOCK(ssk);
 		} else {
-			sdp_warn(ssk->socket,
-			    "%s: ssk->id is NULL\n", __func__);
+			sdp_warn(
+			    ssk->socket, "%s: ssk->id is NULL\n", __func__);
 			return;
 		}
 		break;
@@ -82,12 +81,11 @@ sdp_handle_disconn(struct sdp_sock *ssk)
 		break;
 	case TCPS_CLOSED:
 		/* FIN arrived after IB teardown started - do nothing */
-		sdp_dbg(ssk->socket, "%s: fin in state %s\n",
-		    __func__, sdp_state_str(ssk->state));
+		sdp_dbg(ssk->socket, "%s: fin in state %s\n", __func__,
+		    sdp_state_str(ssk->state));
 		return;
 	default:
-		sdp_warn(ssk->socket,
-		    "%s: FIN in unexpected state. state=%d\n",
+		sdp_warn(ssk->socket, "%s: FIN in unexpected state. state=%d\n",
 		    __func__, ssk->state);
 		break;
 	}
@@ -125,9 +123,9 @@ sdp_post_recv(struct sdp_sock *ssk)
 	rx_req = ssk->rx_ring.buffer + (id & (SDP_RX_SIZE - 1));
 	rx_req->mb = mb;
 	dev = ssk->ib_device;
-        for (i = 0;  mb != NULL; i++, mb = mb->m_next, sge++) {
-		addr = ib_dma_map_single(dev, mb->m_data, mb->m_len,
-		    DMA_TO_DEVICE);
+	for (i = 0; mb != NULL; i++, mb = mb->m_next, sge++) {
+		addr = ib_dma_map_single(
+		    dev, mb->m_data, mb->m_len, DMA_TO_DEVICE);
 		/* TODO: proper error handling */
 		BUG_ON(ib_dma_mapping_error(dev, addr));
 		BUG_ON(i >= SDP_MAX_RECV_SGES);
@@ -135,7 +133,7 @@ sdp_post_recv(struct sdp_sock *ssk)
 		sge->addr = addr;
 		sge->length = mb->m_len;
 		sge->lkey = ssk->sdp_dev->pd->local_dma_lkey;
-        }
+	}
 
 	rx_wr.next = NULL;
 	rx_wr.wr_id = id | SDP_OP_RECV;
@@ -209,13 +207,13 @@ sdp_sock_queue_rcv_mb(struct socket *sk, struct mbuf *mb)
 #ifdef SDP_ZCOPY
 	SDP_SKB_CB(mb)->seq = rcv_nxt(ssk);
 	if (h->mid == SDP_MID_SRCAVAIL) {
-		struct sdp_srcah *srcah = (struct sdp_srcah *)(h+1);
+		struct sdp_srcah *srcah = (struct sdp_srcah *)(h + 1);
 		struct rx_srcavail_state *rx_sa;
-		
+
 		ssk->srcavail_cancel_mseq = 0;
 
 		ssk->rx_sa = rx_sa = RX_SRCAVAIL_STATE(mb) = kzalloc(
-				sizeof(struct rx_srcavail_state), M_NOWAIT);
+		    sizeof(struct rx_srcavail_state), M_NOWAIT);
 
 		rx_sa->mseq = ntohl(h->mseq);
 		rx_sa->used = 0;
@@ -225,15 +223,17 @@ sdp_sock_queue_rcv_mb(struct socket *sk, struct mbuf *mb)
 		rx_sa->flags = 0;
 
 		if (ssk->tx_sa) {
-			sdp_dbg_data(ssk->socket, "got RX SrcAvail while waiting "
-					"for TX SrcAvail. waking up TX SrcAvail"
-					"to be aborted\n");
+			sdp_dbg_data(ssk->socket,
+			    "got RX SrcAvail while waiting "
+			    "for TX SrcAvail. waking up TX SrcAvail"
+			    "to be aborted\n");
 			wake_up(sk->sk_sleep);
 		}
 
 		atomic_add(mb->len, &ssk->rcv_nxt);
-		sdp_dbg_data(sk, "queueing SrcAvail. mb_len = %d vaddr = %lld\n",
-			mb_len, rx_sa->vaddr);
+		sdp_dbg_data(sk,
+		    "queueing SrcAvail. mb_len = %d vaddr = %lld\n", mb_len,
+		    rx_sa->vaddr);
 	} else
 #endif
 	{
@@ -306,8 +306,8 @@ sdp_recv_completion(struct sdp_sock *ssk, int id)
 	struct mbuf *mb;
 
 	if (unlikely(id != ring_tail(ssk->rx_ring))) {
-		printk(KERN_WARNING "Bogus recv completion id %d tail %d\n",
-			id, ring_tail(ssk->rx_ring));
+		printk(KERN_WARNING "Bogus recv completion id %d tail %d\n", id,
+		    ring_tail(ssk->rx_ring));
 		return NULL;
 	}
 
@@ -330,7 +330,7 @@ sdp_process_rx_ctl_mb(struct sdp_sock *ssk, struct mbuf *mb)
 	SDP_WLOCK_ASSERT(ssk);
 
 	sk = ssk->socket;
- 	h = mtod(mb, struct sdp_bsdh *);
+	h = mtod(mb, struct sdp_bsdh *);
 	switch (h->mid) {
 	case SDP_MID_DATA:
 	case SDP_MID_SRCAVAIL:
@@ -355,11 +355,13 @@ sdp_process_rx_ctl_mb(struct sdp_sock *ssk, struct mbuf *mb)
 		if (ssk->rx_sa) {
 			ssk->srcavail_cancel_mseq = ntohl(h->mseq);
 			ssk->rx_sa->flags |= RX_SA_ABORTED;
-			ssk->rx_sa = NULL; /* TODO: change it into SDP_MID_DATA and get 
-			                      the dirty logic from recvmsg */
+			ssk->rx_sa =
+			    NULL; /* TODO: change it into SDP_MID_DATA and get
+				     the dirty logic from recvmsg */
 		} else {
-			sdp_dbg(sk, "Got SrcAvailCancel - "
-					"but no SrcAvail in process\n");
+			sdp_dbg(sk,
+			    "Got SrcAvailCancel - "
+			    "but no SrcAvail in process\n");
 		}
 		break;
 	case SDP_MID_SINKAVAIL:
@@ -379,11 +381,11 @@ sdp_process_rx_ctl_mb(struct sdp_sock *ssk, struct mbuf *mb)
 		break;
 	case SDP_MID_CHRCVBUF:
 		sdp_dbg_data(sk, "Handling RX CHRCVBUF\n");
-		sdp_handle_resize_request(ssk, (struct sdp_chrecvbuf *)(h+1));
+		sdp_handle_resize_request(ssk, (struct sdp_chrecvbuf *)(h + 1));
 		break;
 	case SDP_MID_CHRCVBUF_ACK:
 		sdp_dbg_data(sk, "Handling RX CHRCVBUF_ACK\n");
-		sdp_handle_resize_ack(ssk, (struct sdp_chrecvbuf *)(h+1));
+		sdp_handle_resize_ack(ssk, (struct sdp_chrecvbuf *)(h + 1));
 		break;
 	default:
 		/* TODO: Handle other messages */
@@ -418,17 +420,17 @@ sdp_process_rx_mb(struct sdp_sock *ssk, struct mbuf *mb)
 
 	mseq_ack = ntohl(h->mseq_ack);
 	credits_before = tx_credits(ssk);
-	atomic_set(&ssk->tx_ring.credits, mseq_ack - ring_head(ssk->tx_ring) +
-			1 + ntohs(h->bufs));
+	atomic_set(&ssk->tx_ring.credits,
+	    mseq_ack - ring_head(ssk->tx_ring) + 1 + ntohs(h->bufs));
 	if (mseq_ack >= ssk->nagle_last_unacked)
 		ssk->nagle_last_unacked = 0;
 
 	sdp_prf1(ssk->socket, mb, "RX %s +%d c:%d->%d mseq:%d ack:%d\n",
-		mid2str(h->mid), ntohs(h->bufs), credits_before,
-		tx_credits(ssk), ntohl(h->mseq), ntohl(h->mseq_ack));
+	    mid2str(h->mid), ntohs(h->bufs), credits_before, tx_credits(ssk),
+	    ntohl(h->mseq), ntohl(h->mseq_ack));
 
-	if (unlikely(h->mid == SDP_MID_DATA &&
-	    mb->m_pkthdr.len == SDP_HEAD_SIZE)) {
+	if (unlikely(
+		h->mid == SDP_MID_DATA && mb->m_pkthdr.len == SDP_HEAD_SIZE)) {
 		/* Credit update is valid even after RCV_SHUTDOWN */
 		m_freem(mb);
 		return 0;
@@ -439,18 +441,18 @@ sdp_process_rx_mb(struct sdp_sock *ssk, struct mbuf *mb)
 		sdp_prf(sk, NULL, "Control mb - queing to control queue");
 #ifdef SDP_ZCOPY
 		if (h->mid == SDP_MID_SRCAVAIL_CANCEL) {
-			sdp_dbg_data(sk, "Got SrcAvailCancel. "
-					"seq: 0x%d seq_ack: 0x%d\n",
-					ntohl(h->mseq), ntohl(h->mseq_ack));
+			sdp_dbg_data(sk,
+			    "Got SrcAvailCancel. "
+			    "seq: 0x%d seq_ack: 0x%d\n",
+			    ntohl(h->mseq), ntohl(h->mseq_ack));
 			ssk->srcavail_cancel_mseq = ntohl(h->mseq);
 		}
 
-
 		if (h->mid == SDP_MID_RDMARDCOMPL) {
-			struct sdp_rrch *rrch = (struct sdp_rrch *)(h+1);
+			struct sdp_rrch *rrch = (struct sdp_rrch *)(h + 1);
 			sdp_dbg_data(sk, "RdmaRdCompl message arrived\n");
-			sdp_handle_rdma_read_compl(ssk, ntohl(h->mseq_ack),
-					ntohl(rrch->len));
+			sdp_handle_rdma_read_compl(
+			    ssk, ntohl(h->mseq_ack), ntohl(rrch->len));
 		}
 #endif
 		if (mbufq_enqueue(&ssk->rxctlq, mb) != 0)
@@ -460,7 +462,6 @@ sdp_process_rx_mb(struct sdp_sock *ssk, struct mbuf *mb)
 
 	sdp_prf1(sk, NULL, "queueing %s mb\n", mid2str(h->mid));
 	mb = sdp_sock_queue_rcv_mb(sk, mb);
-
 
 	return 0;
 }
@@ -480,7 +481,8 @@ sdp_process_rx_wc(struct sdp_sock *ssk, struct ib_wc *wc)
 
 	if (unlikely(wc->status)) {
 		if (ssk->qp_active && sk) {
-			sdp_dbg(sk, "Recv completion with error. "
+			sdp_dbg(sk,
+			    "Recv completion with error. "
 			    "Status %s (%d), vendor: %d\n",
 			    ib_wc_status_msg(wc->status), wc->status,
 			    wc->vendor_err);
@@ -491,11 +493,11 @@ sdp_process_rx_wc(struct sdp_sock *ssk, struct ib_wc *wc)
 		return NULL;
 	}
 
-	sdp_dbg_data(sk, "Recv completion. ID %d Length %d\n",
-			(int)wc->wr_id, wc->byte_len);
+	sdp_dbg_data(sk, "Recv completion. ID %d Length %d\n", (int)wc->wr_id,
+	    wc->byte_len);
 	if (unlikely(wc->byte_len < sizeof(struct sdp_bsdh))) {
-		sdp_warn(sk, "SDP BUG! byte_len %d < %zd\n",
-				wc->byte_len, sizeof(struct sdp_bsdh));
+		sdp_warn(sk, "SDP BUG! byte_len %d < %zd\n", wc->byte_len,
+		    sizeof(struct sdp_bsdh));
 		m_freem(mb);
 		return NULL;
 	}
@@ -511,8 +513,8 @@ sdp_process_rx_wc(struct sdp_sock *ssk, struct ib_wc *wc)
 	mseq = ntohl(h->mseq);
 	atomic_set(&ssk->mseq_ack, mseq);
 	if (mseq != (int)wc->wr_id)
-		sdp_warn(sk, "SDP BUG! mseq %d != wrid %d\n",
-				mseq, (int)wc->wr_id);
+		sdp_warn(
+		    sk, "SDP BUG! mseq %d != wrid %d\n", mseq, (int)wc->wr_id);
 
 	return mb;
 }
@@ -561,8 +563,8 @@ sdp_poll_rx_cq(struct sdp_sock *ssk)
 static void
 sdp_rx_comp_work(struct work_struct *work)
 {
-	struct sdp_sock *ssk = container_of(work, struct sdp_sock,
-			rx_comp_work);
+	struct sdp_sock *ssk = container_of(
+	    work, struct sdp_sock, rx_comp_work);
 
 	sdp_prf(ssk->socket, NULL, "%s", __func__);
 
@@ -622,11 +624,10 @@ sdp_do_posts(struct sdp_sock *ssk)
 	if (credit_update_needed(ssk) || xmit_poll_force) {
 		/* if has pending tx because run out of tx_credits - xmit it */
 		sdp_prf(sk, NULL, "Processing to free pending sends");
-		sdp_xmit_poll(ssk,  xmit_poll_force);
+		sdp_xmit_poll(ssk, xmit_poll_force);
 		sdp_prf(sk, NULL, "Sending credit update");
 		sdp_post_sends(ssk, M_NOWAIT);
 	}
-
 }
 
 int
@@ -646,8 +647,8 @@ sdp_process_rx(struct sdp_sock *ssk)
 	sdp_prf(ssk->socket, NULL, "processed %d", wc_processed);
 
 	if (wc_processed) {
-		sdp_prf(ssk->socket, NULL, "credits:  %d -> %d",
-				credits_before, tx_credits(ssk));
+		sdp_prf(ssk->socket, NULL, "credits:  %d -> %d", credits_before,
+		    tx_credits(ssk));
 		queue_work(rx_comp_wq, &ssk->rx_comp_work);
 	}
 	sdp_arm_rx_cq(ssk);
@@ -663,8 +664,8 @@ sdp_rx_irq(struct ib_cq *cq, void *cq_context)
 	struct sdp_sock *ssk;
 
 	ssk = cq_context;
-	KASSERT(cq == ssk->rx_ring.cq,
-	    ("%s: mismatched cq on %p", __func__, ssk));
+	KASSERT(
+	    cq == ssk->rx_ring.cq, ("%s: mismatched cq on %p", __func__, ssk));
 
 	SDPSTATS_COUNTER_INC(rx_int_count);
 
@@ -673,8 +674,8 @@ sdp_rx_irq(struct ib_cq *cq, void *cq_context)
 	sdp_process_rx(ssk);
 }
 
-static
-void sdp_rx_ring_purge(struct sdp_sock *ssk)
+static void
+sdp_rx_ring_purge(struct sdp_sock *ssk)
 {
 	while (rx_ring_posted(ssk) > 0) {
 		struct mbuf *mb;
@@ -714,11 +715,11 @@ sdp_rx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 	atomic_set(&ssk->rx_ring.head, 1);
 	atomic_set(&ssk->rx_ring.tail, 1);
 
-	ssk->rx_ring.buffer = malloc(sizeof(*ssk->rx_ring.buffer) * SDP_RX_SIZE,
-	    M_SDP, M_WAITOK);
+	ssk->rx_ring.buffer = malloc(
+	    sizeof(*ssk->rx_ring.buffer) * SDP_RX_SIZE, M_SDP, M_WAITOK);
 
-	rx_cq = ib_create_cq(device, sdp_rx_irq, sdp_rx_cq_event_handler,
-	    ssk, &rx_cq_attr);
+	rx_cq = ib_create_cq(
+	    device, sdp_rx_irq, sdp_rx_cq_event_handler, ssk, &rx_cq_attr);
 	if (IS_ERR(rx_cq)) {
 		rc = PTR_ERR(rx_cq);
 		sdp_warn(ssk->socket, "Unable to allocate RX CQ: %d.\n", rc);
@@ -752,7 +753,7 @@ sdp_rx_ring_destroy(struct sdp_sock *ssk)
 	if (ssk->rx_ring.cq) {
 		if (ib_destroy_cq(ssk->rx_ring.cq)) {
 			sdp_warn(ssk->socket, "destroy cq(%p) failed\n",
-				ssk->rx_ring.cq);
+			    ssk->rx_ring.cq);
 		} else {
 			ssk->rx_ring.cq = NULL;
 		}

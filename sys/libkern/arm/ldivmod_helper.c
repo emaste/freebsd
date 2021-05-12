@@ -44,7 +44,7 @@ __kern_ldivmod(long long n, long long m, long long *rem)
 {
 	long long q;
 
-	q = __divdi3(n, m);	/* q = n / m */
+	q = __divdi3(n, m); /* q = n / m */
 	*rem = n - m * q;
 
 	return q;

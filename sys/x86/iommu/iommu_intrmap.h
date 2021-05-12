@@ -30,7 +30,7 @@
  */
 
 #ifndef __X86_IOMMU_IOMMU_INTRMAP_H
-#define	__X86_IOMMU_IOMMU_INTRMAP_H
+#define __X86_IOMMU_IOMMU_INTRMAP_H
 
 int iommu_alloc_msi_intr(device_t src, u_int *cookies, u_int count);
 int iommu_map_msi_intr(device_t src, u_int cpu, u_int vector, u_int cookie,

@@ -39,15 +39,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/acl.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/systm.h>
 #include <sys/mount.h>
 #include <sys/priv.h>
-#include <sys/vnode.h>
-#include <sys/errno.h>
 #include <sys/stat.h>
-#include <sys/acl.h>
+#include <sys/vnode.h>
 
 /*
  * Implement a version of vaccess() that understands POSIX.1e ACL semantics;
@@ -68,7 +68,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND)) == 0,
 	    ("invalid bit in accmode"));
 	KASSERT((accmode & VAPPEND) == 0 || (accmode & VWRITE),
-	    	("VAPPEND without VWRITE"));
+	    ("VAPPEND without VWRITE"));
 
 	/*
 	 * Look for a normal, non-privileged way to access the file/directory
@@ -88,7 +88,8 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	priv_granted = 0;
 
 	if (type == VDIR) {
-		if ((accmode & VEXEC) && !priv_check_cred(cred, PRIV_VFS_LOOKUP))
+		if ((accmode & VEXEC) &&
+		    !priv_check_cred(cred, PRIV_VFS_LOOKUP))
 			priv_granted |= VEXEC;
 	} else {
 		/*
@@ -96,8 +97,9 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 		 * a privileged user will always succeed, and we don't want
 		 * this to happen unless the file really is executable.
 		 */
-		if ((accmode & VEXEC) && (acl_posix1e_acl_to_mode(acl) &
-		    (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 &&
+		if ((accmode & VEXEC) &&
+		    (acl_posix1e_acl_to_mode(acl) &
+			(S_IXUSR | S_IXGRP | S_IXOTH)) != 0 &&
 		    !priv_check_cred(cred, PRIV_VFS_EXEC))
 			priv_granted |= VEXEC;
 	}
@@ -212,8 +214,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 			/*
 			 * XXXRW: Do privilege lookup here.
 			 */
-			if ((accmode & (dac_granted | priv_granted)) !=
-			    accmode)
+			if ((accmode & (dac_granted | priv_granted)) != accmode)
 				goto error;
 
 			return (0);
@@ -240,7 +241,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 				dac_granted |= VREAD;
 			if (acl->acl_entry[i].ae_perm & ACL_WRITE)
 				dac_granted |= (VWRITE | VAPPEND);
-			dac_granted  &= acl_mask_granted;
+			dac_granted &= acl_mask_granted;
 
 			if ((accmode & dac_granted) == accmode)
 				return (0);
@@ -258,7 +259,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 				dac_granted |= VREAD;
 			if (acl->acl_entry[i].ae_perm & ACL_WRITE)
 				dac_granted |= (VWRITE | VAPPEND);
-			dac_granted  &= acl_mask_granted;
+			dac_granted &= acl_mask_granted;
 
 			if ((accmode & dac_granted) == accmode)
 				return (0);
@@ -293,19 +294,18 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 				/*
 				 * XXXRW: Do privilege lookup here.
 				 */
-				if ((accmode & (dac_granted | priv_granted))
-				    != accmode)
+				if ((accmode & (dac_granted | priv_granted)) !=
+				    accmode)
 					break;
 
 				return (0);
 
 			case ACL_GROUP:
-				if (!groupmember(acl->acl_entry[i].ae_id,
-				    cred))
+				if (!groupmember(acl->acl_entry[i].ae_id, cred))
 					break;
 				dac_granted = 0;
 				if (acl->acl_entry[i].ae_perm & ACL_EXECUTE)
-				dac_granted |= VEXEC;
+					dac_granted |= VEXEC;
 				if (acl->acl_entry[i].ae_perm & ACL_READ)
 					dac_granted |= VREAD;
 				if (acl->acl_entry[i].ae_perm & ACL_WRITE)
@@ -315,8 +315,8 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 				/*
 				 * XXXRW: Do privilege lookup here.
 				 */
-				if ((accmode & (dac_granted | priv_granted))
-				    != accmode)
+				if ((accmode & (dac_granted | priv_granted)) !=
+				    accmode)
 					break;
 
 				return (0);
@@ -331,7 +331,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 		 */
 		goto error;
 	}
-		
+
 	/*
 	 * Fall back on ACL_OTHER.  ACL_MASK is not applied to ACL_OTHER.
 	 */
@@ -364,9 +364,9 @@ error:
 acl_perm_t
 acl_posix1e_mode_to_perm(acl_tag_t tag, mode_t mode)
 {
-	acl_perm_t	perm = 0;
+	acl_perm_t perm = 0;
 
-	switch(tag) {
+	switch (tag) {
 	case ACL_USER_OBJ:
 		if (mode & S_IXUSR)
 			perm |= ACL_EXECUTE;
@@ -407,13 +407,13 @@ acl_posix1e_mode_to_perm(acl_tag_t tag, mode_t mode)
 struct acl_entry
 acl_posix1e_mode_to_entry(acl_tag_t tag, uid_t uid, gid_t gid, mode_t mode)
 {
-	struct acl_entry	acl_entry;
+	struct acl_entry acl_entry;
 
 	acl_entry.ae_tag = tag;
 	acl_entry.ae_perm = acl_posix1e_mode_to_perm(tag, mode);
 	acl_entry.ae_entry_type = 0;
 	acl_entry.ae_flags = 0;
-	switch(tag) {
+	switch (tag) {
 	case ACL_USER_OBJ:
 		acl_entry.ae_id = uid;
 		break;
@@ -441,7 +441,7 @@ mode_t
 acl_posix1e_perms_to_mode(struct acl_entry *acl_user_obj_entry,
     struct acl_entry *acl_group_obj_entry, struct acl_entry *acl_other_entry)
 {
-	mode_t	mode;
+	mode_t mode;
 
 	mode = 0;
 	if (acl_user_obj_entry->ae_perm & ACL_EXECUTE)
@@ -517,11 +517,11 @@ acl_posix1e_acl_to_mode(struct acl *acl)
 	 * use the ACL_GROUP_OBJ permissions.
 	 */
 	if (acl_mask != NULL)
-		return (acl_posix1e_perms_to_mode(acl_user_obj, acl_mask,
-		    acl_other));
+		return (acl_posix1e_perms_to_mode(
+		    acl_user_obj, acl_mask, acl_other));
 	else
-		return (acl_posix1e_perms_to_mode(acl_user_obj, acl_group_obj,
-		    acl_other));
+		return (acl_posix1e_perms_to_mode(
+		    acl_user_obj, acl_group_obj, acl_other));
 }
 
 /*
@@ -561,7 +561,7 @@ acl_posix1e_check(struct acl *acl)
 		/*
 		 * Check for a valid tag.
 		 */
-		switch(acl->acl_entry[i].ae_tag) {
+		switch (acl->acl_entry[i].ae_tag) {
 		case ACL_USER_OBJ:
 			acl->acl_entry[i].ae_id = ACL_UNDEFINED_ID; /* XXX */
 			if (acl->acl_entry[i].ae_id != ACL_UNDEFINED_ID)
@@ -669,11 +669,8 @@ acl_posix1e_modload(module_t mod, int what, void *arg)
 	return (ret);
 }
 
-static moduledata_t acl_posix1e_mod = {
-	"acl_posix1e",
-	acl_posix1e_modload,
-	NULL
-};
+static moduledata_t acl_posix1e_mod = { "acl_posix1e", acl_posix1e_modload,
+	NULL };
 
 DECLARE_MODULE(acl_posix1e, acl_posix1e_mod, SI_SUB_VFS, SI_ORDER_FIRST);
 MODULE_VERSION(acl_posix1e, 1);

@@ -41,11 +41,8 @@ __FBSDID("$FreeBSD$");
 #include "kgss_if.h"
 
 OM_uint32
-gss_wrap_size_limit(OM_uint32 *minor_status,
-    const gss_ctx_id_t ctx,
-    int conf_req_flag,
-    gss_qop_t qop_req,
-    OM_uint32 req_output_size,
+gss_wrap_size_limit(OM_uint32 *minor_status, const gss_ctx_id_t ctx,
+    int conf_req_flag, gss_qop_t qop_req, OM_uint32 req_output_size,
     OM_uint32 *max_input_size)
 {
 	if (!ctx) {
@@ -53,6 +50,6 @@ gss_wrap_size_limit(OM_uint32 *minor_status,
 		return (GSS_S_NO_CONTEXT);
 	}
 
-	return (KGSS_WRAP_SIZE_LIMIT(ctx, minor_status, conf_req_flag,
-		qop_req, req_output_size, max_input_size));
+	return (KGSS_WRAP_SIZE_LIMIT(ctx, minor_status, conf_req_flag, qop_req,
+	    req_output_size, max_input_size));
 }

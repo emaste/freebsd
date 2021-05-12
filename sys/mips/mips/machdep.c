@@ -1,4 +1,4 @@
-    /*	$OpenBSD: machdep.c,v 1.33 1998/09/15 10:58:54 pefo Exp $	*/
+/*	$OpenBSD: machdep.c,v 1.33 1998/09/15 10:58:54 pefo Exp $	*/
 /* tracked to 1.38 */
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
@@ -48,39 +48,39 @@ __FBSDID("$FreeBSD$");
 #include "opt_md.h"
 
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/msgbuf.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/sysproto.h>
+#include <sys/user.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_phys.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_extern.h>
-#include <sys/socket.h>
+#include <vm/vm_phys.h>
 
-#include <sys/user.h>
-#include <sys/interrupt.h>
-#include <sys/cons.h>
-#include <sys/syslog.h>
 #include <machine/asm.h>
 #include <machine/bootinfo.h>
 #include <machine/cache.h>
@@ -94,16 +94,19 @@ __FBSDID("$FreeBSD$");
 #include <machine/tlb.h>
 #ifdef DDB
 #include <sys/kdb.h>
+
 #include <ddb/ddb.h>
 #endif
 
 #include <sys/random.h>
+
 #include <net/if.h>
 
-#define	BOOTINFO_DEBUG	0
+#define BOOTINFO_DEBUG 0
 
 char machine[] = "mips";
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "Machine class");
+SYSCTL_STRING(
+    _hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "Machine class");
 
 char cpu_model[80];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "Machine model");
@@ -115,8 +118,8 @@ int cold = 1;
 long realmem = 0;
 long Maxmem = 0;
 int cpu_clock = MIPS_DEFAULT_HZ;
-SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, 
-    &cpu_clock, 0, "CPU instruction clock rate");
+SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, &cpu_clock, 0,
+    "CPU instruction clock rate");
 int clocks_running = 0;
 
 vm_offset_t kstack0;
@@ -136,8 +139,8 @@ vm_offset_t kstack0;
  * The array is in the .data section so that the stack does not get zeroed out
  * when the .bss section is zeroed.
  */
-char pcpu_space[MAXCPU][PAGE_SIZE * 2] \
-	__aligned(PAGE_SIZE * 2) __section(".data");
+char pcpu_space[MAXCPU][PAGE_SIZE * 2] __aligned(PAGE_SIZE * 2)
+    __section(".data");
 
 struct pcpu *pcpup = (struct pcpu *)pcpu_space;
 
@@ -152,8 +155,8 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 struct kva_md_info kmi;
 
-int cpucfg;			/* Value of processor config register */
-int num_tlbentries = 64;	/* Size of the CPU tlb */
+int cpucfg;		 /* Value of processor config register */
+int num_tlbentries = 64; /* Size of the CPU tlb */
 int cputype;
 
 extern char MipsException[], MipsExceptionEnd[];
@@ -173,7 +176,7 @@ u_int32_t bootdev;
 struct bootinfo bootinfo;
 /*
  * First kseg0 address available for use. By default it's equal to &end.
- * But in some cases there might be additional data placed right after 
+ * But in some cases there might be additional data placed right after
  * _end by loader or ELF trampoline.
  */
 vm_offset_t kernel_kseg0_end = (vm_offset_t)&end;
@@ -198,20 +201,19 @@ cpu_startup(void *dummy)
 
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			vm_paddr_t size1 = phys_avail[indx + 1] - phys_avail[indx];
+			vm_paddr_t size1 = phys_avail[indx + 1] -
+			    phys_avail[indx];
 
 			printf("0x%08jx - 0x%08jx, %ju bytes (%ju pages)\n",
 			    (uintmax_t)phys_avail[indx],
 			    (uintmax_t)phys_avail[indx + 1] - 1,
-			    (uintmax_t)size1,
-			    (uintmax_t)size1 / PAGE_SIZE);
+			    (uintmax_t)size1, (uintmax_t)size1 / PAGE_SIZE);
 		}
 	}
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %ju (%juMB)\n", 
-	    ptoa((uintmax_t)vm_free_count()),
+	printf("avail memory = %ju (%juMB)\n", ptoa((uintmax_t)vm_free_count()),
 	    ptoa((uintmax_t)vm_free_count()) / 1048576);
 	cpu_init_interrupts();
 
@@ -260,8 +262,8 @@ cpu_halt(void)
 		;
 }
 
-SYSCTL_STRUCT(_machdep, OID_AUTO, bootinfo, CTLFLAG_RD, &bootinfo,
-    bootinfo, "Bootinfo struct: kernel filename, BIOS harddisk geometry, etc");
+SYSCTL_STRUCT(_machdep, OID_AUTO, bootinfo, CTLFLAG_RD, &bootinfo, bootinfo,
+    "Bootinfo struct: kernel filename, BIOS harddisk geometry, etc");
 
 /*
  * Initialize per cpu data structures, include curthread.
@@ -287,17 +289,18 @@ mips_proc0_init(void)
 	proc_linkup0(&proc0, &thread0);
 
 	KASSERT((kstack0 & PAGE_MASK) == 0,
-		("kstack0 is not aligned on a page boundary: 0x%0lx",
+	    ("kstack0 is not aligned on a page boundary: 0x%0lx",
 		(long)kstack0));
 	thread0.td_kstack = kstack0;
 	thread0.td_kstack_pages = KSTACK_PAGES;
-	/* 
-	 * Do not use cpu_thread_alloc to initialize these fields 
-	 * thread0 is the only thread that has kstack located in KSEG0 
+	/*
+	 * Do not use cpu_thread_alloc to initialize these fields
+	 * thread0 is the only thread that has kstack located in KSEG0
 	 * while cpu_thread_alloc handles kstack allocated in KSEG2.
 	 */
 	thread0.td_pcb = (struct pcb *)(thread0.td_kstack +
-	    thread0.td_kstack_pages * PAGE_SIZE) - 1;
+			     thread0.td_kstack_pages * PAGE_SIZE) -
+	    1;
 	thread0.td_frame = &thread0.td_pcb->pcb_regs;
 
 	/* Steal memory for the dynamic per-cpu area. */
@@ -306,7 +309,7 @@ mips_proc0_init(void)
 	PCPU_SET(curpcb, thread0.td_pcb);
 	/*
 	 * There is no need to initialize md_upte array for thread0 as it's
-	 * located in .bss section and should be explicitly zeroed during 
+	 * located in .bss section and should be explicitly zeroed during
 	 * kernel initialization.
 	 */
 }
@@ -328,7 +331,7 @@ void
 mips_vector_init(void)
 {
 	/*
-	 * Make sure that the Wait region logic is not been 
+	 * Make sure that the Wait region logic is not been
 	 * changed
 	 */
 	if (MipsWaitEnd - MipsWaitStart != 16)
@@ -343,23 +346,25 @@ mips_vector_init(void)
 		panic("startup: Cache error code too large");
 
 	bcopy(MipsTLBMiss, (void *)MIPS_UTLB_MISS_EXC_VEC,
-	      MipsTLBMissEnd - MipsTLBMiss);
+	    MipsTLBMissEnd - MipsTLBMiss);
 
 	/*
 	 * XXXRW: Why don't we install the XTLB handler for all 64-bit
 	 * architectures?
 	 */
-#if defined(__mips_n64) || defined(CPU_RMI) || defined(CPU_NLM) || defined(CPU_BERI)
-/* Fake, but sufficient, for the 32-bit with 64-bit hardware addresses  */
+#if defined(__mips_n64) || defined(CPU_RMI) || defined(CPU_NLM) || \
+    defined(CPU_BERI)
+	/* Fake, but sufficient, for the 32-bit with 64-bit hardware addresses
+	 */
 	bcopy(MipsTLBMiss, (void *)MIPS_XTLB_MISS_EXC_VEC,
-	      MipsTLBMissEnd - MipsTLBMiss);
+	    MipsTLBMissEnd - MipsTLBMiss);
 #endif
 
 	bcopy(MipsException, (void *)MIPS_GEN_EXC_VEC,
-	      MipsExceptionEnd - MipsException);
+	    MipsExceptionEnd - MipsException);
 
 	bcopy(MipsCache, (void *)MIPS_CACHE_ERR_EXC_VEC,
-	      MipsCacheEnd - MipsCache);
+	    MipsCacheEnd - MipsCache);
 
 	/*
 	 * Clear out the I and D caches.
@@ -367,7 +372,7 @@ mips_vector_init(void)
 	mips_icache_sync_all();
 	mips_dcache_wbinv_all();
 
-	/* 
+	/*
 	 * Mask all interrupts. Each interrupt will be enabled
 	 * when handler is installed for it
 	 */
@@ -378,7 +383,7 @@ mips_vector_init(void)
 }
 
 /*
- * Fix kernel_kseg0_end address in case trampoline placed debug sympols 
+ * Fix kernel_kseg0_end address in case trampoline placed debug sympols
  * data there
  */
 void
@@ -392,23 +397,24 @@ mips_postboot_fixup(void)
 	caddr_t preload_ptr = (caddr_t)&fake_preload[0];
 	size_t size = 0;
 
-#define PRELOAD_PUSH_VALUE(type, value) do {		\
-	*(type *)(preload_ptr + size) = (value);	\
-	size += sizeof(type);				\
-} while (0);
+#define PRELOAD_PUSH_VALUE(type, value)                  \
+	do {                                             \
+		*(type *)(preload_ptr + size) = (value); \
+		size += sizeof(type);                    \
+	} while (0);
 
 	/*
 	 * Provide kernel module file information
 	 */
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_NAME);
 	PRELOAD_PUSH_VALUE(uint32_t, strlen("kernel") + 1);
-	strcpy((char*)(preload_ptr + size), "kernel");
+	strcpy((char *)(preload_ptr + size), "kernel");
 	size += strlen("kernel") + 1;
 	size = roundup(size, sizeof(u_long));
 
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_TYPE);
 	PRELOAD_PUSH_VALUE(uint32_t, strlen("elf kernel") + 1);
-	strcpy((char*)(preload_ptr + size), "elf kernel");
+	strcpy((char *)(preload_ptr + size), "elf kernel");
 	size += strlen("elf kernel") + 1;
 	size = roundup(size, sizeof(u_long));
 
@@ -426,15 +432,15 @@ mips_postboot_fixup(void)
 	PRELOAD_PUSH_VALUE(uint32_t, 0);
 	PRELOAD_PUSH_VALUE(uint32_t, 0);
 
-#undef	PRELOAD_PUSH_VALUE
+#undef PRELOAD_PUSH_VALUE
 
 	KASSERT((size < sizeof(fake_preload)),
-		("fake preload size is more thenallocated"));
+	    ("fake preload size is more thenallocated"));
 
 	preload_metadata = (void *)fake_preload;
 
 #ifdef DDB
-	Elf_Size *trampoline_data = (Elf_Size*)kernel_kseg0_end;
+	Elf_Size *trampoline_data = (Elf_Size *)kernel_kseg0_end;
 	Elf_Size symtabsize = 0;
 	vm_offset_t ksym_start;
 	vm_offset_t ksym_end;
@@ -466,8 +472,7 @@ mips_pcpu_tlb_init(struct pcpu *pcpu)
 	pa = vtophys(pcpu);
 	pte = PTE_D | PTE_V | PTE_G | PTE_C_CACHE;
 	tlb_insert_wired(PCPU_TLB_ENTRY, (vm_offset_t)pcpup,
-			 TLBLO_PA_TO_PFN(pa) | pte,
-			 TLBLO_PA_TO_PFN(pa + PAGE_SIZE) | pte);
+	    TLBLO_PA_TO_PFN(pa) | pte, TLBLO_PA_TO_PFN(pa + PAGE_SIZE) | pte);
 }
 #endif
 
@@ -543,9 +548,9 @@ void
 cpu_idle(int busy)
 {
 	KASSERT((mips_rd_status() & MIPS_SR_INT_IE) != 0,
-		("interrupts disabled in idle process."));
+	    ("interrupts disabled in idle process."));
 	KASSERT((mips_rd_status() & MIPS_INT_MASK) != 0,
-		("all interrupts masked in idle process."));
+	    ("all interrupts masked in idle process."));
 
 	if (!busy) {
 		critical_enter();

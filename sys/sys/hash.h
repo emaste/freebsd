@@ -29,13 +29,13 @@
  */
 
 #ifndef _SYS_HASH_H_
-#define	_SYS_HASH_H_
+#define _SYS_HASH_H_
 #include <sys/types.h>
 
 /* Convenience */
-#ifndef	HASHINIT
-#define	HASHINIT	5381
-#define	HASHSTEP(x,c)	(((x << 5) + x) + (c))
+#ifndef HASHINIT
+#define HASHINIT 5381
+#define HASHSTEP(x, c) (((x << 5) + x) + (c))
 #endif
 
 /*
@@ -107,8 +107,8 @@ hash32_stre(const void *buf, int end, const char **ep, uint32_t hash)
  * as a helper for the namei() hashing of path name parts.
  */
 static __inline uint32_t
-hash32_strne(const void *buf, size_t len, int end, const char **ep,
-    uint32_t hash)
+hash32_strne(
+    const void *buf, size_t len, int end, const char **ep, uint32_t hash)
 {
 	const unsigned char *p = buf;
 

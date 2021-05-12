@@ -29,8 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/domainset.h>
 #include <sys/bus.h>
+#include <sys/domainset.h>
 
 #include <linux/compat.h>
 #include <linux/device.h>

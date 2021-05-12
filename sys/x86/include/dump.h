@@ -28,19 +28,19 @@
  */
 
 #ifndef _MACHINE_DUMP_H_
-#define	_MACHINE_DUMP_H_
+#define _MACHINE_DUMP_H_
 
 #ifdef __amd64__
-#define	KERNELDUMP_ARCH_VERSION	KERNELDUMP_AMD64_VERSION
-#define	EM_VALUE		EM_X86_64
+#define KERNELDUMP_ARCH_VERSION KERNELDUMP_AMD64_VERSION
+#define EM_VALUE EM_X86_64
 #else
-#define	KERNELDUMP_ARCH_VERSION	KERNELDUMP_I386_VERSION
-#define	EM_VALUE		EM_386
+#define KERNELDUMP_ARCH_VERSION KERNELDUMP_I386_VERSION
+#define EM_VALUE EM_386
 #endif
 
 /* 20 phys_avail entry pairs correspond to 10 pa's */
-#define	DUMPSYS_MD_PA_NPAIRS	10
-#define	DUMPSYS_NUM_AUX_HDRS	0
+#define DUMPSYS_MD_PA_NPAIRS 10
+#define DUMPSYS_NUM_AUX_HDRS 0
 
 static inline void
 dumpsys_pa_init(void)
@@ -84,4 +84,4 @@ dumpsys(struct dumperinfo *di)
 	return (dumpsys_generic(di));
 }
 
-#endif  /* !_MACHINE_DUMP_H_ */
+#endif /* !_MACHINE_DUMP_H_ */

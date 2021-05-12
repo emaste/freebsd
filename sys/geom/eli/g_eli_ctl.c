@@ -31,23 +31,23 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/bio.h>
-#include <sys/sysctl.h>
-#include <sys/malloc.h>
+#include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #include <vm/uma.h>
 
+#include <geom/eli/g_eli.h>
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/eli/g_eli.h>
 
 MALLOC_DECLARE(M_ELI);
 
@@ -176,7 +176,7 @@ g_eli_find_device(struct g_class *mp, const char *prov)
 
 	if (strncmp(prov, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 		prov += strlen(_PATH_DEV);
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
@@ -281,8 +281,8 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 	detach = gctl_get_paraml(req, "detach", sizeof(*detach));
 	if (detach != NULL && *detach)
 		md.md_flags |= G_ELI_FLAG_WO_DETACH;
-	noautoresize = gctl_get_paraml(req, "noautoresize",
-	    sizeof(*noautoresize));
+	noautoresize = gctl_get_paraml(
+	    req, "noautoresize", sizeof(*noautoresize));
 	if (noautoresize != NULL && *noautoresize)
 		md.md_flags &= ~G_ELI_FLAG_AUTORESIZE;
 	notrim = gctl_get_paraml(req, "notrim", sizeof(*notrim));
@@ -308,11 +308,12 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 			md.md_ealgo = g_eli_str2ealgo(name);
 			if (md.md_ealgo < CRYPTO_ALGORITHM_MIN ||
 			    md.md_ealgo > CRYPTO_ALGORITHM_MAX) {
-				gctl_error(req,
-				    "Invalid authentication algorithm.");
+				gctl_error(
+				    req, "Invalid authentication algorithm.");
 				return;
 			} else {
-				gctl_error(req, "warning: The -e option, not "
+				gctl_error(req,
+				    "warning: The -e option, not "
 				    "the -a option is now used to specify "
 				    "encryption algorithm to use.");
 			}
@@ -373,7 +374,8 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 		if (*sectorsize > PAGE_SIZE) {
-			gctl_error(req, "warning: Using sectorsize bigger than "
+			gctl_error(req,
+			    "warning: Using sectorsize bigger than "
 			    "the page size!");
 		}
 		md.md_sectorsize = *sectorsize;
@@ -456,7 +458,8 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	displaypass = gctl_get_paraml(req, "displaypass", sizeof(*displaypass));
 	if (displaypass == NULL)
 		displaypass = &zero;
-	nodisplaypass = gctl_get_paraml(req, "nodisplaypass", sizeof(*nodisplaypass));
+	nodisplaypass = gctl_get_paraml(
+	    req, "nodisplaypass", sizeof(*nodisplaypass));
 	if (nodisplaypass == NULL)
 		nodisplaypass = &zero;
 	if (*displaypass && *nodisplaypass) {
@@ -469,8 +472,8 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	autoresize = gctl_get_paraml(req, "autoresize", sizeof(*autoresize));
 	if (autoresize == NULL)
 		autoresize = &zero;
-	noautoresize = gctl_get_paraml(req, "noautoresize",
-	    sizeof(*noautoresize));
+	noautoresize = gctl_get_paraml(
+	    req, "noautoresize", sizeof(*noautoresize));
 	if (noautoresize == NULL)
 		noautoresize = &zero;
 	if (*autoresize && *noautoresize) {
@@ -498,65 +501,74 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			 * We ignore not attached providers, userland part will
 			 * take care of them.
 			 */
-			G_ELI_DEBUG(1, "Skipping configuration of not attached "
-			    "provider %s.", prov);
+			G_ELI_DEBUG(1,
+			    "Skipping configuration of not attached "
+			    "provider %s.",
+			    prov);
 			continue;
 		}
 		if (sc->sc_flags & G_ELI_FLAG_RO) {
-			gctl_error(req, "Cannot change configuration of "
-			    "read-only provider %s.", prov);
+			gctl_error(req,
+			    "Cannot change configuration of "
+			    "read-only provider %s.",
+			    prov);
 			continue;
 		}
 
 		if (*boot && (sc->sc_flags & G_ELI_FLAG_BOOT)) {
-			G_ELI_DEBUG(1, "BOOT flag already configured for %s.",
-			    prov);
+			G_ELI_DEBUG(
+			    1, "BOOT flag already configured for %s.", prov);
 			continue;
 		} else if (*noboot && !(sc->sc_flags & G_ELI_FLAG_BOOT)) {
-			G_ELI_DEBUG(1, "BOOT flag not configured for %s.",
-			    prov);
+			G_ELI_DEBUG(
+			    1, "BOOT flag not configured for %s.", prov);
 			continue;
 		}
 
 		if (*notrim && (sc->sc_flags & G_ELI_FLAG_NODELETE)) {
-			G_ELI_DEBUG(1, "TRIM disable flag already configured for %s.",
+			G_ELI_DEBUG(1,
+			    "TRIM disable flag already configured for %s.",
 			    prov);
 			continue;
 		} else if (*trim && !(sc->sc_flags & G_ELI_FLAG_NODELETE)) {
-			G_ELI_DEBUG(1, "TRIM disable flag not configured for %s.",
-			    prov);
+			G_ELI_DEBUG(1,
+			    "TRIM disable flag not configured for %s.", prov);
 			continue;
 		}
 
 		if (*geliboot && (sc->sc_flags & G_ELI_FLAG_GELIBOOT)) {
-			G_ELI_DEBUG(1, "GELIBOOT flag already configured for %s.",
-			    prov);
+			G_ELI_DEBUG(1,
+			    "GELIBOOT flag already configured for %s.", prov);
 			continue;
-		} else if (*nogeliboot && !(sc->sc_flags & G_ELI_FLAG_GELIBOOT)) {
-			G_ELI_DEBUG(1, "GELIBOOT flag not configured for %s.",
-			    prov);
+		} else if (*nogeliboot &&
+		    !(sc->sc_flags & G_ELI_FLAG_GELIBOOT)) {
+			G_ELI_DEBUG(
+			    1, "GELIBOOT flag not configured for %s.", prov);
 			continue;
 		}
 
-		if (*displaypass && (sc->sc_flags & G_ELI_FLAG_GELIDISPLAYPASS)) {
-			G_ELI_DEBUG(1, "GELIDISPLAYPASS flag already configured for %s.",
+		if (*displaypass &&
+		    (sc->sc_flags & G_ELI_FLAG_GELIDISPLAYPASS)) {
+			G_ELI_DEBUG(1,
+			    "GELIDISPLAYPASS flag already configured for %s.",
 			    prov);
 			continue;
 		} else if (*nodisplaypass &&
 		    !(sc->sc_flags & G_ELI_FLAG_GELIDISPLAYPASS)) {
-			G_ELI_DEBUG(1, "GELIDISPLAYPASS flag not configured for %s.",
+			G_ELI_DEBUG(1,
+			    "GELIDISPLAYPASS flag not configured for %s.",
 			    prov);
 			continue;
 		}
 
 		if (*autoresize && (sc->sc_flags & G_ELI_FLAG_AUTORESIZE)) {
-			G_ELI_DEBUG(1, "AUTORESIZE flag already configured for %s.",
-			    prov);
+			G_ELI_DEBUG(1,
+			    "AUTORESIZE flag already configured for %s.", prov);
 			continue;
 		} else if (*noautoresize &&
 		    !(sc->sc_flags & G_ELI_FLAG_AUTORESIZE)) {
-			G_ELI_DEBUG(1, "AUTORESIZE flag not configured for %s.",
-			    prov);
+			G_ELI_DEBUG(
+			    1, "AUTORESIZE flag not configured for %s.", prov);
 			continue;
 		}
 
@@ -572,10 +584,10 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			pp = cp->provider;
 			error = g_eli_read_metadata(mp, pp, &md);
 			if (error != 0) {
-			    gctl_error(req,
-				"Cannot read metadata from %s (error=%d).",
-				prov, error);
-			    continue;
+				gctl_error(req,
+				    "Cannot read metadata from %s (error=%d).",
+				    prov, error);
+				continue;
 			}
 		}
 
@@ -626,12 +638,12 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 
 		sector = malloc(pp->sectorsize, M_ELI, M_WAITOK | M_ZERO);
 		eli_metadata_encode(&md, sector);
-		error = g_write_data(cp, pp->mediasize - pp->sectorsize, sector,
-		    pp->sectorsize);
+		error = g_write_data(
+		    cp, pp->mediasize - pp->sectorsize, sector, pp->sectorsize);
 		if (error != 0) {
 			gctl_error(req,
-			    "Cannot store metadata on %s (error=%d).",
-			    prov, error);
+			    "Cannot store metadata on %s (error=%d).", prov,
+			    error);
 		}
 		explicit_bzero(&md, sizeof(md));
 		zfree(sector, M_ELI);
@@ -705,12 +717,14 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 		md.md_iterations = *valp;
 	} else if (*valp != -1 && *valp != md.md_iterations) {
 		if (bitcount32(md.md_keys) != 1) {
-			gctl_error(req, "To be able to use '-i' option, only "
+			gctl_error(req,
+			    "To be able to use '-i' option, only "
 			    "one key can be defined.");
 			return;
 		}
 		if (md.md_keys != (1 << nkey)) {
-			gctl_error(req, "Only already defined key can be "
+			gctl_error(req,
+			    "Only already defined key can be "
 			    "changed when '-i' option is used.");
 			return;
 		}
@@ -735,8 +749,8 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 	/* Store metadata with fresh key. */
 	eli_metadata_encode(&md, sector);
 	explicit_bzero(&md, sizeof(md));
-	error = g_write_data(cp, pp->mediasize - pp->sectorsize, sector,
-	    pp->sectorsize);
+	error = g_write_data(
+	    cp, pp->mediasize - pp->sectorsize, sector, pp->sectorsize);
 	zfree(sector, M_ELI);
 	if (error != 0) {
 		gctl_error(req, "Cannot store metadata on %s (error=%d).",
@@ -762,7 +776,7 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 
 	g_topology_assert();
 
-	nkey = 0;	/* fixes causeless gcc warning */
+	nkey = 0; /* fixes causeless gcc warning */
 
 	name = gctl_get_asciiparam(req, "arg0");
 	if (name == NULL) {
@@ -823,7 +837,8 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 		}
 		md.md_keys &= ~(1 << nkey);
 		if (md.md_keys == 0 && !*force) {
-			gctl_error(req, "This is the last Master Key. Use '-f' "
+			gctl_error(req,
+			    "This is the last Master Key. Use '-f' "
 			    "flag if you really want to remove it.");
 			return;
 		}
@@ -839,11 +854,13 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 			arc4rand(mkeydst, keysize, 0);
 		/* Store metadata with destroyed key. */
 		eli_metadata_encode(&md, sector);
-		error = g_write_data(cp, pp->mediasize - pp->sectorsize, sector,
-		    pp->sectorsize);
+		error = g_write_data(
+		    cp, pp->mediasize - pp->sectorsize, sector, pp->sectorsize);
 		if (error != 0) {
-			G_ELI_DEBUG(0, "Cannot store metadata on %s "
-			    "(error=%d).", pp->name, error);
+			G_ELI_DEBUG(0,
+			    "Cannot store metadata on %s "
+			    "(error=%d).",
+			    pp->name, error);
 		}
 		/*
 		 * Flush write cache so we don't overwrite data N times in cache
@@ -878,14 +895,13 @@ g_eli_suspend_one(struct g_eli_softc *sc, struct gctl_req *req)
 	mtx_lock(&sc->sc_queue_mtx);
 	if (sc->sc_flags & G_ELI_FLAG_SUSPEND) {
 		mtx_unlock(&sc->sc_queue_mtx);
-		gctl_error(req, "Device %s already suspended.",
-		    sc->sc_name);
+		gctl_error(req, "Device %s already suspended.", sc->sc_name);
 		return;
 	}
 	sc->sc_flags |= G_ELI_FLAG_SUSPEND;
 	wakeup(sc);
 	for (;;) {
-		LIST_FOREACH(wr, &sc->sc_workers, w_next) {
+		LIST_FOREACH (wr, &sc->sc_workers, w_next) {
 			if (wr->w_active)
 				break;
 		}
@@ -934,7 +950,7 @@ g_eli_ctl_suspend(struct gctl_req *req, struct g_class *mp)
 	if (*all) {
 		struct g_geom *gp, *gp2;
 
-		LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
+		LIST_FOREACH_SAFE (gp, &mp->geom, geom, gp2) {
 			sc = gp->softc;
 			if (sc->sc_flags & G_ELI_FLAG_ONETIME) {
 				G_ELI_DEBUG(0,
@@ -1068,8 +1084,10 @@ g_eli_kill_one(struct g_eli_softc *sc)
 	pp = cp->provider;
 
 	if (sc->sc_flags & G_ELI_FLAG_RO) {
-		G_ELI_DEBUG(0, "WARNING: Metadata won't be erased on read-only "
-		    "provider: %s.", pp->name);
+		G_ELI_DEBUG(0,
+		    "WARNING: Metadata won't be erased on read-only "
+		    "provider: %s.",
+		    pp->name);
 	} else {
 		u_char *sector;
 		u_int i;
@@ -1084,8 +1102,10 @@ g_eli_kill_one(struct g_eli_softc *sc)
 			err = g_write_data(cp, pp->mediasize - pp->sectorsize,
 			    sector, pp->sectorsize);
 			if (err != 0) {
-				G_ELI_DEBUG(0, "Cannot erase metadata on %s "
-				    "(error=%d).", pp->name, err);
+				G_ELI_DEBUG(0,
+				    "Cannot erase metadata on %s "
+				    "(error=%d).",
+				    pp->name, err);
 				if (error == 0)
 					error = err;
 			}
@@ -1129,7 +1149,7 @@ g_eli_ctl_kill(struct gctl_req *req, struct g_class *mp)
 	if (*all) {
 		struct g_geom *gp, *gp2;
 
-		LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
+		LIST_FOREACH_SAFE (gp, &mp->geom, geom, gp2) {
 			error = g_eli_kill_one(gp->softc);
 			if (error != 0)
 				gctl_error(req, "Not fully done.");
@@ -1180,7 +1200,7 @@ g_eli_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		}
 		if (G_ELI_VERSION == G_ELI_VERSION_07 &&
 		    (*version == G_ELI_VERSION_05 ||
-		     *version == G_ELI_VERSION_06)) {
+			*version == G_ELI_VERSION_06)) {
 			/* Compatible. */
 			break;
 		}

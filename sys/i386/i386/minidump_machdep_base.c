@@ -39,12 +39,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/kerneldump.h>
 #include <sys/msgbuf.h>
 #include <sys/watchdog.h>
+
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_phys.h>
-#include <vm/vm_dumpset.h>
 #include <vm/pmap.h>
+#include <vm/vm_dumpset.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
+
 #include <machine/atomic.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
@@ -52,8 +54,8 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
-#define	MD_ALIGN(x)	(((off_t)(x) + PAGE_MASK) & ~PAGE_MASK)
-#define	DEV_ALIGN(x)	roundup2((off_t)(x), DEV_BSIZE)
+#define MD_ALIGN(x) (((off_t)(x) + PAGE_MASK) & ~PAGE_MASK)
+#define DEV_ALIGN(x) roundup2((off_t)(x), DEV_BSIZE)
 
 static struct kerneldumpheader kdh;
 
@@ -100,7 +102,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 	u_int maxdumpsz;
 
 	maxdumpsz = min(di->maxiosize, MAXDUMPPGS * PAGE_SIZE);
-	if (maxdumpsz == 0)	/* seatbelt */
+	if (maxdumpsz == 0) /* seatbelt */
 		maxdumpsz = PAGE_SIZE;
 	error = 0;
 	if ((sz % PAGE_SIZE) != 0) {
@@ -116,7 +118,8 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		return (EINVAL);
 	}
 	if (ptr != NULL) {
-		/* If we're doing a virtual dump, flush any pre-existing pa pages */
+		/* If we're doing a virtual dump, flush any pre-existing pa
+		 * pages */
 		error = blk_flush(di);
 		if (error)
 			return (error);
@@ -129,7 +132,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		progress -= len;
 		if (counter >> 24) {
 			printf(" %lld", PG2MB(progress >> PAGE_SHIFT));
-			counter &= (1<<24) - 1;
+			counter &= (1 << 24) - 1;
 		}
 
 		wdog_kern_pat(WD_LASTVAL);
@@ -142,7 +145,8 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 			sz -= len;
 		} else {
 			for (i = 0; i < len; i += PAGE_SIZE)
-				dump_va = pmap_kenter_temporary(pa + i, (i + fragsz) >> PAGE_SHIFT);
+				dump_va = pmap_kenter_temporary(
+				    pa + i, (i + fragsz) >> PAGE_SHIFT);
 			fragsz += len;
 			pa += len;
 			sz -= len;
@@ -168,11 +172,11 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 static pt_entry_t fakept[NPTEPG];
 
 #ifdef PMAP_PAE_COMP
-#define	minidumpsys	minidumpsys_pae
-#define	IdlePTD		IdlePTD_pae
+#define minidumpsys minidumpsys_pae
+#define IdlePTD IdlePTD_pae
 #else
-#define	minidumpsys	minidumpsys_nopae
-#define	IdlePTD		IdlePTD_nopae
+#define minidumpsys minidumpsys_nopae
+#define IdlePTD IdlePTD_nopae
 #endif
 
 int
@@ -197,9 +201,9 @@ minidumpsys(struct dumperinfo *di)
 		 * page written corresponds to 2MB of space
 		 */
 		ptesize += PAGE_SIZE;
-		pd = IdlePTD;	/* always mapped! */
+		pd = IdlePTD; /* always mapped! */
 		j = va >> PDRSHIFT;
-		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
+		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V)) {
 			/* This is an entire 2M page. */
 			pa = pd[j] & PG_PS_FRAME;
 			for (k = 0; k < NPTEPG; k++) {
@@ -229,7 +233,7 @@ minidumpsys(struct dumperinfo *di)
 	dumpsize += round_page(msgbufp->msg_size);
 	dumpsize += round_page(sizeof(dump_avail));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH (pa) {
 		/* Clear out undumpable pages now if needed */
 		if (is_dumpable(pa)) {
 			dumpsize += PAGE_SIZE;
@@ -252,8 +256,8 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.paemode = pae_mode;
 	mdhdr.dumpavailsize = round_page(sizeof(dump_avail));
 
-	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_I386_VERSION,
-	    dumpsize);
+	dump_init_header(
+	    di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_I386_VERSION, dumpsize);
 
 	error = dump_start(di, &kdh);
 	if (error != 0)
@@ -270,7 +274,8 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump msgbuf up front */
-	error = blk_write(di, (char *)msgbufp->msg_ptr, 0, round_page(msgbufp->msg_size));
+	error = blk_write(
+	    di, (char *)msgbufp->msg_ptr, 0, round_page(msgbufp->msg_size));
 	if (error)
 		goto fail;
 
@@ -292,13 +297,14 @@ minidumpsys(struct dumperinfo *di)
 	/* Dump kernel page table pages */
 	for (va = KERNBASE; va < kernel_vm_end; va += NBPDR) {
 		/* We always write a page, even if it is zero */
-		pd = IdlePTD;	/* always mapped! */
+		pd = IdlePTD; /* always mapped! */
 		j = va >> PDRSHIFT;
-		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
+		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V)) {
 			/* This is a single 2M block. Generate a fake PTP */
 			pa = pd[j] & PG_PS_FRAME;
 			for (k = 0; k < NPTEPG; k++) {
-				fakept[k] = (pa + (k * PAGE_SIZE)) | PG_V | PG_RW | PG_A | PG_M;
+				fakept[k] = (pa + (k * PAGE_SIZE)) | PG_V |
+				    PG_RW | PG_A | PG_M;
 			}
 			error = blk_write(di, (char *)&fakept, 0, PAGE_SIZE);
 			if (error)
@@ -327,7 +333,7 @@ minidumpsys(struct dumperinfo *di)
 	}
 
 	/* Dump memory chunks */
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH (pa) {
 		error = blk_write(di, 0, pa, PAGE_SIZE);
 		if (error)
 			goto fail;
@@ -344,7 +350,7 @@ minidumpsys(struct dumperinfo *di)
 	printf("\nDump complete\n");
 	return (0);
 
- fail:
+fail:
 	if (error < 0)
 		error = -error;
 
@@ -352,7 +358,8 @@ minidumpsys(struct dumperinfo *di)
 		printf("\nDump aborted\n");
 	else if (error == E2BIG || error == ENOSPC) {
 		printf("\nDump failed. Partition too small (about %lluMB were "
-		    "needed this time).\n", (long long)dumpsize >> 20);
+		       "needed this time).\n",
+		    (long long)dumpsize >> 20);
 	} else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);
 	return (error);

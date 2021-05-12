@@ -28,12 +28,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/bus.h>
 #include <sys/limits.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
@@ -55,64 +55,59 @@ __FBSDID("$FreeBSD$");
  */
 
 /* Resource access addresses. */
-#define	CPLD_MEM_ADDR		0x0000
-#define	CPLD_MEM_DATA		0x8000
+#define CPLD_MEM_ADDR 0x0000
+#define CPLD_MEM_DATA 0x8000
 
-#define	CPLD_MAX_DRAM_WORDS	0x800
+#define CPLD_MAX_DRAM_WORDS 0x800
 
 /* CPLD Registers. */
-#define	CPLD_REG_SIG1		0x00
-#define	CPLD_REG_SIG2		0x01
-#define	CPLD_REG_HWREV		0x02
-#define	CPLD_REG_MBC2X		0x05
-#define	CPLD_REG_MBX2C		0x06
-#define	CPLD_REG_XDEBUG		0x0c
-#define	CPLD_REG_XJTAG		0x0d
-#define	CPLD_REG_FAN_TACHO	0x10
-#define	CPLD_REG_DATE_LW	0x21
-#define	CPLD_REG_DATE_UW	0x22
-#define	CPLD_REG_TIME_LW	0x23
-#define	CPLD_REG_TIME_UW	0x24
-#define	CPLD_REG_SCR1		0x30
-#define	CPLD_REG_SCR2		0x31
-#define	CPLD_REG_RAM		0x8000
+#define CPLD_REG_SIG1 0x00
+#define CPLD_REG_SIG2 0x01
+#define CPLD_REG_HWREV 0x02
+#define CPLD_REG_MBC2X 0x05
+#define CPLD_REG_MBX2C 0x06
+#define CPLD_REG_XDEBUG 0x0c
+#define CPLD_REG_XJTAG 0x0d
+#define CPLD_REG_FAN_TACHO 0x10
+#define CPLD_REG_DATE_LW 0x21
+#define CPLD_REG_DATE_UW 0x22
+#define CPLD_REG_TIME_LW 0x23
+#define CPLD_REG_TIME_UW 0x24
+#define CPLD_REG_SCR1 0x30
+#define CPLD_REG_SCR2 0x31
+#define CPLD_REG_RAM 0x8000
 
 struct cpld_softc {
-	device_t	 sc_dev;
-	struct resource	*sc_mem;
-	struct cdev	*sc_cdev;
-	struct mtx	 sc_mutex;
-	bool		 sc_isopen;
+	device_t sc_dev;
+	struct resource *sc_mem;
+	struct cdev *sc_cdev;
+	struct mtx sc_mutex;
+	bool sc_isopen;
 };
 
-static d_open_t		cpld_open;
-static d_close_t	cpld_close;
-static d_ioctl_t	cpld_ioctl;
+static d_open_t cpld_open;
+static d_close_t cpld_close;
+static d_ioctl_t cpld_ioctl;
 
 static struct cdevsw cpld_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	cpld_open,
-	.d_close =	cpld_close,
-	.d_ioctl =	cpld_ioctl,
-	.d_name =	"nvram",
+	.d_version = D_VERSION,
+	.d_open = cpld_open,
+	.d_close = cpld_close,
+	.d_ioctl = cpld_ioctl,
+	.d_name = "nvram",
 };
 
-static device_probe_t	cpld_probe;
-static device_attach_t	cpld_attach;
-static int		cpld_fan_sysctl(SYSCTL_HANDLER_ARGS);
+static device_probe_t cpld_probe;
+static device_attach_t cpld_attach;
+static int cpld_fan_sysctl(SYSCTL_HANDLER_ARGS);
 
-static device_method_t cpld_methods[] = {
-	DEVMETHOD(device_probe,		cpld_probe),
-	DEVMETHOD(device_attach,	cpld_attach),
+static device_method_t cpld_methods[] = { DEVMETHOD(device_probe, cpld_probe),
+	DEVMETHOD(device_attach, cpld_attach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
-static driver_t cpld_driver = {
-	"cpld",
-	cpld_methods,
-	sizeof(struct cpld_softc)
-};
+static driver_t cpld_driver = { "cpld", cpld_methods,
+	sizeof(struct cpld_softc) };
 
 static devclass_t cpld_devclass;
 DRIVER_MODULE(cpld, lbc, cpld_driver, cpld_devclass, 0, 0);
@@ -158,8 +153,8 @@ cpld_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	rid = 0;
-	sc->sc_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE|RF_SHAREABLE);
+	sc->sc_mem = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_mem == NULL) {
 		device_printf(dev, "Unable to allocate memory resource.\n");
 		return (ENXIO);
@@ -183,12 +178,12 @@ cpld_attach(device_t dev)
 	ctx = device_get_sysctl_ctx(dev);
 	tree = device_get_sysctl_tree(dev);
 
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "cpu_fan", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    cpld_fan_sysctl, "I", "CPU Fan speed in RPM");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "cpu_fan",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0, cpld_fan_sysctl,
+	    "I", "CPU Fan speed in RPM");
 
 	make_dev_args_init(&mda);
-	mda.mda_flags =  MAKEDEV_CHECKNAME;
+	mda.mda_flags = MAKEDEV_CHECKNAME;
 	mda.mda_devsw = &cpld_cdevsw;
 	mda.mda_uid = UID_ROOT;
 	mda.mda_gid = GID_WHEEL;
@@ -196,15 +191,16 @@ cpld_attach(device_t dev)
 	mda.mda_si_drv1 = sc;
 	err = make_dev_s(&mda, &sc->sc_cdev, "cpld");
 	if (err != 0) {
-		device_printf(dev, "Error creating character device: %d\n", err);
-		device_printf(dev, "Only sysctl interfaces will be available.\n");
+		device_printf(
+		    dev, "Error creating character device: %d\n", err);
+		device_printf(
+		    dev, "Only sysctl interfaces will be available.\n");
 	}
 
 	return (0);
 }
 
-static int
-cpld_fan_sysctl(SYSCTL_HANDLER_ARGS)
+static int cpld_fan_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct cpld_softc *sc;
 	int error, old, rpm;
@@ -296,7 +292,8 @@ cpld_recv(device_t dev, struct cpld_cmd_data *d)
 }
 
 static int
-cpld_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+cpld_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	struct cpld_softc *sc;
 	struct cpld_cmd_data *d;
@@ -325,8 +322,8 @@ cpld_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread 
 		err = cpld_recv(sc->sc_dev, d);
 		d->words = tmp;
 		if (err == 0)
-			err = copyout(xfer_data, d->words,
-			    d->len * sizeof(uint16_t));
+			err = copyout(
+			    xfer_data, d->words, d->len * sizeof(uint16_t));
 		break;
 	default:
 		err = ENOTTY;

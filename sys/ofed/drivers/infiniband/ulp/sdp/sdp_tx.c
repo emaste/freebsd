@@ -33,10 +33,13 @@
  */
 #include "sdp.h"
 
-#define sdp_cnt(var) do { (var)++; } while (0)
+#define sdp_cnt(var)     \
+	do {             \
+		(var)++; \
+	} while (0)
 
-SDP_MODPARAM_SINT(sdp_keepalive_probes_sent, 0,
-		"Total number of keepalive probes sent.");
+SDP_MODPARAM_SINT(
+    sdp_keepalive_probes_sent, 0, "Total number of keepalive probes sent.");
 
 static int sdp_process_tx_cq(struct sdp_sock *ssk);
 static void sdp_poll_tx_timeout(void *data);
@@ -93,8 +96,9 @@ sdp_post_send(struct sdp_sock *ssk, struct mbuf *mb)
 	if (unlikely(h->mid == SDP_MID_SRCAVAIL)) {
 		struct tx_srcavail_state *tx_sa = TX_SRCAVAIL_STATE(mb);
 		if (ssk->tx_sa != tx_sa) {
-			sdp_dbg_data(ssk->socket, "SrcAvail cancelled "
-					"before being sent!\n");
+			sdp_dbg_data(ssk->socket,
+			    "SrcAvail cancelled "
+			    "before being sent!\n");
 			WARN_ON(1);
 			m_freem(mb);
 			return;
@@ -115,8 +119,7 @@ sdp_post_send(struct sdp_sock *ssk, struct mbuf *mb)
 	h->mseq_ack = htonl(mseq_ack(ssk));
 
 	sdp_prf1(ssk->socket, mb, "TX: %s bufs: %d mseq:%ld ack:%d",
-			mid2str(h->mid), rx_ring_posted(ssk), mseq,
-			ntohl(h->mseq_ack));
+	    mid2str(h->mid), rx_ring_posted(ssk), mseq, ntohl(h->mseq_ack));
 
 	SDP_DUMP_PACKET(ssk->socket, "TX", mb, h);
 
@@ -124,9 +127,9 @@ sdp_post_send(struct sdp_sock *ssk, struct mbuf *mb)
 	tx_req->mb = mb;
 	dev = ssk->ib_device;
 	sge = &ibsge[0];
-	for (i = 0;  mb != NULL; i++, mb = mb->m_next, sge++) {
-		addr = ib_dma_map_single(dev, mb->m_data, mb->m_len,
-		    DMA_TO_DEVICE);
+	for (i = 0; mb != NULL; i++, mb = mb->m_next, sge++) {
+		addr = ib_dma_map_single(
+		    dev, mb->m_data, mb->m_len, DMA_TO_DEVICE);
 		/* TODO: proper error handling */
 		BUG_ON(ib_dma_mapping_error(dev, addr));
 		BUG_ON(i >= SDP_MAX_SEND_SGES);
@@ -146,8 +149,8 @@ sdp_post_send(struct sdp_sock *ssk, struct mbuf *mb)
 
 	rc = ib_post_send(ssk->qp, &tx_wr, &bad_wr);
 	if (unlikely(rc)) {
-		sdp_dbg(ssk->socket,
-				"ib_post_send failed with status %d.\n", rc);
+		sdp_dbg(
+		    ssk->socket, "ib_post_send failed with status %d.\n", rc);
 
 		sdp_cleanup_sdp_buf(ssk, tx_req, DMA_TO_DEVICE);
 
@@ -173,7 +176,7 @@ sdp_send_completion(struct sdp_sock *ssk, int mseq)
 
 	if (unlikely(mseq != ring_tail(*tx_ring))) {
 		printk(KERN_WARNING "Bogus send completion id %d tail %d\n",
-			mseq, ring_tail(*tx_ring));
+		    mseq, ring_tail(*tx_ring));
 		goto out;
 	}
 
@@ -202,10 +205,14 @@ sdp_handle_send_comp(struct sdp_sock *ssk, struct ib_wc *wc)
 
 	if (unlikely(wc->status)) {
 		if (wc->status != IB_WC_WR_FLUSH_ERR) {
-			sdp_prf(ssk->socket, mb, "Send completion with error. "
-				"Status %d", wc->status);
-			sdp_dbg_data(ssk->socket, "Send completion with error. "
-				"Status %d\n", wc->status);
+			sdp_prf(ssk->socket, mb,
+			    "Send completion with error. "
+			    "Status %d",
+			    wc->status);
+			sdp_dbg_data(ssk->socket,
+			    "Send completion with error. "
+			    "Status %d\n",
+			    wc->status);
 			sdp_notify(ssk, ECONNRESET);
 		}
 	}
@@ -216,8 +223,8 @@ sdp_handle_send_comp(struct sdp_sock *ssk, struct ib_wc *wc)
 
 	h = mtod(mb, struct sdp_bsdh *);
 	sdp_prf1(ssk->socket, mb, "tx completion. mseq:%d", ntohl(h->mseq));
-	sdp_dbg(ssk->socket, "tx completion. %p %d mseq:%d",
-	    mb, mb->m_pkthdr.len, ntohl(h->mseq));
+	sdp_dbg(ssk->socket, "tx completion. %p %d mseq:%d", mb,
+	    mb->m_pkthdr.len, ntohl(h->mseq));
 	m_freem(mb);
 
 	return 0;
@@ -236,8 +243,8 @@ sdp_process_tx_wc(struct sdp_sock *ssk, struct ib_wc *wc)
 	if (wc->wr_id & SDP_OP_RDMA) {
 		/* TODO: handle failed RDMA read cqe */
 
-		sdp_dbg_data(ssk->socket,
-	 	    "TX comp: RDMA read. status: %d\n", wc->status);
+		sdp_dbg_data(ssk->socket, "TX comp: RDMA read. status: %d\n",
+		    wc->status);
 		sdp_prf1(sk, NULL, "TX comp: RDMA read");
 
 		if (!ssk->tx_ring.rdma_inflight) {
@@ -267,8 +274,8 @@ sdp_process_tx_wc(struct sdp_sock *ssk, struct ib_wc *wc)
 	if (likely(!wc->status))
 		return;
 
-	sdp_dbg(ssk->socket, " %s consumes KEEPALIVE status %d\n",
-			__func__, wc->status);
+	sdp_dbg(ssk->socket, " %s consumes KEEPALIVE status %d\n", __func__,
+	    wc->status);
 
 	if (wc->status == IB_WC_WR_FLUSH_ERR)
 		return;
@@ -300,8 +307,8 @@ sdp_process_tx_cq(struct sdp_sock *ssk)
 
 	if (wc_processed) {
 		sdp_post_sends(ssk, M_NOWAIT);
-		sdp_prf1(sk, NULL, "Waking sendmsg. inflight=%d", 
-				(u32) tx_ring_posted(ssk));
+		sdp_prf1(sk, NULL, "Waking sendmsg. inflight=%d",
+		    (u32)tx_ring_posted(ssk));
 		sowwakeup(ssk->socket);
 	}
 
@@ -314,9 +321,9 @@ sdp_poll_tx(struct sdp_sock *ssk)
 	struct socket *sk = ssk->socket;
 	u32 inflight, wc_processed;
 
-	sdp_prf1(ssk->socket, NULL, "TX timeout: inflight=%d, head=%d tail=%d", 
-		(u32) tx_ring_posted(ssk),
-		ring_head(ssk->tx_ring), ring_tail(ssk->tx_ring));
+	sdp_prf1(ssk->socket, NULL, "TX timeout: inflight=%d, head=%d tail=%d",
+	    (u32)tx_ring_posted(ssk), ring_head(ssk->tx_ring),
+	    ring_tail(ssk->tx_ring));
 
 	if (unlikely(ssk->state == TCPS_CLOSED)) {
 		sdp_warn(sk, "Socket is closed\n");
@@ -329,7 +336,7 @@ sdp_poll_tx(struct sdp_sock *ssk)
 	else
 		SDPSTATS_COUNTER_INC(tx_poll_hit);
 
-	inflight = (u32) tx_ring_posted(ssk);
+	inflight = (u32)tx_ring_posted(ssk);
 	sdp_prf1(ssk->socket, NULL, "finished tx processing. inflight = %d",
 	    inflight);
 
@@ -374,8 +381,8 @@ sdp_tx_irq(struct ib_cq *cq, void *cq_context)
 	SDP_WUNLOCK(ssk);
 }
 
-static
-void sdp_tx_ring_purge(struct sdp_sock *ssk)
+static void
+sdp_tx_ring_purge(struct sdp_sock *ssk)
 {
 	while (tx_ring_posted(ssk)) {
 		struct mbuf *mb;
@@ -396,16 +403,16 @@ sdp_post_keepalive(struct sdp_sock *ssk)
 
 	memset(&wr, 0, sizeof(wr));
 
-	wr.next    = NULL;
-	wr.wr_id   = 0;
+	wr.next = NULL;
+	wr.wr_id = 0;
 	wr.sg_list = NULL;
 	wr.num_sge = 0;
-	wr.opcode  = IB_WR_RDMA_WRITE;
+	wr.opcode = IB_WR_RDMA_WRITE;
 
 	rc = ib_post_send(ssk->qp, &wr, &bad_wr);
 	if (rc) {
 		sdp_dbg(ssk->socket,
-			"ib_post_keepalive failed with status %d.\n", rc);
+		    "ib_post_keepalive failed with status %d.\n", rc);
 		sdp_notify(ssk, ECONNRESET);
 	}
 
@@ -434,11 +441,11 @@ sdp_tx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 	atomic_set(&ssk->tx_ring.head, 1);
 	atomic_set(&ssk->tx_ring.tail, 1);
 
-	ssk->tx_ring.buffer = malloc(sizeof(*ssk->tx_ring.buffer) * SDP_TX_SIZE,
-	    M_SDP, M_WAITOK);
+	ssk->tx_ring.buffer = malloc(
+	    sizeof(*ssk->tx_ring.buffer) * SDP_TX_SIZE, M_SDP, M_WAITOK);
 
-	tx_cq = ib_create_cq(device, sdp_tx_irq, sdp_tx_cq_event_handler,
-			  ssk, &tx_cq_attr);
+	tx_cq = ib_create_cq(
+	    device, sdp_tx_irq, sdp_tx_cq_event_handler, ssk, &tx_cq_attr);
 	if (IS_ERR(tx_cq)) {
 		rc = PTR_ERR(tx_cq);
 		sdp_warn(ssk->socket, "Unable to allocate TX CQ: %d.\n", rc);
@@ -477,7 +484,7 @@ sdp_tx_ring_destroy(struct sdp_sock *ssk)
 	if (ssk->tx_ring.cq) {
 		if (ib_destroy_cq(ssk->tx_ring.cq)) {
 			sdp_warn(ssk->socket, "destroy cq(%p) failed\n",
-					ssk->tx_ring.cq);
+			    ssk->tx_ring.cq);
 		} else {
 			ssk->tx_ring.cq = NULL;
 		}

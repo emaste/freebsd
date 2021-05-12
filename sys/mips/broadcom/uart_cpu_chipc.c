@@ -40,15 +40,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <dev/bhnd/cores/chipc/chipcreg.h>
-
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
 #ifdef CFE
 #include <dev/cfe/cfe_api.h>
-#include <dev/cfe/cfe_ioctl.h>
 #include <dev/cfe/cfe_error.h>
+#include <dev/cfe/cfe_ioctl.h>
 #endif
 
 #include "bcm_machdep.h"
@@ -58,7 +57,7 @@ bus_space_tag_t uart_bus_space_mem;
 
 static struct uart_class *chipc_uart_class = &uart_ns8250_class;
 
-#define	CHIPC_UART_BAUDRATE	115200
+#define CHIPC_UART_BAUDRATE 115200
 
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
@@ -75,8 +74,8 @@ uart_cpu_init(struct uart_devinfo *di, u_int uart, int baudrate)
 	di->ops = uart_getops(chipc_uart_class);
 	di->bas.chan = 0;
 	di->bas.bst = uart_bus_space_mem;
-	di->bas.bsh = (bus_space_handle_t) BCM_CORE_ADDR(bcm_get_platform(),
-	    cc_addr, CHIPC_UART(uart));
+	di->bas.bsh = (bus_space_handle_t)BCM_CORE_ADDR(
+	    bcm_get_platform(), cc_addr, CHIPC_UART(uart));
 	di->bas.regshft = 0;
 	di->bas.rclk = bcm_get_uart_rclk(bcm_get_platform());
 	di->baudrate = baudrate;
@@ -91,10 +90,10 @@ uart_cpu_init(struct uart_devinfo *di, u_int uart, int baudrate)
 static int
 uart_getenv_cfe(int devtype, struct uart_devinfo *di)
 {
-	char	device[sizeof("uartXX")];
-	int	baud, fd, len;
-	int	ret;
-	u_int	uart;
+	char device[sizeof("uartXX")];
+	int baud, fd, len;
+	int ret;
+	u_int uart;
 
 	/* CFE only vends console configuration */
 	if (devtype != UART_DEV_CONSOLE)
@@ -116,7 +115,7 @@ uart_getenv_cfe(int devtype, struct uart_devinfo *di)
 
 	/* Fetch serial configuration */
 	ret = cfe_ioctl(fd, IOCTL_SERIAL_GETSPEED, (unsigned char *)&baud,
-	    sizeof(baud), &len, 0);	
+	    sizeof(baud), &len, 0);
 	if (ret != CFE_OK)
 		baud = CHIPC_UART_BAUDRATE;
 
@@ -128,7 +127,7 @@ uart_getenv_cfe(int devtype, struct uart_devinfo *di)
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
-	int			 ivar;
+	int ivar;
 
 	uart_bus_space_io = NULL;
 	uart_bus_space_mem = mips_bus_space_generic;
@@ -162,7 +161,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		/* Found */
 		if (resource_int_value("uart", i, "baud", &ivar) != 0)
 			ivar = CHIPC_UART_BAUDRATE;
-		
+
 		return (uart_cpu_init(di, i, ivar));
 	}
 

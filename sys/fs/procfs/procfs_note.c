@@ -42,11 +42,10 @@
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
 
-#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
+#include <fs/pseudofs/pseudofs.h>
 
-int
-procfs_doprocnote(PFS_FILL_ARGS)
+int procfs_doprocnote(PFS_FILL_ARGS)
 {
 	sbuf_trim(sb);
 	sbuf_finish(sb);

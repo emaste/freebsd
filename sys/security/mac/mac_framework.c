@@ -14,7 +14,7 @@
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
  *
- * This software was enhanced by SPARTA ISSO under SPAWAR contract 
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
  *
  * This software was developed at the University of Cambridge Computer
@@ -94,12 +94,9 @@ __FBSDID("$FreeBSD$");
 SDT_PROVIDER_DEFINE(mac);
 SDT_PROVIDER_DEFINE(mac_framework);
 
-SDT_PROBE_DEFINE2(mac, , policy, modevent, "int",
-    "struct mac_policy_conf *");
-SDT_PROBE_DEFINE1(mac, , policy, register,
-    "struct mac_policy_conf *");
-SDT_PROBE_DEFINE1(mac, , policy, unregister,
-    "struct mac_policy_conf *");
+SDT_PROBE_DEFINE2(mac, , policy, modevent, "int", "struct mac_policy_conf *");
+SDT_PROBE_DEFINE1(mac, , policy, register, "struct mac_policy_conf *");
+SDT_PROBE_DEFINE1(mac, , policy, unregister, "struct mac_policy_conf *");
 
 /*
  * Root sysctl node for all MAC and MAC policy controls.
@@ -114,9 +111,8 @@ SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
  */
 MODULE_VERSION(kernel_mac_support, MAC_VERSION);
 
-static unsigned int	mac_version = MAC_VERSION;
-SYSCTL_UINT(_security_mac, OID_AUTO, version, CTLFLAG_RD, &mac_version, 0,
-    "");
+static unsigned int mac_version = MAC_VERSION;
+SYSCTL_UINT(_security_mac, OID_AUTO, version, CTLFLAG_RD, &mac_version, 0, "");
 
 /*
  * Flags for inlined checks. Note this would be best hotpatched at runtime.
@@ -125,11 +121,9 @@ SYSCTL_UINT(_security_mac, OID_AUTO, version, CTLFLAG_RD, &mac_version, 0,
  * Use FPFLAG for hooks running in commonly executed paths and FPFLAG_RARE
  * for the rest.
  */
-#define FPFLAG(f)	\
-bool __read_frequently mac_##f##_fp_flag
+#define FPFLAG(f) bool __read_frequently mac_##f##_fp_flag
 
-#define FPFLAG_RARE(f)	\
-bool __read_mostly mac_##f##_fp_flag
+#define FPFLAG_RARE(f) bool __read_mostly mac_##f##_fp_flag
 
 FPFLAG(priv_check);
 FPFLAG(priv_grant);
@@ -165,15 +159,15 @@ FPFLAG_RARE(pipe_check_poll);
 
 static unsigned int mac_max_slots = MAC_MAX_SLOTS;
 static unsigned int mac_slot_offsets_free = (1 << MAC_MAX_SLOTS) - 1;
-SYSCTL_UINT(_security_mac, OID_AUTO, max_slots, CTLFLAG_RD, &mac_max_slots,
-    0, "");
+SYSCTL_UINT(
+    _security_mac, OID_AUTO, max_slots, CTLFLAG_RD, &mac_max_slots, 0, "");
 
 /*
  * Has the kernel started generating labeled objects yet?  All read/write
  * access to this variable is serialized during the boot process.  Following
  * the end of serialization, we don't update this flag; no locking.
  */
-static int	mac_late = 0;
+static int mac_late = 0;
 
 /*
  * Each policy declares a mask of object types requiring labels to be
@@ -181,7 +175,7 @@ static int	mac_late = 0;
  * of the per-policy object flags to track whether we will allocate a label
  * for an object type at run-time.
  */
-uint64_t	mac_labeled;
+uint64_t mac_labeled;
 SYSCTL_UQUAD(_security_mac, OID_AUTO, labeled, CTLFLAG_RD, &mac_labeled, 0,
     "Mask of object types being labeled");
 
@@ -206,17 +200,17 @@ MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
  * allocations, extended attribute I/O, etc.
  */
 #ifndef MAC_STATIC
-static struct rmlock mac_policy_rm;	/* Non-sleeping entry points. */
-static struct rmslock mac_policy_rms;	/* Sleeping entry points. */
+static struct rmlock mac_policy_rm;   /* Non-sleeping entry points. */
+static struct rmslock mac_policy_rms; /* Sleeping entry points. */
 #endif
 
 struct mac_policy_list_head mac_policy_list;
 struct mac_policy_list_head mac_static_policy_list;
-u_int mac_policy_count;			/* Registered policy count. */
+u_int mac_policy_count; /* Registered policy count. */
 
-static void	mac_policy_xlock(void);
-static void	mac_policy_xlock_assert(void);
-static void	mac_policy_xunlock(void);
+static void mac_policy_xlock(void);
+static void mac_policy_xlock_assert(void);
+static void mac_policy_xunlock(void);
 
 void
 mac_policy_slock_nosleep(struct rm_priotracker *tracker)
@@ -234,8 +228,8 @@ void
 mac_policy_slock_sleep(void)
 {
 
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
- 	    "mac_policy_slock_sleep");
+	WITNESS_WARN(
+	    WARN_GIANTOK | WARN_SLEEPOK, NULL, "mac_policy_slock_sleep");
 
 #ifndef MAC_STATIC
 	if (!mac_late)
@@ -273,8 +267,7 @@ static void
 mac_policy_xlock(void)
 {
 
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
- 	    "mac_policy_xlock()");
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "mac_policy_xlock()");
 
 #ifndef MAC_STATIC
 	if (!mac_late)
@@ -322,8 +315,8 @@ mac_init(void)
 	mac_labelzone_init();
 
 #ifndef MAC_STATIC
-	rm_init_flags(&mac_policy_rm, "mac_policy_rm", RM_NOWITNESS |
-	    RM_RECURSE);
+	rm_init_flags(
+	    &mac_policy_rm, "mac_policy_rm", RM_NOWITNESS | RM_RECURSE);
 	rms_init(&mac_policy_rms, "mac_policy_rms");
 #endif
 }
@@ -349,9 +342,9 @@ mac_policy_getlabeled(struct mac_policy_conf *mpc)
 {
 	uint64_t labeled;
 
-#define	MPC_FLAG(method, flag)					\
-	if (mpc->mpc_ops->mpo_ ## method != NULL)			\
-		labeled |= (flag);					\
+#define MPC_FLAG(method, flag)                  \
+	if (mpc->mpc_ops->mpo_##method != NULL) \
+		labeled |= (flag);
 
 	labeled = 0;
 	MPC_FLAG(cred_init_label, MPC_OBJECT_CRED);
@@ -393,11 +386,11 @@ mac_policy_update(void)
 
 	mac_labeled = 0;
 	mac_policy_count = 0;
-	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {
+	LIST_FOREACH (mpc, &mac_static_policy_list, mpc_list) {
 		mac_labeled |= mac_policy_getlabeled(mpc);
 		mac_policy_count++;
 	}
-	LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {
+	LIST_FOREACH (mpc, &mac_policy_list, mpc_list) {
 		mac_labeled |= mac_policy_getlabeled(mpc);
 		mac_policy_count++;
 	}
@@ -410,41 +403,41 @@ mac_policy_update(void)
  * policies. Gross hack below enables doing it in a cheap manner.
  */
 
-#define FPO(f)	(offsetof(struct mac_policy_ops, mpo_##f) / sizeof(uintptr_t))
+#define FPO(f) (offsetof(struct mac_policy_ops, mpo_##f) / sizeof(uintptr_t))
 
 struct mac_policy_fastpath_elem {
-	int	count;
-	bool	*flag;
-	size_t	offset;
+	int count;
+	bool *flag;
+	size_t offset;
 };
 
 struct mac_policy_fastpath_elem mac_policy_fastpath_array[] = {
 	{ .offset = FPO(priv_check), .flag = &mac_priv_check_fp_flag },
 	{ .offset = FPO(priv_grant), .flag = &mac_priv_grant_fp_flag },
 	{ .offset = FPO(vnode_check_lookup),
-		.flag = &mac_vnode_check_lookup_fp_flag },
+	    .flag = &mac_vnode_check_lookup_fp_flag },
 	{ .offset = FPO(vnode_check_readlink),
-		.flag = &mac_vnode_check_readlink_fp_flag },
+	    .flag = &mac_vnode_check_readlink_fp_flag },
 	{ .offset = FPO(vnode_check_open),
-		.flag = &mac_vnode_check_open_fp_flag },
+	    .flag = &mac_vnode_check_open_fp_flag },
 	{ .offset = FPO(vnode_check_stat),
-		.flag = &mac_vnode_check_stat_fp_flag },
+	    .flag = &mac_vnode_check_stat_fp_flag },
 	{ .offset = FPO(vnode_check_read),
-		.flag = &mac_vnode_check_read_fp_flag },
+	    .flag = &mac_vnode_check_read_fp_flag },
 	{ .offset = FPO(vnode_check_write),
-		.flag = &mac_vnode_check_write_fp_flag },
+	    .flag = &mac_vnode_check_write_fp_flag },
 	{ .offset = FPO(vnode_check_mmap),
-		.flag = &mac_vnode_check_mmap_fp_flag },
+	    .flag = &mac_vnode_check_mmap_fp_flag },
 	{ .offset = FPO(vnode_check_poll),
-		.flag = &mac_vnode_check_poll_fp_flag },
+	    .flag = &mac_vnode_check_poll_fp_flag },
 	{ .offset = FPO(vnode_check_rename_from),
-		.flag = &mac_vnode_check_rename_from_fp_flag },
+	    .flag = &mac_vnode_check_rename_from_fp_flag },
 	{ .offset = FPO(vnode_check_access),
-		.flag = &mac_vnode_check_access_fp_flag },
+	    .flag = &mac_vnode_check_access_fp_flag },
 	{ .offset = FPO(pipe_check_stat),
-		.flag = &mac_pipe_check_stat_fp_flag },
+	    .flag = &mac_pipe_check_stat_fp_flag },
 	{ .offset = FPO(pipe_check_poll),
-		.flag = &mac_pipe_check_poll_fp_flag },
+	    .flag = &mac_pipe_check_poll_fp_flag },
 };
 
 static void
@@ -531,14 +524,14 @@ mac_policy_register(struct mac_policy_conf *mpc)
 	    !(mpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_UNLOADOK));
 
 	if (static_entry) {
-		LIST_FOREACH(tmpc, &mac_static_policy_list, mpc_list) {
+		LIST_FOREACH (tmpc, &mac_static_policy_list, mpc_list) {
 			if (strcmp(tmpc->mpc_name, mpc->mpc_name) == 0) {
 				error = EEXIST;
 				goto out;
 			}
 		}
 	} else {
-		LIST_FOREACH(tmpc, &mac_policy_list, mpc_list) {
+		LIST_FOREACH (tmpc, &mac_policy_list, mpc_list) {
 			if (strcmp(tmpc->mpc_name, mpc->mpc_name) == 0) {
 				error = EEXIST;
 				goto out;
@@ -649,7 +642,7 @@ mac_policy_modevent(module_t mod, int type, void *data)
 	int error;
 
 	error = 0;
-	mpc = (struct mac_policy_conf *) data;
+	mpc = (struct mac_policy_conf *)data;
 
 #ifdef MAC_STATIC
 	if (mac_late) {
@@ -664,7 +657,8 @@ mac_policy_modevent(module_t mod, int type, void *data)
 		if (mpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_NOTLATE &&
 		    mac_late) {
 			printf("mac_policy_modevent: can't load %s policy "
-			    "after booting\n", mpc->mpc_name);
+			       "after booting\n",
+			    mpc->mpc_name);
 			error = EBUSY;
 			break;
 		}
@@ -672,8 +666,7 @@ mac_policy_modevent(module_t mod, int type, void *data)
 		break;
 	case MOD_UNLOAD:
 		/* Don't unregister the module if it was never registered. */
-		if ((mpc->mpc_runtime_flags & MPC_RUNTIME_FLAG_REGISTERED)
-		    != 0)
+		if ((mpc->mpc_runtime_flags & MPC_RUNTIME_FLAG_REGISTERED) != 0)
 			error = mac_policy_unregister(mpc);
 		else
 			error = 0;

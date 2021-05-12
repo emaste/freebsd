@@ -35,44 +35,43 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/kdb.h>
-#include <sys/kernel.h>
-#include <sys/priv.h>
-#include <sys/systm.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/consio.h>
-#include <sys/tty.h>
-#include <sys/bus.h>
+#include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/priv.h>
 #include <sys/rman.h>
-
-#include <dev/ofw/openfirm.h>
-#include <ddb/ddb.h>
+#include <sys/tty.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
+#include <machine/asm.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
-#include <machine/asm.h>
+#include <machine/sbi.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
-#include <machine/sbi.h>
+
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
+#include <ddb/ddb.h>
 
 /* bus softc */
 struct rcons_softc {
-	struct resource		*res[1];
-	void			*ihl[1];
-	device_t		dev;
+	struct resource *res[1];
+	void *ihl[1];
+	device_t dev;
 };
 
 /* CN Console interface */
@@ -80,31 +79,31 @@ struct rcons_softc {
 static tsw_outwakeup_t riscvtty_outwakeup;
 
 static struct ttydevsw riscv_ttydevsw = {
-	.tsw_flags	= TF_NOPREFIX,
-	.tsw_outwakeup	= riscvtty_outwakeup,
+	.tsw_flags = TF_NOPREFIX,
+	.tsw_outwakeup = riscvtty_outwakeup,
 };
 
-static int			polltime;
-static struct callout		riscv_callout;
-static struct tty 		*tp = NULL;
+static int polltime;
+static struct callout riscv_callout;
+static struct tty *tp = NULL;
 
 #if defined(KDB)
-static int			alt_break_state;
+static int alt_break_state;
 #endif
 
-static void	riscv_timeout(void *);
+static void riscv_timeout(void *);
 
-static cn_probe_t	riscv_cnprobe;
-static cn_init_t	riscv_cninit;
-static cn_term_t	riscv_cnterm;
-static cn_getc_t	riscv_cngetc;
-static cn_putc_t	riscv_cnputc;
-static cn_grab_t	riscv_cngrab;
-static cn_ungrab_t	riscv_cnungrab;
+static cn_probe_t riscv_cnprobe;
+static cn_init_t riscv_cninit;
+static cn_term_t riscv_cnterm;
+static cn_getc_t riscv_cngetc;
+static cn_putc_t riscv_cnputc;
+static cn_grab_t riscv_cngrab;
+static cn_ungrab_t riscv_cnungrab;
 
 CONSOLE_DRIVER(riscv);
 
-#define	MAX_BURST_LEN		1
+#define MAX_BURST_LEN 1
 
 static void
 riscv_putc(int c)
@@ -186,19 +185,16 @@ riscv_cninit(struct consdev *cp)
 static void
 riscv_cnterm(struct consdev *cp)
 {
-
 }
 
 static void
 riscv_cngrab(struct consdev *cp)
 {
-
 }
 
 static void
 riscv_cnungrab(struct consdev *cp)
 {
-
 }
 
 static int
@@ -253,18 +249,13 @@ rcons_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t rcons_methods[] = {
-	DEVMETHOD(device_probe,		rcons_probe),
-	DEVMETHOD(device_attach,	rcons_attach),
+static device_method_t rcons_methods[] = { DEVMETHOD(device_probe, rcons_probe),
+	DEVMETHOD(device_attach, rcons_attach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
-static driver_t rcons_driver = {
-	"rcons",
-	rcons_methods,
-	sizeof(struct rcons_softc)
-};
+static driver_t rcons_driver = { "rcons", rcons_methods,
+	sizeof(struct rcons_softc) };
 
 static devclass_t rcons_devclass;
 

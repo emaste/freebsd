@@ -40,25 +40,25 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/module.h>
-#include <machine/bus.h>
+#include <sys/mutex.h>
 #include <sys/timepps.h>
 
-#include <dev/ofw/openfirm.h>
-#include <powerpc/psim/iobusvar.h>
+#include <machine/bus.h>
 
+#include <dev/ofw/openfirm.h>
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
+
+#include <powerpc/psim/iobusvar.h>
 
 static int uart_iobus_probe(device_t dev);
 
 static device_method_t uart_iobus_methods[] = {
-        /* Device interface */
-	DEVMETHOD(device_probe,		uart_iobus_probe),
-	DEVMETHOD(device_attach,	uart_bus_attach),
-	DEVMETHOD(device_detach,	uart_bus_detach),
-	{ 0, 0 }
+	/* Device interface */
+	DEVMETHOD(device_probe, uart_iobus_probe),
+	DEVMETHOD(device_attach, uart_bus_attach),
+	DEVMETHOD(device_detach, uart_bus_detach), { 0, 0 }
 };
 
 static driver_t uart_iobus_driver = {

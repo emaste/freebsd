@@ -89,9 +89,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/random.h>
 #include <sys/socket.h>
-#include <sys/libkern.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -101,18 +101,18 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 
 #ifndef INT32_MAX
-#define INT32_MAX	0x7fffffffU
+#define INT32_MAX 0x7fffffffU
 #endif
 
 struct randomtab {
-	const int	ru_bits; /* resulting bits */
-	const long	ru_out;	/* Time after which will be reseeded */
-	const u_int32_t ru_max;	/* Uniq cycle, avoid blackjack prediction */
-	const u_int32_t ru_gen;	/* Starting generator */
+	const int ru_bits;	/* resulting bits */
+	const long ru_out;	/* Time after which will be reseeded */
+	const u_int32_t ru_max; /* Uniq cycle, avoid blackjack prediction */
+	const u_int32_t ru_gen; /* Starting generator */
 	const u_int32_t ru_n;	/* ru_n: prime, ru_n - 1: product of pfacts[] */
-	const u_int32_t ru_agen; /* determine ru_a as ru_agen^(2*rand) */
-	const u_int32_t ru_m;	/* ru_m = 2^x*3^y */
-	const u_int32_t pfacts[4];	/* factors of ru_n */
+	const u_int32_t ru_agen;   /* determine ru_a as ru_agen^(2*rand) */
+	const u_int32_t ru_m;	   /* ru_m = 2^x*3^y */
+	const u_int32_t pfacts[4]; /* factors of ru_n */
 
 	u_int32_t ru_counter;
 	u_int32_t ru_msb;
@@ -125,25 +125,25 @@ struct randomtab {
 };
 
 static struct randomtab randomtab_32 = {
-	32,			/* resulting bits */
-	180,			/* Time after which will be reseeded */
-	1000000000,		/* Uniq cycle, avoid blackjack prediction */
-	2,			/* Starting generator */
-	2147483629,		/* RU_N-1 = 2^2*3^2*59652323 */
-	7,			/* determine ru_a as RU_AGEN^(2*rand) */
-	1836660096,		/* RU_M = 2^7*3^15 - don't change */
-	{ 2, 3, 59652323, 0 },	/* factors of ru_n */
+	32,		       /* resulting bits */
+	180,		       /* Time after which will be reseeded */
+	1000000000,	       /* Uniq cycle, avoid blackjack prediction */
+	2,		       /* Starting generator */
+	2147483629,	       /* RU_N-1 = 2^2*3^2*59652323 */
+	7,		       /* determine ru_a as RU_AGEN^(2*rand) */
+	1836660096,	       /* RU_M = 2^7*3^15 - don't change */
+	{ 2, 3, 59652323, 0 }, /* factors of ru_n */
 };
 
 static struct randomtab randomtab_20 = {
-	20,			/* resulting bits */
-	180,			/* Time after which will be reseeded */
-	200000,			/* Uniq cycle, avoid blackjack prediction */
-	2,			/* Starting generator */
-	524269,			/* RU_N-1 = 2^2*3^2*14563 */
-	7,			/* determine ru_a as RU_AGEN^(2*rand) */
-	279936,			/* RU_M = 2^7*3^7 - don't change */
-	{ 2, 3, 14563, 0 },	/* factors of ru_n */
+	20,		    /* resulting bits */
+	180,		    /* Time after which will be reseeded */
+	200000,		    /* Uniq cycle, avoid blackjack prediction */
+	2,		    /* Starting generator */
+	524269,		    /* RU_N-1 = 2^2*3^2*14563 */
+	7,		    /* determine ru_a as RU_AGEN^(2*rand) */
+	279936,		    /* RU_M = 2^7*3^7 - don't change */
+	{ 2, 3, 14563, 0 }, /* factors of ru_n */
 };
 
 static u_int32_t pmod(u_int32_t, u_int32_t, u_int32_t);
@@ -239,7 +239,8 @@ randomid(struct randomtab *p)
 
 	for (i = 0; i <= n; i++) {
 		/* Linear Congruential Generator */
-		p->ru_x = (u_int32_t)((u_int64_t)p->ru_a * p->ru_x + p->ru_b) % p->ru_m;
+		p->ru_x = (u_int32_t)((u_int64_t)p->ru_a * p->ru_x + p->ru_b) %
+		    p->ru_m;
 	}
 
 	p->ru_counter += i;

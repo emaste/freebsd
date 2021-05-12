@@ -28,20 +28,19 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_STRING_H_
-#define	_LINUX_STRING_H_
+#ifndef _LINUX_STRING_H_
+#define _LINUX_STRING_H_
 
 #include <sys/ctype.h>
-
-#include <linux/types.h>
-#include <linux/gfp.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/err.h>
-
 #include <sys/libkern.h>
 
-#define	strnicmp(...) strncasecmp(__VA_ARGS__)
+#include <linux/err.h>
+#include <linux/gfp.h>
+#include <linux/slab.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
+
+#define strnicmp(...) strncasecmp(__VA_ARGS__)
 
 static inline int
 match_string(const char *const *table, int n, const char *key)
@@ -167,4 +166,4 @@ str_has_prefix(const char *str, const char *prefix)
 	return (strncmp(str, prefix, len) == 0 ? len : 0);
 }
 
-#endif					/* _LINUX_STRING_H_ */
+#endif /* _LINUX_STRING_H_ */

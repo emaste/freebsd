@@ -35,19 +35,19 @@
  */
 
 #ifndef _MACHINE_CPU_H_
-#define	_MACHINE_CPU_H_
+#define _MACHINE_CPU_H_
 
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
 
-#define	TRAPF_PC(tfp)		((tfp)->tf_ra)
-#define	TRAPF_USERMODE(tfp)	(((tfp)->tf_sstatus & SSTATUS_SPP) == 0)
+#define TRAPF_PC(tfp) ((tfp)->tf_ra)
+#define TRAPF_USERMODE(tfp) (((tfp)->tf_sstatus & SSTATUS_SPP) == 0)
 
-#define	cpu_getstack(td)	((td)->td_frame->tf_sp)
-#define	cpu_setstack(td, sp)	((td)->td_frame->tf_sp = (sp))
-#define	cpu_spinwait()		/* nothing */
-#define	cpu_lock_delay()	DELAY(1)
+#define cpu_getstack(td) ((td)->td_frame->tf_sp)
+#define cpu_setstack(td, sp) ((td)->td_frame->tf_sp = (sp))
+#define cpu_spinwait() /* nothing */
+#define cpu_lock_delay() DELAY(1)
 
 #ifdef _KERNEL
 
@@ -61,27 +61,27 @@
  * 0xFFFF         Reserved for extension
  */
 
-#define	CPU_IMPL_SHIFT		0
-#define	CPU_IMPL_MASK		(0xffff << CPU_IMPL_SHIFT)
-#define	CPU_IMPL(mimpid)	((mimpid & CPU_IMPL_MASK) >> CPU_IMPL_SHIFT)
-#define	CPU_IMPL_UNIMPLEMEN	0x0
-#define	CPU_IMPL_UCB_ROCKET	0x1
+#define CPU_IMPL_SHIFT 0
+#define CPU_IMPL_MASK (0xffff << CPU_IMPL_SHIFT)
+#define CPU_IMPL(mimpid) ((mimpid & CPU_IMPL_MASK) >> CPU_IMPL_SHIFT)
+#define CPU_IMPL_UNIMPLEMEN 0x0
+#define CPU_IMPL_UCB_ROCKET 0x1
 
-#define	CPU_PART_SHIFT		62
-#define	CPU_PART_MASK		(0x3ul << CPU_PART_SHIFT)
-#define	CPU_PART(misa)		((misa & CPU_PART_MASK) >> CPU_PART_SHIFT)
-#define	CPU_PART_RV32		0x1
-#define	CPU_PART_RV64		0x2
-#define	CPU_PART_RV128		0x3
+#define CPU_PART_SHIFT 62
+#define CPU_PART_MASK (0x3ul << CPU_PART_SHIFT)
+#define CPU_PART(misa) ((misa & CPU_PART_MASK) >> CPU_PART_SHIFT)
+#define CPU_PART_RV32 0x1
+#define CPU_PART_RV64 0x2
+#define CPU_PART_RV128 0x3
 
 extern char btext[];
 extern char etext[];
 
-void	cpu_halt(void) __dead2;
-void	cpu_reset(void) __dead2;
-void	fork_trampoline(void);
-void	identify_cpu(void);
-void	swi_vm(void *v);
+void cpu_halt(void) __dead2;
+void cpu_reset(void) __dead2;
+void fork_trampoline(void);
+void identify_cpu(void);
+void swi_vm(void *v);
 
 static __inline uint64_t
 get_cyclecount(void)

@@ -172,7 +172,7 @@ fpu_norm(struct fpn *fp)
 		 * We have a supernormal number.  We need to shift it right.
 		 * We may assume m3==0.
 		 */
-		for (rsh = 1, top = m0 >> 1; top >= sup; rsh++)	/* XXX slow */
+		for (rsh = 1, top = m0 >> 1; top >= sup; rsh++) /* XXX slow */
 			top >>= 1;
 		exp += rsh;
 		lsh = 32 - rsh;
@@ -185,7 +185,7 @@ fpu_norm(struct fpn *fp)
 		 * We have a regular denorm (a subnormal number), and need
 		 * to shift it left.
 		 */
-		for (lsh = 1, top = m0 << 1; top < nrm; lsh++)	/* XXX slow */
+		for (lsh = 1, top = m0 << 1; top < nrm; lsh++) /* XXX slow */
 			top <<= 1;
 		exp -= lsh;
 		rsh = 32 - lsh;

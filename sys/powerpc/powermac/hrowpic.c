@@ -31,20 +31,20 @@
 
 /*
  * A driver for the PIC found in the Heathrow/Paddington MacIO chips.
- * This was superseded by an OpenPIC in the Keylargo and beyond 
+ * This was superseded by an OpenPIC in the Keylargo and beyond
  * MacIO versions.
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/openfirm.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
@@ -52,8 +52,8 @@
 #include <machine/pio.h>
 #include <machine/resource.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/openfirm.h>
 
 #include <powerpc/powermac/hrowpicvar.h>
 
@@ -62,37 +62,34 @@
 /*
  * MacIO interface
  */
-static int	hrowpic_probe(device_t);
-static int	hrowpic_attach(device_t);
+static int hrowpic_probe(device_t);
+static int hrowpic_attach(device_t);
 
-static void	hrowpic_dispatch(device_t, struct trapframe *);
-static void	hrowpic_enable(device_t, u_int, u_int, void **);
-static void	hrowpic_eoi(device_t, u_int, void *);
-static void	hrowpic_ipi(device_t, u_int);
-static void	hrowpic_mask(device_t, u_int, void *);
-static void	hrowpic_unmask(device_t, u_int, void *);
+static void hrowpic_dispatch(device_t, struct trapframe *);
+static void hrowpic_enable(device_t, u_int, u_int, void **);
+static void hrowpic_eoi(device_t, u_int, void *);
+static void hrowpic_ipi(device_t, u_int);
+static void hrowpic_mask(device_t, u_int, void *);
+static void hrowpic_unmask(device_t, u_int, void *);
 
-static device_method_t  hrowpic_methods[] = {
+static device_method_t hrowpic_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,         hrowpic_probe),
-	DEVMETHOD(device_attach,        hrowpic_attach),
+	DEVMETHOD(device_probe, hrowpic_probe),
+	DEVMETHOD(device_attach, hrowpic_attach),
 
 	/* PIC interface */
-	DEVMETHOD(pic_dispatch,		hrowpic_dispatch),
-	DEVMETHOD(pic_enable,		hrowpic_enable),
-	DEVMETHOD(pic_eoi,		hrowpic_eoi),
-	DEVMETHOD(pic_ipi,		hrowpic_ipi),
-	DEVMETHOD(pic_mask,		hrowpic_mask),
-	DEVMETHOD(pic_unmask,		hrowpic_unmask),
+	DEVMETHOD(pic_dispatch, hrowpic_dispatch),
+	DEVMETHOD(pic_enable, hrowpic_enable),
+	DEVMETHOD(pic_eoi, hrowpic_eoi),
+	DEVMETHOD(pic_ipi, hrowpic_ipi),
+	DEVMETHOD(pic_mask, hrowpic_mask),
+	DEVMETHOD(pic_unmask, hrowpic_unmask),
 
 	{ 0, 0 },
 };
 
-static driver_t hrowpic_driver = {
-	"hrowpic",
-	hrowpic_methods,
-	sizeof(struct hrowpic_softc)
-};
+static driver_t hrowpic_driver = { "hrowpic", hrowpic_methods,
+	sizeof(struct hrowpic_softc) };
 
 static devclass_t hrowpic_devclass;
 
@@ -108,8 +105,7 @@ hrowpic_read_reg(struct hrowpic_softc *sc, u_int reg, u_int bank)
 }
 
 static void
-hrowpic_write_reg(struct hrowpic_softc *sc, u_int reg, u_int bank,
-    uint32_t val)
+hrowpic_write_reg(struct hrowpic_softc *sc, u_int reg, u_int bank, uint32_t val)
 {
 
 	if (bank == HPIC_PRIMARY)
@@ -150,8 +146,8 @@ hrowpic_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	sc->sc_rrid = 0;
-	sc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rrid,
-	    RF_ACTIVE);
+	sc->sc_rres = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->sc_rrid, RF_ACTIVE);
 
 	if (sc->sc_rres == NULL) {
 		device_printf(dev, "Could not alloc mem resource!\n");
@@ -165,9 +161,9 @@ hrowpic_attach(device_t dev)
 	 * Disable all interrupt sources and clear outstanding interrupts
 	 */
 	hrowpic_write_reg(sc, HPIC_ENABLE, HPIC_PRIMARY, 0);
-	hrowpic_write_reg(sc, HPIC_CLEAR,  HPIC_PRIMARY, 0xffffffff);
+	hrowpic_write_reg(sc, HPIC_CLEAR, HPIC_PRIMARY, 0xffffffff);
 	hrowpic_write_reg(sc, HPIC_ENABLE, HPIC_SECONDARY, 0);
-	hrowpic_write_reg(sc, HPIC_CLEAR,  HPIC_SECONDARY, 0xffffffff);
+	hrowpic_write_reg(sc, HPIC_CLEAR, HPIC_SECONDARY, 0xffffffff);
 
 	powerpc_register_pic(dev, ofw_bus_get_node(dev), 64, 0, FALSE);
 	return (0);
@@ -202,7 +198,7 @@ hrowpic_toggle_irq(struct hrowpic_softc *sc, int irq, int enable)
 		sc->sc_softreg[roffset] |= (1 << rbit);
 	else
 		sc->sc_softreg[roffset] &= ~(1 << rbit);
-		
+
 	hrowpic_write_reg(sc, HPIC_ENABLE, roffset, sc->sc_softreg[roffset]);
 }
 
@@ -253,7 +249,7 @@ hrowpic_eoi(device_t dev, u_int irq, void *priv __unused)
 	int bank;
 
 	sc = device_get_softc(dev);
-	bank = (irq >= 32) ? HPIC_SECONDARY : HPIC_PRIMARY ;
+	bank = (irq >= 32) ? HPIC_SECONDARY : HPIC_PRIMARY;
 	hrowpic_write_reg(sc, HPIC_CLEAR, bank, 1U << (irq & 0x1f));
 }
 

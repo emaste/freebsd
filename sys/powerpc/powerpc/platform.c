@@ -36,20 +36,20 @@ __FBSDID("$FreeBSD$");
  * through a previously registered kernel object.
  */
 
+#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
-#include <sys/types.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 #include <vm/vm_phys.h>
 
 #include <machine/cpu.h>
@@ -62,14 +62,14 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
-static platform_def_t	*plat_def_impl;
-static platform_t	plat_obj;
-static struct kobj_ops	plat_kernel_kops;
-static struct platform_kobj	plat_kernel_obj;
+static platform_def_t *plat_def_impl;
+static platform_t plat_obj;
+static struct kobj_ops plat_kernel_kops;
+static struct platform_kobj plat_kernel_obj;
 
 static char plat_name[64] = "";
-SYSCTL_STRING(_hw, OID_AUTO, platform, CTLFLAG_RD | CTLFLAG_TUN,
-    plat_name, 0, "Platform currently in use");
+SYSCTL_STRING(_hw, OID_AUTO, platform, CTLFLAG_RD | CTLFLAG_TUN, plat_name, 0,
+    "Platform currently in use");
 
 static struct mem_affinity mem_info[VM_PHYSSEG_MAX + 1];
 static int vm_locality_table[MAXMEMDOM * MAXMEMDOM];
@@ -174,8 +174,8 @@ mem_regions(struct mem_region **phys, int *physsz, struct mem_region **avail,
 	int i, j, still_merging;
 
 	if (npregions == 0) {
-		PLATFORM_MEM_REGIONS(plat_obj, pregions, &npregions,
-		    aregions, &naregions);
+		PLATFORM_MEM_REGIONS(
+		    plat_obj, pregions, &npregions, aregions, &naregions);
 		qsort(pregions, npregions, sizeof(*pregions), mr_cmp);
 		qsort(aregions, naregions, sizeof(*aregions), mr_cmp);
 
@@ -185,11 +185,11 @@ mem_regions(struct mem_region **phys, int *physsz, struct mem_region **avail,
 			for (i = 0; i < naregions; i++) {
 				if (aregions[i].mr_size == 0)
 					continue;
-				for (j = i+1; j < naregions; j++) {
+				for (j = i + 1; j < naregions; j++) {
 					if (aregions[j].mr_size == 0)
 						continue;
-					if (!memr_overlap(&aregions[j],
-					    &aregions[i]))
+					if (!memr_overlap(
+						&aregions[j], &aregions[i]))
 						continue;
 
 					memr_merge(&aregions[j], &aregions[i]);
@@ -203,8 +203,8 @@ mem_regions(struct mem_region **phys, int *physsz, struct mem_region **avail,
 		/* Collapse zero-length available regions */
 		for (i = 0; i < naregions; i++) {
 			if (aregions[i].mr_size == 0) {
-				memcpy(&aregions[i], &aregions[i+1],
-				    (naregions - i - 1)*sizeof(*aregions));
+				memcpy(&aregions[i], &aregions[i + 1],
+				    (naregions - i - 1) * sizeof(*aregions));
 				naregions--;
 				i--;
 			}
@@ -233,8 +233,8 @@ mem_valid(vm_offset_t addr, int len)
 	}
 
 	for (i = 0; i < npregions; i++)
-		if ((addr >= pregions[i].mr_start)
-		   && (addr + len <= pregions[i].mr_start + pregions[i].mr_size))
+		if ((addr >= pregions[i].mr_start) &&
+		    (addr + len <= pregions[i].mr_start + pregions[i].mr_size))
 			return (0);
 
 	return (EFAULT);
@@ -264,7 +264,7 @@ platform_timebase_freq(struct cpuref *cpu)
 void
 platform_sleep()
 {
-        PLATFORM_SLEEP(plat_obj);
+	PLATFORM_SLEEP(plat_obj);
 }
 
 int
@@ -323,10 +323,11 @@ platform_node_numa_domain(phandle_t node)
 void
 cpu_reset()
 {
-        PLATFORM_RESET(plat_obj);
+	PLATFORM_RESET(plat_obj);
 }
 
-void platform_smp_timebase_sync(u_long tb, int ap)
+void
+platform_smp_timebase_sync(u_long tb, int ap)
 {
 
 	PLATFORM_SMP_TIMEBASE_SYNC(plat_obj, tb, ap);
@@ -341,8 +342,8 @@ SET_DECLARE(platform_set, platform_def_t);
 void
 platform_probe_and_attach()
 {
-	platform_def_t	**platpp, *platp;
-	int		prio, best_prio;
+	platform_def_t **platpp, *platp;
+	int prio, best_prio;
 
 	plat_obj = &plat_kernel_obj;
 	best_prio = 0;
@@ -350,7 +351,8 @@ platform_probe_and_attach()
 	/*
 	 * Try to locate the best platform kobj
 	 */
-	SET_FOREACH(platpp, platform_set) {
+	SET_FOREACH(platpp, platform_set)
+	{
 		platp = *platpp;
 
 		/*
@@ -370,7 +372,7 @@ platform_probe_and_attach()
 		 * Check if this module was specifically requested through
 		 * the loader tunable we provide.
 		 */
-		if (strcmp(platp->name,plat_name) == 0) {
+		if (strcmp(platp->name, plat_name) == 0) {
 			plat_def_impl = platp;
 			break;
 		}
@@ -399,7 +401,7 @@ platform_probe_and_attach()
 	kobj_class_compile_static(plat_def_impl, &plat_kernel_kops);
 	kobj_init_static((kobj_t)plat_obj, plat_def_impl);
 
-	strlcpy(plat_name,plat_def_impl->name,sizeof(plat_name));
+	strlcpy(plat_name, plat_def_impl->name, sizeof(plat_name));
 
 	PLATFORM_ATTACH(plat_obj);
 }

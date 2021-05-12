@@ -33,12 +33,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/pcpu.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
 #include <machine/atomic.h>
 #include <machine/cpu.h>
@@ -74,11 +74,10 @@ static void check_cpu_regs(u_int cpu);
  * The default implementation of I-cache sync assumes we have an
  * aliasing cache until we know otherwise.
  */
-void (*arm64_icache_sync_range)(vm_offset_t, vm_size_t) =
-    &arm64_aliasing_icache_sync_range;
+void (*arm64_icache_sync_range)(
+    vm_offset_t, vm_size_t) = &arm64_aliasing_icache_sync_range;
 
-static int
-sysctl_hw_machine(SYSCTL_HANDLER_ARGS)
+static int sysctl_hw_machine(SYSCTL_HANDLER_ARGS)
 {
 #ifdef SCTL_MASK32
 	static const char machine32[] = "arm";
@@ -94,12 +93,13 @@ sysctl_hw_machine(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_hw, HW_MACHINE, machine, CTLTYPE_STRING | CTLFLAG_RD |
-	CTLFLAG_MPSAFE, NULL, 0, sysctl_hw_machine, "A", "Machine class");
+SYSCTL_PROC(_hw, HW_MACHINE, machine,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0, sysctl_hw_machine,
+    "A", "Machine class");
 
 static char cpu_model[64];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
-	cpu_model, sizeof(cpu_model), "Machine model");
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, sizeof(cpu_model),
+    "Machine model");
 
 /*
  * Per-CPU affinity as provided in MPIDR_EL1
@@ -115,61 +115,67 @@ uint64_t __cpu_affinity[MAXCPU];
 static u_int cpu_aff_levels;
 
 struct cpu_desc {
-	u_int		cpu_impl;
-	u_int		cpu_part_num;
-	u_int		cpu_variant;
-	u_int		cpu_revision;
-	const char	*cpu_impl_name;
-	const char	*cpu_part_name;
+	u_int cpu_impl;
+	u_int cpu_part_num;
+	u_int cpu_variant;
+	u_int cpu_revision;
+	const char *cpu_impl_name;
+	const char *cpu_part_name;
 
-	uint64_t	mpidr;
-	uint64_t	id_aa64afr0;
-	uint64_t	id_aa64afr1;
-	uint64_t	id_aa64dfr0;
-	uint64_t	id_aa64dfr1;
-	uint64_t	id_aa64isar0;
-	uint64_t	id_aa64isar1;
-	uint64_t	id_aa64mmfr0;
-	uint64_t	id_aa64mmfr1;
-	uint64_t	id_aa64mmfr2;
-	uint64_t	id_aa64pfr0;
-	uint64_t	id_aa64pfr1;
-	uint64_t	ctr;
+	uint64_t mpidr;
+	uint64_t id_aa64afr0;
+	uint64_t id_aa64afr1;
+	uint64_t id_aa64dfr0;
+	uint64_t id_aa64dfr1;
+	uint64_t id_aa64isar0;
+	uint64_t id_aa64isar1;
+	uint64_t id_aa64mmfr0;
+	uint64_t id_aa64mmfr1;
+	uint64_t id_aa64mmfr2;
+	uint64_t id_aa64pfr0;
+	uint64_t id_aa64pfr1;
+	uint64_t ctr;
 };
 
 static struct cpu_desc cpu_desc[MAXCPU];
 static struct cpu_desc kern_cpu_desc;
 static struct cpu_desc user_cpu_desc;
 static u_int cpu_print_regs;
-#define	PRINT_ID_AA64_AFR0	0x00000001
-#define	PRINT_ID_AA64_AFR1	0x00000002
-#define	PRINT_ID_AA64_DFR0	0x00000010
-#define	PRINT_ID_AA64_DFR1	0x00000020
-#define	PRINT_ID_AA64_ISAR0	0x00000100
-#define	PRINT_ID_AA64_ISAR1	0x00000200
-#define	PRINT_ID_AA64_MMFR0	0x00001000
-#define	PRINT_ID_AA64_MMFR1	0x00002000
-#define	PRINT_ID_AA64_MMFR2	0x00004000
-#define	PRINT_ID_AA64_PFR0	0x00010000
-#define	PRINT_ID_AA64_PFR1	0x00020000
-#define	PRINT_CTR_EL0		0x10000000
+#define PRINT_ID_AA64_AFR0 0x00000001
+#define PRINT_ID_AA64_AFR1 0x00000002
+#define PRINT_ID_AA64_DFR0 0x00000010
+#define PRINT_ID_AA64_DFR1 0x00000020
+#define PRINT_ID_AA64_ISAR0 0x00000100
+#define PRINT_ID_AA64_ISAR1 0x00000200
+#define PRINT_ID_AA64_MMFR0 0x00001000
+#define PRINT_ID_AA64_MMFR1 0x00002000
+#define PRINT_ID_AA64_MMFR2 0x00004000
+#define PRINT_ID_AA64_PFR0 0x00010000
+#define PRINT_ID_AA64_PFR1 0x00020000
+#define PRINT_CTR_EL0 0x10000000
 
 struct cpu_parts {
-	u_int		part_id;
-	const char	*part_name;
+	u_int part_id;
+	const char *part_name;
 };
-#define	CPU_PART_NONE	{ 0, "Unknown Processor" }
+#define CPU_PART_NONE                  \
+	{                              \
+		0, "Unknown Processor" \
+	}
 
 struct cpu_implementers {
-	u_int			impl_id;
-	const char		*impl_name;
+	u_int impl_id;
+	const char *impl_name;
 	/*
 	 * Part number is implementation defined
 	 * so each vendor will have its own set of values and names.
 	 */
-	const struct cpu_parts	*cpu_parts;
+	const struct cpu_parts *cpu_parts;
 };
-#define	CPU_IMPLEMENTER_NONE	{ 0, "Unknown Implementer", cpu_parts_none }
+#define CPU_IMPLEMENTER_NONE                             \
+	{                                                \
+		0, "Unknown Implementer", cpu_parts_none \
+	}
 
 /*
  * Per-implementer table of (PartNum, CPU Name) pairs.
@@ -214,94 +220,108 @@ static const struct cpu_parts cpu_parts_none[] = {
  * Implementers table.
  */
 const struct cpu_implementers cpu_implementers[] = {
-	{ CPU_IMPL_ARM,		"ARM",		cpu_parts_arm },
-	{ CPU_IMPL_BROADCOM,	"Broadcom",	cpu_parts_none },
-	{ CPU_IMPL_CAVIUM,	"Cavium",	cpu_parts_cavium },
-	{ CPU_IMPL_DEC,		"DEC",		cpu_parts_none },
-	{ CPU_IMPL_INFINEON,	"IFX",		cpu_parts_none },
-	{ CPU_IMPL_FREESCALE,	"Freescale",	cpu_parts_none },
-	{ CPU_IMPL_NVIDIA,	"NVIDIA",	cpu_parts_none },
-	{ CPU_IMPL_APM,		"APM",		cpu_parts_apm },
-	{ CPU_IMPL_QUALCOMM,	"Qualcomm",	cpu_parts_none },
-	{ CPU_IMPL_MARVELL,	"Marvell",	cpu_parts_none },
-	{ CPU_IMPL_INTEL,	"Intel",	cpu_parts_none },
+	{ CPU_IMPL_ARM, "ARM", cpu_parts_arm },
+	{ CPU_IMPL_BROADCOM, "Broadcom", cpu_parts_none },
+	{ CPU_IMPL_CAVIUM, "Cavium", cpu_parts_cavium },
+	{ CPU_IMPL_DEC, "DEC", cpu_parts_none },
+	{ CPU_IMPL_INFINEON, "IFX", cpu_parts_none },
+	{ CPU_IMPL_FREESCALE, "Freescale", cpu_parts_none },
+	{ CPU_IMPL_NVIDIA, "NVIDIA", cpu_parts_none },
+	{ CPU_IMPL_APM, "APM", cpu_parts_apm },
+	{ CPU_IMPL_QUALCOMM, "Qualcomm", cpu_parts_none },
+	{ CPU_IMPL_MARVELL, "Marvell", cpu_parts_none },
+	{ CPU_IMPL_INTEL, "Intel", cpu_parts_none },
 	CPU_IMPLEMENTER_NONE,
 };
 
-#define	MRS_TYPE_MASK		0xf
-#define	MRS_INVALID		0
-#define	MRS_EXACT		1
-#define	MRS_EXACT_VAL(x)	(MRS_EXACT | ((x) << 4))
-#define	MRS_EXACT_FIELD(x)	((x) >> 4)
-#define	MRS_LOWER		2
+#define MRS_TYPE_MASK 0xf
+#define MRS_INVALID 0
+#define MRS_EXACT 1
+#define MRS_EXACT_VAL(x) (MRS_EXACT | ((x) << 4))
+#define MRS_EXACT_FIELD(x) ((x) >> 4)
+#define MRS_LOWER 2
 
 struct mrs_field_value {
-	uint64_t	value;
-	const char	*desc;
+	uint64_t value;
+	const char *desc;
 };
 
-#define	MRS_FIELD_VALUE(_value, _desc)					\
-	{								\
-		.value = (_value),					\
-		.desc = (_desc),					\
+#define MRS_FIELD_VALUE(_value, _desc)              \
+	{                                           \
+		.value = (_value), .desc = (_desc), \
 	}
 
-#define	MRS_FIELD_VALUE_NONE_IMPL(_reg, _field, _none, _impl)		\
-	MRS_FIELD_VALUE(_reg ## _ ## _field ## _ ## _none, ""),		\
-	MRS_FIELD_VALUE(_reg ## _ ## _field ## _ ## _impl, #_field)
+#define MRS_FIELD_VALUE_NONE_IMPL(_reg, _field, _none, _impl) \
+	MRS_FIELD_VALUE(_reg##_##_field##_##_none, ""),       \
+	    MRS_FIELD_VALUE(_reg##_##_field##_##_impl, #_field)
 
-#define	MRS_FIELD_VALUE_COUNT(_reg, _field, _desc)			\
-	MRS_FIELD_VALUE(0ul << _reg ## _ ## _field ## _SHIFT, "1 " _desc), \
-	MRS_FIELD_VALUE(1ul << _reg ## _ ## _field ## _SHIFT, "2 " _desc "s"), \
-	MRS_FIELD_VALUE(2ul << _reg ## _ ## _field ## _SHIFT, "3 " _desc "s"), \
-	MRS_FIELD_VALUE(3ul << _reg ## _ ## _field ## _SHIFT, "4 " _desc "s"), \
-	MRS_FIELD_VALUE(4ul << _reg ## _ ## _field ## _SHIFT, "5 " _desc "s"), \
-	MRS_FIELD_VALUE(5ul << _reg ## _ ## _field ## _SHIFT, "6 " _desc "s"), \
-	MRS_FIELD_VALUE(6ul << _reg ## _ ## _field ## _SHIFT, "7 " _desc "s"), \
-	MRS_FIELD_VALUE(7ul << _reg ## _ ## _field ## _SHIFT, "8 " _desc "s"), \
-	MRS_FIELD_VALUE(8ul << _reg ## _ ## _field ## _SHIFT, "9 " _desc "s"), \
-	MRS_FIELD_VALUE(9ul << _reg ## _ ## _field ## _SHIFT, "10 "_desc "s"), \
-	MRS_FIELD_VALUE(10ul<< _reg ## _ ## _field ## _SHIFT, "11 "_desc "s"), \
-	MRS_FIELD_VALUE(11ul<< _reg ## _ ## _field ## _SHIFT, "12 "_desc "s"), \
-	MRS_FIELD_VALUE(12ul<< _reg ## _ ## _field ## _SHIFT, "13 "_desc "s"), \
-	MRS_FIELD_VALUE(13ul<< _reg ## _ ## _field ## _SHIFT, "14 "_desc "s"), \
-	MRS_FIELD_VALUE(14ul<< _reg ## _ ## _field ## _SHIFT, "15 "_desc "s"), \
-	MRS_FIELD_VALUE(15ul<< _reg ## _ ## _field ## _SHIFT, "16 "_desc "s")
+#define MRS_FIELD_VALUE_COUNT(_reg, _field, _desc)                           \
+	MRS_FIELD_VALUE(0ul << _reg##_##_field##_SHIFT, "1 " _desc),         \
+	    MRS_FIELD_VALUE(1ul << _reg##_##_field##_SHIFT, "2 " _desc "s"), \
+	    MRS_FIELD_VALUE(2ul << _reg##_##_field##_SHIFT, "3 " _desc "s"), \
+	    MRS_FIELD_VALUE(3ul << _reg##_##_field##_SHIFT, "4 " _desc "s"), \
+	    MRS_FIELD_VALUE(4ul << _reg##_##_field##_SHIFT, "5 " _desc "s"), \
+	    MRS_FIELD_VALUE(5ul << _reg##_##_field##_SHIFT, "6 " _desc "s"), \
+	    MRS_FIELD_VALUE(6ul << _reg##_##_field##_SHIFT, "7 " _desc "s"), \
+	    MRS_FIELD_VALUE(7ul << _reg##_##_field##_SHIFT, "8 " _desc "s"), \
+	    MRS_FIELD_VALUE(8ul << _reg##_##_field##_SHIFT, "9 " _desc "s"), \
+	    MRS_FIELD_VALUE(9ul << _reg##_##_field##_SHIFT,                  \
+		"10 "_desc                                                   \
+		"s"),                                                        \
+	    MRS_FIELD_VALUE(10ul << _reg##_##_field##_SHIFT,                 \
+		"11 "_desc                                                   \
+		"s"),                                                        \
+	    MRS_FIELD_VALUE(11ul << _reg##_##_field##_SHIFT,                 \
+		"12 "_desc                                                   \
+		"s"),                                                        \
+	    MRS_FIELD_VALUE(12ul << _reg##_##_field##_SHIFT,                 \
+		"13 "_desc                                                   \
+		"s"),                                                        \
+	    MRS_FIELD_VALUE(13ul << _reg##_##_field##_SHIFT,                 \
+		"14 "_desc                                                   \
+		"s"),                                                        \
+	    MRS_FIELD_VALUE(14ul << _reg##_##_field##_SHIFT,                 \
+		"15 "_desc                                                   \
+		"s"),                                                        \
+	    MRS_FIELD_VALUE(15ul << _reg##_##_field##_SHIFT,                 \
+		"16 "_desc                                                   \
+		"s")
 
-#define	MRS_FIELD_VALUE_END	{ .desc = NULL }
+#define MRS_FIELD_VALUE_END  \
+	{                    \
+		.desc = NULL \
+	}
 
 struct mrs_field {
-	const char	*name;
+	const char *name;
 	struct mrs_field_value *values;
-	uint64_t	mask;
-	bool		sign;
-	u_int		type;
-	u_int		shift;
+	uint64_t mask;
+	bool sign;
+	u_int type;
+	u_int shift;
 };
 
-#define	MRS_FIELD(_register, _name, _sign, _type, _values)		\
-	{								\
-		.name = #_name,						\
-		.sign = (_sign),					\
-		.type = (_type),					\
-		.shift = _register ## _ ## _name ## _SHIFT,		\
-		.mask = _register ## _ ## _name ## _MASK,		\
-		.values = (_values),					\
+#define MRS_FIELD(_register, _name, _sign, _type, _values)               \
+	{                                                                \
+		.name = #_name, .sign = (_sign), .type = (_type),        \
+		.shift = _register##_##_name##_SHIFT,                    \
+		.mask = _register##_##_name##_MASK, .values = (_values), \
 	}
 
-#define	MRS_FIELD_END	{ .type = MRS_INVALID, }
+#define MRS_FIELD_END                \
+	{                            \
+		.type = MRS_INVALID, \
+	}
 
 /* ID_AA64AFR0_EL1 */
 static struct mrs_field id_aa64afr0_fields[] = {
 	MRS_FIELD_END,
 };
 
-
 /* ID_AA64AFR1_EL1 */
 static struct mrs_field id_aa64afr1_fields[] = {
 	MRS_FIELD_END,
 };
-
 
 /* ID_AA64DFR0_EL1 */
 static struct mrs_field_value id_aa64dfr0_pmsver[] = {
@@ -348,24 +368,22 @@ static struct mrs_field_value id_aa64dfr0_debugver[] = {
 
 static struct mrs_field id_aa64dfr0_fields[] = {
 	MRS_FIELD(ID_AA64DFR0, PMSVer, false, MRS_EXACT, id_aa64dfr0_pmsver),
-	MRS_FIELD(ID_AA64DFR0, CTX_CMPs, false, MRS_EXACT,
-	    id_aa64dfr0_ctx_cmps),
+	MRS_FIELD(
+	    ID_AA64DFR0, CTX_CMPs, false, MRS_EXACT, id_aa64dfr0_ctx_cmps),
 	MRS_FIELD(ID_AA64DFR0, WRPs, false, MRS_LOWER, id_aa64dfr0_wrps),
 	MRS_FIELD(ID_AA64DFR0, BRPs, false, MRS_LOWER, id_aa64dfr0_brps),
 	MRS_FIELD(ID_AA64DFR0, PMUVer, false, MRS_EXACT, id_aa64dfr0_pmuver),
-	MRS_FIELD(ID_AA64DFR0, TraceVer, false, MRS_EXACT,
-	    id_aa64dfr0_tracever),
+	MRS_FIELD(
+	    ID_AA64DFR0, TraceVer, false, MRS_EXACT, id_aa64dfr0_tracever),
 	MRS_FIELD(ID_AA64DFR0, DebugVer, false, MRS_EXACT_VAL(0x6),
 	    id_aa64dfr0_debugver),
 	MRS_FIELD_END,
 };
 
-
 /* ID_AA64DFR1 */
 static struct mrs_field id_aa64dfr1_fields[] = {
 	MRS_FIELD_END,
 };
-
 
 /* ID_AA64ISAR0_EL1 */
 static struct mrs_field_value id_aa64isar0_rndr[] = {
@@ -463,7 +481,6 @@ static struct mrs_field id_aa64isar0_fields[] = {
 	MRS_FIELD_END,
 };
 
-
 /* ID_AA64ISAR1_EL1 */
 static struct mrs_field_value id_aa64isar1_i8mm[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, I8MM, NONE, IMPL),
@@ -544,11 +561,11 @@ static struct mrs_field id_aa64isar1_fields[] = {
 	MRS_FIELD(ID_AA64ISAR1, I8MM, false, MRS_LOWER, id_aa64isar1_i8mm),
 	MRS_FIELD(ID_AA64ISAR1, DGH, false, MRS_LOWER, id_aa64isar1_dgh),
 	MRS_FIELD(ID_AA64ISAR1, BF16, false, MRS_LOWER, id_aa64isar1_bf16),
-	MRS_FIELD(ID_AA64ISAR1, SPECRES, false, MRS_LOWER,
-	    id_aa64isar1_specres),
+	MRS_FIELD(
+	    ID_AA64ISAR1, SPECRES, false, MRS_LOWER, id_aa64isar1_specres),
 	MRS_FIELD(ID_AA64ISAR1, SB, false, MRS_LOWER, id_aa64isar1_sb),
-	MRS_FIELD(ID_AA64ISAR1, FRINTTS, false, MRS_LOWER,
-	    id_aa64isar1_frintts),
+	MRS_FIELD(
+	    ID_AA64ISAR1, FRINTTS, false, MRS_LOWER, id_aa64isar1_frintts),
 	MRS_FIELD(ID_AA64ISAR1, GPI, false, MRS_EXACT, id_aa64isar1_gpi),
 	MRS_FIELD(ID_AA64ISAR1, GPA, false, MRS_EXACT, id_aa64isar1_gpa),
 	MRS_FIELD(ID_AA64ISAR1, LRCPC, false, MRS_LOWER, id_aa64isar1_lrcpc),
@@ -559,7 +576,6 @@ static struct mrs_field id_aa64isar1_fields[] = {
 	MRS_FIELD(ID_AA64ISAR1, DPB, false, MRS_LOWER, id_aa64isar1_dpb),
 	MRS_FIELD_END,
 };
-
 
 /* ID_AA64MMFR0_EL1 */
 static struct mrs_field_value id_aa64mmfr0_tgran4[] = {
@@ -611,21 +627,20 @@ static struct mrs_field_value id_aa64mmfr0_parange[] = {
 
 static struct mrs_field id_aa64mmfr0_fields[] = {
 	MRS_FIELD(ID_AA64MMFR0, TGran4, false, MRS_EXACT, id_aa64mmfr0_tgran4),
-	MRS_FIELD(ID_AA64MMFR0, TGran64, false, MRS_EXACT,
-	    id_aa64mmfr0_tgran64),
-	MRS_FIELD(ID_AA64MMFR0, TGran16, false, MRS_EXACT,
-	    id_aa64mmfr0_tgran16),
-	MRS_FIELD(ID_AA64MMFR0, BigEndEL0, false, MRS_EXACT,
-	    id_aa64mmfr0_bigend_el0),
+	MRS_FIELD(
+	    ID_AA64MMFR0, TGran64, false, MRS_EXACT, id_aa64mmfr0_tgran64),
+	MRS_FIELD(
+	    ID_AA64MMFR0, TGran16, false, MRS_EXACT, id_aa64mmfr0_tgran16),
+	MRS_FIELD(
+	    ID_AA64MMFR0, BigEndEL0, false, MRS_EXACT, id_aa64mmfr0_bigend_el0),
 	MRS_FIELD(ID_AA64MMFR0, SNSMem, false, MRS_EXACT, id_aa64mmfr0_snsmem),
 	MRS_FIELD(ID_AA64MMFR0, BigEnd, false, MRS_EXACT, id_aa64mmfr0_bigend),
-	MRS_FIELD(ID_AA64MMFR0, ASIDBits, false, MRS_EXACT,
-	    id_aa64mmfr0_asid_bits),
-	MRS_FIELD(ID_AA64MMFR0, PARange, false, MRS_EXACT,
-	    id_aa64mmfr0_parange),
+	MRS_FIELD(
+	    ID_AA64MMFR0, ASIDBits, false, MRS_EXACT, id_aa64mmfr0_asid_bits),
+	MRS_FIELD(
+	    ID_AA64MMFR0, PARange, false, MRS_EXACT, id_aa64mmfr0_parange),
 	MRS_FIELD_END,
 };
-
 
 /* ID_AA64MMFR1_EL1 */
 static struct mrs_field_value id_aa64mmfr1_xnx[] = {
@@ -676,18 +691,17 @@ static struct mrs_field_value id_aa64mmfr1_hafdbs[] = {
 
 static struct mrs_field id_aa64mmfr1_fields[] = {
 	MRS_FIELD(ID_AA64MMFR1, XNX, false, MRS_EXACT, id_aa64mmfr1_xnx),
-	MRS_FIELD(ID_AA64MMFR1, SpecSEI, false, MRS_EXACT,
-	    id_aa64mmfr1_specsei),
+	MRS_FIELD(
+	    ID_AA64MMFR1, SpecSEI, false, MRS_EXACT, id_aa64mmfr1_specsei),
 	MRS_FIELD(ID_AA64MMFR1, PAN, false, MRS_EXACT, id_aa64mmfr1_pan),
 	MRS_FIELD(ID_AA64MMFR1, LO, false, MRS_EXACT, id_aa64mmfr1_lo),
 	MRS_FIELD(ID_AA64MMFR1, HPDS, false, MRS_EXACT, id_aa64mmfr1_hpds),
 	MRS_FIELD(ID_AA64MMFR1, VH, false, MRS_EXACT, id_aa64mmfr1_vh),
-	MRS_FIELD(ID_AA64MMFR1, VMIDBits, false, MRS_EXACT,
-	    id_aa64mmfr1_vmidbits),
+	MRS_FIELD(
+	    ID_AA64MMFR1, VMIDBits, false, MRS_EXACT, id_aa64mmfr1_vmidbits),
 	MRS_FIELD(ID_AA64MMFR1, HAFDBS, false, MRS_EXACT, id_aa64mmfr1_hafdbs),
 	MRS_FIELD_END,
 };
-
 
 /* ID_AA64MMFR2_EL1 */
 static struct mrs_field_value id_aa64mmfr2_e0pd[] = {
@@ -782,15 +796,14 @@ static struct mrs_field id_aa64mmfr2_fields[] = {
 	MRS_FIELD(ID_AA64MMFR2, ST, false, MRS_EXACT, id_aa64mmfr2_st),
 	MRS_FIELD(ID_AA64MMFR2, NV, false, MRS_EXACT, id_aa64mmfr2_nv),
 	MRS_FIELD(ID_AA64MMFR2, CCIDX, false, MRS_EXACT, id_aa64mmfr2_ccidx),
-	MRS_FIELD(ID_AA64MMFR2, VARange, false, MRS_EXACT,
-	    id_aa64mmfr2_varange),
+	MRS_FIELD(
+	    ID_AA64MMFR2, VARange, false, MRS_EXACT, id_aa64mmfr2_varange),
 	MRS_FIELD(ID_AA64MMFR2, IESB, false, MRS_EXACT, id_aa64mmfr2_iesb),
 	MRS_FIELD(ID_AA64MMFR2, LSM, false, MRS_EXACT, id_aa64mmfr2_lsm),
 	MRS_FIELD(ID_AA64MMFR2, UAO, false, MRS_EXACT, id_aa64mmfr2_uao),
 	MRS_FIELD(ID_AA64MMFR2, CnP, false, MRS_EXACT, id_aa64mmfr2_cnp),
 	MRS_FIELD_END,
 };
-
 
 /* ID_AA64PFR0_EL1 */
 static struct mrs_field_value id_aa64pfr0_csv3[] = {
@@ -891,14 +904,13 @@ static struct mrs_field id_aa64pfr0_fields[] = {
 	MRS_FIELD(ID_AA64PFR0, RAS, false, MRS_EXACT, id_aa64pfr0_ras),
 	MRS_FIELD(ID_AA64PFR0, GIC, false, MRS_EXACT, id_aa64pfr0_gic),
 	MRS_FIELD(ID_AA64PFR0, AdvSIMD, true, MRS_LOWER, id_aa64pfr0_advsimd),
-	MRS_FIELD(ID_AA64PFR0, FP, true,  MRS_LOWER, id_aa64pfr0_fp),
+	MRS_FIELD(ID_AA64PFR0, FP, true, MRS_LOWER, id_aa64pfr0_fp),
 	MRS_FIELD(ID_AA64PFR0, EL3, false, MRS_EXACT, id_aa64pfr0_el3),
 	MRS_FIELD(ID_AA64PFR0, EL2, false, MRS_EXACT, id_aa64pfr0_el2),
 	MRS_FIELD(ID_AA64PFR0, EL1, false, MRS_LOWER, id_aa64pfr0_el1),
 	MRS_FIELD(ID_AA64PFR0, EL0, false, MRS_LOWER, id_aa64pfr0_el0),
 	MRS_FIELD_END,
 };
-
 
 /* ID_AA64PFR1_EL1 */
 static struct mrs_field_value id_aa64pfr1_bt[] = {
@@ -929,64 +941,70 @@ static struct mrs_field id_aa64pfr1_fields[] = {
 };
 
 struct mrs_user_reg {
-	u_int		reg;
-	u_int		CRm;
-	u_int		Op2;
-	size_t		offset;
+	u_int reg;
+	u_int CRm;
+	u_int Op2;
+	size_t offset;
 	struct mrs_field *fields;
 };
 
 static struct mrs_user_reg user_regs[] = {
-	{	/* id_aa64isar0_el1 */
-		.reg = ID_AA64ISAR0_EL1,
-		.CRm = 6,
-		.Op2 = 0,
-		.offset = __offsetof(struct cpu_desc, id_aa64isar0),
-		.fields = id_aa64isar0_fields,
+	{
+	    /* id_aa64isar0_el1 */
+	    .reg = ID_AA64ISAR0_EL1,
+	    .CRm = 6,
+	    .Op2 = 0,
+	    .offset = __offsetof(struct cpu_desc, id_aa64isar0),
+	    .fields = id_aa64isar0_fields,
 	},
-	{	/* id_aa64isar1_el1 */
-		.reg = ID_AA64ISAR1_EL1,
-		.CRm = 6,
-		.Op2 = 1,
-		.offset = __offsetof(struct cpu_desc, id_aa64isar1),
-		.fields = id_aa64isar1_fields,
+	{
+	    /* id_aa64isar1_el1 */
+	    .reg = ID_AA64ISAR1_EL1,
+	    .CRm = 6,
+	    .Op2 = 1,
+	    .offset = __offsetof(struct cpu_desc, id_aa64isar1),
+	    .fields = id_aa64isar1_fields,
 	},
-	{	/* id_aa64pfr0_el1 */
-		.reg = ID_AA64PFR0_EL1,
-		.CRm = 4,
-		.Op2 = 0,
-		.offset = __offsetof(struct cpu_desc, id_aa64pfr0),
-		.fields = id_aa64pfr0_fields,
+	{
+	    /* id_aa64pfr0_el1 */
+	    .reg = ID_AA64PFR0_EL1,
+	    .CRm = 4,
+	    .Op2 = 0,
+	    .offset = __offsetof(struct cpu_desc, id_aa64pfr0),
+	    .fields = id_aa64pfr0_fields,
 	},
-	{	/* id_aa64pfr0_el1 */
-		.reg = ID_AA64PFR1_EL1,
-		.CRm = 4,
-		.Op2 = 1,
-		.offset = __offsetof(struct cpu_desc, id_aa64pfr1),
-		.fields = id_aa64pfr1_fields,
+	{
+	    /* id_aa64pfr0_el1 */
+	    .reg = ID_AA64PFR1_EL1,
+	    .CRm = 4,
+	    .Op2 = 1,
+	    .offset = __offsetof(struct cpu_desc, id_aa64pfr1),
+	    .fields = id_aa64pfr1_fields,
 	},
-	{	/* id_aa64dfr0_el1 */
-		.reg = ID_AA64DFR0_EL1,
-		.CRm = 5,
-		.Op2 = 0,
-		.offset = __offsetof(struct cpu_desc, id_aa64dfr0),
-		.fields = id_aa64dfr0_fields,
+	{
+	    /* id_aa64dfr0_el1 */
+	    .reg = ID_AA64DFR0_EL1,
+	    .CRm = 5,
+	    .Op2 = 0,
+	    .offset = __offsetof(struct cpu_desc, id_aa64dfr0),
+	    .fields = id_aa64dfr0_fields,
 	},
-	{	/* id_aa64mmfr0_el1 */
-		.reg = ID_AA64MMFR0_EL1,
-		.CRm = 7,
-		.Op2 = 0,
-		.offset = __offsetof(struct cpu_desc, id_aa64mmfr0),
-		.fields = id_aa64mmfr0_fields,
+	{
+	    /* id_aa64mmfr0_el1 */
+	    .reg = ID_AA64MMFR0_EL1,
+	    .CRm = 7,
+	    .Op2 = 0,
+	    .offset = __offsetof(struct cpu_desc, id_aa64mmfr0),
+	    .fields = id_aa64mmfr0_fields,
 	},
 };
 
-#define	CPU_DESC_FIELD(desc, idx)					\
-    *(uint64_t *)((char *)&(desc) + user_regs[(idx)].offset)
+#define CPU_DESC_FIELD(desc, idx) \
+	*(uint64_t *)((char *)&(desc) + user_regs[(idx)].offset)
 
 static int
-user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
-    uint32_t esr)
+user_mrs_handler(
+    vm_offset_t va, uint32_t insn, struct trapframe *frame, uint32_t esr)
 {
 	uint64_t value;
 	int CRm, Op2, i, reg;
@@ -1089,15 +1107,15 @@ get_kernel_reg(u_int reg, uint64_t *val)
 }
 
 static uint64_t
-update_lower_register(uint64_t val, uint64_t new_val, u_int shift,
-    int width, bool sign)
+update_lower_register(
+    uint64_t val, uint64_t new_val, u_int shift, int width, bool sign)
 {
 	uint64_t mask;
 	uint64_t new_field, old_field;
 	bool update;
 
-	KASSERT(width > 0 && width < 64, ("%s: Invalid width %d", __func__,
-	    width));
+	KASSERT(
+	    width > 0 && width < 64, ("%s: Invalid width %d", __func__, width));
 
 	mask = (1ul << width) - 1;
 	new_field = (new_val >> shift) & mask;
@@ -1160,8 +1178,8 @@ update_special_regs(u_int cpu)
 			case MRS_EXACT:
 				user_reg &= ~(0xful << fields[j].shift);
 				user_reg |=
-				    (uint64_t)MRS_EXACT_FIELD(fields[j].type) <<
-				    fields[j].shift;
+				    (uint64_t)MRS_EXACT_FIELD(fields[j].type)
+				    << fields[j].shift;
 				break;
 			case MRS_LOWER:
 				user_reg = update_lower_register(user_reg,
@@ -1185,9 +1203,9 @@ bool __read_frequently lse_supported = false;
 bool __read_frequently icache_aliasing = false;
 bool __read_frequently icache_vmid = false;
 
-int64_t dcache_line_size;	/* The minimum D cache line size */
-int64_t icache_line_size;	/* The minimum I cache line size */
-int64_t idcache_line_size;	/* The minimum cache line size */
+int64_t dcache_line_size;  /* The minimum D cache line size */
+int64_t icache_line_size;  /* The minimum I cache line size */
+int64_t idcache_line_size; /* The minimum cache line size */
 
 static void
 identify_cpu_sysinit(void *dummy __unused)
@@ -1198,7 +1216,7 @@ identify_cpu_sysinit(void *dummy __unused)
 	dic = (allow_dic != 0);
 	idc = (allow_idc != 0);
 
-	CPU_FOREACH(cpu) {
+	CPU_FOREACH (cpu) {
 		check_cpu_regs(cpu);
 		if (cpu != 0)
 			update_special_regs(cpu);
@@ -1238,7 +1256,7 @@ cpu_features_sysinit(void *dummy __unused)
 {
 	u_int cpu;
 
-	CPU_FOREACH(cpu)
+	CPU_FOREACH (cpu)
 		print_cpu_features(cpu);
 }
 SYSINIT(cpu_features, SI_SUB_SMP, SI_ORDER_ANY, cpu_features_sysinit, NULL);
@@ -1431,7 +1449,7 @@ print_ctr_fields(struct sbuf *sb, uint64_t reg, void *arg)
 	sbuf_printf(sb, "%u byte I-cacheline,", CTR_ILINE_SIZE(reg));
 	reg &= ~(CTR_DLINE_MASK | CTR_ILINE_MASK);
 
-	switch(CTR_L1IP_VAL(reg)) {
+	switch (CTR_L1IP_VAL(reg)) {
 	case CTR_L1IP_VPIPT:
 		sbuf_printf(sb, "VPIPT");
 		break;
@@ -1484,7 +1502,7 @@ print_id_fields(struct sbuf *sb, uint64_t reg, void *arg)
 	struct mrs_field_value *fv;
 	int field, i, j, printed;
 
-#define SEP_STR	((printed++) == 0) ? "" : ","
+#define SEP_STR ((printed++) == 0) ? "" : ","
 	printed = 0;
 	for (i = 0; fields[i].type != 0; i++) {
 		fv = fields[i].values;
@@ -1533,7 +1551,7 @@ print_cpu_features(u_int cpu)
 	    cpu_desc[cpu].cpu_variant, cpu_desc[cpu].cpu_revision);
 
 	sbuf_cat(sb, " affinity:");
-	switch(cpu_aff_levels) {
+	switch (cpu_aff_levels) {
 	default:
 	case 4:
 		sbuf_printf(sb, " %2d", CPU_AFF3(cpu_desc[cpu].mpidr));
@@ -1571,14 +1589,15 @@ print_cpu_features(u_int cpu)
 	 */
 	if (cpu == 0 && CPU_VAR(PCPU_GET(midr)) == 0 &&
 	    CPU_MATCH_ERRATA_CAVIUM_THUNDERX_1_1)
-		printf("WARNING: ThunderX Pass 1.1 detected.\nThis has known "
+		printf(
+		    "WARNING: ThunderX Pass 1.1 detected.\nThis has known "
 		    "hardware bugs that may cause the incorrect operation of "
 		    "atomic operations.\n");
 
 	/* Cache Type Register */
 	if (cpu == 0 || (cpu_print_regs & PRINT_CTR_EL0) != 0) {
-		print_register(sb, "Cache Type",
-		    cpu_desc[cpu].ctr, print_ctr_fields, NULL);
+		print_register(sb, "Cache Type", cpu_desc[cpu].ctr,
+		    print_ctr_fields, NULL);
 	}
 
 	/* AArch64 Instruction Set Attribute Register 0 */
@@ -1659,8 +1678,9 @@ identify_cache(uint64_t ctr)
 	}
 
 	if (dcache_line_size == 0) {
-		KASSERT(icache_line_size == 0, ("%s: i-cacheline size set: %ld",
-		    __func__, icache_line_size));
+		KASSERT(icache_line_size == 0,
+		    ("%s: i-cacheline size set: %ld", __func__,
+			icache_line_size));
 
 		/* Get the D cache line size */
 		dcache_line_size = CTR_DLINE_SIZE(ctr);

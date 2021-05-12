@@ -27,17 +27,17 @@
  */
 
 #ifndef _LINUX_PFN_T_H_
-#define	_LINUX_PFN_T_H_
+#define _LINUX_PFN_T_H_
 
 #include <linux/mm.h>
 
 CTASSERT(PAGE_SHIFT > 4);
 
-#define	PFN_FLAGS_MASK (((u64)(PAGE_SIZE - 1)) << (64 - PAGE_SHIFT))
-#define	PFN_SG_CHAIN (1ULL << (64 - 1))
-#define	PFN_SG_LAST (1ULL << (64 - 2))
-#define	PFN_DEV (1ULL << (64 - 3))
-#define	PFN_MAP (1ULL << (64 - 4))
+#define PFN_FLAGS_MASK (((u64)(PAGE_SIZE - 1)) << (64 - PAGE_SHIFT))
+#define PFN_SG_CHAIN (1ULL << (64 - 1))
+#define PFN_SG_LAST (1ULL << (64 - 2))
+#define PFN_DEV (1ULL << (64 - 3))
+#define PFN_MAP (1ULL << (64 - 4))
 
 static inline pfn_t
 __pfn_to_pfn_t(unsigned long pfn, u64 flags)
@@ -50,7 +50,7 @@ __pfn_to_pfn_t(unsigned long pfn, u64 flags)
 static inline pfn_t
 pfn_to_pfn_t(unsigned long pfn)
 {
-	return (__pfn_to_pfn_t (pfn, 0));
+	return (__pfn_to_pfn_t(pfn, 0));
 }
 
-#endif					/* _LINUX_PFN_T_H_ */
+#endif /* _LINUX_PFN_T_H_ */

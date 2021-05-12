@@ -42,10 +42,10 @@
  * Version of the stack
  */
 
-#define NG_BLUETOOTH_VERSION	1
+#define NG_BLUETOOTH_VERSION 1
 
 /*
- * Declare the base of the Bluetooth sysctl hierarchy, 
+ * Declare the base of the Bluetooth sysctl hierarchy,
  * but only if this file cares about sysctl's
  */
 
@@ -65,166 +65,166 @@ SYSCTL_DECL(_net_bluetooth_sco);
 struct mbuf;
 
 struct ng_bt_mbufq {
-	struct mbuf	*head;   /* first item in the queue */
-	struct mbuf	*tail;   /* last item in the queue */
-	u_int32_t	 len;    /* number of items in the queue */
-	u_int32_t	 maxlen; /* maximal number of items in the queue */
-	u_int32_t	 drops;	 /* number if dropped items */
+	struct mbuf *head; /* first item in the queue */
+	struct mbuf *tail; /* last item in the queue */
+	u_int32_t len;	   /* number of items in the queue */
+	u_int32_t maxlen;  /* maximal number of items in the queue */
+	u_int32_t drops;   /* number if dropped items */
 };
-typedef struct ng_bt_mbufq	ng_bt_mbufq_t;
-typedef struct ng_bt_mbufq *	ng_bt_mbufq_p;
+typedef struct ng_bt_mbufq ng_bt_mbufq_t;
+typedef struct ng_bt_mbufq *ng_bt_mbufq_p;
 
-#define NG_BT_MBUFQ_INIT(q, _maxlen)			\
-	do {						\
-		(q)->head = NULL;			\
-		(q)->tail = NULL;			\
-		(q)->len = 0;				\
-		(q)->maxlen = (_maxlen);		\
-		(q)->drops = 0;				\
+#define NG_BT_MBUFQ_INIT(q, _maxlen)     \
+	do {                             \
+		(q)->head = NULL;        \
+		(q)->tail = NULL;        \
+		(q)->len = 0;            \
+		(q)->maxlen = (_maxlen); \
+		(q)->drops = 0;          \
 	} while (0)
 
-#define NG_BT_MBUFQ_DESTROY(q)				\
-	do {						\
-		NG_BT_MBUFQ_DRAIN((q));			\
+#define NG_BT_MBUFQ_DESTROY(q)          \
+	do {                            \
+		NG_BT_MBUFQ_DRAIN((q)); \
 	} while (0)
 
-#define NG_BT_MBUFQ_FIRST(q)	(q)->head
+#define NG_BT_MBUFQ_FIRST(q) (q)->head
 
-#define NG_BT_MBUFQ_LEN(q)	(q)->len
+#define NG_BT_MBUFQ_LEN(q) (q)->len
 
-#define NG_BT_MBUFQ_FULL(q)	((q)->len >= (q)->maxlen)
+#define NG_BT_MBUFQ_FULL(q) ((q)->len >= (q)->maxlen)
 
-#define NG_BT_MBUFQ_DROP(q)	(q)->drops ++
+#define NG_BT_MBUFQ_DROP(q) (q)->drops++
 
-#define NG_BT_MBUFQ_ENQUEUE(q, i)			\
-	do {						\
-		(i)->m_nextpkt = NULL;			\
-							\
-		if ((q)->tail == NULL)			\
-			(q)->head = (i);		\
-		else					\
-			(q)->tail->m_nextpkt = (i);	\
-							\
-		(q)->tail = (i);			\
-		(q)->len ++;				\
+#define NG_BT_MBUFQ_ENQUEUE(q, i)                   \
+	do {                                        \
+		(i)->m_nextpkt = NULL;              \
+                                                    \
+		if ((q)->tail == NULL)              \
+			(q)->head = (i);            \
+		else                                \
+			(q)->tail->m_nextpkt = (i); \
+                                                    \
+		(q)->tail = (i);                    \
+		(q)->len++;                         \
 	} while (0)
 
-#define NG_BT_MBUFQ_DEQUEUE(q, i)			\
-	do {						\
-		(i) = (q)->head;			\
-		if ((i) != NULL) {			\
+#define NG_BT_MBUFQ_DEQUEUE(q, i)                         \
+	do {                                              \
+		(i) = (q)->head;                          \
+		if ((i) != NULL) {                        \
 			(q)->head = (q)->head->m_nextpkt; \
-			if ((q)->head == NULL)		\
-				(q)->tail = NULL;	\
-							\
-			(q)->len --;			\
-			(i)->m_nextpkt = NULL;		\
-		} 					\
+			if ((q)->head == NULL)            \
+				(q)->tail = NULL;         \
+                                                          \
+			(q)->len--;                       \
+			(i)->m_nextpkt = NULL;            \
+		}                                         \
 	} while (0)
 
-#define NG_BT_MBUFQ_PREPEND(q, i)			\
-	do {						\
-		(i)->m_nextpkt = (q)->head;		\
-		if ((q)->tail == NULL)			\
-			(q)->tail = (i);		\
-							\
-		(q)->head = (i);			\
-		(q)->len ++;				\
+#define NG_BT_MBUFQ_PREPEND(q, i)           \
+	do {                                \
+		(i)->m_nextpkt = (q)->head; \
+		if ((q)->tail == NULL)      \
+			(q)->tail = (i);    \
+                                            \
+		(q)->head = (i);            \
+		(q)->len++;                 \
 	} while (0)
 
-#define NG_BT_MBUFQ_DRAIN(q)				\
-	do { 						\
-        	struct mbuf	*m = NULL;		\
-							\
-		for (;;) { 				\
-			NG_BT_MBUFQ_DEQUEUE((q), m);	\
-			if (m == NULL) 			\
-				break; 			\
-							\
-			NG_FREE_M(m);	 		\
-		} 					\
+#define NG_BT_MBUFQ_DRAIN(q)                         \
+	do {                                         \
+		struct mbuf *m = NULL;               \
+                                                     \
+		for (;;) {                           \
+			NG_BT_MBUFQ_DEQUEUE((q), m); \
+			if (m == NULL)               \
+				break;               \
+                                                     \
+			NG_FREE_M(m);                \
+		}                                    \
 	} while (0)
 
-/* 
+/*
  * Netgraph item queue and useful itemq macros
  */
 
 struct ng_item;
 
 struct ng_bt_itemq {
-	STAILQ_HEAD(, ng_item)	queue;	/* actually items queue */
-	u_int32_t	 len;    /* number of items in the queue */
-	u_int32_t	 maxlen; /* maximal number of items in the queue */
-	u_int32_t	 drops;  /* number if dropped items */
+	STAILQ_HEAD(, ng_item) queue; /* actually items queue */
+	u_int32_t len;		      /* number of items in the queue */
+	u_int32_t maxlen;	      /* maximal number of items in the queue */
+	u_int32_t drops;	      /* number if dropped items */
 };
-typedef struct ng_bt_itemq	ng_bt_itemq_t;
-typedef struct ng_bt_itemq *	ng_bt_itemq_p;
+typedef struct ng_bt_itemq ng_bt_itemq_t;
+typedef struct ng_bt_itemq *ng_bt_itemq_p;
 
-#define NG_BT_ITEMQ_INIT(q, _maxlen)			\
-	do {						\
-		STAILQ_INIT(&(q)->queue);		\
-		(q)->len = 0;				\
-		(q)->maxlen = (_maxlen);		\
-		(q)->drops = 0;				\
+#define NG_BT_ITEMQ_INIT(q, _maxlen)      \
+	do {                              \
+		STAILQ_INIT(&(q)->queue); \
+		(q)->len = 0;             \
+		(q)->maxlen = (_maxlen);  \
+		(q)->drops = 0;           \
 	} while (0)
 
-#define NG_BT_ITEMQ_DESTROY(q)				\
-	do {						\
-		NG_BT_ITEMQ_DRAIN((q));			\
+#define NG_BT_ITEMQ_DESTROY(q)          \
+	do {                            \
+		NG_BT_ITEMQ_DRAIN((q)); \
 	} while (0)
 
-#define NG_BT_ITEMQ_FIRST(q)	STAILQ_FIRST(&(q)->queue)
+#define NG_BT_ITEMQ_FIRST(q) STAILQ_FIRST(&(q)->queue)
 
-#define NG_BT_ITEMQ_LEN(q)	NG_BT_MBUFQ_LEN((q))
+#define NG_BT_ITEMQ_LEN(q) NG_BT_MBUFQ_LEN((q))
 
-#define NG_BT_ITEMQ_FULL(q)	NG_BT_MBUFQ_FULL((q))
+#define NG_BT_ITEMQ_FULL(q) NG_BT_MBUFQ_FULL((q))
 
-#define NG_BT_ITEMQ_DROP(q)	NG_BT_MBUFQ_DROP((q))
+#define NG_BT_ITEMQ_DROP(q) NG_BT_MBUFQ_DROP((q))
 
-#define NG_BT_ITEMQ_ENQUEUE(q, i)			\
-	do {						\
-		STAILQ_INSERT_TAIL(&(q)->queue, (i), el_next);	\
-		(q)->len ++;				\
+#define NG_BT_ITEMQ_ENQUEUE(q, i)                              \
+	do {                                                   \
+		STAILQ_INSERT_TAIL(&(q)->queue, (i), el_next); \
+		(q)->len++;                                    \
 	} while (0)
 
-#define NG_BT_ITEMQ_DEQUEUE(q, i)			\
-	do {						\
-		(i) = STAILQ_FIRST(&(q)->queue);	\
-		if ((i) != NULL) {			\
-			STAILQ_REMOVE_HEAD(&(q)->queue, el_next);	\
-			(q)->len --;			\
-		} 					\
+#define NG_BT_ITEMQ_DEQUEUE(q, i)                                 \
+	do {                                                      \
+		(i) = STAILQ_FIRST(&(q)->queue);                  \
+		if ((i) != NULL) {                                \
+			STAILQ_REMOVE_HEAD(&(q)->queue, el_next); \
+			(q)->len--;                               \
+		}                                                 \
 	} while (0)
 
-#define NG_BT_ITEMQ_PREPEND(q, i)			\
-	do {						\
-		STAILQ_INSERT_HEAD(&(q)->queue, (i), el_next);	\
-		(q)->len ++;				\
+#define NG_BT_ITEMQ_PREPEND(q, i)                              \
+	do {                                                   \
+		STAILQ_INSERT_HEAD(&(q)->queue, (i), el_next); \
+		(q)->len++;                                    \
 	} while (0)
 
-#define NG_BT_ITEMQ_DRAIN(q)				\
-	do { 						\
-        	struct ng_item	*i = NULL;		\
-							\
-		for (;;) { 				\
-			NG_BT_ITEMQ_DEQUEUE((q), i);	\
-			if (i == NULL) 			\
-				break; 			\
-							\
-			NG_FREE_ITEM(i); 		\
-		} 					\
+#define NG_BT_ITEMQ_DRAIN(q)                         \
+	do {                                         \
+		struct ng_item *i = NULL;            \
+                                                     \
+		for (;;) {                           \
+			NG_BT_ITEMQ_DEQUEUE((q), i); \
+			if (i == NULL)               \
+				break;               \
+                                                     \
+			NG_FREE_ITEM(i);             \
+		}                                    \
 	} while (0)
 
 /*
  * Get Bluetooth stack sysctl globals
  */
 
-u_int32_t	bluetooth_hci_command_timeout	(void);
-u_int32_t	bluetooth_hci_connect_timeout	(void);
-u_int32_t	bluetooth_hci_max_neighbor_age	(void);
-u_int32_t	bluetooth_l2cap_rtx_timeout	(void);
-u_int32_t	bluetooth_l2cap_ertx_timeout	(void);
-u_int32_t      bluetooth_sco_rtx_timeout       (void);
+u_int32_t bluetooth_hci_command_timeout(void);
+u_int32_t bluetooth_hci_connect_timeout(void);
+u_int32_t bluetooth_hci_max_neighbor_age(void);
+u_int32_t bluetooth_l2cap_rtx_timeout(void);
+u_int32_t bluetooth_l2cap_ertx_timeout(void);
+u_int32_t bluetooth_sco_rtx_timeout(void);
 
 #define BDADDR_BREDR 0
 #define BDADDR_LE_PUBLIC 1

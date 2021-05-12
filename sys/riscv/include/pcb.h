@@ -34,30 +34,30 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PCB_H_
-#define	_MACHINE_PCB_H_
+#ifndef _MACHINE_PCB_H_
+#define _MACHINE_PCB_H_
 
 #ifndef LOCORE
 
 struct trapframe;
 
 struct pcb {
-	uint64_t	pcb_ra;		/* Return address */
-	uint64_t	pcb_sp;		/* Stack pointer */
-	uint64_t	pcb_gp;		/* Global pointer */
-	uint64_t	pcb_tp;		/* Thread pointer */
-	uint64_t	pcb_s[12];	/* Saved registers */
-	uint64_t	pcb_x[32][2];	/* Floating point registers */
-	uint64_t	pcb_fcsr;	/* Floating point control reg */
-	uint64_t	pcb_fpflags;	/* Floating point flags */
-#define	PCB_FP_STARTED	0x1
-#define	PCB_FP_USERMASK	0x1
-	vm_offset_t	pcb_onfault;	/* Copyinout fault handler */
+	uint64_t pcb_ra;       /* Return address */
+	uint64_t pcb_sp;       /* Stack pointer */
+	uint64_t pcb_gp;       /* Global pointer */
+	uint64_t pcb_tp;       /* Thread pointer */
+	uint64_t pcb_s[12];    /* Saved registers */
+	uint64_t pcb_x[32][2]; /* Floating point registers */
+	uint64_t pcb_fcsr;     /* Floating point control reg */
+	uint64_t pcb_fpflags;  /* Floating point flags */
+#define PCB_FP_STARTED 0x1
+#define PCB_FP_USERMASK 0x1
+	vm_offset_t pcb_onfault; /* Copyinout fault handler */
 };
 
 #ifdef _KERNEL
-void	makectx(struct trapframe *tf, struct pcb *pcb);
-int	savectx(struct pcb *pcb) __returns_twice;
+void makectx(struct trapframe *tf, struct pcb *pcb);
+int savectx(struct pcb *pcb) __returns_twice;
 #endif
 
 #endif /* !LOCORE */

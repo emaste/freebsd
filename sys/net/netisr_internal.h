@@ -33,7 +33,7 @@
  */
 
 #ifndef _NET_NETISR_INTERNAL_H_
-#define	_NET_NETISR_INTERNAL_H_
+#define _NET_NETISR_INTERNAL_H_
 
 #ifndef _WANT_NETISR_INTERNAL
 #error "no user-serviceable parts inside"
@@ -59,17 +59,17 @@ typedef void *netisr_drainedcpu_t;
  * netisr_register(), and derived from the public struct netisr_handler.
  */
 struct netisr_proto {
-	const char	*np_name;	/* Character string protocol name. */
-	netisr_handler_t *np_handler;	/* Protocol handler. */
-	netisr_m2flow_t	*np_m2flow;	/* Query flow for untagged packet. */
-	netisr_m2cpuid_t *np_m2cpuid;	/* Query CPU to process packet on. */
+	const char *np_name;	      /* Character string protocol name. */
+	netisr_handler_t *np_handler; /* Protocol handler. */
+	netisr_m2flow_t *np_m2flow;   /* Query flow for untagged packet. */
+	netisr_m2cpuid_t *np_m2cpuid; /* Query CPU to process packet on. */
 	netisr_drainedcpu_t *np_drainedcpu; /* Callback when drained a queue. */
-	u_int		 np_qlimit;	/* Maximum per-CPU queue depth. */
-	u_int		 np_policy;	/* Work placement policy. */
-	u_int		 np_dispatch;	/* Work dispatch policy. */
+	u_int np_qlimit;		    /* Maximum per-CPU queue depth. */
+	u_int np_policy;		    /* Work placement policy. */
+	u_int np_dispatch;		    /* Work dispatch policy. */
 };
 
-#define	NETISR_MAXPROT	16		/* Compile-time limit. */
+#define NETISR_MAXPROT 16 /* Compile-time limit. */
 
 /*
  * Protocol-specific work for each workstream is described by struct
@@ -80,20 +80,20 @@ struct netisr_work {
 	/*
 	 * Packet queue, linked by m_nextpkt.
 	 */
-	struct mbuf	*nw_head;
-	struct mbuf	*nw_tail;
-	u_int		 nw_len;
-	u_int		 nw_qlimit;
-	u_int		 nw_watermark;
+	struct mbuf *nw_head;
+	struct mbuf *nw_tail;
+	u_int nw_len;
+	u_int nw_qlimit;
+	u_int nw_watermark;
 
 	/*
 	 * Statistics -- written unlocked, but mostly from curcpu.
 	 */
-	u_int64_t	 nw_dispatched; /* Number of direct dispatches. */
-	u_int64_t	 nw_hybrid_dispatched; /* "" hybrid dispatches. */
-	u_int64_t	 nw_qdrops;	/* "" drops. */
-	u_int64_t	 nw_queued;	/* "" enqueues. */
-	u_int64_t	 nw_handled;	/* "" handled in worker. */
+	u_int64_t nw_dispatched;	/* Number of direct dispatches. */
+	u_int64_t nw_hybrid_dispatched; /* "" hybrid dispatches. */
+	u_int64_t nw_qdrops;		/* "" drops. */
+	u_int64_t nw_queued;		/* "" enqueues. */
+	u_int64_t nw_handled;		/* "" handled in worker. */
 };
 
 /*
@@ -107,24 +107,24 @@ struct netisr_work {
  * work already in the workstream queue.
  */
 struct netisr_workstream {
-	struct intr_event *nws_intr_event;	/* Handler for stream. */
-	void		*nws_swi_cookie;	/* swi(9) cookie for stream. */
-	struct mtx	 nws_mtx;		/* Synchronize work. */
-	u_int		 nws_cpu;		/* CPU pinning. */
-	u_int		 nws_flags;		/* Wakeup flags. */
-	u_int		 nws_pendingbits;	/* Scheduled protocols. */
+	struct intr_event *nws_intr_event; /* Handler for stream. */
+	void *nws_swi_cookie;		   /* swi(9) cookie for stream. */
+	struct mtx nws_mtx;		   /* Synchronize work. */
+	u_int nws_cpu;			   /* CPU pinning. */
+	u_int nws_flags;		   /* Wakeup flags. */
+	u_int nws_pendingbits;		   /* Scheduled protocols. */
 
 	/*
 	 * Each protocol has per-workstream data.
 	 */
-	struct netisr_work	nws_work[NETISR_MAXPROT];
+	struct netisr_work nws_work[NETISR_MAXPROT];
 } __aligned(CACHE_LINE_SIZE);
 
 /*
  * Per-workstream flags.
  */
-#define	NWS_RUNNING	0x00000001	/* Currently running in a thread. */
-#define	NWS_DISPATCHING	0x00000002	/* Currently being direct-dispatched. */
-#define	NWS_SCHEDULED	0x00000004	/* Signal issued. */
+#define NWS_RUNNING 0x00000001 /* Currently running in a thread. */
+#define NWS_DISPATCHING 0x00000002 /* Currently being direct-dispatched. */
+#define NWS_SCHEDULED 0x00000004 /* Signal issued. */
 
 #endif /* !_NET_NETISR_INTERNAL_H_ */

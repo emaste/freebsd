@@ -33,6 +33,7 @@
  */
 
 #include <linux/proc_fs.h>
+
 #include "sdp.h"
 
 #ifdef CONFIG_PROC_FS
@@ -42,26 +43,28 @@
 
 /* just like TCP fs */
 struct sdp_seq_afinfo {
-	struct module           *owner;
-	char                    *name;
-	sa_family_t             family;
-	int                     (*seq_show) (struct seq_file *m, void *v);
-	struct file_operations  *seq_fops;
+	struct module *owner;
+	char *name;
+	sa_family_t family;
+	int (*seq_show)(struct seq_file *m, void *v);
+	struct file_operations *seq_fops;
 };
 
 struct sdp_iter_state {
-	sa_family_t             family;
-	int                     num;
-	struct seq_operations   seq_ops;
+	sa_family_t family;
+	int num;
+	struct seq_operations seq_ops;
 };
 
-static void *sdp_get_idx(struct seq_file *seq, loff_t pos)
+static void *
+sdp_get_idx(struct seq_file *seq, loff_t pos)
 {
 	int i = 0;
 	struct sdp_sock *ssk;
 
 	if (!list_empty(&sock_list))
-		list_for_each_entry(ssk, &sock_list, sock_list) {
+		list_for_each_entry(ssk, &sock_list, sock_list)
+		{
 			if (i == pos)
 				return ssk;
 			i++;
@@ -70,7 +73,8 @@ static void *sdp_get_idx(struct seq_file *seq, loff_t pos)
 	return NULL;
 }
 
-static void *sdp_seq_start(struct seq_file *seq, loff_t *pos)
+static void *
+sdp_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	void *start = NULL;
 	struct sdp_iter_state *st = seq->private;
@@ -89,7 +93,8 @@ static void *sdp_seq_start(struct seq_file *seq, loff_t *pos)
 	return start;
 }
 
-static void *sdp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+static void *
+sdp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct sdp_iter_state *st = seq->private;
 	void *next = NULL;
@@ -109,13 +114,15 @@ static void *sdp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	return next;
 }
 
-static void sdp_seq_stop(struct seq_file *seq, void *v)
+static void
+sdp_seq_stop(struct seq_file *seq, void *v)
 {
 }
 
 #define TMPSZ 150
 
-static int sdp_seq_show(struct seq_file *seq, void *v)
+static int
+sdp_seq_show(struct seq_file *seq, void *v)
 {
 	struct sdp_iter_state *st;
 	struct socket *sk = v;
@@ -130,8 +137,8 @@ static int sdp_seq_show(struct seq_file *seq, void *v)
 
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(seq, "%-*s\n", TMPSZ - 1,
-				"  sl  local_address rem_address        "
-				"uid inode   rx_queue tx_queue state");
+		    "  sl  local_address rem_address        "
+		    "uid inode   rx_queue tx_queue state");
 		goto out;
 	}
 
@@ -147,8 +154,8 @@ static int sdp_seq_show(struct seq_file *seq, void *v)
 	tx_queue = sdp_sk(sk)->write_seq - sdp_sk(sk)->tx_ring.una_seq;
 
 	sprintf(tmpbuf, "%4d: %08X:%04X %08X:%04X %5d %lu	%08X:%08X %X",
-		st->num, src, srcp, dest, destp, uid, inode,
-		rx_queue, tx_queue, sk->sk_state);
+	    st->num, src, srcp, dest, destp, uid, inode, rx_queue, tx_queue,
+	    sk->sk_state);
 
 	seq_printf(seq, "%-*s\n", TMPSZ - 1, tmpbuf);
 
@@ -157,7 +164,8 @@ out:
 	return 0;
 }
 
-static int sdp_seq_open(struct inode *inode, struct file *file)
+static int
+sdp_seq_open(struct inode *inode, struct file *file)
 {
 	struct sdp_seq_afinfo *afinfo = PDE(inode)->data;
 	struct seq_file *seq;
@@ -168,22 +176,22 @@ static int sdp_seq_open(struct inode *inode, struct file *file)
 		return -EINVAL;
 
 /* Workaround bogus warning by memtrack */
-#define _kzalloc(size,flags) kzalloc(size,flags)
+#define _kzalloc(size, flags) kzalloc(size, flags)
 #undef kzalloc
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
-#define kzalloc(s,f) _kzalloc(s,f)	
+#define kzalloc(s, f) _kzalloc(s, f)
 	if (!s)
 		return -ENOMEM;
-	s->family               = afinfo->family;
-	s->seq_ops.start        = sdp_seq_start;
-	s->seq_ops.next         = sdp_seq_next;
-	s->seq_ops.show         = afinfo->seq_show;
-	s->seq_ops.stop         = sdp_seq_stop;
+	s->family = afinfo->family;
+	s->seq_ops.start = sdp_seq_start;
+	s->seq_ops.next = sdp_seq_next;
+	s->seq_ops.show = afinfo->seq_show;
+	s->seq_ops.stop = sdp_seq_stop;
 
 	rc = seq_open(file, &s->seq_ops);
 	if (rc)
 		goto out_kfree;
-	seq          = file->private_data;
+	seq = file->private_data;
 	seq->private = s;
 out:
 	return rc;
@@ -192,21 +200,20 @@ out_kfree:
 	goto out;
 }
 
-
 static struct file_operations sdp_seq_fops;
 static struct sdp_seq_afinfo sdp_seq_afinfo = {
-	.owner          = THIS_MODULE,
-	.name           = "sdp",
-	.family         = AF_INET_SDP,
-	.seq_show       = sdp_seq_show,
-	.seq_fops       = &sdp_seq_fops,
+	.owner = THIS_MODULE,
+	.name = "sdp",
+	.family = AF_INET_SDP,
+	.seq_show = sdp_seq_show,
+	.seq_fops = &sdp_seq_fops,
 };
 
 #ifdef SDPSTATS_ON
 DEFINE_PER_CPU(struct sdpstats, sdpstats);
 
-static void sdpstats_seq_hist(struct seq_file *seq, char *str, u32 *h, int n,
-		int is_log)
+static void
+sdpstats_seq_hist(struct seq_file *seq, char *str, u32 *h, int n, int is_log)
 {
 	int i;
 	u32 max = 0;
@@ -226,7 +233,7 @@ static void sdpstats_seq_hist(struct seq_file *seq, char *str, u32 *h, int n,
 	for (i = 0; i < n; i++) {
 		char s[51];
 		int j = 50 * h[i] / max;
-		int val = is_log ? (i == n-1 ? 0 : 1<<i) : i;
+		int val = is_log ? (i == n - 1 ? 0 : 1 << i) : i;
 		memset(s, '*', j);
 		s[j] = '\0';
 
@@ -234,34 +241,39 @@ static void sdpstats_seq_hist(struct seq_file *seq, char *str, u32 *h, int n,
 	}
 }
 
-#define SDPSTATS_COUNTER_GET(var) ({ \
-	u32 __val = 0;						\
-	unsigned int __i;                                       \
-	for_each_possible_cpu(__i)                              \
-		__val += per_cpu(sdpstats, __i).var;		\
-	__val;							\
-})	
+#define SDPSTATS_COUNTER_GET(var)                        \
+	({                                               \
+		u32 __val = 0;                           \
+		unsigned int __i;                        \
+		for_each_possible_cpu(__i)               \
+		    __val += per_cpu(sdpstats, __i).var; \
+		__val;                                   \
+	})
 
-#define SDPSTATS_HIST_GET(hist, hist_len, sum) ({ \
-	unsigned int __i;                                       \
-	for_each_possible_cpu(__i) {                            \
-		unsigned int __j;				\
-		u32 *h = per_cpu(sdpstats, __i).hist;		\
-		for (__j = 0; __j < hist_len; __j++) { 		\
-			sum[__j] += h[__j];			\
-		} \
-	} 							\
-})
+#define SDPSTATS_HIST_GET(hist, hist_len, sum)                 \
+	({                                                     \
+		unsigned int __i;                              \
+		for_each_possible_cpu(__i)                     \
+		{                                              \
+			unsigned int __j;                      \
+			u32 *h = per_cpu(sdpstats, __i).hist;  \
+			for (__j = 0; __j < hist_len; __j++) { \
+				sum[__j] += h[__j];            \
+			}                                      \
+		}                                              \
+	})
 
-#define __sdpstats_seq_hist(seq, msg, hist, is_log) ({		\
-	u32 tmp_hist[SDPSTATS_MAX_HIST_SIZE];			\
-	int hist_len = ARRAY_SIZE(__get_cpu_var(sdpstats).hist);\
-	memset(tmp_hist, 0, sizeof(tmp_hist));			\
-	SDPSTATS_HIST_GET(hist, hist_len, tmp_hist);	\
-	sdpstats_seq_hist(seq, msg, tmp_hist, hist_len, is_log);\
-})
+#define __sdpstats_seq_hist(seq, msg, hist, is_log)                      \
+	({                                                               \
+		u32 tmp_hist[SDPSTATS_MAX_HIST_SIZE];                    \
+		int hist_len = ARRAY_SIZE(__get_cpu_var(sdpstats).hist); \
+		memset(tmp_hist, 0, sizeof(tmp_hist));                   \
+		SDPSTATS_HIST_GET(hist, hist_len, tmp_hist);             \
+		sdpstats_seq_hist(seq, msg, tmp_hist, hist_len, is_log); \
+	})
 
-static int sdpstats_seq_show(struct seq_file *seq, void *v)
+static int
+sdpstats_seq_show(struct seq_file *seq, void *v)
 {
 	int i;
 
@@ -269,81 +281,92 @@ static int sdpstats_seq_show(struct seq_file *seq, void *v)
 
 	__sdpstats_seq_hist(seq, "sendmsg_seglen", sendmsg_seglen, 1);
 	__sdpstats_seq_hist(seq, "send_size", send_size, 1);
-	__sdpstats_seq_hist(seq, "credits_before_update",
-		credits_before_update, 0);
+	__sdpstats_seq_hist(
+	    seq, "credits_before_update", credits_before_update, 0);
 
 	seq_printf(seq, "sdp_sendmsg() calls\t\t: %d\n",
-		SDPSTATS_COUNTER_GET(sendmsg));
+	    SDPSTATS_COUNTER_GET(sendmsg));
 	seq_printf(seq, "bcopy segments     \t\t: %d\n",
-		SDPSTATS_COUNTER_GET(sendmsg_bcopy_segment));
+	    SDPSTATS_COUNTER_GET(sendmsg_bcopy_segment));
 	seq_printf(seq, "bzcopy segments    \t\t: %d\n",
-		SDPSTATS_COUNTER_GET(sendmsg_bzcopy_segment));
+	    SDPSTATS_COUNTER_GET(sendmsg_bzcopy_segment));
 	seq_printf(seq, "zcopy segments    \t\t: %d\n",
-		SDPSTATS_COUNTER_GET(sendmsg_zcopy_segment));
+	    SDPSTATS_COUNTER_GET(sendmsg_zcopy_segment));
 	seq_printf(seq, "post_send_credits  \t\t: %d\n",
-		SDPSTATS_COUNTER_GET(post_send_credits));
+	    SDPSTATS_COUNTER_GET(post_send_credits));
 	seq_printf(seq, "memcpy_count       \t\t: %u\n",
-		SDPSTATS_COUNTER_GET(memcpy_count));
+	    SDPSTATS_COUNTER_GET(memcpy_count));
 
-        for (i = 0; i < ARRAY_SIZE(__get_cpu_var(sdpstats).post_send); i++) {
-                if (mid2str(i)) {
-                        seq_printf(seq, "post_send %-20s\t: %d\n",
-                                        mid2str(i),
-					SDPSTATS_COUNTER_GET(post_send[i]));
-                }
-        }
+	for (i = 0; i < ARRAY_SIZE(__get_cpu_var(sdpstats).post_send); i++) {
+		if (mid2str(i)) {
+			seq_printf(seq, "post_send %-20s\t: %d\n", mid2str(i),
+			    SDPSTATS_COUNTER_GET(post_send[i]));
+		}
+	}
 
 	seq_printf(seq, "\n");
 	seq_printf(seq, "post_recv         \t\t: %d\n",
-		SDPSTATS_COUNTER_GET(post_recv));
+	    SDPSTATS_COUNTER_GET(post_recv));
 	seq_printf(seq, "BZCopy poll miss  \t\t: %d\n",
-		SDPSTATS_COUNTER_GET(bzcopy_poll_miss));
+	    SDPSTATS_COUNTER_GET(bzcopy_poll_miss));
 	seq_printf(seq, "send_wait_for_mem \t\t: %d\n",
-		SDPSTATS_COUNTER_GET(send_wait_for_mem));
+	    SDPSTATS_COUNTER_GET(send_wait_for_mem));
 	seq_printf(seq, "send_miss_no_credits\t\t: %d\n",
-		SDPSTATS_COUNTER_GET(send_miss_no_credits));
+	    SDPSTATS_COUNTER_GET(send_miss_no_credits));
 
-	seq_printf(seq, "rx_poll_miss      \t\t: %d\n", SDPSTATS_COUNTER_GET(rx_poll_miss));
-	seq_printf(seq, "tx_poll_miss      \t\t: %d\n", SDPSTATS_COUNTER_GET(tx_poll_miss));
-	seq_printf(seq, "tx_poll_busy      \t\t: %d\n", SDPSTATS_COUNTER_GET(tx_poll_busy));
-	seq_printf(seq, "tx_poll_hit       \t\t: %d\n", SDPSTATS_COUNTER_GET(tx_poll_hit));
+	seq_printf(seq, "rx_poll_miss      \t\t: %d\n",
+	    SDPSTATS_COUNTER_GET(rx_poll_miss));
+	seq_printf(seq, "tx_poll_miss      \t\t: %d\n",
+	    SDPSTATS_COUNTER_GET(tx_poll_miss));
+	seq_printf(seq, "tx_poll_busy      \t\t: %d\n",
+	    SDPSTATS_COUNTER_GET(tx_poll_busy));
+	seq_printf(seq, "tx_poll_hit       \t\t: %d\n",
+	    SDPSTATS_COUNTER_GET(tx_poll_hit));
 
 	seq_printf(seq, "CQ stats:\n");
-	seq_printf(seq, "- RX interrupts\t\t: %d\n", SDPSTATS_COUNTER_GET(rx_int_count));
-	seq_printf(seq, "- TX interrupts\t\t: %d\n", SDPSTATS_COUNTER_GET(tx_int_count));
+	seq_printf(seq, "- RX interrupts\t\t: %d\n",
+	    SDPSTATS_COUNTER_GET(rx_int_count));
+	seq_printf(seq, "- TX interrupts\t\t: %d\n",
+	    SDPSTATS_COUNTER_GET(tx_int_count));
 
 	seq_printf(seq, "ZCopy stats:\n");
-	seq_printf(seq, "- TX timeout\t\t: %d\n", SDPSTATS_COUNTER_GET(zcopy_tx_timeout));
-	seq_printf(seq, "- TX cross send\t\t: %d\n", SDPSTATS_COUNTER_GET(zcopy_cross_send));
-	seq_printf(seq, "- TX aborted by peer\t: %d\n", SDPSTATS_COUNTER_GET(zcopy_tx_aborted));
-	seq_printf(seq, "- TX error\t\t: %d\n", SDPSTATS_COUNTER_GET(zcopy_tx_error));
+	seq_printf(seq, "- TX timeout\t\t: %d\n",
+	    SDPSTATS_COUNTER_GET(zcopy_tx_timeout));
+	seq_printf(seq, "- TX cross send\t\t: %d\n",
+	    SDPSTATS_COUNTER_GET(zcopy_cross_send));
+	seq_printf(seq, "- TX aborted by peer\t: %d\n",
+	    SDPSTATS_COUNTER_GET(zcopy_tx_aborted));
+	seq_printf(
+	    seq, "- TX error\t\t: %d\n", SDPSTATS_COUNTER_GET(zcopy_tx_error));
 	return 0;
 }
 
-static ssize_t sdpstats_write(struct file *file, const char __user *buf,
-			    size_t count, loff_t *offs)
+static ssize_t
+sdpstats_write(
+    struct file *file, const char __user *buf, size_t count, loff_t *offs)
 {
 	int i;
 
 	for_each_possible_cpu(i)
-		memset(&per_cpu(sdpstats, i), 0, sizeof(struct sdpstats));
+	    memset(&per_cpu(sdpstats, i), 0, sizeof(struct sdpstats));
 	printk(KERN_WARNING "Cleared sdp statistics\n");
 
 	return count;
 }
 
-static int sdpstats_seq_open(struct inode *inode, struct file *file)
+static int
+sdpstats_seq_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, sdpstats_seq_show, NULL);
 }
 
 static struct file_operations sdpstats_fops = {
-	.owner		= THIS_MODULE,
-	.open		= sdpstats_seq_open,
-	.read		= seq_read,
-	.write		= sdpstats_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+	.owner = THIS_MODULE,
+	.open = sdpstats_seq_open,
+	.read = seq_read,
+	.write = sdpstats_write,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
 #endif
@@ -354,7 +377,8 @@ int sdpprf_log_count;
 
 static unsigned long long start_t;
 
-static int sdpprf_show(struct seq_file *m, void *v)
+static int
+sdpprf_show(struct seq_file *m, void *v)
 {
 	struct sdpprf_log *l = v;
 	unsigned long nsec_rem, t;
@@ -367,16 +391,17 @@ static int sdpprf_show(struct seq_file *m, void *v)
 	t = l->time - start_t;
 	nsec_rem = do_div(t, 1000000000);
 
-	seq_printf(m, "%-6d: [%5lu.%06lu] %-50s - [%d{%d} %d:%d] "
-			"mb: %p %s:%d\n",
-			l->idx, (unsigned long)t, nsec_rem/1000,
-			l->msg, l->pid, l->cpu, l->sk_num, l->sk_dport,
-			l->mb, l->func, l->line);
+	seq_printf(m,
+	    "%-6d: [%5lu.%06lu] %-50s - [%d{%d} %d:%d] "
+	    "mb: %p %s:%d\n",
+	    l->idx, (unsigned long)t, nsec_rem / 1000, l->msg, l->pid, l->cpu,
+	    l->sk_num, l->sk_dport, l->mb, l->func, l->line);
 out:
 	return 0;
 }
 
-static void *sdpprf_start(struct seq_file *p, loff_t *pos)
+static void *
+sdpprf_start(struct seq_file *p, loff_t *pos)
 {
 	int idx = *pos;
 
@@ -391,7 +416,6 @@ static void *sdpprf_start(struct seq_file *p, loff_t *pos)
 	if (sdpprf_log_count >= SDPPRF_LOG_SIZE - 1) {
 		int off = sdpprf_log_count & (SDPPRF_LOG_SIZE - 1);
 		idx = (idx + off) & (SDPPRF_LOG_SIZE - 1);
-
 	}
 
 	if (!start_t)
@@ -399,7 +423,8 @@ static void *sdpprf_start(struct seq_file *p, loff_t *pos)
 	return &sdpprf_log[idx];
 }
 
-static void *sdpprf_next(struct seq_file *p, void *v, loff_t *pos)
+static void *
+sdpprf_next(struct seq_file *p, void *v, loff_t *pos)
 {
 	struct sdpprf_log *l = v;
 
@@ -413,7 +438,8 @@ static void *sdpprf_next(struct seq_file *p, void *v, loff_t *pos)
 	return l;
 }
 
-static void sdpprf_stop(struct seq_file *p, void *v)
+static void
+sdpprf_stop(struct seq_file *p, void *v)
 {
 }
 
@@ -424,7 +450,8 @@ static struct seq_operations sdpprf_ops = {
 	.show = sdpprf_show,
 };
 
-static int sdpprf_open(struct inode *inode, struct file *file)
+static int
+sdpprf_open(struct inode *inode, struct file *file)
 {
 	int res;
 
@@ -433,8 +460,9 @@ static int sdpprf_open(struct inode *inode, struct file *file)
 	return res;
 }
 
-static ssize_t sdpprf_write(struct file *file, const char __user *buf,
-			    size_t count, loff_t *offs)
+static ssize_t
+sdpprf_write(
+    struct file *file, const char __user *buf, size_t count, loff_t *offs)
 {
 	sdpprf_log_count = 0;
 	printk(KERN_INFO "Cleared sdpprf statistics\n");
@@ -443,15 +471,16 @@ static ssize_t sdpprf_write(struct file *file, const char __user *buf,
 }
 
 static struct file_operations sdpprf_fops = {
-	.open           = sdpprf_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = seq_release,
-	.write		= sdpprf_write,
+	.open = sdpprf_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release,
+	.write = sdpprf_write,
 };
 #endif /* SDP_PROFILING */
 
-int __init sdp_proc_init(void)
+int __init
+sdp_proc_init(void)
 {
 	struct proc_dir_entry *p = NULL;
 #ifdef SDPSTATS_ON
@@ -461,14 +490,14 @@ int __init sdp_proc_init(void)
 	struct proc_dir_entry *prof = NULL;
 #endif
 
-	sdp_seq_afinfo.seq_fops->owner         = sdp_seq_afinfo.owner;
-	sdp_seq_afinfo.seq_fops->open          = sdp_seq_open;
-	sdp_seq_afinfo.seq_fops->read          = seq_read;
-	sdp_seq_afinfo.seq_fops->llseek        = seq_lseek;
-	sdp_seq_afinfo.seq_fops->release       = seq_release_private;
+	sdp_seq_afinfo.seq_fops->owner = sdp_seq_afinfo.owner;
+	sdp_seq_afinfo.seq_fops->open = sdp_seq_open;
+	sdp_seq_afinfo.seq_fops->read = seq_read;
+	sdp_seq_afinfo.seq_fops->llseek = seq_lseek;
+	sdp_seq_afinfo.seq_fops->release = seq_release_private;
 
-	p = proc_net_fops_create(&init_net, sdp_seq_afinfo.name, S_IRUGO,
-				 sdp_seq_afinfo.seq_fops);
+	p = proc_net_fops_create(
+	    &init_net, sdp_seq_afinfo.name, S_IRUGO, sdp_seq_afinfo.seq_fops);
 	if (p)
 		p->data = &sdp_seq_afinfo;
 	else
@@ -476,16 +505,16 @@ int __init sdp_proc_init(void)
 
 #ifdef SDPSTATS_ON
 
-	stats = proc_net_fops_create(&init_net, PROC_SDP_STATS,
-			S_IRUGO | S_IWUGO, &sdpstats_fops);
+	stats = proc_net_fops_create(
+	    &init_net, PROC_SDP_STATS, S_IRUGO | S_IWUGO, &sdpstats_fops);
 	if (!stats)
 		goto no_mem_stats;
 
 #endif
 
 #ifdef SDP_PROFILING
-	prof = proc_net_fops_create(&init_net, PROC_SDP_PERF,
-			S_IRUGO | S_IWUGO, &sdpprf_fops);
+	prof = proc_net_fops_create(
+	    &init_net, PROC_SDP_PERF, S_IRUGO | S_IWUGO, &sdpprf_fops);
 	if (!prof)
 		goto no_mem_prof;
 #endif
@@ -503,11 +532,12 @@ no_mem_stats:
 #endif
 	proc_net_remove(&init_net, sdp_seq_afinfo.name);
 
-no_mem:	
+no_mem:
 	return -ENOMEM;
 }
 
-void sdp_proc_unregister(void)
+void
+sdp_proc_unregister(void)
 {
 	proc_net_remove(&init_net, sdp_seq_afinfo.name);
 	memset(sdp_seq_afinfo.seq_fops, 0, sizeof(*sdp_seq_afinfo.seq_fops));
@@ -522,13 +552,14 @@ void sdp_proc_unregister(void)
 
 #else /* CONFIG_PROC_FS */
 
-int __init sdp_proc_init(void)
+int __init
+sdp_proc_init(void)
 {
 	return 0;
 }
 
-void sdp_proc_unregister(void)
+void
+sdp_proc_unregister(void)
 {
-
 }
 #endif /* CONFIG_PROC_FS */

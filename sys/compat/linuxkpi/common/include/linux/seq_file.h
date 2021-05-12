@@ -30,31 +30,32 @@
 #ifndef _LINUX_SEQ_FILE_H_
 #define _LINUX_SEQ_FILE_H_
 
-#include <linux/types.h>
-#include <linux/fs.h>
 #include <sys/sbuf.h>
+
+#include <linux/fs.h>
+#include <linux/types.h>
 
 #undef file
 #define inode vnode
 
-#define	DEFINE_SHOW_ATTRIBUTE(__name)					\
-static int __name ## _open(struct inode *inode, struct linux_file *file)	\
-{									\
-	return single_open(file, __name ## _show, inode->i_private);	\
-}									\
-									\
-static const struct file_operations __name ## _fops = {			\
-	.owner		= THIS_MODULE,					\
-	.open		= __name ## _open,				\
-	.read		= seq_read,					\
-	.llseek		= seq_lseek,					\
-	.release	= single_release,				\
-}
+#define DEFINE_SHOW_ATTRIBUTE(__name)                                          \
+	static int __name##_open(struct inode *inode, struct linux_file *file) \
+	{                                                                      \
+		return single_open(file, __name##_show, inode->i_private);     \
+	}                                                                      \
+                                                                               \
+	static const struct file_operations __name##_fops = {                  \
+		.owner = THIS_MODULE,                                          \
+		.open = __name##_open,                                         \
+		.read = seq_read,                                              \
+		.llseek = seq_lseek,                                           \
+		.release = single_release,                                     \
+	}
 
 struct seq_operations;
 
 struct seq_file {
-	struct sbuf	*buf;
+	struct sbuf *buf;
 
 	const struct seq_operations *op;
 	const struct linux_file *file;
@@ -62,10 +63,10 @@ struct seq_file {
 };
 
 struct seq_operations {
-	void * (*start) (struct seq_file *m, off_t *pos);
-	void (*stop) (struct seq_file *m, void *v);
-	void * (*next) (struct seq_file *m, void *v, off_t *pos);
-	int (*show) (struct seq_file *m, void *v);
+	void *(*start)(struct seq_file *m, off_t *pos);
+	void (*stop)(struct seq_file *m, void *v);
+	void *(*next)(struct seq_file *m, void *v, off_t *pos);
+	int (*show)(struct seq_file *m, void *v);
 };
 
 ssize_t seq_read(struct linux_file *, char *, size_t, off_t *);
@@ -75,14 +76,15 @@ int seq_open(struct linux_file *f, const struct seq_operations *op);
 int seq_release(struct inode *inode, struct linux_file *file);
 
 off_t seq_lseek(struct linux_file *file, off_t offset, int whence);
-int single_open(struct linux_file *, int (*)(struct seq_file *, void *), void *);
+int single_open(
+    struct linux_file *, int (*)(struct seq_file *, void *), void *);
 int single_release(struct inode *, struct linux_file *);
 
 #define seq_printf(m, fmt, ...) sbuf_printf((m)->buf, (fmt), ##__VA_ARGS__)
 
-#define seq_puts(m, str)	sbuf_printf((m)->buf, str)
-#define seq_putc(m, str)	sbuf_putc((m)->buf, str)
+#define seq_puts(m, str) sbuf_printf((m)->buf, str)
+#define seq_putc(m, str) sbuf_putc((m)->buf, str)
 
-#define	file			linux_file
+#define file linux_file
 
-#endif	/* _LINUX_SEQ_FILE_H_ */
+#endif /* _LINUX_SEQ_FILE_H_ */

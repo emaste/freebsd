@@ -41,7 +41,7 @@
  */
 
 #ifndef _ARM_INCLUDE_PARAM_H_
-#define	_ARM_INCLUDE_PARAM_H_
+#define _ARM_INCLUDE_PARAM_H_
 
 /*
  * Machine dependent constants for StrongARM
@@ -49,36 +49,36 @@
 
 #include <machine/_align.h>
 
-#define STACKALIGNBYTES	(8 - 1)
-#define STACKALIGN(p)	((u_int)(p) & ~STACKALIGNBYTES)
+#define STACKALIGNBYTES (8 - 1)
+#define STACKALIGN(p) ((u_int)(p) & ~STACKALIGNBYTES)
 
 #define __PCI_REROUTE_INTERRUPT
 
 #ifndef MACHINE
-#define	MACHINE		"arm"
+#define MACHINE "arm"
 #endif
 #ifndef MACHINE_ARCH
 #if __ARM_ARCH >= 7
-#define	MACHINE_ARCH	"armv7"
+#define MACHINE_ARCH "armv7"
 #else
-#define	MACHINE_ARCH	"armv6"
+#define MACHINE_ARCH "armv6"
 #endif
 #endif
 
 #ifdef SMP
 #ifndef MAXCPU
-#define	MAXCPU		4
+#define MAXCPU 4
 #endif
 #else
-#define	MAXCPU		1
+#define MAXCPU 1
 #endif
 
 #ifndef MAXMEMDOM
-#define	MAXMEMDOM	1
+#define MAXMEMDOM 1
 #endif
 
-#define	ALIGNBYTES	_ALIGNBYTES
-#define	ALIGN(p)	_ALIGN(p)
+#define ALIGNBYTES _ALIGNBYTES
+#define ALIGN(p) _ALIGN(p)
 /*
  * ALIGNED_POINTER is a boolean macro that checks whether an address
  * is valid to fetch data elements of type t from on this architecture.
@@ -93,54 +93,54 @@
  * instruction which requires 4-byte alignment, so we must provide the most-
  * pessimistic answer possible even on armv7.
  */
-#define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof(t)-1)) == 0)
+#define ALIGNED_POINTER(p, t) ((((unsigned)(p)) & (sizeof(t) - 1)) == 0)
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
  * architecture.  It should be used with appropriate caution.
  */
-#define	CACHE_LINE_SHIFT	6
-#define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
+#define CACHE_LINE_SHIFT 6
+#define CACHE_LINE_SIZE (1 << CACHE_LINE_SHIFT)
 
-#define	PAGE_SHIFT	12
-#define	PAGE_SIZE	(1 << PAGE_SHIFT)	/* Page size */
-#define	PAGE_MASK	(PAGE_SIZE - 1)
+#define PAGE_SHIFT 12
+#define PAGE_SIZE (1 << PAGE_SHIFT) /* Page size */
+#define PAGE_MASK (PAGE_SIZE - 1)
 
-#define PDR_SHIFT	20 /* log2(NBPDR) */
-#define NBPDR		(1 << PDR_SHIFT)
-#define PDRMASK		(NBPDR - 1)
-#define NPDEPG          (1 << (32 - PDR_SHIFT))
+#define PDR_SHIFT 20 /* log2(NBPDR) */
+#define NBPDR (1 << PDR_SHIFT)
+#define PDRMASK (NBPDR - 1)
+#define NPDEPG (1 << (32 - PDR_SHIFT))
 
-#define	MAXPAGESIZES	2		/* maximum number of supported page sizes */
+#define MAXPAGESIZES 2 /* maximum number of supported page sizes */
 
 #ifndef KSTACK_PAGES
-#define KSTACK_PAGES    2
+#define KSTACK_PAGES 2
 #endif /* !KSTACK_PAGES */
 
 #ifndef FPCONTEXTSIZE
-#define FPCONTEXTSIZE	(0x100)
+#define FPCONTEXTSIZE (0x100)
 #endif
 
 #ifndef KSTACK_GUARD_PAGES
-#define KSTACK_GUARD_PAGES	1
+#define KSTACK_GUARD_PAGES 1
 #endif /* !KSTACK_GUARD_PAGES */
 
-#define USPACE_SVC_STACK_TOP		(kstack_pages * PAGE_SIZE)
+#define USPACE_SVC_STACK_TOP (kstack_pages * PAGE_SIZE)
 
 /*
  * Mach derived conversion macros
  */
-#define	trunc_page(x)		((x) & ~PAGE_MASK)
-#define	round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
-#define	trunc_1mpage(x)		((unsigned)(x) & ~PDRMASK)
-#define	round_1mpage(x)		((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
+#define trunc_page(x) ((x) & ~PAGE_MASK)
+#define round_page(x) (((x) + PAGE_MASK) & ~PAGE_MASK)
+#define trunc_1mpage(x) ((unsigned)(x) & ~PDRMASK)
+#define round_1mpage(x) ((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
 
-#define	atop(x)			((unsigned)(x) >> PAGE_SHIFT)
-#define	ptoa(x)			((unsigned)(x) << PAGE_SHIFT)
+#define atop(x) ((unsigned)(x) >> PAGE_SHIFT)
+#define ptoa(x) ((unsigned)(x) << PAGE_SHIFT)
 
-#define	arm32_btop(x)		((unsigned)(x) >> PAGE_SHIFT)
-#define	arm32_ptob(x)		((unsigned)(x) << PAGE_SHIFT)
+#define arm32_btop(x) ((unsigned)(x) >> PAGE_SHIFT)
+#define arm32_ptob(x) ((unsigned)(x) << PAGE_SHIFT)
 
-#define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
+#define pgtok(x) ((x) * (PAGE_SIZE / 1024))
 
 #endif /* !_ARM_INCLUDE_PARAM_H_ */

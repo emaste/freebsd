@@ -42,22 +42,22 @@ typedef int bus_dmasync_op_t;
  *	information concerning address and alignment restrictions, number
  *	of S/G segments, amount of data per S/G segment, etc.
  */
-typedef struct bus_dma_tag	*bus_dma_tag_t;
+typedef struct bus_dma_tag *bus_dma_tag_t;
 
 /*
  *	bus_dmamap_t
  *
  *	DMA mapping instance information.
  */
-typedef struct bus_dmamap	*bus_dmamap_t;
+typedef struct bus_dmamap *bus_dmamap_t;
 
 /*
  * A function that performs driver-specific synchronization on behalf of
  * busdma.
  */
 typedef enum {
-	BUS_DMA_LOCK	= 0x01,
-	BUS_DMA_UNLOCK	= 0x02,
+	BUS_DMA_LOCK = 0x01,
+	BUS_DMA_UNLOCK = 0x02,
 } bus_dma_lock_op_t;
 
 typedef void bus_dma_lock_t(void *, bus_dma_lock_op_t);

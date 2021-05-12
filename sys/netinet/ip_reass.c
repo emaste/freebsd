@@ -39,26 +39,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
-#include <sys/kernel.h>
 #include <sys/hash.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
+#include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/mutex.h>
-#include <sys/sysctl.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/rss_config.h>
 #include <net/netisr.h>
+#include <net/rss_config.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
+#include <netinet/in_rss.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
-#include <netinet/in_rss.h>
 #ifdef MAC
 #include <security/mac/mac_framework.h>
 #endif
@@ -68,41 +67,41 @@ SYSCTL_DECL(_net_inet_ip);
 /*
  * Reassembly headers are stored in hash buckets.
  */
-#define	IPREASS_NHASH_LOG2	10
-#define	IPREASS_NHASH		(1 << IPREASS_NHASH_LOG2)
-#define	IPREASS_HMASK		(IPREASS_NHASH - 1)
+#define IPREASS_NHASH_LOG2 10
+#define IPREASS_NHASH (1 << IPREASS_NHASH_LOG2)
+#define IPREASS_HMASK (IPREASS_NHASH - 1)
 
 struct ipqbucket {
 	TAILQ_HEAD(ipqhead, ipq) head;
-	struct mtx		 lock;
-	int			 count;
+	struct mtx lock;
+	int count;
 };
 
 VNET_DEFINE_STATIC(struct ipqbucket, ipq[IPREASS_NHASH]);
-#define	V_ipq		VNET(ipq)
+#define V_ipq VNET(ipq)
 VNET_DEFINE_STATIC(uint32_t, ipq_hashseed);
-#define V_ipq_hashseed   VNET(ipq_hashseed)
+#define V_ipq_hashseed VNET(ipq_hashseed)
 
-#define	IPQ_LOCK(i)	mtx_lock(&V_ipq[i].lock)
-#define	IPQ_TRYLOCK(i)	mtx_trylock(&V_ipq[i].lock)
-#define	IPQ_UNLOCK(i)	mtx_unlock(&V_ipq[i].lock)
-#define	IPQ_LOCK_ASSERT(i)	mtx_assert(&V_ipq[i].lock, MA_OWNED)
+#define IPQ_LOCK(i) mtx_lock(&V_ipq[i].lock)
+#define IPQ_TRYLOCK(i) mtx_trylock(&V_ipq[i].lock)
+#define IPQ_UNLOCK(i) mtx_unlock(&V_ipq[i].lock)
+#define IPQ_LOCK_ASSERT(i) mtx_assert(&V_ipq[i].lock, MA_OWNED)
 
 VNET_DEFINE_STATIC(int, ipreass_maxbucketsize);
-#define	V_ipreass_maxbucketsize	VNET(ipreass_maxbucketsize)
+#define V_ipreass_maxbucketsize VNET(ipreass_maxbucketsize)
 
-void		ipreass_init(void);
-void		ipreass_drain(void);
-void		ipreass_slowtimo(void);
+void ipreass_init(void);
+void ipreass_drain(void);
+void ipreass_slowtimo(void);
 #ifdef VIMAGE
-void		ipreass_destroy(void);
+void ipreass_destroy(void);
 #endif
-static int	sysctl_maxfragpackets(SYSCTL_HANDLER_ARGS);
-static int	sysctl_maxfragbucketsize(SYSCTL_HANDLER_ARGS);
-static void	ipreass_zone_change(void *);
-static void	ipreass_drain_tomax(void);
-static void	ipq_free(struct ipqbucket *, struct ipq *);
-static struct ipq * ipq_reuse(int);
+static int sysctl_maxfragpackets(SYSCTL_HANDLER_ARGS);
+static int sysctl_maxfragbucketsize(SYSCTL_HANDLER_ARGS);
+static void ipreass_zone_change(void *);
+static void ipreass_drain_tomax(void);
+static void ipq_free(struct ipqbucket *, struct ipq *);
+static struct ipq *ipq_reuse(int);
 
 static inline void
 ipq_timeout(struct ipqbucket *bucket, struct ipq *fp)
@@ -133,33 +132,32 @@ ipq_drop(struct ipqbucket *bucket, struct ipq *fp)
  * this produces "reasonable" performance on some subset of systems
  * under DoS attack.
  */
-#define	IP_MAXFRAGS		(nmbclusters / 32)
-#define	IP_MAXFRAGPACKETS	(imin(IP_MAXFRAGS, IPREASS_NHASH * 50))
+#define IP_MAXFRAGS (nmbclusters / 32)
+#define IP_MAXFRAGPACKETS (imin(IP_MAXFRAGS, IPREASS_NHASH * 50))
 
-static int		maxfrags;
-static volatile u_int	nfrags;
-SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfrags, CTLFLAG_RW,
-    &maxfrags, 0,
+static int maxfrags;
+static volatile u_int nfrags;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfrags, CTLFLAG_RW, &maxfrags, 0,
     "Maximum number of IPv4 fragments allowed across all reassembly queues");
 SYSCTL_UINT(_net_inet_ip, OID_AUTO, curfrags, CTLFLAG_RD,
     __DEVOLATILE(u_int *, &nfrags), 0,
     "Current number of IPv4 fragments across all reassembly queues");
 
 VNET_DEFINE_STATIC(uma_zone_t, ipq_zone);
-#define	V_ipq_zone	VNET(ipq_zone)
+#define V_ipq_zone VNET(ipq_zone)
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets,
-    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    NULL, 0, sysctl_maxfragpackets, "I",
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    sysctl_maxfragpackets, "I",
     "Maximum number of IPv4 fragment reassembly queue entries");
 SYSCTL_UMA_CUR(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_VNET,
     &VNET_NAME(ipq_zone),
     "Current number of IPv4 fragment reassembly queue entries");
 
 VNET_DEFINE_STATIC(int, noreass);
-#define	V_noreass	VNET(noreass)
+#define V_noreass VNET(noreass)
 
 VNET_DEFINE_STATIC(int, maxfragsperpacket);
-#define	V_maxfragsperpacket	VNET(maxfragsperpacket)
+#define V_maxfragsperpacket VNET(maxfragsperpacket)
 SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragsperpacket, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(maxfragsperpacket), 0,
     "Maximum number of IPv4 fragments allowed per packet");
@@ -178,7 +176,7 @@ SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragbucketsize,
  * to the first packet/fragment are preserved.
  * The IP header is *NOT* adjusted out of iplen.
  */
-#define	M_IP_FRAG	M_PROTO9
+#define M_IP_FRAG M_PROTO9
 struct mbuf *
 ip_reass(struct mbuf *m)
 {
@@ -190,7 +188,7 @@ ip_reass(struct mbuf *m)
 	int i, hlen, next, tmpmax;
 	u_int8_t ecn, ecn0;
 	uint32_t hash, hashkey[3];
-#ifdef	RSS
+#ifdef RSS
 	uint32_t rss_hash, rss_type;
 #endif
 
@@ -277,7 +275,7 @@ ip_reass(struct mbuf *m)
 	 * Look for queue of fragments
 	 * of this datagram.
 	 */
-	TAILQ_FOREACH(fp, head, ipq_list)
+	TAILQ_FOREACH (fp, head, ipq_list)
 		if (ip->ip_id == fp->ipq_id &&
 		    ip->ip_src.s_addr == fp->ipq_src.s_addr &&
 		    ip->ip_dst.s_addr == fp->ipq_dst.s_addr &&
@@ -330,7 +328,7 @@ ip_reass(struct mbuf *m)
 			i = ntohs(ip->ip_off) + ntohs(ip->ip_len);
 			if (((m->m_flags & M_IP_FRAG) && i >= fp->ipq_maxoff) ||
 			    ((m->m_flags & M_IP_FRAG) == 0 &&
-			    i != fp->ipq_maxoff)) {
+				i != fp->ipq_maxoff)) {
 				fp = NULL;
 				goto dropfrag;
 			}
@@ -343,7 +341,7 @@ ip_reass(struct mbuf *m)
 #endif
 	}
 
-#define GETIP(m)	((struct ip*)((m)->m_pkthdr.PH_loc.ptr))
+#define GETIP(m) ((struct ip *)((m)->m_pkthdr.PH_loc.ptr))
 
 	/*
 	 * Handle ECN by comparing this segment with the first one;
@@ -399,8 +397,9 @@ ip_reass(struct mbuf *m)
 	 * While we overlap succeeding segments trim them or,
 	 * if they are completely covered, dequeue them.
 	 */
-	for (; q != NULL && ntohs(ip->ip_off) + ntohs(ip->ip_len) >
-	    ntohs(GETIP(q)->ip_off); q = nq) {
+	for (; q != NULL &&
+	     ntohs(ip->ip_off) + ntohs(ip->ip_len) > ntohs(GETIP(q)->ip_off);
+	     q = nq) {
 		i = (ntohs(ip->ip_off) + ntohs(ip->ip_len)) -
 		    ntohs(GETIP(q)->ip_off);
 		if (i < ntohs(GETIP(q)->ip_len)) {
@@ -500,7 +499,7 @@ ip_reass(struct mbuf *m)
 	m->m_len += (ip->ip_hl << 2);
 	m->m_data -= (ip->ip_hl << 2);
 	/* some debugging cruft by sklower, below, will go away soon */
-	if (m->m_flags & M_PKTHDR) {	/* XXX this should be done elsewhere */
+	if (m->m_flags & M_PKTHDR) { /* XXX this should be done elsewhere */
 		m_fixhdr(m);
 		/* set valid receive interface pointer */
 		m->m_pkthdr.rcvif = srcifp;
@@ -508,7 +507,7 @@ ip_reass(struct mbuf *m)
 	IPSTAT_INC(ips_reassembled);
 	IPQ_UNLOCK(hash);
 
-#ifdef	RSS
+#ifdef RSS
 	/*
 	 * Query the RSS layer for the flowid / flowtype for the
 	 * mbuf payload.
@@ -566,8 +565,8 @@ ipreass_init(void)
 
 	for (int i = 0; i < IPREASS_NHASH; i++) {
 		TAILQ_INIT(&V_ipq[i].head);
-		mtx_init(&V_ipq[i].lock, "IP reassembly", NULL,
-		    MTX_DEF | MTX_DUPOK);
+		mtx_init(
+		    &V_ipq[i].lock, "IP reassembly", NULL, MTX_DEF | MTX_DUPOK);
 		V_ipq[i].count = 0;
 	}
 	V_ipq_hashseed = arc4random();
@@ -595,8 +594,8 @@ ipreass_slowtimo(void)
 
 	for (int i = 0; i < IPREASS_NHASH; i++) {
 		IPQ_LOCK(i);
-		TAILQ_FOREACH_SAFE(fp, &V_ipq[i].head, ipq_list, tmp)
-		if (--fp->ipq_ttl == 0)
+		TAILQ_FOREACH_SAFE (fp, &V_ipq[i].head, ipq_list, tmp)
+			if (--fp->ipq_ttl == 0)
 				ipq_timeout(&V_ipq[i], fp);
 		IPQ_UNLOCK(i);
 	}
@@ -611,11 +610,11 @@ ipreass_drain(void)
 
 	for (int i = 0; i < IPREASS_NHASH; i++) {
 		IPQ_LOCK(i);
-		while(!TAILQ_EMPTY(&V_ipq[i].head))
+		while (!TAILQ_EMPTY(&V_ipq[i].head))
 			ipq_drop(&V_ipq[i], TAILQ_FIRST(&V_ipq[i].head));
 		KASSERT(V_ipq[i].count == 0,
 		    ("%s: V_ipq[%d] count %d (V_ipq=%p)", __func__, i,
-		    V_ipq[i].count, V_ipq));
+			V_ipq[i].count, V_ipq));
 		IPQ_UNLOCK(i);
 	}
 }
@@ -647,7 +646,7 @@ ipreass_cleanup(void *arg __unused, struct ifnet *ifp)
 	for (i = 0; i < IPREASS_NHASH; i++) {
 		IPQ_LOCK(i);
 		/* Scan fragment list. */
-		TAILQ_FOREACH_SAFE(fp, &V_ipq[i].head, ipq_list, temp) {
+		TAILQ_FOREACH_SAFE (fp, &V_ipq[i].head, ipq_list, temp) {
 			for (m = fp->ipq_frags; m != NULL; m = m->m_nextpkt) {
 				/* clear no longer valid rcvif pointer */
 				if (m->m_pkthdr.rcvif == ifp)
@@ -727,7 +726,8 @@ ipreass_zone_change(void *tag)
 	maxfrags = IP_MAXFRAGS;
 	max = IP_MAXFRAGPACKETS;
 	VNET_LIST_RLOCK_NOSLEEP();
-	VNET_FOREACH(vnet_iter) {
+	VNET_FOREACH(vnet_iter)
+	{
 		CURVNET_SET(vnet_iter);
 		max = uma_zone_set_max(V_ipq_zone, max);
 		V_ipreass_maxbucketsize = imax(max / (IPREASS_NHASH / 2), 1);
@@ -742,8 +742,7 @@ ipreass_zone_change(void *tag)
  * at all.  Since 0 and -1 is a special values here, we need our own handler,
  * instead of sysctl_handle_uma_zone_max().
  */
-static int
-sysctl_maxfragpackets(SYSCTL_HANDLER_ARGS)
+static int sysctl_maxfragpackets(SYSCTL_HANDLER_ARGS)
 {
 	int error, max;
 
@@ -839,8 +838,7 @@ ipq_free(struct ipqbucket *bucket, struct ipq *fp)
 /*
  * Get or set the maximum number of reassembly queues per bucket.
  */
-static int
-sysctl_maxfragbucketsize(SYSCTL_HANDLER_ARGS)
+static int sysctl_maxfragbucketsize(SYSCTL_HANDLER_ARGS)
 {
 	int error, max;
 

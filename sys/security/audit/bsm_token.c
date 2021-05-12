@@ -36,16 +36,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/endian.h>
-#include <sys/queue.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-
 #include <sys/ipc.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
+#include <sys/queue.h>
+#include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/un.h>
 
 #include <netinet/in.h>
@@ -58,12 +57,13 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 #include <security/audit/audit_private.h>
 
-#define	GET_TOKEN_AREA(t, dptr, length) do {				\
-	t = malloc(sizeof(token_t), M_AUDITBSM, M_WAITOK);		\
-	t->t_data = malloc(length, M_AUDITBSM, M_WAITOK | M_ZERO);	\
-	t->len = length;						\
-	dptr = t->t_data;						\
-} while (0)
+#define GET_TOKEN_AREA(t, dptr, length)                                    \
+	do {                                                               \
+		t = malloc(sizeof(token_t), M_AUDITBSM, M_WAITOK);         \
+		t->t_data = malloc(length, M_AUDITBSM, M_WAITOK | M_ZERO); \
+		t->len = length;                                           \
+		dptr = t->t_data;                                          \
+	} while (0)
 
 /*
  * token ID                1 byte
@@ -79,8 +79,8 @@ au_to_upriv(char sorf, char *priv)
 	token_t *t;
 
 	textlen = strlen(priv) + 1;
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_char) +
-	    sizeof(u_int16_t) + textlen);
+	GET_TOKEN_AREA(t, dptr,
+	    sizeof(u_char) + sizeof(u_char) + sizeof(u_int16_t) + textlen);
 
 	ADD_U_CHAR(dptr, AUT_UPRIV);
 	ADD_U_CHAR(dptr, sorf);
@@ -99,14 +99,15 @@ au_to_upriv(char sorf, char *priv)
 token_t *
 au_to_privset(char *privtypestr, char *privstr)
 {
-	u_int16_t	 type_len, priv_len;
-	u_char		*dptr;
-	token_t		*t;
+	u_int16_t type_len, priv_len;
+	u_char *dptr;
+	token_t *t;
 
 	type_len = strlen(privtypestr) + 1;
 	priv_len = strlen(privstr) + 1;
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int16_t) +
-	    sizeof(u_int16_t) + type_len + priv_len);
+	GET_TOKEN_AREA(t, dptr,
+	    sizeof(u_char) + sizeof(u_int16_t) + sizeof(u_int16_t) + type_len +
+		priv_len);
 
 	ADD_U_CHAR(dptr, AUT_PRIV);
 	ADD_U_INT16(dptr, type_len);
@@ -133,8 +134,9 @@ au_to_arg32(char n, const char *text, u_int32_t v)
 	textlen = strlen(text);
 	textlen += 1;
 
-	GET_TOKEN_AREA(t, dptr, 2 * sizeof(u_char) + sizeof(u_int32_t) +
-	    sizeof(u_int16_t) + textlen);
+	GET_TOKEN_AREA(t, dptr,
+	    2 * sizeof(u_char) + sizeof(u_int32_t) + sizeof(u_int16_t) +
+		textlen);
 
 	ADD_U_CHAR(dptr, AUT_ARG32);
 	ADD_U_CHAR(dptr, n);
@@ -155,8 +157,9 @@ au_to_arg64(char n, const char *text, u_int64_t v)
 	textlen = strlen(text);
 	textlen += 1;
 
-	GET_TOKEN_AREA(t, dptr, 2 * sizeof(u_char) + sizeof(u_int64_t) +
-	    sizeof(u_int16_t) + textlen);
+	GET_TOKEN_AREA(t, dptr,
+	    2 * sizeof(u_char) + sizeof(u_int64_t) + sizeof(u_int16_t) +
+		textlen);
 
 	ADD_U_CHAR(dptr, AUT_ARG64);
 	ADD_U_CHAR(dptr, n);
@@ -192,8 +195,9 @@ au_to_attr32(struct vnode_au_info *vni)
 	u_int16_t pad0_16 = 0;
 	u_int32_t pad0_32 = 0;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 2 * sizeof(u_int16_t) +
-	    3 * sizeof(u_int32_t) + sizeof(u_int64_t) + sizeof(u_int32_t));
+	GET_TOKEN_AREA(t, dptr,
+	    sizeof(u_char) + 2 * sizeof(u_int16_t) + 3 * sizeof(u_int32_t) +
+		sizeof(u_int64_t) + sizeof(u_int32_t));
 
 	ADD_U_CHAR(dptr, AUT_ATTR32);
 
@@ -239,8 +243,9 @@ au_to_attr64(struct vnode_au_info *vni)
 	u_int16_t pad0_16 = 0;
 	u_int32_t pad0_32 = 0;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 2 * sizeof(u_int16_t) +
-	    3 * sizeof(u_int32_t) + sizeof(u_int64_t) * 2);
+	GET_TOKEN_AREA(t, dptr,
+	    sizeof(u_char) + 2 * sizeof(u_int16_t) + 3 * sizeof(u_int32_t) +
+		sizeof(u_int64_t) * 2);
 
 	ADD_U_CHAR(dptr, AUT_ATTR64);
 
@@ -303,7 +308,7 @@ au_to_data(char unit_print, char unit_type, char unit_count, const char *p)
 	/* Determine the size of the basic unit. */
 	switch (unit_type) {
 	case AUR_BYTE:
-	/* case AUR_CHAR: */
+		/* case AUR_CHAR: */
 		datasize = AUR_BYTE_SIZE;
 		break;
 
@@ -312,7 +317,7 @@ au_to_data(char unit_print, char unit_type, char unit_count, const char *p)
 		break;
 
 	case AUR_INT32:
-	/* case AUR_INT: */
+		/* case AUR_INT: */
 		datasize = AUR_INT32_SIZE;
 		break;
 
@@ -382,8 +387,8 @@ au_to_newgroups(u_int16_t n, gid_t *groups)
 	u_char *dptr = NULL;
 	int i;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int16_t) +
-	    n * sizeof(u_int32_t));
+	GET_TOKEN_AREA(t, dptr,
+	    sizeof(u_char) + sizeof(u_int16_t) + n * sizeof(u_int32_t));
 
 	ADD_U_CHAR(dptr, AUT_NEWGROUPS);
 	ADD_U_INT16(dptr, n);
@@ -489,8 +494,8 @@ au_to_ipc_perm(struct ipc_perm *perm)
 	u_char *dptr = NULL;
 	u_int16_t pad0 = 0;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 12 * sizeof(u_int16_t) +
-	    sizeof(u_int32_t));
+	GET_TOKEN_AREA(t, dptr,
+	    sizeof(u_char) + 12 * sizeof(u_int16_t) + sizeof(u_int32_t));
 
 	ADD_U_CHAR(dptr, AUT_IPC_PERM);
 
@@ -588,14 +593,15 @@ au_to_file(const char *file, struct timeval tm)
 	filelen = strlen(file);
 	filelen += 1;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 2 * sizeof(u_int32_t) +
-	    sizeof(u_int16_t) + filelen);
+	GET_TOKEN_AREA(t, dptr,
+	    sizeof(u_char) + 2 * sizeof(u_int32_t) + sizeof(u_int16_t) +
+		filelen);
 
-	timems = tm.tv_usec/1000;
+	timems = tm.tv_usec / 1000;
 
 	ADD_U_CHAR(dptr, AUT_OTHER_FILE32);
 	ADD_U_INT32(dptr, tm.tv_sec);
-	ADD_U_INT32(dptr, timems);	/* We need time in ms. */
+	ADD_U_INT32(dptr, timems); /* We need time in ms. */
 	ADD_U_INT16(dptr, filelen);
 	ADD_STRING(dptr, file, filelen);
 
@@ -702,8 +708,8 @@ au_to_process64(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
 	token_t *t;
 	u_char *dptr = NULL;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 8 * sizeof(u_int32_t) +
-	    sizeof(u_int64_t));
+	GET_TOKEN_AREA(t, dptr,
+	    sizeof(u_char) + 8 * sizeof(u_int32_t) + sizeof(u_int64_t));
 
 	ADD_U_CHAR(dptr, AUT_PROCESS64);
 	ADD_U_INT32(dptr, auid);
@@ -731,8 +737,7 @@ au_to_process(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
     pid_t pid, au_asid_t sid, au_tid_t *tid)
 {
 
-	return (au_to_process32(auid, euid, egid, ruid, rgid, pid, sid,
-	    tid));
+	return (au_to_process32(auid, euid, egid, ruid, rgid, pid, sid, tid));
 }
 
 /*
@@ -750,8 +755,8 @@ au_to_process(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
  *   machine address      16 bytes
  */
 token_t *
-au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
-    gid_t rgid, pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
+au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
+    pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -759,11 +764,11 @@ au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	KASSERT((tid->at_type == AU_IPv4) || (tid->at_type == AU_IPv6),
 	    ("au_to_process32_ex: type %u", (unsigned int)tid->at_type));
 	if (tid->at_type == AU_IPv4)
-		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
-		    10 * sizeof(u_int32_t));
+		GET_TOKEN_AREA(
+		    t, dptr, sizeof(u_char) + 10 * sizeof(u_int32_t));
 	else
-		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
-		    13 * sizeof(u_int32_t));
+		GET_TOKEN_AREA(
+		    t, dptr, sizeof(u_char) + 13 * sizeof(u_int32_t));
 
 	ADD_U_CHAR(dptr, AUT_PROCESS32_EX);
 	ADD_U_INT32(dptr, auid);
@@ -786,20 +791,20 @@ au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 }
 
 token_t *
-au_to_process64_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
-    gid_t rgid, pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
+au_to_process64_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
+    pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
 {
 	token_t *t;
 	u_char *dptr = NULL;
 
 	if (tid->at_type == AU_IPv4)
-		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
-		    7 * sizeof(u_int32_t) + sizeof(u_int64_t) +
-		    2 * sizeof(u_int32_t));
+		GET_TOKEN_AREA(t, dptr,
+		    sizeof(u_char) + 7 * sizeof(u_int32_t) + sizeof(u_int64_t) +
+			2 * sizeof(u_int32_t));
 	else if (tid->at_type == AU_IPv6)
-		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
-		    7 * sizeof(u_int32_t) + sizeof(u_int64_t) +
-		    5 * sizeof(u_int32_t));
+		GET_TOKEN_AREA(t, dptr,
+		    sizeof(u_char) + 7 * sizeof(u_int32_t) + sizeof(u_int64_t) +
+			5 * sizeof(u_int32_t));
 	else
 		panic("au_to_process64_ex: invalidate at_type (%d)",
 		    tid->at_type);
@@ -825,12 +830,12 @@ au_to_process64_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 }
 
 token_t *
-au_to_process_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
-    gid_t rgid, pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
+au_to_process_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
+    pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
 {
 
-	return (au_to_process32_ex(auid, euid, egid, ruid, rgid, pid, sid,
-	    tid));
+	return (
+	    au_to_process32_ex(auid, euid, egid, ruid, rgid, pid, sid, tid));
 }
 
 token_t *
@@ -923,8 +928,8 @@ au_to_seq(long audit_count)
  * converted to the BSM constant space, so we don't do that here.
  */
 token_t *
-au_to_socket_ex(u_short so_domain, u_short so_type,
-    struct sockaddr *sa_local, struct sockaddr *sa_remote)
+au_to_socket_ex(u_short so_domain, u_short so_type, struct sockaddr *sa_local,
+    struct sockaddr *sa_remote)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -932,11 +937,13 @@ au_to_socket_ex(u_short so_domain, u_short so_type,
 	struct sockaddr_in6 *sin6;
 
 	if (so_domain == AF_INET)
-		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
-		    5 * sizeof(u_int16_t) + 2 * sizeof(u_int32_t));
+		GET_TOKEN_AREA(t, dptr,
+		    sizeof(u_char) + 5 * sizeof(u_int16_t) +
+			2 * sizeof(u_int32_t));
 	else if (so_domain == AF_INET6)
-		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
-		    5 * sizeof(u_int16_t) + 8 * sizeof(u_int32_t));
+		GET_TOKEN_AREA(t, dptr,
+		    sizeof(u_char) + 5 * sizeof(u_int16_t) +
+			8 * sizeof(u_int32_t));
 	else
 		return (NULL);
 
@@ -977,9 +984,10 @@ kau_to_socket(struct socket_au_info *soi)
 	u_char *dptr;
 	u_int16_t so_type;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 2 * sizeof(u_int16_t) +
-	    sizeof(u_int32_t) + sizeof(u_int16_t) + sizeof(u_int32_t));
-                                                 
+	GET_TOKEN_AREA(t, dptr,
+	    sizeof(u_char) + 2 * sizeof(u_int16_t) + sizeof(u_int32_t) +
+		sizeof(u_int16_t) + sizeof(u_int32_t));
+
 	ADD_U_CHAR(dptr, AUT_SOCKET);
 	/* Coerce the socket type into a short value */
 	so_type = soi->so_type;
@@ -1028,8 +1036,8 @@ au_to_sock_inet32(struct sockaddr_in *so)
 	u_char *dptr = NULL;
 	uint16_t family;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 2 * sizeof(uint16_t) +
-	    sizeof(uint32_t));
+	GET_TOKEN_AREA(
+	    t, dptr, sizeof(u_char) + 2 * sizeof(uint16_t) + sizeof(uint32_t));
 
 	ADD_U_CHAR(dptr, AUT_SOCKINET32);
 	/*
@@ -1056,8 +1064,8 @@ au_to_sock_inet128(struct sockaddr_in6 *so)
 	token_t *t;
 	u_char *dptr = NULL;
 
-	GET_TOKEN_AREA(t, dptr, 3 * sizeof(u_char) + sizeof(u_int16_t) +
-	    4 * sizeof(u_int32_t));
+	GET_TOKEN_AREA(t, dptr,
+	    3 * sizeof(u_char) + sizeof(u_int16_t) + 4 * sizeof(u_int32_t));
 
 	ADD_U_CHAR(dptr, AUT_SOCKINET128);
 	/*
@@ -1124,8 +1132,9 @@ au_to_subject64(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
 	token_t *t;
 	u_char *dptr = NULL;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 7 * sizeof(u_int32_t) +
-	    sizeof(u_int64_t) + sizeof(u_int32_t));
+	GET_TOKEN_AREA(t, dptr,
+	    sizeof(u_char) + 7 * sizeof(u_int32_t) + sizeof(u_int64_t) +
+		sizeof(u_int32_t));
 
 	ADD_U_CHAR(dptr, AUT_SUBJECT64);
 	ADD_U_INT32(dptr, auid);
@@ -1146,8 +1155,7 @@ au_to_subject(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
     pid_t pid, au_asid_t sid, au_tid_t *tid)
 {
 
-	return (au_to_subject32(auid, euid, egid, ruid, rgid, pid, sid,
-	    tid));
+	return (au_to_subject32(auid, euid, egid, ruid, rgid, pid, sid, tid));
 }
 
 /*
@@ -1165,8 +1173,8 @@ au_to_subject(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
  *   machine address      16 bytes
  */
 token_t *
-au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
-    gid_t rgid, pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
+au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
+    pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -1175,11 +1183,11 @@ au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	    ("au_to_subject32_ex: type %u", (unsigned int)tid->at_type));
 
 	if (tid->at_type == AU_IPv4)
-		GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 10 *
-		    sizeof(u_int32_t));
+		GET_TOKEN_AREA(
+		    t, dptr, sizeof(u_char) + 10 * sizeof(u_int32_t));
 	else
-		GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 13 *
-		    sizeof(u_int32_t));
+		GET_TOKEN_AREA(
+		    t, dptr, sizeof(u_char) + 13 * sizeof(u_int32_t));
 
 	ADD_U_CHAR(dptr, AUT_SUBJECT32_EX);
 	ADD_U_INT32(dptr, auid);
@@ -1200,8 +1208,8 @@ au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 }
 
 token_t *
-au_to_subject64_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
-    gid_t rgid, pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
+au_to_subject64_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
+    pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
 {
 	token_t *t;
 	u_char *dptr = NULL;
@@ -1210,13 +1218,13 @@ au_to_subject64_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	    ("au_to_subject64_ex: type %u", (unsigned int)tid->at_type));
 
 	if (tid->at_type == AU_IPv4)
-		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
-		    7 * sizeof(u_int32_t) + sizeof(u_int64_t) +
-		    2 * sizeof(u_int32_t));
+		GET_TOKEN_AREA(t, dptr,
+		    sizeof(u_char) + 7 * sizeof(u_int32_t) + sizeof(u_int64_t) +
+			2 * sizeof(u_int32_t));
 	else
-		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
-		    7 * sizeof(u_int32_t) + sizeof(u_int64_t) +
-		    5 * sizeof(u_int32_t));
+		GET_TOKEN_AREA(t, dptr,
+		    sizeof(u_char) + 7 * sizeof(u_int32_t) + sizeof(u_int64_t) +
+			5 * sizeof(u_int32_t));
 
 	ADD_U_CHAR(dptr, AUT_SUBJECT64_EX);
 	ADD_U_INT32(dptr, auid);
@@ -1237,12 +1245,12 @@ au_to_subject64_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 }
 
 token_t *
-au_to_subject_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
-    gid_t rgid, pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
+au_to_subject_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid, gid_t rgid,
+    pid_t pid, au_asid_t sid, au_tid_addr_t *tid)
 {
 
-	return (au_to_subject32_ex(auid, euid, egid, ruid, rgid, pid, sid,
-	    tid));
+	return (
+	    au_to_subject32_ex(auid, euid, egid, ruid, rgid, pid, sid, tid));
 }
 
 #if !defined(_KERNEL) && !defined(KERNEL) && defined(HAVE_AUDIT_SYSCALLS)
@@ -1265,8 +1273,8 @@ au_to_me(void)
 			if (getaudit(&auinfo) != 0)
 				return (NULL);
 			return (au_to_subject32(auinfo.ai_auid, geteuid(),
-				getegid(), getuid(), getgid(), getpid(),
-				auinfo.ai_asid, &auinfo.ai_termid));
+			    getegid(), getuid(), getgid(), getpid(),
+			    auinfo.ai_asid, &auinfo.ai_termid));
 		} else {
 			/* getaudit_addr(2) failed for some other reason. */
 			return (NULL);
@@ -1274,7 +1282,7 @@ au_to_me(void)
 	}
 
 	return (au_to_subject32_ex(aia.ai_auid, geteuid(), getegid(), getuid(),
-		getgid(), getpid(), aia.ai_asid, &aia.ai_termid));
+	    getgid(), getpid(), aia.ai_asid, &aia.ai_termid));
 }
 #endif
 
@@ -1435,15 +1443,16 @@ au_to_zonename(const char *zonename)
  * milliseconds of time    4 bytes/8 bytes (32-bit/64-bit value)
  */
 token_t *
-au_to_header32_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
-    struct timeval tm)
+au_to_header32_tm(
+    int rec_size, au_event_t e_type, au_emod_t e_mod, struct timeval tm)
 {
 	token_t *t;
 	u_char *dptr = NULL;
 	u_int32_t timems;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int32_t) +
-	    sizeof(u_char) + 2 * sizeof(u_int16_t) + 2 * sizeof(u_int32_t));
+	GET_TOKEN_AREA(t, dptr,
+	    sizeof(u_char) + sizeof(u_int32_t) + sizeof(u_char) +
+		2 * sizeof(u_int16_t) + 2 * sizeof(u_int32_t));
 
 	ADD_U_CHAR(dptr, AUT_HEADER32);
 	ADD_U_INT32(dptr, rec_size);
@@ -1451,10 +1460,10 @@ au_to_header32_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
 	ADD_U_INT16(dptr, e_type);
 	ADD_U_INT16(dptr, e_mod);
 
-	timems = tm.tv_usec/1000;
+	timems = tm.tv_usec / 1000;
 	/* Add the timestamp */
 	ADD_U_INT32(dptr, tm.tv_sec);
-	ADD_U_INT32(dptr, timems);	/* We need time in ms. */
+	ADD_U_INT32(dptr, timems); /* We need time in ms. */
 
 	return (t);
 }
@@ -1483,9 +1492,9 @@ au_to_header32_ex_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
 	KASSERT(tid->at_type == AU_IPv4 || tid->at_type == AU_IPv6,
 	    ("au_to_header32_ex_tm: invalid address family"));
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int32_t) +
-	    sizeof(u_char) + 2 * sizeof(u_int16_t) + 3 *
-	    sizeof(u_int32_t) + tid->at_type);
+	GET_TOKEN_AREA(t, dptr,
+	    sizeof(u_char) + sizeof(u_int32_t) + sizeof(u_char) +
+		2 * sizeof(u_int16_t) + 3 * sizeof(u_int32_t) + tid->at_type);
 
 	ADD_U_CHAR(dptr, AUT_HEADER32_EX);
 	ADD_U_INT32(dptr, rec_size);
@@ -1498,24 +1507,25 @@ au_to_header32_ex_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
 		ADD_MEM(dptr, &tid->at_addr[0], 4 * sizeof(u_int32_t));
 	else
 		ADD_MEM(dptr, &tid->at_addr[0], sizeof(u_int32_t));
-	timems = tm.tv_usec/1000;
+	timems = tm.tv_usec / 1000;
 	/* Add the timestamp */
 	ADD_U_INT32(dptr, tm.tv_sec);
-	ADD_U_INT32(dptr, timems);      /* We need time in ms. */
+	ADD_U_INT32(dptr, timems); /* We need time in ms. */
 
 	return (t);
 }
 
 token_t *
-au_to_header64_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
-    struct timeval tm)
+au_to_header64_tm(
+    int rec_size, au_event_t e_type, au_emod_t e_mod, struct timeval tm)
 {
 	token_t *t;
 	u_char *dptr = NULL;
 	u_int32_t timems;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int32_t) +
-	    sizeof(u_char) + 2 * sizeof(u_int16_t) + 2 * sizeof(u_int64_t));
+	GET_TOKEN_AREA(t, dptr,
+	    sizeof(u_char) + sizeof(u_int32_t) + sizeof(u_char) +
+		2 * sizeof(u_int16_t) + 2 * sizeof(u_int64_t));
 
 	ADD_U_CHAR(dptr, AUT_HEADER64);
 	ADD_U_INT32(dptr, rec_size);
@@ -1523,10 +1533,10 @@ au_to_header64_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
 	ADD_U_INT16(dptr, e_type);
 	ADD_U_INT16(dptr, e_mod);
 
-	timems = tm.tv_usec/1000;
+	timems = tm.tv_usec / 1000;
 	/* Add the timestamp */
 	ADD_U_INT64(dptr, tm.tv_sec);
-	ADD_U_INT64(dptr, timems);	/* We need time in ms. */
+	ADD_U_INT64(dptr, timems); /* We need time in ms. */
 
 	return (t);
 }
@@ -1561,8 +1571,8 @@ au_to_header32(int rec_size, au_event_t e_type, au_emod_t e_mod)
 }
 
 token_t *
-au_to_header64(__unused int rec_size, __unused au_event_t e_type,
-    __unused au_emod_t e_mod)
+au_to_header64(
+    __unused int rec_size, __unused au_event_t e_type, __unused au_emod_t e_mod)
 {
 	struct timeval tm;
 
@@ -1600,8 +1610,8 @@ au_to_trailer(int rec_size)
 	u_char *dptr = NULL;
 	u_int16_t magic = AUT_TRAILER_MAGIC;
 
-	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int16_t) +
-	    sizeof(u_int32_t));
+	GET_TOKEN_AREA(
+	    t, dptr, sizeof(u_char) + sizeof(u_int16_t) + sizeof(u_int32_t));
 
 	ADD_U_CHAR(dptr, AUT_TRAILER);
 	ADD_U_INT16(dptr, magic);

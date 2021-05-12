@@ -29,9 +29,9 @@
  */
 
 #ifndef _BCM2836_MP_H_
-#define	_BCM2836_MP_H_
+#define _BCM2836_MP_H_
 
-void	bcm2836_mp_setmaxid(platform_t plat);
-void	bcm2836_mp_start_ap(platform_t plat);
+void bcm2836_mp_setmaxid(platform_t plat);
+void bcm2836_mp_start_ap(platform_t plat);
 
 #endif /* _BCM2836_MP_H_ */

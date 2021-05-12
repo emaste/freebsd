@@ -5,8 +5,8 @@
 #define _SYS_CK_H_
 
 #ifdef _KERNEL
-#include <ck_queue.h>
 #include <ck_epoch.h>
+#include <ck_queue.h>
 #else
 #include <sys/queue.h>
 #define CK_STAILQ_HEAD STAILQ_HEAD

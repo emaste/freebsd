@@ -39,15 +39,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
+
+#include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <machine/bus.h>
 
 #include <arm/freescale/imx/imx_ccmvar.h>
 
@@ -55,14 +55,14 @@ __FBSDID("$FreeBSD$");
  * Table of supported FDT compat strings.
  */
 static struct ofw_compat_data compat_data[] = {
-	{"nop-usbphy",		true},
-	{"usb-nop-xceiv",	true},
-	{NULL,		 	false},
+	{ "nop-usbphy", true },
+	{ "usb-nop-xceiv", true },
+	{ NULL, false },
 };
 
 struct usbphy_softc {
-	device_t	dev;
-	u_int		phy_num;
+	device_t dev;
+	u_int phy_num;
 };
 
 static int
@@ -80,8 +80,8 @@ usbphy_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	/*
-         * Turn on the phy clocks.
-         */
+	 * Turn on the phy clocks.
+	 */
 	imx_ccm_usbphy_enable(dev);
 
 	return (0);
@@ -104,18 +104,15 @@ usbphy_probe(device_t dev)
 
 static device_method_t usbphy_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,  usbphy_probe),
+	DEVMETHOD(device_probe, usbphy_probe),
 	DEVMETHOD(device_attach, usbphy_attach),
 	DEVMETHOD(device_detach, usbphy_detach),
 
 	DEVMETHOD_END
 };
 
-static driver_t usbphy_driver = {
-	"usbphy",
-	usbphy_methods,
-	sizeof(struct usbphy_softc)
-};
+static driver_t usbphy_driver = { "usbphy", usbphy_methods,
+	sizeof(struct usbphy_softc) };
 
 static devclass_t usbphy_devclass;
 

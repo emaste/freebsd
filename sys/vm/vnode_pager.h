@@ -37,21 +37,20 @@
  * $FreeBSD$
  */
 
-#ifndef	_VNODE_PAGER_
-#define	_VNODE_PAGER_	1
+#ifndef _VNODE_PAGER_
+#define _VNODE_PAGER_ 1
 
 #ifdef _KERNEL
 
-int vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m,
-    int count, int *rbehind, int *rahead, vop_getpages_iodone_t iodone,
-    void *arg);
-int vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *m,
-    int count, int flags, int *rtvals);
+int vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
+    int *rbehind, int *rahead, vop_getpages_iodone_t iodone, void *arg);
+int vnode_pager_generic_putpages(
+    struct vnode *vp, vm_page_t *m, int count, int flags, int *rtvals);
 int vnode_pager_local_getpages(struct vop_getpages_args *ap);
 int vnode_pager_local_getpages_async(struct vop_getpages_async_args *ap);
 int vnode_pager_putpages_ioflags(int pager_flags);
-void vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written,
-    off_t eof, int lpos);
+void vnode_pager_undirty_pages(
+    vm_page_t *ma, int *rtvals, int written, off_t eof, int lpos);
 
-#endif				/* _KERNEL */
-#endif				/* _VNODE_PAGER_ */
+#endif /* _KERNEL */
+#endif /* _VNODE_PAGER_ */

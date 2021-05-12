@@ -24,11 +24,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/sysctl.h>
+
 #include <geom/geom_disk.h>
 
 static int bioq_batchsize = 128;
-SYSCTL_INT(_debug, OID_AUTO, bioq_batchsize, CTLFLAG_RW,
-    &bioq_batchsize, 0, "BIOQ batch size");
+SYSCTL_INT(_debug, OID_AUTO, bioq_batchsize, CTLFLAG_RW, &bioq_batchsize, 0,
+    "BIOQ batch size");
 
 /*-
  * Disk error is the preface to plaintive error messages
@@ -45,17 +46,29 @@ disk_err(struct bio *bp, const char *what, int blkdone, int nl)
 	if (bp->bio_dev != NULL)
 		printf("%s: %s ", devtoname(bp->bio_dev), what);
 	else if (bp->bio_disk != NULL)
-		printf("%s%d: %s ",
-		    bp->bio_disk->d_name, bp->bio_disk->d_unit, what);
+		printf("%s%d: %s ", bp->bio_disk->d_name, bp->bio_disk->d_unit,
+		    what);
 	else
 		printf("disk??: %s ", what);
-	switch(bp->bio_cmd) {
-	case BIO_READ:		printf("cmd=read "); break;
-	case BIO_WRITE:		printf("cmd=write "); break;
-	case BIO_DELETE:	printf("cmd=delete "); break;
-	case BIO_GETATTR:	printf("cmd=getattr "); break;
-	case BIO_FLUSH:		printf("cmd=flush "); break;
-	default:		printf("cmd=%x ", bp->bio_cmd); break;
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+		printf("cmd=read ");
+		break;
+	case BIO_WRITE:
+		printf("cmd=write ");
+		break;
+	case BIO_DELETE:
+		printf("cmd=delete ");
+		break;
+	case BIO_GETATTR:
+		printf("cmd=getattr ");
+		break;
+	case BIO_FLUSH:
+		printf("cmd=flush ");
+		break;
+	default:
+		printf("cmd=%x ", bp->bio_cmd);
+		break;
 	}
 	sn = bp->bio_pblkno;
 	if (bp->bio_bcount <= DEV_BSIZE) {
@@ -105,7 +118,7 @@ disk_err(struct bio *bp, const char *what, int blkdone, int nl)
  * If the bioq is manipulated using only the above calls, it starts
  * with a sorted sequence of requests with bio_offset >= last_offset,
  * possibly followed by another sorted sequence of requests with
- * 0 <= bio_offset < bioq->last_offset 
+ * 0 <= bio_offset < bioq->last_offset
  *
  * NOTE: historical behaviour was to ignore bio->bio_length in the
  *	update, but its use tracks the head position in a better way.

@@ -35,27 +35,26 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/intr.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
-#include <sys/intr.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/pci/pci_host_generic.h>
 #include <dev/pci/pci_host_generic_fdt.h>
-#include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
-#include "pcib_if.h"
-
-#include "contrib/alpine-hal/al_hal_unit_adapter_regs.h"
 #include "contrib/alpine-hal/al_hal_pcie.h"
 #include "contrib/alpine-hal/al_hal_pcie_axi_reg.h"
+#include "contrib/alpine-hal/al_hal_unit_adapter_regs.h"
+#include "pcib_if.h"
 
-#define ANNAPURNA_VENDOR_ID		0x1c36
+#define ANNAPURNA_VENDOR_ID 0x1c36
 
 /* Forward prototypes */
 static int al_pcib_probe(device_t);
@@ -63,9 +62,8 @@ static int al_pcib_attach(device_t);
 static void al_pcib_fixup(device_t);
 
 static struct ofw_compat_data compat_data[] = {
-	{"annapurna-labs,al-internal-pcie",	true},
-	{"annapurna-labs,alpine-internal-pcie",	true},
-	{NULL,					false}
+	{ "annapurna-labs,al-internal-pcie", true },
+	{ "annapurna-labs,alpine-internal-pcie", true }, { NULL, false }
 };
 
 /*
@@ -73,8 +71,8 @@ static struct ofw_compat_data compat_data[] = {
  */
 static device_method_t al_pcib_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,			al_pcib_probe),
-	DEVMETHOD(device_attach,		al_pcib_attach),
+	DEVMETHOD(device_probe, al_pcib_probe),
+	DEVMETHOD(device_attach, al_pcib_attach),
 
 	DEVMETHOD_END
 };
@@ -97,8 +95,8 @@ al_pcib_probe(device_t dev)
 	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
-	device_set_desc(dev,
-	    "Annapurna-Labs Integrated Internal PCI-E Controller");
+	device_set_desc(
+	    dev, "Annapurna-Labs Integrated Internal PCI-E Controller");
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -129,8 +127,8 @@ al_pcib_fixup(device_t dev)
 	for (slot = 0; slot <= PCI_SLOTMAX; slot++) {
 		maxfunc = 0;
 		for (func = 0; func <= maxfunc; func++) {
-			hdrtype = PCIB_READ_CONFIG(dev, bus, slot, func,
-			    PCIR_HDRTYPE, 1);
+			hdrtype = PCIB_READ_CONFIG(
+			    dev, bus, slot, func, PCIR_HDRTYPE, 1);
 
 			if ((hdrtype & PCIM_HDRTYPE) > PCI_MAXHDRTYPE)
 				continue;
@@ -138,19 +136,21 @@ al_pcib_fixup(device_t dev)
 			if (func == 0 && (hdrtype & PCIM_MFDEV) != 0)
 				maxfunc = PCI_FUNCMAX;
 
-			vid = PCIB_READ_CONFIG(dev, bus, slot, func,
-			    PCIR_VENDOR, 2);
+			vid = PCIB_READ_CONFIG(
+			    dev, bus, slot, func, PCIR_VENDOR, 2);
 			if (vid == ANNAPURNA_VENDOR_ID) {
 				val = PCIB_READ_CONFIG(dev, bus, slot, func,
 				    AL_PCI_AXI_CFG_AND_CTR_0, 4);
-				val |= PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_PH_VEC_OVRD_FROM_AXUSER_MASK;
+				val |=
+				    PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_2_PF_VEC_PH_VEC_OVRD_FROM_AXUSER_MASK;
 				PCIB_WRITE_CONFIG(dev, bus, slot, func,
 				    AL_PCI_AXI_CFG_AND_CTR_0, val, 4);
 
 				val = PCIB_READ_CONFIG(dev, bus, slot, func,
 				    AL_PCI_APP_CONTROL, 4);
 				val &= ~0xffff;
-				val |= PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_4_PF_VEC_MEM_ADDR54_63_SEL_TGTID_MASK;
+				val |=
+				    PCIE_AXI_PF_AXI_ATTR_OVRD_FUNC_CTRL_4_PF_VEC_MEM_ADDR54_63_SEL_TGTID_MASK;
 				PCIB_WRITE_CONFIG(dev, bus, slot, func,
 				    AL_PCI_APP_CONTROL, val, 4);
 			}

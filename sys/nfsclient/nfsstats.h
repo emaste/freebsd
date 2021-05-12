@@ -42,30 +42,30 @@
  * Stats structure
  */
 struct nfsstats {
-	int	attrcache_hits;
-	int	attrcache_misses;
-	int	lookupcache_hits;
-	int	lookupcache_misses;
-	int	direofcache_hits;
-	int	direofcache_misses;
-	int	accesscache_hits;
-	int	accesscache_misses;
-	int	biocache_reads;
-	int	read_bios;
-	int	read_physios;
-	int	biocache_writes;
-	int	write_bios;
-	int	write_physios;
-	int	biocache_readlinks;
-	int	readlink_bios;
-	int	biocache_readdirs;
-	int	readdir_bios;
-	int	rpcretries;
-	int	rpcrequests;
-	int	rpctimeouts;
-	int	rpcunexpected;
-	int	rpcinvalid;
-	int	rpccnt[NFS_NPROCS];
+	int attrcache_hits;
+	int attrcache_misses;
+	int lookupcache_hits;
+	int lookupcache_misses;
+	int direofcache_hits;
+	int direofcache_misses;
+	int accesscache_hits;
+	int accesscache_misses;
+	int biocache_reads;
+	int read_bios;
+	int read_physios;
+	int biocache_writes;
+	int write_bios;
+	int write_physios;
+	int biocache_readlinks;
+	int readlink_bios;
+	int biocache_readdirs;
+	int readdir_bios;
+	int rpcretries;
+	int rpcrequests;
+	int rpctimeouts;
+	int rpcunexpected;
+	int rpcinvalid;
+	int rpccnt[NFS_NPROCS];
 };
 
 #endif

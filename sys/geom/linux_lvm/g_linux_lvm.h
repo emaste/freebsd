@@ -28,80 +28,81 @@
  * $FreeBSD$
  */
 
-#define	G_LLVM_DEBUG(lvl, ...) \
-    _GEOM_DEBUG("GEOM_LINUX_LVM", g_llvm_debug, (lvl), NULL, __VA_ARGS__)
+#define G_LLVM_DEBUG(lvl, ...) \
+	_GEOM_DEBUG("GEOM_LINUX_LVM", g_llvm_debug, (lvl), NULL, __VA_ARGS__)
 
-#define	G_LLVM_CLASS_NAME	"LINUX_LVM"
-#define	G_LLVM_NAMELEN		128
-#define	G_LLVM_UUIDLEN		40
-#define	G_LLVM_MAGIC		"\040\114\126\115\062\040\170\133" \
-				"\065\101\045\162\060\116\052\076"
+#define G_LLVM_CLASS_NAME "LINUX_LVM"
+#define G_LLVM_NAMELEN 128
+#define G_LLVM_UUIDLEN 40
+#define G_LLVM_MAGIC                       \
+	"\040\114\126\115\062\040\170\133" \
+	"\065\101\045\162\060\116\052\076"
 
 struct g_llvm_label {
-	uint64_t	ll_sector;
-	uint32_t	ll_crc;
-	uint32_t	ll_offset;
-	char		ll_uuid[G_LLVM_UUIDLEN];
-	uint64_t	ll_size;
-	uint64_t	ll_pestart;
-	uint64_t	ll_md_offset;
-	uint64_t	ll_md_size;
+	uint64_t ll_sector;
+	uint32_t ll_crc;
+	uint32_t ll_offset;
+	char ll_uuid[G_LLVM_UUIDLEN];
+	uint64_t ll_size;
+	uint64_t ll_pestart;
+	uint64_t ll_md_offset;
+	uint64_t ll_md_size;
 };
 
 struct g_llvm_metadata {
-	uint32_t		md_csum;
-	uint32_t		md_version;
-	uint64_t		md_start;
-	uint64_t		md_size;
-	uint64_t		md_reloffset;
-	uint64_t		md_relsize;
-	struct g_llvm_vg	*md_vg;
+	uint32_t md_csum;
+	uint32_t md_version;
+	uint64_t md_start;
+	uint64_t md_size;
+	uint64_t md_reloffset;
+	uint64_t md_relsize;
+	struct g_llvm_vg *md_vg;
 };
 
 struct g_llvm_lv {
-	LIST_ENTRY(g_llvm_lv)	lv_next;
-	struct g_llvm_vg	*lv_vg;
-	char			lv_name[G_LLVM_NAMELEN];
-	char			lv_uuid[G_LLVM_UUIDLEN];
-	int			lv_sgcount;
-	int			lv_sgactive;
-	struct g_provider	*lv_gprov;
-	int			lv_extentcount;
+	LIST_ENTRY(g_llvm_lv) lv_next;
+	struct g_llvm_vg *lv_vg;
+	char lv_name[G_LLVM_NAMELEN];
+	char lv_uuid[G_LLVM_UUIDLEN];
+	int lv_sgcount;
+	int lv_sgactive;
+	struct g_provider *lv_gprov;
+	int lv_extentcount;
 	LIST_HEAD(, g_llvm_segment) lv_segs;
-	int			lv_numsegs;
-	struct g_llvm_segment	*lv_firstsg;
+	int lv_numsegs;
+	struct g_llvm_segment *lv_firstsg;
 };
 
 struct g_llvm_pv {
-	LIST_ENTRY(g_llvm_pv)	pv_next;
-	struct g_llvm_vg	*pv_vg;
-	char			pv_name[G_LLVM_NAMELEN];
-	char			pv_uuid[G_LLVM_UUIDLEN];
-	size_t			pv_size;
-	off_t			pv_start;
-	int			pv_count;
-	struct g_provider	*pv_gprov;
-	struct g_consumer	*pv_gcons;
+	LIST_ENTRY(g_llvm_pv) pv_next;
+	struct g_llvm_vg *pv_vg;
+	char pv_name[G_LLVM_NAMELEN];
+	char pv_uuid[G_LLVM_UUIDLEN];
+	size_t pv_size;
+	off_t pv_start;
+	int pv_count;
+	struct g_provider *pv_gprov;
+	struct g_consumer *pv_gcons;
 };
 
 struct g_llvm_segment {
-	LIST_ENTRY(g_llvm_segment)	sg_next;
-	int			sg_start;
-	int			sg_end;
-	int			sg_count;
-	char			sg_pvname[G_LLVM_NAMELEN];
-	struct g_llvm_pv	*sg_pv;
-	int			sg_pvstart;
-	off_t			sg_pvoffset;
+	LIST_ENTRY(g_llvm_segment) sg_next;
+	int sg_start;
+	int sg_end;
+	int sg_count;
+	char sg_pvname[G_LLVM_NAMELEN];
+	struct g_llvm_pv *sg_pv;
+	int sg_pvstart;
+	off_t sg_pvoffset;
 };
 
 struct g_llvm_vg {
-	LIST_ENTRY(g_llvm_vg)	vg_next;
-	char			vg_name[G_LLVM_NAMELEN];
-	char			vg_uuid[G_LLVM_UUIDLEN];
-	size_t			vg_extentsize;
-	int			vg_sectorsize;
-	struct g_geom		*vg_geom;
-	LIST_HEAD(, g_llvm_pv)	vg_pvs;
-	LIST_HEAD(, g_llvm_lv)	vg_lvs;
+	LIST_ENTRY(g_llvm_vg) vg_next;
+	char vg_name[G_LLVM_NAMELEN];
+	char vg_uuid[G_LLVM_UUIDLEN];
+	size_t vg_extentsize;
+	int vg_sectorsize;
+	struct g_geom *vg_geom;
+	LIST_HEAD(, g_llvm_pv) vg_pvs;
+	LIST_HEAD(, g_llvm_lv) vg_lvs;
 };

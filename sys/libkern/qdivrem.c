@@ -43,10 +43,10 @@ __FBSDID("$FreeBSD$");
 
 #include <libkern/quad.h>
 
-#define	B	(1 << HALF_BITS)	/* digit base */
+#define B (1 << HALF_BITS) /* digit base */
 
 /* Combine two `digits' to make a single two-digit number. */
-#define	COMBINE(a, b) (((u_long)(a) << HALF_BITS) | (b))
+#define COMBINE(a, b) (((u_long)(a) << HALF_BITS) | (b))
 
 /* select a type for digits in base B: use unsigned short if they fit */
 #if ULONG_MAX == 0xffffffff && USHRT_MAX >= 0xffff
@@ -135,7 +135,7 @@ __qdivrem(u_quad_t uq, u_quad_t vq, u_quad_t *arq)
 	v[4] = LHALF(tmp.ul[L]);
 	for (n = 4; v[1] == 0; v++) {
 		if (--n == 1) {
-			u_long rbj;	/* r*B+u[j] (not root boy jim) */
+			u_long rbj; /* r*B+u[j] (not root boy jim) */
 			digit q1, q2, q3, q4;
 
 			/*
@@ -146,7 +146,7 @@ __qdivrem(u_quad_t uq, u_quad_t vq, u_quad_t *arq)
 			 *		r = (r*B + u[j]) % v;
 			 * We unroll this completely here.
 			 */
-			t = v[2];	/* nonzero, by definition */
+			t = v[2]; /* nonzero, by definition */
 			q1 = u[1] / t;
 			rbj = COMBINE(u[1] % t, u[2]);
 			q2 = rbj / t;
@@ -183,15 +183,15 @@ __qdivrem(u_quad_t uq, u_quad_t vq, u_quad_t *arq)
 	for (t = v[1]; t < B / 2; t <<= 1)
 		d++;
 	if (d > 0) {
-		__shl(&u[0], m + n, d);		/* u <<= d */
-		__shl(&v[1], n - 1, d);		/* v <<= d */
+		__shl(&u[0], m + n, d); /* u <<= d */
+		__shl(&v[1], n - 1, d); /* v <<= d */
 	}
 	/*
 	 * D2: j = 0.
 	 */
 	j = 0;
-	v1 = v[1];	/* for D3 -- note that v[1..n] are constant */
-	v2 = v[2];	/* for D3 */
+	v1 = v[1]; /* for D3 -- note that v[1..n] are constant */
+	v2 = v[2]; /* for D3 */
 	do {
 		digit uj0, uj1, uj2;
 
@@ -203,9 +203,9 @@ __qdivrem(u_quad_t uq, u_quad_t vq, u_quad_t *arq)
 		 * decrement qhat and increase rhat correspondingly.
 		 * Note that if rhat >= B, v[2]*qhat < rhat*B.
 		 */
-		uj0 = u[j + 0];	/* for D3 only -- note that u[j+...] change */
-		uj1 = u[j + 1];	/* for D3 only */
-		uj2 = u[j + 2];	/* for D3 only */
+		uj0 = u[j + 0]; /* for D3 only -- note that u[j+...] change */
+		uj1 = u[j + 1]; /* for D3 only */
+		uj2 = u[j + 2]; /* for D3 only */
 		if (uj0 == v1) {
 			qhat = B;
 			rhat = uj1;
@@ -216,7 +216,7 @@ __qdivrem(u_quad_t uq, u_quad_t vq, u_quad_t *arq)
 			rhat = nn % v1;
 		}
 		while (v2 * qhat > COMBINE(rhat, uj2)) {
-	qhat_too_big:
+		qhat_too_big:
 			qhat--;
 			if ((rhat += v1) >= B)
 				break;
@@ -250,7 +250,7 @@ __qdivrem(u_quad_t uq, u_quad_t vq, u_quad_t *arq)
 			u[j] = LHALF(u[j] + t);
 		}
 		q[j] = qhat;
-	} while (++j <= m);		/* D7: loop on j. */
+	} while (++j <= m); /* D7: loop on j. */
 
 	/*
 	 * If caller wants the remainder, we have to calculate it as

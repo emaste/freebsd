@@ -49,17 +49,17 @@ __FBSDID("$FreeBSD$");
  * -----------------------------------------------------------------------------
  * - See i2c.v: The I2C peripheral samples the values for rw_bit and xfer_count
  * - in the IDLE state if start is set.
- * - 
+ * -
  * - We want to generate a ReSTART not a STOP at the end of the TX phase. In
  * - order to do that we must ensure the state machine goes RACK1 -> RACK2 ->
  * - SRSTRT1 (not RACK1 -> RACK2 -> SSTOP1).
- * - 
+ * -
  * - So, in the RACK2 state when (TX) xfer_count==0 we must therefore have
  * - already set, ready to be sampled:
  * -  READ ; rw_bit     <= I2CC bit 0 -- must be "read"
  * -  ST;    start      <= I2CC bit 7 -- must be "Go" in order to not issue STOP
  * -  DLEN;  xfer_count <= I2CDLEN    -- must be equal to our read amount
- * - 
+ * -
  * - The plan to do this is:
  * -  1. Start the sub-address write, but don't let it finish
  * -     (keep xfer_count > 0)
@@ -85,15 +85,16 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/bus.h>
-#include <machine/resource.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
 
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
@@ -105,39 +106,34 @@ __FBSDID("$FreeBSD$");
 
 #include "iicbus_if.h"
 
-static struct ofw_compat_data compat_data[] = {
-	{"broadcom,bcm2835-bsc",	1},
-	{"brcm,bcm2708-i2c",		1},
-	{"brcm,bcm2835-i2c",		1},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "broadcom,bcm2835-bsc", 1 },
+	{ "brcm,bcm2708-i2c", 1 }, { "brcm,bcm2835-i2c", 1 }, { NULL, 0 } };
 
 #define DEVICE_DEBUGF(sc, lvl, fmt, args...) \
-    if ((lvl) <= (sc)->sc_debug) \
-        device_printf((sc)->sc_dev, fmt, ##args)
+	if ((lvl) <= (sc)->sc_debug)         \
+	device_printf((sc)->sc_dev, fmt, ##args)
 
 #define DEBUGF(sc, lvl, fmt, args...) \
-    if ((lvl) <= (sc)->sc_debug) \
-        printf(fmt, ##args)
+	if ((lvl) <= (sc)->sc_debug)  \
+	printf(fmt, ##args)
 
 static void bcm_bsc_intr(void *);
 static int bcm_bsc_detach(device_t);
 
 static void
-bcm_bsc_modifyreg(struct bcm_bsc_softc *sc, uint32_t off, uint32_t mask,
-	uint32_t value)
+bcm_bsc_modifyreg(
+    struct bcm_bsc_softc *sc, uint32_t off, uint32_t mask, uint32_t value)
 {
 	uint32_t reg;
 
-	mtx_assert(&sc->sc_mtx, MA_OWNED);        
+	mtx_assert(&sc->sc_mtx, MA_OWNED);
 	reg = BCM_BSC_READ(sc, off);
 	reg &= ~mask;
 	reg |= value;
 	BCM_BSC_WRITE(sc, off, reg);
 }
 
-static int
-bcm_bsc_clock_proc(SYSCTL_HANDLER_ARGS)
+static int bcm_bsc_clock_proc(SYSCTL_HANDLER_ARGS)
 {
 	struct bcm_bsc_softc *sc;
 	uint32_t clk;
@@ -154,8 +150,7 @@ bcm_bsc_clock_proc(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_int(oidp, &clk, 0, req));
 }
 
-static int
-bcm_bsc_clkt_proc(SYSCTL_HANDLER_ARGS)
+static int bcm_bsc_clkt_proc(SYSCTL_HANDLER_ARGS)
 {
 	struct bcm_bsc_softc *sc;
 	uint32_t clkt;
@@ -178,8 +173,7 @@ bcm_bsc_clkt_proc(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-bcm_bsc_fall_proc(SYSCTL_HANDLER_ARGS)
+static int bcm_bsc_fall_proc(SYSCTL_HANDLER_ARGS)
 {
 	struct bcm_bsc_softc *sc;
 	uint32_t clk, reg;
@@ -206,8 +200,7 @@ bcm_bsc_fall_proc(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-bcm_bsc_rise_proc(SYSCTL_HANDLER_ARGS)
+static int bcm_bsc_rise_proc(SYSCTL_HANDLER_ARGS)
 {
 	struct bcm_bsc_softc *sc;
 	uint32_t clk, reg;
@@ -248,23 +241,19 @@ bcm_bsc_sysctl_init(struct bcm_bsc_softc *sc)
 	tree_node = device_get_sysctl_tree(sc->sc_dev);
 	tree = SYSCTL_CHILDREN(tree_node);
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "frequency",
-	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
-	    sc, sizeof(*sc),
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, sc, sizeof(*sc),
 	    bcm_bsc_clock_proc, "IU", "I2C BUS clock frequency");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "clock_stretch",
-	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
-	    sc, sizeof(*sc),
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, sc, sizeof(*sc),
 	    bcm_bsc_clkt_proc, "IU", "I2C BUS clock stretch timeout");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "fall_edge_delay",
-	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
-	    sc, sizeof(*sc),
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, sc, sizeof(*sc),
 	    bcm_bsc_fall_proc, "IU", "I2C BUS falling edge delay");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "rise_edge_delay",
-	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT,
-	    sc, sizeof(*sc),
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_NEEDGIANT, sc, sizeof(*sc),
 	    bcm_bsc_rise_proc, "IU", "I2C BUS rising edge delay");
-	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "debug",
-	    CTLFLAG_RWTUN, &sc->sc_debug, 0,
+	SYSCTL_ADD_INT(ctx, tree, OID_AUTO, "debug", CTLFLAG_RWTUN,
+	    &sc->sc_debug, 0,
 	    "Enable debug; 1=reads/writes, 2=add starts/stops");
 }
 
@@ -275,11 +264,11 @@ bcm_bsc_reset(struct bcm_bsc_softc *sc)
 	/* Enable the BSC Controller, disable interrupts. */
 	BCM_BSC_WRITE(sc, BCM_BSC_CTRL, BCM_BSC_CTRL_I2CEN);
 	/* Clear pending interrupts. */
-	BCM_BSC_WRITE(sc, BCM_BSC_STATUS, BCM_BSC_STATUS_CLKT |
-	    BCM_BSC_STATUS_ERR | BCM_BSC_STATUS_DONE);
+	BCM_BSC_WRITE(sc, BCM_BSC_STATUS,
+	    BCM_BSC_STATUS_CLKT | BCM_BSC_STATUS_ERR | BCM_BSC_STATUS_DONE);
 	/* Clear the FIFO. */
-	bcm_bsc_modifyreg(sc, BCM_BSC_CTRL, BCM_BSC_CTRL_CLEAR0,
-	    BCM_BSC_CTRL_CLEAR0);
+	bcm_bsc_modifyreg(
+	    sc, BCM_BSC_CTRL, BCM_BSC_CTRL_CLEAR0, BCM_BSC_CTRL_CLEAR0);
 }
 
 static int
@@ -307,8 +296,8 @@ bcm_bsc_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
 		return (ENXIO);
@@ -318,8 +307,8 @@ bcm_bsc_attach(device_t dev)
 	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->sc_irq_res) {
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot allocate interrupt\n");
@@ -328,7 +317,7 @@ bcm_bsc_attach(device_t dev)
 
 	/* Hook up our interrupt handler. */
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, bcm_bsc_intr, sc, &sc->sc_intrhand)) {
+		NULL, bcm_bsc_intr, sc, &sc->sc_intrhand)) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot setup the interrupt handler\n");
@@ -383,14 +372,14 @@ bcm_bsc_empty_rx_fifo(struct bcm_bsc_softc *sc)
 	/* Assumes sc_totlen > 0 and BCM_BSC_STATUS_RXD is asserted on entry. */
 	do {
 		if (sc->sc_resid == 0) {
-			sc->sc_data  = sc->sc_curmsg->buf;
-			sc->sc_dlen  = sc->sc_curmsg->len;
+			sc->sc_data = sc->sc_curmsg->buf;
+			sc->sc_dlen = sc->sc_curmsg->len;
 			sc->sc_resid = sc->sc_dlen;
 			++sc->sc_curmsg;
 		}
 		do {
 			*sc->sc_data = BCM_BSC_READ(sc, BCM_BSC_DATA);
-			DEBUGF(sc, 1, "0x%02x ", *sc->sc_data); 
+			DEBUGF(sc, 1, "0x%02x ", *sc->sc_data);
 			++sc->sc_data;
 			--sc->sc_resid;
 			--sc->sc_totlen;
@@ -407,14 +396,14 @@ bcm_bsc_fill_tx_fifo(struct bcm_bsc_softc *sc)
 	/* Assumes sc_totlen > 0 and BCM_BSC_STATUS_TXD is asserted on entry. */
 	do {
 		if (sc->sc_resid == 0) {
-			sc->sc_data  = sc->sc_curmsg->buf;
-			sc->sc_dlen  = sc->sc_curmsg->len;
+			sc->sc_data = sc->sc_curmsg->buf;
+			sc->sc_dlen = sc->sc_curmsg->len;
 			sc->sc_resid = sc->sc_dlen;
 			++sc->sc_curmsg;
 		}
 		do {
 			BCM_BSC_WRITE(sc, BCM_BSC_DATA, *sc->sc_data);
-			DEBUGF(sc, 1, "0x%02x ", *sc->sc_data); 
+			DEBUGF(sc, 1, "0x%02x ", *sc->sc_data);
 			++sc->sc_data;
 			--sc->sc_resid;
 			--sc->sc_totlen;
@@ -434,10 +423,8 @@ bcm_bsc_fill_tx_fifo(struct bcm_bsc_softc *sc)
 				DEBUGF(sc, 1, " err=0\n");
 				DEVICE_DEBUGF(sc, 2, "rstart 0x%02x\n",
 				    sc->sc_curmsg->slave | 0x01);
-				DEVICE_DEBUGF(sc, 1,
-				    "read   0x%02x len %d: ",
-				    sc->sc_curmsg->slave | 0x01,
-				    sc->sc_totlen);
+				DEVICE_DEBUGF(sc, 1, "read   0x%02x len %d: ",
+				    sc->sc_curmsg->slave | 0x01, sc->sc_totlen);
 				sc->sc_flags |= BCM_I2C_READ;
 				return;
 			}
@@ -583,7 +570,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		 * the read length and direction vars for the second piece.
 		 */
 		if (sc->sc_replen == 0) {
-			DEVICE_DEBUGF(sc, 1, "%-6s 0x%02x len %d: ", 
+			DEVICE_DEBUGF(sc, 1, "%-6s 0x%02x len %d: ",
 			    (curisread) ? "read" : "write", curslave,
 			    sc->sc_totlen);
 			curlen = sc->sc_totlen;
@@ -595,7 +582,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 				sc->sc_flags &= ~BCM_I2C_READ;
 			}
 		} else {
-			DEVICE_DEBUGF(sc, 1, "%-6s 0x%02x len %d: ", 
+			DEVICE_DEBUGF(sc, 1, "%-6s 0x%02x len %d: ",
 			    (curisread) ? "read" : "write", curslave,
 			    sc->sc_replen);
 
@@ -608,8 +595,8 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			 * following read; interrupts are not enabled here.
 			 */
 			BCM_BSC_WRITE(sc, BCM_BSC_DLEN, sc->sc_replen);
-			BCM_BSC_WRITE(sc, BCM_BSC_CTRL, BCM_BSC_CTRL_I2CEN |
-			    BCM_BSC_CTRL_ST);
+			BCM_BSC_WRITE(sc, BCM_BSC_CTRL,
+			    BCM_BSC_CTRL_I2CEN | BCM_BSC_CTRL_ST);
 			do {
 				status = BCM_BSC_READ(sc, BCM_BSC_STATUS);
 				if (status & BCM_BSC_STATUS_ERR) {
@@ -636,8 +623,9 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		 * for a regular write too.
 		 */
 		BCM_BSC_WRITE(sc, BCM_BSC_DLEN, curlen);
-		BCM_BSC_WRITE(sc, BCM_BSC_CTRL, readctl | BCM_BSC_CTRL_I2CEN |
-		    BCM_BSC_CTRL_ST | BCM_BSC_CTRL_INT_ALL);
+		BCM_BSC_WRITE(sc, BCM_BSC_CTRL,
+		    readctl | BCM_BSC_CTRL_I2CEN | BCM_BSC_CTRL_ST |
+			BCM_BSC_CTRL_INT_ALL);
 
 		if (!(sc->sc_curmsg->flags & IIC_M_RD)) {
 			bcm_bsc_fill_tx_fifo(sc);
@@ -650,7 +638,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		/* Check for errors. */
 		if (err == 0 && (sc->sc_flags & BCM_I2C_ERROR))
 			err = EIO;
-xfer_done:
+	xfer_done:
 		DEBUGF(sc, 1, " err=%d\n", err);
 		DEVICE_DEBUGF(sc, 2, "stop\n");
 		if (err != 0)
@@ -700,17 +688,17 @@ bcm_bsc_get_node(device_t bus, device_t dev)
 
 static device_method_t bcm_bsc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		bcm_bsc_probe),
-	DEVMETHOD(device_attach,	bcm_bsc_attach),
-	DEVMETHOD(device_detach,	bcm_bsc_detach),
+	DEVMETHOD(device_probe, bcm_bsc_probe),
+	DEVMETHOD(device_attach, bcm_bsc_attach),
+	DEVMETHOD(device_detach, bcm_bsc_detach),
 
 	/* iicbus interface */
-	DEVMETHOD(iicbus_reset,		bcm_bsc_iicbus_reset),
-	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
-	DEVMETHOD(iicbus_transfer,	bcm_bsc_transfer),
+	DEVMETHOD(iicbus_reset, bcm_bsc_iicbus_reset),
+	DEVMETHOD(iicbus_callback, iicbus_null_callback),
+	DEVMETHOD(iicbus_transfer, bcm_bsc_transfer),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	bcm_bsc_get_node),
+	DEVMETHOD(ofw_bus_get_node, bcm_bsc_get_node),
 
 	DEVMETHOD_END
 };

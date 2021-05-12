@@ -29,8 +29,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
-
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
@@ -38,14 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sx.h>
-#include <sys/systm.h>
 #include <sys/sysctl.h>
-#include <sys/types.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_periph.h>
-
 #include <cam/scsi/scsi_enc.h>
 #include <cam/scsi/scsi_enc_internal.h>
 #include <cam/scsi/scsi_message.h>
@@ -56,8 +54,9 @@ __FBSDID("$FreeBSD$");
 
 static int safte_set_enc_status(enc_softc_t *enc, uint8_t encstat, int slpflag);
 
-#define	ALL_ENC_STAT (SES_ENCSTAT_CRITICAL | SES_ENCSTAT_UNRECOV | \
-	SES_ENCSTAT_NONCRITICAL | SES_ENCSTAT_INFO)
+#define ALL_ENC_STAT                                  \
+	(SES_ENCSTAT_CRITICAL | SES_ENCSTAT_UNRECOV | \
+	    SES_ENCSTAT_NONCRITICAL | SES_ENCSTAT_INFO)
 /*
  * SAF-TE specific defines- Mandatory ones only...
  */
@@ -65,22 +64,22 @@ static int safte_set_enc_status(enc_softc_t *enc, uint8_t encstat, int slpflag);
 /*
  * READ BUFFER ('get' commands) IDs- placed in offset 2 of cdb
  */
-#define	SAFTE_RD_RDCFG	0x00	/* read enclosure configuration */
-#define	SAFTE_RD_RDESTS	0x01	/* read enclosure status */
-#define	SAFTE_RD_RDDSTS	0x04	/* read drive slot status */
-#define	SAFTE_RD_RDGFLG	0x05	/* read global flags */
+#define SAFTE_RD_RDCFG 0x00 /* read enclosure configuration */
+#define SAFTE_RD_RDESTS 0x01 /* read enclosure status */
+#define SAFTE_RD_RDDSTS 0x04 /* read drive slot status */
+#define SAFTE_RD_RDGFLG 0x05 /* read global flags */
 
 /*
  * WRITE BUFFER ('set' commands) IDs- placed in offset 0 of databuf
  */
-#define	SAFTE_WT_DSTAT	0x10	/* write device slot status */
-#define	SAFTE_WT_SLTOP	0x12	/* perform slot operation */
-#define	SAFTE_WT_FANSPD	0x13	/* set fan speed */
-#define	SAFTE_WT_ACTPWS	0x14	/* turn on/off power supply */
-#define	SAFTE_WT_GLOBAL	0x15	/* send global command */
+#define SAFTE_WT_DSTAT 0x10 /* write device slot status */
+#define SAFTE_WT_SLTOP 0x12 /* perform slot operation */
+#define SAFTE_WT_FANSPD 0x13 /* set fan speed */
+#define SAFTE_WT_ACTPWS 0x14 /* turn on/off power supply */
+#define SAFTE_WT_GLOBAL 0x15 /* send global command */
 
-#define	SAFT_SCRATCH	64
-#define	SCSZ		0x8000
+#define SAFT_SCRATCH 64
+#define SCSZ 0x8000
 
 typedef enum {
 	SAFTE_UPDATE_NONE,
@@ -100,67 +99,30 @@ static fsm_done_handler_t safte_process_status;
 static fsm_done_handler_t safte_process_slotstatus;
 static fsm_done_handler_t safte_process_control_request;
 
-static struct enc_fsm_state enc_fsm_states[SAFTE_NUM_UPDATE_STATES] =
-{
+static struct enc_fsm_state enc_fsm_states[SAFTE_NUM_UPDATE_STATES] = {
 	{ "SAFTE_UPDATE_NONE", 0, 0, 0, NULL, NULL, NULL },
-	{
-		"SAFTE_UPDATE_READCONFIG",
-		SAFTE_RD_RDCFG,
-		SAFT_SCRATCH,
-		60 * 1000,
-		safte_fill_read_buf_io,
-		safte_process_config,
-		enc_error
-	},
-	{
-		"SAFTE_UPDATE_READGFLAGS",
-		SAFTE_RD_RDGFLG,
-		16,
-		60 * 1000,
-		safte_fill_read_buf_io,
-		safte_process_gflags,
-		enc_error
-	},
-	{
-		"SAFTE_UPDATE_READENCSTATUS",
-		SAFTE_RD_RDESTS,
-		SCSZ,
-		60 * 1000,
-		safte_fill_read_buf_io,
-		safte_process_status,
-		enc_error
-	},
-	{
-		"SAFTE_UPDATE_READSLOTSTATUS",
-		SAFTE_RD_RDDSTS,
-		SCSZ,
-		60 * 1000,
-		safte_fill_read_buf_io,
-		safte_process_slotstatus,
-		enc_error
-	},
-	{
-		"SAFTE_PROCESS_CONTROL_REQS",
-		0,
-		SCSZ,
-		60 * 1000,
-		safte_fill_control_request,
-		safte_process_control_request,
-		enc_error
-	}
+	{ "SAFTE_UPDATE_READCONFIG", SAFTE_RD_RDCFG, SAFT_SCRATCH, 60 * 1000,
+	    safte_fill_read_buf_io, safte_process_config, enc_error },
+	{ "SAFTE_UPDATE_READGFLAGS", SAFTE_RD_RDGFLG, 16, 60 * 1000,
+	    safte_fill_read_buf_io, safte_process_gflags, enc_error },
+	{ "SAFTE_UPDATE_READENCSTATUS", SAFTE_RD_RDESTS, SCSZ, 60 * 1000,
+	    safte_fill_read_buf_io, safte_process_status, enc_error },
+	{ "SAFTE_UPDATE_READSLOTSTATUS", SAFTE_RD_RDDSTS, SCSZ, 60 * 1000,
+	    safte_fill_read_buf_io, safte_process_slotstatus, enc_error },
+	{ "SAFTE_PROCESS_CONTROL_REQS", 0, SCSZ, 60 * 1000,
+	    safte_fill_control_request, safte_process_control_request,
+	    enc_error }
 };
 
 typedef struct safte_control_request {
-	int	elm_idx;
-	uint8_t	elm_stat[4];
-	int	result;
+	int elm_idx;
+	uint8_t elm_stat[4];
+	int result;
 	TAILQ_ENTRY(safte_control_request) links;
 } safte_control_request_t;
 TAILQ_HEAD(safte_control_reqlist, safte_control_request);
 typedef struct safte_control_reqlist safte_control_reqlist_t;
-enum {
-	SES_SETSTATUS_ENC_IDX = -1
-};
+enum { SES_SETSTATUS_ENC_IDX = -1 };
 
 static void
 safte_terminate_control_requests(safte_control_reqlist_t *reqlist, int result)
@@ -178,79 +140,76 @@ struct scfg {
 	/*
 	 * Cached Configuration
 	 */
-	uint8_t	Nfans;		/* Number of Fans */
-	uint8_t	Npwr;		/* Number of Power Supplies */
-	uint8_t	Nslots;		/* Number of Device Slots */
-	uint8_t	DoorLock;	/* Door Lock Installed */
-	uint8_t	Ntherm;		/* Number of Temperature Sensors */
-	uint8_t	Nspkrs;		/* Number of Speakers */
-	uint8_t	Ntstats;	/* Number of Thermostats */
+	uint8_t Nfans;	  /* Number of Fans */
+	uint8_t Npwr;	  /* Number of Power Supplies */
+	uint8_t Nslots;	  /* Number of Device Slots */
+	uint8_t DoorLock; /* Door Lock Installed */
+	uint8_t Ntherm;	  /* Number of Temperature Sensors */
+	uint8_t Nspkrs;	  /* Number of Speakers */
+	uint8_t Ntstats;  /* Number of Thermostats */
 	/*
 	 * Cached Flag Bytes for Global Status
 	 */
-	uint8_t	flag1;
-	uint8_t	flag2;
+	uint8_t flag1;
+	uint8_t flag2;
 	/*
 	 * What object index ID is where various slots start.
 	 */
-	uint8_t	pwroff;
-	uint8_t	slotoff;
-#define	SAFT_ALARM_OFFSET(cc)	(cc)->slotoff - 1
+	uint8_t pwroff;
+	uint8_t slotoff;
+#define SAFT_ALARM_OFFSET(cc) (cc)->slotoff - 1
 
-	encioc_enc_status_t	adm_status;
-	encioc_enc_status_t	enc_status;
-	encioc_enc_status_t	slot_status;
+	encioc_enc_status_t adm_status;
+	encioc_enc_status_t enc_status;
+	encioc_enc_status_t slot_status;
 
-	safte_control_reqlist_t	requests;
-	safte_control_request_t	*current_request;
-	int			current_request_stage;
-	int			current_request_stages;
+	safte_control_reqlist_t requests;
+	safte_control_request_t *current_request;
+	int current_request_stage;
+	int current_request_stages;
 };
 
-#define	SAFT_FLG1_ALARM		0x1
-#define	SAFT_FLG1_GLOBFAIL	0x2
-#define	SAFT_FLG1_GLOBWARN	0x4
-#define	SAFT_FLG1_ENCPWROFF	0x8
-#define	SAFT_FLG1_ENCFANFAIL	0x10
-#define	SAFT_FLG1_ENCPWRFAIL	0x20
-#define	SAFT_FLG1_ENCDRVFAIL	0x40
-#define	SAFT_FLG1_ENCDRVWARN	0x80
+#define SAFT_FLG1_ALARM 0x1
+#define SAFT_FLG1_GLOBFAIL 0x2
+#define SAFT_FLG1_GLOBWARN 0x4
+#define SAFT_FLG1_ENCPWROFF 0x8
+#define SAFT_FLG1_ENCFANFAIL 0x10
+#define SAFT_FLG1_ENCPWRFAIL 0x20
+#define SAFT_FLG1_ENCDRVFAIL 0x40
+#define SAFT_FLG1_ENCDRVWARN 0x80
 
-#define	SAFT_FLG2_LOCKDOOR	0x4
-#define	SAFT_PRIVATE		sizeof (struct scfg)
+#define SAFT_FLG2_LOCKDOOR 0x4
+#define SAFT_PRIVATE sizeof(struct scfg)
 
 static char *safte_2little = "Too Little Data Returned (%d) at line %d\n";
-#define	SAFT_BAIL(r, x)	\
-	if ((r) >= (x)) { \
-		ENC_VLOG(enc, safte_2little, x, __LINE__);\
-		return (EIO); \
+#define SAFT_BAIL(r, x)                                    \
+	if ((r) >= (x)) {                                  \
+		ENC_VLOG(enc, safte_2little, x, __LINE__); \
+		return (EIO);                              \
 	}
 
 int emulate_array_devices = 1;
 SYSCTL_INT(_kern_cam_enc, OID_AUTO, emulate_array_devices, CTLFLAG_RWTUN,
-           &emulate_array_devices, 0, "Emulate Array Devices for SAF-TE");
+    &emulate_array_devices, 0, "Emulate Array Devices for SAF-TE");
 
 static int
-safte_fill_read_buf_io(enc_softc_t *enc, struct enc_fsm_state *state,
-		       union ccb *ccb, uint8_t *buf)
+safte_fill_read_buf_io(
+    enc_softc_t *enc, struct enc_fsm_state *state, union ccb *ccb, uint8_t *buf)
 {
 
-	if (state->page_code != SAFTE_RD_RDCFG &&
-	    enc->enc_cache.nelms == 0) {
+	if (state->page_code != SAFTE_RD_RDCFG && enc->enc_cache.nelms == 0) {
 		enc_update_request(enc, SAFTE_UPDATE_READCONFIG);
 		return (-1);
 	}
 
 	if (enc->enc_type == ENC_SEMB_SAFT) {
-		semb_read_buffer(&ccb->ataio, /*retries*/5,
-				NULL, MSG_SIMPLE_Q_TAG,
-				state->page_code, buf, state->buf_size,
-				state->timeout);
+		semb_read_buffer(&ccb->ataio, /*retries*/ 5, NULL,
+		    MSG_SIMPLE_Q_TAG, state->page_code, buf, state->buf_size,
+		    state->timeout);
 	} else {
-		scsi_read_buffer(&ccb->csio, /*retries*/5,
-				NULL, MSG_SIMPLE_Q_TAG, 1,
-				state->page_code, 0, buf, state->buf_size,
-				SSD_FULL_SIZE, state->timeout);
+		scsi_read_buffer(&ccb->csio, /*retries*/ 5, NULL,
+		    MSG_SIMPLE_Q_TAG, 1, state->page_code, 0, buf,
+		    state->buf_size, SSD_FULL_SIZE, state->timeout);
 	}
 	return (0);
 }
@@ -269,8 +228,8 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	if (error != 0)
 		return (error);
 	if (xfer_len < 6) {
-		ENC_VLOG(enc, "too little data (%d) for configuration\n",
-		    xfer_len);
+		ENC_VLOG(
+		    enc, "too little data (%d) for configuration\n", xfer_len);
 		return (EIO);
 	}
 	cfg->Nfans = buf[0];
@@ -283,7 +242,8 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 		cfg->Ntstats = buf[6] & 0x0f;
 	else
 		cfg->Ntstats = 0;
-	ENC_VLOG(enc, "Nfans %d Npwr %d Nslots %d Lck %d Ntherm %d Nspkrs %d "
+	ENC_VLOG(enc,
+	    "Nfans %d Npwr %d Nslots %d Lck %d Ntherm %d Nspkrs %d "
 	    "Ntstats %d\n",
 	    cfg->Nfans, cfg->Npwr, cfg->Nslots, cfg->DoorLock, cfg->Ntherm,
 	    cfg->Nspkrs, cfg->Ntstats);
@@ -291,9 +251,9 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	enc->enc_cache.nelms = cfg->Nfans + cfg->Npwr + cfg->Nslots +
 	    cfg->DoorLock + cfg->Ntherm + cfg->Nspkrs + cfg->Ntstats + 1;
 	ENC_FREE_AND_NULL(enc->enc_cache.elm_map);
-	enc->enc_cache.elm_map =
-	    malloc(enc->enc_cache.nelms * sizeof(enc_element_t),
-	    M_SCSIENC, M_WAITOK|M_ZERO);
+	enc->enc_cache.elm_map = malloc(
+	    enc->enc_cache.nelms * sizeof(enc_element_t), M_SCSIENC,
+	    M_WAITOK | M_ZERO);
 
 	r = 0;
 	/*
@@ -302,7 +262,7 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	 */
 	for (i = 0; i < cfg->Nfans; i++)
 		enc->enc_cache.elm_map[r++].elm_type = ELMTYP_FAN;
-	cfg->pwroff = (uint8_t) r;
+	cfg->pwroff = (uint8_t)r;
 	for (i = 0; i < cfg->Npwr; i++)
 		enc->enc_cache.elm_map[r++].elm_type = ELMTYP_POWER;
 	for (i = 0; i < cfg->DoorLock; i++)
@@ -313,11 +273,11 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 		enc->enc_cache.elm_map[r++].elm_type = ELMTYP_THERM;
 	for (i = 0; i <= cfg->Ntstats; i++)
 		enc->enc_cache.elm_map[r++].elm_type = ELMTYP_THERM;
-	cfg->slotoff = (uint8_t) r;
+	cfg->slotoff = (uint8_t)r;
 	for (i = 0; i < cfg->Nslots; i++)
-		enc->enc_cache.elm_map[r++].elm_type =
-		    emulate_array_devices ? ELMTYP_ARRAY_DEV :
-		     ELMTYP_DEVICE;
+		enc->enc_cache.elm_map[r++].elm_type = emulate_array_devices ?
+			  ELMTYP_ARRAY_DEV :
+			  ELMTYP_DEVICE;
 
 	enc_update_request(enc, SAFTE_UPDATE_READGFLAGS);
 	enc_update_request(enc, SAFTE_UPDATE_READENCSTATUS);
@@ -378,8 +338,8 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 		 * 2 = Fan is not present
 		 * 0x80 = Unknown or Not Reportable Status
 		 */
-		cache->elm_map[oid].encstat[1] = 0;	/* resvd */
-		cache->elm_map[oid].encstat[2] = 0;	/* resvd */
+		cache->elm_map[oid].encstat[1] = 0; /* resvd */
+		cache->elm_map[oid].encstat[2] = 0; /* resvd */
 		if (cfg->flag1 & SAFT_FLG1_ENCFANFAIL)
 			cache->elm_map[oid].encstat[3] |= 0x40;
 		else
@@ -393,8 +353,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 			break;
 
 		case 1:
-			cache->elm_map[oid].encstat[0] =
-			    SES_OBJSTAT_CRIT;
+			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_CRIT;
 			/*
 			 * FAIL and FAN STOPPED synthesized
 			 */
@@ -405,7 +364,8 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 			 * if only one fan or no thermometers,
 			 * else the NONCRITICAL error is set.
 			 */
-			if (cfg->Nfans == 1 || (cfg->Ntherm + cfg->Ntstats) == 0)
+			if (cfg->Nfans == 1 ||
+			    (cfg->Ntherm + cfg->Ntstats) == 0)
 				cfg->enc_status |= SES_ENCSTAT_CRITICAL;
 			else
 				cfg->enc_status |= SES_ENCSTAT_NONCRITICAL;
@@ -431,7 +391,8 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 			cfg->enc_status |= SES_ENCSTAT_INFO;
 			break;
 		default:
-			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_UNSUPPORTED;
+			cache->elm_map[oid].encstat[0] =
+			    SES_OBJSTAT_UNSUPPORTED;
 			ENC_VLOG(enc, "Unknown fan%d status 0x%x\n", i,
 			    buf[r] & 0xff);
 			break;
@@ -450,43 +411,43 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	for (i = 0; i < cfg->Npwr; i++) {
 		SAFT_BAIL(r, xfer_len);
 		cache->elm_map[oid].encstat[0] = SES_OBJSTAT_UNKNOWN;
-		cache->elm_map[oid].encstat[1] = 0;	/* resvd */
-		cache->elm_map[oid].encstat[2] = 0;	/* resvd */
-		cache->elm_map[oid].encstat[3] = 0x20;	/* requested on */
+		cache->elm_map[oid].encstat[1] = 0;    /* resvd */
+		cache->elm_map[oid].encstat[2] = 0;    /* resvd */
+		cache->elm_map[oid].encstat[3] = 0x20; /* requested on */
 		switch (buf[r]) {
-		case 0x00:	/* pws operational and on */
+		case 0x00: /* pws operational and on */
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_OK;
 			break;
-		case 0x01:	/* pws operational and off */
+		case 0x01: /* pws operational and off */
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_OK;
 			cache->elm_map[oid].encstat[3] = 0x10;
 			cfg->enc_status |= SES_ENCSTAT_INFO;
 			break;
-		case 0x10:	/* pws is malfunctioning and commanded on */
+		case 0x10: /* pws is malfunctioning and commanded on */
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_CRIT;
 			cache->elm_map[oid].encstat[3] = 0x61;
 			cfg->enc_status |= SES_ENCSTAT_NONCRITICAL;
 			break;
 
-		case 0x11:	/* pws is malfunctioning and commanded off */
+		case 0x11: /* pws is malfunctioning and commanded off */
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_NONCRIT;
 			cache->elm_map[oid].encstat[3] = 0x51;
 			cfg->enc_status |= SES_ENCSTAT_NONCRITICAL;
 			break;
-		case 0x20:	/* pws is not present */
+		case 0x20: /* pws is not present */
 			cache->elm_map[oid].encstat[0] =
 			    SES_OBJSTAT_NOTINSTALLED;
 			cache->elm_map[oid].encstat[3] = 0;
 			cfg->enc_status |= SES_ENCSTAT_INFO;
 			break;
-		case 0x21:	/* pws is present */
-			/*
-			 * This is for enclosures that cannot tell whether the
-			 * device is on or malfunctioning, but know that it is
-			 * present. Just fall through.
-			 */
-			/* FALLTHROUGH */
-		case 0x80:	/* Unknown or Not Reportable Status */
+		case 0x21: /* pws is present */
+			   /*
+			    * This is for enclosures that cannot tell whether the
+			    * device is on or malfunctioning, but know that it is
+			    * present. Just fall through.
+			    */
+			   /* FALLTHROUGH */
+		case 0x80: /* Unknown or Not Reportable Status */
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_UNKNOWN;
 			cache->elm_map[oid].encstat[3] = 0;
 			cfg->enc_status |= SES_ENCSTAT_INFO;
@@ -540,8 +501,8 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 		default:
 			cache->elm_map[oid].encstat[0] =
 			    SES_OBJSTAT_UNSUPPORTED;
-			ENC_VLOG(enc, "unknown lock status 0x%x\n",
-			    buf[r] & 0xff);
+			ENC_VLOG(
+			    enc, "unknown lock status 0x%x\n", buf[r] & 0xff);
 			break;
 		}
 		cache->elm_map[oid++].svalid = 1;
@@ -626,8 +587,8 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	for (i = 0; i <= cfg->Ntstats; i++) {
 		cache->elm_map[oid].encstat[1] = 0;
-		if (tempflags & (1 <<
-		    ((i == cfg->Ntstats) ? 15 : (cfg->Ntherm + i)))) {
+		if (tempflags &
+		    (1 << ((i == cfg->Ntstats) ? 15 : (cfg->Ntherm + i)))) {
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_CRIT;
 			cache->elm_map[4].encstat[2] = 0xff;
 			/*
@@ -646,8 +607,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 				cache->elm_map[oid].encstat[0] =
 				    SES_OBJSTAT_NOTAVAIL;
 			else
-				cache->elm_map[oid].encstat[0] =
-				    SES_OBJSTAT_OK;
+				cache->elm_map[oid].encstat[0] = SES_OBJSTAT_OK;
 			cache->elm_map[oid].encstat[2] = 0;
 			cache->elm_map[oid].encstat[3] = 0;
 		}
@@ -655,8 +615,8 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	}
 	r += 2;
 
-	cache->enc_status =
-	    cfg->enc_status | cfg->slot_status | cfg->adm_status;
+	cache->enc_status = cfg->enc_status | cfg->slot_status |
+	    cfg->adm_status;
 	return (0);
 }
 
@@ -677,61 +637,62 @@ safte_process_slotstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 	cfg->slot_status = 0;
 	oid = cfg->slotoff;
 	for (r = i = 0; i < cfg->Nslots; i++, r += 4) {
-		SAFT_BAIL(r+3, xfer_len);
+		SAFT_BAIL(r + 3, xfer_len);
 		if (cache->elm_map[oid].elm_type == ELMTYP_ARRAY_DEV)
 			cache->elm_map[oid].encstat[1] = 0;
 		cache->elm_map[oid].encstat[2] &= SESCTL_RQSID;
 		cache->elm_map[oid].encstat[3] = 0;
-		if ((buf[r+3] & 0x01) == 0) {	/* no device */
-			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_NOTINSTALLED;
-		} else if (buf[r+0] & 0x02) {
+		if ((buf[r + 3] & 0x01) == 0) { /* no device */
+			cache->elm_map[oid].encstat[0] =
+			    SES_OBJSTAT_NOTINSTALLED;
+		} else if (buf[r + 0] & 0x02) {
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_CRIT;
 			cfg->slot_status |= SES_ENCSTAT_CRITICAL;
-		} else if (buf[r+0] & 0x40) {
+		} else if (buf[r + 0] & 0x40) {
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_NONCRIT;
 			cfg->slot_status |= SES_ENCSTAT_NONCRITICAL;
 		} else {
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_OK;
 		}
-		if (buf[r+3] & 0x2) {
-			if (buf[r+3] & 0x01)
+		if (buf[r + 3] & 0x2) {
+			if (buf[r + 3] & 0x01)
 				cache->elm_map[oid].encstat[2] |= SESCTL_RQSRMV;
 			else
 				cache->elm_map[oid].encstat[2] |= SESCTL_RQSINS;
 		}
-		if ((buf[r+3] & 0x04) == 0)
+		if ((buf[r + 3] & 0x04) == 0)
 			cache->elm_map[oid].encstat[3] |= SESCTL_DEVOFF;
-		if (buf[r+0] & 0x02)
+		if (buf[r + 0] & 0x02)
 			cache->elm_map[oid].encstat[3] |= SESCTL_RQSFLT;
-		if (buf[r+0] & 0x40)
+		if (buf[r + 0] & 0x40)
 			cache->elm_map[oid].encstat[0] |= SESCTL_PRDFAIL;
 		if (cache->elm_map[oid].elm_type == ELMTYP_ARRAY_DEV) {
-			if (buf[r+0] & 0x01)
+			if (buf[r + 0] & 0x01)
 				cache->elm_map[oid].encstat[1] |= 0x80;
-			if (buf[r+0] & 0x04)
+			if (buf[r + 0] & 0x04)
 				cache->elm_map[oid].encstat[1] |= 0x02;
-			if (buf[r+0] & 0x08)
+			if (buf[r + 0] & 0x08)
 				cache->elm_map[oid].encstat[1] |= 0x04;
-			if (buf[r+0] & 0x10)
+			if (buf[r + 0] & 0x10)
 				cache->elm_map[oid].encstat[1] |= 0x08;
-			if (buf[r+0] & 0x20)
+			if (buf[r + 0] & 0x20)
 				cache->elm_map[oid].encstat[1] |= 0x10;
-			if (buf[r+1] & 0x01)
+			if (buf[r + 1] & 0x01)
 				cache->elm_map[oid].encstat[1] |= 0x20;
-			if (buf[r+1] & 0x02)
+			if (buf[r + 1] & 0x02)
 				cache->elm_map[oid].encstat[1] |= 0x01;
 		}
 		cache->elm_map[oid++].svalid = 1;
 	}
 
-	cache->enc_status =
-	    cfg->enc_status | cfg->slot_status | cfg->adm_status;
+	cache->enc_status = cfg->enc_status | cfg->slot_status |
+	    cfg->adm_status;
 	return (0);
 }
 
 static int
-safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
-		       union ccb *ccb, uint8_t *buf)
+safte_fill_control_request(
+    enc_softc_t *enc, struct enc_fsm_state *state, union ccb *ccb, uint8_t *buf)
 {
 	struct scfg *cfg;
 	enc_element_t *ep, *ep1;
@@ -758,8 +719,9 @@ safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 	idx = (int)req->elm_idx;
 	if (req->elm_idx == SES_SETSTATUS_ENC_IDX) {
 		cfg->adm_status = req->elm_stat[0] & ALL_ENC_STAT;
-		cfg->flag1 &= ~(SAFT_FLG1_GLOBFAIL|SAFT_FLG1_GLOBWARN);
-		if (req->elm_stat[0] & (SES_ENCSTAT_CRITICAL|SES_ENCSTAT_UNRECOV))
+		cfg->flag1 &= ~(SAFT_FLG1_GLOBFAIL | SAFT_FLG1_GLOBWARN);
+		if (req->elm_stat[0] &
+		    (SES_ENCSTAT_CRITICAL | SES_ENCSTAT_UNRECOV))
 			cfg->flag1 |= SAFT_FLG1_GLOBFAIL;
 		else if (req->elm_stat[0] & SES_ENCSTAT_NONCRITICAL)
 			cfg->flag1 |= SAFT_FLG1_GLOBWARN;
@@ -798,21 +760,22 @@ safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 						ep->priv |= 0x01;
 				}
 				if (ep->priv == 0)
-					ep->priv |= 0x01;	/* no errors */
+					ep->priv |= 0x01; /* no errors */
 
 				buf[0] = SAFTE_WT_DSTAT;
 				for (i = 0; i < cfg->Nslots; i++) {
-					ep1 = &enc->enc_cache.elm_map[cfg->slotoff + i];
+					ep1 = &enc->enc_cache
+						   .elm_map[cfg->slotoff + i];
 					buf[1 + (3 * i)] = ep1->priv;
 					buf[2 + (3 * i)] = ep1->priv >> 8;
 				}
 				xfer_len = cfg->Nslots * 3 + 1;
-#define DEVON(x)	(!(((x)[2] & SESCTL_RQSINS) |	\
-			   ((x)[2] & SESCTL_RQSRMV) |	\
-			   ((x)[3] & SESCTL_DEVOFF)))
+#define DEVON(x)                                                 \
+	(!(((x)[2] & SESCTL_RQSINS) | ((x)[2] & SESCTL_RQSRMV) | \
+	    ((x)[3] & SESCTL_DEVOFF)))
 				if (DEVON(req->elm_stat) != DEVON(ep->encstat))
 					cfg->current_request_stages++;
-#define IDON(x)		(!!((x)[2] & SESCTL_RQSID))
+#define IDON(x) (!!((x)[2] & SESCTL_RQSID))
 				if (IDON(req->elm_stat) != IDON(ep->encstat))
 					cfg->current_request_stages++;
 				break;
@@ -821,7 +784,8 @@ safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 				buf[0] = SAFTE_WT_SLTOP;
 				buf[1] = idx - cfg->slotoff;
 				if (cfg->current_request_stage == 1 &&
-				    DEVON(req->elm_stat) != DEVON(ep->encstat)) {
+				    DEVON(req->elm_stat) !=
+					DEVON(ep->encstat)) {
 					if (DEVON(req->elm_stat))
 						buf[2] = 0x01;
 					else
@@ -938,14 +902,12 @@ safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 	}
 
 	if (enc->enc_type == ENC_SEMB_SAFT) {
-		semb_write_buffer(&ccb->ataio, /*retries*/5,
-				NULL, MSG_SIMPLE_Q_TAG,
-				buf, xfer_len, state->timeout);
+		semb_write_buffer(&ccb->ataio, /*retries*/ 5, NULL,
+		    MSG_SIMPLE_Q_TAG, buf, xfer_len, state->timeout);
 	} else {
-		scsi_write_buffer(&ccb->csio, /*retries*/5,
-				NULL, MSG_SIMPLE_Q_TAG, 1,
-				0, 0, buf, xfer_len,
-				SSD_FULL_SIZE, state->timeout);
+		scsi_write_buffer(&ccb->csio, /*retries*/ 5, NULL,
+		    MSG_SIMPLE_Q_TAG, 1, 0, 0, buf, xfer_len, SSD_FULL_SIZE,
+		    state->timeout);
 	}
 	return (0);
 }
@@ -1096,16 +1058,15 @@ safte_poll_status(enc_softc_t *enc)
 	enc_update_request(enc, SAFTE_UPDATE_READSLOTSTATUS);
 }
 
-static struct enc_vec safte_enc_vec =
-{
-	.softc_invalidate	= safte_softc_invalidate,
-	.softc_cleanup	= safte_softc_cleanup,
-	.init_enc	= safte_init_enc,
-	.get_enc_status	= safte_get_enc_status,
-	.set_enc_status	= safte_set_enc_status,
-	.get_elm_status	= safte_get_elm_status,
-	.set_elm_status	= safte_set_elm_status,
-	.poll_status	= safte_poll_status
+static struct enc_vec safte_enc_vec = {
+	.softc_invalidate = safte_softc_invalidate,
+	.softc_cleanup = safte_softc_cleanup,
+	.init_enc = safte_init_enc,
+	.get_enc_status = safte_get_enc_status,
+	.set_enc_status = safte_set_enc_status,
+	.get_elm_status = safte_get_elm_status,
+	.set_elm_status = safte_set_elm_status,
+	.poll_status = safte_poll_status
 };
 
 int

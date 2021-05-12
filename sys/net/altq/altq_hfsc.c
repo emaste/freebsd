@@ -46,99 +46,96 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
-#ifdef ALTQ_HFSC  /* hfsc is enabled by ALTQ_HFSC option in opt_altq.h */
+#ifdef ALTQ_HFSC /* hfsc is enabled by ALTQ_HFSC option in opt_altq.h */
 
 #include <sys/param.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/queue.h>
+#include <sys/socket.h>
 #if 1 /* ALTQ3_COMPAT */
-#include <sys/sockio.h>
-#include <sys/proc.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
+#include <sys/sockio.h>
 #endif /* ALTQ3_COMPAT */
 
+#include <net/altq/altq.h>
+#include <net/altq/altq_hfsc.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <netinet/in.h>
-
 #include <netpfil/pf/pf.h>
 #include <netpfil/pf/pf_altq.h>
 #include <netpfil/pf/pf_mtag.h>
-#include <net/altq/altq.h>
-#include <net/altq/altq_hfsc.h>
 
 /*
  * function prototypes
  */
-static int			 hfsc_clear_interface(struct hfsc_if *);
-static int			 hfsc_request(struct ifaltq *, int, void *);
-static void			 hfsc_purge(struct hfsc_if *);
-static struct hfsc_class	*hfsc_class_create(struct hfsc_if *,
+static int hfsc_clear_interface(struct hfsc_if *);
+static int hfsc_request(struct ifaltq *, int, void *);
+static void hfsc_purge(struct hfsc_if *);
+static struct hfsc_class *hfsc_class_create(struct hfsc_if *,
     struct service_curve *, struct service_curve *, struct service_curve *,
     struct hfsc_class *, int, int, int);
-static int			 hfsc_class_destroy(struct hfsc_class *);
-static struct hfsc_class	*hfsc_nextclass(struct hfsc_class *);
-static int			 hfsc_enqueue(struct ifaltq *, struct mbuf *,
-				    struct altq_pktattr *);
-static struct mbuf		*hfsc_dequeue(struct ifaltq *, int);
+static int hfsc_class_destroy(struct hfsc_class *);
+static struct hfsc_class *hfsc_nextclass(struct hfsc_class *);
+static int hfsc_enqueue(struct ifaltq *, struct mbuf *, struct altq_pktattr *);
+static struct mbuf *hfsc_dequeue(struct ifaltq *, int);
 
-static int		 hfsc_addq(struct hfsc_class *, struct mbuf *);
-static struct mbuf	*hfsc_getq(struct hfsc_class *);
-static struct mbuf	*hfsc_pollq(struct hfsc_class *);
-static void		 hfsc_purgeq(struct hfsc_class *);
+static int hfsc_addq(struct hfsc_class *, struct mbuf *);
+static struct mbuf *hfsc_getq(struct hfsc_class *);
+static struct mbuf *hfsc_pollq(struct hfsc_class *);
+static void hfsc_purgeq(struct hfsc_class *);
 
-static void		 update_cfmin(struct hfsc_class *);
-static void		 set_active(struct hfsc_class *, int);
-static void		 set_passive(struct hfsc_class *);
+static void update_cfmin(struct hfsc_class *);
+static void set_active(struct hfsc_class *, int);
+static void set_passive(struct hfsc_class *);
 
-static void		 init_ed(struct hfsc_class *, int);
-static void		 update_ed(struct hfsc_class *, int);
-static void		 update_d(struct hfsc_class *, int);
-static void		 init_vf(struct hfsc_class *, int);
-static void		 update_vf(struct hfsc_class *, int, u_int64_t);
-static void		 ellist_insert(struct hfsc_class *);
-static void		 ellist_remove(struct hfsc_class *);
-static void		 ellist_update(struct hfsc_class *);
-struct hfsc_class	*hfsc_get_mindl(struct hfsc_if *, u_int64_t);
-static void		 actlist_insert(struct hfsc_class *);
-static void		 actlist_remove(struct hfsc_class *);
-static void		 actlist_update(struct hfsc_class *);
+static void init_ed(struct hfsc_class *, int);
+static void update_ed(struct hfsc_class *, int);
+static void update_d(struct hfsc_class *, int);
+static void init_vf(struct hfsc_class *, int);
+static void update_vf(struct hfsc_class *, int, u_int64_t);
+static void ellist_insert(struct hfsc_class *);
+static void ellist_remove(struct hfsc_class *);
+static void ellist_update(struct hfsc_class *);
+struct hfsc_class *hfsc_get_mindl(struct hfsc_if *, u_int64_t);
+static void actlist_insert(struct hfsc_class *);
+static void actlist_remove(struct hfsc_class *);
+static void actlist_update(struct hfsc_class *);
 
-static struct hfsc_class	*actlist_firstfit(struct hfsc_class *,
-				    u_int64_t);
+static struct hfsc_class *actlist_firstfit(struct hfsc_class *, u_int64_t);
 
-static __inline u_int64_t	seg_x2y(u_int64_t, u_int64_t);
-static __inline u_int64_t	seg_y2x(u_int64_t, u_int64_t);
-static __inline u_int64_t	m2sm(u_int64_t);
-static __inline u_int64_t	m2ism(u_int64_t);
-static __inline u_int64_t	d2dx(u_int);
-static u_int64_t		sm2m(u_int64_t);
-static u_int			dx2d(u_int64_t);
+static __inline u_int64_t seg_x2y(u_int64_t, u_int64_t);
+static __inline u_int64_t seg_y2x(u_int64_t, u_int64_t);
+static __inline u_int64_t m2sm(u_int64_t);
+static __inline u_int64_t m2ism(u_int64_t);
+static __inline u_int64_t d2dx(u_int);
+static u_int64_t sm2m(u_int64_t);
+static u_int dx2d(u_int64_t);
 
-static void		sc2isc(struct service_curve *, struct internal_sc *);
-static void		rtsc_init(struct runtime_sc *, struct internal_sc *,
-			    u_int64_t, u_int64_t);
-static u_int64_t	rtsc_y2x(struct runtime_sc *, u_int64_t);
-static u_int64_t	rtsc_x2y(struct runtime_sc *, u_int64_t);
-static void		rtsc_min(struct runtime_sc *, struct internal_sc *,
-			    u_int64_t, u_int64_t);
+static void sc2isc(struct service_curve *, struct internal_sc *);
+static void rtsc_init(
+    struct runtime_sc *, struct internal_sc *, u_int64_t, u_int64_t);
+static u_int64_t rtsc_y2x(struct runtime_sc *, u_int64_t);
+static u_int64_t rtsc_x2y(struct runtime_sc *, u_int64_t);
+static void rtsc_min(
+    struct runtime_sc *, struct internal_sc *, u_int64_t, u_int64_t);
 
-static void			 get_class_stats_v0(struct hfsc_classstats_v0 *,
-				    struct hfsc_class *);
-static void			 get_class_stats_v1(struct hfsc_classstats_v1 *,
-				    struct hfsc_class *);
-static struct hfsc_class	*clh_to_clp(struct hfsc_if *, u_int32_t);
+static void get_class_stats_v0(
+    struct hfsc_classstats_v0 *, struct hfsc_class *);
+static void get_class_stats_v1(
+    struct hfsc_classstats_v1 *, struct hfsc_class *);
+static struct hfsc_class *clh_to_clp(struct hfsc_if *, u_int32_t);
 
 /*
  * macros
  */
-#define	is_a_parent_class(cl)	((cl)->cl_children != NULL)
+#define is_a_parent_class(cl) ((cl)->cl_children != NULL)
 
-#define	HT_INFINITY	0xffffffffffffffffULL	/* infinite time value */
+#define HT_INFINITY 0xffffffffffffffffULL /* infinite time value */
 
 int
 hfsc_pfattach(struct pf_altq *a)
@@ -221,17 +218,17 @@ hfsc_add_queue(struct pf_altq *a)
 		return (EBUSY);
 
 	rtsc.m1 = opts->rtsc_m1;
-	rtsc.d  = opts->rtsc_d;
+	rtsc.d = opts->rtsc_d;
 	rtsc.m2 = opts->rtsc_m2;
 	lssc.m1 = opts->lssc_m1;
-	lssc.d  = opts->lssc_d;
+	lssc.d = opts->lssc_d;
 	lssc.m2 = opts->lssc_m2;
 	ulsc.m1 = opts->ulsc_m1;
-	ulsc.d  = opts->ulsc_d;
+	ulsc.d = opts->ulsc_d;
 	ulsc.m2 = opts->ulsc_m2;
 
-	cl = hfsc_class_create(hif, &rtsc, &lssc, &ulsc,
-	    parent, a->qlimit, opts->flags, a->qid);
+	cl = hfsc_class_create(
+	    hif, &rtsc, &lssc, &ulsc, parent, a->qlimit, opts->flags, a->qid);
 	if (cl == NULL)
 		return (ENOMEM);
 
@@ -284,7 +281,7 @@ hfsc_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
 		get_class_stats_v1(&stats.v1, cl);
 		stats_size = sizeof(struct hfsc_classstats_v1);
 		break;
-	}		
+	}
 
 	if (*nbytes < stats_size)
 		return (EINVAL);
@@ -302,7 +299,7 @@ hfsc_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
 static int
 hfsc_clear_interface(struct hfsc_if *hif)
 {
-	struct hfsc_class	*cl;
+	struct hfsc_class *cl;
 
 	/* clear out the classes */
 	while (hif->hif_rootclass != NULL &&
@@ -325,7 +322,7 @@ hfsc_clear_interface(struct hfsc_if *hif)
 static int
 hfsc_request(struct ifaltq *ifq, int req, void *arg)
 {
-	struct hfsc_if	*hif = (struct hfsc_if *)ifq->altq_disc;
+	struct hfsc_if *hif = (struct hfsc_if *)ifq->altq_disc;
 
 	IFQ_LOCK_ASSERT(ifq);
 
@@ -389,14 +386,14 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 	TAILQ_INIT(&cl->cl_actc);
 
 	if (qlimit == 0)
-		qlimit = 50;  /* use default */
+		qlimit = 50; /* use default */
 	qlimit(cl->cl_q) = qlimit;
 	qtype(cl->cl_q) = Q_DROPTAIL;
 	qlen(cl->cl_q) = 0;
 	qsize(cl->cl_q) = 0;
 	cl->cl_flags = flags;
 #ifdef ALTQ_RED
-	if (flags & (HFCF_RED|HFCF_RIO)) {
+	if (flags & (HFCF_RED | HFCF_RIO)) {
 		int red_flags, red_pkttime;
 		u_int m2;
 
@@ -418,20 +415,20 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 		if (m2 < 8)
 			red_pkttime = 1000 * 1000 * 1000; /* 1 sec */
 		else
-			red_pkttime = (int64_t)hif->hif_ifq->altq_ifp->if_mtu
-				* 1000 * 1000 * 1000 / (m2 / 8);
+			red_pkttime = (int64_t)hif->hif_ifq->altq_ifp->if_mtu *
+			    1000 * 1000 * 1000 / (m2 / 8);
 		if (flags & HFCF_RED) {
 			cl->cl_red = red_alloc(0, 0,
-			    qlimit(cl->cl_q) * 10/100,
-			    qlimit(cl->cl_q) * 30/100,
-			    red_flags, red_pkttime);
+			    qlimit(cl->cl_q) * 10 / 100,
+			    qlimit(cl->cl_q) * 30 / 100, red_flags,
+			    red_pkttime);
 			if (cl->cl_red != NULL)
 				qtype(cl->cl_q) = Q_RED;
 		}
 #ifdef ALTQ_RIO
 		else {
-			cl->cl_red = (red_t *)rio_alloc(0, NULL,
-			    red_flags, red_pkttime);
+			cl->cl_red = (red_t *)rio_alloc(
+			    0, NULL, red_flags, red_pkttime);
 			if (cl->cl_red != NULL)
 				qtype(cl->cl_q) = Q_RIO;
 		}
@@ -447,8 +444,8 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 #endif
 
 	if (rsc != NULL && (rsc->m1 != 0 || rsc->m2 != 0)) {
-		cl->cl_rsc = malloc(sizeof(struct internal_sc),
-		    M_DEVBUF, M_NOWAIT);
+		cl->cl_rsc = malloc(
+		    sizeof(struct internal_sc), M_DEVBUF, M_NOWAIT);
 		if (cl->cl_rsc == NULL)
 			goto err_ret;
 		sc2isc(rsc, cl->cl_rsc);
@@ -456,16 +453,16 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 		rtsc_init(&cl->cl_eligible, cl->cl_rsc, 0, 0);
 	}
 	if (fsc != NULL && (fsc->m1 != 0 || fsc->m2 != 0)) {
-		cl->cl_fsc = malloc(sizeof(struct internal_sc),
-		    M_DEVBUF, M_NOWAIT);
+		cl->cl_fsc = malloc(
+		    sizeof(struct internal_sc), M_DEVBUF, M_NOWAIT);
 		if (cl->cl_fsc == NULL)
 			goto err_ret;
 		sc2isc(fsc, cl->cl_fsc);
 		rtsc_init(&cl->cl_virtual, cl->cl_fsc, 0, 0);
 	}
 	if (usc != NULL && (usc->m1 != 0 || usc->m2 != 0)) {
-		cl->cl_usc = malloc(sizeof(struct internal_sc),
-		    M_DEVBUF, M_NOWAIT);
+		cl->cl_usc = malloc(
+		    sizeof(struct internal_sc), M_DEVBUF, M_NOWAIT);
 		if (cl->cl_usc == NULL)
 			goto err_ret;
 		sc2isc(usc, cl->cl_usc);
@@ -524,7 +521,7 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 
 	return (cl);
 
- err_ret:
+err_ret:
 	if (cl->cl_red != NULL) {
 #ifdef ALTQ_RIO
 		if (q_is_rio(cl->cl_q))
@@ -575,12 +572,13 @@ hfsc_class_destroy(struct hfsc_class *cl)
 
 		if (p == cl)
 			cl->cl_parent->cl_children = cl->cl_siblings;
-		else do {
-			if (p->cl_siblings == cl) {
-				p->cl_siblings = cl->cl_siblings;
-				break;
-			}
-		} while ((p = p->cl_siblings) != NULL);
+		else
+			do {
+				if (p->cl_siblings == cl) {
+					p->cl_siblings = cl->cl_siblings;
+					break;
+				}
+			} while ((p = p->cl_siblings) != NULL);
 		ASSERT(p != NULL);
 	}
 
@@ -654,7 +652,7 @@ hfsc_nextclass(struct hfsc_class *cl)
 static int
 hfsc_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 {
-	struct hfsc_if	*hif = (struct hfsc_if *)ifq->altq_disc;
+	struct hfsc_if *hif = (struct hfsc_if *)ifq->altq_disc;
 	struct hfsc_class *cl;
 	struct pf_mtag *t;
 	int len;
@@ -708,7 +706,7 @@ hfsc_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 static struct mbuf *
 hfsc_dequeue(struct ifaltq *ifq, int op)
 {
-	struct hfsc_if	*hif = (struct hfsc_if *)ifq->altq_disc;
+	struct hfsc_if *hif = (struct hfsc_if *)ifq->altq_disc;
 	struct hfsc_class *cl;
 	struct mbuf *m;
 	int len, next_len;
@@ -735,8 +733,7 @@ hfsc_dequeue(struct ifaltq *ifq, int op)
 		 * find the class with the minimum deadline among
 		 * the eligible classes.
 		 */
-		if ((cl = hfsc_get_mindl(hif, cur_time))
-		    != NULL) {
+		if ((cl = hfsc_get_mindl(hif, cur_time)) != NULL) {
 			realtime = 1;
 		} else {
 #ifdef ALTQ_DEBUG
@@ -752,7 +749,9 @@ hfsc_dequeue(struct ifaltq *ifq, int op)
 				if (cl == NULL) {
 #ifdef ALTQ_DEBUG
 					if (fits > 0)
-						printf("%d fit but none found\n",fits);
+						printf(
+						    "%d fit but none found\n",
+						    fits);
 #endif
 					return (NULL);
 				}
@@ -811,8 +810,8 @@ hfsc_addq(struct hfsc_class *cl, struct mbuf *m)
 
 #ifdef ALTQ_RIO
 	if (q_is_rio(cl->cl_q))
-		return rio_addq((rio_t *)cl->cl_red, cl->cl_q,
-				m, cl->cl_pktattr);
+		return rio_addq(
+		    (rio_t *)cl->cl_red, cl->cl_q, m, cl->cl_pktattr);
 #endif
 #ifdef ALTQ_RED
 	if (q_is_red(cl->cl_q))
@@ -875,7 +874,7 @@ hfsc_purgeq(struct hfsc_class *cl)
 	}
 	ASSERT(qlen(cl->cl_q) == 0);
 
-	update_vf(cl, 0, 0);	/* remove cl from the actlist */
+	update_vf(cl, 0, 0); /* remove cl from the actlist */
 	set_passive(cl);
 }
 
@@ -954,7 +953,7 @@ init_vf(struct hfsc_class *cl, int len)
 
 	cur_time = 0;
 	go_active = 1;
-	for ( ; cl->cl_parent != NULL; cl = cl->cl_parent) {
+	for (; cl->cl_parent != NULL; cl = cl->cl_parent) {
 		if (go_active && cl->cl_nactive++ == 0)
 			go_active = 1;
 		else
@@ -970,10 +969,12 @@ init_vf(struct hfsc_class *cl, int len)
 				 */
 				vt = max_cl->cl_vt;
 				if (cl->cl_parent->cl_cvtmin != 0)
-					vt = (cl->cl_parent->cl_cvtmin + vt)/2;
+					vt = (cl->cl_parent->cl_cvtmin + vt) /
+					    2;
 
 				if (cl->cl_parent->cl_vtperiod !=
-				    cl->cl_parentperiod || vt > cl->cl_vt)
+					cl->cl_parentperiod ||
+				    vt > cl->cl_vt)
 					cl->cl_vt = vt;
 			} else {
 				/*
@@ -1001,7 +1002,7 @@ init_vf(struct hfsc_class *cl, int len)
 			}
 			cl->cl_vtadj = 0;
 
-			cl->cl_vtperiod++;  /* increment vt period */
+			cl->cl_vtperiod++; /* increment vt period */
 			cl->cl_parentperiod = cl->cl_parent->cl_vtperiod;
 			if (cl->cl_parent->cl_nactive == 0)
 				cl->cl_parentperiod++;
@@ -1018,8 +1019,8 @@ init_vf(struct hfsc_class *cl, int len)
 				rtsc_min(&cl->cl_ulimit, cl->cl_usc, cur_time,
 				    cl->cl_total);
 				/* compute myf */
-				cl->cl_myf = rtsc_y2x(&cl->cl_ulimit,
-				    cl->cl_total);
+				cl->cl_myf = rtsc_y2x(
+				    &cl->cl_ulimit, cl->cl_total);
 				cl->cl_myfadj = 0;
 			}
 		}
@@ -1072,8 +1073,8 @@ update_vf(struct hfsc_class *cl, int len, u_int64_t cur_time)
 		/*
 		 * update vt and f
 		 */
-		cl->cl_vt = rtsc_y2x(&cl->cl_virtual, cl->cl_total)
-		    - cl->cl_vtoff + cl->cl_vtadj;
+		cl->cl_vt = rtsc_y2x(&cl->cl_virtual, cl->cl_total) -
+		    cl->cl_vtoff + cl->cl_vtadj;
 
 		/*
 		 * if vt of the class is smaller than cvtmin,
@@ -1089,8 +1090,8 @@ update_vf(struct hfsc_class *cl, int len, u_int64_t cur_time)
 		actlist_update(cl);
 
 		if (cl->cl_usc != NULL) {
-			cl->cl_myf = cl->cl_myfadj
-			    + rtsc_y2x(&cl->cl_ulimit, cl->cl_total);
+			cl->cl_myf = cl->cl_myfadj +
+			    rtsc_y2x(&cl->cl_ulimit, cl->cl_total);
 
 			/*
 			 * if myf lags behind by more than one clock tick
@@ -1130,7 +1131,7 @@ update_cfmin(struct hfsc_class *cl)
 		return;
 	}
 	cfmin = HT_INFINITY;
-	TAILQ_FOREACH(p, &cl->cl_actc, cl_actlist) {
+	TAILQ_FOREACH (p, &cl->cl_actc, cl_actlist) {
 		if (p->cl_f == 0) {
 			cl->cl_cfmin = 0;
 			return;
@@ -1153,7 +1154,7 @@ update_cfmin(struct hfsc_class *cl)
 static void
 ellist_insert(struct hfsc_class *cl)
 {
-	struct hfsc_if	*hif = cl->cl_hif;
+	struct hfsc_if *hif = cl->cl_hif;
 	struct hfsc_class *p;
 
 	/* check the last entry first */
@@ -1163,7 +1164,7 @@ ellist_insert(struct hfsc_class *cl)
 		return;
 	}
 
-	TAILQ_FOREACH(p, &hif->hif_eligible, cl_ellist) {
+	TAILQ_FOREACH (p, &hif->hif_eligible, cl_ellist) {
 		if (cl->cl_e < p->cl_e) {
 			TAILQ_INSERT_BEFORE(p, cl, cl_ellist);
 			return;
@@ -1175,7 +1176,7 @@ ellist_insert(struct hfsc_class *cl)
 static void
 ellist_remove(struct hfsc_class *cl)
 {
-	struct hfsc_if	*hif = cl->cl_hif;
+	struct hfsc_if *hif = cl->cl_hif;
 
 	TAILQ_REMOVE(&hif->hif_eligible, cl, cl_ellist);
 }
@@ -1183,7 +1184,7 @@ ellist_remove(struct hfsc_class *cl)
 static void
 ellist_update(struct hfsc_class *cl)
 {
-	struct hfsc_if	*hif = cl->cl_hif;
+	struct hfsc_if *hif = cl->cl_hif;
 	struct hfsc_class *p, *last;
 
 	/*
@@ -1223,7 +1224,7 @@ hfsc_get_mindl(struct hfsc_if *hif, u_int64_t cur_time)
 {
 	struct hfsc_class *p, *cl = NULL;
 
-	TAILQ_FOREACH(p, &hif->hif_eligible, cl_ellist) {
+	TAILQ_FOREACH (p, &hif->hif_eligible, cl_ellist) {
 		if (p->cl_e > cur_time)
 			break;
 		if (cl == NULL || p->cl_d < cl->cl_d)
@@ -1244,13 +1245,13 @@ actlist_insert(struct hfsc_class *cl)
 	struct hfsc_class *p;
 
 	/* check the last entry first */
-	if ((p = TAILQ_LAST(&cl->cl_parent->cl_actc, acthead)) == NULL
-	    || p->cl_vt <= cl->cl_vt) {
+	if ((p = TAILQ_LAST(&cl->cl_parent->cl_actc, acthead)) == NULL ||
+	    p->cl_vt <= cl->cl_vt) {
 		TAILQ_INSERT_TAIL(&cl->cl_parent->cl_actc, cl, cl_actlist);
 		return;
 	}
 
-	TAILQ_FOREACH(p, &cl->cl_parent->cl_actc, cl_actlist) {
+	TAILQ_FOREACH (p, &cl->cl_parent->cl_actc, cl_actlist) {
 		if (cl->cl_vt < p->cl_vt) {
 			TAILQ_INSERT_BEFORE(p, cl, cl_actlist);
 			return;
@@ -1307,7 +1308,7 @@ actlist_firstfit(struct hfsc_class *cl, u_int64_t cur_time)
 {
 	struct hfsc_class *p;
 
-	TAILQ_FOREACH(p, &cl->cl_actc, cl_actlist) {
+	TAILQ_FOREACH (p, &cl->cl_actc, cl_actlist) {
 		if (p->cl_f <= cur_time)
 			return (p);
 	}
@@ -1330,11 +1331,11 @@ actlist_firstfit(struct hfsc_class *cl, u_int64_t cur_time)
  * frequency and at least 3 effective digits in decimal.
  *
  */
-#define	SM_SHIFT	24
-#define	ISM_SHIFT	14
+#define SM_SHIFT 24
+#define ISM_SHIFT 14
 
-#define	SM_MASK		((1LL << SM_SHIFT) - 1)
-#define	ISM_MASK	((1LL << ISM_SHIFT) - 1)
+#define SM_MASK ((1LL << SM_SHIFT) - 1)
+#define ISM_MASK ((1LL << ISM_SHIFT) - 1)
 
 static __inline u_int64_t
 seg_x2y(u_int64_t x, u_int64_t sm)
@@ -1360,8 +1361,8 @@ seg_y2x(u_int64_t y, u_int64_t ism)
 	else if (ism == HT_INFINITY)
 		x = HT_INFINITY;
 	else {
-		x = (y >> ISM_SHIFT) * ism
-		    + (((y & ISM_MASK) * ism) >> ISM_SHIFT);
+		x = (y >> ISM_SHIFT) * ism +
+		    (((y & ISM_MASK) * ism) >> ISM_SHIFT);
 	}
 	return (x);
 }
@@ -1430,17 +1431,17 @@ sc2isc(struct service_curve *sc, struct internal_sc *isc)
  * service curve starting at (x, y).
  */
 static void
-rtsc_init(struct runtime_sc *rtsc, struct internal_sc * isc, u_int64_t x,
-    u_int64_t y)
+rtsc_init(
+    struct runtime_sc *rtsc, struct internal_sc *isc, u_int64_t x, u_int64_t y)
 {
-	rtsc->x =	x;
-	rtsc->y =	y;
-	rtsc->sm1 =	isc->sm1;
-	rtsc->ism1 =	isc->ism1;
-	rtsc->dx =	isc->dx;
-	rtsc->dy =	isc->dy;
-	rtsc->sm2 =	isc->sm2;
-	rtsc->ism2 =	isc->ism2;
+	rtsc->x = x;
+	rtsc->y = y;
+	rtsc->sm1 = isc->sm1;
+	rtsc->ism1 = isc->ism1;
+	rtsc->dx = isc->dx;
+	rtsc->dy = isc->dy;
+	rtsc->sm2 = isc->sm2;
+	rtsc->ism2 = isc->ism2;
 }
 
 /*
@@ -1450,7 +1451,7 @@ rtsc_init(struct runtime_sc *rtsc, struct internal_sc * isc, u_int64_t x,
 static u_int64_t
 rtsc_y2x(struct runtime_sc *rtsc, u_int64_t y)
 {
-	u_int64_t	x;
+	u_int64_t x;
 
 	if (y < rtsc->y)
 		x = rtsc->x;
@@ -1462,8 +1463,8 @@ rtsc_y2x(struct runtime_sc *rtsc, u_int64_t y)
 			x = rtsc->x + seg_y2x(y - rtsc->y, rtsc->ism1);
 	} else {
 		/* x belongs to the 2nd segment */
-		x = rtsc->x + rtsc->dx
-		    + seg_y2x(y - rtsc->y - rtsc->dy, rtsc->ism2);
+		x = rtsc->x + rtsc->dx +
+		    seg_y2x(y - rtsc->y - rtsc->dy, rtsc->ism2);
 	}
 	return (x);
 }
@@ -1471,7 +1472,7 @@ rtsc_y2x(struct runtime_sc *rtsc, u_int64_t y)
 static u_int64_t
 rtsc_x2y(struct runtime_sc *rtsc, u_int64_t x)
 {
-	u_int64_t	y;
+	u_int64_t y;
 
 	if (x <= rtsc->x)
 		y = rtsc->y;
@@ -1480,8 +1481,8 @@ rtsc_x2y(struct runtime_sc *rtsc, u_int64_t x)
 		y = rtsc->y + seg_x2y(x - rtsc->x, rtsc->sm1);
 	else
 		/* y belongs to the 2nd segment */
-		y = rtsc->y + rtsc->dy
-		    + seg_x2y(x - rtsc->x - rtsc->dx, rtsc->sm2);
+		y = rtsc->y + rtsc->dy +
+		    seg_x2y(x - rtsc->x - rtsc->dx, rtsc->sm2);
 	return (y);
 }
 
@@ -1490,10 +1491,10 @@ rtsc_x2y(struct runtime_sc *rtsc, u_int64_t x)
  * runtime service curve and the service curve starting at (x, y).
  */
 static void
-rtsc_min(struct runtime_sc *rtsc, struct internal_sc *isc, u_int64_t x,
-    u_int64_t y)
+rtsc_min(
+    struct runtime_sc *rtsc, struct internal_sc *isc, u_int64_t x, u_int64_t y)
 {
-	u_int64_t	y1, y2, dx, dy;
+	u_int64_t y1, y2, dx, dy;
 
 	if (isc->sm1 <= isc->sm2) {
 		/* service curve is convex */
@@ -1556,7 +1557,7 @@ get_class_stats_v0(struct hfsc_classstats_v0 *sp, struct hfsc_class *cl)
 	sp->class_id = cl->cl_id;
 	sp->class_handle = cl->cl_handle;
 
-#define SATU32(x)	(u_int32_t)uqmin((x), UINT_MAX)
+#define SATU32(x) (u_int32_t) uqmin((x), UINT_MAX)
 
 	if (cl->cl_rsc != NULL) {
 		sp->rsc.m1 = SATU32(sm2m(cl->cl_rsc->sm1));

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
 #include "opt_route.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/counter.h>
@@ -41,13 +42,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/syslog.h>
 #include <sys/socket.h>
+#include <sys/syslog.h>
+
 #include <vm/uma.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/route.h>
-#include <net/ethernet.h>
+#include <netgraph/netflow/netflow.h>
+#include <netgraph/netflow/netflow_v9.h>
+#include <netgraph/netflow/ng_netflow.h>
+#include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -55,67 +62,48 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
-#include <netgraph/ng_message.h>
-#include <netgraph/netgraph.h>
-
-#include <netgraph/netflow/netflow.h>
-#include <netgraph/netflow/ng_netflow.h>
-#include <netgraph/netflow/netflow_v9.h>
-
 MALLOC_DECLARE(M_NETFLOW_GENERAL);
 MALLOC_DEFINE(M_NETFLOW_GENERAL, "netflow_general", "plog, V9 templates data");
 
 /*
  * Base V9 templates for L4+ IPv4/IPv6 protocols
  */
-struct netflow_v9_template _netflow_v9_record_ipv4_tcp[] =
-{
-	{ NETFLOW_V9_FIELD_IPV4_SRC_ADDR, 4},
-	{ NETFLOW_V9_FIELD_IPV4_DST_ADDR, 4},
-	{ NETFLOW_V9_FIELD_IPV4_NEXT_HOP, 4},
-	{ NETFLOW_V9_FIELD_INPUT_SNMP, 2},
-	{ NETFLOW_V9_FIELD_OUTPUT_SNMP, 2},
-	{ NETFLOW_V9_FIELD_IN_PKTS, sizeof(CNTR)},
-	{ NETFLOW_V9_FIELD_IN_BYTES, sizeof(CNTR)},
-	{ NETFLOW_V9_FIELD_OUT_PKTS, sizeof(CNTR)},
-	{ NETFLOW_V9_FIELD_OUT_BYTES, sizeof(CNTR)},
-	{ NETFLOW_V9_FIELD_FIRST_SWITCHED, 4},
-	{ NETFLOW_V9_FIELD_LAST_SWITCHED, 4},
-	{ NETFLOW_V9_FIELD_L4_SRC_PORT, 2},
-	{ NETFLOW_V9_FIELD_L4_DST_PORT, 2},
-	{ NETFLOW_V9_FIELD_TCP_FLAGS, 1},
-	{ NETFLOW_V9_FIELD_PROTOCOL, 1},
-	{ NETFLOW_V9_FIELD_TOS, 1},
-	{ NETFLOW_V9_FIELD_SRC_AS, 4},
-	{ NETFLOW_V9_FIELD_DST_AS, 4},
-	{ NETFLOW_V9_FIELD_SRC_MASK, 1},
-	{ NETFLOW_V9_FIELD_DST_MASK, 1},
-	{0, 0}
+struct netflow_v9_template _netflow_v9_record_ipv4_tcp[] = {
+	{ NETFLOW_V9_FIELD_IPV4_SRC_ADDR, 4 },
+	{ NETFLOW_V9_FIELD_IPV4_DST_ADDR, 4 },
+	{ NETFLOW_V9_FIELD_IPV4_NEXT_HOP, 4 },
+	{ NETFLOW_V9_FIELD_INPUT_SNMP, 2 }, { NETFLOW_V9_FIELD_OUTPUT_SNMP, 2 },
+	{ NETFLOW_V9_FIELD_IN_PKTS, sizeof(CNTR) },
+	{ NETFLOW_V9_FIELD_IN_BYTES, sizeof(CNTR) },
+	{ NETFLOW_V9_FIELD_OUT_PKTS, sizeof(CNTR) },
+	{ NETFLOW_V9_FIELD_OUT_BYTES, sizeof(CNTR) },
+	{ NETFLOW_V9_FIELD_FIRST_SWITCHED, 4 },
+	{ NETFLOW_V9_FIELD_LAST_SWITCHED, 4 },
+	{ NETFLOW_V9_FIELD_L4_SRC_PORT, 2 },
+	{ NETFLOW_V9_FIELD_L4_DST_PORT, 2 }, { NETFLOW_V9_FIELD_TCP_FLAGS, 1 },
+	{ NETFLOW_V9_FIELD_PROTOCOL, 1 }, { NETFLOW_V9_FIELD_TOS, 1 },
+	{ NETFLOW_V9_FIELD_SRC_AS, 4 }, { NETFLOW_V9_FIELD_DST_AS, 4 },
+	{ NETFLOW_V9_FIELD_SRC_MASK, 1 }, { NETFLOW_V9_FIELD_DST_MASK, 1 },
+	{ 0, 0 }
 };
 
-struct netflow_v9_template _netflow_v9_record_ipv6_tcp[] =
-{
-	{ NETFLOW_V9_FIELD_IPV6_SRC_ADDR, 16},
-	{ NETFLOW_V9_FIELD_IPV6_DST_ADDR, 16},
-	{ NETFLOW_V9_FIELD_IPV6_NEXT_HOP, 16},
-	{ NETFLOW_V9_FIELD_INPUT_SNMP, 2},
-	{ NETFLOW_V9_FIELD_OUTPUT_SNMP, 2},
-	{ NETFLOW_V9_FIELD_IN_PKTS, sizeof(CNTR)},
-	{ NETFLOW_V9_FIELD_IN_BYTES, sizeof(CNTR)},
-	{ NETFLOW_V9_FIELD_OUT_PKTS, sizeof(CNTR)},
-	{ NETFLOW_V9_FIELD_OUT_BYTES, sizeof(CNTR)},
-	{ NETFLOW_V9_FIELD_FIRST_SWITCHED, 4},
-	{ NETFLOW_V9_FIELD_LAST_SWITCHED, 4},
-	{ NETFLOW_V9_FIELD_L4_SRC_PORT, 2},
-	{ NETFLOW_V9_FIELD_L4_DST_PORT, 2},
-	{ NETFLOW_V9_FIELD_TCP_FLAGS, 1},
-	{ NETFLOW_V9_FIELD_PROTOCOL, 1},
-	{ NETFLOW_V9_FIELD_TOS, 1},
-	{ NETFLOW_V9_FIELD_SRC_AS, 4},
-	{ NETFLOW_V9_FIELD_DST_AS, 4},
-	{ NETFLOW_V9_FIELD_SRC_MASK, 1},
-	{ NETFLOW_V9_FIELD_DST_MASK, 1},
-	{0, 0}
+struct netflow_v9_template _netflow_v9_record_ipv6_tcp[] = {
+	{ NETFLOW_V9_FIELD_IPV6_SRC_ADDR, 16 },
+	{ NETFLOW_V9_FIELD_IPV6_DST_ADDR, 16 },
+	{ NETFLOW_V9_FIELD_IPV6_NEXT_HOP, 16 },
+	{ NETFLOW_V9_FIELD_INPUT_SNMP, 2 }, { NETFLOW_V9_FIELD_OUTPUT_SNMP, 2 },
+	{ NETFLOW_V9_FIELD_IN_PKTS, sizeof(CNTR) },
+	{ NETFLOW_V9_FIELD_IN_BYTES, sizeof(CNTR) },
+	{ NETFLOW_V9_FIELD_OUT_PKTS, sizeof(CNTR) },
+	{ NETFLOW_V9_FIELD_OUT_BYTES, sizeof(CNTR) },
+	{ NETFLOW_V9_FIELD_FIRST_SWITCHED, 4 },
+	{ NETFLOW_V9_FIELD_LAST_SWITCHED, 4 },
+	{ NETFLOW_V9_FIELD_L4_SRC_PORT, 2 },
+	{ NETFLOW_V9_FIELD_L4_DST_PORT, 2 }, { NETFLOW_V9_FIELD_TCP_FLAGS, 1 },
+	{ NETFLOW_V9_FIELD_PROTOCOL, 1 }, { NETFLOW_V9_FIELD_TOS, 1 },
+	{ NETFLOW_V9_FIELD_SRC_AS, 4 }, { NETFLOW_V9_FIELD_DST_AS, 4 },
+	{ NETFLOW_V9_FIELD_SRC_MASK, 1 }, { NETFLOW_V9_FIELD_DST_MASK, 1 },
+	{ 0, 0 }
 };
 
 /*
@@ -129,13 +117,17 @@ generate_v9_templates(priv_p priv)
 	int cnt;
 
 	int flowset_size = sizeof(struct netflow_v9_flowset_header) +
-		_NETFLOW_V9_TEMPLATE_SIZE(_netflow_v9_record_ipv4_tcp) + /* netflow_v9_record_ipv4_tcp */
-		_NETFLOW_V9_TEMPLATE_SIZE(_netflow_v9_record_ipv6_tcp); /* netflow_v9_record_ipv6_tcp */
+	    _NETFLOW_V9_TEMPLATE_SIZE(
+		_netflow_v9_record_ipv4_tcp) + /* netflow_v9_record_ipv4_tcp */
+	    _NETFLOW_V9_TEMPLATE_SIZE(
+		_netflow_v9_record_ipv6_tcp); /* netflow_v9_record_ipv6_tcp */
 
-	priv->v9_flowsets[0] = malloc(flowset_size, M_NETFLOW_GENERAL, M_WAITOK | M_ZERO);
+	priv->v9_flowsets[0] = malloc(
+	    flowset_size, M_NETFLOW_GENERAL, M_WAITOK | M_ZERO);
 
 	if (flowset_size % 4)
-		flowset_size += 4 - (flowset_size % 4); /* Padding to 4-byte boundary */
+		flowset_size += 4 -
+		    (flowset_size % 4); /* Padding to 4-byte boundary */
 
 	priv->flowsets_count = 1;
 	p = (uint16_t *)priv->v9_flowsets[0];
@@ -168,16 +160,19 @@ generate_v9_templates(priv_p priv)
 }
 
 /* Closes current data flowset */
-static void inline
-close_flowset(struct mbuf *m, struct netflow_v9_packet_opt *t)
+static void inline close_flowset(
+    struct mbuf *m, struct netflow_v9_packet_opt *t)
 {
 	struct mbuf *m_old;
 	uint32_t zero = 0;
 	int offset = 0;
 	uint16_t *flowset_length, len;
 
-	/* Hack to ensure we are not crossing mbuf boundary, length is uint16_t  */
-	m_old = m_getptr(m, t->flow_header + offsetof(struct netflow_v9_flowset_header, length), &offset);
+	/* Hack to ensure we are not crossing mbuf boundary, length is uint16_t
+	 */
+	m_old = m_getptr(m,
+	    t->flow_header + offsetof(struct netflow_v9_flowset_header, length),
+	    &offset);
 	flowset_length = (uint16_t *)(mtod(m_old, char *) + offset);
 
 	len = (uint16_t)(m_pktlen(m) - t->flow_header);
@@ -198,11 +193,12 @@ close_flowset(struct mbuf *m, struct netflow_v9_packet_opt *t)
 
 /* We have full datagram in fib data. Send it to export hook. */
 int
-export9_send(priv_p priv, fib_export_p fe, item_p item, struct netflow_v9_packet_opt *t, int flags)
+export9_send(priv_p priv, fib_export_p fe, item_p item,
+    struct netflow_v9_packet_opt *t, int flags)
 {
 	struct mbuf *m = NGI_M(item);
-	struct netflow_v9_export_dgram *dgram = mtod(m,
-					struct netflow_v9_export_dgram *);
+	struct netflow_v9_export_dgram *dgram = mtod(
+	    m, struct netflow_v9_export_dgram *);
 	struct netflow_v9_header *header = &dgram->header;
 	struct timespec ts;
 	int error = 0;
@@ -221,7 +217,7 @@ export9_send(priv_p priv, fib_export_p fe, item_p item, struct netflow_v9_packet
 	header->count = t->count;
 	header->sys_uptime = htonl(MILLIUPTIME(time_uptime));
 	getnanotime(&ts);
-	header->unix_secs  = htonl(ts.tv_sec);
+	header->unix_secs = htonl(ts.tv_sec);
 	header->seq_num = htonl(atomic_fetchadd_32(&fe->flow9_seq, 1));
 	header->count = htons(t->count);
 	header->source_id = htonl(fe->domain_id);
@@ -238,7 +234,8 @@ export9_send(priv_p priv, fib_export_p fe, item_p item, struct netflow_v9_packet
 
 /* Add V9 record to dgram. */
 int
-export9_add(item_p item, struct netflow_v9_packet_opt *t, struct flow_entry *fle)
+export9_add(
+    item_p item, struct netflow_v9_packet_opt *t, struct flow_entry *fle)
 {
 	size_t len = 0;
 	struct netflow_v9_flowset_header fsh;
@@ -246,7 +243,7 @@ export9_add(item_p item, struct netflow_v9_packet_opt *t, struct flow_entry *fle
 	struct mbuf *m = NGI_M(item);
 	uint16_t flow_type;
 	struct flow_entry_data *fed;
-#ifdef INET6	
+#ifdef INET6
 	struct flow6_entry_data *fed6;
 #endif
 	if (t == NULL) {
@@ -263,27 +260,26 @@ export9_add(item_p item, struct netflow_v9_packet_opt *t, struct flow_entry *fle
 	flow_type = fed->r.flow_type;
 
 	switch (flow_type) {
-	case NETFLOW_V9_FLOW_V4_L4:
-	{
+	case NETFLOW_V9_FLOW_V4_L4: {
 		/* IPv4 TCP/UDP/[SCTP] */
 		struct netflow_v9_record_ipv4_tcp *rec = &rg.rec.v4_tcp;
-		
+
 		rec->src_addr = fed->r.r_src.s_addr;
 		rec->dst_addr = fed->r.r_dst.s_addr;
 		rec->next_hop = fed->next_hop.s_addr;
-		rec->i_ifx    = htons(fed->fle_i_ifx);
-		rec->o_ifx    = htons(fed->fle_o_ifx);
-		rec->i_packets  = htonl(fed->packets);
-		rec->i_octets   = htonl(fed->bytes);
-		rec->o_packets  = htonl(0);
-		rec->o_octets   = htonl(0);
-		rec->first    = htonl(MILLIUPTIME(fed->first));
-		rec->last     = htonl(MILLIUPTIME(fed->last));
-		rec->s_port   = fed->r.r_sport;
-		rec->d_port   = fed->r.r_dport;
-		rec->flags    = fed->tcp_flags;
-		rec->prot     = fed->r.r_ip_p;
-		rec->tos      = fed->r.r_tos;
+		rec->i_ifx = htons(fed->fle_i_ifx);
+		rec->o_ifx = htons(fed->fle_o_ifx);
+		rec->i_packets = htonl(fed->packets);
+		rec->i_octets = htonl(fed->bytes);
+		rec->o_packets = htonl(0);
+		rec->o_octets = htonl(0);
+		rec->first = htonl(MILLIUPTIME(fed->first));
+		rec->last = htonl(MILLIUPTIME(fed->last));
+		rec->s_port = fed->r.r_sport;
+		rec->d_port = fed->r.r_dport;
+		rec->flags = fed->tcp_flags;
+		rec->prot = fed->r.r_ip_p;
+		rec->tos = fed->r.r_tos;
 		rec->dst_mask = fed->dst_mask;
 		rec->src_mask = fed->src_mask;
 
@@ -293,28 +289,27 @@ export9_add(item_p item, struct netflow_v9_packet_opt *t, struct flow_entry *fle
 		len = sizeof(struct netflow_v9_record_ipv4_tcp);
 		break;
 	}
-#ifdef INET6	
-	case NETFLOW_V9_FLOW_V6_L4:
-	{
+#ifdef INET6
+	case NETFLOW_V9_FLOW_V6_L4: {
 		/* IPv6 TCP/UDP/[SCTP] */
 		struct netflow_v9_record_ipv6_tcp *rec = &rg.rec.v6_tcp;
 
 		rec->src_addr = fed6->r.src.r_src6;
 		rec->dst_addr = fed6->r.dst.r_dst6;
 		rec->next_hop = fed6->n.next_hop6;
-		rec->i_ifx    = htons(fed6->fle_i_ifx);
-		rec->o_ifx    = htons(fed6->fle_o_ifx);
-		rec->i_packets  = htonl(fed6->packets);
-		rec->i_octets   = htonl(fed6->bytes);
-		rec->o_packets  = htonl(0);
-		rec->o_octets   = htonl(0);
-		rec->first    = htonl(MILLIUPTIME(fed6->first));
-		rec->last     = htonl(MILLIUPTIME(fed6->last));
-		rec->s_port   = fed6->r.r_sport;
-		rec->d_port   = fed6->r.r_dport;
-		rec->flags    = fed6->tcp_flags;
-		rec->prot     = fed6->r.r_ip_p;
-		rec->tos      = fed6->r.r_tos;
+		rec->i_ifx = htons(fed6->fle_i_ifx);
+		rec->o_ifx = htons(fed6->fle_o_ifx);
+		rec->i_packets = htonl(fed6->packets);
+		rec->i_octets = htonl(fed6->bytes);
+		rec->o_packets = htonl(0);
+		rec->o_octets = htonl(0);
+		rec->first = htonl(MILLIUPTIME(fed6->first));
+		rec->last = htonl(MILLIUPTIME(fed6->last));
+		rec->s_port = fed6->r.r_sport;
+		rec->d_port = fed6->r.r_dport;
+		rec->flags = fed6->tcp_flags;
+		rec->prot = fed6->r.r_ip_p;
+		rec->tos = fed6->r.r_tos;
 		rec->dst_mask = fed6->dst_mask;
 		rec->src_mask = fed6->src_mask;
 
@@ -324,10 +319,11 @@ export9_add(item_p item, struct netflow_v9_packet_opt *t, struct flow_entry *fle
 		len = sizeof(struct netflow_v9_record_ipv6_tcp);
 		break;
 	}
-#endif	
-	default:
-	{
-		CTR1(KTR_NET, "export9_add(): Don't know what to do with %d flow type!", flow_type);
+#endif
+	default: {
+		CTR1(KTR_NET,
+		    "export9_add(): Don't know what to do with %d flow type!",
+		    flow_type);
 		return (0);
 	}
 	}
@@ -345,10 +341,10 @@ export9_add(item_p item, struct netflow_v9_packet_opt *t, struct flow_entry *fle
 		fsh.id = htons(NETFLOW_V9_MAX_RESERVED_FLOWSET + flow_type);
 		fsh.length = 0;
 
-		/* m_append should not fail since all data is already allocated */
+		/* m_append should not fail since all data is already allocated
+		 */
 		if (m_append(m, sizeof(fsh), (void *)&fsh) != 1)
 			panic("ng_netflow: m_append() failed");
-		
 	}
 
 	if (m_append(m, len, (void *)&rg.rec) != 1)
@@ -356,7 +352,9 @@ export9_add(item_p item, struct netflow_v9_packet_opt *t, struct flow_entry *fle
 
 	t->count++;
 
-	if (m_pktlen(m) + sizeof(struct netflow_v9_record_general) + sizeof(struct netflow_v9_flowset_header) >= _NETFLOW_V9_MAX_SIZE(t->mtu))
+	if (m_pktlen(m) + sizeof(struct netflow_v9_record_general) +
+		sizeof(struct netflow_v9_flowset_header) >=
+	    _NETFLOW_V9_MAX_SIZE(t->mtu))
 		return (1); /* end of datagram */
 	return (0);
 }
@@ -366,9 +364,10 @@ export9_add(item_p item, struct netflow_v9_packet_opt *t, struct flow_entry *fle
  * If there is no, allocate a new one.
  */
 item_p
-get_export9_dgram(priv_p priv, fib_export_p fe, struct netflow_v9_packet_opt **tt)
+get_export9_dgram(
+    priv_p priv, fib_export_p fe, struct netflow_v9_packet_opt **tt)
 {
-	item_p	item = NULL;
+	item_p item = NULL;
 	struct netflow_v9_packet_opt *t = NULL;
 
 	mtx_lock(&fe->export9_mtx);
@@ -385,12 +384,14 @@ get_export9_dgram(priv_p priv, fib_export_p fe, struct netflow_v9_packet_opt **t
 		struct mbuf *m;
 		uint16_t mtu = priv->mtu;
 
-		/* Allocate entire packet at once, allowing easy m_append() calls */
+		/* Allocate entire packet at once, allowing easy m_append()
+		 * calls */
 		m = m_getm(NULL, mtu, M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			return (NULL);
 
-		t = malloc(sizeof(struct netflow_v9_packet_opt), M_NETFLOW_GENERAL, M_NOWAIT | M_ZERO);
+		t = malloc(sizeof(struct netflow_v9_packet_opt),
+		    M_NETFLOW_GENERAL, M_NOWAIT | M_ZERO);
 		if (t == NULL) {
 			m_free(m);
 			return (NULL);
@@ -415,11 +416,12 @@ get_export9_dgram(priv_p priv, fib_export_p fe, struct netflow_v9_packet_opt **t
 		/*
 		 * Check if we need to insert templates into packet
 		 */
-		
-		struct netflow_v9_flowset_header	*fl;
+
+		struct netflow_v9_flowset_header *fl;
 
 		if ((time_uptime >= priv->templ_time + fe->templ_last_ts) ||
-				(fe->sent_packets >= priv->templ_packets + fe->templ_last_pkt)) {
+		    (fe->sent_packets >=
+			priv->templ_packets + fe->templ_last_pkt)) {
 			fe->templ_last_ts = time_uptime;
 			fe->templ_last_pkt = fe->sent_packets;
 
@@ -439,7 +441,8 @@ get_export9_dgram(priv_p priv, fib_export_p fe, struct netflow_v9_packet_opt **t
  * If there is already another one, then send incomplete.
  */
 void
-return_export9_dgram(priv_p priv, fib_export_p fe, item_p item, struct netflow_v9_packet_opt *t, int flags)
+return_export9_dgram(priv_p priv, fib_export_p fe, item_p item,
+    struct netflow_v9_packet_opt *t, int flags)
 {
 	/*
 	 * It may happen on SMP, that some thread has already

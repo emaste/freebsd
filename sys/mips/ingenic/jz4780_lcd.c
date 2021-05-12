@@ -35,82 +35,79 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/eventhandler.h>
-#include <sys/rman.h>
 #include <sys/condvar.h>
+#include <sys/eventhandler.h>
+#include <sys/fbio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/fbio.h>
+#include <sys/rman.h>
+
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/pmap.h>
 
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/videomode/videomode.h>
 #include <dev/videomode/edidvar.h>
-
-#include <dev/extres/clk/clk.h>
+#include <dev/videomode/videomode.h>
 
 #include <mips/ingenic/jz4780_lcd.h>
 
 #include "fb_if.h"
 #include "hdmi_if.h"
 
-#define	FB_DEFAULT_W	800
-#define	FB_DEFAULT_H	600
-#define	FB_DEFAULT_REF	60
-#define	FB_BPP		32
-#define	FB_ALIGN	(16 * 4)
-#define	FB_MAX_BW	(1920 * 1080 * 60)
-#define	FB_MAX_W	2048
-#define	FB_MAX_H	2048
-#define FB_DIVIDE(x, y)	(((x) + ((y) / 2)) / (y))
+#define FB_DEFAULT_W 800
+#define FB_DEFAULT_H 600
+#define FB_DEFAULT_REF 60
+#define FB_BPP 32
+#define FB_ALIGN (16 * 4)
+#define FB_MAX_BW (1920 * 1080 * 60)
+#define FB_MAX_W 2048
+#define FB_MAX_H 2048
+#define FB_DIVIDE(x, y) (((x) + ((y) / 2)) / (y))
 
-#define	PCFG_MAGIC	0xc7ff2100
+#define PCFG_MAGIC 0xc7ff2100
 
-#define	DOT_CLOCK_TO_HZ(c)	((c) * 1000)
+#define DOT_CLOCK_TO_HZ(c) ((c)*1000)
 
 #ifndef VM_MEMATTR_WRITE_COMBINING
-#define	VM_MEMATTR_WRITE_COMBINING VM_MEMATTR_UNCACHEABLE
+#define VM_MEMATTR_WRITE_COMBINING VM_MEMATTR_UNCACHEABLE
 #endif
 
 struct jzlcd_softc {
-	device_t		dev;
-	device_t		fbdev;
-	struct resource		*res[1];
+	device_t dev;
+	device_t fbdev;
+	struct resource *res[1];
 
 	/* Clocks */
-	clk_t			clk;
-	clk_t			clk_pix;
+	clk_t clk;
+	clk_t clk_pix;
 
 	/* Framebuffer */
-	struct fb_info		info;
-	size_t			fbsize;
-	bus_addr_t		paddr;
-	vm_offset_t		vaddr;
+	struct fb_info info;
+	size_t fbsize;
+	bus_addr_t paddr;
+	vm_offset_t vaddr;
 
 	/* HDMI */
-	eventhandler_tag	hdmi_evh;
+	eventhandler_tag hdmi_evh;
 
 	/* Frame descriptor DMA */
-	bus_dma_tag_t		fdesc_tag;
-	bus_dmamap_t		fdesc_map;
-	bus_addr_t		fdesc_paddr;
-	struct lcd_frame_descriptor	*fdesc;
+	bus_dma_tag_t fdesc_tag;
+	bus_dmamap_t fdesc_map;
+	bus_addr_t fdesc_paddr;
+	struct lcd_frame_descriptor *fdesc;
 };
 
-static struct resource_spec jzlcd_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec jzlcd_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
-#define	LCD_READ(sc, reg)		bus_read_4((sc)->res[0], (reg))
-#define	LCD_WRITE(sc, reg, val)		bus_write_4((sc)->res[0], (reg), (val))
+#define LCD_READ(sc, reg) bus_read_4((sc)->res[0], (reg))
+#define LCD_WRITE(sc, reg, val) bus_write_4((sc)->res[0], (reg), (val))
 
 static int
 jzlcd_allocfb(struct jzlcd_softc *sc)
@@ -165,8 +162,8 @@ jzlcd_stop(struct jzlcd_softc *sc)
 }
 
 static void
-jzlcd_setup_descriptor(struct jzlcd_softc *sc, const struct videomode *mode,
-    u_int desno)
+jzlcd_setup_descriptor(
+    struct jzlcd_softc *sc, const struct videomode *mode, u_int desno)
 {
 	struct lcd_frame_descriptor *fdesc;
 	int line_sz;
@@ -187,8 +184,7 @@ jzlcd_setup_descriptor(struct jzlcd_softc *sc, const struct videomode *mode,
 	fdesc->cmd = LCDCMD_FRM_EN | (line_sz * mode->vdisplay);
 	fdesc->offs = 0;
 	fdesc->pw = 0;
-	fdesc->cnum_pos = LCDPOS_BPP01_18_24 |
-	    LCDPOS_PREMULTI01 |
+	fdesc->cnum_pos = LCDPOS_BPP01_18_24 | LCDPOS_PREMULTI01 |
 	    (desno == 0 ? LCDPOS_COEF_BLE01_1 : LCDPOS_COEF_SLE01);
 	fdesc->dessize = LCDDESSIZE_ALPHA |
 	    ((mode->vdisplay - 1) << LCDDESSIZE_HEIGHT_SHIFT) |
@@ -219,18 +215,19 @@ jzlcd_set_videomode(struct jzlcd_softc *sc, const struct videomode *mode)
 	vt = vde + vfp;
 
 	/* Setup timings */
-	LCD_WRITE(sc, LCDVAT,
-	    (ht << LCDVAT_HT_SHIFT) | (vt << LCDVAT_VT_SHIFT));
-	LCD_WRITE(sc, LCDDAH,
-	    (hds << LCDDAH_HDS_SHIFT) | (hde << LCDDAH_HDE_SHIFT));
-	LCD_WRITE(sc, LCDDAV,
-	    (vds << LCDDAV_VDS_SHIFT) | (vde << LCDDAV_VDE_SHIFT));
+	LCD_WRITE(
+	    sc, LCDVAT, (ht << LCDVAT_HT_SHIFT) | (vt << LCDVAT_VT_SHIFT));
+	LCD_WRITE(
+	    sc, LCDDAH, (hds << LCDDAH_HDS_SHIFT) | (hde << LCDDAH_HDE_SHIFT));
+	LCD_WRITE(
+	    sc, LCDDAV, (vds << LCDDAV_VDS_SHIFT) | (vde << LCDDAV_VDE_SHIFT));
 	LCD_WRITE(sc, LCDHSYNC, hsw);
 	LCD_WRITE(sc, LCDVSYNC, vsw);
 
 	/* Set configuration */
-	LCD_WRITE(sc, LCDCFG, LCDCFG_NEWDES | LCDCFG_RECOVER | LCDCFG_24 |
-	    LCDCFG_PSM | LCDCFG_CLSM | LCDCFG_SPLM | LCDCFG_REVM | LCDCFG_PCP);
+	LCD_WRITE(sc, LCDCFG,
+	    LCDCFG_NEWDES | LCDCFG_RECOVER | LCDCFG_24 | LCDCFG_PSM |
+		LCDCFG_CLSM | LCDCFG_SPLM | LCDCFG_REVM | LCDCFG_PCP);
 	ctrl = LCD_READ(sc, LCDCTRL);
 	ctrl &= ~LCDCTRL_BST;
 	ctrl |= LCDCTRL_BST_64 | LCDCTRL_OFUM;
@@ -247,8 +244,8 @@ jzlcd_set_videomode(struct jzlcd_softc *sc, const struct videomode *mode)
 	bus_dmamap_sync(sc->fdesc_tag, sc->fdesc_map, BUS_DMASYNC_PREWRITE);
 
 	/* Setup DMA channels */
-	LCD_WRITE(sc, LCDDA0, sc->fdesc_paddr
-	    + sizeof(struct lcd_frame_descriptor));
+	LCD_WRITE(
+	    sc, LCDDA0, sc->fdesc_paddr + sizeof(struct lcd_frame_descriptor));
 	LCD_WRITE(sc, LCDDA1, sc->fdesc_paddr);
 
 	/* Set display clock */
@@ -287,7 +284,8 @@ jzlcd_configure(struct jzlcd_softc *sc, const struct videomode *mode)
 	if (sc->vaddr == 0) {
 		error = jzlcd_allocfb(sc);
 		if (error != 0) {
-			device_printf(sc->dev, "failed to allocate FB memory\n");
+			device_printf(
+			    sc->dev, "failed to allocate FB memory\n");
 			return (ENXIO);
 		}
 	}
@@ -330,8 +328,9 @@ jzlcd_get_bandwidth(const struct videomode *mode)
 {
 	int refresh;
 
-	refresh = FB_DIVIDE(FB_DIVIDE(DOT_CLOCK_TO_HZ(mode->dot_clock),
-	    mode->htotal), mode->vtotal);
+	refresh = FB_DIVIDE(
+	    FB_DIVIDE(DOT_CLOCK_TO_HZ(mode->dot_clock), mode->htotal),
+	    mode->vtotal);
 
 	return mode->hdisplay * mode->vdisplay * refresh;
 }
@@ -404,8 +403,8 @@ jzlcd_hdmi_event(void *arg, device_t hdmi_dev)
 	} else {
 		error = edid_parse(edid, &ei);
 		if (error != 0) {
-			device_printf(sc->dev, "failed to parse EDID: %d\n",
-			    error);
+			device_printf(
+			    sc->dev, "failed to parse EDID: %d\n", error);
 		} else {
 			if (bootverbose)
 				edid_print(&ei);
@@ -416,8 +415,8 @@ jzlcd_hdmi_event(void *arg, device_t hdmi_dev)
 
 	/* If a suitable mode could not be found, try the default */
 	if (mode == NULL)
-		mode = pick_mode_by_ref(FB_DEFAULT_W, FB_DEFAULT_H,
-		    FB_DEFAULT_REF);
+		mode = pick_mode_by_ref(
+		    FB_DEFAULT_W, FB_DEFAULT_H, FB_DEFAULT_REF);
 
 	if (mode == NULL) {
 		device_printf(sc->dev, "failed to find usable video mode\n");
@@ -425,8 +424,8 @@ jzlcd_hdmi_event(void *arg, device_t hdmi_dev)
 	}
 
 	if (bootverbose)
-		device_printf(sc->dev, "using %dx%d\n",
-		    mode->hdisplay, mode->vdisplay);
+		device_printf(
+		    sc->dev, "using %dx%d\n", mode->hdisplay, mode->vdisplay);
 
 	/* Stop the controller */
 	jzlcd_stop(sc);
@@ -492,16 +491,11 @@ jzlcd_attach(device_t dev)
 		goto failed;
 	}
 
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(dev),
-	    sizeof(struct lcd_frame_descriptor), 0,
-	    BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR,
-	    NULL, NULL,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev),
+	    sizeof(struct lcd_frame_descriptor), 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct lcd_frame_descriptor) * 2, 1,
-	    sizeof(struct lcd_frame_descriptor) * 2,
-	    0,
-	    NULL, NULL,
+	    sizeof(struct lcd_frame_descriptor) * 2, 0, NULL, NULL,
 	    &sc->fdesc_tag);
 	if (error != 0) {
 		device_printf(dev, "cannot create bus dma tag\n");
@@ -523,8 +517,8 @@ jzlcd_attach(device_t dev)
 		goto dmaload_failed;
 	}
 
-	sc->hdmi_evh = EVENTHANDLER_REGISTER(hdmi_event,
-	    jzlcd_hdmi_event, sc, 0);
+	sc->hdmi_evh = EVENTHANDLER_REGISTER(
+	    hdmi_event, jzlcd_hdmi_event, sc, 0);
 
 	return (0);
 
@@ -555,11 +549,11 @@ jzlcd_fb_getinfo(device_t dev)
 
 static device_method_t jzlcd_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		jzlcd_probe),
-	DEVMETHOD(device_attach,	jzlcd_attach),
+	DEVMETHOD(device_probe, jzlcd_probe),
+	DEVMETHOD(device_attach, jzlcd_attach),
 
 	/* FB interface */
-	DEVMETHOD(fb_getinfo,		jzlcd_fb_getinfo),
+	DEVMETHOD(fb_getinfo, jzlcd_fb_getinfo),
 
 	DEVMETHOD_END
 };

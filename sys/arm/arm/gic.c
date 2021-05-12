@@ -42,18 +42,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/module.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/rman.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
-#include <sys/cpuset.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/smp.h>
+#include <sys/rman.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -68,51 +68,52 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_ACPI
-#include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 #endif
 
 #include <arm/arm/gic.h>
 #include <arm/arm/gic_common.h>
 
-#include "pic_if.h"
 #include "msi_if.h"
+#include "pic_if.h"
 
 /* We are using GICv2 register naming */
 
 /* Distributor Registers */
 
 /* CPU Registers */
-#define GICC_CTLR		0x0000			/* v1 ICCICR */
-#define GICC_PMR		0x0004			/* v1 ICCPMR */
-#define GICC_BPR		0x0008			/* v1 ICCBPR */
-#define GICC_IAR		0x000C			/* v1 ICCIAR */
-#define GICC_EOIR		0x0010			/* v1 ICCEOIR */
-#define GICC_RPR		0x0014			/* v1 ICCRPR */
-#define GICC_HPPIR		0x0018			/* v1 ICCHPIR */
-#define GICC_ABPR		0x001C			/* v1 ICCABPR */
-#define GICC_IIDR		0x00FC			/* v1 ICCIIDR*/
+#define GICC_CTLR 0x0000 /* v1 ICCICR */
+#define GICC_PMR 0x0004 /* v1 ICCPMR */
+#define GICC_BPR 0x0008 /* v1 ICCBPR */
+#define GICC_IAR 0x000C /* v1 ICCIAR */
+#define GICC_EOIR 0x0010 /* v1 ICCEOIR */
+#define GICC_RPR 0x0014 /* v1 ICCRPR */
+#define GICC_HPPIR 0x0018 /* v1 ICCHPIR */
+#define GICC_ABPR 0x001C /* v1 ICCABPR */
+#define GICC_IIDR 0x00FC /* v1 ICCIIDR*/
 
 /* TYPER Registers */
-#define	GICD_TYPER_SECURITYEXT	0x400
-#define	GIC_SUPPORT_SECEXT(_sc)	\
-    ((_sc->typer & GICD_TYPER_SECURITYEXT) == GICD_TYPER_SECURITYEXT)
+#define GICD_TYPER_SECURITYEXT 0x400
+#define GIC_SUPPORT_SECEXT(_sc) \
+	((_sc->typer & GICD_TYPER_SECURITYEXT) == GICD_TYPER_SECURITYEXT)
 
-#ifndef	GIC_DEFAULT_ICFGR_INIT
-#define	GIC_DEFAULT_ICFGR_INIT	0x00000000
+#ifndef GIC_DEFAULT_ICFGR_INIT
+#define GIC_DEFAULT_ICFGR_INIT 0x00000000
 #endif
 
 struct gic_irqsrc {
-	struct intr_irqsrc	gi_isrc;
-	uint32_t		gi_irq;
-	enum intr_polarity	gi_pol;
-	enum intr_trigger	gi_trig;
-#define GI_FLAG_EARLY_EOI	(1 << 0)
-#define GI_FLAG_MSI		(1 << 1) /* This interrupt source should only */
-					 /* be used for MSI/MSI-X interrupts */
-#define GI_FLAG_MSI_USED	(1 << 2) /* This irq is already allocated */
-					 /* for a MSI/MSI-X interrupt */
-	u_int			gi_flags;
+	struct intr_irqsrc gi_isrc;
+	uint32_t gi_irq;
+	enum intr_polarity gi_pol;
+	enum intr_trigger gi_trig;
+#define GI_FLAG_EARLY_EOI (1 << 0)
+#define GI_FLAG_MSI (1 << 1) /* This interrupt source should only */
+	/* be used for MSI/MSI-X interrupts */
+#define GI_FLAG_MSI_USED (1 << 2) /* This irq is already allocated */
+	/* for a MSI/MSI-X interrupt */
+	u_int gi_flags;
 };
 
 static u_int gic_irq_cpu;
@@ -123,12 +124,12 @@ static u_int sgi_to_ipi[GIC_LAST_SGI - GIC_FIRST_SGI + 1];
 static u_int sgi_first_unused = GIC_FIRST_SGI;
 #endif
 
-#define GIC_INTR_ISRC(sc, irq)	(&sc->gic_irqs[irq].gi_isrc)
+#define GIC_INTR_ISRC(sc, irq) (&sc->gic_irqs[irq].gi_isrc)
 
 static struct resource_spec arm_gic_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Distributor registers */
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },	/* CPU Interrupt Intf. registers */
-	{ SYS_RES_IRQ,	  0, RF_ACTIVE | RF_OPTIONAL }, /* Parent interrupt */
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, /* Distributor registers */
+	{ SYS_RES_MEMORY, 1, RF_ACTIVE }, /* CPU Interrupt Intf. registers */
+	{ SYS_RES_IRQ, 0, RF_ACTIVE | RF_OPTIONAL }, /* Parent interrupt */
 	{ -1, 0 }
 };
 
@@ -144,17 +145,15 @@ static u_int arm_gic_map[MAXCPU];
 static struct arm_gic_softc *gic_sc = NULL;
 
 /* CPU Interface */
-#define	gic_c_read_4(_sc, _reg)		\
-    bus_read_4((_sc)->gic_res[GIC_RES_CPU], (_reg))
-#define	gic_c_write_4(_sc, _reg, _val)		\
-    bus_write_4((_sc)->gic_res[GIC_RES_CPU], (_reg), (_val))
+#define gic_c_read_4(_sc, _reg) bus_read_4((_sc)->gic_res[GIC_RES_CPU], (_reg))
+#define gic_c_write_4(_sc, _reg, _val) \
+	bus_write_4((_sc)->gic_res[GIC_RES_CPU], (_reg), (_val))
 /* Distributor Interface */
-#define	gic_d_read_4(_sc, _reg)		\
-    bus_read_4((_sc)->gic_res[GIC_RES_DIST], (_reg))
-#define	gic_d_write_1(_sc, _reg, _val)		\
-    bus_write_1((_sc)->gic_res[GIC_RES_DIST], (_reg), (_val))
-#define	gic_d_write_4(_sc, _reg, _val)		\
-    bus_write_4((_sc)->gic_res[GIC_RES_DIST], (_reg), (_val))
+#define gic_d_read_4(_sc, _reg) bus_read_4((_sc)->gic_res[GIC_RES_DIST], (_reg))
+#define gic_d_write_1(_sc, _reg, _val) \
+	bus_write_1((_sc)->gic_res[GIC_RES_DIST], (_reg), (_val))
+#define gic_d_write_4(_sc, _reg, _val) \
+	bus_write_4((_sc)->gic_res[GIC_RES_DIST], (_reg), (_val))
 
 static inline void
 gic_irq_unmask(struct arm_gic_softc *sc, u_int irq)
@@ -242,8 +241,8 @@ arm_gic_register_isrcs(struct arm_gic_softc *sc, uint32_t num)
 	struct intr_irqsrc *isrc;
 	const char *name;
 
-	irqs = malloc(num * sizeof(struct gic_irqsrc), M_DEVBUF,
-	    M_WAITOK | M_ZERO);
+	irqs = malloc(
+	    num * sizeof(struct gic_irqsrc), M_DEVBUF, M_WAITOK | M_ZERO);
 
 	name = device_get_nameunit(sc->gic_dev);
 	for (irq = 0; irq < num; irq++) {
@@ -254,10 +253,12 @@ arm_gic_register_isrcs(struct arm_gic_softc *sc, uint32_t num)
 		isrc = &irqs[irq].gi_isrc;
 		if (irq <= GIC_LAST_SGI) {
 			error = intr_isrc_register(isrc, sc->gic_dev,
-			    INTR_ISRCF_IPI, "%s,i%u", name, irq - GIC_FIRST_SGI);
+			    INTR_ISRCF_IPI, "%s,i%u", name,
+			    irq - GIC_FIRST_SGI);
 		} else if (irq <= GIC_LAST_PPI) {
 			error = intr_isrc_register(isrc, sc->gic_dev,
-			    INTR_ISRCF_PPI, "%s,p%u", name, irq - GIC_FIRST_PPI);
+			    INTR_ISRCF_PPI, "%s,p%u", name,
+			    irq - GIC_FIRST_PPI);
 		} else {
 			error = intr_isrc_register(isrc, sc->gic_dev, 0,
 			    "%s,s%u", name, irq - GIC_FIRST_SPI);
@@ -283,17 +284,17 @@ arm_gic_reserve_msi_range(device_t dev, u_int start, u_int count)
 
 	KASSERT((start + count) < sc->nirqs,
 	    ("%s: Trying to allocate too many MSI IRQs: %d + %d > %d", __func__,
-	    start, count, sc->nirqs));
+		start, count, sc->nirqs));
 	for (i = 0; i < count; i++) {
 		KASSERT(sc->gic_irqs[start + i].gi_isrc.isrc_handlers == 0,
 		    ("%s: MSI interrupt %d already has a handler", __func__,
-		    count + i));
+			count + i));
 		KASSERT(sc->gic_irqs[start + i].gi_pol == INTR_POLARITY_CONFORM,
 		    ("%s: MSI interrupt %d already has a polarity", __func__,
-		    count + i));
+			count + i));
 		KASSERT(sc->gic_irqs[start + i].gi_trig == INTR_TRIGGER_CONFORM,
 		    ("%s: MSI interrupt %d already has a trigger", __func__,
-		    count + i));
+			count + i));
 		sc->gic_irqs[start + i].gi_pol = INTR_POLARITY_HIGH;
 		sc->gic_irqs[start + i].gi_trig = INTR_TRIGGER_EDGE;
 		sc->gic_irqs[start + i].gi_flags |= GI_FLAG_MSI;
@@ -303,9 +304,9 @@ arm_gic_reserve_msi_range(device_t dev, u_int start, u_int count)
 int
 arm_gic_attach(device_t dev)
 {
-	struct		arm_gic_softc *sc;
-	int		i;
-	uint32_t	icciidr, mask, nirqs;
+	struct arm_gic_softc *sc;
+	int i;
+	uint32_t icciidr, mask, nirqs;
 
 	if (gic_sc)
 		return (ENXIO);
@@ -384,7 +385,7 @@ arm_gic_attach(device_t dev)
 
 cleanup:
 	arm_gic_detach(dev);
-	return(ENXIO);
+	return (ENXIO);
 }
 
 int
@@ -412,8 +413,8 @@ arm_gic_print_child(device_t bus, device_t child)
 
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	if (rl != NULL) {
-		rv += resource_list_print_type(rl, "mem", SYS_RES_MEMORY,
-		    "%#jx");
+		rv += resource_list_print_type(
+		    rl, "mem", SYS_RES_MEMORY, "%#jx");
 		rv += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
 	}
 
@@ -448,8 +449,10 @@ arm_gic_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rle = resource_list_find(rl, type, *rid);
 		if (rle == NULL) {
 			if (bootverbose)
-				device_printf(bus, "no default resources for "
-				    "rid = %d, type = %d\n", *rid, type);
+				device_printf(bus,
+				    "no default resources for "
+				    "rid = %d, type = %d\n",
+				    *rid, type);
 			return (NULL);
 		}
 		start = rle->start;
@@ -459,8 +462,8 @@ arm_gic_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	/* Remap through ranges property */
 	for (j = 0; j < sc->nranges; j++) {
-		if (start >= sc->ranges[j].bus && end <
-		    sc->ranges[j].bus + sc->ranges[j].size) {
+		if (start >= sc->ranges[j].bus &&
+		    end < sc->ranges[j].bus + sc->ranges[j].size) {
 			start -= sc->ranges[j].bus;
 			start += sc->ranges[j].host;
 			end -= sc->ranges[j].bus;
@@ -470,14 +473,16 @@ arm_gic_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 	if (j == sc->nranges && sc->nranges != 0) {
 		if (bootverbose)
-			device_printf(bus, "Could not map resource "
-			    "%#jx-%#jx\n", (uintmax_t)start, (uintmax_t)end);
+			device_printf(bus,
+			    "Could not map resource "
+			    "%#jx-%#jx\n",
+			    (uintmax_t)start, (uintmax_t)end);
 
 		return (NULL);
 	}
 
-	return (bus_generic_alloc_resource(bus, child, type, rid, start, end,
-	    count, flags));
+	return (bus_generic_alloc_resource(
+	    bus, child, type, rid, start, end, count, flags));
 }
 
 static int
@@ -487,11 +492,11 @@ arm_gic_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 	sc = device_get_softc(dev);
 
-	switch(which) {
+	switch (which) {
 	case GIC_IVAR_HW_REV:
 		KASSERT(GICD_IIDR_VAR(sc->gic_iidr) < 3,
 		    ("arm_gic_read_ivar: Unknown IIDR revision %u (%.08x)",
-		     GICD_IIDR_VAR(sc->gic_iidr), sc->gic_iidr));
+			GICD_IIDR_VAR(sc->gic_iidr), sc->gic_iidr));
 		*result = GICD_IIDR_VAR(sc->gic_iidr);
 		return (0);
 	case GIC_IVAR_BUS:
@@ -599,7 +604,7 @@ gic_config(struct arm_gic_softc *sc, u_int irq, enum intr_trigger trig,
 	mtx_lock_spin(&sc->mutex);
 
 	reg = gic_d_read_4(sc, GICD_ICFGR(irq));
-	mask = (reg >> 2*(irq % 16)) & 0x3;
+	mask = (reg >> 2 * (irq % 16)) & 0x3;
 
 	if (pol == INTR_POLARITY_LOW) {
 		mask &= ~GICD_ICFGR_POL_MASK;
@@ -618,8 +623,8 @@ gic_config(struct arm_gic_softc *sc, u_int irq, enum intr_trigger trig,
 	}
 
 	/* Set mask */
-	reg = reg & ~(0x3 << 2*(irq % 16));
-	reg = reg | (mask << 2*(irq % 16));
+	reg = reg & ~(0x3 << 2 * (irq % 16));
+	reg = reg | (mask << 2 * (irq % 16));
 	gic_d_write_4(sc, GICD_ICFGR(irq), reg);
 
 	mtx_unlock_spin(&sc->mutex);
@@ -684,27 +689,33 @@ gic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
 		case 1:
 			irq = GIC_FIRST_PPI + cells[1];
 			if (irq > GIC_LAST_PPI) {
-				device_printf(dev, "unsupported PPI interrupt "
-				    "number %u\n", cells[1]);
+				device_printf(dev,
+				    "unsupported PPI interrupt "
+				    "number %u\n",
+				    cells[1]);
 				return (EINVAL);
 			}
 			break;
 		default:
-			device_printf(dev, "unsupported interrupt type "
-			    "configuration %u\n", cells[0]);
+			device_printf(dev,
+			    "unsupported interrupt type "
+			    "configuration %u\n",
+			    cells[0]);
 			return (EINVAL);
 		}
 
 		tripol = cells[2] & 0xff;
-		if (tripol & 0xf0 || (tripol & FDT_INTR_LOW_MASK &&
-		    cells[0] == 0))
-			device_printf(dev, "unsupported trigger/polarity "
-			    "configuration 0x%02x\n", tripol);
+		if (tripol & 0xf0 ||
+		    (tripol & FDT_INTR_LOW_MASK && cells[0] == 0))
+			device_printf(dev,
+			    "unsupported trigger/polarity "
+			    "configuration 0x%02x\n",
+			    tripol);
 
 		*irqp = irq;
 		*polp = INTR_POLARITY_CONFORM;
-		*trigp = tripol & FDT_INTR_EDGE_MASK ?
-		    INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL;
+		*trigp = tripol & FDT_INTR_EDGE_MASK ? INTR_TRIGGER_EDGE :
+							     INTR_TRIGGER_LEVEL;
 		return (0);
 	}
 	return (EINVAL);
@@ -752,13 +763,13 @@ gic_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 #ifdef FDT
 	case INTR_MAP_DATA_FDT:
 		daf = (struct intr_map_data_fdt *)data;
-		if (gic_map_fdt(dev, daf->ncells, daf->cells, &irq, &pol,
-		    &trig) != 0)
+		if (gic_map_fdt(
+			dev, daf->ncells, daf->cells, &irq, &pol, &trig) != 0)
 			return (EINVAL);
 		KASSERT(irq >= sc->nirqs ||
-		    (sc->gic_irqs[irq].gi_flags & GI_FLAG_MSI) == 0,
+			(sc->gic_irqs[irq].gi_flags & GI_FLAG_MSI) == 0,
 		    ("%s: Attempting to map a MSI interrupt from FDT",
-		    __func__));
+			__func__));
 		break;
 #endif
 #ifdef DEV_ACPI
@@ -797,8 +808,8 @@ gic_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 }
 
 static int
-arm_gic_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+arm_gic_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	int error;
 	u_int irq;
@@ -813,8 +824,8 @@ arm_gic_map_intr(device_t dev, struct intr_map_data *data,
 }
 
 static int
-arm_gic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
-    struct resource *res, struct intr_map_data *data)
+arm_gic_setup_intr(device_t dev, struct intr_irqsrc *isrc, struct resource *res,
+    struct intr_map_data *data)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
 	struct gic_irqsrc *gi = (struct gic_irqsrc *)isrc;
@@ -853,9 +864,9 @@ arm_gic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	/* For MSI/MSI-X we should have already configured these */
 	if ((gi->gi_flags & GI_FLAG_MSI) == 0) {
 		if (pol == INTR_POLARITY_CONFORM)
-			pol = INTR_POLARITY_LOW;	/* just pick some */
+			pol = INTR_POLARITY_LOW; /* just pick some */
 		if (trig == INTR_TRIGGER_CONFORM)
-			trig = INTR_TRIGGER_EDGE;	/* just pick some */
+			trig = INTR_TRIGGER_EDGE; /* just pick some */
 
 		gi->gi_pol = pol;
 		gi->gi_trig = trig;
@@ -936,7 +947,7 @@ arm_gic_post_filter(device_t dev, struct intr_irqsrc *isrc)
 	struct arm_gic_softc *sc = device_get_softc(dev);
 	struct gic_irqsrc *gi = (struct gic_irqsrc *)isrc;
 
-        /* EOI for edge-triggered done earlier. */
+	/* EOI for edge-triggered done earlier. */
 	if ((gi->gi_flags & GI_FLAG_EARLY_EOI) == GI_FLAG_EARLY_EOI)
 		return;
 
@@ -962,8 +973,8 @@ arm_gic_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 
 #ifdef SMP
 static void
-arm_gic_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus,
-    u_int ipi)
+arm_gic_ipi_send(
+    device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus, u_int ipi)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
 	struct gic_irqsrc *gi = (struct gic_irqsrc *)isrc;
@@ -997,43 +1008,43 @@ arm_gic_ipi_setup(device_t dev, u_int ipi, struct intr_irqsrc **isrcp)
 
 static device_method_t arm_gic_methods[] = {
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	arm_gic_print_child),
-	DEVMETHOD(bus_add_child,	bus_generic_add_child),
-	DEVMETHOD(bus_alloc_resource,	arm_gic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource,bus_generic_activate_resource),
-	DEVMETHOD(bus_read_ivar,	arm_gic_read_ivar),
+	DEVMETHOD(bus_print_child, arm_gic_print_child),
+	DEVMETHOD(bus_add_child, bus_generic_add_child),
+	DEVMETHOD(bus_alloc_resource, arm_gic_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_read_ivar, arm_gic_read_ivar),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_disable_intr,	arm_gic_disable_intr),
-	DEVMETHOD(pic_enable_intr,	arm_gic_enable_intr),
-	DEVMETHOD(pic_map_intr,		arm_gic_map_intr),
-	DEVMETHOD(pic_setup_intr,	arm_gic_setup_intr),
-	DEVMETHOD(pic_teardown_intr,	arm_gic_teardown_intr),
-	DEVMETHOD(pic_post_filter,	arm_gic_post_filter),
-	DEVMETHOD(pic_post_ithread,	arm_gic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	arm_gic_pre_ithread),
+	DEVMETHOD(pic_disable_intr, arm_gic_disable_intr),
+	DEVMETHOD(pic_enable_intr, arm_gic_enable_intr),
+	DEVMETHOD(pic_map_intr, arm_gic_map_intr),
+	DEVMETHOD(pic_setup_intr, arm_gic_setup_intr),
+	DEVMETHOD(pic_teardown_intr, arm_gic_teardown_intr),
+	DEVMETHOD(pic_post_filter, arm_gic_post_filter),
+	DEVMETHOD(pic_post_ithread, arm_gic_post_ithread),
+	DEVMETHOD(pic_pre_ithread, arm_gic_pre_ithread),
 #ifdef SMP
-	DEVMETHOD(pic_bind_intr,	arm_gic_bind_intr),
-	DEVMETHOD(pic_init_secondary,	arm_gic_init_secondary),
-	DEVMETHOD(pic_ipi_send,		arm_gic_ipi_send),
-	DEVMETHOD(pic_ipi_setup,	arm_gic_ipi_setup),
+	DEVMETHOD(pic_bind_intr, arm_gic_bind_intr),
+	DEVMETHOD(pic_init_secondary, arm_gic_init_secondary),
+	DEVMETHOD(pic_ipi_send, arm_gic_ipi_send),
+	DEVMETHOD(pic_ipi_setup, arm_gic_ipi_setup),
 #endif
 	{ 0, 0 }
 };
 
-DEFINE_CLASS_0(gic, arm_gic_driver, arm_gic_methods,
-    sizeof(struct arm_gic_softc));
+DEFINE_CLASS_0(
+    gic, arm_gic_driver, arm_gic_methods, sizeof(struct arm_gic_softc));
 
 /*
  * GICv2m support -- the GICv2 MSI/MSI-X controller.
  */
 
-#define	GICV2M_MSI_TYPER	0x008
-#define	 MSI_TYPER_SPI_BASE(x)	(((x) >> 16) & 0x3ff)
-#define	 MSI_TYPER_SPI_COUNT(x)	(((x) >> 0) & 0x3ff)
-#define	GICv2M_MSI_SETSPI_NS	0x040
-#define	GICV2M_MSI_IIDR		0xFCC
+#define GICV2M_MSI_TYPER 0x008
+#define MSI_TYPER_SPI_BASE(x) (((x) >> 16) & 0x3ff)
+#define MSI_TYPER_SPI_COUNT(x) (((x) >> 0) & 0x3ff)
+#define GICv2M_MSI_SETSPI_NS 0x040
+#define GICV2M_MSI_IIDR 0xFCC
 
 int
 arm_gicv2m_attach(device_t dev)
@@ -1045,8 +1056,8 @@ arm_gicv2m_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	rid = 0;
-	sc->sc_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->sc_mem == NULL) {
 		device_printf(dev, "Unable to allocate resources\n");
 		return (ENXIO);
@@ -1058,8 +1069,8 @@ arm_gicv2m_attach(device_t dev)
 	sc->sc_spi_end = sc->sc_spi_start + sc->sc_spi_count;
 
 	/* Reserve these interrupts for MSI/MSI-X use */
-	arm_gic_reserve_msi_range(device_get_parent(dev), sc->sc_spi_start,
-	    sc->sc_spi_count);
+	arm_gic_reserve_msi_range(
+	    device_get_parent(dev), sc->sc_spi_start, sc->sc_spi_count);
 
 	mtx_init(&sc->sc_mutex, "GICv2m lock", NULL, MTX_DEF);
 
@@ -1106,12 +1117,13 @@ arm_gicv2m_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 				break;
 			}
 
-			KASSERT((psc->gic_irqs[end_irq].gi_flags & GI_FLAG_MSI)!= 0,
+			KASSERT((psc->gic_irqs[end_irq].gi_flags &
+				    GI_FLAG_MSI) != 0,
 			    ("%s: Non-MSI interrupt found", __func__));
 
 			/* This is already used */
-			if ((psc->gic_irqs[end_irq].gi_flags & GI_FLAG_MSI_USED) ==
-			    GI_FLAG_MSI_USED) {
+			if ((psc->gic_irqs[end_irq].gi_flags &
+				GI_FLAG_MSI_USED) == GI_FLAG_MSI_USED) {
 				found = false;
 				break;
 			}
@@ -1140,8 +1152,8 @@ arm_gicv2m_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 }
 
 static int
-arm_gicv2m_release_msi(device_t dev, device_t child, int count,
-    struct intr_irqsrc **isrc)
+arm_gicv2m_release_msi(
+    device_t dev, device_t child, int count, struct intr_irqsrc **isrc)
 {
 	struct arm_gicv2m_softc *sc;
 	struct gic_irqsrc *gi;
@@ -1155,7 +1167,7 @@ arm_gicv2m_release_msi(device_t dev, device_t child, int count,
 
 		KASSERT((gi->gi_flags & GI_FLAG_MSI_USED) == GI_FLAG_MSI_USED,
 		    ("%s: Trying to release an unused MSI-X interrupt",
-		    __func__));
+			__func__));
 
 		gi->gi_flags &= ~GI_FLAG_MSI_USED;
 	}
@@ -1165,8 +1177,8 @@ arm_gicv2m_release_msi(device_t dev, device_t child, int count,
 }
 
 static int
-arm_gicv2m_alloc_msix(device_t dev, device_t child, device_t *pic,
-    struct intr_irqsrc **isrcp)
+arm_gicv2m_alloc_msix(
+    device_t dev, device_t child, device_t *pic, struct intr_irqsrc **isrcp)
 {
 	struct arm_gicv2m_softc *sc;
 	struct arm_gic_softc *psc;
@@ -1233,14 +1245,14 @@ arm_gicv2m_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 
 static device_method_t arm_gicv2m_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_attach,	arm_gicv2m_attach),
+	DEVMETHOD(device_attach, arm_gicv2m_attach),
 
 	/* MSI/MSI-X */
-	DEVMETHOD(msi_alloc_msi,	arm_gicv2m_alloc_msi),
-	DEVMETHOD(msi_release_msi,	arm_gicv2m_release_msi),
-	DEVMETHOD(msi_alloc_msix,	arm_gicv2m_alloc_msix),
-	DEVMETHOD(msi_release_msix,	arm_gicv2m_release_msix),
-	DEVMETHOD(msi_map_msi,		arm_gicv2m_map_msi),
+	DEVMETHOD(msi_alloc_msi, arm_gicv2m_alloc_msi),
+	DEVMETHOD(msi_release_msi, arm_gicv2m_release_msi),
+	DEVMETHOD(msi_alloc_msix, arm_gicv2m_alloc_msix),
+	DEVMETHOD(msi_release_msix, arm_gicv2m_release_msix),
+	DEVMETHOD(msi_map_msi, arm_gicv2m_map_msi),
 
 	/* End */
 	DEVMETHOD_END

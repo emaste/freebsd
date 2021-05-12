@@ -57,59 +57,57 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/callout.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
-#include <sys/sysctl.h>
 #include <sys/module.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
+
+#include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <machine/bus.h>
-
 #include <arm/arm/mpcore_timervar.h>
 #include <arm/freescale/fsl_ocotpreg.h>
 #include <arm/freescale/fsl_ocotpvar.h>
-#include <arm/freescale/imx/imx_ccmvar.h>
-#include <arm/freescale/imx/imx_machdep.h>
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
+#include <arm/freescale/imx/imx_ccmvar.h>
+#include <arm/freescale/imx/imx_machdep.h>
 
 static struct resource_spec imx6_anatop_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, { -1, 0 }
 };
-#define	MEMRES	0
-#define	IRQRES	1
+#define MEMRES 0
+#define IRQRES 1
 
 struct imx6_anatop_softc {
-	device_t	dev;
-	struct resource	*res[2];
-	struct intr_config_hook
-			intr_setup_hook;
-	uint32_t	cpu_curmhz;
-	uint32_t	cpu_curmv;
-	uint32_t	cpu_minmhz;
-	uint32_t	cpu_minmv;
-	uint32_t	cpu_maxmhz;
-	uint32_t	cpu_maxmv;
-	uint32_t	cpu_maxmhz_hw;
-	boolean_t	cpu_overclock_enable;
-	boolean_t	cpu_init_done;
-	uint32_t	refosc_mhz;
-	void		*temp_intrhand;
-	uint32_t	temp_high_val;
-	uint32_t	temp_high_cnt;
-	uint32_t	temp_last_cnt;
-	uint32_t	temp_room_cnt;
-	struct callout	temp_throttle_callout;
-	sbintime_t	temp_throttle_delay;
-	uint32_t	temp_throttle_reset_cnt;
-	uint32_t	temp_throttle_trigger_cnt;
-	uint32_t	temp_throttle_val;
+	device_t dev;
+	struct resource *res[2];
+	struct intr_config_hook intr_setup_hook;
+	uint32_t cpu_curmhz;
+	uint32_t cpu_curmv;
+	uint32_t cpu_minmhz;
+	uint32_t cpu_minmv;
+	uint32_t cpu_maxmhz;
+	uint32_t cpu_maxmv;
+	uint32_t cpu_maxmhz_hw;
+	boolean_t cpu_overclock_enable;
+	boolean_t cpu_init_done;
+	uint32_t refosc_mhz;
+	void *temp_intrhand;
+	uint32_t temp_high_val;
+	uint32_t temp_high_cnt;
+	uint32_t temp_last_cnt;
+	uint32_t temp_room_cnt;
+	struct callout temp_throttle_callout;
+	sbintime_t temp_throttle_delay;
+	uint32_t temp_throttle_reset_cnt;
+	uint32_t temp_throttle_trigger_cnt;
+	uint32_t temp_throttle_val;
 };
 
 static struct imx6_anatop_softc *imx6_anatop_sc;
@@ -123,14 +121,14 @@ static struct imx6_anatop_softc *imx6_anatop_sc;
  * dictates the 950mV entry in this table.
  */
 static struct oppt {
-	uint32_t	mhz;
-	uint32_t	mv;
+	uint32_t mhz;
+	uint32_t mv;
 } imx6_oppt_table[] = {
-	{ 396,	 950},
-	{ 792,	1150},
-	{ 852,	1225},
-	{ 996,	1225},
-	{1200,	1275},
+	{ 396, 950 },
+	{ 792, 1150 },
+	{ 852, 1225 },
+	{ 996, 1225 },
+	{ 1200, 1275 },
 };
 
 /*
@@ -138,9 +136,9 @@ static struct oppt {
  * value (0-3) from the ocotp CFG3 register into a mhz value that can be looked
  * up in the operating points table.
  */
-static uint32_t imx6_ocotp_mhz_tab[] = {792, 852, 996, 1200};
+static uint32_t imx6_ocotp_mhz_tab[] = { 792, 852, 996, 1200 };
 
-#define	TZ_ZEROC	2731	/* deci-Kelvin <-> deci-Celcius offset. */
+#define TZ_ZEROC 2731 /* deci-Kelvin <-> deci-Celcius offset. */
 
 uint32_t
 imx6_anatop_read_4(bus_size_t offset)
@@ -216,8 +214,7 @@ vdd_set(struct imx6_anatop_softc *sc, int mv)
 	 * Make the change and wait for it to take effect.
 	 */
 	pmureg &= ~(IMX6_ANALOG_PMU_REG0_TARG_MASK |
-	    IMX6_ANALOG_PMU_REG1_TARG_MASK |
-	    IMX6_ANALOG_PMU_REG2_TARG_MASK);
+	    IMX6_ANALOG_PMU_REG1_TARG_MASK | IMX6_ANALOG_PMU_REG2_TARG_MASK);
 
 	pmureg |= newtarg << IMX6_ANALOG_PMU_REG0_TARG_SHIFT;
 	pmureg |= newtarg << IMX6_ANALOG_PMU_REG1_TARG_SHIFT;
@@ -229,8 +226,8 @@ vdd_set(struct imx6_anatop_softc *sc, int mv)
 }
 
 static inline uint32_t
-cpufreq_mhz_from_div(struct imx6_anatop_softc *sc, uint32_t corediv, 
-    uint32_t plldiv)
+cpufreq_mhz_from_div(
+    struct imx6_anatop_softc *sc, uint32_t corediv, uint32_t plldiv)
 {
 
 	return ((sc->refosc_mhz * (plldiv / 2)) / (corediv + 1));
@@ -274,8 +271,8 @@ cpufreq_nearest_oppt(struct imx6_anatop_softc *sc, uint32_t cpu_newmhz)
 	return (&imx6_oppt_table[nearest]);
 }
 
-static void 
-cpufreq_set_clock(struct imx6_anatop_softc * sc, struct oppt *op)
+static void
+cpufreq_set_clock(struct imx6_anatop_softc *sc, struct oppt *op)
 {
 	uint32_t corediv, plldiv, timeout, wrk32;
 
@@ -294,10 +291,10 @@ cpufreq_set_clock(struct imx6_anatop_softc * sc, struct oppt *op)
 	 *  - Turn off bypass mode; cpu should now be running at the new speed.
 	 */
 	cpufreq_mhz_to_div(sc, op->mhz, &corediv, &plldiv);
-	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_ARM_CLR, 
-	    IMX6_ANALOG_CCM_PLL_ARM_CLK_SRC_MASK);
-	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_ARM_SET, 
-	    IMX6_ANALOG_CCM_PLL_ARM_BYPASS);
+	imx6_anatop_write_4(
+	    IMX6_ANALOG_CCM_PLL_ARM_CLR, IMX6_ANALOG_CCM_PLL_ARM_CLK_SRC_MASK);
+	imx6_anatop_write_4(
+	    IMX6_ANALOG_CCM_PLL_ARM_SET, IMX6_ANALOG_CCM_PLL_ARM_BYPASS);
 
 	wrk32 = imx6_anatop_read_4(IMX6_ANALOG_CCM_PLL_ARM);
 	wrk32 &= ~IMX6_ANALOG_CCM_PLL_ARM_DIV_MASK;
@@ -306,12 +303,12 @@ cpufreq_set_clock(struct imx6_anatop_softc * sc, struct oppt *op)
 
 	timeout = 10000;
 	while ((imx6_anatop_read_4(IMX6_ANALOG_CCM_PLL_ARM) &
-	    IMX6_ANALOG_CCM_PLL_ARM_LOCK) == 0)
+		   IMX6_ANALOG_CCM_PLL_ARM_LOCK) == 0)
 		if (--timeout == 0)
 			panic("imx6_set_cpu_clock(): PLL never locked");
 
-	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_ARM_CLR, 
-	    IMX6_ANALOG_CCM_PLL_ARM_BYPASS);
+	imx6_anatop_write_4(
+	    IMX6_ANALOG_CCM_PLL_ARM_CLR, IMX6_ANALOG_CCM_PLL_ARM_BYPASS);
 	imx_ccm_set_cacrr(corediv);
 
 	/* If lowering the frequency, it is now safe to lower the voltage. */
@@ -324,11 +321,10 @@ cpufreq_set_clock(struct imx6_anatop_softc * sc, struct oppt *op)
 	    cpufreq_actual_mhz(sc, sc->cpu_curmhz) * 1000000 / 2);
 }
 
-static int
-cpufreq_sysctl_minmhz(SYSCTL_HANDLER_ARGS)
+static int cpufreq_sysctl_minmhz(SYSCTL_HANDLER_ARGS)
 {
 	struct imx6_anatop_softc *sc;
-	struct oppt * op;
+	struct oppt *op;
 	uint32_t temp;
 	int err;
 
@@ -356,11 +352,10 @@ cpufreq_sysctl_minmhz(SYSCTL_HANDLER_ARGS)
 	return (err);
 }
 
-static int
-cpufreq_sysctl_maxmhz(SYSCTL_HANDLER_ARGS)
+static int cpufreq_sysctl_maxmhz(SYSCTL_HANDLER_ARGS)
 {
 	struct imx6_anatop_softc *sc;
-	struct oppt * op;
+	struct oppt *op;
 	uint32_t temp;
 	int err;
 
@@ -393,29 +388,27 @@ static void
 cpufreq_initialize(struct imx6_anatop_softc *sc)
 {
 	uint32_t cfg3speed;
-	struct oppt * op;
+	struct oppt *op;
 
-	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx),
-	    OID_AUTO, "cpu_mhz", CTLFLAG_RD, &sc->cpu_curmhz, 0, 
-	    "CPU frequency");
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), OID_AUTO,
+	    "cpu_mhz", CTLFLAG_RD, &sc->cpu_curmhz, 0, "CPU frequency");
 
-	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), 
-	    OID_AUTO, "cpu_minmhz",
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), OID_AUTO,
+	    "cpu_minmhz",
 	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_NEEDGIANT,
 	    sc, 0, cpufreq_sysctl_minmhz, "IU", "Minimum CPU frequency");
 
-	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx),
-	    OID_AUTO, "cpu_maxmhz",
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), OID_AUTO,
+	    "cpu_maxmhz",
 	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_NEEDGIANT,
 	    sc, 0, cpufreq_sysctl_maxmhz, "IU", "Maximum CPU frequency");
 
-	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx),
-	    OID_AUTO, "cpu_maxmhz_hw", CTLFLAG_RD, &sc->cpu_maxmhz_hw, 0, 
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), OID_AUTO,
+	    "cpu_maxmhz_hw", CTLFLAG_RD, &sc->cpu_maxmhz_hw, 0,
 	    "Maximum CPU frequency allowed by hardware");
 
-	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx),
-	    OID_AUTO, "cpu_overclock_enable", CTLFLAG_RWTUN, 
-	    &sc->cpu_overclock_enable, 0, 
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), OID_AUTO,
+	    "cpu_overclock_enable", CTLFLAG_RWTUN, &sc->cpu_overclock_enable, 0,
 	    "Allow setting CPU frequency higher than cpu_maxmhz_hw");
 
 	/*
@@ -435,8 +428,9 @@ cpufreq_initialize(struct imx6_anatop_softc *sc)
 	 *   - 2b'00: 792000000Hz;
 	 * The default hardware max speed can be overridden by a tunable.
 	 */
-	cfg3speed = (fsl_ocotp_read_4(FSL_OCOTP_CFG3) & 
-	    FSL_OCOTP_CFG3_SPEED_MASK) >> FSL_OCOTP_CFG3_SPEED_SHIFT;
+	cfg3speed = (fsl_ocotp_read_4(FSL_OCOTP_CFG3) &
+			FSL_OCOTP_CFG3_SPEED_MASK) >>
+	    FSL_OCOTP_CFG3_SPEED_SHIFT;
 	sc->cpu_maxmhz_hw = imx6_ocotp_mhz_tab[cfg3speed];
 	sc->cpu_maxmhz = sc->cpu_maxmhz_hw;
 
@@ -465,17 +459,17 @@ static inline uint32_t
 temp_from_count(struct imx6_anatop_softc *sc, uint32_t count)
 {
 
-	return (((sc->temp_high_val - (count - sc->temp_high_cnt) *
-	    (sc->temp_high_val - 250) / 
-	    (sc->temp_room_cnt - sc->temp_high_cnt))));
+	return (((sc->temp_high_val -
+	    (count - sc->temp_high_cnt) * (sc->temp_high_val - 250) /
+		(sc->temp_room_cnt - sc->temp_high_cnt))));
 }
 
 static inline uint32_t
 temp_to_count(struct imx6_anatop_softc *sc, uint32_t temp)
 {
 
-	return ((sc->temp_room_cnt - sc->temp_high_cnt) * 
-	    (sc->temp_high_val - temp) / (sc->temp_high_val - 250) + 
+	return ((sc->temp_room_cnt - sc->temp_high_cnt) *
+		(sc->temp_high_val - temp) / (sc->temp_high_val - 250) +
 	    sc->temp_high_cnt);
 }
 
@@ -487,13 +481,12 @@ temp_update_count(struct imx6_anatop_softc *sc)
 	val = imx6_anatop_read_4(IMX6_ANALOG_TEMPMON_TEMPSENSE0);
 	if (!(val & IMX6_ANALOG_TEMPMON_TEMPSENSE0_VALID))
 		return;
-	sc->temp_last_cnt =
-	    (val & IMX6_ANALOG_TEMPMON_TEMPSENSE0_TEMP_CNT_MASK) >>
+	sc->temp_last_cnt = (val &
+				IMX6_ANALOG_TEMPMON_TEMPSENSE0_TEMP_CNT_MASK) >>
 	    IMX6_ANALOG_TEMPMON_TEMPSENSE0_TEMP_CNT_SHIFT;
 }
 
-static int
-temp_sysctl_handler(SYSCTL_HANDLER_ARGS)
+static int temp_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 	struct imx6_anatop_softc *sc = arg1;
 	uint32_t t;
@@ -505,8 +498,7 @@ temp_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_int(oidp, &t, 0, req));
 }
 
-static int
-temp_throttle_sysctl_handler(SYSCTL_HANDLER_ARGS)
+static int temp_throttle_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 	struct imx6_anatop_softc *sc = arg1;
 	int err;
@@ -522,13 +514,15 @@ temp_throttle_sysctl_handler(SYSCTL_HANDLER_ARGS)
 
 	/* Value changed, update counts in softc and hardware. */
 	sc->temp_throttle_val = temp;
-	sc->temp_throttle_trigger_cnt = temp_to_count(sc, sc->temp_throttle_val);
-	sc->temp_throttle_reset_cnt = temp_to_count(sc, sc->temp_throttle_val - 100);
+	sc->temp_throttle_trigger_cnt = temp_to_count(
+	    sc, sc->temp_throttle_val);
+	sc->temp_throttle_reset_cnt = temp_to_count(
+	    sc, sc->temp_throttle_val - 100);
 	imx6_anatop_write_4(IMX6_ANALOG_TEMPMON_TEMPSENSE0_CLR,
 	    IMX6_ANALOG_TEMPMON_TEMPSENSE0_ALARM_MASK);
 	imx6_anatop_write_4(IMX6_ANALOG_TEMPMON_TEMPSENSE0_SET,
-	    (sc->temp_throttle_trigger_cnt <<
-	     IMX6_ANALOG_TEMPMON_TEMPSENSE0_ALARM_SHIFT));
+	    (sc->temp_throttle_trigger_cnt
+		<< IMX6_ANALOG_TEMPMON_TEMPSENSE0_ALARM_SHIFT));
 	return (err);
 }
 
@@ -577,8 +571,7 @@ tempmon_throttle_check(void *arg)
 		tempmon_gofast(sc);
 
 	callout_reset_sbt(&sc->temp_throttle_callout, sc->temp_throttle_delay,
-		0, tempmon_throttle_check, sc, 0);
-
+	    0, tempmon_throttle_check, sc, 0);
 }
 
 static void
@@ -600,10 +593,10 @@ initialize_tempmon(struct imx6_anatop_softc *sc)
 	 * reset back to max cpu freq at 5C below the trigger.
 	 */
 	sc->temp_throttle_val = sc->temp_high_val - 100;
-	sc->temp_throttle_trigger_cnt =
-	    temp_to_count(sc, sc->temp_throttle_val);
-	sc->temp_throttle_reset_cnt = 
-	    temp_to_count(sc, sc->temp_throttle_val - 50);
+	sc->temp_throttle_trigger_cnt = temp_to_count(
+	    sc, sc->temp_throttle_val);
+	sc->temp_throttle_reset_cnt = temp_to_count(
+	    sc, sc->temp_throttle_val - 50);
 
 	/*
 	 * Set the sensor to sample automatically at 16Hz (32.768KHz/0x800), set
@@ -611,9 +604,9 @@ initialize_tempmon(struct imx6_anatop_softc *sc)
 	 */
 	imx6_anatop_write_4(IMX6_ANALOG_TEMPMON_TEMPSENSE1, 0x0800);
 	imx6_anatop_write_4(IMX6_ANALOG_TEMPMON_TEMPSENSE0,
-	    (sc->temp_throttle_trigger_cnt << 
-	    IMX6_ANALOG_TEMPMON_TEMPSENSE0_ALARM_SHIFT) |
-	    IMX6_ANALOG_TEMPMON_TEMPSENSE0_MEASURE);
+	    (sc->temp_throttle_trigger_cnt
+		<< IMX6_ANALOG_TEMPMON_TEMPSENSE0_ALARM_SHIFT) |
+		IMX6_ANALOG_TEMPMON_TEMPSENSE0_MEASURE);
 
 	/*
 	 * XXX Note that the alarm-interrupt feature isn't working yet, so
@@ -625,17 +618,16 @@ initialize_tempmon(struct imx6_anatop_softc *sc)
 		temp_update_count(sc);
 	sc->temp_throttle_delay = 100 * SBT_1MS;
 	callout_init(&sc->temp_throttle_callout, 0);
-	callout_reset_sbt(&sc->temp_throttle_callout, sc->temp_throttle_delay, 
+	callout_reset_sbt(&sc->temp_throttle_callout, sc->temp_throttle_delay,
 	    0, tempmon_throttle_check, sc, 0);
 
-	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), 
-	    OID_AUTO, "temperature",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), OID_AUTO,
+	    "temperature", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
 	    temp_sysctl_handler, "IK", "Current die temperature");
-	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), 
-	    OID_AUTO, "throttle_temperature",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc,
-	    0, temp_throttle_sysctl_handler, "IK", 
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), OID_AUTO,
+	    "throttle_temperature",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    temp_throttle_sysctl_handler, "IK",
 	    "Throttle CPU when exceeding this temperature");
 }
 
@@ -647,8 +639,8 @@ intr_setup(void *arg)
 
 	sc = arg;
 	rid = 0;
-	sc->res[IRQRES] = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->res[IRQRES] = bus_alloc_resource_any(
+	    sc->dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->res[IRQRES] != NULL) {
 		bus_setup_intr(sc->dev, sc->res[IRQRES],
 		    INTR_TYPE_MISC | INTR_MPSAFE, tempmon_intr, NULL, sc,
@@ -677,7 +669,7 @@ imx6_anatop_new_pass(device_t dev)
 		cpufreq_initialize(sc);
 		initialize_tempmon(sc);
 		if (bootverbose) {
-			device_printf(sc->dev, "CPU %uMHz @ %umV\n", 
+			device_printf(sc->dev, "CPU %uMHz @ %umV\n",
 			    sc->cpu_curmhz, sc->cpu_curmv);
 		}
 	}
@@ -713,9 +705,9 @@ imx6_anatop_attach(device_t dev)
 	config_intrhook_establish(&sc->intr_setup_hook);
 
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
-	    OID_AUTO, "cpu_voltage", CTLFLAG_RD,
-	    &sc->cpu_curmv, 0, "Current CPU voltage in millivolts");
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
+	    "cpu_voltage", CTLFLAG_RD, &sc->cpu_curmv, 0,
+	    "Current CPU voltage in millivolts");
 
 	imx6_anatop_sc = sc;
 
@@ -724,8 +716,8 @@ imx6_anatop_attach(device_t dev)
 	 * time the temperature sensor is set up, although it's unclear how the
 	 * two are related (if at all).
 	 */
-	imx6_anatop_write_4(IMX6_ANALOG_PMU_MISC0_SET, 
-	    IMX6_ANALOG_PMU_MISC0_SELFBIASOFF);
+	imx6_anatop_write_4(
+	    IMX6_ANALOG_PMU_MISC0_SET, IMX6_ANALOG_PMU_MISC0_SELFBIASOFF);
 
 	/*
 	 * Some day, when we're ready to deal with the actual anatop regulators
@@ -756,8 +748,8 @@ pll4_configure_output(uint32_t mfi, uint32_t mfn, uint32_t mfd)
 	 */
 
 	reg = (IMX6_ANALOG_CCM_PLL_AUDIO_ENABLE);
-	reg &= ~(IMX6_ANALOG_CCM_PLL_AUDIO_DIV_SELECT_MASK << \
-		IMX6_ANALOG_CCM_PLL_AUDIO_DIV_SELECT_SHIFT);
+	reg &= ~(IMX6_ANALOG_CCM_PLL_AUDIO_DIV_SELECT_MASK
+	    << IMX6_ANALOG_CCM_PLL_AUDIO_DIV_SELECT_SHIFT);
 	reg |= (mfi << IMX6_ANALOG_CCM_PLL_AUDIO_DIV_SELECT_SHIFT);
 	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_AUDIO, reg);
 	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_AUDIO_NUM, mfn);
@@ -781,7 +773,7 @@ imx6_anatop_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-uint32_t 
+uint32_t
 imx6_get_cpu_clock(void)
 {
 	uint32_t corediv, plldiv;
@@ -794,21 +786,18 @@ imx6_get_cpu_clock(void)
 
 static device_method_t imx6_anatop_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,  imx6_anatop_probe),
+	DEVMETHOD(device_probe, imx6_anatop_probe),
 	DEVMETHOD(device_attach, imx6_anatop_attach),
 	DEVMETHOD(device_detach, imx6_anatop_detach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_new_pass,  imx6_anatop_new_pass),
+	DEVMETHOD(bus_new_pass, imx6_anatop_new_pass),
 
 	DEVMETHOD_END
 };
 
-static driver_t imx6_anatop_driver = {
-	"imx6_anatop",
-	imx6_anatop_methods,
-	sizeof(struct imx6_anatop_softc)
-};
+static driver_t imx6_anatop_driver = { "imx6_anatop", imx6_anatop_methods,
+	sizeof(struct imx6_anatop_softc) };
 
 static devclass_t imx6_anatop_devclass;
 

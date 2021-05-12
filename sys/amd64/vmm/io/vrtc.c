@@ -33,12 +33,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/queue.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/clock.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 
 #include <machine/vmm.h>
@@ -46,62 +46,62 @@ __FBSDID("$FreeBSD$");
 
 #include <isa/rtc.h>
 
-#include "vmm_ktr.h"
 #include "vatpic.h"
 #include "vioapic.h"
+#include "vmm_ktr.h"
 #include "vrtc.h"
 
 /* Register layout of the RTC */
 struct rtcdev {
-	uint8_t	sec;
-	uint8_t	alarm_sec;
-	uint8_t	min;
-	uint8_t	alarm_min;
-	uint8_t	hour;
-	uint8_t	alarm_hour;
-	uint8_t	day_of_week;
-	uint8_t	day_of_month;
-	uint8_t	month;
-	uint8_t	year;
-	uint8_t	reg_a;
-	uint8_t	reg_b;
-	uint8_t	reg_c;
-	uint8_t	reg_d;
-	uint8_t	nvram[36];
-	uint8_t	century;
-	uint8_t	nvram2[128 - 51];
+	uint8_t sec;
+	uint8_t alarm_sec;
+	uint8_t min;
+	uint8_t alarm_min;
+	uint8_t hour;
+	uint8_t alarm_hour;
+	uint8_t day_of_week;
+	uint8_t day_of_month;
+	uint8_t month;
+	uint8_t year;
+	uint8_t reg_a;
+	uint8_t reg_b;
+	uint8_t reg_c;
+	uint8_t reg_d;
+	uint8_t nvram[36];
+	uint8_t century;
+	uint8_t nvram2[128 - 51];
 } __packed;
 CTASSERT(sizeof(struct rtcdev) == 128);
 CTASSERT(offsetof(struct rtcdev, century) == RTC_CENTURY);
 
 struct vrtc {
-	struct vm	*vm;
-	struct mtx	mtx;
-	struct callout	callout;
-	u_int		addr;		/* RTC register to read or write */
-	sbintime_t	base_uptime;
-	time_t		base_rtctime;
-	struct rtcdev	rtcdev;
+	struct vm *vm;
+	struct mtx mtx;
+	struct callout callout;
+	u_int addr; /* RTC register to read or write */
+	sbintime_t base_uptime;
+	time_t base_rtctime;
+	struct rtcdev rtcdev;
 };
 
-#define	VRTC_LOCK(vrtc)		mtx_lock(&((vrtc)->mtx))
-#define	VRTC_UNLOCK(vrtc)	mtx_unlock(&((vrtc)->mtx))
-#define	VRTC_LOCKED(vrtc)	mtx_owned(&((vrtc)->mtx))
+#define VRTC_LOCK(vrtc) mtx_lock(&((vrtc)->mtx))
+#define VRTC_UNLOCK(vrtc) mtx_unlock(&((vrtc)->mtx))
+#define VRTC_LOCKED(vrtc) mtx_owned(&((vrtc)->mtx))
 
 /*
  * RTC time is considered "broken" if:
  * - RTC updates are halted by the guest
  * - RTC date/time fields have invalid values
  */
-#define	VRTC_BROKEN_TIME	((time_t)-1)
+#define VRTC_BROKEN_TIME ((time_t)-1)
 
-#define	RTC_IRQ			8
-#define	RTCSB_BIN		0x04
-#define	RTCSB_ALL_INTRS		(RTCSB_UINTR | RTCSB_AINTR | RTCSB_PINTR)
-#define	rtc_halted(vrtc)	((vrtc->rtcdev.reg_b & RTCSB_HALT) != 0)
-#define	aintr_enabled(vrtc)	(((vrtc)->rtcdev.reg_b & RTCSB_AINTR) != 0)
-#define	pintr_enabled(vrtc)	(((vrtc)->rtcdev.reg_b & RTCSB_PINTR) != 0)
-#define	uintr_enabled(vrtc)	(((vrtc)->rtcdev.reg_b & RTCSB_UINTR) != 0)
+#define RTC_IRQ 8
+#define RTCSB_BIN 0x04
+#define RTCSB_ALL_INTRS (RTCSB_UINTR | RTCSB_AINTR | RTCSB_PINTR)
+#define rtc_halted(vrtc) ((vrtc->rtcdev.reg_b & RTCSB_HALT) != 0)
+#define aintr_enabled(vrtc) (((vrtc)->rtcdev.reg_b & RTCSB_AINTR) != 0)
+#define pintr_enabled(vrtc) (((vrtc)->rtcdev.reg_b & RTCSB_PINTR) != 0)
+#define uintr_enabled(vrtc) (((vrtc)->rtcdev.reg_b & RTCSB_UINTR) != 0)
 
 static void vrtc_callout_handler(void *arg);
 static void vrtc_set_reg_c(struct vrtc *vrtc, uint8_t newval);
@@ -109,8 +109,7 @@ static void vrtc_set_reg_c(struct vrtc *vrtc, uint8_t newval);
 static MALLOC_DEFINE(M_VRTC, "vrtc", "bhyve virtual rtc");
 
 SYSCTL_DECL(_hw_vmm);
-SYSCTL_NODE(_hw_vmm, OID_AUTO, vrtc, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
-    NULL);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, vrtc, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, NULL);
 
 static int rtc_flag_broken_time = 1;
 SYSCTL_INT(_hw_vmm_vrtc, OID_AUTO, flag_broken_time, CTLFLAG_RDTUN,
@@ -159,8 +158,10 @@ vrtc_curtime(struct vrtc *vrtc, sbintime_t *basetime)
 	if (update_enabled(vrtc)) {
 		now = sbinuptime();
 		delta = now - vrtc->base_uptime;
-		KASSERT(delta >= 0, ("vrtc_curtime: uptime went backwards: "
-		    "%#lx to %#lx", vrtc->base_uptime, now));
+		KASSERT(delta >= 0,
+		    ("vrtc_curtime: uptime went backwards: "
+		     "%#lx to %#lx",
+			vrtc->base_uptime, now));
 		secs = delta / SBT_1S;
 		t += secs;
 		*basetime += secs * SBT_1S;
@@ -172,8 +173,8 @@ static __inline uint8_t
 rtcset(struct rtcdev *rtc, int val)
 {
 
-	KASSERT(val >= 0 && val < 100, ("%s: invalid bin2bcd index %d",
-	    __func__, val));
+	KASSERT(val >= 0 && val < 100,
+	    ("%s: invalid bin2bcd index %d", __func__, val));
 
 	return ((rtc->reg_b & RTCSB_BIN) ? val : bin2bcd_data[val]);
 }
@@ -206,20 +207,20 @@ secs_to_rtc(time_t rtctime, struct vrtc *vrtc, int force_update)
 	ts.tv_nsec = 0;
 	clock_ts_to_ct(&ts, &ct);
 
-	KASSERT(ct.sec >= 0 && ct.sec <= 59, ("invalid clocktime sec %d",
-	    ct.sec));
-	KASSERT(ct.min >= 0 && ct.min <= 59, ("invalid clocktime min %d",
-	    ct.min));
-	KASSERT(ct.hour >= 0 && ct.hour <= 23, ("invalid clocktime hour %d",
-	    ct.hour));
-	KASSERT(ct.dow >= 0 && ct.dow <= 6, ("invalid clocktime wday %d",
-	    ct.dow));
-	KASSERT(ct.day >= 1 && ct.day <= 31, ("invalid clocktime mday %d",
-	    ct.day));
-	KASSERT(ct.mon >= 1 && ct.mon <= 12, ("invalid clocktime month %d",
-	    ct.mon));
-	KASSERT(ct.year >= POSIX_BASE_YEAR, ("invalid clocktime year %d",
-	    ct.year));
+	KASSERT(
+	    ct.sec >= 0 && ct.sec <= 59, ("invalid clocktime sec %d", ct.sec));
+	KASSERT(
+	    ct.min >= 0 && ct.min <= 59, ("invalid clocktime min %d", ct.min));
+	KASSERT(ct.hour >= 0 && ct.hour <= 23,
+	    ("invalid clocktime hour %d", ct.hour));
+	KASSERT(
+	    ct.dow >= 0 && ct.dow <= 6, ("invalid clocktime wday %d", ct.dow));
+	KASSERT(
+	    ct.day >= 1 && ct.day <= 31, ("invalid clocktime mday %d", ct.day));
+	KASSERT(ct.mon >= 1 && ct.mon <= 12,
+	    ("invalid clocktime month %d", ct.mon));
+	KASSERT(
+	    ct.year >= POSIX_BASE_YEAR, ("invalid clocktime year %d", ct.year));
 
 	rtc = &vrtc->rtcdev;
 	rtc->sec = rtcset(rtc, ct.sec);
@@ -232,8 +233,8 @@ secs_to_rtc(time_t rtctime, struct vrtc *vrtc, int force_update)
 		 * Convert to the 12-hour format.
 		 */
 		switch (ct.hour) {
-		case 0:			/* 12 AM */
-		case 12:		/* 12 PM */
+		case 0:	 /* 12 AM */
+		case 12: /* 12 PM */
 			hour = 12;
 			break;
 		default:
@@ -250,7 +251,7 @@ secs_to_rtc(time_t rtctime, struct vrtc *vrtc, int force_update)
 	rtc->hour = rtcset(rtc, hour);
 
 	if ((rtc->reg_b & RTCSB_24HR) == 0 && ct.hour >= 12)
-		rtc->hour |= 0x80;	    /* set MSB to indicate PM */
+		rtc->hour |= 0x80; /* set MSB to indicate PM */
 
 	rtc->day_of_week = rtcset(rtc, ct.dow + 1);
 	rtc->day_of_month = rtcset(rtc, ct.day);
@@ -346,7 +347,7 @@ rtc_to_secs(struct vrtc *vrtc)
 
 	/*
 	 * Ignore 'rtc->dow' because some guests like Linux don't bother
-	 * setting it at all while others like OpenBSD/i386 set it incorrectly. 
+	 * setting it at all while others like OpenBSD/i386 set it incorrectly.
 	 *
 	 * clock_ct_to_ts() does not depend on 'ct.dow' anyways so ignore it.
 	 */
@@ -354,8 +355,8 @@ rtc_to_secs(struct vrtc *vrtc)
 
 	error = rtcget(rtc, rtc->day_of_month, &ct.day);
 	if (error || ct.day < 1 || ct.day > 31) {
-		VM_CTR2(vm, "Invalid RTC mday %#x/%d", rtc->day_of_month,
-		    ct.day);
+		VM_CTR2(
+		    vm, "Invalid RTC mday %#x/%d", rtc->day_of_month, ct.day);
 		goto fail;
 	}
 
@@ -374,8 +375,8 @@ rtc_to_secs(struct vrtc *vrtc)
 	error = rtcget(rtc, rtc->century, &century);
 	ct.year = century * 100 + year;
 	if (error || ct.year < POSIX_BASE_YEAR) {
-		VM_CTR2(vm, "Invalid RTC century %#x/%d", rtc->century,
-		    ct.year);
+		VM_CTR2(
+		    vm, "Invalid RTC century %#x/%d", rtc->century, ct.year);
 		goto fail;
 	}
 
@@ -387,7 +388,7 @@ rtc_to_secs(struct vrtc *vrtc)
 		    ct.hour, ct.min, ct.sec);
 		goto fail;
 	}
-	return (ts.tv_sec);		/* success */
+	return (ts.tv_sec); /* success */
 fail:
 	/*
 	 * Stop updating the RTC if the date/time fields programmed by
@@ -413,12 +414,12 @@ vrtc_time_update(struct vrtc *vrtc, time_t newtime, sbintime_t newbase)
 	alarm_hour = rtc->alarm_hour;
 
 	oldtime = vrtc->base_rtctime;
-	VM_CTR2(vrtc->vm, "Updating RTC secs from %#lx to %#lx",
-	    oldtime, newtime);
+	VM_CTR2(
+	    vrtc->vm, "Updating RTC secs from %#lx to %#lx", oldtime, newtime);
 
 	oldbase = vrtc->base_uptime;
-	VM_CTR2(vrtc->vm, "Updating RTC base uptime from %#lx to %#lx",
-	    oldbase, newbase);
+	VM_CTR2(vrtc->vm, "Updating RTC base uptime from %#lx to %#lx", oldbase,
+	    newbase);
 	vrtc->base_uptime = newbase;
 
 	if (newtime == oldtime)
@@ -535,8 +536,8 @@ vrtc_callout_reset(struct vrtc *vrtc, sbintime_t freqsbt)
 		return;
 	}
 	VM_CTR1(vrtc->vm, "RTC callout frequency %d hz", SBT_1S / freqsbt);
-	callout_reset_sbt(&vrtc->callout, freqsbt, 0, vrtc_callout_handler,
-	    vrtc, 0);
+	callout_reset_sbt(
+	    &vrtc->callout, freqsbt, 0, vrtc_callout_handler, vrtc, 0);
 }
 
 static void
@@ -550,10 +551,10 @@ vrtc_callout_handler(void *arg)
 	VM_CTR0(vrtc->vm, "vrtc callout fired");
 
 	VRTC_LOCK(vrtc);
-	if (callout_pending(&vrtc->callout))	/* callout was reset */
+	if (callout_pending(&vrtc->callout)) /* callout was reset */
 		goto done;
 
-	if (!callout_active(&vrtc->callout))	/* callout was stopped */
+	if (!callout_active(&vrtc->callout)) /* callout was stopped */
 		goto done;
 
 	callout_deactivate(&vrtc->callout);
@@ -567,8 +568,8 @@ vrtc_callout_handler(void *arg)
 	if (aintr_enabled(vrtc) || uintr_enabled(vrtc)) {
 		rtctime = vrtc_curtime(vrtc, &basetime);
 		error = vrtc_time_update(vrtc, rtctime, basetime);
-		KASSERT(error == 0, ("%s: vrtc_time_update error %d",
-		    __func__, error));
+		KASSERT(error == 0,
+		    ("%s: vrtc_time_update error %d", __func__, error));
 	}
 
 	freqsbt = vrtc_freq(vrtc);
@@ -586,7 +587,7 @@ vrtc_callout_check(struct vrtc *vrtc, sbintime_t freq)
 	active = callout_active(&vrtc->callout) ? 1 : 0;
 	KASSERT((freq == 0 && !active) || (freq != 0 && active),
 	    ("vrtc callout %s with frequency %#lx",
-	    active ? "active" : "inactive", freq));
+		active ? "active" : "inactive", freq));
 }
 
 static void
@@ -614,8 +615,8 @@ vrtc_set_reg_c(struct vrtc *vrtc, uint8_t newval)
 	rtc->reg_c = newirqf | newval;
 	changed = oldval ^ rtc->reg_c;
 	if (changed) {
-		VM_CTR2(vrtc->vm, "RTC reg_c changed from %#x to %#x",
-		    oldval, rtc->reg_c);
+		VM_CTR2(vrtc->vm, "RTC reg_c changed from %#x to %#x", oldval,
+		    rtc->reg_c);
 	}
 
 	if (!oldirqf && newirqf) {
@@ -645,8 +646,8 @@ vrtc_set_reg_b(struct vrtc *vrtc, uint8_t newval)
 	rtc->reg_b = newval;
 	changed = oldval ^ newval;
 	if (changed) {
-		VM_CTR2(vrtc->vm, "RTC reg_b changed from %#x to %#x",
-		    oldval, newval);
+		VM_CTR2(vrtc->vm, "RTC reg_b changed from %#x to %#x", oldval,
+		    newval);
 	}
 
 	if (changed & RTCSB_HALT) {
@@ -659,9 +660,10 @@ vrtc_set_reg_b(struct vrtc *vrtc, uint8_t newval)
 			}
 		} else {
 			curtime = vrtc_curtime(vrtc, &basetime);
-			KASSERT(curtime == vrtc->base_rtctime, ("%s: mismatch "
-			    "between vrtc basetime (%#lx) and curtime (%#lx)",
-			    __func__, vrtc->base_rtctime, curtime));
+			KASSERT(curtime == vrtc->base_rtctime,
+			    ("%s: mismatch "
+			     "between vrtc basetime (%#lx) and curtime (%#lx)",
+				__func__, vrtc->base_rtctime, curtime));
 
 			/*
 			 * Force a refresh of the RTC date/time fields so
@@ -735,8 +737,8 @@ vrtc_set_reg_a(struct vrtc *vrtc, uint8_t newval)
 	vrtc->rtcdev.reg_a = newval;
 	changed = oldval ^ newval;
 	if (changed) {
-		VM_CTR2(vrtc->vm, "RTC reg_a changed from %#x to %#x",
-		    oldval, newval);
+		VM_CTR2(vrtc->vm, "RTC reg_a changed from %#x to %#x", oldval,
+		    newval);
 	}
 
 	/*
@@ -761,8 +763,8 @@ vrtc_set_time(struct vm *vm, time_t secs)
 	VRTC_UNLOCK(vrtc);
 
 	if (error) {
-		VM_CTR2(vrtc->vm, "Error %d setting RTC time to %#lx", error,
-		    secs);
+		VM_CTR2(
+		    vrtc->vm, "Error %d setting RTC time to %#lx", error, secs);
 	} else {
 		VM_CTR1(vrtc->vm, "RTC time set to %#lx", secs);
 	}
@@ -798,8 +800,8 @@ vrtc_nvram_write(struct vm *vm, int offset, uint8_t value)
 	 */
 	if (offset < offsetof(struct rtcdev, nvram[0]) ||
 	    offset == RTC_CENTURY || offset >= sizeof(struct rtcdev)) {
-		VM_CTR1(vrtc->vm, "RTC nvram write to invalid offset %d",
-		    offset);
+		VM_CTR1(
+		    vrtc->vm, "RTC nvram write to invalid offset %d", offset);
 		return (EINVAL);
 	}
 
@@ -845,8 +847,8 @@ vrtc_nvram_read(struct vm *vm, int offset, uint8_t *retval)
 }
 
 int
-vrtc_addr_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
-    uint32_t *val)
+vrtc_addr_handler(
+    struct vm *vm, int vcpuid, bool in, int port, int bytes, uint32_t *val)
 {
 	struct vrtc *vrtc;
 
@@ -868,8 +870,8 @@ vrtc_addr_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 }
 
 int
-vrtc_data_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
-    uint32_t *val)
+vrtc_data_handler(
+    struct vm *vm, int vcpuid, bool in, int port, int bytes, uint32_t *val)
 {
 	struct vrtc *vrtc;
 	struct rtcdev *rtc;
@@ -929,12 +931,12 @@ vrtc_data_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 			error = vrtc_set_reg_b(vrtc, *val);
 			break;
 		case 12:
-			VCPU_CTR1(vm, vcpuid, "RTC reg_c set to %#x (ignored)",
-			    *val);
+			VCPU_CTR1(
+			    vm, vcpuid, "RTC reg_c set to %#x (ignored)", *val);
 			break;
 		case 13:
-			VCPU_CTR1(vm, vcpuid, "RTC reg_d set to %#x (ignored)",
-			    *val);
+			VCPU_CTR1(
+			    vm, vcpuid, "RTC reg_d set to %#x (ignored)", *val);
 			break;
 		case 0:
 			/*
@@ -1051,11 +1053,11 @@ vrtc_snapshot(struct vrtc *vrtc, struct vm_snapshot_meta *meta)
 	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.reg_b, meta, ret, done);
 	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.reg_c, meta, ret, done);
 	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.reg_d, meta, ret, done);
-	SNAPSHOT_BUF_OR_LEAVE(vrtc->rtcdev.nvram, sizeof(vrtc->rtcdev.nvram),
-			      meta, ret, done);
+	SNAPSHOT_BUF_OR_LEAVE(
+	    vrtc->rtcdev.nvram, sizeof(vrtc->rtcdev.nvram), meta, ret, done);
 	SNAPSHOT_VAR_OR_LEAVE(vrtc->rtcdev.century, meta, ret, done);
-	SNAPSHOT_BUF_OR_LEAVE(vrtc->rtcdev.nvram2, sizeof(vrtc->rtcdev.nvram2),
-			      meta, ret, done);
+	SNAPSHOT_BUF_OR_LEAVE(
+	    vrtc->rtcdev.nvram2, sizeof(vrtc->rtcdev.nvram2), meta, ret, done);
 
 	vrtc_callout_reset(vrtc, vrtc_freq(vrtc));
 

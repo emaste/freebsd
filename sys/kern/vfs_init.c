@@ -45,16 +45,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
-#include <sys/malloc.h>
 
-static int	vfs_register(struct vfsconf *);
-static int	vfs_unregister(struct vfsconf *);
+static int vfs_register(struct vfsconf *);
+static int vfs_unregister(struct vfsconf *);
 
 MALLOC_DEFINE(M_VNODE, "vnodes", "Dynamically allocated vnodes");
 
@@ -77,7 +77,7 @@ SX_SYSINIT(vfsconf, &vfsconf_sx, "vfsconf");
  * loaded in a different order. This will avoid the NFS server file handles from
  * changing for file systems that use vfc_typenum in their fsid.
  */
-static int	vfs_typenumhash = 1;
+static int vfs_typenumhash = 1;
 SYSCTL_INT(_vfs, OID_AUTO, typenumhash, CTLFLAG_RDTUN, &vfs_typenumhash, 0,
     "Set vfc_typenum using a hash calculation on vfc_name, so that it does not"
     "change when file systems are loaded in a different order.");
@@ -118,7 +118,7 @@ vfs_byname_locked(const char *name)
 	sx_assert(&vfsconf_sx, SA_LOCKED);
 	if (!strcmp(name, "ffs"))
 		name = "ufs";
-	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
+	TAILQ_FOREACH (vfsp, &vfsconf, vfc_list) {
 		if (!strcmp(name, vfsp->vfc_name))
 			return (vfsp);
 	}
@@ -256,8 +256,8 @@ vfs_vget_sigdefer(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 }
 
 static int
-vfs_fhtovp_sigdefer(struct mount *mp, struct fid *fidp, int flags,
-    struct vnode **vpp)
+vfs_fhtovp_sigdefer(
+    struct mount *mp, struct fid *fidp, int flags, struct vnode **vpp)
 {
 	int prev_stops, rc;
 
@@ -274,8 +274,8 @@ vfs_checkexp_sigdefer(struct mount *mp, struct sockaddr *nam, uint64_t *exflg,
 	int prev_stops, rc;
 
 	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
-	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_checkexp)(mp, nam, exflg, credp,
-	    numsecflavors, secflavors);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_checkexp)(
+	    mp, nam, exflg, credp, numsecflavors, secflavors);
 	sigallowstop(prev_stops);
 	return (rc);
 }
@@ -287,8 +287,8 @@ vfs_extattrctl_sigdefer(struct mount *mp, int cmd, struct vnode *filename_vp,
 	int prev_stops, rc;
 
 	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
-	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_extattrctl)(mp, cmd,
-	    filename_vp, attrnamespace, attrname);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_extattrctl)(
+	    mp, cmd, filename_vp, attrnamespace, attrname);
 	sigallowstop(prev_stops);
 	return (rc);
 }
@@ -351,22 +351,22 @@ vfs_purge_sigdefer(struct mount *mp)
 }
 
 static struct vfsops vfsops_sigdefer = {
-	.vfs_mount =		vfs_mount_sigdefer,
-	.vfs_unmount =		vfs_unmount_sigdefer,
-	.vfs_root =		vfs_root_sigdefer,
-	.vfs_cachedroot =	vfs_cachedroot_sigdefer,
-	.vfs_quotactl =		vfs_quotactl_sigdefer,
-	.vfs_statfs =		vfs_statfs_sigdefer,
-	.vfs_sync =		vfs_sync_sigdefer,
-	.vfs_vget =		vfs_vget_sigdefer,
-	.vfs_fhtovp =		vfs_fhtovp_sigdefer,
-	.vfs_checkexp =		vfs_checkexp_sigdefer,
-	.vfs_extattrctl =	vfs_extattrctl_sigdefer,
-	.vfs_sysctl =		vfs_sysctl_sigdefer,
-	.vfs_susp_clean =	vfs_susp_clean_sigdefer,
-	.vfs_reclaim_lowervp =	vfs_reclaim_lowervp_sigdefer,
-	.vfs_unlink_lowervp =	vfs_unlink_lowervp_sigdefer,
-	.vfs_purge =		vfs_purge_sigdefer,
+	.vfs_mount = vfs_mount_sigdefer,
+	.vfs_unmount = vfs_unmount_sigdefer,
+	.vfs_root = vfs_root_sigdefer,
+	.vfs_cachedroot = vfs_cachedroot_sigdefer,
+	.vfs_quotactl = vfs_quotactl_sigdefer,
+	.vfs_statfs = vfs_statfs_sigdefer,
+	.vfs_sync = vfs_sync_sigdefer,
+	.vfs_vget = vfs_vget_sigdefer,
+	.vfs_fhtovp = vfs_fhtovp_sigdefer,
+	.vfs_checkexp = vfs_checkexp_sigdefer,
+	.vfs_extattrctl = vfs_extattrctl_sigdefer,
+	.vfs_sysctl = vfs_sysctl_sigdefer,
+	.vfs_susp_clean = vfs_susp_clean_sigdefer,
+	.vfs_reclaim_lowervp = vfs_reclaim_lowervp_sigdefer,
+	.vfs_unlink_lowervp = vfs_unlink_lowervp_sigdefer,
+	.vfs_purge = vfs_purge_sigdefer,
 
 };
 
@@ -409,7 +409,7 @@ vfs_register(struct vfsconf *vfc)
 		secondpass = 0;
 		do {
 			/* Look for and fix any collision. */
-			TAILQ_FOREACH(tvfc, &vfsconf, vfc_list) {
+			TAILQ_FOREACH (tvfc, &vfsconf, vfc_list) {
 				if (hashval == tvfc->vfc_typenum) {
 					if (hashval == 255 && secondpass == 0) {
 						hashval = 1;
@@ -446,13 +446,13 @@ vfs_register(struct vfsconf *vfc)
 
 	if (vfsops->vfs_root == NULL)
 		/* return file system's root vnode */
-		vfsops->vfs_root =	vfs_stdroot;
+		vfsops->vfs_root = vfs_stdroot;
 	if (vfsops->vfs_quotactl == NULL)
 		/* quota control */
-		vfsops->vfs_quotactl =	vfs_stdquotactl;
+		vfsops->vfs_quotactl = vfs_stdquotactl;
 	if (vfsops->vfs_statfs == NULL)
 		/* return file system's status */
-		vfsops->vfs_statfs =	vfs_stdstatfs;
+		vfsops->vfs_statfs = vfs_stdstatfs;
 	if (vfsops->vfs_sync == NULL)
 		/*
 		 * flush unwritten data (nosync)
@@ -460,22 +460,22 @@ vfs_register(struct vfsconf *vfc)
 		 * explicitly by setting it in the
 		 * vfsop vector.
 		 */
-		vfsops->vfs_sync =	vfs_stdnosync;
+		vfsops->vfs_sync = vfs_stdnosync;
 	if (vfsops->vfs_vget == NULL)
 		/* convert an inode number to a vnode */
-		vfsops->vfs_vget =	vfs_stdvget;
+		vfsops->vfs_vget = vfs_stdvget;
 	if (vfsops->vfs_fhtovp == NULL)
 		/* turn an NFS file handle into a vnode */
-		vfsops->vfs_fhtovp =	vfs_stdfhtovp;
+		vfsops->vfs_fhtovp = vfs_stdfhtovp;
 	if (vfsops->vfs_checkexp == NULL)
 		/* check if file system is exported */
-		vfsops->vfs_checkexp =	vfs_stdcheckexp;
+		vfsops->vfs_checkexp = vfs_stdcheckexp;
 	if (vfsops->vfs_init == NULL)
 		/* file system specific initialisation */
-		vfsops->vfs_init =	vfs_stdinit;
+		vfsops->vfs_init = vfs_stdinit;
 	if (vfsops->vfs_uninit == NULL)
 		/* file system specific uninitialisation */
-		vfsops->vfs_uninit =	vfs_stduninit;
+		vfsops->vfs_uninit = vfs_stduninit;
 	if (vfsops->vfs_extattrctl == NULL)
 		/* extended attribute control */
 		vfsops->vfs_extattrctl = vfs_stdextattrctl;
@@ -510,7 +510,7 @@ vfs_register(struct vfsconf *vfc)
 	 * number.
 	 */
 	sysctl_wlock();
-	SLIST_FOREACH(oidp, SYSCTL_CHILDREN(&sysctl___vfs), oid_link) {
+	SLIST_FOREACH (oidp, SYSCTL_CHILDREN(&sysctl___vfs), oid_link) {
 		if (strcmp(oidp->oid_name, vfc->vfc_name) == 0) {
 			sysctl_unregister_oid(oidp);
 			oidp->oid_number = vfc->vfc_typenum;
@@ -547,15 +547,15 @@ vfs_unregister(struct vfsconf *vfc)
 	} else {
 		if (vfc->vfc_vfsops->vfs_uninit != NULL) {
 			error = vfc->vfc_vfsops->vfs_uninit(vfsp);
-	}
-	if (error != 0) {
-		vfsconf_unlock();
-		return (error);
-	}
+		}
+		if (error != 0) {
+			vfsconf_unlock();
+			return (error);
+		}
 	}
 	TAILQ_REMOVE(&vfsconf, vfsp, vfc_list);
 	maxtypenum = VFS_GENERIC;
-	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list)
+	TAILQ_FOREACH (vfsp, &vfsconf, vfc_list)
 		if (maxtypenum < vfsp->vfc_typenum)
 			maxtypenum = vfsp->vfc_typenum;
 	maxvfsconf = maxtypenum + 1;

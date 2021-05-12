@@ -65,14 +65,14 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cpu.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
-#include <sys/sysctl.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
-#include <sys/endian.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -83,176 +83,195 @@
 
 #include <dev/ofw/openfirm.h>
 
-static void	cpu_6xx_setup(int cpuid, uint16_t vers);
-static void	cpu_970_setup(int cpuid, uint16_t vers);
-static void	cpu_booke_setup(int cpuid, uint16_t vers);
-static void	cpu_powerx_setup(int cpuid, uint16_t vers);
+static void cpu_6xx_setup(int cpuid, uint16_t vers);
+static void cpu_970_setup(int cpuid, uint16_t vers);
+static void cpu_booke_setup(int cpuid, uint16_t vers);
+static void cpu_powerx_setup(int cpuid, uint16_t vers);
 
 int powerpc_pow_enabled;
 void (*cpu_idle_hook)(sbintime_t) = NULL;
-static void	cpu_idle_60x(sbintime_t);
-static void	cpu_idle_booke(sbintime_t);
+static void cpu_idle_60x(sbintime_t);
+static void cpu_idle_booke(sbintime_t);
 #ifdef BOOKE_E500
-static void	cpu_idle_e500mc(sbintime_t sbt);
+static void cpu_idle_e500mc(sbintime_t sbt);
 #endif
 #if defined(__powerpc64__) && defined(AIM)
-static void	cpu_idle_powerx(sbintime_t);
-static void	cpu_idle_power9(sbintime_t);
+static void cpu_idle_powerx(sbintime_t);
+static void cpu_idle_power9(sbintime_t);
 #endif
 
 struct cputab {
-	const char	*name;
-	uint16_t	version;
-	uint16_t	revfmt;
-	int		features;	/* Do not include PPC_FEATURE_32 or
-					 * PPC_FEATURE_HAS_MMU */
-	int		features2;
-	void		(*cpu_setup)(int cpuid, uint16_t vers);
+	const char *name;
+	uint16_t version;
+	uint16_t revfmt;
+	int features; /* Do not include PPC_FEATURE_32 or
+		       * PPC_FEATURE_HAS_MMU */
+	int features2;
+	void (*cpu_setup)(int cpuid, uint16_t vers);
 };
-#define	REVFMT_MAJMIN	1	/* %u.%u */
-#define	REVFMT_HEX	2	/* 0x%04x */
-#define	REVFMT_DEC	3	/* %u */
+#define REVFMT_MAJMIN 1 /* %u.%u */
+#define REVFMT_HEX 2 /* 0x%04x */
+#define REVFMT_DEC 3 /* %u */
 static const struct cputab models[] = {
-        { "Motorola PowerPC 601",	MPC601,		REVFMT_DEC,
-	   PPC_FEATURE_HAS_FPU | PPC_FEATURE_UNIFIED_CACHE, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 602",	MPC602,		REVFMT_DEC,
-	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 603",	MPC603,		REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 603e",	MPC603e,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 603ev",	MPC603ev,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 604",	MPC604,		REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 604ev",	MPC604ev,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 620",	MPC620,		REVFMT_HEX,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, 0, NULL },
-        { "Motorola PowerPC 750",	MPC750,		REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "IBM PowerPC 750FX",		IBM750FX,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "IBM PowerPC 970",		IBM970,		REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
-	   0, cpu_970_setup },
-        { "IBM PowerPC 970FX",		IBM970FX,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
-	   0, cpu_970_setup },
-        { "IBM PowerPC 970GX",		IBM970GX,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
-	   0, cpu_970_setup },
-        { "IBM PowerPC 970MP",		IBM970MP,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
-	   0, cpu_970_setup },
-        { "IBM POWER4",		IBMPOWER4,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU | PPC_FEATURE_POWER4, 0, NULL },
-        { "IBM POWER4+",	IBMPOWER4PLUS,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU | PPC_FEATURE_POWER4, 0, NULL },
-        { "IBM POWER5",		IBMPOWER5,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU | PPC_FEATURE_POWER4 |
-	   PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP, 0, NULL },
-        { "IBM POWER5+",	IBMPOWER5PLUS,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU | PPC_FEATURE_POWER5_PLUS |
-	   PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP, 0, NULL },
-        { "IBM POWER6",		IBMPOWER6,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
-	   PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | PPC_FEATURE_ARCH_2_05 |
-	   PPC_FEATURE_TRUE_LE, 0, NULL },
-        { "IBM POWER7",		IBMPOWER7,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
-	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
-	   PPC_FEATURE_HAS_VSX | PPC_FEATURE_TRUE_LE, PPC_FEATURE2_DSCR, NULL },
-        { "IBM POWER7+",	IBMPOWER7PLUS,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
-	   PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
-	   PPC_FEATURE_HAS_VSX, PPC_FEATURE2_DSCR, NULL },
-        { "IBM POWER8E",	IBMPOWER8E,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
-	   PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | PPC_FEATURE_ARCH_2_05 |
-	   PPC_FEATURE_ARCH_2_06 | PPC_FEATURE_HAS_VSX | PPC_FEATURE_TRUE_LE,
-	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_DSCR | PPC_FEATURE2_ISEL |
-	   PPC_FEATURE2_TAR | PPC_FEATURE2_HAS_VEC_CRYPTO, cpu_powerx_setup },
-        { "IBM POWER8NVL",	IBMPOWER8NVL,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
-	   PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | PPC_FEATURE_ARCH_2_05 |
-	   PPC_FEATURE_ARCH_2_06 | PPC_FEATURE_HAS_VSX | PPC_FEATURE_TRUE_LE,
-	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_DSCR | PPC_FEATURE2_ISEL |
-	   PPC_FEATURE2_TAR | PPC_FEATURE2_HAS_VEC_CRYPTO, cpu_powerx_setup },
-        { "IBM POWER8",		IBMPOWER8,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
-	   PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | PPC_FEATURE_ARCH_2_05 |
-	   PPC_FEATURE_ARCH_2_06 | PPC_FEATURE_HAS_VSX | PPC_FEATURE_TRUE_LE,
-	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_DSCR | PPC_FEATURE2_ISEL |
-	   PPC_FEATURE2_TAR | PPC_FEATURE2_HAS_VEC_CRYPTO, cpu_powerx_setup },
-        { "IBM POWER9",		IBMPOWER9,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
-	   PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | PPC_FEATURE_ARCH_2_05 |
-	   PPC_FEATURE_ARCH_2_06 | PPC_FEATURE_HAS_VSX | PPC_FEATURE_TRUE_LE,
-	   PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_DSCR | PPC_FEATURE2_EBB |
-	   PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR | PPC_FEATURE2_HAS_VEC_CRYPTO | 
-	   PPC_FEATURE2_ARCH_3_00 | PPC_FEATURE2_HAS_IEEE128 |
-	   PPC_FEATURE2_DARN, cpu_powerx_setup },
-        { "Motorola PowerPC 7400",	MPC7400,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 7410",	MPC7410,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 7450",	MPC7450,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 7455",	MPC7455,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 7457",	MPC7457,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 7447A",	MPC7447A,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 7448",	MPC7448,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 8240",	MPC8240,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Motorola PowerPC 8245",	MPC8245,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
-        { "Freescale e500v1 core",	FSL_E500v1,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_SPE | PPC_FEATURE_HAS_EFP_SINGLE | PPC_FEATURE_BOOKE,
-	   PPC_FEATURE2_ISEL, cpu_booke_setup },
-        { "Freescale e500v2 core",	FSL_E500v2,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_SPE | PPC_FEATURE_BOOKE |
-	   PPC_FEATURE_HAS_EFP_SINGLE | PPC_FEATURE_HAS_EFP_DOUBLE,
-	   PPC_FEATURE2_ISEL, cpu_booke_setup },
-	{ "Freescale e500mc core",	FSL_E500mc,	REVFMT_MAJMIN,
-	   PPC_FEATURE_HAS_FPU | PPC_FEATURE_BOOKE | PPC_FEATURE_ARCH_2_05 |
-	   PPC_FEATURE_ARCH_2_06, PPC_FEATURE2_ISEL,
-	   cpu_booke_setup },
-	{ "Freescale e5500 core",	FSL_E5500,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU | PPC_FEATURE_BOOKE |
-	   PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06,
-	   PPC_FEATURE2_ISEL, cpu_booke_setup },
-	{ "Freescale e6500 core",	FSL_E6500,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
-	   PPC_FEATURE_BOOKE | PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06,
-	   PPC_FEATURE2_ISEL, cpu_booke_setup },
-        { "IBM Cell Broadband Engine",	IBMCELLBE,	REVFMT_MAJMIN,
-	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
-	   PPC_FEATURE_CELL | PPC_FEATURE_SMT, 0, NULL},
-        { "Unknown PowerPC CPU",	0,		REVFMT_HEX, 0, 0, NULL },
+	{ "Motorola PowerPC 601", MPC601, REVFMT_DEC,
+	    PPC_FEATURE_HAS_FPU | PPC_FEATURE_UNIFIED_CACHE, 0, cpu_6xx_setup },
+	{ "Motorola PowerPC 602", MPC602, REVFMT_DEC, PPC_FEATURE_HAS_FPU, 0,
+	    cpu_6xx_setup },
+	{ "Motorola PowerPC 603", MPC603, REVFMT_MAJMIN, PPC_FEATURE_HAS_FPU, 0,
+	    cpu_6xx_setup },
+	{ "Motorola PowerPC 603e", MPC603e, REVFMT_MAJMIN, PPC_FEATURE_HAS_FPU,
+	    0, cpu_6xx_setup },
+	{ "Motorola PowerPC 603ev", MPC603ev, REVFMT_MAJMIN,
+	    PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
+	{ "Motorola PowerPC 604", MPC604, REVFMT_MAJMIN, PPC_FEATURE_HAS_FPU, 0,
+	    cpu_6xx_setup },
+	{ "Motorola PowerPC 604ev", MPC604ev, REVFMT_MAJMIN,
+	    PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
+	{ "Motorola PowerPC 620", MPC620, REVFMT_HEX,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, 0, NULL },
+	{ "Motorola PowerPC 750", MPC750, REVFMT_MAJMIN, PPC_FEATURE_HAS_FPU, 0,
+	    cpu_6xx_setup },
+	{ "IBM PowerPC 750FX", IBM750FX, REVFMT_MAJMIN, PPC_FEATURE_HAS_FPU, 0,
+	    cpu_6xx_setup },
+	{ "IBM PowerPC 970", IBM970, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0,
+	    cpu_970_setup },
+	{ "IBM PowerPC 970FX", IBM970FX, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0,
+	    cpu_970_setup },
+	{ "IBM PowerPC 970GX", IBM970GX, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0,
+	    cpu_970_setup },
+	{ "IBM PowerPC 970MP", IBM970MP, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0,
+	    cpu_970_setup },
+	{ "IBM POWER4", IBMPOWER4, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU | PPC_FEATURE_POWER4, 0,
+	    NULL },
+	{ "IBM POWER4+", IBMPOWER4PLUS, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU | PPC_FEATURE_POWER4, 0,
+	    NULL },
+	{ "IBM POWER5", IBMPOWER5, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU | PPC_FEATURE_POWER4 |
+		PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP,
+	    0, NULL },
+	{ "IBM POWER5+", IBMPOWER5PLUS, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU | PPC_FEATURE_POWER5_PLUS |
+		PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP,
+	    0, NULL },
+	{ "IBM POWER6", IBMPOWER6, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+		PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP |
+		PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_TRUE_LE,
+	    0, NULL },
+	{ "IBM POWER7", IBMPOWER7, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+		PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 |
+		PPC_FEATURE_ARCH_2_06 | PPC_FEATURE_HAS_VSX |
+		PPC_FEATURE_TRUE_LE,
+	    PPC_FEATURE2_DSCR, NULL },
+	{ "IBM POWER7+", IBMPOWER7PLUS, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+		PPC_FEATURE_SMT | PPC_FEATURE_ARCH_2_05 |
+		PPC_FEATURE_ARCH_2_06 | PPC_FEATURE_HAS_VSX,
+	    PPC_FEATURE2_DSCR, NULL },
+	{ "IBM POWER8E", IBMPOWER8E, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+		PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP |
+		PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
+		PPC_FEATURE_HAS_VSX | PPC_FEATURE_TRUE_LE,
+	    PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_DSCR | PPC_FEATURE2_ISEL |
+		PPC_FEATURE2_TAR | PPC_FEATURE2_HAS_VEC_CRYPTO,
+	    cpu_powerx_setup },
+	{ "IBM POWER8NVL", IBMPOWER8NVL, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+		PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP |
+		PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
+		PPC_FEATURE_HAS_VSX | PPC_FEATURE_TRUE_LE,
+	    PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_DSCR | PPC_FEATURE2_ISEL |
+		PPC_FEATURE2_TAR | PPC_FEATURE2_HAS_VEC_CRYPTO,
+	    cpu_powerx_setup },
+	{ "IBM POWER8", IBMPOWER8, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+		PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP |
+		PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
+		PPC_FEATURE_HAS_VSX | PPC_FEATURE_TRUE_LE,
+	    PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_DSCR | PPC_FEATURE2_ISEL |
+		PPC_FEATURE2_TAR | PPC_FEATURE2_HAS_VEC_CRYPTO,
+	    cpu_powerx_setup },
+	{ "IBM POWER9", IBMPOWER9, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+		PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP |
+		PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06 |
+		PPC_FEATURE_HAS_VSX | PPC_FEATURE_TRUE_LE,
+	    PPC_FEATURE2_ARCH_2_07 | PPC_FEATURE2_DSCR | PPC_FEATURE2_EBB |
+		PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR |
+		PPC_FEATURE2_HAS_VEC_CRYPTO | PPC_FEATURE2_ARCH_3_00 |
+		PPC_FEATURE2_HAS_IEEE128 | PPC_FEATURE2_DARN,
+	    cpu_powerx_setup },
+	{ "Motorola PowerPC 7400", MPC7400, REVFMT_MAJMIN,
+	    PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
+	{ "Motorola PowerPC 7410", MPC7410, REVFMT_MAJMIN,
+	    PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
+	{ "Motorola PowerPC 7450", MPC7450, REVFMT_MAJMIN,
+	    PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
+	{ "Motorola PowerPC 7455", MPC7455, REVFMT_MAJMIN,
+	    PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
+	{ "Motorola PowerPC 7457", MPC7457, REVFMT_MAJMIN,
+	    PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
+	{ "Motorola PowerPC 7447A", MPC7447A, REVFMT_MAJMIN,
+	    PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
+	{ "Motorola PowerPC 7448", MPC7448, REVFMT_MAJMIN,
+	    PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, 0, cpu_6xx_setup },
+	{ "Motorola PowerPC 8240", MPC8240, REVFMT_MAJMIN, PPC_FEATURE_HAS_FPU,
+	    0, cpu_6xx_setup },
+	{ "Motorola PowerPC 8245", MPC8245, REVFMT_MAJMIN, PPC_FEATURE_HAS_FPU,
+	    0, cpu_6xx_setup },
+	{ "Freescale e500v1 core", FSL_E500v1, REVFMT_MAJMIN,
+	    PPC_FEATURE_HAS_SPE | PPC_FEATURE_HAS_EFP_SINGLE |
+		PPC_FEATURE_BOOKE,
+	    PPC_FEATURE2_ISEL, cpu_booke_setup },
+	{ "Freescale e500v2 core", FSL_E500v2, REVFMT_MAJMIN,
+	    PPC_FEATURE_HAS_SPE | PPC_FEATURE_BOOKE |
+		PPC_FEATURE_HAS_EFP_SINGLE | PPC_FEATURE_HAS_EFP_DOUBLE,
+	    PPC_FEATURE2_ISEL, cpu_booke_setup },
+	{ "Freescale e500mc core", FSL_E500mc, REVFMT_MAJMIN,
+	    PPC_FEATURE_HAS_FPU | PPC_FEATURE_BOOKE | PPC_FEATURE_ARCH_2_05 |
+		PPC_FEATURE_ARCH_2_06,
+	    PPC_FEATURE2_ISEL, cpu_booke_setup },
+	{ "Freescale e5500 core", FSL_E5500, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU | PPC_FEATURE_BOOKE |
+		PPC_FEATURE_ARCH_2_05 | PPC_FEATURE_ARCH_2_06,
+	    PPC_FEATURE2_ISEL, cpu_booke_setup },
+	{ "Freescale e6500 core", FSL_E6500, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+		PPC_FEATURE_BOOKE | PPC_FEATURE_ARCH_2_05 |
+		PPC_FEATURE_ARCH_2_06,
+	    PPC_FEATURE2_ISEL, cpu_booke_setup },
+	{ "IBM Cell Broadband Engine", IBMCELLBE, REVFMT_MAJMIN,
+	    PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU |
+		PPC_FEATURE_CELL | PPC_FEATURE_SMT,
+	    0, NULL },
+	{ "Unknown PowerPC CPU", 0, REVFMT_HEX, 0, 0, NULL },
 };
 
-static void	cpu_6xx_print_cacheinfo(u_int, uint16_t);
-static int	cpu_feature_bit(SYSCTL_HANDLER_ARGS);
+static void cpu_6xx_print_cacheinfo(u_int, uint16_t);
+static int cpu_feature_bit(SYSCTL_HANDLER_ARGS);
 
 static char model[64];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, model, 0, "");
 
-static const struct cputab	*cput;
+static const struct cputab *cput;
 
 u_long cpu_features = PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU;
 u_long cpu_features2 = 0;
-SYSCTL_OPAQUE(_hw, OID_AUTO, cpu_features, CTLFLAG_RD,
-    &cpu_features, sizeof(cpu_features), "LX", "PowerPC CPU features");
-SYSCTL_OPAQUE(_hw, OID_AUTO, cpu_features2, CTLFLAG_RD,
-    &cpu_features2, sizeof(cpu_features2), "LX", "PowerPC CPU features 2");
+SYSCTL_OPAQUE(_hw, OID_AUTO, cpu_features, CTLFLAG_RD, &cpu_features,
+    sizeof(cpu_features), "LX", "PowerPC CPU features");
+SYSCTL_OPAQUE(_hw, OID_AUTO, cpu_features2, CTLFLAG_RD, &cpu_features2,
+    sizeof(cpu_features2), "LX", "PowerPC CPU features 2");
 
 #ifdef __powerpc64__
-register_t	lpcr = LPCR_LPES;
+register_t lpcr = LPCR_LPES;
 #endif
 
 /* Provide some user-friendly aliases for bits in cpu_features */
@@ -269,9 +288,9 @@ SYSCTL_PROC(_hw, OID_AUTO, altivec, CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 void
 cpu_feature_setup()
 {
-	u_int		pvr;
-	uint16_t	vers;
-	const struct	cputab *cp;
+	u_int pvr;
+	uint16_t vers;
+	const struct cputab *cp;
 
 	pvr = mfpvr();
 	vers = pvr >> 16;
@@ -288,29 +307,29 @@ cpu_feature_setup()
 void
 cpu_setup(u_int cpuid)
 {
-	uint64_t	cps;
-	const char	*name;
-	u_int		maj, min, pvr;
-	uint16_t	rev, revfmt, vers;
+	uint64_t cps;
+	const char *name;
+	u_int maj, min, pvr;
+	uint16_t rev, revfmt, vers;
 
 	pvr = mfpvr();
 	vers = pvr >> 16;
 	rev = pvr;
 	switch (vers) {
-		case MPC7410:
-			min = (pvr >> 0) & 0xff;
-			maj = min <= 4 ? 1 : 2;
-			break;
-		case FSL_E500v1:
-		case FSL_E500v2:
-		case FSL_E500mc:
-		case FSL_E5500:
-			maj = (pvr >>  4) & 0xf;
-			min = (pvr >>  0) & 0xf;
-			break;
-		default:
-			maj = (pvr >>  8) & 0xf;
-			min = (pvr >>  0) & 0xf;
+	case MPC7410:
+		min = (pvr >> 0) & 0xff;
+		maj = min <= 4 ? 1 : 2;
+		break;
+	case FSL_E500v1:
+	case FSL_E500v2:
+	case FSL_E500mc:
+	case FSL_E5500:
+		maj = (pvr >> 4) & 0xf;
+		min = (pvr >> 0) & 0xf;
+		break;
+	default:
+		maj = (pvr >> 8) & 0xf;
+		min = (pvr >> 0) & 0xf;
 	}
 
 	revfmt = cput->revfmt;
@@ -324,15 +343,15 @@ cpu_setup(u_int cpuid)
 	printf("cpu%d: %s revision ", cpuid, name);
 
 	switch (revfmt) {
-		case REVFMT_MAJMIN:
-			printf("%u.%u", maj, min);
-			break;
-		case REVFMT_HEX:
-			printf("0x%04x", rev);
-			break;
-		case REVFMT_DEC:
-			printf("%u", rev);
-			break;
+	case REVFMT_MAJMIN:
+		printf("%u.%u", maj, min);
+		break;
+	case REVFMT_HEX:
+		printf("0x%04x", rev);
+		break;
+	case REVFMT_DEC:
+		printf("%u", rev);
+		break;
 	}
 
 	if (cpu_est_clockrate(0, &cps) == 0)
@@ -356,89 +375,87 @@ cpu_setup(u_int cpuid)
 int
 cpu_est_clockrate(int cpu_id, uint64_t *cps)
 {
-	uint16_t	vers;
-	register_t	msr;
-	phandle_t	cpu, dev, root;
-	uint32_t	freq32;
-	int		res  = 0;
-	char		buf[8];
+	uint16_t vers;
+	register_t msr;
+	phandle_t cpu, dev, root;
+	uint32_t freq32;
+	int res = 0;
+	char buf[8];
 
 	vers = mfpvr() >> 16;
 	msr = mfmsr();
 	mtmsr(msr & ~PSL_EE);
 
 	switch (vers) {
-		case MPC7450:
-		case MPC7455:
-		case MPC7457:
-		case MPC750:
-		case IBM750FX:
-		case MPC7400:
-		case MPC7410:
-		case MPC7447A:
-		case MPC7448:
-			mtspr(SPR_MMCR0_74XX, SPR_MMCR0_FC);
-			mtspr(SPR_PMC1_74XX, 0);
-			mtspr(SPR_MMCR0_74XX,
-			    SPR_MMCR0_74XX_PMC1SEL(PMCN_CYCLES));
-			DELAY(1000);
-			*cps = (mfspr(SPR_PMC1_74XX) * 1000) + 4999;
-			mtspr(SPR_MMCR0_74XX, SPR_MMCR0_FC);
+	case MPC7450:
+	case MPC7455:
+	case MPC7457:
+	case MPC750:
+	case IBM750FX:
+	case MPC7400:
+	case MPC7410:
+	case MPC7447A:
+	case MPC7448:
+		mtspr(SPR_MMCR0_74XX, SPR_MMCR0_FC);
+		mtspr(SPR_PMC1_74XX, 0);
+		mtspr(SPR_MMCR0_74XX, SPR_MMCR0_74XX_PMC1SEL(PMCN_CYCLES));
+		DELAY(1000);
+		*cps = (mfspr(SPR_PMC1_74XX) * 1000) + 4999;
+		mtspr(SPR_MMCR0_74XX, SPR_MMCR0_FC);
 
-			mtmsr(msr);
+		mtmsr(msr);
+		return (0);
+	case IBM970:
+	case IBM970FX:
+	case IBM970MP:
+		isync();
+		mtspr(SPR_MMCR0, SPR_MMCR0_FC);
+		isync();
+		mtspr(SPR_MMCR1, 0);
+		mtspr(SPR_MMCRA, 0);
+		mtspr(SPR_PMC1, 0);
+		mtspr(SPR_MMCR0, SPR_MMCR0_PMC1SEL(PMC970N_CYCLES));
+		isync();
+		DELAY(1000);
+		powerpc_sync();
+		mtspr(SPR_MMCR0, SPR_MMCR0_FC);
+		*cps = (mfspr(SPR_PMC1) * 1000) + 4999;
+
+		mtmsr(msr);
+		return (0);
+
+	default:
+		root = OF_peer(0);
+		if (root == 0)
+			return (ENXIO);
+
+		dev = OF_child(root);
+		while (dev != 0) {
+			res = OF_getprop(dev, "name", buf, sizeof(buf));
+			if (res > 0 && strcmp(buf, "cpus") == 0)
+				break;
+			dev = OF_peer(dev);
+		}
+		cpu = OF_child(dev);
+		while (cpu != 0) {
+			res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
+			if (res > 0 && strcmp(buf, "cpu") == 0)
+				break;
+			cpu = OF_peer(cpu);
+		}
+		if (cpu == 0)
+			return (ENOENT);
+		if (OF_getprop(cpu, "ibm,extended-clock-frequency", cps,
+			sizeof(*cps)) >= 0) {
+			*cps = be64toh(*cps);
 			return (0);
-		case IBM970:
-		case IBM970FX:
-		case IBM970MP:
-			isync();
-			mtspr(SPR_MMCR0, SPR_MMCR0_FC);
-			isync();
-			mtspr(SPR_MMCR1, 0);
-			mtspr(SPR_MMCRA, 0);
-			mtspr(SPR_PMC1, 0);
-			mtspr(SPR_MMCR0, SPR_MMCR0_PMC1SEL(PMC970N_CYCLES));
-			isync();
-			DELAY(1000);
-			powerpc_sync();
-			mtspr(SPR_MMCR0, SPR_MMCR0_FC);
-			*cps = (mfspr(SPR_PMC1) * 1000) + 4999;
-
-			mtmsr(msr);
+		} else if (OF_getencprop(cpu, "clock-frequency", &freq32,
+			       sizeof(freq32)) >= 0) {
+			*cps = freq32;
 			return (0);
-
-		default:
-			root = OF_peer(0);
-			if (root == 0)
-				return (ENXIO);
-
-			dev = OF_child(root);
-			while (dev != 0) {
-				res = OF_getprop(dev, "name", buf, sizeof(buf));
-				if (res > 0 && strcmp(buf, "cpus") == 0)
-					break;
-				dev = OF_peer(dev);
-			}
-			cpu = OF_child(dev);
-			while (cpu != 0) {
-				res = OF_getprop(cpu, "device_type", buf,
-						sizeof(buf));
-				if (res > 0 && strcmp(buf, "cpu") == 0)
-					break;
-				cpu = OF_peer(cpu);
-			}
-			if (cpu == 0)
-				return (ENOENT);
-			if (OF_getprop(cpu, "ibm,extended-clock-frequency",
-			    cps, sizeof(*cps)) >= 0) {
-				*cps = be64toh(*cps);
-				return (0);
-			} else if (OF_getencprop(cpu, "clock-frequency",
-			    &freq32, sizeof(freq32)) >= 0) {
-				*cps = freq32;
-				return (0);
-			} else {
-				return (ENOENT);
-			}
+		} else {
+			return (ENOENT);
+		}
 	}
 }
 
@@ -455,57 +472,57 @@ cpu_6xx_setup(int cpuid, uint16_t vers)
 	 * Configure power-saving mode.
 	 */
 	switch (vers) {
-		case MPC603:
-		case MPC603e:
-		case MPC603ev:
-		case MPC604ev:
-		case MPC750:
-		case IBM750FX:
-		case MPC7400:
-		case MPC7410:
-		case MPC8240:
-		case MPC8245:
-			/* Select DOZE mode. */
-			hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
-			hid0 |= HID0_DOZE | HID0_DPM;
-			powerpc_pow_enabled = 1;
-			break;
+	case MPC603:
+	case MPC603e:
+	case MPC603ev:
+	case MPC604ev:
+	case MPC750:
+	case IBM750FX:
+	case MPC7400:
+	case MPC7410:
+	case MPC8240:
+	case MPC8245:
+		/* Select DOZE mode. */
+		hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
+		hid0 |= HID0_DOZE | HID0_DPM;
+		powerpc_pow_enabled = 1;
+		break;
 
-		case MPC7448:
-		case MPC7447A:
-		case MPC7457:
-		case MPC7455:
-		case MPC7450:
-			/* Enable the 7450 branch caches */
-			hid0 |= HID0_SGE | HID0_BTIC;
-			hid0 |= HID0_LRSTK | HID0_FOLD | HID0_BHT;
-			/* Disable BTIC on 7450 Rev 2.0 or earlier and on 7457 */
-			if (((pvr >> 16) == MPC7450 && (pvr & 0xFFFF) <= 0x0200)
-					|| (pvr >> 16) == MPC7457)
-				hid0 &= ~HID0_BTIC;
-			/* Select NAP mode. */
-			hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
-			hid0 |= HID0_NAP | HID0_DPM;
-			powerpc_pow_enabled = 1;
-			break;
+	case MPC7448:
+	case MPC7447A:
+	case MPC7457:
+	case MPC7455:
+	case MPC7450:
+		/* Enable the 7450 branch caches */
+		hid0 |= HID0_SGE | HID0_BTIC;
+		hid0 |= HID0_LRSTK | HID0_FOLD | HID0_BHT;
+		/* Disable BTIC on 7450 Rev 2.0 or earlier and on 7457 */
+		if (((pvr >> 16) == MPC7450 && (pvr & 0xFFFF) <= 0x0200) ||
+		    (pvr >> 16) == MPC7457)
+			hid0 &= ~HID0_BTIC;
+		/* Select NAP mode. */
+		hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
+		hid0 |= HID0_NAP | HID0_DPM;
+		powerpc_pow_enabled = 1;
+		break;
 
-		default:
-			/* No power-saving mode is available. */ ;
+	default:
+	    /* No power-saving mode is available. */;
 	}
 
 	switch (vers) {
-		case IBM750FX:
-		case MPC750:
-			hid0 &= ~HID0_DBP;		/* XXX correct? */
-			hid0 |= HID0_EMCP | HID0_BTIC | HID0_SGE | HID0_BHT;
-			break;
+	case IBM750FX:
+	case MPC750:
+		hid0 &= ~HID0_DBP; /* XXX correct? */
+		hid0 |= HID0_EMCP | HID0_BTIC | HID0_SGE | HID0_BHT;
+		break;
 
-		case MPC7400:
-		case MPC7410:
-			hid0 &= ~HID0_SPD;
-			hid0 |= HID0_EMCP | HID0_BTIC | HID0_SGE | HID0_BHT;
-			hid0 |= HID0_EIEC;
-			break;
+	case MPC7400:
+	case MPC7410:
+		hid0 &= ~HID0_SPD;
+		hid0 |= HID0_EMCP | HID0_BTIC | HID0_SGE | HID0_BHT;
+		hid0 |= HID0_EIEC;
+		break;
 	}
 
 	mtspr(SPR_HID0, hid0);
@@ -514,16 +531,16 @@ cpu_6xx_setup(int cpuid, uint16_t vers)
 		cpu_6xx_print_cacheinfo(cpuid, vers);
 
 	switch (vers) {
-		case MPC7447A:
-		case MPC7448:
-		case MPC7450:
-		case MPC7455:
-		case MPC7457:
-			bitmask = HID0_7450_BITMASK;
-			break;
-		default:
-			bitmask = HID0_BITMASK;
-			break;
+	case MPC7447A:
+	case MPC7448:
+	case MPC7450:
+	case MPC7455:
+	case MPC7457:
+		bitmask = HID0_7450_BITMASK;
+		break;
+	default:
+		bitmask = HID0_BITMASK;
+		break;
 	}
 
 	printf("cpu%d: HID0 %b\n", cpuid, (int)hid0, bitmask);
@@ -543,7 +560,7 @@ cpu_6xx_print_cacheinfo(u_int cpuid, uint16_t vers)
 	printf("L1 D-cache %sabled\n", (hid & HID0_DCE) ? "en" : "dis");
 
 	printf("cpu%u: ", cpuid);
-  	if (mfspr(SPR_L2CR) & L2CR_L2E) {
+	if (mfspr(SPR_L2CR) & L2CR_L2E) {
 		switch (vers) {
 		case MPC7450:
 		case MPC7455:
@@ -558,7 +575,7 @@ cpu_6xx_print_cacheinfo(u_int cpuid, uint16_t vers)
 			break;
 		case IBM750FX:
 			printf("512KB L2 cache\n");
-			break; 
+			break;
 		default:
 			switch (mfspr(SPR_L2CR) & L2CR_L2SIZ) {
 			case L2SIZ_256K:
@@ -571,8 +588,8 @@ cpu_6xx_print_cacheinfo(u_int cpuid, uint16_t vers)
 				printf("1MB ");
 				break;
 			}
-			printf("write-%s", (mfspr(SPR_L2CR) & L2CR_L2WT)
-			    ? "through" : "back");
+			printf("write-%s",
+			    (mfspr(SPR_L2CR) & L2CR_L2WT) ? "through" : "back");
 			if (mfspr(SPR_L2CR) & L2CR_L2PE)
 				printf(", with parity");
 			printf(" backside cache\n");
@@ -627,8 +644,9 @@ cpu_970_setup(int cpuid, uint16_t vers)
 #ifdef AIM
 	uint32_t hid0_hi, hid0_lo;
 
-	__asm __volatile ("mfspr %0,%2; clrldi %1,%0,32; srdi %0,%0,32;"
-	    : "=r" (hid0_hi), "=r" (hid0_lo) : "K" (SPR_HID0));
+	__asm __volatile("mfspr %0,%2; clrldi %1,%0,32; srdi %0,%0,32;"
+			 : "=r"(hid0_hi), "=r"(hid0_lo)
+			 : "K"(SPR_HID0));
 
 	/* Configure power-saving mode */
 	switch (vers) {
@@ -643,17 +661,18 @@ cpu_970_setup(int cpuid, uint16_t vers)
 	}
 	powerpc_pow_enabled = 1;
 
-	__asm __volatile (" \
+	__asm __volatile(" \
 		sync; isync;					\
 		sldi	%0,%0,32; or %0,%0,%1;			\
 		mtspr	%2, %0;					\
 		mfspr   %0, %2; mfspr   %0, %2; mfspr   %0, %2; \
 		mfspr   %0, %2; mfspr   %0, %2; mfspr   %0, %2; \
-		sync; isync"
-	    :: "r" (hid0_hi), "r"(hid0_lo), "K" (SPR_HID0));
+		sync; isync" ::"r"(hid0_hi),
+	    "r"(hid0_lo), "K"(SPR_HID0));
 
-	__asm __volatile ("mfspr %0,%1; srdi %0,%0,32;"
-	    : "=r" (hid0_hi) : "K" (SPR_HID0));
+	__asm __volatile("mfspr %0,%1; srdi %0,%0,32;"
+			 : "=r"(hid0_hi)
+			 : "K"(SPR_HID0));
 	printf("cpu%d: HID0 %b\n", cpuid, (int)(hid0_hi), HID0_970_BITMASK);
 #endif
 
@@ -692,8 +711,7 @@ cpu_powerx_setup(int cpuid, uint16_t vers)
 #endif
 }
 
-static int
-cpu_feature_bit(SYSCTL_HANDLER_ARGS)
+static int cpu_feature_bit(SYSCTL_HANDLER_ARGS)
 {
 	int result;
 
@@ -715,8 +733,7 @@ cpu_idle(int busy)
 	}
 #endif
 
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
-	    busy, curcpu);
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d", busy, curcpu);
 
 	if (cpu_idle_hook != NULL) {
 		if (!busy) {
@@ -730,8 +747,7 @@ cpu_idle(int busy)
 		}
 	}
 
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
-	    busy, curcpu);
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done", busy, curcpu);
 }
 
 static void
@@ -758,8 +774,8 @@ cpu_idle_60x(sbintime_t sbt)
 	case MPC7457:
 		/* 0x7e00066c: dssall */
 		__asm __volatile("\
-			    .long 0x7e00066c; sync; mtmsr %0; isync"
-			    :: "r"(msr | PSL_POW));
+			    .long 0x7e00066c; sync; mtmsr %0; isync" ::"r"(
+		    msr | PSL_POW));
 		break;
 	default:
 		powerpc_sync();
@@ -824,18 +840,17 @@ cpu_idle_power9(sbintime_t sbt)
 	msr = mfmsr();
 
 	/* Suspend external interrupts until stop instruction completes. */
-	mtmsr(msr &  ~PSL_EE);
+	mtmsr(msr & ~PSL_EE);
 	/* Set the stop state to lowest latency, wake up to next instruction */
 	/* Set maximum transition level to 2, for deepest lossless sleep. */
 	mtspr(SPR_PSSCR, (2 << PSSCR_MTL_S) | (0 << PSSCR_RL_S));
 	/* "stop" instruction (PowerISA 3.0) */
-	__asm __volatile (".long 0x4c0002e4");
+	__asm __volatile(".long 0x4c0002e4");
 	/*
 	 * Re-enable external interrupts to capture the interrupt that caused
 	 * the wake up.
 	 */
 	mtmsr(msr);
-
 }
 #endif
 

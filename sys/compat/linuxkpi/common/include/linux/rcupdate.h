@@ -25,103 +25,110 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_RCUPDATE_H_
-#define	_LINUX_RCUPDATE_H_
+#ifndef _LINUX_RCUPDATE_H_
+#define _LINUX_RCUPDATE_H_
+
+#include <machine/atomic.h>
 
 #include <linux/compiler.h>
 #include <linux/types.h>
 
-#include <machine/atomic.h>
-
-#define	LINUX_KFREE_RCU_OFFSET_MAX	4096	/* exclusive */
+#define LINUX_KFREE_RCU_OFFSET_MAX 4096 /* exclusive */
 
 /* BSD specific defines */
-#define	RCU_TYPE_REGULAR 0
-#define	RCU_TYPE_SLEEPABLE 1
-#define	RCU_TYPE_MAX 2
+#define RCU_TYPE_REGULAR 0
+#define RCU_TYPE_SLEEPABLE 1
+#define RCU_TYPE_MAX 2
 
-#define	RCU_INITIALIZER(v)			\
-	((__typeof(*(v)) *)(v))
+#define RCU_INITIALIZER(v) ((__typeof(*(v)) *)(v))
 
-#define	RCU_INIT_POINTER(p, v) do {		\
-	(p) = (v);				\
-} while (0)
+#define RCU_INIT_POINTER(p, v) \
+	do {                   \
+		(p) = (v);     \
+	} while (0)
 
-#define	call_rcu(ptr, func) do {		\
-	linux_call_rcu(RCU_TYPE_REGULAR, ptr, func);	\
-} while (0)
+#define call_rcu(ptr, func)                                  \
+	do {                                                 \
+		linux_call_rcu(RCU_TYPE_REGULAR, ptr, func); \
+	} while (0)
 
-#define	rcu_barrier(void) do {			\
-	linux_rcu_barrier(RCU_TYPE_REGULAR);	\
-} while (0)
+#define rcu_barrier(void)                            \
+	do {                                         \
+		linux_rcu_barrier(RCU_TYPE_REGULAR); \
+	} while (0)
 
-#define	rcu_read_lock(void) do {		\
-	linux_rcu_read_lock(RCU_TYPE_REGULAR);	\
-} while (0)
+#define rcu_read_lock(void)                            \
+	do {                                           \
+		linux_rcu_read_lock(RCU_TYPE_REGULAR); \
+	} while (0)
 
-#define	rcu_read_unlock(void) do {		\
-	linux_rcu_read_unlock(RCU_TYPE_REGULAR);\
-} while (0)
+#define rcu_read_unlock(void)                            \
+	do {                                             \
+		linux_rcu_read_unlock(RCU_TYPE_REGULAR); \
+	} while (0)
 
-#define	synchronize_rcu(void) do {	\
-	linux_synchronize_rcu(RCU_TYPE_REGULAR);	\
-} while (0)
+#define synchronize_rcu(void)                            \
+	do {                                             \
+		linux_synchronize_rcu(RCU_TYPE_REGULAR); \
+	} while (0)
 
-#define	synchronize_rcu_expedited(void) do {	\
-	linux_synchronize_rcu(RCU_TYPE_REGULAR);	\
-} while (0)
+#define synchronize_rcu_expedited(void)                  \
+	do {                                             \
+		linux_synchronize_rcu(RCU_TYPE_REGULAR); \
+	} while (0)
 
-#define	kfree_rcu(ptr, rcu_head) do {				\
-	CTASSERT(offsetof(__typeof(*(ptr)), rcu_head) <		\
-	    LINUX_KFREE_RCU_OFFSET_MAX);			\
-	call_rcu(&(ptr)->rcu_head, (rcu_callback_t)(uintptr_t)	\
-	    offsetof(__typeof(*(ptr)), rcu_head));		\
-} while (0)
+#define kfree_rcu(ptr, rcu_head)                                \
+	do {                                                    \
+		CTASSERT(offsetof(__typeof(*(ptr)), rcu_head) < \
+		    LINUX_KFREE_RCU_OFFSET_MAX);                \
+		call_rcu(&(ptr)->rcu_head,                      \
+		    (rcu_callback_t)(uintptr_t)offsetof(        \
+			__typeof(*(ptr)), rcu_head));           \
+	} while (0)
 
-#define	rcu_access_pointer(p)			\
-	((__typeof(*p) *)READ_ONCE(p))
+#define rcu_access_pointer(p) ((__typeof(*p) *)READ_ONCE(p))
 
-#define	rcu_dereference_protected(p, c)		\
-	((__typeof(*p) *)READ_ONCE(p))
+#define rcu_dereference_protected(p, c) ((__typeof(*p) *)READ_ONCE(p))
 
-#define	rcu_dereference(p)			\
-	rcu_dereference_protected(p, 0)
+#define rcu_dereference(p) rcu_dereference_protected(p, 0)
 
-#define	rcu_dereference_raw(p)			\
-	((__typeof(*p) *)READ_ONCE(p))
+#define rcu_dereference_raw(p) ((__typeof(*p) *)READ_ONCE(p))
 
-#define	rcu_pointer_handoff(p) (p)
+#define rcu_pointer_handoff(p) (p)
 
-#define	rcu_assign_pointer(p, v) do {				\
-	atomic_store_rel_ptr((volatile uintptr_t *)&(p),	\
-	    (uintptr_t)(v));					\
-} while (0)
+#define rcu_assign_pointer(p, v)                                 \
+	do {                                                     \
+		atomic_store_rel_ptr(                            \
+		    (volatile uintptr_t *)&(p), (uintptr_t)(v)); \
+	} while (0)
 
-#define	rcu_replace_pointer(rcu, ptr, c)			\
-({								\
-	typeof(ptr) __tmp = rcu_dereference_protected(rcu, c);	\
-	rcu_assign_pointer(rcu, ptr);				\
-	__tmp;							\
-})
+#define rcu_replace_pointer(rcu, ptr, c)                               \
+	({                                                             \
+		typeof(ptr) __tmp = rcu_dereference_protected(rcu, c); \
+		rcu_assign_pointer(rcu, ptr);                          \
+		__tmp;                                                 \
+	})
 
-#define	rcu_swap_protected(rcu, ptr, c) do {			\
-	typeof(ptr) p = rcu_dereference_protected(rcu, c);	\
-	rcu_assign_pointer(rcu, ptr);				\
-	(ptr) = p;						\
-} while (0)
+#define rcu_swap_protected(rcu, ptr, c)                            \
+	do {                                                       \
+		typeof(ptr) p = rcu_dereference_protected(rcu, c); \
+		rcu_assign_pointer(rcu, ptr);                      \
+		(ptr) = p;                                         \
+	} while (0)
 
 /* prototypes */
 
-extern void linux_call_rcu(unsigned type, struct rcu_head *ptr, rcu_callback_t func);
+extern void linux_call_rcu(
+    unsigned type, struct rcu_head *ptr, rcu_callback_t func);
 extern void linux_rcu_barrier(unsigned type);
 extern void linux_rcu_read_lock(unsigned type);
 extern void linux_rcu_read_unlock(unsigned type);
 extern void linux_synchronize_rcu(unsigned type);
 
 /* Empty implementation for !DEBUG */
-#define	init_rcu_head(...)
-#define	destroy_rcu_head(...)
-#define	init_rcu_head_on_stack(...)
-#define	destroy_rcu_head_on_stack(...)
+#define init_rcu_head(...)
+#define destroy_rcu_head(...)
+#define init_rcu_head_on_stack(...)
+#define destroy_rcu_head_on_stack(...)
 
-#endif					/* _LINUX_RCUPDATE_H_ */
+#endif /* _LINUX_RCUPDATE_H_ */

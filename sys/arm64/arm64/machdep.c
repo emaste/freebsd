@@ -26,8 +26,8 @@
  */
 
 #include "opt_acpi.h"
-#include "opt_platform.h"
 #include "opt_ddb.h"
+#include "opt_platform.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -65,22 +65,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
+#include <vm/pmap.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_phys.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/debug_monitor.h>
 #include <machine/kdb.h>
 #include <machine/machdep.h>
-#include <machine/metadata.h>
 #include <machine/md_var.h>
+#include <machine/metadata.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>
 #include <machine/undefined.h>
@@ -91,8 +91,9 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_ACPI
-#include <contrib/dev/acpica/include/acpi.h>
 #include <machine/acpica_machdep.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 #endif
 
 #ifdef FDT
@@ -115,7 +116,7 @@ static int boot_el;
 
 struct kva_md_info kmi;
 
-int64_t dczva_line_size;	/* The size of cache line the dc zva zeroes */
+int64_t dczva_line_size; /* The size of cache line the dc zva zeroes */
 int has_pan;
 
 /*
@@ -159,8 +160,8 @@ pan_enable(void)
 	 * uses the userspace load/store instructions.
 	 */
 	if (has_pan) {
-		WRITE_SPECIALREG(sctlr_el1,
-		    READ_SPECIALREG(sctlr_el1) & ~SCTLR_SPAN);
+		WRITE_SPECIALREG(
+		    sctlr_el1, READ_SPECIALREG(sctlr_el1) & ~SCTLR_SPAN);
 		__asm __volatile(".inst 0xd500409f | (0x1 << 8)");
 	}
 }
@@ -187,8 +188,8 @@ cpu_startup(void *dummy)
 			size = phys_avail[i + 1] - phys_avail[i];
 			printf("%#016jx - %#016jx, %ju bytes (%ju pages)\n",
 			    (uintmax_t)phys_avail[i],
-			    (uintmax_t)phys_avail[i + 1] - 1,
-			    (uintmax_t)size, (uintmax_t)size / PAGE_SIZE);
+			    (uintmax_t)phys_avail[i + 1] - 1, (uintmax_t)size,
+			    (uintmax_t)size / PAGE_SIZE);
 		}
 	}
 
@@ -291,8 +292,8 @@ fill_fpregs(struct thread *td, struct fpreg *regs)
 
 		KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
 		    ("Called fill_fpregs while the kernel is using the VFP"));
-		memcpy(regs->fp_q, pcb->pcb_fpustate.vfp_regs,
-		    sizeof(regs->fp_q));
+		memcpy(
+		    regs->fp_q, pcb->pcb_fpustate.vfp_regs, sizeof(regs->fp_q));
 		regs->fp_cr = pcb->pcb_fpustate.vfp_fpcr;
 		regs->fp_sr = pcb->pcb_fpustate.vfp_fpsr;
 	} else
@@ -326,12 +327,10 @@ fill_dbregs(struct thread *td, struct dbreg *regs)
 
 	memset(regs, 0, sizeof(*regs));
 
-	extract_user_id_field(ID_AA64DFR0_EL1, ID_AA64DFR0_DebugVer_SHIFT,
-	    &debug_ver);
-	extract_user_id_field(ID_AA64DFR0_EL1, ID_AA64DFR0_BRPs_SHIFT,
-	    &nbkpts);
-	extract_user_id_field(ID_AA64DFR0_EL1, ID_AA64DFR0_WRPs_SHIFT,
-	    &nwtpts);
+	extract_user_id_field(
+	    ID_AA64DFR0_EL1, ID_AA64DFR0_DebugVer_SHIFT, &debug_ver);
+	extract_user_id_field(ID_AA64DFR0_EL1, ID_AA64DFR0_BRPs_SHIFT, &nbkpts);
+	extract_user_id_field(ID_AA64DFR0_EL1, ID_AA64DFR0_WRPs_SHIFT, &nwtpts);
 
 	/*
 	 * The BRPs field contains the number of breakpoints - 1. Armv8-A
@@ -576,10 +575,9 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 }
 
 /* Sanity check these are the same size, they will be memcpy'd to and fro */
-CTASSERT(sizeof(((struct trapframe *)0)->tf_x) ==
-    sizeof((struct gpregs *)0)->gp_x);
-CTASSERT(sizeof(((struct trapframe *)0)->tf_x) ==
-    sizeof((struct reg *)0)->x);
+CTASSERT(
+    sizeof(((struct trapframe *)0)->tf_x) == sizeof((struct gpregs *)0)->gp_x);
+CTASSERT(sizeof(((struct trapframe *)0)->tf_x) == sizeof((struct reg *)0)->x);
 
 int
 get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
@@ -612,10 +610,9 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	uint32_t spsr;
 
 	spsr = mcp->mc_gpregs.gp_spsr;
-	if ((spsr & PSR_M_MASK) != PSR_M_EL0t ||
-	    (spsr & PSR_AARCH32) != 0 ||
+	if ((spsr & PSR_M_MASK) != PSR_M_EL0t || (spsr & PSR_AARCH32) != 0 ||
 	    (spsr & PSR_DAIF) != (td->td_frame->tf_spsr & PSR_DAIF))
-		return (EINVAL); 
+		return (EINVAL);
 
 	memcpy(tf->tf_x, mcp->mc_gpregs.gp_x, sizeof(tf->tf_x));
 
@@ -699,9 +696,8 @@ cpu_idle(int busy)
 	if (!busy)
 		cpu_idleclock();
 	if (!sched_runnable())
-		__asm __volatile(
-		    "dsb sy \n"
-		    "wfi    \n");
+		__asm __volatile("dsb sy \n"
+				 "wfi    \n");
 	if (!busy)
 		cpu_activeclock();
 	spinlock_exit();
@@ -785,7 +781,7 @@ spinlock_exit(void)
 	}
 }
 
-#ifndef	_SYS_SYSPROTO_H_
+#ifndef _SYS_SYSPROTO_H_
 struct sigreturn_args {
 	ucontext_t *ucp;
 };
@@ -878,7 +874,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_uc.uc_sigmask = *mask;
 	frame.sf_uc.uc_stack = td->td_sigstk;
 	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK) != 0 ?
-	    (onstack ? SS_ONSTACK : 0) : SS_DISABLE;
+		  (onstack ? SS_ONSTACK : 0) :
+		  SS_DISABLE;
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(td->td_proc);
 
@@ -890,7 +887,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sigexit(td, SIGILL);
 	}
 
-	tf->tf_x[0]= sig;
+	tf->tf_x[0] = sig;
 	tf->tf_x[1] = (register_t)&fp->sf_si;
 	tf->tf_x[2] = (register_t)&fp->sf_uc;
 
@@ -900,8 +897,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	if (sysent->sv_sigcode_base != 0)
 		tf->tf_lr = (register_t)sysent->sv_sigcode_base;
 	else
-		tf->tf_lr = (register_t)(sysent->sv_psstrings -
-		    *(sysent->sv_szsigcode));
+		tf->tf_lr = (register_t)(
+		    sysent->sv_psstrings - *(sysent->sv_szsigcode));
 
 	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_elr,
 	    tf->tf_sp);
@@ -919,7 +916,8 @@ init_proc0(vm_offset_t kstack)
 	thread0.td_kstack = kstack;
 	thread0.td_kstack_pages = KSTACK_PAGES;
 	thread0.td_pcb = (struct pcb *)(thread0.td_kstack +
-	    thread0.td_kstack_pages * PAGE_SIZE) - 1;
+			     thread0.td_kstack_pages * PAGE_SIZE) -
+	    1;
 	thread0.td_pcb->pcb_fpflags = 0;
 	thread0.td_pcb->pcb_fpusaved = &thread0.td_pcb->pcb_fpustate;
 	thread0.td_pcb->pcb_vfpcpu = UINT_MAX;
@@ -949,14 +947,14 @@ foreach_efi_map_entry(struct efi_map_header *efihdr, efi_map_entry_cb cb)
 	 * Boot Services API.
 	 */
 	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
-	map = (struct efi_md *)((uint8_t *)efihdr + efisz); 
+	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
 
 	if (efihdr->descriptor_size == 0)
 		return;
 	ndesc = efihdr->memory_size / efihdr->descriptor_size;
 
-	for (i = 0, p = map; i < ndesc; i++,
-	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
+	for (i = 0, p = map; i < ndesc;
+	     i++, p = efi_next_descriptor(p, efihdr->descriptor_size)) {
 		cb(p);
 	}
 }
@@ -976,8 +974,8 @@ exclude_efi_map_entry(struct efi_md *p)
 		 */
 		break;
 	default:
-		physmem_exclude_region(p->md_phys, p->md_pages * PAGE_SIZE,
-		    EXFLAG_NOALLOC);
+		physmem_exclude_region(
+		    p->md_phys, p->md_pages * PAGE_SIZE, EXFLAG_NOALLOC);
 	}
 }
 
@@ -1007,8 +1005,7 @@ add_efi_map_entry(struct efi_md *p)
 		/*
 		 * We're allowed to use any entry with these types.
 		 */
-		physmem_hardware_region(p->md_phys,
-		    p->md_pages * PAGE_SIZE);
+		physmem_hardware_region(p->md_phys, p->md_pages * PAGE_SIZE);
 		break;
 	}
 }
@@ -1024,30 +1021,18 @@ static void
 print_efi_map_entry(struct efi_md *p)
 {
 	const char *type;
-	static const char *types[] = {
-		"Reserved",
-		"LoaderCode",
-		"LoaderData",
-		"BootServicesCode",
-		"BootServicesData",
-		"RuntimeServicesCode",
-		"RuntimeServicesData",
-		"ConventionalMemory",
-		"UnusableMemory",
-		"ACPIReclaimMemory",
-		"ACPIMemoryNVS",
-		"MemoryMappedIO",
-		"MemoryMappedIOPortSpace",
-		"PalCode",
-		"PersistentMemory"
-	};
+	static const char *types[] = { "Reserved", "LoaderCode", "LoaderData",
+		"BootServicesCode", "BootServicesData", "RuntimeServicesCode",
+		"RuntimeServicesData", "ConventionalMemory", "UnusableMemory",
+		"ACPIReclaimMemory", "ACPIMemoryNVS", "MemoryMappedIO",
+		"MemoryMappedIOPortSpace", "PalCode", "PersistentMemory" };
 
 	if (p->md_type < nitems(types))
 		type = types[p->md_type];
 	else
 		type = "<INVALID>";
-	printf("%23s %012lx %012lx %08lx ", type, p->md_phys,
-	    p->md_virt, p->md_pages);
+	printf("%23s %012lx %012lx %08lx ", type, p->md_phys, p->md_virt,
+	    p->md_pages);
 	if (p->md_attr & EFI_MD_ATTR_UC)
 		printf("UC ");
 	if (p->md_attr & EFI_MD_ATTR_WC)
@@ -1079,8 +1064,8 @@ static void
 print_efi_map_entries(struct efi_map_header *efihdr)
 {
 
-	printf("%23s %12s %12s %8s %4s\n",
-	    "Type", "Physical", "Virtual", "#Pages", "Attr");
+	printf("%23s %12s %12s %8s %4s\n", "Type", "Physical", "Virtual",
+	    "#Pages", "Attr");
 	foreach_efi_map_entry(efihdr, print_efi_map_entry);
 }
 
@@ -1134,14 +1119,12 @@ bus_probe(void)
 	if (env != NULL) {
 		order = env;
 		while (order != NULL) {
-			if (has_acpi &&
-			    strncmp(order, "acpi", 4) == 0 &&
+			if (has_acpi && strncmp(order, "acpi", 4) == 0 &&
 			    (order[4] == ',' || order[4] == '\0')) {
 				arm64_bus_method = ARM64_BUS_ACPI;
 				break;
 			}
-			if (has_fdt &&
-			    strncmp(order, "fdt", 3) == 0 &&
+			if (has_fdt && strncmp(order, "fdt", 3) == 0 &&
 			    (order[3] == ',' || order[3] == '\0')) {
 				arm64_bus_method = ARM64_BUS_FDT;
 				break;
@@ -1214,8 +1197,8 @@ memory_mapping_mode(vm_paddr_t pa)
 		return (VM_MEMATTR_WRITE_BACK);
 	ndesc = efihdr->memory_size / efihdr->descriptor_size;
 
-	for (i = 0, p = map; i < ndesc; i++,
-	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
+	for (i = 0, p = map; i < ndesc;
+	     i++, p = efi_next_descriptor(p, efihdr->descriptor_size)) {
 		if (pa < p->md_phys ||
 		    pa >= p->md_phys + p->md_pages * EFI_PAGE_SIZE)
 			continue;
@@ -1270,15 +1253,15 @@ initarm(struct arm64_bootparams *abp)
 	efi_systbl_phys = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
 
 	/* Load the physical memory ranges */
-	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
+	efihdr = (struct efi_map_header *)preload_search_info(
+	    kmdp, MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr != NULL)
 		add_efi_map_entries(efihdr);
 #ifdef FDT
 	else {
 		/* Grab physical memory regions information from device tree. */
-		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,
-		    NULL) != 0)
+		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) !=
+		    0)
 			panic("Cannot get physical memory regions");
 		physmem_hardware_regions(mem_regions, mem_regions_sz);
 	}
@@ -1288,11 +1271,11 @@ initarm(struct arm64_bootparams *abp)
 #endif
 
 	/* Exclude the EFI framebuffer from our view of physical memory. */
-	efifb = (struct efi_fb *)preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_EFI_FB);
+	efifb = (struct efi_fb *)preload_search_info(
+	    kmdp, MODINFO_METADATA | MODINFOMD_EFI_FB);
 	if (efifb != NULL)
-		physmem_exclude_region(efifb->fb_addr, efifb->fb_size,
-		    EXFLAG_NOALLOC);
+		physmem_exclude_region(
+		    efifb->fb_addr, efifb->fb_size, EXFLAG_NOALLOC);
 
 	/* Set the pcpu data, this is needed by pmap_bootstrap */
 	pcpup = &__pcpu[0];
@@ -1302,9 +1285,8 @@ initarm(struct arm64_bootparams *abp)
 	 * Set the pcpu pointer with a backup in tpidr_el1 to be
 	 * loaded when entering the kernel from userland.
 	 */
-	__asm __volatile(
-	    "mov x18, %0 \n"
-	    "msr tpidr_el1, %0" :: "r"(pcpup));
+	__asm __volatile("mov x18, %0 \n"
+			 "msr tpidr_el1, %0" ::"r"(pcpup));
 
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(midr, get_midr());
@@ -1361,14 +1343,16 @@ initarm(struct arm64_bootparams *abp)
 #ifdef FDT
 	if (arm64_bus_method == ARM64_BUS_FDT) {
 		root = OF_finddevice("/");
-		if (OF_getprop(root, "freebsd,dts-version", dts_version, sizeof(dts_version)) > 0) {
+		if (OF_getprop(root, "freebsd,dts-version", dts_version,
+			sizeof(dts_version)) > 0) {
 			if (strcmp(LINUX_DTS_VERSION, dts_version) != 0)
-				printf("WARNING: DTB version is %s while kernel expects %s, "
+				printf(
+				    "WARNING: DTB version is %s while kernel expects %s, "
 				    "please update the DTB in the ESP\n",
-				    dts_version,
-				    LINUX_DTS_VERSION);
+				    dts_version, LINUX_DTS_VERSION);
 		} else {
-			printf("WARNING: Cannot find freebsd,dts-version property, "
+			printf(
+			    "WARNING: Cannot find freebsd,dts-version property, "
 			    "cannot check DTB compliance\n");
 		}
 	}
@@ -1401,8 +1385,8 @@ dbg_init(void)
 
 DB_SHOW_COMMAND(specialregs, db_show_spregs)
 {
-#define	PRINT_REG(reg)	\
-    db_printf(__STRING(reg) " = %#016lx\n", READ_SPECIALREG(reg))
+#define PRINT_REG(reg) \
+	db_printf(__STRING(reg) " = %#016lx\n", READ_SPECIALREG(reg))
 
 	PRINT_REG(actlr_el1);
 	PRINT_REG(afsr0_el1);

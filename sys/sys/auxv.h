@@ -28,10 +28,11 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_AUXV_H_
-#define	_SYS_AUXV_H_
+#ifndef _SYS_AUXV_H_
+#define _SYS_AUXV_H_
 
 #include <sys/types.h>
+
 #include <machine/elf.h>
 
 __BEGIN_DECLS

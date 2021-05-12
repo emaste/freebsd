@@ -7,8 +7,8 @@
 #include <machine/armreg.h>
 #include <machine/frame.h>
 
-void	cpu_halt(void);
-void	swi_vm(void *);
+void cpu_halt(void);
+void swi_vm(void *);
 
 #ifdef _KERNEL
 #include <machine/cpu-v6.h>
@@ -26,14 +26,16 @@ get_cyclecount(void)
 		cpu = PCPU_GET(cpuid);
 		h = (uint64_t)atomic_load_acq_32(&ccnt_hi[cpu]);
 		l = cp15_pmccntr_get();
-		/* In case interrupts are disabled we need to check for overflow. */
+		/* In case interrupts are disabled we need to check for
+		 * overflow. */
 		r = cp15_pmovsr_get();
 		if (r & PMU_OVSR_C) {
 			atomic_add_32(&ccnt_hi[cpu], 1);
 			/* Clear the event. */
 			cp15_pmovsr_set(PMU_OVSR_C);
 		}
-		/* Make sure there was no wrap-around while we read the lo half. */
+		/* Make sure there was no wrap-around while we read the lo half.
+		 */
 		h2 = (uint64_t)atomic_load_acq_32(&ccnt_hi[cpu]);
 		if (h != h2)
 			l = cp15_pmccntr_get();
@@ -50,17 +52,17 @@ get_cyclecount(void)
 }
 #endif
 
-#define TRAPF_USERMODE(frame)	((frame->tf_spsr & PSR_MODE) == PSR_USR32_MODE)
+#define TRAPF_USERMODE(frame) ((frame->tf_spsr & PSR_MODE) == PSR_USR32_MODE)
 
-#define TRAPF_PC(tfp)		((tfp)->tf_pc)
+#define TRAPF_PC(tfp) ((tfp)->tf_pc)
 
-#define cpu_getstack(td)	((td)->td_frame->tf_usr_sp)
-#define cpu_setstack(td, sp)	((td)->td_frame->tf_usr_sp = (sp))
-#define cpu_spinwait()		/* nothing */
-#define	cpu_lock_delay()	DELAY(1)
+#define cpu_getstack(td) ((td)->td_frame->tf_usr_sp)
+#define cpu_setstack(td, sp) ((td)->td_frame->tf_usr_sp = (sp))
+#define cpu_spinwait() /* nothing */
+#define cpu_lock_delay() DELAY(1)
 
-#define ARM_NVEC		8
-#define ARM_VEC_ALL		0xffffffff
+#define ARM_NVEC 8
+#define ARM_VEC_ALL 0xffffffff
 
 extern vm_offset_t vector_page;
 
@@ -70,19 +72,19 @@ extern vm_offset_t vector_page;
  * it calls initarm.
  */
 struct arm_boot_params {
-	register_t	abp_size;	/* Size of this structure */
-	register_t	abp_r0;		/* r0 from the boot loader */
-	register_t	abp_r1;		/* r1 from the boot loader */
-	register_t	abp_r2;		/* r2 from the boot loader */
-	register_t	abp_r3;		/* r3 from the boot loader */
-	vm_offset_t	abp_physaddr;	/* The kernel physical address */
-	vm_offset_t	abp_pagetable;	/* The early page table */
+	register_t abp_size;	   /* Size of this structure */
+	register_t abp_r0;	   /* r0 from the boot loader */
+	register_t abp_r1;	   /* r1 from the boot loader */
+	register_t abp_r2;	   /* r2 from the boot loader */
+	register_t abp_r3;	   /* r3 from the boot loader */
+	vm_offset_t abp_physaddr;  /* The kernel physical address */
+	vm_offset_t abp_pagetable; /* The early page table */
 };
 
-void	arm_vector_init(vm_offset_t, int);
-void	fork_trampoline(void);
-void	identify_arm_cpu(void);
-void	*initarm(struct arm_boot_params *);
+void arm_vector_init(vm_offset_t, int);
+void fork_trampoline(void);
+void identify_arm_cpu(void);
+void *initarm(struct arm_boot_params *);
 
 extern char btext[];
 extern char etext[];

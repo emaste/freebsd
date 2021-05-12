@@ -25,7 +25,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * from: FreeBSD: //depot/projects/arm/src/sys/arm/xscale/pxa2x0/pxa2x0_timer.c, rev 1
+ * from: FreeBSD: //depot/projects/arm/src/sys/arm/xscale/pxa2x0/pxa2x0_timer.c,
+ * rev 1
  */
 
 #include <sys/cdefs.h>
@@ -35,28 +36,29 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/malloc.h>
-#include <sys/rman.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
-
-#include <arm/mv/mvreg.h>
-#include <arm/mv/mvvar.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#define INITIAL_TIMECOUNTER	(0xffffffff)
-#define MAX_WATCHDOG_TICKS	(0xffffffff)
-#define WD_RST_OUT_EN           0x00000002
+#include <arm/mv/mvreg.h>
+#include <arm/mv/mvvar.h>
 
-#define	MV_CLOCK_SRC_ARMV7	25000000	/* Timers' 25MHz mode */
+#define INITIAL_TIMECOUNTER (0xffffffff)
+#define MAX_WATCHDOG_TICKS (0xffffffff)
+#define WD_RST_OUT_EN 0x00000002
+
+#define MV_CLOCK_SRC_ARMV7 25000000 /* Timers' 25MHz mode */
 
 struct mv_wdt_config {
 	enum soc_family wdt_soc;
@@ -99,21 +101,19 @@ static struct mv_wdt_config mv_wdt_armv5_config = {
 };
 
 struct mv_wdt_softc {
-	struct resource	*	wdt_res;
-	struct mtx		wdt_mtx;
-	struct mv_wdt_config *	wdt_config;
+	struct resource *wdt_res;
+	struct mtx wdt_mtx;
+	struct mv_wdt_config *wdt_config;
 };
 
-static struct resource_spec mv_wdt_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec mv_wdt_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 static struct ofw_compat_data mv_wdt_compat[] = {
-	{"marvell,armada-380-wdt",	(uintptr_t)&mv_wdt_armada_38x_config},
-	{"marvell,armada-xp-wdt",	(uintptr_t)&mv_wdt_armada_xp_config},
-	{"marvell,orion-wdt",		(uintptr_t)&mv_wdt_armv5_config},
-	{NULL,				(uintptr_t)NULL}
+	{ "marvell,armada-380-wdt", (uintptr_t)&mv_wdt_armada_38x_config },
+	{ "marvell,armada-xp-wdt", (uintptr_t)&mv_wdt_armada_xp_config },
+	{ "marvell,orion-wdt", (uintptr_t)&mv_wdt_armv5_config },
+	{ NULL, (uintptr_t)NULL }
 };
 
 static struct mv_wdt_softc *wdt_softc = NULL;
@@ -122,17 +122,15 @@ int timers_initialized = 0;
 static int mv_wdt_probe(device_t);
 static int mv_wdt_attach(device_t);
 
-static uint32_t	mv_get_timer_control(void);
+static uint32_t mv_get_timer_control(void);
 static void mv_set_timer_control(uint32_t);
 static void mv_set_timer(uint32_t, uint32_t);
 
 static void mv_watchdog_event(void *, unsigned int, int *);
 
-static device_method_t mv_wdt_methods[] = {
-	DEVMETHOD(device_probe, mv_wdt_probe),
-	DEVMETHOD(device_attach, mv_wdt_attach),
-	{ 0, 0 }
-};
+static device_method_t mv_wdt_methods[] = { DEVMETHOD(
+						device_probe, mv_wdt_probe),
+	DEVMETHOD(device_attach, mv_wdt_attach), { 0, 0 } };
 
 static driver_t mv_wdt_driver = {
 	"wdt",
@@ -177,8 +175,9 @@ mv_wdt_attach(device_t dev)
 
 	mtx_init(&sc->wdt_mtx, "watchdog", NULL, MTX_DEF);
 
-	sc->wdt_config = (struct mv_wdt_config *)
-	   ofw_bus_search_compatible(dev, mv_wdt_compat)->ocd_data;
+	sc->wdt_config = (struct mv_wdt_config *)ofw_bus_search_compatible(
+	    dev, mv_wdt_compat)
+			     ->ocd_data;
 
 	if (sc->wdt_config->wdt_clock_src == 0)
 		sc->wdt_config->wdt_clock_src = get_tclk();
@@ -362,12 +361,12 @@ mv_watchdog_event(void *arg, unsigned int cmd, int *error)
 		 * watchdog(9)
 		 */
 		ns = (uint64_t)1 << (cmd & WD_INTERVAL);
-		ticks = (uint64_t)(ns * sc->wdt_config->wdt_clock_src) / 1000000000;
+		ticks = (uint64_t)(ns * sc->wdt_config->wdt_clock_src) /
+		    1000000000;
 		if (ticks > MAX_WATCHDOG_TICKS) {
 			if (wdt_softc->wdt_config->wdt_disable != NULL)
 				wdt_softc->wdt_config->wdt_disable();
-		}
-		else {
+		} else {
 			mv_set_timer(wdt_softc->wdt_config->wdt_timer, ticks);
 			if (wdt_softc->wdt_config->wdt_enable != NULL)
 				wdt_softc->wdt_config->wdt_enable();

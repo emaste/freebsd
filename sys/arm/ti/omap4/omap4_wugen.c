@@ -29,12 +29,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/rman.h>
-#include <sys/systm.h>
 
 #include <machine/fdt.h>
 #include <machine/intr.h>
@@ -45,15 +45,13 @@ __FBSDID("$FreeBSD$");
 
 #include "pic_if.h"
 
-static struct ofw_compat_data compat_data[] = {
-	{"ti,omap4-wugen-mpu", 	1},
-	{NULL,			0}
-};
+static struct ofw_compat_data compat_data[] = { { "ti,omap4-wugen-mpu", 1 },
+	{ NULL, 0 } };
 
 struct omap4_wugen_sc {
-	device_t		sc_dev;
-	struct resource		*sc_mem_res;
-	device_t		sc_parent;
+	device_t sc_dev;
+	struct resource *sc_mem_res;
+	device_t sc_parent;
 };
 
 static int
@@ -82,8 +80,8 @@ omap4_wugen_enable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-omap4_wugen_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+omap4_wugen_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct omap4_wugen_sc *sc = device_get_softc(dev);
 
@@ -189,8 +187,8 @@ omap4_wugen_attach(device_t dev)
 	sc->sc_dev = dev;
 	node = ofw_bus_get_node(dev);
 
-	rv = OF_getencprop(node, "interrupt-parent", &parent_xref,
-	    sizeof(parent_xref));
+	rv = OF_getencprop(
+	    node, "interrupt-parent", &parent_xref, sizeof(parent_xref));
 	if (rv <= 0) {
 		device_printf(dev, "can't read parent node property\n");
 		goto fail;
@@ -202,8 +200,8 @@ omap4_wugen_attach(device_t dev)
 	}
 
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {
 		device_printf(dev, "can't allocate resources\n");
 		return (ENXIO);
@@ -220,27 +218,26 @@ fail:
 	return (ENXIO);
 }
 
-static device_method_t omap4_wugen_methods[] = {
-	DEVMETHOD(device_probe,		omap4_wugen_probe),
-	DEVMETHOD(device_attach,	omap4_wugen_attach),
-	DEVMETHOD(device_detach,	omap4_wugen_detach),
+static device_method_t omap4_wugen_methods[] = { DEVMETHOD(device_probe,
+						     omap4_wugen_probe),
+	DEVMETHOD(device_attach, omap4_wugen_attach),
+	DEVMETHOD(device_detach, omap4_wugen_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_activate_intr,	omap4_wugen_activate_intr),
-	DEVMETHOD(pic_disable_intr,	omap4_wugen_disable_intr),
-	DEVMETHOD(pic_enable_intr,	omap4_wugen_enable_intr),
-	DEVMETHOD(pic_map_intr,		omap4_wugen_map_intr),
-	DEVMETHOD(pic_deactivate_intr,	omap4_wugen_deactivate_intr),
-	DEVMETHOD(pic_setup_intr,	omap4_wugen_setup_intr),
-	DEVMETHOD(pic_teardown_intr,	omap4_wugen_teardown_intr),
-	DEVMETHOD(pic_pre_ithread,	omap4_wugen_pre_ithread),
-	DEVMETHOD(pic_post_ithread,	omap4_wugen_post_ithread),
-	DEVMETHOD(pic_post_filter,	omap4_wugen_post_filter),
+	DEVMETHOD(pic_activate_intr, omap4_wugen_activate_intr),
+	DEVMETHOD(pic_disable_intr, omap4_wugen_disable_intr),
+	DEVMETHOD(pic_enable_intr, omap4_wugen_enable_intr),
+	DEVMETHOD(pic_map_intr, omap4_wugen_map_intr),
+	DEVMETHOD(pic_deactivate_intr, omap4_wugen_deactivate_intr),
+	DEVMETHOD(pic_setup_intr, omap4_wugen_setup_intr),
+	DEVMETHOD(pic_teardown_intr, omap4_wugen_teardown_intr),
+	DEVMETHOD(pic_pre_ithread, omap4_wugen_pre_ithread),
+	DEVMETHOD(pic_post_ithread, omap4_wugen_post_ithread),
+	DEVMETHOD(pic_post_filter, omap4_wugen_post_filter),
 #ifdef SMP
-	DEVMETHOD(pic_bind_intr,	omap4_wugen_bind_intr),
+	DEVMETHOD(pic_bind_intr, omap4_wugen_bind_intr),
 #endif
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 devclass_t omap4_wugen_devclass;
 DEFINE_CLASS_0(omap4_wugen, omap4_wugen_driver, omap4_wugen_methods,
     sizeof(struct omap4_wugen_sc));

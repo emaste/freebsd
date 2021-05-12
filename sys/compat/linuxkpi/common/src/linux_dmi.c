@@ -59,17 +59,17 @@ linux_dmi_preload(void *arg)
 	dmi_data[DMI_CHASSIS_SERIAL] = kern_getenv("smbios.chassis.serial");
 	dmi_data[DMI_CHASSIS_ASSET_TAG] = kern_getenv("smbios.chassis.tag");
 }
-SYSINIT(linux_dmi_preload, SI_SUB_DRIVERS, SI_ORDER_ANY, linux_dmi_preload, NULL);
+SYSINIT(
+    linux_dmi_preload, SI_SUB_DRIVERS, SI_ORDER_ANY, linux_dmi_preload, NULL);
 
 /* Match a system against a field */
 bool
 linux_dmi_match(enum dmi_field f, const char *str)
 {
 
-	if (f < DMI_STRING_MAX &&
-	    dmi_data[f] != NULL &&
+	if (f < DMI_STRING_MAX && dmi_data[f] != NULL &&
 	    strcmp(dmi_data[f], str) == 0)
-		return(true);
+		return (true);
 	return (false);
 }
 
@@ -82,8 +82,8 @@ linux_dmi_matches(const struct dmi_system_id *dsi)
 	for (i = 0; i < nitems(dsi->matches); i++) {
 		if (dsi->matches[i].slot == DMI_NONE)
 			break;
-		if (dmi_match(dsi->matches[i].slot,
-		    dsi->matches[i].substr) == false)
+		if (dmi_match(dsi->matches[i].slot, dsi->matches[i].substr) ==
+		    false)
 			return (false);
 	}
 
@@ -100,7 +100,7 @@ linux_dmi_get_system_info(int field)
 	return (NULL);
 }
 
-/* 
+/*
  * Match a system against the structs list
  * If a match is found return the corresponding structure.
  */

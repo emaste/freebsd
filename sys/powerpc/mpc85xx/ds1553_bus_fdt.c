@@ -25,7 +25,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * From: FreeBSD: src/sys/powerpc/mpc85xx/ds1553_bus_lbc.c,v 1.2 2009/06/24 15:48:20 raj
+ * From: FreeBSD: src/sys/powerpc/mpc85xx/ds1553_bus_lbc.c,v 1.2 2009/06/24
+ * 15:48:20 raj
  */
 
 #include <sys/cdefs.h>
@@ -48,8 +49,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include "ds1553_reg.h"
 #include "clock_if.h"
+#include "ds1553_reg.h"
 
 static devclass_t rtc_devclass;
 
@@ -58,13 +59,12 @@ static int rtc_probe(device_t dev);
 
 static device_method_t rtc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		rtc_probe),
-	DEVMETHOD(device_attach,	rtc_attach),
+	DEVMETHOD(device_probe, rtc_probe),
+	DEVMETHOD(device_attach, rtc_attach),
 
 	/* clock interface */
-	DEVMETHOD(clock_gettime,	ds1553_gettime),
-	DEVMETHOD(clock_settime,	ds1553_settime),
-	{ 0, 0 }
+	DEVMETHOD(clock_gettime, ds1553_gettime),
+	DEVMETHOD(clock_settime, ds1553_settime), { 0, 0 }
 };
 
 static driver_t rtc_driver = {
@@ -98,8 +98,8 @@ rtc_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, "rtc_mtx", NULL, MTX_SPIN);
 
-	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->rid,
-	    RF_ACTIVE);
+	sc->res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->rid, RF_ACTIVE);
 	if (sc->res == NULL) {
 		device_printf(dev, "cannot allocate resources\n");
 		mtx_destroy(&sc->sc_mtx);
@@ -120,8 +120,8 @@ rtc_attach(device_t dev)
 
 	if (bootverbose) {
 		ds1553_gettime(dev, &ts);
-		device_printf(dev, "current time: %ld.%09ld\n",
-		    (long)ts.tv_sec, ts.tv_nsec);
+		device_printf(dev, "current time: %ld.%09ld\n", (long)ts.tv_sec,
+		    ts.tv_nsec);
 	}
 
 	return (0);

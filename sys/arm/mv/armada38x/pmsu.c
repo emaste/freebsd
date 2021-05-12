@@ -28,15 +28,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/rman.h>
-#include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/resource.h>
-#include <sys/systm.h>
+#include <sys/rman.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -51,32 +51,24 @@ __FBSDID("$FreeBSD$");
 
 #include "pmsu.h"
 
-static struct resource_spec pmsu_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec pmsu_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 struct pmsu_softc {
-	device_t	dev;
-	struct resource	*res;
+	device_t dev;
+	struct resource *res;
 };
 
 static int pmsu_probe(device_t dev);
 static int pmsu_attach(device_t dev);
 static int pmsu_detach(device_t dev);
 
-static device_method_t pmsu_methods[] = {
-	DEVMETHOD(device_probe,		pmsu_probe),
-	DEVMETHOD(device_attach,	pmsu_attach),
-	DEVMETHOD(device_detach,	pmsu_detach),
-	{ 0, 0 }
-};
+static device_method_t pmsu_methods[] = { DEVMETHOD(device_probe, pmsu_probe),
+	DEVMETHOD(device_attach, pmsu_attach),
+	DEVMETHOD(device_detach, pmsu_detach), { 0, 0 } };
 
-static driver_t pmsu_driver = {
-	"pmsu",
-	pmsu_methods,
-	sizeof(struct pmsu_softc)
-};
+static driver_t pmsu_driver = { "pmsu", pmsu_methods,
+	sizeof(struct pmsu_softc) };
 
 static devclass_t pmsu_devclass;
 
@@ -135,13 +127,14 @@ pmsu_boot_secondary_cpu(void)
 	bus_space_handle_t vaddr;
 	int rv;
 
-	rv = bus_space_map(fdtbus_bs_tag, (bus_addr_t)MV_PMSU_BASE, MV_PMSU_REGS_LEN,
-	    0, &vaddr);
+	rv = bus_space_map(fdtbus_bs_tag, (bus_addr_t)MV_PMSU_BASE,
+	    MV_PMSU_REGS_LEN, 0, &vaddr);
 	if (rv != 0)
 		return (rv);
 
 	/* Boot cpu1 */
-	bus_space_write_4(fdtbus_bs_tag, vaddr, PMSU_BOOT_ADDR_REDIRECT_OFFSET(1),
+	bus_space_write_4(fdtbus_bs_tag, vaddr,
+	    PMSU_BOOT_ADDR_REDIRECT_OFFSET(1),
 	    pmap_kextract((vm_offset_t)mpentry));
 
 	dcache_wbinv_poc_all();

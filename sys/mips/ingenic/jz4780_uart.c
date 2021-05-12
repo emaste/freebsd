@@ -36,18 +36,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
+
 #include <machine/bus.h>
 
 #include <dev/extres/clk/clk.h>
 #include <dev/fdt/fdt_common.h>
+#include <dev/ic/ns16550.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/uart/uart.h>
+#include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_cpu_fdt.h>
-#include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_dev_ns8250.h>
-#include <dev/ic/ns16550.h>
+
 #include "uart_if.h"
 
 /*
@@ -55,8 +57,8 @@ __FBSDID("$FreeBSD$");
  */
 struct jz4780_uart_softc {
 	struct ns8250_softc ns8250_base;
-	clk_t		clk_mod;
-	clk_t		clk_baud;
+	clk_t clk_mod;
+	clk_t clk_baud;
 };
 
 static int
@@ -83,22 +85,20 @@ jz4780_bus_attach(struct uart_softc *sc)
 	return (0);
 }
 
-static kobj_method_t jz4780_uart_methods[] = {
-	KOBJMETHOD(uart_probe,		ns8250_bus_probe),
-	KOBJMETHOD(uart_attach,		jz4780_bus_attach),
-	KOBJMETHOD(uart_detach,		ns8250_bus_detach),
-	KOBJMETHOD(uart_flush,		ns8250_bus_flush),
-	KOBJMETHOD(uart_getsig,		ns8250_bus_getsig),
-	KOBJMETHOD(uart_ioctl,		ns8250_bus_ioctl),
-	KOBJMETHOD(uart_ipend,		ns8250_bus_ipend),
-	KOBJMETHOD(uart_param,		ns8250_bus_param),
-	KOBJMETHOD(uart_receive,	ns8250_bus_receive),
-	KOBJMETHOD(uart_setsig,		ns8250_bus_setsig),
-	KOBJMETHOD(uart_transmit,	ns8250_bus_transmit),
-	KOBJMETHOD(uart_grab,		ns8250_bus_grab),
-	KOBJMETHOD(uart_ungrab,		ns8250_bus_ungrab),
-	KOBJMETHOD_END
-};
+static kobj_method_t jz4780_uart_methods[] = { KOBJMETHOD(uart_probe,
+						   ns8250_bus_probe),
+	KOBJMETHOD(uart_attach, jz4780_bus_attach),
+	KOBJMETHOD(uart_detach, ns8250_bus_detach),
+	KOBJMETHOD(uart_flush, ns8250_bus_flush),
+	KOBJMETHOD(uart_getsig, ns8250_bus_getsig),
+	KOBJMETHOD(uart_ioctl, ns8250_bus_ioctl),
+	KOBJMETHOD(uart_ipend, ns8250_bus_ipend),
+	KOBJMETHOD(uart_param, ns8250_bus_param),
+	KOBJMETHOD(uart_receive, ns8250_bus_receive),
+	KOBJMETHOD(uart_setsig, ns8250_bus_setsig),
+	KOBJMETHOD(uart_transmit, ns8250_bus_transmit),
+	KOBJMETHOD(uart_grab, ns8250_bus_grab),
+	KOBJMETHOD(uart_ungrab, ns8250_bus_ungrab), KOBJMETHOD_END };
 
 static struct uart_class jz4780_uart_class = {
 	"jz4780_uart_class",
@@ -111,8 +111,8 @@ static struct uart_class jz4780_uart_class = {
 
 /* Compatible devices. */
 static struct ofw_compat_data compat_data[] = {
-	{"ingenic,jz4780-uart", (uintptr_t)&jz4780_uart_class},
-	{NULL,			(uintptr_t)NULL},
+	{ "ingenic,jz4780-uart", (uintptr_t)&jz4780_uart_class },
+	{ NULL, (uintptr_t)NULL },
 };
 
 UART_FDT_CLASS(compat_data);
@@ -171,7 +171,8 @@ jz4780_uart_probe(device_t dev)
 	}
 	rv = clk_get_freq(sc->clk_baud, &freq);
 	if (rv != 0) {
-		device_printf(dev, "Cannot determine UART clock frequency: %d\n", rv);
+		device_printf(
+		    dev, "Cannot determine UART clock frequency: %d\n", rv);
 		return (ENXIO);
 	}
 
@@ -204,10 +205,9 @@ jz4780_uart_detach(device_t dev)
 
 static device_method_t jz4780_uart_bus_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		jz4780_uart_probe),
-	DEVMETHOD(device_attach,	uart_bus_attach),
-	DEVMETHOD(device_detach,	jz4780_uart_detach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, jz4780_uart_probe),
+	DEVMETHOD(device_attach, uart_bus_attach),
+	DEVMETHOD(device_detach, jz4780_uart_detach), { 0, 0 }
 };
 
 static driver_t jz4780_uart_driver = {
@@ -216,5 +216,4 @@ static driver_t jz4780_uart_driver = {
 	sizeof(struct jz4780_uart_softc),
 };
 
-DRIVER_MODULE(jz4780_uart, simplebus,  jz4780_uart_driver, uart_devclass,
-    0, 0);
+DRIVER_MODULE(jz4780_uart, simplebus, jz4780_uart_driver, uart_devclass, 0, 0);

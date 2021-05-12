@@ -33,9 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/proc.h>
 
-#include <machine/cpufunc.h>
-#include <machine/cpu.h>
 #include <machine/atomic.h>
+#include <machine/cpu.h>
+#include <machine/cpufunc.h>
 #include <machine/pvclock.h>
 
 /*
@@ -98,26 +98,24 @@ pvclock_scale_delta(uint64_t delta, uint32_t mul_frac, int shift)
 		 *   upper = mul_frac * (delta >> 32)
 		 *   product = lower + upper
 		 */
-		__asm__ (
-			"mul  %5       ; "
+		__asm__("mul  %5       ; "
 			"mov  %4,%%eax ; "
 			"mov  %%edx,%4 ; "
 			"mul  %5       ; "
 			"xor  %5,%5    ; "
 			"add  %4,%%eax ; "
 			"adc  %5,%%edx ; "
-			: "=A" (product), "=r" (tmp1), "=r" (tmp2)
-			: "a" ((uint32_t)delta), "1" ((uint32_t)(delta >> 32)),
-			  "2" (mul_frac) );
+			: "=A"(product), "=r"(tmp1), "=r"(tmp2)
+			: "a"((uint32_t)delta), "1"((uint32_t)(delta >> 32)),
+			"2"(mul_frac));
 	}
 #elif defined(__amd64__)
 	{
 		unsigned long tmp;
 
-		__asm__ (
-			"mulq %[mul_frac] ; shrd $32, %[hi], %[lo]"
-			: [lo]"=a" (product), [hi]"=d" (tmp)
-			: "0" (delta), [mul_frac]"rm"((uint64_t)mul_frac));
+		__asm__("mulq %[mul_frac] ; shrd $32, %[hi], %[lo]"
+			: [lo] "=a"(product), [hi] "=d"(tmp)
+			: "0"(delta), [mul_frac] "rm"((uint64_t)mul_frac));
 	}
 #else
 #error "pvclock: unsupported x86 architecture?"
@@ -133,13 +131,13 @@ pvclock_get_nsec_offset(struct pvclock_vcpu_time_info *ti)
 
 	delta = rdtsc() - ti->tsc_timestamp;
 
-	return (pvclock_scale_delta(delta, ti->tsc_to_system_mul,
-	    ti->tsc_shift));
+	return (
+	    pvclock_scale_delta(delta, ti->tsc_to_system_mul, ti->tsc_shift));
 }
 
 static void
-pvclock_read_time_info(struct pvclock_vcpu_time_info *ti,
-    uint64_t *cycles, uint8_t *flags)
+pvclock_read_time_info(
+    struct pvclock_vcpu_time_info *ti, uint64_t *cycles, uint8_t *flags)
 {
 	uint32_t version;
 
@@ -153,8 +151,8 @@ pvclock_read_time_info(struct pvclock_vcpu_time_info *ti,
 }
 
 static void
-pvclock_read_wall_clock(struct pvclock_wall_clock *wc, uint32_t *sec,
-    uint32_t *nsec)
+pvclock_read_wall_clock(
+    struct pvclock_wall_clock *wc, uint32_t *sec, uint32_t *nsec)
 {
 	uint32_t version;
 

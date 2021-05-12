@@ -28,8 +28,8 @@
  * $FreeBSD$
  */
 
-#ifndef	IMX_MACHDEP_H
-#define	IMX_MACHDEP_H
+#ifndef IMX_MACHDEP_H
+#define IMX_MACHDEP_H
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -38,7 +38,7 @@ SYSCTL_DECL(_hw_imx);
 
 /* Common functions, implemented in imx_machdep.c. */
 
-void imx_wdog_cpu_reset(vm_offset_t _wdcr_phys)  __attribute__((__noreturn__));
+void imx_wdog_cpu_reset(vm_offset_t _wdcr_phys) __attribute__((__noreturn__));
 void imx_wdog_init_last_reset(vm_offset_t _wdsr_phys);
 
 /* From here down, routines are implemented in imxNN_machdep.c. */
@@ -51,14 +51,14 @@ void imx_wdog_init_last_reset(vm_offset_t _wdsr_phys);
  *
  * To-do: put silicon revision numbers into the low-order bits somewhere.
  */
-#define	IMXSOC_51	0x51000000
-#define	IMXSOC_53	0x53000000
-#define	IMXSOC_6SL	0x60000000
-#define	IMXSOC_6DL	0x61000000
-#define	IMXSOC_6S	0x62000000
-#define	IMXSOC_6Q	0x63000000
-#define	IMXSOC_6UL	0x64000000
-#define	IMXSOC_FAMSHIFT	28
+#define IMXSOC_51 0x51000000
+#define IMXSOC_53 0x53000000
+#define IMXSOC_6SL 0x60000000
+#define IMXSOC_6DL 0x61000000
+#define IMXSOC_6S 0x62000000
+#define IMXSOC_6Q 0x63000000
+#define IMXSOC_6UL 0x64000000
+#define IMXSOC_FAMSHIFT 28
 
 u_int imx_soc_type(void);
 

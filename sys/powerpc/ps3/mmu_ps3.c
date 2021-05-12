@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -36,25 +37,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
+#include <vm/uma.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
-#include <vm/vm_extern.h>
+#include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
-#include <vm/uma.h>
+#include <vm/vm_param.h>
 
 #include <powerpc/aim/mmu_oea64.h>
 
 #include "ps3-hvcall.h"
 
-#define VSID_HASH_MASK		0x0000007fffffffffUL
-#define PTESYNC()		__asm __volatile("ptesync")
+#define VSID_HASH_MASK 0x0000007fffffffffUL
+#define PTESYNC() __asm __volatile("ptesync")
 
 extern int ps3fb_remap(void);
 
@@ -64,19 +64,18 @@ static uint64_t mps3_vas_id;
  * Kernel MMU interface
  */
 
-static void	mps3_install(void);
-static void	mps3_bootstrap(vm_offset_t kernelstart,
-		    vm_offset_t kernelend);
-static void	mps3_cpu_bootstrap(int ap);
-static int64_t	mps3_pte_synch(struct pvo_entry *);
-static int64_t	mps3_pte_clear(struct pvo_entry *, uint64_t ptebit);
-static int64_t	mps3_pte_unset(struct pvo_entry *);
-static int64_t	mps3_pte_insert(struct pvo_entry *);
+static void mps3_install(void);
+static void mps3_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend);
+static void mps3_cpu_bootstrap(int ap);
+static int64_t mps3_pte_synch(struct pvo_entry *);
+static int64_t mps3_pte_clear(struct pvo_entry *, uint64_t ptebit);
+static int64_t mps3_pte_unset(struct pvo_entry *);
+static int64_t mps3_pte_insert(struct pvo_entry *);
 
 static struct pmap_funcs mps3_methods = {
 	.install = mps3_install,
-        .bootstrap = mps3_bootstrap,
-        .cpu_bootstrap = mps3_cpu_bootstrap,
+	.bootstrap = mps3_bootstrap,
+	.cpu_bootstrap = mps3_cpu_bootstrap,
 };
 
 static struct moea64_funcs mps3_funcs = {
@@ -110,11 +109,10 @@ mps3_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	lv1_destruct_virtual_address_space(0);
 
 	/* Allocate new hardware page table */
-	lv1_construct_virtual_address_space(
-	    20 /* log_2(moea64_pteg_count) */, 2 /* n page sizes */,
+	lv1_construct_virtual_address_space(20 /* log_2(moea64_pteg_count) */,
+	    2 /* n page sizes */,
 	    (24UL << 56) | (16UL << 48) /* page sizes 16 MB + 64 KB */,
-	    &mps3_vas_id, &final_pteg_count
-	);
+	    &mps3_vas_id, &final_pteg_count);
 
 	lv1_select_virtual_address_space(mps3_vas_id);
 
@@ -146,14 +144,14 @@ mps3_cpu_bootstrap(int ap)
 	 * Install kernel SLB entries
 	 */
 
-        __asm __volatile ("slbia");
-        __asm __volatile ("slbmfee %0,%1; slbie %0;" : "=r"(seg0) : "r"(0));
+	__asm __volatile("slbia");
+	__asm __volatile("slbmfee %0,%1; slbie %0;" : "=r"(seg0) : "r"(0));
 	for (i = 0; i < 64; i++) {
 		if (!(slb[i].slbe & SLBE_VALID))
 			continue;
 
-		__asm __volatile ("slbmte %0, %1" ::
-		    "r"(slb[i].slbv), "r"(slb[i].slbe));
+		__asm __volatile(
+		    "slbmte %0, %1" ::"r"(slb[i].slbv), "r"(slb[i].slbe));
 	}
 }
 
@@ -170,7 +168,7 @@ mps3_pte_synch_locked(struct pvo_entry *pvo)
 	/* Check if present in page table */
 	if ((halfbucket[pvo->pvo_pte.slot & 0x3] & LPTE_AVPN_MASK) !=
 	    ((pvo->pvo_vpn >> (ADDR_API_SHFT64 - ADDR_PIDX_SHFT)) &
-	    LPTE_AVPN_MASK))
+		LPTE_AVPN_MASK))
 		return (-1);
 	if (!(halfbucket[pvo->pvo_pte.slot & 0x3] & LPTE_VALID))
 		return (-1);
@@ -180,7 +178,7 @@ mps3_pte_synch_locked(struct pvo_entry *pvo)
 	 * spaced at 16-bit intervals
 	 */
 
-	return ((rcbits >> ((3 - (pvo->pvo_pte.slot & 0x3))*16)) &
+	return ((rcbits >> ((3 - (pvo->pvo_pte.slot & 0x3)) * 16)) &
 	    (LPTE_CHG | LPTE_REF));
 }
 
@@ -215,8 +213,8 @@ mps3_pte_clear(struct pvo_entry *pvo, uint64_t ptebit)
 	pte.pte_lo |= refchg;
 	pte.pte_lo &= ~ptebit;
 	/* XXX: race on RC bits between write and sync. Anything to do? */
-	lv1_write_htab_entry(mps3_vas_id, pvo->pvo_pte.slot, pte.pte_hi,
-	    pte.pte_lo);
+	lv1_write_htab_entry(
+	    mps3_vas_id, pvo->pvo_pte.slot, pte.pte_hi, pte.pte_lo);
 	mtx_unlock(&mps3_table_lock);
 
 	return (refchg);
@@ -261,8 +259,8 @@ mps3_pte_insert(struct pvo_entry *pvo)
 	PTESYNC();
 	mtx_lock(&mps3_table_lock);
 	result = lv1_insert_htab_entry(mps3_vas_id, pvo->pvo_pte.slot,
-	    pte.pte_hi, pte.pte_lo, LPTE_LOCKED | LPTE_WIRED, 0,
-	    &index, &evicted.pte_hi, &evicted.pte_lo);
+	    pte.pte_hi, pte.pte_lo, LPTE_LOCKED | LPTE_WIRED, 0, &index,
+	    &evicted.pte_hi, &evicted.pte_lo);
 	mtx_unlock(&mps3_table_lock);
 
 	if (result != 0) {

@@ -33,50 +33,49 @@
  */
 
 #ifndef _NETINET_TCP_DEBUG_H_
-#define	_NETINET_TCP_DEBUG_H_
+#define _NETINET_TCP_DEBUG_H_
 
-struct	tcp_debug {
-	uint32_t	td_time;	/* network format */
-	short	td_act;
-	short	td_ostate;
-	caddr_t	td_tcb;
-	int	td_family;
+struct tcp_debug {
+	uint32_t td_time; /* network format */
+	short td_act;
+	short td_ostate;
+	caddr_t td_tcb;
+	int td_family;
 	/*
 	 * Co-existense of td_ti and td_ti6 below is ugly, but it is necessary
 	 * to achieve backword compatibility to some extent.
 	 */
-	struct	tcpiphdr td_ti;
+	struct tcpiphdr td_ti;
 	struct {
-#define	IP6_HDR_LEN	40	/* sizeof(struct ip6_hdr) */
+#define IP6_HDR_LEN 40 /* sizeof(struct ip6_hdr) */
 #if !defined(_KERNEL) && defined(INET6)
-		struct	ip6_hdr ip6;
+		struct ip6_hdr ip6;
 #else
-		u_char	ip6buf[IP6_HDR_LEN];
+		u_char ip6buf[IP6_HDR_LEN];
 #endif
-		struct	tcphdr th;
+		struct tcphdr th;
 	} td_ti6;
-#define	td_ip6buf	td_ti6.ip6buf
-	short	td_req;
-	struct	tcpcb td_cb;
+#define td_ip6buf td_ti6.ip6buf
+	short td_req;
+	struct tcpcb td_cb;
 };
 
-#define	TA_INPUT	0
-#define	TA_OUTPUT	1
-#define	TA_USER		2
-#define	TA_RESPOND	3
-#define	TA_DROP		4
+#define TA_INPUT 0
+#define TA_OUTPUT 1
+#define TA_USER 2
+#define TA_RESPOND 3
+#define TA_DROP 4
 
 #ifdef TANAMES
-static const char	*tanames[] =
-    { "input", "output", "user", "respond", "drop" };
+static const char *tanames[] = { "input", "output", "user", "respond", "drop" };
 #endif
 
-#define	TCP_NDEBUG 100
+#define TCP_NDEBUG 100
 
 #ifndef _KERNEL
 /* XXX common variables for broken applications. */
-struct	tcp_debug tcp_debug[TCP_NDEBUG];
-int	tcp_debx;
+struct tcp_debug tcp_debug[TCP_NDEBUG];
+int tcp_debx;
 #endif
 
 #endif /* !_NETINET_TCP_DEBUG_H_ */

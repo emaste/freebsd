@@ -36,30 +36,29 @@
 #ifndef _NETGRAPH_BTSOCKET_HCI_RAW_H_
 #define _NETGRAPH_BTSOCKET_HCI_RAW_H_
 
-#define NG_BTSOCKET_HCI_RAW_SENDSPACE	(4 * 1024)
-#define NG_BTSOCKET_HCI_RAW_RECVSPACE	(4 * 1024)
+#define NG_BTSOCKET_HCI_RAW_SENDSPACE (4 * 1024)
+#define NG_BTSOCKET_HCI_RAW_RECVSPACE (4 * 1024)
 
 /*
  * Bluetooth raw HCI socket PCB
  */
 
 struct ng_btsocket_hci_raw_pcb {
-	struct socket				*so;     /* socket */
-	u_int32_t				 flags;  /* flags */
-#define NG_BTSOCKET_HCI_RAW_DIRECTION	(1 << 0)
-#define NG_BTSOCKET_HCI_RAW_PRIVILEGED	(1 << 1)
-	struct sockaddr_hci			 addr;   /* local address */
-	struct ng_btsocket_hci_raw_filter	 filter; /* filter */
-	u_int32_t				 token;  /* message token */
-	struct ng_mesg				*msg;    /* message */
-	LIST_ENTRY(ng_btsocket_hci_raw_pcb)	 next;   /* link to next */
-	struct mtx				 pcb_mtx; /* pcb mutex */
+	struct socket *so; /* socket */
+	u_int32_t flags;   /* flags */
+#define NG_BTSOCKET_HCI_RAW_DIRECTION (1 << 0)
+#define NG_BTSOCKET_HCI_RAW_PRIVILEGED (1 << 1)
+	struct sockaddr_hci addr;		  /* local address */
+	struct ng_btsocket_hci_raw_filter filter; /* filter */
+	u_int32_t token;			  /* message token */
+	struct ng_mesg *msg;			  /* message */
+	LIST_ENTRY(ng_btsocket_hci_raw_pcb) next; /* link to next */
+	struct mtx pcb_mtx;			  /* pcb mutex */
 };
-typedef struct ng_btsocket_hci_raw_pcb		ng_btsocket_hci_raw_pcb_t;
-typedef struct ng_btsocket_hci_raw_pcb *	ng_btsocket_hci_raw_pcb_p;
+typedef struct ng_btsocket_hci_raw_pcb ng_btsocket_hci_raw_pcb_t;
+typedef struct ng_btsocket_hci_raw_pcb *ng_btsocket_hci_raw_pcb_p;
 
-#define	so2hci_raw_pcb(so) \
-	((struct ng_btsocket_hci_raw_pcb *)((so)->so_pcb))
+#define so2hci_raw_pcb(so) ((struct ng_btsocket_hci_raw_pcb *)((so)->so_pcb))
 
 /*
  * Bluetooth raw HCI socket methods
@@ -67,24 +66,23 @@ typedef struct ng_btsocket_hci_raw_pcb *	ng_btsocket_hci_raw_pcb_p;
 
 #ifdef _KERNEL
 
-void ng_btsocket_hci_raw_init       (void);
-void ng_btsocket_hci_raw_abort      (struct socket *);
-void ng_btsocket_hci_raw_close      (struct socket *);
-int  ng_btsocket_hci_raw_attach     (struct socket *, int, struct thread *);
-int  ng_btsocket_hci_raw_bind       (struct socket *, struct sockaddr *, 
-                                     struct thread *);
-int  ng_btsocket_hci_raw_connect    (struct socket *, struct sockaddr *, 
-                                     struct thread *);
-int  ng_btsocket_hci_raw_control    (struct socket *, u_long, caddr_t,
-                                     struct ifnet *, struct thread *);
-int  ng_btsocket_hci_raw_ctloutput  (struct socket *, struct sockopt *);
-void ng_btsocket_hci_raw_detach     (struct socket *);
-int  ng_btsocket_hci_raw_disconnect (struct socket *);
-int  ng_btsocket_hci_raw_peeraddr   (struct socket *, struct sockaddr **);
-int  ng_btsocket_hci_raw_send       (struct socket *, int, struct mbuf *,
-                                     struct sockaddr *, struct mbuf *,
-                                     struct thread *);
-int  ng_btsocket_hci_raw_sockaddr   (struct socket *, struct sockaddr **);
+void ng_btsocket_hci_raw_init(void);
+void ng_btsocket_hci_raw_abort(struct socket *);
+void ng_btsocket_hci_raw_close(struct socket *);
+int ng_btsocket_hci_raw_attach(struct socket *, int, struct thread *);
+int ng_btsocket_hci_raw_bind(
+    struct socket *, struct sockaddr *, struct thread *);
+int ng_btsocket_hci_raw_connect(
+    struct socket *, struct sockaddr *, struct thread *);
+int ng_btsocket_hci_raw_control(
+    struct socket *, u_long, caddr_t, struct ifnet *, struct thread *);
+int ng_btsocket_hci_raw_ctloutput(struct socket *, struct sockopt *);
+void ng_btsocket_hci_raw_detach(struct socket *);
+int ng_btsocket_hci_raw_disconnect(struct socket *);
+int ng_btsocket_hci_raw_peeraddr(struct socket *, struct sockaddr **);
+int ng_btsocket_hci_raw_send(struct socket *, int, struct mbuf *,
+    struct sockaddr *, struct mbuf *, struct thread *);
+int ng_btsocket_hci_raw_sockaddr(struct socket *, struct sockaddr **);
 
 #endif /* _KERNEL */
 

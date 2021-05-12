@@ -31,19 +31,21 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
-#include <isa/isavar.h>
-#include <isa/isa_common.h>
+
 #include <machine/resource.h>
+
+#include <isa/isa_common.h>
+#include <isa/isavar.h>
 
 void
 isa_hinted_child(device_t parent, const char *name, int unit)
 {
-	device_t	child;
-	int		sensitive, start, count;
-	int		order;
+	device_t child;
+	int sensitive, start, count;
+	int order;
 
 	/* device-specific flag overrides any wildcard */
 	sensitive = 0;
@@ -82,17 +84,18 @@ isa_hinted_child(device_t parent, const char *name, int unit)
 	if (resource_disabled(name, unit))
 		device_disable(child);
 
-	isa_set_configattr(child, (isa_get_configattr(child)|ISACFGATTR_HINTS));
+	isa_set_configattr(
+	    child, (isa_get_configattr(child) | ISACFGATTR_HINTS));
 }
 
 static int
 isa_match_resource_hint(device_t dev, int type, long value)
 {
-	struct isa_device* idev = DEVTOISA(dev);
+	struct isa_device *idev = DEVTOISA(dev);
 	struct resource_list *rl = &idev->id_resources;
 	struct resource_list_entry *rle;
 
-	STAILQ_FOREACH(rle, rl, link) {
+	STAILQ_FOREACH (rle, rl, link) {
 		if (rle->type != type)
 			continue;
 		if (rle->start <= value && rle->end >= value)
@@ -116,7 +119,7 @@ isa_hint_device_unit(device_t bus, device_t child, const char *name, int *unitp)
 		/* Must have an "at" for isa. */
 		resource_string_value(name, unit, "at", &s);
 		if (!(strcmp(s, device_get_nameunit(bus)) == 0 ||
-		    strcmp(s, device_get_name(bus)) == 0))
+			strcmp(s, device_get_name(bus)) == 0))
 			continue;
 
 		/*
@@ -144,15 +147,15 @@ isa_hint_device_unit(device_t bus, device_t child, const char *name, int *unitp)
 			 */
 			if (strcmp(name, "fdc") == 0)
 				value += 2;
-			if (isa_match_resource_hint(child, SYS_RES_IOPORT,
-			    value))
+			if (isa_match_resource_hint(
+				child, SYS_RES_IOPORT, value))
 				matches++;
 			else
 				continue;
 		}
 		if (resource_long_value(name, unit, "maddr", &value) == 0) {
-			if (isa_match_resource_hint(child, SYS_RES_MEMORY,
-			    value))
+			if (isa_match_resource_hint(
+				child, SYS_RES_MEMORY, value))
 				matches++;
 			else
 				continue;

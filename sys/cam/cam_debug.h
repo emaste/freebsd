@@ -29,51 +29,51 @@
  *
  * $FreeBSD$
  */
-#ifndef	_CAM_CAM_DEBUG_H
+#ifndef _CAM_CAM_DEBUG_H
 #define _CAM_CAM_DEBUG_H 1
 
 /*
  * Debugging flags.
  */
 typedef enum {
-	CAM_DEBUG_NONE		= 0x00, /* no debugging */
-	CAM_DEBUG_INFO		= 0x01,	/* scsi commands, errors, data */ 
-	CAM_DEBUG_TRACE		= 0x02,	/* routine flow tracking */
-	CAM_DEBUG_SUBTRACE	= 0x04,	/* internal to routine flows */
-	CAM_DEBUG_CDB		= 0x08, /* print out SCSI CDBs only */
-	CAM_DEBUG_XPT		= 0x10,	/* print out xpt scheduling */
-	CAM_DEBUG_PERIPH	= 0x20, /* print out peripheral calls */
-	CAM_DEBUG_PROBE		= 0x40  /* print out probe actions */
+	CAM_DEBUG_NONE = 0x00,	   /* no debugging */
+	CAM_DEBUG_INFO = 0x01,	   /* scsi commands, errors, data */
+	CAM_DEBUG_TRACE = 0x02,	   /* routine flow tracking */
+	CAM_DEBUG_SUBTRACE = 0x04, /* internal to routine flows */
+	CAM_DEBUG_CDB = 0x08,	   /* print out SCSI CDBs only */
+	CAM_DEBUG_XPT = 0x10,	   /* print out xpt scheduling */
+	CAM_DEBUG_PERIPH = 0x20,   /* print out peripheral calls */
+	CAM_DEBUG_PROBE = 0x40	   /* print out probe actions */
 } cam_debug_flags;
 
 #if defined(_KERNEL)
 
 #ifndef CAM_DEBUG_FLAGS
-#define CAM_DEBUG_FLAGS		CAM_DEBUG_NONE
+#define CAM_DEBUG_FLAGS CAM_DEBUG_NONE
 #endif
 
 #ifndef CAM_DEBUG_COMPILE
 #ifdef CAMDEBUG
-#define CAM_DEBUG_COMPILE	(-1)
+#define CAM_DEBUG_COMPILE (-1)
 #else
-#define CAM_DEBUG_COMPILE	(CAM_DEBUG_INFO | CAM_DEBUG_CDB | \
-				 CAM_DEBUG_PERIPH | CAM_DEBUG_PROBE | \
-				 CAM_DEBUG_FLAGS)
+#define CAM_DEBUG_COMPILE                                                      \
+	(CAM_DEBUG_INFO | CAM_DEBUG_CDB | CAM_DEBUG_PERIPH | CAM_DEBUG_PROBE | \
+	    CAM_DEBUG_FLAGS)
 #endif
 #endif
 
 #ifndef CAM_DEBUG_BUS
-#define CAM_DEBUG_BUS		CAM_BUS_WILDCARD
+#define CAM_DEBUG_BUS CAM_BUS_WILDCARD
 #endif
 #ifndef CAM_DEBUG_TARGET
-#define CAM_DEBUG_TARGET	CAM_TARGET_WILDCARD
+#define CAM_DEBUG_TARGET CAM_TARGET_WILDCARD
 #endif
 #ifndef CAM_DEBUG_LUN
-#define CAM_DEBUG_LUN		CAM_LUN_WILDCARD
+#define CAM_DEBUG_LUN CAM_LUN_WILDCARD
 #endif
 
 #ifndef CAM_DEBUG_DELAY
-#define CAM_DEBUG_DELAY		0
+#define CAM_DEBUG_DELAY 0
 #endif
 
 /* Path we want to debug */
@@ -84,56 +84,53 @@ extern u_int32_t cam_dflags;
 extern u_int32_t cam_debug_delay;
 
 /* Debugging macros. */
-#define	CAM_DEBUGGED(path, flag)			\
-	(((flag) & (CAM_DEBUG_COMPILE) & cam_dflags)	\
-	 && (cam_dpath != NULL)				\
-	 && (xpt_path_comp(cam_dpath, path) >= 0)	\
-	 && (xpt_path_comp(cam_dpath, path) < 2))
+#define CAM_DEBUGGED(path, flag)                                             \
+	(((flag) & (CAM_DEBUG_COMPILE)&cam_dflags) && (cam_dpath != NULL) && \
+	    (xpt_path_comp(cam_dpath, path) >= 0) &&                         \
+	    (xpt_path_comp(cam_dpath, path) < 2))
 
-#define	CAM_DEBUG(path, flag, printfargs)		\
-	if (((flag) & (CAM_DEBUG_COMPILE) & cam_dflags)	\
-	 && (cam_dpath != NULL)				\
-	 && (xpt_path_comp(cam_dpath, path) >= 0)	\
-	 && (xpt_path_comp(cam_dpath, path) < 2)) {	\
-		xpt_print_path(path);			\
-		printf printfargs;			\
-		if (cam_debug_delay != 0)		\
-			DELAY(cam_debug_delay);		\
+#define CAM_DEBUG(path, flag, printfargs)                                   \
+	if (((flag) & (CAM_DEBUG_COMPILE)&cam_dflags) &&                    \
+	    (cam_dpath != NULL) && (xpt_path_comp(cam_dpath, path) >= 0) && \
+	    (xpt_path_comp(cam_dpath, path) < 2)) {                         \
+		xpt_print_path(path);                                       \
+		printf printfargs;                                          \
+		if (cam_debug_delay != 0)                                   \
+			DELAY(cam_debug_delay);                             \
 	}
 
-#define	CAM_DEBUG_DEV(dev, flag, printfargs)		\
-	if (((flag) & (CAM_DEBUG_COMPILE) & cam_dflags)	\
-	 && (cam_dpath != NULL)				\
-	 && (xpt_path_comp_dev(cam_dpath, dev) >= 0)	\
-	 && (xpt_path_comp_dev(cam_dpath, dev) < 2)) {	\
-		xpt_print_device(dev);			\
-		printf printfargs;			\
-		if (cam_debug_delay != 0)		\
-			DELAY(cam_debug_delay);		\
+#define CAM_DEBUG_DEV(dev, flag, printfargs)                                   \
+	if (((flag) & (CAM_DEBUG_COMPILE)&cam_dflags) &&                       \
+	    (cam_dpath != NULL) && (xpt_path_comp_dev(cam_dpath, dev) >= 0) && \
+	    (xpt_path_comp_dev(cam_dpath, dev) < 2)) {                         \
+		xpt_print_device(dev);                                         \
+		printf printfargs;                                             \
+		if (cam_debug_delay != 0)                                      \
+			DELAY(cam_debug_delay);                                \
 	}
 
-#define	CAM_DEBUG_PRINT(flag, printfargs)		\
-	if (((flag) & (CAM_DEBUG_COMPILE) & cam_dflags)) {	\
-		printf("cam_debug: ");			\
-		printf printfargs;			\
-		if (cam_debug_delay != 0)		\
-			DELAY(cam_debug_delay);		\
+#define CAM_DEBUG_PRINT(flag, printfargs)                \
+	if (((flag) & (CAM_DEBUG_COMPILE)&cam_dflags)) { \
+		printf("cam_debug: ");                   \
+		printf printfargs;                       \
+		if (cam_debug_delay != 0)                \
+			DELAY(cam_debug_delay);          \
 	}
 
-#define	CAM_DEBUG_PATH_PRINT(flag, path, printfargs)	\
-	if (((flag) & (CAM_DEBUG_COMPILE) & cam_dflags)) {	\
-		xpt_print(path, "cam_debug: ");		\
-		printf printfargs;			\
-		if (cam_debug_delay != 0)		\
-			DELAY(cam_debug_delay);		\
+#define CAM_DEBUG_PATH_PRINT(flag, path, printfargs)     \
+	if (((flag) & (CAM_DEBUG_COMPILE)&cam_dflags)) { \
+		xpt_print(path, "cam_debug: ");          \
+		printf printfargs;                       \
+		if (cam_debug_delay != 0)                \
+			DELAY(cam_debug_delay);          \
 	}
 
 #else /* !_KERNEL */
 
-#define	CAM_DEBUGGED(A, B)	0
-#define	CAM_DEBUG(A, B, C)
-#define	CAM_DEBUG_PRINT(A, B)
-#define	CAM_DEBUG_PATH_PRINT(A, B, C)
+#define CAM_DEBUGGED(A, B) 0
+#define CAM_DEBUG(A, B, C)
+#define CAM_DEBUG_PRINT(A, B)
+#define CAM_DEBUG_PATH_PRINT(A, B, C)
 
 #endif /* _KERNEL */
 

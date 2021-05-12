@@ -30,39 +30,39 @@
 /* $FreeBSD$ */
 
 #ifndef __PCF2123REG_H__
-#define	__PCF2123REG_H__
+#define __PCF2123REG_H__
 
 /* Control and status */
-#define	PCF2123_REG_CTRL1		0x0
-#define	PCF2123_REG_CTRL2		0x1
+#define PCF2123_REG_CTRL1 0x0
+#define PCF2123_REG_CTRL2 0x1
 
 /* Time and date */
-#define	PCF2123_REG_SECONDS		0x2
-#define	PCF2123_REG_MINUTES		0x3
-#define	PCF2123_REG_HOURS		0x4
-#define	PCF2123_REG_DAYS		0x5
-#define	PCF2123_REG_WEEKDAYS		0x6
-#define	PCF2123_REG_MONTHS		0x7
-#define	PCF2123_REG_YEARS		0x8
+#define PCF2123_REG_SECONDS 0x2
+#define PCF2123_REG_MINUTES 0x3
+#define PCF2123_REG_HOURS 0x4
+#define PCF2123_REG_DAYS 0x5
+#define PCF2123_REG_WEEKDAYS 0x6
+#define PCF2123_REG_MONTHS 0x7
+#define PCF2123_REG_YEARS 0x8
 
 /* Alarm registers */
-#define	PCF2123_REG_MINUTE_ALARM	0x9
-#define	PCF2123_REG_HOUR_ALARM		0xA
-#define	PCF2123_REG_DAY_ALARM		0xB
-#define	PCF2123_REG_WEEKDAY_ALARM	0xC
+#define PCF2123_REG_MINUTE_ALARM 0x9
+#define PCF2123_REG_HOUR_ALARM 0xA
+#define PCF2123_REG_DAY_ALARM 0xB
+#define PCF2123_REG_WEEKDAY_ALARM 0xC
 
 /* Offset */
-#define	PCF2123_REG_OFFSET		0xD
+#define PCF2123_REG_OFFSET 0xD
 
 /* Timer */
-#define	PCF2123_REG_TIMER_CLKOUT	0xE
-#define	PCF2123_REG_COUNTDOWN_TIMER	0xF
+#define PCF2123_REG_TIMER_CLKOUT 0xE
+#define PCF2123_REG_COUNTDOWN_TIMER 0xF
 
 /* Commands */
-#define	PCF2123_CMD_READ	(1 << 7)
-#define	PCF2123_CMD_WRITE	(0 << 7)
+#define PCF2123_CMD_READ (1 << 7)
+#define PCF2123_CMD_WRITE (0 << 7)
 
-#define	PCF2123_READ(reg)	(PCF2123_CMD_READ | (1 << 4) | (reg))
-#define	PCF2123_WRITE(reg)	(PCF2123_CMD_WRITE | (1 << 4) | (reg))
+#define PCF2123_READ(reg) (PCF2123_CMD_READ | (1 << 4) | (reg))
+#define PCF2123_WRITE(reg) (PCF2123_CMD_WRITE | (1 << 4) | (reg))
 
 #endif /* __PCF2123REG_H__ */

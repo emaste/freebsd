@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -52,84 +52,78 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
+#include <sys/ctype.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
-#include <sys/ctype.h>
 
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_frame_relay.h>
+#include <netgraph/ng_message.h>
 
 /*
  * Line info, and status per channel.
  */
-struct ctxinfo {		/* one per active hook */
-	u_int   flags;
-#define CHAN_VALID	0x01	/* assigned to a channel */
-#define CHAN_ACTIVE	0x02	/* bottom level active */
-	int     dlci;		/* the dlci assigned to this context */
-	hook_p  hook;		/* if there's a hook assigned.. */
+struct ctxinfo { /* one per active hook */
+	u_int flags;
+#define CHAN_VALID 0x01 /* assigned to a channel */
+#define CHAN_ACTIVE 0x02 /* bottom level active */
+	int dlci;    /* the dlci assigned to this context */
+	hook_p hook; /* if there's a hook assigned.. */
 };
 
-#define MAX_CT 16		/* # of dlci's active at a time (POWER OF 2!) */
+#define MAX_CT 16 /* # of dlci's active at a time (POWER OF 2!) */
 struct frmrel_softc {
-	int     unit;		/* which card are we? */
-	int     datahooks;	/* number of data hooks attached */
-	node_p  node;		/* netgraph node */
-	int     addrlen;	/* address header length */
-	int     flags;		/* state */
-	int     mtu;		/* guess */
-	u_char  remote_seq;	/* sequence number the remote sent */
-	u_char  local_seq;	/* sequence number the remote rcvd */
-	u_short ALT[1024];	/* map DLCIs to CTX */
-#define	CTX_VALID	0x8000		/* this bit means it's a valid CTX */
-#define	CTX_VALUE	(MAX_CT - 1)	/* mask for context part */
-	struct	ctxinfo channel[MAX_CT];
-	struct	ctxinfo downstream;
+	int unit;	   /* which card are we? */
+	int datahooks;	   /* number of data hooks attached */
+	node_p node;	   /* netgraph node */
+	int addrlen;	   /* address header length */
+	int flags;	   /* state */
+	int mtu;	   /* guess */
+	u_char remote_seq; /* sequence number the remote sent */
+	u_char local_seq;  /* sequence number the remote rcvd */
+	u_short ALT[1024]; /* map DLCIs to CTX */
+#define CTX_VALID 0x8000   /* this bit means it's a valid CTX */
+#define CTX_VALUE (MAX_CT - 1) /* mask for context part */
+	struct ctxinfo channel[MAX_CT];
+	struct ctxinfo downstream;
 };
 typedef struct frmrel_softc *sc_p;
 
-#define BYTEX_EA	0x01	/* End Address. Always 0 on byte1 */
-#define BYTE1_C_R	0x02
-#define BYTE2_FECN	0x08	/* forwards congestion notification */
-#define BYTE2_BECN	0x04	/* Backward congestion notification */
-#define BYTE2_DE	0x02	/* Discard elligability */
-#define LASTBYTE_D_C	0x02	/* last byte is dl_core or dlci info */
+#define BYTEX_EA 0x01 /* End Address. Always 0 on byte1 */
+#define BYTE1_C_R 0x02
+#define BYTE2_FECN 0x08 /* forwards congestion notification */
+#define BYTE2_BECN 0x04 /* Backward congestion notification */
+#define BYTE2_DE 0x02 /* Discard elligability */
+#define LASTBYTE_D_C 0x02 /* last byte is dl_core or dlci info */
 
 /* Used to do headers */
 const static struct segment {
-	u_char  mask;
-	u_char  shift;
-	u_char  width;
-} makeup[] = {
-	{ 0xfc, 2, 6 },
-	{ 0xf0, 4, 4 },
-	{ 0xfe, 1, 7 },
-	{ 0xfc, 2, 6 }
-};
+	u_char mask;
+	u_char shift;
+	u_char width;
+} makeup[] = { { 0xfc, 2, 6 }, { 0xf0, 4, 4 }, { 0xfe, 1, 7 }, { 0xfc, 2, 6 } };
 
-#define SHIFTIN(segment, byte, dlci) 					     \
-	{								     \
-		(dlci) <<= (segment)->width;				     \
-		(dlci) |=						     \
-			(((byte) & (segment)->mask) >> (segment)->shift);    \
+#define SHIFTIN(segment, byte, dlci)                                        \
+	{                                                                   \
+		(dlci) <<= (segment)->width;                                \
+		(dlci) |= (((byte) & (segment)->mask) >> (segment)->shift); \
 	}
 
-#define SHIFTOUT(segment, byte, dlci)					     \
-	{								     \
-		(byte) |= (((dlci) << (segment)->shift) & (segment)->mask);  \
-		(dlci) >>= (segment)->width;				     \
+#define SHIFTOUT(segment, byte, dlci)                                       \
+	{                                                                   \
+		(byte) |= (((dlci) << (segment)->shift) & (segment)->mask); \
+		(dlci) >>= (segment)->width;                                \
 	}
 
 /* Netgraph methods */
-static ng_constructor_t	ngfrm_constructor;
-static ng_shutdown_t	ngfrm_shutdown;
-static ng_newhook_t	ngfrm_newhook;
-static ng_rcvdata_t	ngfrm_rcvdata;
-static ng_disconnect_t	ngfrm_disconnect;
+static ng_constructor_t ngfrm_constructor;
+static ng_shutdown_t ngfrm_shutdown;
+static ng_newhook_t ngfrm_newhook;
+static ng_rcvdata_t ngfrm_rcvdata;
+static ng_disconnect_t ngfrm_disconnect;
 
 /* Other internal functions */
 static int ngfrm_decode(node_p node, item_p item);
@@ -138,17 +132,21 @@ static int ngfrm_allocate_CTX(sc_p sc, int dlci);
 
 /* Netgraph type */
 static struct ng_type typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_FRAMERELAY_NODE_TYPE,
-	.constructor =	ngfrm_constructor,
-	.shutdown =	ngfrm_shutdown,
-	.newhook =	ngfrm_newhook,
-	.rcvdata =	ngfrm_rcvdata,
-	.disconnect =	ngfrm_disconnect,
+	.version = NG_ABI_VERSION,
+	.name = NG_FRAMERELAY_NODE_TYPE,
+	.constructor = ngfrm_constructor,
+	.shutdown = ngfrm_shutdown,
+	.newhook = ngfrm_newhook,
+	.rcvdata = ngfrm_rcvdata,
+	.disconnect = ngfrm_disconnect,
 };
 NETGRAPH_INIT(framerelay, &typestruct);
 
-#define ERROUT(x)		do { error = (x); goto done; } while (0)
+#define ERROUT(x)            \
+	do {                 \
+		error = (x); \
+		goto done;   \
+	} while (0)
 
 /*
  * Given a DLCI, return the index of the  context table entry for it,
@@ -157,7 +155,7 @@ NETGRAPH_INIT(framerelay, &typestruct);
 static int
 ngfrm_allocate_CTX(sc_p sc, int dlci)
 {
-	u_int   ctxnum = -1;	/* what ctx number we are using */
+	u_int ctxnum = -1; /* what ctx number we are using */
 	volatile struct ctxinfo *CTXp = NULL;
 
 	/* Sanity check the dlci value */
@@ -170,7 +168,7 @@ ngfrm_allocate_CTX(sc_p sc, int dlci)
 			CTXp = sc->channel + ctxnum;
 		} else {
 			ctxnum = -1;
-			sc->ALT[dlci] = 0;	/* paranoid but... */
+			sc->ALT[dlci] = 0; /* paranoid but... */
 		}
 	}
 
@@ -185,7 +183,7 @@ ngfrm_allocate_CTX(sc_p sc, int dlci)
 			 */
 			if ((sc->channel[ctxnum].flags & CHAN_VALID) == 0) {
 				bzero(sc->channel + ctxnum,
-				      sizeof(struct ctxinfo));
+				    sizeof(struct ctxinfo));
 				CTXp = sc->channel + ctxnum;
 				sc->ALT[dlci] = ctxnum | CTX_VALID;
 				sc->channel[ctxnum].dlci = dlci;
@@ -215,7 +213,7 @@ ngfrm_constructor(node_p node)
 	sc_p sc;
 
 	sc = malloc(sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
-	sc->addrlen = 2;	/* default */
+	sc->addrlen = 2; /* default */
 
 	/* Link the node and our private info */
 	NG_NODE_SET_PRIVATE(node, sc);
@@ -241,7 +239,7 @@ ngfrm_newhook(node_p node, hook_p hook, const char *name)
 
 	/* Check if it's our friend the control hook */
 	if (strcmp(name, NG_FRAMERELAY_HOOK_DEBUG) == 0) {
-		NG_HOOK_SET_PRIVATE(hook, NULL);	/* paranoid */
+		NG_HOOK_SET_PRIVATE(hook, NULL); /* paranoid */
 		return (0);
 	}
 
@@ -251,7 +249,7 @@ ngfrm_newhook(node_p node, hook_p hook, const char *name)
 	 * hook.
 	 */
 	if (strncmp(name, NG_FRAMERELAY_HOOK_DLCI,
-	    strlen(NG_FRAMERELAY_HOOK_DLCI)) != 0) {
+		strlen(NG_FRAMERELAY_HOOK_DLCI)) != 0) {
 		/* It must be the downstream connection */
 		if (strcmp(name, NG_FRAMERELAY_HOOK_DOWNSTREAM) != 0)
 			return EINVAL;
@@ -327,13 +325,13 @@ ngfrm_addrlen(char *hdr)
 static int
 ngfrm_rcvdata(hook_p hook, item_p item)
 {
-	struct	ctxinfo *const ctxp = NG_HOOK_PRIVATE(hook);
-	struct	mbuf *m = NULL;
-	int     error = 0;
-	int     dlci;
-	sc_p    sc;
-	int     alen;
-	char   *data;
+	struct ctxinfo *const ctxp = NG_HOOK_PRIVATE(hook);
+	struct mbuf *m = NULL;
+	int error = 0;
+	int dlci;
+	sc_p sc;
+	int alen;
+	char *data;
 
 	/* Data doesn't come in from just anywhere (e.g debug hook) */
 	if (ctxp == NULL)
@@ -349,14 +347,13 @@ ngfrm_rcvdata(hook_p hook, item_p item)
 	sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
 	/* If there is no live channel, throw it away */
-	if ((sc->downstream.hook == NULL)
-	    || ((ctxp->flags & CHAN_ACTIVE) == 0))
+	if ((sc->downstream.hook == NULL) || ((ctxp->flags & CHAN_ACTIVE) == 0))
 		ERROUT(ENETDOWN);
 
 	/* Store the DLCI on the front of the packet */
 	alen = sc->addrlen;
 	if (alen == 0)
-		alen = 2;	/* default value for transmit */
+		alen = 2; /* default value for transmit */
 	M_PREPEND(m, alen, M_NOWAIT);
 	if (m == NULL)
 		ERROUT(ENOBUFS);
@@ -375,7 +372,7 @@ ngfrm_rcvdata(hook_p hook, item_p item)
 		break;
 	case 3:
 		data[0] = data[1] = data[2] = '\0';
-		SHIFTOUT(makeup + 3, data[2], dlci);	/* 3 and 2 is correct */
+		SHIFTOUT(makeup + 3, data[2], dlci); /* 3 and 2 is correct */
 		SHIFTOUT(makeup + 1, data[1], dlci);
 		SHIFTOUT(makeup + 0, data[0], dlci);
 		data[2] |= BYTEX_EA;
@@ -408,12 +405,12 @@ done:
 static int
 ngfrm_decode(node_p node, item_p item)
 {
-	const sc_p  sc = NG_NODE_PRIVATE(node);
-	char       *data;
-	int         alen;
-	u_int	    dlci = 0;
-	int	    error = 0;
-	int	    ctxnum;
+	const sc_p sc = NG_NODE_PRIVATE(node);
+	char *data;
+	int alen;
+	u_int dlci = 0;
+	int error = 0;
+	int ctxnum;
 	struct mbuf *m;
 
 	NGI_GET_M(item, m);
@@ -431,7 +428,7 @@ ngfrm_decode(node_p node, item_p item)
 	case 3:
 		SHIFTIN(makeup + 0, data[0], dlci);
 		SHIFTIN(makeup + 1, data[1], dlci);
-		SHIFTIN(makeup + 3, data[2], dlci);	/* 3 and 2 is correct */
+		SHIFTIN(makeup + 3, data[2], dlci); /* 3 and 2 is correct */
 		break;
 	case 4:
 		SHIFTIN(makeup + 0, data[0], dlci);
@@ -496,8 +493,8 @@ ngfrm_disconnect(hook_p hook)
 		cp->flags = 0;
 		sc->datahooks--;
 	}
-	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
+	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0) &&
+	    (NG_NODE_IS_VALID(NG_HOOK_NODE(hook))))
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }

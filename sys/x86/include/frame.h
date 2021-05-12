@@ -49,56 +49,56 @@
  */
 
 struct trapframe {
-	int	tf_fs;
-	int	tf_es;
-	int	tf_ds;
-	int	tf_edi;
-	int	tf_esi;
-	int	tf_ebp;
-	int	tf_isp;
-	int	tf_ebx;
-	int	tf_edx;
-	int	tf_ecx;
-	int	tf_eax;
-	int	tf_trapno;
+	int tf_fs;
+	int tf_es;
+	int tf_ds;
+	int tf_edi;
+	int tf_esi;
+	int tf_ebp;
+	int tf_isp;
+	int tf_ebx;
+	int tf_edx;
+	int tf_ecx;
+	int tf_eax;
+	int tf_trapno;
 	/* below portion defined in 386 hardware */
-	int	tf_err;
-	int	tf_eip;
-	int	tf_cs;
-	int	tf_eflags;
+	int tf_err;
+	int tf_eip;
+	int tf_cs;
+	int tf_eflags;
 	/* below only when crossing rings (user to kernel) */
-	int	tf_esp;
-	int	tf_ss;
+	int tf_esp;
+	int tf_ss;
 };
 
 /* Superset of trap frame, for traps from virtual-8086 mode */
 
 struct trapframe_vm86 {
-	int	tf_fs;
-	int	tf_es;
-	int	tf_ds;
-	int	tf_edi;
-	int	tf_esi;
-	int	tf_ebp;
-	int	tf_isp;
-	int	tf_ebx;
-	int	tf_edx;
-	int	tf_ecx;
-	int	tf_eax;
-	int	tf_trapno;
+	int tf_fs;
+	int tf_es;
+	int tf_ds;
+	int tf_edi;
+	int tf_esi;
+	int tf_ebp;
+	int tf_isp;
+	int tf_ebx;
+	int tf_edx;
+	int tf_ecx;
+	int tf_eax;
+	int tf_trapno;
 	/* below portion defined in 386 hardware */
-	int	tf_err;
-	int	tf_eip;
-	int	tf_cs;
-	int	tf_eflags;
+	int tf_err;
+	int tf_eip;
+	int tf_cs;
+	int tf_eflags;
 	/* below only when crossing rings (user (including vm86) to kernel) */
-	int	tf_esp;
-	int	tf_ss;
+	int tf_esp;
+	int tf_ss;
 	/* below only when crossing from vm86 mode to kernel */
-	int	tf_vm86_es;
-	int	tf_vm86_ds;
-	int	tf_vm86_fs;
-	int	tf_vm86_gs;
+	int tf_vm86_es;
+	int tf_vm86_ds;
+	int tf_vm86_fs;
+	int tf_vm86_gs;
 };
 
 /*
@@ -108,7 +108,7 @@ struct trapframe_vm86 {
  * for using TRAPF_USERMODE() is complicated by sometimes treating vm86
  * bioscall mode (which is a special ring 3 user mode) as kernel mode.
  */
-#define	TF_HAS_STACKREGS(tf)	TRAPF_USERMODE(tf)
+#define TF_HAS_STACKREGS(tf) TRAPF_USERMODE(tf)
 #endif /* __i386__ */
 
 #ifdef __amd64__
@@ -120,41 +120,41 @@ struct trapframe_vm86 {
  */
 
 struct trapframe {
-	register_t	tf_rdi;
-	register_t	tf_rsi;
-	register_t	tf_rdx;
-	register_t	tf_rcx;
-	register_t	tf_r8;
-	register_t	tf_r9;
-	register_t	tf_rax;
-	register_t	tf_rbx;
-	register_t	tf_rbp;
-	register_t	tf_r10;
-	register_t	tf_r11;
-	register_t	tf_r12;
-	register_t	tf_r13;
-	register_t	tf_r14;
-	register_t	tf_r15;
-	uint32_t	tf_trapno;
-	uint16_t	tf_fs;
-	uint16_t	tf_gs;
-	register_t	tf_addr;
-	uint32_t	tf_flags;
-	uint16_t	tf_es;
-	uint16_t	tf_ds;
+	register_t tf_rdi;
+	register_t tf_rsi;
+	register_t tf_rdx;
+	register_t tf_rcx;
+	register_t tf_r8;
+	register_t tf_r9;
+	register_t tf_rax;
+	register_t tf_rbx;
+	register_t tf_rbp;
+	register_t tf_r10;
+	register_t tf_r11;
+	register_t tf_r12;
+	register_t tf_r13;
+	register_t tf_r14;
+	register_t tf_r15;
+	uint32_t tf_trapno;
+	uint16_t tf_fs;
+	uint16_t tf_gs;
+	register_t tf_addr;
+	uint32_t tf_flags;
+	uint16_t tf_es;
+	uint16_t tf_ds;
 	/* below portion defined in hardware */
-	register_t	tf_err;
-	register_t	tf_rip;
-	register_t	tf_cs;
-	register_t	tf_rflags;
+	register_t tf_err;
+	register_t tf_rip;
+	register_t tf_cs;
+	register_t tf_rflags;
 	/* the amd64 frame always has the stack registers */
-	register_t	tf_rsp;
-	register_t	tf_ss;
+	register_t tf_rsp;
+	register_t tf_ss;
 };
 
-#define	TF_HASSEGS	0x1
-#define	TF_HASBASES	0x2
-#define	TF_HASFPXSTATE	0x4
+#define TF_HASSEGS 0x1
+#define TF_HASBASES 0x2
+#define TF_HASFPXSTATE 0x4
 #endif /* __amd64__ */
 
 #endif /* _MACHINE_FRAME_H_ */

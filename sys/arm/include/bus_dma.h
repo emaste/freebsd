@@ -73,6 +73,6 @@
 
 /* Bus Space DMA macros */
 
-#define BUS_DMA_TAG_VALID(t)    ((t) != (bus_dma_tag_t)0)
+#define BUS_DMA_TAG_VALID(t) ((t) != (bus_dma_tag_t)0)
 
 #endif /* _ARM_BUS_DMA_H */

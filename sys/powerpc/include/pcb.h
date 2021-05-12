@@ -35,7 +35,7 @@
  */
 
 #ifndef _MACHINE_PCB_H_
-#define	_MACHINE_PCB_H_
+#define _MACHINE_PCB_H_
 
 #include <sys/endian.h>
 
@@ -43,25 +43,25 @@
 
 #ifndef _STANDALONE
 struct pcb {
-	register_t	pcb_context[20];	/* non-volatile r12-r31 */
-	register_t	pcb_cr;			/* Condition register */
-	register_t	pcb_sp;			/* stack pointer */
-	register_t	pcb_toc;		/* toc pointer */
-	register_t	pcb_lr;			/* link register */
-	register_t	pcb_dscr;		/* dscr value */
-	register_t	pcb_fscr;		
-	register_t	pcb_tar;
-	struct		pmap *pcb_pm;		/* pmap of our vmspace */
-	jmp_buf		*pcb_onfault;		/* For use during
-						    copyin/copyout */
-	int		pcb_flags;
-#define	PCB_FPU		0x1	/* Process uses FPU */
-#define	PCB_FPREGS	0x2	/* Process had FPU registers initialized */
-#define	PCB_VEC		0x4	/* Process had Altivec initialized */
-#define	PCB_VSX		0x8	/* Process had VSX initialized */
-#define	PCB_CDSCR	0x10	/* Process had Custom DSCR initialized */
-#define	PCB_HTM		0x20	/* Process had HTM initialized */
-#define	PCB_CFSCR	0x40	/* Process had FSCR updated */
+	register_t pcb_context[20]; /* non-volatile r12-r31 */
+	register_t pcb_cr;	    /* Condition register */
+	register_t pcb_sp;	    /* stack pointer */
+	register_t pcb_toc;	    /* toc pointer */
+	register_t pcb_lr;	    /* link register */
+	register_t pcb_dscr;	    /* dscr value */
+	register_t pcb_fscr;
+	register_t pcb_tar;
+	struct pmap *pcb_pm;  /* pmap of our vmspace */
+	jmp_buf *pcb_onfault; /* For use during
+				  copyin/copyout */
+	int pcb_flags;
+#define PCB_FPU 0x1 /* Process uses FPU */
+#define PCB_FPREGS 0x2 /* Process had FPU registers initialized */
+#define PCB_VEC 0x4 /* Process had Altivec initialized */
+#define PCB_VSX 0x8 /* Process had VSX initialized */
+#define PCB_CDSCR 0x10 /* Process had Custom DSCR initialized */
+#define PCB_HTM 0x20 /* Process had HTM initialized */
+#define PCB_CFSCR 0x40 /* Process had FSCR updated */
 	struct fpu {
 		union {
 #if _BYTE_ORDER == _BIG_ENDIAN
@@ -75,18 +75,18 @@ struct pcb {
 			};
 #endif
 		} fpr[32];
-		double	fpscr;	/* FPSCR stored as double for easier access */
+		double fpscr;	/* FPSCR stored as double for easier access */
 	} pcb_fpu;		/* Floating point processor */
-	unsigned int	pcb_fpcpu;		/* which CPU had our FPU
-							stuff. */
+	unsigned int pcb_fpcpu; /* which CPU had our FPU
+					stuff. */
 	struct vec {
 		uint32_t vr[32][4];
 		uint32_t spare[2];
 		uint32_t vrsave;
-		uint32_t vscr;	/* aligned at vector element 3 */
-	} pcb_vec __aligned(16);	/* Vector processor */
-	unsigned int	pcb_veccpu;		/* which CPU had our vector
-							stuff. */
+		uint32_t vscr;	 /* aligned at vector element 3 */
+	} pcb_vec __aligned(16); /* Vector processor */
+	unsigned int pcb_veccpu; /* which CPU had our vector
+					 stuff. */
 	struct htm {
 		uint64_t tfhar;
 		uint64_t texasr;
@@ -106,18 +106,18 @@ struct pcb {
 
 	union {
 		struct {
-			vm_offset_t	usr_segm;	/* Base address */
-			register_t	usr_vsid;	/* USER_SR segment */
+			vm_offset_t usr_segm; /* Base address */
+			register_t usr_vsid;  /* USER_SR segment */
 		} aim;
 		struct {
-			register_t	dbcr0;
+			register_t dbcr0;
 		} booke;
 	} pcb_cpu;
-	vm_offset_t pcb_lastill;	/* Last illegal instruction */
+	vm_offset_t pcb_lastill; /* Last illegal instruction */
 };
 #endif
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 
 struct trapframe;
 
@@ -128,8 +128,8 @@ extern struct pcb *curpcb;
 extern struct pmap *curpm;
 extern struct proc *fpuproc;
 
-void	makectx(struct trapframe *, struct pcb *);
-void	savectx(struct pcb *) __returns_twice;
+void makectx(struct trapframe *, struct pcb *);
+void savectx(struct pcb *) __returns_twice;
 
 #endif
-#endif	/* _MACHINE_PCB_H_ */
+#endif /* _MACHINE_PCB_H_ */

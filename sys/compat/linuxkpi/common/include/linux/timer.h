@@ -29,19 +29,19 @@
  * $FreeBSD$
  */
 #ifndef _LINUX_TIMER_H_
-#define	_LINUX_TIMER_H_
-
-#include <linux/types.h>
+#define _LINUX_TIMER_H_
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/callout.h>
+#include <sys/kernel.h>
+
+#include <linux/types.h>
 
 struct timer_list {
 	struct callout callout;
 	union {
-		void (*function) (unsigned long);	/* < v4.15 */
-		void (*function_415) (struct timer_list *);
+		void (*function)(unsigned long); /* < v4.15 */
+		void (*function_415)(struct timer_list *);
 	};
 	unsigned long data;
 	int expires;
@@ -49,34 +49,37 @@ struct timer_list {
 
 extern unsigned long linux_timer_hz_mask;
 
-#define	TIMER_IRQSAFE	0x0001
+#define TIMER_IRQSAFE 0x0001
 
-#define	from_timer(var, arg, field)					\
-        container_of(arg, typeof(*(var)), field)
+#define from_timer(var, arg, field) container_of(arg, typeof(*(var)), field)
 
-#define	timer_setup(timer, func, flags) do {				\
-	CTASSERT(((flags) & ~TIMER_IRQSAFE) == 0);			\
-	(timer)->function_415 = (func);					\
-	(timer)->data = (unsigned long)(timer);				\
-	callout_init(&(timer)->callout, 1);				\
-} while (0)
+#define timer_setup(timer, func, flags)                    \
+	do {                                               \
+		CTASSERT(((flags) & ~TIMER_IRQSAFE) == 0); \
+		(timer)->function_415 = (func);            \
+		(timer)->data = (unsigned long)(timer);    \
+		callout_init(&(timer)->callout, 1);        \
+	} while (0)
 
-#define	setup_timer(timer, func, dat) do {				\
-	(timer)->function = (func);					\
-	(timer)->data = (dat);						\
-	callout_init(&(timer)->callout, 1);			\
-} while (0)
+#define setup_timer(timer, func, dat)               \
+	do {                                        \
+		(timer)->function = (func);         \
+		(timer)->data = (dat);              \
+		callout_init(&(timer)->callout, 1); \
+	} while (0)
 
-#define	__setup_timer(timer, func, dat, flags) do {			\
-	CTASSERT(((flags) & ~TIMER_IRQSAFE) == 0);			\
-	setup_timer(timer, func, dat);					\
-} while (0)
+#define __setup_timer(timer, func, dat, flags)             \
+	do {                                               \
+		CTASSERT(((flags) & ~TIMER_IRQSAFE) == 0); \
+		setup_timer(timer, func, dat);             \
+	} while (0)
 
-#define	init_timer(timer) do {						\
-	(timer)->function = NULL;					\
-	(timer)->data = 0;						\
-	callout_init(&(timer)->callout, 1);			\
-} while (0)
+#define init_timer(timer)                           \
+	do {                                        \
+		(timer)->function = NULL;           \
+		(timer)->data = 0;                  \
+		callout_init(&(timer)->callout, 1); \
+	} while (0)
 
 extern int mod_timer(struct timer_list *, int);
 extern void add_timer(struct timer_list *);
@@ -84,11 +87,11 @@ extern void add_timer_on(struct timer_list *, int cpu);
 extern int del_timer(struct timer_list *);
 extern int del_timer_sync(struct timer_list *);
 
-#define	timer_pending(timer)	callout_pending(&(timer)->callout)
-#define	round_jiffies(j)	\
+#define timer_pending(timer) callout_pending(&(timer)->callout)
+#define round_jiffies(j) \
 	((int)(((j) + linux_timer_hz_mask) & ~linux_timer_hz_mask))
-#define	round_jiffies_relative(j) round_jiffies(j)
-#define	round_jiffies_up(j)	round_jiffies(j)
-#define	round_jiffies_up_relative(j) round_jiffies_up(j)
+#define round_jiffies_relative(j) round_jiffies(j)
+#define round_jiffies_up(j) round_jiffies(j)
+#define round_jiffies_up_relative(j) round_jiffies_up(j)
 
-#endif					/* _LINUX_TIMER_H_ */
+#endif /* _LINUX_TIMER_H_ */

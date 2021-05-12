@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #include <compat/cloudabi/cloudabi_util.h>
-
 #include <compat/cloudabi64/cloudabi64_syscall.h>
 #include <compat/cloudabi64/cloudabi64_util.h>
 
@@ -48,8 +47,8 @@ extern const char *cloudabi64_syscallnames[];
 extern struct sysent cloudabi64_sysent[];
 
 static void
-cloudabi64_proc_setregs(struct thread *td, struct image_params *imgp,
-    uintptr_t stack)
+cloudabi64_proc_setregs(
+    struct thread *td, struct image_params *imgp, uintptr_t stack)
 {
 	struct trapframe *regs;
 
@@ -61,8 +60,8 @@ cloudabi64_proc_setregs(struct thread *td, struct image_params *imgp,
 	 * tpidr_el0 to the TCB.
 	 */
 	regs = td->td_frame;
-	regs->tf_x[0] =
-	    stack + roundup(sizeof(cloudabi64_tcb_t), sizeof(register_t));
+	regs->tf_x[0] = stack +
+	    roundup(sizeof(cloudabi64_tcb_t), sizeof(register_t));
 	(void)cpu_set_user_tls(td, TO_PTR(stack));
 }
 
@@ -135,8 +134,8 @@ cloudabi64_schedtail(struct thread *td)
 }
 
 int
-cloudabi64_thread_setregs(struct thread *td,
-    const cloudabi64_threadattr_t *attr, uint64_t tcb)
+cloudabi64_thread_setregs(
+    struct thread *td, const cloudabi64_threadattr_t *attr, uint64_t tcb)
 {
 	struct trapframe *frame;
 	stack_t stack;
@@ -160,28 +159,28 @@ cloudabi64_thread_setregs(struct thread *td,
 }
 
 static struct sysentvec cloudabi64_elf_sysvec = {
-	.sv_size		= CLOUDABI64_SYS_MAXSYSCALL,
-	.sv_table		= cloudabi64_sysent,
-	.sv_fixup		= cloudabi64_fixup,
-	.sv_name		= "CloudABI ELF64",
-	.sv_coredump		= elf64_coredump,
-	.sv_minuser		= VM_MIN_ADDRESS,
-	.sv_maxuser		= VM_MAXUSER_ADDRESS,
-	.sv_stackprot		= VM_PROT_READ | VM_PROT_WRITE,
-	.sv_copyout_strings	= cloudabi64_copyout_strings,
-	.sv_setregs		= cloudabi64_proc_setregs,
-	.sv_flags		= SV_ABI_CLOUDABI | SV_CAPSICUM | SV_LP64,
-	.sv_set_syscall_retval	= cloudabi64_set_syscall_retval,
-	.sv_fetch_syscall_args	= cloudabi64_fetch_syscall_args,
-	.sv_syscallnames	= cloudabi64_syscallnames,
-	.sv_schedtail		= cloudabi64_schedtail,
+	.sv_size = CLOUDABI64_SYS_MAXSYSCALL,
+	.sv_table = cloudabi64_sysent,
+	.sv_fixup = cloudabi64_fixup,
+	.sv_name = "CloudABI ELF64",
+	.sv_coredump = elf64_coredump,
+	.sv_minuser = VM_MIN_ADDRESS,
+	.sv_maxuser = VM_MAXUSER_ADDRESS,
+	.sv_stackprot = VM_PROT_READ | VM_PROT_WRITE,
+	.sv_copyout_strings = cloudabi64_copyout_strings,
+	.sv_setregs = cloudabi64_proc_setregs,
+	.sv_flags = SV_ABI_CLOUDABI | SV_CAPSICUM | SV_LP64,
+	.sv_set_syscall_retval = cloudabi64_set_syscall_retval,
+	.sv_fetch_syscall_args = cloudabi64_fetch_syscall_args,
+	.sv_syscallnames = cloudabi64_syscallnames,
+	.sv_schedtail = cloudabi64_schedtail,
 };
 
 INIT_SYSENTVEC(elf_sysvec, &cloudabi64_elf_sysvec);
 
 Elf64_Brandinfo cloudabi64_brand = {
-	.brand		= ELFOSABI_CLOUDABI,
-	.machine	= EM_AARCH64,
-	.sysvec		= &cloudabi64_elf_sysvec,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_ONLY_STATIC,
+	.brand = ELFOSABI_CLOUDABI,
+	.machine = EM_AARCH64,
+	.sysvec = &cloudabi64_elf_sysvec,
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_ONLY_STATIC,
 };

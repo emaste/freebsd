@@ -28,7 +28,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * from: FreeBSD: //depot/projects/arm/src/sys/arm/xscale/pxa2x0/pxa2x0_gpio.c, rev 1
+ * from: FreeBSD: //depot/projects/arm/src/sys/arm/xscale/pxa2x0/pxa2x0_gpio.c,
+ * rev 1
  */
 
 #include <sys/cdefs.h>
@@ -37,17 +38,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/interrupt.h>
-#include <sys/module.h>
-#include <sys/malloc.h>
-#include <sys/mutex.h>
-#include <sys/rman.h>
-#include <sys/queue.h>
-#include <sys/timetc.h>
 #include <sys/callout.h>
 #include <sys/gpio.h>
+#include <sys/interrupt.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
+#include <sys/rman.h>
+#include <sys/timetc.h>
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 
@@ -55,46 +57,45 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/mv/mvvar.h>
 #include <arm/mv/mvreg.h>
+#include <arm/mv/mvvar.h>
 
 #include "gpio_if.h"
 
-#define GPIO_MAX_INTR_COUNT	8
-#define GPIO_PINS_PER_REG	32
-#define GPIO_GENERIC_CAP	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |		\
-				GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL |	\
-				GPIO_PIN_TRISTATE | GPIO_PIN_PULLUP |		\
-				GPIO_PIN_PULLDOWN | GPIO_PIN_INVIN |		\
-				GPIO_PIN_INVOUT)
+#define GPIO_MAX_INTR_COUNT 8
+#define GPIO_PINS_PER_REG 32
+#define GPIO_GENERIC_CAP                                              \
+	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT | GPIO_PIN_OPENDRAIN |      \
+	    GPIO_PIN_PUSHPULL | GPIO_PIN_TRISTATE | GPIO_PIN_PULLUP | \
+	    GPIO_PIN_PULLDOWN | GPIO_PIN_INVIN | GPIO_PIN_INVOUT)
 
-#define DEBOUNCE_CHECK_MS	1
-#define DEBOUNCE_LO_HI_MS	2
-#define DEBOUNCE_HI_LO_MS	2
-#define DEBOUNCE_CHECK_TICKS	((hz / 1000) * DEBOUNCE_CHECK_MS)
+#define DEBOUNCE_CHECK_MS 1
+#define DEBOUNCE_LO_HI_MS 2
+#define DEBOUNCE_HI_LO_MS 2
+#define DEBOUNCE_CHECK_TICKS ((hz / 1000) * DEBOUNCE_CHECK_MS)
 
 struct mv_gpio_softc {
-	device_t		dev;
-	device_t		sc_busdev;
-	struct resource	*	mem_res;
-	int			mem_rid;
-	struct resource	*	irq_res[GPIO_MAX_INTR_COUNT];
-	int			irq_rid[GPIO_MAX_INTR_COUNT];
-	struct intr_event *	gpio_events[MV_GPIO_MAX_NPINS];
-	void			*ih_cookie[GPIO_MAX_INTR_COUNT];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	uint32_t		offset;
-	struct mtx		mutex;
-	uint8_t			pin_num;	/* number of GPIO pins */
-	uint8_t			irq_num;	/* number of real IRQs occupied by GPIO controller */
-	struct gpio_pin		gpio_setup[MV_GPIO_MAX_NPINS];
+	device_t dev;
+	device_t sc_busdev;
+	struct resource *mem_res;
+	int mem_rid;
+	struct resource *irq_res[GPIO_MAX_INTR_COUNT];
+	int irq_rid[GPIO_MAX_INTR_COUNT];
+	struct intr_event *gpio_events[MV_GPIO_MAX_NPINS];
+	void *ih_cookie[GPIO_MAX_INTR_COUNT];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	uint32_t offset;
+	struct mtx mutex;
+	uint8_t pin_num; /* number of GPIO pins */
+	uint8_t irq_num; /* number of real IRQs occupied by GPIO controller */
+	struct gpio_pin gpio_setup[MV_GPIO_MAX_NPINS];
 
 	/* Used for debouncing. */
-	uint32_t		debounced_state_lo;
-	uint32_t		debounced_state_hi;
-	struct callout		**debounce_callouts;
-	int			*debounce_counters;
+	uint32_t debounced_state_lo;
+	uint32_t debounced_state_hi;
+	struct callout **debounce_callouts;
+	int *debounce_counters;
 };
 
 struct mv_gpio_pindev {
@@ -102,43 +103,42 @@ struct mv_gpio_pindev {
 	int pin;
 };
 
-static int	mv_gpio_probe(device_t);
-static int	mv_gpio_attach(device_t);
-static int	mv_gpio_intr(device_t, void *);
+static int mv_gpio_probe(device_t);
+static int mv_gpio_attach(device_t);
+static int mv_gpio_intr(device_t, void *);
 
-static void	mv_gpio_double_edge_init(device_t, int);
+static void mv_gpio_double_edge_init(device_t, int);
 
-static int	mv_gpio_debounce_setup(device_t, int);
-static int	mv_gpio_debounce_prepare(device_t, int);
-static int	mv_gpio_debounce_init(device_t, int);
-static void	mv_gpio_debounce_start(device_t, int);
-static void	mv_gpio_debounce(void *);
-static void	mv_gpio_debounced_state_set(device_t, int, uint8_t);
-static uint32_t	mv_gpio_debounced_state_get(device_t, int);
+static int mv_gpio_debounce_setup(device_t, int);
+static int mv_gpio_debounce_prepare(device_t, int);
+static int mv_gpio_debounce_init(device_t, int);
+static void mv_gpio_debounce_start(device_t, int);
+static void mv_gpio_debounce(void *);
+static void mv_gpio_debounced_state_set(device_t, int, uint8_t);
+static uint32_t mv_gpio_debounced_state_get(device_t, int);
 
-static void	mv_gpio_exec_intr_handlers(device_t, uint32_t, int);
-static void	mv_gpio_intr_handler(device_t, int);
-static uint32_t	mv_gpio_reg_read(device_t, uint32_t);
-static void	mv_gpio_reg_write(device_t, uint32_t, uint32_t);
-static void	mv_gpio_reg_set(device_t, uint32_t, uint32_t);
-static void	mv_gpio_reg_clear(device_t, uint32_t, uint32_t);
+static void mv_gpio_exec_intr_handlers(device_t, uint32_t, int);
+static void mv_gpio_intr_handler(device_t, int);
+static uint32_t mv_gpio_reg_read(device_t, uint32_t);
+static void mv_gpio_reg_write(device_t, uint32_t, uint32_t);
+static void mv_gpio_reg_set(device_t, uint32_t, uint32_t);
+static void mv_gpio_reg_clear(device_t, uint32_t, uint32_t);
 
-static void	mv_gpio_blink(device_t, uint32_t, uint8_t);
-static void	mv_gpio_polarity(device_t, uint32_t, uint8_t, uint8_t);
-static void	mv_gpio_level(device_t, uint32_t, uint8_t);
-static void	mv_gpio_edge(device_t, uint32_t, uint8_t);
-static void	mv_gpio_out_en(device_t, uint32_t, uint8_t);
-static void	mv_gpio_int_ack(struct mv_gpio_pindev *);
-static void	mv_gpio_value_set(device_t, uint32_t, uint8_t);
-static uint32_t	mv_gpio_value_get(device_t, uint32_t, uint8_t);
+static void mv_gpio_blink(device_t, uint32_t, uint8_t);
+static void mv_gpio_polarity(device_t, uint32_t, uint8_t, uint8_t);
+static void mv_gpio_level(device_t, uint32_t, uint8_t);
+static void mv_gpio_edge(device_t, uint32_t, uint8_t);
+static void mv_gpio_out_en(device_t, uint32_t, uint8_t);
+static void mv_gpio_int_ack(struct mv_gpio_pindev *);
+static void mv_gpio_value_set(device_t, uint32_t, uint8_t);
+static uint32_t mv_gpio_value_get(device_t, uint32_t, uint8_t);
 
-static void	mv_gpio_intr_mask(struct mv_gpio_pindev *);
-static void	mv_gpio_intr_unmask(struct mv_gpio_pindev *);
+static void mv_gpio_intr_mask(struct mv_gpio_pindev *);
+static void mv_gpio_intr_unmask(struct mv_gpio_pindev *);
 
 void mv_gpio_finish_intrhandler(struct mv_gpio_pindev *);
-int mv_gpio_setup_intrhandler(device_t, const char *,
-    driver_filter_t *, void (*)(void *), void *,
-    int, int, void **);
+int mv_gpio_setup_intrhandler(device_t, const char *, driver_filter_t *,
+    void (*)(void *), void *, int, int, void **);
 int mv_gpio_configure(device_t, uint32_t, uint32_t, uint32_t);
 void mv_gpio_out(device_t, uint32_t, uint8_t, uint8_t);
 uint8_t mv_gpio_in(device_t, uint32_t);
@@ -155,31 +155,30 @@ static int mv_gpio_pin_setflags(device_t, uint32_t, uint32_t);
 static int mv_gpio_pin_set(device_t, uint32_t, unsigned int);
 static int mv_gpio_pin_get(device_t, uint32_t, unsigned int *);
 static int mv_gpio_pin_toggle(device_t, uint32_t);
-static int mv_gpio_map_gpios(device_t, phandle_t, phandle_t,
-    int, pcell_t *, uint32_t *, uint32_t *);
+static int mv_gpio_map_gpios(
+    device_t, phandle_t, phandle_t, int, pcell_t *, uint32_t *, uint32_t *);
 
-#define MV_GPIO_LOCK()		mtx_lock_spin(&sc->mutex)
-#define MV_GPIO_UNLOCK()	mtx_unlock_spin(&sc->mutex)
-#define MV_GPIO_ASSERT_LOCKED()	mtx_assert(&sc->mutex, MA_OWNED)
+#define MV_GPIO_LOCK() mtx_lock_spin(&sc->mutex)
+#define MV_GPIO_UNLOCK() mtx_unlock_spin(&sc->mutex)
+#define MV_GPIO_ASSERT_LOCKED() mtx_assert(&sc->mutex, MA_OWNED)
 
-static device_method_t mv_gpio_methods[] = {
-	DEVMETHOD(device_probe,		mv_gpio_probe),
-	DEVMETHOD(device_attach,	mv_gpio_attach),
+static device_method_t mv_gpio_methods[] = { DEVMETHOD(
+						 device_probe, mv_gpio_probe),
+	DEVMETHOD(device_attach, mv_gpio_attach),
 
 	/* GPIO protocol */
-	DEVMETHOD(gpio_get_bus,		mv_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max,		mv_gpio_pin_max),
-	DEVMETHOD(gpio_pin_getname,	mv_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getflags,	mv_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_getcaps,	mv_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_setflags,	mv_gpio_pin_setflags),
-	DEVMETHOD(gpio_pin_get,		mv_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set,		mv_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle,	mv_gpio_pin_toggle),
-	DEVMETHOD(gpio_map_gpios,	mv_gpio_map_gpios),
+	DEVMETHOD(gpio_get_bus, mv_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max, mv_gpio_pin_max),
+	DEVMETHOD(gpio_pin_getname, mv_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getflags, mv_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_getcaps, mv_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_setflags, mv_gpio_pin_setflags),
+	DEVMETHOD(gpio_pin_get, mv_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set, mv_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle, mv_gpio_pin_toggle),
+	DEVMETHOD(gpio_map_gpios, mv_gpio_map_gpios),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t mv_gpio_driver = {
 	"gpio",
@@ -192,11 +191,8 @@ static devclass_t mv_gpio_devclass;
 EARLY_DRIVER_MODULE(mv_gpio, simplebus, mv_gpio_driver, mv_gpio_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 
-struct ofw_compat_data compat_data[] = {
-	{ "mrvl,gpio", 1 },
-	{ "marvell,orion-gpio", 1 },
-	{ NULL, 0 }
-};
+struct ofw_compat_data compat_data[] = { { "mrvl,gpio", 1 },
+	{ "marvell,orion-gpio", 1 }, { NULL, 0 } };
 
 static int
 mv_gpio_probe(device_t dev)
@@ -221,14 +217,17 @@ mv_gpio_setup_interrupts(struct mv_gpio_softc *sc, phandle_t node)
 	/* Find root interrupt controller */
 	iparent = ofw_bus_find_iparent(node);
 	if (iparent == 0) {
-		device_printf(sc->dev, "No interrupt-parrent found. "
-				"Error in DTB\n");
+		device_printf(sc->dev,
+		    "No interrupt-parrent found. "
+		    "Error in DTB\n");
 		return (ENXIO);
 	} else {
 		/* While at parent - store interrupt cells prop */
 		if (OF_searchencprop(OF_node_from_xref(iparent),
-		    "#interrupt-cells", &irq_cells, sizeof(irq_cells)) == -1) {
-			device_printf(sc->dev, "DTB: Missing #interrupt-cells "
+			"#interrupt-cells", &irq_cells,
+			sizeof(irq_cells)) == -1) {
+			device_printf(sc->dev,
+			    "DTB: Missing #interrupt-cells "
 			    "property in interrupt parent node\n");
 			return (ENXIO);
 		}
@@ -247,31 +246,32 @@ mv_gpio_setup_interrupts(struct mv_gpio_softc *sc, phandle_t node)
 
 	for (i = 0; i < sc->irq_num; i++) {
 		sc->irq_rid[i] = i;
-		sc->irq_res[i] = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ,
-			&sc->irq_rid[i], RF_ACTIVE);
+		sc->irq_res[i] = bus_alloc_resource_any(
+		    sc->dev, SYS_RES_IRQ, &sc->irq_rid[i], RF_ACTIVE);
 		if (!sc->irq_res[i]) {
 			mtx_destroy(&sc->mutex);
 			device_printf(sc->dev,
-			    "could not allocate gpio%d interrupt\n", i+1);
+			    "could not allocate gpio%d interrupt\n", i + 1);
 			return (ENXIO);
 		}
 	}
 
-	device_printf(sc->dev, "Disable interrupts (offset = %x + EDGE(0x18)\n", sc->offset);
+	device_printf(sc->dev, "Disable interrupts (offset = %x + EDGE(0x18)\n",
+	    sc->offset);
 	/* Disable all interrupts */
 	bus_space_write_4(sc->bst, sc->bsh, sc->offset + GPIO_INT_EDGE_MASK, 0);
-	device_printf(sc->dev, "Disable interrupts (offset = %x + LEV(0x1C))\n", sc->offset);
+	device_printf(sc->dev, "Disable interrupts (offset = %x + LEV(0x1C))\n",
+	    sc->offset);
 	bus_space_write_4(sc->bst, sc->bsh, sc->offset + GPIO_INT_LEV_MASK, 0);
 
 	for (i = 0; i < sc->irq_num; i++) {
 		device_printf(sc->dev, "Setup intr %d\n", i);
-		if (bus_setup_intr(sc->dev, sc->irq_res[i],
-		    INTR_TYPE_MISC,
-		    (driver_filter_t *)mv_gpio_intr, NULL,
-		    sc, &sc->ih_cookie[i]) != 0) {
+		if (bus_setup_intr(sc->dev, sc->irq_res[i], INTR_TYPE_MISC,
+			(driver_filter_t *)mv_gpio_intr, NULL, sc,
+			&sc->ih_cookie[i]) != 0) {
 			mtx_destroy(&sc->mutex);
 			bus_release_resource(sc->dev, SYS_RES_IRQ,
-				sc->irq_rid[i], sc->irq_res[i]);
+			    sc->irq_rid[i], sc->irq_res[i]);
 			device_printf(sc->dev, "could not set up intr %d\n", i);
 			return (ENXIO);
 		}
@@ -281,13 +281,14 @@ mv_gpio_setup_interrupts(struct mv_gpio_softc *sc, phandle_t node)
 	device_printf(sc->dev, "Clear int status (offset = %x)\n", sc->offset);
 	bus_space_write_4(sc->bst, sc->bsh, sc->offset + GPIO_INT_CAUSE, 0);
 
-	sc->debounce_callouts = (struct callout **)malloc(sc->pin_num *
-	    sizeof(struct callout *), M_DEVBUF, M_WAITOK | M_ZERO);
+	sc->debounce_callouts = (struct callout **)malloc(
+	    sc->pin_num * sizeof(struct callout *), M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 	if (sc->debounce_callouts == NULL)
 		return (ENOMEM);
 
-	sc->debounce_counters = (int *)malloc(sc->pin_num * sizeof(int),
-	    M_DEVBUF, M_WAITOK);
+	sc->debounce_counters = (int *)malloc(
+	    sc->pin_num * sizeof(int), M_DEVBUF, M_WAITOK);
 	if (sc->debounce_counters == NULL)
 		return (ENOMEM);
 
@@ -315,22 +316,24 @@ mv_gpio_attach(device_t dev)
 		if (bootverbose)
 			device_printf(dev, "%d pins available\n", sc->pin_num);
 	} else {
-		device_printf(dev, "ERROR: no pin-count or ngpios entry found!\n");
+		device_printf(
+		    dev, "ERROR: no pin-count or ngpios entry found!\n");
 		return (ENXIO);
 	}
 
-	if (OF_getencprop(node, "offset", &sc->offset, sizeof(sc->offset)) == -1)
+	if (OF_getencprop(node, "offset", &sc->offset, sizeof(sc->offset)) ==
+	    -1)
 		sc->offset = 0;
 
 	/* Assign generic capabilities to every gpio pin */
-	for(i = 0; i < sc->pin_num; i++)
+	for (i = 0; i < sc->pin_num; i++)
 		sc->gpio_setup[i].gp_caps = GPIO_GENERIC_CAP;
 
 	mtx_init(&sc->mutex, device_get_nameunit(dev), NULL, MTX_SPIN);
 
 	sc->mem_rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
-		 RF_ACTIVE | RF_SHAREABLE );
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &sc->mem_rid, RF_ACTIVE | RF_SHAREABLE);
 
 	if (!sc->mem_res) {
 		mtx_destroy(&sc->mutex);
@@ -348,8 +351,8 @@ mv_gpio_attach(device_t dev)
 	sc->sc_busdev = gpiobus_attach_bus(dev);
 	if (sc->sc_busdev == NULL) {
 		mtx_destroy(&sc->mutex);
-		bus_release_resource(dev, SYS_RES_IRQ,
-			sc->irq_rid[i], sc->irq_res[i]);
+		bus_release_resource(
+		    dev, SYS_RES_IRQ, sc->irq_rid[i], sc->irq_res[i]);
 		return (ENXIO);
 	}
 
@@ -409,8 +412,8 @@ int
 mv_gpio_setup_intrhandler(device_t dev, const char *name, driver_filter_t *filt,
     void (*hand)(void *), void *arg, int pin, int flags, void **cookiep)
 {
-	struct	intr_event *event;
-	int	error;
+	struct intr_event *event;
+	int error;
 	struct mv_gpio_pindev *s;
 	struct mv_gpio_softc *sc;
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
@@ -427,22 +430,21 @@ mv_gpio_setup_intrhandler(device_t dev, const char *name, driver_filter_t *filt,
 				MV_GPIO_UNLOCK();
 				return (error);
 			}
-		} else if (sc->gpio_setup[pin].gp_flags & MV_GPIO_IN_IRQ_DOUBLE_EDGE)
+		} else if (sc->gpio_setup[pin].gp_flags &
+		    MV_GPIO_IN_IRQ_DOUBLE_EDGE)
 			mv_gpio_double_edge_init(dev, pin);
 		MV_GPIO_UNLOCK();
 		error = intr_event_create(&event, (void *)s, 0, pin,
 		    (void (*)(void *))mv_gpio_intr_mask,
 		    (void (*)(void *))mv_gpio_intr_unmask,
-		    (void (*)(void *))mv_gpio_int_ack,
-		    NULL,
-		    "gpio%d:", pin);
+		    (void (*)(void *))mv_gpio_int_ack, NULL, "gpio%d:", pin);
 		if (error != 0)
 			return (error);
 		sc->gpio_events[pin] = event;
 	}
 
-	intr_event_add_handler(event, name, filt, hand, arg,
-	    intr_priority(flags), flags, cookiep);
+	intr_event_add_handler(
+	    event, name, filt, hand, arg, intr_priority(flags), flags, cookiep);
 	return (0);
 }
 
@@ -457,8 +459,8 @@ mv_gpio_intr_mask(struct mv_gpio_pindev *s)
 
 	MV_GPIO_LOCK();
 
-	if (sc->gpio_setup[s->pin].gp_flags & (MV_GPIO_IN_IRQ_EDGE |
-	    MV_GPIO_IN_IRQ_DOUBLE_EDGE))
+	if (sc->gpio_setup[s->pin].gp_flags &
+	    (MV_GPIO_IN_IRQ_EDGE | MV_GPIO_IN_IRQ_DOUBLE_EDGE))
 		mv_gpio_edge(s->dev, s->pin, 0);
 	else
 		mv_gpio_level(s->dev, s->pin, 0);
@@ -487,8 +489,8 @@ mv_gpio_intr_unmask(struct mv_gpio_pindev *s)
 
 	MV_GPIO_LOCK();
 
-	if (sc->gpio_setup[s->pin].gp_flags & (MV_GPIO_IN_IRQ_EDGE |
-	    MV_GPIO_IN_IRQ_DOUBLE_EDGE))
+	if (sc->gpio_setup[s->pin].gp_flags &
+	    (MV_GPIO_IN_IRQ_EDGE | MV_GPIO_IN_IRQ_DOUBLE_EDGE))
 		mv_gpio_edge(s->dev, s->pin, 1);
 	else
 		mv_gpio_level(s->dev, s->pin, 1);
@@ -513,7 +515,8 @@ mv_gpio_exec_intr_handlers(device_t dev, uint32_t status, int high)
 			pin = (high ? (i + GPIO_PINS_PER_REG) : i);
 			if (sc->gpio_setup[pin].gp_flags & MV_GPIO_IN_DEBOUNCE)
 				mv_gpio_debounce_start(dev, pin);
-			else if (sc->gpio_setup[pin].gp_flags & MV_GPIO_IN_IRQ_DOUBLE_EDGE) {
+			else if (sc->gpio_setup[pin].gp_flags &
+			    MV_GPIO_IN_IRQ_DOUBLE_EDGE) {
 				mv_gpio_polarity(dev, pin, 0, 1);
 				mv_gpio_intr_handler(dev, pin);
 			} else
@@ -650,8 +653,8 @@ mv_gpio_debounce_prepare(device_t dev, int pin)
 
 	c = sc->debounce_callouts[pin];
 	if (c == NULL) {
-		c = (struct callout *)malloc(sizeof(struct callout),
-		    M_DEVBUF, M_WAITOK);
+		c = (struct callout *)malloc(
+		    sizeof(struct callout), M_DEVBUF, M_WAITOK);
 		sc->debounce_callouts[pin] = c;
 		if (c == NULL)
 			return (ENOMEM);
@@ -691,7 +694,7 @@ static void
 mv_gpio_debounce_start(device_t dev, int pin)
 {
 	struct callout *c;
-	struct mv_gpio_pindev s = {dev, pin};
+	struct mv_gpio_pindev s = { dev, pin };
 	struct mv_gpio_pindev *sd;
 	struct mv_gpio_softc *sc;
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
@@ -709,8 +712,8 @@ mv_gpio_debounce_start(device_t dev, int pin)
 		return;
 	}
 
-	sd = (struct mv_gpio_pindev *)malloc(sizeof(struct mv_gpio_pindev),
-	    M_DEVBUF, M_WAITOK);
+	sd = (struct mv_gpio_pindev *)malloc(
+	    sizeof(struct mv_gpio_pindev), M_DEVBUF, M_WAITOK);
 	if (sd == NULL) {
 		mv_gpio_int_ack(&s);
 		return;
@@ -750,8 +753,8 @@ mv_gpio_debounce(void *arg)
 			*debounce_counter = DEBOUNCE_LO_HI_MS /
 			    DEBOUNCE_CHECK_MS;
 
-		callout_reset(sc->debounce_callouts[pin],
-		    DEBOUNCE_CHECK_TICKS, mv_gpio_debounce, arg);
+		callout_reset(sc->debounce_callouts[pin], DEBOUNCE_CHECK_TICKS,
+		    mv_gpio_debounce, arg);
 	} else {
 		*debounce_counter = *debounce_counter - 1;
 		if (*debounce_counter != 0)
@@ -767,11 +770,14 @@ mv_gpio_debounce(void *arg)
 				*debounce_counter = DEBOUNCE_LO_HI_MS /
 				    DEBOUNCE_CHECK_MS;
 
-			if (((sc->gpio_setup[pin].gp_flags & MV_GPIO_IN_POL_LOW) &&
-			    (raw_read == 0)) ||
-			    (((sc->gpio_setup[pin].gp_flags & MV_GPIO_IN_POL_LOW) == 0) &&
-			    raw_read) ||
-			    (sc->gpio_setup[pin].gp_flags & MV_GPIO_IN_IRQ_DOUBLE_EDGE))
+			if (((sc->gpio_setup[pin].gp_flags &
+				 MV_GPIO_IN_POL_LOW) &&
+				(raw_read == 0)) ||
+			    (((sc->gpio_setup[pin].gp_flags &
+				  MV_GPIO_IN_POL_LOW) == 0) &&
+				raw_read) ||
+			    (sc->gpio_setup[pin].gp_flags &
+				MV_GPIO_IN_IRQ_DOUBLE_EDGE))
 				mv_gpio_intr_handler(dev, pin);
 
 			/* Toggle polarity for next edge. */

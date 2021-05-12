@@ -28,24 +28,24 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
-
-#include <dev/acpica/acpivar.h>
+#include <machine/intr_machdep.h>
+#include <machine/nexusvar.h>
 
 #include <x86/init.h>
-#include <machine/nexusvar.h>
-#include <machine/intr_machdep.h>
-
 #include <xen/xen-os.h>
 #include <xen/xen_intr.h>
 #include <xen/xen_msi.h>
+
+#include <dev/acpica/acpivar.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 
 #include "pcib_if.h"
 
@@ -90,8 +90,8 @@ nexus_xen_attach(device_t dev)
 }
 
 static int
-nexus_xen_config_intr(device_t dev, int irq, enum intr_trigger trig,
-    enum intr_polarity pol)
+nexus_xen_config_intr(
+    device_t dev, int irq, enum intr_trigger trig, enum intr_polarity pol)
 {
 	int ret;
 
@@ -123,7 +123,8 @@ nexus_xen_release_msix(device_t pcib, device_t dev, int irq)
 }
 
 static int
-nexus_xen_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs)
+nexus_xen_alloc_msi(
+    device_t pcib, device_t dev, int count, int maxcount, int *irqs)
 {
 
 	return (xen_msi_alloc(dev, count, maxcount, irqs));
@@ -137,7 +138,8 @@ nexus_xen_release_msi(device_t pcib, device_t dev, int count, int *irqs)
 }
 
 static int
-nexus_xen_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data)
+nexus_xen_map_msi(
+    device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data)
 {
 
 	return (xen_msi_map(irq, addr, data));
@@ -145,19 +147,18 @@ nexus_xen_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t
 
 static device_method_t nexus_xen_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		nexus_xen_probe),
-	DEVMETHOD(device_attach,	nexus_xen_attach),
+	DEVMETHOD(device_probe, nexus_xen_probe),
+	DEVMETHOD(device_attach, nexus_xen_attach),
 
 	/* INTR */
-	DEVMETHOD(bus_config_intr,	nexus_xen_config_intr),
+	DEVMETHOD(bus_config_intr, nexus_xen_config_intr),
 
 	/* MSI */
-	DEVMETHOD(pcib_alloc_msi,	nexus_xen_alloc_msi),
-	DEVMETHOD(pcib_release_msi,	nexus_xen_release_msi),
-	DEVMETHOD(pcib_alloc_msix,	nexus_xen_alloc_msix),
-	DEVMETHOD(pcib_release_msix,	nexus_xen_release_msix),
-	DEVMETHOD(pcib_map_msi,		nexus_xen_map_msi),
-	{ 0, 0 }
+	DEVMETHOD(pcib_alloc_msi, nexus_xen_alloc_msi),
+	DEVMETHOD(pcib_release_msi, nexus_xen_release_msi),
+	DEVMETHOD(pcib_alloc_msix, nexus_xen_alloc_msix),
+	DEVMETHOD(pcib_release_msix, nexus_xen_release_msix),
+	DEVMETHOD(pcib_map_msi, nexus_xen_map_msi), { 0, 0 }
 };
 
 DEFINE_CLASS_1(nexus, nexus_xen_driver, nexus_xen_methods, 1, nexus_driver);

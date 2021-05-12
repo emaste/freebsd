@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -37,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
-#include <sys/systm.h>
 #include <sys/uio.h>
 
 #include <security/audit/audit.h>
@@ -52,8 +52,8 @@ __FBSDID("$FreeBSD$");
  * Currently, select/poll are not supported on the trigger device.
  */
 struct trigger_info {
-	unsigned int			trigger;
-	TAILQ_ENTRY(trigger_info)	list;
+	unsigned int trigger;
+	TAILQ_ENTRY(trigger_info) list;
 };
 
 static MALLOC_DEFINE(M_AUDITTRIGGER, "audit_trigger", "Audit trigger events");
@@ -150,14 +150,12 @@ audit_send_trigger(unsigned int trigger)
 	return (0);
 }
 
-static struct cdevsw audit_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	audit_open,
-	.d_close =	audit_close,
-	.d_read =	audit_read,
-	.d_write =	audit_write,
-	.d_name =	"audit"
-};
+static struct cdevsw audit_cdevsw = { .d_version = D_VERSION,
+	.d_open = audit_open,
+	.d_close = audit_close,
+	.d_read = audit_read,
+	.d_write = audit_write,
+	.d_name = "audit" };
 
 void
 audit_trigger_init(void)
@@ -172,8 +170,8 @@ audit_trigger_cdev_init(void *unused)
 {
 
 	/* Create the special device file. */
-	audit_dev = make_dev(&audit_cdevsw, 0, UID_ROOT, GID_KMEM, 0600,
-	    AUDITDEV_FILENAME);
+	audit_dev = make_dev(
+	    &audit_cdevsw, 0, UID_ROOT, GID_KMEM, 0600, AUDITDEV_FILENAME);
 }
 
 SYSINIT(audit_trigger_cdev_init, SI_SUB_DRIVERS, SI_ORDER_MIDDLE,

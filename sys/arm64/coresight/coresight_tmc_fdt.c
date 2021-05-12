@@ -35,9 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -48,10 +49,8 @@ __FBSDID("$FreeBSD$");
 
 #include "coresight_if.h"
 
-static struct ofw_compat_data compat_data[] = {
-	{ "arm,coresight-tmc",			1 },
-	{ NULL,					0 }
-};
+static struct ofw_compat_data compat_data[] = { { "arm,coresight-tmc", 1 },
+	{ NULL, 0 } };
 
 static int
 tmc_fdt_probe(device_t dev)
@@ -80,15 +79,14 @@ tmc_fdt_attach(device_t dev)
 
 static device_method_t tmc_fdt_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		tmc_fdt_probe),
-	DEVMETHOD(device_attach,	tmc_fdt_attach),
-	DEVMETHOD_END
+	DEVMETHOD(device_probe, tmc_fdt_probe),
+	DEVMETHOD(device_attach, tmc_fdt_attach), DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(tmc, tmc_fdt_driver, tmc_fdt_methods,
-    sizeof(struct tmc_softc), tmc_driver);
+DEFINE_CLASS_1(
+    tmc, tmc_fdt_driver, tmc_fdt_methods, sizeof(struct tmc_softc), tmc_driver);
 
 static devclass_t tmc_fdt_devclass;
 
-EARLY_DRIVER_MODULE(tmc, simplebus, tmc_fdt_driver, tmc_fdt_devclass,
-    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(tmc, simplebus, tmc_fdt_driver, tmc_fdt_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

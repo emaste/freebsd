@@ -37,14 +37,14 @@
 #define OUI_FREEBSD_BASE 0x589cfc000000
 #define OUI_FREEBSD(nic) (OUI_FREEBSD_BASE | (nic))
 
-/* 
+/*
  * OUIs are most often used to uniquely identify network interfaces
  * and occupy the first 3 bytes of both destination and source MAC
  * addresses.  The following allocations exist so that various
  * software systems associated with FreeBSD can have unique IDs in the
  * absence of hardware.  The use of OUIs for this purpose is not fully
  * fleshed out but is now in common use in virtualization technology.
- * 
+ *
  * Allocations from this range are expected to be made using COMMON
  * SENSE by developers.  Do NOT take a large range just because
  * they're currently wide open.  Take the smallest useful range for
@@ -53,7 +53,7 @@
  *
  * In the event of a conflict arbitration of allocation in this file
  * is subject to core@ approval.
- * 
+ *
  * Applications are differentiated based on the high order bit(s) of
  * the remaining three bytes.  Our first allocation has all 0s, the
  * next allocation has the highest bit set.  Allocating in this way
@@ -65,8 +65,8 @@
  */
 
 /* Allocate 20 bits to bhyve */
-#define OUI_FREEBSD_BHYVE_LOW	OUI_FREEBSD(0x000001)
-#define OUI_FREEBSD_BHYVE_HIGH	OUI_FREEBSD(0x0fffff)
+#define OUI_FREEBSD_BHYVE_LOW OUI_FREEBSD(0x000001)
+#define OUI_FREEBSD_BHYVE_HIGH OUI_FREEBSD(0x0fffff)
 
 /*
  * Allocate 16 bits for a pool to give to various interfaces that need a
@@ -75,11 +75,11 @@
  *
  * ether_gen_addr should be used to generate an address from this pool.
  */
-#define	OUI_FREEBSD_GENERATED_MASK	0x10ffff
-#define	OUI_FREEBSD_GENERATED_LOW	OUI_FREEBSD(0x100000)
-#define	OUI_FREEBSD_GENERATED_HIGH	OUI_FREEBSD(OUI_FREEBSD_GENERATED_MASK)
+#define OUI_FREEBSD_GENERATED_MASK 0x10ffff
+#define OUI_FREEBSD_GENERATED_LOW OUI_FREEBSD(0x100000)
+#define OUI_FREEBSD_GENERATED_HIGH OUI_FREEBSD(OUI_FREEBSD_GENERATED_MASK)
 
 /* Allocate 16 bits for emulated NVMe devices */
-#define OUI_FREEBSD_NVME_MASK		0x20ffff
-#define OUI_FREEBSD_NVME_LOW		OUI_FREEBSD(0x200000)
-#define OUI_FREEBSD_NVME_HIGH		OUI_FREEBSD(OUI_FREEBSD_NVME_MASK)
+#define OUI_FREEBSD_NVME_MASK 0x20ffff
+#define OUI_FREEBSD_NVME_LOW OUI_FREEBSD(0x200000)
+#define OUI_FREEBSD_NVME_HIGH OUI_FREEBSD(OUI_FREEBSD_NVME_MASK)

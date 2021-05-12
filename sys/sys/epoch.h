@@ -31,15 +31,16 @@
 #define _SYS_EPOCH_H_
 
 struct epoch_context {
-	void   *data[2];
+	void *data[2];
 } __aligned(sizeof(void *));
 
 typedef struct epoch_context *epoch_context_t;
-typedef	void epoch_callback_t(epoch_context_t);
+typedef void epoch_callback_t(epoch_context_t);
 
 #ifdef _KERNEL
 #include <sys/lock.h>
 #include <sys/pcpu.h>
+
 #include <ck_epoch.h>
 
 struct epoch;
@@ -61,35 +62,37 @@ struct epoch_tracker {
 	const char *et_file;
 	int et_line;
 #endif
-}  __aligned(sizeof(void *));
+} __aligned(sizeof(void *));
 typedef struct epoch_tracker *epoch_tracker_t;
 
-epoch_t	epoch_alloc(const char *name, int flags);
-void	epoch_free(epoch_t epoch);
-void	epoch_wait(epoch_t epoch);
-void	epoch_wait_preempt(epoch_t epoch);
-void	epoch_drain_callbacks(epoch_t epoch);
-void	epoch_call(epoch_t epoch, epoch_callback_t cb, epoch_context_t ctx);
-int	in_epoch(epoch_t epoch);
+epoch_t epoch_alloc(const char *name, int flags);
+void epoch_free(epoch_t epoch);
+void epoch_wait(epoch_t epoch);
+void epoch_wait_preempt(epoch_t epoch);
+void epoch_drain_callbacks(epoch_t epoch);
+void epoch_call(epoch_t epoch, epoch_callback_t cb, epoch_context_t ctx);
+int in_epoch(epoch_t epoch);
 int in_epoch_verbose(epoch_t epoch, int dump_onfail);
 DPCPU_DECLARE(int, epoch_cb_count);
 DPCPU_DECLARE(struct grouptask, epoch_cb_task);
 
 #ifdef EPOCH_TRACE
-#define	EPOCH_FILE_LINE	, const char *file, int line
+#define EPOCH_FILE_LINE , const char *file, int line
 #else
-#define	EPOCH_FILE_LINE
+#define EPOCH_FILE_LINE
 #endif
 
 void _epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE);
 void _epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE);
 #ifdef EPOCH_TRACE
 void epoch_trace_list(struct thread *);
-#define	epoch_enter_preempt(epoch, et)	_epoch_enter_preempt(epoch, et, __FILE__, __LINE__)
-#define	epoch_exit_preempt(epoch, et)	_epoch_exit_preempt(epoch, et, __FILE__, __LINE__)
+#define epoch_enter_preempt(epoch, et) \
+	_epoch_enter_preempt(epoch, et, __FILE__, __LINE__)
+#define epoch_exit_preempt(epoch, et) \
+	_epoch_exit_preempt(epoch, et, __FILE__, __LINE__)
 #else
-#define epoch_enter_preempt(epoch, et)	_epoch_enter_preempt(epoch, et)
-#define	epoch_exit_preempt(epoch, et)	_epoch_exit_preempt(epoch, et)
+#define epoch_enter_preempt(epoch, et) _epoch_enter_preempt(epoch, et)
+#define epoch_exit_preempt(epoch, et) _epoch_exit_preempt(epoch, et)
 #endif
 void epoch_enter(epoch_t epoch);
 void epoch_exit(epoch_t epoch);
@@ -99,14 +102,14 @@ void epoch_exit(epoch_t epoch);
  */
 /* Network preemptible epoch, declared in sys/net/if.c. */
 extern epoch_t net_epoch_preempt;
-#define	NET_EPOCH_ENTER(et)	epoch_enter_preempt(net_epoch_preempt, &(et))
-#define	NET_EPOCH_EXIT(et)	epoch_exit_preempt(net_epoch_preempt, &(et))
-#define	NET_EPOCH_WAIT()	epoch_wait_preempt(net_epoch_preempt)
-#define	NET_EPOCH_CALL(f, c)	epoch_call(net_epoch_preempt, (f), (c))
-#define	NET_EPOCH_ASSERT()	MPASS(in_epoch(net_epoch_preempt))
-#define	NET_TASK_INIT(t, p, f, c) TASK_INIT_FLAGS(t, p, f, c, TASK_NETWORK)
-#define	NET_GROUPTASK_INIT(gtask, prio, func, ctx)			\
-	    GTASK_INIT(&(gtask)->gt_task, TASK_NETWORK, (prio), (func), (ctx))
+#define NET_EPOCH_ENTER(et) epoch_enter_preempt(net_epoch_preempt, &(et))
+#define NET_EPOCH_EXIT(et) epoch_exit_preempt(net_epoch_preempt, &(et))
+#define NET_EPOCH_WAIT() epoch_wait_preempt(net_epoch_preempt)
+#define NET_EPOCH_CALL(f, c) epoch_call(net_epoch_preempt, (f), (c))
+#define NET_EPOCH_ASSERT() MPASS(in_epoch(net_epoch_preempt))
+#define NET_TASK_INIT(t, p, f, c) TASK_INIT_FLAGS(t, p, f, c, TASK_NETWORK)
+#define NET_GROUPTASK_INIT(gtask, prio, func, ctx) \
+	GTASK_INIT(&(gtask)->gt_task, TASK_NETWORK, (prio), (func), (ctx))
 
-#endif	/* _KERNEL */
-#endif	/* _SYS_EPOCH_H_ */
+#endif /* _KERNEL */
+#endif /* _SYS_EPOCH_H_ */

@@ -77,18 +77,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bitstring.h>
 #include <sys/counter.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
-#include <sys/bitstring.h>
 
 #include <net/vnet.h>
-
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -100,8 +99,8 @@ __FBSDID("$FreeBSD$");
  */
 VNET_DEFINE_STATIC(int, ip_rfc6864) = 1;
 VNET_DEFINE_STATIC(int, ip_do_randomid) = 0;
-#define	V_ip_rfc6864		VNET(ip_rfc6864)
-#define	V_ip_do_randomid	VNET(ip_do_randomid)
+#define V_ip_rfc6864 VNET(ip_rfc6864)
+#define V_ip_do_randomid VNET(ip_do_randomid)
 
 /*
  * Random ID state engine.
@@ -114,26 +113,26 @@ VNET_DEFINE_STATIC(int, array_size);
 VNET_DEFINE_STATIC(int, random_id_collisions);
 VNET_DEFINE_STATIC(int, random_id_total);
 VNET_DEFINE_STATIC(struct mtx, ip_id_mtx);
-#define	V_id_array	VNET(id_array)
-#define	V_id_bits	VNET(id_bits)
-#define	V_array_ptr	VNET(array_ptr)
-#define	V_array_size	VNET(array_size)
-#define	V_random_id_collisions	VNET(random_id_collisions)
-#define	V_random_id_total	VNET(random_id_total)
-#define	V_ip_id_mtx	VNET(ip_id_mtx)
+#define V_id_array VNET(id_array)
+#define V_id_bits VNET(id_bits)
+#define V_array_ptr VNET(array_ptr)
+#define V_array_size VNET(array_size)
+#define V_random_id_collisions VNET(random_id_collisions)
+#define V_random_id_total VNET(random_id_total)
+#define V_ip_id_mtx VNET(ip_id_mtx)
 
 /*
  * Non-random ID state engine is simply a per-cpu counter.
  */
 VNET_DEFINE_STATIC(counter_u64_t, ip_id);
-#define	V_ip_id		VNET(ip_id)
+#define V_ip_id VNET(ip_id)
 
-static int	sysctl_ip_randomid(SYSCTL_HANDLER_ARGS);
-static int	sysctl_ip_id_change(SYSCTL_HANDLER_ARGS);
-static void	ip_initid(int);
+static int sysctl_ip_randomid(SYSCTL_HANDLER_ARGS);
+static int sysctl_ip_id_change(SYSCTL_HANDLER_ARGS);
+static void ip_initid(int);
 static uint16_t ip_randomid(void);
-static void	ipid_sysinit(void);
-static void	ipid_sysuninit(void);
+static void ipid_sysinit(void);
+static void ipid_sysuninit(void);
 
 SYSCTL_DECL(_net_inet_ip);
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, random_id,
@@ -141,19 +140,17 @@ SYSCTL_PROC(_net_inet_ip, OID_AUTO, random_id,
     &VNET_NAME(ip_do_randomid), 0, sysctl_ip_randomid, "IU",
     "Assign random ip_id values");
 SYSCTL_INT(_net_inet_ip, OID_AUTO, rfc6864, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(ip_rfc6864), 0,
-    "Use constant IP ID for atomic datagrams");
+    &VNET_NAME(ip_rfc6864), 0, "Use constant IP ID for atomic datagrams");
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, random_id_period,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_VNET | CTLFLAG_MPSAFE,
     &VNET_NAME(array_size), 0, sysctl_ip_id_change, "IU", "IP ID Array size");
 SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id_collisions,
-    CTLFLAG_RD | CTLFLAG_VNET,
-    &VNET_NAME(random_id_collisions), 0, "Count of IP ID collisions");
+    CTLFLAG_RD | CTLFLAG_VNET, &VNET_NAME(random_id_collisions), 0,
+    "Count of IP ID collisions");
 SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id_total, CTLFLAG_RD | CTLFLAG_VNET,
     &VNET_NAME(random_id_total), 0, "Count of IP IDs created");
 
-static int
-sysctl_ip_randomid(SYSCTL_HANDLER_ARGS)
+static int sysctl_ip_randomid(SYSCTL_HANDLER_ARGS)
 {
 	int error, new;
 
@@ -172,8 +169,7 @@ sysctl_ip_randomid(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-sysctl_ip_id_change(SYSCTL_HANDLER_ARGS)
+static int sysctl_ip_id_change(SYSCTL_HANDLER_ARGS)
 {
 	int error, new;
 
@@ -194,8 +190,8 @@ ip_initid(int new_size)
 	uint16_t *new_array;
 	bitstr_t *new_bits;
 
-	new_array = malloc(new_size * sizeof(uint16_t), M_IPID,
-	    M_WAITOK | M_ZERO);
+	new_array = malloc(
+	    new_size * sizeof(uint16_t), M_IPID, M_WAITOK | M_ZERO);
 	new_bits = malloc(bitstr_size(65536), M_IPID, M_WAITOK | M_ZERO);
 
 	mtx_lock(&V_ip_id_mtx);
@@ -281,7 +277,7 @@ ipid_sysinit(void)
 	mtx_init(&V_ip_id_mtx, "ip_id_mtx", NULL, MTX_DEF);
 	V_ip_id = counter_u64_alloc(M_WAITOK);
 
-	CPU_FOREACH(i)
+	CPU_FOREACH (i)
 		arc4rand(zpcpu_get_cpu(V_ip_id, i), sizeof(uint64_t), 0);
 }
 VNET_SYSINIT(ip_id, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, ipid_sysinit, NULL);
@@ -297,4 +293,5 @@ ipid_sysuninit(void)
 	counter_u64_free(V_ip_id);
 	mtx_destroy(&V_ip_id_mtx);
 }
-VNET_SYSUNINIT(ip_id, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ipid_sysuninit, NULL);
+VNET_SYSUNINIT(
+    ip_id, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ipid_sysuninit, NULL);

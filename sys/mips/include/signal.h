@@ -39,7 +39,7 @@
  */
 
 #ifndef _MACHINE_SIGNAL_H_
-#define	_MACHINE_SIGNAL_H_
+#define _MACHINE_SIGNAL_H_
 
 #include <sys/cdefs.h>
 #include <sys/_sigset.h>
@@ -59,26 +59,26 @@ typedef int sig_atomic_t;
  * a non-standard exit is performed.
  */
 
-struct	sigcontext {
+struct sigcontext {
 	/*
 	 * The fields following 'sc_mask' must match the definition
 	 * of struct __mcontext. That way we can support
 	 * struct sigcontext and ucontext_t at the same
 	 * time.
 	 */
-	__sigset_t	sc_mask;	/* signal mask to restore */
-	int		sc_onstack;	/* sigstack state to restore */
-	__register_t	sc_pc;		/* pc at time of signal */
-	__register_t	sc_regs[32];	/* processor regs 0 to 31 */
-	__register_t	sr;		/* status register */
-	__register_t	mullo, mulhi;	/* mullo and mulhi registers... */
-	int		sc_fpused;	/* fp has been used */
-	f_register_t	sc_fpregs[33];	/* fp regs 0 to 31 and csr */
-	__register_t	sc_fpc_eir;	/* fp exception instruction reg */
-	void		*sc_tls;	/* pointer to TLS area */
-	int		__spare__[8];	/* XXX reserved */ 
+	__sigset_t sc_mask;	    /* signal mask to restore */
+	int sc_onstack;		    /* sigstack state to restore */
+	__register_t sc_pc;	    /* pc at time of signal */
+	__register_t sc_regs[32];   /* processor regs 0 to 31 */
+	__register_t sr;	    /* status register */
+	__register_t mullo, mulhi;  /* mullo and mulhi registers... */
+	int sc_fpused;		    /* fp has been used */
+	f_register_t sc_fpregs[33]; /* fp regs 0 to 31 and csr */
+	__register_t sc_fpc_eir;    /* fp exception instruction reg */
+	void *sc_tls;		    /* pointer to TLS area */
+	int __spare__[8];	    /* XXX reserved */
 };
 
 #endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
 
-#endif	/* !_MACHINE_SIGNAL_H_ */
+#endif /* !_MACHINE_SIGNAL_H_ */

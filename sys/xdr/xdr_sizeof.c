@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -92,18 +92,19 @@ x_inline(XDR *xdrs, u_int len)
 	if (len < (u_int)(uintptr_t)xdrs->x_base) {
 		/* x_private was already allocated */
 		xdrs->x_handy += len;
-		return ((int32_t *) xdrs->x_private);
+		return ((int32_t *)xdrs->x_private);
 	} else {
 		/* Free the earlier space and allocate new area */
 		if (xdrs->x_private)
 			free(xdrs->x_private, M_RPC);
-		if ((xdrs->x_private = (caddr_t) malloc(len, M_RPC, M_WAITOK)) == NULL) {
+		if ((xdrs->x_private = (caddr_t)malloc(len, M_RPC, M_WAITOK)) ==
+		    NULL) {
 			xdrs->x_base = 0;
 			return (NULL);
 		}
-		xdrs->x_base = (caddr_t)(uintptr_t) len;
+		xdrs->x_base = (caddr_t)(uintptr_t)len;
 		xdrs->x_handy += len;
-		return ((int32_t *) xdrs->x_private);
+		return ((int32_t *)xdrs->x_private);
 	}
 }
 
@@ -135,8 +136,8 @@ xdr_sizeof(xdrproc_t func, void *data)
 	struct xdr_ops ops;
 	bool_t stat;
 	/* to stop ANSI-C compiler from complaining */
-	typedef  bool_t (* dummyfunc1)(XDR *, long *);
-	typedef  bool_t (* dummyfunc2)(XDR *, caddr_t, u_int);
+	typedef bool_t (*dummyfunc1)(XDR *, long *);
+	typedef bool_t (*dummyfunc2)(XDR *, caddr_t, u_int);
 
 	ops.x_putlong = x_putlong;
 	ops.x_putbytes = x_putbytes;
@@ -146,17 +147,17 @@ xdr_sizeof(xdrproc_t func, void *data)
 	ops.x_destroy = x_destroy;
 
 	/* the other harmless ones */
-	ops.x_getlong =  (dummyfunc1) harmless;
-	ops.x_getbytes = (dummyfunc2) harmless;
+	ops.x_getlong = (dummyfunc1)harmless;
+	ops.x_getbytes = (dummyfunc2)harmless;
 
 	x.x_op = XDR_ENCODE;
 	x.x_ops = &ops;
 	x.x_handy = 0;
-	x.x_private = (caddr_t) NULL;
-	x.x_base = (caddr_t) 0;
+	x.x_private = (caddr_t)NULL;
+	x.x_base = (caddr_t)0;
 
 	stat = func(&x, data);
 	if (x.x_private)
 		free(x.x_private, M_RPC);
-	return (stat == TRUE ? (unsigned) x.x_handy: 0);
+	return (stat == TRUE ? (unsigned)x.x_handy : 0);
 }

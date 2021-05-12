@@ -32,8 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sx.h>
 
@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_AS3722_REG, "AS3722 regulator", "AS3722 power regulator");
 
-#define	DIV_ROUND_UP(n,d) howmany(n, d)
+#define DIV_ROUND_UP(n, d) howmany(n, d)
 
 enum as3722_reg_id {
 	AS3722_REG_ID_SD0,
@@ -73,316 +73,316 @@ enum as3722_reg_id {
 
 /* Regulator HW definition. */
 struct reg_def {
-	intptr_t		id;		/* ID */
-	char			*name;		/* Regulator name */
-	char			*supply_name;	/* Source property name */
-	uint8_t			volt_reg;
-	uint8_t			volt_vsel_mask;
-	uint8_t			enable_reg;
-	uint8_t			enable_mask;
-	uint8_t			ext_enable_reg;
-	uint8_t			ext_enable_mask;
-	struct regulator_range	*ranges;
-	int			nranges;
+	intptr_t id;	   /* ID */
+	char *name;	   /* Regulator name */
+	char *supply_name; /* Source property name */
+	uint8_t volt_reg;
+	uint8_t volt_vsel_mask;
+	uint8_t enable_reg;
+	uint8_t enable_mask;
+	uint8_t ext_enable_reg;
+	uint8_t ext_enable_mask;
+	struct regulator_range *ranges;
+	int nranges;
 };
 
 struct as3722_reg_sc {
-	struct regnode		*regnode;
-	struct as3722_softc	*base_sc;
-	struct reg_def		*def;
-	phandle_t		xref;
+	struct regnode *regnode;
+	struct as3722_softc *base_sc;
+	struct reg_def *def;
+	phandle_t xref;
 
 	struct regnode_std_param *param;
-	int 			ext_control;
-	int	 		enable_tracking;
+	int ext_control;
+	int enable_tracking;
 
-	int			enable_usec;
+	int enable_usec;
 };
 
 static struct regulator_range as3722_sd016_ranges[] = {
-	REG_RANGE_INIT(0x00, 0x00,       0,     0),
-	REG_RANGE_INIT(0x01, 0x5A,  610000, 10000),
+	REG_RANGE_INIT(0x00, 0x00, 0, 0),
+	REG_RANGE_INIT(0x01, 0x5A, 610000, 10000),
 };
 
 static struct regulator_range as3722_sd0_lv_ranges[] = {
-	REG_RANGE_INIT(0x00, 0x00,       0,     0),
-	REG_RANGE_INIT(0x01, 0x6E,  410000, 10000),
+	REG_RANGE_INIT(0x00, 0x00, 0, 0),
+	REG_RANGE_INIT(0x01, 0x6E, 410000, 10000),
 };
 
 static struct regulator_range as3722_sd_ranges[] = {
-	REG_RANGE_INIT(0x00, 0x00,       0,     0),
-	REG_RANGE_INIT(0x01, 0x40,  612500, 12500),
+	REG_RANGE_INIT(0x00, 0x00, 0, 0),
+	REG_RANGE_INIT(0x01, 0x40, 612500, 12500),
 	REG_RANGE_INIT(0x41, 0x70, 1425000, 25000),
 	REG_RANGE_INIT(0x71, 0x7F, 2650000, 50000),
 };
 
 static struct regulator_range as3722_ldo3_ranges[] = {
-	REG_RANGE_INIT(0x00, 0x00,       0,     0),
-	REG_RANGE_INIT(0x01, 0x2D,  620000, 20000),
+	REG_RANGE_INIT(0x00, 0x00, 0, 0),
+	REG_RANGE_INIT(0x01, 0x2D, 620000, 20000),
 };
 
 static struct regulator_range as3722_ldo_ranges[] = {
-	REG_RANGE_INIT(0x00, 0x00,       0,     0),
-	REG_RANGE_INIT(0x01, 0x24,  825000, 25000),
+	REG_RANGE_INIT(0x00, 0x00, 0, 0),
+	REG_RANGE_INIT(0x01, 0x24, 825000, 25000),
 	REG_RANGE_INIT(0x40, 0x7F, 1725000, 25000),
 };
 
 static struct reg_def as3722s_def[] = {
 	{
-		.id = AS3722_REG_ID_SD0,
-		.name = "sd0",
-		.volt_reg = AS3722_SD0_VOLTAGE,
-		.volt_vsel_mask = AS3722_SD_VSEL_MASK,
-		.enable_reg = AS3722_SD_CONTROL,
-		.enable_mask = AS3722_SDN_CTRL(0),
-		.ext_enable_reg = AS3722_ENABLE_CTRL1,
-		.ext_enable_mask = AS3722_SD0_EXT_ENABLE_MASK,
-		.ranges = as3722_sd016_ranges,
-		.nranges = nitems(as3722_sd016_ranges),
+	    .id = AS3722_REG_ID_SD0,
+	    .name = "sd0",
+	    .volt_reg = AS3722_SD0_VOLTAGE,
+	    .volt_vsel_mask = AS3722_SD_VSEL_MASK,
+	    .enable_reg = AS3722_SD_CONTROL,
+	    .enable_mask = AS3722_SDN_CTRL(0),
+	    .ext_enable_reg = AS3722_ENABLE_CTRL1,
+	    .ext_enable_mask = AS3722_SD0_EXT_ENABLE_MASK,
+	    .ranges = as3722_sd016_ranges,
+	    .nranges = nitems(as3722_sd016_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_SD1,
-		.name = "sd1",
-		.volt_reg = AS3722_SD1_VOLTAGE,
-		.volt_vsel_mask = AS3722_SD_VSEL_MASK,
-		.enable_reg = AS3722_SD_CONTROL,
-		.enable_mask = AS3722_SDN_CTRL(1),
-		.ext_enable_reg = AS3722_ENABLE_CTRL1,
-		.ext_enable_mask = AS3722_SD1_EXT_ENABLE_MASK,
-		.ranges = as3722_sd_ranges,
-		.nranges = nitems(as3722_sd_ranges),
+	    .id = AS3722_REG_ID_SD1,
+	    .name = "sd1",
+	    .volt_reg = AS3722_SD1_VOLTAGE,
+	    .volt_vsel_mask = AS3722_SD_VSEL_MASK,
+	    .enable_reg = AS3722_SD_CONTROL,
+	    .enable_mask = AS3722_SDN_CTRL(1),
+	    .ext_enable_reg = AS3722_ENABLE_CTRL1,
+	    .ext_enable_mask = AS3722_SD1_EXT_ENABLE_MASK,
+	    .ranges = as3722_sd_ranges,
+	    .nranges = nitems(as3722_sd_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_SD2,
-		.name = "sd2",
-		.supply_name = "vsup-sd2",
-		.volt_reg = AS3722_SD2_VOLTAGE,
-		.volt_vsel_mask = AS3722_SD_VSEL_MASK,
-		.enable_reg = AS3722_SD_CONTROL,
-		.enable_mask = AS3722_SDN_CTRL(2),
-		.ext_enable_reg = AS3722_ENABLE_CTRL1,
-		.ext_enable_mask = AS3722_SD2_EXT_ENABLE_MASK,
-		.ranges = as3722_sd_ranges,
-		.nranges = nitems(as3722_sd_ranges),
+	    .id = AS3722_REG_ID_SD2,
+	    .name = "sd2",
+	    .supply_name = "vsup-sd2",
+	    .volt_reg = AS3722_SD2_VOLTAGE,
+	    .volt_vsel_mask = AS3722_SD_VSEL_MASK,
+	    .enable_reg = AS3722_SD_CONTROL,
+	    .enable_mask = AS3722_SDN_CTRL(2),
+	    .ext_enable_reg = AS3722_ENABLE_CTRL1,
+	    .ext_enable_mask = AS3722_SD2_EXT_ENABLE_MASK,
+	    .ranges = as3722_sd_ranges,
+	    .nranges = nitems(as3722_sd_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_SD3,
-		.name = "sd3",
-		.supply_name = "vsup-sd3",
-		.volt_reg = AS3722_SD3_VOLTAGE,
-		.volt_vsel_mask = AS3722_SD_VSEL_MASK,
-		.enable_reg = AS3722_SD_CONTROL,
-		.enable_mask = AS3722_SDN_CTRL(3),
-		.ext_enable_reg = AS3722_ENABLE_CTRL1,
-		.ext_enable_mask = AS3722_SD3_EXT_ENABLE_MASK,
-		.ranges = as3722_sd_ranges,
-		.nranges = nitems(as3722_sd_ranges),
+	    .id = AS3722_REG_ID_SD3,
+	    .name = "sd3",
+	    .supply_name = "vsup-sd3",
+	    .volt_reg = AS3722_SD3_VOLTAGE,
+	    .volt_vsel_mask = AS3722_SD_VSEL_MASK,
+	    .enable_reg = AS3722_SD_CONTROL,
+	    .enable_mask = AS3722_SDN_CTRL(3),
+	    .ext_enable_reg = AS3722_ENABLE_CTRL1,
+	    .ext_enable_mask = AS3722_SD3_EXT_ENABLE_MASK,
+	    .ranges = as3722_sd_ranges,
+	    .nranges = nitems(as3722_sd_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_SD4,
-		.name = "sd4",
-		.supply_name = "vsup-sd4",
-		.volt_reg = AS3722_SD4_VOLTAGE,
-		.volt_vsel_mask = AS3722_SD_VSEL_MASK,
-		.enable_reg = AS3722_SD_CONTROL,
-		.enable_mask = AS3722_SDN_CTRL(4),
-		.ext_enable_reg = AS3722_ENABLE_CTRL2,
-		.ext_enable_mask = AS3722_SD4_EXT_ENABLE_MASK,
-		.ranges = as3722_sd_ranges,
-		.nranges = nitems(as3722_sd_ranges),
+	    .id = AS3722_REG_ID_SD4,
+	    .name = "sd4",
+	    .supply_name = "vsup-sd4",
+	    .volt_reg = AS3722_SD4_VOLTAGE,
+	    .volt_vsel_mask = AS3722_SD_VSEL_MASK,
+	    .enable_reg = AS3722_SD_CONTROL,
+	    .enable_mask = AS3722_SDN_CTRL(4),
+	    .ext_enable_reg = AS3722_ENABLE_CTRL2,
+	    .ext_enable_mask = AS3722_SD4_EXT_ENABLE_MASK,
+	    .ranges = as3722_sd_ranges,
+	    .nranges = nitems(as3722_sd_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_SD5,
-		.name = "sd5",
-		.supply_name = "vsup-sd5",
-		.volt_reg = AS3722_SD5_VOLTAGE,
-		.volt_vsel_mask = AS3722_SD_VSEL_MASK,
-		.enable_reg = AS3722_SD_CONTROL,
-		.enable_mask = AS3722_SDN_CTRL(5),
-		.ext_enable_reg = AS3722_ENABLE_CTRL2,
-		.ext_enable_mask = AS3722_SD5_EXT_ENABLE_MASK,
-		.ranges = as3722_sd_ranges,
-		.nranges = nitems(as3722_sd_ranges),
+	    .id = AS3722_REG_ID_SD5,
+	    .name = "sd5",
+	    .supply_name = "vsup-sd5",
+	    .volt_reg = AS3722_SD5_VOLTAGE,
+	    .volt_vsel_mask = AS3722_SD_VSEL_MASK,
+	    .enable_reg = AS3722_SD_CONTROL,
+	    .enable_mask = AS3722_SDN_CTRL(5),
+	    .ext_enable_reg = AS3722_ENABLE_CTRL2,
+	    .ext_enable_mask = AS3722_SD5_EXT_ENABLE_MASK,
+	    .ranges = as3722_sd_ranges,
+	    .nranges = nitems(as3722_sd_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_SD6,
-		.name = "sd6",
-		.volt_reg = AS3722_SD6_VOLTAGE,
-		.volt_vsel_mask = AS3722_SD_VSEL_MASK,
-		.enable_reg = AS3722_SD_CONTROL,
-		.enable_mask = AS3722_SDN_CTRL(6),
-		.ext_enable_reg = AS3722_ENABLE_CTRL2,
-		.ext_enable_mask = AS3722_SD6_EXT_ENABLE_MASK,
-		.ranges = as3722_sd016_ranges,
-		.nranges = nitems(as3722_sd016_ranges),
+	    .id = AS3722_REG_ID_SD6,
+	    .name = "sd6",
+	    .volt_reg = AS3722_SD6_VOLTAGE,
+	    .volt_vsel_mask = AS3722_SD_VSEL_MASK,
+	    .enable_reg = AS3722_SD_CONTROL,
+	    .enable_mask = AS3722_SDN_CTRL(6),
+	    .ext_enable_reg = AS3722_ENABLE_CTRL2,
+	    .ext_enable_mask = AS3722_SD6_EXT_ENABLE_MASK,
+	    .ranges = as3722_sd016_ranges,
+	    .nranges = nitems(as3722_sd016_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_LDO0,
-		.name = "ldo0",
-		.supply_name = "vin-ldo0",
-		.volt_reg = AS3722_LDO0_VOLTAGE,
-		.volt_vsel_mask = AS3722_LDO0_VSEL_MASK,
-		.enable_reg = AS3722_LDO_CONTROL0,
-		.enable_mask = AS3722_LDO0_CTRL,
-		.ext_enable_reg = AS3722_ENABLE_CTRL3,
-		.ext_enable_mask = AS3722_LDO0_EXT_ENABLE_MASK,
-		.ranges = as3722_ldo_ranges,
-		.nranges = nitems(as3722_ldo_ranges),
+	    .id = AS3722_REG_ID_LDO0,
+	    .name = "ldo0",
+	    .supply_name = "vin-ldo0",
+	    .volt_reg = AS3722_LDO0_VOLTAGE,
+	    .volt_vsel_mask = AS3722_LDO0_VSEL_MASK,
+	    .enable_reg = AS3722_LDO_CONTROL0,
+	    .enable_mask = AS3722_LDO0_CTRL,
+	    .ext_enable_reg = AS3722_ENABLE_CTRL3,
+	    .ext_enable_mask = AS3722_LDO0_EXT_ENABLE_MASK,
+	    .ranges = as3722_ldo_ranges,
+	    .nranges = nitems(as3722_ldo_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_LDO1,
-		.name = "ldo1",
-		.supply_name = "vin-ldo1-6",
-		.volt_reg = AS3722_LDO1_VOLTAGE,
-		.volt_vsel_mask = AS3722_LDO_VSEL_MASK,
-		.enable_reg = AS3722_LDO_CONTROL0,
-		.enable_mask = AS3722_LDO1_CTRL,
-		.ext_enable_reg = AS3722_ENABLE_CTRL3,
-		.ext_enable_mask = AS3722_LDO1_EXT_ENABLE_MASK,
-		.ranges = as3722_ldo_ranges,
-		.nranges = nitems(as3722_ldo_ranges),
+	    .id = AS3722_REG_ID_LDO1,
+	    .name = "ldo1",
+	    .supply_name = "vin-ldo1-6",
+	    .volt_reg = AS3722_LDO1_VOLTAGE,
+	    .volt_vsel_mask = AS3722_LDO_VSEL_MASK,
+	    .enable_reg = AS3722_LDO_CONTROL0,
+	    .enable_mask = AS3722_LDO1_CTRL,
+	    .ext_enable_reg = AS3722_ENABLE_CTRL3,
+	    .ext_enable_mask = AS3722_LDO1_EXT_ENABLE_MASK,
+	    .ranges = as3722_ldo_ranges,
+	    .nranges = nitems(as3722_ldo_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_LDO2,
-		.name = "ldo2",
-		.supply_name = "vin-ldo2-5-7",
-		.volt_reg = AS3722_LDO2_VOLTAGE,
-		.volt_vsel_mask = AS3722_LDO_VSEL_MASK,
-		.enable_reg = AS3722_LDO_CONTROL0,
-		.enable_mask = AS3722_LDO2_CTRL,
-		.ext_enable_reg = AS3722_ENABLE_CTRL3,
-		.ext_enable_mask = AS3722_LDO2_EXT_ENABLE_MASK,
-		.ranges = as3722_ldo_ranges,
-		.nranges = nitems(as3722_ldo_ranges),
+	    .id = AS3722_REG_ID_LDO2,
+	    .name = "ldo2",
+	    .supply_name = "vin-ldo2-5-7",
+	    .volt_reg = AS3722_LDO2_VOLTAGE,
+	    .volt_vsel_mask = AS3722_LDO_VSEL_MASK,
+	    .enable_reg = AS3722_LDO_CONTROL0,
+	    .enable_mask = AS3722_LDO2_CTRL,
+	    .ext_enable_reg = AS3722_ENABLE_CTRL3,
+	    .ext_enable_mask = AS3722_LDO2_EXT_ENABLE_MASK,
+	    .ranges = as3722_ldo_ranges,
+	    .nranges = nitems(as3722_ldo_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_LDO3,
-		.name = "ldo3",
-		.supply_name = "vin-ldo3-4",
-		.volt_reg = AS3722_LDO3_VOLTAGE,
-		.volt_vsel_mask = AS3722_LDO3_VSEL_MASK,
-		.enable_reg = AS3722_LDO_CONTROL0,
-		.enable_mask = AS3722_LDO3_CTRL,
-		.ext_enable_reg = AS3722_ENABLE_CTRL3,
-		.ext_enable_mask = AS3722_LDO3_EXT_ENABLE_MASK,
-		.ranges = as3722_ldo3_ranges,
-		.nranges = nitems(as3722_ldo3_ranges),
+	    .id = AS3722_REG_ID_LDO3,
+	    .name = "ldo3",
+	    .supply_name = "vin-ldo3-4",
+	    .volt_reg = AS3722_LDO3_VOLTAGE,
+	    .volt_vsel_mask = AS3722_LDO3_VSEL_MASK,
+	    .enable_reg = AS3722_LDO_CONTROL0,
+	    .enable_mask = AS3722_LDO3_CTRL,
+	    .ext_enable_reg = AS3722_ENABLE_CTRL3,
+	    .ext_enable_mask = AS3722_LDO3_EXT_ENABLE_MASK,
+	    .ranges = as3722_ldo3_ranges,
+	    .nranges = nitems(as3722_ldo3_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_LDO4,
-		.name = "ldo4",
-		.supply_name = "vin-ldo3-4",
-		.volt_reg = AS3722_LDO4_VOLTAGE,
-		.volt_vsel_mask = AS3722_LDO_VSEL_MASK,
-		.enable_reg = AS3722_LDO_CONTROL0,
-		.enable_mask = AS3722_LDO4_CTRL,
-		.ext_enable_reg = AS3722_ENABLE_CTRL4,
-		.ext_enable_mask = AS3722_LDO4_EXT_ENABLE_MASK,
-		.ranges = as3722_ldo_ranges,
-		.nranges = nitems(as3722_ldo_ranges),
+	    .id = AS3722_REG_ID_LDO4,
+	    .name = "ldo4",
+	    .supply_name = "vin-ldo3-4",
+	    .volt_reg = AS3722_LDO4_VOLTAGE,
+	    .volt_vsel_mask = AS3722_LDO_VSEL_MASK,
+	    .enable_reg = AS3722_LDO_CONTROL0,
+	    .enable_mask = AS3722_LDO4_CTRL,
+	    .ext_enable_reg = AS3722_ENABLE_CTRL4,
+	    .ext_enable_mask = AS3722_LDO4_EXT_ENABLE_MASK,
+	    .ranges = as3722_ldo_ranges,
+	    .nranges = nitems(as3722_ldo_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_LDO5,
-		.name = "ldo5",
-		.supply_name = "vin-ldo2-5-7",
-		.volt_reg = AS3722_LDO5_VOLTAGE,
-		.volt_vsel_mask = AS3722_LDO_VSEL_MASK,
-		.enable_reg = AS3722_LDO_CONTROL0,
-		.enable_mask = AS3722_LDO5_CTRL,
-		.ext_enable_reg = AS3722_ENABLE_CTRL4,
-		.ext_enable_mask = AS3722_LDO5_EXT_ENABLE_MASK,
-		.ranges = as3722_ldo_ranges,
-		.nranges = nitems(as3722_ldo_ranges),
+	    .id = AS3722_REG_ID_LDO5,
+	    .name = "ldo5",
+	    .supply_name = "vin-ldo2-5-7",
+	    .volt_reg = AS3722_LDO5_VOLTAGE,
+	    .volt_vsel_mask = AS3722_LDO_VSEL_MASK,
+	    .enable_reg = AS3722_LDO_CONTROL0,
+	    .enable_mask = AS3722_LDO5_CTRL,
+	    .ext_enable_reg = AS3722_ENABLE_CTRL4,
+	    .ext_enable_mask = AS3722_LDO5_EXT_ENABLE_MASK,
+	    .ranges = as3722_ldo_ranges,
+	    .nranges = nitems(as3722_ldo_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_LDO6,
-		.name = "ldo6",
-		.supply_name = "vin-ldo1-6",
-		.volt_reg = AS3722_LDO6_VOLTAGE,
-		.volt_vsel_mask = AS3722_LDO_VSEL_MASK,
-		.enable_reg = AS3722_LDO_CONTROL0,
-		.enable_mask = AS3722_LDO6_CTRL,
-		.ext_enable_reg = AS3722_ENABLE_CTRL4,
-		.ext_enable_mask = AS3722_LDO6_EXT_ENABLE_MASK,
-		.ranges = as3722_ldo_ranges,
-		.nranges = nitems(as3722_ldo_ranges),
+	    .id = AS3722_REG_ID_LDO6,
+	    .name = "ldo6",
+	    .supply_name = "vin-ldo1-6",
+	    .volt_reg = AS3722_LDO6_VOLTAGE,
+	    .volt_vsel_mask = AS3722_LDO_VSEL_MASK,
+	    .enable_reg = AS3722_LDO_CONTROL0,
+	    .enable_mask = AS3722_LDO6_CTRL,
+	    .ext_enable_reg = AS3722_ENABLE_CTRL4,
+	    .ext_enable_mask = AS3722_LDO6_EXT_ENABLE_MASK,
+	    .ranges = as3722_ldo_ranges,
+	    .nranges = nitems(as3722_ldo_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_LDO7,
-		.name = "ldo7",
-		.supply_name = "vin-ldo2-5-7",
-		.volt_reg = AS3722_LDO7_VOLTAGE,
-		.volt_vsel_mask = AS3722_LDO_VSEL_MASK,
-		.enable_reg = AS3722_LDO_CONTROL0,
-		.enable_mask = AS3722_LDO7_CTRL,
-		.ext_enable_reg = AS3722_ENABLE_CTRL4,
-		.ext_enable_mask = AS3722_LDO7_EXT_ENABLE_MASK,
-		.ranges = as3722_ldo_ranges,
-		.nranges = nitems(as3722_ldo_ranges),
+	    .id = AS3722_REG_ID_LDO7,
+	    .name = "ldo7",
+	    .supply_name = "vin-ldo2-5-7",
+	    .volt_reg = AS3722_LDO7_VOLTAGE,
+	    .volt_vsel_mask = AS3722_LDO_VSEL_MASK,
+	    .enable_reg = AS3722_LDO_CONTROL0,
+	    .enable_mask = AS3722_LDO7_CTRL,
+	    .ext_enable_reg = AS3722_ENABLE_CTRL4,
+	    .ext_enable_mask = AS3722_LDO7_EXT_ENABLE_MASK,
+	    .ranges = as3722_ldo_ranges,
+	    .nranges = nitems(as3722_ldo_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_LDO9,
-		.name = "ldo9",
-		.supply_name = "vin-ldo9-10",
-		.volt_reg = AS3722_LDO9_VOLTAGE,
-		.volt_vsel_mask = AS3722_LDO_VSEL_MASK,
-		.enable_reg = AS3722_LDO_CONTROL1,
-		.enable_mask = AS3722_LDO9_CTRL,
-		.ext_enable_reg = AS3722_ENABLE_CTRL5,
-		.ext_enable_mask = AS3722_LDO9_EXT_ENABLE_MASK,
-		.ranges = as3722_ldo_ranges,
-		.nranges = nitems(as3722_ldo_ranges),
+	    .id = AS3722_REG_ID_LDO9,
+	    .name = "ldo9",
+	    .supply_name = "vin-ldo9-10",
+	    .volt_reg = AS3722_LDO9_VOLTAGE,
+	    .volt_vsel_mask = AS3722_LDO_VSEL_MASK,
+	    .enable_reg = AS3722_LDO_CONTROL1,
+	    .enable_mask = AS3722_LDO9_CTRL,
+	    .ext_enable_reg = AS3722_ENABLE_CTRL5,
+	    .ext_enable_mask = AS3722_LDO9_EXT_ENABLE_MASK,
+	    .ranges = as3722_ldo_ranges,
+	    .nranges = nitems(as3722_ldo_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_LDO10,
-		.name = "ldo10",
-		.supply_name = "vin-ldo9-10",
-		.volt_reg = AS3722_LDO10_VOLTAGE,
-		.volt_vsel_mask = AS3722_LDO_VSEL_MASK,
-		.enable_reg = AS3722_LDO_CONTROL1,
-		.enable_mask = AS3722_LDO10_CTRL,
-		.ext_enable_reg = AS3722_ENABLE_CTRL5,
-		.ext_enable_mask = AS3722_LDO10_EXT_ENABLE_MASK,
-		.ranges = as3722_ldo_ranges,
-		.nranges = nitems(as3722_ldo_ranges),
+	    .id = AS3722_REG_ID_LDO10,
+	    .name = "ldo10",
+	    .supply_name = "vin-ldo9-10",
+	    .volt_reg = AS3722_LDO10_VOLTAGE,
+	    .volt_vsel_mask = AS3722_LDO_VSEL_MASK,
+	    .enable_reg = AS3722_LDO_CONTROL1,
+	    .enable_mask = AS3722_LDO10_CTRL,
+	    .ext_enable_reg = AS3722_ENABLE_CTRL5,
+	    .ext_enable_mask = AS3722_LDO10_EXT_ENABLE_MASK,
+	    .ranges = as3722_ldo_ranges,
+	    .nranges = nitems(as3722_ldo_ranges),
 	},
 	{
-		.id = AS3722_REG_ID_LDO11,
-		.name = "ldo11",
-		.supply_name = "vin-ldo11",
-		.volt_reg = AS3722_LDO11_VOLTAGE,
-		.volt_vsel_mask = AS3722_LDO_VSEL_MASK,
-		.enable_reg = AS3722_LDO_CONTROL1,
-		.enable_mask = AS3722_LDO11_CTRL,
-		.ext_enable_reg = AS3722_ENABLE_CTRL5,
-		.ext_enable_mask = AS3722_LDO11_EXT_ENABLE_MASK,
-		.ranges = as3722_ldo_ranges,
-		.nranges = nitems(as3722_ldo_ranges),
+	    .id = AS3722_REG_ID_LDO11,
+	    .name = "ldo11",
+	    .supply_name = "vin-ldo11",
+	    .volt_reg = AS3722_LDO11_VOLTAGE,
+	    .volt_vsel_mask = AS3722_LDO_VSEL_MASK,
+	    .enable_reg = AS3722_LDO_CONTROL1,
+	    .enable_mask = AS3722_LDO11_CTRL,
+	    .ext_enable_reg = AS3722_ENABLE_CTRL5,
+	    .ext_enable_mask = AS3722_LDO11_EXT_ENABLE_MASK,
+	    .ranges = as3722_ldo_ranges,
+	    .nranges = nitems(as3722_ldo_ranges),
 	},
 };
 
 struct as3722_regnode_init_def {
-	struct regnode_init_def	reg_init_def;
-	int 			ext_control;
-	int	 		enable_tracking;
+	struct regnode_init_def reg_init_def;
+	int ext_control;
+	int enable_tracking;
 };
 
 static int as3722_regnode_init(struct regnode *regnode);
-static int as3722_regnode_enable(struct regnode *regnode, bool enable,
-    int *udelay);
-static int as3722_regnode_set_volt(struct regnode *regnode, int min_uvolt,
-    int max_uvolt, int *udelay);
+static int as3722_regnode_enable(
+    struct regnode *regnode, bool enable, int *udelay);
+static int as3722_regnode_set_volt(
+    struct regnode *regnode, int min_uvolt, int max_uvolt, int *udelay);
 static int as3722_regnode_get_volt(struct regnode *regnode, int *uvolt);
 static regnode_method_t as3722_regnode_methods[] = {
 	/* Regulator interface */
-	REGNODEMETHOD(regnode_init,		as3722_regnode_init),
-	REGNODEMETHOD(regnode_enable,		as3722_regnode_enable),
-	REGNODEMETHOD(regnode_set_voltage,	as3722_regnode_set_volt),
-	REGNODEMETHOD(regnode_get_voltage,	as3722_regnode_get_volt),
+	REGNODEMETHOD(regnode_init, as3722_regnode_init),
+	REGNODEMETHOD(regnode_enable, as3722_regnode_enable),
+	REGNODEMETHOD(regnode_set_voltage, as3722_regnode_set_volt),
+	REGNODEMETHOD(regnode_get_voltage, as3722_regnode_get_volt),
 	REGNODEMETHOD_END
 };
 DEFINE_CLASS_1(as3722_regnode, as3722_regnode_class, as3722_regnode_methods,
-   sizeof(struct as3722_reg_sc), regnode_class);
+    sizeof(struct as3722_reg_sc), regnode_class);
 
 static int
 as3722_read_sel(struct as3722_reg_sc *sc, uint8_t *sel)
@@ -405,8 +405,7 @@ as3722_write_sel(struct as3722_reg_sc *sc, uint8_t sel)
 	sel <<= ffs(sc->def->volt_vsel_mask) - 1;
 	sel &= sc->def->volt_vsel_mask;
 
-	rv = RM1(sc->base_sc, sc->def->volt_reg,
-	    sc->def->volt_vsel_mask, sel);
+	rv = RM1(sc->base_sc, sc->def->volt_reg, sc->def->volt_vsel_mask, sel);
 	if (rv != 0)
 		return (rv);
 	return (rv);
@@ -430,9 +429,9 @@ as3722_reg_extreg_setup(struct as3722_reg_sc *sc, int ext_pwr_ctrl)
 	uint8_t val;
 	int rv;
 
-	val =  ext_pwr_ctrl << (ffs(sc->def->ext_enable_mask) - 1);
-	rv = RM1(sc->base_sc, sc->def->ext_enable_reg,
-	    sc->def->ext_enable_mask, val);
+	val = ext_pwr_ctrl << (ffs(sc->def->ext_enable_mask) - 1);
+	rv = RM1(sc->base_sc, sc->def->ext_enable_reg, sc->def->ext_enable_mask,
+	    val);
 	return (rv);
 }
 
@@ -441,8 +440,8 @@ as3722_reg_enable(struct as3722_reg_sc *sc)
 {
 	int rv;
 
-	rv = RM1(sc->base_sc, sc->def->enable_reg,
-	    sc->def->enable_mask, sc->def->enable_mask);
+	rv = RM1(sc->base_sc, sc->def->enable_reg, sc->def->enable_mask,
+	    sc->def->enable_mask);
 	return (rv);
 }
 
@@ -451,8 +450,7 @@ as3722_reg_disable(struct as3722_reg_sc *sc)
 {
 	int rv;
 
-	rv = RM1(sc->base_sc, sc->def->enable_reg,
-	    sc->def->enable_mask, 0);
+	rv = RM1(sc->base_sc, sc->def->enable_reg, sc->def->enable_mask, 0);
 	return (rv);
 }
 
@@ -478,7 +476,7 @@ as3722_regnode_init(struct regnode *regnode)
 			    AS3722_LDO3_MODE_PMOS_TRACKING);
 			if (rv < 0) {
 				device_printf(sc->base_sc->dev,
-					"LDO3 tracking failed: %d\n", rv);
+				    "LDO3 tracking failed: %d\n", rv);
 				return (rv);
 			}
 		}
@@ -488,14 +486,14 @@ as3722_regnode_init(struct regnode *regnode)
 		rv = as3722_reg_enable(sc);
 		if (rv < 0) {
 			device_printf(sc->base_sc->dev,
-				"Failed to enable %s regulator: %d\n",
-				sc->def->name, rv);
+			    "Failed to enable %s regulator: %d\n",
+			    sc->def->name, rv);
 			return (rv);
 		}
 		rv = as3722_reg_extreg_setup(sc, sc->ext_control);
 		if (rv < 0) {
 			device_printf(sc->base_sc->dev,
-				"%s ext control failed: %d", sc->def->name, rv);
+			    "%s ext control failed: %d", sc->def->name, rv);
 			return (rv);
 		}
 	}
@@ -504,14 +502,14 @@ as3722_regnode_init(struct regnode *regnode)
 
 static void
 as3722_fdt_parse(struct as3722_softc *sc, phandle_t node, struct reg_def *def,
-struct as3722_regnode_init_def *init_def)
+    struct as3722_regnode_init_def *init_def)
 {
 	int rv;
 	phandle_t parent, supply_node;
 	char prop_name[64]; /* Maximum OFW property name length. */
 
-	rv = regulator_parse_ofw_stdparam(sc->dev, node,
-	    &init_def->reg_init_def);
+	rv = regulator_parse_ofw_stdparam(
+	    sc->dev, node, &init_def->reg_init_def);
 
 	rv = OF_getencprop(node, "ams,ext-control", &init_def->ext_control,
 	    sizeof(init_def->ext_control));
@@ -528,13 +526,12 @@ struct as3722_regnode_init_def *init_def)
 
 	/* Get parent supply. */
 	if (def->supply_name == NULL)
-		 return;
+		return;
 
 	parent = OF_parent(node);
-	snprintf(prop_name, sizeof(prop_name), "%s-supply",
-	    def->supply_name);
-	rv = OF_getencprop(parent, prop_name, &supply_node,
-	    sizeof(supply_node));
+	snprintf(prop_name, sizeof(prop_name), "%s-supply", def->supply_name);
+	rv = OF_getencprop(
+	    parent, prop_name, &supply_node, sizeof(supply_node));
 	if (rv <= 0)
 		return;
 	supply_node = OF_node_from_xref(supply_node);
@@ -556,8 +553,8 @@ as3722_attach(struct as3722_softc *sc, phandle_t node, struct reg_def *def)
 	as3722_fdt_parse(sc, node, def, &init_def);
 	init_def.reg_init_def.id = def->id;
 	init_def.reg_init_def.ofw_node = node;
-	regnode = regnode_create(sc->dev, &as3722_regnode_class,
-	    &init_def.reg_init_def);
+	regnode = regnode_create(
+	    sc->dev, &as3722_regnode_class, &init_def.reg_init_def);
 	if (regnode == NULL) {
 		device_printf(sc->dev, "Cannot create regulator.\n");
 		return (NULL);
@@ -581,12 +578,12 @@ as3722_attach(struct as3722_softc *sc, phandle_t node, struct reg_def *def)
 		rv = regnode_get_voltage(regnode, &volt);
 		if (rv == ENODEV) {
 			device_printf(sc->dev,
-			   " Regulator %s: parent doesn't exist yet.\n",
-			   regnode_get_name(regnode));
+			    " Regulator %s: parent doesn't exist yet.\n",
+			    regnode_get_name(regnode));
 		} else if (rv != 0) {
 			device_printf(sc->dev,
-			   " Regulator %s: voltage: INVALID!!!\n",
-			   regnode_get_name(regnode));
+			    " Regulator %s: voltage: INVALID!!!\n",
+			    regnode_get_name(regnode));
 		} else {
 			device_printf(sc->dev,
 			    " Regulator %s: voltage: %d uV\n",
@@ -637,8 +634,8 @@ as3722_regulator_attach(struct as3722_softc *sc, phandle_t node)
 }
 
 int
-as3722_regulator_map(device_t dev, phandle_t xref, int ncells,
-    pcell_t *cells, int *num)
+as3722_regulator_map(
+    device_t dev, phandle_t xref, int ncells, pcell_t *cells, int *num)
 {
 	struct as3722_softc *sc;
 	int i;
@@ -672,8 +669,8 @@ as3722_regnode_enable(struct regnode *regnode, bool val, int *udelay)
 }
 
 static int
-as3722_regnode_set_volt(struct regnode *regnode, int min_uvolt, int max_uvolt,
-    int *udelay)
+as3722_regnode_set_volt(
+    struct regnode *regnode, int min_uvolt, int max_uvolt, int *udelay)
 {
 	struct as3722_reg_sc *sc;
 	uint8_t sel;
@@ -682,13 +679,12 @@ as3722_regnode_set_volt(struct regnode *regnode, int min_uvolt, int max_uvolt,
 	sc = regnode_get_softc(regnode);
 
 	*udelay = 0;
-	rv = regulator_range_volt_to_sel8(sc->def->ranges, sc->def->nranges,
-	    min_uvolt, max_uvolt, &sel);
+	rv = regulator_range_volt_to_sel8(
+	    sc->def->ranges, sc->def->nranges, min_uvolt, max_uvolt, &sel);
 	if (rv != 0)
 		return (rv);
 	rv = as3722_write_sel(sc, sel);
 	return (rv);
-
 }
 
 static int
@@ -706,7 +702,7 @@ as3722_regnode_get_volt(struct regnode *regnode, int *uvolt)
 	/* LDO6 have bypass. */
 	if (sc->def->id == AS3722_REG_ID_LDO6 && sel == AS3722_LDO6_SEL_BYPASS)
 		return (ENOENT);
-	rv = regulator_range_sel8_to_volt(sc->def->ranges, sc->def->nranges,
-	    sel, uvolt);
+	rv = regulator_range_sel8_to_volt(
+	    sc->def->ranges, sc->def->nranges, sel, uvolt);
 	return (rv);
 }

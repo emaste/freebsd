@@ -34,13 +34,14 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
@@ -61,23 +62,23 @@ __FBSDID("$FreeBSD$");
 
 #include "xdma_if.h"
 
-#define	PDMA_DEBUG
-#undef	PDMA_DEBUG
+#define PDMA_DEBUG
+#undef PDMA_DEBUG
 
-#ifdef	PDMA_DEBUG
-#define	dprintf(fmt, ...)	printf(fmt, ##__VA_ARGS__)
+#ifdef PDMA_DEBUG
+#define dprintf(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #else
-#define	dprintf(fmt, ...)
+#define dprintf(fmt, ...)
 #endif
 
-#define	PDMA_DESC_RING_ALIGN	2048
+#define PDMA_DESC_RING_ALIGN 2048
 
 struct pdma_softc {
-	device_t		dev;
-	struct resource		*res[2];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	void			*ih;
+	device_t dev;
+	struct resource *res[2];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	void *ih;
 };
 
 struct pdma_fdt_data {
@@ -87,32 +88,29 @@ struct pdma_fdt_data {
 };
 
 struct pdma_channel {
-	struct pdma_fdt_data	data;
-	int			cur_desc;
-	int			used;
-	int			index;
-	int			flags;
-#define	CHAN_DESCR_RELINK	(1 << 0)
+	struct pdma_fdt_data data;
+	int cur_desc;
+	int used;
+	int index;
+	int flags;
+#define CHAN_DESCR_RELINK (1 << 0)
 
 	/* Descriptors */
-	bus_dma_tag_t		desc_tag;
-	bus_dmamap_t		desc_map;
-	struct pdma_hwdesc	*desc_ring;
-	bus_addr_t		desc_ring_paddr;
+	bus_dma_tag_t desc_tag;
+	bus_dmamap_t desc_map;
+	struct pdma_hwdesc *desc_ring;
+	bus_addr_t desc_ring_paddr;
 
 	/* xDMA */
-	xdma_channel_t		*xchan;
-	struct xdma_request	*req;
+	xdma_channel_t *xchan;
+	struct xdma_request *req;
 };
 
-#define	PDMA_NCHANNELS	32
+#define PDMA_NCHANNELS 32
 struct pdma_channel pdma_channels[PDMA_NCHANNELS];
 
-static struct resource_spec pdma_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec pdma_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
 static int pdma_probe(device_t dev);
 static int pdma_attach(device_t dev);
@@ -150,7 +148,7 @@ pdma_intr(void *arg)
 
 			if (chan->flags & CHAN_DESCR_RELINK) {
 				/* Enable again */
-				chan->cur_desc = (chan->cur_desc + 1) % \
+				chan->cur_desc = (chan->cur_desc + 1) %
 				    req->block_num;
 				chan_start(sc, chan);
 			}
@@ -266,8 +264,8 @@ chan_stop(struct pdma_softc *sc, struct pdma_channel *chan)
 	} while (timeout--);
 
 	if (timeout == 0) {
-		device_printf(sc->dev, "%s: Can't stop channel %d\n",
-		    __func__, chan->index);
+		device_printf(sc->dev, "%s: Can't stop channel %d\n", __func__,
+		    chan->index);
 	}
 
 	return (0);
@@ -293,38 +291,34 @@ pdma_channel_setup_descriptors(device_t dev, struct pdma_channel *chan)
 	/*
 	 * Set up TX descriptor ring, descriptors, and dma maps.
 	 */
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
-	    PDMA_DESC_RING_ALIGN, 0,	/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    CHAN_DESC_SIZE, 1, 		/* maxsize, nsegments */
-	    CHAN_DESC_SIZE,		/* maxsegsize */
-	    0,				/* flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->dev), /* Parent tag. */
+	    PDMA_DESC_RING_ALIGN, 0, /* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
+	    BUS_SPACE_MAXADDR,	     /* highaddr */
+	    NULL, NULL,		     /* filter, filterarg */
+	    CHAN_DESC_SIZE, 1,	     /* maxsize, nsegments */
+	    CHAN_DESC_SIZE,	     /* maxsegsize */
+	    0,			     /* flags */
+	    NULL, NULL,		     /* lockfunc, lockarg */
 	    &chan->desc_tag);
 	if (error != 0) {
-		device_printf(sc->dev,
-		    "could not create TX ring DMA tag.\n");
+		device_printf(sc->dev, "could not create TX ring DMA tag.\n");
 		return (-1);
 	}
 
-	error = bus_dmamem_alloc(chan->desc_tag, (void**)&chan->desc_ring,
-	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO,
-	    &chan->desc_map);
+	error = bus_dmamem_alloc(chan->desc_tag, (void **)&chan->desc_ring,
+	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO, &chan->desc_map);
 	if (error != 0) {
-		device_printf(sc->dev,
-		    "could not allocate TX descriptor ring.\n");
+		device_printf(
+		    sc->dev, "could not allocate TX descriptor ring.\n");
 		return (-1);
 	}
 
-	error = bus_dmamap_load(chan->desc_tag, chan->desc_map,
-	    chan->desc_ring, CHAN_DESC_SIZE, dwc_get1paddr,
-	    &chan->desc_ring_paddr, 0);
+	error = bus_dmamap_load(chan->desc_tag, chan->desc_map, chan->desc_ring,
+	    CHAN_DESC_SIZE, dwc_get1paddr, &chan->desc_ring_paddr, 0);
 	if (error != 0) {
-		device_printf(sc->dev,
-		    "could not load TX descriptor ring map.\n");
+		device_printf(
+		    sc->dev, "could not load TX descriptor ring map.\n");
 		return (-1);
 	}
 
@@ -424,7 +418,8 @@ access_width(struct xdma_request *req, uint32_t *dcm, uint32_t *max_width)
 }
 
 static int
-pdma_channel_request(device_t dev, struct xdma_channel *xchan, struct xdma_request *req)
+pdma_channel_request(
+    device_t dev, struct xdma_channel *xchan, struct xdma_request *req)
 {
 	struct pdma_fdt_data *data;
 	struct pdma_channel *chan;
@@ -438,8 +433,8 @@ pdma_channel_request(device_t dev, struct xdma_channel *xchan, struct xdma_reque
 
 	sc = device_get_softc(dev);
 
-	dprintf("%s: block_len %d block_num %d\n",
-	    __func__, req->block_len, req->block_num);
+	dprintf("%s: block_len %d block_num %d\n", __func__, req->block_len,
+	    req->block_num);
 
 	xdma = xchan->xdma;
 	data = (struct pdma_fdt_data *)xdma->data;
@@ -473,8 +468,8 @@ pdma_channel_request(device_t dev, struct xdma_channel *xchan, struct xdma_reque
 		}
 
 		if (access_width(req, &dcm, &max_width) != 0) {
-			device_printf(dev,
-			    "%s: can't configure access width\n", __func__);
+			device_printf(dev, "%s: can't configure access width\n",
+			    __func__);
 			return (-1);
 		}
 
@@ -486,11 +481,11 @@ pdma_channel_request(device_t dev, struct xdma_channel *xchan, struct xdma_reque
 		 */
 
 		/*
-		 * PDMA does not provide interrupt after processing each descriptor,
-		 * but after processing all the chain only.
-		 * As a workaround we do unlink descriptors here, so our chain will
-		 * consists of single descriptor only. And then we reconfigure channel
-		 * on each interrupt again.
+		 * PDMA does not provide interrupt after processing each
+		 * descriptor, but after processing all the chain only. As a
+		 * workaround we do unlink descriptors here, so our chain will
+		 * consists of single descriptor only. And then we reconfigure
+		 * channel on each interrupt again.
 		 */
 		if ((chan->flags & CHAN_DESCR_RELINK) == 0) {
 			if (i != (req->block_num - 1)) {
@@ -539,7 +534,8 @@ pdma_ofw_md_data(device_t dev, pcell_t *cells, int ncells, void **ptr)
 		return (-1);
 	}
 
-	data = malloc(sizeof(struct pdma_fdt_data), M_DEVBUF, (M_WAITOK | M_ZERO));
+	data = malloc(
+	    sizeof(struct pdma_fdt_data), M_DEVBUF, (M_WAITOK | M_ZERO));
 	if (data == NULL) {
 		device_printf(dev, "%s: Cant allocate memory\n", __func__);
 		return (-1);
@@ -557,17 +553,17 @@ pdma_ofw_md_data(device_t dev, pcell_t *cells, int ncells, void **ptr)
 
 static device_method_t pdma_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,			pdma_probe),
-	DEVMETHOD(device_attach,		pdma_attach),
-	DEVMETHOD(device_detach,		pdma_detach),
+	DEVMETHOD(device_probe, pdma_probe),
+	DEVMETHOD(device_attach, pdma_attach),
+	DEVMETHOD(device_detach, pdma_detach),
 
 	/* xDMA Interface */
-	DEVMETHOD(xdma_channel_alloc,		pdma_channel_alloc),
-	DEVMETHOD(xdma_channel_free,		pdma_channel_free),
-	DEVMETHOD(xdma_channel_request,		pdma_channel_request),
-	DEVMETHOD(xdma_channel_control,		pdma_channel_control),
+	DEVMETHOD(xdma_channel_alloc, pdma_channel_alloc),
+	DEVMETHOD(xdma_channel_free, pdma_channel_free),
+	DEVMETHOD(xdma_channel_request, pdma_channel_request),
+	DEVMETHOD(xdma_channel_control, pdma_channel_control),
 #ifdef FDT
-	DEVMETHOD(xdma_ofw_md_data,		pdma_ofw_md_data),
+	DEVMETHOD(xdma_ofw_md_data, pdma_ofw_md_data),
 #endif
 
 	DEVMETHOD_END

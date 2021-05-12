@@ -32,8 +32,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_subr.h>
+#include <dev/ofw/openfirm.h>
 
 extern struct bus_space memmap_bus;
 

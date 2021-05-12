@@ -31,36 +31,34 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
-#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
 
-#include <dev/pci/pcivar.h>
-
-#include <machine/cpufunc.h>
 #include <machine/cpu.h>
+#include <machine/cpufunc.h>
 #include <machine/smp.h>
 
 #include <x86/apicreg.h>
-
-#include <xen/xen-os.h>
 #include <xen/error.h>
 #include <xen/features.h>
 #include <xen/gnttab.h>
-#include <xen/hypervisor.h>
 #include <xen/hvm.h>
-#include <xen/xen_intr.h>
-
+#include <xen/hypervisor.h>
 #include <xen/interface/arch-x86/cpuid.h>
 #include <xen/interface/hvm/params.h>
 #include <xen/interface/vcpu.h>
+#include <xen/xen-os.h>
+#include <xen/xen_intr.h>
+
+#include <dev/pci/pcivar.h>
 
 /*--------------------------- Forward Declarations ---------------------------*/
 static void xen_hvm_cpu_init(void);
@@ -69,10 +67,8 @@ static void xen_hvm_cpu_init(void);
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
 
 #ifdef SMP
-struct cpu_ops xen_hvm_cpu_ops = {
-	.cpu_init	= xen_hvm_cpu_init,
-	.cpu_resume	= xen_hvm_cpu_init
-};
+struct cpu_ops xen_hvm_cpu_ops = { .cpu_init = xen_hvm_cpu_init,
+	.cpu_resume = xen_hvm_cpu_init };
 #endif
 
 static MALLOC_DEFINE(M_XENHVM, "xen_hvm", "Xen HVM PV Support");
@@ -119,8 +115,8 @@ xen_hvm_cpuid_base(void)
 
 	for (base = 0x40000000; base < 0x40010000; base += 0x100) {
 		do_cpuid(base, regs);
-		if (!memcmp("XenVMMXenVMM", &regs[1], 12)
-		    && (regs[0] - base) >= 2)
+		if (!memcmp("XenVMMXenVMM", &regs[1], 12) &&
+		    (regs[0] - base) >= 2)
 			return (base);
 	}
 	return (0);
@@ -140,8 +136,8 @@ hypervisor_quirks(unsigned int major, unsigned int minor)
 		 */
 		if (bootverbose)
 			printf(
-"Disabling MSI-X interrupt migration due to Xen hypervisor bug.\n"
-"Set machdep.msix_disable_migration=0 to forcefully enable it.\n");
+			    "Disabling MSI-X interrupt migration due to Xen hypervisor bug.\n"
+			    "Set machdep.msix_disable_migration=0 to forcefully enable it.\n");
 		msix_disable_migration = 1;
 	}
 #endif
@@ -196,9 +192,10 @@ xen_hvm_init_hypercall_stubs(enum xen_hvm_init_type init_type)
 	if (regs[0] != 1)
 		return (EINVAL);
 
-	wrmsr(regs[1], (init_type == XEN_HVM_INIT_EARLY)
-	    ? ((vm_paddr_t)&hypercall_page - KERNBASE)
-	    : vtophys(&hypercall_page));
+	wrmsr(regs[1],
+	    (init_type == XEN_HVM_INIT_EARLY) ?
+		      ((vm_paddr_t)&hypercall_page - KERNBASE) :
+		      vtophys(&hypercall_page));
 
 	return (0);
 }
@@ -275,7 +272,8 @@ xen_hvm_set_callback(device_t dev)
 			panic("Unable to setup fake HVM param: %d", error);
 
 		printf("Xen HVM callback vector registration failed (%d). "
-		    "Falling back to emulated device interrupt\n", error);
+		       "Falling back to emulated device interrupt\n",
+		    error);
 	}
 	xen_vector_callback_enabled = 0;
 	if (dev == NULL) {
@@ -302,11 +300,11 @@ xen_hvm_set_callback(device_t dev)
 		panic("Can't set evtchn callback");
 }
 
-#define	XEN_MAGIC_IOPORT 0x10
+#define XEN_MAGIC_IOPORT 0x10
 enum {
-	XMI_MAGIC			 = 0x49d2,
-	XMI_UNPLUG_IDE_DISKS		 = 0x01,
-	XMI_UNPLUG_NICS			 = 0x02,
+	XMI_MAGIC = 0x49d2,
+	XMI_UNPLUG_IDE_DISKS = 0x01,
+	XMI_UNPLUG_NICS = 0x02,
 	XMI_UNPLUG_IDE_EXCEPT_PRI_MASTER = 0x04
 };
 
@@ -380,7 +378,7 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 			panic("Unable to init Xen hypercall stubs on resume");
 
 		/* Clear stale vcpu_info. */
-		CPU_FOREACH(i)
+		CPU_FOREACH (i)
 			DPCPU_ID_SET(i, vcpu_info, NULL);
 		break;
 	default:
@@ -399,7 +397,7 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 	 */
 	xen_hvm_init_shared_info_page();
 	xen_hvm_disable_emulated_devices();
-} 
+}
 
 void
 xen_hvm_suspend(void)
@@ -410,8 +408,8 @@ void
 xen_hvm_resume(bool suspend_cancelled)
 {
 
-	xen_hvm_init(suspend_cancelled ?
-	    XEN_HVM_INIT_CANCELLED_SUSPEND : XEN_HVM_INIT_RESUME);
+	xen_hvm_init(suspend_cancelled ? XEN_HVM_INIT_CANCELLED_SUSPEND :
+					       XEN_HVM_INIT_RESUME);
 
 	/* Register vcpu_info area for CPU#0. */
 	xen_hvm_cpu_init();
@@ -450,11 +448,11 @@ xen_hvm_cpu_init(void)
 	 */
 	KASSERT(cpuid_base != 0, ("Invalid base Xen CPUID leaf"));
 	cpuid_count(cpuid_base + 4, 0, regs);
-	KASSERT((regs[0] & XEN_HVM_CPUID_VCPU_ID_PRESENT) ||
-	    !xen_pv_domain(),
+	KASSERT((regs[0] & XEN_HVM_CPUID_VCPU_ID_PRESENT) || !xen_pv_domain(),
 	    ("Xen PV domain without vcpu_id in cpuid"));
-	PCPU_SET(vcpu_id, (regs[0] & XEN_HVM_CPUID_VCPU_ID_PRESENT) ?
-	    regs[1] : PCPU_GET(acpi_id));
+	PCPU_SET(vcpu_id,
+	    (regs[0] & XEN_HVM_CPUID_VCPU_ID_PRESENT) ? regs[1] :
+							      PCPU_GET(acpi_id));
 
 	if (xen_evtchn_needs_ack && !IS_BSP()) {
 		/*
@@ -466,8 +464,8 @@ xen_hvm_cpu_init(void)
 		 */
 		rc = set_percpu_callback(PCPU_GET(vcpu_id));
 		if (rc != 0)
-			panic("Event channel upcall vector setup failed: %d",
-			    rc);
+			panic(
+			    "Event channel upcall vector setup failed: %d", rc);
 	}
 
 	/*
@@ -527,9 +525,9 @@ hvm_get_start_flags(void)
 }
 
 struct hypervisor_info hypervisor_info = {
-	.get_xenstore_mfn		= hvm_get_xenstore_mfn,
-	.get_xenstore_evtchn		= hvm_get_xenstore_evtchn,
-	.get_console_mfn		= hvm_get_console_mfn,
-	.get_console_evtchn		= hvm_get_console_evtchn,
-	.get_start_flags		= hvm_get_start_flags,
+	.get_xenstore_mfn = hvm_get_xenstore_mfn,
+	.get_xenstore_evtchn = hvm_get_xenstore_evtchn,
+	.get_console_mfn = hvm_get_console_mfn,
+	.get_console_evtchn = hvm_get_console_evtchn,
+	.get_start_flags = hvm_get_start_flags,
 };

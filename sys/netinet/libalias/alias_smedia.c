@@ -106,14 +106,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #else
-#include <errno.h>
 #include <sys/types.h>
+
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #endif
 
-#include <netinet/in_systm.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
@@ -130,23 +131,22 @@ __FBSDID("$FreeBSD$");
 #define RTSP_CONTROL_PORT_NUMBER_2 7070
 #define TFTP_PORT_NUMBER 69
 
-static void
-AliasHandleRtspOut(struct libalias *, struct ip *, struct alias_link *,	
-		  int maxpacketsize);
+static void AliasHandleRtspOut(
+    struct libalias *, struct ip *, struct alias_link *, int maxpacketsize);
 static int
 fingerprint(struct libalias *la, struct alias_data *ah)
 {
 
 	if (ah->dport != NULL && ah->aport != NULL && ah->sport != NULL &&
-            ntohs(*ah->dport) == TFTP_PORT_NUMBER)
+	    ntohs(*ah->dport) == TFTP_PORT_NUMBER)
 		return (0);
 	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL ||
 	    ah->maxpktsize == 0)
 		return (-1);
-	if (ntohs(*ah->dport) == RTSP_CONTROL_PORT_NUMBER_1
-	    || ntohs(*ah->sport) == RTSP_CONTROL_PORT_NUMBER_1
-	    || ntohs(*ah->dport) == RTSP_CONTROL_PORT_NUMBER_2
-	    || ntohs(*ah->sport) == RTSP_CONTROL_PORT_NUMBER_2)
+	if (ntohs(*ah->dport) == RTSP_CONTROL_PORT_NUMBER_1 ||
+	    ntohs(*ah->sport) == RTSP_CONTROL_PORT_NUMBER_1 ||
+	    ntohs(*ah->dport) == RTSP_CONTROL_PORT_NUMBER_2 ||
+	    ntohs(*ah->sport) == RTSP_CONTROL_PORT_NUMBER_2)
 		return (0);
 	return (-1);
 }
@@ -156,22 +156,19 @@ protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
 
 	if (ntohs(*ah->dport) == TFTP_PORT_NUMBER)
-		FindRtspOut(la, pip->ip_src, pip->ip_dst,
- 			    *ah->sport, *ah->aport, IPPROTO_UDP);
-	else AliasHandleRtspOut(la, pip, ah->lnk, ah->maxpktsize);	
+		FindRtspOut(la, pip->ip_src, pip->ip_dst, *ah->sport,
+		    *ah->aport, IPPROTO_UDP);
+	else
+		AliasHandleRtspOut(la, pip, ah->lnk, ah->maxpktsize);
 	return (0);
 }
 
-struct proto_handler handlers[] = {
-	{
-	  .pri = 100,
-	  .dir = OUT,
-	  .proto = TCP|UDP,
-	  .fingerprint = &fingerprint,
-	  .protohandler = &protohandler
-	},
-	{ EOH }
-};
+struct proto_handler handlers[] = { { .pri = 100,
+					.dir = OUT,
+					.proto = TCP | UDP,
+					.fingerprint = &fingerprint,
+					.protohandler = &protohandler },
+	{ EOH } };
 
 static int
 mod_handler(module_t mod, int type, void *data)
@@ -196,11 +193,9 @@ mod_handler(module_t mod, int type, void *data)
 #ifdef _KERNEL
 static
 #endif
-moduledata_t alias_mod = {
-       "alias_smedia", mod_handler, NULL
-};
+    moduledata_t alias_mod = { "alias_smedia", mod_handler, NULL };
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 DECLARE_MODULE(alias_smedia, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
 MODULE_VERSION(alias_smedia, 1);
 MODULE_DEPEND(alias_smedia, libalias, 1, 1, 1);
@@ -208,7 +203,7 @@ MODULE_DEPEND(alias_smedia, libalias, 1, 1, 1);
 
 #define RTSP_CONTROL_PORT_NUMBER_1 554
 #define RTSP_CONTROL_PORT_NUMBER_2 7070
-#define RTSP_PORT_GROUP            2
+#define RTSP_PORT_GROUP 2
 
 #define ISDIGIT(a) (((a) >= '0') && ((a) <= '9'))
 
@@ -234,10 +229,8 @@ search_string(char *data, int dlen, const char *search_str)
 }
 
 static int
-alias_rtsp_out(struct libalias *la, struct ip *pip,
-    struct alias_link *lnk,
-    char *data,
-    const char *port_str)
+alias_rtsp_out(struct libalias *la, struct ip *pip, struct alias_link *lnk,
+    char *data, const char *port_str)
 {
 	int hlen, tlen, dlen;
 	struct tcphdr *tc;
@@ -320,25 +313,35 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 					 * need
 					 */
 					null_addr.s_addr = 0;
-					if (0 == (salias = FindNewPortGroup(la, null_addr,
-					    FindAliasAddress(la, pip->ip_src),
-					    sport, 0,
-					    RTSP_PORT_GROUP,
-					    IPPROTO_UDP, 1))) {
+					if (0 ==
+					    (salias = FindNewPortGroup(la,
+						 null_addr,
+						 FindAliasAddress(
+						     la, pip->ip_src),
+						 sport, 0, RTSP_PORT_GROUP,
+						 IPPROTO_UDP, 1))) {
 #ifdef LIBALIAS_DEBUG
 						fprintf(stderr,
 						    "PacketAlias/RTSP: Cannot find contiguous RTSP data ports\n");
 #endif
 					} else {
 						base_alias = ntohs(salias);
-						for (j = 0; j < RTSP_PORT_GROUP; j++) {
+						for (j = 0; j < RTSP_PORT_GROUP;
+						     j++) {
 							/*
 							 * Establish link
 							 * to port found in
 							 * RTSP packet
 							 */
-							rtsp_lnk = FindRtspOut(la, GetOriginalAddress(lnk), null_addr,
-							    htons(base_port + j), htons(base_alias + j),
+							rtsp_lnk = FindRtspOut(
+							    la,
+							    GetOriginalAddress(
+								lnk),
+							    null_addr,
+							    htons(
+								base_port + j),
+							    htons(
+								base_alias + j),
 							    IPPROTO_UDP);
 							if (rtsp_lnk != NULL) {
 #ifndef NO_FW_PUNCH
@@ -347,7 +350,8 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 								 * hole in
 								 * firewall
 								 */
-								PunchFWHole(rtsp_lnk);
+								PunchFWHole(
+								    rtsp_lnk);
 #endif
 							} else {
 #ifdef LIBALIAS_DEBUG
@@ -358,14 +362,16 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 							}
 						}
 					}
-					ealias = htons(base_alias + (RTSP_PORT_GROUP - 1));
+					ealias = htons(
+					    base_alias + (RTSP_PORT_GROUP - 1));
 				}
 				if (salias && rtsp_lnk) {
 					pkt_updated = 1;
 
 					/* Copy into IP packet */
 					sprintf(stemp, "%d", ntohs(salias));
-					memcpy(port_newdata, stemp, strlen(stemp));
+					memcpy(
+					    port_newdata, stemp, strlen(stemp));
 					port_newdata += strlen(stemp);
 
 					if (eport != 0) {
@@ -373,8 +379,10 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 						port_newdata++;
 
 						/* Copy into IP packet */
-						sprintf(stemp, "%d", ntohs(ealias));
-						memcpy(port_newdata, stemp, strlen(stemp));
+						sprintf(
+						    stemp, "%d", ntohs(ealias));
+						memcpy(port_newdata, stemp,
+						    strlen(stemp));
 						port_newdata += strlen(stemp);
 					}
 					*port_newdata = ';';
@@ -409,10 +417,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 	    tc->th_seq, tc->th_off);
 
 	new_len = htons(hlen + new_dlen);
-	DifferentialChecksum(&pip->ip_sum,
-	    &new_len,
-	    &pip->ip_len,
-	    1);
+	DifferentialChecksum(&pip->ip_sum, &new_len, &pip->ip_len, 1);
 	pip->ip_len = new_len;
 
 	tc->th_sum = 0;
@@ -427,10 +432,8 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 /* Support the protocol used by early versions of RealPlayer */
 
 static int
-alias_pna_out(struct libalias *la, struct ip *pip,
-    struct alias_link *lnk,
-    char *data,
-    int dlen)
+alias_pna_out(struct libalias *la, struct ip *pip, struct alias_link *lnk,
+    char *data, int dlen)
 {
 	struct alias_link *pna_links;
 	u_short msg_id, msg_len;
@@ -451,8 +454,8 @@ alias_pna_out(struct libalias *la, struct ip *pip,
 		}
 		if ((ntohs(msg_id) == 1) || (ntohs(msg_id) == 7)) {
 			memcpy(&port, work, 2);
-			pna_links = FindUdpTcpOut(la, pip->ip_src, GetDestAddress(lnk),
-			    port, 0, IPPROTO_UDP, 1);
+			pna_links = FindUdpTcpOut(la, pip->ip_src,
+			    GetDestAddress(lnk), port, 0, IPPROTO_UDP, 1);
 			if (pna_links != NULL) {
 #ifndef NO_FW_PUNCH
 				/* Punch hole in firewall */
@@ -478,7 +481,8 @@ alias_pna_out(struct libalias *la, struct ip *pip,
 }
 
 static void
-AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, int maxpacketsize)
+AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk,
+    int maxpacketsize)
 {
 	int hlen, tlen, dlen;
 	struct tcphdr *tc;
@@ -503,7 +507,8 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, 
 	    (ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_2)) {
 		if (dlen >= (int)strlen(setup)) {
 			if (memcmp(data, setup, strlen(setup)) == 0) {
-				alias_rtsp_out(la, pip, lnk, data, client_port_str);
+				alias_rtsp_out(
+				    la, pip, lnk, data, client_port_str);
 				return;
 			}
 		}
@@ -520,21 +525,23 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, 
 
 		if (dlen >= (int)strlen(str200)) {
 			for (parseOk = 0, i = 0;
-			    i <= dlen - (int)strlen(str200);
-			    i++) {
-				if (memcmp(&data[i], str200, strlen(str200)) == 0) {
+			     i <= dlen - (int)strlen(str200); i++) {
+				if (memcmp(&data[i], str200, strlen(str200)) ==
+				    0) {
 					parseOk = 1;
 					break;
 				}
 			}
 			if (parseOk) {
-				i += strlen(str200);	/* skip string found */
-				while (data[i] == ' ')	/* skip blank(s) */
+				i += strlen(str200);   /* skip string found */
+				while (data[i] == ' ') /* skip blank(s) */
 					i++;
 
 				if ((dlen - i) >= (int)strlen(okstr)) {
-					if (memcmp(&data[i], okstr, strlen(okstr)) == 0)
-						alias_rtsp_out(la, pip, lnk, data, server_port_str);
+					if (memcmp(&data[i], okstr,
+						strlen(okstr)) == 0)
+						alias_rtsp_out(la, pip, lnk,
+						    data, server_port_str);
 				}
 			}
 		}

@@ -30,19 +30,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rangelock.h>
-#include <sys/systm.h>
 
 #include <vm/uma.h>
 
 struct rl_q_entry {
 	TAILQ_ENTRY(rl_q_entry) rl_q_link;
-	off_t		rl_q_start, rl_q_end;
-	int		rl_q_flags;
+	off_t rl_q_start, rl_q_end;
+	int rl_q_flags;
 };
 
 static uma_zone_t rl_entry_zone;
@@ -51,8 +51,8 @@ static void
 rangelock_sys_init(void)
 {
 
-	rl_entry_zone = uma_zcreate("rl_entry", sizeof(struct rl_q_entry),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	rl_entry_zone = uma_zcreate("rl_entry", sizeof(struct rl_q_entry), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 }
 SYSINIT(vfs, SI_SUB_LOCK, SI_ORDER_ANY, rangelock_sys_init, NULL);
 
@@ -90,8 +90,7 @@ rangelock_destroy(struct rangelock *lock)
  * entries are for read.
  */
 static int
-ranges_overlap(const struct rl_q_entry *e1,
-    const struct rl_q_entry *e2)
+ranges_overlap(const struct rl_q_entry *e1, const struct rl_q_entry *e2)
 {
 
 	if (e1->rl_q_start < e2->rl_q_end && e1->rl_q_end > e2->rl_q_start)
@@ -112,16 +111,16 @@ rangelock_calc_block(struct rangelock *lock)
 		if (entry->rl_q_flags & RL_LOCK_READ) {
 			/* Reads must not overlap with granted writes. */
 			for (entry1 = TAILQ_FIRST(&lock->rl_waiters);
-			    !(entry1->rl_q_flags & RL_LOCK_READ);
-			    entry1 = TAILQ_NEXT(entry1, rl_q_link)) {
+			     !(entry1->rl_q_flags & RL_LOCK_READ);
+			     entry1 = TAILQ_NEXT(entry1, rl_q_link)) {
 				if (ranges_overlap(entry, entry1))
 					goto out;
 			}
 		} else {
 			/* Write must not overlap with any granted locks. */
 			for (entry1 = TAILQ_FIRST(&lock->rl_waiters);
-			    entry1 != entry;
-			    entry1 = TAILQ_NEXT(entry1, rl_q_link)) {
+			     entry1 != entry;
+			     entry1 = TAILQ_NEXT(entry1, rl_q_link)) {
 				if (ranges_overlap(entry, entry1))
 					goto out;
 			}
@@ -278,8 +277,8 @@ rangelock_rlock(struct rangelock *lock, off_t start, off_t end, struct mtx *ilk)
 }
 
 void *
-rangelock_tryrlock(struct rangelock *lock, off_t start, off_t end,
-    struct mtx *ilk)
+rangelock_tryrlock(
+    struct rangelock *lock, off_t start, off_t end, struct mtx *ilk)
 {
 
 	return (rangelock_enqueue(lock, start, end, RL_LOCK_READ, ilk, true));
@@ -293,8 +292,8 @@ rangelock_wlock(struct rangelock *lock, off_t start, off_t end, struct mtx *ilk)
 }
 
 void *
-rangelock_trywlock(struct rangelock *lock, off_t start, off_t end,
-    struct mtx *ilk)
+rangelock_trywlock(
+    struct rangelock *lock, off_t start, off_t end, struct mtx *ilk)
 {
 
 	return (rangelock_enqueue(lock, start, end, RL_LOCK_WRITE, ilk, true));
@@ -330,4 +329,4 @@ _rangelock_cookie_assert(void *cookie, int what, const char *file, int line)
 		    line);
 	}
 }
-#endif	/* INVARIANT_SUPPORT */
+#endif /* INVARIANT_SUPPORT */

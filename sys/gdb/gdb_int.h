@@ -29,7 +29,7 @@
  */
 
 #ifndef _GDB_GDB_INT_H_
-#define	_GDB_GDB_INT_H_
+#define _GDB_GDB_INT_H_
 
 #include "opt_ddb.h"
 
@@ -40,7 +40,7 @@
 #endif
 
 #ifndef EOF
-#define EOF	(-1)
+#define EOF (-1)
 #endif
 
 SYSCTL_DECL(_debug_gdb);

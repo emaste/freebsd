@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/platformvar.h>
 #include <machine/smp.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_cpu.h>
+#include <dev/ofw/openfirm.h>
 #include <dev/psci/psci.h>
 
 #include <arm/qemu/virt_mp.h>

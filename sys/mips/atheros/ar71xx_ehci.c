@@ -36,39 +36,37 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_util.h>
-
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_core.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 
+#include <mips/atheros/ar71xx_bus_space_reversed.h>
+#include <mips/atheros/ar71xx_cpudef.h>
 #include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xxreg.h> /* for stuff in ar71xx_cpudef.h */
-#include <mips/atheros/ar71xx_cpudef.h>
-#include <mips/atheros/ar71xx_bus_space_reversed.h>
 
-#define EHCI_HC_DEVSTR		"AR71XX Integrated USB 2.0 controller"
+#define EHCI_HC_DEVSTR "AR71XX Integrated USB 2.0 controller"
 
-#define	EHCI_USBMODE		0x68	/* USB Device mode register */
-#define	EHCI_UM_CM		0x00000003	/* R/WO Controller Mode */
-#define	EHCI_UM_CM_HOST		0x3	/* Host Controller */
+#define EHCI_USBMODE 0x68 /* USB Device mode register */
+#define EHCI_UM_CM 0x00000003 /* R/WO Controller Mode */
+#define EHCI_UM_CM_HOST 0x3 /* Host Controller */
 
 struct ar71xx_ehci_softc {
-	ehci_softc_t		base;	/* storage for EHCI code */
+	ehci_softc_t base; /* storage for EHCI code */
 };
 
 static device_attach_t ar71xx_ehci_attach;
@@ -122,8 +120,8 @@ ar71xx_ehci_attach(device_t self)
 	sc->sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
-	if (usb_bus_mem_alloc_all(&sc->sc_bus,
-	    USB_GET_DMA_TAG(self), &ehci_iterate_hw_softc)) {
+	if (usb_bus_mem_alloc_all(
+		&sc->sc_bus, USB_GET_DMA_TAG(self), &ehci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
 
@@ -132,7 +130,8 @@ ar71xx_ehci_attach(device_t self)
 	/* NB: hints fix the memory location and irq */
 
 	rid = 0;
-	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->sc_io_res = bus_alloc_resource_any(
+	    self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_io_res) {
 		device_printf(self, "Could not map memory\n");
 		goto error;
@@ -140,15 +139,15 @@ ar71xx_ehci_attach(device_t self)
 
 	/*
 	 * Craft special resource for bus space ops that handle
-	 * byte-alignment of non-word addresses.  
+	 * byte-alignment of non-word addresses.
 	 */
 	sc->sc_io_tag = ar71xx_bus_space_reversed;
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    self, SYS_RES_IRQ, &rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");
 		goto error;
@@ -183,35 +182,34 @@ ar71xx_ehci_attach(device_t self)
 	sc->sc_vendor_post_reset = ar71xx_ehci_post_reset;
 
 	switch (ar71xx_soc) {
-		case AR71XX_SOC_AR7241:
-		case AR71XX_SOC_AR7242:
-		case AR71XX_SOC_AR9130:
-		case AR71XX_SOC_AR9132:
-		case AR71XX_SOC_AR9330:
-		case AR71XX_SOC_AR9331:
-		case AR71XX_SOC_AR9341:
-		case AR71XX_SOC_AR9342:
-		case AR71XX_SOC_AR9344:
-		case AR71XX_SOC_QCA9533:
-		case AR71XX_SOC_QCA9533_V2:
-		case AR71XX_SOC_QCA9556:
-		case AR71XX_SOC_QCA9558:
-			sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
-			sc->sc_vendor_get_port_speed =
-			    ehci_get_port_speed_portsc;
-			break;
-		default:
-			/* fallthrough */
-			break;
+	case AR71XX_SOC_AR7241:
+	case AR71XX_SOC_AR7242:
+	case AR71XX_SOC_AR9130:
+	case AR71XX_SOC_AR9132:
+	case AR71XX_SOC_AR9330:
+	case AR71XX_SOC_AR9331:
+	case AR71XX_SOC_AR9341:
+	case AR71XX_SOC_AR9342:
+	case AR71XX_SOC_AR9344:
+	case AR71XX_SOC_QCA9533:
+	case AR71XX_SOC_QCA9533_V2:
+	case AR71XX_SOC_QCA9556:
+	case AR71XX_SOC_QCA9558:
+		sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
+		sc->sc_vendor_get_port_speed = ehci_get_port_speed_portsc;
+		break;
+	default:
+		/* fallthrough */
+		break;
 	}
 
 	/*
 	 * ehci_reset() needs the correct offset to access the host controller
 	 * registers. The AR724x/AR913x offsets aren't 0.
-	*/
+	 */
 	sc->sc_offs = EHCI_CAPLENGTH(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
 
-	(void) ehci_reset(sc);
+	(void)ehci_reset(sc);
 
 	err = ehci_init(sc);
 	if (!err) {
@@ -238,7 +236,7 @@ ar71xx_ehci_detach(device_t self)
 	/* during module unload there are lots of children leftover */
 	device_delete_children(self);
 
- 	if (sc->sc_irq_res && sc->sc_intr_hdl) {
+	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*
 		 * only call ehci_detach() after ehci_init()
 		 */
@@ -248,18 +246,17 @@ ar71xx_ehci_detach(device_t self)
 
 		if (err)
 			/* XXX or should we panic? */
-			device_printf(self, "Could not tear down irq, %d\n",
-			    err);
+			device_printf(
+			    self, "Could not tear down irq, %d\n", err);
 		sc->sc_intr_hdl = NULL;
 	}
 
- 	if (sc->sc_irq_res) {
+	if (sc->sc_irq_res) {
 		bus_release_resource(self, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		sc->sc_irq_res = NULL;
 	}
 	if (sc->sc_io_res) {
-		bus_release_resource(self, SYS_RES_MEMORY, 0,
-		    sc->sc_io_res);
+		bus_release_resource(self, SYS_RES_MEMORY, 0, sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
 	usb_bus_mem_free_all(&sc->sc_bus, &ehci_iterate_hw_softc);

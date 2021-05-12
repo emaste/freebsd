@@ -36,27 +36,24 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/condvar.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/gpio.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 
-#include <dev/sound/pcm/sound.h>
-#include <dev/sound/chip.h>
-
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/gpio/gpiobusvar.h>
-
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
+#include <dev/gpio/gpiobusvar.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/sound/chip.h>
+#include <dev/sound/pcm/sound.h>
 
-#include "sunxi_dma_if.h"
 #include "mixer_if.h"
+#include "sunxi_dma_if.h"
 
 struct a10codec_info;
 
@@ -65,78 +62,68 @@ struct a10codec_config {
 	struct kobj_class *mixer_class;
 
 	/* toggle DAC/ADC mute */
-	void		(*mute)(struct a10codec_info *, int, int);
+	void (*mute)(struct a10codec_info *, int, int);
 
 	/* DRQ types */
-	u_int		drqtype_codec;
-	u_int		drqtype_sdram;
+	u_int drqtype_codec;
+	u_int drqtype_sdram;
 
 	/* register map */
-	bus_size_t	DPC,
-			DAC_FIFOC,
-			DAC_FIFOS,
-			DAC_TXDATA,
-			ADC_FIFOC,
-			ADC_FIFOS,
-			ADC_RXDATA,
-			DAC_CNT,
-			ADC_CNT;
+	bus_size_t DPC, DAC_FIFOC, DAC_FIFOS, DAC_TXDATA, ADC_FIFOC, ADC_FIFOS,
+	    ADC_RXDATA, DAC_CNT, ADC_CNT;
 };
 
-#define	TX_TRIG_LEVEL	0xf
-#define	RX_TRIG_LEVEL	0x7
-#define	DRQ_CLR_CNT	0x3
+#define TX_TRIG_LEVEL 0xf
+#define RX_TRIG_LEVEL 0x7
+#define DRQ_CLR_CNT 0x3
 
-#define	AC_DAC_DPC(_sc)		((_sc)->cfg->DPC)	
-#define	 DAC_DPC_EN_DA			0x80000000
-#define	AC_DAC_FIFOC(_sc)	((_sc)->cfg->DAC_FIFOC)
-#define	 DAC_FIFOC_FS_SHIFT		29
-#define	 DAC_FIFOC_FS_MASK		(7U << DAC_FIFOC_FS_SHIFT)
-#define	  DAC_FS_48KHZ			0
-#define	  DAC_FS_32KHZ			1
-#define	  DAC_FS_24KHZ			2
-#define	  DAC_FS_16KHZ			3
-#define	  DAC_FS_12KHZ			4
-#define	  DAC_FS_8KHZ			5
-#define	  DAC_FS_192KHZ			6
-#define	  DAC_FS_96KHZ			7
-#define	 DAC_FIFOC_FIFO_MODE_SHIFT	24
-#define	 DAC_FIFOC_FIFO_MODE_MASK	(3U << DAC_FIFOC_FIFO_MODE_SHIFT)
-#define	  FIFO_MODE_24_31_8		0
-#define	  FIFO_MODE_16_31_16		0
-#define	  FIFO_MODE_16_15_0		1
-#define	 DAC_FIFOC_DRQ_CLR_CNT_SHIFT	21
-#define	 DAC_FIFOC_DRQ_CLR_CNT_MASK	(3U << DAC_FIFOC_DRQ_CLR_CNT_SHIFT)
-#define	 DAC_FIFOC_TX_TRIG_LEVEL_SHIFT	8
-#define	 DAC_FIFOC_TX_TRIG_LEVEL_MASK	(0x7f << DAC_FIFOC_TX_TRIG_LEVEL_SHIFT)
-#define	 DAC_FIFOC_MONO_EN		(1U << 6)
-#define	 DAC_FIFOC_TX_BITS		(1U << 5)
-#define	 DAC_FIFOC_DRQ_EN		(1U << 4)
-#define	 DAC_FIFOC_FIFO_FLUSH		(1U << 0)
-#define	AC_DAC_FIFOS(_sc)	((_sc)->cfg->DAC_FIFOS)
-#define	AC_DAC_TXDATA(_sc)	((_sc)->cfg->DAC_TXDATA)
-#define	AC_ADC_FIFOC(_sc)	((_sc)->cfg->ADC_FIFOC)
-#define	 ADC_FIFOC_FS_SHIFT		29
-#define	 ADC_FIFOC_FS_MASK		(7U << ADC_FIFOC_FS_SHIFT)
-#define	  ADC_FS_48KHZ		0
-#define	 ADC_FIFOC_EN_AD		(1U << 28)
-#define	 ADC_FIFOC_RX_FIFO_MODE		(1U << 24)
-#define	 ADC_FIFOC_RX_TRIG_LEVEL_SHIFT	8
-#define	 ADC_FIFOC_RX_TRIG_LEVEL_MASK	(0x1f << ADC_FIFOC_RX_TRIG_LEVEL_SHIFT)
-#define	 ADC_FIFOC_MONO_EN		(1U << 7)
-#define	 ADC_FIFOC_RX_BITS		(1U << 6)
-#define	 ADC_FIFOC_DRQ_EN		(1U << 4)
-#define	 ADC_FIFOC_FIFO_FLUSH		(1U << 1)
-#define	AC_ADC_FIFOS(_sc)	((_sc)->cfg->ADC_FIFOS)
-#define	AC_ADC_RXDATA(_sc)	((_sc)->cfg->ADC_RXDATA)
-#define	AC_DAC_CNT(_sc)		((_sc)->cfg->DAC_CNT)
-#define	AC_ADC_CNT(_sc)		((_sc)->cfg->ADC_CNT)
+#define AC_DAC_DPC(_sc) ((_sc)->cfg->DPC)
+#define DAC_DPC_EN_DA 0x80000000
+#define AC_DAC_FIFOC(_sc) ((_sc)->cfg->DAC_FIFOC)
+#define DAC_FIFOC_FS_SHIFT 29
+#define DAC_FIFOC_FS_MASK (7U << DAC_FIFOC_FS_SHIFT)
+#define DAC_FS_48KHZ 0
+#define DAC_FS_32KHZ 1
+#define DAC_FS_24KHZ 2
+#define DAC_FS_16KHZ 3
+#define DAC_FS_12KHZ 4
+#define DAC_FS_8KHZ 5
+#define DAC_FS_192KHZ 6
+#define DAC_FS_96KHZ 7
+#define DAC_FIFOC_FIFO_MODE_SHIFT 24
+#define DAC_FIFOC_FIFO_MODE_MASK (3U << DAC_FIFOC_FIFO_MODE_SHIFT)
+#define FIFO_MODE_24_31_8 0
+#define FIFO_MODE_16_31_16 0
+#define FIFO_MODE_16_15_0 1
+#define DAC_FIFOC_DRQ_CLR_CNT_SHIFT 21
+#define DAC_FIFOC_DRQ_CLR_CNT_MASK (3U << DAC_FIFOC_DRQ_CLR_CNT_SHIFT)
+#define DAC_FIFOC_TX_TRIG_LEVEL_SHIFT 8
+#define DAC_FIFOC_TX_TRIG_LEVEL_MASK (0x7f << DAC_FIFOC_TX_TRIG_LEVEL_SHIFT)
+#define DAC_FIFOC_MONO_EN (1U << 6)
+#define DAC_FIFOC_TX_BITS (1U << 5)
+#define DAC_FIFOC_DRQ_EN (1U << 4)
+#define DAC_FIFOC_FIFO_FLUSH (1U << 0)
+#define AC_DAC_FIFOS(_sc) ((_sc)->cfg->DAC_FIFOS)
+#define AC_DAC_TXDATA(_sc) ((_sc)->cfg->DAC_TXDATA)
+#define AC_ADC_FIFOC(_sc) ((_sc)->cfg->ADC_FIFOC)
+#define ADC_FIFOC_FS_SHIFT 29
+#define ADC_FIFOC_FS_MASK (7U << ADC_FIFOC_FS_SHIFT)
+#define ADC_FS_48KHZ 0
+#define ADC_FIFOC_EN_AD (1U << 28)
+#define ADC_FIFOC_RX_FIFO_MODE (1U << 24)
+#define ADC_FIFOC_RX_TRIG_LEVEL_SHIFT 8
+#define ADC_FIFOC_RX_TRIG_LEVEL_MASK (0x1f << ADC_FIFOC_RX_TRIG_LEVEL_SHIFT)
+#define ADC_FIFOC_MONO_EN (1U << 7)
+#define ADC_FIFOC_RX_BITS (1U << 6)
+#define ADC_FIFOC_DRQ_EN (1U << 4)
+#define ADC_FIFOC_FIFO_FLUSH (1U << 1)
+#define AC_ADC_FIFOS(_sc) ((_sc)->cfg->ADC_FIFOS)
+#define AC_ADC_RXDATA(_sc) ((_sc)->cfg->ADC_RXDATA)
+#define AC_DAC_CNT(_sc) ((_sc)->cfg->DAC_CNT)
+#define AC_ADC_CNT(_sc) ((_sc)->cfg->ADC_CNT)
 
-static uint32_t a10codec_fmt[] = {
-	SND_FORMAT(AFMT_S16_LE, 1, 0),
-	SND_FORMAT(AFMT_S16_LE, 2, 0),
-	0
-};
+static uint32_t a10codec_fmt[] = { SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0), 0 };
 
 static struct pcmchan_caps a10codec_pcaps = { 8000, 192000, a10codec_fmt, 0 };
 static struct pcmchan_caps a10codec_rcaps = { 8000, 48000, a10codec_fmt, 0 };
@@ -144,84 +131,83 @@ static struct pcmchan_caps a10codec_rcaps = { 8000, 48000, a10codec_fmt, 0 };
 struct a10codec_info;
 
 struct a10codec_chinfo {
-	struct snd_dbuf		*buffer;
-	struct pcm_channel	*channel;	
-	struct a10codec_info	*parent;
-	bus_dmamap_t		dmamap;
-	void			*dmaaddr;
-	bus_addr_t		physaddr;
-	bus_size_t		fifo;
-	device_t		dmac;
-	void			*dmachan;
+	struct snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct a10codec_info *parent;
+	bus_dmamap_t dmamap;
+	void *dmaaddr;
+	bus_addr_t physaddr;
+	bus_size_t fifo;
+	device_t dmac;
+	void *dmachan;
 
-	int			dir;
-	int			run;
-	uint32_t		pos;
-	uint32_t		format;
-	uint32_t		blocksize;
-	uint32_t		speed;
+	int dir;
+	int run;
+	uint32_t pos;
+	uint32_t format;
+	uint32_t blocksize;
+	uint32_t speed;
 };
 
 struct a10codec_info {
-	device_t		dev;
-	struct resource		*res[2];
-	struct mtx		*lock;
-	bus_dma_tag_t		dmat;
-	unsigned		dmasize;
-	void			*ih;
+	device_t dev;
+	struct resource *res[2];
+	struct mtx *lock;
+	bus_dma_tag_t dmat;
+	unsigned dmasize;
+	void *ih;
 
-	struct a10codec_config	*cfg;
+	struct a10codec_config *cfg;
 
-	struct a10codec_chinfo	play;
-	struct a10codec_chinfo	rec;
+	struct a10codec_chinfo play;
+	struct a10codec_chinfo rec;
 };
 
 static struct resource_spec a10codec_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, { -1, 0 }
 };
 
-#define	CODEC_ANALOG_READ(sc, reg)		bus_read_4((sc)->res[1], (reg))
-#define	CODEC_ANALOG_WRITE(sc, reg, val)	bus_write_4((sc)->res[1], (reg), (val))
+#define CODEC_ANALOG_READ(sc, reg) bus_read_4((sc)->res[1], (reg))
+#define CODEC_ANALOG_WRITE(sc, reg, val) bus_write_4((sc)->res[1], (reg), (val))
 
-#define	CODEC_READ(sc, reg)		bus_read_4((sc)->res[0], (reg))
-#define	CODEC_WRITE(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
+#define CODEC_READ(sc, reg) bus_read_4((sc)->res[0], (reg))
+#define CODEC_WRITE(sc, reg, val) bus_write_4((sc)->res[0], (reg), (val))
 
 /*
  * A10/A20 mixer interface
  */
 
-#define	A10_DAC_ACTL	0x10
-#define	 A10_DACAREN			(1U << 31)
-#define	 A10_DACALEN			(1U << 30)
-#define	 A10_MIXEN			(1U << 29)
-#define	 A10_DACPAS			(1U << 8)
-#define	 A10_PAMUTE			(1U << 6)
-#define	 A10_PAVOL_SHIFT		0
-#define	 A10_PAVOL_MASK			(0x3f << A10_PAVOL_SHIFT)
-#define	A10_ADC_ACTL	0x28
-#define	 A10_ADCREN			(1U << 31)
-#define	 A10_ADCLEN			(1U << 30)
-#define	 A10_PREG1EN			(1U << 29)
-#define	 A10_PREG2EN			(1U << 28)
-#define	 A10_VMICEN			(1U << 27)
-#define	 A10_ADCG_SHIFT			20
-#define	 A10_ADCG_MASK			(7U << A10_ADCG_SHIFT)
-#define	 A10_ADCIS_SHIFT		17
-#define	 A10_ADCIS_MASK			(7U << A10_ADCIS_SHIFT)
-#define	  A10_ADC_IS_LINEIN			0
-#define	  A10_ADC_IS_FMIN			1
-#define	  A10_ADC_IS_MIC1			2
-#define	  A10_ADC_IS_MIC2			3
-#define	  A10_ADC_IS_MIC1_L_MIC2_R		4
-#define	  A10_ADC_IS_MIC1_LR_MIC2_LR		5
-#define	  A10_ADC_IS_OMIX			6
-#define	  A10_ADC_IS_LINEIN_L_MIC1_R		7
-#define	 A10_LNRDF			(1U << 16)
-#define	 A10_LNPREG_SHIFT		13
-#define	 A10_LNPREG_MASK		(7U << A10_LNPREG_SHIFT)
-#define	 A10_PA_EN			(1U << 4)
-#define	 A10_DDE			(1U << 3)
+#define A10_DAC_ACTL 0x10
+#define A10_DACAREN (1U << 31)
+#define A10_DACALEN (1U << 30)
+#define A10_MIXEN (1U << 29)
+#define A10_DACPAS (1U << 8)
+#define A10_PAMUTE (1U << 6)
+#define A10_PAVOL_SHIFT 0
+#define A10_PAVOL_MASK (0x3f << A10_PAVOL_SHIFT)
+#define A10_ADC_ACTL 0x28
+#define A10_ADCREN (1U << 31)
+#define A10_ADCLEN (1U << 30)
+#define A10_PREG1EN (1U << 29)
+#define A10_PREG2EN (1U << 28)
+#define A10_VMICEN (1U << 27)
+#define A10_ADCG_SHIFT 20
+#define A10_ADCG_MASK (7U << A10_ADCG_SHIFT)
+#define A10_ADCIS_SHIFT 17
+#define A10_ADCIS_MASK (7U << A10_ADCIS_SHIFT)
+#define A10_ADC_IS_LINEIN 0
+#define A10_ADC_IS_FMIN 1
+#define A10_ADC_IS_MIC1 2
+#define A10_ADC_IS_MIC2 3
+#define A10_ADC_IS_MIC1_L_MIC2_R 4
+#define A10_ADC_IS_MIC1_LR_MIC2_LR 5
+#define A10_ADC_IS_OMIX 6
+#define A10_ADC_IS_LINEIN_L_MIC1_R 7
+#define A10_LNRDF (1U << 16)
+#define A10_LNPREG_SHIFT 13
+#define A10_LNPREG_MASK (7U << A10_LNPREG_SHIFT)
+#define A10_PA_EN (1U << 4)
+#define A10_DDE (1U << 3)
 
 static int
 a10_mixer_init(struct snd_mixer *m)
@@ -250,17 +236,15 @@ static const struct a10_mixer {
 	unsigned mask;
 	unsigned shift;
 } a10_mixers[SOUND_MIXER_NRDEVICES] = {
-	[SOUND_MIXER_VOLUME]	= { A10_DAC_ACTL, A10_PAVOL_MASK,
-				    A10_PAVOL_SHIFT },
-	[SOUND_MIXER_LINE]	= { A10_ADC_ACTL, A10_LNPREG_MASK,
-				    A10_LNPREG_SHIFT },
-	[SOUND_MIXER_RECLEV]	= { A10_ADC_ACTL, A10_ADCG_MASK,
-				    A10_ADCG_SHIFT },
-}; 
+	[SOUND_MIXER_VOLUME] = { A10_DAC_ACTL, A10_PAVOL_MASK,
+	    A10_PAVOL_SHIFT },
+	[SOUND_MIXER_LINE] = { A10_ADC_ACTL, A10_LNPREG_MASK,
+	    A10_LNPREG_SHIFT },
+	[SOUND_MIXER_RECLEV] = { A10_ADC_ACTL, A10_ADCG_MASK, A10_ADCG_SHIFT },
+};
 
 static int
-a10_mixer_set(struct snd_mixer *m, unsigned dev, unsigned left,
-    unsigned right)
+a10_mixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct a10codec_info *sc = mix_getdevinfo(m);
 	uint32_t val;
@@ -287,15 +271,15 @@ a10_mixer_setrecsrc(struct snd_mixer *m, uint32_t src)
 	val = CODEC_READ(sc, A10_ADC_ACTL);
 
 	switch (src) {
-	case SOUND_MASK_LINE:	/* line-in */
+	case SOUND_MASK_LINE: /* line-in */
 		val &= ~A10_ADCIS_MASK;
 		val |= (A10_ADC_IS_LINEIN << A10_ADCIS_SHIFT);
 		break;
-	case SOUND_MASK_MIC:	/* MIC1 */
+	case SOUND_MASK_MIC: /* MIC1 */
 		val &= ~A10_ADCIS_MASK;
 		val |= (A10_ADC_IS_MIC1 << A10_ADCIS_SHIFT);
 		break;
-	case SOUND_MASK_LINE1:	/* MIC2 */
+	case SOUND_MASK_LINE1: /* MIC2 */
 		val &= ~A10_ADCIS_MASK;
 		val |= (A10_ADC_IS_MIC2 << A10_ADCIS_SHIFT);
 		break;
@@ -359,66 +343,64 @@ a10_mute(struct a10codec_info *sc, int mute, int dir)
 	}
 }
 
-static kobj_method_t a10_mixer_methods[] = {
-	KOBJMETHOD(mixer_init,		a10_mixer_init),
-	KOBJMETHOD(mixer_set,		a10_mixer_set),
-	KOBJMETHOD(mixer_setrecsrc,	a10_mixer_setrecsrc),
-	KOBJMETHOD_END
-};
+static kobj_method_t a10_mixer_methods[] = { KOBJMETHOD(
+						 mixer_init, a10_mixer_init),
+	KOBJMETHOD(mixer_set, a10_mixer_set),
+	KOBJMETHOD(mixer_setrecsrc, a10_mixer_setrecsrc), KOBJMETHOD_END };
 MIXER_DECLARE(a10_mixer);
 
 /*
  * H3 mixer interface
  */
 
-#define	H3_PR_CFG		0x00
-#define	 H3_AC_PR_RST		(1 << 28)
-#define	 H3_AC_PR_RW		(1 << 24)
-#define	 H3_AC_PR_ADDR_SHIFT	16
-#define	 H3_AC_PR_ADDR_MASK	(0x1f << H3_AC_PR_ADDR_SHIFT)
-#define	 H3_ACDA_PR_WDAT_SHIFT	8
-#define	 H3_ACDA_PR_WDAT_MASK	(0xff << H3_ACDA_PR_WDAT_SHIFT)
-#define	 H3_ACDA_PR_RDAT_SHIFT	0
-#define	 H3_ACDA_PR_RDAT_MASK	(0xff << H3_ACDA_PR_RDAT_SHIFT)
+#define H3_PR_CFG 0x00
+#define H3_AC_PR_RST (1 << 28)
+#define H3_AC_PR_RW (1 << 24)
+#define H3_AC_PR_ADDR_SHIFT 16
+#define H3_AC_PR_ADDR_MASK (0x1f << H3_AC_PR_ADDR_SHIFT)
+#define H3_ACDA_PR_WDAT_SHIFT 8
+#define H3_ACDA_PR_WDAT_MASK (0xff << H3_ACDA_PR_WDAT_SHIFT)
+#define H3_ACDA_PR_RDAT_SHIFT 0
+#define H3_ACDA_PR_RDAT_MASK (0xff << H3_ACDA_PR_RDAT_SHIFT)
 
-#define	H3_LOMIXSC		0x01
-#define	 H3_LOMIXSC_LDAC	(1 << 1)
-#define	H3_ROMIXSC		0x02
-#define	 H3_ROMIXSC_RDAC	(1 << 1)
-#define	H3_DAC_PA_SRC		0x03
-#define	 H3_DACAREN		(1 << 7)
-#define	 H3_DACALEN		(1 << 6)
-#define	 H3_RMIXEN		(1 << 5)
-#define	 H3_LMIXEN		(1 << 4)
-#define	H3_LINEIN_GCTR		0x05
-#define	 H3_LINEING_SHIFT	4
-#define	 H3_LINEING_MASK	(0x7 << H3_LINEING_SHIFT)
-#define	H3_MIC_GCTR		0x06
-#define	 H3_MIC1_GAIN_SHIFT	4
-#define	 H3_MIC1_GAIN_MASK	(0x7 << H3_MIC1_GAIN_SHIFT)
-#define	 H3_MIC2_GAIN_SHIFT	0
-#define	 H3_MIC2_GAIN_MASK	(0x7 << H3_MIC2_GAIN_SHIFT)
-#define	H3_PAEN_CTR		0x07
-#define	 H3_LINEOUTEN		(1 << 7)
-#define	H3_LINEOUT_VOLC		0x09
-#define	 H3_LINEOUTVOL_SHIFT	3
-#define	 H3_LINEOUTVOL_MASK	(0x1f << H3_LINEOUTVOL_SHIFT)
-#define	H3_MIC2G_LINEOUT_CTR	0x0a
-#define	 H3_LINEOUT_LSEL	(1 << 3)
-#define	 H3_LINEOUT_RSEL	(1 << 2)
-#define	H3_LADCMIXSC		0x0c
-#define	H3_RADCMIXSC		0x0d
-#define	 H3_ADCMIXSC_MIC1	(1 << 6)
-#define	 H3_ADCMIXSC_MIC2	(1 << 5)
-#define	 H3_ADCMIXSC_LINEIN	(1 << 2)
-#define	 H3_ADCMIXSC_OMIXER	(3 << 0)
-#define	H3_ADC_AP_EN		0x0f
-#define	 H3_ADCREN		(1 << 7)
-#define	 H3_ADCLEN		(1 << 6)
-#define	 H3_ADCG_SHIFT		0
-#define	 H3_ADCG_MASK		(0x7 << H3_ADCG_SHIFT)
+#define H3_LOMIXSC 0x01
+#define H3_LOMIXSC_LDAC (1 << 1)
+#define H3_ROMIXSC 0x02
+#define H3_ROMIXSC_RDAC (1 << 1)
+#define H3_DAC_PA_SRC 0x03
+#define H3_DACAREN (1 << 7)
+#define H3_DACALEN (1 << 6)
+#define H3_RMIXEN (1 << 5)
+#define H3_LMIXEN (1 << 4)
+#define H3_LINEIN_GCTR 0x05
+#define H3_LINEING_SHIFT 4
+#define H3_LINEING_MASK (0x7 << H3_LINEING_SHIFT)
+#define H3_MIC_GCTR 0x06
+#define H3_MIC1_GAIN_SHIFT 4
+#define H3_MIC1_GAIN_MASK (0x7 << H3_MIC1_GAIN_SHIFT)
+#define H3_MIC2_GAIN_SHIFT 0
+#define H3_MIC2_GAIN_MASK (0x7 << H3_MIC2_GAIN_SHIFT)
+#define H3_PAEN_CTR 0x07
+#define H3_LINEOUTEN (1 << 7)
+#define H3_LINEOUT_VOLC 0x09
+#define H3_LINEOUTVOL_SHIFT 3
+#define H3_LINEOUTVOL_MASK (0x1f << H3_LINEOUTVOL_SHIFT)
+#define H3_MIC2G_LINEOUT_CTR 0x0a
+#define H3_LINEOUT_LSEL (1 << 3)
+#define H3_LINEOUT_RSEL (1 << 2)
+#define H3_LADCMIXSC 0x0c
+#define H3_RADCMIXSC 0x0d
+#define H3_ADCMIXSC_MIC1 (1 << 6)
+#define H3_ADCMIXSC_MIC2 (1 << 5)
+#define H3_ADCMIXSC_LINEIN (1 << 2)
+#define H3_ADCMIXSC_OMIXER (3 << 0)
+#define H3_ADC_AP_EN 0x0f
+#define H3_ADCREN (1 << 7)
+#define H3_ADCLEN (1 << 6)
+#define H3_ADCG_SHIFT 0
+#define H3_ADCG_MASK (0x7 << H3_ADCG_SHIFT)
 
-static u_int 
+static u_int
 h3_pr_read(struct a10codec_info *sc, u_int addr)
 {
 	uint32_t val;
@@ -440,7 +422,7 @@ h3_pr_read(struct a10codec_info *sc, u_int addr)
 	CODEC_ANALOG_WRITE(sc, H3_PR_CFG, val);
 
 	/* Read data */
-	return (CODEC_ANALOG_READ(sc , H3_PR_CFG) & H3_ACDA_PR_RDAT_MASK);
+	return (CODEC_ANALOG_READ(sc, H3_PR_CFG) & H3_ACDA_PR_RDAT_MASK);
 }
 
 static void
@@ -483,39 +465,42 @@ h3_pr_set_clear(struct a10codec_info *sc, u_int addr, u_int set, u_int clr)
 static int
 h3_mixer_init(struct snd_mixer *m)
 {
-	int rid=1;
+	int rid = 1;
 	pcell_t reg[2];
 	phandle_t analogref;
 	struct a10codec_info *sc = mix_getdevinfo(m);
 
-	if (OF_getencprop(ofw_bus_get_node(sc->dev), "allwinner,codec-analog-controls",
-	    &analogref, sizeof(analogref)) <= 0) {
+	if (OF_getencprop(ofw_bus_get_node(sc->dev),
+		"allwinner,codec-analog-controls", &analogref,
+		sizeof(analogref)) <= 0) {
 		return (ENXIO);
 	}
 
-	if (OF_getencprop(OF_node_from_xref(analogref), "reg",
-	    reg, sizeof(reg)) <= 0) {
+	if (OF_getencprop(
+		OF_node_from_xref(analogref), "reg", reg, sizeof(reg)) <= 0) {
 		return (ENXIO);
 	}
 
 	sc->res[1] = bus_alloc_resource(sc->dev, SYS_RES_MEMORY, &rid, reg[0],
-	    reg[0]+reg[1], reg[1], RF_ACTIVE );
+	    reg[0] + reg[1], reg[1], RF_ACTIVE);
 
 	if (sc->res[1] == NULL) {
 		return (ENXIO);
 	}
 
-	mix_setdevs(m, SOUND_MASK_PCM | SOUND_MASK_VOLUME | SOUND_MASK_RECLEV |
-	    SOUND_MASK_MIC | SOUND_MASK_LINE | SOUND_MASK_LINE1);
-	mix_setrecdevs(m, SOUND_MASK_MIC | SOUND_MASK_LINE | SOUND_MASK_LINE1 |
-	    SOUND_MASK_IMIX);
+	mix_setdevs(m,
+	    SOUND_MASK_PCM | SOUND_MASK_VOLUME | SOUND_MASK_RECLEV |
+		SOUND_MASK_MIC | SOUND_MASK_LINE | SOUND_MASK_LINE1);
+	mix_setrecdevs(m,
+	    SOUND_MASK_MIC | SOUND_MASK_LINE | SOUND_MASK_LINE1 |
+		SOUND_MASK_IMIX);
 
 	pcm_setflags(sc->dev, pcm_getflags(sc->dev) | SD_F_SOFTPCMVOL);
 
 	/* Right & Left LINEOUT enable */
 	h3_pr_set_clear(sc, H3_PAEN_CTR, H3_LINEOUTEN, 0);
-	h3_pr_set_clear(sc, H3_MIC2G_LINEOUT_CTR,
-	    H3_LINEOUT_LSEL | H3_LINEOUT_RSEL, 0);
+	h3_pr_set_clear(
+	    sc, H3_MIC2G_LINEOUT_CTR, H3_LINEOUT_LSEL | H3_LINEOUT_RSEL, 0);
 
 	return (0);
 }
@@ -525,21 +510,19 @@ static const struct h3_mixer {
 	unsigned mask;
 	unsigned shift;
 } h3_mixers[SOUND_MIXER_NRDEVICES] = {
-	[SOUND_MIXER_VOLUME]	= { H3_LINEOUT_VOLC, H3_LINEOUTVOL_MASK,
-				    H3_LINEOUTVOL_SHIFT },
-	[SOUND_MIXER_RECLEV]	= { H3_ADC_AP_EN, H3_ADCG_MASK,
-				    H3_ADCG_SHIFT },
-	[SOUND_MIXER_LINE]	= { H3_LINEIN_GCTR, H3_LINEING_MASK,
-				    H3_LINEING_SHIFT },
-	[SOUND_MIXER_MIC]	= { H3_MIC_GCTR, H3_MIC1_GAIN_MASK,
-				    H3_MIC1_GAIN_SHIFT },
-	[SOUND_MIXER_LINE1]	= { H3_MIC_GCTR, H3_MIC2_GAIN_MASK,
-				    H3_MIC2_GAIN_SHIFT },
+	[SOUND_MIXER_VOLUME] = { H3_LINEOUT_VOLC, H3_LINEOUTVOL_MASK,
+	    H3_LINEOUTVOL_SHIFT },
+	[SOUND_MIXER_RECLEV] = { H3_ADC_AP_EN, H3_ADCG_MASK, H3_ADCG_SHIFT },
+	[SOUND_MIXER_LINE] = { H3_LINEIN_GCTR, H3_LINEING_MASK,
+	    H3_LINEING_SHIFT },
+	[SOUND_MIXER_MIC] = { H3_MIC_GCTR, H3_MIC1_GAIN_MASK,
+	    H3_MIC1_GAIN_SHIFT },
+	[SOUND_MIXER_LINE1] = { H3_MIC_GCTR, H3_MIC2_GAIN_MASK,
+	    H3_MIC2_GAIN_SHIFT },
 };
 
 static int
-h3_mixer_set(struct snd_mixer *m, unsigned dev, unsigned left,
-    unsigned right)
+h3_mixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct a10codec_info *sc = mix_getdevinfo(m);
 	unsigned nvol, max;
@@ -547,8 +530,8 @@ h3_mixer_set(struct snd_mixer *m, unsigned dev, unsigned left,
 	max = h3_mixers[dev].mask >> h3_mixers[dev].shift;
 	nvol = (left * max) / 100;
 
-	h3_pr_set_clear(sc, h3_mixers[dev].reg,
-	    nvol << h3_mixers[dev].shift, h3_mixers[dev].mask);
+	h3_pr_set_clear(sc, h3_mixers[dev].reg, nvol << h3_mixers[dev].shift,
+	    h3_mixers[dev].mask);
 
 	left = right = (left * 100) / max;
 	return (left | (right << 8));
@@ -561,16 +544,16 @@ h3_mixer_setrecsrc(struct snd_mixer *m, uint32_t src)
 	uint32_t val;
 
 	val = 0;
-	src &= (SOUND_MASK_LINE | SOUND_MASK_MIC |
-	    SOUND_MASK_LINE1 | SOUND_MASK_IMIX);
+	src &= (SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_LINE1 |
+	    SOUND_MASK_IMIX);
 
-	if ((src & SOUND_MASK_LINE) != 0)	/* line-in */
+	if ((src & SOUND_MASK_LINE) != 0) /* line-in */
 		val |= H3_ADCMIXSC_LINEIN;
-	if ((src & SOUND_MASK_MIC) != 0)	/* MIC1 */
+	if ((src & SOUND_MASK_MIC) != 0) /* MIC1 */
 		val |= H3_ADCMIXSC_MIC1;
-	if ((src & SOUND_MASK_LINE1) != 0)	/* MIC2 */
+	if ((src & SOUND_MASK_LINE1) != 0) /* MIC2 */
 		val |= H3_ADCMIXSC_MIC2;
-	if ((src & SOUND_MASK_IMIX) != 0)	/* l/r output mixer */
+	if ((src & SOUND_MASK_IMIX) != 0) /* l/r output mixer */
 		val |= H3_ADCMIXSC_OMIXER;
 
 	h3_pr_write(sc, H3_LADCMIXSC, val);
@@ -588,8 +571,8 @@ h3_mute(struct a10codec_info *sc, int mute, int dir)
 			h3_pr_set_clear(sc, H3_LOMIXSC, 0, H3_LOMIXSC_LDAC);
 			h3_pr_set_clear(sc, H3_ROMIXSC, 0, H3_ROMIXSC_RDAC);
 			/* Disable DAC analog l/r channels and output mixer */
-			h3_pr_set_clear(sc, H3_DAC_PA_SRC,
-			    0, H3_DACAREN | H3_DACALEN | H3_RMIXEN | H3_LMIXEN);
+			h3_pr_set_clear(sc, H3_DAC_PA_SRC, 0,
+			    H3_DACAREN | H3_DACALEN | H3_RMIXEN | H3_LMIXEN);
 		} else {
 			/* Enable DAC analog l/r channels and output mixer */
 			h3_pr_set_clear(sc, H3_DAC_PA_SRC,
@@ -601,22 +584,20 @@ h3_mute(struct a10codec_info *sc, int mute, int dir)
 	} else {
 		if (mute) {
 			/* Disable ADC analog l/r channels */
-			h3_pr_set_clear(sc, H3_ADC_AP_EN,
-			    0, H3_ADCREN | H3_ADCLEN);
+			h3_pr_set_clear(
+			    sc, H3_ADC_AP_EN, 0, H3_ADCREN | H3_ADCLEN);
 		} else {
 			/* Enable ADC analog l/r channels */
-			h3_pr_set_clear(sc, H3_ADC_AP_EN,
-			    H3_ADCREN | H3_ADCLEN, 0);
+			h3_pr_set_clear(
+			    sc, H3_ADC_AP_EN, H3_ADCREN | H3_ADCLEN, 0);
 		}
 	}
 }
 
-static kobj_method_t h3_mixer_methods[] = {
-	KOBJMETHOD(mixer_init,		h3_mixer_init),
-	KOBJMETHOD(mixer_set,		h3_mixer_set),
-	KOBJMETHOD(mixer_setrecsrc,	h3_mixer_setrecsrc),
-	KOBJMETHOD_END
-};
+static kobj_method_t h3_mixer_methods[] = { KOBJMETHOD(
+						mixer_init, h3_mixer_init),
+	KOBJMETHOD(mixer_set, h3_mixer_set),
+	KOBJMETHOD(mixer_setrecsrc, h3_mixer_setrecsrc), KOBJMETHOD_END };
 MIXER_DECLARE(h3_mixer);
 
 /*
@@ -648,12 +629,12 @@ a10codec_transfer(struct a10codec_chinfo *ch)
 		dst = ch->physaddr + ch->pos;
 	}
 
-	error = SUNXI_DMA_TRANSFER(ch->dmac, ch->dmachan, src, dst,
-	    ch->blocksize);
+	error = SUNXI_DMA_TRANSFER(
+	    ch->dmac, ch->dmachan, src, dst, ch->blocksize);
 	if (error) {
 		ch->run = 0;
-		device_printf(ch->parent->dev, "DMA transfer failed: %d\n",
-		    error);
+		device_printf(
+		    ch->parent->dev, "DMA transfer failed: %d\n", error);
 	}
 }
 
@@ -736,8 +717,8 @@ a10codec_start(struct a10codec_chinfo *ch)
 		CODEC_WRITE(sc, AC_DAC_FIFOC(sc), DAC_FIFOC_FIFO_FLUSH);
 
 		/* Clear DAC FIFO status */
-		CODEC_WRITE(sc, AC_DAC_FIFOS(sc),
-		    CODEC_READ(sc, AC_DAC_FIFOS(sc)));
+		CODEC_WRITE(
+		    sc, AC_DAC_FIFOS(sc), CODEC_READ(sc, AC_DAC_FIFOS(sc)));
 
 		/* Unmute output */
 		sc->cfg->mute(sc, 0, ch->dir);
@@ -748,10 +729,10 @@ a10codec_start(struct a10codec_chinfo *ch)
 		/* Configure DAC FIFO */
 		CODEC_WRITE(sc, AC_DAC_FIFOC(sc),
 		    (AFMT_CHANNEL(ch->format) == 1 ? DAC_FIFOC_MONO_EN : 0) |
-		    (a10codec_fs(ch) << DAC_FIFOC_FS_SHIFT) |
-		    (FIFO_MODE_16_15_0 << DAC_FIFOC_FIFO_MODE_SHIFT) |
-		    (DRQ_CLR_CNT << DAC_FIFOC_DRQ_CLR_CNT_SHIFT) |
-		    (TX_TRIG_LEVEL << DAC_FIFOC_TX_TRIG_LEVEL_SHIFT));
+			(a10codec_fs(ch) << DAC_FIFOC_FS_SHIFT) |
+			(FIFO_MODE_16_15_0 << DAC_FIFOC_FIFO_MODE_SHIFT) |
+			(DRQ_CLR_CNT << DAC_FIFOC_DRQ_CLR_CNT_SHIFT) |
+			(TX_TRIG_LEVEL << DAC_FIFOC_TX_TRIG_LEVEL_SHIFT));
 
 		/* Enable DAC DRQ */
 		val = CODEC_READ(sc, AC_DAC_FIFOC(sc));
@@ -762,8 +743,8 @@ a10codec_start(struct a10codec_chinfo *ch)
 		CODEC_WRITE(sc, AC_ADC_FIFOC(sc), ADC_FIFOC_FIFO_FLUSH);
 
 		/* Clear ADC FIFO status */
-		CODEC_WRITE(sc, AC_ADC_FIFOS(sc),
-		    CODEC_READ(sc, AC_ADC_FIFOS(sc)));
+		CODEC_WRITE(
+		    sc, AC_ADC_FIFOS(sc), CODEC_READ(sc, AC_ADC_FIFOS(sc)));
 
 		/* Unmute input */
 		sc->cfg->mute(sc, 0, ch->dir);
@@ -773,11 +754,11 @@ a10codec_start(struct a10codec_chinfo *ch)
 
 		/* Configure ADC FIFO */
 		CODEC_WRITE(sc, AC_ADC_FIFOC(sc),
-		    ADC_FIFOC_EN_AD |
-		    ADC_FIFOC_RX_FIFO_MODE |
-		    (AFMT_CHANNEL(ch->format) == 1 ? ADC_FIFOC_MONO_EN : 0) |
-		    (a10codec_fs(ch) << ADC_FIFOC_FS_SHIFT) |
-		    (RX_TRIG_LEVEL << ADC_FIFOC_RX_TRIG_LEVEL_SHIFT));
+		    ADC_FIFOC_EN_AD | ADC_FIFOC_RX_FIFO_MODE |
+			(AFMT_CHANNEL(ch->format) == 1 ? ADC_FIFOC_MONO_EN :
+							       0) |
+			(a10codec_fs(ch) << ADC_FIFOC_FS_SHIFT) |
+			(RX_TRIG_LEVEL << ADC_FIFOC_RX_TRIG_LEVEL_SHIFT));
 
 		/* Enable ADC DRQ */
 		val = CODEC_READ(sc, AC_ADC_FIFOC(sc));
@@ -818,9 +799,8 @@ a10codec_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	pcell_t *cells;
 	int ncells, error;
 
-	error = ofw_bus_parse_xref_list_alloc(ofw_bus_get_node(sc->dev),
-	    "dmas", "#dma-cells", dir == PCMDIR_PLAY ? 1 : 0,
-	    &xref, &ncells, &cells);
+	error = ofw_bus_parse_xref_list_alloc(ofw_bus_get_node(sc->dev), "dmas",
+	    "#dma-cells", dir == PCMDIR_PLAY ? 1 : 0, &xref, &ncells, &cells);
 	if (error != 0) {
 		device_printf(sc->dev, "cannot parse 'dmas' property\n");
 		return (NULL);
@@ -852,8 +832,8 @@ a10codec_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 		device_printf(sc->dev, "cannot allocate channel buffer\n");
 		return (NULL);
 	}
-	error = bus_dmamap_load(sc->dmat, ch->dmamap, ch->dmaaddr,
-	    sc->dmasize, a10codec_dmamap_cb, ch, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load(sc->dmat, ch->dmamap, ch->dmaaddr, sc->dmasize,
+	    a10codec_dmamap_cb, ch, BUS_DMA_NOWAIT);
 	if (error != 0) {
 		device_printf(sc->dev, "cannot load DMA map\n");
 		return (NULL);
@@ -995,17 +975,15 @@ a10codec_chan_getcaps(kobj_t obj, void *data)
 	}
 }
 
-static kobj_method_t a10codec_chan_methods[] = {
-	KOBJMETHOD(channel_init,		a10codec_chan_init),
-	KOBJMETHOD(channel_free,		a10codec_chan_free),
-	KOBJMETHOD(channel_setformat,		a10codec_chan_setformat),
-	KOBJMETHOD(channel_setspeed,		a10codec_chan_setspeed),
-	KOBJMETHOD(channel_setblocksize,	a10codec_chan_setblocksize),
-	KOBJMETHOD(channel_trigger,		a10codec_chan_trigger),
-	KOBJMETHOD(channel_getptr,		a10codec_chan_getptr),
-	KOBJMETHOD(channel_getcaps,		a10codec_chan_getcaps),
-	KOBJMETHOD_END
-};
+static kobj_method_t a10codec_chan_methods[] = { KOBJMETHOD(channel_init,
+						     a10codec_chan_init),
+	KOBJMETHOD(channel_free, a10codec_chan_free),
+	KOBJMETHOD(channel_setformat, a10codec_chan_setformat),
+	KOBJMETHOD(channel_setspeed, a10codec_chan_setspeed),
+	KOBJMETHOD(channel_setblocksize, a10codec_chan_setblocksize),
+	KOBJMETHOD(channel_trigger, a10codec_chan_trigger),
+	KOBJMETHOD(channel_getptr, a10codec_chan_getptr),
+	KOBJMETHOD(channel_getcaps, a10codec_chan_getcaps), KOBJMETHOD_END };
 CHANNEL_DECLARE(a10codec_chan);
 
 /*
@@ -1013,43 +991,41 @@ CHANNEL_DECLARE(a10codec_chan);
  */
 
 static const struct a10codec_config a10_config = {
-	.mixer_class	= &a10_mixer_class,
-	.mute		= a10_mute,
-	.drqtype_codec	= 19,
-	.drqtype_sdram	= 22,
-	.DPC		= 0x00,
-	.DAC_FIFOC	= 0x04,
-	.DAC_FIFOS	= 0x08,
-	.DAC_TXDATA	= 0x0c,
-	.ADC_FIFOC	= 0x1c,
-	.ADC_FIFOS	= 0x20,
-	.ADC_RXDATA	= 0x24,
-	.DAC_CNT	= 0x30,
-	.ADC_CNT	= 0x34,
+	.mixer_class = &a10_mixer_class,
+	.mute = a10_mute,
+	.drqtype_codec = 19,
+	.drqtype_sdram = 22,
+	.DPC = 0x00,
+	.DAC_FIFOC = 0x04,
+	.DAC_FIFOS = 0x08,
+	.DAC_TXDATA = 0x0c,
+	.ADC_FIFOC = 0x1c,
+	.ADC_FIFOS = 0x20,
+	.ADC_RXDATA = 0x24,
+	.DAC_CNT = 0x30,
+	.ADC_CNT = 0x34,
 };
 
 static const struct a10codec_config h3_config = {
-	.mixer_class	= &h3_mixer_class,
-	.mute		= h3_mute,
-	.drqtype_codec	= 15,
-	.drqtype_sdram	= 1,
-	.DPC		= 0x00,
-	.DAC_FIFOC	= 0x04,
-	.DAC_FIFOS	= 0x08,
-	.DAC_TXDATA	= 0x20,
-	.ADC_FIFOC	= 0x10,
-	.ADC_FIFOS	= 0x14,
-	.ADC_RXDATA	= 0x18,
-	.DAC_CNT	= 0x40,
-	.ADC_CNT	= 0x44,
+	.mixer_class = &h3_mixer_class,
+	.mute = h3_mute,
+	.drqtype_codec = 15,
+	.drqtype_sdram = 1,
+	.DPC = 0x00,
+	.DAC_FIFOC = 0x04,
+	.DAC_FIFOS = 0x08,
+	.DAC_TXDATA = 0x20,
+	.ADC_FIFOC = 0x10,
+	.ADC_FIFOS = 0x14,
+	.ADC_RXDATA = 0x18,
+	.DAC_CNT = 0x40,
+	.ADC_CNT = 0x44,
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun4i-a10-codec",	(uintptr_t)&a10_config },
-	{ "allwinner,sun7i-a20-codec",	(uintptr_t)&a10_config },
-	{ "allwinner,sun8i-h3-codec",	(uintptr_t)&h3_config },
-	{ NULL, 0 }
-};
+static struct ofw_compat_data compat_data[] = { { "allwinner,sun4i-a10-codec",
+						    (uintptr_t)&a10_config },
+	{ "allwinner,sun7i-a20-codec", (uintptr_t)&a10_config },
+	{ "allwinner,sun8i-h3-codec", (uintptr_t)&h3_config }, { NULL, 0 } };
 
 static int
 a10codec_probe(device_t dev)
@@ -1090,15 +1066,14 @@ a10codec_attach(device_t dev)
 	}
 
 	sc->dmasize = 131072;
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(dev),
-	    4, sc->dmasize,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    sc->dmasize, 1,		/* maxsize, nsegs */
-	    sc->dmasize, 0,		/* maxsegsize, flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 4,
+	    sc->dmasize,	     /* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
+	    BUS_SPACE_MAXADDR,	     /* highaddr */
+	    NULL, NULL,		     /* filter, filterarg */
+	    sc->dmasize, 1,	     /* maxsize, nsegs */
+	    sc->dmasize, 0,	     /* maxsegsize, flags */
+	    NULL, NULL,		     /* lockfunc, lockarg */
 	    &sc->dmat);
 	if (error != 0) {
 		device_printf(dev, "cannot create DMA tag\n");
@@ -1162,8 +1137,8 @@ a10codec_attach(device_t dev)
 	}
 
 	/* Unmute PA */
-	if (gpio_pin_get_by_ofw_property(dev, node, "allwinner,pa-gpios",
-	    &pa_pin) == 0) {
+	if (gpio_pin_get_by_ofw_property(
+		dev, node, "allwinner,pa-gpios", &pa_pin) == 0) {
 		error = gpio_pin_set_active(pa_pin, 1);
 		if (error != 0)
 			device_printf(dev, "failed to unmute PA\n");
@@ -1194,8 +1169,8 @@ fail:
 
 static device_method_t a10codec_pcm_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		a10codec_probe),
-	DEVMETHOD(device_attach,	a10codec_attach),
+	DEVMETHOD(device_probe, a10codec_probe),
+	DEVMETHOD(device_attach, a10codec_attach),
 
 	DEVMETHOD_END
 };

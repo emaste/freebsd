@@ -30,27 +30,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
 
-#include <arm/ti/ti_sysc.h>
 #include <arm/ti/ti_spireg.h>
 #include <arm/ti/ti_spivar.h>
+#include <arm/ti/ti_sysc.h>
 
 #include "spibus_if.h"
 
@@ -59,20 +57,17 @@ static int ti_spi_detach(device_t);
 
 #undef TI_SPI_DEBUG
 #ifdef TI_SPI_DEBUG
-#define	IRQSTATUSBITS							\
-	"\020\1TX0_EMPTY\2TX0_UNDERFLOW\3RX0_FULL\4RX0_OVERFLOW"	\
-	"\5TX1_EMPTY\6TX1_UNDERFLOW\7RX1_FULL\11TX2_EMPTY"		\
-	"\12TX1_UNDERFLOW\13RX2_FULL\15TX3_EMPTY\16TX3_UNDERFLOW"	\
+#define IRQSTATUSBITS                                             \
+	"\020\1TX0_EMPTY\2TX0_UNDERFLOW\3RX0_FULL\4RX0_OVERFLOW"  \
+	"\5TX1_EMPTY\6TX1_UNDERFLOW\7RX1_FULL\11TX2_EMPTY"        \
+	"\12TX1_UNDERFLOW\13RX2_FULL\15TX3_EMPTY\16TX3_UNDERFLOW" \
 	"\17RX3_FULL\22EOW"
-#define	CONFBITS							\
-	"\020\1PHA\2POL\7EPOL\17DMAW\20DMAR\21DPE0\22DPE1\23IS"		\
+#define CONFBITS                                                \
+	"\020\1PHA\2POL\7EPOL\17DMAW\20DMAR\21DPE0\22DPE1\23IS" \
 	"\24TURBO\25FORCE\30SBE\31SBPOL\34FFEW\35FFER\36CLKG"
-#define	STATBITS							\
-	"\020\1RXS\2TXS\3EOT\4TXFFE\5TXFFF\6RXFFE\7RXFFFF"
-#define	MODULCTRLBITS							\
-	"\020\1SINGLE\2NOSPIEN\3SLAVE\4SYST\10MOA\11FDAA"
-#define	CTRLBITS							\
-	"\020\1ENABLED"
+#define STATBITS "\020\1RXS\2TXS\3EOT\4TXFFE\5TXFFF\6RXFFE\7RXFFFF"
+#define MODULCTRLBITS "\020\1SINGLE\2NOSPIEN\3SLAVE\4SYST\10MOA\11FDAA"
+#define CTRLBITS "\020\1ENABLED"
 
 static void
 ti_spi_printr(device_t dev)
@@ -97,8 +92,11 @@ ti_spi_printr(device_t dev)
 		conf = TI_SPI_READ(sc, MCSPI_CONF_CH(i));
 		device_printf(dev, "CH%dCONF: 0x%b\n", i, conf, CONFBITS);
 		if (conf & MCSPI_CONF_CLKG) {
-			div = (conf >> MCSPI_CONF_CLK_SHIFT) & MCSPI_CONF_CLK_MSK;
-			div |= ((ctrl >> MCSPI_CTRL_EXTCLK_SHIFT) & MCSPI_CTRL_EXTCLK_MSK) << 4;
+			div = (conf >> MCSPI_CONF_CLK_SHIFT) &
+			    MCSPI_CONF_CLK_MSK;
+			div |= ((ctrl >> MCSPI_CTRL_EXTCLK_SHIFT) &
+				   MCSPI_CTRL_EXTCLK_MSK)
+			    << 4;
 		} else {
 			div = 1;
 			j = (conf >> MCSPI_CONF_CLK_SHIFT) & MCSPI_CONF_CLK_MSK;
@@ -181,13 +179,13 @@ ti_spi_attach(device_t dev)
 
 	/* Get the number of available channels. */
 	if ((OF_getencprop(ofw_bus_get_node(dev), "ti,spi-num-cs",
-	    &sc->sc_numcs, sizeof(sc->sc_numcs))) <= 0) {
+		&sc->sc_numcs, sizeof(sc->sc_numcs))) <= 0) {
 		sc->sc_numcs = 2;
 	}
 
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
 		return (ENXIO);
@@ -197,8 +195,8 @@ ti_spi_attach(device_t dev)
 	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!sc->sc_irq_res) {
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot allocate interrupt\n");
@@ -207,7 +205,7 @@ ti_spi_attach(device_t dev)
 
 	/* Hook up our interrupt handler. */
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, ti_spi_intr, sc, &sc->sc_intrhand)) {
+		NULL, ti_spi_intr, sc, &sc->sc_intrhand)) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot setup the interrupt handler\n");
@@ -219,8 +217,8 @@ ti_spi_attach(device_t dev)
 	/* Issue a softreset to the controller */
 	TI_SPI_WRITE(sc, MCSPI_SYSCONFIG, MCSPI_SYSCONFIG_SOFTRESET);
 	timeout = 1000;
-	while (!(TI_SPI_READ(sc, MCSPI_SYSSTATUS) &
-	    MCSPI_SYSSTATUS_RESETDONE)) {
+	while (
+	    !(TI_SPI_READ(sc, MCSPI_SYSSTATUS) & MCSPI_SYSSTATUS_RESETDONE)) {
 		if (--timeout == 0) {
 			device_printf(dev,
 			    "Error: Controller reset operation timed out\n");
@@ -231,8 +229,8 @@ ti_spi_attach(device_t dev)
 	}
 
 	/* Print the McSPI module revision. */
-	rev = TI_SPI_READ(sc,
-	    ti_sysc_get_rev_address_offset_host(device_get_parent(dev)));
+	rev = TI_SPI_READ(
+	    sc, ti_sysc_get_rev_address_offset_host(device_get_parent(dev)));
 	device_printf(dev,
 	    "scheme: %#x func: %#x rtl: %d rev: %d.%d custom rev: %d\n",
 	    (rev >> MCSPI_REVISION_SCHEME_SHIFT) & MCSPI_REVISION_SCHEME_MSK,
@@ -256,12 +254,12 @@ ti_spi_attach(device_t dev)
 		 */
 		TI_SPI_WRITE(sc, MCSPI_CONF_CH(i),
 		    MCSPI_CONF_DPE0 | MCSPI_CONF_EPOL |
-		    (8 - 1) << MCSPI_CONF_WL_SHIFT);
+			(8 - 1) << MCSPI_CONF_WL_SHIFT);
 		/* Set initial clock - 500kHz. */
 		ti_spi_set_clock(sc, i, 500000);
 	}
 
-#ifdef	TI_SPI_DEBUG
+#ifdef TI_SPI_DEBUG
 	ti_spi_printr(dev);
 #endif
 
@@ -317,8 +315,9 @@ ti_spi_fill_fifo(struct ti_spi_softc *sc)
 		if (sc->sc_fifolvl == 1) {
 			/* FIFO disabled. */
 			timeout = 1000;
-			while (--timeout > 0 && (TI_SPI_READ(sc,
-			    MCSPI_STAT_CH(sc->sc_cs)) & MCSPI_STAT_TXS) == 0) {
+			while (--timeout > 0 &&
+			    (TI_SPI_READ(sc, MCSPI_STAT_CH(sc->sc_cs)) &
+				MCSPI_STAT_TXS) == 0) {
 				DELAY(100);
 			}
 			if (timeout == 0)
@@ -350,8 +349,9 @@ ti_spi_drain_fifo(struct ti_spi_softc *sc)
 		if (sc->sc_fifolvl == 1) {
 			/* FIFO disabled. */
 			timeout = 1000;
-			while (--timeout > 0 && (TI_SPI_READ(sc,
-			    MCSPI_STAT_CH(sc->sc_cs)) & MCSPI_STAT_RXS) == 0) {
+			while (--timeout > 0 &&
+			    (TI_SPI_READ(sc, MCSPI_STAT_CH(sc->sc_cs)) &
+				MCSPI_STAT_RXS) == 0) {
 				DELAY(100);
 			}
 			if (timeout == 0)
@@ -388,7 +388,7 @@ ti_spi_intr(void *arg)
 
 	if (status & MCSPI_IRQ_EOW)
 		eow = 1;
-		
+
 	/* Clear interrupt status. */
 	TI_SPI_WRITE(sc, MCSPI_IRQSTATUS, status);
 
@@ -437,9 +437,9 @@ ti_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	sc = device_get_softc(dev);
 
-	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz, 
+	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz,
 	    ("TX/RX command sizes should be equal"));
-	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz, 
+	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz,
 	    ("TX/RX data sizes should be equal"));
 
 	/* Get the proper chip select for this child. */
@@ -455,11 +455,10 @@ ti_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 		return (EINVAL);
 	}
 
-	if (mode > 3)
-	{
-	    device_printf(dev, "Invalid mode %d requested by %s\n", mode,
+	if (mode > 3) {
+		device_printf(dev, "Invalid mode %d requested by %s\n", mode,
 		    device_get_nameunit(child));
-	    return (EINVAL);
+		return (EINVAL);
 	}
 
 	TI_SPI_LOCK(sc);
@@ -479,7 +478,7 @@ ti_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	sc->sc_len = cmd->tx_cmd_sz + cmd->tx_data_sz;
 	sc->sc_fifolvl = ti_spi_gcd(sc->sc_len, TI_SPI_FIFOSZ);
 	if (sc->sc_fifolvl < 2 || sc->sc_len > 0xffff)
-		sc->sc_fifolvl = 1;	/* FIFO disabled. */
+		sc->sc_fifolvl = 1; /* FIFO disabled. */
 	/* Disable FIFO for now. */
 	sc->sc_fifolvl = 1;
 
@@ -557,15 +556,15 @@ ti_spi_get_node(device_t bus, device_t dev)
 
 static device_method_t ti_spi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ti_spi_probe),
-	DEVMETHOD(device_attach,	ti_spi_attach),
-	DEVMETHOD(device_detach,	ti_spi_detach),
+	DEVMETHOD(device_probe, ti_spi_probe),
+	DEVMETHOD(device_attach, ti_spi_attach),
+	DEVMETHOD(device_detach, ti_spi_detach),
 
 	/* SPI interface */
-	DEVMETHOD(spibus_transfer,	ti_spi_transfer),
+	DEVMETHOD(spibus_transfer, ti_spi_transfer),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	ti_spi_get_node),
+	DEVMETHOD(ofw_bus_get_node, ti_spi_get_node),
 
 	DEVMETHOD_END
 };

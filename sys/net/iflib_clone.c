@@ -29,46 +29,46 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_acpi.h"
 #include "opt_sched.h"
 
-#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/eventhandler.h>
 #include <sys/event.h>
-#include <sys/sockio.h>
+#include <sys/eventhandler.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/module.h>
 #include <sys/kobj.h>
+#include <sys/limits.h>
+#include <sys/lock.h>
+#include <sys/md5.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/rman.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/taskqueue.h>
-#include <sys/limits.h>
-#include <sys/queue.h>
-#include <sys/jail.h>
-#include <sys/md5.h>
-#include <sys/proc.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_types.h>
-#include <net/if_media.h>
-#include <net/if_clone.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
-#include <net/vnet.h>
-
+#include <net/if.h>
+#include <net/if_clone.h>
+#include <net/if_media.h>
+#include <net/if_types.h>
+#include <net/if_var.h>
 #include <net/iflib.h>
 #include <net/iflib_private.h>
+#include <net/vnet.h>
+
 #include "ifdi_if.h"
 
 int
@@ -107,7 +107,8 @@ struct if_pseudo {
 	int ip_on_list;
 };
 
-static LIST_HEAD(, if_pseudo) iflib_pseudos = LIST_HEAD_INITIALIZER(iflib_pseudos);
+static LIST_HEAD(, if_pseudo) iflib_pseudos = LIST_HEAD_INITIALIZER(
+    iflib_pseudos);
 
 /*
  * XXX this assumes that the rest of the
@@ -120,7 +121,7 @@ iflib_ip_lookup(const char *name)
 	if_pseudo_t ip = NULL;
 
 	PSEUDO_LOCK();
-	LIST_FOREACH(ip, &iflib_pseudos, ip_list) {
+	LIST_FOREACH (ip, &iflib_pseudos, ip_list) {
 		if (!strcmp(ip->ip_sctx->isc_name, name))
 			break;
 	}
@@ -162,7 +163,6 @@ iflib_ifdetach(void *arg __unused, if_t ifp)
 static void
 iflib_iflladdr(void *arg __unused, if_t ifp __unused)
 {
-
 }
 
 static int
@@ -226,7 +226,7 @@ iflib_clone_destroy(if_t ifp)
 	int rc;
 
 	/*
-	 * Detach device / free / free unit 
+	 * Detach device / free / free unit
 	 */
 	ctx = if_getsoftc(ifp);
 	dev = iflib_get_dev(ctx);
@@ -249,42 +249,47 @@ iflib_clone_register(if_shared_ctx_t sctx)
 	if_pseudo_t ip;
 
 	if (sctx->isc_name == NULL) {
-		printf("iflib_clone_register failed - shared_ctx needs to have a device name\n");
+		printf(
+		    "iflib_clone_register failed - shared_ctx needs to have a device name\n");
 		return (NULL);
 	}
 	if (iflib_ip_lookup(sctx->isc_name) != NULL) {
-		printf("iflib_clone_register failed - shared_ctx %s alread registered\n",
-			   sctx->isc_name);
+		printf(
+		    "iflib_clone_register failed - shared_ctx %s alread registered\n",
+		    sctx->isc_name);
 		return (NULL);
 	}
-	ip = malloc(sizeof(*ip), M_IFLIB, M_WAITOK|M_ZERO);
+	ip = malloc(sizeof(*ip), M_IFLIB, M_WAITOK | M_ZERO);
 	ip->ip_sctx = sctx;
 	ip->ip_dc = devclass_create(sctx->isc_name);
 	if (ip->ip_dc == NULL)
 		goto fail_clone;
 	/* XXX --- we can handle clone_advanced later */
-	ip->ip_ifc  = if_clone_simple(sctx->isc_name, iflib_clone_create, iflib_clone_destroy, 0);
+	ip->ip_ifc = if_clone_simple(
+	    sctx->isc_name, iflib_clone_create, iflib_clone_destroy, 0);
 	if (ip->ip_ifc == NULL) {
-		printf("clone_simple failed -- cloned %s  devices will not be available\n", sctx->isc_name);
+		printf(
+		    "clone_simple failed -- cloned %s  devices will not be available\n",
+		    sctx->isc_name);
 		goto fail_clone;
 	}
-	ip->ip_lladdr_tag = EVENTHANDLER_REGISTER(iflladdr_event,
-											 iflib_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
+	ip->ip_lladdr_tag = EVENTHANDLER_REGISTER(
+	    iflladdr_event, iflib_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
 	if (ip->ip_lladdr_tag == NULL)
 		goto fail_addr;
-	ip->ip_detach_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
-											 iflib_ifdetach, NULL, EVENTHANDLER_PRI_ANY);
+	ip->ip_detach_tag = EVENTHANDLER_REGISTER(
+	    ifnet_departure_event, iflib_ifdetach, NULL, EVENTHANDLER_PRI_ANY);
 
 	if (ip->ip_detach_tag == NULL)
 		goto fail_depart;
 
 	iflib_ip_insert(ip);
 	return (ip);
- fail_depart:
+fail_depart:
 	EVENTHANDLER_DEREGISTER(iflladdr_event, ip->ip_lladdr_tag);
- fail_addr:
+fail_addr:
 	if_clone_detach(ip->ip_ifc);
- fail_clone:
+fail_clone:
 	free(ip, M_IFLIB);
 	return (NULL);
 }

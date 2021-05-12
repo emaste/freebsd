@@ -29,15 +29,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/libkern.h>
 #include <sys/types.h>
+#include <sys/libkern.h>
 #include <sys/limits.h>
 
-#define	IDX(c)	((u_char)(c) / LONG_BIT)
-#define	BIT(c)	((u_long)1 << ((u_char)(c) % LONG_BIT))
+#define IDX(c) ((u_char)(c) / LONG_BIT)
+#define BIT(c) ((u_long)1 << ((u_char)(c) % LONG_BIT))
 
-size_t 
-strcspn(const char * __restrict s, const char * __restrict charset) 
+size_t
+strcspn(const char *__restrict s, const char *__restrict charset)
 {
 	/*
 	 * NB: idx and bit are temporaries whose use causes gcc 3.4.2 to
@@ -48,10 +48,10 @@ strcspn(const char * __restrict s, const char * __restrict charset)
 	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT];
 	int idx;
 
-	if(*s == '\0')
+	if (*s == '\0')
 		return (0);
 
-#if LONG_BIT == 64	/* always better to unroll on 64-bit architectures */
+#if LONG_BIT == 64 /* always better to unroll on 64-bit architectures */
 	tbl[0] = 1;
 	tbl[3] = tbl[2] = tbl[1] = 0;
 #else
@@ -64,7 +64,7 @@ strcspn(const char * __restrict s, const char * __restrict charset)
 		tbl[idx] |= bit;
 	}
 
-	for(s1 = s; ; s1++) {
+	for (s1 = s;; s1++) {
 		idx = IDX(*s1);
 		bit = BIT(*s1);
 		if ((tbl[idx] & bit) != 0)

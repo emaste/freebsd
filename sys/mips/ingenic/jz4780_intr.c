@@ -33,63 +33,62 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/module.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/rman.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
-#include <sys/cpuset.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/smp.h>
+#include <sys/rman.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
 
 #include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <mips/ingenic/jz4780_regs.h>
 
 #include "pic_if.h"
 
-#define	JZ4780_NIRQS	64
+#define JZ4780_NIRQS 64
 
 static int jz4780_pic_intr(void *);
 
 struct jz4780_pic_isrc {
 	struct intr_irqsrc isrc;
-	u_int  irq;
+	u_int irq;
 };
 
 struct jz4780_pic_softc {
-	device_t		pic_dev;
-	void *                  pic_intrhand;
-	struct resource *       pic_res[2];
-	struct jz4780_pic_isrc  pic_irqs[JZ4780_NIRQS];
-	uint32_t		nirqs;
+	device_t pic_dev;
+	void *pic_intrhand;
+	struct resource *pic_res[2];
+	struct jz4780_pic_isrc pic_irqs[JZ4780_NIRQS];
+	uint32_t nirqs;
 };
 
-#define	PIC_INTR_ISRC(sc, irq)	(&(sc)->pic_irqs[(irq)].isrc)
+#define PIC_INTR_ISRC(sc, irq) (&(sc)->pic_irqs[(irq)].isrc)
 
 static struct resource_spec jz4780_pic_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Registers */
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },	/* Parent interrupt */
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, /* Registers */
+	{ SYS_RES_IRQ, 0, RF_ACTIVE },	  /* Parent interrupt */
 	{ -1, 0 }
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{"ingenic,jz4780-intc",	true},
-	{NULL,			false}
-};
+static struct ofw_compat_data compat_data[] = { { "ingenic,jz4780-intc", true },
+	{ NULL, false } };
 
-#define	READ4(_sc, _reg)	bus_read_4((_sc)->pic_res[0], _reg)
-#define	WRITE4(_sc, _reg, _val) bus_write_4((_sc)->pic_res[0], _reg, _val)
+#define READ4(_sc, _reg) bus_read_4((_sc)->pic_res[0], _reg)
+#define WRITE4(_sc, _reg, _val) bus_write_4((_sc)->pic_res[0], _reg, _val)
 
 static int
 jz4780_pic_probe(device_t dev)
@@ -140,8 +139,8 @@ jz4780_pic_register_isrcs(struct jz4780_pic_softc *sc)
 	for (irq = 0; irq < sc->nirqs; irq++) {
 		sc->pic_irqs[irq].irq = irq;
 		isrc = PIC_INTR_ISRC(sc, irq);
-		error = intr_isrc_register(isrc, sc->pic_dev, 0, "%s,%d",
-		    name, irq);
+		error = intr_isrc_register(
+		    isrc, sc->pic_dev, 0, "%s,%d", name, irq);
 		if (error != 0) {
 			for (i = 0; i < irq; i++)
 				intr_isrc_deregister(PIC_INTR_ISRC(sc, irq));
@@ -192,8 +191,8 @@ jz4780_pic_attach(device_t dev)
 		goto cleanup;
 	}
 
-	if (bus_setup_intr(dev, sc->pic_res[1], INTR_TYPE_CLK,
-	    jz4780_pic_intr, NULL, sc, &sc->pic_intrhand)) {
+	if (bus_setup_intr(dev, sc->pic_res[1], INTR_TYPE_CLK, jz4780_pic_intr,
+		NULL, sc, &sc->pic_intrhand)) {
 		device_printf(dev, "could not setup irq handler\n");
 		intr_pic_deregister(dev, xref);
 		goto cleanup;
@@ -204,7 +203,7 @@ jz4780_pic_attach(device_t dev)
 cleanup:
 	bus_release_resources(dev, jz4780_pic_spec, sc->pic_res);
 
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static int
@@ -226,7 +225,8 @@ jz4780_pic_intr(void *arg)
 
 		isrc = PIC_INTR_ISRC(sc, i);
 		if (intr_isrc_dispatch(isrc, curthread->td_intr_frame) != 0) {
-			device_printf(sc->pic_dev, "Stray interrupt %u detected\n", i);
+			device_printf(
+			    sc->pic_dev, "Stray interrupt %u detected\n", i);
 			pic_irq_mask(sc, i);
 			continue;
 		}
@@ -242,7 +242,8 @@ jz4780_pic_intr(void *arg)
 
 		isrc = PIC_INTR_ISRC(sc, i);
 		if (intr_isrc_dispatch(isrc, curthread->td_intr_frame) != 0) {
-			device_printf(sc->pic_dev, "Stray interrupt %u detected\n", i);
+			device_printf(
+			    sc->pic_dev, "Stray interrupt %u detected\n", i);
 			pic_irq_mask(sc, i);
 			continue;
 		}
@@ -255,8 +256,8 @@ jz4780_pic_intr(void *arg)
 }
 
 static int
-jz4780_pic_map_intr(device_t dev, struct intr_map_data *data,
-        struct intr_irqsrc **isrcp)
+jz4780_pic_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 #ifdef FDT
 	struct jz4780_pic_softc *sc;
@@ -310,15 +311,14 @@ jz4780_pic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 static device_method_t jz4780_pic_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		jz4780_pic_probe),
-	DEVMETHOD(device_attach,	jz4780_pic_attach),
+	DEVMETHOD(device_probe, jz4780_pic_probe),
+	DEVMETHOD(device_attach, jz4780_pic_attach),
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_enable_intr,	jz4780_pic_enable_intr),
-	DEVMETHOD(pic_disable_intr,	jz4780_pic_disable_intr),
-	DEVMETHOD(pic_map_intr,		jz4780_pic_map_intr),
-	DEVMETHOD(pic_post_ithread,	jz4780_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	jz4780_pic_pre_ithread),
-	{ 0, 0 }
+	DEVMETHOD(pic_enable_intr, jz4780_pic_enable_intr),
+	DEVMETHOD(pic_disable_intr, jz4780_pic_disable_intr),
+	DEVMETHOD(pic_map_intr, jz4780_pic_map_intr),
+	DEVMETHOD(pic_post_ithread, jz4780_pic_post_ithread),
+	DEVMETHOD(pic_pre_ithread, jz4780_pic_pre_ithread), { 0, 0 }
 };
 
 static driver_t jz4780_pic_driver = {

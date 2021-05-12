@@ -39,41 +39,37 @@ __FBSDID("$FreeBSD$");
 
 #include "clkdev_if.h"
 
-#define	WR4(_clk, off, val)						\
-	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
-#define	RD4(_clk, off, val)						\
-	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
-#define	MD4(_clk, off, clr, set )					\
+#define WR4(_clk, off, val) CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
+#define RD4(_clk, off, val) CLKDEV_READ_4(clknode_get_device(_clk), off, val)
+#define MD4(_clk, off, clr, set) \
 	CLKDEV_MODIFY_4(clknode_get_device(_clk), off, clr, set)
-#define	DEVICE_LOCK(_clk)						\
-	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
-#define	DEVICE_UNLOCK(_clk)						\
-	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
+#define DEVICE_LOCK(_clk) CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
+#define DEVICE_UNLOCK(_clk) CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
 static int imx_clk_gate_init(struct clknode *clk, device_t dev);
 static int imx_clk_gate_set_gate(struct clknode *clk, bool enable);
 struct imx_clk_gate_sc {
-	uint32_t	offset;
-	uint32_t	shift;
-	uint32_t	mask;
-	int		gate_flags;
+	uint32_t offset;
+	uint32_t shift;
+	uint32_t mask;
+	int gate_flags;
 };
 
 static clknode_method_t imx_clk_gate_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init,	imx_clk_gate_init),
-	CLKNODEMETHOD(clknode_set_gate,	imx_clk_gate_set_gate),
+	CLKNODEMETHOD(clknode_init, imx_clk_gate_init),
+	CLKNODEMETHOD(clknode_set_gate, imx_clk_gate_set_gate),
 	CLKNODEMETHOD_END
 };
 DEFINE_CLASS_1(imx_clk_gate, imx_clk_gate_class, imx_clk_gate_methods,
-   sizeof(struct imx_clk_gate_sc), clknode_class);
+    sizeof(struct imx_clk_gate_sc), clknode_class);
 
 static int
 imx_clk_gate_init(struct clknode *clk, device_t dev)
 {
 
 	clknode_init_parent_idx(clk, 0);
-	return(0);
+	return (0);
 }
 
 static int
@@ -93,7 +89,7 @@ imx_clk_gate_set_gate(struct clknode *clk, bool enable)
 	}
 	RD4(clk, sc->offset, &reg);
 	DEVICE_UNLOCK(clk);
-	return(0);
+	return (0);
 }
 
 int
@@ -109,7 +105,7 @@ imx_clk_gate_register(struct clkdom *clkdom, struct imx_clk_gate_def *clkdef)
 	sc = clknode_get_softc(clk);
 	sc->offset = clkdef->offset;
 	sc->shift = clkdef->shift;
-	sc->mask =  clkdef->mask;
+	sc->mask = clkdef->mask;
 	sc->gate_flags = clkdef->gate_flags;
 
 	clknode_register(clkdom, clk);

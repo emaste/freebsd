@@ -67,9 +67,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/gdb_machdep.h>
 
 #ifdef DDB
-#include <ddb/ddb.h>
 #include <ddb/db_command.h>
 #include <ddb/db_lex.h>
+#include <ddb/ddb.h>
 #endif
 
 #include <net/debugnet.h>
@@ -86,20 +86,20 @@ SYSCTL_NODE(_debug_gdb, OID_AUTO, netgdb, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "NetGDB parameters");
 
 static unsigned netgdb_debug;
-SYSCTL_UINT(_debug_gdb_netgdb, OID_AUTO, debug, CTLFLAG_RWTUN,
-    &netgdb_debug, 0,
+SYSCTL_UINT(_debug_gdb_netgdb, OID_AUTO, debug, CTLFLAG_RWTUN, &netgdb_debug, 0,
     "Debug message verbosity (0: off; 1: on)");
 
-#define	NETGDB_DEBUG(f, ...) do {						\
-	if (netgdb_debug > 0)							\
-		printf(("%s [%s:%d]: " f), __func__, __FILE__, __LINE__, ##	\
-		    __VA_ARGS__);						\
-} while (false)
+#define NETGDB_DEBUG(f, ...)                                           \
+	do {                                                           \
+		if (netgdb_debug > 0)                                  \
+			printf(("%s [%s:%d]: " f), __func__, __FILE__, \
+			    __LINE__, ##__VA_ARGS__);                  \
+	} while (false)
 
 static void netgdb_fini(void);
 
 /* Runtime state. */
-static char netgdb_rxbuf[GDB_BUFSZ + 16];	/* Some overhead for framing. */
+static char netgdb_rxbuf[GDB_BUFSZ + 16]; /* Some overhead for framing. */
 static struct sbuf netgdb_rxsb;
 static ssize_t netgdb_rx_off;
 
@@ -139,16 +139,16 @@ netgdb_rx(struct debugnet_pcb *pcb, struct mbuf **mb)
 	}
 
 	if (ntohl(dnh->mh_type) != DEBUGNET_DATA) {
-		printf("%s: Got unexpected debugnet message %u\n",
-		    __func__, ntohl(dnh->mh_type));
+		printf("%s: Got unexpected debugnet message %u\n", __func__,
+		    ntohl(dnh->mh_type));
 		return;
 	}
 
 	rlen = ntohl(dnh->mh_len);
-#define	_SBUF_FREESPACE(s)	((s)->s_size - ((s)->s_len + 1))
+#define _SBUF_FREESPACE(s) ((s)->s_size - ((s)->s_len + 1))
 	if (_SBUF_FREESPACE(&netgdb_rxsb) < rlen) {
 		NETGDB_DEBUG("Backpressure: Not ACKing RX of packet that "
-		    "would overflow our buffer (%zd/%zd used).\n",
+			     "would overflow our buffer (%zd/%zd used).\n",
 		    netgdb_rxsb.s_len, netgdb_rxsb.s_size);
 		return;
 	}
@@ -252,7 +252,6 @@ netgdb_dbg_sendpacket(const void *buf, size_t len)
 			kdb_reenter();
 		}
 	}
-
 }
 
 /* Just used for + / - GDB-level ACKs. */
@@ -263,7 +262,6 @@ netgdb_dbg_putc(int i)
 
 	c = i;
 	netgdb_dbg_sendpacket(&c, 1);
-
 }
 
 static struct gdb_dbgport netgdb_gdb_dbgport = {
@@ -284,7 +282,8 @@ netgdb_init(void)
 	 * Force enable GDB.  (If no other debugports were registered at boot,
 	 * KDB thinks it doesn't exist.)
 	 */
-	SET_FOREACH(iter, kdb_dbbe_set) {
+	SET_FOREACH(iter, kdb_dbbe_set)
+	{
 		be = *iter;
 		if (strcmp(be->dbbe_name, "gdb") != 0)
 			continue;
@@ -299,8 +298,8 @@ netgdb_init(void)
 	netgdb_prev_dbgport = gdb_cur;
 	gdb_cur = &netgdb_gdb_dbgport;
 
-	sbuf_new(&netgdb_rxsb, netgdb_rxbuf, sizeof(netgdb_rxbuf),
-	    SBUF_FIXEDLEN);
+	sbuf_new(
+	    &netgdb_rxsb, netgdb_rxbuf, sizeof(netgdb_rxbuf), SBUF_FIXEDLEN);
 	netgdb_rx_off = 0;
 }
 
@@ -343,7 +342,8 @@ DB_FUNC(netgdb, db_netgdb_cmd, db_cmd_table, CS_OWN, NULL)
 	if (!KERNEL_PANICKED()) {
 		/* TODO: This limitation should be removed in future work. */
 		printf("%s: netgdb is currently limited to use only after a "
-		    "panic.  Sorry.\n", __func__);
+		       "panic.  Sorry.\n",
+		    __func__);
 		return;
 	}
 

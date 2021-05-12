@@ -52,20 +52,20 @@ VNET_DECLARE(int, ip6_ah_trans_deflev);
 VNET_DECLARE(int, ip6_ah_net_deflev);
 VNET_DECLARE(int, ip6_ipsec_ecn);
 
-#define	IPSEC6STAT_INC(name)	\
-    VNET_PCPUSTAT_ADD(struct ipsecstat, ipsec6stat, name, 1)
-#define	V_ip6_esp_trans_deflev	VNET(ip6_esp_trans_deflev)
-#define	V_ip6_esp_net_deflev	VNET(ip6_esp_net_deflev)
-#define	V_ip6_ah_trans_deflev	VNET(ip6_ah_trans_deflev)
-#define	V_ip6_ah_net_deflev	VNET(ip6_ah_net_deflev)
-#define	V_ip6_ipsec_ecn		VNET(ip6_ipsec_ecn)
+#define IPSEC6STAT_INC(name) \
+	VNET_PCPUSTAT_ADD(struct ipsecstat, ipsec6stat, name, 1)
+#define V_ip6_esp_trans_deflev VNET(ip6_esp_trans_deflev)
+#define V_ip6_esp_net_deflev VNET(ip6_esp_net_deflev)
+#define V_ip6_ah_trans_deflev VNET(ip6_ah_trans_deflev)
+#define V_ip6_ah_net_deflev VNET(ip6_ah_net_deflev)
+#define V_ip6_ipsec_ecn VNET(ip6_ipsec_ecn)
 
 struct inpcb;
-struct secpolicy *ipsec6_checkpolicy(const struct mbuf *,
-    struct inpcb *, int *, int);
+struct secpolicy *ipsec6_checkpolicy(
+    const struct mbuf *, struct inpcb *, int *, int);
 
-void ipsec6_setsockaddrs(const struct mbuf *, union sockaddr_union *,
-    union sockaddr_union *);
+void ipsec6_setsockaddrs(
+    const struct mbuf *, union sockaddr_union *, union sockaddr_union *);
 int ipsec6_input(struct mbuf *, int, int);
 int ipsec6_in_reject(const struct mbuf *, struct inpcb *);
 int ipsec6_forward(struct mbuf *);

@@ -51,13 +51,11 @@ enum backlight_notification {
 	BACKLIGHT_UNREGISTERED,
 };
 
-enum backlight_update_reason {
-	BACKLIGHT_UPDATE_HOTKEY = 0
-};
+enum backlight_update_reason { BACKLIGHT_UPDATE_HOTKEY = 0 };
 
 struct backlight_ops {
 	int options;
-#define	BL_CORE_SUSPENDRESUME   1
+#define BL_CORE_SUSPENDRESUME 1
 	int (*update_status)(struct backlight_device *);
 	int (*get_brightness)(struct backlight_device *);
 };
@@ -73,11 +71,12 @@ struct backlight_device {
 #define bl_get_data(bd) (bd)->data
 
 struct backlight_device *linux_backlight_device_register(const char *name,
-    struct device *dev, void *data, const struct backlight_ops *ops, struct backlight_properties *props);
+    struct device *dev, void *data, const struct backlight_ops *ops,
+    struct backlight_properties *props);
 void linux_backlight_device_unregister(struct backlight_device *bd);
-#define	backlight_device_register(name, dev, data, ops, props)	\
+#define backlight_device_register(name, dev, data, ops, props) \
 	linux_backlight_device_register(name, dev, data, ops, props)
-#define	backlight_device_unregister(bd)	linux_backlight_device_unregister(bd)
+#define backlight_device_unregister(bd) linux_backlight_device_unregister(bd)
 
 static inline void
 backlight_update_status(struct backlight_device *bd)
@@ -91,4 +90,4 @@ backlight_force_update(struct backlight_device *bd, int reason)
 	bd->props.brightness = bd->ops->get_brightness(bd);
 }
 
-#endif	/* _LINUX_BACKLIGHT_H_ */
+#endif /* _LINUX_BACKLIGHT_H_ */

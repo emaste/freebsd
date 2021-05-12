@@ -36,16 +36,15 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/fdt.h>
 
-#include <dev/ofw/openfirm.h>
+#include <dev/fdt/fdt_clock.h>
+#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/fdt/fdt_common.h>
-#include <dev/fdt/fdt_clock.h>
+#include <dev/ofw/openfirm.h>
 
 #include <mips/mediatek/fdt_reset.h>
-#include <mips/mediatek/mtk_sysctl.h>
 #include <mips/mediatek/mtk_soc.h>
+#include <mips/mediatek/mtk_sysctl.h>
 
 static uint32_t mtk_soc_socid = MTK_SOC_UNKNOWN;
 static uint32_t mtk_soc_uartclk = 0;
@@ -56,28 +55,28 @@ static uint32_t mtk_soc_chipid0_3 = MTK_UNKNOWN_CHIPID0_3;
 static uint32_t mtk_soc_chipid4_7 = MTK_UNKNOWN_CHIPID4_7;
 
 static const struct ofw_compat_data compat_data[] = {
-	{ "ralink,rt2880-soc",		MTK_SOC_RT2880 },
-	{ "ralink,rt3050-soc",		MTK_SOC_RT3050 },
-	{ "ralink,rt3052-soc",		MTK_SOC_RT3052 },
-	{ "ralink,rt3350-soc",		MTK_SOC_RT3350 },
-	{ "ralink,rt3352-soc",		MTK_SOC_RT3352 },
-	{ "ralink,rt3662-soc",		MTK_SOC_RT3662 },
-	{ "ralink,rt3883-soc",		MTK_SOC_RT3883 },
-	{ "ralink,rt5350-soc",		MTK_SOC_RT5350 },
-	{ "ralink,mtk7620a-soc",	MTK_SOC_MT7620A },
-	{ "ralink,mt7620a-soc",		MTK_SOC_MT7620A },
-	{ "ralink,mtk7620n-soc",	MTK_SOC_MT7620N },
-	{ "ralink,mt7620n-soc",		MTK_SOC_MT7620N },
-	{ "mediatek,mtk7621-soc",	MTK_SOC_MT7621 },
-	{ "mediatek,mt7621-soc",	MTK_SOC_MT7621 },
-	{ "ralink,mt7621-soc",		MTK_SOC_MT7621 },
-	{ "ralink,mtk7621-soc",		MTK_SOC_MT7621 },
-	{ "ralink,mtk7628an-soc",	MTK_SOC_MT7628 },
-	{ "mediatek,mt7628an-soc",	MTK_SOC_MT7628 },
-	{ "ralink,mtk7688-soc",		MTK_SOC_MT7688 },
+	{ "ralink,rt2880-soc", MTK_SOC_RT2880 },
+	{ "ralink,rt3050-soc", MTK_SOC_RT3050 },
+	{ "ralink,rt3052-soc", MTK_SOC_RT3052 },
+	{ "ralink,rt3350-soc", MTK_SOC_RT3350 },
+	{ "ralink,rt3352-soc", MTK_SOC_RT3352 },
+	{ "ralink,rt3662-soc", MTK_SOC_RT3662 },
+	{ "ralink,rt3883-soc", MTK_SOC_RT3883 },
+	{ "ralink,rt5350-soc", MTK_SOC_RT5350 },
+	{ "ralink,mtk7620a-soc", MTK_SOC_MT7620A },
+	{ "ralink,mt7620a-soc", MTK_SOC_MT7620A },
+	{ "ralink,mtk7620n-soc", MTK_SOC_MT7620N },
+	{ "ralink,mt7620n-soc", MTK_SOC_MT7620N },
+	{ "mediatek,mtk7621-soc", MTK_SOC_MT7621 },
+	{ "mediatek,mt7621-soc", MTK_SOC_MT7621 },
+	{ "ralink,mt7621-soc", MTK_SOC_MT7621 },
+	{ "ralink,mtk7621-soc", MTK_SOC_MT7621 },
+	{ "ralink,mtk7628an-soc", MTK_SOC_MT7628 },
+	{ "mediatek,mt7628an-soc", MTK_SOC_MT7628 },
+	{ "ralink,mtk7688-soc", MTK_SOC_MT7688 },
 
 	/* Sentinel */
-	{ NULL,				MTK_SOC_UNKNOWN },
+	{ NULL, MTK_SOC_UNKNOWN },
 };
 
 static uint32_t
@@ -201,8 +200,8 @@ mtk_detect_cpuclk_mt7620(bus_space_tag_t bst, bus_space_handle_t bsh)
 	if (!(val & MT7620_CPLL_SW_CFG))
 		return (MTK_CPU_CLK_600MHZ);
 
-	mul = MT7620_PLL_MULT_RATIO_BASE + ((val >> MT7620_PLL_MULT_RATIO_OFF) &
-	    MT7620_PLL_MULT_RATIO_MSK);
+	mul = MT7620_PLL_MULT_RATIO_BASE +
+	    ((val >> MT7620_PLL_MULT_RATIO_OFF) & MT7620_PLL_MULT_RATIO_MSK);
 	div = (val >> MT7620_PLL_DIV_RATIO_OFF) & MT7620_PLL_DIV_RATIO_MSK;
 
 	if (div != MT7620_PLL_DIV_RATIO_MSK)
@@ -307,7 +306,7 @@ mtk_soc_try_early_detect(void)
 	case MTK_SOC_RT2880:
 		mtk_soc_cpuclk = mtk_detect_cpuclk_rt2880(bst, bsh);
 		break;
-	case MTK_SOC_RT3050:  /* fallthrough */
+	case MTK_SOC_RT3050: /* fallthrough */
 	case MTK_SOC_RT3052:
 	case MTK_SOC_RT3350:
 		mtk_soc_cpuclk = mtk_detect_cpuclk_rt305x(bst, bsh);
@@ -315,7 +314,7 @@ mtk_soc_try_early_detect(void)
 	case MTK_SOC_RT3352:
 		mtk_soc_cpuclk = mtk_detect_cpuclk_rt3352(bst, bsh);
 		break;
-	case MTK_SOC_RT3662:  /* fallthrough */
+	case MTK_SOC_RT3662: /* fallthrough */
 	case MTK_SOC_RT3883:
 		mtk_soc_cpuclk = mtk_detect_cpuclk_rt3883(bst, bsh);
 		break;
@@ -329,7 +328,7 @@ mtk_soc_try_early_detect(void)
 	case MTK_SOC_MT7621:
 		mtk_soc_cpuclk = mtk_detect_cpuclk_mt7621(bst, bsh);
 		break;
-	case MTK_SOC_MT7628:  /* fallthrough */
+	case MTK_SOC_MT7628: /* fallthrough */
 	case MTK_SOC_MT7688:
 		mtk_soc_cpuclk = mtk_detect_cpuclk_mt7628(bst, bsh);
 		break;
@@ -341,7 +340,7 @@ mtk_soc_try_early_detect(void)
 	/* Now figure out the timer clock */
 	if (mtk_soc_socid == MTK_SOC_MT7621) {
 #ifdef notyet
-		/* 
+		/*
 		 * We use the GIC timer for timing source and its clock freq is
 		 * the same as the CPU's clock freq
 		 */
@@ -367,8 +366,8 @@ mtk_soc_try_early_detect(void)
 	case MTK_SOC_RT2880:
 		mtk_soc_uartclk = mtk_soc_cpuclk / MTK_UARTDIV_2;
 		break;
-	case MTK_SOC_RT3350:  /* fallthrough */
-	case MTK_SOC_RT3050:  /* fallthrough */
+	case MTK_SOC_RT3350: /* fallthrough */
+	case MTK_SOC_RT3050: /* fallthrough */
 	case MTK_SOC_RT3052:
 		/* UART clock is CPU clock / 3 */
 		mtk_soc_uartclk = mtk_soc_cpuclk / MTK_UARTDIV_3;
@@ -453,7 +452,7 @@ mtk_soc_get_socid(void)
  */
 
 /* Default reset time is 100ms */
-#define DEFAULT_RESET_TIME	100000
+#define DEFAULT_RESET_TIME 100000
 
 int
 mtk_soc_reset_device(device_t dev)

@@ -40,34 +40,33 @@
  */
 
 /* Buckets for frames 0-128 bytes long, 129-1024, 1025-maximum. */
-#define	IEEE80211_RSSADAPT_BKTS		3
-#define IEEE80211_RSSADAPT_BKT0		128
-#define	IEEE80211_RSSADAPT_BKTPOWER	3	/* 2**_BKTPOWER */
+#define IEEE80211_RSSADAPT_BKTS 3
+#define IEEE80211_RSSADAPT_BKT0 128
+#define IEEE80211_RSSADAPT_BKTPOWER 3 /* 2**_BKTPOWER */
 
 struct ieee80211_rssadapt {
 	const struct ieee80211vap *vap;
-	int	interval;			/* update interval (ticks) */
+	int interval; /* update interval (ticks) */
 };
 
 struct ieee80211_rssadapt_node {
-	struct ieee80211_rssadapt *ra_rs;	/* backpointer */
-	struct ieee80211_rateset ra_rates;	/* negotiated rates */
-	int	ra_rix;				/* current rate index */
-	int	ra_ticks;			/* time of last update */
-	int	ra_last_raise;			/* time of last rate raise */
-	int	ra_raise_interval;		/* rate raise time threshold */
+	struct ieee80211_rssadapt *ra_rs;  /* backpointer */
+	struct ieee80211_rateset ra_rates; /* negotiated rates */
+	int ra_rix;			   /* current rate index */
+	int ra_ticks;			   /* time of last update */
+	int ra_last_raise;		   /* time of last rate raise */
+	int ra_raise_interval;		   /* rate raise time threshold */
 
 	/* Tx failures in this update interval */
-	uint32_t		ra_nfail;
+	uint32_t ra_nfail;
 	/* Tx successes in this update interval */
-	uint32_t		ra_nok;
+	uint32_t ra_nok;
 	/* exponential average packets/second */
-	uint32_t		ra_pktrate;
+	uint32_t ra_pktrate;
 	/* RSSI threshold for each Tx rate */
-	uint16_t		ra_rate_thresh[IEEE80211_RSSADAPT_BKTS]
-					      [IEEE80211_RATE_SIZE];
+	uint16_t ra_rate_thresh[IEEE80211_RSSADAPT_BKTS][IEEE80211_RATE_SIZE];
 };
 
-#define	IEEE80211_RSSADAPT_SUCCESS	1
-#define	IEEE80211_RSSADAPT_FAILURE	0
+#define IEEE80211_RSSADAPT_SUCCESS 1
+#define IEEE80211_RSSADAPT_FAILURE 0
 #endif /* _NET80211_IEEE80211_RSSADAPT_H_ */

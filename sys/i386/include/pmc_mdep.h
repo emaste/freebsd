@@ -33,9 +33,9 @@
  */
 
 #ifndef _MACHINE_PMC_MDEP_H
-#define	_MACHINE_PMC_MDEP_H 1
+#define _MACHINE_PMC_MDEP_H 1
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 struct pmc_mdep;
 #endif
 
@@ -65,46 +65,46 @@ struct pmc_mdep;
  * measurement architecture have PMCs of the following classes: TSC,
  * IAF, IAP, UCF and UCP.
  */
-#define	PMC_MDEP_CLASS_INDEX_TSC	1
-#define	PMC_MDEP_CLASS_INDEX_K7		2
-#define	PMC_MDEP_CLASS_INDEX_K8		2
-#define	PMC_MDEP_CLASS_INDEX_IAP	2
-#define	PMC_MDEP_CLASS_INDEX_IAF	3
-#define	PMC_MDEP_CLASS_INDEX_UCP	4
-#define	PMC_MDEP_CLASS_INDEX_UCF	5
+#define PMC_MDEP_CLASS_INDEX_TSC 1
+#define PMC_MDEP_CLASS_INDEX_K7 2
+#define PMC_MDEP_CLASS_INDEX_K8 2
+#define PMC_MDEP_CLASS_INDEX_IAP 2
+#define PMC_MDEP_CLASS_INDEX_IAF 3
+#define PMC_MDEP_CLASS_INDEX_UCP 4
+#define PMC_MDEP_CLASS_INDEX_UCF 5
 
 /*
  * Architecture specific extensions to <sys/pmc.h> structures.
  */
 
-union pmc_md_op_pmcallocate  {
-	struct pmc_md_amd_op_pmcallocate	pm_amd;
-	struct pmc_md_iap_op_pmcallocate	pm_iap;
-	struct pmc_md_ucf_op_pmcallocate	pm_ucf;
-	struct pmc_md_ucp_op_pmcallocate	pm_ucp;
-	uint64_t				__pad[4];
+union pmc_md_op_pmcallocate {
+	struct pmc_md_amd_op_pmcallocate pm_amd;
+	struct pmc_md_iap_op_pmcallocate pm_iap;
+	struct pmc_md_ucf_op_pmcallocate pm_ucf;
+	struct pmc_md_ucp_op_pmcallocate pm_ucp;
+	uint64_t __pad[4];
 };
 
 /* Logging */
-#define	PMCLOG_READADDR		PMCLOG_READ32
-#define	PMCLOG_EMITADDR		PMCLOG_EMIT32
+#define PMCLOG_READADDR PMCLOG_READ32
+#define PMCLOG_EMITADDR PMCLOG_EMIT32
 
 #ifdef _KERNEL
 
 /* MD extension for 'struct pmc' */
-union pmc_md_pmc  {
-	struct pmc_md_amd_pmc	pm_amd;
-	struct pmc_md_iaf_pmc	pm_iaf;
-	struct pmc_md_iap_pmc	pm_iap;
-	struct pmc_md_ucf_pmc	pm_ucf;
-	struct pmc_md_ucp_pmc	pm_ucp;
+union pmc_md_pmc {
+	struct pmc_md_amd_pmc pm_amd;
+	struct pmc_md_iaf_pmc pm_iaf;
+	struct pmc_md_iap_pmc pm_iap;
+	struct pmc_md_ucf_pmc pm_ucf;
+	struct pmc_md_ucp_pmc pm_ucp;
 };
 
 struct pmc;
 struct pmc_mdep;
 
-#define	PMC_TRAPFRAME_TO_PC(TF)	((TF)->tf_eip)
-#define	PMC_TRAPFRAME_TO_FP(TF)	((TF)->tf_ebp)
+#define PMC_TRAPFRAME_TO_PC(TF) ((TF)->tf_eip)
+#define PMC_TRAPFRAME_TO_FP(TF) ((TF)->tf_ebp)
 
 /*
  * The layout of the stack frame on entry into the NMI handler depends on
@@ -122,45 +122,45 @@ struct pmc_mdep;
  * offset to the current frame pointer.
  */
 
-#define	PMC_TRAPFRAME_TO_USER_SP(TF)	((TF)->tf_esp)
-#define	PMC_TRAPFRAME_TO_KERNEL_SP(TF)	((uintptr_t) &((TF)->tf_esp))
+#define PMC_TRAPFRAME_TO_USER_SP(TF) ((TF)->tf_esp)
+#define PMC_TRAPFRAME_TO_KERNEL_SP(TF) ((uintptr_t) & ((TF)->tf_esp))
 
-#define	PMC_IN_KERNEL_STACK(S,START,END)		\
-	((S) >= (START) && (S) < (END))
-#define	PMC_IN_KERNEL(va)	INKERNEL(va)
+#define PMC_IN_KERNEL_STACK(S, START, END) ((S) >= (START) && (S) < (END))
+#define PMC_IN_KERNEL(va) INKERNEL(va)
 
-#define	PMC_IN_USERSPACE(va) ((va) <= VM_MAXUSER_ADDRESS)
+#define PMC_IN_USERSPACE(va) ((va) <= VM_MAXUSER_ADDRESS)
 
-#define	PMC_IN_TRAP_HANDLER(PC) 			\
-	((PC) >= (uintptr_t)start_exceptions + setidt_disp &&	\
-	 (PC) < (uintptr_t) end_exceptions + setidt_disp)
+#define PMC_IN_TRAP_HANDLER(PC)                               \
+	((PC) >= (uintptr_t)start_exceptions + setidt_disp && \
+	    (PC) < (uintptr_t)end_exceptions + setidt_disp)
 
-#define	PMC_AT_FUNCTION_PROLOGUE_PUSH_BP(I)		\
-	(((I) & 0x00ffffff) == 0xe58955) /* pushl %ebp; movl %esp,%ebp */
-#define	PMC_AT_FUNCTION_PROLOGUE_MOV_SP_BP(I)		\
-	(((I) & 0x0000ffff) == 0xe589)	/* movl %esp,%ebp */
-#define	PMC_AT_FUNCTION_EPILOGUE_RET(I)			\
-	(((I) & 0xFF) == 0xC3)		   /* ret */
+#define PMC_AT_FUNCTION_PROLOGUE_PUSH_BP(I) \
+	(((I)&0x00ffffff) == 0xe58955) /* pushl %ebp; movl %esp,%ebp */
+#define PMC_AT_FUNCTION_PROLOGUE_MOV_SP_BP(I) \
+	(((I)&0x0000ffff) == 0xe589) /* movl %esp,%ebp */
+#define PMC_AT_FUNCTION_EPILOGUE_RET(I) (((I)&0xFF) == 0xC3) /* ret */
 
 /* Build a fake kernel trapframe from current instruction pointer. */
-#define PMC_FAKE_TRAPFRAME(TF)						\
-	do {								\
-	(TF)->tf_cs = 0; (TF)->tf_eflags = 0;				\
-	__asm __volatile("movl %%ebp,%0" : "=r" ((TF)->tf_ebp));	\
-	__asm __volatile("movl %%esp,%0" : "=r" ((TF)->tf_esp));	\
-	__asm __volatile("call 1f \n\t1: pop %0" : "=r"((TF)->tf_eip));	\
+#define PMC_FAKE_TRAPFRAME(TF)                                          \
+	do {                                                            \
+		(TF)->tf_cs = 0;                                        \
+		(TF)->tf_eflags = 0;                                    \
+		__asm __volatile("movl %%ebp,%0" : "=r"((TF)->tf_ebp)); \
+		__asm __volatile("movl %%esp,%0" : "=r"((TF)->tf_esp)); \
+		__asm __volatile("call 1f \n\t1: pop %0"                \
+				 : "=r"((TF)->tf_eip));                 \
 	} while (0)
 
 /*
  * Prototypes
  */
 
-void	start_exceptions(void), end_exceptions(void);
+void start_exceptions(void), end_exceptions(void);
 
 struct pmc_mdep *pmc_amd_initialize(void);
-void	pmc_amd_finalize(struct pmc_mdep *_md);
+void pmc_amd_finalize(struct pmc_mdep *_md);
 struct pmc_mdep *pmc_intel_initialize(void);
-void	pmc_intel_finalize(struct pmc_mdep *_md);
+void pmc_intel_finalize(struct pmc_mdep *_md);
 
 #endif /* _KERNEL */
 #endif /* _MACHINE_PMC_MDEP_H */

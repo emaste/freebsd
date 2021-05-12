@@ -31,7 +31,7 @@
  */
 
 #ifndef MIPS_INCLUDE__BUS_H
-#define	MIPS_INCLUDE__BUS_H
+#define MIPS_INCLUDE__BUS_H
 
 /*
  * Bus address and size types

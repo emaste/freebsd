@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
@@ -42,11 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
-#include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/sx.h>
-#include <sys/timetc.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#include <sys/timetc.h>
 
 #include "cpufreq_if.h"
 
@@ -59,83 +59,80 @@ __FBSDID("$FreeBSD$");
  * Number of levels we can handle.  Levels are synthesized from settings
  * so for M settings and N drivers, there may be M*N levels.
  */
-#define CF_MAX_LEVELS	256
+#define CF_MAX_LEVELS 256
 
 struct cf_saved_freq {
-	struct cf_level			level;
-	int				priority;
-	SLIST_ENTRY(cf_saved_freq)	link;
+	struct cf_level level;
+	int priority;
+	SLIST_ENTRY(cf_saved_freq) link;
 };
 
 struct cpufreq_softc {
-	struct sx			lock;
-	struct cf_level			curr_level;
-	int				curr_priority;
-	SLIST_HEAD(, cf_saved_freq)	saved_freq;
-	struct cf_level_lst		all_levels;
-	int				all_count;
-	int				max_mhz;
-	device_t			dev;
-	device_t			cf_drv_dev;
-	struct sysctl_ctx_list		sysctl_ctx;
-	struct task			startup_task;
-	struct cf_level			*levels_buf;
+	struct sx lock;
+	struct cf_level curr_level;
+	int curr_priority;
+	SLIST_HEAD(, cf_saved_freq) saved_freq;
+	struct cf_level_lst all_levels;
+	int all_count;
+	int max_mhz;
+	device_t dev;
+	device_t cf_drv_dev;
+	struct sysctl_ctx_list sysctl_ctx;
+	struct task startup_task;
+	struct cf_level *levels_buf;
 };
 
 struct cf_setting_array {
-	struct cf_setting		sets[MAX_SETTINGS];
-	int				count;
-	TAILQ_ENTRY(cf_setting_array)	link;
+	struct cf_setting sets[MAX_SETTINGS];
+	int count;
+	TAILQ_ENTRY(cf_setting_array) link;
 };
 
 TAILQ_HEAD(cf_setting_lst, cf_setting_array);
 
-#define CF_MTX_INIT(x)		sx_init((x), "cpufreq lock")
-#define CF_MTX_LOCK(x)		sx_xlock((x))
-#define CF_MTX_UNLOCK(x)	sx_xunlock((x))
-#define CF_MTX_ASSERT(x)	sx_assert((x), SX_XLOCKED)
+#define CF_MTX_INIT(x) sx_init((x), "cpufreq lock")
+#define CF_MTX_LOCK(x) sx_xlock((x))
+#define CF_MTX_UNLOCK(x) sx_xunlock((x))
+#define CF_MTX_ASSERT(x) sx_assert((x), SX_XLOCKED)
 
-#define CF_DEBUG(msg...)	do {		\
-	if (cf_verbose)				\
-		printf("cpufreq: " msg);	\
+#define CF_DEBUG(msg...)                         \
+	do {                                     \
+		if (cf_verbose)                  \
+			printf("cpufreq: " msg); \
 	} while (0)
 
-static int	cpufreq_attach(device_t dev);
-static void	cpufreq_startup_task(void *ctx, int pending);
-static int	cpufreq_detach(device_t dev);
-static int	cf_set_method(device_t dev, const struct cf_level *level,
-		    int priority);
-static int	cf_get_method(device_t dev, struct cf_level *level);
-static int	cf_levels_method(device_t dev, struct cf_level *levels,
-		    int *count);
-static int	cpufreq_insert_abs(struct cpufreq_softc *sc,
-		    struct cf_setting *sets, int count);
-static int	cpufreq_expand_set(struct cpufreq_softc *sc,
-		    struct cf_setting_array *set_arr);
-static struct cf_level *cpufreq_dup_set(struct cpufreq_softc *sc,
-		    struct cf_level *dup, struct cf_setting *set);
-static int	cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS);
-static int	cpufreq_levels_sysctl(SYSCTL_HANDLER_ARGS);
-static int	cpufreq_settings_sysctl(SYSCTL_HANDLER_ARGS);
+static int cpufreq_attach(device_t dev);
+static void cpufreq_startup_task(void *ctx, int pending);
+static int cpufreq_detach(device_t dev);
+static int cf_set_method(
+    device_t dev, const struct cf_level *level, int priority);
+static int cf_get_method(device_t dev, struct cf_level *level);
+static int cf_levels_method(device_t dev, struct cf_level *levels, int *count);
+static int cpufreq_insert_abs(
+    struct cpufreq_softc *sc, struct cf_setting *sets, int count);
+static int cpufreq_expand_set(
+    struct cpufreq_softc *sc, struct cf_setting_array *set_arr);
+static struct cf_level *cpufreq_dup_set(
+    struct cpufreq_softc *sc, struct cf_level *dup, struct cf_setting *set);
+static int cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS);
+static int cpufreq_levels_sysctl(SYSCTL_HANDLER_ARGS);
+static int cpufreq_settings_sysctl(SYSCTL_HANDLER_ARGS);
 
-static device_method_t cpufreq_methods[] = {
-	DEVMETHOD(device_probe,		bus_generic_probe),
-	DEVMETHOD(device_attach,	cpufreq_attach),
-	DEVMETHOD(device_detach,	cpufreq_detach),
+static device_method_t cpufreq_methods[] = { DEVMETHOD(device_probe,
+						 bus_generic_probe),
+	DEVMETHOD(device_attach, cpufreq_attach),
+	DEVMETHOD(device_detach, cpufreq_detach),
 
-        DEVMETHOD(cpufreq_set,		cf_set_method),
-        DEVMETHOD(cpufreq_get,		cf_get_method),
-        DEVMETHOD(cpufreq_levels,	cf_levels_method),
-	{0, 0}
-};
-static driver_t cpufreq_driver = {
-	"cpufreq", cpufreq_methods, sizeof(struct cpufreq_softc)
-};
+	DEVMETHOD(cpufreq_set, cf_set_method),
+	DEVMETHOD(cpufreq_get, cf_get_method),
+	DEVMETHOD(cpufreq_levels, cf_levels_method), { 0, 0 } };
+static driver_t cpufreq_driver = { "cpufreq", cpufreq_methods,
+	sizeof(struct cpufreq_softc) };
 static devclass_t cpufreq_dc;
 DRIVER_MODULE(cpufreq, cpu, cpufreq_driver, cpufreq_dc, 0, 0);
 
-static int		cf_lowest_freq;
-static int		cf_verbose;
+static int cf_lowest_freq;
+static int cf_verbose;
 static SYSCTL_NODE(_debug, OID_AUTO, cpufreq, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "cpufreq debugging");
 SYSCTL_INT(_debug_cpufreq, OID_AUTO, lowest, CTLFLAG_RWTUN, &cf_lowest_freq, 1,
@@ -177,19 +174,18 @@ cpufreq_attach(device_t dev)
 			sc->max_mhz = CPUFREQ_VAL_UNKNOWN;
 	}
 
-	CF_DEBUG("initializing one-time data for %s\n",
-	    device_get_nameunit(dev));
-	sc->levels_buf = malloc(CF_MAX_LEVELS * sizeof(*sc->levels_buf),
-	    M_DEVBUF, M_WAITOK);
+	CF_DEBUG(
+	    "initializing one-time data for %s\n", device_get_nameunit(dev));
+	sc->levels_buf = malloc(
+	    CF_MAX_LEVELS * sizeof(*sc->levels_buf), M_DEVBUF, M_WAITOK);
 	SYSCTL_ADD_PROC(&sc->sysctl_ctx,
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(parent)),
-	    OID_AUTO, "freq", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-	    sc, 0, cpufreq_curr_sysctl, "I", "Current CPU frequency");
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(parent)), OID_AUTO, "freq",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, sc, 0,
+	    cpufreq_curr_sysctl, "I", "Current CPU frequency");
 	SYSCTL_ADD_PROC(&sc->sysctl_ctx,
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(parent)),
-	    OID_AUTO, "freq_levels",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
-	    cpufreq_levels_sysctl, "A", "CPU frequency levels");
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(parent)), OID_AUTO,
+	    "freq_levels", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc,
+	    0, cpufreq_levels_sysctl, "A", "CPU frequency levels");
 
 	/*
 	 * Queue a one-shot broadcast that levels have changed.
@@ -202,7 +198,7 @@ cpufreq_attach(device_t dev)
 }
 
 /* Handle any work to be done for all drivers that attached during boot. */
-static void 
+static void
 cpufreq_startup_task(void *ctx, int pending)
 {
 
@@ -262,7 +258,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	 * changing the frequency until they're online.  This is because we
 	 * can't switch to them using sched_bind() and thus we'd only be
 	 * switching the main CPU.  XXXTODO: Need to think more about how to
-	 * handle having different CPUs at different frequencies.  
+	 * handle having different CPUs at different frequencies.
 	 */
 	if (mp_ncpus > 1 && !smp_started) {
 		device_printf(dev, "rejecting change, SMP not started yet\n");
@@ -682,7 +678,7 @@ cf_levels_method(device_t dev, struct cf_level *levels, int *count)
 	}
 
 	/* Create a combined list of absolute + relative levels. */
-	TAILQ_FOREACH(set_arr, &rel_sets, link)
+	TAILQ_FOREACH (set_arr, &rel_sets, link)
 		cpufreq_expand_set(sc, set_arr);
 
 	/* If the caller doesn't have enough space, return the actual count. */
@@ -694,7 +690,7 @@ cf_levels_method(device_t dev, struct cf_level *levels, int *count)
 
 	/* Finally, output the list of levels. */
 	i = 0;
-	TAILQ_FOREACH(lev, &sc->all_levels, link) {
+	TAILQ_FOREACH (lev, &sc->all_levels, link) {
 		/* Skip levels that have a frequency that is too low. */
 		if (lev->total_set.freq < cf_lowest_freq) {
 			sc->all_count--;
@@ -728,8 +724,7 @@ out:
  * sorted order in the specified list.
  */
 static int
-cpufreq_insert_abs(struct cpufreq_softc *sc, struct cf_setting *sets,
-    int count)
+cpufreq_insert_abs(struct cpufreq_softc *sc, struct cf_setting *sets, int count)
 {
 	struct cf_level_lst *list;
 	struct cf_level *level, *search;
@@ -749,13 +744,13 @@ cpufreq_insert_abs(struct cpufreq_softc *sc, struct cf_setting *sets,
 		inserted = 0;
 
 		if (TAILQ_EMPTY(list)) {
-			CF_DEBUG("adding abs setting %d at head\n",
-			    sets[i].freq);
+			CF_DEBUG(
+			    "adding abs setting %d at head\n", sets[i].freq);
 			TAILQ_INSERT_HEAD(list, level, link);
 			continue;
 		}
 
-		TAILQ_FOREACH_REVERSE(search, list, cf_level_lst, link)
+		TAILQ_FOREACH_REVERSE (search, list, cf_level_lst, link)
 			if (sets[i].freq <= search->total_set.freq) {
 				CF_DEBUG("adding abs setting %d after %d\n",
 				    sets[i].freq, search->total_set.freq);
@@ -765,11 +760,14 @@ cpufreq_insert_abs(struct cpufreq_softc *sc, struct cf_setting *sets,
 			}
 
 		if (inserted == 0) {
-			TAILQ_FOREACH(search, list, link)
+			TAILQ_FOREACH (search, list, link)
 				if (sets[i].freq >= search->total_set.freq) {
-					CF_DEBUG("adding abs setting %d before %d\n",
-					    sets[i].freq, search->total_set.freq);
-					TAILQ_INSERT_BEFORE(search, level, link);
+					CF_DEBUG(
+					    "adding abs setting %d before %d\n",
+					    sets[i].freq,
+					    search->total_set.freq);
+					TAILQ_INSERT_BEFORE(
+					    search, level, link);
 					break;
 				}
 		}
@@ -798,7 +796,7 @@ cpufreq_expand_set(struct cpufreq_softc *sc, struct cf_setting_array *set_arr)
 	 * preferable to 200 Mhz + 25% because absolute settings are more
 	 * efficient since they often change the voltage as well.
 	 */
-	TAILQ_FOREACH_REVERSE(search, &sc->all_levels, cf_level_lst, link) {
+	TAILQ_FOREACH_REVERSE (search, &sc->all_levels, cf_level_lst, link) {
 		/* Add each setting to the level, duplicating if necessary. */
 		for (i = 0; i < set_arr->count; i++) {
 			set = &set_arr->sets[i];
@@ -825,11 +823,11 @@ cpufreq_expand_set(struct cpufreq_softc *sc, struct cf_setting_array *set_arr)
 			/* Add this setting to the existing or new level. */
 			KASSERT(fill->rel_count < MAX_SETTINGS,
 			    ("cpufreq: too many relative drivers (%d)",
-			    MAX_SETTINGS));
+				MAX_SETTINGS));
 			fill->rel_set[fill->rel_count] = *set;
 			fill->rel_count++;
 			CF_DEBUG(
-			"expand set added rel setting %d%% to %d level\n",
+			    "expand set added rel setting %d%% to %d level\n",
 			    set->freq / 100, fill->total_set.freq);
 		}
 	}
@@ -838,8 +836,8 @@ cpufreq_expand_set(struct cpufreq_softc *sc, struct cf_setting_array *set_arr)
 }
 
 static struct cf_level *
-cpufreq_dup_set(struct cpufreq_softc *sc, struct cf_level *dup,
-    struct cf_setting *set)
+cpufreq_dup_set(
+    struct cpufreq_softc *sc, struct cf_level *dup, struct cf_setting *set)
 {
 	struct cf_level_lst *list;
 	struct cf_level *fill, *itr;
@@ -858,11 +856,10 @@ cpufreq_dup_set(struct cpufreq_softc *sc, struct cf_level *dup,
 		return (NULL);
 	*fill = *dup;
 	fill_set = &fill->total_set;
-	fill_set->freq =
-	    ((uint64_t)fill_set->freq * set->freq) / 10000;
+	fill_set->freq = ((uint64_t)fill_set->freq * set->freq) / 10000;
 	if (fill_set->power != CPUFREQ_VAL_UNKNOWN) {
-		fill_set->power = ((uint64_t)fill_set->power * set->freq)
-		    / 10000;
+		fill_set->power = ((uint64_t)fill_set->power * set->freq) /
+		    10000;
 	}
 	if (set->lat != CPUFREQ_VAL_UNKNOWN) {
 		if (fill_set->lat != CPUFREQ_VAL_UNKNOWN)
@@ -898,17 +895,17 @@ cpufreq_dup_set(struct cpufreq_softc *sc, struct cf_level *dup,
 	 */
 	list = &sc->all_levels;
 	KASSERT(!TAILQ_EMPTY(list), ("all levels list empty in dup set"));
-	TAILQ_FOREACH_REVERSE(itr, list, cf_level_lst, link) {
+	TAILQ_FOREACH_REVERSE (itr, list, cf_level_lst, link) {
 		itr_set = &itr->total_set;
 		if (CPUFREQ_CMP(fill_set->freq, itr_set->freq)) {
-			CF_DEBUG("dup set rejecting %d (dupe)\n",
-			    fill_set->freq);
+			CF_DEBUG(
+			    "dup set rejecting %d (dupe)\n", fill_set->freq);
 			itr = NULL;
 			break;
 		} else if (fill_set->freq < itr_set->freq) {
 			if (fill->abs_set.freq <= itr->abs_set.freq) {
 				CF_DEBUG(
-			"dup done, inserting new level %d after %d\n",
+				    "dup done, inserting new level %d after %d\n",
 				    fill_set->freq, itr_set->freq);
 				TAILQ_INSERT_AFTER(list, itr, fill, link);
 				sc->all_count++;
@@ -932,8 +929,7 @@ cpufreq_dup_set(struct cpufreq_softc *sc, struct cf_level *dup,
 	return (fill);
 }
 
-static int
-cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS)
+static int cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct cpufreq_softc *sc;
 	struct cf_level *levels;
@@ -966,7 +962,7 @@ cpufreq_curr_sysctl(SYSCTL_HANDLER_ARGS)
 		if (error) {
 			if (error == E2BIG)
 				printf(
-			"cpufreq: need to increase CF_MAX_LEVELS\n");
+				    "cpufreq: need to increase CF_MAX_LEVELS\n");
 			break;
 		}
 		best = 0;
@@ -987,8 +983,7 @@ out:
 	return (error);
 }
 
-static int
-cpufreq_levels_sysctl(SYSCTL_HANDLER_ARGS)
+static int cpufreq_levels_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct cpufreq_softc *sc;
 	struct cf_level *levels;
@@ -1028,8 +1023,7 @@ out:
 	return (error);
 }
 
-static int
-cpufreq_settings_sysctl(SYSCTL_HANDLER_ARGS)
+static int cpufreq_settings_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev;
 	struct cf_setting *sets;
@@ -1085,10 +1079,10 @@ cpufreq_register(device_t dev)
 
 	/* Add a sysctl to get each driver's settings separately. */
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "freq_settings",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, dev, 0,
-	    cpufreq_settings_sysctl, "A", "CPU frequency driver settings");
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "freq_settings", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    dev, 0, cpufreq_settings_sysctl, "A",
+	    "CPU frequency driver settings");
 
 	/*
 	 * Add only one cpufreq device to each CPU.  Currently, all CPUs
@@ -1132,7 +1126,7 @@ cpufreq_unregister(device_t dev)
 	cf_dev = device_find_child(device_get_parent(dev), "cpufreq", -1);
 	if (cf_dev == NULL) {
 		device_printf(dev,
-	"warning: cpufreq_unregister called with no cpufreq device active\n");
+		    "warning: cpufreq_unregister called with no cpufreq device active\n");
 		return (0);
 	}
 	sc = device_get_softc(cf_dev);
@@ -1146,7 +1140,7 @@ int
 cpufreq_settings_changed(device_t dev)
 {
 
-	EVENTHANDLER_INVOKE(cpufreq_levels_changed,
-	    device_get_unit(device_get_parent(dev)));
+	EVENTHANDLER_INVOKE(
+	    cpufreq_levels_changed, device_get_unit(device_get_parent(dev)));
 	return (0);
 }

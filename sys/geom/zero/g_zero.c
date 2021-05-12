@@ -30,19 +30,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
 #include <geom/geom.h>
 
-#define	G_ZERO_CLASS_NAME	"ZERO"
+#define G_ZERO_CLASS_NAME "ZERO"
 
-static int	g_zero_clear_sysctl(SYSCTL_HANDLER_ARGS);
+static int g_zero_clear_sysctl(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, zero, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -50,16 +50,14 @@ static SYSCTL_NODE(_kern_geom, OID_AUTO, zero, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 static int g_zero_clear = 1;
 SYSCTL_PROC(_kern_geom_zero, OID_AUTO, clear,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &g_zero_clear, 0,
-    g_zero_clear_sysctl, "I",
-    "Clear read data buffer");
+    g_zero_clear_sysctl, "I", "Clear read data buffer");
 static int g_zero_byte = 0;
 SYSCTL_INT(_kern_geom_zero, OID_AUTO, byte, CTLFLAG_RW, &g_zero_byte, 0,
     "Byte (octet) value to clear the buffers with");
 
 static struct g_provider *gpp;
 
-static int
-g_zero_clear_sysctl(SYSCTL_HANDLER_ARGS)
+static int g_zero_clear_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
@@ -136,12 +134,10 @@ g_zero_destroy_geom(struct gctl_req *req __unused, struct g_class *mp __unused,
 	return (0);
 }
 
-static struct g_class g_zero_class = {
-	.name = G_ZERO_CLASS_NAME,
+static struct g_class g_zero_class = { .name = G_ZERO_CLASS_NAME,
 	.version = G_VERSION,
 	.init = g_zero_init,
-	.destroy_geom = g_zero_destroy_geom
-};
+	.destroy_geom = g_zero_destroy_geom };
 
 DECLARE_GEOM_CLASS(g_zero_class, g_zero);
 MODULE_VERSION(geom_zero, 0);

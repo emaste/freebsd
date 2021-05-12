@@ -35,55 +35,55 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#include <ddb/ddb.h>
 #include <ddb/db_access.h>
 #include <ddb/db_command.h>
 #include <ddb/db_sym.h>
+#include <ddb/ddb.h>
 
 /*
  * Write to file.
  */
 /*ARGSUSED*/
 void
-db_write_cmd(db_expr_t address, bool have_addr, db_expr_t count,
-    char * modif)
+db_write_cmd(db_expr_t address, bool have_addr, db_expr_t count, char *modif)
 {
-	db_addr_t	addr;
-	db_expr_t	old_value;
-	db_expr_t	new_value;
-	int		size;
-	bool		wrote_one = false;
+	db_addr_t addr;
+	db_expr_t old_value;
+	db_expr_t new_value;
+	int size;
+	bool wrote_one = false;
 
-	addr = (db_addr_t) address;
+	addr = (db_addr_t)address;
 
 	switch (modif[0]) {
-	    case 'b':
+	case 'b':
 		size = 1;
 		break;
-	    case 'h':
+	case 'h':
 		size = 2;
 		break;
-	    case 'l':
-	    case '\0':
+	case 'l':
+	case '\0':
 		size = 4;
 		break;
-	    default:
+	default:
 		db_error("Unknown size\n");
 		return;
 	}
 
 	while (db_expression(&new_value)) {
-	    old_value = db_get_value(addr, size, false);
-	    db_printsym(addr, DB_STGY_ANY);
-	    db_printf("\t\t%#8lr\t=\t%#8lr\n", (long)old_value,(long)new_value);
-	    db_put_value(addr, size, new_value);
-	    addr += size;
+		old_value = db_get_value(addr, size, false);
+		db_printsym(addr, DB_STGY_ANY);
+		db_printf(
+		    "\t\t%#8lr\t=\t%#8lr\n", (long)old_value, (long)new_value);
+		db_put_value(addr, size, new_value);
+		addr += size;
 
-	    wrote_one = true;
+		wrote_one = true;
 	}
 
 	if (!wrote_one)
-	    db_error("Nothing written.\n");
+		db_error("Nothing written.\n");
 
 	db_next = addr;
 	db_prev = addr - size;

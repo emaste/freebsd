@@ -47,12 +47,16 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
-#include "opt_kdb.h"
 #include "opt_init_path.h"
+#include "opt_kdb.h"
 #include "opt_verbose_sysinit.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
+#include <sys/systm.h>
+#include <sys/conf.h>
+#include <sys/copyright.h>
+#include <sys/cpuset.h>
+#include <sys/dtrace_bsd.h>
 #include <sys/epoch.h>
 #include <sys/eventhandler.h>
 #include <sys/exec.h>
@@ -60,55 +64,50 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/imgact.h>
 #include <sys/jail.h>
+#include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/loginclass.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
-#include <sys/dtrace_bsd.h>
-#include <sys/syscallsubr.h>
-#include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/racct.h>
-#include <sys/resourcevar.h>
-#include <sys/systm.h>
-#include <sys/signalvar.h>
-#include <sys/vnode.h>
-#include <sys/sysent.h>
 #include <sys/reboot.h>
+#include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/signalvar.h>
 #include <sys/sx.h>
+#include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/vmmeter.h>
 #include <sys/unistd.h>
-#include <sys/malloc.h>
-#include <sys/conf.h>
-#include <sys/cpuset.h>
+#include <sys/vmmeter.h>
+#include <sys/vnode.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_map.h>
+#include <vm/vm_param.h>
 
 #include <machine/cpu.h>
 
+#include <ddb/db_sym.h>
+#include <ddb/ddb.h>
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_extern.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <sys/copyright.h>
-
-#include <ddb/ddb.h>
-#include <ddb/db_sym.h>
-
-void mi_startup(void);				/* Should be elsewhere */
+void mi_startup(void); /* Should be elsewhere */
 
 /* Components of the first process -- never freed. */
 static struct session session0;
 static struct pgrp pgrp0;
-struct	proc proc0;
+struct proc proc0;
 struct thread0_storage thread0_st __aligned(32);
-struct	vmspace vmspace0;
-struct	proc *initproc;
+struct vmspace vmspace0;
+struct proc *initproc;
 
 int
 linux_alloc_current_noop(struct thread *td __unused, int flags __unused)
@@ -118,18 +117,18 @@ linux_alloc_current_noop(struct thread *td __unused, int flags __unused)
 int (*lkpi_alloc_current)(struct thread *, int) = linux_alloc_current_noop;
 
 #ifndef BOOTHOWTO
-#define	BOOTHOWTO	0
+#define BOOTHOWTO 0
 #endif
-int	boothowto = BOOTHOWTO;	/* initialized so that it can be patched */
+int boothowto = BOOTHOWTO; /* initialized so that it can be patched */
 SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0,
-	"Boot control flags, passed from loader");
+    "Boot control flags, passed from loader");
 
 #ifndef BOOTVERBOSE
-#define	BOOTVERBOSE	0
+#define BOOTVERBOSE 0
 #endif
-int	bootverbose = BOOTVERBOSE;
+int bootverbose = BOOTVERBOSE;
 SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
-	"Control the output of verbose kernel messages");
+    "Control the output of verbose kernel messages");
 
 #ifdef VERBOSE_SYSINIT
 /*
@@ -139,7 +138,7 @@ SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
  * - 0, 'compiled in but silent by default'
  * - 1, 'compiled in but verbose by default' (default)
  */
-int	verbose_sysinit = VERBOSE_SYSINIT;
+int verbose_sysinit = VERBOSE_SYSINIT;
 TUNABLE_INT("debug.verbose_sysinit", &verbose_sysinit);
 #endif
 
@@ -197,13 +196,13 @@ sysinit_add(struct sysinit **set, struct sysinit **set_end)
 	newsysinit_end = newset + count;
 }
 
-#if defined (DDB) && defined(VERBOSE_SYSINIT)
+#if defined(DDB) && defined(VERBOSE_SYSINIT)
 static const char *
 symbol_name(vm_offset_t va, db_strategy_t strategy)
 {
 	const char *name;
 	c_db_sym_t sym;
-	db_expr_t  offset;
+	db_expr_t offset;
 
 	if (va == 0)
 		return (NULL);
@@ -230,9 +229,9 @@ void
 mi_startup(void)
 {
 
-	struct sysinit **sipp;	/* system initialization*/
-	struct sysinit **xipp;	/* interior loop of sort*/
-	struct sysinit *save;	/* bubble*/
+	struct sysinit **sipp; /* system initialization*/
+	struct sysinit **xipp; /* interior loop of sort*/
+	struct sysinit *save;  /* bubble*/
 
 #if defined(VERBOSE_SYSINIT)
 	int last;
@@ -257,9 +256,9 @@ restart:
 	for (sipp = sysinit; sipp < sysinit_end; sipp++) {
 		for (xipp = sipp + 1; xipp < sysinit_end; xipp++) {
 			if ((*sipp)->subsystem < (*xipp)->subsystem ||
-			     ((*sipp)->subsystem == (*xipp)->subsystem &&
-			      (*sipp)->order <= (*xipp)->order))
-				continue;	/* skip*/
+			    ((*sipp)->subsystem == (*xipp)->subsystem &&
+				(*sipp)->order <= (*xipp)->order))
+				continue; /* skip*/
 			save = *sipp;
 			*sipp = *xipp;
 			*xipp = save;
@@ -280,7 +279,7 @@ restart:
 	 */
 	for (sipp = sysinit; sipp < sysinit_end; sipp++) {
 		if ((*sipp)->subsystem == SI_SUB_DUMMY)
-			continue;	/* skip dummy task(s)*/
+			continue; /* skip dummy task(s)*/
 
 		if ((*sipp)->subsystem == SI_SUB_DONE)
 			continue;
@@ -295,10 +294,10 @@ restart:
 #if defined(DDB)
 			const char *func, *data;
 
-			func = symbol_name((vm_offset_t)(*sipp)->func,
-			    DB_STGY_PROC);
-			data = symbol_name((vm_offset_t)(*sipp)->udata,
-			    DB_STGY_ANY);
+			func = symbol_name(
+			    (vm_offset_t)(*sipp)->func, DB_STGY_PROC);
+			data = symbol_name(
+			    (vm_offset_t)(*sipp)->udata, DB_STGY_ANY);
 			if (func != NULL && data != NULL)
 				printf("   %s(&%s)... ", func, data);
 			else if (func != NULL)
@@ -333,7 +332,7 @@ restart:
 		}
 	}
 
-	TSEXIT();	/* Here so we don't overlap with start_init. */
+	TSEXIT(); /* Here so we don't overlap with start_init. */
 
 	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
 	mtx_unlock(&Giant);
@@ -364,28 +363,22 @@ print_version(void *data __unused)
 	printf("%s\n", compiler_version);
 }
 
-SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
-    copyright);
-SYSINIT(trademark, SI_SUB_COPYRIGHT, SI_ORDER_SECOND, print_caddr_t,
-    trademark);
+SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t, copyright);
+SYSINIT(trademark, SI_SUB_COPYRIGHT, SI_ORDER_SECOND, print_caddr_t, trademark);
 SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_THIRD, print_version, NULL);
 
 #ifdef WITNESS
 static char wit_warn[] =
-     "WARNING: WITNESS option enabled, expect reduced performance.\n";
-SYSINIT(witwarn, SI_SUB_COPYRIGHT, SI_ORDER_FOURTH,
-   print_caddr_t, wit_warn);
-SYSINIT(witwarn2, SI_SUB_LAST, SI_ORDER_FOURTH,
-   print_caddr_t, wit_warn);
+    "WARNING: WITNESS option enabled, expect reduced performance.\n";
+SYSINIT(witwarn, SI_SUB_COPYRIGHT, SI_ORDER_FOURTH, print_caddr_t, wit_warn);
+SYSINIT(witwarn2, SI_SUB_LAST, SI_ORDER_FOURTH, print_caddr_t, wit_warn);
 #endif
 
 #ifdef DIAGNOSTIC
 static char diag_warn[] =
-     "WARNING: DIAGNOSTIC option enabled, expect reduced performance.\n";
-SYSINIT(diagwarn, SI_SUB_COPYRIGHT, SI_ORDER_FIFTH,
-    print_caddr_t, diag_warn);
-SYSINIT(diagwarn2, SI_SUB_LAST, SI_ORDER_FIFTH,
-    print_caddr_t, diag_warn);
+    "WARNING: DIAGNOSTIC option enabled, expect reduced performance.\n";
+SYSINIT(diagwarn, SI_SUB_COPYRIGHT, SI_ORDER_FIFTH, print_caddr_t, diag_warn);
+SYSINIT(diagwarn2, SI_SUB_LAST, SI_ORDER_FIFTH, print_caddr_t, diag_warn);
 #endif
 
 static int
@@ -403,33 +396,33 @@ null_set_syscall_retval(struct thread *td __unused, int error __unused)
 }
 
 struct sysentvec null_sysvec = {
-	.sv_size	= 0,
-	.sv_table	= NULL,
-	.sv_transtrap	= NULL,
-	.sv_fixup	= NULL,
-	.sv_sendsig	= NULL,
-	.sv_sigcode	= NULL,
-	.sv_szsigcode	= NULL,
-	.sv_name	= "null",
-	.sv_coredump	= NULL,
-	.sv_imgact_try	= NULL,
-	.sv_minsigstksz	= 0,
-	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= VM_MAXUSER_ADDRESS,
-	.sv_usrstack	= USRSTACK,
-	.sv_psstrings	= PS_STRINGS,
-	.sv_stackprot	= VM_PROT_ALL,
-	.sv_copyout_strings	= NULL,
-	.sv_setregs	= NULL,
-	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL,
-	.sv_flags	= 0,
+	.sv_size = 0,
+	.sv_table = NULL,
+	.sv_transtrap = NULL,
+	.sv_fixup = NULL,
+	.sv_sendsig = NULL,
+	.sv_sigcode = NULL,
+	.sv_szsigcode = NULL,
+	.sv_name = "null",
+	.sv_coredump = NULL,
+	.sv_imgact_try = NULL,
+	.sv_minsigstksz = 0,
+	.sv_minuser = VM_MIN_ADDRESS,
+	.sv_maxuser = VM_MAXUSER_ADDRESS,
+	.sv_usrstack = USRSTACK,
+	.sv_psstrings = PS_STRINGS,
+	.sv_stackprot = VM_PROT_ALL,
+	.sv_copyout_strings = NULL,
+	.sv_setregs = NULL,
+	.sv_fixlimit = NULL,
+	.sv_maxssiz = NULL,
+	.sv_flags = 0,
 	.sv_set_syscall_retval = null_set_syscall_retval,
 	.sv_fetch_syscall_args = null_fetch_syscall_args,
 	.sv_syscallnames = NULL,
-	.sv_schedtail	= NULL,
+	.sv_schedtail = NULL,
 	.sv_thread_detach = NULL,
-	.sv_trap	= NULL,
+	.sv_trap = NULL,
 };
 
 /*
@@ -465,14 +458,14 @@ proc0_init(void *dummy __unused)
 	/*
 	 * Initialize thread and process structures.
 	 */
-	procinit();	/* set up proc zone */
-	threadinit();	/* set up UMA zones */
+	procinit();   /* set up proc zone */
+	threadinit(); /* set up UMA zones */
 
 	/*
 	 * Initialise scheduler resources.
 	 * Add scheduler specific parts to proc, thread as needed.
 	 */
-	schedinit();	/* scheduler gets its house in order */
+	schedinit(); /* scheduler gets its house in order */
 
 	/*
 	 * Create process 0 (the swapper).
@@ -518,8 +511,8 @@ proc0_init(void *dummy __unused)
 	p->p_treeflag |= P_TREE_REAPER;
 	LIST_INIT(&p->p_reaplist);
 
-	strncpy(p->p_comm, "kernel", sizeof (p->p_comm));
-	strncpy(td->td_name, "swapper", sizeof (td->td_name));
+	strncpy(p->p_comm, "kernel", sizeof(p->p_comm));
+	strncpy(td->td_name, "swapper", sizeof(td->td_name));
 
 	callout_init_mtx(&p->p_itcallout, &p->p_mtx, 0);
 	callout_init_mtx(&p->p_limco, &p->p_mtx, 0);
@@ -528,7 +521,7 @@ proc0_init(void *dummy __unused)
 
 	/* Create credentials. */
 	newcred = crget();
-	newcred->cr_ngroups = 1;	/* group 0 */
+	newcred->cr_ngroups = 1; /* group 0 */
 	/* A hack to prevent uifind from tripping over NULL pointers. */
 	curthread->td_ucred = newcred;
 	tmpuinfo.ui_uid = 1;
@@ -639,7 +632,7 @@ proc0_post(void *dummy __unused)
 	 * time from the filesystem.  Pretend that proc0 started now.
 	 */
 	sx_slock(&allproc_lock);
-	FOREACH_PROC_IN_SYSTEM(p) {
+	FOREACH_PROC_IN_SYSTEM (p) {
 		PROC_LOCK(p);
 		if (p->p_state == PRS_NEW) {
 			PROC_UNLOCK(p);
@@ -647,13 +640,13 @@ proc0_post(void *dummy __unused)
 		}
 		microuptime(&p->p_stats->p_start);
 		PROC_STATLOCK(p);
-		rufetch(p, &ru);	/* Clears thread stats */
+		rufetch(p, &ru); /* Clears thread stats */
 		p->p_rux.rux_runtime = 0;
 		p->p_rux.rux_uticks = 0;
 		p->p_rux.rux_sticks = 0;
 		p->p_rux.rux_iticks = 0;
 		PROC_STATUNLOCK(p);
-		FOREACH_THREAD_IN_PROC(p, td) {
+		FOREACH_THREAD_IN_PROC (p, td) {
 			td->td_runtime = 0;
 		}
 		PROC_UNLOCK(p);
@@ -677,13 +670,13 @@ SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL);
  * List of paths to try when searching for "init".
  */
 static char init_path[MAXPATHLEN] =
-#ifdef	INIT_PATH
+#ifdef INIT_PATH
     __XSTRING(INIT_PATH);
 #else
     "/sbin/init:/sbin/oinit:/sbin/init.bak:/rescue/init";
 #endif
 SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0,
-	"Path used to search the init process");
+    "Path used to search the init process");
 
 /*
  * Shutdown timeout of init(8).
@@ -693,9 +686,10 @@ SYSCTL_STRING(_kern, OID_AUTO, init_path, CTLFLAG_RD, init_path, 0,
 #define INIT_SHUTDOWN_TIMEOUT 120
 #endif
 static int init_shutdown_timeout = INIT_SHUTDOWN_TIMEOUT;
-SYSCTL_INT(_kern, OID_AUTO, init_shutdown_timeout,
-	CTLFLAG_RW, &init_shutdown_timeout, 0, "Shutdown timeout of init(8). "
-	"Unused within kernel, but used to control init(8)");
+SYSCTL_INT(_kern, OID_AUTO, init_shutdown_timeout, CTLFLAG_RW,
+    &init_shutdown_timeout, 0,
+    "Shutdown timeout of init(8). "
+    "Unused within kernel, but used to control init(8)");
 
 /*
  * Start the initial user process; try exec'ing each pathname in init_path.
@@ -712,7 +706,7 @@ start_init(void *dummy)
 	struct proc *p;
 	struct vmspace *oldvmspace;
 
-	TSENTER();	/* Here so we don't overlap with mi_startup. */
+	TSENTER(); /* Here so we don't overlap with mi_startup. */
 
 	td = curthread;
 	p = td->td_proc;
@@ -725,9 +719,11 @@ start_init(void *dummy)
 	/* For Multicons, report which console is primary to both */
 	if (boothowto & RB_MULTIPLE) {
 		if (boothowto & RB_SERIAL)
-			printf("Dual Console: Serial Primary, Video Secondary\n");
+			printf(
+			    "Dual Console: Serial Primary, Video Secondary\n");
 		else
-			printf("Dual Console: Video Primary, Serial Secondary\n");
+			printf(
+			    "Dual Console: Video Primary, Serial Secondary\n");
 	}
 
 	if ((var = kern_getenv("init_path")) != NULL) {
@@ -764,8 +760,8 @@ start_init(void *dummy)
 		 * Otherwise, return via fork_trampoline() all the way
 		 * to user mode as init!
 		 */
-		KASSERT((td->td_pflags & TDP_EXECVMSPC) == 0,
-		    ("nested execve"));
+		KASSERT(
+		    (td->td_pflags & TDP_EXECVMSPC) == 0, ("nested execve"));
 		oldvmspace = td->td_proc->p_vmspace;
 		error = kern_execve(td, &args, NULL, oldvmspace);
 		KASSERT(error != 0,
@@ -826,8 +822,8 @@ create_init(const void *udata __unused)
 	PROC_UNLOCK(initproc);
 	sx_xunlock(&proctree_lock);
 	crfree(oldcred);
-	cpu_fork_kthread_handler(FIRST_THREAD_IN_PROC(initproc),
-	    start_init, NULL);
+	cpu_fork_kthread_handler(
+	    FIRST_THREAD_IN_PROC(initproc), start_init, NULL);
 }
 SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL);
 
@@ -855,12 +851,12 @@ db_show_print_syinit(struct sysinit *sip, bool ddb)
 {
 	const char *sname, *funcname;
 	c_db_sym_t sym;
-	db_expr_t  offset;
+	db_expr_t offset;
 
-#define xprint(...)							\
-	if (ddb)							\
-		db_printf(__VA_ARGS__);					\
-	else								\
+#define xprint(...)                     \
+	if (ddb)                        \
+		db_printf(__VA_ARGS__); \
+	else                            \
 		printf(__VA_ARGS__)
 
 	if (sip == NULL) {
@@ -874,8 +870,8 @@ db_show_print_syinit(struct sysinit *sip, bool ddb)
 	db_symbol_values(sym, &funcname, NULL);
 	xprint("%s(%p)\n", (sname != NULL) ? sname : "", sip);
 	xprint("  %#08x %#08x\n", sip->subsystem, sip->order);
-	xprint("  %p(%s)(%p)\n",
-	    sip->func, (funcname != NULL) ? funcname : "", sip->udata);
+	xprint("  %p(%s)(%p)\n", sip->func, (funcname != NULL) ? funcname : "",
+	    sip->udata);
 #undef xprint
 }
 

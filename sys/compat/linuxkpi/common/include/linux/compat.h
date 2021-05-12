@@ -28,12 +28,12 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_COMPAT_H_
-#define	_LINUX_COMPAT_H_
+#ifndef _LINUX_COMPAT_H_
+#define _LINUX_COMPAT_H_
 
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 struct domainset;
 struct thread;
@@ -58,4 +58,4 @@ linux_set_current_flags(struct thread *td, int flags)
 	return (0);
 }
 
-#endif	/* _LINUX_COMPAT_H_ */
+#endif /* _LINUX_COMPAT_H_ */

@@ -8,7 +8,7 @@
 #ifndef _MACHINE_SETJMP_H_
 #define _MACHINE_SETJMP_H_
 
-#define	_JBLEN	64		/* size, in longs, of a jmp_buf */
+#define _JBLEN 64 /* size, in longs, of a jmp_buf */
 
 /*
  * NOTE: The internal structure of a jmp_buf is *PRIVATE*
@@ -62,46 +62,50 @@
  * mysteriously.
  */
 
-#define _JB_MAGIC__SETJMP	0x4278f500
-#define _JB_MAGIC_SETJMP	0x4278f501
-#define _JB_MAGIC__SETJMP_VFP	0x4278f502
-#define _JB_MAGIC_SETJMP_VFP	0x4278f503
+#define _JB_MAGIC__SETJMP 0x4278f500
+#define _JB_MAGIC_SETJMP 0x4278f501
+#define _JB_MAGIC__SETJMP_VFP 0x4278f502
+#define _JB_MAGIC_SETJMP_VFP 0x4278f503
 
 /* Valid for all jmp_buf's */
 
-#define _JB_MAGIC		 0
-#define _JB_REG_FPSCR		13
-#define _JB_REG_R4		14
-#define _JB_REG_R5		15
-#define _JB_REG_R6		16
-#define _JB_REG_R7		17
-#define _JB_REG_R8		18
-#define _JB_REG_R9		19
-#define _JB_REG_R10		20
-#define _JB_REG_R11		21
-#define _JB_REG_R12		22
-#define _JB_REG_R13		23
-#define _JB_REG_R14		24
+#define _JB_MAGIC 0
+#define _JB_REG_FPSCR 13
+#define _JB_REG_R4 14
+#define _JB_REG_R5 15
+#define _JB_REG_R6 16
+#define _JB_REG_R7 17
+#define _JB_REG_R8 18
+#define _JB_REG_R9 19
+#define _JB_REG_R10 20
+#define _JB_REG_R11 21
+#define _JB_REG_R12 22
+#define _JB_REG_R13 23
+#define _JB_REG_R14 24
 
 /* Only valid with the _JB_MAGIC_SETJMP magic */
 
-#define _JB_SIGMASK		25
+#define _JB_SIGMASK 25
 
-#define	_JB_REG_D8		32
-#define	_JB_REG_D9		34
-#define	_JB_REG_D10		36
-#define	_JB_REG_D11		38
-#define	_JB_REG_D12		40
-#define	_JB_REG_D13		42
-#define	_JB_REG_D14		44
-#define	_JB_REG_D15		46
+#define _JB_REG_D8 32
+#define _JB_REG_D9 34
+#define _JB_REG_D10 36
+#define _JB_REG_D11 38
+#define _JB_REG_D12 40
+#define _JB_REG_D13 42
+#define _JB_REG_D14 44
+#define _JB_REG_D15 46
 
 #ifndef __ASSEMBLER__
 #if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
-typedef struct _sigjmp_buf { int _sjb[_JBLEN + 1]; } sigjmp_buf[1];
+typedef struct _sigjmp_buf {
+	int _sjb[_JBLEN + 1];
+} sigjmp_buf[1];
 #endif
 
-typedef struct _jmp_buf { int _jb[_JBLEN + 1]; } jmp_buf[1];
+typedef struct _jmp_buf {
+	int _jb[_JBLEN + 1];
+} jmp_buf[1];
 #endif
 
 #endif /* !_MACHINE_SETJMP_H_ */

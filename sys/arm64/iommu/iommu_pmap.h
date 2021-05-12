@@ -30,17 +30,17 @@
  * $FreeBSD$
  */
 
-#ifndef	_ARM64_IOMMU_IOMMU_PMAP_H_
-#define	_ARM64_IOMMU_IOMMU_PMAP_H_
+#ifndef _ARM64_IOMMU_IOMMU_PMAP_H_
+#define _ARM64_IOMMU_IOMMU_PMAP_H_
 
 /* System MMU (SMMU). */
-int pmap_smmu_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa, vm_prot_t prot,
-    u_int flags);
+int pmap_smmu_enter(
+    pmap_t pmap, vm_offset_t va, vm_paddr_t pa, vm_prot_t prot, u_int flags);
 int pmap_smmu_remove(pmap_t pmap, vm_offset_t va);
 
 /* Mali GPU */
-int pmap_gpu_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
-    vm_prot_t prot, u_int flags);
+int pmap_gpu_enter(
+    pmap_t pmap, vm_offset_t va, vm_paddr_t pa, vm_prot_t prot, u_int flags);
 int pmap_gpu_remove(pmap_t pmap, vm_offset_t va);
 
 /* Common */

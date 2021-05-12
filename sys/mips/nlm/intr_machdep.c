@@ -39,28 +39,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/cpuinfo.h>
 #include <machine/cpuregs.h>
 #include <machine/frame.h>
+#include <machine/hwfunc.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/trap.h>
-#include <machine/hwfunc.h>
+
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
 #include <mips/nlm/hal/mips-extns.h>
-#include <mips/nlm/interrupt.h>
 #include <mips/nlm/hal/pic.h>
+#include <mips/nlm/interrupt.h>
 #include <mips/nlm/xlp.h>
 
-#define INTRCNT_COUNT	256
-#define	INTRNAME_LEN	(2*MAXCOMLEN + 1)
+#define INTRCNT_COUNT 256
+#define INTRNAME_LEN (2 * MAXCOMLEN + 1)
 
 MALLOC_DECLARE(M_MIPSINTR);
 MALLOC_DEFINE(M_MIPSINTR, "mipsintr", "MIPS interrupt handling");
@@ -71,9 +71,9 @@ size_t sintrcnt;
 size_t sintrnames;
 
 struct xlp_intrsrc {
-	void (*bus_ack)(int, void *);	/* Additional ack */
-	void *bus_ack_arg;		/* arg for additional ack */
-	struct intr_event *ie;		/* event corresponding to intr */
+	void (*bus_ack)(int, void *); /* Additional ack */
+	void *bus_ack_arg;	      /* arg for additional ack */
+	struct intr_event *ie;	      /* event corresponding to intr */
 	int irq;
 	int irt;
 };
@@ -90,7 +90,7 @@ xlp_irq_to_irt(int irq)
 	switch (irq) {
 	case PIC_UART_0_IRQ:
 	case PIC_UART_1_IRQ:
-		offset =  XLP_IO_UART_OFFSET(0, irq - PIC_UART_0_IRQ);
+		offset = XLP_IO_UART_OFFSET(0, irq - PIC_UART_0_IRQ);
 		return (xlp_socdev_irt(offset));
 	case PIC_PCIE_0_IRQ:
 	case PIC_PCIE_1_IRQ:
@@ -125,9 +125,8 @@ xlp_enable_irq(int irq)
 }
 
 void
-cpu_establish_softintr(const char *name, driver_filter_t * filt,
-    void (*handler) (void *), void *arg, int irq, int flags,
-    void **cookiep)
+cpu_establish_softintr(const char *name, driver_filter_t *filt,
+    void (*handler)(void *), void *arg, int irq, int flags, void **cookiep)
 {
 
 	panic("Soft interrupts unsupported!\n");
@@ -177,15 +176,14 @@ xlp_set_bus_ack(int irq, void (*ack)(int, void *), void *arg)
 }
 
 void
-cpu_establish_hardintr(const char *name, driver_filter_t * filt,
-    void (*handler) (void *), void *arg, int irq, int flags,
-    void **cookiep)
+cpu_establish_hardintr(const char *name, driver_filter_t *filt,
+    void (*handler)(void *), void *arg, int irq, int flags, void **cookiep)
 {
-	struct intr_event *ie;	/* descriptor for the IRQ */
+	struct intr_event *ie; /* descriptor for the IRQ */
 	struct xlp_intrsrc *src = NULL;
 	int errcode;
 
-	KASSERT(irq > 0 && irq <= XLR_MAX_INTR ,
+	KASSERT(irq > 0 && irq <= XLR_MAX_INTR,
 	    ("%s called for bad hard intr %d", __func__, irq));
 
 	/*
@@ -205,9 +203,10 @@ cpu_establish_hardintr(const char *name, driver_filter_t * filt,
 			    NULL, "hard intr%d:", irq);
 		else {
 			if (filt == NULL)
-				panic("Unsupported non filter percpu intr %d", irq);
-			errcode = intr_event_create(&ie, src, 0, irq,
-			    NULL, NULL, NULL, NULL, "hard intr%d:", irq);
+				panic("Unsupported non filter percpu intr %d",
+				    irq);
+			errcode = intr_event_create(&ie, src, 0, irq, NULL,
+			    NULL, NULL, NULL, "hard intr%d:", irq);
 		}
 		if (errcode) {
 			printf("Could not create event for intr %d\n", irq);
@@ -219,12 +218,12 @@ cpu_establish_hardintr(const char *name, driver_filter_t * filt,
 	if (XLP_IRQ_IS_PICINTR(irq)) {
 		/* Set all irqs to CPU 0 for now */
 		src->irt = xlp_irq_to_irt(irq);
-		nlm_pic_write_irt_direct(xlp_pic_base, src->irt, 1, 0,
-		    PIC_LOCAL_SCHEDULING, irq, 0);
+		nlm_pic_write_irt_direct(
+		    xlp_pic_base, src->irt, 1, 0, PIC_LOCAL_SCHEDULING, irq, 0);
 	}
 
-	intr_event_add_handler(ie, name, filt, handler, arg,
-	    intr_priority(flags), flags, cookiep);
+	intr_event_add_handler(
+	    ie, name, filt, handler, arg, intr_priority(flags), flags, cookiep);
 	xlp_enable_irq(irq);
 }
 
@@ -287,12 +286,12 @@ mips_intrcnt_setname(mips_intrcnt_t counter, const char *name)
 
 	KASSERT(counter != NULL, ("mips_intrcnt_setname: NULL counter"));
 
-	snprintf(intrnames + (MAXCOMLEN + 1) * idx,
-	    MAXCOMLEN + 1, "%-*s", MAXCOMLEN, name);
+	snprintf(intrnames + (MAXCOMLEN + 1) * idx, MAXCOMLEN + 1, "%-*s",
+	    MAXCOMLEN, name);
 }
 
 mips_intrcnt_t
-mips_intrcnt_create(const char* name)
+mips_intrcnt_create(const char *name)
 {
 	mips_intrcnt_t counter = &intrcnt[intrcnt_index++];
 
@@ -306,10 +305,10 @@ cpu_init_interrupts()
 	int i;
 	char name[MAXCOMLEN + 1];
 
-	intrcnt = mallocarray(INTRCNT_COUNT, sizeof(u_long), M_MIPSINTR,
-	    M_WAITOK | M_ZERO);
-	intrnames = mallocarray(INTRCNT_COUNT, INTRNAME_LEN, M_MIPSINTR,
-	    M_WAITOK | M_ZERO);
+	intrcnt = mallocarray(
+	    INTRCNT_COUNT, sizeof(u_long), M_MIPSINTR, M_WAITOK | M_ZERO);
+	intrnames = mallocarray(
+	    INTRCNT_COUNT, INTRNAME_LEN, M_MIPSINTR, M_WAITOK | M_ZERO);
 	sintrcnt = INTRCNT_COUNT * sizeof(u_long);
 	sintrnames = INTRCNT_COUNT * INTRNAME_LEN;
 
@@ -323,8 +322,8 @@ cpu_init_interrupts()
 	}
 }
 
-static int	xlp_pic_probe(device_t);
-static int	xlp_pic_attach(device_t);
+static int xlp_pic_probe(device_t);
+static int xlp_pic_attach(device_t);
 
 static int
 xlp_pic_probe(device_t dev)
@@ -343,17 +342,14 @@ xlp_pic_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t xlp_pic_methods[] = {
-	DEVMETHOD(device_probe,		xlp_pic_probe),
-	DEVMETHOD(device_attach,	xlp_pic_attach),
+static device_method_t xlp_pic_methods[] = { DEVMETHOD(
+						 device_probe, xlp_pic_probe),
+	DEVMETHOD(device_attach, xlp_pic_attach),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t xlp_pic_driver = {
-	"xlp_pic",
-	xlp_pic_methods,
-	1,		/* no softc */
+	"xlp_pic", xlp_pic_methods, 1, /* no softc */
 };
 
 static devclass_t xlp_pic_devclass;

@@ -34,26 +34,25 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <teken.h>
 #include <unistd.h>
 
-#include <teken.h>
-
-static tf_bell_t	stress_bell;
-static tf_cursor_t	stress_cursor;
-static tf_putchar_t	stress_putchar;
-static tf_fill_t	stress_fill;
-static tf_copy_t	stress_copy;
-static tf_param_t	stress_param;
-static tf_respond_t	stress_respond;
+static tf_bell_t stress_bell;
+static tf_cursor_t stress_cursor;
+static tf_putchar_t stress_putchar;
+static tf_fill_t stress_fill;
+static tf_copy_t stress_copy;
+static tf_param_t stress_param;
+static tf_respond_t stress_respond;
 
 static teken_funcs_t tf = {
-	.tf_bell	= stress_bell,
-	.tf_cursor	= stress_cursor,
-	.tf_putchar	= stress_putchar,
-	.tf_fill	= stress_fill,
-	.tf_copy	= stress_copy,
-	.tf_param	= stress_param,
-	.tf_respond	= stress_respond,
+	.tf_bell = stress_bell,
+	.tf_cursor = stress_cursor,
+	.tf_putchar = stress_putchar,
+	.tf_fill = stress_fill,
+	.tf_copy = stress_copy,
+	.tf_param = stress_param,
+	.tf_respond = stress_respond,
 };
 
 static void
@@ -94,8 +93,8 @@ stress_respond(void *s __unused, const void *buf __unused, size_t len __unused)
 {
 }
 
-static const char replacement[] =
-    { 0x1b, '[', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ';' };
+static const char replacement[] = { 0x1b, '[', '0', '1', '2', '3', '4', '5',
+	'6', '7', '8', '9', ';' };
 
 int
 main(int argc __unused, char *argv[] __unused)
@@ -103,7 +102,6 @@ main(int argc __unused, char *argv[] __unused)
 	teken_t t;
 	unsigned int i, iteration = 0;
 	unsigned char buf[2048];
-
 
 	teken_init(&t, &tf, NULL);
 

@@ -36,140 +36,140 @@
 #define _NETGRAPH_PIPE_H_
 
 /* Node type name and magic cookie */
-#define NG_PIPE_NODE_TYPE	"pipe"
-#define NGM_PIPE_COOKIE		200708191
+#define NG_PIPE_NODE_TYPE "pipe"
+#define NGM_PIPE_COOKIE 200708191
 
 /* Hook names */
-#define NG_PIPE_HOOK_UPPER	"upper"
-#define NG_PIPE_HOOK_LOWER	"lower"
+#define NG_PIPE_HOOK_UPPER "upper"
+#define NG_PIPE_HOOK_LOWER "lower"
 
-#define MAX_FSIZE 65536	/* Largest supported frame size, in bytes, for BER */
+#define MAX_FSIZE 65536 /* Largest supported frame size, in bytes, for BER */
 #define MAX_OHSIZE 256	/* Largest supported dummy-framing size, in bytes */
 
 /* Statistics structure for one hook */
 struct ng_pipe_hookstat {
-	u_int64_t		fwd_octets;
-	u_int64_t		fwd_frames;
-	u_int64_t		in_disc_octets;
-	u_int64_t		in_disc_frames;
-	u_int64_t		out_disc_octets;
-	u_int64_t		out_disc_frames;
+	u_int64_t fwd_octets;
+	u_int64_t fwd_frames;
+	u_int64_t in_disc_octets;
+	u_int64_t in_disc_frames;
+	u_int64_t out_disc_octets;
+	u_int64_t out_disc_frames;
 };
 
 /* Keep this in sync with the above structure definition */
-#define NG_PIPE_HOOKSTAT_INFO	{					\
-	{ "FwdOctets",		&ng_parse_uint64_type	},		\
-	{ "FwdFrames",		&ng_parse_uint64_type	},		\
-	{ "queueDropOctets",	&ng_parse_uint64_type	},		\
-	{ "queueDropFrames",	&ng_parse_uint64_type	},		\
-	{ "delayDropOctets",	&ng_parse_uint64_type	},		\
-	{ "delayDropFrames",	&ng_parse_uint64_type	},		\
-	{ NULL },							\
-}
+#define NG_PIPE_HOOKSTAT_INFO                                               \
+	{                                                                   \
+		{ "FwdOctets", &ng_parse_uint64_type },                     \
+		    { "FwdFrames", &ng_parse_uint64_type },                 \
+		    { "queueDropOctets", &ng_parse_uint64_type },           \
+		    { "queueDropFrames", &ng_parse_uint64_type },           \
+		    { "delayDropOctets", &ng_parse_uint64_type },           \
+		    { "delayDropFrames", &ng_parse_uint64_type }, { NULL }, \
+	}
 
 /* Statistics structure returned by NGM_PIPE_GET_STATS */
 struct ng_pipe_stats {
-	struct ng_pipe_hookstat	downstream;
-	struct ng_pipe_hookstat	upstream;
+	struct ng_pipe_hookstat downstream;
+	struct ng_pipe_hookstat upstream;
 };
 
 /* Keep this in sync with the above structure definition */
-#define NG_PIPE_STATS_INFO(hstype)	{				\
-	{ "downstream",		(hstype) },				\
-	{ "upstream",		(hstype) },				\
-	{ NULL },							\
-}
+#define NG_PIPE_STATS_INFO(hstype)                                    \
+	{                                                             \
+		{ "downstream", (hstype) }, { "upstream", (hstype) }, \
+		    { NULL },                                         \
+	}
 
 /* Runtime structure for one hook */
 struct ng_pipe_hookrun {
-	u_int32_t		fifo_queues;
-	u_int32_t		qin_octets;
-	u_int32_t		qin_frames;
-	u_int32_t		qout_octets;
-	u_int32_t		qout_frames;
+	u_int32_t fifo_queues;
+	u_int32_t qin_octets;
+	u_int32_t qin_frames;
+	u_int32_t qout_octets;
+	u_int32_t qout_frames;
 };
 
 /* Keep this in sync with the above structure definition */
-#define NG_PIPE_HOOKRUN_INFO	{					\
-	{ "queues",		&ng_parse_uint32_type	},		\
-	{ "queuedOctets",	&ng_parse_uint32_type	},		\
-	{ "queuedFrames",	&ng_parse_uint32_type	},		\
-	{ "delayedOctets",	&ng_parse_uint32_type	},		\
-	{ "delayedFrames",	&ng_parse_uint32_type	},		\
-	{ NULL },							\
-}
+#define NG_PIPE_HOOKRUN_INFO                                              \
+	{                                                                 \
+		{ "queues", &ng_parse_uint32_type },                      \
+		    { "queuedOctets", &ng_parse_uint32_type },            \
+		    { "queuedFrames", &ng_parse_uint32_type },            \
+		    { "delayedOctets", &ng_parse_uint32_type },           \
+		    { "delayedFrames", &ng_parse_uint32_type }, { NULL }, \
+	}
 
 /* Runtime structure returned by NGM_PIPE_GET_RUN */
 struct ng_pipe_run {
-	struct ng_pipe_hookrun	downstream;
-	struct ng_pipe_hookrun	upstream;
+	struct ng_pipe_hookrun downstream;
+	struct ng_pipe_hookrun upstream;
 };
 
 /* Keep this in sync with the above structure definition */
-#define NG_PIPE_RUN_INFO(hstype)	{				\
-	{ "downstream",		(hstype) },				\
-	{ "upstream",		(hstype) },				\
-	{ NULL },							\
-}
+#define NG_PIPE_RUN_INFO(hstype)                                      \
+	{                                                             \
+		{ "downstream", (hstype) }, { "upstream", (hstype) }, \
+		    { NULL },                                         \
+	}
 
 /* Config structure for one hook */
 struct ng_pipe_hookcfg {
-	u_int64_t		bandwidth;
-	u_int64_t		ber;
-	u_int32_t		qin_size_limit;
-	u_int32_t		qout_size_limit;
-	u_int32_t		duplicate;
-	u_int32_t		fifo;
-	u_int32_t		drr;
-	u_int32_t		wfq;
-	u_int32_t		droptail;
-	u_int32_t		drophead;
+	u_int64_t bandwidth;
+	u_int64_t ber;
+	u_int32_t qin_size_limit;
+	u_int32_t qout_size_limit;
+	u_int32_t duplicate;
+	u_int32_t fifo;
+	u_int32_t drr;
+	u_int32_t wfq;
+	u_int32_t droptail;
+	u_int32_t drophead;
 };
 
 /* Keep this in sync with the above structure definition */
-#define NG_PIPE_HOOKCFG_INFO	{					\
-	{ "bandwidth",		&ng_parse_uint64_type	},		\
-	{ "BER",		&ng_parse_uint64_type	},		\
-	{ "queuelen",		&ng_parse_uint32_type	},		\
-	{ "delaylen",		&ng_parse_uint32_type	},		\
-	{ "duplicate",		&ng_parse_uint32_type	},		\
-	{ "fifo",		&ng_parse_uint32_type	},		\
-	{ "drr",		&ng_parse_uint32_type	},		\
-	{ "wfq",		&ng_parse_uint32_type	},		\
-	{ "droptail",		&ng_parse_uint32_type	},		\
-	{ "drophead",		&ng_parse_uint32_type	},		\
-	{ NULL },							\
-}
+#define NG_PIPE_HOOKCFG_INFO                                         \
+	{                                                            \
+		{ "bandwidth", &ng_parse_uint64_type },              \
+		    { "BER", &ng_parse_uint64_type },                \
+		    { "queuelen", &ng_parse_uint32_type },           \
+		    { "delaylen", &ng_parse_uint32_type },           \
+		    { "duplicate", &ng_parse_uint32_type },          \
+		    { "fifo", &ng_parse_uint32_type },               \
+		    { "drr", &ng_parse_uint32_type },                \
+		    { "wfq", &ng_parse_uint32_type },                \
+		    { "droptail", &ng_parse_uint32_type },           \
+		    { "drophead", &ng_parse_uint32_type }, { NULL }, \
+	}
 
 /* Config structure returned by NGM_PIPE_GET_CFG */
 struct ng_pipe_cfg {
-	u_int64_t		bandwidth;
-	u_int64_t		delay;
-	u_int32_t		header_offset;
-	u_int32_t		overhead;
-	struct ng_pipe_hookcfg	downstream;
-	struct ng_pipe_hookcfg	upstream;
+	u_int64_t bandwidth;
+	u_int64_t delay;
+	u_int32_t header_offset;
+	u_int32_t overhead;
+	struct ng_pipe_hookcfg downstream;
+	struct ng_pipe_hookcfg upstream;
 };
 
 /* Keep this in sync with the above structure definition */
-#define NG_PIPE_CFG_INFO(hstype)	{				\
-	{ "bandwidth",		&ng_parse_uint64_type	},		\
-	{ "delay",		&ng_parse_uint64_type	},		\
-	{ "header_offset",	&ng_parse_uint32_type	},		\
-	{ "overhead",		&ng_parse_uint32_type	},		\
-	{ "downstream",		(hstype)		},		\
-	{ "upstream",		(hstype)		},		\
-	{ NULL },							\
-}
+#define NG_PIPE_CFG_INFO(hstype)                                          \
+	{                                                                 \
+		{ "bandwidth", &ng_parse_uint64_type },                   \
+		    { "delay", &ng_parse_uint64_type },                   \
+		    { "header_offset", &ng_parse_uint32_type },           \
+		    { "overhead", &ng_parse_uint32_type },                \
+		    { "downstream", (hstype) }, { "upstream", (hstype) }, \
+		    { NULL },                                             \
+	}
 
 /* Netgraph commands */
 enum {
-	NGM_PIPE_GET_STATS=1,		/* get stats */
-	NGM_PIPE_CLR_STATS,		/* clear stats */
-	NGM_PIPE_GETCLR_STATS,		/* atomically get and clear stats */
-	NGM_PIPE_GET_RUN,		/* get current runtime status */
-	NGM_PIPE_GET_CFG,		/* get configurable parameters */
-	NGM_PIPE_SET_CFG,		/* set configurable parameters */
+	NGM_PIPE_GET_STATS = 1, /* get stats */
+	NGM_PIPE_CLR_STATS,	/* clear stats */
+	NGM_PIPE_GETCLR_STATS,	/* atomically get and clear stats */
+	NGM_PIPE_GET_RUN,	/* get current runtime status */
+	NGM_PIPE_GET_CFG,	/* get configurable parameters */
+	NGM_PIPE_SET_CFG,	/* set configurable parameters */
 };
 
 #endif /* _NETGRAPH_PIPE_H_ */

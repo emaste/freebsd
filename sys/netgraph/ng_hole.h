@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -45,21 +45,24 @@
 #define _NETGRAPH_NG_HOLE_H_
 
 /* Node type name and magic cookie */
-#define NG_HOLE_NODE_TYPE	"hole"
-#define NGM_HOLE_COOKIE		915433206
+#define NG_HOLE_NODE_TYPE "hole"
+#define NGM_HOLE_COOKIE 915433206
 
 /* Statistics structure for one hook. */
 struct ng_hole_hookstat {
-	uint64_t	frames;
-	uint64_t	octets;
+	uint64_t frames;
+	uint64_t octets;
 };
 
 /* Keep this in sync with the above structure definition. */
-#define	NG_HOLE_HOOKSTAT_TYPE_INFO {				\
-	{ "frames",	&ng_parse_uint64_type },		\
-	{ "octets",	&ng_parse_uint64_type },		\
-	{ NULL }						\
-}
+#define NG_HOLE_HOOKSTAT_TYPE_INFO                       \
+	{                                                \
+		{ "frames", &ng_parse_uint64_type },     \
+		    { "octets", &ng_parse_uint64_type }, \
+		{                                        \
+			NULL                             \
+		}                                        \
+	}
 
 /* Netgraph commands. */
 enum {

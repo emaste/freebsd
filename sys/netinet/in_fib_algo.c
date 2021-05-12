@@ -32,22 +32,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/rmlock.h>
 #include <sys/malloc.h>
-#include <sys/kernel.h>
 #include <sys/priv.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <net/vnet.h>
 
 #include <net/if.h>
-#include <netinet/in.h>
-
 #include <net/route.h>
+#include <net/route/fib_algo.h>
 #include <net/route/nhop.h>
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
-#include <net/route/fib_algo.h>
+#include <net/vnet.h>
+#include <netinet/in.h>
 
 /*
  * Binary search lookup algo.
@@ -73,18 +71,18 @@ __FBSDID("$FreeBSD$");
  */
 
 struct bsearch4_record {
-	uint32_t		addr4;
-	uint32_t		mask4;
-	struct nhop_object	*nh;
+	uint32_t addr4;
+	uint32_t mask4;
+	struct nhop_object *nh;
 };
 
 struct bsearch4_data {
-	struct fib_data		*fd;
-	uint32_t		alloc_items;
-	uint32_t		num_items;
-	void			*mem;
-	struct bsearch4_record	*rr;
-	struct bsearch4_record	br[0];
+	struct fib_data *fd;
+	uint32_t alloc_items;
+	uint32_t num_items;
+	void *mem;
+	struct bsearch4_record *rr;
+	struct bsearch4_record br[0];
 };
 
 /*
@@ -94,9 +92,11 @@ struct bsearch4_data {
  * Assumes 0.0.0.0/0 always exists (may be with NULL nhop)
  */
 static struct nhop_object *
-bsearch4_lookup(void *algo_data, const struct flm_lookup_key key, uint32_t scopeid)
+bsearch4_lookup(
+    void *algo_data, const struct flm_lookup_key key, uint32_t scopeid)
 {
-	const struct bsearch4_data *bd = (const struct bsearch4_data *)algo_data;
+	const struct bsearch4_data *bd = (const struct bsearch4_data *)
+	    algo_data;
 	const struct bsearch4_record *br;
 	uint32_t addr4 = ntohl(key.addr4.s_addr);
 
@@ -144,7 +144,8 @@ bsearch4_get_pref(const struct rib_rtable_info *rinfo)
 }
 
 static enum flm_op_result
-bsearch4_init(uint32_t fibnum, struct fib_data *fd, void *_old_data, void **_data)
+bsearch4_init(
+    uint32_t fibnum, struct fib_data *fd, void *_old_data, void **_data)
 {
 	struct bsearch4_data *bd;
 	struct rib_rtable_info rinfo;
@@ -155,7 +156,8 @@ bsearch4_init(uint32_t fibnum, struct fib_data *fd, void *_old_data, void **_dat
 	fib_get_rtable_info(fib_get_rh(fd), &rinfo);
 	count = rinfo.num_prefixes * 11 / 10 + 64;
 
-	sz = sizeof(struct bsearch4_data) + sizeof(struct bsearch4_record) * count;
+	sz = sizeof(struct bsearch4_data) +
+	    sizeof(struct bsearch4_record) * count;
 	/* add cache line sz to ease alignment */
 	sz += CACHE_LINE_SIZE;
 	mem = malloc(sz, M_RTABLE, M_NOWAIT | M_ZERO);
@@ -173,7 +175,8 @@ bsearch4_init(uint32_t fibnum, struct fib_data *fd, void *_old_data, void **_dat
 	 * Allocate temporary array to store all rtable data.
 	 * This step is required to provide the required prefix iteration order.
 	 */
-	bd->rr = mallocarray(count, sizeof(struct bsearch4_record), M_TEMP, M_NOWAIT | M_ZERO);
+	bd->rr = mallocarray(
+	    count, sizeof(struct bsearch4_record), M_TEMP, M_NOWAIT | M_ZERO);
 	if (bd->rr == NULL)
 		return (FLM_REBUILD);
 
@@ -243,9 +246,9 @@ rr_cmp(const void *_rec1, const void *_rec2)
 }
 
 struct bsearch4_array {
-	uint32_t		alloc_items;
-	uint32_t		num_items;
-	struct bsearch4_record	*arr;
+	uint32_t alloc_items;
+	uint32_t num_items;
+	struct bsearch4_record *arr;
 };
 
 static bool
@@ -335,22 +338,22 @@ bsearch4_process_record(struct bsearch4_array *dst_array,
 			return (false);
 	}
 
-	 if (dst_array->num_items > 0) {
+	if (dst_array->num_items > 0) {
 
-		 /*
-		  * Check if there is a gap between previous entry and a
-		  *  current entry. Code above guarantees that both previous
-		  *  and current entry are contained in the top stack entry.
-		  *
-		  * Example: last: 10.0.0.1(/32,nh=3) cur: 10.0.0.3(/32,nh=4),
-		  *  stack: 10.0.0.0/24,nh=2.
-		  * Cover a gap between previous and current by adding stack
-		  *  nexthop.
-		  */
-		 struct bsearch4_record *br_tmp = get_last_entry(dst_array);
-		 uint32_t last_declared_addr = br_tmp->addr4 | ~br_tmp->mask4;
-		 if (last_declared_addr < rib_entry->addr4 - 1) {
-			 /* Cover a hole */
+		/*
+		 * Check if there is a gap between previous entry and a
+		 *  current entry. Code above guarantees that both previous
+		 *  and current entry are contained in the top stack entry.
+		 *
+		 * Example: last: 10.0.0.1(/32,nh=3) cur: 10.0.0.3(/32,nh=4),
+		 *  stack: 10.0.0.0/24,nh=2.
+		 * Cover a gap between previous and current by adding stack
+		 *  nexthop.
+		 */
+		struct bsearch4_record *br_tmp = get_last_entry(dst_array);
+		uint32_t last_declared_addr = br_tmp->addr4 | ~br_tmp->mask4;
+		if (last_declared_addr < rib_entry->addr4 - 1) {
+			/* Cover a hole */
 			struct bsearch4_record *pst = get_last_entry(stack);
 			struct bsearch4_record new_entry = {
 				.addr4 = last_declared_addr + 1,
@@ -359,20 +362,20 @@ bsearch4_process_record(struct bsearch4_array *dst_array,
 			};
 			if (!add_array_entry(dst_array, &new_entry))
 				return (false);
-		 }
+		}
 
-		 /*
-		  * Special case: adding more specific prefix at the start of
-		  * the previous interval:
-		  * 10.0.0.0(/24,nh=3), 10.0.0.0(/25,nh=4)
-		  * Alter the last record, seeting new nexthop and mask.
-		  */
-		 if (br_tmp->addr4 == rib_entry->addr4) {
+		/*
+		 * Special case: adding more specific prefix at the start of
+		 * the previous interval:
+		 * 10.0.0.0(/24,nh=3), 10.0.0.0(/25,nh=4)
+		 * Alter the last record, seeting new nexthop and mask.
+		 */
+		if (br_tmp->addr4 == rib_entry->addr4) {
 			*br_tmp = *rib_entry;
 			add_array_entry(stack, rib_entry);
 			return (true);
-		 }
-	 }
+		}
+	}
 
 	if (!add_array_entry(dst_array, rib_entry))
 		return (false);
@@ -382,7 +385,8 @@ bsearch4_process_record(struct bsearch4_array *dst_array,
 }
 
 static enum flm_op_result
-bsearch4_build_array(struct bsearch4_array *dst_array, struct bsearch4_array *src_array)
+bsearch4_build_array(
+    struct bsearch4_array *dst_array, struct bsearch4_array *src_array)
 {
 
 	/*
@@ -392,7 +396,8 @@ bsearch4_build_array(struct bsearch4_array *dst_array, struct bsearch4_array *sr
 	 */
 	struct bsearch4_array stack = {
 		.alloc_items = 32,
-		.arr = mallocarray(32, sizeof(struct bsearch4_record), M_TEMP, M_NOWAIT | M_ZERO),
+		.arr = mallocarray(32, sizeof(struct bsearch4_record), M_TEMP,
+		    M_NOWAIT | M_ZERO),
 	};
 	if (stack.arr == NULL)
 		return (FLM_REBUILD);
@@ -438,14 +443,15 @@ bsearch4_build(struct bsearch4_data *bd)
 		}
 	}
 	if (!default_found) {
-		 /* Add default route with NULL nhop */
+		/* Add default route with NULL nhop */
 		struct bsearch4_record default_entry = {};
 		if (!add_array_entry(&prefixes_array, &default_entry))
-			 return (FLM_REBUILD);
+			return (FLM_REBUILD);
 	}
 
 	/* Sort prefixes */
-	qsort(prefixes_array.arr, prefixes_array.num_items, sizeof(struct bsearch4_record), rr_cmp);
+	qsort(prefixes_array.arr, prefixes_array.num_items,
+	    sizeof(struct bsearch4_record), rr_cmp);
 
 	struct bsearch4_array dst_array = {
 		.alloc_items = bd->alloc_items,
@@ -459,7 +465,6 @@ bsearch4_build(struct bsearch4_data *bd)
 	bd->rr = NULL;
 	return (ret);
 }
-
 
 static enum flm_op_result
 bsearch4_end_dump(void *_data, struct fib_dp *dp)
@@ -477,14 +482,13 @@ bsearch4_end_dump(void *_data, struct fib_dp *dp)
 }
 
 static enum flm_op_result
-bsearch4_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
-    void *_data)
+bsearch4_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc, void *_data)
 {
 
 	return (FLM_REBUILD);
 }
 
-struct fib_lookup_module flm_bsearch4= {
+struct fib_lookup_module flm_bsearch4 = {
 	.flm_name = "bsearch4",
 	.flm_family = AF_INET,
 	.flm_init_cb = bsearch4_init,
@@ -506,26 +510,28 @@ struct fib_lookup_module flm_bsearch4= {
  *  (4 bytes instead of 8 in stock radix).
  */
 
-#define KEY_LEN_INET	(offsetof(struct sockaddr_in, sin_addr) + sizeof(in_addr_t))
-#define OFF_LEN_INET	(8 * offsetof(struct sockaddr_in, sin_addr))
+#define KEY_LEN_INET \
+	(offsetof(struct sockaddr_in, sin_addr) + sizeof(in_addr_t))
+#define OFF_LEN_INET (8 * offsetof(struct sockaddr_in, sin_addr))
 struct radix4_addr_entry {
-	struct radix_node	rn[2];
-	struct sockaddr_in	addr;
-	struct nhop_object	*nhop;
+	struct radix_node rn[2];
+	struct sockaddr_in addr;
+	struct nhop_object *nhop;
 };
-#define	LRADIX4_ITEM_SZ	roundup2(sizeof(struct radix4_addr_entry), 64)
+#define LRADIX4_ITEM_SZ roundup2(sizeof(struct radix4_addr_entry), 64)
 
 struct lradix4_data {
-	struct radix_node_head	*rnh;
-	struct fib_data		*fd;
-	void			*mem;
-	char			*rt_base;
-	uint32_t		alloc_items;
-	uint32_t		num_items;
+	struct radix_node_head *rnh;
+	struct fib_data *fd;
+	void *mem;
+	char *rt_base;
+	uint32_t alloc_items;
+	uint32_t num_items;
 };
 
 static struct nhop_object *
-lradix4_lookup(void *algo_data, const struct flm_lookup_key key, uint32_t scopeid)
+lradix4_lookup(
+    void *algo_data, const struct flm_lookup_key key, uint32_t scopeid)
 {
 	struct radix_node_head *rnh = (struct radix_node_head *)algo_data;
 	struct radix4_addr_entry *ent;
@@ -557,7 +563,8 @@ lradix4_get_pref(const struct rib_rtable_info *rinfo)
 }
 
 static enum flm_op_result
-lradix4_init(uint32_t fibnum, struct fib_data *fd, void *_old_data, void **_data)
+lradix4_init(
+    uint32_t fibnum, struct fib_data *fd, void *_old_data, void **_data)
 {
 	struct lradix4_data *lr;
 	struct rib_rtable_info rinfo;
@@ -610,7 +617,8 @@ lradix4_add_route_cb(struct rtentry *rt, void *_data)
 	if (lr->num_items >= lr->alloc_items)
 		return (FLM_REBUILD);
 
-	ae = (struct radix4_addr_entry *)(lr->rt_base + lr->num_items * LRADIX4_ITEM_SZ);
+	ae = (struct radix4_addr_entry *)(lr->rt_base +
+	    lr->num_items * LRADIX4_ITEM_SZ);
 	lr->num_items++;
 
 	ae->nhop = rt_get_raw_nhop(rt);
@@ -627,8 +635,8 @@ lradix4_add_route_cb(struct rtentry *rt, void *_data)
 	} else
 		rt_mask = NULL;
 
-	rn = lr->rnh->rnh_addaddr((struct sockaddr *)&ae->addr, rt_mask,
-	    &lr->rnh->rh, ae->rn);
+	rn = lr->rnh->rnh_addaddr(
+	    (struct sockaddr *)&ae->addr, rt_mask, &lr->rnh->rh, ae->rn);
 	if (rn == NULL)
 		return (FLM_REBUILD);
 
@@ -647,8 +655,7 @@ lradix4_end_dump(void *_data, struct fib_dp *dp)
 }
 
 static enum flm_op_result
-lradix4_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
-    void *_data)
+lradix4_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc, void *_data)
 {
 
 	return (FLM_REBUILD);
@@ -676,7 +683,8 @@ struct radix4_data {
 };
 
 static struct nhop_object *
-radix4_lookup(void *algo_data, const struct flm_lookup_key key, uint32_t scopeid)
+radix4_lookup(
+    void *algo_data, const struct flm_lookup_key key, uint32_t scopeid)
 {
 	RIB_RLOCK_TRACKER;
 	struct rib_head *rh = (struct rib_head *)algo_data;
@@ -749,8 +757,7 @@ radix4_end_dump(void *_data, struct fib_dp *dp)
 }
 
 static enum flm_op_result
-radix4_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
-    void *_data)
+radix4_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc, void *_data)
 {
 
 	return (FLM_SUCCESS);
@@ -775,4 +782,5 @@ fib4_algo_init(void)
 	fib_module_register(&flm_radix4_lockless);
 	fib_module_register(&flm_radix4);
 }
-SYSINIT(fib4_algo_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, fib4_algo_init, NULL);
+SYSINIT(
+    fib4_algo_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, fib4_algo_init, NULL);

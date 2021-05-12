@@ -29,28 +29,26 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_vga.h"
 #include "opt_fb.h"
-#include "opt_syscons.h"	/* should be removed in the future, XXX */
+#include "opt_syscons.h" /* should be removed in the future, XXX */
+#include "opt_vga.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/fbio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/conf.h>
-#include <sys/bus.h>
-#include <sys/fbio.h>
-
-#include <machine/bus.h>
-#include <machine/resource.h>
-
 #include <sys/rman.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/bus.h>
 #include <machine/md_var.h>
+#include <machine/resource.h>
 #ifdef __i386__
 #include <machine/pc/bios.h>
 #endif
@@ -61,11 +59,11 @@ __FBSDID("$FreeBSD$");
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 
-#define VGA_ID		0x0009d041	/* PNP0900 */
+#define VGA_ID 0x0009d041 /* PNP0900 */
 
 static struct isa_pnp_id vga_ids[] = {
-	{ VGA_ID,	NULL },		/* PNP0900 */
-	{ 0,		NULL },
+	{ VGA_ID, NULL }, /* PNP0900 */
+	{ 0, NULL },
 };
 
 static void
@@ -88,8 +86,8 @@ vga_suspend(device_t dev)
 	if (bootverbose)
 		device_printf(dev, "saving %d bytes of video state\n", nbytes);
 	if (vidd_save_state(sc->adp, sc->state_buf, nbytes) != 0) {
-		device_printf(dev, "failed to save state (nbytes=%d)\n",
-		    nbytes);
+		device_printf(
+		    dev, "failed to save state (nbytes=%d)\n", nbytes);
 		free(sc->state_buf, M_TEMP);
 		sc->state_buf = NULL;
 	}
@@ -131,30 +129,30 @@ vga_resume(device_t dev)
 	}
 }
 
-#define VGA_SOFTC(unit)		\
+#define VGA_SOFTC(unit) \
 	((vga_softc_t *)devclass_get_softc(isavga_devclass, unit))
 
-static devclass_t	isavga_devclass;
+static devclass_t isavga_devclass;
 
 #ifdef FB_INSTALL_CDEV
 
-static d_open_t		isavga_open;
-static d_close_t	isavga_close;
-static d_read_t		isavga_read;
-static d_write_t	isavga_write;
-static d_ioctl_t	isavga_ioctl;
-static d_mmap_t		isavga_mmap;
+static d_open_t isavga_open;
+static d_close_t isavga_close;
+static d_read_t isavga_read;
+static d_write_t isavga_write;
+static d_ioctl_t isavga_ioctl;
+static d_mmap_t isavga_mmap;
 
 static struct cdevsw isavga_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
-	.d_open =	isavga_open,
-	.d_close =	isavga_close,
-	.d_read =	isavga_read,
-	.d_write =	isavga_write,
-	.d_ioctl =	isavga_ioctl,
-	.d_mmap =	isavga_mmap,
-	.d_name =	VGA_DRIVER_NAME,
+	.d_version = D_VERSION,
+	.d_flags = D_NEEDGIANT,
+	.d_open = isavga_open,
+	.d_close = isavga_close,
+	.d_read = isavga_read,
+	.d_write = isavga_write,
+	.d_ioctl = isavga_ioctl,
+	.d_mmap = isavga_mmap,
+	.d_name = VGA_DRIVER_NAME,
 };
 
 #endif /* FB_INSTALL_CDEV */
@@ -175,13 +173,14 @@ isavga_probe(device_t dev)
 	if (isa_get_vendorid(dev))
 		return (ENXIO);
 
-	error = vga_probe_unit(device_get_unit(dev), &adp, device_get_flags(dev));
+	error = vga_probe_unit(
+	    device_get_unit(dev), &adp, device_get_flags(dev));
 	if (error == 0) {
 		device_set_desc(dev, "Generic ISA VGA");
-		bus_set_resource(dev, SYS_RES_IOPORT, 0,
-				 adp.va_io_base, adp.va_io_size);
-		bus_set_resource(dev, SYS_RES_MEMORY, 0,
-				 adp.va_mem_base, adp.va_mem_size);
+		bus_set_resource(
+		    dev, SYS_RES_IOPORT, 0, adp.va_io_base, adp.va_io_size);
+		bus_set_resource(
+		    dev, SYS_RES_MEMORY, 0, adp.va_mem_base, adp.va_mem_size);
 		isa_set_vendorid(dev, VGA_ID);
 		isa_set_logicalid(dev, VGA_ID);
 #if 0
@@ -206,11 +205,11 @@ isavga_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	rid = 0;
-	bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
-				  RF_ACTIVE | RF_SHAREABLE);
+	bus_alloc_resource_any(
+	    dev, SYS_RES_IOPORT, &rid, RF_ACTIVE | RF_SHAREABLE);
 	rid = 0;
-	bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-				 RF_ACTIVE | RF_SHAREABLE);
+	bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE | RF_SHAREABLE);
 
 	error = vga_attach_unit(unit, sc, device_get_flags(dev));
 	if (error)
@@ -283,30 +282,30 @@ isavga_write(struct cdev *dev, struct uio *uio, int flag)
 }
 
 static int
-isavga_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
+isavga_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	return (vga_ioctl(dev, VGA_SOFTC(VGA_UNIT(dev)), cmd, arg, flag, td));
 }
 
 static int
-isavga_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
-    int prot, vm_memattr_t *memattr)
+isavga_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr, int prot,
+    vm_memattr_t *memattr)
 {
-	return (vga_mmap(dev, VGA_SOFTC(VGA_UNIT(dev)), offset, paddr, prot,
-	    memattr));
+	return (vga_mmap(
+	    dev, VGA_SOFTC(VGA_UNIT(dev)), offset, paddr, prot, memattr));
 }
 
 #endif /* FB_INSTALL_CDEV */
 
-static device_method_t isavga_methods[] = {
-	DEVMETHOD(device_identify,	isavga_identify),
-	DEVMETHOD(device_probe,		isavga_probe),
-	DEVMETHOD(device_attach,	isavga_attach),
-	DEVMETHOD(device_suspend,	isavga_suspend),
-	DEVMETHOD(device_resume,	isavga_resume),
+static device_method_t isavga_methods[] = { DEVMETHOD(device_identify,
+						isavga_identify),
+	DEVMETHOD(device_probe, isavga_probe),
+	DEVMETHOD(device_attach, isavga_attach),
+	DEVMETHOD(device_suspend, isavga_suspend),
+	DEVMETHOD(device_resume, isavga_resume),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t isavga_driver = {
 	VGA_DRIVER_NAME,
@@ -316,7 +315,7 @@ static driver_t isavga_driver = {
 
 DRIVER_MODULE(vga, isa, isavga_driver, isavga_devclass, 0, 0);
 
-static devclass_t	vgapm_devclass;
+static devclass_t vgapm_devclass;
 
 static void
 vgapm_identify(driver_t *driver, device_t parent)
@@ -375,20 +374,14 @@ vgapm_resume(device_t dev)
 	return (bus_generic_resume(dev));
 }
 
-static device_method_t vgapm_methods[] = {
-	DEVMETHOD(device_identify,	vgapm_identify),
-	DEVMETHOD(device_probe,		vgapm_probe),
-	DEVMETHOD(device_attach,	vgapm_attach),
-	DEVMETHOD(device_suspend,	vgapm_suspend),
-	DEVMETHOD(device_resume,	vgapm_resume),
-	{ 0, 0 }
-};
+static device_method_t vgapm_methods[] = { DEVMETHOD(
+					       device_identify, vgapm_identify),
+	DEVMETHOD(device_probe, vgapm_probe),
+	DEVMETHOD(device_attach, vgapm_attach),
+	DEVMETHOD(device_suspend, vgapm_suspend),
+	DEVMETHOD(device_resume, vgapm_resume), { 0, 0 } };
 
-static driver_t vgapm_driver = {
-	"vgapm",
-	vgapm_methods,
-	0
-};
+static driver_t vgapm_driver = { "vgapm", vgapm_methods, 0 };
 
 DRIVER_MODULE(vgapm, vgapci, vgapm_driver, vgapm_devclass, 0, 0);
 ISA_PNP_INFO(vga_ids);

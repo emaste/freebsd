@@ -30,57 +30,56 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_mmccam.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/gpio.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
+
+#include <machine/bus.h>
+#include <machine/intr.h>
+#include <machine/resource.h>
+
+#include <dev/extres/clk/clk.h>
+#include <dev/mmc/bridge.h>
+#include <dev/mmc/mmcbrvar.h>
+#include <dev/mmc/mmcreg.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/sdhci/sdhci.h>
+#include <dev/sdhci/sdhci_fdt_gpio.h>
 
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_sysc.h>
+
 #include "gpio_if.h"
-
-#include <dev/extres/clk/clk.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/mmc/bridge.h>
-#include <dev/mmc/mmcreg.h>
-#include <dev/mmc/mmcbrvar.h>
-
-#include <dev/sdhci/sdhci.h>
-#include <dev/sdhci/sdhci_fdt_gpio.h>
 #include "sdhci_if.h"
 
-#include <machine/bus.h>
-#include <machine/resource.h>
-#include <machine/intr.h>
-
-#include "opt_mmccam.h"
-
 struct ti_sdhci_softc {
-	device_t		dev;
-	struct sdhci_fdt_gpio * gpio;
-	struct resource *	mem_res;
-	struct resource *	irq_res;
-	void *			intr_cookie;
-	struct sdhci_slot	slot;
-	uint32_t		mmchs_reg_off;
-	uint32_t		sdhci_reg_off;
-	uint64_t		baseclk_hz;
-	uint32_t		cmd_and_mode;
-	uint32_t		sdhci_clkdiv;
-	boolean_t		disable_highspeed;
-	boolean_t		force_card_present;
-	boolean_t		disable_readonly;
+	device_t dev;
+	struct sdhci_fdt_gpio *gpio;
+	struct resource *mem_res;
+	struct resource *irq_res;
+	void *intr_cookie;
+	struct sdhci_slot slot;
+	uint32_t mmchs_reg_off;
+	uint32_t sdhci_reg_off;
+	uint64_t baseclk_hz;
+	uint32_t cmd_and_mode;
+	uint32_t sdhci_clkdiv;
+	boolean_t disable_highspeed;
+	boolean_t force_card_present;
+	boolean_t disable_readonly;
 };
 
 /*
@@ -92,11 +91,11 @@ struct ti_sdhci_softc {
  * Note that vendor Beaglebone dtsi files use "ti,omap3-hsmmc" for the am335x.
  */
 static struct ofw_compat_data compat_data[] = {
-	{"ti,am335-sdhci",	1},
-	{"ti,omap3-hsmmc",	1},
-	{"ti,omap4-hsmmc",	1},
-	{"ti,mmchs",		1},
-	{NULL,		 	0},
+	{ "ti,am335-sdhci", 1 },
+	{ "ti,omap3-hsmmc", 1 },
+	{ "ti,omap4-hsmmc", 1 },
+	{ "ti,mmchs", 1 },
+	{ NULL, 0 },
 };
 
 /*
@@ -107,31 +106,32 @@ static struct ofw_compat_data compat_data[] = {
  * access, and the various per-SoC offsets.  The SDHCI_REG_OFFSET is how far
  * beyond the MMCHS block the SDHCI block is found; it's the same on all SoCs.
  */
-#define	OMAP3_MMCHS_REG_OFFSET		0x000
-#define	OMAP4_MMCHS_REG_OFFSET		0x100
-#define	AM335X_MMCHS_REG_OFFSET		0x100
-#define	SDHCI_REG_OFFSET		0x100
+#define OMAP3_MMCHS_REG_OFFSET 0x000
+#define OMAP4_MMCHS_REG_OFFSET 0x100
+#define AM335X_MMCHS_REG_OFFSET 0x100
+#define SDHCI_REG_OFFSET 0x100
 
-#define	MMCHS_SYSCONFIG			0x010
-#define	  MMCHS_SYSCONFIG_RESET		  (1 << 1)
-#define	MMCHS_SYSSTATUS			0x014
-#define	  MMCHS_SYSSTATUS_RESETDONE	  (1 << 0)
-#define	MMCHS_CON			0x02C
-#define	  MMCHS_CON_DW8			  (1 << 5)
-#define	  MMCHS_CON_DVAL_8_4MS		  (3 << 9)
-#define	  MMCHS_CON_OD			  (1 << 0)
-#define MMCHS_SYSCTL			0x12C
-#define   MMCHS_SYSCTL_CLKD_MASK	   0x3FF
-#define   MMCHS_SYSCTL_CLKD_SHIFT	   6
-#define	MMCHS_SD_CAPA			0x140
-#define	  MMCHS_SD_CAPA_VS18		  (1 << 26)
-#define	  MMCHS_SD_CAPA_VS30		  (1 << 25)
-#define	  MMCHS_SD_CAPA_VS33		  (1 << 24)
+#define MMCHS_SYSCONFIG 0x010
+#define MMCHS_SYSCONFIG_RESET (1 << 1)
+#define MMCHS_SYSSTATUS 0x014
+#define MMCHS_SYSSTATUS_RESETDONE (1 << 0)
+#define MMCHS_CON 0x02C
+#define MMCHS_CON_DW8 (1 << 5)
+#define MMCHS_CON_DVAL_8_4MS (3 << 9)
+#define MMCHS_CON_OD (1 << 0)
+#define MMCHS_SYSCTL 0x12C
+#define MMCHS_SYSCTL_CLKD_MASK 0x3FF
+#define MMCHS_SYSCTL_CLKD_SHIFT 6
+#define MMCHS_SD_CAPA 0x140
+#define MMCHS_SD_CAPA_VS18 (1 << 26)
+#define MMCHS_SD_CAPA_VS30 (1 << 25)
+#define MMCHS_SD_CAPA_VS33 (1 << 24)
 
 /* Forward declarations, CAM-relataed */
 // static void ti_sdhci_cam_poll(struct cam_sim *);
 // static void ti_sdhci_cam_action(struct cam_sim *, union ccb *);
-// static int ti_sdhci_cam_settran_settings(struct ti_sdhci_softc *sc, union ccb *);
+// static int ti_sdhci_cam_settran_settings(struct ti_sdhci_softc *sc, union ccb
+// *);
 
 static inline uint32_t
 ti_mmchs_read_4(struct ti_sdhci_softc *sc, bus_size_t off)
@@ -191,12 +191,14 @@ ti_sdhci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 	if (off == SDHCI_CLOCK_CONTROL) {
 		val32 = RD4(sc, SDHCI_CLOCK_CONTROL);
 		clkdiv = ((val32 >> MMCHS_SYSCTL_CLKD_SHIFT) &
-		    MMCHS_SYSCTL_CLKD_MASK) / 2;
+			     MMCHS_SYSCTL_CLKD_MASK) /
+		    2;
 		val32 &= ~(MMCHS_SYSCTL_CLKD_MASK << MMCHS_SYSCTL_CLKD_SHIFT);
 		val32 |= (clkdiv & SDHCI_DIVIDER_MASK) << SDHCI_DIVIDER_SHIFT;
 		if (slot->version >= SDHCI_SPEC_300)
 			val32 |= ((clkdiv >> SDHCI_DIVIDER_MASK_LEN) &
-			    SDHCI_DIVIDER_HI_MASK) << SDHCI_DIVIDER_HI_SHIFT;
+				     SDHCI_DIVIDER_HI_MASK)
+			    << SDHCI_DIVIDER_HI_SHIFT;
 		return (val32 & 0xffff);
 	}
 
@@ -246,8 +248,8 @@ ti_sdhci_read_multi_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static void
-ti_sdhci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off, 
-    uint8_t val)
+ti_sdhci_write_1(
+    device_t dev, struct sdhci_slot *slot, bus_size_t off, uint8_t val)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
 	uint32_t val32;
@@ -256,7 +258,7 @@ ti_sdhci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 	uint32_t newval32;
 	if (off == SDHCI_HOST_CONTROL) {
 		val32 = ti_mmchs_read_4(sc, MMCHS_CON);
-		newval32  = val32;
+		newval32 = val32;
 		if (val & SDHCI_CTRL_8BITBUS) {
 			device_printf(dev, "Custom-enabling 8-bit bus\n");
 			newval32 |= MMCHS_CON_DW8;
@@ -276,8 +278,8 @@ ti_sdhci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static void
-ti_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, 
-    uint16_t val)
+ti_sdhci_write_2(
+    device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_t val)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
 	uint32_t clkdiv, val32;
@@ -291,14 +293,15 @@ ti_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 		clkdiv = (val >> SDHCI_DIVIDER_SHIFT) & SDHCI_DIVIDER_MASK;
 		if (slot->version >= SDHCI_SPEC_300)
 			clkdiv |= ((val >> SDHCI_DIVIDER_HI_SHIFT) &
-			    SDHCI_DIVIDER_HI_MASK) << SDHCI_DIVIDER_MASK_LEN;
+				      SDHCI_DIVIDER_HI_MASK)
+			    << SDHCI_DIVIDER_MASK_LEN;
 		clkdiv *= 2;
 		if (clkdiv > MMCHS_SYSCTL_CLKD_MASK)
 			clkdiv = MMCHS_SYSCTL_CLKD_MASK;
 		val32 = RD4(sc, SDHCI_CLOCK_CONTROL);
 		val32 &= 0xffff0000;
-		val32 |= val & ~(MMCHS_SYSCTL_CLKD_MASK <<
-		    MMCHS_SYSCTL_CLKD_SHIFT);
+		val32 |= val &
+		    ~(MMCHS_SYSCTL_CLKD_MASK << MMCHS_SYSCTL_CLKD_SHIFT);
 		val32 |= clkdiv << MMCHS_SYSCTL_CLKD_SHIFT;
 		WR4(sc, SDHCI_CLOCK_CONTROL, val32);
 		return;
@@ -321,12 +324,12 @@ ti_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 	val32 = RD4(sc, off & ~3);
 	val32 &= ~(0xffff << (off & 3) * 8);
 	val32 |= ((val & 0xffff) << (off & 3) * 8);
-	WR4(sc, off & ~3, val32);	
+	WR4(sc, off & ~3, val32);
 }
 
 static void
-ti_sdhci_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off, 
-    uint32_t val)
+ti_sdhci_write_4(
+    device_t dev, struct sdhci_slot *slot, bus_size_t off, uint32_t val)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
 
@@ -368,7 +371,7 @@ ti_sdhci_update_ios(device_t brdev, device_t reqdev)
 	 * requested, then let the standard driver handle everything else.
 	 */
 	val32 = ti_mmchs_read_4(sc, MMCHS_CON);
-	newval32  = val32;
+	newval32 = val32;
 
 	if (ios->bus_width == bus_width_8)
 		newval32 |= MMCHS_CON_DW8;
@@ -445,8 +448,8 @@ ti_sdhci_hw_init(device_t dev)
 	/* Issue a softreset to the controller */
 	ti_mmchs_write_4(sc, MMCHS_SYSCONFIG, MMCHS_SYSCONFIG_RESET);
 	timeout = 1000;
-	while (!(ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) &
-	    MMCHS_SYSSTATUS_RESETDONE)) {
+	while (!(
+	    ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) & MMCHS_SYSSTATUS_RESETDONE)) {
 		if (--timeout == 0) {
 			device_printf(dev,
 			    "Error: Controller reset operation timed out\n");
@@ -469,7 +472,7 @@ ti_sdhci_hw_init(device_t dev)
 	ti_sdhci_write_1(dev, NULL, SDHCI_SOFTWARE_RESET, SDHCI_RESET_ALL);
 	timeout = 10000;
 	while ((ti_sdhci_read_1(dev, NULL, SDHCI_SOFTWARE_RESET) &
-	    SDHCI_RESET_ALL) != SDHCI_RESET_ALL) {
+		   SDHCI_RESET_ALL) != SDHCI_RESET_ALL) {
 		if (--timeout == 0) {
 			break;
 		}
@@ -479,8 +482,8 @@ ti_sdhci_hw_init(device_t dev)
 	while ((ti_sdhci_read_1(dev, NULL, SDHCI_SOFTWARE_RESET) &
 	    SDHCI_RESET_ALL)) {
 		if (--timeout == 0) {
-			device_printf(dev,
-			    "Error: Software reset operation timed out\n");
+			device_printf(
+			    dev, "Error: Software reset operation timed out\n");
 			break;
 		}
 		DELAY(100);
@@ -522,7 +525,8 @@ ti_sdhci_attach(device_t dev)
 	sc->dev = dev;
 
 	/*
-	 * Get the MMCHS device id from FDT. Use rev address to identify the unit.
+	 * Get the MMCHS device id from FDT. Use rev address to identify the
+	 * unit.
 	 */
 	node = ofw_bus_get_node(dev);
 
@@ -567,8 +571,8 @@ ti_sdhci_attach(device_t dev)
 
 	/* Resource setup. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
 		err = ENXIO;
@@ -576,16 +580,15 @@ ti_sdhci_attach(device_t dev)
 	}
 
 	rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!sc->irq_res) {
 		device_printf(dev, "cannot allocate interrupt\n");
 		err = ENXIO;
 		goto fail;
 	}
 
-	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, ti_sdhci_intr, sc, &sc->intr_cookie)) {
+	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_BIO | INTR_MPSAFE, NULL,
+		ti_sdhci_intr, sc, &sc->intr_cookie)) {
 		device_printf(dev, "cannot setup interrupt handler\n");
 		err = ENXIO;
 		goto fail;
@@ -664,8 +667,8 @@ ti_sdhci_attach(device_t dev)
 	 * property, honor it.
 	 */
 	if (OF_getencprop(node, "bus-width", &prop, sizeof(prop)) > 0) {
-		sc->slot.host.caps &= ~(MMC_CAP_4_BIT_DATA | 
-		    MMC_CAP_8_BIT_DATA);
+		sc->slot.host.caps &= ~(
+		    MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA);
 		switch (prop) {
 		case 8:
 			sc->slot.host.caps |= MMC_CAP_8_BIT_DATA;
@@ -723,30 +726,30 @@ ti_sdhci_probe(device_t dev)
 
 static device_method_t ti_sdhci_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ti_sdhci_probe),
-	DEVMETHOD(device_attach,	ti_sdhci_attach),
-	DEVMETHOD(device_detach,	ti_sdhci_detach),
+	DEVMETHOD(device_probe, ti_sdhci_probe),
+	DEVMETHOD(device_attach, ti_sdhci_attach),
+	DEVMETHOD(device_detach, ti_sdhci_detach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,	sdhci_generic_read_ivar),
-	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
+	DEVMETHOD(bus_read_ivar, sdhci_generic_read_ivar),
+	DEVMETHOD(bus_write_ivar, sdhci_generic_write_ivar),
 
 	/* MMC bridge interface */
-	DEVMETHOD(mmcbr_update_ios,	ti_sdhci_update_ios),
-	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
-	DEVMETHOD(mmcbr_get_ro,		ti_sdhci_get_ro),
-	DEVMETHOD(mmcbr_acquire_host,	sdhci_generic_acquire_host),
-	DEVMETHOD(mmcbr_release_host,	sdhci_generic_release_host),
+	DEVMETHOD(mmcbr_update_ios, ti_sdhci_update_ios),
+	DEVMETHOD(mmcbr_request, sdhci_generic_request),
+	DEVMETHOD(mmcbr_get_ro, ti_sdhci_get_ro),
+	DEVMETHOD(mmcbr_acquire_host, sdhci_generic_acquire_host),
+	DEVMETHOD(mmcbr_release_host, sdhci_generic_release_host),
 
 	/* SDHCI registers accessors */
-	DEVMETHOD(sdhci_read_1,		ti_sdhci_read_1),
-	DEVMETHOD(sdhci_read_2,		ti_sdhci_read_2),
-	DEVMETHOD(sdhci_read_4,		ti_sdhci_read_4),
-	DEVMETHOD(sdhci_read_multi_4,	ti_sdhci_read_multi_4),
-	DEVMETHOD(sdhci_write_1,	ti_sdhci_write_1),
-	DEVMETHOD(sdhci_write_2,	ti_sdhci_write_2),
-	DEVMETHOD(sdhci_write_4,	ti_sdhci_write_4),
-	DEVMETHOD(sdhci_write_multi_4,	ti_sdhci_write_multi_4),
+	DEVMETHOD(sdhci_read_1, ti_sdhci_read_1),
+	DEVMETHOD(sdhci_read_2, ti_sdhci_read_2),
+	DEVMETHOD(sdhci_read_4, ti_sdhci_read_4),
+	DEVMETHOD(sdhci_read_multi_4, ti_sdhci_read_multi_4),
+	DEVMETHOD(sdhci_write_1, ti_sdhci_write_1),
+	DEVMETHOD(sdhci_write_2, ti_sdhci_write_2),
+	DEVMETHOD(sdhci_write_4, ti_sdhci_write_4),
+	DEVMETHOD(sdhci_write_multi_4, ti_sdhci_write_multi_4),
 	DEVMETHOD(sdhci_get_card_present, ti_sdhci_get_card_present),
 
 	DEVMETHOD_END
@@ -760,8 +763,8 @@ static driver_t ti_sdhci_driver = {
 	sizeof(struct ti_sdhci_softc),
 };
 
-DRIVER_MODULE(sdhci_ti, simplebus, ti_sdhci_driver, ti_sdhci_devclass, NULL,
-    NULL);
+DRIVER_MODULE(
+    sdhci_ti, simplebus, ti_sdhci_driver, ti_sdhci_devclass, NULL, NULL);
 MODULE_DEPEND(sdhci_ti, ti_sysc, 1, 1, 1);
 SDHCI_DEPEND(sdhci_ti);
 

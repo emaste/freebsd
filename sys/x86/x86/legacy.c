@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -42,62 +42,61 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <machine/bus.h>
 #include <sys/pcpu.h>
 #include <sys/rman.h>
 #include <sys/smp.h>
-#include <dev/pci/pcireg.h>
 
+#include <machine/bus.h>
 #include <machine/clock.h>
 #include <machine/pci_cfgreg.h>
 #include <machine/resource.h>
+
 #include <x86/legacyvar.h>
+
+#include <dev/pci/pcireg.h>
 
 static MALLOC_DEFINE(M_LEGACYDEV, "legacydrv", "legacy system device");
 struct legacy_device {
-	int	lg_pcibus;
-	int	lg_pcislot;
-	int	lg_pcifunc;
+	int lg_pcibus;
+	int lg_pcislot;
+	int lg_pcifunc;
 };
 
-#define DEVTOAT(dev)	((struct legacy_device *)device_get_ivars(dev))
+#define DEVTOAT(dev) ((struct legacy_device *)device_get_ivars(dev))
 
-static	int legacy_probe(device_t);
-static	int legacy_attach(device_t);
-static	int legacy_print_child(device_t, device_t);
-static device_t legacy_add_child(device_t bus, u_int order, const char *name,
-				int unit);
-static	int legacy_read_ivar(device_t, device_t, int, uintptr_t *);
-static	int legacy_write_ivar(device_t, device_t, int, uintptr_t);
+static int legacy_probe(device_t);
+static int legacy_attach(device_t);
+static int legacy_print_child(device_t, device_t);
+static device_t legacy_add_child(
+    device_t bus, u_int order, const char *name, int unit);
+static int legacy_read_ivar(device_t, device_t, int, uintptr_t *);
+static int legacy_write_ivar(device_t, device_t, int, uintptr_t);
 
 static device_method_t legacy_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		legacy_probe),
-	DEVMETHOD(device_attach,	legacy_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_probe, legacy_probe),
+	DEVMETHOD(device_attach, legacy_attach),
+	DEVMETHOD(device_detach, bus_generic_detach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	legacy_print_child),
-	DEVMETHOD(bus_add_child,	legacy_add_child),
-	DEVMETHOD(bus_read_ivar,	legacy_read_ivar),
-	DEVMETHOD(bus_write_ivar,	legacy_write_ivar),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_print_child, legacy_print_child),
+	DEVMETHOD(bus_add_child, legacy_add_child),
+	DEVMETHOD(bus_read_ivar, legacy_read_ivar),
+	DEVMETHOD(bus_write_ivar, legacy_write_ivar),
+	DEVMETHOD(bus_alloc_resource, bus_generic_alloc_resource),
+	DEVMETHOD(bus_adjust_resource, bus_generic_adjust_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-	{ 0, 0 }
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr), { 0, 0 }
 };
 
 static driver_t legacy_driver = {
-	"legacy",
-	legacy_methods,
-	1,			/* no softc */
+	"legacy", legacy_methods, 1, /* no softc */
 };
 static devclass_t legacy_devclass;
 
@@ -200,10 +199,10 @@ legacy_add_child(device_t bus, u_int order, const char *name, int unit)
 	device_t child;
 	struct legacy_device *atdev;
 
-	atdev = malloc(sizeof(struct legacy_device), M_LEGACYDEV,
-	    M_NOWAIT | M_ZERO);
+	atdev = malloc(
+	    sizeof(struct legacy_device), M_LEGACYDEV, M_NOWAIT | M_ZERO);
 	if (atdev == NULL)
-		return(NULL);
+		return (NULL);
 	atdev->lg_pcibus = -1;
 	atdev->lg_pcislot = -1;
 	atdev->lg_pcifunc = -1;
@@ -269,11 +268,11 @@ legacy_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
  * Legacy CPU attachment when ACPI is not available.  Drivers like
  * cpufreq(4) hang off this.
  */
-static void	cpu_identify(driver_t *driver, device_t parent);
-static int	cpu_read_ivar(device_t dev, device_t child, int index,
-		    uintptr_t *result);
-static device_t cpu_add_child(device_t bus, u_int order, const char *name,
-		    int unit);
+static void cpu_identify(driver_t *driver, device_t parent);
+static int cpu_read_ivar(
+    device_t dev, device_t child, int index, uintptr_t *result);
+static device_t cpu_add_child(
+    device_t bus, u_int order, const char *name, int unit);
 static struct resource_list *cpu_get_rlist(device_t dev, device_t child);
 
 struct cpu_device {
@@ -283,34 +282,32 @@ struct cpu_device {
 
 static device_method_t cpu_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	cpu_identify),
-	DEVMETHOD(device_probe,		bus_generic_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_identify, cpu_identify),
+	DEVMETHOD(device_probe, bus_generic_probe),
+	DEVMETHOD(device_attach, bus_generic_attach),
+	DEVMETHOD(device_detach, bus_generic_detach),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_add_child,	cpu_add_child),
-	DEVMETHOD(bus_read_ivar,	cpu_read_ivar),
+	DEVMETHOD(bus_add_child, cpu_add_child),
+	DEVMETHOD(bus_read_ivar, cpu_read_ivar),
 	DEVMETHOD(bus_get_resource_list, cpu_get_rlist),
-	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
-	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_rl_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
+	DEVMETHOD(bus_get_resource, bus_generic_rl_get_resource),
+	DEVMETHOD(bus_set_resource, bus_generic_rl_set_resource),
+	DEVMETHOD(bus_alloc_resource, bus_generic_rl_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_rl_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_setup_intr, bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
 
 	DEVMETHOD_END
 };
 
 static driver_t cpu_driver = {
-	"cpu",
-	cpu_methods,
-	1,		/* no softc */
+	"cpu", cpu_methods, 1, /* no softc */
 };
 static devclass_t cpu_devclass;
 DRIVER_MODULE(cpu, legacy, cpu_driver, cpu_devclass, 0, 0);
@@ -326,7 +323,7 @@ cpu_identify(driver_t *driver, device_t parent)
 	 * so that these devices are attached after the Host-PCI
 	 * bridges (which are added at order 100).
 	 */
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		child = BUS_ADD_CHILD(parent, 150, "cpu", i);
 		if (child == NULL)
 			panic("legacy_attach cpu");
@@ -377,8 +374,8 @@ cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 		break;
 	case CPU_IVAR_NOMINAL_MHZ:
 		if (tsc_is_invariant) {
-			*result = (uintptr_t)(atomic_load_acq_64(&tsc_freq) /
-			    1000000);
+			*result = (uintptr_t)(
+			    atomic_load_acq_64(&tsc_freq) / 1000000);
 			break;
 		}
 		/* FALLTHROUGH */

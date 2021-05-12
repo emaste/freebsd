@@ -44,27 +44,31 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/vmem.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
+
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
+
 #include <x86/include/apicreg.h>
 #include <x86/include/apicvar.h>
 #include <x86/include/busdma_impl.h>
-#include <dev/iommu/busdma_iommu.h>
-#include <x86/iommu/intel_reg.h>
 #include <x86/iommu/intel_dmar.h>
+#include <x86/iommu/intel_reg.h>
 #include <x86/iommu/iommu_intrmap.h>
 
-static struct dmar_unit *dmar_ir_find(device_t src, uint16_t *rid,
-    int *is_dmar);
-static void dmar_ir_program_irte(struct dmar_unit *unit, u_int idx,
-    uint64_t low, uint16_t rid);
+#include <dev/iommu/busdma_iommu.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
+static struct dmar_unit *dmar_ir_find(
+    device_t src, uint16_t *rid, int *is_dmar);
+static void dmar_ir_program_irte(
+    struct dmar_unit *unit, u_int idx, uint64_t low, uint16_t rid);
 static int dmar_ir_free_irte(struct dmar_unit *unit, u_int cookie);
 
 int
@@ -82,11 +86,11 @@ iommu_alloc_msi_intr(device_t src, u_int *cookies, u_int count)
 		return (EOPNOTSUPP);
 	}
 
-	error = vmem_alloc(unit->irtids, count, M_FIRSTFIT | M_NOWAIT,
-	    &vmem_res);
+	error = vmem_alloc(
+	    unit->irtids, count, M_FIRSTFIT | M_NOWAIT, &vmem_res);
 	if (error != 0) {
-		KASSERT(error != EOPNOTSUPP,
-		    ("impossible EOPNOTSUPP from vmem"));
+		KASSERT(
+		    error != EOPNOTSUPP, ("impossible EOPNOTSUPP from vmem"));
 		return (error);
 	}
 	idx = vmem_res;
@@ -124,9 +128,9 @@ iommu_map_msi_intr(device_t src, u_int cpu, u_int vector, u_int cookie,
 		return (EOPNOTSUPP);
 
 	low = (DMAR_X2APIC(unit) ? DMAR_IRTE1_DST_x2APIC(cpu) :
-	    DMAR_IRTE1_DST_xAPIC(cpu)) | DMAR_IRTE1_V(vector) |
-	    DMAR_IRTE1_DLM_FM | DMAR_IRTE1_TM_EDGE | DMAR_IRTE1_RH_DIRECT |
-	    DMAR_IRTE1_DM_PHYSICAL | DMAR_IRTE1_P;
+					 DMAR_IRTE1_DST_xAPIC(cpu)) |
+	    DMAR_IRTE1_V(vector) | DMAR_IRTE1_DLM_FM | DMAR_IRTE1_TM_EDGE |
+	    DMAR_IRTE1_RH_DIRECT | DMAR_IRTE1_DM_PHYSICAL | DMAR_IRTE1_P;
 	dmar_ir_program_irte(unit, cookie, low, rid);
 
 	if (addr != NULL) {
@@ -171,8 +175,8 @@ iommu_map_ioapic_intr(u_int ioapic_id, u_int cpu, u_int vector, bool edge,
 
 	error = vmem_alloc(unit->irtids, 1, M_FIRSTFIT | M_NOWAIT, &vmem_res);
 	if (error != 0) {
-		KASSERT(error != EOPNOTSUPP,
-		    ("impossible EOPNOTSUPP from vmem"));
+		KASSERT(
+		    error != EOPNOTSUPP, ("impossible EOPNOTSUPP from vmem"));
 		return (error);
 	}
 	idx = vmem_res;
@@ -193,7 +197,7 @@ iommu_map_ioapic_intr(u_int ioapic_id, u_int cpu, u_int vector, bool edge,
 		break;
 	}
 	low |= (DMAR_X2APIC(unit) ? DMAR_IRTE1_DST_x2APIC(cpu) :
-	    DMAR_IRTE1_DST_xAPIC(cpu)) |
+					  DMAR_IRTE1_DST_xAPIC(cpu)) |
 	    (edge ? DMAR_IRTE1_TM_EDGE : DMAR_IRTE1_TM_LEVEL) |
 	    DMAR_IRTE1_RH_DIRECT | DMAR_IRTE1_DM_PHYSICAL | DMAR_IRTE1_P;
 	dmar_ir_program_irte(unit, idx, low, rid);
@@ -206,8 +210,8 @@ iommu_map_ioapic_intr(u_int ioapic_id, u_int cpu, u_int vector, bool edge,
 		iorte = (1ULL << 48) | ((uint64_t)(idx & 0x7fff) << 49) |
 		    ((idx & 0x8000) != 0 ? (1 << 11) : 0) |
 		    (edge ? IOART_TRGREDG : IOART_TRGRLVL) |
-		    (activehi ? IOART_INTAHI : IOART_INTALO) |
-		    IOART_DELFIXED | vector;
+		    (activehi ? IOART_INTAHI : IOART_INTALO) | IOART_DELFIXED |
+		    vector;
 		*hi = iorte >> 32;
 		*lo = iorte;
 	}
@@ -262,21 +266,20 @@ dmar_ir_find(device_t src, uint16_t *rid, int *is_dmar)
 }
 
 static void
-dmar_ir_program_irte(struct dmar_unit *unit, u_int idx, uint64_t low,
-    uint16_t rid)
+dmar_ir_program_irte(
+    struct dmar_unit *unit, u_int idx, uint64_t low, uint16_t rid)
 {
 	dmar_irte_t *irte;
 	uint64_t high;
 
-	KASSERT(idx < unit->irte_cnt,
-	    ("bad cookie %d %d", idx, unit->irte_cnt));
+	KASSERT(
+	    idx < unit->irte_cnt, ("bad cookie %d %d", idx, unit->irte_cnt));
 	irte = &(unit->irt[idx]);
-	high = DMAR_IRTE2_SVT_RID | DMAR_IRTE2_SQ_RID |
-	    DMAR_IRTE2_SID_RID(rid);
+	high = DMAR_IRTE2_SVT_RID | DMAR_IRTE2_SQ_RID | DMAR_IRTE2_SID_RID(rid);
 	if (bootverbose) {
 		device_printf(unit->dev,
-		    "programming irte[%d] rid %#x high %#jx low %#jx\n",
-		    idx, rid, (uintmax_t)high, (uintmax_t)low);
+		    "programming irte[%d] rid %#x high %#jx low %#jx\n", idx,
+		    rid, (uintmax_t)high, (uintmax_t)low);
 	}
 	DMAR_LOCK(unit);
 	if ((irte->irte1 & DMAR_IRTE1_P) != 0) {
@@ -288,7 +291,7 @@ dmar_ir_program_irte(struct dmar_unit *unit, u_int idx, uint64_t low,
 		 */
 		KASSERT(irte->irte2 == high,
 		    ("irte2 mismatch, %jx %jx", (uintmax_t)irte->irte2,
-		    (uintmax_t)high));
+			(uintmax_t)high));
 		dmar_pte_update(&irte->irte1, low);
 	} else {
 		dmar_pte_store(&irte->irte2, high);
@@ -296,7 +299,6 @@ dmar_ir_program_irte(struct dmar_unit *unit, u_int idx, uint64_t low,
 	}
 	dmar_qi_invalidate_iec(unit, idx, 1);
 	DMAR_UNLOCK(unit);
-
 }
 
 static int
@@ -339,19 +341,20 @@ dmar_init_irt(struct dmar_unit *unit)
 		unit->ir_enabled = 0;
 		if (bootverbose)
 			device_printf(unit->dev,
-	     "QI disabled, disabling interrupt remapping\n");
+			    "QI disabled, disabling interrupt remapping\n");
 		return (0);
 	}
 	unit->irte_cnt = clp2(num_io_irqs);
 	unit->irt = (dmar_irte_t *)(uintptr_t)kmem_alloc_contig(
 	    unit->irte_cnt * sizeof(dmar_irte_t), M_ZERO | M_WAITOK, 0,
-	    dmar_high, PAGE_SIZE, 0, DMAR_IS_COHERENT(unit) ?
-	    VM_MEMATTR_DEFAULT : VM_MEMATTR_UNCACHEABLE);
+	    dmar_high, PAGE_SIZE, 0,
+	    DMAR_IS_COHERENT(unit) ? VM_MEMATTR_DEFAULT :
+					   VM_MEMATTR_UNCACHEABLE);
 	if (unit->irt == NULL)
 		return (ENOMEM);
 	unit->irt_phys = pmap_kextract((vm_offset_t)unit->irt);
-	unit->irtids = vmem_create("dmarirt", 0, unit->irte_cnt, 1, 0,
-	    M_FIRSTFIT | M_NOWAIT);
+	unit->irtids = vmem_create(
+	    "dmarirt", 0, unit->irte_cnt, 1, 0, M_FIRSTFIT | M_NOWAIT);
 	DMAR_LOCK(unit);
 	dmar_load_irt_ptr(unit);
 	dmar_qi_invalidate_iec_glob(unit);
@@ -379,7 +382,7 @@ dmar_fini_irt(struct dmar_unit *unit)
 		dmar_disable_ir(unit);
 		dmar_qi_invalidate_iec_glob(unit);
 		vmem_destroy(unit->irtids);
-		kmem_free((vm_offset_t)unit->irt, unit->irte_cnt *
-		    sizeof(dmar_irte_t));
+		kmem_free((vm_offset_t)unit->irt,
+		    unit->irte_cnt * sizeof(dmar_irte_t));
 	}
 }

@@ -34,20 +34,17 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-
 #include <sys/socket.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_media.h>
-#include <net/ethernet.h>
-
-#include <net80211/ieee80211_var.h>
-
 #include <net/bpf.h>
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_media.h>
+#include <net/if_var.h>
+#include <net80211/ieee80211_var.h>
 
 static void ieee80211_update_ps(struct ieee80211vap *, int);
 static int ieee80211_set_tim(struct ieee80211_node *, int);
@@ -85,10 +82,10 @@ ieee80211_power_latevattach(struct ieee80211vap *vap)
 	 * know adhoc mode doesn't support ATIM yet...
 	 */
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP) {
-		vap->iv_tim_len = howmany(vap->iv_max_aid,8) * sizeof(uint8_t);
-		vap->iv_tim_bitmap = (uint8_t *) IEEE80211_MALLOC(vap->iv_tim_len,
-			M_80211_POWER,
-			IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
+		vap->iv_tim_len = howmany(vap->iv_max_aid, 8) * sizeof(uint8_t);
+		vap->iv_tim_bitmap = (uint8_t *)IEEE80211_MALLOC(
+		    vap->iv_tim_len, M_80211_POWER,
+		    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		if (vap->iv_tim_bitmap == NULL) {
 			printf("%s: no memory for TIM bitmap!\n", __func__);
 			/* XXX good enough to keep from crashing? */
@@ -111,7 +108,7 @@ ieee80211_psq_init(struct ieee80211_psq *psq, const char *name)
 {
 	memset(psq, 0, sizeof(*psq));
 	psq->psq_maxlen = IEEE80211_PS_MAX_QUEUE;
-	IEEE80211_PSQ_INIT(psq, name);		/* OS-dependent setup */
+	IEEE80211_PSQ_INIT(psq, name); /* OS-dependent setup */
 }
 
 void
@@ -122,7 +119,7 @@ ieee80211_psq_cleanup(struct ieee80211_psq *psq)
 #else
 	KASSERT(psq->psq_len == 0, ("%d frames on ps q", psq->psq_len));
 #endif
-	IEEE80211_PSQ_DESTROY(psq);		/* OS-dependent cleanup */
+	IEEE80211_PSQ_DESTROY(psq); /* OS-dependent cleanup */
 }
 
 /*
@@ -166,7 +163,7 @@ static void
 psq_mfree(struct mbuf *m)
 {
 	if (m->m_flags & M_ENCAP) {
-		struct ieee80211_node *ni = (void *) m->m_pkthdr.rcvif;
+		struct ieee80211_node *ni = (void *)m->m_pkthdr.rcvif;
 		ieee80211_free_node(ni);
 	}
 	m->m_nextpkt = NULL;
@@ -194,7 +191,7 @@ again:
 	}
 	qhead->tail = NULL;
 	qhead->len = 0;
-	if (qhead == &psq->psq_head[0]) {	/* Algol-68 style for loop */
+	if (qhead == &psq->psq_head[0]) { /* Algol-68 style for loop */
 		qhead = &psq->psq_head[1];
 		goto again;
 	}
@@ -243,7 +240,7 @@ ieee80211_node_psq_age(struct ieee80211_node *ni)
 		while ((m = qhead->head) != NULL &&
 		    M_AGE_GET(m) < IEEE80211_INACT_WAIT) {
 			IEEE80211_NOTE(vap, IEEE80211_MSG_POWER, ni,
-			     "discard frame, age %u", M_AGE_GET(m));
+			    "discard frame, age %u", M_AGE_GET(m));
 			if ((qhead->head = m->m_nextpkt) == NULL)
 				qhead->tail = NULL;
 			KASSERT(qhead->len > 0, ("qhead len %d", qhead->len));
@@ -277,7 +274,7 @@ ieee80211_update_ps(struct ieee80211vap *vap, int nsta)
 
 	KASSERT(vap->iv_opmode == IEEE80211_M_HOSTAP ||
 		vap->iv_opmode == IEEE80211_M_IBSS,
-		("operating mode %u", vap->iv_opmode));
+	    ("operating mode %u", vap->iv_opmode));
 }
 
 /*
@@ -293,11 +290,11 @@ ieee80211_set_tim(struct ieee80211_node *ni, int set)
 
 	KASSERT(vap->iv_opmode == IEEE80211_M_HOSTAP ||
 		vap->iv_opmode == IEEE80211_M_IBSS,
-		("operating mode %u", vap->iv_opmode));
+	    ("operating mode %u", vap->iv_opmode));
 
 	aid = IEEE80211_AID(ni->ni_associd);
 	KASSERT(aid < vap->iv_max_aid,
-		("bogus aid %u, max %u", aid, vap->iv_max_aid));
+	    ("bogus aid %u, max %u", aid, vap->iv_max_aid));
 
 	IEEE80211_LOCK(ic);
 	changed = (set != (isset(vap->iv_tim_bitmap, aid) != 0));
@@ -336,12 +333,12 @@ ieee80211_pwrsave(struct ieee80211_node *ni, struct mbuf *m)
 		psq->psq_drops++;
 		IEEE80211_PSQ_UNLOCK(psq);
 		IEEE80211_NOTE(vap, IEEE80211_MSG_POWER, ni,
-		    "pwr save q overflow, drops %d (size %d)",
-		    psq->psq_drops, psq->psq_len);
+		    "pwr save q overflow, drops %d (size %d)", psq->psq_drops,
+		    psq->psq_len);
 #ifdef IEEE80211_DEBUG
 		if (ieee80211_msg_dumppkts(vap))
-			ieee80211_dump_pkt(ni->ni_ic, mtod(m, caddr_t),
-			    m->m_len, -1, -1);
+			ieee80211_dump_pkt(
+			    ni->ni_ic, mtod(m, caddr_t), m->m_len, -1, -1);
 #endif
 		psq_mfree(m);
 		return ENOSPC;
@@ -378,7 +375,7 @@ ieee80211_pwrsave(struct ieee80211_node *ni, struct mbuf *m)
 		if (qhead == &psq->psq_head[1]) {
 			mh = psq->psq_head[0].head;
 			if (mh != NULL)
-				age-= M_AGE_GET(mh);
+				age -= M_AGE_GET(mh);
 		} else {
 			mh = psq->psq_head[1].head;
 			if (mh != NULL) {
@@ -428,7 +425,7 @@ pwrsave_flushq(struct ieee80211_node *ni)
 	    "flush ps queue, %u packets queued", psq->psq_len);
 
 	IEEE80211_PSQ_LOCK(psq);
-	qhead = &psq->psq_head[0];	/* 802.11 frames */
+	qhead = &psq->psq_head[0]; /* 802.11 frames */
 	if (qhead->head != NULL) {
 		/* XXX could dispatch through vap and check M_ENCAP */
 		/* XXX need different driver interface */
@@ -438,7 +435,7 @@ pwrsave_flushq(struct ieee80211_node *ni)
 		qhead->len = 0;
 	}
 
-	qhead = &psq->psq_head[1];	/* 802.3 frames */
+	qhead = &psq->psq_head[1]; /* 802.3 frames */
 	if (qhead->head != NULL) {
 		/* XXX need different driver interface */
 		/* XXX bypasses q max and OACTIVE */
@@ -458,9 +455,8 @@ pwrsave_flushq(struct ieee80211_node *ni)
 		m->m_nextpkt = NULL;
 		/* must be encapsulated */
 		KASSERT((m->m_flags & M_ENCAP),
-		    ("%s: parentq with non-M_ENCAP frame!\n",
-		    __func__));
-		(void) ieee80211_parent_xmitpkt(ic, m);
+		    ("%s: parentq with non-M_ENCAP frame!\n", __func__));
+		(void)ieee80211_parent_xmitpkt(ic, m);
 	}
 
 	/* VAP frames, aren't encapsulated */
@@ -470,7 +466,7 @@ pwrsave_flushq(struct ieee80211_node *ni)
 		m->m_nextpkt = NULL;
 		KASSERT((!(m->m_flags & M_ENCAP)),
 		    ("%s: vapq with M_ENCAP frame!\n", __func__));
-		(void) ieee80211_vap_xmitpkt(vap, m);
+		(void)ieee80211_vap_xmitpkt(vap, m);
 	}
 }
 
@@ -527,8 +523,8 @@ ieee80211_sta_pwrsave(struct ieee80211vap *vap, int enable)
 	if (!((enable != 0) ^ ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) != 0)))
 		return;
 
-	IEEE80211_NOTE(vap, IEEE80211_MSG_POWER, ni,
-	    "sta power save mode %s", enable ? "on" : "off");
+	IEEE80211_NOTE(vap, IEEE80211_MSG_POWER, ni, "sta power save mode %s",
+	    enable ? "on" : "off");
 	if (!enable) {
 		ni->ni_flags &= ~IEEE80211_NODE_PWR_MGT;
 		ieee80211_send_nulldata(ieee80211_ref_node(ni));
@@ -579,8 +575,7 @@ ieee80211_sta_tim_notify(struct ieee80211vap *vap, int set)
 		 * XXX only do this if we're in RUN state?
 		 */
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_POWER,
-		    "%s: wake up from bgscan vap sleep\n",
-		    __func__);
+		    "%s: wake up from bgscan vap sleep\n", __func__);
 		/*
 		 * We may be in BGSCAN mode - this means the VAP is is in STA
 		 * mode powersave.  If it is, we need to wake it up so we
@@ -604,7 +599,7 @@ ieee80211_sta_ps_timer_check(struct ieee80211vap *vap)
 	/* XXX lock assert */
 
 	/* For no, only do this in STA mode */
-	if (! (vap->iv_caps & IEEE80211_C_SWSLEEP))
+	if (!(vap->iv_caps & IEEE80211_C_SWSLEEP))
 		goto out;
 
 	if (vap->iv_opmode != IEEE80211_M_STA)
@@ -615,12 +610,11 @@ ieee80211_sta_ps_timer_check(struct ieee80211vap *vap)
 		goto out;
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_POWER,
-	    "%s: lastdata=%llu, ticks=%llu\n",
-	    __func__, (unsigned long long) ic->ic_lastdata,
-	    (unsigned long long) ticks);
+	    "%s: lastdata=%llu, ticks=%llu\n", __func__,
+	    (unsigned long long)ic->ic_lastdata, (unsigned long long)ticks);
 
 	/* If powersave is disabled on the VAP, don't bother */
-	if (! (vap->iv_flags & IEEE80211_F_PMGTON))
+	if (!(vap->iv_flags & IEEE80211_F_PMGTON))
 		goto out;
 
 	/* If we've done any data within our idle interval, bail */
@@ -643,9 +637,8 @@ ieee80211_sta_ps_timer_check(struct ieee80211vap *vap)
 	 */
 	ieee80211_new_state_locked(vap, IEEE80211_S_SLEEP, 0);
 
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_POWER,
-	    "%s: time delta=%d msec\n", __func__,
-	    (int) ticks_to_msecs(ticks - ic->ic_lastdata));
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_POWER, "%s: time delta=%d msec\n",
+	    __func__, (int)ticks_to_msecs(ticks - ic->ic_lastdata));
 
 out:
 	return;

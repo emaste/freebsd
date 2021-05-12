@@ -29,20 +29,19 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/ctype.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
+#include <sys/ctype.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <sys/endian.h>
-
 #include <geom/linux_lvm/g_linux_lvm.h>
 
 FEATURE(geom_linux_lvm, "GEOM Linux LVM partitioning support");
@@ -59,31 +58,30 @@ static g_start_t g_llvm_start;
 static g_taste_t g_llvm_taste;
 static g_ctl_destroy_geom_t g_llvm_destroy_geom;
 
-static void	g_llvm_done(struct bio *);
-static void	g_llvm_remove_disk(struct g_llvm_vg *, struct g_consumer *);
-static int	g_llvm_activate_lv(struct g_llvm_vg *, struct g_llvm_lv *);
-static int	g_llvm_add_disk(struct g_llvm_vg *, struct g_provider *, char *);
-static void	g_llvm_free_vg(struct g_llvm_vg *);
-static int	g_llvm_destroy(struct g_llvm_vg *, int);
-static int	g_llvm_read_label(struct g_consumer *, struct g_llvm_label *);
-static int	g_llvm_read_md(struct g_consumer *, struct g_llvm_metadata *,
-		    struct g_llvm_label *);
+static void g_llvm_done(struct bio *);
+static void g_llvm_remove_disk(struct g_llvm_vg *, struct g_consumer *);
+static int g_llvm_activate_lv(struct g_llvm_vg *, struct g_llvm_lv *);
+static int g_llvm_add_disk(struct g_llvm_vg *, struct g_provider *, char *);
+static void g_llvm_free_vg(struct g_llvm_vg *);
+static int g_llvm_destroy(struct g_llvm_vg *, int);
+static int g_llvm_read_label(struct g_consumer *, struct g_llvm_label *);
+static int g_llvm_read_md(
+    struct g_consumer *, struct g_llvm_metadata *, struct g_llvm_label *);
 
-static int	llvm_label_decode(const u_char *, struct g_llvm_label *, int);
-static int	llvm_md_decode(const u_char *, struct g_llvm_metadata *,
-		    struct g_llvm_label *);
-static int	llvm_textconf_decode(u_char *, int,
-		    struct g_llvm_metadata *);
-static int	llvm_textconf_decode_pv(char **, char *, struct g_llvm_vg *);
-static int	llvm_textconf_decode_lv(char **, char *, struct g_llvm_vg *);
-static int	llvm_textconf_decode_sg(char **, char *, struct g_llvm_lv *);
+static int llvm_label_decode(const u_char *, struct g_llvm_label *, int);
+static int llvm_md_decode(
+    const u_char *, struct g_llvm_metadata *, struct g_llvm_label *);
+static int llvm_textconf_decode(u_char *, int, struct g_llvm_metadata *);
+static int llvm_textconf_decode_pv(char **, char *, struct g_llvm_vg *);
+static int llvm_textconf_decode_lv(char **, char *, struct g_llvm_vg *);
+static int llvm_textconf_decode_sg(char **, char *, struct g_llvm_lv *);
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, linux_lvm, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_LINUX_LVM stuff");
 static u_int g_llvm_debug = 0;
-SYSCTL_UINT(_kern_geom_linux_lvm, OID_AUTO, debug, CTLFLAG_RWTUN, &g_llvm_debug, 0,
-    "Debug level");
+SYSCTL_UINT(_kern_geom_linux_lvm, OID_AUTO, debug, CTLFLAG_RWTUN, &g_llvm_debug,
+    0, "Debug level");
 
 LIST_HEAD(, g_llvm_vg) vg_list;
 
@@ -106,16 +104,16 @@ g_llvm_access(struct g_provider *pp, int dr, int dw, int de)
 	if (vg == NULL) {
 		/* It seems that .access can be called with negative dr,dw,dx
 		 * in this case but I want to check for myself */
-		G_LLVM_DEBUG(0, "access(%d, %d, %d) for %s",
-		    dr, dw, de, pp->name);
+		G_LLVM_DEBUG(
+		    0, "access(%d, %d, %d) for %s", dr, dw, de, pp->name);
 
 		/* This should only happen when geom is withered so
 		 * allow only negative requests */
 		KASSERT(dr <= 0 && dw <= 0 && de <= 0,
 		    ("%s: Positive access for %s", __func__, pp->name));
 		if (pp->acr + dr == 0 && pp->acw + dw == 0 && pp->ace + de == 0)
-			G_LLVM_DEBUG(0,
-			    "Device %s definitely destroyed", pp->name);
+			G_LLVM_DEBUG(
+			    0, "Device %s definitely destroyed", pp->name);
 		return (0);
 	}
 
@@ -127,14 +125,14 @@ g_llvm_access(struct g_provider *pp, int dr, int dw, int de)
 		de--;
 
 	error = ENXIO;
-	LIST_FOREACH(c, &gp->consumer, consumer) {
+	LIST_FOREACH (c, &gp->consumer, consumer) {
 		KASSERT(c != NULL, ("%s: consumer is NULL", __func__));
 		error = g_access(c, dr, dw, de);
 		if (error != 0) {
 			struct g_consumer *c2;
 
 			/* Backout earlier changes */
-			LIST_FOREACH(c2, &gp->consumer, consumer) {
+			LIST_FOREACH (c2, &gp->consumer, consumer) {
 				if (c2 == c) /* all eariler components fixed */
 					return (error);
 				g_access(c2, -dr, -dw, -de);
@@ -212,7 +210,7 @@ g_llvm_start(struct bio *bp)
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
-	/* XXX BIO_GETATTR allowed? */
+		/* XXX BIO_GETATTR allowed? */
 		break;
 	default:
 		/*
@@ -227,7 +225,7 @@ g_llvm_start(struct bio *bp)
 
 	chunk_size = vg->vg_extentsize;
 	addr = bp->bio_data;
-	offset = bp->bio_offset;	/* virtual offset and length */
+	offset = bp->bio_offset; /* virtual offset and length */
 	length = bp->bio_length;
 
 	while (length > 0) {
@@ -255,11 +253,11 @@ g_llvm_start(struct bio *bp)
 		} else {
 			chunk_index = offset / chunk_size; /* round downwards */
 			in_chunk_offset = offset % chunk_size;
-			in_chunk_length =
-			    min(length, chunk_size - in_chunk_offset);
+			in_chunk_length = min(
+			    length, chunk_size - in_chunk_offset);
 
 			/* XXX could be faster */
-			LIST_FOREACH(sg, &lv->lv_segs, sg_next) {
+			LIST_FOREACH (sg, &lv->lv_segs, sg_next) {
 				if (chunk_index >= sg->sg_start &&
 				    chunk_index <= sg->sg_end) {
 					/* adjust chunk index for sg start */
@@ -268,13 +266,13 @@ g_llvm_start(struct bio *bp)
 					break;
 				}
 			}
-			cb->bio_offset =
-			    (off_t)chunk_index * (off_t)chunk_size
-			    + in_chunk_offset + sg->sg_pvoffset;
+			cb->bio_offset = (off_t)chunk_index *
+				(off_t)chunk_size +
+			    in_chunk_offset + sg->sg_pvoffset;
 		}
 
-		KASSERT(pv != NULL, ("Can't find PV for chunk %zu",
-		    chunk_index));
+		KASSERT(
+		    pv != NULL, ("Can't find PV for chunk %zu", chunk_index));
 
 		cb->bio_to = pv->pv_gprov;
 		cb->bio_done = g_llvm_done;
@@ -285,9 +283,8 @@ g_llvm_start(struct bio *bp)
 
 		G_LLVM_DEBUG(5,
 		    "Mapped %s(%ju, %ju) on %s to %zu(%zu,%zu) @ %s:%ju",
-		    bp->bio_cmd == BIO_READ ? "R" : "W",
-		    offset, length, lv->lv_name,
-		    chunk_index, in_chunk_offset, in_chunk_length,
+		    bp->bio_cmd == BIO_READ ? "R" : "W", offset, length,
+		    lv->lv_name, chunk_index, in_chunk_offset, in_chunk_length,
 		    pv->pv_name, cb->bio_offset);
 
 		addr += in_chunk_length;
@@ -323,13 +320,13 @@ g_llvm_remove_disk(struct g_llvm_vg *vg, struct g_consumer *cp)
 	KASSERT(cp != NULL, ("Non-valid disk in %s.", __func__));
 	pv = (struct g_llvm_pv *)cp->private;
 
-	G_LLVM_DEBUG(0, "Disk %s removed from %s.", cp->provider->name,
-	    pv->pv_name);
+	G_LLVM_DEBUG(
+	    0, "Disk %s removed from %s.", cp->provider->name, pv->pv_name);
 
-	LIST_FOREACH(lv, &vg->vg_lvs, lv_next) {
+	LIST_FOREACH (lv, &vg->vg_lvs, lv_next) {
 		/* Find segments that map to this disk */
 		found = 0;
-		LIST_FOREACH(sg, &lv->lv_segs, sg_next) {
+		LIST_FOREACH (sg, &lv->lv_segs, sg_next) {
 			if (sg->sg_pv == pv) {
 				sg->sg_pv = NULL;
 				lv->lv_sgactive--;
@@ -338,8 +335,8 @@ g_llvm_remove_disk(struct g_llvm_vg *vg, struct g_consumer *cp)
 			}
 		}
 		if (found) {
-			G_LLVM_DEBUG(0, "Device %s removed.",
-			    lv->lv_gprov->name);
+			G_LLVM_DEBUG(
+			    0, "Device %s removed.", lv->lv_gprov->name);
 			g_wither_provider(lv->lv_gprov, ENXIO);
 			lv->lv_gprov = NULL;
 		}
@@ -385,8 +382,8 @@ g_llvm_activate_lv(struct g_llvm_vg *vg, struct g_llvm_lv *lv)
 	lv->lv_gprov = pp;
 	pp->private = lv;
 
-	G_LLVM_DEBUG(1, "Created %s, %juM", pp->name,
-	    pp->mediasize / (1024*1024));
+	G_LLVM_DEBUG(
+	    1, "Created %s, %juM", pp->name, pp->mediasize / (1024 * 1024));
 
 	return (0);
 }
@@ -403,9 +400,9 @@ g_llvm_add_disk(struct g_llvm_vg *vg, struct g_provider *pp, char *uuid)
 
 	g_topology_assert();
 
-	LIST_FOREACH(pv, &vg->vg_pvs, pv_next) {
+	LIST_FOREACH (pv, &vg->vg_pvs, pv_next) {
 		if (strcmp(pv->pv_uuid, uuid) == 0)
-			break;	/* found it */
+			break; /* found it */
 	}
 	if (pv == NULL) {
 		G_LLVM_DEBUG(3, "uuid %s not found in pv list", uuid);
@@ -423,21 +420,22 @@ g_llvm_add_disk(struct g_llvm_vg *vg, struct g_provider *pp, char *uuid)
 
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
-	G_LLVM_DEBUG(1, "Attached %s to %s at offset %ju",
-	    pp->name, pv->pv_name, pv->pv_start);
+	G_LLVM_DEBUG(1, "Attached %s to %s at offset %ju", pp->name,
+	    pv->pv_name, pv->pv_start);
 
 	if (error != 0) {
-		G_LLVM_DEBUG(0, "cannot attach %s to %s",
-		    pp->name, vg->vg_name);
+		G_LLVM_DEBUG(
+		    0, "cannot attach %s to %s", pp->name, vg->vg_name);
 		g_destroy_consumer(cp);
 		return (error);
 	}
 
 	if (fcp != NULL) {
 		if (fcp->provider->sectorsize != pp->sectorsize) {
-			G_LLVM_DEBUG(0, "Provider %s of %s has invalid "
-			    "sector size (%d)", pp->name, vg->vg_name,
-			    pp->sectorsize);
+			G_LLVM_DEBUG(0,
+			    "Provider %s of %s has invalid "
+			    "sector size (%d)",
+			    pp->name, vg->vg_name, pp->sectorsize);
 			return (EINVAL);
 		}
 		if (fcp->acr > 0 || fcp->acw || fcp->ace > 0) {
@@ -456,20 +454,21 @@ g_llvm_add_disk(struct g_llvm_vg *vg, struct g_provider *pp, char *uuid)
 	pv->pv_gcons = cp;
 	pv->pv_gprov = pp;
 
-	LIST_FOREACH(lv, &vg->vg_lvs, lv_next) {
+	LIST_FOREACH (lv, &vg->vg_lvs, lv_next) {
 		/* Find segments that map to this disk */
-		LIST_FOREACH(sg, &lv->lv_segs, sg_next) {
+		LIST_FOREACH (sg, &lv->lv_segs, sg_next) {
 			if (strcmp(sg->sg_pvname, pv->pv_name) == 0) {
 				/* avtivate the segment */
 				KASSERT(sg->sg_pv == NULL,
 				    ("segment already mapped"));
-				sg->sg_pvoffset =
-				    (off_t)sg->sg_pvstart * vg->vg_extentsize
-				    + pv->pv_start;
+				sg->sg_pvoffset = (off_t)sg->sg_pvstart *
+					vg->vg_extentsize +
+				    pv->pv_start;
 				sg->sg_pv = pv;
 				lv->lv_sgactive++;
 
-				G_LLVM_DEBUG(2, "%s: %d to %d @ %s:%d"
+				G_LLVM_DEBUG(2,
+				    "%s: %d to %d @ %s:%d"
 				    " offset %ju sector %ju",
 				    lv->lv_name, sg->sg_start, sg->sg_end,
 				    sg->sg_pvname, sg->sg_pvstart,
@@ -521,8 +520,8 @@ static void
 g_llvm_taste_orphan(struct g_consumer *cp)
 {
 
-	KASSERT(1 == 0, ("%s called while tasting %s.", __func__,
-	    cp->provider->name));
+	KASSERT(1 == 0,
+	    ("%s called while tasting %s.", __func__, cp->provider->name));
 }
 
 static struct g_geom *
@@ -587,7 +586,7 @@ g_llvm_destroy(struct g_llvm_vg *vg, int force)
 		return (ENXIO);
 	gp = vg->vg_geom;
 
-	LIST_FOREACH(pp, &gp->provider, provider) {
+	LIST_FOREACH (pp, &gp->provider, provider) {
 		if (pp->acr != 0 || pp->acw != 0 || pp->ace != 0) {
 			G_LLVM_DEBUG(1, "Device %s is still open (r%dw%de%d)",
 			    pp->name, pp->acr, pp->acw, pp->ace);
@@ -640,15 +639,15 @@ g_llvm_read_label(struct g_consumer *cp, struct g_llvm_label *ll)
 	for (i = 0; i < 4; i++) {
 		error = llvm_label_decode(&buf[i * pp->sectorsize], ll, i);
 		if (error == 0)
-			break;	/* found it */
+			break; /* found it */
 	}
 	g_free(buf);
 	return (error);
 }
 
 int
-g_llvm_read_md(struct g_consumer *cp, struct g_llvm_metadata *md,
-    struct g_llvm_label *ll)
+g_llvm_read_md(
+    struct g_consumer *cp, struct g_llvm_metadata *md, struct g_llvm_label *ll)
 {
 	struct g_provider *pp;
 	u_char *buf;
@@ -678,7 +677,7 @@ g_llvm_read_md(struct g_consumer *cp, struct g_llvm_metadata *md,
 	}
 
 	G_LLVM_DEBUG(1, "reading LVM2 config @ %s:%ju", pp->name,
-		    ll->ll_md_offset + md->md_reloffset);
+	    ll->ll_md_offset + md->md_reloffset);
 	error = g_access(cp, 1, 0, 0);
 	if (error != 0)
 		return (error);
@@ -687,7 +686,8 @@ g_llvm_read_md(struct g_consumer *cp, struct g_llvm_metadata *md,
 	/* round up to the nearest sector */
 	size = md->md_relsize +
 	    (pp->sectorsize - md->md_relsize % pp->sectorsize);
-	buf = g_read_data(cp, ll->ll_md_offset + md->md_reloffset, size, &error);
+	buf = g_read_data(
+	    cp, ll->ll_md_offset + md->md_reloffset, size, &error);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 	if (buf == NULL) {
@@ -710,7 +710,7 @@ llvm_label_decode(const u_char *data, struct g_llvm_label *ll, int sector)
 	char *uuid;
 
 	/* Magic string */
-	if (bcmp("LABELONE", data , 8) != 0)
+	if (bcmp("LABELONE", data, 8) != 0)
 		return (EINVAL);
 
 	/* We only support LVM2 text format */
@@ -785,8 +785,8 @@ llvm_label_decode(const u_char *data, struct g_llvm_label *ll, int sector)
 }
 
 static int
-llvm_md_decode(const u_char *data, struct g_llvm_metadata *md,
-    struct g_llvm_label *ll)
+llvm_md_decode(
+    const u_char *data, struct g_llvm_metadata *md, struct g_llvm_label *ll)
 {
 	uint64_t off;
 	char magic[16];
@@ -808,8 +808,8 @@ llvm_md_decode(const u_char *data, struct g_llvm_metadata *md,
 		return (EINVAL);
 	}
 	if (md->md_version != 1) {
-		G_LLVM_DEBUG(0, "Incorrect md version number (%u)",
-		    md->md_version);
+		G_LLVM_DEBUG(
+		    0, "Incorrect md version number (%u)", md->md_version);
 		return (EINVAL);
 	}
 	if (md->md_start != ll->ll_md_offset) {
@@ -821,52 +821,52 @@ llvm_md_decode(const u_char *data, struct g_llvm_metadata *md,
 	md->md_reloffset = le64dec(data + off);
 	off += 8;
 	md->md_relsize = le64dec(data + off);
-	off += 16;	/* XXX skipped checksum */
+	off += 16; /* XXX skipped checksum */
 
 	if (le64dec(data + off) != 0) {
 		G_LLVM_DEBUG(0, "Only one reloc supported");
 		return (EINVAL);
 	}
 
-	G_LLVM_DEBUG(3, "reloc: offset=%ju, size=%ju",
-	    md->md_reloffset, md->md_relsize);
-	G_LLVM_DEBUG(3, "md: version=%u, start=%ju, size=%ju",
-	    md->md_version, md->md_start, md->md_size);
+	G_LLVM_DEBUG(
+	    3, "reloc: offset=%ju, size=%ju", md->md_reloffset, md->md_relsize);
+	G_LLVM_DEBUG(3, "md: version=%u, start=%ju, size=%ju", md->md_version,
+	    md->md_start, md->md_size);
 
 	return (0);
 }
 
-#define	GRAB_INT(key, tok1, tok2, v)					\
-	if (tok1 && tok2 && strncmp(tok1, key, sizeof(key)) == 0) {	\
-		v = strtol(tok2, &tok1, 10);				\
-		if (tok1 == tok2)					\
-			/* strtol did not eat any of the buffer */	\
-			goto bad;					\
-		continue;						\
+#define GRAB_INT(key, tok1, tok2, v)                                \
+	if (tok1 && tok2 && strncmp(tok1, key, sizeof(key)) == 0) { \
+		v = strtol(tok2, &tok1, 10);                        \
+		if (tok1 == tok2)                                   \
+			/* strtol did not eat any of the buffer */  \
+			goto bad;                                   \
+		continue;                                           \
 	}
 
-#define	GRAB_STR(key, tok1, tok2, v, len)				\
-	if (tok1 && tok2 && strncmp(tok1, key, sizeof(key)) == 0) {	\
-		strsep(&tok2, "\"");					\
-		if (tok2 == NULL)					\
-			continue;					\
-		tok1 = strsep(&tok2, "\"");				\
-		if (tok2 == NULL)					\
-			continue;					\
-		strncpy(v, tok1, len);					\
-		continue;						\
+#define GRAB_STR(key, tok1, tok2, v, len)                           \
+	if (tok1 && tok2 && strncmp(tok1, key, sizeof(key)) == 0) { \
+		strsep(&tok2, "\"");                                \
+		if (tok2 == NULL)                                   \
+			continue;                                   \
+		tok1 = strsep(&tok2, "\"");                         \
+		if (tok2 == NULL)                                   \
+			continue;                                   \
+		strncpy(v, tok1, len);                              \
+		continue;                                           \
 	}
 
-#define	SPLIT(key, value, str)						\
-	key = strsep(&value, str);					\
-	/* strip trailing whitespace on the key */			\
-	for (char *t = key; *t != '\0'; t++)				\
-		if (isspace(*t)) {					\
-			*t = '\0';					\
-			break;						\
+#define SPLIT(key, value, str)                     \
+	key = strsep(&value, str);                 \
+	/* strip trailing whitespace on the key */ \
+	for (char *t = key; *t != '\0'; t++)       \
+		if (isspace(*t)) {                 \
+			*t = '\0';                 \
+			break;                     \
 		}
 
-static size_t 
+static size_t
 llvm_grab_name(char *name, const char *tok)
 {
 	size_t len;
@@ -878,9 +878,10 @@ llvm_grab_name(char *name, const char *tok)
 		return (0);
 	if (strcmp(tok, ".") == 0 || strcmp(tok, "..") == 0)
 		return (0);
-	while (tok[len] && (isalpha(tok[len]) || isdigit(tok[len]) ||
-	    tok[len] == '.' || tok[len] == '_' || tok[len] == '-' ||
-	    tok[len] == '+') && len < G_LLVM_NAMELEN - 1)
+	while (tok[len] &&
+	    (isalpha(tok[len]) || isdigit(tok[len]) || tok[len] == '.' ||
+		tok[len] == '_' || tok[len] == '-' || tok[len] == '+') &&
+	    len < G_LLVM_NAMELEN - 1)
 		len++;
 	bcopy(tok, name, len);
 	name[len] = '\0';
@@ -890,7 +891,7 @@ llvm_grab_name(char *name, const char *tok)
 static int
 llvm_textconf_decode(u_char *data, int buflen, struct g_llvm_metadata *md)
 {
-	struct g_llvm_vg	*vg;
+	struct g_llvm_vg *vg;
 	char *buf = data;
 	char *tok, *v;
 	char name[G_LLVM_NAMELEN];
@@ -908,7 +909,7 @@ llvm_textconf_decode(u_char *data, int buflen, struct g_llvm_metadata *md)
 		return (EINVAL);
 
 	/* check too see if the vg has already been loaded off another disk */
-	LIST_FOREACH(vg, &vg_list, vg_next) {
+	LIST_FOREACH (vg, &vg_list, vg_next) {
 		if (strcmp(vg->vg_name, name) == 0) {
 			uuid[0] = '\0';
 			/* grab the volume group uuid */
@@ -917,8 +918,8 @@ llvm_textconf_decode(u_char *data, int buflen, struct g_llvm_metadata *md)
 					break;
 				if (strstr(tok, "=")) {
 					SPLIT(v, tok, "=");
-					GRAB_STR("id", v, tok, uuid,
-					    sizeof(uuid));
+					GRAB_STR(
+					    "id", v, tok, uuid, sizeof(uuid));
 				}
 			}
 			if (strcmp(vg->vg_uuid, uuid) == 0) {
@@ -933,7 +934,7 @@ llvm_textconf_decode(u_char *data, int buflen, struct g_llvm_metadata *md)
 		}
 	}
 
-	vg = malloc(sizeof(*vg), M_GLLVM, M_NOWAIT|M_ZERO);
+	vg = malloc(sizeof(*vg), M_GLLVM, M_NOWAIT | M_ZERO);
 	if (vg == NULL)
 		return (ENOMEM);
 
@@ -941,14 +942,14 @@ llvm_textconf_decode(u_char *data, int buflen, struct g_llvm_metadata *md)
 	LIST_INIT(&vg->vg_pvs);
 	LIST_INIT(&vg->vg_lvs);
 
-#define	VOL_FOREACH(func, tok, buf, p)					\
-	while ((tok = strsep(buf, "\n")) != NULL) {			\
-		if (strstr(tok, "{")) {					\
-			func(buf, tok, p);				\
-			continue;					\
-		}							\
-		if (strstr(tok, "}"))					\
-			break;						\
+#define VOL_FOREACH(func, tok, buf, p)              \
+	while ((tok = strsep(buf, "\n")) != NULL) { \
+		if (strstr(tok, "{")) {             \
+			func(buf, tok, p);          \
+			continue;                   \
+		}                                   \
+		if (strstr(tok, "}"))               \
+			break;                      \
 	}
 
 	while ((tok = strsep(&buf, "\n")) != NULL) {
@@ -968,7 +969,8 @@ llvm_textconf_decode(u_char *data, int buflen, struct g_llvm_metadata *md)
 		/* parse 'key = value' lines */
 		if (strstr(tok, "=")) {
 			SPLIT(v, tok, "=");
-			GRAB_STR("id", v, tok, vg->vg_uuid, sizeof(vg->vg_uuid));
+			GRAB_STR(
+			    "id", v, tok, vg->vg_uuid, sizeof(vg->vg_uuid));
 			GRAB_INT("extent_size", v, tok, vg->vg_extentsize);
 			continue;
 		}
@@ -980,25 +982,25 @@ llvm_textconf_decode(u_char *data, int buflen, struct g_llvm_metadata *md)
 	md->md_vg = vg;
 	LIST_INSERT_HEAD(&vg_list, vg, vg_next);
 	G_LLVM_DEBUG(3, "vg: name=%s uuid=%s", vg->vg_name, vg->vg_uuid);
-	return(0);
+	return (0);
 
 bad:
 	g_llvm_free_vg(vg);
 	return (-1);
 }
-#undef	VOL_FOREACH
+#undef VOL_FOREACH
 
 static int
 llvm_textconf_decode_pv(char **buf, char *tok, struct g_llvm_vg *vg)
 {
-	struct g_llvm_pv	*pv;
+	struct g_llvm_pv *pv;
 	char *v;
 	size_t len;
 
 	if (*buf == NULL || **buf == '\0')
 		return (EINVAL);
 
-	pv = malloc(sizeof(*pv), M_GLLVM, M_NOWAIT|M_ZERO);
+	pv = malloc(sizeof(*pv), M_GLLVM, M_NOWAIT | M_ZERO);
 	if (pv == NULL)
 		return (ENOMEM);
 
@@ -1020,7 +1022,8 @@ llvm_textconf_decode_pv(char **buf, char *tok, struct g_llvm_vg *vg)
 		/* parse 'key = value' lines */
 		if (strstr(tok, "=")) {
 			SPLIT(v, tok, "=");
-			GRAB_STR("id", v, tok, pv->pv_uuid, sizeof(pv->pv_uuid));
+			GRAB_STR(
+			    "id", v, tok, pv->pv_uuid, sizeof(pv->pv_uuid));
 			GRAB_INT("pe_start", v, tok, pv->pv_start);
 			GRAB_INT("pe_count", v, tok, pv->pv_count);
 			continue;
@@ -1044,7 +1047,7 @@ bad:
 static int
 llvm_textconf_decode_lv(char **buf, char *tok, struct g_llvm_vg *vg)
 {
-	struct g_llvm_lv	*lv;
+	struct g_llvm_lv *lv;
 	struct g_llvm_segment *sg;
 	char *v;
 	size_t len;
@@ -1052,7 +1055,7 @@ llvm_textconf_decode_lv(char **buf, char *tok, struct g_llvm_vg *vg)
 	if (*buf == NULL || **buf == '\0')
 		return (EINVAL);
 
-	lv = malloc(sizeof(*lv), M_GLLVM, M_NOWAIT|M_ZERO);
+	lv = malloc(sizeof(*lv), M_GLLVM, M_NOWAIT | M_ZERO);
 	if (lv == NULL)
 		return (ENOMEM);
 
@@ -1081,7 +1084,8 @@ llvm_textconf_decode_lv(char **buf, char *tok, struct g_llvm_vg *vg)
 		/* parse 'key = value' lines */
 		if (strstr(tok, "=")) {
 			SPLIT(v, tok, "=");
-			GRAB_STR("id", v, tok, lv->lv_uuid, sizeof(lv->lv_uuid));
+			GRAB_STR(
+			    "id", v, tok, lv->lv_uuid, sizeof(lv->lv_uuid));
 			GRAB_INT("segment_count", v, tok, lv->lv_sgcount);
 			continue;
 		}
@@ -1117,7 +1121,7 @@ llvm_textconf_decode_sg(char **buf, char *tok, struct g_llvm_lv *lv)
 	if (*buf == NULL || **buf == '\0')
 		return (EINVAL);
 
-	sg = malloc(sizeof(*sg), M_GLLVM, M_NOWAIT|M_ZERO);
+	sg = malloc(sizeof(*sg), M_GLLVM, M_NOWAIT | M_ZERO);
 	if (sg == NULL)
 		return (ENOMEM);
 
@@ -1143,13 +1147,13 @@ llvm_textconf_decode_sg(char **buf, char *tok, struct g_llvm_lv *lv)
 
 			strsep(&tok, "\"");
 			if (tok == NULL)
-				goto bad;	/* missing open quotes */
+				goto bad; /* missing open quotes */
 			v = strsep(&tok, "\"");
 			if (tok == NULL)
-				goto bad;	/* missing close quotes */
+				goto bad; /* missing close quotes */
 			strncpy(sg->sg_pvname, v, sizeof(sg->sg_pvname));
 			if (*tok != ',')
-				goto bad;	/* missing comma for stripe */
+				goto bad; /* missing comma for stripe */
 			tok++;
 
 			sg->sg_pvstart = strtol(tok, &v, 10);
@@ -1184,17 +1188,15 @@ bad:
 	free(sg, M_GLLVM);
 	return (-1);
 }
-#undef	GRAB_INT
-#undef	GRAB_STR
-#undef	SPLIT
+#undef GRAB_INT
+#undef GRAB_STR
+#undef SPLIT
 
-static struct g_class g_llvm_class = {
-	.name = G_LLVM_CLASS_NAME,
+static struct g_class g_llvm_class = { .name = G_LLVM_CLASS_NAME,
 	.version = G_VERSION,
 	.init = g_llvm_init,
 	.taste = g_llvm_taste,
-	.destroy_geom = g_llvm_destroy_geom
-};
+	.destroy_geom = g_llvm_destroy_geom };
 
 DECLARE_GEOM_CLASS(g_llvm_class, g_linux_lvm);
 MODULE_VERSION(geom_linux_lvm, 0);

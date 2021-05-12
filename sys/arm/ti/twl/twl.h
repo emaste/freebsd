@@ -31,8 +31,10 @@
 #ifndef _TWL_H_
 #define _TWL_H_
 
-int twl_read(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt);
-int twl_write(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt);
+int twl_read(
+    device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt);
+int twl_write(
+    device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt);
 
 int twl_is_4030(device_t dev);
 int twl_is_6025(device_t dev);

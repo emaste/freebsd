@@ -40,13 +40,13 @@
 #ifndef _GEOM_GEOM_H_
 #define _GEOM_GEOM_H_
 
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/sx.h>
-#include <sys/queue.h>
-#include <sys/ioccom.h>
 #include <sys/conf.h>
+#include <sys/ioccom.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
+#include <sys/sx.h>
 
 struct g_class;
 struct g_geom;
@@ -60,27 +60,33 @@ struct gctl_req;
 struct g_configargs;
 struct disk_zone_args;
 
-typedef int g_config_t (struct g_configargs *ca);
-typedef void g_ctl_req_t (struct gctl_req *, struct g_class *cp, char const *verb);
-typedef int g_ctl_create_geom_t (struct gctl_req *, struct g_class *cp, struct g_provider *pp);
-typedef int g_ctl_destroy_geom_t (struct gctl_req *, struct g_class *cp, struct g_geom *gp);
-typedef int g_ctl_config_geom_t (struct gctl_req *, struct g_geom *gp, const char *verb);
-typedef void g_init_t (struct g_class *mp);
-typedef void g_fini_t (struct g_class *mp);
-typedef struct g_geom * g_taste_t (struct g_class *, struct g_provider *, int flags);
-typedef int g_ioctl_t(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread *td);
-#define G_TF_NORMAL		0
-#define G_TF_INSIST		1
-#define G_TF_TRANSPARENT	2
-typedef int g_access_t (struct g_provider *, int, int, int);
+typedef int g_config_t(struct g_configargs *ca);
+typedef void g_ctl_req_t(
+    struct gctl_req *, struct g_class *cp, char const *verb);
+typedef int g_ctl_create_geom_t(
+    struct gctl_req *, struct g_class *cp, struct g_provider *pp);
+typedef int g_ctl_destroy_geom_t(
+    struct gctl_req *, struct g_class *cp, struct g_geom *gp);
+typedef int g_ctl_config_geom_t(
+    struct gctl_req *, struct g_geom *gp, const char *verb);
+typedef void g_init_t(struct g_class *mp);
+typedef void g_fini_t(struct g_class *mp);
+typedef struct g_geom *g_taste_t(
+    struct g_class *, struct g_provider *, int flags);
+typedef int g_ioctl_t(struct g_provider *pp, u_long cmd, void *data, int fflag,
+    struct thread *td);
+#define G_TF_NORMAL 0
+#define G_TF_INSIST 1
+#define G_TF_TRANSPARENT 2
+typedef int g_access_t(struct g_provider *, int, int, int);
 /* XXX: not sure about the thread arg */
-typedef void g_orphan_t (struct g_consumer *);
+typedef void g_orphan_t(struct g_consumer *);
 
-typedef void g_start_t (struct bio *);
-typedef void g_spoiled_t (struct g_consumer *);
-typedef void g_attrchanged_t (struct g_consumer *, const char *attr);
-typedef void g_provgone_t (struct g_provider *);
-typedef void g_dumpconf_t (struct sbuf *, const char *indent, struct g_geom *,
+typedef void g_start_t(struct bio *);
+typedef void g_spoiled_t(struct g_consumer *);
+typedef void g_attrchanged_t(struct g_consumer *, const char *attr);
+typedef void g_provgone_t(struct g_provider *);
+typedef void g_dumpconf_t(struct sbuf *, const char *indent, struct g_geom *,
     struct g_consumer *, struct g_provider *);
 typedef void g_resize_t(struct g_consumer *cp);
 
@@ -92,68 +98,68 @@ typedef void g_resize_t(struct g_consumer *cp);
  * taste and config_geom functions.
  */
 struct g_class {
-	const char		*name;
-	u_int			version;
-	u_int			spare0;
-	g_taste_t		*taste;
-	g_config_t		*config;
-	g_ctl_req_t		*ctlreq;
-	g_init_t		*init;
-	g_fini_t		*fini;
-	g_ctl_destroy_geom_t	*destroy_geom;
+	const char *name;
+	u_int version;
+	u_int spare0;
+	g_taste_t *taste;
+	g_config_t *config;
+	g_ctl_req_t *ctlreq;
+	g_init_t *init;
+	g_fini_t *fini;
+	g_ctl_destroy_geom_t *destroy_geom;
 	/*
 	 * Default values for geom methods
 	 */
-	g_start_t		*start;
-	g_spoiled_t		*spoiled;
-	g_attrchanged_t		*attrchanged;
-	g_dumpconf_t		*dumpconf;
-	g_access_t		*access;
-	g_orphan_t		*orphan;
-	g_ioctl_t		*ioctl;
-	g_provgone_t		*providergone;
-	g_resize_t		*resize;
-	void			*spare1;
-	void			*spare2;
+	g_start_t *start;
+	g_spoiled_t *spoiled;
+	g_attrchanged_t *attrchanged;
+	g_dumpconf_t *dumpconf;
+	g_access_t *access;
+	g_orphan_t *orphan;
+	g_ioctl_t *ioctl;
+	g_provgone_t *providergone;
+	g_resize_t *resize;
+	void *spare1;
+	void *spare2;
 	/*
 	 * The remaining elements are private
 	 */
-	LIST_ENTRY(g_class)	class;
-	LIST_HEAD(,g_geom)	geom;
+	LIST_ENTRY(g_class) class;
+	LIST_HEAD(, g_geom) geom;
 };
 
-#define G_VERSION_00	0x19950323
-#define G_VERSION_01	0x20041207	/* add fflag to g_ioctl_t */
-#define G_VERSION	G_VERSION_01
+#define G_VERSION_00 0x19950323
+#define G_VERSION_01 0x20041207 /* add fflag to g_ioctl_t */
+#define G_VERSION G_VERSION_01
 
 /*
  * The g_geom is an instance of a g_class.
  */
 struct g_geom {
-	char			*name;
-	struct g_class		*class;
-	LIST_ENTRY(g_geom)	geom;
-	LIST_HEAD(,g_consumer)	consumer;
-	LIST_HEAD(,g_provider)	provider;
-	TAILQ_ENTRY(g_geom)	geoms;	/* XXX: better name */
-	int			rank;
-	g_start_t		*start;
-	g_spoiled_t		*spoiled;
-	g_attrchanged_t		*attrchanged;
-	g_dumpconf_t		*dumpconf;
-	g_access_t		*access;
-	g_orphan_t		*orphan;
-	g_ioctl_t		*ioctl;
-	g_provgone_t		*providergone;
-	g_resize_t		*resize;
-	void			*spare0;
-	void			*spare1;
-	void			*softc;
-	unsigned		flags;
-#define	G_GEOM_WITHER		0x01
-#define	G_GEOM_VOLATILE_BIO	0x02
-#define	G_GEOM_IN_ACCESS	0x04
-#define	G_GEOM_ACCESS_WAIT	0x08
+	char *name;
+	struct g_class *class;
+	LIST_ENTRY(g_geom) geom;
+	LIST_HEAD(, g_consumer) consumer;
+	LIST_HEAD(, g_provider) provider;
+	TAILQ_ENTRY(g_geom) geoms; /* XXX: better name */
+	int rank;
+	g_start_t *start;
+	g_spoiled_t *spoiled;
+	g_attrchanged_t *attrchanged;
+	g_dumpconf_t *dumpconf;
+	g_access_t *access;
+	g_orphan_t *orphan;
+	g_ioctl_t *ioctl;
+	g_provgone_t *providergone;
+	g_resize_t *resize;
+	void *spare0;
+	void *spare1;
+	void *softc;
+	unsigned flags;
+#define G_GEOM_WITHER 0x01
+#define G_GEOM_VOLATILE_BIO 0x02
+#define G_GEOM_IN_ACCESS 0x04
+#define G_GEOM_ACCESS_WAIT 0x08
 };
 
 /*
@@ -162,9 +168,9 @@ struct g_geom {
  * XXX: should (possibly) be collapsed with sys/bio.h::bio_queue_head.
  */
 struct g_bioq {
-	TAILQ_HEAD(, bio)	bio_queue;
-	struct mtx		bio_queue_lock;
-	int			bio_queue_length;
+	TAILQ_HEAD(, bio) bio_queue;
+	struct mtx bio_queue_lock;
+	int bio_queue_length;
 };
 
 /*
@@ -174,22 +180,22 @@ struct g_bioq {
  */
 
 struct g_consumer {
-	struct g_geom		*geom;
-	LIST_ENTRY(g_consumer)	consumer;
-	struct g_provider	*provider;
-	LIST_ENTRY(g_consumer)	consumers;	/* XXX: better name */
-	int			acr, acw, ace;
-	int			flags;
-#define G_CF_SPOILED		0x1
-#define G_CF_ORPHAN		0x4
-#define G_CF_DIRECT_SEND	0x10
-#define G_CF_DIRECT_RECEIVE	0x20
-	struct devstat		*stat;
-	u_int			nstart, nend;
+	struct g_geom *geom;
+	LIST_ENTRY(g_consumer) consumer;
+	struct g_provider *provider;
+	LIST_ENTRY(g_consumer) consumers; /* XXX: better name */
+	int acr, acw, ace;
+	int flags;
+#define G_CF_SPOILED 0x1
+#define G_CF_ORPHAN 0x4
+#define G_CF_DIRECT_SEND 0x10
+#define G_CF_DIRECT_RECEIVE 0x20
+	struct devstat *stat;
+	u_int nstart, nend;
 
 	/* Two fields for the implementing class to use */
-	void			*private;
-	u_int			index;
+	void *private;
+	u_int index;
 };
 
 /*
@@ -198,45 +204,45 @@ struct g_consumer {
  */
 struct g_geom_alias {
 	LIST_ENTRY(g_geom_alias) ga_next;
-	const char		*ga_alias;
+	const char *ga_alias;
 };
 
 /*
  * A g_provider is a "logical disk".
  */
 struct g_provider {
-	char			*name;
-	LIST_ENTRY(g_provider)	provider;
-	struct g_geom		*geom;
-	LIST_HEAD(,g_consumer)	consumers;
-	int			acr, acw, ace;
-	int			error;
-	TAILQ_ENTRY(g_provider)	orphan;
-	off_t			mediasize;
-	u_int			sectorsize;
-	off_t			stripesize;
-	off_t			stripeoffset;
-	struct devstat		*stat;
-	u_int			spare1;
-	u_int			spare2;
-	u_int			flags;
-#define G_PF_WITHER		0x2
-#define G_PF_ORPHAN		0x4
-#define	G_PF_ACCEPT_UNMAPPED	0x8
-#define G_PF_DIRECT_SEND	0x10
-#define G_PF_DIRECT_RECEIVE	0x20
-	LIST_HEAD(,g_geom_alias) aliases;
+	char *name;
+	LIST_ENTRY(g_provider) provider;
+	struct g_geom *geom;
+	LIST_HEAD(, g_consumer) consumers;
+	int acr, acw, ace;
+	int error;
+	TAILQ_ENTRY(g_provider) orphan;
+	off_t mediasize;
+	u_int sectorsize;
+	off_t stripesize;
+	off_t stripeoffset;
+	struct devstat *stat;
+	u_int spare1;
+	u_int spare2;
+	u_int flags;
+#define G_PF_WITHER 0x2
+#define G_PF_ORPHAN 0x4
+#define G_PF_ACCEPT_UNMAPPED 0x8
+#define G_PF_DIRECT_SEND 0x10
+#define G_PF_DIRECT_RECEIVE 0x20
+	LIST_HEAD(, g_geom_alias) aliases;
 
 	/* Two fields for the implementing class to use */
-	void			*private;
-	u_int			index;
+	void *private;
+	u_int index;
 };
 
 /* BIO_GETATTR("GEOM::setstate") argument values. */
-#define G_STATE_FAILED		0
-#define G_STATE_REBUILD		1
-#define G_STATE_RESYNC		2
-#define G_STATE_ACTIVE		3
+#define G_STATE_FAILED 0
+#define G_STATE_REBUILD 1
+#define G_STATE_RESYNC 2
+#define G_STATE_ACTIVE 3
 
 /* geom_dev.c */
 struct cdev;
@@ -245,22 +251,23 @@ void g_dev_physpath_changed(void);
 struct g_provider *g_dev_getprovider(struct cdev *dev);
 
 /* geom_dump.c */
-void (g_trace)(int level, const char *, ...) __printflike(2, 3);
-#define	G_T_TOPOLOGY		0x01
-#define	G_T_BIO			0x02
-#define	G_T_ACCESS		0x04
+void(g_trace)(int level, const char *, ...) __printflike(2, 3);
+#define G_T_TOPOLOGY 0x01
+#define G_T_BIO 0x02
+#define G_T_ACCESS 0x04
 extern int g_debugflags;
-#define	G_F_FOOTSHOOTING	0x10
-#define	G_F_DISKIOCTL		0x40
-#define	G_F_CTLDUMP		0x80
-#define	g_trace(level, fmt, ...) do {				\
-	if (__predict_false(g_debugflags & (level)))		\
-		(g_trace)(level, fmt, ## __VA_ARGS__);		\
-} while (0)
+#define G_F_FOOTSHOOTING 0x10
+#define G_F_DISKIOCTL 0x40
+#define G_F_CTLDUMP 0x80
+#define g_trace(level, fmt, ...)                              \
+	do {                                                  \
+		if (__predict_false(g_debugflags & (level)))  \
+			(g_trace)(level, fmt, ##__VA_ARGS__); \
+	} while (0)
 
 /* geom_event.c */
 typedef void g_event_t(void *, int flag);
-#define EV_CANCEL	1
+#define EV_CANCEL 1
 int g_post_event(g_event_t *func, void *arg, int flag, ...);
 int g_waitfor_event(g_event_t *func, void *arg, int flag, ...);
 void g_cancel_event(void *ref);
@@ -282,16 +289,16 @@ void g_error_provider(struct g_provider *pp, int error);
 struct g_provider *g_provider_by_name(char const *arg);
 int g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len);
 #define g_getattr(a, c, v) g_getattr__((a), (c), (v), sizeof *(v))
-int g_handleattr(struct bio *bp, const char *attribute, const void *val,
-    int len);
+int g_handleattr(
+    struct bio *bp, const char *attribute, const void *val, int len);
 int g_handleattr_int(struct bio *bp, const char *attribute, int val);
 int g_handleattr_off_t(struct bio *bp, const char *attribute, off_t val);
 int g_handleattr_uint16_t(struct bio *bp, const char *attribute, uint16_t val);
 int g_handleattr_str(struct bio *bp, const char *attribute, const char *str);
-struct g_consumer * g_new_consumer(struct g_geom *gp);
-struct g_geom * g_new_geomf(struct g_class *mp, const char *fmt, ...)
+struct g_consumer *g_new_consumer(struct g_geom *gp);
+struct g_geom *g_new_geomf(struct g_class *mp, const char *fmt, ...)
     __printflike(2, 3);
-struct g_provider * g_new_providerf(struct g_geom *gp, const char *fmt, ...)
+struct g_provider *g_new_providerf(struct g_geom *gp, const char *fmt, ...)
     __printflike(2, 3);
 void g_provider_add_alias(struct g_provider *pp, const char *fmt, ...)
     __printflike(2, 3);
@@ -310,41 +317,51 @@ int g_valid_obj(void const *ptr);
 #endif
 #ifdef DIAGNOSTIC
 #define G_VALID_CLASS(foo) \
-    KASSERT(g_valid_obj(foo) == 1, ("%p is not a g_class", foo))
+	KASSERT(g_valid_obj(foo) == 1, ("%p is not a g_class", foo))
 #define G_VALID_GEOM(foo) \
-    KASSERT(g_valid_obj(foo) == 2, ("%p is not a g_geom", foo))
+	KASSERT(g_valid_obj(foo) == 2, ("%p is not a g_geom", foo))
 #define G_VALID_CONSUMER(foo) \
-    KASSERT(g_valid_obj(foo) == 3, ("%p is not a g_consumer", foo))
+	KASSERT(g_valid_obj(foo) == 3, ("%p is not a g_consumer", foo))
 #define G_VALID_PROVIDER(foo) \
-    KASSERT(g_valid_obj(foo) == 4, ("%p is not a g_provider", foo))
+	KASSERT(g_valid_obj(foo) == 4, ("%p is not a g_provider", foo))
 #else
-#define G_VALID_CLASS(foo) do { } while (0)
-#define G_VALID_GEOM(foo) do { } while (0)
-#define G_VALID_CONSUMER(foo) do { } while (0)
-#define G_VALID_PROVIDER(foo) do { } while (0)
+#define G_VALID_CLASS(foo) \
+	do {               \
+	} while (0)
+#define G_VALID_GEOM(foo) \
+	do {              \
+	} while (0)
+#define G_VALID_CONSUMER(foo) \
+	do {                  \
+	} while (0)
+#define G_VALID_PROVIDER(foo) \
+	do {                  \
+	} while (0)
 #endif
 
 int g_modevent(module_t, int, void *);
 
 /* geom_io.c */
-struct bio * g_clone_bio(struct bio *);
-struct bio * g_duplicate_bio(struct bio *);
+struct bio *g_clone_bio(struct bio *);
+struct bio *g_duplicate_bio(struct bio *);
 void g_destroy_bio(struct bio *);
 void g_io_deliver(struct bio *bp, int error);
 int g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr);
 int g_io_zonecmd(struct disk_zone_args *zone_args, struct g_consumer *cp);
 int g_io_flush(struct g_consumer *cp);
-int g_io_speedup(off_t shortage, u_int flags, size_t *resid,
-    struct g_consumer *cp);
+int g_io_speedup(
+    off_t shortage, u_int flags, size_t *resid, struct g_consumer *cp);
 void g_io_request(struct bio *bp, struct g_consumer *cp);
 struct bio *g_new_bio(void);
 struct bio *g_alloc_bio(void);
 void g_reset_bio(struct bio *);
-void * g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error);
+void *g_read_data(
+    struct g_consumer *cp, off_t offset, off_t length, int *error);
 int g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 int g_delete_data(struct g_consumer *cp, off_t offset, off_t length);
 void g_format_bio(struct sbuf *, const struct bio *bp);
-void g_print_bio(const char *prefix, const struct bio *bp, const char *fmtsuffix, ...) __printflike(3, 4);
+void g_print_bio(const char *prefix, const struct bio *bp,
+    const char *fmtsuffix, ...) __printflike(3, 4);
 int g_use_g_read_data(void *, off_t, void **, int);
 int g_use_g_write_data(void *, off_t, void *, int);
 
@@ -355,8 +372,8 @@ int g_use_g_write_data(void *, off_t, void *, int);
 extern struct sx topology_lock;
 
 struct g_kerneldump {
-	off_t		offset;
-	off_t		length;
+	off_t offset;
+	off_t length;
 	struct dumperinfo di;
 };
 
@@ -379,63 +396,64 @@ g_free(void *ptr)
 	if (sx_xlocked(&topology_lock)) {
 		KASSERT(g_valid_obj(ptr) == 0,
 		    ("g_free(%p) of live object, type %d", ptr,
-		    g_valid_obj(ptr)));
+			g_valid_obj(ptr)));
 	}
 #endif
 	free(ptr, M_GEOM);
 }
 
-#define g_topology_lock() 					\
-	do {							\
-		sx_xlock(&topology_lock);			\
+#define g_topology_lock()                 \
+	do {                              \
+		sx_xlock(&topology_lock); \
 	} while (0)
 
-#define g_topology_try_lock()	sx_try_xlock(&topology_lock)
+#define g_topology_try_lock() sx_try_xlock(&topology_lock)
 
-#define g_topology_unlock()					\
-	do {							\
-		sx_xunlock(&topology_lock);			\
+#define g_topology_unlock()                 \
+	do {                                \
+		sx_xunlock(&topology_lock); \
 	} while (0)
 
-#define g_topology_locked()	sx_xlocked(&topology_lock)
+#define g_topology_locked() sx_xlocked(&topology_lock)
 
-#define g_topology_assert()					\
-	do {							\
-		sx_assert(&topology_lock, SX_XLOCKED);		\
+#define g_topology_assert()                            \
+	do {                                           \
+		sx_assert(&topology_lock, SX_XLOCKED); \
 	} while (0)
 
-#define g_topology_assert_not()					\
-	do {							\
-		sx_assert(&topology_lock, SX_UNLOCKED);		\
+#define g_topology_assert_not()                         \
+	do {                                            \
+		sx_assert(&topology_lock, SX_UNLOCKED); \
 	} while (0)
 
-#define g_topology_sleep(chan, timo)				\
+#define g_topology_sleep(chan, timo) \
 	sx_sleep(chan, &topology_lock, 0, "gtopol", timo)
 
-#define DECLARE_GEOM_CLASS(class, name) 			\
-	static moduledata_t name##_mod = {			\
-		#name, g_modevent, &class			\
-	};							\
+#define DECLARE_GEOM_CLASS(class, name)                                 \
+	static moduledata_t name##_mod = { #name, g_modevent, &class }; \
 	DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
 
 int g_is_geom_thread(struct thread *td);
 
-#ifndef	_PATH_DEV
-#define	_PATH_DEV	"/dev/"
+#ifndef _PATH_DEV
+#define _PATH_DEV "/dev/"
 #endif
 
 #endif /* _KERNEL */
 
 /* geom_ctl.c */
-int gctl_set_param(struct gctl_req *req, const char *param, void const *ptr, int len);
-void gctl_set_param_err(struct gctl_req *req, const char *param, void const *ptr, int len);
+int gctl_set_param(
+    struct gctl_req *req, const char *param, void const *ptr, int len);
+void gctl_set_param_err(
+    struct gctl_req *req, const char *param, void const *ptr, int len);
 void *gctl_get_param(struct gctl_req *req, const char *param, int *len);
 char const *gctl_get_asciiparam(struct gctl_req *req, const char *param);
 void *gctl_get_paraml(struct gctl_req *req, const char *param, int len);
 void *gctl_get_paraml_opt(struct gctl_req *req, const char *param, int len);
 int gctl_error(struct gctl_req *req, const char *fmt, ...) __printflike(2, 3);
 struct g_class *gctl_get_class(struct gctl_req *req, char const *arg);
-struct g_geom *gctl_get_geom(struct gctl_req *req, struct g_class *mp, char const *arg);
+struct g_geom *gctl_get_geom(
+    struct gctl_req *req, struct g_class *mp, char const *arg);
 struct g_provider *gctl_get_provider(struct gctl_req *req, char const *arg);
 
 #endif /* _GEOM_GEOM_H_ */

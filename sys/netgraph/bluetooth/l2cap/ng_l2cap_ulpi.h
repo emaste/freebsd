@@ -36,45 +36,44 @@
 #ifndef _NETGRAPH_L2CAP_ULPI_H_
 #define _NETGRAPH_L2CAP_ULPI_H_
 
-int ng_l2cap_l2ca_con_req     (ng_l2cap_p, struct ng_mesg *);
-int ng_l2cap_l2ca_con_rsp    (ng_l2cap_chan_p, u_int32_t, u_int16_t, u_int16_t);
-int ng_l2cap_l2ca_con_rsp_req (ng_l2cap_p, struct ng_mesg *);
-int ng_l2cap_l2ca_con_rsp_rsp (ng_l2cap_chan_p, u_int32_t, u_int16_t);
-int ng_l2cap_l2ca_con_ind     (ng_l2cap_chan_p);
+int ng_l2cap_l2ca_con_req(ng_l2cap_p, struct ng_mesg *);
+int ng_l2cap_l2ca_con_rsp(ng_l2cap_chan_p, u_int32_t, u_int16_t, u_int16_t);
+int ng_l2cap_l2ca_con_rsp_req(ng_l2cap_p, struct ng_mesg *);
+int ng_l2cap_l2ca_con_rsp_rsp(ng_l2cap_chan_p, u_int32_t, u_int16_t);
+int ng_l2cap_l2ca_con_ind(ng_l2cap_chan_p);
 
-int ng_l2cap_l2ca_cfg_req     (ng_l2cap_p, struct ng_mesg *);
-int ng_l2cap_l2ca_cfg_rsp     (ng_l2cap_chan_p, u_int32_t, u_int16_t);
-int ng_l2cap_l2ca_cfg_rsp_req (ng_l2cap_p, struct ng_mesg *);
-int ng_l2cap_l2ca_cfg_rsp_rsp (ng_l2cap_chan_p, u_int32_t, u_int16_t);
-int ng_l2cap_l2ca_cfg_ind     (ng_l2cap_chan_p);
+int ng_l2cap_l2ca_cfg_req(ng_l2cap_p, struct ng_mesg *);
+int ng_l2cap_l2ca_cfg_rsp(ng_l2cap_chan_p, u_int32_t, u_int16_t);
+int ng_l2cap_l2ca_cfg_rsp_req(ng_l2cap_p, struct ng_mesg *);
+int ng_l2cap_l2ca_cfg_rsp_rsp(ng_l2cap_chan_p, u_int32_t, u_int16_t);
+int ng_l2cap_l2ca_cfg_ind(ng_l2cap_chan_p);
 
-int ng_l2cap_l2ca_write_req   (ng_l2cap_p, struct mbuf *);
-int ng_l2cap_l2ca_write_rsp  (ng_l2cap_chan_p, u_int32_t, u_int16_t, u_int16_t);
+int ng_l2cap_l2ca_write_req(ng_l2cap_p, struct mbuf *);
+int ng_l2cap_l2ca_write_rsp(ng_l2cap_chan_p, u_int32_t, u_int16_t, u_int16_t);
 
-int ng_l2cap_l2ca_receive     (ng_l2cap_con_p);
-int ng_l2cap_l2ca_clt_receive (ng_l2cap_con_p);
+int ng_l2cap_l2ca_receive(ng_l2cap_con_p);
+int ng_l2cap_l2ca_clt_receive(ng_l2cap_con_p);
 
-int ng_l2cap_l2ca_qos_ind     (ng_l2cap_chan_p);
+int ng_l2cap_l2ca_qos_ind(ng_l2cap_chan_p);
 
-int ng_l2cap_l2ca_discon_req  (ng_l2cap_p, struct ng_mesg *);
-int ng_l2cap_l2ca_discon_rsp  (ng_l2cap_chan_p, u_int32_t, u_int16_t);
-int ng_l2cap_l2ca_discon_ind  (ng_l2cap_chan_p);
+int ng_l2cap_l2ca_discon_req(ng_l2cap_p, struct ng_mesg *);
+int ng_l2cap_l2ca_discon_rsp(ng_l2cap_chan_p, u_int32_t, u_int16_t);
+int ng_l2cap_l2ca_discon_ind(ng_l2cap_chan_p);
 
-int ng_l2cap_l2ca_grp_create  (ng_l2cap_p, struct ng_mesg *);
-int ng_l2cap_l2ca_grp_close   (ng_l2cap_p, struct ng_mesg *);
-int ng_l2cap_l2ca_grp_add_member_req (ng_l2cap_p, struct ng_mesg *);
-int ng_l2cap_l2ca_grp_add_member_rsp (ng_l2cap_chan_p, u_int32_t, u_int16_t);
-int ng_l2cap_l2ca_grp_rem_member  (ng_l2cap_p, struct ng_mesg *);
-int ng_l2cap_l2ca_grp_get_members (ng_l2cap_p, struct ng_mesg *);
+int ng_l2cap_l2ca_grp_create(ng_l2cap_p, struct ng_mesg *);
+int ng_l2cap_l2ca_grp_close(ng_l2cap_p, struct ng_mesg *);
+int ng_l2cap_l2ca_grp_add_member_req(ng_l2cap_p, struct ng_mesg *);
+int ng_l2cap_l2ca_grp_add_member_rsp(ng_l2cap_chan_p, u_int32_t, u_int16_t);
+int ng_l2cap_l2ca_grp_rem_member(ng_l2cap_p, struct ng_mesg *);
+int ng_l2cap_l2ca_grp_get_members(ng_l2cap_p, struct ng_mesg *);
 
-int ng_l2cap_l2ca_ping_req     (ng_l2cap_p, struct ng_mesg *);
-int ng_l2cap_l2ca_ping_rsp     (ng_l2cap_con_p, u_int32_t, u_int16_t, 
-					struct mbuf *);
+int ng_l2cap_l2ca_ping_req(ng_l2cap_p, struct ng_mesg *);
+int ng_l2cap_l2ca_ping_rsp(ng_l2cap_con_p, u_int32_t, u_int16_t, struct mbuf *);
 
-int ng_l2cap_l2ca_get_info_req (ng_l2cap_p, struct ng_mesg *);
-int ng_l2cap_l2ca_get_info_rsp (ng_l2cap_con_p, u_int32_t, u_int16_t, 
-					struct mbuf *);
+int ng_l2cap_l2ca_get_info_req(ng_l2cap_p, struct ng_mesg *);
+int ng_l2cap_l2ca_get_info_rsp(
+    ng_l2cap_con_p, u_int32_t, u_int16_t, struct mbuf *);
 
-int ng_l2cap_l2ca_enable_clt   (ng_l2cap_p, struct ng_mesg *);
-int ng_l2cap_l2ca_encryption_change(ng_l2cap_chan_p , uint16_t );
+int ng_l2cap_l2ca_enable_clt(ng_l2cap_p, struct ng_mesg *);
+int ng_l2cap_l2ca_encryption_change(ng_l2cap_chan_p, uint16_t);
 #endif /* ndef _NETGRAPH_L2CAP_ULPI_H_ */

@@ -42,33 +42,31 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/hhook.h>
 #include <sys/kernel.h>
+#include <sys/khelp.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
-#include <sys/hhook.h>
-#include <sys/khelp.h>
 #include <sys/module_khelp.h>
 #include <sys/socket.h>
 #include <sys/sockopt.h>
 
-#include <net/vnet.h>
+#include <vm/uma.h>
 
+#include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/khelp/h_ertt.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_var.h>
-
-#include <netinet/khelp/h_ertt.h>
-
-#include <vm/uma.h>
 
 uma_zone_t txseginfo_zone;
 
 /* Smoothing factor for delayed ack guess. */
-#define	DLYACK_SMOOTH	5
+#define DLYACK_SMOOTH 5
 
 /* Max number of time stamp errors allowed in a session. */
-#define	MAX_TS_ERR	10
+#define MAX_TS_ERR 10
 
 static int ertt_packet_measurement_hook(int hhook_type, int hhook_id,
     void *udata, void *ctx_data, void *hdata, struct osd *hosd);
@@ -85,81 +83,74 @@ static void ertt_uma_dtor(void *mem, int size, void *arg);
  */
 struct txseginfo {
 	/* Segment length. */
-	uint32_t	len;
+	uint32_t len;
 	/* Segment sequence number. */
-	tcp_seq		seq;
+	tcp_seq seq;
 	/* Time stamp indicating when the packet was sent. */
-	uint32_t	tx_ts;
+	uint32_t tx_ts;
 	/* Last received receiver ts (if the TCP option is used). */
-	uint32_t	rx_ts;
-	uint32_t	flags;
-	TAILQ_ENTRY (txseginfo) txsegi_lnk;
+	uint32_t rx_ts;
+	uint32_t flags;
+	TAILQ_ENTRY(txseginfo) txsegi_lnk;
 };
 
 /* Flags for struct txseginfo. */
-#define	TXSI_TSO		0x01 /* TSO was used for this entry. */
-#define	TXSI_RTT_MEASURE_START	0x02 /* Start a per RTT measurement. */
-#define	TXSI_RX_MEASURE_END	0x04 /* Measure the rx rate until this txsi. */
+#define TXSI_TSO 0x01 /* TSO was used for this entry. */
+#define TXSI_RTT_MEASURE_START 0x02 /* Start a per RTT measurement. */
+#define TXSI_RX_MEASURE_END 0x04 /* Measure the rx rate until this txsi. */
 
-struct helper ertt_helper = {
-	.mod_init = ertt_mod_init,
+struct helper ertt_helper = { .mod_init = ertt_mod_init,
 	.mod_destroy = ertt_mod_destroy,
 	.h_flags = HELPER_NEEDS_OSD,
-	.h_classes = HELPER_CLASS_TCP
-};
+	.h_classes = HELPER_CLASS_TCP };
 
 /* Define the helper hook info required by ERTT. */
 struct hookinfo ertt_hooks[] = {
-	{
-		.hook_type = HHOOK_TYPE_TCP,
-		.hook_id = HHOOK_TCP_EST_IN,
-		.hook_udata = NULL,
-		.hook_func = &ertt_packet_measurement_hook
-	},
-	{
-		.hook_type = HHOOK_TYPE_TCP,
-		.hook_id = HHOOK_TCP_EST_OUT,
-		.hook_udata = NULL,
-		.hook_func = &ertt_add_tx_segment_info_hook
-	}
+	{ .hook_type = HHOOK_TYPE_TCP,
+	    .hook_id = HHOOK_TCP_EST_IN,
+	    .hook_udata = NULL,
+	    .hook_func = &ertt_packet_measurement_hook },
+	{ .hook_type = HHOOK_TYPE_TCP,
+	    .hook_id = HHOOK_TCP_EST_OUT,
+	    .hook_udata = NULL,
+	    .hook_func = &ertt_add_tx_segment_info_hook }
 };
 
 /* Flags to indicate how marked_packet_rtt should handle this txsi. */
-#define	MULTI_ACK		0x01 /* More than this txsi is acked. */
-#define	OLD_TXSI		0x02 /* TXSI is old according to timestamps. */
-#define	CORRECT_ACK		0X04 /* Acks this TXSI. */
-#define	FORCED_MEASUREMENT	0X08 /* Force an RTT measurement. */
+#define MULTI_ACK 0x01 /* More than this txsi is acked. */
+#define OLD_TXSI 0x02 /* TXSI is old according to timestamps. */
+#define CORRECT_ACK 0X04 /* Acks this TXSI. */
+#define FORCED_MEASUREMENT 0X08 /* Force an RTT measurement. */
 
 /*
  * This fuction measures the RTT of a particular segment/ack pair, or the next
  * closest if this will yield an inaccurate result due to delayed acking or
  * other issues.
  */
-static void inline
-marked_packet_rtt(struct txseginfo *txsi, struct ertt *e_t, struct tcpcb *tp,
-    uint32_t *pmeasurenext, int *pmeasurenext_len, int *prtt_bytes_adjust,
-    int mflag)
+static void inline marked_packet_rtt(struct txseginfo *txsi, struct ertt *e_t,
+    struct tcpcb *tp, uint32_t *pmeasurenext, int *pmeasurenext_len,
+    int *prtt_bytes_adjust, int mflag)
 {
 
 	/*
 	 * If we can't measure this one properly due to delayed acking adjust
 	 * byte counters and flag to measure next txsi. Note that since the
-	 * marked packet's transmitted bytes are measured we need to subtract the
-	 * transmitted bytes. Then pretend the next txsi was marked.
+	 * marked packet's transmitted bytes are measured we need to subtract
+	 * the transmitted bytes. Then pretend the next txsi was marked.
 	 */
-	if (mflag & (MULTI_ACK|OLD_TXSI)) {
+	if (mflag & (MULTI_ACK | OLD_TXSI)) {
 		*pmeasurenext = txsi->tx_ts;
 		*pmeasurenext_len = txsi->len;
 		*prtt_bytes_adjust += *pmeasurenext_len;
 	} else {
 		if (mflag & FORCED_MEASUREMENT) {
-			e_t->markedpkt_rtt = tcp_ts_getticks() -
-			    *pmeasurenext + 1;
+			e_t->markedpkt_rtt = tcp_ts_getticks() - *pmeasurenext +
+			    1;
 			e_t->bytes_tx_in_marked_rtt = e_t->bytes_tx_in_rtt +
 			    *pmeasurenext_len - *prtt_bytes_adjust;
 		} else {
-			e_t->markedpkt_rtt = tcp_ts_getticks() -
-			    txsi->tx_ts + 1;
+			e_t->markedpkt_rtt = tcp_ts_getticks() - txsi->tx_ts +
+			    1;
 			e_t->bytes_tx_in_marked_rtt = e_t->bytes_tx_in_rtt -
 			    *prtt_bytes_adjust;
 		}
@@ -203,7 +194,8 @@ ertt_packet_measurement_hook(int hhook_type, int hhook_id, void *udata,
 	struct tcpopt *to;
 	struct tcp_hhook_data *thdp;
 	struct txseginfo *txsi;
-	int acked, measurenext_len, multiack, new_sacked_bytes, rtt_bytes_adjust;
+	int acked, measurenext_len, multiack, new_sacked_bytes,
+	    rtt_bytes_adjust;
 	uint32_t measurenext, rts;
 	tcp_seq ack;
 
@@ -254,19 +246,22 @@ ertt_packet_measurement_hook(int hhook_type, int hhook_id, void *udata,
 			 */
 			if (!new_sacked_bytes) {
 				if (acked > tp->t_maxseg) {
-					e_t->dlyack_rx +=
-					    (e_t->dlyack_rx < DLYACK_SMOOTH) ?
-					    1 : 0;
+					e_t->dlyack_rx += (e_t->dlyack_rx <
+							      DLYACK_SMOOTH) ?
+						  1 :
+						  0;
 					multiack = 1;
 				} else if (acked > txsi->len) {
 					multiack = 1;
-					e_t->dlyack_rx +=
-					    (e_t->dlyack_rx < DLYACK_SMOOTH) ?
-					    1 : 0;
+					e_t->dlyack_rx += (e_t->dlyack_rx <
+							      DLYACK_SMOOTH) ?
+						  1 :
+						  0;
 				} else if (acked == tp->t_maxseg ||
-					   acked == txsi->len) {
-					e_t->dlyack_rx -=
-					    (e_t->dlyack_rx > 0) ? 1 : 0;
+				    acked == txsi->len) {
+					e_t->dlyack_rx -= (e_t->dlyack_rx > 0) ?
+						  1 :
+						  0;
 				}
 				/* Otherwise leave dlyack_rx the way it was. */
 			}
@@ -295,7 +290,8 @@ ertt_packet_measurement_hook(int hhook_type, int hhook_id, void *udata,
 				 */
 				rts = to->to_tsecr;
 				/* Before this packet. */
-				if (!e_t->dlyack_rx && TSTMP_LT(rts, txsi->tx_ts))
+				if (!e_t->dlyack_rx &&
+				    TSTMP_LT(rts, txsi->tx_ts))
 					/* When delayed acking is used, the
 					 * reflected time stamp is of the first
 					 * packet and thus may be before
@@ -307,14 +303,17 @@ ertt_packet_measurement_hook(int hhook_type, int hhook_id, void *udata,
 					 * If reflected time stamp is later than
 					 * tx_tsi, then this txsi is old.
 					 */
-					if (txsi->flags & TXSI_RTT_MEASURE_START
-					    || measurenext) {
+					if (txsi->flags &
+						TXSI_RTT_MEASURE_START ||
+					    measurenext) {
 						marked_packet_rtt(txsi, e_t, tp,
-						    &measurenext, &measurenext_len,
-						    &rtt_bytes_adjust, OLD_TXSI);
+						    &measurenext,
+						    &measurenext_len,
+						    &rtt_bytes_adjust,
+						    OLD_TXSI);
 					}
-					TAILQ_REMOVE(&e_t->txsegi_q, txsi,
-					    txsegi_lnk);
+					TAILQ_REMOVE(
+					    &e_t->txsegi_q, txsi, txsegi_lnk);
 					uma_zfree(txseginfo_zone, txsi);
 					txsi = TAILQ_FIRST(&e_t->txsegi_q);
 					continue;
@@ -363,9 +362,9 @@ ertt_packet_measurement_hook(int hhook_type, int hhook_id, void *udata,
 			}
 
 			if (txsi->flags & TXSI_RTT_MEASURE_START || measurenext)
-				marked_packet_rtt(txsi, e_t, tp,
-				    &measurenext, &measurenext_len,
-				    &rtt_bytes_adjust, CORRECT_ACK);
+				marked_packet_rtt(txsi, e_t, tp, &measurenext,
+				    &measurenext_len, &rtt_bytes_adjust,
+				    CORRECT_ACK);
 
 			if (txsi->flags & TXSI_TSO) {
 				if (txsi->len > acked) {
@@ -415,9 +414,9 @@ ertt_packet_measurement_hook(int hhook_type, int hhook_id, void *udata,
 			 * We need to do a RTT measurement. It won't be the best
 			 * if we do it here.
 			 */
-			marked_packet_rtt(txsi, e_t, tp,
-			    &measurenext, &measurenext_len,
-			    &rtt_bytes_adjust, FORCED_MEASUREMENT);
+			marked_packet_rtt(txsi, e_t, tp, &measurenext,
+			    &measurenext_len, &rtt_bytes_adjust,
+			    FORCED_MEASUREMENT);
 		}
 	}
 

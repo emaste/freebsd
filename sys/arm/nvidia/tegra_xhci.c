@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_platform.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
 #include <sys/condvar.h>
@@ -44,12 +45,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
-#include <sys/systm.h>
 
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -60,309 +60,278 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/regulator/regulator.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/xhci.h>
 #include <dev/usb/controller/xhcireg.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usbdi.h>
 
 #include <arm/nvidia/tegra_pmc.h>
 
 #include "usbdevs.h"
 
 /* FPCI address space */
-#define	T_XUSB_CFG_0				0x000
-#define	T_XUSB_CFG_1				0x004
-#define	 CFG_1_BUS_MASTER				(1 << 2)
-#define	 CFG_1_MEMORY_SPACE				(1 << 1)
-#define	 CFG_1_IO_SPACE					(1 << 0)
+#define T_XUSB_CFG_0 0x000
+#define T_XUSB_CFG_1 0x004
+#define CFG_1_BUS_MASTER (1 << 2)
+#define CFG_1_MEMORY_SPACE (1 << 1)
+#define CFG_1_IO_SPACE (1 << 0)
 
-#define	T_XUSB_CFG_2				0x008
-#define	T_XUSB_CFG_3				0x00C
-#define	T_XUSB_CFG_4				0x010
-#define	 CFG_4_BASE_ADDRESS(x)				(((x) & 0x1FFFF) << 15)
+#define T_XUSB_CFG_2 0x008
+#define T_XUSB_CFG_3 0x00C
+#define T_XUSB_CFG_4 0x010
+#define CFG_4_BASE_ADDRESS(x) (((x)&0x1FFFF) << 15)
 
-#define	T_XUSB_CFG_5				0x014
-#define	T_XUSB_CFG_ARU_MAILBOX_CMD		0x0E4
-#define  ARU_MAILBOX_CMD_INT_EN				(1U << 31)
-#define  ARU_MAILBOX_CMD_DEST_XHCI			(1  << 30)
-#define  ARU_MAILBOX_CMD_DEST_SMI			(1  << 29)
-#define  ARU_MAILBOX_CMD_DEST_PME			(1  << 28)
-#define  ARU_MAILBOX_CMD_DEST_FALC			(1  << 27)
+#define T_XUSB_CFG_5 0x014
+#define T_XUSB_CFG_ARU_MAILBOX_CMD 0x0E4
+#define ARU_MAILBOX_CMD_INT_EN (1U << 31)
+#define ARU_MAILBOX_CMD_DEST_XHCI (1 << 30)
+#define ARU_MAILBOX_CMD_DEST_SMI (1 << 29)
+#define ARU_MAILBOX_CMD_DEST_PME (1 << 28)
+#define ARU_MAILBOX_CMD_DEST_FALC (1 << 27)
 
-#define	T_XUSB_CFG_ARU_MAILBOX_DATA_IN		0x0E8
-#define	 ARU_MAILBOX_DATA_IN_DATA(x)			(((x) & 0xFFFFFF) <<  0)
-#define	 ARU_MAILBOX_DATA_IN_TYPE(x)			(((x) & 0x0000FF) << 24)
+#define T_XUSB_CFG_ARU_MAILBOX_DATA_IN 0x0E8
+#define ARU_MAILBOX_DATA_IN_DATA(x) (((x)&0xFFFFFF) << 0)
+#define ARU_MAILBOX_DATA_IN_TYPE(x) (((x)&0x0000FF) << 24)
 
-#define	T_XUSB_CFG_ARU_MAILBOX_DATA_OUT		0x0EC
-#define	 ARU_MAILBOX_DATA_OUT_DATA(x)			(((x) >>  0) & 0xFFFFFF)
-#define	 ARU_MAILBOX_DATA_OUT_TYPE(x)			(((x) >> 24) & 0x0000FF)
+#define T_XUSB_CFG_ARU_MAILBOX_DATA_OUT 0x0EC
+#define ARU_MAILBOX_DATA_OUT_DATA(x) (((x) >> 0) & 0xFFFFFF)
+#define ARU_MAILBOX_DATA_OUT_TYPE(x) (((x) >> 24) & 0x0000FF)
 
-#define	T_XUSB_CFG_ARU_MAILBOX_OWNER		0x0F0
-#define	 ARU_MAILBOX_OWNER_SW				2
-#define	 ARU_MAILBOX_OWNER_FW				1
-#define	 ARU_MAILBOX_OWNER_NONE				0
+#define T_XUSB_CFG_ARU_MAILBOX_OWNER 0x0F0
+#define ARU_MAILBOX_OWNER_SW 2
+#define ARU_MAILBOX_OWNER_FW 1
+#define ARU_MAILBOX_OWNER_NONE 0
 
-#define	XUSB_CFG_ARU_C11_CSBRANGE		0x41C	/* ! UNDOCUMENTED ! */
-#define	 ARU_C11_CSBRANGE_PAGE(x)			((x) >> 9)
-#define	 ARU_C11_CSBRANGE_ADDR(x)			(0x800 + ((x) & 0x1FF))
-#define	XUSB_CFG_ARU_SMI_INTR			0x428	/* ! UNDOCUMENTED ! */
-#define  ARU_SMI_INTR_EN				(1 << 3)
-#define  ARU_SMI_INTR_FW_HANG				(1 << 1)
-#define	XUSB_CFG_ARU_RST			0x42C	/* ! UNDOCUMENTED ! */
-#define	 ARU_RST_RESET					(1 << 0)
+#define XUSB_CFG_ARU_C11_CSBRANGE 0x41C /* ! UNDOCUMENTED ! */
+#define ARU_C11_CSBRANGE_PAGE(x) ((x) >> 9)
+#define ARU_C11_CSBRANGE_ADDR(x) (0x800 + ((x)&0x1FF))
+#define XUSB_CFG_ARU_SMI_INTR 0x428 /* ! UNDOCUMENTED ! */
+#define ARU_SMI_INTR_EN (1 << 3)
+#define ARU_SMI_INTR_FW_HANG (1 << 1)
+#define XUSB_CFG_ARU_RST 0x42C /* ! UNDOCUMENTED ! */
+#define ARU_RST_RESET (1 << 0)
 
-#define	XUSB_HOST_CONFIGURATION			0x180
-#define	 CONFIGURATION_CLKEN_OVERRIDE			(1U<< 31)
-#define	 CONFIGURATION_PW_NO_DEVSEL_ERR_CYA		(1 << 19)
-#define	 CONFIGURATION_INITIATOR_READ_IDLE		(1 << 18)
-#define	 CONFIGURATION_INITIATOR_WRITE_IDLE		(1 << 17)
-#define	 CONFIGURATION_WDATA_LEAD_CYA			(1 << 15)
-#define	 CONFIGURATION_WR_INTRLV_CYA			(1 << 14)
-#define	 CONFIGURATION_TARGET_READ_IDLE			(1 << 11)
-#define	 CONFIGURATION_TARGET_WRITE_IDLE		(1 << 10)
-#define	 CONFIGURATION_MSI_VEC_EMPTY			(1 <<  9)
-#define	 CONFIGURATION_UFPCI_MSIAW			(1 <<  7)
-#define	 CONFIGURATION_UFPCI_PWPASSPW			(1 <<  6)
-#define	 CONFIGURATION_UFPCI_PASSPW			(1 <<  5)
-#define	 CONFIGURATION_UFPCI_PWPASSNPW			(1 <<  4)
-#define	 CONFIGURATION_DFPCI_PWPASSNPW			(1 <<  3)
-#define	 CONFIGURATION_DFPCI_RSPPASSPW			(1 <<  2)
-#define	 CONFIGURATION_DFPCI_PASSPW			(1 <<  1)
-#define	 CONFIGURATION_EN_FPCI				(1 <<  0)
+#define XUSB_HOST_CONFIGURATION 0x180
+#define CONFIGURATION_CLKEN_OVERRIDE (1U << 31)
+#define CONFIGURATION_PW_NO_DEVSEL_ERR_CYA (1 << 19)
+#define CONFIGURATION_INITIATOR_READ_IDLE (1 << 18)
+#define CONFIGURATION_INITIATOR_WRITE_IDLE (1 << 17)
+#define CONFIGURATION_WDATA_LEAD_CYA (1 << 15)
+#define CONFIGURATION_WR_INTRLV_CYA (1 << 14)
+#define CONFIGURATION_TARGET_READ_IDLE (1 << 11)
+#define CONFIGURATION_TARGET_WRITE_IDLE (1 << 10)
+#define CONFIGURATION_MSI_VEC_EMPTY (1 << 9)
+#define CONFIGURATION_UFPCI_MSIAW (1 << 7)
+#define CONFIGURATION_UFPCI_PWPASSPW (1 << 6)
+#define CONFIGURATION_UFPCI_PASSPW (1 << 5)
+#define CONFIGURATION_UFPCI_PWPASSNPW (1 << 4)
+#define CONFIGURATION_DFPCI_PWPASSNPW (1 << 3)
+#define CONFIGURATION_DFPCI_RSPPASSPW (1 << 2)
+#define CONFIGURATION_DFPCI_PASSPW (1 << 1)
+#define CONFIGURATION_EN_FPCI (1 << 0)
 
 /* IPFS address space */
-#define	XUSB_HOST_FPCI_ERROR_MASKS		0x184
-#define	 FPCI_ERROR_MASTER_ABORT			(1 <<  2)
-#define	 FPCI_ERRORI_DATA_ERROR				(1 <<  1)
-#define	 FPCI_ERROR_TARGET_ABORT			(1 <<  0)
+#define XUSB_HOST_FPCI_ERROR_MASKS 0x184
+#define FPCI_ERROR_MASTER_ABORT (1 << 2)
+#define FPCI_ERRORI_DATA_ERROR (1 << 1)
+#define FPCI_ERROR_TARGET_ABORT (1 << 0)
 
-#define	XUSB_HOST_INTR_MASK			0x188
-#define	 INTR_IP_INT_MASK				(1 << 16)
-#define	 INTR_MSI_MASK					(1 <<  8)
-#define	 INTR_INT_MASK					(1 <<  0)
+#define XUSB_HOST_INTR_MASK 0x188
+#define INTR_IP_INT_MASK (1 << 16)
+#define INTR_MSI_MASK (1 << 8)
+#define INTR_INT_MASK (1 << 0)
 
-#define	XUSB_HOST_CLKGATE_HYSTERESIS		0x1BC
+#define XUSB_HOST_CLKGATE_HYSTERESIS 0x1BC
 
- /* CSB Falcon CPU */
-#define	XUSB_FALCON_CPUCTL			0x100
-#define	 CPUCTL_STOPPED					(1 << 5)
-#define	 CPUCTL_HALTED					(1 << 4)
-#define	 CPUCTL_HRESET					(1 << 3)
-#define	 CPUCTL_SRESET					(1 << 2)
-#define	 CPUCTL_STARTCPU				(1 << 1)
-#define	 CPUCTL_IINVAL					(1 << 0)
+/* CSB Falcon CPU */
+#define XUSB_FALCON_CPUCTL 0x100
+#define CPUCTL_STOPPED (1 << 5)
+#define CPUCTL_HALTED (1 << 4)
+#define CPUCTL_HRESET (1 << 3)
+#define CPUCTL_SRESET (1 << 2)
+#define CPUCTL_STARTCPU (1 << 1)
+#define CPUCTL_IINVAL (1 << 0)
 
-#define	XUSB_FALCON_BOOTVEC			0x104
-#define	XUSB_FALCON_DMACTL			0x10C
-#define	XUSB_FALCON_IMFILLRNG1			0x154
-#define	 IMFILLRNG1_TAG_HI(x)				(((x) & 0xFFF) << 16)
-#define	 IMFILLRNG1_TAG_LO(x)				(((x) & 0xFFF) <<  0)
-#define	XUSB_FALCON_IMFILLCTL			0x158
+#define XUSB_FALCON_BOOTVEC 0x104
+#define XUSB_FALCON_DMACTL 0x10C
+#define XUSB_FALCON_IMFILLRNG1 0x154
+#define IMFILLRNG1_TAG_HI(x) (((x)&0xFFF) << 16)
+#define IMFILLRNG1_TAG_LO(x) (((x)&0xFFF) << 0)
+#define XUSB_FALCON_IMFILLCTL 0x158
 
 /* CSB mempool */
-#define	XUSB_CSB_MEMPOOL_APMAP			0x10181C
-#define	 APMAP_BOOTPATH					(1U << 31)
+#define XUSB_CSB_MEMPOOL_APMAP 0x10181C
+#define APMAP_BOOTPATH (1U << 31)
 
-#define	XUSB_CSB_MEMPOOL_ILOAD_ATTR		0x101A00
-#define	XUSB_CSB_MEMPOOL_ILOAD_BASE_LO		0x101A04
-#define	XUSB_CSB_MEMPOOL_ILOAD_BASE_HI		0x101A08
-#define	XUSB_CSB_MEMPOOL_L2IMEMOP_SIZE		0x101A10
-#define	 L2IMEMOP_SIZE_OFFSET(x)			(((x) & 0x3FF) <<  8)
-#define	 L2IMEMOP_SIZE_SIZE(x)				(((x) & 0x0FF) << 24)
+#define XUSB_CSB_MEMPOOL_ILOAD_ATTR 0x101A00
+#define XUSB_CSB_MEMPOOL_ILOAD_BASE_LO 0x101A04
+#define XUSB_CSB_MEMPOOL_ILOAD_BASE_HI 0x101A08
+#define XUSB_CSB_MEMPOOL_L2IMEMOP_SIZE 0x101A10
+#define L2IMEMOP_SIZE_OFFSET(x) (((x)&0x3FF) << 8)
+#define L2IMEMOP_SIZE_SIZE(x) (((x)&0x0FF) << 24)
 
-#define	XUSB_CSB_MEMPOOL_L2IMEMOP_TRIG		0x101A14
-#define	 L2IMEMOP_INVALIDATE_ALL			(0x40 << 24)
-#define	 L2IMEMOP_LOAD_LOCKED_RESULT			(0x11 << 24)
+#define XUSB_CSB_MEMPOOL_L2IMEMOP_TRIG 0x101A14
+#define L2IMEMOP_INVALIDATE_ALL (0x40 << 24)
+#define L2IMEMOP_LOAD_LOCKED_RESULT (0x11 << 24)
 
-#define	XUSB_CSB_MEMPOOL_L2IMEMOP_RESULT        0x101A18
-#define	 L2IMEMOP_RESULT_VLD       (1U << 31)
+#define XUSB_CSB_MEMPOOL_L2IMEMOP_RESULT 0x101A18
+#define L2IMEMOP_RESULT_VLD (1U << 31)
 
-#define XUSB_CSB_IMEM_BLOCK_SIZE	256
+#define XUSB_CSB_IMEM_BLOCK_SIZE 256
 
-#define	TEGRA_XHCI_SS_HIGH_SPEED	120000000
-#define	TEGRA_XHCI_SS_LOW_SPEED		 12000000
+#define TEGRA_XHCI_SS_HIGH_SPEED 120000000
+#define TEGRA_XHCI_SS_LOW_SPEED 12000000
 
 /* MBOX commands. */
-#define	MBOX_CMD_MSG_ENABLED			 1
-#define	MBOX_CMD_INC_FALC_CLOCK			 2
-#define	MBOX_CMD_DEC_FALC_CLOCK			 3
-#define	MBOX_CMD_INC_SSPI_CLOCK			 4
-#define	MBOX_CMD_DEC_SSPI_CLOCK			 5
-#define	MBOX_CMD_SET_BW				 6
-#define	MBOX_CMD_SET_SS_PWR_GATING		 7
-#define	MBOX_CMD_SET_SS_PWR_UNGATING		 8
-#define	MBOX_CMD_SAVE_DFE_CTLE_CTX		 9
-#define	MBOX_CMD_AIRPLANE_MODE_ENABLED		10
-#define	MBOX_CMD_AIRPLANE_MODE_DISABLED		11
-#define	MBOX_CMD_START_HSIC_IDLE		12
-#define	MBOX_CMD_STOP_HSIC_IDLE			13
-#define	MBOX_CMD_DBC_WAKE_STACK			14
-#define	MBOX_CMD_HSIC_PRETEND_CONNECT		15
-#define	MBOX_CMD_RESET_SSPI			16
-#define	MBOX_CMD_DISABLE_SS_LFPS_DETECTION	17
-#define	MBOX_CMD_ENABLE_SS_LFPS_DETECTION	18
+#define MBOX_CMD_MSG_ENABLED 1
+#define MBOX_CMD_INC_FALC_CLOCK 2
+#define MBOX_CMD_DEC_FALC_CLOCK 3
+#define MBOX_CMD_INC_SSPI_CLOCK 4
+#define MBOX_CMD_DEC_SSPI_CLOCK 5
+#define MBOX_CMD_SET_BW 6
+#define MBOX_CMD_SET_SS_PWR_GATING 7
+#define MBOX_CMD_SET_SS_PWR_UNGATING 8
+#define MBOX_CMD_SAVE_DFE_CTLE_CTX 9
+#define MBOX_CMD_AIRPLANE_MODE_ENABLED 10
+#define MBOX_CMD_AIRPLANE_MODE_DISABLED 11
+#define MBOX_CMD_START_HSIC_IDLE 12
+#define MBOX_CMD_STOP_HSIC_IDLE 13
+#define MBOX_CMD_DBC_WAKE_STACK 14
+#define MBOX_CMD_HSIC_PRETEND_CONNECT 15
+#define MBOX_CMD_RESET_SSPI 16
+#define MBOX_CMD_DISABLE_SS_LFPS_DETECTION 17
+#define MBOX_CMD_ENABLE_SS_LFPS_DETECTION 18
 
 /* MBOX responses. */
-#define	MBOX_CMD_ACK				(0x80 + 0)
-#define	MBOX_CMD_NAK				(0x80 + 1)
+#define MBOX_CMD_ACK (0x80 + 0)
+#define MBOX_CMD_NAK (0x80 + 1)
 
-#define	IPFS_WR4(_sc, _r, _v)	bus_write_4((_sc)->mem_res_ipfs, (_r), (_v))
-#define	IPFS_RD4(_sc, _r)	bus_read_4((_sc)->mem_res_ipfs, (_r))
-#define	FPCI_WR4(_sc, _r, _v)	bus_write_4((_sc)->mem_res_fpci, (_r), (_v))
-#define	FPCI_RD4(_sc, _r)	bus_read_4((_sc)->mem_res_fpci, (_r))
+#define IPFS_WR4(_sc, _r, _v) bus_write_4((_sc)->mem_res_ipfs, (_r), (_v))
+#define IPFS_RD4(_sc, _r) bus_read_4((_sc)->mem_res_ipfs, (_r))
+#define FPCI_WR4(_sc, _r, _v) bus_write_4((_sc)->mem_res_fpci, (_r), (_v))
+#define FPCI_RD4(_sc, _r) bus_read_4((_sc)->mem_res_fpci, (_r))
 
-#define	LOCK(_sc)		mtx_lock(&(_sc)->mtx)
-#define	UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
-#define	SLEEP(_sc, timeout)						\
-    mtx_sleep(sc, &sc->mtx, 0, "tegra_xhci", timeout);
-#define	LOCK_INIT(_sc)							\
-    mtx_init(&_sc->mtx, device_get_nameunit(_sc->dev), "tegra_xhci", MTX_DEF)
-#define	LOCK_DESTROY(_sc)	mtx_destroy(&_sc->mtx)
-#define	ASSERT_LOCKED(_sc)	mtx_assert(&_sc->mtx, MA_OWNED)
-#define	ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->mtx, MA_NOTOWNED)
+#define LOCK(_sc) mtx_lock(&(_sc)->mtx)
+#define UNLOCK(_sc) mtx_unlock(&(_sc)->mtx)
+#define SLEEP(_sc, timeout) mtx_sleep(sc, &sc->mtx, 0, "tegra_xhci", timeout);
+#define LOCK_INIT(_sc) \
+	mtx_init(      \
+	    &_sc->mtx, device_get_nameunit(_sc->dev), "tegra_xhci", MTX_DEF)
+#define LOCK_DESTROY(_sc) mtx_destroy(&_sc->mtx)
+#define ASSERT_LOCKED(_sc) mtx_assert(&_sc->mtx, MA_OWNED)
+#define ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->mtx, MA_NOTOWNED)
 
 struct tegra_xusb_fw_hdr {
-	uint32_t	boot_loadaddr_in_imem;
-	uint32_t	boot_codedfi_offset;
-	uint32_t	boot_codetag;
-	uint32_t	boot_codesize;
+	uint32_t boot_loadaddr_in_imem;
+	uint32_t boot_codedfi_offset;
+	uint32_t boot_codetag;
+	uint32_t boot_codesize;
 
-	uint32_t	phys_memaddr;
-	uint16_t	reqphys_memsize;
-	uint16_t	alloc_phys_memsize;
+	uint32_t phys_memaddr;
+	uint16_t reqphys_memsize;
+	uint16_t alloc_phys_memsize;
 
-	uint32_t	rodata_img_offset;
-	uint32_t	rodata_section_start;
-	uint32_t	rodata_section_end;
-	uint32_t	main_fnaddr;
+	uint32_t rodata_img_offset;
+	uint32_t rodata_section_start;
+	uint32_t rodata_section_end;
+	uint32_t main_fnaddr;
 
-	uint32_t	fwimg_cksum;
-	uint32_t	fwimg_created_time;
+	uint32_t fwimg_cksum;
+	uint32_t fwimg_created_time;
 
-	uint32_t	imem_resident_start;
-	uint32_t	imem_resident_end;
-	uint32_t	idirect_start;
-	uint32_t	idirect_end;
-	uint32_t	l2_imem_start;
-	uint32_t	l2_imem_end;
-	uint32_t	version_id;
-	uint8_t		init_ddirect;
-	uint8_t		reserved[3];
-	uint32_t	phys_addr_log_buffer;
-	uint32_t	total_log_entries;
-	uint32_t	dequeue_ptr;
-	uint32_t	dummy[2];
-	uint32_t	fwimg_len;
-	uint8_t		magic[8];
-	uint32_t	ss_low_power_entry_timeout;
-	uint8_t		num_hsic_port;
-	uint8_t		ss_portmap;
-	uint8_t		build;
-	uint8_t		padding[137]; /* Pad to 256 bytes */
+	uint32_t imem_resident_start;
+	uint32_t imem_resident_end;
+	uint32_t idirect_start;
+	uint32_t idirect_end;
+	uint32_t l2_imem_start;
+	uint32_t l2_imem_end;
+	uint32_t version_id;
+	uint8_t init_ddirect;
+	uint8_t reserved[3];
+	uint32_t phys_addr_log_buffer;
+	uint32_t total_log_entries;
+	uint32_t dequeue_ptr;
+	uint32_t dummy[2];
+	uint32_t fwimg_len;
+	uint8_t magic[8];
+	uint32_t ss_low_power_entry_timeout;
+	uint8_t num_hsic_port;
+	uint8_t ss_portmap;
+	uint8_t build;
+	uint8_t padding[137]; /* Pad to 256 bytes */
 };
 
 struct xhci_soc;
 struct tegra_xhci_softc {
-	struct xhci_softc 	xhci_softc;
-	device_t		dev;
-	struct xhci_soc		*soc;
-	struct mtx		mtx;
-	struct resource		*mem_res_fpci;
-	struct resource		*mem_res_ipfs;
-	struct resource		*irq_res_mbox;
-	void			*irq_hdl_mbox;
+	struct xhci_softc xhci_softc;
+	device_t dev;
+	struct xhci_soc *soc;
+	struct mtx mtx;
+	struct resource *mem_res_fpci;
+	struct resource *mem_res_ipfs;
+	struct resource *irq_res_mbox;
+	void *irq_hdl_mbox;
 
-	clk_t			clk_xusb_host;
-	clk_t			clk_xusb_gate;
-	clk_t			clk_xusb_falcon_src;
-	clk_t			clk_xusb_ss;
-	clk_t			clk_xusb_hs_src;
-	clk_t			clk_xusb_fs_src;
-	hwreset_t		hwreset_xusb_host;
-	hwreset_t		hwreset_xusb_ss;
-	regulator_t		regulators[16];		/* Safe maximum */
-	phy_t 			phys[8];		/* Safe maximum */
+	clk_t clk_xusb_host;
+	clk_t clk_xusb_gate;
+	clk_t clk_xusb_falcon_src;
+	clk_t clk_xusb_ss;
+	clk_t clk_xusb_hs_src;
+	clk_t clk_xusb_fs_src;
+	hwreset_t hwreset_xusb_host;
+	hwreset_t hwreset_xusb_ss;
+	regulator_t regulators[16]; /* Safe maximum */
+	phy_t phys[8];		    /* Safe maximum */
 
-	struct intr_config_hook	irq_hook;
-	bool			xhci_inited;
-	vm_offset_t		fw_vaddr;
-	vm_size_t		fw_size;
+	struct intr_config_hook irq_hook;
+	bool xhci_inited;
+	vm_offset_t fw_vaddr;
+	vm_size_t fw_size;
 };
 
 struct xhci_soc {
-	char		*fw_name;
-	char 		**regulator_names;
-	char 		**phy_names;
+	char *fw_name;
+	char **regulator_names;
+	char **phy_names;
 };
 
 /* Tegra 124 config */
-static char *tegra124_reg_names[] = {
-	"avddio-pex-supply",
-	"dvddio-pex-supply",
-	"avdd-usb-supply",
-	"avdd-pll-utmip-supply",
-	"avdd-pll-erefe-supply",
-	"avdd-usb-ss-pll-supply",
-	"hvdd-usb-ss-supply",
-	"hvdd-usb-ss-pll-e-supply",
-	NULL
-};
+static char *tegra124_reg_names[] = { "avddio-pex-supply", "dvddio-pex-supply",
+	"avdd-usb-supply", "avdd-pll-utmip-supply", "avdd-pll-erefe-supply",
+	"avdd-usb-ss-pll-supply", "hvdd-usb-ss-supply",
+	"hvdd-usb-ss-pll-e-supply", NULL };
 
-static char *tegra124_phy_names[] = {
-	"usb2-0",
-	"usb2-1",
-	"usb2-2",
-	"usb3-0",
-	NULL
-};
+static char *tegra124_phy_names[] = { "usb2-0", "usb2-1", "usb2-2", "usb3-0",
+	NULL };
 
-static struct xhci_soc tegra124_soc =
-{
+static struct xhci_soc tegra124_soc = {
 	.fw_name = "tegra124_xusb_fw",
 	.regulator_names = tegra124_reg_names,
 	.phy_names = tegra124_phy_names,
 };
 
 /* Tegra 210 config */
-static char *tegra210_reg_names[] = {
-	"dvddio-pex-supply",
-	"hvddio-pex-supply",
-	"avdd-usb-supply",
-	"avdd-pll-utmip-supply",
-	"avdd-pll-uerefe-supply",
-	"dvdd-usb-ss-pll-supply",
-	"hvdd-usb-ss-pll-e-supply",
-	NULL
-};
+static char *tegra210_reg_names[] = { "dvddio-pex-supply", "hvddio-pex-supply",
+	"avdd-usb-supply", "avdd-pll-utmip-supply", "avdd-pll-uerefe-supply",
+	"dvdd-usb-ss-pll-supply", "hvdd-usb-ss-pll-e-supply", NULL };
 
-static char *tegra210_phy_names[] = {
-	"usb2-0",
-	"usb2-1",
-	"usb2-2",
-	"usb2-3",
-	"usb3-0",
-	"usb3-1",
-	NULL
-};
+static char *tegra210_phy_names[] = { "usb2-0", "usb2-1", "usb2-2", "usb2-3",
+	"usb3-0", "usb3-1", NULL };
 
-static struct xhci_soc tegra210_soc =
-{
+static struct xhci_soc tegra210_soc = {
 	.fw_name = "tegra210_xusb_fw",
 	.regulator_names = tegra210_reg_names,
 	.phy_names = tegra210_phy_names,
 };
 
 /* Compatible devices. */
-static struct ofw_compat_data compat_data[] = {
-	{"nvidia,tegra124-xusb", (uintptr_t)&tegra124_soc},
-	{"nvidia,tegra210-xusb", (uintptr_t)&tegra210_soc},
-	{NULL,		 	 0}
-};
-
+static struct ofw_compat_data compat_data[] = { { "nvidia,tegra124-xusb",
+						    (uintptr_t)&tegra124_soc },
+	{ "nvidia,tegra210-xusb", (uintptr_t)&tegra210_soc }, { NULL, 0 } };
 
 static uint32_t
 CSB_RD4(struct tegra_xhci_softc *sc, uint32_t addr)
@@ -388,28 +357,27 @@ get_fdt_resources(struct tegra_xhci_softc *sc, phandle_t node)
 	/* Regulators. */
 	for (i = 0; sc->soc->regulator_names[i] != NULL; i++) {
 		if (i >= nitems(sc->regulators)) {
-			device_printf(sc->dev,
-			    "Too many regulators present in DT.\n");
+			device_printf(
+			    sc->dev, "Too many regulators present in DT.\n");
 			return (EOVERFLOW);
 		}
 		rv = regulator_get_by_ofw_property(sc->dev, 0,
 		    sc->soc->regulator_names[i], sc->regulators + i);
 		if (rv != 0) {
-			device_printf(sc->dev,
-			    "Cannot get '%s' regulator\n",
+			device_printf(sc->dev, "Cannot get '%s' regulator\n",
 			    sc->soc->regulator_names[i]);
 			return (ENXIO);
 		}
 	}
 
-	rv = hwreset_get_by_ofw_name(sc->dev, 0, "xusb_host",
-	    &sc->hwreset_xusb_host);
+	rv = hwreset_get_by_ofw_name(
+	    sc->dev, 0, "xusb_host", &sc->hwreset_xusb_host);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'xusb_host' reset\n");
 		return (ENXIO);
 	}
-	rv = hwreset_get_by_ofw_name(sc->dev, 0, "xusb_ss",
-	    &sc->hwreset_xusb_ss);
+	rv = hwreset_get_by_ofw_name(
+	    sc->dev, 0, "xusb_ss", &sc->hwreset_xusb_ss);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'xusb_ss' reset\n");
 		return (ENXIO);
@@ -418,12 +386,12 @@ get_fdt_resources(struct tegra_xhci_softc *sc, phandle_t node)
 	/* Phys. */
 	for (i = 0; sc->soc->phy_names[i] != NULL; i++) {
 		if (i >= nitems(sc->phys)) {
-			device_printf(sc->dev,
-			    "Too many phys present in DT.\n");
+			device_printf(
+			    sc->dev, "Too many phys present in DT.\n");
 			return (EOVERFLOW);
 		}
-		rv = phy_get_by_ofw_name(sc->dev, 0, sc->soc->phy_names[i],
-		    sc->phys + i);
+		rv = phy_get_by_ofw_name(
+		    sc->dev, 0, sc->soc->phy_names[i], sc->phys + i);
 		if (rv != 0 && rv != ENOENT) {
 			device_printf(sc->dev, "Cannot get '%s' phy.\n",
 			    sc->soc->phy_names[i]);
@@ -431,32 +399,30 @@ get_fdt_resources(struct tegra_xhci_softc *sc, phandle_t node)
 		}
 	}
 
-	rv = clk_get_by_ofw_name(sc->dev, 0, "xusb_host",
-	    &sc->clk_xusb_host);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "xusb_host", &sc->clk_xusb_host);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'xusb_host' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, 0, "xusb_falcon_src",
-	    &sc->clk_xusb_falcon_src);
+	rv = clk_get_by_ofw_name(
+	    sc->dev, 0, "xusb_falcon_src", &sc->clk_xusb_falcon_src);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'xusb_falcon_src' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, 0, "xusb_ss",
-	    &sc->clk_xusb_ss);
+	rv = clk_get_by_ofw_name(sc->dev, 0, "xusb_ss", &sc->clk_xusb_ss);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'xusb_ss' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, 0, "xusb_hs_src",
-	    &sc->clk_xusb_hs_src);
+	rv = clk_get_by_ofw_name(
+	    sc->dev, 0, "xusb_hs_src", &sc->clk_xusb_hs_src);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'xusb_hs_src' clock\n");
 		return (ENXIO);
 	}
-	rv = clk_get_by_ofw_name(sc->dev, 0, "xusb_fs_src",
-	    &sc->clk_xusb_fs_src);
+	rv = clk_get_by_ofw_name(
+	    sc->dev, 0, "xusb_fs_src", &sc->clk_xusb_fs_src);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'xusb_fs_src' clock\n");
 		return (ENXIO);
@@ -492,8 +458,7 @@ enable_fdt_resources(struct tegra_xhci_softc *sc)
 			continue;
 		rv = regulator_enable(sc->regulators[i]);
 		if (rv != 0) {
-			device_printf(sc->dev,
-			    "Cannot enable '%s' regulator\n",
+			device_printf(sc->dev, "Cannot enable '%s' regulator\n",
 			    sc->soc->regulator_names[i]);
 			return (rv);
 		}
@@ -519,20 +484,19 @@ enable_fdt_resources(struct tegra_xhci_softc *sc)
 	/* The XUSB gate clock must be enabled before XUSBA can be powered. */
 	rv = clk_enable(sc->clk_xusb_gate);
 	if (rv != 0) {
-		device_printf(sc->dev,
-		    "Cannot enable 'xusb_gate' clock\n");
+		device_printf(sc->dev, "Cannot enable 'xusb_gate' clock\n");
 		return (rv);
 	}
 
 	/* Power on XUSB host and XUSB SS domains. */
-	rv = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_XUSBC,
-	    sc->clk_xusb_host, sc->hwreset_xusb_host);
+	rv = tegra_powergate_sequence_power_up(
+	    TEGRA_POWERGATE_XUSBC, sc->clk_xusb_host, sc->hwreset_xusb_host);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot powerup 'xusbc' domain\n");
 		return (rv);
 	}
-	rv = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_XUSBA,
-	    sc->clk_xusb_ss, sc->hwreset_xusb_ss);
+	rv = tegra_powergate_sequence_power_up(
+	    TEGRA_POWERGATE_XUSBA, sc->clk_xusb_ss, sc->hwreset_xusb_ss);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot powerup 'xusba' domain\n");
 		return (rv);
@@ -541,20 +505,18 @@ enable_fdt_resources(struct tegra_xhci_softc *sc)
 	/* Enable rest of clocks */
 	rv = clk_enable(sc->clk_xusb_falcon_src);
 	if (rv != 0) {
-		device_printf(sc->dev,
-		    "Cannot enable 'xusb_falcon_src' clock\n");
+		device_printf(
+		    sc->dev, "Cannot enable 'xusb_falcon_src' clock\n");
 		return (rv);
 	}
 	rv = clk_enable(sc->clk_xusb_fs_src);
 	if (rv != 0) {
-		device_printf(sc->dev,
-		    "Cannot enable 'xusb_fs_src' clock\n");
+		device_printf(sc->dev, "Cannot enable 'xusb_fs_src' clock\n");
 		return (rv);
 	}
 	rv = clk_enable(sc->clk_xusb_hs_src);
 	if (rv != 0) {
-		device_printf(sc->dev,
-		    "Cannot enable 'xusb_hs_src' clock\n");
+		device_printf(sc->dev, "Cannot enable 'xusb_hs_src' clock\n");
 		return (rv);
 	}
 
@@ -596,16 +558,15 @@ mbox_send_cmd(struct tegra_xhci_softc *sc, uint32_t cmd, uint32_t data)
 
 	reg = FPCI_RD4(sc, T_XUSB_CFG_ARU_MAILBOX_OWNER);
 	if (reg != ARU_MAILBOX_OWNER_NONE) {
-		device_printf(sc->dev,
-		    "CPU mailbox is busy: 0x%08X\n", reg);
+		device_printf(sc->dev, "CPU mailbox is busy: 0x%08X\n", reg);
 		return (EBUSY);
 	}
 	/* XXX Is this right? Retry loop? Wait before send? */
 	FPCI_WR4(sc, T_XUSB_CFG_ARU_MAILBOX_OWNER, ARU_MAILBOX_OWNER_SW);
 	reg = FPCI_RD4(sc, T_XUSB_CFG_ARU_MAILBOX_OWNER);
 	if (reg != ARU_MAILBOX_OWNER_SW) {
-		device_printf(sc->dev,
-		    "Cannot acquire CPU mailbox: 0x%08X\n", reg);
+		device_printf(
+		    sc->dev, "Cannot acquire CPU mailbox: 0x%08X\n", reg);
 		return (EBUSY);
 	}
 	reg = ARU_MAILBOX_DATA_IN_TYPE(cmd) | ARU_MAILBOX_DATA_IN_DATA(data);
@@ -622,12 +583,12 @@ mbox_send_cmd(struct tegra_xhci_softc *sc, uint32_t cmd, uint32_t data)
 		DELAY(100);
 	}
 	if (i <= 0) {
-		device_printf(sc->dev,
-		    "Command response timeout: 0x%08X\n", reg);
+		device_printf(
+		    sc->dev, "Command response timeout: 0x%08X\n", reg);
 		return (ETIMEDOUT);
 	}
 
-	return(0);
+	return (0);
 }
 
 static void
@@ -642,24 +603,23 @@ process_msg(struct tegra_xhci_softc *sc, uint32_t req_cmd, uint32_t req_data,
 	switch (req_cmd) {
 	case MBOX_CMD_INC_FALC_CLOCK:
 	case MBOX_CMD_DEC_FALC_CLOCK:
-		rv = clk_set_freq(sc->clk_xusb_falcon_src, req_data * 1000ULL,
-		    0);
+		rv = clk_set_freq(
+		    sc->clk_xusb_falcon_src, req_data * 1000ULL, 0);
 		if (rv == 0) {
 			rv = clk_get_freq(sc->clk_xusb_falcon_src, &freq);
 			*resp_data = (uint32_t)(freq / 1000);
 		}
-		*resp_cmd = rv == 0 ? MBOX_CMD_ACK: MBOX_CMD_NAK;
+		*resp_cmd = rv == 0 ? MBOX_CMD_ACK : MBOX_CMD_NAK;
 		break;
 
 	case MBOX_CMD_INC_SSPI_CLOCK:
 	case MBOX_CMD_DEC_SSPI_CLOCK:
-		rv = clk_set_freq(sc->clk_xusb_ss, req_data * 1000ULL,
-		    0);
+		rv = clk_set_freq(sc->clk_xusb_ss, req_data * 1000ULL, 0);
 		if (rv == 0) {
 			rv = clk_get_freq(sc->clk_xusb_ss, &freq);
 			*resp_data = (uint32_t)(freq / 1000);
 		}
-		*resp_cmd = rv == 0 ? MBOX_CMD_ACK: MBOX_CMD_NAK;
+		*resp_cmd = rv == 0 ? MBOX_CMD_ACK : MBOX_CMD_NAK;
 		break;
 
 	case MBOX_CMD_SET_BW:
@@ -700,8 +660,8 @@ process_msg(struct tegra_xhci_softc *sc, uint32_t req_cmd, uint32_t req_data,
 		break;
 
 	default:
-		device_printf(sc->dev,
-		    "Received unknown command: %u\n", req_cmd);
+		device_printf(
+		    sc->dev, "Received unknown command: %u\n", req_cmd);
 	}
 }
 
@@ -725,17 +685,16 @@ intr_mbox(void *arg)
 	msg = FPCI_RD4(sc, T_XUSB_CFG_ARU_MAILBOX_DATA_OUT);
 	resp_cmd = 0;
 	process_msg(sc, ARU_MAILBOX_DATA_OUT_TYPE(msg),
-	   ARU_MAILBOX_DATA_OUT_DATA(msg), &resp_cmd, &resp_data);
+	    ARU_MAILBOX_DATA_OUT_DATA(msg), &resp_cmd, &resp_data);
 	if (resp_cmd != 0)
 		mbox_send_ack(sc, resp_cmd, resp_data);
 	else
-		FPCI_WR4(sc, T_XUSB_CFG_ARU_MAILBOX_OWNER,
-		    ARU_MAILBOX_OWNER_NONE);
+		FPCI_WR4(
+		    sc, T_XUSB_CFG_ARU_MAILBOX_OWNER, ARU_MAILBOX_OWNER_NONE);
 
 	reg = FPCI_RD4(sc, T_XUSB_CFG_ARU_MAILBOX_CMD);
 	reg &= ~ARU_MAILBOX_CMD_DEST_SMI;
 	FPCI_WR4(sc, T_XUSB_CFG_ARU_MAILBOX_CMD, reg);
-
 }
 
 static int
@@ -748,7 +707,7 @@ load_fw(struct tegra_xhci_softc *sc)
 	vm_size_t fw_size;
 	uint32_t code_tags, code_size;
 	struct clocktime fw_clock;
-	struct timespec	fw_timespec;
+	struct timespec fw_timespec;
 	int i;
 
 	/* Reset ARU */
@@ -759,7 +718,7 @@ load_fw(struct tegra_xhci_softc *sc)
 	if (CSB_RD4(sc, XUSB_CSB_MEMPOOL_ILOAD_BASE_LO) != 0) {
 		device_printf(sc->dev,
 		    "XUSB CPU is already loaded, CPUCTL: 0x%08X\n",
-			 CSB_RD4(sc, XUSB_FALCON_CPUCTL));
+		    CSB_RD4(sc, XUSB_FALCON_CPUCTL));
 		return (0);
 	}
 
@@ -773,8 +732,8 @@ load_fw(struct tegra_xhci_softc *sc)
 	fw_hdr = (const struct tegra_xusb_fw_hdr *)fw->data;
 	fw_size = fw_hdr->fwimg_len;
 
-	fw_vaddr = kmem_alloc_contig(fw_size, M_WAITOK, 0, -1UL, PAGE_SIZE, 0,
-	    VM_MEMATTR_UNCACHEABLE);
+	fw_vaddr = kmem_alloc_contig(
+	    fw_size, M_WAITOK, 0, -1UL, PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
 	fw_paddr = vtophys(fw_vaddr);
 	fw_hdr = (const struct tegra_xusb_fw_hdr *)fw_vaddr;
 	memcpy((void *)fw_vaddr, fw->data, fw_size);
@@ -791,36 +750,35 @@ load_fw(struct tegra_xhci_softc *sc)
 	CSB_WR4(sc, XUSB_CSB_MEMPOOL_APMAP, APMAP_BOOTPATH);
 
 	/* Invalidate full L2IMEM context. */
-	CSB_WR4(sc, XUSB_CSB_MEMPOOL_L2IMEMOP_TRIG,
-	    L2IMEMOP_INVALIDATE_ALL);
+	CSB_WR4(sc, XUSB_CSB_MEMPOOL_L2IMEMOP_TRIG, L2IMEMOP_INVALIDATE_ALL);
 
 	/* Program load of L2IMEM by boot code. */
 	code_tags = howmany(fw_hdr->boot_codetag, XUSB_CSB_IMEM_BLOCK_SIZE);
 	code_size = howmany(fw_hdr->boot_codesize, XUSB_CSB_IMEM_BLOCK_SIZE);
 	CSB_WR4(sc, XUSB_CSB_MEMPOOL_L2IMEMOP_SIZE,
-	    L2IMEMOP_SIZE_OFFSET(code_tags) |
-	    L2IMEMOP_SIZE_SIZE(code_size));
+	    L2IMEMOP_SIZE_OFFSET(code_tags) | L2IMEMOP_SIZE_SIZE(code_size));
 
 	/* Execute L2IMEM boot code fetch. */
-	CSB_WR4(sc, XUSB_CSB_MEMPOOL_L2IMEMOP_TRIG,
-	    L2IMEMOP_LOAD_LOCKED_RESULT);
+	CSB_WR4(
+	    sc, XUSB_CSB_MEMPOOL_L2IMEMOP_TRIG, L2IMEMOP_LOAD_LOCKED_RESULT);
 
 	/* Program FALCON auto-fill range and block count */
 	CSB_WR4(sc, XUSB_FALCON_IMFILLCTL, code_size);
 	CSB_WR4(sc, XUSB_FALCON_IMFILLRNG1,
 	    IMFILLRNG1_TAG_LO(code_tags) |
-	    IMFILLRNG1_TAG_HI(code_tags + code_size));
+		IMFILLRNG1_TAG_HI(code_tags + code_size));
 
 	CSB_WR4(sc, XUSB_FALCON_DMACTL, 0);
 	/* Wait for CPU */
 	for (i = 500; i > 0; i--) {
 		if (CSB_RD4(sc, XUSB_CSB_MEMPOOL_L2IMEMOP_RESULT) &
-		     L2IMEMOP_RESULT_VLD)
+		    L2IMEMOP_RESULT_VLD)
 			break;
 		DELAY(100);
 	}
 	if (i <= 0) {
-		device_printf(sc->dev, "Timedout while wating for DMA, "
+		device_printf(sc->dev,
+		    "Timedout while wating for DMA, "
 		    "state: 0x%08X\n",
 		    CSB_RD4(sc, XUSB_CSB_MEMPOOL_L2IMEMOP_RESULT));
 		return (ETIMEDOUT);
@@ -837,8 +795,10 @@ load_fw(struct tegra_xhci_softc *sc)
 		DELAY(100);
 	}
 	if (i <= 0) {
-		device_printf(sc->dev, "Timedout while wating for FALCON cpu, "
-		    "state: 0x%08X\n", CSB_RD4(sc, XUSB_FALCON_CPUCTL));
+		device_printf(sc->dev,
+		    "Timedout while wating for FALCON cpu, "
+		    "state: 0x%08X\n",
+		    CSB_RD4(sc, XUSB_FALCON_CPUCTL));
 		return (ETIMEDOUT);
 	}
 
@@ -848,10 +808,10 @@ load_fw(struct tegra_xhci_softc *sc)
 	device_printf(sc->dev,
 	    " Falcon firmware version: %02X.%02X.%04X,"
 	    " (%d/%d/%d %d:%02d:%02d UTC)\n",
-	    (fw_hdr->version_id >> 24) & 0xFF,(fw_hdr->version_id >> 15) & 0xFF,
-	    fw_hdr->version_id & 0xFFFF,
-	    fw_clock.day, fw_clock.mon, fw_clock.year,
-	    fw_clock.hour, fw_clock.min, fw_clock.sec);
+	    (fw_hdr->version_id >> 24) & 0xFF,
+	    (fw_hdr->version_id >> 15) & 0xFF, fw_hdr->version_id & 0xFFFF,
+	    fw_clock.day, fw_clock.mon, fw_clock.year, fw_clock.hour,
+	    fw_clock.min, fw_clock.sec);
 
 	return (0);
 }
@@ -963,8 +923,8 @@ tegra_xhci_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	sc->soc = (struct xhci_soc *)ofw_bus_search_compatible(dev,
-	    compat_data)->ocd_data;
+	sc->soc = (struct xhci_soc *)ofw_bus_search_compatible(dev, compat_data)
+		      ->ocd_data;
 	node = ofw_bus_get_node(dev);
 	xsc = &sc->xhci_softc;
 	LOCK_INIT(sc);
@@ -982,44 +942,43 @@ tegra_xhci_attach(device_t dev)
 
 	/* Allocate resources. */
 	rid = 0;
-	xsc->sc_io_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	xsc->sc_io_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (xsc->sc_io_res == NULL) {
-		device_printf(dev,
-		    "Could not allocate HCD memory resources\n");
+		device_printf(dev, "Could not allocate HCD memory resources\n");
 		rv = ENXIO;
 		goto error;
 	}
 	rid = 1;
-	sc->mem_res_fpci = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res_fpci = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res_fpci == NULL) {
-		device_printf(dev,
-		    "Could not allocate FPCI memory resources\n");
+		device_printf(
+		    dev, "Could not allocate FPCI memory resources\n");
 		rv = ENXIO;
 		goto error;
 	}
 	rid = 2;
-	sc->mem_res_ipfs = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res_ipfs = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res_ipfs == NULL) {
-		device_printf(dev,
-		    "Could not allocate IPFS memory resources\n");
+		device_printf(
+		    dev, "Could not allocate IPFS memory resources\n");
 		rv = ENXIO;
 		goto error;
 	}
 
 	rid = 0;
-	xsc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	xsc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (xsc->sc_irq_res == NULL) {
 		device_printf(dev, "Could not allocate HCD IRQ resources\n");
 		rv = ENXIO;
 		goto error;
 	}
 	rid = 1;
-	sc->irq_res_mbox = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->irq_res_mbox = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->irq_res_mbox == NULL) {
 		device_printf(dev, "Could not allocate MBOX IRQ resources\n");
 		rv = ENXIO;
@@ -1067,15 +1026,15 @@ tegra_xhci_attach(device_t dev)
 	sc->xhci_inited = true;
 	rv = xhci_start_controller(xsc);
 	if (rv != 0) {
-		device_printf(sc->dev,
-		    "Could not start XHCI controller: %d\n", rv);
+		device_printf(
+		    sc->dev, "Could not start XHCI controller: %d\n", rv);
 		goto error;
 	}
 
 	rv = bus_setup_intr(dev, sc->irq_res_mbox, INTR_TYPE_MISC | INTR_MPSAFE,
 	    NULL, intr_mbox, sc, &sc->irq_hdl_mbox);
 	if (rv != 0) {
-		device_printf(dev, "Could not setup error IRQ: %d\n",rv);
+		device_printf(dev, "Could not setup error IRQ: %d\n", rv);
 		xsc->sc_intr_hdl = NULL;
 		goto error;
 	}
@@ -1083,7 +1042,7 @@ tegra_xhci_attach(device_t dev)
 	rv = bus_setup_intr(dev, xsc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (driver_intr_t *)xhci_interrupt, xsc, &xsc->sc_intr_hdl);
 	if (rv != 0) {
-		device_printf(dev, "Could not setup error IRQ: %d\n",rv);
+		device_printf(dev, "Could not setup error IRQ: %d\n", rv);
 		xsc->sc_intr_hdl = NULL;
 		goto error;
 	}
@@ -1098,7 +1057,7 @@ tegra_xhci_attach(device_t dev)
 	return (0);
 
 error:
-panic("XXXXX");
+	panic("XXXXX");
 	tegra_xhci_detach(dev);
 	return (rv);
 }
@@ -1119,7 +1078,7 @@ static device_method_t xhci_methods[] = {
 };
 
 static devclass_t xhci_devclass;
-static DEFINE_CLASS_0(xhci, xhci_driver, xhci_methods,
-    sizeof(struct tegra_xhci_softc));
+static DEFINE_CLASS_0(
+    xhci, xhci_driver, xhci_methods, sizeof(struct tegra_xhci_softc));
 DRIVER_MODULE(tegra_xhci, simplebus, xhci_driver, xhci_devclass, NULL, NULL);
 MODULE_DEPEND(tegra_xhci, usb, 1, 1, 1);

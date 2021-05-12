@@ -100,8 +100,8 @@ linux_hrtimer_start(struct hrtimer *hrtimer, ktime_t time)
 }
 
 void
-linux_hrtimer_start_range_ns(struct hrtimer *hrtimer, ktime_t time,
-    int64_t nsec)
+linux_hrtimer_start_range_ns(
+    struct hrtimer *hrtimer, ktime_t time, int64_t nsec)
 {
 
 	mtx_lock(&hrtimer->mtx);

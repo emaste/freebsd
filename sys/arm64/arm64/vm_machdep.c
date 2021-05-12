@@ -40,16 +40,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 
 #include <vm/vm.h>
-#include <vm/vm_page.h>
-#include <vm/vm_map.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
+#include <vm/vm_map.h>
+#include <vm/vm_page.h>
 
 #include <machine/armreg.h>
 #include <machine/cpu.h>
+#include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
-#include <machine/frame.h>
 
 #ifdef VFP
 #include <machine/vfp.h>
@@ -86,7 +86,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	}
 
 	pcb2 = (struct pcb *)(td2->td_kstack +
-	    td2->td_kstack_pages * PAGE_SIZE) - 1;
+		   td2->td_kstack_pages * PAGE_SIZE) -
+	    1;
 
 	td2->td_pcb = pcb2;
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
@@ -122,7 +123,7 @@ cpu_reset(void)
 	psci_reset();
 
 	printf("cpu_reset failed");
-	while(1)
+	while (1)
 		__asm volatile("wfi" ::: "memory");
 }
 
@@ -146,7 +147,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	if (__predict_true(error == 0)) {
 		frame->tf_x[0] = td->td_retval[0];
 		frame->tf_x[1] = td->td_retval[1];
-		frame->tf_spsr &= ~PSR_C;	/* carry bit */
+		frame->tf_spsr &= ~PSR_C; /* carry bit */
 		return;
 	}
 
@@ -157,7 +158,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	case EJUSTRETURN:
 		break;
 	default:
-		frame->tf_spsr |= PSR_C;	/* carry bit */
+		frame->tf_spsr |= PSR_C; /* carry bit */
 		frame->tf_x[0] = error;
 		break;
 	}
@@ -180,7 +181,8 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	td->td_pcb->pcb_x[9] = (uintptr_t)td;
 	td->td_pcb->pcb_lr = (uintptr_t)fork_trampoline;
 	td->td_pcb->pcb_sp = (uintptr_t)td->td_frame;
-	td->td_pcb->pcb_fpflags &= ~(PCB_FP_STARTED | PCB_FP_KERN | PCB_FP_NOSAVE);
+	td->td_pcb->pcb_fpflags &= ~(
+	    PCB_FP_STARTED | PCB_FP_KERN | PCB_FP_NOSAVE);
 	td->td_pcb->pcb_fpusaved = &td->td_pcb->pcb_fpustate;
 	td->td_pcb->pcb_vfpcpu = UINT_MAX;
 
@@ -194,16 +196,18 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
  * the entry function with the given argument.
  */
 void
-cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
-	stack_t *stack)
+cpu_set_upcall(
+    struct thread *td, void (*entry)(void *), void *arg, stack_t *stack)
 {
 	struct trapframe *tf = td->td_frame;
 
 	/* 32bits processes use r13 for sp */
 	if (td->td_frame->tf_spsr & PSR_M_32)
-		tf->tf_x[13] = STACKALIGN((uintptr_t)stack->ss_sp + stack->ss_size);
+		tf->tf_x[13] = STACKALIGN(
+		    (uintptr_t)stack->ss_sp + stack->ss_size);
 	else
-		tf->tf_sp = STACKALIGN((uintptr_t)stack->ss_sp + stack->ss_size);
+		tf->tf_sp = STACKALIGN(
+		    (uintptr_t)stack->ss_sp + stack->ss_size);
 	tf->tf_elr = (register_t)entry;
 	tf->tf_x[0] = (register_t)arg;
 }
@@ -244,7 +248,8 @@ cpu_thread_alloc(struct thread *td)
 {
 
 	td->td_pcb = (struct pcb *)(td->td_kstack +
-	    td->td_kstack_pages * PAGE_SIZE) - 1;
+			 td->td_kstack_pages * PAGE_SIZE) -
+	    1;
 	td->td_frame = (struct trapframe *)STACKALIGN(
 	    (struct trapframe *)td->td_pcb - 1);
 }

@@ -31,24 +31,24 @@
 #ifndef _SYS_IOV_SCHEMA_H_
 #define _SYS_IOV_SCHEMA_H_
 
-#define	IOV_SCHEMA_HASDEFAULT	(1 << 0)
-#define	IOV_SCHEMA_REQUIRED	(1 << 1)
+#define IOV_SCHEMA_HASDEFAULT (1 << 0)
+#define IOV_SCHEMA_REQUIRED (1 << 1)
 
-nvlist_t	*pci_iov_schema_alloc_node(void);
+nvlist_t *pci_iov_schema_alloc_node(void);
 
-void	pci_iov_schema_add_bool(nvlist_t *schema, const char *name,
-	    uint32_t flags,  int defaultVal);
-void	pci_iov_schema_add_string(nvlist_t *schema, const char *name,
-	    uint32_t flags, const char *defaultVal);
-void	pci_iov_schema_add_uint8(nvlist_t *schema, const char *name,
-	    uint32_t flags, uint8_t defaultVal);
-void	pci_iov_schema_add_uint16(nvlist_t *schema, const char *name,
-	    uint32_t flags, uint16_t defaultVal);
-void	pci_iov_schema_add_uint32(nvlist_t *schema, const char *name,
-	    uint32_t flags, uint32_t defaultVal);
-void	pci_iov_schema_add_uint64(nvlist_t *schema, const char *name,
-	    uint32_t flags, uint64_t defaultVal);
-void	pci_iov_schema_add_unicast_mac(nvlist_t *schema, const char *name,
-	    uint32_t flags, const uint8_t * defaultVal);
+void pci_iov_schema_add_bool(
+    nvlist_t *schema, const char *name, uint32_t flags, int defaultVal);
+void pci_iov_schema_add_string(
+    nvlist_t *schema, const char *name, uint32_t flags, const char *defaultVal);
+void pci_iov_schema_add_uint8(
+    nvlist_t *schema, const char *name, uint32_t flags, uint8_t defaultVal);
+void pci_iov_schema_add_uint16(
+    nvlist_t *schema, const char *name, uint32_t flags, uint16_t defaultVal);
+void pci_iov_schema_add_uint32(
+    nvlist_t *schema, const char *name, uint32_t flags, uint32_t defaultVal);
+void pci_iov_schema_add_uint64(
+    nvlist_t *schema, const char *name, uint32_t flags, uint64_t defaultVal);
+void pci_iov_schema_add_unicast_mac(nvlist_t *schema, const char *name,
+    uint32_t flags, const uint8_t *defaultVal);
 
 #endif

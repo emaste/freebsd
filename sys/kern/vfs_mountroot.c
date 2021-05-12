@@ -43,10 +43,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
+#include <sys/filedesc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -56,16 +58,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/filedesc.h>
 #include <sys/reboot.h>
 #include <sys/sbuf.h>
 #include <sys/stat.h>
-#include <sys/syscallsubr.h>
-#include <sys/sysproto.h>
 #include <sys/sx.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
-#include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/vnode.h>
 
 #include <geom/geom.h>
@@ -106,20 +106,15 @@ struct vnode *rootvnode;
  */
 struct mount *rootdevmp;
 
-char *rootdevnames[2] = {NULL, NULL};
+char *rootdevnames[2] = { NULL, NULL };
 
 struct mtx root_holds_mtx;
 MTX_SYSINIT(root_holds, &root_holds_mtx, "root_holds", MTX_DEF);
 
-static TAILQ_HEAD(, root_hold_token)	root_holds =
-    TAILQ_HEAD_INITIALIZER(root_holds);
+static TAILQ_HEAD(, root_hold_token) root_holds = TAILQ_HEAD_INITIALIZER(
+    root_holds);
 
-enum action {
-	A_CONTINUE,
-	A_PANIC,
-	A_REBOOT,
-	A_RETRY
-};
+enum action { A_CONTINUE, A_PANIC, A_REBOOT, A_RETRY };
 
 enum rh_flags {
 	RH_FREE,
@@ -142,12 +137,10 @@ SYSCTL_INT(_vfs, OID_AUTO, root_mount_always_wait, CTLFLAG_RDTUN,
     "Wait for root mount holds even if the root device already exists");
 
 SYSCTL_PROC(_vfs, OID_AUTO, root_mount_hold,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, 0, sysctl_vfs_root_mount_hold, "A",
-    "List of root mount hold tokens");
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_vfs_root_mount_hold, "A", "List of root mount hold tokens");
 
-static int
-sysctl_vfs_root_mount_hold(SYSCTL_HANDLER_ARGS)
+static int sysctl_vfs_root_mount_hold(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sb;
 	struct root_hold_token *h;
@@ -156,7 +149,7 @@ sysctl_vfs_root_mount_hold(SYSCTL_HANDLER_ARGS)
 	sbuf_new(&sb, NULL, 256, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
 
 	mtx_lock(&root_holds_mtx);
-	TAILQ_FOREACH(h, &root_holds, list) {
+	TAILQ_FOREACH (h, &root_holds, list) {
 		if (h != TAILQ_FIRST(&root_holds))
 			sbuf_putc(&sb, ' ');
 		sbuf_printf(&sb, "%s", h->who);
@@ -196,10 +189,10 @@ root_mount_hold_token(const char *identifier, struct root_hold_token *h)
 	h->who = identifier;
 	mtx_lock(&root_holds_mtx);
 #ifdef INVARIANTS
-	TAILQ_FOREACH(t, &root_holds, list) {
+	TAILQ_FOREACH (t, &root_holds, list) {
 		if (t == h) {
-			panic("Duplicate mount hold by '%s' on %p",
-			    identifier, h);
+			panic("Duplicate mount hold by '%s' on %p", identifier,
+			    h);
 		}
 	}
 #endif
@@ -350,8 +343,8 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 	if (mporoot != mpdevfs) {
 		/* Remount old root under /.mount or /mnt */
 		fspath = "/.mount";
-		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE,
-		    fspath, td);
+		NDINIT(
+		    &nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, fspath, td);
 		error = namei(&nd);
 		if (error) {
 			NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -369,8 +362,8 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 				cache_purge(vp);
 				mporoot->mnt_vnodecovered = vp;
 				vp->v_mountedhere = mporoot;
-				strlcpy(mporoot->mnt_stat.f_mntonname,
-				    fspath, MNAMELEN);
+				strlcpy(mporoot->mnt_stat.f_mntonname, fspath,
+				    MNAMELEN);
 				VOP_UNLOCK(vp);
 			} else
 				vput(vp);
@@ -379,7 +372,8 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 
 		if (error)
 			printf("mountroot: unable to remount previous root "
-			    "under /.mount or /mnt (error %d)\n", error);
+			       "under /.mount or /mnt (error %d)\n",
+			    error);
 	}
 
 	/* Remount devfs under /dev */
@@ -395,7 +389,8 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 			if (vpdevfs != NULL) {
 				cache_purge(vpdevfs);
 				VI_LOCK(vpdevfs);
-				vn_irflag_unset_locked(vpdevfs, VIRF_MOUNTPOINT);
+				vn_irflag_unset_locked(
+				    vpdevfs, VIRF_MOUNTPOINT);
 				vpdevfs->v_mountedhere = NULL;
 				VI_UNLOCK(vpdevfs);
 				vrele(vpdevfs);
@@ -411,17 +406,19 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 	}
 	if (error)
 		printf("mountroot: unable to remount devfs under /dev "
-		    "(error %d)\n", error);
+		       "(error %d)\n",
+		    error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	if (mporoot == mpdevfs) {
 		vfs_unbusy(mpdevfs);
 		/* Unlink the no longer needed /dev/dev -> / symlink */
-		error = kern_funlinkat(td, AT_FDCWD, "/dev/dev", FD_NONE,
-		    UIO_SYSSPACE, 0, 0);
+		error = kern_funlinkat(
+		    td, AT_FDCWD, "/dev/dev", FD_NONE, UIO_SYSSPACE, 0, 0);
 		if (error)
 			printf("mountroot: unable to unlink /dev/dev "
-			    "(error %d)\n", error);
+			       "(error %d)\n",
+			    error);
 	}
 }
 
@@ -430,12 +427,12 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
  */
 
 /* Parser character classes. */
-#define	CC_WHITESPACE		-1
-#define	CC_NONWHITESPACE	-2
+#define CC_WHITESPACE -1
+#define CC_NONWHITESPACE -2
 
 /* Parse errors. */
-#define	PE_EOF			-1
-#define	PE_EOL			-2
+#define PE_EOF -1
+#define PE_EOL -2
 
 static __inline int
 parse_peek(char **conf)
@@ -597,8 +594,8 @@ parse_dir_md(char **conf)
 		goto out;
 
 	/* Open /dev/mdctl so that we can attach/detach. */
-	error = kern_openat(td, AT_FDCWD, "/dev/" MDCTL_NAME, UIO_SYSSPACE,
-	    O_RDWR, 0);
+	error = kern_openat(
+	    td, AT_FDCWD, "/dev/" MDCTL_NAME, UIO_SYSSPACE, O_RDWR, 0);
 	if (error)
 		goto out;
 
@@ -637,7 +634,7 @@ parse_dir_md(char **conf)
 
 	error = kern_close(td, fd);
 
- out:
+out:
 	free(mdio, M_TEMP);
 	return (error);
 }
@@ -730,7 +727,7 @@ parse_mount_dev_present(const char *dev)
 	return (error != 0) ? 0 : 1;
 }
 
-#define	ERRMSGL	255
+#define ERRMSGL 255
 static int
 parse_mount(char **conf)
 {
@@ -797,16 +794,17 @@ parse_mount(char **conf)
 		if (root_mount_timeout * hz == timeout ||
 		    (bootverbose && timeout % hz == 0)) {
 			printf("Mounting from %s:%s failed with error %d; "
-			    "retrying for %d more second%s\n", fs, dev, error,
-			    timeout / hz, (timeout / hz > 1) ? "s" : "");
+			       "retrying for %d more second%s\n",
+			    fs, dev, error, timeout / hz,
+			    (timeout / hz > 1) ? "s" : "");
 		}
 		pause("rmretry", delay);
 		timeout -= delay;
 	}
- out:
+out:
 	if (error) {
-		printf("Mounting from %s:%s failed with error %d",
-		    fs, dev, error);
+		printf(
+		    "Mounting from %s:%s failed with error %d", fs, dev, error);
 		if (errmsg[0] != '\0')
 			printf(": %s", errmsg);
 		printf(".\n");
@@ -853,7 +851,7 @@ retry:
 			error = parse_mount(&conf);
 			if (error == -1) {
 				printf("mountroot: invalid file system "
-				    "specification.\n");
+				       "specification.\n");
 				error = 0;
 			}
 			break;
@@ -915,8 +913,8 @@ vfs_mountroot_conf0(struct sbuf *sb)
 		tok = s;
 		error = parse_token(&tok, &mnt);
 		while (!error) {
-			sbuf_printf(sb, "%s %s\n", mnt,
-			    (opt != NULL) ? opt : "");
+			sbuf_printf(
+			    sb, "%s %s\n", mnt, (opt != NULL) ? opt : "");
 			free(mnt, M_TEMP);
 			error = parse_token(&tok, &mnt);
 		}
@@ -955,9 +953,8 @@ vfs_mountroot_readconf(struct thread *td, struct sbuf *sb)
 	ofs = 0;
 	len = sizeof(buf) - 1;
 	while (1) {
-		error = vn_rdwr(UIO_READ, nd.ni_vp, buf, len, ofs,
-		    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred,
-		    NOCRED, &resid, td);
+		error = vn_rdwr(UIO_READ, nd.ni_vp, buf, len, ofs, UIO_SYSSPACE,
+		    IO_NODELOCKED, td->td_ucred, NOCRED, &resid, td);
 		if (error)
 			break;
 		if (resid == len)
@@ -991,7 +988,7 @@ vfs_mountroot_wait(void)
 		}
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
 			printf("Root mount waiting for:");
-			TAILQ_FOREACH(h, &root_holds, list)
+			TAILQ_FOREACH (h, &root_holds, list)
 				printf(" %s", h->who);
 			printf("\n");
 		}
@@ -1129,7 +1126,7 @@ parse_mountroot_options(struct mntarg *ma, const char *options)
 		return (ma);
 	}
 
-	while((name = strsep(&p, ",")) != NULL) {
+	while ((name = strsep(&p, ",")) != NULL) {
 		if (name[0] == '\0')
 			break;
 
@@ -1151,8 +1148,8 @@ parse_mountroot_options(struct mntarg *ma, const char *options)
 		if (val != NULL)
 			val_arg = strdup(val, M_MOUNT);
 
-		ma = mount_arg(ma, name_arg, val_arg,
-		    (val_arg != NULL ? -1 : 0));
+		ma = mount_arg(
+		    ma, name_arg, val_arg, (val_arg != NULL ? -1 : 0));
 	}
 	free(opts, M_MOUNT);
 	return (ma);

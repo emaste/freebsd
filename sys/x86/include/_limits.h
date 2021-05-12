@@ -32,8 +32,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE__LIMITS_H_
-#define	_MACHINE__LIMITS_H_
+#ifndef _MACHINE__LIMITS_H_
+#define _MACHINE__LIMITS_H_
 
 /*
  * According to ANSI (section 2.2.4.2), the values below must be usable by
@@ -44,60 +44,60 @@
  * unsigned int for 32-bit two's complement ANSI compilers (section 3.1.3.2).
  */
 
-#define	__CHAR_BIT	8		/* number of bits in a char */
+#define __CHAR_BIT 8 /* number of bits in a char */
 
-#define	__SCHAR_MAX	0x7f		/* max value for a signed char */
-#define	__SCHAR_MIN	(-0x7f - 1)	/* min value for a signed char */
+#define __SCHAR_MAX 0x7f	/* max value for a signed char */
+#define __SCHAR_MIN (-0x7f - 1) /* min value for a signed char */
 
-#define	__UCHAR_MAX	0xff		/* max value for an unsigned char */
+#define __UCHAR_MAX 0xff /* max value for an unsigned char */
 
-#define	__USHRT_MAX	0xffff		/* max value for an unsigned short */
-#define	__SHRT_MAX	0x7fff		/* max value for a short */
-#define	__SHRT_MIN	(-0x7fff - 1)	/* min value for a short */
+#define __USHRT_MAX 0xffff	 /* max value for an unsigned short */
+#define __SHRT_MAX 0x7fff	 /* max value for a short */
+#define __SHRT_MIN (-0x7fff - 1) /* min value for a short */
 
-#define	__UINT_MAX	0xffffffff	/* max value for an unsigned int */
-#define	__INT_MAX	0x7fffffff	/* max value for an int */
-#define	__INT_MIN	(-0x7fffffff - 1)	/* min value for an int */
+#define __UINT_MAX 0xffffffff	    /* max value for an unsigned int */
+#define __INT_MAX 0x7fffffff	    /* max value for an int */
+#define __INT_MIN (-0x7fffffff - 1) /* min value for an int */
 
-#ifdef	__LP64__
-#define	__ULONG_MAX	0xffffffffffffffff	/* max for an unsigned long */
-#define	__LONG_MAX	0x7fffffffffffffff	/* max for a long */
-#define	__LONG_MIN	(-0x7fffffffffffffff - 1) /* min for a long */
+#ifdef __LP64__
+#define __ULONG_MAX 0xffffffffffffffff	     /* max for an unsigned long */
+#define __LONG_MAX 0x7fffffffffffffff	     /* max for a long */
+#define __LONG_MIN (-0x7fffffffffffffff - 1) /* min for a long */
 #else
-#define	__ULONG_MAX	0xffffffffUL
-#define	__LONG_MAX	0x7fffffffL
-#define	__LONG_MIN	(-0x7fffffffL - 1)
+#define __ULONG_MAX 0xffffffffUL
+#define __LONG_MAX 0x7fffffffL
+#define __LONG_MIN (-0x7fffffffL - 1)
 #endif
 
-			/* max value for an unsigned long long */
-#define	__ULLONG_MAX	0xffffffffffffffffULL
-#define	__LLONG_MAX	0x7fffffffffffffffLL	/* max value for a long long */
-#define	__LLONG_MIN	(-0x7fffffffffffffffLL - 1)  /* min for a long long */
+/* max value for an unsigned long long */
+#define __ULLONG_MAX 0xffffffffffffffffULL
+#define __LLONG_MAX 0x7fffffffffffffffLL	/* max value for a long long */
+#define __LLONG_MIN (-0x7fffffffffffffffLL - 1) /* min for a long long */
 
-#ifdef	__LP64__
-#define	__SSIZE_MAX	__LONG_MAX	/* max value for a ssize_t */
-#define	__SIZE_T_MAX	__ULONG_MAX	/* max value for a size_t */
-#define	__OFF_MAX	__LONG_MAX	/* max value for an off_t */
-#define	__OFF_MIN	__LONG_MIN	/* min value for an off_t */
+#ifdef __LP64__
+#define __SSIZE_MAX __LONG_MAX	 /* max value for a ssize_t */
+#define __SIZE_T_MAX __ULONG_MAX /* max value for a size_t */
+#define __OFF_MAX __LONG_MAX	 /* max value for an off_t */
+#define __OFF_MIN __LONG_MIN	 /* min value for an off_t */
 /* Quads and longs are the same on the amd64.  Ensure they stay in sync. */
-#define	__UQUAD_MAX	__ULONG_MAX	/* max value for a uquad_t */
-#define	__QUAD_MAX	__LONG_MAX	/* max value for a quad_t */
-#define	__QUAD_MIN	__LONG_MIN	/* min value for a quad_t */
-#define	__LONG_BIT	64
+#define __UQUAD_MAX __ULONG_MAX /* max value for a uquad_t */
+#define __QUAD_MAX __LONG_MAX	/* max value for a quad_t */
+#define __QUAD_MIN __LONG_MIN	/* min value for a quad_t */
+#define __LONG_BIT 64
 #else
-#define	__SSIZE_MAX	__INT_MAX
-#define	__SIZE_T_MAX	__UINT_MAX
-#define	__OFF_MAX	__LLONG_MAX
-#define	__OFF_MIN	__LLONG_MIN
-#define	__UQUAD_MAX	__ULLONG_MAX
-#define	__QUAD_MAX	__LLONG_MAX
-#define	__QUAD_MIN	__LLONG_MIN
-#define	__LONG_BIT	32
+#define __SSIZE_MAX __INT_MAX
+#define __SIZE_T_MAX __UINT_MAX
+#define __OFF_MAX __LLONG_MAX
+#define __OFF_MIN __LLONG_MIN
+#define __UQUAD_MAX __ULLONG_MAX
+#define __QUAD_MAX __LLONG_MAX
+#define __QUAD_MIN __LLONG_MIN
+#define __LONG_BIT 32
 #endif
 
-#define	__WORD_BIT	32
+#define __WORD_BIT 32
 
 /* Minimum signal stack size. */
-#define	__MINSIGSTKSZ	(512 * 4)
+#define __MINSIGSTKSZ (512 * 4)
 
 #endif /* !_MACHINE__LIMITS_H_ */

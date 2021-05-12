@@ -66,83 +66,83 @@
  *	Machine independent virtual memory parameters.
  */
 
-#ifndef	_VM_PARAM_
-#define	_VM_PARAM_
+#ifndef _VM_PARAM_
+#define _VM_PARAM_
 
 #include <machine/vmparam.h>
 
 /*
  * CTL_VM identifiers
  */
-#define	VM_TOTAL		1	/* struct vmtotal */
-#define	VM_METER                VM_TOTAL/* deprecated, use VM_TOTAL */
-#define	VM_LOADAVG	 	2	/* struct loadavg */
-#define VM_V_FREE_MIN		3	/* vm_cnt.v_free_min */
-#define VM_V_FREE_TARGET	4	/* vm_cnt.v_free_target */
-#define VM_V_FREE_RESERVED	5	/* vm_cnt.v_free_reserved */
-#define VM_V_INACTIVE_TARGET	6	/* vm_cnt.v_inactive_target */
-#define	VM_OBSOLETE_7		7	/* unused, formerly v_cache_min */
-#define	VM_OBSOLETE_8		8	/* unused, formerly v_cache_max */
-#define VM_V_PAGEOUT_FREE_MIN	9	/* vm_cnt.v_pageout_free_min */
-#define	VM_OBSOLETE_10		10	/* pageout algorithm */
-#define VM_SWAPPING_ENABLED	11	/* swapping enabled */
-#define VM_OVERCOMMIT		12	/* vm.overcommit */
-#define	VM_MAXID		13	/* number of valid vm ids */
+#define VM_TOTAL 1		/* struct vmtotal */
+#define VM_METER VM_TOTAL	/* deprecated, use VM_TOTAL */
+#define VM_LOADAVG 2		/* struct loadavg */
+#define VM_V_FREE_MIN 3		/* vm_cnt.v_free_min */
+#define VM_V_FREE_TARGET 4	/* vm_cnt.v_free_target */
+#define VM_V_FREE_RESERVED 5	/* vm_cnt.v_free_reserved */
+#define VM_V_INACTIVE_TARGET 6	/* vm_cnt.v_inactive_target */
+#define VM_OBSOLETE_7 7		/* unused, formerly v_cache_min */
+#define VM_OBSOLETE_8 8		/* unused, formerly v_cache_max */
+#define VM_V_PAGEOUT_FREE_MIN 9 /* vm_cnt.v_pageout_free_min */
+#define VM_OBSOLETE_10 10	/* pageout algorithm */
+#define VM_SWAPPING_ENABLED 11	/* swapping enabled */
+#define VM_OVERCOMMIT 12	/* vm.overcommit */
+#define VM_MAXID 13		/* number of valid vm ids */
 
 /*
  * Structure for swap device statistics
  */
-#define XSWDEV_VERSION	2
+#define XSWDEV_VERSION 2
 struct xswdev {
-	u_int	xsw_version;
-	dev_t	xsw_dev;
-	int	xsw_flags;
-	int	xsw_nblks;
-	int     xsw_used;
+	u_int xsw_version;
+	dev_t xsw_dev;
+	int xsw_flags;
+	int xsw_nblks;
+	int xsw_used;
 };
 
 /*
  *	Return values from the VM routines.
  */
-#define	KERN_SUCCESS		0
-#define	KERN_INVALID_ADDRESS	1
-#define	KERN_PROTECTION_FAILURE	2
-#define	KERN_NO_SPACE		3
-#define	KERN_INVALID_ARGUMENT	4
-#define	KERN_FAILURE		5
-#define	KERN_RESOURCE_SHORTAGE	6
-#define	KERN_NOT_RECEIVER	7
-#define	KERN_NO_ACCESS		8
-#define	KERN_OUT_OF_BOUNDS	9
-#define	KERN_RESTART		10
+#define KERN_SUCCESS 0
+#define KERN_INVALID_ADDRESS 1
+#define KERN_PROTECTION_FAILURE 2
+#define KERN_NO_SPACE 3
+#define KERN_INVALID_ARGUMENT 4
+#define KERN_FAILURE 5
+#define KERN_RESOURCE_SHORTAGE 6
+#define KERN_NOT_RECEIVER 7
+#define KERN_NO_ACCESS 8
+#define KERN_OUT_OF_BOUNDS 9
+#define KERN_RESTART 10
 
 #ifndef PA_LOCK_COUNT
 #ifdef SMP
-#define	PA_LOCK_COUNT	32
+#define PA_LOCK_COUNT 32
 #else
-#define PA_LOCK_COUNT	1
-#endif	/* !SMP */
-#endif	/* !PA_LOCK_COUNT */
+#define PA_LOCK_COUNT 1
+#endif /* !SMP */
+#endif /* !PA_LOCK_COUNT */
 
 #ifndef KSTACK_MAX_PAGES
 #define KSTACK_MAX_PAGES 32
 #endif
 
-#ifndef	PHYS_AVAIL_ENTRIES
-#define PHYS_AVAIL_ENTRIES      (VM_PHYSSEG_MAX * 2)
+#ifndef PHYS_AVAIL_ENTRIES
+#define PHYS_AVAIL_ENTRIES (VM_PHYSSEG_MAX * 2)
 #endif
-#define PHYS_AVAIL_COUNT        (PHYS_AVAIL_ENTRIES + 2)
+#define PHYS_AVAIL_COUNT (PHYS_AVAIL_ENTRIES + 2)
 
 #ifndef ASSEMBLER
 #ifdef _KERNEL
 #define num_pages(x) \
 	((vm_offset_t)((((vm_offset_t)(x)) + PAGE_MASK) >> PAGE_SHIFT))
-extern	unsigned long maxtsiz;
-extern	unsigned long dfldsiz;
-extern	unsigned long maxdsiz;
-extern	unsigned long dflssiz;
-extern	unsigned long maxssiz;
-extern	unsigned long sgrowsiz;
-#endif				/* _KERNEL */
-#endif				/* ASSEMBLER */
-#endif				/* _VM_PARAM_ */
+extern unsigned long maxtsiz;
+extern unsigned long dfldsiz;
+extern unsigned long maxdsiz;
+extern unsigned long dflssiz;
+extern unsigned long maxssiz;
+extern unsigned long sgrowsiz;
+#endif /* _KERNEL */
+#endif /* ASSEMBLER */
+#endif /* _VM_PARAM_ */

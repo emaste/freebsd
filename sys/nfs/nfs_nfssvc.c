@@ -40,25 +40,22 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/module.h>
-#include <sys/sysent.h>
 #include <sys/syscall.h>
+#include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/sysproto.h>
 
+#include <nfs/nfssvc.h>
 #include <security/audit/audit.h>
 
-#include <nfs/nfssvc.h>
-
 static struct syscall_helper_data nfssvc_syscalls[] = {
-	SYSCALL_INIT_HELPER(nfssvc),
-	SYSCALL_INIT_LAST
+	SYSCALL_INIT_HELPER(nfssvc), SYSCALL_INIT_LAST
 };
 
 /*
@@ -94,19 +91,24 @@ sys_nfssvc(struct thread *td, struct nfssvc_args *uap)
 	if ((uap->flag & (NFSSVC_ADDSOCK | NFSSVC_OLDNFSD | NFSSVC_NFSD)) &&
 	    nfsd_call_nfsserver != NULL)
 		error = (*nfsd_call_nfsserver)(td, uap);
-	else if ((uap->flag & (NFSSVC_CBADDSOCK | NFSSVC_NFSCBD |
-	    NFSSVC_DUMPMNTOPTS | NFSSVC_FORCEDISM)) && nfsd_call_nfscl != NULL)
+	else if ((uap->flag &
+		     (NFSSVC_CBADDSOCK | NFSSVC_NFSCBD | NFSSVC_DUMPMNTOPTS |
+			 NFSSVC_FORCEDISM)) &&
+	    nfsd_call_nfscl != NULL)
 		error = (*nfsd_call_nfscl)(td, uap);
-	else if ((uap->flag & (NFSSVC_IDNAME | NFSSVC_GETSTATS |
-	    NFSSVC_GSSDADDPORT | NFSSVC_GSSDADDFIRST | NFSSVC_GSSDDELETEALL |
-	    NFSSVC_NFSUSERDPORT | NFSSVC_NFSUSERDDELPORT)) &&
+	else if ((uap->flag &
+		     (NFSSVC_IDNAME | NFSSVC_GETSTATS | NFSSVC_GSSDADDPORT |
+			 NFSSVC_GSSDADDFIRST | NFSSVC_GSSDDELETEALL |
+			 NFSSVC_NFSUSERDPORT | NFSSVC_NFSUSERDDELPORT)) &&
 	    nfsd_call_nfscommon != NULL)
 		error = (*nfsd_call_nfscommon)(td, uap);
-	else if ((uap->flag & (NFSSVC_NFSDNFSD | NFSSVC_NFSDADDSOCK |
-	    NFSSVC_PUBLICFH | NFSSVC_V4ROOTEXPORT | NFSSVC_NOPUBLICFH |
-	    NFSSVC_STABLERESTART | NFSSVC_ADMINREVOKE |
-	    NFSSVC_DUMPCLIENTS | NFSSVC_DUMPLOCKS | NFSSVC_BACKUPSTABLE |
-	    NFSSVC_SUSPENDNFSD | NFSSVC_RESUMENFSD | NFSSVC_PNFSDS)) &&
+	else if ((uap->flag &
+		     (NFSSVC_NFSDNFSD | NFSSVC_NFSDADDSOCK | NFSSVC_PUBLICFH |
+			 NFSSVC_V4ROOTEXPORT | NFSSVC_NOPUBLICFH |
+			 NFSSVC_STABLERESTART | NFSSVC_ADMINREVOKE |
+			 NFSSVC_DUMPCLIENTS | NFSSVC_DUMPLOCKS |
+			 NFSSVC_BACKUPSTABLE | NFSSVC_SUSPENDNFSD |
+			 NFSSVC_RESUMENFSD | NFSSVC_PNFSDS)) &&
 	    nfsd_call_nfsd != NULL)
 		error = (*nfsd_call_nfsd)(td, uap);
 	if (error == EINTR || error == ERESTART)
@@ -124,13 +126,14 @@ nfssvc_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		error = syscall_helper_register(nfssvc_syscalls,
-		    SY_THR_STATIC_KLD);
+		error = syscall_helper_register(
+		    nfssvc_syscalls, SY_THR_STATIC_KLD);
 		break;
 
 	case MOD_UNLOAD:
-		if (nfsd_call_nfsserver != NULL || nfsd_call_nfscommon != NULL
-		    || nfsd_call_nfscl != NULL || nfsd_call_nfsd != NULL) {
+		if (nfsd_call_nfsserver != NULL ||
+		    nfsd_call_nfscommon != NULL || nfsd_call_nfscl != NULL ||
+		    nfsd_call_nfsd != NULL) {
 			error = EBUSY;
 			break;
 		}

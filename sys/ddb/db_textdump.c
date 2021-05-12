@@ -62,29 +62,27 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_config.h"
-
 #include "opt_ddb.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #include <sys/msgbuf.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
-#include <ddb/ddb.h>
 #include <ddb/db_lex.h>
+#include <ddb/ddb.h>
 
-static SYSCTL_NODE(_debug_ddb, OID_AUTO, textdump,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "DDB textdump options");
+static SYSCTL_NODE(_debug_ddb, OID_AUTO, textdump, CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, "DDB textdump options");
 
 /*
  * Don't touch the first SIZEOF_METADATA bytes on the dump device.  This is
  * to protect us from metadata and metadata from us.
  */
-#define	SIZEOF_METADATA		(64*1024)
+#define SIZEOF_METADATA (64 * 1024)
 
 /*
  * Data is written out as a series of files in the ustar tar format.  ustar
@@ -93,23 +91,23 @@ static SYSCTL_NODE(_debug_ddb, OID_AUTO, textdump,
  * conveniently to our requirements.
  */
 struct ustar_header {
-	char	uh_filename[100];
-	char	uh_mode[8];
-	char	uh_tar_owner[8];
-	char	uh_tar_group[8];
-	char	uh_size[12];
-	char	uh_mtime[12];
-	char	uh_sum[8];
-	char	uh_type;
-	char	uh_linkfile[100];
-	char	uh_ustar[6];
-	char	uh_version[2];
-	char	uh_owner[32];
-	char	uh_group[32];
-	char	uh_major[8];
-	char	uh_minor[8];
-	char	uh_filenameprefix[155];
-	char	uh_zeropad[12];
+	char uh_filename[100];
+	char uh_mode[8];
+	char uh_tar_owner[8];
+	char uh_tar_group[8];
+	char uh_size[12];
+	char uh_mtime[12];
+	char uh_sum[8];
+	char uh_type;
+	char uh_linkfile[100];
+	char uh_ustar[6];
+	char uh_version[2];
+	char uh_owner[32];
+	char uh_group[32];
+	char uh_major[8];
+	char uh_minor[8];
+	char uh_filenameprefix[155];
+	char uh_zeropad[12];
 } __packed;
 
 /*
@@ -124,28 +122,27 @@ CTASSERT(sizeof(struct ustar_header) == TEXTDUMP_BLOCKSIZE);
  * routine instead of the machine-dependent kernel dump routine.
  */
 #ifdef TEXTDUMP_PREFERRED
-int	textdump_pending = 1;
+int textdump_pending = 1;
 #else
-int	textdump_pending = 0;
+int textdump_pending = 0;
 #endif
 SYSCTL_INT(_debug_ddb_textdump, OID_AUTO, pending, CTLFLAG_RW,
-    &textdump_pending, 0,
-    "Perform textdump instead of regular kernel dump.");
+    &textdump_pending, 0, "Perform textdump instead of regular kernel dump.");
 
 /*
  * Various constants for tar headers and contents.
  */
-#define	TAR_USER	"root"
-#define	TAR_GROUP	"wheel"
-#define	TAR_UID		"0"
-#define	TAR_GID		"0"
-#define	TAR_MODE	"0600"
-#define	TAR_USTAR	"ustar"
+#define TAR_USER "root"
+#define TAR_GROUP "wheel"
+#define TAR_UID "0"
+#define TAR_GID "0"
+#define TAR_MODE "0600"
+#define TAR_USTAR "ustar"
 
-#define	TAR_CONFIG_FILENAME	"config.txt"	/* Kernel configuration. */
-#define	TAR_MSGBUF_FILENAME	"msgbuf.txt"	/* Kernel messsage buffer. */
-#define	TAR_PANIC_FILENAME	"panic.txt"	/* Panic message. */
-#define	TAR_VERSION_FILENAME	"version.txt"	/* Kernel version. */
+#define TAR_CONFIG_FILENAME "config.txt" /* Kernel configuration. */
+#define TAR_MSGBUF_FILENAME "msgbuf.txt" /* Kernel messsage buffer. */
+#define TAR_PANIC_FILENAME "panic.txt" /* Panic message. */
+#define TAR_VERSION_FILENAME "version.txt" /* Kernel version. */
 
 /*
  * Configure which files will be dumped.
@@ -157,8 +154,8 @@ SYSCTL_INT(_debug_ddb_textdump, OID_AUTO, do_config, CTLFLAG_RW,
 #endif
 
 static int textdump_do_ddb = 1;
-SYSCTL_INT(_debug_ddb_textdump, OID_AUTO, do_ddb, CTLFLAG_RW,
-    &textdump_do_ddb, 0, "Dump DDB captured output in textdump");
+SYSCTL_INT(_debug_ddb_textdump, OID_AUTO, do_ddb, CTLFLAG_RW, &textdump_do_ddb,
+    0, "Dump DDB captured output in textdump");
 
 static int textdump_do_msgbuf = 1;
 SYSCTL_INT(_debug_ddb_textdump, OID_AUTO, do_msgbuf, CTLFLAG_RW,
@@ -175,8 +172,8 @@ SYSCTL_INT(_debug_ddb_textdump, OID_AUTO, do_version, CTLFLAG_RW,
 /*
  * State related to incremental writing of blocks to disk.
  */
-static off_t textdump_offset;		/* Offset of next sequential write. */
-static int textdump_error;		/* Carried write error, if any. */
+static off_t textdump_offset; /* Offset of next sequential write. */
+static int textdump_error;    /* Carried write error, if any. */
 
 /*
  * Statically allocate space to prepare block-sized headers and data.
@@ -248,11 +245,11 @@ textdump_writeblock(struct dumperinfo *di, off_t offset, char *buffer)
 		return (EIO);
 	if (offset < SIZEOF_METADATA)
 		return (ENOSPC);
-	textdump_error = dump_write(di, buffer, 0, offset + di->mediaoffset,
-	    TEXTDUMP_BLOCKSIZE);
+	textdump_error = dump_write(
+	    di, buffer, 0, offset + di->mediaoffset, TEXTDUMP_BLOCKSIZE);
 	if (textdump_error)
-		printf("textdump_writeblock: offset %jd, error %d\n", (intmax_t)offset,
-		    textdump_error);
+		printf("textdump_writeblock: offset %jd, error %d\n",
+		    (intmax_t)offset, textdump_error);
 	return (textdump_error);
 }
 
@@ -315,8 +312,8 @@ textdump_dump_config(struct dumperinfo *di)
 	 */
 	fullblocks = len / TEXTDUMP_BLOCKSIZE;
 	for (count = 0; count < fullblocks; count++)
-		(void)textdump_writenextblock(di, kernconfstring + count *
-		    TEXTDUMP_BLOCKSIZE);
+		(void)textdump_writenextblock(
+		    di, kernconfstring + count * TEXTDUMP_BLOCKSIZE);
 	if (len % TEXTDUMP_BLOCKSIZE != 0) {
 		bzero(textdump_block_buffer, TEXTDUMP_BLOCKSIZE);
 		bcopy(kernconfstring + count * TEXTDUMP_BLOCKSIZE,
@@ -360,13 +357,13 @@ textdump_dump_msgbuf(struct dumperinfo *di)
 			offset++;
 			if (offset != sizeof(textdump_block_buffer))
 				continue;
-			(void)textdump_writenextblock(di,
-			    textdump_block_buffer);
+			(void)textdump_writenextblock(
+			    di, textdump_block_buffer);
 			total_len += offset;
 			offset = 0;
 		}
 	}
-	total_len += offset;	/* Without the zero-padding. */
+	total_len += offset; /* Without the zero-padding. */
 	if (offset != 0) {
 		bzero(textdump_block_buffer + offset,
 		    sizeof(textdump_block_buffer) - offset);
@@ -378,8 +375,7 @@ textdump_dump_msgbuf(struct dumperinfo *di)
 	 */
 	textdump_saveoff(&end_offset);
 	textdump_restoreoff(tarhdr_offset);
-	textdump_mkustar(textdump_block_buffer, TAR_MSGBUF_FILENAME,
-	    total_len);
+	textdump_mkustar(textdump_block_buffer, TAR_MSGBUF_FILENAME, total_len);
 	(void)textdump_writenextblock(di, textdump_block_buffer);
 	textdump_restoreoff(end_offset);
 }
@@ -435,8 +431,8 @@ textdump_dumpsys(struct dumperinfo *di)
 
 	if (di->blocksize != TEXTDUMP_BLOCKSIZE) {
 		printf("Dump partition block size (%ju) not textdump "
-		    "block size (%ju)", (uintmax_t)di->blocksize,
-		    (uintmax_t)TEXTDUMP_BLOCKSIZE);
+		       "block size (%ju)",
+		    (uintmax_t)di->blocksize, (uintmax_t)TEXTDUMP_BLOCKSIZE);
 		return;
 	}
 
@@ -447,7 +443,8 @@ textdump_dumpsys(struct dumperinfo *di)
 	 * of data.
 	 */
 	if (di->mediasize < SIZEOF_METADATA + 2 * sizeof(kdh)) {
-		printf("Insufficient space on dump partition for minimal textdump.\n");
+		printf(
+		    "Insufficient space on dump partition for minimal textdump.\n");
 		return;
 	}
 	textdump_error = 0;
@@ -491,8 +488,8 @@ textdump_dumpsys(struct dumperinfo *di)
 	 * size.
 	 */
 	dumplen = trailer_offset - (textdump_offset + TEXTDUMP_BLOCKSIZE);
-	dump_init_header(di, &kdh, TEXTDUMPMAGIC, KERNELDUMP_TEXT_VERSION,
-	    dumplen);
+	dump_init_header(
+	    di, &kdh, TEXTDUMPMAGIC, KERNELDUMP_TEXT_VERSION, dumplen);
 	(void)textdump_writenextblock(di, (char *)&kdh);
 	textdump_restoreoff(trailer_offset);
 	(void)textdump_writenextblock(di, (char *)&kdh);

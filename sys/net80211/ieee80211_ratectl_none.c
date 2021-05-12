@@ -38,17 +38,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
-#include <net/ethernet.h>
 
 #ifdef INET
-#include <netinet/in.h>
 #include <netinet/if_ether.h>
+#include <netinet/in.h>
 #endif
 
-#include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ratectl.h>
+#include <net80211/ieee80211_var.h>
 
 static void
 none_init(struct ieee80211vap *vap)
@@ -88,8 +88,8 @@ none_tx_complete(const struct ieee80211_node *ni,
 }
 
 static void
-none_tx_update(struct ieee80211vap *vap,
-    struct ieee80211_ratectl_tx_stats *stats)
+none_tx_update(
+    struct ieee80211vap *vap, struct ieee80211_ratectl_tx_stats *stats)
 {
 }
 
@@ -99,20 +99,20 @@ none_setinterval(const struct ieee80211vap *vap, int msecs)
 }
 
 /* number of references from net80211 layer */
-static	int nrefs = 0;
+static int nrefs = 0;
 
 static const struct ieee80211_ratectl none = {
-	.ir_name	= "none",
-	.ir_attach	= NULL,
-	.ir_detach	= NULL,
-	.ir_init	= none_init,
-	.ir_deinit	= none_deinit,
-	.ir_node_init	= none_node_init,
-	.ir_node_deinit	= none_node_deinit,
-	.ir_rate	= none_rate,
-	.ir_tx_complete	= none_tx_complete,
-	.ir_tx_update	= none_tx_update,
-	.ir_setinterval	= none_setinterval,
+	.ir_name = "none",
+	.ir_attach = NULL,
+	.ir_detach = NULL,
+	.ir_init = none_init,
+	.ir_deinit = none_deinit,
+	.ir_node_init = none_node_init,
+	.ir_node_deinit = none_node_deinit,
+	.ir_rate = none_rate,
+	.ir_tx_complete = none_tx_complete,
+	.ir_tx_update = none_tx_update,
+	.ir_setinterval = none_setinterval,
 };
 IEEE80211_RATECTL_MODULE(ratectl_none, 1);
 IEEE80211_RATECTL_ALG(none, IEEE80211_RATECTL_NONE, none);

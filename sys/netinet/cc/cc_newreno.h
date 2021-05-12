@@ -38,10 +38,10 @@ struct newreno {
 };
 
 struct cc_newreno_opts {
-	int		name;
-	uint32_t	val;
+	int name;
+	uint32_t val;
 };
 
-#define CC_NEWRENO_BETA		1	/* Beta for normal DUP-ACK/Sack recovery */
-#define CC_NEWRENO_BETA_ECN	2	/* ECN Beta for Abe */
+#define CC_NEWRENO_BETA 1 /* Beta for normal DUP-ACK/Sack recovery */
+#define CC_NEWRENO_BETA_ECN 2 /* ECN Beta for Abe */
 #endif /* _CC_NEWRENO_H */

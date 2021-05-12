@@ -35,136 +35,130 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/rman.h>
 #include <sys/resource.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
-
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/spibus/spi.h>
-#include <dev/spibus/spibusvar.h>
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/spibus/spi.h>
+#include <dev/spibus/spibusvar.h>
 
 #include "spibus_if.h"
 
-#define	AW_SPI_GCR		0x04		/* Global Control Register */
-#define	 AW_SPI_GCR_EN		(1 << 0)	/* ENable */
-#define	 AW_SPI_GCR_MODE_MASTER	(1 << 1)	/* 1 = Master, 0 = Slave */
-#define	 AW_SPI_GCR_TP_EN	(1 << 7)	/* 1 = Stop transmit when FIFO is full */
-#define	 AW_SPI_GCR_SRST	(1 << 31)	/* Soft Reset */
+#define AW_SPI_GCR 0x04 /* Global Control Register */
+#define AW_SPI_GCR_EN (1 << 0) /* ENable */
+#define AW_SPI_GCR_MODE_MASTER (1 << 1) /* 1 = Master, 0 = Slave */
+#define AW_SPI_GCR_TP_EN (1 << 7) /* 1 = Stop transmit when FIFO is full */
+#define AW_SPI_GCR_SRST (1 << 31) /* Soft Reset */
 
-#define	AW_SPI_TCR		0x08		/* Transfer Control register */
-#define	 AW_SPI_TCR_XCH		(1 << 31)	/* Initiate transfer */
-#define	 AW_SPI_TCR_SDDM	(1 << 14)	/* Sending Delay Data Mode */
-#define	 AW_SPI_TCR_SDM		(1 << 13)	/* Master Sample Data Mode */
-#define	 AW_SPI_TCR_FBS		(1 << 12)	/* First Transmit Bit Select (1 == LSB) */
-#define	 AW_SPI_TCR_SDC		(1 << 11)	/* Master Sample Data Control */
-#define	 AW_SPI_TCR_RPSM	(1 << 10)	/* Rapid Mode Select */
-#define	 AW_SPI_TCR_DDB		(1 << 9)	/* Dummy Burst Type */
-#define	 AW_SPI_TCR_SSSEL_MASK	0x30		/* Chip select */
-#define	 AW_SPI_TCR_SSSEL_SHIFT	4
-#define	 AW_SPI_TCR_SS_LEVEL	(1 << 7)	/* 1 == CS High */
-#define	 AW_SPI_TCR_SS_OWNER	(1 << 6)	/* 1 == Software controlled */
-#define	 AW_SPI_TCR_SPOL	(1 << 2)	/* 1 == Active low */
-#define	 AW_SPI_TCR_CPOL	(1 << 1)	/* 1 == Active low */
-#define	 AW_SPI_TCR_CPHA	(1 << 0)	/* 1 == Phase 1 */
+#define AW_SPI_TCR 0x08 /* Transfer Control register */
+#define AW_SPI_TCR_XCH (1 << 31) /* Initiate transfer */
+#define AW_SPI_TCR_SDDM (1 << 14) /* Sending Delay Data Mode */
+#define AW_SPI_TCR_SDM (1 << 13) /* Master Sample Data Mode */
+#define AW_SPI_TCR_FBS (1 << 12) /* First Transmit Bit Select (1 == LSB) */
+#define AW_SPI_TCR_SDC (1 << 11) /* Master Sample Data Control */
+#define AW_SPI_TCR_RPSM (1 << 10) /* Rapid Mode Select */
+#define AW_SPI_TCR_DDB (1 << 9) /* Dummy Burst Type */
+#define AW_SPI_TCR_SSSEL_MASK 0x30 /* Chip select */
+#define AW_SPI_TCR_SSSEL_SHIFT 4
+#define AW_SPI_TCR_SS_LEVEL (1 << 7) /* 1 == CS High */
+#define AW_SPI_TCR_SS_OWNER (1 << 6) /* 1 == Software controlled */
+#define AW_SPI_TCR_SPOL (1 << 2) /* 1 == Active low */
+#define AW_SPI_TCR_CPOL (1 << 1) /* 1 == Active low */
+#define AW_SPI_TCR_CPHA (1 << 0) /* 1 == Phase 1 */
 
-#define	AW_SPI_IER		0x10		/* Interrupt Control Register */
-#define	 AW_SPI_IER_SS		(1 << 13)	/* Chip select went from valid to invalid */
-#define	 AW_SPI_IER_TC		(1 << 12)	/* Transfer complete */
-#define	 AW_SPI_IER_TF_UDR	(1 << 11)	/* TXFIFO underrun */
-#define	 AW_SPI_IER_TF_OVF	(1 << 10)	/* TXFIFO overrun */
-#define	 AW_SPI_IER_RF_UDR	(1 << 9)	/* RXFIFO underrun */
-#define	 AW_SPI_IER_RF_OVF	(1 << 8)	/* RXFIFO overrun */
-#define	 AW_SPI_IER_TF_FULL	(1 << 6)	/* TXFIFO Full */
-#define	 AW_SPI_IER_TF_EMP	(1 << 5)	/* TXFIFO Empty */
-#define	 AW_SPI_IER_TF_ERQ	(1 << 4)	/* TXFIFO Empty Request */
-#define	 AW_SPI_IER_RF_FULL	(1 << 2)	/* RXFIFO Full */
-#define	 AW_SPI_IER_RF_EMP	(1 << 1)	/* RXFIFO Empty */
-#define	 AW_SPI_IER_RF_ERQ	(1 << 0)	/* RXFIFO Empty Request */
+#define AW_SPI_IER 0x10 /* Interrupt Control Register */
+#define AW_SPI_IER_SS (1 << 13) /* Chip select went from valid to invalid */
+#define AW_SPI_IER_TC (1 << 12) /* Transfer complete */
+#define AW_SPI_IER_TF_UDR (1 << 11) /* TXFIFO underrun */
+#define AW_SPI_IER_TF_OVF (1 << 10) /* TXFIFO overrun */
+#define AW_SPI_IER_RF_UDR (1 << 9) /* RXFIFO underrun */
+#define AW_SPI_IER_RF_OVF (1 << 8) /* RXFIFO overrun */
+#define AW_SPI_IER_TF_FULL (1 << 6) /* TXFIFO Full */
+#define AW_SPI_IER_TF_EMP (1 << 5) /* TXFIFO Empty */
+#define AW_SPI_IER_TF_ERQ (1 << 4) /* TXFIFO Empty Request */
+#define AW_SPI_IER_RF_FULL (1 << 2) /* RXFIFO Full */
+#define AW_SPI_IER_RF_EMP (1 << 1) /* RXFIFO Empty */
+#define AW_SPI_IER_RF_ERQ (1 << 0) /* RXFIFO Empty Request */
 
-#define	AW_SPI_ISR		0x14		/* Interrupt Status Register */
+#define AW_SPI_ISR 0x14 /* Interrupt Status Register */
 
-#define	AW_SPI_FCR			0x18		/* FIFO Control Register */
-#define	 AW_SPI_FCR_TX_RST		(1 << 31)	/* Reset TX FIFO */
-#define	 AW_SPI_FCR_TX_TRIG_MASK	0xFF0000	/* TX FIFO Trigger level */
-#define	 AW_SPI_FCR_TX_TRIG_SHIFT	16
-#define	 AW_SPI_FCR_RX_RST	(1 << 15)		/* Reset RX FIFO */
-#define	 AW_SPI_FCR_RX_TRIG_MASK	0xFF		/* RX FIFO Trigger level */
-#define	 AW_SPI_FCR_RX_TRIG_SHIFT	0
+#define AW_SPI_FCR 0x18 /* FIFO Control Register */
+#define AW_SPI_FCR_TX_RST (1 << 31) /* Reset TX FIFO */
+#define AW_SPI_FCR_TX_TRIG_MASK 0xFF0000 /* TX FIFO Trigger level */
+#define AW_SPI_FCR_TX_TRIG_SHIFT 16
+#define AW_SPI_FCR_RX_RST (1 << 15) /* Reset RX FIFO */
+#define AW_SPI_FCR_RX_TRIG_MASK 0xFF /* RX FIFO Trigger level */
+#define AW_SPI_FCR_RX_TRIG_SHIFT 0
 
-#define	AW_SPI_FSR	0x1C			/* FIFO Status Register */
-#define	 AW_SPI_FSR_TB_WR		(1 << 31)
-#define	 AW_SPI_FSR_TB_CNT_MASK		0x70000000
-#define	 AW_SPI_FSR_TB_CNT_SHIFT	28
-#define	 AW_SPI_FSR_TF_CNT_MASK		0xFF0000
-#define	 AW_SPI_FSR_TF_CNT_SHIFT	16
-#define	 AW_SPI_FSR_RB_WR		(1 << 15)
-#define	 AW_SPI_FSR_RB_CNT_MASK		0x7000
-#define	 AW_SPI_FSR_RB_CNT_SHIFT	12
-#define	 AW_SPI_FSR_RF_CNT_MASK		0xFF
-#define	 AW_SPI_FSR_RF_CNT_SHIFT	0
+#define AW_SPI_FSR 0x1C /* FIFO Status Register */
+#define AW_SPI_FSR_TB_WR (1 << 31)
+#define AW_SPI_FSR_TB_CNT_MASK 0x70000000
+#define AW_SPI_FSR_TB_CNT_SHIFT 28
+#define AW_SPI_FSR_TF_CNT_MASK 0xFF0000
+#define AW_SPI_FSR_TF_CNT_SHIFT 16
+#define AW_SPI_FSR_RB_WR (1 << 15)
+#define AW_SPI_FSR_RB_CNT_MASK 0x7000
+#define AW_SPI_FSR_RB_CNT_SHIFT 12
+#define AW_SPI_FSR_RF_CNT_MASK 0xFF
+#define AW_SPI_FSR_RF_CNT_SHIFT 0
 
-#define	AW_SPI_WCR	0x20	/* Wait Clock Counter Register */
+#define AW_SPI_WCR 0x20 /* Wait Clock Counter Register */
 
-#define	AW_SPI_CCR	0x24		/* Clock Rate Control Register */
-#define	 AW_SPI_CCR_DRS	(1 << 12)	/* Clock divider select */
-#define	 AW_SPI_CCR_CDR1_MASK	0xF00
-#define	 AW_SPI_CCR_CDR1_SHIFT	8
-#define	 AW_SPI_CCR_CDR2_MASK	0xFF
-#define	 AW_SPI_CCR_CDR2_SHIFT	0
+#define AW_SPI_CCR 0x24 /* Clock Rate Control Register */
+#define AW_SPI_CCR_DRS (1 << 12) /* Clock divider select */
+#define AW_SPI_CCR_CDR1_MASK 0xF00
+#define AW_SPI_CCR_CDR1_SHIFT 8
+#define AW_SPI_CCR_CDR2_MASK 0xFF
+#define AW_SPI_CCR_CDR2_SHIFT 0
 
-#define	AW_SPI_MBC	0x30	/* Burst Counter Register */
-#define	AW_SPI_MTC	0x34	/* Transmit Counter Register */
-#define	AW_SPI_BCC	0x38	/* Burst Control Register */
-#define	AW_SPI_MDMA_CTL	0x88	/* Normal DMA Control Register */
-#define	AW_SPI_TXD	0x200	/* TX Data Register */
-#define	AW_SPI_RDX	0x300	/* RX Data Register */
+#define AW_SPI_MBC 0x30 /* Burst Counter Register */
+#define AW_SPI_MTC 0x34 /* Transmit Counter Register */
+#define AW_SPI_BCC 0x38 /* Burst Control Register */
+#define AW_SPI_MDMA_CTL 0x88 /* Normal DMA Control Register */
+#define AW_SPI_TXD 0x200 /* TX Data Register */
+#define AW_SPI_RDX 0x300 /* RX Data Register */
 
-#define	AW_SPI_MAX_CS		4
-#define	AW_SPI_FIFO_SIZE	64
+#define AW_SPI_MAX_CS 4
+#define AW_SPI_FIFO_SIZE 64
 
-static struct ofw_compat_data compat_data[] = {
-	{ "allwinner,sun8i-h3-spi",		1 },
-	{ NULL,					0 }
-};
+static struct ofw_compat_data compat_data[] = { { "allwinner,sun8i-h3-spi", 1 },
+	{ NULL, 0 } };
 
-static struct resource_spec aw_spi_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE | RF_SHAREABLE },
-	{ -1, 0 }
-};
+static struct resource_spec aw_spi_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE | RF_SHAREABLE }, { -1, 0 } };
 
 struct aw_spi_softc {
-	device_t	dev;
-	device_t	spibus;
-	struct resource	*res[2];
-	struct mtx	mtx;
-	clk_t		clk_ahb;
-	clk_t		clk_mod;
-	uint64_t	mod_freq;
-	hwreset_t	rst_ahb;
-	void *		intrhand;
-	int		transfer;
+	device_t dev;
+	device_t spibus;
+	struct resource *res[2];
+	struct mtx mtx;
+	clk_t clk_ahb;
+	clk_t clk_mod;
+	uint64_t mod_freq;
+	hwreset_t rst_ahb;
+	void *intrhand;
+	int transfer;
 
-	uint8_t		*rxbuf;
-	uint32_t	rxcnt;
-	uint8_t		*txbuf;
-	uint32_t	txcnt;
-	uint32_t	txlen;
-	uint32_t	rxlen;
+	uint8_t *rxbuf;
+	uint32_t rxcnt;
+	uint8_t *txbuf;
+	uint32_t txcnt;
+	uint32_t txlen;
+	uint32_t rxlen;
 };
 
-#define	AW_SPI_LOCK(sc)			mtx_lock(&(sc)->mtx)
-#define	AW_SPI_UNLOCK(sc)		mtx_unlock(&(sc)->mtx)
-#define	AW_SPI_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->mtx, MA_OWNED)
-#define	AW_SPI_READ_1(sc, reg)		bus_read_1((sc)->res[0], (reg))
-#define	AW_SPI_WRITE_1(sc, reg, val)	bus_write_1((sc)->res[0], (reg), (val))
-#define	AW_SPI_READ_4(sc, reg)		bus_read_4((sc)->res[0], (reg))
-#define	AW_SPI_WRITE_4(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
+#define AW_SPI_LOCK(sc) mtx_lock(&(sc)->mtx)
+#define AW_SPI_UNLOCK(sc) mtx_unlock(&(sc)->mtx)
+#define AW_SPI_ASSERT_LOCKED(sc) mtx_assert(&(sc)->mtx, MA_OWNED)
+#define AW_SPI_READ_1(sc, reg) bus_read_1((sc)->res[0], (reg))
+#define AW_SPI_WRITE_1(sc, reg, val) bus_write_1((sc)->res[0], (reg), (val))
+#define AW_SPI_READ_4(sc, reg) bus_read_4((sc)->res[0], (reg))
+#define AW_SPI_WRITE_4(sc, reg, val) bus_write_4((sc)->res[0], (reg), (val))
 
 static int aw_spi_probe(device_t dev);
 static int aw_spi_attach(device_t dev);
@@ -201,9 +195,8 @@ aw_spi_attach(device_t dev)
 		goto fail;
 	}
 
-	if (bus_setup_intr(dev, sc->res[1],
-	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, aw_spi_intr, sc,
-	    &sc->intrhand)) {
+	if (bus_setup_intr(dev, sc->res[1], INTR_TYPE_MISC | INTR_MPSAFE, NULL,
+		aw_spi_intr, sc, &sc->intrhand)) {
 		bus_release_resources(dev, aw_spi_spec, sc->res);
 		device_printf(dev, "cannot setup interrupt handler\n");
 		return (ENXIO);
@@ -439,13 +432,13 @@ aw_spi_intr(void *arg)
 
 	if (intr & AW_SPI_IER_TF_EMP) {
 		aw_spi_fill_txfifo(sc);
-		/* 
-		 * If we don't have anything else to write 
+		/*
+		 * If we don't have anything else to write
 		 * disable TXFifo interrupts
 		 */
 		if (sc->txcnt == sc->txlen)
-			AW_SPI_WRITE_4(sc, AW_SPI_IER, AW_SPI_IER_TC |
-			    AW_SPI_IER_RF_FULL);
+			AW_SPI_WRITE_4(
+			    sc, AW_SPI_IER, AW_SPI_IER_TC | AW_SPI_IER_RF_FULL);
 	}
 
 	if (intr & AW_SPI_IER_TC) {
@@ -463,7 +456,8 @@ aw_spi_intr(void *arg)
 }
 
 static int
-aw_spi_xfer(struct aw_spi_softc *sc, void *rxbuf, void *txbuf, uint32_t txlen, uint32_t rxlen)
+aw_spi_xfer(struct aw_spi_softc *sc, void *rxbuf, void *txbuf, uint32_t txlen,
+    uint32_t rxlen)
 {
 	uint32_t reg;
 	int error = 0, timeout;
@@ -501,14 +495,14 @@ aw_spi_xfer(struct aw_spi_softc *sc, void *rxbuf, void *txbuf, uint32_t txlen, u
 	reg |= AW_SPI_TCR_XCH;
 	AW_SPI_WRITE_4(sc, AW_SPI_TCR, reg);
 
-	/* 
+	/*
 	 * Enable interrupts for :
 	 * Transmit complete
 	 * TX Fifo empty
 	 * RX Fifo full
 	 */
-	AW_SPI_WRITE_4(sc, AW_SPI_IER, AW_SPI_IER_TC |
-	    AW_SPI_IER_TF_EMP | AW_SPI_IER_RF_FULL);
+	AW_SPI_WRITE_4(sc, AW_SPI_IER,
+	    AW_SPI_IER_TC | AW_SPI_IER_TF_EMP | AW_SPI_IER_RF_FULL);
 
 	sc->transfer = 1;
 
@@ -531,7 +525,8 @@ aw_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	spibus_get_clock(child, &clock);
 	spibus_get_mode(child, &mode);
 
-	/* The minimum divider is 2 so set the clock at twice the needed speed */
+	/* The minimum divider is 2 so set the clock at twice the needed speed
+	 */
 	clk_set_freq(sc->clk_mod, 2 * clock, CLK_SET_ROUND_DOWN);
 	clk_get_freq(sc->clk_mod, &sc->mod_freq);
 	if (cs >= AW_SPI_MAX_CS) {
@@ -557,8 +552,8 @@ aw_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	/* xfer */
 	err = 0;
 	if (cmd->tx_cmd_sz > 0)
-		err = aw_spi_xfer(sc, cmd->rx_cmd, cmd->tx_cmd,
-		    cmd->tx_cmd_sz, cmd->rx_cmd_sz);
+		err = aw_spi_xfer(sc, cmd->rx_cmd, cmd->tx_cmd, cmd->tx_cmd_sz,
+		    cmd->rx_cmd_sz);
 	if (cmd->tx_data_sz > 0 && err == 0)
 		err = aw_spi_xfer(sc, cmd->rx_data, cmd->tx_data,
 		    cmd->tx_data_sz, cmd->rx_data_sz);
@@ -580,15 +575,15 @@ aw_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 static device_method_t aw_spi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		aw_spi_probe),
-	DEVMETHOD(device_attach,	aw_spi_attach),
-	DEVMETHOD(device_detach,	aw_spi_detach),
+	DEVMETHOD(device_probe, aw_spi_probe),
+	DEVMETHOD(device_attach, aw_spi_attach),
+	DEVMETHOD(device_detach, aw_spi_detach),
 
-        /* spibus_if  */
-	DEVMETHOD(spibus_transfer,	aw_spi_transfer),
+	/* spibus_if  */
+	DEVMETHOD(spibus_transfer, aw_spi_transfer),
 
-        /* ofw_bus_if */
-	DEVMETHOD(ofw_bus_get_node,	aw_spi_get_node),
+	/* ofw_bus_if */
+	DEVMETHOD(ofw_bus_get_node, aw_spi_get_node),
 
 	DEVMETHOD_END
 };

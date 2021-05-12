@@ -31,8 +31,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS__RANGESET_H
-#define	_SYS__RANGESET_H
+#ifndef _SYS__RANGESET_H
+#define _SYS__RANGESET_H
 
 #include <sys/_pctrie.h>
 
@@ -40,11 +40,11 @@ typedef void *(*rs_dup_data_t)(void *ctx, void *data);
 typedef void (*rs_free_data_t)(void *ctx, void *data);
 
 struct rangeset {
-	struct pctrie	rs_trie;
-	rs_dup_data_t	rs_dup_data;
-	rs_free_data_t	rs_free_data;
-	void		*rs_data_ctx;
-	u_int		rs_alloc_flags;
+	struct pctrie rs_trie;
+	rs_dup_data_t rs_dup_data;
+	rs_free_data_t rs_free_data;
+	void *rs_data_ctx;
+	u_int rs_alloc_flags;
 };
 
 #endif

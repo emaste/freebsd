@@ -32,8 +32,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_MD_VAR_H_
-#define	_MACHINE_MD_VAR_H_
+#ifndef _MACHINE_MD_VAR_H_
+#define _MACHINE_MD_VAR_H_
 
 extern long Maxmem;
 extern char sigcode[];
@@ -48,9 +48,9 @@ extern int (*_arm_bzero)(void *, int, int);
 extern int _min_memcpy_size;
 extern int _min_bzero_size;
 
-#define DST_IS_USER	0x1
-#define SRC_IS_USER	0x2
-#define IS_PHYSICAL	0x4
+#define DST_IS_USER 0x1
+#define SRC_IS_USER 0x2
+#define IS_PHYSICAL 0x4
 
 enum cpu_class {
 	CPU_CLASS_NONE,

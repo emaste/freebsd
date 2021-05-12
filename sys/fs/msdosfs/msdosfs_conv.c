@@ -63,10 +63,12 @@
 extern struct iconv_functions *msdosfs_iconv;
 
 static int mbsadjpos(const char **, size_t, size_t, int, int, void *handle);
-static u_char * dos2unixchr(u_char *, const u_char **, size_t *, int, struct msdosfsmount *);
+static u_char *dos2unixchr(
+    u_char *, const u_char **, size_t *, int, struct msdosfsmount *);
 static uint16_t unix2doschr(const u_char **, size_t *, struct msdosfsmount *);
-static u_char * win2unixchr(u_char *, uint16_t, struct msdosfsmount *);
-static uint16_t unix2winchr(const u_char **, size_t *, int, struct msdosfsmount *);
+static u_char *win2unixchr(u_char *, uint16_t, struct msdosfsmount *);
+static uint16_t unix2winchr(
+    const u_char **, size_t *, int, struct msdosfsmount *);
 
 /*
  * 0 - character disallowed in long file name.
@@ -75,83 +77,80 @@ static uint16_t unix2winchr(const u_char **, size_t *, int, struct msdosfsmount 
  * 2 - character ('.' and ' ') should be skipped in DOS file name,
  *     and generation number inserted.
  */
-static const u_char
-unix2dos[256] = {
-/* iso8859-1 -> cp850 */
-	0,    0,    0,    0,    0,    0,    0,    0,	/* 00-07 */
-	0,    0,    0,    0,    0,    0,    0,    0,	/* 08-0f */
-	0,    0,    0,    0,    0,    0,    0,    0,	/* 10-17 */
-	0,    0,    0,    0,    0,    0,    0,    0,	/* 18-1f */
-	2,    0x21, 0,    0x23, 0x24, 0x25, 0x26, 0x27,	/* 20-27 */
-	0x28, 0x29, 0,    1,    1,    0x2d, 2,    0,	/* 28-2f */
-	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,	/* 30-37 */
-	0x38, 0x39, 0,    1,    0,    1,    0,    0,	/* 38-3f */
-	0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,	/* 40-47 */
-	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,	/* 48-4f */
-	0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,	/* 50-57 */
-	0x58, 0x59, 0x5a, 1,    0,    1,    0x5e, 0x5f,	/* 58-5f */
-	0x60, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,	/* 60-67 */
-	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,	/* 68-6f */
-	0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,	/* 70-77 */
-	0x58, 0x59, 0x5a, 0x7b, 0,    0x7d, 0x7e, 0,	/* 78-7f */
-	0,    0,    0,    0,    0,    0,    0,    0,	/* 80-87 */
-	0,    0,    0,    0,    0,    0,    0,    0,	/* 88-8f */
-	0,    0,    0,    0,    0,    0,    0,    0,	/* 90-97 */
-	0,    0,    0,    0,    0,    0,    0,    0,	/* 98-9f */
-	0,    0xad, 0xbd, 0x9c, 0xcf, 0xbe, 0xdd, 0xf5,	/* a0-a7 */
-	0xf9, 0xb8, 0xa6, 0xae, 0xaa, 0xf0, 0xa9, 0xee,	/* a8-af */
-	0xf8, 0xf1, 0xfd, 0xfc, 0xef, 0xe6, 0xf4, 0xfa,	/* b0-b7 */
-	0xf7, 0xfb, 0xa7, 0xaf, 0xac, 0xab, 0xf3, 0xa8,	/* b8-bf */
-	0xb7, 0xb5, 0xb6, 0xc7, 0x8e, 0x8f, 0x92, 0x80,	/* c0-c7 */
-	0xd4, 0x90, 0xd2, 0xd3, 0xde, 0xd6, 0xd7, 0xd8,	/* c8-cf */
-	0xd1, 0xa5, 0xe3, 0xe0, 0xe2, 0xe5, 0x99, 0x9e,	/* d0-d7 */
-	0x9d, 0xeb, 0xe9, 0xea, 0x9a, 0xed, 0xe8, 0xe1,	/* d8-df */
-	0xb7, 0xb5, 0xb6, 0xc7, 0x8e, 0x8f, 0x92, 0x80,	/* e0-e7 */
-	0xd4, 0x90, 0xd2, 0xd3, 0xde, 0xd6, 0xd7, 0xd8,	/* e8-ef */
-	0xd1, 0xa5, 0xe3, 0xe0, 0xe2, 0xe5, 0x99, 0xf6,	/* f0-f7 */
-	0x9d, 0xeb, 0xe9, 0xea, 0x9a, 0xed, 0xe8, 0x98,	/* f8-ff */
+static const u_char unix2dos[256] = {
+	/* iso8859-1 -> cp850 */
+	0, 0, 0, 0, 0, 0, 0, 0,				/* 00-07 */
+	0, 0, 0, 0, 0, 0, 0, 0,				/* 08-0f */
+	0, 0, 0, 0, 0, 0, 0, 0,				/* 10-17 */
+	0, 0, 0, 0, 0, 0, 0, 0,				/* 18-1f */
+	2, 0x21, 0, 0x23, 0x24, 0x25, 0x26, 0x27,	/* 20-27 */
+	0x28, 0x29, 0, 1, 1, 0x2d, 2, 0,		/* 28-2f */
+	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, /* 30-37 */
+	0x38, 0x39, 0, 1, 0, 1, 0, 0,			/* 38-3f */
+	0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, /* 40-47 */
+	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, /* 48-4f */
+	0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, /* 50-57 */
+	0x58, 0x59, 0x5a, 1, 0, 1, 0x5e, 0x5f,		/* 58-5f */
+	0x60, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, /* 60-67 */
+	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, /* 68-6f */
+	0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, /* 70-77 */
+	0x58, 0x59, 0x5a, 0x7b, 0, 0x7d, 0x7e, 0,	/* 78-7f */
+	0, 0, 0, 0, 0, 0, 0, 0,				/* 80-87 */
+	0, 0, 0, 0, 0, 0, 0, 0,				/* 88-8f */
+	0, 0, 0, 0, 0, 0, 0, 0,				/* 90-97 */
+	0, 0, 0, 0, 0, 0, 0, 0,				/* 98-9f */
+	0, 0xad, 0xbd, 0x9c, 0xcf, 0xbe, 0xdd, 0xf5,	/* a0-a7 */
+	0xf9, 0xb8, 0xa6, 0xae, 0xaa, 0xf0, 0xa9, 0xee, /* a8-af */
+	0xf8, 0xf1, 0xfd, 0xfc, 0xef, 0xe6, 0xf4, 0xfa, /* b0-b7 */
+	0xf7, 0xfb, 0xa7, 0xaf, 0xac, 0xab, 0xf3, 0xa8, /* b8-bf */
+	0xb7, 0xb5, 0xb6, 0xc7, 0x8e, 0x8f, 0x92, 0x80, /* c0-c7 */
+	0xd4, 0x90, 0xd2, 0xd3, 0xde, 0xd6, 0xd7, 0xd8, /* c8-cf */
+	0xd1, 0xa5, 0xe3, 0xe0, 0xe2, 0xe5, 0x99, 0x9e, /* d0-d7 */
+	0x9d, 0xeb, 0xe9, 0xea, 0x9a, 0xed, 0xe8, 0xe1, /* d8-df */
+	0xb7, 0xb5, 0xb6, 0xc7, 0x8e, 0x8f, 0x92, 0x80, /* e0-e7 */
+	0xd4, 0x90, 0xd2, 0xd3, 0xde, 0xd6, 0xd7, 0xd8, /* e8-ef */
+	0xd1, 0xa5, 0xe3, 0xe0, 0xe2, 0xe5, 0x99, 0xf6, /* f0-f7 */
+	0x9d, 0xeb, 0xe9, 0xea, 0x9a, 0xed, 0xe8, 0x98, /* f8-ff */
 };
 
-static const u_char
-dos2unix[256] = {
-/* cp850 -> iso8859-1 */
-	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f,	/* 00-07 */
-	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f,	/* 08-0f */
-	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f,	/* 10-17 */
-	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f,	/* 18-1f */
-	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,	/* 20-27 */
-	0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,	/* 28-2f */
-	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,	/* 30-37 */
-	0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,	/* 38-3f */
-	0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,	/* 40-47 */
-	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,	/* 48-4f */
-	0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,	/* 50-57 */
-	0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f,	/* 58-5f */
-	0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,	/* 60-67 */
-	0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,	/* 68-6f */
-	0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77,	/* 70-77 */
-	0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f,	/* 78-7f */
-	0xc7, 0xfc, 0xe9, 0xe2, 0xe4, 0xe0, 0xe5, 0xe7,	/* 80-87 */
-	0xea, 0xeb, 0xe8, 0xef, 0xee, 0xec, 0xc4, 0xc5,	/* 88-8f */
-	0xc9, 0xe6, 0xc6, 0xf4, 0xf6, 0xf2, 0xfb, 0xf9,	/* 90-97 */
-	0xff, 0xd6, 0xdc, 0xf8, 0xa3, 0xd8, 0xd7, 0x3f,	/* 98-9f */
-	0xe1, 0xed, 0xf3, 0xfa, 0xf1, 0xd1, 0xaa, 0xba,	/* a0-a7 */
-	0xbf, 0xae, 0xac, 0xbd, 0xbc, 0xa1, 0xab, 0xbb,	/* a8-af */
-	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0xc1, 0xc2, 0xc0,	/* b0-b7 */
-	0xa9, 0x3f, 0x3f, 0x3f, 0x3f, 0xa2, 0xa5, 0x3f,	/* b8-bf */
-	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0xe3, 0xc3,	/* c0-c7 */
-	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0xa4,	/* c8-cf */
-	0xf0, 0xd0, 0xca, 0xcb, 0xc8, 0x3f, 0xcd, 0xce,	/* d0-d7 */
-	0xcf, 0x3f, 0x3f, 0x3f, 0x3f, 0xa6, 0xcc, 0x3f,	/* d8-df */
-	0xd3, 0xdf, 0xd4, 0xd2, 0xf5, 0xd5, 0xb5, 0xfe,	/* e0-e7 */
-	0xde, 0xda, 0xdb, 0xd9, 0xfd, 0xdd, 0xaf, 0x3f,	/* e8-ef */
-	0xad, 0xb1, 0x3f, 0xbe, 0xb6, 0xa7, 0xf7, 0xb8,	/* f0-f7 */
-	0xb0, 0xa8, 0xb7, 0xb9, 0xb3, 0xb2, 0x3f, 0x3f,	/* f8-ff */
+static const u_char dos2unix[256] = {
+	/* cp850 -> iso8859-1 */
+	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, /* 00-07 */
+	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, /* 08-0f */
+	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, /* 10-17 */
+	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, /* 18-1f */
+	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, /* 20-27 */
+	0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, /* 28-2f */
+	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, /* 30-37 */
+	0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f, /* 38-3f */
+	0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, /* 40-47 */
+	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, /* 48-4f */
+	0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, /* 50-57 */
+	0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f, /* 58-5f */
+	0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, /* 60-67 */
+	0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f, /* 68-6f */
+	0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, /* 70-77 */
+	0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f, /* 78-7f */
+	0xc7, 0xfc, 0xe9, 0xe2, 0xe4, 0xe0, 0xe5, 0xe7, /* 80-87 */
+	0xea, 0xeb, 0xe8, 0xef, 0xee, 0xec, 0xc4, 0xc5, /* 88-8f */
+	0xc9, 0xe6, 0xc6, 0xf4, 0xf6, 0xf2, 0xfb, 0xf9, /* 90-97 */
+	0xff, 0xd6, 0xdc, 0xf8, 0xa3, 0xd8, 0xd7, 0x3f, /* 98-9f */
+	0xe1, 0xed, 0xf3, 0xfa, 0xf1, 0xd1, 0xaa, 0xba, /* a0-a7 */
+	0xbf, 0xae, 0xac, 0xbd, 0xbc, 0xa1, 0xab, 0xbb, /* a8-af */
+	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0xc1, 0xc2, 0xc0, /* b0-b7 */
+	0xa9, 0x3f, 0x3f, 0x3f, 0x3f, 0xa2, 0xa5, 0x3f, /* b8-bf */
+	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0xe3, 0xc3, /* c0-c7 */
+	0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0x3f, 0xa4, /* c8-cf */
+	0xf0, 0xd0, 0xca, 0xcb, 0xc8, 0x3f, 0xcd, 0xce, /* d0-d7 */
+	0xcf, 0x3f, 0x3f, 0x3f, 0x3f, 0xa6, 0xcc, 0x3f, /* d8-df */
+	0xd3, 0xdf, 0xd4, 0xd2, 0xf5, 0xd5, 0xb5, 0xfe, /* e0-e7 */
+	0xde, 0xda, 0xdb, 0xd9, 0xfd, 0xdd, 0xaf, 0x3f, /* e8-ef */
+	0xad, 0xb1, 0x3f, 0xbe, 0xb6, 0xa7, 0xf7, 0xb8, /* f0-f7 */
+	0xb0, 0xa8, 0xb7, 0xb9, 0xb3, 0xb2, 0x3f, 0x3f, /* f8-ff */
 };
 
-static const u_char
-u2l[256] = {
-/* tolower */
+static const u_char u2l[256] = {
+	/* tolower */
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, /* 00-07 */
 	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, /* 08-0f */
 	0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, /* 10-17 */
@@ -186,9 +185,8 @@ u2l[256] = {
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff, /* f8-ff */
 };
 
-static const u_char
-l2u[256] = {
-/* toupper */
+static const u_char l2u[256] = {
+	/* toupper */
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, /* 00-07 */
 	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, /* 08-0f */
 	0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, /* 10-17 */
@@ -392,7 +390,7 @@ unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 					continue;
 				} else {
 					conv = 3;
-					dn[j-1] = ' ';
+					dn[j - 1] = ' ';
 					break;
 				}
 			} else {
@@ -413,7 +411,8 @@ unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 			conv = 3;
 		dp--;
 	} else {
-		for (dp = cp; *--dp == ' ' || *dp == '.';);
+		for (dp = cp; *--dp == ' ' || *dp == '.';)
+			;
 		dp++;
 	}
 
@@ -431,7 +430,7 @@ unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 				continue;
 			} else {
 				conv = 3;
-				dn[j-1] = ' ';
+				dn[j - 1] = ' ';
 				break;
 			}
 		} else {
@@ -478,7 +477,8 @@ unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 		conv = 0;
 		goto done;
 	}
-	for (i = 8; dn[--i] == ' ';);
+	for (i = 8; dn[--i] == ' ';)
+		;
 	i++;
 	if (gentext + sizeof(gentext) - wcp + 1 > 8 - i)
 		i = 8 - (gentext + sizeof(gentext) - wcp + 1);
@@ -486,7 +486,8 @@ unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 	 * Correct posision to where insert the generation number
 	 */
 	cp = dn;
-	i -= mbsadjpos((const char**)&cp, i, unlen, 1, pmp->pm_flags, pmp->pm_d2u);
+	i -= mbsadjpos(
+	    (const char **)&cp, i, unlen, 1, pmp->pm_flags, pmp->pm_d2u);
 
 	dn[i++] = '~';
 	while (wcp < gentext + sizeof(gentext))
@@ -532,7 +533,7 @@ unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
 	 * Cut *un for this slot
 	 */
 	unlen = mbsadjpos((const char **)&un, unlen, (cnt - 1) * WIN_CHARS, 2,
-			  pmp->pm_flags, pmp->pm_u2w);
+	    pmp->pm_flags, pmp->pm_u2w);
 
 	/*
 	 * Initialize winentry to some useful default
@@ -548,21 +549,24 @@ unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
 	 * Now convert the filename parts
 	 */
 	end = 0;
-	for (wcp = wep->wePart1, i = sizeof(wep->wePart1)/2; --i >= 0 && !end;) {
+	for (wcp = wep->wePart1, i = sizeof(wep->wePart1) / 2;
+	     --i >= 0 && !end;) {
 		code = unix2winchr(&un, &unlen, 0, pmp);
 		*wcp++ = code;
 		*wcp++ = code >> 8;
 		if (!code)
 			end = WIN_LAST;
 	}
-	for (wcp = wep->wePart2, i = sizeof(wep->wePart2)/2; --i >= 0 && !end;) {
+	for (wcp = wep->wePart2, i = sizeof(wep->wePart2) / 2;
+	     --i >= 0 && !end;) {
 		code = unix2winchr(&un, &unlen, 0, pmp);
 		*wcp++ = code;
 		*wcp++ = code >> 8;
 		if (!code)
 			end = WIN_LAST;
 	}
-	for (wcp = wep->wePart3, i = sizeof(wep->wePart3)/2; --i >= 0 && !end;) {
+	for (wcp = wep->wePart3, i = sizeof(wep->wePart3) / 2;
+	     --i >= 0 && !end;) {
 		code = unix2winchr(&un, &unlen, 0, pmp);
 		*wcp++ = code;
 		*wcp++ = code >> 8;
@@ -596,8 +600,7 @@ winChkName(struct mbnambuf *nbp, const u_char *un, size_t unlen, int chksum,
 
 #ifdef MSDOSFS_DEBUG
 	printf("winChkName(): un=%s:%zu,d_name=%s:%d\n", un, unlen,
-							dirbuf.d_name,
-							dirbuf.d_namlen);
+	    dirbuf.d_name, dirbuf.d_namlen);
 #endif
 
 	/*
@@ -613,8 +616,8 @@ winChkName(struct mbnambuf *nbp, const u_char *un, size_t unlen, int chksum,
 		 * to look up or create files in case sensitive even when
 		 * it's a long file name.
 		 */
-		c1 = unix2winchr(__DECONST(const u_char **, &np), &len,
-		    LCASE_BASE, pmp);
+		c1 = unix2winchr(
+		    __DECONST(const u_char **, &np), &len, LCASE_BASE, pmp);
 		c2 = unix2winchr(&un, &unlen, LCASE_BASE, pmp);
 		if (c1 != c2)
 			return -2;
@@ -636,14 +639,14 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 	uint16_t code;
 	int i;
 
-	if ((wep->weCnt&WIN_CNT) > howmany(WIN_MAXLEN, WIN_CHARS)
-	    || !(wep->weCnt&WIN_CNT))
+	if ((wep->weCnt & WIN_CNT) > howmany(WIN_MAXLEN, WIN_CHARS) ||
+	    !(wep->weCnt & WIN_CNT))
 		return -1;
 
 	/*
 	 * First compare checksums
 	 */
-	if (wep->weCnt&WIN_LAST) {
+	if (wep->weCnt & WIN_LAST) {
 		chksum = wep->weChksum;
 	} else if (chksum != wep->weChksum)
 		chksum = -1;
@@ -654,13 +657,13 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 	 * Convert the name parts
 	 */
 	np = name;
-	for (cp = wep->wePart1, i = sizeof(wep->wePart1)/2; --i >= 0;) {
+	for (cp = wep->wePart1, i = sizeof(wep->wePart1) / 2; --i >= 0;) {
 		code = (cp[1] << 8) | cp[0];
 		switch (code) {
 		case 0:
 			*np = '\0';
-			if (mbnambuf_write(nbp, name,
-			    (wep->weCnt & WIN_CNT) - 1) != 0)
+			if (mbnambuf_write(
+				nbp, name, (wep->weCnt & WIN_CNT) - 1) != 0)
 				return -1;
 			return chksum;
 		case '/':
@@ -674,13 +677,13 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 		}
 		cp += 2;
 	}
-	for (cp = wep->wePart2, i = sizeof(wep->wePart2)/2; --i >= 0;) {
+	for (cp = wep->wePart2, i = sizeof(wep->wePart2) / 2; --i >= 0;) {
 		code = (cp[1] << 8) | cp[0];
 		switch (code) {
 		case 0:
 			*np = '\0';
-			if (mbnambuf_write(nbp, name,
-			    (wep->weCnt & WIN_CNT) - 1) != 0)
+			if (mbnambuf_write(
+				nbp, name, (wep->weCnt & WIN_CNT) - 1) != 0)
 				return -1;
 			return chksum;
 		case '/':
@@ -694,13 +697,13 @@ win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 		}
 		cp += 2;
 	}
-	for (cp = wep->wePart3, i = sizeof(wep->wePart3)/2; --i >= 0;) {
+	for (cp = wep->wePart3, i = sizeof(wep->wePart3) / 2; --i >= 0;) {
 		code = (cp[1] << 8) | cp[0];
 		switch (code) {
 		case 0:
 			*np = '\0';
-			if (mbnambuf_write(nbp, name,
-			    (wep->weCnt & WIN_CNT) - 1) != 0)
+			if (mbnambuf_write(
+				nbp, name, (wep->weCnt & WIN_CNT) - 1) != 0)
 				return -1;
 			return chksum;
 		case '/':
@@ -730,7 +733,7 @@ winChksum(uint8_t *name)
 	uint8_t s;
 
 	for (s = 0, i = 11; --i >= 0; s += *name++)
-		s = (s << 7)|(s >> 1);
+		s = (s << 7) | (s >> 1);
 	return (s);
 }
 
@@ -748,10 +751,11 @@ winSlotCnt(const u_char *un, size_t unlen, struct msdosfsmount *pmp)
 	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
 		wlen = WIN_MAXLEN * 2;
 		wnp = wn;
-		msdosfs_iconv->conv(pmp->pm_u2w, (const char **)&un, &unlen, &wnp, &wlen);
+		msdosfs_iconv->conv(
+		    pmp->pm_u2w, (const char **)&un, &unlen, &wnp, &wlen);
 		if (unlen > 0)
 			return 0;
-		return howmany(WIN_MAXLEN - wlen/2, WIN_CHARS);
+		return howmany(WIN_MAXLEN - wlen / 2, WIN_CHARS);
 	}
 
 	if (unlen > WIN_MAXLEN)
@@ -777,7 +781,8 @@ winLenFixup(const u_char *un, size_t unlen)
  * inlen or outlen.
  */
 static int
-mbsadjpos(const char **instr, size_t inlen, size_t outlen, int weight, int flag, void *handle)
+mbsadjpos(const char **instr, size_t inlen, size_t outlen, int weight, int flag,
+    void *handle)
 {
 	char *outp, outstr[outlen * weight + 1];
 
@@ -796,7 +801,8 @@ mbsadjpos(const char **instr, size_t inlen, size_t outlen, int weight, int flag,
  * Convert DOS char to Local char
  */
 static u_char *
-dos2unixchr(u_char *outbuf, const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *pmp)
+dos2unixchr(u_char *outbuf, const u_char **instr, size_t *ilen, int lower,
+    struct msdosfsmount *pmp)
 {
 	u_char c, *outp;
 	size_t len, olen;
@@ -806,11 +812,12 @@ dos2unixchr(u_char *outbuf, const u_char **instr, size_t *ilen, int lower, struc
 		olen = len = 4;
 
 		if (lower & (LCASE_BASE | LCASE_EXT))
-			msdosfs_iconv->convchr_case(pmp->pm_d2u, (const char **)instr,
-						  ilen, (char **)&outp, &olen, KICONV_LOWER);
+			msdosfs_iconv->convchr_case(pmp->pm_d2u,
+			    (const char **)instr, ilen, (char **)&outp, &olen,
+			    KICONV_LOWER);
 		else
-			msdosfs_iconv->convchr(pmp->pm_d2u, (const char **)instr,
-					     ilen, (char **)&outp, &olen);
+			msdosfs_iconv->convchr(pmp->pm_d2u,
+			    (const char **)instr, ilen, (char **)&outp, &olen);
 		len -= olen;
 
 		/*
@@ -854,8 +861,8 @@ unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
 		ucslen = 2;
 		len = *ilen;
 		up = unicode;
-		msdosfs_iconv->convchr(pmp->pm_u2w, (const char **)instr,
-				     ilen, &up, &ucslen);
+		msdosfs_iconv->convchr(
+		    pmp->pm_u2w, (const char **)instr, ilen, &up, &ucslen);
 		unixlen = len - *ilen;
 
 		/*
@@ -871,8 +878,8 @@ unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
 		 * return magic number for ascii char
 		 */
 		if (unixlen == 1) {
-			c = *(*instr -1);
-			if (! (c & 0x80)) {
+			c = *(*instr - 1);
+			if (!(c & 0x80)) {
 				c = unix2dos[c];
 				if (c <= 2)
 					return (c);
@@ -888,11 +895,12 @@ unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
 		olen = len = 2;
 		outp = outbuf;
 		msdosfs_iconv->convchr_case(pmp->pm_u2d, (const char **)instr,
-					  ilen, &outp, &olen, KICONV_FROM_UPPER);
+		    ilen, &outp, &olen, KICONV_FROM_UPPER);
 		len -= olen;
 
 		/*
-		 * cannot be converted, but has unicode char, should return magic number
+		 * cannot be converted, but has unicode char, should return
+		 * magic number
 		 */
 		if (len == 0) {
 			(*ilen) -= unixlen;
@@ -901,7 +909,7 @@ unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
 		}
 
 		wc = 0;
-		while(len--)
+		while (len--)
 			wc |= (*(outp - len - 1) & 0xff) << (len << 3);
 		return (wc);
 	}
@@ -924,15 +932,16 @@ win2unixchr(u_char *outbuf, uint16_t wc, struct msdosfsmount *pmp)
 
 	outp = outbuf;
 	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
-		inbuf[0] = (u_char)(wc>>8);
+		inbuf[0] = (u_char)(wc >> 8);
 		inbuf[1] = (u_char)wc;
 		inbuf[2] = '\0';
 
 		ilen = 2;
 		olen = len = 4;
 		inp = inbuf;
-		msdosfs_iconv->convchr(pmp->pm_w2u, __DECONST(const char **,
-		    &inp), &ilen, (char **)&outp, &olen);
+		msdosfs_iconv->convchr(pmp->pm_w2u,
+		    __DECONST(const char **, &inp), &ilen, (char **)&outp,
+		    &olen);
 		len -= olen;
 
 		/*
@@ -953,7 +962,8 @@ win2unixchr(u_char *outbuf, uint16_t wc, struct msdosfsmount *pmp)
  * Convert Local char to Windows char
  */
 static uint16_t
-unix2winchr(const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *pmp)
+unix2winchr(
+    const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *pmp)
 {
 	u_char *outp, outbuf[3];
 	uint16_t wc;
@@ -966,12 +976,12 @@ unix2winchr(const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *
 		outp = outbuf;
 		olen = 2;
 		if (lower & (LCASE_BASE | LCASE_EXT))
-			msdosfs_iconv->convchr_case(pmp->pm_u2w, (const char **)instr,
-						  ilen, (char **)&outp, &olen,
-						  KICONV_FROM_LOWER);
+			msdosfs_iconv->convchr_case(pmp->pm_u2w,
+			    (const char **)instr, ilen, (char **)&outp, &olen,
+			    KICONV_FROM_LOWER);
 		else
-			msdosfs_iconv->convchr(pmp->pm_u2w, (const char **)instr,
-					     ilen, (char **)&outp, &olen);
+			msdosfs_iconv->convchr(pmp->pm_u2w,
+			    (const char **)instr, ilen, (char **)&outp, &olen);
 
 		/*
 		 * return '0' if end of filename
@@ -979,7 +989,7 @@ unix2winchr(const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *
 		if (olen == 2)
 			return (0);
 
-		wc = (outbuf[0]<<8) | outbuf[1];
+		wc = (outbuf[0] << 8) | outbuf[1];
 
 		return (wc);
 	}
@@ -1021,8 +1031,8 @@ mbnambuf_write(struct mbnambuf *nbp, char *name, int id)
 
 	if (nbp->nb_len != 0 && id != nbp->nb_last_id - 1) {
 #ifdef MSDOSFS_DEBUG
-		printf("msdosfs: non-decreasing id: id %d, last id %d\n",
-		    id, nbp->nb_last_id);
+		printf("msdosfs: non-decreasing id: id %d, last id %d\n", id,
+		    nbp->nb_last_id);
 #endif
 		return (EINVAL);
 	}

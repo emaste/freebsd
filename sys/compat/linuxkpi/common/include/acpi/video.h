@@ -31,8 +31,8 @@
 #ifndef _ACPI_VIDEO_H_
 #define _ACPI_VIDEO_H_
 
-#define	ACPI_VIDEO_CLASS	"video"
+#define ACPI_VIDEO_CLASS "video"
 
-#define	ACPI_VIDEO_NOTIFY_PROBE	0x81
+#define ACPI_VIDEO_NOTIFY_PROBE 0x81
 
-#endif	/* !_ACPI_VIDEO_H_ */
+#endif /* !_ACPI_VIDEO_H_ */

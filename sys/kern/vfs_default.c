@@ -42,7 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/dirent.h>
 #include <sys/event.h>
+#include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -51,38 +53,35 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/poll.h>
+#include <sys/priv.h>
 #include <sys/rwlock.h>
-#include <sys/fcntl.h>
+#include <sys/stat.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <sys/dirent.h>
-#include <sys/poll.h>
-#include <sys/stat.h>
-#include <security/audit/audit.h>
-#include <sys/priv.h>
-
-#include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
-#include <vm/vm_object.h>
-#include <vm/vm_extern.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
-static int	vop_nolookup(struct vop_lookup_args *);
-static int	vop_norename(struct vop_rename_args *);
-static int	vop_nostrategy(struct vop_strategy_args *);
-static int	get_next_dirent(struct vnode *vp, struct dirent **dpp,
-				char *dirbuf, int dirbuflen, off_t *off,
-				char **cpos, int *len, int *eofflag,
-				struct thread *td);
-static int	dirent_exists(struct vnode *vp, const char *dirname,
-			      struct thread *td);
+#include <security/audit/audit.h>
+#include <security/mac/mac_framework.h>
 
-#define DIRENT_MINSIZE (sizeof(struct dirent) - (MAXNAMLEN+1) + 4)
+static int vop_nolookup(struct vop_lookup_args *);
+static int vop_norename(struct vop_rename_args *);
+static int vop_nostrategy(struct vop_strategy_args *);
+static int get_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
+    int dirbuflen, off_t *off, char **cpos, int *len, int *eofflag,
+    struct thread *td);
+static int dirent_exists(
+    struct vnode *vp, const char *dirname, struct thread *td);
+
+#define DIRENT_MINSIZE (sizeof(struct dirent) - (MAXNAMLEN + 1) + 4)
 
 static int vop_stdis_text(struct vop_is_text_args *ap);
 static int vop_stdunset_text(struct vop_unset_text_args *ap);
@@ -107,52 +106,52 @@ static int vop_stdvput_pair(struct vop_vput_pair_args *ap);
  */
 
 struct vop_vector default_vnodeops = {
-	.vop_default =		NULL,
-	.vop_bypass =		VOP_EOPNOTSUPP,
+	.vop_default = NULL,
+	.vop_bypass = VOP_EOPNOTSUPP,
 
-	.vop_access =		vop_stdaccess,
-	.vop_accessx =		vop_stdaccessx,
-	.vop_advise =		vop_stdadvise,
-	.vop_advlock =		vop_stdadvlock,
-	.vop_advlockasync =	vop_stdadvlockasync,
-	.vop_advlockpurge =	vop_stdadvlockpurge,
-	.vop_allocate =		vop_stdallocate,
-	.vop_bmap =		vop_stdbmap,
-	.vop_close =		VOP_NULL,
-	.vop_fsync =		VOP_NULL,
-	.vop_stat =		vop_stdstat,
-	.vop_fdatasync =	vop_stdfdatasync,
-	.vop_getpages =		vop_stdgetpages,
-	.vop_getpages_async =	vop_stdgetpages_async,
-	.vop_getwritemount = 	vop_stdgetwritemount,
-	.vop_inactive =		VOP_NULL,
-	.vop_need_inactive =	vop_stdneed_inactive,
-	.vop_ioctl =		vop_stdioctl,
-	.vop_kqfilter =		vop_stdkqfilter,
-	.vop_islocked =		vop_stdislocked,
-	.vop_lock1 =		vop_stdlock,
-	.vop_lookup =		vop_nolookup,
-	.vop_open =		VOP_NULL,
-	.vop_pathconf =		VOP_EINVAL,
-	.vop_poll =		vop_nopoll,
-	.vop_putpages =		vop_stdputpages,
-	.vop_readlink =		VOP_EINVAL,
-	.vop_read_pgcache =	vop_stdread_pgcache,
-	.vop_rename =		vop_norename,
-	.vop_revoke =		VOP_PANIC,
-	.vop_strategy =		vop_nostrategy,
-	.vop_unlock =		vop_stdunlock,
-	.vop_vptocnp =		vop_stdvptocnp,
-	.vop_vptofh =		vop_stdvptofh,
-	.vop_unp_bind =		vop_stdunp_bind,
-	.vop_unp_connect =	vop_stdunp_connect,
-	.vop_unp_detach =	vop_stdunp_detach,
-	.vop_is_text =		vop_stdis_text,
-	.vop_set_text =		vop_stdset_text,
-	.vop_unset_text =	vop_stdunset_text,
-	.vop_add_writecount =	vop_stdadd_writecount,
-	.vop_copy_file_range =	vop_stdcopy_file_range,
-	.vop_vput_pair =	vop_stdvput_pair,
+	.vop_access = vop_stdaccess,
+	.vop_accessx = vop_stdaccessx,
+	.vop_advise = vop_stdadvise,
+	.vop_advlock = vop_stdadvlock,
+	.vop_advlockasync = vop_stdadvlockasync,
+	.vop_advlockpurge = vop_stdadvlockpurge,
+	.vop_allocate = vop_stdallocate,
+	.vop_bmap = vop_stdbmap,
+	.vop_close = VOP_NULL,
+	.vop_fsync = VOP_NULL,
+	.vop_stat = vop_stdstat,
+	.vop_fdatasync = vop_stdfdatasync,
+	.vop_getpages = vop_stdgetpages,
+	.vop_getpages_async = vop_stdgetpages_async,
+	.vop_getwritemount = vop_stdgetwritemount,
+	.vop_inactive = VOP_NULL,
+	.vop_need_inactive = vop_stdneed_inactive,
+	.vop_ioctl = vop_stdioctl,
+	.vop_kqfilter = vop_stdkqfilter,
+	.vop_islocked = vop_stdislocked,
+	.vop_lock1 = vop_stdlock,
+	.vop_lookup = vop_nolookup,
+	.vop_open = VOP_NULL,
+	.vop_pathconf = VOP_EINVAL,
+	.vop_poll = vop_nopoll,
+	.vop_putpages = vop_stdputpages,
+	.vop_readlink = VOP_EINVAL,
+	.vop_read_pgcache = vop_stdread_pgcache,
+	.vop_rename = vop_norename,
+	.vop_revoke = VOP_PANIC,
+	.vop_strategy = vop_nostrategy,
+	.vop_unlock = vop_stdunlock,
+	.vop_vptocnp = vop_stdvptocnp,
+	.vop_vptofh = vop_stdvptofh,
+	.vop_unp_bind = vop_stdunp_bind,
+	.vop_unp_connect = vop_stdunp_connect,
+	.vop_unp_detach = vop_stdunp_detach,
+	.vop_is_text = vop_stdis_text,
+	.vop_set_text = vop_stdset_text,
+	.vop_unset_text = vop_stdunset_text,
+	.vop_add_writecount = vop_stdadd_writecount,
+	.vop_copy_file_range = vop_stdcopy_file_range,
+	.vop_vput_pair = vop_stdvput_pair,
 };
 VFS_VOP_VECTOR_REGISTER(default_vnodeops);
 
@@ -235,13 +234,12 @@ vop_panic(struct vop_generic_args *ap)
 /*
  * Default vop for filesystems that do not support name lookup
  */
-static int
-vop_nolookup(ap)
-	struct vop_lookup_args /* {
-		struct vnode *a_dvp;
-		struct vnode **a_vpp;
-		struct componentname *a_cnp;
-	} */ *ap;
+static int vop_nolookup(ap) struct vop_lookup_args
+    /* {
+struct vnode *a_dvp;
+struct vnode **a_vpp;
+struct componentname *a_cnp;
+} */ *ap;
 {
 
 	*ap->a_vpp = NULL;
@@ -275,7 +273,7 @@ vop_norename(struct vop_rename_args *ap)
  */
 
 static int
-vop_nostrategy (struct vop_strategy_args *ap)
+vop_nostrategy(struct vop_strategy_args *ap)
 {
 	printf("No strategy for buffer at %p\n", ap->a_bp);
 	vn_printf(ap->a_vp, "vnode ");
@@ -287,8 +285,8 @@ vop_nostrategy (struct vop_strategy_args *ap)
 
 static int
 get_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
-		int dirbuflen, off_t *off, char **cpos, int *len,
-		int *eofflag, struct thread *td)
+    int dirbuflen, off_t *off, char **cpos, int *len, int *eofflag,
+    struct thread *td)
 {
 	int error, reclen;
 	struct uio uio;
@@ -316,8 +314,8 @@ get_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
 		error = mac_vnode_check_readdir(td->td_ucred, vp);
 		if (error == 0)
 #endif
-			error = VOP_READDIR(vp, &uio, td->td_ucred, eofflag,
-		    		NULL, NULL);
+			error = VOP_READDIR(
+			    vp, &uio, td->td_ucred, eofflag, NULL, NULL);
 		if (error)
 			return (error);
 
@@ -373,8 +371,8 @@ dirent_exists(struct vnode *vp, const char *dirname, struct thread *td)
 	off = 0;
 	len = 0;
 	do {
-		error = get_next_dirent(vp, &dp, dirbuf, dirbuflen, &off,
-					&cpos, &len, &eofflag, td);
+		error = get_next_dirent(vp, &dp, dirbuf, dirbuflen, &off, &cpos,
+		    &len, &eofflag, td);
 		if (error)
 			goto out;
 
@@ -394,8 +392,9 @@ int
 vop_stdaccess(struct vop_access_args *ap)
 {
 
-	KASSERT((ap->a_accmode & ~(VEXEC | VWRITE | VREAD | VADMIN |
-	    VAPPEND)) == 0, ("invalid bit in accmode"));
+	KASSERT(
+	    (ap->a_accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND)) == 0,
+	    ("invalid bit in accmode"));
 
 	return (VOP_ACCESSX(ap->a_vp, ap->a_accmode, ap->a_cred, ap->a_td));
 }
@@ -499,31 +498,30 @@ vop_stdadvlockpurge(struct vop_advlockpurge_args *ap)
  * Override per filesystem for the case where the filesystem has smaller
  * limits.
  */
-int
-vop_stdpathconf(ap)
-	struct vop_pathconf_args /* {
-	struct vnode *a_vp;
-	int a_name;
-	int *a_retval;
-	} */ *ap;
+int vop_stdpathconf(ap) struct vop_pathconf_args
+    /* {
+struct vnode *a_vp;
+int a_name;
+int *a_retval;
+} */ *ap;
 {
 
 	switch (ap->a_name) {
-		case _PC_ASYNC_IO:
-			*ap->a_retval = _POSIX_ASYNCHRONOUS_IO;
-			return (0);
-		case _PC_PATH_MAX:
-			*ap->a_retval = PATH_MAX;
-			return (0);
-		case _PC_ACL_EXTENDED:
-		case _PC_ACL_NFS4:
-		case _PC_CAP_PRESENT:
-		case _PC_INF_PRESENT:
-		case _PC_MAC_PRESENT:
-			*ap->a_retval = 0;
-			return (0);
-		default:
-			return (EINVAL);
+	case _PC_ASYNC_IO:
+		*ap->a_retval = _POSIX_ASYNCHRONOUS_IO;
+		return (0);
+	case _PC_PATH_MAX:
+		*ap->a_retval = PATH_MAX;
+		return (0);
+	case _PC_ACL_EXTENDED:
+	case _PC_ACL_NFS4:
+	case _PC_CAP_PRESENT:
+	case _PC_INF_PRESENT:
+	case _PC_MAC_PRESENT:
+		*ap->a_retval = 0;
+		return (0);
+	default:
+		return (EINVAL);
 	}
 	/* NOTREACHED */
 }
@@ -531,29 +529,27 @@ vop_stdpathconf(ap)
 /*
  * Standard lock, unlock and islocked functions.
  */
-int
-vop_stdlock(ap)
-	struct vop_lock1_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		char *file;
-		int line;
-	} */ *ap;
+int vop_stdlock(ap) struct vop_lock1_args
+    /* {
+struct vnode *a_vp;
+int a_flags;
+char *file;
+int line;
+} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct mtx *ilk;
 
 	ilk = VI_MTX(vp);
-	return (lockmgr_lock_flags(vp->v_vnlock, ap->a_flags,
-	    &ilk->lock_object, ap->a_file, ap->a_line));
+	return (lockmgr_lock_flags(vp->v_vnlock, ap->a_flags, &ilk->lock_object,
+	    ap->a_file, ap->a_line));
 }
 
 /* See above. */
-int
-vop_stdunlock(ap)
-	struct vop_unlock_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+int vop_stdunlock(ap) struct vop_unlock_args
+    /* {
+struct vnode *a_vp;
+} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 
@@ -561,11 +557,10 @@ vop_stdunlock(ap)
 }
 
 /* See above. */
-int
-vop_stdislocked(ap)
-	struct vop_islocked_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+int vop_stdislocked(ap) struct vop_islocked_args
+    /* {
+struct vnode *a_vp;
+} */ *ap;
 {
 
 	return (lockstatus(ap->a_vp->v_vnlock));
@@ -578,14 +573,13 @@ vop_stdislocked(ap)
  * - shared locking disablement is not supported
  * - v_vnlock pointer is not honored
  */
-int
-vop_lock(ap)
-	struct vop_lock1_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		char *file;
-		int line;
-	} */ *ap;
+int vop_lock(ap) struct vop_lock1_args
+    /* {
+struct vnode *a_vp;
+int a_flags;
+char *file;
+int line;
+} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	int flags = ap->a_flags;
@@ -593,26 +587,28 @@ vop_lock(ap)
 
 	MPASS(vp->v_vnlock == &vp->v_lock);
 
-	if (__predict_false((flags & ~(LK_TYPE_MASK | LK_NODDLKTREAT | LK_RETRY)) != 0))
+	if (__predict_false(
+		(flags & ~(LK_TYPE_MASK | LK_NODDLKTREAT | LK_RETRY)) != 0))
 		goto other;
 
 	switch (flags & LK_TYPE_MASK) {
 	case LK_SHARED:
-		return (lockmgr_slock(&vp->v_lock, flags, ap->a_file, ap->a_line));
+		return (
+		    lockmgr_slock(&vp->v_lock, flags, ap->a_file, ap->a_line));
 	case LK_EXCLUSIVE:
-		return (lockmgr_xlock(&vp->v_lock, flags, ap->a_file, ap->a_line));
+		return (
+		    lockmgr_xlock(&vp->v_lock, flags, ap->a_file, ap->a_line));
 	}
 other:
 	ilk = VI_MTX(vp);
-	return (lockmgr_lock_flags(&vp->v_lock, flags,
-	    &ilk->lock_object, ap->a_file, ap->a_line));
+	return (lockmgr_lock_flags(
+	    &vp->v_lock, flags, &ilk->lock_object, ap->a_file, ap->a_line));
 }
 
-int
-vop_unlock(ap)
-	struct vop_unlock_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+int vop_unlock(ap) struct vop_unlock_args
+    /* {
+struct vnode *a_vp;
+} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 
@@ -621,11 +617,10 @@ vop_unlock(ap)
 	return (lockmgr_unlock(&vp->v_lock));
 }
 
-int
-vop_islocked(ap)
-	struct vop_islocked_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+int vop_islocked(ap) struct vop_islocked_args
+    /* {
+struct vnode *a_vp;
+} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 
@@ -637,14 +632,13 @@ vop_islocked(ap)
 /*
  * Return true for select/poll.
  */
-int
-vop_nopoll(ap)
-	struct vop_poll_args /* {
-		struct vnode *a_vp;
-		int  a_events;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+int vop_nopoll(ap) struct vop_poll_args
+    /* {
+struct vnode *a_vp;
+int  a_events;
+struct ucred *a_cred;
+struct thread *a_td;
+} */ *ap;
 {
 
 	if (ap->a_events & ~POLLSTANDARD)
@@ -655,14 +649,13 @@ vop_nopoll(ap)
 /*
  * Implement poll for local filesystems that support it.
  */
-int
-vop_stdpoll(ap)
-	struct vop_poll_args /* {
-		struct vnode *a_vp;
-		int  a_events;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+int vop_stdpoll(ap) struct vop_poll_args
+    /* {
+struct vnode *a_vp;
+int  a_events;
+struct ucred *a_cred;
+struct thread *a_td;
+} */ *ap;
 {
 	if (ap->a_events & ~POLLSTANDARD)
 		return (vn_pollrecord(ap->a_vp, ap->a_td, ap->a_events));
@@ -672,12 +665,11 @@ vop_stdpoll(ap)
 /*
  * Return our mount point, as we will take charge of the writes.
  */
-int
-vop_stdgetwritemount(ap)
-	struct vop_getwritemount_args /* {
-		struct vnode *a_vp;
-		struct mount **a_mpp;
-	} */ *ap;
+int vop_stdgetwritemount(ap) struct vop_getwritemount_args
+    /* {
+struct vnode *a_vp;
+struct mount **a_mpp;
+} */ *ap;
 {
 	struct mount *mp;
 	struct vnode *vp;
@@ -704,22 +696,22 @@ vop_stdgetwritemount(ap)
  *   consecutive blocks, but
  * - Report no contiguous runs of blocks.
  */
-int
-vop_stdbmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		daddr_t  a_bn;
-		struct bufobj **a_bop;
-		daddr_t *a_bnp;
-		int *a_runp;
-		int *a_runb;
-	} */ *ap;
+int vop_stdbmap(ap) struct vop_bmap_args
+    /* {
+struct vnode *a_vp;
+daddr_t  a_bn;
+struct bufobj **a_bop;
+daddr_t *a_bnp;
+int *a_runp;
+int *a_runb;
+} */ *ap;
 {
 
 	if (ap->a_bop != NULL)
 		*ap->a_bop = &ap->a_vp->v_bufobj;
 	if (ap->a_bnp != NULL)
-		*ap->a_bnp = ap->a_bn * btodb(ap->a_vp->v_mount->mnt_stat.f_iosize);
+		*ap->a_bnp = ap->a_bn *
+		    btodb(ap->a_vp->v_mount->mnt_stat.f_iosize);
 	if (ap->a_runp != NULL)
 		*ap->a_runp = 0;
 	if (ap->a_runb != NULL)
@@ -727,13 +719,12 @@ vop_stdbmap(ap)
 	return (0);
 }
 
-int
-vop_stdfsync(ap)
-	struct vop_fsync_args /* {
-		struct vnode *a_vp;
-		int a_waitfor;
-		struct thread *a_td;
-	} */ *ap;
+int vop_stdfsync(ap) struct vop_fsync_args
+    /* {
+struct vnode *a_vp;
+int a_waitfor;
+struct thread *a_td;
+} */ *ap;
 {
 
 	return (vn_fsync_buf(ap->a_vp, ap->a_waitfor));
@@ -754,19 +745,18 @@ vop_stdfdatasync_buf(struct vop_fdatasync_args *ap)
 }
 
 /* XXX Needs good comment and more info in the manpage (VOP_GETPAGES(9)). */
-int
-vop_stdgetpages(ap)
-	struct vop_getpages_args /* {
-		struct vnode *a_vp;
-		vm_page_t *a_m;
-		int a_count;
-		int *a_rbehind;
-		int *a_rahead;
-	} */ *ap;
+int vop_stdgetpages(ap) struct vop_getpages_args
+    /* {
+struct vnode *a_vp;
+vm_page_t *a_m;
+int a_count;
+int *a_rbehind;
+int *a_rahead;
+} */ *ap;
 {
 
-	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
-	    ap->a_count, ap->a_rbehind, ap->a_rahead, NULL, NULL);
+	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
+	    ap->a_rbehind, ap->a_rahead, NULL, NULL);
 }
 
 static int
@@ -774,8 +764,8 @@ vop_stdgetpages_async(struct vop_getpages_async_args *ap)
 {
 	int error;
 
-	error = VOP_GETPAGES(ap->a_vp, ap->a_m, ap->a_count, ap->a_rbehind,
-	    ap->a_rahead);
+	error = VOP_GETPAGES(
+	    ap->a_vp, ap->a_m, ap->a_count, ap->a_rbehind, ap->a_rahead);
 	if (ap->a_iodone != NULL)
 		ap->a_iodone(ap->a_arg, ap->a_m, ap->a_count, error);
 	return (error);
@@ -788,19 +778,18 @@ vop_stdkqfilter(struct vop_kqfilter_args *ap)
 }
 
 /* XXX Needs good comment and more info in the manpage (VOP_PUTPAGES(9)). */
-int
-vop_stdputpages(ap)
-	struct vop_putpages_args /* {
-		struct vnode *a_vp;
-		vm_page_t *a_m;
-		int a_count;
-		int a_sync;
-		int *a_rtvals;
-	} */ *ap;
+int vop_stdputpages(ap) struct vop_putpages_args
+    /* {
+struct vnode *a_vp;
+vm_page_t *a_m;
+int a_count;
+int a_sync;
+int *a_rtvals;
+} */ *ap;
 {
 
-	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
-	     ap->a_sync, ap->a_rtvals);
+	return vnode_pager_generic_putpages(
+	    ap->a_vp, ap->a_m, ap->a_count, ap->a_sync, ap->a_rtvals);
 }
 
 int
@@ -855,8 +844,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 
 	mvp = *dvp = nd.ni_vp;
 
-	if (vp->v_mount != (*dvp)->v_mount &&
-	    ((*dvp)->v_vflag & VV_ROOT) &&
+	if (vp->v_mount != (*dvp)->v_mount && ((*dvp)->v_vflag & VV_ROOT) &&
 	    ((*dvp)->v_mount->mnt_flag & MNT_UNION)) {
 		*dvp = (*dvp)->v_mount->mnt_vnodecovered;
 		VREF(mvp);
@@ -884,12 +872,11 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 	do {
 		/* call VOP_READDIR of parent */
 		error = get_next_dirent(*dvp, &dp, dirbuf, dirbuflen, &off,
-					&cpos, &len, &eofflag, td);
+		    &cpos, &len, &eofflag, td);
 		if (error)
 			goto out;
 
-		if ((dp->d_type != DT_WHT) &&
-		    (dp->d_fileno == fileno)) {
+		if ((dp->d_type != DT_WHT) && (dp->d_fileno == fileno)) {
 			if (covered) {
 				VOP_UNLOCK(*dvp);
 				vn_lock(mvp, LK_SHARED | LK_RETRY);
@@ -992,7 +979,7 @@ vop_stdallocate(struct vop_allocate_args *ap)
 		}
 	} else
 #endif
-	if (offset + len > vap->va_size) {
+	    if (offset + len > vap->va_size) {
 		/*
 		 * Test offset + len against the filesystem's maxfilesize.
 		 */
@@ -1033,8 +1020,8 @@ vop_stdallocate(struct vop_allocate_args *ap)
 			if (error != 0)
 				break;
 			if (auio.uio_resid > 0) {
-				bzero(buf + cur - auio.uio_resid,
-				    auio.uio_resid);
+				bzero(
+				    buf + cur - auio.uio_resid, auio.uio_resid);
 			}
 		} else {
 			bzero(buf, cur);
@@ -1062,7 +1049,7 @@ vop_stdallocate(struct vop_allocate_args *ap)
 			break;
 	}
 
- out:
+out:
 	*ap->a_len = len;
 	*ap->a_offset = offset;
 	free(buf, M_TEMP);
@@ -1098,7 +1085,7 @@ vop_stdadvise(struct vop_advise_args *ap)
 
 		/*
 		 * Round to block boundaries (and later possibly further to
-		 * page boundaries).  Applications cannot reasonably be aware  
+		 * page boundaries).  Applications cannot reasonably be aware
 		 * of the boundaries, and the rounding must be to expand at
 		 * both extremities to cover enough.  It still doesn't cover
 		 * read-ahead.  For partial blocks, this gives unnecessary
@@ -1119,8 +1106,8 @@ vop_stdadvise(struct vop_advise_args *ap)
 			start = trunc_page(bstart);
 			end = round_page(bend);
 			VM_OBJECT_RLOCK(vp->v_object);
-			vm_object_page_noreuse(vp->v_object, OFF_TO_IDX(start),
-			    OFF_TO_IDX(end));
+			vm_object_page_noreuse(
+			    vp->v_object, OFF_TO_IDX(start), OFF_TO_IDX(end));
 			VM_OBJECT_RUNLOCK(vp->v_object);
 		}
 
@@ -1246,7 +1233,8 @@ vop_stdadd_writecount(struct vop_add_writecount_args *ap)
 		    ("neg writecount increment %d", ap->a_inc));
 		if (vp->v_writecount == 0) {
 			mp = vp->v_mount;
-			if (mp != NULL && (mp->mnt_kern_flag & MNTK_NOMSYNC) == 0)
+			if (mp != NULL &&
+			    (mp->mnt_kern_flag & MNTK_NOMSYNC) == 0)
 				vlazy(vp);
 		}
 		vp->v_writecount += ap->a_inc;
@@ -1302,40 +1290,32 @@ vop_stdioctl(struct vop_ioctl_args *ap)
  * vfs default ops
  * used to fill the vfs function table to get reasonable default return values.
  */
-int
-vfs_stdroot (mp, flags, vpp)
-	struct mount *mp;
-	int flags;
-	struct vnode **vpp;
+int vfs_stdroot(mp, flags, vpp) struct mount *mp;
+int flags;
+struct vnode **vpp;
 {
 
 	return (EOPNOTSUPP);
 }
 
-int
-vfs_stdstatfs (mp, sbp)
-	struct mount *mp;
-	struct statfs *sbp;
+int vfs_stdstatfs(mp, sbp) struct mount *mp;
+struct statfs *sbp;
 {
 
 	return (EOPNOTSUPP);
 }
 
-int
-vfs_stdquotactl (mp, cmds, uid, arg)
-	struct mount *mp;
-	int cmds;
-	uid_t uid;
-	void *arg;
+int vfs_stdquotactl(mp, cmds, uid, arg) struct mount *mp;
+int cmds;
+uid_t uid;
+void *arg;
 {
 
 	return (EOPNOTSUPP);
 }
 
-int
-vfs_stdsync(mp, waitfor)
-	struct mount *mp;
-	int waitfor;
+int vfs_stdsync(mp, waitfor) struct mount *mp;
+int waitfor;
 {
 	struct vnode *vp, *mvp;
 	struct thread *td;
@@ -1349,7 +1329,7 @@ vfs_stdsync(mp, waitfor)
 	 * Force stale buffer cache information to be flushed.
 	 */
 loop:
-	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+	MNT_VNODE_FOREACH_ALL (vp, mp, mvp) {
 		if (vp->v_bufobj.bo_dirty.bv_cnt == 0) {
 			VI_UNLOCK(vp);
 			continue;
@@ -1369,10 +1349,8 @@ loop:
 	return (allerror);
 }
 
-int
-vfs_stdnosync (mp, waitfor)
-	struct mount *mp;
-	int waitfor;
+int vfs_stdnosync(mp, waitfor) struct mount *mp;
+int waitfor;
 {
 
 	return (0);
@@ -1389,51 +1367,42 @@ vop_stdcopy_file_range(struct vop_copy_file_range_args *ap)
 	return (error);
 }
 
-int
-vfs_stdvget (mp, ino, flags, vpp)
-	struct mount *mp;
-	ino_t ino;
-	int flags;
-	struct vnode **vpp;
+int vfs_stdvget(mp, ino, flags, vpp) struct mount *mp;
+ino_t ino;
+int flags;
+struct vnode **vpp;
 {
 
 	return (EOPNOTSUPP);
 }
 
-int
-vfs_stdfhtovp (mp, fhp, flags, vpp)
-	struct mount *mp;
-	struct fid *fhp;
-	int flags;
-	struct vnode **vpp;
+int vfs_stdfhtovp(mp, fhp, flags, vpp) struct mount *mp;
+struct fid *fhp;
+int flags;
+struct vnode **vpp;
 {
 
 	return (EOPNOTSUPP);
 }
 
-int
-vfs_stdinit (vfsp)
-	struct vfsconf *vfsp;
+int vfs_stdinit(vfsp) struct vfsconf *vfsp;
 {
 
 	return (0);
 }
 
-int
-vfs_stduninit (vfsp)
-	struct vfsconf *vfsp;
+int vfs_stduninit(vfsp) struct vfsconf *vfsp;
 {
 
-	return(0);
+	return (0);
 }
 
-int
-vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname)
-	struct mount *mp;
-	int cmd;
-	struct vnode *filename_vp;
-	int attrnamespace;
-	const char *attrname;
+int vfs_stdextattrctl(
+    mp, cmd, filename_vp, attrnamespace, attrname) struct mount *mp;
+int cmd;
+struct vnode *filename_vp;
+int attrnamespace;
+const char *attrname;
 {
 
 	if (filename_vp != NULL)
@@ -1441,11 +1410,9 @@ vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname)
 	return (EOPNOTSUPP);
 }
 
-int
-vfs_stdsysctl(mp, op, req)
-	struct mount *mp;
-	fsctlop_t op;
-	struct sysctl_req *req;
+int vfs_stdsysctl(mp, op, req) struct mount *mp;
+fsctlop_t op;
+struct sysctl_req *req;
 {
 
 	return (EOPNOTSUPP);

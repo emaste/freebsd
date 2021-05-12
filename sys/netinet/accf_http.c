@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/signalvar.h>
-#include <sys/sysctl.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 
 /* check for GET/HEAD */
 static int sohashttpget(struct socket *so, void *arg, int waitflag);
@@ -49,8 +49,8 @@ static int soishttpconnected(struct socket *so, void *arg, int waitflag);
 /* strcmp on an mbuf chain */
 static int mbufstrcmp(struct mbuf *m, struct mbuf *npkt, int offset, char *cmp);
 /* strncmp on an mbuf chain */
-static int mbufstrncmp(struct mbuf *m, struct mbuf *npkt, int offset,
-	int max, char *cmp);
+static int mbufstrncmp(
+    struct mbuf *m, struct mbuf *npkt, int offset, int max, char *cmp);
 /* socketbuffer is full */
 static int sbfull(struct sockbuf *sb);
 
@@ -58,17 +58,15 @@ ACCEPT_FILTER_DEFINE(accf_http, "httpready", sohashttpget, NULL, NULL, 1);
 
 static int parse_http_version = 1;
 
-static SYSCTL_NODE(_net_inet_accf, OID_AUTO, http,
-    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "HTTP accept filter");
+static SYSCTL_NODE(_net_inet_accf, OID_AUTO, http, CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, "HTTP accept filter");
 SYSCTL_INT(_net_inet_accf_http, OID_AUTO, parsehttpversion, CTLFLAG_RW,
-    &parse_http_version, 1,
-    "Parse http version so that non 1.x requests work");
+    &parse_http_version, 1, "Parse http version so that non 1.x requests work");
 
 #ifdef ACCF_HTTP_DEBUG
-#define DPRINT(fmt, args...)						\
-	do {								\
-		printf("%s:%d: " fmt "\n", __func__, __LINE__, ##args);	\
+#define DPRINT(fmt, args...)                                            \
+	do {                                                            \
+		printf("%s:%d: " fmt "\n", __func__, __LINE__, ##args); \
 	} while (0)
 #else
 #define DPRINT(fmt, args...)
@@ -79,9 +77,9 @@ sbfull(struct sockbuf *sb)
 {
 
 	DPRINT("sbfull, cc(%ld) >= hiwat(%ld): %d, "
-	    "mbcnt(%ld) >= mbmax(%ld): %d",
-	    sb->sb_cc, sb->sb_hiwat, sb->sb_cc >= sb->sb_hiwat,
-	    sb->sb_mbcnt, sb->sb_mbmax, sb->sb_mbcnt >= sb->sb_mbmax);
+	       "mbcnt(%ld) >= mbmax(%ld): %d",
+	    sb->sb_cc, sb->sb_hiwat, sb->sb_cc >= sb->sb_hiwat, sb->sb_mbcnt,
+	    sb->sb_mbmax, sb->sb_mbcnt >= sb->sb_mbmax);
 	return (sbused(sb) >= sb->sb_hiwat || sb->sb_mbcnt >= sb->sb_mbmax);
 }
 
@@ -142,11 +140,11 @@ mbufstrncmp(struct mbuf *m, struct mbuf *npkt, int offset, int max, char *cmp)
 	return (0);
 }
 
-#define STRSETUP(sptr, slen, str)					\
-	do {								\
-		sptr = str;						\
-		slen = sizeof(str) - 1;					\
-	} while(0)
+#define STRSETUP(sptr, slen, str)       \
+	do {                            \
+		sptr = str;             \
+		slen = sizeof(str) - 1; \
+	} while (0)
 
 static int
 sohashttpget(struct socket *so, void *arg, int waitflag)
@@ -156,7 +154,7 @@ sohashttpget(struct socket *so, void *arg, int waitflag)
 	    !sbfull(&so->so_rcv)) {
 		struct mbuf *m;
 		char *cmp;
-		int	cmplen, cc;
+		int cmplen, cc;
 
 		m = so->so_rcv.sb_mb;
 		cc = sbavail(&so->so_rcv) - 1;
@@ -200,7 +198,7 @@ static int
 soparsehttpvers(struct socket *so, void *arg, int waitflag)
 {
 	struct mbuf *m, *n;
-	int	i, cc, spaces, inspaces;
+	int i, cc, spaces, inspaces;
 
 	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) != 0 || sbfull(&so->so_rcv))
 		goto fallout;
@@ -245,12 +243,12 @@ soparsehttpvers(struct socket *so, void *arg, int waitflag)
 							DPRINT("bad");
 							goto fallout;
 						}
-					} else if (
-					    mbufstrcmp(m, n, i, "HTTP/1.0") ||
+					} else if (mbufstrcmp(
+						       m, n, i, "HTTP/1.0") ||
 					    mbufstrcmp(m, n, i, "HTTP/1.1")) {
 						DPRINT("ok");
-						return (soishttpconnected(so,
-						    arg, waitflag));
+						return (soishttpconnected(
+						    so, arg, waitflag));
 					} else {
 						DPRINT("bad");
 						goto fallout;

@@ -38,37 +38,37 @@ struct svm_softc;
  * Guest register state that is saved outside the VMCB.
  */
 struct svm_regctx {
-	register_t	sctx_rbp;
-	register_t	sctx_rbx;
-	register_t	sctx_rcx;
-	register_t	sctx_rdx;
-	register_t	sctx_rdi;
-	register_t	sctx_rsi;
-	register_t	sctx_r8;
-	register_t	sctx_r9;
-	register_t	sctx_r10;
-	register_t	sctx_r11;
-	register_t	sctx_r12;
-	register_t	sctx_r13;
-	register_t	sctx_r14;
-	register_t	sctx_r15;
-	register_t	sctx_dr0;
-	register_t	sctx_dr1;
-	register_t	sctx_dr2;
-	register_t	sctx_dr3;
+	register_t sctx_rbp;
+	register_t sctx_rbx;
+	register_t sctx_rcx;
+	register_t sctx_rdx;
+	register_t sctx_rdi;
+	register_t sctx_rsi;
+	register_t sctx_r8;
+	register_t sctx_r9;
+	register_t sctx_r10;
+	register_t sctx_r11;
+	register_t sctx_r12;
+	register_t sctx_r13;
+	register_t sctx_r14;
+	register_t sctx_r15;
+	register_t sctx_dr0;
+	register_t sctx_dr1;
+	register_t sctx_dr2;
+	register_t sctx_dr3;
 
-	register_t	host_dr0;
-	register_t	host_dr1;
-	register_t	host_dr2;
-	register_t	host_dr3;
-	register_t	host_dr6;
-	register_t	host_dr7;
-	uint64_t	host_debugctl;
+	register_t host_dr0;
+	register_t host_dr1;
+	register_t host_dr2;
+	register_t host_dr3;
+	register_t host_dr6;
+	register_t host_dr7;
+	uint64_t host_debugctl;
 };
 
 void svm_launch(uint64_t pa, struct svm_regctx *gctx, struct pcpu *pcpu);
 #ifdef BHYVE_SNAPSHOT
-int  svm_set_tsc_offset(struct svm_softc *sc, int vcpu, uint64_t offset);
+int svm_set_tsc_offset(struct svm_softc *sc, int vcpu, uint64_t offset);
 #endif
 
 #endif /* _SVM_H_ */

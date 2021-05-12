@@ -70,14 +70,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
+#include <vm/pmap.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_phys.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #include <machine/cpu.h>
 #include <machine/intr.h>
@@ -97,9 +97,10 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef FDT
-#include <contrib/libfdt/libfdt.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
+
+#include <contrib/libfdt/libfdt.h>
 #endif
 
 static void get_fpcontext(struct thread *td, mcontext_t *mcp);
@@ -112,19 +113,19 @@ static struct trapframe proc0_tf;
 int early_boot = 1;
 int cold = 1;
 
-#define	DTB_SIZE_MAX	(1024 * 1024)
+#define DTB_SIZE_MAX (1024 * 1024)
 
 vm_paddr_t physmap[PHYS_AVAIL_ENTRIES];
 u_int physmap_idx;
 
 struct kva_md_info kmi;
 
-int64_t dcache_line_size;	/* The minimum D cache line size */
-int64_t icache_line_size;	/* The minimum I cache line size */
-int64_t idcache_line_size;	/* The minimum cache line size */
+int64_t dcache_line_size;  /* The minimum D cache line size */
+int64_t icache_line_size;  /* The minimum I cache line size */
+int64_t idcache_line_size; /* The minimum cache line size */
 
-#define BOOT_HART_INVALID	0xffffffff
-uint32_t boot_hart = BOOT_HART_INVALID;	/* The hart we booted on. */
+#define BOOT_HART_INVALID 0xffffffff
+uint32_t boot_hart = BOOT_HART_INVALID; /* The hart we booted on. */
 
 cpuset_t all_harts;
 
@@ -153,8 +154,7 @@ cpu_startup(void *dummy)
 			vm_paddr_t size;
 
 			size = phys_avail[indx + 1] - phys_avail[indx];
-			printf(
-			    "0x%016jx - 0x%016jx, %ju bytes (%ju pages)\n",
+			printf("0x%016jx - 0x%016jx, %ju bytes (%ju pages)\n",
 			    (uintmax_t)phys_avail[indx],
 			    (uintmax_t)phys_avail[indx + 1] - 1,
 			    (uintmax_t)size, (uintmax_t)size / PAGE_SIZE);
@@ -324,18 +324,15 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 }
 
 /* Sanity check these are the same size, they will be memcpy'd to and fro */
-CTASSERT(sizeof(((struct trapframe *)0)->tf_a) ==
-    sizeof((struct gpregs *)0)->gp_a);
-CTASSERT(sizeof(((struct trapframe *)0)->tf_s) ==
-    sizeof((struct gpregs *)0)->gp_s);
-CTASSERT(sizeof(((struct trapframe *)0)->tf_t) ==
-    sizeof((struct gpregs *)0)->gp_t);
-CTASSERT(sizeof(((struct trapframe *)0)->tf_a) ==
-    sizeof((struct reg *)0)->a);
-CTASSERT(sizeof(((struct trapframe *)0)->tf_s) ==
-    sizeof((struct reg *)0)->s);
-CTASSERT(sizeof(((struct trapframe *)0)->tf_t) ==
-    sizeof((struct reg *)0)->t);
+CTASSERT(
+    sizeof(((struct trapframe *)0)->tf_a) == sizeof((struct gpregs *)0)->gp_a);
+CTASSERT(
+    sizeof(((struct trapframe *)0)->tf_s) == sizeof((struct gpregs *)0)->gp_s);
+CTASSERT(
+    sizeof(((struct trapframe *)0)->tf_t) == sizeof((struct gpregs *)0)->gp_t);
+CTASSERT(sizeof(((struct trapframe *)0)->tf_a) == sizeof((struct reg *)0)->a);
+CTASSERT(sizeof(((struct trapframe *)0)->tf_s) == sizeof((struct reg *)0)->s);
+CTASSERT(sizeof(((struct trapframe *)0)->tf_t) == sizeof((struct reg *)0)->t);
 
 /* Support for FDT configurations only. */
 CTASSERT(FDT);
@@ -381,8 +378,8 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	 * it explicitly.
 	 */
 	if (((mcp->mc_gpregs.gp_sstatus ^ tf->tf_sstatus) &
-	    ~(SSTATUS_SD | SSTATUS_XS_MASK | SSTATUS_FS_MASK | SSTATUS_UPIE |
-	    SSTATUS_UIE)) != 0)
+		~(SSTATUS_SD | SSTATUS_XS_MASK | SSTATUS_FS_MASK |
+		    SSTATUS_UPIE | SSTATUS_UIE)) != 0)
 		return (EINVAL);
 
 	memcpy(tf->tf_t, mcp->mc_gpregs.gp_t, sizeof(tf->tf_t));
@@ -466,9 +463,8 @@ cpu_idle(int busy)
 	if (!busy)
 		cpu_idleclock();
 	if (!sched_runnable())
-		__asm __volatile(
-		    "fence \n"
-		    "wfi   \n");
+		__asm __volatile("fence \n"
+				 "wfi   \n");
 	if (!busy)
 		cpu_activeclock();
 	spinlock_exit();
@@ -545,7 +541,7 @@ spinlock_exit(void)
 	}
 }
 
-#ifndef	_SYS_SYSPROTO_H_
+#ifndef _SYS_SYSPROTO_H_
 struct sigreturn_args {
 	ucontext_t *ucp;
 };
@@ -635,7 +631,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_uc.uc_sigmask = *mask;
 	frame.sf_uc.uc_stack = td->td_sigstk;
 	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK) != 0 ?
-	    (onstack ? SS_ONSTACK : 0) : SS_DISABLE;
+		  (onstack ? SS_ONSTACK : 0) :
+		  SS_DISABLE;
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(td->td_proc);
 
@@ -658,8 +655,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	if (sysent->sv_sigcode_base != 0)
 		tf->tf_ra = (register_t)sysent->sv_sigcode_base;
 	else
-		tf->tf_ra = (register_t)(sysent->sv_psstrings -
-		    *(sysent->sv_szsigcode));
+		tf->tf_ra = (register_t)(
+		    sysent->sv_psstrings - *(sysent->sv_szsigcode));
 
 	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_sepc,
 	    tf->tf_sp);
@@ -679,7 +676,8 @@ init_proc0(vm_offset_t kstack)
 	thread0.td_kstack = kstack;
 	thread0.td_kstack_pages = KSTACK_PAGES;
 	thread0.td_pcb = (struct pcb *)(thread0.td_kstack +
-	    thread0.td_kstack_pages * PAGE_SIZE) - 1;
+			     thread0.td_kstack_pages * PAGE_SIZE) -
+	    1;
 	thread0.td_pcb->pcb_fpflags = 0;
 	thread0.td_frame = &proc0_tf;
 	pcpup->pc_curpcb = thread0.td_pcb;
@@ -736,19 +734,21 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 	vm_offset_t lastaddr;
 	size_t fake_size, dtb_size;
 
-#define PRELOAD_PUSH_VALUE(type, value) do {			\
-	*(type *)((char *)fake_preload + fake_size) = (value);	\
-	fake_size += sizeof(type);				\
-} while (0)
+#define PRELOAD_PUSH_VALUE(type, value)                                \
+	do {                                                           \
+		*(type *)((char *)fake_preload + fake_size) = (value); \
+		fake_size += sizeof(type);                             \
+	} while (0)
 
-#define PRELOAD_PUSH_STRING(str) do {				\
-	uint32_t ssize;						\
-	ssize = strlen(str) + 1;				\
-	PRELOAD_PUSH_VALUE(uint32_t, ssize);			\
-	strcpy(((char *)fake_preload + fake_size), str);	\
-	fake_size += ssize;					\
-	fake_size = roundup(fake_size, sizeof(u_long));		\
-} while (0)
+#define PRELOAD_PUSH_STRING(str)                                 \
+	do {                                                     \
+		uint32_t ssize;                                  \
+		ssize = strlen(str) + 1;                         \
+		PRELOAD_PUSH_VALUE(uint32_t, ssize);             \
+		strcpy(((char *)fake_preload + fake_size), str); \
+		fake_size += ssize;                              \
+		fake_size = roundup(fake_size, sizeof(u_long));  \
+	} while (0)
 
 	fake_size = 0;
 	lastaddr = (vm_offset_t)&end;
@@ -794,8 +794,8 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 	    ("FDT (%lx-%lx) and kernel (%lx-%lx) overlap", rvbp->dtbp_phys,
 		rvbp->dtbp_phys + dtb_size, rvbp->kern_phys,
 		rvbp->kern_phys + (lastaddr - KERNBASE)));
-	KASSERT(fake_size < sizeof(fake_preload),
-	    ("Too many fake_preload items"));
+	KASSERT(
+	    fake_size < sizeof(fake_preload), ("Too many fake_preload items"));
 
 	if (boothowto & RB_VERBOSE)
 		printf("FDT phys (%lx-%lx), kernel phys (%lx-%lx)\n",
@@ -874,7 +874,7 @@ initriscv(struct riscv_bootparams *rvbp)
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 
 	/* Set the pcpu pointer */
-	__asm __volatile("mv tp, %0" :: "r"(pcpup));
+	__asm __volatile("mv tp, %0" ::"r"(pcpup));
 
 	PCPU_SET(curthread, &thread0);
 
@@ -987,6 +987,6 @@ bzero(void *buf, size_t len)
 	uint8_t *p;
 
 	p = buf;
-	while(len-- > 0)
+	while (len-- > 0)
 		*p++ = 0;
 }

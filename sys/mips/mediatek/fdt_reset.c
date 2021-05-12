@@ -29,17 +29,18 @@
 
 #include <sys/cdefs.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
-#include <sys/systm.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include "fdt_reset_if.h"
 #include <mips/mediatek/fdt_reset.h>
+
+#include "fdt_reset_if.h"
 
 /*
  * Loop through all the tuples in the resets= property for a device, asserting
@@ -59,10 +60,11 @@ assert_deassert_all(device_t consumer, boolean_t assert)
 	boolean_t anyerrors;
 
 	rnode = ofw_bus_get_node(consumer);
-	ncells = OF_getencprop_alloc_multi(rnode, "resets", sizeof(*resets),
-	    (void **)&resets);
+	ncells = OF_getencprop_alloc_multi(
+	    rnode, "resets", sizeof(*resets), (void **)&resets);
 	if (!assert && ncells < 2) {
-		device_printf(consumer, "Warning: No resets specified in fdt "
+		device_printf(consumer,
+		    "Warning: No resets specified in fdt "
 		    "data; device may not function.");
 		return (ENXIO);
 	}
@@ -72,9 +74,11 @@ assert_deassert_all(device_t consumer, boolean_t assert)
 		resetnum = resets[i + 1];
 		if (resetdev == NULL) {
 			if (!assert)
-				device_printf(consumer, "Warning: can not find "
+				device_printf(consumer,
+				    "Warning: can not find "
 				    "driver for reset number %u; device may "
-				    "not function\n", resetnum);
+				    "not function\n",
+				    resetnum);
 			anyerrors = true;
 			continue;
 		}
@@ -84,9 +88,11 @@ assert_deassert_all(device_t consumer, boolean_t assert)
 			err = FDT_RESET_DEASSERT(resetdev, resetnum);
 		if (err != 0) {
 			if (!assert)
-				device_printf(consumer, "Warning: failed to "
+				device_printf(consumer,
+				    "Warning: failed to "
 				    "deassert reset number %u; device may not "
-				    "function\n", resetnum);
+				    "function\n",
+				    resetnum);
 			anyerrors = true;
 		}
 	}

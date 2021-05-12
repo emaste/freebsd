@@ -44,8 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <gdb/gdb.h>
 #include <gdb/gdb_int.h>
 
-SYSCTL_NODE(_debug, OID_AUTO, gdb, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "GDB settings");
+SYSCTL_NODE(
+    _debug, OID_AUTO, gdb, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "GDB settings");
 
 static dbbe_init_f gdb_init;
 static dbbe_trap_f gdb_trap;
@@ -74,7 +74,8 @@ gdb_init(void)
 
 	gdb_cur = NULL;
 	cur_pri = -1;
-	SET_FOREACH(iter, gdb_dbgport_set) {
+	SET_FOREACH(iter, gdb_dbgport_set)
+	{
 		dp = *iter;
 		pri = (dp->gdb_probe != NULL) ? dp->gdb_probe() : -1;
 		dp->gdb_active = (pri >= 0) ? 0 : -1;
@@ -85,7 +86,8 @@ gdb_init(void)
 	}
 	if (gdb_cur != NULL) {
 		printf("GDB: debug ports:");
-		SET_FOREACH(iter, gdb_dbgport_set) {
+		SET_FOREACH(iter, gdb_dbgport_set)
+		{
 			dp = *iter;
 			if (dp->gdb_active == 0)
 				printf(" %s", dp->gdb_name);
@@ -118,8 +120,8 @@ gdb_do_mem_search(void)
 		gdb_tx_err(EINVAL);
 		return;
 	}
-	if (gdb_search_mem((char *)(uintptr_t)addr, size, gdb_bindata,
-	    patlen, &found)) {
+	if (gdb_search_mem(
+		(char *)(uintptr_t)addr, size, gdb_bindata, patlen, &found)) {
 		if (found == 0ULL)
 			gdb_tx_begin('0');
 		else {
@@ -135,7 +137,7 @@ gdb_do_mem_search(void)
 static void
 gdb_do_threadinfo(struct thread **thr_iter)
 {
-	static struct thread * const done_sentinel = (void *)(uintptr_t)1;
+	static struct thread *const done_sentinel = (void *)(uintptr_t)1;
 	static const size_t tidsz_hex = sizeof(lwpid_t) * 2;
 	size_t tds_sent;
 
@@ -153,8 +155,8 @@ gdb_do_threadinfo(struct thread **thr_iter)
 	gdb_tx_begin('m');
 
 	for (tds_sent = 0;
-	    *thr_iter != NULL && gdb_txbuf_has_capacity(tidsz_hex + 1);
-	    *thr_iter = kdb_thr_next(*thr_iter), tds_sent++) {
+	     *thr_iter != NULL && gdb_txbuf_has_capacity(tidsz_hex + 1);
+	     *thr_iter = kdb_thr_next(*thr_iter), tds_sent++) {
 		if (tds_sent > 0)
 			gdb_tx_char(',');
 		gdb_tx_varhex((*thr_iter)->td_tid);
@@ -171,7 +173,7 @@ sendit:
 	gdb_tx_end();
 }
 
-#define	BIT(n)	(1ull << (n))
+#define BIT(n) (1ull << (n))
 enum {
 	GDB_MULTIPROCESS,
 	GDB_SWBREAK,
@@ -184,7 +186,7 @@ enum {
 	GDB_QTHREADEVENTS,
 	GDB_NO_RESUMED,
 };
-static const char * const gdb_feature_names[] = {
+static const char *const gdb_feature_names[] = {
 	[GDB_MULTIPROCESS] = "multiprocess",
 	[GDB_SWBREAK] = "swbreak",
 	[GDB_HWBREAK] = "hwbreak",
@@ -409,7 +411,8 @@ qXfer_escape_xmlattr_str(char *dst, size_t dstlen, const char *src)
  * The format is loosely described[0], although it does not seem that the
  * <?xml?> mentioned on that page is required.
  *
- * [0]: https://sourceware.org/gdb/current/onlinedocs/gdb/Thread-List-Format.html
+ * [0]:
+ * https://sourceware.org/gdb/current/onlinedocs/gdb/Thread-List-Format.html
  */
 static void
 do_qXfer_threads_read(void)
@@ -420,13 +423,13 @@ do_qXfer_threads_read(void)
 		/* Kludgy state machine */
 		struct thread *iter;
 		enum {
-			XML_START_THREAD,	/* '<thread' */
-			XML_THREAD_ID,		/* ' id="xxx"' */
-			XML_THREAD_CORE,	/* ' core="yyy"' */
-			XML_THREAD_NAME,	/* ' name="zzz"' */
-			XML_THREAD_EXTRA,	/* '> ...' */
-			XML_END_THREAD,		/* '</thread>' */
-			XML_SENT_END_THREADS,	/* '</threads>' */
+			XML_START_THREAD,     /* '<thread' */
+			XML_THREAD_ID,	      /* ' id="xxx"' */
+			XML_THREAD_CORE,      /* ' core="yyy"' */
+			XML_THREAD_NAME,      /* ' name="zzz"' */
+			XML_THREAD_EXTRA,     /* '> ...' */
+			XML_END_THREAD,	      /* '</thread>' */
+			XML_SENT_END_THREADS, /* '</threads>' */
 		} next_step;
 	} ctx;
 	static char td_name_escape[MAXCOMLEN * 2 + 1];
@@ -439,8 +442,7 @@ do_qXfer_threads_read(void)
 	if (gdb_rx_char() != ':')
 		goto misformed_request;
 
-	if (gdb_rx_varhex(&offset) != 0 ||
-	    gdb_rx_char() != ',' ||
+	if (gdb_rx_varhex(&offset) != 0 || gdb_rx_char() != ',' ||
 	    gdb_rx_varhex(&len) != 0)
 		goto misformed_request;
 
@@ -499,10 +501,10 @@ do_qXfer_threads_read(void)
 			else
 				continue;
 
-			qXfer_escape_xmlattr_str(td_name_escape,
-			    sizeof(td_name_escape), name_src);
-			sbuf_printf(&ctx.qXfer.sb, " name=\"%s\"",
-			    td_name_escape);
+			qXfer_escape_xmlattr_str(
+			    td_name_escape, sizeof(td_name_escape), name_src);
+			sbuf_printf(
+			    &ctx.qXfer.sb, " name=\"%s\"", td_name_escape);
 			continue;
 
 		case XML_THREAD_EXTRA:
@@ -639,16 +641,16 @@ gdb_z_insert(void)
 
 	switch (ztype) {
 	case '2': /* write watchpoint */
-		error = kdb_cpu_set_watchpoint((vm_offset_t)addr,
-		    (vm_size_t)length, KDB_DBG_ACCESS_W);
+		error = kdb_cpu_set_watchpoint(
+		    (vm_offset_t)addr, (vm_size_t)length, KDB_DBG_ACCESS_W);
 		break;
 	case '3': /* read watchpoint */
-		error = kdb_cpu_set_watchpoint((vm_offset_t)addr,
-		    (vm_size_t)length, KDB_DBG_ACCESS_R);
+		error = kdb_cpu_set_watchpoint(
+		    (vm_offset_t)addr, (vm_size_t)length, KDB_DBG_ACCESS_R);
 		break;
 	case '4': /* access (RW) watchpoint */
-		error = kdb_cpu_set_watchpoint((vm_offset_t)addr,
-		    (vm_size_t)length, KDB_DBG_ACCESS_RW);
+		error = kdb_cpu_set_watchpoint(
+		    (vm_offset_t)addr, (vm_size_t)length, KDB_DBG_ACCESS_RW);
 		break;
 	case '1': /* hardware breakpoint */
 	case '0': /* software breakpoint */
@@ -691,8 +693,8 @@ gdb_z_remove(void)
 	case '2': /* write watchpoint */
 	case '3': /* read watchpoint */
 	case '4': /* access (RW) watchpoint */
-		error = kdb_cpu_clr_watchpoint((vm_offset_t)addr,
-		    (vm_size_t)length);
+		error = kdb_cpu_clr_watchpoint(
+		    (vm_offset_t)addr, (vm_size_t)length);
 		break;
 	case '1': /* hardware breakpoint */
 	case '0': /* software breakpoint */
@@ -745,13 +747,13 @@ gdb_trap(int type, int code)
 	gdb_tx_str("thread:");
 	gdb_tx_varhex((uintmax_t)kdb_thread->td_tid);
 	gdb_tx_char(';');
-	gdb_tx_end();			/* XXX check error condition. */
+	gdb_tx_end(); /* XXX check error condition. */
 
 	thr_iter = NULL;
 	while (gdb_rx_begin() == 0) {
 		/* printf("GDB: got '%s'\n", gdb_rxp); */
 		switch (gdb_rx_char()) {
-		case '?':	/* Last signal. */
+		case '?': /* Last signal. */
 			gdb_tx_begin('T');
 			gdb_tx_hex(gdb_cpu_signal(type, code), 2);
 			gdb_tx_str("thread:");
@@ -759,7 +761,7 @@ gdb_trap(int type, int code)
 			gdb_tx_char(';');
 			gdb_tx_end();
 			break;
-		case 'c': {	/* Continue. */
+		case 'c': { /* Continue. */
 			uintmax_t addr;
 			register_t pc;
 			if (!gdb_rx_varhex(&addr)) {
@@ -770,7 +772,7 @@ gdb_trap(int type, int code)
 			gdb_listening = 1;
 			return (1);
 		}
-		case 'C': {	/* Continue with signal. */
+		case 'C': { /* Continue with signal. */
 			uintmax_t addr, sig;
 			register_t pc;
 			if (!gdb_rx_varhex(&sig) && gdb_rx_char() == ';' &&
@@ -782,12 +784,12 @@ gdb_trap(int type, int code)
 			gdb_listening = 1;
 			return (1);
 		}
-		case 'D': {     /* Detach */
+		case 'D': { /* Detach */
 			gdb_tx_ok();
 			gdb_handle_detach();
 			return (1);
 		}
-		case 'g': {	/* Read registers. */
+		case 'g': { /* Read registers. */
 			size_t r;
 			gdb_tx_begin(0);
 			for (r = 0; r < GDB_NREGS; r++)
@@ -795,7 +797,7 @@ gdb_trap(int type, int code)
 			gdb_tx_end();
 			break;
 		}
-		case 'G': {	/* Write registers. */
+		case 'G': { /* Write registers. */
 			char *val;
 			bool success;
 			size_t r;
@@ -812,12 +814,12 @@ gdb_trap(int type, int code)
 				gdb_tx_ok();
 			break;
 		}
-		case 'H': {	/* Set thread. */
+		case 'H': { /* Set thread. */
 			intmax_t tid;
 			struct thread *thr;
 
 			/* Ignore 'g' (general) or 'c' (continue) flag. */
-			(void) gdb_rx_char();
+			(void)gdb_rx_char();
 
 			if (gdb_rx_varhex(&tid)) {
 				gdb_tx_err(EINVAL);
@@ -834,10 +836,10 @@ gdb_trap(int type, int code)
 			gdb_tx_ok();
 			break;
 		}
-		case 'k':	/* Kill request. */
+		case 'k': /* Kill request. */
 			gdb_handle_detach();
 			return (1);
-		case 'm': {	/* Read memory. */
+		case 'm': { /* Read memory. */
 			uintmax_t addr, size;
 			if (gdb_rx_varhex(&addr) || gdb_rx_char() != ',' ||
 			    gdb_rx_varhex(&size)) {
@@ -851,7 +853,7 @@ gdb_trap(int type, int code)
 				gdb_tx_err(EIO);
 			break;
 		}
-		case 'M': {	/* Write memory. */
+		case 'M': { /* Write memory. */
 			uintmax_t addr, size;
 			if (gdb_rx_varhex(&addr) || gdb_rx_char() != ',' ||
 			    gdb_rx_varhex(&size) || gdb_rx_char() != ':') {
@@ -864,7 +866,7 @@ gdb_trap(int type, int code)
 				gdb_tx_ok();
 			break;
 		}
-		case 'p': {     /* Read register. */
+		case 'p': { /* Read register. */
 			uintmax_t reg;
 			if (gdb_rx_varhex(&reg)) {
 				gdb_tx_err(EINVAL);
@@ -875,7 +877,7 @@ gdb_trap(int type, int code)
 			gdb_tx_end();
 			break;
 		}
-		case 'P': {	/* Write register. */
+		case 'P': { /* Write register. */
 			char *val;
 			uintmax_t reg;
 			val = gdb_rxp;
@@ -888,7 +890,7 @@ gdb_trap(int type, int code)
 			gdb_tx_ok();
 			break;
 		}
-		case 'q':	/* General query. */
+		case 'q': /* General query. */
 			if (gdb_rx_equal("C")) {
 				gdb_tx_begin('Q');
 				gdb_tx_char('C');
@@ -915,7 +917,7 @@ gdb_trap(int type, int code)
 		case 'Q':
 			if (gdb_rx_equal("StartNoAckMode")) {
 				if ((gdb_cur->gdb_dbfeatures &
-				    GDB_DBGP_FEAT_RELIABLE) == 0) {
+					GDB_DBGP_FEAT_RELIABLE) == 0) {
 					/*
 					 * Shouldn't happen if we didn't
 					 * advertise support.  Reject.
@@ -928,7 +930,7 @@ gdb_trap(int type, int code)
 			} else
 				gdb_tx_empty();
 			break;
-		case 's': {	/* Step. */
+		case 's': { /* Step. */
 			uintmax_t addr;
 			register_t pc;
 			if (!gdb_rx_varhex(&addr)) {
@@ -939,7 +941,7 @@ gdb_trap(int type, int code)
 			gdb_listening = 1;
 			return (1);
 		}
-		case 'S': {	/* Step with signal. */
+		case 'S': { /* Step with signal. */
 			uintmax_t addr, sig;
 			register_t pc;
 			if (!gdb_rx_varhex(&sig) && gdb_rx_char() == ';' &&
@@ -951,7 +953,7 @@ gdb_trap(int type, int code)
 			gdb_listening = 1;
 			return (1);
 		}
-		case 'T': {	/* Thread alive. */
+		case 'T': { /* Thread alive. */
 			intmax_t tid;
 			if (gdb_rx_varhex(&tid)) {
 				gdb_tx_err(EINVAL);
@@ -963,11 +965,11 @@ gdb_trap(int type, int code)
 				gdb_tx_err(ENOENT);
 			break;
 		}
-		case 'z': {	/* Remove watchpoint. */
+		case 'z': { /* Remove watchpoint. */
 			gdb_z_remove();
 			break;
 		}
-		case 'Z': {	/* Set watchpoint. */
+		case 'Z': { /* Set watchpoint. */
 			gdb_z_insert();
 			break;
 		}

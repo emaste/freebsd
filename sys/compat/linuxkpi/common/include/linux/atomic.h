@@ -27,10 +27,10 @@
  */
 
 #ifndef _LINUX_ATOMIC_H_
-#define	_LINUX_ATOMIC_H_
+#define _LINUX_ATOMIC_H_
 
+#include <asm/atomic-long.h>
 #include <asm/atomic.h>
 #include <asm/atomic64.h>
-#include <asm/atomic-long.h>
 
 #endif /* _LINUX_ATOMIC_H_ */

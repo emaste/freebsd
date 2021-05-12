@@ -36,63 +36,61 @@ __FBSDID("$FreeBSD$");
 #include "opt_platform.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/boot.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/rtprio.h>
-#include <sys/systm.h>
+#include <sys/cons.h> /* cinit() */
 #include <sys/interrupt.h>
+#include <sys/kdb.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/random.h>
-
-#include <sys/cons.h>		/* cinit() */
-#include <sys/kdb.h>
-#include <sys/boot.h>
-#include <sys/reboot.h>
 #include <sys/queue.h>
+#include <sys/random.h>
+#include <sys/reboot.h>
+#include <sys/rtprio.h>
 #include <sys/smp.h>
 #include <sys/timetc.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_phys.h>
 #include <vm/vm_dumpset.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
+#include <machine/asm.h>
+#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/cpuinfo.h>
-#include <machine/tlb.h>
 #include <machine/cpuregs.h>
+#include <machine/fls64.h>
 #include <machine/frame.h>
 #include <machine/hwfunc.h>
-#include <machine/md_var.h>
-#include <machine/asm.h>
-#include <machine/pmap.h>
-#include <machine/trap.h>
-#include <machine/clock.h>
-#include <machine/fls64.h>
 #include <machine/intr_machdep.h>
+#include <machine/md_var.h>
+#include <machine/pmap.h>
 #include <machine/smp.h>
+#include <machine/tlb.h>
+#include <machine/trap.h>
 
-#include <mips/nlm/hal/mips-extns.h>
+#include <mips/nlm/board.h>
+#include <mips/nlm/clock.h>
+#include <mips/nlm/hal/bridge.h>
+#include <mips/nlm/hal/cop2.h>
+#include <mips/nlm/hal/cpucontrol.h>
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
-#include <mips/nlm/hal/sys.h>
-#include <mips/nlm/hal/pic.h>
-#include <mips/nlm/hal/uart.h>
+#include <mips/nlm/hal/mips-extns.h>
 #include <mips/nlm/hal/mmu.h>
-#include <mips/nlm/hal/bridge.h>
-#include <mips/nlm/hal/cpucontrol.h>
-#include <mips/nlm/hal/cop2.h>
-
-#include <mips/nlm/clock.h>
+#include <mips/nlm/hal/pic.h>
+#include <mips/nlm/hal/sys.h>
+#include <mips/nlm/hal/uart.h>
 #include <mips/nlm/interrupt.h>
-#include <mips/nlm/board.h>
-#include <mips/nlm/xlp.h>
 #include <mips/nlm/msgring.h>
+#include <mips/nlm/xlp.h>
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
@@ -156,9 +154,9 @@ xlp_setup_mmu(void)
 
 	/* Enable no-read, no-exec, large-physical-address */
 	pagegrain = mips_rd_pagegrain();
-	pagegrain |= (1U << 31)	|	/* RIE */
-	    (1 << 30)		|	/* XIE */
-	    (1 << 29);			/* ELPA */
+	pagegrain |= (1U << 31) | /* RIE */
+	    (1 << 30) |		  /* XIE */
+	    (1 << 29);		  /* ELPA */
 	mips_wr_pagegrain(pagegrain);
 }
 
@@ -191,8 +189,10 @@ xlp_parse_mmu_options(void)
 	if (cpu_map == 0)
 		cpu_map = 0x1;
 	else if (cpu_map != 0x1) {
-		printf("WARNING: Starting uniprocessor kernel on cpumask [0x%lx]!\n"
-		    "WARNING: Other CPUs will be unused.\n", (u_long)cpu_map);
+		printf(
+		    "WARNING: Starting uniprocessor kernel on cpumask [0x%lx]!\n"
+		    "WARNING: Other CPUs will be unused.\n",
+		    (u_long)cpu_map);
 		cpu_map = 0x1;
 	}
 #endif
@@ -242,9 +242,8 @@ xlp_parse_mmu_options(void)
 
 	xlp_hw_thread_mask = cpu_map;
 	/* setup hardware processor id to cpu id mapping */
-	for (i = 0; i< MAXCPU; i++)
-		xlp_cpuid_to_hwtid[i] =
-		    xlp_hwtid_to_cpuid[i] = -1;
+	for (i = 0; i < MAXCPU; i++)
+		xlp_cpuid_to_hwtid[i] = xlp_hwtid_to_cpuid[i] = -1;
 	for (i = 0, k = 0; i < XLP_MAX_CORES; i++) {
 		if (((cpu_map >> (i * 4)) & 0xf) == 0)
 			continue;
@@ -259,7 +258,7 @@ xlp_parse_mmu_options(void)
 
 unsupp:
 	printf("ERROR : Unsupported CPU mask [use 1,2 or 4 threads per core].\n"
-	    "\tcore0 thread mask [%lx], boot cpu mask [%lx].\n",
+	       "\tcore0 thread mask [%lx], boot cpu mask [%lx].\n",
 	    (u_long)core0_thr_mask, (u_long)cpu_map);
 	panic("Invalid CPU mask - halting.\n");
 	return;
@@ -269,8 +268,8 @@ unsupp:
 static void
 xlp_bootargs_init(__register_t arg)
 {
-	char	buf[2048]; /* early stack is big enough */
-	void	*dtbp;
+	char buf[2048]; /* early stack is big enough */
+	void *dtbp;
 	phandle_t chosen;
 	ihandle_t mask;
 
@@ -284,9 +283,11 @@ xlp_bootargs_init(__register_t arg)
 		dtbp = &fdt_static_dtb;
 #endif
 	if (OF_install(OFW_FDT, 0) == FALSE)
-		while (1);
+		while (1)
+			;
 	if (OF_init((void *)dtbp) != 0)
-		while (1);
+		while (1)
+			;
 	OF_interpret("perform-fixup", 0);
 
 	chosen = OF_finddevice("/chosen");
@@ -305,8 +306,8 @@ xlp_bootargs_init(__register_t arg)
 static void
 xlp_bootargs_init(__register_t arg)
 {
-	char	buf[2048]; /* early stack is big enough */
-	char	*p, *v, *n;
+	char buf[2048]; /* early stack is big enough */
+	char *p, *v, *n;
 	uint32_t mask;
 
 	/*
@@ -375,24 +376,23 @@ xlp_pic_init(void)
 {
 	struct timecounter pic_timecounter = {
 		platform_get_timecount, /* get_timecount */
-		0,                      /* no poll_pps */
-		~0U,                    /* counter_mask */
-		XLP_IO_CLK,            /* frequency */
-		"XLRPIC",               /* name */
-		2000,                   /* quality (adjusted in code) */
+		0,			/* no poll_pps */
+		~0U,			/* counter_mask */
+		XLP_IO_CLK,		/* frequency */
+		"XLRPIC",		/* name */
+		2000,			/* quality (adjusted in code) */
 	};
-        int i;
+	int i;
 	int maxirt;
 
-	xlp_pic_base = nlm_get_pic_regbase(0);  /* TOOD: Add other nodes */
-	maxirt = nlm_read_reg(nlm_get_pic_pcibase(nlm_nodeid()),
-	    XLP_PCI_DEVINFO_REG0);
-        printf("Initializing PIC...@%jx %d IRTs\n", (uintmax_t)xlp_pic_base,
+	xlp_pic_base = nlm_get_pic_regbase(0); /* TOOD: Add other nodes */
+	maxirt = nlm_read_reg(
+	    nlm_get_pic_pcibase(nlm_nodeid()), XLP_PCI_DEVINFO_REG0);
+	printf("Initializing PIC...@%jx %d IRTs\n", (uintmax_t)xlp_pic_base,
 	    maxirt);
 	/* Bind all PIC irqs to cpu 0 */
-        for (i = 0; i < maxirt; i++)
-	    nlm_pic_write_irt(xlp_pic_base, i, 0, 0, 1, 0,
-	    1, 0, 0x1);
+	for (i = 0; i < maxirt; i++)
+		nlm_pic_write_irt(xlp_pic_base, i, 0, 0, 1, 0, 1, 0, 0x1);
 
 	nlm_pic_set_timer(xlp_pic_base, PIC_CLOCK_TIMER, ~0ULL, 0, 0);
 	platform_timecounter = &pic_timecounter;
@@ -400,18 +400,18 @@ xlp_pic_init(void)
 
 #if defined(__mips_n32) || defined(__mips_n64) /* PHYSADDR_64_BIT */
 #ifdef XLP_SIM
-#define	XLP_MEM_LIM	0x200000000ULL
+#define XLP_MEM_LIM 0x200000000ULL
 #else
-#define	XLP_MEM_LIM	0x10000000000ULL
+#define XLP_MEM_LIM 0x10000000000ULL
 #endif
 #else
-#define	XLP_MEM_LIM	0xfffff000UL
+#define XLP_MEM_LIM 0xfffff000UL
 #endif
 static vm_paddr_t xlp_mem_excl[] = {
-	0,          0,		/* for kernel image region, see xlp_mem_init */
-	0x0c000000, 0x14000000,	/* uboot area, cms queue and other stuff */
-	0x1fc00000, 0x1fd00000,	/* reset vec */
-	0x1e000000, 0x1e200000,	/* poe buffers */
+	0, 0,			/* for kernel image region, see xlp_mem_init */
+	0x0c000000, 0x14000000, /* uboot area, cms queue and other stuff */
+	0x1fc00000, 0x1fd00000, /* reset vec */
+	0x1e000000, 0x1e200000, /* poe buffers */
 };
 
 static int
@@ -456,15 +456,15 @@ xlp_mem_init(void)
 	printf("Memory (from DRAM BARs):\n");
 	bridgebase = nlm_get_bridge_regbase(0); /* TODO: Add other nodes */
 	physsz = 0;
-        for (i = 0, j = 0; i < 8; i++) {
+	for (i = 0, j = 0; i < 8; i++) {
 		val = nlm_read_bridge_reg(bridgebase, BRIDGE_DRAM_BAR(i));
-                val = (val >>  12) & 0xfffff;
+		val = (val >> 12) & 0xfffff;
 		base = val << 20;
 		val = nlm_read_bridge_reg(bridgebase, BRIDGE_DRAM_LIMIT(i));
-                val = (val >>  12) & 0xfffff;
-		if (val == 0)	/* BAR not enabled */
+		val = (val >> 12) & 0xfffff;
+		if (val == 0) /* BAR not enabled */
 			continue;
-                lim = (val + 1) << 20;
+		lim = (val + 1) << 20;
 		printf("  BAR %d: %#jx - %#jx : ", i, (intmax_t)base,
 		    (intmax_t)lim);
 
@@ -486,11 +486,12 @@ xlp_mem_init(void)
 		n = mem_exclude_add(&phys_avail[j], base, lim);
 		for (k = j; k < j + n; k += 2) {
 			physsz += phys_avail[k + 1] - phys_avail[k];
-			printf("\tMem[%d]: %#jx - %#jx\n", k/2,
-			    (intmax_t)phys_avail[k], (intmax_t)phys_avail[k+1]);
+			printf("\tMem[%d]: %#jx - %#jx\n", k / 2,
+			    (intmax_t)phys_avail[k],
+			    (intmax_t)phys_avail[k + 1]);
 		}
 		j = k;
-        }
+	}
 
 	/* setup final entry with 0 */
 	phys_avail[j] = phys_avail[j + 1] = 0;
@@ -503,17 +504,15 @@ xlp_mem_init(void)
 }
 
 void
-platform_start(__register_t a0 __unused,
-    __register_t a1 __unused,
-    __register_t a2 __unused,
-    __register_t a3 __unused)
+platform_start(__register_t a0 __unused, __register_t a1 __unused,
+    __register_t a2 __unused, __register_t a3 __unused)
 {
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
 
 	/* initialize console so that we have printf */
-	boothowto |= (RB_SERIAL | RB_MULTIPLE);	/* Use multiple consoles */
+	boothowto |= (RB_SERIAL | RB_MULTIPLE); /* Use multiple consoles */
 
 	init_static_kenv(boot1_env, sizeof(boot1_env));
 	xlp_bootargs_init(a0);
@@ -533,7 +532,7 @@ platform_start(__register_t a0 __unused,
 	xlp_mem_init();
 
 	bcopy(XLPResetEntry, (void *)MIPS_RESET_EXC_VEC,
-              XLPResetEntryEnd - XLPResetEntry);
+	    XLPResetEntryEnd - XLPResetEntry);
 #ifdef SMP
 	/*
 	 * We will enable the other threads in core 0 here
@@ -573,7 +572,7 @@ platform_reset(void)
 	uint64_t sysbase = nlm_get_sys_regbase(0);
 
 	nlm_write_sys_reg(sysbase, SYS_CHIP_RESET, 1);
-	for( ; ; )
+	for (;;)
 		__asm __volatile("wait");
 }
 
@@ -606,7 +605,7 @@ platform_start_ap(int cpuid)
 
 		/* Remove CPU Reset */
 		val = nlm_read_sys_reg(sysbase, SYS_CPU_RESET);
-		val &=  ~coremask & 0xff;
+		val &= ~coremask & 0xff;
 		nlm_write_sys_reg(sysbase, SYS_CPU_RESET, val);
 
 		if (bootverbose)
@@ -614,11 +613,12 @@ platform_start_ap(int cpuid)
 
 		/* Poll for CPU to mark itself coherent */
 		do {
-			val = nlm_read_sys_reg(sysbase, SYS_CPU_NONCOHERENT_MODE);
+			val = nlm_read_sys_reg(
+			    sysbase, SYS_CPU_NONCOHERENT_MODE);
 		} while ((val & coremask) != 0);
 		if (bootverbose)
 			printf("Done\n");
-        } else {
+	} else {
 		/* otherwise release the threads stuck in platform_init_ap */
 		thr_unblock[thr] = 1;
 	}
@@ -643,7 +643,7 @@ platform_init_ap(int cpuid)
 		 * in the core 0 while bootup
 		 */
 		while (thr_unblock[thr] == 0)
-			__asm__ __volatile__ ("nop;nop;nop;nop");
+			__asm__ __volatile__("nop;nop;nop;nop");
 		thr_unblock[thr] = 0;
 	}
 
@@ -712,6 +712,6 @@ platform_smp_topo()
 {
 
 	return (smp_topo_2level(CG_SHARE_L2, xlp_ncores, CG_SHARE_L1,
-		xlp_threads_per_core, CG_FLAG_THREAD));
+	    xlp_threads_per_core, CG_FLAG_THREAD));
 }
 #endif

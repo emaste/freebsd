@@ -32,42 +32,42 @@
 #define _POWERPC_POWERMAC_DBDMAVAR_H_
 
 struct dbdma_command {
-	uint8_t cmd:4; /* DBDMA command */
+	uint8_t cmd : 4; /* DBDMA command */
 
-	uint8_t _resd1:1;
-	uint8_t key:3; /* Stream number, or 6 for KEY_SYSTEM */
-	uint8_t _resd2:2;
+	uint8_t _resd1 : 1;
+	uint8_t key : 3; /* Stream number, or 6 for KEY_SYSTEM */
+	uint8_t _resd2 : 2;
 
 	/* Interrupt, branch, and wait flags */
-	uint8_t intr:2;
-	uint8_t branch:2;
-	uint8_t wait:2;
+	uint8_t intr : 2;
+	uint8_t branch : 2;
+	uint8_t wait : 2;
 
 	uint16_t reqCount; /* Bytes to transfer */
 
 	uint32_t address; /* 32-bit system physical address */
-	uint32_t cmdDep; /* Branch address or quad word to load/store */
+	uint32_t cmdDep;  /* Branch address or quad word to load/store */
 
 	uint16_t xferStatus; /* Contents of channel status after completion */
-	uint16_t resCount; /* Number of residual bytes outstanding */
+	uint16_t resCount;   /* Number of residual bytes outstanding */
 };
 
 struct dbdma_channel {
-	struct resource 	*sc_regs;
-	u_int			sc_off;
+	struct resource *sc_regs;
+	u_int sc_off;
 
-	struct dbdma_command	*sc_slots;
-	int			sc_nslots;
-	bus_addr_t		sc_slots_pa;
+	struct dbdma_command *sc_slots;
+	int sc_nslots;
+	bus_addr_t sc_slots_pa;
 
-	bus_dma_tag_t		sc_dmatag;
-	bus_dmamap_t		sc_dmamap;
-	uint32_t		sc_saved_regs[5];
+	bus_dma_tag_t sc_dmatag;
+	bus_dmamap_t sc_dmamap;
+	uint32_t sc_saved_regs[5];
 };
 
 /*
    DBDMA registers are found at 0x8000 + n*0x100 in the macio register space,
-   and are laid out as follows within each block: 
+   and are laid out as follows within each block:
 
    Address:			Description:		Length (bytes):
    0x000 			Channel Control 	4
@@ -78,18 +78,18 @@ struct dbdma_channel {
    0x018			Wait Select		4
 */
 
-#define CHAN_CONTROL_REG	0x00
-#define	CHAN_STATUS_REG		0x04
-#define CHAN_CMDPTR_HI		0x08
-#define CHAN_CMDPTR		0x0C
-#define	CHAN_INTR_SELECT	0x10
-#define CHAN_BRANCH_SELECT	0x14
-#define CHAN_WAIT_SELECT	0x18
+#define CHAN_CONTROL_REG 0x00
+#define CHAN_STATUS_REG 0x04
+#define CHAN_CMDPTR_HI 0x08
+#define CHAN_CMDPTR 0x0C
+#define CHAN_INTR_SELECT 0x10
+#define CHAN_BRANCH_SELECT 0x14
+#define CHAN_WAIT_SELECT 0x18
 
 /* Channel control is the write channel to channel status, the upper 16 bits
    are a mask of which bytes to change */
 
-#define	DBDMA_REG_MASK_SHIFT	16
+#define DBDMA_REG_MASK_SHIFT 16
 
 /* Status bits 0-7 are device dependent status bits */
 

@@ -35,36 +35,36 @@
  */
 
 #ifndef _MACHINE_UCONTEXT_H_
-#define	_MACHINE_UCONTEXT_H_
+#define _MACHINE_UCONTEXT_H_
 
 struct gpregs {
-	__register_t	gp_ra;
-	__register_t	gp_sp;
-	__register_t	gp_gp;
-	__register_t	gp_tp;
-	__register_t	gp_t[7];
-	__register_t	gp_s[12];
-	__register_t	gp_a[8];
-	__register_t	gp_sepc;
-	__register_t	gp_sstatus;
+	__register_t gp_ra;
+	__register_t gp_sp;
+	__register_t gp_gp;
+	__register_t gp_tp;
+	__register_t gp_t[7];
+	__register_t gp_s[12];
+	__register_t gp_a[8];
+	__register_t gp_sepc;
+	__register_t gp_sstatus;
 };
 
 struct fpregs {
-	__uint64_t	fp_x[32][2];
-	__uint64_t	fp_fcsr;
-	int		fp_flags;
-	int		pad;
+	__uint64_t fp_x[32][2];
+	__uint64_t fp_fcsr;
+	int fp_flags;
+	int pad;
 };
 
 struct __mcontext {
-	struct gpregs	mc_gpregs;
-	struct fpregs	mc_fpregs;
-	int		mc_flags;
-#define	_MC_FP_VALID	0x1		/* Set when mc_fpregs has valid data */
-	int		mc_pad;
-	__uint64_t	mc_spare[8];	/* Space for expansion */
+	struct gpregs mc_gpregs;
+	struct fpregs mc_fpregs;
+	int mc_flags;
+#define _MC_FP_VALID 0x1 /* Set when mc_fpregs has valid data */
+	int mc_pad;
+	__uint64_t mc_spare[8]; /* Space for expansion */
 };
 
 typedef struct __mcontext mcontext_t;
 
-#endif	/* !_MACHINE_UCONTEXT_H_ */
+#endif /* !_MACHINE_UCONTEXT_H_ */

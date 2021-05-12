@@ -36,23 +36,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include <ddb/ddb.h>
 #include <ddb/db_lex.h>
 #include <ddb/db_variables.h>
+#include <ddb/ddb.h>
 
-static int	db_find_variable(struct db_variable **varp);
+static int db_find_variable(struct db_variable **varp);
 
 static struct db_variable db_vars[] = {
-	{ "radix",	&db_radix, FCN_NULL },
-	{ "maxoff",	&db_maxoff, FCN_NULL },
-	{ "maxwidth",	&db_max_width, FCN_NULL },
-	{ "tabstops",	&db_tab_stop_width, FCN_NULL },
-	{ "lines",	&db_lines_per_page, FCN_NULL },
-	{ "curcpu",	NULL, db_var_curcpu },
-	{ "db_cpu",	NULL, db_var_db_cpu },
+	{ "radix", &db_radix, FCN_NULL },
+	{ "maxoff", &db_maxoff, FCN_NULL },
+	{ "maxwidth", &db_max_width, FCN_NULL },
+	{ "tabstops", &db_tab_stop_width, FCN_NULL },
+	{ "lines", &db_lines_per_page, FCN_NULL },
+	{ "curcpu", NULL, db_var_curcpu },
+	{ "db_cpu", NULL, db_var_db_cpu },
 #ifdef VIMAGE
-	{ "curvnet",	NULL, db_var_curvnet },
-	{ "db_vnet",	NULL, db_var_db_vnet },
+	{ "curvnet", NULL, db_var_curvnet },
+	{ "db_vnet", NULL, db_var_db_vnet },
 #endif
 };
 static struct db_variable *db_evars = db_vars + nitems(db_vars);
@@ -142,8 +142,8 @@ db_set_cmd(db_expr_t dummy1, bool dummy2, db_expr_t dummy3, char *dummy4)
 				db_printf("$%s\n", vp->name);
 				continue;
 			}
-			db_printf("$%-8s = %ld\n",
-			    vp->name, (unsigned long)value);
+			db_printf(
+			    "$%-8s = %ld\n", vp->name, (unsigned long)value);
 		}
 		return;
 	}

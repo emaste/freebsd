@@ -27,15 +27,13 @@
  */
 
 #include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 
 #include <crypto/sha2/sha256.h>
-
 #include <security/mac_veriexec/mac_veriexec.h>
 
 MAC_VERIEXEC_FPMOD(SHA256, SHA256_DIGEST_LENGTH, sizeof(SHA256_CTX),
-    (mac_veriexec_fpop_init_t) SHA256_Init,
-    (mac_veriexec_fpop_update_t) SHA256_Update,
-    (mac_veriexec_fpop_final_t) SHA256_Final, 1);
+    (mac_veriexec_fpop_init_t)SHA256_Init,
+    (mac_veriexec_fpop_update_t)SHA256_Update,
+    (mac_veriexec_fpop_final_t)SHA256_Final, 1);

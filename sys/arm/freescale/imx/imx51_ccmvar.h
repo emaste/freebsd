@@ -58,8 +58,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_ARM_IMX_IMX51_CCMVAR_H_
-#define	_ARM_IMX_IMX51_CCMVAR_H_
+#ifndef _ARM_IMX_IMX51_CCMVAR_H_
+#define _ARM_IMX_IMX51_CCMVAR_H_
 
 enum imx51_clock {
 	IMX51CLK_FPM,
@@ -72,7 +72,7 @@ enum imx51_clock {
 	IMX51CLK_PLL1STEP,
 	IMX51CLK_LP_APM,
 	IMX51CLK_ARM_ROOT,
-	IMX51CLK_MAIN_BUS_CLK_SRC,	/* XXX */
+	IMX51CLK_MAIN_BUS_CLK_SRC, /* XXX */
 	IMX51CLK_MAIN_BUS_CLK,
 	IMX51CLK_EMI_SLOW_CLK_ROOT,
 	IMX51CLK_ENFC_CLK_ROOT,
@@ -109,4 +109,4 @@ u_int imx51_get_clock(enum imx51_clock);
 void imx51_clk_gating(int, int);
 int imx51_get_clk_gating(int);
 
-#endif	/* _ARM_IMX_IMX51_CCMVAR_H_ */
+#endif /* _ARM_IMX_IMX51_CCMVAR_H_ */

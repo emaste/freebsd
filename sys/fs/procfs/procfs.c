@@ -43,31 +43,30 @@
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
+#include <sys/systm.h>
 #include <sys/exec.h>
-#include <sys/lock.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
 
-#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
+#include <fs/pseudofs/pseudofs.h>
 
 /*
  * Filler function for proc/pid/file
  */
-int
-procfs_doprocfile(PFS_FILL_ARGS)
+int procfs_doprocfile(PFS_FILL_ARGS)
 {
 	char *fullpath;
 	char *freepath;
@@ -91,15 +90,15 @@ procfs_doprocfile(PFS_FILL_ARGS)
 /*
  * Filler function for proc/curproc
  */
-int
-procfs_docurproc(PFS_FILL_ARGS)
+int procfs_docurproc(PFS_FILL_ARGS)
 {
 	sbuf_printf(sb, "%ld", (long)td->td_proc->p_pid);
 	return (0);
 }
 
 static int
-procfs_attr(PFS_ATTR_ARGS, int mode) {
+procfs_attr(PFS_ATTR_ARGS, int mode)
+{
 	vap->va_mode = mode;
 	if (p != NULL) {
 		PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -111,22 +110,19 @@ procfs_attr(PFS_ATTR_ARGS, int mode) {
 	return (0);
 }
 
-int
-procfs_attr_all_rx(PFS_ATTR_ARGS)
+int procfs_attr_all_rx(PFS_ATTR_ARGS)
 {
 
 	return (procfs_attr(td, p, pn, vap, 0555));
 }
 
-int
-procfs_attr_rw(PFS_ATTR_ARGS)
+int procfs_attr_rw(PFS_ATTR_ARGS)
 {
 
 	return (procfs_attr(td, p, pn, vap, 0600));
 }
 
-int
-procfs_attr_w(PFS_ATTR_ARGS)
+int procfs_attr_w(PFS_ATTR_ARGS)
 {
 
 	return (procfs_attr(td, p, pn, vap, 0200));
@@ -136,8 +132,7 @@ procfs_attr_w(PFS_ATTR_ARGS)
  * Visibility: some files only exist for non-system processes
  * Non-static because linprocfs uses it.
  */
-int
-procfs_notsystem(PFS_VIS_ARGS)
+int procfs_notsystem(PFS_VIS_ARGS)
 {
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	return ((p->p_flag & P_SYSTEM) == 0);
@@ -147,8 +142,7 @@ procfs_notsystem(PFS_VIS_ARGS)
  * Visibility: some files are only visible to process that can debug
  * the target process.
  */
-int
-procfs_candebug(PFS_VIS_ARGS)
+int procfs_candebug(PFS_VIS_ARGS)
 {
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	return ((p->p_flag & P_SYSTEM) == 0 && p_candebug(td, p) == 0);
@@ -157,46 +151,44 @@ procfs_candebug(PFS_VIS_ARGS)
 /*
  * Constructor
  */
-static int
-procfs_init(PFS_INIT_ARGS)
+static int procfs_init(PFS_INIT_ARGS)
 {
 	struct pfs_node *root;
 	struct pfs_node *dir;
 
 	root = pi->pi_root;
 
-	pfs_create_link(root, "curproc", procfs_docurproc,
-	    NULL, NULL, NULL, 0);
+	pfs_create_link(root, "curproc", procfs_docurproc, NULL, NULL, NULL, 0);
 
-	dir = pfs_create_dir(root, "pid",
-	    procfs_attr_all_rx, NULL, NULL, PFS_PROCDEP);
-	pfs_create_file(dir, "cmdline", procfs_doproccmdline,
-	    NULL, NULL, NULL, PFS_RD);
-	pfs_create_file(dir, "dbregs", procfs_doprocdbregs,
-	    procfs_attr_rw, procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
-	pfs_create_file(dir, "etype", procfs_doproctype,
-	    NULL, NULL, NULL, PFS_RD);
-	pfs_create_file(dir, "fpregs", procfs_doprocfpregs,
-	    procfs_attr_rw, procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
-	pfs_create_file(dir, "map", procfs_doprocmap,
-	    NULL, procfs_notsystem, NULL, PFS_RD);
-	pfs_create_file(dir, "mem", procfs_doprocmem,
-	    procfs_attr_rw, procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
-	pfs_create_file(dir, "note", procfs_doprocnote,
-	    procfs_attr_w, procfs_candebug, NULL, PFS_WR);
-	pfs_create_file(dir, "notepg", procfs_doprocnote,
-	    procfs_attr_w, procfs_candebug, NULL, PFS_WR);
-	pfs_create_file(dir, "regs", procfs_doprocregs,
-	    procfs_attr_rw, procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
-	pfs_create_file(dir, "rlimit", procfs_doprocrlimit,
-	    NULL, NULL, NULL, PFS_RD);
-	pfs_create_file(dir, "status", procfs_doprocstatus,
-	    NULL, NULL, NULL, PFS_RD);
-	pfs_create_file(dir, "osrel", procfs_doosrel,
-	    procfs_attr_rw, procfs_candebug, NULL, PFS_RDWR);
+	dir = pfs_create_dir(
+	    root, "pid", procfs_attr_all_rx, NULL, NULL, PFS_PROCDEP);
+	pfs_create_file(
+	    dir, "cmdline", procfs_doproccmdline, NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "dbregs", procfs_doprocdbregs, procfs_attr_rw,
+	    procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
+	pfs_create_file(
+	    dir, "etype", procfs_doproctype, NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "fpregs", procfs_doprocfpregs, procfs_attr_rw,
+	    procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
+	pfs_create_file(
+	    dir, "map", procfs_doprocmap, NULL, procfs_notsystem, NULL, PFS_RD);
+	pfs_create_file(dir, "mem", procfs_doprocmem, procfs_attr_rw,
+	    procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
+	pfs_create_file(dir, "note", procfs_doprocnote, procfs_attr_w,
+	    procfs_candebug, NULL, PFS_WR);
+	pfs_create_file(dir, "notepg", procfs_doprocnote, procfs_attr_w,
+	    procfs_candebug, NULL, PFS_WR);
+	pfs_create_file(dir, "regs", procfs_doprocregs, procfs_attr_rw,
+	    procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
+	pfs_create_file(
+	    dir, "rlimit", procfs_doprocrlimit, NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(
+	    dir, "status", procfs_doprocstatus, NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "osrel", procfs_doosrel, procfs_attr_rw,
+	    procfs_candebug, NULL, PFS_RDWR);
 
-	pfs_create_link(dir, "file", procfs_doprocfile,
-	    NULL, procfs_notsystem, NULL, 0);
+	pfs_create_link(
+	    dir, "file", procfs_doprocfile, NULL, procfs_notsystem, NULL, 0);
 
 	return (0);
 }
@@ -204,8 +196,7 @@ procfs_init(PFS_INIT_ARGS)
 /*
  * Destructor
  */
-static int
-procfs_uninit(PFS_INIT_ARGS)
+static int procfs_uninit(PFS_INIT_ARGS)
 {
 	/* nothing to do, pseudofs will GC */
 	return (0);

@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -45,46 +45,52 @@
 #define _NETGRAPH_NG_CISCO_H_
 
 /* Node type name and magic cookie */
-#define NG_CISCO_NODE_TYPE		"cisco"
-#define NGM_CISCO_COOKIE		860707227
+#define NG_CISCO_NODE_TYPE "cisco"
+#define NGM_CISCO_COOKIE 860707227
 
 /* Hook names */
-#define NG_CISCO_HOOK_DOWNSTREAM	"downstream"
-#define NG_CISCO_HOOK_INET		"inet"
-#define NG_CISCO_HOOK_INET6		"inet6"
-#define NG_CISCO_HOOK_APPLETALK		"atalk"
-#define NG_CISCO_HOOK_IPX		"ipx"
-#define NG_CISCO_HOOK_DEBUG		"debug"
+#define NG_CISCO_HOOK_DOWNSTREAM "downstream"
+#define NG_CISCO_HOOK_INET "inet"
+#define NG_CISCO_HOOK_INET6 "inet6"
+#define NG_CISCO_HOOK_APPLETALK "atalk"
+#define NG_CISCO_HOOK_IPX "ipx"
+#define NG_CISCO_HOOK_DEBUG "debug"
 
 /* Netgraph commands */
 enum {
-	NGM_CISCO_SET_IPADDR = 1,	/* requires a struct ng_cisco_ipaddr */
-	NGM_CISCO_GET_IPADDR,		/* returns a struct ng_cisco_ipaddr */
-	NGM_CISCO_GET_STATUS,		/* returns a struct ng_cisco_stat */
+	NGM_CISCO_SET_IPADDR = 1, /* requires a struct ng_cisco_ipaddr */
+	NGM_CISCO_GET_IPADDR,	  /* returns a struct ng_cisco_ipaddr */
+	NGM_CISCO_GET_STATUS,	  /* returns a struct ng_cisco_stat */
 };
 
 struct ng_cisco_ipaddr {
-	struct in_addr	ipaddr;		/* IP address */
-	struct in_addr	netmask;	/* Netmask */
+	struct in_addr ipaddr;	/* IP address */
+	struct in_addr netmask; /* Netmask */
 };
 
 /* Keep this in sync with the above structure definition */
-#define NG_CISCO_IPADDR_TYPE_INFO	{			\
-	  { "ipaddr",		&ng_parse_ipaddr_type	},	\
-	  { "netmask",		&ng_parse_ipaddr_type	},	\
-	  { NULL }						\
-}
+#define NG_CISCO_IPADDR_TYPE_INFO                         \
+	{                                                 \
+		{ "ipaddr", &ng_parse_ipaddr_type },      \
+		    { "netmask", &ng_parse_ipaddr_type }, \
+		{                                         \
+			NULL                              \
+		}                                         \
+	}
 
 struct ng_cisco_stats {
-	uint32_t   seqRetries;		/* # unack'd retries */
-	uint32_t   keepAlivePeriod;	/* in seconds */
+	uint32_t seqRetries;	  /* # unack'd retries */
+	uint32_t keepAlivePeriod; /* in seconds */
 };
 
 /* Keep this in sync with the above structure definition */
-#define NG_CISCO_STATS_TYPE_INFO	{			\
-	  { "seqRetries",	&ng_parse_uint32_type	},	\
-	  { "keepAlivePeriod",	&ng_parse_uint32_type	},	\
-	  { NULL }						\
-}
+#define NG_CISCO_STATS_TYPE_INFO                                  \
+	{                                                         \
+		{ "seqRetries", &ng_parse_uint32_type },          \
+		    { "keepAlivePeriod", &ng_parse_uint32_type }, \
+		{                                                 \
+			NULL                                      \
+		}                                                 \
+	}
 
 #endif /* _NETGRAPH_NG_CISCO_H_ */

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/clock.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+
 #include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus_subr.h>
@@ -47,35 +48,34 @@ __FBSDID("$FreeBSD$");
 #include "clock_if.h"
 #include "syscon_if.h"
 
-#define	SNVS_LPCR		0x38		/* Control register */
-#define	  LPCR_LPCALB_VAL_SHIFT	  10		/* Calibration shift */
-#define	  LPCR_LPCALB_VAL_MASK	  0x1f		/* Calibration mask */
-#define	  LPCR_LPCALB_EN	  (1u << 8)	/* Calibration enable */
-#define	  LPCR_SRTC_ENV		  (1u << 0)	/* RTC enabled/valid */
+#define SNVS_LPCR 0x38 /* Control register */
+#define LPCR_LPCALB_VAL_SHIFT 10 /* Calibration shift */
+#define LPCR_LPCALB_VAL_MASK 0x1f /* Calibration mask */
+#define LPCR_LPCALB_EN (1u << 8) /* Calibration enable */
+#define LPCR_SRTC_ENV (1u << 0) /* RTC enabled/valid */
 
-#define	SNVS_LPSRTCMR		0x50		/* Counter MSB */
-#define	SNVS_LPSRTCLR		0x54		/* Counter LSB */
+#define SNVS_LPSRTCMR 0x50 /* Counter MSB */
+#define SNVS_LPSRTCLR 0x54 /* Counter LSB */
 
-#define	RTC_RESOLUTION_US	(1000000 / 32768) /* 32khz clock */
+#define RTC_RESOLUTION_US (1000000 / 32768) /* 32khz clock */
 
 /*
  * The RTC is a 47-bit counter clocked at 32KHz and organized as a 32.15
  * fixed-point binary value.  Shifting by SBT_LSB bits translates between
  * counter and sbintime values.
  */
-#define	RTC_BITS	47
-#define	SBT_BITS	64
-#define	SBT_LSB		(SBT_BITS - RTC_BITS)
+#define RTC_BITS 47
+#define SBT_BITS 64
+#define SBT_LSB (SBT_BITS - RTC_BITS)
 
 struct snvs_softc {
-	device_t 		dev;
-	struct syscon		*syscon;
-	uint32_t		lpcr;
+	device_t dev;
+	struct syscon *syscon;
+	uint32_t lpcr;
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"fsl,sec-v4.0-mon-rtc-lp", true},
-	{NULL,               false}
+	{ "fsl,sec-v4.0-mon-rtc-lp", true }, { NULL, false }
 };
 
 static inline uint32_t
@@ -130,15 +130,15 @@ snvs_gettime(device_t dev, struct timespec *ts)
 	 * turns into an sbintime.
 	 */
 	do {
-		counter1  = (uint64_t)RD4(sc, SNVS_LPSRTCMR) << (SBT_LSB + 32);
+		counter1 = (uint64_t)RD4(sc, SNVS_LPSRTCMR) << (SBT_LSB + 32);
 		counter1 |= (uint64_t)RD4(sc, SNVS_LPSRTCLR) << (SBT_LSB);
-		counter2  = (uint64_t)RD4(sc, SNVS_LPSRTCMR) << (SBT_LSB + 32);
+		counter2 = (uint64_t)RD4(sc, SNVS_LPSRTCMR) << (SBT_LSB + 32);
 		counter2 |= (uint64_t)RD4(sc, SNVS_LPSRTCLR) << (SBT_LSB);
 	} while (counter1 != counter2);
 
 	*ts = sbttots(counter1);
 
-	clock_dbgprint_ts(sc->dev, CLOCK_DBG_READ, ts); 
+	clock_dbgprint_ts(sc->dev, CLOCK_DBG_READ, ts);
 
 	return (0);
 }
@@ -164,7 +164,7 @@ snvs_settime(device_t dev, struct timespec *ts)
 	WR4(sc, SNVS_LPSRTCLR, (uint32_t)(sbt >> (SBT_LSB)));
 	snvs_rtc_enable(sc, true);
 
-	clock_dbgprint_ts(sc->dev, CLOCK_DBG_WRITE, ts); 
+	clock_dbgprint_ts(sc->dev, CLOCK_DBG_WRITE, ts);
 
 	return (0);
 }
@@ -211,17 +211,15 @@ snvs_detach(device_t dev)
 	return (0);
 }
 
-static device_method_t snvs_methods[] = {
-	DEVMETHOD(device_probe,		snvs_probe),
-	DEVMETHOD(device_attach,	snvs_attach),
-	DEVMETHOD(device_detach,	snvs_detach),
+static device_method_t snvs_methods[] = { DEVMETHOD(device_probe, snvs_probe),
+	DEVMETHOD(device_attach, snvs_attach),
+	DEVMETHOD(device_detach, snvs_detach),
 
 	/* clock_if methods */
-	DEVMETHOD(clock_gettime,	snvs_gettime),
-	DEVMETHOD(clock_settime,	snvs_settime),
+	DEVMETHOD(clock_gettime, snvs_gettime),
+	DEVMETHOD(clock_settime, snvs_settime),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t snvs_driver = {
 	"snvs",

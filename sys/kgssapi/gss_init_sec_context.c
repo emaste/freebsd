@@ -46,19 +46,13 @@ __FBSDID("$FreeBSD$");
 #include "kgss_if.h"
 
 OM_uint32
-gss_init_sec_context(OM_uint32 * minor_status,
-    const gss_cred_id_t initiator_cred_handle,
-    gss_ctx_id_t * context_handle,
-    const gss_name_t target_name,
-    const gss_OID input_mech_type,
-    OM_uint32 req_flags,
-    OM_uint32 time_req,
+gss_init_sec_context(OM_uint32 *minor_status,
+    const gss_cred_id_t initiator_cred_handle, gss_ctx_id_t *context_handle,
+    const gss_name_t target_name, const gss_OID input_mech_type,
+    OM_uint32 req_flags, OM_uint32 time_req,
     const gss_channel_bindings_t input_chan_bindings,
-    const gss_buffer_t input_token,
-    gss_OID * actual_mech_type,
-    gss_buffer_t output_token,
-    OM_uint32 * ret_flags,
-    OM_uint32 * time_rec)
+    const gss_buffer_t input_token, gss_OID *actual_mech_type,
+    gss_buffer_t output_token, OM_uint32 *ret_flags, OM_uint32 *time_rec)
 {
 	struct init_sec_context_res res;
 	struct init_sec_context_args args;
@@ -73,7 +67,7 @@ gss_init_sec_context(OM_uint32 * minor_status,
 		return (GSS_S_FAILURE);
 
 	args.uid = curthread->td_ucred->cr_uid;
-	if  (initiator_cred_handle)
+	if (initiator_cred_handle)
 		args.cred = initiator_cred_handle->handle;
 	else
 		args.cred = 0;
@@ -101,10 +95,10 @@ gss_init_sec_context(OM_uint32 * minor_status,
 		return (GSS_S_FAILURE);
 	}
 
-	if (res.major_status != GSS_S_COMPLETE
-	    && res.major_status != GSS_S_CONTINUE_NEEDED) {
+	if (res.major_status != GSS_S_COMPLETE &&
+	    res.major_status != GSS_S_CONTINUE_NEEDED) {
 		*minor_status = res.minor_status;
-		xdr_free((xdrproc_t) xdr_init_sec_context_res, &res);
+		xdr_free((xdrproc_t)xdr_init_sec_context_res, &res);
 		return (res.major_status);
 	}
 
@@ -113,7 +107,7 @@ gss_init_sec_context(OM_uint32 * minor_status,
 	if (!ctx) {
 		ctx = kgss_create_context(res.actual_mech_type);
 		if (!ctx) {
-			xdr_free((xdrproc_t) xdr_init_sec_context_res, &res);
+			xdr_free((xdrproc_t)xdr_init_sec_context_res, &res);
 			*minor_status = 0;
 			return (GSS_S_BAD_MECH);
 		}
@@ -128,7 +122,7 @@ gss_init_sec_context(OM_uint32 * minor_status,
 	if (time_rec)
 		*time_rec = res.time_rec;
 
-	xdr_free((xdrproc_t) xdr_init_sec_context_res, &res);
+	xdr_free((xdrproc_t)xdr_init_sec_context_res, &res);
 
 	/*
 	 * If the context establishment is complete, export it from

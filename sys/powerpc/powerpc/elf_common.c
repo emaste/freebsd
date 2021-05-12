@@ -29,8 +29,8 @@
  * $FreeBSD$
  */
 
-static int
-__elfN(powerpc_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
+static int __elfN(powerpc_copyout_auxargs)(
+    struct image_params *imgp, uintptr_t base)
 {
 	Elf_Auxargs *args;
 	Elf_Auxinfo *argarray, *pos;
@@ -55,8 +55,8 @@ __elfN(powerpc_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 		return (__elfN(freebsd_copyout_auxargs)(imgp, base));
 
 	args = (Elf_Auxargs *)imgp->auxargs;
-	argarray = pos = malloc(AT_OLD_COUNT * sizeof(*pos), M_TEMP,
-	    M_WAITOK | M_ZERO);
+	argarray = pos = malloc(
+	    AT_OLD_COUNT * sizeof(*pos), M_TEMP, M_WAITOK | M_ZERO);
 
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_OLD_EXECFD, args->execfd);
@@ -82,12 +82,13 @@ __elfN(powerpc_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 		AUXARGS_ENTRY(pos, AT_OLD_PAGESIZESLEN, imgp->pagesizeslen);
 	}
 	if (imgp->sysent->sv_timekeep_base != 0) {
-		AUXARGS_ENTRY(pos, AT_OLD_TIMEKEEP,
-		    imgp->sysent->sv_timekeep_base);
+		AUXARGS_ENTRY(
+		    pos, AT_OLD_TIMEKEEP, imgp->sysent->sv_timekeep_base);
 	}
-	AUXARGS_ENTRY(pos, AT_OLD_STACKPROT, imgp->sysent->sv_shared_page_obj
-	    != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
-	    imgp->sysent->sv_stackprot);
+	AUXARGS_ENTRY(pos, AT_OLD_STACKPROT,
+	    imgp->sysent->sv_shared_page_obj != NULL && imgp->stack_prot != 0 ?
+		      imgp->stack_prot :
+		      imgp->sysent->sv_stackprot);
 	if (imgp->sysent->sv_hwcap != NULL)
 		AUXARGS_ENTRY(pos, AT_OLD_HWCAP, *imgp->sysent->sv_hwcap);
 	if (imgp->sysent->sv_hwcap2 != NULL)
@@ -98,7 +99,8 @@ __elfN(powerpc_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 	imgp->auxargs = NULL;
 	KASSERT(pos - argarray <= AT_OLD_COUNT, ("Too many auxargs"));
 
-	error = copyout(argarray, (void *)base, sizeof(*argarray) * AT_OLD_COUNT);
+	error = copyout(
+	    argarray, (void *)base, sizeof(*argarray) * AT_OLD_COUNT);
 	free(argarray, M_TEMP);
 	return (error);
 }

@@ -35,80 +35,80 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/gpio.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/hwreset/hwreset.h>
+#include <dev/extres/phy/phy.h>
+#include <dev/extres/phy/phy_internal.h>
+#include <dev/extres/syscon/syscon.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/ofw_subr.h>
 
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/phy/phy.h>
-#include <dev/extres/phy/phy_internal.h>
-#include <dev/extres/syscon/syscon.h>
-#include <dev/extres/hwreset/hwreset.h>
-
 #include "syscon_if.h"
 
-#define GRF_HIWORD_SHIFT	16
-#define	GRF_SOC_CON_5_PCIE	0xE214
-#define	 CON_5_PCIE_IDLE_OFF(x)	(1 <<(((x) & 0x3) + 3))
-#define	GRF_SOC_CON8		0xE220
-#define	GRF_SOC_STATUS1 	0xE2A4
+#define GRF_HIWORD_SHIFT 16
+#define GRF_SOC_CON_5_PCIE 0xE214
+#define CON_5_PCIE_IDLE_OFF(x) (1 << (((x)&0x3) + 3))
+#define GRF_SOC_CON8 0xE220
+#define GRF_SOC_STATUS1 0xE2A4
 
 /* PHY config registers  - write */
-#define	PHY_CFG_CLK_TEST	0x10
-#define	 CLK_TEST_SEPE_RATE		(1 << 3)
-#define	PHY_CFG_CLK_SCC		0x12
-#define	 CLK_SCC_PLL_100M		(1 << 3)
+#define PHY_CFG_CLK_TEST 0x10
+#define CLK_TEST_SEPE_RATE (1 << 3)
+#define PHY_CFG_CLK_SCC 0x12
+#define CLK_SCC_PLL_100M (1 << 3)
 
 /* PHY config registers  - read */
-#define	PHY_CFG_PLL_LOCK	0x10
-#define	 CLK_PLL_LOCKED			(1 << 1)
-#define	PHY_CFG_SCC_LOCK	0x12
-#define	 CLK_SCC_100M_GATE		(1 << 2)
+#define PHY_CFG_PLL_LOCK 0x10
+#define CLK_PLL_LOCKED (1 << 1)
+#define PHY_CFG_SCC_LOCK 0x12
+#define CLK_SCC_100M_GATE (1 << 2)
 
-#define	 STATUS1_PLL_LOCKED		(1 << 9)
+#define STATUS1_PLL_LOCKED (1 << 9)
 
 static struct ofw_compat_data compat_data[] = {
-	{"rockchip,rk3399-pcie-phy",	1},
-	{NULL,				0}
+	{ "rockchip,rk3399-pcie-phy", 1 }, { NULL, 0 }
 };
 
 struct rk_pcie_phy_softc {
-	device_t		dev;
-	struct syscon		*syscon;
-	struct mtx		mtx;
-	clk_t			clk_ref;
-	hwreset_t		hwreset_phy;
-	int			enable_count;
+	device_t dev;
+	struct syscon *syscon;
+	struct mtx mtx;
+	clk_t clk_ref;
+	hwreset_t hwreset_phy;
+	int enable_count;
 };
 
-#define	PHY_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
-#define	PHY_UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
-#define	PHY_LOCK_INIT(_sc)	mtx_init(&(_sc)->mtx, 			\
-	    device_get_nameunit(_sc->dev), "rk_pcie_phyc", MTX_DEF)
-#define	PHY_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->mtx);
-#define	PHY_ASSERT_LOCKED(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED);
-#define	PHY_ASSERT_UNLOCKED(_sc) mtx_assert(&(_sc)->mtx, MA_NOTOWNED);
+#define PHY_LOCK(_sc) mtx_lock(&(_sc)->mtx)
+#define PHY_UNLOCK(_sc) mtx_unlock(&(_sc)->mtx)
+#define PHY_LOCK_INIT(_sc)                                                   \
+	mtx_init(&(_sc)->mtx, device_get_nameunit(_sc->dev), "rk_pcie_phyc", \
+	    MTX_DEF)
+#define PHY_LOCK_DESTROY(_sc) mtx_destroy(&(_sc)->mtx);
+#define PHY_ASSERT_LOCKED(_sc) mtx_assert(&(_sc)->mtx, MA_OWNED);
+#define PHY_ASSERT_UNLOCKED(_sc) mtx_assert(&(_sc)->mtx, MA_NOTOWNED);
 
-#define	RD4(sc, reg)		SYSCON_READ_4((sc)->syscon, (reg))
-#define	WR4(sc, reg, mask, val)						\
-    SYSCON_WRITE_4((sc)->syscon, (reg), ((mask) << GRF_HIWORD_SHIFT) | (val))
+#define RD4(sc, reg) SYSCON_READ_4((sc)->syscon, (reg))
+#define WR4(sc, reg, mask, val) \
+	SYSCON_WRITE_4(         \
+	    (sc)->syscon, (reg), ((mask) << GRF_HIWORD_SHIFT) | (val))
 
-#define	MAX_LANE	4
+#define MAX_LANE 4
 
 static void
 cfg_write(struct rk_pcie_phy_softc *sc, uint32_t reg, uint32_t data)
 {
 	/* setup register address and data first */
-	WR4(sc, GRF_SOC_CON8, 0x7FF,
-	    (reg & 0x3F) << 1 | (data & 0x0F) << 7);
+	WR4(sc, GRF_SOC_CON8, 0x7FF, (reg & 0x3F) << 1 | (data & 0x0F) << 7);
 	/* dummy readback for sync */
 	RD4(sc, GRF_SOC_CON8);
 
@@ -218,8 +218,7 @@ rk_pcie_phy_down(struct rk_pcie_phy_softc *sc, int id)
 	sc->enable_count--;
 
 	/* Idle given lane */
-	WR4(sc, GRF_SOC_CON_5_PCIE,
-	    CON_5_PCIE_IDLE_OFF(id),
+	WR4(sc, GRF_SOC_CON_5_PCIE, CON_5_PCIE_IDLE_OFF(id),
 	    CON_5_PCIE_IDLE_OFF(id));
 
 	if (sc->enable_count == 0) {
@@ -245,8 +244,8 @@ rk_pcie_phy_enable(struct phynode *phynode, bool enable)
 
 	if (enable)
 		rv = rk_pcie_phy_up(sc, (int)phy);
-	 else
-		rv = rk_pcie_phy_down(sc, (int) phy);
+	else
+		rv = rk_pcie_phy_down(sc, (int)phy);
 
 	return (rv);
 }
@@ -254,16 +253,16 @@ rk_pcie_phy_enable(struct phynode *phynode, bool enable)
 /* Phy class and methods. */
 static int rk_pcie_phy_enable(struct phynode *phynode, bool enable);
 static phynode_method_t rk_pcie_phy_phynode_methods[] = {
-	PHYNODEMETHOD(phynode_enable,		 rk_pcie_phy_enable),
+	PHYNODEMETHOD(phynode_enable, rk_pcie_phy_enable),
 
 	PHYNODEMETHOD_END
 };
 
-DEFINE_CLASS_1( rk_pcie_phy_phynode, rk_pcie_phy_phynode_class,
+DEFINE_CLASS_1(rk_pcie_phy_phynode, rk_pcie_phy_phynode_class,
     rk_pcie_phy_phynode_methods, 0, phynode_class);
 
 static int
- rk_pcie_phy_probe(device_t dev)
+rk_pcie_phy_probe(device_t dev)
 {
 
 	if (!ofw_bus_status_okay(dev))
@@ -277,7 +276,7 @@ static int
 }
 
 static int
- rk_pcie_phy_attach(device_t dev)
+rk_pcie_phy_attach(device_t dev)
 {
 	struct rk_pcie_phy_softc *sc;
 	struct phynode_init_def phy_init;
@@ -327,8 +326,8 @@ static int
 	for (i = 0; i < MAX_LANE; i++) {
 		phy_init.id = i;
 		phy_init.ofw_node = node;
-		phynode = phynode_create(dev, &rk_pcie_phy_phynode_class,
-		&phy_init);
+		phynode = phynode_create(
+		    dev, &rk_pcie_phy_phynode_class, &phy_init);
 		if (phynode == NULL) {
 			device_printf(dev, "Cannot create phy[%d]\n", i);
 			rv = ENXIO;
@@ -349,8 +348,8 @@ fail:
 
 static device_method_t rk_pcie_phy_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		 rk_pcie_phy_probe),
-	DEVMETHOD(device_attach,	 rk_pcie_phy_attach),
+	DEVMETHOD(device_probe, rk_pcie_phy_probe),
+	DEVMETHOD(device_attach, rk_pcie_phy_attach),
 
 	DEVMETHOD_END
 };

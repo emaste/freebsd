@@ -38,74 +38,73 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <dev/sound/pcm/sound.h>
-#include <dev/sound/chip.h>
-#include <mixer_if.h>
-
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/sound/chip.h>
+#include <dev/sound/pcm/sound.h>
+
 #include <arm/freescale/vybrid/vf_common.h>
 #include <arm/freescale/vybrid/vf_dmamux.h>
 #include <arm/freescale/vybrid/vf_edma.h>
+#include <mixer_if.h>
 
-#define	I2S_TCSR	0x00	/* SAI Transmit Control */
-#define	I2S_TCR1	0x04	/* SAI Transmit Configuration 1 */
-#define	I2S_TCR2	0x08	/* SAI Transmit Configuration 2 */
-#define	I2S_TCR3	0x0C	/* SAI Transmit Configuration 3 */
-#define	I2S_TCR4	0x10	/* SAI Transmit Configuration 4 */
-#define	I2S_TCR5	0x14	/* SAI Transmit Configuration 5 */
-#define	I2S_TDR0	0x20	/* SAI Transmit Data */
-#define	I2S_TFR0	0x40	/* SAI Transmit FIFO */
-#define	I2S_TMR		0x60	/* SAI Transmit Mask */
-#define	I2S_RCSR	0x80	/* SAI Receive Control */
-#define	I2S_RCR1	0x84	/* SAI Receive Configuration 1 */
-#define	I2S_RCR2	0x88	/* SAI Receive Configuration 2 */
-#define	I2S_RCR3	0x8C	/* SAI Receive Configuration 3 */
-#define	I2S_RCR4	0x90	/* SAI Receive Configuration 4 */
-#define	I2S_RCR5	0x94	/* SAI Receive Configuration 5 */
-#define	I2S_RDR0	0xA0	/* SAI Receive Data */
-#define	I2S_RFR0	0xC0	/* SAI Receive FIFO */
-#define	I2S_RMR		0xE0	/* SAI Receive Mask */
+#define I2S_TCSR 0x00 /* SAI Transmit Control */
+#define I2S_TCR1 0x04 /* SAI Transmit Configuration 1 */
+#define I2S_TCR2 0x08 /* SAI Transmit Configuration 2 */
+#define I2S_TCR3 0x0C /* SAI Transmit Configuration 3 */
+#define I2S_TCR4 0x10 /* SAI Transmit Configuration 4 */
+#define I2S_TCR5 0x14 /* SAI Transmit Configuration 5 */
+#define I2S_TDR0 0x20 /* SAI Transmit Data */
+#define I2S_TFR0 0x40 /* SAI Transmit FIFO */
+#define I2S_TMR 0x60 /* SAI Transmit Mask */
+#define I2S_RCSR 0x80 /* SAI Receive Control */
+#define I2S_RCR1 0x84 /* SAI Receive Configuration 1 */
+#define I2S_RCR2 0x88 /* SAI Receive Configuration 2 */
+#define I2S_RCR3 0x8C /* SAI Receive Configuration 3 */
+#define I2S_RCR4 0x90 /* SAI Receive Configuration 4 */
+#define I2S_RCR5 0x94 /* SAI Receive Configuration 5 */
+#define I2S_RDR0 0xA0 /* SAI Receive Data */
+#define I2S_RFR0 0xC0 /* SAI Receive FIFO */
+#define I2S_RMR 0xE0 /* SAI Receive Mask */
 
-#define	TCR1_TFW_M	0x1f		/* Transmit FIFO Watermark Mask */
-#define	TCR1_TFW_S	0		/* Transmit FIFO Watermark Shift */
-#define	TCR2_MSEL_M	0x3		/* MCLK Select Mask*/
-#define	TCR2_MSEL_S	26		/* MCLK Select Shift*/
-#define	TCR2_BCP	(1 << 25)	/* Bit Clock Polarity */
-#define	TCR2_BCD	(1 << 24)	/* Bit Clock Direction */
-#define	TCR3_TCE	(1 << 16)	/* Transmit Channel Enable */
-#define	TCR4_FRSZ_M	0x1f		/* Frame size Mask */
-#define	TCR4_FRSZ_S	16		/* Frame size Shift */
-#define	TCR4_SYWD_M	0x1f		/* Sync Width Mask */
-#define	TCR4_SYWD_S	8		/* Sync Width Shift */
-#define	TCR4_MF		(1 << 4)	/* MSB First */
-#define	TCR4_FSE	(1 << 3)	/* Frame Sync Early */
-#define	TCR4_FSP	(1 << 1)	/* Frame Sync Polarity Low */
-#define	TCR4_FSD	(1 << 0)	/* Frame Sync Direction Master */
-#define	TCR5_FBT_M	0x1f		/* First Bit Shifted */
-#define	TCR5_FBT_S	8		/* First Bit Shifted */
-#define	TCR5_W0W_M	0x1f		/* Word 0 Width */
-#define	TCR5_W0W_S	16		/* Word 0 Width */
-#define	TCR5_WNW_M	0x1f		/* Word N Width */
-#define	TCR5_WNW_S	24		/* Word N Width */
-#define	TCSR_TE		(1 << 31)	/* Transmitter Enable */
-#define	TCSR_BCE	(1 << 28)	/* Bit Clock Enable */
-#define	TCSR_FRDE	(1 << 0)	/* FIFO Request DMA Enable */
+#define TCR1_TFW_M 0x1f /* Transmit FIFO Watermark Mask */
+#define TCR1_TFW_S 0 /* Transmit FIFO Watermark Shift */
+#define TCR2_MSEL_M 0x3 /* MCLK Select Mask*/
+#define TCR2_MSEL_S 26 /* MCLK Select Shift*/
+#define TCR2_BCP (1 << 25) /* Bit Clock Polarity */
+#define TCR2_BCD (1 << 24) /* Bit Clock Direction */
+#define TCR3_TCE (1 << 16) /* Transmit Channel Enable */
+#define TCR4_FRSZ_M 0x1f /* Frame size Mask */
+#define TCR4_FRSZ_S 16 /* Frame size Shift */
+#define TCR4_SYWD_M 0x1f /* Sync Width Mask */
+#define TCR4_SYWD_S 8 /* Sync Width Shift */
+#define TCR4_MF (1 << 4) /* MSB First */
+#define TCR4_FSE (1 << 3) /* Frame Sync Early */
+#define TCR4_FSP (1 << 1) /* Frame Sync Polarity Low */
+#define TCR4_FSD (1 << 0) /* Frame Sync Direction Master */
+#define TCR5_FBT_M 0x1f /* First Bit Shifted */
+#define TCR5_FBT_S 8 /* First Bit Shifted */
+#define TCR5_W0W_M 0x1f /* Word 0 Width */
+#define TCR5_W0W_S 16 /* Word 0 Width */
+#define TCR5_WNW_M 0x1f /* Word N Width */
+#define TCR5_WNW_S 24 /* Word N Width */
+#define TCSR_TE (1 << 31) /* Transmitter Enable */
+#define TCSR_BCE (1 << 28) /* Bit Clock Enable */
+#define TCSR_FRDE (1 << 0) /* FIFO Request DMA Enable */
 
-#define	SAI_NCHANNELS	1
+#define SAI_NCHANNELS 1
 
 static MALLOC_DEFINE(M_SAI, "sai", "sai audio");
 
@@ -131,61 +130,58 @@ struct sai_rate {
  */
 
 static struct sai_rate rate_map[] = {
-	{ 44100, 7, 33, 80798400, 93000000 }, /* 33.8688 Mhz */
-	{ 96000, 3, 36, 80352000, 93000000 }, /* 36.864 Mhz */
+	{ 44100, 7, 33, 80798400, 93000000 },  /* 33.8688 Mhz */
+	{ 96000, 3, 36, 80352000, 93000000 },  /* 36.864 Mhz */
 	{ 192000, 1, 36, 80352000, 93000000 }, /* 36.864 Mhz */
 	{ 0, 0 },
 };
 
 struct sc_info {
-	struct resource		*res[2];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	device_t		dev;
-	struct mtx		*lock;
-	uint32_t		speed;
-	uint32_t		period;
-	void			*ih;
-	int			pos;
-	int			dma_size;
-	bus_dma_tag_t		dma_tag;
-	bus_dmamap_t		dma_map;
-	bus_addr_t		buf_base_phys;
-	uint32_t		*buf_base;
-	struct tcd_conf		*tcd;
-	struct sai_rate		*sr;
-	struct edma_softc	*edma_sc;
-	int			edma_chnum;
+	struct resource *res[2];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	device_t dev;
+	struct mtx *lock;
+	uint32_t speed;
+	uint32_t period;
+	void *ih;
+	int pos;
+	int dma_size;
+	bus_dma_tag_t dma_tag;
+	bus_dmamap_t dma_map;
+	bus_addr_t buf_base_phys;
+	uint32_t *buf_base;
+	struct tcd_conf *tcd;
+	struct sai_rate *sr;
+	struct edma_softc *edma_sc;
+	int edma_chnum;
 };
 
 /* Channel registers */
 struct sc_chinfo {
-	struct snd_dbuf		*buffer;
-	struct pcm_channel	*channel;
-	struct sc_pcminfo	*parent;
+	struct snd_dbuf *buffer;
+	struct pcm_channel *channel;
+	struct sc_pcminfo *parent;
 
 	/* Channel information */
-	uint32_t	dir;
-	uint32_t	format;
+	uint32_t dir;
+	uint32_t format;
 
 	/* Flags */
-	uint32_t	run;
+	uint32_t run;
 };
 
 /* PCM device private data */
 struct sc_pcminfo {
-	device_t		dev;
-	uint32_t		(*ih) (struct sc_pcminfo *scp);
-	uint32_t		chnum;
-	struct sc_chinfo	chan[SAI_NCHANNELS];
-	struct sc_info		*sc;
+	device_t dev;
+	uint32_t (*ih)(struct sc_pcminfo *scp);
+	uint32_t chnum;
+	struct sc_chinfo chan[SAI_NCHANNELS];
+	struct sc_info *sc;
 };
 
-static struct resource_spec sai_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec sai_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { -1, 0 } };
 
 static int setup_dma(struct sc_pcminfo *scp);
 static void setup_sai(struct sc_info *);
@@ -219,8 +215,7 @@ saimixer_init(struct snd_mixer *m)
 }
 
 static int
-saimixer_set(struct snd_mixer *m, unsigned dev,
-    unsigned left, unsigned right)
+saimixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct sc_pcminfo *scp;
 
@@ -234,11 +229,9 @@ saimixer_set(struct snd_mixer *m, unsigned dev,
 	return (0);
 }
 
-static kobj_method_t saimixer_methods[] = {
-	KOBJMETHOD(mixer_init,      saimixer_init),
-	KOBJMETHOD(mixer_set,       saimixer_set),
-	KOBJMETHOD_END
-};
+static kobj_method_t saimixer_methods[] = { KOBJMETHOD(
+						mixer_init, saimixer_init),
+	KOBJMETHOD(mixer_set, saimixer_set), KOBJMETHOD_END };
 MIXER_DECLARE(saimixer);
 
 /*
@@ -327,8 +320,10 @@ saichan_setspeed(kobj_t obj, void *data, uint32_t speed)
 	if (sr == NULL) {
 		for (i = 0; rate_map[i].speed != 0; i++) {
 			sr = &rate_map[i];
-			threshold = sr->speed + ((rate_map[i + 1].speed != 0) ?
-			    ((rate_map[i + 1].speed - sr->speed) >> 1) : 0);
+			threshold = sr->speed +
+			    ((rate_map[i + 1].speed != 0) ?
+					  ((rate_map[i + 1].speed - sr->speed) >> 1) :
+					  0);
 			if (speed < threshold)
 				break;
 		}
@@ -461,8 +456,8 @@ find_edma_controller(struct sc_info *sc)
 
 	sc->edma_sc = edma_sc;
 
-	sc->edma_chnum = edma_sc->channel_configure(edma_sc, edma_mux_group,
-	    edma_src_transmit);
+	sc->edma_chnum = edma_sc->channel_configure(
+	    edma_sc, edma_mux_group, edma_src_transmit);
 	if (sc->edma_chnum < 0) {
 		/* cant setup eDMA */
 		return (ENXIO);
@@ -493,7 +488,7 @@ setup_dma(struct sc_pcminfo *scp)
 	tcd->nbytes = 64;
 
 	tcd->nmajor = 512;
-	tcd->smod = 17;	/* dma_size range */
+	tcd->smod = 17; /* dma_size range */
 	tcd->dmod = 0;
 	tcd->esg = 0;
 	tcd->soff = 0x4;
@@ -560,11 +555,10 @@ static uint32_t sai_pfmt[] = {
 	 * eDMA doesn't allow 24-bit coping,
 	 * so we use 32.
 	 */
-	SND_FORMAT(AFMT_S32_LE, 2, 0),
-	0
+	SND_FORMAT(AFMT_S32_LE, 2, 0), 0
 };
 
-static struct pcmchan_caps sai_pcaps = {44100, 192000, sai_pfmt, 0};
+static struct pcmchan_caps sai_pcaps = { 44100, 192000, sai_pfmt, 0 };
 
 static struct pcmchan_caps *
 saichan_getcaps(kobj_t obj, void *data)
@@ -573,17 +567,15 @@ saichan_getcaps(kobj_t obj, void *data)
 	return (&sai_pcaps);
 }
 
-static kobj_method_t saichan_methods[] = {
-	KOBJMETHOD(channel_init,         saichan_init),
-	KOBJMETHOD(channel_free,         saichan_free),
-	KOBJMETHOD(channel_setformat,    saichan_setformat),
-	KOBJMETHOD(channel_setspeed,     saichan_setspeed),
+static kobj_method_t saichan_methods[] = { KOBJMETHOD(
+					       channel_init, saichan_init),
+	KOBJMETHOD(channel_free, saichan_free),
+	KOBJMETHOD(channel_setformat, saichan_setformat),
+	KOBJMETHOD(channel_setspeed, saichan_setspeed),
 	KOBJMETHOD(channel_setblocksize, saichan_setblocksize),
-	KOBJMETHOD(channel_trigger,      saichan_trigger),
-	KOBJMETHOD(channel_getptr,       saichan_getptr),
-	KOBJMETHOD(channel_getcaps,      saichan_getcaps),
-	KOBJMETHOD_END
-};
+	KOBJMETHOD(channel_trigger, saichan_trigger),
+	KOBJMETHOD(channel_getptr, saichan_getptr),
+	KOBJMETHOD(channel_getcaps, saichan_getcaps), KOBJMETHOD_END };
 CHANNEL_DECLARE(saichan);
 
 static int
@@ -609,8 +601,8 @@ sai_intr(void *arg)
 	scp = arg;
 	sc = scp->sc;
 
-	device_printf(sc->dev, "Error I2S_TCSR == 0x%08x\n",
-	    READ4(sc, I2S_TCSR));
+	device_printf(
+	    sc->dev, "Error I2S_TCSR == 0x%08x\n", READ4(sc, I2S_TCSR));
 }
 
 static void
@@ -678,7 +670,7 @@ sai_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
 	if (err)
 		return;
 
-	addr = (bus_addr_t*)arg;
+	addr = (bus_addr_t *)arg;
 	*addr = segs[0].ds_addr;
 }
 
@@ -729,15 +721,14 @@ sai_attach(device_t dev)
 	 * Modulo feature allows setup circular buffer.
 	 */
 
-	err = bus_dma_tag_create(
-	    bus_get_dma_tag(sc->dev),
-	    4, sc->dma_size,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    sc->dma_size, 1,		/* maxsize, nsegments */
-	    sc->dma_size, 0,		/* maxsegsize, flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
+	err = bus_dma_tag_create(bus_get_dma_tag(sc->dev), 4,
+	    sc->dma_size,	     /* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
+	    BUS_SPACE_MAXADDR,	     /* highaddr */
+	    NULL, NULL,		     /* filter, filterarg */
+	    sc->dma_size, 1,	     /* maxsize, nsegments */
+	    sc->dma_size, 0,	     /* maxsegsize, flags */
+	    NULL, NULL,		     /* lockfunc, lockarg */
 	    &sc->dma_tag);
 
 	err = bus_dmamem_alloc(sc->dma_tag, (void **)&sc->buf_base,
@@ -757,8 +748,8 @@ sai_attach(device_t dev)
 	bzero(sc->buf_base, sc->dma_size);
 
 	/* Setup interrupt handler */
-	err = bus_setup_intr(dev, sc->res[1], INTR_MPSAFE | INTR_TYPE_AV,
-	    NULL, sai_intr, scp, &sc->ih);
+	err = bus_setup_intr(dev, sc->res[1], INTR_MPSAFE | INTR_TYPE_AV, NULL,
+	    sai_intr, scp, &sc->ih);
 	if (err) {
 		device_printf(dev, "Unable to alloc interrupt resource.\n");
 		return (ENXIO);
@@ -787,11 +778,8 @@ sai_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t sai_pcm_methods[] = {
-	DEVMETHOD(device_probe,		sai_probe),
-	DEVMETHOD(device_attach,	sai_attach),
-	{ 0, 0 }
-};
+static device_method_t sai_pcm_methods[] = { DEVMETHOD(device_probe, sai_probe),
+	DEVMETHOD(device_attach, sai_attach), { 0, 0 } };
 
 static driver_t sai_pcm_driver = {
 	"pcm",

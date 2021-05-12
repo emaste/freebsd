@@ -37,24 +37,22 @@
  * software.
  */
 
-bus_dma_segment_t	*_bus_dmamap_complete(bus_dma_tag_t dmat,
-			    bus_dmamap_t map, bus_dma_segment_t *segs,
-			    int nsegs, int error);
+bus_dma_segment_t *_bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
+    bus_dma_segment_t *segs, int nsegs, int error);
 
-int	_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
-	    void *buf, bus_size_t buflen, struct pmap *pmap,
-	    int flags, bus_dma_segment_t *segs, int *segp);
+int _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
+    bus_size_t buflen, struct pmap *pmap, int flags, bus_dma_segment_t *segs,
+    int *segp);
 
-int	_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
-	    struct vm_page **ma, bus_size_t tlen, int ma_offs,
-	    int flags, bus_dma_segment_t *segs, int *segp);
+int _bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct vm_page **ma, bus_size_t tlen, int ma_offs, int flags,
+    bus_dma_segment_t *segs, int *segp);
 
-int	_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
-	    vm_paddr_t paddr, bus_size_t buflen,
-	    int flags, bus_dma_segment_t *segs, int *segp);
+int _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
+    vm_paddr_t paddr, bus_size_t buflen, int flags, bus_dma_segment_t *segs,
+    int *segp);
 
-void	_bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
-	    struct memdesc *mem, bus_dmamap_callback_t *callback,
-	    void *callback_arg);
+void _bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct memdesc *mem, bus_dmamap_callback_t *callback, void *callback_arg);
 
 #endif /* !_BUS_DMA_INTERNAL_H_ */

@@ -31,17 +31,17 @@
 
 #ifdef _KERNEL
 
-#define _GEOM_DEBUG(classname, ctrlvar, loglvl, biop, formatstr, ...)	\
-do {									\
-	const int __control = (ctrlvar);				\
-	const int __level = (loglvl);					\
-									\
-	if (__control < __level)					\
-		break;							\
-									\
-	g_dbg_printf((classname), (__control > 0) ? __level : -1,	\
-	    (biop), ": " formatstr, ## __VA_ARGS__);			\
-} while (0)
+#define _GEOM_DEBUG(classname, ctrlvar, loglvl, biop, formatstr, ...)     \
+	do {                                                              \
+		const int __control = (ctrlvar);                          \
+		const int __level = (loglvl);                             \
+                                                                          \
+		if (__control < __level)                                  \
+			break;                                            \
+                                                                          \
+		g_dbg_printf((classname), (__control > 0) ? __level : -1, \
+		    (biop), ": " formatstr, ##__VA_ARGS__);               \
+	} while (0)
 
 void g_dbg_printf(const char *classname, int lvl, struct bio *bp,
     const char *format, ...) __printflike(4, 5);

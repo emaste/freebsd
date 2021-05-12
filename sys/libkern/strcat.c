@@ -35,11 +35,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 
 char *
-strcat(char * __restrict s, const char * __restrict append)
+strcat(char *__restrict s, const char *__restrict append)
 {
 	char *save = s;
 
-	for (; *s; ++s);
-	while ((*s++ = *append++) != 0);
-	return(save);
+	for (; *s; ++s)
+		;
+	while ((*s++ = *append++) != 0)
+		;
+	return (save);
 }

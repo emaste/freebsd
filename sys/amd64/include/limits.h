@@ -33,7 +33,7 @@
  */
 
 #ifndef _MACHINE_LIMITS_H_
-#define	_MACHINE_LIMITS_H_
+#define _MACHINE_LIMITS_H_
 
 #include <sys/cdefs.h>
 

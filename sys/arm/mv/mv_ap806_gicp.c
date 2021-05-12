@@ -33,43 +33,39 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <machine/intr.h>
+#include <machine/resource.h>
 
 #include <dev/fdt/simplebus.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include "pic_if.h"
 
-#define	MV_AP806_GICP_MAX_NIRQS	207
+#define MV_AP806_GICP_MAX_NIRQS 207
 
 struct mv_ap806_gicp_softc {
-	device_t		dev;
-	device_t		parent;
-	struct resource		*res;
+	device_t dev;
+	device_t parent;
+	struct resource *res;
 
-	ssize_t			spi_ranges_cnt;
-	uint32_t		*spi_ranges;
+	ssize_t spi_ranges_cnt;
+	uint32_t *spi_ranges;
 	struct intr_map_data_fdt *parent_map_data;
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{"marvell,ap806-gicp", 1},
-	{NULL,             0}
-};
+static struct ofw_compat_data compat_data[] = { { "marvell,ap806-gicp", 1 },
+	{ NULL, 0 } };
 
-#define	RD4(sc, reg)		bus_read_4((sc)->res, (reg))
-#define	WR4(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
+#define RD4(sc, reg) bus_read_4((sc)->res, (reg))
+#define WR4(sc, reg, val) bus_write_4((sc)->res, (reg), (val))
 
 static int
 mv_ap806_gicp_probe(device_t dev)
@@ -97,18 +93,19 @@ mv_ap806_gicp_attach(device_t dev)
 
 	/* Look for our parent */
 	if ((intr_parent = ofw_bus_find_iparent(node)) == 0) {
-		device_printf(dev,
-		     "Cannot find our parent interrupt controller\n");
+		device_printf(
+		    dev, "Cannot find our parent interrupt controller\n");
 		return (ENXIO);
 	}
 	if ((sc->parent = OF_device_from_xref(intr_parent)) == NULL) {
-		device_printf(dev,
-		     "cannot find parent interrupt controller device\n");
+		device_printf(
+		    dev, "cannot find parent interrupt controller device\n");
 		return (ENXIO);
 	}
 
-	sc->spi_ranges_cnt = OF_getencprop_alloc_multi(node, "marvell,spi-ranges",
-	    sizeof(*sc->spi_ranges), (void **)&sc->spi_ranges);
+	sc->spi_ranges_cnt = OF_getencprop_alloc_multi(node,
+	    "marvell,spi-ranges", sizeof(*sc->spi_ranges),
+	    (void **)&sc->spi_ranges);
 
 	xref = OF_xref_from_node(node);
 	if (intr_pic_register(dev, xref) == NULL) {
@@ -117,8 +114,9 @@ mv_ap806_gicp_attach(device_t dev)
 	}
 	/* Allocate GIC compatible mapping entry (3 cells) */
 	sc->parent_map_data = (struct intr_map_data_fdt *)intr_alloc_map_data(
-	    INTR_MAP_DATA_FDT, sizeof(struct intr_map_data_fdt) +
-	    + 3 * sizeof(phandle_t), M_WAITOK | M_ZERO);
+	    INTR_MAP_DATA_FDT,
+	    sizeof(struct intr_map_data_fdt) + +3 * sizeof(phandle_t),
+	    M_WAITOK | M_ZERO);
 	OF_device_register_xref(xref, dev);
 
 	return (0);
@@ -132,8 +130,8 @@ mv_ap806_gicp_detach(device_t dev)
 }
 
 static struct intr_map_data *
-mv_ap806_gicp_convert_map_data(struct mv_ap806_gicp_softc *sc,
-    struct intr_map_data *data)
+mv_ap806_gicp_convert_map_data(
+    struct mv_ap806_gicp_softc *sc, struct intr_map_data *data)
 {
 	struct intr_map_data_fdt *daf;
 	uint32_t i, irq_num, irq_type;
@@ -202,8 +200,8 @@ mv_ap806_gicp_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-mv_ap806_gicp_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+mv_ap806_gicp_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct mv_ap806_gicp_softc *sc;
 	int ret;
@@ -219,7 +217,7 @@ mv_ap806_gicp_map_intr(device_t dev, struct intr_map_data *data,
 
 	ret = PIC_MAP_INTR(sc->parent, data, isrcp);
 	(*isrcp)->isrc_dev = sc->dev;
-	return(ret);
+	return (ret);
 }
 
 static int
@@ -297,21 +295,21 @@ mv_ap806_gicp_post_filter(device_t dev, struct intr_irqsrc *isrc)
 
 static device_method_t mv_ap806_gicp_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		mv_ap806_gicp_probe),
-	DEVMETHOD(device_attach,	mv_ap806_gicp_attach),
-	DEVMETHOD(device_detach,	mv_ap806_gicp_detach),
+	DEVMETHOD(device_probe, mv_ap806_gicp_probe),
+	DEVMETHOD(device_attach, mv_ap806_gicp_attach),
+	DEVMETHOD(device_detach, mv_ap806_gicp_detach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_activate_intr,	mv_ap806_gicp_activate_intr),
-	DEVMETHOD(pic_disable_intr,	mv_ap806_gicp_disable_intr),
-	DEVMETHOD(pic_enable_intr,	mv_ap806_gicp_enable_intr),
-	DEVMETHOD(pic_map_intr,		mv_ap806_gicp_map_intr),
-	DEVMETHOD(pic_deactivate_intr,	mv_ap806_gicp_deactivate_intr),
-	DEVMETHOD(pic_setup_intr,	mv_ap806_gicp_setup_intr),
-	DEVMETHOD(pic_teardown_intr,	mv_ap806_gicp_teardown_intr),
-	DEVMETHOD(pic_post_filter,	mv_ap806_gicp_post_filter),
-	DEVMETHOD(pic_post_ithread,	mv_ap806_gicp_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mv_ap806_gicp_pre_ithread),
+	DEVMETHOD(pic_activate_intr, mv_ap806_gicp_activate_intr),
+	DEVMETHOD(pic_disable_intr, mv_ap806_gicp_disable_intr),
+	DEVMETHOD(pic_enable_intr, mv_ap806_gicp_enable_intr),
+	DEVMETHOD(pic_map_intr, mv_ap806_gicp_map_intr),
+	DEVMETHOD(pic_deactivate_intr, mv_ap806_gicp_deactivate_intr),
+	DEVMETHOD(pic_setup_intr, mv_ap806_gicp_setup_intr),
+	DEVMETHOD(pic_teardown_intr, mv_ap806_gicp_teardown_intr),
+	DEVMETHOD(pic_post_filter, mv_ap806_gicp_post_filter),
+	DEVMETHOD(pic_post_ithread, mv_ap806_gicp_post_ithread),
+	DEVMETHOD(pic_pre_ithread, mv_ap806_gicp_pre_ithread),
 
 	DEVMETHOD_END
 };

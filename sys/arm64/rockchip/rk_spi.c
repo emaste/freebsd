@@ -37,94 +37,88 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/rman.h>
 #include <sys/resource.h>
+#include <sys/rman.h>
+
 #include <machine/bus.h>
-
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/spibus/spi.h>
-#include <dev/spibus/spibusvar.h>
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/spibus/spi.h>
+#include <dev/spibus/spibusvar.h>
 
 #include "spibus_if.h"
 
-#define	RK_SPI_CTRLR0		0x0000
-#define		CTRLR0_OPM_MASTER	(0 << 20)
-#define		CTRLR0_XFM_TR		(0 << 18)
-#define		CTRLR0_FRF_MOTO		(0 << 16)
-#define		CTRLR0_BHT_8BIT		(1 << 13)
-#define		CTRLR0_EM_BIG		(1 << 11)
-#define		CTRLR0_SSD_ONE		(1 << 10)
-#define		CTRLR0_SCPOL		(1 <<  7)
-#define		CTRLR0_SCPH		(1 <<  6)
-#define		CTRLR0_DFS_8BIT		(1 <<  0)
-#define	RK_SPI_CTRLR1		0x0004
-#define	RK_SPI_ENR		0x0008
-#define	RK_SPI_SER		0x000c
-#define	RK_SPI_BAUDR		0x0010
-#define	RK_SPI_TXFTLR		0x0014
-#define	RK_SPI_RXFTLR		0x0018
-#define	RK_SPI_TXFLR		0x001c
-#define	RK_SPI_RXFLR		0x0020
-#define	RK_SPI_SR		0x0024
-#define		SR_BUSY			(1 <<  0)
-#define	RK_SPI_IPR		0x0028
-#define	RK_SPI_IMR		0x002c
-#define		IMR_RFFIM		(1 <<  4)
-#define		IMR_TFEIM		(1 <<  0)
-#define	RK_SPI_ISR		0x0030
-#define		ISR_RFFIS		(1 <<  4)
-#define		ISR_TFEIS		(1 <<  0)
-#define	RK_SPI_RISR		0x0034
-#define	RK_SPI_ICR		0x0038
-#define	RK_SPI_DMACR		0x003c
-#define	RK_SPI_DMATDLR		0x0040
-#define	RK_SPI_DMARDLR		0x0044
-#define	RK_SPI_TXDR		0x0400
-#define	RK_SPI_RXDR		0x0800
+#define RK_SPI_CTRLR0 0x0000
+#define CTRLR0_OPM_MASTER (0 << 20)
+#define CTRLR0_XFM_TR (0 << 18)
+#define CTRLR0_FRF_MOTO (0 << 16)
+#define CTRLR0_BHT_8BIT (1 << 13)
+#define CTRLR0_EM_BIG (1 << 11)
+#define CTRLR0_SSD_ONE (1 << 10)
+#define CTRLR0_SCPOL (1 << 7)
+#define CTRLR0_SCPH (1 << 6)
+#define CTRLR0_DFS_8BIT (1 << 0)
+#define RK_SPI_CTRLR1 0x0004
+#define RK_SPI_ENR 0x0008
+#define RK_SPI_SER 0x000c
+#define RK_SPI_BAUDR 0x0010
+#define RK_SPI_TXFTLR 0x0014
+#define RK_SPI_RXFTLR 0x0018
+#define RK_SPI_TXFLR 0x001c
+#define RK_SPI_RXFLR 0x0020
+#define RK_SPI_SR 0x0024
+#define SR_BUSY (1 << 0)
+#define RK_SPI_IPR 0x0028
+#define RK_SPI_IMR 0x002c
+#define IMR_RFFIM (1 << 4)
+#define IMR_TFEIM (1 << 0)
+#define RK_SPI_ISR 0x0030
+#define ISR_RFFIS (1 << 4)
+#define ISR_TFEIS (1 << 0)
+#define RK_SPI_RISR 0x0034
+#define RK_SPI_ICR 0x0038
+#define RK_SPI_DMACR 0x003c
+#define RK_SPI_DMATDLR 0x0040
+#define RK_SPI_DMARDLR 0x0044
+#define RK_SPI_TXDR 0x0400
+#define RK_SPI_RXDR 0x0800
 
-#define	CS_MAX			1
+#define CS_MAX 1
 
-static struct ofw_compat_data compat_data[] = {
-	{ "rockchip,rk3399-spi",		1 },
-	{ NULL,					0 }
-};
+static struct ofw_compat_data compat_data[] = { { "rockchip,rk3399-spi", 1 },
+	{ NULL, 0 } };
 
-static struct resource_spec rk_spi_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE | RF_SHAREABLE },
-	{ -1, 0 }
-};
+static struct resource_spec rk_spi_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE | RF_SHAREABLE }, { -1, 0 } };
 
 struct rk_spi_softc {
-	device_t	dev;
-	device_t	spibus;
-	struct resource	*res[2];
-	struct mtx	mtx;
-	clk_t		clk_apb;
-	clk_t		clk_spi;
-	void *		intrhand;
-	int		transfer;
-	uint32_t	fifo_size;
-	uint64_t	max_freq;
+	device_t dev;
+	device_t spibus;
+	struct resource *res[2];
+	struct mtx mtx;
+	clk_t clk_apb;
+	clk_t clk_spi;
+	void *intrhand;
+	int transfer;
+	uint32_t fifo_size;
+	uint64_t max_freq;
 
-	uint32_t	intreg;
-	uint8_t		*rxbuf;
-	uint32_t	rxidx;
-	uint8_t		*txbuf;
-	uint32_t	txidx;
-	uint32_t	txlen;
-	uint32_t	rxlen;
+	uint32_t intreg;
+	uint8_t *rxbuf;
+	uint32_t rxidx;
+	uint8_t *txbuf;
+	uint32_t txidx;
+	uint32_t txlen;
+	uint32_t rxlen;
 };
 
-#define	RK_SPI_LOCK(sc)			mtx_lock(&(sc)->mtx)
-#define	RK_SPI_UNLOCK(sc)		mtx_unlock(&(sc)->mtx)
-#define	RK_SPI_READ_4(sc, reg)		bus_read_4((sc)->res[0], (reg))
-#define	RK_SPI_WRITE_4(sc, reg, val)	bus_write_4((sc)->res[0], (reg), (val))
+#define RK_SPI_LOCK(sc) mtx_lock(&(sc)->mtx)
+#define RK_SPI_UNLOCK(sc) mtx_unlock(&(sc)->mtx)
+#define RK_SPI_READ_4(sc, reg) bus_read_4((sc)->res[0], (reg))
+#define RK_SPI_WRITE_4(sc, reg, val) bus_write_4((sc)->res[0], (reg), (val))
 
 static int rk_spi_probe(device_t dev);
 static int rk_spi_attach(device_t dev);
@@ -167,9 +161,8 @@ rk_spi_hw_setup(struct rk_spi_softc *sc, uint32_t mode, uint32_t freq)
 	uint32_t cr0;
 	uint32_t div;
 
-	cr0 =  CTRLR0_OPM_MASTER | CTRLR0_XFM_TR | CTRLR0_FRF_MOTO |
-	    CTRLR0_BHT_8BIT | CTRLR0_EM_BIG | CTRLR0_SSD_ONE |
-	    CTRLR0_DFS_8BIT;
+	cr0 = CTRLR0_OPM_MASTER | CTRLR0_XFM_TR | CTRLR0_FRF_MOTO |
+	    CTRLR0_BHT_8BIT | CTRLR0_EM_BIG | CTRLR0_SSD_ONE | CTRLR0_DFS_8BIT;
 
 	if (mode & SPIBUS_MODE_CPHA)
 		cr0 |= CTRLR0_SCPH;
@@ -177,7 +170,7 @@ rk_spi_hw_setup(struct rk_spi_softc *sc, uint32_t mode, uint32_t freq)
 		cr0 |= CTRLR0_SCPOL;
 
 	/* minimum divider is 2 */
-	if (sc->max_freq < freq*2) {
+	if (sc->max_freq < freq * 2) {
 		clk_set_freq(sc->clk_spi, 2 * freq, CLK_SET_ROUND_DOWN);
 		clk_get_freq(sc->clk_spi, &sc->max_freq);
 	}
@@ -213,9 +206,9 @@ rk_spi_empty_rxfifo(struct rk_spi_softc *sc)
 {
 	uint32_t rxlevel;
 	rxlevel = RK_SPI_READ_4(sc, RK_SPI_RXFLR);
-	while (sc->rxidx < sc->rxlen &&
-	    (rxlevel-- > 0)) {
-		sc->rxbuf[sc->rxidx++] = (uint8_t)RK_SPI_READ_4(sc, RK_SPI_RXDR);
+	while (sc->rxidx < sc->rxlen && (rxlevel-- > 0)) {
+		sc->rxbuf[sc->rxidx++] = (uint8_t)RK_SPI_READ_4(
+		    sc, RK_SPI_RXDR);
 	}
 }
 
@@ -233,7 +226,7 @@ rk_spi_fill_txfifo(struct rk_spi_softc *sc)
 	}
 
 	if (sc->txidx != sc->txlen)
-		sc->intreg |= (IMR_TFEIM  | IMR_RFFIM);
+		sc->intreg |= (IMR_TFEIM | IMR_RFFIM);
 }
 
 static int
@@ -300,9 +293,8 @@ rk_spi_attach(device_t dev)
 		goto fail;
 	}
 
-	if (bus_setup_intr(dev, sc->res[1],
-	    INTR_TYPE_MISC | INTR_MPSAFE, NULL, rk_spi_intr, sc,
-	    &sc->intrhand)) {
+	if (bus_setup_intr(dev, sc->res[1], INTR_TYPE_MISC | INTR_MPSAFE, NULL,
+		rk_spi_intr, sc, &sc->intrhand)) {
 		bus_release_resources(dev, rk_spi_spec, sc->res);
 		device_printf(dev, "cannot setup interrupt handler\n");
 		return (ENXIO);
@@ -340,8 +332,8 @@ rk_spi_attach(device_t dev)
 	sc->spibus = device_add_child(dev, "spibus", -1);
 
 	RK_SPI_WRITE_4(sc, RK_SPI_IMR, 0);
-	RK_SPI_WRITE_4(sc, RK_SPI_TXFTLR, sc->fifo_size/2 - 1);
-	RK_SPI_WRITE_4(sc, RK_SPI_RXFTLR, sc->fifo_size/2 - 1);
+	RK_SPI_WRITE_4(sc, RK_SPI_TXFTLR, sc->fifo_size / 2 - 1);
+	RK_SPI_WRITE_4(sc, RK_SPI_RXFTLR, sc->fifo_size / 2 - 1);
 
 	return (bus_generic_attach(dev));
 
@@ -441,11 +433,11 @@ rk_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	/* Transfer command then data bytes. */
 	err = 0;
 	if (cmd->tx_cmd_sz > 0)
-		err = rk_spi_xfer_buf(sc, cmd->rx_cmd, cmd->tx_cmd,
-		    cmd->tx_cmd_sz);
+		err = rk_spi_xfer_buf(
+		    sc, cmd->rx_cmd, cmd->tx_cmd, cmd->tx_cmd_sz);
 	if (cmd->tx_data_sz > 0 && err == 0)
-		err = rk_spi_xfer_buf(sc, cmd->rx_data, cmd->tx_data,
-		    cmd->tx_data_sz);
+		err = rk_spi_xfer_buf(
+		    sc, cmd->rx_data, cmd->tx_data, cmd->tx_data_sz);
 
 	rk_spi_set_cs(sc, cs, false);
 	rk_spi_enable_chip(sc, 0);
@@ -456,15 +448,15 @@ rk_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 static device_method_t rk_spi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		rk_spi_probe),
-	DEVMETHOD(device_attach,	rk_spi_attach),
-	DEVMETHOD(device_detach,	rk_spi_detach),
+	DEVMETHOD(device_probe, rk_spi_probe),
+	DEVMETHOD(device_attach, rk_spi_attach),
+	DEVMETHOD(device_detach, rk_spi_detach),
 
-        /* spibus_if  */
-	DEVMETHOD(spibus_transfer,	rk_spi_transfer),
+	/* spibus_if  */
+	DEVMETHOD(spibus_transfer, rk_spi_transfer),
 
-        /* ofw_bus_if */
-	DEVMETHOD(ofw_bus_get_node,	rk_spi_get_node),
+	/* ofw_bus_if */
+	DEVMETHOD(ofw_bus_get_node, rk_spi_get_node),
 
 	DEVMETHOD_END
 };

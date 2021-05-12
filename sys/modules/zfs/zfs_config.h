@@ -185,7 +185,7 @@
 /* #undef HAVE_CURRENT_TIME */
 
 /* Define if the GNU dcgettext() function is already present or preinstalled.
-   */
+ */
 /* #undef HAVE_DCGETTEXT */
 
 /* DECLARE_EVENT_CLASS() is available */
@@ -771,4 +771,3 @@
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */
-

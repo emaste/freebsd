@@ -45,11 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 
 #include <dev/extres/clk/clk.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
-
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
@@ -57,34 +55,34 @@ __FBSDID("$FreeBSD$");
 
 #include "uart_if.h"
 
-#define	SFUART_TXDATA			0x00
-#define		SFUART_TXDATA_FULL	(1 << 31)
-#define	SFUART_RXDATA			0x04
-#define		SFUART_RXDATA_EMPTY	(1 << 31)
-#define	SFUART_TXCTRL			0x08
-#define		SFUART_TXCTRL_ENABLE	0x01
-#define		SFUART_TXCTRL_NSTOP	0x02
-#define		SFUART_TXCTRL_TXCNT	0x70000
-#define		SFUART_TXCTRL_TXCNT_SHIFT	16
-#define	SFUART_RXCTRL			0x0c
-#define		SFUART_RXCTRL_ENABLE	0x01
-#define		SFUART_RXCTRL_RXCNT	0x70000
-#define		SFUART_RXCTRL_RXCNT_SHIFT	16
-#define	SFUART_IRQ_ENABLE		0x10
-#define		SFUART_IRQ_ENABLE_TXWM	0x01
-#define		SFUART_IRQ_ENABLE_RXWM	0x02
-#define	SFUART_IRQ_PENDING		0x14
-#define		SFUART_IRQ_PENDING_TXWM	0x01
-#define		SFUART_IRQ_PENDING_RXQM	0x02
-#define	SFUART_DIV			0x18
-#define	SFUART_REGS_SIZE		0x1c
+#define SFUART_TXDATA 0x00
+#define SFUART_TXDATA_FULL (1 << 31)
+#define SFUART_RXDATA 0x04
+#define SFUART_RXDATA_EMPTY (1 << 31)
+#define SFUART_TXCTRL 0x08
+#define SFUART_TXCTRL_ENABLE 0x01
+#define SFUART_TXCTRL_NSTOP 0x02
+#define SFUART_TXCTRL_TXCNT 0x70000
+#define SFUART_TXCTRL_TXCNT_SHIFT 16
+#define SFUART_RXCTRL 0x0c
+#define SFUART_RXCTRL_ENABLE 0x01
+#define SFUART_RXCTRL_RXCNT 0x70000
+#define SFUART_RXCTRL_RXCNT_SHIFT 16
+#define SFUART_IRQ_ENABLE 0x10
+#define SFUART_IRQ_ENABLE_TXWM 0x01
+#define SFUART_IRQ_ENABLE_RXWM 0x02
+#define SFUART_IRQ_PENDING 0x14
+#define SFUART_IRQ_PENDING_TXWM 0x01
+#define SFUART_IRQ_PENDING_RXQM 0x02
+#define SFUART_DIV 0x18
+#define SFUART_REGS_SIZE 0x1c
 
-#define	SFUART_RX_FIFO_DEPTH		8
-#define	SFUART_TX_FIFO_DEPTH		8
+#define SFUART_RX_FIFO_DEPTH 8
+#define SFUART_TX_FIFO_DEPTH 8
 
 struct sfuart_softc {
-	struct uart_softc	uart_softc;
-	clk_t			clk;
+	struct uart_softc uart_softc;
+	clk_t clk;
 };
 
 static int
@@ -97,8 +95,8 @@ sfuart_probe(struct uart_bas *bas)
 }
 
 static void
-sfuart_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
-    int parity)
+sfuart_init(
+    struct uart_bas *bas, int baudrate, int databits, int stopbits, int parity)
 {
 	uint32_t reg;
 
@@ -127,8 +125,7 @@ static void
 sfuart_putc(struct uart_bas *bas, int c)
 {
 
-	while ((uart_getreg(bas, SFUART_TXDATA) & SFUART_TXDATA_FULL) 
-	    != 0)
+	while ((uart_getreg(bas, SFUART_TXDATA) & SFUART_TXDATA_FULL) != 0)
 		cpu_spinwait();
 
 	uart_setreg(bas, SFUART_TXDATA, c);
@@ -138,8 +135,7 @@ static int
 sfuart_rxready(struct uart_bas *bas)
 {
 
-	return ((uart_getreg(bas, SFUART_RXDATA) &
-	    SFUART_RXDATA_EMPTY) == 0);
+	return ((uart_getreg(bas, SFUART_RXDATA) & SFUART_RXDATA_EMPTY) == 0);
 }
 
 static int
@@ -149,8 +145,8 @@ sfuart_getc(struct uart_bas *bas, struct mtx *hwmtx)
 
 	uart_lock(hwmtx);
 
-	while (((c = uart_getreg(bas, SFUART_RXDATA)) &
-	    SFUART_RXDATA_EMPTY) != 0) {
+	while (((c = uart_getreg(bas, SFUART_RXDATA)) & SFUART_RXDATA_EMPTY) !=
+	    0) {
 		uart_unlock(hwmtx);
 		DELAY(4);
 		uart_lock(hwmtx);
@@ -274,12 +270,12 @@ sfuart_bus_flush(struct uart_softc *sc, int what)
 	return (0);
 }
 
-#define	SIGCHG(c, i, s, d)						\
-	do {								\
-		if (c)							\
-			i |= ((i) & (s)) ? (s) : (s) | (d);		\
-		else		 					\
-			i = ((i) & (s)) ? ((i) & ~(s)) | (d) : (i);	\
+#define SIGCHG(c, i, s, d)                                          \
+	do {                                                        \
+		if (c)                                              \
+			i |= ((i) & (s)) ? (s) : (s) | (d);         \
+		else                                                \
+			i = ((i) & (s)) ? ((i) & ~(s)) | (d) : (i); \
 	} while (0)
 
 static int
@@ -313,7 +309,7 @@ sfuart_bus_setsig(struct uart_softc *sc, int sig)
 		if (sig & SER_DRTS) {
 			SIGCHG(sig & SER_RTS, new, SER_RTS, SER_DRTS);
 		}
-	 } while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
+	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
 
 	return (0);
 }
@@ -337,7 +333,7 @@ sfuart_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 			error = ENXIO;
 			break;
 		}
-		*(int*)data = bas->rclk / (reg + 1);
+		*(int *)data = bas->rclk / (reg + 1);
 		error = 0;
 		break;
 	default:
@@ -382,8 +378,8 @@ sfuart_bus_ipend(struct uart_softc *sc)
 }
 
 static int
-sfuart_bus_param(struct uart_softc *sc, int baudrate, int databits,
-    int stopbits, int parity)
+sfuart_bus_param(
+    struct uart_softc *sc, int baudrate, int databits, int stopbits, int parity)
 {
 	struct uart_bas *bas;
 	uint32_t reg;
@@ -499,22 +495,20 @@ sfuart_bus_ungrab(struct uart_softc *sc)
 	uart_unlock(sc->sc_hwmtx);
 }
 
-static kobj_method_t sfuart_methods[] = {
-	KOBJMETHOD(uart_probe,		sfuart_bus_probe),
-	KOBJMETHOD(uart_attach,		sfuart_bus_attach),
-	KOBJMETHOD(uart_detach,		sfuart_bus_detach),
-	KOBJMETHOD(uart_flush,		sfuart_bus_flush),
-	KOBJMETHOD(uart_getsig,		sfuart_bus_getsig),
-	KOBJMETHOD(uart_setsig,		sfuart_bus_setsig),
-	KOBJMETHOD(uart_ioctl,		sfuart_bus_ioctl),
-	KOBJMETHOD(uart_ipend,		sfuart_bus_ipend),
-	KOBJMETHOD(uart_param,		sfuart_bus_param),
-	KOBJMETHOD(uart_receive,	sfuart_bus_receive),
-	KOBJMETHOD(uart_transmit,	sfuart_bus_transmit),
-	KOBJMETHOD(uart_grab,		sfuart_bus_grab),
-	KOBJMETHOD(uart_ungrab,		sfuart_bus_ungrab),
-	KOBJMETHOD_END
-};
+static kobj_method_t sfuart_methods[] = { KOBJMETHOD(
+					      uart_probe, sfuart_bus_probe),
+	KOBJMETHOD(uart_attach, sfuart_bus_attach),
+	KOBJMETHOD(uart_detach, sfuart_bus_detach),
+	KOBJMETHOD(uart_flush, sfuart_bus_flush),
+	KOBJMETHOD(uart_getsig, sfuart_bus_getsig),
+	KOBJMETHOD(uart_setsig, sfuart_bus_setsig),
+	KOBJMETHOD(uart_ioctl, sfuart_bus_ioctl),
+	KOBJMETHOD(uart_ipend, sfuart_bus_ipend),
+	KOBJMETHOD(uart_param, sfuart_bus_param),
+	KOBJMETHOD(uart_receive, sfuart_bus_receive),
+	KOBJMETHOD(uart_transmit, sfuart_bus_transmit),
+	KOBJMETHOD(uart_grab, sfuart_bus_grab),
+	KOBJMETHOD(uart_ungrab, sfuart_bus_ungrab), KOBJMETHOD_END };
 
 static struct uart_ops sfuart_ops = {
 	.probe = sfuart_probe,
@@ -525,19 +519,12 @@ static struct uart_ops sfuart_ops = {
 	.getc = sfuart_getc,
 };
 
-struct uart_class sfuart_class = {
-	"sifiveuart",
-	sfuart_methods,
-	sizeof(struct sfuart_softc),
-	.uc_ops = &sfuart_ops,
-	.uc_range = SFUART_REGS_SIZE,
-	.uc_rclk = 0,
-	.uc_rshift = 0
-};
+struct uart_class sfuart_class = { "sifiveuart", sfuart_methods,
+	sizeof(struct sfuart_softc), .uc_ops = &sfuart_ops,
+	.uc_range = SFUART_REGS_SIZE, .uc_rclk = 0, .uc_rshift = 0 };
 
 static struct ofw_compat_data compat_data[] = {
-	{ "sifive,uart0",	(uintptr_t)&sfuart_class },
-	{ NULL,			(uintptr_t)NULL }
+	{ "sifive,uart0", (uintptr_t)&sfuart_class }, { NULL, (uintptr_t)NULL }
 };
 
 UART_FDT_CLASS_AND_DEVICE(compat_data);

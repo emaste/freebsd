@@ -37,12 +37,12 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 
-#include <dev/ofw/openfirm.h>
-
 #include <machine/bus.h>
 #include <machine/fdt.h>
-#include <machine/platform.h> 
+#include <machine/platform.h>
 #include <machine/platformvar.h>
+
+#include <dev/ofw/openfirm.h>
 
 #include <arm/freescale/vybrid/vf_src.h>
 
@@ -68,19 +68,21 @@ vf_cpu_reset(platform_t plat)
 		goto end;
 
 	src = OF_finddevice("src");
-	if ((src != -1) && (OF_getencprop(src, "reg", &paddr, sizeof(paddr))) > 0) {
+	if ((src != -1) &&
+	    (OF_getencprop(src, "reg", &paddr, sizeof(paddr))) > 0) {
 		if (bus_space_map(fdtbus_bs_tag, paddr, 0x10, 0, &vaddr) == 0) {
 			bus_space_write_4(fdtbus_bs_tag, vaddr, 0x00, SW_RST);
 		}
 	}
 
 end:
-	while (1);
+	while (1)
+		;
 }
 
 static platform_method_t vf_methods[] = {
-	PLATFORMMETHOD(platform_devmap_init,	vf_devmap_init),
-	PLATFORMMETHOD(platform_cpu_reset,	vf_cpu_reset),
+	PLATFORMMETHOD(platform_devmap_init, vf_devmap_init),
+	PLATFORMMETHOD(platform_cpu_reset, vf_cpu_reset),
 
 	PLATFORMMETHOD_END,
 };

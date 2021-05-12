@@ -30,21 +30,21 @@
  * $FreeBSD$
  */
 
-#define	RSTMGR_STAT		0x0	/* Status */
-#define	RSTMGR_CTRL		0x4	/* Control */
-#define	 CTRL_SWWARMRSTREQ	(1 << 1) /* Trigger warm reset */
-#define	RSTMGR_COUNTS		0x8	/* Reset Cycles Count */
-#define	RSTMGR_MPUMODRST	0x10	/* MPU Module Reset */
-#define	 MPUMODRST_CPU1			(1 << 1)
-#define	RSTMGR_PERMODRST	0x14	/* Peripheral Module Reset */
-#define	RSTMGR_PER2MODRST	0x18	/* Peripheral 2 Module Reset */
-#define	RSTMGR_BRGMODRST	0x1C	/* Bridge Module Reset */
-#define	 BRGMODRST_FPGA2HPS	(1 << 2)
-#define	 BRGMODRST_LWHPS2FPGA	(1 << 1)
-#define	 BRGMODRST_HPS2FPGA	(1 << 0)
-#define	RSTMGR_MISCMODRST	0x20	/* Miscellaneous Module Reset */
+#define RSTMGR_STAT 0x0		   /* Status */
+#define RSTMGR_CTRL 0x4		   /* Control */
+#define CTRL_SWWARMRSTREQ (1 << 1) /* Trigger warm reset */
+#define RSTMGR_COUNTS 0x8	   /* Reset Cycles Count */
+#define RSTMGR_MPUMODRST 0x10	   /* MPU Module Reset */
+#define MPUMODRST_CPU1 (1 << 1)
+#define RSTMGR_PERMODRST 0x14  /* Peripheral Module Reset */
+#define RSTMGR_PER2MODRST 0x18 /* Peripheral 2 Module Reset */
+#define RSTMGR_BRGMODRST 0x1C  /* Bridge Module Reset */
+#define BRGMODRST_FPGA2HPS (1 << 2)
+#define BRGMODRST_LWHPS2FPGA (1 << 1)
+#define BRGMODRST_HPS2FPGA (1 << 0)
+#define RSTMGR_MISCMODRST 0x20 /* Miscellaneous Module Reset */
 
-#define	RSTMGR_A10_CTRL		0xC	/* Control */
-#define	RSTMGR_A10_MPUMODRST	0x20	/* MPU Module Reset */
+#define RSTMGR_A10_CTRL 0xC	  /* Control */
+#define RSTMGR_A10_MPUMODRST 0x20 /* MPU Module Reset */
 
 int rstmgr_warmreset(uint32_t reg);

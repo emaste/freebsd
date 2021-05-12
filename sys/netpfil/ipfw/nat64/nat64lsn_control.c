@@ -32,8 +32,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/counter.h>
 #include <sys/ck.h>
+#include <sys/counter.h>
 #include <sys/epoch.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
@@ -47,13 +47,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockopt.h>
 
 #include <net/if.h>
-
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
+#include <netinet/ip_var.h>
 #include <netinet6/ip_fw_nat64.h>
-
 #include <netpfil/ipfw/ip_fw_private.h>
 
 #include "nat64lsn.h"
@@ -65,8 +63,8 @@ nat64lsn_find(struct namedobj_instance *ni, const char *name, uint8_t set)
 {
 	struct nat64lsn_cfg *cfg;
 
-	cfg = (struct nat64lsn_cfg *)ipfw_objhash_lookup_name_type(ni, set,
-	    IPFW_TLV_NAT64LSN_NAME, name);
+	cfg = (struct nat64lsn_cfg *)ipfw_objhash_lookup_name_type(
+	    ni, set, IPFW_TLV_NAT64LSN_NAME, name);
 
 	return (cfg);
 }
@@ -110,8 +108,8 @@ nat64lsn_default_config(ipfw_nat64lsn_cfg *uc)
  * Returns 0 on success
  */
 static int
-nat64lsn_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nat64lsn_create(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	ipfw_obj_lheader *olh;
 	ipfw_nat64lsn_cfg *uc;
@@ -227,8 +225,8 @@ nat64lsn_detach_config(struct ip_fw_chain *ch, struct nat64lsn_cfg *cfg)
  * Returns 0 on success
  */
 static int
-nat64lsn_destroy(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nat64lsn_destroy(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	struct nat64lsn_cfg *cfg;
 	ipfw_obj_header *oh;
@@ -259,7 +257,7 @@ nat64lsn_destroy(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	return (0);
 }
 
-#define	__COPY_STAT_FIELD(_cfg, _stats, _field)	\
+#define __COPY_STAT_FIELD(_cfg, _stats, _field) \
 	(_stats)->_field = NAT64STAT_FETCH(&(_cfg)->base.stats, _field)
 static void
 export_stats(struct ip_fw_chain *ch, struct nat64lsn_cfg *cfg,
@@ -305,11 +303,11 @@ export_stats(struct ip_fw_chain *ch, struct nat64lsn_cfg *cfg,
 			stats->icmpchunks += bitcount32(alias->icmp_pgmask[j]);
 	}
 }
-#undef	__COPY_STAT_FIELD
+#undef __COPY_STAT_FIELD
 
 static void
-nat64lsn_export_config(struct ip_fw_chain *ch, struct nat64lsn_cfg *cfg,
-    ipfw_nat64lsn_cfg *uc)
+nat64lsn_export_config(
+    struct ip_fw_chain *ch, struct nat64lsn_cfg *cfg, ipfw_nat64lsn_cfg *uc)
 {
 
 	uc->flags = cfg->base.flags & NAT64LSN_FLAGSMASK;
@@ -336,14 +334,14 @@ struct nat64_dump_arg {
 };
 
 static int
-export_config_cb(struct namedobj_instance *ni, struct named_object *no,
-    void *arg)
+export_config_cb(
+    struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
 	struct nat64_dump_arg *da = (struct nat64_dump_arg *)arg;
 	ipfw_nat64lsn_cfg *uc;
 
-	uc = (struct _ipfw_nat64lsn_cfg *)ipfw_get_sopt_space(da->sd,
-	    sizeof(*uc));
+	uc = (struct _ipfw_nat64lsn_cfg *)ipfw_get_sopt_space(
+	    da->sd, sizeof(*uc));
 	nat64lsn_export_config(da->ch, (struct nat64lsn_cfg *)no, uc);
 	return (0);
 }
@@ -357,8 +355,8 @@ export_config_cb(struct namedobj_instance *ni, struct named_object *no,
  * Returns 0 on success
  */
 static int
-nat64lsn_list(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nat64lsn_list(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	ipfw_obj_lheader *olh;
 	struct nat64_dump_arg da;
@@ -370,8 +368,8 @@ nat64lsn_list(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	olh = (ipfw_obj_lheader *)ipfw_get_sopt_header(sd, sizeof(*olh));
 
 	IPFW_UH_RLOCK(ch);
-	olh->count = ipfw_objhash_count_type(CHAIN_TO_SRV(ch),
-	    IPFW_TLV_NAT64LSN_NAME);
+	olh->count = ipfw_objhash_count_type(
+	    CHAIN_TO_SRV(ch), IPFW_TLV_NAT64LSN_NAME);
 	olh->objsize = sizeof(ipfw_nat64lsn_cfg);
 	olh->size = sizeof(*olh) + olh->count * olh->objsize;
 
@@ -382,8 +380,8 @@ nat64lsn_list(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	memset(&da, 0, sizeof(da));
 	da.ch = ch;
 	da.sd = sd;
-	ipfw_objhash_foreach_type(CHAIN_TO_SRV(ch), export_config_cb, &da,
-	    IPFW_TLV_NAT64LSN_NAME);
+	ipfw_objhash_foreach_type(
+	    CHAIN_TO_SRV(ch), export_config_cb, &da, IPFW_TLV_NAT64LSN_NAME);
 	IPFW_UH_RUNLOCK(ch);
 
 	return (0);
@@ -398,8 +396,8 @@ nat64lsn_list(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  * Returns 0 on success
  */
 static int
-nat64lsn_config(struct ip_fw_chain *ch, ip_fw3_opheader *op,
-    struct sockopt_data *sd)
+nat64lsn_config(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op, struct sockopt_data *sd)
 {
 	ipfw_obj_header *oh;
 	ipfw_nat64lsn_cfg *uc;
@@ -409,8 +407,8 @@ nat64lsn_config(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 	if (sd->valsize != sizeof(*oh) + sizeof(*uc))
 		return (EINVAL);
 
-	oh = (ipfw_obj_header *)ipfw_get_sopt_space(sd,
-	    sizeof(*oh) + sizeof(*uc));
+	oh = (ipfw_obj_header *)ipfw_get_sopt_space(
+	    sd, sizeof(*oh) + sizeof(*uc));
 	uc = (ipfw_nat64lsn_cfg *)(oh + 1);
 
 	if (ipfw_check_object_name_generic(oh->ntlv.name) != 0 ||
@@ -471,8 +469,8 @@ nat64lsn_config(struct ip_fw_chain *ch, ip_fw3_opheader *op,
  * Returns 0 on success
  */
 static int
-nat64lsn_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
-    struct sockopt_data *sd)
+nat64lsn_stats(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op, struct sockopt_data *sd)
 {
 	struct ipfw_nat64lsn_stats stats;
 	struct nat64lsn_cfg *cfg;
@@ -519,8 +517,8 @@ nat64lsn_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
  * Returns 0 on success
  */
 static int
-nat64lsn_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
-    struct sockopt_data *sd)
+nat64lsn_reset_stats(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op, struct sockopt_data *sd)
 {
 	struct nat64lsn_cfg *cfg;
 	ipfw_obj_header *oh;
@@ -544,10 +542,11 @@ nat64lsn_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 }
 
 #ifdef __LP64__
-#define	FREEMASK_COPY(pg, n, out)	(out) = *FREEMASK_CHUNK((pg), (n))
+#define FREEMASK_COPY(pg, n, out) (out) = *FREEMASK_CHUNK((pg), (n))
 #else
-#define	FREEMASK_COPY(pg, n, out)	(out) = *FREEMASK_CHUNK((pg), (n)) | \
-    ((uint64_t)*(FREEMASK_CHUNK((pg), (n)) + 1) << 32)
+#define FREEMASK_COPY(pg, n, out)            \
+	(out) = *FREEMASK_CHUNK((pg), (n)) | \
+	    ((uint64_t) * (FREEMASK_CHUNK((pg), (n)) + 1) << 32)
 #endif
 /*
  * Reply: [ ipfw_obj_header ipfw_obj_data [ ipfw_nat64lsn_stg
@@ -569,21 +568,22 @@ nat64lsn_export_states_v1(struct nat64lsn_cfg *cfg, union nat64lsn_pgidx *idx,
 	FREEMASK_COPY(pg, idx->chunk, freemask);
 	count = 64 - bitcount64(freemask);
 	if (count == 0)
-		return (0);	/* Try next PG/chunk */
+		return (0); /* Try next PG/chunk */
 
-	DPRINTF(DP_STATE, "EXPORT PG 0x%16jx, count %d",
-	    (uintmax_t)idx->index, count);
+	DPRINTF(DP_STATE, "EXPORT PG 0x%16jx, count %d", (uintmax_t)idx->index,
+	    count);
 
-	s = (ipfw_nat64lsn_state_v1 *)ipfw_get_sopt_space(sd,
-	    count * sizeof(ipfw_nat64lsn_state_v1));
+	s = (ipfw_nat64lsn_state_v1 *)ipfw_get_sopt_space(
+	    sd, count * sizeof(ipfw_nat64lsn_state_v1));
 	if (s == NULL)
 		return (ENOMEM);
 
 	for (i = 0; i < 64; i++) {
 		if (ISSET64(freemask, i))
 			continue;
-		state = pg->chunks_count == 1 ? &pg->states->state[i] :
-		    &pg->states_chunk[idx->chunk]->state[i];
+		state = pg->chunks_count == 1 ?
+			  &pg->states->state[i] :
+			  &pg->states_chunk[idx->chunk]->state[i];
 
 		s->host6 = state->host->addr;
 		s->daddr.s_addr = htonl(state->ip_dst);
@@ -599,10 +599,10 @@ nat64lsn_export_states_v1(struct nat64lsn_cfg *cfg, union nat64lsn_pgidx *idx,
 	return (0);
 }
 
-#define	LAST_IDX	0xFF
+#define LAST_IDX 0xFF
 static int
-nat64lsn_next_pgidx(struct nat64lsn_cfg *cfg, struct nat64lsn_pg *pg,
-    union nat64lsn_pgidx *idx)
+nat64lsn_next_pgidx(
+    struct nat64lsn_cfg *cfg, struct nat64lsn_pg *pg, union nat64lsn_pgidx *idx)
 {
 
 	/* First iterate over chunks */
@@ -633,13 +633,13 @@ nat64lsn_next_pgidx(struct nat64lsn_cfg *cfg, struct nat64lsn_pg *pg,
 	/* And then over IPv4 alias addresses */
 	if (idx->addr < cfg->pmask4) {
 		idx->addr++;
-		return (1);	/* New states group is needed */
+		return (1); /* New states group is needed */
 	}
 	idx->index = LAST_IDX;
-	return (-1);		/* No more states */
+	return (-1); /* No more states */
 }
 
-static struct nat64lsn_pg*
+static struct nat64lsn_pg *
 nat64lsn_get_pg_byidx(struct nat64lsn_cfg *cfg, union nat64lsn_pgidx *idx)
 {
 	struct nat64lsn_alias *alias;
@@ -676,8 +676,8 @@ nat64lsn_get_pg_byidx(struct nat64lsn_cfg *cfg, union nat64lsn_pgidx *idx)
  * Returns 0 on success
  */
 static int
-nat64lsn_states_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nat64lsn_states_v0(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 
 	/* TODO: implement states listing for old ipfw(8) binaries  */
@@ -694,8 +694,8 @@ nat64lsn_states_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  * Returns 0 on success
  */
 static int
-nat64lsn_states_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+nat64lsn_states_v1(
+    struct ip_fw_chain *ch, ip_fw3_opheader *op3, struct sockopt_data *sd)
 {
 	ipfw_obj_header *oh;
 	ipfw_obj_data *od;
@@ -707,8 +707,7 @@ nat64lsn_states_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	uint32_t count, total;
 	int ret;
 
-	sz = sizeof(ipfw_obj_header) + sizeof(ipfw_obj_data) +
-	    sizeof(uint64_t);
+	sz = sizeof(ipfw_obj_header) + sizeof(ipfw_obj_data) + sizeof(uint64_t);
 	/* Check minimum header size */
 	if (sd->valsize < sz)
 		return (EINVAL);
@@ -732,7 +731,7 @@ nat64lsn_states_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		IPFW_UH_RUNLOCK(ch);
 		return (ENOENT);
 	}
-	if (idx.index == 0) {	/* Fill in starting point */
+	if (idx.index == 0) { /* Fill in starting point */
 		idx.addr = cfg->prefix4;
 		idx.proto = IPPROTO_ICMP;
 		idx.port = NAT64_MIN_PORT;
@@ -765,16 +764,16 @@ nat64lsn_states_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		pg = nat64lsn_get_pg_byidx(cfg, &idx);
 		if (pg != NULL) {
 			count = 0;
-			ret = nat64lsn_export_states_v1(cfg, &idx, pg,
-			    sd, &count);
+			ret = nat64lsn_export_states_v1(
+			    cfg, &idx, pg, sd, &count);
 			if (ret != 0)
 				break;
 			if (count > 0) {
 				stg->count += count;
 				total += count;
 				/* Update total size of reply */
-				od->head.length +=
-				    count * sizeof(ipfw_nat64lsn_state_v1);
+				od->head.length += count *
+				    sizeof(ipfw_nat64lsn_state_v1);
 				sz += count * sizeof(ipfw_nat64lsn_state_v1);
 			}
 			stg->alias4.s_addr = htonl(idx.addr);
@@ -798,8 +797,8 @@ nat64lsn_states_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 			}
 			/* Save next index in current group */
 			stg->next.index = idx.index;
-			stg = (ipfw_nat64lsn_stg_v1 *)ipfw_get_sopt_space(sd,
-			    sizeof(ipfw_nat64lsn_stg_v1));
+			stg = (ipfw_nat64lsn_stg_v1 *)ipfw_get_sopt_space(
+			    sd, sizeof(ipfw_nat64lsn_stg_v1));
 			od->head.length += sizeof(ipfw_nat64lsn_stg_v1);
 			stg->count = 0;
 			break;
@@ -808,18 +807,18 @@ nat64lsn_states_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	} while (ret == 0);
 	CALLOUT_UNLOCK(cfg);
 	IPFW_UH_RUNLOCK(ch);
-	return ((total > 0 || idx.index == LAST_IDX) ? 0: ret);
+	return ((total > 0 || idx.index == LAST_IDX) ? 0 : ret);
 }
 
-static struct ipfw_sopt_handler	scodes[] = {
-	{ IP_FW_NAT64LSN_CREATE, 0,	HDIR_BOTH,	nat64lsn_create },
-	{ IP_FW_NAT64LSN_DESTROY,0,	HDIR_SET,	nat64lsn_destroy },
-	{ IP_FW_NAT64LSN_CONFIG, 0,	HDIR_BOTH,	nat64lsn_config },
-	{ IP_FW_NAT64LSN_LIST,	 0,	HDIR_GET,	nat64lsn_list },
-	{ IP_FW_NAT64LSN_STATS,	 0,	HDIR_GET,	nat64lsn_stats },
-	{ IP_FW_NAT64LSN_RESET_STATS,0,	HDIR_SET,	nat64lsn_reset_stats },
-	{ IP_FW_NAT64LSN_LIST_STATES,0,	HDIR_GET,	nat64lsn_states_v0 },
-	{ IP_FW_NAT64LSN_LIST_STATES,1,	HDIR_GET,	nat64lsn_states_v1 },
+static struct ipfw_sopt_handler scodes[] = {
+	{ IP_FW_NAT64LSN_CREATE, 0, HDIR_BOTH, nat64lsn_create },
+	{ IP_FW_NAT64LSN_DESTROY, 0, HDIR_SET, nat64lsn_destroy },
+	{ IP_FW_NAT64LSN_CONFIG, 0, HDIR_BOTH, nat64lsn_config },
+	{ IP_FW_NAT64LSN_LIST, 0, HDIR_GET, nat64lsn_list },
+	{ IP_FW_NAT64LSN_STATS, 0, HDIR_GET, nat64lsn_stats },
+	{ IP_FW_NAT64LSN_RESET_STATS, 0, HDIR_SET, nat64lsn_reset_stats },
+	{ IP_FW_NAT64LSN_LIST_STATES, 0, HDIR_GET, nat64lsn_states_v0 },
+	{ IP_FW_NAT64LSN_LIST_STATES, 1, HDIR_GET, nat64lsn_states_v1 },
 };
 
 static int
@@ -828,8 +827,7 @@ nat64lsn_classify(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
 	ipfw_insn *icmd;
 
 	icmd = cmd - 1;
-	if (icmd->opcode != O_EXTERNAL_ACTION ||
-	    icmd->arg1 != V_nat64lsn_eid)
+	if (icmd->opcode != O_EXTERNAL_ACTION || icmd->arg1 != V_nat64lsn_eid)
 		return (1);
 
 	*puidx = cmd->arg1;
@@ -845,13 +843,13 @@ nat64lsn_update_arg1(ipfw_insn *cmd, uint16_t idx)
 }
 
 static int
-nat64lsn_findbyname(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct named_object **pno)
+nat64lsn_findbyname(
+    struct ip_fw_chain *ch, struct tid_info *ti, struct named_object **pno)
 {
 	int err;
 
-	err = ipfw_objhash_find_type(CHAIN_TO_SRV(ch), ti,
-	    IPFW_TLV_NAT64LSN_NAME, pno);
+	err = ipfw_objhash_find_type(
+	    CHAIN_TO_SRV(ch), ti, IPFW_TLV_NAT64LSN_NAME, pno);
 	return (err);
 }
 
@@ -874,25 +872,25 @@ nat64lsn_manage_sets(struct ip_fw_chain *ch, uint16_t set, uint8_t new_set,
     enum ipfw_sets_cmd cmd)
 {
 
-	return (ipfw_obj_manage_sets(CHAIN_TO_SRV(ch), IPFW_TLV_NAT64LSN_NAME,
-	    set, new_set, cmd));
+	return (ipfw_obj_manage_sets(
+	    CHAIN_TO_SRV(ch), IPFW_TLV_NAT64LSN_NAME, set, new_set, cmd));
 }
 
 static struct opcode_obj_rewrite opcodes[] = {
 	{
-		.opcode = O_EXTERNAL_INSTANCE,
-		.etlv = IPFW_TLV_EACTION /* just show it isn't table */,
-		.classifier = nat64lsn_classify,
-		.update = nat64lsn_update_arg1,
-		.find_byname = nat64lsn_findbyname,
-		.find_bykidx = nat64lsn_findbykidx,
-		.manage_sets = nat64lsn_manage_sets,
+	    .opcode = O_EXTERNAL_INSTANCE,
+	    .etlv = IPFW_TLV_EACTION /* just show it isn't table */,
+	    .classifier = nat64lsn_classify,
+	    .update = nat64lsn_update_arg1,
+	    .find_byname = nat64lsn_findbyname,
+	    .find_bykidx = nat64lsn_findbykidx,
+	    .manage_sets = nat64lsn_manage_sets,
 	},
 };
 
 static int
-destroy_config_cb(struct namedobj_instance *ni, struct named_object *no,
-    void *arg)
+destroy_config_cb(
+    struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
 	struct nat64lsn_cfg *cfg;
 	struct ip_fw_chain *ch;
@@ -934,8 +932,8 @@ nat64lsn_uninit(struct ip_fw_chain *ch, int last)
 	 * IPFW_WLOCK().
 	 */
 	IPFW_UH_WLOCK(ch);
-	ipfw_objhash_foreach_type(CHAIN_TO_SRV(ch), destroy_config_cb, ch,
-	    IPFW_TLV_NAT64LSN_NAME);
+	ipfw_objhash_foreach_type(
+	    CHAIN_TO_SRV(ch), destroy_config_cb, ch, IPFW_TLV_NAT64LSN_NAME);
 	V_nat64lsn_eid = 0;
 	IPFW_UH_WUNLOCK(ch);
 	if (last != 0)

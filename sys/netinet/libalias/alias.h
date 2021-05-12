@@ -39,19 +39,19 @@
  */
 
 #ifndef _ALIAS_H_
-#define	_ALIAS_H_
+#define _ALIAS_H_
 
-#include <netinet/in_systm.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
 #define LIBALIAS_BUF_SIZE 128
-#ifdef	_KERNEL
+#ifdef _KERNEL
 /*
  * The kernel version of libalias does not support these features.
  */
-#define	NO_FW_PUNCH
-#define	NO_USE_SOCKETS
+#define NO_FW_PUNCH
+#define NO_USE_SOCKETS
 #endif
 
 /*
@@ -85,61 +85,61 @@ struct alias_link;
 
 /* Initialization and control functions. */
 struct libalias *LibAliasInit(struct libalias *);
-void		LibAliasSetAddress(struct libalias *, struct in_addr _addr);
-void		LibAliasSetAliasPortRange(struct libalias *la, u_short port_low, u_short port_hi);
-void		LibAliasSetFWBase(struct libalias *, unsigned int _base, unsigned int _num);
-void		LibAliasSetSkinnyPort(struct libalias *, unsigned int _port);
-unsigned int
-		LibAliasSetMode(struct libalias *, unsigned int _flags, unsigned int _mask);
-void		LibAliasUninit(struct libalias *);
+void LibAliasSetAddress(struct libalias *, struct in_addr _addr);
+void LibAliasSetAliasPortRange(
+    struct libalias *la, u_short port_low, u_short port_hi);
+void LibAliasSetFWBase(
+    struct libalias *, unsigned int _base, unsigned int _num);
+void LibAliasSetSkinnyPort(struct libalias *, unsigned int _port);
+unsigned int LibAliasSetMode(
+    struct libalias *, unsigned int _flags, unsigned int _mask);
+void LibAliasUninit(struct libalias *);
 
 /* Packet Handling functions. */
-int		LibAliasIn (struct libalias *, void *_ptr, int _maxpacketsize);
-int		LibAliasOut(struct libalias *, void *_ptr, int _maxpacketsize);
-int		LibAliasOutTry(struct libalias *, void *_ptr, int _maxpacketsize, int _create);
-int		LibAliasUnaliasOut(struct libalias *, void *_ptr, int _maxpacketsize);
+int LibAliasIn(struct libalias *, void *_ptr, int _maxpacketsize);
+int LibAliasOut(struct libalias *, void *_ptr, int _maxpacketsize);
+int LibAliasOutTry(
+    struct libalias *, void *_ptr, int _maxpacketsize, int _create);
+int LibAliasUnaliasOut(struct libalias *, void *_ptr, int _maxpacketsize);
 
 /* Port and address redirection functions. */
 
-int
-LibAliasAddServer(struct libalias *, struct alias_link *_lnk,
+int LibAliasAddServer(struct libalias *, struct alias_link *_lnk,
     struct in_addr _addr, unsigned short _port);
-struct alias_link *
-LibAliasRedirectAddr(struct libalias *, struct in_addr _src_addr,
-    struct in_addr _alias_addr);
-int		LibAliasRedirectDynamic(struct libalias *, struct alias_link *_lnk);
-void		LibAliasRedirectDelete(struct libalias *, struct alias_link *_lnk);
-struct alias_link *
-LibAliasRedirectPort(struct libalias *, struct in_addr _src_addr,
-    unsigned short _src_port, struct in_addr _dst_addr,
-    unsigned short _dst_port, struct in_addr _alias_addr,
-    unsigned short _alias_port, unsigned char _proto);
-struct alias_link *
-LibAliasRedirectProto(struct libalias *, struct in_addr _src_addr,
-    struct in_addr _dst_addr, struct in_addr _alias_addr,
+struct alias_link *LibAliasRedirectAddr(
+    struct libalias *, struct in_addr _src_addr, struct in_addr _alias_addr);
+int LibAliasRedirectDynamic(struct libalias *, struct alias_link *_lnk);
+void LibAliasRedirectDelete(struct libalias *, struct alias_link *_lnk);
+struct alias_link *LibAliasRedirectPort(struct libalias *,
+    struct in_addr _src_addr, unsigned short _src_port,
+    struct in_addr _dst_addr, unsigned short _dst_port,
+    struct in_addr _alias_addr, unsigned short _alias_port,
     unsigned char _proto);
+struct alias_link *LibAliasRedirectProto(struct libalias *,
+    struct in_addr _src_addr, struct in_addr _dst_addr,
+    struct in_addr _alias_addr, unsigned char _proto);
 
 /* Fragment Handling functions. */
-void		LibAliasFragmentIn(struct libalias *, void *_ptr, void *_ptr_fragment);
-void           *LibAliasGetFragment(struct libalias *, void *_ptr);
-int		LibAliasSaveFragment(struct libalias *, void *_ptr);
+void LibAliasFragmentIn(struct libalias *, void *_ptr, void *_ptr_fragment);
+void *LibAliasGetFragment(struct libalias *, void *_ptr);
+int LibAliasSaveFragment(struct libalias *, void *_ptr);
 
 /* Miscellaneous functions. */
-int		LibAliasCheckNewLink(struct libalias *);
-unsigned short
-		LibAliasInternetChecksum(struct libalias *, unsigned short *_ptr, int _nbytes);
-void		LibAliasSetTarget(struct libalias *, struct in_addr _target_addr);
+int LibAliasCheckNewLink(struct libalias *);
+unsigned short LibAliasInternetChecksum(
+    struct libalias *, unsigned short *_ptr, int _nbytes);
+void LibAliasSetTarget(struct libalias *, struct in_addr _target_addr);
 
 /* Transparent proxying routines. */
-int		LibAliasProxyRule(struct libalias *, const char *_cmd);
+int LibAliasProxyRule(struct libalias *, const char *_cmd);
 
 /* Module handling API */
-int             LibAliasLoadModule(char *);
-int             LibAliasUnLoadAllModule(void);
-int             LibAliasRefreshModules(void);
+int LibAliasLoadModule(char *);
+int LibAliasUnLoadAllModule(void);
+int LibAliasRefreshModules(void);
 
 /* Mbuf helper function. */
-struct mbuf    *m_megapullup(struct mbuf *, int);
+struct mbuf *m_megapullup(struct mbuf *, int);
 
 /*
  * Mode flags and other constants.
@@ -151,13 +151,13 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
  * If PKT_ALIAS_LOG is set, a message will be printed to /var/log/alias.log
  * every time a link is created or deleted.  This is useful for debugging.
  */
-#define	PKT_ALIAS_LOG			0x01
+#define PKT_ALIAS_LOG 0x01
 
 /*
  * If PKT_ALIAS_DENY_INCOMING is set, then incoming connections (e.g. to ftp,
  * telnet or web servers will be prevented by the aliasing mechanism.
  */
-#define	PKT_ALIAS_DENY_INCOMING		0x02
+#define PKT_ALIAS_DENY_INCOMING 0x02
 
 /*
  * If PKT_ALIAS_SAME_PORTS is set, packets will be attempted sent from the
@@ -166,7 +166,7 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
  * at all).  This mode bit is set by PacketAliasInit(), so it is a default
  * mode of operation.
  */
-#define	PKT_ALIAS_SAME_PORTS		0x04
+#define PKT_ALIAS_SAME_PORTS 0x04
 
 /*
  * If PKT_ALIAS_USE_SOCKETS is set, then when partially specified links (e.g.
@@ -176,8 +176,8 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
  * require this.  This bit is set after a call to PacketAliasInit(), so it is
  * a default mode of operation.
  */
-#ifndef	NO_USE_SOCKETS
-#define	PKT_ALIAS_USE_SOCKETS		0x08
+#ifndef NO_USE_SOCKETS
+#define PKT_ALIAS_USE_SOCKETS 0x08
 #endif
 /*-
  * If PKT_ALIAS_UNREGISTERED_ONLY is set, then only packets with
@@ -188,7 +188,7 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
  *		172.16.0.0   ->   172.31.255.255
  *		192.168.0.0  ->   192.168.255.255
  */
-#define	PKT_ALIAS_UNREGISTERED_ONLY	0x10
+#define PKT_ALIAS_UNREGISTERED_ONLY 0x10
 
 /*
  * If PKT_ALIAS_RESET_ON_ADDR_CHANGE is set, then the table of dynamic
@@ -197,19 +197,19 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
  * unchanged by this function call, then the table of dynamic aliasing links
  * will be left intact.  This bit is set after a call to PacketAliasInit().
  */
-#define	PKT_ALIAS_RESET_ON_ADDR_CHANGE	0x20
+#define PKT_ALIAS_RESET_ON_ADDR_CHANGE 0x20
 
 /*
  * If PKT_ALIAS_PROXY_ONLY is set, then NAT will be disabled and only
  * transparent proxying is performed.
  */
-#define	PKT_ALIAS_PROXY_ONLY		0x40
+#define PKT_ALIAS_PROXY_ONLY 0x40
 
 /*
  * If PKT_ALIAS_REVERSE is set, the actions of PacketAliasIn() and
  * PacketAliasOut() are reversed.
  */
-#define	PKT_ALIAS_REVERSE		0x80
+#define PKT_ALIAS_REVERSE 0x80
 
 #ifndef NO_FW_PUNCH
 /*
@@ -219,14 +219,14 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
  * PacketAliasSetFWBase().  The hole will be attached to that
  * particular alias_link, so when the link goes away the hole is deleted.
  */
-#define	PKT_ALIAS_PUNCH_FW		0x100
+#define PKT_ALIAS_PUNCH_FW 0x100
 #endif
 
 /*
  * If PKT_ALIAS_SKIP_GLOBAL is set, nat instance is not checked for matching
  * states in 'ipfw nat global' rule.
  */
-#define	PKT_ALIAS_SKIP_GLOBAL		0x200
+#define PKT_ALIAS_SKIP_GLOBAL 0x200
 
 /*
  * Like PKT_ALIAS_UNREGISTERED_ONLY, but includes the RFC 6598
@@ -234,15 +234,15 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
  *
  *		100.64.0.0   ->   100.127.255.255
  */
-#define	PKT_ALIAS_UNREGISTERED_CGN	0x400
+#define PKT_ALIAS_UNREGISTERED_CGN 0x400
 
 /* Function return codes. */
-#define	PKT_ALIAS_ERROR			-1
-#define	PKT_ALIAS_OK			1
-#define	PKT_ALIAS_IGNORED		2
-#define	PKT_ALIAS_UNRESOLVED_FRAGMENT	3
-#define	PKT_ALIAS_FOUND_HEADER_FRAGMENT	4
+#define PKT_ALIAS_ERROR -1
+#define PKT_ALIAS_OK 1
+#define PKT_ALIAS_IGNORED 2
+#define PKT_ALIAS_UNRESOLVED_FRAGMENT 3
+#define PKT_ALIAS_FOUND_HEADER_FRAGMENT 4
 
-#endif				/* !_ALIAS_H_ */
+#endif /* !_ALIAS_H_ */
 
 /* lint -restore */

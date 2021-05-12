@@ -31,21 +31,19 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/vnode.h>
 #include <sys/mount.h>
-
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
-#include <ufs/ufs/ufs_extern.h>
-#include <ufs/ufs/ufsmount.h>
-
-#include <ufs/ffs/fs.h>
-#include <ufs/ffs/ffs_extern.h>
+#include <sys/vnode.h>
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
 #include <geom/journal/g_journal.h>
+#include <ufs/ffs/ffs_extern.h>
+#include <ufs/ffs/fs.h>
+#include <ufs/ufs/extattr.h>
+#include <ufs/ufs/inode.h>
+#include <ufs/ufs/quota.h>
+#include <ufs/ufs/ufs_extern.h>
+#include <ufs/ufs/ufsmount.h>
 
 static int
 g_journal_ufs_clean(struct mount *mp)
@@ -74,10 +72,12 @@ g_journal_ufs_dirty(struct g_consumer *cp)
 	fs = NULL;
 	if (SBLOCKSIZE % cp->provider->sectorsize != 0 ||
 	    ffs_sbget(cp, &fs, STDSB, M_GEOM, g_use_g_read_data) != 0) {
-		GJ_DEBUG(0, "Cannot find superblock to mark file system %s "
-		    "as dirty.", cp->provider->name);
-		KASSERT(fs == NULL,
-		    ("g_journal_ufs_dirty: non-NULL fs %p\n", fs));
+		GJ_DEBUG(0,
+		    "Cannot find superblock to mark file system %s "
+		    "as dirty.",
+		    cp->provider->name);
+		KASSERT(
+		    fs == NULL, ("g_journal_ufs_dirty: non-NULL fs %p\n", fs));
 		return;
 	}
 	/*
@@ -94,19 +94,19 @@ g_journal_ufs_dirty(struct g_consumer *cp)
 	error = ffs_sbput(cp, fs, fs->fs_sblockloc, g_use_g_write_data);
 	g_free(fs);
 	if (error != 0) {
-		GJ_DEBUG(0, "Cannot mark file system %s as dirty "
-		    "(error=%d).", cp->provider->name, error);
+		GJ_DEBUG(0,
+		    "Cannot mark file system %s as dirty "
+		    "(error=%d).",
+		    cp->provider->name, error);
 	} else {
-		GJ_DEBUG(0, "File system %s marked as dirty.",
-		    cp->provider->name);
+		GJ_DEBUG(
+		    0, "File system %s marked as dirty.", cp->provider->name);
 	}
 }
 
-const struct g_journal_desc g_journal_ufs = {
-	.jd_fstype = "ufs",
+const struct g_journal_desc g_journal_ufs = { .jd_fstype = "ufs",
 	.jd_clean = g_journal_ufs_clean,
-	.jd_dirty = g_journal_ufs_dirty
-};
+	.jd_dirty = g_journal_ufs_dirty };
 
 MODULE_DEPEND(g_journal, ufs, 1, 1, 1);
 MODULE_VERSION(geom_journal, 0);

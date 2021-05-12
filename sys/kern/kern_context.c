@@ -30,15 +30,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
-#include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/signalvar.h>
 #include <sys/ucontext.h>
 
 /*
@@ -46,16 +46,14 @@ __FBSDID("$FreeBSD$");
  * context.  The next field is uc_link; we want to avoid destroying the link
  * when copying out contexts.
  */
-#define	UC_COPY_SIZE	offsetof(ucontext_t, uc_link)
+#define UC_COPY_SIZE offsetof(ucontext_t, uc_link)
 
 #ifndef _SYS_SYSPROTO_H_
 struct getcontext_args {
 	struct __ucontext *ucp;
-}
-struct setcontext_args {
+} struct setcontext_args {
 	const struct __ucontext_t *ucp;
-}
-struct swapcontext_args {
+} struct swapcontext_args {
 	struct __ucontext *oucp;
 	const struct __ucontext_t *ucp;
 }
@@ -93,8 +91,8 @@ sys_setcontext(struct thread *td, struct setcontext_args *uap)
 		if (ret == 0) {
 			ret = set_mcontext(td, &uc.uc_mcontext);
 			if (ret == 0) {
-				kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask,
-				    NULL, 0);
+				kern_sigprocmask(
+				    td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 			}
 		}
 	}

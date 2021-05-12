@@ -27,68 +27,69 @@
  * $FreeBSD$
  */
 
-#ifndef	_IMGACT_BINMISC_H_
-#define	_IMGACT_BINMISC_H_
+#ifndef _IMGACT_BINMISC_H_
+#define _IMGACT_BINMISC_H_
 
 /**
  * Miscellaneous binary interpreter image activator.
  */
 
-#include <sys/param.h>	/* for MAXPATHLEN */
+#include <sys/param.h> /* for MAXPATHLEN */
 
 /*
  * Imgact bin misc parameters.
  */
-#define	IBE_VERSION	1	/* struct ximgact_binmisc_entry version. */
-#define	IBE_NAME_MAX	32	/* Max size for entry name. */
-#define	IBE_MAGIC_MAX	256	/* Max size for header magic and mask. */
-#define	IBE_ARG_LEN_MAX	256	/* Max space for optional interpreter command-
-				   line arguments separated by white space */
-#define	IBE_INTERP_LEN_MAX	(MAXPATHLEN + IBE_ARG_LEN_MAX)
-#define	IBE_MAX_ENTRIES	64	/* Max number of interpreter entries. */
+#define IBE_VERSION 1	  /* struct ximgact_binmisc_entry version. */
+#define IBE_NAME_MAX 32	  /* Max size for entry name. */
+#define IBE_MAGIC_MAX 256 /* Max size for header magic and mask. */
+#define IBE_ARG_LEN_MAX                                    \
+	256 /* Max space for optional interpreter command- \
+	       line arguments separated by white space */
+#define IBE_INTERP_LEN_MAX (MAXPATHLEN + IBE_ARG_LEN_MAX)
+#define IBE_MAX_ENTRIES 64 /* Max number of interpreter entries. */
 
 /* We only map the first page for identification purposes. */
-#define	IBE_MATCH_MAX	PAGE_SIZE
+#define IBE_MATCH_MAX PAGE_SIZE
 _Static_assert(IBE_MAGIC_MAX <= IBE_MATCH_MAX,
     "Cannot identify binaries past the first page.");
 
 /*
  * Imgact bin misc interpreter entry flags.
  */
-#define	IBF_ENABLED	0x0001	/* Entry is active. */
-#define	IBF_USE_MASK	0x0002	/* Use mask on header magic field. */
+#define IBF_ENABLED 0x0001 /* Entry is active. */
+#define IBF_USE_MASK 0x0002 /* Use mask on header magic field. */
 
-#define	IBF_VALID_UFLAGS	0x0003	/* Bits allowed from userland. */
+#define IBF_VALID_UFLAGS 0x0003 /* Bits allowed from userland. */
 
 /*
  * Used with sysctlbyname() to pass imgact bin misc entries in and out of the
  * kernel.
  */
 typedef struct ximgact_binmisc_entry {
-	uint32_t xbe_version;	/* Struct version(IBE_VERSION) */
-	uint32_t xbe_flags;	/* Entry flags (IBF_*) */
-	uint32_t xbe_moffset;	/* Magic offset in header */
-	uint32_t xbe_msize;	/* Magic size */
-	uint32_t spare[3];	/* Spare fields for future use */
-	char xbe_name[IBE_NAME_MAX];	/* Unique interpreter name */
+	uint32_t xbe_version;	     /* Struct version(IBE_VERSION) */
+	uint32_t xbe_flags;	     /* Entry flags (IBF_*) */
+	uint32_t xbe_moffset;	     /* Magic offset in header */
+	uint32_t xbe_msize;	     /* Magic size */
+	uint32_t spare[3];	     /* Spare fields for future use */
+	char xbe_name[IBE_NAME_MAX]; /* Unique interpreter name */
 	char xbe_interpreter[IBE_INTERP_LEN_MAX]; /* Interpreter path + args */
-	uint8_t xbe_magic[IBE_MAGIC_MAX]; /* Header Magic */
-	uint8_t xbe_mask[IBE_MAGIC_MAX]; /* Magic Mask */
+	uint8_t xbe_magic[IBE_MAGIC_MAX];	  /* Header Magic */
+	uint8_t xbe_mask[IBE_MAGIC_MAX];	  /* Magic Mask */
 } ximgact_binmisc_entry_t;
 
 /*
  * sysctl() command names.
  */
-#define	IBE_SYSCTL_NAME		"kern.binmisc"
+#define IBE_SYSCTL_NAME "kern.binmisc"
 
-#define	IBE_SYSCTL_NAME_ADD	IBE_SYSCTL_NAME ".add"
-#define	IBE_SYSCTL_NAME_REMOVE	IBE_SYSCTL_NAME ".remove"
-#define	IBE_SYSCTL_NAME_DISABLE	IBE_SYSCTL_NAME ".disable"
-#define	IBE_SYSCTL_NAME_ENABLE	IBE_SYSCTL_NAME ".enable"
-#define	IBE_SYSCTL_NAME_LOOKUP	IBE_SYSCTL_NAME ".lookup"
-#define	IBE_SYSCTL_NAME_LIST	IBE_SYSCTL_NAME ".list"
+#define IBE_SYSCTL_NAME_ADD IBE_SYSCTL_NAME ".add"
+#define IBE_SYSCTL_NAME_REMOVE IBE_SYSCTL_NAME ".remove"
+#define IBE_SYSCTL_NAME_DISABLE IBE_SYSCTL_NAME ".disable"
+#define IBE_SYSCTL_NAME_ENABLE IBE_SYSCTL_NAME ".enable"
+#define IBE_SYSCTL_NAME_LOOKUP IBE_SYSCTL_NAME ".lookup"
+#define IBE_SYSCTL_NAME_LIST IBE_SYSCTL_NAME ".list"
 
-#define	KMOD_NAME	"imgact_binmisc"
+#define KMOD_NAME "imgact_binmisc"
 
 /*
  * Examples of manipulating the interpreter table using sysctlbyname(3):

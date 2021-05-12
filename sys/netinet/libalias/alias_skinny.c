@@ -42,8 +42,8 @@
 #include <unistd.h>
 #endif
 
-#include <netinet/in_systm.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
@@ -55,8 +55,8 @@
 #include "alias_mod.h"
 #endif
 
-static void
-AliasHandleSkinny(struct libalias *, struct ip *, struct alias_link *);
+static void AliasHandleSkinny(
+    struct libalias *, struct ip *, struct alias_link *);
 
 static int
 fingerprint(struct libalias *la, struct alias_data *ah)
@@ -64,8 +64,9 @@ fingerprint(struct libalias *la, struct alias_data *ah)
 
 	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL)
 		return (-1);
-	if (la->skinnyPort != 0 && (ntohs(*ah->sport) == la->skinnyPort ||
-				    ntohs(*ah->dport) == la->skinnyPort))
+	if (la->skinnyPort != 0 &&
+	    (ntohs(*ah->sport) == la->skinnyPort ||
+		ntohs(*ah->dport) == la->skinnyPort))
 		return (0);
 	return (-1);
 }
@@ -74,20 +75,16 @@ static int
 protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
 
-        AliasHandleSkinny(la, pip, ah->lnk);
+	AliasHandleSkinny(la, pip, ah->lnk);
 	return (0);
 }
 
-struct proto_handler handlers[] = {
-	{
-	  .pri = 110,
-	  .dir = IN|OUT,
-	  .proto = TCP,
-	  .fingerprint = &fingerprint,
-	  .protohandler = &protohandler
-	},
-	{ EOH }
-};
+struct proto_handler handlers[] = { { .pri = 110,
+					.dir = IN | OUT,
+					.proto = TCP,
+					.fingerprint = &fingerprint,
+					.protohandler = &protohandler },
+	{ EOH } };
 
 static int
 mod_handler(module_t mod, int type, void *data)
@@ -112,11 +109,9 @@ mod_handler(module_t mod, int type, void *data)
 #ifdef _KERNEL
 static
 #endif
-moduledata_t alias_mod = {
-       "alias_skinny", mod_handler, NULL
-};
+    moduledata_t alias_mod = { "alias_skinny", mod_handler, NULL };
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 DECLARE_MODULE(alias_skinny, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
 MODULE_VERSION(alias_skinny, 1);
 MODULE_DEPEND(alias_skinny, libalias, 1, 1, 1);
@@ -148,73 +143,69 @@ MODULE_DEPEND(alias_skinny, libalias, 1, 1, 1);
  *
  * Skinny is a Cisco-proprietary protocol and is a trademark of Cisco Systems,
  * Inc.  All rights reserved.
-*/
+ */
 
 /* #define LIBALIAS_DEBUG 1 */
 
 /* Message types that need translating */
-#define REG_MSG         0x00000001
-#define IP_PORT_MSG     0x00000002
-#define OPNRCVCH_ACK    0x00000022
-#define START_MEDIATX   0x0000008a
+#define REG_MSG 0x00000001
+#define IP_PORT_MSG 0x00000002
+#define OPNRCVCH_ACK 0x00000022
+#define START_MEDIATX 0x0000008a
 
 struct skinny_header {
-	u_int32_t	len;
-	u_int32_t	reserved;
-	u_int32_t	msgId;
+	u_int32_t len;
+	u_int32_t reserved;
+	u_int32_t msgId;
 };
 
 struct RegisterMessage {
-	u_int32_t	msgId;
-	char		devName   [16];
-	u_int32_t	uid;
-	u_int32_t	instance;
-	u_int32_t	ipAddr;
-	u_char		devType;
-	u_int32_t	maxStreams;
+	u_int32_t msgId;
+	char devName[16];
+	u_int32_t uid;
+	u_int32_t instance;
+	u_int32_t ipAddr;
+	u_char devType;
+	u_int32_t maxStreams;
 };
 
 struct IpPortMessage {
-	u_int32_t	msgId;
-	u_int32_t	stationIpPort;	/* Note: Skinny uses 32-bit port
-					 * numbers */
+	u_int32_t msgId;
+	u_int32_t stationIpPort; /* Note: Skinny uses 32-bit port
+				  * numbers */
 };
 
 struct OpenReceiveChannelAck {
-	u_int32_t	msgId;
-	u_int32_t	status;
-	u_int32_t	ipAddr;
-	u_int32_t	port;
-	u_int32_t	passThruPartyID;
+	u_int32_t msgId;
+	u_int32_t status;
+	u_int32_t ipAddr;
+	u_int32_t port;
+	u_int32_t passThruPartyID;
 };
 
 struct StartMediaTransmission {
-	u_int32_t	msgId;
-	u_int32_t	conferenceID;
-	u_int32_t	passThruPartyID;
-	u_int32_t	remoteIpAddr;
-	u_int32_t	remotePort;
-	u_int32_t	MSPacket;
-	u_int32_t	payloadCap;
-	u_int32_t	precedence;
-	u_int32_t	silenceSuppression;
-	u_short		maxFramesPerPacket;
-	u_int32_t	G723BitRate;
+	u_int32_t msgId;
+	u_int32_t conferenceID;
+	u_int32_t passThruPartyID;
+	u_int32_t remoteIpAddr;
+	u_int32_t remotePort;
+	u_int32_t MSPacket;
+	u_int32_t payloadCap;
+	u_int32_t precedence;
+	u_int32_t silenceSuppression;
+	u_short maxFramesPerPacket;
+	u_int32_t G723BitRate;
 };
 
-typedef enum {
-	ClientToServer = 0,
-	ServerToClient = 1
-} ConvDirection;
+typedef enum { ClientToServer = 0, ServerToClient = 1 } ConvDirection;
 
 static int
 alias_skinny_reg_msg(struct RegisterMessage *reg_msg, struct ip *pip,
-    struct tcphdr *tc, struct alias_link *lnk,
-    ConvDirection direction)
+    struct tcphdr *tc, struct alias_link *lnk, ConvDirection direction)
 {
 	(void)direction;
 
-	reg_msg->ipAddr = (u_int32_t) GetAliasAddress(lnk).s_addr;
+	reg_msg->ipAddr = (u_int32_t)GetAliasAddress(lnk).s_addr;
 
 	tc->th_sum = 0;
 #ifdef _KERNEL
@@ -228,9 +219,8 @@ alias_skinny_reg_msg(struct RegisterMessage *reg_msg, struct ip *pip,
 
 static int
 alias_skinny_startmedia(struct StartMediaTransmission *start_media,
-    struct ip *pip, struct tcphdr *tc,
-    struct alias_link *lnk, u_int32_t localIpAddr,
-    ConvDirection direction)
+    struct ip *pip, struct tcphdr *tc, struct alias_link *lnk,
+    u_int32_t localIpAddr, ConvDirection direction)
 {
 	struct in_addr dst, src;
 
@@ -252,12 +242,11 @@ alias_skinny_startmedia(struct StartMediaTransmission *start_media,
 
 static int
 alias_skinny_port_msg(struct IpPortMessage *port_msg, struct ip *pip,
-    struct tcphdr *tc, struct alias_link *lnk,
-    ConvDirection direction)
+    struct tcphdr *tc, struct alias_link *lnk, ConvDirection direction)
 {
 	(void)direction;
 
-	port_msg->stationIpPort = (u_int32_t) ntohs(GetAliasPort(lnk));
+	port_msg->stationIpPort = (u_int32_t)ntohs(GetAliasPort(lnk));
 
 	tc->th_sum = 0;
 #ifdef _KERNEL
@@ -269,9 +258,9 @@ alias_skinny_port_msg(struct IpPortMessage *port_msg, struct ip *pip,
 }
 
 static int
-alias_skinny_opnrcvch_ack(struct libalias *la, struct OpenReceiveChannelAck *opnrcvch_ack,
-    struct ip *pip, struct tcphdr *tc,
-    struct alias_link *lnk, u_int32_t * localIpAddr,
+alias_skinny_opnrcvch_ack(struct libalias *la,
+    struct OpenReceiveChannelAck *opnrcvch_ack, struct ip *pip,
+    struct tcphdr *tc, struct alias_link *lnk, u_int32_t *localIpAddr,
     ConvDirection direction)
 {
 	struct in_addr null_addr;
@@ -281,15 +270,14 @@ alias_skinny_opnrcvch_ack(struct libalias *la, struct OpenReceiveChannelAck *opn
 	(void)lnk;
 	(void)direction;
 
-	*localIpAddr = (u_int32_t) opnrcvch_ack->ipAddr;
+	*localIpAddr = (u_int32_t)opnrcvch_ack->ipAddr;
 	localPort = opnrcvch_ack->port;
 
 	null_addr.s_addr = INADDR_ANY;
 	opnrcv_lnk = FindUdpTcpOut(la, pip->ip_src, null_addr,
-	    htons((u_short) opnrcvch_ack->port), 0,
-	    IPPROTO_UDP, 1);
-	opnrcvch_ack->ipAddr = (u_int32_t) GetAliasAddress(opnrcv_lnk).s_addr;
-	opnrcvch_ack->port = (u_int32_t) ntohs(GetAliasPort(opnrcv_lnk));
+	    htons((u_short)opnrcvch_ack->port), 0, IPPROTO_UDP, 1);
+	opnrcvch_ack->ipAddr = (u_int32_t)GetAliasAddress(opnrcv_lnk).s_addr;
+	opnrcvch_ack->port = (u_int32_t)ntohs(GetAliasPort(opnrcv_lnk));
 
 	tc->th_sum = 0;
 #ifdef _KERNEL
@@ -389,7 +377,8 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 			    "PacketAlias/Skinny: Received ipport message\n");
 #endif
 			port_mesg = (struct IpPortMessage *)&sd->msgId;
-			alias_skinny_port_msg(port_mesg, pip, tc, lnk, direction);
+			alias_skinny_port_msg(
+			    port_mesg, pip, tc, lnk, direction);
 			break;
 		}
 		case OPNRCVCH_ACK: {
@@ -406,8 +395,10 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 			fprintf(stderr,
 			    "PacketAlias/Skinny: Received open rcv channel msg\n");
 #endif
-			opnrcvchn_ack = (struct OpenReceiveChannelAck *)&sd->msgId;
-			alias_skinny_opnrcvch_ack(la, opnrcvchn_ack, pip, tc, lnk, &lip, direction);
+			opnrcvchn_ack =
+			    (struct OpenReceiveChannelAck *)&sd->msgId;
+			alias_skinny_opnrcvch_ack(
+			    la, opnrcvchn_ack, pip, tc, lnk, &lip, direction);
 			break;
 		}
 		case START_MEDIATX: {
@@ -434,8 +425,10 @@ AliasHandleSkinny(struct libalias *la, struct ip *pip, struct alias_link *lnk)
 			fprintf(stderr,
 			    "PacketAlias/Skinny: Received start media trans msg\n");
 #endif
-			startmedia_tx = (struct StartMediaTransmission *)&sd->msgId;
-			alias_skinny_startmedia(startmedia_tx, pip, tc, lnk, lip, direction);
+			startmedia_tx =
+			    (struct StartMediaTransmission *)&sd->msgId;
+			alias_skinny_startmedia(
+			    startmedia_tx, pip, tc, lnk, lip, direction);
 			break;
 		}
 		default:

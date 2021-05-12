@@ -32,31 +32,31 @@
  * These macros handle nfsvattr fields. They look a bit silly here, but
  * are quite different for the Darwin port.
  */
-#define	NFSVNO_ATTRINIT(n)		(VATTR_NULL(&((n)->na_vattr)))
-#define	NFSVNO_SETATTRVAL(n, f, v)	((n)->na_##f = (v))
-#define	NFSVNO_SETACTIVE(n, f)
-#define	NFSVNO_UNSET(n, f)		((n)->na_##f = VNOVAL)
-#define	NFSVNO_NOTSETMODE(n)		((n)->na_mode == ((mode_t)VNOVAL))
-#define	NFSVNO_ISSETMODE(n)		((n)->na_mode != ((mode_t)VNOVAL))
-#define	NFSVNO_NOTSETUID(n)		((n)->na_uid == ((uid_t)VNOVAL))
-#define	NFSVNO_ISSETUID(n)		((n)->na_uid != ((uid_t)VNOVAL))
-#define	NFSVNO_NOTSETGID(n)		((n)->na_gid == ((gid_t)VNOVAL))
-#define	NFSVNO_ISSETGID(n)		((n)->na_gid != ((gid_t)VNOVAL))
-#define	NFSVNO_NOTSETSIZE(n)		((n)->na_size == VNOVAL)
-#define	NFSVNO_ISSETSIZE(n)		((n)->na_size != VNOVAL)
-#define	NFSVNO_NOTSETATIME(n)		((n)->na_atime.tv_sec == VNOVAL)
-#define	NFSVNO_ISSETATIME(n)		((n)->na_atime.tv_sec != VNOVAL)
-#define	NFSVNO_NOTSETMTIME(n)		((n)->na_mtime.tv_sec == VNOVAL)
-#define	NFSVNO_ISSETMTIME(n)		((n)->na_mtime.tv_sec != VNOVAL)
+#define NFSVNO_ATTRINIT(n) (VATTR_NULL(&((n)->na_vattr)))
+#define NFSVNO_SETATTRVAL(n, f, v) ((n)->na_##f = (v))
+#define NFSVNO_SETACTIVE(n, f)
+#define NFSVNO_UNSET(n, f) ((n)->na_##f = VNOVAL)
+#define NFSVNO_NOTSETMODE(n) ((n)->na_mode == ((mode_t)VNOVAL))
+#define NFSVNO_ISSETMODE(n) ((n)->na_mode != ((mode_t)VNOVAL))
+#define NFSVNO_NOTSETUID(n) ((n)->na_uid == ((uid_t)VNOVAL))
+#define NFSVNO_ISSETUID(n) ((n)->na_uid != ((uid_t)VNOVAL))
+#define NFSVNO_NOTSETGID(n) ((n)->na_gid == ((gid_t)VNOVAL))
+#define NFSVNO_ISSETGID(n) ((n)->na_gid != ((gid_t)VNOVAL))
+#define NFSVNO_NOTSETSIZE(n) ((n)->na_size == VNOVAL)
+#define NFSVNO_ISSETSIZE(n) ((n)->na_size != VNOVAL)
+#define NFSVNO_NOTSETATIME(n) ((n)->na_atime.tv_sec == VNOVAL)
+#define NFSVNO_ISSETATIME(n) ((n)->na_atime.tv_sec != VNOVAL)
+#define NFSVNO_NOTSETMTIME(n) ((n)->na_mtime.tv_sec == VNOVAL)
+#define NFSVNO_ISSETMTIME(n) ((n)->na_mtime.tv_sec != VNOVAL)
 
 /*
  * This structure acts as a "catch-all" for information that
  * needs to be returned by nfsd_fhtovp().
  */
 struct nfsexstuff {
-	uint64_t nes_exflag;			/* export flags */
-	int	nes_numsecflavor;		/* # of security flavors */
-	int	nes_secflavors[MAXSECFLAVORS];	/* and the flavors */
+	uint64_t nes_exflag;		   /* export flags */
+	int nes_numsecflavor;		   /* # of security flavors */
+	int nes_secflavors[MAXSECFLAVORS]; /* and the flavors */
 };
 
 /*
@@ -66,55 +66,56 @@ struct nfsexstuff {
  * In addition to recording a routine's failing status, it offers
  * logging of routines for call stack tracing.
  * EXITCODE should be used only in routines that return a true errno value, as
- * that value will be formatted to a displayable errno string.  Routines that 
+ * that value will be formatted to a displayable errno string.  Routines that
  * return regular int status that are not true errno should not set EXITCODE.
  * If you want to log routine tracing, you can add EXITCODE(0) to any routine.
  * NFS extended the EXITCODE with EXITCODE2 to record either the routine's
  * exit errno status or the nd_repstat.
  */
-#define	NFSEXITCODE(error)
-#define	NFSEXITCODE2(error, nd)
+#define NFSEXITCODE(error)
+#define NFSEXITCODE2(error, nd)
 
-#define	NFSVNO_EXINIT(e)		((e)->nes_exflag = 0)
-#define	NFSVNO_EXPORTED(e)		((e)->nes_exflag & MNT_EXPORTED)
-#define	NFSVNO_EXRDONLY(e)		((e)->nes_exflag & MNT_EXRDONLY)
-#define	NFSVNO_EXPORTANON(e)		((e)->nes_exflag & MNT_EXPORTANON)
-#define	NFSVNO_EXSTRICTACCESS(e)	((e)->nes_exflag & MNT_EXSTRICTACCESS)
-#define	NFSVNO_EXV4ONLY(e)		((e)->nes_exflag & MNT_EXV4ONLY)
-#define	NFSVNO_EXTLS(e)			((e)->nes_exflag & MNT_EXTLS)
-#define	NFSVNO_EXTLSCERT(e)		((e)->nes_exflag & MNT_EXTLSCERT)
-#define	NFSVNO_EXTLSCERTUSER(e)		((e)->nes_exflag & MNT_EXTLSCERTUSER)
+#define NFSVNO_EXINIT(e) ((e)->nes_exflag = 0)
+#define NFSVNO_EXPORTED(e) ((e)->nes_exflag & MNT_EXPORTED)
+#define NFSVNO_EXRDONLY(e) ((e)->nes_exflag & MNT_EXRDONLY)
+#define NFSVNO_EXPORTANON(e) ((e)->nes_exflag & MNT_EXPORTANON)
+#define NFSVNO_EXSTRICTACCESS(e) ((e)->nes_exflag & MNT_EXSTRICTACCESS)
+#define NFSVNO_EXV4ONLY(e) ((e)->nes_exflag & MNT_EXV4ONLY)
+#define NFSVNO_EXTLS(e) ((e)->nes_exflag & MNT_EXTLS)
+#define NFSVNO_EXTLSCERT(e) ((e)->nes_exflag & MNT_EXTLSCERT)
+#define NFSVNO_EXTLSCERTUSER(e) ((e)->nes_exflag & MNT_EXTLSCERTUSER)
 
-#define	NFSVNO_SETEXRDONLY(e)	((e)->nes_exflag = (MNT_EXPORTED|MNT_EXRDONLY))
+#define NFSVNO_SETEXRDONLY(e) ((e)->nes_exflag = (MNT_EXPORTED | MNT_EXRDONLY))
 
-#define	NFSVNO_CMPFH(f1, f2)						\
-    (fsidcmp(&(f1)->fh_fsid, &(f2)->fh_fsid) == 0 &&			\
-     bcmp(&(f1)->fh_fid, &(f2)->fh_fid, sizeof(struct fid)) == 0)
+#define NFSVNO_CMPFH(f1, f2)                             \
+	(fsidcmp(&(f1)->fh_fsid, &(f2)->fh_fsid) == 0 && \
+	    bcmp(&(f1)->fh_fid, &(f2)->fh_fid, sizeof(struct fid)) == 0)
 
-#define	NFSLOCKHASH(f) 							\
-	(&nfslockhash[nfsrv_hashfh(f) % nfsrv_lockhashsize])
+#define NFSLOCKHASH(f) (&nfslockhash[nfsrv_hashfh(f) % nfsrv_lockhashsize])
 
-#define	NFSFPVNODE(f)	((f)->f_vnode)
-#define	NFSFPCRED(f)	((f)->f_cred)
-#define	NFSFPFLAG(f)	((f)->f_flag)
+#define NFSFPVNODE(f) ((f)->f_vnode)
+#define NFSFPCRED(f) ((f)->f_cred)
+#define NFSFPFLAG(f) ((f)->f_flag)
 
-#define	NFSNAMEICNDSET(n, c, o, f)	do {				\
-	(n)->cn_cred = (c);						\
-	(n)->cn_nameiop = (o);						\
-	(n)->cn_flags = (f);						\
-    } while (0)
+#define NFSNAMEICNDSET(n, c, o, f)     \
+	do {                           \
+		(n)->cn_cred = (c);    \
+		(n)->cn_nameiop = (o); \
+		(n)->cn_flags = (f);   \
+	} while (0)
 
-#define	NFSPATHLEN_T	size_t
+#define NFSPATHLEN_T size_t
 
 /*
  * These are set to the minimum and maximum size of a server file
  * handle.
  */
-#define	NFSRV_MINFH	(sizeof (fhandle_t))
-#define	NFSRV_MAXFH	(sizeof (fhandle_t))
+#define NFSRV_MINFH (sizeof(fhandle_t))
+#define NFSRV_MAXFH (sizeof(fhandle_t))
 
 /* Use this macro for debug printfs. */
-#define	NFSD_DEBUG(level, ...)	do {					\
-		if (nfsd_debuglevel >= (level))				\
-			printf(__VA_ARGS__);				\
+#define NFSD_DEBUG(level, ...)                  \
+	do {                                    \
+		if (nfsd_debuglevel >= (level)) \
+			printf(__VA_ARGS__);    \
 	} while (0)

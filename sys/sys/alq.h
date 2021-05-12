@@ -35,7 +35,7 @@
  *
  */
 #ifndef _SYS_ALQ_H_
-#define	_SYS_ALQ_H_
+#define _SYS_ALQ_H_
 
 /*
  * Opaque type for the Async. Logging Queue
@@ -49,19 +49,19 @@ extern struct thread *ald_thread;
  * Async. Logging Entry
  */
 struct ale {
-	intptr_t	ae_bytesused;	/* # bytes written to ALE. */
-	char		*ae_data;	/* Write ptr. */
-	int		ae_pad;		/* Unused, compat. */
+	intptr_t ae_bytesused; /* # bytes written to ALE. */
+	char *ae_data;	       /* Write ptr. */
+	int ae_pad;	       /* Unused, compat. */
 };
 
 /* Flag options. */
-#define	ALQ_NOWAIT	0x0001	/* ALQ may not sleep. */
-#define	ALQ_WAITOK	0x0002	/* ALQ may sleep. */
-#define	ALQ_NOACTIVATE	0x0004	/* Don't activate ALQ after write. */
-#define	ALQ_ORDERED	0x0010	/* Maintain write ordering between threads. */
+#define ALQ_NOWAIT 0x0001 /* ALQ may not sleep. */
+#define ALQ_WAITOK 0x0002 /* ALQ may sleep. */
+#define ALQ_NOACTIVATE 0x0004 /* Don't activate ALQ after write. */
+#define ALQ_ORDERED 0x0010 /* Maintain write ordering between threads. */
 
 /* Suggested mode for file creation. */
-#define	ALQ_DEFAULT_CMODE	0600
+#define ALQ_DEFAULT_CMODE 0600
 
 /*
  * alq_open_flags:  Creates a new queue
@@ -77,10 +77,10 @@ struct ale {
  *	error from open or 0 on success
  */
 struct ucred;
-int alq_open_flags(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
-	    int size, int flags);
+int alq_open_flags(struct alq **alqp, const char *file, struct ucred *cred,
+    int cmode, int size, int flags);
 int alq_open(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
-	    int size, int count);
+    int size, int count);
 
 /*
  * alq_writen:  Write data into the queue
@@ -143,4 +143,4 @@ alq_post(struct alq *alq, struct ale *ale)
 	alq_post_flags(alq, ale, 0);
 }
 
-#endif	/* _SYS_ALQ_H_ */
+#endif /* _SYS_ALQ_H_ */

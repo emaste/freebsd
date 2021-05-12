@@ -28,7 +28,7 @@
  */
 
 #ifndef _UFS_UFS_DIRHASH_H_
-#define	_UFS_UFS_DIRHASH_H_
+#define _UFS_UFS_DIRHASH_H_
 
 #include <sys/_lock.h>
 #include <sys/_sx.h>
@@ -46,12 +46,12 @@
  * We also maintain information about free space in each block
  * to speed up creations.
  */
-#define	DIRHASH_EMPTY	(-1)	/* entry unused */
-#define	DIRHASH_DEL	(-2)	/* deleted entry; may be part of chain */
+#define DIRHASH_EMPTY (-1) /* entry unused */
+#define DIRHASH_DEL (-2)   /* deleted entry; may be part of chain */
 
-#define	DIRALIGN	4
-#define	DH_NFSTATS	(DIRECTSIZ(UFS_MAXNAMLEN + 1) / DIRALIGN)
-				 /* max DIRALIGN words in a directory entry */
+#define DIRALIGN 4
+#define DH_NFSTATS (DIRECTSIZ(UFS_MAXNAMLEN + 1) / DIRALIGN)
+/* max DIRALIGN words in a directory entry */
 
 /*
  * Dirhash uses a score mechanism to achieve a hybrid between a
@@ -69,66 +69,66 @@
  * candidates is much larger than the configured memry limit). In this
  * case it limits the number of hash builds to 1/DH_SCOREINIT of the
  * number of accesses.
- */ 
-#define	DH_SCOREINIT	8	/* initial dh_score when dirhash built */
-#define	DH_SCOREMAX	64	/* max dh_score value */
+ */
+#define DH_SCOREINIT 8 /* initial dh_score when dirhash built */
+#define DH_SCOREMAX 64 /* max dh_score value */
 
 /*
  * The main hash table has 2 levels. It is an array of pointers to
  * blocks of DH_NBLKOFF offsets.
  */
-#define	DH_BLKOFFSHIFT	8
-#define	DH_NBLKOFF	(1 << DH_BLKOFFSHIFT)
-#define	DH_BLKOFFMASK	(DH_NBLKOFF - 1)
+#define DH_BLKOFFSHIFT 8
+#define DH_NBLKOFF (1 << DH_BLKOFFSHIFT)
+#define DH_BLKOFFMASK (DH_NBLKOFF - 1)
 
-#define	DH_ENTRY(dh, slot) \
-    ((dh)->dh_hash[(slot) >> DH_BLKOFFSHIFT][(slot) & DH_BLKOFFMASK])
+#define DH_ENTRY(dh, slot) \
+	((dh)->dh_hash[(slot) >> DH_BLKOFFSHIFT][(slot)&DH_BLKOFFMASK])
 
 struct dirhash {
-	struct sx dh_lock;	/* protects all fields except list & score */
-	int	dh_refcount;
+	struct sx dh_lock; /* protects all fields except list & score */
+	int dh_refcount;
 
-	doff_t	**dh_hash;	/* the hash array (2-level) */
-	int	dh_narrays;	/* number of entries in dh_hash */
-	int	dh_hlen;	/* total slots in the 2-level hash array */
-	int	dh_hused;	/* entries in use */
-	int	dh_memreq;	/* Memory used. */
+	doff_t **dh_hash; /* the hash array (2-level) */
+	int dh_narrays;	  /* number of entries in dh_hash */
+	int dh_hlen;	  /* total slots in the 2-level hash array */
+	int dh_hused;	  /* entries in use */
+	int dh_memreq;	  /* Memory used. */
 
 	/* Free space statistics. XXX assumes DIRBLKSIZ is 512. */
-	u_int8_t *dh_blkfree;	/* free DIRALIGN words in each dir block */
-	int	dh_nblk;	/* size of dh_blkfree array */
-	int	dh_dirblks;	/* number of DIRBLKSIZ blocks in dir */
-	int	dh_firstfree[DH_NFSTATS + 1]; /* first blk with N words free */
+	u_int8_t *dh_blkfree; /* free DIRALIGN words in each dir block */
+	int dh_nblk;	      /* size of dh_blkfree array */
+	int dh_dirblks;	      /* number of DIRBLKSIZ blocks in dir */
+	int dh_firstfree[DH_NFSTATS + 1]; /* first blk with N words free */
 
-	doff_t	dh_seqoff;	/* sequential access optimisation offset */
+	doff_t dh_seqoff; /* sequential access optimisation offset */
 
-	int	dh_score;	/* access count for this dirhash */
+	int dh_score; /* access count for this dirhash */
 
-	int	dh_onlist;	/* true if on the ufsdirhash_list chain */
+	int dh_onlist; /* true if on the ufsdirhash_list chain */
 
-	time_t	dh_lastused;	/* time the dirhash was last read or written*/
+	time_t dh_lastused; /* time the dirhash was last read or written*/
 
 	/* Protected by ufsdirhash_mtx. */
-	TAILQ_ENTRY(dirhash) dh_list;	/* chain of all dirhashes */
+	TAILQ_ENTRY(dirhash) dh_list; /* chain of all dirhashes */
 };
 
 /*
  * Dirhash functions.
  */
-void	ufsdirhash_init(void);
-void	ufsdirhash_uninit(void);
-int	ufsdirhash_build(struct inode *);
-doff_t	ufsdirhash_findfree(struct inode *, int, int *);
-doff_t	ufsdirhash_enduseful(struct inode *);
-int	ufsdirhash_lookup(struct inode *, char *, int, doff_t *, struct buf **,
-	    doff_t *);
-void	ufsdirhash_newblk(struct inode *, doff_t);
-void	ufsdirhash_add(struct inode *, struct direct *, doff_t);
-void	ufsdirhash_remove(struct inode *, struct direct *, doff_t);
-void	ufsdirhash_move(struct inode *, struct direct *, doff_t, doff_t);
-void	ufsdirhash_dirtrunc(struct inode *, doff_t);
-void	ufsdirhash_free(struct inode *);
+void ufsdirhash_init(void);
+void ufsdirhash_uninit(void);
+int ufsdirhash_build(struct inode *);
+doff_t ufsdirhash_findfree(struct inode *, int, int *);
+doff_t ufsdirhash_enduseful(struct inode *);
+int ufsdirhash_lookup(
+    struct inode *, char *, int, doff_t *, struct buf **, doff_t *);
+void ufsdirhash_newblk(struct inode *, doff_t);
+void ufsdirhash_add(struct inode *, struct direct *, doff_t);
+void ufsdirhash_remove(struct inode *, struct direct *, doff_t);
+void ufsdirhash_move(struct inode *, struct direct *, doff_t, doff_t);
+void ufsdirhash_dirtrunc(struct inode *, doff_t);
+void ufsdirhash_free(struct inode *);
 
-void	ufsdirhash_checkblock(struct inode *, char *, doff_t);
+void ufsdirhash_checkblock(struct inode *, char *, doff_t);
 
 #endif /* !_UFS_UFS_DIRHASH_H_ */

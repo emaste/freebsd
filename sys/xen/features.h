@@ -15,6 +15,6 @@ extern void setup_xen_features(void);
 
 extern uint8_t xen_features[XENFEAT_NR_SUBMAPS * 32];
 
-#define xen_feature(flag)	(xen_features[flag])
+#define xen_feature(flag) (xen_features[flag])
 
 #endif /* __ASM_XEN_FEATURES_H__ */

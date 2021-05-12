@@ -41,28 +41,28 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/acl.h>
-#include <sys/kernel.h>
 #include <sys/jail.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
-#include <sys/systm.h>
-#include <sys/vnode.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/stat.h>
+#include <sys/vnode.h>
 
 #include <security/mac/mac_policy.h>
 #include <security/mac_bsdextended/mac_bsdextended.h>
 #include <security/mac_bsdextended/ugidfw_internal.h>
 
 int
-ugidfw_system_check_acct(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel)
+ugidfw_system_check_acct(
+    struct ucred *cred, struct vnode *vp, struct label *vplabel)
 {
 
 	if (vp != NULL)
@@ -72,8 +72,8 @@ ugidfw_system_check_acct(struct ucred *cred, struct vnode *vp,
 }
 
 int
-ugidfw_system_check_auditctl(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel)
+ugidfw_system_check_auditctl(
+    struct ucred *cred, struct vnode *vp, struct label *vplabel)
 {
 
 	if (vp != NULL)
@@ -83,8 +83,8 @@ ugidfw_system_check_auditctl(struct ucred *cred, struct vnode *vp,
 }
 
 int
-ugidfw_system_check_swapon(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel)
+ugidfw_system_check_swapon(
+    struct ucred *cred, struct vnode *vp, struct label *vplabel)
 {
 
 	return (ugidfw_check_vp(cred, vp, MBI_WRITE));

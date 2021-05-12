@@ -31,106 +31,96 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
+#include "opt_pt.h"
+
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
-#include <sys/devicestat.h>
-#include <sys/malloc.h>
 #include <sys/conf.h>
+#include <sys/devicestat.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/ptio.h>
+#include <sys/queue.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
+#include <cam/cam_debug.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
-#include <cam/cam_debug.h>
-
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_pt.h>
 
-#include "opt_pt.h"
+typedef enum { PT_STATE_PROBE, PT_STATE_NORMAL } pt_state;
 
 typedef enum {
-	PT_STATE_PROBE,
-	PT_STATE_NORMAL
-} pt_state;
-
-typedef enum {
-	PT_FLAG_NONE		= 0x00,
-	PT_FLAG_OPEN		= 0x01,
-	PT_FLAG_DEVICE_INVALID	= 0x02,
-	PT_FLAG_RETRY_UA	= 0x04
+	PT_FLAG_NONE = 0x00,
+	PT_FLAG_OPEN = 0x01,
+	PT_FLAG_DEVICE_INVALID = 0x02,
+	PT_FLAG_RETRY_UA = 0x04
 } pt_flags;
 
 typedef enum {
-	PT_CCB_BUFFER_IO	= 0x01,
-	PT_CCB_RETRY_UA		= 0x04,
-	PT_CCB_BUFFER_IO_UA	= PT_CCB_BUFFER_IO|PT_CCB_RETRY_UA
+	PT_CCB_BUFFER_IO = 0x01,
+	PT_CCB_RETRY_UA = 0x04,
+	PT_CCB_BUFFER_IO_UA = PT_CCB_BUFFER_IO | PT_CCB_RETRY_UA
 } pt_ccb_state;
 
 /* Offsets into our private area for storing information */
-#define ccb_state	ppriv_field0
-#define ccb_bp		ppriv_ptr1
+#define ccb_state ppriv_field0
+#define ccb_bp ppriv_ptr1
 
 struct pt_softc {
-	struct	 bio_queue_head bio_queue;
-	struct	 devstat *device_stats;
+	struct bio_queue_head bio_queue;
+	struct devstat *device_stats;
 	LIST_HEAD(, ccb_hdr) pending_ccbs;
 	pt_state state;
-	pt_flags flags;	
-	union	 ccb saved_ccb;
-	int	 io_timeout;
+	pt_flags flags;
+	union ccb saved_ccb;
+	int io_timeout;
 	struct cdev *dev;
 };
 
-static	d_open_t	ptopen;
-static	d_close_t	ptclose;
-static	d_strategy_t	ptstrategy;
-static	periph_init_t	ptinit;
-static	void		ptasync(void *callback_arg, u_int32_t code,
-				struct cam_path *path, void *arg);
-static	periph_ctor_t	ptctor;
-static	periph_oninv_t	ptoninvalidate;
-static	periph_dtor_t	ptdtor;
-static	periph_start_t	ptstart;
-static	void		ptdone(struct cam_periph *periph,
-			       union ccb *done_ccb);
-static	d_ioctl_t	ptioctl;
-static  int		pterror(union ccb *ccb, u_int32_t cam_flags,
-				u_int32_t sense_flags);
+static d_open_t ptopen;
+static d_close_t ptclose;
+static d_strategy_t ptstrategy;
+static periph_init_t ptinit;
+static void ptasync(
+    void *callback_arg, u_int32_t code, struct cam_path *path, void *arg);
+static periph_ctor_t ptctor;
+static periph_oninv_t ptoninvalidate;
+static periph_dtor_t ptdtor;
+static periph_start_t ptstart;
+static void ptdone(struct cam_periph *periph, union ccb *done_ccb);
+static d_ioctl_t ptioctl;
+static int pterror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags);
 
-void	scsi_send_receive(struct ccb_scsiio *csio, u_int32_t retries,
-			  void (*cbfcnp)(struct cam_periph *, union ccb *),
-			  u_int tag_action, int readop, u_int byte2,
-			  u_int32_t xfer_len, u_int8_t *data_ptr,
-			  u_int8_t sense_len, u_int32_t timeout);
+void scsi_send_receive(struct ccb_scsiio *csio, u_int32_t retries,
+    void (*cbfcnp)(struct cam_periph *, union ccb *), u_int tag_action,
+    int readop, u_int byte2, u_int32_t xfer_len, u_int8_t *data_ptr,
+    u_int8_t sense_len, u_int32_t timeout);
 
-static struct periph_driver ptdriver =
-{
-	ptinit, "pt",
-	TAILQ_HEAD_INITIALIZER(ptdriver.units), /* generation */ 0
-};
+static struct periph_driver ptdriver = { ptinit, "pt",
+	TAILQ_HEAD_INITIALIZER(ptdriver.units), /* generation */ 0 };
 
 PERIPHDRIVER_DECLARE(pt, ptdriver);
 
 static struct cdevsw pt_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	0,
-	.d_open =	ptopen,
-	.d_close =	ptclose,
-	.d_read =	physread,
-	.d_write =	physwrite,
-	.d_ioctl =	ptioctl,
-	.d_strategy =	ptstrategy,
-	.d_name =	"pt",
+	.d_version = D_VERSION,
+	.d_flags = 0,
+	.d_open = ptopen,
+	.d_close = ptclose,
+	.d_read = physread,
+	.d_write = physwrite,
+	.d_ioctl = ptioctl,
+	.d_strategy = ptstrategy,
+	.d_name = "pt",
 };
 
 #ifndef SCSI_PT_DEFAULT_TIMEOUT
-#define SCSI_PT_DEFAULT_TIMEOUT		60
+#define SCSI_PT_DEFAULT_TIMEOUT 60
 #endif
 
 static int
@@ -142,7 +132,7 @@ ptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (cam_periph_acquire(periph) != 0)
-		return (ENXIO);	
+		return (ENXIO);
 
 	softc = (struct pt_softc *)periph->softc;
 
@@ -150,7 +140,7 @@ ptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	if (softc->flags & PT_FLAG_DEVICE_INVALID) {
 		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	if ((softc->flags & PT_FLAG_OPEN) == 0)
@@ -170,8 +160,8 @@ ptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 ptclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	struct	cam_periph *periph;
-	struct	pt_softc *softc;
+	struct cam_periph *periph;
+	struct pt_softc *softc;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	softc = (struct pt_softc *)periph->softc;
@@ -240,7 +230,8 @@ ptinit(void)
 
 	if (status != CAM_REQ_CMP) {
 		printf("pt: Failed to attach master async callback "
-		       "due to status 0x%x!\n", status);
+		       "due to status 0x%x!\n",
+		    status);
 	}
 }
 
@@ -256,15 +247,15 @@ ptctor(struct cam_periph *periph, void *arg)
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
 		printf("ptregister: no getdev CCB, can't register device\n");
-		return(CAM_REQ_CMP_ERR);
+		return (CAM_REQ_CMP_ERR);
 	}
 
-	softc = (struct pt_softc *)malloc(sizeof(*softc),M_DEVBUF,M_NOWAIT);
+	softc = (struct pt_softc *)malloc(sizeof(*softc), M_DEVBUF, M_NOWAIT);
 
 	if (softc == NULL) {
 		printf("daregister: Unable to probe new device. "
-		       "Unable to allocate softc\n");				
-		return(CAM_REQ_CMP_ERR);
+		       "Unable to allocate softc\n");
+		return (CAM_REQ_CMP_ERR);
 	}
 
 	bzero(softc, sizeof(*softc));
@@ -294,12 +285,10 @@ ptctor(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
-	softc->device_stats = devstat_new_entry("pt",
-			  periph->unit_number, 0,
-			  DEVSTAT_NO_BLOCKSIZE,
-			  SID_TYPE(&cgd->inq_data) |
-			  XPORT_DEVSTAT_TYPE(cpi.transport),
-			  DEVSTAT_PRIORITY_OTHER);
+	softc->device_stats = devstat_new_entry("pt", periph->unit_number, 0,
+	    DEVSTAT_NO_BLOCKSIZE,
+	    SID_TYPE(&cgd->inq_data) | XPORT_DEVSTAT_TYPE(cpi.transport),
+	    DEVSTAT_PRIORITY_OTHER);
 
 	cam_periph_lock(periph);
 
@@ -311,13 +300,13 @@ ptctor(struct cam_periph *periph, void *arg)
 	 * them and the only alternative would be to
 	 * not attach the device on failure.
 	 */
-	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
-			   ptasync, periph, periph->path);
+	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE, ptasync,
+	    periph, periph->path);
 
 	/* Tell the user we've attached to the device */
 	xpt_announce_periph(periph, NULL);
 
-	return(CAM_REQ_CMP);
+	return (CAM_REQ_CMP);
 }
 
 static void
@@ -363,8 +352,7 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 
 	periph = (struct cam_periph *)callback_arg;
 	switch (code) {
-	case AC_FOUND_DEVICE:
-	{
+	case AC_FOUND_DEVICE: {
 		struct ccb_getdev *cgd;
 		cam_status status;
 
@@ -385,19 +373,17 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 * process.
 		 */
 		status = cam_periph_alloc(ptctor, ptoninvalidate, ptdtor,
-					  ptstart, "pt", CAM_PERIPH_BIO,
-					  path, ptasync,
-					  AC_FOUND_DEVICE, cgd);
+		    ptstart, "pt", CAM_PERIPH_BIO, path, ptasync,
+		    AC_FOUND_DEVICE, cgd);
 
-		if (status != CAM_REQ_CMP
-		 && status != CAM_REQ_INPROG)
+		if (status != CAM_REQ_CMP && status != CAM_REQ_INPROG)
 			printf("ptasync: Unable to attach to new device "
-				"due to status 0x%x\n", status);
+			       "due to status 0x%x\n",
+			    status);
 		break;
 	}
 	case AC_SENT_BDR:
-	case AC_BUS_RESET:
-	{
+	case AC_BUS_RESET: {
 		struct pt_softc *softc;
 		struct ccb_hdr *ccbh;
 
@@ -407,7 +393,7 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 * that will occur.
 		 */
 		softc->flags |= PT_FLAG_RETRY_UA;
-		LIST_FOREACH(ccbh, &softc->pending_ccbs, periph_links.le)
+		LIST_FOREACH (ccbh, &softc->pending_ccbs, periph_links.le)
 			ccbh->ccb_state |= PT_CCB_RETRY_UA;
 	}
 	/* FALLTHROUGH */
@@ -439,15 +425,11 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 		devstat_start_transaction_bio(softc->device_stats, bp);
 
 		scsi_send_receive(&start_ccb->csio,
-				  /*retries*/4,
-				  ptdone,
-				  MSG_SIMPLE_Q_TAG,
-				  bp->bio_cmd == BIO_READ,
-				  /*byte2*/0,
-				  bp->bio_bcount,
-				  bp->bio_data,
-				  /*sense_len*/SSD_FULL_SIZE,
-				  /*timeout*/softc->io_timeout);
+		    /*retries*/ 4, ptdone, MSG_SIMPLE_Q_TAG,
+		    bp->bio_cmd == BIO_READ,
+		    /*byte2*/ 0, bp->bio_bcount, bp->bio_data,
+		    /*sense_len*/ SSD_FULL_SIZE,
+		    /*timeout*/ softc->io_timeout);
 
 		start_ccb->ccb_h.ccb_state = PT_CCB_BUFFER_IO_UA;
 
@@ -455,14 +437,14 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 		 * Block out any asynchronous callbacks
 		 * while we touch the pending ccb list.
 		 */
-		LIST_INSERT_HEAD(&softc->pending_ccbs, &start_ccb->ccb_h,
-				 periph_links.le);
+		LIST_INSERT_HEAD(
+		    &softc->pending_ccbs, &start_ccb->ccb_h, periph_links.le);
 
 		start_ccb->ccb_h.ccb_bp = bp;
 		bp = bioq_first(&softc->bio_queue);
 
 		xpt_action(start_ccb);
-		
+
 		if (bp != NULL) {
 			/* Have more work to do, so ensure we stay scheduled */
 			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
@@ -483,15 +465,14 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_state) {
 	case PT_CCB_BUFFER_IO:
-	case PT_CCB_BUFFER_IO_UA:
-	{
+	case PT_CCB_BUFFER_IO_UA: {
 		struct bio *bp;
 
 		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			int error;
 			int sf;
-			
+
 			if ((csio->ccb_h.ccb_state & PT_CCB_RETRY_UA) != 0)
 				sf = SF_RETRY_UA;
 			else
@@ -535,10 +516,10 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 				cam_release_devq(done_ccb->ccb_h.path,
-						 /*relsim_flags*/0,
-						 /*reduction*/0,
-						 /*timeout*/0,
-						 /*getcount_only*/0);
+				    /*relsim_flags*/ 0,
+				    /*reduction*/ 0,
+				    /*timeout*/ 0,
+				    /*getcount_only*/ 0);
 		} else {
 			bp->bio_resid = csio->resid;
 			if (bp->bio_resid != 0)
@@ -561,13 +542,13 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 static int
 pterror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
-	struct pt_softc	  *softc;
+	struct pt_softc *softc;
 	struct cam_periph *periph;
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct pt_softc *)periph->softc;
 
-	return(cam_periph_error(ccb, cam_flags, sense_flags));
+	return (cam_periph_error(ccb, cam_flags, sense_flags));
 }
 
 static int
@@ -582,7 +563,7 @@ ptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 
 	cam_periph_lock(periph);
 
-	switch(cmd) {
+	switch (cmd) {
 	case PTIOCGETTIMEOUT:
 		if (softc->io_timeout >= 1000)
 			*(int *)addr = softc->io_timeout / 1000;
@@ -605,15 +586,14 @@ ptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 
 	cam_periph_unlock(periph);
 
-	return(error);
+	return (error);
 }
 
 void
 scsi_send_receive(struct ccb_scsiio *csio, u_int32_t retries,
-		  void (*cbfcnp)(struct cam_periph *, union ccb *),
-		  u_int tag_action, int readop, u_int byte2,
-		  u_int32_t xfer_len, u_int8_t *data_ptr, u_int8_t sense_len,
-		  u_int32_t timeout)
+    void (*cbfcnp)(struct cam_periph *, union ccb *), u_int tag_action,
+    int readop, u_int byte2, u_int32_t xfer_len, u_int8_t *data_ptr,
+    u_int8_t sense_len, u_int32_t timeout)
 {
 	struct scsi_send_receive *scsi_cmd;
 
@@ -623,14 +603,7 @@ scsi_send_receive(struct ccb_scsiio *csio, u_int32_t retries,
 	scsi_ulto3b(xfer_len, scsi_cmd->xfer_len);
 	scsi_cmd->control = 0;
 
-	cam_fill_csio(csio,
-		      retries,
-		      cbfcnp,
-		      /*flags*/readop ? CAM_DIR_IN : CAM_DIR_OUT,
-		      tag_action,
-		      data_ptr,
-		      xfer_len,
-		      sense_len,
-		      sizeof(*scsi_cmd),
-		      timeout);
+	cam_fill_csio(csio, retries, cbfcnp,
+	    /*flags*/ readop ? CAM_DIR_IN : CAM_DIR_OUT, tag_action, data_ptr,
+	    xfer_len, sense_len, sizeof(*scsi_cmd), timeout);
 }

@@ -53,7 +53,7 @@ enum iw_cm_event_type {
 
 struct iw_cm_event {
 	enum iw_cm_event_type event;
-	int			 status;
+	int status;
 	struct sockaddr_storage local_addr;
 	struct sockaddr_storage remote_addr;
 	void *private_data;
@@ -70,8 +70,7 @@ struct iw_cm_event {
  * @cm_id: The IW CM identifier associated with the event.
  * @event: Pointer to the event structure.
  */
-typedef int (*iw_cm_handler)(struct iw_cm_id *cm_id,
-			     struct iw_cm_event *event);
+typedef int (*iw_cm_handler)(struct iw_cm_id *cm_id, struct iw_cm_event *event);
 
 /**
  * iw_event_handler - Function called by the provider when delivering provider
@@ -81,24 +80,24 @@ typedef int (*iw_cm_handler)(struct iw_cm_id *cm_id,
  * @cm_id: The IW CM identifier associated with the event.
  * @event: Pointer to the event structure.
  */
-typedef int (*iw_event_handler)(struct iw_cm_id *cm_id,
-				 struct iw_cm_event *event);
+typedef int (*iw_event_handler)(
+    struct iw_cm_id *cm_id, struct iw_cm_event *event);
 
 struct iw_cm_id {
-	iw_cm_handler		cm_handler;      /* client callback function */
-	void		        *context;	 /* client cb context */
-	struct ib_device	*device;
-	struct sockaddr_storage local_addr;      /* local addr */
-	struct sockaddr_storage	remote_addr;
-	struct sockaddr_storage m_local_addr;	 /* nmapped local addr */
-	struct sockaddr_storage	m_remote_addr;	 /* nmapped rem addr */
-	void			*provider_data;	 /* provider private data */
-	iw_event_handler        event_handler;   /* cb for provider
-						    events */
+	iw_cm_handler cm_handler; /* client callback function */
+	void *context;		  /* client cb context */
+	struct ib_device *device;
+	struct sockaddr_storage local_addr; /* local addr */
+	struct sockaddr_storage remote_addr;
+	struct sockaddr_storage m_local_addr;  /* nmapped local addr */
+	struct sockaddr_storage m_remote_addr; /* nmapped rem addr */
+	void *provider_data;		       /* provider private data */
+	iw_event_handler event_handler;	       /* cb for provider
+						  events */
 	/* Used by provider to add and remove refs on IW cm_id */
 	void (*add_ref)(struct iw_cm_id *);
 	void (*rem_ref)(struct iw_cm_id *);
-	u8  tos;
+	u8 tos;
 };
 
 struct iw_cm_conn_param {
@@ -110,27 +109,24 @@ struct iw_cm_conn_param {
 };
 
 struct iw_cm_verbs {
-	void		(*add_ref)(struct ib_qp *qp);
+	void (*add_ref)(struct ib_qp *qp);
 
-	void		(*rem_ref)(struct ib_qp *qp);
+	void (*rem_ref)(struct ib_qp *qp);
 
-	struct ib_qp *	(*get_qp)(struct ib_device *device,
-				  int qpn);
+	struct ib_qp *(*get_qp)(struct ib_device *device, int qpn);
 
-	int		(*connect)(struct iw_cm_id *cm_id,
-				   struct iw_cm_conn_param *conn_param);
+	int (*connect)(
+	    struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 
-	int		(*accept)(struct iw_cm_id *cm_id,
-				  struct iw_cm_conn_param *conn_param);
+	int (*accept)(
+	    struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 
-	int		(*reject)(struct iw_cm_id *cm_id,
-				  const void *pdata, u8 pdata_len);
+	int (*reject)(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len);
 
-	int		(*create_listen)(struct iw_cm_id *cm_id,
-					 int backlog);
+	int (*create_listen)(struct iw_cm_id *cm_id, int backlog);
 
-	int		(*destroy_listen)(struct iw_cm_id *cm_id);
-	char		ifname[IFNAMSIZ];
+	int (*destroy_listen)(struct iw_cm_id *cm_id);
+	char ifname[IFNAMSIZ];
 };
 
 /**
@@ -141,8 +137,8 @@ struct iw_cm_verbs {
  *   returned IW CM identifier.
  * @context: User specified context associated with the id.
  */
-struct iw_cm_id *iw_create_cm_id(struct ib_device *device,
-				 iw_cm_handler cm_handler, void *context);
+struct iw_cm_id *iw_create_cm_id(
+    struct ib_device *device, iw_cm_handler cm_handler, void *context);
 
 /**
  * iw_destroy_cm_id - Destroy an IW CM identifier.
@@ -216,8 +212,8 @@ int iw_cm_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param);
  * CM identifier following the return of this function. The private_data
  * buffer is available for reuse when this function returns.
  */
-int iw_cm_reject(struct iw_cm_id *cm_id, const void *private_data,
-		 u8 private_data_len);
+int iw_cm_reject(
+    struct iw_cm_id *cm_id, const void *private_data, u8 private_data_len);
 
 /**
  * iw_cm_connect - Called to request a connection to a remote peer.
@@ -254,7 +250,7 @@ int iw_cm_disconnect(struct iw_cm_id *cm_id, int abrupt);
  * @qp_attr_mask: Pointer to a bit vector specifying which QP attributes are
  *   valid.
  */
-int iw_cm_init_qp_attr(struct iw_cm_id *cm_id, struct ib_qp_attr *qp_attr,
-		       int *qp_attr_mask);
+int iw_cm_init_qp_attr(
+    struct iw_cm_id *cm_id, struct ib_qp_attr *qp_attr, int *qp_attr_mask);
 
 #endif /* IW_CM_H */

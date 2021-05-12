@@ -33,33 +33,30 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 #include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_util.h>
-
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/ohci.h>
 #include <dev/usb/controller/ohcireg.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_core.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 
-#include <mips/atheros/ar71xxreg.h> /* for stuff in ar71xx_cpudef.h */
 #include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xxreg.h> /* for stuff in ar71xx_cpudef.h */
 
 static int ar71xx_ohci_attach(device_t dev);
 static int ar71xx_ohci_detach(device_t dev);
 static int ar71xx_ohci_probe(device_t dev);
 
-struct ar71xx_ohci_softc
-{
+struct ar71xx_ohci_softc {
 	struct ohci_softc sc_ohci;
 };
 
@@ -93,16 +90,16 @@ ar71xx_ohci_attach(device_t dev)
 	sc->sc_ohci.sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
-	if (usb_bus_mem_alloc_all(&sc->sc_ohci.sc_bus,
-	    USB_GET_DMA_TAG(dev), &ohci_iterate_hw_softc)) {
+	if (usb_bus_mem_alloc_all(&sc->sc_ohci.sc_bus, USB_GET_DMA_TAG(dev),
+		&ohci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
 
 	sc->sc_ohci.sc_dev = dev;
 
 	rid = 0;
-	sc->sc_ohci.sc_io_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_ohci.sc_io_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->sc_ohci.sc_io_res == NULL) {
 		err = ENOMEM;
 		goto error;
@@ -112,8 +109,8 @@ ar71xx_ohci_attach(device_t dev)
 	sc->sc_ohci.sc_io_size = rman_get_size(sc->sc_ohci.sc_io_res);
 
 	rid = 0;
-	sc->sc_ohci.sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
+	sc->sc_ohci.sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->sc_ohci.sc_irq_res == NULL) {
 		err = ENOMEM;
 		goto error;
@@ -125,17 +122,19 @@ ar71xx_ohci_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_ohci.sc_bus.bdev, &sc->sc_ohci.sc_bus);
 
-	err = bus_setup_intr(dev, sc->sc_ohci.sc_irq_res, 
-	    INTR_TYPE_BIO | INTR_MPSAFE, NULL, 
-	    ar71xx_ohci_intr, sc, &sc->sc_ohci.sc_intr_hdl);
+	err = bus_setup_intr(dev, sc->sc_ohci.sc_irq_res,
+	    INTR_TYPE_BIO | INTR_MPSAFE, NULL, ar71xx_ohci_intr, sc,
+	    &sc->sc_ohci.sc_intr_hdl);
 	if (err) {
 		err = ENXIO;
 		goto error;
 	}
 
-	strlcpy(sc->sc_ohci.sc_vendor, "Atheros", sizeof(sc->sc_ohci.sc_vendor));
+	strlcpy(
+	    sc->sc_ohci.sc_vendor, "Atheros", sizeof(sc->sc_ohci.sc_vendor));
 
-	bus_space_write_4(sc->sc_ohci.sc_io_tag, sc->sc_ohci.sc_io_hdl, OHCI_CONTROL, 0);
+	bus_space_write_4(
+	    sc->sc_ohci.sc_io_tag, sc->sc_ohci.sc_io_hdl, OHCI_CONTROL, 0);
 
 	err = ohci_init(&sc->sc_ohci);
 	if (!err)
@@ -170,11 +169,12 @@ ar71xx_ohci_detach(device_t dev)
 	 * clocks after we disable them, so the system could, in
 	 * theory, reuse them.
 	 */
-	bus_space_write_4(sc->sc_ohci.sc_io_tag, sc->sc_ohci.sc_io_hdl,
-	    OHCI_CONTROL, 0);
+	bus_space_write_4(
+	    sc->sc_ohci.sc_io_tag, sc->sc_ohci.sc_io_hdl, OHCI_CONTROL, 0);
 
 	if (sc->sc_ohci.sc_intr_hdl) {
-		bus_teardown_intr(dev, sc->sc_ohci.sc_irq_res, sc->sc_ohci.sc_intr_hdl);
+		bus_teardown_intr(
+		    dev, sc->sc_ohci.sc_irq_res, sc->sc_ohci.sc_intr_hdl);
 		sc->sc_ohci.sc_intr_hdl = NULL;
 	}
 
@@ -184,11 +184,13 @@ ar71xx_ohci_detach(device_t dev)
 		 */
 		ohci_detach(&sc->sc_ohci);
 
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_ohci.sc_irq_res);
+		bus_release_resource(
+		    dev, SYS_RES_IRQ, 0, sc->sc_ohci.sc_irq_res);
 		sc->sc_ohci.sc_irq_res = NULL;
 	}
 	if (sc->sc_ohci.sc_io_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_ohci.sc_io_res);
+		bus_release_resource(
+		    dev, SYS_RES_MEMORY, 0, sc->sc_ohci.sc_io_res);
 		sc->sc_ohci.sc_io_res = NULL;
 		sc->sc_ohci.sc_io_tag = 0;
 		sc->sc_ohci.sc_io_hdl = 0;

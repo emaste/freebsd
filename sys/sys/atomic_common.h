@@ -31,43 +31,34 @@
  * $FreeBSD$
  */
 #ifndef _SYS_ATOMIC_COMMON_H_
-#define	_SYS_ATOMIC_COMMON_H_
+#define _SYS_ATOMIC_COMMON_H_
 
 #ifndef _MACHINE_ATOMIC_H_
 #error do not include this header, use machine/atomic.h
 #endif
 
-#define	atomic_load_char(p)	(*(volatile u_char *)(p))
-#define	atomic_load_short(p)	(*(volatile u_short *)(p))
-#define	atomic_load_int(p)	(*(volatile u_int *)(p))
-#define	atomic_load_long(p)	(*(volatile u_long *)(p))
-#define	atomic_load_ptr(p)	(*(volatile __typeof(*p) *)(p))
-#define	atomic_load_8(p)	(*(volatile uint8_t *)(p))
-#define	atomic_load_16(p)	(*(volatile uint16_t *)(p))
-#define	atomic_load_32(p)	(*(volatile uint32_t *)(p))
+#define atomic_load_char(p) (*(volatile u_char *)(p))
+#define atomic_load_short(p) (*(volatile u_short *)(p))
+#define atomic_load_int(p) (*(volatile u_int *)(p))
+#define atomic_load_long(p) (*(volatile u_long *)(p))
+#define atomic_load_ptr(p) (*(volatile __typeof(*p) *)(p))
+#define atomic_load_8(p) (*(volatile uint8_t *)(p))
+#define atomic_load_16(p) (*(volatile uint16_t *)(p))
+#define atomic_load_32(p) (*(volatile uint32_t *)(p))
 #ifdef _LP64
-#define	atomic_load_64(p)	(*(volatile uint64_t *)(p))
+#define atomic_load_64(p) (*(volatile uint64_t *)(p))
 #endif
 
-#define	atomic_store_char(p, v)		\
-    (*(volatile u_char *)(p) = (u_char)(v))
-#define	atomic_store_short(p, v)		\
-    (*(volatile u_short *)(p) = (u_short)(v))
-#define	atomic_store_int(p, v)		\
-    (*(volatile u_int *)(p) = (u_int)(v))
-#define	atomic_store_long(p, v)		\
-    (*(volatile u_long *)(p) = (u_long)(v))
-#define	atomic_store_ptr(p, v)		\
-    (*(volatile __typeof(*p) *)(p) = (v))
-#define	atomic_store_8(p, v)		\
-    (*(volatile uint8_t *)(p) = (uint8_t)(v))
-#define	atomic_store_16(p, v)		\
-    (*(volatile uint16_t *)(p) = (uint16_t)(v))
-#define	atomic_store_32(p, v)		\
-    (*(volatile uint32_t *)(p) = (uint32_t)(v))
+#define atomic_store_char(p, v) (*(volatile u_char *)(p) = (u_char)(v))
+#define atomic_store_short(p, v) (*(volatile u_short *)(p) = (u_short)(v))
+#define atomic_store_int(p, v) (*(volatile u_int *)(p) = (u_int)(v))
+#define atomic_store_long(p, v) (*(volatile u_long *)(p) = (u_long)(v))
+#define atomic_store_ptr(p, v) (*(volatile __typeof(*p) *)(p) = (v))
+#define atomic_store_8(p, v) (*(volatile uint8_t *)(p) = (uint8_t)(v))
+#define atomic_store_16(p, v) (*(volatile uint16_t *)(p) = (uint16_t)(v))
+#define atomic_store_32(p, v) (*(volatile uint32_t *)(p) = (uint32_t)(v))
 #ifdef _LP64
-#define	atomic_store_64(p, v)		\
-    (*(volatile uint64_t *)(p) = (uint64_t)(v))
+#define atomic_store_64(p, v) (*(volatile uint64_t *)(p) = (uint64_t)(v))
 #endif
 
 /*
@@ -75,9 +66,9 @@
  * but they don't provide consume. Kludge below allows relevant code to stop
  * openly resorting to the stronger acquire fence, to be sorted out.
  */
-#define	atomic_load_consume_ptr(p)	\
-    ((__typeof(*p)) atomic_load_acq_ptr((uintptr_t *)p))
+#define atomic_load_consume_ptr(p) \
+	((__typeof(*p))atomic_load_acq_ptr((uintptr_t *)p))
 
-#define	atomic_interrupt_fence()	__compiler_membar()
+#define atomic_interrupt_fence() __compiler_membar()
 
 #endif

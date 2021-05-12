@@ -49,18 +49,18 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 
-#include "wrapper-cvmx-includes.h"
 #include "ethernet-headers.h"
+#include "wrapper-cvmx-includes.h"
 
-#define	MV88E61XX_SMI_REG_CMD	0x00	/* Indirect command register.  */
-#define	 MV88E61XX_SMI_CMD_BUSY		0x8000	/* Busy bit.  */
-#define	 MV88E61XX_SMI_CMD_22		0x1000	/* Clause 22 (default 45.)  */
-#define	 MV88E61XX_SMI_CMD_READ		0x0800	/* Read command.  */
-#define	 MV88E61XX_SMI_CMD_WRITE	0x0400	/* Write command.  */
-#define	 MV88E61XX_SMI_CMD_PHY(phy)	(((phy) & 0x1f) << 5)
-#define	 MV88E61XX_SMI_CMD_REG(reg)	((reg) & 0x1f)
+#define MV88E61XX_SMI_REG_CMD 0x00 /* Indirect command register.  */
+#define MV88E61XX_SMI_CMD_BUSY 0x8000 /* Busy bit.  */
+#define MV88E61XX_SMI_CMD_22 0x1000 /* Clause 22 (default 45.)  */
+#define MV88E61XX_SMI_CMD_READ 0x0800 /* Read command.  */
+#define MV88E61XX_SMI_CMD_WRITE 0x0400 /* Write command.  */
+#define MV88E61XX_SMI_CMD_PHY(phy) (((phy)&0x1f) << 5)
+#define MV88E61XX_SMI_CMD_REG(reg) ((reg)&0x1f)
 
-#define	MV88E61XX_SMI_REG_DAT	0x01	/* Indirect data register.  */
+#define MV88E61XX_SMI_REG_DAT 0x01 /* Indirect data register.  */
 
 static int cvm_oct_mv88e61xx_smi_read(struct ifnet *, int, int);
 static void cvm_oct_mv88e61xx_smi_write(struct ifnet *, int, int, int);
@@ -90,8 +90,8 @@ cvm_oct_mv88e61xx_smi_read(struct ifnet *ifp, int phy_id, int location)
 
 	cvm_oct_mdio_write(ifp, priv->phy_id, MV88E61XX_SMI_REG_CMD,
 	    MV88E61XX_SMI_CMD_BUSY | MV88E61XX_SMI_CMD_22 |
-	    MV88E61XX_SMI_CMD_READ | MV88E61XX_SMI_CMD_PHY(phy_id) |
-	    MV88E61XX_SMI_CMD_REG(location));
+		MV88E61XX_SMI_CMD_READ | MV88E61XX_SMI_CMD_PHY(phy_id) |
+		MV88E61XX_SMI_CMD_REG(location));
 
 	error = cvm_oct_mv88e61xx_smi_wait(ifp);
 	if (error != 0)
@@ -101,7 +101,8 @@ cvm_oct_mv88e61xx_smi_read(struct ifnet *ifp, int phy_id, int location)
 }
 
 static void
-cvm_oct_mv88e61xx_smi_write(struct ifnet *ifp, int phy_id, int location, int val)
+cvm_oct_mv88e61xx_smi_write(
+    struct ifnet *ifp, int phy_id, int location, int val)
 {
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 
@@ -109,8 +110,8 @@ cvm_oct_mv88e61xx_smi_write(struct ifnet *ifp, int phy_id, int location, int val
 	cvm_oct_mdio_write(ifp, priv->phy_id, MV88E61XX_SMI_REG_DAT, val);
 	cvm_oct_mdio_write(ifp, priv->phy_id, MV88E61XX_SMI_REG_CMD,
 	    MV88E61XX_SMI_CMD_BUSY | MV88E61XX_SMI_CMD_22 |
-	    MV88E61XX_SMI_CMD_WRITE | MV88E61XX_SMI_CMD_PHY(phy_id) |
-	    MV88E61XX_SMI_CMD_REG(location));
+		MV88E61XX_SMI_CMD_WRITE | MV88E61XX_SMI_CMD_PHY(phy_id) |
+		MV88E61XX_SMI_CMD_REG(location));
 	cvm_oct_mv88e61xx_smi_wait(ifp);
 }
 
@@ -122,7 +123,8 @@ cvm_oct_mv88e61xx_smi_wait(struct ifnet *ifp)
 	unsigned i;
 
 	for (i = 0; i < 10000; i++) {
-		cmd = cvm_oct_mdio_read(ifp, priv->phy_id, MV88E61XX_SMI_REG_CMD);
+		cmd = cvm_oct_mdio_read(
+		    ifp, priv->phy_id, MV88E61XX_SMI_REG_CMD);
 		if ((cmd & MV88E61XX_SMI_CMD_BUSY) == 0)
 			return (0);
 	}

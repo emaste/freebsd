@@ -31,14 +31,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
-#include <sys/bus.h>
-#include <machine/bus.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 
+#include <machine/bus.h>
 #include <machine/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -47,33 +47,29 @@
 #include <powerpc/powermac/maciovar.h>
 
 struct pswitch_softc {
-	int		sc_irq_rid;
-	struct resource	*sc_irq;
-	void		*sc_ih;
+	int sc_irq_rid;
+	struct resource *sc_irq;
+	void *sc_ih;
 };
 
-static int	pswitch_probe(device_t);
-static int	pswitch_attach(device_t);
+static int pswitch_probe(device_t);
+static int pswitch_attach(device_t);
 
-static int	pswitch_intr(void *);
+static int pswitch_intr(void *);
 
 static device_method_t pswitch_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pswitch_probe),
-	DEVMETHOD(device_attach,	pswitch_attach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, pswitch_probe),
+	DEVMETHOD(device_attach, pswitch_attach), { 0, 0 }
 };
 
-static driver_t pswitch_driver = {
-	"pswitch",
-	pswitch_methods,
-	sizeof(struct pswitch_softc)
-};
+static driver_t pswitch_driver = { "pswitch", pswitch_methods,
+	sizeof(struct pswitch_softc) };
 
 static devclass_t pswitch_devclass;
 
-EARLY_DRIVER_MODULE(pswitch, macgpio, pswitch_driver, pswitch_devclass,
-    0, 0, BUS_PASS_RESOURCE);
+EARLY_DRIVER_MODULE(pswitch, macgpio, pswitch_driver, pswitch_devclass, 0, 0,
+    BUS_PASS_RESOURCE);
 
 static int
 pswitch_probe(device_t dev)
@@ -90,23 +86,23 @@ pswitch_probe(device_t dev)
 static int
 pswitch_attach(device_t dev)
 {
-	struct		pswitch_softc *sc;
+	struct pswitch_softc *sc;
 
 	sc = device_get_softc(dev);
 
 	sc->sc_irq_rid = 0;
-	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &sc->sc_irq_rid, RF_ACTIVE);
+	sc->sc_irq = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &sc->sc_irq_rid, RF_ACTIVE);
 	if (sc->sc_irq == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		return (ENXIO);
 	}
 
 	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC | INTR_EXCL,
-	    pswitch_intr, NULL, dev, &sc->sc_ih) != 0) {
+		pswitch_intr, NULL, dev, &sc->sc_ih) != 0) {
 		device_printf(dev, "could not setup interrupt\n");
-		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irq_rid,
-		    sc->sc_irq);
+		bus_release_resource(
+		    dev, SYS_RES_IRQ, sc->sc_irq_rid, sc->sc_irq);
 		return (ENXIO);
 	}
 
@@ -116,7 +112,7 @@ pswitch_attach(device_t dev)
 static int
 pswitch_intr(void *arg)
 {
-	device_t	dev;
+	device_t dev;
 
 	dev = (device_t)arg;
 

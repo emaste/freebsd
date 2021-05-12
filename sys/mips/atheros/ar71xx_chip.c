@@ -32,18 +32,16 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/reboot.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
-
-#include <net/ethernet.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -53,25 +51,27 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
-#include <mips/atheros/ar71xxreg.h>
+#include <net/ethernet.h>
+
 #include <mips/atheros/ar71xx_chip.h>
 #include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xxreg.h>
 
 /* XXX these should replace the current definitions in ar71xxreg.h */
 /* XXX perhaps an ar71xx_chip.h header file? */
-#define AR71XX_PLL_REG_CPU_CONFIG       AR71XX_PLL_CPU_BASE + 0x00
-#define AR71XX_PLL_REG_SEC_CONFIG       AR71XX_PLL_CPU_BASE + 0x04
-#define AR71XX_PLL_REG_ETH0_INT_CLOCK   AR71XX_PLL_CPU_BASE + 0x10
-#define AR71XX_PLL_REG_ETH1_INT_CLOCK   AR71XX_PLL_CPU_BASE + 0x14
+#define AR71XX_PLL_REG_CPU_CONFIG AR71XX_PLL_CPU_BASE + 0x00
+#define AR71XX_PLL_REG_SEC_CONFIG AR71XX_PLL_CPU_BASE + 0x04
+#define AR71XX_PLL_REG_ETH0_INT_CLOCK AR71XX_PLL_CPU_BASE + 0x10
+#define AR71XX_PLL_REG_ETH1_INT_CLOCK AR71XX_PLL_CPU_BASE + 0x14
 
-#define AR71XX_PLL_DIV_SHIFT            3
-#define AR71XX_PLL_DIV_MASK             0x1f
-#define AR71XX_CPU_DIV_SHIFT            16
-#define AR71XX_CPU_DIV_MASK             0x3
-#define AR71XX_DDR_DIV_SHIFT            18
-#define AR71XX_DDR_DIV_MASK             0x3
-#define AR71XX_AHB_DIV_SHIFT            20
-#define AR71XX_AHB_DIV_MASK             0x7
+#define AR71XX_PLL_DIV_SHIFT 3
+#define AR71XX_PLL_DIV_MASK 0x1f
+#define AR71XX_CPU_DIV_SHIFT 16
+#define AR71XX_CPU_DIV_MASK 0x3
+#define AR71XX_DDR_DIV_SHIFT 18
+#define AR71XX_DDR_DIV_MASK 0x3
+#define AR71XX_AHB_DIV_SHIFT 20
+#define AR71XX_AHB_DIV_MASK 0x7
 
 /* XXX these shouldn't be in here - this file is a per-chip file */
 /* XXX these should be in the top-level ar71xx type, not ar71xx -chip */
@@ -157,8 +157,8 @@ ar71xx_chip_set_mii_speed(uint32_t unit, uint32_t speed)
 		reg = AR71XX_MII1_CTRL;
 		break;
 	default:
-		printf("%s: invalid MII unit set for arge unit: %d\n",
-		    __func__, unit);
+		printf("%s: invalid MII unit set for arge unit: %d\n", __func__,
+		    unit);
 		return;
 	}
 
@@ -219,8 +219,8 @@ ar71xx_chip_set_mii_if(uint32_t unit, uint32_t mii_mode)
 		}
 		break;
 	default:
-		printf("%s: invalid MII unit set for arge unit: %d\n",
-		    __func__, unit);
+		printf("%s: invalid MII unit set for arge unit: %d\n", __func__,
+		    unit);
 		return;
 	}
 
@@ -237,18 +237,16 @@ ar71xx_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 
 	switch (unit) {
 	case 0:
-		ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG,
-		    AR71XX_PLL_ETH_INT0_CLK, pll,
-		    AR71XX_PLL_ETH0_SHIFT);
+		ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG, AR71XX_PLL_ETH_INT0_CLK,
+		    pll, AR71XX_PLL_ETH0_SHIFT);
 		break;
 	case 1:
-		ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG,
-		    AR71XX_PLL_ETH_INT1_CLK, pll,
-		    AR71XX_PLL_ETH1_SHIFT);
+		ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG, AR71XX_PLL_ETH_INT1_CLK,
+		    pll, AR71XX_PLL_ETH1_SHIFT);
 		break;
 	default:
-		printf("%s: invalid PLL set for arge unit: %d\n",
-		    __func__, unit);
+		printf(
+		    "%s: invalid PLL set for arge unit: %d\n", __func__, unit);
 		return;
 	}
 }
@@ -303,23 +301,20 @@ static void
 ar71xx_chip_init_usb_peripheral(void)
 {
 
-	ar71xx_device_stop(RST_RESET_USB_OHCI_DLL |
-	    RST_RESET_USB_HOST | RST_RESET_USB_PHY);
+	ar71xx_device_stop(
+	    RST_RESET_USB_OHCI_DLL | RST_RESET_USB_HOST | RST_RESET_USB_PHY);
 	DELAY(1000);
 
-	ar71xx_device_start(RST_RESET_USB_OHCI_DLL |
-	    RST_RESET_USB_HOST | RST_RESET_USB_PHY);
+	ar71xx_device_start(
+	    RST_RESET_USB_OHCI_DLL | RST_RESET_USB_HOST | RST_RESET_USB_PHY);
 	DELAY(1000);
 
 	ATH_WRITE_REG(AR71XX_USB_CTRL_CONFIG,
-	    USB_CTRL_CONFIG_OHCI_DES_SWAP |
-	    USB_CTRL_CONFIG_OHCI_BUF_SWAP |
-	    USB_CTRL_CONFIG_EHCI_DES_SWAP |
-	    USB_CTRL_CONFIG_EHCI_BUF_SWAP);
+	    USB_CTRL_CONFIG_OHCI_DES_SWAP | USB_CTRL_CONFIG_OHCI_BUF_SWAP |
+		USB_CTRL_CONFIG_EHCI_DES_SWAP | USB_CTRL_CONFIG_EHCI_BUF_SWAP);
 
 	ATH_WRITE_REG(AR71XX_USB_CTRL_FLADJ,
-	    (32 << USB_CTRL_FLADJ_HOST_SHIFT) |
-	    (3 << USB_CTRL_FLADJ_A5_SHIFT));
+	    (32 << USB_CTRL_FLADJ_HOST_SHIFT) | (3 << USB_CTRL_FLADJ_A5_SHIFT));
 
 	DELAY(1000);
 }

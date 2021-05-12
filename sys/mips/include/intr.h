@@ -47,23 +47,23 @@
 
 #include <sys/intr.h>
 
-#ifndef	MIPS_NIRQ
-#define	MIPS_NIRQ		128
+#ifndef MIPS_NIRQ
+#define MIPS_NIRQ 128
 #endif
 
-#ifndef	NIRQ
-#define	NIRQ			MIPS_NIRQ
+#ifndef NIRQ
+#define NIRQ MIPS_NIRQ
 #endif
 
 #ifndef FDT
-#define	MIPS_PIC_XREF		1	/**< unique xref */
+#define MIPS_PIC_XREF 1 /**< unique xref */
 #endif
 
-#define NHARD_IRQS		6
-#define NSOFT_IRQS		2
-#define NREAL_IRQS		(NHARD_IRQS + NSOFT_IRQS)
+#define NHARD_IRQS 6
+#define NSOFT_IRQS 2
+#define NREAL_IRQS (NHARD_IRQS + NSOFT_IRQS)
 
-#define INTR_IRQ_NSPC_SWI	4
+#define INTR_IRQ_NSPC_SWI 4
 
 /* MIPS32 PIC APIs */
 int mips_pic_map_fixed_intrs(void);
@@ -74,11 +74,11 @@ int mips_pic_deactivate_intr(device_t child, struct resource *r);
 void cpu_init_interrupts(void);
 void cpu_establish_hardintr(const char *, driver_filter_t *, driver_intr_t *,
     void *, int, int, void **);
-void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void*),
+void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void *),
     void *, int, int, void **);
 /* MIPS interrupt C entry point */
 void cpu_intr(struct trapframe *);
 
 #endif /* INTRNG */
 
-#endif	/* _MACHINE_INTR_H */
+#endif /* _MACHINE_INTR_H */

@@ -36,7 +36,7 @@
  */
 
 #ifndef _CTL_HA_H_
-#define	_CTL_HA_H_
+#define _CTL_HA_H_
 
 /*
  * CTL High Availability Modes:
@@ -99,14 +99,14 @@ struct ctl_ha_dt_req;
 typedef void (*ctl_ha_dt_cb)(struct ctl_ha_dt_req *);
 
 struct ctl_ha_dt_req {
-	ctl_ha_dt_cmd	command;
-	void		*context;
-	ctl_ha_dt_cb	callback;
-	int		ret;
-	uint32_t	size;
-	uint8_t		*local;
-	uint8_t		*remote;
-	TAILQ_ENTRY(ctl_ha_dt_req)	 links;
+	ctl_ha_dt_cmd command;
+	void *context;
+	ctl_ha_dt_cb callback;
+	int ret;
+	uint32_t size;
+	uint8_t *local;
+	uint8_t *remote;
+	TAILQ_ENTRY(ctl_ha_dt_req) links;
 };
 
 struct ctl_softc;
@@ -114,30 +114,30 @@ ctl_ha_status ctl_ha_msg_init(struct ctl_softc *softc);
 void ctl_ha_msg_shutdown(struct ctl_softc *softc);
 ctl_ha_status ctl_ha_msg_destroy(struct ctl_softc *softc);
 
-typedef void (*ctl_evt_handler)(ctl_ha_channel channel, ctl_ha_event event,
-				int param);
-void ctl_ha_register_evthandler(ctl_ha_channel channel,
-				ctl_evt_handler handler);
+typedef void (*ctl_evt_handler)(
+    ctl_ha_channel channel, ctl_ha_event event, int param);
+void ctl_ha_register_evthandler(
+    ctl_ha_channel channel, ctl_evt_handler handler);
 
-ctl_ha_status ctl_ha_msg_register(ctl_ha_channel channel,
-    ctl_evt_handler handler);
-ctl_ha_status ctl_ha_msg_recv(ctl_ha_channel channel, void *addr,
-    size_t len, int wait);
-ctl_ha_status ctl_ha_msg_send(ctl_ha_channel channel, const void *addr,
-    size_t len, int wait);
+ctl_ha_status ctl_ha_msg_register(
+    ctl_ha_channel channel, ctl_evt_handler handler);
+ctl_ha_status ctl_ha_msg_recv(
+    ctl_ha_channel channel, void *addr, size_t len, int wait);
+ctl_ha_status ctl_ha_msg_send(
+    ctl_ha_channel channel, const void *addr, size_t len, int wait);
 ctl_ha_status ctl_ha_msg_send2(ctl_ha_channel channel, const void *addr,
     size_t len, const void *addr2, size_t len2, int wait);
 ctl_ha_status ctl_ha_msg_abort(ctl_ha_channel channel);
 ctl_ha_status ctl_ha_msg_deregister(ctl_ha_channel channel);
 
-struct ctl_ha_dt_req * ctl_dt_req_alloc(void);
+struct ctl_ha_dt_req *ctl_dt_req_alloc(void);
 void ctl_dt_req_free(struct ctl_ha_dt_req *req);
 ctl_ha_status ctl_dt_single(struct ctl_ha_dt_req *req);
 
 typedef enum {
-	CTL_HA_LINK_OFFLINE	= 0x00,
-	CTL_HA_LINK_UNKNOWN	= 0x01,
-	CTL_HA_LINK_ONLINE	= 0x02
+	CTL_HA_LINK_OFFLINE = 0x00,
+	CTL_HA_LINK_UNKNOWN = 0x01,
+	CTL_HA_LINK_ONLINE = 0x02
 } ctl_ha_link_state;
 
 #endif /* _CTL_HA_H_ */

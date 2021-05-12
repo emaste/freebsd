@@ -32,18 +32,16 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/reboot.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
-
-#include <net/ethernet.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -53,13 +51,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
-#include <mips/atheros/ar71xxreg.h>
-#include <mips/atheros/ar724xreg.h>
+#include <net/ethernet.h>
 
+#include <mips/atheros/ar71xx_chip.h>
 #include <mips/atheros/ar71xx_cpudef.h>
 #include <mips/atheros/ar71xx_setup.h>
-#include <mips/atheros/ar71xx_chip.h>
+#include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar724x_chip.h>
+#include <mips/atheros/ar724xreg.h>
 
 static void
 ar724x_chip_detect_mem_size(void)
@@ -154,8 +153,8 @@ ar724x_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 		/* XXX TODO */
 		break;
 	default:
-		printf("%s: invalid PLL set for arge unit: %d\n",
-		    __func__, unit);
+		printf(
+		    "%s: invalid PLL set for arge unit: %d\n", __func__, unit);
 		return;
 	}
 }
@@ -196,20 +195,20 @@ ar724x_chip_init_usb_peripheral(void)
 
 	switch (ar71xx_soc) {
 	case AR71XX_SOC_AR7240:
-		ar71xx_device_stop(AR724X_RESET_MODULE_USB_OHCI_DLL |
-		    AR724X_RESET_USB_HOST);
+		ar71xx_device_stop(
+		    AR724X_RESET_MODULE_USB_OHCI_DLL | AR724X_RESET_USB_HOST);
 		DELAY(1000);
 
-		ar71xx_device_start(AR724X_RESET_MODULE_USB_OHCI_DLL |
-		    AR724X_RESET_USB_HOST);
+		ar71xx_device_start(
+		    AR724X_RESET_MODULE_USB_OHCI_DLL | AR724X_RESET_USB_HOST);
 		DELAY(1000);
 
 		/*
 		 * WAR for HW bug. Here it adjusts the duration
 		 * between two SOFS.
 		 */
-		ATH_WRITE_REG(AR71XX_USB_CTRL_FLADJ,
-		    (3 << USB_CTRL_FLADJ_A0_SHIFT));
+		ATH_WRITE_REG(
+		    AR71XX_USB_CTRL_FLADJ, (3 << USB_CTRL_FLADJ_A0_SHIFT));
 
 		break;
 
@@ -231,16 +230,9 @@ ar724x_chip_init_usb_peripheral(void)
 	}
 }
 
-struct ar71xx_cpu_def ar724x_chip_def = {
-	&ar724x_chip_detect_mem_size,
-	&ar724x_chip_detect_sys_frequency,
-	&ar724x_chip_device_stop,
-	&ar724x_chip_device_start,
-	&ar724x_chip_device_stopped,
-	&ar724x_chip_set_pll_ge,
-	&ar724x_chip_set_mii_speed,
-	&ar71xx_chip_set_mii_if,
-	&ar724x_chip_get_eth_pll,
-	&ar724x_chip_ddr_flush,
-	&ar724x_chip_init_usb_peripheral
-};
+struct ar71xx_cpu_def ar724x_chip_def = { &ar724x_chip_detect_mem_size,
+	&ar724x_chip_detect_sys_frequency, &ar724x_chip_device_stop,
+	&ar724x_chip_device_start, &ar724x_chip_device_stopped,
+	&ar724x_chip_set_pll_ge, &ar724x_chip_set_mii_speed,
+	&ar71xx_chip_set_mii_if, &ar724x_chip_get_eth_pll,
+	&ar724x_chip_ddr_flush, &ar724x_chip_init_usb_peripheral };

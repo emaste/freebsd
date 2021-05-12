@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -34,18 +35,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
-#include <sys/types.h>
 
 #include <vm/vm.h>
-#include <vm/vm_kern.h>
 #include <vm/pmap.h>
-#include <vm/vm_page.h>
 #include <vm/vm_extern.h>
-
-#include <dev/ic/i8259.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_page.h>
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
+
+#include <dev/ic/i8259.h>
 
 #include <mips/malta/gtvar.h>
 
@@ -79,37 +79,34 @@ static struct resource *
 gt_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
-	return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-		    type, rid, start, end, count, flags));
-
+	return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child, type, rid,
+	    start, end, count, flags));
 }
 
 static int
-gt_setup_intr(device_t dev, device_t child,
-    struct resource *ires, int flags, driver_filter_t *filt, 
-    driver_intr_t *intr, void *arg, void **cookiep)
+gt_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
+    driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
-	return BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, 
-	    filt, intr, arg, cookiep);
+	return BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt,
+	    intr, arg, cookiep);
 }
 
 static int
-gt_teardown_intr(device_t dev, device_t child, struct resource *res,
-    void *cookie)
+gt_teardown_intr(
+    device_t dev, device_t child, struct resource *res, void *cookie)
 {
 	return (BUS_TEARDOWN_INTR(device_get_parent(dev), child, res, cookie));
 }
 
 static int
-gt_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
+gt_activate_resource(
+    device_t dev, device_t child, int type, int rid, struct resource *r)
 {
-	return (BUS_ACTIVATE_RESOURCE(device_get_parent(dev), child,
-		    type, rid, r));
+	return (
+	    BUS_ACTIVATE_RESOURCE(device_get_parent(dev), child, type, rid, r));
 }
 
-static device_method_t gt_methods[] = {
-	DEVMETHOD(device_probe, gt_probe),
+static device_method_t gt_methods[] = { DEVMETHOD(device_probe, gt_probe),
 	DEVMETHOD(device_identify, gt_identify),
 	DEVMETHOD(device_attach, gt_attach),
 
@@ -118,8 +115,7 @@ static device_method_t gt_methods[] = {
 	DEVMETHOD(bus_alloc_resource, gt_alloc_resource),
 	DEVMETHOD(bus_activate_resource, gt_activate_resource),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t gt_driver = {
 	"gt",

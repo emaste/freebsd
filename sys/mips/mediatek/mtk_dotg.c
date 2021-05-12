@@ -28,44 +28,40 @@ __FBSDID("$FreeBSD$");
  * SUCH DAMAGE.
  */
 
-#include <sys/stdint.h>
-#include <sys/stddef.h>
-#include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/sysctl.h>
-#include <sys/sx.h>
-#include <sys/unistd.h>
 #include <sys/callout.h>
+#include <sys/condvar.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
+#include <sys/queue.h>
 #include <sys/rman.h>
+#include <sys/stddef.h>
+#include <sys/stdint.h>
+#include <sys/sx.h>
+#include <sys/sysctl.h>
+#include <sys/unistd.h>
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_util.h>
-
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
-
-#include <dev/usb/controller/dwc_otg.h>
-
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/usb/controller/dwc_otg.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_busdma.h>
+#include <dev/usb/usb_controller.h>
+#include <dev/usb/usb_core.h>
+#include <dev/usb/usb_process.h>
+#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 
-#define	MEM_RID	0
+#define MEM_RID 0
 
 static device_probe_t dotg_fdt_probe;
 static device_attach_t dotg_fdt_attach;
@@ -98,16 +94,16 @@ dotg_fdt_attach(device_t dev)
 	sc->sc_bus.parent = dev;
 
 	rid = 0;
-	sc->sc_io_res =
-	    bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->sc_io_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!(sc->sc_io_res)) {
 		printf("Can`t alloc MEM\n");
 		goto error;
 	}
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
-	    &rid, RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (!(sc->sc_irq_res)) {
 		printf("Can`t alloc IRQ\n");
 		goto error;
@@ -121,10 +117,12 @@ dotg_fdt_attach(device_t dev)
 	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
 
 	err = dwc_otg_init(sc);
-	if (err) printf("dotg_init fail\n");
+	if (err)
+		printf("dotg_init fail\n");
 	if (!err) {
 		err = device_probe_and_attach(sc->sc_bus.bdev);
-		if (err) printf("device_probe_and_attach fail %d\n", err);
+		if (err)
+			printf("device_probe_and_attach fail %d\n", err);
 	}
 	if (err) {
 		goto error;
@@ -151,18 +149,15 @@ dotg_fdt_detach(device_t dev)
 		 */
 		dwc_otg_uninit(sc);
 
-		err = bus_teardown_intr(dev, sc->sc_irq_res,
-		    sc->sc_intr_hdl);
+		err = bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_intr_hdl);
 		sc->sc_intr_hdl = NULL;
 	}
 	if (sc->sc_irq_res) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0,
-		    sc->sc_irq_res);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		sc->sc_irq_res = NULL;
 	}
 	if (sc->sc_io_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, 0,
-		    sc->sc_io_res);
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
 	usb_bus_mem_free_all(&sc->sc_bus, NULL);

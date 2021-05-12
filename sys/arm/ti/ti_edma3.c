@@ -35,96 +35,93 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/endian.h>
-#include <sys/mbuf.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 
-#include <sys/sockio.h>
-#include <sys/bus.h>
 #include <machine/bus.h>
-#include <sys/rman.h>
 #include <machine/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/ti/ti_edma3.h>
 #include <arm/ti/ti_scm.h>
 #include <arm/ti/ti_sysc.h>
 
-#include <arm/ti/ti_edma3.h>
+#define TI_EDMA3_NUM_TCS 3
+#define TI_EDMA3_NUM_IRQS 3
+#define TI_EDMA3_NUM_DMA_CHS 64
+#define TI_EDMA3_NUM_QDMA_CHS 8
 
-#define TI_EDMA3_NUM_TCS		3
-#define TI_EDMA3_NUM_IRQS		3
-#define TI_EDMA3_NUM_DMA_CHS		64
-#define TI_EDMA3_NUM_QDMA_CHS		8
+#define TI_EDMA3CC_PID 0x000
+#define TI_EDMA3CC_DCHMAP(p) (0x100 + ((p)*4))
+#define TI_EDMA3CC_DMAQNUM(n) (0x240 + ((n)*4))
+#define TI_EDMA3CC_QDMAQNUM 0x260
+#define TI_EDMA3CC_EMCR 0x308
+#define TI_EDMA3CC_EMCRH 0x30C
+#define TI_EDMA3CC_QEMCR 0x314
+#define TI_EDMA3CC_CCERR 0x318
+#define TI_EDMA3CC_CCERRCLR 0x31C
+#define TI_EDMA3CC_DRAE(p) (0x340 + ((p)*8))
+#define TI_EDMA3CC_DRAEH(p) (0x344 + ((p)*8))
+#define TI_EDMA3CC_QRAE(p) (0x380 + ((p)*4))
+#define TI_EDMA3CC_S_ESR(p) (0x2010 + ((p)*0x200))
+#define TI_EDMA3CC_S_ESRH(p) (0x2014 + ((p)*0x200))
+#define TI_EDMA3CC_S_SECR(p) (0x2040 + ((p)*0x200))
+#define TI_EDMA3CC_S_SECRH(p) (0x2044 + ((p)*0x200))
+#define TI_EDMA3CC_S_EESR(p) (0x2030 + ((p)*0x200))
+#define TI_EDMA3CC_S_EESRH(p) (0x2034 + ((p)*0x200))
+#define TI_EDMA3CC_S_IESR(p) (0x2060 + ((p)*0x200))
+#define TI_EDMA3CC_S_IESRH(p) (0x2064 + ((p)*0x200))
+#define TI_EDMA3CC_S_IPR(p) (0x2068 + ((p)*0x200))
+#define TI_EDMA3CC_S_IPRH(p) (0x206C + ((p)*0x200))
+#define TI_EDMA3CC_S_QEESR(p) (0x208C + ((p)*0x200))
 
-#define TI_EDMA3CC_PID			0x000
-#define TI_EDMA3CC_DCHMAP(p)		(0x100 + ((p)*4))
-#define TI_EDMA3CC_DMAQNUM(n)		(0x240 + ((n)*4))
-#define TI_EDMA3CC_QDMAQNUM		0x260
-#define TI_EDMA3CC_EMCR			0x308
-#define TI_EDMA3CC_EMCRH		0x30C
-#define TI_EDMA3CC_QEMCR		0x314
-#define TI_EDMA3CC_CCERR		0x318
-#define TI_EDMA3CC_CCERRCLR		0x31C
-#define TI_EDMA3CC_DRAE(p)		(0x340 + ((p)*8))
-#define TI_EDMA3CC_DRAEH(p)		(0x344 + ((p)*8))
-#define TI_EDMA3CC_QRAE(p)		(0x380 + ((p)*4))
-#define TI_EDMA3CC_S_ESR(p)		(0x2010 + ((p)*0x200))
-#define TI_EDMA3CC_S_ESRH(p)		(0x2014 + ((p)*0x200))
-#define TI_EDMA3CC_S_SECR(p)		(0x2040 + ((p)*0x200))
-#define TI_EDMA3CC_S_SECRH(p)		(0x2044 + ((p)*0x200))
-#define TI_EDMA3CC_S_EESR(p)		(0x2030 + ((p)*0x200))
-#define TI_EDMA3CC_S_EESRH(p)		(0x2034 + ((p)*0x200))
-#define TI_EDMA3CC_S_IESR(p)		(0x2060 + ((p)*0x200))
-#define TI_EDMA3CC_S_IESRH(p)		(0x2064 + ((p)*0x200))
-#define TI_EDMA3CC_S_IPR(p)		(0x2068 + ((p)*0x200))
-#define TI_EDMA3CC_S_IPRH(p)		(0x206C + ((p)*0x200))
-#define TI_EDMA3CC_S_QEESR(p)		(0x208C + ((p)*0x200))
+#define TI_EDMA3CC_PARAM_OFFSET 0x4000
+#define TI_EDMA3CC_OPT(p) (TI_EDMA3CC_PARAM_OFFSET + 0x0 + ((p)*0x20))
 
-#define TI_EDMA3CC_PARAM_OFFSET		0x4000
-#define TI_EDMA3CC_OPT(p)		(TI_EDMA3CC_PARAM_OFFSET + 0x0 + ((p)*0x20))
+#define TI_EDMA3CC_DMAQNUM_SET(c, q) ((0x7 & (q)) << (((c) % 8) * 4))
+#define TI_EDMA3CC_DMAQNUM_CLR(c) (~(0x7 << (((c) % 8) * 4)))
+#define TI_EDMA3CC_QDMAQNUM_SET(c, q) ((0x7 & (q)) << ((c)*4))
+#define TI_EDMA3CC_QDMAQNUM_CLR(c) (~(0x7 << ((c)*4)))
 
-#define TI_EDMA3CC_DMAQNUM_SET(c,q)	((0x7 & (q)) << (((c) % 8) * 4))
-#define TI_EDMA3CC_DMAQNUM_CLR(c)	(~(0x7 << (((c) % 8) * 4)))
-#define TI_EDMA3CC_QDMAQNUM_SET(c,q)	((0x7 & (q)) << ((c) * 4))
-#define TI_EDMA3CC_QDMAQNUM_CLR(c)	(~(0x7 << ((c) * 4)))
-
-#define TI_EDMA3CC_OPT_TCC_CLR		(~(0x3F000))
-#define TI_EDMA3CC_OPT_TCC_SET(p)	(((0x3F000 >> 12) & (p)) << 12)
+#define TI_EDMA3CC_OPT_TCC_CLR (~(0x3F000))
+#define TI_EDMA3CC_OPT_TCC_SET(p) (((0x3F000 >> 12) & (p)) << 12)
 
 struct ti_edma3_softc {
-	device_t		sc_dev;
-	/* 
-	 * We use one-element array in case if we need to add 
+	device_t sc_dev;
+	/*
+	 * We use one-element array in case if we need to add
 	 * mem resources for transfer control windows
 	 */
-	struct resource *	mem_res[1];
-	struct resource *	irq_res[TI_EDMA3_NUM_IRQS];
-	void			*ih_cookie[TI_EDMA3_NUM_IRQS];
+	struct resource *mem_res[1];
+	struct resource *irq_res[TI_EDMA3_NUM_IRQS];
+	void *ih_cookie[TI_EDMA3_NUM_IRQS];
 };
 
 static struct ti_edma3_softc *ti_edma3_sc = NULL;
 
 static struct resource_spec ti_edma3_mem_spec[] = {
-	{ SYS_RES_MEMORY,   0,  RF_ACTIVE },
-	{ -1,               0,  0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, { -1, 0, 0 }
 };
 static struct resource_spec ti_edma3_irq_spec[] = {
-	{ SYS_RES_IRQ,      0,  RF_ACTIVE },
-	{ SYS_RES_IRQ,      1,  RF_ACTIVE },
-	{ SYS_RES_IRQ,      2,  RF_ACTIVE },
-	{ -1,               0,  0 }
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { SYS_RES_IRQ, 1, RF_ACTIVE },
+	{ SYS_RES_IRQ, 2, RF_ACTIVE }, { -1, 0, 0 }
 };
 
 /* Read/Write macros */
-#define ti_edma3_cc_rd_4(reg)		bus_read_4(ti_edma3_sc->mem_res[0], reg)
-#define ti_edma3_cc_wr_4(reg, val)	bus_write_4(ti_edma3_sc->mem_res[0], reg, val)
+#define ti_edma3_cc_rd_4(reg) bus_read_4(ti_edma3_sc->mem_res[0], reg)
+#define ti_edma3_cc_wr_4(reg, val) \
+	bus_write_4(ti_edma3_sc->mem_res[0], reg, val)
 
 static void ti_edma3_intr_comp(void *arg);
 static void ti_edma3_intr_mperr(void *arg);
@@ -132,11 +129,11 @@ static void ti_edma3_intr_err(void *arg);
 
 static struct {
 	driver_intr_t *handler;
-	char * description;
+	char *description;
 } ti_edma3_intrs[TI_EDMA3_NUM_IRQS] = {
-	{ ti_edma3_intr_comp,	"EDMA Completion Interrupt" },
-	{ ti_edma3_intr_mperr,	"EDMA Memory Protection Error Interrupt" },
-	{ ti_edma3_intr_err,	"EDMA Error Interrupt" },
+	{ ti_edma3_intr_comp, "EDMA Completion Interrupt" },
+	{ ti_edma3_intr_mperr, "EDMA Memory Protection Error Interrupt" },
+	{ ti_edma3_intr_err, "EDMA Error Interrupt" },
 };
 
 static int
@@ -192,9 +189,9 @@ ti_edma3_attach(device_t dev)
 
 	/* Attach interrupt handlers */
 	for (i = 0; i < TI_EDMA3_NUM_IRQS; ++i) {
-		err = bus_setup_intr(dev, sc->irq_res[i], INTR_TYPE_MISC |
-		    INTR_MPSAFE, NULL, *ti_edma3_intrs[i].handler,
-		    sc, &sc->ih_cookie[i]);
+		err = bus_setup_intr(dev, sc->irq_res[i],
+		    INTR_TYPE_MISC | INTR_MPSAFE, NULL,
+		    *ti_edma3_intrs[i].handler, sc, &sc->ih_cookie[i]);
 		if (err) {
 			device_printf(dev, "could not setup %s\n",
 			    ti_edma3_intrs[i].description);
@@ -208,7 +205,7 @@ ti_edma3_attach(device_t dev)
 static device_method_t ti_edma3_methods[] = {
 	DEVMETHOD(device_probe, ti_edma3_probe),
 	DEVMETHOD(device_attach, ti_edma3_attach),
-	{0, 0},
+	{ 0, 0 },
 };
 
 static driver_t ti_edma3_driver = {
@@ -258,15 +255,15 @@ ti_edma3_init(unsigned int eqn)
 	ti_edma3_cc_wr_4(TI_EDMA3CC_DRAEH(0), 0xFFFFFFFF);
 
 	for (i = 0; i < 64; i++) {
-		ti_edma3_cc_wr_4(TI_EDMA3CC_DCHMAP(i), i<<5);
+		ti_edma3_cc_wr_4(TI_EDMA3CC_DCHMAP(i), i << 5);
 	}
 
 	/* Initialize the DMA Queue Number Registers */
 	for (i = 0; i < TI_EDMA3_NUM_DMA_CHS; i++) {
-		reg = ti_edma3_cc_rd_4(TI_EDMA3CC_DMAQNUM(i>>3));
+		reg = ti_edma3_cc_rd_4(TI_EDMA3CC_DMAQNUM(i >> 3));
 		reg &= TI_EDMA3CC_DMAQNUM_CLR(i);
 		reg |= TI_EDMA3CC_DMAQNUM_SET(i, eqn);
-		ti_edma3_cc_wr_4(TI_EDMA3CC_DMAQNUM(i>>3), reg);
+		ti_edma3_cc_wr_4(TI_EDMA3CC_DMAQNUM(i >> 3), reg);
 	}
 
 	/* Enable the QDMA Region access for all channels */
@@ -368,9 +365,9 @@ ti_edma3_enable_transfer_manual(unsigned int ch)
 
 	/* set corresponding bit in ESR/ESRH to set a event */
 	if (ch < 32) {
-		ti_edma3_cc_wr_4(TI_EDMA3CC_S_ESR(0), 1 <<  ch);
+		ti_edma3_cc_wr_4(TI_EDMA3CC_S_ESR(0), 1 << ch);
 	} else {
-		ti_edma3_cc_wr_4(TI_EDMA3CC_S_ESRH(0), 1 <<  (ch - 32));
+		ti_edma3_cc_wr_4(TI_EDMA3CC_S_ESRH(0), 1 << (ch - 32));
 	}
 
 	return 0;
@@ -396,7 +393,7 @@ ti_edma3_enable_transfer_event(unsigned int ch)
 
 	/* Clear SECR(H) & EMCR(H) to clean any previous NULL request
 	 * and set corresponding bit in EESR to enable DMA event */
-	if(ch < 32) {
+	if (ch < 32) {
 		ti_edma3_cc_wr_4(TI_EDMA3CC_S_SECR(0), (1 << ch));
 		ti_edma3_cc_wr_4(TI_EDMA3CC_EMCR, (1 << ch));
 		ti_edma3_cc_wr_4(TI_EDMA3CC_S_EESR(0), (1 << ch));
@@ -412,13 +409,13 @@ ti_edma3_enable_transfer_event(unsigned int ch)
 void
 ti_edma3_param_write(unsigned int ch, struct ti_edma3cc_param_set *prs)
 {
-	bus_write_region_4(ti_edma3_sc->mem_res[0], TI_EDMA3CC_OPT(ch),
-	    (uint32_t *) prs, 8);
+	bus_write_region_4(
+	    ti_edma3_sc->mem_res[0], TI_EDMA3CC_OPT(ch), (uint32_t *)prs, 8);
 }
 
 void
 ti_edma3_param_read(unsigned int ch, struct ti_edma3cc_param_set *prs)
 {
-	bus_read_region_4(ti_edma3_sc->mem_res[0], TI_EDMA3CC_OPT(ch),
-	    (uint32_t *) prs, 8);
+	bus_read_region_4(
+	    ti_edma3_sc->mem_res[0], TI_EDMA3CC_OPT(ch), (uint32_t *)prs, 8);
 }

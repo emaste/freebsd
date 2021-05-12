@@ -34,11 +34,10 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <locale.h>
+#include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-#include <ncurses.h>
 #if defined(__FreeBSD__)
 #include <libutil.h>
 #elif defined(__linux__)
@@ -49,31 +48,31 @@
 
 #include <teken.h>
 
-static tf_bell_t	test_bell;
-static tf_cursor_t	test_cursor;
-static tf_putchar_t	test_putchar;
-static tf_fill_t	test_fill;
-static tf_copy_t	test_copy;
-static tf_param_t	test_param;
-static tf_respond_t	test_respond;
+static tf_bell_t test_bell;
+static tf_cursor_t test_cursor;
+static tf_putchar_t test_putchar;
+static tf_fill_t test_fill;
+static tf_copy_t test_copy;
+static tf_param_t test_param;
+static tf_respond_t test_respond;
 
 static teken_funcs_t tf = {
-	.tf_bell	= test_bell,
-	.tf_cursor	= test_cursor,
-	.tf_putchar	= test_putchar,
-	.tf_fill	= test_fill,
-	.tf_copy	= test_copy,
-	.tf_param	= test_param,
-	.tf_respond	= test_respond,
+	.tf_bell = test_bell,
+	.tf_cursor = test_cursor,
+	.tf_putchar = test_putchar,
+	.tf_fill = test_fill,
+	.tf_copy = test_copy,
+	.tf_param = test_param,
+	.tf_respond = test_respond,
 };
 
 struct pixel {
-	teken_char_t	c;
-	teken_attr_t	a;
+	teken_char_t c;
+	teken_attr_t a;
 };
 
-#define NCOLS	80
-#define NROWS	24
+#define NCOLS 80
+#define NROWS 24
 static struct pixel buffer[NCOLS][NROWS];
 
 static int ptfd;
@@ -119,8 +118,9 @@ printchar(const teken_pos_t *p)
 	if (px->a.ta_format & TF_REVERSE)
 		attr |= A_REVERSE;
 
-	bkgdset(attr | COLOR_PAIR(teken_256to8(px->a.ta_fgcolor) +
-	      8 * teken_256to8(px->a.ta_bgcolor)));
+	bkgdset(attr |
+	    COLOR_PAIR(teken_256to8(px->a.ta_fgcolor) +
+		8 * teken_256to8(px->a.ta_bgcolor)));
 	getyx(stdscr, y, x);
 	mvaddstr(p->tp_row, p->tp_col, str);
 	move(y, x);
@@ -151,14 +151,15 @@ test_putchar(void *s __unused, const teken_pos_t *p, teken_char_t c,
 }
 
 static void
-test_fill(void *s, const teken_rect_t *r, teken_char_t c,
-    const teken_attr_t *a)
+test_fill(void *s, const teken_rect_t *r, teken_char_t c, const teken_attr_t *a)
 {
 	teken_pos_t p;
 
 	/* Braindead implementation of fill() - just call putchar(). */
-	for (p.tp_row = r->tr_begin.tp_row; p.tp_row < r->tr_end.tp_row; p.tp_row++)
-		for (p.tp_col = r->tr_begin.tp_col; p.tp_col < r->tr_end.tp_col; p.tp_col++)
+	for (p.tp_row = r->tr_begin.tp_row; p.tp_row < r->tr_end.tp_row;
+	     p.tp_row++)
+		for (p.tp_col = r->tr_begin.tp_col; p.tp_col < r->tr_end.tp_col;
+		     p.tp_col++)
 			test_putchar(s, &p, c, a);
 }
 
@@ -185,7 +186,8 @@ test_copy(void *s __unused, const teken_rect_t *r, const teken_pos_t *p)
 				for (x = 0; x < ncol; x++) {
 					d.tp_col = p->tp_col + x;
 					buffer[d.tp_col][d.tp_row] =
-					    buffer[r->tr_begin.tp_col + x][r->tr_begin.tp_row + y];
+					    buffer[r->tr_begin.tp_col + x]
+						  [r->tr_begin.tp_row + y];
 					printchar(&d);
 				}
 			}
@@ -196,7 +198,8 @@ test_copy(void *s __unused, const teken_rect_t *r, const teken_pos_t *p)
 				for (x = ncol - 1; x >= 0; x--) {
 					d.tp_col = p->tp_col + x;
 					buffer[d.tp_col][d.tp_row] =
-					    buffer[r->tr_begin.tp_col + x][r->tr_begin.tp_row + y];
+					    buffer[r->tr_begin.tp_col + x]
+						  [r->tr_begin.tp_row + y];
 					printchar(&d);
 				}
 			}
@@ -210,7 +213,8 @@ test_copy(void *s __unused, const teken_rect_t *r, const teken_pos_t *p)
 				for (x = 0; x < ncol; x++) {
 					d.tp_col = p->tp_col + x;
 					buffer[d.tp_col][d.tp_row] =
-					    buffer[r->tr_begin.tp_col + x][r->tr_begin.tp_row + y];
+					    buffer[r->tr_begin.tp_col + x]
+						  [r->tr_begin.tp_row + y];
 					printchar(&d);
 				}
 			}
@@ -221,7 +225,8 @@ test_copy(void *s __unused, const teken_rect_t *r, const teken_pos_t *p)
 				for (x = ncol - 1; x >= 0; x--) {
 					d.tp_col = p->tp_col + x;
 					buffer[d.tp_col][d.tp_row] =
-					    buffer[r->tr_begin.tp_col + x][r->tr_begin.tp_row + y];
+					    buffer[r->tr_begin.tp_col + x]
+						  [r->tr_begin.tp_row + y];
 					printchar(&d);
 				}
 			}
@@ -284,10 +289,9 @@ main(int argc __unused, char *argv[] __unused)
 	fd_set rfds;
 	char b[256];
 	ssize_t bl;
-	const int ccolors[8] = {
-	    COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_YELLOW,
-	    COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN, COLOR_WHITE
-	};
+	const int ccolors[8] = { COLOR_BLACK, COLOR_RED, COLOR_GREEN,
+		COLOR_YELLOW, COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN,
+		COLOR_WHITE };
 	int i, j;
 
 	setlocale(LC_CTYPE, "UTF-8");

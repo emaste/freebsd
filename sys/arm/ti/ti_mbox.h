@@ -31,16 +31,16 @@
 #ifndef _TI_MBOX_H_
 #define _TI_MBOX_H_
 
-#define	TI_MBOX_REVISION		0x00
-#define	TI_MBOX_SYSCONFIG		0x10
-#define	TI_MBOX_SYSCONFIG_SOFTRST	0x01
-#define	TI_MBOX_SYSCONFIG_SMARTIDLE	(0x02 << 2)
-#define	TI_MBOX_MESSAGE(n)		(0x40 + (n) * 0x4)
-#define	TI_MBOX_FIFOSTATUS(n)		(0x80 + (n) * 0x4)
-#define	TI_MBOX_MSGSTATUS(n)		(0xc0 + (n) * 0x4)
-#define	TI_MBOX_IRQSTATUS_RAW(n)	(0x100 + (n) * 0x10)
-#define	TI_MBOX_IRQSTATUS_CLR(n)	(0x104 + (n) * 0x10)
-#define	TI_MBOX_IRQENABLE_SET(n)	(0x108 + (n) * 0x10)
-#define	TI_MBOX_IRQENABLE_CLR(n)	(0x10c + (n) * 0x10)
+#define TI_MBOX_REVISION 0x00
+#define TI_MBOX_SYSCONFIG 0x10
+#define TI_MBOX_SYSCONFIG_SOFTRST 0x01
+#define TI_MBOX_SYSCONFIG_SMARTIDLE (0x02 << 2)
+#define TI_MBOX_MESSAGE(n) (0x40 + (n)*0x4)
+#define TI_MBOX_FIFOSTATUS(n) (0x80 + (n)*0x4)
+#define TI_MBOX_MSGSTATUS(n) (0xc0 + (n)*0x4)
+#define TI_MBOX_IRQSTATUS_RAW(n) (0x100 + (n)*0x10)
+#define TI_MBOX_IRQSTATUS_CLR(n) (0x104 + (n)*0x10)
+#define TI_MBOX_IRQENABLE_SET(n) (0x108 + (n)*0x10)
+#define TI_MBOX_IRQENABLE_CLR(n) (0x10c + (n)*0x10)
 
 #endif /* _TI_MBOX_H_ */

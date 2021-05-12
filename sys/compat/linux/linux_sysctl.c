@@ -32,15 +32,15 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/sdt.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
-#include <sys/sbuf.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -54,20 +54,20 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_util.h>
 
-#define	LINUX_CTL_KERN		1
-#define	LINUX_CTL_VM		2
-#define	LINUX_CTL_NET		3
-#define	LINUX_CTL_PROC		4
-#define	LINUX_CTL_FS		5
-#define	LINUX_CTL_DEBUG		6
-#define	LINUX_CTL_DEV		7
-#define	LINUX_CTL_BUS		8
+#define LINUX_CTL_KERN 1
+#define LINUX_CTL_VM 2
+#define LINUX_CTL_NET 3
+#define LINUX_CTL_PROC 4
+#define LINUX_CTL_FS 5
+#define LINUX_CTL_DEBUG 6
+#define LINUX_CTL_DEV 7
+#define LINUX_CTL_BUS 8
 
 /* CTL_KERN names */
-#define	LINUX_KERN_OSTYPE	1
-#define	LINUX_KERN_OSRELEASE	2
-#define	LINUX_KERN_OSREV	3
-#define	LINUX_KERN_VERSION	4
+#define LINUX_KERN_OSTYPE 1
+#define LINUX_KERN_OSRELEASE 2
+#define LINUX_KERN_OSREV 3
+#define LINUX_KERN_VERSION 4
 
 /* DTrace init */
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
@@ -92,8 +92,8 @@ handle_string(struct l___sysctl_args *la, char *value)
 		if (!error && la->oldlenp != 0)
 			error = copyout(&len, PTRIN(la->oldlenp), sizeof(len));
 		if (error) {
-			LIN_SDT_PROBE1(sysctl, handle_string, copyout_error,
-			    error);
+			LIN_SDT_PROBE1(
+			    sysctl, handle_string, copyout_error, error);
 			return (error);
 		}
 	}
@@ -164,8 +164,8 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 		sbuf_finish(sb);
 		sysctl_string = sbuf_data(sb);
 		linux_msg(td, "%s", sbuf_data(sb));
-		LIN_SDT_PROBE1(sysctl, linux_sysctl, unsupported_sysctl,
-		    sysctl_string);
+		LIN_SDT_PROBE1(
+		    sysctl, linux_sysctl, unsupported_sysctl, sysctl_string);
 		sbuf_delete(sb);
 	}
 

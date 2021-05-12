@@ -28,14 +28,14 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_ERR_H_
-#define	_LINUX_ERR_H_
+#ifndef _LINUX_ERR_H_
+#define _LINUX_ERR_H_
 
 #include <sys/types.h>
 
 #include <linux/compiler.h>
 
-#define MAX_ERRNO	4095
+#define MAX_ERRNO 4095
 
 #define IS_ERR_VALUE(x) unlikely((x) >= (uintptr_t)-MAX_ERRNO)
 
@@ -80,4 +80,4 @@ PTR_ERR_OR_ZERO(const void *ptr)
 
 #define PTR_RET(p) PTR_ERR_OR_ZERO(p)
 
-#endif	/* _LINUX_ERR_H_ */
+#endif /* _LINUX_ERR_H_ */

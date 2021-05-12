@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -16,7 +16,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -69,51 +69,54 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/tty.h>
 #include <sys/ttycom.h>
-#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
-
-#include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_message.h>
 #include <netgraph/ng_tty.h>
 
 /* Per-node private info */
 struct ngt_softc {
-	struct tty	*tp;		/* Terminal device */
-	node_p		node;		/* Netgraph node */
-	hook_p		hook;		/* Netgraph hook */
-	struct ifqueue	outq;		/* Queue of outgoing data */
-	size_t		outqlen;	/* Number of bytes in outq */
-	struct mbuf	*m;		/* Incoming non-bypass data buffer */
-	short		hotchar;	/* Hotchar, or -1 if none */
-	u_int		flags;		/* Flags */
+	struct tty *tp;	     /* Terminal device */
+	node_p node;	     /* Netgraph node */
+	hook_p hook;	     /* Netgraph hook */
+	struct ifqueue outq; /* Queue of outgoing data */
+	size_t outqlen;	     /* Number of bytes in outq */
+	struct mbuf *m;	     /* Incoming non-bypass data buffer */
+	short hotchar;	     /* Hotchar, or -1 if none */
+	u_int flags;	     /* Flags */
 };
 typedef struct ngt_softc *sc_p;
 
 /* Flags */
-#define FLG_DEBUG		0x0002
+#define FLG_DEBUG 0x0002
 
 /* Netgraph methods */
-static ng_constructor_t		ngt_constructor;
-static ng_rcvmsg_t		ngt_rcvmsg;
-static ng_shutdown_t		ngt_shutdown;
-static ng_newhook_t		ngt_newhook;
-static ng_connect_t		ngt_connect;
-static ng_rcvdata_t		ngt_rcvdata;
-static ng_disconnect_t		ngt_disconnect;
+static ng_constructor_t ngt_constructor;
+static ng_rcvmsg_t ngt_rcvmsg;
+static ng_shutdown_t ngt_shutdown;
+static ng_newhook_t ngt_newhook;
+static ng_connect_t ngt_connect;
+static ng_rcvdata_t ngt_rcvdata;
+static ng_disconnect_t ngt_disconnect;
 
-#define ERROUT(x)		do { error = (x); goto done; } while (0)
+#define ERROUT(x)            \
+	do {                 \
+		error = (x); \
+		goto done;   \
+	} while (0)
 
-static th_getc_inject_t		ngt_getc_inject;
-static th_getc_poll_t		ngt_getc_poll;
-static th_rint_t		ngt_rint;
-static th_rint_bypass_t		ngt_rint_bypass;
-static th_rint_poll_t		ngt_rint_poll;
+static th_getc_inject_t ngt_getc_inject;
+static th_getc_poll_t ngt_getc_poll;
+static th_rint_t ngt_rint;
+static th_rint_bypass_t ngt_rint_bypass;
+static th_rint_poll_t ngt_rint_poll;
 
 static struct ttyhook ngt_hook = {
 	.th_getc_inject = ngt_getc_inject,
@@ -125,20 +128,20 @@ static struct ttyhook ngt_hook = {
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
-	.version =	NG_ABI_VERSION,
-	.name =		NG_TTY_NODE_TYPE,
-	.constructor =	ngt_constructor,
-	.rcvmsg =	ngt_rcvmsg,
-	.shutdown =	ngt_shutdown,
-	.newhook =	ngt_newhook,
-	.connect =	ngt_connect,
-	.rcvdata =	ngt_rcvdata,
-	.disconnect =	ngt_disconnect,
+	.version = NG_ABI_VERSION,
+	.name = NG_TTY_NODE_TYPE,
+	.constructor = ngt_constructor,
+	.rcvmsg = ngt_rcvmsg,
+	.shutdown = ngt_shutdown,
+	.newhook = ngt_newhook,
+	.connect = ngt_connect,
+	.rcvdata = ngt_rcvdata,
+	.disconnect = ngt_disconnect,
 };
 NETGRAPH_INIT(tty, &typestruct);
 
-#define	NGTLOCK(sc)	IF_LOCK(&sc->outq)
-#define	NGTUNLOCK(sc)	IF_UNLOCK(&sc->outq)
+#define NGTLOCK(sc) IF_LOCK(&sc->outq)
+#define NGTUNLOCK(sc) IF_UNLOCK(&sc->outq)
 
 /******************************************************************
 		    NETGRAPH NODE METHODS
@@ -259,36 +262,35 @@ ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_TTY_SET_TTY:
 			if (sc->tp != NULL)
 				return (EBUSY);
-			
+
 			p = pfind(((int *)msg->data)[0]);
 			if (p == NULL || (p->p_flag & P_WEXIT))
 				return (ESRCH);
 			_PHOLD(p);
 			PROC_UNLOCK(p);
-			error = ttyhook_register(&sc->tp, p, ((int *)msg->data)[1],
-			    &ngt_hook, sc);
+			error = ttyhook_register(
+			    &sc->tp, p, ((int *)msg->data)[1], &ngt_hook, sc);
 			PRELE(p);
 			if (error != 0)
 				return (error);
 			break;
-		case NGM_TTY_SET_HOTCHAR:
-		    {
-			int     hotchar;
+		case NGM_TTY_SET_HOTCHAR: {
+			int hotchar;
 
 			if (msg->header.arglen != sizeof(int))
 				ERROUT(EINVAL);
-			hotchar = *((int *) msg->data);
-			if (hotchar != (u_char) hotchar && hotchar != -1)
+			hotchar = *((int *)msg->data);
+			if (hotchar != (u_char)hotchar && hotchar != -1)
 				ERROUT(EINVAL);
-			sc->hotchar = hotchar;	/* race condition is OK */
+			sc->hotchar = hotchar; /* race condition is OK */
 			break;
-		    }
+		}
 		case NGM_TTY_GET_HOTCHAR:
 			NG_MKRESPONSE(resp, msg, sizeof(int), M_NOWAIT);
 			if (!resp)
 				ERROUT(ENOMEM);
 			/* Race condition here is OK */
-			*((int *) resp->data) = sc->hotchar;
+			*((int *)resp->data) = sc->hotchar;
 			break;
 		default:
 			ERROUT(EINVAL);
@@ -371,7 +373,7 @@ ngt_getc_inject(struct tty *tp, void *buf, size_t len)
 			len -= length;
 
 			if (m->m_len > 0)
-				break;	/* device can't take any more */
+				break; /* device can't take any more */
 			m = m_free(m);
 		}
 
@@ -420,8 +422,8 @@ ngt_rint_bypass(struct tty *tp, const void *buf, size_t len)
 	m = m_getm2(NULL, len, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		if (sc->flags & FLG_DEBUG)
-			log(LOG_ERR,
-			    "%s: can't get mbuf\n", NG_NODE_NAME(node));
+			log(LOG_ERR, "%s: can't get mbuf\n",
+			    NG_NODE_NAME(node));
 		return (0);
 	}
 	m->m_pkthdr.rcvif = NULL;
@@ -477,8 +479,8 @@ ngt_rint(struct tty *tp, char c, int flags)
 		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (!m) {
 			if (sc->flags & FLG_DEBUG)
-				log(LOG_ERR,
-				    "%s: can't get mbuf\n", NG_NODE_NAME(node));
+				log(LOG_ERR, "%s: can't get mbuf\n",
+				    NG_NODE_NAME(node));
 			return (ENOBUFS);
 		}
 		m->m_len = m->m_pkthdr.len = 0;
@@ -495,7 +497,7 @@ ngt_rint(struct tty *tp, char c, int flags)
 	/* Ship off mbuf if it's time */
 	if (sc->hotchar == -1 || c == sc->hotchar || m->m_len >= MHLEN) {
 		sc->m = NULL;
-		NG_SEND_DATA_ONLY(error, sc->hook, m);	/* Will queue */
+		NG_SEND_DATA_ONLY(error, sc->hook, m); /* Will queue */
 	}
 
 	return (error);

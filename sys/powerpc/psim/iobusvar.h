@@ -32,24 +32,24 @@
 #ifndef _PSIM_IOBUSVAR_H_
 #define _PSIM_IOBUSVAR_H_
 
-/* 
+/*
  * Accessors for iobus devices
  */
 
 enum iobus_ivars {
-        IOBUS_IVAR_NODE,
-        IOBUS_IVAR_NAME,
+	IOBUS_IVAR_NODE,
+	IOBUS_IVAR_NAME,
 	IOBUS_IVAR_NREGS,
 	IOBUS_IVAR_REGS,
 };
 
-#define IOBUS_ACCESSOR(var, ivar, type)                                 \
-        __BUS_ACCESSOR(iobus, var, IOBUS, ivar, type)
+#define IOBUS_ACCESSOR(var, ivar, type) \
+	__BUS_ACCESSOR(iobus, var, IOBUS, ivar, type)
 
-IOBUS_ACCESSOR(node,            NODE,                   phandle_t)
-IOBUS_ACCESSOR(name,            NAME,                   char *)
-IOBUS_ACCESSOR(nregs,           NREGS,                  u_int)
-IOBUS_ACCESSOR(regs,            REGS,                   u_int *)
+IOBUS_ACCESSOR(node, NODE, phandle_t)
+IOBUS_ACCESSOR(name, NAME, char *)
+IOBUS_ACCESSOR(nregs, NREGS, u_int)
+IOBUS_ACCESSOR(regs, REGS, u_int *)
 
 #undef IOBUS_ACCESSOR
 
@@ -57,12 +57,12 @@ IOBUS_ACCESSOR(regs,            REGS,                   u_int *)
  * Per-device structure.
  */
 struct iobus_devinfo {
-        phandle_t  id_node;
-        char      *id_name;
-        int        id_interrupt;
-	u_int      id_nregs;
-	u_int      id_reg[24];
-        struct resource_list id_resources;
+	phandle_t id_node;
+	char *id_name;
+	int id_interrupt;
+	u_int id_nregs;
+	u_int id_reg[24];
+	struct resource_list id_resources;
 };
 
 #endif /* _PSIM_IOBUSVAR_H_ */

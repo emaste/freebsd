@@ -31,67 +31,67 @@
 #define UDF_HASHTBLSIZE 100
 
 struct udf_node {
-	struct vnode	*i_vnode;
-	struct udf_mnt	*udfmp;
-	ino_t		hash_id;
-	long		diroff;
+	struct vnode *i_vnode;
+	struct udf_mnt *udfmp;
+	ino_t hash_id;
+	long diroff;
 	struct file_entry *fentry;
 };
 
 struct udf_mnt {
-	int			im_flags;
-	struct mount		*im_mountp;
-	struct g_consumer	*im_cp;
-	struct bufobj		*im_bo;
+	int im_flags;
+	struct mount *im_mountp;
+	struct g_consumer *im_cp;
+	struct bufobj *im_bo;
 	struct cdev *im_dev;
-	struct vnode		*im_devvp;
-	int			bsize;
-	int			bshift;
-	int			bmask;
-	uint32_t		part_start;
-	uint32_t		part_len;
-	uint64_t		root_id;
-	struct long_ad		root_icb;
-	int			p_sectors;
-	int			s_table_entries;
+	struct vnode *im_devvp;
+	int bsize;
+	int bshift;
+	int bmask;
+	uint32_t part_start;
+	uint32_t part_len;
+	uint64_t root_id;
+	struct long_ad root_icb;
+	int p_sectors;
+	int s_table_entries;
 	struct udf_sparing_table *s_table;
-	void			*im_d2l;	/* disk->local iconv handle */
+	void *im_d2l; /* disk->local iconv handle */
 #if 0
 	void			*im_l2d;	/* local->disk iconv handle */
 #endif
 };
 
 struct udf_dirstream {
-	struct udf_node	*node;
-	struct udf_mnt	*udfmp;
-	struct buf	*bp;
-	uint8_t		*data;
-	uint8_t		*buf;
-	int		fsize;
-	int		off;
-	int		this_off;
-	int		offset;
-	int		size;
-	int		error;
-	int		fid_fragment;
+	struct udf_node *node;
+	struct udf_mnt *udfmp;
+	struct buf *bp;
+	uint8_t *data;
+	uint8_t *buf;
+	int fsize;
+	int off;
+	int this_off;
+	int offset;
+	int size;
+	int error;
+	int fid_fragment;
 };
 
 struct ifid {
-	u_short	ifid_len;
-	u_short	ifid_pad;
-	int	ifid_ino;
-	long	ifid_start;
+	u_short ifid_len;
+	u_short ifid_pad;
+	int ifid_ino;
+	long ifid_start;
 };
 
-#define	VFSTOUDFFS(mp)	((struct udf_mnt *)((mp)->mnt_data))
-#define	VTON(vp)	((struct udf_node *)((vp)->v_data))
+#define VFSTOUDFFS(mp) ((struct udf_mnt *)((mp)->mnt_data))
+#define VTON(vp) ((struct udf_node *)((vp)->v_data))
 
 /*
  * The block layer refers to things in terms of 512 byte blocks by default.
  * btodb() is expensive, so speed things up.
  * XXX Can the block layer be forced to use a different block size?
  */
-#define	RDSECTOR(devvp, sector, size, bp) \
+#define RDSECTOR(devvp, sector, size, bp) \
 	bread(devvp, sector << (udfmp->bshift - DEV_BSHIFT), size, NOCRED, bp)
 
 MALLOC_DECLARE(M_UDFFENTRY);
@@ -100,7 +100,7 @@ static __inline int
 udf_readdevblks(struct udf_mnt *udfmp, int sector, int size, struct buf **bp)
 {
 	return (RDSECTOR(udfmp->im_devvp, sector,
-			 (size + udfmp->bmask) & ~udfmp->bmask, bp));
+	    (size + udfmp->bmask) & ~udfmp->bmask, bp));
 }
 
 /*

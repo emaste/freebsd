@@ -28,16 +28,16 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_PTE_H_
-#define	_MACHINE_PTE_H_
+#ifndef _MACHINE_PTE_H_
+#define _MACHINE_PTE_H_
 
 #ifndef _LOCORE
 #if defined(__mips_n64) || defined(__mips_n32) /*  PHYSADDR_64_BIT */
-typedef	uint64_t pt_entry_t;
+typedef uint64_t pt_entry_t;
 #else
-typedef	uint32_t pt_entry_t;
+typedef uint32_t pt_entry_t;
 #endif
-typedef	pt_entry_t *pd_entry_t;
+typedef pt_entry_t *pd_entry_t;
 #endif
 
 /*
@@ -47,15 +47,15 @@ typedef	pt_entry_t *pd_entry_t;
  *
  * Note that we use the same size VM and TLB pages.
  */
-#define	TLB_PAGE_SHIFT	(PAGE_SHIFT)
-#define	TLB_PAGE_SIZE	(1 << TLB_PAGE_SHIFT)
-#define	TLB_PAGE_MASK	(TLB_PAGE_SIZE - 1)
+#define TLB_PAGE_SHIFT (PAGE_SHIFT)
+#define TLB_PAGE_SIZE (1 << TLB_PAGE_SHIFT)
+#define TLB_PAGE_MASK (TLB_PAGE_SIZE - 1)
 
 /*
  * TLB PageMask register.  Has mask bits set above the default, 4K, page mask.
  */
-#define	TLBMASK_SHIFT	(13)
-#define	TLBMASK_MASK	((PAGE_MASK >> TLBMASK_SHIFT) << TLBMASK_SHIFT)
+#define TLBMASK_SHIFT (13)
+#define TLBMASK_MASK ((PAGE_MASK >> TLBMASK_SHIFT) << TLBMASK_SHIFT)
 
 /*
  * FreeBSD/mips page-table entries take a near-identical format to MIPS TLB
@@ -76,20 +76,22 @@ typedef	pt_entry_t *pd_entry_t;
  * memory size limit may not be sufficiently enforced elsewhere.
  */
 #if defined(__mips_n64) || defined(__mips_n32) /*  PHYSADDR_64_BIT */
-#define	TLBLO_SWBITS_SHIFT	(55)
-#define	TLBLO_SWBITS_CLEAR_SHIFT	(9)
-#define	TLBLO_PFN_MASK		0x3FFFFFFC0ULL
+#define TLBLO_SWBITS_SHIFT (55)
+#define TLBLO_SWBITS_CLEAR_SHIFT (9)
+#define TLBLO_PFN_MASK 0x3FFFFFFC0ULL
 #else
-#define	TLBLO_SWBITS_SHIFT	(29)
-#define	TLBLO_SWBITS_CLEAR_SHIFT	(3)
-#define	TLBLO_PFN_MASK		(0x1FFFFFC0)
+#define TLBLO_SWBITS_SHIFT (29)
+#define TLBLO_SWBITS_CLEAR_SHIFT (3)
+#define TLBLO_PFN_MASK (0x1FFFFFC0)
 #endif
-#define	TLBLO_PFN_SHIFT		(6)
-#define	TLBLO_SWBITS_MASK	((pt_entry_t)0x7 << TLBLO_SWBITS_SHIFT)
-#define	TLBLO_PA_TO_PFN(pa)	((((pa) >> TLB_PAGE_SHIFT) << TLBLO_PFN_SHIFT) & TLBLO_PFN_MASK)
-#define	TLBLO_PFN_TO_PA(pfn)	((vm_paddr_t)((pfn) >> TLBLO_PFN_SHIFT) << TLB_PAGE_SHIFT)
-#define	TLBLO_PTE_TO_PFN(pte)	((pte) & TLBLO_PFN_MASK)
-#define	TLBLO_PTE_TO_PA(pte)	(TLBLO_PFN_TO_PA(TLBLO_PTE_TO_PFN((pte))))
+#define TLBLO_PFN_SHIFT (6)
+#define TLBLO_SWBITS_MASK ((pt_entry_t)0x7 << TLBLO_SWBITS_SHIFT)
+#define TLBLO_PA_TO_PFN(pa) \
+	((((pa) >> TLB_PAGE_SHIFT) << TLBLO_PFN_SHIFT) & TLBLO_PFN_MASK)
+#define TLBLO_PFN_TO_PA(pfn) \
+	((vm_paddr_t)((pfn) >> TLBLO_PFN_SHIFT) << TLB_PAGE_SHIFT)
+#define TLBLO_PTE_TO_PFN(pte) ((pte)&TLBLO_PFN_MASK)
+#define TLBLO_PTE_TO_PA(pte) (TLBLO_PFN_TO_PA(TLBLO_PTE_TO_PFN((pte))))
 
 /*
  * XXX This comment is not correct for anything more modern than R4K.
@@ -102,24 +104,27 @@ typedef	pt_entry_t *pd_entry_t;
  * XXX This comment is not correct for FreeBSD.
  * Note that in FreeBSD, we map 2 TLB pages is equal to 1 VM page.
  */
-#define	TLBHI_ASID_MASK		(0xff)
+#define TLBHI_ASID_MASK (0xff)
 #if defined(__mips_n64)
-#define	TLBHI_R_SHIFT		62
-#define	TLBHI_R_USER		(0x00UL << TLBHI_R_SHIFT)
-#define	TLBHI_R_SUPERVISOR	(0x01UL << TLBHI_R_SHIFT)
-#define	TLBHI_R_KERNEL		(0x03UL << TLBHI_R_SHIFT)
-#define	TLBHI_R_MASK		(0x03UL << TLBHI_R_SHIFT)
-#define	TLBHI_VA_R(va)		((va) & TLBHI_R_MASK)
-#define	TLBHI_FILL_SHIFT	40
-#define	TLBHI_VPN2_SHIFT	(TLB_PAGE_SHIFT + 1)
-#define	TLBHI_VPN2_MASK		(((~((1UL << TLBHI_VPN2_SHIFT) - 1)) << (63 - TLBHI_FILL_SHIFT)) >> (63 - TLBHI_FILL_SHIFT))
-#define	TLBHI_VA_TO_VPN2(va)	((va) & TLBHI_VPN2_MASK)
-#define	TLBHI_ENTRY(va, asid)	((TLBHI_VA_R((va))) /* Region. */ | \
-				 (TLBHI_VA_TO_VPN2((va))) /* VPN2. */ | \
-				 ((asid) & TLBHI_ASID_MASK))
+#define TLBHI_R_SHIFT 62
+#define TLBHI_R_USER (0x00UL << TLBHI_R_SHIFT)
+#define TLBHI_R_SUPERVISOR (0x01UL << TLBHI_R_SHIFT)
+#define TLBHI_R_KERNEL (0x03UL << TLBHI_R_SHIFT)
+#define TLBHI_R_MASK (0x03UL << TLBHI_R_SHIFT)
+#define TLBHI_VA_R(va) ((va)&TLBHI_R_MASK)
+#define TLBHI_FILL_SHIFT 40
+#define TLBHI_VPN2_SHIFT (TLB_PAGE_SHIFT + 1)
+#define TLBHI_VPN2_MASK                                                     \
+	(((~((1UL << TLBHI_VPN2_SHIFT) - 1)) << (63 - TLBHI_FILL_SHIFT)) >> \
+	    (63 - TLBHI_FILL_SHIFT))
+#define TLBHI_VA_TO_VPN2(va) ((va)&TLBHI_VPN2_MASK)
+#define TLBHI_ENTRY(va, asid)               \
+	((TLBHI_VA_R((va))) /* Region. */ | \
+	    (TLBHI_VA_TO_VPN2((va))) /* VPN2. */ | ((asid)&TLBHI_ASID_MASK))
 #else /* !defined(__mips_n64) */
-#define	TLBHI_PAGE_MASK		(2 * PAGE_SIZE - 1)
-#define	TLBHI_ENTRY(va, asid)	(((va) & ~TLBHI_PAGE_MASK) | ((asid) & TLBHI_ASID_MASK))
+#define TLBHI_PAGE_MASK (2 * PAGE_SIZE - 1)
+#define TLBHI_ENTRY(va, asid) \
+	(((va) & ~TLBHI_PAGE_MASK) | ((asid)&TLBHI_ASID_MASK))
 #endif /* defined(__mips_n64) */
 
 /*
@@ -133,14 +138,14 @@ typedef	pt_entry_t *pd_entry_t;
  * 		in EVERY address space, and to ignore the ASID when
  * 		it is matched.
  */
-#define	PTE_C(attr)		((attr & 0x07) << 3)
-#define	PTE_C_MASK		(PTE_C(0x07))
-#define	PTE_C_UNCACHED		(PTE_C(MIPS_CCA_UNCACHED))
-#define	PTE_C_CACHE		(PTE_C(MIPS_CCA_CACHED))
-#define	PTE_C_WC		(PTE_C(MIPS_CCA_WC))
-#define	PTE_D			0x04
-#define	PTE_V			0x02
-#define	PTE_G			0x01
+#define PTE_C(attr) ((attr & 0x07) << 3)
+#define PTE_C_MASK (PTE_C(0x07))
+#define PTE_C_UNCACHED (PTE_C(MIPS_CCA_UNCACHED))
+#define PTE_C_CACHE (PTE_C(MIPS_CCA_CACHED))
+#define PTE_C_WC (PTE_C(MIPS_CCA_WC))
+#define PTE_D 0x04
+#define PTE_V 0x02
+#define PTE_G 0x01
 
 /*
  * VM flags managed in software:
@@ -152,58 +157,60 @@ typedef	pt_entry_t *pd_entry_t;
  * These bits should not be written into the TLB, so must first be masked out
  * explicitly in C, or using CLEAR_PTE_SWBITS() in assembly.
  */
-#define	PTE_RO			((pt_entry_t)0x01 << TLBLO_SWBITS_SHIFT)
-#define	PTE_W			((pt_entry_t)0x02 << TLBLO_SWBITS_SHIFT)
-#define	PTE_MANAGED		((pt_entry_t)0x04 << TLBLO_SWBITS_SHIFT)
+#define PTE_RO ((pt_entry_t)0x01 << TLBLO_SWBITS_SHIFT)
+#define PTE_W ((pt_entry_t)0x02 << TLBLO_SWBITS_SHIFT)
+#define PTE_MANAGED ((pt_entry_t)0x04 << TLBLO_SWBITS_SHIFT)
 
 /*
  * PTE management functions for bits defined above.
  */
-#define	pte_clear(pte, bit)	(*(pte) &= ~(bit))
-#define	pte_set(pte, bit)	(*(pte) |= (bit))
-#define	pte_test(pte, bit)	((*(pte) & (bit)) == (bit))
-#define	pte_cache_bits(pte)	((*(pte) >> 3) & 0x07)
+#define pte_clear(pte, bit) (*(pte) &= ~(bit))
+#define pte_set(pte, bit) (*(pte) |= (bit))
+#define pte_test(pte, bit) ((*(pte) & (bit)) == (bit))
+#define pte_cache_bits(pte) ((*(pte) >> 3) & 0x07)
 
 /* Assembly support for PTE access*/
 #ifdef LOCORE
 #if defined(__mips_n64) || defined(__mips_n32) /*  PHYSADDR_64_BIT */
-#define	PTESHIFT		3
-#define	PTE2MASK		0xff0	/* for the 2-page lo0/lo1 */
-#define	PTEMASK			0xff8
-#define	PTESIZE			8
-#define	PTE_L			ld
-#define	PTE_MTC0		dmtc0
-#define	CLEAR_PTE_SWBITS(pr)
+#define PTESHIFT 3
+#define PTE2MASK 0xff0 /* for the 2-page lo0/lo1 */
+#define PTEMASK 0xff8
+#define PTESIZE 8
+#define PTE_L ld
+#define PTE_MTC0 dmtc0
+#define CLEAR_PTE_SWBITS(pr)
 #else
-#define	PTESHIFT		2
-#define	PTE2MASK		0xff8	/* for the 2-page lo0/lo1 */
-#define	PTEMASK			0xffc
-#define	PTESIZE			4
-#define	PTE_L			lw
-#define	PTE_MTC0		mtc0
-#define	CLEAR_PTE_SWBITS(r)	LONG_SLL r, TLBLO_SWBITS_CLEAR_SHIFT; LONG_SRL r, TLBLO_SWBITS_CLEAR_SHIFT /* remove swbits */
+#define PTESHIFT 2
+#define PTE2MASK 0xff8 /* for the 2-page lo0/lo1 */
+#define PTEMASK 0xffc
+#define PTESIZE 4
+#define PTE_L lw
+#define PTE_MTC0 mtc0
+#define CLEAR_PTE_SWBITS(r)                   \
+	LONG_SLL r, TLBLO_SWBITS_CLEAR_SHIFT; \
+	LONG_SRL r, TLBLO_SWBITS_CLEAR_SHIFT /* remove swbits */
 #endif /* defined(__mips_n64) || defined(__mips_n32) */
 
 #if defined(__mips_n64)
-#define	PTRSHIFT		3
-#define	PDEPTRMASK		0xff8
+#define PTRSHIFT 3
+#define PDEPTRMASK 0xff8
 #else
-#define	PTRSHIFT		2
-#define	PDEPTRMASK		0xffc
+#define PTRSHIFT 2
+#define PDEPTRMASK 0xffc
 #endif
 
 #endif /* LOCORE */
 
 /* PageMask Register (CP0 Register 5, Select 0) Values */
-#define	MIPS3_PGMASK_MASKX	0x00001800
-#define	MIPS3_PGMASK_4K		0x00000000
-#define	MIPS3_PGMASK_16K	0x00006000
-#define	MIPS3_PGMASK_64K	0x0001e000
-#define	MIPS3_PGMASK_256K	0x0007e000
-#define	MIPS3_PGMASK_1M		0x001fe000
-#define	MIPS3_PGMASK_4M		0x007fe000
-#define	MIPS3_PGMASK_16M	0x01ffe000
-#define	MIPS3_PGMASK_64M	0x07ffe000
-#define	MIPS3_PGMASK_256M	0x1fffe000
+#define MIPS3_PGMASK_MASKX 0x00001800
+#define MIPS3_PGMASK_4K 0x00000000
+#define MIPS3_PGMASK_16K 0x00006000
+#define MIPS3_PGMASK_64K 0x0001e000
+#define MIPS3_PGMASK_256K 0x0007e000
+#define MIPS3_PGMASK_1M 0x001fe000
+#define MIPS3_PGMASK_4M 0x007fe000
+#define MIPS3_PGMASK_16M 0x01ffe000
+#define MIPS3_PGMASK_64M 0x07ffe000
+#define MIPS3_PGMASK_256M 0x1fffe000
 
 #endif /* !_MACHINE_PTE_H_ */

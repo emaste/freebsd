@@ -29,18 +29,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/rman.h>
-#include <sys/systm.h>
-
-#include <dev/fdt/simplebus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/ofw_bus.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
+
+#include <dev/fdt/simplebus.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include "mdio_if.h"
 
@@ -54,56 +54,54 @@ struct brcm_mdionexus_softc {
 
 /* OFW bus interface */
 struct brcm_mdionexus_ofw_devinfo {
-	struct ofw_bus_devinfo	di_dinfo;
-	struct resource_list	di_rl;
+	struct ofw_bus_devinfo di_dinfo;
+	struct resource_list di_rl;
 };
 
 static device_probe_t brcm_mdionexus_fdt_probe;
 static device_attach_t brcm_mdionexus_fdt_attach;
 
-static const struct ofw_bus_devinfo * brcm_mdionexus_ofw_get_devinfo(device_t,
-    device_t);
+static const struct ofw_bus_devinfo *brcm_mdionexus_ofw_get_devinfo(
+    device_t, device_t);
 static int brcm_mdionexus_mdio_readreg(device_t, int, int);
 static int brcm_mdionexus_mdio_writereg(device_t, int, int, int);
 
 static device_method_t brcm_mdionexus_fdt_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		brcm_mdionexus_fdt_probe),
-	DEVMETHOD(device_attach,	brcm_mdionexus_fdt_attach),
+	DEVMETHOD(device_probe, brcm_mdionexus_fdt_probe),
+	DEVMETHOD(device_attach, brcm_mdionexus_fdt_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_alloc_resource,		bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,		bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
+	DEVMETHOD(bus_alloc_resource, bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_devinfo,	brcm_mdionexus_ofw_get_devinfo),
-	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
-	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
-	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
-	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
-	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+	DEVMETHOD(ofw_bus_get_devinfo, brcm_mdionexus_ofw_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat, ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model, ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name, ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node, ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type, ofw_bus_gen_get_type),
 
 	/* MDIO interface */
 	/* MDIO interface */
-	DEVMETHOD(mdio_readreg,		brcm_mdionexus_mdio_readreg),
-	DEVMETHOD(mdio_writereg,	brcm_mdionexus_mdio_writereg),
+	DEVMETHOD(mdio_readreg, brcm_mdionexus_mdio_readreg),
+	DEVMETHOD(mdio_writereg, brcm_mdionexus_mdio_writereg),
 
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(brcm_mdionexus, brcm_mdionexus_fdt_driver, brcm_mdionexus_fdt_methods,
-    sizeof(struct brcm_mdionexus_softc));
+DEFINE_CLASS_0(brcm_mdionexus, brcm_mdionexus_fdt_driver,
+    brcm_mdionexus_fdt_methods, sizeof(struct brcm_mdionexus_softc));
 
 static devclass_t brcm_mdionexus_fdt_devclass;
 
-static driver_t brcm_mdionexus_driver = {
-        "brcm_mdionexus",
-	brcm_mdionexus_fdt_methods,
-        sizeof(struct brcm_mdionexus_softc)
-};
+static driver_t brcm_mdionexus_driver = { "brcm_mdionexus",
+	brcm_mdionexus_fdt_methods, sizeof(struct brcm_mdionexus_softc) };
 EARLY_DRIVER_MODULE(brcm_mdionexus, brcm_iproc_mdio, brcm_mdionexus_driver,
-    brcm_mdionexus_fdt_devclass, NULL, NULL, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+    brcm_mdionexus_fdt_devclass, NULL, NULL,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 static int brcm_mdionexus_ofw_bus_attach(device_t);
 
@@ -114,8 +112,7 @@ brcm_mdionexus_mdio_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	return (MDIO_READREG_MUX(device_get_parent(dev),
-			sc->mux_id, phy, reg));
+	return (MDIO_READREG_MUX(device_get_parent(dev), sc->mux_id, phy, reg));
 }
 
 static int
@@ -125,8 +122,8 @@ brcm_mdionexus_mdio_writereg(device_t dev, int phy, int reg, int val)
 
 	sc = device_get_softc(dev);
 
-	return (MDIO_WRITEREG_MUX(device_get_parent(dev),
-			sc->mux_id, phy, reg, val));
+	return (MDIO_WRITEREG_MUX(
+	    device_get_parent(dev), sc->mux_id, phy, reg, val));
 }
 
 static __inline void
@@ -165,7 +162,8 @@ brcm_mdionexus_fdt_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	get_addr_size_cells(node, &addr_cells, &size_cells);
 	if ((addr_cells != 1) || (size_cells != 0)) {
-		device_printf(dev, "Only addr_cells=1 and size_cells=0 are supported\n");
+		device_printf(
+		    dev, "Only addr_cells=1 and size_cells=0 are supported\n");
 		return (EINVAL);
 	}
 
@@ -214,8 +212,8 @@ brcm_mdionexus_ofw_bus_attach(device_t dev)
 
 		/* Initialize and populate resource list. */
 		resource_list_init(&di->di_rl);
-		ofw_bus_reg_to_rl(dev, node, sc->acells, sc->scells,
-		    &di->di_rl);
+		ofw_bus_reg_to_rl(
+		    dev, node, sc->acells, sc->scells, &di->di_rl);
 		ofw_bus_intr_to_rl(dev, node, &di->di_rl, NULL);
 
 		/* Add newbus device for this FDT node */

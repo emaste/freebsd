@@ -39,10 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <kgssapi/gssapi_impl.h>
 
 OM_uint32
-gss_test_oid_set_member(OM_uint32 *minor_status,
-    const gss_OID member,
-    const gss_OID_set set,
-    int *present)
+gss_test_oid_set_member(OM_uint32 *minor_status, const gss_OID member,
+    const gss_OID_set set, int *present)
 {
 	size_t i;
 

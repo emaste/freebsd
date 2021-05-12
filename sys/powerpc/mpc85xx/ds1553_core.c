@@ -102,18 +102,19 @@ ds1553_gettime(device_t dev, struct timespec *ts)
 	(*sc->sc_write)(dev, DS1553_OFF_CONTROL, control);
 
 	ct.nsec = 0;
-	ct.sec = FROMBCD((*sc->sc_read)(dev, DS1553_OFF_SECONDS) &
-	    DS1553_MASK_SECONDS);
-	ct.min = FROMBCD((*sc->sc_read)(dev, DS1553_OFF_MINUTES) &
-	    DS1553_MASK_MINUTES);
-	ct.hour = FROMBCD((*sc->sc_read)(dev, DS1553_OFF_HOURS) &
-	    DS1553_MASK_HOUR);
+	ct.sec = FROMBCD(
+	    (*sc->sc_read)(dev, DS1553_OFF_SECONDS) & DS1553_MASK_SECONDS);
+	ct.min = FROMBCD(
+	    (*sc->sc_read)(dev, DS1553_OFF_MINUTES) & DS1553_MASK_MINUTES);
+	ct.hour = FROMBCD(
+	    (*sc->sc_read)(dev, DS1553_OFF_HOURS) & DS1553_MASK_HOUR);
 	ct.dow = FROMBCD((*sc->sc_read)(dev, DS1553_OFF_DAYOFWEEK) &
-	    DS1553_MASK_DAYOFWEEK) - 1;
-	ct.day = FROMBCD((*sc->sc_read)(dev, DS1553_OFF_DATE) &
-	    DS1553_MASK_DATE);
-	ct.mon = FROMBCD((*sc->sc_read)(dev, DS1553_OFF_MONTH) &
-	    DS1553_MASK_MONTH);
+		     DS1553_MASK_DAYOFWEEK) -
+	    1;
+	ct.day = FROMBCD(
+	    (*sc->sc_read)(dev, DS1553_OFF_DATE) & DS1553_MASK_DATE);
+	ct.mon = FROMBCD(
+	    (*sc->sc_read)(dev, DS1553_OFF_MONTH) & DS1553_MASK_MONTH);
 	ct.year = FROMBCD((*sc->sc_read)(dev, DS1553_OFF_YEAR));
 
 	control &= ~DS1553_BIT_READ;
@@ -154,18 +155,17 @@ ds1553_settime(device_t dev, struct timespec *ts)
 	control = (*sc->sc_read)(dev, DS1553_OFF_CONTROL) | DS1553_BIT_WRITE;
 	(*sc->sc_write)(dev, DS1553_OFF_CONTROL, control);
 
-	(*sc->sc_write)(dev, DS1553_OFF_SECONDS, TOBCD(ct.sec) &
-	    DS1553_MASK_SECONDS);
-	(*sc->sc_write)(dev, DS1553_OFF_MINUTES, TOBCD(ct.min) &
-	    DS1553_MASK_MINUTES);
-	(*sc->sc_write)(dev, DS1553_OFF_HOURS, TOBCD(ct.hour) &
-	    DS1553_MASK_HOUR);
-	(*sc->sc_write)(dev, DS1553_OFF_DAYOFWEEK, TOBCD(ct.dow + 1) &
-	    DS1553_MASK_DAYOFWEEK);
-	(*sc->sc_write)(dev, DS1553_OFF_DATE, TOBCD(ct.day) &
-	    DS1553_MASK_DATE);
-	(*sc->sc_write)(dev, DS1553_OFF_MONTH, TOBCD(ct.mon) &
-	    DS1553_MASK_MONTH);
+	(*sc->sc_write)(
+	    dev, DS1553_OFF_SECONDS, TOBCD(ct.sec) & DS1553_MASK_SECONDS);
+	(*sc->sc_write)(
+	    dev, DS1553_OFF_MINUTES, TOBCD(ct.min) & DS1553_MASK_MINUTES);
+	(*sc->sc_write)(
+	    dev, DS1553_OFF_HOURS, TOBCD(ct.hour) & DS1553_MASK_HOUR);
+	(*sc->sc_write)(dev, DS1553_OFF_DAYOFWEEK,
+	    TOBCD(ct.dow + 1) & DS1553_MASK_DAYOFWEEK);
+	(*sc->sc_write)(dev, DS1553_OFF_DATE, TOBCD(ct.day) & DS1553_MASK_DATE);
+	(*sc->sc_write)(
+	    dev, DS1553_OFF_MONTH, TOBCD(ct.mon) & DS1553_MASK_MONTH);
 	(*sc->sc_write)(dev, DS1553_OFF_YEAR, TOBCD(ct.year));
 
 	/* Resume updates to external registers */

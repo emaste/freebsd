@@ -29,12 +29,12 @@
  */
 
 #ifndef _SYS_UUID_H_
-#define	_SYS_UUID_H_
+#define _SYS_UUID_H_
 
 #include <sys/cdefs.h>
 
 /* Length of a node address (an IEEE 802 address). */
-#define	_UUID_NODE_LEN		6
+#define _UUID_NODE_LEN 6
 
 /*
  * See also:
@@ -44,17 +44,17 @@
  * A DCE 1.1 compatible source representation of UUIDs.
  */
 struct uuid {
-	uint32_t	time_low;
-	uint16_t	time_mid;
-	uint16_t	time_hi_and_version;
-	uint8_t		clock_seq_hi_and_reserved;
-	uint8_t		clock_seq_low;
-	uint8_t		node[_UUID_NODE_LEN];
+	uint32_t time_low;
+	uint16_t time_mid;
+	uint16_t time_hi_and_version;
+	uint8_t clock_seq_hi_and_reserved;
+	uint8_t clock_seq_low;
+	uint8_t node[_UUID_NODE_LEN];
 };
 
 #ifdef _KERNEL
 
-#define	UUID_NODE_LEN	_UUID_NODE_LEN
+#define UUID_NODE_LEN _UUID_NODE_LEN
 
 struct sbuf;
 
@@ -77,8 +77,8 @@ int validate_uuid(const char *, size_t, struct uuid *, int);
 int parse_uuid(const char *, struct uuid *);
 
 /* Flags to validate_uuid(). */
-#define	VUUIDF_EMPTYOK		0x0001
-#define	VUUIDF_CHECKSEMANTICS	0x0002
+#define VUUIDF_EMPTYOK 0x0001
+#define VUUIDF_CHECKSEMANTICS 0x0002
 
 int uuidcmp(const struct uuid *, const struct uuid *);
 
@@ -87,15 +87,15 @@ void be_uuid_enc(void *buf, struct uuid const *uuid);
 void le_uuid_dec(void const *buf, struct uuid *uuid);
 void le_uuid_enc(void *buf, struct uuid const *uuid);
 
-#else	/* _KERNEL */
+#else /* _KERNEL */
 
 /* XXX namespace pollution? */
 typedef struct uuid uuid_t;
 
 __BEGIN_DECLS
-int	uuidgen(struct uuid *, int);
+int uuidgen(struct uuid *, int);
 __END_DECLS
 
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
 #endif /* _SYS_UUID_H_ */

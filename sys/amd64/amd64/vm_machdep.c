@@ -45,8 +45,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_isa.h"
 #include "opt_cpu.h"
+#include "opt_isa.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -65,9 +65,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/unistd.h>
-#include <sys/vnode.h>
 #include <sys/vmmeter.h>
+#include <sys/vnode.h>
 #include <sys/wait.h>
+
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>
@@ -75,13 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/specialreg.h>
 #include <machine/tss.h>
-
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_page.h>
-#include <vm/vm_map.h>
-#include <vm/vm_param.h>
 
 _Static_assert(OFFSETOF_MONITORBUF == offsetof(struct pcpu, pc_monitorbuf),
     "OFFSETOF_MONITORBUF does not correspond with offset of pc_monitorbuf.");
@@ -164,8 +164,9 @@ copy_thread(struct thread *td1, struct thread *td2)
 	if ((td2->td_pflags & TDP_KTHREAD) != 0) {
 		pcb2->pcb_fsbase = 0;
 		pcb2->pcb_gsbase = 0;
-		clear_pcb_flags(pcb2, PCB_FPUINITDONE | PCB_USERFPUINITDONE |
-		    PCB_KERNFPU | PCB_KERNFPU_THR);
+		clear_pcb_flags(pcb2,
+		    PCB_FPUINITDONE | PCB_USERFPUINITDONE | PCB_KERNFPU |
+			PCB_KERNFPU_THR);
 	} else {
 		MPASS((pcb2->pcb_flags & (PCB_KERNFPU | PCB_KERNFPU_THR)) == 0);
 		bcopy(get_pcb_user_save_td(td1), get_pcb_user_save_pcb(pcb2),
@@ -176,10 +177,10 @@ copy_thread(struct thread *td1, struct thread *td2)
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
 	 */
-	pcb2->pcb_r12 = (register_t)fork_return;	/* fork_trampoline argument */
+	pcb2->pcb_r12 = (register_t)fork_return; /* fork_trampoline argument */
 	pcb2->pcb_rbp = 0;
 	pcb2->pcb_rsp = (register_t)td2->td_frame - sizeof(void *);
-	pcb2->pcb_rbx = (register_t)td2;		/* fork_trampoline argument */
+	pcb2->pcb_rbx = (register_t)td2; /* fork_trampoline argument */
 	pcb2->pcb_rip = (register_t)fork_trampoline;
 	/*-
 	 * pcb2->pcb_dr*:	cloned above.
@@ -243,8 +244,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	td2->td_frame = (struct trapframe *)td2->td_md.md_stack_base - 1;
 	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
 
-	td2->td_frame->tf_rax = 0;		/* Child returns zero */
-	td2->td_frame->tf_rflags &= ~PSL_C;	/* success */
+	td2->td_frame->tf_rax = 0;	    /* Child returns zero */
+	td2->td_frame->tf_rflags &= ~PSL_C; /* success */
 	td2->td_frame->tf_rdx = 1;
 
 	/*
@@ -272,8 +273,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		if (flags & RFMEM) {
 			mdp1->md_ldt->ldt_refcnt++;
 			mdp2->md_ldt = mdp1->md_ldt;
-			bcopy(&mdp1->md_ldt_sd, &mdp2->md_ldt_sd, sizeof(struct
-			    system_segment_descriptor));
+			bcopy(&mdp1->md_ldt_sd, &mdp2->md_ldt_sd,
+			    sizeof(struct system_segment_descriptor));
 		} else {
 			mdp2->md_ldt = NULL;
 			mdp2->md_ldt = user_ldt_alloc(p2, 0);
@@ -281,7 +282,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 				panic("could not copy LDT");
 			amd64_set_ldt_data(td2, 0, max_ldt_segment,
 			    (struct user_segment_descriptor *)
-			    mdp1->md_ldt->ldt_base);
+				mdp1->md_ldt->ldt_base);
 		}
 	} else
 		mdp2->md_ldt = NULL;
@@ -311,8 +312,8 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 	 * Note that the trap frame follows the args, so the function
 	 * is really called like this:  func(arg, frame);
 	 */
-	td->td_pcb->pcb_r12 = (long) func;	/* function */
-	td->td_pcb->pcb_rbx = (long) arg;	/* first arg */
+	td->td_pcb->pcb_r12 = (long)func; /* function */
+	td->td_pcb->pcb_rbx = (long)arg;  /* first arg */
 }
 
 void
@@ -419,8 +420,8 @@ static void
 cpu_procctl_kpti_status(struct proc *p, int *val)
 {
 	*val = (p->p_md.md_flags & P_MD_KPTI) != 0 ?
-	    PROC_KPTI_CTL_ENABLE_ON_EXEC:
-	    PROC_KPTI_CTL_DISABLE_ON_EXEC;
+		  PROC_KPTI_CTL_ENABLE_ON_EXEC :
+		  PROC_KPTI_CTL_DISABLE_ON_EXEC;
 	if (vmspace_pmap(p->p_vmspace)->pm_ucr3 != PMAP_NO_CR3)
 		*val |= PROC_KPTI_STATUS_ACTIVE;
 }
@@ -501,8 +502,7 @@ cpu_procctl(struct thread *td, int idtype, id_t id, int com, void *data)
 			error = EINVAL;
 			break;
 		}
-		if (com == PROC_LA_CTL &&
-		    val != PROC_LA_CTL_LA48_ON_EXEC &&
+		if (com == PROC_LA_CTL && val != PROC_LA_CTL_LA48_ON_EXEC &&
 		    val != PROC_LA_CTL_LA57_ON_EXEC &&
 		    val != PROC_LA_CTL_DEFAULT_ON_EXEC) {
 			error = EINVAL;
@@ -614,11 +614,11 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
  * the entry function with the given argument.
  */
 void
-cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
-    stack_t *stack)
+cpu_set_upcall(
+    struct thread *td, void (*entry)(void *), void *arg, stack_t *stack)
 {
 
-	/* 
+	/*
 	 * Do any extra cleaning that needs to be done.
 	 * The thread may have optional components
 	 * that are not present in a fresh thread.
@@ -635,7 +635,8 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 		 */
 		td->td_frame->tf_rbp = 0;
 		td->td_frame->tf_rsp =
-		   (((uintptr_t)stack->ss_sp + stack->ss_size - 4) & ~0x0f) - 4;
+		    (((uintptr_t)stack->ss_sp + stack->ss_size - 4) & ~0x0f) -
+		    4;
 		td->td_frame->tf_rip = (uintptr_t)entry;
 
 		/* Return address sentinel value to stop stack unwinding. */
@@ -654,8 +655,8 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	 * function.
 	 */
 	td->td_frame->tf_rbp = 0;
-	td->td_frame->tf_rsp =
-	    ((register_t)stack->ss_sp + stack->ss_size) & ~0x0f;
+	td->td_frame->tf_rsp = ((register_t)stack->ss_sp + stack->ss_size) &
+	    ~0x0f;
 	td->td_frame->tf_rsp -= 8;
 	td->td_frame->tf_rip = (register_t)entry;
 	td->td_frame->tf_ds = _udatasel;
@@ -693,10 +694,10 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 
 /*
  * Software interrupt handler for queued VM system processing.
- */   
-void  
-swi_vm(void *dummy) 
-{     
+ */
+void
+swi_vm(void *dummy)
+{
 	if (busdma_swi_pending != 0)
 		busdma_swi();
 }

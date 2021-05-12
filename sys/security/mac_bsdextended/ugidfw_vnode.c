@@ -41,20 +41,20 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/acl.h>
-#include <sys/kernel.h>
 #include <sys/jail.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
-#include <sys/systm.h>
-#include <sys/vnode.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/stat.h>
+#include <sys/vnode.h>
 
 #include <security/mac/mac_policy.h>
 #include <security/mac_bsdextended/mac_bsdextended.h>
@@ -69,16 +69,16 @@ ugidfw_vnode_check_access(struct ucred *cred, struct vnode *vp,
 }
 
 int
-ugidfw_vnode_check_chdir(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel)
+ugidfw_vnode_check_chdir(
+    struct ucred *cred, struct vnode *dvp, struct label *dvplabel)
 {
 
 	return (ugidfw_check_vp(cred, dvp, MBI_EXEC));
 }
 
 int
-ugidfw_vnode_check_chroot(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel)
+ugidfw_vnode_check_chroot(
+    struct ucred *cred, struct vnode *dvp, struct label *dvplabel)
 {
 
 	return (ugidfw_check_vp(cred, dvp, MBI_EXEC));
@@ -110,11 +110,10 @@ ugidfw_vnode_check_deleteextattr(struct ucred *cred, struct vnode *vp,
 
 int
 ugidfw_vnode_check_exec(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, struct image_params *imgp,
-    struct label *execlabel)
+    struct label *vplabel, struct image_params *imgp, struct label *execlabel)
 {
 
-	return (ugidfw_check_vp(cred, vp, MBI_READ|MBI_EXEC));
+	return (ugidfw_check_vp(cred, vp, MBI_READ | MBI_EXEC));
 }
 
 int
@@ -174,16 +173,16 @@ ugidfw_vnode_check_open(struct ucred *cred, struct vnode *vp,
 }
 
 int
-ugidfw_vnode_check_readdir(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel)
+ugidfw_vnode_check_readdir(
+    struct ucred *cred, struct vnode *dvp, struct label *dvplabel)
 {
 
 	return (ugidfw_check_vp(cred, dvp, MBI_READ));
 }
 
 int
-ugidfw_vnode_check_readdlink(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel)
+ugidfw_vnode_check_readdlink(
+    struct ucred *cred, struct vnode *vp, struct label *vplabel)
 {
 
 	return (ugidfw_check_vp(cred, vp, MBI_READ));
@@ -218,8 +217,8 @@ ugidfw_vnode_check_rename_to(struct ucred *cred, struct vnode *dvp,
 }
 
 int
-ugidfw_vnode_check_revoke(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel)
+ugidfw_vnode_check_revoke(
+    struct ucred *cred, struct vnode *vp, struct label *vplabel)
 {
 
 	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
@@ -242,16 +241,16 @@ ugidfw_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
 }
 
 int
-ugidfw_vnode_check_setflags(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, u_long flags)
+ugidfw_vnode_check_setflags(
+    struct ucred *cred, struct vnode *vp, struct label *vplabel, u_long flags)
 {
 
 	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
 }
 
 int
-ugidfw_vnode_check_setmode(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, mode_t mode)
+ugidfw_vnode_check_setmode(
+    struct ucred *cred, struct vnode *vp, struct label *vplabel, mode_t mode)
 {
 
 	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
@@ -274,8 +273,8 @@ ugidfw_vnode_check_setutimes(struct ucred *cred, struct vnode *vp,
 }
 
 int
-ugidfw_vnode_check_stat(struct ucred *active_cred,
-    struct ucred *file_cred, struct vnode *vp, struct label *vplabel)
+ugidfw_vnode_check_stat(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp, struct label *vplabel)
 {
 
 	return (ugidfw_check_vp(active_cred, vp, MBI_STAT));

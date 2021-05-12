@@ -37,7 +37,7 @@
 
 #include <sys/systm.h>
 
-#define	INTR_IRQ_INVALID	0xFFFFFFFF
+#define INTR_IRQ_INVALID 0xFFFFFFFF
 
 enum intr_map_data_type {
 	INTR_MAP_DATA_ACPI = 0,
@@ -54,48 +54,48 @@ enum intr_map_data_type {
 };
 
 struct intr_map_data {
-	size_t			len;
-	enum intr_map_data_type	type;
+	size_t len;
+	enum intr_map_data_type type;
 };
 
 struct intr_map_data_msi {
-	struct intr_map_data	hdr;
-	struct intr_irqsrc 	*isrc;
+	struct intr_map_data hdr;
+	struct intr_irqsrc *isrc;
 };
 
 #ifdef notyet
-#define	INTR_SOLO	INTR_MD1
+#define INTR_SOLO INTR_MD1
 typedef int intr_irq_filter_t(void *arg, struct trapframe *tf);
 #else
 typedef int intr_irq_filter_t(void *arg);
 #endif
 typedef int intr_child_irq_filter_t(void *arg, uintptr_t irq);
 
-#define INTR_ISRC_NAMELEN	(MAXCOMLEN + 1)
+#define INTR_ISRC_NAMELEN (MAXCOMLEN + 1)
 
-#define INTR_ISRCF_IPI		0x01	/* IPI interrupt */
-#define INTR_ISRCF_PPI		0x02	/* PPI interrupt */
-#define INTR_ISRCF_BOUND	0x04	/* bound to a CPU */
+#define INTR_ISRCF_IPI 0x01 /* IPI interrupt */
+#define INTR_ISRCF_PPI 0x02 /* PPI interrupt */
+#define INTR_ISRCF_BOUND 0x04 /* bound to a CPU */
 
 struct intr_pic;
 
 /* Interrupt source definition. */
 struct intr_irqsrc {
-	device_t		isrc_dev;	/* where isrc is mapped */
-	u_int			isrc_irq;	/* unique identificator */
-	u_int			isrc_flags;
-	char			isrc_name[INTR_ISRC_NAMELEN];
-	cpuset_t		isrc_cpu;	/* on which CPUs is enabled */
-	u_int			isrc_index;
-	u_long *		isrc_count;
-	u_int			isrc_handlers;
-	struct intr_event *	isrc_event;
+	device_t isrc_dev; /* where isrc is mapped */
+	u_int isrc_irq;	   /* unique identificator */
+	u_int isrc_flags;
+	char isrc_name[INTR_ISRC_NAMELEN];
+	cpuset_t isrc_cpu; /* on which CPUs is enabled */
+	u_int isrc_index;
+	u_long *isrc_count;
+	u_int isrc_handlers;
+	struct intr_event *isrc_event;
 #ifdef INTR_SOLO
-	intr_irq_filter_t *	isrc_filter;
-	void *			isrc_arg;
+	intr_irq_filter_t *isrc_filter;
+	void *isrc_arg;
 #endif
 	/* Used by MSI interrupts to store the iommu details */
-	void *			isrc_iommu;
+	void *isrc_iommu;
 };
 
 /* Intr interface for PIC. */
@@ -135,8 +135,8 @@ int intr_child_irq_handler(struct intr_pic *, uintptr_t);
 struct intr_map_data *intr_alloc_map_data(enum intr_map_data_type, size_t, int);
 void intr_free_intr_map_data(struct intr_map_data *);
 u_int intr_map_irq(device_t, intptr_t, struct intr_map_data *);
-void intr_unmap_irq(u_int );
-u_int intr_map_clone_irq(u_int );
+void intr_unmap_irq(u_int);
+u_int intr_map_clone_irq(u_int);
 
 /* MSI/MSI-X handling */
 int intr_msi_register(device_t, intptr_t);
@@ -161,10 +161,10 @@ intr_ipi_increment_count(u_long *counter, u_int cpu)
 }
 
 /* Virtualization for interrupt source IPI counters setup. */
-u_long * intr_ipi_setup_counters(const char *name);
+u_long *intr_ipi_setup_counters(const char *name);
 
 #endif
 
-extern u_int	intr_nirq;	/* number of IRQs on intrng platforms */
+extern u_int intr_nirq; /* number of IRQs on intrng platforms */
 
-#endif	/* _SYS_INTR_H */
+#endif /* _SYS_INTR_H */

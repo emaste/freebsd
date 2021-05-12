@@ -32,26 +32,27 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/altivec.h>	/* For save_vec() */
+#include <machine/altivec.h> /* For save_vec() */
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/fpu.h>	/* For save_fpu() */
+#include <machine/fpu.h> /* For save_fpu() */
 #include <machine/hid.h>
+#include <machine/ofw_machdep.h>
 #include <machine/platformvar.h>
 #include <machine/setjmp.h>
 #include <machine/smp.h>
 #include <machine/spr.h>
 
 #include <dev/ofw/openfirm.h>
-#include <machine/ofw_machdep.h>
 
 #include "platform_if.h"
 
@@ -72,31 +73,26 @@ static void powermac_reset(platform_t);
 static void powermac_sleep(platform_t);
 #endif
 
-static platform_method_t powermac_methods[] = {
-	PLATFORMMETHOD(platform_probe, 		powermac_probe),
-	PLATFORMMETHOD(platform_attach,		powermac_attach),
-	PLATFORMMETHOD(platform_mem_regions,	powermac_mem_regions),
-	PLATFORMMETHOD(platform_timebase_freq,	powermac_timebase_freq),
+static platform_method_t powermac_methods[] = { PLATFORMMETHOD(platform_probe,
+						    powermac_probe),
+	PLATFORMMETHOD(platform_attach, powermac_attach),
+	PLATFORMMETHOD(platform_mem_regions, powermac_mem_regions),
+	PLATFORMMETHOD(platform_timebase_freq, powermac_timebase_freq),
 
-	PLATFORMMETHOD(platform_smp_first_cpu,	powermac_smp_first_cpu),
-	PLATFORMMETHOD(platform_smp_next_cpu,	powermac_smp_next_cpu),
-	PLATFORMMETHOD(platform_smp_get_bsp,	powermac_smp_get_bsp),
-	PLATFORMMETHOD(platform_smp_start_cpu,	powermac_smp_start_cpu),
+	PLATFORMMETHOD(platform_smp_first_cpu, powermac_smp_first_cpu),
+	PLATFORMMETHOD(platform_smp_next_cpu, powermac_smp_next_cpu),
+	PLATFORMMETHOD(platform_smp_get_bsp, powermac_smp_get_bsp),
+	PLATFORMMETHOD(platform_smp_start_cpu, powermac_smp_start_cpu),
 	PLATFORMMETHOD(platform_smp_timebase_sync, powermac_smp_timebase_sync),
 
-	PLATFORMMETHOD(platform_reset,		powermac_reset),
+	PLATFORMMETHOD(platform_reset, powermac_reset),
 #ifndef __powerpc64__
-	PLATFORMMETHOD(platform_sleep,		powermac_sleep),
+	PLATFORMMETHOD(platform_sleep, powermac_sleep),
 #endif
 
-	PLATFORMMETHOD_END
-};
+	PLATFORMMETHOD_END };
 
-static platform_def_t powermac_platform = {
-	"powermac",
-	powermac_methods,
-	0
-};
+static platform_def_t powermac_platform = { "powermac", powermac_methods, 0 };
 
 PLATFORM_DEF(powermac_platform);
 
@@ -115,7 +111,7 @@ powermac_probe(platform_t plat)
 	compatlen = OF_getprop(root, "compatible", compat, sizeof(compat));
 
 	for (curstr = compat; curstr < compat + compatlen;
-	    curstr += strlen(curstr) + 1) {
+	     curstr += strlen(curstr) + 1) {
 		if (strncmp(curstr, "MacRISC", 7) == 0)
 			return (BUS_PROBE_SPECIFIC);
 	}
@@ -142,7 +138,7 @@ powermac_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
 
 	propsize = OF_getprop(memory, "reg", memoryprop, sizeof(memoryprop));
 	propsize /= sizeof(cell_t);
-	for (i = 0, j = 0; i < propsize; i += physacells+1, j++) {
+	for (i = 0, j = 0; i < propsize; i += physacells + 1, j++) {
 		phys[j].mr_start = memoryprop[i];
 		if (physacells == 2) {
 #ifndef __powerpc64__
@@ -154,15 +150,15 @@ powermac_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
 #else
 			phys[j].mr_start <<= 32;
 #endif
-			phys[j].mr_start |= memoryprop[i+1];
+			phys[j].mr_start |= memoryprop[i + 1];
 		}
 		phys[j].mr_size = memoryprop[i + physacells];
 	}
 	*physsz = j;
 
 	/* "available" always has #address-cells = 1 */
-	propsize = OF_getprop(memory, "available", memoryprop,
-	    sizeof(memoryprop));
+	propsize = OF_getprop(
+	    memory, "available", memoryprop, sizeof(memoryprop));
 	if (propsize <= 0) {
 		for (i = 0; i < *physsz; i++) {
 			avail[i].mr_start = phys[i].mr_start;
@@ -246,7 +242,7 @@ powermac_smp_fill_cpuref(struct cpuref *cpuref, phandle_t cpu)
 
 	/*
 	 * psim doesn't have a reg property, so assume 0 as for the
-	 * uniprocessor case in the CHRP spec. 
+	 * uniprocessor case in the CHRP spec.
 	 */
 	if (res < 0) {
 		cpuid = 0;

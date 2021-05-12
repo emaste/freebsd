@@ -37,25 +37,25 @@
 #define _NETGRAPH_NG_EIFACE_H_
 
 /* Node type name and magic cookie */
-#define NG_EIFACE_NODE_TYPE		"eiface"
-#define NGM_EIFACE_COOKIE		948105892
+#define NG_EIFACE_NODE_TYPE "eiface"
+#define NGM_EIFACE_COOKIE 948105892
 
 /* Interface base name */
-#define NG_EIFACE_EIFACE_NAME		"ngeth"
+#define NG_EIFACE_EIFACE_NAME "ngeth"
 
 /* My hook names */
-#define NG_EIFACE_HOOK_ETHER		"ether"
+#define NG_EIFACE_HOOK_ETHER "ether"
 
 /* MTU bounds */
-#define NG_EIFACE_MTU_MIN		72
-#define NG_EIFACE_MTU_MAX		ETHER_MAX_LEN_JUMBO
-#define NG_EIFACE_MTU_DEFAULT		1500
+#define NG_EIFACE_MTU_MIN 72
+#define NG_EIFACE_MTU_MAX ETHER_MAX_LEN_JUMBO
+#define NG_EIFACE_MTU_DEFAULT 1500
 
 /* Netgraph commands */
 enum {
-	NGM_EIFACE_GET_IFNAME = 1,	/* get the interface name */
-	NGM_EIFACE_GET_IFADDRS,		/* returns list of addresses */
-	NGM_EIFACE_SET,			/* set ethernet address */
+	NGM_EIFACE_GET_IFNAME = 1, /* get the interface name */
+	NGM_EIFACE_GET_IFADDRS,	   /* returns list of addresses */
+	NGM_EIFACE_SET,		   /* set ethernet address */
 };
 
 #endif /* _NETGRAPH_NG_EIFACE_H_ */

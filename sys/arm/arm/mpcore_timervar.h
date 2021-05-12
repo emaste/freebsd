@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_ARM_MPCORE_TIMERVAR_H_
-#define	_ARM_MPCORE_TIMERVAR_H_
+#ifndef _ARM_MPCORE_TIMERVAR_H_
+#define _ARM_MPCORE_TIMERVAR_H_
 
 /*
  * This value, passed to arm_tmr_change_frequency() any time before the mpcore
@@ -36,7 +36,7 @@
  * still be used as an eventtimer, as long as each frequency change is
  * communicated to it with calls to arm_tmr_change_frequency().
  */
-#define	ARM_TMR_FREQUENCY_VARIES	-1ULL
+#define ARM_TMR_FREQUENCY_VARIES -1ULL
 
 /*
  * Inform the mpcore timer driver of a new clock frequency.  This can be called

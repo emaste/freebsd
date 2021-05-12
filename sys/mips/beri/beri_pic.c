@@ -37,14 +37,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
@@ -54,64 +54,54 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "pic_if.h"
 
-#define	BP_NUM_HARD_IRQS	5
-#define	BP_NUM_IRQS		32
+#define BP_NUM_HARD_IRQS 5
+#define BP_NUM_IRQS 32
 /* We use hard irqs 15-31 as soft */
-#define	BP_FIRST_SOFT		16
+#define BP_FIRST_SOFT 16
 
-#define	BP_CFG_IRQ_S		0
-#define	BP_CFG_IRQ_M		(0xf << BP_CFG_IRQ_S)
-#define	BP_CFG_TID_S		8
-#define	BP_CFG_TID_M		(0x7FFFFF << BP_CFG_TID_S)
-#define	BP_CFG_ENABLE		(1 << 31)
+#define BP_CFG_IRQ_S 0
+#define BP_CFG_IRQ_M (0xf << BP_CFG_IRQ_S)
+#define BP_CFG_TID_S 8
+#define BP_CFG_TID_M (0x7FFFFF << BP_CFG_TID_S)
+#define BP_CFG_ENABLE (1 << 31)
 
-enum {
-	BP_CFG,
-	BP_IP_READ,
-	BP_IP_SET,
-	BP_IP_CLEAR
-};
+enum { BP_CFG, BP_IP_READ, BP_IP_SET, BP_IP_CLEAR };
 
 struct beripic_softc;
 
 struct beri_pic_isrc {
-	struct intr_irqsrc	isrc;
-	u_int			irq;
-	uint32_t		mips_hard_irq;
+	struct intr_irqsrc isrc;
+	u_int irq;
+	uint32_t mips_hard_irq;
 };
 
 struct hirq {
-	uint32_t		irq;
-	struct beripic_softc	*sc;
+	uint32_t irq;
+	struct beripic_softc *sc;
 };
 
 struct beripic_softc {
-	device_t		dev;
-	uint32_t		nirqs;
-	struct beri_pic_isrc	irqs[BP_NUM_IRQS];
-	struct resource		*res[4 + BP_NUM_HARD_IRQS];
-	void			*ih[BP_NUM_HARD_IRQS];
-	struct hirq		hirq[BP_NUM_HARD_IRQS];
-	uint8_t			mips_hard_irq_idx;
+	device_t dev;
+	uint32_t nirqs;
+	struct beri_pic_isrc irqs[BP_NUM_IRQS];
+	struct resource *res[4 + BP_NUM_HARD_IRQS];
+	void *ih[BP_NUM_HARD_IRQS];
+	struct hirq hirq[BP_NUM_HARD_IRQS];
+	uint8_t mips_hard_irq_idx;
 };
 
 static struct resource_spec beri_pic_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	2,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	3,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		2,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		3,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		4,	RF_ACTIVE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, { SYS_RES_MEMORY, 1, RF_ACTIVE },
+	{ SYS_RES_MEMORY, 2, RF_ACTIVE }, { SYS_RES_MEMORY, 3, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, { SYS_RES_IRQ, 1, RF_ACTIVE },
+	{ SYS_RES_IRQ, 2, RF_ACTIVE }, { SYS_RES_IRQ, 3, RF_ACTIVE },
+	{ SYS_RES_IRQ, 4, RF_ACTIVE }, { -1, 0 }
 };
 
 static int
@@ -143,7 +133,8 @@ beri_pic_intr(void *arg)
 		}
 
 		if (intr_isrc_dispatch(isrc, curthread->td_intr_frame) != 0) {
-			device_printf(sc->dev, "Stray interrupt %u detected\n", i);
+			device_printf(
+			    sc->dev, "Stray interrupt %u detected\n", i);
 		}
 
 		bus_write_8(sc->res[BP_IP_CLEAR], 0, (1 << i));
@@ -161,7 +152,7 @@ beripic_probe(device_t dev)
 
 	if (!ofw_bus_is_compatible(dev, "sri-cambridge,beri-pic"))
 		return (ENXIO);
-		
+
 	device_set_desc(dev, "BERI Programmable Interrupt Controller");
 
 	return (BUS_PROBE_DEFAULT);
@@ -204,8 +195,7 @@ beripic_attach(device_t dev)
 			sc->mips_hard_irq_idx = 0;
 		}
 
-		err = intr_isrc_register(isrc, sc->dev,
-		    0, "pic%d,%d", unit, i);
+		err = intr_isrc_register(isrc, sc->dev, 0, "pic%d,%d", unit, i);
 		bus_write_8(sc->res[BP_CFG], i * 8, 0);
 	}
 
@@ -222,8 +212,8 @@ beripic_attach(device_t dev)
 	for (i = 0; i < (BP_NUM_HARD_IRQS - 1); i++) {
 		sc->hirq[i].sc = sc;
 		sc->hirq[i].irq = i;
-		if (bus_setup_intr(dev, sc->res[4+i], INTR_TYPE_CLK,
-		    beri_pic_intr, NULL, &sc->hirq[i], sc->ih[i])) {
+		if (bus_setup_intr(dev, sc->res[4 + i], INTR_TYPE_CLK,
+			beri_pic_intr, NULL, &sc->hirq[i], sc->ih[i])) {
 			device_printf(dev, "could not setup irq handler\n");
 			intr_pic_deregister(dev, xref);
 			return (ENXIO);
@@ -264,8 +254,8 @@ beri_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-beri_pic_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+beri_pic_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct beripic_softc *sc;
 	struct intr_map_data_fdt *daf;
@@ -345,26 +335,23 @@ beripic_clear_ipi(device_t dev, u_int tid)
 
 static device_method_t beripic_fdt_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		beripic_probe),
-	DEVMETHOD(device_attach,	beripic_attach),
+	DEVMETHOD(device_probe, beripic_probe),
+	DEVMETHOD(device_attach, beripic_attach),
 
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_enable_intr,	beri_pic_enable_intr),
-	DEVMETHOD(pic_disable_intr,	beri_pic_disable_intr),
-	DEVMETHOD(pic_map_intr,		beri_pic_map_intr),
-	DEVMETHOD(pic_post_ithread,	beri_pic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	beri_pic_pre_ithread),
+	DEVMETHOD(pic_enable_intr, beri_pic_enable_intr),
+	DEVMETHOD(pic_disable_intr, beri_pic_disable_intr),
+	DEVMETHOD(pic_map_intr, beri_pic_map_intr),
+	DEVMETHOD(pic_post_ithread, beri_pic_post_ithread),
+	DEVMETHOD(pic_pre_ithread, beri_pic_pre_ithread),
 
 	DEVMETHOD_END
 };
 
 devclass_t beripic_devclass;
 
-static driver_t beripic_driver = {
-	"beripic",
-	beripic_fdt_methods,
-	sizeof(struct beripic_softc)
-};
+static driver_t beripic_driver = { "beripic", beripic_fdt_methods,
+	sizeof(struct beripic_softc) };
 
 EARLY_DRIVER_MODULE(beripic, ofwbus, beripic_driver, beripic_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);

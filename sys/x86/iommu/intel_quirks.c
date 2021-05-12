@@ -46,23 +46,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/vmem.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_map.h>
-#include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/accommon.h>
+
+#include <machine/bus.h>
+
+#include <x86/include/busdma_impl.h>
+#include <x86/iommu/intel_dmar.h>
+#include <x86/iommu/intel_reg.h>
+
 #include <dev/acpica/acpivar.h>
+#include <dev/iommu/busdma_iommu.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#include <machine/bus.h>
-#include <x86/include/busdma_impl.h>
-#include <dev/iommu/busdma_iommu.h>
-#include <x86/iommu/intel_reg.h>
-#include <x86/iommu/intel_dmar.h>
+
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
 typedef void (*dmar_quirk_cpu_fun)(struct dmar_unit *);
 
@@ -85,7 +90,7 @@ struct intel_dmar_quirk_nb {
 	const char *descr;
 };
 
-#define	QUIRK_NB_ALL_REV	0xffffffff
+#define QUIRK_NB_ALL_REV 0xffffffff
 
 static void
 dmar_match_quirks(struct dmar_unit *dmar,
@@ -109,7 +114,7 @@ dmar_match_quirks(struct dmar_unit *dmar,
 				nb_quirk = &nb_quirks[i];
 				if (nb_quirk->dev_id == dev_id &&
 				    (nb_quirk->rev_no == rev_no ||
-				    nb_quirk->rev_no == QUIRK_NB_ALL_REV)) {
+					nb_quirk->rev_no == QUIRK_NB_ALL_REV)) {
 					if (bootverbose) {
 						device_printf(dmar->dev,
 						    "NB IOMMU quirk %s\n",
@@ -136,7 +141,7 @@ dmar_match_quirks(struct dmar_unit *dmar,
 			    cpu_quirk->family_code == family_code &&
 			    cpu_quirk->model == model &&
 			    (cpu_quirk->stepping == -1 ||
-			    cpu_quirk->stepping == stepping)) {
+				cpu_quirk->stepping == stepping)) {
 				if (bootverbose) {
 					device_printf(dmar->dev,
 					    "CPU IOMMU quirk %s\n",
@@ -174,32 +179,38 @@ nb_5500_no_ir_rev13(struct dmar_unit *unit, device_t nb)
 
 static const struct intel_dmar_quirk_nb pre_use_nb[] = {
 	{
-	    .dev_id = 0x4001, .rev_no = 0x20,
+	    .dev_id = 0x4001,
+	    .rev_no = 0x20,
 	    .quirk = nb_5400_no_low_high_prot_mem,
 	    .descr = "5400 E23" /* no low/high protected memory */
 	},
 	{
-	    .dev_id = 0x4003, .rev_no = 0x20,
+	    .dev_id = 0x4003,
+	    .rev_no = 0x20,
 	    .quirk = nb_5400_no_low_high_prot_mem,
 	    .descr = "5400 E23" /* no low/high protected memory */
 	},
 	{
-	    .dev_id = 0x3403, .rev_no = QUIRK_NB_ALL_REV,
+	    .dev_id = 0x3403,
+	    .rev_no = QUIRK_NB_ALL_REV,
 	    .quirk = nb_5500_no_ir_rev13,
 	    .descr = "5500 E47, E53" /* interrupt remapping does not work */
 	},
 	{
-	    .dev_id = 0x3405, .rev_no = QUIRK_NB_ALL_REV,
+	    .dev_id = 0x3405,
+	    .rev_no = QUIRK_NB_ALL_REV,
 	    .quirk = nb_5500_no_ir_rev13,
 	    .descr = "5500 E47, E53" /* interrupt remapping does not work */
 	},
 	{
-	    .dev_id = 0x3405, .rev_no = 0x22,
+	    .dev_id = 0x3405,
+	    .rev_no = 0x22,
 	    .quirk = nb_no_ir,
 	    .descr = "5500 E47, E53" /* interrupt remapping does not work */
 	},
 	{
-	    .dev_id = 0x3406, .rev_no = QUIRK_NB_ALL_REV,
+	    .dev_id = 0x3406,
+	    .rev_no = QUIRK_NB_ALL_REV,
 	    .quirk = nb_5500_no_ir_rev13,
 	    .descr = "5500 E47, E53" /* interrupt remapping does not work */
 	},
@@ -215,8 +226,12 @@ cpu_e5_am9(struct dmar_unit *unit)
 
 static const struct intel_dmar_quirk_cpu post_ident_cpu[] = {
 	{
-	    .ext_family = 0, .ext_model = 2, .family_code = 6, .model = 13,
-	    .stepping = 6, .quirk = cpu_e5_am9,
+	    .ext_family = 0,
+	    .ext_model = 2,
+	    .family_code = 6,
+	    .model = 13,
+	    .stepping = 6,
+	    .quirk = cpu_e5_am9,
 	    .descr = "E5 BT176" /* AM should be at most 9 */
 	},
 };
@@ -231,8 +246,7 @@ dmar_quirks_pre_use(struct iommu_unit *unit)
 	if (!dmar_barrier_enter(dmar, DMAR_BARRIER_USEQ))
 		return;
 	DMAR_LOCK(dmar);
-	dmar_match_quirks(dmar, pre_use_nb, nitems(pre_use_nb),
-	    NULL, 0);
+	dmar_match_quirks(dmar, pre_use_nb, nitems(pre_use_nb), NULL, 0);
 	dmar_barrier_exit(dmar, DMAR_BARRIER_USEQ);
 }
 
@@ -240,6 +254,6 @@ void
 dmar_quirks_post_ident(struct dmar_unit *dmar)
 {
 
-	dmar_match_quirks(dmar, NULL, 0, post_ident_cpu,
-	    nitems(post_ident_cpu));
+	dmar_match_quirks(
+	    dmar, NULL, 0, post_ident_cpu, nitems(post_ident_cpu));
 }

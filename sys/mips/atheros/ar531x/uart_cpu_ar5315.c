@@ -38,8 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <mips/atheros/ar531x/ar5315reg.h>
 #include <mips/atheros/ar531x/ar5315_cpudef.h>
+#include <mips/atheros/ar531x/ar5315reg.h>
 #include <mips/atheros/ar71xx_bus_space_reversed.h>
 
 bus_space_tag_t uart_bus_space_io;
@@ -63,7 +63,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->bas.bst = ar71xx_bus_space_reversed;
 	di->bas.regshft = 2;
 	di->bas.rclk = freq;
-	di->baudrate = 9600;	// RedBoot default is 9600
+	di->baudrate = 9600; // RedBoot default is 9600
 	di->databits = 8;
 	di->stopbits = 1;
 

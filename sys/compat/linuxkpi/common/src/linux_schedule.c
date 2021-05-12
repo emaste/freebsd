@@ -49,8 +49,8 @@ linux_add_to_sleepqueue(void *wchan, struct task_struct *task,
 
 	MPASS((state & ~(TASK_PARKED | TASK_NORMAL)) == 0);
 
-	flags = SLEEPQ_SLEEP | ((state & TASK_INTERRUPTIBLE) != 0 ?
-	    SLEEPQ_INTERRUPTIBLE : 0);
+	flags = SLEEPQ_SLEEP |
+	    ((state & TASK_INTERRUPTIBLE) != 0 ? SLEEPQ_INTERRUPTIBLE : 0);
 
 	sleepq_add(wchan, NULL, wmesg, flags, 0);
 	if (timeout != 0)
@@ -168,8 +168,8 @@ linux_send_sig(int signo, struct task_struct *task)
 }
 
 int
-autoremove_wake_function(wait_queue_t *wq, unsigned int state, int flags,
-    void *key __unused)
+autoremove_wake_function(
+    wait_queue_t *wq, unsigned int state, int flags, void *key __unused)
 {
 	struct task_struct *task;
 	int ret;
@@ -181,8 +181,8 @@ autoremove_wake_function(wait_queue_t *wq, unsigned int state, int flags,
 }
 
 int
-default_wake_function(wait_queue_t *wq, unsigned int state, int flags,
-    void *key __unused)
+default_wake_function(
+    wait_queue_t *wq, unsigned int state, int flags, void *key __unused)
 {
 	return (wake_up_task(wq->private, state));
 }
@@ -205,7 +205,8 @@ linux_wake_up(wait_queue_head_t *wqh, unsigned int state, int nr, bool locked)
 
 	if (!locked)
 		spin_lock(&wqh->lock);
-	list_for_each_entry_safe(pos, next, &wqh->task_list, task_list) {
+	list_for_each_entry_safe(pos, next, &wqh->task_list, task_list)
+	{
 		if (pos->func == NULL) {
 			if (wake_up_task(pos->private, state) != 0 && --nr == 0)
 				break;
@@ -278,8 +279,8 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
 	PHOLD(task->task_thread->td_proc);
 	sleepq_lock(task);
 	if (atomic_read(&task->state) != TASK_WAKING) {
-		ret = linux_add_to_sleepqueue(task, task, "wevent", timeout,
-		    state);
+		ret = linux_add_to_sleepqueue(
+		    task, task, "wevent", timeout, state);
 	} else {
 		sleepq_release(task);
 		ret = 0;
@@ -312,8 +313,8 @@ linux_schedule_timeout(int timeout)
 	sleepq_lock(task);
 	state = atomic_read(&task->state);
 	if (state != TASK_WAKING) {
-		ret = linux_add_to_sleepqueue(task, task, "sched", timeout,
-		    state);
+		ret = linux_add_to_sleepqueue(
+		    task, task, "sched", timeout, state);
 	} else {
 		sleepq_release(task);
 		ret = 0;
@@ -348,7 +349,7 @@ wake_up_sleepers(void *wchan)
 		kick_proc0();
 }
 
-#define	bit_to_wchan(word, bit)	((void *)(((uintptr_t)(word) << 6) | (bit)))
+#define bit_to_wchan(word, bit) ((void *)(((uintptr_t)(word) << 6) | (bit)))
 
 void
 linux_wake_up_bit(void *word, int bit)
@@ -358,8 +359,8 @@ linux_wake_up_bit(void *word, int bit)
 }
 
 int
-linux_wait_on_bit_timeout(unsigned long *word, int bit, unsigned int state,
-    int timeout)
+linux_wait_on_bit_timeout(
+    unsigned long *word, int bit, unsigned int state, int timeout)
 {
 	struct task_struct *task;
 	void *wchan;
@@ -381,8 +382,8 @@ linux_wait_on_bit_timeout(unsigned long *word, int bit, unsigned int state,
 			break;
 		}
 		set_task_state(task, state);
-		ret = linux_add_to_sleepqueue(wchan, task, "wbit", timeout,
-		    state);
+		ret = linux_add_to_sleepqueue(
+		    wchan, task, "wbit", timeout, state);
 		if (ret != 0)
 			break;
 	}

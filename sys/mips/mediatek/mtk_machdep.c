@@ -30,41 +30,43 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_platform.h"
+#include "opt_rt305x.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/imgact.h>
 #include <sys/bio.h>
+#include <sys/boot.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
-#include <sys/cpu.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/cpu.h>
 #include <sys/exec.h>
-#include <sys/ucontext.h>
-#include <sys/proc.h>
+#include <sys/imgact.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/ptrace.h>
-#include <sys/boot.h>
 #include <sys/reboot.h>
 #include <sys/signalvar.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/ucontext.h>
 #include <sys/user.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
+#include <vm/vm_dumpset.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 #include <vm/vm_phys.h>
-#include <vm/vm_dumpset.h>
 
 #include <machine/cache.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
-#include <machine/cpuinfo.h>
 #include <machine/cpufunc.h>
+#include <machine/cpuinfo.h>
 #include <machine/cpuregs.h>
 #include <machine/hwfunc.h>
 #include <machine/intr_machdep.h>
@@ -74,18 +76,15 @@ __FBSDID("$FreeBSD$");
 #include <machine/sigframe.h>
 #include <machine/trap.h>
 
-#include <mips/mediatek/mtk_sysctl.h>
-#include <mips/mediatek/mtk_soc.h>
-
-#include "opt_platform.h"
-#include "opt_rt305x.h"
-
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
-extern int	*edata;
-extern int	*end;
-static char 	boot1_env[0x1000];
+#include <mips/mediatek/mtk_soc.h>
+#include <mips/mediatek/mtk_sysctl.h>
+
+extern int *edata;
+extern int *end;
+static char boot1_env[0x1000];
 
 void
 platform_cpu_init()
@@ -122,9 +121,9 @@ mips_init(void)
 		printf("RAM size: %ldMB (from FDT)\n",
 		    ctob(physmem) / (1024 * 1024));
 
-		KASSERT((phys_avail[0] >= mr[0].mr_start) && \
+		KASSERT((phys_avail[0] >= mr[0].mr_start) &&
 			(phys_avail[0] < (mr[0].mr_start + mr[0].mr_size)),
-			("First region is not within FDT memory range"));
+		    ("First region is not within FDT memory range"));
 
 		/* Limit size of the first region */
 		phys_avail[1] = (mr[0].mr_start +
@@ -132,11 +131,11 @@ mips_init(void)
 		dump_avail[1] = phys_avail[1];
 
 		/* Add the rest of the regions */
-		for (i = 1, j = 2; i < mr_cnt; i++, j+=2) {
+		for (i = 1, j = 2; i < mr_cnt; i++, j += 2) {
 			phys_avail[j] = mr[i].mr_start;
-			phys_avail[j+1] = (mr[i].mr_start + mr[i].mr_size);
+			phys_avail[j + 1] = (mr[i].mr_start + mr[i].mr_size);
 			dump_avail[j] = phys_avail[j];
-			dump_avail[j+1] = phys_avail[j+1];
+			dump_avail[j + 1] = phys_avail[j + 1];
 		}
 	} else {
 		if ((memsize = kern_getenv("memsize")) != NULL) {
@@ -151,8 +150,8 @@ mips_init(void)
 
 		if (mtk_soc_get_socid() == MTK_SOC_RT2880) {
 			/* RT2880 memory start is 88000000 */
-			dump_avail[1] = phys_avail[1] = ctob(physmem)
-			    + 0x08000000;
+			dump_avail[1] = phys_avail[1] = ctob(physmem) +
+			    0x08000000;
 		} else if (ctob(physmem) < (448 * 1024 * 1024)) {
 			/*
 			 * Anything up to 448MB is assumed to be directly
@@ -207,11 +206,11 @@ platform_reset(void)
 }
 
 void
-platform_start(__register_t a0 __unused, __register_t a1 __unused, 
+platform_start(__register_t a0 __unused, __register_t a1 __unused,
     __register_t a2 __unused, __register_t a3 __unused)
 {
 	vm_offset_t kernend;
-	int argc = a0, i;//, res;
+	int argc = a0, i; //, res;
 	uint32_t timer_clk;
 	char **argv = (char **)MIPS_PHYS_TO_KSEG0(a1);
 	char **envp = (char **)MIPS_PHYS_TO_KSEG0(a2);
@@ -230,9 +229,11 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 
 	dtbp = &fdt_static_dtb;
 	if (OF_install(OFW_FDT, 0) == FALSE)
-		while (1);
+		while (1)
+			;
 	if (OF_init((void *)dtbp) != 0)
-		while (1);
+		while (1)
+			;
 
 	mtk_soc_try_early_detect();
 	mtk_soc_set_cpu_model();
@@ -243,7 +244,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	mips_timer_early_init(timer_clk);
 
 	/* initialize console so that we have printf */
-	boothowto |= (RB_SERIAL | RB_MULTIPLE);	/* Use multiple consoles */
+	boothowto |= (RB_SERIAL | RB_MULTIPLE); /* Use multiple consoles */
 	boothowto |= (RB_VERBOSE);
 	cninit();
 
@@ -258,9 +259,10 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 
 	printf("FDT DTB  at: 0x%08x\n", (uint32_t)dtbp);
 
-	printf("CPU   clock: %4dMHz\n", mtk_soc_get_cpuclk()/(1000*1000));
-	printf("Timer clock: %4dMHz\n", timer_clk/(1000*1000));
-	printf("UART  clock: %4dMHz\n\n", mtk_soc_get_uartclk()/(1000*1000));
+	printf("CPU   clock: %4dMHz\n", mtk_soc_get_cpuclk() / (1000 * 1000));
+	printf("Timer clock: %4dMHz\n", timer_clk / (1000 * 1000));
+	printf(
+	    "UART  clock: %4dMHz\n\n", mtk_soc_get_uartclk() / (1000 * 1000));
 
 	printf("U-Boot args (from %d args):\n", argc - 1);
 
@@ -273,8 +275,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 		if (i > 99)
 			break;
 
-		if (argv[i])
-		{
+		if (argv[i]) {
 			arg = (char *)(intptr_t)MIPS_PHYS_TO_KSEG0(argv[i]);
 			printf("\targv[%d] = %s\n", i, arg);
 			sprintf(n, "argv%d", i);
@@ -288,7 +289,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 		char *n, *arg;
 
 		arg = (char *)(intptr_t)MIPS_PHYS_TO_KSEG0(envp[i]);
-		if (! MIPS_IS_VALID_PTR(arg))
+		if (!MIPS_IS_VALID_PTR(arg))
 			continue;
 		printf("\t%s\n", arg);
 		n = strsep(&arg, "=");

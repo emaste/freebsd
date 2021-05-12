@@ -32,43 +32,40 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/types.h>
-#include <sys/systm.h>
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/proc.h>
-#include <sys/limits.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/sbuf.h>
-
-#include <sys/ktr.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/ktr.h>
+#include <sys/limits.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sbuf.h>
 #include <sys/sched.h>
-#include <sys/unistd.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
+#include <sys/unistd.h>
 
-#include <machine/reg.h>
 #include <machine/cpu.h>
 #include <machine/hwfunc.h>
-#include <machine/mips_opcode.h>
 #include <machine/intr_machdep.h>
+#include <machine/mips_opcode.h>
+#include <machine/reg.h>
 
-#include <mips/nlm/hal/mips-extns.h>
-#include <mips/nlm/hal/haldefs.h>
-#include <mips/nlm/hal/iomap.h>
 #include <mips/nlm/hal/cop2.h>
 #include <mips/nlm/hal/fmn.h>
+#include <mips/nlm/hal/haldefs.h>
+#include <mips/nlm/hal/iomap.h>
+#include <mips/nlm/hal/mips-extns.h>
 #include <mips/nlm/hal/pic.h>
-
-#include <mips/nlm/msgring.h>
 #include <mips/nlm/interrupt.h>
+#include <mips/nlm/msgring.h>
 #include <mips/nlm/xlp.h>
 
-#define	MSGRNG_NSTATIONS	1024
+#define MSGRNG_NSTATIONS 1024
 /*
  * Keep track of our message ring handler threads, each core has a
  * different message station. Ideally we will need to start a few
@@ -76,11 +73,11 @@ __FBSDID("$FreeBSD$");
  * load
  */
 struct msgring_thread {
-	struct thread	*thread;	/* msgring handler threads */
-	int	needed;			/* thread needs to wake up */
+	struct thread *thread; /* msgring handler threads */
+	int needed;	       /* thread needs to wake up */
 };
 static struct msgring_thread msgring_threads[XLP_MAX_CORES * XLP_MAX_THREADS];
-static struct proc *msgring_proc;	/* all threads are under a proc */
+static struct proc *msgring_proc; /* all threads are under a proc */
 
 /*
  * The device drivers can register a handler for the messages sent
@@ -91,7 +88,7 @@ struct tx_stn_handler {
 	void *arg;
 };
 static struct tx_stn_handler msgmap[MSGRNG_NSTATIONS];
-static struct mtx	msgmap_lock;
+static struct mtx msgmap_lock;
 uint32_t xlp_msg_thread_mask;
 static int xlp_msg_threads_per_core = XLP_MAX_THREADS;
 
@@ -144,8 +141,8 @@ xlp_cms_credit_setup(int credit)
 				    maxqid, src);
 #endif
 				for (qid = 0; qid < maxqid; qid++)
-					nlm_cms_setup_credits(cmsbase, qid,
-					    src, credit);
+					nlm_cms_setup_credits(
+					    cmsbase, qid, src, credit);
 			}
 		}
 	}
@@ -161,7 +158,7 @@ xlp_msgring_cpu_init(int node, int cpu, int credit)
 	maxqid = nlm_read_reg(cmspcibase, XLP_PCI_DEVINFO_REG0);
 
 	/* cpu credit setup is done only from thread-0 of each core */
-	if((cpu % 4) == 0) {
+	if ((cpu % 4) == 0) {
 		src = cpu << 2; /* each thread has 4 vc's */
 		for (qid = 0; qid < maxqid; qid++)
 			nlm_cms_setup_credits(cmsbase, qid, src, credit);
@@ -192,27 +189,26 @@ xlp_handle_msg_vc(u_int vcmask, int max_msgs)
 		msgmask = ((status >> 24) & 0xf) ^ 0xf;
 		msgmask &= vcmask;
 		if (msgmask == 0)
-			    break;
+			break;
 		m = 0;
 		for (vc = 0; vc < 4; vc++) {
 			if ((msgmask & (1 << vc)) == 0)
 				continue;
 
 			mflags = nlm_save_flags_cop2();
-			status = nlm_fmn_msgrcv(vc, &srcid, &size, &code,
-			    &msg);
+			status = nlm_fmn_msgrcv(vc, &srcid, &size, &code, &msg);
 			nlm_restore_flags(mflags);
-			if (status != 0)	/*  no msg or error */
+			if (status != 0) /*  no msg or error */
 				continue;
 			if (srcid < 0 || srcid >= 1024) {
-				printf("[%s]: bad src id %d\n", __func__,
-				    srcid);
+				printf(
+				    "[%s]: bad src id %d\n", __func__, srcid);
 				continue;
 			}
 			he = &msgmap[srcid];
-			if(he->action != NULL)
-				(he->action)(vc, size, code, srcid, &msg,
-				he->arg);
+			if (he->action != NULL)
+				(he->action)(
+				    vc, size, code, srcid, &msg, he->arg);
 #if 0
 			else
 				printf("[%s]: No Handler for msg from stn %d,"
@@ -221,10 +217,10 @@ xlp_handle_msg_vc(u_int vcmask, int max_msgs)
 				    (uintmax_t)msg.msg[0]);
 #endif
 			fmn_msgcount[hwtid][vc] += 1;
-			m++;	/* msgs handled in this iter */
+			m++; /* msgs handled in this iter */
 		}
 		if (m == 0)
-			break;	/* nothing done in this iter */
+			break; /* nothing done in this iter */
 		n_msgs += m;
 		if (max_msgs > 0 && n_msgs >= max_msgs)
 			break;
@@ -243,8 +239,7 @@ xlp_discard_msg_vc(u_int vcmask)
 	for (vc = 0; vc < 4; vc++) {
 		for (;;) {
 			mflags = nlm_save_flags_cop2();
-			status = nlm_fmn_msgrcv(vc, &srcid,
-			    &size, &code, &msg);
+			status = nlm_fmn_msgrcv(vc, &srcid, &size, &code, &msg);
 			nlm_restore_flags(mflags);
 
 			/* break if there is no msg or error */
@@ -274,7 +269,7 @@ msgring_process_fast_intr(void *arg)
 {
 	struct msgring_thread *mthd;
 	struct thread *td;
-	int	cpu;
+	int cpu;
 
 	cpu = nlm_cpuid();
 	mthd = &msgring_threads[cpu];
@@ -300,7 +295,7 @@ msgring_process_fast_intr(void *arg)
 }
 
 static void
-msgring_process(void * arg)
+msgring_process(void *arg)
 {
 	volatile struct msgring_thread *mthd;
 	struct thread *td;
@@ -319,8 +314,8 @@ msgring_process(void * arg)
 	thread_unlock(td);
 
 	if (hwtid != nlm_cpuid())
-		printf("Misscheduled hwtid %d != cpuid %d\n", hwtid,
-		    nlm_cpuid());
+		printf(
+		    "Misscheduled hwtid %d != cpuid %d\n", hwtid, nlm_cpuid());
 
 	xlp_discard_msg_vc(0xf);
 	xlp_msgring_cpu_init(nlm_nodeid(), nlm_cpuid(), CMS_DEFAULT_CREDIT);
@@ -368,12 +363,11 @@ create_msgring_thread(int hwtid)
 {
 	struct msgring_thread *mthd;
 	struct thread *td;
-	int	error;
+	int error;
 
 	mthd = &msgring_threads[hwtid];
 	error = kproc_kthread_add(msgring_process, (void *)(uintptr_t)hwtid,
-	    &msgring_proc, &td, RFSTOPPED, 2, "msgrngproc",
-	    "msgthr%d", hwtid);
+	    &msgring_proc, &td, RFSTOPPED, 2, "msgrngproc", "msgthr%d", hwtid);
 	if (error)
 		panic("kproc_kthread_add() failed with %d", error);
 	mthd->thread = td;
@@ -384,21 +378,22 @@ create_msgring_thread(int hwtid)
 }
 
 int
-register_msgring_handler(int startb, int endb, msgring_handler action,
-    void *arg)
+register_msgring_handler(
+    int startb, int endb, msgring_handler action, void *arg)
 {
-	int	i;
+	int i;
 
 	if (bootverbose)
-		printf("Register handler %d-%d %p(%p)\n",
-		    startb, endb, action, arg);
+		printf("Register handler %d-%d %p(%p)\n", startb, endb, action,
+		    arg);
 	KASSERT(startb >= 0 && startb <= endb && endb < MSGRNG_NSTATIONS,
 	    ("Invalid value for bucket range %d,%d", startb, endb));
 
 	mtx_lock_spin(&msgmap_lock);
 	for (i = startb; i <= endb; i++) {
 		KASSERT(msgmap[i].action == NULL,
-		   ("Bucket %d already used [action %p]", i, msgmap[i].action));
+		    ("Bucket %d already used [action %p]", i,
+			msgmap[i].action));
 		msgmap[i].action = action;
 		msgmap[i].arg = arg;
 	}
@@ -443,8 +438,8 @@ xlp_msgring_config(void *arg)
 #endif
 	xlp_cms_credit_setup(CMS_DEFAULT_CREDIT);
 	create_msgring_thread(0);
-	cpu_establish_hardintr("msgring", msgring_process_fast_intr, NULL,
-	    NULL, IRQ_MSGRING, INTR_TYPE_NET, &cookie);
+	cpu_establish_hardintr("msgring", msgring_process_fast_intr, NULL, NULL,
+	    IRQ_MSGRING, INTR_TYPE_NET, &cookie);
 }
 
 /*
@@ -453,7 +448,7 @@ xlp_msgring_config(void *arg)
 static void
 start_msgring_threads(void *arg)
 {
-	int	hwt;
+	int hwt;
 
 	for (hwt = 1; hwt < XLP_MAX_CORES * XLP_MAX_THREADS; hwt++) {
 		if ((xlp_msg_thread_mask & (1 << hwt)) == 0)
@@ -462,30 +457,28 @@ start_msgring_threads(void *arg)
 	}
 }
 
-SYSINIT(xlp_msgring_config, SI_SUB_DRIVERS, SI_ORDER_FIRST,
-    xlp_msgring_config, NULL);
+SYSINIT(xlp_msgring_config, SI_SUB_DRIVERS, SI_ORDER_FIRST, xlp_msgring_config,
+    NULL);
 SYSINIT(start_msgring_threads, SI_SUB_SMP, SI_ORDER_MIDDLE,
     start_msgring_threads, NULL);
 
 /*
  * DEBUG support, XXX: static buffer, not locked
  */
-static int
-sys_print_debug(SYSCTL_HANDLER_ARGS)
+static int sys_print_debug(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sb;
 	int error, i;
 
 	sbuf_new_for_sysctl(&sb, NULL, 64, req);
-	sbuf_printf(&sb, 
-	    "\nID     vc0       vc1       vc2     vc3     loops\n");
+	sbuf_printf(
+	    &sb, "\nID     vc0       vc1       vc2     vc3     loops\n");
 	for (i = 0; i < 32; i++) {
 		if ((xlp_hw_thread_mask & (1 << i)) == 0)
 			continue;
 		sbuf_printf(&sb, "%2d: %8d %8d %8d %8d %8d\n", i,
-		    fmn_msgcount[i][0], fmn_msgcount[i][1],
-		    fmn_msgcount[i][2], fmn_msgcount[i][3],
-		    fmn_loops[i]);
+		    fmn_msgcount[i][0], fmn_msgcount[i][1], fmn_msgcount[i][2],
+		    fmn_msgcount[i][3], fmn_loops[i]);
 	}
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
@@ -493,6 +486,5 @@ sys_print_debug(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_debug, OID_AUTO, msgring,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, 0, 0,
-    sys_print_debug, "A",
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, 0, 0, sys_print_debug, "A",
     "msgring debug info");

@@ -82,9 +82,8 @@ gss_pname_to_uid(OM_uint32 *minor_status, const gss_name_t pname,
 
 OM_uint32
 gss_pname_to_unix_cred(OM_uint32 *minor_status, const gss_name_t pname,
-    const gss_OID mech, uid_t *uidp, gid_t *gidp,
-    int *numgroups, gid_t *groups)
-	      
+    const gss_OID mech, uid_t *uidp, gid_t *gidp, int *numgroups, gid_t *groups)
+
 {
 	struct pname_to_uid_res res;
 	struct pname_to_uid_args args;
@@ -126,7 +125,7 @@ gss_pname_to_unix_cred(OM_uint32 *minor_status, const gss_name_t pname,
 		groups[i] = res.gidlist.gidlist_val[i];
 	*numgroups = n;
 
-	xdr_free((xdrproc_t) xdr_pname_to_uid_res, &res);
+	xdr_free((xdrproc_t)xdr_pname_to_uid_res, &res);
 
 	return (GSS_S_COMPLETE);
 }

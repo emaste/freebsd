@@ -32,13 +32,13 @@ __FBSDID("$FreeBSD$");
 #include "opt_platform.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/bus.h>
 #include <sys/boot.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/mutex.h>
 #include <sys/reboot.h>
 
@@ -48,12 +48,10 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_phys.h>
 #include <vm/vm_dumpset.h>
-
-#include <net/ethernet.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -62,10 +60,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/trap.h>
 
-#include <mips/ingenic/jz4780_regs.h>
-#include <mips/ingenic/jz4780_cpuregs.h>
+#include <net/ethernet.h>
 
-uint32_t * const led = (uint32_t *)0xb0010548;
+#include <mips/ingenic/jz4780_cpuregs.h>
+#include <mips/ingenic/jz4780_regs.h>
+
+uint32_t *const led = (uint32_t *)0xb0010548;
 
 extern char edata[], end[];
 static char boot1_env[4096];
@@ -100,11 +100,11 @@ platform_reset(void)
 	 * For now, provoke a watchdog reset in about a second, so UART buffers
 	 * have a fighting chance to flush before we pull the plug
 	 */
-	writereg(JZ_TCU_BASE + JZ_WDOG_TCER, 0);	/* disable watchdog */
-	writereg(JZ_TCU_BASE + JZ_WDOG_TCNT, 0);	/* reset counter */
-	writereg(JZ_TCU_BASE + JZ_WDOG_TDR, 128);	/* wait for ~1s */
+	writereg(JZ_TCU_BASE + JZ_WDOG_TCER, 0);  /* disable watchdog */
+	writereg(JZ_TCU_BASE + JZ_WDOG_TCNT, 0);  /* reset counter */
+	writereg(JZ_TCU_BASE + JZ_WDOG_TDR, 128); /* wait for ~1s */
 	writereg(JZ_TCU_BASE + JZ_WDOG_TCSR, TCSR_RTC_EN | TCSR_DIV_256);
-	writereg(JZ_TCU_BASE + JZ_WDOG_TCER, TCER_ENABLE);	/* fire! */
+	writereg(JZ_TCU_BASE + JZ_WDOG_TCER, TCER_ENABLE); /* fire! */
 
 	/* Wait for reset */
 	while (1)
@@ -134,30 +134,29 @@ mips_init(void)
 	 * X1000 mips cpu special.
 	 * TODO: do anyone know what is this ?
 	 */
-	__asm(
-		"li	$2, 0xa9000000	\n\t"
-		"mtc0	$2, $5, 4	\n\t"
-		"nop			\n\t"
-		::"r"(2));
+	__asm("li	$2, 0xa9000000	\n\t"
+	      "mtc0	$2, $5, 4	\n\t"
+	      "nop			\n\t" ::"r"(2));
 
 #ifdef FDT
 	if (fdt_get_mem_regions(mr, &mr_cnt, &val) == 0) {
 		physmem = realmem = btoc(val);
 
-		KASSERT((phys_avail[0] >= mr[0].mr_start) && \
+		KASSERT((phys_avail[0] >= mr[0].mr_start) &&
 			(phys_avail[0] < (mr[0].mr_start + mr[0].mr_size)),
-			("First region is not within FDT memory range"));
+		    ("First region is not within FDT memory range"));
 
 		/* Limit size of the first region */
-		phys_avail[1] = (mr[0].mr_start + MIN(mr[0].mr_size, ctob(realmem)));
+		phys_avail[1] = (mr[0].mr_start +
+		    MIN(mr[0].mr_size, ctob(realmem)));
 		dump_avail[1] = phys_avail[1];
 
 		/* Add the rest of regions */
-		for (i = 1, j = 2; i < mr_cnt; i++, j+=2) {
+		for (i = 1, j = 2; i < mr_cnt; i++, j += 2) {
 			phys_avail[j] = mr[i].mr_start;
-			phys_avail[j+1] = (mr[i].mr_start + mr[i].mr_size);
+			phys_avail[j + 1] = (mr[i].mr_start + mr[i].mr_size);
 			dump_avail[j] = phys_avail[j];
-			dump_avail[j+1] = phys_avail[j+1];
+			dump_avail[j + 1] = phys_avail[j + 1];
 		}
 	}
 #endif
@@ -177,16 +176,16 @@ mips_init(void)
 }
 
 void
-platform_start(__register_t a0,  __register_t a1,
-    __register_t a2 __unused, __register_t a3 __unused)
+platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
+    __register_t a3 __unused)
 {
 	char **argv;
-	int  argc;
+	int argc;
 	vm_offset_t kernend;
 #ifdef FDT
 	vm_offset_t dtbp;
 	phandle_t chosen;
-	char buf[2048];		/* early stack supposedly big enough */
+	char buf[2048]; /* early stack supposedly big enough */
 #endif
 	/*
 	 * clear the BSS and SBSS segments, this should be first call in
@@ -216,12 +215,14 @@ platform_start(__register_t a0,  __register_t a1,
 	if (dtbp == (vm_offset_t)NULL)
 		dtbp = (vm_offset_t)&fdt_static_dtb;
 #else
-#error	"Non-static FDT not supported on JZ4780"
+#error "Non-static FDT not supported on JZ4780"
 #endif
 	if (OF_install(OFW_FDT, 0) == FALSE)
-		while (1);
+		while (1)
+			;
 	if (OF_init((void *)dtbp) != 0)
-		while (1);
+		while (1)
+			;
 #endif
 
 	cninit();

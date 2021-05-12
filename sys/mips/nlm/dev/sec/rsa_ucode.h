@@ -32,7 +32,7 @@
 
 #ifndef _NLM_HAL_RSA_UCODE_H
 #define _NLM_HAL_RSA_UCODE_H
-static uint64_t  nlm_rsa_ucode_data [] = {
+static uint64_t nlm_rsa_ucode_data[] = {
 	0x0000000000000000ULL,
 	0x00000000503840ecULL,
 	0x00000001903800ecULL,

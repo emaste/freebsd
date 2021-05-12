@@ -27,9 +27,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <linux/xarray.h>
-
 #include <vm/vm_pageout.h>
+
+#include <linux/xarray.h>
 
 /*
  * This function removes the element at the given index and returns
@@ -96,7 +96,8 @@ xa_vm_wait_locked(struct xarray *xa)
  * available to complete the radix tree insertion.
  */
 int
-__xa_alloc(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask, gfp_t gfp)
+__xa_alloc(
+    struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask, gfp_t gfp)
 {
 	int retval;
 
@@ -133,7 +134,8 @@ retry:
 }
 
 int
-xa_alloc(struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask, gfp_t gfp)
+xa_alloc(
+    struct xarray *xa, uint32_t *pindex, void *ptr, uint32_t mask, gfp_t gfp)
 {
 	int retval;
 
@@ -315,7 +317,7 @@ xa_destroy(struct xarray *xa)
 	void **ppslot;
 
 	radix_tree_for_each_slot(ppslot, &xa->root, &iter, 0)
-		radix_tree_iter_delete(&xa->root, &iter, ppslot);
+	    radix_tree_iter_delete(&xa->root, &iter, ppslot);
 	mtx_destroy(&xa->mtx);
 }
 

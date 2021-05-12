@@ -62,30 +62,31 @@
  * $FreeBSD$
  */
 
-#ifndef	_VM_PAGEQUEUE_
-#define	_VM_PAGEQUEUE_
+#ifndef _VM_PAGEQUEUE_
+#define _VM_PAGEQUEUE_
 
 #ifdef _KERNEL
 struct vm_pagequeue {
-	struct mtx	pq_mutex;
-	struct pglist	pq_pl;
-	int		pq_cnt;
-	const char	* const pq_name;
-	uint64_t	pq_pdpages;
+	struct mtx pq_mutex;
+	struct pglist pq_pl;
+	int pq_cnt;
+	const char *const pq_name;
+	uint64_t pq_pdpages;
 } __aligned(CACHE_LINE_SIZE);
 
 #ifndef VM_BATCHQUEUE_SIZE
-#define	VM_BATCHQUEUE_SIZE	7
+#define VM_BATCHQUEUE_SIZE 7
 #endif
 
 struct vm_batchqueue {
-	vm_page_t	bq_pa[VM_BATCHQUEUE_SIZE];
-	int		bq_cnt;
+	vm_page_t bq_pa[VM_BATCHQUEUE_SIZE];
+	int bq_cnt;
 } __aligned(CACHE_LINE_SIZE);
 
-#include <vm/uma.h>
 #include <sys/_blockcount.h>
 #include <sys/pidctrl.h>
+
+#include <vm/uma.h>
 struct sysctl_oid;
 
 /*
@@ -243,36 +244,37 @@ struct vm_domain {
 		int pool;
 		uma_zone_t zone;
 	} vmd_pgcache[VM_NFREEPOOL];
-	struct vmem *vmd_kernel_arena;	/* (c) per-domain kva R/W arena. */
+	struct vmem *vmd_kernel_arena;	   /* (c) per-domain kva R/W arena. */
 	struct vmem *vmd_kernel_rwx_arena; /* (c) per-domain kva R/W/X arena. */
-	u_int vmd_domain;		/* (c) Domain number. */
-	u_int vmd_page_count;		/* (c) Total page count. */
-	long vmd_segs;			/* (c) bitmask of the segments */
-	u_int __aligned(CACHE_LINE_SIZE) vmd_free_count; /* (a,f) free page count */
-	u_int vmd_pageout_deficit;	/* (a) Estimated number of pages deficit */
+	u_int vmd_domain;		   /* (c) Domain number. */
+	u_int vmd_page_count;		   /* (c) Total page count. */
+	long vmd_segs;			   /* (c) bitmask of the segments */
+	u_int __aligned(
+	    CACHE_LINE_SIZE) vmd_free_count; /* (a,f) free page count */
+	u_int vmd_pageout_deficit; /* (a) Estimated number of pages deficit */
 	uint8_t vmd_pad[CACHE_LINE_SIZE - (sizeof(u_int) * 2)];
 
 	/* Paging control variables, used within single threaded page daemon. */
-	struct pidctrl vmd_pid;		/* Pageout controller. */
+	struct pidctrl vmd_pid; /* Pageout controller. */
 	boolean_t vmd_oom;
 	u_int vmd_inactive_threads;
-	u_int vmd_inactive_shortage;		/* Per-thread shortage. */
-	blockcount_t vmd_inactive_running;	/* Number of inactive threads. */
-	blockcount_t vmd_inactive_starting;	/* Number of threads started. */
-	volatile u_int vmd_addl_shortage;	/* Shortage accumulator. */
-	volatile u_int vmd_inactive_freed;	/* Successful inactive frees. */
-	volatile u_int vmd_inactive_us;		/* Microseconds for above. */
-	u_int vmd_inactive_pps;		/* Exponential decay frees/second. */
+	u_int vmd_inactive_shortage;	    /* Per-thread shortage. */
+	blockcount_t vmd_inactive_running;  /* Number of inactive threads. */
+	blockcount_t vmd_inactive_starting; /* Number of threads started. */
+	volatile u_int vmd_addl_shortage;   /* Shortage accumulator. */
+	volatile u_int vmd_inactive_freed;  /* Successful inactive frees. */
+	volatile u_int vmd_inactive_us;	    /* Microseconds for above. */
+	u_int vmd_inactive_pps; /* Exponential decay frees/second. */
 	int vmd_oom_seq;
 	int vmd_last_active_scan;
 	struct vm_page vmd_markers[PQ_COUNT]; /* (q) markers for queue scans */
 	struct vm_page vmd_inacthead; /* marker for LRU-defeating insertions */
-	struct vm_page vmd_clock[2]; /* markers for active queue scan */
+	struct vm_page vmd_clock[2];  /* markers for active queue scan */
 
-	int vmd_pageout_wanted;		/* (a, p) pageout daemon wait channel */
-	int vmd_pageout_pages_needed;	/* (d) page daemon waiting for pages? */
-	bool vmd_minset;		/* (d) Are we in vm_min_domains? */
-	bool vmd_severeset;		/* (d) Are we in vm_severe_domains? */
+	int vmd_pageout_wanted;	      /* (a, p) pageout daemon wait channel */
+	int vmd_pageout_pages_needed; /* (d) page daemon waiting for pages? */
+	bool vmd_minset;	      /* (d) Are we in vm_min_domains? */
+	bool vmd_severeset;	      /* (d) Are we in vm_severe_domains? */
 	enum {
 		VM_LAUNDRY_IDLE = 0,
 		VM_LAUNDRY_BACKGROUND,
@@ -280,16 +282,16 @@ struct vm_domain {
 	} vmd_laundry_request;
 
 	/* Paging thresholds and targets. */
-	u_int vmd_clean_pages_freed;	/* (q) accumulator for laundry thread */
+	u_int vmd_clean_pages_freed; /* (q) accumulator for laundry thread */
 	u_int vmd_background_launder_target; /* (c) */
-	u_int vmd_free_reserved;	/* (c) pages reserved for deadlock */
-	u_int vmd_free_target;		/* (c) pages desired free */
-	u_int vmd_free_min;		/* (c) pages desired free */
-	u_int vmd_inactive_target;	/* (c) pages desired inactive */
-	u_int vmd_pageout_free_min;	/* (c) min pages reserved for kernel */
-	u_int vmd_pageout_wakeup_thresh;/* (c) min pages to wake pagedaemon */
-	u_int vmd_interrupt_free_min;	/* (c) reserved pages for int code */
-	u_int vmd_free_severe;		/* (c) severe page depletion point */
+	u_int vmd_free_reserved;	 /* (c) pages reserved for deadlock */
+	u_int vmd_free_target;		 /* (c) pages desired free */
+	u_int vmd_free_min;		 /* (c) pages desired free */
+	u_int vmd_inactive_target;	 /* (c) pages desired inactive */
+	u_int vmd_pageout_free_min;	 /* (c) min pages reserved for kernel */
+	u_int vmd_pageout_wakeup_thresh; /* (c) min pages to wake pagedaemon */
+	u_int vmd_interrupt_free_min;	 /* (c) reserved pages for int code */
+	u_int vmd_free_severe;		 /* (c) severe page depletion point */
 
 	/* Name for sysctl etc. */
 	struct sysctl_oid *vmd_oid;
@@ -298,38 +300,31 @@ struct vm_domain {
 
 extern struct vm_domain vm_dom[MAXMEMDOM];
 
-#define	VM_DOMAIN(n)		(&vm_dom[(n)])
-#define	VM_DOMAIN_EMPTY(n)	(vm_dom[(n)].vmd_page_count == 0)
+#define VM_DOMAIN(n) (&vm_dom[(n)])
+#define VM_DOMAIN_EMPTY(n) (vm_dom[(n)].vmd_page_count == 0)
 
-#define	vm_pagequeue_assert_locked(pq)	mtx_assert(&(pq)->pq_mutex, MA_OWNED)
-#define	vm_pagequeue_lock(pq)		mtx_lock(&(pq)->pq_mutex)
-#define	vm_pagequeue_lockptr(pq)	(&(pq)->pq_mutex)
-#define	vm_pagequeue_trylock(pq)	mtx_trylock(&(pq)->pq_mutex)
-#define	vm_pagequeue_unlock(pq)		mtx_unlock(&(pq)->pq_mutex)
+#define vm_pagequeue_assert_locked(pq) mtx_assert(&(pq)->pq_mutex, MA_OWNED)
+#define vm_pagequeue_lock(pq) mtx_lock(&(pq)->pq_mutex)
+#define vm_pagequeue_lockptr(pq) (&(pq)->pq_mutex)
+#define vm_pagequeue_trylock(pq) mtx_trylock(&(pq)->pq_mutex)
+#define vm_pagequeue_unlock(pq) mtx_unlock(&(pq)->pq_mutex)
 
-#define	vm_domain_free_assert_locked(n)					\
-	    mtx_assert(vm_domain_free_lockptr((n)), MA_OWNED)
-#define	vm_domain_free_assert_unlocked(n)				\
-	    mtx_assert(vm_domain_free_lockptr((n)), MA_NOTOWNED)
-#define	vm_domain_free_lock(d)						\
-	    mtx_lock(vm_domain_free_lockptr((d)))
-#define	vm_domain_free_lockptr(d)					\
-	    (&(d)->vmd_free_mtx)
-#define	vm_domain_free_trylock(d)					\
-	    mtx_trylock(vm_domain_free_lockptr((d)))
-#define	vm_domain_free_unlock(d)					\
-	    mtx_unlock(vm_domain_free_lockptr((d)))
+#define vm_domain_free_assert_locked(n) \
+	mtx_assert(vm_domain_free_lockptr((n)), MA_OWNED)
+#define vm_domain_free_assert_unlocked(n) \
+	mtx_assert(vm_domain_free_lockptr((n)), MA_NOTOWNED)
+#define vm_domain_free_lock(d) mtx_lock(vm_domain_free_lockptr((d)))
+#define vm_domain_free_lockptr(d) (&(d)->vmd_free_mtx)
+#define vm_domain_free_trylock(d) mtx_trylock(vm_domain_free_lockptr((d)))
+#define vm_domain_free_unlock(d) mtx_unlock(vm_domain_free_lockptr((d)))
 
-#define	vm_domain_pageout_lockptr(d)					\
-	    (&(d)->vmd_pageout_mtx)
-#define	vm_domain_pageout_assert_locked(n)				\
-	    mtx_assert(vm_domain_pageout_lockptr((n)), MA_OWNED)
-#define	vm_domain_pageout_assert_unlocked(n)				\
-	    mtx_assert(vm_domain_pageout_lockptr((n)), MA_NOTOWNED)
-#define	vm_domain_pageout_lock(d)					\
-	    mtx_lock(vm_domain_pageout_lockptr((d)))
-#define	vm_domain_pageout_unlock(d)					\
-	    mtx_unlock(vm_domain_pageout_lockptr((d)))
+#define vm_domain_pageout_lockptr(d) (&(d)->vmd_pageout_mtx)
+#define vm_domain_pageout_assert_locked(n) \
+	mtx_assert(vm_domain_pageout_lockptr((n)), MA_OWNED)
+#define vm_domain_pageout_assert_unlocked(n) \
+	mtx_assert(vm_domain_pageout_lockptr((n)), MA_NOTOWNED)
+#define vm_domain_pageout_lock(d) mtx_lock(vm_domain_pageout_lockptr((d)))
+#define vm_domain_pageout_unlock(d) mtx_unlock(vm_domain_pageout_lockptr((d)))
 
 static __inline void
 vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
@@ -338,8 +333,8 @@ vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
 	vm_pagequeue_assert_locked(pq);
 	pq->pq_cnt += addend;
 }
-#define	vm_pagequeue_cnt_inc(pq)	vm_pagequeue_cnt_add((pq), 1)
-#define	vm_pagequeue_cnt_dec(pq)	vm_pagequeue_cnt_add((pq), -1)
+#define vm_pagequeue_cnt_inc(pq) vm_pagequeue_cnt_add((pq), 1)
+#define vm_pagequeue_cnt_dec(pq) vm_pagequeue_cnt_add((pq), -1)
 
 static inline void
 vm_pagequeue_remove(struct vm_pagequeue *pq, vm_page_t m)
@@ -420,7 +415,7 @@ static inline int
 vm_paging_min(struct vm_domain *vmd)
 {
 
-        return (vmd->vmd_free_min > vmd->vmd_free_count);
+	return (vmd->vmd_free_min > vmd->vmd_free_count);
 }
 
 /*
@@ -430,7 +425,7 @@ static inline int
 vm_paging_severe(struct vm_domain *vmd)
 {
 
-        return (vmd->vmd_free_severe > vmd->vmd_free_count);
+	return (vmd->vmd_free_severe > vmd->vmd_free_count);
 }
 
 /*
@@ -457,12 +452,13 @@ vm_domain_freecnt_inc(struct vm_domain *vmd, int adj)
 	 * Only update bitsets on transitions.  Notice we short-circuit the
 	 * rest of the checks if we're above min already.
 	 */
-	if (old < vmd->vmd_free_min && (new >= vmd->vmd_free_min ||
-	    (old < vmd->vmd_free_severe && new >= vmd->vmd_free_severe) ||
-	    (old < vmd->vmd_pageout_free_min &&
-	    new >= vmd->vmd_pageout_free_min)))
+	if (old < vmd->vmd_free_min &&
+	    (new >= vmd->vmd_free_min ||
+		(old < vmd->vmd_free_severe && new >= vmd->vmd_free_severe) ||
+		(old < vmd->vmd_pageout_free_min &&
+		    new >= vmd->vmd_pageout_free_min)))
 		vm_domain_clear(vmd);
 }
 
-#endif	/* _KERNEL */
-#endif				/* !_VM_PAGEQUEUE_ */
+#endif /* _KERNEL */
+#endif /* !_VM_PAGEQUEUE_ */

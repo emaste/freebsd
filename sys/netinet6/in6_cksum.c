@@ -66,8 +66,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/mbuf.h>
 #include <sys/systm.h>
+#include <sys/mbuf.h>
+
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 #include <netinet6/scope6_var.h>
@@ -79,8 +80,13 @@ __FBSDID("$FreeBSD$");
  * code and should be modified for each CPU to be as fast as possible.
  */
 
-#define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
-#define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; (void)ADDCARRY(sum);}
+#define ADDCARRY(x) (x > 65535 ? x -= 65535 : x)
+#define REDUCE                                   \
+	{                                        \
+		l_util.l = sum;                  \
+		sum = l_util.s[0] + l_util.s[1]; \
+		(void)ADDCARRY(sum);             \
+	}
 
 static int
 _in6_cksum_pseudo(struct ip6_hdr *ip6, uint32_t len, uint8_t nxt, uint16_t csum)
@@ -90,9 +96,9 @@ _in6_cksum_pseudo(struct ip6_hdr *ip6, uint32_t len, uint8_t nxt, uint16_t csum)
 	union {
 		u_int16_t phs[4];
 		struct {
-			u_int32_t	ph_len;
-			u_int8_t	ph_zero[3];
-			u_int8_t	ph_nxt;
+			u_int32_t ph_len;
+			u_int8_t ph_zero[3];
+			u_int8_t ph_nxt;
 		} __packed ph;
 	} uph;
 
@@ -106,22 +112,36 @@ _in6_cksum_pseudo(struct ip6_hdr *ip6, uint32_t len, uint8_t nxt, uint16_t csum)
 	uph.ph.ph_nxt = nxt;
 
 	/* Payload length and upper layer identifier. */
-	sum += uph.phs[0];  sum += uph.phs[1];
-	sum += uph.phs[2];  sum += uph.phs[3];
+	sum += uph.phs[0];
+	sum += uph.phs[1];
+	sum += uph.phs[2];
+	sum += uph.phs[3];
 
 	/* IPv6 source address. */
 	scope = in6_getscope(&ip6->ip6_src);
 	w = (u_int16_t *)&ip6->ip6_src;
-	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
-	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
+	sum += w[0];
+	sum += w[1];
+	sum += w[2];
+	sum += w[3];
+	sum += w[4];
+	sum += w[5];
+	sum += w[6];
+	sum += w[7];
 	if (scope != 0)
 		sum -= scope;
 
 	/* IPv6 destination address. */
 	scope = in6_getscope(&ip6->ip6_dst);
 	w = (u_int16_t *)&ip6->ip6_dst;
-	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
-	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
+	sum += w[0];
+	sum += w[1];
+	sum += w[2];
+	sum += w[3];
+	sum += w[4];
+	sum += w[5];
+	sum += w[6];
+	sum += w[7];
 	if (scope != 0)
 		sum -= scope;
 
@@ -150,8 +170,8 @@ in6_cksum_pseudo(struct ip6_hdr *ip6, uint32_t len, uint8_t nxt, uint16_t csum)
  * cov is the number of bytes to be taken into account for the checksum
  */
 int
-in6_cksum_partial(struct mbuf *m, u_int8_t nxt, u_int32_t off,
-    u_int32_t len, u_int32_t cov)
+in6_cksum_partial(
+    struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len, u_int32_t cov)
 {
 	struct ip6_hdr *ip6;
 	u_int16_t *w, scope;
@@ -160,14 +180,14 @@ in6_cksum_partial(struct mbuf *m, u_int8_t nxt, u_int32_t off,
 	union {
 		u_int16_t phs[4];
 		struct {
-			u_int32_t	ph_len;
-			u_int8_t	ph_zero[3];
-			u_int8_t	ph_nxt;
+			u_int32_t ph_len;
+			u_int8_t ph_zero[3];
+			u_int8_t ph_nxt;
 		} __packed ph;
 	} uph;
 	union {
-		u_int8_t	c[2];
-		u_int16_t	s;
+		u_int8_t c[2];
+		u_int16_t s;
 	} s_util;
 	union {
 		u_int16_t s[2];
@@ -175,8 +195,10 @@ in6_cksum_partial(struct mbuf *m, u_int8_t nxt, u_int32_t off,
 	} l_util;
 
 	/* Sanity check. */
-	KASSERT(m->m_pkthdr.len >= off + len, ("%s: mbuf len (%d) < off(%d)+"
-	    "len(%d)", __func__, m->m_pkthdr.len, off, len));
+	KASSERT(m->m_pkthdr.len >= off + len,
+	    ("%s: mbuf len (%d) < off(%d)+"
+	     "len(%d)",
+		__func__, m->m_pkthdr.len, off, len));
 
 	/*
 	 * First create IP6 pseudo header and calculate a summary.
@@ -186,24 +208,38 @@ in6_cksum_partial(struct mbuf *m, u_int8_t nxt, u_int32_t off,
 	uph.ph.ph_nxt = nxt;
 
 	/* Payload length and upper layer identifier. */
-	sum = uph.phs[0];  sum += uph.phs[1];
-	sum += uph.phs[2];  sum += uph.phs[3];
+	sum = uph.phs[0];
+	sum += uph.phs[1];
+	sum += uph.phs[2];
+	sum += uph.phs[3];
 
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	/* IPv6 source address. */
 	scope = in6_getscope(&ip6->ip6_src);
 	w = (u_int16_t *)&ip6->ip6_src;
-	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
-	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
+	sum += w[0];
+	sum += w[1];
+	sum += w[2];
+	sum += w[3];
+	sum += w[4];
+	sum += w[5];
+	sum += w[6];
+	sum += w[7];
 	if (scope != 0)
 		sum -= scope;
 
 	/* IPv6 destination address. */
 	scope = in6_getscope(&ip6->ip6_dst);
 	w = (u_int16_t *)&ip6->ip6_dst;
-	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
-	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
+	sum += w[0];
+	sum += w[1];
+	sum += w[2];
+	sum += w[3];
+	sum += w[4];
+	sum += w[5];
+	sum += w[6];
+	sum += w[7];
 	if (scope != 0)
 		sum -= scope;
 
@@ -240,15 +276,30 @@ in6_cksum_partial(struct mbuf *m, u_int8_t nxt, u_int32_t off,
 	 * branches &c small.
 	 */
 	while ((mlen -= 32) >= 0) {
-		sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
-		sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
-		sum += w[8]; sum += w[9]; sum += w[10]; sum += w[11];
-		sum += w[12]; sum += w[13]; sum += w[14]; sum += w[15];
+		sum += w[0];
+		sum += w[1];
+		sum += w[2];
+		sum += w[3];
+		sum += w[4];
+		sum += w[5];
+		sum += w[6];
+		sum += w[7];
+		sum += w[8];
+		sum += w[9];
+		sum += w[10];
+		sum += w[11];
+		sum += w[12];
+		sum += w[13];
+		sum += w[14];
+		sum += w[15];
 		w += 16;
 	}
 	mlen += 32;
 	while ((mlen -= 8) >= 0) {
-		sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
+		sum += w[0];
+		sum += w[1];
+		sum += w[2];
+		sum += w[3];
 		w += 4;
 	}
 	mlen += 8;
@@ -270,14 +321,14 @@ in6_cksum_partial(struct mbuf *m, u_int8_t nxt, u_int32_t off,
 			mlen = -1;
 	} else if (mlen == -1)
 		s_util.c[0] = *(char *)w;
- next:
+next:
 	m = m->m_next;
 
 	/*
 	 * Lastly calculate a summary of the rest of mbufs.
 	 */
 
-	for (;m && cov; m = m->m_next) {
+	for (; m && cov; m = m->m_next) {
 		if (m->m_len == 0)
 			continue;
 		w = mtod(m, u_int16_t *);
@@ -303,7 +354,7 @@ in6_cksum_partial(struct mbuf *m, u_int8_t nxt, u_int32_t off,
 		/*
 		 * Force to even boundary.
 		 */
-		if ((1 & (long) w) && (mlen > 0)) {
+		if ((1 & (long)w) && (mlen > 0)) {
 			REDUCE;
 			sum <<= 8;
 			s_util.c[0] = *(u_char *)w;
@@ -316,15 +367,30 @@ in6_cksum_partial(struct mbuf *m, u_int8_t nxt, u_int32_t off,
 		 * branches &c small.
 		 */
 		while ((mlen -= 32) >= 0) {
-			sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
-			sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
-			sum += w[8]; sum += w[9]; sum += w[10]; sum += w[11];
-			sum += w[12]; sum += w[13]; sum += w[14]; sum += w[15];
+			sum += w[0];
+			sum += w[1];
+			sum += w[2];
+			sum += w[3];
+			sum += w[4];
+			sum += w[5];
+			sum += w[6];
+			sum += w[7];
+			sum += w[8];
+			sum += w[9];
+			sum += w[10];
+			sum += w[11];
+			sum += w[12];
+			sum += w[13];
+			sum += w[14];
+			sum += w[15];
 			w += 16;
 		}
 		mlen += 32;
 		while ((mlen -= 8) >= 0) {
-			sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
+			sum += w[0];
+			sum += w[1];
+			sum += w[2];
+			sum += w[3];
 			w += 4;
 		}
 		mlen += 8;

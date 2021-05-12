@@ -41,11 +41,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
-#include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
-
+#include <netinet/ip_var.h>
 #include <netpfil/ipfw/ip_fw_private.h>
 
 #include "ip_fw_nat64.h"
@@ -57,8 +55,7 @@ SYSCTL_DECL(_net_inet_ip_fw);
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, nat64_debug, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(nat64_debug), 0, "Debug level for NAT64 module");
 
-static int
-sysctl_direct_output(SYSCTL_HANDLER_ARGS)
+static int sysctl_direct_output(SYSCTL_HANDLER_ARGS)
 {
 	uint32_t value;
 	int error;
@@ -72,8 +69,8 @@ sysctl_direct_output(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_net_inet_ip_fw, OID_AUTO, nat64_direct_output,
-    CTLFLAG_VNET | CTLTYPE_U32 | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    0, 0, sysctl_direct_output, "IU",
+    CTLFLAG_VNET | CTLTYPE_U32 | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0,
+    sysctl_direct_output, "IU",
     "Use if_output directly instead of deffered netisr-based processing");
 
 static int
@@ -83,7 +80,7 @@ vnet_ipfw_nat64_init(const void *arg __unused)
 	int first, error;
 
 	ch = &V_layer3_chain;
-	first = IS_DEFAULT_VNET(curvnet) ? 1: 0;
+	first = IS_DEFAULT_VNET(curvnet) ? 1 : 0;
 	/* Initialize V_nat64out methods explicitly. */
 	nat64_set_output_method(0);
 	error = nat64stl_init(ch, first);
@@ -110,7 +107,7 @@ vnet_ipfw_nat64_uninit(const void *arg __unused)
 	int last;
 
 	ch = &V_layer3_chain;
-	last = IS_DEFAULT_VNET(curvnet) ? 1: 0;
+	last = IS_DEFAULT_VNET(curvnet) ? 1 : 0;
 	nat64stl_uninit(ch, last);
 	nat64clat_uninit(ch, last);
 	nat64lsn_uninit(ch, last);
@@ -131,20 +128,16 @@ ipfw_nat64_modevent(module_t mod, int type, void *unused)
 	return (0);
 }
 
-static moduledata_t ipfw_nat64_mod = {
-	"ipfw_nat64",
-	ipfw_nat64_modevent,
-	0
-};
+static moduledata_t ipfw_nat64_mod = { "ipfw_nat64", ipfw_nat64_modevent, 0 };
 
 /* Define startup order. */
-#define	IPFW_NAT64_SI_SUB_FIREWALL	SI_SUB_PROTO_IFATTACHDOMAIN
-#define	IPFW_NAT64_MODEVENT_ORDER	(SI_ORDER_ANY - 128) /* after ipfw */
-#define	IPFW_NAT64_MODULE_ORDER		(IPFW_NAT64_MODEVENT_ORDER + 1)
-#define	IPFW_NAT64_VNET_ORDER		(IPFW_NAT64_MODEVENT_ORDER + 2)
+#define IPFW_NAT64_SI_SUB_FIREWALL SI_SUB_PROTO_IFATTACHDOMAIN
+#define IPFW_NAT64_MODEVENT_ORDER (SI_ORDER_ANY - 128) /* after ipfw */
+#define IPFW_NAT64_MODULE_ORDER (IPFW_NAT64_MODEVENT_ORDER + 1)
+#define IPFW_NAT64_VNET_ORDER (IPFW_NAT64_MODEVENT_ORDER + 2)
 
-DECLARE_MODULE(ipfw_nat64, ipfw_nat64_mod, IPFW_NAT64_SI_SUB_FIREWALL,
-    SI_ORDER_ANY);
+DECLARE_MODULE(
+    ipfw_nat64, ipfw_nat64_mod, IPFW_NAT64_SI_SUB_FIREWALL, SI_ORDER_ANY);
 MODULE_DEPEND(ipfw_nat64, ipfw, 3, 3, 3);
 MODULE_VERSION(ipfw_nat64, 1);
 

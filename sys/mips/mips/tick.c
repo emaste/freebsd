@@ -37,19 +37,19 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/rman.h>
 #include <sys/power.h>
+#include <sys/rman.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 
-#include <machine/hwfunc.h>
 #include <machine/clock.h>
+#include <machine/hwfunc.h>
 #include <machine/locore.h>
 #include <machine/md_var.h>
 
@@ -86,7 +86,7 @@ static void clock_identify(driver_t *, device_t);
 static int clock_attach(device_t);
 static unsigned counter_get_timecount(struct timecounter *tc);
 
-void 
+void
 mips_timer_early_init(uint64_t clock_hz)
 {
 	/* Initialize clock early so that we can use DELAY sooner */
@@ -160,8 +160,7 @@ mips_timer_init_params(uint64_t platform_counter_freq, int double_count)
 	set_cputicker(tick_ticker, counter_freq, 1);
 }
 
-static int
-sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
+static int sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	uint64_t freq;
@@ -180,8 +179,7 @@ sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_machdep, OID_AUTO, counter_freq,
     CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
-    sysctl_machdep_counter_freq, "QU",
-    "Timecounter frequency in Hz");
+    sysctl_machdep_counter_freq, "QU", "Timecounter frequency in Hz");
 
 static unsigned
 counter_get_timecount(struct timecounter *tc)
@@ -236,7 +234,7 @@ clock_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		div = 0;
 	if (first != 0)
 		fdiv = (et->et_frequency * first) >> 32;
-	else 
+	else
 		fdiv = div;
 	DPCPU_SET(cycles_per_tick, div);
 	next = mips_rd_count() + fdiv;
@@ -274,7 +272,7 @@ clock_intr(void *arg)
 		compare_next = count + cycles_per_tick;
 		DPCPU_SET(compare_ticks, compare_next);
 		mips_wr_compare(compare_next);
-	} else	/* In one-shot mode timer should be stopped after the event. */
+	} else /* In one-shot mode timer should be stopped after the event. */
 		mips_wr_compare(0xffffffff);
 
 	/* COUNT register wrapped around */
@@ -322,7 +320,7 @@ clock_probe(device_t dev)
 }
 
 static void
-clock_identify(driver_t * drv, device_t parent)
+clock_identify(driver_t *drv, device_t parent)
 {
 
 	BUS_ADD_CHILD(parent, 0, "clock", 0);
@@ -341,18 +339,18 @@ clock_attach(device_t dev)
 
 	softc = sc = device_get_softc(dev);
 #ifdef INTRNG
-	cpu_establish_hardintr("clock", clock_intr, NULL, sc, 5, INTR_TYPE_CLK,
-	    NULL);
+	cpu_establish_hardintr(
+	    "clock", clock_intr, NULL, sc, 5, INTR_TYPE_CLK, NULL);
 #else
 	sc->intr_rid = 0;
-	sc->intr_res = bus_alloc_resource(dev,
-	    SYS_RES_IRQ, &sc->intr_rid, 5, 5, 1, RF_ACTIVE);
+	sc->intr_res = bus_alloc_resource(
+	    dev, SYS_RES_IRQ, &sc->intr_rid, 5, 5, 1, RF_ACTIVE);
 	if (sc->intr_res == NULL) {
 		device_printf(dev, "failed to allocate irq\n");
 		return (ENXIO);
 	}
-	error = bus_setup_intr(dev, sc->intr_res, INTR_TYPE_CLK,
-	    clock_intr, NULL, sc, &sc->intr_handler);
+	error = bus_setup_intr(dev, sc->intr_res, INTR_TYPE_CLK, clock_intr,
+	    NULL, sc, &sc->intr_handler);
 	if (error != 0) {
 		device_printf(dev, "bus_setup_intr returned %d\n", error);
 		return (error);
@@ -386,8 +384,7 @@ static device_method_t clock_methods[] = {
 	DEVMETHOD(device_identify, clock_identify),
 	DEVMETHOD(device_attach, clock_attach),
 	DEVMETHOD(device_detach, bus_generic_detach),
-	DEVMETHOD(device_shutdown, bus_generic_shutdown),
-	{0, 0}
+	DEVMETHOD(device_shutdown, bus_generic_shutdown), { 0, 0 }
 };
 
 static driver_t clock_driver = {

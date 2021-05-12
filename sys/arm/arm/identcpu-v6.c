@@ -48,17 +48,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 
 char machine[] = "arm";
 
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
-	machine, 0, "Machine class");
+SYSCTL_STRING(
+    _hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "Machine class");
 
 static char cpu_model[64];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
-    cpu_model, sizeof(cpu_model), "Machine model");
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, sizeof(cpu_model),
+    "Machine model");
 
 static char hw_buf[81];
 static int hw_buf_idx;
@@ -67,44 +68,44 @@ static bool hw_buf_newline;
 enum cpu_class cpu_class = CPU_CLASS_NONE;
 
 static struct {
-	int	implementer;
-	int	part_number;
-	char 	*impl_name;
-	char 	*core_name;
-	enum	cpu_class cpu_class;
-} cpu_names[] =  {
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_ARM1176,    "ARM", "ARM1176",
-	    CPU_CLASS_ARM11J},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A5 , "ARM", "Cortex-A5",
-	    CPU_CLASS_CORTEXA},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A7 , "ARM", "Cortex-A7",
-	    CPU_CLASS_CORTEXA},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A8 , "ARM", "Cortex-A8",
-	    CPU_CLASS_CORTEXA},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A9 , "ARM", "Cortex-A9",
-	    CPU_CLASS_CORTEXA},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A12, "ARM", "Cortex-A12",
-	    CPU_CLASS_CORTEXA},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A15, "ARM", "Cortex-A15",
-	    CPU_CLASS_CORTEXA},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A17, "ARM", "Cortex-A17",
-	    CPU_CLASS_CORTEXA},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A53, "ARM", "Cortex-A53",
-	    CPU_CLASS_CORTEXA},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A57, "ARM", "Cortex-A57",
-	    CPU_CLASS_CORTEXA},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A72, "ARM", "Cortex-A72",
-	    CPU_CLASS_CORTEXA},
-	{CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A73, "ARM", "Cortex-A73",
-	    CPU_CLASS_CORTEXA},
+	int implementer;
+	int part_number;
+	char *impl_name;
+	char *core_name;
+	enum cpu_class cpu_class;
+} cpu_names[] = {
+	{ CPU_IMPLEMENTER_ARM, CPU_ARCH_ARM1176, "ARM", "ARM1176",
+	    CPU_CLASS_ARM11J },
+	{ CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A5, "ARM", "Cortex-A5",
+	    CPU_CLASS_CORTEXA },
+	{ CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A7, "ARM", "Cortex-A7",
+	    CPU_CLASS_CORTEXA },
+	{ CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A8, "ARM", "Cortex-A8",
+	    CPU_CLASS_CORTEXA },
+	{ CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A9, "ARM", "Cortex-A9",
+	    CPU_CLASS_CORTEXA },
+	{ CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A12, "ARM", "Cortex-A12",
+	    CPU_CLASS_CORTEXA },
+	{ CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A15, "ARM", "Cortex-A15",
+	    CPU_CLASS_CORTEXA },
+	{ CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A17, "ARM", "Cortex-A17",
+	    CPU_CLASS_CORTEXA },
+	{ CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A53, "ARM", "Cortex-A53",
+	    CPU_CLASS_CORTEXA },
+	{ CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A57, "ARM", "Cortex-A57",
+	    CPU_CLASS_CORTEXA },
+	{ CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A72, "ARM", "Cortex-A72",
+	    CPU_CLASS_CORTEXA },
+	{ CPU_IMPLEMENTER_ARM, CPU_ARCH_CORTEX_A73, "ARM", "Cortex-A73",
+	    CPU_CLASS_CORTEXA },
 
-	{CPU_IMPLEMENTER_MRVL, CPU_ARCH_SHEEVA_581, "Marvell", "PJ4 v7",
-	    CPU_CLASS_MARVELL},
-	{CPU_IMPLEMENTER_MRVL, CPU_ARCH_SHEEVA_584, "Marvell", "PJ4MP v7",
-	    CPU_CLASS_MARVELL},
+	{ CPU_IMPLEMENTER_MRVL, CPU_ARCH_SHEEVA_581, "Marvell", "PJ4 v7",
+	    CPU_CLASS_MARVELL },
+	{ CPU_IMPLEMENTER_MRVL, CPU_ARCH_SHEEVA_584, "Marvell", "PJ4MP v7",
+	    CPU_CLASS_MARVELL },
 
-	{CPU_IMPLEMENTER_QCOM, CPU_ARCH_KRAIT_300, "Qualcomm", "Krait 300",
-	    CPU_CLASS_KRAIT},
+	{ CPU_IMPLEMENTER_QCOM, CPU_ARCH_KRAIT_300, "Qualcomm", "Krait 300",
+	    CPU_CLASS_KRAIT },
 };
 
 static void
@@ -122,9 +123,9 @@ print_v5_cache(void)
 	int pdcache_ways;
 
 	pcache_unified = 0;
-	picache_size = 0 ;
-	picache_line_size = 0 ;
-	picache_ways = 0 ;
+	picache_size = 0;
+	picache_line_size = 0;
+	picache_ways = 0;
 	pdcache_size = 0;
 	pdcache_line_size = 0;
 	pdcache_ways = 0;
@@ -147,8 +148,8 @@ print_v5_cache(void)
 			else
 				picache_ways = 1;
 		} else {
-			picache_ways = multiplier <<
-			    (CPU_CT_xSIZE_ASSOC(isize) - 1);
+			picache_ways = multiplier
+			    << (CPU_CT_xSIZE_ASSOC(isize) - 1);
 		}
 		picache_size = multiplier << (CPU_CT_xSIZE_SIZE(isize) + 8);
 	}
@@ -162,9 +163,8 @@ print_v5_cache(void)
 		else
 			pdcache_ways = 1;
 	} else {
-		pdcache_ways = multiplier <<
-		    (CPU_CT_xSIZE_ASSOC(dsize) - 1);
-		}
+		pdcache_ways = multiplier << (CPU_CT_xSIZE_ASSOC(dsize) - 1);
+	}
 	pdcache_size = multiplier << (CPU_CT_xSIZE_SIZE(dsize) + 8);
 
 	/* Print cache info. */
@@ -173,28 +173,24 @@ print_v5_cache(void)
 
 	if (pcache_unified) {
 		printf("  %dKB/%dB %d-way %s unified cache\n",
-		    pdcache_size / 1024,
-		    pdcache_line_size, pdcache_ways,
+		    pdcache_size / 1024, pdcache_line_size, pdcache_ways,
 		    pcache_type == 0 ? "WT" : "WB");
 	} else {
 		printf("  %dKB/%dB %d-way instruction cache\n",
-		    picache_size / 1024,
-		    picache_line_size, picache_ways);
-		printf("  %dKB/%dB %d-way %s data cache\n",
-		    pdcache_size / 1024,
+		    picache_size / 1024, picache_line_size, picache_ways);
+		printf("  %dKB/%dB %d-way %s data cache\n", pdcache_size / 1024,
 		    pdcache_line_size, pdcache_ways,
 		    pcache_type == 0 ? "WT" : "WB");
 	}
 }
 
 static void
-print_v7_cache(void )
+print_v7_cache(void)
 {
 	uint32_t type, val, size, sets, ways, linesize;
 	int i;
 
-	printf("LoUU:%d LoC:%d LoUIS:%d \n",
-	    CPU_CLIDR_LOUU(cpuinfo.clidr) + 1,
+	printf("LoUU:%d LoC:%d LoUIS:%d \n", CPU_CLIDR_LOUU(cpuinfo.clidr) + 1,
 	    CPU_CLIDR_LOC(cpuinfo.clidr) + 1,
 	    CPU_CLIDR_LOUIS(cpuinfo.clidr) + 1);
 
@@ -213,11 +209,11 @@ print_v7_cache(void )
 			size = (ways * sets * linesize) / 1024;
 
 			if (type == CACHE_UNI_CACHE)
-				printf(" %dKB/%dB %d-way unified cache",
-				    size, linesize,ways);
+				printf(" %dKB/%dB %d-way unified cache", size,
+				    linesize, ways);
 			else
-				printf(" %dKB/%dB %d-way data cache",
-				    size, linesize, ways);
+				printf(" %dKB/%dB %d-way data cache", size,
+				    linesize, ways);
 			if (val & CPUV7_CT_CTYPE_WT)
 				printf(" WT");
 			if (val & CPUV7_CT_CTYPE_WB)
@@ -236,8 +232,8 @@ print_v7_cache(void )
 			sets = CPUV7_CT_xSIZE_SET(val) + 1;
 			linesize = 1 << (CPUV7_CT_xSIZE_LEN(val) + 4);
 			size = (ways * sets * linesize) / 1024;
-				printf(" %dKB/%dB %d-way instruction cache",
-			    size, linesize, ways);
+			printf(" %dKB/%dB %d-way instruction cache", size,
+			    linesize, ways);
 			if (val & CPUV7_CT_CTYPE_WT)
 				printf(" WT");
 			if (val & CPUV7_CT_CTYPE_WB)
@@ -261,7 +257,7 @@ add_cap(char *cap)
 
 	if ((hw_buf_idx + len + 2) >= 79) {
 		printf("%s,\n", hw_buf);
-		hw_buf_idx  = 0;
+		hw_buf_idx = 0;
 		hw_buf_newline = true;
 	}
 	if (hw_buf_newline)
@@ -282,7 +278,7 @@ identify_arm_cpu(void)
 	/*
 	 * CPU
 	 */
-	for(i = 0; i < nitems(cpu_names); i++) {
+	for (i = 0; i < nitems(cpu_names); i++) {
 		if (cpu_names[i].implementer == cpuinfo.implementer &&
 		    cpu_names[i].part_number == cpuinfo.part_number) {
 			cpu_class = cpu_names[i].cpu_class;
@@ -290,8 +286,8 @@ identify_arm_cpu(void)
 			    "%s %s r%dp%d (ECO: 0x%08X)",
 			    cpu_names[i].impl_name, cpu_names[i].core_name,
 			    cpuinfo.revision, cpuinfo.patch,
-			    cpuinfo.midr != cpuinfo.revidr ?
-			    cpuinfo.revidr : 0);
+			    cpuinfo.midr != cpuinfo.revidr ? cpuinfo.revidr :
+								   0);
 			printf("CPU: %s\n", cpu_model);
 			break;
 		}
@@ -303,28 +299,28 @@ identify_arm_cpu(void)
 	hw_buf_idx = 0;
 	hw_buf_newline = true;
 
-	val = (cpuinfo.mpidr >> 4)& 0xF;
+	val = (cpuinfo.mpidr >> 4) & 0xF;
 	if (cpuinfo.mpidr & (1 << 31U))
 		add_cap("Multiprocessing");
-	val = (cpuinfo.id_pfr0 >> 4)& 0xF;
+	val = (cpuinfo.id_pfr0 >> 4) & 0xF;
 	if (val == 1)
 		add_cap("Thumb");
 	else if (val == 3)
 		add_cap("Thumb2");
 
-	val = (cpuinfo.id_pfr1 >> 4)& 0xF;
+	val = (cpuinfo.id_pfr1 >> 4) & 0xF;
 	if (val == 1 || val == 2)
 		add_cap("Security");
 
-	val = (cpuinfo.id_pfr1 >> 12)& 0xF;
+	val = (cpuinfo.id_pfr1 >> 12) & 0xF;
 	if (val == 1)
 		add_cap("Virtualization");
 
-	val = (cpuinfo.id_pfr1 >> 16)& 0xF;
+	val = (cpuinfo.id_pfr1 >> 16) & 0xF;
 	if (val == 1)
 		add_cap("Generic Timer");
 
-	val = (cpuinfo.id_mmfr0 >> 0)& 0xF;
+	val = (cpuinfo.id_mmfr0 >> 0) & 0xF;
 	if (val == 2) {
 		add_cap("VMSAv6");
 	} else if (val >= 3) {
@@ -335,7 +331,7 @@ identify_arm_cpu(void)
 			add_cap("LPAE");
 	}
 
-	val = (cpuinfo.id_mmfr3 >> 20)& 0xF;
+	val = (cpuinfo.id_mmfr3 >> 20) & 0xF;
 	if (val == 1)
 		add_cap("Coherent Walk");
 
@@ -345,25 +341,25 @@ identify_arm_cpu(void)
 	printf("Optional instructions: \n");
 	hw_buf_idx = 0;
 	hw_buf_newline = true;
-	val = (cpuinfo.id_isar0 >> 24)& 0xF;
+	val = (cpuinfo.id_isar0 >> 24) & 0xF;
 	if (val == 1)
 		add_cap("SDIV/UDIV (Thumb)");
 	else if (val == 2)
 		add_cap("SDIV/UDIV");
 
-	val = (cpuinfo.id_isar2 >> 20)& 0xF;
+	val = (cpuinfo.id_isar2 >> 20) & 0xF;
 	if (val == 1 || val == 2)
 		add_cap("UMULL");
 
-	val = (cpuinfo.id_isar2 >> 16)& 0xF;
+	val = (cpuinfo.id_isar2 >> 16) & 0xF;
 	if (val == 1 || val == 2 || val == 3)
 		add_cap("SMULL");
 
-	val = (cpuinfo.id_isar2 >> 12)& 0xF;
+	val = (cpuinfo.id_isar2 >> 12) & 0xF;
 	if (val == 1)
 		add_cap("MLA");
 
-	val = (cpuinfo.id_isar3 >> 4)& 0xF;
+	val = (cpuinfo.id_isar3 >> 4) & 0xF;
 	if (val == 1)
 		add_cap("SIMD");
 	else if (val == 3)

@@ -38,53 +38,51 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <arm/freescale/vybrid/vf_src.h>
-#include <arm/freescale/vybrid/vf_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
-#define	SRC_SCR		0x00	/* SRC Control Register */
-#define	SRC_SBMR1	0x04	/* SRC Boot Mode Register 1 */
-#define	SRC_SRSR	0x08	/* SRC Status Register */
-#define	SRC_SECR	0x0C	/* SRC_SECR */
-#define	SRC_SICR	0x14	/* SRC Reset Interrupt Configuration Register */
-#define	SRC_SIMR	0x18	/* SRC Interrupt Masking Register */
-#define	SRC_SBMR2	0x1C	/* SRC Boot Mode Register 2 */
-#define	SRC_GPR0	0x20	/* General Purpose Register */
-#define	SRC_GPR1	0x24	/* General Purpose Register */
-#define	SRC_GPR2	0x28	/* General Purpose Register */
-#define	SRC_GPR3	0x2C	/* General Purpose Register */
-#define	SRC_GPR4	0x30	/* General Purpose Register */
-#define	SRC_MISC0	0x4C	/* MISC0 */
-#define	SRC_MISC1	0x50	/* MISC1 */
-#define	SRC_MISC2	0x54	/* MISC2 */
-#define	SRC_MISC3	0x58	/* MISC3 */
+#include <arm/freescale/vybrid/vf_common.h>
+#include <arm/freescale/vybrid/vf_src.h>
+
+#define SRC_SCR 0x00 /* SRC Control Register */
+#define SRC_SBMR1 0x04 /* SRC Boot Mode Register 1 */
+#define SRC_SRSR 0x08 /* SRC Status Register */
+#define SRC_SECR 0x0C /* SRC_SECR */
+#define SRC_SICR 0x14 /* SRC Reset Interrupt Configuration Register */
+#define SRC_SIMR 0x18 /* SRC Interrupt Masking Register */
+#define SRC_SBMR2 0x1C /* SRC Boot Mode Register 2 */
+#define SRC_GPR0 0x20 /* General Purpose Register */
+#define SRC_GPR1 0x24 /* General Purpose Register */
+#define SRC_GPR2 0x28 /* General Purpose Register */
+#define SRC_GPR3 0x2C /* General Purpose Register */
+#define SRC_GPR4 0x30 /* General Purpose Register */
+#define SRC_MISC0 0x4C /* MISC0 */
+#define SRC_MISC1 0x50 /* MISC1 */
+#define SRC_MISC2 0x54 /* MISC2 */
+#define SRC_MISC3 0x58 /* MISC3 */
 
 struct src_softc {
-	struct resource		*res[1];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
+	struct resource *res[1];
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
 };
 
 struct src_softc *src_sc;
 
-static struct resource_spec src_spec[] = {
-	{ SYS_RES_MEMORY,       0,      RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec src_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ -1, 0 } };
 
 int
 src_swreset(void)
@@ -133,11 +131,8 @@ src_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t src_methods[] = {
-	DEVMETHOD(device_probe,		src_probe),
-	DEVMETHOD(device_attach,	src_attach),
-	{ 0, 0 }
-};
+static device_method_t src_methods[] = { DEVMETHOD(device_probe, src_probe),
+	DEVMETHOD(device_attach, src_attach), { 0, 0 } };
 
 static driver_t src_driver = {
 	"src",

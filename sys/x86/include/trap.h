@@ -36,37 +36,37 @@
  */
 
 #ifndef _MACHINE_TRAP_H_
-#define	_MACHINE_TRAP_H_
+#define _MACHINE_TRAP_H_
 
 /*
  * Trap type values
  * also known in trap.c for name strings
  */
 
-#define	T_PRIVINFLT	1	/* privileged instruction */
-#define	T_BPTFLT	3	/* breakpoint instruction */
-#define	T_ARITHTRAP	6	/* arithmetic trap */
-#define	T_PROTFLT	9	/* protection fault */
-#define	T_TRCTRAP	10	/* debug exception (sic) */
-#define	T_PAGEFLT	12	/* page fault */
-#define	T_ALIGNFLT	14	/* alignment fault */
+#define T_PRIVINFLT 1 /* privileged instruction */
+#define T_BPTFLT 3    /* breakpoint instruction */
+#define T_ARITHTRAP 6 /* arithmetic trap */
+#define T_PROTFLT 9   /* protection fault */
+#define T_TRCTRAP 10  /* debug exception (sic) */
+#define T_PAGEFLT 12  /* page fault */
+#define T_ALIGNFLT 14 /* alignment fault */
 
-#define	T_DIVIDE	18	/* integer divide fault */
-#define	T_NMI		19	/* non-maskable trap */
-#define	T_OFLOW		20	/* overflow trap */
-#define	T_BOUND		21	/* bound instruction fault */
-#define	T_DNA		22	/* device not available fault */
-#define	T_DOUBLEFLT	23	/* double fault */
-#define	T_FPOPFLT	24	/* fp coprocessor operand fetch fault */
-#define	T_TSSFLT	25	/* invalid tss fault */
-#define	T_SEGNPFLT	26	/* segment not present fault */
-#define	T_STKFLT	27	/* stack fault */
-#define	T_MCHK		28	/* machine check trap */
-#define	T_XMMFLT	29	/* SIMD floating-point exception */
-#define	T_RESERVED	30	/* reserved (unknown) */
-#define	T_DTRACE_RET	32	/* DTrace pid return */
+#define T_DIVIDE 18	/* integer divide fault */
+#define T_NMI 19	/* non-maskable trap */
+#define T_OFLOW 20	/* overflow trap */
+#define T_BOUND 21	/* bound instruction fault */
+#define T_DNA 22	/* device not available fault */
+#define T_DOUBLEFLT 23	/* double fault */
+#define T_FPOPFLT 24	/* fp coprocessor operand fetch fault */
+#define T_TSSFLT 25	/* invalid tss fault */
+#define T_SEGNPFLT 26	/* segment not present fault */
+#define T_STKFLT 27	/* stack fault */
+#define T_MCHK 28	/* machine check trap */
+#define T_XMMFLT 29	/* SIMD floating-point exception */
+#define T_RESERVED 30	/* reserved (unknown) */
+#define T_DTRACE_RET 32 /* DTrace pid return */
 
 /* Trap's coming from user mode */
-#define	T_USER	0x100
+#define T_USER 0x100
 
 #endif /* !_MACHINE_TRAP_H_ */

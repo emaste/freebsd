@@ -37,9 +37,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/limits.h>
+#include <sys/proc.h>
 
 #include <machine/altivec.h>
 #include <machine/pcb.h>
@@ -48,8 +48,8 @@ __FBSDID("$FreeBSD$");
 static void
 save_vec_int(struct thread *td)
 {
-	int	msr;
-	struct	pcb *pcb;
+	int msr;
+	struct pcb *pcb;
 
 	pcb = td->td_pcb;
 
@@ -62,34 +62,56 @@ save_vec_int(struct thread *td)
 	/*
 	 * Save the vector registers and VSCR to the PCB
 	 */
-#define STVX(n)   __asm ("stvx %1,0,%0" \
-		:: "b"(pcb->pcb_vec.vr[n]), "n"(n));
-	STVX(0);	STVX(1);	STVX(2);	STVX(3);
-	STVX(4);	STVX(5);	STVX(6);	STVX(7);
-	STVX(8);	STVX(9);	STVX(10);	STVX(11);
-	STVX(12);	STVX(13);	STVX(14);	STVX(15);
-	STVX(16);	STVX(17);	STVX(18);	STVX(19);
-	STVX(20);	STVX(21);	STVX(22);	STVX(23);
-	STVX(24);	STVX(25);	STVX(26);	STVX(27);
-	STVX(28);	STVX(29);	STVX(30);	STVX(31);
+#define STVX(n) __asm("stvx %1,0,%0" ::"b"(pcb->pcb_vec.vr[n]), "n"(n));
+	STVX(0);
+	STVX(1);
+	STVX(2);
+	STVX(3);
+	STVX(4);
+	STVX(5);
+	STVX(6);
+	STVX(7);
+	STVX(8);
+	STVX(9);
+	STVX(10);
+	STVX(11);
+	STVX(12);
+	STVX(13);
+	STVX(14);
+	STVX(15);
+	STVX(16);
+	STVX(17);
+	STVX(18);
+	STVX(19);
+	STVX(20);
+	STVX(21);
+	STVX(22);
+	STVX(23);
+	STVX(24);
+	STVX(25);
+	STVX(26);
+	STVX(27);
+	STVX(28);
+	STVX(29);
+	STVX(30);
+	STVX(31);
 #undef STVX
 
-	__asm __volatile("mfvscr 0; stvewx 0,0,%0" :: "b"(&pcb->pcb_vec.vscr));
+	__asm __volatile("mfvscr 0; stvewx 0,0,%0" ::"b"(&pcb->pcb_vec.vscr));
 
 	/*
 	 * Disable vector unit again
 	 */
 	isync();
 	mtmsr(msr);
-
 }
 
 void
 enable_vec(struct thread *td)
 {
-	int	msr;
-	struct	pcb *pcb;
-	struct	trapframe *tf;
+	int msr;
+	struct pcb *pcb;
+	struct trapframe *tf;
 
 	pcb = td->td_pcb;
 	tf = trapframe(td);
@@ -125,19 +147,42 @@ enable_vec(struct thread *td)
 	 * (this needs to done before loading the user's vector registers
 	 * since we need to use a scratch vector register)
 	 */
-	__asm __volatile("vxor 0,0,0; lvewx 0,0,%0; mtvscr 0" \
-			  :: "b"(&pcb->pcb_vec.vscr));
+	__asm __volatile(
+	    "vxor 0,0,0; lvewx 0,0,%0; mtvscr 0" ::"b"(&pcb->pcb_vec.vscr));
 
-#define LVX(n)   __asm ("lvx " #n ",0,%0" \
-		:: "b"(&pcb->pcb_vec.vr[n]));
-	LVX(0);		LVX(1);		LVX(2);		LVX(3);
-	LVX(4);		LVX(5);		LVX(6);		LVX(7);
-	LVX(8);		LVX(9);		LVX(10);	LVX(11);
-	LVX(12);	LVX(13);	LVX(14);	LVX(15);
-	LVX(16);	LVX(17);	LVX(18);	LVX(19);
-	LVX(20);	LVX(21);	LVX(22);	LVX(23);
-	LVX(24);	LVX(25);	LVX(26);	LVX(27);
-	LVX(28);	LVX(29);	LVX(30);	LVX(31);
+#define LVX(n) __asm("lvx " #n ",0,%0" ::"b"(&pcb->pcb_vec.vr[n]));
+	LVX(0);
+	LVX(1);
+	LVX(2);
+	LVX(3);
+	LVX(4);
+	LVX(5);
+	LVX(6);
+	LVX(7);
+	LVX(8);
+	LVX(9);
+	LVX(10);
+	LVX(11);
+	LVX(12);
+	LVX(13);
+	LVX(14);
+	LVX(15);
+	LVX(16);
+	LVX(17);
+	LVX(18);
+	LVX(19);
+	LVX(20);
+	LVX(21);
+	LVX(22);
+	LVX(23);
+	LVX(24);
+	LVX(25);
+	LVX(26);
+	LVX(27);
+	LVX(28);
+	LVX(29);
+	LVX(30);
+	LVX(31);
 #undef LVX
 
 	isync();

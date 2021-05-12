@@ -32,21 +32,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+
 #include <vm/vm.h>
 /* XXX: enable this once the KPI is available */
 /* #include <x86/physmem.h> */
-#include <machine/pci_cfgreg.h>
 #include <machine/md_var.h>
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
+#include <machine/pci_cfgreg.h>
 
 #include <x86/pci/pci_early_quirks.h>
 
-#define	MiB(v) ((unsigned long)(v) << 20)
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
+#define MiB(v) ((unsigned long)(v) << 20)
 
 struct pci_device_id {
-	uint32_t	vendor;
-	uint32_t	device;
+	uint32_t vendor;
+	uint32_t device;
 	const struct intel_stolen_ops *data;
 };
 

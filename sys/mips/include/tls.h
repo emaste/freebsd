@@ -28,26 +28,26 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- * 
+ *
  */
 
-#ifndef	__MIPS_TLS_H__
-#define	__MIPS_TLS_H__
+#ifndef __MIPS_TLS_H__
+#define __MIPS_TLS_H__
 
 /*
  * TLS parameters
  */
 
-#define TLS_TP_OFFSET	0x7000
-#define TLS_DTP_OFFSET	0x8000
+#define TLS_TP_OFFSET 0x7000
+#define TLS_DTP_OFFSET 0x8000
 
 #ifdef __mips_n64
-#define TLS_TCB_SIZE	16
+#define TLS_TCB_SIZE 16
 #ifdef COMPAT_FREEBSD32
-#define TLS_TCB_SIZE32	8
+#define TLS_TCB_SIZE32 8
 #endif
 #else
-#define TLS_TCB_SIZE	8
+#define TLS_TCB_SIZE 8
 #endif
 
-#endif	/* __MIPS_TLS_H__ */
+#endif /* __MIPS_TLS_H__ */

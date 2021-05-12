@@ -39,33 +39,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 
-#include <contrib/octeon-sdk/cvmx.h>
 #include <contrib/octeon-sdk/cvmx-rtc.h>
+#include <contrib/octeon-sdk/cvmx.h>
 
 #include "clock_if.h"
 
-static int	octeon_rtc_attach(device_t dev);
-static int	octeon_rtc_probe(device_t dev);
+static int octeon_rtc_attach(device_t dev);
+static int octeon_rtc_probe(device_t dev);
 
-static int	octeon_rtc_settime(device_t dev, struct timespec *ts);
-static int	octeon_rtc_gettime(device_t dev, struct timespec *ts);
+static int octeon_rtc_settime(device_t dev, struct timespec *ts);
+static int octeon_rtc_gettime(device_t dev, struct timespec *ts);
 
 static device_method_t octeon_rtc_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		octeon_rtc_probe),
-	DEVMETHOD(device_attach,	octeon_rtc_attach),
+	DEVMETHOD(device_probe, octeon_rtc_probe),
+	DEVMETHOD(device_attach, octeon_rtc_attach),
 
 	/* clock interface */
-	DEVMETHOD(clock_gettime,	octeon_rtc_gettime),
-	DEVMETHOD(clock_settime,	octeon_rtc_settime),
-	{ 0, 0 }
+	DEVMETHOD(clock_gettime, octeon_rtc_gettime),
+	DEVMETHOD(clock_settime, octeon_rtc_settime), { 0, 0 }
 };
 
-static driver_t octeon_rtc_driver = {
-	"rtc",
-	octeon_rtc_methods,
-	0
-};
+static driver_t octeon_rtc_driver = { "rtc", octeon_rtc_methods, 0 };
 static devclass_t octeon_rtc_devclass;
 DRIVER_MODULE(rtc, nexus, octeon_rtc_driver, octeon_rtc_devclass, 0, 0);
 

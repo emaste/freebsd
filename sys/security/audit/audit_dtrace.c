@@ -35,19 +35,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
+#include <sys/dtrace.h>
+#include <sys/dtrace_bsd.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/refcount.h>
 
-#include <sys/dtrace.h>
-#include <sys/dtrace_bsd.h>
-
 #include <bsm/audit.h>
 #include <bsm/audit_internal.h>
 #include <bsm/audit_kevents.h>
-
 #include <security/audit/audit.h>
 #include <security/audit/audit_private.h>
 
@@ -101,21 +99,25 @@ __FBSDID("$FreeBSD$");
  *   available as the probe function name.
  */
 
-static int	dtaudit_unload(void);
-static void	dtaudit_getargdesc(void *, dtrace_id_t, void *,
-		    dtrace_argdesc_t *);
-static void	dtaudit_provide(void *, dtrace_probedesc_t *);
-static void	dtaudit_destroy(void *, dtrace_id_t, void *);
-static void	dtaudit_enable(void *, dtrace_id_t, void *);
-static void	dtaudit_disable(void *, dtrace_id_t, void *);
-static void	dtaudit_load(void *);
+static int dtaudit_unload(void);
+static void dtaudit_getargdesc(void *, dtrace_id_t, void *, dtrace_argdesc_t *);
+static void dtaudit_provide(void *, dtrace_probedesc_t *);
+static void dtaudit_destroy(void *, dtrace_id_t, void *);
+static void dtaudit_enable(void *, dtrace_id_t, void *);
+static void dtaudit_disable(void *, dtrace_id_t, void *);
+static void dtaudit_load(void *);
 
 static dtrace_pattr_t dtaudit_attr = {
-{ DTRACE_STABILITY_EVOLVING, DTRACE_STABILITY_EVOLVING, DTRACE_CLASS_COMMON },
-{ DTRACE_STABILITY_PRIVATE, DTRACE_STABILITY_PRIVATE, DTRACE_CLASS_UNKNOWN },
-{ DTRACE_STABILITY_PRIVATE, DTRACE_STABILITY_PRIVATE, DTRACE_CLASS_UNKNOWN },
-{ DTRACE_STABILITY_EVOLVING, DTRACE_STABILITY_EVOLVING, DTRACE_CLASS_COMMON },
-{ DTRACE_STABILITY_EVOLVING, DTRACE_STABILITY_EVOLVING, DTRACE_CLASS_COMMON },
+	{ DTRACE_STABILITY_EVOLVING, DTRACE_STABILITY_EVOLVING,
+	    DTRACE_CLASS_COMMON },
+	{ DTRACE_STABILITY_PRIVATE, DTRACE_STABILITY_PRIVATE,
+	    DTRACE_CLASS_UNKNOWN },
+	{ DTRACE_STABILITY_PRIVATE, DTRACE_STABILITY_PRIVATE,
+	    DTRACE_CLASS_UNKNOWN },
+	{ DTRACE_STABILITY_EVOLVING, DTRACE_STABILITY_EVOLVING,
+	    DTRACE_CLASS_COMMON },
+	{ DTRACE_STABILITY_EVOLVING, DTRACE_STABILITY_EVOLVING,
+	    DTRACE_CLASS_COMMON },
 };
 
 /*
@@ -123,24 +125,22 @@ static dtrace_pattr_t dtaudit_attr = {
  * audit event will be the "function" portion of the probe.  All dtaudit
  * probes therefore take the form audit:event:<event name>:commit.
  */
-static char	*dtaudit_module_str = "event";
-static char	*dtaudit_name_commit_str = "commit";
-static char	*dtaudit_name_bsm_str = "bsm";
+static char *dtaudit_module_str = "event";
+static char *dtaudit_name_commit_str = "commit";
+static char *dtaudit_name_bsm_str = "bsm";
 
-static dtrace_pops_t dtaudit_pops = {
-	.dtps_provide =		dtaudit_provide,
-	.dtps_provide_module =	NULL,
-	.dtps_enable =		dtaudit_enable,
-	.dtps_disable =		dtaudit_disable,
-	.dtps_suspend =		NULL,
-	.dtps_resume =		NULL,
-	.dtps_getargdesc =	dtaudit_getargdesc,
-	.dtps_getargval =	NULL,
-	.dtps_usermode =	NULL,
-	.dtps_destroy =		dtaudit_destroy
-};
+static dtrace_pops_t dtaudit_pops = { .dtps_provide = dtaudit_provide,
+	.dtps_provide_module = NULL,
+	.dtps_enable = dtaudit_enable,
+	.dtps_disable = dtaudit_disable,
+	.dtps_suspend = NULL,
+	.dtps_resume = NULL,
+	.dtps_getargdesc = dtaudit_getargdesc,
+	.dtps_getargval = NULL,
+	.dtps_usermode = NULL,
+	.dtps_destroy = dtaudit_destroy };
 
-static dtrace_provider_id_t	dtaudit_id;
+static dtrace_provider_id_t dtaudit_id;
 
 /*
  * Because looking up entries in the event-to-name mapping is quite expensive,
@@ -285,8 +285,7 @@ dtaudit_bsm(struct kaudit_record *kar, au_id_t auid, au_event_t event,
 		ene_name_lower[i] = tolower(ene->ene_name[i]);
 	EVNAME_UNLOCK(ene);
 	dtrace_probe(ene->ene_bsm_probe_id, (uintptr_t)ene_name_lower,
-	    (uintptr_t)&kar->k_ar, (uintptr_t)bsm_data, (uintptr_t)bsm_len,
-	    0);
+	    (uintptr_t)&kar->k_ar, (uintptr_t)bsm_data, (uintptr_t)bsm_len, 0);
 }
 
 /*
@@ -294,8 +293,8 @@ dtaudit_bsm(struct kaudit_record *kar, au_id_t auid, au_event_t event,
  * kaudit_record, plus a BSM pointer and length.
  */
 static void
-dtaudit_getargdesc(void *arg, dtrace_id_t id, void *parg,
-    dtrace_argdesc_t *desc)
+dtaudit_getargdesc(
+    void *arg, dtrace_id_t id, void *parg, dtrace_argdesc_t *desc)
 {
 	struct evname_elem *ene;
 	const char *p;
@@ -381,8 +380,8 @@ dtaudit_au_evnamemap_callback(struct evname_elem *ene)
 	 * lookup and just stick that in the saved probe ID?
 	 */
 	if ((ene->ene_commit_probe_id == 0) &&
-	    (dtrace_probe_lookup(dtaudit_id, dtaudit_module_str,
-	    ene_name_lower, dtaudit_name_commit_str) == 0)) {
+	    (dtrace_probe_lookup(dtaudit_id, dtaudit_module_str, ene_name_lower,
+		 dtaudit_name_commit_str) == 0)) {
 		/*
 		 * Create the commit probe.
 		 *
@@ -395,8 +394,8 @@ dtaudit_au_evnamemap_callback(struct evname_elem *ene)
 		 * enable/disable interface.
 		 */
 		ene->ene_commit_probe_id = dtrace_probe_create(dtaudit_id,
-		    dtaudit_module_str, ene_name_lower,
-		    dtaudit_name_commit_str, 0, ene);
+		    dtaudit_module_str, ene_name_lower, dtaudit_name_commit_str,
+		    0, ene);
 	}
 
 	/*
@@ -410,8 +409,8 @@ dtaudit_au_evnamemap_callback(struct evname_elem *ene)
 	 * lookup and just stick that in the saved probe ID?
 	 */
 	if ((ene->ene_bsm_probe_id == 0) &&
-	    (dtrace_probe_lookup(dtaudit_id, dtaudit_module_str,
-	    ene_name_lower, dtaudit_name_bsm_str) == 0)) {
+	    (dtrace_probe_lookup(dtaudit_id, dtaudit_module_str, ene_name_lower,
+		 dtaudit_name_bsm_str) == 0)) {
 		/*
 		 * Create the bsm probe.
 		 *
@@ -424,8 +423,8 @@ dtaudit_au_evnamemap_callback(struct evname_elem *ene)
 		 * enable/disable interface.
 		 */
 		ene->ene_bsm_probe_id = dtrace_probe_create(dtaudit_id,
-		    dtaudit_module_str, ene_name_lower, dtaudit_name_bsm_str,
-		    0, ene);
+		    dtaudit_module_str, ene_name_lower, dtaudit_name_bsm_str, 0,
+		    ene);
 	}
 }
 
@@ -453,7 +452,7 @@ dtaudit_enable(void *arg, dtrace_id_t id, void *parg)
 	ene = parg;
 	KASSERT(ene->ene_commit_probe_id == id || ene->ene_bsm_probe_id == id,
 	    ("%s: probe ID mismatch (%u, %u != %u)", __func__,
-	    ene->ene_commit_probe_id, ene->ene_bsm_probe_id, id));
+		ene->ene_commit_probe_id, ene->ene_bsm_probe_id, id));
 
 	if (id == ene->ene_commit_probe_id)
 		ene->ene_commit_probe_enabled = 1;
@@ -471,7 +470,7 @@ dtaudit_disable(void *arg, dtrace_id_t id, void *parg)
 	ene = parg;
 	KASSERT(ene->ene_commit_probe_id == id || ene->ene_bsm_probe_id == id,
 	    ("%s: probe ID mismatch (%u, %u != %u)", __func__,
-	    ene->ene_commit_probe_id, ene->ene_bsm_probe_id, id));
+		ene->ene_commit_probe_id, ene->ene_bsm_probe_id, id));
 
 	if (id == ene->ene_commit_probe_id)
 		ene->ene_commit_probe_enabled = 0;
@@ -486,7 +485,7 @@ dtaudit_load(void *dummy)
 {
 
 	if (dtrace_register("audit", &dtaudit_attr, DTRACE_PRIV_USER, NULL,
-	    &dtaudit_pops, NULL, &dtaudit_id) != 0)
+		&dtaudit_pops, NULL, &dtaudit_id) != 0)
 		return;
 	dtaudit_hook_preselect = dtaudit_preselect;
 	dtaudit_hook_commit = dtaudit_commit;
@@ -525,10 +524,9 @@ dtaudit_modevent(module_t mod __unused, int type, void *data __unused)
 	return (error);
 }
 
-SYSINIT(dtaudit_load, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, dtaudit_load,
-    NULL);
-SYSUNINIT(dtaudit_unload, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY,
-    dtaudit_unload, NULL);
+SYSINIT(dtaudit_load, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, dtaudit_load, NULL);
+SYSUNINIT(
+    dtaudit_unload, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, dtaudit_unload, NULL);
 
 DEV_MODULE(dtaudit, dtaudit_modevent, NULL);
 MODULE_VERSION(dtaudit, 1);

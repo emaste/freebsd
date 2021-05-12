@@ -51,43 +51,44 @@
  */
 
 #ifndef _MACHINE_PMAP_NOPAE_H
-#define	_MACHINE_PMAP_NOPAE_H
+#define _MACHINE_PMAP_NOPAE_H
 
-#define	NTRPPTD		1
-#define	LOWPTDI		1
-#define	KERNPTDI	2
+#define NTRPPTD 1
+#define LOWPTDI 1
+#define KERNPTDI 2
 
-#define NPGPTD		1
-#define NPGPTD_SHIFT	10
-#undef	PDRSHIFT
-#define	PDRSHIFT	PDRSHIFT_NOPAE
-#undef	NBPDR
-#define NBPDR		(1 << PDRSHIFT_NOPAE)	/* bytes/page dir */
+#define NPGPTD 1
+#define NPGPTD_SHIFT 10
+#undef PDRSHIFT
+#define PDRSHIFT PDRSHIFT_NOPAE
+#undef NBPDR
+#define NBPDR (1 << PDRSHIFT_NOPAE) /* bytes/page dir */
 
-#define	PG_FRAME	PG_FRAME_NOPAE
-#define	PG_PS_FRAME	PG_PS_FRAME_NOPAE
+#define PG_FRAME PG_FRAME_NOPAE
+#define PG_PS_FRAME PG_PS_FRAME_NOPAE
 
-#define KVA_PAGES	(256*4)
+#define KVA_PAGES (256 * 4)
 
 #ifndef NKPT
-#define	NKPT		30
+#define NKPT 30
 #endif
 
 typedef uint32_t pd_entry_t;
 typedef uint32_t pt_entry_t;
-typedef	uint32_t pdpt_entry_t;	/* Only to keep struct pmap layout. */
+typedef uint32_t pdpt_entry_t; /* Only to keep struct pmap layout. */
 
-#define	PTESHIFT	(2)
-#define	PDESHIFT	(2)
+#define PTESHIFT (2)
+#define PDESHIFT (2)
 
-#define	pde_cmpset(pdep, old, new)	atomic_cmpset_int(pdep, old, new)
-#define	pte_load_store(ptep, pte)	atomic_swap_int(ptep, pte)
-#define	pte_load_clear(ptep)		atomic_swap_int(ptep, 0)
-#define	pte_store(ptep, pte) do { \
-	*(u_int *)(ptep) = (u_int)(pte); \
-} while (0)
-#define	pte_store_zero(ptep, pte)	pte_store(ptep, pte)
-#define	pte_load(ptep)			atomic_load_int(ptep)
+#define pde_cmpset(pdep, old, new) atomic_cmpset_int(pdep, old, new)
+#define pte_load_store(ptep, pte) atomic_swap_int(ptep, pte)
+#define pte_load_clear(ptep) atomic_swap_int(ptep, 0)
+#define pte_store(ptep, pte)                     \
+	do {                                     \
+		*(u_int *)(ptep) = (u_int)(pte); \
+	} while (0)
+#define pte_store_zero(ptep, pte) pte_store(ptep, pte)
+#define pte_load(ptep) atomic_load_int(ptep)
 
 extern pt_entry_t PTmap[];
 extern pd_entry_t PTD[];

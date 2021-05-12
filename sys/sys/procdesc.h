@@ -32,13 +32,13 @@
  */
 
 #ifndef _SYS_PROCDESC_H_
-#define	_SYS_PROCDESC_H_
+#define _SYS_PROCDESC_H_
 
 #ifdef _KERNEL
 
-#include <sys/selinfo.h>	/* struct selinfo */
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/selinfo.h> /* struct selinfo */
 
 /*-
  * struct procdesc describes a process descriptor, and essentially consists
@@ -62,57 +62,57 @@ struct procdesc {
 	 * satisfy queries after the process exits, and process descriptor
 	 * refcount.
 	 */
-	struct proc	*pd_proc;		/* (t) Process. */
-	pid_t		 pd_pid;		/* (c) Cached pid. */
-	u_int		 pd_refcount;		/* (r) Reference count. */
+	struct proc *pd_proc; /* (t) Process. */
+	pid_t pd_pid;	      /* (c) Cached pid. */
+	u_int pd_refcount;    /* (r) Reference count. */
 
 	/*
 	 * In-flight data and notification of events.
 	 */
-	int		 pd_flags;		/* (p) PD_ flags. */
-	u_short		 pd_xstat;		/* (p) Exit status. */
-	struct selinfo	 pd_selinfo;		/* (p) Event notification. */
-	struct mtx	 pd_lock;		/* Protect data + events. */
+	int pd_flags;		   /* (p) PD_ flags. */
+	u_short pd_xstat;	   /* (p) Exit status. */
+	struct selinfo pd_selinfo; /* (p) Event notification. */
+	struct mtx pd_lock;	   /* Protect data + events. */
 };
 
 /*
  * Locking macros for the procdesc itself.
  */
-#define	PROCDESC_LOCK_DESTROY(pd)	mtx_destroy(&(pd)->pd_lock)
-#define	PROCDESC_LOCK_INIT(pd)	mtx_init(&(pd)->pd_lock, "procdesc", NULL, \
-				    MTX_DEF)
-#define	PROCDESC_LOCK(pd)	mtx_lock(&(pd)->pd_lock)
-#define	PROCDESC_UNLOCK(pd)	mtx_unlock(&(pd)->pd_lock)
+#define PROCDESC_LOCK_DESTROY(pd) mtx_destroy(&(pd)->pd_lock)
+#define PROCDESC_LOCK_INIT(pd) \
+	mtx_init(&(pd)->pd_lock, "procdesc", NULL, MTX_DEF)
+#define PROCDESC_LOCK(pd) mtx_lock(&(pd)->pd_lock)
+#define PROCDESC_UNLOCK(pd) mtx_unlock(&(pd)->pd_lock)
 
 /*
  * Flags for the pd_flags field.
  */
-#define	PDF_CLOSED	0x00000001	/* Descriptor has closed. */
-#define	PDF_SELECTED	0x00000002	/* Issue selwakeup(). */
-#define	PDF_EXITED	0x00000004	/* Process exited. */
-#define	PDF_DAEMON	0x00000008	/* Don't exit when procdesc closes. */
+#define PDF_CLOSED 0x00000001 /* Descriptor has closed. */
+#define PDF_SELECTED 0x00000002 /* Issue selwakeup(). */
+#define PDF_EXITED 0x00000004 /* Process exited. */
+#define PDF_DAEMON 0x00000008 /* Don't exit when procdesc closes. */
 
 /*
  * In-kernel interfaces to process descriptors.
  */
-int	 procdesc_exit(struct proc *);
-int	 procdesc_find(struct thread *, int fd, cap_rights_t *, struct proc **);
-int	 kern_pdgetpid(struct thread *, int fd, cap_rights_t *, pid_t *pidp);
-void	 procdesc_new(struct proc *, int);
-void	 procdesc_finit(struct procdesc *, struct file *);
-pid_t	 procdesc_pid(struct file *);
-void	 procdesc_reap(struct proc *);
+int procdesc_exit(struct proc *);
+int procdesc_find(struct thread *, int fd, cap_rights_t *, struct proc **);
+int kern_pdgetpid(struct thread *, int fd, cap_rights_t *, pid_t *pidp);
+void procdesc_new(struct proc *, int);
+void procdesc_finit(struct procdesc *, struct file *);
+pid_t procdesc_pid(struct file *);
+void procdesc_reap(struct proc *);
 
-int	 procdesc_falloc(struct thread *, struct file **, int *, int,
-	    struct filecaps *);
+int procdesc_falloc(
+    struct thread *, struct file **, int *, int, struct filecaps *);
 
 #else /* !_KERNEL */
 
 #include <sys/_types.h>
 
 #ifndef _PID_T_DECLARED
-typedef	__pid_t		pid_t;
-#define	_PID_T_DECLARED
+typedef __pid_t pid_t;
+#define _PID_T_DECLARED
 #endif
 
 struct rusage;
@@ -121,9 +121,9 @@ struct rusage;
  * Process descriptor system calls.
  */
 __BEGIN_DECLS
-pid_t	 pdfork(int *, int);
-int	 pdkill(int, int);
-int	 pdgetpid(int, pid_t *);
+pid_t pdfork(int *, int);
+int pdkill(int, int);
+int pdgetpid(int, pid_t *);
 __END_DECLS
 
 #endif /* _KERNEL */
@@ -131,9 +131,9 @@ __END_DECLS
 /*
  * Flags which can be passed to pdfork(2).
  */
-#define	PD_DAEMON	0x00000001	/* Don't exit when procdesc closes. */
-#define	PD_CLOEXEC	0x00000002	/* Close file descriptor on exec. */
+#define PD_DAEMON 0x00000001 /* Don't exit when procdesc closes. */
+#define PD_CLOEXEC 0x00000002 /* Close file descriptor on exec. */
 
-#define	PD_ALLOWED_AT_FORK	(PD_DAEMON | PD_CLOEXEC)
+#define PD_ALLOWED_AT_FORK (PD_DAEMON | PD_CLOEXEC)
 
 #endif /* !_SYS_PROCDESC_H_ */

@@ -29,9 +29,10 @@
  */
 
 #ifndef _SYS_KDB_H_
-#define	_SYS_KDB_H_
+#define _SYS_KDB_H_
 
 #include <sys/linker_set.h>
+
 #include <machine/setjmp.h>
 
 struct pcb;
@@ -44,54 +45,52 @@ typedef void dbbe_trace_thread_f(struct thread *);
 typedef int dbbe_trap_f(int, int);
 
 struct kdb_dbbe {
-	const char	*dbbe_name;
-	dbbe_init_f	*dbbe_init;
-	dbbe_trace_f	*dbbe_trace;
+	const char *dbbe_name;
+	dbbe_init_f *dbbe_init;
+	dbbe_trace_f *dbbe_trace;
 	dbbe_trace_thread_f *dbbe_trace_thread;
-	dbbe_trap_f	*dbbe_trap;
-	int		dbbe_active;
+	dbbe_trap_f *dbbe_trap;
+	int dbbe_active;
 };
 
-#define	KDB_BACKEND(name, init, trace, trace_thread, trap) \
-	static struct kdb_dbbe name##_dbbe = {		\
-		.dbbe_name = #name,			\
-		.dbbe_init = init,			\
-		.dbbe_trace = trace,			\
-		.dbbe_trace_thread = trace_thread,	\
-		.dbbe_trap = trap			\
-	};						\
+#define KDB_BACKEND(name, init, trace, trace_thread, trap)         \
+	static struct kdb_dbbe name##_dbbe = { .dbbe_name = #name, \
+		.dbbe_init = init,                                 \
+		.dbbe_trace = trace,                               \
+		.dbbe_trace_thread = trace_thread,                 \
+		.dbbe_trap = trap };                               \
 	DATA_SET(kdb_dbbe_set, name##_dbbe)
 
 SET_DECLARE(kdb_dbbe_set, struct kdb_dbbe);
 
-extern u_char kdb_active;		/* Non-zero while in debugger. */
-extern int debugger_on_panic;		/* enter the debugger on panic. */
-extern int debugger_on_trap;		/* enter the debugger on trap. */
-extern struct kdb_dbbe *kdb_dbbe;	/* Default debugger backend or NULL. */
-extern struct trapframe *kdb_frame;	/* Frame to kdb_trap(). */
-extern struct pcb *kdb_thrctx;		/* Current context. */
-extern struct thread *kdb_thread;	/* Current thread. */
+extern u_char kdb_active;	    /* Non-zero while in debugger. */
+extern int debugger_on_panic;	    /* enter the debugger on panic. */
+extern int debugger_on_trap;	    /* enter the debugger on trap. */
+extern struct kdb_dbbe *kdb_dbbe;   /* Default debugger backend or NULL. */
+extern struct trapframe *kdb_frame; /* Frame to kdb_trap(). */
+extern struct pcb *kdb_thrctx;	    /* Current context. */
+extern struct thread *kdb_thread;   /* Current thread. */
 
-int	kdb_alt_break(int, int *);
-int	kdb_alt_break_gdb(int, int *);
-int	kdb_break(void);
-void	kdb_backtrace(void);
-void	kdb_backtrace_thread(struct thread *);
-int	kdb_dbbe_select(const char *);
-void	kdb_enter(const char *, const char *);
-void	kdb_init(void);
-void *	kdb_jmpbuf(jmp_buf);
-void	kdb_panic(const char *);
-void	kdb_reboot(void);
-void	kdb_reenter(void);
-void	kdb_reenter_silent(void);
+int kdb_alt_break(int, int *);
+int kdb_alt_break_gdb(int, int *);
+int kdb_break(void);
+void kdb_backtrace(void);
+void kdb_backtrace_thread(struct thread *);
+int kdb_dbbe_select(const char *);
+void kdb_enter(const char *, const char *);
+void kdb_init(void);
+void *kdb_jmpbuf(jmp_buf);
+void kdb_panic(const char *);
+void kdb_reboot(void);
+void kdb_reenter(void);
+void kdb_reenter_silent(void);
 struct pcb *kdb_thr_ctx(struct thread *);
 struct thread *kdb_thr_first(void);
 struct thread *kdb_thr_from_pid(pid_t);
 struct thread *kdb_thr_lookup(lwpid_t);
 struct thread *kdb_thr_next(struct thread *);
-int	kdb_thr_select(struct thread *);
-int	kdb_trap(int, int, struct trapframe *);
+int kdb_thr_select(struct thread *);
+int kdb_trap(int, int, struct trapframe *);
 
 /*
  * KDB enters the debugger via breakpoint(), which leaves the debugger without
@@ -101,36 +100,36 @@ int	kdb_trap(int, int, struct trapframe *);
  * It is recommended that values here be short (<16 character) alpha-numeric
  * strings, as they will be used to construct DDB(4) script names.
  */
-extern const char * volatile kdb_why;
-#define	KDB_WHY_UNSET		NULL		/* No reason set. */
-#define	KDB_WHY_PANIC		"panic"		/* panic() was called. */
-#define	KDB_WHY_KASSERT		"kassert"	/* kassert failed. */
-#define	KDB_WHY_TRAP		"trap"		/* Fatal trap. */
-#define	KDB_WHY_SYSCTL		"sysctl"	/* Sysctl entered debugger. */
-#define	KDB_WHY_BOOTFLAGS	"bootflags"	/* Boot flags were set. */
-#define	KDB_WHY_WITNESS		"witness"	/* Witness entered debugger. */
-#define	KDB_WHY_VFSLOCK		"vfslock"	/* VFS detected lock problem. */
-#define	KDB_WHY_NETGRAPH	"netgraph"	/* Netgraph entered debugger. */
-#define	KDB_WHY_BREAK		"break"		/* Console or serial break. */
-#define	KDB_WHY_WATCHDOG	"watchdog"	/* Watchdog entered debugger. */
-#define	KDB_WHY_CAM		"cam"		/* CAM has entered debugger. */
-#define	KDB_WHY_ACPI		"acpi"		/* ACPI entered debugger. */
-#define	KDB_WHY_TRAPSIG		"trapsig"	/* Sparc fault. */
-#define	KDB_WHY_POWERFAIL	"powerfail"	/* Powerfail NMI. */
-#define	KDB_WHY_MAC		"mac"		/* MAC Framework. */
-#define	KDB_WHY_POWERPC		"powerpc"	/* Unhandled powerpc intr. */
-#define	KDB_WHY_UNIONFS		"unionfs"	/* Unionfs bug. */
-#define	KDB_WHY_DTRACE		"dtrace"	/* DTrace action entered debugger. */
+extern const char *volatile kdb_why;
+#define KDB_WHY_UNSET NULL /* No reason set. */
+#define KDB_WHY_PANIC "panic" /* panic() was called. */
+#define KDB_WHY_KASSERT "kassert" /* kassert failed. */
+#define KDB_WHY_TRAP "trap" /* Fatal trap. */
+#define KDB_WHY_SYSCTL "sysctl" /* Sysctl entered debugger. */
+#define KDB_WHY_BOOTFLAGS "bootflags" /* Boot flags were set. */
+#define KDB_WHY_WITNESS "witness" /* Witness entered debugger. */
+#define KDB_WHY_VFSLOCK "vfslock" /* VFS detected lock problem. */
+#define KDB_WHY_NETGRAPH "netgraph" /* Netgraph entered debugger. */
+#define KDB_WHY_BREAK "break" /* Console or serial break. */
+#define KDB_WHY_WATCHDOG "watchdog" /* Watchdog entered debugger. */
+#define KDB_WHY_CAM "cam" /* CAM has entered debugger. */
+#define KDB_WHY_ACPI "acpi" /* ACPI entered debugger. */
+#define KDB_WHY_TRAPSIG "trapsig" /* Sparc fault. */
+#define KDB_WHY_POWERFAIL "powerfail" /* Powerfail NMI. */
+#define KDB_WHY_MAC "mac" /* MAC Framework. */
+#define KDB_WHY_POWERPC "powerpc" /* Unhandled powerpc intr. */
+#define KDB_WHY_UNIONFS "unionfs" /* Unionfs bug. */
+#define KDB_WHY_DTRACE "dtrace" /* DTrace action entered debugger. */
 
 /* Return values for kdb_alt_break */
-#define	KDB_REQ_DEBUGGER	1	/* User requested Debugger */
-#define	KDB_REQ_PANIC		2	/* User requested a panic */
-#define	KDB_REQ_REBOOT		3	/* User requested a clean reboot */
+#define KDB_REQ_DEBUGGER 1 /* User requested Debugger */
+#define KDB_REQ_PANIC 2 /* User requested a panic */
+#define KDB_REQ_REBOOT 3 /* User requested a clean reboot */
 
 /* Debug breakpoint/watchpoint access types */
-#define	KDB_DBG_ACCESS_EXEC	0
-#define	KDB_DBG_ACCESS_R	1
-#define	KDB_DBG_ACCESS_W	2
-#define	KDB_DBG_ACCESS_RW	3
+#define KDB_DBG_ACCESS_EXEC 0
+#define KDB_DBG_ACCESS_R 1
+#define KDB_DBG_ACCESS_W 2
+#define KDB_DBG_ACCESS_RW 3
 
 #endif /* !_SYS_KDB_H_ */

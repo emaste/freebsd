@@ -37,10 +37,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 
-#include <machine/metadata.h>
-
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+
+#include <machine/metadata.h>
 
 /*
  * Preloaded module support
@@ -55,29 +55,29 @@ caddr_t preload_metadata;
 caddr_t
 preload_search_by_name(const char *name)
 {
-    caddr_t	curp;
-    uint32_t	*hdr;
-    int		next;
-    
-    if (preload_metadata != NULL) {
-	curp = preload_metadata;
-	for (;;) {
-	    hdr = (uint32_t *)curp;
-	    if (hdr[0] == 0 && hdr[1] == 0)
-		break;
+	caddr_t curp;
+	uint32_t *hdr;
+	int next;
 
-	    /* Search for a MODINFO_NAME field */
-	    if ((hdr[0] == MODINFO_NAME) &&
-		!strcmp(name, curp + sizeof(uint32_t) * 2))
-		return(curp);
+	if (preload_metadata != NULL) {
+		curp = preload_metadata;
+		for (;;) {
+			hdr = (uint32_t *)curp;
+			if (hdr[0] == 0 && hdr[1] == 0)
+				break;
 
-	    /* skip to next field */
-	    next = sizeof(uint32_t) * 2 + hdr[1];
-	    next = roundup(next, sizeof(u_long));
-	    curp += next;
+			/* Search for a MODINFO_NAME field */
+			if ((hdr[0] == MODINFO_NAME) &&
+			    !strcmp(name, curp + sizeof(uint32_t) * 2))
+				return (curp);
+
+			/* skip to next field */
+			next = sizeof(uint32_t) * 2 + hdr[1];
+			next = roundup(next, sizeof(u_long));
+			curp += next;
+		}
 	}
-    }
-    return(NULL);
+	return (NULL);
 }
 
 /*
@@ -86,34 +86,34 @@ preload_search_by_name(const char *name)
 caddr_t
 preload_search_by_type(const char *type)
 {
-    caddr_t	curp, lname;
-    uint32_t	*hdr;
-    int		next;
+	caddr_t curp, lname;
+	uint32_t *hdr;
+	int next;
 
-    if (preload_metadata != NULL) {
-	curp = preload_metadata;
-	lname = NULL;
-	for (;;) {
-	    hdr = (uint32_t *)curp;
-	    if (hdr[0] == 0 && hdr[1] == 0)
-		break;
+	if (preload_metadata != NULL) {
+		curp = preload_metadata;
+		lname = NULL;
+		for (;;) {
+			hdr = (uint32_t *)curp;
+			if (hdr[0] == 0 && hdr[1] == 0)
+				break;
 
-	    /* remember the start of each record */
-	    if (hdr[0] == MODINFO_NAME)
-		lname = curp;
+			/* remember the start of each record */
+			if (hdr[0] == MODINFO_NAME)
+				lname = curp;
 
-	    /* Search for a MODINFO_TYPE field */
-	    if ((hdr[0] == MODINFO_TYPE) &&
-		!strcmp(type, curp + sizeof(uint32_t) * 2))
-		return(lname);
+			/* Search for a MODINFO_TYPE field */
+			if ((hdr[0] == MODINFO_TYPE) &&
+			    !strcmp(type, curp + sizeof(uint32_t) * 2))
+				return (lname);
 
-	    /* skip to next field */
-	    next = sizeof(uint32_t) * 2 + hdr[1];
-	    next = roundup(next, sizeof(u_long));
-	    curp += next;
+			/* skip to next field */
+			next = sizeof(uint32_t) * 2 + hdr[1];
+			next = roundup(next, sizeof(u_long));
+			curp += next;
+		}
 	}
-    }
-    return(NULL);
+	return (NULL);
 }
 
 /*
@@ -122,38 +122,38 @@ preload_search_by_type(const char *type)
 caddr_t
 preload_search_next_name(caddr_t base)
 {
-    caddr_t	curp;
-    uint32_t	*hdr;
-    int		next;
-    
-    if (preload_metadata != NULL) {
-	/* Pick up where we left off last time */
-	if (base) {
-	    /* skip to next field */
-	    curp = base;
-	    hdr = (uint32_t *)curp;
-	    next = sizeof(uint32_t) * 2 + hdr[1];
-	    next = roundup(next, sizeof(u_long));
-	    curp += next;
-	} else
-	    curp = preload_metadata;
+	caddr_t curp;
+	uint32_t *hdr;
+	int next;
 
-	for (;;) {
-	    hdr = (uint32_t *)curp;
-	    if (hdr[0] == 0 && hdr[1] == 0)
-		break;
+	if (preload_metadata != NULL) {
+		/* Pick up where we left off last time */
+		if (base) {
+			/* skip to next field */
+			curp = base;
+			hdr = (uint32_t *)curp;
+			next = sizeof(uint32_t) * 2 + hdr[1];
+			next = roundup(next, sizeof(u_long));
+			curp += next;
+		} else
+			curp = preload_metadata;
 
-	    /* Found a new record? */
-	    if (hdr[0] == MODINFO_NAME)
-		return curp;
+		for (;;) {
+			hdr = (uint32_t *)curp;
+			if (hdr[0] == 0 && hdr[1] == 0)
+				break;
 
-	    /* skip to next field */
-	    next = sizeof(uint32_t) * 2 + hdr[1];
-	    next = roundup(next, sizeof(u_long));
-	    curp += next;
+			/* Found a new record? */
+			if (hdr[0] == MODINFO_NAME)
+				return curp;
+
+			/* skip to next field */
+			next = sizeof(uint32_t) * 2 + hdr[1];
+			next = roundup(next, sizeof(u_long));
+			curp += next;
+		}
 	}
-    }
-    return(NULL);
+	return (NULL);
 }
 
 /*
@@ -163,45 +163,45 @@ preload_search_next_name(caddr_t base)
 caddr_t
 preload_search_info(caddr_t mod, int inf)
 {
-    caddr_t	curp;
-    uint32_t	*hdr;
-    uint32_t	type = 0;
-    int		next;
+	caddr_t curp;
+	uint32_t *hdr;
+	uint32_t type = 0;
+	int next;
 
-    if (mod == NULL)
-    	return (NULL);
+	if (mod == NULL)
+		return (NULL);
 
-    curp = mod;
-    for (;;) {
-	hdr = (uint32_t *)curp;
-	/* end of module data? */
-	if (hdr[0] == 0 && hdr[1] == 0)
-	    break;
-	/* 
-	 * We give up once we've looped back to what we were looking at 
-	 * first - this should normally be a MODINFO_NAME field.
-	 */
-	if (type == 0) {
-	    type = hdr[0];
-	} else {
-	    if (hdr[0] == type)
-		break;
+	curp = mod;
+	for (;;) {
+		hdr = (uint32_t *)curp;
+		/* end of module data? */
+		if (hdr[0] == 0 && hdr[1] == 0)
+			break;
+		/*
+		 * We give up once we've looped back to what we were looking at
+		 * first - this should normally be a MODINFO_NAME field.
+		 */
+		if (type == 0) {
+			type = hdr[0];
+		} else {
+			if (hdr[0] == type)
+				break;
+		}
+
+		/*
+		 * Attribute match? Return pointer to data.
+		 * Consumer may safely assume that size value precedes
+		 * data.
+		 */
+		if (hdr[0] == inf)
+			return (curp + (sizeof(uint32_t) * 2));
+
+		/* skip to next field */
+		next = sizeof(uint32_t) * 2 + hdr[1];
+		next = roundup(next, sizeof(u_long));
+		curp += next;
 	}
-
-	/* 
-	 * Attribute match? Return pointer to data.
-	 * Consumer may safely assume that size value precedes	
-	 * data.
-	 */
-	if (hdr[0] == inf)
-	    return(curp + (sizeof(uint32_t) * 2));
-
-	/* skip to next field */
-	next = sizeof(uint32_t) * 2 + hdr[1];
-	next = roundup(next, sizeof(u_long));
-	curp += next;
-    }
-    return(NULL);
+	return (NULL);
 }
 
 /*
@@ -210,48 +210,54 @@ preload_search_info(caddr_t mod, int inf)
 void
 preload_delete_name(const char *name)
 {
-    caddr_t	addr, curp;
-    uint32_t	*hdr, sz;
-    int		next;
-    int		clearing;
+	caddr_t addr, curp;
+	uint32_t *hdr, sz;
+	int next;
+	int clearing;
 
-    addr = 0;
-    sz = 0;
-    
-    if (preload_metadata != NULL) {
-	clearing = 0;
-	curp = preload_metadata;
-	for (;;) {
-	    hdr = (uint32_t *)curp;
-	    if (hdr[0] == MODINFO_NAME || (hdr[0] == 0 && hdr[1] == 0)) {
-		/* Free memory used to store the file. */
-		if (addr != 0 && sz != 0)
-		    kmem_bootstrap_free((vm_offset_t)addr, sz);
-		addr = 0;
-		sz = 0;
+	addr = 0;
+	sz = 0;
 
-		if (hdr[0] == 0)
-		    break;
-		if (!strcmp(name, curp + sizeof(uint32_t) * 2))
-		    clearing = 1;	/* got it, start clearing */
-		else if (clearing) {
-		    clearing = 0;	/* at next one now.. better stop */
+	if (preload_metadata != NULL) {
+		clearing = 0;
+		curp = preload_metadata;
+		for (;;) {
+			hdr = (uint32_t *)curp;
+			if (hdr[0] == MODINFO_NAME ||
+			    (hdr[0] == 0 && hdr[1] == 0)) {
+				/* Free memory used to store the file. */
+				if (addr != 0 && sz != 0)
+					kmem_bootstrap_free(
+					    (vm_offset_t)addr, sz);
+				addr = 0;
+				sz = 0;
+
+				if (hdr[0] == 0)
+					break;
+				if (!strcmp(name, curp + sizeof(uint32_t) * 2))
+					clearing =
+					    1; /* got it, start clearing */
+				else if (clearing) {
+					clearing = 0; /* at next one now..
+							 better stop */
+				}
+			}
+			if (clearing) {
+				if (hdr[0] == MODINFO_ADDR)
+					addr = *(caddr_t *)(curp +
+					    sizeof(uint32_t) * 2);
+				else if (hdr[0] == MODINFO_SIZE)
+					sz = *(uint32_t *)(curp +
+					    sizeof(uint32_t) * 2);
+				hdr[0] = MODINFO_EMPTY;
+			}
+
+			/* skip to next field */
+			next = sizeof(uint32_t) * 2 + hdr[1];
+			next = roundup(next, sizeof(u_long));
+			curp += next;
 		}
-	    }
-	    if (clearing) {
-		if (hdr[0] == MODINFO_ADDR)
-		    addr = *(caddr_t *)(curp + sizeof(uint32_t) * 2);
-		else if (hdr[0] == MODINFO_SIZE)
-		    sz = *(uint32_t *)(curp + sizeof(uint32_t) * 2);
-		hdr[0] = MODINFO_EMPTY;
-	    }
-
-	    /* skip to next field */
-	    next = sizeof(uint32_t) * 2 + hdr[1];
-	    next = roundup(next, sizeof(u_long));
-	    curp += next;
 	}
-    }
 }
 
 void *
@@ -280,36 +286,37 @@ preload_fetch_size(caddr_t mod)
 void
 preload_bootstrap_relocate(vm_offset_t offset)
 {
-    caddr_t	curp;
-    uint32_t	*hdr;
-    vm_offset_t	*ptr;
-    int		next;
-    
-    if (preload_metadata != NULL) {
-	curp = preload_metadata;
-	for (;;) {
-	    hdr = (uint32_t *)curp;
-	    if (hdr[0] == 0 && hdr[1] == 0)
-		break;
+	caddr_t curp;
+	uint32_t *hdr;
+	vm_offset_t *ptr;
+	int next;
 
-	    /* Deal with the ones that we know we have to fix */
-	    switch (hdr[0]) {
-	    case MODINFO_ADDR:
-	    case MODINFO_METADATA|MODINFOMD_FONT:
-	    case MODINFO_METADATA|MODINFOMD_SSYM:
-	    case MODINFO_METADATA|MODINFOMD_ESYM:
-		ptr = (vm_offset_t *)(curp + (sizeof(uint32_t) * 2));
-		*ptr += offset;
-		break;
-	    }
-	    /* The rest is beyond us for now */
+	if (preload_metadata != NULL) {
+		curp = preload_metadata;
+		for (;;) {
+			hdr = (uint32_t *)curp;
+			if (hdr[0] == 0 && hdr[1] == 0)
+				break;
 
-	    /* skip to next field */
-	    next = sizeof(uint32_t) * 2 + hdr[1];
-	    next = roundup(next, sizeof(u_long));
-	    curp += next;
+			/* Deal with the ones that we know we have to fix */
+			switch (hdr[0]) {
+			case MODINFO_ADDR:
+			case MODINFO_METADATA | MODINFOMD_FONT:
+			case MODINFO_METADATA | MODINFOMD_SSYM:
+			case MODINFO_METADATA | MODINFOMD_ESYM:
+				ptr = (vm_offset_t *)(curp +
+				    (sizeof(uint32_t) * 2));
+				*ptr += offset;
+				break;
+			}
+			/* The rest is beyond us for now */
+
+			/* skip to next field */
+			next = sizeof(uint32_t) * 2 + hdr[1];
+			next = roundup(next, sizeof(u_long));
+			curp += next;
+		}
 	}
-    }
 }
 
 /*
@@ -439,9 +446,9 @@ static void
 preload_modinfo_value(struct sbuf *sbp, uint32_t *bptr, int type, int len)
 {
 #ifdef __LP64__
-#define sbuf_print_vmoffset(sb, o)	sbuf_printf(sb, "0x%016lx", o);
+#define sbuf_print_vmoffset(sb, o) sbuf_printf(sb, "0x%016lx", o);
 #else
-#define sbuf_print_vmoffset(sb, o)	sbuf_printf(sb, "0x%08x", o);
+#define sbuf_print_vmoffset(sb, o) sbuf_printf(sb, "0x%08x", o);
 #endif
 
 	switch (type) {
@@ -552,8 +559,7 @@ preload_dump(void)
 	sbuf_delete(&sb);
 }
 
-static int
-sysctl_preload_dump(SYSCTL_HANDLER_ARGS)
+static int sysctl_preload_dump(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sb;
 	int error;
@@ -570,6 +576,5 @@ sysctl_preload_dump(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_debug, OID_AUTO, dump_modinfo,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, 0, sysctl_preload_dump, "A",
-    "pretty-print the bootloader metadata");
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0, sysctl_preload_dump,
+    "A", "pretty-print the bootloader metadata");

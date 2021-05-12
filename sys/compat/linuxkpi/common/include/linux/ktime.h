@@ -29,17 +29,17 @@
  */
 
 #ifndef _LINUX_KTIME_H
-#define	_LINUX_KTIME_H
+#define _LINUX_KTIME_H
 
-#include <linux/types.h>
-#include <linux/time.h>
 #include <linux/jiffies.h>
+#include <linux/time.h>
+#include <linux/types.h>
 
 /* time values in nanoseconds */
 typedef s64 ktime_t;
 
-#define	KTIME_MAX			((s64)~((u64)1 << 63))
-#define	KTIME_SEC_MAX			(KTIME_MAX / NSEC_PER_SEC)
+#define KTIME_MAX ((s64) ~((u64)1 << 63))
+#define KTIME_SEC_MAX (KTIME_MAX / NSEC_PER_SEC)
 
 static inline int64_t
 ktime_to_ns(ktime_t kt)
@@ -106,7 +106,7 @@ ktime_sub_ns(ktime_t kt, int64_t ns)
 static inline ktime_t
 ktime_set(const long secs, const unsigned long nsecs)
 {
-	ktime_t retval = {(s64) secs * NSEC_PER_SEC + (s64) nsecs};
+	ktime_t retval = { (s64)secs * NSEC_PER_SEC + (s64)nsecs };
 
 	return (retval);
 }
@@ -183,14 +183,14 @@ timespec64_to_ns(struct timespec64 *ts)
 	return (timespec_to_ns(ts));
 }
 
-#define	ktime_to_timespec(kt)		ns_to_timespec(kt)
-#define	ktime_to_timespec64(kt)		ns_to_timespec(kt)
-#define	ktime_to_timeval(kt)		ns_to_timeval(kt)
-#define	ktime_to_ns(kt)			(kt)
-#define	ktime_get_ts(ts)		getnanouptime(ts)
-#define	ktime_get_ts64(ts)		getnanouptime(ts)
-#define	ktime_get_raw_ts64(ts)		getnanouptime(ts)
-#define	getrawmonotonic64(ts)		getnanouptime(ts)
+#define ktime_to_timespec(kt) ns_to_timespec(kt)
+#define ktime_to_timespec64(kt) ns_to_timespec(kt)
+#define ktime_to_timeval(kt) ns_to_timeval(kt)
+#define ktime_to_ns(kt) (kt)
+#define ktime_get_ts(ts) getnanouptime(ts)
+#define ktime_get_ts64(ts) getnanouptime(ts)
+#define ktime_get_raw_ts64(ts) getnanouptime(ts)
+#define getrawmonotonic64(ts) getnanouptime(ts)
 
 static inline int64_t
 ktime_get_ns(void)

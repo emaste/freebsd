@@ -28,7 +28,7 @@
  */
 
 #ifndef _MV_CP110_SYSCON_H_
-#define	_MV_CP110_SYSCON_H_
+#define _MV_CP110_SYSCON_H_
 
 enum mv_cp110_clk_id {
 	CP110_PLL_0 = 0,
@@ -41,42 +41,42 @@ enum mv_cp110_clk_id {
 };
 
 /* Gates */
-#define	CP110_CLOCK_GATING_OFFSET	0x220
+#define CP110_CLOCK_GATING_OFFSET 0x220
 
 struct cp110_gate {
-	const char	*name;
-	uint32_t	shift;
+	const char *name;
+	uint32_t shift;
 };
 
-#define	CCU_GATE(idx, clkname, s)		\
-	[idx] = {					\
-		.name = clkname,			\
-		.shift = s,				\
+#define CCU_GATE(idx, clkname, s) \
+	[idx] = {                 \
+		.name = clkname,  \
+		.shift = s,       \
 	},
 
-#define	CP110_GATE_AUDIO		0
-#define	CP110_GATE_COMM_UNIT		1
-#define	CP110_GATE_NAND			2
-#define	CP110_GATE_PPV2			3
-#define	CP110_GATE_SDIO			4
-#define	CP110_GATE_MG			5
-#define	CP110_GATE_MG_CORE		6
-#define	CP110_GATE_XOR1			7
-#define	CP110_GATE_XOR0			8
-#define	CP110_GATE_GOP_DP		9
-#define	CP110_GATE_PCIE_X1_0		11
-#define	CP110_GATE_PCIE_X1_1		12
-#define	CP110_GATE_PCIE_X4		13
-#define	CP110_GATE_PCIE_XOR		14
-#define	CP110_GATE_SATA			15
-#define	CP110_GATE_SATA_USB		16
-#define	CP110_GATE_MAIN			17
-#define	CP110_GATE_SDMMC_GOP		18
-#define	CP110_GATE_SLOW_IO		21
-#define	CP110_GATE_USB3H0		22
-#define	CP110_GATE_USB3H1		23
-#define	CP110_GATE_USB3DEV		24
-#define	CP110_GATE_EIP150		25
-#define	CP110_GATE_EIP197		26
+#define CP110_GATE_AUDIO 0
+#define CP110_GATE_COMM_UNIT 1
+#define CP110_GATE_NAND 2
+#define CP110_GATE_PPV2 3
+#define CP110_GATE_SDIO 4
+#define CP110_GATE_MG 5
+#define CP110_GATE_MG_CORE 6
+#define CP110_GATE_XOR1 7
+#define CP110_GATE_XOR0 8
+#define CP110_GATE_GOP_DP 9
+#define CP110_GATE_PCIE_X1_0 11
+#define CP110_GATE_PCIE_X1_1 12
+#define CP110_GATE_PCIE_X4 13
+#define CP110_GATE_PCIE_XOR 14
+#define CP110_GATE_SATA 15
+#define CP110_GATE_SATA_USB 16
+#define CP110_GATE_MAIN 17
+#define CP110_GATE_SDMMC_GOP 18
+#define CP110_GATE_SLOW_IO 21
+#define CP110_GATE_USB3H0 22
+#define CP110_GATE_USB3H1 23
+#define CP110_GATE_USB3DEV 24
+#define CP110_GATE_EIP150 25
+#define CP110_GATE_EIP197 26
 
 #endif

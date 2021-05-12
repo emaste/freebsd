@@ -65,8 +65,8 @@ struct platform_kobj {
 	/*
 	 * Utility elements that an instance may use
 	 */
-	struct mtx	platform_mtx;	/* available for instance use */
-	void		*platform_iptr;	/* instance data pointer */
+	struct mtx platform_mtx; /* available for instance use */
+	void *platform_iptr;	 /* instance data pointer */
 
 	/*
 	 * Opaque data that can be overlaid with an instance-private
@@ -75,17 +75,17 @@ struct platform_kobj {
 	 * is also a run-time test when the platform kernel object is
 	 * registered.
 	 */
-#define PLATFORM_OPAQUESZ	64
-	u_int		platform_opaque[PLATFORM_OPAQUESZ];
+#define PLATFORM_OPAQUESZ 64
+	u_int platform_opaque[PLATFORM_OPAQUESZ];
 };
 
-typedef struct platform_kobj	*platform_t;
-typedef struct kobj_class	platform_def_t;
-#define platform_method_t	kobj_method_t
+typedef struct platform_kobj *platform_t;
+typedef struct kobj_class platform_def_t;
+#define platform_method_t kobj_method_t
 
-#define PLATFORMMETHOD		KOBJMETHOD
-#define	PLATFORMMETHOD_END	KOBJMETHOD_END
+#define PLATFORMMETHOD KOBJMETHOD
+#define PLATFORMMETHOD_END KOBJMETHOD_END
 
-#define PLATFORM_DEF(name)	DATA_SET(platform_set, name)
+#define PLATFORM_DEF(name) DATA_SET(platform_set, name)
 
 #endif /* _MACHINE_PLATFORMVAR_H_ */

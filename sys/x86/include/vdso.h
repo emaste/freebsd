@@ -32,21 +32,21 @@
  */
 
 #ifndef _X86_VDSO_H
-#define	_X86_VDSO_H
+#define _X86_VDSO_H
 
-#define	VDSO_TIMEHANDS_MD			\
-	uint32_t	th_x86_shift;		\
-	uint32_t	th_x86_hpet_idx;	\
-	uint32_t	th_res[6];
+#define VDSO_TIMEHANDS_MD         \
+	uint32_t th_x86_shift;    \
+	uint32_t th_x86_hpet_idx; \
+	uint32_t th_res[6];
 
-#define	VDSO_TH_ALGO_X86_TSC	VDSO_TH_ALGO_1
-#define	VDSO_TH_ALGO_X86_HPET	VDSO_TH_ALGO_2
-#define	VDSO_TH_ALGO_X86_HVTSC	VDSO_TH_ALGO_3	/* Hyper-V ref. TSC */
+#define VDSO_TH_ALGO_X86_TSC VDSO_TH_ALGO_1
+#define VDSO_TH_ALGO_X86_HPET VDSO_TH_ALGO_2
+#define VDSO_TH_ALGO_X86_HVTSC VDSO_TH_ALGO_3 /* Hyper-V ref. TSC */
 
 #ifdef _KERNEL
 #ifdef COMPAT_FREEBSD32
 
-#define	VDSO_TIMEHANDS_MD32	VDSO_TIMEHANDS_MD
+#define VDSO_TIMEHANDS_MD32 VDSO_TIMEHANDS_MD
 
 #endif
 #endif

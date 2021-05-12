@@ -33,19 +33,20 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
+
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_extern.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 
 int copyin_fast(const void *udaddr, void *kaddr, size_t len, u_int);
 static int (*copyin_fast_tramp)(const void *, void *, size_t, u_int);
@@ -65,9 +66,8 @@ int suword_fast(volatile void *base, long val, u_int kcr3);
 static int (*suword_fast_tramp)(volatile void *, long, u_int);
 
 static int fast_copyout = 1;
-SYSCTL_INT(_machdep, OID_AUTO, fast_copyout, CTLFLAG_RWTUN,
-    &fast_copyout, 0,
-    "");
+SYSCTL_INT(
+    _machdep, OID_AUTO, fast_copyout, CTLFLAG_RWTUN, &fast_copyout, 0, "");
 
 void
 copyout_init_tramp(void)
@@ -105,8 +105,8 @@ cp_slow0(vm_offset_t uva, size_t len, bool write,
 	MPASS(plen <= nitems(m));
 	error = 0;
 	i = vm_fault_quick_hold_pages(&curproc->p_vmspace->vm_map, uva, len,
-	    (write ? VM_PROT_WRITE : VM_PROT_READ) | VM_PROT_QUICK_NOFAULT,
-	    m, nitems(m));
+	    (write ? VM_PROT_WRITE : VM_PROT_READ) | VM_PROT_QUICK_NOFAULT, m,
+	    nitems(m));
 	if (i != plen)
 		return (EFAULT);
 	sched_pin();
@@ -169,7 +169,7 @@ copyinstr(const void *udaddr, void *kaddr, size_t maxlen, size_t *lencopied)
 	error = 0;
 	ca.end = false;
 	for (plen = 0, uc = (vm_offset_t)udaddr, ca.kc = (vm_offset_t)kaddr;
-	    plen < maxlen && !ca.end; uc += ca.alen, plen += ca.alen) {
+	     plen < maxlen && !ca.end; uc += ca.alen, plen += ca.alen) {
 		ca.len = round_page(uc) - uc;
 		if (ca.len == 0)
 			ca.len = PAGE_SIZE;
@@ -212,11 +212,12 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 	if ((uintptr_t)udaddr + len < (uintptr_t)udaddr ||
 	    (uintptr_t)udaddr + len > VM_MAXUSER_ADDRESS)
 		return (EFAULT);
-	if (len == 0 || (fast_copyout && len <= TRAMP_COPYOUT_SZ &&
-	    copyin_fast_tramp(udaddr, kaddr, len, pmap_get_kcr3()) == 0))
+	if (len == 0 ||
+	    (fast_copyout && len <= TRAMP_COPYOUT_SZ &&
+		copyin_fast_tramp(udaddr, kaddr, len, pmap_get_kcr3()) == 0))
 		return (0);
 	for (plen = 0, uc = (vm_offset_t)udaddr, ca.kc = (vm_offset_t)kaddr;
-	    plen < len; uc += ca.len, ca.kc += ca.len, plen += ca.len) {
+	     plen < len; uc += ca.len, ca.kc += ca.len, plen += ca.len) {
 		ca.len = round_page(uc) - uc;
 		if (ca.len == 0)
 			ca.len = PAGE_SIZE;
@@ -247,11 +248,12 @@ copyout(const void *kaddr, void *udaddr, size_t len)
 	if ((uintptr_t)udaddr + len < (uintptr_t)udaddr ||
 	    (uintptr_t)udaddr + len > VM_MAXUSER_ADDRESS)
 		return (EFAULT);
-	if (len == 0 || (fast_copyout && len <= TRAMP_COPYOUT_SZ &&
-	    copyout_fast_tramp(kaddr, udaddr, len, pmap_get_kcr3()) == 0))
+	if (len == 0 ||
+	    (fast_copyout && len <= TRAMP_COPYOUT_SZ &&
+		copyout_fast_tramp(kaddr, udaddr, len, pmap_get_kcr3()) == 0))
 		return (0);
 	for (plen = 0, uc = (vm_offset_t)udaddr, ca.kc = (vm_offset_t)kaddr;
-	    plen < len; uc += ca.len, ca.kc += ca.len, plen += ca.len) {
+	     plen < len; uc += ca.len, ca.kc += ca.len, plen += ca.len) {
 		ca.len = round_page(uc) - uc;
 		if (ca.len == 0)
 			ca.len = PAGE_SIZE;
@@ -289,7 +291,7 @@ fubyte(volatile const void *base)
 			return (res);
 	}
 	if (cp_slow0((vm_offset_t)base, sizeof(char), false, fubyte_slow0,
-	    &res) != 0)
+		&res) != 0)
 		return (-1);
 	return (res);
 }
@@ -314,8 +316,8 @@ fuword16(volatile const void *base)
 		if (res != -1)
 			return (res);
 	}
-	if (cp_slow0((vm_offset_t)base, sizeof(uint16_t), false,
-	    fuword16_slow0, &res) != 0)
+	if (cp_slow0((vm_offset_t)base, sizeof(uint16_t), false, fuword16_slow0,
+		&res) != 0)
 		return (-1);
 	return (res);
 }
@@ -340,7 +342,7 @@ fueword(volatile const void *base, long *val)
 			return (0);
 	}
 	if (cp_slow0((vm_offset_t)base, sizeof(long), false, fueword_slow0,
-	    &res) != 0)
+		&res) != 0)
 		return (-1);
 	*val = res;
 	return (0);
@@ -374,7 +376,9 @@ subyte(volatile void *base, int byte)
 	if (fast_copyout && subyte_fast_tramp(base, byte, pmap_get_kcr3()) == 0)
 		return (0);
 	return (cp_slow0((vm_offset_t)base, sizeof(u_char), true, subyte_slow0,
-	    &byte) != 0 ? -1 : 0);
+		    &byte) != 0 ?
+		      -1 :
+		      0);
 }
 
 static void
@@ -391,11 +395,13 @@ suword16(volatile void *base, int word)
 	if ((uintptr_t)base + sizeof(uint16_t) < (uintptr_t)base ||
 	    (uintptr_t)base + sizeof(uint16_t) > VM_MAXUSER_ADDRESS)
 		return (-1);
-	if (fast_copyout && suword16_fast_tramp(base, word, pmap_get_kcr3())
-	    == 0)
+	if (fast_copyout &&
+	    suword16_fast_tramp(base, word, pmap_get_kcr3()) == 0)
 		return (0);
 	return (cp_slow0((vm_offset_t)base, sizeof(int16_t), true,
-	    suword16_slow0, &word) != 0 ? -1 : 0);
+		    suword16_slow0, &word) != 0 ?
+		      -1 :
+		      0);
 }
 
 static void
@@ -414,8 +420,10 @@ suword(volatile void *base, long word)
 		return (-1);
 	if (fast_copyout && suword_fast_tramp(base, word, pmap_get_kcr3()) == 0)
 		return (0);
-	return (cp_slow0((vm_offset_t)base, sizeof(long), true,
-	    suword_slow0, &word) != 0 ? -1 : 0);
+	return (cp_slow0((vm_offset_t)base, sizeof(long), true, suword_slow0,
+		    &word) != 0 ?
+		      -1 :
+		      0);
 }
 
 int
@@ -437,8 +445,7 @@ casueword_slow0(vm_offset_t kva, void *arg)
 	struct casueword_arg0 *ca;
 
 	ca = arg;
-	ca->res = 1 - atomic_fcmpset_int((u_int *)kva, &ca->oldval,
-	    ca->newval);
+	ca->res = 1 - atomic_fcmpset_int((u_int *)kva, &ca->oldval, ca->newval);
 }
 
 int
@@ -450,8 +457,8 @@ casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
 
 	ca.oldval = oldval;
 	ca.newval = newval;
-	res = cp_slow0((vm_offset_t)base, sizeof(int32_t), true,
-	    casueword_slow0, &ca);
+	res = cp_slow0(
+	    (vm_offset_t)base, sizeof(int32_t), true, casueword_slow0, &ca);
 	if (res == 0) {
 		*oldvalp = ca.oldval;
 		return (ca.res);
@@ -467,8 +474,8 @@ casueword(volatile u_long *base, u_long oldval, u_long *oldvalp, u_long newval)
 
 	ca.oldval = oldval;
 	ca.newval = newval;
-	res = cp_slow0((vm_offset_t)base, sizeof(int32_t), true,
-	    casueword_slow0, &ca);
+	res = cp_slow0(
+	    (vm_offset_t)base, sizeof(int32_t), true, casueword_slow0, &ca);
 	if (res == 0) {
 		*oldvalp = ca.oldval;
 		return (ca.res);

@@ -34,8 +34,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_scsi.h"
 
 #include <sys/systm.h>
-#include <sys/libkern.h>
 #include <sys/kernel.h>
+#include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 #else
@@ -44,23 +44,24 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #ifndef min
-#define min(a,b) (((a)<(b))?(a):(b))
+#define min(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 #endif
+
+#include <sys/endian.h>
+#include <sys/sbuf.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_queue.h>
 #include <cam/cam_xpt.h>
 #include <cam/nvme/nvme_all.h>
-#include <sys/sbuf.h>
-#include <sys/endian.h>
 
 #ifdef _KERNEL
 #include <cam/cam_periph.h>
-#include <cam/cam_xpt_sim.h>
-#include <cam/cam_xpt_periph.h>
 #include <cam/cam_xpt_internal.h>
+#include <cam/cam_xpt_periph.h>
+#include <cam/cam_xpt_sim.h>
 #endif
 
 void
@@ -100,8 +101,7 @@ nvme_print_ident(const struct nvme_controller_data *cdata,
 }
 
 /* XXX need to do nvme admin opcodes too, but those aren't used yet by nda */
-static const char *
-nvme_opc2str[] = {
+static const char *nvme_opc2str[] = {
 	"FLUSH",
 	"WRITE",
 	"READ",
@@ -160,7 +160,7 @@ nvme_cmd_string(const struct nvme_command *cmd, char *cmd_string, size_t len)
 #endif
 		return ("");
 
-	return(sbuf_data(&sb));
+	return (sbuf_data(&sb));
 }
 
 void
@@ -173,9 +173,8 @@ nvme_cmd_sbuf(const struct nvme_command *cmd, struct sbuf *sb)
 	 */
 	sbuf_printf(sb,
 	    "opc=%x fuse=%x nsid=%x prp1=%llx prp2=%llx cdw=%x %x %x %x %x %x",
-	    cmd->opc, cmd->fuse, cmd->nsid,
-	    (unsigned long long)cmd->prp1, (unsigned long long)cmd->prp2,
-	    cmd->cdw10, cmd->cdw11, cmd->cdw12,
+	    cmd->opc, cmd->fuse, cmd->nsid, (unsigned long long)cmd->prp1,
+	    (unsigned long long)cmd->prp2, cmd->cdw10, cmd->cdw11, cmd->cdw12,
 	    cmd->cdw13, cmd->cdw14, cmd->cdw15);
 }
 
@@ -186,10 +185,11 @@ int
 nvme_command_sbuf(struct ccb_nvmeio *nvmeio, struct sbuf *sb)
 {
 
-	sbuf_printf(sb, "%s. NCB: ", nvme_op_string(&nvmeio->cmd,
-	    nvmeio->ccb_h.func_code == XPT_NVME_ADMIN));
+	sbuf_printf(sb, "%s. NCB: ",
+	    nvme_op_string(
+		&nvmeio->cmd, nvmeio->ccb_h.func_code == XPT_NVME_ADMIN));
 	nvme_cmd_sbuf(&nvmeio->cmd, sb);
-	return(0);
+	return (0);
 }
 
 #ifdef _KERNEL

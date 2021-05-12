@@ -30,36 +30,33 @@
  */
 
 #ifndef _MACHINE_IODEV_H_
-#define	_MACHINE_IODEV_H_
+#define _MACHINE_IODEV_H_
 
-#define	iodev_read_1(a)							\
-({									\
-	uint8_t val;							\
-	__asm __volatile("ldrb	%w0, [%1]" : "=&r" (val) : "r"(a));	\
-	val;								\
-})
+#define iodev_read_1(a)                                                    \
+	({                                                                 \
+		uint8_t val;                                               \
+		__asm __volatile("ldrb	%w0, [%1]" : "=&r"(val) : "r"(a)); \
+		val;                                                       \
+	})
 
-#define	iodev_read_2(a)							\
-({									\
-	uint16_t val;							\
-	__asm __volatile("ldrh	%w0, [%1]" : "=&r" (val) : "r"(a));	\
-	val;								\
-})
+#define iodev_read_2(a)                                                    \
+	({                                                                 \
+		uint16_t val;                                              \
+		__asm __volatile("ldrh	%w0, [%1]" : "=&r"(val) : "r"(a)); \
+		val;                                                       \
+	})
 
-#define	iodev_read_4(a)							\
-({									\
-	uint32_t val;							\
-	__asm __volatile("ldr	%w0, [%1]" : "=&r" (val) : "r"(a));	\
-	val;								\
-})
+#define iodev_read_4(a)                                                    \
+	({                                                                 \
+		uint32_t val;                                              \
+		__asm __volatile("ldr	%w0, [%1]" : "=&r"(val) : "r"(a)); \
+		val;                                                       \
+	})
 
-#define	iodev_write_1(a, v)						\
-	__asm __volatile("strb	%w0, [%1]" :: "r" (v), "r"(a))
+#define iodev_write_1(a, v) __asm __volatile("strb	%w0, [%1]" ::"r"(v), "r"(a))
 
-#define	iodev_write_2(a, v)						\
-	__asm __volatile("strh	%w0, [%1]" :: "r" (v), "r"(a))
+#define iodev_write_2(a, v) __asm __volatile("strh	%w0, [%1]" ::"r"(v), "r"(a))
 
-#define	iodev_write_4(a, v)						\
-	__asm __volatile("str	%w0, [%1]" :: "r" (v), "r"(a))
+#define iodev_write_4(a, v) __asm __volatile("str	%w0, [%1]" ::"r"(v), "r"(a))
 
 #endif /* _MACHINE_IODEV_H_ */

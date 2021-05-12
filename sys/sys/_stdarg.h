@@ -37,18 +37,18 @@
 #include <sys/_types.h>
 
 #ifndef _VA_LIST_DECLARED
-  #define _VA_LIST_DECLARED
-  typedef __va_list       va_list;
+#define _VA_LIST_DECLARED
+typedef __va_list va_list;
 #endif
 
 #ifdef __GNUCLIKE_BUILTIN_STDARG
-  #define	va_start(ap, last)	__builtin_va_start((ap), (last))
-  #define	va_arg(ap, type)	__builtin_va_arg((ap), type)
-  #define	__va_copy(dest, src)	__builtin_va_copy((dest), (src))
-  #if __ISO_C_VISIBLE >= 1999
-    #define	va_copy(dest, src)	__va_copy(dest, src)
-  #endif
-  #define	va_end(ap)		__builtin_va_end(ap)
+#define va_start(ap, last) __builtin_va_start((ap), (last))
+#define va_arg(ap, type) __builtin_va_arg((ap), type)
+#define __va_copy(dest, src) __builtin_va_copy((dest), (src))
+#if __ISO_C_VISIBLE >= 1999
+#define va_copy(dest, src) __va_copy(dest, src)
+#endif
+#define va_end(ap) __builtin_va_end(ap)
 #endif
 
 #endif /* ! _SYS__STDARG_H_ */

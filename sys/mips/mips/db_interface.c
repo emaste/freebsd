@@ -42,82 +42,83 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/cons.h>
+#include <sys/kdb.h>
 #include <sys/lock.h>
-#include <vm/vm.h>
-#include <vm/vm_object.h>
-#include <vm/vm_page.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <sys/user.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/user.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
 
 #include <machine/cache.h>
 #include <machine/db_machdep.h>
-#include <machine/mips_opcode.h>
-#include <machine/vmparam.h>
 #include <machine/md_var.h>
+#include <machine/mips_opcode.h>
 #include <machine/setjmp.h>
+#include <machine/vmparam.h>
 
-#include <ddb/ddb.h>
-#include <ddb/db_sym.h>
 #include <ddb/db_access.h>
 #include <ddb/db_output.h>
+#include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
-#include <sys/kdb.h>
+#include <ddb/ddb.h>
 
 static db_varfcn_t db_frame;
 
-#define	DB_OFFSET(x)	(db_expr_t *)offsetof(struct trapframe, x)
+#define DB_OFFSET(x) (db_expr_t *)offsetof(struct trapframe, x)
 struct db_variable db_regs[] = {
-	{ "at",  DB_OFFSET(ast),	db_frame },
-	{ "v0",  DB_OFFSET(v0),		db_frame },
-	{ "v1",  DB_OFFSET(v1),		db_frame },
-	{ "a0",  DB_OFFSET(a0),		db_frame },
-	{ "a1",  DB_OFFSET(a1),		db_frame },
-	{ "a2",  DB_OFFSET(a2),		db_frame },
-	{ "a3",  DB_OFFSET(a3),		db_frame },
+	{ "at", DB_OFFSET(ast), db_frame },
+	{ "v0", DB_OFFSET(v0), db_frame },
+	{ "v1", DB_OFFSET(v1), db_frame },
+	{ "a0", DB_OFFSET(a0), db_frame },
+	{ "a1", DB_OFFSET(a1), db_frame },
+	{ "a2", DB_OFFSET(a2), db_frame },
+	{ "a3", DB_OFFSET(a3), db_frame },
 #if defined(__mips_n32) || defined(__mips_n64)
-	{ "a4",  DB_OFFSET(a4),		db_frame },
-	{ "a5",  DB_OFFSET(a5),		db_frame },
-	{ "a6",  DB_OFFSET(a6),		db_frame },
-	{ "a7",  DB_OFFSET(a7),		db_frame },
-	{ "t0",  DB_OFFSET(t0),		db_frame },
-	{ "t1",  DB_OFFSET(t1),		db_frame },
-	{ "t2",  DB_OFFSET(t2),		db_frame },
-	{ "t3",  DB_OFFSET(t3),		db_frame },
+	{ "a4", DB_OFFSET(a4), db_frame },
+	{ "a5", DB_OFFSET(a5), db_frame },
+	{ "a6", DB_OFFSET(a6), db_frame },
+	{ "a7", DB_OFFSET(a7), db_frame },
+	{ "t0", DB_OFFSET(t0), db_frame },
+	{ "t1", DB_OFFSET(t1), db_frame },
+	{ "t2", DB_OFFSET(t2), db_frame },
+	{ "t3", DB_OFFSET(t3), db_frame },
 #else
-	{ "t0",  DB_OFFSET(t0),		db_frame },
-	{ "t1",  DB_OFFSET(t1),		db_frame },
-	{ "t2",  DB_OFFSET(t2),		db_frame },
-	{ "t3",  DB_OFFSET(t3),		db_frame },
-	{ "t4",  DB_OFFSET(t4),		db_frame },
-	{ "t5",  DB_OFFSET(t5),		db_frame },
-	{ "t6",  DB_OFFSET(t6),		db_frame },
-	{ "t7",  DB_OFFSET(t7),		db_frame },
+	{ "t0", DB_OFFSET(t0), db_frame },
+	{ "t1", DB_OFFSET(t1), db_frame },
+	{ "t2", DB_OFFSET(t2), db_frame },
+	{ "t3", DB_OFFSET(t3), db_frame },
+	{ "t4", DB_OFFSET(t4), db_frame },
+	{ "t5", DB_OFFSET(t5), db_frame },
+	{ "t6", DB_OFFSET(t6), db_frame },
+	{ "t7", DB_OFFSET(t7), db_frame },
 #endif
-	{ "s0",  DB_OFFSET(s0),		db_frame },
-	{ "s1",  DB_OFFSET(s1),		db_frame },
-	{ "s2",  DB_OFFSET(s2),		db_frame },
-	{ "s3",  DB_OFFSET(s3),		db_frame },
-	{ "s4",  DB_OFFSET(s4),		db_frame },
-	{ "s5",  DB_OFFSET(s5),		db_frame },
-	{ "s6",  DB_OFFSET(s6),		db_frame },
-	{ "s7",  DB_OFFSET(s7),		db_frame },
-	{ "t8",  DB_OFFSET(t8),		db_frame },
-	{ "t9",  DB_OFFSET(t9),		db_frame },
-	{ "k0",  DB_OFFSET(k0),		db_frame },
-	{ "k1",  DB_OFFSET(k1),		db_frame },
-	{ "gp",  DB_OFFSET(gp),		db_frame },
-	{ "sp",  DB_OFFSET(sp),		db_frame },
-	{ "s8",  DB_OFFSET(s8),		db_frame },
-	{ "ra",  DB_OFFSET(ra),		db_frame },
-	{ "sr",  DB_OFFSET(sr),		db_frame },
-	{ "lo",  DB_OFFSET(mullo),	db_frame },
-	{ "hi",  DB_OFFSET(mulhi),	db_frame },
-	{ "bad", DB_OFFSET(badvaddr),	db_frame },
-	{ "cs",  DB_OFFSET(cause),	db_frame },
-	{ "pc",  DB_OFFSET(pc),		db_frame },
+	{ "s0", DB_OFFSET(s0), db_frame },
+	{ "s1", DB_OFFSET(s1), db_frame },
+	{ "s2", DB_OFFSET(s2), db_frame },
+	{ "s3", DB_OFFSET(s3), db_frame },
+	{ "s4", DB_OFFSET(s4), db_frame },
+	{ "s5", DB_OFFSET(s5), db_frame },
+	{ "s6", DB_OFFSET(s6), db_frame },
+	{ "s7", DB_OFFSET(s7), db_frame },
+	{ "t8", DB_OFFSET(t8), db_frame },
+	{ "t9", DB_OFFSET(t9), db_frame },
+	{ "k0", DB_OFFSET(k0), db_frame },
+	{ "k1", DB_OFFSET(k1), db_frame },
+	{ "gp", DB_OFFSET(gp), db_frame },
+	{ "sp", DB_OFFSET(sp), db_frame },
+	{ "s8", DB_OFFSET(s8), db_frame },
+	{ "ra", DB_OFFSET(ra), db_frame },
+	{ "sr", DB_OFFSET(sr), db_frame },
+	{ "lo", DB_OFFSET(mullo), db_frame },
+	{ "hi", DB_OFFSET(mulhi), db_frame },
+	{ "bad", DB_OFFSET(badvaddr), db_frame },
+	{ "cs", DB_OFFSET(cause), db_frame },
+	{ "pc", DB_OFFSET(pc), db_frame },
 };
 struct db_variable *db_eregs = db_regs + nitems(db_regs);
 
@@ -131,7 +132,8 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 	if (kdb_frame == NULL)
 		return (0);
 
-	reg = (register_t *)((uintptr_t)kdb_frame + (size_t)(intptr_t)vp->valuep);
+	reg = (register_t *)((uintptr_t)kdb_frame +
+	    (size_t)(intptr_t)vp->valuep);
 	if (op == DB_VAR_GET)
 		*valuep = *reg;
 	else
@@ -155,8 +157,8 @@ db_read_bytes(vm_offset_t addr, size_t size, char *data)
 		 * size == 8 is only atomic on 64bit or n32 kernel.
 		 */
 		if ((size == 2 || size == 4 || size == 8) &&
-		    ((addr & (size -1)) == 0) &&
-		    (((vm_offset_t)data & (size -1)) == 0)) {
+		    ((addr & (size - 1)) == 0) &&
+		    (((vm_offset_t)data & (size - 1)) == 0)) {
 			switch (size) {
 			case 2:
 				*(uint16_t *)data = *(uint16_t *)addr;
@@ -198,8 +200,8 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 		 * size == 8 is only atomic on 64bit or n32 kernel.
 		 */
 		if ((size == 2 || size == 4 || size == 8) &&
-		    ((addr & (size -1)) == 0) &&
-		    (((vm_offset_t)data & (size -1)) == 0)) {
+		    ((addr & (size - 1)) == 0) &&
+		    (((vm_offset_t)data & (size - 1)) == 0)) {
 			switch (size) {
 			case 2:
 				*(uint16_t *)addr = *(uint16_t *)data;
@@ -220,8 +222,8 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 				*dst++ = *data++;
 		}
 
-		mips_icache_sync_range((db_addr_t) addr, size);
-		mips_dcache_wbinv_range((db_addr_t) addr, size);
+		mips_icache_sync_range((db_addr_t)addr, size);
+		mips_dcache_wbinv_range((db_addr_t)addr, size);
 	}
 	(void)kdb_jmpbuf(prev_jb);
 	return (ret);
@@ -251,7 +253,7 @@ int
 db_inst_type(int ins)
 {
 	InstFmt inst;
-	int	ityp = 0;
+	int ityp = 0;
 
 	inst.word = ins;
 	switch ((int)inst.JType.op) {
@@ -324,7 +326,7 @@ db_inst_type(int ins)
 	case OP_SB:
 	case OP_SH:
 	case OP_SW:
-	case OP_SD:  
+	case OP_SD:
 	case OP_SWC1:
 		ityp = IT_STORE;
 		break;

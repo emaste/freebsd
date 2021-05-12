@@ -34,31 +34,31 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/capsicum.h>
+#include <sys/extattr.h>
+#include <sys/fcntl.h>
+#include <sys/filedesc.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
-#include <sys/sysproto.h>
-#include <sys/fcntl.h>
 #include <sys/namei.h>
-#include <sys/filedesc.h>
-#include <sys/limits.h>
-#include <sys/vnode.h>
 #include <sys/proc.h>
-#include <sys/extattr.h>
+#include <sys/sysproto.h>
+#include <sys/vnode.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
-static int	kern_extattr_set_path(struct thread *td, const char *path,
-		    int attrnamespace, const char *attrname, void *data,
-		    size_t nbytes, int follow);
-static int	kern_extattr_get_path(struct thread *td, const char *path,
-		    int attrnamespace, const char *attrname, void *data,
-		    size_t nbytes, int follow);
-static int	kern_extattr_delete_path(struct thread *td, const char *path,
-		    int attrnamespace, const char *attrname, int follow);
-static int	kern_extattr_list_path(struct thread *td, const char *path,
-		    int attrnamespace, void *data, size_t nbytes, int follow);
+static int kern_extattr_set_path(struct thread *td, const char *path,
+    int attrnamespace, const char *attrname, void *data, size_t nbytes,
+    int follow);
+static int kern_extattr_get_path(struct thread *td, const char *path,
+    int attrnamespace, const char *attrname, void *data, size_t nbytes,
+    int follow);
+static int kern_extattr_delete_path(struct thread *td, const char *path,
+    int attrnamespace, const char *attrname, int follow);
+static int kern_extattr_list_path(struct thread *td, const char *path,
+    int attrnamespace, void *data, size_t nbytes, int follow);
 
 /*
  * Syscall to push extended attribute configuration information into the VFS.
@@ -92,8 +92,8 @@ sys_extattrctl(struct thread *td, struct extattrctl_args *uap)
 	 * invoke the VFS call so as to pass in NULL there if needed.
 	 */
 	if (uap->attrname != NULL) {
-		error = copyinstr(uap->attrname, attrname, sizeof(attrname),
-		    NULL);
+		error = copyinstr(
+		    uap->attrname, attrname, sizeof(attrname), NULL);
 		if (error)
 			return (error);
 	}
@@ -102,8 +102,8 @@ sys_extattrctl(struct thread *td, struct extattrctl_args *uap)
 	mp = NULL;
 	filename_vp = NULL;
 	if (uap->filename != NULL) {
-		NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE2,
-		    UIO_USERSPACE, uap->filename, td);
+		NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE2, UIO_USERSPACE,
+		    uap->filename, td);
 		error = namei(&nd);
 		if (error)
 			return (error);
@@ -112,8 +112,8 @@ sys_extattrctl(struct thread *td, struct extattrctl_args *uap)
 	}
 
 	/* uap->path is always defined. */
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1,
-	    UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
+	    uap->path, td);
 	error = namei(&nd);
 	if (error)
 		goto out;
@@ -199,14 +199,14 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	cnt = nbytes;
 
 #ifdef MAC
-	error = mac_vnode_check_setextattr(td->td_ucred, vp, attrnamespace,
-	    attrname);
+	error = mac_vnode_check_setextattr(
+	    td->td_ucred, vp, attrnamespace, attrname);
 	if (error)
 		goto done;
 #endif
 
-	error = VOP_SETEXTATTR(vp, attrnamespace, attrname, &auio,
-	    td->td_ucred, td);
+	error = VOP_SETEXTATTR(
+	    vp, attrnamespace, attrname, &auio, td->td_ucred, td);
 	cnt -= auio.uio_resid;
 	td->td_retval[0] = cnt;
 
@@ -242,13 +242,13 @@ sys_extattr_set_fd(struct thread *td, struct extattr_set_fd_args *uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td, uap->fd,
-	    cap_rights_init_one(&rights, CAP_EXTATTR_SET), &fp);
+	error = getvnode(
+	    td, uap->fd, cap_rights_init_one(&rights, CAP_EXTATTR_SET), &fp);
 	if (error)
 		return (error);
 
-	error = extattr_set_vp(fp->f_vnode, uap->attrnamespace,
-	    attrname, uap->data, uap->nbytes, td);
+	error = extattr_set_vp(fp->f_vnode, uap->attrnamespace, attrname,
+	    uap->data, uap->nbytes, td);
 	fdrop(fp, td);
 
 	return (error);
@@ -308,8 +308,8 @@ kern_extattr_set_path(struct thread *td, const char *path, int attrnamespace,
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	error = extattr_set_vp(nd.ni_vp, attrnamespace, attrname, data,
-	    nbytes, td);
+	error = extattr_set_vp(
+	    nd.ni_vp, attrnamespace, attrname, data, nbytes, td);
 
 	vrele(nd.ni_vp);
 	return (error);
@@ -364,14 +364,14 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 		sizep = &size;
 
 #ifdef MAC
-	error = mac_vnode_check_getextattr(td->td_ucred, vp, attrnamespace,
-	    attrname);
+	error = mac_vnode_check_getextattr(
+	    td->td_ucred, vp, attrnamespace, attrname);
 	if (error)
 		goto done;
 #endif
 
-	error = VOP_GETEXTATTR(vp, attrnamespace, attrname, auiop, sizep,
-	    td->td_ucred, td);
+	error = VOP_GETEXTATTR(
+	    vp, attrnamespace, attrname, auiop, sizep, td->td_ucred, td);
 
 	if (auiop != NULL) {
 		cnt -= auio.uio_resid;
@@ -409,13 +409,13 @@ sys_extattr_get_fd(struct thread *td, struct extattr_get_fd_args *uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td, uap->fd,
-	    cap_rights_init_one(&rights, CAP_EXTATTR_GET), &fp);
+	error = getvnode(
+	    td, uap->fd, cap_rights_init_one(&rights, CAP_EXTATTR_GET), &fp);
 	if (error)
 		return (error);
 
-	error = extattr_get_vp(fp->f_vnode, uap->attrnamespace,
-	    attrname, uap->data, uap->nbytes, td);
+	error = extattr_get_vp(fp->f_vnode, uap->attrnamespace, attrname,
+	    uap->data, uap->nbytes, td);
 
 	fdrop(fp, td);
 	return (error);
@@ -473,8 +473,8 @@ kern_extattr_get_path(struct thread *td, const char *path, int attrnamespace,
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	error = extattr_get_vp(nd.ni_vp, attrnamespace, attrname, data,
-	    nbytes, td);
+	error = extattr_get_vp(
+	    nd.ni_vp, attrnamespace, attrname, data, nbytes, td);
 
 	vrele(nd.ni_vp);
 	return (error);
@@ -503,17 +503,17 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 #ifdef MAC
-	error = mac_vnode_check_deleteextattr(td->td_ucred, vp, attrnamespace,
-	    attrname);
+	error = mac_vnode_check_deleteextattr(
+	    td->td_ucred, vp, attrnamespace, attrname);
 	if (error)
 		goto done;
 #endif
 
-	error = VOP_DELETEEXTATTR(vp, attrnamespace, attrname, td->td_ucred,
-	    td);
+	error = VOP_DELETEEXTATTR(
+	    vp, attrnamespace, attrname, td->td_ucred, td);
 	if (error == EOPNOTSUPP)
-		error = VOP_SETEXTATTR(vp, attrnamespace, attrname, NULL,
-		    td->td_ucred, td);
+		error = VOP_SETEXTATTR(
+		    vp, attrnamespace, attrname, NULL, td->td_ucred, td);
 #ifdef MAC
 done:
 #endif
@@ -544,13 +544,13 @@ sys_extattr_delete_fd(struct thread *td, struct extattr_delete_fd_args *uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td, uap->fd,
-	    cap_rights_init_one(&rights, CAP_EXTATTR_DELETE), &fp);
+	error = getvnode(
+	    td, uap->fd, cap_rights_init_one(&rights, CAP_EXTATTR_DELETE), &fp);
 	if (error)
 		return (error);
 
-	error = extattr_delete_vp(fp->f_vnode, uap->attrnamespace,
-	    attrname, td);
+	error = extattr_delete_vp(
+	    fp->f_vnode, uap->attrnamespace, attrname, td);
 	fdrop(fp, td);
 	return (error);
 }
@@ -566,8 +566,8 @@ int
 sys_extattr_delete_file(struct thread *td, struct extattr_delete_file_args *uap)
 {
 
-	return (kern_extattr_delete_path(td, uap->path, uap->attrnamespace,
-	    uap->attrname, FOLLOW));
+	return (kern_extattr_delete_path(
+	    td, uap->path, uap->attrnamespace, uap->attrname, FOLLOW));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -581,8 +581,8 @@ int
 sys_extattr_delete_link(struct thread *td, struct extattr_delete_link_args *uap)
 {
 
-	return (kern_extattr_delete_path(td, uap->path, uap->attrnamespace,
-	    uap->attrname, NOFOLLOW));
+	return (kern_extattr_delete_path(
+	    td, uap->path, uap->attrnamespace, uap->attrname, NOFOLLOW));
 }
 
 static int
@@ -596,18 +596,18 @@ kern_extattr_delete_path(struct thread *td, const char *path, int attrnamespace,
 	AUDIT_ARG_VALUE(attrnamespace);
 	error = copyinstr(uattrname, attrname, sizeof(attrname), NULL);
 	if (error)
-		return(error);
+		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
 	NDINIT(&nd, LOOKUP, follow | AUDITVNODE1, UIO_USERSPACE, path, td);
 	error = namei(&nd);
 	if (error)
-		return(error);
+		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	error = extattr_delete_vp(nd.ni_vp, attrnamespace, attrname, td);
 	vrele(nd.ni_vp);
-	return(error);
+	return (error);
 }
 
 /*-
@@ -621,8 +621,8 @@ kern_extattr_delete_path(struct thread *td, const char *path, int attrnamespace,
  * References: vp must be a valid reference for the duration of the call
  */
 static int
-extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
-    size_t nbytes, struct thread *td)
+extattr_list_vp(struct vnode *vp, int attrnamespace, void *data, size_t nbytes,
+    struct thread *td)
 {
 	struct uio auio, *auiop;
 	size_t size, *sizep;
@@ -661,8 +661,8 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 	}
 #endif
 
-	error = VOP_LISTEXTATTR(vp, attrnamespace, auiop, sizep,
-	    td->td_ucred, td);
+	error = VOP_LISTEXTATTR(
+	    vp, attrnamespace, auiop, sizep, td->td_ucred, td);
 	VOP_UNLOCK(vp);
 
 	if (auiop != NULL) {
@@ -690,13 +690,13 @@ sys_extattr_list_fd(struct thread *td, struct extattr_list_fd_args *uap)
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_VALUE(uap->attrnamespace);
-	error = getvnode(td, uap->fd,
-	    cap_rights_init_one(&rights, CAP_EXTATTR_LIST), &fp);
+	error = getvnode(
+	    td, uap->fd, cap_rights_init_one(&rights, CAP_EXTATTR_LIST), &fp);
 	if (error)
 		return (error);
 
-	error = extattr_list_vp(fp->f_vnode, uap->attrnamespace, uap->data,
-	    uap->nbytes, td);
+	error = extattr_list_vp(
+	    fp->f_vnode, uap->attrnamespace, uap->data, uap->nbytes, td);
 
 	fdrop(fp, td);
 	return (error);
@@ -714,8 +714,8 @@ int
 sys_extattr_list_file(struct thread *td, struct extattr_list_file_args *uap)
 {
 
-	return (kern_extattr_list_path(td, uap->path, uap->attrnamespace,
-	    uap->data, uap->nbytes, FOLLOW));
+	return (kern_extattr_list_path(
+	    td, uap->path, uap->attrnamespace, uap->data, uap->nbytes, FOLLOW));
 }
 
 #ifndef _SYS_SYSPROTO_H_

@@ -34,77 +34,74 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/module.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/rman.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
-#include <sys/cpuset.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/smp.h>
+#include <sys/rman.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
 
 #include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include "pic_if.h"
 
-#define	MTK_NIRQS	64	/* We'll only use 64 for now */
+#define MTK_NIRQS 64 /* We'll only use 64 for now */
 
-#define MTK_INTPOL		0x0100
-#define MTK_INTTRIG		0x0180
-#define MTK_INTDIS		0x0300
-#define MTK_INTENA		0x0380
-#define MTK_INTMASK		0x0400
-#define MTK_INTSTAT		0x0480
-#define MTK_MAPPIN(_i)		(0x0500 + (4 * (_i)))
-#define MTK_MAPVPE(_i, _v)	(0x2000 + (32 * (_i)) + (((_v) / 32) * 4))
+#define MTK_INTPOL 0x0100
+#define MTK_INTTRIG 0x0180
+#define MTK_INTDIS 0x0300
+#define MTK_INTENA 0x0380
+#define MTK_INTMASK 0x0400
+#define MTK_INTSTAT 0x0480
+#define MTK_MAPPIN(_i) (0x0500 + (4 * (_i)))
+#define MTK_MAPVPE(_i, _v) (0x2000 + (32 * (_i)) + (((_v) / 32) * 4))
 
-#define MTK_INTPOL_POS		1
-#define MTK_INTPOL_NEG		0
-#define MTK_INTTRIG_EDGE	1
-#define MTK_INTTRIG_LEVEL	0
-#define MTK_PIN_BITS(_i)	((1 << 31) | (_i))
-#define MTK_VPE_BITS(_v)	(1 << ((_v) % 32))
+#define MTK_INTPOL_POS 1
+#define MTK_INTPOL_NEG 0
+#define MTK_INTTRIG_EDGE 1
+#define MTK_INTTRIG_LEVEL 0
+#define MTK_PIN_BITS(_i) ((1 << 31) | (_i))
+#define MTK_VPE_BITS(_v) (1 << ((_v) % 32))
 
 static int mtk_gic_intr(void *);
 
 struct mtk_gic_irqsrc {
-	struct intr_irqsrc	isrc;
-	u_int			irq;
+	struct intr_irqsrc isrc;
+	u_int irq;
 };
 
 struct mtk_gic_softc {
-	device_t		gic_dev;
-	void *                  gic_intrhand;
-	struct resource *       gic_res[2];
-	struct mtk_gic_irqsrc	gic_irqs[MTK_NIRQS];
-	struct mtx		mutex;
-	uint32_t		nirqs;
+	device_t gic_dev;
+	void *gic_intrhand;
+	struct resource *gic_res[2];
+	struct mtk_gic_irqsrc gic_irqs[MTK_NIRQS];
+	struct mtx mutex;
+	uint32_t nirqs;
 };
 
-#define GIC_INTR_ISRC(sc, irq)	(&(sc)->gic_irqs[(irq)].isrc)
+#define GIC_INTR_ISRC(sc, irq) (&(sc)->gic_irqs[(irq)].isrc)
 
-static struct resource_spec mtk_gic_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Registers */
-	{ -1, 0 }
-};
+static struct resource_spec mtk_gic_spec[] = { { SYS_RES_MEMORY, 0,
+						   RF_ACTIVE }, /* Registers */
+	{ -1, 0 } };
 
-static struct ofw_compat_data compat_data[] = {
-	{ "mti,gic",	1 },
-	{ NULL,		0 }
-};
+static struct ofw_compat_data compat_data[] = { { "mti,gic", 1 }, { NULL, 0 } };
 
-#define READ4(_sc, _reg)	bus_read_4((_sc)->gic_res[0], (_reg))
-#define WRITE4(_sc, _reg, _val)	bus_write_4((_sc)->gic_res[0], (_reg), (_val))
+#define READ4(_sc, _reg) bus_read_4((_sc)->gic_res[0], (_reg))
+#define WRITE4(_sc, _reg, _val) bus_write_4((_sc)->gic_res[0], (_reg), (_val))
 
 static int
 mtk_gic_probe(device_t dev)
@@ -218,14 +215,14 @@ mtk_gic_attach(device_t dev)
 		goto cleanup;
 	}
 
-	cpu_establish_hardintr("gic", mtk_gic_intr, NULL, sc, 0, INTR_TYPE_CLK,
-	    NULL);
+	cpu_establish_hardintr(
+	    "gic", mtk_gic_intr, NULL, sc, 0, INTR_TYPE_CLK, NULL);
 
 	return (0);
 
 cleanup:
 	bus_release_resources(dev, mtk_gic_spec, sc->gic_res);
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static int
@@ -244,10 +241,10 @@ mtk_gic_intr(void *arg)
 		i--;
 		intr &= ~(1u << i);
 
-		if (intr_isrc_dispatch(GIC_INTR_ISRC(sc, i),
-		    curthread->td_intr_frame) != 0) {
-			device_printf(sc->gic_dev,
-				"Stray interrupt %u detected\n", i);
+		if (intr_isrc_dispatch(
+			GIC_INTR_ISRC(sc, i), curthread->td_intr_frame) != 0) {
+			device_printf(
+			    sc->gic_dev, "Stray interrupt %u detected\n", i);
 			gic_irq_mask(sc, i);
 			continue;
 		}
@@ -261,8 +258,8 @@ mtk_gic_intr(void *arg)
 }
 
 static int
-mtk_gic_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+mtk_gic_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 #ifdef FDT
 	struct intr_map_data_fdt *daf;
@@ -341,19 +338,19 @@ mtk_gic_ipi_send(device_t dev, struct intr_irqsrc *isrc, cpuset_t cpus)
 
 static device_method_t mtk_gic_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		mtk_gic_probe),
-	DEVMETHOD(device_attach,	mtk_gic_attach),
+	DEVMETHOD(device_probe, mtk_gic_probe),
+	DEVMETHOD(device_attach, mtk_gic_attach),
 	/* Interrupt controller interface */
-	DEVMETHOD(pic_disable_intr,	mtk_gic_disable_intr),
-	DEVMETHOD(pic_enable_intr,	mtk_gic_enable_intr),
-	DEVMETHOD(pic_map_intr,		mtk_gic_map_intr),
-	DEVMETHOD(pic_post_filter,	mtk_gic_post_filter),
-	DEVMETHOD(pic_post_ithread,	mtk_gic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	mtk_gic_pre_ithread),
+	DEVMETHOD(pic_disable_intr, mtk_gic_disable_intr),
+	DEVMETHOD(pic_enable_intr, mtk_gic_enable_intr),
+	DEVMETHOD(pic_map_intr, mtk_gic_map_intr),
+	DEVMETHOD(pic_post_filter, mtk_gic_post_filter),
+	DEVMETHOD(pic_post_ithread, mtk_gic_post_ithread),
+	DEVMETHOD(pic_pre_ithread, mtk_gic_pre_ithread),
 #ifdef SMP
-	DEVMETHOD(pic_bind,		mtk_gic_bind),
-	DEVMETHOD(pic_init_secondary,	mtk_gic_init_secondary),
-	DEVMETHOD(pic_ipi_send,		mtk_gic_ipi_send),
+	DEVMETHOD(pic_bind, mtk_gic_bind),
+	DEVMETHOD(pic_init_secondary, mtk_gic_init_secondary),
+	DEVMETHOD(pic_ipi_send, mtk_gic_ipi_send),
 #endif
 	{ 0, 0 }
 };

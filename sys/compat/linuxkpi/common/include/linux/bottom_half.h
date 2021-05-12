@@ -26,9 +26,9 @@
  * $FreeBSD$
  */
 #ifndef _LINUX_BOTTOM_HALF_H_
-#define	_LINUX_BOTTOM_HALF_H_
+#define _LINUX_BOTTOM_HALF_H_
 
 extern void local_bh_enable(void);
 extern void local_bh_disable(void);
 
-#endif					/* _LINUX_BOTTOM_HALF_H_ */
+#endif /* _LINUX_BOTTOM_HALF_H_ */

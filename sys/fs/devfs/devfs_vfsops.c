@@ -38,30 +38,28 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/sx.h>
 #include <sys/vnode.h>
-#include <sys/limits.h>
-#include <sys/jail.h>
 
 #include <fs/devfs/devfs.h>
 
-static struct unrhdr	*devfs_unr;
+static struct unrhdr *devfs_unr;
 
 MALLOC_DEFINE(M_DEVFS, "DEVFS", "DEVFS data");
 
-static vfs_mount_t	devfs_mount;
-static vfs_unmount_t	devfs_unmount;
-static vfs_root_t	devfs_root;
-static vfs_statfs_t	devfs_statfs;
+static vfs_mount_t devfs_mount;
+static vfs_unmount_t devfs_unmount;
+static vfs_root_t devfs_root;
+static vfs_statfs_t devfs_statfs;
 
-static const char *devfs_opts[] = {
-	"from", "export", "ruleset", NULL
-};
+static const char *devfs_opts[] = { "from", "export", "ruleset", NULL };
 
 /*
  * Mount the filesystem
@@ -94,10 +92,11 @@ devfs_mount(struct mount *mp)
 			return (EOPNOTSUPP);
 
 		if (vfs_getopt(mp->mnt_optnew, "ruleset", NULL, NULL) == 0 &&
-		    (vfs_scanopt(mp->mnt_optnew, "ruleset", "%d",
-		    &rsnum) != 1 || rsnum < 0 || rsnum > 65535)) {
-			vfs_mount_error(mp, "%s",
-			    "invalid ruleset specification");
+		    (vfs_scanopt(mp->mnt_optnew, "ruleset", "%d", &rsnum) !=
+			    1 ||
+			rsnum < 0 || rsnum > 65535)) {
+			vfs_mount_error(
+			    mp, "%s", "invalid ruleset specification");
 			return (EINVAL);
 		}
 
@@ -137,7 +136,7 @@ devfs_mount(struct mount *mp)
 #endif
 	MNT_IUNLOCK(mp);
 	fmp->dm_mount = mp;
-	mp->mnt_data = (void *) fmp;
+	mp->mnt_data = (void *)fmp;
 	vfs_getnewfsid(mp);
 
 	fmp->dm_rootdir = devfs_vmkdir(fmp, NULL, 0, NULL, DEVFS_ROOTINO);
@@ -181,8 +180,7 @@ devfs_unmount(struct mount *mp, int mntflags)
 	u_int idx;
 
 	fmp = VFSTODEVFS(mp);
-	KASSERT(fmp->dm_mount != NULL,
-		("devfs_unmount unmounted devfs_mount"));
+	KASSERT(fmp->dm_mount != NULL, ("devfs_unmount unmounted devfs_mount"));
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 	/* There is 1 extra root vnode reference from devfs_mount(). */
@@ -229,7 +227,7 @@ devfs_statfs(struct mount *mp, struct statfs *sbp)
 	sbp->f_flags = 0;
 	sbp->f_bsize = DEV_BSIZE;
 	sbp->f_iosize = DEV_BSIZE;
-	sbp->f_blocks = 2;		/* 1K to keep df happy */
+	sbp->f_blocks = 2; /* 1K to keep df happy */
 	sbp->f_bfree = 0;
 	sbp->f_bavail = 0;
 	sbp->f_files = 0;
@@ -238,11 +236,11 @@ devfs_statfs(struct mount *mp, struct statfs *sbp)
 }
 
 static struct vfsops devfs_vfsops = {
-	.vfs_mount =		devfs_mount,
-	.vfs_root =		vfs_cache_root,
-	.vfs_cachedroot =	devfs_root,
-	.vfs_statfs =		devfs_statfs,
-	.vfs_unmount =		devfs_unmount,
+	.vfs_mount = devfs_mount,
+	.vfs_root = vfs_cache_root,
+	.vfs_cachedroot = devfs_root,
+	.vfs_statfs = devfs_statfs,
+	.vfs_unmount = devfs_unmount,
 };
 
 VFS_SET(devfs_vfsops, devfs, VFCF_SYNTHETIC | VFCF_JAIL);

@@ -38,11 +38,11 @@ MALLOC_DECLARE(M_GCOV);
  * gcc and need to be kept as close to the original definition as possible to
  * remain compatible.
  */
-#define GCOV_DATA_MAGIC		((unsigned int) 0x67636461)
-#define GCOV_TAG_FUNCTION	((unsigned int) 0x01000000)
-#define GCOV_TAG_COUNTER_BASE	((unsigned int) 0x01a10000)
-#define GCOV_TAG_FOR_COUNTER(count)					\
-	(GCOV_TAG_COUNTER_BASE + ((unsigned int) (count) << 17))
+#define GCOV_DATA_MAGIC ((unsigned int)0x67636461)
+#define GCOV_TAG_FUNCTION ((unsigned int)0x01000000)
+#define GCOV_TAG_COUNTER_BASE ((unsigned int)0x01a10000)
+#define GCOV_TAG_FOR_COUNTER(count) \
+	(GCOV_TAG_COUNTER_BASE + ((unsigned int)(count) << 17))
 
 typedef uint64_t gcov_type;
 

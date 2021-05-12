@@ -32,27 +32,25 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cam.h"
+
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/types.h>
-#include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-
+#include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
-#include <sys/kthread.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
-#include <cam/cam_xpt.h>
 #include <cam/cam_compat.h>
 #include <cam/cam_periph.h>
-
+#include <cam/cam_xpt.h>
 #include <cam/scsi/scsi_pass.h>
-
-#include "opt_cam.h"
 
 static int cam_compat_handle_0x17(struct cdev *dev, u_long cmd, caddr_t addr,
     int flag, struct thread *td, d_ioctl_t *cbfnp);
@@ -67,8 +65,7 @@ cam_compat_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	int error;
 
 	switch (cmd) {
-	case CAMIOCOMMAND_0x16:
-	{
+	case CAMIOCOMMAND_0x16: {
 		struct ccb_hdr_0x17 *hdr17;
 
 		hdr17 = (struct ccb_hdr_0x17 *)addr;
@@ -119,11 +116,11 @@ static int
 cam_compat_handle_0x17(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
     struct thread *td, d_ioctl_t *cbfnp)
 {
-	union ccb		*ccb;
-	struct ccb_hdr		*hdr;
-	struct ccb_hdr_0x17	*hdr17;
-	uint8_t			*ccbb, *ccbb17;
-	u_int			error;
+	union ccb *ccb;
+	struct ccb_hdr *hdr;
+	struct ccb_hdr_0x17 *hdr17;
+	uint8_t *ccbb, *ccbb17;
+	u_int error;
 
 	hdr17 = (struct ccb_hdr_0x17 *)addr;
 	ccb = xpt_alloc_ccb();
@@ -190,7 +187,7 @@ cam_compat_handle_0x17(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	hdr17->timeout = hdr->timeout;
 
 	if (ccb->ccb_h.func_code == XPT_PATH_INQ) {
-		struct ccb_pathinq	*cpi;
+		struct ccb_pathinq *cpi;
 		struct ccb_pathinq_0x17 *cpi17;
 
 		/* The PATH_INQ only needs special handling on the way out */
@@ -257,11 +254,11 @@ static int
 cam_compat_handle_0x18(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
     struct thread *td, d_ioctl_t *cbfnp)
 {
-	union ccb		*ccb;
-	struct ccb_hdr		*hdr;
-	struct ccb_hdr_0x18	*hdr18;
-	uint8_t			*ccbb, *ccbb18;
-	u_int			error;
+	union ccb *ccb;
+	struct ccb_hdr *hdr;
+	struct ccb_hdr_0x18 *hdr18;
+	uint8_t *ccbb, *ccbb18;
+	u_int error;
 
 	hdr18 = (struct ccb_hdr_0x18 *)addr;
 	ccb = xpt_alloc_ccb();
@@ -361,9 +358,9 @@ cam_compat_handle_0x18(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 static int
 cam_compat_translate_dev_match_0x18(union ccb *ccb)
 {
-	struct dev_match_result		*dm;
-	struct dev_match_result_0x18	*dm18;
-	struct cam_periph_map_info	mapinfo;
+	struct dev_match_result *dm;
+	struct dev_match_result_0x18 *dm18;
+	struct cam_periph_map_info mapinfo;
 	int i;
 
 	/* Remap the CCB into kernel address space */
@@ -378,38 +375,37 @@ cam_compat_translate_dev_match_0x18(union ccb *ccb)
 		dm18[i].type = dm[i].type;
 		switch (dm[i].type) {
 		case DEV_MATCH_PERIPH:
-			memcpy(&dm18[i].result.periph_result.periph_name, 
-			    &dm[i].result.periph_result.periph_name,
-			    DEV_IDLEN);
+			memcpy(&dm18[i].result.periph_result.periph_name,
+			    &dm[i].result.periph_result.periph_name, DEV_IDLEN);
 			dm18[i].result.periph_result.unit_number =
-			   dm[i].result.periph_result.unit_number;
+			    dm[i].result.periph_result.unit_number;
 			dm18[i].result.periph_result.path_id =
-			   dm[i].result.periph_result.path_id;
+			    dm[i].result.periph_result.path_id;
 			dm18[i].result.periph_result.target_id =
-			   dm[i].result.periph_result.target_id;
+			    dm[i].result.periph_result.target_id;
 			dm18[i].result.periph_result.target_lun =
-			   dm[i].result.periph_result.target_lun;
+			    dm[i].result.periph_result.target_lun;
 			break;
 		case DEV_MATCH_DEVICE:
 			dm18[i].result.device_result.path_id =
-			   dm[i].result.device_result.path_id;
+			    dm[i].result.device_result.path_id;
 			dm18[i].result.device_result.target_id =
-			   dm[i].result.device_result.target_id;
+			    dm[i].result.device_result.target_id;
 			dm18[i].result.device_result.target_lun =
-			   dm[i].result.device_result.target_lun;
+			    dm[i].result.device_result.target_lun;
 			dm18[i].result.device_result.protocol =
-			   dm[i].result.device_result.protocol;
-			memcpy(&dm18[i].result.device_result.inq_data, 
+			    dm[i].result.device_result.protocol;
+			memcpy(&dm18[i].result.device_result.inq_data,
 			    &dm[i].result.device_result.inq_data,
 			    sizeof(struct scsi_inquiry_data));
 			memcpy(&dm18[i].result.device_result.ident_data,
 			    &dm[i].result.device_result.ident_data,
 			    sizeof(struct ata_params));
 			dm18[i].result.device_result.flags =
-			   dm[i].result.device_result.flags;
+			    dm[i].result.device_result.flags;
 			break;
 		case DEV_MATCH_BUS:
-			memcpy(&dm18[i].result.bus_result, 
+			memcpy(&dm18[i].result.bus_result,
 			    &dm[i].result.bus_result,
 			    sizeof(struct bus_match_result));
 			break;

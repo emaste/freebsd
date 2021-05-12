@@ -21,9 +21,9 @@
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
@@ -47,46 +47,35 @@ extern void sctp_asconf_cleanup(struct sctp_tcb *);
 
 extern struct mbuf *sctp_compose_asconf(struct sctp_tcb *, int *, int);
 
-extern void
-sctp_handle_asconf(struct mbuf *, unsigned int, struct sockaddr *,
+extern void sctp_handle_asconf(struct mbuf *, unsigned int, struct sockaddr *,
     struct sctp_asconf_chunk *, struct sctp_tcb *, int);
 
-extern void
-sctp_handle_asconf_ack(struct mbuf *, int, struct sctp_asconf_ack_chunk *,
-    struct sctp_tcb *, struct sctp_nets *, int *);
+extern void sctp_handle_asconf_ack(struct mbuf *, int,
+    struct sctp_asconf_ack_chunk *, struct sctp_tcb *, struct sctp_nets *,
+    int *);
 
-extern uint32_t
-sctp_addr_mgmt_ep_sa(struct sctp_inpcb *, struct sockaddr *, uint32_t,
-    uint32_t);
+extern uint32_t sctp_addr_mgmt_ep_sa(
+    struct sctp_inpcb *, struct sockaddr *, uint32_t, uint32_t);
 
-extern int
-sctp_asconf_iterator_ep(struct sctp_inpcb *inp, void *ptr,
-    uint32_t val);
-extern void
-sctp_asconf_iterator_stcb(struct sctp_inpcb *inp,
-    struct sctp_tcb *stcb,
-    void *ptr, uint32_t type);
+extern int sctp_asconf_iterator_ep(
+    struct sctp_inpcb *inp, void *ptr, uint32_t val);
+extern void sctp_asconf_iterator_stcb(
+    struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr, uint32_t type);
 extern void sctp_asconf_iterator_end(void *ptr, uint32_t val);
 
-extern int32_t
-sctp_set_primary_ip_address_sa(struct sctp_tcb *,
-    struct sockaddr *);
+extern int32_t sctp_set_primary_ip_address_sa(
+    struct sctp_tcb *, struct sockaddr *);
 
-extern void
-sctp_check_address_list(struct sctp_tcb *, struct mbuf *, int, int,
+extern void sctp_check_address_list(struct sctp_tcb *, struct mbuf *, int, int,
     struct sockaddr *, uint16_t, uint16_t, uint16_t, uint16_t);
 
-extern void
-     sctp_assoc_immediate_retrans(struct sctp_tcb *, struct sctp_nets *);
-extern void
-     sctp_net_immediate_retrans(struct sctp_tcb *, struct sctp_nets *);
+extern void sctp_assoc_immediate_retrans(struct sctp_tcb *, struct sctp_nets *);
+extern void sctp_net_immediate_retrans(struct sctp_tcb *, struct sctp_nets *);
 
-extern void
-sctp_asconf_send_nat_state_update(struct sctp_tcb *stcb,
-    struct sctp_nets *net);
+extern void sctp_asconf_send_nat_state_update(
+    struct sctp_tcb *stcb, struct sctp_nets *net);
 
-extern int
-    sctp_is_addr_pending(struct sctp_tcb *, struct sctp_ifa *);
-#endif				/* _KERNEL */
+extern int sctp_is_addr_pending(struct sctp_tcb *, struct sctp_ifa *);
+#endif /* _KERNEL */
 
-#endif				/* !_NETINET_SCTP_ASCONF_H_ */
+#endif /* !_NETINET_SCTP_ASCONF_H_ */

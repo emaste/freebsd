@@ -31,10 +31,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/gpio.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
@@ -42,18 +42,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/ti/omap4/omap4_scm_padconf.h>
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_gpio.h>
 #include <arm/ti/ti_pinmux.h>
 
-#include <arm/ti/omap4/omap4_scm_padconf.h>
-
 #include "ti_gpio_if.h"
 
 static struct ofw_compat_data compat_data[] = {
-	{"ti,omap4-gpio",	1},
-	{"ti,gpio",		1},
-	{NULL,			0},
+	{ "ti,omap4-gpio", 1 },
+	{ "ti,gpio", 1 },
+	{ NULL, 0 },
 };
 
 static int
@@ -80,7 +79,8 @@ omap4_gpio_set_flags(device_t dev, uint32_t gpio, uint32_t flags)
 	struct ti_gpio_softc *sc;
 
 	sc = device_get_softc(dev);
-	/* First the SCM driver needs to be told to put the pad into GPIO mode */
+	/* First the SCM driver needs to be told to put the pad into GPIO mode
+	 */
 	if (flags & GPIO_PIN_OUTPUT)
 		state = PADCONF_PIN_OUTPUT;
 	else if (flags & GPIO_PIN_INPUT) {
@@ -91,7 +91,8 @@ omap4_gpio_set_flags(device_t dev, uint32_t gpio, uint32_t flags)
 		else
 			state = PADCONF_PIN_INPUT;
 	}
-	return ti_pinmux_padconf_set_gpiomode((sc->sc_bank-1)*32 + gpio, state);
+	return ti_pinmux_padconf_set_gpiomode(
+	    (sc->sc_bank - 1) * 32 + gpio, state);
 }
 
 static int
@@ -103,26 +104,27 @@ omap4_gpio_get_flags(device_t dev, uint32_t gpio, uint32_t *flags)
 	sc = device_get_softc(dev);
 
 	/* Get the current pin state */
-	if (ti_pinmux_padconf_get_gpiomode((sc->sc_bank-1)*32 + gpio, &state) != 0) {
+	if (ti_pinmux_padconf_get_gpiomode(
+		(sc->sc_bank - 1) * 32 + gpio, &state) != 0) {
 		*flags = 0;
 		return (EINVAL);
 	} else {
 		switch (state) {
-			case PADCONF_PIN_OUTPUT:
-				*flags = GPIO_PIN_OUTPUT;
-				break;
-			case PADCONF_PIN_INPUT:
-				*flags = GPIO_PIN_INPUT;
-				break;
-			case PADCONF_PIN_INPUT_PULLUP:
-				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLUP;
-				break;
-			case PADCONF_PIN_INPUT_PULLDOWN:
-				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLDOWN;
-				break;
-			default:
-				*flags = 0;
-				break;
+		case PADCONF_PIN_OUTPUT:
+			*flags = GPIO_PIN_OUTPUT;
+			break;
+		case PADCONF_PIN_INPUT:
+			*flags = GPIO_PIN_INPUT;
+			break;
+		case PADCONF_PIN_INPUT_PULLUP:
+			*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLUP;
+			break;
+		case PADCONF_PIN_INPUT_PULLDOWN:
+			*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLDOWN;
+			break;
+		default:
+			*flags = 0;
+			break;
 		}
 	}
 
@@ -145,5 +147,5 @@ static devclass_t omap4_gpio_devclass;
 
 DEFINE_CLASS_1(gpio, omap4_gpio_driver, omap4_gpio_methods,
     sizeof(struct ti_gpio_softc), ti_gpio_driver);
-DRIVER_MODULE(omap4_gpio, simplebus, omap4_gpio_driver, omap4_gpio_devclass,
-    0, 0);
+DRIVER_MODULE(
+    omap4_gpio, simplebus, omap4_gpio_driver, omap4_gpio_devclass, 0, 0);

@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_COMPLETION_H_
-#define	_LINUX_COMPLETION_H_
+#ifndef _LINUX_COMPLETION_H_
+#define _LINUX_COMPLETION_H_
 
 #include <linux/errno.h>
 
@@ -37,28 +37,25 @@ struct completion {
 	unsigned int done;
 };
 
-#define	INIT_COMPLETION(c) \
-	((c).done = 0)
-#define	init_completion(c) \
-	do { (c)->done = 0; } while (0)
-#define	reinit_completion(c) \
-	do { (c)->done = 0; } while (0)
-#define	complete(c)				\
-	linux_complete_common((c), 0)
-#define	complete_all(c)				\
-	linux_complete_common((c), 1)
-#define	wait_for_completion(c)			\
-	linux_wait_for_common((c), 0)
-#define	wait_for_completion_interruptible(c)	\
-	linux_wait_for_common((c), 1)
-#define	wait_for_completion_timeout(c, timeout)	\
+#define INIT_COMPLETION(c) ((c).done = 0)
+#define init_completion(c)     \
+	do {                   \
+		(c)->done = 0; \
+	} while (0)
+#define reinit_completion(c)   \
+	do {                   \
+		(c)->done = 0; \
+	} while (0)
+#define complete(c) linux_complete_common((c), 0)
+#define complete_all(c) linux_complete_common((c), 1)
+#define wait_for_completion(c) linux_wait_for_common((c), 0)
+#define wait_for_completion_interruptible(c) linux_wait_for_common((c), 1)
+#define wait_for_completion_timeout(c, timeout) \
 	linux_wait_for_timeout_common((c), (timeout), 0)
-#define	wait_for_completion_interruptible_timeout(c, timeout)	\
+#define wait_for_completion_interruptible_timeout(c, timeout) \
 	linux_wait_for_timeout_common((c), (timeout), 1)
-#define	try_wait_for_completion(c) \
-	linux_try_wait_for_completion(c)
-#define	completion_done(c) \
-	linux_completion_done(c)
+#define try_wait_for_completion(c) linux_try_wait_for_completion(c)
+#define completion_done(c) linux_completion_done(c)
 
 extern void linux_complete_common(struct completion *, int);
 extern int linux_wait_for_common(struct completion *, int);
@@ -66,4 +63,4 @@ extern int linux_wait_for_timeout_common(struct completion *, int, int);
 extern int linux_try_wait_for_completion(struct completion *);
 extern int linux_completion_done(struct completion *);
 
-#endif					/* _LINUX_COMPLETION_H_ */
+#endif /* _LINUX_COMPLETION_H_ */

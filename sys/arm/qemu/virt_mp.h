@@ -27,7 +27,7 @@
  */
 
 #ifndef _QEMU_VIRT_MP_H_
-#define	_QEMU_VIRT_MP_H_
+#define _QEMU_VIRT_MP_H_
 
 void virt_mp_start_ap(platform_t plat);
 void virt_mp_setmaxid(platform_t plat);

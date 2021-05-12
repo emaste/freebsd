@@ -32,13 +32,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
 
@@ -58,42 +58,42 @@ __FBSDID("$FreeBSD$");
 
 #include "pic_if.h"
 
-#define XIVE_PRIORITY	7	/* Random non-zero number */
-#define MAX_XIVE_IRQS	(1<<24)	/* 24-bit XIRR field */
+#define XIVE_PRIORITY 7 /* Random non-zero number */
+#define MAX_XIVE_IRQS (1 << 24) /* 24-bit XIRR field */
 
 /* Registers */
-#define	XIVE_TM_QW1_OS		0x010	/* Guest OS registers */
-#define	XIVE_TM_QW2_HV_POOL	0x020	/* Hypervisor pool registers */
-#define	XIVE_TM_QW3_HV		0x030	/* Hypervisor registers */
+#define XIVE_TM_QW1_OS 0x010 /* Guest OS registers */
+#define XIVE_TM_QW2_HV_POOL 0x020 /* Hypervisor pool registers */
+#define XIVE_TM_QW3_HV 0x030 /* Hypervisor registers */
 
-#define	XIVE_TM_NSR	0x00
-#define	XIVE_TM_CPPR	0x01
-#define	XIVE_TM_IPB	0x02
-#define	XIVE_TM_LSMFB	0x03
-#define	XIVE_TM_ACK_CNT	0x04
-#define	XIVE_TM_INC	0x05
-#define	XIVE_TM_AGE	0x06
-#define	XIVE_TM_PIPR	0x07
+#define XIVE_TM_NSR 0x00
+#define XIVE_TM_CPPR 0x01
+#define XIVE_TM_IPB 0x02
+#define XIVE_TM_LSMFB 0x03
+#define XIVE_TM_ACK_CNT 0x04
+#define XIVE_TM_INC 0x05
+#define XIVE_TM_AGE 0x06
+#define XIVE_TM_PIPR 0x07
 
-#define	TM_WORD0	0x0
-#define	TM_WORD2	0x8
-#define	  TM_QW2W2_VP	  0x80000000
+#define TM_WORD0 0x0
+#define TM_WORD2 0x8
+#define TM_QW2W2_VP 0x80000000
 
-#define	XIVE_TM_SPC_ACK			0x800
-#define	  TM_QW3NSR_HE_SHIFT		  14
-#define	  TM_QW3_NSR_HE_NONE		  0
-#define	  TM_QW3_NSR_HE_POOL		  1
-#define	  TM_QW3_NSR_HE_PHYS		  2
-#define	  TM_QW3_NSR_HE_LSI		  3
-#define	XIVE_TM_SPC_PULL_POOL_CTX	0x828
+#define XIVE_TM_SPC_ACK 0x800
+#define TM_QW3NSR_HE_SHIFT 14
+#define TM_QW3_NSR_HE_NONE 0
+#define TM_QW3_NSR_HE_POOL 1
+#define TM_QW3_NSR_HE_PHYS 2
+#define TM_QW3_NSR_HE_LSI 3
+#define XIVE_TM_SPC_PULL_POOL_CTX 0x828
 
-#define	XIVE_IRQ_LOAD_EOI	0x000
-#define	XIVE_IRQ_STORE_EOI	0x400
-#define	XIVE_IRQ_PQ_00		0xc00
-#define	XIVE_IRQ_PQ_01		0xd00
+#define XIVE_IRQ_LOAD_EOI 0x000
+#define XIVE_IRQ_STORE_EOI 0x400
+#define XIVE_IRQ_PQ_00 0xc00
+#define XIVE_IRQ_PQ_01 0xd00
 
-#define	XIVE_IRQ_VAL_P		0x02
-#define	XIVE_IRQ_VAL_Q		0x01
+#define XIVE_IRQ_VAL_P 0x02
+#define XIVE_IRQ_VAL_Q 0x01
 
 struct xive_softc;
 struct xive_irq;
@@ -101,50 +101,47 @@ struct xive_irq;
 extern void (*powernv_smp_ap_extra_init)(void);
 
 /* Private support */
-static void	xive_setup_cpu(void);
-static void	xive_smp_cpu_startup(void);
-static void	xive_init_irq(struct xive_irq *irqd, u_int irq);
-static struct xive_irq	*xive_configure_irq(u_int irq);
-static int	xive_provision_page(struct xive_softc *sc);
+static void xive_setup_cpu(void);
+static void xive_smp_cpu_startup(void);
+static void xive_init_irq(struct xive_irq *irqd, u_int irq);
+static struct xive_irq *xive_configure_irq(u_int irq);
+static int xive_provision_page(struct xive_softc *sc);
 
 /* Interfaces */
-static int	xive_probe(device_t);
-static int	xive_attach(device_t);
-static int	xics_probe(device_t);
-static int	xics_attach(device_t);
+static int xive_probe(device_t);
+static int xive_attach(device_t);
+static int xics_probe(device_t);
+static int xics_attach(device_t);
 
-static void	xive_bind(device_t, u_int, cpuset_t, void **);
-static void	xive_dispatch(device_t, struct trapframe *);
-static void	xive_enable(device_t, u_int, u_int, void **);
-static void	xive_eoi(device_t, u_int, void *);
-static void	xive_ipi(device_t, u_int);
-static void	xive_mask(device_t, u_int, void *);
-static void	xive_unmask(device_t, u_int, void *);
-static void	xive_translate_code(device_t dev, u_int irq, int code,
-		    enum intr_trigger *trig, enum intr_polarity *pol);
+static void xive_bind(device_t, u_int, cpuset_t, void **);
+static void xive_dispatch(device_t, struct trapframe *);
+static void xive_enable(device_t, u_int, u_int, void **);
+static void xive_eoi(device_t, u_int, void *);
+static void xive_ipi(device_t, u_int);
+static void xive_mask(device_t, u_int, void *);
+static void xive_unmask(device_t, u_int, void *);
+static void xive_translate_code(device_t dev, u_int irq, int code,
+    enum intr_trigger *trig, enum intr_polarity *pol);
 
-static device_method_t  xive_methods[] = {
+static device_method_t xive_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		xive_probe),
-	DEVMETHOD(device_attach,	xive_attach),
+	DEVMETHOD(device_probe, xive_probe),
+	DEVMETHOD(device_attach, xive_attach),
 
 	/* PIC interface */
-	DEVMETHOD(pic_bind,		xive_bind),
-	DEVMETHOD(pic_dispatch,		xive_dispatch),
-	DEVMETHOD(pic_enable,		xive_enable),
-	DEVMETHOD(pic_eoi,		xive_eoi),
-	DEVMETHOD(pic_ipi,		xive_ipi),
-	DEVMETHOD(pic_mask,		xive_mask),
-	DEVMETHOD(pic_unmask,		xive_unmask),
-	DEVMETHOD(pic_translate_code,	xive_translate_code),
+	DEVMETHOD(pic_bind, xive_bind), DEVMETHOD(pic_dispatch, xive_dispatch),
+	DEVMETHOD(pic_enable, xive_enable), DEVMETHOD(pic_eoi, xive_eoi),
+	DEVMETHOD(pic_ipi, xive_ipi), DEVMETHOD(pic_mask, xive_mask),
+	DEVMETHOD(pic_unmask, xive_unmask),
+	DEVMETHOD(pic_translate_code, xive_translate_code),
 
 	DEVMETHOD_END
 };
 
-static device_method_t  xics_methods[] = {
+static device_method_t xics_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		xics_probe),
-	DEVMETHOD(device_attach,	xics_attach),
+	DEVMETHOD(device_probe, xics_probe),
+	DEVMETHOD(device_attach, xics_attach),
 
 	DEVMETHOD_END
 };
@@ -152,63 +149,56 @@ static device_method_t  xics_methods[] = {
 struct xive_softc {
 	struct mtx sc_mtx;
 	struct resource *sc_mem;
-	vm_size_t	sc_prov_page_size;
-	uint32_t	sc_offset;
+	vm_size_t sc_prov_page_size;
+	uint32_t sc_offset;
 };
 
 struct xive_queue {
-	uint32_t	*q_page;
-	uint32_t	*q_eoi_page;
-	uint32_t	 q_toggle;
-	uint32_t	 q_size;
-	uint32_t	 q_index;
-	uint32_t	 q_mask;
+	uint32_t *q_page;
+	uint32_t *q_eoi_page;
+	uint32_t q_toggle;
+	uint32_t q_size;
+	uint32_t q_index;
+	uint32_t q_mask;
 };
 
 struct xive_irq {
-	uint32_t	girq;
-	uint32_t	lirq;
-	uint64_t	vp;
-	uint64_t	flags;
-#define	OPAL_XIVE_IRQ_SHIFT_BUG		0x00000008
-#define	OPAL_XIVE_IRQ_LSI		0x00000004
-#define	OPAL_XIVE_IRQ_STORE_EOI		0x00000002
-#define	OPAL_XIVE_IRQ_TRIGGER_PAGE	0x00000001
-	uint8_t	prio;
-	vm_offset_t	eoi_page;
-	vm_offset_t	trig_page;
-	vm_size_t	esb_size;
-	int		chip;
+	uint32_t girq;
+	uint32_t lirq;
+	uint64_t vp;
+	uint64_t flags;
+#define OPAL_XIVE_IRQ_SHIFT_BUG 0x00000008
+#define OPAL_XIVE_IRQ_LSI 0x00000004
+#define OPAL_XIVE_IRQ_STORE_EOI 0x00000002
+#define OPAL_XIVE_IRQ_TRIGGER_PAGE 0x00000001
+	uint8_t prio;
+	vm_offset_t eoi_page;
+	vm_offset_t trig_page;
+	vm_size_t esb_size;
+	int chip;
 };
 
 struct xive_cpu {
-	uint64_t	vp;
-	uint64_t	flags;
-	struct xive_irq	ipi_data;
-	struct xive_queue	queue; /* We only use a single queue for now. */
-	uint64_t	cam;
-	uint32_t	chip;
+	uint64_t vp;
+	uint64_t flags;
+	struct xive_irq ipi_data;
+	struct xive_queue queue; /* We only use a single queue for now. */
+	uint64_t cam;
+	uint32_t chip;
 };
 
-static driver_t xive_driver = {
-	"xive",
-	xive_methods,
-	sizeof(struct xive_softc)
-};
+static driver_t xive_driver = { "xive", xive_methods,
+	sizeof(struct xive_softc) };
 
-static driver_t xics_driver = {
-	"xivevc",
-	xics_methods,
-	0
-};
+static driver_t xics_driver = { "xivevc", xics_methods, 0 };
 
 static devclass_t xive_devclass;
 static devclass_t xics_devclass;
 
-EARLY_DRIVER_MODULE(xive, ofwbus, xive_driver, xive_devclass, 0, 0,
-    BUS_PASS_INTERRUPT-1);
-EARLY_DRIVER_MODULE(xivevc, ofwbus, xics_driver, xics_devclass, 0, 0,
-    BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(
+    xive, ofwbus, xive_driver, xive_devclass, 0, 0, BUS_PASS_INTERRUPT - 1);
+EARLY_DRIVER_MODULE(
+    xivevc, ofwbus, xics_driver, xics_devclass, 0, 0, BUS_PASS_INTERRUPT);
 
 MALLOC_DEFINE(M_XIVE, "xive", "XIVE Memory");
 
@@ -332,9 +322,9 @@ xive_attach(device_t dev)
 	error = OF_getencprop(phandle, "ibm,xive-provision-page-size",
 	    (pcell_t *)&sc->sc_prov_page_size, sizeof(sc->sc_prov_page_size));
 
-	rid = 1;	/* Get the Hypervisor-level register set. */
-	sc->sc_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE);
+	rid = 1; /* Get the Hypervisor-level register set. */
+	sc->sc_mem = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	sc->sc_offset = XIVE_TM_QW3_HV;
 
 	mtx_init(&sc->sc_mtx, "XIVE", NULL, MTX_DEF);
@@ -367,7 +357,7 @@ xive_attach(device_t dev)
 	 * Set up the VPs.  Try to do as much as we can in attach, to lessen
 	 * what's needed at AP spawn time.
 	 */
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		vp_id = pcpu_find(i)->pc_hwref;
 
 		xive_cpud = DPCPU_ID_PTR(i, xive_cpu_data);
@@ -395,8 +385,8 @@ xive_attach(device_t dev)
 		    OPAL_XIVE_EQ_ALWAYS_NOTIFY | OPAL_XIVE_EQ_ENABLED);
 
 		do {
-			ipi_irq = opal_call(OPAL_XIVE_ALLOCATE_IRQ,
-			    xive_cpud->chip);
+			ipi_irq = opal_call(
+			    OPAL_XIVE_ALLOCATE_IRQ, xive_cpud->chip);
 		} while (ipi_irq == OPAL_BUSY);
 
 		if (ipi_irq < 0)
@@ -456,12 +446,13 @@ xive_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv)
 	 * random CPU.
 	 */
 	ncpus = 0;
-	CPU_FOREACH(cpu)
-		if (CPU_ISSET(cpu, &cpumask)) ncpus++;
+	CPU_FOREACH (cpu)
+		if (CPU_ISSET(cpu, &cpumask))
+			ncpus++;
 
 	i = mftb() % ncpus;
 	ncpus = 0;
-	CPU_FOREACH(cpu) {
+	CPU_FOREACH (cpu) {
 		if (!CPU_ISSET(cpu, &cpumask))
 			continue;
 		if (ncpus == i)
@@ -472,8 +463,8 @@ xive_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv)
 	opal_call(OPAL_XIVE_SYNC, OPAL_XIVE_SYNC_QUEUE, irq);
 
 	irqd->vp = pcpu_find(cpu)->pc_hwref;
-	error = opal_call(OPAL_XIVE_SET_IRQ_CONFIG, irq, irqd->vp,
-	    XIVE_PRIORITY, irqd->lirq);
+	error = opal_call(
+	    OPAL_XIVE_SET_IRQ_CONFIG, irq, irqd->vp, XIVE_PRIORITY, irqd->lirq);
 
 	if (error < 0)
 		panic("Cannot bind interrupt %d to CPU %d", irq, cpu);
@@ -525,8 +516,8 @@ xive_dispatch(device_t dev, struct trapframe *tf)
 			 * We don't support TM_QW3_NSR_HE_POOL or
 			 * TM_QW3_NSR_HE_LSI interrupts.
 			 */
-			device_printf(dev,
-			    "Unexpected interrupt he type: %d\n", he);
+			device_printf(
+			    dev, "Unexpected interrupt he type: %d\n", he);
 			goto end;
 		}
 
@@ -569,16 +560,16 @@ xive_enable(device_t dev, u_int irq, u_int vector, void **priv)
 	irqd->lirq = vector;
 
 	for (;;) {
-		status = opal_call(OPAL_XIVE_SET_IRQ_CONFIG, irq, cpu,
-		    XIVE_PRIORITY, vector);
+		status = opal_call(
+		    OPAL_XIVE_SET_IRQ_CONFIG, irq, cpu, XIVE_PRIORITY, vector);
 		if (status != OPAL_BUSY)
 			break;
 		DELAY(10);
 	}
 
 	if (status != 0)
-		panic("OPAL_SET_XIVE IRQ %d -> cpu %d failed: %d", irq,
-		    cpu, status);
+		panic("OPAL_SET_XIVE IRQ %d -> cpu %d failed: %d", irq, cpu,
+		    status);
 
 	xive_unmask(dev, irq, *priv);
 }
@@ -646,8 +637,8 @@ xive_unmask(device_t dev, u_int irq, void *priv)
 }
 
 static void
-xive_translate_code(device_t dev, u_int irq, int code,
-    enum intr_trigger *trig, enum intr_polarity *pol)
+xive_translate_code(device_t dev, u_int irq, int code, enum intr_trigger *trig,
+    enum intr_polarity *pol)
 {
 	switch (code) {
 	case 0:
@@ -701,9 +692,8 @@ xive_init_irq(struct xive_irq *irqd, u_int irq)
 	uint64_t eoi_phys, trig_phys;
 	uint32_t esb_shift;
 
-	opal_call(OPAL_XIVE_GET_IRQ_INFO, irq,
-	    vtophys(&irqd->flags), vtophys(&eoi_phys),
-	    vtophys(&trig_phys), vtophys(&esb_shift),
+	opal_call(OPAL_XIVE_GET_IRQ_INFO, irq, vtophys(&irqd->flags),
+	    vtophys(&eoi_phys), vtophys(&trig_phys), vtophys(&esb_shift),
 	    vtophys(&irqd->chip));
 
 	irqd->flags = be64toh(irqd->flags);
@@ -719,8 +709,8 @@ xive_init_irq(struct xive_irq *irqd, u_int irq)
 	if (eoi_phys == trig_phys)
 		irqd->trig_page = irqd->eoi_page;
 	else if (trig_phys != 0)
-		irqd->trig_page = (vm_offset_t)pmap_mapdev(trig_phys,
-		    irqd->esb_size);
+		irqd->trig_page = (vm_offset_t)pmap_mapdev(
+		    trig_phys, irqd->esb_size);
 	else
 		irqd->trig_page = 0;
 
@@ -756,12 +746,12 @@ xive_provision_page(struct xive_softc *sc)
 	int error;
 
 	do {
-		prov_page = contigmalloc(sc->sc_prov_page_size, M_XIVE, 0,
-		    0, BUS_SPACE_MAXADDR,
-		    sc->sc_prov_page_size, sc->sc_prov_page_size);
+		prov_page = contigmalloc(sc->sc_prov_page_size, M_XIVE, 0, 0,
+		    BUS_SPACE_MAXADDR, sc->sc_prov_page_size,
+		    sc->sc_prov_page_size);
 
-		error = opal_call(OPAL_XIVE_DONATE_PAGE, -1,
-		    vtophys(prov_page));
+		error = opal_call(
+		    OPAL_XIVE_DONATE_PAGE, -1, vtophys(prov_page));
 	} while (error == OPAL_XIVE_PROVISIONING);
 
 	return (0);

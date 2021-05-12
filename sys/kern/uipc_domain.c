@@ -35,17 +35,17 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/socket.h>
-#include <sys/protosw.h>
+#include <sys/systm.h>
 #include <sys/domain.h>
-#include <sys/eventhandler.h>
 #include <sys/epoch.h>
-#include <sys/mbuf.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/protosw.h>
+#include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/systm.h>
 
 #include <net/vnet.h>
 
@@ -71,12 +71,12 @@ SYSINIT(domainfin, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, domainfinalize,
 static struct callout pffast_callout;
 static struct callout pfslow_callout;
 
-static void	pffasttimo(void *);
-static void	pfslowtimo(void *);
+static void pffasttimo(void *);
+static void pfslowtimo(void *);
 
-struct domain *domains;		/* registered protocol domains */
+struct domain *domains; /* registered protocol domains */
 int domain_init_status = 0;
-static struct mtx dom_mtx;		/* domain list lock */
+static struct mtx dom_mtx; /* domain list lock */
 MTX_SYSINIT(domain, &dom_mtx, "domain list", MTX_DEF);
 
 /*
@@ -84,24 +84,24 @@ MTX_SYSINIT(domain, &dom_mtx, "domain list", MTX_DEF);
  * All functions return EOPNOTSUPP.
  */
 struct pr_usrreqs nousrreqs = {
-	.pru_accept =		pru_accept_notsupp,
-	.pru_attach =		pru_attach_notsupp,
-	.pru_bind =		pru_bind_notsupp,
-	.pru_connect =		pru_connect_notsupp,
-	.pru_connect2 =		pru_connect2_notsupp,
-	.pru_control =		pru_control_notsupp,
-	.pru_disconnect	=	pru_disconnect_notsupp,
-	.pru_listen =		pru_listen_notsupp,
-	.pru_peeraddr =		pru_peeraddr_notsupp,
-	.pru_rcvd =		pru_rcvd_notsupp,
-	.pru_rcvoob =		pru_rcvoob_notsupp,
-	.pru_send =		pru_send_notsupp,
-	.pru_sense =		pru_sense_null,
-	.pru_shutdown =		pru_shutdown_notsupp,
-	.pru_sockaddr =		pru_sockaddr_notsupp,
-	.pru_sosend =		pru_sosend_notsupp,
-	.pru_soreceive =	pru_soreceive_notsupp,
-	.pru_sopoll =		pru_sopoll_notsupp,
+	.pru_accept = pru_accept_notsupp,
+	.pru_attach = pru_attach_notsupp,
+	.pru_bind = pru_bind_notsupp,
+	.pru_connect = pru_connect_notsupp,
+	.pru_connect2 = pru_connect2_notsupp,
+	.pru_control = pru_control_notsupp,
+	.pru_disconnect = pru_disconnect_notsupp,
+	.pru_listen = pru_listen_notsupp,
+	.pru_peeraddr = pru_peeraddr_notsupp,
+	.pru_rcvd = pru_rcvd_notsupp,
+	.pru_rcvoob = pru_rcvoob_notsupp,
+	.pru_send = pru_send_notsupp,
+	.pru_sense = pru_sense_null,
+	.pru_shutdown = pru_shutdown_notsupp,
+	.pru_sockaddr = pru_sockaddr_notsupp,
+	.pru_sosend = pru_sosend_notsupp,
+	.pru_soreceive = pru_soreceive_notsupp,
+	.pru_sopoll = pru_sopoll_notsupp,
 };
 
 static void
@@ -110,9 +110,9 @@ protosw_init(struct protosw *pr)
 	struct pr_usrreqs *pu;
 
 	pu = pr->pr_usrreqs;
-	KASSERT(pu != NULL, ("protosw_init: %ssw[%d] has no usrreqs!",
-	    pr->pr_domain->dom_name,
-	    (int)(pr - pr->pr_domain->dom_protosw)));
+	KASSERT(pu != NULL,
+	    ("protosw_init: %ssw[%d] has no usrreqs!", pr->pr_domain->dom_name,
+		(int)(pr - pr->pr_domain->dom_protosw)));
 
 	/*
 	 * Protocol switch methods fall into three categories: mandatory,
@@ -136,7 +136,9 @@ protosw_init(struct protosw *pr)
 	}
 #endif
 
-#define DEFAULT(foo, bar)	if ((foo) == NULL)  (foo) = (bar)
+#define DEFAULT(foo, bar)  \
+	if ((foo) == NULL) \
+	(foo) = (bar)
 	DEFAULT(pu->pru_accept, pru_accept_notsupp);
 	DEFAULT(pu->pru_aio_queue, pru_aio_queue_notsupp);
 	DEFAULT(pu->pru_bind, pru_bind_notsupp);
@@ -221,21 +223,21 @@ domain_add(void *data)
 	domains = dp;
 
 	KASSERT(domain_init_status >= 1,
-	    ("attempt to domain_add(%s) before domaininit()",
-	    dp->dom_name));
+	    ("attempt to domain_add(%s) before domaininit()", dp->dom_name));
 #ifndef INVARIANTS
 	if (domain_init_status < 1)
 		printf("WARNING: attempt to domain_add(%s) before "
-		    "domaininit()\n", dp->dom_name);
+		       "domaininit()\n",
+		    dp->dom_name);
 #endif
 #ifdef notyet
 	KASSERT(domain_init_status < 2,
-	    ("attempt to domain_add(%s) after domainfinalize()",
-	    dp->dom_name));
+	    ("attempt to domain_add(%s) after domainfinalize()", dp->dom_name));
 #else
 	if (domain_init_status >= 2)
 		printf("WARNING: attempt to domain_add(%s) after "
-		    "domainfinalize()\n", dp->dom_name);
+		       "domainfinalize()\n",
+		    dp->dom_name);
 #endif
 	mtx_unlock(&dom_mtx);
 }
@@ -245,7 +247,7 @@ static void
 domaininit(void *dummy)
 {
 
-	if (max_linkhdr < 16)		/* XXX */
+	if (max_linkhdr < 16) /* XXX */
 		max_linkhdr = 16;
 
 	callout_init(&pffast_callout, 1);
@@ -265,7 +267,7 @@ domainfinalize(void *dummy)
 	mtx_lock(&dom_mtx);
 	KASSERT(domain_init_status == 1, ("domainfinalize called too late!"));
 	domain_init_status = 2;
-	mtx_unlock(&dom_mtx);	
+	mtx_unlock(&dom_mtx);
 
 	callout_reset(&pffast_callout, 1, pffasttimo, NULL);
 	callout_reset(&pfslow_callout, 1, pfslowtimo, NULL);
@@ -365,7 +367,7 @@ pf_proto_register(int family, struct protosw *npr)
 		if ((pr->pr_type == npr->pr_type) &&
 		    (pr->pr_protocol == npr->pr_protocol)) {
 			mtx_unlock(&dom_mtx);
-			return (EEXIST);	/* XXX: Check only protocol? */
+			return (EEXIST); /* XXX: Check only protocol? */
 		}
 		/* While here, remember the first free spacer. */
 		if ((fpr == NULL) && (pr->pr_protocol == PROTO_SPACER))
@@ -386,7 +388,8 @@ pf_proto_register(int family, struct protosw *npr)
 
 	/* Initialize and activate the protocol. */
 	VNET_LIST_RLOCK();
-	VNET_FOREACH(vnet_iter) {
+	VNET_FOREACH(vnet_iter)
+	{
 		CURVNET_SET_QUIET(vnet_iter);
 		protosw_init(fpr);
 		CURVNET_RESTORE();
@@ -429,7 +432,7 @@ pf_proto_unregister(int family, int protocol, int type)
 		if ((pr->pr_type == type) && (pr->pr_protocol == protocol)) {
 			if (dpr != NULL) {
 				mtx_unlock(&dom_mtx);
-				return (EMLINK);   /* Should not happen! */
+				return (EMLINK); /* Should not happen! */
 			} else
 				dpr = pr;
 		}
@@ -487,7 +490,7 @@ pfslowtimo(void *arg)
 			if (pr->pr_slowtimo)
 				(*pr->pr_slowtimo)();
 	NET_EPOCH_EXIT(et);
-	callout_reset(&pfslow_callout, hz/2, pfslowtimo, NULL);
+	callout_reset(&pfslow_callout, hz / 2, pfslowtimo, NULL);
 }
 
 static void
@@ -503,5 +506,5 @@ pffasttimo(void *arg)
 			if (pr->pr_fasttimo)
 				(*pr->pr_fasttimo)();
 	NET_EPOCH_EXIT(et);
-	callout_reset(&pffast_callout, hz/5, pffasttimo, NULL);
+	callout_reset(&pffast_callout, hz / 5, pffasttimo, NULL);
 }

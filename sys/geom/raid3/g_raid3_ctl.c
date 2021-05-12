@@ -31,19 +31,22 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/bio.h>
-#include <sys/sysctl.h>
-#include <sys/malloc.h>
 #include <sys/bitstring.h>
-#include <vm/uma.h>
-#include <machine/atomic.h>
-#include <geom/geom.h>
-#include <sys/proc.h>
+#include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/sysctl.h>
+
+#include <vm/uma.h>
+
+#include <machine/atomic.h>
+
+#include <geom/geom.h>
 #include <geom/raid3/g_raid3.h>
 
 static struct g_raid3_softc *
@@ -53,7 +56,7 @@ g_raid3_find_device(struct g_class *mp, const char *name)
 	struct g_geom *gp;
 
 	g_topology_lock();
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	LIST_FOREACH (gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
@@ -126,8 +129,8 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (*autosync && *noautosync) {
-		gctl_error(req, "'%s' and '%s' specified.", "autosync",
-		    "noautosync");
+		gctl_error(
+		    req, "'%s' and '%s' specified.", "autosync", "noautosync");
 		return;
 	}
 	failsync = gctl_get_paraml(req, "failsync", sizeof(*failsync));
@@ -141,8 +144,8 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (*failsync && *nofailsync) {
-		gctl_error(req, "'%s' and '%s' specified.", "failsync",
-		    "nofailsync");
+		gctl_error(
+		    req, "'%s' and '%s' specified.", "failsync", "nofailsync");
 		return;
 	}
 	round_robin = gctl_get_paraml(req, "round_robin", sizeof(*round_robin));
@@ -150,8 +153,8 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "round_robin");
 		return;
 	}
-	noround_robin = gctl_get_paraml(req, "noround_robin",
-	    sizeof(*noround_robin));
+	noround_robin = gctl_get_paraml(
+	    req, "noround_robin", sizeof(*noround_robin));
 	if (noround_robin == NULL) {
 		gctl_error(req, "No '%s' argument.", "noround_robin");
 		return;
@@ -172,8 +175,8 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (*verify && *noverify) {
-		gctl_error(req, "'%s' and '%s' specified.", "verify",
-		    "noverify");
+		gctl_error(
+		    req, "'%s' and '%s' specified.", "verify", "noverify");
 		return;
 	}
 	if (!*autosync && !*noautosync && !*failsync && !*nofailsync &&
@@ -318,8 +321,8 @@ g_raid3_ctl_rebuild(struct gctl_req *req, struct g_class *mp)
 	g_topology_lock();
 	error = g_raid3_read_metadata(disk->d_consumer, &md);
 	g_topology_unlock();
-	g_raid3_event_send(disk, G_RAID3_DISK_STATE_DISCONNECTED,
-	    G_RAID3_EVENT_WAIT);
+	g_raid3_event_send(
+	    disk, G_RAID3_DISK_STATE_DISCONNECTED, G_RAID3_EVENT_WAIT);
 	if (error != 0) {
 		gctl_error(req, "Cannot read metadata from %s.", pp->name);
 		sx_xunlock(&sc->sc_lock);
@@ -388,8 +391,8 @@ static void
 g_raid3_ctl_insert_orphan(struct g_consumer *cp)
 {
 
-	KASSERT(1 == 0, ("%s called while inserting %s.", __func__,
-	    cp->provider->name));
+	KASSERT(1 == 0,
+	    ("%s called while inserting %s.", __func__, cp->provider->name));
 }
 
 static void
@@ -463,13 +466,14 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		disk = &sc->sc_disks[*no];
 		if (disk->d_state != G_RAID3_DISK_STATE_NODISK) {
 			sx_xunlock(&sc->sc_lock);
-			gctl_error(req, "Component %jd is already connected.",
-			    *no);
+			gctl_error(
+			    req, "Component %jd is already connected.", *no);
 			goto end;
 		}
 	} else {
 		disk = NULL;
-		for (autono = 0; autono < sc->sc_ndisks && disk == NULL; autono++)
+		for (autono = 0; autono < sc->sc_ndisks && disk == NULL;
+		     autono++)
 			if (sc->sc_disks[autono].d_state ==
 			    G_RAID3_DISK_STATE_NODISK)
 				disk = &sc->sc_disks[autono];
@@ -509,8 +513,8 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	md.md_provsize = pp->mediasize;
 	sector = g_malloc(pp->sectorsize, M_WAITOK);
 	raid3_metadata_encode(&md, sector);
-	error = g_write_data(cp, pp->mediasize - pp->sectorsize, sector,
-	    pp->sectorsize);
+	error = g_write_data(
+	    cp, pp->mediasize - pp->sectorsize, sector, pp->sectorsize);
 	g_free(sector);
 	if (error != 0)
 		gctl_error(req, "Cannot store metadata on %s.", pp->name);
@@ -572,8 +576,8 @@ g_raid3_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		 */
 		if (g_raid3_ndisks(sc, G_RAID3_DISK_STATE_ACTIVE) <
 		    sc->sc_ndisks) {
-			gctl_error(req, "Cannot replace component number %jd.",
-			    *no);
+			gctl_error(
+			    req, "Cannot replace component number %jd.", *no);
 			break;
 		}
 		/* FALLTHROUGH */

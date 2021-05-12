@@ -45,32 +45,28 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <dev/fb/fbreg.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <dev/fb/fbreg.h>
-#include <dev/vt/vt.h>
 #include <dev/vt/colors/vt_termcolors.h>
+#include <dev/vt/vt.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 
 #include "fb_if.h"
 #include "mbox_if.h"
 
-#define	FB_DEPTH		24
+#define FB_DEPTH 24
 
 struct bcmsc_softc {
-	struct fb_info 			info;
-	int				fbswap;
-	struct bcm2835_fb_config	fb;
-	device_t			dev;
+	struct fb_info info;
+	int fbswap;
+	struct bcm2835_fb_config fb;
+	device_t dev;
 };
 
-static struct ofw_compat_data compat_data[] = {
-	{"broadcom,bcm2835-fb",		1},
-	{"brcm,bcm2708-fb",		1},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "broadcom,bcm2835-fb", 1 },
+	{ "brcm,bcm2708-fb", 1 }, { NULL, 0 } };
 
 static int bcm_fb_probe(device_t);
 static int bcm_fb_attach(device_t);
@@ -92,16 +88,16 @@ bcm_fb_init(struct bcmsc_softc *sc, struct bcm2835_fb_config *fb)
 		    fb->bpp, FB_DEPTH);
 		fb->bpp = FB_DEPTH;
 	} else
-		device_printf(sc->dev, "keeping existing fb bpp of %d\n",
-		    fb->bpp);
+		device_printf(
+		    sc->dev, "keeping existing fb bpp of %d\n", fb->bpp);
 
 	fb->vxres = fb->xres;
 	fb->vyres = fb->yres;
 	fb->xoffset = fb->yoffset = 0;
 
 	if ((err = bcm2835_mbox_fb_init(fb)) != 0) {
-		device_printf(sc->dev, "bcm2835_mbox_fb_init failed, err=%d\n",
-		    err);
+		device_printf(
+		    sc->dev, "bcm2835_mbox_fb_init failed, err=%d\n", err);
 		return (ENXIO);
 	}
 
@@ -164,14 +160,13 @@ bcm_fb_setup_fbd(struct bcmsc_softc *sc)
 	device_printf(sc->dev, "%dx%d(%dx%d@%d,%d) %dbpp\n", fb.xres, fb.yres,
 	    fb.vxres, fb.vyres, fb.xoffset, fb.yoffset, fb.bpp);
 	device_printf(sc->dev,
-	    "fbswap: %d, pitch %d, base 0x%08x, screen_size %d\n",
-	    sc->fbswap, fb.pitch, fb.base, fb.size);
+	    "fbswap: %d, pitch %d, base 0x%08x, screen_size %d\n", sc->fbswap,
+	    fb.pitch, fb.base, fb.size);
 
 	return (0);
 }
 
-static int
-bcm_fb_resync_sysctl(SYSCTL_HANDLER_ARGS)
+static int bcm_fb_resync_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct bcmsc_softc *sc = arg1;
 	struct bcm2835_fb_config fb;
@@ -242,8 +237,8 @@ bcm_fb_attach(device_t dev)
 			if (strcmp(n, "bcm2708_fb.fbswap") == 0 && v != NULL)
 				if (*v == '1')
 					sc->fbswap = 1;
-                }
-        }
+		}
+	}
 
 	bcm_fb_sysctl_init(sc);
 
@@ -266,11 +261,11 @@ bcm_fb_helper_getinfo(device_t dev)
 
 static device_method_t bcm_fb_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		bcm_fb_probe),
-	DEVMETHOD(device_attach,	bcm_fb_attach),
+	DEVMETHOD(device_probe, bcm_fb_probe),
+	DEVMETHOD(device_attach, bcm_fb_attach),
 
 	/* Framebuffer service methods */
-	DEVMETHOD(fb_getinfo,		bcm_fb_helper_getinfo),
+	DEVMETHOD(fb_getinfo, bcm_fb_helper_getinfo),
 
 	DEVMETHOD_END
 };

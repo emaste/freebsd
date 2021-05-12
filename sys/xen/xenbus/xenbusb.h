@@ -62,22 +62,22 @@ typedef enum {
 struct xenbusb_softc {
 	/**
 	 * XenStore watch used to monitor the subtree of the
-	 * XenStore where devices for this bus attachment arrive	
+	 * XenStore where devices for this bus attachment arrive
 	 * and depart.
 	 */
-	struct xs_watch	        xbs_device_watch;
+	struct xs_watch xbs_device_watch;
 
 	/** Mutex used to protect fields of the xenbusb_softc. */
-	struct mtx		xbs_lock;
+	struct mtx xbs_lock;
 
 	/** State flags. */
-	xenbusb_softc_flag	xbs_flags;
+	xenbusb_softc_flag xbs_flags;
 
 	/**
 	 * A dedicated task for processing child arrival and
 	 * departure events.
 	 */
-	struct task		xbs_probe_children;
+	struct task xbs_probe_children;
 
 	/**
 	 * Config Hook used to block boot processing until
@@ -91,22 +91,22 @@ struct xenbusb_softc {
 	 * in the connecting (to other VMs) state.  This variable
 	 * is used to determine when to release xbs_attach_ch.
 	 */
-	u_int			xbs_connecting_children;
+	u_int xbs_connecting_children;
 
 	/** The NewBus device_t for this bus attachment. */
-	device_t		xbs_dev;
+	device_t xbs_dev;
 
 	/**
 	 * The VM relative path to the XenStore subtree this
 	 * bus attachment manages.
 	 */
-	const char	       *xbs_node;
+	const char *xbs_node;
 
 	/**
 	 * The number of path components (strings separated by the '/'
 	 * character) that make up the device ID on this bus.
 	 */
-	u_int			xbs_id_components;	
+	u_int xbs_id_components;
 };
 
 /**
@@ -128,7 +128,7 @@ struct xenbus_device_ivars {
 	 * XenStore where information about the otherend of
 	 * the split Xen device this device instance represents.
 	 */
-	struct xs_watch		xd_otherend_watch;
+	struct xs_watch xd_otherend_watch;
 
 	/**
 	 * XenStore watch used to monitor the XenStore sub-tree
@@ -136,45 +136,45 @@ struct xenbus_device_ivars {
 	 * for modifications that we make from our domain as
 	 * well as for those made by the control domain.
 	 */
-	struct xs_watch		xd_local_watch;
+	struct xs_watch xd_local_watch;
 
 	/** Sleepable lock used to protect instance data. */
-	struct sx		xd_lock;
+	struct sx xd_lock;
 
 	/** State flags. */
-	xenbus_dev_flag		xd_flags;
+	xenbus_dev_flag xd_flags;
 
 	/** The NewBus device_t for this XenBus device instance. */
-	device_t		xd_dev;
+	device_t xd_dev;
 
 	/**
 	 * The VM relative path to the XenStore subtree representing
 	 * this VMs half of this device.
 	 */
-	char		       *xd_node;
+	char *xd_node;
 
 	/** The length of xd_node.  */
-	int			xd_node_len;
+	int xd_node_len;
 
 	/** XenBus device type ("vbd", "vif", etc.). */
-	char		       *xd_type;
+	char *xd_type;
 
 	/**
 	 * Cached version of <xd_node>/state node in the XenStore.
 	 */
-	enum xenbus_state	xd_state;
+	enum xenbus_state xd_state;
 
 	/** The VM identifier of the other end of this split device. */
-	int			xd_otherend_id;
+	int xd_otherend_id;
 
 	/**
 	 * The path to the subtree of the XenStore where information
 	 * about the otherend of this split device instance.
 	 */
-	char		       *xd_otherend_path;
+	char *xd_otherend_path;
 
 	/** The length of xd_otherend_path.  */
-	int			xd_otherend_path_len;
+	int xd_otherend_path_len;
 };
 
 /**
@@ -236,8 +236,8 @@ int xenbusb_print_child(device_t dev, device_t child);
  * \return  On success, 0. Otherwise an errno value indicating the
  *          type of failure.
  */
-int xenbusb_read_ivar(device_t dev, device_t child, int index,
-		      uintptr_t *result);
+int xenbusb_read_ivar(
+    device_t dev, device_t child, int index, uintptr_t *result);
 
 /**
  * \brief Common XenBus child instance variable write access method.
@@ -250,22 +250,22 @@ int xenbusb_read_ivar(device_t dev, device_t child, int index,
  * \return  On success, 0. Otherwise an errno value indicating the
  *          type of failure.
  */
-int xenbusb_write_ivar(device_t dev, device_t child, int index,
-		       uintptr_t value);
+int xenbusb_write_ivar(
+    device_t dev, device_t child, int index, uintptr_t value);
 
 /**
  * \brief Common XenBus method implementing responses to peer state changes.
- * 
+ *
  * \param bus       The XenBus bus parent of child.
  * \param child     The XenBus child whose peer stat has changed.
  * \param state     The current state of the peer.
  */
-void xenbusb_otherend_changed(device_t bus, device_t child,
-			      enum xenbus_state state);
+void xenbusb_otherend_changed(
+    device_t bus, device_t child, enum xenbus_state state);
 
 /**
  * \brief Common XenBus method implementing responses to local XenStore changes.
- * 
+ *
  * \param bus    The XenBus bus parent of child.
  * \param child  The XenBus child whose peer stat has changed.
  * \param path   The tree relative sub-path to the modified node.  The empty

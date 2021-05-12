@@ -41,11 +41,10 @@
 #include <sys/sbuf.h>
 #include <sys/sysent.h>
 
-#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
+#include <fs/pseudofs/pseudofs.h>
 
-int
-procfs_doproctype(PFS_FILL_ARGS)
+int procfs_doproctype(PFS_FILL_ARGS)
 {
 	static const char *none = "Not Available";
 

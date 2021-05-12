@@ -37,8 +37,8 @@
  *	Physical memory system definitions
  */
 
-#ifndef	_VM_PHYS_H_
-#define	_VM_PHYS_H_
+#ifndef _VM_PHYS_H_
+#define _VM_PHYS_H_
 
 #ifdef _KERNEL
 
@@ -61,22 +61,22 @@ extern int *mem_locality;
 void vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end);
 vm_page_t vm_phys_alloc_contig(int domain, u_long npages, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary);
-vm_page_t vm_phys_alloc_freelist_pages(int domain, int freelist, int pool,
-    int order);
+vm_page_t vm_phys_alloc_freelist_pages(
+    int domain, int freelist, int pool, int order);
 int vm_phys_alloc_npages(int domain, int pool, int npages, vm_page_t ma[]);
 vm_page_t vm_phys_alloc_pages(int domain, int pool, int order);
 int vm_phys_domain_match(int prefer, vm_paddr_t low, vm_paddr_t high);
 void vm_phys_enqueue_contig(vm_page_t m, u_long npages);
-int vm_phys_fictitious_reg_range(vm_paddr_t start, vm_paddr_t end,
-    vm_memattr_t memattr);
+int vm_phys_fictitious_reg_range(
+    vm_paddr_t start, vm_paddr_t end, vm_memattr_t memattr);
 void vm_phys_fictitious_unreg_range(vm_paddr_t start, vm_paddr_t end);
 vm_page_t vm_phys_fictitious_to_vm_page(vm_paddr_t pa);
 void vm_phys_free_contig(vm_page_t m, u_long npages);
 void vm_phys_free_pages(vm_page_t m, int order);
 void vm_phys_init(void);
 vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
-void vm_phys_register_domains(int ndomains, struct mem_affinity *affinity,
-    int *locality);
+void vm_phys_register_domains(
+    int ndomains, struct mem_affinity *affinity, int *locality);
 vm_page_t vm_phys_scan_contig(int domain, u_long npages, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary, int options);
 void vm_phys_set_pool(int pool, vm_page_t m, int order);
@@ -97,8 +97,7 @@ vm_phys_domain(vm_paddr_t pa)
 	if (vm_ndomains == 1)
 		return (0);
 	for (i = 0; mem_affinity[i].end != 0; i++)
-		if (mem_affinity[i].start <= pa &&
-		    mem_affinity[i].end >= pa)
+		if (mem_affinity[i].start <= pa && mem_affinity[i].end >= pa)
 			return (mem_affinity[i].domain);
 	return (-1);
 #else
@@ -106,5 +105,5 @@ vm_phys_domain(vm_paddr_t pa)
 #endif
 }
 
-#endif	/* _KERNEL */
-#endif	/* !_VM_PHYS_H_ */
+#endif /* _KERNEL */
+#endif /* !_VM_PHYS_H_ */

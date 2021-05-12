@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -44,31 +45,29 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/systm.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsmount.h>
-
-#include <nlm/nlm_prot.h>
 #include <nlm/nlm.h>
+#include <nlm/nlm_prot.h>
 
 /*
  * We need to keep track of the svid values used for F_FLOCK locks.
  */
 struct nlm_file_svid {
-	int		ns_refs;	/* thread count + 1 if active */
-	int		ns_svid;	/* on-the-wire SVID for this file */
-	struct ucred	*ns_ucred;	/* creds to use for lock recovery */
-	void		*ns_id;		/* local struct file pointer */
-	bool_t		ns_active;	/* TRUE if we own a lock */
+	int ns_refs;		/* thread count + 1 if active */
+	int ns_svid;		/* on-the-wire SVID for this file */
+	struct ucred *ns_ucred; /* creds to use for lock recovery */
+	void *ns_id;		/* local struct file pointer */
+	bool_t ns_active;	/* TRUE if we own a lock */
 	LIST_ENTRY(nlm_file_svid) ns_link;
 };
 LIST_HEAD(nlm_file_svid_list, nlm_file_svid);
 
-#define NLM_SVID_HASH_SIZE	256
+#define NLM_SVID_HASH_SIZE 256
 struct nlm_file_svid_list nlm_file_svids[NLM_SVID_HASH_SIZE];
 
 struct mtx nlm_svid_lock;
@@ -76,23 +75,21 @@ static struct unrhdr *nlm_svid_allocator;
 static volatile u_int nlm_xid = 1;
 
 static int nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
-    rpcvers_t vers, struct timeval *timo, int retries,
-    struct vnode *vp, int op, struct flock *fl, int flags,
-    int svid, size_t fhlen, void *fh, off_t size, bool_t reclaim);
-static int nlm_clearlock(struct nlm_host *host,  struct rpc_callextra *ext,
-    rpcvers_t vers, struct timeval *timo, int retries,
-    struct vnode *vp, int op, struct flock *fl, int flags,
-    int svid, size_t fhlen, void *fh, off_t size);
+    rpcvers_t vers, struct timeval *timo, int retries, struct vnode *vp, int op,
+    struct flock *fl, int flags, int svid, size_t fhlen, void *fh, off_t size,
+    bool_t reclaim);
+static int nlm_clearlock(struct nlm_host *host, struct rpc_callextra *ext,
+    rpcvers_t vers, struct timeval *timo, int retries, struct vnode *vp, int op,
+    struct flock *fl, int flags, int svid, size_t fhlen, void *fh, off_t size);
 static int nlm_getlock(struct nlm_host *host, struct rpc_callextra *ext,
-    rpcvers_t vers, struct timeval *timo, int retries,
-    struct vnode *vp, int op, struct flock *fl, int flags,
-    int svid, size_t fhlen, void *fh, off_t size);
+    rpcvers_t vers, struct timeval *timo, int retries, struct vnode *vp, int op,
+    struct flock *fl, int flags, int svid, size_t fhlen, void *fh, off_t size);
 static int nlm_map_status(nlm4_stats stat);
 static struct nlm_file_svid *nlm_find_svid(void *id);
 static void nlm_free_svid(struct nlm_file_svid *nf);
-static int nlm_init_lock(struct flock *fl, int flags, int svid,
-    rpcvers_t vers, size_t fhlen, void *fh, off_t size,
-    struct nlm4_lock *lock, char oh_space[32]);
+static int nlm_init_lock(struct flock *fl, int flags, int svid, rpcvers_t vers,
+    size_t fhlen, void *fh, off_t size, struct nlm4_lock *lock,
+    char oh_space[32]);
 
 static void
 nlm_client_init(void *dummy)
@@ -123,13 +120,13 @@ nlm_msg(struct thread *td, const char *server, const char *msg, int error)
 }
 
 struct nlm_feedback_arg {
-	bool_t	nf_printed;
+	bool_t nf_printed;
 	struct nfsmount *nf_nmp;
 };
 
 static void
-nlm_down(struct nlm_feedback_arg *nf, struct thread *td,
-    const char *msg, int error)
+nlm_down(
+    struct nlm_feedback_arg *nf, struct thread *td, const char *msg, int error)
 {
 	struct nfsmount *nmp = nf->nf_nmp;
 
@@ -139,8 +136,8 @@ nlm_down(struct nlm_feedback_arg *nf, struct thread *td,
 	if (!(nmp->nm_state & NFSSTA_LOCKTIMEO)) {
 		nmp->nm_state |= NFSSTA_LOCKTIMEO;
 		mtx_unlock(&nmp->nm_mtx);
-		vfs_event_signal(&nmp->nm_mountp->mnt_stat.f_fsid,
-		    VQ_NOTRESPLOCK, 0);
+		vfs_event_signal(
+		    &nmp->nm_mountp->mnt_stat.f_fsid, VQ_NOTRESPLOCK, 0);
 	} else {
 		mtx_unlock(&nmp->nm_mtx);
 	}
@@ -150,8 +147,7 @@ nlm_down(struct nlm_feedback_arg *nf, struct thread *td,
 }
 
 static void
-nlm_up(struct nlm_feedback_arg *nf, struct thread *td,
-    const char *msg)
+nlm_up(struct nlm_feedback_arg *nf, struct thread *td, const char *msg)
 {
 	struct nfsmount *nmp = nf->nf_nmp;
 
@@ -164,8 +160,8 @@ nlm_up(struct nlm_feedback_arg *nf, struct thread *td,
 	if (nmp->nm_state & NFSSTA_LOCKTIMEO) {
 		nmp->nm_state &= ~NFSSTA_LOCKTIMEO;
 		mtx_unlock(&nmp->nm_mtx);
-		vfs_event_signal(&nmp->nm_mountp->mnt_stat.f_fsid,
-		    VQ_NOTRESPLOCK, 1);
+		vfs_event_signal(
+		    &nmp->nm_mountp->mnt_stat.f_fsid, VQ_NOTRESPLOCK, 1);
 	} else {
 		mtx_unlock(&nmp->nm_mtx);
 	}
@@ -175,7 +171,7 @@ static void
 nlm_feedback(int type, int proc, void *arg)
 {
 	struct thread *td = curthread;
-	struct nlm_feedback_arg *nf = (struct nlm_feedback_arg *) arg;
+	struct nlm_feedback_arg *nf = (struct nlm_feedback_arg *)arg;
 
 	switch (type) {
 	case FEEDBACK_REXMIT2:
@@ -232,7 +228,7 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 
 	strcpy(servername, nmp->nm_hostname);
 	nmp->nm_getinfo(vp, fh.fh_bytes, &fhlen, &ss, &is_v3, &size, &timo);
-	sa = (struct sockaddr *) &ss;
+	sa = (struct sockaddr *)&ss;
 	if (is_v3 != 0)
 		vers = NLM_VERS4;
 	else
@@ -288,13 +284,13 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 		 */
 		svid = fl->l_pid;
 	} else {
-		svid = ((struct proc *) id)->p_pid;
+		svid = ((struct proc *)id)->p_pid;
 	}
 
-	switch(op) {
+	switch (op) {
 	case F_SETLK:
-		if ((flags & (F_FLOCK|F_WAIT)) == (F_FLOCK|F_WAIT)
-		    && fl->l_type == F_WRLCK) {
+		if ((flags & (F_FLOCK | F_WAIT)) == (F_FLOCK | F_WAIT) &&
+		    fl->l_type == F_WRLCK) {
 			/*
 			 * The semantics for flock(2) require that any
 			 * shared lock on the file must be released
@@ -307,13 +303,13 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 			 * the file and block.
 			 */
 			error = nlm_setlock(host, &ext, vers, &timo, retries,
-			    vp, F_SETLK, fl, flags & ~F_WAIT,
-			    svid, fhlen, &fh.fh_bytes, size, reclaim);
+			    vp, F_SETLK, fl, flags & ~F_WAIT, svid, fhlen,
+			    &fh.fh_bytes, size, reclaim);
 			if (error == EAGAIN) {
 				fl->l_type = F_UNLCK;
 				error = nlm_clearlock(host, &ext, vers, &timo,
-				    retries, vp, F_UNLCK, fl, flags,
-				    svid, fhlen, &fh.fh_bytes, size);
+				    retries, vp, F_UNLCK, fl, flags, svid,
+				    fhlen, &fh.fh_bytes, size);
 				fl->l_type = F_WRLCK;
 				if (!error) {
 					mtx_lock(&nlm_svid_lock);
@@ -331,8 +327,8 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 			}
 		} else {
 			error = nlm_setlock(host, &ext, vers, &timo, retries,
-			    vp, op, fl, flags, svid, fhlen, &fh.fh_bytes,
-			    size, reclaim);
+			    vp, op, fl, flags, svid, fhlen, &fh.fh_bytes, size,
+			    reclaim);
 		}
 		if (!error && ns) {
 			mtx_lock(&nlm_svid_lock);
@@ -353,8 +349,8 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 		break;
 
 	case F_UNLCK:
-		error = nlm_clearlock(host, &ext, vers, &timo, retries,
-		    vp, op, fl, flags, svid, fhlen, &fh.fh_bytes, size);
+		error = nlm_clearlock(host, &ext, vers, &timo, retries, vp, op,
+		    fl, flags, svid, fhlen, &fh.fh_bytes, size);
 		if (!error && ns) {
 			mtx_lock(&nlm_svid_lock);
 			if (ns->ns_active) {
@@ -366,8 +362,8 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 		break;
 
 	case F_GETLK:
-		error = nlm_getlock(host, &ext, vers, &timo, retries,
-		    vp, op, fl, flags, svid, fhlen, &fh.fh_bytes, size);
+		error = nlm_getlock(host, &ext, vers, &timo, retries, vp, op,
+		    fl, flags, svid, fhlen, &fh.fh_bytes, size);
 		break;
 
 	default:
@@ -392,8 +388,8 @@ int
 nlm_advlock(struct vop_advlock_args *ap)
 {
 
-	return (nlm_advlock_internal(ap->a_vp, ap->a_id, ap->a_op, ap->a_fl,
-		ap->a_flags, FALSE, TRUE));
+	return (nlm_advlock_internal(
+	    ap->a_vp, ap->a_id, ap->a_op, ap->a_fl, ap->a_flags, FALSE, TRUE));
 }
 
 /*
@@ -464,8 +460,8 @@ nlm_reclaim_free_lock(struct vnode *vp, struct flock *fl, void *arg)
 	oldcred = td->td_ucred;
 	nlm_set_creds_for_lock(td, &newfl);
 
-	error = nlm_advlock_internal(vp, NULL, F_UNLCK, &newfl, F_REMOTE,
-	    FALSE, FALSE);
+	error = nlm_advlock_internal(
+	    vp, NULL, F_UNLCK, &newfl, F_REMOTE, FALSE, FALSE);
 
 	crfree(td->td_ucred);
 	td->td_ucred = oldcred;
@@ -483,14 +479,14 @@ nlm_reclaim(struct vop_reclaim_args *ap)
 }
 
 struct nlm_recovery_context {
-	struct nlm_host	*nr_host;	/* host we are recovering */
-	int		nr_state;	/* remote NSM state for recovery */
+	struct nlm_host *nr_host; /* host we are recovering */
+	int nr_state;		  /* remote NSM state for recovery */
 };
 
 static int
 nlm_client_recover_lock(struct vnode *vp, struct flock *fl, void *arg)
 {
-	struct nlm_recovery_context *nr = (struct nlm_recovery_context *) arg;
+	struct nlm_recovery_context *nr = (struct nlm_recovery_context *)arg;
 	struct thread *td = curthread;
 	struct ucred *oldcred;
 	int state, error;
@@ -511,8 +507,8 @@ nlm_client_recover_lock(struct vnode *vp, struct flock *fl, void *arg)
 	oldcred = td->td_ucred;
 	nlm_set_creds_for_lock(td, fl);
 
-	error = nlm_advlock_internal(vp, NULL, F_SETLK, fl, F_REMOTE,
-	    TRUE, TRUE);
+	error = nlm_advlock_internal(
+	    vp, NULL, F_SETLK, fl, F_REMOTE, TRUE, TRUE);
 
 	crfree(td->td_ucred);
 	td->td_ucred = oldcred;
@@ -530,8 +526,8 @@ nlm_client_recovery(struct nlm_host *host)
 	do {
 		nr.nr_host = host;
 		nr.nr_state = nlm_host_get_state(host);
-		error = lf_iteratelocks_sysid(sysid,
-		    nlm_client_recover_lock, &nr);
+		error = lf_iteratelocks_sysid(
+		    sysid, nlm_client_recover_lock, &nr);
 	} while (error == ERESTART);
 }
 
@@ -562,12 +558,12 @@ static void
 nlm_convert_to_nlm4_res(struct nlm4_res *dst, struct nlm_res *src)
 {
 	dst->cookie = src->cookie;
-	dst->stat.stat = (enum nlm4_stats) src->stat.stat;
+	dst->stat.stat = (enum nlm4_stats)src->stat.stat;
 }
 
 static enum clnt_stat
-nlm_test_rpc(rpcvers_t vers, nlm4_testargs *args, nlm4_testres *res, CLIENT *client,
-    struct rpc_callextra *ext, struct timeval timo)
+nlm_test_rpc(rpcvers_t vers, nlm4_testargs *args, nlm4_testres *res,
+    CLIENT *client, struct rpc_callextra *ext, struct timeval timo)
 {
 	if (vers == NLM_VERS4) {
 		return nlm4_test_4(args, res, client, ext, timo);
@@ -585,11 +581,11 @@ nlm_test_rpc(rpcvers_t vers, nlm4_testargs *args, nlm4_testres *res, CLIENT *cli
 
 		if (stat == RPC_SUCCESS) {
 			res->cookie = res1.cookie;
-			res->stat.stat = (enum nlm4_stats) res1.stat.stat;
+			res->stat.stat = (enum nlm4_stats)res1.stat.stat;
 			if (res1.stat.stat == nlm_denied)
 				nlm_convert_to_nlm4_holder(
-					&res->stat.nlm4_testrply_u.holder,
-					&res1.stat.nlm_testrply_u.holder);
+				    &res->stat.nlm4_testrply_u.holder,
+				    &res1.stat.nlm_testrply_u.holder);
 		}
 
 		return (stat);
@@ -626,8 +622,8 @@ nlm_lock_rpc(rpcvers_t vers, nlm4_lockargs *args, nlm4_res *res, CLIENT *client,
 }
 
 static enum clnt_stat
-nlm_cancel_rpc(rpcvers_t vers, nlm4_cancargs *args, nlm4_res *res, CLIENT *client,
-    struct rpc_callextra *ext, struct timeval timo)
+nlm_cancel_rpc(rpcvers_t vers, nlm4_cancargs *args, nlm4_res *res,
+    CLIENT *client, struct rpc_callextra *ext, struct timeval timo)
 {
 	if (vers == NLM_VERS4) {
 		return nlm4_cancel_4(args, res, client, ext, timo);
@@ -653,8 +649,8 @@ nlm_cancel_rpc(rpcvers_t vers, nlm4_cancargs *args, nlm4_res *res, CLIENT *clien
 }
 
 static enum clnt_stat
-nlm_unlock_rpc(rpcvers_t vers, nlm4_unlockargs *args, nlm4_res *res, CLIENT *client,
-    struct rpc_callextra *ext, struct timeval timo)
+nlm_unlock_rpc(rpcvers_t vers, nlm4_unlockargs *args, nlm4_res *res,
+    CLIENT *client, struct rpc_callextra *ext, struct timeval timo)
 {
 	if (vers == NLM_VERS4) {
 		return nlm4_unlock_4(args, res, client, ext, timo);
@@ -695,8 +691,8 @@ nlm_unlock_rpc(rpcvers_t vers, nlm4_unlockargs *args, nlm4_res *res, CLIENT *cli
  * ignore signals for this.
  */
 static void
-nlm_record_lock(struct vnode *vp, int op, struct flock *fl,
-    int svid, int sysid, off_t size)
+nlm_record_lock(
+    struct vnode *vp, int op, struct flock *fl, int svid, int sysid, off_t size)
 {
 	struct vop_advlockasync_args a;
 	struct flock newfl;
@@ -707,7 +703,7 @@ nlm_record_lock(struct vnode *vp, int op, struct flock *fl,
 	a.a_id = NULL;
 	a.a_op = op;
 	a.a_fl = &newfl;
-	a.a_flags = F_REMOTE|F_WAIT|F_NOINTR;
+	a.a_flags = F_REMOTE | F_WAIT | F_NOINTR;
 	a.a_task = NULL;
 	a.a_cookiep = NULL;
 	newfl.l_start = fl->l_start;
@@ -732,7 +728,7 @@ nlm_record_lock(struct vnode *vp, int op, struct flock *fl,
 			 * f2 and issued the lock on f1.  Remote would
 			 * grant B the request on f1, but local would
 			 * return EDEADLK.
-			*/
+			 */
 			pause("nlmdlk", 1);
 			p = curproc;
 			stops_deferred = sigdeferstop(SIGDEFERSTOP_OFF);
@@ -758,10 +754,10 @@ nlm_record_lock(struct vnode *vp, int op, struct flock *fl,
 }
 
 static int
-nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
-    rpcvers_t vers, struct timeval *timo, int retries,
-    struct vnode *vp, int op, struct flock *fl, int flags,
-    int svid, size_t fhlen, void *fh, off_t size, bool_t reclaim)
+nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext, rpcvers_t vers,
+    struct timeval *timo, int retries, struct vnode *vp, int op,
+    struct flock *fl, int flags, int svid, size_t fhlen, void *fh, off_t size,
+    bool_t reclaim)
 {
 	struct nlm4_lockargs args;
 	char oh_space[32];
@@ -779,8 +775,8 @@ nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
 	block = (flags & F_WAIT) ? TRUE : FALSE;
 	exclusive = (fl->l_type == F_WRLCK);
 
-	error = nlm_init_lock(fl, flags, svid, vers, fhlen, fh, size,
-	    &args.alock, oh_space);
+	error = nlm_init_lock(
+	    fl, flags, svid, vers, fhlen, fh, size, &args.alock, oh_space);
 	if (error)
 		return (error);
 	args.block = block;
@@ -788,7 +784,7 @@ nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
 	args.reclaim = reclaim;
 	args.state = nlm_nsm_state;
 
-	retry = 5*hz;
+	retry = 5 * hz;
 	for (;;) {
 		client = nlm_host_get_rpc(host, FALSE);
 		if (!client)
@@ -799,7 +795,7 @@ nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
 
 		xid = atomic_fetchadd_int(&nlm_xid, 1);
 		args.cookie.n_len = sizeof(xid);
-		args.cookie.n_bytes = (char*) &xid;
+		args.cookie.n_bytes = (char *)&xid;
 
 		stat = nlm_lock_rpc(vers, &args, &res, client, ext, *timo);
 
@@ -818,7 +814,7 @@ nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
 		/*
 		 * Free res.cookie.
 		 */
-		xdr_free((xdrproc_t) xdr_nlm4_res, &res);
+		xdr_free((xdrproc_t)xdr_nlm4_res, &res);
 
 		if (block && res.stat.stat != nlm4_blocked)
 			nlm_deregister_wait_lock(wait_handle);
@@ -833,9 +829,9 @@ nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
 			error = tsleep(&args, PCATCH, "nlmgrace", retry);
 			if (error && error != EWOULDBLOCK)
 				return (error);
-			retry = 2*retry;
-			if (retry > 30*hz)
-				retry = 30*hz;
+			retry = 2 * retry;
+			if (retry > 30 * hz)
+				retry = 30 * hz;
 			continue;
 		}
 
@@ -849,9 +845,9 @@ nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
 			 */
 			error = nlm_wait_lock(wait_handle, retry);
 			if (error == EWOULDBLOCK) {
-				retry = 2*retry;
-				if (retry > 30*hz)
-					retry = 30*hz;
+				retry = 2 * retry;
+				if (retry > 30 * hz)
+					retry = 30 * hz;
 				continue;
 			}
 			if (error) {
@@ -865,7 +861,7 @@ nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
 
 				xid = atomic_fetchadd_int(&nlm_xid, 1);
 				cancel.cookie.n_len = sizeof(xid);
-				cancel.cookie.n_bytes = (char*) &xid;
+				cancel.cookie.n_bytes = (char *)&xid;
 				cancel.block = block;
 				cancel.exclusive = exclusive;
 				cancel.alock = args.alock;
@@ -893,14 +889,14 @@ nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
 						 * until the server
 						 * wakes up again.
 						 */
-						pause("nlmcancel", 10*hz);
+						pause("nlmcancel", 10 * hz);
 					}
 				} while (stat != RPC_SUCCESS);
 
 				/*
 				 * Free res.cookie.
 				 */
-				xdr_free((xdrproc_t) xdr_nlm4_res, &res);
+				xdr_free((xdrproc_t)xdr_nlm4_res, &res);
 
 				switch (res.stat.stat) {
 				case nlm_denied:
@@ -956,10 +952,9 @@ nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
 }
 
 static int
-nlm_clearlock(struct nlm_host *host, struct rpc_callextra *ext,
-    rpcvers_t vers, struct timeval *timo, int retries,
-    struct vnode *vp, int op, struct flock *fl, int flags,
-    int svid, size_t fhlen, void *fh, off_t size)
+nlm_clearlock(struct nlm_host *host, struct rpc_callextra *ext, rpcvers_t vers,
+    struct timeval *timo, int retries, struct vnode *vp, int op,
+    struct flock *fl, int flags, int svid, size_t fhlen, void *fh, off_t size)
 {
 	struct nlm4_unlockargs args;
 	char oh_space[32];
@@ -972,8 +967,8 @@ nlm_clearlock(struct nlm_host *host, struct rpc_callextra *ext,
 	memset(&args, 0, sizeof(args));
 	memset(&res, 0, sizeof(res));
 
-	error = nlm_init_lock(fl, flags, svid, vers, fhlen, fh, size,
-	    &args.alock, oh_space);
+	error = nlm_init_lock(
+	    fl, flags, svid, vers, fhlen, fh, size, &args.alock, oh_space);
 	if (error)
 		return (error);
 
@@ -984,7 +979,7 @@ nlm_clearlock(struct nlm_host *host, struct rpc_callextra *ext,
 
 		xid = atomic_fetchadd_int(&nlm_xid, 1);
 		args.cookie.n_len = sizeof(xid);
-		args.cookie.n_bytes = (char*) &xid;
+		args.cookie.n_bytes = (char *)&xid;
 
 		stat = nlm_unlock_rpc(vers, &args, &res, client, ext, *timo);
 
@@ -1001,7 +996,7 @@ nlm_clearlock(struct nlm_host *host, struct rpc_callextra *ext,
 		/*
 		 * Free res.cookie.
 		 */
-		xdr_free((xdrproc_t) xdr_nlm4_res, &res);
+		xdr_free((xdrproc_t)xdr_nlm4_res, &res);
 
 		if (res.stat.stat == nlm4_denied_grace_period) {
 			/*
@@ -1010,7 +1005,7 @@ nlm_clearlock(struct nlm_host *host, struct rpc_callextra *ext,
 			 * their locks. Wait for a few seconds and try
 			 * again.
 			 */
-			error = tsleep(&args, PCATCH, "nlmgrace", 5*hz);
+			error = tsleep(&args, PCATCH, "nlmgrace", 5 * hz);
 			if (error && error != EWOULDBLOCK)
 				return (error);
 			continue;
@@ -1031,10 +1026,9 @@ nlm_clearlock(struct nlm_host *host, struct rpc_callextra *ext,
 }
 
 static int
-nlm_getlock(struct nlm_host *host, struct rpc_callextra *ext,
-    rpcvers_t vers, struct timeval *timo, int retries,
-    struct vnode *vp, int op, struct flock *fl, int flags,
-    int svid, size_t fhlen, void *fh, off_t size)
+nlm_getlock(struct nlm_host *host, struct rpc_callextra *ext, rpcvers_t vers,
+    struct timeval *timo, int retries, struct vnode *vp, int op,
+    struct flock *fl, int flags, int svid, size_t fhlen, void *fh, off_t size)
 {
 	struct nlm4_testargs args;
 	char oh_space[32];
@@ -1052,8 +1046,8 @@ nlm_getlock(struct nlm_host *host, struct rpc_callextra *ext,
 
 	exclusive = (fl->l_type == F_WRLCK);
 
-	error = nlm_init_lock(fl, flags, svid, vers, fhlen, fh, size,
-	    &args.alock, oh_space);
+	error = nlm_init_lock(
+	    fl, flags, svid, vers, fhlen, fh, size, &args.alock, oh_space);
 	if (error)
 		return (error);
 	args.exclusive = exclusive;
@@ -1065,7 +1059,7 @@ nlm_getlock(struct nlm_host *host, struct rpc_callextra *ext,
 
 		xid = atomic_fetchadd_int(&nlm_xid, 1);
 		args.cookie.n_len = sizeof(xid);
-		args.cookie.n_bytes = (char*) &xid;
+		args.cookie.n_bytes = (char *)&xid;
 
 		stat = nlm_test_rpc(vers, &args, &res, client, ext, *timo);
 
@@ -1086,8 +1080,8 @@ nlm_getlock(struct nlm_host *host, struct rpc_callextra *ext,
 			 * their locks. Wait for a few seconds and try
 			 * again.
 			 */
-			xdr_free((xdrproc_t) xdr_nlm4_testres, &res);
-			error = tsleep(&args, PCATCH, "nlmgrace", 5*hz);
+			xdr_free((xdrproc_t)xdr_nlm4_testres, &res);
+			error = tsleep(&args, PCATCH, "nlmgrace", 5 * hz);
 			if (error && error != EWOULDBLOCK)
 				return (error);
 			continue;
@@ -1095,7 +1089,7 @@ nlm_getlock(struct nlm_host *host, struct rpc_callextra *ext,
 
 		if (res.stat.stat == nlm4_denied) {
 			struct nlm4_holder *h =
-				&res.stat.nlm4_testrply_u.holder;
+			    &res.stat.nlm4_testrply_u.holder;
 			fl->l_start = h->l_offset;
 			fl->l_len = h->l_len;
 			fl->l_pid = h->svid;
@@ -1109,7 +1103,7 @@ nlm_getlock(struct nlm_host *host, struct rpc_callextra *ext,
 			fl->l_type = F_UNLCK;
 		}
 
-		xdr_free((xdrproc_t) xdr_nlm4_testres, &res);
+		xdr_free((xdrproc_t)xdr_nlm4_testres, &res);
 
 		return (0);
 	}
@@ -1154,10 +1148,10 @@ nlm_find_svid(void *id)
 	struct nlm_file_svid *ns, *newns;
 	int h;
 
-	h = (((uintptr_t) id) >> 7) % NLM_SVID_HASH_SIZE;
+	h = (((uintptr_t)id) >> 7) % NLM_SVID_HASH_SIZE;
 
 	mtx_lock(&nlm_svid_lock);
-	LIST_FOREACH(ns, &nlm_file_svids[h], ns_link) {
+	LIST_FOREACH (ns, &nlm_file_svids[h], ns_link) {
 		if (ns->ns_id == id) {
 			ns->ns_refs++;
 			break;
@@ -1166,8 +1160,7 @@ nlm_find_svid(void *id)
 	mtx_unlock(&nlm_svid_lock);
 	if (!ns) {
 		int svid = alloc_unr(nlm_svid_allocator);
-		newns = malloc(sizeof(struct nlm_file_svid), M_NLM,
-		    M_WAITOK);
+		newns = malloc(sizeof(struct nlm_file_svid), M_NLM, M_WAITOK);
 		newns->ns_refs = 1;
 		newns->ns_id = id;
 		newns->ns_svid = svid;
@@ -1179,7 +1172,7 @@ nlm_find_svid(void *id)
 		 * thread allocating a svid for this file.
 		 */
 		mtx_lock(&nlm_svid_lock);
-		LIST_FOREACH(ns, &nlm_file_svids[h], ns_link) {
+		LIST_FOREACH (ns, &nlm_file_svids[h], ns_link) {
 			if (ns->ns_id == id) {
 				ns->ns_refs++;
 				break;
@@ -1190,8 +1183,7 @@ nlm_find_svid(void *id)
 			free_unr(nlm_svid_allocator, newns->ns_svid);
 			free(newns, M_NLM);
 		} else {
-			LIST_INSERT_HEAD(&nlm_file_svids[h], newns,
-			    ns_link);
+			LIST_INSERT_HEAD(&nlm_file_svids[h], newns, ns_link);
 			ns = newns;
 			mtx_unlock(&nlm_svid_lock);
 		}
@@ -1220,16 +1212,16 @@ nlm_free_svid(struct nlm_file_svid *ns)
 }
 
 static int
-nlm_init_lock(struct flock *fl, int flags, int svid,
-    rpcvers_t vers, size_t fhlen, void *fh, off_t size,
-    struct nlm4_lock *lock, char oh_space[32])
+nlm_init_lock(struct flock *fl, int flags, int svid, rpcvers_t vers,
+    size_t fhlen, void *fh, off_t size, struct nlm4_lock *lock,
+    char oh_space[32])
 {
 	size_t oh_len;
 	off_t start, len;
 
 	if (fl->l_whence == SEEK_END) {
-		if (size > OFF_MAX
-		    || (fl->l_start > 0 && size > OFF_MAX - fl->l_start))
+		if (size > OFF_MAX ||
+		    (fl->l_start > 0 && size > OFF_MAX - fl->l_start))
 			return (EOVERFLOW);
 		start = size + fl->l_start;
 	} else if (fl->l_whence == SEEK_SET || fl->l_whence == SEEK_CUR) {

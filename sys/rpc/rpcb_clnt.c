@@ -30,11 +30,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
+ * Copyright (c) 1986-1991 by Sun Microsystems Inc.
  */
 
 /* #ident	"@(#)rpcb_clnt.c	1.27	94/04/24 SMI" */
-
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)rpcb_clnt.c 1.30 89/06/21 Copyr 1988 Sun Micro";
@@ -60,10 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 
 #include <rpc/rpc.h>
+#include <rpc/rpc_com.h>
 #include <rpc/rpcb_clnt.h>
 #include <rpc/rpcb_prot.h>
-
-#include <rpc/rpc_com.h>
 
 static struct timeval tottimeout = { 60, 0 };
 static const char nullstring[] = "\000";
@@ -75,7 +73,7 @@ static CLIENT *local_rpcb(void);
 static const struct timeval rmttimeout = { 3, 0 };
 static struct timeval rpcbrmttime = { 15, 0 };
 
-#define	CACHESIZE 6
+#define CACHESIZE 6
 
 struct address_cache {
 	char *ac_host;
@@ -88,8 +86,8 @@ struct address_cache {
 static struct address_cache *front;
 static int cachesize;
 
-#define	CLCR_GET_RPCB_TIMEOUT	1
-#define	CLCR_SET_RPCB_TIMEOUT	2
+#define CLCR_GET_RPCB_TIMEOUT 1
+#define CLCR_SET_RPCB_TIMEOUT 2
 
 
 extern int __rpc_lowvers;
@@ -428,8 +426,8 @@ getclnthandle(host, nconf, targaddr)
 #endif
 
 /* XXX */
-#define IN4_LOCALHOST_STRING	"127.0.0.1"
-#define IN6_LOCALHOST_STRING	"::1"
+#define IN4_LOCALHOST_STRING "127.0.0.1"
+#define IN6_LOCALHOST_STRING "::1"
 
 /*
  * This routine will return a client handle that is connected to the local
@@ -451,8 +449,8 @@ local_rpcb()
 	 */
 	memset(&sun, 0, sizeof sun);
 	so = NULL;
-	error = socreate(AF_LOCAL, &so, SOCK_STREAM, 0, curthread->td_ucred,
-	    curthread);
+	error = socreate(
+	    AF_LOCAL, &so, SOCK_STREAM, 0, curthread->td_ucred, curthread);
 	if (error)
 		goto try_nconf;
 	sun.sun_family = AF_LOCAL;
@@ -460,12 +458,12 @@ local_rpcb()
 	sun.sun_len = SUN_LEN(&sun);
 
 	tsize = __rpc_get_t_size(AF_LOCAL, 0, 0);
-	client = clnt_vc_create(so, (struct sockaddr *)&sun, (rpcprog_t)RPCBPROG,
-	    (rpcvers_t)RPCBVERS, tsize, tsize, 1);
+	client = clnt_vc_create(so, (struct sockaddr *)&sun,
+	    (rpcprog_t)RPCBPROG, (rpcvers_t)RPCBVERS, tsize, tsize, 1);
 
 	if (client != NULL) {
 		/* Mark the socket to be closed in destructor */
-		(void) CLNT_CONTROL(client, CLSET_FD_CLOSE, NULL);
+		(void)CLNT_CONTROL(client, CLSET_FD_CLOSE, NULL);
 		return client;
 	}
 
@@ -539,8 +537,8 @@ try_nconf:
  */
 bool_t
 rpcb_set(rpcprog_t program, rpcvers_t version,
-    const struct netconfig *nconf,	/* Network structure of transport */
-    const struct netbuf *address)	/* Services netconfig address */
+    const struct netconfig *nconf, /* Network structure of transport */
+    const struct netbuf *address)  /* Services netconfig address */
 {
 	CLIENT *client;
 	bool_t rslt = FALSE;
@@ -561,7 +559,7 @@ rpcb_set(rpcprog_t program, rpcvers_t version,
 		return (FALSE);
 	}
 	client = local_rpcb();
-	if (! client) {
+	if (!client) {
 		return (FALSE);
 	}
 
@@ -590,9 +588,9 @@ rpcb_set(rpcprog_t program, rpcvers_t version,
 	parms.r_owner = "";
 #endif
 
-	CLNT_CALL(client, (rpcproc_t)RPCBPROC_SET, (xdrproc_t) xdr_rpcb,
-	    (char *)(void *)&parms, (xdrproc_t) xdr_bool,
-	    (char *)(void *)&rslt, tottimeout);
+	CLNT_CALL(client, (rpcproc_t)RPCBPROC_SET, (xdrproc_t)xdr_rpcb,
+	    (char *)(void *)&parms, (xdrproc_t)xdr_bool, (char *)(void *)&rslt,
+	    tottimeout);
 
 	CLNT_DESTROY(client);
 	free(parms.r_addr, M_RPC);
@@ -616,7 +614,7 @@ rpcb_unset(rpcprog_t program, rpcvers_t version, const struct netconfig *nconf)
 #endif
 
 	client = local_rpcb();
-	if (! client) {
+	if (!client) {
 		return (FALSE);
 	}
 
@@ -626,10 +624,11 @@ rpcb_unset(rpcprog_t program, rpcvers_t version, const struct netconfig *nconf)
 		parms.r_netid = nconf->nc_netid;
 	else {
 		/*LINTED const castaway*/
-		parms.r_netid = (char *)(uintptr_t) &nullstring[0]; /* unsets  all */
+		parms.r_netid =
+		    (char *)(uintptr_t)&nullstring[0]; /* unsets  all */
 	}
 	/*LINTED const castaway*/
-	parms.r_addr = (char *)(uintptr_t) &nullstring[0];
+	parms.r_addr = (char *)(uintptr_t)&nullstring[0];
 #if 0
 	(void) snprintf(uidbuf, sizeof uidbuf, "%d", geteuid());
 	parms.r_owner = uidbuf;
@@ -637,9 +636,9 @@ rpcb_unset(rpcprog_t program, rpcvers_t version, const struct netconfig *nconf)
 	parms.r_owner = "";
 #endif
 
-	CLNT_CALL(client, (rpcproc_t)RPCBPROC_UNSET, (xdrproc_t) xdr_rpcb,
-	    (char *)(void *)&parms, (xdrproc_t) xdr_bool,
-	    (char *)(void *)&rslt, tottimeout);
+	CLNT_CALL(client, (rpcproc_t)RPCBPROC_UNSET, (xdrproc_t)xdr_rpcb,
+	    (char *)(void *)&parms, (xdrproc_t)xdr_bool, (char *)(void *)&rslt,
+	    tottimeout);
 
 	CLNT_DESTROY(client);
 	return (rslt);
@@ -845,7 +844,7 @@ __rpcb_findaddr_timed(program, version, nconf, host, clpp, tp)
 		address->len = address->maxlen = remote.len;
 		goto done;
 	}
-#endif				/* PORTMAP */
+#endif /* PORTMAP */
 
 try_rpcbind:
 	/*

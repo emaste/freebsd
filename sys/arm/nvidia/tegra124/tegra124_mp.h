@@ -27,7 +27,7 @@
  */
 
 #ifndef _TEGRA124_MP_H_
-#define	_TEGRA124_MP_H_
+#define _TEGRA124_MP_H_
 
 void tegra124_mp_setmaxid(platform_t plat);
 void tegra124_mp_start_ap(platform_t plat);

@@ -30,42 +30,40 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/sdt.h>
 #include <sys/systm.h>
-#include <sys/sysctl.h>
-#include <sys/proc.h>
+#include <sys/jail.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/jail.h>
-#include <sys/lock.h>
+#include <sys/proc.h>
+#include <sys/sdt.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
 
 struct linux_prison {
-	char	pr_osname[LINUX_MAX_UTSNAME];
-	char	pr_osrelease[LINUX_MAX_UTSNAME];
-	int	pr_oss_version;
-	int	pr_osrel;
+	char pr_osname[LINUX_MAX_UTSNAME];
+	char pr_osrelease[LINUX_MAX_UTSNAME];
+	int pr_oss_version;
+	int pr_osrel;
 };
 
-static struct linux_prison lprison0 = {
-	.pr_osname =		"Linux",
-	.pr_osrelease =		LINUX_VERSION_STR,
-	.pr_oss_version =	0x030600,
-	.pr_osrel =		LINUX_VERSION_CODE
-};
+static struct linux_prison lprison0 = { .pr_osname = "Linux",
+	.pr_osrelease = LINUX_VERSION_STR,
+	.pr_oss_version = 0x030600,
+	.pr_osrel = LINUX_VERSION_CODE };
 
 static unsigned linux_osd_jail_slot;
 
-SYSCTL_NODE(_compat, OID_AUTO, linux, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "Linux mode");
+SYSCTL_NODE(
+    _compat, OID_AUTO, linux, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "Linux mode");
 
 int linux_debug = 3;
-SYSCTL_INT(_compat_linux, OID_AUTO, debug, CTLFLAG_RWTUN,
-    &linux_debug, 0, "Log warnings from linux(4); or 0 to disable");
+SYSCTL_INT(_compat_linux, OID_AUTO, debug, CTLFLAG_RWTUN, &linux_debug, 0,
+    "Log warnings from linux(4); or 0 to disable");
 
 int linux_default_openfiles = 1024;
 SYSCTL_INT(_compat_linux, OID_AUTO, default_openfiles, CTLFLAG_RWTUN,
@@ -92,19 +90,19 @@ SYSCTL_INT(_compat_linux, OID_AUTO, preserve_vstatus, CTLFLAG_RWTUN,
 
 bool linux_map_sched_prio = true;
 SYSCTL_BOOL(_compat_linux, OID_AUTO, map_sched_prio, CTLFLAG_RDTUN,
-    &linux_map_sched_prio, 0, "Map scheduler priorities to Linux priorities "
+    &linux_map_sched_prio, 0,
+    "Map scheduler priorities to Linux priorities "
     "(not POSIX compliant)");
 
 int linux_use_emul_path = 1;
 SYSCTL_INT(_compat_linux, OID_AUTO, use_emul_path, CTLFLAG_RWTUN,
     &linux_use_emul_path, 0, "Use linux.compat.emul_path");
 
-static int	linux_set_osname(struct thread *td, char *osname);
-static int	linux_set_osrelease(struct thread *td, char *osrelease);
-static int	linux_set_oss_version(struct thread *td, int oss_version);
+static int linux_set_osname(struct thread *td, char *osname);
+static int linux_set_osrelease(struct thread *td, char *osrelease);
+static int linux_set_oss_version(struct thread *td, int oss_version);
 
-static int
-linux_sysctl_osname(SYSCTL_HANDLER_ARGS)
+static int linux_sysctl_osname(SYSCTL_HANDLER_ARGS)
 {
 	char osname[LINUX_MAX_UTSNAME];
 	int error;
@@ -119,12 +117,10 @@ linux_sysctl_osname(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_compat_linux, OID_AUTO, osname,
-	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
-	    0, 0, linux_sysctl_osname, "A",
-	    "Linux kernel OS name");
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE, 0, 0,
+    linux_sysctl_osname, "A", "Linux kernel OS name");
 
-static int
-linux_sysctl_osrelease(SYSCTL_HANDLER_ARGS)
+static int linux_sysctl_osrelease(SYSCTL_HANDLER_ARGS)
 {
 	char osrelease[LINUX_MAX_UTSNAME];
 	int error;
@@ -139,12 +135,10 @@ linux_sysctl_osrelease(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_compat_linux, OID_AUTO, osrelease,
-	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
-	    0, 0, linux_sysctl_osrelease, "A",
-	    "Linux kernel OS release");
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE, 0, 0,
+    linux_sysctl_osrelease, "A", "Linux kernel OS release");
 
-static int
-linux_sysctl_oss_version(SYSCTL_HANDLER_ARGS)
+static int linux_sysctl_oss_version(SYSCTL_HANDLER_ARGS)
 {
 	int oss_version;
 	int error;
@@ -159,9 +153,8 @@ linux_sysctl_oss_version(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_compat_linux, OID_AUTO, oss_version,
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
-	    0, 0, linux_sysctl_oss_version, "I",
-	    "Linux OSS version");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE, 0, 0,
+    linux_sysctl_oss_version, "I", "Linux OSS version");
 
 /*
  * Map the osrelease into integer
@@ -209,9 +202,8 @@ linux_find_prison(struct prison *spr, struct prison **prp)
 
 	for (pr = spr;; pr = pr->pr_parent) {
 		mtx_lock(&pr->pr_mtx);
-		lpr = (pr == &prison0)
-		    ? &lprison0
-		    : osd_jail_get(pr, linux_osd_jail_slot);
+		lpr = (pr == &prison0) ? &lprison0 :
+					       osd_jail_get(pr, linux_osd_jail_slot);
 		if (lpr != NULL)
 			break;
 		mtx_unlock(&pr->pr_mtx);
@@ -255,7 +247,7 @@ linux_alloc_prison(struct prison *pr, struct linux_prison **lprp)
 	bcopy(lpr, nlpr, sizeof(*lpr));
 	lpr = nlpr;
 	mtx_unlock(&ppr->pr_mtx);
- done:
+done:
 	if (lprp != NULL)
 		*lprp = lpr;
 	else
@@ -325,8 +317,8 @@ linux_prison_check(void *obj __unused, void *data)
 			return (error);
 		}
 	}
-	error = vfs_copyopt(opts, "linux.oss_version", &oss_version,
-	    sizeof(oss_version));
+	error = vfs_copyopt(
+	    opts, "linux.oss_version", &oss_version, sizeof(oss_version));
 
 	if (error == ENOENT)
 		error = 0;
@@ -356,8 +348,8 @@ linux_prison_set(void *obj, void *data)
 		osrelease = NULL;
 	else
 		jsys = JAIL_SYS_NEW;
-	error = vfs_copyopt(opts, "linux.oss_version", &oss_version,
-	    sizeof(oss_version));
+	error = vfs_copyopt(
+	    opts, "linux.oss_version", &oss_version, sizeof(oss_version));
 	if (error == ENOENT)
 		gotversion = 0;
 	else {
@@ -379,8 +371,8 @@ linux_prison_set(void *obj, void *data)
 		linux_alloc_prison(pr, &lpr);
 		if (osrelease) {
 			(void)linux_map_osrel(osrelease, &lpr->pr_osrel);
-			strlcpy(lpr->pr_osrelease, osrelease,
-			    LINUX_MAX_UTSNAME);
+			strlcpy(
+			    lpr->pr_osrelease, osrelease, LINUX_MAX_UTSNAME);
 		}
 		if (osname)
 			strlcpy(lpr->pr_osname, osname, LINUX_MAX_UTSNAME);
@@ -393,12 +385,12 @@ linux_prison_set(void *obj, void *data)
 }
 
 SYSCTL_JAIL_PARAM_SYS_NODE(linux, CTLFLAG_RW, "Jail Linux parameters");
-SYSCTL_JAIL_PARAM_STRING(_linux, osname, CTLFLAG_RW, LINUX_MAX_UTSNAME,
-    "Jail Linux kernel OS name");
+SYSCTL_JAIL_PARAM_STRING(
+    _linux, osname, CTLFLAG_RW, LINUX_MAX_UTSNAME, "Jail Linux kernel OS name");
 SYSCTL_JAIL_PARAM_STRING(_linux, osrelease, CTLFLAG_RW, LINUX_MAX_UTSNAME,
     "Jail Linux kernel OS release");
-SYSCTL_JAIL_PARAM(_linux, oss_version, CTLTYPE_INT | CTLFLAG_RW,
-    "I", "Jail Linux OSS version");
+SYSCTL_JAIL_PARAM(_linux, oss_version, CTLTYPE_INT | CTLFLAG_RW, "I",
+    "Jail Linux OSS version");
 
 static int
 linux_prison_get(void *obj, void *data)
@@ -446,7 +438,7 @@ linux_prison_get(void *obj, void *data)
 	}
 	error = 0;
 
- done:
+done:
 	mtx_unlock(&ppr->pr_mtx);
 
 	return (error);
@@ -464,17 +456,17 @@ linux_osd_jail_register(void)
 {
 	struct prison *pr;
 	osd_method_t methods[PR_MAXMETHOD] = {
-	    [PR_METHOD_CREATE] =	linux_prison_create,
-	    [PR_METHOD_GET] =		linux_prison_get,
-	    [PR_METHOD_SET] =		linux_prison_set,
-	    [PR_METHOD_CHECK] =		linux_prison_check
+		[PR_METHOD_CREATE] = linux_prison_create,
+		[PR_METHOD_GET] = linux_prison_get,
+		[PR_METHOD_SET] = linux_prison_set,
+		[PR_METHOD_CHECK] = linux_prison_check
 	};
 
-	linux_osd_jail_slot =
-	    osd_jail_register(linux_prison_destructor, methods);
+	linux_osd_jail_slot = osd_jail_register(
+	    linux_prison_destructor, methods);
 	/* Copy the system Linux info to any current prisons. */
 	sx_slock(&allprison_lock);
-	TAILQ_FOREACH(pr, &allprison, pr_list)
+	TAILQ_FOREACH (pr, &allprison, pr_list)
 		linux_alloc_prison(pr, NULL);
 	sx_sunlock(&allprison_lock);
 }

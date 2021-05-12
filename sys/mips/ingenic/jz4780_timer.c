@@ -33,18 +33,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
-#include <sys/timetc.h>
 #include <sys/timeet.h>
+#include <sys/timetc.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/hwfunc.h>
 
 #include <dev/extres/clk/clk.h>
-
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -52,20 +51,19 @@ __FBSDID("$FreeBSD$");
 #include <mips/ingenic/jz4780_regs.h>
 
 struct jz4780_timer_softc {
-	device_t		dev;
-	struct resource	*	res[4];
-	void *			ih_cookie;
-	struct eventtimer	et;
-	struct timecounter	tc;
+	device_t dev;
+	struct resource *res[4];
+	void *ih_cookie;
+	struct eventtimer et;
+	struct timecounter tc;
 };
 
-static struct resource_spec jz4780_timer_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },	/* OST */
-	{ SYS_RES_IRQ,		1,	RF_ACTIVE },	/* TC5 */
-	{ SYS_RES_IRQ,		2,	RF_ACTIVE },	/* TC0-4,6 */
-	{ -1, 0 }
-};
+static struct resource_spec jz4780_timer_spec[] = { { SYS_RES_MEMORY, 0,
+							RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE }, /* OST */
+	{ SYS_RES_IRQ, 1, RF_ACTIVE }, /* TC5 */
+	{ SYS_RES_IRQ, 2, RF_ACTIVE }, /* TC0-4,6 */
+	{ -1, 0 } };
 
 /*
  * devclass_get_device / device_get_softc could be used
@@ -75,14 +73,14 @@ static struct resource_spec jz4780_timer_spec[] = {
  */
 static struct jz4780_timer_softc *jz4780_timer_sc = NULL;
 
-#define	CSR_WRITE_4(sc, reg, val)	bus_write_4((sc)->res[0], reg, (val))
-#define	CSR_READ_4(sc, reg)		bus_read_4((sc)->res[0], reg)
+#define CSR_WRITE_4(sc, reg, val) bus_write_4((sc)->res[0], reg, (val))
+#define CSR_READ_4(sc, reg) bus_read_4((sc)->res[0], reg)
 
 static unsigned
 jz4780_get_timecount(struct timecounter *tc)
 {
-	struct jz4780_timer_softc *sc =
-	    (struct jz4780_timer_softc *)tc->tc_priv;
+	struct jz4780_timer_softc *sc = (struct jz4780_timer_softc *)
+					    tc->tc_priv;
 
 	return CSR_READ_4(sc, JZ_OST_CNT_LO);
 }
@@ -104,8 +102,8 @@ jz4780_hardclock(void *arg)
 static int
 jz4780_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
-	struct jz4780_timer_softc *sc =
-	    (struct jz4780_timer_softc *)et->et_priv;
+	struct jz4780_timer_softc *sc = (struct jz4780_timer_softc *)
+					    et->et_priv;
 	uint32_t ticks;
 
 	ticks = (first * et->et_frequency) / SBT_1S;
@@ -122,8 +120,8 @@ jz4780_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 static int
 jz4780_timer_stop(struct eventtimer *et)
 {
-	struct jz4780_timer_softc *sc =
-	    (struct jz4780_timer_softc *)et->et_priv;
+	struct jz4780_timer_softc *sc = (struct jz4780_timer_softc *)
+					    et->et_priv;
 
 	CSR_WRITE_4(sc, JZ_TC_TECR, TESR_TCST5);
 	return (0);
@@ -184,8 +182,9 @@ jz4780_timer_attach(device_t dev)
 	/* Stop OST, if it happens to be running */
 	CSR_WRITE_4(sc, JZ_TC_TECR, TESR_OST);
 	/* Stop all other channels as well */
-	CSR_WRITE_4(sc, JZ_TC_TECR, TESR_TCST0 | TESR_TCST1 | TESR_TCST2 |
-	    TESR_TCST3 | TESR_TCST4 | TESR_TCST5 | TESR_TCST6 | TESR_TCST7);
+	CSR_WRITE_4(sc, JZ_TC_TECR,
+	    TESR_TCST0 | TESR_TCST1 | TESR_TCST2 | TESR_TCST3 | TESR_TCST4 |
+		TESR_TCST5 | TESR_TCST6 | TESR_TCST7);
 	/* Clear detect mask flags */
 	CSR_WRITE_4(sc, JZ_TC_TFCR, 0xFFFFFFFF);
 	/* Mask all interrupts */
@@ -207,8 +206,8 @@ jz4780_timer_attach(device_t dev)
 	CSR_WRITE_4(sc, JZ_TC_TCSR(5), TCSR_EXT_EN | TCSR_DIV_16);
 	CSR_WRITE_4(sc, JZ_TC_TMCR, TMR_FMASK(5));
 
-	if (bus_setup_intr(dev, sc->res[2], INTR_TYPE_CLK,
-	    jz4780_hardclock, NULL, sc, &sc->ih_cookie)) {
+	if (bus_setup_intr(dev, sc->res[2], INTR_TYPE_CLK, jz4780_hardclock,
+		NULL, sc, &sc->ih_cookie)) {
 		device_printf(dev, "could not setup interrupt handler\n");
 		bus_release_resources(dev, jz4780_timer_spec, sc->res);
 		return (ENXIO);
@@ -250,9 +249,9 @@ jz4780_timer_detach(device_t dev)
 
 static device_method_t jz4780_timer_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		jz4780_timer_probe),
-	DEVMETHOD(device_attach,	jz4780_timer_attach),
-	DEVMETHOD(device_detach,	jz4780_timer_detach),
+	DEVMETHOD(device_probe, jz4780_timer_probe),
+	DEVMETHOD(device_attach, jz4780_timer_attach),
+	DEVMETHOD(device_detach, jz4780_timer_detach),
 
 	DEVMETHOD_END
 };
@@ -294,8 +293,8 @@ DELAY(int usec)
 	 * multiple of 1000000.  Given the data type and typical values for
 	 * tc_frequency adding 999999 shouldn't overflow.
 	 */
-	remaining = usec * ((jz4780_timer_sc->tc.tc_frequency + 999999) /
-	    1000000);
+	remaining = usec *
+	    ((jz4780_timer_sc->tc.tc_frequency + 999999) / 1000000);
 
 	/*
 	 * We add one since the first iteration may catch the counter just
@@ -305,7 +304,7 @@ DELAY(int usec)
 
 	previous = jz4780_get_timecount(&jz4780_timer_sc->tc);
 
-	for ( ; ; ) {
+	for (;;) {
 		now = jz4780_get_timecount(&jz4780_timer_sc->tc);
 
 		/*
@@ -334,5 +333,4 @@ DELAY(int usec)
 void
 platform_initclocks(void)
 {
-
 }

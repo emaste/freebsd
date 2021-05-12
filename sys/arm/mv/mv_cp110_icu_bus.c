@@ -35,19 +35,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
-#include <machine/bus.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
+#include <machine/bus.h>
 
 #include <dev/extres/syscon/syscon.h>
 #include <dev/fdt/simple_mfd.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
-static struct ofw_compat_data compat_data[] = {
-	{"marvell,cp110-icu",	1},
-	{NULL,			0}
-};
+static struct ofw_compat_data compat_data[] = { { "marvell,cp110-icu", 1 },
+	{ NULL, 0 } };
 
 static int
 mv_cp110_icu_bus_probe(device_t dev)

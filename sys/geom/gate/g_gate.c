@@ -37,25 +37,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
-#include <sys/fcntl.h>
+#include <sys/limits.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/limits.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
-#include <sys/sysctl.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
+
 #include <machine/atomic.h>
 
+#include <geom/gate/g_gate.h>
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/gate/g_gate.h>
 
 FEATURE(geom_gate, "GEOM Gate module");
 
@@ -78,11 +79,9 @@ struct g_class g_gate_class = {
 
 static struct cdev *status_dev;
 static d_ioctl_t g_gate_ioctl;
-static struct cdevsw g_gate_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_ioctl =	g_gate_ioctl,
-	.d_name =	G_GATE_CTL_NAME
-};
+static struct cdevsw g_gate_cdevsw = { .d_version = D_VERSION,
+	.d_ioctl = g_gate_ioctl,
+	.d_name = G_GATE_CTL_NAME };
 
 static struct g_gate_softc **g_gate_units;
 static u_int g_gate_nunits;
@@ -178,7 +177,7 @@ g_gate_access(struct g_provider *pp, int dr, int dw, int de)
 	sc = pp->geom->softc;
 	if (sc == NULL || (sc->sc_flags & G_GATE_FLAG_DESTROY) != 0)
 		return (ENXIO);
-	/* XXX: Hack to allow read-only mounts. */
+		/* XXX: Hack to allow read-only mounts. */
 #if 0
 	if ((sc->sc_flags & G_GATE_FLAG_READONLY) != 0 && dw > 0)
 		return (EPERM);
@@ -315,7 +314,7 @@ g_gate_hold(int unit, const char *name)
 			if (g_gate_units[unit] == NULL)
 				continue;
 			if (strcmp(name,
-			    g_gate_units[unit]->sc_provider->name) != 0) {
+				g_gate_units[unit]->sc_provider->name) != 0) {
 				continue;
 			}
 			sc = g_gate_units[unit];
@@ -376,14 +375,14 @@ g_gate_guard(void *arg)
 	g_gate_hold(sc->sc_unit, NULL);
 	bioq_init(&queue);
 	mtx_lock(&sc->sc_queue_mtx);
-	TAILQ_FOREACH_SAFE(bp, &sc->sc_inqueue.queue, bio_queue, bp2) {
+	TAILQ_FOREACH_SAFE (bp, &sc->sc_inqueue.queue, bio_queue, bp2) {
 		if (curtime.sec - bp->bio_t0.sec < 5)
 			continue;
 		bioq_remove(&sc->sc_inqueue, bp);
 		sc->sc_queue_count--;
 		bioq_insert_tail(&queue, bp);
 	}
-	TAILQ_FOREACH_SAFE(bp, &sc->sc_outqueue.queue, bio_queue, bp2) {
+	TAILQ_FOREACH_SAFE (bp, &sc->sc_outqueue.queue, bio_queue, bp2) {
 		if (curtime.sec - bp->bio_t0.sec < 5)
 			continue;
 		bioq_remove(&sc->sc_outqueue, bp);
@@ -396,8 +395,8 @@ g_gate_guard(void *arg)
 		g_io_deliver(bp, EIO);
 	}
 	if ((sc->sc_flags & G_GATE_FLAG_DESTROY) == 0) {
-		callout_reset(&sc->sc_callout, sc->sc_timeout * hz,
-		    g_gate_guard, sc);
+		callout_reset(
+		    &sc->sc_callout, sc->sc_timeout * hz, g_gate_guard, sc);
 	}
 	g_gate_release(sc);
 }
@@ -436,24 +435,24 @@ g_gate_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if ((sc->sc_flags & G_GATE_FLAG_READONLY) != 0) {
 		sbuf_printf(sb, "%s<access>%s</access>\n", indent, "read-only");
 	} else if ((sc->sc_flags & G_GATE_FLAG_WRITEONLY) != 0) {
-		sbuf_printf(sb, "%s<access>%s</access>\n", indent,
-		    "write-only");
+		sbuf_printf(
+		    sb, "%s<access>%s</access>\n", indent, "write-only");
 	} else {
-		sbuf_printf(sb, "%s<access>%s</access>\n", indent,
-		    "read-write");
+		sbuf_printf(
+		    sb, "%s<access>%s</access>\n", indent, "read-write");
 	}
 	if (sc->sc_readcons != NULL) {
-		sbuf_printf(sb, "%s<read_offset>%jd</read_offset>\n",
-		    indent, (intmax_t)sc->sc_readoffset);
-		sbuf_printf(sb, "%s<read_provider>%s</read_provider>\n",
-		    indent, sc->sc_readcons->provider->name);
+		sbuf_printf(sb, "%s<read_offset>%jd</read_offset>\n", indent,
+		    (intmax_t)sc->sc_readoffset);
+		sbuf_printf(sb, "%s<read_provider>%s</read_provider>\n", indent,
+		    sc->sc_readcons->provider->name);
 	}
 	sbuf_printf(sb, "%s<timeout>%u</timeout>\n", indent, sc->sc_timeout);
 	sbuf_printf(sb, "%s<info>%s</info>\n", indent, sc->sc_info);
 	sbuf_printf(sb, "%s<queue_count>%u</queue_count>\n", indent,
 	    sc->sc_queue_count);
-	sbuf_printf(sb, "%s<queue_size>%u</queue_size>\n", indent,
-	    sc->sc_queue_size);
+	sbuf_printf(
+	    sb, "%s<queue_size>%u</queue_size>\n", indent, sc->sc_queue_size);
 	sbuf_printf(sb, "%s<ref>%u</ref>\n", indent, sc->sc_ref);
 	sbuf_printf(sb, "%s<unit>%d</unit>\n", indent, sc->sc_unit);
 	g_topology_unlock();
@@ -493,8 +492,7 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 		return (EINVAL);
 	}
 	if (ggio->gctl_unit != G_GATE_UNIT_AUTO &&
-	    ggio->gctl_unit != G_GATE_NAME_GIVEN &&
-	    ggio->gctl_unit < 0) {
+	    ggio->gctl_unit != G_GATE_NAME_GIVEN && ggio->gctl_unit < 0) {
 		G_GATE_DEBUG(1, "Invalid unit number.");
 		return (EINVAL);
 	}
@@ -609,8 +607,8 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	G_GATE_DEBUG(1, "Device %s created.", gp->name);
 
 	if (sc->sc_timeout > 0) {
-		callout_reset(&sc->sc_callout, sc->sc_timeout * hz,
-		    g_gate_guard, sc);
+		callout_reset(
+		    &sc->sc_callout, sc->sc_timeout * hz, g_gate_guard, sc);
 	}
 	return (0);
 fail3:
@@ -652,7 +650,8 @@ g_gate_modify(struct g_gate_softc *sc, struct g_gate_ctl_modify *ggio)
 	}
 
 	if ((ggio->gctl_modify & GG_MODIFY_INFO) != 0)
-		(void)strlcpy(sc->sc_info, ggio->gctl_info, sizeof(sc->sc_info));
+		(void)strlcpy(
+		    sc->sc_info, ggio->gctl_info, sizeof(sc->sc_info));
 
 	cp = NULL;
 
@@ -679,8 +678,8 @@ g_gate_modify(struct g_gate_softc *sc, struct g_gate_ctl_modify *ggio)
 			cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 			error = g_attach(cp, pp);
 			if (error != 0) {
-				G_GATE_DEBUG(1, "Unable to attach to %s.",
-				    pp->name);
+				G_GATE_DEBUG(
+				    1, "Unable to attach to %s.", pp->name);
 			} else {
 				error = g_access(cp, 1, 0, 0);
 				if (error != 0) {
@@ -725,15 +724,17 @@ g_gate_modify(struct g_gate_softc *sc, struct g_gate_ctl_modify *ggio)
 	return (0);
 }
 
-#define	G_GATE_CHECK_VERSION(ggio)	do {				\
-	if ((ggio)->gctl_version != G_GATE_VERSION) {			\
-		printf("Version mismatch %d != %d.\n",			\
-		    ggio->gctl_version, G_GATE_VERSION);		\
-		return (EINVAL);					\
-	}								\
-} while (0)
+#define G_GATE_CHECK_VERSION(ggio)                               \
+	do {                                                     \
+		if ((ggio)->gctl_version != G_GATE_VERSION) {    \
+			printf("Version mismatch %d != %d.\n",   \
+			    ggio->gctl_version, G_GATE_VERSION); \
+			return (EINVAL);                         \
+		}                                                \
+	} while (0)
 static int
-g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+g_gate_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct g_gate_softc *sc;
 	struct bio *bp;
@@ -743,8 +744,7 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 	    flags, td);
 
 	switch (cmd) {
-	case G_GATE_CMD_CREATE:
-	    {
+	case G_GATE_CMD_CREATE: {
 		struct g_gate_ctl_create *ggio = (void *)addr;
 
 		G_GATE_CHECK_VERSION(ggio);
@@ -757,9 +757,8 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		 */
 		td->td_pflags &= ~TDP_GEOM;
 		return (error);
-	    }
-	case G_GATE_CMD_MODIFY:
-	    {
+	}
+	case G_GATE_CMD_MODIFY: {
 		struct g_gate_ctl_modify *ggio = (void *)addr;
 
 		G_GATE_CHECK_VERSION(ggio);
@@ -769,9 +768,8 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		error = g_gate_modify(sc, ggio);
 		g_gate_release(sc);
 		return (error);
-	    }
-	case G_GATE_CMD_DESTROY:
-	    {
+	}
+	case G_GATE_CMD_DESTROY: {
 		struct g_gate_ctl_destroy *ggio = (void *)addr;
 
 		G_GATE_CHECK_VERSION(ggio);
@@ -785,9 +783,8 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		if (error != 0)
 			g_gate_release(sc);
 		return (error);
-	    }
-	case G_GATE_CMD_CANCEL:
-	    {
+	}
+	case G_GATE_CMD_CANCEL: {
 		struct g_gate_ctl_cancel *ggio = (void *)addr;
 		struct bio *tbp, *lbp;
 
@@ -797,7 +794,8 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 			return (ENXIO);
 		lbp = NULL;
 		mtx_lock(&sc->sc_queue_mtx);
-		TAILQ_FOREACH_SAFE(bp, &sc->sc_outqueue.queue, bio_queue, tbp) {
+		TAILQ_FOREACH_SAFE (
+		    bp, &sc->sc_outqueue.queue, bio_queue, tbp) {
 			if (ggio->gctl_seq == 0 ||
 			    ggio->gctl_seq == (uintptr_t)bp->bio_driver1) {
 				G_GATE_LOGREQ(1, bp, "Request canceled.");
@@ -809,8 +807,9 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 				if (lbp == NULL)
 					bioq_insert_head(&sc->sc_inqueue, bp);
 				else {
-					TAILQ_INSERT_AFTER(&sc->sc_inqueue.queue,
-					    lbp, bp, bio_queue);
+					TAILQ_INSERT_AFTER(
+					    &sc->sc_inqueue.queue, lbp, bp,
+					    bio_queue);
 				}
 				lbp = bp;
 				/*
@@ -825,9 +824,8 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		mtx_unlock(&sc->sc_queue_mtx);
 		g_gate_release(sc);
 		return (error);
-	    }
-	case G_GATE_CMD_START:
-	    {
+	}
+	case G_GATE_CMD_START: {
 		struct g_gate_ctl_io *ggio = (void *)addr;
 
 		G_GATE_CHECK_VERSION(ggio);
@@ -846,7 +844,7 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 				goto start_end;
 			}
 			if (msleep(sc, &sc->sc_queue_mtx,
-			    PPAUSE | PDROP | PCATCH, "ggwait", 0) != 0) {
+				PPAUSE | PDROP | PCATCH, "ggwait", 0) != 0) {
 				ggio->gctl_error = ECANCELED;
 				goto start_end;
 			}
@@ -874,8 +872,8 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		case BIO_SPEEDUP:
 			break;
 		case BIO_WRITE:
-			error = copyout(bp->bio_data, ggio->gctl_data,
-			    bp->bio_length);
+			error = copyout(
+			    bp->bio_data, ggio->gctl_data, bp->bio_length);
 			if (error != 0) {
 				mtx_lock(&sc->sc_queue_mtx);
 				bioq_remove(&sc->sc_outqueue, bp);
@@ -885,12 +883,11 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 			}
 			break;
 		}
-start_end:
+	start_end:
 		g_gate_release(sc);
 		return (error);
-	    }
-	case G_GATE_CMD_DONE:
-	    {
+	}
+	case G_GATE_CMD_DONE: {
 		struct g_gate_ctl_io *ggio = (void *)addr;
 
 		G_GATE_CHECK_VERSION(ggio);
@@ -899,7 +896,7 @@ start_end:
 			return (ENOENT);
 		error = 0;
 		mtx_lock(&sc->sc_queue_mtx);
-		TAILQ_FOREACH(bp, &sc->sc_outqueue.queue, bio_queue) {
+		TAILQ_FOREACH (bp, &sc->sc_outqueue.queue, bio_queue) {
 			if (ggio->gctl_seq == (uintptr_t)bp->bio_driver1)
 				break;
 		}
@@ -943,10 +940,10 @@ start_end:
 			G_GATE_LOGREQ(2, bp, "Request done.");
 			g_io_deliver(bp, bp->bio_error);
 		}
-done_end:
+	done_end:
 		g_gate_release(sc);
 		return (error);
-	    }
+	}
 	}
 	return (ENOIOCTL);
 }
@@ -955,8 +952,8 @@ static void
 g_gate_device(void)
 {
 
-	status_dev = make_dev(&g_gate_cdevsw, 0x0, UID_ROOT, GID_WHEEL, 0600,
-	    G_GATE_CTL_NAME);
+	status_dev = make_dev(
+	    &g_gate_cdevsw, 0x0, UID_ROOT, GID_WHEEL, 0600, G_GATE_CTL_NAME);
 }
 
 static int
@@ -992,11 +989,7 @@ g_gate_modevent(module_t mod, int type, void *data)
 
 	return (error);
 }
-static moduledata_t g_gate_module = {
-	G_GATE_MOD_NAME,
-	g_gate_modevent,
-	NULL
-};
+static moduledata_t g_gate_module = { G_GATE_MOD_NAME, g_gate_modevent, NULL };
 DECLARE_MODULE(geom_gate, g_gate_module, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 DECLARE_GEOM_CLASS(g_gate_class, g_gate);
 MODULE_VERSION(geom_gate, 0);

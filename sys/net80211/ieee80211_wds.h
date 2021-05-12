@@ -32,10 +32,10 @@
 /*
  * WDS implementation definitions.
  */
-void	ieee80211_wds_attach(struct ieee80211com *);
-void	ieee80211_wds_detach(struct ieee80211com *);
+void ieee80211_wds_attach(struct ieee80211com *);
+void ieee80211_wds_detach(struct ieee80211com *);
 
-void	ieee80211_dwds_mcast(struct ieee80211vap *, struct mbuf *);
-void	ieee80211_dwds_discover(struct ieee80211_node *, struct mbuf *);
-int	ieee80211_node_wdsq_age(struct ieee80211_node *);
+void ieee80211_dwds_mcast(struct ieee80211vap *, struct mbuf *);
+void ieee80211_dwds_discover(struct ieee80211_node *, struct mbuf *);
+int ieee80211_node_wdsq_age(struct ieee80211_node *);
 #endif /* !_NET80211_IEEE80211_WDS_H_ */

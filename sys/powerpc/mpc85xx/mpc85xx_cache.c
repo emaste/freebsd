@@ -49,54 +49,52 @@ __FBSDID("$FreeBSD$");
  * - read
  * - mbar
  */
-#define	L2_CTL		0x0
-#define	  L2CTL_L2E	  0x80000000
-#define	  L2CTL_L2I	  0x40000000
+#define L2_CTL 0x0
+#define L2CTL_L2E 0x80000000
+#define L2CTL_L2I 0x40000000
 struct mpc85xx_cache_softc {
-	struct resource	*sc_mem;
+	struct resource *sc_mem;
 };
 
-static struct ofw_compat_data compats[] = {
-    {"fsl,8540-l2-cache-controller", 1},
-    {"fsl,8541-l2-cache-controller", 1},
-    {"fsl,8544-l2-cache-controller", 1},
-    {"fsl,8548-l2-cache-controller", 1},
-    {"fsl,8555-l2-cache-controller", 1},
-    {"fsl,8568-l2-cache-controller", 1},
-    {"fsl,b4420-l2-cache-controller", 1},
-    {"fsl,b4860-l2-cache-controller", 1},
-    {"fsl,bsc9131-l2-cache-controller", 1},
-    {"fsl,bsc9132-l2-cache-controller", 1},
-    {"fsl,c293-l2-cache-controller", 1},
-    {"fsl,mpc8536-l2-cache-controller", 1},
-    {"fsl,mpc8540-l2-cache-controller", 1},
-    {"fsl,mpc8541-l2-cache-controller", 1},
-    {"fsl,mpc8544-l2-cache-controller", 1},
-    {"fsl,mpc8548-l2-cache-controller", 1},
-    {"fsl,mpc8555-l2-cache-controller", 1},
-    {"fsl,mpc8560-l2-cache-controller", 1},
-    {"fsl,mpc8568-l2-cache-controller", 1},
-    {"fsl,mpc8569-l2-cache-controller", 1},
-    {"fsl,mpc8572-l2-cache-controller", 1},
-    {"fsl,p1010-l2-cache-controller", 1},
-    {"fsl,p1011-l2-cache-controller", 1},
-    {"fsl,p1012-l2-cache-controller", 1},
-    {"fsl,p1013-l2-cache-controller", 1},
-    {"fsl,p1014-l2-cache-controller", 1},
-    {"fsl,p1015-l2-cache-controller", 1},
-    {"fsl,p1016-l2-cache-controller", 1},
-    {"fsl,p1020-l2-cache-controller", 1},
-    {"fsl,p1021-l2-cache-controller", 1},
-    {"fsl,p1022-l2-cache-controller", 1},
-    {"fsl,p1023-l2-cache-controller", 1},
-    {"fsl,p1024-l2-cache-controller", 1},
-    {"fsl,p1025-l2-cache-controller", 1},
-    {"fsl,p2010-l2-cache-controller", 1},
-    {"fsl,p2020-l2-cache-controller", 1},
-    {"fsl,t2080-l2-cache-controller", 1},
-    {"fsl,t4240-l2-cache-controller", 1},
-    {0, 0}
-};
+static struct ofw_compat_data compats[] = { { "fsl,8540-l2-cache-controller",
+						1 },
+	{ "fsl,8541-l2-cache-controller", 1 },
+	{ "fsl,8544-l2-cache-controller", 1 },
+	{ "fsl,8548-l2-cache-controller", 1 },
+	{ "fsl,8555-l2-cache-controller", 1 },
+	{ "fsl,8568-l2-cache-controller", 1 },
+	{ "fsl,b4420-l2-cache-controller", 1 },
+	{ "fsl,b4860-l2-cache-controller", 1 },
+	{ "fsl,bsc9131-l2-cache-controller", 1 },
+	{ "fsl,bsc9132-l2-cache-controller", 1 },
+	{ "fsl,c293-l2-cache-controller", 1 },
+	{ "fsl,mpc8536-l2-cache-controller", 1 },
+	{ "fsl,mpc8540-l2-cache-controller", 1 },
+	{ "fsl,mpc8541-l2-cache-controller", 1 },
+	{ "fsl,mpc8544-l2-cache-controller", 1 },
+	{ "fsl,mpc8548-l2-cache-controller", 1 },
+	{ "fsl,mpc8555-l2-cache-controller", 1 },
+	{ "fsl,mpc8560-l2-cache-controller", 1 },
+	{ "fsl,mpc8568-l2-cache-controller", 1 },
+	{ "fsl,mpc8569-l2-cache-controller", 1 },
+	{ "fsl,mpc8572-l2-cache-controller", 1 },
+	{ "fsl,p1010-l2-cache-controller", 1 },
+	{ "fsl,p1011-l2-cache-controller", 1 },
+	{ "fsl,p1012-l2-cache-controller", 1 },
+	{ "fsl,p1013-l2-cache-controller", 1 },
+	{ "fsl,p1014-l2-cache-controller", 1 },
+	{ "fsl,p1015-l2-cache-controller", 1 },
+	{ "fsl,p1016-l2-cache-controller", 1 },
+	{ "fsl,p1020-l2-cache-controller", 1 },
+	{ "fsl,p1021-l2-cache-controller", 1 },
+	{ "fsl,p1022-l2-cache-controller", 1 },
+	{ "fsl,p1023-l2-cache-controller", 1 },
+	{ "fsl,p1024-l2-cache-controller", 1 },
+	{ "fsl,p1025-l2-cache-controller", 1 },
+	{ "fsl,p2010-l2-cache-controller", 1 },
+	{ "fsl,p2020-l2-cache-controller", 1 },
+	{ "fsl,t2080-l2-cache-controller", 1 },
+	{ "fsl,t4240-l2-cache-controller", 1 }, { 0, 0 } };
 
 static int
 mpc85xx_cache_probe(device_t dev)
@@ -118,16 +116,16 @@ mpc85xx_cache_attach(device_t dev)
 
 	/* Map registers. */
 	rid = 0;
-	sc->sc_mem = bus_alloc_resource_any(dev,
-		     SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->sc_mem = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->sc_mem == NULL)
 		return (ENOMEM);
 
 	/* Enable cache and flash invalidate. */
-	__asm __volatile ("mbar; isync" ::: "memory");
+	__asm __volatile("mbar; isync" ::: "memory");
 	bus_write_4(sc->sc_mem, L2_CTL, L2CTL_L2E | L2CTL_L2I);
 	bus_read_4(sc->sc_mem, L2_CTL);
-	__asm __volatile ("mbar" ::: "memory");
+	__asm __volatile("mbar" ::: "memory");
 
 	cache_line_size = 0;
 	cache_size = 0;
@@ -146,8 +144,8 @@ mpc85xx_cache_attach(device_t dev)
 
 static device_method_t mpc85xx_cache_methods[] = {
 	/* device methods */
-	DEVMETHOD(device_probe, 	mpc85xx_cache_probe),
-	DEVMETHOD(device_attach, 	mpc85xx_cache_attach),
+	DEVMETHOD(device_probe, mpc85xx_cache_probe),
+	DEVMETHOD(device_attach, mpc85xx_cache_attach),
 
 	DEVMETHOD_END
 };

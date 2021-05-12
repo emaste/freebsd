@@ -37,12 +37,12 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/dwc/if_dwc.h>
 #include <dev/dwc/if_dwcvar.h>
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/regulator/regulator.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/allwinner/aw_machdep.h>
-#include <dev/extres/clk/clk.h>
-#include <dev/extres/regulator/regulator.h>
 
 #include "if_dwc_if.h"
 
@@ -73,7 +73,8 @@ a20_if_dwc_init(device_t dev)
 
 	/* Configure PHY for MII or RGMII mode */
 	if (OF_getprop_alloc(node, "phy-mode", (void **)&phy_type)) {
-		error = clk_get_by_ofw_name(dev, 0, "allwinner_gmac_tx", &clk_tx);
+		error = clk_get_by_ofw_name(
+		    dev, 0, "allwinner_gmac_tx", &clk_tx);
 		if (error != 0) {
 			device_printf(dev, "could not get tx clk\n");
 			return (error);
@@ -86,8 +87,8 @@ a20_if_dwc_init(device_t dev)
 
 		error = clk_get_by_name(dev, tx_parent_name, &clk_tx_parent);
 		if (error != 0) {
-			device_printf(dev, "could not get clock '%s'\n",
-			    tx_parent_name);
+			device_printf(
+			    dev, "could not get clock '%s'\n", tx_parent_name);
 			return (error);
 		}
 
@@ -124,22 +125,21 @@ a20_if_dwc_mii_clk(device_t dev)
 	return (GMAC_MII_CLK_150_250M_DIV102);
 }
 
-static device_method_t a20_dwc_methods[] = {
-	DEVMETHOD(device_probe,		a20_if_dwc_probe),
+static device_method_t a20_dwc_methods[] = { DEVMETHOD(device_probe,
+						 a20_if_dwc_probe),
 
-	DEVMETHOD(if_dwc_init,		a20_if_dwc_init),
-	DEVMETHOD(if_dwc_mac_type,	a20_if_dwc_mac_type),
-	DEVMETHOD(if_dwc_mii_clk,	a20_if_dwc_mii_clk),
+	DEVMETHOD(if_dwc_init, a20_if_dwc_init),
+	DEVMETHOD(if_dwc_mac_type, a20_if_dwc_mac_type),
+	DEVMETHOD(if_dwc_mii_clk, a20_if_dwc_mii_clk),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static devclass_t a20_dwc_devclass;
 
 extern driver_t dwc_driver;
 
-DEFINE_CLASS_1(dwc, a20_dwc_driver, a20_dwc_methods, sizeof(struct dwc_softc),
-    dwc_driver);
+DEFINE_CLASS_1(
+    dwc, a20_dwc_driver, a20_dwc_methods, sizeof(struct dwc_softc), dwc_driver);
 DRIVER_MODULE(a20_dwc, simplebus, a20_dwc_driver, a20_dwc_devclass, 0, 0);
 
 MODULE_DEPEND(a20_dwc, dwc, 1, 1, 1);

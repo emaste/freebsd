@@ -19,13 +19,13 @@
  */
 
 #ifndef _SYS_AIO_H_
-#define	_SYS_AIO_H_
+#define _SYS_AIO_H_
 
 #include <sys/types.h>
 #include <sys/signal.h>
 #ifdef _KERNEL
-#include <sys/queue.h>
 #include <sys/event.h>
+#include <sys/queue.h>
 #include <sys/signalvar.h>
 #include <sys/uio.h>
 #endif
@@ -33,50 +33,50 @@
 /*
  * Returned by aio_cancel:
  */
-#define	AIO_CANCELED		0x1
-#define	AIO_NOTCANCELED		0x2
-#define	AIO_ALLDONE		0x3
+#define AIO_CANCELED 0x1
+#define AIO_NOTCANCELED 0x2
+#define AIO_ALLDONE 0x3
 
 /*
  * LIO opcodes
  */
-#define	LIO_NOP			0x0
-#define LIO_WRITE		0x1
-#define	LIO_READ		0x2
+#define LIO_NOP 0x0
+#define LIO_WRITE 0x1
+#define LIO_READ 0x2
 #if defined(_KERNEL) || defined(_WANT_ALL_LIO_OPCODES)
-#define	LIO_VECTORED		0x4
-#define	LIO_WRITEV		(LIO_WRITE | LIO_VECTORED)
-#define	LIO_READV		(LIO_READ | LIO_VECTORED)
-#define	LIO_SYNC		0x8
-#define	LIO_DSYNC		(0x10 | LIO_SYNC)
-#define	LIO_MLOCK		0x20
+#define LIO_VECTORED 0x4
+#define LIO_WRITEV (LIO_WRITE | LIO_VECTORED)
+#define LIO_READV (LIO_READ | LIO_VECTORED)
+#define LIO_SYNC 0x8
+#define LIO_DSYNC (0x10 | LIO_SYNC)
+#define LIO_MLOCK 0x20
 #endif
 
 /*
  * LIO modes
  */
-#define	LIO_NOWAIT		0x0
-#define	LIO_WAIT		0x1
+#define LIO_NOWAIT 0x0
+#define LIO_WAIT 0x1
 
 /*
  * Maximum number of operations in a single lio_listio call
  */
-#define	AIO_LISTIO_MAX		16
+#define AIO_LISTIO_MAX 16
 
 #ifdef _KERNEL
 
 /* Default values of tunables for the AIO worker pool. */
 
 #ifndef MAX_AIO_PROCS
-#define MAX_AIO_PROCS		32
+#define MAX_AIO_PROCS 32
 #endif
 
 #ifndef TARGET_AIO_PROCS
-#define TARGET_AIO_PROCS	4
+#define TARGET_AIO_PROCS 4
 #endif
 
 #ifndef AIOD_LIFETIME_DEFAULT
-#define AIOD_LIFETIME_DEFAULT	(30 * hz)
+#define AIOD_LIFETIME_DEFAULT (30 * hz)
 #endif
 
 #endif
@@ -86,29 +86,29 @@
  * directly.
  */
 struct __aiocb_private {
-	long	status;
-	long	error;
-	void	*kernelinfo;
+	long status;
+	long error;
+	void *kernelinfo;
 };
 
 /*
  * I/O control block
  */
 typedef struct aiocb {
-	int	aio_fildes;		/* File descriptor */
-	off_t	aio_offset;		/* File offset for I/O */
-	volatile void *aio_buf;		/* I/O buffer in process space */
-	size_t	aio_nbytes;		/* Number of bytes for I/O */
-	int	__spare__[2];
-	void	*__spare2__;
-	int	aio_lio_opcode;		/* LIO opcode */
-	int	aio_reqprio;		/* Request priority -- ignored */
-	struct	__aiocb_private	_aiocb_private;
-	struct	sigevent aio_sigevent;	/* Signal to deliver */
+	int aio_fildes;		/* File descriptor */
+	off_t aio_offset;	/* File offset for I/O */
+	volatile void *aio_buf; /* I/O buffer in process space */
+	size_t aio_nbytes;	/* Number of bytes for I/O */
+	int __spare__[2];
+	void *__spare2__;
+	int aio_lio_opcode; /* LIO opcode */
+	int aio_reqprio;    /* Request priority -- ignored */
+	struct __aiocb_private _aiocb_private;
+	struct sigevent aio_sigevent; /* Signal to deliver */
 } aiocb_t;
 
-#define	aio_iov	aio_buf			/* I/O scatter/gather list */
-#define	aio_iovcnt	aio_nbytes	/* Length of aio_iov */
+#define aio_iov aio_buf /* I/O scatter/gather list */
+#define aio_iovcnt aio_nbytes /* Length of aio_iov */
 
 #ifdef _KERNEL
 
@@ -125,41 +125,41 @@ typedef void aio_handle_fn_t(struct kaiocb *);
  * c - locked by aio_job_mtx
  */
 struct kaiocb {
-	TAILQ_ENTRY(kaiocb) list;	/* (b) backend-specific list of jobs */
-	TAILQ_ENTRY(kaiocb) plist;	/* (a) lists of pending / done jobs */
-	TAILQ_ENTRY(kaiocb) allist;	/* (a) list of all jobs in proc */
-	int	jobflags;		/* (a) job flags */
-	int	inblock;		/* (*) input blocks */
-	int	outblock;		/* (*) output blocks */
-	int	msgsnd;			/* (*) messages sent */
-	int	msgrcv;			/* (*) messages received */
-	struct	proc *userproc;		/* (*) user process */
-	struct	ucred *cred;		/* (*) active credential when created */
-	struct	file *fd_file;		/* (*) pointer to file structure */
-	struct	aioliojob *lio;		/* (*) optional lio job */
-	struct	aiocb *ujob;		/* (*) pointer in userspace of aiocb */
-	struct	knlist klist;		/* (a) list of knotes */
-	struct	aiocb uaiocb;		/* (*) copy of user I/O control block */
-	struct	uio uio;		/* (*) storage for non-vectored uio */
-	struct	iovec iov[1];		/* (*) storage for non-vectored uio */
-	struct	uio *uiop;		/* (*) Possibly malloced uio */
-	ksiginfo_t ksi;			/* (a) realtime signal info */
-	uint64_t seqno;			/* (*) job number */
-	aio_cancel_fn_t *cancel_fn;	/* (a) backend cancel function */
-	aio_handle_fn_t *handle_fn;	/* (c) backend handle function */
-	union {				/* Backend-specific data fields */
-		struct {		/* BIO backend */
-			int	nbio;	/* Number of remaining bios */
-			int	error;	/* Worst error of all bios */
-			long	nbytes;	/* Bytes completed so far */
+	TAILQ_ENTRY(kaiocb) list;    /* (b) backend-specific list of jobs */
+	TAILQ_ENTRY(kaiocb) plist;   /* (a) lists of pending / done jobs */
+	TAILQ_ENTRY(kaiocb) allist;  /* (a) list of all jobs in proc */
+	int jobflags;		     /* (a) job flags */
+	int inblock;		     /* (*) input blocks */
+	int outblock;		     /* (*) output blocks */
+	int msgsnd;		     /* (*) messages sent */
+	int msgrcv;		     /* (*) messages received */
+	struct proc *userproc;	     /* (*) user process */
+	struct ucred *cred;	     /* (*) active credential when created */
+	struct file *fd_file;	     /* (*) pointer to file structure */
+	struct aioliojob *lio;	     /* (*) optional lio job */
+	struct aiocb *ujob;	     /* (*) pointer in userspace of aiocb */
+	struct knlist klist;	     /* (a) list of knotes */
+	struct aiocb uaiocb;	     /* (*) copy of user I/O control block */
+	struct uio uio;		     /* (*) storage for non-vectored uio */
+	struct iovec iov[1];	     /* (*) storage for non-vectored uio */
+	struct uio *uiop;	     /* (*) Possibly malloced uio */
+	ksiginfo_t ksi;		     /* (a) realtime signal info */
+	uint64_t seqno;		     /* (*) job number */
+	aio_cancel_fn_t *cancel_fn;  /* (a) backend cancel function */
+	aio_handle_fn_t *handle_fn;  /* (c) backend handle function */
+	union {			     /* Backend-specific data fields */
+		struct {	     /* BIO backend */
+			int nbio;    /* Number of remaining bios */
+			int error;   /* Worst error of all bios */
+			long nbytes; /* Bytes completed so far */
 		};
-		struct {		/* fsync() requests */
-			int	pending; /* (a) number of pending I/O */
+		struct {	     /* fsync() requests */
+			int pending; /* (a) number of pending I/O */
 		};
-		struct {		/* socket backend */
-			void	*backend1;
-			long	backend3;
-			int	backend4;
+		struct { /* socket backend */
+			void *backend1;
+			long backend3;
+			int backend4;
 		};
 	};
 };
@@ -201,13 +201,13 @@ struct sockbuf;
  *  4) Cancel the request via aio_cancel().
  */
 
-bool	aio_cancel_cleared(struct kaiocb *job);
-void	aio_cancel(struct kaiocb *job);
-bool	aio_clear_cancel_function(struct kaiocb *job);
-void	aio_complete(struct kaiocb *job, long status, int error);
-void	aio_schedule(struct kaiocb *job, aio_handle_fn_t *func);
-bool	aio_set_cancel_function(struct kaiocb *job, aio_cancel_fn_t *func);
-void	aio_switch_vmspace(struct kaiocb *job);
+bool aio_cancel_cleared(struct kaiocb *job);
+void aio_cancel(struct kaiocb *job);
+bool aio_clear_cancel_function(struct kaiocb *job);
+void aio_complete(struct kaiocb *job, long status, int error);
+void aio_schedule(struct kaiocb *job, aio_handle_fn_t *func);
+bool aio_set_cancel_function(struct kaiocb *job, aio_cancel_fn_t *func);
+void aio_switch_vmspace(struct kaiocb *job);
 
 #else /* !_KERNEL */
 
@@ -217,17 +217,17 @@ __BEGIN_DECLS
 /*
  * Asynchronously read from a file
  */
-int	aio_read(struct aiocb *);
+int aio_read(struct aiocb *);
 #if __BSD_VISIBLE
-int	aio_readv(struct aiocb *);
+int aio_readv(struct aiocb *);
 #endif
 
 /*
  * Asynchronously write to file
  */
-int	aio_write(struct aiocb *);
+int aio_write(struct aiocb *);
 #if __BSD_VISIBLE
-int	aio_writev(struct aiocb *);
+int aio_writev(struct aiocb *);
 #endif
 
 /*
@@ -236,15 +236,15 @@ int	aio_writev(struct aiocb *);
  *	"acb_list" is an array of "nacb_listent" I/O control blocks.
  *	when all I/Os are complete, the optional signal "sig" is sent.
  */
-int	lio_listio(int, struct aiocb *__restrict const *__restrict, int,
-    struct sigevent *);
+int lio_listio(
+    int, struct aiocb *__restrict const *__restrict, int, struct sigevent *);
 
 /*
  * Get completion status
  *	returns EINPROGRESS until I/O is complete.
  *	this routine does not block.
  */
-int	aio_error(const struct aiocb *);
+int aio_error(const struct aiocb *);
 
 /*
  * Finish up I/O, releasing I/O resources and returns the value
@@ -252,28 +252,28 @@ int	aio_error(const struct aiocb *);
  *	This routine must be called once and only once for each
  *	I/O control block who has had I/O associated with it.
  */
-ssize_t	aio_return(struct aiocb *);
+ssize_t aio_return(struct aiocb *);
 
 /*
  * Cancel I/O
  */
-int	aio_cancel(int, struct aiocb *);
+int aio_cancel(int, struct aiocb *);
 
 /*
  * Suspend until all specified I/O or timeout is complete.
  */
-int	aio_suspend(const struct aiocb * const[], int, const struct timespec *);
+int aio_suspend(const struct aiocb *const[], int, const struct timespec *);
 
 /*
  * Asynchronous mlock
  */
-int	aio_mlock(struct aiocb *);
+int aio_mlock(struct aiocb *);
 
 #if __BSD_VISIBLE
-ssize_t	aio_waitcomplete(struct aiocb **, struct timespec *);
+ssize_t aio_waitcomplete(struct aiocb **, struct timespec *);
 #endif
 
-int	aio_fsync(int op, struct aiocb *aiocbp);
+int aio_fsync(int op, struct aiocb *aiocbp);
 __END_DECLS
 
 #endif /* !_KERNEL */

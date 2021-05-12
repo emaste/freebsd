@@ -51,23 +51,23 @@
  * $FreeBSD$
  */
 
-#include <rdma/rdma_vt.h>
 #include <rdma/ib_pack.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/rdma_vt.h>
 /*
  * Atomic bit definitions for r_aflags.
  */
-#define RVT_R_WRID_VALID        0
-#define RVT_R_REWIND_SGE        1
+#define RVT_R_WRID_VALID 0
+#define RVT_R_REWIND_SGE 1
 
 /*
  * Bit definitions for r_flags.
  */
 #define RVT_R_REUSE_SGE 0x01
 #define RVT_R_RDMAR_SEQ 0x02
-#define RVT_R_RSP_NAK   0x04
-#define RVT_R_RSP_SEND  0x08
-#define RVT_R_COMM_EST  0x10
+#define RVT_R_RSP_NAK 0x04
+#define RVT_R_RSP_SEND 0x08
+#define RVT_R_COMM_EST 0x10
 
 /*
  * Bit definitions for s_flags.
@@ -94,42 +94,43 @@
  * RVT_S_SEND_ONE - send one packet, request ACK, then wait for ACK
  * RVT_S_ECN - a BECN was queued to the send engine
  */
-#define RVT_S_SIGNAL_REQ_WR	0x0001
-#define RVT_S_BUSY		0x0002
-#define RVT_S_TIMER		0x0004
-#define RVT_S_RESP_PENDING	0x0008
-#define RVT_S_ACK_PENDING	0x0010
-#define RVT_S_WAIT_FENCE	0x0020
-#define RVT_S_WAIT_RDMAR	0x0040
-#define RVT_S_WAIT_RNR		0x0080
-#define RVT_S_WAIT_SSN_CREDIT	0x0100
-#define RVT_S_WAIT_DMA		0x0200
-#define RVT_S_WAIT_PIO		0x0400
-#define RVT_S_WAIT_PIO_DRAIN    0x0800
-#define RVT_S_WAIT_TX		0x1000
-#define RVT_S_WAIT_DMA_DESC	0x2000
-#define RVT_S_WAIT_KMEM		0x4000
-#define RVT_S_WAIT_PSN		0x8000
-#define RVT_S_WAIT_ACK		0x10000
-#define RVT_S_SEND_ONE		0x20000
-#define RVT_S_UNLIMITED_CREDIT	0x40000
-#define RVT_S_AHG_VALID		0x80000
-#define RVT_S_AHG_CLEAR		0x100000
-#define RVT_S_ECN		0x200000
+#define RVT_S_SIGNAL_REQ_WR 0x0001
+#define RVT_S_BUSY 0x0002
+#define RVT_S_TIMER 0x0004
+#define RVT_S_RESP_PENDING 0x0008
+#define RVT_S_ACK_PENDING 0x0010
+#define RVT_S_WAIT_FENCE 0x0020
+#define RVT_S_WAIT_RDMAR 0x0040
+#define RVT_S_WAIT_RNR 0x0080
+#define RVT_S_WAIT_SSN_CREDIT 0x0100
+#define RVT_S_WAIT_DMA 0x0200
+#define RVT_S_WAIT_PIO 0x0400
+#define RVT_S_WAIT_PIO_DRAIN 0x0800
+#define RVT_S_WAIT_TX 0x1000
+#define RVT_S_WAIT_DMA_DESC 0x2000
+#define RVT_S_WAIT_KMEM 0x4000
+#define RVT_S_WAIT_PSN 0x8000
+#define RVT_S_WAIT_ACK 0x10000
+#define RVT_S_SEND_ONE 0x20000
+#define RVT_S_UNLIMITED_CREDIT 0x40000
+#define RVT_S_AHG_VALID 0x80000
+#define RVT_S_AHG_CLEAR 0x100000
+#define RVT_S_ECN 0x200000
 
 /*
  * Wait flags that would prevent any packet type from being sent.
  */
-#define RVT_S_ANY_WAIT_IO \
+#define RVT_S_ANY_WAIT_IO                                        \
 	(RVT_S_WAIT_PIO | RVT_S_WAIT_PIO_DRAIN | RVT_S_WAIT_TX | \
-	 RVT_S_WAIT_DMA_DESC | RVT_S_WAIT_KMEM)
+	    RVT_S_WAIT_DMA_DESC | RVT_S_WAIT_KMEM)
 
 /*
  * Wait flags that would prevent send work requests from making progress.
  */
-#define RVT_S_ANY_WAIT_SEND (RVT_S_WAIT_FENCE | RVT_S_WAIT_RDMAR | \
-	RVT_S_WAIT_RNR | RVT_S_WAIT_SSN_CREDIT | RVT_S_WAIT_DMA | \
-	RVT_S_WAIT_PSN | RVT_S_WAIT_ACK)
+#define RVT_S_ANY_WAIT_SEND                                           \
+	(RVT_S_WAIT_FENCE | RVT_S_WAIT_RDMAR | RVT_S_WAIT_RNR |       \
+	    RVT_S_WAIT_SSN_CREDIT | RVT_S_WAIT_DMA | RVT_S_WAIT_PSN | \
+	    RVT_S_WAIT_ACK)
 
 #define RVT_S_ANY_WAIT (RVT_S_ANY_WAIT_IO | RVT_S_ANY_WAIT_SEND)
 
@@ -137,21 +138,20 @@
 #define RVT_OPCODE_QP_MASK 0xE0
 
 /* Flags for checking QP state (see ib_rvt_state_ops[]) */
-#define RVT_POST_SEND_OK                0x01
-#define RVT_POST_RECV_OK                0x02
-#define RVT_PROCESS_RECV_OK             0x04
-#define RVT_PROCESS_SEND_OK             0x08
-#define RVT_PROCESS_NEXT_SEND_OK        0x10
-#define RVT_FLUSH_SEND			0x20
-#define RVT_FLUSH_RECV			0x40
-#define RVT_PROCESS_OR_FLUSH_SEND \
-	(RVT_PROCESS_SEND_OK | RVT_FLUSH_SEND)
+#define RVT_POST_SEND_OK 0x01
+#define RVT_POST_RECV_OK 0x02
+#define RVT_PROCESS_RECV_OK 0x04
+#define RVT_PROCESS_SEND_OK 0x08
+#define RVT_PROCESS_NEXT_SEND_OK 0x10
+#define RVT_FLUSH_SEND 0x20
+#define RVT_FLUSH_RECV 0x40
+#define RVT_PROCESS_OR_FLUSH_SEND (RVT_PROCESS_SEND_OK | RVT_FLUSH_SEND)
 
 /*
  * Internal send flags
  */
-#define RVT_SEND_RESERVE_USED           IB_SEND_RESERVED_START
-#define RVT_SEND_COMPLETION_ONLY	(IB_SEND_RESERVED_START << 1)
+#define RVT_SEND_RESERVE_USED IB_SEND_RESERVED_START
+#define RVT_SEND_COMPLETION_ONLY (IB_SEND_RESERVED_START << 1)
 
 /*
  * Send work request queue entry.
@@ -160,16 +160,16 @@
  */
 struct rvt_swqe {
 	union {
-		struct ib_send_wr wr;   /* don't use wr.sg_list */
+		struct ib_send_wr wr; /* don't use wr.sg_list */
 		struct ib_ud_wr ud_wr;
 		struct ib_reg_wr reg_wr;
 		struct ib_rdma_wr rdma_wr;
 		struct ib_atomic_wr atomic_wr;
 	};
-	u32 psn;                /* first packet sequence number */
-	u32 lpsn;               /* last packet sequence number */
-	u32 ssn;                /* send sequence number */
-	u32 length;             /* total length of data in sg_list */
+	u32 psn;    /* first packet sequence number */
+	u32 lpsn;   /* last packet sequence number */
+	u32 ssn;    /* send sequence number */
+	u32 length; /* total length of data in sg_list */
 	struct rvt_sge sg_list[0];
 };
 
@@ -193,14 +193,14 @@ struct rvt_rwqe {
  * use get_rwqe_ptr() instead.
  */
 struct rvt_rwq {
-	u32 head;               /* new work requests posted to the head */
-	u32 tail;               /* receives pull requests from here. */
+	u32 head; /* new work requests posted to the head */
+	u32 tail; /* receives pull requests from here. */
 	struct rvt_rwqe wq[0];
 };
 
 struct rvt_rq {
 	struct rvt_rwq *wq;
-	u32 size;               /* size of RWQE array */
+	u32 size; /* size of RWQE array */
 	u8 max_sge;
 	/* protect changes in this struct */
 	spinlock_t lock ____cacheline_aligned_in_smp;
@@ -233,12 +233,12 @@ struct rvt_ack_entry {
 	u8 sent;
 };
 
-#define	RC_QP_SCALING_INTERVAL	5
+#define RC_QP_SCALING_INTERVAL 5
 
-#define RVT_OPERATION_PRIV        0x00000001
-#define RVT_OPERATION_ATOMIC      0x00000002
-#define RVT_OPERATION_ATOMIC_SGE  0x00000004
-#define RVT_OPERATION_LOCAL       0x00000008
+#define RVT_OPERATION_PRIV 0x00000001
+#define RVT_OPERATION_ATOMIC 0x00000002
+#define RVT_OPERATION_ATOMIC_SGE 0x00000004
+#define RVT_OPERATION_LOCAL 0x00000008
 #define RVT_OPERATION_USE_RESERVE 0x00000010
 
 #define RVT_OPERATION_MAX (IB_WR_RESERVED10 + 1)
@@ -271,38 +271,38 @@ struct rvt_qp {
 	/* read mostly fields above and below */
 	struct ib_ah_attr remote_ah_attr;
 	struct ib_ah_attr alt_ah_attr;
-	struct rvt_qp __rcu *next;           /* link list for QPN hash table */
-	struct rvt_swqe *s_wq;  /* send work queue */
+	struct rvt_qp __rcu *next; /* link list for QPN hash table */
+	struct rvt_swqe *s_wq;	   /* send work queue */
 	struct rvt_mmap_info *ip;
 
-	unsigned long timeout_jiffies;  /* computed from timeout */
+	unsigned long timeout_jiffies; /* computed from timeout */
 
 	enum ib_mtu path_mtu;
-	int srate_mbps;		/* s_srate (below) converted to Mbit/s */
-	pid_t pid;		/* pid for user mode QPs */
+	int srate_mbps; /* s_srate (below) converted to Mbit/s */
+	pid_t pid;	/* pid for user mode QPs */
 	u32 remote_qpn;
-	u32 qkey;               /* QKEY for this QP (for UD or RD) */
-	u32 s_size;             /* send work queue size */
-	u32 s_ahgpsn;           /* set to the psn in the copy of the header */
+	u32 qkey;     /* QKEY for this QP (for UD or RD) */
+	u32 s_size;   /* send work queue size */
+	u32 s_ahgpsn; /* set to the psn in the copy of the header */
 
-	u16 pmtu;		/* decoded from path_mtu */
-	u8 log_pmtu;		/* shift for pmtu */
-	u8 state;               /* QP state */
-	u8 allowed_ops;		/* high order bits of allowed opcodes */
+	u16 pmtu;	/* decoded from path_mtu */
+	u8 log_pmtu;	/* shift for pmtu */
+	u8 state;	/* QP state */
+	u8 allowed_ops; /* high order bits of allowed opcodes */
 	u8 qp_access_flags;
-	u8 alt_timeout;         /* Alternate path timeout for this QP */
-	u8 timeout;             /* Timeout for this QP */
+	u8 alt_timeout; /* Alternate path timeout for this QP */
+	u8 timeout;	/* Timeout for this QP */
 	u8 s_srate;
 	u8 s_mig_state;
 	u8 port_num;
-	u8 s_pkey_index;        /* PKEY index to use */
-	u8 s_alt_pkey_index;    /* Alternate path PKEY index to use */
-	u8 r_max_rd_atomic;     /* max number of RDMA read/atomic to receive */
-	u8 s_max_rd_atomic;     /* max number of RDMA read/atomic to send */
-	u8 s_retry_cnt;         /* number of times to retry */
+	u8 s_pkey_index;     /* PKEY index to use */
+	u8 s_alt_pkey_index; /* Alternate path PKEY index to use */
+	u8 r_max_rd_atomic;  /* max number of RDMA read/atomic to receive */
+	u8 s_max_rd_atomic;  /* max number of RDMA read/atomic to send */
+	u8 s_retry_cnt;	     /* number of times to retry */
 	u8 s_rnr_retry_cnt;
-	u8 r_min_rnr_timer;     /* retry timeout value for RNR NAKs */
-	u8 s_max_sge;           /* size of s_wq->sg_list */
+	u8 r_min_rnr_timer; /* retry timeout value for RNR NAKs */
+	u8 s_max_sge;	    /* size of s_wq->sg_list */
 	u8 s_draining;
 
 	/* start of read/write fields */
@@ -312,63 +312,63 @@ struct rvt_qp {
 	struct rvt_ack_entry *s_ack_queue;
 	struct rvt_sge_state s_rdma_read_sge;
 
-	spinlock_t r_lock ____cacheline_aligned_in_smp;      /* used for APM */
-	u32 r_psn;              /* expected rcv packet sequence number */
+	spinlock_t r_lock ____cacheline_aligned_in_smp; /* used for APM */
+	u32 r_psn; /* expected rcv packet sequence number */
 	unsigned long r_aflags;
-	u64 r_wr_id;            /* ID for current receive WQE */
-	u32 r_ack_psn;          /* PSN for next ACK or atomic ACK */
-	u32 r_len;              /* total length of r_sge */
-	u32 r_rcv_len;          /* receive data len processed */
-	u32 r_msn;              /* message sequence number */
+	u64 r_wr_id;   /* ID for current receive WQE */
+	u32 r_ack_psn; /* PSN for next ACK or atomic ACK */
+	u32 r_len;     /* total length of r_sge */
+	u32 r_rcv_len; /* receive data len processed */
+	u32 r_msn;     /* message sequence number */
 
-	u8 r_state;             /* opcode of last packet received */
+	u8 r_state; /* opcode of last packet received */
 	u8 r_flags;
-	u8 r_head_ack_queue;    /* index into s_ack_queue[] */
+	u8 r_head_ack_queue; /* index into s_ack_queue[] */
 
-	struct list_head rspwait;       /* link for waiting to respond */
+	struct list_head rspwait; /* link for waiting to respond */
 
-	struct rvt_sge_state r_sge;     /* current receive data */
-	struct rvt_rq r_rq;             /* receive work queue */
+	struct rvt_sge_state r_sge; /* current receive data */
+	struct rvt_rq r_rq;	    /* receive work queue */
 
 	/* post send line */
 	spinlock_t s_hlock ____cacheline_aligned_in_smp;
-	u32 s_head;             /* new entries added here */
-	u32 s_next_psn;         /* PSN for next request */
-	u32 s_avail;            /* number of entries avail */
-	u32 s_ssn;              /* SSN of tail entry */
+	u32 s_head;		  /* new entries added here */
+	u32 s_next_psn;		  /* PSN for next request */
+	u32 s_avail;		  /* number of entries avail */
+	u32 s_ssn;		  /* SSN of tail entry */
 	atomic_t s_reserved_used; /* reserved entries in use */
 
 	spinlock_t s_lock ____cacheline_aligned_in_smp;
 	u32 s_flags;
 	struct rvt_sge_state *s_cur_sge;
 	struct rvt_swqe *s_wqe;
-	struct rvt_sge_state s_sge;     /* current send request data */
+	struct rvt_sge_state s_sge; /* current send request data */
 	struct rvt_mregion *s_rdma_mr;
-	u32 s_cur_size;         /* size of send packet in bytes */
-	u32 s_len;              /* total length of s_sge */
-	u32 s_rdma_read_len;    /* total length of s_rdma_read_sge */
-	u32 s_last_psn;         /* last response PSN processed */
-	u32 s_sending_psn;      /* lowest PSN that is being sent */
-	u32 s_sending_hpsn;     /* highest PSN that is being sent */
-	u32 s_psn;              /* current packet sequence number */
-	u32 s_ack_rdma_psn;     /* PSN for sending RDMA read responses */
-	u32 s_ack_psn;          /* PSN for acking sends and RDMA writes */
-	u32 s_tail;             /* next entry to process */
-	u32 s_cur;              /* current work queue entry */
-	u32 s_acked;            /* last un-ACK'ed entry */
-	u32 s_last;             /* last completed entry */
-	u32 s_lsn;              /* limit sequence number (credit) */
-	u16 s_hdrwords;         /* size of s_hdr in 32 bit words */
+	u32 s_cur_size;	     /* size of send packet in bytes */
+	u32 s_len;	     /* total length of s_sge */
+	u32 s_rdma_read_len; /* total length of s_rdma_read_sge */
+	u32 s_last_psn;	     /* last response PSN processed */
+	u32 s_sending_psn;   /* lowest PSN that is being sent */
+	u32 s_sending_hpsn;  /* highest PSN that is being sent */
+	u32 s_psn;	     /* current packet sequence number */
+	u32 s_ack_rdma_psn;  /* PSN for sending RDMA read responses */
+	u32 s_ack_psn;	     /* PSN for acking sends and RDMA writes */
+	u32 s_tail;	     /* next entry to process */
+	u32 s_cur;	     /* current work queue entry */
+	u32 s_acked;	     /* last un-ACK'ed entry */
+	u32 s_last;	     /* last completed entry */
+	u32 s_lsn;	     /* limit sequence number (credit) */
+	u16 s_hdrwords;	     /* size of s_hdr in 32 bit words */
 	u16 s_rdma_ack_cnt;
 	s8 s_ahgidx;
-	u8 s_state;             /* opcode of last packet sent */
-	u8 s_ack_state;         /* opcode of packet to ACK */
-	u8 s_nak_state;         /* non-zero if NAK is pending */
-	u8 r_nak_state;         /* non-zero if NAK is pending */
-	u8 s_retry;             /* requester retry counter */
-	u8 s_rnr_retry;         /* requester RNR retry counter */
-	u8 s_num_rd_atomic;     /* number of RDMA read/atomic pending */
-	u8 s_tail_ack_queue;    /* index into s_ack_queue[] */
+	u8 s_state;	     /* opcode of last packet sent */
+	u8 s_ack_state;	     /* opcode of packet to ACK */
+	u8 s_nak_state;	     /* non-zero if NAK is pending */
+	u8 r_nak_state;	     /* non-zero if NAK is pending */
+	u8 s_retry;	     /* requester retry counter */
+	u8 s_rnr_retry;	     /* requester RNR retry counter */
+	u8 s_num_rd_atomic;  /* number of RDMA read/atomic pending */
+	u8 s_tail_ack_queue; /* index into s_ack_queue[] */
 
 	struct rvt_sge_state s_ack_rdma_sge;
 	struct timer_list s_timer;
@@ -379,7 +379,7 @@ struct rvt_qp {
 	 * This sge list MUST be last. Do not add anything below here.
 	 */
 	struct rvt_sge r_sg_list[0] /* verified SGEs */
-		____cacheline_aligned_in_smp;
+	    ____cacheline_aligned_in_smp;
 };
 
 struct rvt_srq {
@@ -390,11 +390,11 @@ struct rvt_srq {
 	u32 limit;
 };
 
-#define RVT_QPN_MAX                 BIT(24)
-#define RVT_QPNMAP_ENTRIES          (RVT_QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)
-#define RVT_BITS_PER_PAGE           (PAGE_SIZE * BITS_PER_BYTE)
-#define RVT_BITS_PER_PAGE_MASK      (RVT_BITS_PER_PAGE - 1)
-#define RVT_QPN_MASK		    0xFFFFFF
+#define RVT_QPN_MAX BIT(24)
+#define RVT_QPNMAP_ENTRIES (RVT_QPN_MAX / PAGE_SIZE / BITS_PER_BYTE)
+#define RVT_BITS_PER_PAGE (PAGE_SIZE * BITS_PER_BYTE)
+#define RVT_BITS_PER_PAGE_MASK (RVT_BITS_PER_PAGE - 1)
+#define RVT_QPN_MASK 0xFFFFFF
 
 /*
  * QPN-map pages start out as NULL, they get allocated upon
@@ -407,11 +407,11 @@ struct rvt_qpn_map {
 
 struct rvt_qpn_table {
 	spinlock_t lock; /* protect changes to the qp table */
-	unsigned flags;         /* flags for QP0/1 allocated for each port */
-	u32 last;               /* last QP number allocated */
-	u32 nmaps;              /* size of the map table */
+	unsigned flags;	 /* flags for QP0/1 allocated for each port */
+	u32 last;	 /* last QP number allocated */
+	u32 nmaps;	 /* size of the map table */
 	u16 limit;
-	u8  incr;
+	u8 incr;
 	/* bit map of free QP numbers other than 0/1 */
 	struct rvt_qpn_map map[RVT_QPNMAP_ENTRIES];
 };
@@ -447,32 +447,32 @@ struct rvt_mcast {
  * Since struct rvt_swqe is not a fixed size, we can't simply index into
  * struct rvt_qp.s_wq.  This function does the array index computation.
  */
-static inline struct rvt_swqe *rvt_get_swqe_ptr(struct rvt_qp *qp,
-						unsigned n)
+static inline struct rvt_swqe *
+rvt_get_swqe_ptr(struct rvt_qp *qp, unsigned n)
 {
 	return (struct rvt_swqe *)((char *)qp->s_wq +
-				     (sizeof(struct rvt_swqe) +
-				      qp->s_max_sge *
-				      sizeof(struct rvt_sge)) * n);
+	    (sizeof(struct rvt_swqe) + qp->s_max_sge * sizeof(struct rvt_sge)) *
+		n);
 }
 
 /*
  * Since struct rvt_rwqe is not a fixed size, we can't simply index into
  * struct rvt_rwq.wq.  This function does the array index computation.
  */
-static inline struct rvt_rwqe *rvt_get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
+static inline struct rvt_rwqe *
+rvt_get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
 {
-	return (struct rvt_rwqe *)
-		((char *)rq->wq->wq +
-		 (sizeof(struct rvt_rwqe) +
-		  rq->max_sge * sizeof(struct ib_sge)) * n);
+	return (struct rvt_rwqe *)((char *)rq->wq->wq +
+	    (sizeof(struct rvt_rwqe) + rq->max_sge * sizeof(struct ib_sge)) *
+		n);
 }
 
 /**
  * rvt_get_qp - get a QP reference
  * @qp - the QP to hold
  */
-static inline void rvt_get_qp(struct rvt_qp *qp)
+static inline void
+rvt_get_qp(struct rvt_qp *qp)
 {
 	atomic_inc(&qp->refcount);
 }
@@ -481,7 +481,8 @@ static inline void rvt_get_qp(struct rvt_qp *qp)
  * rvt_put_qp - release a QP reference
  * @qp - the QP to release
  */
-static inline void rvt_put_qp(struct rvt_qp *qp)
+static inline void
+rvt_put_qp(struct rvt_qp *qp)
 {
 	if (qp && atomic_dec_and_test(&qp->refcount))
 		wake_up(&qp->wait);
@@ -495,9 +496,8 @@ static inline void rvt_put_qp(struct rvt_qp *qp)
  * This routine used in post send to record
  * a wqe relative reserved operation use.
  */
-static inline void rvt_qp_wqe_reserve(
-	struct rvt_qp *qp,
-	struct rvt_swqe *wqe)
+static inline void
+rvt_qp_wqe_reserve(struct rvt_qp *qp, struct rvt_swqe *wqe)
 {
 	wqe->wr.send_flags |= RVT_SEND_RESERVE_USED;
 	atomic_inc(&qp->s_reserved_used);
@@ -518,9 +518,8 @@ static inline void rvt_qp_wqe_reserve(
  * the compiler does not juggle the order of the s_last
  * ring index and the decrementing of s_reserved_used.
  */
-static inline void rvt_qp_wqe_unreserve(
-	struct rvt_qp *qp,
-	struct rvt_swqe *wqe)
+static inline void
+rvt_qp_wqe_unreserve(struct rvt_qp *qp, struct rvt_swqe *wqe)
 {
 	if (unlikely(wqe->wr.send_flags & RVT_SEND_RESERVE_USED)) {
 		wqe->wr.send_flags &= ~RVT_SEND_RESERVE_USED;
@@ -530,9 +529,9 @@ static inline void rvt_qp_wqe_unreserve(
 	}
 }
 
-extern const int  ib_rvt_state_ops[];
+extern const int ib_rvt_state_ops[];
 
 struct rvt_dev_info;
 int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
 
-#endif          /* DEF_RDMAVT_INCQP_H */
+#endif /* DEF_RDMAVT_INCQP_H */

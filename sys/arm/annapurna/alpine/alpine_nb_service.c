@@ -30,52 +30,47 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/rman.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/resource.h>
-#include <sys/systm.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
+
 #include <dev/ofw/ofw_bus_subr.h>
 
-#define	AL_NB_ACF_MISC_OFFSET			0xD0
-#define	AL_NB_ACF_MISC_READ_BYPASS		(1 << 30)
+#define AL_NB_ACF_MISC_OFFSET 0xD0
+#define AL_NB_ACF_MISC_READ_BYPASS (1 << 30)
 
 static struct resource_spec nb_service_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, { -1, 0 }
 };
 
 struct nb_service_softc {
-	struct resource	*res;
+	struct resource *res;
 };
 
 static int nb_service_probe(device_t dev);
 static int nb_service_attach(device_t dev);
 static int nb_service_detach(device_t dev);
 
-static device_method_t nb_service_methods[] = {
-	DEVMETHOD(device_probe,		nb_service_probe),
-	DEVMETHOD(device_attach,	nb_service_attach),
-	DEVMETHOD(device_detach,	nb_service_detach),
-	{ 0, 0 }
-};
+static device_method_t nb_service_methods[] = { DEVMETHOD(device_probe,
+						    nb_service_probe),
+	DEVMETHOD(device_attach, nb_service_attach),
+	DEVMETHOD(device_detach, nb_service_detach), { 0, 0 } };
 
-static driver_t nb_service_driver = {
-	"nb_service",
-	nb_service_methods,
-	sizeof(struct nb_service_softc)
-};
+static driver_t nb_service_driver = { "nb_service", nb_service_methods,
+	sizeof(struct nb_service_softc) };
 
 static devclass_t nb_service_devclass;
 
 EARLY_DRIVER_MODULE(nb_service, simplebus, nb_service_driver,
     nb_service_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(nb_service, ofwbus, nb_service_driver,
-    nb_service_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(nb_service, ofwbus, nb_service_driver, nb_service_devclass,
+    0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
 
 static int
 nb_service_probe(device_t dev)

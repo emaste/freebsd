@@ -48,9 +48,10 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/acl.h>
-#include <sys/kernel.h>
 #include <sys/jail.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -58,11 +59,10 @@
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
-#include <sys/vnode.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/stat.h>
+#include <sys/vnode.h>
 
 #include <security/mac/mac_policy.h>
 #include <security/mac_bsdextended/mac_bsdextended.h>
@@ -76,14 +76,14 @@ static SYSCTL_NODE(_security_mac, OID_AUTO, bsdextended,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TrustedBSD extended BSD MAC policy controls");
 
-static int	ugidfw_enabled = 1;
+static int ugidfw_enabled = 1;
 SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, enabled, CTLFLAG_RWTUN,
     &ugidfw_enabled, 0, "Enforce extended BSD policy");
 
-static MALLOC_DEFINE(M_MACBSDEXTENDED, "mac_bsdextended",
-    "BSD Extended MAC rule");
+static MALLOC_DEFINE(
+    M_MACBSDEXTENDED, "mac_bsdextended", "BSD Extended MAC rule");
 
-#define	MAC_BSDEXTENDED_MAXRULES	250
+#define MAC_BSDEXTENDED_MAXRULES 250
 static struct mac_bsdextended_rule *rules[MAC_BSDEXTENDED_MAXRULES];
 static int rule_count = 0;
 static int rule_slots = 0;
@@ -110,8 +110,8 @@ SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, logging, CTLFLAG_RW,
  * rules match).
  */
 static int ugidfw_firstmatch_enabled;
-SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, firstmatch_enabled,
-    CTLFLAG_RW, &ugidfw_firstmatch_enabled, 1,
+SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, firstmatch_enabled, CTLFLAG_RW,
+    &ugidfw_firstmatch_enabled, 1,
     "Disable/enable match first rule functionality");
 
 static int
@@ -134,8 +134,7 @@ ugidfw_rule_valid(struct mac_bsdextended_rule *rule)
 	return (0);
 }
 
-static int
-sysctl_rule(SYSCTL_HANDLER_ARGS)
+static int sysctl_rule(SYSCTL_HANDLER_ARGS)
 {
 	struct mac_bsdextended_rule temprule, *ruleptr;
 	u_int namelen;
@@ -147,7 +146,7 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 	if (namelen != 1)
 		return (EINVAL);
 	index = name[0];
-        if (index >= MAC_BSDEXTENDED_MAXRULES)
+	if (index >= MAC_BSDEXTENDED_MAXRULES)
 		return (ENOENT);
 
 	ruleptr = NULL;
@@ -155,8 +154,8 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 		error = SYSCTL_IN(req, &temprule, sizeof(temprule));
 		if (error)
 			return (error);
-		ruleptr = malloc(sizeof(*ruleptr), M_MACBSDEXTENDED,
-		    M_WAITOK | M_ZERO);
+		ruleptr = malloc(
+		    sizeof(*ruleptr), M_MACBSDEXTENDED, M_WAITOK | M_ZERO);
 	}
 
 	mtx_lock(&ugidfw_mtx);
@@ -226,8 +225,8 @@ ugidfw_destroy(struct mac_policy_conf *mpc)
 }
 
 static int
-ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
-    struct ucred *cred, struct vnode *vp, struct vattr *vap, int acc_mode)
+ugidfw_rulecheck(struct mac_bsdextended_rule *rule, struct ucred *cred,
+    struct vnode *vp, struct vattr *vap, int acc_mode)
 {
 	int mac_granted, match, priv_granted;
 	int i;
@@ -237,12 +236,12 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 	 */
 	mtx_assert(&ugidfw_mtx, MA_OWNED);
 	if (rule->mbr_subject.mbs_flags & MBS_UID_DEFINED) {
-		match =  ((cred->cr_uid <= rule->mbr_subject.mbs_uid_max &&
-		    cred->cr_uid >= rule->mbr_subject.mbs_uid_min) ||
+		match = ((cred->cr_uid <= rule->mbr_subject.mbs_uid_max &&
+			     cred->cr_uid >= rule->mbr_subject.mbs_uid_min) ||
 		    (cred->cr_ruid <= rule->mbr_subject.mbs_uid_max &&
-		    cred->cr_ruid >= rule->mbr_subject.mbs_uid_min) ||
+			cred->cr_ruid >= rule->mbr_subject.mbs_uid_min) ||
 		    (cred->cr_svuid <= rule->mbr_subject.mbs_uid_max &&
-		    cred->cr_svuid >= rule->mbr_subject.mbs_uid_min));
+			cred->cr_svuid >= rule->mbr_subject.mbs_uid_min));
 		if (rule->mbr_subject.mbs_neg & MBS_UID_DEFINED)
 			match = !match;
 		if (!match)
@@ -251,15 +250,15 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 
 	if (rule->mbr_subject.mbs_flags & MBS_GID_DEFINED) {
 		match = ((cred->cr_rgid <= rule->mbr_subject.mbs_gid_max &&
-		    cred->cr_rgid >= rule->mbr_subject.mbs_gid_min) ||
+			     cred->cr_rgid >= rule->mbr_subject.mbs_gid_min) ||
 		    (cred->cr_svgid <= rule->mbr_subject.mbs_gid_max &&
-		    cred->cr_svgid >= rule->mbr_subject.mbs_gid_min));
+			cred->cr_svgid >= rule->mbr_subject.mbs_gid_min));
 		if (!match) {
 			for (i = 0; i < cred->cr_ngroups; i++) {
-				if (cred->cr_groups[i]
-				    <= rule->mbr_subject.mbs_gid_max &&
-				    cred->cr_groups[i]
-				    >= rule->mbr_subject.mbs_gid_min) {
+				if (cred->cr_groups[i] <=
+					rule->mbr_subject.mbs_gid_max &&
+				    cred->cr_groups[i] >=
+					rule->mbr_subject.mbs_gid_min) {
 					match = 1;
 					break;
 				}
@@ -272,8 +271,8 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 	}
 
 	if (rule->mbr_subject.mbs_flags & MBS_PRISON_DEFINED) {
-		match =
-		    (cred->cr_prison->pr_id == rule->mbr_subject.mbs_prison);
+		match = (cred->cr_prison->pr_id ==
+		    rule->mbr_subject.mbs_prison);
 		if (rule->mbr_subject.mbs_neg & MBS_PRISON_DEFINED)
 			match = !match;
 		if (!match)
@@ -303,7 +302,7 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 
 	if (rule->mbr_object.mbo_flags & MBO_FSID_DEFINED) {
 		match = (fsidcmp(&vp->v_mount->mnt_stat.f_fsid,
-		    &rule->mbr_object.mbo_fsid) == 0);
+			     &rule->mbr_object.mbo_fsid) == 0);
 		if (rule->mbr_object.mbo_neg & MBO_FSID_DEFINED)
 			match = !match;
 		if (!match)
@@ -388,7 +387,8 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 	    priv_check_cred(cred, PRIV_VFS_ADMIN) == 0)
 		priv_granted |= MBI_ADMIN;
 	if ((acc_mode & MBI_EXEC) && (mac_granted & MBI_EXEC) == 0 &&
-	    priv_check_cred(cred, (vap->va_type == VDIR) ? PRIV_VFS_LOOKUP : PRIV_VFS_EXEC) == 0)
+	    priv_check_cred(cred,
+		(vap->va_type == VDIR) ? PRIV_VFS_LOOKUP : PRIV_VFS_EXEC) == 0)
 		priv_granted |= MBI_EXEC;
 	if ((acc_mode & MBI_READ) && (mac_granted & MBI_READ) == 0 &&
 	    priv_check_cred(cred, PRIV_VFS_READ) == 0)
@@ -404,9 +404,10 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 	 */
 	if (((mac_granted | priv_granted) & acc_mode) != acc_mode) {
 		if (ugidfw_logging)
-			log(LOG_AUTHPRIV, "mac_bsdextended: %d:%d request %d"
-			    " on %d:%d failed. \n", cred->cr_ruid,
-			    cred->cr_rgid, acc_mode, vap->va_uid,
+			log(LOG_AUTHPRIV,
+			    "mac_bsdextended: %d:%d request %d"
+			    " on %d:%d failed. \n",
+			    cred->cr_ruid, cred->cr_rgid, acc_mode, vap->va_uid,
 			    vap->va_gid);
 		return (EACCES);
 	}
@@ -422,8 +423,8 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 }
 
 int
-ugidfw_check(struct ucred *cred, struct vnode *vp, struct vattr *vap,
-    int acc_mode)
+ugidfw_check(
+    struct ucred *cred, struct vnode *vp, struct vattr *vap, int acc_mode)
 {
 	int error, i;
 
@@ -438,8 +439,7 @@ ugidfw_check(struct ucred *cred, struct vnode *vp, struct vattr *vap,
 	for (i = 0; i < rule_slots; i++) {
 		if (rules[i] == NULL)
 			continue;
-		error = ugidfw_rulecheck(rules[i], cred,
-		    vp, vap, acc_mode);
+		error = ugidfw_rulecheck(rules[i], cred, vp, vap, acc_mode);
 		if (error == EJUSTRETURN)
 			break;
 		if (error) {
@@ -486,8 +486,7 @@ ugidfw_accmode2mbi(accmode_t accmode)
 	return (mbi);
 }
 
-static struct mac_policy_ops ugidfw_ops =
-{
+static struct mac_policy_ops ugidfw_ops = {
 	.mpo_destroy = ugidfw_destroy,
 	.mpo_init = ugidfw_init,
 	.mpo_system_check_acct = ugidfw_system_check_acct,

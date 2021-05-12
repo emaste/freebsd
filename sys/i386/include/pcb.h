@@ -51,69 +51,69 @@
  * ABI should be preserved.
  */
 struct pcb {
-	int	pcb_edi;	/* (*) */
-	int	pcb_esi;	/* (*) */
-	int	pcb_ebp;	/* (*) */
-	int	pcb_esp;	/* (*) */
-	int	pcb_ebx;	/* (*) */
-	int	pcb_eip;	/* (*) */
+	int pcb_edi; /* (*) */
+	int pcb_esi; /* (*) */
+	int pcb_ebp; /* (*) */
+	int pcb_esp; /* (*) */
+	int pcb_ebx; /* (*) */
+	int pcb_eip; /* (*) */
 	struct segment_descriptor pcb_fsd;
 	struct segment_descriptor pcb_gsd;
-	int	pcb_ds;
-	int	pcb_es;
-	int	pcb_fs;
-	int	pcb_gs;
-	int	pcb_ss;
-	int	pcb_cr0;
-	int	pcb_cr2;
-	int	pcb_cr3;
-	int	pcb_cr4;
-	int     pcb_dr0;
-	int     pcb_dr1;
-	int     pcb_dr2;
-	int     pcb_dr3;
-	int     pcb_dr6;
-	int     pcb_dr7;
+	int pcb_ds;
+	int pcb_es;
+	int pcb_fs;
+	int pcb_gs;
+	int pcb_ss;
+	int pcb_cr0;
+	int pcb_cr2;
+	int pcb_cr3;
+	int pcb_cr4;
+	int pcb_dr0;
+	int pcb_dr1;
+	int pcb_dr2;
+	int pcb_dr3;
+	int pcb_dr6;
+	int pcb_dr7;
 
 	struct region_descriptor pcb_gdt;
 	struct region_descriptor pcb_idt;
-	uint16_t	pcb_ldt;
-	uint16_t	pcb_tr;
+	uint16_t pcb_ldt;
+	uint16_t pcb_tr;
 
-	u_int	pcb_flags;
-#define	PCB_DBREGS	0x02	/* process using debug registers */
-#define	PCB_KERNNPX_THR	0x04	/* fpu_kern_thread() */
-#define	PCB_NPXINITDONE	0x08	/* fpu state is initialized */
-#define	PCB_VM86CALL	0x10	/* in vm86 call */
-#define	PCB_NPXUSERINITDONE 0x20 /* user fpu state is initialized */
-#define	PCB_KERNNPX	0x40	/* kernel uses npx */
-#define	PCB_NPXNOSAVE	0x80	/* no save area for current FPU ctx */
+	u_int pcb_flags;
+#define PCB_DBREGS 0x02 /* process using debug registers */
+#define PCB_KERNNPX_THR 0x04 /* fpu_kern_thread() */
+#define PCB_NPXINITDONE 0x08 /* fpu state is initialized */
+#define PCB_VM86CALL 0x10 /* in vm86 call */
+#define PCB_NPXUSERINITDONE 0x20 /* user fpu state is initialized */
+#define PCB_KERNNPX 0x40 /* kernel uses npx */
+#define PCB_NPXNOSAVE 0x80 /* no save area for current FPU ctx */
 
 	uint16_t pcb_initial_npxcw;
 
-	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
-	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
-	int	pcb_waspsl;	/* unused padding for ABI and API compat */
-	u_long	pcb_vm86[2];	/* vm86bios scratch space */
-	union	savefpu *pcb_save;
+	caddr_t pcb_onfault;	 /* copyin/out fault recovery */
+	struct pcb_ext *pcb_ext; /* optional pcb extension */
+	int pcb_waspsl;		 /* unused padding for ABI and API compat */
+	u_long pcb_vm86[2];	 /* vm86bios scratch space */
+	union savefpu *pcb_save;
 
 	uint32_t pcb_pad[10];
 };
 
 /* Per-CPU state saved during suspend and resume. */
 struct susppcb {
-	struct pcb	sp_pcb;
+	struct pcb sp_pcb;
 
 	/* fpu context for suspend/resume */
-	void		*sp_fpususpend;
+	void *sp_fpususpend;
 };
 
 #ifdef _KERNEL
 struct trapframe;
 
-void	makectx(struct trapframe *, struct pcb *);
-int	savectx(struct pcb *) __returns_twice;
-void	resumectx(struct pcb *) __fastcall;
+void makectx(struct trapframe *, struct pcb *);
+int savectx(struct pcb *) __returns_twice;
+void resumectx(struct pcb *) __fastcall;
 #endif
 
 #endif /* _I386_PCB_H_ */

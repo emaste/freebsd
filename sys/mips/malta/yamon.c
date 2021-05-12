@@ -43,10 +43,10 @@ yamon_getenv(char *name)
 
 	value = NULL;
 	for (p = *fenvp; p->name != NULL; ++p) {
-	    if (!strcmp(name, p->name)) {
-		value = p->value;
-		break;
-	    }
+		if (!strcmp(name, p->name)) {
+			value = p->value;
+			break;
+		}
 	}
 
 	return (value);
@@ -59,8 +59,8 @@ yamon_getcpufreq(void)
 	int ret;
 
 	freq = 0;
-	ret = YAMON_SYSCON_READ(SYSCON_BOARD_CPU_CLOCK_FREQ_ID, &freq,
-	    sizeof(freq));
+	ret = YAMON_SYSCON_READ(
+	    SYSCON_BOARD_CPU_CLOCK_FREQ_ID, &freq, sizeof(freq));
 	if (ret != 0)
 		freq = 0;
 

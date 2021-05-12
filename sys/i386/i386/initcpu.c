@@ -35,17 +35,17 @@ __FBSDID("$FreeBSD$");
 #include "opt_cpu.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/sysctl.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
 #include <machine/specialreg.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
 
 #ifdef I486_CPU
 static void init_5x86(void);
@@ -59,28 +59,28 @@ static void init_6x86(void);
 #endif /* I486_CPU */
 
 #if defined(I586_CPU) && defined(CPU_WT_ALLOC)
-static void	enable_K5_wt_alloc(void);
-static void	enable_K6_wt_alloc(void);
-static void	enable_K6_2_wt_alloc(void);
+static void enable_K5_wt_alloc(void);
+static void enable_K6_wt_alloc(void);
+static void enable_K6_2_wt_alloc(void);
 #endif
 
 #ifdef I686_CPU
-static void	init_6x86MX(void);
-static void	init_ppro(void);
-static void	init_mendocino(void);
+static void init_6x86MX(void);
+static void init_ppro(void);
+static void init_mendocino(void);
 #endif
 
-static int	hw_instruction_sse;
-SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
-    &hw_instruction_sse, 0, "SIMD/MMX2 instructions available in CPU");
+static int hw_instruction_sse;
+SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD, &hw_instruction_sse, 0,
+    "SIMD/MMX2 instructions available in CPU");
 /*
  * -1: automatic (default)
  *  0: keep enable CLFLUSH
  *  1: force disable CLFLUSH
  */
-static int	hw_clflush_disable = -1;
+static int hw_clflush_disable = -1;
 
-u_int	cyrix_did;		/* Device ID of Cyrix CPU */
+u_int cyrix_did; /* Device ID of Cyrix CPU */
 
 #ifdef I486_CPU
 /*
@@ -97,20 +97,20 @@ init_bluelightning(void)
 	invd();
 
 #ifdef CPU_BLUELIGHTNING_FPU_OP_CACHE
-	wrmsr(0x1000, 0x9c92LL);	/* FP operand can be cacheable on Cyrix FPU */
+	wrmsr(0x1000, 0x9c92LL); /* FP operand can be cacheable on Cyrix FPU */
 #else
-	wrmsr(0x1000, 0x1c92LL);	/* Intel FPU */
+	wrmsr(0x1000, 0x1c92LL); /* Intel FPU */
 #endif
 	/* Enables 13MB and 0-640KB cache. */
 	wrmsr(0x1001, (0xd0LL << 32) | 0x3ff);
 #ifdef CPU_BLUELIGHTNING_3X
-	wrmsr(0x1002, 0x04000000LL);	/* Enables triple-clock mode. */
+	wrmsr(0x1002, 0x04000000LL); /* Enables triple-clock mode. */
 #else
-	wrmsr(0x1002, 0x03000000LL);	/* Enables double-clock mode. */
+	wrmsr(0x1002, 0x03000000LL); /* Enables double-clock mode. */
 #endif
 
 	/* Enable caching in CR0. */
-	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0 and NW = 0 */
+	load_cr0(rcr0() & ~(CR0_CD | CR0_NW)); /* CD = 0 and NW = 0 */
 	invd();
 	intr_restore(saveintr);
 }
@@ -122,7 +122,7 @@ static void
 init_486dlc(void)
 {
 	register_t saveintr;
-	u_char	ccr0;
+	u_char ccr0;
 
 	saveintr = intr_disable();
 	invd();
@@ -140,20 +140,20 @@ init_486dlc(void)
 	ccr0 |= CCR0_NC1;
 #endif
 #ifdef CPU_DIRECT_MAPPED_CACHE
-	ccr0 |= CCR0_CO;			/* Direct mapped mode. */
+	ccr0 |= CCR0_CO; /* Direct mapped mode. */
 #endif
 	write_cyrix_reg(CCR0, ccr0);
 
 	/* Clear non-cacheable region. */
-	write_cyrix_reg(NCR1+2, NCR_SIZE_0K);
-	write_cyrix_reg(NCR2+2, NCR_SIZE_0K);
-	write_cyrix_reg(NCR3+2, NCR_SIZE_0K);
-	write_cyrix_reg(NCR4+2, NCR_SIZE_0K);
+	write_cyrix_reg(NCR1 + 2, NCR_SIZE_0K);
+	write_cyrix_reg(NCR2 + 2, NCR_SIZE_0K);
+	write_cyrix_reg(NCR3 + 2, NCR_SIZE_0K);
+	write_cyrix_reg(NCR4 + 2, NCR_SIZE_0K);
 
-	write_cyrix_reg(0, 0);	/* dummy write */
+	write_cyrix_reg(0, 0); /* dummy write */
 
 	/* Enable caching in CR0. */
-	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0 and NW = 0 */
+	load_cr0(rcr0() & ~(CR0_CD | CR0_NW)); /* CD = 0 and NW = 0 */
 	invd();
 #endif /* !CYRIX_CACHE_WORKS */
 	intr_restore(saveintr);
@@ -166,7 +166,7 @@ static void
 init_cy486dx(void)
 {
 	register_t saveintr;
-	u_char	ccr2;
+	u_char ccr2;
 
 	saveintr = intr_disable();
 	invd();
@@ -187,14 +187,14 @@ static void
 init_5x86(void)
 {
 	register_t saveintr;
-	u_char	ccr2, ccr3, ccr4, pcr0;
+	u_char ccr2, ccr3, ccr4, pcr0;
 
 	saveintr = intr_disable();
 
 	load_cr0(rcr0() | CR0_CD | CR0_NW);
 	wbinvd();
 
-	(void)read_cyrix_reg(CCR3);		/* dummy */
+	(void)read_cyrix_reg(CCR3); /* dummy */
 
 	/* Initialize CCR2. */
 	ccr2 = read_cyrix_reg(CCR2);
@@ -267,11 +267,11 @@ init_5x86(void)
 	/* Restore CCR3. */
 	write_cyrix_reg(CCR3, ccr3);
 
-	(void)read_cyrix_reg(0x80);		/* dummy */
+	(void)read_cyrix_reg(0x80); /* dummy */
 
 	/* Unlock NW bit in CR0. */
 	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) & ~CCR2_LOCK_NW);
-	load_cr0((rcr0() & ~CR0_CD) | CR0_NW);	/* CD = 0, NW = 1 */
+	load_cr0((rcr0() & ~CR0_CD) | CR0_NW); /* CD = 0, NW = 1 */
 	/* Lock NW bit in CR0. */
 	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) | CCR2_LOCK_NW);
 
@@ -290,7 +290,7 @@ init_i486_on_386(void)
 
 	saveintr = intr_disable();
 
-	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0, NW = 0 */
+	load_cr0(rcr0() & ~(CR0_CD | CR0_NW)); /* CD = 0, NW = 0 */
 
 	intr_restore(saveintr);
 }
@@ -305,7 +305,7 @@ static void
 init_6x86(void)
 {
 	register_t saveintr;
-	u_char	ccr3, ccr4;
+	u_char ccr3, ccr4;
 
 	saveintr = intr_disable();
 
@@ -358,13 +358,13 @@ init_6x86(void)
 	 * L1 cache is in write-back mode.
 	 */
 	if ((cyrix_did & 0xff00) > 0x1600)
-		load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0 and NW = 0 */
+		load_cr0(rcr0() & ~(CR0_CD | CR0_NW)); /* CD = 0 and NW = 0 */
 	else {
 		/* Revision 2.6 and lower. */
 #ifdef CYRIX_CACHE_REALLY_WORKS
-		load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0 and NW = 0 */
+		load_cr0(rcr0() & ~(CR0_CD | CR0_NW)); /* CD = 0 and NW = 0 */
 #else
-		load_cr0((rcr0() & ~CR0_CD) | CR0_NW);	/* CD = 0 and NW = 1 */
+		load_cr0((rcr0() & ~CR0_CD) | CR0_NW); /* CD = 0 and NW = 1 */
 #endif
 	}
 
@@ -430,7 +430,7 @@ static void
 init_6x86MX(void)
 {
 	register_t saveintr;
-	u_char	ccr3, ccr4;
+	u_char ccr3, ccr4;
 
 	saveintr = intr_disable();
 
@@ -477,7 +477,7 @@ init_6x86MX(void)
 	/* Unlock NW bit in CR0. */
 	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) & ~CCR2_LOCK_NW);
 
-	load_cr0(rcr0() & ~(CR0_CD | CR0_NW));	/* CD = 0 and NW = 0 */
+	load_cr0(rcr0() & ~(CR0_CD | CR0_NW)); /* CD = 0 and NW = 0 */
 
 	/* Lock NW bit in CR0. */
 	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) | CCR2_LOCK_NW);
@@ -490,7 +490,7 @@ static int ppro_apic_used = -1;
 static void
 init_ppro(void)
 {
-	u_int64_t	apicbase;
+	u_int64_t apicbase;
 
 	/*
 	 * Local APIC should be disabled if it is not going to be used.
@@ -510,7 +510,7 @@ init_ppro(void)
 void
 ppro_reenable_apic(void)
 {
-	u_int64_t	apicbase;
+	u_int64_t apicbase;
 
 	if (ppro_apic_used == 0) {
 		apicbase = rdmsr(MSR_APICBASE);
@@ -528,8 +528,8 @@ static void
 init_mendocino(void)
 {
 #ifdef CPU_PPRO2CELERON
-	register_t	saveintr;
-	u_int64_t	bbl_cr_ctl3;
+	register_t saveintr;
+	u_int64_t bbl_cr_ctl3;
 
 	saveintr = intr_disable();
 
@@ -543,7 +543,7 @@ init_mendocino(void)
 		bbl_cr_ctl3 = 0x134052bLL;
 
 		/* Set L2 Cache Latency (Default: 5). */
-#ifdef	CPU_CELERON_L2_LATENCY
+#ifdef CPU_CELERON_L2_LATENCY
 #if CPU_L2_LATENCY > 15
 #error invalid CPU_L2_LATENCY.
 #endif
@@ -674,8 +674,7 @@ initializecpu(void)
 		case CPU_VENDOR_AMD:
 #ifdef CPU_WT_ALLOC
 			if (((cpu_id & 0x0f0) > 0) &&
-			    ((cpu_id & 0x0f0) < 0x60) &&
-			    ((cpu_id & 0x00f) > 3))
+			    ((cpu_id & 0x0f0) < 0x60) && ((cpu_id & 0x00f) > 3))
 				enable_K5_wt_alloc();
 			else if (((cpu_id & 0x0f0) > 0x80) ||
 			    (((cpu_id & 0x0f0) == 0x80) &&
@@ -731,8 +730,8 @@ initializecpu(void)
 			 */
 			if ((cpu_feature & CPUID_XMM) == 0 &&
 			    ((cpu_id & ~0xf) == 0x660 ||
-			     (cpu_id & ~0xf) == 0x670 ||
-			     (cpu_id & ~0xf) == 0x680)) {
+				(cpu_id & ~0xf) == 0x670 ||
+				(cpu_id & ~0xf) == 0x680)) {
 				u_int regs[4];
 				wrmsr(MSR_HWCR, rdmsr(MSR_HWCR) & ~0x08000);
 				do_cpuid(1, regs);
@@ -744,7 +743,7 @@ initializecpu(void)
 			 * amd64/initcpu.c.
 			 */
 			if ((CPUID_TO_FAMILY(cpu_id) == 0xf ||
-			    CPUID_TO_FAMILY(cpu_id) == 0x10) &&
+				CPUID_TO_FAMILY(cpu_id) == 0x10) &&
 			    (cpu_feature2 & CPUID2_HV) == 0)
 				cpu_amdc1e_bug = 1;
 			break;
@@ -813,8 +812,8 @@ initializecpucache(void)
 static void
 enable_K5_wt_alloc(void)
 {
-	u_int64_t	msr;
-	register_t	saveintr;
+	u_int64_t msr;
+	register_t saveintr;
 
 	/*
 	 * Write allocate is supported only on models 1, 2, and 3, with
@@ -822,7 +821,7 @@ enable_K5_wt_alloc(void)
 	 */
 	if (((cpu_id & 0xf0) > 0) && ((cpu_id & 0x0f) > 3)) {
 		saveintr = intr_disable();
-		msr = rdmsr(0x83);		/* HWCR */
+		msr = rdmsr(0x83); /* HWCR */
 		wrmsr(0x83, msr & !(0x10));
 
 		/*
@@ -830,10 +829,10 @@ enable_K5_wt_alloc(void)
 		 * since video cards could have frame bufferes there,
 		 * memory-mapped I/O could be there, etc.
 		 */
-		if(Maxmem > 0)
-		  msr = Maxmem / 16;
+		if (Maxmem > 0)
+			msr = Maxmem / 16;
 		else
-		  msr = 0;
+			msr = 0;
 		msr |= AMD_WT_ALLOC_TME | AMD_WT_ALLOC_FRE;
 
 		/*
@@ -844,8 +843,8 @@ enable_K5_wt_alloc(void)
 		msr |= AMD_WT_ALLOC_PRE;
 		wrmsr(0x85, msr);
 
-		msr=rdmsr(0x83);
-		wrmsr(0x83, msr|0x10); /* enable write allocate */
+		msr = rdmsr(0x83);
+		wrmsr(0x83, msr | 0x10); /* enable write allocate */
 		intr_restore(saveintr);
 	}
 }
@@ -853,9 +852,9 @@ enable_K5_wt_alloc(void)
 static void
 enable_K6_wt_alloc(void)
 {
-	quad_t	size;
-	u_int64_t	whcr;
-	register_t	saveintr;
+	quad_t size;
+	u_int64_t whcr;
+	register_t saveintr;
 
 	saveintr = intr_disable();
 	wbinvd();
@@ -876,9 +875,9 @@ enable_K6_wt_alloc(void)
 #endif
 	/* Don't assume that memory size is aligned with 4M. */
 	if (Maxmem > 0)
-	  size = ((Maxmem >> 8) + 3) >> 2;
+		size = ((Maxmem >> 8) + 3) >> 2;
 	else
-	  size = 0;
+		size = 0;
 
 	/* Limit is 508M bytes. */
 	if (size > 0x7f)
@@ -887,7 +886,7 @@ enable_K6_wt_alloc(void)
 
 #if defined(NO_MEMORY_HOLE)
 	if (whcr & (0x7fLL << 1))
-		whcr |=  0x0001LL;
+		whcr |= 0x0001LL;
 #else
 	/*
 	 * There is no way to know whether 15-16M hole exists or not.
@@ -903,9 +902,9 @@ enable_K6_wt_alloc(void)
 static void
 enable_K6_2_wt_alloc(void)
 {
-	quad_t	size;
-	u_int64_t	whcr;
-	register_t	saveintr;
+	quad_t size;
+	u_int64_t whcr;
+	register_t saveintr;
 
 	saveintr = intr_disable();
 	wbinvd();
@@ -926,9 +925,9 @@ enable_K6_2_wt_alloc(void)
 #endif
 	/* Don't assume that memory size is aligned with 4M. */
 	if (Maxmem > 0)
-	  size = ((Maxmem >> 8) + 3) >> 2;
+		size = ((Maxmem >> 8) + 3) >> 2;
 	else
-	  size = 0;
+		size = 0;
 
 	/* Limit is 4092M bytes. */
 	if (size > 0x3fff)
@@ -937,7 +936,7 @@ enable_K6_2_wt_alloc(void)
 
 #if defined(NO_MEMORY_HOLE)
 	if (whcr & (0x3ffLL << 22))
-		whcr |=  1LL << 16;
+		whcr |= 1LL << 16;
 #else
 	/*
 	 * There is no way to know whether 15-16M hole exists or not.
@@ -958,9 +957,9 @@ enable_K6_2_wt_alloc(void)
 DB_SHOW_COMMAND(cyrixreg, cyrixreg)
 {
 	register_t saveintr;
-	u_int	cr0;
-	u_char	ccr1, ccr2, ccr3;
-	u_char	ccr0 = 0, ccr4 = 0, ccr5 = 0, pcr0 = 0;
+	u_int cr0;
+	u_char ccr1, ccr2, ccr3;
+	u_char ccr0 = 0, ccr4 = 0, ccr5 = 0, pcr0 = 0;
 
 	cr0 = rcr0();
 	if (cpu_vendor_id == CPU_VENDOR_CYRIX) {
@@ -979,15 +978,15 @@ DB_SHOW_COMMAND(cyrixreg, cyrixreg)
 				ccr5 = read_cyrix_reg(CCR5);
 			else
 				pcr0 = read_cyrix_reg(PCR0);
-			write_cyrix_reg(CCR3, ccr3);		/* Restore CCR3. */
+			write_cyrix_reg(CCR3, ccr3); /* Restore CCR3. */
 		}
 		intr_restore(saveintr);
 
 		if ((cpu != CPU_M1SC) && (cpu != CPU_CY486DX))
 			printf("CCR0=%x, ", (u_int)ccr0);
 
-		printf("CCR1=%x, CCR2=%x, CCR3=%x",
-			(u_int)ccr1, (u_int)ccr2, (u_int)ccr3);
+		printf("CCR1=%x, CCR2=%x, CCR3=%x", (u_int)ccr1, (u_int)ccr2,
+		    (u_int)ccr3);
 		if ((cpu == CPU_M1SC) || (cpu == CPU_M1) || (cpu == CPU_M2)) {
 			printf(", CCR4=%x, ", (u_int)ccr4);
 			if (cpu == CPU_M1SC)

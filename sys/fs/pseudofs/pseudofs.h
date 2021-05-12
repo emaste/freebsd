@@ -52,9 +52,9 @@ struct vnode;
 /*
  * Limits and constants
  */
-#define PFS_NAMELEN		128
-#define PFS_FSNAMELEN		16	/* equal to MFSNAMELEN */
-#define PFS_DELEN		(offsetof(struct dirent, d_name) + PFS_NAMELEN)
+#define PFS_NAMELEN 128
+#define PFS_FSNAMELEN 16 /* equal to MFSNAMELEN */
+#define PFS_DELEN (offsetof(struct dirent, d_name) + PFS_NAMELEN)
 
 typedef enum {
 	pfstype_none = 0,
@@ -70,15 +70,15 @@ typedef enum {
 /*
  * Flags
  */
-#define PFS_RD		0x0001	/* readable */
-#define PFS_WR		0x0002	/* writeable */
-#define PFS_RDWR	(PFS_RD|PFS_WR)
-#define PFS_RAWRD	0x0004	/* raw reader */
-#define	PFS_RAWWR	0x0008	/* raw writer */
-#define PFS_RAW		(PFS_RAWRD|PFS_RAWWR)
-#define PFS_PROCDEP	0x0010	/* process-dependent */
-#define PFS_NOWAIT	0x0020 /* allow malloc to fail */
-#define PFS_AUTODRAIN	0x0040	/* sbuf_print can sleep to drain */
+#define PFS_RD 0x0001 /* readable */
+#define PFS_WR 0x0002 /* writeable */
+#define PFS_RDWR (PFS_RD | PFS_WR)
+#define PFS_RAWRD 0x0004 /* raw reader */
+#define PFS_RAWWR 0x0008 /* raw writer */
+#define PFS_RAW (PFS_RAWRD | PFS_RAWWR)
+#define PFS_PROCDEP 0x0010 /* process-dependent */
+#define PFS_NOWAIT 0x0020 /* allow malloc to fail */
+#define PFS_AUTODRAIN 0x0040 /* sbuf_print can sleep to drain */
 
 /*
  * Data structures
@@ -89,25 +89,20 @@ struct pfs_node;
 /*
  * Init / uninit callback
  */
-#define PFS_INIT_ARGS \
-	struct pfs_info *pi, struct vfsconf *vfc
-#define PFS_INIT_ARGNAMES \
-	pi, vfc
-#define PFS_INIT_PROTO(name) \
-	int name(PFS_INIT_ARGS);
+#define PFS_INIT_ARGS struct pfs_info *pi, struct vfsconf *vfc
+#define PFS_INIT_ARGNAMES pi, vfc
+#define PFS_INIT_PROTO(name) int name(PFS_INIT_ARGS);
 typedef int (*pfs_init_t)(PFS_INIT_ARGS);
 
 /*
  * Filler callback
  * Called with proc held but unlocked
  */
-#define PFS_FILL_ARGS \
+#define PFS_FILL_ARGS                                           \
 	struct thread *td, struct proc *p, struct pfs_node *pn, \
-	struct sbuf *sb, struct uio *uio
-#define PFS_FILL_ARGNAMES \
-	td, p, pn, sb, uio
-#define PFS_FILL_PROTO(name) \
-	int name(PFS_FILL_ARGS);
+	    struct sbuf *sb, struct uio *uio
+#define PFS_FILL_ARGNAMES td, p, pn, sb, uio
+#define PFS_FILL_PROTO(name) int name(PFS_FILL_ARGS);
 typedef int (*pfs_fill_t)(PFS_FILL_ARGS);
 
 /*
@@ -115,52 +110,43 @@ typedef int (*pfs_fill_t)(PFS_FILL_ARGS);
  * Called with proc locked
  */
 struct vattr;
-#define PFS_ATTR_ARGS \
+#define PFS_ATTR_ARGS                                           \
 	struct thread *td, struct proc *p, struct pfs_node *pn, \
-	struct vattr *vap
-#define PFS_ATTR_ARGNAMES \
-	td, p, pn, vap
-#define PFS_ATTR_PROTO(name) \
-	int name(PFS_ATTR_ARGS);
+	    struct vattr *vap
+#define PFS_ATTR_ARGNAMES td, p, pn, vap
+#define PFS_ATTR_PROTO(name) int name(PFS_ATTR_ARGS);
 typedef int (*pfs_attr_t)(PFS_ATTR_ARGS);
 
 /*
  * Visibility callback
  * Called with proc locked
  */
-#define PFS_VIS_ARGS \
-	struct thread *td, struct proc *p, struct pfs_node *pn
-#define PFS_VIS_ARGNAMES \
-	td, p, pn
-#define PFS_VIS_PROTO(name) \
-	int name(PFS_VIS_ARGS);
+#define PFS_VIS_ARGS struct thread *td, struct proc *p, struct pfs_node *pn
+#define PFS_VIS_ARGNAMES td, p, pn
+#define PFS_VIS_PROTO(name) int name(PFS_VIS_ARGS);
 typedef int (*pfs_vis_t)(PFS_VIS_ARGS);
 
 /*
  * Ioctl callback
  * Called with proc locked
  */
-#define PFS_IOCTL_ARGS \
+#define PFS_IOCTL_ARGS                                          \
 	struct thread *td, struct proc *p, struct pfs_node *pn, \
-	unsigned long cmd, void *data
-#define PFS_IOCTL_ARGNAMES \
-	td, p, pn, cmd, data
-#define PFS_IOCTL_PROTO(name) \
-	int name(PFS_IOCTL_ARGS);
+	    unsigned long cmd, void *data
+#define PFS_IOCTL_ARGNAMES td, p, pn, cmd, data
+#define PFS_IOCTL_PROTO(name) int name(PFS_IOCTL_ARGS);
 typedef int (*pfs_ioctl_t)(PFS_IOCTL_ARGS);
 
 /*
  * Getextattr callback
  * Called with proc locked
  */
-#define PFS_GETEXTATTR_ARGS \
-	struct thread *td, struct proc *p, struct pfs_node *pn, \
-	int attrnamespace, const char *name, struct uio *uio,	\
-	size_t *size, struct ucred *cred
-#define PFS_GETEXTATTR_ARGNAMES \
-	td, p, pn, attrnamespace, name, uio, size, cred
-#define PFS_GETEXTATTR_PROTO(name) \
-	int name(PFS_GETEXTATTR_ARGS);
+#define PFS_GETEXTATTR_ARGS                                       \
+	struct thread *td, struct proc *p, struct pfs_node *pn,   \
+	    int attrnamespace, const char *name, struct uio *uio, \
+	    size_t *size, struct ucred *cred
+#define PFS_GETEXTATTR_ARGNAMES td, p, pn, attrnamespace, name, uio, size, cred
+#define PFS_GETEXTATTR_PROTO(name) int name(PFS_GETEXTATTR_ARGS);
 struct ucred;
 typedef int (*pfs_getextattr_t)(PFS_GETEXTATTR_ARGS);
 
@@ -168,23 +154,17 @@ typedef int (*pfs_getextattr_t)(PFS_GETEXTATTR_ARGS);
  * Last-close callback
  * Called with proc locked
  */
-#define PFS_CLOSE_ARGS \
-	struct thread *td, struct proc *p, struct pfs_node *pn
-#define PFS_CLOSE_ARGNAMES \
-	td, p, pn
-#define PFS_CLOSE_PROTO(name) \
-	int name(PFS_CLOSE_ARGS);
+#define PFS_CLOSE_ARGS struct thread *td, struct proc *p, struct pfs_node *pn
+#define PFS_CLOSE_ARGNAMES td, p, pn
+#define PFS_CLOSE_PROTO(name) int name(PFS_CLOSE_ARGS);
 typedef int (*pfs_close_t)(PFS_CLOSE_ARGS);
 
 /*
  * Destroy callback
  */
-#define PFS_DESTROY_ARGS \
-	struct pfs_node *pn
-#define PFS_DESTROY_ARGNAMES \
-	pn
-#define PFS_DESTROY_PROTO(name) \
-	int name(PFS_DESTROY_ARGS);
+#define PFS_DESTROY_ARGS struct pfs_node *pn
+#define PFS_DESTROY_ARGNAMES pn
+#define PFS_DESTROY_PROTO(name) int name(PFS_DESTROY_ARGS);
 typedef int (*pfs_destroy_t)(PFS_DESTROY_ARGS);
 
 /*
@@ -195,14 +175,14 @@ typedef int (*pfs_destroy_t)(PFS_DESTROY_ARGS);
  * vfs_init() and vfs_uninit() of the consumer filesystem.
  */
 struct pfs_info {
-	char			 pi_name[PFS_FSNAMELEN];
-	pfs_init_t		 pi_init;
-	pfs_init_t		 pi_uninit;
+	char pi_name[PFS_FSNAMELEN];
+	pfs_init_t pi_init;
+	pfs_init_t pi_uninit;
 
 	/* members below this line are initialized at run time */
-	struct pfs_node		*pi_root;
-	struct mtx		 pi_mutex;
-	struct unrhdr		*pi_unrhdr;
+	struct pfs_node *pi_root;
+	struct mtx pi_mutex;
+	struct unrhdr *pi_unrhdr;
 };
 
 /*
@@ -219,96 +199,92 @@ struct pfs_info {
  * is not enforcable by WITNESS.
  */
 struct pfs_node {
-	char			 pn_name[PFS_NAMELEN];
-	pfs_type_t		 pn_type;
-	int			 pn_flags;
-	struct mtx		 pn_mutex;
-	void			*pn_data;		/* (o) */
+	char pn_name[PFS_NAMELEN];
+	pfs_type_t pn_type;
+	int pn_flags;
+	struct mtx pn_mutex;
+	void *pn_data; /* (o) */
 
-	pfs_fill_t		 pn_fill;
-	pfs_ioctl_t		 pn_ioctl;
-	pfs_close_t		 pn_close;
-	pfs_attr_t		 pn_attr;
-	pfs_vis_t		 pn_vis;
-	pfs_getextattr_t	 pn_getextattr;
-	pfs_destroy_t		 pn_destroy;
+	pfs_fill_t pn_fill;
+	pfs_ioctl_t pn_ioctl;
+	pfs_close_t pn_close;
+	pfs_attr_t pn_attr;
+	pfs_vis_t pn_vis;
+	pfs_getextattr_t pn_getextattr;
+	pfs_destroy_t pn_destroy;
 
-	struct pfs_info		*pn_info;
-	u_int32_t		 pn_fileno;		/* (o) */
+	struct pfs_info *pn_info;
+	u_int32_t pn_fileno; /* (o) */
 
-	struct pfs_node		*pn_parent;		/* (o) */
-	struct pfs_node		*pn_nodes;		/* (o) */
-	struct pfs_node		*pn_last_node;		/* (o) */
-	struct pfs_node		*pn_next;		/* (p) */
+	struct pfs_node *pn_parent;    /* (o) */
+	struct pfs_node *pn_nodes;     /* (o) */
+	struct pfs_node *pn_last_node; /* (o) */
+	struct pfs_node *pn_next;      /* (p) */
 };
 
 /*
  * VFS interface
  */
-int		 pfs_mount	(struct pfs_info *pi, struct mount *mp);
-int		 pfs_cmount	(struct mntarg *ma, void *data, uint64_t flags);
-int		 pfs_unmount	(struct mount *mp, int mntflags);
-int		 pfs_root	(struct mount *mp, int flags,
-				 struct vnode **vpp);
-int		 pfs_statfs	(struct mount *mp, struct statfs *sbp);
-int		 pfs_init	(struct pfs_info *pi, struct vfsconf *vfc);
-int		 pfs_uninit	(struct pfs_info *pi, struct vfsconf *vfc);
+int pfs_mount(struct pfs_info *pi, struct mount *mp);
+int pfs_cmount(struct mntarg *ma, void *data, uint64_t flags);
+int pfs_unmount(struct mount *mp, int mntflags);
+int pfs_root(struct mount *mp, int flags, struct vnode **vpp);
+int pfs_statfs(struct mount *mp, struct statfs *sbp);
+int pfs_init(struct pfs_info *pi, struct vfsconf *vfc);
+int pfs_uninit(struct pfs_info *pi, struct vfsconf *vfc);
 
 /*
  * Directory structure construction and manipulation
  */
-struct pfs_node	*pfs_create_dir	(struct pfs_node *parent, const char *name,
-				 pfs_attr_t attr, pfs_vis_t vis,
-				 pfs_destroy_t destroy, int flags);
-struct pfs_node	*pfs_create_file(struct pfs_node *parent, const char *name,
-				 pfs_fill_t fill, pfs_attr_t attr,
-				 pfs_vis_t vis, pfs_destroy_t destroy,
-				 int flags);
-struct pfs_node	*pfs_create_link(struct pfs_node *parent, const char *name,
-				 pfs_fill_t fill, pfs_attr_t attr,
-				 pfs_vis_t vis, pfs_destroy_t destroy,
-				 int flags);
-struct pfs_node	*pfs_find_node	(struct pfs_node *parent, const char *name);
-void		 pfs_purge	(struct pfs_node *pn);
-int		 pfs_destroy	(struct pfs_node *pn);
+struct pfs_node *pfs_create_dir(struct pfs_node *parent, const char *name,
+    pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy, int flags);
+struct pfs_node *pfs_create_file(struct pfs_node *parent, const char *name,
+    pfs_fill_t fill, pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy,
+    int flags);
+struct pfs_node *pfs_create_link(struct pfs_node *parent, const char *name,
+    pfs_fill_t fill, pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy,
+    int flags);
+struct pfs_node *pfs_find_node(struct pfs_node *parent, const char *name);
+void pfs_purge(struct pfs_node *pn);
+int pfs_destroy(struct pfs_node *pn);
 
 /*
  * Now for some initialization magic...
  */
-#define PSEUDOFS(name, version, flags)					\
-									\
-static struct pfs_info name##_info = {					\
-	#name,								\
-	name##_init,							\
-	name##_uninit,							\
-};									\
-									\
-static int								\
-_##name##_mount(struct mount *mp) {					\
-	return (pfs_mount(&name##_info, mp));				\
-}									\
-									\
-static int								\
-_##name##_init(struct vfsconf *vfc) {					\
-	return (pfs_init(&name##_info, vfc));				\
-}									\
-									\
-static int								\
-_##name##_uninit(struct vfsconf *vfc) {					\
-	return (pfs_uninit(&name##_info, vfc));				\
-}									\
-									\
-static struct vfsops name##_vfsops = {					\
-	.vfs_cmount =		pfs_cmount,				\
-	.vfs_init =		_##name##_init,				\
-	.vfs_mount =		_##name##_mount,			\
-	.vfs_root =		pfs_root,				\
-	.vfs_statfs =		pfs_statfs,				\
-	.vfs_uninit =		_##name##_uninit,			\
-	.vfs_unmount =		pfs_unmount,				\
-};									\
-VFS_SET(name##_vfsops, name, VFCF_SYNTHETIC | flags);			\
-MODULE_VERSION(name, version);						\
-MODULE_DEPEND(name, pseudofs, 1, 1, 1);
+#define PSEUDOFS(name, version, flags)                        \
+                                                              \
+	static struct pfs_info name##_info = {                \
+		#name,                                        \
+		name##_init,                                  \
+		name##_uninit,                                \
+	};                                                    \
+                                                              \
+	static int _##name##_mount(struct mount *mp)          \
+	{                                                     \
+		return (pfs_mount(&name##_info, mp));         \
+	}                                                     \
+                                                              \
+	static int _##name##_init(struct vfsconf *vfc)        \
+	{                                                     \
+		return (pfs_init(&name##_info, vfc));         \
+	}                                                     \
+                                                              \
+	static int _##name##_uninit(struct vfsconf *vfc)      \
+	{                                                     \
+		return (pfs_uninit(&name##_info, vfc));       \
+	}                                                     \
+                                                              \
+	static struct vfsops name##_vfsops = {                \
+		.vfs_cmount = pfs_cmount,                     \
+		.vfs_init = _##name##_init,                   \
+		.vfs_mount = _##name##_mount,                 \
+		.vfs_root = pfs_root,                         \
+		.vfs_statfs = pfs_statfs,                     \
+		.vfs_uninit = _##name##_uninit,               \
+		.vfs_unmount = pfs_unmount,                   \
+	};                                                    \
+	VFS_SET(name##_vfsops, name, VFCF_SYNTHETIC | flags); \
+	MODULE_VERSION(name, version);                        \
+	MODULE_DEPEND(name, pseudofs, 1, 1, 1);
 
 #endif

@@ -38,24 +38,24 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/cpu.h>
-#include <machine/intr.h>
 #include <machine/fdt.h>
-#include <machine/smp.h>
+#include <machine/intr.h>
 #include <machine/platformvar.h>
 #include <machine/pmap.h>
+#include <machine/smp.h>
 
 #include <arm/nvidia/tegra124/tegra124_mp.h>
 
-#define	PMC_PHYSBASE			0x7000e400
-#define	PMC_SIZE			0x400
-#define	PMC_CONTROL_REG			0x0
-#define	PMC_PWRGATE_TOGGLE		0x30
-#define	 PCM_PWRGATE_TOGGLE_START	(1 << 8)
-#define	PMC_PWRGATE_STATUS		0x38
+#define PMC_PHYSBASE 0x7000e400
+#define PMC_SIZE 0x400
+#define PMC_CONTROL_REG 0x0
+#define PMC_PWRGATE_TOGGLE 0x30
+#define PCM_PWRGATE_TOGGLE_START (1 << 8)
+#define PMC_PWRGATE_STATUS 0x38
 
-#define	TEGRA_EXCEPTION_VECTORS_BASE	0x6000F000 /* exception vectors */
-#define	TEGRA_EXCEPTION_VECTORS_SIZE	1024
-#define	 TEGRA_EXCEPTION_VECTOR_ENTRY	0x100
+#define TEGRA_EXCEPTION_VECTORS_BASE 0x6000F000 /* exception vectors */
+#define TEGRA_EXCEPTION_VECTORS_SIZE 1024
+#define TEGRA_EXCEPTION_VECTOR_ENTRY 0x100
 
 void
 tegra124_mp_setmaxid(platform_t plat)
@@ -86,27 +86,26 @@ tegra124_mp_start_ap(platform_t plat)
 	if (bus_space_map(fdtbus_bs_tag, PMC_PHYSBASE, PMC_SIZE, 0, &pmc) != 0)
 		panic("Couldn't map the PMC\n");
 	if (bus_space_map(fdtbus_bs_tag, TEGRA_EXCEPTION_VECTORS_BASE,
-	    TEGRA_EXCEPTION_VECTORS_SIZE, 0, &exvec) != 0)
+		TEGRA_EXCEPTION_VECTORS_SIZE, 0, &exvec) != 0)
 		panic("Couldn't map the exception vectors\n");
 
-	bus_space_write_4(fdtbus_bs_tag, exvec , TEGRA_EXCEPTION_VECTOR_ENTRY,
-			  pmap_kextract((vm_offset_t)mpentry));
-	bus_space_read_4(fdtbus_bs_tag, exvec , TEGRA_EXCEPTION_VECTOR_ENTRY);
+	bus_space_write_4(fdtbus_bs_tag, exvec, TEGRA_EXCEPTION_VECTOR_ENTRY,
+	    pmap_kextract((vm_offset_t)mpentry));
+	bus_space_read_4(fdtbus_bs_tag, exvec, TEGRA_EXCEPTION_VECTOR_ENTRY);
 
 	/* Wait until POWERGATE is ready (max 20 APB cycles). */
 	do {
-		val = bus_space_read_4(fdtbus_bs_tag, pmc,
-		    PMC_PWRGATE_TOGGLE);
+		val = bus_space_read_4(fdtbus_bs_tag, pmc, PMC_PWRGATE_TOGGLE);
 	} while ((val & PCM_PWRGATE_TOGGLE_START) != 0);
 
 	for (i = 1; i < mp_ncpus; i++) {
 		val = bus_space_read_4(fdtbus_bs_tag, pmc, PMC_PWRGATE_STATUS);
-		mask = 1 << (i + 8);	/* cpu mask */
+		mask = 1 << (i + 8); /* cpu mask */
 		if ((val & mask) == 0) {
 			/* Wait until POWERGATE is ready (max 20 APB cycles). */
 			do {
-				val = bus_space_read_4(fdtbus_bs_tag, pmc,
-				PMC_PWRGATE_TOGGLE);
+				val = bus_space_read_4(
+				    fdtbus_bs_tag, pmc, PMC_PWRGATE_TOGGLE);
 			} while ((val & PCM_PWRGATE_TOGGLE_START) != 0);
 			bus_space_write_4(fdtbus_bs_tag, pmc,
 			    PMC_PWRGATE_TOGGLE,
@@ -114,8 +113,8 @@ tegra124_mp_start_ap(platform_t plat)
 
 			/* Wait until CPU is powered */
 			do {
-				val = bus_space_read_4(fdtbus_bs_tag, pmc,
-				    PMC_PWRGATE_STATUS);
+				val = bus_space_read_4(
+				    fdtbus_bs_tag, pmc, PMC_PWRGATE_STATUS);
 			} while ((val & mask) == 0);
 		}
 	}

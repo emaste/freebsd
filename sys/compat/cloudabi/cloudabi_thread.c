@@ -32,13 +32,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/umtx.h>
 
+#include <compat/cloudabi/cloudabi_proto.h>
 #include <contrib/cloudabi/cloudabi_types_common.h>
 
-#include <compat/cloudabi/cloudabi_proto.h>
-
 int
-cloudabi_sys_thread_exit(struct thread *td,
-    struct cloudabi_sys_thread_exit_args *uap)
+cloudabi_sys_thread_exit(
+    struct thread *td, struct cloudabi_sys_thread_exit_args *uap)
 {
 	struct cloudabi_sys_lock_unlock_args cloudabi_sys_lock_unlock_args = {
 		.lock = uap->lock,
@@ -47,10 +46,10 @@ cloudabi_sys_thread_exit(struct thread *td,
 
 	umtx_thread_exit(td);
 
-        /* Wake up joining thread. */
+	/* Wake up joining thread. */
 	cloudabi_sys_lock_unlock(td, &cloudabi_sys_lock_unlock_args);
 
-        /*
+	/*
 	 * Attempt to terminate the thread. Terminate the process if
 	 * it's the last thread.
 	 */
@@ -60,8 +59,8 @@ cloudabi_sys_thread_exit(struct thread *td,
 }
 
 int
-cloudabi_sys_thread_yield(struct thread *td,
-    struct cloudabi_sys_thread_yield_args *uap)
+cloudabi_sys_thread_yield(
+    struct thread *td, struct cloudabi_sys_thread_yield_args *uap)
 {
 
 	sched_relinquish(td);

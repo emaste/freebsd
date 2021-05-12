@@ -27,15 +27,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/kdb.h>
-#include <sys/kernel.h>
-#include <sys/priv.h>
-#include <sys/systm.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/consio.h>
+#include <sys/kdb.h>
+#include <sys/kernel.h>
+#include <sys/priv.h>
 #include <sys/tty.h>
 
 #include <dev/ofw/openfirm.h>
@@ -44,35 +44,35 @@ __FBSDID("$FreeBSD$");
 
 #include "mambocall.h"
 
-#define MAMBOBURSTLEN	128	/* max number of bytes to write in one chunk */
+#define MAMBOBURSTLEN 128 /* max number of bytes to write in one chunk */
 
-#define MAMBO_CONSOLE_WRITE	0
-#define MAMBO_CONSOLE_READ	60
+#define MAMBO_CONSOLE_WRITE 0
+#define MAMBO_CONSOLE_READ 60
 
 static tsw_outwakeup_t mambotty_outwakeup;
 
 static struct ttydevsw mambo_ttydevsw = {
-	.tsw_flags	= TF_NOPREFIX,
-	.tsw_outwakeup	= mambotty_outwakeup,
+	.tsw_flags = TF_NOPREFIX,
+	.tsw_outwakeup = mambotty_outwakeup,
 };
 
-static int			polltime;
-static struct callout		mambo_callout;
-static struct tty 		*tp = NULL;
+static int polltime;
+static struct callout mambo_callout;
+static struct tty *tp = NULL;
 
 #if defined(KDB)
-static int			alt_break_state;
+static int alt_break_state;
 #endif
 
-static void	mambo_timeout(void *);
+static void mambo_timeout(void *);
 
-static cn_probe_t	mambo_cnprobe;
-static cn_init_t	mambo_cninit;
-static cn_term_t	mambo_cnterm;
-static cn_getc_t	mambo_cngetc;
-static cn_putc_t	mambo_cnputc;
-static cn_grab_t	mambo_cngrab;
-static cn_ungrab_t	mambo_cnungrab;
+static cn_probe_t mambo_cnprobe;
+static cn_init_t mambo_cninit;
+static cn_term_t mambo_cnterm;
+static cn_getc_t mambo_cngetc;
+static cn_putc_t mambo_cnputc;
+static cn_grab_t mambo_cngrab;
+static cn_ungrab_t mambo_cnungrab;
 
 CONSOLE_DRIVER(mambo);
 
@@ -115,7 +115,7 @@ mambotty_outwakeup(struct tty *tp)
 static void
 mambo_timeout(void *v)
 {
-	int 	c;
+	int c;
 
 	tty_lock(tp);
 	while ((c = mambo_cngetc(NULL)) != -1)

@@ -3,8 +3,9 @@
  * It was generated using rpcgen.
  */
 
-#include <nlm/sm_inter.h>
 #include <sys/cdefs.h>
+
+#include <nlm/sm_inter.h>
 __FBSDID("$FreeBSD$");
 
 bool_t

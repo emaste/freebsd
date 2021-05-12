@@ -38,35 +38,36 @@
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
-#define	EARLY_COUNTER	&__pcpu[0].pc_early_dummy_counter
+#define EARLY_COUNTER &__pcpu[0].pc_early_dummy_counter
 
-#define	counter_enter()	do {				\
-	if ((cpu_feature & CPUID_CX8) == 0)		\
-		critical_enter();			\
-} while (0)
+#define counter_enter()                             \
+	do {                                        \
+		if ((cpu_feature & CPUID_CX8) == 0) \
+			critical_enter();           \
+	} while (0)
 
-#define	counter_exit()	do {				\
-	if ((cpu_feature & CPUID_CX8) == 0)		\
-		critical_exit();			\
-} while (0)
+#define counter_exit()                              \
+	do {                                        \
+		if ((cpu_feature & CPUID_CX8) == 0) \
+			critical_exit();            \
+	} while (0)
 
 static inline void
 counter_64_inc_8b(uint64_t *p, int64_t inc)
 {
 
-	__asm __volatile(
-	"movl	%%fs:(%%esi),%%eax\n\t"
-	"movl	%%fs:4(%%esi),%%edx\n"
-"1:\n\t"
-	"movl	%%eax,%%ebx\n\t"
-	"movl	%%edx,%%ecx\n\t"
-	"addl	(%%edi),%%ebx\n\t"
-	"adcl	4(%%edi),%%ecx\n\t"
-	"cmpxchg8b %%fs:(%%esi)\n\t"
-	"jnz	1b"
-	:
-	: "S" ((char *)p - (char *)&__pcpu[0]), "D" (&inc)
-	: "memory", "cc", "eax", "edx", "ebx", "ecx");
+	__asm __volatile("movl	%%fs:(%%esi),%%eax\n\t"
+			 "movl	%%fs:4(%%esi),%%edx\n"
+			 "1:\n\t"
+			 "movl	%%eax,%%ebx\n\t"
+			 "movl	%%edx,%%ecx\n\t"
+			 "addl	(%%edi),%%ebx\n\t"
+			 "adcl	4(%%edi),%%ecx\n\t"
+			 "cmpxchg8b %%fs:(%%esi)\n\t"
+			 "jnz	1b"
+			 :
+			 : "S"((char *)p - (char *)&__pcpu[0]), "D"(&inc)
+			 : "memory", "cc", "eax", "edx", "ebx", "ecx");
 }
 
 #ifdef IN_SUBR_COUNTER_C
@@ -80,13 +81,12 @@ counter_u64_read_one_8b(uint64_t *p)
 {
 	uint32_t res_lo, res_high;
 
-	__asm __volatile(
-	"movl	%%eax,%%ebx\n\t"
-	"movl	%%edx,%%ecx\n\t"
-	"cmpxchg8b	(%2)"
-	: "=a" (res_lo), "=d"(res_high)
-	: "SD" (p)
-	: "cc", "ebx", "ecx");
+	__asm __volatile("movl	%%eax,%%ebx\n\t"
+			 "movl	%%edx,%%ecx\n\t"
+			 "cmpxchg8b	(%2)"
+			 : "=a"(res_lo), "=d"(res_high)
+			 : "SD"(p)
+			 : "cc", "ebx", "ecx");
 	return (res_lo + ((uint64_t)res_high << 32));
 }
 
@@ -118,9 +118,9 @@ counter_u64_fetch_inline(uint64_t *p)
 		 * critical section as well.
 		 */
 		critical_enter();
-		CPU_FOREACH(i) {
-			res += *(uint64_t *)((char *)p +
-			    UMA_PCPU_ALLOC_SIZE * i);
+		CPU_FOREACH (i) {
+			res += *(
+			    uint64_t *)((char *)p + UMA_PCPU_ALLOC_SIZE * i);
 		}
 		critical_exit();
 	} else {
@@ -136,17 +136,16 @@ static inline void
 counter_u64_zero_one_8b(uint64_t *p)
 {
 
-	__asm __volatile(
-	"movl	(%0),%%eax\n\t"
-	"movl	4(%0),%%edx\n"
-	"xorl	%%ebx,%%ebx\n\t"
-	"xorl	%%ecx,%%ecx\n\t"
-"1:\n\t"
-	"cmpxchg8b	(%0)\n\t"
-	"jnz	1b"
-	:
-	: "SD" (p)
-	: "memory", "cc", "eax", "edx", "ebx", "ecx");
+	__asm __volatile("movl	(%0),%%eax\n\t"
+			 "movl	4(%0),%%edx\n"
+			 "xorl	%%ebx,%%ebx\n\t"
+			 "xorl	%%ecx,%%ecx\n\t"
+			 "1:\n\t"
+			 "cmpxchg8b	(%0)\n\t"
+			 "jnz	1b"
+			 :
+			 : "SD"(p)
+			 : "memory", "cc", "eax", "edx", "ebx", "ecx");
 }
 
 static void
@@ -165,7 +164,7 @@ counter_u64_zero_inline(counter_u64_t c)
 
 	if ((cpu_feature & CPUID_CX8) == 0) {
 		critical_enter();
-		CPU_FOREACH(i)
+		CPU_FOREACH (i)
 			*(uint64_t *)((char *)c + UMA_PCPU_ALLOC_SIZE * i) = 0;
 		critical_exit();
 	} else {
@@ -175,13 +174,14 @@ counter_u64_zero_inline(counter_u64_t c)
 }
 #endif
 
-#define	counter_u64_add_protected(c, inc)	do {	\
-	if ((cpu_feature & CPUID_CX8) == 0) {		\
-		CRITICAL_ASSERT(curthread);		\
-		*(uint64_t *)zpcpu_get(c) += (inc);	\
-	} else						\
-		counter_64_inc_8b((c), (inc));		\
-} while (0)
+#define counter_u64_add_protected(c, inc)                   \
+	do {                                                \
+		if ((cpu_feature & CPUID_CX8) == 0) {       \
+			CRITICAL_ASSERT(curthread);         \
+			*(uint64_t *)zpcpu_get(c) += (inc); \
+		} else                                      \
+			counter_64_inc_8b((c), (inc));      \
+	} while (0)
 
 static inline void
 counter_u64_add(counter_u64_t c, int64_t inc)
@@ -196,4 +196,4 @@ counter_u64_add(counter_u64_t c, int64_t inc)
 	}
 }
 
-#endif	/* ! __MACHINE_COUNTER_H__ */
+#endif /* ! __MACHINE_COUNTER_H__ */

@@ -53,7 +53,7 @@ g_label_flashmap_taste(struct g_consumer *cp, char *label, size_t size)
 
 	/* We taste only partitions handled by flashmap */
 	if (strncmp(pp->geom->class->name, FLASHMAP_CLASS_NAME,
-	    sizeof(FLASHMAP_CLASS_NAME)) != 0)
+		sizeof(FLASHMAP_CLASS_NAME)) != 0)
 		return;
 
 	gsp = (struct g_slicer *)pp->geom->softc;
@@ -66,10 +66,9 @@ g_label_flashmap_taste(struct g_consumer *cp, char *label, size_t size)
 	strlcpy(label, gfp->labels[pp->index], size);
 }
 
-struct g_label_desc g_label_flashmap = {
-	.ld_taste = g_label_flashmap_taste,
+struct g_label_desc g_label_flashmap = { .ld_taste = g_label_flashmap_taste,
 	.ld_dirprefix = "flash/",
-	.ld_enabled = 1
-};
+	.ld_enabled = 1 };
 
-G_LABEL_INIT(flashmap, g_label_flashmap, "Create device nodes for Flashmap labels");
+G_LABEL_INIT(
+    flashmap, g_label_flashmap, "Create device nodes for Flashmap labels");

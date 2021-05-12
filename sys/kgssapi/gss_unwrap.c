@@ -42,12 +42,9 @@ __FBSDID("$FreeBSD$");
 #include "kgss_if.h"
 
 OM_uint32
-gss_unwrap(OM_uint32 *minor_status,
-    const gss_ctx_id_t ctx,
-    const gss_buffer_t input_message_buffer,
-    gss_buffer_t output_message_buffer,
-    int *conf_state,
-    gss_qop_t *qop_state)
+gss_unwrap(OM_uint32 *minor_status, const gss_ctx_id_t ctx,
+    const gss_buffer_t input_message_buffer, gss_buffer_t output_message_buffer,
+    int *conf_state, gss_qop_t *qop_state)
 {
 	OM_uint32 maj_stat;
 	struct mbuf *m;
@@ -70,9 +67,8 @@ gss_unwrap(OM_uint32 *minor_status,
 	 */
 	if (maj_stat == GSS_S_COMPLETE) {
 		output_message_buffer->length = m_length(m, NULL);
-		output_message_buffer->value =
-			malloc(output_message_buffer->length,
-			    M_GSSAPI, M_WAITOK);
+		output_message_buffer->value = malloc(
+		    output_message_buffer->length, M_GSSAPI, M_WAITOK);
 		m_copydata(m, 0, output_message_buffer->length,
 		    output_message_buffer->value);
 		m_freem(m);
@@ -82,11 +78,8 @@ gss_unwrap(OM_uint32 *minor_status,
 }
 
 OM_uint32
-gss_unwrap_mbuf(OM_uint32 *minor_status,
-    const gss_ctx_id_t ctx,
-    struct mbuf **mp,
-    int *conf_state,
-    gss_qop_t *qop_state)
+gss_unwrap_mbuf(OM_uint32 *minor_status, const gss_ctx_id_t ctx,
+    struct mbuf **mp, int *conf_state, gss_qop_t *qop_state)
 {
 
 	if (!ctx) {

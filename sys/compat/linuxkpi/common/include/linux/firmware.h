@@ -30,48 +30,47 @@
  * $FreeBSD$
  */
 
-#ifndef	_LINUXKPI_LINUX_FIRMWARE_H
-#define	_LINUXKPI_LINUX_FIRMWARE_H
+#ifndef _LINUXKPI_LINUX_FIRMWARE_H
+#define _LINUXKPI_LINUX_FIRMWARE_H
 
 #include <sys/types.h>
-#include <linux/types.h>
+
 #include <linux/device.h>
+#include <linux/types.h>
 
 struct firmware;
 
 struct linuxkpi_firmware {
-	size_t			size;
-	const uint8_t		*data;
+	size_t size;
+	const uint8_t *data;
 	/* XXX Does Linux expose anything else? */
 
 	/* This is LinuxKPI implementation private. */
-	const struct firmware	*fbdfw;
+	const struct firmware *fbdfw;
 };
 
 int linuxkpi_request_firmware_nowait(struct module *, bool, const char *,
     struct device *, gfp_t, void *,
-    void(*cont)(const struct linuxkpi_firmware *, void *));
-int linuxkpi_request_firmware(const struct linuxkpi_firmware **,
-    const char *, struct device *);
-int linuxkpi_firmware_request_nowarn(const struct linuxkpi_firmware **,
-    const char *, struct device *);
+    void (*cont)(const struct linuxkpi_firmware *, void *));
+int linuxkpi_request_firmware(
+    const struct linuxkpi_firmware **, const char *, struct device *);
+int linuxkpi_firmware_request_nowarn(
+    const struct linuxkpi_firmware **, const char *, struct device *);
 void linuxkpi_release_firmware(const struct linuxkpi_firmware *);
 
-
 static __inline int
-request_firmware_nowait(struct module *mod, bool _t,
-    const char *fw_name, struct device *dev, gfp_t gfp, void *drv,
-    void(*cont)(const struct linuxkpi_firmware *, void *))
+request_firmware_nowait(struct module *mod, bool _t, const char *fw_name,
+    struct device *dev, gfp_t gfp, void *drv,
+    void (*cont)(const struct linuxkpi_firmware *, void *))
 {
 
-
-	return (linuxkpi_request_firmware_nowait(mod, _t, fw_name, dev, gfp,
-	    drv, cont));
+	return (linuxkpi_request_firmware_nowait(
+	    mod, _t, fw_name, dev, gfp, drv, cont));
 }
 
 static __inline int
-request_firmware(const struct linuxkpi_firmware **fw,
-    const char *fw_name, struct device *dev)
+request_firmware(const struct linuxkpi_firmware **fw, const char *fw_name,
+    struct device *dev)
 {
 
 	return (linuxkpi_request_firmware(fw, fw_name, dev));
@@ -100,6 +99,6 @@ release_firmware(const struct linuxkpi_firmware *fw)
 	linuxkpi_release_firmware(fw);
 }
 
-#define	firmware	linuxkpi_firmware
+#define firmware linuxkpi_firmware
 
-#endif	/* _LINUXKPI_LINUX_FIRMWARE_H */
+#endif /* _LINUXKPI_LINUX_FIRMWARE_H */

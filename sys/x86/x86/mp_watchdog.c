@@ -34,6 +34,7 @@
 #endif
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -41,12 +42,12 @@
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
+#include <machine/mp_watchdog.h>
 #include <machine/smp.h>
+
 #include <x86/apicreg.h>
 #include <x86/apicvar.h>
-#include <machine/mp_watchdog.h>
 
 /*
  * mp_watchdog hijacks the idle thread on a specified CPU, prevents new work
@@ -63,15 +64,15 @@
  * XXXRW: This should really use the watchdog(9)/watchdog(4) framework, but
  * doesn't yet.
  */
-static int	watchdog_cpu = -1;
-static int	watchdog_dontfire = 1;
-static int	watchdog_timer = -1;
-static int	watchdog_nmi = 1;
+static int watchdog_cpu = -1;
+static int watchdog_dontfire = 1;
+static int watchdog_timer = -1;
+static int watchdog_nmi = 1;
 
 SYSCTL_INT(_debug, OID_AUTO, watchdog_nmi, CTLFLAG_RWTUN, &watchdog_nmi, 0,
     "IPI the boot processor with an NMI to enter the debugger");
 
-static struct callout	watchdog_callout;
+static struct callout watchdog_callout;
 
 static void watchdog_change(int wdcpu);
 
@@ -79,7 +80,7 @@ static void watchdog_change(int wdcpu);
  * Number of seconds before the watchdog will fire if the callout fails to
  * reset the timer.
  */
-#define	WATCHDOG_THRESHOLD	10
+#define WATCHDOG_THRESHOLD 10
 
 static void
 watchdog_init(void *arg)
@@ -126,8 +127,8 @@ watchdog_change(int wdcpu)
 		watchdog_timer = WATCHDOG_THRESHOLD;
 		watchdog_dontfire = 0;
 		watchdog_cpu = wdcpu;
-		callout_reset(&watchdog_callout, 1 * hz, watchdog_function,
-		    NULL);
+		callout_reset(
+		    &watchdog_callout, 1 * hz, watchdog_function, NULL);
 	}
 }
 
@@ -135,8 +136,7 @@ watchdog_change(int wdcpu)
  * This sysctl sets which CPU is the watchdog CPU.  Set to -1 or 0xffffffff
  * to disable the watchdog.
  */
-static int
-sysctl_watchdog(SYSCTL_HANDLER_ARGS)
+static int sysctl_watchdog(SYSCTL_HANDLER_ARGS)
 {
 	int error, temp;
 
@@ -150,8 +150,7 @@ sysctl_watchdog(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_debug, OID_AUTO, watchdog,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    0, 0, sysctl_watchdog, "I",
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0, sysctl_watchdog, "I",
     "");
 
 /*
@@ -165,7 +164,7 @@ watchdog_ipi_nmi(void)
 	 * Deliver NMI to the boot processor.  Why not?
 	 */
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_NMI,
+		APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_NMI,
 	    boot_cpu_id);
 	lapic_ipi_wait(-1);
 }
@@ -192,7 +191,7 @@ ap_watchdog(u_int cpuid)
 	bcopy(p->p_comm, old_pcomm, MAXCOMLEN + 1);
 	snprintf(p->p_comm, MAXCOMLEN + 1, "mp_watchdog cpu %d", cpuid);
 	while (1) {
-		DELAY(1000000);				/* One second. */
+		DELAY(1000000); /* One second. */
 		if (watchdog_cpu != cpuid)
 			break;
 		atomic_subtract_int(&watchdog_timer, 1);

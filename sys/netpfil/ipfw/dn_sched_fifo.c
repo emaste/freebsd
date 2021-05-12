@@ -31,22 +31,23 @@
  */
 
 #ifdef _KERNEL
-#include <sys/malloc.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/rwlock.h>
-#include <net/if.h>	/* IFNAMSIZ */
+#include <sys/socket.h>
+#include <sys/socketvar.h>
+
+#include <net/if.h> /* IFNAMSIZ */
 #include <netinet/in.h>
-#include <netinet/ip_var.h>		/* ipfw_rule_ref */
-#include <netinet/ip_fw.h>	/* flow_id */
 #include <netinet/ip_dummynet.h>
-#include <netpfil/ipfw/ip_fw_private.h>
+#include <netinet/ip_fw.h>  /* flow_id */
+#include <netinet/ip_var.h> /* ipfw_rule_ref */
 #include <netpfil/ipfw/dn_heap.h>
 #include <netpfil/ipfw/ip_dn_private.h>
+#include <netpfil/ipfw/ip_fw_private.h>
 #ifdef NEW_AQM
 #include <netpfil/ipfw/dn_aqm.h>
 #endif
@@ -62,7 +63,7 @@
  * queue size and policy.
  * Enqueue and dequeue use the default library functions.
  */
-static int 
+static int
 fifo_enqueue(struct dn_sch_inst *si, struct dn_queue *q, struct mbuf *m)
 {
 	/* XXX if called with q != NULL and m=NULL, this is a
@@ -70,7 +71,7 @@ fifo_enqueue(struct dn_sch_inst *si, struct dn_queue *q, struct mbuf *m)
 	 * handle.
 	 */
 	(void)q;
-	return dn_enqueue((struct dn_queue *)(si+1), m, 0);
+	return dn_enqueue((struct dn_queue *)(si + 1), m, 0);
 }
 
 static struct mbuf *
@@ -85,7 +86,7 @@ fifo_new_sched(struct dn_sch_inst *si)
 	/* This scheduler instance contains the queue */
 	struct dn_queue *q = (struct dn_queue *)(si + 1);
 
-        set_oid(&q->ni.oid, DN_QUEUE, sizeof(*q));
+	set_oid(&q->ni.oid, DN_QUEUE, sizeof(*q));
 	q->_si = si;
 	q->fs = si->sched->fs;
 	return 0;
@@ -106,26 +107,26 @@ fifo_free_sched(struct dn_sch_inst *si)
  * data structures, and function pointers.
  */
 static struct dn_alg fifo_desc = {
-	_SI( .type = )  DN_SCHED_FIFO,
-	_SI( .name = )  "FIFO",
-	_SI( .flags = ) 0,
+	_SI(.type =) DN_SCHED_FIFO,
+	_SI(.name =) "FIFO",
+	_SI(.flags =) 0,
 
-	_SI( .schk_datalen = ) 0,
-	_SI( .si_datalen = )  sizeof(struct dn_queue),
-	_SI( .q_datalen = )  0,
+	_SI(.schk_datalen =) 0,
+	_SI(.si_datalen =) sizeof(struct dn_queue),
+	_SI(.q_datalen =) 0,
 
-	_SI( .enqueue = )  fifo_enqueue,
-	_SI( .dequeue = )  fifo_dequeue,
-	_SI( .config = )  NULL,
-	_SI( .destroy = )  NULL,
-	_SI( .new_sched = )  fifo_new_sched,
-	_SI( .free_sched = )  fifo_free_sched,
-	_SI( .new_fsk = )  NULL,
-	_SI( .free_fsk = )  NULL,
-	_SI( .new_queue = )  NULL,
-	_SI( .free_queue = )  NULL,
+	_SI(.enqueue =) fifo_enqueue,
+	_SI(.dequeue =) fifo_dequeue,
+	_SI(.config =) NULL,
+	_SI(.destroy =) NULL,
+	_SI(.new_sched =) fifo_new_sched,
+	_SI(.free_sched =) fifo_free_sched,
+	_SI(.new_fsk =) NULL,
+	_SI(.free_fsk =) NULL,
+	_SI(.new_queue =) NULL,
+	_SI(.free_queue =) NULL,
 #ifdef NEW_AQM
-	_SI( .getconfig = )  NULL,
+	_SI(.getconfig =) NULL,
 #endif
 };
 

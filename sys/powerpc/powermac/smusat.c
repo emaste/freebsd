@@ -32,12 +32,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cpu.h>
 #include <sys/ctype.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 
 #include <dev/iicbus/iicbus.h>
@@ -51,7 +51,7 @@ struct smu_sensor {
 	struct pmac_therm therm;
 	device_t dev;
 
-	cell_t	reg;
+	cell_t reg;
 	enum {
 		SMU_CURRENT_SENSOR,
 		SMU_VOLTAGE_SENSOR,
@@ -60,33 +60,30 @@ struct smu_sensor {
 	} type;
 };
 
-static int	smusat_probe(device_t);
-static int	smusat_attach(device_t);
-static int	smusat_sensor_sysctl(SYSCTL_HANDLER_ARGS);
-static int	smusat_sensor_read(struct smu_sensor *sens);
+static int smusat_probe(device_t);
+static int smusat_attach(device_t);
+static int smusat_sensor_sysctl(SYSCTL_HANDLER_ARGS);
+static int smusat_sensor_read(struct smu_sensor *sens);
 
 static MALLOC_DEFINE(M_SMUSAT, "smusat", "SMU Sattelite Sensors");
 
-static device_method_t  smusat_methods[] = {
+static device_method_t smusat_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		smusat_probe),
-	DEVMETHOD(device_attach,	smusat_attach),
+	DEVMETHOD(device_probe, smusat_probe),
+	DEVMETHOD(device_attach, smusat_attach),
 	{ 0, 0 },
 };
 
 struct smusat_softc {
 	struct smu_sensor *sc_sensors;
-	int	sc_nsensors;
+	int sc_nsensors;
 
-	uint8_t	sc_cache[16];
-	time_t	sc_last_update;
+	uint8_t sc_cache[16];
+	time_t sc_last_update;
 };
 
-static driver_t smusat_driver = {
-	"smusat",
-	smusat_methods,
-	sizeof(struct smusat_softc)
-};
+static driver_t smusat_driver = { "smusat", smusat_methods,
+	sizeof(struct smusat_softc) };
 
 static devclass_t smusat_devclass;
 
@@ -120,14 +117,14 @@ smusat_attach(device_t dev)
 	sc->sc_last_update = 0;
 
 	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
-	    child = OF_peer(child))
+	     child = OF_peer(child))
 		sc->sc_nsensors++;
 
 	if (sc->sc_nsensors == 0) {
 		device_printf(dev, "WARNING: No sensors detected!\n");
 		return (-1);
 	}
-	    
+
 	sc->sc_sensors = malloc(sc->sc_nsensors * sizeof(struct smu_sensor),
 	    M_SMUSAT, M_WAITOK | M_ZERO);
 
@@ -138,7 +135,7 @@ smusat_attach(device_t dev)
 	sensroot_oid = device_get_sysctl_tree(dev);
 
 	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
-	    child = OF_peer(child)) {
+	     child = OF_peer(child)) {
 		char sysctl_name[40], sysctl_desc[40];
 		const char *units;
 
@@ -178,7 +175,7 @@ smusat_attach(device_t dev)
 		}
 		sysctl_name[i] = 0;
 
-		sprintf(sysctl_desc,"%s (%s)", sens->therm.name, units);
+		sprintf(sysctl_desc, "%s (%s)", sens->therm.name, units);
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(sensroot_oid), OID_AUTO,
 		    sysctl_name, CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev,
 		    sc->sc_nsensors, smusat_sensor_sysctl,
@@ -187,9 +184,9 @@ smusat_attach(device_t dev)
 		if (sens->type == SMU_TEMP_SENSOR) {
 			/* Make up some numbers */
 			sens->therm.target_temp = 500 + 2731; /* 50 C */
-			sens->therm.max_temp = 900 + 2731; /* 90 C */
-			sens->therm.read =
-			    (int (*)(struct pmac_therm *))smusat_sensor_read;
+			sens->therm.max_temp = 900 + 2731;    /* 90 C */
+			sens->therm.read = (int (*)(
+			    struct pmac_therm *))smusat_sensor_read;
 			pmac_thermal_sensor_register(&sens->therm);
 		}
 
@@ -204,12 +201,12 @@ static int
 smusat_updatecache(device_t dev)
 {
 	uint8_t reg = 0x3f;
-	uint8_t	value[16];
+	uint8_t value[16];
 	struct smusat_softc *sc = device_get_softc(dev);
 	int error;
 	struct iic_msg msgs[2] = {
-	    {0, IIC_M_WR | IIC_M_NOSTOP, 1, &reg},
-	    {0, IIC_M_RD, 16, value},
+		{ 0, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
+		{ 0, IIC_M_RD, 16, value },
 	};
 
 	msgs[0].slave = msgs[1].slave = iicbus_get_addr(dev);
@@ -238,8 +235,8 @@ smusat_sensor_read(struct smu_sensor *sens)
 	if (error)
 		return (-error);
 
-	value = (sc->sc_cache[sens->reg*2] << 8) +
-	    sc->sc_cache[sens->reg*2 + 1];
+	value = (sc->sc_cache[sens->reg * 2] << 8) +
+	    sc->sc_cache[sens->reg * 2 + 1];
 	if (value == 0xffff) {
 		sc->sc_last_update = 0; /* Result was bad, don't cache */
 		return (-EINVAL);
@@ -250,7 +247,8 @@ smusat_sensor_read(struct smu_sensor *sens)
 		/* 16.16 */
 		value <<= 10;
 		/* From 16.16 to 0.1 C */
-		value = 10*(value >> 16) + ((10*(value & 0xffff)) >> 16) + 2731;
+		value = 10 * (value >> 16) + ((10 * (value & 0xffff)) >> 16) +
+		    2731;
 		break;
 	case SMU_VOLTAGE_SENSOR:
 		/* 16.16 */
@@ -272,8 +270,7 @@ smusat_sensor_read(struct smu_sensor *sens)
 	return (value);
 }
 
-static int
-smusat_sensor_sysctl(SYSCTL_HANDLER_ARGS)
+static int smusat_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev;
 	struct smusat_softc *sc;

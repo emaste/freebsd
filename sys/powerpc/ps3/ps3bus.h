@@ -39,15 +39,14 @@ enum {
 	PS3BUS_IVAR_DEVIDX,
 };
 
-#define PS3BUS_ACCESSOR(A, B, T) \
-	__BUS_ACCESSOR(ps3bus, A, PS3BUS, B, T)
+#define PS3BUS_ACCESSOR(A, B, T) __BUS_ACCESSOR(ps3bus, A, PS3BUS, B, T)
 
-PS3BUS_ACCESSOR(bus,		BUS,		int)
-PS3BUS_ACCESSOR(device,		DEVICE,		int)
-PS3BUS_ACCESSOR(bustype,	BUSTYPE,	uint64_t)
-PS3BUS_ACCESSOR(devtype,	DEVTYPE,	uint64_t)
-PS3BUS_ACCESSOR(busidx,		BUSIDX,		int)
-PS3BUS_ACCESSOR(devidx,		DEVIDX,		int)
+PS3BUS_ACCESSOR(bus, BUS, int)
+PS3BUS_ACCESSOR(device, DEVICE, int)
+PS3BUS_ACCESSOR(bustype, BUSTYPE, uint64_t)
+PS3BUS_ACCESSOR(devtype, DEVTYPE, uint64_t)
+PS3BUS_ACCESSOR(busidx, BUSIDX, int)
+PS3BUS_ACCESSOR(devidx, DEVIDX, int)
 
 /* Bus types */
 enum {

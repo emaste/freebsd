@@ -32,13 +32,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/rman.h>
 #include <sys/module.h>
+#include <sys/rman.h>
+
+#include <machine/bus.h>
 
 #include <dev/fdt/simplebus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <machine/bus.h>
 
 #include <arm/ti/ti_sysc.h>
 #include <arm/ti/usb/omap_usb.h>
@@ -48,72 +48,72 @@ __FBSDID("$FreeBSD$");
  */
 
 /* UHH */
-#define	OMAP_USBHOST_UHH_REVISION                   0x0000
-#define	OMAP_USBHOST_UHH_SYSCONFIG                  0x0010
-#define	OMAP_USBHOST_UHH_SYSSTATUS                  0x0014
-#define	OMAP_USBHOST_UHH_HOSTCONFIG                 0x0040
-#define	OMAP_USBHOST_UHH_DEBUG_CSR                  0x0044
+#define OMAP_USBHOST_UHH_REVISION 0x0000
+#define OMAP_USBHOST_UHH_SYSCONFIG 0x0010
+#define OMAP_USBHOST_UHH_SYSSTATUS 0x0014
+#define OMAP_USBHOST_UHH_HOSTCONFIG 0x0040
+#define OMAP_USBHOST_UHH_DEBUG_CSR 0x0044
 
 /* UHH Register Set */
-#define UHH_SYSCONFIG_MIDLEMODE_MASK            (3UL << 12)
-#define UHH_SYSCONFIG_MIDLEMODE_SMARTSTANDBY    (2UL << 12)
-#define UHH_SYSCONFIG_MIDLEMODE_NOSTANDBY       (1UL << 12)
-#define UHH_SYSCONFIG_MIDLEMODE_FORCESTANDBY    (0UL << 12)
-#define UHH_SYSCONFIG_CLOCKACTIVITY             (1UL << 8)
-#define UHH_SYSCONFIG_SIDLEMODE_MASK            (3UL << 3)
-#define UHH_SYSCONFIG_SIDLEMODE_SMARTIDLE       (2UL << 3)
-#define UHH_SYSCONFIG_SIDLEMODE_NOIDLE          (1UL << 3)
-#define UHH_SYSCONFIG_SIDLEMODE_FORCEIDLE       (0UL << 3)
-#define UHH_SYSCONFIG_ENAWAKEUP                 (1UL << 2)
-#define UHH_SYSCONFIG_SOFTRESET                 (1UL << 1)
-#define UHH_SYSCONFIG_AUTOIDLE                  (1UL << 0)
+#define UHH_SYSCONFIG_MIDLEMODE_MASK (3UL << 12)
+#define UHH_SYSCONFIG_MIDLEMODE_SMARTSTANDBY (2UL << 12)
+#define UHH_SYSCONFIG_MIDLEMODE_NOSTANDBY (1UL << 12)
+#define UHH_SYSCONFIG_MIDLEMODE_FORCESTANDBY (0UL << 12)
+#define UHH_SYSCONFIG_CLOCKACTIVITY (1UL << 8)
+#define UHH_SYSCONFIG_SIDLEMODE_MASK (3UL << 3)
+#define UHH_SYSCONFIG_SIDLEMODE_SMARTIDLE (2UL << 3)
+#define UHH_SYSCONFIG_SIDLEMODE_NOIDLE (1UL << 3)
+#define UHH_SYSCONFIG_SIDLEMODE_FORCEIDLE (0UL << 3)
+#define UHH_SYSCONFIG_ENAWAKEUP (1UL << 2)
+#define UHH_SYSCONFIG_SOFTRESET (1UL << 1)
+#define UHH_SYSCONFIG_AUTOIDLE (1UL << 0)
 
-#define UHH_HOSTCONFIG_APP_START_CLK            (1UL << 31)
-#define UHH_HOSTCONFIG_P3_CONNECT_STATUS        (1UL << 10)
-#define UHH_HOSTCONFIG_P2_CONNECT_STATUS        (1UL << 9)
-#define UHH_HOSTCONFIG_P1_CONNECT_STATUS        (1UL << 8)
-#define UHH_HOSTCONFIG_ENA_INCR_ALIGN           (1UL << 5)
-#define UHH_HOSTCONFIG_ENA_INCR16               (1UL << 4)
-#define UHH_HOSTCONFIG_ENA_INCR8                (1UL << 3)
-#define UHH_HOSTCONFIG_ENA_INCR4                (1UL << 2)
-#define UHH_HOSTCONFIG_AUTOPPD_ON_OVERCUR_EN    (1UL << 1)
-#define UHH_HOSTCONFIG_P1_ULPI_BYPASS           (1UL << 0)
+#define UHH_HOSTCONFIG_APP_START_CLK (1UL << 31)
+#define UHH_HOSTCONFIG_P3_CONNECT_STATUS (1UL << 10)
+#define UHH_HOSTCONFIG_P2_CONNECT_STATUS (1UL << 9)
+#define UHH_HOSTCONFIG_P1_CONNECT_STATUS (1UL << 8)
+#define UHH_HOSTCONFIG_ENA_INCR_ALIGN (1UL << 5)
+#define UHH_HOSTCONFIG_ENA_INCR16 (1UL << 4)
+#define UHH_HOSTCONFIG_ENA_INCR8 (1UL << 3)
+#define UHH_HOSTCONFIG_ENA_INCR4 (1UL << 2)
+#define UHH_HOSTCONFIG_AUTOPPD_ON_OVERCUR_EN (1UL << 1)
+#define UHH_HOSTCONFIG_P1_ULPI_BYPASS (1UL << 0)
 
 /* The following are on rev2 (OMAP44xx) of the EHCI only */
-#define UHH_SYSCONFIG_IDLEMODE_MASK             (3UL << 2)
-#define UHH_SYSCONFIG_IDLEMODE_NOIDLE           (1UL << 2)
-#define UHH_SYSCONFIG_STANDBYMODE_MASK          (3UL << 4)
-#define UHH_SYSCONFIG_STANDBYMODE_NOSTDBY       (1UL << 4)
+#define UHH_SYSCONFIG_IDLEMODE_MASK (3UL << 2)
+#define UHH_SYSCONFIG_IDLEMODE_NOIDLE (1UL << 2)
+#define UHH_SYSCONFIG_STANDBYMODE_MASK (3UL << 4)
+#define UHH_SYSCONFIG_STANDBYMODE_NOSTDBY (1UL << 4)
 
-#define UHH_HOSTCONFIG_P1_MODE_MASK             (3UL << 16)
-#define UHH_HOSTCONFIG_P1_MODE_ULPI_PHY         (0UL << 16)
-#define UHH_HOSTCONFIG_P1_MODE_UTMI_PHY         (1UL << 16)
-#define UHH_HOSTCONFIG_P1_MODE_HSIC             (3UL << 16)
-#define UHH_HOSTCONFIG_P2_MODE_MASK             (3UL << 18)
-#define UHH_HOSTCONFIG_P2_MODE_ULPI_PHY         (0UL << 18)
-#define UHH_HOSTCONFIG_P2_MODE_UTMI_PHY         (1UL << 18)
-#define UHH_HOSTCONFIG_P2_MODE_HSIC             (3UL << 18)
+#define UHH_HOSTCONFIG_P1_MODE_MASK (3UL << 16)
+#define UHH_HOSTCONFIG_P1_MODE_ULPI_PHY (0UL << 16)
+#define UHH_HOSTCONFIG_P1_MODE_UTMI_PHY (1UL << 16)
+#define UHH_HOSTCONFIG_P1_MODE_HSIC (3UL << 16)
+#define UHH_HOSTCONFIG_P2_MODE_MASK (3UL << 18)
+#define UHH_HOSTCONFIG_P2_MODE_ULPI_PHY (0UL << 18)
+#define UHH_HOSTCONFIG_P2_MODE_UTMI_PHY (1UL << 18)
+#define UHH_HOSTCONFIG_P2_MODE_HSIC (3UL << 18)
 
 /*
  * Values of UHH_REVISION - Note: these are not given in the TRM but taken
  * from the linux OMAP EHCI driver (thanks guys).  It has been verified on
  * a Panda and Beagle board.
  */
-#define OMAP_UHH_REV1  0x00000010      /* OMAP3 */
-#define OMAP_UHH_REV2  0x50700100      /* OMAP4 */
+#define OMAP_UHH_REV1 0x00000010 /* OMAP3 */
+#define OMAP_UHH_REV2 0x50700100 /* OMAP4 */
 
 struct omap_uhh_softc {
 	struct simplebus_softc simplebus_sc;
-	device_t            sc_dev;
+	device_t sc_dev;
 
 	/* UHH register set */
-	struct resource*    uhh_mem_res;
+	struct resource *uhh_mem_res;
 
 	/* The revision of the HS USB HOST read from UHH_REVISION */
-	uint32_t            uhh_rev;
+	uint32_t uhh_rev;
 
 	/* The following details are provided by conf hints */
-	int                 port_mode[3];
+	int port_mode[3];
 };
 
 static device_attach_t omap_uhh_attach;
@@ -209,16 +209,15 @@ omap_uhh_init(struct omap_uhh_softc *isc)
 	if (isc->uhh_rev == OMAP_UHH_REV1) {
 		reg &= ~(UHH_SYSCONFIG_SIDLEMODE_MASK |
 		    UHH_SYSCONFIG_MIDLEMODE_MASK);
-		reg |= (UHH_SYSCONFIG_ENAWAKEUP |
-		    UHH_SYSCONFIG_AUTOIDLE |
+		reg |= (UHH_SYSCONFIG_ENAWAKEUP | UHH_SYSCONFIG_AUTOIDLE |
 		    UHH_SYSCONFIG_CLOCKACTIVITY |
 		    UHH_SYSCONFIG_SIDLEMODE_SMARTIDLE |
 		    UHH_SYSCONFIG_MIDLEMODE_SMARTSTANDBY);
 	} else if (isc->uhh_rev == OMAP_UHH_REV2) {
 		reg &= ~UHH_SYSCONFIG_IDLEMODE_MASK;
-		reg |=  UHH_SYSCONFIG_IDLEMODE_NOIDLE;
+		reg |= UHH_SYSCONFIG_IDLEMODE_NOIDLE;
 		reg &= ~UHH_SYSCONFIG_STANDBYMODE_MASK;
-		reg |=  UHH_SYSCONFIG_STANDBYMODE_NOSTDBY;
+		reg |= UHH_SYSCONFIG_STANDBYMODE_NOSTDBY;
 	}
 	omap_uhh_write_4(isc, OMAP_USBHOST_UHH_SYSCONFIG, reg);
 	device_printf(isc->sc_dev, "OMAP_UHH_SYSCONFIG: 0x%08x\n", reg);
@@ -226,9 +225,8 @@ omap_uhh_init(struct omap_uhh_softc *isc)
 	reg = omap_uhh_read_4(isc, OMAP_USBHOST_UHH_HOSTCONFIG);
 
 	/* Setup ULPI bypass and burst configurations */
-	reg |= (UHH_HOSTCONFIG_ENA_INCR4 |
-			UHH_HOSTCONFIG_ENA_INCR8 |
-			UHH_HOSTCONFIG_ENA_INCR16);
+	reg |= (UHH_HOSTCONFIG_ENA_INCR4 | UHH_HOSTCONFIG_ENA_INCR8 |
+	    UHH_HOSTCONFIG_ENA_INCR16);
 	reg &= ~UHH_HOSTCONFIG_ENA_INCR_ALIGN;
 
 	if (isc->uhh_rev == OMAP_UHH_REV1) {
@@ -248,7 +246,7 @@ omap_uhh_init(struct omap_uhh_softc *isc)
 			reg |= UHH_HOSTCONFIG_P1_ULPI_BYPASS;
 
 	} else if (isc->uhh_rev == OMAP_UHH_REV2) {
-		reg |=  UHH_HOSTCONFIG_APP_START_CLK;
+		reg |= UHH_HOSTCONFIG_APP_START_CLK;
 
 		/* Clear port mode fields for PHY mode*/
 		reg &= ~UHH_HOSTCONFIG_P1_MODE_MASK;
@@ -266,15 +264,18 @@ omap_uhh_init(struct omap_uhh_softc *isc)
 	}
 
 	omap_uhh_write_4(isc, OMAP_USBHOST_UHH_HOSTCONFIG, reg);
-	device_printf(isc->sc_dev, "UHH setup done, uhh_hostconfig=0x%08x\n", reg);
+	device_printf(
+	    isc->sc_dev, "UHH setup done, uhh_hostconfig=0x%08x\n", reg);
 
-	/* I found the code and comments in the Linux EHCI driver - thanks guys :)
+	/* I found the code and comments in the Linux EHCI driver - thanks guys
+	 * :)
 	 *
-	 * "An undocumented "feature" in the OMAP3 EHCI controller, causes suspended
-	 * ports to be taken out of suspend when the USBCMD.Run/Stop bit is cleared
-	 * (for example when we do omap_uhh_bus_suspend). This breaks suspend-resume if
-	 * the root-hub is allowed to suspend. Writing 1 to this undocumented
-	 * register bit disables this feature and restores normal behavior."
+	 * "An undocumented "feature" in the OMAP3 EHCI controller, causes
+	 * suspended ports to be taken out of suspend when the USBCMD.Run/Stop
+	 * bit is cleared (for example when we do omap_uhh_bus_suspend). This
+	 * breaks suspend-resume if the root-hub is allowed to suspend. Writing
+	 * 1 to this undocumented register bit disables this feature and
+	 * restores normal behavior."
 	 */
 #if 0
 	omap_uhh_write_4(isc, OMAP_USBHOST_INSNREG04,
@@ -288,7 +289,7 @@ omap_uhh_init(struct omap_uhh_softc *isc)
 	if (tll_ch_mask)
 		omap_tll_utmi_enable(tll_ch_mask);
 
-	return(0);
+	return (0);
 }
 
 /**
@@ -318,7 +319,8 @@ omap_uhh_fini(struct omap_uhh_softc *isc)
 
 	/* Reset the UHH, OHCI and EHCI modules */
 	omap_uhh_write_4(isc, OMAP_USBHOST_UHH_SYSCONFIG, 0x0002);
-	while ((omap_uhh_read_4(isc, OMAP_USBHOST_UHH_SYSSTATUS) & 0x07) == 0x00) {
+	while (
+	    (omap_uhh_read_4(isc, OMAP_USBHOST_UHH_SYSSTATUS) & 0x07) == 0x00) {
 		/* Sleep for a tick */
 		pause("USBRESET", 1);
 
@@ -328,7 +330,8 @@ omap_uhh_fini(struct omap_uhh_softc *isc)
 		}
 	}
 
-	/* Disable functional and interface clocks for the TLL and HOST modules */
+	/* Disable functional and interface clocks for the TLL and HOST modules
+	 */
 	ti_sysc_clock_disable(device_get_parent(isc->sc_dev));
 
 	device_printf(isc->sc_dev, "Clock to USB host has been disabled\n");
@@ -377,7 +380,8 @@ omap_uhh_attach(device_t dev)
 
 	/* Allocate resource for the UHH register set */
 	rid = 0;
-	isc->uhh_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	isc->uhh_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!isc->uhh_mem_res) {
 		device_printf(dev, "Error: Could not map UHH memory\n");
 		goto error;
@@ -391,10 +395,9 @@ omap_uhh_attach(device_t dev)
 	/* Get port modes from FDT */
 	for (i = 0; i < OMAP_HS_USB_PORTS; i++) {
 		isc->port_mode[i] = EHCI_HCD_OMAP_MODE_UNKNOWN;
-		snprintf(propname, sizeof(propname),
-		    "port%d-mode", i+1);
+		snprintf(propname, sizeof(propname), "port%d-mode", i + 1);
 
-		if (OF_getprop_alloc(node, propname, (void**)&mode) <= 0)
+		if (OF_getprop_alloc(node, propname, (void **)&mode) <= 0)
 			continue;
 		if (strcmp(mode, "ehci-phy") == 0)
 			isc->port_mode[i] = EHCI_HCD_OMAP_MODE_PHY;
@@ -407,7 +410,8 @@ omap_uhh_attach(device_t dev)
 	/* Initialise the ECHI registers */
 	err = omap_uhh_init(isc);
 	if (err) {
-		device_printf(dev, "Error: could not setup OMAP EHCI, %d\n", err);
+		device_printf(
+		    dev, "Error: could not setup OMAP EHCI, %d\n", err);
 		goto error;
 	}
 

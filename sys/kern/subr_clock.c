@@ -45,9 +45,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/clock.h>
+#include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/sysctl.h>
 #include <sys/timetc.h>
@@ -57,8 +57,7 @@ __FBSDID("$FreeBSD$");
  * namespace because they were misplaced there originally.
  */
 static int adjkerntz;
-static int
-sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
+static int sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
@@ -66,17 +65,17 @@ sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 		resettodr();
 	return (error);
 }
-SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT | CTLFLAG_RW |
-    CTLFLAG_MPSAFE, &adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
-    "Local offset from UTC in seconds");
+SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &adjkerntz, 0,
+    sysctl_machdep_adjkerntz, "I", "Local offset from UTC in seconds");
 
 static int ct_debug;
-SYSCTL_INT(_debug, OID_AUTO, clocktime, CTLFLAG_RWTUN,
-    &ct_debug, 0, "Enable printing of clocktime debugging");
+SYSCTL_INT(_debug, OID_AUTO, clocktime, CTLFLAG_RWTUN, &ct_debug, 0,
+    "Enable printing of clocktime debugging");
 
 static int wall_cmos_clock;
-SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock, CTLFLAG_RW,
-    &wall_cmos_clock, 0, "Enables application of machdep.adjkerntz");
+SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock, CTLFLAG_RW, &wall_cmos_clock, 0,
+    "Enables application of machdep.adjkerntz");
 
 /*--------------------------------------------------------------------*
  * Generic routines to convert between a POSIX date
@@ -84,16 +83,15 @@ SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock, CTLFLAG_RW,
  * Derived from NetBSD arch/hp300/hp300/clock.c
  */
 
-#define	FEBRUARY	2
-#define	days_in_year(y) 	(leapyear(y) ? 366 : 365)
-#define	days_in_month(y, m) \
-	(month_days[(m) - 1] + (m == FEBRUARY ? leapyear(y) : 0))
+#define FEBRUARY 2
+#define days_in_year(y) (leapyear(y) ? 366 : 365)
+#define days_in_month(y, m) \
+	(month_days[(m)-1] + (m == FEBRUARY ? leapyear(y) : 0))
 /* Day of week. Days are counted from 1/1/1970, which was a Thursday */
-#define	day_of_week(days)	(((days) + 4) % 7)
+#define day_of_week(days) (((days) + 4) % 7)
 
-static const int month_days[12] = {
-	31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
-};
+static const int month_days[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30,
+	31 };
 
 /*
  * Optimization: using a precomputed count of days between POSIX_BASE_YEAR and
@@ -107,9 +105,8 @@ static const int recent_base_days = 17167;
  * Table to 'calculate' pow(10, 9 - nsdigits) via lookup of nsdigits.
  * Before doing the lookup, the code asserts 0 <= nsdigits <= 9.
  */
-static u_int nsdivisors[] = {
-    1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10, 1
-};
+static u_int nsdivisors[] = { 1000000000, 100000000, 10000000, 1000000, 100000,
+	10000, 1000, 100, 10, 1 };
 
 /*
  * This inline avoids some unnecessary modulo operations
@@ -159,9 +156,9 @@ clock_ct_to_ts(const struct clocktime *ct, struct timespec *ts)
 
 	/* Sanity checks. */
 	if (ct->mon < 1 || ct->mon > 12 || ct->day < 1 ||
-	    ct->day > days_in_month(year, ct->mon) ||
-	    ct->hour > 23 ||  ct->min > 59 || ct->sec > 59 || year < 1970 ||
-	    (sizeof(time_t) == 4 && year > 2037)) {	/* time_t overflow */
+	    ct->day > days_in_month(year, ct->mon) || ct->hour > 23 ||
+	    ct->min > 59 || ct->sec > 59 || year < 1970 ||
+	    (sizeof(time_t) == 4 && year > 2037)) { /* time_t overflow */
 		if (ct_debug)
 			printf(" = EINVAL\n");
 		return (EINVAL);
@@ -183,7 +180,7 @@ clock_ct_to_ts(const struct clocktime *ct, struct timespec *ts)
 
 	/* Months */
 	for (i = 1; i < ct->mon; i++)
-	  	days += days_in_month(year, i);
+		days += days_in_month(year, i);
 	days += (ct->day - 1);
 
 	ts->tv_sec = (((time_t)days * 24 + ct->hour) * 60 + ct->min) * 60 +
@@ -218,19 +215,19 @@ clock_bcd_to_ts(const struct bcd_clocktime *bct, struct timespec *ts, bool ampm)
 	    !validbcd(bct->min) || !validbcd(bct->sec)) {
 		if (ct_debug)
 			printf("clock_bcd_to_ts: bad BCD: "
-			    "[%04x-%02x-%02x %02x:%02x:%02x]\n",
-			    bct->year, bct->mon, bct->day,
-			    bct->hour, bct->min, bct->sec);
+			       "[%04x-%02x-%02x %02x:%02x:%02x]\n",
+			    bct->year, bct->mon, bct->day, bct->hour, bct->min,
+			    bct->sec);
 		return (EINVAL);
 	}
 
 	ct.year = FROMBCD(byear) + FROMBCD(bcent) * 100;
-	ct.mon  = FROMBCD(bct->mon);
-	ct.day  = FROMBCD(bct->day);
+	ct.mon = FROMBCD(bct->mon);
+	ct.day = FROMBCD(bct->day);
 	ct.hour = FROMBCD(bct->hour);
-	ct.min  = FROMBCD(bct->min);
-	ct.sec  = FROMBCD(bct->sec);
-	ct.dow  = bct->dow;
+	ct.min = FROMBCD(bct->min);
+	ct.sec = FROMBCD(bct->sec);
+	ct.dow = bct->dow;
 	ct.nsec = bct->nsec;
 
 	/* If asked to handle am/pm, convert from 12hr+pmflag to 24hr. */
@@ -248,7 +245,7 @@ void
 clock_ts_to_ct(const struct timespec *ts, struct clocktime *ct)
 {
 	time_t i, year, days;
-	time_t rsec;	/* remainder seconds */
+	time_t rsec; /* remainder seconds */
 	time_t secs;
 
 	secs = ts->tv_sec;
@@ -279,30 +276,29 @@ clock_ts_to_ct(const struct timespec *ts, struct clocktime *ct)
 	/* Hours, minutes, seconds are easy */
 	ct->hour = rsec / 3600;
 	rsec = rsec % 3600;
-	ct->min  = rsec / 60;
+	ct->min = rsec / 60;
 	rsec = rsec % 60;
-	ct->sec  = rsec;
+	ct->sec = rsec;
 	ct->nsec = ts->tv_nsec;
 	if (ct_debug) {
-		printf("ts_to_ct(%jd.%09ld) = [",
-		    (intmax_t)ts->tv_sec, ts->tv_nsec);
+		printf("ts_to_ct(%jd.%09ld) = [", (intmax_t)ts->tv_sec,
+		    ts->tv_nsec);
 		clock_print_ct(ct, 9);
 		printf("]\n");
 	}
 
 	KASSERT(ct->year >= 0 && ct->year < 10000,
 	    ("year %d isn't a 4 digit year", ct->year));
-	KASSERT(ct->mon >= 1 && ct->mon <= 12,
-	    ("month %d not in 1-12", ct->mon));
-	KASSERT(ct->day >= 1 && ct->day <= 31,
-	    ("day %d not in 1-31", ct->day));
-	KASSERT(ct->hour >= 0 && ct->hour <= 23,
-	    ("hour %d not in 0-23", ct->hour));
-	KASSERT(ct->min >= 0 && ct->min <= 59,
-	    ("minute %d not in 0-59", ct->min));
+	KASSERT(
+	    ct->mon >= 1 && ct->mon <= 12, ("month %d not in 1-12", ct->mon));
+	KASSERT(ct->day >= 1 && ct->day <= 31, ("day %d not in 1-31", ct->day));
+	KASSERT(
+	    ct->hour >= 0 && ct->hour <= 23, ("hour %d not in 0-23", ct->hour));
+	KASSERT(
+	    ct->min >= 0 && ct->min <= 59, ("minute %d not in 0-59", ct->min));
 	/* Not sure if this interface needs to handle leapseconds or not. */
-	KASSERT(ct->sec >= 0 && ct->sec <= 60,
-	    ("seconds %d not in 0-60", ct->sec));
+	KASSERT(
+	    ct->sec >= 0 && ct->sec <= 60, ("seconds %d not in 0-60", ct->sec));
 }
 
 void
@@ -324,12 +320,12 @@ clock_ts_to_bcd(const struct timespec *ts, struct bcd_clocktime *bct, bool ampm)
 	}
 
 	bct->year = TOBCD(ct.year % 100) | (TOBCD(ct.year / 100) << 8);
-	bct->mon  = TOBCD(ct.mon);
-	bct->day  = TOBCD(ct.day);
+	bct->mon = TOBCD(ct.mon);
+	bct->day = TOBCD(ct.day);
 	bct->hour = TOBCD(ct.hour);
-	bct->min  = TOBCD(ct.min);
-	bct->sec  = TOBCD(ct.sec);
-	bct->dow  = ct.dow;
+	bct->min = TOBCD(ct.min);
+	bct->sec = TOBCD(ct.sec);
+	bct->dow = ct.dow;
 	bct->nsec = ct.nsec;
 }
 
@@ -340,14 +336,12 @@ clock_print_bcd(const struct bcd_clocktime *bct, int nsdigits)
 	KASSERT(nsdigits >= 0 && nsdigits <= 9, ("bad nsdigits %d", nsdigits));
 
 	if (nsdigits > 0) {
-		printf("%4.4x-%2.2x-%2.2x %2.2x:%2.2x:%2.2x.%*.*ld",
-		    bct->year, bct->mon, bct->day,
-		    bct->hour, bct->min, bct->sec,
-		    nsdigits, nsdigits, bct->nsec / nsdivisors[nsdigits]);
+		printf("%4.4x-%2.2x-%2.2x %2.2x:%2.2x:%2.2x.%*.*ld", bct->year,
+		    bct->mon, bct->day, bct->hour, bct->min, bct->sec, nsdigits,
+		    nsdigits, bct->nsec / nsdivisors[nsdigits]);
 	} else {
-		printf("%4.4x-%2.2x-%2.2x %2.2x:%2.2x:%2.2x",
-		    bct->year, bct->mon, bct->day,
-		    bct->hour, bct->min, bct->sec);
+		printf("%4.4x-%2.2x-%2.2x %2.2x:%2.2x:%2.2x", bct->year,
+		    bct->mon, bct->day, bct->hour, bct->min, bct->sec);
 	}
 }
 
@@ -358,14 +352,12 @@ clock_print_ct(const struct clocktime *ct, int nsdigits)
 	KASSERT(nsdigits >= 0 && nsdigits <= 9, ("bad nsdigits %d", nsdigits));
 
 	if (nsdigits > 0) {
-		printf("%04d-%02d-%02d %02d:%02d:%02d.%*.*ld",
-		    ct->year, ct->mon, ct->day,
-		    ct->hour, ct->min, ct->sec,
-		    nsdigits, nsdigits, ct->nsec / nsdivisors[nsdigits]);
+		printf("%04d-%02d-%02d %02d:%02d:%02d.%*.*ld", ct->year,
+		    ct->mon, ct->day, ct->hour, ct->min, ct->sec, nsdigits,
+		    nsdigits, ct->nsec / nsdivisors[nsdigits]);
 	} else {
-		printf("%04d-%02d-%02d %02d:%02d:%02d",
-		    ct->year, ct->mon, ct->day,
-		    ct->hour, ct->min, ct->sec);
+		printf("%04d-%02d-%02d %02d:%02d:%02d", ct->year, ct->mon,
+		    ct->day, ct->hour, ct->min, ct->sec);
 	}
 }
 

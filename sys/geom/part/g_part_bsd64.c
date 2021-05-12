@@ -28,11 +28,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
-#include <sys/gsb_crc32.h>
 #include <sys/disklabel.h>
 #include <sys/endian.h>
 #include <sys/gpt.h>
+#include <sys/gsb_crc32.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
 #include <sys/limits.h>
@@ -41,8 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
-#include <sys/systm.h>
 #include <sys/sysctl.h>
+
 #include <geom/geom.h>
 #include <geom/geom_int.h>
 #include <geom/part/g_part.h>
@@ -52,27 +53,27 @@ __FBSDID("$FreeBSD$");
 FEATURE(geom_part_bsd64, "GEOM partitioning class for 64-bit BSD disklabels");
 
 /* XXX: move this to sys/disklabel64.h */
-#define	DISKMAGIC64     ((uint32_t)0xc4464c59)
-#define	MAXPARTITIONS64	16
-#define	RESPARTITIONS64	32
+#define DISKMAGIC64 ((uint32_t)0xc4464c59)
+#define MAXPARTITIONS64 16
+#define RESPARTITIONS64 32
 
 struct disklabel64 {
-	char	  d_reserved0[512];	/* reserved or unused */
-	u_int32_t d_magic;		/* the magic number */
-	u_int32_t d_crc;		/* crc32() d_magic through last part */
-	u_int32_t d_align;		/* partition alignment requirement */
-	u_int32_t d_npartitions;	/* number of partitions */
-	struct uuid d_stor_uuid;	/* unique uuid for label */
+	char d_reserved0[512];	 /* reserved or unused */
+	u_int32_t d_magic;	 /* the magic number */
+	u_int32_t d_crc;	 /* crc32() d_magic through last part */
+	u_int32_t d_align;	 /* partition alignment requirement */
+	u_int32_t d_npartitions; /* number of partitions */
+	struct uuid d_stor_uuid; /* unique uuid for label */
 
-	u_int64_t d_total_size;		/* total size incl everything (bytes) */
-	u_int64_t d_bbase;		/* boot area base offset (bytes) */
-					/* boot area is pbase - bbase */
-	u_int64_t d_pbase;		/* first allocatable offset (bytes) */
-	u_int64_t d_pstop;		/* last allocatable offset+1 (bytes) */
-	u_int64_t d_abase;		/* location of backup copy if not 0 */
+	u_int64_t d_total_size; /* total size incl everything (bytes) */
+	u_int64_t d_bbase;	/* boot area base offset (bytes) */
+				/* boot area is pbase - bbase */
+	u_int64_t d_pbase;	/* first allocatable offset (bytes) */
+	u_int64_t d_pstop;	/* last allocatable offset+1 (bytes) */
+	u_int64_t d_abase;	/* location of backup copy if not 0 */
 
-	u_char	  d_packname[64];
-	u_char    d_reserved[64];
+	u_char d_packname[64];
+	u_char d_reserved[64];
 
 	/*
 	 * Note: offsets are relative to the base of the slice, NOT to
@@ -85,90 +86,84 @@ struct disklabel64 {
 	 * to FS_OTHER.  This is typically the case when the filesystem
 	 * is identified by its uuid.
 	 */
-	struct partition64 {		/* the partition table */
-		u_int64_t p_boffset;	/* slice relative offset, in bytes */
-		u_int64_t p_bsize;	/* size of partition, in bytes */
-		u_int8_t  p_fstype;
-		u_int8_t  p_unused01;	/* reserved, must be 0 */
-		u_int8_t  p_unused02;	/* reserved, must be 0 */
-		u_int8_t  p_unused03;	/* reserved, must be 0 */
-		u_int32_t p_unused04;	/* reserved, must be 0 */
-		u_int32_t p_unused05;	/* reserved, must be 0 */
-		u_int32_t p_unused06;	/* reserved, must be 0 */
-		struct uuid p_type_uuid;/* mount type as UUID */
-		struct uuid p_stor_uuid;/* unique uuid for storage */
-	} d_partitions[MAXPARTITIONS64];/* actually may be more */
+	struct partition64 {	     /* the partition table */
+		u_int64_t p_boffset; /* slice relative offset, in bytes */
+		u_int64_t p_bsize;   /* size of partition, in bytes */
+		u_int8_t p_fstype;
+		u_int8_t p_unused01;	 /* reserved, must be 0 */
+		u_int8_t p_unused02;	 /* reserved, must be 0 */
+		u_int8_t p_unused03;	 /* reserved, must be 0 */
+		u_int32_t p_unused04;	 /* reserved, must be 0 */
+		u_int32_t p_unused05;	 /* reserved, must be 0 */
+		u_int32_t p_unused06;	 /* reserved, must be 0 */
+		struct uuid p_type_uuid; /* mount type as UUID */
+		struct uuid p_stor_uuid; /* unique uuid for storage */
+	} d_partitions[MAXPARTITIONS64]; /* actually may be more */
 };
 
 struct g_part_bsd64_table {
-	struct g_part_table	base;
+	struct g_part_table base;
 
-	uint32_t		d_align;
-	uint64_t		d_bbase;
-	uint64_t		d_abase;
-	struct uuid		d_stor_uuid;
-	char			d_reserved0[512];
-	u_char			d_packname[64];
-	u_char			d_reserved[64];
+	uint32_t d_align;
+	uint64_t d_bbase;
+	uint64_t d_abase;
+	struct uuid d_stor_uuid;
+	char d_reserved0[512];
+	u_char d_packname[64];
+	u_char d_reserved[64];
 };
 
 struct g_part_bsd64_entry {
-	struct g_part_entry	base;
+	struct g_part_entry base;
 
-	uint8_t			fstype;
-	struct uuid		type_uuid;
-	struct uuid		stor_uuid;
+	uint8_t fstype;
+	struct uuid type_uuid;
+	struct uuid stor_uuid;
 };
 
-static int g_part_bsd64_add(struct g_part_table *, struct g_part_entry *,
-    struct g_part_parms *);
+static int g_part_bsd64_add(
+    struct g_part_table *, struct g_part_entry *, struct g_part_parms *);
 static int g_part_bsd64_bootcode(struct g_part_table *, struct g_part_parms *);
 static int g_part_bsd64_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_bsd64_destroy(struct g_part_table *, struct g_part_parms *);
-static void g_part_bsd64_dumpconf(struct g_part_table *, struct g_part_entry *,
-    struct sbuf *, const char *);
+static void g_part_bsd64_dumpconf(
+    struct g_part_table *, struct g_part_entry *, struct sbuf *, const char *);
 static int g_part_bsd64_dumpto(struct g_part_table *, struct g_part_entry *);
-static int g_part_bsd64_modify(struct g_part_table *, struct g_part_entry *,
-    struct g_part_parms *);
-static const char *g_part_bsd64_name(struct g_part_table *, struct g_part_entry *,
-    char *, size_t);
+static int g_part_bsd64_modify(
+    struct g_part_table *, struct g_part_entry *, struct g_part_parms *);
+static const char *g_part_bsd64_name(
+    struct g_part_table *, struct g_part_entry *, char *, size_t);
 static int g_part_bsd64_probe(struct g_part_table *, struct g_consumer *);
 static int g_part_bsd64_read(struct g_part_table *, struct g_consumer *);
-static const char *g_part_bsd64_type(struct g_part_table *, struct g_part_entry *,
-    char *, size_t);
+static const char *g_part_bsd64_type(
+    struct g_part_table *, struct g_part_entry *, char *, size_t);
 static int g_part_bsd64_write(struct g_part_table *, struct g_consumer *);
-static int g_part_bsd64_resize(struct g_part_table *, struct g_part_entry *,
-    struct g_part_parms *);
+static int g_part_bsd64_resize(
+    struct g_part_table *, struct g_part_entry *, struct g_part_parms *);
 
-static kobj_method_t g_part_bsd64_methods[] = {
-	KOBJMETHOD(g_part_add,		g_part_bsd64_add),
-	KOBJMETHOD(g_part_bootcode,	g_part_bsd64_bootcode),
-	KOBJMETHOD(g_part_create,	g_part_bsd64_create),
-	KOBJMETHOD(g_part_destroy,	g_part_bsd64_destroy),
-	KOBJMETHOD(g_part_dumpconf,	g_part_bsd64_dumpconf),
-	KOBJMETHOD(g_part_dumpto,	g_part_bsd64_dumpto),
-	KOBJMETHOD(g_part_modify,	g_part_bsd64_modify),
-	KOBJMETHOD(g_part_resize,	g_part_bsd64_resize),
-	KOBJMETHOD(g_part_name,		g_part_bsd64_name),
-	KOBJMETHOD(g_part_probe,	g_part_bsd64_probe),
-	KOBJMETHOD(g_part_read,		g_part_bsd64_read),
-	KOBJMETHOD(g_part_type,		g_part_bsd64_type),
-	KOBJMETHOD(g_part_write,	g_part_bsd64_write),
-	{ 0, 0 }
-};
+static kobj_method_t g_part_bsd64_methods[] = { KOBJMETHOD(g_part_add,
+						    g_part_bsd64_add),
+	KOBJMETHOD(g_part_bootcode, g_part_bsd64_bootcode),
+	KOBJMETHOD(g_part_create, g_part_bsd64_create),
+	KOBJMETHOD(g_part_destroy, g_part_bsd64_destroy),
+	KOBJMETHOD(g_part_dumpconf, g_part_bsd64_dumpconf),
+	KOBJMETHOD(g_part_dumpto, g_part_bsd64_dumpto),
+	KOBJMETHOD(g_part_modify, g_part_bsd64_modify),
+	KOBJMETHOD(g_part_resize, g_part_bsd64_resize),
+	KOBJMETHOD(g_part_name, g_part_bsd64_name),
+	KOBJMETHOD(g_part_probe, g_part_bsd64_probe),
+	KOBJMETHOD(g_part_read, g_part_bsd64_read),
+	KOBJMETHOD(g_part_type, g_part_bsd64_type),
+	KOBJMETHOD(g_part_write, g_part_bsd64_write), { 0, 0 } };
 
-static struct g_part_scheme g_part_bsd64_scheme = {
-	"BSD64",
-	g_part_bsd64_methods,
-	sizeof(struct g_part_bsd64_table),
+static struct g_part_scheme g_part_bsd64_scheme = { "BSD64",
+	g_part_bsd64_methods, sizeof(struct g_part_bsd64_table),
 	.gps_entrysz = sizeof(struct g_part_bsd64_entry),
-	.gps_minent = MAXPARTITIONS64,
-	.gps_maxent = MAXPARTITIONS64
-};
+	.gps_minent = MAXPARTITIONS64, .gps_maxent = MAXPARTITIONS64 };
 G_PART_SCHEME_DECLARE(g_part_bsd64);
 MODULE_VERSION(geom_part_bsd64, 0);
 
-#define	EQUUID(a, b)	(memcmp(a, b, sizeof(struct uuid)) == 0)
+#define EQUUID(a, b) (memcmp(a, b, sizeof(struct uuid)) == 0)
 static struct uuid bsd64_uuid_unused = GPT_ENT_TYPE_UNUSED;
 static struct uuid bsd64_uuid_dfbsd_swap = GPT_ENT_TYPE_DRAGONFLY_SWAP;
 static struct uuid bsd64_uuid_dfbsd_ufs1 = GPT_ENT_TYPE_DRAGONFLY_UFS1;
@@ -197,7 +192,7 @@ static struct bsd64_uuid_alias dfbsd_alias_match[] = {
 	{ &bsd64_uuid_dfbsd_legacy, FS_OTHER, G_PART_ALIAS_DFBSD_LEGACY },
 	{ &bsd64_uuid_dfbsd_hammer, FS_HAMMER, G_PART_ALIAS_DFBSD_HAMMER },
 	{ &bsd64_uuid_dfbsd_hammer2, FS_HAMMER2, G_PART_ALIAS_DFBSD_HAMMER2 },
-	{ NULL, 0, 0}
+	{ NULL, 0, 0 }
 };
 static struct bsd64_uuid_alias fbsd_alias_match[] = {
 	{ &bsd64_uuid_freebsd_boot, FS_OTHER, G_PART_ALIAS_FREEBSD_BOOT },
@@ -206,7 +201,7 @@ static struct bsd64_uuid_alias fbsd_alias_match[] = {
 	{ &bsd64_uuid_freebsd_zfs, FS_OTHER, G_PART_ALIAS_FREEBSD_ZFS },
 	{ &bsd64_uuid_freebsd_vinum, FS_OTHER, G_PART_ALIAS_FREEBSD_VINUM },
 	{ &bsd64_uuid_freebsd_nandfs, FS_OTHER, G_PART_ALIAS_FREEBSD_NANDFS },
-	{ NULL, 0, 0}
+	{ NULL, 0, 0 }
 };
 
 static int
@@ -292,11 +287,11 @@ g_part_bsd64_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 	return (EOPNOTSUPP);
 }
 
-#define	PALIGN_SIZE	(1024 * 1024)
-#define	PALIGN_MASK	(PALIGN_SIZE - 1)
-#define	BLKSIZE		(4 * 1024)
-#define	BOOTSIZE	(32 * 1024)
-#define	DALIGN_SIZE	(32 * 1024)
+#define PALIGN_SIZE (1024 * 1024)
+#define PALIGN_MASK (PALIGN_SIZE - 1)
+#define BLKSIZE (4 * 1024)
+#define BOOTSIZE (32 * 1024)
+#define DALIGN_SIZE (32 * 1024)
 static int
 g_part_bsd64_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
@@ -307,7 +302,7 @@ g_part_bsd64_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	uint32_t blksize, ressize;
 
 	pp = gpp->gpp_provider;
-	if (pp->mediasize < 2* PALIGN_SIZE)
+	if (pp->mediasize < 2 * PALIGN_SIZE)
 		return (ENOSPC);
 
 	/*
@@ -315,7 +310,7 @@ g_part_bsd64_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	 * XXX: Actually it is used just for calculate d_bbase and used
 	 * for better alignment in bsdlabel64(8).
 	 */
-	blksize = pp->sectorsize < BLKSIZE ? BLKSIZE: pp->sectorsize;
+	blksize = pp->sectorsize < BLKSIZE ? BLKSIZE : pp->sectorsize;
 	blkmask = blksize - 1;
 	/* Reserve enough space for RESPARTITIONS64 partitions. */
 	ressize = offsetof(struct disklabel64, d_partitions[RESPARTITIONS64]);
@@ -340,8 +335,8 @@ g_part_bsd64_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	table = (struct g_part_bsd64_table *)basetable;
 	table->d_align = blksize;
 	table->d_bbase = ressize / pp->sectorsize;
-	table->d_abase = ((pp->mediasize - ressize) &
-	    ~blkmask) / pp->sectorsize;
+	table->d_abase = ((pp->mediasize - ressize) & ~blkmask) /
+	    pp->sectorsize;
 	kern_uuidgen(&table->d_stor_uuid, 1);
 	basetable->gpt_first = pbase / pp->sectorsize;
 	basetable->gpt_last = table->d_abase - 1; /* XXX */
@@ -381,8 +376,8 @@ g_part_bsd64_dumpconf(struct g_part_table *basetable,
 		sbuf_printf(sb, " xs BSD64 xt %u", entry->fstype);
 	} else if (entry != NULL) {
 		/* confxml: partition entry information */
-		sbuf_printf(sb, "%s<rawtype>%u</rawtype>\n", indent,
-		    entry->fstype);
+		sbuf_printf(
+		    sb, "%s<rawtype>%u</rawtype>\n", indent, entry->fstype);
 		if (!EQUUID(&bsd64_uuid_unused, &entry->type_uuid)) {
 			sbuf_printf(sb, "%s<type_uuid>", indent);
 			sbuf_printf_uuid(sb, &entry->type_uuid);
@@ -449,9 +444,10 @@ g_part_bsd64_resize(struct g_part_table *basetable,
 	if (baseentry == NULL) {
 		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
 		table = (struct g_part_bsd64_table *)basetable;
-		table->d_abase =
-		    rounddown2(pp->mediasize - table->d_bbase * pp->sectorsize,
-		        table->d_align) / pp->sectorsize;
+		table->d_abase = rounddown2(pp->mediasize -
+					 table->d_bbase * pp->sectorsize,
+				     table->d_align) /
+		    pp->sectorsize;
 		basetable->gpt_last = table->d_abase - 1;
 		return (0);
 	}
@@ -480,13 +476,13 @@ g_part_bsd64_probe(struct g_part_table *table, struct g_consumer *cp)
 	if (pp->mediasize < 2 * PALIGN_SIZE)
 		return (ENOSPC);
 	v = rounddown2(pp->sectorsize + offsetof(struct disklabel64, d_magic),
-		       pp->sectorsize);
+	    pp->sectorsize);
 	buf = g_read_data(cp, 0, v, &error);
 	if (buf == NULL)
 		return (error);
 	v = le32dec(buf + offsetof(struct disklabel64, d_magic));
 	g_free(buf);
-	return (v == DISKMAGIC64 ? G_PART_PROBE_PRI_HIGH: ENXIO);
+	return (v == DISKMAGIC64 ? G_PART_PROBE_PRI_HIGH : ENXIO);
 }
 
 static int
@@ -516,9 +512,10 @@ g_part_bsd64_read(struct g_part_table *basetable, struct g_consumer *cp)
 		goto invalid_label;
 	v32 = le32toh(dlp->d_crc);
 	dlp->d_crc = 0;
-	if (crc32(&dlp->d_magic, offsetof(struct disklabel64,
-	    d_partitions[basetable->gpt_entries]) -
-	    offsetof(struct disklabel64, d_magic)) != v32)
+	if (crc32(&dlp->d_magic,
+		offsetof(
+		    struct disklabel64, d_partitions[basetable->gpt_entries]) -
+		    offsetof(struct disklabel64, d_magic)) != v32)
 		goto invalid_label;
 	table->d_align = le32toh(dlp->d_align);
 	if (table->d_align == 0 || (table->d_align & (pp->sectorsize - 1)))
@@ -546,8 +543,8 @@ g_part_bsd64_read(struct g_part_table *basetable, struct g_consumer *cp)
 	for (index = basetable->gpt_entries - 1; index >= 0; index--) {
 		if (index == RAW_PART) {
 			/* Skip 'c' partition. */
-			baseentry = g_part_new_entry(basetable,
-			    index + 1, 0, 0);
+			baseentry = g_part_new_entry(
+			    basetable, index + 1, 0, 0);
 			baseentry->gpe_internal = 1;
 			continue;
 		}
@@ -560,14 +557,13 @@ g_part_bsd64_read(struct g_part_table *basetable, struct g_consumer *cp)
 		baseentry = g_part_new_entry(basetable, index + 1,
 		    v64 / pp->sectorsize, (v64 + sz) / pp->sectorsize - 1);
 		entry = (struct g_part_bsd64_entry *)baseentry;
-		le_uuid_dec(&dlp->d_partitions[index].p_type_uuid,
-		    &entry->type_uuid);
-		le_uuid_dec(&dlp->d_partitions[index].p_stor_uuid,
-		    &entry->stor_uuid);
+		le_uuid_dec(
+		    &dlp->d_partitions[index].p_type_uuid, &entry->type_uuid);
+		le_uuid_dec(
+		    &dlp->d_partitions[index].p_stor_uuid, &entry->stor_uuid);
 		entry->fstype = dlp->d_partitions[index].p_fstype;
 	}
-	bcopy(dlp->d_reserved0, table->d_reserved0,
-	    sizeof(table->d_reserved0));
+	bcopy(dlp->d_reserved0, table->d_reserved0, sizeof(table->d_reserved0));
 	bcopy(dlp->d_packname, table->d_packname, sizeof(table->d_packname));
 	bcopy(dlp->d_reserved, table->d_reserved, sizeof(table->d_reserved));
 	g_free(buf);
@@ -579,8 +575,8 @@ invalid_label:
 }
 
 static const char *
-g_part_bsd64_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
-    char *buf, size_t bufsz)
+g_part_bsd64_type(struct g_part_table *basetable,
+    struct g_part_entry *baseentry, char *buf, size_t bufsz)
 {
 	struct g_part_bsd64_entry *entry;
 	struct bsd64_uuid_alias *uap;
@@ -623,8 +619,8 @@ g_part_bsd64_write(struct g_part_table *basetable, struct g_consumer *cp)
 	sz = roundup2(sizeof(struct disklabel64), pp->sectorsize);
 	dlp = g_malloc(sz, M_WAITOK | M_ZERO);
 
-	memcpy(dlp->d_reserved0, table->d_reserved0,
-	    sizeof(table->d_reserved0));
+	memcpy(
+	    dlp->d_reserved0, table->d_reserved0, sizeof(table->d_reserved0));
 	memcpy(dlp->d_packname, table->d_packname, sizeof(table->d_packname));
 	memcpy(dlp->d_reserved, table->d_reserved, sizeof(table->d_reserved));
 	le32enc(&dlp->d_magic, DISKMAGIC64);
@@ -637,7 +633,7 @@ g_part_bsd64_write(struct g_part_table *basetable, struct g_consumer *cp)
 	le64enc(&dlp->d_pstop, basetable->gpt_last * pp->sectorsize);
 	le64enc(&dlp->d_abase, table->d_abase * pp->sectorsize);
 
-	LIST_FOREACH(baseentry, &basetable->gpt_entry, gpe_entry) {
+	LIST_FOREACH (baseentry, &basetable->gpt_entry, gpe_entry) {
 		if (baseentry->gpe_deleted)
 			continue;
 		index = baseentry->gpe_index - 1;
@@ -646,17 +642,17 @@ g_part_bsd64_write(struct g_part_table *basetable, struct g_consumer *cp)
 			continue;
 		le64enc(&dlp->d_partitions[index].p_boffset,
 		    baseentry->gpe_start * pp->sectorsize);
-		le64enc(&dlp->d_partitions[index].p_bsize, pp->sectorsize *
-		    (baseentry->gpe_end - baseentry->gpe_start + 1));
+		le64enc(&dlp->d_partitions[index].p_bsize,
+		    pp->sectorsize *
+			(baseentry->gpe_end - baseentry->gpe_start + 1));
 		dlp->d_partitions[index].p_fstype = entry->fstype;
-		le_uuid_enc(&dlp->d_partitions[index].p_type_uuid,
-		    &entry->type_uuid);
-		le_uuid_enc(&dlp->d_partitions[index].p_stor_uuid,
-		    &entry->stor_uuid);
+		le_uuid_enc(
+		    &dlp->d_partitions[index].p_type_uuid, &entry->type_uuid);
+		le_uuid_enc(
+		    &dlp->d_partitions[index].p_stor_uuid, &entry->stor_uuid);
 	}
 	/* Calculate checksum. */
-	v = offsetof(struct disklabel64,
-	    d_partitions[basetable->gpt_entries]) -
+	v = offsetof(struct disklabel64, d_partitions[basetable->gpt_entries]) -
 	    offsetof(struct disklabel64, d_magic);
 	le32enc(&dlp->d_crc, crc32(&dlp->d_magic, v));
 	error = g_write_data(cp, 0, dlp, sz);

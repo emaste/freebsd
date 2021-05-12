@@ -26,65 +26,66 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_SECURITY_MAC_VERIEXEC_H
-#define	_SECURITY_MAC_VERIEXEC_H
+#ifndef _SECURITY_MAC_VERIEXEC_H
+#define _SECURITY_MAC_VERIEXEC_H
 
 #ifdef _KERNEL
 #include <sys/types.h>
 #include <sys/kernel.h>
-#include <sys/queue.h>
 #include <sys/module.h>
+#include <sys/queue.h>
 #endif
 
 /**
  * Name of the MAC module
  */
-#define	MAC_VERIEXEC_NAME	"mac_veriexec"
+#define MAC_VERIEXEC_NAME "mac_veriexec"
 
 /* MAC/veriexec syscalls */
-#define	MAC_VERIEXEC_CHECK_FD_SYSCALL	1
-#define	MAC_VERIEXEC_CHECK_PATH_SYSCALL	2
+#define MAC_VERIEXEC_CHECK_FD_SYSCALL 1
+#define MAC_VERIEXEC_CHECK_PATH_SYSCALL 2
 
 /**
  * Enough room for the largest signature...
  */
-#define MAXFINGERPRINTLEN	64	/* enough room for largest signature */
-#define MAXLABELLEN		128
+#define MAXFINGERPRINTLEN 64 /* enough room for largest signature */
+#define MAXLABELLEN 128
 
 /*
  * Types of veriexec inodes we can have
  */
-#define VERIEXEC_INDIRECT	(1<<0)  /* Only allow indirect execution */
-#define VERIEXEC_FILE		(1<<1)  /* Fingerprint of a plain file */
-#define VERIEXEC_NOTRACE	(1<<2)	/**< PTRACE not allowed */
-#define VERIEXEC_TRUSTED	(1<<3)	/**< Safe to write /dev/mem */
-#define VERIEXEC_NOFIPS		(1<<4)	/**< Not allowed in FIPS mode */
-#define VERIEXEC_LABEL		(1<<5)	/**< We have a label */
+#define VERIEXEC_INDIRECT (1 << 0) /* Only allow indirect execution */
+#define VERIEXEC_FILE (1 << 1)	   /* Fingerprint of a plain file */
+#define VERIEXEC_NOTRACE (1 << 2)  /**< PTRACE not allowed */
+#define VERIEXEC_TRUSTED (1 << 3)  /**< Safe to write /dev/mem */
+#define VERIEXEC_NOFIPS (1 << 4)   /**< Not allowed in FIPS mode */
+#define VERIEXEC_LABEL (1 << 5)	   /**< We have a label */
 
-#define VERIEXEC_STATE_INACTIVE	0	/**< Ignore */
-#define VERIEXEC_STATE_LOADED	(1<<0)	/**< Sigs have been loaded */
-#define VERIEXEC_STATE_ACTIVE	(1<<1)	/**< Pay attention to it */
-#define VERIEXEC_STATE_ENFORCE	(1<<2)	/**< Fail execs for files that do not
-					     match signature */
-#define VERIEXEC_STATE_LOCKED	(1<<3)	/**< Do not allow further changes */
+#define VERIEXEC_STATE_INACTIVE 0      /**< Ignore */
+#define VERIEXEC_STATE_LOADED (1 << 0) /**< Sigs have been loaded */
+#define VERIEXEC_STATE_ACTIVE (1 << 1) /**< Pay attention to it */
+#define VERIEXEC_STATE_ENFORCE                                               \
+	(1 << 2)		       /**< Fail execs for files that do not \
+					    match signature */
+#define VERIEXEC_STATE_LOCKED (1 << 3) /**< Do not allow further changes */
 
 #ifdef _KERNEL
 /**
  * Version of the MAC/veriexec module
  */
-#define	MAC_VERIEXEC_VERSION	2
+#define MAC_VERIEXEC_VERSION 2
 
 /* Valid states for the fingerprint flag - if signed exec is being used */
 typedef enum fingerprint_status {
-	FINGERPRINT_INVALID,	/**< Fingerprint has not been evaluated */
-	FINGERPRINT_VALID,	/**< Fingerprint evaluated and matches list */
-	FINGERPRINT_INDIRECT,	/**< Fingerprint eval'd/matched but only
-				     indirect execs allowed */
-	FINGERPRINT_FILE,	/**< Fingerprint evaluated/matched but
-				     not executable */
-	FINGERPRINT_NOMATCH,	/**< Fingerprint evaluated but does not match */
-	FINGERPRINT_NOENTRY,	/**< Fingerprint evaluated but no list entry */
-	FINGERPRINT_NODEV,	/**< Fingerprint evaluated but no dev list */
+	FINGERPRINT_INVALID,  /**< Fingerprint has not been evaluated */
+	FINGERPRINT_VALID,    /**< Fingerprint evaluated and matches list */
+	FINGERPRINT_INDIRECT, /**< Fingerprint eval'd/matched but only
+				   indirect execs allowed */
+	FINGERPRINT_FILE,     /**< Fingerprint evaluated/matched but
+				   not executable */
+	FINGERPRINT_NOMATCH,  /**< Fingerprint evaluated but does not match */
+	FINGERPRINT_NOENTRY,  /**< Fingerprint evaluated but no list entry */
+	FINGERPRINT_NODEV,    /**< Fingerprint evaluated but no dev list */
 } fingerprint_status_t;
 
 typedef void (*mac_veriexec_fpop_init_t)(void *);
@@ -104,7 +105,7 @@ struct mac_veriexec_fpops {
 /**
  * Verified execution subsystem debugging level
  */
-extern int	mac_veriexec_debug;
+extern int mac_veriexec_debug;
 
 /**
  * @brief Define a fingerprint module.
@@ -118,46 +119,40 @@ extern int	mac_veriexec_debug;
  * @param _final	Finalize function of type mac_veriexec_fpop_final_t
  * @param _vers		Module version
  */
-#define MAC_VERIEXEC_FPMOD(_name, _digest_len, _context_size, _init,	\
-	    _update, _final, _vers)					\
-	static struct mac_veriexec_fpops				\
-	    mac_veriexec_##_name##_fpops = {				\
-		.type = #_name,						\
-		.digest_len = _digest_len,				\
-		.context_size = _context_size,				\
-		.init = _init,						\
-		.update = _update,					\
-		.final = _final,					\
-	};								\
-	static moduledata_t mac_veriexec_##_name##_mod = {		\
-		"mac_veriexec/" #_name,					\
-		mac_veriexec_fingerprint_modevent,			\
-		&(mac_veriexec_##_name##_fpops)				\
-	};								\
-	MODULE_VERSION(mac_veriexec_##_name, _vers);			\
-	DECLARE_MODULE(mac_veriexec_##_name,				\
-	    mac_veriexec_##_name##_mod, SI_SUB_MAC_POLICY,		\
-	    SI_ORDER_ANY);						\
-	MODULE_DEPEND(mac_veriexec_##_name, mac_veriexec,		\
-	    MAC_VERIEXEC_VERSION, MAC_VERIEXEC_VERSION,			\
-	    MAC_VERIEXEC_VERSION)
+#define MAC_VERIEXEC_FPMOD(                                                \
+    _name, _digest_len, _context_size, _init, _update, _final, _vers)      \
+	static struct mac_veriexec_fpops mac_veriexec_##_name##_fpops = {  \
+		.type = #_name,                                            \
+		.digest_len = _digest_len,                                 \
+		.context_size = _context_size,                             \
+		.init = _init,                                             \
+		.update = _update,                                         \
+		.final = _final,                                           \
+	};                                                                 \
+	static moduledata_t mac_veriexec_##_name##_mod = {                 \
+		"mac_veriexec/" #_name, mac_veriexec_fingerprint_modevent, \
+		&(mac_veriexec_##_name##_fpops)                            \
+	};                                                                 \
+	MODULE_VERSION(mac_veriexec_##_name, _vers);                       \
+	DECLARE_MODULE(mac_veriexec_##_name, mac_veriexec_##_name##_mod,   \
+	    SI_SUB_MAC_POLICY, SI_ORDER_ANY);                              \
+	MODULE_DEPEND(mac_veriexec_##_name, mac_veriexec,                  \
+	    MAC_VERIEXEC_VERSION, MAC_VERIEXEC_VERSION, MAC_VERIEXEC_VERSION)
 
 /*
  * The following function should not be called directly. The prototype is
  * included here to satisfy the compiler when using the macro above.
  */
-int	mac_veriexec_fingerprint_modevent(module_t mod, int type, void *data);
+int mac_veriexec_fingerprint_modevent(module_t mod, int type, void *data);
 
 /*
  * Public functions
  */
-int	mac_veriexec_metadata_add_file(int file_dev, dev_t fsid, long fileid, 
-	    unsigned long gen, unsigned char fingerprint[MAXFINGERPRINTLEN], 
-	    char *label, size_t labellen, int flags, const char *fp_type,
-	    int override);
-int	mac_veriexec_metadata_has_file(dev_t fsid, long fileid, 
-	    unsigned long gen);
-int	mac_veriexec_proc_is_trusted(struct ucred *cred, struct proc *p);
+int mac_veriexec_metadata_add_file(int file_dev, dev_t fsid, long fileid,
+    unsigned long gen, unsigned char fingerprint[MAXFINGERPRINTLEN],
+    char *label, size_t labellen, int flags, const char *fp_type, int override);
+int mac_veriexec_metadata_has_file(dev_t fsid, long fileid, unsigned long gen);
+int mac_veriexec_proc_is_trusted(struct ucred *cred, struct proc *p);
 #endif
 
-#endif	/* _SECURITY_MAC_VERIEXEC_H */
+#endif /* _SECURITY_MAC_VERIEXEC_H */

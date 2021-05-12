@@ -29,18 +29,18 @@
  */
 
 #ifndef _SYS__DOMAINSET_H_
-#define	_SYS__DOMAINSET_H_
+#define _SYS__DOMAINSET_H_
 
 #include <sys/_bitset.h>
 
 #ifdef _KERNEL
-#define	DOMAINSET_SETSIZE	MAXMEMDOM
+#define DOMAINSET_SETSIZE MAXMEMDOM
 #endif
 
-#define	DOMAINSET_MAXSIZE	256
+#define DOMAINSET_MAXSIZE 256
 
-#ifndef	DOMAINSET_SETSIZE
-#define	DOMAINSET_SETSIZE	DOMAINSET_MAXSIZE
+#ifndef DOMAINSET_SETSIZE
+#define DOMAINSET_SETSIZE DOMAINSET_MAXSIZE
 #endif
 
 BITSET_DEFINE(_domainset, DOMAINSET_SETSIZE);
@@ -53,8 +53,8 @@ typedef struct _domainset domainset_t;
  */
 struct domainset;
 struct domainset_ref {
-	struct domainset * volatile	dr_policy;
-	unsigned int			dr_iter;
+	struct domainset *volatile dr_policy;
+	unsigned int dr_iter;
 };
 
 #endif /* !_SYS__DOMAINSET_H_ */

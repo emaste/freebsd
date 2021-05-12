@@ -49,8 +49,8 @@ void *alpine_serdes_resource_get(uint32_t group);
  * Valid group is 0..3.
  * Returns 0 upon success.
  */
-int alpine_serdes_eth_mode_set(uint32_t group,
-    enum alpine_serdes_eth_mode mode);
+int alpine_serdes_eth_mode_set(
+    uint32_t group, enum alpine_serdes_eth_mode mode);
 
 /* Lock the all serdes group for using common registers */
 void alpine_serdes_eth_group_lock(uint32_t group);

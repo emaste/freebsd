@@ -45,103 +45,98 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 
 #include <dev/extres/clk/clk.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
-
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
 
 #include "spibus_if.h"
 
 #if 1
-#define	DBGPRINT(dev, fmt, args...) \
-	device_printf(dev, "%s: " fmt "\n", __func__, ## args)
+#define DBGPRINT(dev, fmt, args...) \
+	device_printf(dev, "%s: " fmt "\n", __func__, ##args)
 #else
-#define	DBGPRINT(dev, fmt, args...)
+#define DBGPRINT(dev, fmt, args...)
 #endif
 
-static struct resource_spec fuspi_spec[] = {
-	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
-	RESOURCE_SPEC_END
-};
+static struct resource_spec fuspi_spec[] = { { SYS_RES_MEMORY, 0, RF_ACTIVE },
+	RESOURCE_SPEC_END };
 
 struct fuspi_softc {
-	device_t		dev;
-	device_t		parent;
+	device_t dev;
+	device_t parent;
 
-	struct mtx		mtx;
+	struct mtx mtx;
 
-	struct resource		*res;
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
+	struct resource *res;
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
 
-	void			*ih;
+	void *ih;
 
-	clk_t			clk;
-	uint64_t		freq;
-	uint32_t		cs_max;
+	clk_t clk;
+	uint64_t freq;
+	uint32_t cs_max;
 };
 
-#define	FUSPI_LOCK(sc)			mtx_lock(&(sc)->mtx)
-#define	FUSPI_UNLOCK(sc)		mtx_unlock(&(sc)->mtx)
-#define	FUSPI_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->mtx, MA_OWNED);
-#define	FUSPI_ASSERT_UNLOCKED(sc)	mtx_assert(&(sc)->mtx, MA_NOTOWNED);
+#define FUSPI_LOCK(sc) mtx_lock(&(sc)->mtx)
+#define FUSPI_UNLOCK(sc) mtx_unlock(&(sc)->mtx)
+#define FUSPI_ASSERT_LOCKED(sc) mtx_assert(&(sc)->mtx, MA_OWNED);
+#define FUSPI_ASSERT_UNLOCKED(sc) mtx_assert(&(sc)->mtx, MA_NOTOWNED);
 
 /*
  * Register offsets.
  * From Sifive-Unleashed-FU540-C000-v1.0.pdf page 101.
  */
-#define	FUSPI_REG_SCKDIV	0x00 /* Serial clock divisor */
-#define	FUSPI_REG_SCKMODE	0x04 /* Serial clock mode */
-#define	FUSPI_REG_CSID		0x10 /* Chip select ID */
-#define	FUSPI_REG_CSDEF		0x14 /* Chip select default */
-#define	FUSPI_REG_CSMODE	0x18 /* Chip select mode */
-#define	FUSPI_REG_DELAY0	0x28 /* Delay control 0 */
-#define	FUSPI_REG_DELAY1	0x2C /* Delay control 1 */
-#define	FUSPI_REG_FMT		0x40 /* Frame format */
-#define	FUSPI_REG_TXDATA	0x48 /* Tx FIFO data */
-#define	FUSPI_REG_RXDATA	0x4C /* Rx FIFO data */
-#define	FUSPI_REG_TXMARK	0x50 /* Tx FIFO watermark */
-#define	FUSPI_REG_RXMARK	0x54 /* Rx FIFO watermark */
-#define	FUSPI_REG_FCTRL		0x60 /* SPI flash interface control* */
-#define	FUSPI_REG_FFMT		0x64 /* SPI flash instruction format* */
-#define	FUSPI_REG_IE		0x70 /* SPI interrupt enable */
-#define	FUSPI_REG_IP		0x74 /* SPI interrupt pending */
+#define FUSPI_REG_SCKDIV 0x00 /* Serial clock divisor */
+#define FUSPI_REG_SCKMODE 0x04 /* Serial clock mode */
+#define FUSPI_REG_CSID 0x10 /* Chip select ID */
+#define FUSPI_REG_CSDEF 0x14 /* Chip select default */
+#define FUSPI_REG_CSMODE 0x18 /* Chip select mode */
+#define FUSPI_REG_DELAY0 0x28 /* Delay control 0 */
+#define FUSPI_REG_DELAY1 0x2C /* Delay control 1 */
+#define FUSPI_REG_FMT 0x40 /* Frame format */
+#define FUSPI_REG_TXDATA 0x48 /* Tx FIFO data */
+#define FUSPI_REG_RXDATA 0x4C /* Rx FIFO data */
+#define FUSPI_REG_TXMARK 0x50 /* Tx FIFO watermark */
+#define FUSPI_REG_RXMARK 0x54 /* Rx FIFO watermark */
+#define FUSPI_REG_FCTRL 0x60 /* SPI flash interface control* */
+#define FUSPI_REG_FFMT 0x64 /* SPI flash instruction format* */
+#define FUSPI_REG_IE 0x70 /* SPI interrupt enable */
+#define FUSPI_REG_IP 0x74 /* SPI interrupt pending */
 
-#define	FUSPI_SCKDIV_MASK	0xfff
+#define FUSPI_SCKDIV_MASK 0xfff
 
-#define	FUSPI_CSDEF_ALL		((1 << sc->cs_max)-1)
+#define FUSPI_CSDEF_ALL ((1 << sc->cs_max) - 1)
 
-#define	FUSPI_CSMODE_AUTO	0x0U
-#define	FUSPI_CSMODE_HOLD	0x2U
-#define	FUSPI_CSMODE_OFF	0x3U
+#define FUSPI_CSMODE_AUTO 0x0U
+#define FUSPI_CSMODE_HOLD 0x2U
+#define FUSPI_CSMODE_OFF 0x3U
 
-#define	FUSPI_TXDATA_DATA_MASK	0xff
-#define	FUSPI_TXDATA_FULL	(1 << 31)
+#define FUSPI_TXDATA_DATA_MASK 0xff
+#define FUSPI_TXDATA_FULL (1 << 31)
 
-#define	FUSPI_RXDATA_DATA_MASK	0xff
-#define	FUSPI_RXDATA_EMPTY	(1 << 31)
+#define FUSPI_RXDATA_DATA_MASK 0xff
+#define FUSPI_RXDATA_EMPTY (1 << 31)
 
-#define	FUSPI_SCKMODE_PHA	(1 << 0)
-#define	FUSPI_SCKMODE_POL	(1 << 1)
+#define FUSPI_SCKMODE_PHA (1 << 0)
+#define FUSPI_SCKMODE_POL (1 << 1)
 
-#define	FUSPI_FMT_PROTO_SINGLE	0x0U
-#define	FUSPI_FMT_PROTO_DUAL	0x1U
-#define	FUSPI_FMT_PROTO_QUAD	0x2U
-#define	FUSPI_FMT_PROTO_MASK	0x3U
-#define	FUSPI_FMT_ENDIAN	(1 << 2)
-#define	FUSPI_FMT_DIR		(1 << 3)
-#define	FUSPI_FMT_LEN(x)	((uint32_t)(x) << 16)
-#define	FUSPI_FMT_LEN_MASK	(0xfU << 16)
+#define FUSPI_FMT_PROTO_SINGLE 0x0U
+#define FUSPI_FMT_PROTO_DUAL 0x1U
+#define FUSPI_FMT_PROTO_QUAD 0x2U
+#define FUSPI_FMT_PROTO_MASK 0x3U
+#define FUSPI_FMT_ENDIAN (1 << 2)
+#define FUSPI_FMT_DIR (1 << 3)
+#define FUSPI_FMT_LEN(x) ((uint32_t)(x) << 16)
+#define FUSPI_FMT_LEN_MASK (0xfU << 16)
 
-#define	FUSPI_FIFO_DEPTH	8
+#define FUSPI_FIFO_DEPTH 8
 
-#define	FUSPI_READ(_sc, _reg)		\
-    bus_space_read_4((_sc)->bst, (_sc)->bsh, (_reg))
-#define	FUSPI_WRITE(_sc, _reg, _val)	\
-    bus_space_write_4((_sc)->bst, (_sc)->bsh, (_reg), (_val))
+#define FUSPI_READ(_sc, _reg) bus_space_read_4((_sc)->bst, (_sc)->bsh, (_reg))
+#define FUSPI_WRITE(_sc, _reg, _val) \
+	bus_space_write_4((_sc)->bst, (_sc)->bsh, (_reg), (_val))
 
 static void
 fuspi_tx(struct fuspi_softc *sc, uint8_t *buf, uint32_t bufsiz)
@@ -170,7 +165,7 @@ fuspi_rx(struct fuspi_softc *sc, uint8_t *buf, uint32_t bufsiz)
 	KASSERT(buf != NULL, ("RX buffer cannot be NULL"));
 	KASSERT(bufsiz <= FUSPI_FIFO_DEPTH,
 	    ("Cannot receive more than %d bytes at a time\n",
-	    FUSPI_FIFO_DEPTH));
+		FUSPI_FIFO_DEPTH));
 
 	end = buf + bufsiz;
 	for (p = buf; p < end; p++) {
@@ -204,8 +199,7 @@ fuspi_xfer_buf(struct fuspi_softc *sc, uint8_t *rxbuf, uint8_t *txbuf,
 }
 
 static int
-fuspi_setup(struct fuspi_softc *sc, uint32_t cs, uint32_t mode,
-    uint32_t freq)
+fuspi_setup(struct fuspi_softc *sc, uint32_t cs, uint32_t mode, uint32_t freq)
 {
 	uint32_t csmode, fmt, sckdiv, sckmode;
 
@@ -376,25 +370,21 @@ fuspi_get_node(device_t bus, device_t dev)
 	return (ofw_bus_get_node(bus));
 }
 
-static device_method_t fuspi_methods[] = {
-	DEVMETHOD(device_probe,		fuspi_probe),
-	DEVMETHOD(device_attach,	fuspi_attach),
+static device_method_t fuspi_methods[] = { DEVMETHOD(device_probe, fuspi_probe),
+	DEVMETHOD(device_attach, fuspi_attach),
 
-	DEVMETHOD(spibus_transfer,	fuspi_transfer),
+	DEVMETHOD(spibus_transfer, fuspi_transfer),
 
-	DEVMETHOD(ofw_bus_get_node,	fuspi_get_node),
+	DEVMETHOD(ofw_bus_get_node, fuspi_get_node),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
-static driver_t fuspi_driver = {
-	"fu540spi",
-	fuspi_methods,
-	sizeof(struct fuspi_softc)
-};
+static driver_t fuspi_driver = { "fu540spi", fuspi_methods,
+	sizeof(struct fuspi_softc) };
 
 static devclass_t fuspi_devclass;
 
 DRIVER_MODULE(fu540spi, simplebus, fuspi_driver, fuspi_devclass, 0, 0);
-DRIVER_MODULE(ofw_spibus, fu540spi, ofw_spibus_driver, ofw_spibus_devclass, 0, 0);
+DRIVER_MODULE(
+    ofw_spibus, fu540spi, ofw_spibus_driver, ofw_spibus_devclass, 0, 0);
 MODULE_DEPEND(fu540spi, ofw_spibus, 1, 1, 1);

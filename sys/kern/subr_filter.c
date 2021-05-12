@@ -30,9 +30,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/errno.h>
 #include <sys/tim_filter.h>
+#include <sys/time.h>
 
 void
 reset_time(struct time_filter *tf, uint32_t time_len)
@@ -47,7 +47,7 @@ reset_time_small(struct time_filter_small *tf, uint32_t time_len)
 }
 
 /*
- * A time filter can be a filter for MIN or MAX. 
+ * A time filter can be a filter for MIN or MAX.
  * You call setup_time_filter() with the pointer to
  * the filter structure, the type (FILTER_TYPE_MIN/MAX) and
  * the time length. You can optionally reset the time length
@@ -68,7 +68,7 @@ reset_time_small(struct time_filter_small *tf, uint32_t time_len)
  * One thing that used to be here is a single apply_filter(). But
  * this meant that we then had to store the type of filter in
  * the time_filter structure. In order to keep it at a cache
- * line size I split it to two functions. 
+ * line size I split it to two functions.
  *
  */
 int
@@ -77,60 +77,59 @@ setup_time_filter(struct time_filter *tf, int fil_type, uint32_t time_len)
 	uint64_t set_val;
 	int i;
 
-	/* 
+	/*
 	 * You must specify either a MIN or MAX filter,
 	 * though its up to the user to use the correct
 	 * apply.
 	 */
-	if ((fil_type != FILTER_TYPE_MIN) &&
-	    (fil_type != FILTER_TYPE_MAX))
-		return(EINVAL);
+	if ((fil_type != FILTER_TYPE_MIN) && (fil_type != FILTER_TYPE_MAX))
+		return (EINVAL);
 
 	if (time_len < NUM_FILTER_ENTRIES)
-		return(EINVAL);
-		       
+		return (EINVAL);
+
 	if (fil_type == FILTER_TYPE_MIN)
 		set_val = 0xffffffffffffffff;
 	else
 		set_val = 0;
 
-	for(i=0; i<NUM_FILTER_ENTRIES; i++) {
+	for (i = 0; i < NUM_FILTER_ENTRIES; i++) {
 		tf->entries[i].value = set_val;
 		tf->entries[i].time_up = 0;
 	}
 	tf->cur_time_limit = time_len;
-	return(0);
+	return (0);
 }
 
 int
-setup_time_filter_small(struct time_filter_small *tf, int fil_type, uint32_t time_len)
+setup_time_filter_small(
+    struct time_filter_small *tf, int fil_type, uint32_t time_len)
 {
 	uint32_t set_val;
 	int i;
 
-	/* 
+	/*
 	 * You must specify either a MIN or MAX filter,
 	 * though its up to the user to use the correct
 	 * apply.
 	 */
-	if ((fil_type != FILTER_TYPE_MIN) &&
-	    (fil_type != FILTER_TYPE_MAX))
-		return(EINVAL);
+	if ((fil_type != FILTER_TYPE_MIN) && (fil_type != FILTER_TYPE_MAX))
+		return (EINVAL);
 
 	if (time_len < NUM_FILTER_ENTRIES)
-		return(EINVAL);
-		       
+		return (EINVAL);
+
 	if (fil_type == FILTER_TYPE_MIN)
 		set_val = 0xffffffff;
 	else
 		set_val = 0;
 
-	for(i=0; i<NUM_FILTER_ENTRIES; i++) {
+	for (i = 0; i < NUM_FILTER_ENTRIES; i++) {
 		tf->entries[i].value = set_val;
 		tf->entries[i].time_up = 0;
 	}
 	tf->cur_time_limit = time_len;
-	return(0);
+	return (0);
 }
 
 static void
@@ -139,15 +138,19 @@ check_update_times(struct time_filter *tf, uint64_t value, uint32_t now)
 	int i, j, fnd;
 	uint32_t tim;
 	uint32_t time_limit;
-	for(i=0; i<(NUM_FILTER_ENTRIES-1); i++) {
+	for (i = 0; i < (NUM_FILTER_ENTRIES - 1); i++) {
 		tim = now - tf->entries[i].time_up;
-		time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES-i))/NUM_FILTER_ENTRIES;
+		time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES - i)) /
+		    NUM_FILTER_ENTRIES;
 		if (tim >= time_limit) {
 			fnd = 0;
-			for(j=(i+1); j<NUM_FILTER_ENTRIES; j++) {
-				if (tf->entries[i].time_up < tf->entries[j].time_up) {
-					tf->entries[i].value = tf->entries[j].value;
-					tf->entries[i].time_up = tf->entries[j].time_up;
+			for (j = (i + 1); j < NUM_FILTER_ENTRIES; j++) {
+				if (tf->entries[i].time_up <
+				    tf->entries[j].time_up) {
+					tf->entries[i].value =
+					    tf->entries[j].value;
+					tf->entries[i].time_up =
+					    tf->entries[j].time_up;
 					fnd = 1;
 					break;
 				}
@@ -159,9 +162,10 @@ check_update_times(struct time_filter *tf, uint64_t value, uint32_t now)
 			}
 		}
 	}
-	i = NUM_FILTER_ENTRIES-1;
+	i = NUM_FILTER_ENTRIES - 1;
 	tim = now - tf->entries[i].time_up;
-	time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES-i))/NUM_FILTER_ENTRIES;
+	time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES - i)) /
+	    NUM_FILTER_ENTRIES;
 	if (tim >= time_limit) {
 		tf->entries[i].value = value;
 		tf->entries[i].time_up = now;
@@ -169,20 +173,25 @@ check_update_times(struct time_filter *tf, uint64_t value, uint32_t now)
 }
 
 static void
-check_update_times_small(struct time_filter_small *tf, uint32_t value, uint32_t now)
+check_update_times_small(
+    struct time_filter_small *tf, uint32_t value, uint32_t now)
 {
 	int i, j, fnd;
 	uint32_t tim;
 	uint32_t time_limit;
-	for(i=0; i<(NUM_FILTER_ENTRIES-1); i++) {
+	for (i = 0; i < (NUM_FILTER_ENTRIES - 1); i++) {
 		tim = now - tf->entries[i].time_up;
-		time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES-i))/NUM_FILTER_ENTRIES;
+		time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES - i)) /
+		    NUM_FILTER_ENTRIES;
 		if (tim >= time_limit) {
 			fnd = 0;
-			for(j=(i+1); j<NUM_FILTER_ENTRIES; j++) {
-				if (tf->entries[i].time_up < tf->entries[j].time_up) {
-					tf->entries[i].value = tf->entries[j].value;
-					tf->entries[i].time_up = tf->entries[j].time_up;
+			for (j = (i + 1); j < NUM_FILTER_ENTRIES; j++) {
+				if (tf->entries[i].time_up <
+				    tf->entries[j].time_up) {
+					tf->entries[i].value =
+					    tf->entries[j].value;
+					tf->entries[i].time_up =
+					    tf->entries[j].time_up;
 					fnd = 1;
 					break;
 				}
@@ -194,9 +203,10 @@ check_update_times_small(struct time_filter_small *tf, uint32_t value, uint32_t 
 			}
 		}
 	}
-	i = NUM_FILTER_ENTRIES-1;
+	i = NUM_FILTER_ENTRIES - 1;
 	tim = now - tf->entries[i].time_up;
-	time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES-i))/NUM_FILTER_ENTRIES;
+	time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES - i)) /
+	    NUM_FILTER_ENTRIES;
 	if (tim >= time_limit) {
 		tf->entries[i].value = value;
 		tf->entries[i].time_up = now;
@@ -207,7 +217,7 @@ void
 filter_reduce_by(struct time_filter *tf, uint64_t reduce_by, uint32_t now)
 {
 	int i;
-	/* 
+	/*
 	 * Reduce our filter main by reduce_by and
 	 * update its time. Then walk other's and
 	 * make them the new value too.
@@ -217,17 +227,18 @@ filter_reduce_by(struct time_filter *tf, uint64_t reduce_by, uint32_t now)
 	else
 		tf->entries[0].value = 0;
 	tf->entries[0].time_up = now;
-	for(i=1; i<NUM_FILTER_ENTRIES; i++) {
+	for (i = 1; i < NUM_FILTER_ENTRIES; i++) {
 		tf->entries[i].value = tf->entries[0].value;
 		tf->entries[i].time_up = now;
 	}
 }
 
 void
-filter_reduce_by_small(struct time_filter_small *tf, uint32_t reduce_by, uint32_t now)
+filter_reduce_by_small(
+    struct time_filter_small *tf, uint32_t reduce_by, uint32_t now)
 {
 	int i;
-	/* 
+	/*
 	 * Reduce our filter main by reduce_by and
 	 * update its time. Then walk other's and
 	 * make them the new value too.
@@ -237,7 +248,7 @@ filter_reduce_by_small(struct time_filter_small *tf, uint32_t reduce_by, uint32_
 	else
 		tf->entries[0].value = 0;
 	tf->entries[0].time_up = now;
-	for(i=1; i<NUM_FILTER_ENTRIES; i++) {
+	for (i = 1; i < NUM_FILTER_ENTRIES; i++) {
 		tf->entries[i].value = tf->entries[0].value;
 		tf->entries[i].time_up = now;
 	}
@@ -247,31 +258,32 @@ void
 filter_increase_by(struct time_filter *tf, uint64_t incr_by, uint32_t now)
 {
 	int i;
-	/* 
+	/*
 	 * Increase our filter main by incr_by and
 	 * update its time. Then walk other's and
 	 * make them the new value too.
 	 */
 	tf->entries[0].value += incr_by;
 	tf->entries[0].time_up = now;
-	for(i=1; i<NUM_FILTER_ENTRIES; i++) {
+	for (i = 1; i < NUM_FILTER_ENTRIES; i++) {
 		tf->entries[i].value = tf->entries[0].value;
 		tf->entries[i].time_up = now;
 	}
 }
 
 void
-filter_increase_by_small(struct time_filter_small *tf, uint32_t incr_by, uint32_t now)
+filter_increase_by_small(
+    struct time_filter_small *tf, uint32_t incr_by, uint32_t now)
 {
 	int i;
-	/* 
+	/*
 	 * Increase our filter main by incr_by and
 	 * update its time. Then walk other's and
 	 * make them the new value too.
 	 */
 	tf->entries[0].value += incr_by;
 	tf->entries[0].time_up = now;
-	for(i=1; i<NUM_FILTER_ENTRIES; i++) {
+	for (i = 1; i < NUM_FILTER_ENTRIES; i++) {
 		tf->entries[i].value = tf->entries[0].value;
 		tf->entries[i].time_up = now;
 	}
@@ -286,7 +298,7 @@ forward_filter_clock(struct time_filter *tf, uint32_t ticks_forward)
 	 */
 	int i;
 
-	for(i=0; i<NUM_FILTER_ENTRIES; i++) {
+	for (i = 0; i < NUM_FILTER_ENTRIES; i++) {
 		tf->entries[i].time_up += ticks_forward;
 	}
 }
@@ -300,7 +312,7 @@ forward_filter_clock_small(struct time_filter_small *tf, uint32_t ticks_forward)
 	 */
 	int i;
 
-	for(i=0; i<NUM_FILTER_ENTRIES; i++) {
+	for (i = 0; i < NUM_FILTER_ENTRIES; i++) {
 		tf->entries[i].time_up += ticks_forward;
 	}
 }
@@ -322,16 +334,17 @@ tick_filter_clock(struct time_filter *tf, uint32_t now)
 	 * some measurement is better than none (even
 	 * if its your oldest measurment).
 	 */
-	for(i=(NUM_FILTER_ENTRIES-2); i>=0 ; i--) {
+	for (i = (NUM_FILTER_ENTRIES - 2); i >= 0; i--) {
 		tim = now - tf->entries[i].time_up;
-		time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES-i))/NUM_FILTER_ENTRIES;
+		time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES - i)) /
+		    NUM_FILTER_ENTRIES;
 		if (tim >= time_limit) {
-			/* 
+			/*
 			 * This entry is expired, pull down
 			 * the next one up.
 			 */
-			tf->entries[i].value = tf->entries[(i+1)].value;
-			tf->entries[i].time_up = tf->entries[(i+1)].time_up;
+			tf->entries[i].value = tf->entries[(i + 1)].value;
+			tf->entries[i].time_up = tf->entries[(i + 1)].time_up;
 		}
 	}
 }
@@ -353,16 +366,17 @@ tick_filter_clock_small(struct time_filter_small *tf, uint32_t now)
 	 * some measurement is better than none (even
 	 * if its your oldest measurment).
 	 */
-	for(i=(NUM_FILTER_ENTRIES-2); i>=0 ; i--) {
+	for (i = (NUM_FILTER_ENTRIES - 2); i >= 0; i--) {
 		tim = now - tf->entries[i].time_up;
-		time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES-i))/NUM_FILTER_ENTRIES;
+		time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES - i)) /
+		    NUM_FILTER_ENTRIES;
 		if (tim >= time_limit) {
-			/* 
+			/*
 			 * This entry is expired, pull down
 			 * the next one up.
 			 */
-			tf->entries[i].value = tf->entries[(i+1)].value;
-			tf->entries[i].time_up = tf->entries[(i+1)].time_up;
+			tf->entries[i].value = tf->entries[(i + 1)].value;
+			tf->entries[i].time_up = tf->entries[(i + 1)].time_up;
 		}
 	}
 }
@@ -374,15 +388,15 @@ apply_filter_min(struct time_filter *tf, uint64_t value, uint32_t now)
 
 	if (value <= tf->entries[0].value) {
 		/* Zap them all */
-		for(i=0; i<NUM_FILTER_ENTRIES; i++) {
+		for (i = 0; i < NUM_FILTER_ENTRIES; i++) {
 			tf->entries[i].value = value;
 			tf->entries[i].time_up = now;
 		}
 		return (tf->entries[0].value);
 	}
-	for (j=1; j<NUM_FILTER_ENTRIES; j++) {
+	for (j = 1; j < NUM_FILTER_ENTRIES; j++) {
 		if (value <= tf->entries[j].value) {
-			for(i=j; i<NUM_FILTER_ENTRIES; i++) {
+			for (i = j; i < NUM_FILTER_ENTRIES; i++) {
 				tf->entries[i].value = value;
 				tf->entries[i].time_up = now;
 			}
@@ -394,22 +408,22 @@ apply_filter_min(struct time_filter *tf, uint64_t value, uint32_t now)
 }
 
 uint32_t
-apply_filter_min_small(struct time_filter_small *tf,
-		       uint32_t value, uint32_t now)
+apply_filter_min_small(
+    struct time_filter_small *tf, uint32_t value, uint32_t now)
 {
 	int i, j;
 
 	if (value <= tf->entries[0].value) {
 		/* Zap them all */
-		for(i=0; i<NUM_FILTER_ENTRIES; i++) {
+		for (i = 0; i < NUM_FILTER_ENTRIES; i++) {
 			tf->entries[i].value = value;
 			tf->entries[i].time_up = now;
 		}
 		return (tf->entries[0].value);
 	}
-	for (j=1; j<NUM_FILTER_ENTRIES; j++) {
+	for (j = 1; j < NUM_FILTER_ENTRIES; j++) {
 		if (value <= tf->entries[j].value) {
-			for(i=j; i<NUM_FILTER_ENTRIES; i++) {
+			for (i = j; i < NUM_FILTER_ENTRIES; i++) {
 				tf->entries[i].value = value;
 				tf->entries[i].time_up = now;
 			}
@@ -427,15 +441,15 @@ apply_filter_max(struct time_filter *tf, uint64_t value, uint32_t now)
 
 	if (value >= tf->entries[0].value) {
 		/* Zap them all */
-		for(i=0; i<NUM_FILTER_ENTRIES; i++) {
+		for (i = 0; i < NUM_FILTER_ENTRIES; i++) {
 			tf->entries[i].value = value;
 			tf->entries[i].time_up = now;
 		}
 		return (tf->entries[0].value);
 	}
-	for (j=1; j<NUM_FILTER_ENTRIES; j++) {
+	for (j = 1; j < NUM_FILTER_ENTRIES; j++) {
 		if (value >= tf->entries[j].value) {
-			for(i=j; i<NUM_FILTER_ENTRIES; i++) {
+			for (i = j; i < NUM_FILTER_ENTRIES; i++) {
 				tf->entries[i].value = value;
 				tf->entries[i].time_up = now;
 			}
@@ -447,22 +461,22 @@ apply_filter_max(struct time_filter *tf, uint64_t value, uint32_t now)
 }
 
 uint32_t
-apply_filter_max_small(struct time_filter_small *tf,
-		       uint32_t value, uint32_t now)
+apply_filter_max_small(
+    struct time_filter_small *tf, uint32_t value, uint32_t now)
 {
 	int i, j;
 
 	if (value >= tf->entries[0].value) {
 		/* Zap them all */
-		for(i=0; i<NUM_FILTER_ENTRIES; i++) {
+		for (i = 0; i < NUM_FILTER_ENTRIES; i++) {
 			tf->entries[i].value = value;
 			tf->entries[i].time_up = now;
 		}
 		return (tf->entries[0].value);
 	}
-	for (j=1; j<NUM_FILTER_ENTRIES; j++) {
+	for (j = 1; j < NUM_FILTER_ENTRIES; j++) {
 		if (value >= tf->entries[j].value) {
-			for(i=j; i<NUM_FILTER_ENTRIES; i++) {
+			for (i = j; i < NUM_FILTER_ENTRIES; i++) {
 				tf->entries[i].value = value;
 				tf->entries[i].time_up = now;
 			}

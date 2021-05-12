@@ -32,23 +32,23 @@
  */
 
 #ifndef _SYS__RMLOCK_H_
-#define	_SYS__RMLOCK_H_
+#define _SYS__RMLOCK_H_
 
 /*
  * Mostly reader/occasional writer lock.
  */
 
-LIST_HEAD(rmpriolist,rm_priotracker);
+LIST_HEAD(rmpriolist, rm_priotracker);
 
 struct rm_queue {
-	struct rm_queue	*volatile rmq_next;
-	struct rm_queue	*volatile rmq_prev;
+	struct rm_queue *volatile rmq_next;
+	struct rm_queue *volatile rmq_prev;
 };
 
 struct rmlock {
 	struct lock_object lock_object;
 	volatile cpuset_t rm_writecpus;
-	LIST_HEAD(,rm_priotracker) rm_activeReaders;
+	LIST_HEAD(, rm_priotracker) rm_activeReaders;
 	union {
 		struct lock_object _rm_wlock_object;
 		struct mtx _rm_lock_mtx;
@@ -56,9 +56,9 @@ struct rmlock {
 	} _rm_lock;
 };
 
-#define	rm_wlock_object	_rm_lock._rm_wlock_object
-#define	rm_lock_mtx	_rm_lock._rm_lock_mtx
-#define	rm_lock_sx	_rm_lock._rm_lock_sx
+#define rm_wlock_object _rm_lock._rm_wlock_object
+#define rm_lock_mtx _rm_lock._rm_lock_mtx
+#define rm_lock_sx _rm_lock._rm_lock_sx
 
 struct rm_priotracker {
 	struct rm_queue rmp_cpuQueue; /* Must be first */
@@ -76,9 +76,9 @@ struct rmslock {
 	struct mtx mtx;
 	struct thread *owner;
 	struct rmslock_pcpu *pcpu;
-	int	writers;
-	int	readers;
-	int	debug_readers;
+	int writers;
+	int readers;
+	int debug_readers;
 };
 
 #endif /* !_SYS__RMLOCK_H_ */

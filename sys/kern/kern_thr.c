@@ -29,34 +29,34 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_posix.h"
 #include "opt_hwpmc_hooks.h"
+#include "opt_posix.h"
+
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/posix4.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/posix4.h>
 #include <sys/ptrace.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/rtprio.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
-#include <sys/sysctl.h>
+#include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <sys/syscallsubr.h>
-#include <sys/sysent.h>
-#include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/signalvar.h>
 #include <sys/sysctl.h>
-#include <sys/ucontext.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
 #include <sys/thr.h>
-#include <sys/rtprio.h>
+#include <sys/ucontext.h>
 #include <sys/umtx.h>
-#include <sys/limits.h>
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
 
@@ -90,7 +90,7 @@ suword_lwpid(void *addr, lwpid_t lwpid)
 }
 
 #else
-#define suword_lwpid	suword
+#define suword_lwpid suword
 #endif
 
 /*
@@ -117,7 +117,7 @@ thr_create_initthr(struct thread *td, void *thunk)
 
 int
 sys_thr_create(struct thread *td, struct thr_create_args *uap)
-    /* ucontext_t *ctx, long *id, int flags */
+/* ucontext_t *ctx, long *id, int flags */
 {
 	struct thr_create_initthr_args args;
 	int error;
@@ -130,7 +130,7 @@ sys_thr_create(struct thread *td, struct thr_create_args *uap)
 
 int
 sys_thr_new(struct thread *td, struct thr_new_args *uap)
-    /* struct thr_param * */
+/* struct thr_param * */
 {
 	struct thr_param param;
 	int error;
@@ -158,9 +158,9 @@ thr_new_initthr(struct thread *td, void *thunk)
 	 */
 	param = thunk;
 	if ((param->child_tid != NULL &&
-	    suword_lwpid(param->child_tid, td->td_tid)) ||
+		suword_lwpid(param->child_tid, td->td_tid)) ||
 	    (param->parent_tid != NULL &&
-	    suword_lwpid(param->parent_tid, td->td_tid)))
+		suword_lwpid(param->parent_tid, td->td_tid)))
 		return (EFAULT);
 
 	/* Set up our machine context. */
@@ -199,7 +199,7 @@ thread_create(struct thread *td, struct rtprio *rtp,
 	p = td->td_proc;
 
 	if (rtp != NULL) {
-		switch(rtp->type) {
+		switch (rtp->type) {
 		case RTP_PRIO_REALTIME:
 		case RTP_PRIO_FIFO:
 			/* Only root can set scheduler policy */
@@ -262,7 +262,7 @@ thread_create(struct thread *td, struct rtprio *rtp,
 		newtd->td_dbgflags |= TDB_BORN;
 
 	PROC_UNLOCK(p);
-#ifdef	HWPMC_HOOKS
+#ifdef HWPMC_HOOKS
 	if (PMC_PROC_IS_USING_PMCS(p))
 		PMC_CALL_HOOK(newtd, PMC_FN_THR_CREATE, NULL);
 	else if (PMC_SYSTEM_SAMPLING_ACTIVE())
@@ -272,8 +272,9 @@ thread_create(struct thread *td, struct rtprio *rtp,
 	tidhash_add(newtd);
 
 	/* ignore timesharing class */
-	if (rtp != NULL && !(td->td_pri_class == PRI_TIMESHARE &&
-	    rtp->type == RTP_PRIO_NORMAL))
+	if (rtp != NULL &&
+	    !(td->td_pri_class == PRI_TIMESHARE &&
+		rtp->type == RTP_PRIO_NORMAL))
 		rtp_to_pri(rtp, newtd);
 
 	thread_lock(newtd);
@@ -295,7 +296,7 @@ fail:
 
 int
 sys_thr_self(struct thread *td, struct thr_self_args *uap)
-    /* long *id */
+/* long *id */
 {
 	int error;
 
@@ -307,7 +308,7 @@ sys_thr_self(struct thread *td, struct thr_self_args *uap)
 
 int
 sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
-    /* long *state */
+/* long *state */
 {
 
 	umtx_thread_exit(td);
@@ -386,7 +387,7 @@ kern_thr_exit(struct thread *td)
 
 int
 sys_thr_kill(struct thread *td, struct thr_kill_args *uap)
-    /* long id, int sig */
+/* long id, int sig */
 {
 	ksiginfo_t ksi;
 	struct thread *ttd;
@@ -405,7 +406,7 @@ sys_thr_kill(struct thread *td, struct thr_kill_args *uap)
 		} else {
 			error = ESRCH;
 			PROC_LOCK(p);
-			FOREACH_THREAD_IN_PROC(p, ttd) {
+			FOREACH_THREAD_IN_PROC (p, ttd) {
 				if (ttd != td) {
 					error = 0;
 					if (uap->sig == 0)
@@ -424,7 +425,7 @@ sys_thr_kill(struct thread *td, struct thr_kill_args *uap)
 			;
 		else if (!_SIG_VALID(uap->sig))
 			error = EINVAL;
-		else 
+		else
 			tdksignal(ttd, uap->sig, &ksi);
 		PROC_UNLOCK(ttd->td_proc);
 	}
@@ -433,7 +434,7 @@ sys_thr_kill(struct thread *td, struct thr_kill_args *uap)
 
 int
 sys_thr_kill2(struct thread *td, struct thr_kill2_args *uap)
-    /* pid_t pid, long id, int sig */
+/* pid_t pid, long id, int sig */
 {
 	ksiginfo_t ksi;
 	struct thread *ttd;
@@ -460,7 +461,7 @@ sys_thr_kill2(struct thread *td, struct thr_kill2_args *uap)
 			error = EINVAL;
 		} else {
 			error = ESRCH;
-			FOREACH_THREAD_IN_PROC(p, ttd) {
+			FOREACH_THREAD_IN_PROC (p, ttd) {
 				if (ttd != td) {
 					error = 0;
 					if (uap->sig == 0)
@@ -490,7 +491,7 @@ sys_thr_kill2(struct thread *td, struct thr_kill2_args *uap)
 
 int
 sys_thr_suspend(struct thread *td, struct thr_suspend_args *uap)
-	/* const struct timespec *timeout */
+/* const struct timespec *timeout */
 {
 	struct timespec ts, *tsp;
 	int error;
@@ -530,8 +531,7 @@ kern_thr_suspend(struct thread *td, struct timespec *tsp)
 
 	PROC_LOCK(p);
 	if (error == 0 && (td->td_flags & TDF_THRWAKEUP) == 0)
-		error = msleep((void *)td, &p->p_mtx,
-			 PCATCH, "lthr", timo);
+		error = msleep((void *)td, &p->p_mtx, PCATCH, "lthr", timo);
 
 	if (td->td_flags & TDF_THRWAKEUP) {
 		thread_lock(td);
@@ -552,7 +552,7 @@ kern_thr_suspend(struct thread *td, struct timespec *tsp)
 
 int
 sys_thr_wake(struct thread *td, struct thr_wake_args *uap)
-	/* long id */
+/* long id */
 {
 	struct proc *p;
 	struct thread *ttd;
@@ -560,7 +560,7 @@ sys_thr_wake(struct thread *td, struct thr_wake_args *uap)
 	if (uap->id == td->td_tid) {
 		td->td_pflags |= TDP_WAKEUP;
 		return (0);
-	} 
+	}
 
 	p = td->td_proc;
 	ttd = tdfind((lwpid_t)uap->id, p->p_pid);

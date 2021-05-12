@@ -29,7 +29,7 @@
  * Mountain View, California  94043
  */
 
-#if defined(LIBC_SCCS) && !defined(lint) 
+#if defined(LIBC_SCCS) && !defined(lint)
 static char *sccsid2 = "@(#)xdr_reference.c 1.11 87/08/11 SMI";
 static char *sccsid = "@(#)xdr_reference.c	2.1 88/07/29 4.0 RPCSRC";
 #endif
@@ -62,10 +62,9 @@ __FBSDID("$FreeBSD$");
  * proc is the routine to handle the referenced structure.
  */
 bool_t
-xdr_reference(XDR *xdrs,
-    caddr_t *pp,		/* the pointer to work on */
-    u_int size,			/* size of the object pointed to */
-    xdrproc_t proc)		/* xdr routine to handle the object */
+xdr_reference(XDR *xdrs, caddr_t *pp, /* the pointer to work on */
+    u_int size,			      /* size of the object pointed to */
+    xdrproc_t proc)		      /* xdr routine to handle the object */
 {
 	caddr_t loc = *pp;
 	bool_t stat;
@@ -76,7 +75,7 @@ xdr_reference(XDR *xdrs,
 			return (TRUE);
 
 		case XDR_DECODE:
-			*pp = loc = (caddr_t) mem_alloc(size);
+			*pp = loc = (caddr_t)mem_alloc(size);
 			if (loc == NULL) {
 				printf("xdr_reference: out of memory");
 				return (FALSE);
@@ -123,12 +122,12 @@ xdr_pointer(XDR *xdrs, char **objpp, u_int obj_size, xdrproc_t xdr_obj)
 	bool_t more_data;
 
 	more_data = (*objpp != NULL);
-	if (! xdr_bool(xdrs,&more_data)) {
+	if (!xdr_bool(xdrs, &more_data)) {
 		return (FALSE);
 	}
-	if (! more_data) {
+	if (!more_data) {
 		*objpp = NULL;
 		return (TRUE);
 	}
-	return (xdr_reference(xdrs,objpp,obj_size,xdr_obj));
+	return (xdr_reference(xdrs, objpp, obj_size, xdr_obj));
 }

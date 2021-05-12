@@ -34,10 +34,10 @@
 
 struct imx_clk_mux_def {
 	struct clknode_init_def clkdef;
-	uint32_t		offset;
-	uint32_t		shift;
-	uint32_t		width;
-	int			mux_flags;
+	uint32_t offset;
+	uint32_t shift;
+	uint32_t width;
+	int mux_flags;
 };
 
 int imx_clk_mux_register(struct clkdom *clkdom, struct imx_clk_mux_def *clkdef);

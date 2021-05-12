@@ -41,25 +41,27 @@ __FBSDID("$FreeBSD$");
  * kernel should be kept here, along with any global storage specific
  * to this BSD variant.
  */
-#include <fs/nfs/nfsport.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <rpc/rpc_com.h>
+
 #include <vm/vm.h>
+#include <vm/uma.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_param.h>
-#include <vm/vm_map.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
-#include <vm/uma.h>
+
+#include <fs/nfs/nfsport.h>
+#include <rpc/rpc_com.h>
 
 extern int nfscl_ticks;
 extern nfsuserd_state nfsrv_nfsuserd;
 extern struct nfssockreq nfsrv_nfsuserdsock;
-extern void (*nfsd_call_recall)(struct vnode *, int, struct ucred *,
-    struct thread *);
+extern void (*nfsd_call_recall)(
+    struct vnode *, int, struct ucred *, struct thread *);
 extern int nfsrv_useacl;
 struct mount nfsv4root_mnt;
 int newnfs_numnfsd = 0;
@@ -84,22 +86,21 @@ static int nfs_realign_count;
 static struct ext_nfsstats oldnfsstats;
 static struct nfsstatsov1 nfsstatsov1;
 
-SYSCTL_NODE(_vfs, OID_AUTO, nfs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "NFS filesystem");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test,
-    0, "Number of realign tests done");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count,
-    0, "Number of mbuf realignments done");
-SYSCTL_STRING(_vfs_nfs, OID_AUTO, callback_addr, CTLFLAG_RW,
-    nfsv4_callbackaddr, sizeof(nfsv4_callbackaddr),
-    "NFSv4 callback addr for server to use");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nfscl_debuglevel,
-    0, "Debug level for NFS client");
+SYSCTL_NODE(
+    _vfs, OID_AUTO, nfs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "NFS filesystem");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test, 0,
+    "Number of realign tests done");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count, 0,
+    "Number of mbuf realignments done");
+SYSCTL_STRING(_vfs_nfs, OID_AUTO, callback_addr, CTLFLAG_RW, nfsv4_callbackaddr,
+    sizeof(nfsv4_callbackaddr), "NFSv4 callback addr for server to use");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nfscl_debuglevel, 0,
+    "Debug level for NFS client");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, userhashsize, CTLFLAG_RDTUN, &nfsrv_lughashsize,
     0, "Size of hash tables for uid/name mapping");
 int nfs_pnfsiothreads = -1;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, pnfsiothreads, CTLFLAG_RW, &nfs_pnfsiothreads,
-    0, "Number of pNFS mirror I/O threads");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, pnfsiothreads, CTLFLAG_RW, &nfs_pnfsiothreads, 0,
+    "Number of pNFS mirror I/O threads");
 
 /*
  * Defines for malloc
@@ -123,10 +124,8 @@ MALLOC_DEFINE(M_NEWNFSCLLOCKOWNER, "NFSCL lckown", "NFSCL Lock Owner");
 MALLOC_DEFINE(M_NEWNFSCLLOCK, "NFSCL lck", "NFSCL Lock");
 MALLOC_DEFINE(M_NEWNFSV4NODE, "NEWNFSnode", "NFS vnode");
 MALLOC_DEFINE(M_NEWNFSDIRECTIO, "NEWdirectio", "NFS Direct IO buffer");
-MALLOC_DEFINE(M_NEWNFSDIROFF, "NFSCL diroff",
-    "NFS directory offset data");
-MALLOC_DEFINE(M_NEWNFSDROLLBACK, "NFSD rollback",
-    "NFS local lock rollback");
+MALLOC_DEFINE(M_NEWNFSDIROFF, "NFSCL diroff", "NFS directory offset data");
+MALLOC_DEFINE(M_NEWNFSDROLLBACK, "NFSD rollback", "NFS local lock rollback");
 MALLOC_DEFINE(M_NEWNFSLAYOUT, "NFSCL layout", "NFSv4.1 Layout");
 MALLOC_DEFINE(M_NEWNFSFLAYOUT, "NFSCL flayout", "NFSv4.1 File Layout");
 MALLOC_DEFINE(M_NEWNFSDEVINFO, "NFSCL devinfo", "NFSv4.1 Device Info");
@@ -161,7 +160,7 @@ newnfs_realign(struct mbuf **pm, int how)
 
 	return (0);
 }
-#else	/* !__NO_STRICT_ALIGNMENT */
+#else /* !__NO_STRICT_ALIGNMENT */
 /*
  *	newnfs_realign:
  *
@@ -221,7 +220,7 @@ newnfs_realign(struct mbuf **pm, int how)
 
 	return (0);
 }
-#endif	/* __NO_STRICT_ALIGNMENT */
+#endif /* __NO_STRICT_ALIGNMENT */
 
 #ifdef notdef
 static void
@@ -230,7 +229,7 @@ nfsrv_object_create(struct vnode *vp, struct thread *td)
 
 	if (vp == NULL || vp->v_type != VREG)
 		return;
-	(void) vfs_object_create(vp, td, td->td_ucred);
+	(void)vfs_object_create(vp, td, td->td_ucred);
 }
 #endif
 
@@ -242,8 +241,7 @@ nfsrv_lookupfilename(struct nameidata *ndp, char *fname, NFSPROC_T *p)
 {
 	int error;
 
-	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, fname,
-	    p);
+	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, fname, p);
 	error = namei(ndp);
 	if (!error) {
 		NDFREE(ndp, NDF_ONLY_PNBUF);
@@ -268,8 +266,8 @@ newnfs_copycred(struct nfscred *nfscr, struct ucred *cr)
  * Map args from nfsmsleep() to msleep().
  */
 int
-nfsmsleep(void *chan, void *mutex, int prio, const char *wmesg,
-    struct timespec *ts)
+nfsmsleep(
+    void *chan, void *mutex, int prio, const char *wmesg, struct timespec *ts)
 {
 	u_int64_t nsecval;
 	int error, timeo;
@@ -314,17 +312,16 @@ nfsvno_getfs(struct nfsfsinfo *sip, int isdgram)
 	sip->fs_maxfilesize = 0xffffffffffffffffull;
 	sip->fs_timedelta.tv_sec = 0;
 	sip->fs_timedelta.tv_nsec = 1;
-	sip->fs_properties = (NFSV3FSINFO_LINK |
-	    NFSV3FSINFO_SYMLINK | NFSV3FSINFO_HOMOGENEOUS |
-	    NFSV3FSINFO_CANSETTIME);
+	sip->fs_properties = (NFSV3FSINFO_LINK | NFSV3FSINFO_SYMLINK |
+	    NFSV3FSINFO_HOMOGENEOUS | NFSV3FSINFO_CANSETTIME);
 }
 
 /*
  * Do the pathconf vnode op.
  */
 int
-nfsvno_pathconf(struct vnode *vp, int flag, long *retf,
-    struct ucred *cred, struct thread *p)
+nfsvno_pathconf(struct vnode *vp, int flag, long *retf, struct ucred *cred,
+    struct thread *p)
 {
 	int error;
 
@@ -468,7 +465,7 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	struct nfsd_idargs nid;
 	struct nfsd_oidargs onid;
 	struct {
-		int vers;	/* Just the first field of nfsstats. */
+		int vers; /* Just the first field of nfsstats. */
 	} nfsstatver;
 
 	if (uap->flag & NFSSVC_IDNAME) {
@@ -495,8 +492,7 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	} else if (uap->flag & NFSSVC_GETSTATS) {
 		if ((uap->flag & NFSSVC_NEWSTRUCT) == 0) {
 			/* Copy fields to the old ext_nfsstat structure. */
-			oldnfsstats.attrcache_hits =
-			    nfsstatsv1.attrcache_hits;
+			oldnfsstats.attrcache_hits = nfsstatsv1.attrcache_hits;
 			oldnfsstats.attrcache_misses =
 			    nfsstatsv1.attrcache_misses;
 			oldnfsstats.lookupcache_hits =
@@ -511,26 +507,19 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 			    nfsstatsv1.accesscache_hits;
 			oldnfsstats.accesscache_misses =
 			    nfsstatsv1.accesscache_misses;
-			oldnfsstats.biocache_reads =
-			    nfsstatsv1.biocache_reads;
-			oldnfsstats.read_bios =
-			    nfsstatsv1.read_bios;
-			oldnfsstats.read_physios =
-			    nfsstatsv1.read_physios;
+			oldnfsstats.biocache_reads = nfsstatsv1.biocache_reads;
+			oldnfsstats.read_bios = nfsstatsv1.read_bios;
+			oldnfsstats.read_physios = nfsstatsv1.read_physios;
 			oldnfsstats.biocache_writes =
 			    nfsstatsv1.biocache_writes;
-			oldnfsstats.write_bios =
-			    nfsstatsv1.write_bios;
-			oldnfsstats.write_physios =
-			    nfsstatsv1.write_physios;
+			oldnfsstats.write_bios = nfsstatsv1.write_bios;
+			oldnfsstats.write_physios = nfsstatsv1.write_physios;
 			oldnfsstats.biocache_readlinks =
 			    nfsstatsv1.biocache_readlinks;
-			oldnfsstats.readlink_bios =
-			    nfsstatsv1.readlink_bios;
+			oldnfsstats.readlink_bios = nfsstatsv1.readlink_bios;
 			oldnfsstats.biocache_readdirs =
 			    nfsstatsv1.biocache_readdirs;
-			oldnfsstats.readdir_bios =
-			    nfsstatsv1.readdir_bios;
+			oldnfsstats.readdir_bios = nfsstatsv1.readdir_bios;
 			for (i = 0; i < NFSV4_NPROCS; i++)
 				oldnfsstats.rpccnt[i] = nfsstatsv1.rpccnt[i];
 			oldnfsstats.rpcretries = nfsstatsv1.rpcretries;
@@ -538,7 +527,7 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 				oldnfsstats.srvrpccnt[i] =
 				    nfsstatsv1.srvrpccnt[i];
 			for (i = NFSV42_NOPS, j = NFSV4OP_NOPS;
-			    i < NFSV42_NOPS + NFSV4OP_FAKENOPS; i++, j++)
+			     i < NFSV42_NOPS + NFSV4OP_FAKENOPS; i++, j++)
 				oldnfsstats.srvrpccnt[j] =
 				    nfsstatsv1.srvrpccnt[i];
 			oldnfsstats.reserved_0 = 0;
@@ -577,11 +566,11 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 			oldnfsstats.cllocallockowners =
 			    nfsstatsv1.cllocallockowners;
 			oldnfsstats.cllocallocks = nfsstatsv1.cllocallocks;
-			error = copyout(&oldnfsstats, uap->argp,
-			    sizeof (oldnfsstats));
+			error = copyout(
+			    &oldnfsstats, uap->argp, sizeof(oldnfsstats));
 		} else {
-			error = copyin(uap->argp, &nfsstatver,
-			    sizeof(nfsstatver));
+			error = copyin(
+			    uap->argp, &nfsstatver, sizeof(nfsstatver));
 			if (error == 0) {
 				if (nfsstatver.vers == NFSSTATS_OV1) {
 					/* Copy nfsstatsv1 to nfsstatsov1. */
@@ -630,7 +619,7 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 						nfsstatsov1.srvrpccnt[i] =
 						    nfsstatsv1.srvrpccnt[i];
 					for (i = NFSV42_NOPS,
-					     j = NFSV42_PURENOPS;
+					    j = NFSV42_PURENOPS;
 					     i < NFSV42_NOPS + NFSV4OP_FAKENOPS;
 					     i++, j++)
 						nfsstatsov1.srvrpccnt[j] =
@@ -694,7 +683,7 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 					nfsstatsov1.srvdonecnt =
 					    nfsstatsv1.srvdonecnt;
 					for (i = NFSV42_NOPS,
-					     j = NFSV42_PURENOPS;
+					    j = NFSV42_PURENOPS;
 					     i < NFSV42_NOPS + NFSV4OP_FAKENOPS;
 					     i++, j++) {
 						nfsstatsov1.srvbytes[j] =
@@ -762,8 +751,8 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		struct nfsuserd_args nargs;
 
 		if ((uap->flag & NFSSVC_NEWSTRUCT) == 0) {
-			error = copyin(uap->argp, (caddr_t)&sockport,
-			    sizeof (u_short));
+			error = copyin(
+			    uap->argp, (caddr_t)&sockport, sizeof(u_short));
 			if (error == 0) {
 				nargs.nuserd_family = AF_INET;
 				nargs.nuserd_port = sockport;
@@ -830,9 +819,9 @@ nfs_supportsnfsv4acls(struct vnode *vp)
  * nfs_pnfsio().
  */
 struct pnfsio {
-	int		done;
-	int		inprog;
-	struct task	tsk;
+	int done;
+	int inprog;
+	struct task tsk;
 };
 
 /*
@@ -851,12 +840,12 @@ nfs_pnfsio(task_fn_t *func, void *context)
 			return (EPERM);
 		if (nfs_pnfsiothreads < 0)
 			nfs_pnfsiothreads = mp_ncpus * 4;
-		pnfsioq = taskqueue_create("pnfsioq", M_WAITOK,
-		    taskqueue_thread_enqueue, &pnfsioq);
+		pnfsioq = taskqueue_create(
+		    "pnfsioq", M_WAITOK, taskqueue_thread_enqueue, &pnfsioq);
 		if (pnfsioq == NULL)
 			return (ENOMEM);
-		ret = taskqueue_start_threads(&pnfsioq, nfs_pnfsiothreads,
-		    0, "pnfsiot");
+		ret = taskqueue_start_threads(
+		    &pnfsioq, nfs_pnfsiothreads, 0, "pnfsiot");
 		if (ret != 0) {
 			taskqueue_free(pnfsioq);
 			pnfsioq = NULL;
@@ -891,8 +880,7 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		mtx_init(&nfs_sockl_mutex, "nfs_sockl_mutex", NULL, MTX_DEF);
 		mtx_init(&nfs_slock_mutex, "nfs_slock_mutex", NULL, MTX_DEF);
 		mtx_init(&nfs_req_mutex, "nfs_req_mutex", NULL, MTX_DEF);
-		mtx_init(&nfsrv_nfsuserdsock.nr_mtx, "nfsuserd", NULL,
-		    MTX_DEF);
+		mtx_init(&nfsrv_nfsuserdsock.nr_mtx, "nfsuserd", NULL, MTX_DEF);
 		mtx_init(&nfsrv_dslock_mtx, "nfs4ds", NULL, MTX_DEF);
 		TAILQ_INIT(&nfsrv_devidhead);
 		callout_init(&newnfsd_callout, 1);

@@ -33,12 +33,12 @@
  */
 
 #ifndef _MACHINE_IN_CKSUM_H_
-#define	_MACHINE_IN_CKSUM_H_	1
+#define _MACHINE_IN_CKSUM_H_ 1
 
 #include <sys/cdefs.h>
 
 #ifdef _KERNEL
-#define	in_cksum(m, len)	in_cksum_skip(m, len, 0)
+#define in_cksum(m, len) in_cksum_skip(m, len, 0)
 u_short in_addword(u_short sum, u_short b);
 u_short in_cksum_skip(struct mbuf *m, int len, int skip);
 u_int do_cksum(const void *, int);

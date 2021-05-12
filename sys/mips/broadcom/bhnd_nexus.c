@@ -29,7 +29,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -45,22 +45,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/intr.h>
-#include <sys/limits.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
-#include <sys/malloc.h>
 
 #include <machine/bus.h>
 
-#include <dev/bhnd/bhndvar.h>
 #include <dev/bhnd/bhnd_ids.h>
-
+#include <dev/bhnd/bhndvar.h>
 #include <dev/bhnd/cores/chipc/chipcreg.h>
 
 #include "bcm_machdep.h"
 #include "bcm_mipsvar.h"
-
 #include "bhnd_nexusvar.h"
 
 /**
@@ -77,8 +75,8 @@ bhnd_nexus_get_service_registry(device_t dev, device_t child)
  * Default bhnd_nexus implementation of BHND_BUS_ACTIVATE_RESOURCE().
  */
 static int
-bhnd_nexus_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct bhnd_resource *r)
+bhnd_nexus_activate_resource(
+    device_t dev, device_t child, int type, int rid, struct bhnd_resource *r)
 {
 	int error;
 
@@ -94,8 +92,8 @@ bhnd_nexus_activate_resource(device_t dev, device_t child, int type, int rid,
  * Default bhnd_nexus implementation of BHND_BUS_DEACTIVATE_RESOURCE().
  */
 static int
-bhnd_nexus_deactivate_resource(device_t dev, device_t child,
-    int type, int rid, struct bhnd_resource *r)
+bhnd_nexus_deactivate_resource(
+    device_t dev, device_t child, int type, int rid, struct bhnd_resource *r)
 {
 	int error;
 
@@ -115,8 +113,8 @@ bhnd_nexus_deactivate_resource(device_t dev, device_t child,
 static bool
 bhnd_nexus_is_hw_disabled(device_t dev, device_t child)
 {
-	struct bcm_platform	*bp;
-	struct bhnd_chipid	*cid;
+	struct bcm_platform *bp;
+	struct bhnd_chipid *cid;
 
 	bp = bcm_get_platform();
 	cid = &bp->cid;
@@ -126,8 +124,7 @@ bhnd_nexus_is_hw_disabled(device_t dev, device_t child)
 	if (cid->chip_id == BHND_CHIPID_BCM4706 &&
 	    cid->chip_pkg == BHND_PKGID_BCM4706L &&
 	    bhnd_get_device(child) == BHND_COREID_4706_GMAC &&
-	    bhnd_get_core_unit(child) != 0)
-	{
+	    bhnd_get_core_unit(child) != 0) {
 		return (true);
 	}
 
@@ -156,8 +153,8 @@ bhnd_nexus_get_chipid(device_t dev, device_t child)
  * Default bhnd_nexus implementation of BHND_BUS_READ_BOARD_INFO().
  */
 static int
-bhnd_nexus_read_board_info(device_t dev, device_t child,
-    struct bhnd_board_info *info)
+bhnd_nexus_read_board_info(
+    device_t dev, device_t child, struct bhnd_board_info *info)
 {
 	int error;
 
@@ -179,15 +176,15 @@ bhnd_nexus_read_board_info(device_t dev, device_t child,
 static int
 bhnd_nexus_map_intr(device_t dev, device_t child, u_int intr, rman_res_t *irq)
 {
-	struct bcm_mips_intr_map_data	*imd;
-	u_int				 ivec;
-	uintptr_t			 xref;
-	int				 error;
+	struct bcm_mips_intr_map_data *imd;
+	u_int ivec;
+	uintptr_t xref;
+	int error;
 
 	/* Fetch the backplane interrupt vector */
 	if ((error = bhnd_get_intr_ivec(child, intr, &ivec))) {
-		device_printf(dev, "error fetching ivec for intr %u: %d\n",
-		    intr, error);
+		device_printf(
+		    dev, "error fetching ivec for intr %u: %d\n", intr, error);
 		return (error);
 	}
 
@@ -221,8 +218,8 @@ bhnd_nexus_unmap_intr(device_t dev, device_t child, rman_res_t irq)
  * Default bhnd_nexus implementation of BHND_BUS_GET_DMA_TRANSLATION().
  */
 static int
-bhnd_nexus_get_dma_translation(device_t dev, device_t child,
-    u_int width, uint32_t flags, bus_dma_tag_t *dmat,
+bhnd_nexus_get_dma_translation(device_t dev, device_t child, u_int width,
+    uint32_t flags, bus_dma_tag_t *dmat,
     struct bhnd_dma_translation *translation)
 {
 	struct bcm_platform *bp = bcm_get_platform();
@@ -246,11 +243,9 @@ bhnd_nexus_get_dma_translation(device_t dev, device_t child,
 		*dmat = bus_get_dma_tag(dev);
 
 	if (translation != NULL) {
-		*translation = (struct bhnd_dma_translation) {
-			.base_addr	= 0x0,
-			.addr_mask	= BHND_DMA_ADDR_BITMASK(width),
-			.addrext_mask	= 0
-		};
+		*translation = (struct bhnd_dma_translation) { .base_addr = 0x0,
+			.addr_mask = BHND_DMA_ADDR_BITMASK(width),
+			.addrext_mask = 0 };
 	}
 
 	return (0);
@@ -258,24 +253,29 @@ bhnd_nexus_get_dma_translation(device_t dev, device_t child,
 
 static device_method_t bhnd_nexus_methods[] = {
 	/* bhnd interface */
-	DEVMETHOD(bhnd_bus_get_service_registry,bhnd_nexus_get_service_registry),
-	DEVMETHOD(bhnd_bus_register_provider,	bhnd_bus_generic_sr_register_provider),
-	DEVMETHOD(bhnd_bus_deregister_provider,	bhnd_bus_generic_sr_deregister_provider),
-	DEVMETHOD(bhnd_bus_retain_provider,	bhnd_bus_generic_sr_retain_provider),
-	DEVMETHOD(bhnd_bus_release_provider,	bhnd_bus_generic_sr_release_provider),
-	DEVMETHOD(bhnd_bus_activate_resource,	bhnd_nexus_activate_resource),
+	DEVMETHOD(
+	    bhnd_bus_get_service_registry, bhnd_nexus_get_service_registry),
+	DEVMETHOD(
+	    bhnd_bus_register_provider, bhnd_bus_generic_sr_register_provider),
+	DEVMETHOD(bhnd_bus_deregister_provider,
+	    bhnd_bus_generic_sr_deregister_provider),
+	DEVMETHOD(
+	    bhnd_bus_retain_provider, bhnd_bus_generic_sr_retain_provider),
+	DEVMETHOD(
+	    bhnd_bus_release_provider, bhnd_bus_generic_sr_release_provider),
+	DEVMETHOD(bhnd_bus_activate_resource, bhnd_nexus_activate_resource),
 	DEVMETHOD(bhnd_bus_deactivate_resource, bhnd_nexus_deactivate_resource),
-	DEVMETHOD(bhnd_bus_is_hw_disabled,	bhnd_nexus_is_hw_disabled),
-	DEVMETHOD(bhnd_bus_get_attach_type,	bhnd_nexus_get_attach_type),
-	DEVMETHOD(bhnd_bus_get_chipid,		bhnd_nexus_get_chipid),
-	DEVMETHOD(bhnd_bus_get_dma_translation,	bhnd_nexus_get_dma_translation),
-	DEVMETHOD(bhnd_bus_get_intr_domain,	bhnd_bus_generic_get_intr_domain),
-	DEVMETHOD(bhnd_bus_map_intr,		bhnd_nexus_map_intr),
-	DEVMETHOD(bhnd_bus_read_board_info,	bhnd_nexus_read_board_info),
-	DEVMETHOD(bhnd_bus_unmap_intr,		bhnd_nexus_unmap_intr),
+	DEVMETHOD(bhnd_bus_is_hw_disabled, bhnd_nexus_is_hw_disabled),
+	DEVMETHOD(bhnd_bus_get_attach_type, bhnd_nexus_get_attach_type),
+	DEVMETHOD(bhnd_bus_get_chipid, bhnd_nexus_get_chipid),
+	DEVMETHOD(bhnd_bus_get_dma_translation, bhnd_nexus_get_dma_translation),
+	DEVMETHOD(bhnd_bus_get_intr_domain, bhnd_bus_generic_get_intr_domain),
+	DEVMETHOD(bhnd_bus_map_intr, bhnd_nexus_map_intr),
+	DEVMETHOD(bhnd_bus_read_board_info, bhnd_nexus_read_board_info),
+	DEVMETHOD(bhnd_bus_unmap_intr, bhnd_nexus_unmap_intr),
 
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(bhnd, bhnd_nexus_driver, bhnd_nexus_methods,
-    sizeof(struct bhnd_softc));
+DEFINE_CLASS_0(
+    bhnd, bhnd_nexus_driver, bhnd_nexus_methods, sizeof(struct bhnd_softc));

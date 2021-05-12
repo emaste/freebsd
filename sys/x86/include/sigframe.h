@@ -8,7 +8,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -31,7 +31,7 @@
  */
 
 #ifndef _X86_SIGFRAME_H_
-#define	_X86_SIGFRAME_H_
+#define _X86_SIGFRAME_H_
 
 /*
  * Signal frames, arguments passed to application signal handlers.
@@ -46,28 +46,28 @@ struct sigframe {
 	 * on and seems to be somewhat BSD "standard".  Handlers
 	 * installed with sigvec may be using it.
 	 */
-	register_t	sf_signum;
-	register_t	sf_siginfo;	/* code or pointer to sf_si */
-	register_t	sf_ucontext;	/* points to sf_uc */
-	register_t	sf_addr;	/* undocumented 4th arg */
+	register_t sf_signum;
+	register_t sf_siginfo;	/* code or pointer to sf_si */
+	register_t sf_ucontext; /* points to sf_uc */
+	register_t sf_addr;	/* undocumented 4th arg */
 
 	union {
-		__siginfohandler_t	*sf_action;
-		__sighandler_t		*sf_handler;
+		__siginfohandler_t *sf_action;
+		__sighandler_t *sf_handler;
 	} sf_ahu;
-	ucontext_t	sf_uc;		/* = *sf_ucontext */
-	siginfo_t	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
+	ucontext_t sf_uc; /* = *sf_ucontext */
+	siginfo_t sf_si;  /* = *sf_siginfo (SA_SIGINFO case) */
 };
 #endif /* __i386__ */
 
 #ifdef __amd64__
 struct sigframe {
 	union {
-		__siginfohandler_t	*sf_action;
-		__sighandler_t		*sf_handler;
+		__siginfohandler_t *sf_action;
+		__sighandler_t *sf_handler;
 	} sf_ahu;
-	ucontext_t	sf_uc;		/* = *sf_ucontext */
-	siginfo_t	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
+	ucontext_t sf_uc; /* = *sf_ucontext */
+	siginfo_t sf_si;  /* = *sf_siginfo (SA_SIGINFO case) */
 };
 #endif /* __amd64__ */
 

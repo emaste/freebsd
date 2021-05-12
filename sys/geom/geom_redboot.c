@@ -33,64 +33,64 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/errno.h>
-#include <sys/endian.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/fcntl.h>
-#include <sys/malloc.h>
 #include <sys/bio.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/bus.h>
-
+#include <sys/endian.h>
+#include <sys/errno.h>
+#include <sys/fcntl.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/sbuf.h>
+
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 
 #define REDBOOT_CLASS_NAME "REDBOOT"
 
 struct fis_image_desc {
-	uint8_t		name[16];	/* null-terminated name */
-	uint32_t	offset;		/* offset in flash */
-	uint32_t	addr;		/* address in memory */
-	uint32_t	size;		/* image size in bytes */
-	uint32_t	entry;		/* offset in image for entry point */
-	uint32_t	dsize;		/* data size in bytes */
-	uint8_t		pad[256-(16+7*sizeof(uint32_t)+sizeof(void*))];
-	struct fis_image_desc *next;	/* linked list (in memory) */
-	uint32_t	dsum;		/* descriptor checksum */
-	uint32_t	fsum;		/* checksum over image data */
+	uint8_t name[16]; /* null-terminated name */
+	uint32_t offset;  /* offset in flash */
+	uint32_t addr;	  /* address in memory */
+	uint32_t size;	  /* image size in bytes */
+	uint32_t entry;	  /* offset in image for entry point */
+	uint32_t dsize;	  /* data size in bytes */
+	uint8_t pad[256 - (16 + 7 * sizeof(uint32_t) + sizeof(void *))];
+	struct fis_image_desc *next; /* linked list (in memory) */
+	uint32_t dsum;		     /* descriptor checksum */
+	uint32_t fsum;		     /* checksum over image data */
 };
 
-#define	FISDIR_NAME	"FIS directory"
-#define	REDBCFG_NAME	"RedBoot config"
-#define	REDBOOT_NAME	"RedBoot"
+#define FISDIR_NAME "FIS directory"
+#define REDBCFG_NAME "RedBoot config"
+#define REDBOOT_NAME "RedBoot"
 
-#define	REDBOOT_MAXSLICE	64
-#define	REDBOOT_MAXOFF \
-	(REDBOOT_MAXSLICE*sizeof(struct fis_image_desc))
+#define REDBOOT_MAXSLICE 64
+#define REDBOOT_MAXOFF (REDBOOT_MAXSLICE * sizeof(struct fis_image_desc))
 
 struct g_redboot_softc {
-	uint32_t	entry[REDBOOT_MAXSLICE];
-	uint32_t	dsize[REDBOOT_MAXSLICE];
-	uint8_t		readonly[REDBOOT_MAXSLICE];
-	g_access_t	*parent_access;
+	uint32_t entry[REDBOOT_MAXSLICE];
+	uint32_t dsize[REDBOOT_MAXSLICE];
+	uint8_t readonly[REDBOOT_MAXSLICE];
+	g_access_t *parent_access;
 };
 
 static void
 g_redboot_print(int i, struct fis_image_desc *fd)
 {
 
-	printf("[%2d] \"%-15.15s\" %08x:%08x", i, fd->name,
-	    fd->offset, fd->size);
+	printf(
+	    "[%2d] \"%-15.15s\" %08x:%08x", i, fd->name, fd->offset, fd->size);
 	printf(" addr %08x entry %08x\n", fd->addr, fd->entry);
-	printf("     dsize 0x%x dsum 0x%x fsum 0x%x\n", fd->dsize,
-	    fd->dsum, fd->fsum);
+	printf("     dsize 0x%x dsum 0x%x fsum 0x%x\n", fd->dsize, fd->dsum,
+	    fd->fsum);
 }
 
 static int
-g_redboot_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread *td)
+g_redboot_ioctl(
+    struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread *td)
 {
 	return (ENOIOCTL);
 }
@@ -122,11 +122,11 @@ g_redboot_start(struct bio *bp)
 	gsp = gp->softc;
 	sc = gsp->softc;
 	if (bp->bio_cmd == BIO_GETATTR) {
-		if (g_handleattr_int(bp, REDBOOT_CLASS_NAME "::entry",
-		    sc->entry[idx]))
+		if (g_handleattr_int(
+			bp, REDBOOT_CLASS_NAME "::entry", sc->entry[idx]))
 			return (1);
-		if (g_handleattr_int(bp, REDBOOT_CLASS_NAME "::dsize",
-		    sc->dsize[idx]))
+		if (g_handleattr_int(
+			bp, REDBOOT_CLASS_NAME "::dsize", sc->dsize[idx]))
 			return (1);
 	}
 
@@ -135,7 +135,7 @@ g_redboot_start(struct bio *bp)
 
 static void
 g_redboot_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
-	struct g_consumer *cp __unused, struct g_provider *pp)
+    struct g_consumer *cp __unused, struct g_provider *pp)
 {
 	struct g_redboot_softc *sc;
 	struct g_slicer *gsp;
@@ -173,7 +173,7 @@ nameok(const char name[16])
 static struct fis_image_desc *
 parse_fis_directory(u_char *buf, size_t bufsize, off_t offset, uint32_t offmask)
 {
-#define	match(a,b)	(bcmp(a, b, sizeof(b)-1) == 0)
+#define match(a, b) (bcmp(a, b, sizeof(b) - 1) == 0)
 	struct fis_image_desc *fd, *efd;
 	struct fis_image_desc *fisdir, *redbcfg;
 	struct fis_image_desc *head, **tail;
@@ -220,7 +220,7 @@ parse_fis_directory(u_char *buf, size_t bufsize, off_t offset, uint32_t offmask)
 	if (fisdir == NULL) {
 		if (bootverbose)
 			printf("No RedBoot FIS table located at %lu\n",
-			    (long) offset);
+			    (long)offset);
 		return (NULL);
 	}
 	if (redbcfg != NULL &&
@@ -246,7 +246,7 @@ g_redboot_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	int error, sectorsize, i;
 	struct fis_image_desc *fd, *head;
 	uint32_t offmask;
-	off_t blksize;		/* NB: flash block size stored as stripesize */
+	off_t blksize; /* NB: flash block size stored as stripesize */
 	u_char *buf;
 	off_t offset;
 	const char *value;
@@ -265,11 +265,10 @@ g_redboot_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	if (!strcmp(pp->geom->class->name, REDBOOT_CLASS_NAME))
 		return (NULL);
 	/* XXX only taste flash providers */
-	if (strncmp(pp->name, "cfi", 3) && 
-	    strncmp(pp->name, "flash/spi", 9))
+	if (strncmp(pp->name, "cfi", 3) && strncmp(pp->name, "flash/spi", 9))
 		return (NULL);
-	gp = g_slice_new(mp, REDBOOT_MAXSLICE, pp, &cp, &sc, sizeof(*sc),
-	    g_redboot_start);
+	gp = g_slice_new(
+	    mp, REDBOOT_MAXSLICE, pp, &cp, &sc, sizeof(*sc), g_redboot_start);
 	if (gp == NULL)
 		return (NULL);
 	/* interpose our access method */
@@ -279,19 +278,20 @@ g_redboot_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	sectorsize = cp->provider->sectorsize;
 	blksize = cp->provider->stripesize;
 	if (powerof2(cp->provider->mediasize))
-		offmask = cp->provider->mediasize-1;
+		offmask = cp->provider->mediasize - 1;
 	else
-		offmask = 0xffffffff;		/* XXX */
+		offmask = 0xffffffff; /* XXX */
 	if (bootverbose)
-		printf("%s: mediasize %ld secsize %d blksize %ju offmask 0x%x\n",
-		    __func__, (long) cp->provider->mediasize, sectorsize,
+		printf(
+		    "%s: mediasize %ld secsize %d blksize %ju offmask 0x%x\n",
+		    __func__, (long)cp->provider->mediasize, sectorsize,
 		    (uintmax_t)blksize, offmask);
 	if (sectorsize < sizeof(struct fis_image_desc) ||
 	    (sectorsize % sizeof(struct fis_image_desc)))
 		return (NULL);
 	g_topology_unlock();
 	head = NULL;
-	if(offset == 0)
+	if (offset == 0)
 		offset = cp->provider->mediasize - blksize;
 again:
 	buf = g_read_data(cp, offset, blksize, NULL);
@@ -300,7 +300,7 @@ again:
 	if (head == NULL && offset != 0) {
 		if (buf != NULL)
 			g_free(buf);
-		offset = 0;			/* check the front */
+		offset = 0; /* check the front */
 		goto again;
 	}
 	g_topology_lock();
@@ -315,8 +315,8 @@ again:
 	for (fd = head, i = 0; fd != NULL; fd = fd->next) {
 		if (fd->name[0] == '\0')
 			continue;
-		error = g_slice_config(gp, i, G_SLICE_CONFIG_SET,
-		    fd->offset, fd->size, sectorsize, "redboot/%s", fd->name);
+		error = g_slice_config(gp, i, G_SLICE_CONFIG_SET, fd->offset,
+		    fd->size, sectorsize, "redboot/%s", fd->name);
 		if (error)
 			printf("%s: g_slice_config returns %d for \"%s\"\n",
 			    __func__, error, fd->name);
@@ -324,7 +324,7 @@ again:
 		sc->dsize[i] = fd->dsize;
 		/* disallow writing hard-to-recover entries */
 		sc->readonly[i] = (strcmp(fd->name, FISDIR_NAME) == 0) ||
-				  (strcmp(fd->name, REDBOOT_NAME) == 0);
+		    (strcmp(fd->name, REDBOOT_NAME) == 0);
 		i++;
 	}
 	g_free(buf);
@@ -336,12 +336,12 @@ again:
 	return (gp);
 }
 
-static struct g_class g_redboot_class	= {
-	.name		= REDBOOT_CLASS_NAME,
-	.version	= G_VERSION,
-	.taste		= g_redboot_taste,
-	.dumpconf	= g_redboot_dumpconf,
-	.ioctl		= g_redboot_ioctl,
+static struct g_class g_redboot_class = {
+	.name = REDBOOT_CLASS_NAME,
+	.version = G_VERSION,
+	.taste = g_redboot_taste,
+	.dumpconf = g_redboot_dumpconf,
+	.ioctl = g_redboot_ioctl,
 };
 DECLARE_GEOM_CLASS(g_redboot_class, g_redboot);
 MODULE_VERSION(geom_redboot, 0);

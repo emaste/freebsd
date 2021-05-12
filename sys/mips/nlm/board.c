@@ -40,19 +40,18 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 
-#include <mips/nlm/hal/mips-extns.h>
+#include <mips/nlm/board.h>
+#include <mips/nlm/hal/fmn.h>
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
-#include <mips/nlm/hal/fmn.h>
-#include <mips/nlm/hal/pic.h>
-#include <mips/nlm/hal/sys.h>
+#include <mips/nlm/hal/mips-extns.h>
 #include <mips/nlm/hal/nae.h>
-#include <mips/nlm/hal/uart.h>
+#include <mips/nlm/hal/pic.h>
 #include <mips/nlm/hal/poe.h>
-
-#include <mips/nlm/xlp.h>
-#include <mips/nlm/board.h>
+#include <mips/nlm/hal/sys.h>
+#include <mips/nlm/hal/uart.h>
 #include <mips/nlm/msgring.h>
+#include <mips/nlm/xlp.h>
 
 static uint8_t board_eeprom_buf[EEPROM_SIZE];
 static int board_eeprom_set;
@@ -67,37 +66,106 @@ struct vfbid_tbl {
 /* XXXJC : this should be derived from msg thread mask */
 static struct vfbid_tbl nlm_vfbid[] = {
 	/* NULL FBID should map to cpu0 to detect NAE send msg errors */
-	{127,   0}, /* NAE <-> NAE mappings */
-	{51, 1019}, {50, 1018}, {49, 1017}, {48, 1016},
-	{47, 1015}, {46, 1014}, {45, 1013}, {44, 1012},
-	{43, 1011}, {42, 1010}, {41, 1009}, {40, 1008},
-	{39, 1007}, {38, 1006}, {37, 1005}, {36, 1004},
-	{35, 1003}, {34, 1002}, {33, 1001}, {32, 1000},
+	{ 127, 0 }, /* NAE <-> NAE mappings */
+	{ 51, 1019 },
+	{ 50, 1018 },
+	{ 49, 1017 },
+	{ 48, 1016 },
+	{ 47, 1015 },
+	{ 46, 1014 },
+	{ 45, 1013 },
+	{ 44, 1012 },
+	{ 43, 1011 },
+	{ 42, 1010 },
+	{ 41, 1009 },
+	{ 40, 1008 },
+	{ 39, 1007 },
+	{ 38, 1006 },
+	{ 37, 1005 },
+	{ 36, 1004 },
+	{ 35, 1003 },
+	{ 34, 1002 },
+	{ 33, 1001 },
+	{ 32, 1000 },
 	/* NAE <-> CPU mappings, freeback got to vc 3 of each thread */
-	{31,  127}, {30,  123}, {29,  119}, {28,  115},
-	{27,  111}, {26,  107}, {25,  103}, {24,   99},
-	{23,   95}, {22,   91}, {21,   87}, {20,   83},
-	{19,   79}, {18,   75}, {17,   71}, {16,   67},
-	{15,   63}, {14,   59}, {13,   55}, {12,   51},
-	{11,   47}, {10,   43}, { 9,   39}, { 8,   35},
-	{ 7,   31}, { 6,   27}, { 5,   23}, { 4,   19},
-	{ 3,   15}, { 2,   11}, { 1,    7}, { 0,    3},
+	{ 31, 127 },
+	{ 30, 123 },
+	{ 29, 119 },
+	{ 28, 115 },
+	{ 27, 111 },
+	{ 26, 107 },
+	{ 25, 103 },
+	{ 24, 99 },
+	{ 23, 95 },
+	{ 22, 91 },
+	{ 21, 87 },
+	{ 20, 83 },
+	{ 19, 79 },
+	{ 18, 75 },
+	{ 17, 71 },
+	{ 16, 67 },
+	{ 15, 63 },
+	{ 14, 59 },
+	{ 13, 55 },
+	{ 12, 51 },
+	{ 11, 47 },
+	{ 10, 43 },
+	{ 9, 39 },
+	{ 8, 35 },
+	{ 7, 31 },
+	{ 6, 27 },
+	{ 5, 23 },
+	{ 4, 19 },
+	{ 3, 15 },
+	{ 2, 11 },
+	{ 1, 7 },
+	{ 0, 3 },
 };
 
 static struct vfbid_tbl nlm3xx_vfbid[] = {
 	/* NULL FBID should map to cpu0 to detect NAE send msg errors */
-	{127,   0}, /* NAE <-> NAE mappings */
-	{39,  503}, {38,  502}, {37,  501}, {36,  500},
-	{35,  499}, {34,  498}, {33,  497}, {32,  496},
+	{ 127, 0 }, /* NAE <-> NAE mappings */
+	{ 39, 503 },
+	{ 38, 502 },
+	{ 37, 501 },
+	{ 36, 500 },
+	{ 35, 499 },
+	{ 34, 498 },
+	{ 33, 497 },
+	{ 32, 496 },
 	/* NAE <-> CPU mappings, freeback got to vc 3 of each thread */
-	{31,  127}, {30,  123}, {29,  119}, {28,  115},
-	{27,  111}, {26,  107}, {25,  103}, {24,   99},
-	{23,   95}, {22,   91}, {21,   87}, {20,   83},
-	{19,   79}, {18,   75}, {17,   71}, {16,   67},
-	{15,   63}, {14,   59}, {13,   55}, {12,   51},
-	{11,   47}, {10,   43}, { 9,   39}, { 8,   35},
-	{ 7,   31}, { 6,   27}, { 5,   23}, { 4,   19},
-	{ 3,   15}, { 2,   11}, { 1,    7}, { 0,    3},
+	{ 31, 127 },
+	{ 30, 123 },
+	{ 29, 119 },
+	{ 28, 115 },
+	{ 27, 111 },
+	{ 26, 107 },
+	{ 25, 103 },
+	{ 24, 99 },
+	{ 23, 95 },
+	{ 22, 91 },
+	{ 21, 87 },
+	{ 20, 83 },
+	{ 19, 79 },
+	{ 18, 75 },
+	{ 17, 71 },
+	{ 16, 67 },
+	{ 15, 63 },
+	{ 14, 59 },
+	{ 13, 55 },
+	{ 12, 51 },
+	{ 11, 47 },
+	{ 10, 43 },
+	{ 9, 39 },
+	{ 8, 35 },
+	{ 7, 31 },
+	{ 6, 27 },
+	{ 5, 23 },
+	{ 4, 19 },
+	{ 3, 15 },
+	{ 2, 11 },
+	{ 1, 7 },
+	{ 0, 3 },
 };
 
 int
@@ -116,7 +184,7 @@ nlm_get_vfbid_mapping(int vfbid)
 
 	for (i = 0; i < nentries; i++) {
 		if (p[i].vfbid == vfbid)
-		    return (p[i].dest_vc);
+			return (p[i].dest_vc);
 	}
 
 	return (-1);
@@ -127,9 +195,9 @@ nlm_get_poe_distvec(int vec, uint32_t *distvec)
 {
 
 	if (vec != 0)
-		return (-1);  /* we support just vec 0 */
-	nlm_calc_poe_distvec(xlp_msg_thread_mask, 0, 0, 0,
-	    0x1 << XLPGE_RX_VC, distvec);
+		return (-1); /* we support just vec 0 */
+	nlm_calc_poe_distvec(
+	    xlp_msg_thread_mask, 0, 0, 0, 0x1 << XLPGE_RX_VC, distvec);
 	return (0);
 }
 
@@ -144,8 +212,12 @@ xlpge_get_macaddr(uint8_t *macaddr)
 
 	if (board_eeprom_set == 0) {
 		/* No luck, take some reasonable value */
-		macaddr[0] = 0x00; macaddr[1] = 0x0f; macaddr[2] = 0x30;
-		macaddr[3] = 0x20; macaddr[4] = 0x0d; macaddr[5] = 0x5b;
+		macaddr[0] = 0x00;
+		macaddr[1] = 0x0f;
+		macaddr[2] = 0x30;
+		macaddr[3] = 0x20;
+		macaddr[4] = 0x0d;
+		macaddr[5] = 0x5b;
 	} else
 		memcpy(macaddr, &board_eeprom_buf[EEPROM_MACADDR_OFFSET],
 		    ETHER_ADDR_LEN);
@@ -210,9 +282,9 @@ nlm_setup_port_defaults(struct xlp_port_ivars *p)
 		p->rx_slots_reqd = SGMII_CAL_SLOTS;
 		p->tx_slots_reqd = SGMII_CAL_SLOTS;
 		if (nlm_is_xlp3xx())
-		    p->pseq_fifo_size = 30;
+			p->pseq_fifo_size = 30;
 		else
-		    p->pseq_fifo_size = 62;
+			p->pseq_fifo_size = 62;
 		break;
 	case ILC:
 		p->num_free_descs = 150;
@@ -229,11 +301,11 @@ nlm_setup_port_defaults(struct xlp_port_ivars *p)
 		p->rx_slots_reqd = XAUI_CAL_SLOTS;
 		p->tx_slots_reqd = XAUI_CAL_SLOTS;
 		if (nlm_is_xlp3xx()) {
-		    p->pseq_fifo_size = 120;
-		    p->iface_fifo_size = 52;
+			p->pseq_fifo_size = 120;
+			p->iface_fifo_size = 52;
 		} else {
-		    p->pseq_fifo_size = 225;
-		    p->iface_fifo_size = 55;
+			p->pseq_fifo_size = 225;
+			p->iface_fifo_size = 55;
 		}
 		break;
 	}
@@ -285,37 +357,78 @@ static void
 nlm_board_get_phyaddr(int block, int port, int *phyaddr)
 {
 	switch (block) {
-	case 0: switch (port) {
-		case 0: *phyaddr = 4; break;
-		case 1: *phyaddr = 7; break;
-		case 2: *phyaddr = 6; break;
-		case 3: *phyaddr = 5; break;
+	case 0:
+		switch (port) {
+		case 0:
+			*phyaddr = 4;
+			break;
+		case 1:
+			*phyaddr = 7;
+			break;
+		case 2:
+			*phyaddr = 6;
+			break;
+		case 3:
+			*phyaddr = 5;
+			break;
 		}
 		break;
-	case 1: switch (port) {
-		case 0: *phyaddr = 8; break;
-		case 1: *phyaddr = 11; break;
-		case 2: *phyaddr = 10; break;
-		case 3: *phyaddr = 9; break;
+	case 1:
+		switch (port) {
+		case 0:
+			*phyaddr = 8;
+			break;
+		case 1:
+			*phyaddr = 11;
+			break;
+		case 2:
+			*phyaddr = 10;
+			break;
+		case 3:
+			*phyaddr = 9;
+			break;
 		}
 		break;
-	case 2: switch (port) {
-		case 0: *phyaddr = 0; break;
-		case 1: *phyaddr = 3; break;
-		case 2: *phyaddr = 2; break;
-		case 3: *phyaddr = 1; break;
+	case 2:
+		switch (port) {
+		case 0:
+			*phyaddr = 0;
+			break;
+		case 1:
+			*phyaddr = 3;
+			break;
+		case 2:
+			*phyaddr = 2;
+			break;
+		case 3:
+			*phyaddr = 1;
+			break;
 		}
 		break;
-	case 3: switch (port) {
-		case 0: *phyaddr = 12; break;
-		case 1: *phyaddr = 15; break;
-		case 2: *phyaddr = 14; break;
-		case 3: *phyaddr = 13; break;
+	case 3:
+		switch (port) {
+		case 0:
+			*phyaddr = 12;
+			break;
+		case 1:
+			*phyaddr = 15;
+			break;
+		case 2:
+			*phyaddr = 14;
+			break;
+		case 3:
+			*phyaddr = 13;
+			break;
 		}
 		break;
-	case 4: switch (port) { /* management SGMII */
-		case 0: *phyaddr = 16; break;
-		case 1: *phyaddr = 17; break;
+	case 4:
+		switch (port) { /* management SGMII */
+		case 0:
+			*phyaddr = 16;
+			break;
+		case 1:
+			*phyaddr = 17;
+			break;
 		}
 		break;
 	}
@@ -349,17 +462,23 @@ nlm_print_processor_info(void)
 	}
 	switch (rev) {
 	case 0:
-		revstr = "A0"; break;
+		revstr = "A0";
+		break;
 	case 1:
-		revstr = "A1"; break;
+		revstr = "A1";
+		break;
 	case 2:
-		revstr = "A2"; break;
+		revstr = "A2";
+		break;
 	case 3:
-		revstr = "B0"; break;
+		revstr = "B0";
+		break;
 	case 4:
-		revstr = "B1"; break;
+		revstr = "B1";
+		break;
 	default:
-		revstr = "??"; break;
+		revstr = "??";
+		break;
 	}
 
 	printf("Processor info:\n");
@@ -373,13 +492,13 @@ nlm_print_processor_info(void)
 static int
 nlm_setup_xlp_board(int node)
 {
-	struct xlp_board_info	*boardp;
-	struct xlp_node_info	*nodep;
-	struct xlp_nae_ivars	*naep;
-	struct xlp_block_ivars	*blockp;
-	struct xlp_port_ivars	*portp;
+	struct xlp_board_info *boardp;
+	struct xlp_node_info *nodep;
+	struct xlp_nae_ivars *naep;
+	struct xlp_block_ivars *blockp;
+	struct xlp_port_ivars *portp;
 	uint64_t cpldbase, nae_pcibase;
-	int	block, port, rv, dbtype, usecpld = 0, evp = 0, svp = 0;
+	int block, port, rv, dbtype, usecpld = 0, evp = 0, svp = 0;
 	uint8_t *b;
 
 	/* start with a clean slate */
@@ -389,17 +508,17 @@ nlm_setup_xlp_board(int node)
 	boardp->nodemask |= (1 << node);
 	nlm_print_processor_info();
 
-	b =  board_eeprom_buf;
-	rv = nlm_board_eeprom_read(node, EEPROM_I2CBUS, EEPROM_I2CADDR, 0, b,
-	    EEPROM_SIZE);
+	b = board_eeprom_buf;
+	rv = nlm_board_eeprom_read(
+	    node, EEPROM_I2CBUS, EEPROM_I2CADDR, 0, b, EEPROM_SIZE);
 	if (rv == 0) {
 		board_eeprom_set = 1;
-		printf("Board info (EEPROM on i2c@%d at %#X):\n",
-		    EEPROM_I2CBUS, EEPROM_I2CADDR);
+		printf("Board info (EEPROM on i2c@%d at %#X):\n", EEPROM_I2CBUS,
+		    EEPROM_I2CADDR);
 		printf("  Model:      %7.7s %2.2s\n", &b[16], &b[24]);
 		printf("  Serial #:   %3.3s-%2.2s\n", &b[27], &b[31]);
-		printf("  MAC addr:   %02x:%02x:%02x:%02x:%02x:%02x\n",
-		    b[2], b[3], b[4], b[5], b[6], b[7]);
+		printf("  MAC addr:   %02x:%02x:%02x:%02x:%02x:%02x\n", b[2],
+		    b[3], b[4], b[5], b[6], b[7]);
 	} else
 		printf("Board Info: Error on EEPROM read (i2c@%d %#X).\n",
 		    EEPROM_I2CBUS, EEPROM_I2CADDR);
@@ -419,9 +538,9 @@ nlm_setup_xlp_board(int node)
 	naep->prepad_size = 3; /* size in 16 byte units */
 	naep->ieee_1588_en = 1;
 
-	naep->ilmask = 0x0;	/* set this based on daughter card */
-	naep->xauimask = 0x0;	/* set this based on daughter card */
-	naep->sgmiimask = 0x0;	/* set this based on daughter card */
+	naep->ilmask = 0x0;    /* set this based on daughter card */
+	naep->xauimask = 0x0;  /* set this based on daughter card */
+	naep->sgmiimask = 0x0; /* set this based on daughter card */
 	naep->nblocks = nae_num_complex(nae_pcibase);
 	if (strncmp(&b[16], "PCIE", 4) == 0) {
 		usecpld = 0; /* XLP PCIe card */
@@ -442,7 +561,8 @@ nlm_setup_xlp_board(int node)
 		naep->blockmask = (1 << naep->nblocks) - 1;
 	} else {
 		printf("ERROR!!! Board type:%7s didn't match any board"
-		    " type we support\n", &b[16]);
+		       " type we support\n",
+		    &b[16]);
 		return (-1);
 	}
 	cpldbase = nlm_board_cpld_base(node, XLP_EVB_CPLD_CHIPSELECT);
@@ -464,7 +584,7 @@ nlm_setup_xlp_board(int node)
 		if (usecpld)
 			dbtype = nlm_board_cpld_dboard_type(cpldbase, block);
 		else
-			dbtype = DCARD_XAUI;  /* default XAUI */
+			dbtype = DCARD_XAUI; /* default XAUI */
 
 		/* XLP PCIe cards */
 		if ((!evp && !svp) && ((block == 2) || (block == 3)))
@@ -506,8 +626,8 @@ nlm_setup_xlp_board(int node)
 				if ((blockp->portmask & (1 << port)) == 0)
 					continue;
 				portp = &blockp->port_ivars[port];
-				nlm_board_get_phyaddr(block, port,
-				    &portp->phy_addr);
+				nlm_board_get_phyaddr(
+				    block, port, &portp->phy_addr);
 				if (svp || (block == 4))
 					portp->mdio_bus = 0;
 				else
@@ -520,9 +640,15 @@ nlm_setup_xlp_board(int node)
 			}
 		}
 		switch (blockp->type) {
-		case SGMIIC : s = "SGMII"; break;
-		case XAUIC  : s = "XAUI"; break;
-		case ILC    : s = "IL"; break;
+		case SGMIIC:
+			s = "SGMII";
+			break;
+		case XAUIC:
+			s = "XAUI";
+			break;
+		case ILC:
+			s = "IL";
+			break;
 		}
 		printf(" [%d %s]", block, s);
 	}
@@ -530,7 +656,8 @@ nlm_setup_xlp_board(int node)
 	return (0);
 }
 
-int nlm_board_info_setup(void)
+int
+nlm_board_info_setup(void)
 {
 	if (nlm_setup_xlp_board(0) != 0)
 		return (-1);

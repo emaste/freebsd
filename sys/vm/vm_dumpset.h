@@ -27,8 +27,8 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_DUMPSET_H_
-#define	_SYS_DUMPSET_H_
+#ifndef _SYS_DUMPSET_H_
+#define _SYS_DUMPSET_H_
 
 #include <sys/_bitset.h>
 #include <sys/bitset.h>
@@ -48,7 +48,8 @@ dump_add_page(vm_paddr_t pa)
 		if (pa >= dump_avail[i] && pa < dump_avail[i + 1]) {
 			BIT_SET_ATOMIC(vm_page_dump_pages,
 			    (pa >> PAGE_SHIFT) - (dump_avail[i] >> PAGE_SHIFT) +
-			    adj, vm_page_dump);
+				adj,
+			    vm_page_dump);
 			return;
 		}
 		adj += howmany(dump_avail[i + 1], PAGE_SIZE) -
@@ -67,7 +68,8 @@ dump_drop_page(vm_paddr_t pa)
 		if (pa >= dump_avail[i] && pa < dump_avail[i + 1]) {
 			BIT_CLR_ATOMIC(vm_page_dump_pages,
 			    (pa >> PAGE_SHIFT) - (dump_avail[i] >> PAGE_SHIFT) +
-			    adj, vm_page_dump);
+				adj,
+			    vm_page_dump);
 			return;
 		}
 		adj += howmany(dump_avail[i + 1], PAGE_SIZE) -
@@ -91,9 +93,9 @@ vm_page_dump_index_to_pa(int bit)
 	return ((vm_paddr_t)NULL);
 }
 
-#define VM_PAGE_DUMP_FOREACH(pa)						\
-	for (vm_pindex_t __b = BIT_FFS(vm_page_dump_pages, vm_page_dump);	\
-	    (pa) = vm_page_dump_index_to_pa(__b - 1), __b != 0;			\
-	    __b = BIT_FFS_AT(vm_page_dump_pages, vm_page_dump, __b))
+#define VM_PAGE_DUMP_FOREACH(pa)                                          \
+	for (vm_pindex_t __b = BIT_FFS(vm_page_dump_pages, vm_page_dump); \
+	     (pa) = vm_page_dump_index_to_pa(__b - 1), __b != 0;          \
+	     __b = BIT_FFS_AT(vm_page_dump_pages, vm_page_dump, __b))
 
-#endif	/* _SYS_DUMPSET_H_ */
+#endif /* _SYS_DUMPSET_H_ */

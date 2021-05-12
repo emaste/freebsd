@@ -29,11 +29,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/pcpu.h>
 #include <sys/prng.h>
 #include <sys/smp.h>
-#include <sys/systm.h>
 
 #if !PCG_HAS_128BIT_OPS
 /* On 32-bit platforms, gang together two 32-bit generators. */
@@ -77,7 +77,7 @@ prng_init(void *dummy __unused)
 	pcg64u_random_t *state64;
 	int i;
 
-	CPU_FOREACH(i) {
+	CPU_FOREACH (i) {
 		state = DPCPU_ID_PTR(i, pcpu_prng32_state);
 		pcg32u_srandom_r(state, 1);
 		state64 = DPCPU_ID_PTR(i, pcpu_prng64_state);

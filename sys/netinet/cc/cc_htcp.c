@@ -53,6 +53,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -60,27 +61,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
 #include <net/vnet.h>
-
+#include <netinet/cc/cc.h>
+#include <netinet/cc/cc_module.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-#include <netinet/cc/cc.h>
-#include <netinet/cc/cc_module.h>
 
 /* Fixed point math shifts. */
 #define HTCP_SHIFT 8
 #define HTCP_ALPHA_INC_SHIFT 4
 
 #define HTCP_INIT_ALPHA 1
-#define HTCP_DELTA_L hz		/* 1 sec in ticks. */
-#define HTCP_MINBETA 128	/* 0.5 << HTCP_SHIFT. */
-#define HTCP_MAXBETA 204	/* ~0.8 << HTCP_SHIFT. */
-#define HTCP_MINROWE 26		/* ~0.1 << HTCP_SHIFT. */
-#define HTCP_MAXROWE 512	/* 2 << HTCP_SHIFT. */
+#define HTCP_DELTA_L hz /* 1 sec in ticks. */
+#define HTCP_MINBETA 128 /* 0.5 << HTCP_SHIFT. */
+#define HTCP_MAXBETA 204 /* ~0.8 << HTCP_SHIFT. */
+#define HTCP_MINROWE 26 /* ~0.1 << HTCP_SHIFT. */
+#define HTCP_MAXROWE 512 /* 2 << HTCP_SHIFT. */
 
 /* RTT_ref (ms) used in the calculation of alpha if RTT scaling is enabled. */
 #define HTCP_RTT_REF 100
@@ -128,37 +127,36 @@ __FBSDID("$FreeBSD$");
  * NB: Changing HTCP_ALPHA_INC_SHIFT will require you to MANUALLY update the
  * constants used in this function!
  */
-#define HTCP_CALC_ALPHA(diff) \
-((\
-	(16) + \
-	((160 * (diff)) / hz) + \
-	(((diff) / hz) * (((diff) << HTCP_ALPHA_INC_SHIFT) / (4 * hz))) \
-) >> HTCP_ALPHA_INC_SHIFT)
+#define HTCP_CALC_ALPHA(diff)                                       \
+	(((16) + ((160 * (diff)) / hz) +                            \
+	     (((diff) / hz) *                                       \
+		 (((diff) << HTCP_ALPHA_INC_SHIFT) / (4 * hz)))) >> \
+	    HTCP_ALPHA_INC_SHIFT)
 
-static void	htcp_ack_received(struct cc_var *ccv, uint16_t type);
-static void	htcp_cb_destroy(struct cc_var *ccv);
-static int	htcp_cb_init(struct cc_var *ccv);
-static void	htcp_cong_signal(struct cc_var *ccv, uint32_t type);
-static int	htcp_mod_init(void);
-static void	htcp_post_recovery(struct cc_var *ccv);
-static void	htcp_recalc_alpha(struct cc_var *ccv);
-static void	htcp_recalc_beta(struct cc_var *ccv);
-static void	htcp_record_rtt(struct cc_var *ccv);
-static void	htcp_ssthresh_update(struct cc_var *ccv);
+static void htcp_ack_received(struct cc_var *ccv, uint16_t type);
+static void htcp_cb_destroy(struct cc_var *ccv);
+static int htcp_cb_init(struct cc_var *ccv);
+static void htcp_cong_signal(struct cc_var *ccv, uint32_t type);
+static int htcp_mod_init(void);
+static void htcp_post_recovery(struct cc_var *ccv);
+static void htcp_recalc_alpha(struct cc_var *ccv);
+static void htcp_recalc_beta(struct cc_var *ccv);
+static void htcp_record_rtt(struct cc_var *ccv);
+static void htcp_ssthresh_update(struct cc_var *ccv);
 
 struct htcp {
 	/* cwnd before entering cong recovery. */
-	unsigned long	prev_cwnd;
+	unsigned long prev_cwnd;
 	/* cwnd additive increase parameter. */
-	int		alpha;
+	int alpha;
 	/* cwnd multiplicative decrease parameter. */
-	int		beta;
+	int beta;
 	/* Largest rtt seen for the flow. */
-	int		maxrtt;
+	int maxrtt;
 	/* Shortest rtt seen for the flow. */
-	int		minrtt;
+	int minrtt;
 	/* Time of last congestion event in ticks. */
-	int		t_last_cong;
+	int t_last_cong;
 };
 
 static int htcp_rtt_ref;
@@ -172,8 +170,8 @@ static int htcp_max_diff = INT_MAX / ((1 << HTCP_ALPHA_INC_SHIFT) * 10);
 /* Per-netstack vars. */
 VNET_DEFINE_STATIC(u_int, htcp_adaptive_backoff) = 0;
 VNET_DEFINE_STATIC(u_int, htcp_rtt_scaling) = 0;
-#define	V_htcp_adaptive_backoff    VNET(htcp_adaptive_backoff)
-#define	V_htcp_rtt_scaling    VNET(htcp_rtt_scaling)
+#define V_htcp_adaptive_backoff VNET(htcp_adaptive_backoff)
+#define V_htcp_rtt_scaling VNET(htcp_rtt_scaling)
 
 static MALLOC_DEFINE(M_HTCP, "htcp data",
     "Per connection data required for the HTCP congestion control algorithm");
@@ -202,9 +200,10 @@ htcp_ack_received(struct cc_var *ccv, uint16_t type)
 	 * doing ABC and we've sent a cwnd's worth of bytes.
 	 */
 	if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
-	    (ccv->flags & CCF_CWND_LIMITED) && (!V_tcp_do_rfc3465 ||
-	    CCV(ccv, snd_cwnd) <= CCV(ccv, snd_ssthresh) ||
-	    (V_tcp_do_rfc3465 && ccv->flags & CCF_ABC_SENTAWND))) {
+	    (ccv->flags & CCF_CWND_LIMITED) &&
+	    (!V_tcp_do_rfc3465 ||
+		CCV(ccv, snd_cwnd) <= CCV(ccv, snd_ssthresh) ||
+		(V_tcp_do_rfc3465 && ccv->flags & CCF_ABC_SENTAWND))) {
 		htcp_recalc_beta(ccv);
 		htcp_recalc_alpha(ccv);
 		/*
@@ -227,10 +226,12 @@ htcp_ack_received(struct cc_var *ccv, uint16_t type)
 				 * approximate an increase of alpha segments
 				 * per RTT.
 				 */
-				CCV(ccv, snd_cwnd) += (((htcp_data->alpha <<
-				    HTCP_SHIFT) / (CCV(ccv, snd_cwnd) /
-				    CCV(ccv, t_maxseg))) * CCV(ccv, t_maxseg))
-				    >> HTCP_SHIFT;
+				CCV(ccv, snd_cwnd) +=
+				    (((htcp_data->alpha << HTCP_SHIFT) /
+					 (CCV(ccv, snd_cwnd) /
+					     CCV(ccv, t_maxseg))) *
+					CCV(ccv, t_maxseg)) >>
+				    HTCP_SHIFT;
 		}
 	}
 }
@@ -286,8 +287,10 @@ htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 				 * measurements.
 				 */
 				htcp_data->maxrtt = (htcp_data->minrtt +
-				    (htcp_data->maxrtt - htcp_data->minrtt) *
-				    95) / 100;
+							(htcp_data->maxrtt -
+							    htcp_data->minrtt) *
+							    95) /
+				    100;
 				htcp_ssthresh_update(ccv);
 				htcp_data->t_last_cong = ticks;
 				htcp_data->prev_cwnd = CCV(ccv, snd_cwnd);
@@ -302,8 +305,10 @@ htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 			 * Apply hysteresis to maxrtt to ensure reductions in
 			 * the RTT are reflected in our measurements.
 			 */
-			htcp_data->maxrtt = (htcp_data->minrtt + (htcp_data->maxrtt -
-			    htcp_data->minrtt) * 95) / 100;
+			htcp_data->maxrtt =
+			    (htcp_data->minrtt +
+				(htcp_data->maxrtt - htcp_data->minrtt) * 95) /
+			    100;
 			htcp_ssthresh_update(ccv);
 			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 			htcp_data->t_last_cong = ticks;
@@ -313,9 +318,10 @@ htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 		break;
 
 	case CC_RTO:
-		CCV(ccv, snd_ssthresh) = max(min(CCV(ccv, snd_wnd),
-						 CCV(ccv, snd_cwnd)) / 2 / mss,
-					     2) * mss;
+		CCV(ccv, snd_ssthresh) =
+		    max(min(CCV(ccv, snd_wnd), CCV(ccv, snd_cwnd)) / 2 / mss,
+			2) *
+		    mss;
 		CCV(ccv, snd_cwnd) = mss;
 		/*
 		 * Grab the current time and record it so we know when the
@@ -379,9 +385,12 @@ htcp_post_recovery(struct cc_var *ccv)
 			CCV(ccv, snd_cwnd) = max(pipe, CCV(ccv, t_maxseg)) +
 			    CCV(ccv, t_maxseg);
 		else
-			CCV(ccv, snd_cwnd) = max(1, ((htcp_data->beta *
-			    htcp_data->prev_cwnd / CCV(ccv, t_maxseg))
-			    >> HTCP_SHIFT)) * CCV(ccv, t_maxseg);
+			CCV(ccv, snd_cwnd) = max(1,
+						 ((htcp_data->beta *
+						      htcp_data->prev_cwnd /
+						      CCV(ccv, t_maxseg)) >>
+						     HTCP_SHIFT)) *
+			    CCV(ccv, t_maxseg);
 	}
 }
 
@@ -424,8 +433,10 @@ htcp_recalc_alpha(struct cc_var *ccv)
 			 * 2 * (1 - beta) * alpha_raw
 			 */
 			if (V_htcp_adaptive_backoff)
-				alpha = max(1, (2 * ((1 << HTCP_SHIFT) -
-				    htcp_data->beta) * alpha) >> HTCP_SHIFT);
+				alpha = max(1,
+				    (2 * ((1 << HTCP_SHIFT) - htcp_data->beta) *
+					alpha) >>
+					HTCP_SHIFT);
 
 			/*
 			 * RTT scaling: (RTT / RTT_ref) * alpha
@@ -434,10 +445,13 @@ htcp_recalc_alpha(struct cc_var *ccv)
 			 * adaptive backoff is on.
 			 */
 			if (V_htcp_rtt_scaling)
-				alpha = max(1, (min(max(HTCP_MINROWE,
-				    (CCV(ccv, t_srtt) << HTCP_SHIFT) /
-				    htcp_rtt_ref), HTCP_MAXROWE) * alpha)
-				    >> HTCP_SHIFT);
+				alpha = max(1,
+				    (min(max(HTCP_MINROWE,
+					     (CCV(ccv, t_srtt) << HTCP_SHIFT) /
+						 htcp_rtt_ref),
+					 HTCP_MAXROWE) *
+					alpha) >>
+					HTCP_SHIFT);
 
 		} else
 			alpha = 1;
@@ -461,8 +475,9 @@ htcp_recalc_beta(struct cc_var *ccv)
 	 */
 	if (V_htcp_adaptive_backoff && htcp_data->minrtt != TCPTV_SRTTBASE &&
 	    htcp_data->maxrtt != TCPTV_SRTTBASE)
-		htcp_data->beta = min(max(HTCP_MINBETA,
-		    (htcp_data->minrtt << HTCP_SHIFT) / htcp_data->maxrtt),
+		htcp_data->beta = min(
+		    max(HTCP_MINBETA,
+			(htcp_data->minrtt << HTCP_SHIFT) / htcp_data->maxrtt),
 		    HTCP_MAXBETA);
 	else
 		htcp_data->beta = HTCP_MINBETA;
@@ -487,7 +502,7 @@ htcp_record_rtt(struct cc_var *ccv)
 	 * until a min number of samples have been taken.
 	 */
 	if ((CCV(ccv, t_srtt) < htcp_data->minrtt ||
-	    htcp_data->minrtt == TCPTV_SRTTBASE) &&
+		htcp_data->minrtt == TCPTV_SRTTBASE) &&
 	    (CCV(ccv, t_rttupdated) >= HTCP_MIN_RTT_SAMPLES))
 		htcp_data->minrtt = CCV(ccv, t_srtt);
 
@@ -495,8 +510,8 @@ htcp_record_rtt(struct cc_var *ccv)
 	 * Record the current SRTT as our maxrtt if it's the largest we've
 	 * seen. Ignore SRTT until a min number of samples have been taken.
 	 */
-	if (CCV(ccv, t_srtt) > htcp_data->maxrtt
-	    && CCV(ccv, t_rttupdated) >= HTCP_MIN_RTT_SAMPLES)
+	if (CCV(ccv, t_srtt) > htcp_data->maxrtt &&
+	    CCV(ccv, t_rttupdated) >= HTCP_MIN_RTT_SAMPLES)
 		htcp_data->maxrtt = CCV(ccv, t_srtt);
 }
 
@@ -516,11 +531,13 @@ htcp_ssthresh_update(struct cc_var *ccv)
 	 */
 	if (CCV(ccv, snd_ssthresh) == TCP_MAXWIN << TCP_MAX_WINSHIFT)
 		CCV(ccv, snd_ssthresh) = ((u_long)CCV(ccv, snd_cwnd) *
-		    HTCP_MINBETA) >> HTCP_SHIFT;
+					     HTCP_MINBETA) >>
+		    HTCP_SHIFT;
 	else {
 		htcp_recalc_beta(ccv);
 		CCV(ccv, snd_ssthresh) = ((u_long)CCV(ccv, snd_cwnd) *
-		    htcp_data->beta) >> HTCP_SHIFT;
+					     htcp_data->beta) >>
+		    HTCP_SHIFT;
 	}
 }
 

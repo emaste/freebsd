@@ -36,8 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/sx.h>
 #include <sys/rman.h>
+#include <sys/sx.h>
+
 #include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -50,56 +51,54 @@ __FBSDID("$FreeBSD$");
 
 #include "mbox_if.h"
 
-#define	REG_READ	0x00
-#define	REG_POL		0x10
-#define	REG_SENDER	0x14
-#define	REG_STATUS	0x18
-#define		STATUS_FULL	0x80000000
-#define		STATUS_EMPTY	0x40000000
-#define	REG_CONFIG	0x1C
-#define		CONFIG_DATA_IRQ	0x00000001
-#define	REG_WRITE	0x20 /* This is Mailbox 1 address */
+#define REG_READ 0x00
+#define REG_POL 0x10
+#define REG_SENDER 0x14
+#define REG_STATUS 0x18
+#define STATUS_FULL 0x80000000
+#define STATUS_EMPTY 0x40000000
+#define REG_CONFIG 0x1C
+#define CONFIG_DATA_IRQ 0x00000001
+#define REG_WRITE 0x20 /* This is Mailbox 1 address */
 
-#define	MBOX_MSG(chan, data)	(((data) & ~0xf) | ((chan) & 0xf))
-#define	MBOX_CHAN(msg)		((msg) & 0xf)
-#define	MBOX_DATA(msg)		((msg) & ~0xf)
+#define MBOX_MSG(chan, data) (((data) & ~0xf) | ((chan)&0xf))
+#define MBOX_CHAN(msg) ((msg)&0xf)
+#define MBOX_DATA(msg) ((msg) & ~0xf)
 
-#define	MBOX_LOCK(sc)	do {	\
-	mtx_lock(&(sc)->lock);	\
-} while(0)
+#define MBOX_LOCK(sc)                  \
+	do {                           \
+		mtx_lock(&(sc)->lock); \
+	} while (0)
 
-#define	MBOX_UNLOCK(sc)	do {		\
-	mtx_unlock(&(sc)->lock);	\
-} while(0)
+#define MBOX_UNLOCK(sc)                  \
+	do {                             \
+		mtx_unlock(&(sc)->lock); \
+	} while (0)
 
-#ifdef  DEBUG
+#ifdef DEBUG
 #define dprintf(fmt, args...) printf(fmt, ##args)
 #else
 #define dprintf(fmt, args...)
 #endif
 
 struct bcm_mbox_softc {
-	struct mtx		lock;
-	struct resource *	mem_res;
-	struct resource *	irq_res;
-	void*			intr_hl;
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
-	int			msg[BCM2835_MBOX_CHANS];
-	int			have_message[BCM2835_MBOX_CHANS];
-	struct sx		property_chan_lock;
+	struct mtx lock;
+	struct resource *mem_res;
+	struct resource *irq_res;
+	void *intr_hl;
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	int msg[BCM2835_MBOX_CHANS];
+	int have_message[BCM2835_MBOX_CHANS];
+	struct sx property_chan_lock;
 };
 
-#define	mbox_read_4(sc, reg)		\
-    bus_space_read_4((sc)->bst, (sc)->bsh, reg)
-#define	mbox_write_4(sc, reg, val)		\
-    bus_space_write_4((sc)->bst, (sc)->bsh, reg, val)
+#define mbox_read_4(sc, reg) bus_space_read_4((sc)->bst, (sc)->bsh, reg)
+#define mbox_write_4(sc, reg, val) \
+	bus_space_write_4((sc)->bst, (sc)->bsh, reg, val)
 
-static struct ofw_compat_data compat_data[] = {
-	{"broadcom,bcm2835-mbox",	1},
-	{"brcm,bcm2835-mbox",		1},
-	{NULL,				0}
-};
+static struct ofw_compat_data compat_data[] = { { "broadcom,bcm2835-mbox", 1 },
+	{ "brcm,bcm2835-mbox", 1 }, { NULL, 0 } };
 
 static int
 bcm_mbox_read_msg(struct bcm_mbox_softc *sc, int *ochan)
@@ -166,7 +165,8 @@ bcm_mbox_attach(device_t dev)
 	int i;
 	int rid = 0;
 
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "could not allocate memory resource\n");
 		return (ENXIO);
@@ -183,8 +183,8 @@ bcm_mbox_attach(device_t dev)
 	}
 
 	/* Setup and enable the timer */
-	if (bus_setup_intr(dev, sc->irq_res, INTR_MPSAFE | INTR_TYPE_MISC, 
-	    NULL, bcm_mbox_intr, sc, &sc->intr_hl) != 0) {
+	if (bus_setup_intr(dev, sc->irq_res, INTR_MPSAFE | INTR_TYPE_MISC, NULL,
+		bcm_mbox_intr, sc, &sc->intr_hl) != 0) {
 		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->irq_res);
 		device_printf(dev, "Unable to setup the clock irq handler.\n");
 		return (ENXIO);
@@ -207,7 +207,7 @@ bcm_mbox_attach(device_t dev)
 	return (0);
 }
 
-/* 
+/*
  * Mailbox API
  */
 static int
@@ -245,8 +245,10 @@ bcm_mbox_read(device_t dev, int chan, uint32_t *data)
 	if (!cold) {
 		if (sc->have_message[chan] == 0) {
 			if (mtx_sleep(&sc->have_message[chan], &sc->lock, 0,
-			    "mbox", 10*hz) != 0) {
-				device_printf(dev, "timeout waiting for message on chan %d\n", chan);
+				"mbox", 10 * hz) != 0) {
+				device_printf(dev,
+				    "timeout waiting for message on chan %d\n",
+				    chan);
 				err = ETIMEDOUT;
 			}
 		}
@@ -276,15 +278,14 @@ out:
 	return (err);
 }
 
-static device_method_t bcm_mbox_methods[] = {
-	DEVMETHOD(device_probe,		bcm_mbox_probe),
-	DEVMETHOD(device_attach,	bcm_mbox_attach),
+static device_method_t bcm_mbox_methods[] = { DEVMETHOD(
+						  device_probe, bcm_mbox_probe),
+	DEVMETHOD(device_attach, bcm_mbox_attach),
 
-	DEVMETHOD(mbox_read,		bcm_mbox_read),
-	DEVMETHOD(mbox_write,		bcm_mbox_write),
+	DEVMETHOD(mbox_read, bcm_mbox_read),
+	DEVMETHOD(mbox_write, bcm_mbox_write),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t bcm_mbox_driver = {
 	"mbox",
@@ -330,8 +331,8 @@ bcm2835_mbox_init_dma(device_t dev, size_t len, bus_dma_tag_t *tag,
 		return (NULL);
 	}
 
-	err = bus_dmamap_load(*tag, *map, buf, len, bcm2835_mbox_dma_cb,
-	    phys, 0);
+	err = bus_dmamap_load(
+	    *tag, *map, buf, len, bcm2835_mbox_dma_cb, phys, 0);
 	if (err != 0) {
 		bus_dmamem_free(*tag, buf, *map);
 		bus_dma_tag_destroy(*tag);
@@ -344,7 +345,7 @@ bcm2835_mbox_init_dma(device_t dev, size_t len, bus_dma_tag_t *tag,
 
 static int
 bcm2835_mbox_err(device_t dev, bus_addr_t msg_phys, uint32_t resp_phys,
-	struct bcm2835_mbox_hdr *msg, size_t len)
+    struct bcm2835_mbox_hdr *msg, size_t len)
 {
 	int idx;
 	struct bcm2835_mbox_tag_hdr *tag;
@@ -368,7 +369,7 @@ bcm2835_mbox_err(device_t dev, bus_addr_t msg_phys, uint32_t resp_phys,
 		 * set tag->val_len correctly.
 		 */
 		if ((tag->tag == BCM2835_FIRMWARE_TAG_SET_GPIO_CONFIG ||
-		     tag->tag == BCM2835_FIRMWARE_TAG_SET_GPIO_STATE) &&
+			tag->tag == BCM2835_FIRMWARE_TAG_SET_GPIO_STATE) &&
 		    tag->val_len == 0) {
 			tag->val_len = BCM2835_MBOX_TAG_VAL_LEN_RESPONSE |
 			    tag->val_buf_size;
@@ -414,8 +415,8 @@ bcm2835_mbox_property(void *msg, size_t msg_size)
 	sx_xlock(&sc->property_chan_lock);
 
 	/* Allocate memory for the message */
-	buf = bcm2835_mbox_init_dma(mbox, msg_size, &msg_tag, &msg_map,
-	    &msg_phys);
+	buf = bcm2835_mbox_init_dma(
+	    mbox, msg_size, &msg_tag, &msg_map, &msg_phys);
 	if (buf == NULL) {
 		err = ENOMEM;
 		goto out;
@@ -423,19 +424,17 @@ bcm2835_mbox_property(void *msg, size_t msg_size)
 
 	memcpy(buf, msg, msg_size);
 
-	bus_dmamap_sync(msg_tag, msg_map,
-	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_PREWRITE);
 
 	MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_PROP, (uint32_t)msg_phys);
 	MBOX_READ(mbox, BCM2835_MBOX_CHAN_PROP, &reg);
 
-	bus_dmamap_sync(msg_tag, msg_map,
-	    BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(msg_tag, msg_map, BUS_DMASYNC_PREREAD);
 
 	memcpy(msg, buf, msg_size);
 
-	err = bcm2835_mbox_err(mbox, msg_phys, reg,
-	    (struct bcm2835_mbox_hdr *)msg, msg_size);
+	err = bcm2835_mbox_err(
+	    mbox, msg_phys, reg, (struct bcm2835_mbox_hdr *)msg, msg_size);
 
 	bus_dmamap_unload(msg_tag, msg_map);
 	bus_dmamem_free(msg_tag, buf, msg_map);

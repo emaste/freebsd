@@ -36,33 +36,33 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
-#include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
 
 #include <arm/freescale/imx/imx51_tzicreg.h>
 
 #include "pic_if.h"
 
-#define	TZIC_NIRQS	128
+#define TZIC_NIRQS 128
 
 struct tzic_irqsrc {
-	struct intr_irqsrc	isrc;
-	u_int			irq;
+	struct intr_irqsrc isrc;
+	u_int irq;
 };
 
 struct tzic_softc {
-	device_t	   dev;
-	struct resource    *tzicregs;
+	device_t dev;
+	struct resource *tzicregs;
 	struct tzic_irqsrc isrcs[TZIC_NIRQS];
 };
 
@@ -79,7 +79,7 @@ static inline void
 tzic_write_4(struct tzic_softc *sc, int reg, uint32_t val)
 {
 
-    bus_write_4(sc->tzicregs, reg, val);
+	bus_write_4(sc->tzicregs, reg, val);
 }
 
 static inline void
@@ -117,14 +117,14 @@ tzic_intr(void *arg)
 			continue;
 		irq = i * 32 + b;
 		tzic_write_4(sc, TZIC_PRIOMASK, 0);
-		if (intr_isrc_dispatch(&sc->isrcs[irq].isrc,
-		    curthread->td_intr_frame) != 0) {
+		if (intr_isrc_dispatch(
+			&sc->isrcs[irq].isrc, curthread->td_intr_frame) != 0) {
 			tzic_irq_mask(sc, irq);
 			tzic_irq_eoi(sc);
 			arm_irq_memory_barrier(irq);
 			if (bootverbose) {
-				device_printf(sc->dev, 
-				    "Stray irq %u disabled\n", irq);
+				device_printf(
+				    sc->dev, "Stray irq %u disabled\n", irq);
 			}
 		}
 		return (FILTER_HANDLED);
@@ -156,8 +156,8 @@ tzic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 }
 
 static int
-tzic_map_intr(device_t dev, struct intr_map_data *data,
-    struct intr_irqsrc **isrcp)
+tzic_map_intr(
+    device_t dev, struct intr_map_data *data, struct intr_irqsrc **isrcp)
 {
 	struct intr_map_data_fdt *daf;
 	struct tzic_softc *sc;
@@ -210,8 +210,8 @@ tzic_pic_attach(struct tzic_softc *sc)
 	name = device_get_nameunit(sc->dev);
 	for (irq = 0; irq < TZIC_NIRQS; irq++) {
 		sc->isrcs[irq].irq = irq;
-		error = intr_isrc_register(&sc->isrcs[irq].isrc,
-		    sc->dev, 0, "%s,%u", name, irq);
+		error = intr_isrc_register(
+		    &sc->isrcs[irq].isrc, sc->dev, 0, "%s,%u", name, irq);
 		if (error != 0)
 			return (error);
 	}
@@ -250,8 +250,8 @@ tzic_attach(device_t dev)
 	sc->dev = dev;
 
 	i = 0;
-	sc->tzicregs = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &i,
-	    RF_ACTIVE);
+	sc->tzicregs = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &i, RF_ACTIVE);
 	if (sc->tzicregs == NULL) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
@@ -275,7 +275,8 @@ tzic_attach(device_t dev)
 	 */
 	tzic_write_4(sc, TZIC_PRIOMASK, 0xff);
 	tzic_write_4(sc, TZIC_SYNCCTRL, 0);
-	tzic_write_4(sc, TZIC_INTCNTL, INTCNTL_NSEN_MASK|INTCNTL_NSEN|INTCNTL_EN);
+	tzic_write_4(
+	    sc, TZIC_INTCNTL, INTCNTL_NSEN_MASK | INTCNTL_NSEN | INTCNTL_EN);
 
 	/* Register as a root pic. */
 	if (tzic_pic_attach(sc) != 0) {
@@ -286,19 +287,17 @@ tzic_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t tzic_methods[] = {
-	DEVMETHOD(device_probe,		tzic_probe),
-	DEVMETHOD(device_attach,	tzic_attach),
+static device_method_t tzic_methods[] = { DEVMETHOD(device_probe, tzic_probe),
+	DEVMETHOD(device_attach, tzic_attach),
 
-	DEVMETHOD(pic_disable_intr,	tzic_disable_intr),
-	DEVMETHOD(pic_enable_intr,	tzic_enable_intr),
-	DEVMETHOD(pic_map_intr,		tzic_map_intr),
-	DEVMETHOD(pic_post_filter,	tzic_post_filter),
-	DEVMETHOD(pic_post_ithread,	tzic_post_ithread),
-	DEVMETHOD(pic_pre_ithread,	tzic_pre_ithread),
+	DEVMETHOD(pic_disable_intr, tzic_disable_intr),
+	DEVMETHOD(pic_enable_intr, tzic_enable_intr),
+	DEVMETHOD(pic_map_intr, tzic_map_intr),
+	DEVMETHOD(pic_post_filter, tzic_post_filter),
+	DEVMETHOD(pic_post_ithread, tzic_post_ithread),
+	DEVMETHOD(pic_pre_ithread, tzic_pre_ithread),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t tzic_driver = {
 	"tzic",
@@ -308,5 +307,5 @@ static driver_t tzic_driver = {
 
 static devclass_t tzic_devclass;
 
-EARLY_DRIVER_MODULE(tzic, ofwbus, tzic_driver, tzic_devclass, 0, 0,
-    BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(
+    tzic, ofwbus, tzic_driver, tzic_devclass, 0, 0, BUS_PASS_INTERRUPT);

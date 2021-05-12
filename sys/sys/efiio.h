@@ -25,27 +25,26 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_EFIIO_H_
-#define	_SYS_EFIIO_H_
+#ifndef _SYS_EFIIO_H_
+#define _SYS_EFIIO_H_
 
+#include <sys/efi.h>
 #include <sys/ioccom.h>
 #include <sys/uuid.h>
-#include <sys/efi.h>
 
-struct efi_var_ioc
-{
-	efi_char *name;		/* User pointer to name, in wide chars */
-	size_t namesize;	/* Number of wide characters in name */
-	struct uuid vendor;	/* Vendor's UUID for variable */
-	uint32_t attrib;	/* Attributes */
-	void *data;		/* User pointer to the data */
-	size_t datasize;	/* Number of *bytes* in the data */
+struct efi_var_ioc {
+	efi_char *name;	    /* User pointer to name, in wide chars */
+	size_t namesize;    /* Number of wide characters in name */
+	struct uuid vendor; /* Vendor's UUID for variable */
+	uint32_t attrib;    /* Attributes */
+	void *data;	    /* User pointer to the data */
+	size_t datasize;    /* Number of *bytes* in the data */
 };
 
-#define EFIIOC_GET_TIME		_IOR('E',   2, struct efi_tm)
-#define EFIIOC_SET_TIME		_IOW('E',   3, struct efi_tm)
-#define EFIIOC_VAR_GET		_IOWR('E',  4, struct efi_var_ioc)
-#define EFIIOC_VAR_NEXT		_IOWR('E',  5, struct efi_var_ioc)
-#define EFIIOC_VAR_SET		_IOWR('E',  6, struct efi_var_ioc)
+#define EFIIOC_GET_TIME _IOR('E', 2, struct efi_tm)
+#define EFIIOC_SET_TIME _IOW('E', 3, struct efi_tm)
+#define EFIIOC_VAR_GET _IOWR('E', 4, struct efi_var_ioc)
+#define EFIIOC_VAR_NEXT _IOWR('E', 5, struct efi_var_ioc)
+#define EFIIOC_VAR_SET _IOWR('E', 6, struct efi_var_ioc)
 
 #endif /* _SYS_EFIIO_H_ */

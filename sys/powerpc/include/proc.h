@@ -35,31 +35,31 @@
  */
 
 #ifndef _MACHINE_PROC_H_
-#define	_MACHINE_PROC_H_
+#define _MACHINE_PROC_H_
 
 /*
  * Machine-dependent part of the proc structure
  */
 struct mdthread {
-	int	md_spinlock_count;	/* (k) */
-	register_t md_saved_msr;	/* (k) */
+	int md_spinlock_count;	 /* (k) */
+	register_t md_saved_msr; /* (k) */
 };
 
 struct mdproc {
 	/*
 	 * Avoid empty structs because they are undefined behavior.
 	 */
-	long	md_spare;
+	long md_spare;
 };
 
 #ifdef __powerpc64__
-#define	KINFO_PROC_SIZE 1088
-#define	KINFO_PROC32_SIZE 816
+#define KINFO_PROC_SIZE 1088
+#define KINFO_PROC32_SIZE 816
 #else
-#define	KINFO_PROC_SIZE 816
+#define KINFO_PROC_SIZE 816
 #endif
 
-#define	MAXARGS		8
+#define MAXARGS 8
 struct syscall_args {
 	u_int code;
 	struct sysent *callp;
@@ -71,13 +71,14 @@ struct syscall_args {
 #include <machine/pcb.h>
 
 /* Get the current kernel thread stack usage. */
-#define	GET_STACK_USAGE(total, used) do {				\
-	struct thread *td = curthread;					\
-	(total) = td->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb);	\
-	(used) = (char *)td->td_kstack +				\
-	    td->td_kstack_pages * PAGE_SIZE -				\
-	    (char *)&td;						\
-} while (0)
+#define GET_STACK_USAGE(total, used)                               \
+	do {                                                       \
+		struct thread *td = curthread;                     \
+		(total) = td->td_kstack_pages * PAGE_SIZE -        \
+		    sizeof(struct pcb);                            \
+		(used) = (char *)td->td_kstack +                   \
+		    td->td_kstack_pages * PAGE_SIZE - (char *)&td; \
+	} while (0)
 #endif
 
 #endif /* !_MACHINE_PROC_H_ */

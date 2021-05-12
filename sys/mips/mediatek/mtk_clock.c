@@ -29,26 +29,25 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/module.h>
 
+#include <dev/fdt/fdt_clock.h>
 #include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/fdt/fdt_clock.h>
+#include <dev/ofw/openfirm.h>
 
 #include <mips/mediatek/mtk_sysctl.h>
 
 #include "fdt_clock_if.h"
 
-static const struct ofw_compat_data compat_data[] = {
-	{ "ralink,rt2880-clock",	1 },
+static const struct ofw_compat_data compat_data[] = { { "ralink,rt2880-clock",
+							  1 },
 
 	/* Sentinel */
-	{ NULL,				0 }
-};
+	{ NULL, 0 } };
 
 static int
 mtk_clock_probe(device_t dev)
@@ -79,8 +78,8 @@ mtk_clock_attach(device_t dev)
 	return (0);
 }
 
-#define CLOCK_ENABLE	1
-#define CLOCK_DISABLE	0
+#define CLOCK_ENABLE 1
+#define CLOCK_DISABLE 0
 
 static int
 mtk_clock_set(device_t dev, int index, int value)
@@ -131,17 +130,16 @@ mtk_clock_get_info(device_t dev, int index, struct fdt_clock_info *info)
 	return (0);
 }
 
-static device_method_t mtk_clock_methods[] = {
-	DEVMETHOD(device_probe,		mtk_clock_probe),
-	DEVMETHOD(device_attach,	mtk_clock_attach),
+static device_method_t mtk_clock_methods[] = { DEVMETHOD(device_probe,
+						   mtk_clock_probe),
+	DEVMETHOD(device_attach, mtk_clock_attach),
 
 	/* fdt_clock interface */
-	DEVMETHOD(fdt_clock_enable,	mtk_clock_enable),
-	DEVMETHOD(fdt_clock_disable,	mtk_clock_disable),
-	DEVMETHOD(fdt_clock_get_info,	mtk_clock_get_info),
+	DEVMETHOD(fdt_clock_enable, mtk_clock_enable),
+	DEVMETHOD(fdt_clock_disable, mtk_clock_disable),
+	DEVMETHOD(fdt_clock_get_info, mtk_clock_get_info),
 
-	DEVMETHOD_END
-};
+	DEVMETHOD_END };
 
 static driver_t mtk_clock_driver = {
 	"clkctrl",

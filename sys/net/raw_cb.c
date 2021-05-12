@@ -34,20 +34,20 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/domain.h>
-#include <sys/lock.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 
 #include <net/if.h>
-#include <net/vnet.h>
 #include <net/raw_cb.h>
+#include <net/vnet.h>
 
 /*
  * Routines to manage the raw protocol control blocks.
@@ -64,11 +64,11 @@ VNET_DEFINE(struct rawcb_list_head, rawcb_list);
 static SYSCTL_NODE(_net, OID_AUTO, raw, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Raw socket infrastructure");
 
-static u_long	raw_sendspace = RAWSNDQ;
+static u_long raw_sendspace = RAWSNDQ;
 SYSCTL_ULONG(_net_raw, OID_AUTO, sendspace, CTLFLAG_RW, &raw_sendspace, 0,
     "Default raw socket send space");
 
-static u_long	raw_recvspace = RAWRCVQ;
+static u_long raw_recvspace = RAWRCVQ;
 SYSCTL_ULONG(_net_raw, OID_AUTO, recvspace, CTLFLAG_RW, &raw_recvspace, 0,
     "Default raw socket receive space");
 

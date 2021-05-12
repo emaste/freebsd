@@ -40,17 +40,17 @@
 /*-
  * Copyright 2000, 2001
  * Broadcom Corporation. All rights reserved.
- * 
+ *
  * This software is furnished under license and may be used and copied only
  * in accordance with the following terms and conditions.  Subject to these
  * conditions, you may download, copy, install, use, modify and distribute
  * modified or unmodified copies of this software in source and/or binary
  * form. No title or ownership is transferred hereby.
- * 
+ *
  * 1) Any source code used, modified or distributed must reproduce and
  *    retain this copyright notice and list of conditions as they appear in
  *    the source file.
- * 
+ *
  * 2) No right is granted to use any trade name, trademark, or logo of
  *    Broadcom Corporation.  The "Broadcom Corporation" name may not be
  *    used to endorse or promote products derived from this software
@@ -75,8 +75,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/systm.h>
 
-#include <machine/cpuinfo.h>
 #include <machine/cache.h>
+#include <machine/cpuinfo.h>
 
 struct mips_cache_ops mips_cache_ops;
 
@@ -88,7 +88,7 @@ cache_noop(vm_offset_t va, vm_size_t size)
 #endif
 
 void
-mips_config_cache(struct mips_cpuinfo * cpuinfo)
+mips_config_cache(struct mips_cpuinfo *cpuinfo)
 {
 
 	switch (cpuinfo->l1.ic_linesize) {
@@ -129,30 +129,30 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 		break;
 #endif
 	default:
-		panic("no Icache ops for %d byte lines",
-		    cpuinfo->l1.ic_linesize);
+		panic(
+		    "no Icache ops for %d byte lines", cpuinfo->l1.ic_linesize);
 	}
 
 	switch (cpuinfo->l1.dc_linesize) {
 	case 16:
 		mips_cache_ops.mco_pdcache_wbinv_all =
 		    mips_cache_ops.mco_intern_pdcache_wbinv_all =
-		    mipsNN_pdcache_wbinv_all_16;
+			mipsNN_pdcache_wbinv_all_16;
 		mips_cache_ops.mco_pdcache_wbinv_range =
 		    mipsNN_pdcache_wbinv_range_16;
 		mips_cache_ops.mco_pdcache_wbinv_range_index =
 		    mips_cache_ops.mco_intern_pdcache_wbinv_range_index =
-		    mipsNN_pdcache_wbinv_range_index_16;
+			mipsNN_pdcache_wbinv_range_index_16;
 		mips_cache_ops.mco_pdcache_inv_range =
 		    mipsNN_pdcache_inv_range_16;
 		mips_cache_ops.mco_pdcache_wb_range =
 		    mips_cache_ops.mco_intern_pdcache_wb_range =
-		    mipsNN_pdcache_wb_range_16;
+			mipsNN_pdcache_wb_range_16;
 		break;
 	case 32:
 		mips_cache_ops.mco_pdcache_wbinv_all =
 		    mips_cache_ops.mco_intern_pdcache_wbinv_all =
-		    mipsNN_pdcache_wbinv_all_32;
+			mipsNN_pdcache_wbinv_all_32;
 #if defined(CPU_RMI) || defined(CPU_NLM)
 		mips_cache_ops.mco_pdcache_wbinv_range = cache_noop;
 #else
@@ -161,12 +161,13 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 #endif
 #if defined(CPU_RMI) || defined(CPU_NLM)
 		mips_cache_ops.mco_pdcache_wbinv_range_index =
-		    mips_cache_ops.mco_intern_pdcache_wbinv_range_index = cache_noop;
+		    mips_cache_ops.mco_intern_pdcache_wbinv_range_index =
+			cache_noop;
 		mips_cache_ops.mco_pdcache_inv_range = cache_noop;
 #else
 		mips_cache_ops.mco_pdcache_wbinv_range_index =
 		    mips_cache_ops.mco_intern_pdcache_wbinv_range_index =
-		    mipsNN_pdcache_wbinv_range_index_32;
+			mipsNN_pdcache_wbinv_range_index_32;
 		mips_cache_ops.mco_pdcache_inv_range =
 		    mipsNN_pdcache_inv_range_32;
 #endif
@@ -176,44 +177,44 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 #else
 		mips_cache_ops.mco_pdcache_wb_range =
 		    mips_cache_ops.mco_intern_pdcache_wb_range =
-		    mipsNN_pdcache_wb_range_32;
+			mipsNN_pdcache_wb_range_32;
 #endif
 		break;
 	case 64:
 		mips_cache_ops.mco_pdcache_wbinv_all =
 		    mips_cache_ops.mco_intern_pdcache_wbinv_all =
-		    mipsNN_pdcache_wbinv_all_64;
+			mipsNN_pdcache_wbinv_all_64;
 		mips_cache_ops.mco_pdcache_wbinv_range =
 		    mipsNN_pdcache_wbinv_range_64;
 		mips_cache_ops.mco_pdcache_wbinv_range_index =
 		    mips_cache_ops.mco_intern_pdcache_wbinv_range_index =
-		    mipsNN_pdcache_wbinv_range_index_64;
+			mipsNN_pdcache_wbinv_range_index_64;
 		mips_cache_ops.mco_pdcache_inv_range =
 		    mipsNN_pdcache_inv_range_64;
 		mips_cache_ops.mco_pdcache_wb_range =
 		    mips_cache_ops.mco_intern_pdcache_wb_range =
-		    mipsNN_pdcache_wb_range_64;
+			mipsNN_pdcache_wb_range_64;
 		break;
 	case 128:
 		mips_cache_ops.mco_pdcache_wbinv_all =
 		    mips_cache_ops.mco_intern_pdcache_wbinv_all =
-		    mipsNN_pdcache_wbinv_all_128;
+			mipsNN_pdcache_wbinv_all_128;
 		mips_cache_ops.mco_pdcache_wbinv_range =
 		    mipsNN_pdcache_wbinv_range_128;
 		mips_cache_ops.mco_pdcache_wbinv_range_index =
 		    mips_cache_ops.mco_intern_pdcache_wbinv_range_index =
-		    mipsNN_pdcache_wbinv_range_index_128;
+			mipsNN_pdcache_wbinv_range_index_128;
 		mips_cache_ops.mco_pdcache_inv_range =
 		    mipsNN_pdcache_inv_range_128;
 		mips_cache_ops.mco_pdcache_wb_range =
 		    mips_cache_ops.mco_intern_pdcache_wb_range =
-		    mipsNN_pdcache_wb_range_128;
+			mipsNN_pdcache_wb_range_128;
 		break;
 #ifdef MIPS_DISABLE_L1_CACHE
 	case 0:
 		mips_cache_ops.mco_pdcache_wbinv_all =
-		    mips_cache_ops.mco_intern_pdcache_wbinv_all =
-		    (void (*)(void))cache_noop;
+		    mips_cache_ops.mco_intern_pdcache_wbinv_all = (void (*)(
+			void))cache_noop;
 		mips_cache_ops.mco_pdcache_wbinv_range = cache_noop;
 		mips_cache_ops.mco_pdcache_wbinv_range_index = cache_noop;
 		mips_cache_ops.mco_intern_pdcache_wbinv_range_index =
@@ -224,8 +225,8 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 		break;
 #endif
 	default:
-		panic("no Dcache ops for %d byte lines",
-		    cpuinfo->l1.dc_linesize);
+		panic(
+		    "no Dcache ops for %d byte lines", cpuinfo->l1.dc_linesize);
 	}
 
 	mipsNN_cache_init(cpuinfo);
@@ -257,8 +258,8 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 
 	/* Check that all cache ops are set up. */
 	/* must have primary Icache */
-	if (cpuinfo->l1.ic_size) {   
-		
+	if (cpuinfo->l1.ic_size) {
+
 		if (!mips_cache_ops.mco_icache_sync_all)
 			panic("no icache_sync_all cache op");
 		if (!mips_cache_ops.mco_icache_sync_range)
@@ -289,39 +290,39 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 	switch (cpuinfo->l2.dc_linesize) {
 	case 32:
 		mips_cache_ops.mco_sdcache_wbinv_all =
-			mipsNN_sdcache_wbinv_all_32;
+		    mipsNN_sdcache_wbinv_all_32;
 		mips_cache_ops.mco_sdcache_wbinv_range =
-			mipsNN_sdcache_wbinv_range_32;
+		    mipsNN_sdcache_wbinv_range_32;
 		mips_cache_ops.mco_sdcache_wbinv_range_index =
-			mipsNN_sdcache_wbinv_range_index_32;
+		    mipsNN_sdcache_wbinv_range_index_32;
 		mips_cache_ops.mco_sdcache_inv_range =
-			mipsNN_sdcache_inv_range_32;
+		    mipsNN_sdcache_inv_range_32;
 		mips_cache_ops.mco_sdcache_wb_range =
-			mipsNN_sdcache_wb_range_32;
+		    mipsNN_sdcache_wb_range_32;
 		break;
 	case 64:
 		mips_cache_ops.mco_sdcache_wbinv_all =
-			mipsNN_sdcache_wbinv_all_64;
+		    mipsNN_sdcache_wbinv_all_64;
 		mips_cache_ops.mco_sdcache_wbinv_range =
-			mipsNN_sdcache_wbinv_range_64;
+		    mipsNN_sdcache_wbinv_range_64;
 		mips_cache_ops.mco_sdcache_wbinv_range_index =
-			mipsNN_sdcache_wbinv_range_index_64;
+		    mipsNN_sdcache_wbinv_range_index_64;
 		mips_cache_ops.mco_sdcache_inv_range =
-			mipsNN_sdcache_inv_range_64;
+		    mipsNN_sdcache_inv_range_64;
 		mips_cache_ops.mco_sdcache_wb_range =
-			mipsNN_sdcache_wb_range_64;
+		    mipsNN_sdcache_wb_range_64;
 		break;
 	case 128:
 		mips_cache_ops.mco_sdcache_wbinv_all =
-			mipsNN_sdcache_wbinv_all_128;
+		    mipsNN_sdcache_wbinv_all_128;
 		mips_cache_ops.mco_sdcache_wbinv_range =
-			mipsNN_sdcache_wbinv_range_128;
+		    mipsNN_sdcache_wbinv_range_128;
 		mips_cache_ops.mco_sdcache_wbinv_range_index =
-			mipsNN_sdcache_wbinv_range_index_128;
+		    mipsNN_sdcache_wbinv_range_index_128;
 		mips_cache_ops.mco_sdcache_inv_range =
-			mipsNN_sdcache_inv_range_128;
+		    mipsNN_sdcache_inv_range_128;
 		mips_cache_ops.mco_sdcache_wb_range =
-			mipsNN_sdcache_wb_range_128;
+		    mipsNN_sdcache_wb_range_128;
 		break;
 	default:
 #ifdef CACHE_DEBUG

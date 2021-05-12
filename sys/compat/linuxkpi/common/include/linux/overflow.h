@@ -29,25 +29,23 @@
  */
 
 #ifndef __LINUX_OVERFLOW_H__
-#define	__LINUX_OVERFLOW_H__
+#define __LINUX_OVERFLOW_H__
 
-#include <sys/stdint.h>
 #include <sys/types.h>
+#include <sys/stdint.h>
 
-#ifndef	__has_builtin
-#define	__has_builtin(x)	0
+#ifndef __has_builtin
+#define __has_builtin(x) 0
 #endif
 
 #if __has_builtin(__builtin_add_overflow)
-#define check_add_overflow(a, b, c)		\
-	__builtin_add_overflow(a, b, c)
+#define check_add_overflow(a, b, c) __builtin_add_overflow(a, b, c)
 #else
 #error "Compiler does not support __builtin_add_overflow"
 #endif
 
 #if __has_builtin(__builtin_mul_overflow)
-#define check_mul_overflow(a, b, c)	\
-	__builtin_mul_overflow(a, b, c)
+#define check_mul_overflow(a, b, c) __builtin_mul_overflow(a, b, c)
 
 static inline size_t
 array_size(size_t x, size_t y)
@@ -62,4 +60,4 @@ array_size(size_t x, size_t y)
 #error "Compiler does not support __builtin_mul_overflow"
 #endif
 
-#endif	/* __LINUX_OVERFLOW_H__ */
+#endif /* __LINUX_OVERFLOW_H__ */

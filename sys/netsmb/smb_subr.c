@@ -32,16 +32,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/endian.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/lock.h>
-#include <sys/sysctl.h>
-#include <sys/socket.h>
-#include <sys/signalvar.h>
-#include <sys/mbuf.h>
-
 #include <sys/iconv.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/proc.h>
+#include <sys/signalvar.h>
+#include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <netsmb/smb.h>
 #include <netsmb/smb_conn.h>
@@ -85,7 +84,7 @@ smb_td_intr(struct thread *td)
 	mtx_unlock(&p->p_sigacts->ps_mtx);
 	if (SIGNOTEMPTY(td->td_siglist) && SMB_SIGMASK(tmpset)) {
 		PROC_UNLOCK(p);
-                return EINTR;
+		return EINTR;
 	}
 	PROC_UNLOCK(p);
 	return 0;
@@ -188,18 +187,19 @@ smb_strtouni(u_int16_t *dst, const char *src)
 
 #ifdef SMB_SOCKETDATA_DEBUG
 void
-m_dumpm(struct mbuf *m) {
+m_dumpm(struct mbuf *m)
+{
 	char *p;
 	size_t len;
 	printf("d=");
-	while(m) {
-		p=mtod(m,char *);
-		len=m->m_len;
-		printf("(%zu)",len);
-		while(len--){
-			printf("%02x ",((int)*(p++)) & 0xff);
+	while (m) {
+		p = mtod(m, char *);
+		len = m->m_len;
+		printf("(%zu)", len);
+		while (len--) {
+			printf("%02x ", ((int)*(p++)) & 0xff);
 		}
-		m=m->m_next;
+		m = m->m_next;
 	}
 	printf("\n");
 }
@@ -211,98 +211,98 @@ smb_maperror(int eclass, int eno)
 	if (eclass == 0 && eno == 0)
 		return 0;
 	switch (eclass) {
-	    case ERRDOS:
+	case ERRDOS:
 		switch (eno) {
-		    case ERRbadfunc:
-		    case ERRbadmcb:
-		    case ERRbadenv:
-		    case ERRbadformat:
-		    case ERRrmuns:
+		case ERRbadfunc:
+		case ERRbadmcb:
+		case ERRbadenv:
+		case ERRbadformat:
+		case ERRrmuns:
 			return EINVAL;
-		    case ERRbadfile:
-		    case ERRbadpath:
-		    case ERRremcd:
-		    case 66:		/* nt returns it when share not available */
-		    case 67:		/* observed from nt4sp6 when sharename wrong */
+		case ERRbadfile:
+		case ERRbadpath:
+		case ERRremcd:
+		case 66: /* nt returns it when share not available */
+		case 67: /* observed from nt4sp6 when sharename wrong */
 			return ENOENT;
-		    case ERRnofids:
+		case ERRnofids:
 			return EMFILE;
-		    case ERRnoaccess:
-		    case ERRbadshare:
+		case ERRnoaccess:
+		case ERRbadshare:
 			return EACCES;
-		    case ERRbadfid:
+		case ERRbadfid:
 			return EBADF;
-		    case ERRnomem:
-			return ENOMEM;	/* actually remote no mem... */
-		    case ERRbadmem:
+		case ERRnomem:
+			return ENOMEM; /* actually remote no mem... */
+		case ERRbadmem:
 			return EFAULT;
-		    case ERRbadaccess:
+		case ERRbadaccess:
 			return EACCES;
-		    case ERRbaddata:
+		case ERRbaddata:
 			return E2BIG;
-		    case ERRbaddrive:
-		    case ERRnotready:	/* nt */
+		case ERRbaddrive:
+		case ERRnotready: /* nt */
 			return ENXIO;
-		    case ERRdiffdevice:
+		case ERRdiffdevice:
 			return EXDEV;
-		    case ERRnofiles:
-			return 0;	/* eeof ? */
+		case ERRnofiles:
+			return 0; /* eeof ? */
 			return ETXTBSY;
-		    case ERRlock:
+		case ERRlock:
 			return EDEADLK;
-		    case ERRfilexists:
+		case ERRfilexists:
 			return EEXIST;
-		    case 123:		/* dunno what is it, but samba maps as noent */
+		case 123: /* dunno what is it, but samba maps as noent */
 			return ENOENT;
-		    case 145:		/* samba */
+		case 145: /* samba */
 			return ENOTEMPTY;
-		    case ERRnotlocked:
-			return 0;	/* file become unlocked */
-		    case 183:
+		case ERRnotlocked:
+			return 0; /* file become unlocked */
+		case 183:
 			return EEXIST;
-		    case ERRquota:
+		case ERRquota:
 			return EDQUOT;
 		}
 		break;
-	    case ERRSRV:
+	case ERRSRV:
 		switch (eno) {
-		    case ERRerror:
+		case ERRerror:
 			return EINVAL;
-		    case ERRbadpw:
-		    case ERRpasswordExpired:
+		case ERRbadpw:
+		case ERRpasswordExpired:
 			return EAUTH;
-		    case ERRaccess:
+		case ERRaccess:
 			return EACCES;
-		    case ERRinvnid:
+		case ERRinvnid:
 			return ENETRESET;
-		    case ERRinvnetname:
+		case ERRinvnetname:
 			SMBERROR("NetBIOS name is invalid\n");
 			return EAUTH;
-		    case 3:		/* reserved and returned */
+		case 3: /* reserved and returned */
 			return EIO;
-		    case ERRaccountExpired:
-		    case ERRbadClient:
-		    case ERRbadLogonTime:
+		case ERRaccountExpired:
+		case ERRbadClient:
+		case ERRbadLogonTime:
 			return EPERM;
-		    case ERRnosupport:
+		case ERRnosupport:
 			return EBADRPC;
 		}
 		break;
-	    case ERRHRD:
+	case ERRHRD:
 		switch (eno) {
-		    case ERRnowrite:
+		case ERRnowrite:
 			return EROFS;
-		    case ERRbadunit:
+		case ERRbadunit:
 			return ENODEV;
-		    case ERRnotready:
-		    case ERRbadcmd:
-		    case ERRdata:
+		case ERRnotready:
+		case ERRbadcmd:
+		case ERRdata:
 			return EIO;
-		    case ERRbadreq:
+		case ERRbadreq:
 			return EBADRPC;
-		    case ERRbadshare:
+		case ERRbadshare:
 			return ETXTBSY;
-		    case ERRlock:
+		case ERRlock:
 			return EDEADLK;
 		}
 		break;
@@ -312,14 +312,14 @@ smb_maperror(int eclass, int eno)
 }
 
 static int
-smb_copy_iconv(struct mbchain *mbp, c_caddr_t src, caddr_t dst,
-    size_t *srclen, size_t *dstlen)
+smb_copy_iconv(struct mbchain *mbp, c_caddr_t src, caddr_t dst, size_t *srclen,
+    size_t *dstlen)
 {
 	int error;
 	size_t inlen = *srclen, outlen = *dstlen;
 
-	error = iconv_conv((struct iconv_drv*)mbp->mb_udata, &src, &inlen,
-	    &dst, &outlen);
+	error = iconv_conv(
+	    (struct iconv_drv *)mbp->mb_udata, &src, &inlen, &dst, &outlen);
 	if (inlen != *srclen || outlen != *dstlen) {
 		*srclen -= inlen;
 		*dstlen -= outlen;
@@ -330,7 +330,7 @@ smb_copy_iconv(struct mbchain *mbp, c_caddr_t src, caddr_t dst,
 
 int
 smb_put_dmem(struct mbchain *mbp, struct smb_vc *vcp, const char *src,
-	size_t size, int caseopt)
+    size_t size, int caseopt)
 {
 	struct iconv_drv *dp = vcp->vc_toserver;
 
@@ -347,8 +347,8 @@ smb_put_dmem(struct mbchain *mbp, struct smb_vc *vcp, const char *src,
 }
 
 int
-smb_put_dstring(struct mbchain *mbp, struct smb_vc *vcp, const char *src,
-	int caseopt)
+smb_put_dstring(
+    struct mbchain *mbp, struct smb_vc *vcp, const char *src, int caseopt)
 {
 	int error;
 

@@ -29,15 +29,15 @@
 #ifndef __XEN_PUBLIC_IO_CAMERAIF_H__
 #define __XEN_PUBLIC_IO_CAMERAIF_H__
 
-#include "ring.h"
 #include "../grant_table.h"
+#include "ring.h"
 
 /*
  ******************************************************************************
  *                           Protocol version
  ******************************************************************************
  */
-#define XENCAMERA_PROTOCOL_VERSION     "1"
+#define XENCAMERA_PROTOCOL_VERSION "1"
 
 /*
  ******************************************************************************
@@ -73,27 +73,28 @@
  *--------------------------------- Backend -----------------------------------
  *
  * /local/domain/0/backend/vcamera/1/0/frontend-id = "1"
- * /local/domain/0/backend/vcamera/1/0/frontend = "/local/domain/1/device/vcamera/0"
- * /local/domain/0/backend/vcamera/1/0/state = "4"
- * /local/domain/0/backend/vcamera/1/0/versions = "1,2"
+ * /local/domain/0/backend/vcamera/1/0/frontend =
+ *"/local/domain/1/device/vcamera/0" /local/domain/0/backend/vcamera/1/0/state =
+ *"4" /local/domain/0/backend/vcamera/1/0/versions = "1,2"
  *
  *--------------------------------- Frontend ----------------------------------
  *
  * /local/domain/1/device/vcamera/0/backend-id = "0"
- * /local/domain/1/device/vcamera/0/backend = "/local/domain/0/backend/vcamera/1"
- * /local/domain/1/device/vcamera/0/state = "4"
- * /local/domain/1/device/vcamera/0/version = "1"
+ * /local/domain/1/device/vcamera/0/backend =
+ *"/local/domain/0/backend/vcamera/1" /local/domain/1/device/vcamera/0/state =
+ *"4" /local/domain/1/device/vcamera/0/version = "1"
  * /local/domain/1/device/vcamera/0/be-alloc = "1"
  *
  *---------------------------- Device 0 configuration -------------------------
  *
  * /local/domain/1/device/vcamera/0/max-buffers = "3"
  * /local/domain/1/device/vcamera/0/controls = "contrast,hue"
- * /local/domain/1/device/vcamera/0/formats/YUYV/640x480/frame-rates = "30/1,15/1"
+ * /local/domain/1/device/vcamera/0/formats/YUYV/640x480/frame-rates =
+ *"30/1,15/1"
  * /local/domain/1/device/vcamera/0/formats/YUYV/1920x1080/frame-rates = "15/2"
- * /local/domain/1/device/vcamera/0/formats/BGRA/640x480/frame-rates = "15/1,15/2"
- * /local/domain/1/device/vcamera/0/formats/BGRA/1200x720/frame-rates = "15/2"
- * /local/domain/1/device/vcamera/0/unique-id = "0"
+ * /local/domain/1/device/vcamera/0/formats/BGRA/640x480/frame-rates =
+ *"15/1,15/2" /local/domain/1/device/vcamera/0/formats/BGRA/1200x720/frame-rates
+ *= "15/2" /local/domain/1/device/vcamera/0/unique-id = "0"
  * /local/domain/1/device/vcamera/0/req-ring-ref = "2832"
  * /local/domain/1/device/vcamera/0/req-event-channel = "15"
  * /local/domain/1/device/vcamera/0/evt-ring-ref = "387"
@@ -103,7 +104,8 @@
  *
  * /local/domain/1/device/vcamera/1/max-buffers = "8"
  * /local/domain/1/device/vcamera/1/controls = "brightness,saturation,hue"
- * /local/domain/1/device/vcamera/1/formats/YUYV/640x480/frame-rates = "30/1,15/2"
+ * /local/domain/1/device/vcamera/1/formats/YUYV/640x480/frame-rates =
+ *"30/1,15/2"
  * /local/domain/1/device/vcamera/1/formats/YUYV/1920x1080/frame-rates = "15/2"
  * /local/domain/1/device/vcamera/1/unique-id = "1"
  * /local/domain/1/device/vcamera/1/req-ring-ref = "2833"
@@ -346,110 +348,110 @@
  *                             REQUEST CODES
  ******************************************************************************
  */
-#define XENCAMERA_OP_CONFIG_SET        0x00
-#define XENCAMERA_OP_CONFIG_GET        0x01
-#define XENCAMERA_OP_CONFIG_VALIDATE   0x02
-#define XENCAMERA_OP_FRAME_RATE_SET    0x03
-#define XENCAMERA_OP_BUF_GET_LAYOUT    0x04
-#define XENCAMERA_OP_BUF_REQUEST       0x05
-#define XENCAMERA_OP_BUF_CREATE        0x06
-#define XENCAMERA_OP_BUF_DESTROY       0x07
-#define XENCAMERA_OP_BUF_QUEUE         0x08
-#define XENCAMERA_OP_BUF_DEQUEUE       0x09
-#define XENCAMERA_OP_CTRL_ENUM         0x0a
-#define XENCAMERA_OP_CTRL_SET          0x0b
-#define XENCAMERA_OP_CTRL_GET          0x0c
-#define XENCAMERA_OP_STREAM_START      0x0d
-#define XENCAMERA_OP_STREAM_STOP       0x0e
+#define XENCAMERA_OP_CONFIG_SET 0x00
+#define XENCAMERA_OP_CONFIG_GET 0x01
+#define XENCAMERA_OP_CONFIG_VALIDATE 0x02
+#define XENCAMERA_OP_FRAME_RATE_SET 0x03
+#define XENCAMERA_OP_BUF_GET_LAYOUT 0x04
+#define XENCAMERA_OP_BUF_REQUEST 0x05
+#define XENCAMERA_OP_BUF_CREATE 0x06
+#define XENCAMERA_OP_BUF_DESTROY 0x07
+#define XENCAMERA_OP_BUF_QUEUE 0x08
+#define XENCAMERA_OP_BUF_DEQUEUE 0x09
+#define XENCAMERA_OP_CTRL_ENUM 0x0a
+#define XENCAMERA_OP_CTRL_SET 0x0b
+#define XENCAMERA_OP_CTRL_GET 0x0c
+#define XENCAMERA_OP_STREAM_START 0x0d
+#define XENCAMERA_OP_STREAM_STOP 0x0e
 
-#define XENCAMERA_CTRL_BRIGHTNESS      0
-#define XENCAMERA_CTRL_CONTRAST        1
-#define XENCAMERA_CTRL_SATURATION      2
-#define XENCAMERA_CTRL_HUE             3
+#define XENCAMERA_CTRL_BRIGHTNESS 0
+#define XENCAMERA_CTRL_CONTRAST 1
+#define XENCAMERA_CTRL_SATURATION 2
+#define XENCAMERA_CTRL_HUE 3
 
 /* Number of supported controls. */
-#define XENCAMERA_MAX_CTRL             4
+#define XENCAMERA_MAX_CTRL 4
 
 /* Control is read-only. */
-#define XENCAMERA_CTRL_FLG_RO          (1 << 0)
+#define XENCAMERA_CTRL_FLG_RO (1 << 0)
 /* Control is write-only. */
-#define XENCAMERA_CTRL_FLG_WO          (1 << 1)
+#define XENCAMERA_CTRL_FLG_WO (1 << 1)
 /* Control's value is volatile. */
-#define XENCAMERA_CTRL_FLG_VOLATILE    (1 << 2)
+#define XENCAMERA_CTRL_FLG_VOLATILE (1 << 2)
 
 /* Supported color spaces. */
-#define XENCAMERA_COLORSPACE_DEFAULT   0
+#define XENCAMERA_COLORSPACE_DEFAULT 0
 #define XENCAMERA_COLORSPACE_SMPTE170M 1
-#define XENCAMERA_COLORSPACE_REC709    2
-#define XENCAMERA_COLORSPACE_SRGB      3
-#define XENCAMERA_COLORSPACE_OPRGB     4
-#define XENCAMERA_COLORSPACE_BT2020    5
-#define XENCAMERA_COLORSPACE_DCI_P3    6
+#define XENCAMERA_COLORSPACE_REC709 2
+#define XENCAMERA_COLORSPACE_SRGB 3
+#define XENCAMERA_COLORSPACE_OPRGB 4
+#define XENCAMERA_COLORSPACE_BT2020 5
+#define XENCAMERA_COLORSPACE_DCI_P3 6
 
 /* Color space transfer function. */
-#define XENCAMERA_XFER_FUNC_DEFAULT    0
-#define XENCAMERA_XFER_FUNC_709        1
-#define XENCAMERA_XFER_FUNC_SRGB       2
-#define XENCAMERA_XFER_FUNC_OPRGB      3
-#define XENCAMERA_XFER_FUNC_NONE       4
-#define XENCAMERA_XFER_FUNC_DCI_P3     5
-#define XENCAMERA_XFER_FUNC_SMPTE2084  6
+#define XENCAMERA_XFER_FUNC_DEFAULT 0
+#define XENCAMERA_XFER_FUNC_709 1
+#define XENCAMERA_XFER_FUNC_SRGB 2
+#define XENCAMERA_XFER_FUNC_OPRGB 3
+#define XENCAMERA_XFER_FUNC_NONE 4
+#define XENCAMERA_XFER_FUNC_DCI_P3 5
+#define XENCAMERA_XFER_FUNC_SMPTE2084 6
 
 /* Color space Y’CbCr encoding. */
-#define XENCAMERA_YCBCR_ENC_IGNORE           0
-#define XENCAMERA_YCBCR_ENC_601              1
-#define XENCAMERA_YCBCR_ENC_709              2
-#define XENCAMERA_YCBCR_ENC_XV601            3
-#define XENCAMERA_YCBCR_ENC_XV709            4
-#define XENCAMERA_YCBCR_ENC_BT2020           5
+#define XENCAMERA_YCBCR_ENC_IGNORE 0
+#define XENCAMERA_YCBCR_ENC_601 1
+#define XENCAMERA_YCBCR_ENC_709 2
+#define XENCAMERA_YCBCR_ENC_XV601 3
+#define XENCAMERA_YCBCR_ENC_XV709 4
+#define XENCAMERA_YCBCR_ENC_BT2020 5
 #define XENCAMERA_YCBCR_ENC_BT2020_CONST_LUM 6
 
 /* Quantization range. */
-#define XENCAMERA_QUANTIZATION_DEFAULT       0
-#define XENCAMERA_QUANTIZATION_FULL_RANGE    1
-#define XENCAMERA_QUANTIZATION_LIM_RANGE     2
+#define XENCAMERA_QUANTIZATION_DEFAULT 0
+#define XENCAMERA_QUANTIZATION_FULL_RANGE 1
+#define XENCAMERA_QUANTIZATION_LIM_RANGE 2
 
 /*
  ******************************************************************************
  *                                 EVENT CODES
  ******************************************************************************
  */
-#define XENCAMERA_EVT_FRAME_AVAIL      0x00
-#define XENCAMERA_EVT_CTRL_CHANGE      0x01
+#define XENCAMERA_EVT_FRAME_AVAIL 0x00
+#define XENCAMERA_EVT_CTRL_CHANGE 0x01
 
 /*
  ******************************************************************************
  *               XENSTORE FIELD AND PATH NAME STRINGS, HELPERS
  ******************************************************************************
  */
-#define XENCAMERA_DRIVER_NAME          "vcamera"
+#define XENCAMERA_DRIVER_NAME "vcamera"
 
-#define XENCAMERA_LIST_SEPARATOR       ","
+#define XENCAMERA_LIST_SEPARATOR ","
 #define XENCAMERA_RESOLUTION_SEPARATOR "x"
-#define XENCAMERA_FRACTION_SEPARATOR   "/"
+#define XENCAMERA_FRACTION_SEPARATOR "/"
 
-#define XENCAMERA_FIELD_BE_VERSIONS    "versions"
-#define XENCAMERA_FIELD_FE_VERSION     "version"
-#define XENCAMERA_FIELD_REQ_RING_REF   "req-ring-ref"
-#define XENCAMERA_FIELD_REQ_CHANNEL    "req-event-channel"
-#define XENCAMERA_FIELD_EVT_RING_REF   "evt-ring-ref"
-#define XENCAMERA_FIELD_EVT_CHANNEL    "evt-event-channel"
-#define XENCAMERA_FIELD_MAX_BUFFERS    "max-buffers"
-#define XENCAMERA_FIELD_CONTROLS       "controls"
-#define XENCAMERA_FIELD_FORMATS        "formats"
-#define XENCAMERA_FIELD_FRAME_RATES    "frame-rates"
-#define XENCAMERA_FIELD_BE_ALLOC       "be-alloc"
-#define XENCAMERA_FIELD_UNIQUE_ID      "unique-id"
+#define XENCAMERA_FIELD_BE_VERSIONS "versions"
+#define XENCAMERA_FIELD_FE_VERSION "version"
+#define XENCAMERA_FIELD_REQ_RING_REF "req-ring-ref"
+#define XENCAMERA_FIELD_REQ_CHANNEL "req-event-channel"
+#define XENCAMERA_FIELD_EVT_RING_REF "evt-ring-ref"
+#define XENCAMERA_FIELD_EVT_CHANNEL "evt-event-channel"
+#define XENCAMERA_FIELD_MAX_BUFFERS "max-buffers"
+#define XENCAMERA_FIELD_CONTROLS "controls"
+#define XENCAMERA_FIELD_FORMATS "formats"
+#define XENCAMERA_FIELD_FRAME_RATES "frame-rates"
+#define XENCAMERA_FIELD_BE_ALLOC "be-alloc"
+#define XENCAMERA_FIELD_UNIQUE_ID "unique-id"
 
-#define XENCAMERA_CTRL_BRIGHTNESS_STR  "brightness"
-#define XENCAMERA_CTRL_CONTRAST_STR    "contrast"
-#define XENCAMERA_CTRL_SATURATION_STR  "saturation"
-#define XENCAMERA_CTRL_HUE_STR         "hue"
+#define XENCAMERA_CTRL_BRIGHTNESS_STR "brightness"
+#define XENCAMERA_CTRL_CONTRAST_STR "contrast"
+#define XENCAMERA_CTRL_SATURATION_STR "saturation"
+#define XENCAMERA_CTRL_HUE_STR "hue"
 
 #define XENCAMERA_FOURCC_BIGENDIAN_STR "-BE"
 
 /* Maximum number of buffer planes supported. */
-#define XENCAMERA_MAX_PLANE            4
+#define XENCAMERA_MAX_PLANE 4
 
 /*
  ******************************************************************************
@@ -468,7 +470,8 @@
  * - all references in this document to page sizes must be treated
  *   as pages of size XEN_PAGE_SIZE unless otherwise noted.
  * - all FOURCC mappings used for configuration and messaging are
- *   Linux V4L2 ones: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/videodev2.h
+ *   Linux V4L2 ones:
+ *https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/videodev2.h
  *   with the following exceptions:
  *     - characters are allowed in [0x20; 0x7f] range
  *     - when used for XenStore configuration entries the following
@@ -559,9 +562,9 @@
  *    requests.
  */
 struct xencamera_config_req {
-    uint32_t pixel_format;
-    uint32_t width;
-    uint32_t height;
+	uint32_t pixel_format;
+	uint32_t width;
+	uint32_t height;
 };
 
 /*
@@ -615,8 +618,8 @@ struct xencamera_config_req {
  *    commands.
  */
 struct xencamera_frame_rate_req {
-    uint32_t frame_rate_numer;
-    uint32_t frame_rate_denom;
+	uint32_t frame_rate_numer;
+	uint32_t frame_rate_denom;
 };
 
 /*
@@ -682,7 +685,7 @@ struct xencamera_frame_rate_req {
  * See response format for this request.
  */
 struct xencamera_buf_request {
-    uint8_t num_bufs;
+	uint8_t num_bufs;
 };
 
 /*
@@ -743,10 +746,10 @@ struct xencamera_buf_request {
  *       (gref[] in struct xencamera_page_directory)
  */
 struct xencamera_buf_create_req {
-    uint8_t index;
-    uint8_t reserved[3];
-    uint32_t plane_offset[XENCAMERA_MAX_PLANE];
-    grant_ref_t gref_directory;
+	uint8_t index;
+	uint8_t reserved[3];
+	uint32_t plane_offset[XENCAMERA_MAX_PLANE];
+	grant_ref_t gref_directory;
 };
 
 /*
@@ -779,8 +782,8 @@ struct xencamera_buf_create_req {
  *       XEN_PAGE_SIZE
  */
 struct xencamera_page_directory {
-    grant_ref_t gref_dir_next_page;
-    grant_ref_t gref[1]; /* Variable length */
+	grant_ref_t gref_dir_next_page;
+	grant_ref_t gref[1]; /* Variable length */
 };
 
 /*
@@ -870,7 +873,7 @@ struct xencamera_page_directory {
  * index - uint8_t, index of the control to be queried.
  */
 struct xencamera_index {
-    uint8_t index;
+	uint8_t index;
 };
 
 /*
@@ -900,9 +903,9 @@ struct xencamera_index {
  * value - int64_t, new value of the control.
  */
 struct xencamera_ctrl_value {
-    uint8_t type;
-    uint8_t reserved[7];
-    int64_t value;
+	uint8_t type;
+	uint8_t reserved[7];
+	int64_t value;
 };
 
 /*
@@ -925,7 +928,7 @@ struct xencamera_ctrl_value {
  * type - uint8_t, type of the control, one of the XENCAMERA_CTRL_XXX.
  */
 struct xencamera_get_ctrl_req {
-    uint8_t type;
+	uint8_t type;
 };
 
 /*
@@ -1025,17 +1028,17 @@ struct xencamera_get_ctrl_req {
  * displ_asp_ratio_denom - uint32_t, denominator of the display aspect ratio.
  */
 struct xencamera_config_resp {
-    uint32_t pixel_format;
-    uint32_t width;
-    uint32_t height;
-    uint32_t colorspace;
-    uint32_t xfer_func;
-    uint32_t ycbcr_enc;
-    uint32_t quantization;
-    uint32_t displ_asp_ratio_numer;
-    uint32_t displ_asp_ratio_denom;
-    uint32_t frame_rate_numer;
-    uint32_t frame_rate_denom;
+	uint32_t pixel_format;
+	uint32_t width;
+	uint32_t height;
+	uint32_t colorspace;
+	uint32_t xfer_func;
+	uint32_t ycbcr_enc;
+	uint32_t quantization;
+	uint32_t displ_asp_ratio_numer;
+	uint32_t displ_asp_ratio_denom;
+	uint32_t frame_rate_numer;
+	uint32_t frame_rate_denom;
 };
 
 /*
@@ -1085,11 +1088,11 @@ struct xencamera_config_resp {
  * different plane offsets, see XENCAMERA_OP_BUF_REQUEST.plane_offset.
  */
 struct xencamera_buf_get_layout_resp {
-    uint8_t num_planes;
-    uint8_t reserved[3];
-    uint32_t size;
-    uint32_t plane_size[XENCAMERA_MAX_PLANE];
-    uint32_t plane_stride[XENCAMERA_MAX_PLANE];
+	uint8_t num_planes;
+	uint8_t reserved[3];
+	uint32_t size;
+	uint32_t plane_size[XENCAMERA_MAX_PLANE];
+	uint32_t plane_stride[XENCAMERA_MAX_PLANE];
 };
 
 /*
@@ -1156,14 +1159,14 @@ struct xencamera_buf_get_layout_resp {
  * def_val - int64_t, default value of the control.
  */
 struct xencamera_ctrl_enum_resp {
-    uint8_t index;
-    uint8_t type;
-    uint8_t reserved[2];
-    uint32_t flags;
-    int64_t min;
-    int64_t max;
-    int64_t step;
-    int64_t def_val;
+	uint8_t index;
+	uint8_t type;
+	uint8_t reserved[2];
+	uint32_t flags;
+	int64_t min;
+	int64_t max;
+	int64_t step;
+	int64_t def_val;
 };
 
 /*
@@ -1246,10 +1249,10 @@ struct xencamera_ctrl_enum_resp {
  *   In that case there will be no skips in the sequence counter.
  */
 struct xencamera_frame_avail_evt {
-    uint8_t index;
-    uint8_t reserved[3];
-    uint32_t used_sz;
-    uint32_t seq_num;
+	uint8_t index;
+	uint8_t reserved[3];
+	uint32_t used_sz;
+	uint32_t seq_num;
 };
 
 /*
@@ -1287,45 +1290,45 @@ struct xencamera_frame_avail_evt {
  */
 
 struct xencamera_req {
-    uint16_t id;
-    uint8_t operation;
-    uint8_t reserved[5];
-    union {
-        struct xencamera_config_req config;
-        struct xencamera_frame_rate_req frame_rate;
-        struct xencamera_buf_request buf_request;
-        struct xencamera_buf_create_req buf_create;
-        struct xencamera_index index;
-        struct xencamera_ctrl_value ctrl_value;
-        struct xencamera_get_ctrl_req get_ctrl;
-        uint8_t reserved[56];
-    } req;
+	uint16_t id;
+	uint8_t operation;
+	uint8_t reserved[5];
+	union {
+		struct xencamera_config_req config;
+		struct xencamera_frame_rate_req frame_rate;
+		struct xencamera_buf_request buf_request;
+		struct xencamera_buf_create_req buf_create;
+		struct xencamera_index index;
+		struct xencamera_ctrl_value ctrl_value;
+		struct xencamera_get_ctrl_req get_ctrl;
+		uint8_t reserved[56];
+	} req;
 };
 
 struct xencamera_resp {
-    uint16_t id;
-    uint8_t operation;
-    uint8_t reserved;
-    int32_t status;
-    union {
-        struct xencamera_config_resp config;
-        struct xencamera_buf_get_layout_resp buf_layout;
-        struct xencamera_buf_request buf_request;
-        struct xencamera_ctrl_enum_resp ctrl_enum;
-        struct xencamera_ctrl_value ctrl_value;
-        uint8_t reserved1[56];
-    } resp;
+	uint16_t id;
+	uint8_t operation;
+	uint8_t reserved;
+	int32_t status;
+	union {
+		struct xencamera_config_resp config;
+		struct xencamera_buf_get_layout_resp buf_layout;
+		struct xencamera_buf_request buf_request;
+		struct xencamera_ctrl_enum_resp ctrl_enum;
+		struct xencamera_ctrl_value ctrl_value;
+		uint8_t reserved1[56];
+	} resp;
 };
 
 struct xencamera_evt {
-    uint16_t id;
-    uint8_t type;
-    uint8_t reserved[5];
-    union {
-        struct xencamera_frame_avail_evt frame_avail;
-        struct xencamera_ctrl_value ctrl_value;
-        uint8_t reserved[56];
-    } evt;
+	uint16_t id;
+	uint8_t type;
+	uint8_t reserved[5];
+	union {
+		struct xencamera_frame_avail_evt frame_avail;
+		struct xencamera_ctrl_value ctrl_value;
+		uint8_t reserved[56];
+	} evt;
 };
 
 DEFINE_RING_TYPES(xen_cameraif, struct xencamera_req, struct xencamera_resp);
@@ -1347,19 +1350,21 @@ DEFINE_RING_TYPES(xen_cameraif, struct xencamera_req, struct xencamera_resp);
  */
 
 struct xencamera_event_page {
-    uint32_t in_cons;
-    uint32_t in_prod;
-    uint8_t reserved[56];
+	uint32_t in_cons;
+	uint32_t in_prod;
+	uint8_t reserved[56];
 };
 
 #define XENCAMERA_EVENT_PAGE_SIZE 4096
 #define XENCAMERA_IN_RING_OFFS (sizeof(struct xencamera_event_page))
-#define XENCAMERA_IN_RING_SIZE (XENCAMERA_EVENT_PAGE_SIZE - XENCAMERA_IN_RING_OFFS)
-#define XENCAMERA_IN_RING_LEN (XENCAMERA_IN_RING_SIZE / sizeof(struct xencamera_evt))
+#define XENCAMERA_IN_RING_SIZE \
+	(XENCAMERA_EVENT_PAGE_SIZE - XENCAMERA_IN_RING_OFFS)
+#define XENCAMERA_IN_RING_LEN \
+	(XENCAMERA_IN_RING_SIZE / sizeof(struct xencamera_evt))
 #define XENCAMERA_IN_RING(page) \
-    ((struct xencamera_evt *)((char *)(page) + XENCAMERA_IN_RING_OFFS))
+	((struct xencamera_evt *)((char *)(page) + XENCAMERA_IN_RING_OFFS))
 #define XENCAMERA_IN_RING_REF(page, idx) \
-    (XENCAMERA_IN_RING((page))[(idx) % XENCAMERA_IN_RING_LEN])
+	(XENCAMERA_IN_RING((page))[(idx) % XENCAMERA_IN_RING_LEN])
 
 #endif /* __XEN_PUBLIC_IO_CAMERAIF_H__ */
 

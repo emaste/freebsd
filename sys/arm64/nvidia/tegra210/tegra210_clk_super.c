@@ -40,102 +40,129 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/clk/clk.h>
 
 #include <dt-bindings/clock/tegra210-car.h>
+
 #include "tegra210_car.h"
 
 struct super_mux_def {
-	struct clknode_init_def	clkdef;
-	uint32_t		base_reg;
-	uint32_t		flags;
+	struct clknode_init_def clkdef;
+	uint32_t base_reg;
+	uint32_t flags;
 };
 
-#define	PLIST(x) static const char *x[]
-#define	SM(_id, cn, pl, r)						\
-{									\
-	.clkdef.id = _id,						\
-	.clkdef.name = cn,						\
-	.clkdef.parent_names = pl,					\
-	.clkdef.parent_cnt = nitems(pl),				\
-	.clkdef.flags = CLK_NODE_STATIC_STRINGS,			\
-	.base_reg = r,							\
-}
-
+#define PLIST(x) static const char *x[]
+#define SM(_id, cn, pl, r)                                                  \
+	{                                                                   \
+		.clkdef.id = _id, .clkdef.name = cn,                        \
+		.clkdef.parent_names = pl, .clkdef.parent_cnt = nitems(pl), \
+		.clkdef.flags = CLK_NODE_STATIC_STRINGS, .base_reg = r,     \
+	}
 
 PLIST(cclk_g_parents) = {
-	"clk_m", NULL, "clk_s", NULL,
-	"pllP_out0", "pllP_out4", NULL, NULL,
-	"pllX_out0", "dfllCPU_out_alias", NULL, NULL,
-	NULL, NULL, "pllX_out0_alias", "dfllCPU_out",
+	"clk_m",
+	NULL,
+	"clk_s",
+	NULL,
+	"pllP_out0",
+	"pllP_out4",
+	NULL,
+	NULL,
+	"pllX_out0",
+	"dfllCPU_out_alias",
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	"pllX_out0_alias",
+	"dfllCPU_out",
 };
 
 PLIST(cclk_lp_parents) = {
-	"clk_m", NULL, "clk_s", NULL,
-	"pllP_out0", "pllP_out4", NULL, NULL,
-	"pllX_out0", "dfllCPU_out_alias", NULL, NULL,
-	NULL, NULL, "pllX_out0_alias", "dfllCPU_out",
+	"clk_m",
+	NULL,
+	"clk_s",
+	NULL,
+	"pllP_out0",
+	"pllP_out4",
+	NULL,
+	NULL,
+	"pllX_out0",
+	"dfllCPU_out_alias",
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	"pllX_out0_alias",
+	"dfllCPU_out",
 };
 
 PLIST(sclk_parents) = {
-	"clk_m", "pllC_out1", "pllC4_out3", "pllP_out0",
-	"pllP_out2", "pllC4_out1", "clk_s", "pllC4_out1",
+	"clk_m",
+	"pllC_out1",
+	"pllC4_out3",
+	"pllP_out0",
+	"pllP_out2",
+	"pllC4_out1",
+	"clk_s",
+	"pllC4_out1",
 };
 
 static struct super_mux_def super_mux_def[] = {
- SM(TEGRA210_CLK_CCLK_G, "cclk_g", cclk_g_parents, CCLKG_BURST_POLICY),
- SM(TEGRA210_CLK_CCLK_LP, "cclk_lp", cclk_lp_parents, CCLKLP_BURST_POLICY),
- SM(TEGRA210_CLK_SCLK, "sclk", sclk_parents, SCLK_BURST_POLICY),
+	SM(TEGRA210_CLK_CCLK_G, "cclk_g", cclk_g_parents, CCLKG_BURST_POLICY),
+	SM(TEGRA210_CLK_CCLK_LP, "cclk_lp", cclk_lp_parents,
+	    CCLKLP_BURST_POLICY),
+	SM(TEGRA210_CLK_SCLK, "sclk", sclk_parents, SCLK_BURST_POLICY),
 };
 
 static int super_mux_init(struct clknode *clk, device_t dev);
 static int super_mux_set_mux(struct clknode *clk, int idx);
 
 struct super_mux_sc {
-	device_t		clkdev;
-	uint32_t		base_reg;
-	uint32_t		flags;
+	device_t clkdev;
+	uint32_t base_reg;
+	uint32_t flags;
 
-	int 			mux;
+	int mux;
 };
 
 static clknode_method_t super_mux_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init,		super_mux_init),
-	CLKNODEMETHOD(clknode_set_mux, 		super_mux_set_mux),
-	CLKNODEMETHOD_END
+	CLKNODEMETHOD(clknode_init, super_mux_init),
+	CLKNODEMETHOD(clknode_set_mux, super_mux_set_mux), CLKNODEMETHOD_END
 };
 DEFINE_CLASS_1(tegra210_super_mux, tegra210_super_mux_class, super_mux_methods,
-   sizeof(struct super_mux_sc), clknode_class);
+    sizeof(struct super_mux_sc), clknode_class);
 
 /* Mux status. */
-#define	SUPER_MUX_STATE_STDBY		0
-#define	SUPER_MUX_STATE_IDLE		1
-#define	SUPER_MUX_STATE_RUN		2
-#define	SUPER_MUX_STATE_IRQ		3
-#define	SUPER_MUX_STATE_FIQ		4
+#define SUPER_MUX_STATE_STDBY 0
+#define SUPER_MUX_STATE_IDLE 1
+#define SUPER_MUX_STATE_RUN 2
+#define SUPER_MUX_STATE_IRQ 3
+#define SUPER_MUX_STATE_FIQ 4
 
 /* Mux register bits. */
-#define	SUPER_MUX_STATE_BIT_SHIFT	28
-#define	SUPER_MUX_STATE_BIT_MASK	0xF
+#define SUPER_MUX_STATE_BIT_SHIFT 28
+#define SUPER_MUX_STATE_BIT_MASK 0xF
 /* State is Priority encoded */
-#define	SUPER_MUX_STATE_BIT_STDBY	0x00
-#define	SUPER_MUX_STATE_BIT_IDLE	0x01
-#define	SUPER_MUX_STATE_BIT_RUN		0x02
-#define	SUPER_MUX_STATE_BIT_IRQ		0x04
-#define	SUPER_MUX_STATE_BIT_FIQ		0x08
+#define SUPER_MUX_STATE_BIT_STDBY 0x00
+#define SUPER_MUX_STATE_BIT_IDLE 0x01
+#define SUPER_MUX_STATE_BIT_RUN 0x02
+#define SUPER_MUX_STATE_BIT_IRQ 0x04
+#define SUPER_MUX_STATE_BIT_FIQ 0x08
 
-#define	SUPER_MUX_MUX_WIDTH		4
+#define SUPER_MUX_MUX_WIDTH 4
 
 static uint32_t
 super_mux_get_state(uint32_t reg)
 {
 	reg = (reg >> SUPER_MUX_STATE_BIT_SHIFT) & SUPER_MUX_STATE_BIT_MASK;
 	if (reg & SUPER_MUX_STATE_BIT_FIQ)
-		 return (SUPER_MUX_STATE_FIQ);
+		return (SUPER_MUX_STATE_FIQ);
 	if (reg & SUPER_MUX_STATE_BIT_IRQ)
-		 return (SUPER_MUX_STATE_IRQ);
+		return (SUPER_MUX_STATE_IRQ);
 	if (reg & SUPER_MUX_STATE_BIT_RUN)
-		 return (SUPER_MUX_STATE_RUN);
+		return (SUPER_MUX_STATE_RUN);
 	if (reg & SUPER_MUX_STATE_BIT_IDLE)
-		 return (SUPER_MUX_STATE_IDLE);
+		return (SUPER_MUX_STATE_IDLE);
 	return (SUPER_MUX_STATE_STDBY);
 }
 
@@ -153,8 +180,7 @@ super_mux_init(struct clknode *clk, device_t dev)
 	DEVICE_UNLOCK(sc);
 	state = super_mux_get_state(reg);
 
-	if ((state != SUPER_MUX_STATE_RUN) &&
-	    (state != SUPER_MUX_STATE_IDLE)) {
+	if ((state != SUPER_MUX_STATE_RUN) && (state != SUPER_MUX_STATE_IDLE)) {
 		panic("Unexpected super mux state: %u", state);
 	}
 
@@ -163,7 +189,7 @@ super_mux_init(struct clknode *clk, device_t dev)
 
 	clknode_init_parent_idx(clk, sc->mux);
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -180,8 +206,7 @@ super_mux_set_mux(struct clknode *clk, int idx)
 	RD4(sc, sc->base_reg, &reg);
 	state = super_mux_get_state(reg);
 
-	if ((state != SUPER_MUX_STATE_RUN) &&
-	    (state != SUPER_MUX_STATE_IDLE)) {
+	if ((state != SUPER_MUX_STATE_RUN) && (state != SUPER_MUX_STATE_IDLE)) {
 		panic("Unexpected super mux state: %u", state);
 	}
 
@@ -194,7 +219,7 @@ super_mux_set_mux(struct clknode *clk, int idx)
 	RD4(sc, sc->base_reg, &dummy);
 	DEVICE_UNLOCK(sc);
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -203,8 +228,8 @@ super_mux_register(struct clkdom *clkdom, struct super_mux_def *clkdef)
 	struct clknode *clk;
 	struct super_mux_sc *sc;
 
-	clk = clknode_create(clkdom, &tegra210_super_mux_class,
-	    &clkdef->clkdef);
+	clk = clknode_create(
+	    clkdom, &tegra210_super_mux_class, &clkdef->clkdef);
 	if (clk == NULL)
 		return (1);
 
@@ -222,10 +247,9 @@ tegra210_super_mux_clock(struct tegra210_car_softc *sc)
 {
 	int i, rv;
 
-	for (i = 0; i <  nitems(super_mux_def); i++) {
+	for (i = 0; i < nitems(super_mux_def); i++) {
 		rv = super_mux_register(sc->clkdom, &super_mux_def[i]);
 		if (rv != 0)
 			panic("super_mux_register failed");
 	}
-
 }

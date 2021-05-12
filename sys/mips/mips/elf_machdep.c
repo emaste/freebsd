@@ -31,53 +31,53 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
-#include <sys/linker.h>
-#include <sys/sysent.h>
 #include <sys/imgact_elf.h>
+#include <sys/kernel.h>
+#include <sys/linker.h>
 #include <sys/proc.h>
-#include <sys/syscall.h>
 #include <sys/signalvar.h>
+#include <sys/syscall.h>
+#include <sys/sysent.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
 
+#include <machine/cache.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
-#include <machine/cache.h>
 
 static struct sysentvec elf_freebsd_sysvec = {
-	.sv_size	= SYS_MAXSYSCALL,
-	.sv_table	= sysent,
-	.sv_transtrap	= NULL,
-	.sv_fixup	= __elfN(freebsd_fixup),
-	.sv_sendsig	= sendsig,
-	.sv_sigcode	= sigcode,
-	.sv_szsigcode	= &szsigcode,
+	.sv_size = SYS_MAXSYSCALL,
+	.sv_table = sysent,
+	.sv_transtrap = NULL,
+	.sv_fixup = __elfN(freebsd_fixup),
+	.sv_sendsig = sendsig,
+	.sv_sigcode = sigcode,
+	.sv_szsigcode = &szsigcode,
 #ifdef __mips_n64
-	.sv_name	= "FreeBSD ELF64",
+	.sv_name = "FreeBSD ELF64",
 #else
-	.sv_name	= "FreeBSD ELF32",
+	.sv_name = "FreeBSD ELF32",
 #endif
-	.sv_coredump	= __elfN(coredump),
-	.sv_imgact_try	= NULL,
-	.sv_minsigstksz	= MINSIGSTKSZ,
-	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= VM_MAXUSER_ADDRESS,
-	.sv_usrstack	= USRSTACK,
-	.sv_psstrings	= PS_STRINGS,
-	.sv_stackprot	= VM_PROT_ALL,
+	.sv_coredump = __elfN(coredump),
+	.sv_imgact_try = NULL,
+	.sv_minsigstksz = MINSIGSTKSZ,
+	.sv_minuser = VM_MIN_ADDRESS,
+	.sv_maxuser = VM_MAXUSER_ADDRESS,
+	.sv_usrstack = USRSTACK,
+	.sv_psstrings = PS_STRINGS,
+	.sv_stackprot = VM_PROT_ALL,
 	.sv_copyout_auxargs = __elfN(freebsd_copyout_auxargs),
 	.sv_copyout_strings = exec_copyout_strings,
-	.sv_setregs	= exec_setregs,
-	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_ASLR | SV_RNG_SEED_VER |
+	.sv_setregs = exec_setregs,
+	.sv_fixlimit = NULL,
+	.sv_maxssiz = NULL,
+	.sv_flags = SV_ABI_FREEBSD | SV_ASLR | SV_RNG_SEED_VER |
 #ifdef __mips_n64
 	    SV_LP64,
 #else
@@ -86,30 +86,26 @@ static struct sysentvec elf_freebsd_sysvec = {
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
-	.sv_schedtail	= NULL,
+	.sv_schedtail = NULL,
 	.sv_thread_detach = NULL,
-	.sv_trap	= NULL,
+	.sv_trap = NULL,
 };
 
-static __ElfN(Brandinfo) freebsd_brand_info = {
-	.brand		= ELFOSABI_FREEBSD,
-	.machine	= EM_MIPS,
-	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
-	.interp_path	= "/libexec/ld-elf.so.1",
-	.sysvec		= &elf_freebsd_sysvec,
-	.interp_newpath	= NULL,
-	.brand_note	= &__elfN(freebsd_brandnote),
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
-};
+static __ElfN(Brandinfo) freebsd_brand_info = { .brand = ELFOSABI_FREEBSD,
+	.machine = EM_MIPS,
+	.compat_3_brand = "FreeBSD",
+	.emul_path = NULL,
+	.interp_path = "/libexec/ld-elf.so.1",
+	.sysvec = &elf_freebsd_sysvec,
+	.interp_newpath = NULL,
+	.brand_note = &__elfN(freebsd_brandnote),
+	.flags = BI_CAN_EXEC_DYN | BI_BRAND_NOTE };
 
 SYSINIT(elf, SI_SUB_EXEC, SI_ORDER_ANY,
-    (sysinit_cfunc_t) __elfN(insert_brand_entry),
-    &freebsd_brand_info);
+    (sysinit_cfunc_t)__elfN(insert_brand_entry), &freebsd_brand_info);
 
-void
-__elfN(dump_thread)(struct thread *td __unused, void *dst __unused,
-    size_t *off __unused)
+void __elfN(dump_thread)(
+    struct thread *td __unused, void *dst __unused, size_t *off __unused)
 {
 }
 
@@ -270,7 +266,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	switch (type) {
 	case ELF_RELOC_REL:
 		rel = (const Elf_Rel *)data;
-		where = (Elf32_Addr *) (relocbase + rel->r_offset);
+		where = (Elf32_Addr *)(relocbase + rel->r_offset);
 		rtype = ELF_R_TYPE(rel->r_info);
 		symidx = ELF_R_SYM(rel->r_info);
 		switch (rtype) {
@@ -285,7 +281,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 	case ELF_RELOC_RELA:
 		rela = (const Elf_Rela *)data;
-		where = (Elf32_Addr *) (relocbase + rela->r_offset);
+		where = (Elf32_Addr *)(relocbase + rela->r_offset);
 		addend = rela->r_addend;
 		rtype = ELF_R_TYPE(rela->r_info);
 		symidx = ELF_R_SYM(rela->r_info);
@@ -295,10 +291,10 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	}
 
 	switch (rtype) {
-	case R_MIPS_NONE:	/* none */
+	case R_MIPS_NONE: /* none */
 		break;
 
-	case R_MIPS_32:		/* S + A */
+	case R_MIPS_32: /* S + A */
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
 			return (-1);
@@ -307,7 +303,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			*where = (Elf32_Addr)addr;
 		break;
 
-	case R_MIPS_26:		/* ((A << 2) | (P & 0xf0000000) + S) >> 2 */
+	case R_MIPS_26: /* ((A << 2) | (P & 0xf0000000) + S) >> 2 */
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
 			return (-1);
@@ -326,41 +322,42 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		*where |= addr & 0x03ffffff;
 		break;
 
-	case R_MIPS_64:		/* S + A */
+	case R_MIPS_64: /* S + A */
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
 			return (-1);
 		addr += addend;
-		if (*(Elf64_Addr*)where != addr)
-			*(Elf64_Addr*)where = addr;
+		if (*(Elf64_Addr *)where != addr)
+			*(Elf64_Addr *)where = addr;
 		break;
 
-	/*
-	 * Handle the two GNU extension cases:
-	 *
-	 * + Multiple HI16s followed by a LO16, and
-	 * + A HI16 followed by multiple LO16s.
-	 *
-	 * The former is tricky - the HI16 relocations need
-	 * to be buffered until a LO16 occurs, at which point
-	 * each HI16 is replayed against the LO16 relocation entry
-	 * (with the relevant overflow information.)
-	 *
-	 * The latter should be easy to handle - when the
-	 * first LO16 is seen, write out and flush the
-	 * HI16 buffer.  Any subsequent LO16 entries will
-	 * find a blank relocation buffer.
-	 *
-	 */
+		/*
+		 * Handle the two GNU extension cases:
+		 *
+		 * + Multiple HI16s followed by a LO16, and
+		 * + A HI16 followed by multiple LO16s.
+		 *
+		 * The former is tricky - the HI16 relocations need
+		 * to be buffered until a LO16 occurs, at which point
+		 * each HI16 is replayed against the LO16 relocation entry
+		 * (with the relevant overflow information.)
+		 *
+		 * The latter should be easy to handle - when the
+		 * first LO16 is seen, write out and flush the
+		 * HI16 buffer.  Any subsequent LO16 entries will
+		 * find a blank relocation buffer.
+		 *
+		 */
 
-	case R_MIPS_HI16:	/* ((AHL + S) - ((short)(AHL + S)) >> 16 */
+	case R_MIPS_HI16: /* ((AHL + S) - ((short)(AHL + S)) >> 16 */
 		if (rela != NULL) {
 			error = lookup(lf, symidx, 1, &addr);
 			if (error != 0)
 				return (-1);
 			addr += addend;
 			*where &= 0xffff0000;
-			*where |= ((((long long) addr + 0x8000LL) >> 16) & 0xffff);
+			*where |= ((((long long)addr + 0x8000LL) >> 16) &
+			    0xffff);
 		} else {
 			/*
 			 * Add a temporary relocation to the list;
@@ -382,7 +379,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		}
 		break;
 
-	case R_MIPS_LO16:	/* AHL + S */
+	case R_MIPS_LO16: /* AHL + S */
 		if (rela != NULL) {
 			error = lookup(lf, symidx, 1, &addr);
 			if (error != 0)
@@ -394,7 +391,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			Elf_Addr tmp_ahl;
 			Elf_Addr tmp_addend;
 
-			tmp_ahl = last_ahl + (int16_t) addend;
+			tmp_ahl = last_ahl + (int16_t)addend;
 			error = lookup(lf, symidx, 1, &addr);
 			if (error != 0)
 				return (-1);
@@ -423,12 +420,13 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 				 * offset it by the 16 bits of the low ahl.
 				 */
 				rahl = r->ahl;
-				rahl += (int16_t) addend;
+				rahl += (int16_t)addend;
 
 				tmp_addend = *(r->where_hi16);
 				tmp_addend &= 0xffff0000;
 				tmp_addend |= ((rahl + addr) -
-				    (int16_t)(rahl + addr)) >> 16;
+						  (int16_t)(rahl + addr)) >>
+				    16;
 				*(r->where_hi16) = tmp_addend;
 				mips_tmp_reloc_free(r);
 			}
@@ -436,7 +434,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 
 		break;
 
-	case R_MIPS_HIGHER:	/* %higher(A+S) */
+	case R_MIPS_HIGHER: /* %higher(A+S) */
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
 			return (-1);
@@ -445,7 +443,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		*where |= (((long long)addr + 0x80008000LL) >> 32) & 0xffff;
 		break;
 
-	case R_MIPS_HIGHEST:	/* %highest(A+S) */
+	case R_MIPS_HIGHEST: /* %highest(A+S) */
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
 			return (-1);
@@ -456,7 +454,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 
 	default:
 		printf("kldload: unexpected relocation type %d, "
-		    "symbol index %d\n", rtype, symidx);
+		       "symbol index %d\n",
+		    rtype, symidx);
 		return (-1);
 	}
 

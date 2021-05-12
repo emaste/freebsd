@@ -28,22 +28,22 @@
  */
 
 #ifndef __NET_IFLIB_PRIVATE_H_
-#define	__NET_IFLIB_PRIVATE_H_
+#define __NET_IFLIB_PRIVATE_H_
 
-#define	IFC_LEGACY		0x001
-#define	IFC_QFLUSH		0x002
-#define	IFC_MULTISEG		0x004
-#define	IFC_SPARE1		0x008
-#define	IFC_SC_ALLOCATED	0x010
-#define	IFC_INIT_DONE		0x020
-#define	IFC_PREFETCH		0x040
-#define	IFC_DO_RESET		0x080
-#define	IFC_DO_WATCHDOG		0x100
-#define	IFC_SPARE0		0x200
-#define	IFC_PSEUDO		0x400
-#define	IFC_IN_DETACH		0x800
+#define IFC_LEGACY 0x001
+#define IFC_QFLUSH 0x002
+#define IFC_MULTISEG 0x004
+#define IFC_SPARE1 0x008
+#define IFC_SC_ALLOCATED 0x010
+#define IFC_INIT_DONE 0x020
+#define IFC_PREFETCH 0x040
+#define IFC_DO_RESET 0x080
+#define IFC_DO_WATCHDOG 0x100
+#define IFC_SPARE0 0x200
+#define IFC_PSEUDO 0x400
+#define IFC_IN_DETACH 0x800
 
-#define	IFC_NETMAP_TX_IRQ	0x80000000
+#define IFC_NETMAP_TX_IRQ 0x80000000
 
 MALLOC_DECLARE(M_IFLIB);
 
@@ -59,7 +59,7 @@ int noop_attach(device_t dev);
 int iflib_pseudo_detach(device_t dev);
 
 int iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
-	    struct iflib_cloneattach_ctx *clctx);
+    struct iflib_cloneattach_ctx *clctx);
 
 int iflib_pseudo_deregister(if_ctx_t ctx);
 

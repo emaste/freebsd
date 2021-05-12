@@ -37,7 +37,7 @@
  * class queue definitions extracted from rm_class.h.
  */
 #ifndef _ALTQ_ALTQ_CLASSQ_H_
-#define	_ALTQ_ALTQ_CLASSQ_H_
+#define _ALTQ_ALTQ_CLASSQ_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,11 +46,11 @@ extern "C" {
 /*
  * Packet Queue types: RED or DROPHEAD.
  */
-#define	Q_DROPHEAD	0x00
-#define	Q_RED		0x01
-#define	Q_RIO		0x02
-#define	Q_DROPTAIL	0x03
-#define	Q_CODEL		0x04
+#define Q_DROPHEAD 0x00
+#define Q_RED 0x01
+#define Q_RIO 0x02
+#define Q_DROPTAIL 0x03
+#define Q_CODEL 0x04
 
 #ifdef _KERNEL
 
@@ -58,36 +58,37 @@ extern "C" {
  * Packet Queue structures and macros to manipulate them.
  */
 struct _class_queue_ {
-	struct mbuf	*tail_;	/* Tail of packet queue */
-	int	qlen_;		/* Queue length (in number of packets) */
-	int	qlim_;		/* Queue limit (in number of packets*) */
-	int	qsize_;		/* Queue size (in number of bytes*) */
-	int	qtype_;		/* Queue type */
+	struct mbuf *tail_; /* Tail of packet queue */
+	int qlen_;	    /* Queue length (in number of packets) */
+	int qlim_;	    /* Queue limit (in number of packets*) */
+	int qsize_;	    /* Queue size (in number of bytes*) */
+	int qtype_;	    /* Queue type */
 };
 
-typedef struct _class_queue_	class_queue_t;
+typedef struct _class_queue_ class_queue_t;
 
-#define	qtype(q)	(q)->qtype_		/* Get queue type */
-#define	qlimit(q)	(q)->qlim_		/* Max packets to be queued */
-#define	qlen(q)		(q)->qlen_		/* Current queue length. */
-#define	qsize(q)	(q)->qsize_		/* Current queue size. */
-#define	qtail(q)	(q)->tail_		/* Tail of the queue */
-#define	qhead(q)	((q)->tail_ ? (q)->tail_->m_nextpkt : NULL)
+#define qtype(q) (q)->qtype_ /* Get queue type */
+#define qlimit(q) (q)->qlim_ /* Max packets to be queued */
+#define qlen(q) (q)->qlen_ /* Current queue length. */
+#define qsize(q) (q)->qsize_ /* Current queue size. */
+#define qtail(q) (q)->tail_ /* Tail of the queue */
+#define qhead(q) ((q)->tail_ ? (q)->tail_->m_nextpkt : NULL)
 
-#define	qempty(q)	((q)->qlen_ == 0)	/* Is the queue empty?? */
-#define	q_is_codel(q)	((q)->qtype_ == Q_CODEL) /* Is the queue a codel queue */
-#define	q_is_red(q)	((q)->qtype_ == Q_RED)	/* Is the queue a red queue */
-#define	q_is_rio(q)	((q)->qtype_ == Q_RIO)	/* Is the queue a rio queue */
-#define	q_is_red_or_rio(q)	((q)->qtype_ == Q_RED || (q)->qtype_ == Q_RIO)
+#define qempty(q) ((q)->qlen_ == 0) /* Is the queue empty?? */
+#define q_is_codel(q) ((q)->qtype_ == Q_CODEL) /* Is the queue a codel queue \
+						*/
+#define q_is_red(q) ((q)->qtype_ == Q_RED) /* Is the queue a red queue */
+#define q_is_rio(q) ((q)->qtype_ == Q_RIO) /* Is the queue a rio queue */
+#define q_is_red_or_rio(q) ((q)->qtype_ == Q_RED || (q)->qtype_ == Q_RIO)
 
 #if !defined(__GNUC__) || defined(ALTQ_DEBUG)
 
-extern void		_addq(class_queue_t *, struct mbuf *);
-extern struct mbuf	*_getq(class_queue_t *);
-extern struct mbuf	*_getq_tail(class_queue_t *);
-extern struct mbuf	*_getq_random(class_queue_t *);
-extern void		_removeq(class_queue_t *, struct mbuf *);
-extern void		_flushq(class_queue_t *);
+extern void _addq(class_queue_t *, struct mbuf *);
+extern struct mbuf *_getq(class_queue_t *);
+extern struct mbuf *_getq_tail(class_queue_t *);
+extern struct mbuf *_getq_random(class_queue_t *);
+extern void _removeq(class_queue_t *, struct mbuf *);
+extern void _flushq(class_queue_t *);
 
 #else /* __GNUC__ && !ALTQ_DEBUG */
 /*
@@ -96,7 +97,7 @@ extern void		_flushq(class_queue_t *);
 static __inline void
 _addq(class_queue_t *q, struct mbuf *m)
 {
-        struct mbuf *m0;
+	struct mbuf *m0;
 
 	if ((m0 = qtail(q)) != NULL)
 		m->m_nextpkt = m0->m_nextpkt;
@@ -111,7 +112,7 @@ _addq(class_queue_t *q, struct mbuf *m)
 static __inline struct mbuf *
 _getq(class_queue_t *q)
 {
-	struct mbuf  *m, *m0;
+	struct mbuf *m, *m0;
 
 	if ((m = qtail(q)) == NULL)
 		return (NULL);

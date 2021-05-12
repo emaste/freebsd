@@ -46,9 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/posix4.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/posix4.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -64,8 +64,8 @@ MALLOC_DEFINE(M_P31B, "p1003.1b", "Posix 1003.1B");
 int
 syscall_not_present(struct thread *td, const char *s, struct nosys_args *uap)
 {
-	log(LOG_ERR, "cmd %s pid %d tried to use non-present %s\n",
-			td->td_name, td->td_proc->p_pid, s);
+	log(LOG_ERR, "cmd %s pid %d tried to use non-present %s\n", td->td_name,
+	    td->td_proc->p_pid, s);
 
 	/* a " return nosys(p, uap); " here causes a core dump.
 	 */
@@ -138,8 +138,8 @@ sys_sched_setparam(struct thread *td, struct sched_setparam_args *uap)
 }
 
 int
-kern_sched_setparam(struct thread *td, struct thread *targettd,
-    struct sched_param *param)
+kern_sched_setparam(
+    struct thread *td, struct thread *targettd, struct sched_param *param)
 {
 	struct proc *targetp;
 	int error;
@@ -149,8 +149,8 @@ kern_sched_setparam(struct thread *td, struct thread *targettd,
 
 	error = p_cansched(td, targetp);
 	if (error == 0)
-		error = ksched_setparam(ksched, targettd,
-		    (const struct sched_param *)param);
+		error = ksched_setparam(
+		    ksched, targettd, (const struct sched_param *)param);
 	return (error);
 }
 
@@ -182,8 +182,8 @@ sys_sched_getparam(struct thread *td, struct sched_getparam_args *uap)
 }
 
 int
-kern_sched_getparam(struct thread *td, struct thread *targettd,
-    struct sched_param *param)
+kern_sched_getparam(
+    struct thread *td, struct thread *targettd, struct sched_param *param)
 {
 	struct proc *targetp;
 	int error;
@@ -220,15 +220,14 @@ sys_sched_setscheduler(struct thread *td, struct sched_setscheduler_args *uap)
 		targettd = FIRST_THREAD_IN_PROC(targetp);
 	}
 
-	e = kern_sched_setscheduler(td, targettd, uap->policy,
-	    &sched_param);
+	e = kern_sched_setscheduler(td, targettd, uap->policy, &sched_param);
 	PROC_UNLOCK(targetp);
 	return (e);
 }
 
 int
-kern_sched_setscheduler(struct thread *td, struct thread *targettd,
-    int policy, struct sched_param *param)
+kern_sched_setscheduler(struct thread *td, struct thread *targettd, int policy,
+    struct sched_param *param)
 {
 	struct proc *targetp;
 	int error;
@@ -275,8 +274,7 @@ sys_sched_getscheduler(struct thread *td, struct sched_getscheduler_args *uap)
 }
 
 int
-kern_sched_getscheduler(struct thread *td, struct thread *targettd,
-    int *policy)
+kern_sched_getscheduler(struct thread *td, struct thread *targettd, int *policy)
 {
 	struct proc *targetp;
 	int error;
@@ -299,8 +297,8 @@ sys_sched_yield(struct thread *td, struct sched_yield_args *uap)
 }
 
 int
-sys_sched_get_priority_max(struct thread *td,
-    struct sched_get_priority_max_args *uap)
+sys_sched_get_priority_max(
+    struct thread *td, struct sched_get_priority_max_args *uap)
 {
 	int error, prio;
 
@@ -310,8 +308,8 @@ sys_sched_get_priority_max(struct thread *td,
 }
 
 int
-sys_sched_get_priority_min(struct thread *td,
-    struct sched_get_priority_min_args *uap)
+sys_sched_get_priority_min(
+    struct thread *td, struct sched_get_priority_min_args *uap)
 {
 	int error, prio;
 
@@ -321,8 +319,8 @@ sys_sched_get_priority_min(struct thread *td,
 }
 
 int
-sys_sched_rr_get_interval(struct thread *td,
-    struct sched_rr_get_interval_args *uap)
+sys_sched_rr_get_interval(
+    struct thread *td, struct sched_rr_get_interval_args *uap)
 {
 	struct timespec timespec;
 	int error;
@@ -334,8 +332,7 @@ sys_sched_rr_get_interval(struct thread *td,
 }
 
 int
-kern_sched_rr_get_interval(struct thread *td, pid_t pid,
-    struct timespec *ts)
+kern_sched_rr_get_interval(struct thread *td, pid_t pid, struct timespec *ts)
 {
 	int e;
 	struct thread *targettd;
@@ -358,8 +355,8 @@ kern_sched_rr_get_interval(struct thread *td, pid_t pid,
 }
 
 int
-kern_sched_rr_get_interval_td(struct thread *td, struct thread *targettd,
-    struct timespec *ts)
+kern_sched_rr_get_interval_td(
+    struct thread *td, struct thread *targettd, struct timespec *ts)
 {
 	struct proc *p;
 	int error;
@@ -377,7 +374,7 @@ kern_sched_rr_get_interval_td(struct thread *td, struct thread *targettd,
 static void
 p31binit(void *notused)
 {
-	(void) sched_attach();
+	(void)sched_attach();
 	p31b_setcfg(CTL_P1003_1B_PAGESIZE, PAGE_SIZE);
 }
 

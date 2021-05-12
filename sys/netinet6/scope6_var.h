@@ -38,7 +38,7 @@
 #ifdef _KERNEL
 #include <net/vnet.h>
 
-#define	IPV6_ADDR_SCOPES_COUNT	16
+#define IPV6_ADDR_SCOPES_COUNT 16
 struct scope6_id {
 	/*
 	 * 16 is correspondent to 4bit multicast scope field.
@@ -47,25 +47,25 @@ struct scope6_id {
 	uint32_t s6id_list[IPV6_ADDR_SCOPES_COUNT];
 };
 
-void	scope6_init(void);
+void scope6_init(void);
 struct scope6_id *scope6_ifattach(struct ifnet *);
-void	scope6_ifdetach(struct scope6_id *);
-int	scope6_ioctl(u_long cmd, caddr_t data, struct ifnet *);
-void	scope6_setdefault(struct ifnet *);
-int	scope6_get_default(struct scope6_id *);
+void scope6_ifdetach(struct scope6_id *);
+int scope6_ioctl(u_long cmd, caddr_t data, struct ifnet *);
+void scope6_setdefault(struct ifnet *);
+int scope6_get_default(struct scope6_id *);
 u_int32_t scope6_addr2default(struct in6_addr *);
-int	sa6_embedscope(struct sockaddr_in6 *, int);
-int	sa6_recoverscope(struct sockaddr_in6 *);
-int	sa6_checkzone(struct sockaddr_in6 *);
-int	sa6_checkzone_ifp(struct ifnet *, struct sockaddr_in6 *);
-int	in6_setscope(struct in6_addr *, struct ifnet *, u_int32_t *);
-int	in6_clearscope(struct in6_addr *);
+int sa6_embedscope(struct sockaddr_in6 *, int);
+int sa6_recoverscope(struct sockaddr_in6 *);
+int sa6_checkzone(struct sockaddr_in6 *);
+int sa6_checkzone_ifp(struct ifnet *, struct sockaddr_in6 *);
+int in6_setscope(struct in6_addr *, struct ifnet *, u_int32_t *);
+int in6_clearscope(struct in6_addr *);
 uint16_t in6_getscope(const struct in6_addr *);
 uint32_t in6_getscopezone(const struct ifnet *, int);
-void	in6_splitscope(const struct in6_addr *, struct in6_addr *, uint32_t *);
-struct ifnet* in6_getlinkifnet(uint32_t);
+void in6_splitscope(const struct in6_addr *, struct in6_addr *, uint32_t *);
+struct ifnet *in6_getlinkifnet(uint32_t);
 uint32_t in6_get_unicast_scopeid(const struct in6_addr *, const struct ifnet *);
-void	in6_set_unicast_scopeid(struct in6_addr *, uint32_t);
+void in6_set_unicast_scopeid(struct in6_addr *, uint32_t);
 #endif /* _KERNEL */
 
 #endif /* _NETINET6_SCOPE6_VAR_H_ */

@@ -31,26 +31,26 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/slab.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 /*
  * Linux devres KPI implementation.
  */
 
 struct devres {
-	struct list_head	entry;
-	void			(*release)(struct device *, void *);
+	struct list_head entry;
+	void (*release)(struct device *, void *);
 
 	/* Must come last. */
-	uint8_t			__drdata[0] __aligned(CACHE_LINE_SIZE);
+	uint8_t __drdata[0] __aligned(CACHE_LINE_SIZE);
 };
 
 void *
-lkpi_devres_alloc(void(*release)(struct device *, void *),
-    size_t size, gfp_t gfp)
+lkpi_devres_alloc(
+    void (*release)(struct device *, void *), size_t size, gfp_t gfp)
 {
 	void *p;
 	struct devres *dr;
@@ -66,7 +66,7 @@ lkpi_devres_alloc(void(*release)(struct device *, void *),
 
 	INIT_LIST_HEAD(&dr->entry);
 	dr->release = release;
-	p = (void *)(dr+1);
+	p = (void *)(dr + 1);
 
 	return (p);
 }
@@ -101,8 +101,8 @@ lkpi_devres_add(struct device *dev, void *p)
 {
 	struct devres *dr;
 
-	KASSERT(dev != NULL && p != NULL, ("%s: dev %p p %p\n",
-	    __func__, dev, p));
+	KASSERT(
+	    dev != NULL && p != NULL, ("%s: dev %p p %p\n", __func__, dev, p));
 
 	dr = container_of(p, struct devres, __drdata);
 	spin_lock(&dev->devres_lock);
@@ -111,7 +111,8 @@ lkpi_devres_add(struct device *dev, void *p)
 }
 
 static struct devres *
-lkpi_devres_find_dr(struct device *dev, void(*release)(struct device *, void *),
+lkpi_devres_find_dr(struct device *dev,
+    void (*release)(struct device *, void *),
     int (*match)(struct device *, void *, void *), void *mp)
 {
 	struct devres *dr, *next;
@@ -120,10 +121,11 @@ lkpi_devres_find_dr(struct device *dev, void(*release)(struct device *, void *),
 	KASSERT(dev != NULL, ("%s: dev %p\n", __func__, dev));
 	assert_spin_locked(&dev->devres_lock);
 
-	list_for_each_entry_safe(dr, next, &dev->devres_head, entry) {
+	list_for_each_entry_safe(dr, next, &dev->devres_head, entry)
+	{
 		if (dr->release != release)
 			continue;
-		p = (void *)(dr+1);
+		p = (void *)(dr + 1);
 		if (match != NULL && match(dev, p, mp) == false)
 			continue;
 		return (dr);
@@ -133,7 +135,7 @@ lkpi_devres_find_dr(struct device *dev, void(*release)(struct device *, void *),
 }
 
 void *
-lkpi_devres_find(struct device *dev, void(*release)(struct device *, void *),
+lkpi_devres_find(struct device *dev, void (*release)(struct device *, void *),
     int (*match)(struct device *, void *, void *), void *mp)
 {
 	struct devres *dr;
@@ -165,8 +167,8 @@ lkpi_devres_unlink(struct device *dev, void *p)
 {
 	struct devres *dr;
 
-	KASSERT(dev != NULL && p != NULL, ("%s: dev %p p %p\n",
-	    __func__, dev, p));
+	KASSERT(
+	    dev != NULL && p != NULL, ("%s: dev %p p %p\n", __func__, dev, p));
 
 	dr = container_of(p, struct devres, __drdata);
 	spin_lock(&dev->devres_lock);
@@ -183,8 +185,9 @@ lkpi_devres_release_free_list(struct device *dev)
 
 	/* Free any resources allocated on the device. */
 	/* No need to lock anymore. */
-	list_for_each_entry_safe(dr, next, &dev->devres_head, entry) {
-		p = (void *)(dr+1);
+	list_for_each_entry_safe(dr, next, &dev->devres_head, entry)
+	{
+		p = (void *)(dr + 1);
 		if (dr->release != NULL)
 			dr->release(dev, p);
 		/* This should probably be a function of some kind. */
@@ -194,7 +197,8 @@ lkpi_devres_release_free_list(struct device *dev)
 }
 
 int
-lkpi_devres_destroy(struct device *dev, void(*release)(struct device *, void *),
+lkpi_devres_destroy(struct device *dev,
+    void (*release)(struct device *, void *),
     int (*match)(struct device *, void *, void *), void *mp)
 {
 	struct devres *dr;

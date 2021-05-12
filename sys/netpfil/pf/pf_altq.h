@@ -32,61 +32,61 @@
  *	$FreeBSD$
  */
 
-#ifndef	_NET_PF_ALTQ_H_
-#define	_NET_PF_ALTQ_H_
+#ifndef _NET_PF_ALTQ_H_
+#define _NET_PF_ALTQ_H_
 
 struct cbq_opts {
-	u_int		minburst;
-	u_int		maxburst;
-	u_int		pktsize;
-	u_int		maxpktsize;
-	u_int		ns_per_byte;
-	u_int		maxidle;
-	int		minidle;
-	u_int		offtime;
-	int		flags;
+	u_int minburst;
+	u_int maxburst;
+	u_int pktsize;
+	u_int maxpktsize;
+	u_int ns_per_byte;
+	u_int maxidle;
+	int minidle;
+	u_int offtime;
+	int flags;
 };
 
 struct codel_opts {
-	u_int		target;
-	u_int		interval;
-	int		ecn;
+	u_int target;
+	u_int interval;
+	int ecn;
 };
 
 struct priq_opts {
-	int		flags;
+	int flags;
 };
 
 struct hfsc_opts_v0 {
 	/* real-time service curve */
-	u_int		rtsc_m1;	/* slope of the 1st segment in bps */
-	u_int		rtsc_d;		/* the x-projection of m1 in msec */
-	u_int		rtsc_m2;	/* slope of the 2nd segment in bps */
+	u_int rtsc_m1; /* slope of the 1st segment in bps */
+	u_int rtsc_d;  /* the x-projection of m1 in msec */
+	u_int rtsc_m2; /* slope of the 2nd segment in bps */
 	/* link-sharing service curve */
-	u_int		lssc_m1;
-	u_int		lssc_d;
-	u_int		lssc_m2;
+	u_int lssc_m1;
+	u_int lssc_d;
+	u_int lssc_m2;
 	/* upper-limit service curve */
-	u_int		ulsc_m1;
-	u_int		ulsc_d;
-	u_int		ulsc_m2;
-	int		flags;
+	u_int ulsc_m1;
+	u_int ulsc_d;
+	u_int ulsc_m2;
+	int flags;
 };
 
 struct hfsc_opts_v1 {
 	/* real-time service curve */
-	u_int64_t	rtsc_m1;	/* slope of the 1st segment in bps */
-	u_int		rtsc_d;		/* the x-projection of m1 in msec */
-	u_int64_t	rtsc_m2;	/* slope of the 2nd segment in bps */
+	u_int64_t rtsc_m1; /* slope of the 1st segment in bps */
+	u_int rtsc_d;	   /* the x-projection of m1 in msec */
+	u_int64_t rtsc_m2; /* slope of the 2nd segment in bps */
 	/* link-sharing service curve */
-	u_int64_t	lssc_m1;
-	u_int		lssc_d;
-	u_int64_t	lssc_m2;
+	u_int64_t lssc_m1;
+	u_int lssc_d;
+	u_int64_t lssc_m2;
 	/* upper-limit service curve */
-	u_int64_t	ulsc_m1;
-	u_int		ulsc_d;
-	u_int64_t	ulsc_m2;
-	int		flags;
+	u_int64_t ulsc_m1;
+	u_int ulsc_d;
+	u_int64_t ulsc_m2;
+	int flags;
 };
 
 /*
@@ -102,14 +102,14 @@ struct hfsc_opts_v1 {
  * XXX this needs some work
  */
 struct fairq_opts {
-	u_int           nbuckets;
-	u_int           hogs_m1;
-	int             flags;
+	u_int nbuckets;
+	u_int hogs_m1;
+	int flags;
 
 	/* link sharing service curve */
-	u_int           lssc_m1;
-	u_int           lssc_d;
-	u_int           lssc_m2;
+	u_int lssc_m1;
+	u_int lssc_d;
+	u_int lssc_m2;
 };
 
 /*
@@ -119,108 +119,108 @@ struct fairq_opts {
  *
  */
 struct pf_altq_v0 {
-	char			 ifname[IFNAMSIZ];
+	char ifname[IFNAMSIZ];
 
 	/*
 	 * This member is a holdover from when the kernel state structure
 	 * was reused as the ioctl argument structure, and remains to
 	 * preserve the size and layout of this struct for backwards compat.
 	 */
-	void			*unused1;
-	TAILQ_ENTRY(pf_altq_v0)	 entries;
+	void *unused1;
+	TAILQ_ENTRY(pf_altq_v0) entries;
 
 	/* scheduler spec */
-	uint8_t			 scheduler;	/* scheduler type */
-	uint16_t		 tbrsize;	/* tokenbucket regulator size */
-	uint32_t		 ifbandwidth;	/* interface bandwidth */
+	uint8_t scheduler;    /* scheduler type */
+	uint16_t tbrsize;     /* tokenbucket regulator size */
+	uint32_t ifbandwidth; /* interface bandwidth */
 
 	/* queue spec */
-	char			 qname[PF_QNAME_SIZE];	/* queue name */
-	char			 parent[PF_QNAME_SIZE];	/* parent name */
-	uint32_t		 parent_qid;	/* parent queue id */
-	uint32_t		 bandwidth;	/* queue bandwidth */
-	uint8_t			 priority;	/* priority */
-	uint8_t			 local_flags;	/* dynamic interface */
-#define	PFALTQ_FLAG_IF_REMOVED		0x01
+	char qname[PF_QNAME_SIZE];  /* queue name */
+	char parent[PF_QNAME_SIZE]; /* parent name */
+	uint32_t parent_qid;	    /* parent queue id */
+	uint32_t bandwidth;	    /* queue bandwidth */
+	uint8_t priority;	    /* priority */
+	uint8_t local_flags;	    /* dynamic interface */
+#define PFALTQ_FLAG_IF_REMOVED 0x01
 
-	uint16_t		 qlimit;	/* queue size limit */
-	uint16_t		 flags;		/* misc flags */
+	uint16_t qlimit; /* queue size limit */
+	uint16_t flags;	 /* misc flags */
 	union {
-		struct cbq_opts		 cbq_opts;
-		struct codel_opts	 codel_opts;
-		struct priq_opts	 priq_opts;
-		struct hfsc_opts_v0	 hfsc_opts;
-		struct fairq_opts        fairq_opts;
+		struct cbq_opts cbq_opts;
+		struct codel_opts codel_opts;
+		struct priq_opts priq_opts;
+		struct hfsc_opts_v0 hfsc_opts;
+		struct fairq_opts fairq_opts;
 	} pq_u;
 
-	uint32_t		 qid;		/* return value */
+	uint32_t qid; /* return value */
 };
 
 struct pf_altq_v1 {
-	char			 ifname[IFNAMSIZ];
+	char ifname[IFNAMSIZ];
 
-	TAILQ_ENTRY(pf_altq_v1)	 entries;
+	TAILQ_ENTRY(pf_altq_v1) entries;
 
 	/* scheduler spec */
-	uint8_t			 scheduler;	/* scheduler type */
-	uint32_t		 tbrsize;	/* tokenbucket regulator size */
-	uint64_t		 ifbandwidth;	/* interface bandwidth */
+	uint8_t scheduler;    /* scheduler type */
+	uint32_t tbrsize;     /* tokenbucket regulator size */
+	uint64_t ifbandwidth; /* interface bandwidth */
 
 	/* queue spec */
-	char			 qname[PF_QNAME_SIZE];	/* queue name */
-	char			 parent[PF_QNAME_SIZE];	/* parent name */
-	uint32_t		 parent_qid;	/* parent queue id */
-	uint64_t		 bandwidth;	/* queue bandwidth */
-	uint8_t			 priority;	/* priority */
-	uint8_t			 local_flags;	/* dynamic interface, see _v0 */
+	char qname[PF_QNAME_SIZE];  /* queue name */
+	char parent[PF_QNAME_SIZE]; /* parent name */
+	uint32_t parent_qid;	    /* parent queue id */
+	uint64_t bandwidth;	    /* queue bandwidth */
+	uint8_t priority;	    /* priority */
+	uint8_t local_flags;	    /* dynamic interface, see _v0 */
 
-	uint16_t		 qlimit;	/* queue size limit */
-	uint16_t		 flags;		/* misc flags */
+	uint16_t qlimit; /* queue size limit */
+	uint16_t flags;	 /* misc flags */
 	union {
-		struct cbq_opts		 cbq_opts;
-		struct codel_opts	 codel_opts;
-		struct priq_opts	 priq_opts;
-		struct hfsc_opts_v1	 hfsc_opts;
-		struct fairq_opts        fairq_opts;
+		struct cbq_opts cbq_opts;
+		struct codel_opts codel_opts;
+		struct priq_opts priq_opts;
+		struct hfsc_opts_v1 hfsc_opts;
+		struct fairq_opts fairq_opts;
 	} pq_u;
 
-	uint32_t		 qid;		/* return value */
+	uint32_t qid; /* return value */
 };
 
 /* Latest version of struct pf_altq_vX */
-#define PF_ALTQ_VERSION	1
+#define PF_ALTQ_VERSION 1
 
 #ifdef _KERNEL
 struct pf_kaltq {
-	char			 ifname[IFNAMSIZ];
+	char ifname[IFNAMSIZ];
 
-	void			*altq_disc;	/* discipline-specific state */
-	TAILQ_ENTRY(pf_kaltq)	 entries;
+	void *altq_disc; /* discipline-specific state */
+	TAILQ_ENTRY(pf_kaltq) entries;
 
 	/* scheduler spec */
-	uint8_t			 scheduler;	/* scheduler type */
-	uint32_t		 tbrsize;	/* tokenbucket regulator size */
-	uint64_t		 ifbandwidth;	/* interface bandwidth */
+	uint8_t scheduler;    /* scheduler type */
+	uint32_t tbrsize;     /* tokenbucket regulator size */
+	uint64_t ifbandwidth; /* interface bandwidth */
 
 	/* queue spec */
-	char			 qname[PF_QNAME_SIZE];	/* queue name */
-	char			 parent[PF_QNAME_SIZE];	/* parent name */
-	uint32_t		 parent_qid;	/* parent queue id */
-	uint64_t		 bandwidth;	/* queue bandwidth */
-	uint8_t			 priority;	/* priority */
-	uint8_t			 local_flags;	/* dynamic interface, see _v0 */
+	char qname[PF_QNAME_SIZE];  /* queue name */
+	char parent[PF_QNAME_SIZE]; /* parent name */
+	uint32_t parent_qid;	    /* parent queue id */
+	uint64_t bandwidth;	    /* queue bandwidth */
+	uint8_t priority;	    /* priority */
+	uint8_t local_flags;	    /* dynamic interface, see _v0 */
 
-	uint16_t		 qlimit;	/* queue size limit */
-	uint16_t		 flags;		/* misc flags */
+	uint16_t qlimit; /* queue size limit */
+	uint16_t flags;	 /* misc flags */
 	union {
-		struct cbq_opts		 cbq_opts;
-		struct codel_opts	 codel_opts;
-		struct priq_opts	 priq_opts;
-		struct hfsc_opts_v1	 hfsc_opts;
-		struct fairq_opts        fairq_opts;
+		struct cbq_opts cbq_opts;
+		struct codel_opts codel_opts;
+		struct priq_opts priq_opts;
+		struct hfsc_opts_v1 hfsc_opts;
+		struct fairq_opts fairq_opts;
 	} pq_u;
 
-	uint32_t		 qid;		/* return value */
+	uint32_t qid; /* return value */
 };
 #endif /* _KERNEL */
 
@@ -242,7 +242,7 @@ struct pf_kaltq {
  * version as that reduces the required changes in the consumers to those
  * that are functionally necessary to accommodate a new interface version.
  */
-#define	pf_altq		__CONCAT(pf_altq_v, PF_ALTQ_VERSION)
+#define pf_altq __CONCAT(pf_altq_v, PF_ALTQ_VERSION)
 
 #else /* PFIOC_USE_LATEST */
 /*
@@ -250,9 +250,9 @@ struct pf_kaltq {
  * such as may exist in ports for example, resolve the old pf_altq struct
  * tag to the v0 version.
  */
-#define	pf_altq		__CONCAT(pf_altq_v, 0)
+#define pf_altq __CONCAT(pf_altq_v, 0)
 
 #endif /* PFIOC_USE_LATEST */
 #endif /* _KERNEL */
 
-#endif	/* _NET_PF_ALTQ_H_ */
+#endif /* _NET_PF_ALTQ_H_ */

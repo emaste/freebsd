@@ -27,7 +27,7 @@
  * $FreeBSD$
  */
 
-#ifndef	__MACHINE_ATAGS_H__
+#ifndef __MACHINE_ATAGS_H__
 #define __MACHINE_ATAGS_H__
 
 /*
@@ -36,32 +36,30 @@
  * bothered to do the usual alignment dance.
  */
 
-#define	LBABI_MAX_COMMAND_LINE  1024
+#define LBABI_MAX_COMMAND_LINE 1024
 
-struct arm_lbabi_header
-{
-	uint32_t	size;		/* Size of this node, including header */
-	uint32_t	tag;		/* Node type */
+struct arm_lbabi_header {
+	uint32_t size; /* Size of this node, including header */
+	uint32_t tag;  /* Node type */
 };
 
-#define	ATAG_NONE       0x00000000	/* End of atags list */
-#define	ATAG_CORE	0x54410001	/* List must start with ATAG_CORE */
-#define	ATAG_MEM	0x54410002	/* Multiple ATAG_MEM nodes possible */
-#define	ATAG_VIDEOTEXT	0x54410003	/* Video parameters */
-#define	ATAG_RAMDISK	0x54410004	/* Describes the ramdisk parameters */
-#define	ATAG_INITRD	0x54410005	/* Deprecated ramdisk -- used va not pa */
-#define	ATAG_INITRD2	0x54420005	/* compressed ramdisk image */
-#define	ATAG_SERIAL	0x54410006	/* 64-bits of serial number */
-#define	ATAG_REVISION	0x54410007	/* Board revision */
-#define	ATAG_VIDEOLFB	0x54410008	/* vesafb framebuffer */
-#define	ATAG_CMDLINE	0x54410009	/* Command line */
+#define ATAG_NONE 0x00000000 /* End of atags list */
+#define ATAG_CORE 0x54410001 /* List must start with ATAG_CORE */
+#define ATAG_MEM 0x54410002 /* Multiple ATAG_MEM nodes possible */
+#define ATAG_VIDEOTEXT 0x54410003 /* Video parameters */
+#define ATAG_RAMDISK 0x54410004 /* Describes the ramdisk parameters */
+#define ATAG_INITRD 0x54410005 /* Deprecated ramdisk -- used va not pa */
+#define ATAG_INITRD2 0x54420005 /* compressed ramdisk image */
+#define ATAG_SERIAL 0x54410006 /* 64-bits of serial number */
+#define ATAG_REVISION 0x54410007 /* Board revision */
+#define ATAG_VIDEOLFB 0x54410008 /* vesafb framebuffer */
+#define ATAG_CMDLINE 0x54410009 /* Command line */
 
 /*
  * ATAG_CORE data
  */
-struct arm_lbabi_core
-{
-	uint32_t flags;			/* bit 0 == read-only */
+struct arm_lbabi_core {
+	uint32_t flags; /* bit 0 == read-only */
 	uint32_t pagesize;
 	uint32_t rootdev;
 };
@@ -70,26 +68,23 @@ struct arm_lbabi_core
  * ATAG_MEM data -- Can be more than one to describe different
  * banks.
  */
-struct arm_lbabi_mem32
-{
+struct arm_lbabi_mem32 {
 	uint32_t size;
-	uint32_t start;			/* start of physical memory */
+	uint32_t start; /* start of physical memory */
 };
 
 /*
  * ATAG_INITRD2 - Compressed ramdisk image details
  */
-struct arm_lbabi_initrd
-{
-	uint32_t start;			/* pa of start */
-	uint32_t size;			/* How big the ram disk is */
+struct arm_lbabi_initrd {
+	uint32_t start; /* pa of start */
+	uint32_t size;	/* How big the ram disk is */
 };
 
 /*
  * ATAG_SERIAL - serial number
  */
-struct arm_lbabi_serial_number
-{
+struct arm_lbabi_serial_number {
 	uint32_t low;
 	uint32_t high;
 };
@@ -97,21 +92,18 @@ struct arm_lbabi_serial_number
 /*
  * ATAG_REVISION - board revision
  */
-struct arm_lbabi_revision
-{
+struct arm_lbabi_revision {
 	uint32_t rev;
 };
 
 /*
  * ATAG_CMDLINE - Command line from uboot
  */
-struct arm_lbabi_command_line
-{
-	char command[1];		/* Minimum command length */
+struct arm_lbabi_command_line {
+	char command[1]; /* Minimum command length */
 };
 
-struct arm_lbabi_tag
-{
+struct arm_lbabi_tag {
 	struct arm_lbabi_header tag_hdr;
 	union {
 		struct arm_lbabi_core tag_core;
@@ -123,7 +115,7 @@ struct arm_lbabi_tag
 	} u;
 };
 
-#define	ATAG_TAG(a)  (a)->tag_hdr.tag
+#define ATAG_TAG(a) (a)->tag_hdr.tag
 #define ATAG_SIZE(a) ((a)->tag_hdr.size * sizeof(uint32_t))
 #define ATAG_NEXT(a) (struct arm_lbabi_tag *)((char *)(a) + ATAG_SIZE(a))
 

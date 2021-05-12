@@ -38,8 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 
 /* Sizeof arm64_bootparams, rounded to keep stack alignment */
-ASSYM(BOOTPARAMS_SIZE, roundup2(sizeof(struct arm64_bootparams),
-    STACKALIGNBYTES + 1));
+ASSYM(BOOTPARAMS_SIZE,
+    roundup2(sizeof(struct arm64_bootparams), STACKALIGNBYTES + 1));
 ASSYM(BP_MODULEP, offsetof(struct arm64_bootparams, modulep));
 ASSYM(BP_KERN_L1PT, offsetof(struct arm64_bootparams, kern_l1pt));
 ASSYM(BP_KERN_DELTA, offsetof(struct arm64_bootparams, kern_delta));

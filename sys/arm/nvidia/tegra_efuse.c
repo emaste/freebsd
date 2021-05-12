@@ -34,8 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
 
@@ -49,69 +49,67 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/nvidia/tegra_efuse.h>
 
-#define FUSES_START	0x100
-#define	RD4(_sc, _r)	bus_read_4((_sc)->mem_res, (FUSES_START + (_r)))
+#define FUSES_START 0x100
+#define RD4(_sc, _r) bus_read_4((_sc)->mem_res, (FUSES_START + (_r)))
 
 struct efuse_soc;
 struct tegra_efuse_softc {
-	device_t		dev;
-	struct resource		*mem_res;
+	device_t dev;
+	struct resource *mem_res;
 
-	struct efuse_soc 	*soc;
-	clk_t			clk;
-	hwreset_t		reset;
+	struct efuse_soc *soc;
+	clk_t clk;
+	hwreset_t reset;
 };
 
 struct tegra_efuse_softc *dev_sc;
 struct tegra_sku_info tegra_sku_info;
 static char *tegra_rev_name[] = {
 	[TEGRA_REVISION_UNKNOWN] = "unknown",
-	[TEGRA_REVISION_A01]     = "A01",
-	[TEGRA_REVISION_A02]     = "A02",
-	[TEGRA_REVISION_A03]     = "A03",
-	[TEGRA_REVISION_A03p]    = "A03 prime",
-	[TEGRA_REVISION_A04]     = "A04",
+	[TEGRA_REVISION_A01] = "A01",
+	[TEGRA_REVISION_A02] = "A02",
+	[TEGRA_REVISION_A03] = "A03",
+	[TEGRA_REVISION_A03p] = "A03 prime",
+	[TEGRA_REVISION_A04] = "A04",
 };
 
 struct efuse_soc {
-	void	(*init)(struct tegra_efuse_softc *sc,
-		    struct tegra_sku_info *sku);
+	void (*init)(struct tegra_efuse_softc *sc, struct tegra_sku_info *sku);
 };
 
-static void tegra124_init(struct tegra_efuse_softc *sc,
-    struct tegra_sku_info *sku);
+static void tegra124_init(
+    struct tegra_efuse_softc *sc, struct tegra_sku_info *sku);
 struct efuse_soc tegra124_efuse_soc = {
 	.init = tegra124_init,
 };
 
-static void tegra210_init(struct tegra_efuse_softc *sc,
-    struct tegra_sku_info *sku);
+static void tegra210_init(
+    struct tegra_efuse_softc *sc, struct tegra_sku_info *sku);
 struct efuse_soc tegra210_efuse_soc = {
 	.init = tegra210_init,
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"nvidia,tegra124-efuse", (intptr_t)&tegra124_efuse_soc},
-	{"nvidia,tegra210-efuse", (intptr_t)&tegra210_efuse_soc},
-	{NULL,			0}
+	{ "nvidia,tegra124-efuse", (intptr_t)&tegra124_efuse_soc },
+	{ "nvidia,tegra210-efuse", (intptr_t)&tegra210_efuse_soc }, { NULL, 0 }
 };
 
 /* ---------------------- Tegra 124 specific code & data --------------- */
-#define	TEGRA124_CPU_PROCESS_CORNERS	2
-#define	TEGRA124_GPU_PROCESS_CORNERS	2
-#define	TEGRA124_SOC_PROCESS_CORNERS	2
+#define TEGRA124_CPU_PROCESS_CORNERS 2
+#define TEGRA124_GPU_PROCESS_CORNERS 2
+#define TEGRA124_SOC_PROCESS_CORNERS 2
 
-#define	TEGRA124_FUSE_SKU_INFO		0x10
-#define	TEGRA124_FUSE_CPU_SPEEDO_0	0x14
-#define	TEGRA124_FUSE_CPU_IDDQ		0x18
-#define	TEGRA124_FUSE_FT_REV		0x28
-#define	TEGRA124_FUSE_CPU_SPEEDO_1	0x2c
-#define	TEGRA124_FUSE_CPU_SPEEDO_2	0x30
-#define	TEGRA124_FUSE_SOC_SPEEDO_0	0x34
-#define	TEGRA124_FUSE_SOC_SPEEDO_1	0x38
-#define	TEGRA124_FUSE_SOC_SPEEDO_2	0x3c
-#define	TEGRA124_FUSE_SOC_IDDQ		0x40
-#define	TEGRA124_FUSE_GPU_IDDQ		0x128
+#define TEGRA124_FUSE_SKU_INFO 0x10
+#define TEGRA124_FUSE_CPU_SPEEDO_0 0x14
+#define TEGRA124_FUSE_CPU_IDDQ 0x18
+#define TEGRA124_FUSE_FT_REV 0x28
+#define TEGRA124_FUSE_CPU_SPEEDO_1 0x2c
+#define TEGRA124_FUSE_CPU_SPEEDO_2 0x30
+#define TEGRA124_FUSE_SOC_SPEEDO_0 0x34
+#define TEGRA124_FUSE_SOC_SPEEDO_1 0x38
+#define TEGRA124_FUSE_SOC_SPEEDO_2 0x3c
+#define TEGRA124_FUSE_SOC_IDDQ 0x40
+#define TEGRA124_FUSE_GPU_IDDQ 0x128
 
 enum {
 	TEGRA124_THRESHOLD_INDEX_0,
@@ -119,28 +117,24 @@ enum {
 	TEGRA124_THRESHOLD_INDEX_COUNT,
 };
 
-static uint32_t tegra124_cpu_process_speedos[][TEGRA124_CPU_PROCESS_CORNERS] =
-{
-	{2190,	UINT_MAX},
-	{0,	UINT_MAX},
+static uint32_t tegra124_cpu_process_speedos[][TEGRA124_CPU_PROCESS_CORNERS] = {
+	{ 2190, UINT_MAX },
+	{ 0, UINT_MAX },
 };
 
-static uint32_t tegra124_gpu_process_speedos[][TEGRA124_GPU_PROCESS_CORNERS] =
-{
-	{1965,	UINT_MAX},
-	{0,	UINT_MAX},
+static uint32_t tegra124_gpu_process_speedos[][TEGRA124_GPU_PROCESS_CORNERS] = {
+	{ 1965, UINT_MAX },
+	{ 0, UINT_MAX },
 };
 
-static uint32_t tegra124_soc_process_speedos[][TEGRA124_SOC_PROCESS_CORNERS] =
-{
-	{2101,	UINT_MAX},
-	{0,	UINT_MAX},
+static uint32_t tegra124_soc_process_speedos[][TEGRA124_SOC_PROCESS_CORNERS] = {
+	{ 2101, UINT_MAX },
+	{ 0, UINT_MAX },
 };
-
 
 static void
-tegra124_rev_sku_to_speedo_ids(struct tegra_efuse_softc *sc,
-    struct tegra_sku_info *sku, int *threshold)
+tegra124_rev_sku_to_speedo_ids(
+    struct tegra_efuse_softc *sc, struct tegra_sku_info *sku, int *threshold)
 {
 
 	/* Set default */
@@ -211,45 +205,44 @@ tegra124_init(struct tegra_efuse_softc *sc, struct tegra_sku_info *sku)
 
 	for (i = 0; i < TEGRA124_SOC_PROCESS_CORNERS; i++) {
 		if (sku->soc_speedo_value <
-			tegra124_soc_process_speedos[threshold][i])
+		    tegra124_soc_process_speedos[threshold][i])
 			break;
 	}
 	sku->soc_process_id = i;
 
 	for (i = 0; i < TEGRA124_CPU_PROCESS_CORNERS; i++) {
 		if (sku->cpu_speedo_value <
-			tegra124_cpu_process_speedos[threshold][i])
-				break;
+		    tegra124_cpu_process_speedos[threshold][i])
+			break;
 	}
 	sku->cpu_process_id = i;
 
 	for (i = 0; i < TEGRA124_GPU_PROCESS_CORNERS; i++) {
 		if (sku->gpu_speedo_value <
-			tegra124_gpu_process_speedos[threshold][i])
+		    tegra124_gpu_process_speedos[threshold][i])
 			break;
 	}
 	sku->gpu_process_id = i;
-
 }
 /* ----------------- End of Tegra 124 specific code & data --------------- */
 
 /* -------------------- Tegra 201 specific code & data ------------------- */
-#define	TEGRA210_CPU_PROCESS_CORNERS	2
-#define	TEGRA210_GPU_PROCESS_CORNERS	2
-#define	TEGRA210_SOC_PROCESS_CORNERS	3
+#define TEGRA210_CPU_PROCESS_CORNERS 2
+#define TEGRA210_GPU_PROCESS_CORNERS 2
+#define TEGRA210_SOC_PROCESS_CORNERS 3
 
-#define	TEGRA210_FUSE_SKU_INFO		0x010
-#define	TEGRA210_FUSE_CPU_SPEEDO_0	0x014
-#define	TEGRA210_FUSE_CPU_IDDQ		0x018
-#define	TEGRA210_FUSE_FT_REV		0x028
-#define	TEGRA210_FUSE_CPU_SPEEDO_1	0x02c
-#define	TEGRA210_FUSE_CPU_SPEEDO_2	0x030
-#define	TEGRA210_FUSE_SOC_SPEEDO_0	0x034
-#define	TEGRA210_FUSE_SOC_SPEEDO_1	0x038
-#define	TEGRA210_FUSE_SOC_SPEEDO_2	0x03c
-#define	TEGRA210_FUSE_SOC_IDDQ		0x040
-#define	TEGRA210_FUSE_GPU_IDDQ		0x128
-#define	TEGRA210_FUSE_SPARE		0x270
+#define TEGRA210_FUSE_SKU_INFO 0x010
+#define TEGRA210_FUSE_CPU_SPEEDO_0 0x014
+#define TEGRA210_FUSE_CPU_IDDQ 0x018
+#define TEGRA210_FUSE_FT_REV 0x028
+#define TEGRA210_FUSE_CPU_SPEEDO_1 0x02c
+#define TEGRA210_FUSE_CPU_SPEEDO_2 0x030
+#define TEGRA210_FUSE_SOC_SPEEDO_0 0x034
+#define TEGRA210_FUSE_SOC_SPEEDO_1 0x038
+#define TEGRA210_FUSE_SOC_SPEEDO_2 0x03c
+#define TEGRA210_FUSE_SOC_IDDQ 0x040
+#define TEGRA210_FUSE_GPU_IDDQ 0x128
+#define TEGRA210_FUSE_SPARE 0x270
 
 enum {
 	TEGRA210_THRESHOLD_INDEX_0,
@@ -257,22 +250,19 @@ enum {
 	TEGRA210_THRESHOLD_INDEX_COUNT,
 };
 
-static uint32_t tegra210_cpu_process_speedos[][TEGRA210_CPU_PROCESS_CORNERS] =
-{
-	{2119, UINT_MAX},
-	{2119, UINT_MAX},
+static uint32_t tegra210_cpu_process_speedos[][TEGRA210_CPU_PROCESS_CORNERS] = {
+	{ 2119, UINT_MAX },
+	{ 2119, UINT_MAX },
 };
 
-static uint32_t tegra210_gpu_process_speedos[][TEGRA210_GPU_PROCESS_CORNERS] =
-{
-	{UINT_MAX, UINT_MAX},
-	{UINT_MAX, UINT_MAX},
+static uint32_t tegra210_gpu_process_speedos[][TEGRA210_GPU_PROCESS_CORNERS] = {
+	{ UINT_MAX, UINT_MAX },
+	{ UINT_MAX, UINT_MAX },
 };
 
-static uint32_t tegra210_soc_process_speedos[][TEGRA210_SOC_PROCESS_CORNERS] =
-{
-	{1950, 2100, UINT_MAX},
-	{1950, 2100, UINT_MAX},
+static uint32_t tegra210_soc_process_speedos[][TEGRA210_SOC_PROCESS_CORNERS] = {
+	{ 1950, 2100, UINT_MAX },
+	{ 1950, 2100, UINT_MAX },
 };
 
 static uint32_t
@@ -285,15 +275,14 @@ tegra210_get_speedo_revision(struct tegra_efuse_softc *sc)
 
 	/* Revision i encoded in spare fields */
 	reg = RD4(sc, TEGRA210_FUSE_SPARE + 2 * 4);
-	val |=  (reg & 1) << 0;
+	val |= (reg & 1) << 0;
 	reg = RD4(sc, TEGRA210_FUSE_SPARE + 3 * 4);
-	val |=  (reg & 1) << 1;
+	val |= (reg & 1) << 1;
 	reg = RD4(sc, TEGRA210_FUSE_SPARE + 4 * 4);
-	val |=  (reg & 1) << 2;
+	val |= (reg & 1) << 2;
 
 	return (val);
 }
-
 
 static void
 tegra210_rev_sku_to_speedo_ids(struct tegra_efuse_softc *sc,
@@ -328,7 +317,6 @@ tegra210_rev_sku_to_speedo_ids(struct tegra_efuse_softc *sc,
 	}
 }
 
-
 static void
 tegra210_init(struct tegra_efuse_softc *sc, struct tegra_sku_info *sku)
 {
@@ -343,7 +331,6 @@ tegra210_init(struct tegra_efuse_softc *sc, struct tegra_sku_info *sku)
 	soc_speedo[1] = RD4(sc, TEGRA210_FUSE_SOC_SPEEDO_1);
 	soc_speedo[2] = RD4(sc, TEGRA210_FUSE_SOC_SPEEDO_2);
 
-
 	sku->cpu_iddq_value = RD4(sc, TEGRA210_FUSE_CPU_IDDQ);
 	sku->soc_iddq_value = RD4(sc, TEGRA210_FUSE_SOC_IDDQ);
 	sku->gpu_iddq_value = RD4(sc, TEGRA210_FUSE_GPU_IDDQ);
@@ -353,19 +340,19 @@ tegra210_init(struct tegra_efuse_softc *sc, struct tegra_sku_info *sku)
 	gpu_iddq = RD4(sc, TEGRA210_FUSE_GPU_IDDQ) * 5;
 
 	speedo_rev = tegra210_get_speedo_revision(sc);
-device_printf(sc->dev, " Speedo revision: %u\n", speedo_rev);
+	device_printf(sc->dev, " Speedo revision: %u\n", speedo_rev);
 
 	if (speedo_rev >= 3) {
 		sku->cpu_speedo_value = cpu_speedo[0];
 		sku->gpu_speedo_value = cpu_speedo[2];
 		sku->soc_speedo_value = soc_speedo[0];
 	} else if (speedo_rev == 2) {
-		sku->cpu_speedo_value =
-		    (-1938 + (1095 * cpu_speedo[0] / 100)) / 10;
-		sku->gpu_speedo_value =
-		    (-1662 + (1082 * cpu_speedo[2] / 100)) / 10;
-		sku->soc_speedo_value =
-		    ( -705 + (1037 * soc_speedo[0] / 100)) / 10;
+		sku->cpu_speedo_value = (-1938 + (1095 * cpu_speedo[0] / 100)) /
+		    10;
+		sku->gpu_speedo_value = (-1662 + (1082 * cpu_speedo[2] / 100)) /
+		    10;
+		sku->soc_speedo_value = (-705 + (1037 * soc_speedo[0] / 100)) /
+		    10;
 	} else {
 		sku->cpu_speedo_value = 2100;
 		sku->gpu_speedo_value = cpu_speedo[2] - 75;
@@ -376,32 +363,31 @@ device_printf(sc->dev, " Speedo revision: %u\n", speedo_rev);
 
 	for (i = 0; i < TEGRA210_SOC_PROCESS_CORNERS; i++) {
 		if (sku->soc_speedo_value <
-			tegra210_soc_process_speedos[threshold][i])
+		    tegra210_soc_process_speedos[threshold][i])
 			break;
 	}
 	sku->soc_process_id = i;
 
 	for (i = 0; i < TEGRA210_CPU_PROCESS_CORNERS; i++) {
 		if (sku->cpu_speedo_value <
-			tegra210_cpu_process_speedos[threshold][i])
-				break;
+		    tegra210_cpu_process_speedos[threshold][i])
+			break;
 	}
 	sku->cpu_process_id = i;
 
 	for (i = 0; i < TEGRA210_GPU_PROCESS_CORNERS; i++) {
 		if (sku->gpu_speedo_value <
-			tegra210_gpu_process_speedos[threshold][i])
+		    tegra210_gpu_process_speedos[threshold][i])
 			break;
 	}
 	sku->gpu_process_id = i;
-
 }
 
 /* ----------------- End of Tegra 210 specific code & data --------------- */
 
-
 uint32_t
-tegra_fuse_read_4(int addr) {
+tegra_fuse_read_4(int addr)
+{
 	if (dev_sc == NULL)
 		panic("tegra_fuse_read_4 called too early");
 	return (RD4(dev_sc, addr));
@@ -450,13 +436,14 @@ tegra_efuse_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	node = ofw_bus_get_node(dev);
-	sc->soc = (struct efuse_soc *)ofw_bus_search_compatible(dev,
-	    compat_data)->ocd_data;
+	sc->soc = (struct efuse_soc *)ofw_bus_search_compatible(
+	    dev, compat_data)
+		      ->ocd_data;
 
 	/* Get the memory resource for the register mapping. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "Cannot map registers.\n");
 		rv = ENXIO;
@@ -524,9 +511,9 @@ tegra_efuse_detach(device_t dev)
 
 static device_method_t tegra_efuse_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		tegra_efuse_probe),
-	DEVMETHOD(device_attach,	tegra_efuse_attach),
-	DEVMETHOD(device_detach,	tegra_efuse_detach),
+	DEVMETHOD(device_probe, tegra_efuse_probe),
+	DEVMETHOD(device_attach, tegra_efuse_attach),
+	DEVMETHOD(device_detach, tegra_efuse_detach),
 
 	DEVMETHOD_END
 };

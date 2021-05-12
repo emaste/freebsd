@@ -25,37 +25,37 @@
  */
 
 #ifndef _CUSE_DEFS_H_
-#define	_CUSE_DEFS_H_
+#define _CUSE_DEFS_H_
 
-#define	CUSE_VERSION		0x000124
+#define CUSE_VERSION 0x000124
 
-#define	CUSE_ERR_NONE		0
-#define	CUSE_ERR_BUSY		-1
-#define	CUSE_ERR_WOULDBLOCK	-2
-#define	CUSE_ERR_INVALID	-3
-#define	CUSE_ERR_NO_MEMORY	-4
-#define	CUSE_ERR_FAULT		-5
-#define	CUSE_ERR_SIGNAL		-6
-#define	CUSE_ERR_OTHER		-7
-#define	CUSE_ERR_NOT_LOADED	-8
-#define	CUSE_ERR_NO_DEVICE	-9
+#define CUSE_ERR_NONE 0
+#define CUSE_ERR_BUSY -1
+#define CUSE_ERR_WOULDBLOCK -2
+#define CUSE_ERR_INVALID -3
+#define CUSE_ERR_NO_MEMORY -4
+#define CUSE_ERR_FAULT -5
+#define CUSE_ERR_SIGNAL -6
+#define CUSE_ERR_OTHER -7
+#define CUSE_ERR_NOT_LOADED -8
+#define CUSE_ERR_NO_DEVICE -9
 
-#define	CUSE_POLL_NONE		0
-#define	CUSE_POLL_READ		1
-#define	CUSE_POLL_WRITE		2
-#define	CUSE_POLL_ERROR		4
+#define CUSE_POLL_NONE 0
+#define CUSE_POLL_READ 1
+#define CUSE_POLL_WRITE 2
+#define CUSE_POLL_ERROR 4
 
-#define	CUSE_FFLAG_NONE		0
-#define	CUSE_FFLAG_READ		1
-#define	CUSE_FFLAG_WRITE	2
-#define	CUSE_FFLAG_NONBLOCK	4
-#define	CUSE_FFLAG_COMPAT32	8 /* peer is running in 32-bit compat mode */
+#define CUSE_FFLAG_NONE 0
+#define CUSE_FFLAG_READ 1
+#define CUSE_FFLAG_WRITE 2
+#define CUSE_FFLAG_NONBLOCK 4
+#define CUSE_FFLAG_COMPAT32 8 /* peer is running in 32-bit compat mode */
 
-#define	CUSE_DBG_NONE		0
-#define	CUSE_DBG_FULL		1
+#define CUSE_DBG_NONE 0
+#define CUSE_DBG_FULL 1
 
 /* maximum data transfer length */
-#define	CUSE_LENGTH_MAX		0x7FFFFFFFU
+#define CUSE_LENGTH_MAX 0x7FFFFFFFU
 
 enum {
 	CUSE_CMD_NONE,
@@ -70,19 +70,24 @@ enum {
 	CUSE_CMD_MAX,
 };
 
-#define	CUSE_MAKE_ID(a,b,c,u) ((((a) & 0x7F) << 24)| \
-    (((b) & 0xFF) << 16)|(((c) & 0xFF) << 8)|((u) & 0xFF))
+#define CUSE_MAKE_ID(a, b, c, u)                                       \
+	((((a)&0x7F) << 24) | (((b)&0xFF) << 16) | (((c)&0xFF) << 8) | \
+	    ((u)&0xFF))
 
-#define	CUSE_ID_MASK 0x7FFFFF00U
+#define CUSE_ID_MASK 0x7FFFFF00U
 
 /*
  * The following ID's are defined:
  * ===============================
  */
-#define	CUSE_ID_DEFAULT(what) CUSE_MAKE_ID(0,0,what,0)
-#define	CUSE_ID_WEBCAMD(what) CUSE_MAKE_ID('W','C',what,0)	/* Used by Webcamd. */
-#define	CUSE_ID_SUNDTEK(what) CUSE_MAKE_ID('S','K',what,0)	/* Used by Sundtek. */
-#define	CUSE_ID_CX88(what) CUSE_MAKE_ID('C','X',what,0)		/* Used by cx88 driver. */
-#define	CUSE_ID_UHIDD(what) CUSE_MAKE_ID('U','D',what,0)	/* Used by uhidd. */
+#define CUSE_ID_DEFAULT(what) CUSE_MAKE_ID(0, 0, what, 0)
+#define CUSE_ID_WEBCAMD(what) \
+	CUSE_MAKE_ID('W', 'C', what, 0) /* Used by Webcamd. */
+#define CUSE_ID_SUNDTEK(what) \
+	CUSE_MAKE_ID('S', 'K', what, 0) /* Used by Sundtek. */
+#define CUSE_ID_CX88(what) \
+	CUSE_MAKE_ID('C', 'X', what, 0) /* Used by cx88 driver. */
+#define CUSE_ID_UHIDD(what) CUSE_MAKE_ID('U', 'D', what, 0) /* Used by uhidd. \
+							     */
 
-#endif					/* _CUSE_DEFS_H_ */
+#endif /* _CUSE_DEFS_H_ */

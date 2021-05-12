@@ -40,75 +40,73 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
-#include <sys/conf.h>
 #include <sys/uio.h>
-
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/openfirm.h>
+
 #include <arm/altera/socfpga/socfpga_common.h>
 
-#define	FPGAMGR_DCLKCNT			0x8	/* DCLK Count Register */
-#define	FPGAMGR_DCLKSTAT		0xC	/* DCLK Status Register */
-#define	FPGAMGR_GPO			0x10	/* General-Purpose Output Register */
-#define	FPGAMGR_GPI			0x14	/* General-Purpose Input Register */
-#define	FPGAMGR_MISCI			0x18	/* Miscellaneous Input Register */
-#define	IMGCFG_CTRL_00			0x70
-#define	 S2F_CONDONE_OE			(1 << 24)
-#define	 S2F_NSTATUS_OE			(1 << 16)
-#define	 CTRL_00_NCONFIG		(1 << 8)
-#define	 CTRL_00_NENABLE_CONDONE	(1 << 2)
-#define	 CTRL_00_NENABLE_NSTATUS	(1 << 1)
-#define	 CTRL_00_NENABLE_NCONFIG	(1 << 0)
-#define	IMGCFG_CTRL_01			0x74
-#define	 CTRL_01_S2F_NCE		(1 << 24)
-#define	 CTRL_01_S2F_PR_REQUEST		(1 << 16)
-#define	 CTRL_01_S2F_NENABLE_CONFIG	(1 << 0)
-#define	IMGCFG_CTRL_02			0x78
-#define	 CTRL_02_CDRATIO_S		16
-#define	 CTRL_02_CDRATIO_M		(0x3 << CTRL_02_CDRATIO_S)
-#define	 CTRL_02_CFGWIDTH_16		(0 << 24)
-#define	 CTRL_02_CFGWIDTH_32		(1 << 24)
-#define	 CTRL_02_EN_CFG_DATA		(1 << 8)
-#define	 CTRL_02_EN_CFG_CTRL		(1 << 0)
-#define	IMGCFG_STAT			0x80
-#define	 F2S_PR_ERROR			(1 << 11)
-#define	 F2S_PR_DONE			(1 << 10)
-#define	 F2S_PR_READY			(1 << 9)
-#define	 F2S_MSEL_S			16
-#define	 F2S_MSEL_M			(0x7 << F2S_MSEL_S)
-#define	 MSEL_PASSIVE_FAST		0
-#define	 MSEL_PASSIVE_SLOW		1
-#define	 F2S_NCONFIG_PIN		(1 << 12)
-#define	 F2S_CONDONE_OE			(1 << 7)
-#define	 F2S_NSTATUS_PIN		(1 << 4)
-#define	 F2S_CONDONE_PIN		(1 << 6)
-#define	 F2S_USERMODE			(1 << 2)
+#define FPGAMGR_DCLKCNT 0x8 /* DCLK Count Register */
+#define FPGAMGR_DCLKSTAT 0xC /* DCLK Status Register */
+#define FPGAMGR_GPO 0x10 /* General-Purpose Output Register */
+#define FPGAMGR_GPI 0x14 /* General-Purpose Input Register */
+#define FPGAMGR_MISCI 0x18 /* Miscellaneous Input Register */
+#define IMGCFG_CTRL_00 0x70
+#define S2F_CONDONE_OE (1 << 24)
+#define S2F_NSTATUS_OE (1 << 16)
+#define CTRL_00_NCONFIG (1 << 8)
+#define CTRL_00_NENABLE_CONDONE (1 << 2)
+#define CTRL_00_NENABLE_NSTATUS (1 << 1)
+#define CTRL_00_NENABLE_NCONFIG (1 << 0)
+#define IMGCFG_CTRL_01 0x74
+#define CTRL_01_S2F_NCE (1 << 24)
+#define CTRL_01_S2F_PR_REQUEST (1 << 16)
+#define CTRL_01_S2F_NENABLE_CONFIG (1 << 0)
+#define IMGCFG_CTRL_02 0x78
+#define CTRL_02_CDRATIO_S 16
+#define CTRL_02_CDRATIO_M (0x3 << CTRL_02_CDRATIO_S)
+#define CTRL_02_CFGWIDTH_16 (0 << 24)
+#define CTRL_02_CFGWIDTH_32 (1 << 24)
+#define CTRL_02_EN_CFG_DATA (1 << 8)
+#define CTRL_02_EN_CFG_CTRL (1 << 0)
+#define IMGCFG_STAT 0x80
+#define F2S_PR_ERROR (1 << 11)
+#define F2S_PR_DONE (1 << 10)
+#define F2S_PR_READY (1 << 9)
+#define F2S_MSEL_S 16
+#define F2S_MSEL_M (0x7 << F2S_MSEL_S)
+#define MSEL_PASSIVE_FAST 0
+#define MSEL_PASSIVE_SLOW 1
+#define F2S_NCONFIG_PIN (1 << 12)
+#define F2S_CONDONE_OE (1 << 7)
+#define F2S_NSTATUS_PIN (1 << 4)
+#define F2S_CONDONE_PIN (1 << 6)
+#define F2S_USERMODE (1 << 2)
 
 struct fpgamgr_a10_softc {
-	struct resource		*res[2];
-	bus_space_tag_t		bst_data;
-	bus_space_handle_t	bsh_data;
-	struct cdev		*mgr_cdev;
-	device_t		dev;
+	struct resource *res[2];
+	bus_space_tag_t bst_data;
+	bus_space_handle_t bsh_data;
+	struct cdev *mgr_cdev;
+	device_t dev;
 };
 
-static struct resource_spec fpgamgr_a10_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },
-	{ -1, 0 }
-};
+static struct resource_spec fpgamgr_a10_spec[] = { { SYS_RES_MEMORY, 0,
+						       RF_ACTIVE },
+	{ SYS_RES_MEMORY, 1, RF_ACTIVE }, { -1, 0 } };
 
 static int
 fpga_wait_dclk_pulses(struct fpgamgr_a10_softc *sc, int npulses)
@@ -133,8 +131,7 @@ fpga_wait_dclk_pulses(struct fpgamgr_a10_softc *sc, int npulses)
 		DELAY(10);
 	}
 	if (tout == 0) {
-		device_printf(sc->dev,
-		    "Error: dclkpulses wait timeout\n");
+		device_printf(sc->dev, "Error: dclkpulses wait timeout\n");
 		return (1);
 	}
 
@@ -142,8 +139,8 @@ fpga_wait_dclk_pulses(struct fpgamgr_a10_softc *sc, int npulses)
 }
 
 static int
-fpga_open(struct cdev *dev, int flags __unused,
-    int fmt __unused, struct thread *td __unused)
+fpga_open(struct cdev *dev, int flags __unused, int fmt __unused,
+    struct thread *td __unused)
 {
 	struct fpgamgr_a10_softc *sc;
 	int tout;
@@ -162,10 +159,8 @@ fpga_open(struct cdev *dev, int flags __unused,
 	/* Step 2 */
 	reg = READ4(sc, IMGCFG_STAT);
 	msel = (reg & F2S_MSEL_M) >> F2S_MSEL_S;
-	if ((msel != MSEL_PASSIVE_FAST) && \
-	    (msel != MSEL_PASSIVE_SLOW)) {
-		device_printf(sc->dev,
-		    "Error: invalid msel %d\n", msel);
+	if ((msel != MSEL_PASSIVE_FAST) && (msel != MSEL_PASSIVE_SLOW)) {
+		device_printf(sc->dev, "Error: invalid msel %d\n", msel);
 		return (ENXIO);
 	};
 
@@ -231,8 +226,7 @@ fpga_open(struct cdev *dev, int flags __unused,
 	while (tout--) {
 		reg = READ4(sc, IMGCFG_STAT);
 		if (reg & F2S_PR_ERROR) {
-			device_printf(sc->dev,
-			    "Error: PR failed on open.\n");
+			device_printf(sc->dev, "Error: PR failed on open.\n");
 			return (ENXIO);
 		}
 		if (reg & F2S_PR_READY) {
@@ -240,8 +234,8 @@ fpga_open(struct cdev *dev, int flags __unused,
 		}
 	}
 	if (tout == 0) {
-		device_printf(sc->dev,
-		    "Error: Timeout waiting PR ready bit.\n");
+		device_printf(
+		    sc->dev, "Error: Timeout waiting PR ready bit.\n");
 		return (ENXIO);
 	}
 
@@ -249,8 +243,8 @@ fpga_open(struct cdev *dev, int flags __unused,
 }
 
 static int
-fpga_close(struct cdev *dev, int flags __unused,
-    int fmt __unused, struct thread *td __unused)
+fpga_close(struct cdev *dev, int flags __unused, int fmt __unused,
+    struct thread *td __unused)
 {
 	struct fpgamgr_a10_softc *sc;
 	int tout;
@@ -263,8 +257,7 @@ fpga_close(struct cdev *dev, int flags __unused,
 	while (tout--) {
 		reg = READ4(sc, IMGCFG_STAT);
 		if (reg & F2S_PR_ERROR) {
-			device_printf(sc->dev,
-			    "Error: PR failed.\n");
+			device_printf(sc->dev, "Error: PR failed.\n");
 			return (ENXIO);
 		}
 		if (reg & F2S_PR_DONE) {
@@ -298,20 +291,17 @@ fpga_close(struct cdev *dev, int flags __unused,
 	/* Step 17 */
 	reg = READ4(sc, IMGCFG_STAT);
 	if ((reg & F2S_USERMODE) == 0) {
-		device_printf(sc->dev,
-		    "Error: invalid mode\n");
+		device_printf(sc->dev, "Error: invalid mode\n");
 		return (ENXIO);
 	};
 
 	if ((reg & F2S_CONDONE_PIN) == 0) {
-		device_printf(sc->dev,
-		    "Error: configuration not done\n");
+		device_printf(sc->dev, "Error: configuration not done\n");
 		return (ENXIO);
 	};
 
 	if ((reg & F2S_NSTATUS_PIN) == 0) {
-		device_printf(sc->dev,
-		    "Error: nstatus pin\n");
+		device_printf(sc->dev, "Error: nstatus pin\n");
 		return (ENXIO);
 	};
 
@@ -333,28 +323,24 @@ fpga_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 	while (uio->uio_resid >= 4) {
 		uiomove(&buffer, 4, uio);
-		bus_space_write_4(sc->bst_data, sc->bsh_data,
-		    0x0, buffer);
+		bus_space_write_4(sc->bst_data, sc->bsh_data, 0x0, buffer);
 	}
 
 	switch (uio->uio_resid) {
 	case 3:
 		uiomove(&buffer, 3, uio);
 		buffer &= 0xffffff;
-		bus_space_write_4(sc->bst_data, sc->bsh_data,
-		    0x0, buffer);
+		bus_space_write_4(sc->bst_data, sc->bsh_data, 0x0, buffer);
 		break;
 	case 2:
 		uiomove(&buffer, 2, uio);
 		buffer &= 0xffff;
-		bus_space_write_4(sc->bst_data, sc->bsh_data,
-		    0x0, buffer);
+		bus_space_write_4(sc->bst_data, sc->bsh_data, 0x0, buffer);
 		break;
 	case 1:
 		uiomove(&buffer, 1, uio);
 		buffer &= 0xff;
-		bus_space_write_4(sc->bst_data, sc->bsh_data,
-		    0x0, buffer);
+		bus_space_write_4(sc->bst_data, sc->bsh_data, 0x0, buffer);
 		break;
 	default:
 		break;
@@ -364,20 +350,20 @@ fpga_write(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 static int
-fpga_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
-    struct thread *td)
+fpga_ioctl(
+    struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 
 	return (0);
 }
 
 static struct cdevsw fpga_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	fpga_open,
-	.d_close =	fpga_close,
-	.d_write =	fpga_write,
-	.d_ioctl =	fpga_ioctl,
-	.d_name =	"FPGA Manager",
+	.d_version = D_VERSION,
+	.d_open = fpga_open,
+	.d_close = fpga_close,
+	.d_write = fpga_write,
+	.d_ioctl = fpga_ioctl,
+	.d_name = "FPGA Manager",
 };
 
 static int
@@ -412,8 +398,8 @@ fpgamgr_a10_attach(device_t dev)
 	sc->bst_data = rman_get_bustag(sc->res[1]);
 	sc->bsh_data = rman_get_bushandle(sc->res[1]);
 
-	sc->mgr_cdev = make_dev(&fpga_cdevsw, 0, UID_ROOT, GID_WHEEL,
-	    0600, "fpga%d", device_get_unit(sc->dev));
+	sc->mgr_cdev = make_dev(&fpga_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+	    "fpga%d", device_get_unit(sc->dev));
 
 	if (sc->mgr_cdev == NULL) {
 		device_printf(dev, "Failed to create character device.\n");
@@ -425,11 +411,9 @@ fpgamgr_a10_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t fpgamgr_a10_methods[] = {
-	DEVMETHOD(device_probe,		fpgamgr_a10_probe),
-	DEVMETHOD(device_attach,	fpgamgr_a10_attach),
-	{ 0, 0 }
-};
+static device_method_t fpgamgr_a10_methods[] = { DEVMETHOD(device_probe,
+						     fpgamgr_a10_probe),
+	DEVMETHOD(device_attach, fpgamgr_a10_attach), { 0, 0 } };
 
 static driver_t fpgamgr_a10_driver = {
 	"fpgamgr_a10",
@@ -439,5 +423,5 @@ static driver_t fpgamgr_a10_driver = {
 
 static devclass_t fpgamgr_a10_devclass;
 
-DRIVER_MODULE(fpgamgr_a10, simplebus, fpgamgr_a10_driver,
-    fpgamgr_a10_devclass, 0, 0);
+DRIVER_MODULE(
+    fpgamgr_a10, simplebus, fpgamgr_a10_driver, fpgamgr_a10_devclass, 0, 0);

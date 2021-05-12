@@ -30,16 +30,16 @@
  */
 
 #ifndef _MACHINE_NEXUSVAR_H_
-#define	_MACHINE_NEXUSVAR_H_
+#define _MACHINE_NEXUSVAR_H_
 
 struct nexus_device {
-	struct resource_list	nx_resources;
+	struct resource_list nx_resources;
 };
 
 DECLARE_CLASS(nexus_driver);
 
 extern struct rman irq_rman, drq_rman, port_rman, mem_rman;
 
-void	nexus_init_resources(void);
+void nexus_init_resources(void);
 
 #endif /* !_MACHINE_NEXUSVAR_H_ */

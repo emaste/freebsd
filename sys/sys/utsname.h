@@ -35,30 +35,30 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_UTSNAME_H
-#define	_SYS_UTSNAME_H
+#ifndef _SYS_UTSNAME_H
+#define _SYS_UTSNAME_H
 
 #ifdef _KERNEL
-#define	SYS_NMLN	32		/* uname(2) for the FreeBSD 1.1 ABI. */
+#define SYS_NMLN 32 /* uname(2) for the FreeBSD 1.1 ABI. */
 #endif
 
 #ifndef SYS_NMLN
-#define	SYS_NMLN	256		/* User can override. */
+#define SYS_NMLN 256 /* User can override. */
 #endif
 
 struct utsname {
-	char	sysname[SYS_NMLN];	/* Name of this OS. */
-	char	nodename[SYS_NMLN];	/* Name of this network node. */
-	char	release[SYS_NMLN];	/* Release level. */
-	char	version[SYS_NMLN];	/* Version level. */
-	char	machine[SYS_NMLN];	/* Hardware type. */
+	char sysname[SYS_NMLN];	 /* Name of this OS. */
+	char nodename[SYS_NMLN]; /* Name of this network node. */
+	char release[SYS_NMLN];	 /* Release level. */
+	char version[SYS_NMLN];	 /* Version level. */
+	char machine[SYS_NMLN];	 /* Hardware type. */
 };
 
 #include <sys/cdefs.h>
 
 #ifndef _KERNEL
 __BEGIN_DECLS
-int	__xuname(int, void *);		/* Variable record size. */
+int __xuname(int, void *); /* Variable record size. */
 __END_DECLS
 
 static __inline int
@@ -66,6 +66,6 @@ uname(struct utsname *name)
 {
 	return __xuname(SYS_NMLN, (void *)name);
 }
-#endif	/* _KERNEL */
+#endif /* _KERNEL */
 
-#endif	/* !_SYS_UTSNAME_H */
+#endif /* !_SYS_UTSNAME_H */

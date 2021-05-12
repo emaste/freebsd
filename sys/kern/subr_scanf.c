@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * From: Id: vfscanf.c,v 1.13 1998/09/25 12:20:27 obrien Exp 
+ * From: Id: vfscanf.c,v 1.13 1998/09/25 12:20:27 obrien Exp
  * From: static char sccsid[] = "@(#)strtol.c	8.1 (Berkeley) 6/4/93";
  * From: static char sccsid[] = "@(#)strtoul.c	8.1 (Berkeley) 6/4/93";
  */
@@ -51,43 +51,43 @@ __FBSDID("$FreeBSD$");
  */
 #include <machine/stdarg.h>
 
-#define	BUF		32 	/* Maximum length of numeric string. */
+#define BUF 32 /* Maximum length of numeric string. */
 
 /*
  * Flags used during conversion.
  */
-#define	LONG		0x01	/* l: long or double */
-#define	SHORT		0x04	/* h: short */
-#define	SUPPRESS	0x08	/* suppress assignment */
-#define	POINTER		0x10	/* weird %p pointer (`fake hex') */
-#define	NOSKIP		0x20	/* do not skip blanks */
-#define	QUAD		0x400
-#define	INTMAXT		0x800	/* j: intmax_t */
-#define	PTRDIFFT	0x1000	/* t: ptrdiff_t */
-#define	SIZET		0x2000	/* z: size_t */
-#define	SHORTSHORT	0x4000	/** hh: char */
+#define LONG 0x01 /* l: long or double */
+#define SHORT 0x04 /* h: short */
+#define SUPPRESS 0x08 /* suppress assignment */
+#define POINTER 0x10 /* weird %p pointer (`fake hex') */
+#define NOSKIP 0x20 /* do not skip blanks */
+#define QUAD 0x400
+#define INTMAXT 0x800 /* j: intmax_t */
+#define PTRDIFFT 0x1000 /* t: ptrdiff_t */
+#define SIZET 0x2000 /* z: size_t */
+#define SHORTSHORT 0x4000 /** hh: char */
 
 /*
  * The following are used in numeric conversions only:
  * SIGNOK, NDIGITS, DPTOK, and EXPOK are for floating point;
  * SIGNOK, NDIGITS, PFXOK, and NZDIGITS are for integral.
  */
-#define	SIGNOK		0x40	/* +/- is (still) legal */
-#define	NDIGITS		0x80	/* no digits detected */
+#define SIGNOK 0x40 /* +/- is (still) legal */
+#define NDIGITS 0x80 /* no digits detected */
 
-#define	DPTOK		0x100	/* (float) decimal point is still legal */
-#define	EXPOK		0x200	/* (float) exponent (e+3, etc) still legal */
+#define DPTOK 0x100 /* (float) decimal point is still legal */
+#define EXPOK 0x200 /* (float) exponent (e+3, etc) still legal */
 
-#define	PFXOK		0x100	/* 0x prefix is (still) legal */
-#define	NZDIGITS	0x200	/* no zero digits detected */
+#define PFXOK 0x100 /* 0x prefix is (still) legal */
+#define NZDIGITS 0x200 /* no zero digits detected */
 
 /*
  * Conversion types.
  */
-#define	CT_CHAR		0	/* %c conversion */
-#define	CT_CCL		1	/* %[...] conversion */
-#define	CT_STRING	2	/* %s conversion */
-#define	CT_INT		3	/* integer, i.e., strtoq or strtouq */
+#define CT_CHAR 0 /* %c conversion */
+#define CT_CCL 1 /* %[...] conversion */
+#define CT_STRING 2 /* %s conversion */
+#define CT_INT 3 /* integer, i.e., strtoq or strtouq */
 typedef u_quad_t (*ccfntype)(const char *, char **, int);
 
 static const u_char *__sccl(char *, const u_char *);
@@ -101,7 +101,7 @@ sscanf(const char *ibuf, const char *fmt, ...)
 	va_start(ap, fmt);
 	ret = vsscanf(ibuf, fmt, ap);
 	va_end(ap);
-	return(ret);
+	return (ret);
 }
 
 int
@@ -109,31 +109,31 @@ vsscanf(const char *inp, char const *fmt0, va_list ap)
 {
 	int inr;
 	const u_char *fmt = (const u_char *)fmt0;
-	int c;			/* character from format, or conversion */
-	size_t width;		/* field width, or 0 */
-	char *p;		/* points into all kinds of strings */
-	int n;			/* handy integer */
-	int flags;		/* flags as defined above */
-	char *p0;		/* saves original value of p when necessary */
-	int nassigned;		/* number of fields assigned */
-	int nconversions;	/* number of conversions */
-	int nread;		/* number of characters consumed from fp */
-	int base;		/* base argument to strtoq/strtouq */
-	ccfntype ccfn;		/* conversion function (strtoq/strtouq) */
-	char ccltab[256];	/* character class table for %[...] */
-	char buf[BUF];		/* buffer for numeric conversions */
+	int c;		  /* character from format, or conversion */
+	size_t width;	  /* field width, or 0 */
+	char *p;	  /* points into all kinds of strings */
+	int n;		  /* handy integer */
+	int flags;	  /* flags as defined above */
+	char *p0;	  /* saves original value of p when necessary */
+	int nassigned;	  /* number of fields assigned */
+	int nconversions; /* number of conversions */
+	int nread;	  /* number of characters consumed from fp */
+	int base;	  /* base argument to strtoq/strtouq */
+	ccfntype ccfn;	  /* conversion function (strtoq/strtouq) */
+	char ccltab[256]; /* character class table for %[...] */
+	char buf[BUF];	  /* buffer for numeric conversions */
 
 	/* `basefix' is used to avoid `if' tests in the integer scanner */
-	static short basefix[17] =
-		{ 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+	static short basefix[17] = { 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+		13, 14, 15, 16 };
 
 	inr = strlen(inp);
 
 	nassigned = 0;
 	nconversions = 0;
 	nread = 0;
-	base = 0;		/* XXX just to keep gcc happy */
-	ccfn = NULL;		/* XXX just to keep gcc happy */
+	base = 0;    /* XXX just to keep gcc happy */
+	ccfn = NULL; /* XXX just to keep gcc happy */
 	for (;;) {
 		c = *fmt++;
 		if (c == 0)
@@ -151,10 +151,11 @@ vsscanf(const char *inp, char const *fmt0, va_list ap)
 		 * switch on the format.  continue if done;
 		 * break once format type is derived.
 		 */
-again:		c = *fmt++;
+	again:
+		c = *fmt++;
 		switch (c) {
 		case '%':
-literal:
+		literal:
 			if (inr <= 0)
 				goto input_failure;
 			if (*inp != c)
@@ -170,7 +171,7 @@ literal:
 			flags |= INTMAXT;
 			goto again;
 		case 'l':
-			if (flags & LONG){
+			if (flags & LONG) {
 				flags &= ~LONG;
 				flags |= QUAD;
 			} else {
@@ -187,7 +188,7 @@ literal:
 			flags |= SIZET;
 			goto again;
 		case 'h':
-			if (flags & SHORT){
+			if (flags & SHORT) {
 				flags &= ~SHORT;
 				flags |= SHORTSHORT;
 			} else {
@@ -195,8 +196,16 @@ literal:
 			}
 			goto again;
 
-		case '0': case '1': case '2': case '3': case '4':
-		case '5': case '6': case '7': case '8': case '9':
+		case '0':
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
 			width = width * 10 + c - '0';
 			goto again;
 
@@ -229,7 +238,7 @@ literal:
 			break;
 
 		case 'x':
-			flags |= PFXOK;	/* enable 0x prefixing */
+			flags |= PFXOK; /* enable 0x prefixing */
 			c = CT_INT;
 			ccfn = strtouq;
 			base = 16;
@@ -250,7 +259,7 @@ literal:
 			c = CT_CHAR;
 			break;
 
-		case 'p':	/* pointer format is like hex */
+		case 'p': /* pointer format is like hex */
 			flags |= POINTER | PFXOK;
 			c = CT_INT;
 			ccfn = strtouq;
@@ -259,7 +268,7 @@ literal:
 
 		case 'n':
 			nconversions++;
-			if (flags & SUPPRESS)	/* ??? */
+			if (flags & SUPPRESS) /* ??? */
 				continue;
 			if (flags & SHORTSHORT)
 				*va_arg(ap, char *) = nread;
@@ -295,7 +304,7 @@ literal:
 				nread++;
 				if (--inr > 0)
 					inp++;
-				else 
+				else
 					goto input_failure;
 			}
 			/*
@@ -344,7 +353,7 @@ literal:
 		case CT_CCL:
 			/* scan a (nonempty) character class (sets NOSKIP) */
 			if (width == 0)
-				width = (size_t)~0;	/* `infinity' */
+				width = (size_t)~0; /* `infinity' */
 			/* take only those things in the class */
 			if (flags & SUPPRESS) {
 				n = 0;
@@ -451,39 +460,56 @@ literal:
 						flags |= PFXOK;
 					}
 					if (flags & NZDIGITS)
-					    flags &= ~(SIGNOK|NZDIGITS|NDIGITS);
+						flags &= ~(SIGNOK | NZDIGITS |
+						    NDIGITS);
 					else
-					    flags &= ~(SIGNOK|PFXOK|NDIGITS);
+						flags &= ~(
+						    SIGNOK | PFXOK | NDIGITS);
 					goto ok;
 
 				/* 1 through 7 always legal */
-				case '1': case '2': case '3':
-				case '4': case '5': case '6': case '7':
+				case '1':
+				case '2':
+				case '3':
+				case '4':
+				case '5':
+				case '6':
+				case '7':
 					base = basefix[base];
 					flags &= ~(SIGNOK | PFXOK | NDIGITS);
 					goto ok;
 
 				/* digits 8 and 9 ok iff decimal or hex */
-				case '8': case '9':
+				case '8':
+				case '9':
 					base = basefix[base];
 					if (base <= 8)
-						break;	/* not legal here */
+						break; /* not legal here */
 					flags &= ~(SIGNOK | PFXOK | NDIGITS);
 					goto ok;
 
 				/* letters ok iff hex */
-				case 'A': case 'B': case 'C':
-				case 'D': case 'E': case 'F':
-				case 'a': case 'b': case 'c':
-				case 'd': case 'e': case 'f':
+				case 'A':
+				case 'B':
+				case 'C':
+				case 'D':
+				case 'E':
+				case 'F':
+				case 'a':
+				case 'b':
+				case 'c':
+				case 'd':
+				case 'e':
+				case 'f':
 					/* no need to fix base here */
 					if (base <= 10)
-						break;	/* not legal here */
+						break; /* not legal here */
 					flags &= ~(SIGNOK | PFXOK | NDIGITS);
 					goto ok;
 
 				/* sign ok only as first character */
-				case '+': case '-':
+				case '+':
+				case '-':
 					if (flags & SIGNOK) {
 						flags &= ~SIGNOK;
 						goto ok;
@@ -491,9 +517,10 @@ literal:
 					break;
 
 				/* x ok iff flag still set & 2nd char */
-				case 'x': case 'X':
+				case 'x':
+				case 'X':
 					if (flags & PFXOK && p == buf + 1) {
-						base = 16;	/* if %i */
+						base = 16; /* if %i */
 						flags &= ~PFXOK;
 						goto ok;
 					}
@@ -505,15 +532,15 @@ literal:
 				 * for a number.  Stop accumulating digits.
 				 */
 				break;
-		ok:
+			ok:
 				/*
 				 * c is legal: store it and look at the next.
 				 */
 				*p++ = c;
 				if (--inr > 0)
 					inp++;
-				else 
-					break;		/* end of input */
+				else
+					break; /* end of input */
 			}
 			/*
 			 * If we had only a sign, it is no good; push
@@ -540,8 +567,8 @@ literal:
 				*p = 0;
 				res = (*ccfn)(buf, (char **)NULL, base);
 				if (flags & POINTER)
-					*va_arg(ap, void **) =
-						(void *)(uintptr_t)res;
+					*va_arg(ap,
+					    void **) = (void *)(uintptr_t)res;
 				else if (flags & SHORTSHORT)
 					*va_arg(ap, char *) = res;
 				else if (flags & SHORT)
@@ -583,19 +610,19 @@ __sccl(char *tab, const u_char *fmt)
 	int c, n, v;
 
 	/* first `clear' the whole table */
-	c = *fmt++;		/* first char hat => negated scanset */
+	c = *fmt++; /* first char hat => negated scanset */
 	if (c == '^') {
-		v = 1;		/* default => accept */
-		c = *fmt++;	/* get new first char */
+		v = 1;	    /* default => accept */
+		c = *fmt++; /* get new first char */
 	} else
-		v = 0;		/* default => reject */
+		v = 0; /* default => reject */
 
 	/* XXX: Will not work if sizeof(tab*) > sizeof(char) */
 	for (n = 0; n < 256; n++)
-		     tab[n] = v;	/* memset(tab, v, 256) */
+		tab[n] = v; /* memset(tab, v, 256) */
 
 	if (c == 0)
-		return (fmt - 1);/* format ended before closing ] */
+		return (fmt - 1); /* format ended before closing ] */
 
 	/*
 	 * Now set the entries corresponding to the actual scanset
@@ -606,11 +633,11 @@ __sccl(char *tab, const u_char *fmt)
 	 */
 	v = 1 - v;
 	for (;;) {
-		tab[c] = v;		/* take character c */
-doswitch:
-		n = *fmt++;		/* and examine the next */
+		tab[c] = v; /* take character c */
+	doswitch:
+		n = *fmt++; /* and examine the next */
 		switch (n) {
-		case 0:			/* format ended too soon */
+		case 0: /* format ended too soon */
 			return (fmt - 1);
 
 		case '-':
@@ -635,12 +662,12 @@ doswitch:
 			n = *fmt;
 			if (n == ']' || n < c) {
 				c = '-';
-				break;	/* resume the for(;;) */
+				break; /* resume the for(;;) */
 			}
 			fmt++;
 			/* fill in the range */
 			do {
-			    tab[++c] = v;
+				tab[++c] = v;
 			} while (c < n);
 			c = n;
 			/*
@@ -651,10 +678,10 @@ doswitch:
 			goto doswitch;
 			break;
 
-		case ']':		/* end of scanset */
+		case ']': /* end of scanset */
 			return (fmt);
 
-		default:		/* just another character */
+		default: /* just another character */
 			c = n;
 			break;
 		}

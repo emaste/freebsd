@@ -40,8 +40,8 @@
  * Author: Ken Merry <ken@FreeBSD.org>
  */
 
-#ifndef	_CTL_IOCTL_H_
-#define	_CTL_IOCTL_H_
+#ifndef _CTL_IOCTL_H_
+#define _CTL_IOCTL_H_
 
 #ifdef ICL_KERNEL_PROXY
 #include <sys/socket.h>
@@ -50,24 +50,24 @@
 #include <sys/ioccom.h>
 #include <sys/nv.h>
 
-#define	CTL_DEFAULT_DEV		"/dev/cam/ctl"
+#define CTL_DEFAULT_DEV "/dev/cam/ctl"
 /*
  * Maximum number of targets we support.
  */
-#define	CTL_MAX_TARGETS		1
+#define CTL_MAX_TARGETS 1
 
 /*
  * Maximum target ID we support.
  */
-#define	CTL_MAX_TARGID		15
+#define CTL_MAX_TARGID 15
 
 /*
  * Maximum number of initiators per port.
  */
-#define	CTL_MAX_INIT_PER_PORT	2048
+#define CTL_MAX_INIT_PER_PORT 2048
 
 /* Hopefully this won't conflict with new misc devices that pop up */
-#define	CTL_MINOR	225
+#define CTL_MINOR 225
 
 typedef enum {
 	CTL_DELAY_TYPE_NONE,
@@ -91,11 +91,11 @@ typedef enum {
 } ctl_delay_status;
 
 struct ctl_io_delay_info {
-	uint32_t		lun_id;
-	ctl_delay_type		delay_type;
-	ctl_delay_location	delay_loc;
-	uint32_t		delay_secs;
-	ctl_delay_status	status;
+	uint32_t lun_id;
+	ctl_delay_type delay_type;
+	ctl_delay_location delay_loc;
+	uint32_t delay_secs;
+	ctl_delay_status status;
 };
 
 typedef enum {
@@ -103,7 +103,7 @@ typedef enum {
 	CTL_STATS_READ,
 	CTL_STATS_WRITE
 } ctl_stat_types;
-#define	CTL_STATS_NUM_TYPES	3
+#define CTL_STATS_NUM_TYPES 3
 
 typedef enum {
 	CTL_SS_OK,
@@ -112,28 +112,28 @@ typedef enum {
 } ctl_stats_status;
 
 typedef enum {
-	CTL_STATS_FLAG_NONE		= 0x00,
-	CTL_STATS_FLAG_TIME_VALID	= 0x01
+	CTL_STATS_FLAG_NONE = 0x00,
+	CTL_STATS_FLAG_TIME_VALID = 0x01
 } ctl_stats_flags;
 
 struct ctl_io_stats {
-	uint32_t			item;
-	uint64_t			bytes[CTL_STATS_NUM_TYPES];
-	uint64_t			operations[CTL_STATS_NUM_TYPES];
-	uint64_t			dmas[CTL_STATS_NUM_TYPES];
-	struct bintime			time[CTL_STATS_NUM_TYPES];
-	struct bintime			dma_time[CTL_STATS_NUM_TYPES];
+	uint32_t item;
+	uint64_t bytes[CTL_STATS_NUM_TYPES];
+	uint64_t operations[CTL_STATS_NUM_TYPES];
+	uint64_t dmas[CTL_STATS_NUM_TYPES];
+	struct bintime time[CTL_STATS_NUM_TYPES];
+	struct bintime dma_time[CTL_STATS_NUM_TYPES];
 };
 
 struct ctl_get_io_stats {
-	struct ctl_io_stats	*stats;		/* passed to/from kernel */
-	size_t			alloc_len;	/* passed to kernel */
-	size_t			fill_len;	/* passed to userland */
-	int			first_item;	/* passed to kernel */
-	int			num_items;	/* passed to userland */
-	ctl_stats_status	status;		/* passed to userland */
-	ctl_stats_flags		flags;		/* passed to userland */
-	struct timespec		timestamp;	/* passed to userland */
+	struct ctl_io_stats *stats; /* passed to/from kernel */
+	size_t alloc_len;	    /* passed to kernel */
+	size_t fill_len;	    /* passed to userland */
+	int first_item;		    /* passed to kernel */
+	int num_items;		    /* passed to userland */
+	ctl_stats_status status;    /* passed to userland */
+	ctl_stats_flags flags;	    /* passed to userland */
+	struct timespec timestamp;  /* passed to userland */
 };
 
 /*
@@ -151,14 +151,14 @@ struct ctl_get_io_stats {
  * DESCRIPTOR:	Use descriptor sense instead of fixed sense.
  */
 typedef enum {
-	CTL_LUN_INJ_NONE		= 0x000,
-	CTL_LUN_INJ_ABORTED		= 0x001,
-	CTL_LUN_INJ_MEDIUM_ERR		= 0x002,
-	CTL_LUN_INJ_UA			= 0x003,
-	CTL_LUN_INJ_CUSTOM		= 0x004,
-	CTL_LUN_INJ_TYPE		= 0x0ff,
-	CTL_LUN_INJ_CONTINUOUS		= 0x100,
-	CTL_LUN_INJ_DESCRIPTOR		= 0x200
+	CTL_LUN_INJ_NONE = 0x000,
+	CTL_LUN_INJ_ABORTED = 0x001,
+	CTL_LUN_INJ_MEDIUM_ERR = 0x002,
+	CTL_LUN_INJ_UA = 0x003,
+	CTL_LUN_INJ_CUSTOM = 0x004,
+	CTL_LUN_INJ_TYPE = 0x0ff,
+	CTL_LUN_INJ_CONTINUOUS = 0x100,
+	CTL_LUN_INJ_DESCRIPTOR = 0x200
 } ctl_lun_error;
 
 /*
@@ -180,16 +180,16 @@ typedef enum {
  *		specified range.
  */
 typedef enum {
-	CTL_LUN_PAT_NONE	= 0x000,
-	CTL_LUN_PAT_READ	= 0x001,
-	CTL_LUN_PAT_WRITE	= 0x002,
-	CTL_LUN_PAT_READWRITE	= CTL_LUN_PAT_READ | CTL_LUN_PAT_WRITE,
-	CTL_LUN_PAT_READCAP	= 0x004,
-	CTL_LUN_PAT_TUR		= 0x008,
-	CTL_LUN_PAT_ANY		= 0x0ff,
-	CTL_LUN_PAT_MASK	= 0x0ff,
-	CTL_LUN_PAT_CMD		= 0x100,
-	CTL_LUN_PAT_RANGE	= 0x200
+	CTL_LUN_PAT_NONE = 0x000,
+	CTL_LUN_PAT_READ = 0x001,
+	CTL_LUN_PAT_WRITE = 0x002,
+	CTL_LUN_PAT_READWRITE = CTL_LUN_PAT_READ | CTL_LUN_PAT_WRITE,
+	CTL_LUN_PAT_READCAP = 0x004,
+	CTL_LUN_PAT_TUR = 0x008,
+	CTL_LUN_PAT_ANY = 0x0ff,
+	CTL_LUN_PAT_MASK = 0x0ff,
+	CTL_LUN_PAT_CMD = 0x100,
+	CTL_LUN_PAT_RANGE = 0x200
 } ctl_lun_error_pattern;
 
 /*
@@ -202,9 +202,9 @@ typedef enum {
  *			should be set.
  */
 struct ctl_error_desc_cmd {
-	uint8_t		cdb_pattern[CTL_MAX_CDBLEN];
-	uint32_t	cdb_valid_bytes;
-	uint32_t	flags;
+	uint8_t cdb_pattern[CTL_MAX_CDBLEN];
+	uint32_t cdb_valid_bytes;
+	uint32_t flags;
 };
 
 /*
@@ -220,19 +220,19 @@ struct ctl_error_desc_cmd {
  * links:	   Kernel use only.
  */
 struct ctl_error_desc {
-	uint32_t			lun_id;		/* To kernel */
-	ctl_lun_error			lun_error;	/* To kernel */
-	ctl_lun_error_pattern		error_pattern;	/* To kernel */
-	struct ctl_error_desc_cmd	cmd_desc;	/* To kernel */
-	struct ctl_lba_len		lba_range;	/* To kernel */
-	struct scsi_sense_data		custom_sense;	/* To kernel */
-	uint64_t			serial;		/* From kernel */
-	STAILQ_ENTRY(ctl_error_desc)	links;		/* Kernel use only */
+	uint32_t lun_id;		     /* To kernel */
+	ctl_lun_error lun_error;	     /* To kernel */
+	ctl_lun_error_pattern error_pattern; /* To kernel */
+	struct ctl_error_desc_cmd cmd_desc;  /* To kernel */
+	struct ctl_lba_len lba_range;	     /* To kernel */
+	struct scsi_sense_data custom_sense; /* To kernel */
+	uint64_t serial;		     /* From kernel */
+	STAILQ_ENTRY(ctl_error_desc) links;  /* Kernel use only */
 };
 
 typedef enum {
-	CTL_OOA_FLAG_NONE	= 0x00,
-	CTL_OOA_FLAG_ALL_LUNS	= 0x01
+	CTL_OOA_FLAG_NONE = 0x00,
+	CTL_OOA_FLAG_ALL_LUNS = 0x01
 } ctl_ooa_flags;
 
 typedef enum {
@@ -242,36 +242,36 @@ typedef enum {
 } ctl_get_ooa_status;
 
 typedef enum {
-	CTL_OOACMD_FLAG_NONE		= 0x00,
-	CTL_OOACMD_FLAG_DMA		= 0x01,
-	CTL_OOACMD_FLAG_BLOCKED		= 0x02,
-	CTL_OOACMD_FLAG_ABORT		= 0x04,
-	CTL_OOACMD_FLAG_RTR		= 0x08,
-	CTL_OOACMD_FLAG_DMA_QUEUED	= 0x10,
-	CTL_OOACMD_FLAG_STATUS_QUEUED	= 0x20,
-	CTL_OOACMD_FLAG_STATUS_SENT	= 0x40
+	CTL_OOACMD_FLAG_NONE = 0x00,
+	CTL_OOACMD_FLAG_DMA = 0x01,
+	CTL_OOACMD_FLAG_BLOCKED = 0x02,
+	CTL_OOACMD_FLAG_ABORT = 0x04,
+	CTL_OOACMD_FLAG_RTR = 0x08,
+	CTL_OOACMD_FLAG_DMA_QUEUED = 0x10,
+	CTL_OOACMD_FLAG_STATUS_QUEUED = 0x20,
+	CTL_OOACMD_FLAG_STATUS_SENT = 0x40
 } ctl_ooa_cmd_flags;
 
 struct ctl_ooa_entry {
-	ctl_ooa_cmd_flags	cmd_flags;
-	uint8_t			cdb[CTL_MAX_CDBLEN];
-	uint8_t			cdb_len;
-	uint32_t		tag_num;
-	uint32_t		lun_num;
-	struct bintime		start_bt;
+	ctl_ooa_cmd_flags cmd_flags;
+	uint8_t cdb[CTL_MAX_CDBLEN];
+	uint8_t cdb_len;
+	uint32_t tag_num;
+	uint32_t lun_num;
+	struct bintime start_bt;
 };
 
 struct ctl_ooa {
-	ctl_ooa_flags		flags;		/* passed to kernel */
-	uint64_t		lun_num;	/* passed to kernel */
-	uint32_t		alloc_len;	/* passed to kernel */
-	uint32_t		alloc_num;	/* passed to kernel */
-	struct ctl_ooa_entry	*entries;	/* filled in kernel */
-	uint32_t		fill_len;	/* passed to userland */
-	uint32_t		fill_num;	/* passed to userland */
-	uint32_t		dropped_num;	/* passed to userland */
-	struct bintime		cur_bt;		/* passed to userland */
-	ctl_get_ooa_status	status;		/* passed to userland */
+	ctl_ooa_flags flags;	       /* passed to kernel */
+	uint64_t lun_num;	       /* passed to kernel */
+	uint32_t alloc_len;	       /* passed to kernel */
+	uint32_t alloc_num;	       /* passed to kernel */
+	struct ctl_ooa_entry *entries; /* filled in kernel */
+	uint32_t fill_len;	       /* passed to userland */
+	uint32_t fill_num;	       /* passed to userland */
+	uint32_t dropped_num;	       /* passed to userland */
+	struct bintime cur_bt;	       /* passed to userland */
+	ctl_get_ooa_status status;     /* passed to userland */
 };
 
 typedef enum {
@@ -281,7 +281,7 @@ typedef enum {
 	CTL_LUN_WARNING
 } ctl_lun_status;
 
-#define	CTL_ERROR_STR_LEN	160
+#define CTL_ERROR_STR_LEN 160
 
 typedef enum {
 	CTL_LUNREQ_CREATE,
@@ -304,7 +304,7 @@ typedef enum {
  * which is accessible via the Master shelf controller in an HA. This flag
  * being set indicates a Primary LUN. This flag being reset represents a
  * Secondary LUN controlled by the Secondary controller in an HA
- * configuration. Flag is applicable at this time to T_DIRECT types. 
+ * configuration. Flag is applicable at this time to T_DIRECT types.
  *
  * The SERIAL_NUM flag tells us that the serial_num field is filled in and
  * valid for use in SCSI INQUIRY VPD page 0x80.
@@ -321,16 +321,16 @@ typedef enum {
  * The OFFLINE flag tells us that this LUN can not access backing store.
  */
 typedef enum {
-	CTL_LUN_FLAG_ID_REQ		= 0x01,
-	CTL_LUN_FLAG_STOPPED		= 0x02,
-	CTL_LUN_FLAG_NO_MEDIA		= 0x04,
-	CTL_LUN_FLAG_PRIMARY		= 0x08,
-	CTL_LUN_FLAG_SERIAL_NUM		= 0x10,
-	CTL_LUN_FLAG_DEVID		= 0x20,
-	CTL_LUN_FLAG_DEV_TYPE		= 0x40,
-	CTL_LUN_FLAG_UNMAP		= 0x80,
-	CTL_LUN_FLAG_EJECTED		= 0x100,
-	CTL_LUN_FLAG_READONLY		= 0x200
+	CTL_LUN_FLAG_ID_REQ = 0x01,
+	CTL_LUN_FLAG_STOPPED = 0x02,
+	CTL_LUN_FLAG_NO_MEDIA = 0x04,
+	CTL_LUN_FLAG_PRIMARY = 0x08,
+	CTL_LUN_FLAG_SERIAL_NUM = 0x10,
+	CTL_LUN_FLAG_DEVID = 0x20,
+	CTL_LUN_FLAG_DEV_TYPE = 0x40,
+	CTL_LUN_FLAG_UNMAP = 0x80,
+	CTL_LUN_FLAG_EJECTED = 0x100,
+	CTL_LUN_FLAG_READONLY = 0x200
 } ctl_backend_lun_flags;
 
 /*
@@ -355,7 +355,7 @@ typedef enum {
  *
  * blocksize_bytes:	The LUN blocksize in bytes.  For some backends this
  *			is relevant, for others it may be ignored in
- *			favor of using the properties of the backing store. 
+ *			favor of using the properties of the backing store.
  *
  *			The actual blocksize of the LUN is returned in this
  *			field.
@@ -382,13 +382,13 @@ typedef enum {
  *			The device id value used is returned in this field.
  */
 struct ctl_lun_create_params {
-	ctl_backend_lun_flags	flags;
-	uint8_t			device_type;
-	uint64_t		lun_size_bytes;
-	uint32_t		blocksize_bytes;
-	uint32_t		req_lun_id;
-	uint8_t			serial_num[CTL_SN_LEN];
-	uint8_t			device_id[CTL_DEVID_LEN];
+	ctl_backend_lun_flags flags;
+	uint8_t device_type;
+	uint64_t lun_size_bytes;
+	uint32_t blocksize_bytes;
+	uint32_t req_lun_id;
+	uint8_t serial_num[CTL_SN_LEN];
+	uint8_t device_id[CTL_DEVID_LEN];
 };
 
 /*
@@ -398,7 +398,7 @@ struct ctl_lun_create_params {
  *			The LUN must be backed by the given backend.
  */
 struct ctl_lun_rm_params {
-	uint32_t		lun_id;
+	uint32_t lun_id;
 };
 
 /*
@@ -411,8 +411,8 @@ struct ctl_lun_rm_params {
  * 			the size using the backing file size, if possible.
  */
 struct ctl_lun_modify_params {
-	uint32_t		lun_id;
-	uint64_t		lun_size_bytes;
+	uint32_t lun_id;
+	uint64_t lun_size_bytes;
 };
 
 /*
@@ -420,9 +420,9 @@ struct ctl_lun_modify_params {
  * the request type.
  */
 union ctl_lunreq_data {
-	struct ctl_lun_create_params	create;
-	struct ctl_lun_rm_params	rm;
-	struct ctl_lun_modify_params	modify;
+	struct ctl_lun_create_params create;
+	struct ctl_lun_rm_params rm;
+	struct ctl_lun_modify_params modify;
 };
 
 /*
@@ -454,18 +454,18 @@ union ctl_lunreq_data {
  * kern_be_args:	For kernel use only.
  */
 struct ctl_lun_req {
-#define	CTL_BE_NAME_LEN		32
-	char			backend[CTL_BE_NAME_LEN];
-	ctl_lunreq_type		reqtype;
-	union ctl_lunreq_data	reqdata;
-	void *			args;
-	nvlist_t *		args_nvl;
-	size_t			args_len;
-	void *			result;
-	nvlist_t *		result_nvl;
-	size_t			result_len;
-	ctl_lun_status		status;
-	char			error_str[CTL_ERROR_STR_LEN];
+#define CTL_BE_NAME_LEN 32
+	char backend[CTL_BE_NAME_LEN];
+	ctl_lunreq_type reqtype;
+	union ctl_lunreq_data reqdata;
+	void *args;
+	nvlist_t *args_nvl;
+	size_t args_len;
+	void *result;
+	nvlist_t *result_nvl;
+	size_t result_len;
+	ctl_lun_status status;
+	char error_str[CTL_ERROR_STR_LEN];
 };
 
 /*
@@ -506,20 +506,20 @@ typedef enum {
  *
  * fill_len:		The amount of data filled in the storage for entries.
  *
- * status:		The status of the request.  See above for the 
+ * status:		The status of the request.  See above for the
  *			description of the values of this field.
  *
  * error_str:		If the status indicates an error, this string will
  *			be filled in to describe the error.
  */
 struct ctl_lun_list {
-	char			backend[CTL_BE_NAME_LEN]; /* passed to kernel*/
-	uint32_t		alloc_len;	/* passed to kernel */
-	char			*lun_xml;	/* filled in kernel */
-	uint32_t		fill_len;	/* passed to userland */
-	ctl_lun_list_status	status;		/* passed to userland */
-	char			error_str[CTL_ERROR_STR_LEN];
-						/* passed to userland */
+	char backend[CTL_BE_NAME_LEN]; /* passed to kernel*/
+	uint32_t alloc_len;	       /* passed to kernel */
+	char *lun_xml;		       /* filled in kernel */
+	uint32_t fill_len;	       /* passed to userland */
+	ctl_lun_list_status status;    /* passed to userland */
+	char error_str[CTL_ERROR_STR_LEN];
+	/* passed to userland */
 };
 
 /*
@@ -552,16 +552,16 @@ typedef enum {
 } ctl_req_type;
 
 struct ctl_req {
-	char			driver[CTL_DRIVER_NAME_LEN];
-	ctl_req_type		reqtype;
-	void *			args;
-	nvlist_t *		args_nvl;
-	size_t			args_len;
-	void *			result;
-	nvlist_t *		result_nvl;
-	size_t			result_len;
-	ctl_lun_status		status;
-	char			error_str[CTL_ERROR_STR_LEN];
+	char driver[CTL_DRIVER_NAME_LEN];
+	ctl_req_type reqtype;
+	void *args;
+	nvlist_t *args_nvl;
+	size_t args_len;
+	void *result;
+	nvlist_t *result_nvl;
+	size_t result_len;
+	ctl_lun_status status;
+	char error_str[CTL_ERROR_STR_LEN];
 };
 
 /*
@@ -605,175 +605,175 @@ typedef enum {
 	CTL_ISCSI_DIGEST_CRC32C
 } ctl_iscsi_digest;
 
-#define	CTL_ISCSI_NAME_LEN	224	/* 223 bytes, by RFC 3720, + '\0' */
-#define	CTL_ISCSI_ADDR_LEN	47	/* INET6_ADDRSTRLEN + '\0' */
-#define	CTL_ISCSI_ALIAS_LEN	128	/* Arbitrary. */
-#define	CTL_ISCSI_OFFLOAD_LEN	8	/* Arbitrary. */
+#define CTL_ISCSI_NAME_LEN 224 /* 223 bytes, by RFC 3720, + '\0' */
+#define CTL_ISCSI_ADDR_LEN 47 /* INET6_ADDRSTRLEN + '\0' */
+#define CTL_ISCSI_ALIAS_LEN 128 /* Arbitrary. */
+#define CTL_ISCSI_OFFLOAD_LEN 8 /* Arbitrary. */
 
 struct ctl_iscsi_handoff_params {
-	char			initiator_name[CTL_ISCSI_NAME_LEN];
-	char			initiator_addr[CTL_ISCSI_ADDR_LEN];
-	char			initiator_alias[CTL_ISCSI_ALIAS_LEN];
-	uint8_t			initiator_isid[6];
-	char			target_name[CTL_ISCSI_NAME_LEN];
-	int			socket;
-	int			portal_group_tag;
+	char initiator_name[CTL_ISCSI_NAME_LEN];
+	char initiator_addr[CTL_ISCSI_ADDR_LEN];
+	char initiator_alias[CTL_ISCSI_ALIAS_LEN];
+	uint8_t initiator_isid[6];
+	char target_name[CTL_ISCSI_NAME_LEN];
+	int socket;
+	int portal_group_tag;
 
 	/*
 	 * Connection parameters negotiated by ctld(8).
 	 */
-	ctl_iscsi_digest	header_digest;
-	ctl_iscsi_digest	data_digest;
-	uint32_t		cmdsn;
-	uint32_t		statsn;
-	int			max_recv_data_segment_length;
-	int			max_burst_length;
-	int			first_burst_length;
-	uint32_t		immediate_data;
-	char			offload[CTL_ISCSI_OFFLOAD_LEN];
+	ctl_iscsi_digest header_digest;
+	ctl_iscsi_digest data_digest;
+	uint32_t cmdsn;
+	uint32_t statsn;
+	int max_recv_data_segment_length;
+	int max_burst_length;
+	int first_burst_length;
+	uint32_t immediate_data;
+	char offload[CTL_ISCSI_OFFLOAD_LEN];
 #ifdef ICL_KERNEL_PROXY
-	int			connection_id;
+	int connection_id;
 #else
-	int			spare;
+	int spare;
 #endif
-	int			max_send_data_segment_length;
+	int max_send_data_segment_length;
 };
 
 struct ctl_iscsi_list_params {
-	uint32_t		alloc_len;	/* passed to kernel */
-	char                   *conn_xml;	/* filled in kernel */
-	uint32_t		fill_len;	/* passed to userland */
-	int			spare[4];
+	uint32_t alloc_len; /* passed to kernel */
+	char *conn_xml;	    /* filled in kernel */
+	uint32_t fill_len;  /* passed to userland */
+	int spare[4];
 };
 
 struct ctl_iscsi_logout_params {
-	int			connection_id;	/* passed to kernel */
-	char			initiator_name[CTL_ISCSI_NAME_LEN];
-						/* passed to kernel */
-	char			initiator_addr[CTL_ISCSI_ADDR_LEN];
-						/* passed to kernel */
-	int			all;		/* passed to kernel */
-	int			spare[4];
+	int connection_id; /* passed to kernel */
+	char initiator_name[CTL_ISCSI_NAME_LEN];
+	/* passed to kernel */
+	char initiator_addr[CTL_ISCSI_ADDR_LEN];
+	/* passed to kernel */
+	int all; /* passed to kernel */
+	int spare[4];
 };
 
 struct ctl_iscsi_terminate_params {
-	int			connection_id;	/* passed to kernel */
-	char			initiator_name[CTL_ISCSI_NAME_LEN];
-						/* passed to kernel */
-	char			initiator_addr[CTL_ISCSI_NAME_LEN];
-						/* passed to kernel */
-	int			all;		/* passed to kernel */
-	int			spare[4];
+	int connection_id; /* passed to kernel */
+	char initiator_name[CTL_ISCSI_NAME_LEN];
+	/* passed to kernel */
+	char initiator_addr[CTL_ISCSI_NAME_LEN];
+	/* passed to kernel */
+	int all; /* passed to kernel */
+	int spare[4];
 };
 
 struct ctl_iscsi_limits_params {
 	/* passed to kernel */
-	char			offload[CTL_ISCSI_OFFLOAD_LEN];
+	char offload[CTL_ISCSI_OFFLOAD_LEN];
 
 	/* passed to userland */
-	size_t			spare;
-	int			max_recv_data_segment_length;
-	int			max_send_data_segment_length;
-	int			max_burst_length;
-	int			first_burst_length;
+	size_t spare;
+	int max_recv_data_segment_length;
+	int max_send_data_segment_length;
+	int max_burst_length;
+	int first_burst_length;
 };
 
 #ifdef ICL_KERNEL_PROXY
 struct ctl_iscsi_listen_params {
-	int			iser;
-	int			domain;
-	int			socktype;
-	int			protocol;
-	struct sockaddr		*addr;
-	socklen_t		addrlen;
-	int			portal_id;
-	int			spare[4];
+	int iser;
+	int domain;
+	int socktype;
+	int protocol;
+	struct sockaddr *addr;
+	socklen_t addrlen;
+	int portal_id;
+	int spare[4];
 };
 
 struct ctl_iscsi_accept_params {
-	int			connection_id;
-	int			portal_id;
-	struct sockaddr		*initiator_addr;
-	socklen_t		initiator_addrlen;
-	int			spare[4];
+	int connection_id;
+	int portal_id;
+	struct sockaddr *initiator_addr;
+	socklen_t initiator_addrlen;
+	int spare[4];
 };
 
 struct ctl_iscsi_send_params {
-	int			connection_id;
-	void			*bhs;
-	size_t			spare;
-	void			*spare2;
-	size_t			data_segment_len;
-	void			*data_segment;
-	int			spare3[4];
+	int connection_id;
+	void *bhs;
+	size_t spare;
+	void *spare2;
+	size_t data_segment_len;
+	void *data_segment;
+	int spare3[4];
 };
 
 struct ctl_iscsi_receive_params {
-	int			connection_id;
-	void			*bhs;
-	size_t			spare;
-	void			*spare2;
-	size_t			data_segment_len;
-	void			*data_segment;
-	int			spare3[4];
+	int connection_id;
+	void *bhs;
+	size_t spare;
+	void *spare2;
+	size_t data_segment_len;
+	void *data_segment;
+	int spare3[4];
 };
 
 #endif /* ICL_KERNEL_PROXY */
 
 union ctl_iscsi_data {
-	struct ctl_iscsi_handoff_params		handoff;
-	struct ctl_iscsi_list_params		list;
-	struct ctl_iscsi_logout_params		logout;
-	struct ctl_iscsi_terminate_params	terminate;
-	struct ctl_iscsi_limits_params		limits;
+	struct ctl_iscsi_handoff_params handoff;
+	struct ctl_iscsi_list_params list;
+	struct ctl_iscsi_logout_params logout;
+	struct ctl_iscsi_terminate_params terminate;
+	struct ctl_iscsi_limits_params limits;
 #ifdef ICL_KERNEL_PROXY
-	struct ctl_iscsi_listen_params		listen;
-	struct ctl_iscsi_accept_params		accept;
-	struct ctl_iscsi_send_params		send;
-	struct ctl_iscsi_receive_params		receive;
+	struct ctl_iscsi_listen_params listen;
+	struct ctl_iscsi_accept_params accept;
+	struct ctl_iscsi_send_params send;
+	struct ctl_iscsi_receive_params receive;
 #endif
 };
 
 /*
  * iSCSI interface
  *
- * status:		The status of the request.  See above for the 
+ * status:		The status of the request.  See above for the
  *			description of the values of this field.
  *
  * error_str:		If the status indicates an error, this string will
  *			be filled in to describe the error.
  */
 struct ctl_iscsi {
-	ctl_iscsi_type		type;		/* passed to kernel */
-	union ctl_iscsi_data	data;		/* passed to kernel */
-	ctl_iscsi_status	status;		/* passed to userland */
-	char			error_str[CTL_ERROR_STR_LEN];
-						/* passed to userland */
+	ctl_iscsi_type type;	   /* passed to kernel */
+	union ctl_iscsi_data data; /* passed to kernel */
+	ctl_iscsi_status status;   /* passed to userland */
+	char error_str[CTL_ERROR_STR_LEN];
+	/* passed to userland */
 };
 
 struct ctl_lun_map {
-	uint32_t		port;
-	uint32_t		plun;
-	uint32_t		lun;
+	uint32_t port;
+	uint32_t plun;
+	uint32_t lun;
 };
 
-#define	CTL_IO			_IOWR(CTL_MINOR, 0x00, union ctl_io)
-#define	CTL_ENABLE_PORT		_IOW(CTL_MINOR, 0x04, struct ctl_port_entry)
-#define	CTL_DISABLE_PORT	_IOW(CTL_MINOR, 0x05, struct ctl_port_entry)
-#define	CTL_DELAY_IO		_IOWR(CTL_MINOR, 0x10, struct ctl_io_delay_info)
-#define	CTL_ERROR_INJECT	_IOWR(CTL_MINOR, 0x16, struct ctl_error_desc)
-#define	CTL_GET_OOA		_IOWR(CTL_MINOR, 0x18, struct ctl_ooa)
-#define	CTL_DUMP_STRUCTS	_IO(CTL_MINOR, 0x19)
-#define	CTL_LUN_REQ		_IOWR(CTL_MINOR, 0x21, struct ctl_lun_req)
-#define	CTL_LUN_LIST		_IOWR(CTL_MINOR, 0x22, struct ctl_lun_list)
-#define	CTL_ERROR_INJECT_DELETE	_IOW(CTL_MINOR, 0x23, struct ctl_error_desc)
-#define	CTL_SET_PORT_WWNS	_IOW(CTL_MINOR, 0x24, struct ctl_port_entry)
-#define	CTL_ISCSI		_IOWR(CTL_MINOR, 0x25, struct ctl_iscsi)
-#define	CTL_PORT_REQ		_IOWR(CTL_MINOR, 0x26, struct ctl_req)
-#define	CTL_PORT_LIST		_IOWR(CTL_MINOR, 0x27, struct ctl_lun_list)
-#define	CTL_LUN_MAP		_IOW(CTL_MINOR, 0x28, struct ctl_lun_map)
-#define	CTL_GET_LUN_STATS	_IOWR(CTL_MINOR, 0x29, struct ctl_get_io_stats)
-#define	CTL_GET_PORT_STATS	_IOWR(CTL_MINOR, 0x2a, struct ctl_get_io_stats)
+#define CTL_IO _IOWR(CTL_MINOR, 0x00, union ctl_io)
+#define CTL_ENABLE_PORT _IOW(CTL_MINOR, 0x04, struct ctl_port_entry)
+#define CTL_DISABLE_PORT _IOW(CTL_MINOR, 0x05, struct ctl_port_entry)
+#define CTL_DELAY_IO _IOWR(CTL_MINOR, 0x10, struct ctl_io_delay_info)
+#define CTL_ERROR_INJECT _IOWR(CTL_MINOR, 0x16, struct ctl_error_desc)
+#define CTL_GET_OOA _IOWR(CTL_MINOR, 0x18, struct ctl_ooa)
+#define CTL_DUMP_STRUCTS _IO(CTL_MINOR, 0x19)
+#define CTL_LUN_REQ _IOWR(CTL_MINOR, 0x21, struct ctl_lun_req)
+#define CTL_LUN_LIST _IOWR(CTL_MINOR, 0x22, struct ctl_lun_list)
+#define CTL_ERROR_INJECT_DELETE _IOW(CTL_MINOR, 0x23, struct ctl_error_desc)
+#define CTL_SET_PORT_WWNS _IOW(CTL_MINOR, 0x24, struct ctl_port_entry)
+#define CTL_ISCSI _IOWR(CTL_MINOR, 0x25, struct ctl_iscsi)
+#define CTL_PORT_REQ _IOWR(CTL_MINOR, 0x26, struct ctl_req)
+#define CTL_PORT_LIST _IOWR(CTL_MINOR, 0x27, struct ctl_lun_list)
+#define CTL_LUN_MAP _IOW(CTL_MINOR, 0x28, struct ctl_lun_map)
+#define CTL_GET_LUN_STATS _IOWR(CTL_MINOR, 0x29, struct ctl_get_io_stats)
+#define CTL_GET_PORT_STATS _IOWR(CTL_MINOR, 0x2a, struct ctl_get_io_stats)
 
 #endif /* _CTL_IOCTL_H_ */
 

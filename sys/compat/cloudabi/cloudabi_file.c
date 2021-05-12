@@ -39,11 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/vnode.h>
 
-#include <contrib/cloudabi/cloudabi_types_common.h>
-
 #include <compat/cloudabi/cloudabi_proto.h>
 #include <compat/cloudabi/cloudabi_util.h>
-
+#include <contrib/cloudabi/cloudabi_types_common.h>
 #include <security/mac/mac_framework.h>
 
 static MALLOC_DEFINE(M_CLOUDABI_PATH, "cloudabipath", "CloudABI pathnames");
@@ -100,8 +98,8 @@ cloudabi_freestr(char *buf)
 }
 
 int
-cloudabi_sys_file_advise(struct thread *td,
-    struct cloudabi_sys_file_advise_args *uap)
+cloudabi_sys_file_advise(
+    struct thread *td, struct cloudabi_sys_file_advise_args *uap)
 {
 	int advice;
 
@@ -132,16 +130,16 @@ cloudabi_sys_file_advise(struct thread *td,
 }
 
 int
-cloudabi_sys_file_allocate(struct thread *td,
-    struct cloudabi_sys_file_allocate_args *uap)
+cloudabi_sys_file_allocate(
+    struct thread *td, struct cloudabi_sys_file_allocate_args *uap)
 {
 
 	return (kern_posix_fallocate(td, uap->fd, uap->offset, uap->len));
 }
 
 int
-cloudabi_sys_file_create(struct thread *td,
-    struct cloudabi_sys_file_create_args *uap)
+cloudabi_sys_file_create(
+    struct thread *td, struct cloudabi_sys_file_create_args *uap)
 {
 	char *path;
 	int error;
@@ -168,8 +166,8 @@ cloudabi_sys_file_create(struct thread *td,
 }
 
 int
-cloudabi_sys_file_link(struct thread *td,
-    struct cloudabi_sys_file_link_args *uap)
+cloudabi_sys_file_link(
+    struct thread *td, struct cloudabi_sys_file_link_args *uap)
 {
 	char *path1, *path2;
 	int error;
@@ -184,16 +182,18 @@ cloudabi_sys_file_link(struct thread *td,
 	}
 
 	error = kern_linkat(td, uap->fd1.fd, uap->fd2, path1, path2,
-	    UIO_SYSSPACE, (uap->fd1.flags & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) ?
-	    AT_SYMLINK_FOLLOW : 0);
+	    UIO_SYSSPACE,
+	    (uap->fd1.flags & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) ?
+		      AT_SYMLINK_FOLLOW :
+		      0);
 	cloudabi_freestr(path1);
 	cloudabi_freestr(path2);
 	return (error);
 }
 
 int
-cloudabi_sys_file_open(struct thread *td,
-    struct cloudabi_sys_file_open_args *uap)
+cloudabi_sys_file_open(
+    struct thread *td, struct cloudabi_sys_file_open_args *uap)
 {
 	cloudabi_fdstat_t fds;
 	cap_rights_t rights;
@@ -217,11 +217,13 @@ cloudabi_sys_file_open(struct thread *td,
 	cap_rights_set_one(&rights, CAP_LOOKUP);
 
 	/* Convert rights to corresponding access mode. */
-	read = (fds.fs_rights_base & (CLOUDABI_RIGHT_FD_READ |
-	    CLOUDABI_RIGHT_FILE_READDIR | CLOUDABI_RIGHT_MEM_MAP_EXEC)) != 0;
-	write = (fds.fs_rights_base & (CLOUDABI_RIGHT_FD_DATASYNC |
-	    CLOUDABI_RIGHT_FD_WRITE | CLOUDABI_RIGHT_FILE_ALLOCATE |
-	    CLOUDABI_RIGHT_FILE_STAT_FPUT_SIZE)) != 0;
+	read = (fds.fs_rights_base &
+		   (CLOUDABI_RIGHT_FD_READ | CLOUDABI_RIGHT_FILE_READDIR |
+		       CLOUDABI_RIGHT_MEM_MAP_EXEC)) != 0;
+	write = (fds.fs_rights_base &
+		    (CLOUDABI_RIGHT_FD_DATASYNC | CLOUDABI_RIGHT_FD_WRITE |
+			CLOUDABI_RIGHT_FILE_ALLOCATE |
+			CLOUDABI_RIGHT_FILE_STAT_FPUT_SIZE)) != 0;
 	fflags = write ? read ? FREAD | FWRITE : FWRITE : FREAD;
 
 	/* Convert open flags. */
@@ -241,8 +243,9 @@ cloudabi_sys_file_open(struct thread *td,
 		fflags |= O_APPEND;
 	if ((fds.fs_flags & CLOUDABI_FDFLAG_NONBLOCK) != 0)
 		fflags |= O_NONBLOCK;
-	if ((fds.fs_flags & (CLOUDABI_FDFLAG_SYNC | CLOUDABI_FDFLAG_DSYNC |
-	    CLOUDABI_FDFLAG_RSYNC)) != 0) {
+	if ((fds.fs_flags &
+		(CLOUDABI_FDFLAG_SYNC | CLOUDABI_FDFLAG_DSYNC |
+		    CLOUDABI_FDFLAG_RSYNC)) != 0) {
 		fflags |= O_SYNC;
 		cap_rights_set_one(&rights, CAP_FSYNC);
 	}
@@ -307,8 +310,8 @@ success:
 	/* Determine which Capsicum rights to set on the file descriptor. */
 	cloudabi_remove_conflicting_rights(cloudabi_convert_filetype(fp),
 	    &fds.fs_rights_base, &fds.fs_rights_inheriting);
-	cloudabi_convert_rights(fds.fs_rights_base | fds.fs_rights_inheriting,
-	    &fcaps.fc_rights);
+	cloudabi_convert_rights(
+	    fds.fs_rights_base | fds.fs_rights_inheriting, &fcaps.fc_rights);
 	if (cap_rights_is_set(&fcaps.fc_rights))
 		fcaps.fc_fcntls = CAP_FCNTL_SETFL;
 
@@ -373,21 +376,16 @@ write_dirent(struct dirent *bde, cloudabi_dircookie_t cookie, struct uio *uio)
 }
 
 int
-cloudabi_sys_file_readdir(struct thread *td,
-    struct cloudabi_sys_file_readdir_args *uap)
+cloudabi_sys_file_readdir(
+    struct thread *td, struct cloudabi_sys_file_readdir_args *uap)
 {
-	struct iovec iov = {
-		.iov_base = uap->buf,
-		.iov_len = uap->buf_len
-	};
-	struct uio uio = {
-		.uio_iov = &iov,
+	struct iovec iov = { .iov_base = uap->buf, .iov_len = uap->buf_len };
+	struct uio uio = { .uio_iov = &iov,
 		.uio_iovcnt = 1,
 		.uio_resid = iov.iov_len,
 		.uio_segflg = UIO_USERSPACE,
 		.uio_rw = UIO_READ,
-		.uio_td = td
-	};
+		.uio_td = td };
 	struct file *fp;
 	struct vnode *vp;
 	void *readbuf;
@@ -414,19 +412,15 @@ cloudabi_sys_file_readdir(struct thread *td,
 	offset = uap->cookie;
 	vp = fp->f_vnode;
 	while (uio.uio_resid > 0) {
-		struct iovec readiov = {
-			.iov_base = readbuf,
-			.iov_len = MAXBSIZE
-		};
-		struct uio readuio = {
-			.uio_iov = &readiov,
+		struct iovec readiov = { .iov_base = readbuf,
+			.iov_len = MAXBSIZE };
+		struct uio readuio = { .uio_iov = &readiov,
 			.uio_iovcnt = 1,
 			.uio_rw = UIO_READ,
 			.uio_segflg = UIO_SYSSPACE,
 			.uio_td = td,
 			.uio_resid = MAXBSIZE,
-			.uio_offset = offset
-		};
+			.uio_offset = offset };
 		struct dirent *bde;
 		unsigned long *cookies, *cookie;
 		size_t readbuflen;
@@ -450,8 +444,8 @@ cloudabi_sys_file_readdir(struct thread *td,
 		/* Read new directory entries. */
 		cookies = NULL;
 		ncookies = 0;
-		error = VOP_READDIR(vp, &readuio, fp->f_cred, &eof,
-		    &ncookies, &cookies);
+		error = VOP_READDIR(
+		    vp, &readuio, fp->f_cred, &eof, &ncookies, &cookies);
 		VOP_UNLOCK(vp);
 		if (error != 0)
 			goto done;
@@ -496,8 +490,8 @@ done:
 }
 
 int
-cloudabi_sys_file_readlink(struct thread *td,
-    struct cloudabi_sys_file_readlink_args *uap)
+cloudabi_sys_file_readlink(
+    struct thread *td, struct cloudabi_sys_file_readlink_args *uap)
 {
 	char *path;
 	int error;
@@ -506,15 +500,15 @@ cloudabi_sys_file_readlink(struct thread *td,
 	if (error != 0)
 		return (error);
 
-	error = kern_readlinkat(td, uap->fd, path, UIO_SYSSPACE,
-	    uap->buf, UIO_USERSPACE, uap->buf_len);
+	error = kern_readlinkat(td, uap->fd, path, UIO_SYSSPACE, uap->buf,
+	    UIO_USERSPACE, uap->buf_len);
 	cloudabi_freestr(path);
 	return (error);
 }
 
 int
-cloudabi_sys_file_rename(struct thread *td,
-    struct cloudabi_sys_file_rename_args *uap)
+cloudabi_sys_file_rename(
+    struct thread *td, struct cloudabi_sys_file_rename_args *uap)
 {
 	char *old, *new;
 	int error;
@@ -528,8 +522,7 @@ cloudabi_sys_file_rename(struct thread *td,
 		return (error);
 	}
 
-	error = kern_renameat(td, uap->fd1, old, uap->fd2, new,
-	    UIO_SYSSPACE);
+	error = kern_renameat(td, uap->fd1, old, uap->fd2, new, UIO_SYSSPACE);
 	cloudabi_freestr(old);
 	cloudabi_freestr(new);
 	return (error);
@@ -540,10 +533,10 @@ static void
 convert_stat(const struct stat *sb, cloudabi_filestat_t *csb)
 {
 	cloudabi_filestat_t res = {
-		.st_dev		= sb->st_dev,
-		.st_ino		= sb->st_ino,
-		.st_nlink	= sb->st_nlink,
-		.st_size	= sb->st_size,
+		.st_dev = sb->st_dev,
+		.st_ino = sb->st_ino,
+		.st_nlink = sb->st_nlink,
+		.st_size = sb->st_size,
 	};
 
 	cloudabi_convert_timespec(&sb->st_atim, &res.st_atim);
@@ -553,8 +546,8 @@ convert_stat(const struct stat *sb, cloudabi_filestat_t *csb)
 }
 
 int
-cloudabi_sys_file_stat_fget(struct thread *td,
-    struct cloudabi_sys_file_stat_fget_args *uap)
+cloudabi_sys_file_stat_fget(
+    struct thread *td, struct cloudabi_sys_file_stat_fget_args *uap)
 {
 	struct stat sb;
 	cloudabi_filestat_t csb;
@@ -608,8 +601,8 @@ convert_utimens_arguments(const cloudabi_filestat_t *fs,
 }
 
 int
-cloudabi_sys_file_stat_fput(struct thread *td,
-    struct cloudabi_sys_file_stat_fput_args *uap)
+cloudabi_sys_file_stat_fput(
+    struct thread *td, struct cloudabi_sys_file_stat_fput_args *uap)
 {
 	cloudabi_filestat_t fs;
 	struct timespec ts[2];
@@ -628,13 +621,15 @@ cloudabi_sys_file_stat_fput(struct thread *td,
 		if ((uap->flags & ~CLOUDABI_FILESTAT_SIZE) != 0)
 			return (EINVAL);
 		return (kern_ftruncate(td, uap->fd, fs.st_size));
-	} else if ((uap->flags & (CLOUDABI_FILESTAT_ATIM |
-	    CLOUDABI_FILESTAT_ATIM_NOW | CLOUDABI_FILESTAT_MTIM |
-	    CLOUDABI_FILESTAT_MTIM_NOW)) != 0) {
+	} else if ((uap->flags &
+		       (CLOUDABI_FILESTAT_ATIM | CLOUDABI_FILESTAT_ATIM_NOW |
+			   CLOUDABI_FILESTAT_MTIM |
+			   CLOUDABI_FILESTAT_MTIM_NOW)) != 0) {
 		/* Call into kern_futimens() for timestamp modification. */
-		if ((uap->flags & ~(CLOUDABI_FILESTAT_ATIM |
-		    CLOUDABI_FILESTAT_ATIM_NOW | CLOUDABI_FILESTAT_MTIM |
-		    CLOUDABI_FILESTAT_MTIM_NOW)) != 0)
+		if ((uap->flags &
+			~(CLOUDABI_FILESTAT_ATIM | CLOUDABI_FILESTAT_ATIM_NOW |
+			    CLOUDABI_FILESTAT_MTIM |
+			    CLOUDABI_FILESTAT_MTIM_NOW)) != 0)
 			return (EINVAL);
 		convert_utimens_arguments(&fs, uap->flags, ts);
 		return (kern_futimens(td, uap->fd, ts, UIO_SYSSPACE));
@@ -643,8 +638,8 @@ cloudabi_sys_file_stat_fput(struct thread *td,
 }
 
 int
-cloudabi_sys_file_stat_get(struct thread *td,
-    struct cloudabi_sys_file_stat_get_args *uap)
+cloudabi_sys_file_stat_get(
+    struct thread *td, struct cloudabi_sys_file_stat_get_args *uap)
 {
 	struct stat sb;
 	cloudabi_filestat_t csb;
@@ -658,8 +653,10 @@ cloudabi_sys_file_stat_get(struct thread *td,
 		return (error);
 
 	error = kern_statat(td,
-	    (uap->fd.flags & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) != 0 ? 0 :
-	    AT_SYMLINK_NOFOLLOW, uap->fd.fd, path, UIO_SYSSPACE, &sb, NULL);
+	    (uap->fd.flags & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) != 0 ?
+		      0 :
+		      AT_SYMLINK_NOFOLLOW,
+	    uap->fd.fd, path, UIO_SYSSPACE, &sb, NULL);
 	cloudabi_freestr(path);
 	if (error != 0)
 		return (error);
@@ -687,8 +684,8 @@ cloudabi_sys_file_stat_get(struct thread *td,
 }
 
 int
-cloudabi_sys_file_stat_put(struct thread *td,
-    struct cloudabi_sys_file_stat_put_args *uap)
+cloudabi_sys_file_stat_put(
+    struct thread *td, struct cloudabi_sys_file_stat_put_args *uap)
 {
 	cloudabi_filestat_t fs;
 	struct timespec ts[2];
@@ -699,9 +696,9 @@ cloudabi_sys_file_stat_put(struct thread *td,
 	 * Only support timestamp modification for now, as there is no
 	 * truncateat().
 	 */
-	if ((uap->flags & ~(CLOUDABI_FILESTAT_ATIM |
-	    CLOUDABI_FILESTAT_ATIM_NOW | CLOUDABI_FILESTAT_MTIM |
-	    CLOUDABI_FILESTAT_MTIM_NOW)) != 0)
+	if ((uap->flags &
+		~(CLOUDABI_FILESTAT_ATIM | CLOUDABI_FILESTAT_ATIM_NOW |
+		    CLOUDABI_FILESTAT_MTIM | CLOUDABI_FILESTAT_MTIM_NOW)) != 0)
 		return (EINVAL);
 
 	error = copyin(uap->buf, &fs, sizeof(fs));
@@ -713,15 +710,17 @@ cloudabi_sys_file_stat_put(struct thread *td,
 
 	convert_utimens_arguments(&fs, uap->flags, ts);
 	error = kern_utimensat(td, uap->fd.fd, path, UIO_SYSSPACE, ts,
-	    UIO_SYSSPACE, (uap->fd.flags & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) ?
-	    0 : AT_SYMLINK_NOFOLLOW);
+	    UIO_SYSSPACE,
+	    (uap->fd.flags & CLOUDABI_LOOKUP_SYMLINK_FOLLOW) ?
+		      0 :
+		      AT_SYMLINK_NOFOLLOW);
 	cloudabi_freestr(path);
 	return (error);
 }
 
 int
-cloudabi_sys_file_symlink(struct thread *td,
-    struct cloudabi_sys_file_symlink_args *uap)
+cloudabi_sys_file_symlink(
+    struct thread *td, struct cloudabi_sys_file_symlink_args *uap)
 {
 	char *path1, *path2;
 	int error;
@@ -742,8 +741,8 @@ cloudabi_sys_file_symlink(struct thread *td,
 }
 
 int
-cloudabi_sys_file_unlink(struct thread *td,
-    struct cloudabi_sys_file_unlink_args *uap)
+cloudabi_sys_file_unlink(
+    struct thread *td, struct cloudabi_sys_file_unlink_args *uap)
 {
 	char *path;
 	int error;
@@ -753,11 +752,11 @@ cloudabi_sys_file_unlink(struct thread *td,
 		return (error);
 
 	if (uap->flags & CLOUDABI_UNLINK_REMOVEDIR)
-		error = kern_frmdirat(td, uap->fd, path, FD_NONE,
-		    UIO_SYSSPACE, 0);
+		error = kern_frmdirat(
+		    td, uap->fd, path, FD_NONE, UIO_SYSSPACE, 0);
 	else
-		error = kern_funlinkat(td, uap->fd, path, FD_NONE,
-		    UIO_SYSSPACE, 0, 0);
+		error = kern_funlinkat(
+		    td, uap->fd, path, FD_NONE, UIO_SYSSPACE, 0, 0);
 	cloudabi_freestr(path);
 	return (error);
 }

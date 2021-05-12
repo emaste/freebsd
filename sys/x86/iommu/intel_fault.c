@@ -44,21 +44,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/vmem.h>
-#include <machine/bus.h>
-#include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/accommon.h>
-#include <dev/acpica/acpivar.h>
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <vm/vm_page.h>
+
+#include <machine/bus.h>
+
 #include <x86/include/busdma_impl.h>
-#include <x86/iommu/intel_reg.h>
-#include <dev/iommu/busdma_iommu.h>
 #include <x86/iommu/intel_dmar.h>
+#include <x86/iommu/intel_reg.h>
+
+#include <dev/acpica/acpivar.h>
+#include <dev/iommu/busdma_iommu.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
 /*
  * Fault interrupt handling for DMARs.  If advanced fault logging is
@@ -105,8 +110,7 @@ dmar_fault_intr_clear(struct dmar_unit *unit, uint32_t fsts)
 		clear |= DMAR_FSTS_ICE;
 	}
 	if ((fsts & DMAR_FSTS_IQE) != 0) {
-		printf("DMAR%d: Invalidation queue error\n",
-		    unit->iommu.unit);
+		printf("DMAR%d: Invalidation queue error\n", unit->iommu.unit);
 		clear |= DMAR_FSTS_IQE;
 	}
 	if ((fsts & DMAR_FSTS_APF) != 0) {
@@ -181,8 +185,7 @@ done:
 	}
 
 	if (enqueue) {
-		taskqueue_enqueue(unit->fault_taskqueue,
-		    &unit->fault_task);
+		taskqueue_enqueue(unit->fault_taskqueue, &unit->fault_task);
 	}
 	return (FILTER_HANDLED);
 }
@@ -232,9 +235,8 @@ dmar_fault_task(void *arg, int pending __unused)
 			func = pci_get_function(ctx->context.tag->owner);
 		}
 		DMAR_UNLOCK(unit);
-		printf(
-		    "pci%d:%d:%d sid %x fault acc %x adt 0x%x reason 0x%x "
-		    "addr %jx\n",
+		printf("pci%d:%d:%d sid %x fault acc %x adt 0x%x reason 0x%x "
+		       "addr %jx\n",
 		    bus, slot, func, sid, DMAR_FRCD2_T(fault_rec[1]),
 		    DMAR_FRCD2_AT(fault_rec[1]), DMAR_FRCD2_FR(fault_rec[1]),
 		    (uintmax_t)fault_rec[0]);

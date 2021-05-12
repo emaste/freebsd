@@ -40,22 +40,22 @@
 #ifndef _MALTA_YAMON_H_
 #define _MALTA_YAMON_H_
 
-#define YAMON_FUNCTION_BASE	0x1fc00500ul
+#define YAMON_FUNCTION_BASE 0x1fc00500ul
 
-#define YAMON_PRINT_COUNT_OFS	(YAMON_FUNCTION_BASE + 0x04)
-#define YAMON_EXIT_OFS		(YAMON_FUNCTION_BASE + 0x20)
-#define YAMON_FLUSH_CACHE_OFS	(YAMON_FUNCTION_BASE + 0x2c)
-#define YAMON_PRINT_OFS		(YAMON_FUNCTION_BASE + 0x34)
-#define YAMON_REG_CPU_ISR_OFS	(YAMON_FUNCTION_BASE + 0x38)
-#define YAMON_DEREG_CPU_ISR_OFS	(YAMON_FUNCTION_BASE + 0x3c)
-#define YAMON_REG_IC_ISR_OFS	(YAMON_FUNCTION_BASE + 0x40)
-#define YAMON_DEREG_IC_ISR_OFS	(YAMON_FUNCTION_BASE + 0x44)
-#define YAMON_REG_ESR_OFS	(YAMON_FUNCTION_BASE + 0x48)
-#define YAMON_DEREG_ESR_OFS	(YAMON_FUNCTION_BASE + 0x4c)
-#define YAMON_GETCHAR_OFS	(YAMON_FUNCTION_BASE + 0x50)
-#define YAMON_SYSCON_READ_OFS	(YAMON_FUNCTION_BASE + 0x54)
+#define YAMON_PRINT_COUNT_OFS (YAMON_FUNCTION_BASE + 0x04)
+#define YAMON_EXIT_OFS (YAMON_FUNCTION_BASE + 0x20)
+#define YAMON_FLUSH_CACHE_OFS (YAMON_FUNCTION_BASE + 0x2c)
+#define YAMON_PRINT_OFS (YAMON_FUNCTION_BASE + 0x34)
+#define YAMON_REG_CPU_ISR_OFS (YAMON_FUNCTION_BASE + 0x38)
+#define YAMON_DEREG_CPU_ISR_OFS (YAMON_FUNCTION_BASE + 0x3c)
+#define YAMON_REG_IC_ISR_OFS (YAMON_FUNCTION_BASE + 0x40)
+#define YAMON_DEREG_IC_ISR_OFS (YAMON_FUNCTION_BASE + 0x44)
+#define YAMON_REG_ESR_OFS (YAMON_FUNCTION_BASE + 0x48)
+#define YAMON_DEREG_ESR_OFS (YAMON_FUNCTION_BASE + 0x4c)
+#define YAMON_GETCHAR_OFS (YAMON_FUNCTION_BASE + 0x50)
+#define YAMON_SYSCON_READ_OFS (YAMON_FUNCTION_BASE + 0x54)
 
-#define YAMON_FUNC(ofs)		((long)(*(int32_t *)(MIPS_PHYS_TO_KSEG0(ofs))))
+#define YAMON_FUNC(ofs) ((long)(*(int32_t *)(MIPS_PHYS_TO_KSEG0(ofs))))
 
 typedef void (*t_yamon_print_count)(uint32_t port, char *s, uint32_t count);
 #define YAMON_PRINT_COUNT(s, count) \
@@ -72,23 +72,23 @@ typedef int (*t_yamon_getchar)(uint32_t port, char *ch);
 	((t_yamon_getchar)(YAMON_FUNC(YAMON_GETCHAR_OFS)))(0, ch)
 
 typedef int t_yamon_syscon_id;
-typedef int (*t_yamon_syscon_read)(t_yamon_syscon_id id, void *param,
-				   uint32_t size);
-#define YAMON_SYSCON_READ(id, param, size)				\
-	((t_yamon_syscon_read)(YAMON_FUNC(YAMON_SYSCON_READ_OFS)))	\
-	(id, param, size)
+typedef int (*t_yamon_syscon_read)(
+    t_yamon_syscon_id id, void *param, uint32_t size);
+#define YAMON_SYSCON_READ(id, param, size)                          \
+	((t_yamon_syscon_read)(YAMON_FUNC(YAMON_SYSCON_READ_OFS)))( \
+	    id, param, size)
 
 typedef struct {
 	char *name;
 	char *value;
 } yamon_env_t;
 
-#define SYSCON_BOARD_CPU_CLOCK_FREQ_ID	34	/* UINT32 */
-#define SYSCON_BOARD_BUS_CLOCK_FREQ_ID	35	/* UINT32 */
-#define SYSCON_BOARD_PCI_FREQ_KHZ_ID	36	/* UINT32 */
+#define SYSCON_BOARD_CPU_CLOCK_FREQ_ID 34 /* UINT32 */
+#define SYSCON_BOARD_BUS_CLOCK_FREQ_ID 35 /* UINT32 */
+#define SYSCON_BOARD_PCI_FREQ_KHZ_ID 36 /* UINT32 */
 
-char*		yamon_getenv(char *name);
-uint32_t	yamon_getcpufreq(void);
+char *yamon_getenv(char *name);
+uint32_t yamon_getcpufreq(void);
 
 extern yamon_env_t *fenvp[];
 

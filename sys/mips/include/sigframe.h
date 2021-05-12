@@ -8,7 +8,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -32,33 +32,33 @@
  * $FreeBSD$
  */
 #ifndef _MACHINE_SIGFRAME_H_
-#define	_MACHINE_SIGFRAME_H_
+#define _MACHINE_SIGFRAME_H_
 
 /*
  * WARNING: code in locore.s assumes the layout shown for sf_signum
  * thru sf_addr so... don't alter them!
  */
 struct sigframe {
-	register_t	sf_signum;
-	register_t	sf_siginfo;	/* code or pointer to sf_si */
-	register_t	sf_ucontext;	/* points to sf_uc */
-	register_t	sf_addr;	/* undocumented 4th arg */
-	ucontext_t	sf_uc;		/* = *sf_ucontext */
-	siginfo_t	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
-	unsigned long	__spare__[2];
+	register_t sf_signum;
+	register_t sf_siginfo;	/* code or pointer to sf_si */
+	register_t sf_ucontext; /* points to sf_uc */
+	register_t sf_addr;	/* undocumented 4th arg */
+	ucontext_t sf_uc;	/* = *sf_ucontext */
+	siginfo_t sf_si;	/* = *sf_siginfo (SA_SIGINFO case) */
+	unsigned long __spare__[2];
 };
 
 #if (defined(__mips_n32) || defined(__mips_n64)) && defined(COMPAT_FREEBSD32)
 #include <compat/freebsd32/freebsd32_signal.h>
 
 struct sigframe32 {
-	int32_t		sf_signum;
-	int32_t		sf_siginfo;	/* code or pointer to sf_si */
-	int32_t		sf_ucontext;	/* points to sf_uc */
-	int32_t		sf_addr;	/* undocumented 4th arg */
-	ucontext32_t	sf_uc;		/* = *sf_ucontext */
-	struct siginfo32	sf_si;	/* = *sf_siginfo (SA_SIGINFO case) */
-	uint32_t	__spare__[2];
+	int32_t sf_signum;
+	int32_t sf_siginfo;	/* code or pointer to sf_si */
+	int32_t sf_ucontext;	/* points to sf_uc */
+	int32_t sf_addr;	/* undocumented 4th arg */
+	ucontext32_t sf_uc;	/* = *sf_ucontext */
+	struct siginfo32 sf_si; /* = *sf_siginfo (SA_SIGINFO case) */
+	uint32_t __spare__[2];
 };
 #endif
 

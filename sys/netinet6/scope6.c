@@ -35,21 +35,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/systm.h>
-#include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
-
 #include <netinet/ip6.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
@@ -67,19 +65,18 @@ SYSCTL_DECL(_net_inet6_ip6);
  * sid_default below.
  */
 static struct mtx scope6_lock;
-#define	SCOPE6_LOCK_INIT()	mtx_init(&scope6_lock, "scope6_lock", NULL, MTX_DEF)
-#define	SCOPE6_LOCK()		mtx_lock(&scope6_lock)
-#define	SCOPE6_UNLOCK()		mtx_unlock(&scope6_lock)
-#define	SCOPE6_LOCK_ASSERT()	mtx_assert(&scope6_lock, MA_OWNED)
+#define SCOPE6_LOCK_INIT() mtx_init(&scope6_lock, "scope6_lock", NULL, MTX_DEF)
+#define SCOPE6_LOCK() mtx_lock(&scope6_lock)
+#define SCOPE6_UNLOCK() mtx_unlock(&scope6_lock)
+#define SCOPE6_LOCK_ASSERT() mtx_assert(&scope6_lock, MA_OWNED)
 
 VNET_DEFINE_STATIC(struct scope6_id, sid_default);
-#define	V_sid_default			VNET(sid_default)
+#define V_sid_default VNET(sid_default)
 
-#define SID(ifp) \
-	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->scope6_id)
+#define SID(ifp) (((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->scope6_id)
 
-static int	scope6_get(struct ifnet *, struct scope6_id *);
-static int	scope6_set(struct ifnet *, struct scope6_id *);
+static int scope6_get(struct ifnet *, struct scope6_id *);
+static int scope6_set(struct ifnet *, struct scope6_id *);
 
 void
 scope6_init(void)
@@ -126,11 +123,11 @@ scope6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	ifr = (struct in6_ifreq *)data;
 	switch (cmd) {
 	case SIOCSSCOPE6:
-		return (scope6_set(ifp,
-		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
+		return (scope6_set(
+		    ifp, (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
 	case SIOCGSCOPE6:
-		return (scope6_get(ifp,
-		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
+		return (scope6_get(
+		    ifp, (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
 	case SIOCGSCOPE6DEF:
 		return (scope6_get_default(
 		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
@@ -149,7 +146,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 	IF_AFDATA_WLOCK(ifp);
 	sid = SID(ifp);
 
-	if (!sid) {	/* paranoid? */
+	if (!sid) { /* paranoid? */
 		IF_AFDATA_WUNLOCK(ifp);
 		return (EINVAL);
 	}
@@ -211,7 +208,7 @@ scope6_get(struct ifnet *ifp, struct scope6_id *idlist)
 	/* We only need to lock the interface's afdata for SID() to work. */
 	NET_EPOCH_ENTER(et);
 	sid = SID(ifp);
-	if (sid == NULL) {	/* paranoid? */
+	if (sid == NULL) { /* paranoid? */
 		NET_EPOCH_EXIT(et);
 		return (EINVAL);
 	}
@@ -238,8 +235,7 @@ in6_addrscope(const struct in6_addr *addr)
 			return (IPV6_ADDR_SCOPE_GLOBAL);
 		return (IPV6_ADDR_MC_SCOPE(addr));
 	}
-	if (IN6_IS_ADDR_LINKLOCAL(addr) ||
-	    IN6_IS_ADDR_LOOPBACK(addr))
+	if (IN6_IS_ADDR_LINKLOCAL(addr) || IN6_IS_ADDR_LOOPBACK(addr))
 		return (IPV6_ADDR_SCOPE_LINKLOCAL);
 	if (IN6_IS_ADDR_SITELOCAL(addr))
 		return (IPV6_ADDR_SCOPE_SITELOCAL);
@@ -263,9 +259,9 @@ scope6_setdefault(struct ifnet *ifp)
 	SCOPE6_LOCK();
 	if (ifp) {
 		V_sid_default.s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL] =
-			ifp->if_index;
+		    ifp->if_index;
 		V_sid_default.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] =
-			ifp->if_index;
+		    ifp->if_index;
 	} else {
 		V_sid_default.s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL] = 0;
 		V_sid_default.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] = 0;
@@ -324,7 +320,7 @@ sa6_embedscope(struct sockaddr_in6 *sin6, int defaultok)
 
 	if (zoneid != 0 &&
 	    (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr) ||
-	    IN6_IS_ADDR_MC_INTFACELOCAL(&sin6->sin6_addr))) {
+		IN6_IS_ADDR_MC_INTFACELOCAL(&sin6->sin6_addr))) {
 		/*
 		 * At this moment, we only check interface-local and
 		 * link-local scope IDs, and use interface indices as the
@@ -370,7 +366,8 @@ sa6_recoverscope(struct sockaddr_in6 *sin6)
 			    zoneid != sin6->sin6_scope_id) {
 				log(LOG_NOTICE,
 				    "%s: embedded scope mismatch: %s%%%d. "
-				    "sin6_scope_id was overridden\n", __func__,
+				    "sin6_scope_id was overridden\n",
+				    __func__,
 				    ip6_sprintf(ip6buf, &sin6->sin6_addr),
 				    sin6->sin6_scope_id);
 			}
@@ -491,7 +488,7 @@ in6_set_unicast_scopeid(struct in6_addr *in6, uint32_t scopeid)
  * Return pointer to ifnet structure, corresponding to the zone id of
  * link-local scope.
  */
-struct ifnet*
+struct ifnet *
 in6_getlinkifnet(uint32_t zoneid)
 {
 
@@ -518,8 +515,8 @@ in6_getscopezone(const struct ifnet *ifp, int scope)
  * inside @dst and zone inside @scopeid
  */
 void
-in6_splitscope(const struct in6_addr *src, struct in6_addr *dst,
-    uint32_t *scopeid)
+in6_splitscope(
+    const struct in6_addr *src, struct in6_addr *dst, uint32_t *scopeid)
 {
 	uint32_t zoneid;
 
@@ -546,7 +543,7 @@ sa6_checkzone(struct sockaddr_in6 *sa6)
 
 	scope = in6_addrscope(&sa6->sin6_addr);
 	if (scope == IPV6_ADDR_SCOPE_GLOBAL)
-		return (sa6->sin6_scope_id ? EINVAL: 0);
+		return (sa6->sin6_scope_id ? EINVAL : 0);
 	if (IN6_IS_ADDR_MULTICAST(&sa6->sin6_addr) &&
 	    scope != IPV6_ADDR_SCOPE_LINKLOCAL &&
 	    scope != IPV6_ADDR_SCOPE_INTFACELOCAL) {
@@ -572,7 +569,7 @@ sa6_checkzone(struct sockaddr_in6 *sa6)
 	if (V_ip6_use_defzone != 0)
 		sa6->sin6_scope_id = V_sid_default.s6id_list[scope];
 	/* Return error if we can't determine zone id */
-	return (sa6->sin6_scope_id ? 0: EADDRNOTAVAIL);
+	return (sa6->sin6_scope_id ? 0 : EADDRNOTAVAIL);
 }
 
 /*

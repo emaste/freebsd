@@ -40,9 +40,9 @@ __FBSDID("$FreeBSD$");
 
 static int iwpm_user_pid = IWPM_PID_UNDEFINED;
 
-int iwpm_valid_pid(void)
+int
+iwpm_valid_pid(void)
 {
 	return iwpm_user_pid > 0;
 }
 EXPORT_SYMBOL(iwpm_valid_pid);
-

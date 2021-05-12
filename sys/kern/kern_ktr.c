@@ -33,12 +33,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_alq.h"
 #include "opt_ddb.h"
 #include "opt_ktr.h"
-#include "opt_alq.h"
 
 #include <sys/param.h>
-#include <sys/queue.h>
+#include <sys/systm.h>
 #include <sys/alq.h>
 #include <sys/cons.h>
 #include <sys/cpuset.h>
@@ -50,77 +50,76 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/time.h>
 
 #include <machine/cpu.h>
 
 #ifdef DDB
-#include <ddb/ddb.h>
 #include <ddb/db_output.h>
+#include <ddb/ddb.h>
 #endif
 
 #ifndef KTR_BOOT_ENTRIES
-#define	KTR_BOOT_ENTRIES	1024
+#define KTR_BOOT_ENTRIES 1024
 #endif
 
 #ifndef KTR_ENTRIES
-#define	KTR_ENTRIES	1024
+#define KTR_ENTRIES 1024
 #endif
 
 /* Limit the allocations to something manageable. */
-#define	KTR_ENTRIES_MAX	(8 * 1024 * 1024)
+#define KTR_ENTRIES_MAX (8 * 1024 * 1024)
 
 #ifndef KTR_MASK
-#define	KTR_MASK	(0)
+#define KTR_MASK (0)
 #endif
 
 #ifndef KTR_CPUMASK
-#define	KTR_CPUMASK	CPUSET_FSET
+#define KTR_CPUMASK CPUSET_FSET
 #endif
 
 #ifndef KTR_TIME
-#define	KTR_TIME	get_cyclecount()
+#define KTR_TIME get_cyclecount()
 #endif
 
 #ifndef KTR_CPU
-#define	KTR_CPU		PCPU_GET(cpuid)
+#define KTR_CPU PCPU_GET(cpuid)
 #endif
 
 static MALLOC_DEFINE(M_KTR, "KTR", "KTR");
 
 FEATURE(ktr, "Kernel support for KTR kernel tracing facility");
 
-volatile int	ktr_idx = 0;
+volatile int ktr_idx = 0;
 uint64_t ktr_mask = KTR_MASK;
 uint64_t ktr_compile = KTR_COMPILE;
-int	ktr_entries = KTR_BOOT_ENTRIES;
-int	ktr_version = KTR_VERSION;
-struct	ktr_entry ktr_buf_init[KTR_BOOT_ENTRIES];
-struct	ktr_entry *ktr_buf = ktr_buf_init;
+int ktr_entries = KTR_BOOT_ENTRIES;
+int ktr_version = KTR_VERSION;
+struct ktr_entry ktr_buf_init[KTR_BOOT_ENTRIES];
+struct ktr_entry *ktr_buf = ktr_buf_init;
 cpuset_t ktr_cpumask = CPUSET_T_INITIALIZER(KTR_CPUMASK);
 
-static SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "KTR options");
+static SYSCTL_NODE(
+    _debug, OID_AUTO, ktr, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "KTR options");
 
-SYSCTL_INT(_debug_ktr, OID_AUTO, version, CTLFLAG_RD,
-    &ktr_version, 0, "Version of the KTR interface");
+SYSCTL_INT(_debug_ktr, OID_AUTO, version, CTLFLAG_RD, &ktr_version, 0,
+    "Version of the KTR interface");
 
-SYSCTL_UQUAD(_debug_ktr, OID_AUTO, compile, CTLFLAG_RD,
-    &ktr_compile, 0, "Bitmask of KTR event classes compiled into the kernel");
+SYSCTL_UQUAD(_debug_ktr, OID_AUTO, compile, CTLFLAG_RD, &ktr_compile, 0,
+    "Bitmask of KTR event classes compiled into the kernel");
 
-static int
-sysctl_debug_ktr_cpumask(SYSCTL_HANDLER_ARGS)
+static int sysctl_debug_ktr_cpumask(SYSCTL_HANDLER_ARGS)
 {
 	char lktr_cpumask_str[CPUSETBUFSIZ];
 	cpuset_t imask;
 	int error;
 
 	cpusetobj_strprint(lktr_cpumask_str, &ktr_cpumask);
-	error = sysctl_handle_string(oidp, lktr_cpumask_str,
-	    sizeof(lktr_cpumask_str), req);
+	error = sysctl_handle_string(
+	    oidp, lktr_cpumask_str, sizeof(lktr_cpumask_str), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	if (cpusetobj_strscan(&imask, lktr_cpumask_str) == -1)
@@ -134,8 +133,7 @@ SYSCTL_PROC(_debug_ktr, OID_AUTO, cpumask,
     sysctl_debug_ktr_cpumask, "S",
     "Bitmask of CPUs on which KTR logging is enabled");
 
-static int
-sysctl_debug_ktr_clear(SYSCTL_HANDLER_ARGS)
+static int sysctl_debug_ktr_clear(SYSCTL_HANDLER_ARGS)
 {
 	int clear, error;
 
@@ -152,16 +150,14 @@ sysctl_debug_ktr_clear(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_debug_ktr, OID_AUTO, clear,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0,
-    sysctl_debug_ktr_clear, "I",
-    "Clear KTR Buffer");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0, sysctl_debug_ktr_clear,
+    "I", "Clear KTR Buffer");
 
 /*
  * This is a sysctl proc so that it is serialized as !MPSAFE along with
  * the other ktr sysctl procs.
  */
-static int
-sysctl_debug_ktr_mask(SYSCTL_HANDLER_ARGS)
+static int sysctl_debug_ktr_mask(SYSCTL_HANDLER_ARGS)
 {
 	uint64_t mask;
 	int error;
@@ -175,8 +171,8 @@ sysctl_debug_ktr_mask(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_debug_ktr, OID_AUTO, mask,
-    CTLTYPE_U64 | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
-    0, 0, sysctl_debug_ktr_mask, "QU",
+    CTLTYPE_U64 | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, 0,
+    sysctl_debug_ktr_mask, "QU",
     "Bitmask of KTR event classes for which logging is enabled");
 
 #if KTR_ENTRIES > KTR_BOOT_ENTRIES
@@ -192,8 +188,8 @@ ktr_entries_initializer(void *dummy __unused)
 	/* Temporarily disable ktr in case malloc() is being traced. */
 	mask = ktr_mask;
 	ktr_mask = 0;
-	ktr_buf = malloc(sizeof(*ktr_buf) * KTR_ENTRIES, M_KTR,
-	    M_WAITOK | M_ZERO);
+	ktr_buf = malloc(
+	    sizeof(*ktr_buf) * KTR_ENTRIES, M_KTR, M_WAITOK | M_ZERO);
 	memcpy(ktr_buf, ktr_buf_init + ktr_idx,
 	    (KTR_BOOT_ENTRIES - ktr_idx) * sizeof(*ktr_buf));
 	if (ktr_idx != 0) {
@@ -208,8 +204,7 @@ SYSINIT(ktr_entries_initializer, SI_SUB_KMEM, SI_ORDER_ANY,
     ktr_entries_initializer, NULL);
 #endif
 
-static int
-sysctl_debug_ktr_entries(SYSCTL_HANDLER_ARGS)
+static int sysctl_debug_ktr_entries(SYSCTL_HANDLER_ARGS)
 {
 	uint64_t mask;
 	int entries, error;
@@ -247,24 +242,23 @@ sysctl_debug_ktr_entries(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_debug_ktr, OID_AUTO, entries,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
-    0, 0, sysctl_debug_ktr_entries, "I",
-    "Number of entries in the KTR buffer");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0,
+    sysctl_debug_ktr_entries, "I", "Number of entries in the KTR buffer");
 
 #ifdef KTR_VERBOSE
-int	ktr_verbose = KTR_VERBOSE;
+int ktr_verbose = KTR_VERBOSE;
 TUNABLE_INT("debug.ktr.verbose", &ktr_verbose);
 SYSCTL_INT(_debug_ktr, OID_AUTO, verbose, CTLFLAG_RW, &ktr_verbose, 0, "");
 #endif
 
 #ifdef KTR_ALQ
 struct alq *ktr_alq;
-char	ktr_alq_file[MAXPATHLEN] = "/tmp/ktr.out";
-int	ktr_alq_cnt = 0;
-int	ktr_alq_depth = KTR_ENTRIES;
-int	ktr_alq_enabled = 0;
-int	ktr_alq_failed = 0;
-int	ktr_alq_max = 0;
+char ktr_alq_file[MAXPATHLEN] = "/tmp/ktr.out";
+int ktr_alq_cnt = 0;
+int ktr_alq_depth = KTR_ENTRIES;
+int ktr_alq_enabled = 0;
+int ktr_alq_failed = 0;
+int ktr_alq_max = 0;
 
 SYSCTL_INT(_debug_ktr, OID_AUTO, alq_max, CTLFLAG_RW, &ktr_alq_max, 0,
     "Maximum number of entries to write");
@@ -277,8 +271,7 @@ SYSCTL_INT(_debug_ktr, OID_AUTO, alq_depth, CTLFLAG_RW, &ktr_alq_depth, 0,
 SYSCTL_STRING(_debug_ktr, OID_AUTO, alq_file, CTLFLAG_RW, ktr_alq_file,
     sizeof(ktr_alq_file), "KTR logging file");
 
-static int
-sysctl_debug_ktr_alq_enable(SYSCTL_HANDLER_ARGS)
+static int sysctl_debug_ktr_alq_enable(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	int enable;
@@ -312,8 +305,7 @@ sysctl_debug_ktr_alq_enable(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_debug_ktr, OID_AUTO, alq_enable,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0,
-    sysctl_debug_ktr_alq_enable, "I",
-    "Enable KTR logging");
+    sysctl_debug_ktr_alq_enable, "I", "Enable KTR logging");
 #endif
 
 void
@@ -346,8 +338,7 @@ ktr_tracepoint(uint64_t mask, const char *file, int line, const char *format,
 #endif
 #ifdef KTR_ALQ
 	if (ktr_alq_enabled) {
-		if (td->td_critnest == 0 &&
-		    (TD_IS_IDLETHREAD(td)) == 0 &&
+		if (td->td_critnest == 0 && (TD_IS_IDLETHREAD(td)) == 0 &&
 		    td != ald_thread) {
 			if (ktr_alq_max && ktr_alq_cnt > ktr_alq_max)
 				goto done;
@@ -366,7 +357,8 @@ ktr_tracepoint(uint64_t mask, const char *file, int line, const char *format,
 		do {
 			saveindex = ktr_idx;
 			newindex = (saveindex + 1) % ktr_entries;
-		} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
+		} while (
+		    atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
 		entry = &ktr_buf[saveindex];
 	}
 	entry->ktr_timestamp = KTR_TIME;
@@ -383,8 +375,7 @@ ktr_tracepoint(uint64_t mask, const char *file, int line, const char *format,
 		printf("cpu%d ", cpu);
 #endif
 		if (ktr_verbose > 1) {
-			printf("%s.%d\t", entry->ktr_file,
-			    entry->ktr_line);
+			printf("%s.%d\t", entry->ktr_file, entry->ktr_line);
 		}
 		printf(format, arg1, arg2, arg3, arg4, arg5, arg6);
 		printf("\n");
@@ -410,12 +401,12 @@ done:
 #ifdef DDB
 
 struct tstate {
-	int	cur;
-	int	first;
+	int cur;
+	int first;
 };
-static	struct tstate tstate;
-static	int db_ktr_verbose;
-static	int db_mach_vtrace(void);
+static struct tstate tstate;
+static int db_ktr_verbose;
+static int db_mach_vtrace(void);
 
 DB_SHOW_COMMAND(ktr, db_ktr_all)
 {
@@ -424,7 +415,9 @@ DB_SHOW_COMMAND(ktr, db_ktr_all)
 	tstate.first = -1;
 	db_ktr_verbose = 0;
 	db_ktr_verbose |= (strchr(modif, 'v') != NULL) ? 2 : 0;
-	db_ktr_verbose |= (strchr(modif, 'V') != NULL) ? 1 : 0; /* just timestamp please */
+	db_ktr_verbose |= (strchr(modif, 'V') != NULL) ?
+		  1 :
+		  0; /* just timestamp please */
 	if (strchr(modif, 'a') != NULL) {
 		db_disable_pager();
 		while (cncheckc() == -1)
@@ -440,7 +433,7 @@ DB_SHOW_COMMAND(ktr, db_ktr_all)
 static int
 db_mach_vtrace(void)
 {
-	struct ktr_entry	*kp;
+	struct ktr_entry *kp;
 
 	if (tstate.cur == tstate.first || ktr_buf == NULL) {
 		db_printf("--- End of trace buffer ---\n");
@@ -479,4 +472,4 @@ db_mach_vtrace(void)
 	return (1);
 }
 
-#endif	/* DDB */
+#endif /* DDB */

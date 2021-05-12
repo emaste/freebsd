@@ -6,27 +6,27 @@
  * Copyright (c) 2009, Sun Microsystems, Inc.
  * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
+ * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
- * - Redistributions of source code must retain the above copyright notice, 
+ * - Redistributions of source code must retain the above copyright notice,
  *   this list of conditions and the following disclaimer.
- * - Redistributions in binary form must reproduce the above copyright notice, 
- *   this list of conditions and the following disclaimer in the documentation 
+ * - Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
  *   and/or other materials provided with the distribution.
- * - Neither the name of Sun Microsystems, Inc. nor the names of its 
- *   contributors may be used to endorse or promote products derived 
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its
+ *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
@@ -48,31 +48,30 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#include <sys/lock.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
-#include <sys/socketvar.h>
-#include <sys/systm.h>
 #include <sys/smp.h>
+#include <sys/socketvar.h>
 #include <sys/sx.h>
 #include <sys/ucred.h>
 
-#include <rpc/rpc.h>
-#include <rpc/rpcb_clnt.h>
 #include <rpc/replay.h>
-
+#include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
+#include <rpc/rpcb_clnt.h>
 
-#define SVC_VERSQUIET 0x0001		/* keep quiet about vers mismatch */
+#define SVC_VERSQUIET 0x0001 /* keep quiet about vers mismatch */
 #define version_keepquiet(xp) (SVC_EXT(xp)->xp_flags & SVC_VERSQUIET)
 
-static struct svc_callout *svc_find(SVCPOOL *pool, rpcprog_t, rpcvers_t,
-    char *);
+static struct svc_callout *svc_find(
+    SVCPOOL *pool, rpcprog_t, rpcvers_t, char *);
 static void svc_new_thread(SVCGROUP *grp);
 static void xprt_unregister_locked(SVCXPRT *xprt);
 static void svc_change_space_used(SVCPOOL *pool, long delta);
@@ -85,15 +84,15 @@ static int svcpool_minthread_sysctl(SYSCTL_HANDLER_ARGS);
 static int svcpool_maxthread_sysctl(SYSCTL_HANDLER_ARGS);
 static int svcpool_threads_sysctl(SYSCTL_HANDLER_ARGS);
 
-SVCPOOL*
+SVCPOOL *
 svcpool_create(const char *name, struct sysctl_oid_list *sysctl_base)
 {
 	SVCPOOL *pool;
 	SVCGROUP *grp;
 	int g;
 
-	pool = malloc(sizeof(SVCPOOL), M_RPC, M_WAITOK|M_ZERO);
-	
+	pool = malloc(sizeof(SVCPOOL), M_RPC, M_WAITOK | M_ZERO);
+
 	mtx_init(&pool->sp_lock, "sp_lock", NULL, MTX_DEF);
 	pool->sp_name = name;
 	pool->sp_state = SVCPOOL_INIT;
@@ -136,16 +135,15 @@ svcpool_create(const char *name, struct sysctl_oid_list *sysctl_base)
 		    pool, 0, svcpool_maxthread_sysctl, "I",
 		    "Maximal number of threads");
 		SYSCTL_ADD_PROC(&pool->sp_sysctl, sysctl_base, OID_AUTO,
-		    "threads", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-		    pool, 0, svcpool_threads_sysctl, "I",
+		    "threads", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, pool,
+		    0, svcpool_threads_sysctl, "I",
 		    "Current number of threads");
 		SYSCTL_ADD_INT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
 		    "groups", CTLFLAG_RD, &pool->sp_groupcount, 0,
 		    "Number of thread groups");
 
 		SYSCTL_ADD_ULONG(&pool->sp_sysctl, sysctl_base, OID_AUTO,
-		    "request_space_used", CTLFLAG_RD,
-		    &pool->sp_space_used,
+		    "request_space_used", CTLFLAG_RD, &pool->sp_space_used,
 		    "Space in parsed but not handled requests.");
 
 		SYSCTL_ADD_ULONG(&pool->sp_sysctl, sysctl_base, OID_AUTO,
@@ -154,13 +152,11 @@ svcpool_create(const char *name, struct sysctl_oid_list *sysctl_base)
 		    "Highest space used since reboot.");
 
 		SYSCTL_ADD_ULONG(&pool->sp_sysctl, sysctl_base, OID_AUTO,
-		    "request_space_high", CTLFLAG_RW,
-		    &pool->sp_space_high,
+		    "request_space_high", CTLFLAG_RW, &pool->sp_space_high,
 		    "Maximum space in parsed but not handled requests.");
 
 		SYSCTL_ADD_ULONG(&pool->sp_sysctl, sysctl_base, OID_AUTO,
-		    "request_space_low", CTLFLAG_RW,
-		    &pool->sp_space_low,
+		    "request_space_low", CTLFLAG_RW, &pool->sp_space_low,
 		    "Low water mark for request space.");
 
 		SYSCTL_ADD_INT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
@@ -202,7 +198,7 @@ svcpool_cleanup(SVCPOOL *pool)
 		}
 		mtx_unlock(&grp->sg_lock);
 	}
-	TAILQ_FOREACH_SAFE(xprt, &cleanup, xp_link, nxprt) {
+	TAILQ_FOREACH_SAFE (xprt, &cleanup, xp_link, nxprt) {
 		if (xprt->xp_socket != NULL)
 			soshutdown(xprt->xp_socket, SHUT_WR);
 		SVC_RELEASE(xprt);
@@ -270,8 +266,7 @@ svcpool_close(SVCPOOL *pool)
 /*
  * Sysctl handler to get the present thread count on a pool
  */
-static int
-svcpool_threads_sysctl(SYSCTL_HANDLER_ARGS)
+static int svcpool_threads_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	SVCPOOL *pool;
 	int threads, error, g;
@@ -289,8 +284,7 @@ svcpool_threads_sysctl(SYSCTL_HANDLER_ARGS)
 /*
  * Sysctl handler to set the minimum thread count on a pool
  */
-static int
-svcpool_minthread_sysctl(SYSCTL_HANDLER_ARGS)
+static int svcpool_minthread_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	SVCPOOL *pool;
 	int newminthreads, error, g;
@@ -304,8 +298,8 @@ svcpool_minthread_sysctl(SYSCTL_HANDLER_ARGS)
 		mtx_lock(&pool->sp_lock);
 		pool->sp_minthreads = newminthreads;
 		for (g = 0; g < pool->sp_groupcount; g++) {
-			pool->sp_groups[g].sg_minthreads = max(1,
-			    pool->sp_minthreads / pool->sp_groupcount);
+			pool->sp_groups[g].sg_minthreads = max(
+			    1, pool->sp_minthreads / pool->sp_groupcount);
 		}
 		mtx_unlock(&pool->sp_lock);
 	}
@@ -315,8 +309,7 @@ svcpool_minthread_sysctl(SYSCTL_HANDLER_ARGS)
 /*
  * Sysctl handler to set the maximum thread count on a pool
  */
-static int
-svcpool_maxthread_sysctl(SYSCTL_HANDLER_ARGS)
+static int svcpool_maxthread_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	SVCPOOL *pool;
 	int newmaxthreads, error, g;
@@ -330,8 +323,8 @@ svcpool_maxthread_sysctl(SYSCTL_HANDLER_ARGS)
 		mtx_lock(&pool->sp_lock);
 		pool->sp_maxthreads = newmaxthreads;
 		for (g = 0; g < pool->sp_groupcount; g++) {
-			pool->sp_groups[g].sg_maxthreads = max(1,
-			    pool->sp_maxthreads / pool->sp_groupcount);
+			pool->sp_groups[g].sg_maxthreads = max(
+			    1, pool->sp_maxthreads / pool->sp_groupcount);
 		}
 		mtx_unlock(&pool->sp_lock);
 	}
@@ -422,9 +415,9 @@ xprt_assignthread(SVCXPRT *xprt)
 		 * from a socket upcall). Don't create more
 		 * than one thread per second.
 		 */
-		if (grp->sg_state == SVCPOOL_ACTIVE
-		    && grp->sg_lastcreatetime < time_uptime
-		    && grp->sg_threadcount < grp->sg_maxthreads) {
+		if (grp->sg_state == SVCPOOL_ACTIVE &&
+		    grp->sg_lastcreatetime < time_uptime &&
+		    grp->sg_threadcount < grp->sg_maxthreads) {
 			grp->sg_state = SVCPOOL_THREADWANTED;
 		}
 	}
@@ -451,8 +444,8 @@ xprt_active(SVCXPRT *xprt)
 		if (xprt->xp_thread == NULL) {
 			if (!svc_request_space_available(xprt->xp_pool) ||
 			    !xprt_assignthread(xprt))
-				TAILQ_INSERT_TAIL(&grp->sg_active, xprt,
-				    xp_alink);
+				TAILQ_INSERT_TAIL(
+				    &grp->sg_active, xprt, xp_alink);
 		}
 	}
 
@@ -510,7 +503,7 @@ svc_reg(SVCXPRT *xprt, const rpcprog_t prog, const rpcvers_t vers,
 	char *netid = NULL;
 	int flag = 0;
 
-/* VARIABLES PROTECTED BY svc_lock: s, svc_head */
+	/* VARIABLES PROTECTED BY svc_lock: s, svc_head */
 
 	if (xprt->xp_netid) {
 		netid = strdup(xprt->xp_netid, M_RPC);
@@ -532,7 +525,7 @@ svc_reg(SVCXPRT *xprt, const rpcprog_t prog, const rpcvers_t vers,
 		mtx_unlock(&pool->sp_lock);
 		return (FALSE);
 	}
-	s = malloc(sizeof (struct svc_callout), M_RPC, M_NOWAIT);
+	s = malloc(sizeof(struct svc_callout), M_RPC, M_NOWAIT);
 	if (s == NULL) {
 		if (netid)
 			free(netid, M_RPC);
@@ -547,7 +540,7 @@ svc_reg(SVCXPRT *xprt, const rpcprog_t prog, const rpcvers_t vers,
 	TAILQ_INSERT_TAIL(&pool->sp_callouts, s, sc_link);
 
 	if ((xprt->xp_netid == NULL) && (flag == 1) && netid)
-		((SVCXPRT *) xprt)->xp_netid = strdup(netid, M_RPC);
+		((SVCXPRT *)xprt)->xp_netid = strdup(netid, M_RPC);
 
 rpcb_it:
 	mtx_unlock(&pool->sp_lock);
@@ -574,13 +567,13 @@ svc_unreg(SVCPOOL *pool, const rpcprog_t prog, const rpcvers_t vers)
 	struct svc_callout *s;
 
 	/* unregister the information anyway */
-	(void) rpcb_unset(prog, vers, NULL);
+	(void)rpcb_unset(prog, vers, NULL);
 	mtx_lock(&pool->sp_lock);
 	while ((s = svc_find(pool, prog, vers, NULL)) != NULL) {
 		TAILQ_REMOVE(&pool->sp_callouts, s, sc_link);
 		if (s->sc_netid)
-			mem_free(s->sc_netid, sizeof (s->sc_netid) + 1);
-		mem_free(s, sizeof (struct svc_callout));
+			mem_free(s->sc_netid, sizeof(s->sc_netid) + 1);
+		mem_free(s, sizeof(struct svc_callout));
 	}
 	mtx_unlock(&pool->sp_lock);
 }
@@ -596,7 +589,7 @@ svc_loss_reg(SVCXPRT *xprt, void (*dispatch)(SVCXPRT *))
 	struct svc_loss_callout *s;
 
 	mtx_lock(&pool->sp_lock);
-	TAILQ_FOREACH(s, &pool->sp_lcallouts, slc_link) {
+	TAILQ_FOREACH (s, &pool->sp_lcallouts, slc_link) {
 		if (s->slc_dispatch == dispatch)
 			break;
 	}
@@ -624,7 +617,7 @@ svc_loss_unreg(SVCPOOL *pool, void (*dispatch)(SVCXPRT *))
 	struct svc_loss_callout *s;
 
 	mtx_lock(&pool->sp_lock);
-	TAILQ_FOREACH(s, &pool->sp_lcallouts, slc_link) {
+	TAILQ_FOREACH (s, &pool->sp_lcallouts, slc_link) {
 		if (s->slc_dispatch == dispatch) {
 			TAILQ_REMOVE(&pool->sp_lcallouts, s, slc_link);
 			free(s, M_RPC);
@@ -646,9 +639,9 @@ svc_find(SVCPOOL *pool, rpcprog_t prog, rpcvers_t vers, char *netid)
 	struct svc_callout *s;
 
 	mtx_assert(&pool->sp_lock, MA_OWNED);
-	TAILQ_FOREACH(s, &pool->sp_callouts, sc_link) {
-		if (s->sc_prog == prog && s->sc_vers == vers
-		    && (netid == NULL || s->sc_netid == NULL ||
+	TAILQ_FOREACH (s, &pool->sp_callouts, sc_link) {
+		if (s->sc_prog == prog && s->sc_vers == vers &&
+		    (netid == NULL || s->sc_netid == NULL ||
 			strcmp(netid, s->sc_netid) == 0))
 			break;
 	}
@@ -659,8 +652,8 @@ svc_find(SVCPOOL *pool, rpcprog_t prog, rpcvers_t vers, char *netid)
 /* ******************* REPLY GENERATION ROUTINES  ************ */
 
 static bool_t
-svc_sendreply_common(struct svc_req *rqstp, struct rpc_msg *rply,
-    struct mbuf *body)
+svc_sendreply_common(
+    struct svc_req *rqstp, struct rpc_msg *rply, struct mbuf *body)
 {
 	SVCXPRT *xprt = rqstp->rq_xprt;
 	bool_t ok;
@@ -671,8 +664,8 @@ svc_sendreply_common(struct svc_req *rqstp, struct rpc_msg *rply,
 	}
 
 	if (xprt->xp_pool->sp_rcache)
-		replay_setreply(xprt->xp_pool->sp_rcache,
-		    rply, svc_getrpccaller(rqstp), body);
+		replay_setreply(xprt->xp_pool->sp_rcache, rply,
+		    svc_getrpccaller(rqstp), body);
 
 	if (!SVCAUTH_WRAP(&rqstp->rq_auth, &body))
 		return (FALSE);
@@ -690,20 +683,20 @@ svc_sendreply_common(struct svc_req *rqstp, struct rpc_msg *rply,
  * Send a reply to an rpc request
  */
 bool_t
-svc_sendreply(struct svc_req *rqstp, xdrproc_t xdr_results, void * xdr_location)
+svc_sendreply(struct svc_req *rqstp, xdrproc_t xdr_results, void *xdr_location)
 {
-	struct rpc_msg rply; 
+	struct rpc_msg rply;
 	struct mbuf *m;
 	XDR xdrs;
 	bool_t ok;
 
 	rply.rm_xid = rqstp->rq_xid;
-	rply.rm_direction = REPLY;  
-	rply.rm_reply.rp_stat = MSG_ACCEPTED; 
-	rply.acpted_rply.ar_verf = rqstp->rq_verf; 
+	rply.rm_direction = REPLY;
+	rply.rm_reply.rp_stat = MSG_ACCEPTED;
+	rply.acpted_rply.ar_verf = rqstp->rq_verf;
 	rply.acpted_rply.ar_stat = SUCCESS;
 	rply.acpted_rply.ar_results.where = NULL;
-	rply.acpted_rply.ar_results.proc = (xdrproc_t) xdr_void;
+	rply.acpted_rply.ar_results.proc = (xdrproc_t)xdr_void;
 
 	m = m_getcl(M_WAITOK, MT_DATA, 0);
 	xdrmbuf_create(&xdrs, m, XDR_ENCODE);
@@ -721,15 +714,15 @@ svc_sendreply(struct svc_req *rqstp, xdrproc_t xdr_results, void * xdr_location)
 bool_t
 svc_sendreply_mbuf(struct svc_req *rqstp, struct mbuf *m)
 {
-	struct rpc_msg rply; 
+	struct rpc_msg rply;
 
 	rply.rm_xid = rqstp->rq_xid;
-	rply.rm_direction = REPLY;  
-	rply.rm_reply.rp_stat = MSG_ACCEPTED; 
-	rply.acpted_rply.ar_verf = rqstp->rq_verf; 
+	rply.rm_direction = REPLY;
+	rply.rm_reply.rp_stat = MSG_ACCEPTED;
+	rply.acpted_rply.ar_verf = rqstp->rq_verf;
 	rply.acpted_rply.ar_stat = SUCCESS;
 	rply.acpted_rply.ar_results.where = NULL;
-	rply.acpted_rply.ar_results.proc = (xdrproc_t) xdr_void;
+	rply.acpted_rply.ar_results.proc = (xdrproc_t)xdr_void;
 
 	return (svc_sendreply_common(rqstp, &rply, m));
 }
@@ -750,8 +743,8 @@ svcerr_noproc(struct svc_req *rqstp)
 	rply.acpted_rply.ar_stat = PROC_UNAVAIL;
 
 	if (xprt->xp_pool->sp_rcache)
-		replay_setreply(xprt->xp_pool->sp_rcache,
-		    &rply, svc_getrpccaller(rqstp), NULL);
+		replay_setreply(xprt->xp_pool->sp_rcache, &rply,
+		    svc_getrpccaller(rqstp), NULL);
 
 	svc_sendreply_common(rqstp, &rply, NULL);
 }
@@ -763,17 +756,17 @@ void
 svcerr_decode(struct svc_req *rqstp)
 {
 	SVCXPRT *xprt = rqstp->rq_xprt;
-	struct rpc_msg rply; 
+	struct rpc_msg rply;
 
 	rply.rm_xid = rqstp->rq_xid;
-	rply.rm_direction = REPLY; 
-	rply.rm_reply.rp_stat = MSG_ACCEPTED; 
+	rply.rm_direction = REPLY;
+	rply.rm_reply.rp_stat = MSG_ACCEPTED;
 	rply.acpted_rply.ar_verf = rqstp->rq_verf;
 	rply.acpted_rply.ar_stat = GARBAGE_ARGS;
 
 	if (xprt->xp_pool->sp_rcache)
-		replay_setreply(xprt->xp_pool->sp_rcache,
-		    &rply, (struct sockaddr *) &xprt->xp_rtaddr, NULL);
+		replay_setreply(xprt->xp_pool->sp_rcache, &rply,
+		    (struct sockaddr *)&xprt->xp_rtaddr, NULL);
 
 	svc_sendreply_common(rqstp, &rply, NULL);
 }
@@ -785,17 +778,17 @@ void
 svcerr_systemerr(struct svc_req *rqstp)
 {
 	SVCXPRT *xprt = rqstp->rq_xprt;
-	struct rpc_msg rply; 
+	struct rpc_msg rply;
 
 	rply.rm_xid = rqstp->rq_xid;
-	rply.rm_direction = REPLY; 
-	rply.rm_reply.rp_stat = MSG_ACCEPTED; 
+	rply.rm_direction = REPLY;
+	rply.rm_reply.rp_stat = MSG_ACCEPTED;
 	rply.acpted_rply.ar_verf = rqstp->rq_verf;
 	rply.acpted_rply.ar_stat = SYSTEM_ERR;
 
 	if (xprt->xp_pool->sp_rcache)
-		replay_setreply(xprt->xp_pool->sp_rcache,
-		    &rply, svc_getrpccaller(rqstp), NULL);
+		replay_setreply(xprt->xp_pool->sp_rcache, &rply,
+		    svc_getrpccaller(rqstp), NULL);
 
 	svc_sendreply_common(rqstp, &rply, NULL);
 }
@@ -816,8 +809,8 @@ svcerr_auth(struct svc_req *rqstp, enum auth_stat why)
 	rply.rjcted_rply.rj_why = why;
 
 	if (xprt->xp_pool->sp_rcache)
-		replay_setreply(xprt->xp_pool->sp_rcache,
-		    &rply, svc_getrpccaller(rqstp), NULL);
+		replay_setreply(xprt->xp_pool->sp_rcache, &rply,
+		    svc_getrpccaller(rqstp), NULL);
 
 	svc_sendreply_common(rqstp, &rply, NULL);
 }
@@ -835,21 +828,21 @@ svcerr_weakauth(struct svc_req *rqstp)
 /*
  * Program unavailable error reply
  */
-void 
+void
 svcerr_noprog(struct svc_req *rqstp)
 {
 	SVCXPRT *xprt = rqstp->rq_xprt;
-	struct rpc_msg rply;  
+	struct rpc_msg rply;
 
 	rply.rm_xid = rqstp->rq_xid;
-	rply.rm_direction = REPLY;   
-	rply.rm_reply.rp_stat = MSG_ACCEPTED;  
-	rply.acpted_rply.ar_verf = rqstp->rq_verf;  
+	rply.rm_direction = REPLY;
+	rply.rm_reply.rp_stat = MSG_ACCEPTED;
+	rply.acpted_rply.ar_verf = rqstp->rq_verf;
 	rply.acpted_rply.ar_stat = PROG_UNAVAIL;
 
 	if (xprt->xp_pool->sp_rcache)
-		replay_setreply(xprt->xp_pool->sp_rcache,
-		    &rply, svc_getrpccaller(rqstp), NULL);
+		replay_setreply(xprt->xp_pool->sp_rcache, &rply,
+		    svc_getrpccaller(rqstp), NULL);
 
 	svc_sendreply_common(rqstp, &rply, NULL);
 }
@@ -857,7 +850,7 @@ svcerr_noprog(struct svc_req *rqstp)
 /*
  * Program version mismatch error reply
  */
-void  
+void
 svcerr_progvers(struct svc_req *rqstp, rpcvers_t low_vers, rpcvers_t high_vers)
 {
 	SVCXPRT *xprt = rqstp->rq_xprt;
@@ -872,8 +865,8 @@ svcerr_progvers(struct svc_req *rqstp, rpcvers_t low_vers, rpcvers_t high_vers)
 	rply.acpted_rply.ar_vers.high = (uint32_t)high_vers;
 
 	if (xprt->xp_pool->sp_rcache)
-		replay_setreply(xprt->xp_pool->sp_rcache,
-		    &rply, svc_getrpccaller(rqstp), NULL);
+		replay_setreply(xprt->xp_pool->sp_rcache, &rply,
+		    svc_getrpccaller(rqstp), NULL);
 
 	svc_sendreply_common(rqstp, &rply, NULL);
 }
@@ -929,11 +922,11 @@ svc_getreq(SVCXPRT *xprt, struct svc_req **rqstp_ret)
 	enum xprt_stat stat;
 
 	/* now receive msgs from xprtprt (support batch calls) */
-	r = malloc(sizeof(*r), M_RPC, M_WAITOK|M_ZERO);
+	r = malloc(sizeof(*r), M_RPC, M_WAITOK | M_ZERO);
 
 	msg.rm_call.cb_cred.oa_base = r->rq_credarea;
 	msg.rm_call.cb_verf.oa_base = &r->rq_credarea[MAX_AUTH_BYTES];
-	r->rq_clntcred = &r->rq_credarea[2*MAX_AUTH_BYTES];
+	r->rq_clntcred = &r->rq_credarea[2 * MAX_AUTH_BYTES];
 	if (SVC_RECV(xprt, &msg, &r->rq_addr, &args)) {
 		enum auth_stat why;
 
@@ -953,8 +946,8 @@ svc_getreq(SVCXPRT *xprt, struct svc_req **rqstp_ret)
 			case RS_NEW:
 				break;
 			case RS_DONE:
-				SVC_REPLY(xprt, &repmsg, r->rq_addr,
-				    repbody, &r->rq_reply_seq);
+				SVC_REPLY(xprt, &repmsg, r->rq_addr, repbody,
+				    &r->rq_reply_seq);
 				if (r->rq_addr) {
 					free(r->rq_addr, M_SONAME);
 					r->rq_addr = NULL;
@@ -1004,7 +997,7 @@ call_done:
 		r = NULL;
 	}
 	if ((stat = SVC_STAT(xprt)) == XPRT_DIED) {
-		TAILQ_FOREACH(s, &pool->sp_lcallouts, slc_link)
+		TAILQ_FOREACH (s, &pool->sp_lcallouts, slc_link)
 			(*s->slc_dispatch)(xprt);
 		xprt_unregister(xprt);
 	}
@@ -1024,9 +1017,9 @@ svc_executereq(struct svc_req *rqstp)
 
 	/* now match message with a registered service*/
 	prog_found = FALSE;
-	low_vers = (rpcvers_t) -1L;
-	high_vers = (rpcvers_t) 0L;
-	TAILQ_FOREACH(s, &pool->sp_callouts, sc_link) {
+	low_vers = (rpcvers_t)-1L;
+	high_vers = (rpcvers_t)0L;
+	TAILQ_FOREACH (s, &pool->sp_callouts, sc_link) {
 		if (s->sc_prog == rqstp->rq_prog) {
 			if (s->sc_vers == rqstp->rq_vers) {
 				/*
@@ -1036,13 +1029,13 @@ svc_executereq(struct svc_req *rqstp)
 				 */
 				(*s->sc_dispatch)(rqstp, xprt);
 				return;
-			}  /* found correct version */
+			} /* found correct version */
 			prog_found = TRUE;
 			if (s->sc_vers < low_vers)
 				low_vers = s->sc_vers;
 			if (s->sc_vers > high_vers)
 				high_vers = s->sc_vers;
-		}   /* found correct program */
+		} /* found correct program */
 	}
 
 	/*
@@ -1065,7 +1058,7 @@ svc_checkidle(SVCGROUP *grp)
 	struct svcxprt_list cleanup;
 
 	TAILQ_INIT(&cleanup);
-	TAILQ_FOREACH_SAFE(xprt, &grp->sg_xlist, xp_link, nxprt) {
+	TAILQ_FOREACH_SAFE (xprt, &grp->sg_xlist, xp_link, nxprt) {
 		/*
 		 * Only some transports have idle timers. Don't time
 		 * something out which is just waking up.
@@ -1081,7 +1074,7 @@ svc_checkidle(SVCGROUP *grp)
 	}
 
 	mtx_unlock(&grp->sg_lock);
-	TAILQ_FOREACH_SAFE(xprt, &cleanup, xp_link, nxprt) {
+	TAILQ_FOREACH_SAFE (xprt, &cleanup, xp_link, nxprt) {
 		soshutdown(xprt->xp_socket, SHUT_WR);
 		SVC_RELEASE(xprt);
 	}
@@ -1192,8 +1185,8 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 			/*
 			 * Enforce maxthreads count.
 			 */
-			if (!ismaster && grp->sg_threadcount >
-			    grp->sg_maxthreads)
+			if (!ismaster &&
+			    grp->sg_threadcount > grp->sg_maxthreads)
 				break;
 
 			/*
@@ -1211,13 +1204,14 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 			}
 
 			LIST_INSERT_HEAD(&grp->sg_idlethreads, st, st_ilink);
-			if (ismaster || (!ismaster &&
-			    grp->sg_threadcount > grp->sg_minthreads))
-				error = cv_timedwait_sig(&st->st_cond,
-				    &grp->sg_lock, 5 * hz);
+			if (ismaster ||
+			    (!ismaster &&
+				grp->sg_threadcount > grp->sg_minthreads))
+				error = cv_timedwait_sig(
+				    &st->st_cond, &grp->sg_lock, 5 * hz);
 			else
-				error = cv_wait_sig(&st->st_cond,
-				    &grp->sg_lock);
+				error = cv_wait_sig(
+				    &st->st_cond, &grp->sg_lock);
 			if (st->st_xprt == NULL)
 				LIST_REMOVE(st, st_ilink);
 
@@ -1225,10 +1219,10 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 			 * Reduce worker thread count when idle.
 			 */
 			if (error == EWOULDBLOCK) {
-				if (!ismaster
-				    && (grp->sg_threadcount
-					> grp->sg_minthreads)
-					&& !st->st_xprt)
+				if (!ismaster &&
+				    (grp->sg_threadcount >
+					grp->sg_minthreads) &&
+				    !st->st_xprt)
 					break;
 			} else if (error != 0) {
 				KASSERT(error == EINTR || error == ERESTART,
@@ -1270,19 +1264,19 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 				if (pool->sp_assign) {
 					stpref = pool->sp_assign(st, rqstp);
 					rqstp->rq_thread = stpref;
-					STAILQ_INSERT_TAIL(&stpref->st_reqs,
-					    rqstp, rq_link);
+					STAILQ_INSERT_TAIL(
+					    &stpref->st_reqs, rqstp, rq_link);
 					mtx_unlock(&stpref->st_lock);
 					if (stpref != st)
 						rqstp = NULL;
 				} else {
 					rqstp->rq_thread = st;
-					STAILQ_INSERT_TAIL(&st->st_reqs,
-					    rqstp, rq_link);
+					STAILQ_INSERT_TAIL(
+					    &st->st_reqs, rqstp, rq_link);
 				}
 			}
-		} while (rqstp == NULL && stat == XPRT_MOREREQS
-		    && grp->sg_state != SVCPOOL_CLOSING);
+		} while (rqstp == NULL && stat == XPRT_MOREREQS &&
+		    grp->sg_state != SVCPOOL_CLOSING);
 
 		/*
 		 * Move this transport to the end of the active list to
@@ -1296,8 +1290,8 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 		if (xprt->xp_active) {
 			if (!svc_request_space_available(pool) ||
 			    !xprt_assignthread(xprt))
-				TAILQ_INSERT_TAIL(&grp->sg_active,
-				    xprt, xp_alink);
+				TAILQ_INSERT_TAIL(
+				    &grp->sg_active, xprt, xp_alink);
 		}
 		mtx_unlock(&grp->sg_lock);
 		SVC_RELEASE(xprt);
@@ -1338,7 +1332,7 @@ static void
 svc_thread_start(void *arg)
 {
 
-	svc_run_internal((SVCGROUP *) arg, FALSE);
+	svc_run_internal((SVCGROUP *)arg, FALSE);
 	kthread_exit();
 }
 
@@ -1365,20 +1359,19 @@ svc_run(SVCPOOL *pool)
 
 	p = curproc;
 	td = curthread;
-	snprintf(td->td_name, sizeof(td->td_name),
-	    "%s: master", pool->sp_name);
+	snprintf(td->td_name, sizeof(td->td_name), "%s: master", pool->sp_name);
 	pool->sp_state = SVCPOOL_ACTIVE;
 	pool->sp_proc = p;
 
 	/* Choose group count based on number of threads and CPUs. */
-	pool->sp_groupcount = max(1, min(SVC_MAXGROUPS,
-	    min(pool->sp_maxthreads / 2, mp_ncpus) / 6));
+	pool->sp_groupcount = max(
+	    1, min(SVC_MAXGROUPS, min(pool->sp_maxthreads / 2, mp_ncpus) / 6));
 	for (g = 0; g < pool->sp_groupcount; g++) {
 		grp = &pool->sp_groups[g];
-		grp->sg_minthreads = max(1,
-		    pool->sp_minthreads / pool->sp_groupcount);
-		grp->sg_maxthreads = max(1,
-		    pool->sp_maxthreads / pool->sp_groupcount);
+		grp->sg_minthreads = max(
+		    1, pool->sp_minthreads / pool->sp_groupcount);
+		grp->sg_maxthreads = max(
+		    1, pool->sp_maxthreads / pool->sp_groupcount);
 		grp->sg_lastcreatetime = time_uptime;
 	}
 
@@ -1414,7 +1407,7 @@ svc_exit(SVCPOOL *pool)
 		mtx_lock(&grp->sg_lock);
 		if (grp->sg_state != SVCPOOL_CLOSING) {
 			grp->sg_state = SVCPOOL_CLOSING;
-			LIST_FOREACH(st, &grp->sg_idlethreads, st_ilink)
+			LIST_FOREACH (st, &grp->sg_idlethreads, st_ilink)
 				cv_signal(&st->st_cond);
 		}
 		mtx_unlock(&grp->sg_lock);

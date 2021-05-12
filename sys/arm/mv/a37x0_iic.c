@@ -34,15 +34,16 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/bus.h>
-#include <machine/resource.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
 
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
@@ -54,27 +55,26 @@ __FBSDID("$FreeBSD$");
 #include "iicbus_if.h"
 
 struct a37x0_iic_softc {
-	boolean_t		sc_fast_mode;
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
-	device_t		sc_dev;
-	device_t		sc_iicbus;
-	struct mtx		sc_mtx;
-	struct resource		*sc_mem_res;
-	struct resource		*sc_irq_res;
-	void			*sc_intrhand;
+	boolean_t sc_fast_mode;
+	bus_space_tag_t sc_bst;
+	bus_space_handle_t sc_bsh;
+	device_t sc_dev;
+	device_t sc_iicbus;
+	struct mtx sc_mtx;
+	struct resource *sc_mem_res;
+	struct resource *sc_irq_res;
+	void *sc_intrhand;
 };
 
-#define	A37X0_IIC_WRITE(_sc, _off, _val)			\
-    bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, _off, _val)
-#define	A37X0_IIC_READ(_sc, _off)				\
-    bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, _off)
-#define	A37X0_IIC_LOCK(_sc)	mtx_lock(&(_sc)->sc_mtx)
-#define	A37X0_IIC_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
+#define A37X0_IIC_WRITE(_sc, _off, _val) \
+	bus_space_write_4((_sc)->sc_bst, (_sc)->sc_bsh, _off, _val)
+#define A37X0_IIC_READ(_sc, _off) \
+	bus_space_read_4((_sc)->sc_bst, (_sc)->sc_bsh, _off)
+#define A37X0_IIC_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
+#define A37X0_IIC_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
 
 static struct ofw_compat_data compat_data[] = {
-	{ "marvell,armada-3700-i2c",	1 },
-	{ NULL,				0 }
+	{ "marvell,armada-3700-i2c", 1 }, { NULL, 0 }
 };
 
 #undef A37x0_IIC_DEBUG
@@ -83,8 +83,8 @@ static void a37x0_iic_intr(void *);
 static int a37x0_iic_detach(device_t);
 
 static void
-a37x0_iic_rmw(struct a37x0_iic_softc *sc, uint32_t off, uint32_t mask,
-    uint32_t value)
+a37x0_iic_rmw(
+    struct a37x0_iic_softc *sc, uint32_t off, uint32_t mask, uint32_t value)
 {
 	uint32_t reg;
 
@@ -193,8 +193,8 @@ a37x0_iic_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+	sc->sc_mem_res = bus_alloc_resource_any(
+	    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
 		return (ENXIO);
@@ -204,8 +204,8 @@ a37x0_iic_attach(device_t dev)
 	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
 
 	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->sc_irq_res = bus_alloc_resource_any(
+	    dev, SYS_RES_IRQ, &rid, RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->sc_irq_res) {
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot allocate interrupt\n");
@@ -214,7 +214,7 @@ a37x0_iic_attach(device_t dev)
 
 	/* Hook up our interrupt handler. */
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, a37x0_iic_intr, sc, &sc->sc_intrhand)) {
+		NULL, a37x0_iic_intr, sc, &sc->sc_intrhand)) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot setup the interrupt handler\n");
@@ -452,22 +452,22 @@ a37x0_iic_get_node(device_t bus, device_t dev)
 
 static device_method_t a37x0_iic_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		a37x0_iic_probe),
-	DEVMETHOD(device_attach,	a37x0_iic_attach),
-	DEVMETHOD(device_detach,	a37x0_iic_detach),
+	DEVMETHOD(device_probe, a37x0_iic_probe),
+	DEVMETHOD(device_attach, a37x0_iic_attach),
+	DEVMETHOD(device_detach, a37x0_iic_detach),
 
 	/* iicbus interface */
-	DEVMETHOD(iicbus_reset,		a37x0_iic_bus_reset),
-	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
-	DEVMETHOD(iicbus_transfer,	iicbus_transfer_gen),
-	DEVMETHOD(iicbus_repeated_start,	a37x0_iic_start),
-	DEVMETHOD(iicbus_start,		a37x0_iic_start),
-	DEVMETHOD(iicbus_stop,		a37x0_iic_stop),
-	DEVMETHOD(iicbus_read,		a37x0_iic_read),
-	DEVMETHOD(iicbus_write,		a37x0_iic_write),
+	DEVMETHOD(iicbus_reset, a37x0_iic_bus_reset),
+	DEVMETHOD(iicbus_callback, iicbus_null_callback),
+	DEVMETHOD(iicbus_transfer, iicbus_transfer_gen),
+	DEVMETHOD(iicbus_repeated_start, a37x0_iic_start),
+	DEVMETHOD(iicbus_start, a37x0_iic_start),
+	DEVMETHOD(iicbus_stop, a37x0_iic_stop),
+	DEVMETHOD(iicbus_read, a37x0_iic_read),
+	DEVMETHOD(iicbus_write, a37x0_iic_write),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	a37x0_iic_get_node),
+	DEVMETHOD(ofw_bus_get_node, a37x0_iic_get_node),
 
 	DEVMETHOD_END
 };

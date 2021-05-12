@@ -27,7 +27,6 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
-
 #include <sys/cons.h>
 #include <sys/kerneldump.h>
 #include <sys/msgbuf.h>
@@ -35,11 +34,11 @@
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#include <vm/vm_phys.h>
-#include <vm/vm_dumpset.h>
 #include <vm/pmap.h>
+#include <vm/vm_dumpset.h>
+#include <vm/vm_page.h>
+#include <vm/vm_param.h>
+#include <vm/vm_phys.h>
 
 #include <machine/atomic.h>
 #include <machine/dump.h>
@@ -47,10 +46,10 @@
 #include <machine/minidump.h>
 
 /* Debugging stuff */
-#define	MINIDUMP_DEBUG	0
-#if	MINIDUMP_DEBUG
-#define dprintf(fmt, ...)	printf(fmt, ## __VA_ARGS__)
-#define DBG(...)	__VA_ARGS__
+#define MINIDUMP_DEBUG 0
+#if MINIDUMP_DEBUG
+#define dprintf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define DBG(...) __VA_ARGS__
 static size_t total, dumptotal;
 static void dump_total(const char *id, size_t sz);
 #else
@@ -73,18 +72,9 @@ static struct {
 	int min_per;
 	int max_per;
 	int visited;
-} progress_track[10] = {
-	{  0,  10, 0},
-	{ 10,  20, 0},
-	{ 20,  30, 0},
-	{ 30,  40, 0},
-	{ 40,  50, 0},
-	{ 50,  60, 0},
-	{ 60,  70, 0},
-	{ 70,  80, 0},
-	{ 80,  90, 0},
-	{ 90, 100, 0}
-};
+} progress_track[10] = { { 0, 10, 0 }, { 10, 20, 0 }, { 20, 30, 0 },
+	{ 30, 40, 0 }, { 40, 50, 0 }, { 50, 60, 0 }, { 60, 70, 0 },
+	{ 70, 80, 0 }, { 80, 90, 0 }, { 90, 100, 0 } };
 
 static size_t counter, dumpsize, progress;
 
@@ -152,7 +142,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 	int error, i, c;
 
 	maxdumpsz = MIN(di->maxiosize, MAXDUMPPGS * PAGE_SIZE);
-	if (maxdumpsz == 0)	/* seatbelt */
+	if (maxdumpsz == 0) /* seatbelt */
 		maxdumpsz = PAGE_SIZE;
 	error = 0;
 	if ((sz % PAGE_SIZE) != 0) {
@@ -184,7 +174,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		progress -= len;
 		if (counter >> 20) {
 			report_progress();
-			counter &= (1<<20) - 1;
+			counter &= (1 << 20) - 1;
 		}
 
 		if (ptr) {
@@ -269,12 +259,12 @@ retry:
 	}
 
 	/* Calculate dump size */
-	dumpsize = PAGE_SIZE;				/* header */
+	dumpsize = PAGE_SIZE; /* header */
 	dumpsize += round_page(msgbufp->msg_size);
 	dumpsize += round_page(sizeof(dump_avail));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
 	dumpsize += pmapsize;
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH (pa) {
 		/* Clear out undumpable pages now if needed */
 		if (is_dumpable(pa))
 			dumpsize += PAGE_SIZE;
@@ -300,8 +290,8 @@ retry:
 	mdhdr.endkernel = __endkernel;
 	mdhdr.dumpavailsize = round_page(sizeof(dump_avail));
 
-	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_POWERPC_VERSION,
-	    dumpsize);
+	dump_init_header(
+	    di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_POWERPC_VERSION, dumpsize);
 
 	error = dump_start(di, &kdh);
 	if (error)
@@ -319,8 +309,8 @@ retry:
 	dump_total("header", PAGE_SIZE);
 
 	/* Dump msgbuf up front */
-	error = blk_write(di, (char *)msgbufp->msg_ptr, 0,
-	    round_page(msgbufp->msg_size));
+	error = blk_write(
+	    di, (char *)msgbufp->msg_ptr, 0, round_page(msgbufp->msg_size));
 	dump_total("msgbuf", round_page(msgbufp->msg_size));
 
 	/* Dump dump_avail */
@@ -347,7 +337,7 @@ retry:
 	dump_total("pmap", pmapsize);
 
 	/* Dump memory chunks */
-	VM_PAGE_DUMP_FOREACH(pa) {
+	VM_PAGE_DUMP_FOREACH (pa) {
 		error = blk_write(di, 0, pa, PAGE_SIZE);
 		if (error)
 			goto fail;
@@ -386,12 +376,11 @@ fail:
 	return (error);
 }
 
-#if	MINIDUMP_DEBUG
+#if MINIDUMP_DEBUG
 static void
 dump_total(const char *id, size_t sz)
 {
 	total += sz;
-	dprintf("\n%s=%08lx/%08lx/%08lx\n",
-		id, sz, total, dumptotal);
+	dprintf("\n%s=%08lx/%08lx/%08lx\n", id, sz, total, dumptotal);
 }
 #endif
